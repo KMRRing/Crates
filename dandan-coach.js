@@ -18,7 +18,7 @@ const front = id => (HALVES[DECK[id]] ? HALVES[DECK[id]][0] : DECK[id]);
  * carry it), and the cards of a set (put on the bottom, discarded, attacking, blocking) in any order.
  */
 export const sameMove = (a, b) => !!a && !!b && JSON.stringify(norm(a), strip) === JSON.stringify(norm(b), strip);
-const strip = (k, v) => (k === "oid" || k === "hold" ? undefined : v);
+const strip = (k, v) => (k === "oid" || k === "hold" || k === "taps" ? undefined : v);
 function norm(m) {
   if (m.t === "bottom" || m.t === "discard") return { ...m, cards: [...(m.cards || [])].sort((x, y) => x - y) };
   if (m.t === "attack") return { ...m, ids: [...(m.ids || [])].sort((x, y) => x - y) };

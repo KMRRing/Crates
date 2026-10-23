@@ -163,6 +163,35 @@ export function payPlan(s, seat, cost, skip = []) {
 }
 export const canPay = (s, seat, cost, skip) => !!payPlan(s, seat, cost, skip);
 /**
+ * A payment from lands chosen by hand (the manual tap, 23 October 2026): { seat, taps, pool } for tapping exactly these
+ * lands, each for one of the ways it can tap, with the pool, or null if one isn't an untapped land of the seat's or they
+ * don't make the cost. Mana a chosen land makes beyond the cost floats like any other, to the end of the step: a player
+ * may tap a land to bounce it, or to keep another open. Of the ways to tap them the one that leaves the most behind.
+ */
+export function payFrom(s, seat, cost, ids) {
+  const taps = [...new Set(ids)], need = cost.g + cost.U + cost.R, pool = poolOf(s, seat);
+  const ps = taps.map(id => perm(s, id));
+  if (ps.some(p => !p || p.ctl !== seat || p.tapped || !isLand(p) || !manaAlts(p).length)) return null;
+  // every way of tapping them, kept by what it makes of blue, red and in all (the alternatives are few)
+  let states = new Map([["", { made: "" }]]);
+  for (const p of ps) {
+    const next = new Map();
+    for (const st of states.values()) for (const alt of manaAlts(p)) {
+      const made = st.made + alt.join(""), k = [...made].sort().join("");
+      if (!next.has(k)) next.set(k, { made });
+    }
+    states = next;
+  }
+  let best = null;
+  for (const { made } of states.values()) {
+    const all = pool + made;
+    if (countOf(all, "U") < cost.U || countOf(all, "R") < cost.R || all.length < need) continue;
+    const left = leftover(all, cost);
+    if (!best || left.length > best.pool.length) best = { seat, taps, pool: left };
+  }
+  return best;
+}
+/**
  * Whether a seat could pay a cost, without working out how: enough mana at most, enough lands that can make blue and
  * enough that can make red. For this deck's costs that is exact (no cost asks for both blue and red, and a land that
  * makes either makes one mana whichever), and much quicker than payPlan, which the game uses to pay.

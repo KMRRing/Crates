@@ -8,11 +8,11 @@
 // legal ones on the table.
 import { rules } from "./dandan-rules.js";
 import { LEVEL_NAMES } from "./dandan-bot.js";
-import { moves, afterFetch, bottomFor, MOST_MULLS } from "./dandan-engine.js";
+import { moves, afterFetch, bottomFor, payment, MOST_MULLS } from "./dandan-engine.js";
 import { think, BUDGET } from "./dandan-think.js";
 import { adviceLine, verdict, moveSaid, sameMove, whyNote, reasons, evidence } from "./dandan-coach.js";
 import { CARDS, DECK, HALVES, NAMES, BASICS, costWords, total, parseCost } from "./dandan-cards.js";
-import { nm, defOf, perm, pt, isLand, isCreature, manaAlts, topKnown, needType, poolOf, knownIn, knOf, typesOf } from "./dandan-core.js";
+import { nm, defOf, perm, pt, isLand, isCreature, manaAlts, payFrom, topKnown, needType, poolOf, knownIn, knOf, typesOf } from "./dandan-core.js";
 import { same } from "./dandan-spells.js";
 import { seatPage, fillNames } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -43,7 +43,7 @@ const PACES = [["quick", "Quick"], ["steady", "1.5 s"], ["slow", "3 s"], ["tap",
 const SHOWN_MS = { steady: 1500, slow: 3000 };
 // the table as tiles, or as a battlefield seen at an angle, its cards illustrated and moving (dandan-3d.js)
 const VIEWS = [["table", "Table"], ["3d", "3D"]];
-let opts = { level: "hard", hold: false, coach: "hints", think: "quick", pace: "quick", full: true, view: "table", ...read(OPTS, {}) };
+let opts = { level: "hard", hold: false, manual: false, coach: "hints", think: "quick", pace: "quick", full: true, view: "table", ...read(OPTS, {}) };
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "hard";
 if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
 if (!THINKING.some(([k]) => k === opts.think)) opts.think = "quick";
@@ -101,7 +101,7 @@ function words(text) {
 }
 
 // ---------- what's on screen, apart from the game: the pick being made ----------
-const blank = () => ({ look: null, arm: null, picks: [], atk: [], blk: [], blkSel: null, order: [], bend: null, dlgOff: false, yard: false });
+const blank = () => ({ look: null, arm: null, tap: null, picks: [], atk: [], blk: [], blkSel: null, order: [], bend: null, dlgOff: false, yard: false });
 let ui = blank(), uiKey = "";
 let hover = null;                                  // the card a mouse or pen is on, read below your side (a finger taps instead)
 const POINTER = matchMedia("(hover: hover)").matches;
@@ -459,7 +459,7 @@ function landChip(p, armed) {
   const mana = alts.map(a => a.join("")).join("/");
   const text = clue ? "Clue" : basic ? "U" : LAND_CODE[nm(p.id)] || mana;
   const cls = clue ? "dd-clue" : cols.length > 1 ? "duo" : cols.length ? `m${cols[0]}` : "m0";
-  return `<button type="button" class="dd-land ${cls}${p.tapped ? " tapped" : ""}${p.tc ? " bent" : ""}${armed.has(`c:${p.id}`) ? " tgt" : ""}${ui.look?.id === p.id ? " look" : ""}${RING.has(`t:c:${p.id}`) ? " advised" : ""}" data-perm="${p.id}" data-tk="c:${p.id}" aria-label="${esc(nm(p.id))}${p.tapped ? ", tapped" : ""}">${esc(text)}</button>`;
+  return `<button type="button" class="dd-land ${cls}${p.tapped ? " tapped" : ""}${p.tc ? " bent" : ""}${armed.has(`c:${p.id}`) ? " tgt" : ""}${ui.tap ? (ui.tap.ids.includes(p.id) ? " pay" : payable(p) ? " can" : "") : ""}${ui.look?.id === p.id ? " look" : ""}${RING.has(`t:c:${p.id}`) ? " advised" : ""}" data-perm="${p.id}" data-tk="c:${p.id}" aria-label="${esc(nm(p.id))}${p.tapped ? ", tapped" : ""}${ui.tap?.ids.includes(p.id) ? ", chosen to tap" : ""}">${esc(text)}</button>`;
 }
 
 // ---------- between the two sides: the library, the turn and who's to move, the graveyard ----------
@@ -500,6 +500,7 @@ function drawStrip() {
 function readHead(q = question()) {
   const s = S();
   return q ? q.say
+    : ui.tap ? `<p class="dd-q">${esc(ui.tap.label)}: tap the lands to pay with</p><p class="dd-sub">It costs ${pips(costText(ui.tap.cost))}: ${ui.tap.ids.length} chosen${tapDone() ? "" : ", not enough yet"}.</p>`
     : ui.arm ? `<p class="dd-q">${esc(ui.arm.label)}: choose ${ui.arm.moves[0].targets[0].k === "p" ? "a player" : ui.arm.moves[0].targets[0].k === "g" ? "a card in the graveyard" : "a target"}</p><p class="dd-sub">The lit ones are legal.</p>`
     : s.over ? `<p class="dd-q">${esc(words(s.log[s.log.length - 1]?.t || ""))}</p>` : "";
 }
@@ -707,6 +708,9 @@ function drawControls(q) {
   let list = [];
   if (s.over) list = [{ label: "The result", kind: "primary", fn: () => showEnd(V) }, ...(page.host ? [{ label: "New game", fn: newGame }] : [])];
   else if (q) list = q.buttons;
+  else if (ui.tap) list = [
+    { label: "Cancel", fn: () => { ui.tap = null; draw(); } },
+    { label: "Pay", sub: tapDone() ? `${ui.tap.ids.length} tapped` : "choose more", kind: "primary", off: !tapDone(), fn: () => act({ ...ui.tap.move, taps: ui.tap.ids }) }];
   else if (ui.arm) list = [{ label: "Cancel", fn: () => { ui.arm = null; closeView(); draw(); } }];
   else if (canAct()) {
     list = lookActions();
@@ -762,10 +766,45 @@ function cast(cands, label) {
   draw();
 }
 
+/** A cost ({ g, U, R }) as the text pips draw. */
+const costText = c => (c.g ? `{${c.g}}` : "") + "{U}".repeat(c.U) + "{R}".repeat(c.R);
+/** Which lands are alike for tapping: the same card, bent the same way. */
+const landKind = p => nm(p.id) + (p.tc ? JSON.stringify(p.tc) : "");
+const payable = p => p.ctl === V.seat && !p.tapped && isLand(p) && manaAlts(p).length > 0;
+/**
+ * The manual tap (23 October 2026, Korbi: "when I have multiple different lands, there should be a 'manual tap' mode
+ * where I select what lands will be tapped": an Izzet Boilerworks should be bouncing a tapped land): with the menu's
+ * switch on, a move that costs mana, where the lands you could tap differ and some would stay out of it, waits for you to
+ * choose them. It starts from the lands the game would tap, so one tap of Pay does as before.
+ */
+function tapStart(m) {
+  if (!opts.manual || V.seat == null || !["cast", "cycle", "ability"].includes(m.t)) return null;
+  const s = S(), pay = payment(s, V.seat, m);
+  if (!pay || !pay.plan.taps.length) return null;
+  const free = s.bf.filter(payable);
+  if (new Set(free.map(landKind)).size < 2 || free.length <= pay.plan.taps.length) return null;
+  const label = m.t === "cast" ? `Cast ${nm(m.card)}` : m.t === "cycle" ? `Cycle ${nm(m.card)}` : "Crack a Clue";
+  return { move: m, cost: pay.cost, ids: [...pay.plan.taps], label };
+}
+/** A land tapped in or out of the choice (anything else is read as usual). */
+function tapPick(id) {
+  const p = perm(S(), id);
+  if (!p || !payable(p)) { look(id); return; }
+  const t = ui.tap;
+  t.ids = t.ids.includes(id) ? t.ids.filter(x => x !== id) : [...t.ids, id];
+  draw();
+}
+const tapDone = () => ui.tap && !!payFrom(S(), V.seat, ui.tap.cost, ui.tap.ids);
 async function act(m) {
+  if (!m.taps && !ui.tap) {
+    const t = tapStart(m);
+    if (t) { ui.tap = t; ui.look = null; closeView(); draw(); return; }
+  }
   const v = V, before = speaks() && myDecision() ? structuredClone(v.state) : null, seat = v?.seat, key = v?.G ? decisionOf(v) : "";
   const known = advice?.key === key ? advice : hinted?.key === key ? { r: hinted.r } : null, game = v?.G?.seq;
-  const why = await page.move(m.t === "cast" && opts.hold ? { ...m, hold: true } : m);
+  // holding priority keeps it after a spell or ability goes on the stack, to answer it yourself (fetch a land to shuffle, cycle another card to draw first); a cycled card always does (Korbi, 23 October 2026), and the game moves on where there is nothing you could do
+  const hold = m.t === "cycle" || (opts.hold && (m.t === "cast" || m.t === "ability"));
+  const why = await page.move(hold ? { ...m, hold: true } : m);
   if (why) { toast(why); return; }
   closeView();
   if (before) {
@@ -812,7 +851,7 @@ $("hand").addEventListener("click", e => {
 /** A card read: in the middle of the table when that's free, else (a question or a target being chosen holds it) in a sheet over it. */
 function look(id) {
   if (id == null) return;
-  if (question() || ui.arm) { openCard(id); return; }
+  if (question() || ui.arm || ui.tap) { openCard(id); return; }
   ui.look = ui.look?.id === id ? null : { id, at: placeOf(S(), id) };
   draw();
 }
@@ -831,6 +870,7 @@ function cardTap(id) {
 function permTap(id) {
   const q = question(), p = perm(S(), id);
   if (!p) return;
+  if (ui.tap) { tapPick(id); return; }
   if (q?.pick === "attack") {
     if (!S().pending.ids.includes(id)) { look(id); return; }
     ui.atk = ui.atk.includes(id) ? ui.atk.filter(x => x !== id) : [...ui.atk, id];
@@ -1205,7 +1245,9 @@ function openMenu() {
   set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; saveOpts(); word = null; hinted = null; showThinking(); draw(); }));
   set.append(toggle("Full screen", opts.full, fullScreen));
   set.append(toggle("Hold priority when I cast", opts.hold, on => { opts.hold = on; saveOpts(); }));
-  set.append(line("Holding priority lets you cast again before the other player can answer the first spell."));
+  set.append(line("Holding priority lets you cast again before the other player can answer the first spell. A card you cycle always holds it, so you can answer your own cycling."));
+  set.append(toggle("Choose which lands to tap", opts.manual, on => { opts.manual = on; saveOpts(); }));
+  set.append(line("With different lands to pay with, you tap them yourself: so an Izzet Boilerworks can return a tapped one."));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("dandan:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best > 1 ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -1247,7 +1289,7 @@ $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("copyClose").addEventListener("click", () => $("copyDlg").close());
 table3d = createTable3d({
   view: () => V, ui: () => ui, moves: () => MV, rings: () => RING, hover: () => hover, POINTER, LAND_CODE, quiet: IN_FRAME,
-  esc, pips, nameOf, isMe, short, soft: n => SOFT[n] || n, words, typeLine, stateWords, itemWords, armedKeys, targetKey,
+  esc, pips, nameOf, isMe, short, soft: n => SOFT[n] || n, words, typeLine, stateWords, itemWords, armedKeys, targetKey, payable,
   headline, waitLine, readHead, canAct, handOrder, fetchable: () => FETCH,
 });
 showView();

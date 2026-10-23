@@ -4,7 +4,8 @@
 // sacrificed with none, dies to +2/−1; Mind Bend changing what it looks for), the ends of a game (life, an empty
 // library), the state through the database, the computer player's choices, and whole games of computer players.
 import { DECK, CARDS, HALVES, NAMES, TOKEN_AT, parseCost, total } from "../dandan-cards.js";
-import { deal, act, settle, restore, moves, toMove, nextDrawer, costOf, halfOf, unplayable, afterFetch, MOST_MULLS } from "../dandan-engine.js";
+import { deal, act, settle, restore, moves, toMove, nextDrawer, costOf, halfOf, unplayable, afterFetch, payment, MOST_MULLS } from "../dandan-engine.js";
+import { sameMove } from "../dandan-coach.js";
 import { RES, T } from "../dandan-spells.js";
 import { nm, perm, islands, typesOf, topKnown, payPlan, canPay, canAttack, knownIn } from "../dandan-core.js";
 import { rules } from "../dandan-rules.js";
@@ -970,6 +971,68 @@ test("a seeded game is played the same way twice", () => {
   const t0 = Date.now(), h = versus("hard", "medium", 12, 8000);
   check(h >= 8, `Hard beats Medium in ${h} of 12 (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
 }
+
+// ---------- cycling answered, and lands tapped by hand (23 October 2026, Korbi) ----------
+test("a card cycled with priority held leaves the cycler the move: fetch a land to shuffle before the draw; without, it resolves unanswered", () => {
+  const base = { hand: [["Lonely Sandbar", "Remote Isle"], []], bf: [[0, "Island"], [0, "Island"], [0, "Flood Plain"]] };
+  let s = scene(base);
+  const held = go(s, 0, { t: "cycle", card: idIn(s, 0, "Lonely Sandbar"), hold: true });
+  const plain = go(s, 0, { t: "cycle", card: idIn(s, 0, "Lonely Sandbar") });
+  if (toMove(held) !== 0 || held.stack.length !== 1) return `held: ${toMove(held)}, ${held.stack.length} on the stack`;
+  if (plain.stack.length !== 0) return "unheld, the cycling should have resolved (nobody else could answer it)";
+  // in answer: the fetch goes first (the search is asked), then the cycling resolves
+  const fetched = go(held, 0, { t: "ability", id: onBf(held, 0, "Flood Plain") });
+  if (fetched.pending?.t !== "search" || fetched.stack.length !== 2) return `the fetch should be searching, above the cycling (${fetched.pending?.t}, ${fetched.stack.length})`;
+  const done = drive(answer(fetched, { t: "search", card: fetched.pending.ids[0] }), c => !c.stack.length, 10);
+  return !done.stack.length && !done.bf.some(p => nm(p.id) === "Flood Plain") && done.bf.filter(p => p.ctl === 0 && nm(p.id) === "Island").length === 3 || "the fetch and then the cycling should have resolved";
+});
+test("the other player's cycling is answered too: with a Flood Plain untapped, the seat is asked with the cycling on the stack, and with nothing to do it is not", () => {
+  const base = { hand: [[], ["Remote Isle"]], active: 1, step: "main1", prio: 1 };
+  const asked = go(scene({ ...base, bf: [[0, "Flood Plain"], ...islandsOf(1, 2)] }), 1, { t: "cycle", card: idIn(scene({ ...base, bf: [[0, "Flood Plain"], ...islandsOf(1, 2)] }), 1, "Remote Isle") });
+  const bare = scene({ ...base, bf: islandsOf(1, 2) });
+  const quiet = go(bare, 1, { t: "cycle", card: idIn(bare, 1, "Remote Isle") });
+  return toMove(asked) === 0 && asked.stack.length === 1 && quiet.stack.length === 0 || `${toMove(asked)} ${asked.stack.length} ${quiet.stack.length}`;
+});
+test("holding priority after cracking a Clue or fetching works as it does after a cast; with nothing to answer with, the game goes on by itself", () => {
+  const s = scene({ hand: [["Remote Isle"], []], bf: islandsOf(0, 2) });
+  const t = go(s, 0, { t: "cycle", card: idIn(s, 0, "Remote Isle"), hold: true });
+  const c = scene({ bf: [[0, "Clue"], [0, "Island"], [0, "Island"], [0, "Flood Plain"]], hand: [[], []] });
+  const k = go(c, 0, { t: "ability", id: onBf(c, 0, "Clue"), hold: true });
+  return t.stack.length === 0 && toMove(k) === 0 && k.stack.length === 1 || `${t.stack.length} ${toMove(k)} ${k.stack.length}`;
+});
+test("the manual tap: a move carrying `taps` taps exactly those lands, so an Izzet Boilerworks alone can pay {2} and the Islands stay up", () => {
+  const s = scene({ hand: [["Remote Isle"], []], bf: [[0, "Island"], [0, "Island"], [0, "Izzet Boilerworks"]], hold: 0 });
+  const boil = onBf(s, 0, "Izzet Boilerworks"), isles = s.bf.filter(p => p.ctl === 0 && nm(p.id) === "Island").map(p => p.id);
+  const auto = go(s, 0, { t: "cycle", card: idIn(s, 0, "Remote Isle") });
+  const by = go(s, 0, { t: "cycle", card: idIn(s, 0, "Remote Isle"), taps: isles.slice(0, 2) });
+  // by itself the game taps the dual (kept for last, but two mana from one land); by hand, the two Islands, and the dual stays untapped
+  return perm(auto, boil).tapped && !perm(by, boil).tapped && isles.slice(0, 2).every(id => perm(by, id).tapped) && by.pool[0] === "" || `auto ${perm(auto, boil).tapped}; manual ${perm(by, boil).tapped} ${JSON.stringify(by.pool)}`;
+});
+test("…lands that make too little, another's, tapped ones and unknown ones are refused, and more than the cost floats the rest", () => {
+  const s = scene({ hand: [["Remote Isle"], []], bf: [[0, "Island"], [0, "Island"], [0, "Izzet Boilerworks"], [1, "Island"], [0, "Island", { tapped: true }]], hold: 0 });
+  const isle = s.bf.find(p => p.ctl === 0 && nm(p.id) === "Island" && !p.tapped).id, boil = onBf(s, 0, "Izzet Boilerworks");
+  const theirs = s.bf.find(p => p.ctl === 1).id, spent = s.bf.find(p => p.tapped).id;
+  const cy = taps => refused(s, 0, { t: "cycle", card: idIn(s, 0, "Remote Isle"), taps });
+  const over = go(s, 0, { t: "cycle", card: idIn(s, 0, "Remote Isle"), taps: [isle, boil] });
+  return cy([isle]) === "Those lands don't pay for it" && cy([theirs, isle]) && cy([spent, isle]) && cy([9999]) && cy([isle, isle, boil]) === null
+    && over.pool[0].length === 1 && perm(over, isle).tapped && perm(over, boil).tapped || `${cy([isle])}|${cy([theirs, isle])}|${cy([spent, isle])}|${cy([9999])}|${JSON.stringify(over.pool)}`;
+});
+test("…for a spell and a Clue as well, and the page's start: what the game would pay, and what it costs", () => {
+  const t = scene({ hand: [["Brainstorm"], []], bf: [[0, "Izzet Boilerworks"], [0, "Island"], [0, "Island"]], hold: 0 });
+  const boil = onBf(t, 0, "Izzet Boilerworks");
+  const bs = { t: "cast", card: idIn(t, 0, "Brainstorm"), from: "hand", targets: [] };
+  const pay = payment(t, 0, bs);
+  const manual = go(t, 0, { ...bs, taps: [boil] });
+  const c = scene({ bf: [[0, "Clue"], [0, "Island"], [0, "Island"], [0, "Izzet Boilerworks"]], hand: [[], []], hold: 0 });
+  const clue = { t: "ability", id: onBf(c, 0, "Clue") }, cb = onBf(c, 0, "Izzet Boilerworks");
+  const cracked = go(c, 0, { ...clue, taps: [cb] });
+  return pay.cost.U === 1 && pay.cost.g === 0 && !!pay.plan.taps.length && manual.pool[0] === "R" && perm(manual, boil).tapped && perm(cracked, cb).tapped && payment(c, 0, { t: "pass" }) === null
+    || `${JSON.stringify(pay)}`;
+});
+test("a move's taps are no part of what move it is: the coach reads a manual tap as the move it advised", () => {
+  const m = { t: "cast", card: 7, from: "hand", targets: [] };
+  return sameMove(m, { ...m, taps: [3, 4] }) && sameMove(m, { ...m, hold: true, taps: [3] });
+});
 
 console.log(bad ? `dandan: ${bad} failed` : "dandan: every check passed");
 process.exit(bad ? 1 : 0);

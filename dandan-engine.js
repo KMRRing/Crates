@@ -11,7 +11,7 @@ import { CARDS, DECK, HALVES, NAMES, BASICS, parseCost } from "./dandan-cards.js
 import { shuffle } from "./seats.js";
 import {
   LIFE, HAND, other, list, withRng, say, nm, isLandId, perm, isLand, isCreature, pt, canAttack, unblockable, fetchTypes, typesOf, needType,
-  payPlan, pay, draw, shuffleLib, pushItem, itemOf, leaveStack, enterBf, leaveBf, toGrave, toLib, toYard, fromYard, fromLib, fromHand,
+  payPlan, payFrom, pay, draw, shuffleLib, pushItem, itemOf, leaveStack, enterBf, leaveBf, toGrave, toLib, toYard, fromYard, fromLib, fromHand,
   mill, lands, permToLib, bounce, emptyPools, handToLib, toHandOpen, topKnown, isSpellCard, affords, tellsOf, freshTells, hushed,
 } from "./dandan-core.js";
 import { RES, T, same, targetLists, stillLegal, modesOf } from "./dandan-spells.js";
@@ -382,7 +382,8 @@ export function checkCast(s, seat, m) {
   if (from === "hand" ? !s.hand[seat].includes(id) : !s.yard.includes(id)) return from === "hand" ? "That card isn't in your hand" : "That card isn't in the graveyard";
   const ok = castable(s, seat, id, from);
   if (typeof ok === "string") return ok;
-  const { half, d, cost, plan } = ok;
+  const { half, d, cost } = ok, plan = planFor(s, seat, m, cost, ok.plan);
+  if (typeof plan === "string") return plan;
   const mode = d.modes ? (m.mode ?? 0) : 0;
   if (d.modes && !(Number.isInteger(mode) && mode >= 0 && mode < d.modes.length)) return "Choose what it does";
   const lists = targetLists(s, seat, half, mode, [], from === "yard" ? id : null), targets = list(m.targets);
@@ -399,6 +400,13 @@ export function targetWords(s, t) {
   const p = perm(s, t.id);
   return p ? `${nm(t.id)}${isLand(p) || nm(t.id) === "Clue" ? "" : ` ({s${p.ctl}})`}` : nm(t.id);
 }
+/**
+ * Priority after a spell or ability goes on the stack: with the other seat to answer it, or (holding priority) kept by the
+ * one who put it there, who may answer it (fetch a land to shuffle, cycle another card to draw first) before passing.
+ */
+function holdOrPass(s, seat, hold) {
+  if (hold) { s.passes = 0; s.prio = seat; } else { s.passes = 1; s.prio = other(seat); }
+}
 function doCast(s, seat, r, hold) {
   if (r.from === "hand") fromHand(s, seat, r.id); else fromYard(s, r.id);
   pay(s, r.plan);
@@ -406,26 +414,43 @@ function doCast(s, seat, r, hold) {
   const it = pushItem(s, { kind: "spell", name: r.half, card: r.id, ctl: seat, targets: r.targets.map(t => ({ ...t })), mode: r.mode, ...(r.from === "yard" ? { eol: true, from: "yard" } : {}) });
   const tw = r.targets.map(t => targetWords(s, t)).join(", ");
   say(s, `{s${seat}} casts ${r.half}${r.d.modes ? ` (${["islandwalk", "+2/−1", "discard"][r.mode]})` : ""}${tw ? ` on ${tw}` : ""}${r.from === "yard" ? " from the graveyard" : ""}`);
-  if (hold) { s.passes = 0; s.prio = seat; } else { s.passes = 1; s.prio = other(seat); }
+  holdOrPass(s, seat, hold);
   return it;
 }
 
 // ---------- the other moves ----------
+/**
+ * The lands a move taps: the player's own choice when it carries one (`taps`, the manual tap: Korbi, 23 October 2026,
+ * so that the lands he taps are the ones he means to bounce with an Izzet Boilerworks, or keep open), else the automatic
+ * plan. The plan, or why not.
+ */
+function planFor(s, seat, m, cost, auto) {
+  const ids = list(m.taps);
+  if (!ids.length) return auto;
+  return payFrom(s, seat, cost, ids) || "Those lands don't pay for it";
+}
 /** Cycling and islandcycling: the cost to pay, from the hand. */
 function checkCycle(s, seat, m) {
   const id = m.card;
   if (!Number.isInteger(id) || !s.hand[seat].includes(id)) return "That card isn't in your hand";
   const d = CARDS[HALVES[DECK[id]] ? HALVES[DECK[id]][0] : DECK[id]];
   if (!d.cycling) return "That can't be cycled";
-  const plan = payPlan(s, seat, parseCost(d.cycling));
-  return plan ? { id, d, plan } : "Not enough mana";
+  const cost = parseCost(d.cycling), auto = payPlan(s, seat, cost);
+  if (!auto) return "Not enough mana";
+  const plan = planFor(s, seat, m, cost, auto);
+  return typeof plan === "string" ? plan : { id, d, plan };
 }
 /** A land on the battlefield's own ability: Flood Plain's fetch (tap, sacrifice), a Clue's draw ({2}, sacrifice). */
 function checkAbility(s, seat, m) {
   const p = perm(s, m.id);
   if (!p || p.ctl !== seat) return "That isn't yours";
   if (nm(p.id) === "Flood Plain") return p.tapped ? "It's tapped" : { p, ab: "fetch" };
-  if (nm(p.id) === "Clue") { const plan = payPlan(s, seat, parseCost(CARDS.Clue.clue)); return plan ? { p, ab: "clue", plan } : "Not enough mana"; }
+  if (nm(p.id) === "Clue") {
+    const cost = parseCost(CARDS.Clue.clue), auto = payPlan(s, seat, cost);
+    if (!auto) return "Not enough mana";
+    const plan = planFor(s, seat, m, cost, auto);
+    return typeof plan === "string" ? plan : { p, ab: "clue", plan };
+  }
   return "That has no ability";
 }
 function checkLand(s, seat, m) {
@@ -470,8 +495,7 @@ function priorityMove(s, seat, m) {
       toYard(s, r.id);
       pushItem(s, { kind: "ability", name: r.d.islandcycling ? "@isle" : "@cycle", ctl: seat, src: r.id });
       say(s, `{s${seat}} cycles ${nm(r.id)}`);
-      s.passes = 1;
-      s.prio = other(seat);
+      holdOrPass(s, seat, !!m.hold);
       break;
     }
     case "ability": {
@@ -486,8 +510,7 @@ function priorityMove(s, seat, m) {
         pushItem(s, { kind: "ability", name: "@clue", ctl: seat, src: r.p.id });
         say(s, `{s${seat}} cracks a Clue`);
       }
-      s.passes = 1;
-      s.prio = other(seat);
+      holdOrPass(s, seat, !!m.hold);
       break;
     }
   }
@@ -698,6 +721,15 @@ export function moves(s, seat, firstOnly = false, only = null) {
   return out;
 }
 export const hasMove = (s, seat, only = null) => moves(s, seat, true, only).length > 0;
+/** What a move would cost and how the game would pay it by itself ({ cost, plan }), or null for a move that costs no mana: for the page's manual tap to start from. */
+export function payment(s, seat, m) {
+  const r = check(s, seat, { ...m, taps: undefined });
+  if (typeof r === "string") return null;
+  if (m.t === "cast") return { cost: r.cost, plan: r.plan };
+  if (m.t === "cycle") return { cost: parseCost(r.d.cycling), plan: r.plan };
+  if (m.t === "ability" && r.ab === "clue") return { cost: parseCost(CARDS.Clue.clue), plan: r.plan };
+  return null;
+}
 /**
  * The cards in a seat's hand it could cast or cycle once its untapped Flood Plains had fetched Islands, and can't now:
  * name → the Flood Plain to fetch with. A fetch isn't mana (it goes on the stack and resolves first), so moves() rightly

@@ -128,6 +128,9 @@ html[data-theme="modern"] #app.dandan.dd-full .d3-bar.foe { padding-right: 4rem;
 /* what a card is doing now: one you could use, one chosen, a legal target, one attacking, the coach's */
 .d3-slot.can > .d3-face { box-shadow: 0 0 0 2px var(--brass), 0 .2rem .45rem rgba(0, 0, 0, .3); }
 .d3-slot.sel > .d3-face { box-shadow: 0 0 0 2.5px var(--dd-in), 0 0 .8rem var(--dd-in); }
+/* the manual tap: lands that could be tapped ringed in brass, the ones chosen lifted and lit */
+.d3-slot.land.can > .d3-face { box-shadow: 0 0 0 1.5px var(--brass); }
+.d3-slot.land.pay > .d3-face { translate: 0 -.4rem; box-shadow: 0 0 0 2.5px var(--dd-in), 0 0 .8rem var(--dd-in); }
 .d3-slot.att > .d3-face { box-shadow: 0 0 0 2px var(--dd-bad), 0 .5rem 1rem color-mix(in srgb, var(--dd-bad) 45%, transparent); }
 .d3-slot.look > .d3-face { box-shadow: 0 0 0 2px var(--dd-in), 0 .6rem 1rem rgba(0, 0, 0, .35); }
 .d3-slot.tgt > .d3-face, .d3-st.tgt, .d3-av.tgt { animation: d3-tgt 1s ease-in-out infinite alternate; }

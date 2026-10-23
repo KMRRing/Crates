@@ -75,6 +75,9 @@ html[data-theme="office"][data-mode="night"] { --dd-in: #479EF5; }
 .dd-land.tapped { opacity: .36; }
 .dd-land.bent { border-style: dashed; border-color: var(--dd-bad); }
 .dd-land.look { box-shadow: 0 0 0 1.5px var(--dd-in); }
+/* the manual tap: the lands that could be tapped are ringed in brass, the ones chosen lift and take the accent */
+.dd-land.can { box-shadow: 0 0 0 1.5px var(--brass); }
+.dd-land.pay { box-shadow: 0 0 0 2px var(--dd-in); transform: translateY(-.15rem); }
 
 /* ---------- between the two sides: the library, the turn and who's to move, the graveyard ---------- */
 .dd-strip { flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .45rem; }

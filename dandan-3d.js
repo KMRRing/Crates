@@ -66,7 +66,7 @@ const still = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-mo
 /**
  * The view, given what it reads of dandan.js: the view and state on screen (view(), S()), the picks being made (ui()),
  * the moves you could make now (moves()), the coach's rings (rings()), the card a pointer is on (hover()), and its
- * words and helpers (esc, pips, nameOf, isMe, short, soft, words, typeLine, stateWords, itemWords, armedKeys, targetKey,
+ * words and helpers (esc, pips, nameOf, isMe, short, soft, words, typeLine, stateWords, itemWords, armedKeys, targetKey, payable,
  * headline, waitLine, readHead, canAct, handOrder, POINTER, LAND_CODE, quiet: a watching frame, which shows no motion),
  * and fetchable(): the cards in your hand a Flood Plain's Island would pay for.
  */
@@ -214,8 +214,8 @@ export function createTable3d(c) {
     const s = S(), u = c.ui(), armed = c.armedKeys(), ring = c.rings();
     return piles(s.bf.filter(p => p.ctl === seat && !isCreature(p))).map(({ p, first, last: top, n }) => ({
       key: `c${p.id}`,
-      cls: `d3-slot land${p.tapped ? " tapped" : ""}${p.tc ? " bent" : ""}${first ? " first" : ""}${top ? "" : " under"}${armed.has(`c:${p.id}`) ? " tgt" : ""}${u.look?.id === p.id ? " look" : ""}${ring.has(`t:c:${p.id}`) ? " advised" : ""}`,
-      attrs: { "data-perm": p.id, "data-tk": `c:${p.id}`, "aria-label": `${nm(p.id)}${p.tapped ? ", tapped" : ""}${top && n > 1 ? `, ${n} alike` : ""}` },
+      cls: `d3-slot land${p.tapped ? " tapped" : ""}${p.tc ? " bent" : ""}${first ? " first" : ""}${top ? "" : " under"}${armed.has(`c:${p.id}`) ? " tgt" : ""}${u.tap ? (u.tap.ids.includes(p.id) ? " pay" : c.payable(p) ? " can" : "") : ""}${u.look?.id === p.id ? " look" : ""}${ring.has(`t:c:${p.id}`) ? " advised" : ""}`,
+      attrs: { "data-perm": p.id, "data-tk": `c:${p.id}`, "aria-label": `${nm(p.id)}${p.tapped ? ", tapped" : ""}${u.tap?.ids.includes(p.id) ? ", chosen to tap" : ""}${top && n > 1 ? `, ${n} alike` : ""}` },
       html: landFace(p, top ? n : 0),
     }));
   }
