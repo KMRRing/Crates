@@ -10,9 +10,9 @@ html[data-mode="night"] { --bl-in: #A9C25A; --bl-good: #7FC2A8; --bl-bad: #E8806
 .bl-mark svg { width: 100%; height: 100%; display: block; }
 /* everything fits the screen: the order in two lines (its story behind About), the margin, the spec as chips, and
    the tank farm taking the rest, scrolling inside itself */
-.bl-order { margin: .45rem 0 .4rem; }
+.bl-order, .bp-order { margin: .45rem 0 .4rem; }
 .bl-order-head { display: flex; align-items: center; gap: .5rem; }
-.bl-order h2 { margin: 0; font-size: 1.15rem; font-weight: 800; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bl-order h2, .bp-order h2 { margin: 0; font-size: 1.15rem; font-weight: 800; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bl-about { flex: none; min-height: 1.875rem; padding: 0 .7rem; border-radius: 4px; border: 1.5px solid var(--bl-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .8rem; font-weight: 750; cursor: pointer; }
 .bl-product { margin: .15rem 0 0; font-weight: 750; font-size: .86rem; line-height: 1.3; color: var(--bl-in); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .bl-intro { margin: .3rem 0 0; color: var(--ink-soft); line-height: 1.4; font-size: .92rem; }
@@ -85,10 +85,67 @@ html[data-mode="night"] { --bl-in: #A9C25A; --bl-good: #7FC2A8; --bl-bad: #E8806
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .bl-toast.show { opacity: 1; }
+/* the second mode, parcels (blend-parcels-ui.js): the desk's line, a card for each tank, the selected tank's specification as
+   ranges (amber is a line that could fail), the dock with the parcels to load, and the day's figures with the button that closes it */
+.blend section[hidden] { display: none; }
+:root { --bl-risk: #9A6A12; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --bl-risk: #E0B050; } }
+html[data-mode="night"] { --bl-risk: #E0B050; }
+.bp-tanks { display: grid; grid-template-columns: repeat(var(--tanks, 2), minmax(0, 1fr)); gap: .35rem; }
+.bp-tank { position: relative; display: grid; gap: .05rem; text-align: left; padding: .35rem .5rem .55rem; border-radius: 5px; border: 1.5px solid var(--bl-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .74rem; cursor: pointer; overflow: hidden; min-width: 0; }
+.bp-tank[aria-pressed="true"] { border-color: var(--bl-in); box-shadow: inset 0 0 0 1px var(--bl-in); }
+.bp-tank > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bp-t2 { display: flex; justify-content: space-between; gap: .3rem; }
+.bp-t1 { font-size: .82rem; font-weight: 750; }
+.bp-t2 > span { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.bp-t3 { font-weight: 800; flex: none; }
+.bp-tank.pass .bp-t3 { color: var(--bl-good); }
+.bp-tank.risk .bp-t3 { color: var(--bl-risk); }
+.bp-tank.fail .bp-t3 { color: var(--bl-bad); }
+.bp-tank.empty .bp-t3 { color: var(--ink-soft); font-weight: 600; }
+.bp-tank i { position: absolute; left: 0; bottom: 0; height: .25rem; background: var(--bl-in); opacity: .8; }
+.bl-chip.risk { border-color: var(--bl-risk); background: color-mix(in srgb, var(--bl-risk) 12%, var(--sheet)); }
+.bl-chip.risk b { color: var(--bl-risk); }
+.bp-spec-box { margin-top: .4rem; }
+.bp-spec-box .bl-chip { min-height: 1.5rem; padding: 0 .45rem; font-size: .72rem; }
+.bp-yard { margin-top: .5rem; }
+.bp-yard h3 { margin: 0; font-size: 1rem; font-weight: 800; white-space: nowrap; }
+.bp-yard h3 small { font-weight: 600; color: var(--ink-soft); font-size: .76rem; margin-left: .3rem; }
+.bp-yard .bl-total { white-space: nowrap; font-weight: 600; font-size: .76rem; color: var(--ink-soft); }
+.bp-row .name { font-size: .94rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bp-row .meta.nt { color: var(--bl-risk); }
+.bp-load { display: inline-grid; grid-auto-flow: column; gap: .2rem; }
+.bp-load button { width: 2.3rem; height: 2.5rem; border-radius: 6px; border: 1.5px solid var(--bl-edge); background: var(--yard); color: var(--ink); font: inherit; font-size: 1rem; font-weight: 800; cursor: pointer; }
+.bp-load button[aria-pressed="true"] { background: var(--bl-in); border-color: var(--bl-in); color: var(--yard); }
+.bp-load button:disabled { opacity: .35; cursor: default; }
+.bp-load button[aria-pressed="true"]:disabled { opacity: .85; }
+.bp-bar { margin-top: .5rem; display: grid; gap: .3rem; }
+.bl-buttons.bp-buttons { grid-template-columns: minmax(0, 1fr) 6rem; }
+.bp-cert { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.bp-cert td { padding: .4rem .3rem; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; vertical-align: middle; }
+.bp-cert td:first-child { font-weight: 750; white-space: nowrap; }
+.bp-cert td:last-child { text-align: right; color: var(--ink-soft); }
+.bp-cert tr.nt td:nth-child(2) { color: var(--bl-risk); }
+.bp-test { min-height: 2rem; padding: 0 .6rem; border-radius: 4px; border: 0; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
+.bp-stars { margin: .2rem 0 .4rem; font-size: 1.8rem; letter-spacing: .12em; color: var(--bl-in); }
+.bp-res { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .1rem .6rem; align-items: baseline; padding: .45rem 0; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; }
+.bp-res span { color: var(--ink-soft); font-size: .86rem; }
+.bp-res em { font-style: normal; font-weight: 800; min-width: 4.5rem; text-align: right; }
+.bp-res.ok em { color: var(--bl-good); }
+.bp-res.no em { color: var(--bl-bad); }
+.bp-res small { grid-column: 1 / -1; color: var(--bl-bad); font-size: .8rem; line-height: 1.3; }
+.bp-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .6rem; }
+
 /* held sideways (#app.beside): the tank farm, where you blend, takes the left, all the height under the header; the
-   order, the margin with its buttons, and the specification stand beside it */
+   order, the margin with its buttons, and the specification stand beside it (the dock, where parcels are loaded, takes
+   the left in parcels; its desk, tanks and specification beside it, the button low) */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.blend { --beside: 24rem; grid-template-rows: auto auto auto auto minmax(0, 1fr); }
+  .bp-order { grid-column: 2; grid-row: 2; }
+  .bp-tanks { grid-column: 2; grid-row: 3; }
+  .bp-spec-box { grid-column: 2; grid-row: 4; }
+  .bp-bar { grid-column: 2; grid-row: 5; align-self: end; }
+  .bp-yard { grid-column: 1; grid-row: 2 / -1; margin-top: 0; }
   .bl-order { grid-column: 2; grid-row: 2; }
   .bl-margin { grid-column: 2; grid-row: 3; }
   .bl-spec-box { grid-column: 2; grid-row: 4; }

@@ -25,6 +25,7 @@
       <span class="mark-icon bl-mark" aria-hidden="true"></span>Blend</button></h1>
     <div class="top-right">
       <select id="level" class="pool" data-accent="bl" aria-label="Order"></select>
+      <select id="desk" class="pool" data-accent="bl" aria-label="Desk" hidden></select>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
   </header>
@@ -52,7 +53,35 @@
     <div class="bl-farm-head"><h3>Tank farm <small>tap a name for its note</small></h3><p class="bl-total" id="total"></p></div>
     <div id="components" class="bl-components fit-grow fit-scroll"></div>
   </section>
+
+  <!-- the second mode, parcels (blend-parcels-ui.js): shown instead of the order's parts above -->
+  <section class="bp bp-order" hidden>
+    <div class="bl-order-head"><h2 id="bpTitle"></h2><button class="bl-about" type="button" id="bpAbout">About</button></div>
+  </section>
+  <section class="bp bp-tanks" id="bpTanks" hidden aria-label="Tanks"></section>
+  <section class="bp bp-spec-box" hidden aria-label="The selected tank's specification: tap a line for why"><div id="bpSpec" class="bl-chips"></div></section>
+  <section class="bp bp-yard fit-col fit-grow" hidden aria-label="The dock">
+    <div class="bl-farm-head"><h3>The dock <small>tap a name</small></h3><p class="bl-total" id="bpTotal"></p></div>
+    <div id="bpParcels" class="bl-components fit-grow fit-scroll"></div>
+  </section>
+  <section class="bp bp-bar" hidden>
+    <p class="bl-costline" id="bpSum"></p>
+    <div class="bl-buttons bp-buttons"><p class="bl-verdict" id="bpVerdict"></p><button class="bl-go" type="button" id="bpClose">Close tanks</button></div>
+  </section>
 </div>
+
+<dialog id="parcelDlg" class="sheet" aria-label="Certificate">
+  <div class="pick-head"><h2 id="parcelTitle"></h2><button class="btn" type="button" id="parcelClose">Close</button></div>
+  <div id="parcelBody"></div>
+</dialog>
+
+<dialog id="resultDlg" class="sheet" aria-labelledby="resultHead">
+  <div class="pick-head"><h2 id="resultHead"></h2><button class="btn" type="button" id="resultClose">Close</button></div>
+  <p id="resultStars" class="bp-stars" aria-hidden="true"></p>
+  <div id="resultBody"></div>
+  <p id="resultNote" class="bl-why"></p>
+  <div class="bp-go"><button class="btn" type="button" id="resultAgain">A fresh day</button><button class="btn primary" type="button" id="resultNext">Next desk</button></div>
+</dialog>
 
 <dialog id="whyDlg" class="sheet" aria-label="Why">
   <div class="pick-head"><h2 id="whyTitle"></h2><button class="btn" type="button" id="whyClose">Close</button></div>

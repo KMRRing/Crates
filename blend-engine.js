@@ -113,15 +113,21 @@ const flashIndex = t => Math.exp(-0.14 * t), unFlash = i => -Math.log(i) / 0.14;
 const coldIndex = t => Math.exp(0.045 * t), unCold = i => Math.log(i) / 0.045;
 const viscIndex = v => Math.log(Math.log(v + 0.7)), unVisc = i => Math.exp(Math.exp(i)) - 0.7;
 /** The blend's properties for component ids and their fractions (per cent, summing to 100). */
-export function blendProps(ids, pct) {
+export const blendProps = (ids, pct) => blendPropsOf(ids.map(id => COMPONENTS[id]), pct);
+/**
+ * The same for components given as their property sets rather than ids: a parcel with properties of its own (Blend's
+ * second mode, blend-parcels.js), or the low or high end of what its certificate leaves open. Every kind of blending
+ * here only rises with any component's value, so a blend of the low ends is the blend's lowest, of the high ends its highest.
+ */
+export function blendPropsOf(comps, pct) {
   const total = pct.reduce((a, b) => a + b, 0) || 1;
   const out = {};
   for (const p of Object.keys(PROPS)) {
-    const parts = ids.map((id, i) => [COMPONENTS[id][p], pct[i] / total]).filter(([v]) => v != null);
+    const parts = comps.map((c, i) => [c[p], pct[i] / total]).filter(([v]) => v != null);
     if (!parts.length || parts.reduce((a, [, w]) => a + w, 0) < 0.999) continue;      // a property not every component has
     const kind = PROPS[p].blend;
     if (kind === "lub") {                                                  // FAME restores lubricity, saturating by about 2%
-      const fame = ids.reduce((a, id, i) => a + (COMPONENTS[id].fame || 0) * pct[i] / total, 0);
+      const fame = comps.reduce((a, c, i) => a + (c.fame || 0) * pct[i] / total, 0);
       const base = parts.reduce((a, [v, w]) => a + w * v, 0);
       out[p] = base - (base - 200) * Math.min(1, fame / 2);
       continue;

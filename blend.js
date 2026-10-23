@@ -6,18 +6,22 @@ import { noteStars } from "./suite.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, action, mirror } from "./menu.js";
+import { part, action, mirror, choice } from "./menu.js";
 import { createDuel } from "./duel.js";
+import { createParcels } from "./blend-parcels-ui.js";
 
-dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
+const levelDD = dropdown(document.getElementById("level"));   // the header dropdowns in the suite's style (see dropdown.js): the orders', and the parcels' desks
+const deskDD = dropdown(document.getElementById("desk"));
 
 const $ = id => document.getElementById(id);
-const SAVE = "blend2:save";
+const SAVE = "blend2:save", MODE = "blend2:mode";
 
 let S = read(SAVE, { level: 1, blends: {}, best: {}, done: {} });   // the blend per level (per cent per component), best margins, levels certified
 let L = null;      // the level
 let par = null;    // { margin, pct, feasible }
 let D = null;      // a match's blend (duel.js), kept apart from yours: { level, pct, done, margin }
+let mode = "orders";   // what is on show: the orders, or the parcels (blend-parcels-ui.js); a match is always the orders
+let chosen = "orders"; // the mode you chose, kept, which a match leaves alone
 
 function read(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
 function save() { try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch { /* private mode */ } }
@@ -192,7 +196,7 @@ const duel = createDuel({
     keep(); render(); tell(D.done);
   },
   onLobby: match => { D = null; L = LEVELS.find(l => l.id === match.level) || LEVELS[0]; par = solve(L); $("level").value = String(L.id); render(); },
-  onLeave: () => { D = null; loadLevel(S.level || 1); },
+  onLeave: () => { D = null; showMode(chosen); if (chosen === "parcels") parcels.enter(); else loadLevel(S.level || 1); },
 });
 /** What the table sees of this blend: blending, or certified at a margin. */
 function tell(done = false) {
@@ -231,6 +235,13 @@ function openMenu() {
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
+  const content = part(body, "content");
+  content.append(choice("Mode", [["orders", "Orders"], ["parcels", "Parcels"]], mode, m => { $("menuDlg").close(); chooseMode(m); }));
+  if (mode === "parcels") {
+    parcels.menu(part(body, "play"), content, () => $("menuDlg").close());
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   const list = document.createElement("div");
   list.className = "bl-levels";
   for (const lv of LEVELS) {
@@ -244,9 +255,35 @@ function openMenu() {
     b.addEventListener("click", () => { $("menuDlg").close(); loadLevel(lv.id); });
     list.appendChild(b);
   }
-  part(body, "content").append(list);
+  content.append(list);
   part(body, "settings").append(action("Reset this order's blend", () => { S.blends[L.id] = L.components.map((c, i) => (i === 0 ? 100 : 0)); save(); render(); }, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+// ---------- the second mode: parcels (blend-parcels-ui.js) ----------
+const parcels = createParcels({
+  explain: (title, body) => { $("whyTitle").textContent = title; $("whyBody").textContent = body; if (!$("whyDlg").open) $("whyDlg").showModal(); },
+  synced: () => deskDD.sync(),
+  starred: () => noteStars("blend", starsAll()),
+});
+/** Puts one mode's parts on the page and the other's away, and the header's order or desk with them. */
+function showMode(m) {
+  mode = m;
+  const on = m === "parcels";
+  for (const el of document.querySelectorAll(".bl-order, .bl-margin, .bl-spec-box, .bl-farm")) el.hidden = on;
+  for (const el of document.querySelectorAll(".bp")) el.hidden = !on;
+  $("level").hidden = on;
+  $("desk").hidden = !on;
+  levelDD.sync();
+  deskDD.sync();
+}
+/** Switches mode from the menu, and keeps the choice. */
+function chooseMode(m) {
+  if (m === mode) return;
+  chosen = m;
+  try { localStorage.setItem(MODE, JSON.stringify(m)); } catch { /* private mode */ }
+  showMode(m);
+  if (m === "parcels") parcels.enter(); else loadLevel(S.level || 1);
 }
 
 // ---------- wiring ----------
@@ -262,14 +299,16 @@ $("certifyBtn").addEventListener("click", certify);
 $("hintBtn").addEventListener("click", giveHint);
 
 // for tests and debugging
-window.__blend = { get level() { return L; }, get par() { return par; }, get pct() { return pct(); }, adjust, certify, loadLevel, setBlend: arr => { if (D) D.pct = [...arr]; else S.blends[L.id] = [...arr]; keep(); render(); }, duel };
+window.__blend = { get level() { return L; }, get par() { return par; }, get pct() { return pct(); }, adjust, certify, loadLevel, setBlend: arr => { if (D) D.pct = [...arr]; else S.blends[L.id] = [...arr]; keep(); render(); }, duel, parcels };
 
 // a match in the address: its order, with your own blend left where it was
+chosen = read(MODE, "orders") === "parcels" ? "parcels" : "orders";
 if (duel.inAddress) { L = LEVELS.find(l => l.id === (S.level || 1)) || LEVELS[0]; par = solve(L); duel.join().then(ok => { if (!ok) loadLevel(S.level || 1); }); }
+else if (chosen === "parcels") { showMode("parcels"); parcels.enter(); }
 else loadLevel(S.level || 1);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 // stars collected: an order's stars, or for one certified before there were stars three, and one for any on-spec best
 function starsOf(id) { return S.stars?.[id] || (S.done[id] ? 3 : S.best[id] != null ? 1 : 0); }
-function starsAll() { return LEVELS.reduce((n, l) => n + starsOf(l.id), 0); }
+function starsAll() { return LEVELS.reduce((n, l) => n + starsOf(l.id), 0) + parcels.stars; }
 noteStars("blend", starsAll());
