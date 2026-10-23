@@ -11,7 +11,7 @@
 // from; the plain run plays a few, to keep the pace honest. To tune, name the players and try another pace:
 // `node tests/topple.mjs measure careful,bell pace=12,48,0.6 games=40`.
 import { PLAYERS, play } from "./topple-players.js";
-import { R, CELLS, SIZE, DIRS, HAND, PIECES, PACE, VERSION, AXES, WAYS, axesOfCoords, axesOf, rate, untilKnock, newGame, at, next, dirTo, cover, fitsAnywhere, chain, group, chains, stepsOf, longest, knockOn, worth, lay, knock, skip, canSkip, turn, moves, pushes, hitBy, offBy, knocks, senseOf, through, isLine, migrate, BALL, MAXM, cascade, rollOf } from "../topple-engine.js";
+import { R, CELLS, SIZE, DIRS, HAND, PIECES, PACE, VERSION, AXES, WAYS, axesOfCoords, axesOf, rate, untilKnock, newGame, at, next, dirTo, cover, fitsAnywhere, chain, group, chains, stepsOf, longest, knockOn, worth, lay, knock, skip, canSkip, turn, moves, pushes, hitBy, offBy, knocks, senseOf, through, isLine, migrate, BALL, MAXM, cascade, rollOf, BELL } from "../topple-engine.js";
 import { custom, levelRules, WATER, ROCK } from "../topple-levels.js";
 
 let bad = 0;
@@ -267,7 +267,7 @@ const game = (t, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {
   const two = table(...line(0, 0, E, 4), [-3, 2, 1, 0]);
   check(chains(two.cells, two.ax, -1).map(k => k.length).join() === "4,1", "the dominoes standing, joined by colour, most first");
   const rung = knock(game(table(...line(-2, 0, E, 4)), undefined, { bell: hex(0, 0) }), hex(-2, 0), 0);
-  check(rung.rang && rung.gain === 320 && rung.state.rung === 1 && rung.state.bell !== hex(0, 0) && rung.state.cells[rung.state.bell] === -1, "a fall past the bell scores double (a line of four 320) and the bell moves to an empty hexagon");
+  check(rung.rang && rung.gain === 660 && rung.gain === 160 + BELL && rung.state.rung === 1 && rung.state.bell !== hex(0, 0) && rung.state.cells[rung.state.bell] === -1, "a fall past the bell scores a flat 500 more (a line of four 160 + 500) and the bell moves to an empty hexagon");
   const t4 = table(...line(-2, 0, E, 4), [-1, 2, 1, 0]), missed = knock(game(t4, undefined, { bell: hex(-1, 2) }), hex(-2, 0), 0);
   check(!missed.rang && missed.gain === 160 && missed.state.bell === hex(-1, 2) && knockOn(t4.cells, t4.ax, hex(-2, 0), 0, hex(1, 0)).rings, "a fall that doesn't pass it leaves it where it hangs");
   const plain = game(table(...line(-2, 0, E, 4)), undefined, { n: 40 }), ringing = game(table(...line(-2, 0, E, 4)), undefined, { n: 40, bell: hex(0, 0) });
@@ -278,7 +278,7 @@ const game = (t, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {
     "skipping a due knock fells nothing, takes the knock off the table's time and leaves the next one boosted");
   const boosted = { ...skipped, due: true }, took = knock(boosted, hex(-2, 0), 0), rung2 = knock({ ...boosted, bell: hex(0, 0) }, hex(-2, 0), 0);
   check(took.boosted && took.gain === 320 && took.state.boost === 0 && knock(owed, hex(-2, 0), 0).gain === 160, "the boosted knock scores a hundred per cent more (a line of four: 320 for 160) and spends it");
-  check(rung2.rang && rung2.gain === 480 && knockOn(...Object.values(table(...line(-2, 0, E, 4))), hex(-2, 0), 0, hex(0, 0), undefined, 1).gain === 480, "with the bell as well it is three times (480), the two adding rather than multiplying");
+  check(rung2.rang && rung2.gain === 820 && knockOn(...Object.values(table(...line(-2, 0, E, 4))), hex(-2, 0), 0, hex(0, 0), undefined, 1).gain === 820, "with the bell as well the skip doubles the fall and the bell's 500 comes on top (160 x 2 + 500), a flat sum the multiplier does not touch");
   check(!canSkip(skipped) && !canSkip(boosted) && !canSkip(row({ due: false })) && !canSkip(row({ hand: [null, null, null] })) && !canSkip(row({ over: true })), "no skip where none is due, where one is already standing, where no piece in hand would fit, or when the game is over");
   let refused = 0;
   for (const g of [boosted, row({ due: false }), row({ hand: [null, null, null] })]) try { skip(g); } catch { refused++; }
@@ -416,7 +416,7 @@ const game = (t, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {
   // the bell, gilding, the skip
   t = ball(table(...row(3)), 0, 0);
   const ring = knockOn(t.cells, t.ax, hex(-3, 0), 0, hex(2, 0)), gold = knockOn(t.cells, t.ax, hex(-3, 0), 0, -1, custom({ map: { gilded: [[2, 0]] } })), both = knockOn(t.cells, t.ax, hex(-3, 0), 0, hex(2, 0), custom({ map: { gilded: [[2, 0]] } }), 1);
-  check(ring.rings && ring.gain === 2 * k.gain && gold.gilded && gold.gain === 2 * k.gain && both.boosted && both.gain === 6 * k.gain, "a ball that rolls over the bell rings it, over a gilded hexagon doubles, and a skipped knock's bonus adds as for dominoes (3 x, doubled)");
+  check(ring.rings && ring.gain === k.gain + BELL && gold.gilded && gold.gain === 2 * k.gain && both.boosted && both.gain === 4 * k.gain + BELL, "a ball that rolls over the bell rings it (500 more), over a gilded hexagon doubles, and a skipped knock doubles as for dominoes (both: four times, the bell's 500 on top)");
   check(!knockOn(t.cells, t.ax, hex(-3, 0), 0, hex(0, 1)).rings, "and a bell off its path stays");
   // knock() moves them
   const g = Object.assign(newGame(1), { cells: t.cells.slice(), ax: t.ax.slice(), due: true, bell: hex(R, 0), hand: [piece(SINGLE), piece(SINGLE), piece(SINGLE)] }), done = knock(g, hex(-3, 0), 0);

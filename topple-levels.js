@@ -6,7 +6,7 @@
 //               ordinary fall can't cross it
 //   tall        every domino of a colour is tall: falling, it reaches the hexagon beyond the next as well, across
 //               water or an empty hexagon (not past a stone), and climbs a step
-//   gilded      a hexagon whose domino, if it falls, doubles the knock (as the bell does, and the two multiply)
+//   gilded      a hexagon whose domino, if it falls, doubles the knock's points (the bell's flat 500 is added after, not doubled)
 //   terraces    a hexagon at a height of 0, 1 or 2: a fall goes level or down, never up (a tall one climbs a step)
 //   pearl       a fourth colour, dealt now and then in pieces of one or two: knocked by every colour and knocking every
 //               colour, so it joins what else would stand apart
@@ -82,7 +82,7 @@ export const LEVELS = [
   }),
   level({
     name: "Gilded", scene: "garden", goal: 12500, tall: [2], map: { water: minus(RIVER, FORDS), gilded: [[1, 1], [-2, 3], [-1, -1], [2, -3]] },
-    about: "A fall that brings down a domino on a gilded hexagon scores double, and doubles the bell's double again.",
+    about: "A fall that brings down a domino on a gilded hexagon scores double; the bell's 500 is added after and is not doubled.",
   }),
   level({
     name: "Terraces", scene: "marble", goal: 8600, tall: [2], map: { rock: three([3, -1]), height: { 2: disc(1), 1: ring(2) } },

@@ -169,7 +169,7 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
   const row = table(...[-2, -1, 0, 1].map(q => [q, 0, 0, 0]));
   const k = knockOn(row.cells, row.ax, hex(-2, 0), 0, -1, G), plainK = knockOn(row.cells, row.ax, hex(-2, 0), 0);
   check(plainK.gain === 160 && !plainK.gilded && k.gain === 320 && k.gilded, "a fall that brings down a domino on a gilded hexagon scores double: a line of four, 160 and 320");
-  check(knockOn(row.cells, row.ax, hex(-2, 0), 0, hex(0, 0), G).gain === 640 && knockOn(row.cells, row.ax, hex(-2, 0), 0, hex(0, 0), G).rings, "and the bell's double doubles it again: 640");
+  check(knockOn(row.cells, row.ax, hex(-2, 0), 0, hex(0, 0), G).gain === 820 && knockOn(row.cells, row.ax, hex(-2, 0), 0, hex(0, 0), G).rings, "and the bell's 500 comes on top of it, not doubled: 820");
   check(knockOn(row.cells, row.ax, hex(0, 0), 6, -1, G).gain === 90 && !knockOn(row.cells, row.ax, hex(0, 0), 6, -1, G).gilded && knockOn(row.cells, row.ax, hex(-1, 0), 0, -1, G).gilded, "only if a domino on it falls: pushed the other way, or from short of it, it doesn't");
   check(!knockOn(table([0, 0, 0, 0]).cells, table([0, 0, 0, 0]).ax, hex(0, 0), 0, -1, G).gilded, "an empty gilded hexagon is nothing");
   // in a game: level 5 has gilded hexagons; a knock reports it and scores it

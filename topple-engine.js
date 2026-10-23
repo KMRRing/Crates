@@ -15,9 +15,10 @@
 //
 // The knock is on the table's time, not yours: when a hand's last piece is down and a knock has come due (every hand at
 // first, then less often), you push one domino, either way along its axis, before the next is laid. A knock scores ten
-// times how many fell times the steps they took (a long chain pushed from its end beats a blob of as many), doubled
-// when the fall passes the bell, a mark on one hexagon that moves on when it's rung. A knock that's due may instead be
-// skipped (`skip`): nothing falls, and the next knock scores as much again, which adds to the bell's (both: three times).
+// times how many fell times the steps they took (a long chain pushed from its end beats a blob of as many), and
+// when the fall passes the bell, a mark on one hexagon that moves on when it's rung, a flat 500 more (BELL: a flat sum, not a multiplier, so it
+// is worth chasing with a small knock while a big chain is being built). A knock that's due may instead be skipped (`skip`): nothing falls, and
+// the next knock scores twice as much, a multiplier on the fall's points alone.
 // A hand that fits nowhere, with no knock to make first, ends the game. The page (topple.js) draws it; tests/topple.mjs checks this.
 //
 // A game is one object, as saved: { v, seed, n (draws made), cells (a colour 0–2 a hexagon, -1 empty), ax (each
@@ -437,19 +438,21 @@ export function group(cells, i, rules = FREE) {
 export const stepsOf = (fell, rolls = []) => Math.max(0, ...fell.map(f => f[1] + 1), ...rolls.map(r => r.step + r.path.length + 1));
 /** Ten times the dominoes (and balls) moved by one knock times the steps they take (a straight run from its end: its length). */
 export const worth = (n, steps = n) => 10 * n * steps;
+/** What passing the bell adds to a knock: a flat sum, whatever else the knock is multiplied by. */
+export const BELL = 500;
 /**
  * What a push on hexagon i the way `way` would come to: { fell (as chain gives it), rolls (the balls it sets going, as cascade gives them),
  * units (dominoes and balls), steps, rings (the bell's hexagon among them, or under a ball's roll), gilded (one of them on a gilded
- * hexagon), boosted (a skipped knock stands, `boost`), gain }. The bell and a skipped
- * knock each add a hundred per cent of the points, so both make three times; the gilding then doubles the lot.
+ * hexagon), boosted (a skipped knock stands, `boost`), bell (what the bell adds: BELL or 0), gain }. A skipped knock doubles the fall's
+ * points and the gilding doubles them again; the bell then adds its flat sum, which neither multiplies.
  */
 export function knockOn(cells, ax, i, way, bell = -1, rules = FREE, boost = 0) {
   const { fell, rolls } = cascade(cells, ax, i, way, rules), steps = stepsOf(fell, rolls), units = fell.length + rolls.length;
   // a ball's hexagon and the ones it rolls over count as reached, for the bell and for gilding
   const reached = rolls.flatMap(r => [r.from, ...r.path.filter(j => j >= 0)]);
   const rings = bell >= 0 && (fell.some(f => f[0] === bell) || reached.includes(bell)), gilded = fell.some(f => rules.gilded[f[0]]) || reached.some(j => rules.gilded[j]);
-  // the bell and a skipped knock each add a hundred per cent (both: three times), and the gilding doubles what they come to
-  return { fell, rolls, units, steps, rings, gilded, boosted: !!boost, gain: worth(units, steps) * (1 + (rings ? 1 : 0) + (boost ? 1 : 0)) * (gilded ? 2 : 1) };
+  const bonus = rings ? BELL : 0;
+  return { fell, rolls, units, steps, rings, gilded, boosted: !!boost, bell: bonus, gain: worth(units, steps) * (1 + (boost ? 1 : 0)) * (gilded ? 2 : 1) + bonus };
 }
 /**
  * The best push on the dominoes joined to hexagon i: { at, way, fell (how many dominoes and balls move), balls (how many of them are balls), steps, rings, gilded, gain, size (how many
@@ -531,14 +534,14 @@ export function knock(game, i, way) {
   if (s.level >= 0) s.stars = Math.max(s.stars || 0, starsAt(rules, s.score));
   s.felled += k.fell.length;
   s.due = false;
-  s.boost = 0;                                                // a skipped knock's hundred per cent is spent on this one
+  s.boost = 0;                                                // a skipped knock's doubling is spent on this one
   // the draw that dealt the next knock's strength (weak, medium or strong, retired with the six axes) is still passed
   // over, so a game saved before then deals on as it would have
   s.n++;
   if (k.rings) { s.rung++; hang(s, rules); }
   topUp(s, rules);
   s.over = stuck(s);
-  return { state: s, fell: k.fell, rolls: k.rolls, steps: k.steps, rang: k.rings, gilded: k.gilded, boosted: k.boosted, gain: k.gain, over: s.over };
+  return { state: s, fell: k.fell, rolls: k.rolls, steps: k.steps, rang: k.rings, gilded: k.gilded, boosted: k.boosted, bell: k.bell, gain: k.gain, over: s.over };
 }
 /**
  * Whether the knock that's due may be skipped: one is due, none already skipped (the hundred per cent stands once, so
@@ -546,7 +549,7 @@ export function knock(game, i, way) {
  */
 export const canSkip = s => !s.over && s.due && !s.boost && !stuck({ ...s, due: false });
 /**
- * Skips the knock that's due: the next knock scores a hundred per cent more (the bell's is as much again). The knock isn't
+ * Skips the knock that's due: the next knock's points are doubled (the bell's 500 is flat and comes on top). The knock isn't
  * owed back, so the table goes on as it stands. Pure; throws where `canSkip` says no.
  */
 export function skip(game) {

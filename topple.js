@@ -176,7 +176,7 @@ function tagEl(words, i, around) {
   if (y < 16 * s) y = Math.min(h - 6 * s, Math.max(top, ...ys) + 18 * s);
   return text("tp-tag", words, Math.min(w - half, Math.max(half, x)), y, 13);
 }
-const HINT = ["Drag a piece onto the table.", "Tap a domino, drag its handle to turn it.", "When a knock is due, press a domino", "and slide it the way it should fall.", "Past the bell, it scores double."];
+const HINT = ["Drag a piece onto the table.", "Tap a domino, drag its handle to turn it.", "When a knock is due, press a domino", "and slide it the way it should fall.", "Past the bell, it scores 500 more."];
 /** Words broken into lines of at most `width` characters. */
 function wrapped(words, width) {
   const out = [];
@@ -429,14 +429,14 @@ async function commitLay(slot, q, r) {
   await wait(260);
   playing = false;
 }
-/** Skips the knock that's due: nothing falls, and the next knock scores 100% more (the bell's is as much again). */
+/** Skips the knock that's due: nothing falls, and the next knock's points are doubled (the bell's 500 comes on top). */
 function commitSkip() {
   if (playing || !canSkip(S)) return;
   setSel(-1);
   S = skip(S).state;
   settle();
   render();
-  toast("Skipped: the next knock scores +100% (3× with the bell)");
+  toast("Skipped: the next knock scores double (the bell's 500 still comes on top)");
 }
 async function commitKnock(i, way) {
   if (playing || S.over || !S.due) return;
@@ -450,17 +450,17 @@ async function commitKnock(i, way) {
   drawBoard({ cells: before.cells, ax: before.ax, bell: before.bell });
   drawStrip();
   const falling = view.fall({ fell: done.fell, rolls: done.rolls, bell: { rang: done.rang, to: done.rang ? S.bell : -1 } });
-  const times = (1 + (done.rang ? 1 : 0) + (done.boosted ? 1 : 0)) * (done.gilded ? 2 : 1), level = S.level;
-  setTimeout(() => popup([...done.fell.map(f => f[0]), ...done.rolls.map(r => r.from)], done.gain, times), 100 + done.steps * 90);
+  const times = (1 + (done.boosted ? 1 : 0)) * (done.gilded ? 2 : 1), level = S.level;
+  setTimeout(() => popup([...done.fell.map(f => f[0]), ...done.rolls.map(r => r.from)], done.gain, times, done.bell), 100 + done.steps * 90);
   await falling;
   render();
   playing = false;
   if (first && S.stars >= 1 && S.level === level) toast(beatenWords());
 }
-/** The points of a knock rising from where it fell: with the bell's or the gilding's doubling (`times`), as the points before it and the times. */
-function popup(cells, gain, times) {
+/** The points of a knock rising from where it fell: with a skip's or the gilding's multiplier (`times`), as the points before it and the times, and the bell's flat sum after them. */
+function popup(cells, gain, times, bell = 0) {
   const mids = cells.map(i => view.centre(i)), x = mids.reduce((a, m) => a + m[0], 0) / cells.length, z = mids.reduce((a, m) => a + m[1], 0) / cells.length;
-  const [px, py] = view.project(x, SH, z), t = text(`tp-pop${cells.length >= 10 || times > 1 ? " big" : ""}`, times > 1 ? `+${fmt(gain / times)} ×${times}` : `+${fmt(gain)}`, px, py, cells.length >= 10 || times > 1 ? 24 : 19);
+  const [px, py] = view.project(x, SH, z), t = text(`tp-pop${cells.length >= 10 || times > 1 || bell ? " big" : ""}`, `${times > 1 ? `+${fmt((gain - bell) / times)} ×${times}` : `+${fmt(gain - bell)}`}${bell ? ` +${fmt(bell)} bell` : ""}`, px, py, cells.length >= 10 || times > 1 || bell ? 24 : 19);
   fxG.append(t);
   animate(t, [{ transform: "translateY(0)", opacity: 1 }, { transform: `translateY(${-34 * scale()}px)`, opacity: 0 }], { duration: 1200, easing: "ease-out" }).then(() => t.remove());
 }
