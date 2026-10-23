@@ -17,9 +17,16 @@
 .lg-tabs button[aria-selected="true"] { border-color: var(--lg-in); background: var(--lg-soft); box-shadow: inset 0 0 0 1px var(--lg-in); }
 .lg-tabs:empty { display: none; }
 
-/* the plate: the canvas fills it */
-.lg-bench { position: relative; min-height: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--tile-edge); background: var(--tile); }
-.lg-canvas { position: absolute; inset: 0; display: block; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+/* the bench: a dark walnut the watch lies on, the canvas over it (the watch is lit as in a studio, so its bench is the same by day and night) */
+.lg-bench { position: relative; min-height: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--tile-edge);
+  background: radial-gradient(ellipse at 50% 38%, #3a332a 0%, #1f1b16 55%, #121010 100%); }
+.lg-canvas { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; cursor: grab; }
+.lg-canvas:active { cursor: grabbing; }
+/* the rosette gauge: its face is behind the canvas, which draws the rosette and its rubbing block over it */
+.lg-gauge { position: absolute; z-index: 0; border-radius: 6px; pointer-events: none; box-sizing: border-box;
+  background: radial-gradient(circle at 50% 40%, #34312c, #0c0c0d 85%); border: 2px solid var(--brass); box-shadow: 0 2px 8px #0008; }
+.lg-gauge[hidden], .lg-gauge-cap[hidden] { display: none; }
+.lg-gauge-cap { position: absolute; z-index: 2; pointer-events: none; white-space: nowrap; font-size: .66rem; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: #d8c9a6; text-shadow: 0 1px 2px #000; }
 
 /* the knobs: two to a row, as many rows as the most any cut of this plate has (so nothing changes size from cut to cut) */
 .lg-knobs { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(var(--rows, 2), 2.7rem); gap: .3rem .7rem; margin-top: .4rem; }
@@ -30,6 +37,12 @@
 .lg-row input[type="range"] { flex: 1 1 auto; min-width: 0; height: 1.9rem; margin: 0; accent-color: var(--lg-in); touch-action: pan-y; }
 html .lg-step { flex: none; width: 1.9rem; height: 1.9rem; min-height: 0; padding: 0; font-size: 1.05rem; line-height: 1; border-radius: 4px; }
 .lg-knob.fixed { opacity: .55; }
+/* a knob a clue is about, or a lesson asks for, glows (the page does not move: only colour) */
+.lg-knob { border-radius: 5px; transition: box-shadow .2s; }
+.lg-knob.lg-hint, .lg-knob.lg-want { box-shadow: 0 0 0 2px var(--lg-in), 0 0 .7rem color-mix(in srgb, var(--lg-in) 55%, transparent); animation: lg-glow 1.4s ease-in-out infinite; }
+@keyframes lg-glow { 50% { box-shadow: 0 0 0 2px var(--lg-in), 0 0 1.1rem color-mix(in srgb, var(--lg-in) 85%, transparent); } }
+.lg-tabs button.lg-hint { border-color: var(--lg-in); box-shadow: 0 0 0 2px var(--lg-in); }
+@media (prefers-reduced-motion: reduce) { .lg-knob.lg-hint, .lg-knob.lg-want { animation: none; } }
 
 /* two lines, always, so nothing moves when the words change */
 .lg-line { margin: .35rem 0 .3rem; height: 2.5rem; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
@@ -38,6 +51,8 @@ html .lg-step { flex: none; width: 1.9rem; height: 1.9rem; min-height: 0; paddin
 /* the buttons */
 .lg-side { display: flex; flex-direction: column; gap: .35rem; }
 .lg-acts { display: flex; gap: .35rem; height: 2.75rem; }
+html #acts .lg-act.lg-clue { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; line-height: 1.1; }
+html #acts .lg-act small { font-size: .62rem; color: var(--ink-soft); font-weight: 400; letter-spacing: 0; }
 html #acts .lg-act { flex: 1 1 0; min-width: 0; min-height: 0; padding: .2rem .3rem; font-size: .8rem; font-stretch: normal; letter-spacing: 0; text-transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* the menu's list of plates */
@@ -45,6 +60,7 @@ html #acts .lg-act { flex: 1 1 0; min-width: 0; min-height: 0; padding: .2rem .3
 .lg-jobs button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .55rem .6rem; border-radius: 5px; border: 1px solid var(--rule); background: var(--tile); color: var(--ink); font-size: .9rem; text-align: left; cursor: pointer; }
 .lg-jobs button.cur { border-color: var(--lg-in); box-shadow: inset 0 0 0 1px var(--lg-in); }
 .lg-jobs button:disabled { opacity: .45; cursor: default; }
+.lg-jobs em { display: block; font-style: normal; font-size: .72rem; color: var(--ink-soft); margin-top: .1rem; }
 .lg-jobs small { flex: none; color: var(--lg-in); font-size: .85rem; letter-spacing: .08em; }
 .lg-jobs button:disabled small { color: var(--ink-soft); letter-spacing: 0; }
 
@@ -55,7 +71,7 @@ html #acts .lg-act { flex: 1 1 0; min-width: 0; min-height: 0; padding: .2rem .3
 .lg-figures dt { color: var(--ink-soft); font-size: .86rem; }
 .lg-figures dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; }
 .lg-note { color: var(--ink-soft); font-size: .88rem; line-height: 1.4; min-height: 1.2rem; }
-.lg-done-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .6rem; }
+.lg-done-go { display: grid; grid-template-columns: 1fr 1.2fr 1.2fr; gap: .5rem; margin-top: .6rem; }
 
 /* held sideways: the plate on the left with all the height; the plate's name, the knobs, the line and the buttons beside it */
 @media (orientation: landscape) and (min-width: 700px) {

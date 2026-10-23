@@ -2,7 +2,8 @@
 // rosette), the plate compared as a picture (the same engraving alike to a pixel, a step of any knob not), the eight levels
 // each made from a seed with a hidden setting every one of whose neighbours is told apart, setting a knob and taking it
 // back, the grade by taps against par, and a run kept through JSON.
-import { G, WIN, STARS, SLACK, SHAPES, KNOBS, LEVELS, stepOf, clampKnob, passes, raster, alike, near, settingsOf, makeJob, newRun, platesOf, match, closeness, solved, setKnob, undo, starsFor, finish, say } from "../guilloche-engine.js";
+import { WATCHES, METALS, FINISHES, BEZELS, HANDS, MARKS, STRAPS, watchOf, luma, ghostOf } from "../guilloche-watch.js";
+import { CLUE_CAP, CUT_NAMES, LESSONS, lessonJob, lessonRun, lessonStep, stepDone, takeClue, clueText, G, WIN, STARS, SLACK, SHAPES, KNOBS, LEVELS, stepOf, clampKnob, passes, raster, alike, near, settingsOf, makeJob, newRun, platesOf, match, closeness, solved, setKnob, undo, starsFor, finish, say } from "../guilloche-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -117,6 +118,80 @@ LEVELS.forEach((L, li) => {
   const other = { ...v, index: -v.index };
   Object.keys(other).forEach(n => setKnob(job, run, 0, n, other[n]));
   check(alike(raster(platesOf(job, run)), job.goal) > 0.9, "and so an answer indexed the other way is close (the engraving is what is checked)");
+}
+
+// ---------- clues ----------
+{
+  const job = makeJob(2, 77), run = newRun(job);
+  const c1 = takeClue(job, run), c2 = takeClue(job, run, c1), c3 = takeClue(job, run, c2), c4 = takeClue(job, run, c3);
+  check(c1.tier === 1 && c2.tier === 2 && c3.tier === 3 && c4.tier === 3 && c1.name === c2.name && c2.name === c3.name, "clues on the same knob go on from where to look, to which way, to the setting, and stop there");
+  check(run.clues === 3 && c3.text.includes(KNOBS[c3.name].say(job.answer[c3.cut][c3.name])), "the last clue says the setting, and the run remembers the deepest clue taken");
+  // the knob a clue is about is the one that brings the plate nearest the target when set right
+  const gain = (cut, name) => { const t = newRun(job); t.vals[cut][name] = job.answer[cut][name]; return match(job, t); };
+  const best = Math.max(...job.cuts.flatMap((c, i) => c.free.map(n => gain(i, n))));
+  check(Math.abs(gain(c1.cut, c1.name) - best) < 1e-9, "a clue is about the knob that matters most");
+  // every knob right: nothing to clue
+  job.answer.forEach((v, i) => Object.keys(v).forEach(n => setKnob(job, run, i, n, v[n])));
+  check(takeClue(job, run) === null, "with every knob right there is nothing to clue");
+  // a clue on the knob changed moves on to the next knob at its first tier
+  const j2 = makeJob(1, 5), r2 = newRun(j2), a = takeClue(j2, r2);
+  setKnob(j2, r2, a.cut, a.name, j2.answer[a.cut][a.name]);
+  const b = takeClue(j2, r2, a);
+  check(b && b.name !== a.name && b.tier === 1, "once a knob is right the next clue is about another, from its first tier");
+  // direction and size are true
+  const j3 = makeJob(0, 9), r3 = newRun(j3), t = takeClue(j3, r3, { cut: 0, name: "k", tier: 1 });
+  const want = j3.answer[0].k, said = clueText(j3, r3, 0, "k", 2);
+  check(said.includes(want > r3.vals[0].k ? "up" : "down") && /a little|a fair way|a long way/.test(said), "the second clue says which way and about how far");
+  const j4 = makeJob(1, 3), r4 = newRun(j4);
+  check(/waves are/.test(clueText(j4, r4, 0, "shape", 2)) && !/Scallop|Point|Wave/.test(clueText(j4, r4, 0, "shape", 2)), "for a rosette's edge the second clue describes it without naming it");
+  check(CLUE_CAP.join() === "3,3,2,1" && starsFor(j2, j2.par, 0) === 3 && starsFor(j2, j2.par, 1) === 3 && starsFor(j2, j2.par, 2) === 2 && starsFor(j2, j2.par, 3) === 1, "stars are capped by the clues taken: where to look is free, which way costs one, the setting two");
+  const j5 = makeJob(2, 123), r5 = newRun(j5);
+  takeClue(j5, r5); takeClue(j5, r5, { ...takeClue(j5, newRun(j5)), tier: 2 });
+  j5.answer.forEach((v, i) => Object.keys(v).forEach(n => setKnob(j5, r5, i, n, v[n])));
+  const d = finish(j5, r5);
+  check(d && d.clues === r5.clues && d.stars <= CLUE_CAP[r5.clues], "a plate engraved after clues keeps them in its result and its stars under the cap");
+  const j6 = makeJob(5, 11), r6 = newRun(j6), t6 = takeClue(j6, r6);
+  check(j6.cuts.length === 2 && t6.text.startsWith(CUT_NAMES[2][t6.cut]), "on a dial with several cuts a clue says which cut it is about");
+}
+
+// ---------- lessons ----------
+{
+  check(LEVELS.every(l => LESSONS[l.id]), "every level has a lesson");
+  for (const [i, l] of LEVELS.entries()) {
+    const job = lessonJob(i), run = lessonRun(job), L = LESSONS[l.id];
+    const knobsOk = L.start.length <= l.cuts.length && L.start.every((v, ci) => Object.entries(v).every(([n, x]) => l.cuts[ci].free.includes(n) && x === clampKnob(n, x)));
+    check(knobsOk && job.answer === null && job.goal === null, `${l.name}: the lesson starts the machine on knobs of the level, with no target`);
+    let walked = true, why = "";
+    for (let s = 0; s < L.steps.length; s++) {
+      const st = L.steps[s];
+      const valid = st.cut < l.cuts.length && Object.entries(st.set).every(([n, x]) => l.cuts[st.cut].free.includes(n) && x === clampKnob(n, x));
+      if (!valid) { walked = false; why = `step ${s + 1} sets a knob the cut doesn't have`; break; }
+      if (stepDone(job, run)) { walked = false; why = `step ${s + 1} is done before it is asked`; break; }
+      if (run.at !== st.cut) run.at = st.cut;
+      for (const [n, x] of Object.entries(st.set)) setKnob(job, run, st.cut, n, x);
+      if (!stepDone(job, run)) { walked = false; why = `step ${s + 1} is not done when its knobs are set`; break; }
+      run.step++;
+    }
+    check(walked && run.step === L.steps.length && lessonStep(job, run) === undefined, `${l.name}: each lesson step starts undone and is done by setting its knobs${why ? ` (${why})` : ""}`);
+    check(L.steps.every(st => st.do.length <= 110 && st.learn.length <= 130), `${l.name}: the lesson's words fit the two lines under the plate`);
+  }
+  const rose = lessonRun(lessonJob(2));
+  check(rose.vals[0].k === 5 && rose.vals[0].a === 5 && rose.vals[0].n === 1 && rose.at === 0 && rose.step === 0, "a lesson begins on its first step with its start settings and the rest bare");
+}
+
+// ---------- the watch of each plate ----------
+{
+  const hex = x => /^#[0-9a-f]{6}$/i.test(x);
+  check(LEVELS.every(l => WATCHES[l.id]) && Object.keys(WATCHES).length === LEVELS.length, "every plate has a watch, and every watch a plate");
+  const ok = LEVELS.every(l => { const w = WATCHES[l.id]; return hex(w.dial.base) && hex(w.dial.ink) && FINISHES.includes(w.dial.finish) && METALS[w.case.metal] && (!w.case.body || METALS[w.case.body]) && BEZELS.includes(w.case.bezel) && HANDS.includes(w.hands.style) && METALS[w.hands.metal] && MARKS.includes(w.marks) && STRAPS.includes(w.strap.kind) && hex(w.strap.colour) && Object.values(METALS).every(m => hex(m.hex)); });
+  check(ok, "each watch is made of parts the renderer knows: a finish, metals, a bezel, hands, markers and a strap, in valid colours");
+  const dials = new Set(LEVELS.map(l => WATCHES[l.id].dial.base)), cases = new Set(LEVELS.map(l => `${WATCHES[l.id].case.metal}/${WATCHES[l.id].case.bezel}`)), names = new Set(LEVELS.map(l => WATCHES[l.id].name));
+  check(dials.size === LEVELS.length && cases.size === LEVELS.length && names.size === LEVELS.length, "no two plates share a dial colour, a case (metal and bezel) or a name");
+  check(new Set(LEVELS.map(l => WATCHES[l.id].case.metal)).size >= 5 && new Set(LEVELS.map(l => WATCHES[l.id].case.bezel)).size >= 5 && new Set(LEVELS.map(l => WATCHES[l.id].dial.finish)).size >= 3, "the range runs through several metals, bezels and dial finishes");
+  check(luma("#000000") === 0 && Math.abs(luma("#ffffff") - 1) < 1e-9 && luma(WATCHES.master.dial.base) < 0.1 && luma(WATCHES.wave.dial.base) > 0.7, "luma tells a dark dial from a light one");
+  check(LEVELS.every(l => { const d = WATCHES[l.id].dial; return Math.abs(luma(d.ink) - luma(d.base)) > 0.45; }), "a dial's printing is set against it (a light ink on a dark dial, a dark one on a light)");
+  check(LEVELS.every(l => { const g = ghostOf(WATCHES[l.id].dial.base); return Math.abs(luma(g) - luma(WATCHES[l.id].dial.base)) > 0.3; }), "the target drawn over a dial stands out from it");
+  check(watchOf("nothing") === WATCHES.wave, "an unknown plate gets the first watch");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

@@ -16,6 +16,9 @@ export const G = 192;                                       // a plate is drawn 
 export const WIN = 0.99;                                    // how much alike two plates must be to be the same (1 is alike to a pixel)
 export const STARS = [1, 2, 3];
 export const SLACK = { three: [1.5, 2], two: [3, 4] };      // taps allowed over par for three stars and for two, as in Loom
+export const CLUE_CAP = [3, 3, 2, 1];                       // the most stars a plate can earn after the clues taken (a clue of 0: none; 1: where to look; 2: which way; 3: the answer)
+/** What each cut of a dial with two or three is called (the tabs). */
+export const CUT_NAMES = { 2: ["Centre", "Ring"], 3: ["Centre", "Band", "Rim"] };
 
 /** The rosettes' edges: a wave, scallops (arches meeting at cusps, the barleycorn's grain) and points (a triangle wave). */
 export const SHAPES = [{ id: "wave", name: "Wave" }, { id: "scallop", name: "Scallop" }, { id: "point", name: "Point" }];
@@ -188,7 +191,7 @@ export function makeJob(index, seed) {
 // ---------- a run ----------
 /** A run: every cut's free knobs where the machine starts, a count of taps, and a note of the cut being set. */
 export function newRun(job) {
-  return { job: job.index, seed: job.seed, vals: job.cuts.map(c => Object.fromEntries(c.free.map(name => [name, BARE[name]]))), at: 0, taps: 0, done: null };
+  return { job: job.index, seed: job.seed, vals: job.cuts.map(c => Object.fromEntries(c.free.map(name => [name, BARE[name]]))), at: 0, taps: 0, clues: 0, done: null };
 }
 export const platesOf = (job, run) => job.cuts.map((c, i) => settingsOf(c, run.vals[i]));
 /** How alike the target the plate is now, 0 to 1 (exact). */
@@ -218,15 +221,15 @@ export function undo(job, run, batch) {
 }
 
 // ---------- the grade ----------
-/** Stars by taps against par: up to a half over (and two) is three; up to three times (and four) two; any finish one. */
-export function starsFor(job, taps) {
+/** Stars by taps against par: up to a half over (and two) is three; up to three times (and four) two; any finish one. Clues cap them (CLUE_CAP). */
+export function starsFor(job, taps, clues = 0) {
   const f = (k, a) => Math.ceil(job.par * k[0]) + k[1] + a;
-  return taps <= f(SLACK.three, 0) ? 3 : taps <= f(SLACK.two, 0) ? 2 : 1;
+  return Math.min(taps <= f(SLACK.three, 0) ? 3 : taps <= f(SLACK.two, 0) ? 2 : 1, CLUE_CAP[clues] ?? 1);
 }
 /** Closes the run once the plate is the target's: { taps, stars } once, then null. */
 export function finish(job, run) {
   if (run.done || !solved(job, run)) return null;
-  run.done = { taps: run.taps, stars: starsFor(job, run.taps) };
+  run.done = { taps: run.taps, stars: starsFor(job, run.taps, run.clues), clues: run.clues || 0 };
   return run.done;
 }
 /** What the line under the plate says. */
@@ -235,3 +238,124 @@ export function say(job, run) {
   const m = closeness(job, run), pct = Math.floor(m * 100);
   return m >= 0.97 ? `${pct}% like the target: something is a step off.` : `${pct}% like the target. Hold the plate to see the target alone.`;
 }
+
+// ---------- clues ----------
+// A clue is told from the answer and costs stars, by how much it gives away: where to look (free: it only says how to
+// read the target), which way and how far (two stars at most), the setting itself (one). The knob it is about is the one
+// that, set right, would bring the plate nearest the target, so a clue is never about a knob that doesn't matter.
+const READ = {
+  k: "Count the waves in the target's ring: that many is Lobes.",
+  a: "Look at how deep the waves cut in and out of the ring: that is Throw.",
+  shape: "Look at the shape of the waves: smooth, arches that meet in cusps, or a zigzag. That is the Rosette.",
+  n: "Count the rings laid over one another: that many is Passes.",
+  index: "Look at how far each ring sits round from the last: that is Index.",
+  feed: "Do the rings spread outward into a band? How far apart they are is Feed.",
+  k2: "Look for a small ripple riding on the big waves: its count is Lobes 2.",
+  a2: "How strong is that small ripple? That is Throw 2.",
+};
+const EDGES = ["smooth, rounded waves", "arches meeting in sharp cusps", "straight runs meeting in sharp tips"];
+
+/** The knob that, set right, would bring the plate nearest the target: { cut, name }, or null if every knob is right. */
+function worstKnob(job, run) {
+  const trial = { ...run, vals: run.vals.map(v => ({ ...v })) }, base = alike(job.goal, raster(platesOf(job, trial)));
+  let best = null;
+  job.cuts.forEach((c, i) => c.free.forEach(name => {
+    const was = trial.vals[i][name], want = job.answer[i][name];
+    if (was === want) return;
+    trial.vals[i][name] = want;
+    const gain = alike(job.goal, raster(platesOf(job, trial))) - base;
+    trial.vals[i][name] = was;
+    if (!best || gain > best.gain) best = { cut: i, name, gain };
+  }));
+  return best && { cut: best.cut, name: best.name };
+}
+/** The words of a clue of a tier (1 to 3) about a knob of a cut. */
+export function clueText(job, run, cutNo, name, tier) {
+  const K = KNOBS[name], was = run.vals[cutNo][name], want = job.answer[cutNo][name];
+  const where = job.cuts.length > 1 ? `${CUT_NAMES[job.cuts.length][cutNo]} cut, tab ${cutNo + 1}: ` : "";
+  const closed = LEVELS[job.index].closed && (name === "n" || name === "index");
+  if (tier === 1) return `${where}${READ[name]}${closed ? " On a closed rose, passes × index is 360°." : ""}`;
+  if (tier === 2) {
+    if (name === "shape") return `${where}the waves are ${EDGES[want]}.`;
+    const span = (K.max - K.min) / stepOf(name), far = Math.abs(want - was) / stepOf(name) / span;
+    return `${where}${K.name} needs to go ${want > was ? "up" : "down"}${far <= 0.15 ? " a little" : far <= 0.45 ? " a fair way" : " a long way"}.`;
+  }
+  const at = job.answer[cutNo];
+  return `${where}${K.name} is ${K.say(want)}.${closed ? ` (${at.n} passes × ${at.index}° = 360°)` : ""}`;
+}
+/**
+ * Takes a clue: about the knob that matters most, a tier on from `prev` (the clue before, if it was about the same knob),
+ * and the run remembers the deepest tier taken, for the stars. Null when every knob is right.
+ */
+export function takeClue(job, run, prev = null) {
+  if (run.done) return null;
+  const w = worstKnob(job, run);
+  if (!w) return null;
+  const tier = prev && prev.cut === w.cut && prev.name === w.name ? Math.min(3, prev.tier + 1) : 1;
+  run.clues = Math.max(run.clues || 0, tier);
+  return { ...w, tier, text: clueText(job, run, w.cut, w.name, tier) };
+}
+
+// ---------- lessons ----------
+// Each plate opens with a lesson on a plate of its own with no target: the machine at the level's own cuts, a few things to
+// do (each a knob set to a value, checked) and what it showed. `start` gives each cut the settings it begins with (a lesson
+// on the index needs a rose to turn); a step's `cut` is the tab it is done in.
+const lesson = (start, steps) => ({ start, steps });
+const doing = (cut, set, to, learn) => ({ cut, set, do: to, learn });
+export const LESSONS = {
+  wave: lesson([{ k: 2, a: 3 }], [
+    doing(0, { k: 6 }, "This is one pass of a rose engine. Turn Lobes up to 6.", "Six lobes on the rosette, six waves in the ring: the cutting point rides in and out over each."),
+    doing(0, { a: 6 }, "Now raise Throw to 6.", "Throw is how hard the rosette pushes the point. The waves get deeper; there are still six."),
+    doing(0, { k: 14, a: 2 }, "Try Lobes 14 with Throw 2.", "Many lobes and a shallow throw: a fine ripple. Lobes and Throw are the whole ring."),
+  ]),
+  edge: lesson([{ k: 8, a: 5 }], [
+    doing(0, { shape: 1 }, "Change the Rosette to Scallop.", "Arches that meet in sharp cusps pointing in: the barleycorn's grain."),
+    doing(0, { shape: 2 }, "Now Point.", "Straight runs meeting in tips: a zigzag. The edge of the rosette is the shape of the wave."),
+    doing(0, { shape: 0, k: 14 }, "Back to Wave, with Lobes at 14.", "Smooth again. A ring is its count, its depth and its edge: three things to read off a target."),
+  ]),
+  rose: lesson([{ k: 5, a: 5 }], [
+    doing(0, { n: 8 }, "Set Passes to 8.", "Eight passes, and you still see one ring: they all lie on top of each other, the rosette not yet turned."),
+    doing(0, { index: 30 }, "Set Index to 30°.", "Index turns the rosette a little between passes. Now each ring sits round from the last, and they cross."),
+    doing(0, { n: 12 }, "Set Passes to 12.", "12 × 30° is 360°: the rosette has come all the way round and the rose closes. Passes × index = 360°."),
+  ]),
+  ribbon: lesson([{ k: 6, a: 3, n: 12, index: 30 }], [
+    doing(0, { feed: 3 }, "This rose is closed. Set Feed to 3.", "Feed steps each pass a little outward, so the rings no longer share a radius and the rose opens."),
+    doing(0, { n: 20, index: 15 }, "Set Passes to 20 and Index to 15°.", "More passes at a finer index fill the band with crossings. Feed sets how wide, passes how full."),
+  ]),
+  basket: lesson([{ k: 6, a: 3, n: 12, index: 30 }], [
+    doing(0, { a2: 2 }, "A second rosette rides on the first. Raise Throw 2 to 2.", "With one lobe it only shifts each ring off the centre a little."),
+    doing(0, { k2: 5 }, "Set Lobes 2 to 5.", "Five lobes of the second rosette ride on six of the first: the ring is woven, a basket."),
+    doing(0, { k2: 9, a2: 3 }, "Try Lobes 2 at 9 and Throw 2 at 3.", "A fine second rosette weaves a close basket; a coarse one, a bold one."),
+  ]),
+  dial: lesson([{ k: 5, a: 3, n: 8, index: 45 }, { k: 16, a: 3 }], [
+    doing(0, { n: 12, index: 30 }, "A dial is cuts, side by side. On the centre (tab 1) set Passes 12, Index 30°.", "A closed rose in the middle: 12 × 30° = 360°."),
+    doing(1, { k: 20 }, "Tap tab 2, the ring, and set Lobes to 20.", "The ring is another cut at a bigger radius, with a rosette of its own. Each cut keeps its own knobs."),
+  ]),
+  three: lesson([{ k: 4, a: 2, n: 8, index: 45 }, { k: 6, a: 2, n: 10, index: 30 }, { k: 16, a: 3 }], [
+    doing(1, { feed: 3 }, "Tap tab 2, the band, and set Feed to 3.", "The middle cut is a ribbon: its feed spreads the passes out into a band between centre and rim."),
+    doing(2, { k: 22, a: 4 }, "Tap tab 3, the rim: Lobes 22, Throw 4.", "The rim's rosette has a pointed edge, fixed for this cut; its count and depth are yours. Three cuts read as one pattern."),
+  ]),
+  master: lesson([{ k: 4, a: 2, n: 8, index: 45 }, { k: 6, a: 2, n: 10, index: 30, feed: 2 }, { k: 20, a: 3 }], [
+    doing(0, { a2: 2, k2: 3 }, "Tab 1, the centre: add a second rosette, Throw 2 at 2 and Lobes 2 at 3.", "A woven centre: the basket of a second rosette inside a closed rose."),
+    doing(2, { a2: 2, k2: 4 }, "Tab 3, the rim: Throw 2 at 2 and Lobes 2 at 4.", "A ripple along the barleycorn. Each cut can carry two rosettes: every knob you have met is on this dial."),
+  ]),
+};
+/** The lesson of a level as a job: the level's cuts and no target. */
+export function lessonJob(index) {
+  const level = LEVELS[index];
+  return { index, id: level.id, name: level.name, story: level.story, lesson: true, seed: 0, cuts: level.cuts, answer: null, goal: null, par: 0, steps: LESSONS[level.id].steps.length };
+}
+/** A lesson's run: the machine at the lesson's start, on its first step. */
+export function lessonRun(job) {
+  const run = newRun(job), start = LESSONS[job.id].start;
+  run.vals.forEach((v, i) => Object.assign(v, start[i] || {}));
+  run.step = 0;
+  run.at = LESSONS[job.id].steps[0].cut;
+  return run;
+}
+/** Whether the step in hand is done: every knob it names is where it asks. */
+export const stepDone = (job, run) => {
+  const s = LESSONS[job.id].steps[run.step];
+  return !!s && Object.entries(s.set).every(([name, v]) => run.vals[s.cut][name] === v);
+};
+export const lessonStep = (job, run) => LESSONS[job.id].steps[run.step];

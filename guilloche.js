@@ -1,21 +1,22 @@
 // Guilloché: a rose engine. A target plate is shown engraved, and a machine with its knobs bare: the rosette's lobes and
 // throw, how many passes to cut and how far to turn the rosette between them, a feed, a second rosette; and a dial is
 // several cuts, each in its own zone. Set them until the plate you cut is the target's, and what a person learns is how a
-// guilloché is made. The rules are guilloche-engine.js's, the plate is drawn by guilloche-draw.js; this file takes the
-// fingers and keeps the work.
-import { LEVELS, KNOBS, STARS, SHAPES, stepOf, makeJob, newRun, setKnob, undo, finish, say, closeness } from "./guilloche-engine.js";
-import { createPlate } from "./guilloche-draw.js";
+// guilloché is made. The rules are guilloche-engine.js's, the watch is drawn in 3D by guilloche-3d.js (guilloche-flat.js where
+// there is no WebGL) to the spec of guilloche-watch.js; this file takes the fingers and keeps the work.
+import { LEVELS, KNOBS, STARS, CUT_NAMES, CLUE_CAP, stepOf, makeJob, newRun, setKnob, undo, finish, say, closeness, takeClue, lessonJob, lessonRun, lessonStep, stepDone } from "./guilloche-engine.js";
+import { createWatch } from "./guilloche-3d.js";
+import { createFlat } from "./guilloche-flat.js";
+import { watchOf } from "./guilloche-watch.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, action, line, toggle, onPause } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "guilloche:run", MADE = "guilloche:jobs", BEST = "guilloche:best", OPTS = "guilloche:opts";
+const RUN = "guilloche:run", MADE = "guilloche:jobs", BEST = "guilloche:best", OPTS = "guilloche:opts", TAUGHT = "guilloche:lessons";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
-const TABS = { 2: ["Centre", "Ring"], 3: ["Centre", "Band", "Rim"] };
 
 let opts = { sound: true, ghost: true, ...read(OPTS, {}) };
 const saveOpts = () => write(OPTS, opts);
@@ -41,6 +42,8 @@ const SOUND = {
   tick: () => noise(30, { lo: 1200, hi: 4200, gain: 0.12, decay: 3 }),                // a click of the index wheel
   cut: () => noise(2300, { lo: 2500, hi: 7000, gain: 0.05, decay: 0.15 }),            // the cutting point running
   done: () => noise(260, { lo: 600, hi: 3000, gain: 0.18, decay: 2 }),
+  set: () => noise(90, { lo: 2000, hi: 6500, gain: 0.14, decay: 2.5 }),          // a hand or a marker set on the dial
+  clue: () => noise(140, { lo: 500, hi: 1800, gain: 0.1, decay: 1.5 }),
 };
 
 // ---------- the work in hand and its keeping ----------
@@ -48,17 +51,39 @@ const made = () => read(MADE, {});
 const unlocked = i => i === 0 || (made()[LEVELS[i - 1].id] ?? 0) >= STARS[0];
 let plate = null, job = null, run = null, engraving = 0, doneTimer = 0;
 let history = [];                                  // the batches of changes a finger made, for Undo (not kept: a reload starts it fresh)
+let hint = null;                                   // the clue on show: { cut, name, tier, text }; it stays until its knob is touched
+const taught = id => read(TAUGHT, {})[id] || (made()[id] ?? 0) > 0;      // a plate already played needs no lesson
 
-const save = () => write(RUN, { v: 1, run });
-function begin(i, seed = (Math.random() * 2 ** 31) >>> 0) {
+const save = () => { if (!job.lesson) write(RUN, { v: 1, run }); };
+function stop() {
   cancelAnimationFrame(engraving);
   engraving = 0;
   clearTimeout(doneTimer);
+  hint = null;
+  history = [];
+}
+/** A plate to cut. A plate not yet met opens with its lesson (`lesson: false` skips that), which ends in this plate. */
+function begin(i, seed = (Math.random() * 2 ** 31) >>> 0, lesson = true) {
+  stop();
+  if (lesson && !taught(LEVELS[i].id)) { teach(i, seed); return; }
   job = makeJob(i, seed);
   run = newRun(job);
-  history = [];
   open();
   save();
+}
+/** The lesson of a plate: the machine with no target, a few things to set, what each showed; then the plate itself. */
+function teach(i, seed = (Math.random() * 2 ** 31) >>> 0) {
+  stop();
+  job = lessonJob(i);
+  job.next = seed;
+  run = lessonRun(job);
+  open();
+}
+function endLesson() {
+  const i = job.index, seed = job.next, all = read(TAUGHT, {});
+  all[LEVELS[i].id] = true;
+  write(TAUGHT, all);
+  begin(i, seed, false);
 }
 /** A saved run, if it is whole and of a plate the engine still makes; else the first plate. */
 function load() {
@@ -67,7 +92,7 @@ function load() {
     const j = makeJob(r.job, r.seed);
     const ok = Array.isArray(r.vals) && r.vals.length === j.cuts.length && r.vals.every((v, i) => j.cuts[i].free.every(n => Number.isInteger(v?.[n]) && v[n] >= KNOBS[n].min && v[n] <= KNOBS[n].max && v[n] % stepOf(n) === 0))
       && Number.isInteger(r.at) && r.at >= 0 && r.at < j.cuts.length && Number.isFinite(r.taps);
-    if (ok) { job = j; run = r; history = []; open(); return; }
+    if (ok) { job = j; run = { clues: 0, ...r }; history = []; open(); return; }
   }
   begin(0);
 }
@@ -75,34 +100,76 @@ function load() {
 function open() {
   plate.set(job, run);
   plate.ghost(opts.ghost);
+  plate.mark(-1);
   buildTabs();
   buildKnobs();
   render();
 }
 
 // ---------- drawing the page ----------
+/** What the line under the plate says: a lesson's step, a clue, or how near the plate is. */
+function lineText() {
+  if (job.lesson) { const st = lessonStep(job, run); return stepDone(job, run) ? st.learn : st.do; }
+  return hint && !run.done ? hint.text : say(job, run);
+}
+const counts = () => `${job.index + 1} of ${LEVELS.length} · ${run.taps} tap${run.taps === 1 ? "" : "s"}`;
+const button = (act, text, cls = "", extra = "") => `<button type="button" class="btn ${cls} lg-act" data-act="${act}" ${extra}>${text}</button>`;
+const NEXT_CLUE = ["free", "free", "caps stars at 2", "caps stars at 1"];
 function render() {
-  const best = made()[job.id] ?? 0;
-  $("jobName").textContent = job.name;
-  $("jobNo").textContent = `${job.index + 1} of ${LEVELS.length} · ${run.taps} tap${run.taps === 1 ? "" : "s"}`;
-  $("jobStars").textContent = job.cuts.length > 1 ? "" : best ? starText(best) : "";
-  $("line").textContent = say(job, run);
-  $("acts").innerHTML = run.done
-    ? `<button type="button" class="btn lg-act" data-act="again">A fresh one</button><button type="button" class="btn primary lg-act" data-act="next">${job.index === LEVELS.length - 1 ? "Back to the first" : "Next plate"}</button>`
-    : `<button type="button" class="btn lg-act" data-act="undo" ${history.length ? "" : "disabled"}>Undo</button><button type="button" class="btn lg-act" data-act="over">Start over</button>`;
+  const best = made()[job.id] ?? 0, lessonNo = job.lesson ? `Step ${run.step + 1} of ${job.steps}` : counts();
+  $("jobName").textContent = job.lesson ? `Lesson: ${job.name}` : job.name;
+  $("jobNo").textContent = job.lesson ? lessonNo : lessonNo;
+  $("jobStars").textContent = job.lesson || job.cuts.length > 1 ? "" : best ? starText(best) : "";
+  $("line").textContent = lineText();
+  if (job.lesson) {
+    const last = run.step === job.steps - 1;
+    $("acts").innerHTML = button("skip", "Skip the lesson") + button("step", last ? "Cut the plate" : "Next", "primary", stepDone(job, run) ? "" : "disabled");
+  } else if (run.done) {
+    $("acts").innerHTML = button("again", "A fresh one") + button("next", job.index === LEVELS.length - 1 ? "Back to the first" : "Next plate", "primary");
+  } else {
+    const nextTier = Math.min(3, (hint ? hint.tier : 0) + 1);
+    $("acts").innerHTML = button("undo", "Undo", "", history.length ? "" : "disabled") + button("clue", `Clue<small>${NEXT_CLUE[nextTier]}</small>`, "lg-clue") + button("over", "Start over");
+  }
+  $("tabs").querySelectorAll("button").forEach((b, n) => b.classList.toggle("lg-hint", !!hint && hint.cut === n && !run.done));
+  document.querySelectorAll(".lg-knob").forEach(k => k.classList.toggle("lg-hint", !!hint && !run.done && hint.name === k.dataset.knob && hint.cut === run.at));
+  document.querySelectorAll(".lg-knob").forEach(k => k.classList.toggle("lg-want", !!job.lesson && !!lessonStep(job, run) && !stepDone(job, run) && k.dataset.knob in lessonStep(job, run).set));
 }
 $("acts").addEventListener("click", e => {
   const b = e.target.closest("[data-act]");
   if (!b || b.disabled) return;
   const act = b.dataset.act;
   if (act === "undo") { const last = history.pop(); if (last) { undo(job, run, last); save(); changed(); render(); } }
-  else if (act === "over") begin(job.index, job.seed);
+  else if (act === "over") begin(job.index, job.seed, false);
   else if (act === "again") begin(job.index);
   else if (act === "next") begin(job.index === LEVELS.length - 1 ? 0 : job.index + 1);
+  else if (act === "clue") giveClue();
+  else if (act === "skip") endLesson();
+  else if (act === "step") nextStep();
 });
+/** The next clue: about the knob that matters most, on a tier from the last if it is still that knob; its cut is shown and ringed on the dial. */
+function giveClue() {
+  if (run.done || engraving) return;
+  const c = takeClue(job, run, hint);
+  if (!c) return;
+  hint = c;
+  SOUND.clue();
+  if (c.cut !== run.at) { run.at = c.cut; buildTabs(); buildKnobs(); }
+  plate.mark(c.cut);
+  save();
+  plate.refresh();
+  render();
+}
+function nextStep() {
+  if (!stepDone(job, run)) return;
+  if (run.step === job.steps - 1) { endLesson(); return; }
+  run.step++;
+  const st = lessonStep(job, run);
+  if (st.cut !== run.at) { run.at = st.cut; buildTabs(); buildKnobs(); plate.refresh(); }
+  render();
+}
 
 function buildTabs() {
-  const box = $("tabs"), names = TABS[job.cuts.length];
+  const box = $("tabs"), names = CUT_NAMES[job.cuts.length];
   box.replaceChildren();
   if (!names) return;
   names.forEach((n, i) => {
@@ -113,7 +180,7 @@ function buildTabs() {
     b.title = n;
     b.setAttribute("aria-label", `Cut ${i + 1}: ${n}`);
     b.setAttribute("aria-selected", String(i === run.at));
-    b.addEventListener("click", () => { if (run.done || i === run.at) return; run.at = i; save(); buildTabs(); buildKnobs(); plate.refresh(); });
+    b.addEventListener("click", () => { if (run.done || i === run.at) return; run.at = i; save(); buildTabs(); buildKnobs(); plate.refresh(); render(); });
     box.append(b);
   });
 }
@@ -149,11 +216,16 @@ function syncKnobs() {
 function turn(name, v) {
   const g = gesture ?? { batch: [], fresh: true, loose: true };
   const ch = setKnob(job, run, run.at, name, v, g.fresh);
-  if (ch) { g.batch.push(ch); g.fresh = false; SOUND.tick(); changed(); }
+  if (ch) { g.batch.push(ch); g.fresh = false; lastTouched = { cut: ch.cut, name }; SOUND.tick(); changed(); }
   else syncKnobs();
   if (g.loose && g.batch.length) { history.push(g.batch); end(); }
 }
-const changed = () => { syncKnobs(); plate.refresh(); $("line").textContent = say(job, run); $("jobNo").textContent = `${job.index + 1} of ${LEVELS.length} · ${run.taps} tap${run.taps === 1 ? "" : "s"}`; };
+const changed = () => {
+  if (hint && !run.done && hint.name === lastTouched?.name && hint.cut === lastTouched?.cut) { hint = null; plate.mark(-1); }     // touching the knob a clue was about puts the clue away
+  syncKnobs(); plate.refresh(); $("line").textContent = lineText();
+  if (!job.lesson) $("jobNo").textContent = counts();
+};
+let lastTouched = null;
 /** A finger has let go: its changes are one Undo, the run is kept, and a plate that matches is engraved. */
 function release() {
   if (!gesture) return;
@@ -165,6 +237,7 @@ function release() {
 function end() {
   save();
   render();
+  if (job.lesson) { if (stepDone(job, run)) SOUND.set(); return; }
   if (finish(job, run)) { save(); engrave(); }
 }
 $("knobs").addEventListener("pointerdown", e => {
@@ -200,36 +273,45 @@ $("knobs").addEventListener("click", e => {
   turn(name, run.vals[run.at][name] + Number(step.dataset.d) * stepOf(name));
 });
 
-// ---------- a plate matched: it is engraved, pass by pass ----------
+// ---------- a plate matched: it is engraved pass by pass under the cutter, then the watch is put together ----------
+const CUT_MS = 2400, SET_MS = 2000, REST_MS = 600;
 function engrave() {
+  hint = null;
+  plate.mark(-1);
   render();
   plate.peek(false);
-  const t0 = performance.now(), span = 2400;
+  const t0 = performance.now();
   clearTimeout(doneTimer);
   plate.reveal(0);
+  plate.assemble(0);
   SOUND.cut();
+  let set = false;
   const step = now => {
-    const t = Math.min(1, (now - t0) / span);
-    plate.reveal(t);
-    if (t < 1) engraving = requestAnimationFrame(step); else engraved();
+    const t = now - t0;
+    plate.reveal(Math.min(1, t / CUT_MS));
+    plate.assemble(Math.max(0, Math.min(1, (t - CUT_MS) / SET_MS)));
+    if (!set && t > CUT_MS + 300) { set = true; SOUND.set(); }
+    if (t < CUT_MS + SET_MS + REST_MS) engraving = requestAnimationFrame(step); else engraved();
   };
   engraving = requestAnimationFrame(step);
 }
-/** The last pass is cut: the plate whole, a sound, and the result a moment on. */
+/** The watch is made: the plate whole, the hands set, a sound, and the result a moment on. */
 function engraved() {
   engraving = 0;
   plate.reveal(1);
+  plate.assemble(1);
   SOUND.done();
   clearTimeout(doneTimer);
-  doneTimer = setTimeout(showDone, 400);
+  doneTimer = setTimeout(showDone, 500);
 }
 function showDone() {
   const all = made(), before = all[job.id] ?? 0, d = run.done;
-  const cutPasses = job.cuts.reduce((n, c, i) => n + (job.answer[i].n ?? c.fixed.n), 0);
+  const cutPasses = job.cuts.reduce((n, c, i) => n + (job.answer[i].n ?? c.fixed.n), 0), watch = watchOf(job.id);
   $("doneHead").textContent = `${job.name}: ${["", "engraved", "well engraved", "engraved by the book"][d.stars]}`;
   $("doneStars").textContent = starText(d.stars);
-  $("doneBody").innerHTML = [["Taps", d.taps], ["Par", job.par], ["Passes cut", cutPasses], ["Cuts", job.cuts.length]].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
-  $("doneNote").textContent = `${job.story} ${d.stars === 3 ? "" : `Par is the knobs to set, a tap each: within ${Math.ceil(job.par * 1.5) + 2} taps is three stars.`}`.trim();
+  $("doneBody").innerHTML = [["Taps", d.taps], ["Par", job.par], ["Passes cut", cutPasses], ["Clues", d.clues]].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+  const why = d.clues && CLUE_CAP[d.clues] < 3 ? `Clues cap the stars at ${CLUE_CAP[d.clues]}. ` : d.stars === 3 ? "" : `Par is the knobs to set, a tap each: within ${Math.ceil(job.par * 1.5) + 2} taps is three stars. `;
+  $("doneNote").textContent = `Set in a ${watch.name.toLowerCase()} watch. ${job.story} ${why}`.trim();
   if (d.stars > before) {
     all[job.id] = d.stars;
     write(MADE, all);
@@ -243,13 +325,14 @@ function showDone() {
 }
 $("nextBtn").addEventListener("click", () => { $("doneDlg").close(); begin(Number($("nextBtn").dataset.next)); });
 $("againBtn").addEventListener("click", () => { $("doneDlg").close(); begin(job.index); });
+$("lookBtn").addEventListener("click", () => $("doneDlg").close());
 
 // ---------- the menu ----------
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
-  play.append(action("Start this plate over", () => begin(job.index, job.seed), "primary"), action("A fresh one", () => begin(job.index)));
+  play.append(action(job.lesson ? "Leave the lesson" : "Start this plate over", () => (job.lesson ? endLesson() : begin(job.index, job.seed, false)), "primary"), action("A fresh one", () => begin(job.index, undefined, false)), action("Lesson for this plate", () => teach(job.index, job.lesson ? job.next : job.seed), "link"));
   const list = document.createElement("ol"), all = made();
   list.className = "lg-jobs";
   LEVELS.forEach((l, i) => {
@@ -257,9 +340,9 @@ function openMenu() {
     b.type = "button";
     b.disabled = !open_;
     b.className = i === job.index ? "cur" : "";
-    b.innerHTML = `<span>${i + 1}. ${l.name}</span><small>${got ? starText(got) : open_ ? (i === job.index ? "in hand" : "") : "locked"}</small>`;
+    b.innerHTML = `<span>${i + 1}. ${l.name}<em>${watchOf(l.id).name}</em></span><small>${got ? starText(got) : open_ ? (i === job.index ? "in hand" : "") : "locked"}</small>`;
     b.title = l.story;
-    b.addEventListener("click", () => { $("menuDlg").close(); if (i !== job.index) begin(i); });
+    b.addEventListener("click", () => { $("menuDlg").close(); if (i !== job.index || job.lesson) begin(i); });
     li.append(b);
     list.append(li);
   });
@@ -277,19 +360,46 @@ bindSwitcher($("appsBtn"), "guilloche");
 document.querySelector(".lg-mark").innerHTML = APPS.find(a => a.id === "guilloche")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-plate = createPlate($("bench"));
+try { plate = createWatch($("bench")); }
+catch (err) {
+  console.warn("Guilloché: no WebGL here, so the watch is drawn flat.", err);
+  plate = createFlat($("bench"));
+}
 {
-  // holding the plate shows the target alone; letting go puts the engraving back
-  const c = plate.canvas;
-  const down = e => { if (!job || run.done || engraving || $("doneDlg").open) return; if (e.pointerType === "mouse" && e.button !== 0) return; c.setPointerCapture(e.pointerId); plate.peek(true); e.preventDefault(); };
-  const up = () => plate.peek(false);
-  c.addEventListener("pointerdown", down);
+  // a finger on the watch: held still it shows the target alone; dragged it tips the watch (the light plays on the grooves);
+  // two fingers, the wheel or a double tap look closer
+  const c = plate.canvas, fingers = new Map();
+  let hold = 0, peeking = false, tipped = false, pinch = 0;
+  const idle = () => !job || engraving || $("doneDlg").open;
+  const gap = () => { const [a, b] = [...fingers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  c.addEventListener("pointerdown", e => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    c.setPointerCapture(e.pointerId);
+    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
+    if (fingers.size === 2) { clearTimeout(hold); pinch = gap(); if (peeking) { peeking = false; plate.peek(false); } return; }
+    tipped = false;
+    clearTimeout(hold);
+    hold = setTimeout(() => { if (!tipped && !idle() && !run.done && !job.lesson) { peeking = true; plate.peek(true); } }, 260);
+    e.preventDefault();
+  });
+  c.addEventListener("pointermove", e => {
+    const f = fingers.get(e.pointerId);
+    if (!f) return;
+    const dx = e.clientX - f.x, dy = e.clientY - f.y;
+    f.x = e.clientX; f.y = e.clientY;
+    if (fingers.size === 2) { const g = gap(); if (pinch) plate.zoom(g / pinch); pinch = g; return; }
+    if (!tipped && Math.hypot(f.x - f.x0, f.y - f.y0) > 6) { tipped = true; clearTimeout(hold); if (peeking) { peeking = false; plate.peek(false); } }
+    if (tipped) plate.orbit(dx * 0.006, dy * 0.006);
+  });
+  const up = e => { fingers.delete(e.pointerId); clearTimeout(hold); pinch = 0; if (peeking && !fingers.size) { peeking = false; plate.peek(false); } };
   c.addEventListener("pointerup", up);
   c.addEventListener("pointercancel", up);
+  c.addEventListener("wheel", e => { e.preventDefault(); plate.zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+  c.addEventListener("dblclick", () => plate.resetView());
   c.addEventListener("contextmenu", e => e.preventDefault());
 }
 // the menu stands the cutting point still; a plate being engraved when it opens is finished when it closes
 let stopped = false;
-onPause(() => { if (engraving) { cancelAnimationFrame(engraving); engraving = 0; stopped = true; } }, () => { if (stopped) { stopped = false; engraved(); } });
+onPause(() => { plate.pause(true); if (engraving) { cancelAnimationFrame(engraving); engraving = 0; stopped = true; } }, () => { plate.pause(false); if (stopped) { stopped = false; engraved(); } });
 load();
-window.__guilloche = { get job() { return job; }, get run() { return run; }, plate, begin, showDone, render, engrave, setKnob, finish, save, closeness, changed: () => { changed(); render(); } };
+window.__guilloche = { get job() { return job; }, get run() { return run; }, plate, begin, teach, endLesson, nextStep, giveClue, showDone, render, engrave, setKnob, finish, save, closeness, changed: () => { changed(); render(); } };
