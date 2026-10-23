@@ -190,7 +190,7 @@ export const ELSEWHERE = [
   { id: "dandan", name: "Dandan", kind: "table", page: "dandan.html", max: 2, blurb: "Forgetful Fish: one shared deck of eighty cards, two players, and Dandâns that only attack across an Island." },
   { id: "cartel", name: "Cartel", kind: "table", page: "cartel.html", max: 4, blurb: "Coup and Liar's Dice in dice: claim roles you may not hold, bid on dice you can't see." },
   { id: "contract", name: "Contract", kind: "table", page: "contract.html", max: 4, across: true, blurb: "Bridge: the auction in SAYC, then the play, a Chicago match of four deals." },
-  { id: "crates", name: "Crates", kind: "duo", duo: "crates", page: "crates.html", max: 2, blurb: "Sixteen words into four crates, one board between you." },
+  { id: "crates", name: "Crates", kind: "duo", duo: "crates", page: "crates.html", max: 2, blurb: "Sixteen words into four crates, one board between you, or hidden sides: each of you sees only eight." },
   { id: "glyph", name: "Slate", kind: "duo", duo: "glyph", page: "slate.html", max: 6, blurb: "A small crossword with secret letter rules, everyone filling the one board." },
   { id: "delta", name: "Delta", kind: "duo", duo: "delta", page: "delta.html", max: 6, blurb: "The hex sums, everyone drawing on the one board." },
   { id: "punt", name: "Punt", kind: "duo", duo: "punt", page: "punt.html", max: 6, blurb: "Trivia with a stake on every answer: a pot each, or one for the table." },

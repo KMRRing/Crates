@@ -13,7 +13,7 @@ import { getSync } from "./net.js";
 import * as view from "./view.js";
 import { branchPath, openBranch, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, GAMES } from "./rooms.js";
 import { reportDuo } from "./suite.js";
-import { part, action, line } from "./menu.js";
+import { part, action, line, choice } from "./menu.js";
 
 const LIVES = 4;          // team pool per board
 const CLUES = 4;          // team pool per board; unused clues don't carry over
@@ -465,6 +465,23 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
         return cur;
       });
     },
+    /**
+     * Shared board or hidden sides (23 October 2026, Korbi: a party, or the partner, joins and the hidden game "can be
+     * started"): the room is dealt as a shared game by whoever arrives, and either player changes it here. A new game
+     * in the other mode: hidden begins in its lobby (each sets up a side, both press Ready), shared deals a board at
+     * once. Not once guesses have been made on a board; a finished one may be changed from.
+     */
+    async mode(value) {
+      const { committed } = await change(cur => {
+        const b = cur.board;
+        if (cur.mode === value || !MODES[value] || (b && !b.done && (b.guesses.length || b.found.length || b.revealed.length))) return false;
+        cur.mode = value;
+        for (const pl of Object.values(cur.players)) { pl.sel = []; pl.ready = false; }
+        if (value === "hidden") delete cur.board; else cur.board = newBoard(cur, b ? b.n + 1 : 1);
+        return cur;
+      });
+      if (!committed) view.toast("Finish this board first", 2500);
+    },
     async pool(value) {
       setPoolParam(value);
       await change(cur => { cur.pool = value; return cur; });
@@ -477,6 +494,11 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
       view.openMenu((body, close) => {
         const together = part(body, "together");
         together.append(line(players().map(pl => `${pl.name}${pl.online === false ? " (away)" : ""}${pl.ready ? " ✓ ready" : ""}`).join(" and ") || `${MODES[room.mode].label} game`));
+        // the mode: while nothing has been played on the board (or it is over), either of you may change it
+        const b = room.board;
+        if (!b || b.done || !(b.guesses.length || b.found.length || b.revealed.length)) {
+          together.append(choice("Sides", [["shared", "Shared board"], ["hidden", "Hidden sides"]], room.mode, v => { close(); handlers.mode(v); }));
+        }
         if (!room.board) {                                        // hidden-mode lobby
           part(body, "play").append(action(me().ready ? "Not ready" : "I'm ready", toggleReady, "primary"), action("Set up your side", settingsSheet));
         } else together.append(action(hidden() ? "Your side" : "Settings", settingsSheet));
