@@ -11,7 +11,7 @@
 // reveal, assemble, mark, orbit, zoom, pause; guilloche-flat.js answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
 import { scale } from "./wide.js";
-import { passes, settingsOf, KNOBS } from "./guilloche-engine.js";
+import { passes, settingsOf, maxPasses } from "./guilloche-engine.js";
 import { watchOf, METALS, ghostOf, luma } from "./guilloche-watch.js";
 
 const DOUBLE = 2, ADD = 2, NORMAL = 1;                      // THREE.DoubleSide, AdditiveBlending, NormalBlending (not in the bundle's exports)
@@ -130,6 +130,51 @@ const grooveMaterial = (spec, from, total) => surface({ main: ENGRAVED_MAIN, vde
 const ghostMaterial = (spec, from, total) => surface({ main: GHOST_MAIN, vdecl: GROOVE_VERT, vertex: GROOVE_VERTEX, normal: "vec3(0., 1., 0.)", transparent: true, depthWrite: false,
   decl: `${GROOVE_DECL} uniform vec3 uGhost;`,
   own: { uGhost: { value: col3(ghostOf(spec.dial.base)) }, uFrom: { value: from }, uTotal: { value: total }, uReveal: { value: 1 }, uAlpha: { value: 0.62 } } });
+
+// The straight engine's cuts are drawn as a field, not as ribbons: wherever a groove is, the surface slopes toward its line, so a
+// right-angled cross leaves square pyramids (clous de Paris) and each facet takes the studio's light as the watch tips. The
+// shader works out, for the point on the dial, the nearest line of each set and which way the wall there faces.
+const FIELD_DECL = `uniform vec3 uBase; uniform vec3 uTint; uniform float uFrom; uniform float uTotal; uniform float uReveal; uniform float uAlpha; uniform float uCount;
+uniform float uR; uniform vec3 uHole; uniform float uPitch; uniform float uAng; uniform float uCross; uniform float uFill; uniform vec2 uWave; uniform float uShape; uniform float uIdx;
+float edgeF(float p) { if (uShape < .5) return sin(p); if (uShape < 1.5) return 2. * abs(sin(p * .5)) - 1.; return .63662 * asin(clamp(sin(p), -1., 1.)); }
+float dedgeF(float p) { if (uShape < .5) return cos(p); if (uShape < 1.5) return cos(p * .5) * sign(sin(p * .5)); return .63662 * sign(cos(p)); }
+// one set of lines at angle th: x the signed distance to the nearest line in pitches, yz the way that distance grows (per pitch)
+vec3 fam(vec2 p, float th, float waved) {
+  vec2 t = vec2(cos(th), sin(th)), n = vec2(-t.y, t.x);
+  float u = dot(p, n) / uPitch, s = dot(p, t), j = floor(u + .5);
+  vec2 g = n / uPitch;
+  if (waved > .5 && uWave.y > 0.) {
+    for (int i = 0; i < 2; i++) j = floor(u - uWave.y * edgeF(uWave.x * s + j * uIdx) / uPitch + .5);
+    float ph = uWave.x * s + j * uIdx;
+    g -= t * (uWave.y * dedgeF(ph) * uWave.x / uPitch);
+    return vec3(u - uWave.y * edgeF(ph) / uPitch - j, g);
+  }
+  return vec3(u - j, g);
+}`;
+const FIELD_MAIN = `{
+  vec2 p = vL.xy;
+  if (length(p) > uR || length(p - uHole.xy) < uHole.z) discard;
+  vec2 n1 = vec2(-sin(uAng), cos(uAng));
+  float f = clamp((uReveal * uTotal - uFrom) / max(uCount, 1.), 0., 1.);
+  if (dot(p, n1) / (2. * uR) + .5 > f) discard;
+  vec3 a = fam(p, uAng, 1.);
+  float gw = uFill * .5, da = abs(a.x) / gw, dn = da;
+  vec3 pick = a;
+  if (uCross > 0.) { vec3 b = fam(p, uAng + uCross, 0.); float db = abs(b.x) / gw; if (db < da) { pick = b; dn = db; } }
+  float cover = uFill > .99 ? 1. : 1. - smoothstep(.7, 1., dn);
+  vec2 dir = normalize(pick.yz);
+  float side = smoothstep(-.03, .03, pick.x) * 2. - 1.;
+  vec3 N = normalize(vec3(-side * dir.x * .95, 1., -side * dir.y * .95));
+  vec3 c = matte(uBase, N) * .7 + metal(uTint, N, .06) * 1.35;
+  outgoingLight = c * mix(.55, 1., smoothstep(0., .5, dn));
+  diffuseColor.a = cover * uAlpha;
+}`;
+const fieldMaterial = spec => surface({ main: FIELD_MAIN, transparent: true, depthWrite: false, decl: FIELD_DECL, normal: "vec3(0., 1., 0.)",
+  own: { uBase: { value: col3(spec.dial.base) }, uTint: { value: col3(spec.dial.base).lerp(col3("#ffffff"), 0.55) }, uFrom: { value: 0 }, uTotal: { value: 1 }, uReveal: { value: 1 }, uAlpha: { value: 1 }, uCount: { value: 1 },
+    uR: { value: 0.86 }, uHole: { value: new THREE.Vector3(0, 0, 0) }, uPitch: { value: 0.1 }, uAng: { value: 0 }, uCross: { value: 0 }, uFill: { value: 0.5 }, uWave: { value: new THREE.Vector2(0, 0) }, uShape: { value: 0 }, uIdx: { value: 0 } } });
+/** A field's uniforms from a straight cut's settings. */
+const fieldOf = (s, extra = {}) => ({ uR: s.R, uHole: new THREE.Vector3(...(s.holes?.[0] || [0, 0, 0])), uPitch: s.pitch * 0.02, uAng: (s.angle * Math.PI) / 180, uCross: (s.cross * Math.PI) / 180, uFill: s.fill ?? 0.5,
+  uWave: new THREE.Vector2(s.a ? s.k * Math.PI : 0, s.a * 0.02), uShape: s.shape, uIdx: (s.index * Math.PI) / 180, ...extra });
 
 // the case: metal with a fluted top or a coin-edged side, brushed on its flanks
 const caseMain = ang => `{
@@ -508,6 +553,7 @@ export function createWatch(host) {
   }
 
   // ----- the engraving of a plate -----
+  const fieldQuad = quad();
   let held = [], frames = [];                                // the engraving's own geometries and materials, and the rings round the registers
   function buildCuts() {
     for (const L of layers) parts.cuts.remove(L.mine, L.goal);
@@ -517,14 +563,15 @@ export function createWatch(host) {
     const { job } = view;
     if (!job) return;
     job.cuts.forEach((c, i) => {
-      const cap = c.free.includes("n") ? KNOBS.n.max : c.fixed.n;
-      const mineGeo = ribbon(cap), goalGeo = ribbon(cap), engraved = grooveMaterial(spec, 0, 1), ghost = ghostMaterial(spec, 0, 1), peekMat = grooveMaterial(spec, 0, 1);
-      held.push(mineGeo, goalGeo, engraved, ghost, peekMat);
-      const mine = new THREE.Mesh(mineGeo, engraved), goal = new THREE.Mesh(goalGeo, ghost);
+      const lines = c.kind === "lines", cap = maxPasses(c);
+      const mineGeo = lines ? null : ribbon(cap), goalGeo = ribbon(cap), engraved = lines ? fieldMaterial(spec) : grooveMaterial(spec, 0, 1), ghost = ghostMaterial(spec, 0, 1), peekMat = grooveMaterial(spec, 0, 1);
+      held.push(...[mineGeo, goalGeo, engraved, ghost, peekMat].filter(Boolean));
+      const mine = new THREE.Mesh(lines ? fieldQuad : mineGeo, engraved), goal = new THREE.Mesh(goalGeo, ghost);
+      if (lines) mine.rotation.x = Math.PI / 2;               // the quad is in x and y: laid flat, its y is the plate's
       mine.renderOrder = 10 + i; goal.renderOrder = 5 + i; mine.frustumCulled = goal.frustumCulled = false;
       mine.position.y = 0.0035; goal.position.y = 0.0045;
       parts.cuts.add(goal, mine);
-      layers.push({ mine, goal, mineGeo, goalGeo, ghost, peekMat, key: "", pts: [], from: 0 });
+      layers.push({ mine, goal, mineGeo, goalGeo, ghost, peekMat, key: "", pts: [], from: 0, lines });
       if (job.answer) cutRibbon(goalGeo, passes(settingsOf(c, job.answer[i])), 0);
       if (c.at) {
         // a register is edged with a fine ring of its own, as a real one is, so it reads as a dial in the dial
@@ -544,7 +591,7 @@ export function createWatch(host) {
     let from = 0;
     job.cuts.forEach((c, i) => {
       const L = layers[i], s = settingsOf(c, run.vals[i]), key = JSON.stringify(s);
-      if (L.key !== key) { L.key = key; L.pts = passes(s); cutRibbon(L.mineGeo, L.pts, 0); }
+      if (L.key !== key) { L.key = key; L.pts = passes(s); if (L.lines) setU(L.mine.material, fieldOf(s, { uCount: L.pts.length })); else cutRibbon(L.mineGeo, L.pts, 0); }
       L.from = from;
       from += L.pts.length;
     });
@@ -593,9 +640,9 @@ export function createWatch(host) {
   const gaugeShown = () => view.gauge && !!view.run && !view.run.done && view.assembled === 0;
   function syncGauge() {
     const { job, run } = view;
-    gauge.hidden = gcap.hidden = !gaugeShown();
-    if (!job || !run) return;
+    if (!job || !run) { gauge.hidden = gcap.hidden = true; return; }
     const at = Math.min(run.at, job.cuts.length - 1), s = settingsOf(job.cuts[at], run.vals[at]), key = `${s.k}/${s.a}/${s.shape}`;
+    gauge.hidden = gcap.hidden = !gaugeShown() || (s.kind === "lines" && !s.a);          // a straight cut with no wave has no rosette to show
     Object.assign(ros, { k: s.k, a: s.a, shape: s.shape });
     gcap.textContent = `${s.k} lobes · throw ${s.a}`;
     if (key === ros.key) return;
@@ -608,7 +655,7 @@ export function createWatch(host) {
     gsc.add(ros.mesh);
   }
   function drawGauge() {
-    if (!gaugeShown() || !ros.mesh) return;
+    if (!gaugeShown() || !ros.mesh || gauge.hidden) return;
     const sc = scale(), size = Math.round(Math.max(64, Math.min(150, Math.min(W, H) * 0.25 / sc)) * sc), at = Math.round(8 * sc);      // the gauge's side, and its place from the canvas's bottom left, in CSS pixels (script sizes grow with the screen)
     const x = at + 2, y = at + 2;                             // its face inside its 2px brass frame
     Object.assign(gauge.style, { left: `${at}px`, bottom: `${at}px`, width: `${size}px`, height: `${size}px` });

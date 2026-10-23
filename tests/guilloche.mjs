@@ -1,15 +1,16 @@
 // Guilloché's workshop (guilloche-engine.js): a pass cut by a rosette (lobes, throw, shape, index, feed, a second
-// rosette), the plate compared as a picture (the same engraving alike to a pixel, a step of any knob not), the eight levels
+// rosette), the plate compared as a picture (the same engraving alike to a pixel, a step of any knob not), the fifteen levels
 // each made from a seed with a hidden setting every one of whose neighbours is told apart, setting a knob and taking it
 // back, the grade by taps against par, and a run kept through JSON.
 import { WATCHES, METALS, FINISHES, BEZELS, HANDS, MARKS, STRAPS, watchOf, luma, ghostOf } from "../guilloche-watch.js";
-import { CLUE_CAP, CUT_NAMES, cutNames, LESSONS, lessonJob, lessonRun, lessonStep, stepDone, takeClue, clueText, G, WIN, STARS, SLACK, SHAPES, KNOBS, LEVELS, stepOf, clampKnob, passes, raster, alike, near, settingsOf, makeJob, newRun, platesOf, match, closeness, solved, setKnob, undo, starsFor, finish, say } from "../guilloche-engine.js";
+import { CLUE_CAP, CUT_NAMES, cutNames, LESSONS, lessonJob, lessonRun, lessonStep, stepDone, takeClue, clueText, G, WIN, STARS, SLACK, SHAPES, KNOBS, LEVELS, stepOf, clampKnob, passes, raster, alike, near, settingsOf, makeJob, newRun, platesOf, match, closeness, maxPasses, solved, setKnob, undo, starsFor, finish, say } from "../guilloche-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const near_ = (a, b, e = 1e-6) => Math.abs(a - b) < e;
 const SEEDS = Array.from({ length: 24 }, (_, i) => 1000 + i * 7919);
 const BARE = { R: 0.5, k: 2, a: 1, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2: 0 };
+const IX = Object.fromEntries(LEVELS.map((l, i) => [l.id, i]));          // a level's place by its name, so the tests follow the order the levels are in
 
 // ---------- one pass, and many ----------
 {
@@ -55,9 +56,11 @@ const BARE = { R: 0.5, k: 2, a: 1, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2:
 }
 
 // ---------- the levels ----------
-check(LEVELS.length === 11 && new Set(LEVELS.map(l => l.id)).size === 11 && LEVELS.every(l => l.name && l.story && l.cuts.length >= 1 && l.cuts.every(c => c.free.length && c.free.every(n => n in KNOBS && c.ranges[n].length === 2))),
-  "eleven levels, each with a name, a story and cuts with knobs and ranges");
-check(LEVELS[0].id === "wave" && LEVELS[7].id === "master" && LEVELS.at(-1).id === "grand" && LEVELS.map(l => l.cuts.length).join() === "1,1,1,1,1,2,3,3,3,4,5", "the wave ring first, the master dial eighth, then the registers, a cut more as the face grows");
+check(LEVELS.length === 15 && new Set(LEVELS.map(l => l.id)).size === 15 && LEVELS.every(l => l.name && l.story && l.cuts.length >= 1 && l.cuts.every(c => c.free.length && c.free.every(n => n in KNOBS && c.ranges[n].length === 2))),
+  "fifteen levels, each with a name, a story and cuts with knobs and ranges");
+check(LEVELS[0].id === "rose" && LEVELS[1].id === "lines" && LEVELS[2].id === "paris" && IX.master === 11 && LEVELS.at(-1).id === "grand" && LEVELS.map(l => l.cuts.length).join() === "1,1,1,1,1,1,1,1,2,3,3,3,3,4,5",
+  "a rose to show off, straight lines and Paris pyramids straight after, then the rings, a cut more as the face grows to the registers");
+check(LEVELS.slice(1, 3).every(l => l.cuts[0].kind === "lines") && LEVELS[IX.barley].cuts[0].kind === "lines" && LEVELS[IX.medallion].cuts[0].kind === "lines", "the straight levels cut lines");
 LEVELS.forEach((L, li) => {
   let same = 0, differs = 0, clear = 0, within = 0, fixedOk = 0;
   for (const seed of SEEDS) {
@@ -74,14 +77,43 @@ LEVELS.forEach((L, li) => {
 });
 {
   // the rose closes: passes times index is a whole turn of the rosette
-  const closed = SEEDS.every(s => { const v = makeJob(2, s).answer[0]; return v.n * v.index === 360; });
+  const closed = SEEDS.every(s => { const v = makeJob(IX.rose, s).answer[0]; return v.n * v.index === 360; });
   check(closed, "a rose's passes times index is 360°, so the rose closes");
-  check(makeJob(0, 5).par === 2 && makeJob(2, 5).par === 4 && makeJob(10, 5).par === LEVELS[10].cuts.reduce((n, c) => n + c.free.length, 0), "par is the knobs to set, a tap each (two for a wave ring, four for a rose)");
+  check(makeJob(IX.wave, 5).par === 2 && makeJob(IX.rose, 5).par === 4 && makeJob(14, 5).par === LEVELS[14].cuts.reduce((n, c) => n + c.free.length, 0), "par is the knobs to set, a tap each (two for a wave ring, four for a rose)");
+}
+
+// ---------- straight lines ----------
+{
+  const L = { R: 0.85, kind: "lines", pitch: 5, angle: 0, cross: 0, a: 0, k: 2, shape: 0, index: 0 }, P = c => passes({ ...L, ...c });
+  const flat = P({}), ys = flat.map(a => a[1]);
+  check(flat.length === 17 && ys.every((y, i) => near_(y, (i - 8) * 0.1, 1e-6)) && flat.every(a => near_(a[1], a.at(-1), 1e-6)),
+    "a straight cut is a line every pitch (a fiftieth of the radius a step), level at angle 0, across the plate");
+  check(flat.every(a => Math.hypot(a[0], a[1]) <= L.R + 1e-6 && Math.hypot(a.at(-2), a.at(-1)) <= L.R + 1e-6), "a line ends where the plate does");
+  check(P({ angle: 90 }).every((a, i) => near_(a[0], 0.8 - i * 0.1, 1e-6) || near_(a[0], -0.8 + i * 0.1, 1e-6)), "at 90° the lines stand upright");
+  check(P({ cross: 90 }).length === 34 && P({ cross: 0 }).length === 17, "a cross cuts a second set of lines at an angle to the first, and none is off");
+  const half = P({ cross: 90 }).slice(17), dir = a => [a.at(-2) - a[0], a.at(-1) - a[1]], d1 = dir(flat[8]), d2 = dir(half[8]);
+  check(near_(d1[0] * d2[0] + d1[1] * d2[1], 0, 1e-5), "at 90° the second set is square to the first: the pyramids of a clous de Paris");
+  const holed = P({ holes: [[0, 0, 0.3]] });
+  check(holed.length > 17 && holed.every(a => { for (let i = 0; i < a.length; i += 2) if (Math.hypot(a[i], a[i + 1]) < 0.3 - 1e-6) return false; return true; }), "a line stops short of a hole, so a medallion can sit in the field");
+  const waved = P({ a: 2, k: 4 });
+  check(waved.every((a, j) => { for (let i = 1; i < a.length; i += 2) if (Math.abs(a[i] - ys[j]) > 2 * 0.02 + 1e-6) return false; return true; }) && waved.some(a => a.some((v, i) => i % 2 && Math.abs(v - a[1]) > 0.01)), "a rosette's wave rides along a line, a throw of 2 at most 2 fiftieths of the radius off");
+  const dense = LEVELS.filter(l => l.cuts.some(c => c.kind === "lines"));
+  check(dense.every(l => l.cuts.every(c => c.kind !== "lines" || Array.from({ length: 24 }, (_, i) => makeJob(LEVELS.indexOf(l), 1000 + i * 7919)).every(j => platesOf(j, newRun(j)).every((s, ci) => passes(s).length <= maxPasses(j.cuts[ci]) && passes(settingsOf(j.cuts[ci], j.answer[ci])).length <= maxPasses(j.cuts[ci]))))), "no straight cut ever has more lines than its most (the 3D piece reserves that many)");
+  // a plate of lines is no picture to nudge towards, so how near it is comes from how far its knobs are
+  const job = makeJob(IX.paris, 31), run = newRun(job), ans = job.answer[0], c0 = closeness(job, run);
+  setKnob(job, run, 0, "pitch", ans.pitch); const c1 = closeness(job, run);
+  setKnob(job, run, 0, "angle", ans.angle); const c2 = closeness(job, run);
+  check(c0 < c1 && c1 < c2 && c2 < 1, "each knob set right brings a plate of lines nearer the target, in tenths rather than none until the last tap");
+  const off = newRun(job); off.vals[0].pitch = ans.pitch + 1; off.vals[0].angle = ans.angle; off.vals[0].cross = ans.cross;
+  check(closeness(job, off) > 0.5 && closeness(job, off) < 1 && !solved(job, off), "a pitch a step off reads as near but not the same");
+  const mixed = makeJob(IX.medallion, 5), mr = newRun(mixed);
+  mixed.answer.forEach((v, i) => Object.keys(v).forEach(n => setKnob(mixed, mr, i, n, v[n])));
+  check(solved(mixed, mr) && closeness(mixed, mr) === 1 && mixed.cuts[0].holes.every(h => mixed.cuts.some(c => c.at && Math.hypot(c.at[0] - h[0], c.at[1] - h[1]) + c.size <= h[2] + 1e-9)), "a medallion in a field: the field's hole holds the medallion, and the whole plate is told by its parts");
 }
 
 // ---------- setting a knob, and taking it back ----------
 {
-  const job = makeJob(2, 77), run = newRun(job);
+  const job = makeJob(IX.rose, 77), run = newRun(job);
   check(run.vals[0].k === 2 && run.vals[0].n === 1 && run.taps === 0 && !run.done && run.at === 0 && match(job, run) < WIN, "a bare machine: where it starts, no taps, not the target");
   const a = setKnob(job, run, 0, "k", 6), b = setKnob(job, run, 0, "k", 6);
   check(a && a.was === 2 && run.vals[0].k === 6 && !b && run.taps === 1, "a knob set is a tap, the same again nothing");
@@ -98,7 +130,7 @@ LEVELS.forEach((L, li) => {
 
 // ---------- stars ----------
 {
-  const job = makeJob(3, 9), par = job.par, three = Math.ceil(par * SLACK.three[0]) + SLACK.three[1], two = Math.ceil(par * SLACK.two[0]) + SLACK.two[1];
+  const job = makeJob(IX.ribbon, 9), par = job.par, three = Math.ceil(par * SLACK.three[0]) + SLACK.three[1], two = Math.ceil(par * SLACK.two[0]) + SLACK.two[1];
   check(starsFor(job, par) === 3 && starsFor(job, three) === 3 && starsFor(job, three + 1) === 2 && starsFor(job, two) === 2 && starsFor(job, two + 1) === 1 && STARS.join() === "1,2,3", "three stars within half again par (and two taps), two within three times (and four), else one");
   const run = newRun(job);
   check(finish(job, run) === null && !run.done && /% like the target/.test(say(job, run)), "an unfinished plate gives no result, and the line says how near it is");
@@ -114,7 +146,7 @@ LEVELS.forEach((L, li) => {
   // six passes is, as a set of curves, the one with index -60° and six passes turned the other way
   const a = raster([{ ...BARE, k: 3, a: 4, n: 6, index: 60 }]), b = raster([{ ...BARE, k: 3, a: 4, n: 6, index: -60 }]);
   check(alike(a, b) > 0.98, "a closed rose indexed the other way cuts the same passes in another order: (nearly) the same plate");
-  const job = makeJob(2, 123), run = newRun(job), v = job.answer[0];
+  const job = makeJob(IX.rose, 123), run = newRun(job), v = job.answer[0];
   const other = { ...v, index: -v.index };
   Object.keys(other).forEach(n => setKnob(job, run, 0, n, other[n]));
   check(alike(raster(platesOf(job, run)), job.goal) > 0.9, "and so an answer indexed the other way is close (the engraving is what is checked)");
@@ -122,7 +154,7 @@ LEVELS.forEach((L, li) => {
 
 // ---------- clues ----------
 {
-  const job = makeJob(2, 77), run = newRun(job);
+  const job = makeJob(IX.rose, 77), run = newRun(job);
   const c1 = takeClue(job, run), c2 = takeClue(job, run, c1), c3 = takeClue(job, run, c2), c4 = takeClue(job, run, c3);
   check(c1.tier === 1 && c2.tier === 2 && c3.tier === 3 && c4.tier === 3 && c1.name === c2.name && c2.name === c3.name, "clues on the same knob go on from where to look, to which way, to the setting, and stop there");
   check(run.clues === 3 && c3.text.includes(KNOBS[c3.name].say(job.answer[c3.cut][c3.name])), "the last clue says the setting, and the run remembers the deepest clue taken");
@@ -134,23 +166,23 @@ LEVELS.forEach((L, li) => {
   job.answer.forEach((v, i) => Object.keys(v).forEach(n => setKnob(job, run, i, n, v[n])));
   check(takeClue(job, run) === null, "with every knob right there is nothing to clue");
   // a clue on the knob changed moves on to the next knob at its first tier
-  const j2 = makeJob(1, 5), r2 = newRun(j2), a = takeClue(j2, r2);
+  const j2 = makeJob(IX.edge, 5), r2 = newRun(j2), a = takeClue(j2, r2);
   setKnob(j2, r2, a.cut, a.name, j2.answer[a.cut][a.name]);
   const b = takeClue(j2, r2, a);
   check(b && b.name !== a.name && b.tier === 1, "once a knob is right the next clue is about another, from its first tier");
   // direction and size are true
-  const j3 = makeJob(0, 9), r3 = newRun(j3), t = takeClue(j3, r3, { cut: 0, name: "k", tier: 1 });
+  const j3 = makeJob(IX.wave, 9), r3 = newRun(j3), t = takeClue(j3, r3, { cut: 0, name: "k", tier: 1 });
   const want = j3.answer[0].k, said = clueText(j3, r3, 0, "k", 2);
   check(said.includes(want > r3.vals[0].k ? "up" : "down") && /a little|a fair way|a long way/.test(said), "the second clue says which way and about how far");
-  const j4 = makeJob(1, 3), r4 = newRun(j4);
+  const j4 = makeJob(IX.edge, 3), r4 = newRun(j4);
   check(/waves are/.test(clueText(j4, r4, 0, "shape", 2)) && !/Scallop|Point|Wave/.test(clueText(j4, r4, 0, "shape", 2)), "for a rosette's edge the second clue describes it without naming it");
   check(CLUE_CAP.join() === "3,3,2,1" && starsFor(j2, j2.par, 0) === 3 && starsFor(j2, j2.par, 1) === 3 && starsFor(j2, j2.par, 2) === 2 && starsFor(j2, j2.par, 3) === 1, "stars are capped by the clues taken: where to look is free, which way costs one, the setting two");
-  const j5 = makeJob(2, 123), r5 = newRun(j5);
+  const j5 = makeJob(IX.rose, 123), r5 = newRun(j5);
   takeClue(j5, r5); takeClue(j5, r5, { ...takeClue(j5, newRun(j5)), tier: 2 });
   j5.answer.forEach((v, i) => Object.keys(v).forEach(n => setKnob(j5, r5, i, n, v[n])));
   const d = finish(j5, r5);
   check(d && d.clues === r5.clues && d.stars <= CLUE_CAP[r5.clues], "a plate engraved after clues keeps them in its result and its stars under the cap");
-  const j6 = makeJob(5, 11), r6 = newRun(j6), t6 = takeClue(j6, r6);
+  const j6 = makeJob(IX.dial, 11), r6 = newRun(j6), t6 = takeClue(j6, r6);
   check(j6.cuts.length === 2 && t6.text.startsWith(CUT_NAMES[2][t6.cut]), "on a dial with several cuts a clue says which cut it is about");
 }
 
@@ -164,7 +196,7 @@ LEVELS.forEach((L, li) => {
     // the fullest each cut can be (every range at its top, and the lowest throw's inner edge for the rim): it must stay in its place
     const full = c => settingsOf(c, Object.fromEntries(c.free.map(n => [n, c.ranges[n][1]])));
     let inside = true, apart = true, rimOk = true;
-    const regs = l.cuts.filter(c => c.at), rim = l.cuts.find(c => !c.at);
+    const regs = l.cuts.filter(c => c.at), rim = l.cuts.filter(c => !c.at).at(-1);        // the last cut with no place of its own is the rim
     for (const c of regs) {
       const s = full(c);
       for (const pts of passes(s)) for (let m = 0; m < pts.length; m += 2) if (Math.hypot(pts[m] - c.at[0], pts[m + 1] - c.at[1]) > c.size * 0.99 + 1e-6) inside = false;
@@ -174,8 +206,8 @@ LEVELS.forEach((L, li) => {
     check(inside && apart && rimOk, `${l.name}: every register's cut stays inside its own dial, the registers do not touch, and the rim clears them`);
     check(cutNames(LEVELS.indexOf(l)).length === l.cuts.length, `${l.name}: a name for every tab`);
   }
-  const j9 = makeJob(8, 3), r9 = newRun(j9), c9 = takeClue(j9, r9);
-  check(c9.text.startsWith(cutNames(8)[c9.cut]), "a clue on a face of registers names the register or rim it is about");
+  const j9 = makeJob(IX.registers, 3), r9 = newRun(j9), c9 = takeClue(j9, r9);
+  check(c9.text.startsWith(cutNames(IX.registers)[c9.cut]), "a clue on a face of registers names the register or rim it is about");
 }
 
 // ---------- lessons ----------
@@ -199,7 +231,7 @@ LEVELS.forEach((L, li) => {
     check(walked && run.step === L.steps.length && lessonStep(job, run) === undefined, `${l.name}: each lesson step starts undone and is done by setting its knobs${why ? ` (${why})` : ""}`);
     check(L.steps.every(st => st.do.length <= 110 && st.learn.length <= 130), `${l.name}: the lesson's words fit the two lines under the plate`);
   }
-  const rose = lessonRun(lessonJob(2));
+  const rose = lessonRun(lessonJob(IX.rose));
   check(rose.vals[0].k === 5 && rose.vals[0].a === 5 && rose.vals[0].n === 1 && rose.at === 0 && rose.step === 0, "a lesson begins on its first step with its start settings and the rest bare");
 }
 
@@ -215,8 +247,8 @@ LEVELS.forEach((L, li) => {
   check(luma("#000000") === 0 && Math.abs(luma("#ffffff") - 1) < 1e-9 && luma(WATCHES.master.dial.base) < 0.1 && luma(WATCHES.wave.dial.base) > 0.7, "luma tells a dark dial from a light one");
   check(LEVELS.every(l => { const d = WATCHES[l.id].dial; return Math.abs(luma(d.ink) - luma(d.base)) > 0.45; }), "a dial's printing is set against it (a light ink on a dark dial, a dark one on a light)");
   check(LEVELS.every(l => { const g = ghostOf(WATCHES[l.id].dial.base); return Math.abs(luma(g) - luma(WATCHES[l.id].dial.base)) > 0.3; }), "the target drawn over a dial stands out from it");
-  check(watchOf("nothing") === WATCHES.wave, "an unknown plate gets the first watch");
+  check(watchOf("nothing") === WATCHES[LEVELS[0].id], "an unknown plate gets the first plate's watch");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("guilloche: a pass cut by a rosette, plates compared as pictures, eleven levels from seeds with hidden settings, setting and undoing a knob, stars by taps against par");
+else console.log("guilloche: a pass cut by a rosette, plates compared as pictures, fifteen levels from seeds with hidden settings, setting and undoing a knob, stars by taps against par");

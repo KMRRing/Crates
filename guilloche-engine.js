@@ -25,7 +25,7 @@ export const cutNames = index => LEVELS[index].names || CUT_NAMES[LEVELS[index].
 /** The rosettes' edges: a wave, scallops (arches meeting at cusps, the barleycorn's grain) and points (a triangle wave). */
 export const SHAPES = [{ id: "wave", name: "Wave" }, { id: "scallop", name: "Scallop" }, { id: "point", name: "Point" }];
 const EDGE = [p => Math.sin(p), p => 2 * Math.abs(Math.sin(p / 2)) - 1, p => (2 / Math.PI) * Math.asin(Math.sin(p))];
-const UNIT = { a: 0.02, feed: 0.006 };                      // plate radii a step of throw, and of feed, is
+const UNIT = { a: 0.02, feed: 0.006, pitch: 0.02 };         // plate radii a step of throw, of feed and of pitch is
 
 /** The machine's knobs: every one a whole number of steps, so a setting is exact and two settings are the same or they aren't. */
 export const KNOBS = {
@@ -37,10 +37,14 @@ export const KNOBS = {
   feed: { name: "Feed", min: -8, max: 8, def: 0, say: v => `${v}` },
   k2: { name: "Lobes 2", min: 1, max: 12, def: 1, say: v => `${v}` },
   a2: { name: "Throw 2", min: 0, max: 8, def: 0, say: v => `${v}` },
+  // the straight-line engine's: the plate slides under the cutter instead of turning
+  pitch: { name: "Pitch", min: 2, max: 12, def: 4, say: v => `${v}` },
+  angle: { name: "Angle", min: 0, max: 175, step: 5, def: 0, say: v => `${v}°` },
+  cross: { name: "Cross", min: 0, max: 90, step: 15, def: 0, say: v => (v ? `${v}°` : "off") },
 };
 export const stepOf = name => KNOBS[name].step || 1;
 export const clampKnob = (name, v) => { const K = KNOBS[name], s = stepOf(name); return Math.max(K.min, Math.min(K.max, Math.round(v / s) * s)); };
-const BARE = { k: 2, a: 1, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2: 0 };
+const BARE = { k: 2, a: 1, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2: 0, pitch: 4, angle: 0, cross: 0 };
 
 // ---------- cutting ----------
 /**
@@ -49,6 +53,7 @@ const BARE = { k: 2, a: 1, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2: 0 };
  * and `size`, its radius, and cuts everything (its radius R, its throw, its feed) to that scale.
  */
 export function passes(cut) {
+  if (cut.kind === "lines") return linePasses(cut);
   const { R, k, a, shape, n, index, feed, k2, a2, at = [0, 0], size = 1 } = cut, edge = EDGE[shape] || EDGE[0], out = [];
   const M = 720, step = (index * Math.PI) / 180;
   for (let j = 0; j < n; j++) {
@@ -65,6 +70,46 @@ export function passes(cut) {
   }
   return out;
 }
+/**
+ * The passes of a straight-line cut: parallel lines a `pitch` apart running at `angle` (one through the middle), in the disc of
+ * radius R less its `holes` (a medallion's, [x, y, radius] on the plate); with `cross`, a second set at that angle to the first
+ * (at 90° the two leave square pyramids, the clous de Paris). Each line may be made wavy as a rosette makes a ring: `a` deep,
+ * `k` waves along the plate's width, each line's waves `index` degrees along from the one before (barleycorn). A line
+ * broken by a hole is two passes. Every pass has 721 points, like a ring's, so the drawing treats them alike.
+ */
+function linePasses(cut) {
+  const { R, k, a, shape, index, pitch, angle, cross, holes = [], at = [0, 0], size = 1 } = cut, edge = EDGE[shape] || EDGE[0], sp = pitch * UNIT.pitch;
+  const M = 720, step = (index * Math.PI) / 180, out = [];
+  for (const [deg, waved] of cross ? [[angle, true], [angle + cross, false]] : [[angle, true]]) {
+    const th = (deg * Math.PI) / 180, tx = Math.cos(th), ty = Math.sin(th), nx = -ty, ny = tx;
+    for (let j = -Math.floor(R / sp); j <= Math.floor(R / sp); j++) {
+      const off = j * sp, half = Math.sqrt(Math.max(0, R * R - off * off));
+      if (half < 0.01) continue;
+      let spans = [[-half, half]];
+      for (const [hx, hy, hr] of holes) {
+        const d = hx * nx + hy * ny - off;
+        if (Math.abs(d) >= hr) continue;
+        const c = hx * tx + hy * ty, w = Math.sqrt(hr * hr - d * d);
+        spans = spans.flatMap(([s0, s1]) => [[s0, Math.min(s1, c - w)], [Math.max(s0, c + w), s1]]).filter(([s0, s1]) => s1 - s0 > 0.01);
+      }
+      for (const [s0, s1] of spans) {
+        const pts = new Float32Array((M + 1) * 2);
+        for (let m = 0; m <= M; m++) {
+          const t = s0 + ((s1 - s0) * m) / M, w = waved && a ? a * UNIT.a * edge(k * Math.PI * t + j * step) : 0;
+          pts[2 * m] = at[0] + size * (off * nx + t * tx + w * nx);
+          pts[2 * m + 1] = at[1] + size * (off * ny + t * ty + w * ny);
+        }
+        out.push(pts);
+      }
+    }
+  }
+  return out;
+}
+/** The most passes a cut can have, for the drawing to make room (a ring cut has its passes; a straight cut a line to a pitch step, twice, a hole breaking each). */
+export const maxPasses = c => (c.kind === "lines"
+  ? (c.fixed.cross || c.free.includes("cross") ? 2 : 1) * (2 * Math.floor(c.R / (UNIT.pitch * (c.free.includes("pitch") ? KNOBS.pitch.min : c.fixed.pitch))) + 1) * (1 + 2 * (c.holes?.length || 0))
+  : c.free.includes("n") ? KNOBS.n.max : c.fixed.n);
+
 /** A plate as a picture: G squares across, in each the number of times a pass crosses it (so a pass more or less shows). */
 export function raster(cuts) {
   const img = new Uint16Array(G * G), c = G / 2;
@@ -118,15 +163,24 @@ const cut = (R, fixed, ranges, place = {}) => ({ R, ...place, fixed: { ...BARE, 
 /** Where a register sits on the plate: its centre and radius, in plate radii. */
 const reg = (x, y, size) => ({ at: [x, y], size });
 export const LEVELS = [
+  { id: "rose", name: "Rose", closed: true,
+    story: "Many passes, the rosette turned a little between each (the index): the rings cross, and the crossings are the pattern. Turned a whole lobe in all, the passes come round and the rose closes: passes times index is 360°.",
+    cuts: [cut(0.5, { shape: 0 }, { k: [3, 8], a: [3, 6], n: [6, 24], index: [15, 60] })] },
+  { id: "lines", name: "Straight lines",
+    story: "The other engine: the plate slides straight under the cutter instead of turning, and every pass is a line. Pitch is how far apart the lines are, Angle which way they run. The pass through the middle is the first; the rest are a pitch apart on either side.",
+    cuts: [cut(0.86, { a: 0 }, { pitch: [3, 9], angle: [10, 80] }, { kind: "lines", fill: 0.3 })] },
+  { id: "paris", name: "Clous de Paris",
+    story: "Cross a second set of lines over the first and, at a right angle, each square between four grooves is left standing as a little pyramid: the hobnail (clous de Paris) of a Breguet dial or a case's flank. Tilt the watch and every facet takes the light. At other angles the pyramids lean into diamonds.",
+    cuts: [cut(0.86, { a: 0 }, { pitch: [4, 8], angle: [10, 80], cross: [60, 90] }, { kind: "lines", fill: 1 })] },
   { id: "wave", name: "Wave ring",
     story: "One pass of a rose engine: the plate turns once while a rosette pushes the cutting point in and out. The rosette's lobes are the waves in the ring; its throw is how deep they go.",
     cuts: [cut(0.55, {}, { k: [3, 12], a: [2, 6] })] },
   { id: "edge", name: "Scallops and points",
     story: "The edge of the rosette is the shape of the wave: a smooth wave cuts a sine, scallops (the barleycorn's grain) cut arches that meet in cusps, points cut a zigzag.",
     cuts: [cut(0.55, {}, { k: [6, 16], a: [3, 7], shape: [1, 2] })] },
-  { id: "rose", name: "Rose", closed: true,
-    story: "Many passes, the rosette turned a little between each (the index): the rings cross, and the crossings are the pattern. Turned a whole lobe in all, the passes come round and the rose closes: passes times index is 360°.",
-    cuts: [cut(0.5, { shape: 0 }, { k: [3, 8], a: [3, 6], n: [6, 24], index: [15, 60] })] },
+  { id: "barley", name: "Barleycorn",
+    story: "The two engines together: straight lines made wavy by a rosette, each line's waves set a little along from the last by the index, so the waves interlock into rows of grains, the barleycorn (grain d'orge) of a Patek case or a Rolex dial.",
+    cuts: [cut(0.86, { pitch: 6, angle: 0 }, { k: [8, 18], a: [2, 4], shape: [1, 2], index: [20, 60] }, { kind: "lines", fill: 0.6 })] },
   { id: "ribbon", name: "Ribbon",
     story: "A feed steps each pass a little outward: the rings no longer share a radius, and the passes lay out a band, a ribbon of crossings, rather than a rose.",
     cuts: [cut(0.3, { shape: 0 }, { k: [3, 9], a: [2, 4], n: [8, 22], index: [10, 40], feed: [1, 4] })] },
@@ -136,6 +190,12 @@ export const LEVELS = [
   { id: "dial", name: "Two zones",
     story: "A dial is cuts in zones: a rose in the centre and a scalloped ring round it, each its own cut with its own rosette. Tap a cut's tab to set it.",
     cuts: [cut(0.28, { shape: 0 }, { k: [3, 7], a: [2, 3], n: [6, 16], index: [15, 60] }), cut(0.78, { shape: 1 }, { k: [10, 24], a: [2, 5] })] },
+  // A face of two engines: a field of hobnail with a rose let into its middle, and a rim round it
+  { id: "medallion", name: "Field and medallion", names: ["Field", "Medallion", "Rim"],
+    story: "Three areas, two engines: a field of clous de Paris with a hole in its middle, a rose cut in the hole as a plate in itself, and a scalloped rim round the whole. The field's lines stop at the medallion; the medallion's pattern stops at its own edge.",
+    cuts: [cut(0.8, { a: 0, cross: 90 }, { pitch: [4, 7], angle: [10, 80] }, { kind: "lines", fill: 1, holes: [[0, 0, 0.36]] }),
+      cut(0.5, { shape: 0 }, { k: [3, 7], a: [2, 4], n: [6, 16], index: [15, 60] }, reg(0, 0, 0.32)),
+      cut(0.9, { shape: 1 }, { k: [14, 24], a: [2, 3] })] },
   { id: "three", name: "Three zones",
     story: "Rose, ribbon and ring: a centre, a band and an edge, each cut with its own settings. What reads as one pattern is three cuts that happen to meet.",
     cuts: [cut(0.2, { shape: 0 }, { k: [3, 6], a: [2, 2], n: [6, 14], index: [20, 60] }), cut(0.45, { shape: 0 }, { k: [4, 9], a: [2, 3], n: [6, 16], index: [10, 40], feed: [1, 3] }), cut(0.85, { shape: 2 }, { k: [12, 24], a: [2, 4] })] },
@@ -176,7 +236,7 @@ const rng = seed => { let n = 0; return () => draw(seed, n++); };
 const between = (r, [lo, hi], step = 1) => lo + step * Math.floor(r() * ((hi - lo) / step + 1));
 
 /** A cut's settings in full: its radius, its fixed knobs, and the free ones from `vals`. */
-export const settingsOf = (c, vals) => ({ R: c.R, at: c.at, size: c.size, ...c.fixed, ...vals });
+export const settingsOf = (c, vals) => ({ R: c.R, at: c.at, size: c.size, kind: c.kind, holes: c.holes, fill: c.fill, ...c.fixed, ...vals });
 const plateOf = (cuts, vals) => raster(cuts.map((c, i) => settingsOf(c, vals[i])));
 
 /** The knobs a step either way of which should be told apart, as [cut, knob, step]. */
@@ -213,20 +273,33 @@ export function makeJob(index, seed) {
     if (worst < WIN - 0.005) break;
   }
   const par = L.cuts.reduce((n, c) => n + c.free.length, 0);
-  return { index, id: L.id, name: L.name, story: L.story, seed: seed >>> 0, cuts: L.cuts, answer: best.answer, goal: best.goal, blurGoal: blur(best.goal), par, clear: best.worst };
+  const job = { index, id: L.id, name: L.name, story: L.story, seed: seed >>> 0, cuts: L.cuts, answer: best.answer, goal: best.goal, blurGoal: blur(best.goal), par, clear: best.worst };
+  if (L.cuts.some(c => c.kind === "lines")) job.goals = L.cuts.map((c, i) => { const img = raster([settingsOf(c, best.answer[i])]); return { img, blur: blur(img) }; });
+  return job;
 }
 
 // ---------- a run ----------
 /** A run: every cut's free knobs where the machine starts, a count of taps, and a note of the cut being set. */
 export function newRun(job) {
-  return { job: job.index, seed: job.seed, vals: job.cuts.map(c => Object.fromEntries(c.free.map(name => [name, BARE[name]]))), at: 0, taps: 0, clues: 0, done: null };
+  return { job: job.index, id: job.id, seed: job.seed, vals: job.cuts.map(c => Object.fromEntries(c.free.map(name => [name, BARE[name]]))), at: 0, taps: 0, clues: 0, done: null };
 }
 export const platesOf = (job, run) => job.cuts.map((c, i) => settingsOf(c, run.vals[i]));
 /** How alike the target the plate is now, 0 to 1 (exact). */
 export const match = (job, run) => alike(job.goal, raster(platesOf(job, run)));
 export const solved = (job, run) => match(job, run) >= WIN;
 /** How near to the target the plate is, for the line under it (forgiving; `solved` is not). */
-export const closeness = (job, run) => near(job.goal, raster(platesOf(job, run)), job.blurGoal);
+export function closeness(job, run) {
+  if (!job.cuts.some(c => c.kind === "lines")) return near(job.goal, raster(platesOf(job, run)), job.blurGoal);
+  // Lines are no picture to nudge towards: set a pitch or an angle a step off and not one square of the plate is the same,
+  // so by pictures a plate is 0% like its target right up to the last tap. Their share of the line is how near each knob is to
+  // where the target has it; the rings' is by picture, cut by cut.
+  const parts = job.cuts.map((c, i) => {
+    if (c.kind !== "lines") return near(raster([settingsOf(c, run.vals[i])]), job.goals[i].img, job.goals[i].blur);
+    const off = c.free.map(n => Math.min(1, Math.abs(run.vals[i][n] - job.answer[i][n]) / ((KNOBS[n].max - KNOBS[n].min) * 0.25)));
+    return 1 - Math.sqrt(off.reduce((a, b) => a + b, 0) / off.length);
+  });
+  return parts.reduce((a, b) => a + b, 0) / parts.length;
+}
 /**
  * A knob set to a value (clamped to its range and step). Returns what it was, for Undo, or null if it was there already.
  * `fresh` is a new tap: a hold that keeps stepping a knob goes on counting as the one.
@@ -280,6 +353,9 @@ const READ = {
   feed: "Do the rings spread outward into a band? How far apart they are is Feed.",
   k2: "Look for a small ripple riding on the big waves: its count is Lobes 2.",
   a2: "How strong is that small ripple? That is Throw 2.",
+  pitch: "Count the lines across the plate: the closer together they are, the lower the Pitch.",
+  angle: "Look at which way the lines run: that is Angle, from level, turning up to the right.",
+  cross: "Is there a second set of lines over the first? At what angle to it? That is Cross; none is off.",
 };
 const EDGES = ["smooth, rounded waves", "arches meeting in sharp cusps", "straight runs meeting in sharp tips"];
 
@@ -366,6 +442,26 @@ export const LESSONS = {
   master: lesson([{ k: 4, a: 2, n: 8, index: 45 }, { k: 6, a: 2, n: 10, index: 30, feed: 2 }, { k: 20, a: 3 }], [
     doing(0, { a2: 2, k2: 3 }, "Tab 1, the centre: add a second rosette, Throw 2 at 2 and Lobes 2 at 3.", "A woven centre: the basket of a second rosette inside a closed rose."),
     doing(2, { a2: 2, k2: 4 }, "Tab 3, the rim: Throw 2 at 2 and Lobes 2 at 4.", "A ripple along the barleycorn. Each cut can carry two rosettes: every knob you have met is on this dial."),
+  ]),
+  lines: lesson([{ pitch: 4, angle: 0 }], [
+    doing(0, { pitch: 8 }, "A straight-line engine: the plate slides under the cutter. Raise Pitch to 8.", "Pitch is the gap between neighbouring lines: wider apart, and fewer of them."),
+    doing(0, { angle: 45 }, "Now turn Angle to 45°.", "Angle is the way they run. All the lines turn together, the middle one staying through the centre."),
+    doing(0, { pitch: 5, angle: 20 }, "Try Pitch 5 and Angle 20°.", "How far apart and which way: two things to read off a target. That is the whole of a straight engine."),
+  ]),
+  paris: lesson([{ pitch: 6, angle: 30, cross: 0 }], [
+    doing(0, { cross: 90 }, "Set Cross to 90°.", "A second set cut across the first. At a right angle each square left between the grooves stands as a pyramid."),
+    doing(0, { cross: 60 }, "Now Cross 60°.", "Not a right angle: the squares lean into diamonds. Cross is the angle between the two sets."),
+    doing(0, { pitch: 4, angle: 45, cross: 90 }, "Pitch 4, Angle 45°, Cross 90°.", "Fine pyramids turned a corner to the eye: clous de Paris. Tilt the watch and every facet takes the light."),
+  ]),
+  barley: lesson([{ k: 10, a: 2, shape: 1, index: 20 }], [
+    doing(0, { a: 4 }, "Straight lines made wavy by a rosette. Raise Throw to 4.", "The same rosette as in a ring, pushing each line sideways as the plate slides. Throw is how far."),
+    doing(0, { index: 45 }, "Set Index to 45°.", "Each line's waves start a little along from the line before, so they interlock into rows of grains: barleycorn."),
+    doing(0, { shape: 2, k: 14 }, "Rosette Point, Lobes 14.", "Pointed waves cut sharp grains; Lobes is how many waves cross the plate."),
+  ]),
+  medallion: lesson([{ pitch: 6, angle: 30 }, { k: 5, a: 3, n: 8, index: 45 }, { k: 20, a: 3 }], [
+    doing(0, { angle: 60 }, "Tab 1, the field of hobnail: Angle 60°.", "Two engines on one face. The field's lines stop at the medallion's edge, a hole in the cut."),
+    doing(1, { n: 12, index: 30 }, "Tab 2, the medallion: Passes 12, Index 30°.", "A rose let into the hole, cut as a plate of its own: 12 × 30° = 360°, a closed rose."),
+    doing(2, { k: 22 }, "Tab 3, the rim: Lobes 22.", "A scalloped rim, a third area, set like any ring. A face is areas, each cut by its own engine."),
   ]),
   registers: lesson([{ k: 16, a: 3 }, { k: 5, a: 3, n: 8, index: 45 }, { k: 5, a: 2, n: 12, index: 30 }], [
     doing(1, { n: 12, index: 30 }, "A face can hold dials of its own. Tab 2, the left register: Passes 12, Index 30°.", "A register is a small plate cut round its own centre, set as any rose: 12 × 30° = 360°, and it closes."),

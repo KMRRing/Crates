@@ -48,7 +48,8 @@ const SOUND = {
 
 // ---------- the work in hand and its keeping ----------
 const made = () => read(MADE, {});
-const unlocked = i => i === 0 || (made()[LEVELS[i - 1].id] ?? 0) >= STARS[0];
+// open once the one before has a star, or once played (the plates were reordered when the straight engine came: a plate with stars stays open)
+const unlocked = i => i === 0 || (made()[LEVELS[i].id] ?? 0) > 0 || (made()[LEVELS[i - 1].id] ?? 0) >= STARS[0];
 let plate = null, job = null, run = null, engraving = 0, doneTimer = 0;
 let history = [];                                  // the batches of changes a finger made, for Undo (not kept: a reload starts it fresh)
 let hint = null;                                   // the clue on show: { cut, name, tier, text }; it stays until its knob is touched
@@ -88,7 +89,7 @@ function endLesson() {
 /** A saved run, if it is whole and of a plate the engine still makes; else the first plate. */
 function load() {
   const s = read(RUN, null), r = s?.v === 1 ? s.run : null;
-  if (r && LEVELS[r.job] && Number.isFinite(r.seed)) {
+  if (r && LEVELS[r.job]?.id === r.id && Number.isFinite(r.seed)) {      // (a run kept before the plates were reordered has no id: it is let go)
     const j = makeJob(r.job, r.seed);
     const ok = Array.isArray(r.vals) && r.vals.length === j.cuts.length && r.vals.every((v, i) => j.cuts[i].free.every(n => Number.isInteger(v?.[n]) && v[n] >= KNOBS[n].min && v[n] <= KNOBS[n].max && v[n] % stepOf(n) === 0))
       && Number.isInteger(r.at) && r.at >= 0 && r.at < j.cuts.length && Number.isFinite(r.taps);
