@@ -22,9 +22,23 @@
 // A game is one object, as saved: { v, seed, n (draws made), cells (a colour 0–2 a hexagon, -1 empty), ax (each
 // standing domino's axis, 0–5, -1 where none stands), hand (three { piece, colour }, null where one has been laid), due
 // (a knock to make before the next piece), credit (knocks owed, fractions of one), bell (its hexagon), rung, sets (hands
-// dealt), laid, felled, score, over }.
+// dealt), laid, felled, score, over }; a game of a level also has level (0 on) and stars (0–3, the most its score has
+// reached).
+//
+// The levels (topple-levels.js) change the table and what a fall does, by their `rules`: stones and water where nothing
+// is laid, a height for every hexagon (a fall never climbs), gilded hexagons (a knock that fells a domino on one scores
+// double), colours that are tall (reaching the hexagon past the next as well) and a pearl colour (3) that every colour
+// knocks and that knocks every colour. Every function that takes rules takes them last, and without them plays Classic,
+// the table as it has always been; a game's own are `rulesOf(game)`.
 
+import { FREE, ROCK, PEARL, levelRules, starsAt } from "./topple-levels.js";
+
+export { FREE, ROCK, PEARL };
 export const R = 4, HAND = 3, COLOURS = 3;
+/** The rules a game is played by: its level's, or Classic's. */
+export const rulesOf = g => (g && g.level >= 0 ? levelRules(g.level) : FREE);
+/** Whether a fall of colour a brings down a domino of colour b: its own colour, or a pearl either way. */
+const kin = (a, b) => a === b || a === PEARL || b === PEARL;
 /** The version of a game as saved: 5 since the six axes (October 2026); one of version 4 is carried over by migrate. */
 export const VERSION = 5;
 
@@ -55,6 +69,19 @@ export const WAYS = 12, AXES = 6;
 export const isLine = w => w % 2 === 1;
 /** The hexagons a domino on hexagon i falling the way w comes down on: the one it points at, or the two either side of the line (-1 off the table). */
 export const hitBy = (i, w) => (w % 2 === 0 ? [NEXT[i][w / 2]] : [NEXT[i][(w - 1) / 2], NEXT[i][((w + 1) / 2) % 6]]);
+// FAR[i][w]: the hexagon past the one(s) hitBy gives, which a tall domino falling the way w reaches as well: two hexagons
+// out along a hexagon way, and along a line way the one hexagon at the line's far end (a hexagon and a half out). It is
+// the same whichever of the two hexagons either side of the line it is reached through.
+const FAR = CELLS.map((_, i) => Array.from({ length: WAYS }, (_, w) => {
+  if (w % 2 === 0) { const near = NEXT[i][w / 2]; return near >= 0 ? NEXT[near][w / 2] : -1; }
+  const a = (w - 1) / 2, b = ((w + 1) / 2) % 6, first = NEXT[i][a], second = NEXT[i][b];
+  return first >= 0 ? NEXT[first][b] : second >= 0 ? NEXT[second][a] : -1;
+}));
+/** The hexagon a tall domino on i falling the way w reaches beyond the near ones, or -1: none past a stone on the way, off the table or past its edge. */
+export function reachBy(i, w, rules = FREE) {
+  const far = FAR[i][w];
+  return far >= 0 && !hitBy(i, w).some(j => j >= 0 && rules.terrain[j] === ROCK) ? far : -1;
+}
 /** How far an axis is from a way, in steps of thirty degrees: 0 square on, 3 edge-on. */
 export function offBy(axis, w) {
   const k = (((axis - w) % AXES) + AXES) % AXES;
@@ -139,12 +166,31 @@ function draw(seed, n) {
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
-function dealOne(s) {
-  let r = draw(s.seed, s.n++) * TOTAL, piece = NAMES[NAMES.length - 1];
-  for (const k of NAMES) if ((r -= PIECES[k].weight) < 0) { piece = k; break; }
-  return { piece, colour: Math.floor(draw(s.seed, s.n++) * COLOURS) };
+// the pieces a level deals from: those no bigger than its `maxSize` (all of them, in the same order and the same total,
+// for Classic and any level that keeps to five)
+const DEALT = new Map();
+function dealtFrom(max) {
+  if (!DEALT.has(max)) {
+    const names = NAMES.filter(k => PIECES[k].cells.length <= max);
+    DEALT.set(max, { names, total: names.reduce((a, k) => a + PIECES[k].weight, 0) });
+  }
+  return DEALT.get(max);
 }
-function deal(s) { s.sets++; s.hand = Array.from({ length: HAND }, () => dealOne(s)); }
+// a pearl comes in a piece of one or two, whatever piece the draw chose: a line of five wild dominoes would join anything
+const SMALL = NAMES.filter(k => PIECES[k].cells.length <= 2);
+/**
+ * One piece and its colour, two draws. Where the rules deal pearl, the colour's draw below the share of it makes a pearl
+ * (and picks which small piece by how far below it falls), and above it the three colours share the rest as they did.
+ */
+function dealOne(s, rules) {
+  const { names, total } = dealtFrom(rules.maxSize);
+  let r = draw(s.seed, s.n++) * total, piece = names[names.length - 1];
+  for (const k of names) if ((r -= PIECES[k].weight) < 0) { piece = k; break; }
+  const u = draw(s.seed, s.n++);
+  if (u < rules.pearl) return { piece: SMALL[Math.floor((u / rules.pearl) * SMALL.length)], colour: PEARL };
+  return { piece, colour: Math.floor(((u - rules.pearl) / (1 - rules.pearl)) * COLOURS) };
+}
+function deal(s, rules) { s.sets++; s.hand = Array.from({ length: HAND }, () => dealOne(s, rules)); }
 
 /**
  * The way each domino of a piece faces, from the shape alone: its axis, 0–5, chosen so that the piece falls whole from
@@ -177,9 +223,10 @@ export function axesOfCoords(coords) {
 /** The same for hexagons by number: the axes of the dominoes laid on them. */
 export const axesOf = laid => axesOfCoords(laid.map(i => CELLS[i]));
 
-/** The bell to an empty hexagon at random (none on a full table). */
-function hang(s) {
-  const empty = s.cells.flatMap((c, i) => (c < 0 ? [i] : []));
+/** The bell to an empty hexagon of floor at random (none on a full table, and none where the level has no bell, which takes no draw). */
+function hang(s, rules) {
+  if (!rules.bell) { s.bell = -1; return; }
+  const empty = s.cells.flatMap((c, i) => (c < 0 && !rules.terrain[i] ? [i] : []));
   s.bell = empty.length ? empty[Math.floor(draw(s.seed, s.n++) * empty.length)] : -1;
 }
 
@@ -190,21 +237,29 @@ function hang(s) {
 // playing games out, tests/topple.mjs: a careful player who turns its dominoes into long falls lasts about a hundred
 // pieces; with free turning it lasted about 170 on the pace before, which tapered to seven in ten at the fifty-sixth.)
 export const PACE = { from: 16, to: 36, end: 0.55 };
-export const rate = sets => (sets <= PACE.from ? 1 : sets >= PACE.to ? PACE.end : 1 - ((sets - PACE.from) / (PACE.to - PACE.from)) * (1 - PACE.end));
+export const rate = (sets, pace = PACE) => (sets <= pace.from ? 1 : sets >= pace.to ? pace.end : 1 - ((sets - pace.from) / (pace.to - pace.from)) * (1 - pace.end));
 const EPS = 1e-9;
+/** The pace a game's knocks come at: its level's own, or the game's (which the tests tune, so it's looked up each time). */
+const paceOf = rules => rules.pace || PACE;
 /** How many hands until the knock falls due, counting the one in play (0: it's due now). */
 export function untilKnock(s) {
   if (s.due) return 0;
+  const pace = paceOf(rulesOf(s));
   let credit = s.credit, k = 0;
-  do credit += rate(s.sets + k++); while (credit < 1 - EPS && k < 1000);
+  do credit += rate(s.sets + k++, pace); while (credit < 1 - EPS && k < 1000);
   return k;
 }
 
-/** A new game from a seed: an empty table, the bell on it, three pieces, and a knock after the first hand. */
-export function newGame(seed) {
+/**
+ * A new game from a seed: an empty table, the bell on it, three pieces, and a knock after the first hand. With a level
+ * (0 on), the game of that level: its rules, and `stars` to count the goal's.
+ */
+export function newGame(seed, level = -1) {
   const s = { v: VERSION, seed: seed >>> 0, n: 0, cells: new Array(SIZE).fill(-1), ax: new Array(SIZE).fill(-1), hand: [], due: false, credit: 0, bell: -1, rung: 0, sets: 0, laid: 0, felled: 0, score: 0, over: false };
-  deal(s);
-  hang(s);
+  if (level >= 0) { s.level = level; s.stars = 0; }
+  const rules = rulesOf(s);
+  deal(s, rules);
+  hang(s, rules);
   return s;
 }
 /**
@@ -221,18 +276,18 @@ export function migrate(g) {
 }
 
 // ---------- laying a piece ----------
-/** The hexagons a piece would cover with its first on (q, r), or null if it doesn't fit there. */
-export function cover(cells, piece, q, r) {
+/** The hexagons a piece would cover with its first on (q, r), or null if it doesn't fit there (off the table, taken, or stone or water). */
+export function cover(cells, piece, q, r, rules = FREE) {
   const out = [];
   for (const [dq, dr] of PIECES[piece].cells) {
     const i = at(q + dq, r + dr);
-    if (i < 0 || cells[i] >= 0) return null;
+    if (i < 0 || cells[i] >= 0 || rules.terrain[i]) return null;
     out.push(i);
   }
   return out;
 }
-export const fitsAnywhere = (cells, piece) => CELLS.some(([q, r]) => cover(cells, piece, q, r));
-const stuck = s => !s.hand.some(h => h && fitsAnywhere(s.cells, h.piece));
+export const fitsAnywhere = (cells, piece, rules = FREE) => CELLS.some(([q, r]) => cover(cells, piece, q, r, rules));
+const stuck = s => { const rules = rulesOf(s); return !s.hand.some(h => h && fitsAnywhere(s.cells, h.piece, rules)); };
 
 // ---------- a knock ----------
 /** The two ways the domino on hexagon i can be pushed: either along its axis. Empty where none stands. */
@@ -241,59 +296,75 @@ export const pushes = (ax, i) => (ax[i] >= 0 ? [ax[i], ax[i] + AXES] : []);
  * What pushing the domino on hexagon `start` the way `way` (0–11, along its axis) brings down: the dominoes in the
  * order they fall, each as [hexagon, step (0 the one pushed, 1 those it knocks, …), the hexagon of the one that knocked
  * it (-1 for the first), the way it falls]. Empty for an empty hexagon, or a way across its axis.
+ * By the level's rules: a fall goes level or down (a tall domino's climbs a step), a tall domino reaches the hexagon beyond
+ * as well (over water, a gap or a domino of another colour, not past a stone), and a pearl is knocked by, and knocks, any colour.
  */
-export function chain(cells, ax, start, way) {
-  const c = cells[start];
-  if (!(c >= 0) || ax[start] !== way % AXES) return [];
+export function chain(cells, ax, start, way, rules = FREE) {
+  if (!(cells[start] >= 0) || ax[start] !== way % AXES) return [];
   const step = new Map([[start, 0]]), by = new Map([[start, -1]]), falls = new Map([[start, way]]), queue = [start];
   for (let k = 0; k < queue.length; k++) {
-    const i = queue[k], w = falls.get(i);
-    for (const j of hitBy(i, w)) {
-      if (j < 0 || cells[j] !== c || step.has(j) || !knocks(w, ax[j])) continue;
+    const i = queue[k], w = falls.get(i), c = cells[i], tall = rules.tall[c], climb = tall ? 1 : 0;
+    const hits = hitBy(i, w);
+    if (tall) { const far = reachBy(i, w, rules); if (far >= 0) hits.push(far); }
+    for (const j of hits) {
+      if (j < 0 || !(cells[j] >= 0) || !kin(c, cells[j]) || step.has(j) || !knocks(w, ax[j]) || rules.height[j] - rules.height[i] > climb) continue;
       step.set(j, step.get(i) + 1); by.set(j, i); falls.set(j, senseOf(ax[j], w)); queue.push(j);
     }
   }
   return queue.map(i => [i, step.get(i), by.get(i), falls.get(i)]);
 }
-/** The dominoes of a colour joined to hexagon i along their sides, all of them, whichever way they face. */
-export function group(cells, i) {
+// (hexagon, way) pairs a tall domino can reach past the near hexagon, by the hexagon it stands on
+const FAR_WAYS = CELLS.map((_, i) => FAR[i].flatMap((j, w) => (j >= 0 ? [[j, w]] : [])));
+/**
+ * The dominoes of a colour joined to hexagon i along their sides, all of them, whichever way they face (a pearl joins any
+ * colour beside it; a tall domino is joined to those it reaches, and they to it).
+ */
+export function group(cells, i, rules = FREE) {
   const c = cells[i];
   if (!(c >= 0)) return [];
-  const seen = new Set([i]), queue = [i];
-  for (let k = 0; k < queue.length; k++) for (const j of NEXT[queue[k]]) if (j >= 0 && cells[j] === c && !seen.has(j)) { seen.add(j); queue.push(j); }
+  const seen = new Set([i]), queue = [i], join = j => { if (!seen.has(j)) { seen.add(j); queue.push(j); } };
+  for (let k = 0; k < queue.length; k++) {
+    const a = queue[k];
+    for (const j of NEXT[a]) if (j >= 0 && cells[j] >= 0 && kin(cells[a], cells[j])) join(j);
+    if (rules.plain) continue;
+    for (const [j, w] of FAR_WAYS[a]) if (cells[j] >= 0 && kin(cells[a], cells[j]) && (rules.tall[cells[a]] || rules.tall[cells[j]]) && reachBy(a, w, rules) === j) join(j);
+  }
   return queue;
 }
 /** The steps a knock's fall takes (as chain gives it): from the one pushed, counting it. */
 export const stepsOf = fell => (fell.length ? Math.max(...fell.map(f => f[1])) + 1 : 0);
 /** Ten times the dominoes felled by one knock times the steps they take (a straight run from its end: its length). */
 export const worth = (n, steps = n) => 10 * n * steps;
-/** What a push on hexagon i the way `way` would come to: { fell (as chain gives it), steps, rings (the bell's hexagon among them), gain }. */
-export function knockOn(cells, ax, i, way, bell = -1) {
-  const fell = chain(cells, ax, i, way), steps = stepsOf(fell), rings = bell >= 0 && fell.some(f => f[0] === bell);
-  return { fell, steps, rings, gain: worth(fell.length, steps) * (rings ? 2 : 1) };
+/**
+ * What a push on hexagon i the way `way` would come to: { fell (as chain gives it), steps, rings (the bell's hexagon among
+ * them), gilded (one of them on a gilded hexagon), gain }. The bell and the gilding each double, and together make four.
+ */
+export function knockOn(cells, ax, i, way, bell = -1, rules = FREE) {
+  const fell = chain(cells, ax, i, way, rules), steps = stepsOf(fell), rings = bell >= 0 && fell.some(f => f[0] === bell), gilded = fell.some(f => rules.gilded[f[0]]);
+  return { fell, steps, rings, gilded, gain: worth(fell.length, steps) * (rings ? 2 : 1) * (gilded ? 2 : 1) };
 }
 /**
- * The best push on the dominoes joined to hexagon i: { at, way, fell (how many), steps, rings, gain, size (how many are
- * joined) }, the one scoring most (felling most where they score the same). Every domino of them, both ways along its
+ * The best push on the dominoes joined to hexagon i: { at, way, fell (how many), steps, rings, gilded, gain, size (how many
+ * are joined) }, the one scoring most (felling most where they score the same). Every domino of them, both ways along its
  * axis: they're at most the table, so this is quick.
  */
-export function longest(cells, ax, i, bell = -1) {
-  const all = group(cells, i);
-  let best = { at: -1, way: -1, fell: 0, steps: 0, rings: false, gain: 0 };
+export function longest(cells, ax, i, bell = -1, rules = FREE) {
+  const all = group(cells, i, rules);
+  let best = { at: -1, way: -1, fell: 0, steps: 0, rings: false, gilded: false, gain: 0 };
   for (const j of all) for (const way of pushes(ax, j)) {
-    const k = knockOn(cells, ax, j, way, bell);
-    if (k.gain > best.gain || (k.gain === best.gain && k.fell.length > best.fell)) best = { at: j, way, fell: k.fell.length, steps: k.steps, rings: k.rings, gain: k.gain };
+    const k = knockOn(cells, ax, j, way, bell, rules);
+    if (k.gain > best.gain || (k.gain === best.gain && k.fell.length > best.fell)) best = { at: j, way, fell: k.fell.length, steps: k.steps, rings: k.rings, gilded: k.gilded, gain: k.gain };
   }
   return { ...best, size: all.length };
 }
 /** The dominoes standing, joined by colour: one hexagon of each, how many, and its best push (longest's), most first. */
-export function chains(cells, ax, bell = -1) {
+export function chains(cells, ax, bell = -1, rules = FREE) {
   const seen = new Set(), out = [];
   cells.forEach((c, i) => {
     if (c < 0 || seen.has(i)) return;
-    const all = group(cells, i);
+    const all = group(cells, i, rules);
     for (const j of all) seen.add(j);
-    out.push({ at: i, length: all.length, best: longest(cells, ax, i, bell) });
+    out.push({ at: i, length: all.length, best: longest(cells, ax, i, bell, rules) });
   });
   return out.sort((a, b) => b.length - a.length);
 }
@@ -304,10 +375,10 @@ export function chains(cells, ax, bell = -1) {
  * knock is to be made now), over. Pure; throws if a knock is to be made first, or the piece isn't there or doesn't fit.
  */
 export function lay(game, slot, q, r) {
-  const s = structuredClone(game), h = s.hand[slot];
+  const s = structuredClone(game), h = s.hand[slot], rules = rulesOf(s);
   if (s.over || !h) throw new Error("no piece there");
   if (s.due) throw new Error("knock first");
-  const laid = cover(s.cells, h.piece, q, r);
+  const laid = cover(s.cells, h.piece, q, r, rules);
   if (!laid) throw new Error("it doesn't fit there");
   const faces = axesOf(laid);
   laid.forEach((i, k) => { s.cells[i] = h.colour; s.ax[i] = faces[k]; });
@@ -315,8 +386,8 @@ export function lay(game, slot, q, r) {
   s.hand[slot] = null;
   const dealt = s.hand.every(k => !k);
   if (dealt) {
-    deal(s);
-    s.credit += rate(s.sets - 1);
+    deal(s, rules);
+    s.credit += rate(s.sets - 1, paceOf(rules));
     if (s.credit >= 1 - EPS) { s.credit -= 1; s.due = true; }
   }
   s.over = !s.due && stuck(s);
@@ -344,25 +415,26 @@ export function knock(game, i, way) {
   if (s.over || !s.due) throw new Error("no knock due");
   if (!(s.cells[i] >= 0)) throw new Error("no domino there");
   if (!pushes(s.ax, i).includes(way)) throw new Error("a domino falls only along its axis");
-  const k = knockOn(s.cells, s.ax, i, way, s.bell);
+  const rules = rulesOf(s), k = knockOn(s.cells, s.ax, i, way, s.bell, rules);
   for (const [j] of k.fell) { s.cells[j] = -1; s.ax[j] = -1; }
   s.score += k.gain;
+  if (s.level >= 0) s.stars = Math.max(s.stars || 0, starsAt(rules, s.score));
   s.felled += k.fell.length;
   s.due = false;
   // the draw that dealt the next knock's strength (weak, medium or strong, retired with the six axes) is still passed
   // over, so a game saved before then deals on as it would have
   s.n++;
-  if (k.rings) { s.rung++; hang(s); }
+  if (k.rings) { s.rung++; hang(s, rules); }
   s.over = stuck(s);
-  return { state: s, fell: k.fell, steps: k.steps, rang: k.rings, gain: k.gain, over: s.over };
+  return { state: s, fell: k.fell, steps: k.steps, rang: k.rings, gilded: k.gilded, gain: k.gain, over: s.over };
 }
 /** Every way to lay a piece in hand: [{ slot, q, r }] (none while a knock is due). For the tests and the tuning players. */
 export function moves(s) {
-  const out = [];
+  const out = [], rules = rulesOf(s);
   if (s.due) return out;
   s.hand.forEach((h, slot) => {
     if (!h) return;
-    for (const [q, r] of CELLS) if (cover(s.cells, h.piece, q, r)) out.push({ slot, q, r });
+    for (const [q, r] of CELLS) if (cover(s.cells, h.piece, q, r, rules)) out.push({ slot, q, r });
   });
   return out;
 }

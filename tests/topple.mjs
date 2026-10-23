@@ -10,6 +10,7 @@
 // `node tests/topple.mjs measure` plays forty games for each player instead and prints what the README's numbers come
 // from; the plain run plays a few, to keep the pace honest. To tune, name the players and try another pace:
 // `node tests/topple.mjs measure careful,bell pace=12,48,0.6 games=40`.
+import { PLAYERS, play } from "./topple-players.js";
 import { R, CELLS, SIZE, DIRS, HAND, PIECES, PACE, VERSION, AXES, WAYS, axesOfCoords, axesOf, rate, untilKnock, newGame, at, next, dirTo, cover, fitsAnywhere, chain, group, chains, stepsOf, longest, knockOn, worth, lay, knock, turn, moves, pushes, hitBy, offBy, knocks, senseOf, through, isLine, migrate } from "../topple-engine.js";
 
 let bad = 0;
@@ -286,7 +287,7 @@ const game = (t, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {
 
 // ---------- the pace of the knocks ----------
 {
-  const rates = [1, 2, PACE.from - 1, PACE.from, PACE.from + 1, Math.round((PACE.from + PACE.to) / 2), PACE.to - 1, PACE.to, PACE.to + 1, 500].map(rate);
+  const rates = [1, 2, PACE.from - 1, PACE.from, PACE.from + 1, Math.round((PACE.from + PACE.to) / 2), PACE.to - 1, PACE.to, PACE.to + 1, 500].map(v => rate(v));
   check(rates.slice(0, 4).every(v => v === 1) && rates[7] === PACE.end && rates[9] === PACE.end && rates.every((v, k) => k === 0 || v <= rates[k - 1]) && rates[5] > PACE.end && rates[5] < 1, `a knock every hand for ${PACE.from}, then fewer and fewer to ${Math.round(PACE.end * 100)} in a hundred from the ${PACE.to}th hand`);
   // hands played on a table cleared after each, so the game can't end: which hands' ends brought a knock, and what
   // untilKnock said at the start of each
@@ -362,141 +363,11 @@ const game = (t, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {
 }
 
 // ---------- whole games ----------
-// Simple players: four that lay by habit and turn nothing (in the corner, by colour, at random) and two careful ones
-// that turn every group of a colour into the longest fall they can find after each piece (the second also bringing its
-// falls to the bell). Every knock is the push that scores most.
+// Simple players (tests/topple-players.js): four that lay by habit and turn nothing (in the corner, by colour, at random)
+// and two careful ones that turn every group of a colour into the longest fall they can find after each piece (the second
+// also bringing its falls to the bell). Every knock is the push that scores most.
 const MEASURE = process.argv.includes("measure"), ARG = k => process.argv.find(x => x.startsWith(`${k}=`))?.slice(k.length + 1);
 if (MEASURE && ARG("pace")) { const [from, to, end] = ARG("pace").split(",").map(Number); Object.assign(PACE, { from, to, end }); }
-/** The longest smooth path through a group: no turn sharper than sixty degrees, a fall along it taking it end to end. */
-function smoothPath(cells, members, bell = -1, budget = 3000) {
-  const inGroup = new Set(members), nb = new Map(members.map(i => [i, [0, 1, 2, 3, 4, 5].map(d => next(i, d)).filter(j => j >= 0 && inGroup.has(j))]));
-  const seen = new Set(), path = [];
-  let best = [], bestV = 0, left = budget, rings = 0;
-  const value = (n, ring) => n * n * (ring ? 2 : 1);
-  const go = () => {
-    if (left-- <= 0) return;
-    if (value(path.length, rings) > bestV) { bestV = value(path.length, rings); best = path.slice(); }
-    if (value(path.length + members.length - seen.size, bell >= 0 && inGroup.has(bell)) <= bestV) return;
-    const last = path[path.length - 1], prev = path[path.length - 2];
-    for (const j of nb.get(last)) {
-      if (seen.has(j) || (prev !== undefined && dirTo(prev, j) >= 0)) continue;
-      seen.add(j); path.push(j); if (j === bell) rings++;
-      go();
-      if (j === bell) rings--; path.pop(); seen.delete(j);
-    }
-  };
-  for (const s0 of [...members].sort((a, b) => nb.get(a).length - nb.get(b).length)) {
-    seen.add(s0); path.push(s0); if (s0 === bell) rings++;
-    go();
-    if (s0 === bell) rings--; path.pop(); seen.delete(s0);
-    if (left <= 0) break;
-  }
-  return best;
-}
-/** The axes a group stands on to fall as far as it can: along its longest smooth path, then each turned in turn while that scores more (forks). */
-function facings(cells, ax, members, bell) {
-  const out = ax.slice();
-  if (members.length < 2) return out;
-  const path = smoothPath(cells, members, bell, 6000);
-  path.forEach((i, k) => {
-    if (path.length < 2) return;
-    out[i] = k === 0 ? (2 * dirTo(i, path[1])) % AXES : k === path.length - 1 ? (2 * dirTo(i, path[k - 1])) % AXES : through(dirTo(i, path[k - 1]), dirTo(i, path[k + 1]));
-  });
-  if (members.length > 30) return out;
-  let best = longest(cells, out, members[0], bell).gain;
-  const onPath = new Set(path), order = [...members.filter(i => !onPath.has(i)), ...path];
-  for (let pass = 0; pass < 2; pass++) {
-    let better = false;
-    for (const i of order) {
-      let keep = out[i];
-      for (let a = 0; a < AXES; a++) {
-        if (a === keep) continue;
-        out[i] = a;
-        const g = longest(cells, out, members[0], bell).gain;
-        if (g > best) { best = g; keep = a; better = true; }
-      }
-      out[i] = keep;
-    }
-    if (!better) break;
-  }
-  return out;
-}
-/** The turning step: every group of a colour faced for its longest fall (groups already faced as they stand are left). */
-function turnAll(s, faced) {
-  const seen = new Set();
-  for (let i = 0; i < SIZE; i++) {
-    if (s.cells[i] < 0 || seen.has(i)) continue;
-    const members = group(s.cells, i), key = `${s.cells[i]}:${[...members].sort((a, b) => a - b).join()}:${members.includes(s.bell) ? s.bell : ""}`;
-    for (const j of members) seen.add(j);
-    if (faced.has(key)) continue;
-    const want = facings(s.cells, s.ax, members, s.bell);
-    for (const j of members) if (want[j] !== s.ax[j]) s = turn(s, j, want[j]);
-    faced.add(key);
-  }
-  return s;
-}
-const corner = s => moves(s)[0];
-const touchesOwn = (cells, laid, colour) => laid.some(i => [0, 1, 2, 3, 4, 5].some(d => { const j = next(i, d); return j >= 0 && cells[j] === colour && !laid.includes(j); }));
-const byColour = s => moves(s).find(m => touchesOwn(s.cells, cover(s.cells, s.hand[m.slot].piece, m.q, m.r), s.hand[m.slot].colour)) || moves(s)[0];
-/** Whether the rest of a hand can all still be laid: each piece somewhere, and the two together. */
-function room(cells, rest) {
-  const fits = rest.filter(k => fitsAnywhere(cells, k.piece)).length;
-  if (rest.length < 2 || fits < 2) return fits;
-  const [a, b] = rest, after = cells.slice();
-  for (const [q, r] of CELLS) {
-    const at = cover(cells, a.piece, q, r);
-    if (!at) continue;
-    for (const k of at) after[k] = a.colour;
-    const both = fitsAnywhere(after, b.piece);
-    for (const k of at) after[k] = -1;
-    if (both) return 3;
-  }
-  return fits;
-}
-/** Laying where the rest of the hand still has room, and then where what the piece joins has the longest fall for its size (and, for the bell player, over the bell). */
-const careful = toBell => s => {
-  let pick = null, bv = -Infinity;
-  for (const m of moves(s)) {
-    const h = s.hand[m.slot], laid = cover(s.cells, h.piece, m.q, m.r), cells = s.cells.slice();
-    for (const k of laid) cells[k] = h.colour;
-    const members = group(cells, laid[0]), run = smoothPath(cells, members, toBell ? s.bell : -1, 800).length;
-    // room for the rest of the hand first (a piece with nowhere to go ends the game), then the fall
-    const v = room(cells, s.hand.filter((k, slot) => k && slot !== m.slot)) * 1000 + run * 3 - (members.length - run) * 4 + (toBell && laid.includes(s.bell) ? run * 3 : 0);
-    if (v > bv) { bv = v; pick = m; }
-  }
-  return pick;
-};
-const PLAYERS = {
-  corner: { name: "the corner habit", choose: corner },
-  colour: { name: "the corner habit by colour", choose: byColour },
-  careful: { name: "the careful player", choose: careful(false), turns: true },
-  still: { name: "the careful player turning nothing", choose: careful(false) },
-  bell: { name: "the bell player", choose: careful(true), turns: true },
-  random: { name: "a random player", choose: (s, rnd) => { const all = moves(s); return all[Math.floor(rnd() * all.length)]; } },
-};
-const most = s => chains(s.cells, s.ax, s.bell).reduce((a, c) => (!a || c.best.gain > a.gain ? c.best : a), null);
-/** A game played out to its end (or a thousand pieces): what it came to, and whether it kept to the rules throughout. */
-function play(seed, player) {
-  let s = newGame(seed), score = 0, knocks = 0, fell = 0, bent = 0, forked = 0, rng = seed * 2654435761 >>> 0;
-  const rnd = () => ((rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0) / 4294967296), faced = new Set(), sound = { ok: true };
-  while (!s.over && s.laid < 1000) {
-    if (s.due) {
-      const b = most(s), r = knock(s, b.at, b.way), kids = new Map();
-      score += r.gain; knocks++; fell += r.fell.length;
-      // through a domino facing a line: round a bend, or forking to two
-      for (const [, , by] of r.fell) if (by >= 0) kids.set(by, (kids.get(by) || 0) + 1);
-      if (r.fell.some(f => f[3] % 2 === 1 && f[1] > 0)) bent++;
-      if ([...kids.values()].some(n => n > 1)) forked++;
-      s = r.state;
-    } else {
-      const m = player.choose(s, rnd);
-      s = lay(s, m.slot, m.q, m.r).state;
-      if (player.turns && !s.over) s = turnAll(s, faced);
-    }
-    if (!s.cells.every((c, i) => (c >= 0) === (s.ax[i] >= 0 && s.ax[i] < AXES)) || s.score !== score) sound.ok = false;
-  }
-  return { laid: s.laid, score: s.score, rung: s.rung, knocks, fell, bent, forked, ended: s.over, ok: sound.ok };
-}
 {
   const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
   const games = MEASURE ? Number(ARG("games") || 40) : 6, results = {}, named = process.argv.find(x => x.split(",").every(k => PLAYERS[k]));
