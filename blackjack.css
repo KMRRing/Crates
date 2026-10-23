@@ -77,7 +77,27 @@ html[data-mode="night"] { --bj-good: #7FC2A8; --bj-bad: #E8806F; --bj-felt: colo
   .bj-ask { min-height: 2.75rem; }
 }
 
-/* the chart beside the felt: only held sideways, with the coach on */
+/* the coach's panel at the head of the rail (its room kept whatever it says, so nothing shifts as it speaks) and its sheet */
+.bj-coach { display: flex; align-items: center; gap: .5rem; min-height: 2.6rem; padding: .25rem .5rem; border-radius: 4px; box-sizing: border-box;
+  background: color-mix(in srgb, var(--bj-in) 15%, var(--sheet)); box-shadow: inset 0 0 0 1px var(--rule); font-size: .8rem; line-height: 1.3; }
+.bj-coach[hidden] { display: none; }
+.bj-coach-text { flex: 1 1 auto; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.bj-coach-text .good { color: var(--bj-good); font-weight: 700; } .bj-coach-text .bad { color: var(--bj-bad); font-weight: 700; }
+.bj-coach-btns { flex: none; display: flex; gap: .3rem; }
+.bj-coach button { min-height: 2rem; padding: 0 .7rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .74rem; font-weight: 800; cursor: pointer; touch-action: manipulation; }
+.bj-whybody h3 { margin: .2rem 0 .3rem; font-size: 1rem; }
+.bj-whybody p { margin: 0 0 .5rem; font-size: .9rem; line-height: 1.4; }
+.bj-whybody .bj-verdict.good { color: var(--bj-good); font-weight: 700; } .bj-whybody .bj-verdict.bad { color: var(--bj-bad); font-weight: 700; }
+.bj-rows { list-style: none; margin: .5rem 0 .6rem; padding: 0; display: grid; gap: .4rem; }
+.bj-rows li { display: grid; grid-template-columns: 1fr auto; gap: .1rem .6rem; padding: .45rem .6rem; border: 1px solid var(--rule); border-radius: 4px; }
+.bj-rows li.best { border-color: var(--bj-good); box-shadow: inset 0 0 0 1px var(--bj-good); }
+.bj-rows li.mine:not(.best) { border-color: var(--bj-bad); box-shadow: inset 0 0 0 1px var(--bj-bad); }
+.bj-rows .ev { font-weight: 800; font-variant-numeric: tabular-nums; }
+.bj-rows small { grid-column: 1 / -1; color: var(--ink-soft); font-size: .78rem; }
+.bj-rows em { margin-left: .35rem; font-style: normal; font-size: .64rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--ink-soft); }
+.bj-foot { color: var(--ink-soft); font-size: .76rem !important; }
+
+/* the chart beside the felt: only held sideways, with the coach on Always */
 .bj-chartbox { display: none; }
 /* held sideways: the felt on the left with all the height; the strip, the chart, the chips and the plays beside it */
 @media (orientation: landscape) and (min-width: 700px) {

@@ -112,7 +112,7 @@ function values(c1, c2, up, rules) {
  * play }, edge (the house's, as a fraction of the stake, playing the chart) }.
  */
 export function strategy(rules) {
-  const out = { hard: {}, soft: {}, pairs: {} }, cells = new Map(), hands = [];
+  const out = { hard: {}, soft: {}, pairs: {}, ev: { hard: {}, soft: {}, pairs: {} } }, cells = new Map(), weight = new Map(), hands = [];
   for (const up of VALUES) for (let c1 = 1; c1 <= 10; c1++) for (let c2 = c1; c2 <= 10; c2++) {
     // the chance of this deal: your two cards and the up card out of the shoe in turn
     const p1 = chances(rules.decks, []), p2 = chances(rules.decks, [c1]), p3 = chances(rules.decks, [c1, c2]);
@@ -127,6 +127,7 @@ export function strategy(rules) {
       const sum = cells.get(key) || {};
       for (const k of ["S", "H", "D", "R"]) if (k in v) sum[k] = (sum[k] || 0) + pr * v[k];
       cells.set(key, sum);
+      weight.set(key, (weight.get(key) || 0) + pr);
     }
   }
   // the best play, and for a double or a surrender the best of the plays always open after it
@@ -136,8 +137,14 @@ export function strategy(rules) {
     const then = order.find(k => k !== "D" && k !== "R");
     return best + (then === "H" ? "" : then.toLowerCase());
   };
-  for (const [key, sum] of cells) { const [kind, t, up] = key.split(","); out[kind][`${t},${up}`] = pick(sum); }
-  for (const h of hands) if (h.c1 === h.c2 && h.t !== 21) out.pairs[`${h.c1},${h.up}`] = pick(h.v);
+  // what each play is worth on average (a unit of the first bet staked: a double's two units count twice), for the coach's
+  // reasons: a cell's, as the hands making its total average, and a pair's own
+  for (const [key, sum] of cells) {
+    const [kind, t, up] = key.split(",");
+    out[kind][`${t},${up}`] = pick(sum);
+    out.ev[kind][`${t},${up}`] = Object.fromEntries(Object.entries(sum).map(([k, x]) => [k, x / weight.get(key)]));
+  }
+  for (const h of hands) if (h.c1 === h.c2 && h.t !== 21) { out.pairs[`${h.c1},${h.up}`] = pick(h.v); out.ev.pairs[`${h.c1},${h.up}`] = { ...h.v }; }
   // the edge: each deal played by the chart (a pair by the pairs chart, others by their total's cell)
   let ret = 0;
   for (const h of hands) {

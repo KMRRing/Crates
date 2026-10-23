@@ -51,6 +51,7 @@
   <section id="chartBox" class="bj-chartbox" aria-label="The chart, the hand in play picked out" hidden></section>
 
   <section class="cs-rail bj-rail" aria-label="Your chips and plays">
+    <div id="coach" class="bj-coach" aria-live="polite" hidden></div>
     <div id="betting" class="bj-betting">
       <div id="chips" class="cs-chips" role="radiogroup" aria-label="Chip: tap the circle or a side bet to put it there"></div>
       <div class="cs-go">
@@ -71,6 +72,11 @@
 <dialog id="rulesDlg" class="sheet" aria-label="The rules on one page">
   <div class="pick-head"><h2>Blackjack on one page</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
   <div id="rulesBody" class="cs-rules"></div>
+</dialog>
+
+<dialog id="coachDlg" class="sheet" aria-label="The coach">
+  <div class="pick-head"><h2>The coach</h2><button class="btn" type="button" id="coachClose">Close</button></div>
+  <div id="coachBody" class="bj-whybody"></div>
 </dialog>
 
 <p id="toast" class="cs-toast" role="status" aria-live="polite"></p>

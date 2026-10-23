@@ -8,6 +8,7 @@
 // played by the advice, every one settled as it should be.
 import { RULES, START, MIN, SIDE, value, handOf, isBlackjack, isPair, newGame, deal, act, plays, advice, betProblem, strategyFor, sideTotal } from "../blackjack-engine.js";
 import { dealerOutcomes } from "../blackjack-strategy.js";
+import { COACH, isCoach, look, judge, evText, LEVEL } from "../blackjack-coach.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -162,6 +163,73 @@ const LOSE_ALL = { ...RULES, obo: false };
   check(advice(s) === "stand", "soft 18 in three cards against a 3: double, else stand (Ds)");
 }
 
+// ---------- the coach ----------
+{
+  check(COACH.map(([k]) => k).join() === "off,hints,check,on" && isCoach("on") && isCoach("off") && !isCoach(true) && !isCoach("always"), "the coach's four ways, off to always");
+  check(evText(0.123) === "+0.12" && evText(-0.5) === "−0.50" && evText(-0.001) === "0.00", "an average result is written signed, in bets, and a hair either side of nothing is nothing");
+  // 16 against a 5: the chart stands; each play open is there with an average, standing's the best, and the reasons are in numbers
+  let s = deal(table("10 5 6 K")).state, lk = look(s);
+  check(lk.tip === "stand" && lk.hand === "16 against a 5" && lk.short === "Stand: 16 against a 5" && lk.rows.map(x => x.play).join() === "stand,hit,surrender,double" && lk.rows[0].best && lk.rows.filter(x => x.best).length === 1,
+    `16 against a 5: stand, the plays open ranked by what they average (${lk.rows.map(x => `${x.play} ${evText(x.ev)}`).join(", ")})`);
+  check(/busts 62% at once/.test(lk.rows.find(x => x.play === "hit").note) && /^wins 4[23]%, loses 5[78]%$/.test(lk.rows[0].note) && /dealer's 5 is a weak card: it busts 4[23]%.*would bust 62%/.test(lk.why),
+    `the notes and the reason are the numbers: a hit busts 62%, the dealer's 5 busts 43% (“${lk.why}”)`);
+  let v = judge(lk, "stand");
+  check(v.ok && !v.level && v.cost === 0 && /^✓ Stand: the chart's play/.test(v.say), "standing is the chart's play");
+  v = judge(lk, "hit");
+  check(!v.ok && v.cost > 0.1 && /^✗ Hit: the chart says stand \(16 against a 5\), worth 0\.\d\d of a bet more/.test(v.say) && v.line === "The chart says stand: 16 against a 5", `hitting it isn't, and costs ${v.cost.toFixed(2)} of a bet: “${v.say}”`);
+  check(!judge(lk, "double").ok && judge(lk, "double").cost > judge(lk, "hit").cost, "doubling it costs more than hitting it");
+  // a hand where two plays are level isn't faulted: judge treats a hundredth of a bet as a tie
+  const level = { tip: "hit", hand: "x", rows: [{ play: "hit", name: "Hit", ev: 0.1, best: true }, { play: "stand", name: "Stand", ev: 0.1 - LEVEL / 2 }] };
+  v = judge(level, "stand");
+  check(v.ok && v.level && /level with the chart's hit/.test(v.say), "within a hundredth of a bet, a play is level with the chart's, not a mistake");
+  // a double the table won't allow isn't offered: three cards, no double; the rows are only plays open
+  s = run(table("5 6 4 K 3 9"), "hit");
+  lk = look(s);
+  check(!lk.rows.some(x => x.play === "double" || x.play === "surrender" || x.play === "split") && lk.rows.every(x => plays(s).has(x.play)), "after a hit there's no double, split or surrender in the coach's list: only the plays open");
+  // pairs: eights are split, said so; tens are stood on, and the split is there for comparison
+  lk = look(deal(table("8 6 8 K")).state);
+  check(lk.tip === "split" && lk.hand === "a pair of 8s against a 6" && /16, the worst total/.test(lk.why) && lk.rows[0].play === "split", `8s: split (“${lk.why}”)`);
+  lk = look(deal(table("K 6 K 9")).state);
+  check(lk.tip === "stand" && lk.hand === "a pair of tens against a 6" && /Splitting would break up a 20/.test(lk.why) && lk.rows.find(x => x.play === "split").ev < lk.rows[0].ev, "tens: stand, and the split's worth is shown to be less");
+  lk = look(deal(table("A 6 A K")).state);
+  check(lk.tip === "split" && /Two aces make a poor 12/.test(lk.why), "aces: split");
+  // doubling 11, a soft total, hitting low totals, surrender
+  lk = look(deal(table("5 4 6 K")).state);
+  check(lk.tip === "double" && /turns 11 into 21.*busts 39%/.test(lk.why), `11 against a 4: double (“${lk.why}”)`);
+  lk = look(deal(table("A 3 5 K")).state);
+  check(lk.tip === "hit" && /can't bust a soft 16/.test(lk.why) && look(deal(table("A 9 5 K")).state).tip === "hit", `soft 16 against a 3: hit (“${lk.why}”)`);
+  lk = look(deal(table("5 10 3 K")).state);
+  check(lk.tip === "hit" && /No single card can bust 8/.test(lk.why), "8 against a ten: no single card can bust it");
+  lk = look(deal(table("10 10 5 K")).state);
+  check(lk.tip === "surrender" && /every other play loses more than the half a bet you give up: (hit|stand) averages −0\.5\d/.test(lk.why) && lk.rows[0].ev === -0.5, `15 against a ten: surrender (“${lk.why}”)`);
+  // insurance: the arithmetic of a ten under the ace, from the shoe as it stands (two tens out of the shoe here)
+  s = deal(table("10 A 6 K")).state; lk = look(s);
+  check(s.round.phase === "insurance" && lk.tip === "noInsure" && lk.rows.map(x => x.play).join() === "noInsure,insure" && near(lk.rows[1].ev, -0.039, 0.001) && /needs a third/.test(lk.why) && /31%/.test(lk.rows[1].note),
+    `insurance on 16: no (${evText(lk.rows[1].ev)} a bet for insuring; “${lk.why}”)`);
+  s = deal(table("A A K 6")).state; lk = look(s);
+  check(s.round.phase === "insurance" && lk.hand === "a blackjack against an ace" && lk.rows.map(x => x.play).join() === "noInsure,insure" && near(lk.rows[0].ev, 1.04, 0.01) && lk.rows[1].ev === 1 && /sure 1/.test(lk.why),
+    `a blackjack against an ace: play it on (${lk.rows[0].ev.toFixed(2)} against the sure 1)`);
+  v = judge(lk, "insure");
+  check(!v.ok && /^✗ Even money: the chart says play it on/.test(v.say) && v.cost > 0.03, `and even money costs ${v.cost.toFixed(2)} of a bet: “${v.say}”`);
+  check(look(run(table("10 5 6 K"), "stand")) === null, "a finished round has no decision to coach");
+  // across thousands of hands: every decision gets rows that are the plays open, led by the chart's play, with words that say something
+  let g = newGame(77), decisions = 0, led = 0, openOnly = 0, worded = 0, order = 0;
+  for (let n = 0; n < 1500; n++) {
+    g = { ...g, bet: 1000, side: { over: 0, under: 0 } };
+    g = deal(g).state;
+    while (g.round.phase !== "over") {
+      const d = look(g), open = plays(g);
+      decisions++;
+      if (d.rows[0].play === d.tip && d.rows.filter(x => x.best).length === 1 && d.rows[0].best) led++;
+      if (d.rows.length === open.size && d.rows.every(x => open.has(x.play))) openOnly++;
+      if (d.why.length > 20 && !/NaN|undefined|null/.test(d.why + d.short + d.rows.map(x => x.note).join())) worded++;
+      if (d.rows.every((x, i) => i === 0 || x.ev == null || d.rows[i - 1].ev == null || d.rows[i - 1].ev >= x.ev)) order++;
+      g = act(g, advice(g)).state;
+    }
+  }
+  check(decisions > 1500 && led === decisions && openOnly === decisions && worded === decisions && order === decisions, `${decisions} decisions over 1,500 rounds: the chart's play always first of the plays open and the only one marked, every list ranked, every reason said in numbers (${led}, ${openOnly}, ${worded}, ${order})`);
+}
+
 // ---------- the shuffler and the shoe ----------
 {
   const g = newGame(5), each = new Map();
@@ -215,4 +283,4 @@ const LOSE_ALL = { ...RULES, obo: false };
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("blackjack: cards and hands, the dealer, basic strategy and the edge, rounds, Over/Under 13, insurance, the advice, the shuffler and the shoe, many rounds by the chart");
+else console.log("blackjack: cards and hands, the dealer, basic strategy and the edge, rounds, Over/Under 13, insurance, the advice, the coach, the shuffler and the shoe, many rounds by the chart");

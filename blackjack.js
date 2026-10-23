@@ -1,15 +1,17 @@
 // Blackjack: a Macau table, as at the Venetian. A chip picked, then tapped into the circle (and, if you like, on Over or
 // Under 13 beside it), Deal, and the round comes out as the dealer deals it: a card to you, one face up to the dealer, a
 // second to you; your plays (hit, stand, double, split, surrender, and insurance when the dealer shows an ace); then
-// the dealer's second card (no hole card: it comes only now), drawing to 17, and everything paid. With the coach on
-// (Menu) the play the chart says is marked, and a different one is noted. The felt prints the table's rules. Learn, in
-// the header, is the course; the rules are blackjack-engine.js's, basic strategy blackjack-strategy.js's; this file
-// keeps the game and deals each round out.
+// the dealer's second card (no hole card: it comes only now), drawing to 17, and everything paid. The coach (Menu) is
+// off, hints (the chart's play and why, when you ask), check (a word on each play of yours, with why) or always (the
+// chart's play marked and explained before you play, a different one noted); what it says is blackjack-coach.js's. The
+// felt prints the table's rules. Learn, in the header, is the course; the rules are blackjack-engine.js's, basic strategy
+// blackjack-strategy.js's; this file keeps the game and deals each round out.
 import { START, MIN, MAX, SIDE, CHIPS, RANKS, rankOf, suitOf, value, handOf, isBlackjack, isPair, sideTotal, newGame, deal, act, plays, advice, betProblem, strategyFor } from "./blackjack-engine.js";
+import { COACH, isCoach, look, judge, evText } from "./blackjack-coach.js";
 import { cardHtml } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle } from "./menu.js";
+import { part, action, line, toggle, choice } from "./menu.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE } from "./blackjack-course.js";
 import { blackjackStage } from "./blackjack-stage.js";
@@ -26,7 +28,11 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const animate = (node, frames, o) => (node?.animate ? node.animate(frames, { fill: "both", ...o }).finished.catch(() => {}) : Promise.resolve());
 
 let S = null;                       // the game (blackjack-engine.js's), as saved
-const opts = { chip: 500, coach: true, fast: false, ...read(OPTS, {}) };
+const opts = { chip: 500, coach: "on", fast: false, ...read(OPTS, {}) };
+// the coach was once on or off: on was the chart's play marked, which is what Always still does
+if (opts.coach === true) opts.coach = "on"; else if (opts.coach === false) opts.coach = "off"; else if (!isCoach(opts.coach)) opts.coach = "on";
+let hinted = null;                  // the decision the coach was asked about (hintKey), so its play shows until you've played
+let last = null;                    // your last play, judged: { look, play, ok, say }, until the next round is dealt
 let busy = false;                   // cards being dealt out
 let vis = null;                     // while dealing: how many cards of each are showing ({ dealer, hands: [] }); else all
 let cleared = false;                // the finished round taken off the felt (a new bet begun)
@@ -103,9 +109,9 @@ function fitCards() {
     felt.style.setProperty("--bj-card", `${size}px`);
   }
 }
-/** Held sideways with the coach on: the chart beside the felt, the hand in play's cell picked out. */
+/** Held sideways with the coach on Always: the chart beside the felt, the hand in play's cell picked out. */
 function drawChart() {
-  const box = $("chartBox"), show = opts.coach && sideways();
+  const box = $("chartBox"), show = opts.coach === "on" && sideways();
   box.hidden = !show;
   if (!show) return;
   const r = S.round && !cleared && S.round.phase === "play" && !vis ? S.round : null, h = r?.hands[r.active];
@@ -128,7 +134,37 @@ function fitArc() {
   }
 }
 const PLAYS = [["double", "Double", "chips beside"], ["split", "Split", "chips beside"], ["surrender", "Surrender", "say it"], ["hit", "Hit", "tap the felt"], ["stand", "Stand", "wave a hand"]];
+/** The decision in front of you, so a hint lasts only until you play. */
+const hintKey = () => { const r = S.round; return r ? `${r.phase}|${r.active}|${r.dealer[0]}|${r.hands.map(h => h.cards.join()).join(";")}` : ""; };
+/** Whether the chart's play is showing: always on Always, on Hints and Check once asked for this decision. */
+const advised = () => opts.coach === "on" || (opts.coach !== "off" && hinted !== null && hinted === hintKey());
+const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+/** The coach's panel at the head of the rail: the chart's play when it's showing, else your last play judged, with Hint and Why. */
+function drawCoach() {
+  const box = $("coach"), mode = opts.coach;
+  box.hidden = mode === "off";
+  if (mode === "off") return;
+  const lk = inPlay() && !busy && !vis ? look(S) : null, shown = lk && advised(), judged = mode !== "hints" && last && !cleared;
+  const buttons = [];
+  let text = "";
+  if (shown) { text = `<b>${esc(lk.short)}</b>`; buttons.push(`<button type="button" data-why="now">Why</button>`); }
+  else {
+    if (judged) { text = `<span class="${last.ok ? "good" : "bad"}">${esc(last.say)}</span>`; buttons.push(`<button type="button" data-why="last">Why</button>`); }
+    if (lk && mode !== "on") buttons.push(`<button type="button" data-hint="1">Hint</button>`);
+  }
+  box.innerHTML = `<span class="bj-coach-text">${text}</span><span class="bj-coach-btns">${buttons.join("")}</span>`;
+}
+/** The coach's sheet: the hand, why the chart plays as it does, and every play open with what it is worth on average. */
+function showWhy(lk, play, verdict) {
+  $("coachBody").innerHTML = `<h3>${esc(lk.hand[0].toUpperCase() + lk.hand.slice(1))}</h3>
+    ${verdict ? `<p class="bj-verdict ${verdict.ok ? "good" : "bad"}">${esc(verdict.say)}</p>` : ""}
+    <p>${esc(lk.why)}</p>
+    <ul class="bj-rows">${lk.rows.map(x => `<li class="${x.best ? "best" : ""}${x.play === play ? " mine" : ""}"><b>${esc(x.name)}${x.best ? "<em>chart</em>" : ""}${x.play === play ? "<em>yours</em>" : ""}</b><span class="ev">${x.ev == null ? "" : evText(x.ev)}</span><small>${esc(x.note)}</small></li>`).join("")}</ul>
+    <p class="bj-foot">Averages are in bets, over the cards still to come, for hands like this one, playing the best from here.</p>`;
+  if (!$("coachDlg").open) $("coachDlg").showModal();
+}
 function drawRail() {
+  drawCoach();
   const playing = inPlay() && !busy;
   $("betting").hidden = inPlay();
   $("plays").hidden = !inPlay();
@@ -140,7 +176,7 @@ function drawRail() {
     $("dealBtn").textContent = onTable() ? `Deal ${short(onTable())}` : "Deal";
     return;
   }
-  const open = playing ? plays(S) : new Set(), tip = opts.coach && playing ? advice(S) : null, r = S.round;
+  const open = playing ? plays(S) : new Set(), tip = playing && advised() ? advice(S) : null, r = S.round;
   if (r.phase === "insurance") {
     const bj = isBlackjack(r.hands[0].cards);
     $("plays").innerHTML = `<p class="bj-ask">${bj ? "You have blackjack and the dealer shows an ace: even money?" : "The dealer shows an ace: insurance, half your bet, pays 2 to 1 if it's a blackjack"}</p>
@@ -213,19 +249,21 @@ function dealNow() {
   const problem = betProblem(S.bet, S.balance, S.side);
   if (problem) { toast(problem); return; }
   $("call").innerHTML = "";
+  last = null;
+  hinted = null;
   run(deal);
 }
 function playNow(play) {
   if (busy || !inPlay()) return;
-  const tip = advice(S);
-  if (opts.coach && tip && play !== tip) toast(coachLine(tip));
+  // judged on the decision as it stood, before the play changes it
+  const lk = opts.coach === "off" ? null : look(S);
+  if (lk && opts.coach !== "hints") {
+    const v = judge(lk, play);
+    last = { look: lk, play, ok: v.ok, say: v.say };
+    if (opts.coach === "on" && !v.ok) toast(v.line);
+  }
+  hinted = null;
   run(s => act(s, play));
-}
-/** What the chart says, and of what: "The chart says stand: 16 against a 5". */
-function coachLine(tip) {
-  if (tip === "noInsure") return "The chart says no insurance: it never pays on average";
-  const r = S.round, h = r.hands[r.active], up = value(r.dealer[0]), t = say(h.cards).replace("/", " or ");
-  return `The chart says ${tip}: ${t} against ${up === 1 ? "an ace" : up === 8 ? "an 8" : `a ${up}`}`;
 }
 
 // ---------- the menu, the course, the rules ----------
@@ -242,7 +280,7 @@ function openMenu() {
   const cp = progressOf("blackjack", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn the floor: the plays, the chart, the table", () => course.open()), action("Blackjack on one page", showRules, "link"));
   const st = part(body, "settings");
-  st.append(toggle("Coach: mark the chart's play", opts.coach, on => { opts.coach = on; saveOpts(); drawRail(); drawChart(); }));
+  st.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; hinted = null; last = null; saveOpts(); render(); }));
   st.append(toggle("Quick dealing", opts.fast, on => { opts.fast = on; saveOpts(); }));
   part(body, "about").append(line(`${S.rounds} round${S.rounds === 1 ? "" : "s"}; you hold ${hk(S.balance)}${S.toppedUp ? `, topped up ${S.toppedUp} time${S.toppedUp === 1 ? "" : "s"}` : ""}. Playing the chart, the table keeps ${(strategyFor(S.rules).edge * 100).toFixed(2)}% of what you bet. Play money: nothing real is staked.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -269,11 +307,19 @@ $("rebetBtn").addEventListener("click", () => {
   render();
 });
 $("dealBtn").addEventListener("click", dealNow);
+$("coach").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b || busy) return;
+  if (b.dataset.hint) { hinted = hintKey(); drawRail(); drawChart(); }
+  else if (b.dataset.why === "now") { const lk = inPlay() ? look(S) : null; if (lk) showWhy(lk); }
+  else if (b.dataset.why === "last" && last) showWhy(last.look, last.play, last);
+});
+$("coachClose").addEventListener("click", () => $("coachDlg").close());
 $("plays").addEventListener("click", e => { const b = e.target.closest("[data-play]"); if (b && !b.disabled) playNow(b.dataset.play); });
 new ResizeObserver(() => { fitCards(); drawChart(); }).observe($("felt"));
 
 // for tests and debugging
-window.__blackjack = { get state() { return S; }, set state(s) { S = s; render(); }, dealNow, playNow, course };
+window.__blackjack = { get state() { return S; }, set state(s) { S = s; render(); }, dealNow, playNow, course, get coach() { return { opts, last, hinted }; } };
 
 S = read(RUN, null);
 if (!valid(S)) S = newGame(Math.floor(Math.random() * 2 ** 31));
