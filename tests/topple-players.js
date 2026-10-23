@@ -5,7 +5,7 @@
 // scores most. They know the level's rules only as the engine tells them (a push's gain, where a piece fits), so on a level
 // with tall dominoes or water they play it as well as that lets them, no better: they're a measure of how much a table
 // gives, not of how much a person can find in it.
-import { SIZE, CELLS, AXES, next, dirTo, through, coverFor, colourAt, fitsAnywhere, group, longest, chains, lay, knock, turn, moves, newGame, rulesOf } from "../topple-engine.js";
+import { SIZE, CELLS, AXES, next, dirTo, through, coverFor, colourAt, fitsAnywhere, group, longest, chains, lay, knock, turn, moves, newGame, rulesOf, BALL } from "../topple-engine.js";
 
 /** The longest smooth path through a group: no turn sharper than sixty degrees, a fall along it taking it end to end. */
 export function smoothPath(cells, members, bell = -1, budget = 3000) {
@@ -138,7 +138,7 @@ export function play(seed, player, { level = -1, pieces = 1000 } = {}) {
       s = lay(s, m.slot, m.q, m.r).state;
       if (player.turns && !s.over) s = turnAll(s, faced);
     }
-    if (!s.cells.every((c, i) => (c >= 0) === (s.ax[i] >= 0 && s.ax[i] < AXES)) || s.score !== score) sound.ok = false;
+    if (!s.cells.every((c, i) => (c >= 0) === (s.ax[i] >= 0 && s.ax[i] < AXES)) || s.score !== score || s.cells.filter(c => c === BALL).length !== (rulesOf(s).balls || 0)) sound.ok = false;
   }
   return { laid: s.laid, score: s.score, rung: s.rung, knocks, fell, bent, forked, ended: s.over, ok: sound.ok, stars: s.stars || 0, laidAt };
 }

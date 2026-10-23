@@ -2,7 +2,7 @@
 // from above and in front without perspective, no tilt, the fall a quicker squash and slide along each one's way, the
 // zoom a larger scale kept inside the whole table. It answers to the same calls as the 3D table (topple-3d.js), so the
 // page doesn't know which it has.
-import { CELLS, FREE, at as cellNumber } from "./topple-engine.js";
+import { CELLS, FREE, BALL, at as cellNumber } from "./topple-engine.js";
 import { ROCK, WATER, VOID } from "./topple-levels.js";
 import { mid, SW, SH, ST, TALL, ZOOM, heading, yawOf, hexAt, flat, slabsEl, hull, heightOf, PLANK } from "./topple-slab.js";
 
@@ -14,19 +14,19 @@ const el = (tag, attrs = {}, ...kids) => {
   return n;
 };
 const MID = CELLS.map(([q, r]) => mid(q, r));
-const FIELD = 4.17, OUTER = 4.85;
+const FIELD = 4.17, OUTER = 4.85, BALL_R = 0.22;
 const ring = (apothem, grow = 0) => Array.from({ length: 6 }, (_, k) => { const a = (k * Math.PI) / 3, R = (apothem + grow) / (Math.sqrt(3) / 2); return flat(R * Math.cos(a), 0, R * Math.sin(a)); });
 const poly = (pts, attrs) => el("polygon", { points: pts.map(p => p.map(v => v.toFixed(3)).join(",")).join(" "), ...attrs });
 const hexAtHeight = (x, z, y, grow = 1, cls = "tp-flat-cell") => poly(Array.from({ length: 6 }, (_, k) => { const a = (Math.PI / 6) + (k * Math.PI) / 3, r = grow / Math.sqrt(3); return flat(x + r * Math.cos(a), y, z + r * Math.sin(a)); }), { class: cls });
 const hexCell = (x, z) => hexAtHeight(x, z, 0);
 
 export function createFlat(host) {
-  const svg = el("svg", { class: "tp-gl tp-flatview", "aria-hidden": "true" }), world = el("g"), terr = el("g"), standing = el("g"), bell = el("g", { class: "tp-flat-bell" });
+  const svg = el("svg", { class: "tp-gl tp-flatview", "aria-hidden": "true" }), world = el("g"), terr = el("g"), standing = el("g"), balls = el("g"), bell = el("g", { class: "tp-flat-bell" });
   svg.append(world);
   host.prepend(svg);
   world.append(
     poly(ring(OUTER), { class: "tp-flat-frame" }), poly(ring(FIELD + 0.1), { class: "tp-flat-brass" }), poly(ring(FIELD), { class: "tp-flat-birch" }),
-    ...CELLS.map((_, i) => hexCell(...MID[i])), terr, standing, bell,
+    ...CELLS.map((_, i) => hexCell(...MID[i])), terr, balls, standing, bell,
   );
   bell.append(el("path", { d: "M0-.32C-.17-.32-.25-.18-.25 0V.14L-.33.25H.33L.25.14V0C.25-.18.17-.32 0-.32Z", fill: "#e0b04a", stroke: "#7a5a14", "stroke-width": ".02" }));
   // the whole table's scale and offset (s0, ox0, oy0), and the zoom's: s = s0 · zoom, the offset kept so the view stays inside the whole
@@ -89,7 +89,7 @@ export function createFlat(host) {
     if (current) set({ ...current, fresh: [] });
   }
   const topOf = (i, kind = current?.cells[i]) => base[i] + heightOf(rules.tall, kind);
-  const axisOf = {};                                  // the slab standing on each hexagon
+  const axisOf = {}, ballOf = {};                     // the slab standing on each hexagon, and the ball
   function set({ cells, ax, bell: bellCell, fresh = [], ghost = null }) {
     cancelFall();
     current = { cells, ax, bell: bellCell };
@@ -97,6 +97,12 @@ export function createFlat(host) {
     cells.forEach((c, i) => { if (c >= 0) list.push({ x: MID[i][0], z: MID[i][1], yaw: yawOf(ax[i] >= 0 ? ax[i] : 0), kind: c, cell: i, h: heightOf(rules.tall, c), lift: base[i], plank: rules.terrain[i] === WATER }); });
     standing.replaceChildren(slabsEl(list));
     if (ghost) standing.append(slabsEl(ghost.laid.map((i, k) => ({ x: MID[i][0], z: MID[i][1], yaw: yawOf(ghost.ax[k]), kind: ghost.kinds[k], h: heightOf(rules.tall, ghost.kinds[k]), lift: base[i], plank: rules.terrain[i] === WATER })), "ghost"));
+    for (const k of Object.keys(ballOf)) delete ballOf[k];
+    balls.replaceChildren(...cells.flatMap((c, i) => {
+      if (c !== BALL) return [];
+      const [px, py] = flat(MID[i][0], base[i] + BALL_R, MID[i][1]);
+      return [ballOf[i] = el("g", { class: "tp-flat-ball" }, el("circle", { cx: px, cy: py, r: BALL_R, class: "body" }), el("circle", { cx: px - 0.06, cy: py - 0.07, r: 0.05, class: "shine" }))];
+    }));
     for (const k of Object.keys(axisOf)) delete axisOf[k];
     standing.querySelectorAll("[data-cell]").forEach(g => { axisOf[g.dataset.cell] = g; });          // by hexagon, so a fall can move them
     if (bellCell >= 0) { const covered = cells[bellCell] >= 0, [x, z] = MID[bellCell], [px, py] = flat(x, covered ? topOf(bellCell) : base[bellCell], z); bell.setAttribute("transform", `translate(${px} ${py}) scale(${covered ? 0.7 : 1})`); bell.style.display = ""; } else bell.style.display = "none";
@@ -104,8 +110,19 @@ export function createFlat(host) {
     painted();
   }
   function cancelFall() { for (const a of anims) a.cancel(); anims = []; }
-  function fall({ fell }) {
+  /** A ball's roll: along its hexagons (a lost one on past the last, and gone), as quick as the dominoes it hits come after it. */
+  function roll(r) {
+    const g = ballOf[r.from];
+    if (!g?.animate || !r.path.length) return;
+    const [hx, hz] = heading(2 * r.dir), at = [];
+    for (const i of [r.from, ...r.path]) at.push(i >= 0 ? [MID[i][0], MID[i][1], base[i]] : [at.at(-1)[0] + hx, at.at(-1)[1] + hz, at.at(-1)[2]]);
+    const pts = at.map(([x, z, y]) => flat(x, y + BALL_R, z)), [x0, y0] = pts[0];
+    const frames = pts.map(([x, y], k) => ({ transform: `translate(${x - x0}px,${y - y0}px)`, opacity: r.lost && k === pts.length - 1 ? 0 : 1, offset: k / (pts.length - 1) }));
+    anims.push(g.animate(frames, { duration: (r.path.length + 1) * 85, delay: r.step * 85, easing: "ease-out", fill: "both" }));
+  }
+  function fall({ fell, rolls = [] }) {
     cancelFall();
+    rolls.forEach(roll);
     for (const [cell, step, , way] of fell) {
       const [hx, hz] = heading(way), g = axisOf[cell], [dx, dy] = flat(hx * 0.45, 0, hz * 0.45);
       if (!g?.animate) continue;

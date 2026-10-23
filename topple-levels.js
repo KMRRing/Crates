@@ -1,4 +1,4 @@
-// Topple's levels, pure (no page): twelve tables, each adding one thing to the last, and the rules compiled from them for
+// Topple's levels, pure (no page): eighteen tables, each adding one thing to the last, and the rules compiled from them for
 // the engine (topple-engine.js). Level 1 is Topple as it has always been (the same table, pieces, pace and scoring) with
 // a goal to reach; the others keep what the ones before taught and add to it:
 //   stones      a hexagon with a stone on it: nothing is laid there and a fall stops at it
@@ -12,6 +12,7 @@
 //               colour, so it joins what else would stand apart
 //   bridges     a straight piece of two or three that may lie on water (planks under the dominoes)
 //   twins       a pair of two colours
+//   balls       that many balls on the table at all times: a fall that reaches one sets it rolling (topple-engine.js, rollOf)
 //   scene, rise what the table is made of and stands on (birch, marble, jetty, cliff, garden), and how high a step of height
 //               stands in the drawing (a fall doesn't care): how it looks, nothing more
 // A level is beaten at its goal (stars at higher scores, for those who go on); beating one only opens the next.
@@ -61,7 +62,7 @@ const ARMS = [[0, 0], ...[0, 2, 4].flatMap(k => [1, 2, 3].map(n => spin([n, 0], 
 // game's own; `goal`: the score that beats it, and its stars at STARS times the goal.
 export const STARS = [1.6, 2.6];
 const GENTLE = { from: 40, to: 60, end: 0.8 };            // a knock nearly every hand: a table cut up by water has little room to spare
-const level = spec => ({ tall: [], pearl: 0, bridges: 0, twins: 0, scene: "birch", rise: 0.16, bell: true, pace: null, maxSize: 5, map: {}, ...spec });
+const level = spec => ({ tall: [], pearl: 0, bridges: 0, twins: 0, balls: 0, scene: "birch", rise: 0.16, bell: true, pace: null, maxSize: 5, map: {}, ...spec });
 export const LEVELS = [
   level({
     name: "Classic", goal: 20000,
@@ -129,6 +130,20 @@ export const LEVELS = [
     },
     about: "Four steps up a spine of rock, and a drop to the mist on either side and at the top. A fall goes down a stair and never up one (a tall domino climbs a step); nothing stands over the edge.",
   }),
+  level({
+    name: "Marbles", scene: "marble", goal: 58000, tall: [2], pearl: 0.12, maxSize: 4, balls: 3, map: { rock: three([3, -1]), gilded: three([2, 1]) },
+    about: "Three balls on the table. A fall that reaches one sets it rolling the way it was hit, until it meets a stone, a domino or runs out of push; it brings down the domino it meets and counts as one more in the knock.",
+  }),
+  level({
+    name: "Downhill", scene: "garden", goal: 39000, tall: [2], pearl: 0.12, maxSize: 4, balls: 3,
+    map: { height: { 1: where(c => c[0] <= 2 && c[0] >= 1), 2: where(c => c[0] <= 0 && c[0] >= -1), 3: where(c => c[0] <= -2) }, rock: [[-3, 3], [3, -3]], gilded: [[3, -2], [-2, 0]] },
+    about: "A hillside falling away to the east. A ball runs down a slope for nothing and only pays for a step up: set one going at the top and it crosses the table.",
+  }),
+  level({
+    name: "Grand tour", scene: "jetty", goal: 50000, tall: [2], pearl: 0.1, bridges: 0.15, twins: 0.15, maxSize: 4, pace: GENTLE, balls: 2,
+    map: { water: minus(RIVER, FORDS), rock: [[3, -3], [-3, 3]], gilded: [[-1, -2], [2, 1]] },
+    about: "The river again, with its two fords, bridges, twins and two balls: a ball that rolls into the water is lost, and another is put on the table.",
+  }),
 ];
 
 // ---------- compiled for the engine ----------
@@ -143,14 +158,14 @@ function compile(spec, n) {
   mark(m.gilded, i => { if (!terrain[i]) gilded[i] = 1; });
   return {
     id: n, name: spec.name, about: spec.about, goal: spec.goal, stars: spec.goal ? [spec.goal, ...STARS.map(k => Math.round((spec.goal * k) / 50) * 50)] : [],
-    terrain, height, gilded, tall: [0, 1, 2, 3].map(k => spec.tall.includes(k)), pearl: spec.pearl, bridges: spec.bridges, twins: spec.twins, scene: spec.scene, rise: spec.rise, bell: spec.bell, pace: spec.pace, maxSize: spec.maxSize,
-    plain: !terrain.some(Boolean) && !height.some(Boolean) && !gilded.some(Boolean) && !spec.tall.length && !spec.pearl && !spec.bridges && !spec.twins,
+    terrain, height, gilded, tall: [0, 1, 2, 3].map(k => spec.tall.includes(k)), pearl: spec.pearl, bridges: spec.bridges, twins: spec.twins, balls: spec.balls, scene: spec.scene, rise: spec.rise, bell: spec.bell, pace: spec.pace, maxSize: spec.maxSize,
+    plain: !terrain.some(Boolean) && !height.some(Boolean) && !gilded.some(Boolean) && !spec.tall.length && !spec.pearl && !spec.bridges && !spec.twins && !spec.balls,
   };
 }
 /** The rules of a level made up (for the tests): a spec as LEVELS has, any part of it. */
 export const custom = spec => compile(level({ name: "Made up", goal: 1000, about: "", ...spec }), -2);
 /** The rules of play with no level: every hexagon plain, no colour tall, no pearl, the bell hanging (Classic). */
-export const FREE = Object.freeze({ ...compile({ name: "Classic", about: "", goal: 0, tall: [], pearl: 0, bridges: 0, twins: 0, scene: "birch", rise: 0.16, bell: true, pace: null, maxSize: 5, map: {} }, -1) });
+export const FREE = Object.freeze({ ...compile({ name: "Classic", about: "", goal: 0, tall: [], pearl: 0, bridges: 0, twins: 0, balls: 0, scene: "birch", rise: 0.16, bell: true, pace: null, maxSize: 5, map: {} }, -1) });
 const COMPILED = LEVELS.map(compile);
 /** The rules of level n (0 on). */
 export const levelRules = n => COMPILED[n] || FREE;

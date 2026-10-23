@@ -32,10 +32,14 @@
 // knocks and that knocks every colour. Every function that takes rules takes them last, and without them plays Classic,
 // the table as it has always been; a game's own are `rulesOf(game)`.
 
-import { FREE, ROCK, WATER, PEARL, levelRules, starsAt } from "./topple-levels.js";
+import { FREE, ROCK, WATER, VOID, PEARL, levelRules, starsAt } from "./topple-levels.js";
 
 export { FREE, ROCK, WATER, PEARL };
 export const R = 4, HAND = 3, COLOURS = 3;
+/** What `cells` holds for a ball (a domino is its colour, 0 or more; an empty hexagon -1): so everything that asks `>= 0` for a domino is false for a ball. */
+export const BALL = -2;
+/** The most hexagons a ball can roll on a hit: it takes 2 and a step more for each two steps the fall that hit it had come. */
+export const MAXM = 6;
 /** The rules a game is played by: its level's, or Classic's. */
 export const rulesOf = g => (g && g.level >= 0 ? levelRules(g.level) : FREE);
 /** Whether a fall of colour a brings down a domino of colour b: its own colour, or a pearl either way. */
@@ -241,10 +245,23 @@ export function axesOfCoords(coords) {
 /** The same for hexagons by number: the axes of the dominoes laid on them. */
 export const axesOf = laid => axesOfCoords(laid.map(i => CELLS[i]));
 
+/**
+ * Balls to the number the level has, each on an empty hexagon of floor (not the bell's) by a draw: a level without them takes no
+ * draw, so the deals of the others stay as they were.
+ */
+function topUp(s, rules) {
+  let have = s.cells.filter(c => c === BALL).length;
+  while (have < rules.balls) {
+    const empty = s.cells.flatMap((c, i) => (c === -1 && !rules.terrain[i] && i !== s.bell ? [i] : []));
+    if (!empty.length) return;
+    s.cells[empty[Math.floor(draw(s.seed, s.n++) * empty.length)]] = BALL;
+    have++;
+  }
+}
 /** The bell to an empty hexagon of floor at random (none on a full table, and none where the level has no bell, which takes no draw). */
 function hang(s, rules) {
   if (!rules.bell) { s.bell = -1; return; }
-  const empty = s.cells.flatMap((c, i) => (c < 0 && !rules.terrain[i] ? [i] : []));
+  const empty = s.cells.flatMap((c, i) => (c === -1 && !rules.terrain[i] ? [i] : []));
   s.bell = empty.length ? empty[Math.floor(draw(s.seed, s.n++) * empty.length)] : -1;
 }
 
@@ -278,6 +295,7 @@ export function newGame(seed, level = -1) {
   const rules = rulesOf(s);
   deal(s, rules);
   hang(s, rules);
+  topUp(s, rules);
   return s;
 }
 /**
@@ -302,7 +320,7 @@ export function cover(cells, piece, q, r, rules = FREE, bridge = false) {
   const out = [];
   for (const [dq, dr] of PIECES[piece].cells) {
     const i = at(q + dq, r + dr), t = i < 0 ? 0 : rules.terrain[i];
-    if (i < 0 || cells[i] >= 0 || (t && !(bridge && t === WATER))) return null;
+    if (i < 0 || cells[i] !== -1 || (t && !(bridge && t === WATER))) return null;
     out.push(i);
   }
   return out;
@@ -316,26 +334,87 @@ const stuck = s => { const rules = rulesOf(s); return !s.hand.some(h => h && fit
 /** The two ways the domino on hexagon i can be pushed: either along its axis. Empty where none stands. */
 export const pushes = (ax, i) => (ax[i] >= 0 ? [ax[i], ax[i] + AXES] : []);
 /**
- * What pushing the domino on hexagon `start` the way `way` (0–11, along its axis) brings down: the dominoes in the
- * order they fall, each as [hexagon, step (0 the one pushed, 1 those it knocks, …), the hexagon of the one that knocked
- * it (-1 for the first), the way it falls]. Empty for an empty hexagon, or a way across its axis.
+ * A ball hit rolls on in the direction it was hit, from hexagon `from`, with `m` hexagons of momentum: a flat hexagon costs one,
+ * a step down nothing (so it runs on), a step up three (one up and no more, and it must have them); it stops at a stone, at a
+ * domino it can't knock (edge-on, or on a higher step, or one already down in this fall) and at a domino it knocks, and it
+ * hands what it has left, less one, to a ball it meets; over the edge, into water or into a pit it is lost. Pure.
+ * Returns { path (the hexagons it rolls to, the last the one it was lost to, -1 off the table), end (where it rests, or -1 if lost), lost, hit (the domino it knocked, or -1), ball (the ball it hit, or -1), left (momentum left) }.
+ */
+export function rollOf(cells, ax, from, dir, m, rules = FREE, down = () => false) {
+  const path = [];
+  let at = from, e = m, hit = -1, ball = -1, lost = false;
+  while (e > 0) {
+    const b = NEXT[at][dir];
+    if (b < 0 || rules.terrain[b] === WATER || rules.terrain[b] === VOID) { path.push(b); lost = true; break; }
+    if (rules.terrain[b] === ROCK) break;
+    const rise = rules.height[b] - rules.height[at];
+    if (cells[b] >= 0) { if (rise <= 0 && !down(b) && knocks(2 * dir, ax[b])) hit = b; break; }
+    if (cells[b] === BALL) { ball = b; break; }
+    const cost = rise > 0 ? 1 + 2 * rise : rise < 0 ? 0 : 1;
+    if (rise > 1 || cost > e) break;
+    e -= cost;
+    at = b;
+    path.push(b);
+  }
+  return { path, end: lost ? -1 : at, lost, hit, ball, left: e };
+}
+/**
+ * What pushing the domino on hexagon `start` the way `way` (0–11, along its axis) brings down, dominoes and balls: { fell, rolls }.
+ * `fell` is the dominoes in the order they fall, each as [hexagon, step (0 the one pushed, 1 those it knocks, …), the hexagon of
+ * the one that knocked it (-1 for the first; a ball's last hexagon for one a ball knocked), the way it falls]. `rolls` is the
+ * balls a fall reached, each { from, step (the step it is hit at), by, dir (0–5, the way it rolls), path, end, lost, hit (the domino it knocks, or -1), meets (the ball it hits, whose roll follows, or -1), left (momentum it has left on meeting), m (its momentum) }: a ball is hit
+ * when a domino falls onto its hexagon (on level ground or below, a tall domino's climbs a step), takes the hit's direction (that
+ * from the domino to it), rolls a step to a hexagon (`rollOf`) and so brings down what it comes to a step after it stops:
+ * a ball hit at step s that rolls k hexagons knocks a domino at step s + k + 1. Both empty for an empty hexagon, or a way across
+ * its axis.
  * By the level's rules: a fall goes level or down (a tall domino's climbs a step), a tall domino reaches the hexagon beyond
  * as well (over water, a gap or a domino of another colour, not past a stone), and a pearl is knocked by, and knocks, any colour.
+ * A ball's momentum is MAXM at most, 2 and a step more for each two steps the fall had come (and one more from a tall domino).
  */
-export function chain(cells, ax, start, way, rules = FREE) {
-  if (!(cells[start] >= 0) || ax[start] !== way % AXES) return [];
-  const step = new Map([[start, 0]]), by = new Map([[start, -1]]), falls = new Map([[start, way]]), queue = [start];
-  for (let k = 0; k < queue.length; k++) {
-    const i = queue[k], w = falls.get(i), c = cells[i], tall = rules.tall[c], climb = tall ? 1 : 0;
+export function cascade(cells, ax, start, way, rules = FREE) {
+  if (!(cells[start] >= 0) || ax[start] !== way % AXES) return { fell: [], rolls: [] };
+  const step = new Map([[start, 0]]), by = new Map([[start, -1]]), falls = new Map([[start, way]]), todo = [start], done = [], gone = new Set(), rolls = [], rolled = new Set(), rests = new Set();
+  /** A domino found at a step: kept if it is new, or reached sooner than before (a ball can reach one by a longer way than a fall does). */
+  const found = (j, at, from, w) => {
+    if (gone.has(j) || (step.has(j) && step.get(j) <= at)) return;
+    if (!step.has(j)) todo.push(j);
+    step.set(j, at); by.set(j, from); falls.set(j, w);
+  };
+  /** A ball hit at step `at` by hexagon `from`, going direction `dir` with momentum `m`: rolls, and what it knocks is found. */
+  const strike = (b, at, from, dir, m) => {
+    rolled.add(b);
+    const r = rollOf(cells, ax, b, dir, m, rules, j => gone.has(j) || step.has(j) && step.get(j) < at + 1);
+    // two balls never rest on one hexagon: the later stops a hexagon short, and so knocks nothing
+    while (!r.lost && r.end !== b && rests.has(r.end)) { r.path.pop(); r.end = r.path.length ? r.path[r.path.length - 1] : b; r.hit = r.ball = -1; }
+    if (!r.lost) rests.add(r.end);
+    const roll = { from: b, step: at, by: from, dir, path: r.path, end: r.end, lost: r.lost, hit: r.hit, meets: r.ball, left: r.left, m };
+    rolls.push(roll);
+    const last = r.lost ? (r.path.length > 1 ? r.path[r.path.length - 2] : b) : r.end, over = at + r.path.length;
+    if (r.hit >= 0) found(r.hit, over + 1, last, senseOf(ax[r.hit], 2 * dir));
+    if (r.ball >= 0 && !rolled.has(r.ball)) strike(r.ball, over + 1, last, dir, Math.max(1, r.left - 1));
+  };
+  while (todo.length) {
+    let k = 0;
+    for (let n = 1; n < todo.length; n++) if (step.get(todo[n]) < step.get(todo[k])) k = n;
+    const i = todo.splice(k, 1)[0], w = falls.get(i), c = cells[i], tall = rules.tall[c], climb = tall ? 1 : 0, at = step.get(i);
+    gone.add(i);
+    done.push(i);
     const hits = hitBy(i, w);
     if (tall) { const far = reachBy(i, w, rules); if (far >= 0) hits.push(far); }
     for (const j of hits) {
-      if (j < 0 || !(cells[j] >= 0) || !kin(c, cells[j]) || step.has(j) || !knocks(w, ax[j]) || rules.height[j] - rules.height[i] > climb) continue;
-      step.set(j, step.get(i) + 1); by.set(j, i); falls.set(j, senseOf(ax[j], w)); queue.push(j);
+      if (j < 0) continue;
+      if (cells[j] === BALL) {
+        if (!rolled.has(j) && rules.height[j] - rules.height[i] <= climb && NEXT[i].includes(j)) strike(j, at + 1, i, NEXT[i].indexOf(j), Math.min(MAXM, 2 + (at >> 1) + (tall ? 1 : 0)));
+        continue;
+      }
+      if (!(cells[j] >= 0) || !kin(c, cells[j]) || step.has(j) || !knocks(w, ax[j]) || rules.height[j] - rules.height[i] > climb) continue;
+      found(j, at + 1, i, senseOf(ax[j], w));
     }
   }
-  return queue.map(i => [i, step.get(i), by.get(i), falls.get(i)]);
+  return { fell: done.map(i => [i, step.get(i), by.get(i), falls.get(i)]), rolls };
 }
+/** The dominoes a push brings down, as `cascade` gives them (balls aside). */
+export const chain = (cells, ax, start, way, rules = FREE) => cascade(cells, ax, start, way, rules).fell;
 // (hexagon, way) pairs a tall domino can reach past the near hexagon, by the hexagon it stands on
 const FAR_WAYS = CELLS.map((_, i) => FAR[i].flatMap((j, w) => (j >= 0 ? [[j, w]] : [])));
 /**
@@ -354,31 +433,35 @@ export function group(cells, i, rules = FREE) {
   }
   return queue;
 }
-/** The steps a knock's fall takes (as chain gives it): from the one pushed, counting it. */
-export const stepsOf = fell => (fell.length ? Math.max(...fell.map(f => f[1])) + 1 : 0);
-/** Ten times the dominoes felled by one knock times the steps they take (a straight run from its end: its length). */
+/** The steps a knock's fall takes (as cascade gives it): from the one pushed, counting it, and a ball's roll counts a step a hexagon. */
+export const stepsOf = (fell, rolls = []) => Math.max(0, ...fell.map(f => f[1] + 1), ...rolls.map(r => r.step + r.path.length + 1));
+/** Ten times the dominoes (and balls) moved by one knock times the steps they take (a straight run from its end: its length). */
 export const worth = (n, steps = n) => 10 * n * steps;
 /**
- * What a push on hexagon i the way `way` would come to: { fell (as chain gives it), steps, rings (the bell's hexagon among
- * them), gilded (one of them on a gilded hexagon), boosted (a skipped knock stands, `boost`), gain }. The bell and a skipped
+ * What a push on hexagon i the way `way` would come to: { fell (as chain gives it), rolls (the balls it sets going, as cascade gives them),
+ * units (dominoes and balls), steps, rings (the bell's hexagon among them, or under a ball's roll), gilded (one of them on a gilded
+ * hexagon), boosted (a skipped knock stands, `boost`), gain }. The bell and a skipped
  * knock each add a hundred per cent of the points, so both make three times; the gilding then doubles the lot.
  */
 export function knockOn(cells, ax, i, way, bell = -1, rules = FREE, boost = 0) {
-  const fell = chain(cells, ax, i, way, rules), steps = stepsOf(fell), rings = bell >= 0 && fell.some(f => f[0] === bell), gilded = fell.some(f => rules.gilded[f[0]]);
+  const { fell, rolls } = cascade(cells, ax, i, way, rules), steps = stepsOf(fell, rolls), units = fell.length + rolls.length;
+  // a ball's hexagon and the ones it rolls over count as reached, for the bell and for gilding
+  const reached = rolls.flatMap(r => [r.from, ...r.path.filter(j => j >= 0)]);
+  const rings = bell >= 0 && (fell.some(f => f[0] === bell) || reached.includes(bell)), gilded = fell.some(f => rules.gilded[f[0]]) || reached.some(j => rules.gilded[j]);
   // the bell and a skipped knock each add a hundred per cent (both: three times), and the gilding doubles what they come to
-  return { fell, steps, rings, gilded, boosted: !!boost, gain: worth(fell.length, steps) * (1 + (rings ? 1 : 0) + (boost ? 1 : 0)) * (gilded ? 2 : 1) };
+  return { fell, rolls, units, steps, rings, gilded, boosted: !!boost, gain: worth(units, steps) * (1 + (rings ? 1 : 0) + (boost ? 1 : 0)) * (gilded ? 2 : 1) };
 }
 /**
- * The best push on the dominoes joined to hexagon i: { at, way, fell (how many), steps, rings, gilded, gain, size (how many
+ * The best push on the dominoes joined to hexagon i: { at, way, fell (how many dominoes and balls move), balls (how many of them are balls), steps, rings, gilded, gain, size (how many
  * are joined) }, the one scoring most (felling most where they score the same). Every domino of them, both ways along its
  * axis: they're at most the table, so this is quick.
  */
 export function longest(cells, ax, i, bell = -1, rules = FREE, boost = 0) {
   const all = group(cells, i, rules);
-  let best = { at: -1, way: -1, fell: 0, steps: 0, rings: false, gilded: false, gain: 0 };
+  let best = { at: -1, way: -1, fell: 0, balls: 0, steps: 0, rings: false, gilded: false, gain: 0 };
   for (const j of all) for (const way of pushes(ax, j)) {
     const k = knockOn(cells, ax, j, way, bell, rules, boost);
-    if (k.gain > best.gain || (k.gain === best.gain && k.fell.length > best.fell)) best = { at: j, way, fell: k.fell.length, steps: k.steps, rings: k.rings, gilded: k.gilded, gain: k.gain };
+    if (k.gain > best.gain || (k.gain === best.gain && k.units > best.fell)) best = { at: j, way, fell: k.units, balls: k.rolls.length, steps: k.steps, rings: k.rings, gilded: k.gilded, gain: k.gain };
   }
   return { ...best, size: all.length };
 }
@@ -442,6 +525,8 @@ export function knock(game, i, way) {
   if (!pushes(s.ax, i).includes(way)) throw new Error("a domino falls only along its axis");
   const rules = rulesOf(s), k = knockOn(s.cells, s.ax, i, way, s.bell, rules, s.boost);
   for (const [j] of k.fell) { s.cells[j] = -1; s.ax[j] = -1; }
+  for (const r of k.rolls) s.cells[r.from] = -1;                  // the balls are lifted, and set down where they stop (or lost, if they fell off)
+  for (const r of k.rolls) if (r.end >= 0) s.cells[r.end] = BALL;
   s.score += k.gain;
   if (s.level >= 0) s.stars = Math.max(s.stars || 0, starsAt(rules, s.score));
   s.felled += k.fell.length;
@@ -451,8 +536,9 @@ export function knock(game, i, way) {
   // over, so a game saved before then deals on as it would have
   s.n++;
   if (k.rings) { s.rung++; hang(s, rules); }
+  topUp(s, rules);
   s.over = stuck(s);
-  return { state: s, fell: k.fell, steps: k.steps, rang: k.rings, gilded: k.gilded, boosted: k.boosted, gain: k.gain, over: s.over };
+  return { state: s, fell: k.fell, rolls: k.rolls, steps: k.steps, rang: k.rings, gilded: k.gilded, boosted: k.boosted, gain: k.gain, over: s.over };
 }
 /**
  * Whether the knock that's due may be skipped: one is due, none already skipped (the hundred per cent stands once, so

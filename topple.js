@@ -304,9 +304,9 @@ function render(extra) { if (extra) drawBoard(extra); else redraw(); drawStrip()
 /** What the best push on the dominoes joined to one comes to, in words: how many, how many of them fall, the points. */
 function bestWords(best) {
   const extras = `${best.rings ? ", the bell" : ""}${best.gilded ? ", gilded" : ""}`;
-  if (best.size === 1) return `On its own: +${fmt(best.gain)}${extras}`;
-  const how = best.fell === best.size ? `all fall in ${best.steps}` : `${best.fell} fall at most`;
-  return `${best.size} together: ${how}, +${fmt(best.gain)}${extras}`;
+  if (best.size === 1 && !best.balls) return `On its own: +${fmt(best.gain)}${extras}`;
+  const dominoes = best.fell - best.balls, how = dominoes === best.size ? `all fall in ${best.steps}` : `${dominoes} fall at most`;
+  return `${best.size} together: ${how}${best.balls ? `, ${plural(best.balls, "ball")} roll${best.balls > 1 ? "" : "s"}` : ""}, +${fmt(best.gain)}${extras}`;
 }
 /** How a finished game of a level reads: what it came to, and whether it beat the level. */
 function levelVerdict() {
@@ -322,9 +322,11 @@ function facingYou(i) {
   const down = w => { const [ux, uz] = heading(w), [x, y] = view.project(cx + ux, 0, cz + uz); return y - y0 + x * 1e-4; };
   return down(a) >= down(a + AXES) ? a : a + AXES;
 }
+/** The hexagons a knock moves, to be ringed: the dominoes that fall and the balls it sets rolling. */
+const ringed = k => [...k.fell.map(f => f[0]), ...k.rolls.map(r => r.from)];
 /** The chosen domino (turned to `ax` while a finger turns it): its handle, and what the best push on what it's joined to would fell, ringed and written. */
 function showChosen(ax = S.ax, ease = false) {
-  const rules = rulesOf(S), best = longest(S.cells, ax, sel, S.bell, rules, S.boost), fell = best.at >= 0 ? knockOn(S.cells, ax, best.at, best.way, S.bell, rules, S.boost).fell.map(f => f[0]) : [];
+  const rules = rulesOf(S), best = longest(S.cells, ax, sel, S.bell, rules, S.boost), fell = best.at >= 0 ? ringed(knockOn(S.cells, ax, best.at, best.way, S.bell, rules, S.boost)) : [];
   const down = new Set(fell), stay = group(S.cells, sel, rules).filter(j => !down.has(j));
   drawBoard({ ax, ease, handle: [sel, knob], ring: fell, stay, tag: [bestWords(best), sel] });
 }
@@ -392,8 +394,8 @@ function showPress(h) {
     setMarks({ compass: [at, -1, new Map([...tries].map(([w, k]) => [w, k.gain]))], tag: [S.due ? "Slide it along its axis to push" : `Slide to see a push: ${knockWords().toLowerCase()}`, at] });
     return;
   }
-  const k = tries.get(way), fell = new Set(k.fell.map(f => f[0])), stay = group(S.cells, at, rules).filter(j => !fell.has(j));
-  const words = `${k.fell.length} in ${plural(k.steps, "step")}: +${fmt(k.gain)}${k.rings ? ", the bell" : ""}${k.boosted ? ", skipped" : ""}${k.gilded ? ", gilded" : ""}${stay.length ? `; ${stay.length} stand` : ""}`;
+  const k = tries.get(way), fell = new Set(ringed(k)), stay = group(S.cells, at, rules).filter(j => !fell.has(j));
+  const words = `${k.fell.length}${k.rolls.length ? ` and ${plural(k.rolls.length, "ball")}` : ""} in ${plural(k.steps, "step")}: +${fmt(k.gain)}${k.rings ? ", the bell" : ""}${k.boosted ? ", skipped" : ""}${k.gilded ? ", gilded" : ""}${stay.length ? `; ${stay.length} stand` : ""}`;
   setMarks({ ring: [...fell], stay, compass: [at, way], tag: [S.due ? words : `${words} (${knockWords().toLowerCase()})`, at] });
 }
 
@@ -447,9 +449,9 @@ async function commitKnock(i, way) {
   // hung when they've passed it
   drawBoard({ cells: before.cells, ax: before.ax, bell: before.bell });
   drawStrip();
-  const falling = view.fall({ fell: done.fell, bell: { rang: done.rang, to: done.rang ? S.bell : -1 } });
+  const falling = view.fall({ fell: done.fell, rolls: done.rolls, bell: { rang: done.rang, to: done.rang ? S.bell : -1 } });
   const times = (1 + (done.rang ? 1 : 0) + (done.boosted ? 1 : 0)) * (done.gilded ? 2 : 1), level = S.level;
-  setTimeout(() => popup(done.fell.map(f => f[0]), done.gain, times), 100 + done.steps * 90);
+  setTimeout(() => popup([...done.fell.map(f => f[0]), ...done.rolls.map(r => r.from)], done.gain, times), 100 + done.steps * 90);
   await falling;
   render();
   playing = false;

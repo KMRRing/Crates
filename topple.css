@@ -152,6 +152,10 @@ html[data-mode="night"] { --tp-pearl: #D8D2C4; }
 .tp-plank-edge { fill: #7b5230; stroke: #4a2e16; stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .tp-plank-board { fill: none; stroke: #6b4426; stroke-width: 1; opacity: .55; vector-effect: non-scaling-stroke; }
 .tp-plank.ghost { opacity: .62; }
+.tp-flat-ball .body { fill: #b8402e; stroke: #5a1d14; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-ball .shine { fill: #fff; opacity: .55; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .tp-flat-ball .body { fill: #e8806f; stroke: #8a3a2e; } }
+html[data-mode="night"] .tp-flat-ball .body { fill: #e8806f; stroke: #8a3a2e; }
 .tp-flat-gilt { fill: none; stroke: #caa040; stroke-width: 2; vector-effect: non-scaling-stroke; }
 
 /* the menu's levels: three to a row, each its table in miniature, its number and name, and its stars */

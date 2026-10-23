@@ -9,9 +9,10 @@
 // does, and zooms in (up to ZOOM) by narrowing the camera's window within the whole table's, so whatever the page
 // projects over it follows. It draws only while something moves. The page (topple.js) drives it: set, fall, project,
 // cellAt, pointAt, tilt, zoomAt, panBy, zoomTo, and for a level's table (topple-levels.js) terrain: stones, pools, steps
-// up, gilded inlay and hexagons with no table, the tall dominoes standing taller, and a fourth enamel, the pearl.
+// up, gilded inlay and hexagons with no table, the tall dominoes standing taller, and a fourth enamel, the pearl; and balls
+// (lacquered spheres) that roll when a fall reaches them, over the same table, to a stop, a domino, the water or the edge.
 import * as THREE from "./vendor/three.js";
-import { CELLS, FREE, at as cellNumber, next as neighbour } from "./topple-engine.js";
+import { CELLS, FREE, BALL, at as cellNumber, next as neighbour } from "./topple-engine.js";
 import { ROCK, WATER, VOID } from "./topple-levels.js";
 import { sound } from "./topple-sound.js";
 import { ROW, mid, SW, SH, ST, TALL, PIPS, ZOOM, heading, yawOf, hexAt, hull, heightOf, PLANK } from "./topple-slab.js";
@@ -582,6 +583,21 @@ export function createTable(host) {
   bell.visible = false;
   table.add(bell);
 
+  // the balls (a level's): lacquered oxblood spheres with two brass seams, so a roll shows; a pool of them, set where the cells say
+  const BALL_R = 0.22, BALLS = 6;
+  const ballMat = new THREE.MeshStandardMaterial({ roughness: 0.16, metalness: 0.25 }), seamMat = new THREE.MeshStandardMaterial({ roughness: 0.3, metalness: 0.7 });
+  const ballGeo = new THREE.SphereGeometry(BALL_R, 24, 16), seamGeo = new THREE.TorusGeometry(BALL_R * 1.003, 0.012, 6, 32);
+  const balls = Array.from({ length: BALLS }, () => {
+    const g = new THREE.Group(), body = new THREE.Mesh(ballGeo, ballMat), a = new THREE.Mesh(seamGeo, seamMat), b = new THREE.Mesh(seamGeo, seamMat);
+    b.rotation.x = Math.PI / 2;
+    body.castShadow = true;
+    g.add(body, a, b);
+    g.visible = false;
+    stand.add(g);
+    return g;
+  });
+  let ballOn = new Map();                                                  // hexagon → the ball standing on it
+
   // sparks: little motes thrown up where dominoes land and when a bell rings
   const MOTES = 120, motes = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.035, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), MOTES);
   motes.frustumCulled = false;
@@ -735,6 +751,7 @@ export function createTable(host) {
     plankMat.color.set(0x8c6038).lerp(new THREE.Color(skin.birch[1]), 0.12); plankGhost.color.copy(plankMat.color);       // weathered oak, darker than the birch it lies on
     terraceSide.color.set(skin.style === 3 ? skin.mahoD : skin.mahoL); voidMat.color.set(skin.mahoD).multiplyScalar(0.55);
     gildMat.color.set(skin.brass); gildFill.color.set(skin.brass);
+    ballMat.color.set(skin.night ? 0xe8806f : 0xb8402e); seamMat.color.set(skin.brass);
     invalidate();
   }
 
@@ -934,6 +951,17 @@ export function createTable(host) {
     current = { cells, ax, bell: bellCell };
     cells.forEach((c, i) => { if (c >= 0) slabs[i].stand(i, c, ax[i] >= 0 ? ax[i] : 0, ease); else slabs[i].hide(); planks[i].visible = c >= 0 && rules.terrain[i] === WATER; });
     placeBell(bellCell, bellCell >= 0 && cells[bellCell] >= 0);
+    balls.forEach(b => { b.visible = false; });
+    ballOn = new Map();
+    cells.forEach((c, i) => {
+      const b = c === BALL ? balls[ballOn.size] : null;
+      if (!b) return;
+      b.position.set(MID[i][0], base[i] + BALL_R, MID[i][1]);
+      b.scale.setScalar(1);
+      b.rotation.set(i * 0.7, i * 1.3, 0);                                 // each rests another way up, so two balls aren't twins
+      b.visible = true;
+      ballOn.set(i, b);
+    });
     ghostSlabs.forEach(g => g.hide());
     ghostPlanks.forEach(g => { g.visible = false; });
     if (ghost) ghost.laid.forEach((i, k) => {
@@ -975,31 +1003,113 @@ export function createTable(host) {
   let falling = null;
   function cancelFall() { if (falling) { const f = falling; falling = null; f.stop(); f.resolve(); } }
   /**
-   * Plays out a knock: `fell` as the engine gives it ([hexagon, step, by, way]: each falls along its own axis, the way
-   * given), and the bell: { rang, to (the hexagon it moves to, -1 if none) }. Resolves when the last has sunk.
+   * A ball's route over the table, for its roll: the points [x, z, floor] it passes (hexagon centres; the last of a lost ball
+   * is the water or the hexagon beyond the edge, a ball that knocked something goes a little past its last, and one with nowhere
+   * to go is nudged), how far along the route each is, and how it moves: starting speed, its deceleration and the speed it still
+   * has at the end of the route (a ball that knocked something, or is lost, arrives with some).
    */
-  function fall({ fell, bell: bellMove = { rang: false, to: -1 } }) {
+  function routeOf(r) {
+    const [hx, hz] = heading(2 * r.dir), pts = [];
+    for (const i of [r.from, ...r.path]) {
+      if (i >= 0) pts.push({ x: MID[i][0], z: MID[i][1], y: base[i] });
+      else { const q = pts[pts.length - 1]; pts.push({ x: q.x + hx, z: q.z + hz, y: q.y }); }
+    }
+    const strikes = r.hit >= 0 || r.meets >= 0, bump = strikes ? 0.55 : !r.lost && !r.path.length ? 0.12 : 0;
+    if (bump) { const q = pts[pts.length - 1]; pts.push({ x: q.x + hx * bump, z: q.z + hz * bump, y: q.y }); }
+    const cum = [0];
+    for (let j = 1; j < pts.length; j++) cum.push(cum[j - 1] + Math.hypot(pts[j].x - pts[j - 1].x, pts[j].z - pts[j - 1].z));
+    const total = cum[cum.length - 1], v0 = 3 + 0.8 * r.m;
+    // the speed it arrives with is what momentum it had left, as a speed (energy goes as its square)
+    const vEnd = strikes || r.lost ? v0 * Math.min(0.8, Math.sqrt(Math.max(0.5, r.left) / r.m)) : 0;
+    const a = (v0 * v0 - vEnd * vEnd) / (2 * total);
+    return { pts, cum, total, bump, v0, vEnd, a, tEnd: (v0 - vEnd) / a, edge: r.lost ? total - 0.5 : -1 };
+  }
+  /** How far along its route a ball is at time t after it was hit: decelerating to the end, then (lost) on at the speed it had, or (struck) back to rest. */
+  function reached(b, t) {
+    const R = b.route;
+    if (t < R.tEnd) return R.v0 * t - 0.5 * R.a * t * t;
+    if (b.r.lost) return R.total + R.vEnd * (t - R.tEnd);
+    return R.total - R.bump * ease(clamp01((t - R.tEnd) / REBOUND));
+  }
+  /** The time after it was hit at which a ball (decelerating) has gone s along its route. */
+  const timeAt = (R, s) => (s >= R.total ? R.tEnd : (R.v0 - Math.sqrt(Math.max(0, R.v0 * R.v0 - 2 * R.a * s))) / R.a);
+  const REBOUND = 0.22;
+  /** Puts a ball where it is s along its route, rolling as it goes. */
+  function placeBall(b, s, t) {
+    const R = b.route, last = R.pts.length - 1;
+    let j = 0;
+    while (j < last - 1 && s > R.cum[j + 1]) j++;
+    const p = R.pts[j], q = R.pts[j + 1], len = R.cum[j + 1] - R.cum[j] || 1, u = (s - R.cum[j]) / len;
+    const k = clamp01((u - 0.25) / 0.5), lift = k * k * (3 - 2 * k);          // a step up or down is made over the middle of the way
+    const x = p.x + (q.x - p.x) * u, z = p.z + (q.z - p.z) * u;
+    let y = p.y + (q.y - p.y) * (u < 0 ? 0 : u > 1 ? 1 : lift) + BALL_R, scale = 1;
+    if (b.r.lost && R.edge >= 0 && s > R.edge) {
+      // over the brink: into the water and gone, or off the table and down
+      const tau = t - timeAt(R, R.edge), edgeY = R.pts[last - 1].y + BALL_R;
+      if (b.water) { const w = clamp01(tau / 0.35); y = edgeY - 0.35 * w; scale = 1 - 0.5 * w; if (w >= 1) b.mesh.visible = false; }
+      else { y = edgeY - 8 * tau * tau; if (y < -2.5) b.mesh.visible = false; }
+      if (!b.gone) { b.gone = true; if (b.water) spark(x, edgeY, z, "#9fd0f0", 6, 0.8); }
+    }
+    b.mesh.position.set(x, y, z);
+    b.mesh.scale.setScalar(scale);
+    const ds = s - b.at;
+    b.at = s;
+    if (Math.abs(ds) > 1e-5) {
+      const dx = q.x - p.x, dz = q.z - p.z, n = Math.hypot(dx, dz) || 1;
+      rollBy.setFromAxisAngle(rollAxis.set(dz / n, 0, -dx / n), ds / BALL_R);
+      b.mesh.quaternion.premultiply(rollBy);
+    }
+  }
+  const rollBy = new THREE.Quaternion(), rollAxis = new THREE.Vector3();
+  /**
+   * Plays out a knock: `fell` and `rolls` as the engine gives them ([hexagon, step, by, way]: each domino falls along its own
+   * axis, the way given; each ball is set going by what hit it), and the bell: { rang, to (the hexagon it moves to, -1 if none) }.
+   * Resolves when the last has sunk.
+   */
+  function fall({ fell, rolls = [], bell: bellMove = { rang: false, to: -1 } }) {
     cancelFall();
     return new Promise(resolve => {
-      const start = clock() + 30, T = new Map(), plan = [], events = [];
-      for (const [cell, , by, way] of fell) {
-        const v0 = by < 0 ? PUSH : HIT;
-        const jitter = 1 + (((cell * 53) % 13) - 6) * 0.008;
-        const t = by < 0 ? 0 : T.get(by) + timeTo(contactAngle(by, cell), plan.find(p => p.cell === by).v0) * jitter;
-        T.set(cell, t);
-        const s = slabs[cell];
-        // over its foot along its axis, front or back as the way says; the hair it stood off true straightens as it goes
-        const want = yawOf(way), turn = want - s.rest, k = Math.round(turn / Math.PI), delta = turn - k * Math.PI;
-        const flip = Math.abs(k) % 2 === 1 ? -1 : 1;
-        plan.push({ cell, s, way, v0, t, land: timeTo(Math.PI / 2, v0), delta: Math.atan2(Math.sin(delta), Math.cos(delta)), flip, landed: false, sunk: false });
-        events.push({ kind: by < 0 ? "shove" : "clack", at: 0.03 + t, power: by < 0 ? 0.75 : 0.62, pitch: 0.92 + (((cell * 11) % 7) * 0.025), pan: MID[cell][0] / 5 });
-        events.push({ kind: "land", at: 0.03 + t + timeTo(Math.PI / 2, v0), power: 0.5, pitch: 0.9 + (((cell * 5) % 7) * 0.03), pan: MID[cell][0] / 5 });
-        s.busy = true;
+      const start = clock() + 30, T = new Map(), plan = [], events = [], rollPlan = [], timed = new Map();
+      const knockedBy = new Map(rolls.filter(r => r.hit >= 0).map(r => [r.hit, r])), metBy = new Map(rolls.filter(r => r.meets >= 0).map(r => [r.meets, r]));
+      // each domino and ball is timed once what moves it is, which isn't always the order the engine gives (a ball's roll comes between)
+      const waiting = [...fell.map(f => ({ f })), ...rolls.map(r => ({ r }))];
+      while (waiting.length) {
+        const n = waiting.findIndex(w => (w.f ? w.f[2] < 0 || T.has(w.f[2]) || timed.has(knockedBy.get(w.f[0])) : T.has(w.r.by) || timed.has(metBy.get(w.r.from))));
+        if (n < 0) break;
+        const { f, r } = waiting.splice(n, 1)[0];
+        if (f) {
+          const [cell, , by, way] = f, v0 = by < 0 ? PUSH : HIT, jitter = 1 + (((cell * 53) % 13) - 6) * 0.008;
+          const t = by < 0 ? 0 : T.has(by) ? T.get(by) + timeTo(contactAngle(by, cell), plan.find(p => p.cell === by).v0) * jitter : timed.get(knockedBy.get(cell)).hitAt;
+          T.set(cell, t);
+          const s = slabs[cell];
+          // over its foot along its axis, front or back as the way says; the hair it stood off true straightens as it goes
+          const want = yawOf(way), turn = want - s.rest, k = Math.round(turn / Math.PI), delta = turn - k * Math.PI;
+          const flip = Math.abs(k) % 2 === 1 ? -1 : 1;
+          plan.push({ cell, s, way, v0, t, land: timeTo(Math.PI / 2, v0), delta: Math.atan2(Math.sin(delta), Math.cos(delta)), flip, landed: false, sunk: false });
+          events.push({ kind: by < 0 ? "shove" : "clack", at: 0.03 + t, power: by < 0 ? 0.75 : 0.62, pitch: 0.92 + (((cell * 11) % 7) * 0.025), pan: MID[cell][0] / 5 });
+          events.push({ kind: "land", at: 0.03 + t + timeTo(Math.PI / 2, v0), power: 0.5, pitch: 0.9 + (((cell * 5) % 7) * 0.03), pan: MID[cell][0] / 5 });
+          s.busy = true;
+        } else {
+          const mesh = ballOn.get(r.from);
+          if (!mesh) continue;
+          const t0 = T.has(r.by) ? T.get(r.by) + timeTo(contactAngle(r.by, r.from), plan.find(p => p.cell === r.by).v0) : timed.get(metBy.get(r.from)).hitAt;
+          const route = routeOf(r), b = { r, mesh, route, t0, at: 0, gone: false, water: r.lost && r.path.at(-1) >= 0 && rules.terrain[r.path.at(-1)] === WATER };
+          b.hitAt = t0 + route.tEnd;
+          b.end = r.lost ? t0 + timeAt(route, route.edge) + 0.7 : b.hitAt + (route.bump ? REBOUND : 0) + 0.1;
+          timed.set(r, b);
+          rollPlan.push(b);
+          if (r.hit >= 0 || r.meets >= 0) events.push({ kind: "clack", at: 0.03 + b.hitAt, power: 0.58, pitch: 1.18, pan: MID[r.end >= 0 ? r.end : r.from][0] / 5 });
+          if (r.lost) events.push({ kind: "land", at: 0.03 + t0 + timeAt(route, route.edge), power: 0.4, pitch: b.water ? 0.7 : 0.8, pan: MID[r.from][0] / 5 });
+        }
       }
-      const sunk = Math.max(...plan.map(p => p.t + p.land + LINGER + SINK));
+      const sunk = Math.max(...plan.map(p => p.t + p.land + LINGER + SINK), ...rollPlan.map(b => b.end));
       // the bell, if it was on a domino that fell: it drops off when that domino goes over, and rings
       const onBell = plan.find(p => p.cell === bellAt);
-      const fly = bellMove.to >= 0 ? sunk + 0.08 : -1;
+      // a ball that rolls over the bell knocks it off its hexagon as it passes; otherwise it goes when everything has settled
+      const struck = bellMove.rang && !onBell ? rollPlan.map(b => ({ b, j: [b.r.from, ...b.r.path].indexOf(bellAt) })).find(x => x.j > 0) : null;
+      const knockedAt = struck ? struck.b.t0 + timeAt(struck.b.route, struck.b.route.cum[struck.j]) : -1;
+      const fly = bellMove.to >= 0 ? (struck ? knockedAt : sunk + 0.08) : -1;
+      if (struck) events.push({ kind: "ring", at: 0.03 + knockedAt, power: 0.8, pitch: 1, pan: MID[bellAt][0] / 5 });
       if (bellMove.rang && onBell) { events.push({ kind: "ring", at: 0.03 + onBell.t + 0.05, power: 0.8, pitch: 1, pan: MID[bellAt][0] / 5 }); }
       if (fly >= 0) events.push({ kind: "ring", at: 0.03 + fly + 0.5, power: 0.45, pitch: 1.12, pan: MID[bellMove.to][0] / 5 });
       sound.run(events);
@@ -1040,6 +1150,10 @@ export function createTable(host) {
             if (u >= 1 && !p.sunk) { p.sunk = true; s.place.visible = false; }
           }
         }
+        for (const b of rollPlan) {
+          const t = e - b.t0;
+          if (t >= 0 && b.mesh.visible) placeBall(b, reached(b, t), t);
+        }
         if (onBell) {
           const t = e - onBell.t - 0.05;
           if (t >= 0) {
@@ -1060,7 +1174,7 @@ export function createTable(host) {
           bell.scale.setScalar(1);
           if (u >= 1 && !bellMove.landed) { bellMove.landed = true; spark(x1, 0.2, z1, "#ffd36a", 6, 0.8); }
         }
-        if (e > sunk + (fly >= 0 ? 0.9 : 0.05)) {
+        if (e > (fly >= 0 ? Math.max(sunk + 0.05, fly + 0.82) : sunk + 0.05)) {
           falling = null;
           resolve();
           return false;

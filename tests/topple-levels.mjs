@@ -6,7 +6,7 @@
 // players (tests/topple-players.js). `node tests/topple-levels.mjs measure` plays more games per level and prints what the
 // README's numbers come from: `measure careful,corner games=24 levels=4,5`.
 import { LEVELS, SCENES, FLOOR, ROCK, WATER, VOID, PEARL, STARS, FREE, levelRules, starsAt, numberOf, custom, SIZE } from "../topple-levels.js";
-import { CELLS, AXES, WAYS, PIECES, PACE, at, hitBy, reachBy, next, rulesOf, newGame, lay, turn, knock, cover, coverFor, colourAt, fitsAnywhere, chain, chains, group, knockOn, longest, rate, untilKnock } from "../topple-engine.js";
+import { CELLS, AXES, WAYS, PIECES, PACE, at, hitBy, reachBy, next, rulesOf, newGame, lay, turn, knock, cover, coverFor, colourAt, fitsAnywhere, chain, chains, group, knockOn, longest, rate, untilKnock, BALL } from "../topple-engine.js";
 import { PLAYERS, play, turnAll } from "./topple-players.js";
 
 let bad = 0;
@@ -25,7 +25,7 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
 
 // ---------- the levels ----------
 {
-  check(LEVELS.length === 15 && new Set(LEVELS.map(l => l.name)).size === 15 && LEVELS.every(l => l.about.length > 20), "fifteen levels, each with its own name and a line on what it adds");
+  check(LEVELS.length === 18 && new Set(LEVELS.map(l => l.name)).size === 18 && LEVELS.every(l => l.about.length > 20), "eighteen levels, each with its own name and a line on what it adds");
   const goals = LEVELS.map(l => l.goal);
   check(goals[0] === 20000 && goals.every(g => g > 0 && g % 100 === 0), `level 1's goal is 20000 (Korbi), the others whole hundreds (${goals.join(", ")}); they follow what each table gives, below`);
   const stars = LEVELS.map((_, k) => levelRules(k).stars);
@@ -49,9 +49,9 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
     if (!Object.keys(PIECES).some(p => PIECES[p].cells.length === ru.maxSize && fitsAnywhere(new Array(SIZE).fill(-1), p, ru))) { ok = false; why = `${k + 1}: no room for a piece of ${ru.maxSize}`; }
   });
   check(ok, ok ? `every map is whole: floor of ${Math.min(...floors)} to ${Math.max(...floors)} hexagons, heights up to four, nothing raised or gilded on stone or water, room for its biggest piece` : why);
-  const feature = k => { const ru = levelRules(k); return { rock: ru.terrain.includes(ROCK), water: ru.terrain.includes(WATER), void: ru.terrain.includes(VOID), tall: ru.tall.some(Boolean), gilded: ru.gilded.some(Boolean), height: ru.height.some(Boolean), pearl: ru.pearl > 0, bridges: ru.bridges > 0, twins: ru.twins > 0 }; };
+  const feature = k => { const ru = levelRules(k); return { rock: ru.terrain.includes(ROCK), water: ru.terrain.includes(WATER), void: ru.terrain.includes(VOID), tall: ru.tall.some(Boolean), gilded: ru.gilded.some(Boolean), height: ru.height.some(Boolean), pearl: ru.pearl > 0, bridges: ru.bridges > 0, twins: ru.twins > 0, balls: ru.balls > 0 }; };
   const first = key => LEVELS.findIndex((_, k) => feature(k)[key]) + 1;
-  check(first("rock") === 2 && first("water") === 3 && first("tall") === 4 && first("gilded") === 5 && first("height") === 6 && first("pearl") === 7 && first("void") === 8 && first("bridges") === 13 && first("twins") === 14, `each thing comes in on a level of its own: stones 2, water 3, tall 4, gilded 5, heights 6, pearl 7, no table 8, bridges 13, twins 14 (here ${["rock", "water", "tall", "gilded", "height", "pearl", "void", "bridges", "twins"].map(first).join(", ")})`);
+  check(first("rock") === 2 && first("water") === 3 && first("tall") === 4 && first("gilded") === 5 && first("height") === 6 && first("pearl") === 7 && first("void") === 8 && first("bridges") === 13 && first("twins") === 14 && first("balls") === 16, `each thing comes in on a level of its own: stones 2, water 3, tall 4, gilded 5, heights 6, pearl 7, no table 8, bridges 13, twins 14, balls 16 (here ${["rock", "water", "tall", "gilded", "height", "pearl", "void", "bridges", "twins", "balls"].map(first).join(", ")})`);
   const kept = ["tall", "pearl"].every(key => LEVELS.every((_, k) => k + 1 < first(key) || feature(k)[key]));
   check(kept, "and once in, tall and pearl stay in every level after");
   const plain = levelRules(0);
@@ -249,6 +249,20 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
   check(chain(row.cells, row.ax, at(3, 0), 6, ru).length === 4 && chain(row.cells, row.ax, at(0, 0), 0, ru).length === 1, "a fall from the ledge runs down all four steps; from the foot of the stair it climbs none");
 }
 
+// ---------- balls ----------
+{
+  const withBalls = LEVELS.map((_, k) => levelRules(k).balls);
+  check(withBalls.slice(0, 15).every(b => b === 0) && withBalls.slice(15).every(b => b >= 2 && b <= 3) && FREE.balls === 0 && custom({}).balls === 0 && !custom({ balls: 2 }).plain, `only the last three levels have balls (${withBalls.slice(15).join(", ")}), and a level with them is not plain`);
+  // every deal puts them on empty floor, away from the bell, and the game keeps them to the number
+  let ok = true;
+  for (let k = 15; k < 18; k++) for (let n = 0; n < 40; n++) {
+    const g = newGame(n, k), ru = levelRules(k), at = g.cells.flatMap((c, i) => (c === BALL ? [i] : []));
+    if (at.length !== ru.balls || at.some(i => ru.terrain[i] || i === g.bell || g.ax[i] >= 0)) ok = false;
+  }
+  check(ok, "a deal of those levels puts every ball on empty floor, not under the bell");
+  check(LEVELS.slice(15).every((l, k) => l.goal > 0 && l.scene !== LEVELS[14 + k].scene), "and they have goals of their own and a scene each");
+}
+
 // ---------- the stars, and the pace ----------
 {
   const t = table(...[-2, -1, 0, 1, 2].map(q => [q, 0, 0, 0]));
@@ -308,4 +322,4 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("topple levels: fifteen maps and goals, level 1 as Classic, stones and water, tall dominoes, heights, gilded hexagons, pearls, bridges and twins, scenes and the stair, stars and pace, whole games of every level");
+else console.log("topple levels: eighteen maps and goals, level 1 as Classic, stones and water, tall dominoes, heights, gilded hexagons, pearls, bridges and twins, scenes and the stair, balls, stars and pace, whole games of every level");

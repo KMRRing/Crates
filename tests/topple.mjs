@@ -11,7 +11,8 @@
 // from; the plain run plays a few, to keep the pace honest. To tune, name the players and try another pace:
 // `node tests/topple.mjs measure careful,bell pace=12,48,0.6 games=40`.
 import { PLAYERS, play } from "./topple-players.js";
-import { R, CELLS, SIZE, DIRS, HAND, PIECES, PACE, VERSION, AXES, WAYS, axesOfCoords, axesOf, rate, untilKnock, newGame, at, next, dirTo, cover, fitsAnywhere, chain, group, chains, stepsOf, longest, knockOn, worth, lay, knock, skip, canSkip, turn, moves, pushes, hitBy, offBy, knocks, senseOf, through, isLine, migrate } from "../topple-engine.js";
+import { R, CELLS, SIZE, DIRS, HAND, PIECES, PACE, VERSION, AXES, WAYS, axesOfCoords, axesOf, rate, untilKnock, newGame, at, next, dirTo, cover, fitsAnywhere, chain, group, chains, stepsOf, longest, knockOn, worth, lay, knock, skip, canSkip, turn, moves, pushes, hitBy, offBy, knocks, senseOf, through, isLine, migrate, BALL, MAXM, cascade, rollOf } from "../topple-engine.js";
+import { custom, levelRules, WATER, ROCK } from "../topple-levels.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -374,6 +375,90 @@ const game = (t, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {
   check(JSON.stringify(step(s)) === JSON.stringify(step(again)) && JSON.stringify(again.ax) === JSON.stringify(s.ax), "a game saved and opened again goes on as it would have, the dominoes facing as they were turned");
 }
 
+// ---------- balls ----------
+// A ball sits on a hexagon (BALL in the cells, no axis); a fall that reaches it sets it rolling the way it was hit, with
+// momentum 2 and one more for each two steps the fall had come, six at most, until a stone, a domino, the edge or its push runs out.
+{
+  const ball = (t, q, r) => { t.cells[hex(q, r)] = BALL; return t; };
+  const row = (n, from = -3) => line(from, 0, E, n);
+  const run = (t, rules = undefined) => cascade(t.cells, t.ax, hex(-3, 0), 0, rules);
+  let t = ball(table(...row(3)), 0, 0), c = run(t);
+  check(MAXM === 6 && BALL < 0 && c.fell.length === 3 && c.rolls.length === 1 && c.rolls[0].from === hex(0, 0) && c.rolls[0].step === 3 && c.rolls[0].m === 3 && c.rolls[0].path.join() === these([1, 0], [2, 0], [3, 0]).split(",").sort().join() && c.rolls[0].end === hex(3, 0), "a fall that reaches a ball sets it rolling the way it was hit, three hexagons at momentum 3 (two and one for the two steps it had come)");
+  const k = knockOn(t.cells, t.ax, hex(-3, 0), 0);
+  check(k.units === 4 && k.steps === 7 && k.gain === worth(4, 7) && k.gain === 280, "the ball counts as one more in the knock, and its hexagons as steps: three felled and a ball over three hexagons is 4 units in 7 steps");
+  check(!(t.cells.every(v => v !== BALL)) && chain(t.cells, t.ax, hex(-3, 0), 0).length === 3, "chain gives the dominoes alone");
+  t = ball(table(...row(3)), 0, 0);
+  const stone = custom({ map: { rock: [[2, 0]] } }), wet = custom({ map: { water: [[2, 0]] } });
+  check(run(t, stone).rolls[0].end === hex(1, 0) && !run(t, stone).rolls[0].lost, "a ball stops at a stone");
+  const w = run(t, wet).rolls[0];
+  check(w.lost && w.end === -1 && w.path.length === 2 && w.path[1] === hex(2, 0), "and is lost in water (its path ends there)");
+  const edge = ball(table(...row(3, 1)), 4, 0), e = cascade(edge.cells, edge.ax, hex(1, 0), 0).rolls[0];
+  check(e.lost && e.path.join() === "-1" && e.end === -1, "and over the edge of the table");
+  // knocking a domino
+  t = ball(table(...row(3), [2, 0, 0, 0], [3, 0, 0, 0]), 0, 0);
+  c = run(t);
+  check(c.fell.map(f => f[0]).includes(hex(2, 0)) && c.fell.map(f => f[0]).includes(hex(3, 0)) && c.rolls[0].hit === hex(2, 0) && c.rolls[0].path.join() === String(hex(1, 0)) && c.fell.find(f => f[0] === hex(2, 0))[1] === 5, "a ball knocks the domino it meets, a step after it stops, and the fall goes on from it");
+  t = ball(table(...row(3), [2, 0, 0, 3]), 0, 0);
+  check(run(t).rolls[0].hit === -1 && run(t).fell.length === 3, "but not one standing edge-on to its roll");
+  t = ball(table(...row(3), [2, 0, 1, 0]), 0, 0);
+  check(run(t).fell.length === 4, "a ball knocks a domino of any colour");
+  // slopes
+  const hill = custom({ map: { height: { 1: [[1, 0]] } } }), hill2 = custom({ map: { height: { 2: [[1, 0]] } } }), drop = custom({ map: { height: { 1: [[0, 0]] } } });
+  const bare = ball(table(), 0, 0), at0 = hex(0, 0);
+  check(rollOf(bare.cells, bare.ax, at0, 0, 2, hill).path.length === 0 && rollOf(bare.cells, bare.ax, at0, 0, 3, hill).path.join() === String(hex(1, 0)), "a step up costs three: a ball with two does not climb it, and one with three does and stops on top");
+  check(rollOf(bare.cells, bare.ax, at0, 0, 6, hill2).path.length === 0, "two steps up are never climbed");
+  const d = rollOf(bare.cells, bare.ax, at0, 0, 2, drop);
+  check(d.path.length === 3 && d.end === hex(3, 0) && rollOf(bare.cells, bare.ax, at0, 0, 2).path.length === 2, "a step down is free: momentum 2 rolls three hexagons from a height where it rolls two on the flat");
+  // balls meet
+  t = ball(ball(table(...row(3)), 0, 0), 2, 0);
+  c = run(t);
+  check(c.rolls.length === 2 && c.rolls[1].from === hex(2, 0) && c.rolls[1].m === 1 && c.rolls[0].end === hex(1, 0), "a ball meets a ball: it stops and hands on its momentum less one");
+  // the bell, gilding, the skip
+  t = ball(table(...row(3)), 0, 0);
+  const ring = knockOn(t.cells, t.ax, hex(-3, 0), 0, hex(2, 0)), gold = knockOn(t.cells, t.ax, hex(-3, 0), 0, -1, custom({ map: { gilded: [[2, 0]] } })), both = knockOn(t.cells, t.ax, hex(-3, 0), 0, hex(2, 0), custom({ map: { gilded: [[2, 0]] } }), 1);
+  check(ring.rings && ring.gain === 2 * k.gain && gold.gilded && gold.gain === 2 * k.gain && both.boosted && both.gain === 6 * k.gain, "a ball that rolls over the bell rings it, over a gilded hexagon doubles, and a skipped knock's bonus adds as for dominoes (3 x, doubled)");
+  check(!knockOn(t.cells, t.ax, hex(-3, 0), 0, hex(0, 1)).rings, "and a bell off its path stays");
+  // knock() moves them
+  const g = Object.assign(newGame(1), { cells: t.cells.slice(), ax: t.ax.slice(), due: true, bell: hex(R, 0), hand: [piece(SINGLE), piece(SINGLE), piece(SINGLE)] }), done = knock(g, hex(-3, 0), 0);
+  check(done.state.cells[hex(0, 0)] === -1 && done.state.cells[hex(3, 0)] === BALL && done.rolls.length === 1 && done.state.score === k.gain && done.state.cells.filter(v => v === BALL).length === 1 && done.state.cells.every((v, i) => (v >= 0) === (done.state.ax[i] >= 0)), "a knock lifts the ball and sets it down where it stops, and the domino cells and axes still agree");
+  check(g.cells[hex(0, 0)] === BALL, "and leaves the game it was given alone");
+  // on the level's table: the number of balls is kept, and where they stand is a draw from the seed
+  const lv = custom({ balls: 3 }).balls === 3 && levelRules(15).balls === 3;
+  const a = newGame(7, 15), b = newGame(7, 15), balls = s => s.cells.flatMap((v, i) => (v === BALL ? [i] : []));
+  check(lv && balls(a).length === 3 && balls(a).join() === balls(b).join() && balls(newGame(8, 15)).join() !== balls(a).join() && balls(a).every(i => !levelRules(15).terrain[i] && i !== a.bell), "a level with balls deals them on empty floor, the same from a seed");
+  check(balls(newGame(7, 14)).length === 0 && JSON.stringify(newGame(7, 14)) === JSON.stringify(newGame(7, 14)), "and one without deals none, and its deal is as it was");
+  check(JSON.stringify(JSON.parse(JSON.stringify(a))) === JSON.stringify(a), "a game with balls keeps through JSON");
+  // a ball lost is put back
+  const L = levelRules(17), water = CELLS.flatMap((_, i) => (L.terrain[i] === WATER ? [i] : []));
+  let found = null;
+  for (const wi of water) for (let dd = 0; dd < 6 && !found; dd++) {
+    const n = next(wi, (dd + 3) % 6), p = n >= 0 ? next(n, (dd + 3) % 6) : -1;
+    if (p >= 0 && !L.terrain[n] && !L.terrain[p] && L.height[n] === L.height[wi] && L.height[p] === L.height[n]) found = { p, n, dir: dd };
+  }
+  const base = newGame(3, 17);
+  base.cells.fill(-1); base.ax.fill(-1);
+  base.cells[found.n] = BALL; base.cells[found.p] = 0; base.ax[found.p] = (2 * found.dir) % AXES; base.due = true; base.bell = -1;
+  const lost = knock(base, found.p, 2 * found.dir);
+  check(lost.rolls.length === 1 && lost.rolls[0].lost && lost.state.cells.filter(v => v === BALL).length === L.balls && lost.state.cells[found.n] !== BALL, "a ball lost to water is replaced by a new one on empty floor");
+  // fuzz: tables of dominoes, balls, stones and water: whatever falls, balls rest apart, on empty floor, within reach
+  let rng = 12345; const rnd = () => ((rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0) / 4294967296);
+  let sound = true, rolled = 0;
+  for (let n = 0; n < 150 && sound; n++) {
+    const T = custom({ balls: 0, map: { rock: CELLS.filter(() => rnd() < 0.08), water: CELLS.filter(() => rnd() < 0.06), height: { 1: CELLS.filter(() => rnd() < 0.2) } } }), t = table();
+    CELLS.forEach((_, i) => { const x = rnd(); if (T.terrain[i]) return; if (x < 0.4) { t.cells[i] = Math.floor(rnd() * 3); t.ax[i] = Math.floor(rnd() * AXES); } else if (x < 0.5) t.cells[i] = BALL; });
+    for (let i = 0; i < SIZE && sound; i++) for (const way of pushes(t.ax, i)) {
+      const { fell, rolls } = cascade(t.cells, t.ax, i, way, T), ends = rolls.filter(r => r.end >= 0).map(r => r.end);
+      rolled += rolls.length;
+      const froms = rolls.map(r => r.from);
+      if (new Set(ends).size !== ends.length || new Set(froms).size !== froms.length) sound = false;
+      if (rolls.some(r => !(t.cells[r.from] === BALL) || r.path.length > r.m || (r.end >= 0 && (t.cells[r.end] !== -1 && r.end !== r.from || T.terrain[r.end])) || (r.hit >= 0 && !fell.some(f => f[0] === r.hit)))) sound = false;
+      if (fell.some(f => !(t.cells[f[0]] >= 0)) || new Set(fell.map(f => f[0])).size !== fell.length) sound = false;
+      if (JSON.stringify(cascade(t.cells, t.ax, i, way, T)) !== JSON.stringify({ fell, rolls })) sound = false;
+    }
+  }
+  check(sound && rolled > 200, `${rolled} balls rolled on tables of stones, water, slopes and dominoes: apart, on empty floor, within their momentum, each knocked domino fell, and the same every time`);
+}
+
 // ---------- whole games ----------
 // Simple players (tests/topple-players.js): four that lay by habit and turn nothing (in the corner, by colour, at random)
 // and two careful ones that turn every group of a colour into the longest fall they can find after each piece (the second
@@ -406,4 +491,4 @@ if (MEASURE && ARG("pace")) { const [from, to, end] = ARG("pace").split(",").map
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("topple: the table, the deal, the pieces, where they fit, the ways and axes, falls at a hexagon and at a line, lines, bends, turns and forks, the push, turning, how pieces face, pushes and the bell, version 4 carried over, the pace of the knocks, the end, saving, whole games");
+else console.log("topple: the table, the deal, the pieces, where they fit, the ways and axes, falls at a hexagon and at a line, lines, bends, turns and forks, the push, turning, how pieces face, pushes and the bell, balls, version 4 carried over, the pace of the knocks, the end, saving, whole games");
