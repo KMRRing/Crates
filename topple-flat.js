@@ -17,7 +17,6 @@ const MID = CELLS.map(([q, r]) => mid(q, r));
 const FIELD = 4.17, OUTER = 4.85;
 const ring = (apothem, grow = 0) => Array.from({ length: 6 }, (_, k) => { const a = (k * Math.PI) / 3, R = (apothem + grow) / (Math.sqrt(3) / 2); return flat(R * Math.cos(a), 0, R * Math.sin(a)); });
 const poly = (pts, attrs) => el("polygon", { points: pts.map(p => p.map(v => v.toFixed(3)).join(",")).join(" "), ...attrs });
-const STEP = 0.16;                                      // how high a step of a level's terraces stands (as topple-3d.js)
 const hexAtHeight = (x, z, y, grow = 1, cls = "tp-flat-cell") => poly(Array.from({ length: 6 }, (_, k) => { const a = (Math.PI / 6) + (k * Math.PI) / 3, r = grow / Math.sqrt(3); return flat(x + r * Math.cos(a), y, z + r * Math.sin(a)); }), { class: cls });
 const hexCell = (x, z) => hexAtHeight(x, z, 0);
 
@@ -74,7 +73,8 @@ export function createFlat(host) {
   function terrain(next) {
     if (next === rules) return;
     rules = next;
-    base = CELLS.map((_, i) => rules.height[i] * STEP + (rules.bridges && rules.terrain[i] === WATER ? PLANK : 0));          // a bridge's plank raises the water it spans
+    svg.dataset.scene = rules.scene;
+    base = CELLS.map((_, i) => rules.height[i] * rules.rise + (rules.bridges && rules.terrain[i] === WATER ? PLANK : 0));          // a bridge's plank raises the water it spans
     const kids = [];
     CELLS.map((_, i) => i).sort((a, b) => MID[a][1] - MID[b][1]).forEach(i => {
       const [x, z] = MID[i], t = rules.terrain[i];

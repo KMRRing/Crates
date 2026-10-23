@@ -130,17 +130,24 @@ html[data-mode="night"] { --tp-pearl: #D8D2C4; }
 }
 
 /* the flat table, where there's no WebGL: birch in a mahogany frame, brass between */
-.tp-flat-frame { fill: #5d2212; stroke: #2c0e06; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.tp-flat-brass { fill: #caa040; }
-.tp-flat-birch { fill: #e6cd9f; }
-.tp-flat-cell { fill: none; stroke: #7a4a2e; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-frame { fill: var(--tp-frame, #5d2212); stroke: var(--tp-frame-edge, #2c0e06); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-brass { fill: var(--tp-metal, #caa040); }
+.tp-flat-birch { fill: var(--tp-field, #e6cd9f); }
+.tp-flat-cell { fill: none; stroke: var(--tp-line, #7a4a2e); stroke-width: 1; vector-effect: non-scaling-stroke; }
 /* a level's terrain on the flat table: no table (dark wood), a pool, a stone, a step up (its side and its top), gilding */
-.tp-flat-void { fill: #2c0e06; }
-.tp-flat-water { fill: #4f93b8; stroke: #2a6a92; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-void { fill: var(--tp-void, #2c0e06); }
+.tp-flat-water { fill: var(--tp-water, #4f93b8); stroke: var(--tp-water-edge, #2a6a92); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .tp-flat-rock { fill: #8a8378; stroke: #55504a; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.tp-flat-step-side { fill: #a4814f; stroke: #7a4a2e; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.tp-flat-step { fill: #efdcb4; stroke: #7a4a2e; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.tp-flat-step.h2 { fill: #f6e8c8; }
+.tp-flat-step-side { fill: var(--tp-step-side, #a4814f); stroke: var(--tp-line, #7a4a2e); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-step { fill: var(--tp-step, #efdcb4); stroke: var(--tp-line, #7a4a2e); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-step.h2 { fill: var(--tp-step2, #f6e8c8); }
+.tp-flat-step.h3 { fill: var(--tp-step3, #f6e8c8); }
+.tp-flat-step.h4 { fill: var(--tp-step4, #f6e8c8); }
+/* the scenes (topple-levels.js) painted flat: what the 3D table makes of marble, planks, flagstones and gravel, in one colour each */
+.tp-flatview[data-scene="marble"] { --tp-frame: #e6e2d8; --tp-frame-edge: #8a857a; --tp-metal: #d4ab4a; --tp-field: #2b292d; --tp-line: #9a7b30; --tp-void: #cfd6e0; --tp-step: #46424a; --tp-step2: #55505a; --tp-step3: #55505a; --tp-step4: #55505a; --tp-step-side: #cfcabe; }
+.tp-flatview[data-scene="jetty"] { --tp-frame: #4b3b2c; --tp-frame-edge: #1e1710; --tp-metal: #8c9498; --tp-field: #a89c88; --tp-line: #efe8d8; --tp-void: #2a6a82; --tp-water: #4f9fb0; --tp-water-edge: #1c5873; --tp-step: #b8ac98; --tp-step2: #c4b8a4; --tp-step3: #c4b8a4; --tp-step4: #c4b8a4; --tp-step-side: #6a5a46; }
+.tp-flatview[data-scene="cliff"] { --tp-frame: #9a9387; --tp-frame-edge: #57514a; --tp-metal: #7e9650; --tp-field: #cdbb9a; --tp-line: #6a5a45; --tp-void: #aab4c2; --tp-step: #d8c8a8; --tp-step2: #e0d2b4; --tp-step3: #e8dcc0; --tp-step4: #f0e6cc; --tp-step-side: #8f8573; }
+.tp-flatview[data-scene="garden"] { --tp-frame: #2d2c30; --tp-frame-edge: #131316; --tp-metal: #b89a4a; --tp-field: #bfb5a2; --tp-line: #8f8571; --tp-water: #6aa592; --tp-water-edge: #265a4c; --tp-step: #cac0ae; --tp-step2: #d4cbba; --tp-step3: #d4cbba; --tp-step4: #d4cbba; --tp-step-side: #5d5a52; }
 .tp-plank-top { fill: #b98a52; stroke: #6b4426; stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .tp-plank-edge { fill: #7b5230; stroke: #4a2e16; stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .tp-plank-board { fill: none; stroke: #6b4426; stroke-width: 1; opacity: .55; vector-effect: non-scaling-stroke; }

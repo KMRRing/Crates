@@ -11,7 +11,7 @@
 // cellAt, pointAt, tilt, zoomAt, panBy, zoomTo, and for a level's table (topple-levels.js) terrain: stones, pools, steps
 // up, gilded inlay and hexagons with no table, the tall dominoes standing taller, and a fourth enamel, the pearl.
 import * as THREE from "./vendor/three.js";
-import { CELLS, FREE, at as cellNumber } from "./topple-engine.js";
+import { CELLS, FREE, at as cellNumber, next as neighbour } from "./topple-engine.js";
 import { ROCK, WATER, VOID } from "./topple-levels.js";
 import { sound } from "./topple-sound.js";
 import { ROW, mid, SW, SH, ST, TALL, PIPS, ZOOM, heading, yawOf, hexAt, hull, heightOf, PLANK } from "./topple-slab.js";
@@ -22,7 +22,6 @@ const DEG = Math.PI / 180;
 const FIELD = 4.17, OUTER = 4.85, TOP = 0.32, APRON = 0.42;   // the birch's and the table's size (a hexagon's distance to its sides)
 const TILT = 0.13;                                      // the most the table tilts, as a watch dial does
 const DOUBLE = 2, PCF = 1;                              // THREE.DoubleSide and THREE.PCFShadowMap (not in the bundle's exports)
-const STEP = 0.16;                                      // how high a step of a level's terraces stands
 const CORNER = 1 / Math.sqrt(3);                        // a hexagon's corner from its middle
 const KINDS = 4;                                        // the enamels: three colours and the pearl
 
@@ -42,28 +41,60 @@ const SKINS = {
     night: { birch: [0xc3b392, 0xbcab8a, 0xc9ba9b], mahoL: 0x522318, mahoD: 0x250f09, brass: 0xbb9a40, inlay: 0x2f130c, sun: 0xc6d8dc, sunI: 1.4, sunAt: [-5, 13, 7], fill: 0xffe2b0, fillI: 0.6, sky: 0x93a5a8, ground: 0x0e1511, hemi: 0.8, exposure: 1.22 },
   },
 };
-/** The skin in force: the suite's theme and day or night (as set, else as the device), and the theme's three enamels. */
-export function skinNow() {
+// What the table is made of, for each scene (topple-levels.js: a level's `scene`): the field's three tones, the frame's light and
+// dark, the metal of the bands and studs, the line between the dominoes' hexagons (`line`) and the bands' dark (`inlay`), by day
+// and by night, and how the shader draws it (`style`: 1 marble, 2 planks, 3 flagstones, 4 gravel; 0 is the birch and mahogany of
+// Classic, which this leaves exactly as it was) and how glossy field and frame are (`rough`). Water and stone take the scene's too.
+// The theme still sets the light and the enamels, so a scene follows Almanac, Modern and Kontor, and day and night.
+const SCENES = {
+  marble: {
+    style: 1, rough: [0.2, 0.24],
+    day: { birch: [0x2b292d, 0x343136, 0x242226], mahoL: 0xece8de, mahoD: 0xb5b0a4, brass: 0xd4ab4a, inlay: 0x8a6f2e, line: 0x9a7b30, shallow: 0x5aa0c2, deep: 0x2a6a92, stone: 0x9a948a },
+    night: { birch: [0x201e22, 0x28252a, 0x1a181c], mahoL: 0xc9c5ba, mahoD: 0x8e8a80, brass: 0xc09638, inlay: 0x6e5a28, line: 0x7e6828, shallow: 0x4a86a8, deep: 0x1f4a6a, stone: 0x7a756c },
+  },
+  jetty: {
+    style: 2, rough: [0.86, 0.7],
+    day: { birch: [0xa89c88, 0x9a8e7a, 0xb3a792], mahoL: 0x4b3b2c, mahoD: 0x1e1710, brass: 0x8c9498, inlay: 0x2a2218, line: 0xefe8d8, shallow: 0x4f9fb0, deep: 0x1c5873, stone: 0x8f8a80 },
+    night: { birch: [0x867b6a, 0x7a705f, 0x908473], mahoL: 0x3a2e22, mahoD: 0x16110b, brass: 0x7a8286, inlay: 0x1c160f, line: 0xc9c2b2, shallow: 0x3f8496, deep: 0x153f55, stone: 0x77726a },
+  },
+  cliff: {
+    style: 3, rough: [0.92, 0.95],
+    day: { birch: [0xcdbb9a, 0xc3b08c, 0xd4c4a5], mahoL: 0x9a9387, mahoD: 0x57514a, brass: 0x7e9650, inlay: 0x4a4036, line: 0x6a5a45, shallow: 0x6ab0c8, deep: 0x2f7595, stone: 0x8a8378 },
+    night: { birch: [0xaa9a7e, 0xa29072, 0xb3a58b], mahoL: 0x7a7469, mahoD: 0x403c36, brass: 0x667a42, inlay: 0x3a322a, line: 0x54483a, shallow: 0x4f93ad, deep: 0x1f566f, stone: 0x6f6a60 },
+  },
+  garden: {
+    style: 4, rough: [0.95, 0.26],
+    day: { birch: [0xbfb5a2, 0xb5ab97, 0xc8bfae], mahoL: 0x2d2c30, mahoD: 0x131316, brass: 0xb89a4a, inlay: 0x1d1c1e, line: 0x8f8571, shallow: 0x6aa592, deep: 0x265a4c, stone: 0x7d786f },
+    night: { birch: [0x6f7686, 0x666d7e, 0x7a8191], mahoL: 0x1f2026, mahoD: 0x0b0c10, brass: 0x9a8038, inlay: 0x101116, line: 0x4b5060, shallow: 0x4d8a85, deep: 0x16403c, stone: 0x5d5a58 },
+  },
+};
+/** The skin in force: the suite's theme and day or night (as set, else as the device), the theme's three enamels, and a scene's materials. */
+export function skinNow(scene = "birch") {
   const root = document.documentElement, theme = SKINS[root.dataset.theme] ? root.dataset.theme : "almanac";
   const night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
   const css = getComputedStyle(root), pick = (name, or) => (css.getPropertyValue(name) || "").trim() || or;
+  const made = SCENES[scene]?.[night ? "night" : "day"];
   return {
     name: `${theme} ${night ? "night" : "day"}`, night, ...SKINS[theme][night ? "night" : "day"],
     enamel: [pick("--c0", "#D49A22"), pick("--c1", "#3D7A66"), pick("--c2", "#2C5B8A"), night ? "#D8D2C4" : "#F3F0E8"],
     pips: [pick("--on-c0", "#2A2005"), pick("--on-c", "#F7F1E3"), pick("--on-c", "#F7F1E3"), "#1C2A34"],
     // a level's terrain: stone, and water shallow to deep
     stone: night ? 0x7a756c : 0x948d80, shallow: night ? 0x4a86a8 : 0x5aa0c2, deep: night ? 0x1f4a6a : 0x2a6a92,
+    line: SKINS[theme][night ? "night" : "day"].inlay, style: SCENES[scene]?.style || 0, rough: SCENES[scene]?.rough || [0.58, 0.3], scene,
+    ...made,
   };
 }
 
 // ---------- the wood, in the table's shader ----------
-const WOOD_DECLARE = `
-uniform vec3 uBirch0; uniform vec3 uBirch1; uniform vec3 uBirch2; uniform vec3 uMahoL; uniform vec3 uMahoD; uniform vec3 uBrass; uniform vec3 uInlay;
-varying vec3 vP;
-varying vec3 vN;
+const NOISE = `
 float h21(vec2 p) { vec3 q = fract(vec3(p.xyx) * .1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
 float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(h21(i), h21(i + vec2(1., 0.)), f.x), mix(h21(i + vec2(0., 1.)), h21(i + vec2(1., 1.)), f.x), f.y); }
-float fbm(vec2 p) { float s = 0., a = .5; for (int i = 0; i < 5; i++) { s += a * n2(p); p = p * 2.02 + 11.7; a *= .5; } return s; }
+float fbm(vec2 p) { float s = 0., a = .5; for (int i = 0; i < 5; i++) { s += a * n2(p); p = p * 2.02 + 11.7; a *= .5; } return s; }`;
+const WOOD_DECLARE = `
+uniform vec3 uBirch0; uniform vec3 uBirch1; uniform vec3 uBirch2; uniform vec3 uMahoL; uniform vec3 uMahoD; uniform vec3 uBrass; uniform vec3 uInlay; uniform vec3 uLine; uniform float uStyle; uniform vec2 uRough;
+varying vec3 vP;
+varying vec3 vN;
+${NOISE}
 vec2 cubeRound(vec2 a) {
   float x = a.x, z = a.y, y = -x - z;
   float rx = floor(x + .5), ry = floor(y + .5), rz = floor(z + .5);
@@ -103,7 +134,6 @@ float tpRough = .5; float tpMetal = 0.;
   float fleck = n2(vec2(gp.x * 6., gp.y * 80.));
   vec3 birch = base * (.95 + .1 * w - .09 * fine * fine + .1 * (fleck - .5)) * (.98 + .04 * h21(c + 1.));
   float line = (1. - smoothstep(.011, .011 + 1.5 * fwidth(edge) + .003, edge)) * onBoard;
-  birch = mix(birch, uInlay, line * .9);
   // the mahogany frame: its grain along each side, meeting at the mitres
   float a = atan(p.y, p.x);
   float k = floor(a / 1.0471975);
@@ -113,13 +143,52 @@ float tpRough = .5; float tpMetal = 0.;
   vec3 frame = top > .5 ? mahogany(dot(p, tng), dot(p, nrm), k) : mahogany(dot(p, tng), vP.y * 3., k);
   float da = a - k * 1.0471975;
   frame *= .7 + .3 * smoothstep(0., .02, length(p) * sin(min(da, 1.0471975 - da)));
+  if (uStyle > .5) {
+    // a scene: the same hexagons and frame, made of something else
+    float al = dot(p, tng), ac = top > .5 ? dot(p, nrm) : vP.y * 3.;
+    if (uStyle < 1.5) {
+      // marble: black with gold veins in each hexagon, a white frame veined grey
+      float cloud = fbm(gp * .8 + w * 2.);
+      float v1 = 1. - smoothstep(0., .016 + .014 * w, abs(fbm(gp * 1.5 + 4.2) - .5));
+      float v2 = 1. - smoothstep(0., .01, abs(fbm(gp * 2.8 + 9.1) - .5));
+      birch = base * (.8 + .6 * cloud) + uBrass * (v1 * .34 + v2 * .12);
+      float mw = fbm(vec2(al * .9 + k * 7., ac * 1.4 + k));
+      float fv = 1. - smoothstep(0., .03, abs(fbm(vec2(al * 1.3 + k * 3., ac * 2.2) + 2.) - .5));
+      frame = mix(uMahoL, uMahoD, smoothstep(.35, .85, mw) * .55) * (.96 + .08 * fbm(p * 7.)) - fv * .13;
+    } else if (uStyle < 2.5) {
+      // planks: boards along the table, each its own tone, seams and butt joints; the frame tarred timber
+      float bw = .26, board = floor(p.y / bw), jo = h21(vec2(board, 1.)) * 5.;
+      float seed = h21(vec2(board, floor(p.x / 2.1 + jo)));
+      vec3 pl = seed < .33 ? uBirch0 : (seed < .66 ? uBirch1 : uBirch2);
+      float grain = fbm(vec2((p.x * 2.2 + seed * 40.) * .5, p.y * 9. + seed * 13.));
+      pl *= (.84 + .3 * grain) * (.94 + .1 * n2(vec2(p.x * 40., p.y * 3.))) * (.9 + .16 * fbm(p * .7));
+      float seam = smoothstep(.44, .5, abs(fract(p.y / bw) - .5)), butt = smoothstep(.485, .5, abs(fract(p.x / 2.1 + jo) - .5));
+      birch = mix(pl, pl * .45, max(seam, butt) * .8);
+    } else if (uStyle < 3.5) {
+      // flagstones: sandstone with grain and bedding lines, moss gathering at the joints; the frame bare rock
+      float g = fbm(gp * 2.4), speck = n2(gp * 55.);
+      vec3 st = base * (.88 + .24 * g) * (.92 + .16 * speck) * (.96 + .06 * sin(gp.y * 22. + g * 6.));
+      float moss = smoothstep(.55, .85, fbm(lp * 3.2 + c * 3.7)) * smoothstep(.34, .06, edge);
+      birch = mix(st, uBrass * (.8 + .4 * speck), moss * .85);
+      float rk = fbm(vec2(al * 1.3 + k * 5., ac * 2.6)), bands = top > .5 ? .5 : .5 + .5 * sin(vP.y * 38. + rk * 5.);
+      frame = mix(uMahoD, uMahoL, smoothstep(.25, .75, rk) * .7 + bands * .3) * (.84 + .3 * n2(vec2(al * 14., ac * 14.)));
+    } else {
+      // gravel raked in rings about each hexagon's middle, a patch of moss on some; the frame black lacquer
+      float rake = sin(length(lp) * 44. + w * 3.) * .5 + .5, grains = n2(gp * 70.);
+      vec3 gr = base * (.9 + .12 * rake) * (.88 + .24 * grains);
+      float mo = smoothstep(.6, .8, fbm(lp * 2.6 + c * 5.)) * step(.78, h21(c + 7.));
+      birch = mix(gr, vec3(.3, .4, .2) * (.8 + .4 * grains) * dot(base, vec3(1.4)), mo * .8);
+      frame = mix(uMahoD, uMahoL, .45 + .35 * fbm(vec2(al * .6 + k * 4., ac * .9))) * (.96 + .06 * n2(p * 30.));
+    }
+  }
+  birch = mix(birch, uStyle > .5 ? uLine : uInlay, line * .9);
   // the bands between: dark, brass, dark
   float mField = (1. - smoothstep(-aa, aa, e)) * top;
   float mDark = (smoothstep(-aa, aa, e) * (1. - smoothstep(.05 - aa, .05 + aa, e)) + smoothstep(.09 - aa, .09 + aa, e) * (1. - smoothstep(.14 - aa, .14 + aa, e))) * top;
   float mBrass = smoothstep(.05 - aa, .05 + aa, e) * (1. - smoothstep(.09 - aa, .09 + aa, e)) * top;
   float mFrame = max(0., 1. - mField - mDark - mBrass);
   diffuseColor.rgb = birch * mField + uInlay * mDark + uBrass * mBrass + frame * mFrame;
-  tpRough = mField * .58 + mDark * .4 + mBrass * .3 + mFrame * .3;
+  tpRough = uStyle > .5 ? mField * uRough.x + mDark * .4 + mBrass * .3 + mFrame * uRough.y : mField * .58 + mDark * .4 + mBrass * .3 + mFrame * .3;
   tpMetal = mBrass * .75;
 }`;
 function woodMaterial(uniforms) {
@@ -274,8 +343,9 @@ function boulder(seed, size) {
   return g;
 }
 // water: the pool's own light, rippled by the table's position and the time (which moves only while something else does)
-function waterMaterial(uniforms) {
+function waterMaterial(uniforms, sea = false) {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.18, metalness: 0.25 });
+  if (sea) { m.transparent = true; m.depthWrite = false; }
   m.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vP;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvP = position;");
@@ -283,9 +353,46 @@ function waterMaterial(uniforms) {
       .replace("#include <color_fragment>", `#include <color_fragment>
         float rip = sin(vP.x * 7.0 + sin(vP.z * 5.0 + uTime * 0.9) * 1.6 + uTime * 1.1) * 0.5 + 0.5;
         rip *= sin(vP.z * 9.0 - vP.x * 3.0 + uTime * 0.7) * 0.5 + 0.5;
-        diffuseColor.rgb = mix(uDeep, uShallow, 0.25 + 0.75 * smoothstep(0.35, 0.95, rip));`);
+        diffuseColor.rgb = mix(uDeep, uShallow, 0.25 + 0.75 * smoothstep(0.35, 0.95, rip));${sea ? `
+        float sd = max(abs(vP.z), .8660254 * abs(vP.x) + .5 * abs(vP.z));
+        diffuseColor.a *= .9 * (1. - smoothstep(${(OUTER - 0.2).toFixed(2)}, ${(OUTER + 1.5).toFixed(2)}, sd));` : ""}`);
   };
   return m;
+}
+// rock that fades to mist with depth: under a table on a cliff, and down the walls of a pit (`fadeLen`: how far below the apron it is gone)
+function rockMaterial(uniforms, fadeLen) {
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0, transparent: true, depthWrite: false, side: DOUBLE });
+  m.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vP;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvP = position;");
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>\nvarying vec3 vP;\nuniform vec3 uRockL; uniform vec3 uRockD; uniform vec3 uMoss; uniform vec3 uMist;${NOISE}`)
+      .replace("#include <color_fragment>", `#include <color_fragment>
+        float depth = clamp((-vP.y - ${(TOP + APRON).toFixed(2)}) / ${fadeLen.toFixed(2)}, 0., 1.);
+        float bed = fbm(vec2(vP.x * .9 + vP.z * .7, vP.y * 3.5));
+        vec3 rock = mix(uRockD, uRockL, smoothstep(.25, .85, bed)) * (.8 + .4 * n2(vec2(vP.x * 5. + vP.z * 4., vP.y * 9.)));
+        rock = mix(rock, uMoss, smoothstep(.62, .9, fbm(vP.xz * 2.2)) * (1. - depth) * .55);
+        diffuseColor.rgb = mix(rock, uMist, smoothstep(.15, 1., depth) * .85);
+        diffuseColor.a *= 1. - smoothstep(.5, 1., depth);`);
+  };
+  return m;
+}
+/** A hexagonal rock prism below a table: its outline roughened, narrowing as it goes down, in rows so the strata can show. */
+function rockPrism(apothem, depth, narrowing) {
+  const rows = 8, segs = 24, pos = [], idx = [], hash = (a, b, c) => { const x = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453; return x - Math.floor(x); };
+  for (let r = 0; r <= rows; r++) {
+    const y = -(TOP + APRON) - (depth * r) / rows, scale = 1 - narrowing * (r / rows);
+    for (let k = 0; k <= segs; k++) {
+      const a = (k % segs) / segs * Math.PI * 2, face = Math.round(a / (Math.PI / 3)) * (Math.PI / 3);
+      const rad = apothem / Math.cos(a - face) * scale * (r === 0 ? 1 : 0.84 + 0.16 * hash(k % segs, r, 1));
+      pos.push(rad * Math.cos(a), y, -rad * Math.sin(a));
+    }
+  }
+  for (let r = 0; r < rows; r++) for (let k = 0; k < segs; k++) { const a = r * (segs + 1) + k, b = a + segs + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
 }
 
 // ---------- the table ----------
@@ -321,7 +428,7 @@ export function createTable(host) {
   scene.add(sun, sun.target, fill, hemi);
 
   // the wood
-  const U = { uBirch0: { value: new THREE.Color() }, uBirch1: { value: new THREE.Color() }, uBirch2: { value: new THREE.Color() }, uMahoL: { value: new THREE.Color() }, uMahoD: { value: new THREE.Color() }, uBrass: { value: new THREE.Color() }, uInlay: { value: new THREE.Color() } };
+  const U = { uBirch0: { value: new THREE.Color() }, uBirch1: { value: new THREE.Color() }, uBirch2: { value: new THREE.Color() }, uMahoL: { value: new THREE.Color() }, uMahoD: { value: new THREE.Color() }, uBrass: { value: new THREE.Color() }, uInlay: { value: new THREE.Color() }, uLine: { value: new THREE.Color() }, uStyle: { value: 0 }, uRough: { value: new THREE.Vector2(0.58, 0.3) } };
   const wood = woodMaterial(U);
   const brass = new THREE.MeshStandardMaterial({ color: 0xcaa040, roughness: 0.3, metalness: 0.7 });
   const hexShape = apothem => {
@@ -331,24 +438,66 @@ export function createTable(host) {
     return s;
   };
   const BEV = 0.06;
-  const slab = new THREE.ExtrudeGeometry(hexShape(OUTER - BEV), { depth: TOP - 2 * BEV, bevelEnabled: true, bevelThickness: BEV, bevelSize: BEV, bevelSegments: 3 });
-  slab.rotateX(-Math.PI / 2);
-  slab.translate(0, -(TOP - 2 * BEV) - BEV, 0);
-  const top = new THREE.Mesh(slab, wood);
+  const top = new THREE.Mesh(), apron = new THREE.Mesh();
+  top.material = apron.material = wood;
   top.receiveShadow = true;
   top.castShadow = true;
-  const apronGeo = new THREE.ExtrudeGeometry(hexShape(OUTER - 0.3), { depth: APRON, bevelEnabled: false });
-  apronGeo.rotateX(-Math.PI / 2);
-  apronGeo.translate(0, -TOP - APRON, 0);
-  const apron = new THREE.Mesh(apronGeo, wood);
   apron.receiveShadow = true;
+  /**
+   * The edges round a set of hexagons of the table, each from one corner to the next counter-clockwise about its hexagon, [x0, z0, x1, z1]
+   * in the table's plane: those that border a hexagon outside the set, so two hexagons side by side are one hole and not two.
+   */
+  function rim(set) {
+    const inside = new Set(set), out = [];
+    for (const i of set) for (let d = 0; d < 6; d++) {
+      if (inside.has(neighbour(i, d))) continue;
+      const a0 = (d * Math.PI) / 3 - Math.PI / 6, a1 = a0 + Math.PI / 3, [cx, cz] = MID[i];
+      out.push([cx + CORNER * Math.cos(a0), cz - CORNER * Math.sin(a0), cx + CORNER * Math.cos(a1), cz - CORNER * Math.sin(a1)]);
+    }
+    return out;
+  }
+  /** The rim's edges chained into closed loops of [x, -z] points (the shapes' own plane), one for each hole. */
+  function loops(edges) {
+    const key = (x, z) => `${x.toFixed(3)},${z.toFixed(3)}`, from = new Map(edges.map(e => [key(e[0], e[1]), e])), used = new Set(), out = [];
+    for (const e of edges) {
+      if (used.has(e)) continue;
+      const loop = [];
+      let at = e;
+      while (at && !used.has(at)) { used.add(at); loop.push([at[0], -at[1]]); at = from.get(key(at[2], at[3])); }
+      out.push(loop);
+    }
+    return out;
+  }
+  /** The table's top and apron, with a hole through both for each hexagon of no table (a pit, where a scene has them) and none otherwise. */
+  function body(pits = []) {
+    top.geometry?.dispose();
+    apron.geometry?.dispose();
+    const upper = hexShape(OUTER - BEV), lower = hexShape(OUTER - 0.3);
+    for (const loop of loops(rim(pits))) for (const shape of [upper, lower]) {
+      const hole = new THREE.Path();
+      loop.forEach(([x, y], k) => (k ? hole.lineTo(x, y) : hole.moveTo(x, y)));
+      hole.closePath();
+      shape.holes.push(hole);
+    }
+    const slab = new THREE.ExtrudeGeometry(upper, { depth: TOP - 2 * BEV, bevelEnabled: true, bevelThickness: BEV, bevelSize: BEV, bevelSegments: 3 });
+    slab.rotateX(-Math.PI / 2);
+    slab.translate(0, -(TOP - 2 * BEV) - BEV, 0);
+    top.geometry = slab;
+    const under = new THREE.ExtrudeGeometry(lower, { depth: APRON, bevelEnabled: false });
+    under.rotateX(-Math.PI / 2);
+    under.translate(0, -TOP - APRON, 0);
+    apron.geometry = under;
+  }
+  body();
   table.add(top, apron);
   // brass studs where the mitres meet
+  const studs = [];
   for (let k = 0; k < 6; k++) {
     const stud = new THREE.Mesh(geo("stud", () => new THREE.SphereGeometry(0.1, 14, 8)), brass), a = k * Math.PI / 3, r = 5.18;
     stud.scale.set(1, 0.45, 1);
     stud.position.set(r * Math.cos(a), 0.004, -r * Math.sin(a));
     stud.castShadow = true;
+    studs.push(stud);
     table.add(stud);
   }
   const ground = new THREE.Mesh(new THREE.BoxGeometry(18, 0.01, 18), shadowMaterial());
@@ -362,7 +511,7 @@ export function createTable(host) {
   const inks = Array.from({ length: KINDS }, () => new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0 }));
   const ghostSet = enamels.map((_, k) => [enamels[k].clone(), inks[k].clone()]);
   for (const [a, b] of ghostSet) for (const m of [a, b]) { m.transparent = true; m.opacity = 0.62; m.depthWrite = false; }
-  // what a level's rules make of the table: its terrain, and how high each hexagon's floor stands (a step is STEP)
+  // what a level's rules make of the table: its terrain, and how high each hexagon's floor stands (a step is the level's `rise`)
   let rules = FREE, base = new Array(CELLS.length).fill(0), steps = false;
   const features = new THREE.Group(), stand = new THREE.Group(), ghosts = new THREE.Group();
   table.add(features, stand, ghosts);
@@ -454,6 +603,73 @@ export function createTable(host) {
   const gildMat = new THREE.MeshStandardMaterial({ roughness: 0.3, metalness: 0.7 });
   const gildFill = new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.5, transparent: true, opacity: 0.3, depthWrite: false });
   const inlayMat = new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0 });
+  // ---------- a scene's surround ----------
+  // What a table stands on, beyond its top (a level's `scene`; birch, Classic's, has none): a marble plinth, timber piles in
+  // a sea, a rock pillar over a drop with the pits of no table opened into it, a stone base with a lantern at each corner.
+  const props = new THREE.Group();
+  table.add(props);
+  const ROCK_FADE = { uRockL: { value: new THREE.Color() }, uRockD: { value: new THREE.Color() }, uMoss: { value: new THREE.Color() }, uMist: { value: new THREE.Color() } };
+  const cliffMat = rockMaterial(ROCK_FADE, 3.2), pitMat = rockMaterial(ROCK_FADE, 1.9), seaMat = waterMaterial(UW, true);
+  const timberMat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0 }), plinthMat = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0 });
+  const lampMat = new THREE.MeshStandardMaterial({ color: 0xffe2a0, emissive: 0xffa640, emissiveIntensity: 0.4, roughness: 0.5 });
+    let madeProps = [];
+  /** The walls of a pit: down from the apron's underside along its whole rim. */
+  function pitWalls(holes) {
+    const P = [], floor = -(TOP + APRON), bottom = floor - 2.2;
+    for (const [x0, z0, x1, z1] of rim(holes)) P.push(x0, floor, z0, x1, floor, z1, x1, bottom, z1, x0, floor, z0, x1, bottom, z1, x0, bottom, z0);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
+    g.computeVertexNormals();
+    return g;
+  }
+  /** A stone lantern standing on the frame, its lamp lit. */
+  function lantern(x, z) {
+    const g = new THREE.Group(), add = (geometry, material, y, shadow = true) => { const m = new THREE.Mesh(geometry, material); m.position.y = y; m.castShadow = shadow; g.add(m); madeProps.push(geometry); return m; };
+    add(new THREE.CylinderGeometry(0.12, 0.15, 0.1, 8), plinthMat, 0.05);
+    add(new THREE.CylinderGeometry(0.045, 0.055, 0.2, 8), plinthMat, 0.2);
+    add(new THREE.BoxGeometry(0.17, 0.15, 0.17), lampMat, 0.37, false);
+    add(new THREE.ConeGeometry(0.17, 0.13, 4).rotateY(Math.PI / 4), plinthMat, 0.505);
+    g.position.set(x, 0.004, z);
+    return g;
+  }
+  /** Lays a scene's surround for a level's rules (the pits of no table, the pillar, piles, plinth, lanterns). */
+  function scenery(next) {
+    for (const g of madeProps) g.dispose();
+    madeProps = [];
+    props.clear();
+    const kind = next.scene, voids = CELLS.flatMap((_, i) => (next.terrain[i] === VOID ? [i] : [])), pits = kind !== "birch" && voids.length ? voids : [];
+    body(pits);
+    studs.forEach(st => { st.visible = kind === "birch" || kind === "marble" || kind === "jetty"; });
+    const add = (geometry, material, shadow = false) => { const m = new THREE.Mesh(geometry, material); m.castShadow = shadow; m.receiveShadow = true; madeProps.push(geometry); props.add(m); return m; };
+    const lower = OUTER - 0.3, corner = lower / ROW;
+    if (pits.length) { const walls = add(pitWalls(pits), pitMat); walls.renderOrder = 1; }
+    if (kind === "marble") {
+      const plinth = new THREE.ExtrudeGeometry(hexShape(OUTER - 0.1), { depth: 0.5, bevelEnabled: false });
+      plinth.rotateX(-Math.PI / 2);
+      plinth.translate(0, -(TOP + APRON) - 0.5, 0);
+      add(plinth, wood, true);
+    } else if (kind === "jetty") {
+      const pile = new THREE.CylinderGeometry(0.17, 0.2, 2.2, 9);
+      pile.translate(0, -(TOP + APRON) - 1.1 + 0.05, 0);
+      for (let k = 0; k < 12; k++) {
+        const a = (k * Math.PI) / 6, rad = k % 2 ? lower * 0.98 - 0.12 : corner * 0.93, m = add(pile, timberMat, true);
+        m.position.set(rad * Math.cos(a), 0, -rad * Math.sin(a));
+        m.scale.set(1, 1 + 0.08 * (k % 3), 1);
+      }
+      const sea = new THREE.ShapeGeometry(hexShape(OUTER + 1.6));
+      sea.rotateX(-Math.PI / 2);
+      sea.translate(0, -(TOP + APRON) - 1.5, 0);
+      add(sea, seaMat).renderOrder = 2;
+    } else if (kind === "cliff") {
+      add(rockPrism(lower, 3.4, 0.26), cliffMat).renderOrder = 1;
+    } else if (kind === "garden") {
+      const base = new THREE.ExtrudeGeometry(hexShape(OUTER - 0.12), { depth: 0.38, bevelEnabled: false });
+      base.rotateX(-Math.PI / 2);
+      base.translate(0, -(TOP + APRON) - 0.38, 0);
+      add(base, plinthMat, true);
+      for (let k = 0; k < 6; k++) { const a = (k * Math.PI) / 3, l = lantern(5.18 * Math.cos(a), -5.18 * Math.sin(a)); props.add(l); }
+    }
+  }
   let made = [];                                                         // the geometries of the terrain now standing, to let go of when it changes
   /** Lays the table's terrain from a level's rules (topple-levels.js; FREE for none). The page sets the dominoes after. */
   function terrain(next) {
@@ -462,7 +678,7 @@ export function createTable(host) {
     for (const g of made) g.dispose();
     made = [];
     features.clear();
-    base = CELLS.map((_, i) => rules.height[i] * STEP + (rules.bridges && rules.terrain[i] === WATER ? PLANK : 0));          // a bridge's plank raises the water it spans
+    base = CELLS.map((_, i) => rules.height[i] * rules.rise + (rules.bridges && rules.terrain[i] === WATER ? PLANK : 0));          // a bridge's plank raises the water it spans
     steps = base.some(Boolean);
     const put = (geometry, material, x, y, z, shadows = true) => {
       made.push(geometry);
@@ -476,14 +692,15 @@ export function createTable(host) {
     const lay = (list, y = i => 0) => list.map(i => [MID[i][0], y(i), MID[i][1]]);
     const none = where(i => rules.terrain[i] === VOID), pools = where(i => rules.terrain[i] === WATER), stones = where(i => rules.terrain[i] === ROCK);
     const raised = where(i => rules.height[i] > 0), gilt = where(i => rules.gilded[i]);
-    if (none.length) put(fused(cellFlat(CORNER * 0.99), lay(none, () => 0.006)), voidMat, 0, 0, 0, false);
+    scenery(rules);
+    if (none.length && rules.scene === "birch") put(fused(cellFlat(CORNER * 0.99), lay(none, () => 0.006)), voidMat, 0, 0, 0, false);
     if (pools.length) put(fused(cellFlat(CORNER * 0.9), lay(pools, () => 0.005)), waterMat, 0, 0, 0, false).receiveShadow = true;
     for (const i of stones) {
       put(boulder(i + 1, 0.36), stoneMat, MID[i][0], 0.17, MID[i][1]);
       put(boulder(i + 71, 0.15), stoneMat, MID[i][0] + 0.27 * Math.cos(i * 2.1), 0.07, MID[i][1] + 0.27 * Math.sin(i * 2.1));
     }
     for (const i of raised) {
-      const [q, r] = CELLS[i], tone = (((q - r) % 3) + 3) % 3;
+      const [q, r] = CELLS[i], tone = rules.scene === "birch" ? (((q - r) % 3) + 3) % 3 : rules.height[i] % 3;
       put(cellFlat(CORNER * 0.985, 0, base[i]), [terraceTops[tone], terraceSide], MID[i][0], 0, MID[i][1]);
     }
     if (raised.length) put(fused(cellFlat(CORNER * 0.985, CORNER * 0.94), lay(raised, i => base[i] + 0.003)), inlayMat, 0, 0, 0, false);
@@ -498,11 +715,11 @@ export function createTable(host) {
   }
 
   // ---------- the skin ----------
-  let skin = skinNow();
+  let skin = skinNow(rules.scene);
   function applySkin() {
-    skin = skinNow();
+    skin = skinNow(rules.scene);
     skin.birch.forEach((c, i) => U[`uBirch${i}`].value.set(c));
-    U.uMahoL.value.set(skin.mahoL); U.uMahoD.value.set(skin.mahoD); U.uBrass.value.set(skin.brass); U.uInlay.value.set(skin.inlay);
+    U.uMahoL.value.set(skin.mahoL); U.uMahoD.value.set(skin.mahoD); U.uBrass.value.set(skin.brass); U.uInlay.value.set(skin.inlay); U.uLine.value.set(skin.line); U.uStyle.value = skin.style; U.uRough.value.set(...skin.rough);
     brass.color.set(skin.brass);
     sun.color.set(skin.sun); sun.intensity = skin.sunI; sun.position.set(...skin.sunAt);
     fill.color.set(skin.fill); fill.intensity = skin.fillI; fill.position.set(7, 6, 3);
@@ -510,10 +727,13 @@ export function createTable(host) {
     renderer.toneMappingExposure = skin.exposure;
     enamels.forEach((_, k) => { enamels[k].color.set(skin.enamel[k]); inks[k].color.set(skin.pips[k]); ghostSet[k][0].color.set(skin.enamel[k]); ghostSet[k][1].color.set(skin.pips[k]); });
     stoneMat.color.set(skin.stone);
+    ROCK_FADE.uRockL.value.set(skin.mahoL); ROCK_FADE.uRockD.value.set(skin.mahoD); ROCK_FADE.uMoss.value.set(skin.brass); ROCK_FADE.uMist.value.set(skin.night ? 0x44546e : 0xdde5ee);
+    timberMat.color.set(skin.mahoL).multiplyScalar(0.85); plinthMat.color.set(skin.stone).multiplyScalar(skin.scene === "garden" ? 0.85 : 1);
+    lampMat.emissiveIntensity = skin.night ? 1.7 : 0.35;
     UW.uShallow.value.set(skin.shallow); UW.uDeep.value.set(skin.deep);
     skin.birch.forEach((c, i) => terraceTops[i].color.set(c).multiplyScalar(1.06));
     plankMat.color.set(0x8c6038).lerp(new THREE.Color(skin.birch[1]), 0.12); plankGhost.color.copy(plankMat.color);       // weathered oak, darker than the birch it lies on
-    terraceSide.color.set(skin.mahoL); voidMat.color.set(skin.mahoD).multiplyScalar(0.55);
+    terraceSide.color.set(skin.style === 3 ? skin.mahoD : skin.mahoL); voidMat.color.set(skin.mahoD).multiplyScalar(0.55);
     gildMat.color.set(skin.brass); gildFill.color.set(skin.brass);
     invalidate();
   }
