@@ -8,11 +8,13 @@
 // domino turned eases round to its new axis. The table tilts a little under a finger and eases back, as Rosette's dial
 // does, and zooms in (up to ZOOM) by narrowing the camera's window within the whole table's, so whatever the page
 // projects over it follows. It draws only while something moves. The page (topple.js) drives it: set, fall, project,
-// cellAt, pointAt, tilt, zoomAt, panBy, zoomTo.
+// cellAt, pointAt, tilt, zoomAt, panBy, zoomTo, and for a level's table (topple-levels.js) terrain: stones, pools, steps
+// up, gilded inlay and hexagons with no table, the tall dominoes standing taller, and a fourth enamel, the pearl.
 import * as THREE from "./vendor/three.js";
-import { CELLS, at as cellNumber } from "./topple-engine.js";
+import { CELLS, FREE, at as cellNumber } from "./topple-engine.js";
+import { ROCK, WATER, VOID } from "./topple-levels.js";
 import { sound } from "./topple-sound.js";
-import { ROW, mid, SW, SH, ST, ZOOM, heading, yawOf, hexAt, hull } from "./topple-slab.js";
+import { ROW, mid, SW, SH, ST, TALL, PIPS, ZOOM, heading, yawOf, hexAt, hull, heightOf } from "./topple-slab.js";
 
 // ---------- measures ----------
 const MID = CELLS.map(([q, r]) => mid(q, r));
@@ -20,6 +22,9 @@ const DEG = Math.PI / 180;
 const FIELD = 4.17, OUTER = 4.85, TOP = 0.32, APRON = 0.42;   // the birch's and the table's size (a hexagon's distance to its sides)
 const TILT = 0.13;                                      // the most the table tilts, as a watch dial does
 const DOUBLE = 2, PCF = 1;                              // THREE.DoubleSide and THREE.PCFShadowMap (not in the bundle's exports)
+const STEP = 0.16;                                      // how high a step of a level's terraces stands
+const CORNER = 1 / Math.sqrt(3);                        // a hexagon's corner from its middle
+const KINDS = 4;                                        // the enamels: three colours and the pearl
 
 // ---------- the skins ----------
 // The wood and the light, for each theme and day or night. The enamels come from the theme's own colours.
@@ -44,8 +49,10 @@ export function skinNow() {
   const css = getComputedStyle(root), pick = (name, or) => (css.getPropertyValue(name) || "").trim() || or;
   return {
     name: `${theme} ${night ? "night" : "day"}`, night, ...SKINS[theme][night ? "night" : "day"],
-    enamel: [pick("--c0", "#D49A22"), pick("--c1", "#3D7A66"), pick("--c2", "#2C5B8A")],
-    pips: [pick("--on-c0", "#2A2005"), pick("--on-c", "#F7F1E3"), pick("--on-c", "#F7F1E3")],
+    enamel: [pick("--c0", "#D49A22"), pick("--c1", "#3D7A66"), pick("--c2", "#2C5B8A"), night ? "#D8D2C4" : "#F3F0E8"],
+    pips: [pick("--on-c0", "#2A2005"), pick("--on-c", "#F7F1E3"), pick("--on-c", "#F7F1E3"), "#1C2A34"],
+    // a level's terrain: stone, and water shallow to deep
+    stone: night ? 0x7a756c : 0x948d80, shallow: night ? 0x4a86a8 : 0x5aa0c2, deep: night ? 0x1f4a6a : 0x2a6a92,
   };
 }
 
@@ -165,21 +172,19 @@ function joined(body, marks) {
   out.addGroup(count(a), count(b), 1);
   return out;
 }
-// each colour its own pips (one, two, three to a half), so they're told apart without their colour
-const PIPS = [[0], [-0.18, 0.18], [-0.25, 0, 0.25]];
-/** A domino of a colour: its body, bevelled, and its groove and pips on both faces. Its foot is on the table, its faces square to z. */
-function slabGeometry(kind) {
-  return geo(`slab${kind}`, () => {
-    const b = 0.02, depth = ST - 2 * b;
-    const body = new THREE.ExtrudeGeometry(roundedRect(SW - 2 * b, SH - 2 * b, 0.05), { depth, bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 2, curveSegments: 5 });
+/** A domino of a colour, tall or not: its body, bevelled, and its groove and pips on both faces. Its foot is on the table, its faces square to z. */
+function slabGeometry(kind, tall = false) {
+  return geo(`slab${kind}${tall ? "t" : ""}`, () => {
+    const b = 0.02, depth = ST - 2 * b, H = tall ? TALL : SH;
+    const body = new THREE.ExtrudeGeometry(roundedRect(SW - 2 * b, H - 2 * b, 0.05), { depth, bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 2, curveSegments: 5 });
     body.translate(0, b, -depth / 2);
     const marks = [];
     for (const side of [-1, 1]) {
       const z = side * (ST / 2 + 0.002);
       const groove = new THREE.BoxGeometry(SW * 0.8, 0.018, 0.008);
-      groove.translate(0, SH / 2, z);
+      groove.translate(0, H / 2, z);
       marks.push(groove);
-      for (const y of [SH * 0.74, SH * 0.26]) for (const x of PIPS[kind]) {
+      for (const y of [H * 0.74, H * 0.26]) for (const x of PIPS[kind]) {
         const pip = new THREE.CylinderGeometry(0.064, 0.064, 0.012, 16);
         pip.rotateX(Math.PI / 2);
         pip.translate(x, y, z);
@@ -206,6 +211,68 @@ function lathe(profile, segments = 22) {
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
+}
+
+// ---------- a level's terrain, in parts ----------
+/** A hexagon of a table's cells (corners at thirty degrees, a flat side to the east and west), with a hexagonal hole if `hole` is given: in the table's plane, facing up. */
+function cellFlat(r, hole = 0, depth = 0) {
+  const ring = radius => Array.from({ length: 6 }, (_, k) => { const a = Math.PI / 6 + (k * Math.PI) / 3; return [radius * Math.cos(a), radius * Math.sin(a)]; });
+  const s = new THREE.Shape(), outer = ring(r);
+  outer.forEach(([x, y], k) => (k ? s.lineTo(x, y) : s.moveTo(x, y)));
+  s.closePath();
+  if (hole) {
+    const h = new THREE.Path();
+    ring(hole).reverse().forEach(([x, y], k) => (k ? h.lineTo(x, y) : h.moveTo(x, y)));
+    h.closePath();
+    s.holes.push(h);
+  }
+  const g = depth ? new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false }) : new THREE.ShapeGeometry(s);
+  g.rotateX(-Math.PI / 2);
+  return g;
+}
+/** Copies of a geometry set at some places ([x, y, z] each), fused into one, flat-shaded as they are, keeping its material groups. */
+function fused(source, places) {
+  const g = source.index ? source.toNonIndexed() : source, pos = g.attributes.position.array, nor = g.attributes.normal.array;
+  const P = [], N = [], groups = [];
+  for (const [x, y, z] of places) {
+    for (let k = 0; k < pos.length; k += 3) { P.push(pos[k] + x, pos[k + 1] + y, pos[k + 2] + z); N.push(nor[k], nor[k + 1], nor[k + 2]); }
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
+  out.setAttribute("normal", new THREE.Float32BufferAttribute(N, 3));
+  if (g.groups.length) {
+    const per = pos.length / 3;
+    places.forEach((_, n) => { for (const gr of g.groups) groups.push([n * per + gr.start, gr.count, gr.materialIndex]); });
+    for (const [start, count, materialIndex] of groups) out.addGroup(start, count, materialIndex);
+  }
+  return out;
+}
+/** A boulder: a rough icosphere, each stone's own (by the hexagon it stands on), squat, its corners knocked about. */
+function boulder(seed, size) {
+  const g = new THREE.IcosahedronGeometry(size, 1).toNonIndexed(), pos = g.attributes.position, seen = new Map();
+  const rnd = k => { const x = Math.sin(seed * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
+  for (let i = 0; i < pos.count; i++) {
+    const key = `${pos.getX(i).toFixed(3)},${pos.getY(i).toFixed(3)},${pos.getZ(i).toFixed(3)}`;
+    if (!seen.has(key)) seen.set(key, 0.78 + 0.4 * rnd(seen.size + 1));
+    const k = seen.get(key);
+    pos.setXYZ(i, pos.getX(i) * k * 1.12, pos.getY(i) * k * 0.72, pos.getZ(i) * k * 1.12);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+// water: the pool's own light, rippled by the table's position and the time (which moves only while something else does)
+function waterMaterial(uniforms) {
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.18, metalness: 0.25 });
+  m.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vP;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvP = position;");
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vP;\nuniform vec3 uShallow; uniform vec3 uDeep; uniform float uTime;")
+      .replace("#include <color_fragment>", `#include <color_fragment>
+        float rip = sin(vP.x * 7.0 + sin(vP.z * 5.0 + uTime * 0.9) * 1.6 + uTime * 1.1) * 0.5 + 0.5;
+        rip *= sin(vP.z * 9.0 - vP.x * 3.0 + uTime * 0.7) * 0.5 + 0.5;
+        diffuseColor.rgb = mix(uDeep, uShallow, 0.25 + 0.75 * smoothstep(0.35, 0.95, rip));`);
+  };
+  return m;
 }
 
 // ---------- the table ----------
@@ -278,15 +345,17 @@ export function createTable(host) {
   let spin = 0;                                                         // which way the table sits: corners left and right (0), or at the top and bottom
 
   // the dominoes: one slab for every hexagon, shown where a domino stands there
-  const enamels = [0, 1, 2].map(() => new THREE.MeshStandardMaterial({ roughness: 0.34, metalness: 0.04 }));
-  const inks = [0, 1, 2].map(() => new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0 }));
-  const ghostSet = [0, 1, 2].map(k => [enamels[k].clone(), inks[k].clone()]);
+  const enamels = Array.from({ length: KINDS }, (_, k) => new THREE.MeshStandardMaterial(k === 3 ? { roughness: 0.2, metalness: 0.22 } : { roughness: 0.34, metalness: 0.04 }));    // the pearl has a sheen
+  const inks = Array.from({ length: KINDS }, () => new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0 }));
+  const ghostSet = enamels.map((_, k) => [enamels[k].clone(), inks[k].clone()]);
   for (const [a, b] of ghostSet) for (const m of [a, b]) { m.transparent = true; m.opacity = 0.62; m.depthWrite = false; }
-  const stand = new THREE.Group(), ghosts = new THREE.Group();
-  table.add(stand, ghosts);
+  // what a level's rules make of the table: its terrain, and how high each hexagon's floor stands (a step is STEP)
+  let rules = FREE, base = new Array(CELLS.length).fill(0), steps = false;
+  const features = new THREE.Group(), stand = new THREE.Group(), ghosts = new THREE.Group();
+  table.add(features, stand, ghosts);
   class Slab {
     constructor(cell, parent, ghost) {
-      this.cell = cell; this.ghost = ghost; this.kind = -1;
+      this.cell = cell; this.ghost = ghost; this.kind = -1; this.tall = false;
       this.place = new THREE.Group(); this.hinge = new THREE.Group();
       this.mesh = new THREE.Mesh(slabGeometry(0), enamels);
       this.mesh.userData.cell = cell;
@@ -301,14 +370,14 @@ export function createTable(host) {
      * under way goes on); turned where it stands, with `ease`, it eases round the short way (a slab is the same both ways).
      */
     stand(cell, kind, ax, ease = false) {
-      const [x, z] = MID[cell], jitter = (((cell * 37) % 11) - 5) * 0.4 * DEG, rest = yawOf(ax) + jitter, key = `${cell}:${kind}:${ax}`;
+      const [x, z] = MID[cell], jitter = (((cell * 37) % 11) - 5) * 0.4 * DEG, rest = yawOf(ax) + jitter, tall = !!rules.tall[kind], key = `${cell}:${kind}:${ax}:${tall}:${base[cell]}`;
       if (this.standing === key && this.place.visible && !this.busy) return;
       const turning = ease && this.place.visible && !this.busy && this.cell === cell && this.kind === kind, from = this.place.rotation.y;
       this.cell = cell; this.mesh.userData.cell = cell;
-      if (kind !== this.kind) { this.kind = kind; this.mesh.geometry = slabGeometry(kind); this.mesh.material = this.ghost ? ghostSet[kind] : [enamels[kind], inks[kind]]; }
+      if (kind !== this.kind || tall !== this.tall) { this.kind = kind; this.tall = tall; this.mesh.geometry = slabGeometry(kind, tall); this.mesh.material = this.ghost ? ghostSet[kind] : [enamels[kind], inks[kind]]; }
       this.rest = rest;
       this.standing = key;
-      this.place.position.set(x, 0, z);
+      this.place.position.set(x, base[cell], z);
       this.place.rotation.set(0, rest, 0);
       this.place.scale.setScalar(1);
       this.hinge.position.set(0, 0, 0);
@@ -354,6 +423,61 @@ export function createTable(host) {
   for (let i = 0; i < MOTES; i++) { motes.setMatrixAt(i, hide); motes.setColorAt(i, new THREE.Color(0xffffff)); }
   const tint = new THREE.Color();
 
+  // ---------- a level's terrain ----------
+  // Stones are boulders, water a rippled pool set in the birch, a step up a hexagon of wood standing proud with a dark line
+  // round it, gilded a brass line round the hexagon, and no table a dark tile laid flush. The tall stand taller.
+  const UW = { uShallow: { value: new THREE.Color() }, uDeep: { value: new THREE.Color() }, uTime: { value: 0 } };
+  const stoneMat = new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0, flatShading: true });
+  const waterMat = waterMaterial(UW);
+  const voidMat = new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0 });
+  const terraceTops = [0, 1, 2].map(() => new THREE.MeshStandardMaterial({ roughness: 0.58, metalness: 0 }));
+  const terraceSide = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0 });
+  const gildMat = new THREE.MeshStandardMaterial({ roughness: 0.3, metalness: 0.7 });
+  const gildFill = new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.5, transparent: true, opacity: 0.3, depthWrite: false });
+  const inlayMat = new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0 });
+  let made = [];                                                         // the geometries of the terrain now standing, to let go of when it changes
+  /** Lays the table's terrain from a level's rules (topple-levels.js; FREE for none). The page sets the dominoes after. */
+  function terrain(next) {
+    if (next === rules) return;
+    rules = next;
+    for (const g of made) g.dispose();
+    made = [];
+    features.clear();
+    base = CELLS.map((_, i) => rules.height[i] * STEP);
+    steps = base.some(Boolean);
+    const put = (geometry, material, x, y, z, shadows = true) => {
+      made.push(geometry);
+      const m = new THREE.Mesh(geometry, material);
+      m.position.set(x, y, z);
+      m.castShadow = m.receiveShadow = shadows;
+      features.add(m);
+      return m;
+    };
+    const where = test => CELLS.flatMap((_, i) => (test(i) ? [i] : []));
+    const lay = (list, y = i => 0) => list.map(i => [MID[i][0], y(i), MID[i][1]]);
+    const none = where(i => rules.terrain[i] === VOID), pools = where(i => rules.terrain[i] === WATER), stones = where(i => rules.terrain[i] === ROCK);
+    const raised = where(i => rules.height[i] > 0), gilt = where(i => rules.gilded[i]);
+    if (none.length) put(fused(cellFlat(CORNER * 0.99), lay(none, () => 0.006)), voidMat, 0, 0, 0, false);
+    if (pools.length) put(fused(cellFlat(CORNER * 0.9), lay(pools, () => 0.005)), waterMat, 0, 0, 0, false).receiveShadow = true;
+    for (const i of stones) {
+      put(boulder(i + 1, 0.36), stoneMat, MID[i][0], 0.17, MID[i][1]);
+      put(boulder(i + 71, 0.15), stoneMat, MID[i][0] + 0.27 * Math.cos(i * 2.1), 0.07, MID[i][1] + 0.27 * Math.sin(i * 2.1));
+    }
+    for (const i of raised) {
+      const [q, r] = CELLS[i], tone = (((q - r) % 3) + 3) % 3;
+      put(cellFlat(CORNER * 0.985, 0, base[i]), [terraceTops[tone], terraceSide], MID[i][0], 0, MID[i][1]);
+    }
+    if (raised.length) put(fused(cellFlat(CORNER * 0.985, CORNER * 0.94), lay(raised, i => base[i] + 0.003)), inlayMat, 0, 0, 0, false);
+    if (gilt.length) {
+      put(fused(cellFlat(CORNER * 0.82, CORNER * 0.7), lay(gilt, i => base[i] + 0.009)), gildMat, 0, 0, 0, false);
+      put(fused(cellFlat(CORNER * 0.7), lay(gilt, i => base[i] + 0.006)), gildFill, 0, 0, 0, false);
+    }
+    applySkin();
+    const highest = Math.max(...base) + (rules.tall.some(Boolean) ? TALL : SH);
+    crown(highest);
+    resize();
+  }
+
   // ---------- the skin ----------
   let skin = skinNow();
   function applySkin() {
@@ -365,7 +489,12 @@ export function createTable(host) {
     fill.color.set(skin.fill); fill.intensity = skin.fillI; fill.position.set(7, 6, 3);
     hemi.color.set(skin.sky); hemi.groundColor.set(skin.ground); hemi.intensity = skin.hemi;
     renderer.toneMappingExposure = skin.exposure;
-    [0, 1, 2].forEach(k => { enamels[k].color.set(skin.enamel[k]); inks[k].color.set(skin.pips[k]); ghostSet[k][0].color.set(skin.enamel[k]); ghostSet[k][1].color.set(skin.pips[k]); });
+    enamels.forEach((_, k) => { enamels[k].color.set(skin.enamel[k]); inks[k].color.set(skin.pips[k]); ghostSet[k][0].color.set(skin.enamel[k]); ghostSet[k][1].color.set(skin.pips[k]); });
+    stoneMat.color.set(skin.stone);
+    UW.uShallow.value.set(skin.shallow); UW.uDeep.value.set(skin.deep);
+    skin.birch.forEach((c, i) => terraceTops[i].color.set(c).multiplyScalar(1.06));
+    terraceSide.color.set(skin.mahoL); voidMat.color.set(skin.mahoD).multiplyScalar(0.55);
+    gildMat.color.set(skin.brass); gildFill.color.set(skin.brass);
     invalidate();
   }
 
@@ -373,7 +502,12 @@ export function createTable(host) {
   const DIST = 32, LOOK = new THREE.Vector3(0, -0.2, 0);
   const outline = [];
   for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3, R = OUTER / ROW; outline.push([R * Math.cos(a), 0.05, R * Math.sin(a)], [(R - 0.35) * Math.cos(a), -TOP - APRON, (R - 0.35) * Math.sin(a)]); }
-  for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; outline.push([4.6 * Math.cos(a), SH + 0.25, 4.6 * Math.sin(a)]); }   // the tallest a domino stands, all round
+  /** The outline's crown: the highest a domino's top can be, all round (the camera leaves room for it). */
+  function crown(top) {
+    outline.length = 12;
+    for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; outline.push([4.6 * Math.cos(a), top + 0.25, 4.6 * Math.sin(a)]); }
+  }
+  crown(SH);
   let width = 1, height = 1, elev = 55 * DEG;
   function pose(e) {
     camera.position.set(0, Math.sin(e) * DIST, Math.cos(e) * DIST).add(LOOK);
@@ -472,6 +606,7 @@ export function createTable(host) {
     const t = clock();
     for (let i = anims.length - 1; i >= 0; i--) if (!anims[i](t)) anims.splice(i, 1);
     stepMotes(t);
+    UW.uTime.value = t / 1000;                                         // the pools ripple while the table moves, and stand still with it
     tilter.rotation.set(tx + shakeX, 0, tz + shakeZ);
     tilter.updateMatrixWorld(true);
     renderer.render(scene, camera);
@@ -537,11 +672,13 @@ export function createTable(host) {
   /** Out of a turn: quick, then settling. */
   const ease3 = u => 1 - (1 - u) ** 3;
   let bellAt = -1;
+  /** How high the top of a domino of a colour stands on hexagon i: its floor and its height (a domino's, if there's none there). */
+  const topOf = (i, kind = current.cells[i]) => base[i] + heightOf(rules.tall, kind);
   function placeBell(cell, covered) {
     bellAt = cell;
     bell.visible = cell >= 0;
     if (cell < 0) return;
-    bell.position.set(MID[cell][0], covered ? SH + 0.005 : 0, MID[cell][1]);
+    bell.position.set(MID[cell][0], covered ? topOf(cell, current.cells[cell]) + 0.005 : base[cell], MID[cell][1]);
     bell.scale.setScalar(covered ? 0.7 : 1);
     bell.rotation.set(0, 0, 0);
     swing.rotation.set(0, 0, 0);
@@ -568,13 +705,14 @@ export function createTable(host) {
     const t0 = clock();
     list.forEach((cell, k) => {
       const s = slabs[cell], delay = k * 55;
-      s.place.position.y = 0.6;
+      const floor = base[cell];
+      s.place.position.y = floor + 0.6;
       go(t => {
         const e = t - t0 - delay;
         if (e < 0) return true;
         const fall = 190, u = clamp01(e / fall);
-        s.place.position.y = e < fall ? 0.6 * (1 - u * u) : 0.05 * Math.sin(Math.PI * clamp01((e - fall) / 110));
-        if (e >= fall + 110) { s.place.position.y = 0; return false; }
+        s.place.position.y = floor + (e < fall ? 0.6 * (1 - u * u) : 0.05 * Math.sin(Math.PI * clamp01((e - fall) / 110)));
+        if (e >= fall + 110) { s.place.position.y = floor; return false; }
         return true;
       });
     });
@@ -585,8 +723,10 @@ export function createTable(host) {
   // ---------- a fall ----------
   const A = 1800 * DEG;                                                   // how hard gravity pulls a toppling domino over, in radians a second squared
   const PUSH = 130 * DEG, HIT = 450 * DEG;                                // how fast the first, and the rest, begin to go
-  const CONTACT = 53 * DEG;                                              // the lean at which a falling domino reaches the next
+  const CONTACT = 53 * DEG, FAR_CONTACT = 80 * DEG;                      // the lean at which a falling domino reaches the next, and a tall one's the one beyond it
   const timeTo = (angle, v0) => (-v0 + Math.sqrt(v0 * v0 + 2 * A * angle)) / A;
+  /** The lean at which a domino on hexagon `by` reaches the one on `cell`: the next one's, or a tall domino's far reach, nearly flat. */
+  const contactAngle = (by, cell) => CONTACT + (FAR_CONTACT - CONTACT) * clamp01((Math.hypot(MID[by][0] - MID[cell][0], MID[by][1] - MID[cell][1]) - 1.1) / 0.6);
   const LINGER = 0.42, SINK = 0.26;
   let falling = null;
   function cancelFall() { if (falling) { const f = falling; falling = null; f.stop(); f.resolve(); } }
@@ -601,13 +741,13 @@ export function createTable(host) {
       for (const [cell, , by, way] of fell) {
         const v0 = by < 0 ? PUSH : HIT;
         const jitter = 1 + (((cell * 53) % 13) - 6) * 0.008;
-        const t = by < 0 ? 0 : T.get(by) + plan.find(p => p.cell === by).contact * jitter;
+        const t = by < 0 ? 0 : T.get(by) + timeTo(contactAngle(by, cell), plan.find(p => p.cell === by).v0) * jitter;
         T.set(cell, t);
         const s = slabs[cell];
         // over its foot along its axis, front or back as the way says; the hair it stood off true straightens as it goes
         const want = yawOf(way), turn = want - s.rest, k = Math.round(turn / Math.PI), delta = turn - k * Math.PI;
         const flip = Math.abs(k) % 2 === 1 ? -1 : 1;
-        plan.push({ cell, s, way, v0, t, contact: timeTo(CONTACT, v0), land: timeTo(Math.PI / 2, v0), delta: Math.atan2(Math.sin(delta), Math.cos(delta)), flip, landed: false, sunk: false });
+        plan.push({ cell, s, way, v0, t, land: timeTo(Math.PI / 2, v0), delta: Math.atan2(Math.sin(delta), Math.cos(delta)), flip, landed: false, sunk: false });
         events.push({ kind: by < 0 ? "shove" : "clack", at: 0.03 + t, power: by < 0 ? 0.75 : 0.62, pitch: 0.92 + (((cell * 11) % 7) * 0.025), pan: MID[cell][0] / 5 });
         events.push({ kind: "land", at: 0.03 + t + timeTo(Math.PI / 2, v0), power: 0.5, pitch: 0.9 + (((cell * 5) % 7) * 0.03), pan: MID[cell][0] / 5 });
         s.busy = true;
@@ -619,7 +759,8 @@ export function createTable(host) {
       if (bellMove.rang && onBell) { events.push({ kind: "ring", at: 0.03 + onBell.t + 0.05, power: 0.8, pitch: 1, pan: MID[bellAt][0] / 5 }); }
       if (fly >= 0) events.push({ kind: "ring", at: 0.03 + fly + 0.5, power: 0.45, pitch: 1.12, pan: MID[bellMove.to][0] / 5 });
       sound.run(events);
-      const bellFrom = bellAt >= 0 ? [MID[bellAt][0], MID[bellAt][1]] : null, bellUp = onBell ? SH + 0.005 : 0;
+      const bellFrom = bellAt >= 0 ? [MID[bellAt][0], MID[bellAt][1]] : null, floor0 = bellAt >= 0 ? base[bellAt] : 0, floor1 = bellMove.to >= 0 ? base[bellMove.to] : 0;
+      const bellUp = onBell ? topOf(bellAt) + 0.005 : floor0;                // where it sits: on the domino's top, or on its hexagon
       let ended = false;
       falling = { stop: () => { ended = true; }, resolve };
       go(now => {
@@ -641,7 +782,7 @@ export function createTable(host) {
             if (!p.landed) {
               p.landed = true;
               const [x, z] = MID[p.cell], [hx, hz] = heading(p.way);
-              spark(x + hx * 0.5, 0.04, z + hz * 0.5, skin.enamel[current.cells[p.cell]] || "#ffffff", 4, 0.85);
+              spark(x + hx * 0.5, base[p.cell] + 0.04, z + hz * 0.5, skin.enamel[current.cells[p.cell]] || "#ffffff", 4, 0.85);
               thump(x, z, 1.1);
             }
           }
@@ -651,14 +792,14 @@ export function createTable(host) {
           const gone = t - p.land - LINGER;
           if (gone > 0) {
             const u = clamp01(gone / SINK);
-            s.place.position.y = -0.3 * u * u;
+            s.place.position.y = base[p.cell] - 0.3 * u * u;
             if (u >= 1 && !p.sunk) { p.sunk = true; s.place.visible = false; }
           }
         }
         if (onBell) {
           const t = e - onBell.t - 0.05;
           if (t >= 0) {
-            const drop = clamp01(t / 0.18), y = bellUp * (1 - drop * drop), b = clamp01((t - 0.18) / 0.12);
+            const drop = clamp01(t / 0.18), y = floor0 + (bellUp - floor0) * (1 - drop * drop), b = clamp01((t - 0.18) / 0.12);
             bell.position.y = y + 0.06 * Math.sin(Math.PI * b) * (1 - b);
             bell.scale.setScalar(0.7 + 0.3 * drop);
             swing.rotation.z = Math.exp(-4 * t) * Math.sin(t * 38) * 0.5;
@@ -670,7 +811,7 @@ export function createTable(host) {
           // the bell hops to its new hexagon in an arc
           const u = clamp01((e - fly) / 0.55), [x1, z1] = MID[bellMove.to], from = onBell ? bellFrom : bellFrom || [x1, z1];
           const b = clamp01((e - fly - 0.55) / 0.14);
-          bell.position.set(from[0] + (x1 - from[0]) * ease(u), (onBell ? 0 : bellUp) * (1 - u) + 1.5 * Math.sin(Math.PI * u) + 0.05 * Math.sin(Math.PI * b) * (1 - b), from[1] + (z1 - from[1]) * ease(u));
+          bell.position.set(from[0] + (x1 - from[0]) * ease(u), floor0 + (floor1 - floor0) * ease(u) + 1.5 * Math.sin(Math.PI * u) + 0.05 * Math.sin(Math.PI * b) * (1 - b), from[1] + (z1 - from[1]) * ease(u));
           swing.rotation.z = Math.sin(u * 14) * 0.4 * (1 - u);
           bell.scale.setScalar(1);
           if (u >= 1 && !bellMove.landed) { bellMove.landed = true; spark(x1, 0.2, z1, "#ffd36a", 6, 0.8); }
@@ -697,14 +838,20 @@ export function createTable(host) {
     const o = camera.position.clone(), d = new THREE.Vector3(x, y, 0.5).unproject(camera).sub(o).normalize();
     return { o, d };
   }
-  /** The point on the table's top (x, z) under a point of the screen, or null. */
+  /** The point on the table's top (x, z) under a point of the screen, or null (on a level with steps, the top of the step it falls on). */
   function pointAt(px, py) {
     tilter.updateMatrixWorld(true);
     const { o, d } = rayAt(px, py), inv = new THREE.Matrix4().copy(table.matrixWorld).invert();
     o.applyMatrix4(inv); d.transformDirection(inv);
     if (Math.abs(d.y) < 1e-6) return null;
-    const t = -o.y / d.y;
-    return t > 0 ? [o.x + d.x * t, o.z + d.z * t] : null;
+    const onto = y => { const t = (y - o.y) / d.y; return t > 0 ? [o.x + d.x * t, o.z + d.z * t] : null; };
+    let p = onto(0);
+    if (p && steps) for (let k = 0; k < 2; k++) {
+      const i = cellNumber(...hexAt(p[0], p[1])), q = onto(i >= 0 ? base[i] : 0);
+      if (!q) break;
+      p = q;
+    }
+    return p;
   }
   /** The hexagon under a point of the screen, a standing domino taking the points that fall on it: its number, or -1. */
   function cellAt(px, py) {
@@ -716,11 +863,14 @@ export function createTable(host) {
     const p = pointAt(px, py);
     return p ? cellNumber(...hexAt(p[0], p[1])) : -1;
   }
-  /** The outline on the view of a domino standing on hexagon i facing along axis `ax`, grown by a little: [[x, y]…] (a convex hull). */
-  function outlineOf(i, ax, grow = 1.12) {
+  /**
+   * The outline on the view of a domino standing on hexagon i facing along axis `ax`, grown by a little: [[x, y]…] (a
+   * convex hull). Of a colour `kind` if it is not the one standing there now (a piece held over the table).
+   */
+  function outlineOf(i, ax, grow = 1.12, kind = current.cells[i]) {
     tilter.updateMatrixWorld(true);
-    const yaw = yawOf(ax), c = Math.cos(yaw), s = Math.sin(yaw), pts = [];
-    for (const lx of [-SW / 2, SW / 2]) for (const y of [0, SH]) for (const lz of [-ST / 2, ST / 2]) {
+    const yaw = yawOf(ax), c = Math.cos(yaw), s = Math.sin(yaw), pts = [], H = heightOf(rules.tall, kind);
+    for (const lx of [-SW / 2, SW / 2]) for (const y of [base[i], base[i] + H]) for (const lz of [-ST / 2, ST / 2]) {
       vec.set(MID[i][0] + lx * c + lz * s, y, MID[i][1] - lx * s + lz * c).applyMatrix4(table.matrixWorld).project(camera);
       pts.push([((vec.x + 1) / 2) * width, ((1 - vec.y) / 2) * height]);
     }
@@ -755,7 +905,7 @@ export function createTable(host) {
   resize();
 
   return {
-    canvas, set, fall, project, pointAt, cellAt, outlineOf, tilt, level, hold, release, applySkin, cancelFall, zoomAt, panBy, zoomTo,
+    canvas, set, fall, project, pointAt, cellAt, outlineOf, tilt, level, hold, release, applySkin, cancelFall, zoomAt, panBy, zoomTo, terrain, topOf, baseOf: i => base[i],
     /** How close the table is drawn: 1 whole, up to ZOOM. */
     get zoom() { return zoom; },
     get skin() { return skin; },

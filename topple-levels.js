@@ -11,6 +11,10 @@
 //   pearl       a fourth colour, dealt now and then in pieces of one or two: knocked by every colour and knocking every
 //               colour, so it joins what else would stand apart
 // A level is beaten at its goal (stars at higher scores, for those who go on); beating one only opens the next.
+// The goals follow what each table gives, not a count up: level 1's is 20000 (Korbi, 23 October 2026), and each other is
+// a share of what the careful player of tests/topple-players.js scores there in the median, the share rising from a half
+// to three quarters, rounded; a table cut up by water or stones scores less, so its goal is lower, and the tables were
+// chosen so that it falls by steps and not in a drop (a first Stones with seven stones scored a third of Classic).
 // Hexagons are numbered row by row as the engine numbers them (tests/topple-levels.mjs checks that they agree).
 export const FLOOR = 0, ROCK = 1, WATER = 2, VOID = 3;
 export const PEARL = 3;
@@ -52,51 +56,51 @@ const GENTLE = { from: 40, to: 60, end: 0.8 };            // a knock nearly ever
 const level = spec => ({ tall: [], pearl: 0, bell: true, pace: null, maxSize: 5, map: {}, ...spec });
 export const LEVELS = [
   level({
-    name: "Classic", goal: 3000,
+    name: "Classic", goal: 20000,
     about: "Topple as it is: lay the pieces, then knock a chain down. The goal is the score on the strip.",
   }),
   level({
-    name: "Stones", goal: 3400, map: { rock: [[0, 0], ...six([2, 0])] },
+    name: "Stones", goal: 16500, map: { rock: three([2, 0]) },
     about: "A stone stands where no domino can: nothing is laid on it, and a fall stops at it.",
   }),
   level({
-    name: "The river", goal: 3800, map: { water: minus(RIVER, FORDS) },
+    name: "The river", goal: 10000, map: { water: minus(RIVER.slice(1, 8), FORDS) },
     about: "Water: nothing is laid on it and a fall can't cross it, except at the two fords, which are laid on like any hexagon.",
   }),
   level({
-    name: "Long legs", goal: 4200, tall: [2], maxSize: 4, pace: GENTLE, map: { water: turned(RIVER, 2) },
+    name: "Long legs", goal: 10000, tall: [2], maxSize: 4, pace: GENTLE, map: { water: turned(RIVER.slice(1, 8), 2) },
     about: "The blue dominoes are tall. Falling, one reaches the hexagon past the next as well, over water or a gap (not past a stone), so a chain can cross a river with no ford.",
   }),
   level({
-    name: "Gilded", goal: 4600, tall: [2], map: { water: minus(RIVER, FORDS), gilded: [[1, 1], [-2, 3], [-1, -1], [2, -3]] },
+    name: "Gilded", goal: 12500, tall: [2], map: { water: minus(RIVER, FORDS), gilded: [[1, 1], [-2, 3], [-1, -1], [2, -3]] },
     about: "A fall that brings down a domino on a gilded hexagon scores double, and doubles the bell's double again.",
   }),
   level({
-    name: "Terraces", goal: 5000, tall: [2], map: { rock: three([3, -1]), height: { 2: disc(1), 1: ring(2) } },
+    name: "Terraces", goal: 8600, tall: [2], map: { rock: three([3, -1]), height: { 2: disc(1), 1: ring(2) } },
     about: "A fall goes level or down, never up a step. A tall domino climbs one.",
   }),
   level({
-    name: "Pearl", goal: 5400, tall: [2], pearl: 0.12, map: { water: minus(RIVER, FORDS), rock: three([3, -1]) },
+    name: "Pearl", goal: 9500, tall: [2], pearl: 0.12, map: { water: minus(RIVER, FORDS), rock: three([3, -1]) },
     about: "Pearls are wild: every colour knocks them and they knock every colour, so a pearl joins chains that would stand apart. They come in pieces of one or two.",
   }),
   level({
-    name: "Three islands", goal: 5800, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, map: { water: ARMS, void: [spin([4, 0], 1), spin([4, 0], 3), spin([4, 0], 5)], gilded: three([2, 1]) },
+    name: "Three islands", goal: 7600, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, map: { water: ARMS, void: [spin([4, 0], 1), spin([4, 0], 3), spin([4, 0], 5)], gilded: three([2, 1]) },
     about: "Three islands round a channel. Blue and pearl cross it; the rest go round by its end.",
   }),
   level({
-    name: "The moat", goal: 6200, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, map: { water: minus(ring(2), [[2, 0], [-2, 0]]), height: { 1: disc(1) }, gilded: [[0, 0]], rock: three([3, -1]) },
-    about: "A raised island in the middle, ringed by water but for two fords, with a gilded summit.",
-  }),
-  level({
-    name: "Quarry", goal: 6600, tall: [2], pearl: 0.12, map: { rock: [...six([2, -1]), ...six([4, -2])], height: { 1: where(c => c[0] + c[1] / 2 > 0.4), 2: where(c => c[0] + c[1] / 2 > 2.6) }, gilded: [[3, 0]] },
+    name: "Quarry", goal: 9300, tall: [2], pearl: 0.12, map: { rock: [...six([2, -1]), ...six([4, -2])], height: { 1: where(c => c[0] + c[1] / 2 > 0.4), 2: where(c => c[0] + c[1] / 2 > 2.6) }, gilded: [[3, 0]] },
     about: "Stones everywhere and a stepped hillside on one side.",
   }),
   level({
-    name: "Crossroads", goal: 6800, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, map: { water: [...minus(RIVER, FORDS), ...minus(turned(RIVER, 2), [turned(RIVER, 2)[3], turned(RIVER, 2)[7]])], gilded: [[3, -1], [-3, 1], [1, 2], [-1, -2]], rock: [[2, 2], [-2, -2]] },
+    name: "The moat", goal: 5400, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, map: { water: minus(ring(2), [[2, 0], [-2, 0]]), height: { 1: disc(1) }, gilded: [[0, 0]], rock: three([3, -1]) },
+    about: "A raised island in the middle, ringed by water but for two fords, with a gilded summit.",
+  }),
+  level({
+    name: "Crossroads", goal: 5300, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, map: { water: [...minus(RIVER, FORDS), ...minus(turned(RIVER, 2), [turned(RIVER, 2)[3], turned(RIVER, 2)[7]])], gilded: [[3, -1], [-3, 1], [1, 2], [-1, -2]], rock: [[2, 2], [-2, -2]] },
     about: "Two rivers cross, four banks, three fords between them. Blue and pearl are the way over.",
   }),
   level({
-    name: "The grand table", goal: 7200, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE,
+    name: "Grand table", goal: 4200, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE,
     map: { water: minus(ring(2), [[2, 0], [-2, 0]]), rock: three([4, 0]), height: { 2: disc(1), 1: ring(3) }, gilded: [[0, 0], ...three([3, 0])] },
     about: "Everything at once: a summit in a moat, a terraced bank, stones in the corners.",
   }),

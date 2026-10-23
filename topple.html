@@ -24,10 +24,19 @@
     <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
   </header>
 
-  <div class="tp-strip">
-    <span class="tp-score">Score <b id="score">0</b></span>
-    <span id="knock" class="tp-knock" aria-live="polite"></span>
-    <span class="tp-best">Best <b id="best">0</b></span>
+  <div class="tp-head">
+    <div class="tp-strip">
+      <span class="tp-score">Score <b id="score">0</b></span>
+      <span id="knock" class="tp-knock" aria-live="polite"></span>
+      <span id="bestBox" class="tp-best">Best <b id="best">0</b></span>
+      <span id="goalBox" class="tp-aim" hidden>Goal <b id="goal">0</b></span>
+    </div>
+    <!-- Levels: which level, how far the score has come to its goal and the two stars beyond, and the stars so far -->
+    <div id="meter" class="tp-meter" hidden>
+      <span id="lname" class="tp-lname"></span>
+      <span class="tp-bar" aria-hidden="true"><i id="fill"></i><u></u><u></u></span>
+      <span id="lstars" class="tp-lstars"></span>
+    </div>
   </div>
   <section id="table" class="tp-table fit-grow fit-box" aria-label="The table">
     <div id="stage" class="tp-stage">
@@ -43,7 +52,10 @@
     </div>
     <div id="result" class="tp-result" hidden>
       <p id="verdict" class="tp-verdict"></p>
-      <button class="tp-go" type="button" id="againBtn">New game</button>
+      <div class="tp-acts">
+        <button class="tp-go" type="button" id="againBtn">New game</button>
+        <button class="tp-go quiet" type="button" id="levelsBtn" hidden>Levels</button>
+      </div>
     </div>
   </section>
 </div>

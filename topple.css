@@ -5,7 +5,12 @@
 :root {
   --tp-in: var(--c0);
   --tp-soft: color-mix(in srgb, var(--tp-in) 15%, var(--sheet));
+  /* the pearl, a level's fourth colour, and the ink of its pips */
+  --tp-pearl: #F3F0E8;
+  --tp-pearl-ink: #1C2A34;
 }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --tp-pearl: #D8D2C4; } }
+html[data-mode="night"] { --tp-pearl: #D8D2C4; }
 
 .tp-mark { display: inline-block; }
 .tp-mark svg { width: 100%; height: 100%; display: block; }
@@ -15,6 +20,19 @@
 /* when the knock comes; when it's due, lettered on the knock's ochre */
 .tp-knock { display: inline-flex; align-items: center; padding: .1rem .45rem; border-radius: 4px; font-size: .8rem; font-weight: 700; white-space: nowrap; min-width: 0; }
 .tp-knock.now { background: var(--tp-in); color: var(--on-c0); font-weight: 800; }
+/* Levels: the goal in the strip's last place, the stars it has earned once it is met, and under the strip the meter, its
+   bar in three equal stretches (to the goal, to the second star, to the third) with a tick at each of the first two */
+.tp-aim.met b { color: var(--c1); }
+.tp-meter { display: flex; align-items: center; gap: .55rem; margin: 0 0 .45rem; font-size: .72rem; }
+.tp-meter[hidden] { display: none; }
+.tp-lname { flex: 0 1 auto; min-width: 0; max-width: 52%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-stretch: var(--wide);
+  text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); }
+.tp-bar { position: relative; flex: 1 1 0; height: .5rem; border: 1px solid var(--rule); border-radius: 2px; background: var(--yard); }
+.tp-bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--tp-in); }
+.tp-bar u { position: absolute; top: -1px; bottom: -1px; width: 1px; background: var(--brass); }
+.tp-bar u:nth-of-type(1) { left: 33.33%; }
+.tp-bar u:nth-of-type(2) { left: 66.67%; }
+.tp-lstars { flex: none; color: var(--brass); letter-spacing: .12em; font-size: .8rem; }
 
 /* the table: as large as its room allows; the canvas draws it, the svg over it draws what the page says about it */
 .tp-table { position: relative; }
@@ -36,6 +54,7 @@
 .tp-handle circle { fill: var(--brass); stroke: var(--ink); stroke-width: 1.6; }
 .tp-over text { font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 3.2; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
 .tp-over text.tp-hint { font-weight: 650; fill: var(--ink-soft); stroke: none; }
+.tp-over text.tp-ltitle { letter-spacing: .08em; text-transform: uppercase; stroke: none; }
 .tp-plaque { fill: color-mix(in srgb, var(--sheet) 90%, transparent); stroke: var(--brass); stroke-width: 1; }
 
 /* a domino drawn flat: a slab seen from above and in front (the tray, your hand, the table where there's no WebGL) */
@@ -43,16 +62,21 @@
 .tp-slab.k0 .tp-face { fill: var(--c0); }
 .tp-slab.k1 .tp-face { fill: var(--c1); }
 .tp-slab.k2 .tp-face { fill: var(--c2); }
+.tp-slab.k3 .tp-face { fill: var(--tp-pearl); }
 .tp-slab.k0 .tp-top { fill: color-mix(in srgb, var(--c0) 68%, #fff); }
 .tp-slab.k1 .tp-top { fill: color-mix(in srgb, var(--c1) 68%, #fff); }
 .tp-slab.k2 .tp-top { fill: color-mix(in srgb, var(--c2) 68%, #fff); }
+.tp-slab.k3 .tp-top { fill: color-mix(in srgb, var(--tp-pearl) 68%, #fff); }
 .tp-slab.k0 .tp-side { fill: color-mix(in srgb, var(--c0) 72%, #000); }
 .tp-slab.k1 .tp-side { fill: color-mix(in srgb, var(--c1) 72%, #000); }
 .tp-slab.k2 .tp-side { fill: color-mix(in srgb, var(--c2) 72%, #000); }
+.tp-slab.k3 .tp-side { fill: color-mix(in srgb, var(--tp-pearl) 72%, #000); }
 .tp-pip { fill: var(--on-c); }
 .tp-slab.k0 .tp-pip { fill: var(--on-c0); }
+.tp-slab.k3 .tp-pip { fill: var(--tp-pearl-ink); }
 .tp-groove { fill: none; stroke: color-mix(in srgb, var(--on-c) 55%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .tp-slab.k0 .tp-groove { stroke: color-mix(in srgb, var(--on-c0) 55%, transparent); }
+.tp-slab.k3 .tp-groove { stroke: color-mix(in srgb, var(--tp-pearl-ink) 55%, transparent); }
 .tp-slab.ghost { opacity: .6; }
 
 /* under the table: the three pieces; at the end, how it went and New game, in the same room */
@@ -72,6 +96,9 @@
   font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .tp-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 7rem; }
 .tp-result .tp-go { padding: 0 1.3rem; }
+.tp-acts { display: grid; gap: .4rem; }
+.tp-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; min-height: 2.5rem; }
+.tp-go[hidden] { display: none; }
 .tp-result[hidden] { display: none; }
 .tp-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
 /* the piece in your hand, over everything, at the table's size */
@@ -87,7 +114,8 @@
    low where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.topple { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
-  #app.topple .tp-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.topple .tp-head { grid-column: 2; grid-row: 2; }
+  #app.topple .tp-strip { flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
   #app.topple .tp-table { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
   #app.topple .tp-side { grid-column: 2; grid-row: 3; align-content: end; }
   #app.topple .tp-tray { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, 7rem); height: auto; }
@@ -99,3 +127,30 @@
 .tp-flat-brass { fill: #caa040; }
 .tp-flat-birch { fill: #e6cd9f; }
 .tp-flat-cell { fill: none; stroke: #7a4a2e; stroke-width: 1; vector-effect: non-scaling-stroke; }
+/* a level's terrain on the flat table: no table (dark wood), a pool, a stone, a step up (its side and its top), gilding */
+.tp-flat-void { fill: #2c0e06; }
+.tp-flat-water { fill: #4f93b8; stroke: #2a6a92; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-rock { fill: #8a8378; stroke: #55504a; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-step-side { fill: #a4814f; stroke: #7a4a2e; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-step { fill: #efdcb4; stroke: #7a4a2e; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-step.h2 { fill: #f6e8c8; }
+.tp-flat-gilt { fill: none; stroke: #caa040; stroke-width: 2; vector-effect: non-scaling-stroke; }
+
+/* the menu's levels: three to a row, each its table in miniature, its number and name, and its stars */
+.tp-levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .5rem 0; }
+.tp-levels button { display: grid; gap: .2rem; padding: .35rem .4rem .4rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.tp-levels button.done { background: var(--tp-soft); }
+.tp-levels button[aria-current] { border-color: var(--tp-in); box-shadow: inset 0 0 0 1.5px var(--tp-in); }
+.tp-levels button:disabled { opacity: .4; cursor: default; }
+.tp-lmap { aspect-ratio: 9.4 / 7.9; width: 100%; }
+.tp-lmap svg { width: 100%; height: 100%; display: block; }
+.tp-lrow { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; min-width: 0; }
+.tp-lrow b { font-size: .9rem; font-variant-numeric: tabular-nums; }
+.tp-lrow span { color: var(--brass); font-size: .66rem; letter-spacing: .1em; white-space: nowrap; }
+.tp-lnamed { font-size: .62rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-map-cell { fill: color-mix(in srgb, var(--brass) 20%, var(--sheet)); stroke: color-mix(in srgb, var(--ink) 18%, transparent); stroke-width: .05; }
+.tp-map-cell.h1 { fill: color-mix(in srgb, var(--brass) 40%, var(--sheet)); }
+.tp-map-cell.h2 { fill: color-mix(in srgb, var(--brass) 62%, var(--sheet)); }
+.tp-map-water { fill: color-mix(in srgb, var(--c2) 72%, var(--sheet)); }
+.tp-map-stone { fill: var(--ink-soft); }
+.tp-map-gilt { fill: var(--brass); }

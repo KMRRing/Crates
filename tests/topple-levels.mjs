@@ -27,10 +27,10 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
 {
   check(LEVELS.length === 12 && new Set(LEVELS.map(l => l.name)).size === 12 && LEVELS.every(l => l.about.length > 20), "twelve levels, each with its own name and a line on what it adds");
   const goals = LEVELS.map(l => l.goal);
-  check(goals.every((g, k) => g > 0 && (k === 0 || g > goals[k - 1])), `each goal higher than the one before (${goals.join(", ")})`);
+  check(goals[0] === 20000 && goals.every(g => g > 0 && g % 100 === 0), `level 1's goal is 20000 (Korbi), the others whole hundreds (${goals.join(", ")}); they follow what each table gives, below`);
   const stars = LEVELS.map((_, k) => levelRules(k).stars);
   check(stars.every((s, k) => s.length === 3 && s[0] === goals[k] && s[0] < s[1] && s[1] < s[2]) && STARS.length === 2, "three stars a level: the goal, and two higher scores");
-  check(starsAt(levelRules(0), 2999) === 0 && starsAt(levelRules(0), 3000) === 1 && starsAt(levelRules(0), stars[0][1]) === 2 && starsAt(levelRules(0), 1e9) === 3 && starsAt(FREE, 1e9) === 0, "a score is worth the stars whose scores it has reached; Classic has none");
+  check(starsAt(levelRules(0), 19999) === 0 && starsAt(levelRules(0), 20000) === 1 && starsAt(levelRules(0), stars[0][1]) === 2 && starsAt(levelRules(0), 1e9) === 3 && starsAt(FREE, 1e9) === 0, "a score is worth the stars whose scores it has reached; Classic has none");
   check(SIZE === 61 && CELLS.every(([q, r], i) => numberOf(q, r) === i) && numberOf(5, 5) === -1, "the levels number the hexagons as the engine does");
 }
 
@@ -203,11 +203,11 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
 // ---------- the stars, and the pace ----------
 {
   const t = table(...[-2, -1, 0, 1, 2].map(q => [q, 0, 0, 0]));
-  let g = Object.assign(newGame(5, 0), { due: true, bell: -1, cells: t.cells, ax: t.ax, score: 2900 });
+  let g = Object.assign(newGame(5, 0), { due: true, bell: -1, cells: t.cells, ax: t.ax, score: 19900 });
   const a = knock(g, hex(-2, 0), 0);
-  check(a.state.score === 3150 && a.state.stars === 1 && g.stars === 0, "a knock that takes the score past the goal earns the first star");
+  check(a.state.score === 20150 && a.state.stars === 1 && g.stars === 0, "a knock that takes the score past the goal earns the first star");
   const row2 = table(...[-2, -1, 0, 1, 2].map(q => [q, 0, 0, 0]));
-  const b = knock(Object.assign(structuredClone(a.state), { due: true, bell: -1, cells: row2.cells, ax: row2.ax, score: 8000 }), hex(-2, 0), 0);
+  const b = knock(Object.assign(structuredClone(a.state), { due: true, bell: -1, cells: row2.cells, ax: row2.ax, score: 52000 }), hex(-2, 0), 0);
   check(b.state.stars === 3 && JSON.parse(JSON.stringify(b.state)).stars === 3, "the stars follow the score and are kept with the game");
   const c = knock(Object.assign(structuredClone(b.state), { due: true, bell: -1, cells: table([0, 0, 0, 0]).cells, ax: table([0, 0, 0, 0]).ax, score: 100, stars: 3 }), hex(0, 0), 0);
   check(c.state.stars === 3, "and never go back");
@@ -247,6 +247,13 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
   check(allOk && allEnd, "whole games of every level, to the end: standing dominoes face one of six axes and empty hexagons none, the score is the knocks' gains, and every game ends");
   const meets = careful.map(rs => rs.filter(r => r.stars >= 1).length);
   check(meets[0] === games && meets.slice(1, 3).every(m => m >= games - 1), `the careful player beats level 1 every time, and the next two nearly (goals ${LEVELS.slice(0, 3).map(l => l.goal).join(", ")}; met ${meets.slice(0, 3).join(", ")} of ${games})`);
+  // the goals' rule: a share of what the careful player scores in the median there, a half at level 1 rising to three quarters
+  const share = LEVELS.map((L, n) => {
+    const sc = Array.from({ length: 20 }, (_, g) => play(300 + g, PLAYERS.careful, { level: n, pieces: 400 }).score).sort((a, b) => a - b);
+    return { share: L.goal / sc[10], met: sc.filter(x => x >= L.goal).length };
+  });
+  check(share.every(x => x.share > 0.3 && x.share < 1 && x.met >= 10), `each goal is between a third and the whole of the careful player's median, and beaten in half his games at least (shares ${share.map(x => x.share.toFixed(2)).join(", ")}; met ${share.map(x => x.met).join(", ")} of 20)`);
+  check(share[0].met >= 17, `and level 1, the first, in nearly all (${share[0].met} of 20)`);
   const corner = Array.from({ length: 6 }, (_, g) => play(100 + g, PLAYERS.corner, { level: 0 }));
   check(corner.filter(r => r.stars >= 1).length <= 1, "laying everything in the corner and turning nothing doesn't beat level 1");
 }

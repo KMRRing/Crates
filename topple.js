@@ -7,24 +7,33 @@
 // marked) with its points; let go to push, or back where the finger started to think again. A pinch, the wheel or a
 // double tap on the bare table brings it closer; closer, a drag on the bare table moves it, and at its whole size tilts
 // it a little, as a watch dial does. The rules are topple-engine.js's; this file plays each move out and keeps the game.
-import { SIZE, AXES, WAYS, PIECES, newGame, migrate, cover, lay, knock, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy } from "./topple-engine.js";
+// Two modes (the menu's Mode): Classic, the game as it has always been, and Levels (topple-levels.js), twelve tables each
+// adding a thing to the last, each beaten at a goal score. Levels press nothing: a level can be left and come back to as
+// it was, replayed, or skipped back to, beating one only opens the next, and the only word of it is a line at the first win.
+import { SIZE, AXES, WAYS, PIECES, rulesOf, newGame, migrate, cover, lay, knock, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy } from "./topple-engine.js";
+import { LEVELS, levelRules } from "./topple-levels.js";
+import { mapSvg } from "./topple-map.js";
 import { heading, hexAt, SH, ZOOM, bounds, pieceSvg } from "./topple-slab.js";
 import { createTable } from "./topple-3d.js";
 import { sound } from "./topple-sound.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, onPause } from "./menu.js";
+import { part, action, line, toggle, choice, onPause } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "topple:run", BEST = "topple:best", SEEN = "topple:seen", SOUND = "topple:sound", SEL = "topple:sel";
+// RUN, BEST: Classic's game and best, as they have always been kept. MODE: "classic" or "levels". CAMP: { at (the level
+// being played, 0 on), stars (the most stars won in each) }. RUNS: the game of each level begun, by its number (1 on).
+const RUN = "topple:run", BEST = "topple:best", SEEN = "topple:seen", SOUND = "topple:sound", SEL = "topple:sel", MODE = "topple:mode", CAMP = "topple:camp", RUNS = "topple:lruns";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const fmt = n => n.toLocaleString("en-GB");
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 let S = null;            // the game (topple-engine.js's), as saved
+let mode = read(MODE, "classic") === "levels" ? "levels" : "classic";
+let camp = readCamp();   // Levels: { at, stars }, as kept
 let playing = false;     // a move being played out
 let drag = null;         // a piece in hand: { slot, piece, colour, id, x0, y0, moved, lift, at (where it would go), float }
 let sel = -1;            // the domino chosen, to turn: its hexagon (kept as topple:sel, so a partner watching sees it)
@@ -43,16 +52,66 @@ catch (err) {
   view = (await import("./topple-flat.js")).createFlat(stage);
 }
 
-const valid = g => g && g.v === 5 && Array.isArray(g.cells) && g.cells.length === SIZE && Array.isArray(g.ax) && g.ax.length === SIZE
+const levelOk = g => g.level === undefined || (Number.isInteger(g.level) && g.level >= 0 && g.level < LEVELS.length && Number.isInteger(g.stars) && g.stars >= 0 && g.stars <= 3);
+const valid = g => g && g.v === 5 && Array.isArray(g.cells) && g.cells.length === SIZE && Array.isArray(g.ax) && g.ax.length === SIZE && levelOk(g)
   && g.cells.every((c, i) => (c >= 0) === (g.ax[i] >= 0 && g.ax[i] < AXES)) && Array.isArray(g.hand) && g.hand.length === 3 && g.hand.every(h => !h || PIECES[h.piece]);
-function save() { write(RUN, S); }
+
+// ---------- the modes ----------
+/** The campaign as kept: the level being played and the stars won in each, mended if it is not what it should be. */
+function readCamp() {
+  const c = read(CAMP, null), stars = LEVELS.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
+  const open = stars.findIndex(s => s < 1);                          // the first level not beaten is the last one open
+  return { at: Number.isInteger(c?.at) ? Math.max(0, Math.min(c.at, open < 0 ? LEVELS.length - 1 : open)) : 0, stars };
+}
+/** Whether level n (0 on) is open: the first, and any whose one before is beaten. */
+const isOpen = n => n === 0 || camp.stars[n - 1] >= 1;
+const inLevels = () => mode === "levels";
+/** The game saved for the mode being played (and its level), or null. */
+function savedGame() {
+  const g = migrate(inLevels() ? read(RUNS, {})[camp.at + 1] : read(RUN, null));
+  return valid(g) && (inLevels() ? g.level === camp.at : g.level === undefined) ? g : null;
+}
+function save() {
+  if (inLevels()) write(RUNS, { ...read(RUNS, {}), [camp.at + 1]: S });
+  else write(RUN, S);
+}
+/** A game begun anew: of the level being played, or Classic's. */
 function newRun() {
   drag?.float.remove();
   drag = null;
   setSel(-1);
-  S = newGame(Math.floor(Math.random() * 2 ** 31));
+  S = newGame(Math.floor(Math.random() * 2 ** 31), inLevels() ? camp.at : -1);
   save();
   render();
+}
+/** The game of the mode and level now chosen, as it was left (else a new one). */
+function resume() {
+  drag?.float.remove();
+  drag = null;
+  S = savedGame();
+  if (!S) { newRun(); return; }
+  const kept = read(SEL, -1);
+  sel = Number.isInteger(kept) && S.cells[kept] >= 0 && !S.over ? kept : -1;
+  if (sel >= 0) knob = facingYou(sel);
+  save();
+  render();
+}
+function setMode(next) {
+  if (next === mode) return;
+  mode = next;
+  write(MODE, mode);
+  setSel(-1);
+  resume();
+}
+/** Plays level n (0 on) as it was left, or new if it was not begun. */
+function playLevel(n) {
+  if (!isOpen(n)) return;
+  camp.at = n;
+  write(CAMP, camp);
+  mode = "levels";
+  write(MODE, mode);
+  setSel(-1);
+  resume();
 }
 
 // ---------- over the table: what the drawing says, in the screen's own pixels ----------
@@ -105,19 +164,38 @@ function compassEl(at, chosen, gains) {
 const KNOB = 0.74;
 const knobPoint = (at, way) => { const [cx, cz] = view.centre(at), [ux, uz] = heading(way); return [cx + ux * KNOB, 0.02, cz + uz * KNOB]; };
 function handleEl(at, way) {
-  const [cx, cz] = view.centre(at), [ux, uz] = heading(way), [x0, y0] = view.project(cx + ux * 0.1, SH * 0.42, cz + uz * 0.1), [x1, y1] = view.project(...knobPoint(at, way)), r = 7 * scale();
+  const [cx, cz] = view.centre(at), [ux, uz] = heading(way), [x0, y0] = view.project(cx + ux * 0.1, view.baseOf(at) + SH * 0.42, cz + uz * 0.1), [x1, y1] = view.project(...knobPoint(at, way)), r = 7 * scale();
   const arm = cls => el("line", { class: cls, x1: x0.toFixed(1), y1: y0.toFixed(1), x2: x1.toFixed(1), y2: y1.toFixed(1) });
   return { g: el("g", { class: "tp-handle" }, arm("under"), arm("arm"), el("circle", { cx: x1.toFixed(1), cy: y1.toFixed(1), r: r.toFixed(1) })), pts: [[x0, y0], [x1, y1 - r], [x1, y1 + r]] };
 }
 /** A line of words over a hexagon: above everything else drawn (`around`, points on the screen), or below it where there's no room above. */
 function tagEl(words, i, around) {
-  const s = scale(), [cx, cz] = view.centre(i), [x, top] = view.project(cx, SH + 0.15, cz), w = over.clientWidth, h = over.clientHeight || stage.clientHeight;
+  const s = scale(), [cx, cz] = view.centre(i), [x, top] = view.project(cx, view.topOf(i, kindAt(i)) + 0.15, cz), w = over.clientWidth, h = over.clientHeight || stage.clientHeight;
   const ys = around.map(p => Math.max(0, Math.min(h, p[1]))), half = Math.max(70, words.length * 3.4 * s);       // only what's in view counts
   let y = Math.min(top, ...ys) - 9 * s;
   if (y < 16 * s) y = Math.min(h - 6 * s, Math.max(top, ...ys) + 18 * s);
   return text("tp-tag", words, Math.min(w - half, Math.max(half, x)), y, 13);
 }
 const HINT = ["Drag a piece onto the table.", "Tap a domino, drag its handle to turn it.", "When a knock is due, press a domino", "and slide it the way it should fall.", "Past the bell, it scores double."];
+/** Words broken into lines of at most `width` characters. */
+function wrapped(words, width) {
+  const out = [];
+  for (const word of words.split(" ")) out.push(out.length && out[out.length - 1].length + word.length < width ? `${out.pop()} ${word}` : word);
+  return out;
+}
+/** A plaque in the middle of the table: the lines of words, each as its class says, on a ground of brass-edged sheet. */
+function plaqueEl(lines, w, h) {
+  const s = scale(), gap = 15 * s, height = lines.length * gap + 22 * s, top = h / 2 - height / 2;
+  return [el("rect", { class: "tp-plaque", x: (w / 2 - 128 * s).toFixed(1), y: top.toFixed(1), width: (256 * s).toFixed(1), height: height.toFixed(1), rx: 5 }),
+    ...lines.map(([cls, words], k) => text(cls, words, w / 2, top + 20 * s + k * gap, 11))];
+}
+/** What a new level says on its empty table: its number and name, what it adds, and its goal. Gone when the first piece is down. */
+function levelPlaque(w, h) {
+  const L = LEVELS[S.level];
+  return plaqueEl([["tp-ltitle", `${S.level + 1}  ${L.name}`], ...wrapped(L.about, 36).map(t => ["tp-hint", t]), ["tp-ltitle", `Goal ${fmt(L.goal)}`]], w, h);
+}
+/** Which colour stands (or is held, over the table) on a hexagon, for how tall it draws. */
+const kindAt = i => (marks.ghost?.laid.includes(i) ? marks.ghost.colour : S.cells[i]);
 function drawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
   over.setAttribute("viewBox", `0 0 ${w} ${h}`);
@@ -125,14 +203,15 @@ function drawOver() {
   const { ring = [], stay = [], compass, tag, ghost, handle, ax = S.ax } = marks, ghostAx = new Map((ghost?.laid || []).map((i, k) => [i, axesOf(ghost.laid)[k]]));
   const axOf = i => ghostAx.get(i) ?? (ax[i] >= 0 ? ax[i] : 0), kids = [], pts = [];
   const add = ({ g, pts: p }) => { kids.push(g); pts.push(...p); };
-  for (const [list, cls, grow] of [[stay, "tp-stay", 1.1], [ring, "tp-ring", 1.12]]) for (const i of list) { const hull = view.outlineOf(i, axOf(i), grow); add({ g: el("path", { class: cls, d: hullD(hull) }), pts: hull }); }
+  for (const [list, cls, grow] of [[stay, "tp-stay", 1.1], [ring, "tp-ring", 1.12]]) for (const i of list) { const hull = view.outlineOf(i, axOf(i), grow, kindAt(i)); add({ g: el("path", { class: cls, d: hullD(hull) }), pts: hull }); }
   if (compass) add(compassEl(...compass));
   if (handle) add(handleEl(...handle));
   if (tag) kids.push(tagEl(...tag, pts));
-  if (!read(SEEN, false) && S.laid < 3 && !ghost && !ring.length && !compass && !handle && !S.over) {
+  const quiet = !ghost && !ring.length && !compass && !handle && !S.over;
+  if (quiet && !read(SEEN, false) && S.laid < 3) {
     const lines = HINT.map((t, k) => text("tp-hint", t, w / 2, h / 2 + (k - 2) * 15 * scale() + 4 * scale(), 11));
     kids.push(el("rect", { class: "tp-plaque", x: (w / 2 - 124 * scale()).toFixed(1), y: (h / 2 - 48 * scale()).toFixed(1), width: (248 * scale()).toFixed(1), height: (92 * scale()).toFixed(1), rx: 5 }), ...lines);
-  }
+  } else if (quiet && S.level >= 0 && S.laid === 0) kids.push(...levelPlaque(w, h));
   marksG.replaceChildren(...kids);
 }
 let turned = view.spin;
@@ -150,6 +229,7 @@ view.onPaint(() => {
  */
 function drawBoard(extra = {}) {
   const ghost = extra.ghost, ax = extra.ax || S.ax;
+  view.terrain(rulesOf(S));
   view.set({ cells: extra.cells || S.cells, ax, bell: extra.bell ?? S.bell, fresh: extra.fresh || [], ghost: ghost && { laid: ghost.laid, colour: ghost.colour, ax: axesOf(ghost.laid) }, ease: !!extra.ease });
   setMarks({ ...extra, ax });
 }
@@ -163,9 +243,29 @@ function knockWords() {
   const n = untilKnock(S);
   return n === 0 ? "Knock now" : n === 1 ? "Knock after this hand" : `Knock in ${n} hands`;
 }
+const STAR = "★", HOLLOW = "☆";
+const starsWords = n => STAR.repeat(n) + HOLLOW.repeat(3 - n);
+/** How far a score has come on the meter (0 to 1): the three stretches, to the goal and the two stars beyond it, equal. */
+function meterAt(stars, score) {
+  const cuts = [0, ...stars];
+  for (let k = 1; k < cuts.length; k++) if (score < cuts[k]) return (k - 1 + (score - cuts[k - 1]) / (cuts[k] - cuts[k - 1])) / 3;
+  return 1;
+}
 function drawStrip() {
+  const levels = inLevels(), L = levels ? levelRules(S.level) : null;
   $("score").textContent = fmt(S.score);
   $("best").textContent = fmt(Math.max(read(BEST, 0), S.score));
+  $("bestBox").hidden = levels;
+  $("goalBox").hidden = !levels;
+  $("meter").hidden = !levels;
+  if (levels) {
+    $("goal").textContent = fmt(L.goal);
+    $("goalBox").classList.toggle("met", S.stars >= 1);
+    $("lname").textContent = `${S.level + 1}  ${L.name}`;
+    $("fill").style.width = `${(meterAt(L.stars, S.score) * 100).toFixed(1)}%`;
+    $("lstars").textContent = starsWords(S.stars);
+    $("lstars").setAttribute("aria-label", plural(S.stars, "star"));
+  }
   const k = $("knock");
   k.className = `tp-knock${S.due && !S.over ? " now" : ""}`;
   k.textContent = S.over ? "" : knockWords();
@@ -174,17 +274,20 @@ function drawStrip() {
 function drawTray() {
   $("tray").hidden = S.over;
   $("result").hidden = !S.over;
+  $("levelsBtn").hidden = !inLevels();
+  $("againBtn").textContent = inLevels() ? "Replay" : "New game";
   if (S.over) {
     const best = read(BEST, 0);
-    $("verdict").textContent = `No room: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
+    $("verdict").textContent = inLevels() ? levelVerdict() : `No room: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
     return;
   }
   $("tray").classList.toggle("waiting", S.due);
+  const rules = rulesOf(S);
   for (const b of document.querySelectorAll(".tp-piece")) {
     const slot = Number(b.dataset.slot), h = S.hand[slot];
-    b.replaceChildren(...(h ? [pieceSvg(h, false, view.spin).svg] : []));
+    b.replaceChildren(...(h ? [pieceSvg(h, false, view.spin, rules.tall).svg] : []));
     b.disabled = !h;
-    b.classList.toggle("cant", !!h && !S.due && !fitsAnywhere(S.cells, h.piece));
+    b.classList.toggle("cant", !!h && !S.due && !fitsAnywhere(S.cells, h.piece, rules));
     b.classList.toggle("lifted", drag?.slot === slot && drag.moved);
     b.setAttribute("aria-label", h ? `A piece of ${PIECES[h.piece].cells.length}${S.due ? ", after the knock" : ": drag it onto the table"}` : "Laid");
   }
@@ -195,9 +298,15 @@ function render(extra) { if (extra) drawBoard(extra); else redraw(); drawStrip()
 
 /** What the best push on the dominoes joined to one comes to, in words: how many, how many of them fall, the points. */
 function bestWords(best) {
-  if (best.size === 1) return `On its own: +${fmt(best.gain)}`;
+  const extras = `${best.rings ? ", the bell" : ""}${best.gilded ? ", gilded" : ""}`;
+  if (best.size === 1) return `On its own: +${fmt(best.gain)}${extras}`;
   const how = best.fell === best.size ? `all fall in ${best.steps}` : `${best.fell} fall at most`;
-  return `${best.size} together: ${how}, +${fmt(best.gain)}${best.rings ? ", the bell" : ""}`;
+  return `${best.size} together: ${how}, +${fmt(best.gain)}${extras}`;
+}
+/** How a finished game of a level reads: what it came to, and whether it beat the level. */
+function levelVerdict() {
+  const L = levelRules(S.level);
+  return S.stars >= 1 ? `No room: ${fmt(S.score)}. Beaten, ${starsWords(S.stars)}` : `No room: ${fmt(S.score)}, ${fmt(L.goal - S.score)} short of ${fmt(L.goal)}`;
 }
 
 // ---------- choosing a domino, and turning it ----------
@@ -210,8 +319,8 @@ function facingYou(i) {
 }
 /** The chosen domino (turned to `ax` while a finger turns it): its handle, and what the best push on what it's joined to would fell, ringed and written. */
 function showChosen(ax = S.ax, ease = false) {
-  const best = longest(S.cells, ax, sel, S.bell), fell = best.at >= 0 ? knockOn(S.cells, ax, best.at, best.way, S.bell).fell.map(f => f[0]) : [];
-  const down = new Set(fell), stay = group(S.cells, sel).filter(j => !down.has(j));
+  const rules = rulesOf(S), best = longest(S.cells, ax, sel, S.bell, rules), fell = best.at >= 0 ? knockOn(S.cells, ax, best.at, best.way, S.bell, rules).fell.map(f => f[0]) : [];
+  const down = new Set(fell), stay = group(S.cells, sel, rules).filter(j => !down.has(j));
   drawBoard({ ax, ease, handle: [sel, knob], ring: fell, stay, tag: [bestWords(best), sel] });
 }
 function choose(i) {
@@ -273,13 +382,13 @@ function slidWay(h, e) {
  * that way would fell ringed, what of its colour would stay standing marked, the steps and the points.
  */
 function showPress(h) {
-  const { at, way } = h, tries = new Map(pushes(S.ax, at).map(w => [w, knockOn(S.cells, S.ax, at, w, S.bell)]));
+  const { at, way } = h, rules = rulesOf(S), tries = new Map(pushes(S.ax, at).map(w => [w, knockOn(S.cells, S.ax, at, w, S.bell, rules)]));
   if (way < 0) {
     setMarks({ compass: [at, -1, new Map([...tries].map(([w, k]) => [w, k.gain]))], tag: [S.due ? "Slide it along its axis to push" : `Slide to see a push: ${knockWords().toLowerCase()}`, at] });
     return;
   }
-  const k = tries.get(way), fell = new Set(k.fell.map(f => f[0])), stay = group(S.cells, at).filter(j => !fell.has(j));
-  const words = `${k.fell.length} in ${plural(k.steps, "step")}: +${fmt(k.gain)}${k.rings ? ", the bell" : ""}${stay.length ? `; ${stay.length} stand` : ""}`;
+  const k = tries.get(way), fell = new Set(k.fell.map(f => f[0])), stay = group(S.cells, at, rules).filter(j => !fell.has(j));
+  const words = `${k.fell.length} in ${plural(k.steps, "step")}: +${fmt(k.gain)}${k.rings ? ", the bell" : ""}${k.gilded ? ", gilded" : ""}${stay.length ? `; ${stay.length} stand` : ""}`;
   setMarks({ ring: [...fell], stay, compass: [at, way], tag: [S.due ? words : `${words} (${knockWords().toLowerCase()})`, at] });
 }
 
@@ -287,9 +396,15 @@ function showPress(h) {
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const animate = (node, frames, opts) => (node?.animate ? node.animate(frames, { fill: "both", ...opts }).finished.catch(() => {}) : Promise.resolve());
 function settle() {
-  if (S.score > read(BEST, 0)) write(BEST, S.score);
+  if (!inLevels() && S.score > read(BEST, 0)) write(BEST, S.score);          // Classic's best is Classic's: a level's scores are another measure
   if (S.laid >= 3) write(SEEN, true);
+  if (inLevels() && S.stars > camp.stars[S.level]) { camp.stars[S.level] = S.stars; write(CAMP, camp); }
   save();
+}
+/** The one line a level's first win gets: that it is beaten, and what that opened. */
+function beatenWords() {
+  const next = LEVELS[S.level + 1];
+  return `${LEVELS[S.level].name} beaten. ${next ? `${next.name} is open.` : "That is all twelve."}`;
 }
 async function commitLay(slot, q, r) {
   if (playing || S.over || S.due) return;
@@ -311,7 +426,7 @@ async function commitKnock(i, way) {
   if (playing || S.over || !S.due) return;
   playing = true;
   setSel(-1);
-  const before = S, done = knock(S, i, way);
+  const before = S, first = inLevels() && camp.stars[S.level] < 1, done = knock(S, i, way);
   S = done.state;
   settle();
   // the table as it stood, then the dominoes fall one after another, each along its own axis; the bell leaves where it
@@ -319,14 +434,17 @@ async function commitKnock(i, way) {
   drawBoard({ cells: before.cells, ax: before.ax, bell: before.bell });
   drawStrip();
   const falling = view.fall({ fell: done.fell, bell: { rang: done.rang, to: done.rang ? S.bell : -1 } });
-  setTimeout(() => popup(done.fell.map(f => f[0]), done.gain, done.rang), 100 + done.steps * 90);
+  const times = (done.rang ? 2 : 1) * (done.gilded ? 2 : 1), level = S.level;
+  setTimeout(() => popup(done.fell.map(f => f[0]), done.gain, times), 100 + done.steps * 90);
   await falling;
   render();
   playing = false;
+  if (first && S.stars >= 1 && S.level === level) toast(beatenWords());
 }
-function popup(cells, gain, rang) {
+/** The points of a knock rising from where it fell: with the bell's or the gilding's doubling (`times`), as the points before it and the times. */
+function popup(cells, gain, times) {
   const mids = cells.map(i => view.centre(i)), x = mids.reduce((a, m) => a + m[0], 0) / cells.length, z = mids.reduce((a, m) => a + m[1], 0) / cells.length;
-  const [px, py] = view.project(x, SH, z), t = text(`tp-pop${cells.length >= 10 || rang ? " big" : ""}`, rang ? `+${fmt(gain / 2)} ×2` : `+${fmt(gain)}`, px, py, cells.length >= 10 || rang ? 24 : 19);
+  const [px, py] = view.project(x, SH, z), t = text(`tp-pop${cells.length >= 10 || times > 1 ? " big" : ""}`, times > 1 ? `+${fmt(gain / times)} ×${times}` : `+${fmt(gain)}`, px, py, cells.length >= 10 || times > 1 ? 24 : 19);
   fxG.append(t);
   animate(t, [{ transform: "translateY(0)", opacity: 1 }, { transform: `translateY(${-34 * scale()}px)`, opacity: 0 }], { duration: 1200, easing: "ease-out" }).then(() => t.remove());
 }
@@ -337,10 +455,10 @@ function spotAt(piece, px, py) {
   const p = view.pointAt(px, py), b = bounds(piece);
   if (!p) return null;
   const [q, r] = hexAt(p[0] - b.cx, p[1] - b.cz);
-  return cover(S.cells, piece, q, r) ? { q, r } : null;
+  return cover(S.cells, piece, q, r, rulesOf(S)) ? { q, r } : null;
 }
 function floatEl(h) {
-  const d = document.createElement("div"), u = unit(), art = pieceSvg(h, true, view.spin);
+  const d = document.createElement("div"), u = unit(), art = pieceSvg(h, true, view.spin, rulesOf(S).tall);
   d.className = "tp-float";
   d.style.width = `${u * art.width}px`;
   d.style.height = `${u * art.height}px`;
@@ -357,7 +475,7 @@ function startDrag(e, slot) {
   e.preventDefault();
   sound.unlock();
   if (S.due) { toast("Knock a domino first: press one and slide it along its axis"); return; }
-  if (!fitsAnywhere(S.cells, h.piece)) { toast("That piece fits nowhere now"); return; }
+  if (!fitsAnywhere(S.cells, h.piece, rulesOf(S))) { toast("That piece fits nowhere now"); return; }
   drag?.float.remove();
   if (sel >= 0) letGo();
   // held above the finger, its foot a hexagon clear of it, so where it's going is in sight (a mouse needs no lift)
@@ -379,10 +497,10 @@ function moveDrag(e) {
   drag.drawn = true;
   if (!spot) { drawBoard(); return; }
   // the dominoes it would join, ringed, and what their best push would fell, facing as they stand and as the piece comes
-  const laid = cover(S.cells, drag.piece, spot.q, spot.r), cells = S.cells.slice(), ax = S.ax.slice(), faces = axesOf(laid);
+  const rules = rulesOf(S), laid = cover(S.cells, drag.piece, spot.q, spot.r, rules), cells = S.cells.slice(), ax = S.ax.slice(), faces = axesOf(laid);
   laid.forEach((i, k) => { cells[i] = drag.colour; ax[i] = faces[k]; });
-  const joined = group(cells, laid[0]), grew = joined.length > laid.length;
-  drawBoard({ ghost: { laid, colour: drag.colour }, ring: grew ? joined : [], tag: grew ? [bestWords(longest(cells, ax, laid[0], S.bell)), laid[0]] : null });
+  const joined = group(cells, laid[0], rules), grew = joined.length > laid.length;
+  drawBoard({ ghost: { laid, colour: drag.colour }, ring: grew ? joined : [], tag: grew ? [bestWords(longest(cells, ax, laid[0], S.bell, rules)), laid[0]] : null });
 }
 function endDrag(e) {
   if (!drag || e.pointerId !== drag.id) return;
@@ -511,13 +629,43 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
 }
+/** The twelve levels, three to a row: each its table in miniature, its number and name, and the stars won. Those not yet open are dimmed; any open one can be played at any time, as it was left. */
+function levelList() {
+  const list = document.createElement("div");
+  list.className = "tp-levels";
+  LEVELS.forEach((L, n) => {
+    const b = document.createElement("button"), won = camp.stars[n], map = document.createElement("div"), row = document.createElement("div"), num = document.createElement("b"), stars = document.createElement("span"), name = document.createElement("div");
+    b.type = "button";
+    b.disabled = !isOpen(n);
+    b.className = won ? "done" : "";
+    if (n === camp.at && inLevels()) b.setAttribute("aria-current", "true");
+    b.setAttribute("aria-label", `Level ${n + 1}, ${L.name}${won ? `, ${plural(won, "star")}` : ""}${b.disabled ? ", not open yet" : ""}`);
+    map.className = "tp-lmap";
+    map.append(mapSvg(levelRules(n)));
+    row.className = "tp-lrow";
+    num.textContent = n + 1;
+    stars.textContent = isOpen(n) ? starsWords(won) : "";
+    row.append(num, stars);
+    name.className = "tp-lnamed";
+    name.textContent = L.name;
+    b.append(map, row, name);
+    b.addEventListener("click", () => { $("menuDlg").close(); playLevel(n); });
+    list.append(b);
+  });
+  return list;
+}
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  part(body, "play").append(action("New game", newRun, "primary"));
+  part(body, "play").append(inLevels() ? action(`Replay ${LEVELS[camp.at].name}`, newRun, "primary") : action("New game", newRun, "primary"));
+  const content = part(body, "content");
+  content.append(choice("Mode", [["classic", "Classic"], ["levels", "Levels"]], mode, m => { setMode(m); openMenu(); }));
+  if (inLevels()) content.append(levelList());
   part(body, "settings").append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("clack"); }));
-  const best = read(BEST, 0);
-  part(body, "about").append(line(`This game: ${fmt(S.score)}, ${plural(S.felled, "domino", "dominoes")} felled, the bell rung ${plural(S.rung, "time")}${best ? `; your best ${fmt(best)}` : ""}`));
+  const best = read(BEST, 0), beaten = camp.stars.filter(Boolean).length;
+  part(body, "about").append(line(inLevels()
+    ? `This game: ${fmt(S.score)}, ${plural(S.felled, "domino", "dominoes")} felled; ${beaten} of ${LEVELS.length} levels beaten, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}`
+    : `This game: ${fmt(S.score)}, ${plural(S.felled, "domino", "dominoes")} felled, the bell rung ${plural(S.rung, "time")}${best ? `; your best ${fmt(best)}` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -534,26 +682,19 @@ addEventListener("pointercancel", e => {
   lift(e, true);
 });
 $("againBtn").addEventListener("click", newRun);
+$("levelsBtn").addEventListener("click", openMenu);
 onPause(() => view.hold(), () => view.release());
 
 // for tests and debugging
 window.__topple = {
   get state() { return S; }, set state(s) { S = s; setSel(-1); render(); }, get sel() { return sel; }, get knob() { return knob; },
-  commitLay, commitKnock, spotAt, newRun, choose, view,
+  commitLay, commitKnock, spotAt, newRun, choose, view, playLevel, setMode, get mode() { return mode; }, get camp() { return camp; },
   cellAt: (px, py) => view.cellAt(px, py),
-  screenOf: i => { const [x, z] = view.centre(i); return onPage(x, SH * 0.45, z); },
-  groundOf: i => { const [x, z] = view.centre(i); return onPage(x, 0, z); },
+  screenOf: i => { const [x, z] = view.centre(i); return onPage(x, view.baseOf(i) + SH * 0.45, z); },
+  groundOf: i => { const [x, z] = view.centre(i); return onPage(x, view.baseOf(i), z); },
   /** Where a point of the table lies from hexagon i's middle, `along` hexagons the way w, on the page. */
   toward: (i, w, along) => { const [x, z] = view.centre(i), [ux, uz] = heading(w); return onPage(x + ux * along, 0, z + uz * along); },
   knobAt: () => (sel >= 0 ? onPage(...knobPoint(sel, knob)) : null),
 };
 
-S = migrate(read(RUN, null));
-if (!valid(S)) newRun();
-else {
-  const kept = read(SEL, -1);
-  sel = Number.isInteger(kept) && S.cells[kept] >= 0 && !S.over ? kept : -1;
-  if (sel >= 0) knob = facingYou(sel);
-  save();
-  render();
-}
+resume();

@@ -6,7 +6,8 @@ export const ROW = Math.sqrt(3) / 2;
 /** Where the hexagon (q, r) stands on the table: x across, z towards the player, a hexagon one across. */
 export const mid = (q, r) => [q + r / 2, ROW * r];
 export const SW = 0.74, SH = 0.92, ST = 0.2;               // a domino: width, height, thickness
-export const ZOOM = 1.8;                                    // the closest look at the table: a domino's facing plain on a phone, and no more
+export const TALL = 1.5;                                    // a tall domino's height (a level's tall colour), against SH
+export const ZOOM = 1.8;                                   // the closest look at the table: a domino's facing plain on a phone, and no more
 const DEG = Math.PI / 180;
 /** The way w (0–11, thirty degrees a step) points on the table, as (x, z): east is 0, then up the screen (away) and round. A direction d of the six is the way 2d. */
 export const heading = w => [Math.cos((-w * Math.PI) / 6), Math.sin((-w * Math.PI) / 6)];
@@ -33,35 +34,39 @@ const el = (tag, attrs = {}) => {
   for (const [k, v] of Object.entries(attrs)) if (v != null) n.setAttribute(k, v);
   return n;
 };
-const PIPS = [[0], [-0.18, 0.18], [-0.25, 0, 0.25]];
+// each colour its own pips (one, two, three to a half; the pearl four), so they're told apart without their colour
+export const PIPS = [[0], [-0.18, 0.18], [-0.25, 0, 0.25], [-0.27, -0.09, 0.09, 0.27]];
+/** The height of a domino of a colour, given which colours are tall (a level's `tall`, or none). */
+export const heightOf = (tall, kind) => (tall?.[kind] ? TALL : SH);
 /**
  * A slab of a colour standing with the middle of its foot at table (x, z), turned by yaw, as SVG: its side, its face, its
- * top and its pips, each in a class the page's CSS colours (tp-side, tp-face, tp-top, tp-pip, tp-groove).
+ * top and its pips, each in a class the page's CSS colours (tp-side, tp-face, tp-top, tp-pip, tp-groove). `H` is its
+ * height (SH, or TALL), `lift` how far up a terrace it stands.
  * Returns { g (the element), depth (z, to sort a row of them by) }.
  */
-export function slabEl(x0, z0, yaw, kind, cls = "") {
+export function slabEl(x0, z0, yaw, kind, cls = "", H = SH, lift = 0) {
   const c = Math.cos(yaw), s = Math.sin(yaw);
-  const world = (lx, ly, lz) => [x0 + lx * c + lz * s, ly, z0 - lx * s + lz * c];
+  const world = (lx, ly, lz) => [x0 + lx * c + lz * s, ly + lift, z0 - lx * s + lz * c];
   const view = ([x, y, z]) => flat(x, y, z);
   const pts = list => list.map(p => view(p).map(v => v.toFixed(4)).join(",")).join(" ");
   const sg = c >= 0 ? 1 : -1, zf = (sg * ST) / 2, sx = s > 0 ? -1 : 1;
   const g = el("g", { class: `tp-slab k${kind} ${cls}`.trim() });
-  if (Math.abs(s) > 0.05) g.append(el("polygon", { class: "tp-side", points: pts([[sx * SW / 2, 0, -ST / 2], [sx * SW / 2, 0, ST / 2], [sx * SW / 2, SH, ST / 2], [sx * SW / 2, SH, -ST / 2]].map(p => world(...p))) }));
-  g.append(el("polygon", { class: "tp-face", points: pts([[-SW / 2, 0, zf], [SW / 2, 0, zf], [SW / 2, SH, zf], [-SW / 2, SH, zf]].map(p => world(...p))) }));
-  g.append(el("polygon", { class: "tp-top", points: pts([[-SW / 2, SH, -ST / 2], [SW / 2, SH, -ST / 2], [SW / 2, SH, ST / 2], [-SW / 2, SH, ST / 2]].map(p => world(...p))) }));
+  if (Math.abs(s) > 0.05) g.append(el("polygon", { class: "tp-side", points: pts([[sx * SW / 2, 0, -ST / 2], [sx * SW / 2, 0, ST / 2], [sx * SW / 2, H, ST / 2], [sx * SW / 2, H, -ST / 2]].map(p => world(...p))) }));
+  g.append(el("polygon", { class: "tp-face", points: pts([[-SW / 2, 0, zf], [SW / 2, 0, zf], [SW / 2, H, zf], [-SW / 2, H, zf]].map(p => world(...p))) }));
+  g.append(el("polygon", { class: "tp-top", points: pts([[-SW / 2, H, -ST / 2], [SW / 2, H, -ST / 2], [SW / 2, H, ST / 2], [-SW / 2, H, ST / 2]].map(p => world(...p))) }));
   const zp = zf + sg * 0.004;
-  g.append(el("polyline", { class: "tp-groove", points: pts([[-SW * 0.4, SH / 2, zp], [SW * 0.4, SH / 2, zp]].map(p => world(...p))) }));
-  for (const y of [SH * 0.74, SH * 0.26]) for (const px of PIPS[kind]) {
+  g.append(el("polyline", { class: "tp-groove", points: pts([[-SW * 0.4, H / 2, zp], [SW * 0.4, H / 2, zp]].map(p => world(...p))) }));
+  for (const y of [H * 0.74, H * 0.26]) for (const px of PIPS[kind]) {
     const ring = Array.from({ length: 10 }, (_, k) => { const a = (k / 10) * Math.PI * 2; return world(px + 0.064 * Math.cos(a), y + 0.064 * Math.sin(a), zp); });
     g.append(el("polygon", { class: "tp-pip", points: pts(ring) }));
   }
   return { g, depth: z0 };
 }
-/** A row of slabs, far ones first: [{ x, z, yaw, kind, cell }] as one group (each marked with its hexagon, where given). */
+/** A row of slabs, far ones first: [{ x, z, yaw, kind, cell, h, lift }] as one group (each marked with its hexagon, where given). */
 export function slabsEl(list, cls = "") {
   const g = el("g", { class: "tp-slabs" });
   for (const s of [...list].sort((a, b) => a.z - b.z)) {
-    const one = slabEl(s.x, s.z, s.yaw, s.kind, cls).g;
+    const one = slabEl(s.x, s.z, s.yaw, s.kind, cls, s.h, s.lift).g;
     if (s.cell != null) one.dataset.cell = s.cell;
     g.append(one);
   }
@@ -79,11 +84,11 @@ export function bounds(piece) {
  * The slabs of a piece standing (as laid): [{ x, z, yaw, kind }] in table units from its first domino's hexagon, the
  * table turned by `spin` about the vertical (a piece is drawn in the tray as it will look on the table).
  */
-export function pieceSlabs(piece, colour, spin = 0) {
+export function pieceSlabs(piece, colour, spin = 0, tall = null) {
   const cells = PIECES[piece].cells, faces = axesOfCoords(cells), c = Math.cos(spin), n = Math.sin(spin);
   return cells.map(([q, r], k) => {
     const [x, z] = mid(q, r);
-    return { x: x * c + z * n, z: -x * n + z * c, yaw: yawOf(faces[k]) + spin, kind: colour };
+    return { x: x * c + z * n, z: -x * n + z * c, yaw: yawOf(faces[k]) + spin, kind: colour, h: heightOf(tall, colour) };
   });
 }
 /**
@@ -91,9 +96,9 @@ export function pieceSlabs(piece, colour, spin = 0) {
  * are drawn at near one scale (but for the smallest, drawn a little larger, to be seen). With `exact`, the view is just
  * the piece (for a hand's float), and `foot` says where the middle of its footprint lies in it.
  */
-export function pieceSvg({ piece, colour }, exact = false, spin = 0) {
-  const slabs = pieceSlabs(piece, colour, spin), g = slabsEl(slabs);
-  const all = slabs.flatMap(s => [[s.x - 0.6, s.z - 0.6, 0], [s.x + 0.6, s.z + 0.6, 0], [s.x, s.z, SH]]).map(([x, z, y]) => flat(x, y, z));
+export function pieceSvg({ piece, colour }, exact = false, spin = 0, tall = null) {
+  const slabs = pieceSlabs(piece, colour, spin, tall), g = slabsEl(slabs);
+  const all = slabs.flatMap(s => [[s.x - 0.6, s.z - 0.6, 0], [s.x + 0.6, s.z + 0.6, 0], [s.x, s.z, s.h]]).map(([x, z, y]) => flat(x, y, z));
   const x0 = Math.min(...all.map(p => p[0])), x1 = Math.max(...all.map(p => p[0])), y0 = Math.min(...all.map(p => p[1])), y1 = Math.max(...all.map(p => p[1]));
   const box = Math.max(3.2, Math.min(5.6, Math.max(x1 - x0, y1 - y0) * 1.1)), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
   const svg = el("svg", { viewBox: exact ? `${x0.toFixed(3)} ${y0.toFixed(3)} ${(x1 - x0).toFixed(3)} ${(y1 - y0).toFixed(3)}` : `${(cx - box / 2).toFixed(3)} ${(cy - box / 2).toFixed(3)} ${box} ${box}`, "aria-hidden": "true" });
