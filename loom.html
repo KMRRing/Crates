@@ -7,31 +7,31 @@
 <meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Almanac">
-<title>Thimble</title>
+<title>Loom</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="thimble.css">
+<link rel="stylesheet" href="loom.css">
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="thimble fit-screen beside">
+<div id="app" class="loom fit-screen beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
-      <span class="mark-icon th-mark" aria-hidden="true"></span>Thimble</button></h1>
+      <span class="mark-icon lm-mark" aria-hidden="true"></span>Loom</button></h1>
     <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
   </header>
 
-  <div class="th-strip">
-    <span class="th-job"><b id="jobName"></b><small id="jobNo"></small></span>
-    <span class="th-stars" id="jobStars" aria-label="Your best for this job"></span>
+  <div class="lm-strip">
+    <span class="lm-job"><b id="jobName"></b><small id="jobNo"></small></span>
+    <span class="lm-stars" id="jobStars" aria-label="Your best for this job"></span>
   </div>
-  <section id="bench" class="th-bench fit-grow" aria-label="The cloth on the bench"></section>
-  <p id="line" class="th-line" role="status" aria-live="polite"></p>
-  <section class="th-side">
-    <div id="acts" class="th-acts"></div>
+  <section id="bench" class="lm-bench fit-grow" aria-label="The draft: the target, the threading, your cloth and the lifting plan"></section>
+  <p id="line" class="lm-line" role="status" aria-live="polite"></p>
+  <section class="lm-side">
+    <div id="acts" class="lm-acts"></div>
   </section>
 </div>
 
@@ -40,15 +40,15 @@
   <div id="menuBody"></div>
 </dialog>
 
-<dialog id="doneDlg" class="sheet th-done" aria-labelledby="doneHead">
+<dialog id="doneDlg" class="sheet lm-done" aria-labelledby="doneHead">
   <h2 id="doneHead"></h2>
-  <p id="doneStars" class="th-big-stars" aria-hidden="true"></p>
-  <dl id="doneBody" class="th-figures"></dl>
-  <p id="doneNote" class="th-note"></p>
-  <div class="th-done-go"><button class="btn" type="button" id="againBtn">A fresh one</button><button class="btn primary" type="button" id="nextBtn">Next job</button></div>
+  <p id="doneStars" class="lm-big-stars" aria-hidden="true"></p>
+  <dl id="doneBody" class="lm-figures"></dl>
+  <p id="doneNote" class="lm-note"></p>
+  <div class="lm-done-go"><button class="btn" type="button" id="againBtn">A fresh one</button><button class="btn primary" type="button" id="nextBtn">Next cloth</button></div>
 </dialog>
 
-<p id="toast" class="th-toast" role="status" aria-live="polite"></p>
-<script type="module" src="thimble.js"></script>
+<p id="toast" class="lm-toast" role="status" aria-live="polite"></p>
+<script type="module" src="loom.js"></script>
 </body>
 </html>
