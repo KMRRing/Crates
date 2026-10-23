@@ -10,7 +10,7 @@
 // Two modes (the menu's Mode): Classic, the game as it has always been, and Levels (topple-levels.js), twelve tables each
 // adding a thing to the last, each beaten at a goal score. Levels press nothing: a level can be left and come back to as
 // it was, replayed, or skipped back to, beating one only opens the next, and the only word of it is a line at the first win.
-import { SIZE, AXES, WAYS, PIECES, rulesOf, newGame, migrate, cover, lay, knock, skip, canSkip, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy } from "./topple-engine.js";
+import { SIZE, AXES, WAYS, PIECES, rulesOf, newGame, migrate, coverFor, colourAt, lay, knock, skip, canSkip, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy } from "./topple-engine.js";
 import { LEVELS, levelRules } from "./topple-levels.js";
 import { mapSvg } from "./topple-map.js";
 import { heading, hexAt, SH, ZOOM, bounds, pieceSvg } from "./topple-slab.js";
@@ -35,7 +35,7 @@ let S = null;            // the game (topple-engine.js's), as saved
 let mode = read(MODE, "classic") === "levels" ? "levels" : "classic";
 let camp = readCamp();   // Levels: { at, stars }, as kept
 let playing = false;     // a move being played out
-let drag = null;         // a piece in hand: { slot, piece, colour, id, x0, y0, moved, lift, at (where it would go), float }
+let drag = null;         // a piece in hand: { slot, piece, colour (colours, bridge), id, x0, y0, moved, lift, at (where it would go), float }
 let sel = -1;            // the domino chosen, to turn: its hexagon (kept as topple:sel, so a partner watching sees it)
 let knob = -1;           // the way the chosen domino's handle points: one of the two ways along its axis
 let hand = null;         // one finger on the table: { id, kind ("turn", "press", "table", "spent"), x0, y0, x, y, moved, … }
@@ -195,7 +195,7 @@ function levelPlaque(w, h) {
   return plaqueEl([["tp-ltitle", `${S.level + 1}  ${L.name}`], ...wrapped(L.about, 36).map(t => ["tp-hint", t]), ["tp-ltitle", `Goal ${fmt(L.goal)}`]], w, h);
 }
 /** Which colour stands (or is held, over the table) on a hexagon, for how tall it draws. */
-const kindAt = i => (marks.ghost?.laid.includes(i) ? marks.ghost.colour : S.cells[i]);
+const kindAt = i => (marks.ghost?.laid.includes(i) ? marks.ghost.kinds[marks.ghost.laid.indexOf(i)] : S.cells[i]);
 function drawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
   over.setAttribute("viewBox", `0 0 ${w} ${h}`);
@@ -223,14 +223,14 @@ view.onPaint(() => {
 
 /**
  * The table: as it stands, or with extra: { cells, ax (a table to draw instead), bell (where it hangs, if not where it
- * hangs now), fresh (dominoes just stood up), ghost ({ laid, colour }: a piece held over it), ease (a domino turned eases
+ * hangs now), fresh (dominoes just stood up), ghost ({ laid, kinds }: a piece held over it, a colour to each domino), ease (a domino turned eases
  * round), ring (hexagons to ring), stay (hexagons that would stay standing), tag ([text, hexagon]), compass ([hexagon,
  * the way slid to, gains]), handle ([hexagon, way]) }.
  */
 function drawBoard(extra = {}) {
   const ghost = extra.ghost, ax = extra.ax || S.ax;
   view.terrain(rulesOf(S));
-  view.set({ cells: extra.cells || S.cells, ax, bell: extra.bell ?? S.bell, fresh: extra.fresh || [], ghost: ghost && { laid: ghost.laid, colour: ghost.colour, ax: axesOf(ghost.laid) }, ease: !!extra.ease });
+  view.set({ cells: extra.cells || S.cells, ax, bell: extra.bell ?? S.bell, fresh: extra.fresh || [], ghost: ghost && { laid: ghost.laid, kinds: ghost.kinds, ax: axesOf(ghost.laid) }, ease: !!extra.ease });
   setMarks({ ...extra, ax });
 }
 function setMarks(extra) {
@@ -292,9 +292,9 @@ function drawTray() {
     const slot = Number(b.dataset.slot), h = S.hand[slot];
     b.replaceChildren(...(h ? [pieceSvg(h, false, view.spin, rules.tall).svg] : []));
     b.disabled = !h;
-    b.classList.toggle("cant", !!h && !S.due && !fitsAnywhere(S.cells, h.piece, rules));
+    b.classList.toggle("cant", !!h && !S.due && !fitsAnywhere(S.cells, h.piece, rules, !!h.bridge));
     b.classList.toggle("lifted", drag?.slot === slot && drag.moved);
-    b.setAttribute("aria-label", h ? `A piece of ${PIECES[h.piece].cells.length}${S.due ? ", after the knock" : ": drag it onto the table"}` : "Laid");
+    b.setAttribute("aria-label", h ? `A ${h.bridge ? "bridge" : h.colours ? "twin" : "piece"} of ${PIECES[h.piece].cells.length}${S.due ? ", after the knock" : ": drag it onto the table"}` : "Laid");
   }
 }
 /** The table as it stands, with the chosen domino shown if there is one. */
@@ -465,11 +465,11 @@ function popup(cells, gain, times) {
 
 // ---------- dragging a piece ----------
 /** Where a piece held with its footprint's middle at a point on the screen would go, or null if it doesn't fit there. */
-function spotAt(piece, px, py) {
-  const p = view.pointAt(px, py), b = bounds(piece);
+function spotAt(h, px, py) {
+  const p = view.pointAt(px, py), b = bounds(h.piece);
   if (!p) return null;
   const [q, r] = hexAt(p[0] - b.cx, p[1] - b.cz);
-  return cover(S.cells, piece, q, r, rulesOf(S)) ? { q, r } : null;
+  return coverFor(S.cells, h, q, r, rulesOf(S)) ? { q, r } : null;
 }
 function floatEl(h) {
   const d = document.createElement("div"), u = unit(), art = pieceSvg(h, true, view.spin, rulesOf(S).tall);
@@ -489,7 +489,7 @@ function startDrag(e, slot) {
   e.preventDefault();
   sound.unlock();
   if (S.due) { toast("Knock a domino first: press one and slide it along its axis"); return; }
-  if (!fitsAnywhere(S.cells, h.piece, rulesOf(S))) { toast("That piece fits nowhere now"); return; }
+  if (!fitsAnywhere(S.cells, h.piece, rulesOf(S), !!h.bridge)) { toast("That piece fits nowhere now"); return; }
   drag?.float.remove();
   if (sel >= 0) letGo();
   // held above the finger, its foot a hexagon clear of it, so where it's going is in sight (a mouse needs no lift)
@@ -501,7 +501,7 @@ function startDrag(e, slot) {
 function moveDrag(e) {
   if (!drag || e.pointerId !== drag.id) return;
   if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 8) { drag.moved = true; drawTray(); }
-  const px = e.clientX, py = e.clientY - (drag.moved ? drag.lift : 0), spot = drag.moved ? spotAt(drag.piece, px, py) : null;
+  const px = e.clientX, py = e.clientY - (drag.moved ? drag.lift : 0), spot = drag.moved ? spotAt(drag, px, py) : null;
   const f = drag.float;
   f.style.left = `${px - f.foot[0]}px`;
   f.style.top = `${py - f.foot[1]}px`;
@@ -511,10 +511,10 @@ function moveDrag(e) {
   drag.drawn = true;
   if (!spot) { drawBoard(); return; }
   // the dominoes it would join, ringed, and what their best push would fell, facing as they stand and as the piece comes
-  const rules = rulesOf(S), laid = cover(S.cells, drag.piece, spot.q, spot.r, rules), cells = S.cells.slice(), ax = S.ax.slice(), faces = axesOf(laid);
-  laid.forEach((i, k) => { cells[i] = drag.colour; ax[i] = faces[k]; });
+  const rules = rulesOf(S), laid = coverFor(S.cells, drag, spot.q, spot.r, rules), cells = S.cells.slice(), ax = S.ax.slice(), faces = axesOf(laid), kinds = laid.map((_, k) => colourAt(drag, k));
+  laid.forEach((i, k) => { cells[i] = kinds[k]; ax[i] = faces[k]; });
   const joined = group(cells, laid[0], rules), grew = joined.length > laid.length;
-  drawBoard({ ghost: { laid, colour: drag.colour }, ring: grew ? joined : [], tag: grew ? [bestWords(longest(cells, ax, laid[0], S.bell, rules)), laid[0]] : null });
+  drawBoard({ ghost: { laid, kinds }, ring: grew ? joined : [], tag: grew ? [bestWords(longest(cells, ax, laid[0], S.bell, rules)), laid[0]] : null });
 }
 function endDrag(e) {
   if (!drag || e.pointerId !== drag.id) return;

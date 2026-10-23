@@ -1,4 +1,4 @@
-// Topple's levels (topple-levels.js) and what they ask of the engine (topple-engine.js): the twelve tables and their
+// Topple's levels (topple-levels.js) and what they ask of the engine (topple-engine.js): the tables and their
 // goals, level 1 playing exactly as Classic does, stones and water where nothing is laid, a tall colour reaching the
 // hexagon past the next (over water and gaps, not past a stone, climbing a step), heights a fall never climbs, gilded
 // hexagons that double a knock, the pearl colour that every colour knocks and that knocks every colour, the pieces a level
@@ -6,7 +6,7 @@
 // players (tests/topple-players.js). `node tests/topple-levels.mjs measure` plays more games per level and prints what the
 // README's numbers come from: `measure careful,corner games=24 levels=4,5`.
 import { LEVELS, FLOOR, ROCK, WATER, VOID, PEARL, STARS, FREE, levelRules, starsAt, numberOf, custom, SIZE } from "../topple-levels.js";
-import { CELLS, AXES, WAYS, PIECES, PACE, at, hitBy, reachBy, rulesOf, newGame, lay, turn, knock, cover, fitsAnywhere, chain, chains, group, knockOn, longest, rate, untilKnock } from "../topple-engine.js";
+import { CELLS, AXES, WAYS, PIECES, PACE, at, hitBy, reachBy, rulesOf, newGame, lay, turn, knock, cover, coverFor, colourAt, fitsAnywhere, chain, chains, group, knockOn, longest, rate, untilKnock } from "../topple-engine.js";
 import { PLAYERS, play, turnAll } from "./topple-players.js";
 
 let bad = 0;
@@ -23,9 +23,9 @@ const fell = (t, q, r, way, rules) => chain(t.cells, t.ax, hex(q, r), way, rules
 const these = (...qr) => qr.map(([q, r]) => hex(q, r)).sort((a, b) => a - b).join();
 const piece = (p, colour = 0) => ({ piece: p, colour });
 
-// ---------- the twelve ----------
+// ---------- the levels ----------
 {
-  check(LEVELS.length === 12 && new Set(LEVELS.map(l => l.name)).size === 12 && LEVELS.every(l => l.about.length > 20), "twelve levels, each with its own name and a line on what it adds");
+  check(LEVELS.length === 14 && new Set(LEVELS.map(l => l.name)).size === 14 && LEVELS.every(l => l.about.length > 20), "fourteen levels, each with its own name and a line on what it adds");
   const goals = LEVELS.map(l => l.goal);
   check(goals[0] === 20000 && goals.every(g => g > 0 && g % 100 === 0), `level 1's goal is 20000 (Korbi), the others whole hundreds (${goals.join(", ")}); they follow what each table gives, below`);
   const stars = LEVELS.map((_, k) => levelRules(k).stars);
@@ -49,9 +49,9 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
     if (!Object.keys(PIECES).some(p => PIECES[p].cells.length === ru.maxSize && fitsAnywhere(new Array(SIZE).fill(-1), p, ru))) { ok = false; why = `${k + 1}: no room for a piece of ${ru.maxSize}`; }
   });
   check(ok, ok ? `every map is whole: floor of ${Math.min(...floors)} to ${Math.max(...floors)} hexagons, heights up to two, nothing raised or gilded on stone or water, room for its biggest piece` : why);
-  const feature = k => { const ru = levelRules(k); return { rock: ru.terrain.includes(ROCK), water: ru.terrain.includes(WATER), void: ru.terrain.includes(VOID), tall: ru.tall.some(Boolean), gilded: ru.gilded.some(Boolean), height: ru.height.some(Boolean), pearl: ru.pearl > 0 }; };
+  const feature = k => { const ru = levelRules(k); return { rock: ru.terrain.includes(ROCK), water: ru.terrain.includes(WATER), void: ru.terrain.includes(VOID), tall: ru.tall.some(Boolean), gilded: ru.gilded.some(Boolean), height: ru.height.some(Boolean), pearl: ru.pearl > 0, bridges: ru.bridges > 0, twins: ru.twins > 0 }; };
   const first = key => LEVELS.findIndex((_, k) => feature(k)[key]) + 1;
-  check(first("rock") === 2 && first("water") === 3 && first("tall") === 4 && first("gilded") === 5 && first("height") === 6 && first("pearl") === 7 && first("void") === 8, `each thing comes in on a level of its own: stones 2, water 3, tall 4, gilded 5, heights 6, pearl 7, no table 8 (here ${["rock", "water", "tall", "gilded", "height", "pearl", "void"].map(first).join(", ")})`);
+  check(first("rock") === 2 && first("water") === 3 && first("tall") === 4 && first("gilded") === 5 && first("height") === 6 && first("pearl") === 7 && first("void") === 8 && first("bridges") === 13 && first("twins") === 14, `each thing comes in on a level of its own: stones 2, water 3, tall 4, gilded 5, heights 6, pearl 7, no table 8, bridges 13, twins 14 (here ${["rock", "water", "tall", "gilded", "height", "pearl", "void", "bridges", "twins"].map(first).join(", ")})`);
   const kept = ["tall", "pearl"].every(key => LEVELS.every((_, k) => k + 1 < first(key) || feature(k)[key]));
   check(kept, "and once in, tall and pearl stay in every level after");
   const plain = levelRules(0);
@@ -200,6 +200,43 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
   check(fives > 20, "and one that keeps to the usual deal deals fives");
 }
 
+// ---------- bridges and twins ----------
+{
+  const B = custom({ bridges: 0.2, map: { water: [[1, 0]], rock: [[3, 0]], void: [[-1, 0]] } });
+  const line3 = "0,0;1,0;2,0", e = new Array(SIZE).fill(-1);
+  check(cover(e, line3, 0, 0, B) === null && coverFor(e, { piece: line3, colour: 0, bridge: true }, 0, 0, B)?.join() === [hex(0, 0), hex(1, 0), hex(2, 0)].join(), "a bridge lies on water, where no other piece can");
+  check(coverFor(e, { piece: line3, colour: 0, bridge: true }, 1, 0, B) === null && coverFor(e, { piece: "0,0;1,0", colour: 0, bridge: true }, -2, 0, B) === null, "but not on a stone or where there is no table");
+  check(fitsAnywhere(e, line3, B, true) && !fitsAnywhere(e, "0,0;1,0;2,0;3,0;4,0", custom({ map: { rock: CELLS.filter(([q]) => q === 0) } }), true), "it still has to fit whole");
+  // the fall crosses a bridge as it crosses any domino
+  const across = table([-1, 1, 0, 0], [0, 1, 0, 0], [1, 1, 0, 0]);
+  const Br = custom({ map: { water: [[0, 1]] } });
+  check(fell(across, -1, 1, 0, Br) === these([-1, 1], [0, 1], [1, 1]), "a fall runs over a domino standing on a bridge, as over any");
+  // what is dealt
+  let bridges = 0, twins = 0, total = 0, shaped = true, differ = true, pearlOk = true;
+  for (let n = 0; n < 600; n++) for (const h of newGame(n, 12).hand) {
+    total++;
+    if (h.bridge) { bridges++; const c = PIECES[h.piece].cells; if (c.length < 2 || c.length > 3 || h.colours) shaped = false; }
+    if (h.colours) { twins++; if (PIECES[h.piece].cells.length !== 2 || h.colours[0] === h.colours[1] || h.colours[0] !== h.colour || h.bridge) differ = false; }
+    if (h.colour === PEARL && (h.bridge || h.colours)) pearlOk = false;
+  }
+  check(Math.abs(bridges / total - levelRules(12).bridges * 0.88) < 0.04 && shaped, `about one piece in six or seven is a bridge on the Bridges level (${bridges} of ${total}), a straight line of two or three`);
+  let twinsOn14 = 0, t14 = 0;
+  for (let n = 0; n < 600; n++) for (const h of newGame(n, 13).hand) { t14++; if (h.colours) twinsOn14++; if (h.bridge) shaped = false; }
+  check(Math.abs(twinsOn14 / t14 - levelRules(13).twins * 0.88) < 0.04 && differ && pearlOk && twins === 0, `and about one in five a twin on the Twins level (${twinsOn14} of ${t14}), a pair of two colours; never both, never a pearl`);
+  let old = true;
+  for (let n = 0; n < 100; n++) for (let k = 0; k < 12; k++) for (const h of newGame(n, k).hand) if (h.bridge || h.colours) old = false;
+  check(old && levelRules(0).bridges === 0 && FREE.twins === 0, "no other level deals either, and its deal takes no draw for them, so the deals of the first twelve levels are as they were");
+  // a twin lays one colour on each domino, and joins both
+  const T = custom({ twins: 0.3 }), g = newGame(5, 13), twin = { piece: "0,0;1,0", colour: 0, colours: [0, 1] };
+  g.hand = [twin, g.hand[1], g.hand[2]];
+  const laid = lay(g, 0, 0, 0);
+  check(laid.state.cells[hex(0, 0)] === 0 && laid.state.cells[hex(1, 0)] === 1 && colourAt(twin, 1) === 1 && colourAt({ colour: 2 }, 3) === 2, "a twin stands one colour on each of its dominoes");
+  const row = table([-1, 0, 0, 0], [0, 0, 0, 0], [1, 0, 1, 0], [2, 0, 1, 0]);
+  check(group(row.cells, hex(0, 0), T).length === 2 && fell(row, -1, 0, 0, T) === these([-1, 0], [0, 0]), "each half of a twin belongs to the colour it is, so the two halves are never in one fall");
+  // saved with the game, through JSON
+  check(JSON.stringify(JSON.parse(JSON.stringify(laid.state)).hand) === JSON.stringify(laid.state.hand) && coverFor(e, JSON.parse(JSON.stringify({ piece: line3, colour: 1, bridge: true })), 0, 0, B), "a bridge or a twin in hand goes through JSON as it is");
+}
+
 // ---------- the stars, and the pace ----------
 {
   const t = table(...[-2, -1, 0, 1, 2].map(q => [q, 0, 0, 0]));
@@ -259,4 +296,4 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("topple levels: twelve maps and goals, level 1 as Classic, stones and water, tall dominoes, heights, gilded hexagons, pearls, stars and pace, whole games of every level");
+else console.log("topple levels: fourteen maps and goals, level 1 as Classic, stones and water, tall dominoes, heights, gilded hexagons, pearls, bridges and twins, stars and pace, whole games of every level");

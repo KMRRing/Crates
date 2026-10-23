@@ -14,7 +14,7 @@ import * as THREE from "./vendor/three.js";
 import { CELLS, FREE, at as cellNumber } from "./topple-engine.js";
 import { ROCK, WATER, VOID } from "./topple-levels.js";
 import { sound } from "./topple-sound.js";
-import { ROW, mid, SW, SH, ST, TALL, PIPS, ZOOM, heading, yawOf, hexAt, hull, heightOf } from "./topple-slab.js";
+import { ROW, mid, SW, SH, ST, TALL, PIPS, ZOOM, heading, yawOf, hexAt, hull, heightOf, PLANK } from "./topple-slab.js";
 
 // ---------- measures ----------
 const MID = CELLS.map(([q, r]) => mid(q, r));
@@ -247,6 +247,19 @@ function fused(source, places) {
   }
   return out;
 }
+/** A bridge's plank for one hexagon: three boards across it with a hair between, the outer two shorter as the hexagon narrows. */
+function boards() {
+  const P = [], N = [];
+  for (const [z, length] of [[-0.31, 0.7], [0, 0.93], [0.31, 0.7]]) {
+    const box = new THREE.BoxGeometry(length, PLANK, 0.27).toNonIndexed(), pos = box.attributes.position, nor = box.attributes.normal;
+    for (let k = 0; k < pos.count; k++) { P.push(pos.getX(k), pos.getY(k) + PLANK / 2, pos.getZ(k) + z); N.push(nor.getX(k), nor.getY(k), nor.getZ(k)); }
+    box.dispose();
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute(N, 3));
+  return g;
+}
 /** A boulder: a rough icosphere, each stone's own (by the hexagon it stands on), squat, its corners knocked about. */
 function boulder(seed, size) {
   const g = new THREE.IcosahedronGeometry(size, 1).toNonIndexed(), pos = g.attributes.position, seen = new Map();
@@ -400,6 +413,12 @@ export function createTable(host) {
   }
   const slabs = CELLS.map((_, i) => new Slab(i, stand, false));
   const ghostSlabs = Array.from({ length: 5 }, () => new Slab(0, ghosts, true));
+  // a bridge's planks: under a domino standing on water (one for each hexagon, and five faint for a piece held)
+  const plankGeo = boards(), plankMat = new THREE.MeshStandardMaterial({ roughness: 0.78, metalness: 0 });
+  const plankGhost = plankMat.clone();
+  plankGhost.transparent = true; plankGhost.opacity = 0.62; plankGhost.depthWrite = false;
+  const planks = CELLS.map((_, i) => { const m = new THREE.Mesh(plankGeo, plankMat); m.position.set(MID[i][0], 0, MID[i][1]); m.castShadow = m.receiveShadow = true; m.visible = false; stand.add(m); return m; });
+  const ghostPlanks = Array.from({ length: 5 }, () => { const m = new THREE.Mesh(plankGeo, plankGhost); m.visible = false; ghosts.add(m); return m; });
 
   // the bell: brass, on an empty hexagon on the table, on a domino's top where one stands
   const bell = new THREE.Group(), swing = new THREE.Group();
@@ -443,7 +462,7 @@ export function createTable(host) {
     for (const g of made) g.dispose();
     made = [];
     features.clear();
-    base = CELLS.map((_, i) => rules.height[i] * STEP);
+    base = CELLS.map((_, i) => rules.height[i] * STEP + (rules.bridges && rules.terrain[i] === WATER ? PLANK : 0));          // a bridge's plank raises the water it spans
     steps = base.some(Boolean);
     const put = (geometry, material, x, y, z, shadows = true) => {
       made.push(geometry);
@@ -493,6 +512,7 @@ export function createTable(host) {
     stoneMat.color.set(skin.stone);
     UW.uShallow.value.set(skin.shallow); UW.uDeep.value.set(skin.deep);
     skin.birch.forEach((c, i) => terraceTops[i].color.set(c).multiplyScalar(1.06));
+    plankMat.color.set(0x8c6038).lerp(new THREE.Color(skin.birch[1]), 0.12); plankGhost.color.copy(plankMat.color);       // weathered oak, darker than the birch it lies on
     terraceSide.color.set(skin.mahoL); voidMat.color.set(skin.mahoD).multiplyScalar(0.55);
     gildMat.color.set(skin.brass); gildFill.color.set(skin.brass);
     invalidate();
@@ -686,16 +706,20 @@ export function createTable(host) {
   let current = { cells: [], ax: [], bell: -1 };
   /**
    * The table as the page says: cells (a colour 0–2 a hexagon, -1 empty), ax (each one's axis, 0–5), bell (its hexagon),
-   * fresh (the hexagons just laid: they drop on), ghost ({ laid, colour, ax }: a piece held over the table, shown faint),
+   * fresh (the hexagons just laid: they drop on), ghost ({ laid, kinds (a colour to each), ax }: a piece held over the table, shown faint),
    * ease (a domino turned where it stands eases round to its new axis).
    */
   function set({ cells, ax, bell: bellCell, fresh = [], ghost = null, ease = false }) {
     cancelFall();
     current = { cells, ax, bell: bellCell };
-    cells.forEach((c, i) => { if (c >= 0) slabs[i].stand(i, c, ax[i] >= 0 ? ax[i] : 0, ease); else slabs[i].hide(); });
+    cells.forEach((c, i) => { if (c >= 0) slabs[i].stand(i, c, ax[i] >= 0 ? ax[i] : 0, ease); else slabs[i].hide(); planks[i].visible = c >= 0 && rules.terrain[i] === WATER; });
     placeBell(bellCell, bellCell >= 0 && cells[bellCell] >= 0);
     ghostSlabs.forEach(g => g.hide());
-    if (ghost) ghost.laid.forEach((i, k) => ghostSlabs[k].stand(i, ghost.colour, ghost.ax[k]));
+    ghostPlanks.forEach(g => { g.visible = false; });
+    if (ghost) ghost.laid.forEach((i, k) => {
+      ghostSlabs[k].stand(i, ghost.kinds[k], ghost.ax[k]);
+      if (rules.terrain[i] === WATER) { ghostPlanks[k].position.set(MID[i][0], 0, MID[i][1]); ghostPlanks[k].visible = true; }
+    });
     if (fresh.length) dropIn(fresh);
     tilter.updateMatrixWorld(true);
     invalidate();

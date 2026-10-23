@@ -53,7 +53,7 @@ const ARMS = [[0, 0], ...[0, 2, 4].flatMap(k => [1, 2, 3].map(n => spin([n, 0], 
 // game's own; `goal`: the score that beats it, and its stars at STARS times the goal.
 export const STARS = [1.6, 2.6];
 const GENTLE = { from: 40, to: 60, end: 0.8 };            // a knock nearly every hand: a table cut up by water has little room to spare
-const level = spec => ({ tall: [], pearl: 0, bell: true, pace: null, maxSize: 5, map: {}, ...spec });
+const level = spec => ({ tall: [], pearl: 0, bridges: 0, twins: 0, bell: true, pace: null, maxSize: 5, map: {}, ...spec });
 export const LEVELS = [
   level({
     name: "Classic", goal: 20000,
@@ -104,6 +104,14 @@ export const LEVELS = [
     map: { water: minus(ring(2), [[2, 0], [-2, 0]]), rock: three([4, 0]), height: { 2: disc(1), 1: ring(3) }, gilded: [[0, 0], ...three([3, 0])] },
     about: "Everything at once: a summit in a moat, a terraced bank, stones in the corners.",
   }),
+  level({
+    name: "Bridges", goal: 30000, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, bridges: 0.2, map: { water: RIVER, gilded: [[-1, -2], [2, 1]] },
+    about: "A river with no ford. A bridge is a straight piece of two or three, with planks, that may lie on water: lay one across and the chains of both banks are one.",
+  }),
+  level({
+    name: "Twins", goal: 36000, tall: [2], pearl: 0.12, twins: 0.22, map: { rock: six([3, -1]), gilded: three([2, 1]) },
+    about: "A twin is a pair of two colours. It stands in one chain with one domino and in another with the other, so it joins two groups that would never meet.",
+  }),
 ];
 
 // ---------- compiled for the engine ----------
@@ -118,14 +126,14 @@ function compile(spec, n) {
   mark(m.gilded, i => { if (!terrain[i]) gilded[i] = 1; });
   return {
     id: n, name: spec.name, about: spec.about, goal: spec.goal, stars: spec.goal ? [spec.goal, ...STARS.map(k => Math.round((spec.goal * k) / 50) * 50)] : [],
-    terrain, height, gilded, tall: [0, 1, 2, 3].map(k => spec.tall.includes(k)), pearl: spec.pearl, bell: spec.bell, pace: spec.pace, maxSize: spec.maxSize,
-    plain: !terrain.some(Boolean) && !height.some(Boolean) && !gilded.some(Boolean) && !spec.tall.length && !spec.pearl,
+    terrain, height, gilded, tall: [0, 1, 2, 3].map(k => spec.tall.includes(k)), pearl: spec.pearl, bridges: spec.bridges, twins: spec.twins, bell: spec.bell, pace: spec.pace, maxSize: spec.maxSize,
+    plain: !terrain.some(Boolean) && !height.some(Boolean) && !gilded.some(Boolean) && !spec.tall.length && !spec.pearl && !spec.bridges && !spec.twins,
   };
 }
 /** The rules of a level made up (for the tests): a spec as LEVELS has, any part of it. */
 export const custom = spec => compile(level({ name: "Made up", goal: 1000, about: "", ...spec }), -2);
 /** The rules of play with no level: every hexagon plain, no colour tall, no pearl, the bell hanging (Classic). */
-export const FREE = Object.freeze({ ...compile({ name: "Classic", about: "", goal: 0, tall: [], pearl: 0, bell: true, pace: null, maxSize: 5, map: {} }, -1) });
+export const FREE = Object.freeze({ ...compile({ name: "Classic", about: "", goal: 0, tall: [], pearl: 0, bridges: 0, twins: 0, bell: true, pace: null, maxSize: 5, map: {} }, -1) });
 const COMPILED = LEVELS.map(compile);
 /** The rules of level n (0 on). */
 export const levelRules = n => COMPILED[n] || FREE;

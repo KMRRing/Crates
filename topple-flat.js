@@ -4,7 +4,7 @@
 // page doesn't know which it has.
 import { CELLS, FREE, at as cellNumber } from "./topple-engine.js";
 import { ROCK, WATER, VOID } from "./topple-levels.js";
-import { mid, SW, SH, ST, TALL, ZOOM, heading, yawOf, hexAt, flat, slabsEl, hull, heightOf } from "./topple-slab.js";
+import { mid, SW, SH, ST, TALL, ZOOM, heading, yawOf, hexAt, flat, slabsEl, hull, heightOf, PLANK } from "./topple-slab.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const el = (tag, attrs = {}, ...kids) => {
@@ -74,7 +74,7 @@ export function createFlat(host) {
   function terrain(next) {
     if (next === rules) return;
     rules = next;
-    base = CELLS.map((_, i) => rules.height[i] * STEP);
+    base = CELLS.map((_, i) => rules.height[i] * STEP + (rules.bridges && rules.terrain[i] === WATER ? PLANK : 0));          // a bridge's plank raises the water it spans
     const kids = [];
     CELLS.map((_, i) => i).sort((a, b) => MID[a][1] - MID[b][1]).forEach(i => {
       const [x, z] = MID[i], t = rules.terrain[i];
@@ -94,9 +94,9 @@ export function createFlat(host) {
     cancelFall();
     current = { cells, ax, bell: bellCell };
     const list = [];
-    cells.forEach((c, i) => { if (c >= 0) list.push({ x: MID[i][0], z: MID[i][1], yaw: yawOf(ax[i] >= 0 ? ax[i] : 0), kind: c, cell: i, h: heightOf(rules.tall, c), lift: base[i] }); });
+    cells.forEach((c, i) => { if (c >= 0) list.push({ x: MID[i][0], z: MID[i][1], yaw: yawOf(ax[i] >= 0 ? ax[i] : 0), kind: c, cell: i, h: heightOf(rules.tall, c), lift: base[i], plank: rules.terrain[i] === WATER }); });
     standing.replaceChildren(slabsEl(list));
-    if (ghost) standing.append(slabsEl(ghost.laid.map((i, k) => ({ x: MID[i][0], z: MID[i][1], yaw: yawOf(ghost.ax[k]), kind: ghost.colour, h: heightOf(rules.tall, ghost.colour), lift: base[i] })), "ghost"));
+    if (ghost) standing.append(slabsEl(ghost.laid.map((i, k) => ({ x: MID[i][0], z: MID[i][1], yaw: yawOf(ghost.ax[k]), kind: ghost.kinds[k], h: heightOf(rules.tall, ghost.kinds[k]), lift: base[i], plank: rules.terrain[i] === WATER })), "ghost"));
     for (const k of Object.keys(axisOf)) delete axisOf[k];
     standing.querySelectorAll("[data-cell]").forEach(g => { axisOf[g.dataset.cell] = g; });          // by hexagon, so a fall can move them
     if (bellCell >= 0) { const covered = cells[bellCell] >= 0, [x, z] = MID[bellCell], [px, py] = flat(x, covered ? topOf(bellCell) : base[bellCell], z); bell.setAttribute("transform", `translate(${px} ${py}) scale(${covered ? 0.7 : 1})`); bell.style.display = ""; } else bell.style.display = "none";

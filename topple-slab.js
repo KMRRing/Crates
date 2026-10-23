@@ -1,12 +1,13 @@
 // Topple's measures, and a domino drawn flat in SVG as a slab seen from above and in front: the pieces in the tray and in
 // your hand, and the whole table where there's no WebGL (topple-flat.js). The 3D table (topple-3d.js) shares the measures.
-import { PIECES, axesOfCoords } from "./topple-engine.js";
+import { PIECES, axesOfCoords, colourAt } from "./topple-engine.js";
 
 export const ROW = Math.sqrt(3) / 2;
 /** Where the hexagon (q, r) stands on the table: x across, z towards the player, a hexagon one across. */
 export const mid = (q, r) => [q + r / 2, ROW * r];
 export const SW = 0.74, SH = 0.92, ST = 0.2;               // a domino: width, height, thickness
 export const TALL = 1.5;                                    // a tall domino's height (a level's tall colour), against SH
+export const PLANK = 0.05;                                  // the thickness of a bridge's plank, which a domino on water stands on
 export const ZOOM = 1.8;                                   // the closest look at the table: a domino's facing plain on a phone, and no more
 const DEG = Math.PI / 180;
 /** The way w (0–11, thirty degrees a step) points on the table, as (x, z): east is 0, then up the screen (away) and round. A direction d of the six is the way 2d. */
@@ -62,9 +63,22 @@ export function slabEl(x0, z0, yaw, kind, cls = "", H = SH, lift = 0) {
   }
   return { g, depth: z0 };
 }
-/** A row of slabs, far ones first: [{ x, z, yaw, kind, cell, h, lift }] as one group (each marked with its hexagon, where given). */
+/** A bridge's plank: the hexagon's floor, a hair short of its edges, with its boards. */
+export function plankEl(x0, z0, cls = "") {
+  const corner = 0.93 / Math.sqrt(3), at = (k, y = 0) => { const a = Math.PI / 6 + (k * Math.PI) / 3; return flat(x0 + corner * Math.cos(a), y, z0 + corner * Math.sin(a)); };
+  const g = el("g", { class: `tp-plank ${cls}`.trim() }), top = [0, 1, 2, 3, 4, 5].map(k => at(k, PLANK));
+  g.append(el("polygon", { class: "tp-plank-edge", points: [0, 1, 2].map(k => at(k)).concat([2, 1, 0].map(k => at(k, PLANK))).map(p => p.map(v => v.toFixed(4)).join(",")).join(" ") }));
+  g.append(el("polygon", { class: "tp-plank-top", points: top.map(p => p.map(v => v.toFixed(4)).join(",")).join(" ") }));
+  for (const f of [-0.17, 0.17]) g.append(el("polyline", { class: "tp-plank-board", points: [flat(x0 - 0.46, PLANK, z0 + f), flat(x0 + 0.46, PLANK, z0 + f)].map(p => p.map(v => v.toFixed(4)).join(",")).join(" ") }));
+  return g;
+}
+/**
+ * A row of slabs, far ones first: [{ x, z, yaw, kind, cell, h, lift, plank }] as one group (each marked with its hexagon,
+ * where given). A slab with `plank` stands on a bridge's plank, drawn under all of them.
+ */
 export function slabsEl(list, cls = "") {
   const g = el("g", { class: "tp-slabs" });
+  for (const s of [...list].sort((a, b) => a.z - b.z)) if (s.plank) g.append(plankEl(s.x, s.z, cls));
   for (const s of [...list].sort((a, b) => a.z - b.z)) {
     const one = slabEl(s.x, s.z, s.yaw, s.kind, cls, s.h, s.lift).g;
     if (s.cell != null) one.dataset.cell = s.cell;
@@ -81,14 +95,15 @@ export function bounds(piece) {
   return { x0, z0, w, h, cx: x0 + w / 2, cz: z0 + h / 2 };
 }
 /**
- * The slabs of a piece standing (as laid): [{ x, z, yaw, kind }] in table units from its first domino's hexagon, the
- * table turned by `spin` about the vertical (a piece is drawn in the tray as it will look on the table).
+ * The slabs of a piece in hand standing (as laid): [{ x, z, yaw, kind, h, plank }] in table units from its first
+ * domino's hexagon, the table turned by `spin` about the vertical (a piece is drawn in the tray as it will look on the
+ * table). A twin has a colour to each domino, a bridge a plank under each.
  */
-export function pieceSlabs(piece, colour, spin = 0, tall = null) {
-  const cells = PIECES[piece].cells, faces = axesOfCoords(cells), c = Math.cos(spin), n = Math.sin(spin);
+export function pieceSlabs(hand, spin = 0, tall = null) {
+  const cells = PIECES[hand.piece].cells, faces = axesOfCoords(cells), c = Math.cos(spin), n = Math.sin(spin);
   return cells.map(([q, r], k) => {
-    const [x, z] = mid(q, r);
-    return { x: x * c + z * n, z: -x * n + z * c, yaw: yawOf(faces[k]) + spin, kind: colour, h: heightOf(tall, colour) };
+    const [x, z] = mid(q, r), kind = colourAt(hand, k);
+    return { x: x * c + z * n, z: -x * n + z * c, yaw: yawOf(faces[k]) + spin, kind, h: heightOf(tall, kind), plank: !!hand.bridge };
   });
 }
 /**
@@ -96,8 +111,8 @@ export function pieceSlabs(piece, colour, spin = 0, tall = null) {
  * are drawn at near one scale (but for the smallest, drawn a little larger, to be seen). With `exact`, the view is just
  * the piece (for a hand's float), and `foot` says where the middle of its footprint lies in it.
  */
-export function pieceSvg({ piece, colour }, exact = false, spin = 0, tall = null) {
-  const slabs = pieceSlabs(piece, colour, spin, tall), g = slabsEl(slabs);
+export function pieceSvg(hand, exact = false, spin = 0, tall = null) {
+  const { piece } = hand, slabs = pieceSlabs(hand, spin, tall), g = slabsEl(slabs);
   const all = slabs.flatMap(s => [[s.x - 0.6, s.z - 0.6, 0], [s.x + 0.6, s.z + 0.6, 0], [s.x, s.z, s.h]]).map(([x, z, y]) => flat(x, y, z));
   const x0 = Math.min(...all.map(p => p[0])), x1 = Math.max(...all.map(p => p[0])), y0 = Math.min(...all.map(p => p[1])), y1 = Math.max(...all.map(p => p[1]));
   const box = Math.max(3.2, Math.min(5.6, Math.max(x1 - x0, y1 - y0) * 1.1)), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;

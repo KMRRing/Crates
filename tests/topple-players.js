@@ -5,7 +5,7 @@
 // scores most. They know the level's rules only as the engine tells them (a push's gain, where a piece fits), so on a level
 // with tall dominoes or water they play it as well as that lets them, no better: they're a measure of how much a table
 // gives, not of how much a person can find in it.
-import { SIZE, CELLS, AXES, next, dirTo, through, cover, fitsAnywhere, group, longest, chains, lay, knock, turn, moves, newGame, rulesOf } from "../topple-engine.js";
+import { SIZE, CELLS, AXES, next, dirTo, through, coverFor, colourAt, fitsAnywhere, group, longest, chains, lay, knock, turn, moves, newGame, rulesOf } from "../topple-engine.js";
 
 /** The longest smooth path through a group: no turn sharper than sixty degrees, a fall along it taking it end to end. */
 export function smoothPath(cells, members, bell = -1, budget = 3000) {
@@ -77,17 +77,17 @@ export function turnAll(s, faced) {
 }
 const corner = s => moves(s)[0];
 const touchesOwn = (cells, laid, colour) => laid.some(i => [0, 1, 2, 3, 4, 5].some(d => { const j = next(i, d); return j >= 0 && cells[j] === colour && !laid.includes(j); }));
-const byColour = s => moves(s).find(m => touchesOwn(s.cells, cover(s.cells, s.hand[m.slot].piece, m.q, m.r, rulesOf(s)), s.hand[m.slot].colour)) || moves(s)[0];
+const byColour = s => moves(s).find(m => touchesOwn(s.cells, coverFor(s.cells, s.hand[m.slot], m.q, m.r, rulesOf(s)), s.hand[m.slot].colour)) || moves(s)[0];
 /** Whether the rest of a hand can all still be laid: each piece somewhere, and the two together. */
 function room(cells, rest, rules) {
-  const fits = rest.filter(k => fitsAnywhere(cells, k.piece, rules)).length;
+  const fits = rest.filter(k => fitsAnywhere(cells, k.piece, rules, !!k.bridge)).length;
   if (rest.length < 2 || fits < 2) return fits;
   const [a, b] = rest, after = cells.slice();
   for (const [q, r] of CELLS) {
-    const at = cover(cells, a.piece, q, r, rules);
+    const at = coverFor(cells, a, q, r, rules);
     if (!at) continue;
-    for (const k of at) after[k] = a.colour;
-    const both = fitsAnywhere(after, b.piece, rules);
+    at.forEach((k, n) => { after[k] = colourAt(a, n); });
+    const both = fitsAnywhere(after, b.piece, rules, !!b.bridge);
     for (const k of at) after[k] = -1;
     if (both) return 3;
   }
@@ -98,8 +98,8 @@ const careful = toBell => s => {
   const rules = rulesOf(s);
   let pick = null, bv = -Infinity;
   for (const m of moves(s)) {
-    const h = s.hand[m.slot], laid = cover(s.cells, h.piece, m.q, m.r, rules), cells = s.cells.slice();
-    for (const k of laid) cells[k] = h.colour;
+    const h = s.hand[m.slot], laid = coverFor(s.cells, h, m.q, m.r, rules), cells = s.cells.slice();
+    laid.forEach((k, n) => { cells[k] = colourAt(h, n); });
     const members = group(cells, laid[0], rules), run = smoothPath(cells, members, toBell ? s.bell : -1, 800).length;
     // room for the rest of the hand first (a piece with nowhere to go ends the game), then the fall
     const v = room(cells, s.hand.filter((k, slot) => k && slot !== m.slot), rules) * 1000 + run * 3 - (members.length - run) * 4 + (toBell && laid.includes(s.bell) ? run * 3 : 0);

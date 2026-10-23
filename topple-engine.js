@@ -32,9 +32,9 @@
 // knocks and that knocks every colour. Every function that takes rules takes them last, and without them plays Classic,
 // the table as it has always been; a game's own are `rulesOf(game)`.
 
-import { FREE, ROCK, PEARL, levelRules, starsAt } from "./topple-levels.js";
+import { FREE, ROCK, WATER, PEARL, levelRules, starsAt } from "./topple-levels.js";
 
-export { FREE, ROCK, PEARL };
+export { FREE, ROCK, WATER, PEARL };
 export const R = 4, HAND = 3, COLOURS = 3;
 /** The rules a game is played by: its level's, or Classic's. */
 export const rulesOf = g => (g && g.level >= 0 ? levelRules(g.level) : FREE);
@@ -179,17 +179,34 @@ function dealtFrom(max) {
 }
 // a pearl comes in a piece of one or two, whatever piece the draw chose: a line of five wild dominoes would join anything
 const SMALL = NAMES.filter(k => PIECES[k].cells.length <= 2);
+/** A bridge is a straight line of two or three, which may lie on water; a twin is a pair of two colours. */
+const isStraight = cells => new Set(cells.map(c => c[1])).size === 1 || new Set(cells.map(c => c[0])).size === 1 || new Set(cells.map(c => c[0] + c[1])).size === 1;
+const BRIDGES = NAMES.filter(k => PIECES[k].cells.length >= 2 && PIECES[k].cells.length <= 3 && isStraight(PIECES[k].cells));
+const PAIRS = NAMES.filter(k => PIECES[k].cells.length === 2);
+/** The colour of the kth domino of a piece in hand: a twin has one of each of its two, any other piece one colour. */
+export const colourAt = (h, k) => (h.colours ? h.colours[k] : h.colour);
 /**
  * One piece and its colour, two draws. Where the rules deal pearl, the colour's draw below the share of it makes a pearl
  * (and picks which small piece by how far below it falls), and above it the three colours share the rest as they did.
+ * Where they deal bridges or twins, a third draw (only then, so the deals of the other levels stay as they were) turns a
+ * piece of a colour into one: a bridge, a straight line of two or three that may be laid on water, or a twin, a pair of
+ * two colours (the second of the two others, whichever the draw picks).
  */
 function dealOne(s, rules) {
   const { names, total } = dealtFrom(rules.maxSize);
   let r = draw(s.seed, s.n++) * total, piece = names[names.length - 1];
   for (const k of names) if ((r -= PIECES[k].weight) < 0) { piece = k; break; }
   const u = draw(s.seed, s.n++);
-  if (u < rules.pearl) return { piece: SMALL[Math.floor((u / rules.pearl) * SMALL.length)], colour: PEARL };
-  return { piece, colour: Math.floor(((u - rules.pearl) / (1 - rules.pearl)) * COLOURS) };
+  const h = u < rules.pearl ? { piece: SMALL[Math.floor((u / rules.pearl) * SMALL.length)], colour: PEARL } : { piece, colour: Math.floor(((u - rules.pearl) / (1 - rules.pearl)) * COLOURS) };
+  if (rules.bridges || rules.twins) {
+    const v = draw(s.seed, s.n++);
+    if (h.colour !== PEARL && v < rules.bridges) return { piece: BRIDGES[Math.floor((v / rules.bridges) * BRIDGES.length)], colour: h.colour, bridge: true };
+    if (h.colour !== PEARL && v < rules.bridges + rules.twins) {
+      const w = (v - rules.bridges) / rules.twins;
+      return { piece: PAIRS[Math.floor(w * PAIRS.length) % PAIRS.length], colour: h.colour, colours: [h.colour, (h.colour + 1 + (Math.floor(w * 977) % 2)) % COLOURS] };
+    }
+  }
+  return h;
 }
 function deal(s, rules) { s.sets++; s.hand = Array.from({ length: HAND }, () => dealOne(s, rules)); }
 
@@ -277,18 +294,23 @@ export function migrate(g) {
 }
 
 // ---------- laying a piece ----------
-/** The hexagons a piece would cover with its first on (q, r), or null if it doesn't fit there (off the table, taken, or stone or water). */
-export function cover(cells, piece, q, r, rules = FREE) {
+/**
+ * The hexagons a piece would cover with its first on (q, r), or null if it doesn't fit there (off the table, taken, or
+ * stone or water). A bridge may also lie on water, where nothing else can.
+ */
+export function cover(cells, piece, q, r, rules = FREE, bridge = false) {
   const out = [];
   for (const [dq, dr] of PIECES[piece].cells) {
-    const i = at(q + dq, r + dr);
-    if (i < 0 || cells[i] >= 0 || rules.terrain[i]) return null;
+    const i = at(q + dq, r + dr), t = i < 0 ? 0 : rules.terrain[i];
+    if (i < 0 || cells[i] >= 0 || (t && !(bridge && t === WATER))) return null;
     out.push(i);
   }
   return out;
 }
-export const fitsAnywhere = (cells, piece, rules = FREE) => CELLS.some(([q, r]) => cover(cells, piece, q, r, rules));
-const stuck = s => { const rules = rulesOf(s); return !s.hand.some(h => h && fitsAnywhere(s.cells, h.piece, rules)); };
+/** `cover` for a piece in hand (a bridge in hand may lie on water). */
+export const coverFor = (cells, h, q, r, rules = FREE) => cover(cells, h.piece, q, r, rules, !!h.bridge);
+export const fitsAnywhere = (cells, piece, rules = FREE, bridge = false) => CELLS.some(([q, r]) => cover(cells, piece, q, r, rules, bridge));
+const stuck = s => { const rules = rulesOf(s); return !s.hand.some(h => h && fitsAnywhere(s.cells, h.piece, rules, !!h.bridge)); };
 
 // ---------- a knock ----------
 /** The two ways the domino on hexagon i can be pushed: either along its axis. Empty where none stands. */
@@ -381,10 +403,10 @@ export function lay(game, slot, q, r) {
   const s = structuredClone(game), h = s.hand[slot], rules = rulesOf(s);
   if (s.over || !h) throw new Error("no piece there");
   if (s.due) throw new Error("knock first");
-  const laid = cover(s.cells, h.piece, q, r, rules);
+  const laid = coverFor(s.cells, h, q, r, rules);
   if (!laid) throw new Error("it doesn't fit there");
   const faces = axesOf(laid);
-  laid.forEach((i, k) => { s.cells[i] = h.colour; s.ax[i] = faces[k]; });
+  laid.forEach((i, k) => { s.cells[i] = colourAt(h, k); s.ax[i] = faces[k]; });
   s.laid++;
   s.hand[slot] = null;
   const dealt = s.hand.every(k => !k);
@@ -454,7 +476,7 @@ export function moves(s) {
   if (s.due) return out;
   s.hand.forEach((h, slot) => {
     if (!h) return;
-    for (const [q, r] of CELLS) if (cover(s.cells, h.piece, q, r, rules)) out.push({ slot, q, r });
+    for (const [q, r] of CELLS) if (coverFor(s.cells, h, q, r, rules)) out.push({ slot, q, r });
   });
   return out;
 }

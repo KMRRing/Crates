@@ -141,6 +141,10 @@ html[data-mode="night"] { --tp-pearl: #D8D2C4; }
 .tp-flat-step-side { fill: #a4814f; stroke: #7a4a2e; stroke-width: 1; vector-effect: non-scaling-stroke; }
 .tp-flat-step { fill: #efdcb4; stroke: #7a4a2e; stroke-width: 1; vector-effect: non-scaling-stroke; }
 .tp-flat-step.h2 { fill: #f6e8c8; }
+.tp-plank-top { fill: #b98a52; stroke: #6b4426; stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.tp-plank-edge { fill: #7b5230; stroke: #4a2e16; stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.tp-plank-board { fill: none; stroke: #6b4426; stroke-width: 1; opacity: .55; vector-effect: non-scaling-stroke; }
+.tp-plank.ghost { opacity: .62; }
 .tp-flat-gilt { fill: none; stroke: #caa040; stroke-width: 2; vector-effect: non-scaling-stroke; }
 
 /* the menu's levels: three to a row, each its table in miniature, its number and name, and its stars */
