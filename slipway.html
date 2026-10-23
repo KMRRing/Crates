@@ -26,16 +26,24 @@
 
   <div class="sw-strip">
     <span class="sw-part"><b id="partName"></b><small id="partNo"></small></span>
+    <span class="sw-modes" role="tablist" aria-label="Bench or yard"><button type="button" role="tab" data-mode="bench" aria-selected="true">Bench</button><button type="button" role="tab" data-mode="yard" aria-selected="false">Yard</button></span>
     <span class="sw-stars" id="partStars" aria-label="Your best for this part"></span>
   </div>
   <section id="bench" class="sw-bench fit-grow" aria-label="The workbench">
     <svg id="over" class="sw-over" aria-hidden="true"></svg>
     <p id="nogl" class="sw-nogl" hidden>Slipway carves in 3D, and this device can't draw it.</p>
   </section>
+  <section id="yard" class="sw-bench fit-grow" aria-label="The yard" hidden>
+    <p id="noglYard" class="sw-nogl" hidden>The yard is in 3D, and this device can't draw it.</p>
+  </section>
   <p id="line" class="sw-line" role="status" aria-live="polite"></p>
-  <section class="sw-side">
+  <section id="benchSide" class="sw-side">
     <div id="tools" class="sw-tools" role="toolbar" aria-label="Tools"></div>
     <div id="acts" class="sw-acts"></div>
+  </section>
+  <section id="yardSide" class="sw-side" hidden>
+    <div id="fixes" class="sw-fixes" aria-label="Fastenings for the joint chosen"></div>
+    <div id="yardActs" class="sw-acts"></div>
   </section>
 </div>
 
@@ -50,6 +58,14 @@
   <dl id="doneBody" class="sw-figures"></dl>
   <p id="doneNote" class="sw-note"></p>
   <div class="sw-done-go"><button class="btn" type="button" id="againBtn">Carve it again</button><button class="btn primary" type="button" id="nextBtn">Next part</button></div>
+</dialog>
+
+<dialog id="galeDlg" class="sheet sw-done" aria-labelledby="galeHead">
+  <h2 id="galeHead"></h2>
+  <p id="galeStars" class="sw-big-stars" aria-hidden="true"></p>
+  <dl id="galeBody" class="sw-figures sw-joints"></dl>
+  <p id="galeNote" class="sw-note"></p>
+  <div class="sw-done-go"><button class="btn" type="button" id="galeAgain">Look at the ship</button><button class="btn primary" type="button" id="galeNext">Next assembly</button></div>
 </dialog>
 
 <p id="toast" class="sw-toast" role="status" aria-live="polite"></p>

@@ -57,7 +57,7 @@ const WOOD_MAIN = `
   c = mix(c, uKnot, knot * .9);
   c = mix(c, uGouge, clamp((-vMark - .7) * .9, 0., .6));
   diffuseColor.rgb = c;`;
-function woodMaterial(U) {
+export function woodMaterial(U) {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62, metalness: 0 });
   m.customProgramCacheKey = () => "slipway-wood";
   m.onBeforeCompile = shader => {
@@ -74,7 +74,7 @@ ${NOISE}`).replace("#include <color_fragment>", `#include <color_fragment>\n{ ${
   return m;
 }
 // the bench: long streaks of grain for wood, a fine weave for cloth (the theme's)
-function benchMaterial(U) {
+export function benchMaterial(U) {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
   m.customProgramCacheKey = () => "slipway-bench";
   m.onBeforeCompile = shader => {

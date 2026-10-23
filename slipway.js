@@ -8,10 +8,12 @@ import { PARTS, SLACK, newBlock, place, saw, plane, chisel, drill, sand, hit, gr
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, action, line, toggle } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
+import { createFit } from "./slipway-fit.js";
+import { starsTotal, ASSEMBLIES } from "./slipway-yard.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const CARVE = "slipway:carve", MADE = "slipway:parts", BEST = "slipway:best", OPTS = "slipway:opts";
+const CARVE = "slipway:carve", MADE = "slipway:parts", BEST = "slipway:best", OPTS = "slipway:opts", FITTED = "slipway:fitted";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const pct = x => `${Math.round(x * 100)}%`;
@@ -67,6 +69,7 @@ const SOUND = {
   chisel: () => noise(45, { lo: 600, hi: 3000, gain: 0.3, decay: 3 }),
   drill: () => noise(420, { lo: 300, hi: 1600, gain: 0.22, decay: 0.4, rate: 30 }),
   sand: () => noise(90, { lo: 3000, hi: 11000, gain: 0.1, decay: 1 }),
+  gale: () => noise(2400, { lo: 150, hi: 900, gain: 0.3, decay: 0.25, rate: 5 }),
 };
 let lastSound = 0;
 const sound = kind => { const t = performance.now(); if (t - lastSound > (kind === "plane" || kind === "sand" ? 90 : 30)) { lastSound = t; SOUND[kind](); } };
@@ -76,6 +79,7 @@ let B = null;              // the block (slipway-carve.js's)
 let run = null;            // { part, seed, started }
 let undo = [];             // the block's wood before each stroke, the last ten
 let bench = null;
+let fit = null;            // the yard (slipway-fit.js)
 const made = () => read(MADE, {});
 const unlocked = i => i === 0 || (made()[PARTS[i - 1].id] ?? 0) >= 55;
 
@@ -110,6 +114,7 @@ function touched() {
 
 // ---------- drawing the page ----------
 function render() {
+  if (fit?.open) { fit.render(); return; }
   const p = PARTS[run.part], best = made()[p.id];
   $("partName").textContent = p.name;
   $("partNo").textContent = `${run.part + 1} of ${PARTS.length} · the cog`;
@@ -306,7 +311,8 @@ function finish() {
   if (g.stars && (before == null || g.score > before)) {
     all[p.id] = g.score;
     write(MADE, all);
-    write(BEST, PARTS.reduce((n, q) => n + starsOf(all[q.id] ?? 0), 0));
+    write(BEST, starsTotal(all, read(FITTED, {})));
+    fit?.parts();
   }
   const last = run.part === PARTS.length - 1;
   $("nextBtn").textContent = !g.stars ? "Keep carving" : last ? "Back to the first" : "Next part";
@@ -333,27 +339,29 @@ function toast(msg) {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  part(body, "play").append(action("A fresh block for this part", () => start(run.part), "primary"));
-  // the cog's parts in order: done with their stars, the one you're on, and those still locked
-  const list = document.createElement("ol"), all = made();
-  list.className = "sw-parts";
-  PARTS.forEach((p, i) => {
-    const li = document.createElement("li"), b = document.createElement("button"), open = unlocked(i), score = all[p.id];
-    b.type = "button";
-    b.disabled = !open;
-    b.className = i === run.part ? "cur" : "";
-    b.innerHTML = `<span>${i + 1}. ${p.name}</span><small>${score != null ? starText(starsOf(score)) : open ? (i === run.part ? "carving" : "") : "locked"}</small>`;
-    b.addEventListener("click", () => { $("menuDlg").close(); if (i !== run.part) start(i); });
-    li.append(b);
-    list.append(li);
-  });
-  const content = part(body, "content");
-  content.append(list);
-  const set = part(body, "settings");
-  set.append(toggle("The part's ghost", opts.ghost, on => { opts.ghost = on; saveOpts(); if (bench) bench.ghost = on; }));
-  set.append(toggle("Sound", opts.sound, on => { opts.sound = on; saveOpts(); }));
+  const set = (...rows) => part(body, "settings").append(...rows);
+  if (fit.open) fit.menu(body);
+  else {
+    part(body, "play").append(action("A fresh block for this part", () => start(run.part), "primary"), action("To the yard: fit the parts together", () => setMode("yard")));
+    // the cog's parts in order: done with their stars, the one you're on, and those still locked
+    const list = document.createElement("ol"), all = made();
+    list.className = "sw-parts";
+    PARTS.forEach((p, i) => {
+      const li = document.createElement("li"), b = document.createElement("button"), open = unlocked(i), score = all[p.id];
+      b.type = "button";
+      b.disabled = !open;
+      b.className = i === run.part ? "cur" : "";
+      b.innerHTML = `<span>${i + 1}. ${p.name}</span><small>${score != null ? starText(starsOf(score)) : open ? (i === run.part ? "carving" : "") : "locked"}</small>`;
+      b.addEventListener("click", () => { $("menuDlg").close(); if (i !== run.part) start(i); });
+      li.append(b);
+      list.append(li);
+    });
+    part(body, "content").append(list);
+    set(toggle("The part's ghost", opts.ghost, on => { opts.ghost = on; saveOpts(); if (bench) bench.ghost = on; }));
+  }
+  set(toggle("Sound", opts.sound, on => { opts.sound = on; saveOpts(); }));
   const stars = read(BEST, 0);
-  part(body, "about").append(line(stars ? `${stars} of ${PARTS.length * 3} stars for the cog's parts.` : "No part finished yet."));
+  part(body, "about").append(line(stars ? `${stars} of ${PARTS.length * 3 + ASSEMBLIES.length * 3} stars: the cog's parts carved and the assemblies fitted.` : "Nothing finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -377,5 +385,16 @@ try {
   console.warn("Slipway: no WebGL here.", err);
   $("nogl").hidden = false;
 }
+/** The bench or the yard on the screen. */
+function setMode(m) {
+  document.querySelectorAll(".sw-modes button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.mode === m)));
+  if (m === "yard") fit.show(); else { fit.hide(); render(); }
+}
+document.querySelector(".sw-modes").addEventListener("click", e => {
+  const b = e.target.closest("[data-mode]");
+  if (b && !IN_FRAME && (b.dataset.mode === "yard") !== fit.open) setMode(b.dataset.mode);
+});
+fit = createFit({ $, read, write, scores: made, toast, sound, setMode, sayBest: n => write(BEST, n), IN_FRAME });
 load();
-window.__slipway = { get block() { return B; }, get run() { return run; }, bench: () => bench, start, finish, cutSaw, bore, cutAt, setTool: t => { tool = t; render(); } };
+document.querySelectorAll(".sw-modes button").forEach(b => b.setAttribute("aria-selected", String((b.dataset.mode === "yard") === fit.open)));
+window.__slipway = { fit, get block() { return B; }, get run() { return run; }, bench: () => bench, start, finish, cutSaw, bore, cutAt, setTool: t => { tool = t; render(); } };
