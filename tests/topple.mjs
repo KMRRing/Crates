@@ -490,5 +490,15 @@ if (MEASURE && ARG("pace")) { const [from, to, end] = ARG("pace").split(",").map
   check(Object.values(results).flat().every(r => r.ok), "through whole games: standing dominoes face one of six axes and empty hexagons none, the score is the knocks' gains");
 }
 
+// ---------- the 3D table can be built ----------
+{
+  // The vendored three.js holds only the classes the pages use. One the table asks for that it lacks throws when the table is made, and the page quietly
+  // falls back to the flat drawing (a ball's TorusGeometry once did, on every level), which no test of the rules would show.
+  const THREE = await import("../vendor/three.js"), { readFileSync } = await import("node:fs");
+  const asked = [...new Set([...readFileSync(new URL("../topple-3d.js", import.meta.url), "utf8").matchAll(/new THREE\.([A-Za-z0-9_]+)/g)].map(m => m[1]))];
+  const lacking = asked.filter(n => typeof THREE[n] !== "function");
+  check(asked.length > 10 && !lacking.length, `every class the 3D table makes is in the vendored three.js${lacking.length ? ` (missing: ${lacking.join(", ")})` : ""}`);
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("topple: the table, the deal, the pieces, where they fit, the ways and axes, falls at a hexagon and at a line, lines, bends, turns and forks, the push, turning, how pieces face, pushes and the bell, balls, version 4 carried over, the pace of the knocks, the end, saving, whole games");

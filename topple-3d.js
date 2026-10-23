@@ -583,10 +583,24 @@ export function createTable(host) {
   bell.visible = false;
   table.add(bell);
 
+  // a thin ring (the vendored three.js has no TorusGeometry: the bundle holds only what the pages use, and a missing one made the whole table fall back to the flat drawing)
+  const ring = (R, r, tube, around) => {
+    const pos = [], idx = [];
+    for (let i = 0; i <= around; i++) for (let j = 0; j <= tube; j++) {
+      const u = (i / around) * Math.PI * 2, v = (j / tube) * Math.PI * 2;
+      pos.push((R + r * Math.cos(v)) * Math.cos(u), (R + r * Math.cos(v)) * Math.sin(u), r * Math.sin(v));
+    }
+    for (let i = 0; i < around; i++) for (let j = 0; j < tube; j++) { const a = i * (tube + 1) + j, b = a + tube + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  };
   // the balls (a level's): lacquered oxblood spheres with two brass seams, so a roll shows; a pool of them, set where the cells say
   const BALL_R = 0.22, BALLS = 6;
   const ballMat = new THREE.MeshStandardMaterial({ roughness: 0.16, metalness: 0.25 }), seamMat = new THREE.MeshStandardMaterial({ roughness: 0.3, metalness: 0.7 });
-  const ballGeo = new THREE.SphereGeometry(BALL_R, 24, 16), seamGeo = new THREE.TorusGeometry(BALL_R * 1.003, 0.012, 6, 32);
+  const ballGeo = new THREE.SphereGeometry(BALL_R, 24, 16), seamGeo = ring(BALL_R * 1.003, 0.012, 6, 32);
   const balls = Array.from({ length: BALLS }, () => {
     const g = new THREE.Group(), body = new THREE.Mesh(ballGeo, ballMat), a = new THREE.Mesh(seamGeo, seamMat), b = new THREE.Mesh(seamGeo, seamMat);
     b.rotation.x = Math.PI / 2;
