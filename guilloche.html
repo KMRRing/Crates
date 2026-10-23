@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Guilloché</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="guilloche.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="guilloche fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon lg-mark" aria-hidden="true"></span>Guilloché</button></h1>
+    <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+  </header>
+
+  <div class="lg-strip">
+    <span class="lg-job"><b id="jobName"></b><small id="jobNo"></small></span>
+    <span id="tabs" class="lg-tabs" role="tablist" aria-label="Cuts"></span>
+    <span class="lg-stars" id="jobStars" aria-label="Your best for this plate"></span>
+  </div>
+  <section id="bench" class="lg-bench fit-grow" aria-label="The plate"></section>
+  <section id="knobs" class="lg-knobs" aria-label="The machine"></section>
+  <p id="line" class="lg-line" role="status" aria-live="polite"></p>
+  <section class="lg-side">
+    <div id="acts" class="lg-acts"></div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="doneDlg" class="sheet lg-done" aria-labelledby="doneHead">
+  <h2 id="doneHead"></h2>
+  <p id="doneStars" class="lg-big-stars" aria-hidden="true"></p>
+  <dl id="doneBody" class="lg-figures"></dl>
+  <p id="doneNote" class="lg-note"></p>
+  <div class="lg-done-go"><button class="btn" type="button" id="againBtn">A fresh one</button><button class="btn primary" type="button" id="nextBtn">Next plate</button></div>
+</dialog>
+
+<script type="module" src="guilloche.js"></script>
+</body>
+</html>

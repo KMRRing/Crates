@@ -6,7 +6,7 @@
 // chosen and slide it along its axis, the way it should fall; what would fall is ringed (what would stay standing
 // marked) with its points; let go to push, or back where the finger started to think again. A pinch, the wheel or a
 // double tap on the bare table brings it closer; closer, a drag on the bare table moves it, and at its whole size tilts
-// it a little, as Rosette's dial does. The rules are topple-engine.js's; this file plays each move out and keeps the game.
+// it a little, as a watch dial does. The rules are topple-engine.js's; this file plays each move out and keeps the game.
 import { SIZE, AXES, WAYS, PIECES, newGame, migrate, cover, lay, knock, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy } from "./topple-engine.js";
 import { heading, hexAt, SH, ZOOM, bounds, pieceSvg } from "./topple-slab.js";
 import { createTable } from "./topple-3d.js";

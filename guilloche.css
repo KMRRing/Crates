@@ -1,0 +1,70 @@
+/* Guilloché: an engraved plate on a canvas that fills its box (guilloche-draw.js), under it the rose engine's knobs, a line
+   and two buttons. The enamel is the verdigris of an aged brass. */
+:root {
+  --lg-in: var(--c1);
+  --lg-soft: color-mix(in srgb, var(--lg-in) 13%, var(--sheet));
+}
+
+.lg-mark { display: inline-block; }
+.lg-mark svg { width: 100%; height: 100%; display: block; }
+.lg-strip { display: flex; align-items: center; gap: .6rem; height: 1.8rem; margin: .5rem 0 .25rem; overflow: hidden; }
+.lg-job { display: flex; align-items: baseline; gap: .5rem; min-width: 0; flex: 1 1 auto; }
+.lg-job b { font-size: .95rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-job small { flex: none; font-size: .78rem; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lg-stars { flex: none; color: var(--lg-in); font-size: 1rem; letter-spacing: .1em; }
+.lg-tabs { flex: none; display: flex; gap: .2rem; }
+.lg-tabs button { min-width: 1.9rem; height: 1.6rem; padding: 0 .4rem; border-radius: 4px; border: 1px solid var(--rule); background: var(--tile); color: var(--ink); font-size: .75rem; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+.lg-tabs button[aria-selected="true"] { border-color: var(--lg-in); background: var(--lg-soft); box-shadow: inset 0 0 0 1px var(--lg-in); }
+.lg-tabs:empty { display: none; }
+
+/* the plate: the canvas fills it */
+.lg-bench { position: relative; min-height: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--tile-edge); background: var(--tile); }
+.lg-canvas { position: absolute; inset: 0; display: block; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+
+/* the knobs: two to a row, as many rows as the most any cut of this plate has (so nothing changes size from cut to cut) */
+.lg-knobs { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(var(--rows, 2), 2.7rem); gap: .3rem .7rem; margin-top: .4rem; }
+.lg-knob { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: .1rem; }
+.lg-knob label { display: flex; justify-content: space-between; align-items: baseline; gap: .4rem; font-size: .7rem; line-height: 1; color: var(--ink-soft); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.lg-knob output { font-size: .95rem; font-weight: 800; color: var(--ink); letter-spacing: 0; font-stretch: normal; font-variant-numeric: tabular-nums; }
+.lg-row { display: flex; align-items: center; gap: .25rem; min-width: 0; }
+.lg-row input[type="range"] { flex: 1 1 auto; min-width: 0; height: 1.9rem; margin: 0; accent-color: var(--lg-in); touch-action: pan-y; }
+html .lg-step { flex: none; width: 1.9rem; height: 1.9rem; min-height: 0; padding: 0; font-size: 1.05rem; line-height: 1; border-radius: 4px; }
+.lg-knob.fixed { opacity: .55; }
+
+/* two lines, always, so nothing moves when the words change */
+.lg-line { margin: .35rem 0 .3rem; height: 2.5rem; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  font-size: .86rem; line-height: 1.25rem; text-align: center; color: var(--ink-soft); }
+
+/* the buttons */
+.lg-side { display: flex; flex-direction: column; gap: .35rem; }
+.lg-acts { display: flex; gap: .35rem; height: 2.75rem; }
+html #acts .lg-act { flex: 1 1 0; min-width: 0; min-height: 0; padding: .2rem .3rem; font-size: .8rem; font-stretch: normal; letter-spacing: 0; text-transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* the menu's list of plates */
+.lg-jobs { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
+.lg-jobs button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .55rem .6rem; border-radius: 5px; border: 1px solid var(--rule); background: var(--tile); color: var(--ink); font-size: .9rem; text-align: left; cursor: pointer; }
+.lg-jobs button.cur { border-color: var(--lg-in); box-shadow: inset 0 0 0 1px var(--lg-in); }
+.lg-jobs button:disabled { opacity: .45; cursor: default; }
+.lg-jobs small { flex: none; color: var(--lg-in); font-size: .85rem; letter-spacing: .08em; }
+.lg-jobs button:disabled small { color: var(--ink-soft); letter-spacing: 0; }
+
+/* a plate engraved */
+.lg-big-stars { margin: .2rem 0 .6rem; font-size: 2rem; letter-spacing: .15em; color: var(--lg-in); }
+.lg-figures { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .8rem; margin: 0; }
+.lg-figures div { display: flex; justify-content: space-between; gap: .5rem; padding: .35rem 0; border-bottom: 1px solid var(--rule); }
+.lg-figures dt { color: var(--ink-soft); font-size: .86rem; }
+.lg-figures dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; }
+.lg-note { color: var(--ink-soft); font-size: .88rem; line-height: 1.4; min-height: 1.2rem; }
+.lg-done-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .6rem; }
+
+/* held sideways: the plate on the left with all the height; the plate's name, the knobs, the line and the buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.guilloche { --beside: 20rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+  #app.guilloche .lg-bench { grid-column: 1; grid-row: 2 / 6; }
+  #app.guilloche .lg-strip { grid-column: 2; grid-row: 2; }
+  #app.guilloche .lg-knobs { grid-column: 2; grid-row: 3; grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: 2.7rem; align-content: start; }
+  #app.guilloche .lg-line { grid-column: 2; grid-row: 4; align-self: end; height: 5rem; -webkit-line-clamp: 4; line-clamp: 4; text-align: left; }
+  #app.guilloche .lg-side { grid-column: 2; grid-row: 5; }
+}
+html[data-theme="office"] :is(.lg-jobs button, .lg-bench, .lg-tabs button) { border-radius: 4px; }
+html[data-theme="kontor"] :is(.lg-jobs button, .lg-bench, .lg-tabs button) { border-radius: 2px; }

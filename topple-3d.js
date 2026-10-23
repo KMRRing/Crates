@@ -18,7 +18,7 @@ import { ROW, mid, SW, SH, ST, ZOOM, heading, yawOf, hexAt, hull } from "./toppl
 const MID = CELLS.map(([q, r]) => mid(q, r));
 const DEG = Math.PI / 180;
 const FIELD = 4.17, OUTER = 4.85, TOP = 0.32, APRON = 0.42;   // the birch's and the table's size (a hexagon's distance to its sides)
-const TILT = 0.13;                                      // the most the table tilts, as Rosette's dial does
+const TILT = 0.13;                                      // the most the table tilts, as a watch dial does
 const DOUBLE = 2, PCF = 1;                              // THREE.DoubleSide and THREE.PCFShadowMap (not in the bundle's exports)
 
 // ---------- the skins ----------
@@ -727,7 +727,7 @@ export function createTable(host) {
     return hull(pts, grow);
   }
 
-  // ---------- tilt, as Rosette's dial does ----------
+  // ---------- tilt, as a watch dial does ----------
   function tilt(ax, az) {
     tx = Math.max(-TILT, Math.min(TILT, ax)); tz = Math.max(-TILT, Math.min(TILT, az));
     invalidate();
