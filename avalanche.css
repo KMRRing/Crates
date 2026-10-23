@@ -31,6 +31,11 @@ html[data-mode="night"] { --av-rock: color-mix(in srgb, var(--brass) 30%, var(--
 .av-sq.d1 > rect:first-child { fill: color-mix(in srgb, var(--av-snow) 45%, var(--av-rock)); }
 .av-sq.d2 > rect:first-child { fill: color-mix(in srgb, var(--av-snow) 72%, var(--av-rock)); }
 .av-sq.d3 > rect:first-child { fill: var(--av-snow); stroke: color-mix(in srgb, var(--c2) 55%, transparent); stroke-width: .5; }
+.av-sq.primed > rect:first-child { stroke: var(--av-in); stroke-width: .9; }
+.av-charge { fill: var(--av-in); stroke: var(--ink); stroke-width: .25; stroke-linejoin: round; }
+.av-relay { fill: var(--c0); stroke: var(--ink); stroke-width: .25; }
+.av-rocky > rect:first-child { fill: color-mix(in srgb, var(--av-rock) 70%, var(--ink)); }
+.av-stone { fill: color-mix(in srgb, var(--av-rock) 45%, var(--sheet)); stroke: color-mix(in srgb, var(--ink) 45%, transparent); stroke-width: .3; stroke-linejoin: round; }
 .av-tick { fill: color-mix(in srgb, var(--c2) 70%, var(--ink)); opacity: .55; }
 .av-crack { fill: none; stroke: color-mix(in srgb, var(--c2) 75%, var(--ink)); stroke-width: .45; stroke-linecap: round; stroke-linejoin: round; }
 .av-sq.sliding > rect:first-child { animation: av-slide .32s ease-out; }
@@ -59,12 +64,19 @@ html[data-mode="night"] { --av-rock: color-mix(in srgb, var(--brass) 30%, var(--
 
 /* under the slope: what the charge shown would do; at the end, how it went and New game, in the same room */
 .av-side { display: grid; gap: .45rem; }
-.av-tray { display: grid; align-items: center; height: 3.4rem; }
+.av-tray { display: grid; grid-template-rows: 2.5rem 2.75rem; gap: .35rem; align-items: center; height: 5.6rem; }
 .av-tray[hidden] { display: none; }
-.av-line { margin: 0; max-height: 100%; overflow: hidden; font-size: .92rem; line-height: 1.3; color: var(--ink-soft); }
-.av-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+.av-line { margin: 0; max-height: 100%; overflow: hidden; font-size: .86rem; line-height: 1.25rem; color: var(--ink-soft); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.av-acts { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.6fr); align-items: center; gap: .5rem; height: 100%; }
+.av-charges { display: inline-flex; align-items: center; gap: .3rem; padding-right: .3rem; }
+.av-charges i { width: .6rem; height: .6rem; transform: rotate(45deg); box-shadow: inset 0 0 0 1.5px var(--av-in); }
+.av-charges i.on { background: var(--av-in); }
+.av-undo { height: 100%; border: 1px solid var(--rule); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .84rem; font-weight: 700; cursor: pointer; }
+.av-acts .av-go { height: 100%; padding: 0 .6rem; }
+.av-undo:disabled, .av-acts .av-go:disabled { opacity: .4; cursor: default; }
+.av-go { min-height: 0; height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
   font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
-.av-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 3.4rem; }
+.av-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 5.6rem; }
 .av-result .av-go { padding: 0 1.3rem; }
 .av-result[hidden] { display: none; }
 .av-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
@@ -80,6 +92,7 @@ html[data-mode="night"] { --av-rock: color-mix(in srgb, var(--brass) 30%, var(--
   #app.avalanche .av-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
   #app.avalanche .av-slope { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
   #app.avalanche .av-side { grid-column: 2; grid-row: 3; align-content: end; }
-  #app.avalanche .av-tray { height: 6rem; align-items: end; }
+  #app.avalanche .av-tray { height: auto; grid-template-rows: auto 2.75rem; align-items: end; }
+  #app.avalanche .av-line { -webkit-line-clamp: 5; line-clamp: 5; }
   #app.avalanche .av-result { grid-template-columns: 1fr; height: auto; }
 }
