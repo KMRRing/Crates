@@ -3,7 +3,7 @@
 // several cuts, each in its own zone. Set them until the plate you cut is the target's, and what a person learns is how a
 // guilloché is made. The rules are guilloche-engine.js's, the watch is drawn in 3D by guilloche-3d.js (guilloche-flat.js where
 // there is no WebGL) to the spec of guilloche-watch.js; this file takes the fingers and keeps the work.
-import { LEVELS, KNOBS, STARS, CUT_NAMES, CLUE_CAP, stepOf, makeJob, newRun, setKnob, undo, finish, say, closeness, takeClue, lessonJob, lessonRun, lessonStep, stepDone } from "./guilloche-engine.js";
+import { LEVELS, KNOBS, STARS, cutNames, CLUE_CAP, stepOf, makeJob, newRun, setKnob, undo, finish, say, closeness, takeClue, lessonJob, lessonRun, lessonStep, stepDone } from "./guilloche-engine.js";
 import { createWatch } from "./guilloche-3d.js";
 import { createFlat } from "./guilloche-flat.js";
 import { watchOf } from "./guilloche-watch.js";
@@ -116,8 +116,8 @@ const counts = () => `${job.index + 1} of ${LEVELS.length} · ${run.taps} tap${r
 const button = (act, text, cls = "", extra = "") => `<button type="button" class="btn ${cls} lg-act" data-act="${act}" ${extra}>${text}</button>`;
 const NEXT_CLUE = ["free", "free", "caps stars at 2", "caps stars at 1"];
 function render() {
-  const best = made()[job.id] ?? 0, lessonNo = job.lesson ? `Step ${run.step + 1} of ${job.steps}` : counts();
-  $("jobName").textContent = job.lesson ? `Lesson: ${job.name}` : job.name;
+  const best = made()[job.id] ?? 0, lessonNo = job.lesson ? `Lesson ${run.step + 1}/${job.steps}` : counts();
+  $("jobName").textContent = job.name;
   $("jobNo").textContent = job.lesson ? lessonNo : lessonNo;
   $("jobStars").textContent = job.lesson || job.cuts.length > 1 ? "" : best ? starText(best) : "";
   $("line").textContent = lineText();
@@ -169,7 +169,7 @@ function nextStep() {
 }
 
 function buildTabs() {
-  const box = $("tabs"), names = CUT_NAMES[job.cuts.length];
+  const box = $("tabs"), names = cutNames(job.index);
   box.replaceChildren();
   if (!names) return;
   names.forEach((n, i) => {
@@ -367,19 +367,20 @@ catch (err) {
 }
 {
   // a finger on the watch: held still it shows the target alone; dragged it tips the watch (the light plays on the grooves);
-  // two fingers, the wheel or a double tap look closer
+  // two fingers (pinch to zoom, both together to slide), the wheel (zoom), a mouse's right button or shift (slide) or a double tap (back) look closer
   const c = plate.canvas, fingers = new Map();
-  let hold = 0, peeking = false, tipped = false, pinch = 0;
+  let hold = 0, peeking = false, tipped = false, pinch = 0, mid = null;
   const idle = () => !job || engraving || $("doneDlg").open;
   const gap = () => { const [a, b] = [...fingers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  const centre = () => { const [a, b] = [...fingers.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
   c.addEventListener("pointerdown", e => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
     c.setPointerCapture(e.pointerId);
-    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
-    if (fingers.size === 2) { clearTimeout(hold); pinch = gap(); if (peeking) { peeking = false; plate.peek(false); } return; }
+    // a mouse's right button or shift slides the picture; a finger tips it
+    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, slide: e.pointerType === "mouse" && (e.button !== 0 || e.shiftKey) });
+    if (fingers.size === 2) { clearTimeout(hold); pinch = gap(); mid = centre(); if (peeking) { peeking = false; plate.peek(false); } return; }
     tipped = false;
     clearTimeout(hold);
-    hold = setTimeout(() => { if (!tipped && !idle() && !run.done && !job.lesson) { peeking = true; plate.peek(true); } }, 260);
+    if (!fingers.get(e.pointerId).slide) hold = setTimeout(() => { if (!tipped && !idle() && !run.done && !job.lesson) { peeking = true; plate.peek(true); } }, 260);
     e.preventDefault();
   });
   c.addEventListener("pointermove", e => {
@@ -387,11 +388,18 @@ catch (err) {
     if (!f) return;
     const dx = e.clientX - f.x, dy = e.clientY - f.y;
     f.x = e.clientX; f.y = e.clientY;
-    if (fingers.size === 2) { const g = gap(); if (pinch) plate.zoom(g / pinch); pinch = g; return; }
+    if (fingers.size === 2) {
+      const g = gap(), m = centre();
+      if (pinch) plate.zoom(g / pinch);
+      if (mid) plate.pan(m.x - mid.x, m.y - mid.y);
+      pinch = g; mid = m;
+      return;
+    }
+    if (f.slide) { plate.pan(dx, dy); return; }
     if (!tipped && Math.hypot(f.x - f.x0, f.y - f.y0) > 6) { tipped = true; clearTimeout(hold); if (peeking) { peeking = false; plate.peek(false); } }
     if (tipped) plate.orbit(dx * 0.006, dy * 0.006);
   });
-  const up = e => { fingers.delete(e.pointerId); clearTimeout(hold); pinch = 0; if (peeking && !fingers.size) { peeking = false; plate.peek(false); } };
+  const up = e => { fingers.delete(e.pointerId); clearTimeout(hold); pinch = 0; mid = null; if (peeking && !fingers.size) { peeking = false; plate.peek(false); } };
   c.addEventListener("pointerup", up);
   c.addEventListener("pointercancel", up);
   c.addEventListener("wheel", e => { e.preventDefault(); plate.zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });

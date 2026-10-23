@@ -3,7 +3,7 @@
 // each made from a seed with a hidden setting every one of whose neighbours is told apart, setting a knob and taking it
 // back, the grade by taps against par, and a run kept through JSON.
 import { WATCHES, METALS, FINISHES, BEZELS, HANDS, MARKS, STRAPS, watchOf, luma, ghostOf } from "../guilloche-watch.js";
-import { CLUE_CAP, CUT_NAMES, LESSONS, lessonJob, lessonRun, lessonStep, stepDone, takeClue, clueText, G, WIN, STARS, SLACK, SHAPES, KNOBS, LEVELS, stepOf, clampKnob, passes, raster, alike, near, settingsOf, makeJob, newRun, platesOf, match, closeness, solved, setKnob, undo, starsFor, finish, say } from "../guilloche-engine.js";
+import { CLUE_CAP, CUT_NAMES, cutNames, LESSONS, lessonJob, lessonRun, lessonStep, stepDone, takeClue, clueText, G, WIN, STARS, SLACK, SHAPES, KNOBS, LEVELS, stepOf, clampKnob, passes, raster, alike, near, settingsOf, makeJob, newRun, platesOf, match, closeness, solved, setKnob, undo, starsFor, finish, say } from "../guilloche-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -55,9 +55,9 @@ const BARE = { R: 0.5, k: 2, a: 1, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2:
 }
 
 // ---------- the levels ----------
-check(LEVELS.length === 8 && new Set(LEVELS.map(l => l.id)).size === 8 && LEVELS.every(l => l.name && l.story && l.cuts.length >= 1 && l.cuts.every(c => c.free.length && c.free.every(n => n in KNOBS && c.ranges[n].length === 2))),
-  "eight levels, each with a name, a story and cuts with knobs and ranges");
-check(LEVELS[0].id === "wave" && LEVELS.at(-1).id === "master" && LEVELS.map(l => l.cuts.length).join() === "1,1,1,1,1,2,3,3", "the wave ring first and the master dial last, a zone more as the dial grows");
+check(LEVELS.length === 11 && new Set(LEVELS.map(l => l.id)).size === 11 && LEVELS.every(l => l.name && l.story && l.cuts.length >= 1 && l.cuts.every(c => c.free.length && c.free.every(n => n in KNOBS && c.ranges[n].length === 2))),
+  "eleven levels, each with a name, a story and cuts with knobs and ranges");
+check(LEVELS[0].id === "wave" && LEVELS[7].id === "master" && LEVELS.at(-1).id === "grand" && LEVELS.map(l => l.cuts.length).join() === "1,1,1,1,1,2,3,3,3,4,5", "the wave ring first, the master dial eighth, then the registers, a cut more as the face grows");
 LEVELS.forEach((L, li) => {
   let same = 0, differs = 0, clear = 0, within = 0, fixedOk = 0;
   for (const seed of SEEDS) {
@@ -76,7 +76,7 @@ LEVELS.forEach((L, li) => {
   // the rose closes: passes times index is a whole turn of the rosette
   const closed = SEEDS.every(s => { const v = makeJob(2, s).answer[0]; return v.n * v.index === 360; });
   check(closed, "a rose's passes times index is 360°, so the rose closes");
-  check(makeJob(0, 5).par === 2 && makeJob(2, 5).par === 4 && makeJob(7, 5).par === LEVELS[7].cuts.reduce((n, c) => n + c.free.length, 0), "par is the knobs to set, a tap each (two for a wave ring, four for a rose)");
+  check(makeJob(0, 5).par === 2 && makeJob(2, 5).par === 4 && makeJob(10, 5).par === LEVELS[10].cuts.reduce((n, c) => n + c.free.length, 0), "par is the knobs to set, a tap each (two for a wave ring, four for a rose)");
 }
 
 // ---------- setting a knob, and taking it back ----------
@@ -154,6 +154,30 @@ LEVELS.forEach((L, li) => {
   check(j6.cuts.length === 2 && t6.text.startsWith(CUT_NAMES[2][t6.cut]), "on a dial with several cuts a clue says which cut it is about");
 }
 
+
+// ---------- registers ----------
+{
+  const reg = passes({ ...BARE, R: 0.5, k: 4, a: 3, at: [-0.4, 0.1], size: 0.3 })[0], plain = passes({ ...BARE, R: 0.5, k: 4, a: 3 })[0];
+  check(Array.from({ length: 721 }, (_, i) => near_(reg[2 * i], -0.4 + 0.3 * plain[2 * i], 1e-5) && near_(reg[2 * i + 1], 0.1 + 0.3 * plain[2 * i + 1], 1e-5)).every(Boolean),
+    "a register's pass is the same pass, scaled to the register's size and set at its centre");
+  for (const l of LEVELS.filter(l => l.cuts.some(c => c.at))) {
+    // the fullest each cut can be (every range at its top, and the lowest throw's inner edge for the rim): it must stay in its place
+    const full = c => settingsOf(c, Object.fromEntries(c.free.map(n => [n, c.ranges[n][1]])));
+    let inside = true, apart = true, rimOk = true;
+    const regs = l.cuts.filter(c => c.at), rim = l.cuts.find(c => !c.at);
+    for (const c of regs) {
+      const s = full(c);
+      for (const pts of passes(s)) for (let m = 0; m < pts.length; m += 2) if (Math.hypot(pts[m] - c.at[0], pts[m + 1] - c.at[1]) > c.size * 0.99 + 1e-6) inside = false;
+      if (Math.hypot(...c.at) + c.size >= rim.R - (rim.ranges.a[1] + (rim.ranges.a2?.[1] || 0)) * 0.02) rimOk = false;
+    }
+    for (let i = 0; i < regs.length; i++) for (let j = i + 1; j < regs.length; j++) if (Math.hypot(regs[i].at[0] - regs[j].at[0], regs[i].at[1] - regs[j].at[1]) < regs[i].size + regs[j].size) apart = false;
+    check(inside && apart && rimOk, `${l.name}: every register's cut stays inside its own dial, the registers do not touch, and the rim clears them`);
+    check(cutNames(LEVELS.indexOf(l)).length === l.cuts.length, `${l.name}: a name for every tab`);
+  }
+  const j9 = makeJob(8, 3), r9 = newRun(j9), c9 = takeClue(j9, r9);
+  check(c9.text.startsWith(cutNames(8)[c9.cut]), "a clue on a face of registers names the register or rim it is about");
+}
+
 // ---------- lessons ----------
 {
   check(LEVELS.every(l => LESSONS[l.id]), "every level has a lesson");
@@ -195,4 +219,4 @@ LEVELS.forEach((L, li) => {
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("guilloche: a pass cut by a rosette, plates compared as pictures, eight levels from seeds with hidden settings, setting and undoing a knob, stars by taps against par");
+else console.log("guilloche: a pass cut by a rosette, plates compared as pictures, eleven levels from seeds with hidden settings, setting and undoing a knob, stars by taps against par");

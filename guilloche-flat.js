@@ -129,11 +129,15 @@ export function createFlat(host) {
     const lw = Math.max(0.7, Math.min(1.3, rr / 160));
     const goal = job.answer ? job.cuts.map((c, i) => settingsOf(c, job.answer[i])) : [];
     const mine = job.cuts.map((c, i) => settingsOf(c, run.vals[i]));
+    // a register is edged with a ring of its own
+    ctx.strokeStyle = inkOn; ctx.lineWidth = lw; ctx.globalAlpha = 0.7;
+    for (const c of job.cuts) if (c.at) { ctx.beginPath(); ctx.arc(cx + c.at[0] * rr, cy + c.at[1] * rr, rr * c.size * 0.99, 0, 2 * Math.PI); ctx.stroke(); }
+    ctx.globalAlpha = 1;
     if (view.peek && job.answer) engrave(goal, cx, cy, rr, inkOn, lw * 1.2, -1);
     else {
       if (view.ghost && job.answer && !run.done) engrave(goal, cx, cy, rr, ghostOn, lw * 1.1, -1, 1, 0.5);
       engrave(mine, cx, cy, rr, inkOn, lw, job.cuts.length > 1 && !run.done && !job.lesson ? run.at : -1, view.reveal);
-    if (view.markCut >= 0 && !run.done) { ctx.strokeStyle = ghostOn; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, rr * job.cuts[view.markCut].R, 0, 2 * Math.PI); ctx.stroke(); }
+    if (view.markCut >= 0 && !run.done) { ctx.strokeStyle = ghostOn; ctx.lineWidth = 2; ctx.beginPath(); const m = job.cuts[view.markCut]; ctx.arc(cx + (m.at ? m.at[0] : 0) * rr, cy + (m.at ? m.at[1] : 0) * rr, rr * (m.size || m.R), 0, 2 * Math.PI); ctx.stroke(); }
     if (view.assembled > 0) hands(cx, cy, rr, spec, inkOn);
     }
     // the rosette of the cut in hand, in the plate's corner, and which it is
@@ -156,7 +160,7 @@ export function createFlat(host) {
     reveal(t) { view.reveal = t; draw(); },
     assemble(t) { view.assembled = t; draw(); },
     mark(cut) { view.markCut = cut; draw(); },
-    orbit() {}, zoom() {}, resetView() {},
+    orbit() {}, zoom() {}, pan() {}, resetView() {},
     showGauge(on) { view.gauge = on; draw(); },
     pause() {},
     get shapes() { return SHAPES; },

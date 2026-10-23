@@ -19,6 +19,8 @@ export const SLACK = { three: [1.5, 2], two: [3, 4] };      // taps allowed over
 export const CLUE_CAP = [3, 3, 2, 1];                       // the most stars a plate can earn after the clues taken (a clue of 0: none; 1: where to look; 2: which way; 3: the answer)
 /** What each cut of a dial with two or three is called (the tabs). */
 export const CUT_NAMES = { 2: ["Centre", "Ring"], 3: ["Centre", "Band", "Rim"] };
+/** The tabs of a level: its own names if it has them (the registers), else by how many cuts it has. */
+export const cutNames = index => LEVELS[index].names || CUT_NAMES[LEVELS[index].cuts.length] || [];
 
 /** The rosettes' edges: a wave, scallops (arches meeting at cusps, the barleycorn's grain) and points (a triangle wave). */
 export const SHAPES = [{ id: "wave", name: "Wave" }, { id: "scallop", name: "Scallop" }, { id: "point", name: "Point" }];
@@ -41,9 +43,13 @@ export const clampKnob = (name, v) => { const K = KNOBS[name], s = stepOf(name);
 const BARE = { k: 2, a: 1, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2: 0 };
 
 // ---------- cutting ----------
-/** The passes of one cut, as lists of points [x0, y0, x1, y1, …] on a plate of radius 1 (a point's angle 0 at twelve o'clock, clockwise). */
+/**
+ * The passes of one cut, as lists of points [x0, y0, x1, y1, …] on a plate of radius 1 (a point's angle 0 at twelve o'clock,
+ * clockwise). A cut is usually round the plate's centre; a register (a small dial of its own) has `at`, where its centre is,
+ * and `size`, its radius, and cuts everything (its radius R, its throw, its feed) to that scale.
+ */
 export function passes(cut) {
-  const { R, k, a, shape, n, index, feed, k2, a2 } = cut, edge = EDGE[shape] || EDGE[0], out = [];
+  const { R, k, a, shape, n, index, feed, k2, a2, at = [0, 0], size = 1 } = cut, edge = EDGE[shape] || EDGE[0], out = [];
   const M = 720, step = (index * Math.PI) / 180;
   for (let j = 0; j < n; j++) {
     const pts = new Float32Array((M + 1) * 2), base = R + feed * UNIT.feed * j;
@@ -52,8 +58,8 @@ export function passes(cut) {
       let r = base + a * UNIT.a * edge(k * t + j * step);
       if (a2) r += a2 * UNIT.a * Math.sin(k2 * t);
       r = Math.max(0.01, Math.min(0.99, r));
-      pts[2 * m] = r * Math.sin(t);
-      pts[2 * m + 1] = -r * Math.cos(t);
+      pts[2 * m] = at[0] + size * r * Math.sin(t);
+      pts[2 * m + 1] = at[1] - size * r * Math.cos(t);
     }
     out.push(pts);
   }
@@ -108,7 +114,9 @@ export function near(a, b, blurA = blur(a), blurB = blur(b)) {
  * Each level teaches a part of the machine. A cut: its radius R, the knobs fixed for it (shown, not yours), and the knobs
  * that are yours (`free`), each with the range the target's value is drawn from.
  */
-const cut = (R, fixed, ranges) => ({ R, fixed: { ...BARE, ...fixed }, ranges, free: Object.keys(ranges) });
+const cut = (R, fixed, ranges, place = {}) => ({ R, ...place, fixed: { ...BARE, ...fixed }, ranges, free: Object.keys(ranges) });
+/** Where a register sits on the plate: its centre and radius, in plate radii. */
+const reg = (x, y, size) => ({ at: [x, y], size });
 export const LEVELS = [
   { id: "wave", name: "Wave ring",
     story: "One pass of a rose engine: the plate turns once while a rosette pushes the cutting point in and out. The rosette's lobes are the waves in the ring; its throw is how deep they go.",
@@ -134,6 +142,26 @@ export const LEVELS = [
   { id: "master", name: "Master dial",
     story: "The full engine: a woven centre, a ribbon, and a barleycorn rim, three cuts, two of them with a second rosette. Someone who can set this knows how every guilloché is made.",
     cuts: [cut(0.2, { shape: 0 }, { k: [3, 6], a: [2, 2], n: [6, 14], index: [20, 60], k2: [2, 5], a2: [1, 2] }), cut(0.45, { shape: 0 }, { k: [4, 9], a: [2, 3], n: [6, 16], index: [10, 40], feed: [1, 3] }), cut(0.85, { shape: 1 }, { k: [12, 24], a: [2, 4], k2: [2, 6], a2: [1, 2] })] },
+  // The registers: small dials of their own on the face, each cut as a plate in itself, so a face can carry several kinds of guilloché
+  // side by side, as a chronograph's does (a rose in one, a ribbon in the next, a barleycorn rim round them all).
+  { id: "registers", name: "Registers", names: ["Rim", "Left", "Right"],
+    story: "A face can be several dials in one: two small registers, each cut as a plate of its own with its own rosette, inside a pointed rim. A register is set exactly as a whole plate is; only its place and size are fixed.",
+    cuts: [cut(0.88, { shape: 2 }, { k: [12, 24], a: [2, 4] }),
+      cut(0.5, { shape: 0 }, { k: [3, 7], a: [2, 4], n: [6, 16], index: [15, 60] }, reg(-0.4, 0.06, 0.3)),
+      cut(0.3, { shape: 0 }, { k: [3, 8], a: [2, 4], n: [8, 18], index: [10, 40], feed: [1, 3] }, reg(0.4, 0.06, 0.3))] },
+  { id: "chrono", name: "Chrono", names: ["Rim", "Left", "Right", "Base"],
+    story: "The chronograph's face: a scalloped rim and three registers, a rose, a woven basket and a ribbon, three kinds of guilloché in three places. Read each register on its own.",
+    cuts: [cut(0.9, { shape: 1 }, { k: [14, 24], a: [2, 4] }),
+      cut(0.5, { shape: 0 }, { k: [3, 7], a: [2, 4], n: [6, 16], index: [15, 60] }, reg(-0.42, -0.04, 0.28)),
+      cut(0.5, { shape: 0 }, { k: [4, 8], a: [2, 3], k2: [2, 6], a2: [1, 2], n: [8, 16], index: [10, 45] }, reg(0.42, -0.04, 0.28)),
+      cut(0.3, { shape: 0 }, { k: [3, 8], a: [2, 4], n: [8, 18], index: [10, 40], feed: [1, 3] }, reg(0, 0.5, 0.28))] },
+  { id: "grand", name: "Grand", names: ["Rim", "Hub", "Left", "Right", "Base"],
+    story: "Five cuts: a barleycorn rim, a hub and three registers, with a second rosette in two of them. A face with several kinds of guilloché in its several places, each one read and set on its own.",
+    cuts: [cut(0.9, { shape: 1 }, { k: [14, 24], a: [2, 4], k2: [2, 6], a2: [1, 2] }),
+      cut(0.5, { shape: 0 }, { k: [3, 6], a: [2, 3], k2: [2, 5], a2: [1, 2], n: [6, 14], index: [20, 60] }, reg(0, -0.3, 0.27)),
+      cut(0.5, { shape: 2 }, { k: [4, 10], a: [2, 4], n: [6, 14], index: [15, 60] }, reg(-0.42, 0.1, 0.26)),
+      cut(0.5, { shape: 0 }, { k: [4, 8], a: [2, 3], k2: [2, 6], a2: [1, 2], n: [8, 16], index: [10, 45] }, reg(0.42, 0.1, 0.26)),
+      cut(0.3, { shape: 0 }, { k: [3, 8], a: [2, 4], n: [8, 18], index: [10, 40], feed: [1, 3] }, reg(0, 0.5, 0.26))] },
 ];
 
 // ---------- chance ----------
@@ -148,7 +176,7 @@ const rng = seed => { let n = 0; return () => draw(seed, n++); };
 const between = (r, [lo, hi], step = 1) => lo + step * Math.floor(r() * ((hi - lo) / step + 1));
 
 /** A cut's settings in full: its radius, its fixed knobs, and the free ones from `vals`. */
-export const settingsOf = (c, vals) => ({ R: c.R, ...c.fixed, ...vals });
+export const settingsOf = (c, vals) => ({ R: c.R, at: c.at, size: c.size, ...c.fixed, ...vals });
 const plateOf = (cuts, vals) => raster(cuts.map((c, i) => settingsOf(c, vals[i])));
 
 /** The knobs a step either way of which should be told apart, as [cut, knob, step]. */
@@ -272,7 +300,7 @@ function worstKnob(job, run) {
 /** The words of a clue of a tier (1 to 3) about a knob of a cut. */
 export function clueText(job, run, cutNo, name, tier) {
   const K = KNOBS[name], was = run.vals[cutNo][name], want = job.answer[cutNo][name];
-  const where = job.cuts.length > 1 ? `${CUT_NAMES[job.cuts.length][cutNo]} cut, tab ${cutNo + 1}: ` : "";
+  const where = job.cuts.length > 1 ? `${cutNames(job.index)[cutNo]} cut, tab ${cutNo + 1}: ` : "";
   const closed = LEVELS[job.index].closed && (name === "n" || name === "index");
   if (tier === 1) return `${where}${READ[name]}${closed ? " On a closed rose, passes × index is 360°." : ""}`;
   if (tier === 2) {
@@ -338,6 +366,19 @@ export const LESSONS = {
   master: lesson([{ k: 4, a: 2, n: 8, index: 45 }, { k: 6, a: 2, n: 10, index: 30, feed: 2 }, { k: 20, a: 3 }], [
     doing(0, { a2: 2, k2: 3 }, "Tab 1, the centre: add a second rosette, Throw 2 at 2 and Lobes 2 at 3.", "A woven centre: the basket of a second rosette inside a closed rose."),
     doing(2, { a2: 2, k2: 4 }, "Tab 3, the rim: Throw 2 at 2 and Lobes 2 at 4.", "A ripple along the barleycorn. Each cut can carry two rosettes: every knob you have met is on this dial."),
+  ]),
+  registers: lesson([{ k: 16, a: 3 }, { k: 5, a: 3, n: 8, index: 45 }, { k: 5, a: 2, n: 12, index: 30 }], [
+    doing(1, { n: 12, index: 30 }, "A face can hold dials of its own. Tab 2, the left register: Passes 12, Index 30°.", "A register is a small plate cut round its own centre, set as any rose: 12 × 30° = 360°, and it closes."),
+    doing(2, { feed: 3 }, "Tab 3, the right register: set Feed to 3.", "The same machine, another cut: here the feed opens the rose into a ribbon. Each register keeps its own knobs."),
+    doing(0, { k: 22 }, "Tab 1, the rim: Lobes 22.", "The rim is a pointed edge round the whole face, fixed for this cut. Three cuts in three places make one face."),
+  ]),
+  chrono: lesson([{ k: 20, a: 3 }, { k: 5, a: 3, n: 12, index: 30 }, { k: 6, a: 2, n: 12, index: 30 }, { k: 5, a: 3, n: 10, index: 20, feed: 2 }], [
+    doing(2, { a2: 2, k2: 5 }, "Tab 3, the right register: Throw 2 at 2 and Lobes 2 at 5.", "A second rosette weaves this register into a basket, while the left one stays a plain rose."),
+    doing(3, { feed: 3, n: 18 }, "Tab 4, the base: Feed 3 and Passes 18.", "The register at six is a ribbon. Read each register on its own in the target: its kind, then its count and depth."),
+  ]),
+  grand: lesson([{ k: 20, a: 3 }, { k: 4, a: 2, n: 8, index: 45 }, { k: 6, a: 3, n: 8, index: 45 }, { k: 6, a: 2, n: 12, index: 30 }, { k: 5, a: 3, n: 10, index: 20, feed: 2 }], [
+    doing(1, { a2: 2, k2: 3 }, "Tab 2, the hub: Throw 2 at 2 and Lobes 2 at 3.", "A woven hub at the top, a basket in a small dial."),
+    doing(2, { k: 9 }, "Tab 3, the left register is a pointed rosette: set Lobes to 9.", "Points cut a zigzag. Five cuts, five places: name the kind in each, then count."),
   ]),
 };
 /** The lesson of a level as a job: the level's cuts and no target. */

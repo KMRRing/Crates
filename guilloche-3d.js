@@ -382,21 +382,23 @@ export function createWatch(host) {
   camera.updateProjectionMatrix = () => {};
 
   const view = { job: null, run: null, ghost: true, peek: false, reveal: 1, assembled: 0, markCut: -1, gauge: true };
-  const cam = { az: 0, el: 78 * DEG, zoom: 1, sway: [0, 0] };
+  const cam = { az: 0, el: 78 * DEG, zoom: 1, pan: [0, 0], sway: [0, 0] };
   let W = 1, H = 1, spec = null, parts = null, layers = [], paused = false, t = 0, last = performance.now(), lastDt = 0.016;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ----- the camera -----
-  const DIST = 16, E0 = 1.5, E1 = 2.55;                       // how far off, and how much of the watch the shorter side shows when close and when drawn back
+  const DIST = 16, E0 = 1.5, E1 = 2.55, MAX_ZOOM = 6;                       // how far off, and how much of the watch the shorter side shows when close and when drawn back
   function pose() {
-    const f = ease(view.assembled), el = lerp(cam.el + cam.sway[1], 58 * DEG, f), az = cam.az + cam.sway[0];
+    // the tilt you gave it is kept when the watch is drawn back: the finished view starts lower, but is yours to turn and zoom
+    const f = ease(view.assembled), el = lerp(78 * DEG, 58 * DEG, f) + (cam.el - 78 * DEG) + cam.sway[1], az = cam.az + cam.sway[0];
     camera.position.set(Math.sin(az) * Math.cos(el) * DIST, Math.sin(el) * DIST, Math.cos(az) * Math.cos(el) * DIST);
     camera.up.set(0, 1, 0);
     camera.lookAt(0, 0, lerp(0, 0.25, f));
     camera.updateMatrixWorld();
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
-    const half = lerp(E0, E1, f) / lerp(cam.zoom, 1, f), hu = W >= H ? half * (W / H) : half, hv = W >= H ? half : half * (H / W);
-    camera.projectionMatrix.makePerspective(-hu / DIST, hu / DIST, hv / DIST, -hv / DIST, 1, 100);
+    const half = lerp(E0, E1, f) / cam.zoom, hu = W >= H ? half * (W / H) : half, hv = W >= H ? half : half * (H / W);
+    const px = -cam.pan[0], py = cam.pan[1];                     // the picture follows the finger: the window moves the other way
+    camera.projectionMatrix.makePerspective((-hu + px) / DIST, (hu + px) / DIST, (hv + py) / DIST, (-hv + py) / DIST, 1, 100);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     LIGHT.uPx.value = (2 * hv) / H;
   }
@@ -455,7 +457,7 @@ export function createWatch(host) {
     P.glass.position.y = 0.17 - Rs; P.glass.renderOrder = 20;
     watch.add(P.glass);
     // the ring that marks a cut for a clue
-    P.ring = mesh(lathe([[0.992, 0.008], [1.008, 0.008]], 160), surface({ main: RING_MAIN, decl: "uniform vec3 uRingCol; uniform float uRingA;", own: { uRingCol: { value: col3("#9ff2d6") }, uRingA: { value: 1 } }, transparent: true, blending: ADD, depthWrite: false, depthTest: false }));
+    P.ring = mesh(lathe([[0.975, 0.008], [1.025, 0.008]], 160), surface({ main: RING_MAIN, decl: "uniform vec3 uRingCol; uniform float uRingA;", own: { uRingCol: { value: col3("#9ff2d6") }, uRingA: { value: 1 } }, transparent: true, blending: ADD, depthWrite: false, depthTest: false }));
     P.ring.visible = false; P.ring.renderOrder = 15;
     watch.add(P.ring);
     // the cutter: a needle and the glow of its tip
@@ -504,11 +506,12 @@ export function createWatch(host) {
   }
 
   // ----- the engraving of a plate -----
-  let held = [];                                             // the engraving's own geometries and materials
+  let held = [], frames = [];                                // the engraving's own geometries and materials, and the rings round the registers
   function buildCuts() {
     for (const L of layers) parts.cuts.remove(L.mine, L.goal);
+    for (const F of frames) parts.cuts.remove(F);
     held.splice(0).forEach(o => o.dispose?.());
-    layers = [];
+    layers = []; frames = [];
     const { job } = view;
     if (!job) return;
     job.cuts.forEach((c, i) => {
@@ -521,6 +524,15 @@ export function createWatch(host) {
       parts.cuts.add(goal, mine);
       layers.push({ mine, goal, mineGeo, goalGeo, ghost, peekMat, key: "", pts: [], from: 0 });
       if (job.answer) cutRibbon(goalGeo, passes(settingsOf(c, job.answer[i])), 0);
+      if (c.at) {
+        // a register is edged with a fine ring of its own, as a real one is, so it reads as a dial in the dial
+        const geo = ribbon(1), mat = grooveMaterial(spec, 0, 1), edge = new THREE.Mesh(geo, mat);
+        held.push(geo, mat);
+        cutRibbon(geo, passes({ R: 0.99, k: 2, a: 0, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2: 0, at: c.at, size: c.size }), 0);
+        setU(mat, { uFrom: 0, uTotal: 1, uReveal: 1, uAlpha: 1 });
+        edge.renderOrder = 4; edge.frustumCulled = false; edge.position.y = 0.0035;
+        parts.cuts.add(edge); frames.push(edge);
+      }
     });
     refresh();
   }
@@ -632,7 +644,10 @@ export function createWatch(host) {
       P.ring.visible = !!on;
       if (on) {
         const c = view.job.cuts[view.markCut];
-        P.ring.scale.set(c.R, 1, c.R);
+        // a register is ringed round its edge, a cut round the plate's centre at its own radius
+        const rr = c.size ? c.size : c.R;
+        P.ring.position.set(c.at ? c.at[0] : 0, 0, c.at ? c.at[1] : 0);
+        P.ring.scale.set(rr, 1, rr);
         setU(P.ring.material, { uRingA: 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 5)) });
       }
       // the cutter rides the pass being cut
@@ -694,9 +709,14 @@ export function createWatch(host) {
     /** The ring on the dial where a cut sits (-1: none), for a clue. */
     mark(cut) { view.markCut = cut; },
     /** Tips the watch: the light plays on it. */
-    orbit(dAz, dEl) { cam.az = Math.max(-35 * DEG, Math.min(35 * DEG, cam.az + dAz)); cam.el = Math.max(46 * DEG, Math.min(90 * DEG, cam.el + dEl)); },
-    zoom(f) { cam.zoom = Math.max(1, Math.min(2.6, cam.zoom * f)); },
-    resetView() { cam.az = 0; cam.el = 78 * DEG; cam.zoom = 1; },
+    orbit(dAz, dEl) { cam.az = Math.max(-35 * DEG, Math.min(35 * DEG, cam.az + dAz)); cam.el = Math.max(50 * DEG, Math.min(90 * DEG, cam.el + dEl)); },
+    zoom(f) { cam.zoom = Math.max(1, Math.min(MAX_ZOOM, cam.zoom * f)); this.pan(0, 0); },
+    /** Slide the picture by a drag of dx, dy pixels; only as far as the zoomed picture has more than the window shows. */
+    pan(dx, dy) {
+      const e = lerp(E0, E1, ease(view.assembled)), unit = 2 * e / cam.zoom / Math.min(W, H), room = e * (1 - 1 / cam.zoom) + (cam.zoom > 1 ? 0.2 : 0);
+      cam.pan = [Math.max(-room, Math.min(room, cam.pan[0] + dx * unit)), Math.max(-room, Math.min(room, cam.pan[1] + dy * unit))];
+    },
+    resetView() { cam.az = 0; cam.el = 78 * DEG; cam.zoom = 1; cam.pan = [0, 0]; },
     showGauge(on) { view.gauge = on; syncGauge(); },
     pause(on) { paused = on; last = performance.now(); },
     repalette() { applySkin(); },

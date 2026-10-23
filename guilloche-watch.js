@@ -25,6 +25,9 @@ export const WATCHES = {
   basket: { name: "Racing green, two-tone", dial: { base: "#21503d", finish: "sunburst", ink: "#f0e7c9" }, case: { metal: "gold", body: "steel", bezel: "step" }, hands: { style: "baton", metal: "gold" }, marks: "dot", strap: { kind: "suede", colour: "#274034" } },
   dial: { name: "Slate and titanium", dial: { base: "#5c626a", finish: "satin", ink: "#eef0f2" }, case: { metal: "titanium", bezel: "octagon" }, hands: { style: "alpha", metal: "steel" }, marks: "baton", strap: { kind: "rubber", colour: "#1c1e21" } },
   three: { name: "Ivory and platinum", dial: { base: "#ece3cf", finish: "grain", ink: "#2a2a44" }, case: { metal: "platinum", bezel: "coin" }, hands: { style: "spade", metal: "steel", tint: "#2f4f93" }, marks: "dot", strap: { kind: "suede", colour: "#6d7075" } },
+  registers: { name: "Burgundy and bronze", dial: { base: "#5b1f2e", finish: "satin", ink: "#f0d9c2" }, case: { metal: "bronze", bezel: "step" }, hands: { style: "leaf", metal: "bronze" }, marks: "wedge", strap: { kind: "croc", colour: "#3a1620" } },
+  chrono: { name: "Glacier and steel", dial: { base: "#a9bfcc", finish: "sunburst", ink: "#1d2f3d" }, case: { metal: "steel", bezel: "fluted" }, hands: { style: "sword", metal: "steel" }, marks: "baton", strap: { kind: "rubber", colour: "#1b3550" } },
+  grand: { name: "Aubergine and gold", dial: { base: "#3a2142", finish: "grain", ink: "#f1dea8" }, case: { metal: "gold", bezel: "domed" }, hands: { style: "spade", metal: "gold", tint: "#f1dea8" }, marks: "diamond", strap: { kind: "suede", colour: "#2a1d30" } },
   master: { name: "Onyx and gold", dial: { base: "#101114", finish: "satin", ink: "#ead9a4" }, case: { metal: "gold", bezel: "fluted" }, hands: { style: "dauphine", metal: "gold" }, marks: "diamond", strap: { kind: "croc", colour: "#151515" } },
 };
 export const watchOf = id => WATCHES[id] || WATCHES.wave;
