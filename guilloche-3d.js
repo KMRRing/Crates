@@ -387,10 +387,12 @@ export function createWatch(host) {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ----- the camera -----
-  const DIST = 16, E0 = 1.5, E1 = 2.55, MAX_ZOOM = 6;                       // how far off, and how much of the watch the shorter side shows when close and when drawn back
+  const DIST = 16, E0 = 1.5, E1 = 2.55, MAX_ZOOM = 6, MAX_EL = 86 * DEG;                       // how far off, and how much of the watch the shorter side shows when close and when drawn back
   function pose() {
     // the tilt you gave it is kept when the watch is drawn back: the finished view starts lower, but is yours to turn and zoom
-    const f = ease(view.assembled), el = lerp(78 * DEG, 58 * DEG, f) + (cam.el - 78 * DEG) + cam.sway[1], az = cam.az + cam.sway[0];
+    const f = ease(view.assembled), az = cam.az + cam.sway[0];
+    // looking straight down, "up" has no direction on the screen and the watch flips to the other side: the sway must never carry it over the top
+    const el = Math.min(MAX_EL, lerp(78 * DEG, 58 * DEG, f) + (cam.el - 78 * DEG) + cam.sway[1]);
     camera.position.set(Math.sin(az) * Math.cos(el) * DIST, Math.sin(el) * DIST, Math.cos(az) * Math.cos(el) * DIST);
     camera.up.set(0, 1, 0);
     camera.lookAt(0, 0, lerp(0, 0.25, f));
@@ -709,7 +711,7 @@ export function createWatch(host) {
     /** The ring on the dial where a cut sits (-1: none), for a clue. */
     mark(cut) { view.markCut = cut; },
     /** Tips the watch: the light plays on it. */
-    orbit(dAz, dEl) { cam.az = Math.max(-35 * DEG, Math.min(35 * DEG, cam.az + dAz)); cam.el = Math.max(50 * DEG, Math.min(90 * DEG, cam.el + dEl)); },
+    orbit(dAz, dEl) { cam.az = Math.max(-35 * DEG, Math.min(35 * DEG, cam.az + dAz)); cam.el = Math.max(50 * DEG, Math.min(MAX_EL - 3 * DEG, cam.el + dEl)); },
     zoom(f) { cam.zoom = Math.max(1, Math.min(MAX_ZOOM, cam.zoom * f)); this.pan(0, 0); },
     /** Slide the picture by a drag of dx, dy pixels; only as far as the zoomed picture has more than the window shows. */
     pan(dx, dy) {
