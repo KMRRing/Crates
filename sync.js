@@ -3,7 +3,7 @@ import { connecting } from "./net.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getDatabase, ref, onValue, runTransaction, update, set, remove, onDisconnect, goOffline, goOnline }
   from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
-import { getAuth, signInAnonymously, onAuthStateChanged }
+import { getAuth, initializeAuth, signInAnonymously, onAuthStateChanged, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence }
   from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
 // Same Firebase project as CroatiaQuiz ("croatiabio"). Web config is public by design;
@@ -62,7 +62,14 @@ export async function connect() {
   // first read or write asks for it
   let live = false;
   onValue(ref(db, ".info/connected"), snap => { live = snap.val() === true; });
-  const auth = getAuth(app);
+  // Not getAuth(): that also sets up Firebase's pop-up sign-in, which on a phone (iOS, Safari, Android) it does at once,
+  // before it will say who is signed in: a hidden frame from the project's firebaseapp.com and Google's apis.google.com
+  // script, both awaited. Sign-in here is anonymous and has no pop-up, so none of that is wanted, and from Asia those
+  // two hosts are slow or not there at all, which held every phone's connection (and a watcher's, and a join's) for as
+  // long as they took to fail. The same storage, in the same order, so a device keeps the user it has.
+  let auth;
+  try { auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence] }); }
+  catch { auth = getAuth(app); }                                    // already initialized (a second connect on this page)
   const user = await new Promise((resolve, reject) => {
     const off = onAuthStateChanged(auth, u => { if (u) { off(); resolve(u); } });
     signInAnonymously(auth).catch(reject);
