@@ -105,6 +105,20 @@ function linePasses(cut) {
   }
   return out;
 }
+/**
+ * How many lines a straight cut is cut as, in the order the cutter takes them: the first set from the one at the lowest
+ * offset to the highest, then the cross set. A line a hole breaks is still one line (the cutter lifts across the gap).
+ */
+export const lineCount = cut => (cut.cross ? 2 : 1) * (2 * Math.floor(cut.R / (cut.pitch * UNIT.pitch)) + 1);
+/** Where the cutter is when it is `u` (0 to 1) of the way along line `k` of `lineCount`: the point `linePasses` has there, wave and all. */
+export function linePoint(cut, k, u) {
+  const { R, k: lobes, a, shape, index, pitch, angle, cross, at = [0, 0], size = 1 } = cut, edge = EDGE[shape] || EDGE[0], sp = pitch * UNIT.pitch;
+  const N = Math.floor(R / sp), per = 2 * N + 1, set = k >= per ? 1 : 0, j = k - set * per - N;
+  const th = ((angle + set * cross) * Math.PI) / 180, tx = Math.cos(th), ty = Math.sin(th), nx = -ty, ny = tx;
+  const off = j * sp, half = Math.sqrt(Math.max(0, R * R - off * off)), t = -half + 2 * half * u;
+  const w = !set && a ? a * UNIT.a * edge(lobes * Math.PI * t + j * ((index * Math.PI) / 180)) : 0;
+  return [at[0] + size * (off * nx + t * tx + w * nx), at[1] + size * (off * ny + t * ty + w * ny)];
+}
 /** The most passes a cut can have, for the drawing to make room (a ring cut has its passes; a straight cut a line to a pitch step, twice, a hole breaking each). */
 export const maxPasses = c => (c.kind === "lines"
   ? (c.fixed.cross || c.free.includes("cross") ? 2 : 1) * (2 * Math.floor(c.R / (UNIT.pitch * (c.free.includes("pitch") ? KNOBS.pitch.min : c.fixed.pitch))) + 1) * (1 + 2 * (c.holes?.length || 0))

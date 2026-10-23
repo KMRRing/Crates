@@ -11,7 +11,7 @@
 // reveal, assemble, mark, orbit, zoom, pause; guilloche-flat.js answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
 import { scale } from "./wide.js";
-import { passes, settingsOf, maxPasses } from "./guilloche-engine.js";
+import { passes, settingsOf, maxPasses, lineCount, linePoint } from "./guilloche-engine.js";
 import { watchOf, METALS, ghostOf, luma } from "./guilloche-watch.js";
 
 const DOUBLE = 2, ADD = 2, NORMAL = 1;                      // THREE.DoubleSide, AdditiveBlending, NormalBlending (not in the bundle's exports)
@@ -138,29 +138,38 @@ const FIELD_DECL = `uniform vec3 uBase; uniform vec3 uTint; uniform float uFrom;
 uniform float uR; uniform vec3 uHole; uniform float uPitch; uniform float uAng; uniform float uCross; uniform float uFill; uniform vec2 uWave; uniform float uShape; uniform float uIdx;
 float edgeF(float p) { if (uShape < .5) return sin(p); if (uShape < 1.5) return 2. * abs(sin(p * .5)) - 1.; return .63662 * asin(clamp(sin(p), -1., 1.)); }
 float dedgeF(float p) { if (uShape < .5) return cos(p); if (uShape < 1.5) return cos(p * .5) * sign(sin(p * .5)); return .63662 * sign(cos(p)); }
-// one set of lines at angle th: x the signed distance to the nearest line in pitches, yz the way that distance grows (per pitch)
-vec3 fam(vec2 p, float th, float waved) {
+// one set of lines at angle th: x the signed distance to the nearest line in pitches, yz the way that distance grows (per pitch);
+// jo is that line's number and so how far along it the point is (the cutter takes a line from its low end to its high)
+vec3 fam(vec2 p, float th, float waved, out float jo, out float so) {
   vec2 t = vec2(cos(th), sin(th)), n = vec2(-t.y, t.x);
   float u = dot(p, n) / uPitch, s = dot(p, t), j = floor(u + .5);
   vec2 g = n / uPitch;
+  so = s;
   if (waved > .5 && uWave.y > 0.) {
     for (int i = 0; i < 2; i++) j = floor(u - uWave.y * edgeF(uWave.x * s + j * uIdx) / uPitch + .5);
     float ph = uWave.x * s + j * uIdx;
     g -= t * (uWave.y * dedgeF(ph) * uWave.x / uPitch);
+    jo = j;
     return vec3(u - uWave.y * edgeF(ph) / uPitch - j, g);
   }
+  jo = j;
   return vec3(u - j, g);
+}
+// when the cutter reaches a point on line j (of the set that starts at line number first): the lines before it, and the share of this one
+float lineTime(float j, float s, float first) {
+  float hl = sqrt(max(uR * uR - j * j * uPitch * uPitch, 1e-4));
+  return first + j + floor(uR / uPitch) + clamp((s + hl) / (2. * hl), 0., 1.);
 }`;
 const FIELD_MAIN = `{
   vec2 p = vL.xy;
   if (length(p) > uR || length(p - uHole.xy) < uHole.z) discard;
-  vec2 n1 = vec2(-sin(uAng), cos(uAng));
-  float f = clamp((uReveal * uTotal - uFrom) / max(uCount, 1.), 0., 1.);
-  if (dot(p, n1) / (2. * uR) + .5 > f) discard;
-  vec3 a = fam(p, uAng, 1.);
-  float gw = uFill * .5, da = abs(a.x) / gw, dn = da;
+  float x = uReveal * uTotal - uFrom, per = uCross > 0. ? uCount * .5 : uCount;       // x: the lines cut so far, and how far along the one in hand
+  float ja, sa, jb, sb;
+  vec3 a = fam(p, uAng, 1., ja, sa);
+  float gw = uFill * .5, da = lineTime(ja, sa, 0.) <= x ? abs(a.x) / gw : 1e3, dn = da;
   vec3 pick = a;
-  if (uCross > 0.) { vec3 b = fam(p, uAng + uCross, 0.); float db = abs(b.x) / gw; if (db < da) { pick = b; dn = db; } }
+  if (uCross > 0.) { vec3 b = fam(p, uAng + uCross, 0., jb, sb); float db = lineTime(jb, sb, per) <= x ? abs(b.x) / gw : 1e3; if (db < da) { pick = b; dn = db; } }
+  if (dn > 100.) discard;                                   // no line here has been cut yet
   float cover = uFill > .99 ? 1. : 1. - smoothstep(.7, 1., dn);
   vec2 dir = normalize(pick.yz);
   float side = smoothstep(-.03, .03, pick.x) * 2. - 1.;
@@ -571,7 +580,7 @@ export function createWatch(host) {
       mine.renderOrder = 10 + i; goal.renderOrder = 5 + i; mine.frustumCulled = goal.frustumCulled = false;
       mine.position.y = 0.0035; goal.position.y = 0.0045;
       parts.cuts.add(goal, mine);
-      layers.push({ mine, goal, mineGeo, goalGeo, ghost, peekMat, key: "", pts: [], from: 0, lines });
+      layers.push({ mine, goal, mineGeo, goalGeo, ghost, peekMat, key: "", pts: [], count: 0, s: null, from: 0, lines });
       if (job.answer) cutRibbon(goalGeo, passes(settingsOf(c, job.answer[i])), 0);
       if (c.at) {
         // a register is edged with a fine ring of its own, as a real one is, so it reads as a dial in the dial
@@ -591,9 +600,9 @@ export function createWatch(host) {
     let from = 0;
     job.cuts.forEach((c, i) => {
       const L = layers[i], s = settingsOf(c, run.vals[i]), key = JSON.stringify(s);
-      if (L.key !== key) { L.key = key; L.pts = passes(s); if (L.lines) setU(L.mine.material, fieldOf(s, { uCount: L.pts.length })); else cutRibbon(L.mineGeo, L.pts, 0); }
+      if (L.key !== key) { L.key = key; L.s = s; if (L.lines) { L.pts = []; L.count = lineCount(s); setU(L.mine.material, fieldOf(s, { uCount: L.count })); } else { L.pts = passes(s); L.count = L.pts.length; cutRibbon(L.mineGeo, L.pts, 0); } }
       L.from = from;
-      from += L.pts.length;
+      from += L.count;
     });
     const total = Math.max(1, from), dim = job.cuts.length > 1 && !run.done && !job.lesson, peek = view.peek && !!job.answer;
     layers.forEach((L, i) => {
@@ -703,15 +712,16 @@ export function createWatch(host) {
       const cutting = view.reveal > 0 && view.reveal < 1 && layers.length > 0;
       P.cutter.visible = cutting;
       if (cutting) {
-        const total = layers.reduce((n, L) => n + L.pts.length, 0), at = view.reveal * total;
+        const total = layers.reduce((n, L) => n + L.count, 0), at = view.reveal * total;
         let acc = 0;
         for (const L of layers) {
-          if (at <= acc + L.pts.length) {
-            const j = Math.min(L.pts.length - 1, Math.floor(at - acc)), m = Math.min(M, Math.floor((at - acc - j) * M)), p = L.pts[j];
-            P.cutter.position.set(p[2 * m], 0.004, p[2 * m + 1]);
+          if (at <= acc + L.count) {
+            const j = Math.min(L.count - 1, Math.floor(at - acc)), u = Math.min(1, at - acc - j);
+            if (L.lines) { const [x, z] = linePoint(L.s, j, u); P.cutter.position.set(x, 0.004, z); }       // the field is cut along the same line, in the same order
+            else { const m = Math.min(M, Math.floor(u * M)), p = L.pts[j]; P.cutter.position.set(p[2 * m], 0.004, p[2 * m + 1]); }
             break;
           }
-          acc += L.pts.length;
+          acc += L.count;
         }
       }
     }

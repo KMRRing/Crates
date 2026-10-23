@@ -3,7 +3,7 @@
 // each made from a seed with a hidden setting every one of whose neighbours is told apart, setting a knob and taking it
 // back, the grade by taps against par, and a run kept through JSON.
 import { WATCHES, METALS, FINISHES, BEZELS, HANDS, MARKS, STRAPS, watchOf, luma, ghostOf } from "../guilloche-watch.js";
-import { CLUE_CAP, CUT_NAMES, cutNames, LESSONS, lessonJob, lessonRun, lessonStep, stepDone, takeClue, clueText, G, WIN, STARS, SLACK, SHAPES, KNOBS, LEVELS, stepOf, clampKnob, passes, raster, alike, near, settingsOf, makeJob, newRun, platesOf, match, closeness, maxPasses, solved, setKnob, undo, starsFor, finish, say } from "../guilloche-engine.js";
+import { CLUE_CAP, CUT_NAMES, cutNames, LESSONS, lessonJob, lessonRun, lessonStep, stepDone, takeClue, clueText, G, WIN, STARS, SLACK, SHAPES, KNOBS, LEVELS, stepOf, clampKnob, passes, raster, alike, near, settingsOf, makeJob, newRun, platesOf, match, closeness, maxPasses, lineCount, linePoint, solved, setKnob, undo, starsFor, finish, say } from "../guilloche-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -99,6 +99,10 @@ LEVELS.forEach((L, li) => {
   check(waved.every((a, j) => { for (let i = 1; i < a.length; i += 2) if (Math.abs(a[i] - ys[j]) > 2 * 0.02 + 1e-6) return false; return true; }) && waved.some(a => a.some((v, i) => i % 2 && Math.abs(v - a[1]) > 0.01)), "a rosette's wave rides along a line, a throw of 2 at most 2 fiftieths of the radius off");
   const dense = LEVELS.filter(l => l.cuts.some(c => c.kind === "lines"));
   check(dense.every(l => l.cuts.every(c => c.kind !== "lines" || Array.from({ length: 24 }, (_, i) => makeJob(LEVELS.indexOf(l), 1000 + i * 7919)).every(j => platesOf(j, newRun(j)).every((s, ci) => passes(s).length <= maxPasses(j.cuts[ci]) && passes(settingsOf(j.cuts[ci], j.answer[ci])).length <= maxPasses(j.cuts[ci]))))), "no straight cut ever has more lines than its most (the 3D piece reserves that many)");
+  // the needle cuts what the dial shows: line k of the cutter's order is the pass k, point for point
+  const track = c => { const ps = P(c), n = lineCount({ ...L, ...c }); return ps.length === n && ps.every((pts, k) => [0, 100, 360, 719, 720].every(m => { const [x, y] = linePoint({ ...L, ...c }, k, m / 720); return Math.abs(x - pts[2 * m]) < 1e-5 && Math.abs(y - pts[2 * m + 1]) < 1e-5; })); };
+  check(track({}) && track({ angle: 35, cross: 90 }) && track({ a: 3, k: 6, shape: 1, index: 40, pitch: 4 }) && track({ at: [0.2, -0.3], size: 0.4, angle: 60, cross: 45 }),
+    "the cutter's line k at u of the way along is the engine's pass k at that point: wave, cross and a register's place included, so the needle runs on the groove the dial draws");
   // a plate of lines is no picture to nudge towards, so how near it is comes from how far its knobs are
   const job = makeJob(IX.paris, 31), run = newRun(job), ans = job.answer[0], c0 = closeness(job, run);
   setKnob(job, run, 0, "pitch", ans.pitch); const c1 = closeness(job, run);
