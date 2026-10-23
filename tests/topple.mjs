@@ -11,7 +11,7 @@
 // from; the plain run plays a few, to keep the pace honest. To tune, name the players and try another pace:
 // `node tests/topple.mjs measure careful,bell pace=12,48,0.6 games=40`.
 import { PLAYERS, play } from "./topple-players.js";
-import { R, CELLS, SIZE, DIRS, HAND, PIECES, PACE, VERSION, AXES, WAYS, axesOfCoords, axesOf, rate, untilKnock, newGame, at, next, dirTo, cover, fitsAnywhere, chain, group, chains, stepsOf, longest, knockOn, worth, lay, knock, turn, moves, pushes, hitBy, offBy, knocks, senseOf, through, isLine, migrate } from "../topple-engine.js";
+import { R, CELLS, SIZE, DIRS, HAND, PIECES, PACE, VERSION, AXES, WAYS, axesOfCoords, axesOf, rate, untilKnock, newGame, at, next, dirTo, cover, fitsAnywhere, chain, group, chains, stepsOf, longest, knockOn, worth, lay, knock, skip, canSkip, turn, moves, pushes, hitBy, offBy, knocks, senseOf, through, isLine, migrate } from "../topple-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -271,6 +271,18 @@ const game = (t, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {
   check(!missed.rang && missed.gain === 160 && missed.state.bell === hex(-1, 2) && knockOn(t4.cells, t4.ax, hex(-2, 0), 0, hex(1, 0)).rings, "a fall that doesn't pass it leaves it where it hangs");
   const plain = game(table(...line(-2, 0, E, 4)), undefined, { n: 40 }), ringing = game(table(...line(-2, 0, E, 4)), undefined, { n: 40, bell: hex(0, 0) });
   check(knock(plain, hex(-2, 0), 0).state.n === 41 && knock(ringing, hex(-2, 0), 0).state.n === 42, "a knock still passes over the draw that once dealt the next knock's strength, and the bell takes one more when it moves");
+  // a skipped knock: no fall, and the next knock scores as much again, adding to the bell's rather than multiplying it
+  const row = extra => game(table(...line(-2, 0, E, 4)), undefined, extra), owed = row({ bell: hex(R, 0) }), skipped = skip(owed).state;
+  check(canSkip(owed) && !skipped.due && skipped.boost === 1 && skipped.score === 0 && skipped.felled === 0 && JSON.stringify(skipped.cells) === JSON.stringify(owed.cells) && skipped.n === owed.n && !skipped.over,
+    "skipping a due knock fells nothing, takes the knock off the table's time and leaves the next one boosted");
+  const boosted = { ...skipped, due: true }, took = knock(boosted, hex(-2, 0), 0), rung2 = knock({ ...boosted, bell: hex(0, 0) }, hex(-2, 0), 0);
+  check(took.boosted && took.gain === 320 && took.state.boost === 0 && knock(owed, hex(-2, 0), 0).gain === 160, "the boosted knock scores a hundred per cent more (a line of four: 320 for 160) and spends it");
+  check(rung2.rang && rung2.gain === 480 && knockOn(...Object.values(table(...line(-2, 0, E, 4))), hex(-2, 0), 0, hex(0, 0), undefined, 1).gain === 480, "with the bell as well it is three times (480), the two adding rather than multiplying");
+  check(!canSkip(skipped) && !canSkip(boosted) && !canSkip(row({ due: false })) && !canSkip(row({ hand: [null, null, null] })) && !canSkip(row({ over: true })), "no skip where none is due, where one is already standing, where no piece in hand would fit, or when the game is over");
+  let refused = 0;
+  for (const g of [boosted, row({ due: false }), row({ hand: [null, null, null] })]) try { skip(g); } catch { refused++; }
+  check(refused === 3, "skipping where it isn't allowed is refused");
+  check(chains(...Object.values(table(...line(-2, 0, E, 4))), hex(R, 0), undefined, 1)[0].best.gain === 320 && longest(...Object.values(table(...line(-2, 0, E, 4))), hex(-2, 0), -1, undefined, 1).gain === 320, "the best push the page shows counts the boost that stands");
 }
 
 // ---------- a game of version 4 ----------

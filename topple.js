@@ -10,7 +10,7 @@
 // Two modes (the menu's Mode): Classic, the game as it has always been, and Levels (topple-levels.js), twelve tables each
 // adding a thing to the last, each beaten at a goal score. Levels press nothing: a level can be left and come back to as
 // it was, replayed, or skipped back to, beating one only opens the next, and the only word of it is a line at the first win.
-import { SIZE, AXES, WAYS, PIECES, rulesOf, newGame, migrate, cover, lay, knock, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy } from "./topple-engine.js";
+import { SIZE, AXES, WAYS, PIECES, rulesOf, newGame, migrate, cover, lay, knock, skip, canSkip, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy } from "./topple-engine.js";
 import { LEVELS, levelRules } from "./topple-levels.js";
 import { mapSvg } from "./topple-map.js";
 import { heading, hexAt, SH, ZOOM, bounds, pieceSvg } from "./topple-slab.js";
@@ -270,6 +270,11 @@ function drawStrip() {
   k.className = `tp-knock${S.due && !S.over ? " now" : ""}`;
   k.textContent = S.over ? "" : knockWords();
   k.title = S.over ? "" : "A knock: press a domino and slide it along its axis, the way it should fall";
+  // a due knock may be skipped, for a hundred per cent more on the next; while that stands, the badge says so (and no second skip)
+  $("skipBtn").hidden = S.over || !S.due || !!S.boost;
+  $("skipBtn").disabled = !canSkip(S);
+  $("skipBtn").title = canSkip(S) ? "Skip this knock: the next one scores 100% more" : "No piece in hand would fit without the knock";
+  $("boost").hidden = S.over || !S.boost;
 }
 function drawTray() {
   $("tray").hidden = S.over;
@@ -319,7 +324,7 @@ function facingYou(i) {
 }
 /** The chosen domino (turned to `ax` while a finger turns it): its handle, and what the best push on what it's joined to would fell, ringed and written. */
 function showChosen(ax = S.ax, ease = false) {
-  const rules = rulesOf(S), best = longest(S.cells, ax, sel, S.bell, rules), fell = best.at >= 0 ? knockOn(S.cells, ax, best.at, best.way, S.bell, rules).fell.map(f => f[0]) : [];
+  const rules = rulesOf(S), best = longest(S.cells, ax, sel, S.bell, rules, S.boost), fell = best.at >= 0 ? knockOn(S.cells, ax, best.at, best.way, S.bell, rules, S.boost).fell.map(f => f[0]) : [];
   const down = new Set(fell), stay = group(S.cells, sel, rules).filter(j => !down.has(j));
   drawBoard({ ax, ease, handle: [sel, knob], ring: fell, stay, tag: [bestWords(best), sel] });
 }
@@ -382,13 +387,13 @@ function slidWay(h, e) {
  * that way would fell ringed, what of its colour would stay standing marked, the steps and the points.
  */
 function showPress(h) {
-  const { at, way } = h, rules = rulesOf(S), tries = new Map(pushes(S.ax, at).map(w => [w, knockOn(S.cells, S.ax, at, w, S.bell, rules)]));
+  const { at, way } = h, rules = rulesOf(S), tries = new Map(pushes(S.ax, at).map(w => [w, knockOn(S.cells, S.ax, at, w, S.bell, rules, S.boost)]));
   if (way < 0) {
     setMarks({ compass: [at, -1, new Map([...tries].map(([w, k]) => [w, k.gain]))], tag: [S.due ? "Slide it along its axis to push" : `Slide to see a push: ${knockWords().toLowerCase()}`, at] });
     return;
   }
   const k = tries.get(way), fell = new Set(k.fell.map(f => f[0])), stay = group(S.cells, at, rules).filter(j => !fell.has(j));
-  const words = `${k.fell.length} in ${plural(k.steps, "step")}: +${fmt(k.gain)}${k.rings ? ", the bell" : ""}${k.gilded ? ", gilded" : ""}${stay.length ? `; ${stay.length} stand` : ""}`;
+  const words = `${k.fell.length} in ${plural(k.steps, "step")}: +${fmt(k.gain)}${k.rings ? ", the bell" : ""}${k.boosted ? ", skipped" : ""}${k.gilded ? ", gilded" : ""}${stay.length ? `; ${stay.length} stand` : ""}`;
   setMarks({ ring: [...fell], stay, compass: [at, way], tag: [S.due ? words : `${words} (${knockWords().toLowerCase()})`, at] });
 }
 
@@ -417,10 +422,19 @@ async function commitLay(slot, q, r) {
   if (done.dealt && !S.over) for (const b of document.querySelectorAll(".tp-piece svg")) animate(b, [{ transform: "scale(.6)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: 220, easing: "ease-out" });
   if (done.due) {
     animate($("knock"), [{ transform: "scale(1.15)" }, { transform: "scale(1)" }], { duration: 360, easing: "ease-out" });
-    if (S.sets <= 3 || !read(SEEN, false)) toast("Knock: press a domino and slide it along its axis, the way it should fall");
+    if (S.sets <= 3 || !read(SEEN, false)) toast("Knock: press a domino and slide it along its axis, or Skip it for +100% on the next knock");
   }
   await wait(260);
   playing = false;
+}
+/** Skips the knock that's due: nothing falls, and the next knock scores 100% more (the bell's is as much again). */
+function commitSkip() {
+  if (playing || !canSkip(S)) return;
+  setSel(-1);
+  S = skip(S).state;
+  settle();
+  render();
+  toast("Skipped: the next knock scores +100% (3× with the bell)");
 }
 async function commitKnock(i, way) {
   if (playing || S.over || !S.due) return;
@@ -434,7 +448,7 @@ async function commitKnock(i, way) {
   drawBoard({ cells: before.cells, ax: before.ax, bell: before.bell });
   drawStrip();
   const falling = view.fall({ fell: done.fell, bell: { rang: done.rang, to: done.rang ? S.bell : -1 } });
-  const times = (done.rang ? 2 : 1) * (done.gilded ? 2 : 1), level = S.level;
+  const times = (1 + (done.rang ? 1 : 0) + (done.boosted ? 1 : 0)) * (done.gilded ? 2 : 1), level = S.level;
   setTimeout(() => popup(done.fell.map(f => f[0]), done.gain, times), 100 + done.steps * 90);
   await falling;
   render();
@@ -682,6 +696,7 @@ addEventListener("pointercancel", e => {
   lift(e, true);
 });
 $("againBtn").addEventListener("click", newRun);
+$("skipBtn").addEventListener("click", commitSkip);
 $("levelsBtn").addEventListener("click", openMenu);
 onPause(() => view.hold(), () => view.release());
 

@@ -16,12 +16,13 @@
 // The knock is on the table's time, not yours: when a hand's last piece is down and a knock has come due (every hand at
 // first, then less often), you push one domino, either way along its axis, before the next is laid. A knock scores ten
 // times how many fell times the steps they took (a long chain pushed from its end beats a blob of as many), doubled
-// when the fall passes the bell, a mark on one hexagon that moves on when it's rung. A hand that fits nowhere, with no
-// knock to make first, ends the game. The page (topple.js) draws it; tests/topple.mjs checks this.
+// when the fall passes the bell, a mark on one hexagon that moves on when it's rung. A knock that's due may instead be
+// skipped (`skip`): nothing falls, and the next knock scores as much again, which adds to the bell's (both: three times).
+// A hand that fits nowhere, with no knock to make first, ends the game. The page (topple.js) draws it; tests/topple.mjs checks this.
 //
 // A game is one object, as saved: { v, seed, n (draws made), cells (a colour 0–2 a hexagon, -1 empty), ax (each
 // standing domino's axis, 0–5, -1 where none stands), hand (three { piece, colour }, null where one has been laid), due
-// (a knock to make before the next piece), credit (knocks owed, fractions of one), bell (its hexagon), rung, sets (hands
+// (a knock to make before the next piece), boost (1 after a knock was skipped, until the next one is made), credit (knocks owed, fractions of one), bell (its hexagon), rung, sets (hands
 // dealt), laid, felled, score, over }; a game of a level also has level (0 on) and stars (0–3, the most its score has
 // reached).
 //
@@ -255,7 +256,7 @@ export function untilKnock(s) {
  * (0 on), the game of that level: its rules, and `stars` to count the goal's.
  */
 export function newGame(seed, level = -1) {
-  const s = { v: VERSION, seed: seed >>> 0, n: 0, cells: new Array(SIZE).fill(-1), ax: new Array(SIZE).fill(-1), hand: [], due: false, credit: 0, bell: -1, rung: 0, sets: 0, laid: 0, felled: 0, score: 0, over: false };
+  const s = { v: VERSION, seed: seed >>> 0, n: 0, cells: new Array(SIZE).fill(-1), ax: new Array(SIZE).fill(-1), hand: [], due: false, boost: 0, credit: 0, bell: -1, rung: 0, sets: 0, laid: 0, felled: 0, score: 0, over: false };
   if (level >= 0) { s.level = level; s.stars = 0; }
   const rules = rulesOf(s);
   deal(s, rules);
@@ -337,34 +338,36 @@ export const stepsOf = fell => (fell.length ? Math.max(...fell.map(f => f[1])) +
 export const worth = (n, steps = n) => 10 * n * steps;
 /**
  * What a push on hexagon i the way `way` would come to: { fell (as chain gives it), steps, rings (the bell's hexagon among
- * them), gilded (one of them on a gilded hexagon), gain }. The bell and the gilding each double, and together make four.
+ * them), gilded (one of them on a gilded hexagon), boosted (a skipped knock stands, `boost`), gain }. The bell and a skipped
+ * knock each add a hundred per cent of the points, so both make three times; the gilding then doubles the lot.
  */
-export function knockOn(cells, ax, i, way, bell = -1, rules = FREE) {
+export function knockOn(cells, ax, i, way, bell = -1, rules = FREE, boost = 0) {
   const fell = chain(cells, ax, i, way, rules), steps = stepsOf(fell), rings = bell >= 0 && fell.some(f => f[0] === bell), gilded = fell.some(f => rules.gilded[f[0]]);
-  return { fell, steps, rings, gilded, gain: worth(fell.length, steps) * (rings ? 2 : 1) * (gilded ? 2 : 1) };
+  // the bell and a skipped knock each add a hundred per cent (both: three times), and the gilding doubles what they come to
+  return { fell, steps, rings, gilded, boosted: !!boost, gain: worth(fell.length, steps) * (1 + (rings ? 1 : 0) + (boost ? 1 : 0)) * (gilded ? 2 : 1) };
 }
 /**
  * The best push on the dominoes joined to hexagon i: { at, way, fell (how many), steps, rings, gilded, gain, size (how many
  * are joined) }, the one scoring most (felling most where they score the same). Every domino of them, both ways along its
  * axis: they're at most the table, so this is quick.
  */
-export function longest(cells, ax, i, bell = -1, rules = FREE) {
+export function longest(cells, ax, i, bell = -1, rules = FREE, boost = 0) {
   const all = group(cells, i, rules);
   let best = { at: -1, way: -1, fell: 0, steps: 0, rings: false, gilded: false, gain: 0 };
   for (const j of all) for (const way of pushes(ax, j)) {
-    const k = knockOn(cells, ax, j, way, bell, rules);
+    const k = knockOn(cells, ax, j, way, bell, rules, boost);
     if (k.gain > best.gain || (k.gain === best.gain && k.fell.length > best.fell)) best = { at: j, way, fell: k.fell.length, steps: k.steps, rings: k.rings, gilded: k.gilded, gain: k.gain };
   }
   return { ...best, size: all.length };
 }
 /** The dominoes standing, joined by colour: one hexagon of each, how many, and its best push (longest's), most first. */
-export function chains(cells, ax, bell = -1, rules = FREE) {
+export function chains(cells, ax, bell = -1, rules = FREE, boost = 0) {
   const seen = new Set(), out = [];
   cells.forEach((c, i) => {
     if (c < 0 || seen.has(i)) return;
     const all = group(cells, i, rules);
     for (const j of all) seen.add(j);
-    out.push({ at: i, length: all.length, best: longest(cells, ax, i, bell, rules) });
+    out.push({ at: i, length: all.length, best: longest(cells, ax, i, bell, rules, boost) });
   });
   return out.sort((a, b) => b.length - a.length);
 }
@@ -415,18 +418,35 @@ export function knock(game, i, way) {
   if (s.over || !s.due) throw new Error("no knock due");
   if (!(s.cells[i] >= 0)) throw new Error("no domino there");
   if (!pushes(s.ax, i).includes(way)) throw new Error("a domino falls only along its axis");
-  const rules = rulesOf(s), k = knockOn(s.cells, s.ax, i, way, s.bell, rules);
+  const rules = rulesOf(s), k = knockOn(s.cells, s.ax, i, way, s.bell, rules, s.boost);
   for (const [j] of k.fell) { s.cells[j] = -1; s.ax[j] = -1; }
   s.score += k.gain;
   if (s.level >= 0) s.stars = Math.max(s.stars || 0, starsAt(rules, s.score));
   s.felled += k.fell.length;
   s.due = false;
+  s.boost = 0;                                                // a skipped knock's hundred per cent is spent on this one
   // the draw that dealt the next knock's strength (weak, medium or strong, retired with the six axes) is still passed
   // over, so a game saved before then deals on as it would have
   s.n++;
   if (k.rings) { s.rung++; hang(s, rules); }
   s.over = stuck(s);
-  return { state: s, fell: k.fell, steps: k.steps, rang: k.rings, gilded: k.gilded, gain: k.gain, over: s.over };
+  return { state: s, fell: k.fell, steps: k.steps, rang: k.rings, gilded: k.gilded, boosted: k.boosted, gain: k.gain, over: s.over };
+}
+/**
+ * Whether the knock that's due may be skipped: one is due, none already skipped (the hundred per cent stands once, so
+ * skipping goes with knocking), and a piece in hand would fit without the knock (or skipping would end the game).
+ */
+export const canSkip = s => !s.over && s.due && !s.boost && !stuck({ ...s, due: false });
+/**
+ * Skips the knock that's due: the next knock scores a hundred per cent more (the bell's is as much again). The knock isn't
+ * owed back, so the table goes on as it stands. Pure; throws where `canSkip` says no.
+ */
+export function skip(game) {
+  if (!canSkip(game)) throw new Error("no knock to skip");
+  const s = structuredClone(game);
+  s.due = false;
+  s.boost = 1;
+  return { state: s, over: false };
 }
 /** Every way to lay a piece in hand: [{ slot, q, r }] (none while a knock is due). For the tests and the tuning players. */
 export function moves(s) {
