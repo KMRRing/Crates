@@ -98,7 +98,7 @@ export const LEVELS = [
     about: "Purple is knocked by red and by blue, and knocks both. A fall goes level or down, never up: the summit is gilded, and only a chain started on it can come down.",
   }),
   level({
-    name: "Archipelago", goal: 14500, colours: [0, 1, 2, 3, 6, 7], heavy: 0.05, gate: { colours: [0, 6], share: 0.08 }, pace: GENTLE, maxSize: 3, scene: "garden",
+    name: "Archipelago", goal: 17000, colours: [0, 1, 2, 3, 6, 7], heavy: 0.05, gate: { colours: [0, 6], share: 0.08 }, pace: GENTLE, maxSize: 3, scene: "garden",
     map: { water: ring(2), spring: [...three([1, 0]), [0, 3], [-3, 0], [3, -3]] },
     start: [[3, -1], [-3, 1]].map(c => ({ at: [0, ...c], colour: 0, gate: [0, 6] })),
     about: "A spring throws a fall two hexagons on, over water. A gate domino names two colours, yellow and green here, and falls only once both have reached it in the one knock.",
@@ -110,8 +110,8 @@ export const LEVELS = [
       { only: disc(2), water: [[-1, 0], [0, 0], [1, 0], [2, 0]], gilded: [[-1, -1], [1, -2]] },
     ],
     drops: [{ from: 1, to: 0 }],
-    links: [[-2, 0], [-2, 1], [-2, 2], [-1, -1]].map(([q, r]) => [[1, q, r], [0, q, r]]),
-    about: "Two floors: a plateau of rock with a stream across it, over a lower plain. A fall that runs off any edge of the plateau lands on the plain and goes on, and four stairs in the west join the floors. A knock that crosses between them doubles.",
+    links: [[-2, 1], [-1, -1]].map(([q, r]) => [[1, q, r], [0, q, r]]),
+    about: "Two floors: a plateau of rock with a stream across it, over a lower plain. A fall that runs off any edge of the plateau lands on the plain and goes on, and two stairs in the west join the floors. A knock that crosses between them doubles.",
   }),
   level({
     name: "Two courts", goal: 52000, colours: [0, 1, 2, 5, 6, 7], bridges: 0.18, heavy: 0.05, pace: null, maxSize: 4, scene: "marble",
@@ -130,19 +130,19 @@ export const LEVELS = [
     about: "Hedges stand on the edges between hexagons, and a fall cannot cross one. The rainbow is knocked by every colour and knocks every colour, so it joins what a hedge divides.",
   }),
   level({
-    name: "The cup", goal: 28500, colours: [0, 1, 2, 3, 6, 7], balls: 3, heavy: 0.04, maxSize: 4, scene: "cliff",
+    name: "The cup", goal: 30000, colours: [0, 1, 2, 3, 6, 7], balls: 3, heavy: 0.04, maxSize: 4, scene: "cliff",
     map: { height: { 2: where(c => c[0] >= 2), 1: where(c => c[0] >= 0 && c[0] <= 1) }, cup: [[-4, 1], [-4, 3], [-2, -2]] },
     about: "Three balls on the table. A fall that reaches one sets it rolling the way it was hit, and the table falls away to the west: a ball that stops in a cup scores 1,500, and another is put on the table.",
   }),
   level({
-    name: "Two floors", goal: 52000, colours: [0, 1, 2, 3, 4, 6], wild: 0.1, heavy: 0.05, pace: null, maxSize: 4, scene: "marble",
+    name: "Two floors", goal: 59500, colours: [0, 1, 2, 3, 4, 6], wild: 0.1, heavy: 0.05, pace: null, maxSize: 4, scene: "marble",
     layers: [{ rock: [[-3, 1], [3, -1], [1, 2], [-1, -2]] }, { only: disc(3) }],
     drops: [{ from: 1, to: 0 }],
     links: [[2, -1], [-2, 1], [0, 3], [3, -3], [-3, 0]].map(([q, r]) => [[0, q, r], [1, q, r]]),
     about: "A gallery above the ground floor, with a stair at five places, and a fall that runs off the gallery's edge drops to the floor below. Every domino on both floors falls in the same knock, and a knock that crosses between them doubles.",
   }),
   level({
-    name: "The spiral", goal: 14500, colours: [0, 1, 2, 3, 6, 7], heavy: 0.04, gate: { colours: [0, 6], share: 0.12 }, pace: GENTLE, maxSize: 4, scene: "cliff", rise: 0.2,
+    name: "The spiral", goal: 16500, colours: [0, 1, 2, 3, 6, 7], heavy: 0.04, gate: { colours: [0, 6], share: 0.12 }, pace: GENTLE, maxSize: 4, scene: "cliff", rise: 0.2,
     layers: [
       { rock: disc(1), height: { 1: where(c => road(c) && stepOf(c) === 1), 2: where(c => road(c) && stepOf(c) === 2), 3: where(c => road(c) && stepOf(c) === 3), 4: where(c => road(c) && stepOf(c) === 4) } },
       { only: CAVE },
@@ -153,7 +153,7 @@ export const LEVELS = [
     about: "A road climbs the mountain clockwise from three o'clock, a step every fifth of a turn, and ends in a sheer drop to where it began. Under its last quarter is a cave, open at the foot of the cliff.",
   }),
   level({
-    name: "Grand table", goal: 32500, colours: [0, 1, 2, 3, 4, 5, 6, 7, 8], wild: 0.06, bridges: 0.1, twins: 0.1, heavy: 0.05, gate: { colours: [0, 6], share: 0.05 }, balls: 2, maxSize: 3, pace: GENTLE, scene: "jetty",
+    name: "Grand table", goal: 24500, colours: [0, 1, 2, 3, 4, 5, 6, 7, 8], wild: 0.06, bridges: 0.1, twins: 0.1, heavy: 0.05, gate: { colours: [0, 6], share: 0.05 }, balls: 2, maxSize: 3, pace: GENTLE, scene: "jetty",
     layers: [
       { water: minus(ring(2), [[2, 0], [-2, 0]]), height: { 2: disc(1) }, gilded: [[0, 0]], rock: three([4, -2]), spring: [[3, -1], [-3, 1], [0, 3], [0, -3]], cup: [[-4, 0], [-3, 3], [3, -3]] },
       { only: disc(2) },
