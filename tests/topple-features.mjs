@@ -8,9 +8,9 @@ import { PLAYERS, play } from "./topple-players.js";
 
 /** What each level adds that a player must engage with, as `tagsOf` names it. */
 export const FEATURES = {
-  2: ["mix"], 3: ["mix", "water"], 4: ["heavy", "gilded"], 5: ["mix", "down", "gilded"], 6: ["spring", "gate", "heavy"],
+  2: ["mix"], 3: ["mix"], 4: ["heavy", "gilded"], 5: ["mix", "down", "gilded"], 6: ["spring", "gate", "heavy"],
   7: ["mix", "drop", "link"], 8: ["water", "link"], 9: ["water", "marsh"], 10: ["rainbow"], 11: ["ball", "cup", "down"],
-  12: ["link", "drop", "rainbow"], 13: ["gate", "down", "drop"], 14: ["mix", "gate", "spring", "link", "ball", "cup", "drop", "water", "rainbow"],
+  12: ["link", "drop", "rainbow"], 13: ["gate", "down", "drop"], 14: ["mix", "gate", "spring", "link", "ball", "cup", "water", "rainbow"],
 };
 /** What stands in a level's way (not something to use but something to get round), by the map keys that make it. */
 export const OBSTACLES = { 2: ["rock"], 3: ["water"], 6: ["water"], 8: ["water", "rock"], 9: ["water", "marsh"], 10: ["hedge"], 14: ["water", "rock"] };

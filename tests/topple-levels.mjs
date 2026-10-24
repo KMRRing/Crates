@@ -8,6 +8,7 @@
 import { LEVELS, SCENES, FLOOR, ROCK, WATER, VOID, STARS, FREE, levelRules, starsAt, numberOf, custom, SIZE } from "../topple-levels.js";
 import { CELLS, AXES, PIECES, PACE, at, rulesOf, newGame, moves, nbr, lay, turn, knock, cover, coverFor, colourAt, fitsAnywhere, chain, chains, group, knockOn, rate, untilKnock, BALL, RAINBOW, HEAVY } from "../topple-engine.js";
 import { PLAYERS, play, turnAll } from "./topple-players.js";
+import { REACHED } from "./topple-reached.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -213,24 +214,6 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
   });
   check(ok, ok ? "on every table every dealt piece fits, the first hand has a move, a heavy domino or a gate at the start has two neighbours to be hit from and can be pushed by hand, every colour is dealt" : why);
 }
-
-// A game of the bots that reaches each level's goal: [player, seed]. Found by tests/topple-players.js; if the engine's deal changes, find them again.
-const REACHED = {
-  1: ["careful", 101],
-  2: ["careful", 102],
-  3: ["careful", 105],
-  4: ["careful", 106],
-  5: ["careful", 103],
-  6: ["careful", 105],
-  7: ["careful", 109],
-  8: ["careful", 139],
-  9: ["careful", 103],
-  10: ["careful", 102],
-  11: ["careful", 106],
-  12: ["careful", 101],
-  13: ["careful", 101],
-  14: ["careful", 101],
-};
 
 // ---------- whole games of every level ----------
 {
