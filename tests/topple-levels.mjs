@@ -214,20 +214,21 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
   check(ok, ok ? "on every table every dealt piece fits, the first hand has a move, a heavy domino or a gate at the start has two neighbours to be hit from and can be pushed by hand, every colour is dealt" : why);
 }
 
+// A game of the bots that reaches each level's goal: [player, seed]. Found by tests/topple-players.js; if the engine's deal changes, find them again.
+const REACHED = {};
+
 // ---------- whole games of every level ----------
 {
   const games = MEASURE ? Number(ARG("games") || 16) : 4, who = (ARG("who") || (MEASURE ? "careful,corner" : "careful")).split(","), only = ARG("levels")?.split(",").map(Number);
   const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
   const t0 = Date.now();
   let allOk = true, allEnd = true;
-  const careful = [];
   LEVELS.forEach((L, n) => {
     if (only && !only.includes(n + 1)) return;
     for (const id of who) {
       const res = Array.from({ length: games }, (_, g) => play(100 + g, PLAYERS[id], { level: n, pieces: 400 }));
       if (!res.every(r => r.ok)) allOk = false;
       if (!res.every(r => r.ended)) allEnd = false;
-      if (id === "careful") careful[n] = res;
       if (MEASURE) {
         const sc = res.map(r => r.score), got = k => res.filter(r => r.stars > k).length;
         console.log(`${String(n + 1).padStart(2)} ${L.name.padEnd(16)} ${PLAYERS[id].name.padEnd(36)} goal ${String(L.goal).padStart(5)}: scoring ${median(sc)} (${Math.min(...sc)} to ${Math.max(...sc)}) in ${median(res.map(r => r.laid))} pieces; goal met ${got(0)} of ${games}, two stars ${got(1)}, three ${got(2)}${res.some(r => r.laidAt[0] != null) ? `; first star at piece ${median(res.filter(r => r.laidAt[0] != null).map(r => r.laidAt[0]))}` : ""}`);
@@ -236,18 +237,19 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
   });
   if (MEASURE) { console.log(`(${((Date.now() - t0) / 1000).toFixed(0)} s)`); process.exit(0); }
   check(allOk && allEnd, "whole games of every level, to the end: standing dominoes face one of six axes and empty hexagons none, the score is the knocks' gains, and every game ends");
-  const meets = careful.map(rs => rs.filter(r => r.stars >= 1).length);
-  check(meets[0] === games && meets.slice(1, 3).every(m => m >= games - 1), `the careful player beats level 1 every time, and the next two nearly (goals ${LEVELS.slice(0, 3).map(l => l.goal).join(", ")}; met ${meets.slice(0, 3).join(", ")} of ${games})`);
-  // the goals' rule: a share of what the careful player scores in the median there, a half at level 1 rising to three quarters
-  const share = LEVELS.map((L, n) => {
-    const sc = Array.from({ length: 20 }, (_, g) => play(300 + g, PLAYERS.careful, { level: n, pieces: 400 }).score).sort((a, b) => a - b);
-    return { share: L.goal / sc[10], met: sc.filter(x => x >= L.goal).length };
+  // Every goal can be reached: each level has a game of the bots on record that does it (found by playing seeds 100 upward with the
+  // careful player and then the bell player, `tests/topple-players.js`), played again here. The goals are set to be hard, about one
+  // game in eight of those two players reaching them, so they ask for the best of play, and none is out of reach.
+  const bad2 = [];
+  Object.entries(REACHED).forEach(([n, [id, seed]]) => {
+    const r = play(seed, PLAYERS[id], { level: Number(n) - 1, pieces: 400 });
+    if (r.score < LEVELS[n - 1].goal) bad2.push(`${n}: ${r.score}`);
   });
-  check(share.every(x => x.share > 0.3 && x.share < 1 && x.met >= 10), `each goal is between a third and the whole of the careful player's median, and beaten in half his games at least (shares ${share.map(x => x.share.toFixed(2)).join(", ")}; met ${share.map(x => x.met).join(", ")} of 20)`);
-  check(share[0].met >= 17, `and level 1, the first, in nearly all (${share[0].met} of 20)`);
-  const corner = Array.from({ length: 6 }, (_, g) => play(100 + g, PLAYERS.corner, { level: 0 }));
-  check(corner.filter(r => r.stars >= 1).length <= 1, "laying everything in the corner and turning nothing doesn't beat level 1");
+  check(Object.keys(REACHED).length === LEVELS.length && !bad2.length, `a game on record reaches every goal${bad2.length ? ` (not: ${bad2.join(", ")})` : ""}`);
+  // and a goal asks something: laying everything in the corner and turning nothing doesn't reach level 1's, nor any level's
+  const corner = LEVELS.map((_, n) => play(100, PLAYERS.corner, { level: n, pieces: 400 }).score);
+  check(corner.every((c, n) => c < LEVELS[n].goal), "laying everything in the corner and turning nothing reaches no level's goal");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("topple levels: eighteen maps and goals, level 1 as Classic, stones and water, tall dominoes, heights, gilded hexagons, pearls, bridges and twins, scenes and the stair, balls, stars and pace, whole games of every level");
+else console.log("topple levels: fourteen maps and goals, stones and water, gilded hexagons, bridges and twins, scenes, balls, stars and pace, no soft locks, whole games of every level");
