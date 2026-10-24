@@ -1,4 +1,6 @@
-# Every push to main is tested; sw.js is published only when every test passes. GitHub Pages serves main as it is,
+# Every push to main is tested, but only for what it changed (tools/pick-tests.mjs: a game's own files run that game's tests
+# and the quick ones that read every page; a shared file or anything unsure runs everything); the whole suite runs every
+# night and on demand (all-tests.yml). sw.js is published only when the push's tests pass. GitHub Pages serves main as it is,
 # but devices with the app installed only move to a new version when sw.js changes (it lists every file with a version
 # from their contents), so a push that fails a test never reaches them: they stay on the last good version. sw.js is
 # written by this workflow and by nobody else, so several people, or several Claudes, can push without colliding on
@@ -18,15 +20,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # the push's changed files are the difference from where main was before it
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: The banks are built from kb/ and current
         # under a second when it's linear; the time limit catches a scan of every link creeping back into a loop
         run: timeout 30 node tools/build-kb.mjs --check
-      - name: Every game's tests
-        # the test files run four at a time; a failing one prints its output and fails the step
-        run: ls tests/*.mjs | xargs -P 4 -I{} sh -c 'node {} > "/tmp/$(basename {}).log" 2>&1 && echo "ok   {}" || { echo "FAIL {}"; cat "/tmp/$(basename {}).log"; exit 1; }'
+      - name: Tests for what changed
+        # compared with the last commit the bot published (where every test last passed), not with the push before: a run
+        # that a newer push cancelled must not leave its changes untested. Every test when there's none, on a manual run,
+        # or when anything isn't one game's own; a failing one prints its output and fails the step
+        run: |
+          base=$(git log -1 --format=%H --author='github-actions' --grep='^sw.js for ')
+          if [ "${{ github.event_name }}" = push ] && [ -n "$base" ]; then
+            tests=$(node tools/pick-tests.mjs $(git diff --name-only "$base" "$GITHUB_SHA"))
+          else
+            tests=$(node tools/pick-tests.mjs --all)
+          fi
+          echo "$tests" | wc -l | xargs echo "tests to run:"
+          echo "$tests" | xargs -P 4 -I{} sh -c 'node {} > "/tmp/$(basename {}).log" 2>&1 && echo "ok   {}" || { echo "FAIL {}"; cat "/tmp/$(basename {}).log"; exit 1; }'
       - name: Publish sw.js
         run: |
           node tools/build-sw.mjs
@@ -34,5 +48,5 @@ jobs:
           if [ "$(git ls-remote origin refs/heads/main | cut -f1)" != "$(git rev-parse HEAD)" ]; then echo "main has moved on: its own run publishes"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -q -m "sw.js for ${GITHUB_SHA::7}: every test passed" -- sw.js
+          git commit -q -m "sw.js for ${GITHUB_SHA::7}: its tests passed" -- sw.js
           git push origin HEAD:main || echo "main moved on while publishing: its own run publishes"

@@ -1,0 +1,24 @@
+# The whole suite, every night and whenever asked (Actions, "Every test", Run workflow). A push to main runs only the
+# tests of what it changed (pages.yml, tools/pick-tests.mjs), so this is what finds a change that broke something it
+# doesn't own. It publishes nothing: a red run here means the last pushes need a look, not that installed copies are
+# on a bad version (they only ever move when a push's own tests passed).
+name: Every test
+on:
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+concurrency:
+  group: every-test
+  cancel-in-progress: true
+jobs:
+  every-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: The banks are built from kb/ and current
+        run: timeout 30 node tools/build-kb.mjs --check
+      - name: Every game's tests
+        run: node tools/pick-tests.mjs --all | xargs -P 4 -I{} sh -c 'node {} > "/tmp/$(basename {}).log" 2>&1 && echo "ok   {}" || { echo "FAIL {}"; cat "/tmp/$(basename {}).log"; exit 1; }'

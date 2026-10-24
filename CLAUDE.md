@@ -3,7 +3,7 @@
 Almanac: a suite of web games, opening on the screen of games (`index.html`, `home.js`; Crates is at `crates.html`) (Crates, Slate, Delta, Punt, Cartel, Spot, Quote, Manifest, Chart, Survey, Pipes, Rush, Deck,
 Parley, Blend, Refinery, Brut, Stow, Hong, Tribute, Cue, Party, River, Gambit, Boast, Big Two, Landlord, Banquet, Gammon,
 Trumps, Quest, Bones), plain HTML, CSS and JavaScript modules with no build step for the games themselves.
-Every push to `main` is tested by `.github/workflows/pages.yml`; GitHub Pages serves `main` at
+Every push to `main` is tested by `.github/workflows/pages.yml`, but only for what it changed (below); GitHub Pages serves `main` at
 https://kmrring.github.io/Crates/, and installed copies (his phone) move to it only when the workflow publishes
 `sw.js`, which it does only when every test passes.
 README.md describes every game and every decision; read the section of the game you work on first.
@@ -28,10 +28,16 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 5. **Built files are rebuilt, not merged.** If a rebase conflicts in a bank built from `kb/`, settle `kb/` and run
    `node tools/build-kb.mjs`.
 6. **Test before pushing:** `node tests/<game>.mjs` for what you touched, all of `tests/*.mjs` if you touched a shared
-   file. The workflow runs them all; if one fails, `sw.js` isn't published and installed copies stay on the last good
-   version (a fresh visit to the site still gets the new files, so don't leave it broken).
+   file. A push's own run is smaller than that (Korbi, 24 October 2026: the full run on every push was too slow):
+   `tools/pick-tests.mjs` gives a push that changes only one game's own files that game's tests plus the quick ones that
+   read every page (syntax, imports, offline, wide, days), and any shared file, bank, `tools/`, `kb/` or file with no
+   tests of its own runs everything. It compares with the last commit the bot published, so a cancelled run's changes
+   are never skipped. The whole suite runs every night (`.github/workflows/all-tests.yml`, 02:23 UTC) and on demand
+   (`gh workflow run all-tests.yml`); a game change that could break another game's page should still get a full local
+   run first. If a test fails, `sw.js` isn't published and installed copies stay on the last good version (a fresh
+   visit to the site still gets the new files, so don't leave it broken).
 7. **After pushing, check the run went green** (Actions on GitHub) and that the bot committed `sw.js` when you changed
-   a game file; installed copies update a minute or two later.
+   a game file; look at the last nightly "Every test" run when you start, and fix what it found; installed copies update a minute or two later.
 
 ## Knowledge lives in kb/
 
