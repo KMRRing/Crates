@@ -24,6 +24,54 @@ const hexAtHeight = (x, z, y, grow = 1, cls = "tp-flat-cell") => poly(Array.from
 const hexCell = (x, z) => hexAtHeight(x, z, 0);
 const ellipseAt = (x, y, z, r, cls) => { const [cx, cy] = flat(x, y, z); return el("ellipse", { cx: cx.toFixed(3), cy: cy.toFixed(3), rx: r, ry: (r * Math.sin((58 * Math.PI) / 180)).toFixed(3), class: cls }); };
 
+/**
+ * A level's terrain drawn flat (topple-levels.js; FREE for none): pools, stones, steps, gilding, no table, and the pieces the
+ * floors add (hedges, lips, portals, stairs); back to front, floor by floor. Returns { ys (each floor's height), base (each
+ * hexagon's), kids (the elements of each floor), links (the portals and stairs) }. `only` is a set of hexagon numbers to draw
+ * (the lessons' small tables); none draws the whole table.
+ */
+export function tableParts(rules, only = null) {
+  const ys = floorYs(rules), n = rules.n, floorOf = i => Math.floor(i / SIZE), onFloor = floorOf, keep = g => !only || only.has(g);
+  const base = Array.from({ length: n }, (_, i) => ys[floorOf(i)] + rules.height[i] * rules.rise + (rules.bridges && rules.terrain[i] === WATER ? PLANK : 0));          // a bridge's plank raises the water it spans
+  const kids = Array.from({ length: FLOORS_MAX }, () => []);
+  // floors in order, their hexagons back to front
+  for (let g = 0; g < n; g++) {
+    if (!keep(g)) continue;
+    const l = floorOf(g), i = g % SIZE, [x, z] = MID[g], t = rules.terrain[g], y = ys[l], out = kids[l];
+    if (l > 0 && t !== VOID) out.push(hexAtHeight(x, z, y - DECK, 1.0, "tp-flat-step-side"));
+  }
+  const order = Array.from({ length: n }, (_, g) => g).filter(keep).sort((a, b) => MID[a][1] - MID[b][1]);
+  for (const g of order) {
+    const l = floorOf(g), [x, z] = MID[g], t = rules.terrain[g], out = kids[l];
+    if (t === VOID) { if (l === 0) out.push(hexAtHeight(x, z, 0, 1, "tp-flat-void")); continue; }
+    if (l > 0) out.push(hexAtHeight(x, z, ys[l], 1, "tp-flat-deck"));
+    else if (only) out.push(hexAtHeight(x, z, 0, 1, "tp-flat-cell tp-flat-ground"));          // a small table has no birch to stand on
+    if (t === WATER) out.push(hexAtHeight(x, z, ys[l], 0.92, "tp-flat-water"));
+    else if (t === ROCK) out.push(hexAtHeight(x, z, ys[l], 0.62, "tp-flat-rock"));
+    else if (t === 4) out.push(ellipseAt(x, ys[l], z, 0.3, "tp-flat-cup"));
+    else if (rules.height[g]) out.push(hexAtHeight(x, z, ys[l], 1, "tp-flat-step-side"), hexAtHeight(x, z, base[g], 1, `tp-flat-step h${rules.height[g]}`));
+    if (rules.marsh?.[g]) out.push(hexAtHeight(x, z, base[g], 0.9, "tp-flat-marsh"), ...[[-0.2, 0.1], [0.12, -0.15], [0.22, 0.18]].map(([dx, dz]) => ellipseAt(x + dx, base[g], z + dz, 0.07, "tp-flat-reed")));
+    if (rules.gilded[g]) out.push(hexAtHeight(x, z, base[g], 0.78, "tp-flat-gilt"));
+    if (rules.spring?.[g]) out.push(ellipseAt(x, base[g], z, 0.3, "tp-flat-spring"), ellipseAt(x, base[g] + 0.12, z, 0.16, "tp-flat-spring"));
+  }
+  const f = featuresOf(rules);
+  for (const h of f.hedges.filter(h => keep(h.i))) {
+    const [x0, z0, x1, z1] = h.edge, y = base[h.i];
+    kids[onFloor(h.i)].push(poly([flat(x0, y, z0), flat(x1, y, z1), flat(x1, y + 0.3, z1), flat(x0, y + 0.3, z0)], { class: "tp-flat-hedge" }));
+  }
+  for (const lip of f.lips.filter(l => keep(l.i))) {
+    const [x0, z0, x1, z1] = lip.edge, y = base[lip.i], y2 = base[lip.j];
+    if (lip.water && y2 < y) kids[onFloor(lip.i)].push(poly([flat(x0, y, z0), flat(x1, y, z1), flat(x1, y2, z1), flat(x0, y2, z0)], { class: "tp-flat-fall" }));
+    kids[onFloor(lip.i)].push(el("line", { class: "tp-flat-lip", x1: flat(x0, y, z0)[0].toFixed(3), y1: flat(x0, y, z0)[1].toFixed(3), x2: flat(x1, y, z1)[0].toFixed(3), y2: flat(x1, y, z1)[1].toFixed(3) }));
+  }
+  const links = f.links.filter(({ a, b }) => keep(a) && keep(b)).flatMap(({ a, b }) => {
+    const pa = flat(MID[a][0], base[a] + 0.02, MID[a][1]), pb = flat(MID[b][0], base[b] + 0.02, MID[b][1]);
+    return [ellipseAt(MID[a][0], base[a] + 0.02, MID[a][1], 0.28, "tp-flat-portal"), ellipseAt(MID[b][0], base[b] + 0.02, MID[b][1], 0.28, "tp-flat-portal"),
+      ...(onFloor(a) !== onFloor(b) ? [el("line", { class: "tp-flat-stairs", x1: pa[0].toFixed(3), y1: pa[1].toFixed(3), x2: pb[0].toFixed(3), y2: pb[1].toFixed(3) })] : [])];
+  });
+  return { ys, base, kids, links };
+}
+
 export function createFlat(host) {
   const svg = el("svg", { class: "tp-gl tp-flatview", "aria-hidden": "true" }), world = el("g"), bell = el("g", { class: "tp-flat-bell" }), links = el("g", { class: "tp-flat-links" });
   svg.append(world);
@@ -88,44 +136,10 @@ export function createFlat(host) {
     rules = next;
     lv = rules.palette === "levels";
     svg.dataset.scene = rules.scene;
-    ys = floorYs(rules);
-    const n = rules.n, floorOf = i => Math.floor(i / SIZE);
-    base = Array.from({ length: n }, (_, i) => ys[floorOf(i)] + rules.height[i] * rules.rise + (rules.bridges && rules.terrain[i] === WATER ? PLANK : 0));          // a bridge's plank raises the water it spans
-    const kids = layers.map(() => []);
-    // floors in order, their hexagons back to front
-    for (let g = 0; g < n; g++) {
-      const l = floorOf(g), i = g % SIZE, [x, z] = MID[g], t = rules.terrain[g], y = ys[l], out = kids[l];
-      if (l > 0 && t !== VOID) out.push(hexAtHeight(x, z, y - DECK, 1.0, "tp-flat-step-side"));
-    }
-    const order = Array.from({ length: n }, (_, g) => g).sort((a, b) => MID[a][1] - MID[b][1]);
-    for (const g of order) {
-      const l = floorOf(g), [x, z] = MID[g], t = rules.terrain[g], out = kids[l];
-      if (t === VOID) { if (l === 0) out.push(hexAtHeight(x, z, 0, 1, "tp-flat-void")); continue; }
-      if (l > 0) out.push(hexAtHeight(x, z, ys[l], 1, "tp-flat-deck"));
-      if (t === WATER) out.push(hexAtHeight(x, z, ys[l], 0.92, "tp-flat-water"));
-      else if (t === ROCK) out.push(hexAtHeight(x, z, ys[l], 0.62, "tp-flat-rock"));
-      else if (t === 4) out.push(ellipseAt(x, ys[l], z, 0.3, "tp-flat-cup"));
-      else if (rules.height[g]) out.push(hexAtHeight(x, z, ys[l], 1, "tp-flat-step-side"), hexAtHeight(x, z, base[g], 1, `tp-flat-step h${rules.height[g]}`));
-      if (rules.marsh?.[g]) out.push(hexAtHeight(x, z, base[g], 0.9, "tp-flat-marsh"), ...[[-0.2, 0.1], [0.12, -0.15], [0.22, 0.18]].map(([dx, dz]) => ellipseAt(x + dx, base[g], z + dz, 0.07, "tp-flat-reed")));
-      if (rules.gilded[g]) out.push(hexAtHeight(x, z, base[g], 0.78, "tp-flat-gilt"));
-      if (rules.spring?.[g]) out.push(ellipseAt(x, base[g], z, 0.3, "tp-flat-spring"), ellipseAt(x, base[g] + 0.12, z, 0.16, "tp-flat-spring"));
-    }
-    const f = featuresOf(rules);
-    for (const h of f.hedges) {
-      const [x0, z0, x1, z1] = h.edge, y = base[h.i];
-      kids[onFloor(h.i)].push(poly([flat(x0, y, z0), flat(x1, y, z1), flat(x1, y + 0.3, z1), flat(x0, y + 0.3, z0)], { class: "tp-flat-hedge" }));
-    }
-    for (const lip of f.lips) {
-      const [x0, z0, x1, z1] = lip.edge, y = base[lip.i], y2 = base[lip.j];
-      if (lip.water && y2 < y) kids[onFloor(lip.i)].push(poly([flat(x0, y, z0), flat(x1, y, z1), flat(x1, y2, z1), flat(x0, y2, z0)], { class: "tp-flat-fall" }));
-      kids[onFloor(lip.i)].push(el("line", { class: "tp-flat-lip", x1: flat(x0, y, z0)[0].toFixed(3), y1: flat(x0, y, z0)[1].toFixed(3), x2: flat(x1, y, z1)[0].toFixed(3), y2: flat(x1, y, z1)[1].toFixed(3) }));
-    }
-    layers.forEach((l, k) => l.terr.replaceChildren(...kids[k]));
-    links.replaceChildren(...f.links.flatMap(({ a, b }) => {
-      const pa = flat(MID[a][0], base[a] + 0.02, MID[a][1]), pb = flat(MID[b][0], base[b] + 0.02, MID[b][1]);
-      return [ellipseAt(MID[a][0], base[a] + 0.02, MID[a][1], 0.28, "tp-flat-portal"), ellipseAt(MID[b][0], base[b] + 0.02, MID[b][1], 0.28, "tp-flat-portal"),
-        ...(onFloor(a) !== onFloor(b) ? [el("line", { class: "tp-flat-stairs", x1: pa[0].toFixed(3), y1: pa[1].toFixed(3), x2: pb[0].toFixed(3), y2: pb[1].toFixed(3) })] : [])];
-    }));
+    const parts = tableParts(rules);
+    ys = parts.ys; base = parts.base;
+    layers.forEach((l, k) => l.terr.replaceChildren(...parts.kids[k]));
+    links.replaceChildren(...parts.links);
     // the floors in the order they are seen: lowest first
     world.replaceChildren(...Array.from({ length: rules.layers || 1 }, (_, k) => k).sort((a, b) => ys[a] - ys[b]).map(k => layers[k].g), links, bell);
     active = Math.min(active, (rules.layers || 1) - 1);
