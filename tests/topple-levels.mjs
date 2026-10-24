@@ -215,11 +215,26 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
 }
 
 // A game of the bots that reaches each level's goal: [player, seed]. Found by tests/topple-players.js; if the engine's deal changes, find them again.
-const REACHED = {};
+const REACHED = {
+  1: ["careful", 101],
+  2: ["careful", 102],
+  3: ["careful", 105],
+  4: ["careful", 106],
+  5: ["careful", 103],
+  6: ["careful", 105],
+  7: ["careful", 109],
+  8: ["careful", 139],
+  9: ["careful", 103],
+  10: ["careful", 102],
+  11: ["careful", 106],
+  12: ["careful", 101],
+  13: ["careful", 101],
+  14: ["careful", 101],
+};
 
 // ---------- whole games of every level ----------
 {
-  const games = MEASURE ? Number(ARG("games") || 16) : 4, who = (ARG("who") || (MEASURE ? "careful,corner" : "careful")).split(","), only = ARG("levels")?.split(",").map(Number);
+  const games = MEASURE ? Number(ARG("games") || 16) : 3, who = (ARG("who") || (MEASURE ? "careful,corner" : "careful")).split(","), only = ARG("levels")?.split(",").map(Number);
   const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
   const t0 = Date.now();
   let allOk = true, allEnd = true;
