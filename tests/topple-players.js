@@ -5,7 +5,8 @@
 // scores most. They know the level's rules only as the engine tells them (a push's gain, where a piece fits, on whichever
 // floor), so on a level with heavy dominoes, gates or water they play it as well as that lets them, no better: they're a
 // measure of how much a table gives, not of how much a person can find in it.
-import { CELLS, AXES, nbr, dirIn, through, coverFor, colourAt, fitsAnywhere, group, longest, chains, lay, knock, turn, moves, newGame, rulesOf, BALL } from "../topple-engine.js";
+import { CELLS, AXES, nbr, dirIn, through, coverFor, colourAt, fitsAnywhere, group, longest, chains, lay, knock, knockOn, pushes, turn, moves, newGame, rulesOf, floorOf, BALL, RAINBOW, HEAVY } from "../topple-engine.js";
+import { WATER } from "../topple-levels.js";
 
 /** The longest smooth path through a group: no turn sharper than sixty degrees, a fall along it taking it end to end. */
 export function smoothPath(cells, members, bell = -1, budget = 3000, rules) {
@@ -117,17 +118,62 @@ export const PLAYERS = {
   bell: { name: "the bell player", choose: careful(true), turns: true },
   random: { name: "a random player", choose: (s, rnd) => { const all = moves(s); return all[Math.floor(rnd() * all.length)]; } },
 };
+/**
+ * What a knock used of the level's own rules: tags for each, from the dominoes it brought down (`k`, a push as knockOn gives
+ * it, on `cells` as they stood). mix: a mixed colour (orange, green, purple, grey) in a fall of three or more; rainbow;
+ * heavy, gate; gilded (a domino on a gilded hexagon, not counting those two); spring (a fall thrown over a hexagon);
+ * link (a portal or a stair); drop (down a floor); down (a step down); water (a domino on water, a bridge); marsh;
+ * ball; cup. For the tests that ask whether a level's thing is engaged with or only there.
+ */
+export function tagsOf(rules, cells, mod, k) {
+  const t = new Set();
+  const colours = k.fell.map(f => cells[f[0]]);
+  if (colours.some(c => c >= 5 && c <= 8) && k.fell.length >= 3) t.add("mix");
+  if (colours.includes(RAINBOW)) t.add("rainbow");
+  for (const [j, , by] of k.fell) {
+    if (mod && mod[j] === HEAVY) t.add("heavy");
+    if (mod && mod[j] >= 10) t.add("gate");
+    if (rules.gilded[j]) t.add("gilded");
+    if (rules.terrain[j] === WATER) t.add("water");
+    if (rules.marsh && rules.marsh[j]) t.add("marsh");
+    if (by < 0) continue;
+    const near = dirIn(by, j, rules) >= 0, linked = rules.links && rules.links[by].includes(j);
+    if (linked) t.add("link");
+    else if (!near && rules.spring && rules.spring[by]) { t.add("spring"); }
+    else if (floorOf(by) !== floorOf(j)) t.add("drop");
+    else if (rules.height[by] > rules.height[j]) t.add("down");
+  }
+  if (k.rolls.length) t.add("ball");
+  if (k.cups) t.add("cup");
+  return t;
+}
+/** The push that scores most among those that use none of the tags `deny` (or the best of all if every push uses one). */
+function mostWithout(s, deny) {
+  const rules = rulesOf(s);
+  let best = null, any = null;
+  s.cells.forEach((c, j) => {
+    if (c < 0 || s.ax[j] < 0) return;
+    for (const way of pushes(s.ax, j)) {
+      const k = knockOn(s.cells, s.ax, j, way, s.bell, rules, s.boost, s.mod || null);
+      if (!any || k.gain > any.gain) any = { at: j, way, gain: k.gain };
+      if (deny.some(x => tagsOf(rules, s.cells, s.mod, k).has(x))) continue;
+      if (!best || k.gain > best.gain) best = { at: j, way, gain: k.gain };
+    }
+  });
+  return best || any;
+}
 const most = s => chains(s.cells, s.ax, s.bell, rulesOf(s), s.boost, s.mod || null).reduce((a, c) => (!a || c.best.gain > a.gain ? c.best : a), null);
 /**
  * A game played out to its end (or a thousand pieces, or `pieces`): what it came to, and whether it kept to the rules
  * throughout. `level` plays that level; `laidAt[k]` is the piece at which the score first reached the level's k-th star.
  */
-export function play(seed, player, { level = -1, pieces = 1000 } = {}) {
-  let s = newGame(seed, level), score = 0, knocks = 0, fell = 0, bent = 0, forked = 0, rng = seed * 2654435761 >>> 0;
+export function play(seed, player, { level = -1, pieces = 1000, deny = null } = {}) {
+  let s = newGame(seed, level), score = 0, knocks = 0, fell = 0, bent = 0, forked = 0, used = {}, rng = seed * 2654435761 >>> 0;
   const rnd = () => ((rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0) / 4294967296), faced = new Set(), sound = { ok: true }, laidAt = [];
   while (!s.over && s.laid < pieces) {
     if (s.due) {
-      const b = most(s), r = knock(s, b.at, b.way), kids = new Map();
+      const b = deny ? mostWithout(s, deny) : most(s), r = knock(s, b.at, b.way), kids = new Map();
+      for (const tag of tagsOf(rulesOf(s), s.cells, s.mod, { fell: r.fell, rolls: r.rolls, cups: r.cups })) { used[tag] ??= { knocks: 0, gain: 0 }; used[tag].knocks++; used[tag].gain += r.gain; }
       score += r.gain; knocks++; fell += r.fell.length;
       // through a domino facing a line: round a bend, or forking to two
       for (const [, , by] of r.fell) if (by >= 0) kids.set(by, (kids.get(by) || 0) + 1);
@@ -142,5 +188,5 @@ export function play(seed, player, { level = -1, pieces = 1000 } = {}) {
     }
     if (s.cells.length !== rulesOf(s).n || !s.cells.every((c, i) => (c >= 0) === (s.ax[i] >= 0 && s.ax[i] < AXES)) || s.score !== score || s.cells.filter(c => c === BALL).length !== (rulesOf(s).balls || 0)) sound.ok = false;
   }
-  return { laid: s.laid, score: s.score, rung: s.rung, knocks, fell, bent, forked, ended: s.over, ok: sound.ok, stars: s.stars || 0, laidAt };
+  return { used, laid: s.laid, score: s.score, rung: s.rung, knocks, fell, bent, forked, ended: s.over, ok: sound.ok, stars: s.stars || 0, laidAt };
 }
