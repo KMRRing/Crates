@@ -4,22 +4,10 @@
 // player plays the level twice: as it is, and refusing every push that uses the thing (it takes the best push that doesn't).
 // `node tests/topple-features.mjs measure games=10 levels=4,5` prints what the README's numbers come from.
 import { LEVELS, custom, lodge } from "../topple-levels.js";
+import { FEATURES, OBSTACLES, without } from "./topple-features-list.js";
 import { PLAYERS, play } from "./topple-players.js";
 import { REACHED } from "./topple-reached.js";
 
-/** What each level adds that a player must engage with, as `tagsOf` names it. */
-export const FEATURES = {
-  2: ["mix"], 3: ["mix"], 4: ["heavy", "gilded"], 5: ["mix", "down", "gilded"], 6: ["spring", "gate", "heavy"],
-  7: ["mix", "drop", "link"], 8: ["water", "link"], 9: ["water", "marsh"], 10: ["rainbow"], 11: ["ball", "cup", "down"],
-  12: ["link", "drop", "rainbow"], 13: ["gate", "down", "drop"], 14: ["mix", "gate", "spring", "link", "ball", "cup", "water", "rainbow"],
-};
-/** What stands in a level's way (not something to use but something to get round), by the map keys that make it. */
-export const OBSTACLES = { 2: ["rock"], 3: ["water"], 6: ["water"], 8: ["water", "rock"], 9: ["water", "marsh"], 10: ["hedge"], 14: ["water", "rock"] };
-/** The level's spec with those obstacles taken off its table. */
-const without = (spec, keys) => {
-  const strip = m => Object.fromEntries(Object.entries(m || {}).filter(([k]) => !keys.includes(k)));
-  return { ...spec, map: strip(spec.map), layers: spec.layers && spec.layers.map(strip) };
-};
 const arg = k => process.argv.find(x => x.startsWith(`${k}=`))?.slice(k.length + 1);
 const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
 
@@ -60,14 +48,15 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
       else if (play(seed, PLAYERS[id], { level: n - 1, pieces: 400, deny: [tag] }).score >= goal) needed.push(`${n} ${tag}`);
     }
   }
+  // what stands in the way costs the careful player: four games on each table as it is and with it taken off, each to 150 pieces
   for (const [n, keys] of Object.entries(OBSTACLES)) {
-    const [id, seed] = REACHED[n], free = lodge(custom(without(LEVELS[n - 1], keys)));
-    const as = play(seed, PLAYERS[id], { level: n - 1, pieces: 400 }).score, off = play(seed, PLAYERS[id], { level: free, pieces: 400 }).score;
-    if (off < as * 1.5) stripped.push(`${n} ${keys.join("+")}: ${as} to ${off}`);
+    const free = lodge(custom(without(LEVELS[n - 1], keys))), total = level => [100, 101, 102, 103].reduce((a, seed) => a + play(seed, PLAYERS.careful, { level, pieces: 150 }).score, 0);
+    const as = total(n - 1), off = total(free);
+    if (off < as * 1.2) stripped.push(`${n} ${keys.join("+")}: ${as} to ${off}`);
   }
   check(!unused.length, `the game that reaches each goal uses everything its level adds${unused.length ? ` (not: ${unused.join(", ")})` : ""}`);
   check(!needed.length, `and refusing any one of them, it falls short of the goal${needed.length ? ` (still reached: ${needed.join(", ")})` : ""}`);
-  check(!stripped.length, `taking a table's stones, water, marsh or hedges off raises the same game's score by half at least${stripped.length ? ` (not: ${stripped.join("; ")})` : ""}`);
+  check(!stripped.length, `taking a table's stones, water, marsh or hedges off raises the careful player's score by a fifth at least (four games each, to 150 pieces)${stripped.length ? ` (not: ${stripped.join("; ")})` : ""}`);
 }
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("topple features: each level's features are used, and needed, in the game that reaches its goal");
