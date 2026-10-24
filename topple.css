@@ -53,7 +53,7 @@ html[data-mode="night"] { --tp-yellow: #E2B544; --tp-red: #D06A58; --tp-blue: #4
 
 /* the table: as large as its room allows; the canvas draws it, the svg over it draws what the page says about it */
 .tp-table { position: relative; }
-.tp-stage { position: absolute; inset: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
+.tp-stage { position: absolute; inset: 0; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .tp-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* clipped to the table's box: zoomed in, what's drawn over a domino out of view mustn't spill onto the strip */
 .tp-over { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
@@ -108,7 +108,7 @@ html[data-mode="night"] { --tp-yellow: #E2B544; --tp-red: #D06A58; --tp-blue: #4
 .tp-tray[hidden] { display: none; }
 /* one cell the size of the box, so the picture fits it whatever the box's shape (the side column's are wide and short) */
 .tp-piece { display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; min-width: 0; min-height: 0; padding: .4rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--tp-soft);
-  touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+  touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .tp-piece svg { width: 100%; height: 100%; display: block; pointer-events: none; overflow: visible; }
 .tp-piece.lifted svg { opacity: .2; }
 .tp-piece.cant svg { opacity: .35; filter: grayscale(1); }
@@ -215,3 +215,27 @@ html[data-mode="night"] .tp-flat-ball .body { fill: #e8806f; stroke: #8a3a2e; }
 .tp-flat-fall { fill: #8cc6e0; opacity: .6; }
 .tp-flat-portal { fill: none; stroke: #8e70b3; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
 .tp-flat-stairs { stroke: var(--tp-metal, #caa040); stroke-width: 2; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+
+/* feature help (topple-help-ui.js): a sheet with a little scene, its words and Back / Next. The scenes are drawn as the flat table is,
+   so they take its classes; a small table has no birch to stand on, so its ground is the birch */
+.tp-flat-cell.tp-flat-ground { fill: var(--tp-field, #e6cd9f); }
+dialog.tp-help { max-height: 92vh; max-height: 92svh; overflow-y: auto; overscroll-behavior: contain; }
+.tp-hstage { position: relative; height: 10.5rem; margin: .1rem 0 .8rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--yard); overflow: hidden; }
+.tp-hframe { position: absolute; inset: 0; }
+.tp-hstage.still { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: .3rem; }
+.tp-hstage.still .tp-hframe { position: relative; min-height: 0; }
+.tp-hstage.still .tp-hframe + .tp-hframe { border-left: 1px solid var(--rule); }
+.tp-hsvg { width: 100%; height: 100%; display: block; }
+.tp-hsteps text { fill: var(--ink); stroke: var(--sheet); stroke-width: .09; paint-order: stroke; font-weight: 800; stroke-linejoin: round; }
+.tp-hcap, .tp-hmarks { position: absolute; font-size: .7rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); font-variant-numeric: tabular-nums; }
+.tp-hcap { left: .4rem; bottom: .3rem; padding: .05rem .2rem; border-radius: 3px; background: color-mix(in srgb, var(--yard) 82%, transparent); color: var(--ink-soft); }
+.tp-hmarks { right: .55rem; top: .4rem; color: var(--brass-lo, var(--brass)); }
+.tp-hmarks.late { opacity: 0; transition: opacity .25s; }
+.tp-hmarks.late.on { opacity: 1; }
+.tp-htext p { margin: 0 0 .5rem; line-height: 1.38; font-size: .92rem; }
+.tp-hnav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .6rem; margin-top: .7rem; }
+.tp-hnav .btn { padding-inline: 1rem; }
+.tp-hnav #tpHelpBack { justify-self: start; }
+.tp-hnav #tpHelpNext { justify-self: end; min-width: 6rem; }
+.tp-hnav #tpHelpBack:disabled { visibility: hidden; }
+.tp-hat { font-size: .75rem; font-weight: 750; color: var(--ink-soft); font-variant-numeric: tabular-nums; }

@@ -22,13 +22,17 @@ import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, choice, onPause } from "./menu.js";
+import { IN_FRAME } from "./suite.js";
+import { ORDER, featuresOfRules, featuresOfHand, featuresAtCell } from "./topple-help.js";
+import { createHelp } from "./topple-help-ui.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
 // RUN, BEST: Classic's game and best, as they have always been kept. MODE: "classic" or "levels". CAMP: { at (the level
 // being played, 0 on), stars (the most stars won in each) }. RUNS: the game of each level begun, by its number (1 on).
 // CAMP2, RUNS2: the fourteen tables' (the eighteen before them left theirs under topple:camp and topple:lruns, which are let go of). FLOOR: the floor in play.
-const RUN = "topple:run", BEST = "topple:best", SEEN = "topple:seen", SOUND = "topple:sound", SEL = "topple:sel", MODE = "topple:mode", CAMP = "topple:camp2", RUNS = "topple:lruns2", FLOOR = "topple:floor";
+// HELP: the features already explained to this player (ids from topple-help.js), so each is explained once.
+const RUN = "topple:run", BEST = "topple:best", SEEN = "topple:seen", SOUND = "topple:sound", HELP = "topple:help", SEL = "topple:sel", MODE = "topple:mode", CAMP = "topple:camp2", RUNS = "topple:lruns2", FLOOR = "topple:floor";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 for (const old of ["topple:camp", "topple:lruns"]) try { localStorage.removeItem(old); } catch { /* private mode */ }
@@ -90,6 +94,7 @@ function newRun() {
   save();
   setFloor(0);
   render();
+  checkHelp();
 }
 /** The game of the mode and level now chosen, as it was left (else a new one). */
 function resume() {
@@ -104,6 +109,7 @@ function resume() {
   if (sel >= 0) knob = facingYou(sel);
   save();
   render();
+  checkHelp();
 }
 function setMode(next) {
   if (next === mode) return;
@@ -481,6 +487,7 @@ async function commitLay(slot, q, r, onFloor = floor) {
   }
   await wait(260);
   playing = false;
+  checkHelp();
 }
 /** Skips the knock that's due: nothing falls, and the next knock's points are doubled (the bell's 500 comes on top). */
 function commitSkip() {
@@ -509,6 +516,7 @@ async function commitKnock(i, way) {
   render();
   playing = false;
   if (first && S.stars >= 1 && S.level === level) toast(beatenWords());
+  checkHelp();
 }
 /** The points of a knock rising from where it fell: with a skip's or the gilding's multiplier (`times`), as the points before it and the times, and the bell's flat sum after them. */
 function popup(cells, gain, times, bell = 0) {
@@ -607,6 +615,7 @@ stage.addEventListener("pointerdown", e => {
     // held without sliding, the two ways it could go come up, to read their scores
     h.hold = setTimeout(() => { if (hand === h && !h.moved) { h.shown = true; showPress(h); } }, HOLD);
   } else hand = { ...base, kind: "table" };
+  armHelp(e, () => { const at = view.cellAt(e.clientX, e.clientY); return at >= 0 ? featuresAtCell(S, at, rulesOf(S)) : []; });
 });
 stage.addEventListener("wheel", e => {
   e.preventDefault();
@@ -671,6 +680,7 @@ function tapTable(e) {
   if (twice) view.zoomTo(view.zoom > 1.001 ? 1 : ZOOM, e.clientX, e.clientY);
 }
 function startPinch() {
+  clearHelp();
   const h = hand;
   hand = null;
   if (h) { clearTimeout(h.hold); if (h.kind === "turn") knob = h.knob0; if (h.kind !== "table") redraw(); }
@@ -703,6 +713,54 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
 }
+// ---------- help: what a feature is, with a little scene (topple-help.js, topple-help-ui.js) ----------
+// Shown in Levels only (Classic has nothing of its own) and never in a watching frame, which shows and writes nothing. A
+// dialog pauses the game (it is a `pauses` dialog), and each feature is explained once on its own, kept as topple:help: all of
+// a level's the first time it is played, a piece the first time it is dealt, and on a long press whenever asked.
+const help = createHelp({
+  dialog: $("tpHelp"),
+  seen: () => read(HELP, []),
+  mark: ids => write(HELP, [...new Set([...read(HELP, []), ...ids])]),
+  allowed: () => inLevels() && !IN_FRAME,
+});
+/** Explains whatever this level has, or this hand holds, that has not been explained: when a level opens and when a hand appears. */
+function checkHelp() {
+  if (!S || S.over || playing || drag || !inLevels() || IN_FRAME || help.isOpen() || $("menuDlg").open) return;
+  const have = new Set([...featuresOfRules(rulesOf(S)), ...S.hand.flatMap(featuresOfHand)]), seen = read(HELP, []);
+  help.open(ORDER.filter(id => have.has(id) && !seen.includes(id)));
+}
+// A long press (held HOLD_HELP milliseconds, the finger moving no more than HOLD_MOVE pixels) on a hexagon, a domino or a
+// piece in hand explains what is there, if it is anything. It cancels the touch it came from (no piece laid, no domino
+// chosen or pushed), and the click after it is let through to nothing. A slide, a drag or a second finger first is no press.
+const HOLD_HELP = 500, HOLD_MOVE = 8;
+let pressing = null, held = null, muteUntil = 0;     // the finger that may become a long press: { id, x, y, timer }; the one that did; until when clicks are let through to nothing
+function armHelp(e, find) {
+  clearHelp();
+  if (!inLevels() || IN_FRAME || !S || S.over) return;
+  const p = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  p.timer = setTimeout(() => {
+    pressing = null;
+    if (playing || pinch) return;
+    const ids = find();
+    if (!ids.length) return;
+    held = p.id;
+    muteUntil = performance.now() + 2500;
+    if (drag) { drag.float.remove(); drag = null; }
+    if (hand) { clearTimeout(hand.hold); hand = { id: hand.id, kind: "spent" }; }
+    render();
+    help.open(ids);
+  }, HOLD_HELP);
+  pressing = p;
+}
+function clearHelp() { if (pressing) clearTimeout(pressing.timer); pressing = null; }
+/** A finger that has wandered is not holding. */
+function strayHelp(e) { if (pressing && e.pointerId === pressing.id && Math.hypot(e.clientX - pressing.x, e.clientY - pressing.y) > HOLD_MOVE * scale()) clearHelp(); }
+/** A finger lifted: not held any longer; if it had opened help, the click it ends with is still let through to nothing, a moment more. */
+function endHold(e) {
+  if (pressing?.id === e.pointerId) clearHelp();
+  if (held === e.pointerId) { held = null; muteUntil = performance.now() + 400; }
+}
+
 /** The levels, three to a row: each its table in miniature, its number and name, its goal and the stars won. Those not yet open are dimmed; any open one can be played at any time, as it was left. */
 function levelList() {
   const list = document.createElement("div");
@@ -738,10 +796,12 @@ function openMenu() {
   content.append(choice("Mode", [["classic", "Classic"], ["levels", "Levels"]], mode, m => { setMode(m); openMenu(); }));
   if (inLevels()) content.append(levelList());
   part(body, "settings").append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("clack"); }));
-  const best = read(BEST, 0), beaten = camp.stars.filter(Boolean).length;
-  part(body, "about").append(line(inLevels()
+  const best = read(BEST, 0), beaten = camp.stars.filter(Boolean).length, about = part(body, "about");
+  about.append(line(inLevels()
     ? `This game: ${fmt(S.score)}, ${plural(S.felled, "domino", "dominoes")} felled; ${beaten} of ${LEVELS.length} levels beaten, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}`
     : `This game: ${fmt(S.score)}, ${plural(S.felled, "domino", "dominoes")} felled, the bell rung ${plural(S.rung, "time")}${best ? `; your best ${fmt(best)}` : ""}`));
+  // what this table has, to read again; a plain table (the first level) offers them all
+  if (inLevels() && !IN_FRAME) about.append(action("How things work", () => { const own = featuresOfRules(rulesOf(S)); help.open(own.length ? own : ORDER); }, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -750,13 +810,20 @@ bindSwitcher($("appsBtn"), "topple");
 document.querySelector(".tp-mark").innerHTML = APPS.find(a => a.id === "topple").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-for (const b of document.querySelectorAll(".tp-piece")) b.addEventListener("pointerdown", e => startDrag(e, Number(b.dataset.slot)));
-addEventListener("pointermove", e => { moveDrag(e); moveFinger(e); });
-addEventListener("pointerup", e => { endDrag(e); lift(e); });
+for (const b of document.querySelectorAll(".tp-piece")) {
+  const slot = Number(b.dataset.slot);
+  b.addEventListener("pointerdown", e => { startDrag(e, slot); if (e.button <= 0) armHelp(e, () => featuresOfHand(S.hand[slot])); });
+}
+addEventListener("pointermove", e => { strayHelp(e); moveDrag(e); moveFinger(e); });
+addEventListener("pointerup", e => { endHold(e); endDrag(e); lift(e); });
 addEventListener("pointercancel", e => {
+  endHold(e);
   if (drag?.id === e.pointerId) { drag.float.remove(); drag = null; render(); }
   lift(e, true);
 });
+// a press that opened help is not a tap: the click that follows it is let through to nothing
+addEventListener("click", e => { if (performance.now() < muteUntil) { e.preventDefault(); e.stopPropagation(); } }, true);
+for (const n of [stage, $("tray")]) n.addEventListener("contextmenu", e => e.preventDefault());       // a long press is help's, not the browser's menu
 $("againBtn").addEventListener("click", newRun);
 $("skipBtn").addEventListener("click", commitSkip);
 $("levelsBtn").addEventListener("click", openMenu);
@@ -765,7 +832,7 @@ onPause(() => view.hold(), () => view.release());
 // for tests and debugging
 window.__topple = {
   get state() { return S; }, set state(s) { S = s; setSel(-1); render(); }, get sel() { return sel; }, get knob() { return knob; },
-  commitLay, commitKnock, spotAt, newRun, choose, view, playLevel, setMode, setFloor, get floor() { return floor; }, get mode() { return mode; }, get camp() { return camp; },
+  commitLay, commitKnock, spotAt, newRun, choose, view, playLevel, setMode, setFloor, help, checkHelp, get floor() { return floor; }, get mode() { return mode; }, get camp() { return camp; },
   cellAt: (px, py) => view.cellAt(px, py),
   screenOf: i => { const [x, z] = view.centre(i); return onPage(x, view.baseOf(i) + SH * 0.45, z); },
   groundOf: i => { const [x, z] = view.centre(i); return onPage(x, view.baseOf(i), z); },

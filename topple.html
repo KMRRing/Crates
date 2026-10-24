@@ -67,6 +67,14 @@
   <div id="menuBody"></div>
 </dialog>
 
+<!-- what a feature is and how it plays, with a little scene (topple-help-ui.js): when it first turns up, on a long press, from the menu -->
+<dialog id="tpHelp" class="sheet menu-sheet pauses tp-help" aria-labelledby="tpHelpName">
+  <div class="pick-head"><h2 id="tpHelpName"></h2><button class="icon-btn menu-x" type="button" id="tpHelpClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="tpHelpStage" class="tp-hstage" role="img"></div>
+  <div id="tpHelpText" class="tp-htext"></div>
+  <div class="tp-hnav"><button class="btn" type="button" id="tpHelpBack">Back</button><span id="tpHelpAt" class="tp-hat"></span><button class="btn primary" type="button" id="tpHelpNext">Next</button></div>
+</dialog>
+
 <!-- the rainbow's bands, for the dominoes drawn flat to fill with -->
 <svg class="tp-defs" width="0" height="0" aria-hidden="true"><defs>
   <linearGradient id="tp-rainbow" x1="0" y1="1" x2="0" y2="0">
