@@ -133,7 +133,7 @@ export function createFlat(host) {
     layout();
     if (current) set({ ...current, fresh: [] });
   }
-  const topOf = (i, kind = current?.cells[i]) => base[i] + SH + 0 * kind;
+  const topOf = i => base[i] + SH;
   const axisOf = {}, ballOf = {};                     // the slab standing on each hexagon, and the ball
   function set({ cells, ax, mod = null, bell: bellCell, fresh = [], ghost = null }) {
     cancelFall();
@@ -185,8 +185,8 @@ export function createFlat(host) {
     return -1;
   };
   const inside = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) if ((poly[i][1] > y) !== (poly[j][1] > y) && x < ((poly[j][0] - poly[i][0]) * (y - poly[i][1])) / (poly[j][1] - poly[i][1]) + poly[i][0]) c = !c; return c; };
-  function outlineOf(i, ax, grow = 1.12, kind = current?.cells[i]) {
-    const yaw = yawOf(ax), c = Math.cos(yaw), sn = Math.sin(yaw), pts = [], T = thickOf(current?.mod?.[i] || 0), H = SH + 0 * kind;
+  function outlineOf(i, ax, grow = 1.12) {
+    const yaw = yawOf(ax), c = Math.cos(yaw), sn = Math.sin(yaw), pts = [], T = thickOf(current?.mod?.[i] || 0), H = SH;
     for (const lx of [-SW / 2, SW / 2]) for (const y of [base[i], base[i] + H]) for (const lz of [-T / 2, T / 2]) pts.push(project(MID[i][0] + lx * c + lz * sn, y, MID[i][1] - lx * sn + lz * c));
     return hull(pts, grow);
   }

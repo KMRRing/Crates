@@ -192,3 +192,26 @@ html[data-mode="night"] .tp-flat-ball .body { fill: #e8806f; stroke: #8a3a2e; }
 .tp-map-water { fill: color-mix(in srgb, var(--c2) 72%, var(--sheet)); }
 .tp-map-stone { fill: var(--ink-soft); }
 .tp-map-gilt { fill: var(--brass); }
+.tp-map-cell.marsh { fill: color-mix(in srgb, var(--c1) 30%, var(--sheet)); }
+.tp-map-floor-g.up .tp-map-cell { stroke: color-mix(in srgb, var(--ink) 35%, transparent); stroke-width: .08; }
+.tp-map-floor-g.cave .tp-map-cell { fill: color-mix(in srgb, var(--ink) 22%, var(--sheet)); }
+.tp-map-cup { fill: none; stroke: var(--brass); stroke-width: .1; }
+.tp-map-spring { fill: var(--c2); stroke: var(--sheet); stroke-width: .05; }
+.tp-map-hedge { stroke: var(--tp-green); stroke-width: .16; stroke-linecap: round; }
+.tp-map-lip { stroke: var(--ink); stroke-width: .1; stroke-linecap: round; opacity: .7; }
+.tp-map-lip.water { stroke: var(--c2); opacity: 1; }
+.tp-map-stairs { stroke: var(--brass); stroke-width: .08; stroke-dasharray: .22 .16; fill: none; }
+.tp-map-portal { fill: none; stroke: var(--tp-purple); stroke-width: .1; }
+.tp-lgoal { font-size: .6rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-soft); letter-spacing: .04em; }
+
+/* the flat table's floors and the pieces on them: a deck for a floor above, a cave below, marsh and reeds, a cup, a spring, a hedge, a lip and the water over it, a portal, a stair */
+.tp-flat-deck { fill: #b98a52; stroke: #6b4426; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-marsh { fill: #5f7a4a; opacity: .75; }
+.tp-flat-reed { fill: #3c5a2e; }
+.tp-flat-cup { fill: #1c1410; stroke: var(--tp-metal, #caa040); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.tp-flat-spring { fill: #6fb4d6; stroke: #2a6a92; stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .85; }
+.tp-flat-hedge { fill: #3f7a45; stroke: #234a28; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.tp-flat-lip { stroke: #2c0e06; stroke-width: 2; vector-effect: non-scaling-stroke; opacity: .7; }
+.tp-flat-fall { fill: #8cc6e0; opacity: .6; }
+.tp-flat-portal { fill: none; stroke: #8e70b3; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.tp-flat-stairs { stroke: var(--tp-metal, #caa040); stroke-width: 2; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }

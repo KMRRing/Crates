@@ -785,8 +785,9 @@ export function createTable(host) {
     });
     for (const sl of slabs) sl.dress();
     planks.forEach((m, i) => { m.material = matsOf(plank, floorOf(i) === active); });
-    // the pillar under a table, and the rock round a pit, would hide a floor below it
-    props.visible = !(ys[active] < 0);
+    // the pillar under a table, and the rock round a pit, would hide a floor below it, and show through the faint ground floor under one above
+    props.visible = active === 0;
+    if ((rules.layers || 1) > 1) setFade(restFade());
     invalidate();
   }
   /** Lays the table's terrain from a level's rules (topple-levels.js; FREE for none). The page sets the dominoes after. */
@@ -823,7 +824,7 @@ export function createTable(host) {
     // a spring: a brass plate with a coil on it; a marsh: a patch of dark ground with reeds; a cup: a dark mouth in a brass rim; a portal: a brass ring with a glow in it
     const flatRing = (R, r) => ring(R, r, 6, 28).rotateX(-Math.PI / 2);
     const springGeo = joined([[new THREE.CylinderGeometry(0.3, 0.3, 0.04, 20).translate(0, 0.02, 0), flatRing(0.23, 0.028).translate(0, 0.1, 0), flatRing(0.19, 0.028).translate(0, 0.18, 0), flatRing(0.15, 0.028).translate(0, 0.26, 0)]]);
-    const reedGeo = joined([[[-0.2, 0.1], [0.12, -0.15], [0.22, 0.18], [-0.1, -0.22], [0.0, 0.25]].map(([x, z], k) => new THREE.ConeGeometry(0.03, 0.3 + 0.06 * (k % 3), 5).translate(x, 0.15 + 0.03 * (k % 3), z))].flat());
+    const reedGeo = joined([[[-0.2, 0.1], [0.12, -0.15], [0.22, 0.18], [-0.1, -0.22], [0.0, 0.25]].map(([x, z], k) => new THREE.ConeGeometry(0.03, 0.3 + 0.06 * (k % 3), 5).translate(x, 0.15 + 0.03 * (k % 3), z))]);
     const mouthGeo = new THREE.CylinderGeometry(0.29, 0.29, 0.02, 24).translate(0, 0.012, 0), rimGeo = flatRing(0.31, 0.03).translate(0, 0.02, 0);
     const portalRing = flatRing(0.3, 0.035).translate(0, 0.03, 0), portalGlow = new THREE.CylinderGeometry(0.27, 0.27, 0.012, 24).translate(0, 0.02, 0);
     const f = featuresOf(rules);
@@ -1103,6 +1104,8 @@ export function createTable(host) {
     bell.rotation.set(0, 0, 0);
     swing.rotation.set(0, 0, 0);
   }
+  /** What shows of the floors not in play at rest: a floor above the one in play is a faint one; the ground over a cave fainter still, or it would hide the cave. */
+  const restFade = () => (ys[active] < 0 ? FADE / 2 : FADE);
   /** How much shows of a floor not in play: a little more while a knock plays out, which goes over all of them. */
   function setFade(v) {
     fade = v;
@@ -1354,7 +1357,7 @@ export function createTable(host) {
         }
         return true;
       });
-    }).then(() => { if (mine === fallId && rules.layers > 1) setFade(FADE); });
+    }).then(() => { if (mine === fallId && rules.layers > 1) setFade(restFade()); });
   }
 
   // ---------- looking at it ----------
@@ -1398,7 +1401,7 @@ export function createTable(host) {
    * The outline on the view of a domino standing on hexagon i facing along axis `ax`, grown by a little: [[x, y]…] (a
    * convex hull). Of a colour `kind` if it is not the one standing there now (a piece held over the table).
    */
-  function outlineOf(i, ax, grow = 1.12, kind = current.cells[i]) {
+  function outlineOf(i, ax, grow = 1.12) {
     tilter.updateMatrixWorld(true);
     const yaw = yawOf(ax), c = Math.cos(yaw), s = Math.sin(yaw), pts = [], H = SH, T = thickOf(current.mod?.[i] || 0);
     for (const lx of [-SW / 2, SW / 2]) for (const y of [base[i], base[i] + H]) for (const lz of [-T / 2, T / 2]) {

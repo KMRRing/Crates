@@ -203,8 +203,6 @@ function levelPlaque(w, h) {
   const L = LEVELS[S.level];
   return plaqueEl([["tp-ltitle", `${S.level + 1}  ${L.name}`], ...wrapped(L.about, 36).map(t => ["tp-hint", t]), ["tp-ltitle", `Goal ${fmt(L.goal)}`]], w, h);
 }
-/** Which colour stands (or is held, over the table) on a hexagon, for how tall it draws. */
-const kindAt = i => (marks.ghost?.laid.includes(i) ? marks.ghost.kinds[marks.ghost.laid.indexOf(i)] : S.cells[i]);
 function drawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
   over.setAttribute("viewBox", `0 0 ${w} ${h}`);
@@ -212,7 +210,7 @@ function drawOver() {
   const { ring = [], stay = [], compass, tag, ghost, handle, ax = S.ax } = marks, ghostAx = new Map((ghost?.laid || []).map((i, k) => [i, axesOf(ghost.laid)[k]]));
   const axOf = i => ghostAx.get(i) ?? (ax[i] >= 0 ? ax[i] : 0), kids = [], pts = [];
   const add = ({ g, pts: p }) => { kids.push(g); pts.push(...p); };
-  for (const [list, cls, grow] of [[stay, "tp-stay", 1.1], [ring, "tp-ring", 1.12]]) for (const i of list) { const hull = view.outlineOf(i, axOf(i), grow, kindAt(i)); add({ g: el("path", { class: cls, d: hullD(hull) }), pts: hull }); }
+  for (const [list, cls, grow] of [[stay, "tp-stay", 1.1], [ring, "tp-ring", 1.12]]) for (const i of list) { const hull = view.outlineOf(i, axOf(i), grow); add({ g: el("path", { class: cls, d: hullD(hull) }), pts: hull }); }
   if (compass) add(compassEl(...compass));
   if (handle) add(handleEl(...handle));
   if (tag) kids.push(tagEl(...tag, pts));
