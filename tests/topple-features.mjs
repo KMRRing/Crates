@@ -5,6 +5,7 @@
 // `node tests/topple-features.mjs measure games=10 levels=4,5` prints what the README's numbers come from.
 import { LEVELS, custom, lodge } from "../topple-levels.js";
 import { PLAYERS, play } from "./topple-players.js";
+import { REACHED } from "./topple-reached.js";
 
 /** What each level adds that a player must engage with, as `tagsOf` names it. */
 export const FEATURES = {
@@ -44,3 +45,29 @@ if (process.argv.includes("measure")) {
   }
   process.exit(0);
 }
+
+// ---------- in the game on record that reaches each goal ----------
+// (the measure above says how it goes over many games; this is one game, the same every time, so it can run with the rest)
+let bad = 0;
+const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
+{
+  const unused = [], needed = [], stripped = [];
+  for (const [n, tags] of Object.entries(FEATURES)) {
+    const [id, seed] = REACHED[n], goal = LEVELS[n - 1].goal;
+    const won = play(seed, PLAYERS[id], { level: n - 1, pieces: 400 });
+    for (const tag of tags) {
+      if (!won.used[tag]) unused.push(`${n} ${tag}`);
+      else if (play(seed, PLAYERS[id], { level: n - 1, pieces: 400, deny: [tag] }).score >= goal) needed.push(`${n} ${tag}`);
+    }
+  }
+  for (const [n, keys] of Object.entries(OBSTACLES)) {
+    const [id, seed] = REACHED[n], free = lodge(custom(without(LEVELS[n - 1], keys)));
+    const as = play(seed, PLAYERS[id], { level: n - 1, pieces: 400 }).score, off = play(seed, PLAYERS[id], { level: free, pieces: 400 }).score;
+    if (off < as * 1.5) stripped.push(`${n} ${keys.join("+")}: ${as} to ${off}`);
+  }
+  check(!unused.length, `the game that reaches each goal uses everything its level adds${unused.length ? ` (not: ${unused.join(", ")})` : ""}`);
+  check(!needed.length, `and refusing any one of them, it falls short of the goal${needed.length ? ` (still reached: ${needed.join(", ")})` : ""}`);
+  check(!stripped.length, `taking a table's stones, water, marsh or hedges off raises the same game's score by half at least${stripped.length ? ` (not: ${stripped.join("; ")})` : ""}`);
+}
+if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
+else console.log("topple features: each level's features are used, and needed, in the game that reaches its goal");

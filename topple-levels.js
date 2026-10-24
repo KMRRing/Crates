@@ -104,7 +104,7 @@ export const LEVELS = [
     about: "A spring throws a fall two hexagons on, over water. A gate domino names two colours, yellow and green here, and falls only once both have reached it in the one knock.",
   }),
   level({
-    name: "Waterfall", goal: 21500, colours: [0, 1, 2, 3, 4, 8], heavy: 0.05, pace: null, maxSize: 4, scene: "cliff",
+    name: "Waterfall", goal: 23500, colours: [0, 1, 2, 3, 4, 8], heavy: 0.05, pace: null, maxSize: 4, scene: "cliff",
     layers: [
       { water: [[3, -1], [3, 0], [4, -1], [4, -2], [4, 0]], gilded: [[-2, -2]] },
       { only: disc(2), water: [[-1, 0], [0, 0], [1, 0], [2, 0]], gilded: [[-1, -1], [1, -2]] },
