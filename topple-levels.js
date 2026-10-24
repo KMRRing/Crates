@@ -1,29 +1,38 @@
-// Topple's levels, pure (no page): eighteen tables, each adding one thing to the last, and the rules compiled from them for
-// the engine (topple-engine.js). Level 1 is Topple as it has always been (the same table, pieces, pace and scoring) with
-// a goal to reach; the others keep what the ones before taught and add to it:
-//   stones      a hexagon with a stone on it: nothing is laid there and a fall stops at it
-//   water       a hexagon of water (or no table at all, which is the same to the rules): nothing is laid there and an
-//               ordinary fall can't cross it
-//   tall        every domino of a colour is tall: falling, it reaches the hexagon beyond the next as well, across
-//               water or an empty hexagon (not past a stone), and climbs a step
-//   gilded      a hexagon whose domino, if it falls, doubles the knock's points (the bell's flat 500 is added after, not doubled)
-//   terraces    a hexagon at a height of 0, 1 or 2: a fall goes level or down, never up (a tall one climbs a step)
-//   pearl       a fourth colour, dealt now and then in pieces of one or two: knocked by every colour and knocking every
-//               colour, so it joins what else would stand apart
-//   bridges     a straight piece of two or three that may lie on water (planks under the dominoes)
-//   twins       a pair of two colours
-//   balls       that many balls on the table at all times: a fall that reaches one sets it rolling (topple-engine.js, rollOf)
-//   scene, rise what the table is made of and stands on (birch, marble, jetty, cliff, garden), and how high a step of height
-//               stands in the drawing (a fall doesn't care): how it looks, nothing more
+// Topple's levels, pure (no page): fourteen tables, each bringing a new tile or floor piece and a new design, and the
+// rules compiled from them for the engine (topple-engine.js). Level 1 is Topple with five colours on a plain table.
+//
+// Colours (levels): 0 yellow, 1 red, 2 blue, 3 black, 4 white, the mixes 5 orange (yellow + red), 6 green (yellow + blue),
+// 7 purple (red + blue), 8 grey (black + white), and 9 the rainbow, which every colour knocks and which knocks every
+// colour. A mix is knocked by either parent and knocks either parent (and its own colour); a mix does not knock another
+// mix. Classic (no level) keeps its own three colours, 0 to 2, and its own enamels.
+//
+// What a table can have:
+//   stone      nothing is laid there and a fall stops at it
+//   water      nothing is laid there and a fall can't cross it (no hexagon drawn, a void, is the same to the rules)
+//   cup        nothing is laid there; a ball that stops in it scores CUP and is put back on the table
+//   height     a hexagon at a height: a fall goes level or down, never up (a cliff is a big step)
+//   gilded     a hexagon whose domino, if it falls, doubles the knock's points (the bell's flat 500 is added after)
+//   spring     a domino standing on it, falling, also reaches the hexagon past the next, over water, a gap or a domino of
+//              another colour, not past a stone
+//   marsh      anything may be laid there, but a domino there falls without knocking another
+//   hedge      a wall on the edge between two hexagons: a fall cannot cross it
+//   link       two hexagons (a portal pair, or a stair between two floors): a domino that falls on one also knocks the one on
+//              the other, whichever way it faces
+//   drop       an edge from which a fall lands on the next floor down, in the way it was going
+//   layers     a table of several floors, each its own sixty-one hexagons (hexagon i of layer l is l * 61 + i); a piece is
+//              laid on one floor; a fall stays on it but for links and drops
+// Tiles that take more than a hit: a heavy domino falls only once two dominoes have fallen into it, whatever their
+// colours; a gate domino names two colours and falls only once a domino of each has fallen into it in the one knock.
+// Either scores double when it falls (like a gilded hexagon: the same doubling, not twice over).
 // A level is beaten at its goal (stars at higher scores, for those who go on); beating one only opens the next.
-// The goals follow what each table gives, not a count up: level 1's is 20000 (Korbi, 23 October 2026), and each other is
-// a share of what the careful player of tests/topple-players.js scores there in the median, the share rising from a half
-// to three quarters, rounded; a table cut up by water or stones scores less, so its goal is lower, and the tables were
-// chosen so that it falls by steps and not in a drop (a first Stones with seven stones scored a third of Classic).
-// Hexagons are numbered row by row as the engine numbers them (tests/topple-levels.mjs checks that they agree).
-export const FLOOR = 0, ROCK = 1, WATER = 2, VOID = 3;
-export const PEARL = 3;
-/** What a table is made of and stands on, for the drawing alone (topple-3d.js, topple-flat.js): the rules never look at it. */
+export const FLOOR = 0, ROCK = 1, WATER = 2, VOID = 3, CUP = 4;
+export const RAINBOW = 9, PEARL = RAINBOW;
+export const COLOUR_NAMES = ["yellow", "red", "blue", "black", "white", "orange", "green", "purple", "grey", "rainbow"];
+/** The parents of each mix. */
+export const MIXES = { 5: [0, 1], 6: [0, 2], 7: [1, 2], 8: [3, 4] };
+/** What a ball that stops in a cup scores. */
+export const CUP_SCORE = 300;
+/** What the drawing of a table and its pieces is told of: for the page alone, the rules never look at it. */
 export const SCENES = ["birch", "marble", "jetty", "cliff", "garden"];
 
 const R = 4;
@@ -42,130 +51,185 @@ const three = c => [0, 2, 4].map(k => spin(c, k));
 const disc = n => where(c => away(c) <= n);
 const ring = n => where(c => away(c) === n);
 const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
-/** The hexagons from `from`, then a step in each direction given (as the engine's DIRS: east, north-east, north-west, west, south-west, south-east). */
-const walk = (from, dirs) => { const out = [from]; let c = from; for (const d of dirs) { c = [c[0] + DIRS[d][0], c[1] + DIRS[d][1]]; out.push(c); } return out; };
-const turned = (list, steps) => list.map(c => spin(c, steps));
 const minus = (list, drop) => list.filter(c => !drop.some(d => d[0] === c[0] && d[1] === c[1]));
 const on = list => list.filter(c => NUMBER.has(`${c[0]},${c[1]}`));
+const same = (a, b) => a[0] === b[0] && a[1] === b[1];
+/** How far round the table a hexagon is, clockwise from east (the three o'clock) as it is drawn, 0 up to a whole turn. */
+const angleOf = ([q, r]) => { const a = Math.atan2(1.5 * r, Math.sqrt(3) * (q + r / 2)); return a < 0 ? a + 2 * Math.PI : a; };
 
-// a river from the west corner to the east, winding through the middle; two fords where it can be laid on
-const RIVER = walk([-4, 2], [1, 0, 1, 0, 1, 0, 1, 0]);
-const FORDS = [RIVER[2], RIVER[6]];
-// three arms from the middle to alternate corners
-/** Every hexagon with this q: a line across the table, 60° from its rows. */
-const column = q => where(c => c[0] === q);
-const ARMS = [[0, 0], ...[0, 2, 4].flatMap(k => [1, 2, 3].map(n => spin([n, 0], k)))];
-
-// ---------- the levels ----------
-// `map`: stones, water, void (no table), gilded (hexagons), and height ({ 1: […], 2: […] }); `tall`: the colours (0–2) that
-// are tall; `pearl`: the share of pieces dealt in pearl; `bell`: whether the bell hangs; `pace`: the knocks' pace if not the
-// game's own; `goal`: the score that beats it, and its stars at STARS times the goal.
 export const STARS = [1.6, 2.6];
-const GENTLE = { from: 40, to: 60, end: 0.8 };            // a knock nearly every hand: a table cut up by water has little room to spare
-const level = spec => ({ tall: [], pearl: 0, bridges: 0, twins: 0, balls: 0, scene: "birch", rise: 0.16, bell: true, pace: null, maxSize: 5, map: {}, ...spec });
+const GENTLE = { from: 40, to: 60, end: 0.8 };            // a knock nearly every hand: a table cut up has little room to spare
+const level = spec => ({ colours: [0, 1, 2, 3, 4], wild: 0, bridges: 0, twins: 0, balls: 0, heavy: 0, gate: null, scene: "birch", rise: 0.16, bell: true, pace: null, maxSize: 5, map: {}, links: [], drops: [], joins: [], start: [], ...spec });
+
+// the tables' own pieces of geometry
+const RIVER = [[-4, 2], [-3, 1], [-1, 0], [0, 0], [1, -1], [3, -2], [4, -2]];          // corner to corner, the two fords left out
+/** The edges round a disc of hexagons that a hedge could stand on: [a, b] pairs of neighbours, a inside and b out. */
+const edgesOf = (inside, outside, skip = () => false) => inside.flatMap(a => DIRS.map(([dq, dr]) => [a, [a[0] + dq, a[1] + dr]]).filter(([c, b]) => outside.some(o => same(o, b)) && !skip(c, b)));
+const GARDEN = [...edgesOf(ring(1), ring(2), c => c[1] === 0), [[-3, 1], [-3, 2]], [[3, -3], [3, -2]], [[-1, -3], [-2, -2]]];
+// the spiral: a road round a mountain, a step up every fifth of a turn, a sheer drop at three o'clock, a cave under the quadrant from twelve to three
+const road = c => away(c) >= 2;
+const stepOf = c => (road(c) ? Math.floor((angleOf(c) / (2 * Math.PI)) * 5) : 0);
+const CAVE = where(c => road(c) && angleOf(c) >= 1.5 * Math.PI);
+
 export const LEVELS = [
   level({
-    name: "Classic", goal: 20000,
-    about: "Topple as it is: lay the pieces, then knock a chain down. The goal is the score on the strip.",
+    name: "The parlour", goal: 20000,
+    about: "Five colours on a plain table: yellow, red, blue, black and white. The score is the chains you build.",
   }),
   level({
-    name: "Stones", goal: 16500, map: { rock: three([2, 0]) },
-    about: "A stone stands where no domino can: nothing is laid on it, and a fall stops at it.",
+    name: "Cairns", goal: 20000, colours: [0, 1, 2, 3, 4, 5],
+    map: { rock: [...three([2, 0]), ...three([2, -1])] },
+    about: "Orange is knocked by yellow and by red, and knocks both. Stones stand where nothing is laid, and a fall stops at one.",
   }),
   level({
-    name: "The river", goal: 10000, map: { water: minus(RIVER.slice(1, 8), FORDS) },
-    about: "Water: nothing is laid on it and a fall can't cross it, except at the two fords, which are laid on like any hexagon.",
+    name: "The river", goal: 20000, colours: [0, 1, 2, 3, 5, 6], scene: "jetty",
+    map: { water: RIVER },
+    about: "Green is knocked by yellow and by blue, and knocks both. A river crosses the table; its two fords are the only crossings.",
   }),
   level({
-    name: "Long legs", scene: "jetty", goal: 10000, tall: [2], maxSize: 4, pace: GENTLE, map: { water: turned(RIVER.slice(1, 8), 2) },
-    about: "The blue dominoes are tall. Falling, one reaches the hexagon past the next as well, over water or a gap (not past a stone), so a chain can cross a river with no ford.",
+    name: "Gilded cross", goal: 20000, colours: [0, 1, 2, 3, 5, 6], heavy: 0.1, scene: "garden",
+    map: { gilded: [[2, 0], [-2, 0], [0, 2], [0, -2]] },
+    start: three([1, -2]).map(c => ({ at: [0, ...c], colour: 2, heavy: true })),
+    about: "A heavy domino falls only once two dominoes have fallen into it. A gilded hexagon doubles a knock, and a heavy or a gate scores double when it falls.",
   }),
   level({
-    name: "Gilded", scene: "garden", goal: 12500, tall: [2], map: { water: minus(RIVER, FORDS), gilded: [[1, 1], [-2, 3], [-1, -1], [2, -3]] },
-    about: "A fall that brings down a domino on a gilded hexagon scores double; the bell's 500 is added after and is not doubled.",
+    name: "Ziggurat", goal: 20000, colours: [0, 1, 2, 5, 6, 7], heavy: 0.08, scene: "marble",
+    map: { height: { 3: [[0, 0]], 2: ring(1), 1: ring(2) }, gilded: [[0, 0]] },
+    about: "Purple is knocked by red and by blue, and knocks both. A fall goes level or down, never up: the summit is gilded, and only a chain started on it can come down.",
   }),
   level({
-    name: "Terraces", scene: "marble", goal: 8600, tall: [2], map: { rock: three([3, -1]), height: { 2: disc(1), 1: ring(2) } },
-    about: "A fall goes level or down, never up a step. A tall domino climbs one.",
+    name: "Archipelago", goal: 20000, colours: [0, 1, 2, 3, 6, 7], heavy: 0.05, gate: { colours: [0, 6], share: 0.08 }, pace: GENTLE, scene: "garden",
+    map: { water: ring(2), spring: [...three([1, 0]), [0, 3], [-3, 0], [3, -3]] },
+    start: [[3, -1], [-3, 1]].map(c => ({ at: [0, ...c], colour: 0, gate: [0, 6] })),
+    about: "A spring throws a fall two hexagons on, over water. A gate domino names two colours, yellow and green here, and falls only once both have reached it in the one knock.",
   }),
   level({
-    name: "Pearl", scene: "garden", goal: 9500, tall: [2], pearl: 0.12, map: { water: minus(RIVER, FORDS), rock: three([3, -1]) },
-    about: "Pearls are wild: every colour knocks them and they knock every colour, so a pearl joins chains that would stand apart. They come in pieces of one or two.",
+    name: "Waterfall", goal: 20000, colours: [1, 2, 3, 4, 7, 8], heavy: 0.05, pace: GENTLE, maxSize: 4, scene: "cliff",
+    layers: [
+      { water: [[3, -1], [3, 0], [4, -1], [4, -2], [4, 0]], gilded: [[-2, -2]] },
+      { only: disc(2), water: [[-1, 0], [0, 0], [1, 0], [2, 0]], gilded: [[-1, -1], [1, -2]] },
+    ],
+    drops: [{ from: 1, to: 0, where: c => c[0] >= 1 }],
+    links: [[[1, -2, 1], [0, -2, 1]]],
+    about: "Two floors. A stream crosses the upper one and goes over its eastern edge; a fall that runs off the edge lands on the floor below and goes on. A stair joins the floors in the west.",
   }),
   level({
-    name: "Three islands", scene: "jetty", goal: 7600, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, map: { water: ARMS, void: [spin([4, 0], 1), spin([4, 0], 3), spin([4, 0], 5)], gilded: three([2, 1]) },
-    about: "Three islands round a channel. Blue and pearl cross it; the rest go round by its end.",
+    name: "Two courts", goal: 20000, colours: [0, 1, 2, 5, 6, 7], bridges: 0.18, heavy: 0.05, pace: GENTLE, scene: "marble",
+    map: { water: where(c => c[0] === 0 && c[1] !== 0), rock: [[0, 0]] },
+    links: [[[0, -1, 1], [0, 1, -1]], [[0, -3, 2], [0, 3, -2]]],
+    about: "A wall of water splits the table in two. A bridge may lie on water. A domino that falls on one of a pair of portals also knocks the other.",
   }),
   level({
-    name: "Quarry", scene: "cliff", goal: 9300, tall: [2], pearl: 0.12, map: { rock: [...six([2, -1]), ...six([4, -2])], height: { 1: where(c => c[0] + c[1] / 2 > 0.4), 2: where(c => c[0] + c[1] / 2 > 2.6) }, gilded: [[3, 0]] },
-    about: "Stones everywhere and a stepped hillside on one side.",
+    name: "Fenland", goal: 20000, colours: [0, 1, 2, 5, 6, 7], bridges: 0.18, twins: 0.18, heavy: 0.04, pace: GENTLE, scene: "garden",
+    map: { water: where(c => c[1] === 0), marsh: [[1, -2], [2, -3], [-1, 2], [-2, 3]] },
+    about: "A river across the table with no ford, and marsh where a domino falls without knocking another. A twin is a pair of two colours: it stands in one chain with one domino and in another with the other.",
   }),
   level({
-    name: "The moat", scene: "garden", goal: 5400, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, map: { water: minus(ring(2), [[2, 0], [-2, 0]]), height: { 1: disc(1) }, gilded: [[0, 0]], rock: three([3, -1]) },
-    about: "A raised island in the middle, ringed by water but for two fords, with a gilded summit.",
+    name: "Hedgerows", goal: 20000, colours: [1, 2, 3, 4, 7, 8], wild: 0.12, heavy: 0.05, maxSize: 4, pace: GENTLE, scene: "garden",
+    map: { hedge: GARDEN },
+    about: "Hedges stand on the edges between hexagons, and a fall cannot cross one. The rainbow is knocked by every colour and knocks every colour, so it joins what a hedge divides.",
   }),
   level({
-    name: "Crossroads", scene: "jetty", goal: 5300, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, map: { water: [...minus(RIVER, FORDS), ...minus(turned(RIVER, 2), [turned(RIVER, 2)[3], turned(RIVER, 2)[7]])], gilded: [[3, -1], [-3, 1], [1, 2], [-1, -2]], rock: [[2, 2], [-2, -2]] },
-    about: "Two rivers cross, four banks, three fords between them. Blue and pearl are the way over.",
+    name: "The cup", goal: 20000, colours: [0, 1, 2, 3, 6, 7], balls: 3, heavy: 0.04, maxSize: 4, scene: "cliff",
+    map: { height: { 2: where(c => c[0] >= 2), 1: where(c => c[0] >= 0 && c[0] <= 1) }, cup: [[-4, 1], [-4, 3], [-2, -2]] },
+    about: "Three balls on the table. A fall that reaches one sets it rolling the way it was hit, and the table falls away to the west: a ball that stops in a cup scores 300, and another is put on the table.",
   }),
   level({
-    name: "Grand table", scene: "marble", goal: 4200, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE,
-    map: { water: minus(ring(2), [[2, 0], [-2, 0]]), rock: three([4, 0]), height: { 2: disc(1), 1: ring(3) }, gilded: [[0, 0], ...three([3, 0])] },
-    about: "Everything at once: a summit in a moat, a terraced bank, stones in the corners.",
+    name: "Two floors", goal: 20000, colours: [1, 2, 3, 4, 7, 8], wild: 0.1, heavy: 0.05, pace: GENTLE, maxSize: 4, scene: "marble",
+    layers: [{ rock: [[-3, 1], [3, -1], [1, 2], [-1, -2]] }, { only: disc(3) }],
+    drops: [{ from: 1, to: 0, where: (c, d) => c[1] === 3 && (d === 4 || d === 5) }],
+    links: [[[0, 2, -1], [1, 2, -1]], [[0, -2, 1], [1, -2, 1]]],
+    about: "A gallery above the ground floor, with a stair at two places and an edge in the south from which a fall drops to the floor below. Every domino on both floors falls in the same knock.",
   }),
   level({
-    name: "Bridges", scene: "garden", goal: 30000, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE, bridges: 0.2, map: { water: RIVER, gilded: [[-1, -2], [2, 1]] },
-    about: "A river with no ford. A bridge is a straight piece of two or three, with planks, that may lie on water: lay one across and the chains of both banks are one.",
+    name: "The spiral", goal: 20000, colours: [0, 1, 2, 3, 6, 7], heavy: 0.04, gate: { colours: [0, 6], share: 0.06 }, pace: GENTLE, maxSize: 4, scene: "cliff", rise: 0.2,
+    layers: [
+      { rock: disc(1), height: { 1: where(c => road(c) && stepOf(c) === 1), 2: where(c => road(c) && stepOf(c) === 2), 3: where(c => road(c) && stepOf(c) === 3), 4: where(c => road(c) && stepOf(c) === 4) } },
+      { only: CAVE },
+    ],
+    // the cave's mouth: where its floor meets the road at base level, at the foot of the cliff
+    joins: CAVE.flatMap(c => DIRS.map((_, d) => ({ from: [1, ...c], dir: d, to: [0, c[0] + DIRS[d][0], c[1] + DIRS[d][1]], both: true, when: n => road(n) && stepOf(n) === 0 }))),
+    start: [[3, 1], [2, 2]].map(c => ({ at: [0, ...c], colour: 0, gate: [0, 6] })),
+    about: "A road climbs the mountain clockwise from three o'clock, a step every fifth of a turn, and ends in a sheer drop to where it began. Under its last quarter is a cave, open at the foot of the cliff.",
   }),
   level({
-    name: "Twins", scene: "marble", goal: 36000, tall: [2], pearl: 0.12, twins: 0.22, map: { rock: six([3, -1]), gilded: three([2, 1]) },
-    about: "A twin is a pair of two colours. It stands in one chain with one domino and in another with the other, so it joins two groups that would never meet.",
-  }),
-  level({
-    name: "The stair", scene: "cliff", rise: 0.22, goal: 36000, tall: [2], pearl: 0.12, maxSize: 4, pace: GENTLE,
-    map: {
-      height: { 1: column(0), 2: column(1), 3: column(2), 4: column(3) },
-      void: [...column(4), ...where(c => c[1] === -4), ...where(c => c[0] + c[1] === 4 && c[0] < 4)],
-      gilded: [[3, -1], [3, -2]], rock: [[-3, 2], [-2, -2]],
-    },
-    about: "Four steps up a spine of rock, and a drop to the mist on either side and at the top. A fall goes down a stair and never up one (a tall domino climbs a step); nothing stands over the edge.",
-  }),
-  level({
-    name: "Marbles", scene: "marble", goal: 58000, tall: [2], pearl: 0.12, maxSize: 4, balls: 3, map: { rock: three([3, -1]), gilded: three([2, 1]) },
-    about: "Three balls on the table. A fall that reaches one sets it rolling the way it was hit, until it meets a stone, a domino or runs out of push; it brings down the domino it meets and counts as one more in the knock.",
-  }),
-  level({
-    name: "Downhill", scene: "garden", goal: 39000, tall: [2], pearl: 0.12, maxSize: 4, balls: 3,
-    map: { height: { 1: where(c => c[0] <= 2 && c[0] >= 1), 2: where(c => c[0] <= 0 && c[0] >= -1), 3: where(c => c[0] <= -2) }, rock: [[-3, 3], [3, -3]], gilded: [[3, -2], [-2, 0]] },
-    about: "A hillside falling away to the east. A ball runs down a slope for nothing and only pays for a step up: set one going at the top and it crosses the table.",
-  }),
-  level({
-    name: "Grand tour", scene: "jetty", goal: 50000, tall: [2], pearl: 0.1, bridges: 0.15, twins: 0.15, maxSize: 4, pace: GENTLE, balls: 2,
-    map: { water: minus(RIVER, FORDS), rock: [[3, -3], [-3, 3]], gilded: [[-1, -2], [2, 1]] },
-    about: "The river again, with its two fords, bridges, twins and two balls: a ball that rolls into the water is lost, and another is put on the table.",
+    name: "Grand table", goal: 20000, colours: [0, 1, 2, 3, 4, 5, 6, 7, 8], wild: 0.06, bridges: 0.1, twins: 0.1, heavy: 0.05, gate: { colours: [0, 6], share: 0.05 }, balls: 2, maxSize: 4, pace: GENTLE, scene: "jetty",
+    layers: [
+      { water: minus(ring(2), [[2, 0], [-2, 0]]), height: { 2: disc(1) }, gilded: [[0, 0]], rock: three([4, -2]), spring: [[3, -1], [-3, 1]], cup: [[-4, 0]] },
+      { only: disc(2) },
+    ],
+    links: [[[0, 3, -3], [0, -3, 3]], [[0, 2, 0], [1, 2, 0]], [[0, -2, 0], [1, -2, 0]]],
+    about: "Everything at once: nine colours, a moat with two fords, a gilded summit, springs, portals, a cup, balls and a floor above joined by stairs.",
   }),
 ];
 
 // ---------- compiled for the engine ----------
-/** What the engine asks of a level, per hexagon by number (terrain, height, gilded) and per colour (tall), and its goal. */
+/** What the engine asks of a level: per hexagon by number (terrain, height, gilded, spring, marsh, edges, links), what its colours are and what is dealt. */
 function compile(spec, n) {
-  const terrain = new Uint8Array(SIZE), height = new Uint8Array(SIZE), gilded = new Uint8Array(SIZE), m = spec.map;
-  const mark = (list, f) => { for (const c of on(list || [])) f(NUMBER.get(`${c[0]},${c[1]}`)); };
-  mark(m.void, i => { terrain[i] = VOID; });
-  mark(m.water, i => { terrain[i] = WATER; });
-  mark(m.rock, i => { terrain[i] = ROCK; });
-  for (const [h, list] of Object.entries(m.height || {})) mark(list, i => { if (!terrain[i]) height[i] = Number(h); });
-  mark(m.gilded, i => { if (!terrain[i]) gilded[i] = 1; });
+  const layers = spec.layers || [spec.map || {}], count = layers.length, total = SIZE * count;
+  const terrain = new Uint8Array(total), height = new Uint8Array(total), gilded = new Uint8Array(total), spring = new Uint8Array(total), marsh = new Uint8Array(total);
+  const hedge = new Uint8Array(total * 6), nb = new Int16Array(total * 6), links = Array.from({ length: total }, () => []);
+  const num = ([l, q, r]) => (NUMBER.has(`${q},${r}`) ? l * SIZE + NUMBER.get(`${q},${r}`) : -1);
+  // each hexagon's neighbours on its own floor: the table's, with no table at the edge
+  const step = (g, d) => { const o = g - (g % SIZE), [q, r] = ALL[g % SIZE], k = NUMBER.get(`${q + DIRS[d][0]},${r + DIRS[d][1]}`); return k === undefined ? -1 : o + k; };
+  for (let g = 0; g < total; g++) for (let d = 0; d < 6; d++) nb[g * 6 + d] = step(g, d);
+  layers.forEach((m, l) => {
+    const mark = (list, f) => { for (const c of on(list || [])) f(l * SIZE + NUMBER.get(`${c[0]},${c[1]}`)); };
+    if (m.only) { const keep = new Set(on(m.only).map(c => `${c[0]},${c[1]}`)); ALL.forEach((c, i) => { if (!keep.has(`${c[0]},${c[1]}`)) terrain[l * SIZE + i] = VOID; }); }
+    mark(m.void, i => { terrain[i] = VOID; });
+    mark(m.water, i => { terrain[i] = WATER; });
+    mark(m.rock, i => { terrain[i] = ROCK; });
+    mark(m.cup, i => { terrain[i] = CUP; });
+    for (const [h, list] of Object.entries(m.height || {})) mark(list, i => { if (!terrain[i]) height[i] = Number(h); });
+    mark(m.gilded, i => { if (!terrain[i]) gilded[i] = 1; });
+    mark(m.spring, i => { if (!terrain[i]) spring[i] = 1; });
+    mark(m.marsh, i => { if (!terrain[i]) marsh[i] = 1; });
+    for (const [a, b] of m.hedge || []) {
+      const i = num([l, ...a]), j = num([l, ...b]);
+      if (i < 0 || j < 0) continue;
+      const d = nb.slice(i * 6, i * 6 + 6).indexOf(j);
+      if (d >= 0) { hedge[i * 6 + d] = 1; hedge[j * 6 + (d + 3) % 6] = 1; }
+    }
+  });
+  // drops: from the edge of one floor, a fall lands on the hexagon beyond it on another floor
+  for (const dr of spec.drops || []) {
+    for (let i = 0; i < SIZE; i++) {
+      const g = dr.from * SIZE + i;
+      if (terrain[g] === VOID) continue;
+      for (let d = 0; d < 6; d++) {
+        const beside = nb[g * 6 + d];
+        if (beside >= 0 && terrain[beside] !== VOID) continue;
+        if (dr.where && !dr.where(ALL[i], d)) continue;
+        const [q, r] = ALL[i], t = num([dr.to, q + DIRS[d][0], r + DIRS[d][1]]);
+        if (t >= 0) nb[g * 6 + d] = t;
+      }
+    }
+  }
+  for (const j of spec.joins || []) {
+    const a = num(j.from), b = num(j.to);
+    if (a < 0 || b < 0 || (j.when && !j.when([j.to[1], j.to[2]]))) continue;
+    nb[a * 6 + j.dir] = b;
+    if (j.both) nb[b * 6 + (j.dir + 3) % 6] = a;
+  }
+  for (const [x, y] of spec.links || []) { const a = num(x), b = num(y); if (a >= 0 && b >= 0) { links[a].push(b); links[b].push(a); } }
+  const gate = spec.gate ? { colours: spec.gate.colours, share: spec.gate.share } : null;
+  const start = (spec.start || []).map(s => ({ i: num(s.at), colour: s.colour, mod: s.heavy ? "heavy" : s.gate ? "gate" : null, gate: s.gate || null, axis: s.axis ?? 0 })).filter(s => s.i >= 0 && !terrain[s.i]);
+  const mods = spec.heavy > 0 || !!gate || start.some(s => s.mod);
   return {
     id: n, name: spec.name, about: spec.about, goal: spec.goal, stars: spec.goal ? [spec.goal, ...STARS.map(k => Math.round((spec.goal * k) / 50) * 50)] : [],
-    terrain, height, gilded, tall: [0, 1, 2, 3].map(k => spec.tall.includes(k)), pearl: spec.pearl, bridges: spec.bridges, twins: spec.twins, balls: spec.balls, scene: spec.scene, rise: spec.rise, bell: spec.bell, pace: spec.pace, maxSize: spec.maxSize,
-    plain: !terrain.some(Boolean) && !height.some(Boolean) && !gilded.some(Boolean) && !spec.tall.length && !spec.pearl && !spec.bridges && !spec.twins && !spec.balls,
+    layers: count, n: total, terrain, height, gilded, spring, marsh, hedge, nb, links: links.some(l => l.length) ? links : null, hedged: hedge.some(Boolean),
+    // no colour is tall any more: the drawing reads this for the height of a slab, and a heavy one is drawn by its own mod
+    tall: new Array(10).fill(false),
+    colours: spec.colours, wild: spec.wild, bridges: spec.bridges, twins: spec.twins, balls: spec.balls, heavy: spec.heavy, gate, start, mods,
+    palette: n >= 0 || n === -2 ? "levels" : "classic",
+    scene: spec.scene, rise: spec.rise, bell: spec.bell, pace: spec.pace, maxSize: spec.maxSize, layerGap: spec.layerGap ?? 1.9,
+    plain: count === 1 && !terrain.some(Boolean) && !height.some(Boolean) && !gilded.some(Boolean) && !spring.some(Boolean) && !marsh.some(Boolean) && !spec.wild && !spec.bridges && !spec.twins && !spec.balls && !mods && !links.some(l => l.length) && !hedge.some(Boolean),
   };
 }
 /** The rules of a level made up (for the tests): a spec as LEVELS has, any part of it. */
 export const custom = spec => compile(level({ name: "Made up", goal: 1000, about: "", ...spec }), -2);
-/** The rules of play with no level: every hexagon plain, no colour tall, no pearl, the bell hanging (Classic). */
-export const FREE = Object.freeze({ ...compile({ name: "Classic", about: "", goal: 0, tall: [], pearl: 0, bridges: 0, twins: 0, balls: 0, scene: "birch", rise: 0.16, bell: true, pace: null, maxSize: 5, map: {} }, -1) });
+/** The rules of play with no level: every hexagon plain, three colours, the bell hanging (Classic). */
+export const FREE = Object.freeze({ ...compile({ name: "Classic", about: "", goal: 0, colours: [0, 1, 2], wild: 0, bridges: 0, twins: 0, balls: 0, heavy: 0, gate: null, scene: "birch", rise: 0.16, bell: true, pace: null, maxSize: 5, map: {}, links: [], drops: [], joins: [], start: [] }, -1) });
 const COMPILED = LEVELS.map(compile);
 /** The rules of level n (0 on). */
 export const levelRules = n => COMPILED[n] || FREE;

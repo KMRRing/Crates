@@ -48,7 +48,7 @@ const game = (t, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {
 {
   const a = newGame(7), b = newGame(7), hands = new Set([...Array(10).keys()].map(k => JSON.stringify(newGame(k).hand)));
   check(JSON.stringify(a) === JSON.stringify(b) && hands.size > 5, "the same seed deals the same game, another seed another");
-  check(a.v === VERSION && VERSION === 5 && !("force" in a) && a.cells.length === SIZE && a.cells.every(c => c === -1) && a.ax.length === SIZE && a.ax.every(f => f === -1) && a.hand.length === HAND && a.hand.every(h => PIECES[h.piece] && h.colour >= 0 && h.colour < 3) && !a.due && a.credit === 0 && a.sets === 1 && !a.over,
+  check(a.v === VERSION && VERSION === 6 && !("force" in a) && a.cells.length === SIZE && a.cells.every(c => c === -1) && a.ax.length === SIZE && a.ax.every(f => f === -1) && a.hand.length === HAND && a.hand.every(h => PIECES[h.piece] && h.colour >= 0 && h.colour < 3) && !a.due && a.credit === 0 && a.sets === 1 && !a.over,
     "an empty table, three pieces in three colours, nothing facing any way, no knock yet owed, and no strength any more");
   check(new Set([...Array(30).keys()].map(k => newGame(k).bell)).size > 10 && newGame(3).bell >= 0, "the bell on a hexagon of the table, a different one game to game");
 }
@@ -291,11 +291,13 @@ const game = (t, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {
   const old = { v: 4, seed: 9, n: 31, cells: new Array(SIZE).fill(-1), ax: new Array(SIZE).fill(-1), hand: [piece(PAIR, 1), null, piece(SINGLE, 0)], due: true, force: 3, credit: 0.4, bell: hex(1, 1), rung: 2, sets: 6, laid: 16, felled: 12, score: 870, over: false };
   old.cells[hex(0, 0)] = 0; old.ax[hex(0, 0)] = 0; old.cells[hex(1, 0)] = 0; old.ax[hex(1, 0)] = 1; old.cells[hex(2, 0)] = 2; old.ax[hex(2, 0)] = 2;
   const kept = JSON.stringify(old), m = migrate(JSON.parse(kept));
-  check(m && m.v === 5 && !("force" in m) && m.ax[hex(0, 0)] === 0 && m.ax[hex(1, 0)] === 2 && m.ax[hex(2, 0)] === 4 && m.ax.filter(a => a >= 0).length === 3 && JSON.stringify(old) === kept,
-    "a game of version 4 opens as version 5: each of its three axes the same hexagon axis of six (doubled), the strength dropped, the game passed in left as it was");
+  check(m && m.v === 6 && !("force" in m) && m.ax[hex(0, 0)] === 0 && m.ax[hex(1, 0)] === 2 && m.ax[hex(2, 0)] === 4 && m.ax.filter(a => a >= 0).length === 3 && JSON.stringify(old) === kept,
+    "a game of version 4 opens as version 6: each of its three axes the same hexagon axis of six (doubled), the strength dropped, the game passed in left as it was");
   check(["seed", "n", "due", "credit", "bell", "rung", "sets", "laid", "felled", "score", "over"].every(k => m[k] === old[k]) && JSON.stringify(m.cells) === JSON.stringify(old.cells) && JSON.stringify(m.hand) === JSON.stringify(old.hand),
     "everything else as it was: the table, the hand, the score, the knock due, the draws made (so the deal goes on as it would have)");
   check(knock(m, hex(0, 0), 0).state.n === 32 && migrate(m) === m && migrate({ ...old, v: 3 }) === null && migrate(null) === null && migrate({ v: 5 }) === null, "it knocks on from there; a game of this version is kept as it is; one older than four, or no game, isn't taken");
+  const five = { ...old, v: 5 }, lv5 = { ...old, v: 5, level: 3 };
+  check(migrate(five)?.v === 6 && migrate(lv5) === null && migrate({ ...old, v: 4, level: 2 }) === null, "a Classic game of version 5 plays on as version 6; a level's, of the levels before the new colours, is let go");
 }
 
 // ---------- the pace of the knocks ----------
@@ -423,19 +425,19 @@ const game = (t, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {
   check(done.state.cells[hex(0, 0)] === -1 && done.state.cells[hex(3, 0)] === BALL && done.rolls.length === 1 && done.state.score === k.gain && done.state.cells.filter(v => v === BALL).length === 1 && done.state.cells.every((v, i) => (v >= 0) === (done.state.ax[i] >= 0)), "a knock lifts the ball and sets it down where it stops, and the domino cells and axes still agree");
   check(g.cells[hex(0, 0)] === BALL, "and leaves the game it was given alone");
   // on the level's table: the number of balls is kept, and where they stand is a draw from the seed
-  const lv = custom({ balls: 3 }).balls === 3 && levelRules(15).balls === 3;
-  const a = newGame(7, 15), b = newGame(7, 15), balls = s => s.cells.flatMap((v, i) => (v === BALL ? [i] : []));
-  check(lv && balls(a).length === 3 && balls(a).join() === balls(b).join() && balls(newGame(8, 15)).join() !== balls(a).join() && balls(a).every(i => !levelRules(15).terrain[i] && i !== a.bell), "a level with balls deals them on empty floor, the same from a seed");
-  check(balls(newGame(7, 14)).length === 0 && JSON.stringify(newGame(7, 14)) === JSON.stringify(newGame(7, 14)), "and one without deals none, and its deal is as it was");
+  const lv = custom({ balls: 3 }).balls === 3 && levelRules(10).balls === 3;
+  const a = newGame(7, 10), b = newGame(7, 10), balls = s => s.cells.flatMap((v, i) => (v === BALL ? [i] : []));
+  check(lv && balls(a).length === 3 && balls(a).join() === balls(b).join() && balls(newGame(8, 10)).join() !== balls(a).join() && balls(a).every(i => !levelRules(10).terrain[i] && i !== a.bell), "a level with balls deals them on empty floor, the same from a seed");
+  check(balls(newGame(7, 0)).length === 0 && JSON.stringify(newGame(7, 0)) === JSON.stringify(newGame(7, 0)), "and one without deals none, and its deal is as it was");
   check(JSON.stringify(JSON.parse(JSON.stringify(a))) === JSON.stringify(a), "a game with balls keeps through JSON");
   // a ball lost is put back
-  const L = levelRules(17), water = CELLS.flatMap((_, i) => (L.terrain[i] === WATER ? [i] : []));
+  const L = levelRules(13), water = CELLS.flatMap((_, i) => (L.terrain[i] === WATER ? [i] : []));
   let found = null;
   for (const wi of water) for (let dd = 0; dd < 6 && !found; dd++) {
     const n = next(wi, (dd + 3) % 6), p = n >= 0 ? next(n, (dd + 3) % 6) : -1;
     if (p >= 0 && !L.terrain[n] && !L.terrain[p] && L.height[n] === L.height[wi] && L.height[p] === L.height[n]) found = { p, n, dir: dd };
   }
-  const base = newGame(3, 17);
+  const base = newGame(3, 13);
   base.cells.fill(-1); base.ax.fill(-1);
   base.cells[found.n] = BALL; base.cells[found.p] = 0; base.ax[found.p] = (2 * found.dir) % AXES; base.due = true; base.bell = -1;
   const lost = knock(base, found.p, 2 * found.dir);
