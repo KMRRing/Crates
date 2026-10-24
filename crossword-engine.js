@@ -121,18 +121,21 @@ function counter(wordsOf) {
 const popcount = x => { x -= (x >>> 1) & 0x55555555; x = (x & 0x33333333) + ((x >>> 2) & 0x33333333); return (((x + (x >>> 4)) & 0x0F0F0F0F) * 0x01010101) >>> 24; };
 
 // ---------- the knowledge entries a deal draws from ----------
+/** The weight of an entry dealt lately, against 1 for one not (No repeats, README, Learning modes). */
+const FRESH = 0.02;
 /**
  * The knowledge entries a deal may use, each with its weight: its topics' (0 out, 1 in, 2 more: the best of its
  * aspects, as Crates weighs a clue) times its difficulty's at the level, times more for one the review pile has due
  * (`due`, keys) or one about something another game found you weak on (`weak`, entity ids).
  */
-function candidates(L, { pool = "mixed", asks = "both", topics = null, due = [], weak = null }) {
-  const dueSet = new Set(due);
+function candidates(L, { pool = "mixed", asks = "both", topics = null, due = [], weak = null, avoid = [] }) {
+  const dueSet = new Set(due), avoided = new Set(avoid);
   return kbEntries().filter(e => (pool === "mixed" || e.cat === pool) && (asks === "both" || e.dir === asks) && e.letters.length <= L.longest)
     .map(e => {
       const topic = topics ? Math.max(0, ...e.topics.map(t => topics[t] ?? 1)) : 1;
       const learn = dueSet.has(e.key) ? 8 : weak && e.about.some(id => weak.has(id)) ? 3 : 1;
-      return { e, w: topic * L.kbD[e.d - 1] * learn };
+      // dealt lately: far less likely, but not out, so a bank that's all been dealt still fills a grid
+      return { e, w: topic * L.kbD[e.d - 1] * learn * (avoided.has(e.key) && !dueSet.has(e.key) ? FRESH : 1) };
     }).filter(x => x.w > 0);
 }
 /** A clue's text as a solver reads it: the bold part and the reason. */
@@ -277,14 +280,14 @@ function spec(level, size, kind) {
  * revised first, and entities other games found you weak on), upto (the clue bank's tier it draws on: WHOLE_BANK, or
  * today's DAILY_BANK).
  */
-export function makePuzzle({ seed = 1, level = "medium", size = null, kind = "both", pool = "mixed", asks = "both", mode = "classic", topics = null, due = [], weak = null, upto = WHOLE_BANK } = {}) {
+export function makePuzzle({ seed = 1, level = "medium", size = null, kind = "both", pool = "mixed", asks = "both", mode = "classic", topics = null, due = [], weak = null, avoid = [], upto = WHOLE_BANK } = {}) {
   const L = spec(level, size, kind), rnd = seeded(mix(seed, 0xC205)), bank = bankTo(upto);
   // a Lexicon grid of country and commodity names alone can't be filled (there are too few of them): it names both ways
   if (L.lexicon && asks === "fwd") asks = "both";
   if (L.kb < THEMED) mode = "classic";
   // a mixed grid's theme draws on the reverse entries alone (its starred clues); a Lexicon grid fills the rest of the
   // grid from the same entries, so it takes them as asked (the starred clues still only reverse ones: themesOf)
-  const all = L.kb ? candidates(L, { pool, asks: mode === "theme" && !L.lexicon ? "rev" : asks, topics, due, weak }) : [];
+  const all = L.kb ? candidates(L, { pool, asks: mode === "theme" && !L.lexicon ? "rev" : asks, topics, due, weak, avoid }) : [];
   // learning mode: what the review pile has due goes in first, up to half the grid's knowledge entries (half of all its
   // entries in a Lexicon grid), the pile's order kept (the most revised first), none giving another away
   const inPool = new Map(all.map(c => [c.e.key, c.e]));

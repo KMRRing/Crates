@@ -19,7 +19,7 @@ import { check } from "./typing.js";
 import * as known from "./known.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./question-flags.js";
 import { gameHref, GAMES, joiningWords } from "./rooms.js";
-import { part, choice, toggle as menuToggle, action, mirror, line, weights, ticks } from "./menu.js";
+import { part, choice, action, mirror, line, weights, ticks } from "./menu.js";
 import { today, noteComparable, arrivedForToday } from "./suite.js";   // the day, the same for everyone; comparable results
 
 const $ = id => document.getElementById(id);
@@ -79,7 +79,7 @@ async function bankDeal(level, picks, personal = true) {
   // today's run, which is the same for everyone)
   const learning = personal && pile.learning();
   // its own due questions, then its questions about what the other games found you weak on (up to a third of a block)
-  const ownDue = learning ? pile.due("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1)) : [];
+  const ownDue = learning ? pile.picks("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1)) : [];
   const dueKeys = learning ? pile.dealDue("punt", pool.map(q => ({ key: q.id, about: q.about })), ownDue, ownDue.length + 5) : [];
   const seenKeys = learning ? new Set(pile.all("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1))) : new Set();
   return { deal: { pool, stages: Object.fromEntries(STAGES.map(x => [x.id, x.label])), dueKeys, seenKeys }, picks: resolved };
@@ -1025,7 +1025,7 @@ function drawMenu() {
     ...(["countries", "commodities"].some(id => (topics.weights[id] || 0) > 0) ? [choice("Name it", Object.entries(NAME_MODES), nameMode(), mo => {
       try { localStorage.setItem(NAME, mo); } catch { /* private mode */ }
     })] : []));
-  part(body, "settings").append(menuToggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
+  part(body, "settings").append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
   if (together.room) {
     const max = maxShare(S);
     part(body, "together").append(choice("Pots", Object.entries(MODES), modeOf(S), switchMode),

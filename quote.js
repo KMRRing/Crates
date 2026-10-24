@@ -34,7 +34,7 @@ function picture(q) {
   });
 }
 import "./pwa.js";
-import { part, choice, topicMix, toggle, action, line } from "./menu.js";
+import { part, choice, topicMix, action, line } from "./menu.js";
 import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked set for your best
 
 const $ = id => document.getElementById(id);
@@ -70,24 +70,27 @@ const mixFrom = t => mixFromParam(TOPICS, t);
 // same for everyone.
 const rankedRun = (mode, w) => mode === "daily" || (presetOf(w) !== "custom" && !pile.learning());
 /** The questions a set draws from: the topics in, by their weights (a single topic in: all ten from it). */
-const setFor = (seed, w, personal = true) => {
+const setFor = (seed, w, personal = true, fresh = personal) => {
   const pool = QUOTES.filter(q => (w[q.cat] ?? 1) > 0);
   // learning mode: what's due leads the set (up to half of it), the rest dealt as usual around it
   // and questions about what the other games found you weak on, in Quote's form
-  const own = personal && pile.learning() ? pile.due("quote").map(it => it.key).filter(id => pool.some(q => q.id === id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  const own = personal && pile.learning() ? pile.picks("quote").map(it => it.key).filter(id => pool.some(q => q.id === id)).slice(0, Math.ceil(PER_SET / 2)) : [];
   const due = personal && pile.learning() ? pile.dealDue("quote", pool.map(q => ({ key: q.id, about: q.about ? [q.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
-  const rest = pickMixed(seed, pool.filter(q => !due.includes(q.id)), w, PER_SET - due.length).map(q => q.id);
+  const left = pool.filter(q => !due.includes(q.id)), draw = (from, n) => pickMixed(seed, from, w, n);
+  // nothing again until the rest of the pool has had its turn (a daily is the same for everyone: no history in it)
+  const rest = (fresh ? pile.freshPicks("quote", left, q => q.id, PER_SET - due.length, draw) : draw(left, PER_SET - due.length)).map(q => q.id);
   const set = [...rest];
   due.forEach((id, i) => set.splice(Math.min(set.length, Math.floor((i + 0.5) * PER_SET / due.length)), 0, id));
+  if (fresh) pile.dealt("quote", set);
   return set;
 };
 const hashFor = s => `${s.mode === "daily" ? `#d=${s.seed}` : `#s=${s.seed}`}${s.focus ? `&f=${s.focus}` : s.topics ? `&t=${mixParam(s.topics)}` : ""}`;
 /** What a link needs of a mix: one topic in (focus), or the mix itself unless it's Balanced (topics). */
 const mixOf = w => { const focus = focusOf(w); return { focus, topics: focus || presetOf(w) === "balanced" ? null : w }; };
 /** A set to start: today's (Balanced, the same for everyone), or a random one from a mix (yours, unless a link's). */
-function newState(mode, seed, w) {
+function newState(mode, seed, w, fresh = true) {
   if (mode === "daily" || !anyIn(TOPICS, w)) w = TOPIC_PRESETS.balanced.topics;   // a link's mix of nothing deals Balanced
-  return { seed, mode, ...mixOf(w), preset: presetOf(w), ranked: rankedRun(mode, w), set: setFor(seed, w, mode !== "daily"), index: 0, book: START, log: [], phase: "quote", done: false };
+  return { seed, mode, ...mixOf(w), preset: presetOf(w), ranked: rankedRun(mode, w), set: setFor(seed, w, mode !== "daily", fresh && mode !== "daily"), index: 0, book: START, log: [], phase: "quote", done: false };
 }
 function start(mode) {
   S = newState(mode, mode === "daily" ? today() : randomSeed(), mix());
@@ -691,7 +694,7 @@ function openMenu() {
     // your topics are for random sets (today's is the same for everyone), so they're shown either way, and one changed
     // with today's picked turns the next set to a random one
     topicsPart(content, true, () => { if (pick.mode === "daily") { pick.mode = "random"; openMenu(); } });
-    part(body, "settings").append(toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
+    part(body, "settings").append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
     const best = read(BEST, null), daily = read(DAILY, {})[String(today())], bestRf = read(`${BEST}:refining`, null);
     part(body, "about").append(
       line([best != null ? `Best book ${money(best)}` : "No finished set yet", daily != null ? `today ${money(daily)}` : "", bestRf != null ? `refining ${money(bestRf)}` : ""].filter(Boolean).join(" · ")),
@@ -729,7 +732,7 @@ function load(h) {
   // the link names the run already in progress (the page was reloaded, or the phone brought the app back): carry on
   // with it, drawn as it stands, its last answer and the closing bell included; returning without drawing left the bare page
   if (S && S.seed === seed && S.mode === mode && hashFor(S) === hashFor({ seed, mode, ...mixOf(w) })) { render(); return true; }
-  S = newState(mode, seed, w);
+  S = newState(mode, seed, w, false);
   save();
   render();
   return true;

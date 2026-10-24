@@ -42,7 +42,36 @@ check(P.has("quote", "tr-01") && !P.has("quote", "nope"), "has() knows what's ba
   check(order === "quarter,week2,week,day,new", `due order, the most revised first: ${order}`);
   P.clear();
 }
-P.setLearning(false); check(P.learning() === false, "learning mode can be switched off"); P.setLearning(true);
+// the learning modes: what each deals from the same piles
+{
+  P.clear();
+  for (const [key, ups] of [["new", 0], ["week", 3], ["quarter", 5], ["day", 2], ["fresh", 0]]) {
+    P.record("chart", key, {}, "miss");
+    for (let i = 0; i < ups; i++) P.answer("chart", key, true);
+  }
+  const all = P.all("chart"), by = k => all.find(x => x.key === k);
+  by("new").due -= 3000; by("fresh").due -= 1000;          // 'new' has waited longer than 'fresh'
+  for (const k of ["week", "quarter", "day"]) by(k).due = Date.now() - 1000;   // all three are due too
+  const names = list => list.map(it => it.key).join();
+  check(P.mode() === "revision" && P.learning(), "the default mode is revision (what was 'on')");
+  check(names(P.picks("chart")) === "quarter,week,day,new,fresh", `revision: longest-term first: ${names(P.picks("chart"))}`);
+  P.setMode("learn");
+  check(names(P.picks("chart")) === "new,fresh,day,week,quarter", `learn: shortest-term first: ${names(P.picks("chart"))}`);
+  P.setMode("mixed");
+  check(names(P.picks("chart")) === "new,quarter,fresh,week,day", `mixed: one of each in turn, nothing twice: ${names(P.picks("chart"))}`);
+  by("day").due = Date.now() + 86400000;                   // not due: learn deals it, revision doesn't
+  P.setMode("learn"); check(P.picks("chart").some(it => it.key === "day"), "learn also deals what isn't due yet");
+  P.setMode("revision"); check(!P.picks("chart").some(it => it.key === "day"), "revision deals only what's due");
+  P.setMode("norepeat");
+  check(!P.learning() && P.picks("chart").length === 0 && P.weakElsewhere("quote").size === 0, "no repeats deals nothing from the piles");
+  P.setMode("nonsense"); check(P.mode() === "norepeat", "an unknown mode is ignored");
+  localStorage.setItem("pile:settings", JSON.stringify({ learning: false })); check(P.mode() === "norepeat", "the old switch off is no repeats");
+  localStorage.setItem("pile:settings", JSON.stringify({ learning: true })); check(P.mode() === "revision", "the old switch on is revision");
+  // what's been dealt lately, kept to the latest
+  P.dealt("crossword", ["a", "b", "c"], 4); P.dealt("crossword", ["b", "d", "e"], 4);
+  check([...P.recent("crossword")].join() === "c,b,d,e" && P.recent("nothing").size === 0, `dealt lately keeps the latest four, oldest dropped: ${[...P.recent("crossword")]}`);
+  P.clear();
+}
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;
 

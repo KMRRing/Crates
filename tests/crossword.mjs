@@ -99,6 +99,19 @@ check(learned.filter(p => p.entries.some(e => e.key === dueKey)).length >= 2, "l
 const trollOut = Object.fromEntries(K.kbEntry(dueKey).topics.map(t => [t, 0]));
 check([0, 1, 2, 3].every(i => !E.makePuzzle({ seed: 300 + i, level: "medium", due: [dueKey], topics: trollOut }).entries.some(e => e.key === dueKey)),
   "learning mode's due cards keep to the topics: one whose topics are all out is never dealt");
+// No repeats: keys dealt lately are far less likely in the next grid (not out: a bank all dealt still fills one)
+{
+  const keysOf = p => p.entries.map(e => e.key).filter(Boolean);
+  const all = K.kbEntries().map(e => e.key), half = all.filter((_, i) => i % 2), inHalf = new Set(half);
+  let plain = 0, kept = 0, total = 0;
+  for (let i = 0; i < 6; i++) {
+    const a = keysOf(E.makePuzzle({ seed: 800 + i, level: "medium" })), b = keysOf(E.makePuzzle({ seed: 800 + i, level: "medium", avoid: half }));
+    plain += a.filter(k => inHalf.has(k)).length; kept += b.filter(k => inHalf.has(k)).length; total += b.length;
+  }
+  check(kept * 4 < plain && total > 0, `no repeats: with half the bank dealt lately, ${kept} of ${total} entries come from it (${plain} without)`);
+  check(!!E.makePuzzle({ seed: 900, level: "medium", avoid: all }), "a bank that has all been dealt still fills a grid");
+  check(E.makePuzzle({ seed: 301, level: "medium", due: [dueKey], avoid: all }).entries.some(e => e.key === dueKey), "what's due is dealt however recently it was");
+}
 check([0, 1].every(i => E.makePuzzle({ seed: 300 + i, level: "medium", kind: "classic", due: [dueKey] }).entries.every(e => e.kind === "word")),
   "a Classic grid deals nothing due: it has no knowledge entries");
 

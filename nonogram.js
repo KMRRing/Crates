@@ -177,7 +177,7 @@ async function start(mode = "random", size = $("size").value) {
 // The next random picture is dealt (and its puzzle made) while you play this one, so Next is instant; it's dealt
 // again if the choices it was dealt for have changed by then.
 let upcoming = null;                                              // { key, got }
-const dealKey = size => JSON.stringify([topicNow(), settings.region, settings.band, settings.grid, size, pile.learning()]);
+const dealKey = size => JSON.stringify([topicNow(), settings.region, settings.band, settings.grid, size, pile.mode()]);
 function dealNow(size) {
   const seen = read(SEEN, []), prefer = pile.learning() ? learningPicks() : [];
   return dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, seen, prefer });
@@ -209,9 +209,9 @@ function prepare() {
     setTimeout(() => { if (!duel.on && dealKey($("size").value) === key) upcoming = { key, got: dealNow(size) }; }, 2500);
   }
 }
-/** Learning mode's picks: pictures you couldn't name, due again; then those about what other games found you weak on. */
+/** Learning mode's picks (by its mode): pictures you couldn't name; then those about what other games found you weak on. */
 function learningPicks() {
-  const due = pile.due("nonogram").map(it => it.key).filter(id => pictureOf(id));
+  const due = pile.picks("nonogram").map(it => it.key).filter(id => pictureOf(id));
   const weak = pile.weakElsewhere("nonogram");
   const cross = PICTURES.filter(p => weak.has(p.about) && !due.includes(p.id)).sort((a, b) => weak.get(b.about) - weak.get(a.about)).map(p => p.id);
   return [...due, ...cross.slice(0, 5)];
@@ -900,7 +900,7 @@ function openMenu() {
     choice("Mistakes", [["shown", "Shown"], ["hidden", "Hidden"]], settings.mistakes, v => { settings.mistakes = v; saveSettings(); }),
     choice("The computer", [["off", "Off"], ["partner", "Partner"], ["rival", "Rival"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
   if (settings.computer !== "off") st.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }));
-  st.append(toggle("Learning mode", pile.learning(), v => pile.setLearning(v)));
+  st.append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
   const times = read(TIMES, {}), stats = read(STATS, {});
   const bests = S && pic ? times[bestKey()] : null;
   part(body, "about").append(

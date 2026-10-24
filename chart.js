@@ -5,7 +5,7 @@
 // pair's duo match, a party's), everyone pins the same place on their own phone, and the reveal shows every pin, each
 // one's distance and points and the standings (chart-table.js is the table's rules).
 import { PER_SET, regionSpan, pickMixed, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, featureBox, pointsFor, TOPICS, TOPIC_PRESETS, presetOf, OLD_TOPICS, OLD_NAMES, oldTopicOf, topicOf, LOCAL, REGIONS, regionView, regionsOfPlace, askFor, homeOf, HOME_KM, fingers } from "./chart-engine.js";
-import { part, choice, topicMix, toggle, action, line as menuLine, mirror } from "./menu.js";
+import { part, choice, topicMix, action, line as menuLine, mirror } from "./menu.js";
 import { cleanMix, anyIn, mixParam, mixFromParam } from "./topics.js";
 import { missOf, isTable, peopleFor, freshTable, newSet, keyOf, waitingFor, graceAt, clueIn, pinIn, revealNow, nextIn, moveOnNow, settleUp, entryAt, totals, placeRows, standingRows, resultOf, initials } from "./chart-table.js";
 import { presentSlots, seated } from "./duel-core.js";
@@ -111,16 +111,19 @@ const km = d => (d < 10 ? `${d.toFixed(1)} km` : `${Math.round(d).toLocaleString
 // worldwide, learning mode or not; your own mix, or a region, keeps its best here only.
 const STANDARD = { topics: OLD_TOPICS.all, region: "world" };
 const rankedRun = (mode, sel) => mode === "daily" || (presetOf(sel.topics) !== "custom" && sel.region === "world");
-/** The set for a seed and a selection, with what's due from the pile (within the selection) leading it in learning mode;
+/** The set for a seed and a selection, with what the learning mode picks from the pile (within the selection) leading it, and `fresh` (your own sets, not a link's) keeping off what was dealt lately;
  *  a daily is the same for everyone, so nothing of yours goes into it. */
-function setFor(seed, sel, personal = true) {
+function setFor(seed, sel, personal = true, fresh = personal) {
   const pool = poolOf(sel), inPool = new Set(pool.map(p => p.id));
   // and places that the other games found you weak on (a city whose clue you missed in Crates), to pin
-  const own = personal && pile.learning() ? pile.due("chart").map(it => it.key).filter(id => inPool.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  const own = personal && pile.learning() ? pile.picks("chart").map(it => it.key).filter(id => inPool.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
   const due = personal && pile.learning() ? pile.dealDue("chart", pool.map(p => ({ key: p.id, about: p.about ? [p.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
-  const rest = pickMixed(seed, pool.filter(p => !due.includes(p.id)), sel.topics, PER_SET - due.length).map(p => p.id);
+  const left = pool.filter(p => !due.includes(p.id)), draw = (from, n) => pickMixed(seed, from, sel.topics, n);
+  // nothing again until the rest of the pool has had its turn (a daily is the same for everyone: no history in it)
+  const rest = (fresh ? pile.freshPicks("chart", left, p => p.id, PER_SET - due.length, draw) : draw(left, PER_SET - due.length)).map(p => p.id);
   const set = [...rest];
   due.forEach((id, i) => set.splice(Math.min(set.length, Math.floor((i + 0.5) * PER_SET / due.length)), 0, id));
+  if (fresh) pile.dealt("chart", set);
   return set;
 }
 function start(mode, sel = chosen()) {
@@ -896,7 +899,7 @@ function openMenu() {
     // they're shown either way, and a topic changed with today's picked turns the next set to a random one
     topicsPart(content, true, () => { if (pick.mode === "daily") { pick.mode = "random"; openMenu(); } });
     content.append(mirror("Region", $("region")));
-    part(body, "settings").append(toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
+    part(body, "settings").append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
     const key = selKey(S), best = key && bests()[key], daily = key && dailies()[key], what = selName(selOf(S));
     part(body, "about").append(
       menuLine(!key ? `${what}: your own mix keeps no best` : `${what}: ${best ? `best ${best.toLocaleString("en-GB")}` : "no finished set yet"}${daily != null ? `, today ${daily.toLocaleString("en-GB")}` : ""}`),
@@ -966,7 +969,7 @@ function load(h) {
   let sel = selOf({ topics: topicsFromParam(h.get("t")), region: REGIONS[h.get("r")] ? h.get("r") : "world" });
   if (S && S.seed === seed && S.mode === mode && hashOf(S) === hashOf({ seed, mode, ...sel })) return true;
   if (mode === "daily") sel = STANDARD;
-  S = { seed, mode, ...sel, ranked: rankedRun(mode, sel), set: setFor(seed, sel, mode !== "daily"), index: 0, score: 0, log: [], phase: "pin", done: false };
+  S = { seed, mode, ...sel, ranked: rankedRun(mode, sel), set: setFor(seed, sel, mode !== "daily", false), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();
   pin = null; views = { world: startView() };
   showSelection();

@@ -49,9 +49,42 @@ function load() {
 }
 function save() { write(STORE, items); }
 
-/** Learning mode: on by default. When on, the games' dealers draw due items into their next block. */
-export const learning = () => read(SETTINGS, { learning: true }).learning !== false;
-export function setLearning(on) { write(SETTINGS, { ...read(SETTINGS, {}), learning: !!on }); }
+/**
+ * The learning mode, one for every game (its menu's "Learning mode"):
+ *   norepeat  deals nothing from the piles, and keeps what it deals fresh: nothing again until the rest has had its turn
+ *   learn     what's newest: the shortest-term pile first (due or not), so a new miss is drilled before it can fade
+ *   revision  what's due, the longest-term pile first (what a lapse would cost most); how the games always dealt
+ *   mixed     both, one then the other: the shortest-term and the longest-term due together
+ * The old on/off switch is read as revision/no repeats.
+ */
+export const MODES = [["norepeat", "No repeats"], ["learn", "Learn"], ["revision", "Revision"], ["mixed", "Mixed"]];
+export function mode() {
+  const s = read(SETTINGS, {});
+  return MODES.some(([m]) => m === s.mode) ? s.mode : s.learning === false ? "norepeat" : "revision";
+}
+export function setMode(m) { if (MODES.some(([k]) => k === m)) write(SETTINGS, { ...read(SETTINGS, {}), mode: m }); }
+/** Whether the piles deal anything (every mode but No repeats). */
+export const learning = () => mode() !== "norepeat";
+
+// what each game has dealt lately, oldest first, for No repeats: a game's `fresh` weighs these down
+const DEALT = "pile:dealt", DEALT_CAP = 1500;
+/** Notes keys a game has just dealt (keeps the latest `cap`, so a pool smaller than that comes round again in turn). */
+export function dealt(game, keys, cap = DEALT_CAP) {
+  const all = read(DEALT, {}), had = (all[game] || []).filter(k => !keys.includes(k));
+  all[game] = [...had, ...keys].slice(-cap);
+  write(DEALT, all);
+}
+/**
+ * No repeats for a dealer: `need` picks (`pick(pool, n)` is the game's own draw) from what hasn't been dealt lately,
+ * the rest from what has if that falls short. `key` names a pool item as `dealt` was told it.
+ */
+export function freshPicks(game, pool, key, need, pick) {
+  if (need <= 0) return [];
+  const lately = recent(game), got = pick(pool.filter(x => !lately.has(key(x))), need);
+  return got.length >= need ? got : [...got, ...pick(pool.filter(x => lately.has(key(x))), need - got.length)];
+}
+/** The keys a game has dealt lately: a Set, for a dealer to put last. */
+export const recent = game => new Set(read(DEALT, {})[game] || []);
 
 /**
  * Records an item. game: which game; key: its id in that game; payload: enough to ask it again anywhere
@@ -119,6 +152,24 @@ export function all(game = null) {
 export function due(game = null, at = Date.now()) {
   return all(game).filter(it => !it.learned && it.due <= at).sort((a, b) => b.pile - a.pile || a.due - b.due);
 }
+/**
+ * What the learning mode deals now, from a game's items (or every game's), in the order to deal it:
+ * revision is due(); learn the shortest-term pile first, due or not yet; mixed takes one of each in turn (the
+ * shortest-term, then the longest-term due), nothing twice; No repeats nothing.
+ */
+export function picks(game = null, at = Date.now()) {
+  const m = mode();
+  if (m === "norepeat") return [];
+  const revise = due(game, at);
+  if (m === "revision") return revise;
+  const learn = all(game).filter(it => !it.learned).sort((a, b) => a.pile - b.pile || a.due - b.due);
+  if (m === "learn") return learn;
+  const out = [], taken = new Set();
+  for (let i = 0; i < Math.max(learn.length, revise.length); i++) {
+    for (const it of [learn[i], revise[i]]) if (it && !taken.has(it.id)) { taken.add(it.id); out.push(it); }
+  }
+  return out;
+}
 /** Counts per pile for a game or all, plus learned and due. */
 export function counts(game = null) {
   const list = all(game), out = { piles: PILES.map(() => 0), learned: 0, due: 0, total: list.length };
@@ -133,7 +184,7 @@ export function counts(game = null) {
  */
 export function weakElsewhere(game, at = Date.now()) {
   const weak = new Map();
-  for (const it of due(null, at)) if (it.game !== game) for (const id of it.about || []) weak.set(id, (weak.get(id) || 0) + 1);
+  for (const it of picks(null, at)) if (it.game !== game) for (const id of it.about || []) weak.set(id, (weak.get(id) || 0) + 1);
   return weak;
 }
 /**
@@ -162,6 +213,6 @@ export function clear() { items = {}; save(); }
 export function plan(game, pool, size) {
   if (!learning()) return null;
   const keys = new Set(pool.map(p => p.key));
-  const dueKeys = due(game).map(it => it.key).filter(k => keys.has(k)).slice(0, Math.ceil(size / 2));
+  const dueKeys = picks(game).map(it => it.key).filter(k => keys.has(k)).slice(0, Math.ceil(size / 2));
   return dueKeys;
 }

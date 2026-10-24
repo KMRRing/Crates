@@ -11,7 +11,7 @@ import { GEO } from "./chart-geo.js";
 import { distance, nearestOnFeature, featureBox, viewFitting, projection, regionView, viewWindow, clampView, worldView, REGIONS, askFor, homeOf, HOME_KM } from "./chart-engine.js";
 import { COUNTRIES } from "./chart-countries.js";
 import { LAND, BORDERS } from "./world.js";
-import { part, toggle, action, line } from "./menu.js";
+import { part, choice, action, line } from "./menu.js";
 const geoById = new Map(GEO.map(g => [`geo-${g.id}`, { id: `geo-${g.id}`, name: g.name, note: g.note, country: g.country, region: g.region, geo: g }]));
 import { QUOTES } from "./quote-bank.js";
 import { tiersOf, withUnit, tierText } from "./quote-engine.js";
@@ -528,7 +528,7 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   part(body, "settings").append(
-    toggle("Learning mode", pile.learning(), on => pile.setLearning(on)),
+    choice("Learning mode", pile.MODES, pile.mode(), pile.setMode),
     action("Forget everything", () => { if (confirm("Empty the pile? Every banked item goes.")) { pile.clear(); overview(); } }, "link"));
   part(body, "about").append(line(`Piles: at once, ${PILES.slice(1).map(p => gapText(p.gap)).join(", ")}; right in the last and it's learned`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

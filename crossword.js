@@ -67,12 +67,14 @@ function makePuzzleOff(opts) {
 function randomOptions(seed = Math.floor(Math.random() * 2 ** 31)) {
   const s = settings(), w = mix(), learning = pile.learning() && s.kind !== "classic";
   return { seed, level: s.level, size: sizeOf(s), kind: s.kind, pool: s.pool, asks: s.asks, mode: s.mode, topics: w,
-    due: learning ? dueEntries(s, w) : [], weak: learning ? pile.weakElsewhere("crossword") : null };
+    due: learning ? dueEntries(s, w) : [], weak: learning ? pile.weakElsewhere("crossword") : null,
+    // whatever the mode, a random grid keeps off the entries dealt lately (the mode puts what to revise back in)
+    avoid: [...pile.recent("crossword")] };
 }
 // more than any grid takes (the engine takes up to half its knowledge entries: eighteen in a Lexicon 15 by 15)
 const DUE_MAX = 30;
 /**
- * Learning mode's due entries for a random grid, the most revised first: Crossword's own cards, then, for each card
+ * The learning mode's entries for a random grid (what the mode picks: the longest-term due, the shortest-term pile, or both): Crossword's own cards, then, for each card
  * another game has due in the review pile (Deck's: Crates' clues, Punt's questions, Chart's places, Quote's numbers…),
  * an entry that revises it, if the clue links have one (entriesAbout: its link where it is one, else one naming what
  * it's about, picked at random). Only entries your choices take: one of your topics in (so a grid made with every
@@ -82,8 +84,8 @@ const DUE_MAX = 30;
 function dueEntries(s, w) {
   const asks = s.kind === "lexicon" && s.asks === "fwd" ? "both" : s.asks, longest = SIZES[sizeOf(s)].longest;
   const takes = e => !!e && e.topics.some(t => (w[t] ?? 1) > 0) && (s.pool === "mixed" || e.cat === s.pool) && (asks === "both" || e.dir === asks) && e.letters.length <= longest;
-  const out = pile.due("crossword").map(it => it.key).filter(k => takes(kbEntry(k))).slice(0, DUE_MAX), taken = new Set(out);
-  for (const it of pile.due()) {
+  const out = pile.picks("crossword").map(it => it.key).filter(k => takes(kbEntry(k))).slice(0, DUE_MAX), taken = new Set(out);
+  for (const it of pile.picks()) {
     if (out.length >= DUE_MAX) break;
     if (it.game === "crossword" || !it.about?.length) continue;
     const can = entriesAbout(it.about).filter(e => takes(e) && !taken.has(e.key));
@@ -789,6 +791,7 @@ async function newGrid(daily, { ask = true } = {}) {
     let p = await makePuzzleOff(opts);
     if (!p && !daily && opts.kind !== "classic") { narrow = true; p = await makePuzzleOff({ ...opts, topics: null, pool: "mixed", asks: "both" }); }   // too narrow a choice: every topic
     if (!p) { toast("Couldn't set a grid: try again"); return; }
+    if (!daily) pile.dealt("crossword", p.entries.map(e => e.key).filter(Boolean));
     const comp = computerFor(daily);
     S = { v: 1, puzzle: p, play: freshPlay(p), daily: daily ? day : null, opts: daily ? null : { level: opts.level, size: opts.size, kind: opts.kind, pool: opts.pool, asks: opts.asks, mode: opts.mode },
       // a best is a grid you played alone, today's or one like it: the level's own size, both kinds of entry, on a
@@ -1168,7 +1171,7 @@ function openMenu() {
   settingsPart.append(choice("Computer", [["off", "Off"], ["rival", "Rival"], ["partner", "Partner"]], s.computer, v => { setSetting("computer", v); openMenu(); }));
   if (s.computer !== "off") settingsPart.append(choice("Its pace", Object.entries(RIVALS).map(([k, r]) => [k, r.name]), s.pace, v => setSetting("pace", v)));
   settingsPart.append(toggle("Check as you go", s.autocheck, on => setSetting("autocheck", on)),
-    toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
+    choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
   const t = read(TIMES, {}), bests = LEVEL_IDS.filter(id => t[id]?.best != null).map(id => `${LEVELS[id].name} ${clock(t[id].best)}`);
   const solvedN = LEVEL_IDS.reduce((n, id) => n + (t[id]?.solved || 0), 0);
   part(body, "about").append(line(bests.length ? `Best: ${bests.join(" · ")} · ${solvedN} solved` : "No grid solved yet"),
