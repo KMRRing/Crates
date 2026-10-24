@@ -73,7 +73,7 @@ const CAVE = where(c => road(c) && angleOf(c) >= 1.5 * Math.PI);
 
 export const LEVELS = [
   level({
-    name: "The parlour", goal: 20000,
+    name: "The parlour", goal: 14000,
     about: "Five colours on a plain table: yellow, red, blue, black and white. The score is the chains you build.",
   }),
   level({

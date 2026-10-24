@@ -28,7 +28,7 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
 {
   check(LEVELS.length === 14 && new Set(LEVELS.map(l => l.name)).size === 14 && LEVELS.every(l => l.about.length > 20), "fourteen levels, each with its own name and a line on what it adds");
   const goals = LEVELS.map(l => l.goal);
-  check(goals[0] === 20000 && goals.every(g => g >= 10000 && g % 100 === 0), `level 1's goal is 20000 (Korbi), every goal a whole hundred and none under 10000 (${goals.join(", ")}); each is about 1.35 times what the two bots score on average there, and a game on record reaches it, below`);
+  check(goals[0] === 14000 && goals.every(g => g >= 10000 && g % 100 === 0), `level 1's goal is 14000 (20,000 on four colours, see the README), every goal a whole hundred and none under 10000 (${goals.join(", ")}); each but the first is about 1.35 times what the two bots score on average there, and a game on record reaches it, below`);
   const stars = LEVELS.map((_, k) => levelRules(k).stars);
   check(stars.every((x, k) => x.length === 3 && x[0] === goals[k] && x[0] < x[1] && x[1] < x[2]) && STARS.length === 2, "three stars a level: the goal, and two higher scores");
   const g0 = goals[0];
