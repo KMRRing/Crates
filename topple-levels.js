@@ -31,7 +31,7 @@ export const COLOUR_NAMES = ["yellow", "red", "blue", "black", "white", "orange"
 /** The parents of each mix. */
 export const MIXES = { 5: [0, 1], 6: [0, 2], 7: [1, 2], 8: [3, 4] };
 /** What a ball that stops in a cup scores. */
-export const CUP_SCORE = 300;
+export const CUP_SCORE = 1500;
 /** What the drawing of a table and its pieces is told of: for the page alone, the rules never look at it. */
 export const SCENES = ["birch", "marble", "jetty", "cliff", "garden"];
 
@@ -132,7 +132,7 @@ export const LEVELS = [
   level({
     name: "The cup", goal: 28500, colours: [0, 1, 2, 3, 6, 7], balls: 3, heavy: 0.04, maxSize: 4, scene: "cliff",
     map: { height: { 2: where(c => c[0] >= 2), 1: where(c => c[0] >= 0 && c[0] <= 1) }, cup: [[-4, 1], [-4, 3], [-2, -2]] },
-    about: "Three balls on the table. A fall that reaches one sets it rolling the way it was hit, and the table falls away to the west: a ball that stops in a cup scores 300, and another is put on the table.",
+    about: "Three balls on the table. A fall that reaches one sets it rolling the way it was hit, and the table falls away to the west: a ball that stops in a cup scores 1,500, and another is put on the table.",
   }),
   level({
     name: "Two floors", goal: 52000, colours: [0, 1, 2, 3, 4, 6], wild: 0.1, heavy: 0.05, pace: null, maxSize: 4, scene: "marble",
@@ -231,6 +231,8 @@ export const custom = spec => compile(level({ name: "Made up", goal: 1000, about
 /** The rules of play with no level: every hexagon plain, three colours, the bell hanging (Classic). */
 export const FREE = Object.freeze({ ...compile({ name: "Classic", about: "", goal: 0, colours: [0, 1, 2], wild: 0, bridges: 0, twins: 0, balls: 0, heavy: 0, gate: null, scene: "birch", rise: 0.16, bell: true, pace: null, maxSize: 5, map: {}, links: [], drops: [], joins: [], start: [] }, -1) });
 const COMPILED = LEVELS.map(compile);
+/** Seats a made-up table as one more level, past the fourteen, so a game can be played on it (for the tests; returns its number). */
+export const lodge = rules => COMPILED.push(rules) - 1;
 /** The rules of level n (0 on). */
 export const levelRules = n => COMPILED[n] || FREE;
 /** How many stars a score is worth in a level (0 to 3). */

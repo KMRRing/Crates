@@ -111,6 +111,16 @@ export function reachBy(i, w, rules = FREE) {
   const b = i % SIZE, f = FAR[b][w], far = f >= 0 ? f + (i - b) : -1;
   return far >= 0 && !hitsOf(i, w, rules).some(j => j >= 0 && rules.terrain[j] === ROCK) && hitsOf(i, w, rules).some(j => j >= 0) ? far : -1;
 }
+/**
+ * Whether a fall from hexagon `by` to hexagon j crossed something the level put there: a domino on a spring throwing it over a
+ * hexagon, a portal or a stair joining two hexagons, or a step from one floor to another (a drop, or the mouth of a cave). A knock
+ * that crosses anything doubles, once, as a gilded hexagon does: what these tables add is worth engaging with, not only there.
+ */
+export function crossing(rules, by, j) {
+  if (by < 0) return false;
+  if (rules.links && rules.links[by].includes(j)) return true;
+  return floorOf(by) !== floorOf(j) || (!!rules.spring && !!rules.spring[by] && dirIn(by, j, rules) < 0);
+}
 /** How far an axis is from a way, in steps of thirty degrees: 0 square on, 3 edge-on. */
 export function offBy(axis, w) {
   const k = (((axis - w) % AXES) + AXES) % AXES;
@@ -533,9 +543,10 @@ export function knockOn(cells, ax, i, way, bell = -1, rules = FREE, boost = 0, m
   const reached = rolls.flatMap(r => [r.from, ...r.path.filter(j => j >= 0)]);
   const rings = bell >= 0 && (fell.some(f => f[0] === bell) || reached.includes(bell));
   const gilded = fell.some(f => rules.gilded[f[0]] || (mod && mod[f[0]])) || reached.some(j => rules.gilded[j]);
+  const crossed = fell.some(f => crossing(rules, f[2], f[0]));
   const cups = rolls.filter(r => !r.lost && r.end >= 0 && rules.terrain[r.end] === CUP).length;
   const bonus = (rings ? BELL : 0) + cups * CUP_SCORE;
-  return { fell, rolls, units, steps, rings, gilded, cups, boosted: !!boost, bell: rings ? BELL : 0, gain: worth(units, steps) * (1 + (boost ? 1 : 0)) * (gilded ? 2 : 1) + bonus };
+  return { fell, rolls, units, steps, rings, gilded, crossed, cups, boosted: !!boost, bell: rings ? BELL : 0, gain: worth(units, steps) * (1 + (boost ? 1 : 0)) * (gilded || crossed ? 2 : 1) + bonus };
 }
 /**
  * The best push on the dominoes joined to hexagon i: { at, way, fell (how many dominoes and balls move), balls (how many of them are balls), steps, rings, gilded, gain, size (how many
@@ -544,10 +555,10 @@ export function knockOn(cells, ax, i, way, bell = -1, rules = FREE, boost = 0, m
  */
 export function longest(cells, ax, i, bell = -1, rules = FREE, boost = 0, mod = null) {
   const all = group(cells, i, rules, mod);
-  let best = { at: -1, way: -1, fell: 0, balls: 0, steps: 0, rings: false, gilded: false, gain: 0 };
+  let best = { at: -1, way: -1, fell: 0, balls: 0, steps: 0, rings: false, gilded: false, crossed: false, gain: 0 };
   for (const j of all) for (const way of pushes(ax, j)) {
     const k = knockOn(cells, ax, j, way, bell, rules, boost, mod);
-    if (k.gain > best.gain || (k.gain === best.gain && k.units > best.fell)) best = { at: j, way, fell: k.units, balls: k.rolls.length, steps: k.steps, rings: k.rings, gilded: k.gilded, gain: k.gain };
+    if (k.gain > best.gain || (k.gain === best.gain && k.units > best.fell)) best = { at: j, way, fell: k.units, balls: k.rolls.length, steps: k.steps, rings: k.rings, gilded: k.gilded, crossed: k.crossed, gain: k.gain };
   }
   return { ...best, size: all.length };
 }
@@ -624,7 +635,7 @@ export function knock(game, i, way) {
   if (k.rings) { s.rung++; hang(s, rules); }
   topUp(s, rules);
   s.over = stuck(s);
-  return { state: s, fell: k.fell, rolls: k.rolls, steps: k.steps, rang: k.rings, gilded: k.gilded, cups: k.cups, boosted: k.boosted, bell: k.bell, gain: k.gain, over: s.over };
+  return { state: s, fell: k.fell, rolls: k.rolls, steps: k.steps, rang: k.rings, gilded: k.gilded, crossed: k.crossed, cups: k.cups, boosted: k.boosted, bell: k.bell, gain: k.gain, over: s.over };
 }
 /**
  * Whether the knock that's due may be skipped: one is due, none already skipped (the hundred per cent stands once, so

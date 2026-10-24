@@ -1,6 +1,6 @@
 // Topple's newer rules (topple-engine.js, topple-levels.js): the mixed colours, heavy dominoes and gates, springs, marsh,
 // hedges, links, drops between floors, cups, tables of several floors and the fourteen levels' own data. Run: node tests/topple-rules.mjs
-import { CELLS, SIZE, AXES, at, next, newGame, lay, knock, moves, cover, coverFor, fitsAnywhere, chain, cascade, group, knockOn, kin, gateMod, HEAVY, BALL, floorOf, nbr, dirIn, hitsOf, reachBy, rulesOf, migrate, CUP } from "../topple-engine.js";
+import { crossing, CELLS, SIZE, AXES, at, next, newGame, lay, knock, moves, cover, coverFor, fitsAnywhere, chain, cascade, group, knockOn, kin, gateMod, HEAVY, BALL, floorOf, nbr, dirIn, hitsOf, reachBy, rulesOf, migrate, CUP } from "../topple-engine.js";
 import { LEVELS, MIXES, RAINBOW, FLOOR, ROCK, WATER, VOID, CUP_SCORE, levelRules, custom, FREE } from "../topple-levels.js";
 import { roundTrip } from "./rtdb.js";
 
@@ -108,6 +108,25 @@ const PLAIN = lv({ colours: [0, 1, 2, 3, 4, 5, 6, 7, 8] });
   const m1 = moves(g).find(m => m.floor === 1), after = lay(g, m1.slot, m1.q, m1.r, 1);
   check(after.laid.every(i => floorOf(i) === 1) && after.state.cells.filter(c => c >= 0).length >= 1 && g.cells.every(c => c === -1), "laying on the upper floor puts the dominoes there and leaves the game it was given alone");
   check(JSON.stringify(roundTrip(after.state)) === JSON.stringify(after.state) && JSON.stringify(JSON.parse(JSON.stringify(after.state))) === JSON.stringify(after.state), "a game of floors keeps through JSON and the database");
+}
+
+// ---------- crossings double ----------
+{
+  const rules = lv({ colours: [0, 1, 2], map: { spring: [[0, 0]], gilded: [[3, 0]] }, links: [[[0, 0, 2], [0, 2, 1]]],
+    layers: [{ spring: [[0, 0]], gilded: [[3, 0]] }, { only: [[0, 0], [1, 0]] }], drops: [{ from: 1, to: 0, where: c => c[0] === 1 }] });
+  const gain = (t, q, r, way, f = 0) => knockOn(t.cells, t.ax, hex(q, r, f), way, -1, rules, 0, t.mod);
+  const row = table(rules, [-2, 0, 0, 0], [-1, 0, 0, 0]);
+  check(!gain(row, -2, 0, 0).crossed && gain(row, -2, 0, 0).gain === 10 * 2 * 2, "a fall that crosses nothing scores as it did");
+  const thrown = table(rules, [0, 0, 0, 0], [2, 0, 0, 0]);
+  check(gain(thrown, 0, 0, 0).crossed && gain(thrown, 0, 0, 0).gain === 10 * 2 * 2 * 2, "a spring's throw doubles the knock: two dominoes, two steps, 40 and 80");
+  const portal = table(rules, [0, 2, 0, 0], [2, 1, 0, 0]);
+  check(gain(portal, 0, 2, 0).crossed && gain(portal, 0, 2, 0).gain === 10 * 2 * 2 * 2, "a portal doubles it too, whichever way its first domino faces");
+  const dropped = table(rules, [1, 0, 0, 0, 0, 1], [2, 0, 0, 0]);
+  check(gain(dropped, 1, 0, 0, 1).crossed, "a drop to the floor below doubles it");
+  const gilded = table(rules, [0, 0, 0, 0], [2, 0, 0, 0], [3, 0, 0, 0]);
+  const g = gain(gilded, 0, 0, 0);
+  check(g.crossed && g.gilded && g.gain === 10 * 3 * 3 * 2, `a crossing on a gilded fall doubles once (${g.gain})`);
+  check(crossing(rules, -1, 0) === false && crossing(PLAIN, hex(0, 0), hex(1, 0)) === false, "nothing crosses with nothing behind it, or on a plain table");
 }
 
 // ---------- cups ----------

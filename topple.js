@@ -315,7 +315,7 @@ function render(extra) { if (extra) drawBoard(extra); else redraw(); drawStrip()
 
 /** What the best push on the dominoes joined to one comes to, in words: how many, how many of them fall, the points. */
 function bestWords(best) {
-  const extras = `${best.rings ? ", the bell" : ""}${best.gilded ? ", gilded" : ""}`;
+  const extras = `${best.rings ? ", the bell" : ""}${best.gilded ? ", gilded" : ""}${best.crossed ? ", crossing" : ""}`;
   if (best.size === 1 && !best.balls) return `On its own: +${fmt(best.gain)}${extras}`;
   const dominoes = best.fell - best.balls, how = dominoes === best.size ? `all fall in ${best.steps}` : `${dominoes} fall at most`;
   return `${best.size} together: ${how}${best.balls ? `, ${plural(best.balls, "ball")} roll${best.balls > 1 ? "" : "s"}` : ""}, +${fmt(best.gain)}${extras}`;
@@ -448,7 +448,7 @@ function showPress(h) {
     return;
   }
   const k = tries.get(way), fell = new Set(ringed(k)), stay = group(S.cells, at, rules, S.mod || null).filter(j => !fell.has(j));
-  const words = `${k.fell.length}${k.rolls.length ? ` and ${plural(k.rolls.length, "ball")}` : ""} in ${plural(k.steps, "step")}: +${fmt(k.gain)}${k.rings ? ", the bell" : ""}${k.boosted ? ", skipped" : ""}${k.gilded ? ", gilded" : ""}${stay.length ? `; ${stay.length} stand` : ""}`;
+  const words = `${k.fell.length}${k.rolls.length ? ` and ${plural(k.rolls.length, "ball")}` : ""} in ${plural(k.steps, "step")}: +${fmt(k.gain)}${k.rings ? ", the bell" : ""}${k.boosted ? ", skipped" : ""}${k.gilded ? ", gilded" : ""}${k.crossed ? ", crossing" : ""}${stay.length ? `; ${stay.length} stand` : ""}`;
   setMarks({ ring: [...fell], stay, compass: [at, way], tag: [S.due ? words : `${words} (${knockWords().toLowerCase()})`, at] });
 }
 
@@ -503,7 +503,7 @@ async function commitKnock(i, way) {
   drawBoard({ cells: before.cells, ax: before.ax, bell: before.bell });
   drawStrip();
   const falling = view.fall({ fell: done.fell, rolls: done.rolls, bell: { rang: done.rang, to: done.rang ? S.bell : -1 } });
-  const times = (1 + (done.boosted ? 1 : 0)) * (done.gilded ? 2 : 1), level = S.level;
+  const times = (1 + (done.boosted ? 1 : 0)) * (done.gilded || done.crossed ? 2 : 1), level = S.level;
   setTimeout(() => popup([...done.fell.map(f => f[0]), ...done.rolls.map(r => r.from)], done.gain, times, done.bell), 100 + done.steps * 90);
   await falling;
   render();
