@@ -114,13 +114,13 @@ export const LEVELS = [
     about: "Two floors. A stream crosses the upper one and goes over its eastern edge; a fall that runs off the edge lands on the floor below and goes on. A stair joins the floors in the west.",
   }),
   level({
-    name: "Two courts", goal: 20000, colours: [0, 1, 2, 5, 6, 7], bridges: 0.18, heavy: 0.05, pace: GENTLE, scene: "marble",
+    name: "Two courts", goal: 20000, colours: [0, 1, 2, 5, 6, 7], bridges: 0.18, heavy: 0.05, pace: GENTLE, maxSize: 4, scene: "marble",
     map: { water: where(c => c[0] === 0 && c[1] !== 0), rock: [[0, 0]] },
     links: [[[0, -1, 1], [0, 1, -1]], [[0, -3, 2], [0, 3, -2]]],
     about: "A wall of water splits the table in two. A bridge may lie on water. A domino that falls on one of a pair of portals also knocks the other.",
   }),
   level({
-    name: "Fenland", goal: 20000, colours: [0, 1, 2, 5, 6, 7], bridges: 0.18, twins: 0.18, heavy: 0.04, pace: GENTLE, scene: "garden",
+    name: "Fenland", goal: 20000, colours: [0, 1, 2, 5, 6, 7], bridges: 0.18, twins: 0.18, heavy: 0.04, pace: GENTLE, maxSize: 4, scene: "garden",
     map: { water: where(c => c[1] === 0), marsh: [[1, -2], [2, -3], [-1, 2], [-2, 3]] },
     about: "A river across the table with no ford, and marsh where a domino falls without knocking another. A twin is a pair of two colours: it stands in one chain with one domino and in another with the other.",
   }),

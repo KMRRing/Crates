@@ -191,8 +191,9 @@ const piece = (p, colour = 0) => ({ piece: p, colour });
       for (const h of g.hand) if (!fitsAnywhere(g.cells, h.piece, ru, !!h.bridge)) { ok = false; why = `${k + 1}: a dealt piece (${h.piece}) fits nowhere on seed ${sd}`; }
       if (!moves(g).length) { ok = false; why = `${k + 1}: no move on the first hand of seed ${sd}`; }
     }
-    // every kind of piece the level can deal fits its empty table, a bridge on water
-    for (const p of Object.keys(PIECES)) if (PIECES[p].cells.length <= ru.maxSize && !ru.bridges && !fitsAnywhere(empty, p, ru)) { ok = false; why = `${k + 1}: piece ${p} fits nowhere on the empty table`; }
+    // every kind of piece the level can deal fits its empty table: one that fitted nowhere would be dead in the hand for ever,
+    // and a hand is dealt only when its last piece is down
+    for (const p of Object.keys(PIECES)) if (PIECES[p].cells.length <= ru.maxSize && !fitsAnywhere(empty, p, ru)) { ok = false; why = `${k + 1}: piece ${p} fits nowhere on the empty table`; }
     for (const st of ru.start) {
       // a heavy domino or a gate that stands at the start can be brought down: two neighbours of floor to hit it from, and it can be pushed itself
       const nbs = [0, 1, 2, 3, 4, 5].filter(d => { const j = nbr(st.i, d, ru); return j >= 0 && ru.terrain[j] === FLOOR && !(ru.hedge[st.i * 6 + d]); });
