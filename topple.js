@@ -7,13 +7,15 @@
 // marked) with its points; let go to push, or back where the finger started to think again. A pinch, the wheel or a
 // double tap on the bare table brings it closer; closer, a drag on the bare table moves it, and at its whole size tilts
 // it a little, as a watch dial does. The rules are topple-engine.js's; this file plays each move out and keeps the game.
-// Two modes (the menu's Mode): Classic, the game as it has always been, and Levels (topple-levels.js), twelve tables each
+// Two modes (the menu's Mode): Classic, the game as it has always been, and Levels (topple-levels.js), fourteen tables each
 // adding a thing to the last, each beaten at a goal score. Levels press nothing: a level can be left and come back to as
 // it was, replayed, or skipped back to, beating one only opens the next, and the only word of it is a line at the first win.
-import { SIZE, AXES, WAYS, PIECES, rulesOf, newGame, migrate, coverFor, colourAt, lay, knock, skip, canSkip, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy } from "./topple-engine.js";
-import { LEVELS, levelRules } from "./topple-levels.js";
+// A table of several floors (a stream that goes over an edge, a gallery, a cave) shows one floor whole and the others faint; a
+// press, a drag and a laid piece mean the floor in play, which the buttons at the table's side choose (kept as topple:floor).
+import { CELLS, AXES, WAYS, PIECES, VERSION, rulesOf, newGame, migrate, coverFor, colourAt, lay, knock, skip, canSkip, turn as turnDomino, group, knockOn, fitsAnywhere, longest, untilKnock, axesOf, pushes, hitBy, gateOf } from "./topple-engine.js";
+import { LEVELS, levelRules, COLOUR_NAMES } from "./topple-levels.js";
 import { mapSvg } from "./topple-map.js";
-import { heading, hexAt, SH, ZOOM, bounds, pieceSvg } from "./topple-slab.js";
+import { heading, hexAt, SH, ZOOM, bounds, pieceSvg, floorYs, floorName } from "./topple-slab.js";
 import { createTable } from "./topple-3d.js";
 import { sound } from "./topple-sound.js";
 import { scale } from "./wide.js";
@@ -25,9 +27,11 @@ const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
 // RUN, BEST: Classic's game and best, as they have always been kept. MODE: "classic" or "levels". CAMP: { at (the level
 // being played, 0 on), stars (the most stars won in each) }. RUNS: the game of each level begun, by its number (1 on).
-const RUN = "topple:run", BEST = "topple:best", SEEN = "topple:seen", SOUND = "topple:sound", SEL = "topple:sel", MODE = "topple:mode", CAMP = "topple:camp", RUNS = "topple:lruns";
+// CAMP2, RUNS2: the fourteen tables' (the eighteen before them left theirs under topple:camp and topple:lruns, which are let go of). FLOOR: the floor in play.
+const RUN = "topple:run", BEST = "topple:best", SEEN = "topple:seen", SOUND = "topple:sound", SEL = "topple:sel", MODE = "topple:mode", CAMP = "topple:camp2", RUNS = "topple:lruns2", FLOOR = "topple:floor";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+for (const old of ["topple:camp", "topple:lruns"]) try { localStorage.removeItem(old); } catch { /* private mode */ }
 const fmt = n => n.toLocaleString("en-GB");
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -42,6 +46,7 @@ let hand = null;         // one finger on the table: { id, kind ("turn", "press"
 let pinch = null;        // two: { d (how far apart), mid (the point between) }
 const fingers = new Map();   // every pointer down on the table: its id and where it is
 let marks = {};          // what's drawn over the table: ring, stay, compass, tag, ghost, handle, ax
+let floor = 0;           // the floor in play (0 on), kept as topple:floor
 
 sound.on = read(SOUND, true);
 const stage = $("stage");
@@ -53,8 +58,9 @@ catch (err) {
 }
 
 const levelOk = g => g.level === undefined || (Number.isInteger(g.level) && g.level >= 0 && g.level < LEVELS.length && Number.isInteger(g.stars) && g.stars >= 0 && g.stars <= 3);
-const valid = g => g && g.v === 5 && Array.isArray(g.cells) && g.cells.length === SIZE && Array.isArray(g.ax) && g.ax.length === SIZE && levelOk(g)
-  && g.cells.every((c, i) => (c >= 0) === (g.ax[i] >= 0 && g.ax[i] < AXES)) && Array.isArray(g.hand) && g.hand.length === 3 && g.hand.every(h => !h || PIECES[h.piece]);
+const valid = g => g && g.v === VERSION && Array.isArray(g.cells) && Array.isArray(g.ax) && levelOk(g) && g.cells.length === rulesOf(g).n && g.ax.length === g.cells.length
+  && g.cells.every((c, i) => (c >= 0) === (g.ax[i] >= 0 && g.ax[i] < AXES)) && Array.isArray(g.hand) && g.hand.length === 3 && g.hand.every(h => !h || PIECES[h.piece])
+  && (!rulesOf(g).mods || (Array.isArray(g.mod) && g.mod.length === g.cells.length));
 
 // ---------- the modes ----------
 /** The campaign as kept: the level being played and the stars won in each, mended if it is not what it should be. */
@@ -82,6 +88,7 @@ function newRun() {
   setSel(-1);
   S = newGame(Math.floor(Math.random() * 2 ** 31), inLevels() ? camp.at : -1);
   save();
+  setFloor(0);
   render();
 }
 /** The game of the mode and level now chosen, as it was left (else a new one). */
@@ -90,8 +97,10 @@ function resume() {
   drag = null;
   S = savedGame();
   if (!S) { newRun(); return; }
-  const kept = read(SEL, -1);
-  sel = Number.isInteger(kept) && S.cells[kept] >= 0 && !S.over ? kept : -1;
+  const keptSel = read(SEL, -1);
+  sel = Number.isInteger(keptSel) && S.cells[keptSel] >= 0 && !S.over ? keptSel : -1;
+  const kept = read(FLOOR, 0), layers = rulesOf(S).layers || 1;
+  setFloor(sel >= 0 ? Math.floor(sel / CELLS.length) : Number.isInteger(kept) ? Math.max(0, Math.min(layers - 1, kept)) : 0);
   if (sel >= 0) knob = facingYou(sel);
   save();
   render();
@@ -148,11 +157,11 @@ function compassEl(at, chosen, gains) {
   const [cx, cz] = view.centre(at), out = [], pts = [];
   for (const w of pushes(S.ax, at)) {
     const [ux, uz] = heading(w), vx = -uz, vz = ux, tip = 0.86, base = 0.5, wing = 0.17;
-    const p = (a, b) => view.project(cx + ux * a + vx * b, 0.01, cz + uz * a + vz * b), arrow = [p(tip, 0), p(base, wing), p(base, -wing)];
+    const y0 = view.baseOf(at) + 0.01, p = (a, b) => view.project(cx + ux * a + vx * b, y0, cz + uz * a + vz * b), arrow = [p(tip, 0), p(base, wing), p(base, -wing)];
     out.push(el("path", { class: `tp-arrow${w === chosen ? " on" : ""}`, d: `M${arrow.map(pt).join("L")}Z` }));
     pts.push(...arrow);
     if (gains && hitBy(at, w).some(j => j >= 0)) {
-      const [x, y] = view.project(cx + ux * 1.32, 0.01, cz + uz * 1.32);
+      const [x, y] = view.project(cx + ux * 1.32, y0, cz + uz * 1.32);
       out.push(text("tp-gain", short(gains.get(w)), x, y + 4 * scale(), 12.5));
       pts.push([x, y - 9 * scale()], [x, y + 6 * scale()]);
     }
@@ -162,7 +171,7 @@ function compassEl(at, chosen, gains) {
 // The chosen domino's handle: a brass arm out of its face along its axis, to a knob on the table this far out (in
 // hexagons): past the domino's own foot, short of the one beside it.
 const KNOB = 0.74;
-const knobPoint = (at, way) => { const [cx, cz] = view.centre(at), [ux, uz] = heading(way); return [cx + ux * KNOB, 0.02, cz + uz * KNOB]; };
+const knobPoint = (at, way) => { const [cx, cz] = view.centre(at), [ux, uz] = heading(way); return [cx + ux * KNOB, view.baseOf(at) + 0.02, cz + uz * KNOB]; };
 function handleEl(at, way) {
   const [cx, cz] = view.centre(at), [ux, uz] = heading(way), [x0, y0] = view.project(cx + ux * 0.1, view.baseOf(at) + SH * 0.42, cz + uz * 0.1), [x1, y1] = view.project(...knobPoint(at, way)), r = 7 * scale();
   const arm = cls => el("line", { class: cls, x1: x0.toFixed(1), y1: y0.toFixed(1), x2: x1.toFixed(1), y2: y1.toFixed(1) });
@@ -170,7 +179,7 @@ function handleEl(at, way) {
 }
 /** A line of words over a hexagon: above everything else drawn (`around`, points on the screen), or below it where there's no room above. */
 function tagEl(words, i, around) {
-  const s = scale(), [cx, cz] = view.centre(i), [x, top] = view.project(cx, view.topOf(i, kindAt(i)) + 0.15, cz), w = over.clientWidth, h = over.clientHeight || stage.clientHeight;
+  const s = scale(), [cx, cz] = view.centre(i), [x, top] = view.project(cx, view.topOf(i) + 0.15, cz), w = over.clientWidth, h = over.clientHeight || stage.clientHeight;
   const ys = around.map(p => Math.max(0, Math.min(h, p[1]))), half = Math.max(70, words.length * 3.4 * s);       // only what's in view counts
   let y = Math.min(top, ...ys) - 9 * s;
   if (y < 16 * s) y = Math.min(h - 6 * s, Math.max(top, ...ys) + 18 * s);
@@ -222,15 +231,15 @@ view.onPaint(() => {
 });
 
 /**
- * The table: as it stands, or with extra: { cells, ax (a table to draw instead), bell (where it hangs, if not where it
- * hangs now), fresh (dominoes just stood up), ghost ({ laid, kinds }: a piece held over it, a colour to each domino), ease (a domino turned eases
+ * The table: as it stands, or with extra: { cells, ax, mod (a table to draw instead), bell (where it hangs, if not where it
+ * hangs now), fresh (dominoes just stood up), ghost ({ laid, kinds, mod }: a piece held over it, a colour to each domino), ease (a domino turned eases
  * round), ring (hexagons to ring), stay (hexagons that would stay standing), tag ([text, hexagon]), compass ([hexagon,
  * the way slid to, gains]), handle ([hexagon, way]) }.
  */
 function drawBoard(extra = {}) {
   const ghost = extra.ghost, ax = extra.ax || S.ax;
   view.terrain(rulesOf(S));
-  view.set({ cells: extra.cells || S.cells, ax, bell: extra.bell ?? S.bell, fresh: extra.fresh || [], ghost: ghost && { laid: ghost.laid, kinds: ghost.kinds, ax: axesOf(ghost.laid) }, ease: !!extra.ease });
+  view.set({ cells: extra.cells || S.cells, ax, mod: extra.mod || S.mod || null, bell: extra.bell ?? S.bell, fresh: extra.fresh || [], ghost: ghost && { laid: ghost.laid, kinds: ghost.kinds, ax: axesOf(ghost.laid), mod: ghost.mod || 0 }, ease: !!extra.ease });
   setMarks({ ...extra, ax });
 }
 function setMarks(extra) {
@@ -290,16 +299,21 @@ function drawTray() {
   const rules = rulesOf(S);
   for (const b of document.querySelectorAll(".tp-piece")) {
     const slot = Number(b.dataset.slot), h = S.hand[slot];
-    b.replaceChildren(...(h ? [pieceSvg(h, false, view.spin, rules.tall).svg] : []));
+    b.replaceChildren(...(h ? [pieceSvg(h, false, view.spin, rules.palette === "levels").svg] : []));
     b.disabled = !h;
     b.classList.toggle("cant", !!h && !S.due && !fitsAnywhere(S.cells, h.piece, rules, !!h.bridge));
     b.classList.toggle("lifted", drag?.slot === slot && drag.moved);
-    b.setAttribute("aria-label", h ? `A ${h.bridge ? "bridge" : h.colours ? "twin" : "piece"} of ${PIECES[h.piece].cells.length}${S.due ? ", after the knock" : ": drag it onto the table"}` : "Laid");
+    b.setAttribute("aria-label", h ? `A ${pieceWords(h)} of ${PIECES[h.piece].cells.length}${S.due ? ", after the knock" : ": drag it onto the table"}` : "Laid");
   }
+}
+/** What a piece in hand is, in words: a bridge, a twin, a heavy piece, a gate (and the colours it names), a colour. */
+function pieceWords(h) {
+  const name = c => (rulesOf(S).palette === "levels" ? COLOUR_NAMES[c] : ["gold", "green", "blue"][c]);
+  return h.bridge ? "bridge" : h.colours ? `twin (${h.colours.map(name).join(" and ")})` : h.mod >= 10 ? `gate (${gateOf(h.mod).map(name).join(" and ")})` : h.mod ? `heavy ${name(h.colour)} piece` : `${name(h.colour)} piece`;
 }
 /** The table as it stands, with the chosen domino shown if there is one. */
 function redraw() { if (sel >= 0 && S.cells[sel] >= 0 && !S.over) showChosen(); else drawBoard(); }
-function render(extra) { if (extra) drawBoard(extra); else redraw(); drawStrip(); drawTray(); }
+function render(extra) { if (extra) drawBoard(extra); else redraw(); drawStrip(); drawTray(); drawFloors(); }
 
 /** What the best push on the dominoes joined to one comes to, in words: how many, how many of them fall, the points. */
 function bestWords(best) {
@@ -314,6 +328,46 @@ function levelVerdict() {
   return S.stars >= 1 ? `No room: ${fmt(S.score)}. Beaten, ${starsWords(S.stars)}` : `No room: ${fmt(S.score)}, ${fmt(L.goal - S.score)} short of ${fmt(L.goal)}`;
 }
 
+// ---------- floors ----------
+const floorsBox = $("floors"), floorOf = i => Math.floor(i / CELLS.length);
+/** Puts floor l (0 on) in play: the table draws it whole and the others faint, and a press, a drag and a laid piece mean it. */
+function setFloor(l) {
+  const rules = rulesOf(S);
+  view.terrain(rules);
+  floor = Math.max(0, Math.min((rules.layers || 1) - 1, l));
+  view.setFloor(floor);
+  write(FLOOR, floor);
+  drawFloors();
+}
+/** The buttons at the table's side, the highest floor at the top, each with the dominoes standing on it; none where there is one floor. */
+function drawFloors() {
+  const rules = rulesOf(S), layers = rules.layers || 1, ys = floorYs(rules);
+  floorsBox.hidden = layers < 2;
+  if (layers < 2) { floorsBox.replaceChildren(); return; }
+  const counts = Array.from({ length: layers }, (_, l) => S.cells.filter((c, i) => c >= 0 && floorOf(i) === l).length);
+  floorsBox.replaceChildren(...Array.from({ length: layers }, (_, l) => l).sort((a, b) => ys[b] - ys[a]).map(l => {
+    const b = document.createElement("button"), name = document.createElement("span"), n = document.createElement("b");
+    b.type = "button";
+    b.dataset.floor = l;
+    b.setAttribute("aria-pressed", String(l === floor));
+    b.setAttribute("aria-label", `${floorName(rules, l, ys)} floor, ${plural(counts[l], "domino", "dominoes")}`);
+    name.textContent = floorName(rules, l, ys);
+    n.textContent = counts[l];
+    b.append(name, n);
+    return b;
+  }));
+}
+floorsBox.addEventListener("click", e => {
+  const b = e.target.closest("button[data-floor]");
+  if (!b || drag) return;
+  const l = Number(b.dataset.floor);
+  if (l === floor) return;
+  if (sel >= 0 && floorOf(sel) !== l) setSel(-1);
+  setFloor(l);
+  redraw();
+});
+floorsBox.addEventListener("pointerdown", e => e.stopPropagation());
+
 // ---------- choosing a domino, and turning it ----------
 function setSel(i) { sel = i; write(SEL, i); }
 /** The way along a domino's axis that points down the screen, towards you: where its handle sits, clear of it. */
@@ -326,11 +380,12 @@ function facingYou(i) {
 const ringed = k => [...k.fell.map(f => f[0]), ...k.rolls.map(r => r.from)];
 /** The chosen domino (turned to `ax` while a finger turns it): its handle, and what the best push on what it's joined to would fell, ringed and written. */
 function showChosen(ax = S.ax, ease = false) {
-  const rules = rulesOf(S), best = longest(S.cells, ax, sel, S.bell, rules, S.boost), fell = best.at >= 0 ? ringed(knockOn(S.cells, ax, best.at, best.way, S.bell, rules, S.boost)) : [];
-  const down = new Set(fell), stay = group(S.cells, sel, rules).filter(j => !down.has(j));
+  const rules = rulesOf(S), best = longest(S.cells, ax, sel, S.bell, rules, S.boost, S.mod || null), fell = best.at >= 0 ? ringed(knockOn(S.cells, ax, best.at, best.way, S.bell, rules, S.boost, S.mod || null)) : [];
+  const down = new Set(fell), stay = group(S.cells, sel, rules, S.mod || null).filter(j => !down.has(j));
   drawBoard({ ax, ease, handle: [sel, knob], ring: fell, stay, tag: [bestWords(best), sel] });
 }
 function choose(i) {
+  if (Math.floor(i / CELLS.length) !== floor) setFloor(Math.floor(i / CELLS.length));
   setSel(i);
   knob = facingYou(i);
   showChosen();
@@ -389,12 +444,12 @@ function slidWay(h, e) {
  * that way would fell ringed, what of its colour would stay standing marked, the steps and the points.
  */
 function showPress(h) {
-  const { at, way } = h, rules = rulesOf(S), tries = new Map(pushes(S.ax, at).map(w => [w, knockOn(S.cells, S.ax, at, w, S.bell, rules, S.boost)]));
+  const { at, way } = h, rules = rulesOf(S), tries = new Map(pushes(S.ax, at).map(w => [w, knockOn(S.cells, S.ax, at, w, S.bell, rules, S.boost, S.mod || null)]));
   if (way < 0) {
     setMarks({ compass: [at, -1, new Map([...tries].map(([w, k]) => [w, k.gain]))], tag: [S.due ? "Slide it along its axis to push" : `Slide to see a push: ${knockWords().toLowerCase()}`, at] });
     return;
   }
-  const k = tries.get(way), fell = new Set(ringed(k)), stay = group(S.cells, at, rules).filter(j => !fell.has(j));
+  const k = tries.get(way), fell = new Set(ringed(k)), stay = group(S.cells, at, rules, S.mod || null).filter(j => !fell.has(j));
   const words = `${k.fell.length}${k.rolls.length ? ` and ${plural(k.rolls.length, "ball")}` : ""} in ${plural(k.steps, "step")}: +${fmt(k.gain)}${k.rings ? ", the bell" : ""}${k.boosted ? ", skipped" : ""}${k.gilded ? ", gilded" : ""}${stay.length ? `; ${stay.length} stand` : ""}`;
   setMarks({ ring: [...fell], stay, compass: [at, way], tag: [S.due ? words : `${words} (${knockWords().toLowerCase()})`, at] });
 }
@@ -411,13 +466,13 @@ function settle() {
 /** The one line a level's first win gets: that it is beaten, and what that opened. */
 function beatenWords() {
   const next = LEVELS[S.level + 1];
-  return `${LEVELS[S.level].name} beaten. ${next ? `${next.name} is open.` : "That is all twelve."}`;
+  return `${LEVELS[S.level].name} beaten. ${next ? `${next.name} is open.` : `That is all ${LEVELS.length}.`}`;
 }
-async function commitLay(slot, q, r) {
+async function commitLay(slot, q, r, onFloor = floor) {
   if (playing || S.over || S.due) return;
   playing = true;
   setSel(-1);
-  const done = lay(S, slot, q, r);
+  const done = lay(S, slot, q, r, onFloor);
   S = done.state;
   settle();
   render({ fresh: done.laid });
@@ -460,7 +515,7 @@ async function commitKnock(i, way) {
 /** The points of a knock rising from where it fell: with a skip's or the gilding's multiplier (`times`), as the points before it and the times, and the bell's flat sum after them. */
 function popup(cells, gain, times, bell = 0) {
   const mids = cells.map(i => view.centre(i)), x = mids.reduce((a, m) => a + m[0], 0) / cells.length, z = mids.reduce((a, m) => a + m[1], 0) / cells.length;
-  const [px, py] = view.project(x, SH, z), t = text(`tp-pop${cells.length >= 10 || times > 1 || bell ? " big" : ""}`, `${times > 1 ? `+${fmt((gain - bell) / times)} ×${times}` : `+${fmt(gain - bell)}`}${bell ? ` +${fmt(bell)} bell` : ""}`, px, py, cells.length >= 10 || times > 1 || bell ? 24 : 19);
+  const rise = cells.reduce((a, i) => a + view.baseOf(i), 0) / cells.length, [px, py] = view.project(x, rise + SH, z), t = text(`tp-pop${cells.length >= 10 || times > 1 || bell ? " big" : ""}`, `${times > 1 ? `+${fmt((gain - bell) / times)} ×${times}` : `+${fmt(gain - bell)}`}${bell ? ` +${fmt(bell)} bell` : ""}`, px, py, cells.length >= 10 || times > 1 || bell ? 24 : 19);
   fxG.append(t);
   animate(t, [{ transform: "translateY(0)", opacity: 1 }, { transform: `translateY(${-34 * scale()}px)`, opacity: 0 }], { duration: 1200, easing: "ease-out" }).then(() => t.remove());
 }
@@ -471,10 +526,10 @@ function spotAt(h, px, py) {
   const p = view.pointAt(px, py), b = bounds(h.piece);
   if (!p) return null;
   const [q, r] = hexAt(p[0] - b.cx, p[1] - b.cz);
-  return coverFor(S.cells, h, q, r, rulesOf(S)) ? { q, r } : null;
+  return coverFor(S.cells, h, q, r, rulesOf(S), floor) ? { q, r, floor } : null;
 }
 function floatEl(h) {
-  const d = document.createElement("div"), u = unit(), art = pieceSvg(h, true, view.spin, rulesOf(S).tall);
+  const d = document.createElement("div"), u = unit(), art = pieceSvg(h, true, view.spin, rulesOf(S).palette === "levels");
   d.className = "tp-float";
   d.style.width = `${u * art.width}px`;
   d.style.height = `${u * art.height}px`;
@@ -485,6 +540,8 @@ function floatEl(h) {
   d.reach = u * art.height;
   return d;
 }
+/** Whether a piece in hand fits somewhere on a floor. */
+const fitsOn = (h, l) => CELLS.some(([q, r]) => coverFor(S.cells, h, q, r, rulesOf(S), l));
 function startDrag(e, slot) {
   const h = S.hand[slot];
   if (playing || S.over || !h || e.button > 0) return;
@@ -492,6 +549,9 @@ function startDrag(e, slot) {
   sound.unlock();
   if (S.due) { toast("Knock a domino first: press one and slide it along its axis"); return; }
   if (!fitsAnywhere(S.cells, h.piece, rulesOf(S), !!h.bridge)) { toast("That piece fits nowhere now"); return; }
+  // a piece that fits only on another floor brings that floor into play
+  const other = Array.from({ length: rulesOf(S).layers || 1 }, (_, l) => l).find(l => fitsOn(h, l));
+  if (other !== undefined && !fitsOn(h, floor)) setFloor(other);
   drag?.float.remove();
   if (sel >= 0) letGo();
   // held above the finger, its foot a hexagon clear of it, so where it's going is in sight (a mouse needs no lift)
@@ -508,22 +568,22 @@ function moveDrag(e) {
   f.style.left = `${px - f.foot[0]}px`;
   f.style.top = `${py - f.foot[1]}px`;
   f.style.visibility = drag.moved && !spot ? "visible" : "hidden";   // where it fits it's shown in its place
-  if (spot?.q === drag.at?.q && spot?.r === drag.at?.r && drag.drawn) return;
+  if (spot?.q === drag.at?.q && spot?.r === drag.at?.r && spot?.floor === drag.at?.floor && drag.drawn) return;
   drag.at = spot;
   drag.drawn = true;
   if (!spot) { drawBoard(); return; }
   // the dominoes it would join, ringed, and what their best push would fell, facing as they stand and as the piece comes
-  const rules = rulesOf(S), laid = coverFor(S.cells, drag, spot.q, spot.r, rules), cells = S.cells.slice(), ax = S.ax.slice(), faces = axesOf(laid), kinds = laid.map((_, k) => colourAt(drag, k));
-  laid.forEach((i, k) => { cells[i] = kinds[k]; ax[i] = faces[k]; });
-  const joined = group(cells, laid[0], rules), grew = joined.length > laid.length;
-  drawBoard({ ghost: { laid, kinds }, ring: grew ? joined : [], tag: grew ? [bestWords(longest(cells, ax, laid[0], S.bell, rules)), laid[0]] : null });
+  const rules = rulesOf(S), laid = coverFor(S.cells, drag, spot.q, spot.r, rules, spot.floor), cells = S.cells.slice(), ax = S.ax.slice(), mod = S.mod ? S.mod.slice() : null, faces = axesOf(laid), kinds = laid.map((_, k) => colourAt(drag, k));
+  laid.forEach((i, k) => { cells[i] = kinds[k]; ax[i] = faces[k]; if (mod) mod[i] = drag.mod || 0; });
+  const joined = group(cells, laid[0], rules, mod), grew = joined.length > laid.length;
+  drawBoard({ ghost: { laid, kinds, mod: drag.mod || 0 }, ring: grew ? joined : [], tag: grew ? [bestWords(longest(cells, ax, laid[0], S.bell, rules, S.boost, mod)), laid[0]] : null });
 }
 function endDrag(e) {
   if (!drag || e.pointerId !== drag.id) return;
   const { slot, at: spot } = drag;
   drag.float.remove();
   drag = null;
-  if (spot) commitLay(slot, spot.q, spot.r);
+  if (spot) commitLay(slot, spot.q, spot.r, spot.floor);
   else render();
 }
 
@@ -645,12 +705,12 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
 }
-/** The twelve levels, three to a row: each its table in miniature, its number and name, and the stars won. Those not yet open are dimmed; any open one can be played at any time, as it was left. */
+/** The levels, three to a row: each its table in miniature, its number and name, its goal and the stars won. Those not yet open are dimmed; any open one can be played at any time, as it was left. */
 function levelList() {
   const list = document.createElement("div");
   list.className = "tp-levels";
   LEVELS.forEach((L, n) => {
-    const b = document.createElement("button"), won = camp.stars[n], map = document.createElement("div"), row = document.createElement("div"), num = document.createElement("b"), stars = document.createElement("span"), name = document.createElement("div");
+    const b = document.createElement("button"), won = camp.stars[n], map = document.createElement("div"), row = document.createElement("div"), num = document.createElement("b"), stars = document.createElement("span"), name = document.createElement("div"), goal = document.createElement("div");
     b.type = "button";
     b.disabled = !isOpen(n);
     b.className = won ? "done" : "";
@@ -664,7 +724,9 @@ function levelList() {
     row.append(num, stars);
     name.className = "tp-lnamed";
     name.textContent = L.name;
-    b.append(map, row, name);
+    goal.className = "tp-lgoal";
+    goal.textContent = `Goal ${fmt(L.goal)}`;
+    b.append(map, row, name, goal);
     b.addEventListener("click", () => { $("menuDlg").close(); playLevel(n); });
     list.append(b);
   });
@@ -705,12 +767,12 @@ onPause(() => view.hold(), () => view.release());
 // for tests and debugging
 window.__topple = {
   get state() { return S; }, set state(s) { S = s; setSel(-1); render(); }, get sel() { return sel; }, get knob() { return knob; },
-  commitLay, commitKnock, spotAt, newRun, choose, view, playLevel, setMode, get mode() { return mode; }, get camp() { return camp; },
+  commitLay, commitKnock, spotAt, newRun, choose, view, playLevel, setMode, setFloor, get floor() { return floor; }, get mode() { return mode; }, get camp() { return camp; },
   cellAt: (px, py) => view.cellAt(px, py),
   screenOf: i => { const [x, z] = view.centre(i); return onPage(x, view.baseOf(i) + SH * 0.45, z); },
   groundOf: i => { const [x, z] = view.centre(i); return onPage(x, view.baseOf(i), z); },
   /** Where a point of the table lies from hexagon i's middle, `along` hexagons the way w, on the page. */
-  toward: (i, w, along) => { const [x, z] = view.centre(i), [ux, uz] = heading(w); return onPage(x + ux * along, 0, z + uz * along); },
+  toward: (i, w, along) => { const [x, z] = view.centre(i), [ux, uz] = heading(w); return onPage(x + ux * along, view.baseOf(i), z + uz * along); },
   knobAt: () => (sel >= 0 ? onPage(...knobPoint(sel, knob)) : null),
 };
 

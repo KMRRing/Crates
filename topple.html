@@ -42,6 +42,8 @@
     <div id="stage" class="tp-stage">
       <svg id="over" class="tp-over" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
     </div>
+    <!-- a table of several floors: the one in play, highest at the top, with the dominoes on each -->
+    <div id="floors" class="tp-floors" role="group" aria-label="Floors" hidden></div>
   </section>
 
   <section class="tp-side">
@@ -64,6 +66,15 @@
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
   <div id="menuBody"></div>
 </dialog>
+
+<!-- the rainbow's bands, for the dominoes drawn flat to fill with -->
+<svg class="tp-defs" width="0" height="0" aria-hidden="true"><defs>
+  <linearGradient id="tp-rainbow" x1="0" y1="1" x2="0" y2="0">
+    <stop offset="0" stop-color="#c7332b"/><stop offset=".17" stop-color="#c7332b"/><stop offset=".17" stop-color="#ec7321"/><stop offset=".33" stop-color="#ec7321"/>
+    <stop offset=".33" stop-color="#f2cc33"/><stop offset=".5" stop-color="#f2cc33"/><stop offset=".5" stop-color="#409e57"/><stop offset=".67" stop-color="#409e57"/>
+    <stop offset=".67" stop-color="#3373cc"/><stop offset=".83" stop-color="#3373cc"/><stop offset=".83" stop-color="#734aa6"/><stop offset="1" stop-color="#734aa6"/>
+  </linearGradient>
+</defs></svg>
 
 <p id="toast" class="tp-toast" role="status" aria-live="polite"></p>
 <script type="module" src="topple.js"></script>

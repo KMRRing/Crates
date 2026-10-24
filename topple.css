@@ -1,16 +1,16 @@
 /* Topple: the table (sixty-one hexagons inlaid in birch, in a mahogany frame, drawn by topple-3d.js on a canvas), what's
    drawn over it (rings, the two arrows of a push, scores, the chosen domino's brass handle), the dominoes standing on it
-   in three enamels, each colour with pips of its own (one, two, three a half) so they're told apart without their colour,
-   and under it the three pieces to drag. The knock's ochre is the house colour. */
+   in three enamels (Classic) or nine and the rainbow (the levels), each colour with pips of its own so they're told apart
+   without their colour, and under it the three pieces to drag. The knock's ochre is the house colour. */
 :root {
   --tp-in: var(--c0);
   --tp-soft: color-mix(in srgb, var(--tp-in) 15%, var(--sheet));
-  /* the pearl, a level's fourth colour, and the ink of its pips */
-  --tp-pearl: #F3F0E8;
-  --tp-pearl-ink: #1C2A34;
+  /* a level's nine colours (the rainbow is drawn by the page's gradient), and the ink of the pips on the light ones */
+  --tp-yellow: #E0AE2A; --tp-red: #A8382B; --tp-blue: #2C5B8A; --tp-black: #24272C; --tp-white: #F3F0E8; --tp-orange: #CC6A22; --tp-green: #2F7D5B; --tp-purple: #6B4C8A; --tp-grey: #8A8F95; --tp-rainbow: #D9A34A;
+  --tp-ink-dark: #1C2A34;
 }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --tp-pearl: #D8D2C4; } }
-html[data-mode="night"] { --tp-pearl: #D8D2C4; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --tp-yellow: #E2B544; --tp-red: #D06A58; --tp-blue: #4A7FB8; --tp-black: #3A3E45; --tp-white: #D8D2C4; --tp-orange: #E08440; --tp-green: #4E9E7C; --tp-purple: #8E70B3; --tp-grey: #A3A8AE; } }
+html[data-mode="night"] { --tp-yellow: #E2B544; --tp-red: #D06A58; --tp-blue: #4A7FB8; --tp-black: #3A3E45; --tp-white: #D8D2C4; --tp-orange: #E08440; --tp-green: #4E9E7C; --tp-purple: #8E70B3; --tp-grey: #A3A8AE; }
 
 .tp-mark { display: inline-block; }
 .tp-mark svg { width: 100%; height: 100%; display: block; }
@@ -41,6 +41,16 @@ html[data-mode="night"] { --tp-pearl: #D8D2C4; }
 .tp-bar u:nth-of-type(2) { left: 66.67%; }
 .tp-lstars { flex: none; color: var(--brass); letter-spacing: .12em; font-size: .8rem; }
 
+/* a table of several floors: buttons for the one in play, over the table's corner, the highest floor at the top */
+.tp-floors { position: absolute; top: .4rem; right: .4rem; z-index: 5; display: grid; gap: .3rem; }
+.tp-floors[hidden] { display: none; }
+.tp-floors button { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; min-width: 5.2rem; min-height: 2.25rem; align-items: center; padding: .2rem .55rem;
+  border: 1px solid var(--rule); border-radius: 4px; background: color-mix(in srgb, var(--sheet) 88%, transparent); color: var(--ink-soft); font: inherit; font-size: .68rem; font-weight: 800;
+  font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); cursor: pointer; }
+.tp-floors button[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
+.tp-floors b { font-variant-numeric: tabular-nums; }
+.tp-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
 /* the table: as large as its room allows; the canvas draws it, the svg over it draws what the page says about it */
 .tp-table { position: relative; }
 .tp-stage { position: absolute; inset: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
@@ -66,24 +76,30 @@ html[data-mode="night"] { --tp-pearl: #D8D2C4; }
 
 /* a domino drawn flat: a slab seen from above and in front (the tray, your hand, the table where there's no WebGL) */
 .tp-slab polygon.tp-face, .tp-slab polygon.tp-side, .tp-slab polygon.tp-top { stroke: color-mix(in srgb, var(--ink) 55%, transparent); stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.tp-slab.k0 .tp-face { fill: var(--c0); }
-.tp-slab.k1 .tp-face { fill: var(--c1); }
-.tp-slab.k2 .tp-face { fill: var(--c2); }
-.tp-slab.k3 .tp-face { fill: var(--tp-pearl); }
-.tp-slab.k0 .tp-top { fill: color-mix(in srgb, var(--c0) 68%, #fff); }
-.tp-slab.k1 .tp-top { fill: color-mix(in srgb, var(--c1) 68%, #fff); }
-.tp-slab.k2 .tp-top { fill: color-mix(in srgb, var(--c2) 68%, #fff); }
-.tp-slab.k3 .tp-top { fill: color-mix(in srgb, var(--tp-pearl) 68%, #fff); }
-.tp-slab.k0 .tp-side { fill: color-mix(in srgb, var(--c0) 72%, #000); }
-.tp-slab.k1 .tp-side { fill: color-mix(in srgb, var(--c1) 72%, #000); }
-.tp-slab.k2 .tp-side { fill: color-mix(in srgb, var(--c2) 72%, #000); }
-.tp-slab.k3 .tp-side { fill: color-mix(in srgb, var(--tp-pearl) 72%, #000); }
-.tp-pip { fill: var(--on-c); }
-.tp-slab.k0 .tp-pip { fill: var(--on-c0); }
-.tp-slab.k3 .tp-pip { fill: var(--tp-pearl-ink); }
-.tp-groove { fill: none; stroke: color-mix(in srgb, var(--on-c) 55%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.tp-slab.k0 .tp-groove { stroke: color-mix(in srgb, var(--on-c0) 55%, transparent); }
-.tp-slab.k3 .tp-groove { stroke: color-mix(in srgb, var(--tp-pearl-ink) 55%, transparent); }
+/* each colour sets its own --k (enamel) and --ki (ink of its pips); the faces, tops and sides come from them. Classic's three are the theme's own;
+   a level's (.lv) are the nine and the rainbow. A gate's upper half (.tp-up) names its own colour in kb<n>. */
+.tp-slab { --k: var(--c0); --ki: var(--on-c0); }
+.tp-slab.k1 { --k: var(--c1); --ki: var(--on-c); }
+.tp-slab.k2 { --k: var(--c2); --ki: var(--on-c); }
+.tp-slab.lv.k0, .tp-up.kb0 { --k: var(--tp-yellow); --ki: var(--on-c0); }
+.tp-slab.lv.k1, .tp-up.kb1 { --k: var(--tp-red); --ki: var(--on-c); }
+.tp-slab.lv.k2, .tp-up.kb2 { --k: var(--tp-blue); --ki: var(--on-c); }
+.tp-slab.lv.k3, .tp-up.kb3 { --k: var(--tp-black); --ki: #F7F1E3; }
+.tp-slab.lv.k4, .tp-up.kb4 { --k: var(--tp-white); --ki: var(--tp-ink-dark); }
+.tp-slab.lv.k5, .tp-up.kb5 { --k: var(--tp-orange); --ki: #F7F1E3; }
+.tp-slab.lv.k6, .tp-up.kb6 { --k: var(--tp-green); --ki: #F7F1E3; }
+.tp-slab.lv.k7, .tp-up.kb7 { --k: var(--tp-purple); --ki: #F7F1E3; }
+.tp-slab.lv.k8, .tp-up.kb8 { --k: var(--tp-grey); --ki: var(--tp-ink-dark); }
+.tp-slab.lv.k9 { --k: var(--tp-rainbow); --ki: var(--tp-ink-dark); }
+.tp-slab .tp-face { fill: var(--k); }
+.tp-slab.lv.k9 .tp-face { fill: url(#tp-rainbow); }
+.tp-slab .tp-top { fill: color-mix(in srgb, var(--k) 68%, #fff); }
+.tp-slab .tp-side { fill: color-mix(in srgb, var(--k) 72%, #000); }
+.tp-pip { fill: var(--ki); }
+.tp-pip.hollow { fill: none; stroke: var(--ki); stroke-width: 1.3; vector-effect: non-scaling-stroke; }
+.tp-groove { fill: none; stroke: color-mix(in srgb, var(--ki) 55%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+/* a heavy domino's and a gate's band, in brass */
+.tp-band { fill: var(--brass); stroke: color-mix(in srgb, var(--ink) 55%, transparent); stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .tp-slab.ghost { opacity: .6; }
 
 /* under the table: the three pieces; at the end, how it went and New game, in the same room */
