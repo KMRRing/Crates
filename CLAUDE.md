@@ -33,7 +33,7 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
    read every page (syntax, imports, offline, wide, days), and any shared file, bank, `tools/`, `kb/` or file with no
    tests of its own runs everything. It compares with the last commit the bot published, so a cancelled run's changes
    are never skipped. The whole suite runs every night (`.github/workflows/all-tests.yml`, 02:23 UTC) and on demand
-   (`gh workflow run all-tests.yml`); a game change that could break another game's page should still get a full local
+   (`gh api -X POST repos/KMRRing/Crates/actions/workflows/all-tests.yml/dispatches -f ref=main`; `gh workflow run` needs GraphQL, which sessions can't reach); a game change that could break another game's page should still get a full local
    run first. If a test fails, `sw.js` isn't published and installed copies stay on the last good version (a fresh
    visit to the site still gets the new files, so don't leave it broken).
 7. **After pushing, check the run went green** (Actions on GitHub) and that the bot committed `sw.js` when you changed
