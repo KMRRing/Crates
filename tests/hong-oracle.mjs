@@ -8,6 +8,7 @@
 // a concealed kong is not an open meld. Then whether a set of tiles is a complete hand: the engine's `complete` against
 // a plain search, on complete hands, hands one tile off and random ones.
 import * as E from "../hong-engine.js";
+import { shanten } from "../hong-bot.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -138,7 +139,7 @@ function gen() {
   const conc = [...sets.flatMap(s => (s.t === "chow" ? [s.k, s.k + 1, s.k + 2] : [s.k, s.k, s.k])), pair, pair];
   return { melds, conc };
 }
-let n = 0, diffs = new Map(), seen = 0;
+let n = 0, diffs = new Map(), seen = 0, symmetric = true;
 while (n < N) {
   const g = gen(); if (!g) continue;
   n++;
@@ -154,6 +155,16 @@ while (n < N) {
   st.seats[seat] = { hand: hand.sort((a, b) => a - b), melds: g.melds.map(m => ({ ...m, from: m.open ? 0 : -1 })), flowers: fl, river: [], passBlock: false };
   st.flags = { ...st.flags, ...flags };
   const e = E.scoreWin(st, { seat, tile, how, from: (seat + 1) % 4 });
+  // the rules have symmetries the scorer must keep: the three suits are interchangeable, and so are the seats (a hand
+  // scores the same when the player, the dealer and so the winds all move round by one)
+  const turned = (map, sSeat, sDealer) => {
+    const t2 = E.deal({ seed: 7, dealer: sDealer, round, opts: { flowers: true, minFan: 3 } });
+    t2.seats[sSeat] = { hand: hand.map(map).sort((a, b) => a - b), melds: g.melds.map(m => ({ ...m, k: map(m.k), from: m.open ? 0 : -1 })), flowers: fl, river: [], passBlock: false };
+    t2.flags = { ...t2.flags, ...flags };
+    return E.scoreWin(t2, { seat: sSeat, tile: map(tile), how, from: (sSeat + 1) % 4 }).fan;
+  };
+  const suitTurn = k => (k < 27 ? (k + 9) % 27 : k);
+  if (turned(suitTurn, seat, dealer) !== e.fan || turned(k => k, (seat + 1) % 4, (dealer + 1) % 4) !== e.fan) symmetric = false;
   const seatWind = (seat - dealer + 4) % 4;
   const o = oracle({ melds: g.melds, conc, tile, how, flowers: fl, seatWind, roundWind: round, last: flags.lastDraw || flags.finalDiscard, bloom: flags.afterKong, chain: flags.kongChain, flag: true, cap: 10, heavenly: false, earthly: false });
   if (e.fan !== o.fan) {
@@ -166,6 +177,36 @@ while (n < N) {
   }
 }
 check(diffs.size === 0, `${N} random winning hands score the same fan in the engine and in the independent scorer${diffs.size ? ` (${[...diffs.values()].reduce((a, d) => a + d.count, 0)} differ, first: ${JSON.stringify([...diffs.values()][0].ex)})` : ""}`);
+
+check(symmetric, "a hand scores the same with its suits turned round, and with the player and the dealer moved on one seat");
+
+// ---------- every one-suit hand ----------
+// All 118,800 ways to hold fourteen tiles of one suit (at most four of a kind): which are complete hands, and what each
+// scores won by self-draw and off a discard, in two of the suits, in the engine and in the second scorer.
+{
+  const all = [];
+  const rec = (k, left, cur) => { if (k === 9) { if (!left) all.push(cur.slice()); return; } for (let q = 0; q <= Math.min(4, left); q++) { cur[k] = q; rec(k + 1, left - q, cur); } cur[k] = 0; };
+  rec(0, 14, Array(9).fill(0));
+  let complete = 0, off = 0, scored = 0, scoredOff = 0;
+  for (const c9 of all) {
+    const tiles = c9.flatMap((q, k) => Array(q).fill(k));
+    const want = isComplete(tiles, 4);
+    if (want !== E.complete(E.counts(tiles), 4)) off++;
+    if (!want) continue;
+    complete++;
+    for (const how of ["self", "discard"]) for (const plus of [0, 1]) {
+      const tl = tiles.map(k => k + 9 * plus), tile = tl[0], hand = tl.slice(); if (how !== "self") hand.splice(hand.indexOf(tile), 1);
+      const st = E.deal({ seed: 7, dealer: 0, round: 0, opts: { flowers: true, minFan: 3 } });
+      st.seats[1] = { hand: hand.sort((a, b) => a - b), melds: [], flowers: [], river: [], passBlock: false };
+      st.flags = { ...st.flags, heavenly: false, earthly: false, afterKong: false, kongChain: 0, lastDraw: false, finalDiscard: false };
+      const e = E.scoreWin(st, { seat: 1, tile, how, from: 0 });
+      const o = oracle({ melds: [], conc: tl, tile, how, flowers: [], seatWind: 1, roundWind: 0, last: false, bloom: false, chain: 0, flag: true, cap: 10 });
+      scored++; if (e.fan !== o.fan) scoredOff++;
+    }
+  }
+  check(all.length === 118800 && off === 0 && complete === 13259, `${all.length} one-suit hands of fourteen tiles, ${complete} complete: the engine and the plain search agree on every one`);
+  check(scoredOff === 0, `${scored} scorings of them (self-draw and discard, two suits): the engine and the second scorer agree on every one`);
+}
 
 // ---------- is it a complete hand ----------
 seed = 11;
@@ -187,6 +228,48 @@ for (let i = 0; i < 20000; i++) {
 check(total > 10000 && agree === total && completeSeen > 3000, `${total} sets of tiles (${completeSeen} complete): the engine and a plain search agree on every one`);
 const orph = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
 check(E.orphans(E.counts([...orph, 0])) && E.orphans(E.counts([...orph, 33])) && !E.orphans(E.counts([...orph, 1])) && !E.orphans(E.counts([...orph.slice(1), 1, 1])), "thirteen orphans: each of the thirteen once and any one of them again, nothing else");
+
+// ---------- the computer players' reckoning of how far a hand is from ready ----------
+// hong-bot.js's `shanten` (tiles from ready: 0 ready, 1 one away…) against the plain definition: the most tiles of the hand
+// that any complete hand (four sets less the melds down, and a pair) can keep, 3 * sets + 2 less that less one.
+const SETS = []; for (let k = 0; k < 34; k++) SETS.push([k, k, k]); for (let s = 0; s < 3; s++) for (let r = 0; r < 7; r++) SETS.push([s * 9 + r, s * 9 + r + 1, s * 9 + r + 2]);
+function overlapBest(c, need) {
+  let best = 0;
+  const left = c.slice();
+  const take = (tiles) => { let g = 0; for (const t of tiles) if (left[t] > 0) { left[t]--; g++; } return g; };
+  const give = (tiles, used) => { for (const t of used) left[t]++; };
+  const go = (n, from, gained) => {
+    if (n === need) {
+      for (let p = 0; p < 34; p++) { const g = Math.min(2, left[p]); if (gained + g > best) best = gained + g; }
+      return;
+    }
+    // any further set scores at least 0: try each set type in order (multisets), counting what it keeps of the hand
+    for (let i = from; i < SETS.length; i++) {
+      const used = []; for (const t of SETS[i]) if (left[t] > 0) { left[t]--; used.push(t); }
+      go(n + 1, i, gained + used.length);
+      for (const t of used) left[t]++;
+    }
+  };
+  go(0, 0, 0);
+  return best;
+}
+{
+let sseed = 3; const srnd = () => ((sseed = (Math.imul(sseed, 1664525) + 1013904223) >>> 0) / 4294967296);
+let bad = 0, n = 0;
+for (let i = 0; i < Number(200); i++) {
+  const m = Math.floor(srnd() * 3), need = 4 - m;
+  // a hand of 3*need+1 tiles: build mostly from a complete shape, then swap some tiles
+  const tiles = []; const c = Array(34).fill(0);
+  const add = k => { if (c[k] < 4) { c[k]++; tiles.push(k); return true; } return false; };
+  const suit = Math.floor(srnd() * 3);
+  while (tiles.length < 3 * need + 1) { const mode = srnd(); add(mode < 0.7 ? suit * 9 + Math.floor(srnd() * 9) : mode < 0.85 ? 27 + Math.floor(srnd() * 7) : Math.floor(srnd() * 34)); }
+  const truth = (3 * need + 2) - overlapBest(c, need) - 1;
+  const got = shanten(c.slice(), m);
+  n++;
+  if (truth !== got) { bad++; if (bad < 6) console.log("differ", m, tiles.sort((a, b) => a - b).join(","), "bot", got, "true", truth); }
+}
+  check(n === 200 && bad === 0, `${n} random hands with up to two melds down: the computer players' distance from ready is the plain one in every one${bad ? ` (${bad} differ)` : ""}`);
+}
 
 console.log(bad ? `hong oracle: ${bad} failed` : "hong oracle: the engine scores as the published table does");
 process.exit(bad ? 1 : 0);
