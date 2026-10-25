@@ -37,16 +37,16 @@ check(sc.fan === 3 && /自摸1/.test(names(sc)), `…self-drawn: 3 (${names(sc)}
 sc = fanOf({ hand: "123m 456m 789m 234p 5s", flowers: [39] }, { tile: T("5s")[0], how: "discard", from: 0 });
 check(sc.fan === 3 && /正花1/.test(names(sc)) && !/無花/.test(names(sc)), `holding South's season (夏): own flower instead of no flowers (${names(sc)})`);
 sc = fanOf({ hand: "111m 333m 555m Rd Rd Rd 9m 9m" }, { tile: T("9m")[0], how: "self" });
-check(sc.fan === 10 && sc.limit && /坎坎糊/.test(names(sc)), `four concealed pungs, self-drawn: the limit, 10 (${names(sc)})`);
+check(sc.fan === 10 && !sc.limit && /坎坎糊8/.test(names(sc)) && !/對對糊/.test(names(sc)), `four concealed pungs, self-drawn: eight fan in place of all pungs, the rest stacking, to the cap of 10 (${names(sc)})`);
 sc = fanOf({ hand: "111m 333m 555m Rd Rd Rd 9m" }, { tile: T("9m")[0], how: "discard", from: 0 });
-check(sc.fan === 10 && /坎坎糊/.test(names(sc)), `…won off a discard that completes the pair: still the limit (${names(sc)})`);
+check(sc.fan === 10 && /坎坎糊8/.test(names(sc)), `…won off a discard that completes the pair: still four concealed pungs (${names(sc)})`);
 // a concealed kong is not an open meld: it keeps 門前清, and it is a concealed pung for 坎坎糊 (an open kong is neither)
 sc = fanOf({ hand: "234m 678m 345p 5s", melds: [{ t: "kong", k: T("7s")[0], from: -1, open: false }] }, { tile: T("5s")[0], how: "discard", from: 0 });
 check(/門前清1/.test(names(sc)), `a concealed kong keeps the hand concealed (${names(sc)})`);
 sc = fanOf({ hand: "234m 678m 345p 5s", melds: [{ t: "kong", k: T("7s")[0], from: 0, open: true }] }, { tile: T("5s")[0], how: "discard", from: 0 });
 check(!/門前清/.test(names(sc)), `an open kong doesn't (${names(sc)})`);
 sc = fanOf({ hand: "111m 333m 555m 9m 9m", melds: [{ t: "kong", k: T("Rd")[0], from: -1, open: false }] }, { tile: T("9m")[0], how: "self" });
-check(sc.fan === 10 && sc.limit && /坎坎糊/.test(names(sc)), `three concealed pungs and a concealed kong: four concealed pungs, the limit (${names(sc)})`);
+check(/坎坎糊8/.test(names(sc)), `three concealed pungs and a concealed kong: four concealed pungs (${names(sc)})`);
 sc = fanOf({ hand: "111m 333m 555m 9m 9m", melds: [{ t: "kong", k: T("Rd")[0], from: 2, open: true }] }, { tile: T("9m")[0], how: "self" });
 check(!sc.limit, `…with the kong open it is not (${names(sc)})`);
 sc = fanOf({ hand: "111m 333m 5m 5m Rd Rd Rd 9m 9m" }, { tile: T("5m")[0], how: "discard", from: 0 });
@@ -284,7 +284,7 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
 }
 {
   // three concealed pungs and two pairs, offered one of the pair tiles: off a discard that pung is an exposed one and
-  // the hand is six fan (128 points); self-drawn it's four concealed pungs, the limit. Hard passes and waits; medium
+  // the hand is six fan (128 points); self-drawn it's four concealed pungs, eight fan. Hard passes and waits; medium
   // takes it; a plain three-fan hand is always taken
   const offered = (hand, k) => {
     const st = table({ hand, seat: 1, flags: { firstTurn: [false, false, false, false] } });

@@ -1378,12 +1378,12 @@ function rules() {
   const nofan = E.noFan(G && !rush ? G.opts : opts);              // the table's own rules: the game in hand, else the menu's
   const fan = [
     ["自摸", "Self-drawn", 1], ["門前清", "Concealed hand (nothing called)", 1], ["無花", "No flowers", 1], ["正花", "Own flower or season (each)", 1], ["一台花", "All four flowers, or all four seasons", 2],
-    ["平糊", "All chows", 1], ["對對糊", "All pungs", 3], ["混一色", "Half flush: one suit and honours", 3], ["清一色", "Full flush: one suit only", 7],
+    ["平糊", "All chows", 1], ["對對糊", "All pungs", 3], ["坎坎糊", "Four concealed pungs, in place of all pungs", 8], ["混一色", "Half flush: one suit and honours", 3], ["清一色", "Full flush: one suit only", 7],
     ["中 發 白", "Pung of a dragon (each)", 1], ["門風 圈風", "Pung of your seat's or the round's wind (each)", 1], ["混么九", "Terminals and honours only", 1],
     ["小三元", "Little three dragons", 5], ["大三元", "Big three dragons", 8], ["小四喜", "Little four winds", 6],
     ["槓上開花", "Win on a kong's replacement", 1], ["槓上槓自摸", "Win on a second kong's replacement", 8], ["海底撈月", "Win on the last tile", 1], ["搶槓", "Robbing a kong", 1], ["花糊", "Seven flowers: an instant win", 3],
   ];
-  const limits = [["天糊", "Heavenly hand: the dealer's deal is complete"], ["地糊", "Earthly hand: won off the dealer's first discard"], ["十三么", "Thirteen orphans"], ["九子連環", "Nine gates"], ["字一色", "All honours"], ["清么九", "All terminals"], ["大四喜", "Big four winds"], ["十八羅漢", "Four kongs"], ["坎坎糊", "Four concealed pungs"], ["大花糊", "All eight flowers"]];
+  const limits = [["天糊", "Heavenly hand: the dealer's deal is complete"], ["地糊", "Earthly hand: won off the dealer's first discard"], ["十三么", "Thirteen orphans"], ["九子連環", "Nine gates"], ["字一色", "All honours"], ["清么九", "All terminals"], ["大四喜", "Big four winds"], ["十八羅漢", "Four kongs"], ["大花糊", "All eight flowers"]];
   return `<p><b>The tiles.</b> Three suits, characters (萬), dots and bamboo, 1 to 9, four of each; the honours, four winds (東南西北) and three dragons (中發白), four of each${opts.flowers && !nofan ? "; and eight flowers and seasons, one of each, set aside when drawn and replaced from the wall's end" : ""}.</p>
 <p><b>A hand</b> is four sets and a pair: a set is a chow (three in a row in one suit), a pung (three alike) or a kong (four alike, which draws a replacement). Draw, then let one tile go; first to complete a hand ${nofan ? "wins" : "that scores the minimum wins"}.</p>
 <p><b>Calls.</b> Anyone may take a discard to win, or to make a pung or kong; only the next player may take it for a chow. A win comes first, then a pung or kong, then a chow; of two wins, the player first after the discarder takes it. Pass a win you could take and you can't win off a discard until you draw again. A kong added to a called pung can be robbed by anyone who wins on that tile.</p>

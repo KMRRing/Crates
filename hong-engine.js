@@ -228,15 +228,15 @@ function handItems(state, win, sp, c, own, seatWind, roundWind) {
     const su = [...suits][0], n = Array.from({ length: 9 }, (_, i) => c[su * 9 + i]);
     if (n[0] >= 3 && n[8] >= 3 && n.every(x => x >= 1)) items.push({ zh: "九子連環", en: "Nine gates", fan: LIMIT10, limit: true });
   }
-  // four concealed pungs: nothing called (a concealed kong is a concealed pung); won off a discard only when it
-  // completes the pair (a discard completing a pung makes that pung an exposed one)
-  if (pungs.length === 4 && !s.melds.some(m => m.open) && (win.how === "self" || sp.pair === win.tile)) items.push({ zh: "坎坎糊", en: "Four concealed pungs", fan: LIMIT10, limit: true });
   const limit = items.filter(i => i.limit).sort((a, b) => b.fan - a.fan)[0];
   if (limit) return [limit];
   // the patterns
   if (suits.size === 1 && !honours) items.push({ zh: "清一色", en: "Full flush", fan: 7 });
   else if (suits.size === 1 && honours) items.push({ zh: "混一色", en: "Half flush", fan: 3 });
-  if (pungs.length === 4) items.push({ zh: "對對糊", en: "All pungs", fan: 3 });
+  // four concealed pungs (坎坎糊, eight fan, in the place of all pungs, the other fan stacking as with any pattern): nothing
+  // called (a concealed kong is a concealed pung), and won off a discard only when it completes the pair (a discard
+  // completing a pung makes that pung an exposed one)
+  if (pungs.length === 4) items.push(!s.melds.some(m => m.open) && (win.how === "self" || sp.pair === win.tile) ? { zh: "坎坎糊", en: "Four concealed pungs", fan: 8 } : { zh: "對對糊", en: "All pungs", fan: 3 });
   else if (chows.length === 4) items.push({ zh: "平糊", en: "All chows", fan: 1 });
   if (tiles.every(k => isTerminal(k) || isHonour(k)) && honours && tiles.some(isTerminal)) items.push({ zh: "混么九", en: "Terminals and honours", fan: 1 });
   // dragons

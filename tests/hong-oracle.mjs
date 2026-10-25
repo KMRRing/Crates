@@ -5,7 +5,7 @@
 // terminals, dragons, winds, all pungs, all chows; melds open and concealed, kongs, flowers, self-draws, robbed kongs,
 // last tiles, kong replacements), must score the same fan in both. Where the two were first set side by side (150,000
 // hands) the one difference was that the engine broke 門前清 and 坎坎糊 with a concealed kong; both now follow the table:
-// a concealed kong is not an open meld. Then whether a set of tiles is a complete hand: the engine's `complete` against
+// a concealed kong is not an open meld (and, as Korbi chose on 25 October 2026 from the guides' split, four concealed pungs is eight fan in place of all pungs, not a limit). Then whether a set of tiles is a complete hand: the engine's `complete` against
 // a plain search, on complete hands, hands one tile off and random ones.
 import * as E from "../hong-engine.js";
 import { shanten } from "../hong-bot.js";
@@ -83,11 +83,10 @@ function oracle(h) {
       const c = Array(9).fill(0); for (const k of conc) c[k % 9]++;
       if (c[0] >= 3 && c[8] >= 3 && c.every(x => x >= 1)) L.push(["九子連環", 10]);
     }
-    if (pungs.length === 4 && h.melds.every(m => !m.open) && (self || r.pair === h.tile)) L.push(["坎坎糊", 10]);
     if (L.length) { L.sort((a, b) => b[1] - a[1]); const x = lim(L[0][0], L[0][1]); if (!best || x.fan > best.fan) best = x; continue; }
     const it = [...base];
     if (kinds.size === 1 && !hon) it.push(["清一色", 7]); else if (kinds.size === 1 && hon) it.push(["混一色", 3]);
-    if (pungs.length === 4) it.push(["對對糊", 3]); else if (chows.length === 4) it.push(["平糊", 1]);
+    if (pungs.length === 4) it.push(h.melds.every(m => !m.open) && (self || r.pair === h.tile) ? ["坎坎糊", 8] : ["對對糊", 3]); else if (chows.length === 4) it.push(["平糊", 1]);
     if (hon && tiles.some(TERM) && tiles.every(k => HON(k) || TERM(k))) it.push(["混么九", 1]);
     const dp = pungs.filter(s => DRG(s.k)).length;
     if (dp === 3) it.push(["大三元", 8]); else if (dp === 2 && DRG(r.pair)) it.push(["小三元", 5]); else for (const s of pungs) if (DRG(s.k)) it.push(["番", 1]);

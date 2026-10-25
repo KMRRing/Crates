@@ -569,7 +569,7 @@ export function decide(state, seat, { tune = {}, skill = "hard", seed = 1, noise
  * waiting is worth what the hand's waits bring (each wait's self-draw, scored by the rules, by its live tiles and the
  * draws left, against the chance someone else wins first), and wins when it beats taking by a margin, with a dozen
  * draws or more to come. Four concealed pungs is the common case: off a discard the pung it completes is an exposed
- * one, and the limit is lost. { wait: the decision to pass, or null; options: the two, in words }.
+ * one, and the eight fan become all pungs' three. { wait: the decision to pass, or null; options: the two, in words }.
  */
 function weighWait(v, win, tune) {
   const take = 4 * base(Math.min(v.opts.cap, win.fan));
