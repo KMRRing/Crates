@@ -158,7 +158,7 @@ export function scoreWin(state, win) {
   if (win.how !== "self") hand.push(win.tile);                   // a discard (or a robbed kong's tile) joins the hand
   const c = counts(hand);
   const melds = s.melds, need = 4 - melds.length;
-  const concealedHand = melds.length === 0;                     // a concealed kong is a meld too: it breaks 門前清
+  const concealedHand = !melds.some(m => m.open);               // 門前清: no open meld (a concealed kong isn't one)
   const items0 = [];                                             // what applies whatever the split
   // flowers
   if (opts.flowers) {
@@ -228,9 +228,9 @@ function handItems(state, win, sp, c, own, seatWind, roundWind) {
     const su = [...suits][0], n = Array.from({ length: 9 }, (_, i) => c[su * 9 + i]);
     if (n[0] >= 3 && n[8] >= 3 && n.every(x => x >= 1)) items.push({ zh: "九子連環", en: "Nine gates", fan: LIMIT10, limit: true });
   }
-  // four concealed pungs: nothing called, no kong; won off a discard only when it completes the pair (a discard
-  // completing a pung makes that pung an exposed one)
-  if (pungs.length === 4 && s.melds.length === 0 && (win.how === "self" || sp.pair === win.tile)) items.push({ zh: "坎坎糊", en: "Four concealed pungs", fan: LIMIT10, limit: true });
+  // four concealed pungs: nothing called (a concealed kong is a concealed pung); won off a discard only when it
+  // completes the pair (a discard completing a pung makes that pung an exposed one)
+  if (pungs.length === 4 && !s.melds.some(m => m.open) && (win.how === "self" || sp.pair === win.tile)) items.push({ zh: "坎坎糊", en: "Four concealed pungs", fan: LIMIT10, limit: true });
   const limit = items.filter(i => i.limit).sort((a, b) => b.fan - a.fan)[0];
   if (limit) return [limit];
   // the patterns

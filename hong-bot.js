@@ -222,7 +222,7 @@ const maybe = (p, f) => { const out = new Array(f + 1).fill(0); out[0] = 1 - p; 
 function fanDist(v, route, c, ctx) {
   if (route === "orphans") return fixed(13);
   let sure = 0, dist = ctx.flowerDist;
-  if (!v.melds.length) sure += 1;                                 // concealed (門前清), if it stays so
+  if (!v.melds.some(m => m.open)) sure += 1;                      // concealed (門前清), if it stays so (a concealed kong keeps it)
   const full = route.startsWith("full");
   if (!full) for (let k = 27; k < 34; k++) if (isValue(v, k)) {
     const worth = isWind(k) && k - 27 === v.wind && k - 27 === v.round ? 2 : 1;
@@ -433,7 +433,7 @@ export function threats(v, tune = TUNE) {
     let fanNow = value;
     if (v.opts.flowers) fanNow += o.flowers.length ? o.flowers.filter(k => k === 34 + o.wind || k === 38 + o.wind).length : 1;
     const flushSuit = melds.length >= 2 && suits.size === 1 ? [...suits][0] : -1;
-    let maxFan = fanNow + (melds.length === 0 ? 1 : 0) + lastDiscard;
+    let maxFan = fanNow + (melds.some(m => m.open) ? 0 : 1) + lastDiscard;
     if (suits.size <= 1) maxFan += suits.size === 1 && honoursDown ? 3 : 7;   // still could be a flush
     if (melds.every(m => m.t !== "chow")) maxFan += 3;            // still could be all pungs
     else if (melds.every(m => m.t === "chow")) maxFan += 1;       // all chows

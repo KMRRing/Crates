@@ -40,6 +40,15 @@ sc = fanOf({ hand: "111m 333m 555m Rd Rd Rd 9m 9m" }, { tile: T("9m")[0], how: "
 check(sc.fan === 10 && sc.limit && /坎坎糊/.test(names(sc)), `four concealed pungs, self-drawn: the limit, 10 (${names(sc)})`);
 sc = fanOf({ hand: "111m 333m 555m Rd Rd Rd 9m" }, { tile: T("9m")[0], how: "discard", from: 0 });
 check(sc.fan === 10 && /坎坎糊/.test(names(sc)), `…won off a discard that completes the pair: still the limit (${names(sc)})`);
+// a concealed kong is not an open meld: it keeps 門前清, and it is a concealed pung for 坎坎糊 (an open kong is neither)
+sc = fanOf({ hand: "234m 678m 345p 5s", melds: [{ t: "kong", k: T("7s")[0], from: -1, open: false }] }, { tile: T("5s")[0], how: "discard", from: 0 });
+check(/門前清1/.test(names(sc)), `a concealed kong keeps the hand concealed (${names(sc)})`);
+sc = fanOf({ hand: "234m 678m 345p 5s", melds: [{ t: "kong", k: T("7s")[0], from: 0, open: true }] }, { tile: T("5s")[0], how: "discard", from: 0 });
+check(!/門前清/.test(names(sc)), `an open kong doesn't (${names(sc)})`);
+sc = fanOf({ hand: "111m 333m 555m 9m 9m", melds: [{ t: "kong", k: T("Rd")[0], from: -1, open: false }] }, { tile: T("9m")[0], how: "self" });
+check(sc.fan === 10 && sc.limit && /坎坎糊/.test(names(sc)), `three concealed pungs and a concealed kong: four concealed pungs, the limit (${names(sc)})`);
+sc = fanOf({ hand: "111m 333m 555m 9m 9m", melds: [{ t: "kong", k: T("Rd")[0], from: 2, open: true }] }, { tile: T("9m")[0], how: "self" });
+check(!sc.limit, `…with the kong open it is not (${names(sc)})`);
 sc = fanOf({ hand: "111m 333m 5m 5m Rd Rd Rd 9m 9m" }, { tile: T("5m")[0], how: "discard", from: 0 });
 check(sc.fan === 9 && !sc.limit, `half flush, all pungs, red dragon, concealed, no flowers: 9 (a discard completing a pung is no concealed pung) (${names(sc)})`);
 sc = fanOf({ hand: "Rd Rd Rd Gd Gd Gd 123m 555m Wd" }, { tile: T("Wd")[0], how: "discard", from: 0 });
