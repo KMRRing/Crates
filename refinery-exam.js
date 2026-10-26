@@ -214,6 +214,28 @@ const Q = {
     ["ASTM D7566 allows HEFA-SPK in a blend with fossil Jet A-1 up to", "50% by volume", ["5% by volume", "10% by volume", "100% by volume"], "Half; the blend is then Jet A-1. Co-processing fats with fossil feed for jet is held to 5% under ASTM D1655."],
     ["Why does the plan make no more SAF than the mandate asks?", "HVO earns more in diesel once the yield lost to naphtha is counted", ["The SAF unit's catalyst can't run past the mandate's share", "Jet A-1 may hold no more than 6% synthetic kerosene", "SAF earns no ticket at all in the jet pool here"], "Ten barrels of HVO make about six of SPK: the naphtha and gas lose more than SAF's premium makes back."],
   ],
+  "10.1": [
+    ["How does a refinery without a residue desulphuriser make VLSFO?", "By buying crudes whose residue is sweet enough", ["By blending its residue with sulphuric acid", "By sending its residue through the FCC first", "By burning the residue's sulphur off in a furnace"], "Crude selection: a sweet crude's residue is under 0.5% sulphur as it comes, and a treated cutter brings a little more into spec."],
+    ["Where can Alder Point's light vacuum gas oil go for diesel?", "To the gas oil desulphuriser, then the diesel hydrotreater", ["To the reformer, then the benzene splitter", "To the coker, then the naphtha hydrotreater", "To the bitumen unit, then the fuel oil pool"], "Its light end is diesel-range: desulphurised in two stages, it becomes road diesel. The heavy vacuum gas oil feeds the FCC."],
+  ],
+  "10.2": [
+    ["What is Alder Point's only source of hydrogen?", "Its semi-regenerative reformer", ["A steam methane reformer fed with natural gas", "A pipeline from a merchant hydrogen plant", "Its FCC's catalyst regenerator"], "No hydrogen plant and no pipeline: when the reformer stops to regenerate, the hydrotreaters slow or stop with it."],
+    ["Why does a semi-regenerative reformer stop every few years?", "Coke on its fixed catalyst has to be burned off", ["Its platinum has to be sold and replaced", "Its chloride has to be washed out of the feed", "Its hydrogen has to be vented to the flare"], "Coke builds up through the cycle; the unit stops for weeks while the catalyst is regenerated in place."],
+    ["Where does Alder Point's light straight-run naphtha go?", "To steam crackers, as light virgin naphtha", ["To an isomerisation unit, for octane", "To the reformer, with the heavy naphtha", "To the fuel oil pool, as cutter"], "There's no isomerisation unit, and the reformer can't use C5s and C6s: they're sold as petrochemical feed, or a little goes to petrol."],
+  ],
+  "10.3": [
+    ["Where does Alder Point's intermediate cat naphtha go?", "To the naphtha hydrotreater and the reformer", ["To the selective post-treater and petrol", "To the kerosene hydrotreater and diesel", "To the fuel oil pool as cutter"], "The naphtha hydrotreater saturates its olefins; reformed, it becomes reformate and makes hydrogen."],
+    ["Why does the FCC's catalyst carry ZSM-5?", "To crack gasoline-range olefins into propylene", ["To crack the slurry into light cycle oil", "To take the sulphur out of the naphtha", "To burn the coke off in the regenerator"], "A shape-selective zeolite: it cracks C7–C9 olefins on into propylene and butenes, at some cost in gasoline."],
+    ["Which of the FCC's three naphtha cuts holds most of its sulphur?", "The heavy cat naphtha", ["The light cat naphtha", "The intermediate cat naphtha", "All three alike"], "Sulphur rides on the heavier thiophenes: the light cut has little and the heavy cut most, so each goes to the treater that suits it."],
+  ],
+  "10.4": [
+    ["Why does Alder Point desulphurise gas oil in two stages?", "The first reaches heating oil's 0.1%; the second takes part of it to 10 ppm", ["The first takes out 90% of the nitrogen; the second the sulphur", "The first cracks 20% of the gas oil; the second treats the rest", "The first makes summer diesel to 51 cetane; the second winter diesel"], "Heating oil needs only the first stage; road diesel both, so the second stage's hydrogen goes only to what diesel takes."],
+    ["What makes a desulphurised cycle oil useful in fuel oil?", "It cuts residue's viscosity and sulphur together", ["It raises fuel oil's flash point over 60 °C", "It adds cetane to the residue", "It lowers fuel oil's density under 900"], "Thin, and once treated low in sulphur: it carries residue into VLSFO's 0.5% and 380 cSt."],
+  ],
+  "10.5": [
+    ["When Alder Point's reformer stops to regenerate, what has to give?", "The hydrotreaters, for want of hydrogen", ["The benzene splitter only, for want of feed", "The FCC, for want of hot catalyst", "Nothing: hydrogen is bought in by pipeline"], "There's no other hydrogen: the whole plant's turnaround is planned round the reformer's."],
+    ["Why is a sulphur plant of a single train a weak point?", "If it trips, every hydrotreater has to stop", ["If it trips, the crude unit floods its trays", "If it trips, the FCC loses its catalyst", "If it trips, the reformer loses its hydrogen"], "Every hydrotreater sends it hydrogen sulphide; with no second train, the hydrogen sulphide has nowhere else to go."],
+  ],
 };
 
 // the glossary words each level brings in, and the bank's areas it covers
@@ -228,12 +250,15 @@ const WORDS = {
   "8.1": ["Crack spread", "Price deck", "Margin"], "8.2": ["Gross product worth", "Crude differential", "Breakeven price", "Opportunity crude"], "8.3": ["Marginal value", "Intermediate feedstock", "Shadow price"], "8.4": ["Shadow price", "Debottlenecking", "Nelson complexity index"],
   "9.1": ["RED III", "Ticket", "GHG quota", "Carbon intensity", "Blend wall"], "9.2": ["HVO", "EN 15940", "FAME", "UCO"], "9.3": ["Co-processing", "Mass balance", "Carbon-14 method", "Annex IX"], "9.4": ["Co-processing", "Carbon-14 method", "Mass balance"],
   "9.5": ["SAF", "HEFA", "ReFuelEU Aviation", "ASTM D7566", "Double counting"],
+  "10.1": ["Side stream", "VLSFO", "Vacuum gas oil", "Sweet crude"], "10.2": ["Semi-regenerative reformer", "Light virgin naphtha", "Hydrogen network", "Turnaround"], "10.3": ["Cat naphtha splitter", "ZSM-5", "Light cycle oil", "Slurry oil"],
+  "10.4": ["Heating oil", "Hydrodesulphurisation", "Cutter stock", "ULSD"], "10.5": ["Cogeneration", "Claus process", "Linear programming"],
 };
 const AREAS = {
   1: ["Distillation", "Crudes", "Products"], 2: ["Sulphur", "Treating", "Specs"], 3: ["Reforming", "Octane", "Volatility", "Isomerisation", "Oxygenates"],
   4: ["Cracking", "Alkylation"], 5: ["Hydrogen", "Cracking"], 6: ["Residue", "Coking", "Specs"],
   7: ["Specs", "Blending", "Volatility", "Oxygenates", "Cetane", "Cold flow", "Stability", "Components"], 8: ["Margins", "Configuration", "Operations", "Crudes"],
   9: ["Renewables", "HVO", "FAME", "SAF", "Co-processing", "Policy"],
+  10: ["Distillation", "Reforming", "Cracking", "Treating", "Configuration", "Specs"],
 };
 
 // ---------- your plant ----------

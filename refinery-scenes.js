@@ -7,7 +7,7 @@
 //   molecules: skeletal formulae of the molecules a step is about
 // playScene returns { stop, mark }: mark rings an answer on a flowsheet (an exam's tap question).
 import { STREAMS, UNITS, POOLS, CRUDES, PROPS, toIndex, fromIndex } from "./refinery-data.js";
-import { evaluate, defaultRouting, normalise, fmtProp, ownProps } from "./refinery-engine.js";
+import { evaluate, defaultRouting, normalise, fmtProp, ownProps, unitYields, feedsOf } from "./refinery-engine.js";
 import { drawSheet, GROUP_COLOUR, RANK } from "./refinery-sheet.js";
 
 const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -45,9 +45,9 @@ function sheetScene(svg, sc, level) {
   const cuts = CRUDES[lv.crude].cuts;
   const feedUnit = (u, depth = 0) => {
     if (!UNITS[u] || !lv.units.includes(u) || depth > 3) return;
-    for (const f of UNITS[u].feeds) {
+    for (const f of feedsOf(lv, u)) {
       if (sc.routing?.[f] || takers[f]?.includes(u)) continue;
-      const maker = cuts[f] || lv.bought?.[f] ? null : lv.units.find(m => UNITS[m].yields && Object.values(UNITS[m].yields).some(y => f in y) && m !== u);
+      const maker = cuts[f] || lv.bought?.[f] ? null : lv.units.find(m => Object.values(unitYields(lv, m)).some(y => f in y) && m !== u);
       if (!cuts[f] && !lv.bought?.[f] && !maker) continue;
       (takers[f] ||= []).push(u);
       if (maker) feedUnit(maker, depth + 1);

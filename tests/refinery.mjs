@@ -29,6 +29,8 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   for (const [c, def] of Object.entries(D.CRUDES)) { const sum = Object.values(def.cuts).reduce((a, b) => a + b, 0); if (Math.abs(sum - 1) > 0.001) problems.push(`${c} cuts sum to ${sum}`); }
   // every producer of a stream comes before every unit that takes it, so a unit's feeds are complete when it runs
   for (const u of E.ORDER) for (const f of D.UNITS[u].feeds) for (const m of E.ORDER) if (D.UNITS[m].yields && Object.values(D.UNITS[m].yields).some(y => f in y) && E.ORDER.indexOf(m) >= E.ORDER.indexOf(u)) problems.push(`${m} makes ${f} but runs after ${u}, which takes it`);
+  // and so in every level that gives a unit its own feeds or yields (a whole refinery's chapter)
+  for (const lv of LEVELS) if (lv.feeds || lv.yields) for (const u of lv.units) for (const o of Object.keys(Object.assign({}, ...Object.values(E.unitYields(lv, u))))) for (const m of lv.units) if (E.feedsOf(lv, m).includes(o) && E.ORDER.indexOf(m) <= E.ORDER.indexOf(u)) problems.push(`${lv.id}: ${u} makes ${o} but runs after ${m}, which takes it`);
   // a stream a pool takes has every property the pool is judged on (or one that's zero when missing)
   for (const [p, def] of Object.entries(D.POOLS)) for (const s of def.accept) for (const k of Object.keys(def.spec || {})) {
     const zero = ["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "s"].includes(k);

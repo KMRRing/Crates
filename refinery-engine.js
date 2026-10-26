@@ -8,7 +8,7 @@ import { simplex } from "./refinery-lp.js";
 
 export const FEED = 100;                         // kb/d of crude, unless a level says otherwise
 /** Units in the order their feeds are ready: every producer of a stream comes before every unit that takes it. */
-export const ORDER = ["cdu", "vdu", "coker", "visbreaker", "blowing", "hvoUnit", "safUnit", "fcc", "hcu", "merox", "kht", "nht", "reformer", "bzhc", "isom", "alky", "cnht", "dht"];
+export const ORDER = ["cdu", "vdu", "coker", "visbreaker", "blowing", "hvoUnit", "safUnit", "fcc", "hcu", "merox", "kht", "nht", "reformer", "srReformer", "bzhc", "isom", "alky", "cnht", "hds", "dht"];
 /** Where a stream sells when it isn't sent anywhere: as it comes, unprocessed. */
 const HOME = {
   gas: "gasPool", lpg: "lpg", butane: "lpg", propylene: "propylene", c4: "lpg", lsr: "naphtha", hsr: "naphtha", hsrT: "naphtha", reformate: "gasoline",
@@ -16,6 +16,7 @@ const HOME = {
   kero: "gasoil", jet: "jet", lgo: "gasoil", hgo: "fuelOil", lco: "fuelOil", ulsd: "diesel", hcJet: "jet", hcDiesel: "diesel", cokerGo: "fuelOil", fuelOilCutter: "fuelOil",
   hvo: "diesel", fame: "diesel", vegOil: "notBought", spk: "jet", lvgo: "fuelOil", hvgo: "fuelOil", slurry: "fuelOil", atmResid: "fuelOil", vacResid: "fuelOil", visResid: "fuelOil",
   coke: "coke", bitumen: "bitumen", etbe: "gasoline", bzCut: "naphtha", heavyReformate: "gasoline", importVgo: "notBought",
+  lcn: "gasoline", lcnT: "gasoline", icn: "gasoline", hcn: "fuelOil", lcgo: "fuelOil", hcgo: "fuelOil", goT: "gasoil",
 };
 const T_PER_KB = 158.987;                        // m³ in a thousand barrels: kb/d × kg/m³ × this / 1000 is t/d
 const ZERO = new Set(["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "ghg", "s"]);   // a stream without these has none
@@ -31,7 +32,7 @@ export const specsOf = (level, p) => (level.specs?.[p] ?? CORE_SPECS[p] ?? []).f
 export const limitOf = (level, p, k) => level.limits?.[p]?.[k] ?? POOLS[p].spec[k];
 /** The destinations a stream may go to in a level: the level's units that take it, then its pools that take it. */
 export function destinations(level, s) {
-  const units = level.units.filter(u => UNITS[u].feeds.includes(s));
+  const units = level.units.filter(u => feedsOf(level, u).includes(s));
   const pools = poolsOf(level).filter(p => POOLS[p].accept.includes(s));
   return [...units, ...pools];
 }
@@ -41,11 +42,15 @@ export function streamsOf(level) {
   for (const s of Object.keys(crudeOf(level).cuts)) add(s);
   for (const s of Object.keys(level.bought || {})) add(s);
   for (const u of ORDER) {
-    if (!level.units.includes(u) || !UNITS[u].yields) continue;
-    for (const feed of Object.keys(UNITS[u].yields)) for (const o of Object.keys(UNITS[u].yields[feed])) add(o);
+    if (!level.units.includes(u)) continue;
+    for (const ys of Object.values(unitYields(level, u))) for (const o of Object.keys(ys)) add(o);
   }
   return out;
 }
+/** The streams a unit takes in a level: its own, or the fewer a whole refinery's chapter lets it (Alder Point's diesel hydrotreater takes only its light gas oil and the first stage's). */
+export const feedsOf = (level, u) => level.feeds?.[u] ?? UNITS[u].feeds;
+/** A unit's yields from each of its feeds in a level: a whole refinery's chapter may give a unit its own (Alder Point's FCC cuts its naphtha three ways). */
+export const unitYields = (level, u) => Object.fromEntries(Object.entries({ ...(UNITS[u].yields || {}), ...(level.yields?.[u] || {}) }).filter(([f]) => feedsOf(level, u).includes(f)));
 /** A stream's home in a level: where it sells untouched, or its first pool, or its first unit. */
 export function homeOf(level, s) {
   const d = destinations(level, s);
@@ -95,7 +100,7 @@ function propsOf(acc) {
 }
 /** A stream's own properties in a level: straight-run cuts take their sulphur, and the residue its body, from the crude. */
 export function ownProps(level, s) {
-  const crude = crudeOf(level), p = { ...STREAMS[s].p };
+  const crude = crudeOf(level), p = { ...STREAMS[s].p, ...(STREAMS[s].sr ? crude.props?.[s] : null) };
   if (STREAMS[s].sr && CUT_S[s] != null) p.s = crude.sulphur * 10000 * CUT_S[s] * sulphurScale(level.crude);
   if (s === "atmResid") Object.assign(p, crude.ar);
   return p;
@@ -120,7 +125,7 @@ function sulphurScale(c) {
 /** What a unit makes of a feed: [product, volume per volume of feed] (the vacuum unit by the crude's own split). */
 export function yieldsOf(level, u, f) {
   if (u === "vdu") { const g = crudeOf(level).vgoShare; return { lvgo: g * 0.4, hvgo: g * 0.6, vacResid: 1 - g }; }
-  return UNITS[u].yields?.[f] || {};
+  return level.yields?.[u]?.[f] || UNITS[u].yields?.[f] || {};
 }
 /** A product's properties, made by a unit from a feed of the given properties. */
 export function productProps(level, u, f, o, fp) {
@@ -169,7 +174,7 @@ export function evaluate(level, routing) {
   for (const u of ORDER) {
     if (u === "cdu" || !has(u) || !UNITS[u].feeds.length) continue;
     const def = UNITS[u];
-    const takes = def.feeds.map(s => [s, (acc[s]?.v || 0) * (share[s]?.find(([d]) => d === u)?.[1] || 0)]).filter(([, v]) => v > 1e-9);
+    const takes = feedsOf(level, u).map(s => [s, (acc[s]?.v || 0) * (share[s]?.find(([d]) => d === u)?.[1] || 0)]).filter(([, v]) => v > 1e-9);
     if (!takes.length) continue;
     // a renewable feed co-processed is held to its share of what the unit runs; what's over goes where it would have
     // gone without it, as a full unit's overflow does
@@ -344,7 +349,7 @@ function buildLP(level, cols, q, x0, gradient) {
     const cap = level.caps?.[u];
     if (cap == null || !UNITS[u].feeds.length) continue;
     const a = {};
-    for (const f of UNITS[u].feeds) if (idx.has(`${f}>${u}`)) a[idx.get(`${f}>${u}`)] = 1;
+    for (const f of feedsOf(level, u)) if (idx.has(`${f}>${u}`)) a[idx.get(`${f}>${u}`)] = 1;
     if (Object.keys(a).length) { rows.push({ a, op: "<=", b: cap }); tag.push(["cap", u]); }
   }
   // co-processing: a renewable feed at most its share of what the unit runs, (1 − share) of it against share of the rest
@@ -353,7 +358,7 @@ function buildLP(level, cols, q, x0, gradient) {
     for (const [f, lim] of Object.entries(co)) {
       if (!idx.has(`${f}>${u}`)) continue;
       const a = { [idx.get(`${f}>${u}`)]: 1 - lim };
-      for (const g of UNITS[u].feeds) if (!(g in co) && idx.has(`${g}>${u}`)) a[idx.get(`${g}>${u}`)] = -lim;
+      for (const g of feedsOf(level, u)) if (!(g in co) && idx.has(`${g}>${u}`)) a[idx.get(`${g}>${u}`)] = -lim;
       rows.push({ a, op: "<=", b: 0 }); tag.push(["co", u, f]);
     }
   }
@@ -492,8 +497,8 @@ function guessProps(level) {
   const q = {}, crude = crudeOf(level);
   for (const s of streamsOf(level)) q[s] = ownProps(level, s);
   for (const u of ORDER) {
-    if (!level.units.includes(u) || !UNITS[u].yields) continue;
-    for (const f of Object.keys(UNITS[u].yields)) {
+    if (!level.units.includes(u)) continue;
+    for (const f of Object.keys(unitYields(level, u))) {
       if (!q[f]) continue;
       for (const o of Object.keys(yieldsOf(level, u, f))) if (!crude.cuts[o]) q[o] = productProps(level, u, f, o, q[f]);
     }

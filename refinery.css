@@ -30,10 +30,11 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-margin { padding: .45rem .7rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); display: grid; gap: .3rem; margin-bottom: .45rem; }
 .rf-margin-row { display: flex; align-items: baseline; gap: .5rem; }
 .rf-margin-row span { font-size: .78rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); color: var(--ink-soft); }
-.rf-margin-row b { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+/* the margin never breaks; par and its company wrap beside it instead */
+.rf-margin-row b { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rf-margin-row b.good { color: var(--rf-good); }
 .rf-margin-row b.bad { color: var(--rf-bad); }
-.rf-margin-row small { margin-left: auto; color: var(--ink-soft); font-weight: 700; font-size: .78rem; text-align: right; }
+.rf-margin-row small { margin-left: auto; min-width: 0; color: var(--ink-soft); font-weight: 700; font-size: .78rem; text-align: right; }
 .rf-bar { position: relative; height: .45rem; border-radius: 4px; background: var(--yard); }
 .rf-bar i { display: block; height: 100%; border-radius: 4px; background: var(--rf-in); width: 0; transition: width .3s; }
 .rf-bar em { position: absolute; top: -.22rem; width: .1875rem; height: .9rem; background: var(--ink); border-radius: 2px; }

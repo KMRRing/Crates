@@ -4,7 +4,7 @@
 // an exam (refinery-exam.js). The engine (refinery-engine.js) runs the plant; the data (refinery-data.js) describes it.
 // Together, the same level for everyone at the table (duel.js).
 import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR } from "./refinery-data.js";
-import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, homeOf, solve, ownProps } from "./refinery-engine.js";
+import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, homeOf, solve, ownProps, unitYields } from "./refinery-engine.js";
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
 import { PAR } from "./refinery-par.js";
 import { drawSheet, hitTest, GROUP_COLOUR } from "./refinery-sheet.js";
@@ -418,10 +418,12 @@ function openCard(id) {
     } else add("p", "rf-facts", `Idle: nothing is sent to it.${cap ? ` Capacity ${cap} kb/d.` : ""}`);
     for (const t of u.card) add("p", null, t);
     if (u.facts) { add("h3", null, "Operating"); table(u.facts); }
-    if (u.yields && id !== "vdu") {
+    // the yields from the feeds this level can give it (a level's own, where a whole refinery's chapter sets them)
+    const ys = Object.fromEntries(Object.entries(unitYields(L, id)).filter(([f]) => streamsOf(L).includes(f)));
+    if (Object.keys(ys).length && id !== "vdu") {
       add("h3", null, "Yields, by volume of feed");
-      const feeds = Object.keys(u.yields), outs = [...new Set(feeds.flatMap(f => Object.keys(u.yields[f])))];
-      table(outs.map(o => [STREAMS[o].name, ...feeds.map(f => (u.yields[f][o] != null ? `${Math.round(u.yields[f][o] * 100)}%` : "–"))]), ["", ...feeds.map(f => STREAMS[f].short)]);
+      const feeds = Object.keys(ys), outs = [...new Set(feeds.flatMap(f => Object.keys(ys[f])))];
+      table(outs.map(o => [STREAMS[o].name, ...feeds.map(f => (ys[f][o] != null ? `${Math.round(ys[f][o] * 100)}%` : "–"))]), ["", ...feeds.map(f => STREAMS[f].short)]);
     }
     if (id === "vdu") add("p", "rf-facts", `It lifts ${Math.round(CRUDES[L.crude].vgoShare * 100)}% of ${CRUDES[L.crude].name}'s residue as gas oil, four parts light to six heavy.`);
     const h = Object.entries(u.h2 || {}).filter(([, v]) => v);

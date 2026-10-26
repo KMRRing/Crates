@@ -3,7 +3,7 @@
 // column, boiling curves, bars of values, a blend against its limit, or molecules. Also the course map's line for each
 // level, and the glossary the exams take their words from.
 import { STREAMS, UNITS, POOLS, CRUDES, CUT_S, BOUGHT } from "./refinery-data.js";
-import { ownProps } from "./refinery-engine.js";
+import { ownProps, productProps } from "./refinery-engine.js";
 import { LEVELS } from "./refinery-levels.js";
 
 /** What each level teaches, a line each, for the course map. */
@@ -41,6 +41,11 @@ export const TEACHES = {
   "9.3": "Co-processing fats in the diesel hydrotreater",
   "9.4": "Co-processing in the FCC: where the renewable carbon lands",
   "9.5": "Sustainable aviation fuel: meeting a mandate at least cost",
+  "10.1": "Alder Point's crude and vacuum units, and VLSFO by crude slate",
+  "10.2": "Naphtha, and the only hydrogen: a semi-regenerative reformer",
+  "10.3": "The FCC with ZSM-5, its naphtha cut three ways",
+  "10.4": "Gas oil in two stages: heating oil and road diesel",
+  "10.5": "The whole of Alder Point, as its planners run it",
 };
 
 /** The craft's words, for the glossary and the exams: no definition says its own word or holds a figure that gives it away. */
@@ -149,6 +154,13 @@ export const GLOSSARY = [
   ["ReFuelEU Aviation", "The EU regulation obliging fuel suppliers at its airports to blend a rising share of sustainable aviation fuel, with a synthetic part within it."],
   ["ASTM D7566", "The standard certifying synthetic kerosene for blending with fossil jet fuel: each route's blend limit, half for most."],
   ["Double counting", "Counting a waste-based biofuel's energy twice toward a target, as many member states have; Germany's 2026 law ends it."],
+  ["Side stream", "A cut drawn off a distillation column partway up, between its top and its bottom, often through a small stripping column of its own."],
+  ["Light virgin naphtha", "Straight-run C5 and C6 naphtha sold as it comes off the crude column, to steam crackers making ethylene."],
+  ["Semi-regenerative reformer", "A reformer whose catalyst sits in fixed beds and is regenerated in place every year or few, the unit stopped meanwhile."],
+  ["Turnaround", "A planned shutdown of a unit or a whole refinery for inspection, repair and catalyst change, every few years."],
+  ["Cat naphtha splitter", "A column cutting FCC naphtha into light, intermediate and heavy fractions, so that each goes to the treater that suits it."],
+  ["Heating oil", "Gas oil sold to be burned in boilers, to a looser sulphur limit than road diesel's: a tenth of a per cent in Europe."],
+  ["Cogeneration", "Making power and process steam together from one fuel, in a gas turbine with a heat-recovery boiler behind it."],
 ];
 
 const W = (k, s) => ({ say: s, scene: k });
@@ -166,6 +178,10 @@ const lcoShare = (k, lim) => (treated("lgo")[k] - lim) / (treated("lgo")[k] - tr
 const vgoOf = id => { const c = CRUDES[LV(id).crude]; return 100 * c.cuts.atmResid * c.vgoShare; };
 // the cracks of a level's markets: product less crude
 const crack = (id, i, p) => LV(id).decks[i].prices[p] - CRUDES[LV(id).crude].price;
+// Alder Point whole, for its chapter's pictures: its units, feeds and yields as its last level has them, on its crude
+const alder = (o = {}) => { const L = LV("10.5"); return { sheet: { plant: { crude: L.crude, units: L.units, feeds: L.feeds, yields: L.yields, layout: L.layout, pools: L.pools.filter(p => p !== "notBought"), bought: {}, prices: L.prices }, ...o } }; };
+// a crude's vacuum residue, as the vacuum unit leaves it
+const vrOf = c => { const L = { crude: c, units: [] }; return productProps(L, "vdu", "atmResid", "vacResid", ownProps(L, "atmResid")); };
 // a biofuel's ticket at a level's quota price, $/bbl: its saving in tonnes times the price
 const ticketOf = (s, id) => (STREAMS[s].p.ghg * LV(id).ticket) / 1000;
 /** What a barrel of vacuum gas oil earns in 8.3's hydrocracker, as its lesson says: tests/refinery.mjs holds it to par's. */
@@ -365,6 +381,38 @@ const LESSONS = {
     W(level({ only: ["hvoUnit", "safUnit", "jet"], routing: { vegOil: "hvoUnit", hvo: { safUnit: 0.3, diesel: 0.7 }, hgo: "dht" } }), "HEFA, hydroprocessed esters and fatty acids, is most of today's SAF: HVO's long paraffins isomerised and cracked into the jet range in a second reactor. It costs yield: ten barrels of HVO give about six of synthetic paraffinic kerosene (SPK), the rest naphtha and gas."),
     W({ blend: { prop: "bio", parts: [["Jet, fossil", 9.4, 0], ["spk", 0.6]], limit: 6, dir: "min" } }, "ASTM D7566 certifies HEFA-SPK for blending with fossil Jet A-1 up to half, and the blend is then Jet A-1, kept to at least 8% aromatics for the seals. Co-processing fats with fossil feed for jet is held to 5% under ASTM D1655."),
     W(level({ only: ["safUnit", "jet", "diesel"], routing: { vegOil: "hvoUnit", hvo: { safUnit: 0.3, diesel: 0.7 }, hgo: "dht" } }), `SAF sells at a premium over HVO, here a quarter more on its ticket. Even so, a barrel of HVO earns more in diesel once the yield lost to naphtha and gas is counted, so the plan makes what the mandate asks and no more: with the mandate at 2% to 2029, producers have mostly favoured renewable diesel.`),
+  ],
+  // ---------- 10. Alder Point ----------
+  "10.1": [
+    W(alder(), `Alder Point is a fuels refinery of about ${LV("10.1").feed} thousand barrels a day: a crude unit and a vacuum unit, an FCC, a semi-regenerative reformer, a kerosene hydrotreater and two stages of gas oil desulphurising, a benzene splitter and a sulphur plant. No hydrocracker, no coker, no hydrogen plant. This chapter takes it unit by unit.`),
+    W({ column: { crude: "saharan", yields: true } }, "Its crude unit splits the crude into side streams, drawn off the column at their heights through small strippers: naphtha overhead, then kerosene, light and heavy gas oil, and the residue at the bottom. A light sweet crude such as Saharan Blend gives over two-fifths of itself as naphtha and kerosene, and only about a quarter as residue."),
+    W(alder({ only: ["vdu", "hds", "fcc"], routing: { atmResid: "vdu", lvgo: "hds", hvgo: "fcc", hgo: "dht" } }), "The vacuum unit takes that residue at 25–100 millibar and lifts its gas oil. Here the light vacuum gas oil, diesel at its light end, can go to the gas oil desulphuriser; the heavy to the FCC; the vacuum residue to fuel oil, as Alder Point has no residue conversion at all."),
+    W({ bars: { items: ["saharan", "bonny", "cpc", "brent", "arabLight"].map(c => [CRUDES[c].short || CRUDES[c].name, vrOf(c).s / 10000, vrOf(c).s < 5000 ? "middle" : "resid"]), unit: "% sulphur", limit: [0.5, "VLSFO 0.5%"] } },
+      "With no residue desulphuriser, it makes its very-low-sulphur fuel oil by the crudes it buys. A sweet crude's vacuum residue is under 0.5% as it comes, needing cutter only for viscosity; a medium one's is not, and would have to be cut a long way with low-sulphur gas oil, or sold as HSFO."),
+  ],
+  "10.2": [
+    W(level({ only: ["nht", "srReformer", "bzhc"], routing: { hsr: "nht", hsrT: "srReformer", reformate: "bzhc" } }), "The overhead naphtha goes to the naphtha hydrotreater, which also treats LPG and, once the FCC runs, its intermediate cat naphtha. The treated heavy naphtha feeds the reformer. The light naphtha, C5s and C6s the reformer can't use, has no isomerisation unit to go to: it's sold to steam crackers as light virgin naphtha."),
+    W(level({ only: ["srReformer"], routing: { hsr: "nht", hsrT: "srReformer" } }), "The reformer is semi-regenerative: its catalyst sits in fixed beds, losing activity to coke as it runs, the operators raising its temperature to hold octane through a cycle of one to three years. Then it stops for weeks while the coke is burned off. It runs at a higher pressure than a CCR, for reformate of RON 97 and about 1,000 scf of hydrogen a barrel."),
+    W({ bars: { items: [["Reformer makes", UNITS.srReformer.h2.hsrT * 1000, "naphtha"], ["Diesel HT, gas oil", -UNITS.dht.h2.lgo * 1000, "middle"], ["Kerosene HT, HCN", -UNITS.kht.h2.hcn * 1000, "middle"], ["Naphtha HT, ICN", -UNITS.nht.h2.icn * 1000, "naphtha"], ["Kerosene HT", -UNITS.kht.h2.kero * 1000, "middle"], ["Naphtha HT", -UNITS.nht.h2.hsr * 1000, "naphtha"]], unit: "scf/bbl" } },
+      "And it is the refinery's only hydrogen: no hydrogen plant, no pipeline. Every hydrotreater draws on what it makes, so the plan weighs octane, hydrogen and naphtha's price together; when the reformer stops to regenerate, the hydrotreaters slow or stop with it, and the whole plant's turnaround is planned round it."),
+    W(level({ only: ["bzhc", "naphtha", "gasoline"], routing: { hsr: "nht", hsrT: "srReformer", reformate: "bzhc" } }), "The benzene splitter takes the reformate's light end, with nearly all its benzene, to the naphtha sold to petrochemicals; the heavy reformate goes to petrol. At RON 97 the reformate has less octane to spare than a CCR's 100, so the pool carries less light naphtha with it."),
+  ],
+  "10.3": [
+    W(level({ only: ["fcc"], routing: { hgo: "dht" } }), "The FCC cracks the heavy vacuum gas oil, and some of the crude unit's heaviest side stream. Its catalyst carries ZSM-5, a shape-selective zeolite that cracks gasoline-range olefins on into propylene: about 8% of the feed here, split out to polymer grade and sold to the chemical plants."),
+    W({ bars: { items: Object.entries(LV("10.3").yields.fcc.hvgo).map(([s, f]) => [STREAMS[s].short === "C3=" ? "Propylene" : STREAMS[s].name.length > 20 ? STREAMS[s].short : STREAMS[s].name, f * 100, STREAMS[s].group]), unit: "% of feed" } }, "A splitter cuts its naphtha three ways, and its main column draws the cycle oil in two, so that each cut can go to the treater that suits it, or straight to a product where its sulphur allows."),
+    W(level({ only: ["fcc", "cnht", "nht", "kht"], routing: { hgo: "dht", lcn: "cnht", icn: "nht", hcn: "kht" } }), "The light cat naphtha, up to about 70 °C, is nearly half olefins, high in octane and low in sulphur: a selective post-treater takes it to 10 ppm for petrol. The intermediate cut goes to the naphtha hydrotreater, which saturates its olefins, and on to the reformer. The heavy cut is kerosene-range and holds most of the sulphur: it goes to the kerosene hydrotreater, and from there to diesel."),
+    W(level({ only: ["fcc", "fuelOil", "gasoil"], routing: { hgo: "dht", lcgo: "gasoil", hcgo: "fuelOil", slurry: "fuelOil" } }), "The light cycle gas oil goes to distillate, hydrotreated, or to fuel oil; the heavy cycle gas oil, very aromatic, to fuel oil with the slurry from the bottom. Each of these naphtha and cycle oil cuts takes hydrogen in its treater, the heavy cat naphtha and the cycle oil most, so the reformer's hydrogen limits the FCC's products as much as its capacity does."),
+  ],
+  "10.4": [
+    W(level({ only: ["hds", "dht"], routing: { hgo: "hds", lvgo: "hds", goT: "dht", lgo: "dht" } }), "The gas oils are desulphurised in two stages. The first takes the heavier side streams, the light vacuum gas oil and the light cycle gas oil to a few hundred ppm, at moderate pressure. The second, at higher pressure, takes the light gas oil straight from the column and what the first made, to 10 ppm for road diesel."),
+    W({ blend: { prop: "s", parts: [["goT", 8], ["lgo", 2]], limit: 1000, dir: "max" } }, "The first stage's product is heating oil as it is: 0.1% sulphur, a few dollars under diesel. So it has a home when the second stage is full, or when the reformer can't spare the hydrogen to finish it, and the plan splits it between the two."),
+    W({ bars: { items: [["Kerosene, treated", 45.5, "middle"], ["Light gas oil", 55.5, "middle"], ["Heavy gas oil", 52, "middle"], ["Light cycle gas oil", 31, "heavy"], ["Heavy cat naphtha", 28, "naphtha"]], unit: "cetane", limit: [51, "EN 590: 51"], min: 0 } }, "Diesel takes the treated kerosene and heavy cat naphtha too, as far as its cetane and density allow: both are light, and the naphtha's cetane is poor. Saharan Blend's gas oils, light and paraffinic, carry them."),
+    W({ blend: { prop: "s", parts: [["vacResid", 5, vrOf("brent").s], ["goT", 5]], limit: 5000, dir: "max" } }, "The first stage also makes cutter. Its treated gas oils and cycle oil, thin and at a few hundred ppm, carry residue into VLSFO's 380 cSt, and its 0.5% sulphur too: a medium crude's residue, at 0.9%, takes about as much treated cutter as itself. An untreated cycle oil, sour itself, would only add to the problem."),
+  ],
+  "10.5": [
+    W(alder(), "The whole plant to its full specification, as its planners run it each month: petrol to every EN 228 limit, diesel to EN 590 with FAME, heating oil, VLSFO, propylene and light virgin naphtha. FAME, ethanol and ETBE are bought in, for their tickets, as a refinery blending for a national mandate does."),
+    W(alder({ only: ["sru"] }), "Around the process units stand the utilities. A cogeneration plant makes power and steam together from the refinery's fuel gas; an amine wash and a sulphur plant of a single train take every hydrotreater's hydrogen sulphide, so a trip of it stops them all; a water treatment plant, flotation then a biological stage, cleans what leaves; the tank farm holds crude, components and products."),
+    W(alder({ only: ["srReformer", "dht", "hds", "kht", "nht", "cnht"] }), "What sets the plan is mostly hydrogen: one reformer, whose output rises and falls with how much naphtha petrol can take, feeds five treaters. Then diesel's density and cetane, petrol's oxygen, aromatics and benzene, and fuel oil's viscosity. Every limit has a price, and the plan sits on several at once."),
   ],
 };
 

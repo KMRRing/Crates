@@ -14,12 +14,32 @@ export const CHAPTERS = [
   { id: 7, title: "Blending to spec", about: "Every product is a blend held to a dozen limits at once; the money is in meeting all of them exactly, with nothing given away." },
   { id: 8, title: "Economics", about: "Cracks, crude selection and the LP's marginal values: how a refinery decides what to run, what to buy and what to make." },
   { id: 9, title: "Renewables", about: "Biofuels in a refinery: the tickets that pay for them, the blend limits that cap them, HVO, co-processing in the hydrotreater and the FCC, and sustainable aviation fuel." },
+  { id: 10, title: "Alder Point", about: "A whole refinery, unit by unit: a fuels plant of about 120 thousand barrels a day with an FCC and no hydrocracker, whose semi-regenerative reformer is its only hydrogen." },
 ];
 
 const TOPPING_POOLS = ["gasPool", "lpg", "naphtha", "gasoil", "fuelOil", "hsfo"];
 const HYDROSKIM_POOLS = ["gasPool", "lpg", "gasoline", "naphtha", "jet", "diesel", "gasoil", "fuelOil", "hsfo"];
 const CRACKING_POOLS = ["gasPool", "lpg", "propylene", "gasoline", "naphtha", "jet", "diesel", "gasoil", "fuelOil", "hsfo"];
 const ALL_SPECS = { gasoline: ["ron", "mon", "rvp", "arom", "olef", "benz", "oxy", "etoh", "ether", "s"], diesel: ["cet", "d", "s", "fame"], jet: ["grade", "s"], gasoil: ["cet", "d", "s"], fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] };
+// Alder Point: a fuels refinery of about 120 kb/d (rounded and illustrative), an FCC with ZSM-5 for propylene whose
+// naphtha is cut light, intermediate and heavy and whose cycle oil is drawn light and heavy; two stages of gas oil
+// desulphurising; a semi-regenerative reformer, its only hydrogen; no hydrocracker, coker, isomerisation or alkylation
+const ALDER_FEED = 120;
+const ALDER_UNITS = ["cdu", "vdu", "nht", "srReformer", "bzhc", "kht", "hds", "dht", "fcc", "cnht", "sru"];
+const ALDER_POOLS = ["gasPool", "lpg", "propylene", "gasoline", "naphtha", "diesel", "gasoil", "fuelOil", "hsfo"];
+const ALDER_FCC = {
+  lvgo: { gas: 0.03, propylene: 0.085, lpg: 0.03, c4: 0.14, lcn: 0.28, icn: 0.16, hcn: 0.12, lcgo: 0.14, hcgo: 0.04, slurry: 0.035 },
+  hvgo: { gas: 0.035, propylene: 0.08, lpg: 0.03, c4: 0.135, lcn: 0.26, icn: 0.15, hcn: 0.12, lcgo: 0.15, hcgo: 0.05, slurry: 0.055 },
+  hgo: { gas: 0.03, propylene: 0.075, lpg: 0.03, c4: 0.125, lcn: 0.25, icn: 0.15, hcn: 0.12, lcgo: 0.19, hcgo: 0.04, slurry: 0.04 },
+};
+// what its units take: the kerosene treater takes the heavy cat naphtha too, the first gas
+// oil stage the heavier side streams, the light vacuum gas oil and the light cycle oil, the second the light gas oil
+// and what the first made; the post-treater only the light cat naphtha
+const ALDER_FEEDS = { nht: ["hsr", "icn"], kht: ["kero", "hcn"], hds: ["lgo", "hgo", "lvgo", "lcgo"], dht: ["lgo", "goT", "kero"], fcc: ["lvgo", "hvgo", "hgo"], cnht: ["lcn"] };
+// a month's prices with fuel oil weak, as it often is against the cracks
+const ALDER_PRICES = { fuelOil: 76, hsfo: 67 };
+// where its units stand on the flowsheet: [column, height]
+const ALDER_LAYOUT = { nht: [2, 2.6], srReformer: [3, 3.6], bzhc: [4, 3.4], kht: [3, 5.8], hds: [2, 7.4], dht: [4, 7.2], vdu: [2, 11.4], fcc: [3, 10.2], cnht: [4, 8.9], sru: [5, 12.6] };
 // where a plant starts: everything sold as it comes off the crude unit, nothing sent to a unit
 const RAW = { kero: "fuelOil", lgo: "fuelOil", hgo: "fuelOil" };
 
@@ -164,4 +184,26 @@ export const LEVELS = [
     specs: { jet: ["grade", "s", "d", "bio"], diesel: ["cet", "d", "s"] }, limits: { jet: { bio: [6, 50] } },
     task: "The jet you sell must hold 6% sustainable aviation fuel, as ReFuelEU asks from 2030. The SAF unit turns HVO into synthetic kerosene, at a cost in yield. Meet the mandate, and put the rest of the HVO where it pays.",
     watch: ["Jet short of its 6% isn't sold as jet.", "Ten barrels of HVO make about six of SAF."] },
+  // ---------- 10. Alder Point ----------
+  { id: "10.1", chapter: 10, title: "The crude and vacuum units", crude: "brent", crudes: ["saharan", "bonny", "cpc", "brent", "arabLight"], feed: ALDER_FEED, units: ["cdu", "vdu"], layout: ALDER_LAYOUT, prices: ALDER_PRICES,
+    pools: ["gasPool", "lpg", "naphtha", "gasoil", "fuelOil", "hsfo"], start: { ...RAW, atmResid: "fuelOil" }, specs: { fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
+    task: "Alder Point distils about 120 thousand barrels a day, and the vacuum unit lifts gas oil out of its residue. With nothing yet to treat the cuts, find the crude whose vacuum residue sells as VLSFO, and route its cuts.",
+    watch: ["Heating oil, the 0.1% gasoil, takes only the sweet cuts.", "A sour crude's residue is HSFO, several dollars a barrel under VLSFO."] },
+  { id: "10.2", chapter: 10, title: "The naphtha side", crude: "saharan", feed: ALDER_FEED, units: ["cdu", "vdu", "nht", "srReformer", "bzhc", "kht", "dht", "sru"], layout: ALDER_LAYOUT, feeds: { ...ALDER_FEEDS, dht: ["lgo", "hgo", "kero"] }, prices: ALDER_PRICES, h2Import: false,
+    pools: ["gasPool", "lpg", "gasoline", "naphtha", "diesel", "gasoil", "fuelOil", "hsfo"], start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "fuelOil" }, specs: { gasoline: ["ron", "benz", "s"], diesel: ["cet", "s"] },
+    task: "The semi-regenerative reformer is the refinery's only hydrogen: every hydrotreater runs on what it makes. Reform naphtha for octane and hydrogen, split the benzene out, and sell the light naphtha to the steam crackers.",
+    watch: ["No hydrogen can be bought: the hydrotreaters take what the reformer makes, and no more.", "There's no isomerisation unit: light naphtha is petrochemical feed or low-octane petrol."] },
+  { id: "10.3", chapter: 10, title: "The FCC's three naphthas", crude: "saharan", feed: ALDER_FEED, units: ["cdu", "vdu", "nht", "srReformer", "bzhc", "kht", "dht", "fcc", "cnht", "sru"], layout: ALDER_LAYOUT, yields: { fcc: ALDER_FCC }, feeds: { ...ALDER_FEEDS, dht: ["lgo", "hgo", "lcgo", "kero"] }, prices: ALDER_PRICES, h2Import: false, caps: { fcc: 22 },
+    pools: ALDER_POOLS, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "fuelOil" }, specs: { gasoline: ["ron", "rvp", "olef", "benz", "s"], diesel: ["cet", "s"] },
+    task: "The FCC's naphtha is cut three ways: light to the post-treater and petrol, intermediate to the naphtha hydrotreater and the reformer, heavy to the kerosene hydrotreater and diesel. Its cycle oil comes light and heavy. Route each where it earns most, on the reformer's hydrogen.",
+    watch: ["Each naphtha takes hydrogen in its own treater: the heavy one most.", "Olefins are capped at 18% in petrol, and the light cat naphtha is half olefins."] },
+  { id: "10.4", chapter: 10, title: "Two stages for gas oil", crude: "saharan", feed: ALDER_FEED, units: ALDER_UNITS, layout: ALDER_LAYOUT, yields: { fcc: ALDER_FCC }, feeds: ALDER_FEEDS, prices: ALDER_PRICES, h2Import: false, caps: { fcc: 22 },
+    pools: ALDER_POOLS, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "fuelOil" }, specs: { gasoline: ["ron", "rvp", "benz", "s"], diesel: ["cet", "d", "s"], gasoil: ["cet", "d", "s"], fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
+    task: "The heavier gas oils go through a first desulphuriser to heating oil's 0.1%, and on through the diesel hydrotreater for 10 ppm. The reformer's hydrogen decides how much of it becomes road diesel; a treated cycle oil can carry residue into VLSFO.",
+    watch: ["Heating oil sells $5 under diesel: it's where gas oil goes when there's no hydrogen to finish it.", "The cycle oils are dense and low in cetane: diesel takes only a little."] },
+  { id: "10.5", chapter: 10, title: "The whole of Alder Point", crude: "saharan", feed: ALDER_FEED, units: ALDER_UNITS, layout: ALDER_LAYOUT, yields: { fcc: ALDER_FCC }, feeds: ALDER_FEEDS, prices: ALDER_PRICES, h2Import: false, caps: { fcc: 22 },
+    pools: [...ALDER_POOLS, "notBought"], ticket: TICKET, bought: { fame: 4, ethanol: 1, etbe: 2 }, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "fuelOil", fame: "notBought", ethanol: "notBought", etbe: "notBought" },
+    specs: { gasoline: ALL_SPECS.gasoline, diesel: ALL_SPECS.diesel, gasoil: ALL_SPECS.gasoil, fuelOil: ALL_SPECS.fuelOil, hsfo: ALL_SPECS.hsfo },
+    task: "The whole refinery, every product to its full specification, with FAME, ethanol and ETBE on offer for their tickets: Alder Point as its planners run it each month.",
+    watch: ["Diesel is the plant's biggest product: its density, cetane and FAME all bind.", "ETBE and ethanol share petrol's oxygen limit."] },
 ];

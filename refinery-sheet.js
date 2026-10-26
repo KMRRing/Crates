@@ -8,18 +8,18 @@ import { streamsOf, poolsOf, specsOf, limitOf, fmtProp, destinations } from "./r
 
 const NS = "http://www.w3.org/2000/svg";
 /** How light a stream is: 0 the gases, 13 the coke. Units and pools sit at the height of what they take. */
-export const RANK = { gas: 0, lpg: 1, propylene: 1.3, butane: 1.7, c4: 2, lsr: 3, isomerate: 3.2, alkylate: 3.4, etbe: 3.6, bzCut: 3.8, hsr: 4, hsrT: 4.2, reformate: 4.4, heavyReformate: 4.45, hcNaphtha: 4.5,
-  catNaphtha: 4.6, catNaphthaT: 4.7, cokerNaphtha: 4.8, ethanol: 4.9, kero: 6, jet: 6.1, spk: 6.15, hcJet: 6.2, lgo: 7, ulsd: 7.2, hcDiesel: 7.3, hvo: 7.4, fame: 7.5, lco: 7.6,
-  hgo: 8, fuelOilCutter: 8.2, cokerGo: 8.4, lvgo: 9, hvgo: 9.5, importVgo: 9.6, vegOil: 9.8, slurry: 10, atmResid: 11, visResid: 11.5, vacResid: 12, bitumen: 12.5, coke: 13 };
+export const RANK = { gas: 0, lpg: 1, propylene: 1.3, butane: 1.7, c4: 2, lsr: 3, lcn: 3.1, lcnT: 3.15, isomerate: 3.2, alkylate: 3.4, etbe: 3.6, bzCut: 3.8, hsr: 4, icn: 4.1, hsrT: 4.2, reformate: 4.4, heavyReformate: 4.45, hcNaphtha: 4.5,
+  catNaphtha: 4.6, catNaphthaT: 4.7, cokerNaphtha: 4.8, ethanol: 4.9, hcn: 5.5, kero: 6, jet: 6.1, spk: 6.15, hcJet: 6.2, lgo: 7, ulsd: 7.2, hcDiesel: 7.3, hvo: 7.4, fame: 7.5, lco: 7.6, lcgo: 7.65, goT: 7.8,
+  hgo: 8, fuelOilCutter: 8.2, cokerGo: 8.4, lvgo: 9, hvgo: 9.5, importVgo: 9.6, vegOil: 9.8, hcgo: 9.9, slurry: 10, atmResid: 11, visResid: 11.5, vacResid: 12, bitumen: 12.5, coke: 13 };
 const POOL_RANK = { gasPool: 0, lpg: 1.2, propylene: 1.6, gasoline: 3.6, naphtha: 4.6, jet: 6, diesel: 7, hvo100: 7.6, gasoil: 8.1, fuelOil: 10, hsfo: 11, bitumen: 12.3, coke: 13, slops: 13, notBought: 12 };
-const UNIT_RANK = { vdu: 11.4, coker: 12.2, visbreaker: 11.6, blowing: 12.8, hvoUnit: 9.8, safUnit: 6.8, fcc: 9.4, hcu: 8.6, merox: 5.6, kht: 6.3, nht: 4.2, dht: 7.6, reformer: 4.3, bzhc: 4.4, isom: 3, alky: 2, cnht: 5, smr: 0.2, sru: 13 };
+const UNIT_RANK = { vdu: 11.4, coker: 12.2, visbreaker: 11.6, blowing: 12.8, hvoUnit: 9.8, safUnit: 6.8, fcc: 9.4, hcu: 8.6, merox: 5.6, kht: 6.3, nht: 4.2, dht: 7.6, hds: 7.9, reformer: 4.3, srReformer: 4.3, bzhc: 4.4, isom: 3, alky: 2, cnht: 5, smr: 0.2, sru: 13 };
 export const GROUP_COLOUR = { gas: "var(--rf-gas)", naphtha: "var(--rf-naphtha)", middle: "var(--rf-middle)", heavy: "var(--rf-heavy)", resid: "var(--rf-resid)", renewable: "var(--rf-renew)", other: "var(--rf-gas)" };
 // sizes, in the diagram's own units
 const NODE_W = 44, NODE_H = 22, COL = 60, TOP = 18, ROW = 25, POOL_W = 78, POOL_H = 29;
 
 /**
  * The layout of a level's plant: { nodes: { id: { id, kind (crude | bought | unit | pool), x, y, w, h, col } },
- * width, height }. A level can place a unit itself (layout: { unit: [column, rank] }), as the real plants' chapters do.
+ * width, height }. A level can place a unit itself (layout: { unit: [column, rank] }), as the whole refineries' chapters do.
  */
 export function layout(level) {
   const units = level.units.filter(u => UNITS[u]), pools = sheetPools(level);
