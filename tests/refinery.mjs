@@ -1,43 +1,147 @@
-const R = await import("../refinery-engine.js");
+// Refinery: the data hangs together, the LP and the engine agree, every level is solvable in spec with par above its
+// start, par as written in refinery-par.js is still what the solver finds (node tests/refinery.mjs --write-par writes
+// it again after a change to the data or the levels), the chemistry behaves, and every lesson and exam builds.
+import fs from "node:fs";
 const D = await import("../refinery-data.js");
-const { LEVELS } = await import("../refinery-levels.js");
+const E = await import("../refinery-engine.js");
+const { simplex } = await import("../refinery-lp.js");
+const { LEVELS, CHAPTERS } = await import("../refinery-levels.js");
+const WRITE = process.argv.includes("--write-par");
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-// the data is consistent: every yield names a stream, every feed is a stream, every pool accepts streams that exist, crude cuts sum to one
-let problems = 0;
-for (const [u, def] of Object.entries(D.UNITS)) {
-  for (const f of def.feeds) if (!D.STREAMS[f]) { problems++; console.log(u, "feeds unknown", f); }
-  for (const [f, y] of Object.entries(def.yields || {})) { if (!def.feeds.includes(f)) { problems++; console.log(u, "yields for a feed it doesn't take", f); } for (const o of Object.keys(y)) if (!D.STREAMS[o]) { problems++; console.log(u, "yields unknown", o); } }
-}
-for (const [p, def] of Object.entries(D.POOLS)) for (const s of def.accept) if (!D.STREAMS[s]) { problems++; console.log(p, "accepts unknown", s); }
-for (const [c, def] of Object.entries(D.CRUDES)) { const sum = Object.values(def.cuts).reduce((a, b) => a + b, 0); if (Math.abs(sum - 1) > 0.001) { problems++; console.log(c, "cuts sum to", sum); } }
-check(problems === 0, "data: units, yields, pools and crudes agree");
-// every level: the default routing runs, par beats it, par's pools are in spec, and every stream has somewhere to go
-const pars = [];
-for (const L of LEVELS) {
-  const def = R.evaluate(L, R.defaultRouting(L)), par = R.solve(L, 4), best = R.evaluate(L, par.routing);
-  const none = R.streamsOf(L).filter(s => !R.destinations(L, s).length);
-  pars.push(`${L.id}: ${def.margin.toFixed(1)} → ${par.margin.toFixed(1)}`);
-  if (!(par.margin > def.margin + 1) || none.length) { bad++; console.log("level", L.id, "default", def.margin.toFixed(2), "par", par.margin.toFixed(2), "unroutable", none); }
-  const offSpec = Object.entries(best.pools).filter(([p, x]) => !x.inSpec && x.vol > 0.5);
-  if (offSpec.length) console.log(`  level ${L.id} par leaves off-spec pools:`, offSpec.map(([p, x]) => `${p} (${x.fails.join("; ")}) → ${x.soldAs}`).join(" | "));
-}
-check(bad === 0, `levels: par beats the default on every level (${pars.join(", ")} $/bbl)`);
-// the chemistry: treating puts sulphur in spec, reforming lifts octane and makes hydrogen, the hydrocracker swells
+
+// ---------- the data ----------
 {
-  const L = LEVELS[0];
-  const naive = R.evaluate(L, { ...R.defaultRouting(L), lgo: "diesel", kero: "jet", hsr: "gasoline" });
-  check(!naive.pools.diesel.inSpec && naive.pools.diesel.soldAs !== "diesel" && !naive.pools.gasoline.inSpec && naive.pools.jet === undefined,
-    `untreated gas oil sinks the diesel pool (sold as ${naive.pools.diesel.soldAs}), raw naphtha can't make gasoline, raw kerosene isn't jet`);
-  const good = R.evaluate(L, { ...R.defaultRouting(L), lgo: "dht", hgo: "dht", kero: "kht", hsr: "nht", hsrT: "reformer", lsr: "naphtha" });
-  const withLsr = R.evaluate(L, { ...R.defaultRouting(L), lgo: "dht", hgo: "dht", kero: "kht", hsr: "nht", hsrT: "reformer", lsr: "gasoline" });
-  check(good.pools.diesel.inSpec && good.pools.jet.inSpec && good.h2.made > good.h2.used * 0.8 && good.pools.gasoline.inSpec && !withLsr.pools.gasoline.inSpec && good.margin > 0 && good.pools.fuelOil.inSpec,
-    `treated and reformed: diesel (cetane ${good.pools.diesel.cet.toFixed(1)}) and jet in spec, reformate alone makes gasoline (RON ${good.pools.gasoline.ron.toFixed(0)}) while light naphtha in the pool sinks it to ${withLsr.pools.gasoline.ron.toFixed(1)}, the reformer's hydrogen covers the treaters (${good.h2.made.toFixed(1)} made, ${good.h2.used.toFixed(1)} used MMscf/d), margin ${good.margin.toFixed(1)} $/bbl; sweet residue makes VLSFO at ${(good.pools.fuelOil.s / 10000).toFixed(2)}% sulphur`);
-  const L5 = LEVELS[4];
-  const allFcc = R.evaluate(L5, { ...R.solve(L5, 2).routing, lvgo: "fcc", hvgo: "fcc" }), allHcu = R.evaluate(L5, { ...R.solve(L5, 2).routing, lvgo: "hcu", hvgo: "hcu" });
-  const hcuOut = Object.values(allHcu.units.hcu.outputs).reduce((a, b) => a + b, 0), hcuIn = allHcu.units.hcu.feed;
-  check(hcuOut > hcuIn * 1.05 && allHcu.h2.used > allFcc.h2.used * 2 && (allHcu.pools.diesel?.vol || 0) > (allFcc.pools.diesel?.vol || 0),
-    `the hydrocracker swells its feed by ${((hcuOut / hcuIn - 1) * 100).toFixed(0)}%, uses ${allHcu.h2.used.toFixed(0)} MMscf/d of hydrogen against the FCC route's ${allFcc.h2.used.toFixed(0)}, and makes more diesel`);
+  let problems = [];
+  for (const [u, def] of Object.entries(D.UNITS)) {
+    for (const f of def.feeds) if (!D.STREAMS[f]) problems.push(`${u} feeds unknown ${f}`);
+    for (const [f, y] of Object.entries(def.yields || {})) {
+      if (!def.feeds.includes(f)) problems.push(`${u} yields for a feed it doesn't take: ${f}`);
+      for (const o of Object.keys(y)) if (!D.STREAMS[o]) problems.push(`${u} yields unknown ${o}`);
+    }
+    if (D.POOLS[u]) problems.push(`unit ${u} shares its name with a pool`);
+  }
+  for (const [p, def] of Object.entries(D.POOLS)) {
+    for (const s of def.accept) if (!D.STREAMS[s]) problems.push(`${p} accepts unknown ${s}`);
+    for (const k of Object.keys(def.spec || {})) if (!D.PROPS[k]) problems.push(`${p} has a spec on unknown ${k}`);
+    if (def.fallback && !D.POOLS[def.fallback]) problems.push(`${p} falls back to unknown ${def.fallback}`);
+  }
+  for (const [c, def] of Object.entries(D.CRUDES)) { const sum = Object.values(def.cuts).reduce((a, b) => a + b, 0); if (Math.abs(sum - 1) > 0.001) problems.push(`${c} cuts sum to ${sum}`); }
+  // every producer of a stream comes before every unit that takes it, so a unit's feeds are complete when it runs
+  for (const u of E.ORDER) for (const f of D.UNITS[u].feeds) for (const m of E.ORDER) if (D.UNITS[m].yields && Object.values(D.UNITS[m].yields).some(y => f in y) && E.ORDER.indexOf(m) >= E.ORDER.indexOf(u)) problems.push(`${m} makes ${f} but runs after ${u}, which takes it`);
+  // a stream a pool takes has every property the pool is judged on (or one that's zero when missing)
+  for (const [p, def] of Object.entries(D.POOLS)) for (const s of def.accept) for (const k of Object.keys(def.spec || {})) {
+    const zero = ["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "s"].includes(k);
+    if (!zero && D.STREAMS[s].p[k] == null && !(D.STREAMS[s].sr && k === "s")) problems.push(`${p} judges ${k}, which ${s} doesn't have`);
+  }
+  // the straight-run sulphur adds up to the crude's assay (within a fifth)
+  for (const [c, def] of Object.entries(D.CRUDES)) {
+    const L = { crude: c, units: ["cdu"] };
+    let mass = 0, s = 0;
+    for (const [cut, f] of Object.entries(def.cuts)) { const p = E.ownProps(L, cut); if (!p.d) continue; mass += f * p.d; s += f * p.d * (p.s || 0); }
+    const pct = s / mass / 10000;
+    if (Math.abs(pct / def.sulphur - 1) > 0.2) problems.push(`${c}: its cuts hold ${pct.toFixed(2)}% sulphur against an assay of ${def.sulphur}%`);
+  }
+  check(!problems.length, `data: units, streams, pools and crudes agree${problems.length ? `\n     ${problems.join("\n     ")}` : ""}`);
 }
+
+// ---------- the LP ----------
+{
+  const r = simplex(2, [3, 5], [{ a: { 0: 1 }, op: "<=", b: 4 }, { a: { 1: 2 }, op: "<=", b: 12 }, { a: { 0: 3, 1: 2 }, op: "<=", b: 18 }]);
+  const r2 = simplex(2, [-2, -3], [{ a: { 0: 1, 1: 1 }, op: ">=", b: 4 }, { a: { 0: 1, 1: 3 }, op: ">=", b: 6 }]);
+  const r3 = simplex(1, [1], [{ a: { 0: 1 }, op: "<=", b: 1 }, { a: { 0: 1 }, op: ">=", b: 2 }]);
+  check(Math.abs(r.value - 36) < 1e-9 && Math.abs(r.duals[1] - 1.5) < 1e-9 && Math.abs(r.duals[2] - 1) < 1e-9 && Math.abs(r2.value + 9) < 1e-9 && Math.abs(r2.duals[0] + 1.5) < 1e-9 && r3.status === "infeasible",
+    "the simplex solves textbook LPs, with their duals, and knows an infeasible one");
+}
+
+// ---------- every level: solvable in spec, par above the start, par as written ----------
+const PAR_FILE = new URL("../refinery-par.js", import.meta.url);
+const { PAR } = WRITE ? { PAR: {} } : await import("../refinery-par.js");
+const fresh = {};
+{
+  const notes = [], stale = [];
+  for (const lv of LEVELS) {
+    fresh[lv.id] = {};
+    for (const crude of lv.crudes || [lv.crude]) {
+      const L = { ...lv, crude }, start = E.evaluate(L, E.defaultRouting(L)), par = E.solve(L);
+      const ok = Object.values(par.result.pools).every(p => p.inSpec || p.vol < 1e-4) && !par.result.issues.some(i => ["sru", "lost", "h2short"].includes(i.kind));
+      // the routing kept to six decimals: a share is a slider's step at most
+      const routing = Object.fromEntries(Object.entries(par.routing).filter(([s]) => par.result.streams[s]).map(([s, r]) => [s, Object.fromEntries(Object.entries(r).filter(([, f]) => f > 1e-5).map(([d, f]) => [d, +f.toFixed(6)]))]));
+      const rerun = E.evaluate(L, routing);
+      fresh[lv.id][crude] = { margin: +rerun.margin.toFixed(4), routing };
+      notes.push(`${lv.id}${lv.crudes ? `/${crude}` : ""}: ${start.margin.toFixed(2)} → ${rerun.margin.toFixed(2)}`);
+      if (!ok || !(rerun.margin > start.margin + 0.5 || lv.crudes)) { bad++; console.log(`FAIL level ${lv.id} [${crude}]: ${ok ? "par barely beats its start" : "par isn't in spec"} (${start.margin.toFixed(2)} → ${par.margin.toFixed(2)})`, par.result.issues.map(i => i.text)); }
+      const kept = PAR[lv.id]?.[crude];
+      if (!WRITE && (!kept || Math.abs(E.evaluate(L, kept.routing).margin - kept.margin) > 0.01 || rerun.margin > kept.margin + 0.05)) stale.push(`${lv.id}/${crude}`);
+    }
+  }
+  check(true, `levels: start → par in $/bbl (${notes.join(", ")})`);
+  if (WRITE) {
+    fs.writeFileSync(PAR_FILE, `// Refinery's par for every level and crude: the LP's plan, worked out by tests/refinery.mjs --write-par (rerun it after
+// changing the data or a level; the test fails while this is stale). { level: { crude: { margin, routing } } }.
+export const PAR = ${JSON.stringify(fresh)};\n`);
+    console.log("wrote refinery-par.js");
+  } else check(!stale.length, `par as written in refinery-par.js is still the solver's${stale.length ? ` (stale: ${stale.join(", ")}: run node tests/refinery.mjs --write-par)` : ""}`);
+}
+
+// ---------- the chemistry ----------
+{
+  const L = { crude: "urals", units: ["cdu", "merox", "kht", "nht", "reformer", "dht", "sru"] };
+  const raw = E.evaluate(L, { ...E.defaultRouting(L), lgo: "diesel", kero: "jet", hsr: "gasoline" });
+  const treated = E.evaluate(L, { ...E.defaultRouting(L), lgo: "dht", hgo: "dht", kero: "kht", hsr: "nht", hsrT: "reformer" });
+  const sweet = E.evaluate(L, { ...E.defaultRouting(L), kero: "merox" });
+  check(!raw.pools.diesel.inSpec && !raw.pools.jet.inSpec && !raw.pools.gasoline.inSpec && treated.pools.diesel.props.s <= 10 && treated.pools.jet.inSpec && treated.pools.gasoline.inSpec && treated.h2.made > 0 && treated.sulphur.removed > 20 && !sweet.pools.jet.inSpec,
+    `untreated gas oil, kerosene and naphtha are off spec; treated and reformed they're in (diesel ${treated.pools.diesel.props.s.toFixed(0)} ppm, gasoline RON ${treated.pools.gasoline.props.ron.toFixed(1)}); the treaters strip ${treated.sulphur.removed.toFixed(0)} t/d of sulphur; Urals kerosene merely sweetened stays over Jet A-1's 0.3% (${(sweet.pools.jet.props.s / 10000).toFixed(2)}%)`);
+  const H = { crude: "arabLight", units: ["cdu", "vdu", "fcc", "hcu", "smr", "dht", "sru"] };
+  const fcc = E.evaluate(H, { ...E.defaultRouting(H), atmResid: "vdu", lvgo: "fcc", hvgo: "fcc" }), hcu = E.evaluate(H, { ...E.defaultRouting(H), atmResid: "vdu", lvgo: "hcu", hvgo: "hcu" });
+  const out = Object.values(hcu.units.hcu.outputs).reduce((a, b) => a + b, 0) / hcu.units.hcu.feed, fout = Object.values(fcc.units.fcc.outputs).reduce((a, b) => a + b, 0) / fcc.units.fcc.feed;
+  check(out > 1.08 && fout > 1 && hcu.h2.used > 40 && fcc.h2.used < 1 && fcc.units.fcc.outputs.catNaphtha > fcc.units.fcc.outputs.lco,
+    `the hydrocracker swells its feed by ${((out - 1) * 100).toFixed(0)}% and eats ${hcu.h2.used.toFixed(0)} MMscf/d of hydrogen; the FCC swells it by ${((fout - 1) * 100).toFixed(0)}% with none, making more naphtha than cycle oil`);
+  // blending: a mass property blends by mass, vapour pressure by its index, viscosity by Refutas
+  const V = { crude: "urals", units: ["cdu", "vdu"], specs: { hsfo: ["s", "visc", "d"] } };
+  const vr = E.evaluate(V, { ...E.defaultRouting(V), atmResid: "vdu", vacResid: "hsfo", lvgo: "hsfo", hvgo: "hsfo" });
+  const ar = E.evaluate(V, { ...E.defaultRouting(V), atmResid: "hsfo" });
+  check(vr.pools.hsfo.props.visc < 3000 && vr.pools.hsfo.props.visc > ar.pools.hsfo.props.visc * 0.5 && Math.abs(D.fromIndex("visc", D.toIndex("visc", 380)) - 380) < 1e-6 && Math.abs(D.fromIndex("rvp", D.toIndex("rvp", 60)) - 60) < 1e-9,
+    `residue and its gas oils blend back to a viscosity near the atmospheric residue's (${Math.round(vr.pools.hsfo.props.visc)} against ${Math.round(ar.pools.hsfo.props.visc)} cSt); the indices invert`);
+}
+
+// ---------- the lessons, the scenes and the exams ----------
+{
+  const lessons = await import("../refinery-lessons.js").catch(() => null), exam = await import("../refinery-exam.js").catch(() => null);
+  if (!lessons || !exam) check(false, "lessons and exams load");
+  else {
+    const problems = [];
+    for (const lv of LEVELS) {
+      const steps = lessons.lessonFor(lv);
+      if (steps.length < 2 || !steps[steps.length - 1].task) problems.push(`${lv.id}: a lesson needs steps and its task last`);
+      if (!lessons.TEACHES[lv.id]) problems.push(`${lv.id}: no line for the course map`);
+      for (const st of steps) if (!st.say || !st.scene) problems.push(`${lv.id}: a step without words or a picture`);
+      const L = { ...lv, crude: lv.crude };
+      const res = E.evaluate(L, fresh[lv.id]?.[lv.crude]?.routing || PAR[lv.id]?.[lv.crude]?.routing || E.defaultRouting(L));
+      for (const seed of [1, 2, 3]) {
+        const qs = exam.buildTest(L, res, { seed });
+        if (qs.length < 6 || qs.length > 12) problems.push(`${lv.id}: ${qs.length} questions`);
+        for (const q of qs) {
+          const right = q.kind === "choice" ? q.answer : q.kind === "number" ? String(q.answer) : q.kind === "word" ? q.answer : q.kind === "tap" ? q.answer[0] : q.items;
+          if (!exam.isRight(q, right)) problems.push(`${lv.id}: right answer judged wrong: ${q.ask}`);
+          if (q.kind === "choice") {
+            if (new Set(q.options).size !== q.options.length) problems.push(`${lv.id}: repeated options: ${q.ask}`);
+            for (let i = 0; i < q.options.length; i++) if (i !== q.answer && exam.isRight(q, i)) problems.push(`${lv.id}: a wrong option judged right: ${q.ask}`);
+            // the right option mustn't stand out as the longest by far, or the only one with a figure
+            const lens = q.options.map(o => o.length), rightLen = lens[q.answer], others = lens.filter((_, i) => i !== q.answer);
+            if (q.options.length > 2 && rightLen > Math.max(...others) * 1.6 && rightLen > 30) problems.push(`${lv.id}: the right option is the longest by far: ${q.ask}`);
+            const digit = o => /\d/.test(o);
+            if (q.options.length > 2 && digit(q.options[q.answer]) && q.options.filter(digit).length === 1) problems.push(`${lv.id}: only the right option has a figure: ${q.ask}`);
+          }
+          if (q.kind === "number" && exam.isRight(q, String(q.answer * 1.5 + 7))) problems.push(`${lv.id}: a wrong number judged right: ${q.ask}`);
+        }
+      }
+    }
+    for (const [term, def] of lessons.GLOSSARY) if (def.toLowerCase().includes(term.toLowerCase().replace(/s$/, ""))) problems.push(`glossary: ${term}'s definition says its own word`);
+    check(!problems.length, `lessons and exams: every level's lesson ends in its task, every exam (dealt three times) holds 6–12 questions whose right answers are right and wrong ones wrong, none giving itself away${problems.length ? `\n     ${problems.slice(0, 30).join("\n     ")}` : ""}`);
+    check(CHAPTERS.every(c => LEVELS.some(l => l.chapter === c.id)), "every chapter has levels");
+  }
+}
+
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

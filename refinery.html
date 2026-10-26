@@ -23,54 +23,75 @@
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon rf-mark" aria-hidden="true"></span>Refinery</button></h1>
-    <div class="top-right">
-      <select id="level" class="pool" data-accent="rf" aria-label="Level"></select>
-      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
-    </div>
+    <div class="top-right"><button id="courseBtn" class="pick" aria-haspopup="dialog">Course</button><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
   </header>
-
+  <div class="rf-strip"><span id="where"></span><span id="stars" class="rf-stars"></span></div>
   <section class="rf-brief">
-    <div class="rf-brief-head"><h2 id="title"></h2><button class="rf-about" type="button" id="aboutBtn">About</button></div>
-    <p id="lesson" class="rf-lesson"></p>
-    <p id="intro" class="rf-intro" hidden></p>
+    <p id="task" class="rf-task"></p>
+    <div id="crudePick" class="rf-crude" hidden></div>
+    <div class="rf-help"><button id="lessonBtn" class="rf-link" type="button">Lesson</button><button id="hintBtn" class="rf-link" type="button">Hint</button><button id="testBtn" class="rf-link" type="button" hidden>Exam</button><button id="undoBtn" class="rf-link" type="button" disabled>Undo</button></div>
+    <p id="hint" class="rf-hint" hidden></p>
   </section>
   <section class="rf-margin">
     <div class="rf-margin-row"><span>Margin</span><b id="margin"></b><small id="par"></small></div>
     <div class="rf-bar"><i id="marginBar"></i><em id="parTick"></em></div>
     <p class="rf-rival" id="rival" hidden></p>
-    <div class="rf-buttons">
-      <p id="verdict" class="rf-verdict"></p>
-      <button class="rf-go quiet" type="button" id="hintBtn">Hint</button>
-      <button class="rf-go" type="button" id="nextBtn" hidden>Next level</button>
-    </div>
+    <div class="rf-buttons"><p id="verdict" class="rf-verdict"></p><button class="rf-go" type="button" id="nextBtn" hidden>Next</button></div>
   </section>
-  <section class="rf-unitbar" aria-label="Units: tap one for its card">
-    <div id="units" class="rf-chips"></div>
-    <p id="h2" class="rf-h2"></p>
-  </section>
-  <div class="rf-tabs" role="tablist" aria-label="Streams or pools">
-    <button type="button" role="tab" id="tabStreams" aria-selected="true" aria-controls="paneStreams">Streams</button>
-    <button type="button" role="tab" id="tabPools" aria-selected="false" aria-controls="panePools">Pools</button>
+  <div id="stage" class="rf-stage fit-grow">
+    <svg id="sheet" class="rf-sheet" role="img" aria-label="The refinery's flowsheet: tap an arrow to send a stream elsewhere, a unit or a product for its card; drag to move, pinch to zoom"></svg>
+    <div class="rf-zoom"><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomOut" aria-label="Zoom out">−</button><button type="button" id="zoomFit" aria-label="The whole plant">⤢</button></div>
+    <p id="issue" class="rf-issue" hidden></p>
   </div>
-  <section class="rf-pane fit-grow fit-scroll" id="paneStreams" role="tabpanel" aria-label="Streams: tap a destination to change it">
-    <div id="crudePick" class="rf-crude" hidden></div>
-    <div id="streams" class="rf-streams"></div>
-  </section>
-  <section class="rf-pane fit-grow fit-scroll" id="panePools" role="tabpanel" aria-label="Pools" hidden>
-    <div id="pools" class="rf-pools"></div>
-    <ul id="issues" class="rf-issues"></ul>
-  </section>
+  <select id="level" class="rf-level-select" aria-label="Level" hidden></select>
 </div>
 
-<dialog id="pickDlg" class="sheet" aria-label="Destination">
-  <div class="pick-head"><h2 id="pickTitle"></h2><button class="btn" type="button" id="pickClose">Close</button></div>
-  <p id="pickNote" class="stats"></p>
-  <div id="pickBody" class="rf-pick"></div>
+<dialog id="splitDlg" class="sheet rf-split" aria-labelledby="splitTitle">
+  <div class="pick-head"><h2 id="splitTitle"></h2><button class="btn" type="button" id="splitClose">Close</button></div>
+  <p id="splitMeta" class="rf-split-meta"></p>
+  <div id="splitBar" class="rf-split-bar" aria-hidden="true"></div>
+  <div id="splitRows" class="rf-split-rows"></div>
+  <p id="splitMargin" class="rf-split-margin"></p>
 </dialog>
 
-<dialog id="cardDlg" class="sheet" aria-label="Unit">
+<dialog id="cardDlg" class="sheet rf-scrolls" aria-labelledby="cardTitle">
   <div class="pick-head"><h2 id="cardTitle"></h2><button class="btn" type="button" id="cardClose">Close</button></div>
   <div id="cardBody" class="rf-card"></div>
+</dialog>
+
+<dialog id="lessonDlg" class="sheet rf-lesson" aria-labelledby="lessonTitle">
+  <div class="pick-head"><h2 id="lessonTitle">Lesson</h2><button class="btn" type="button" id="lessonClose">Close</button></div>
+  <div class="rf-steps"><div id="lessonDots" class="rf-dots" aria-label="Steps"></div><span id="lessonCount" class="rf-count"></span></div>
+  <svg id="lessonScene" class="rf-scene" role="img" aria-label="The picture for this step"></svg>
+  <div id="lessonSay" class="rf-say"></div>
+  <div class="rf-nav"><button class="btn" type="button" id="lessonBack">Back</button><button class="btn primary" type="button" id="lessonNext">Next</button></div>
+</dialog>
+
+<dialog id="testDlg" class="sheet rf-test" aria-labelledby="testTitle">
+  <div class="pick-head"><h2 id="testTitle">Exam</h2><button class="btn" type="button" id="testClose">Close</button></div>
+  <div class="rf-steps"><div id="testDots" class="rf-dots rf-qdots" aria-hidden="true"></div><span id="testCount" class="rf-count"></span></div>
+  <div id="testBody" class="rf-test-body">
+    <svg id="testScene" class="rf-scene rf-test-scene" role="img" aria-label="The picture the question is about"></svg>
+    <p id="testAsk" class="rf-ask"></p>
+    <div id="testAnswer" class="rf-answer"></div>
+    <p id="testSays" class="rf-says" aria-live="polite"></p>
+  </div>
+  <div class="rf-nav"><button class="btn" type="button" id="testAlt" hidden>Again</button><button class="btn primary" type="button" id="testNext">Next</button></div>
+</dialog>
+
+<dialog id="courseDlg" class="sheet rf-scrolls" aria-label="Course">
+  <div class="pick-head"><h2>Course</h2><button class="btn" type="button" id="courseClose">Close</button></div>
+  <div id="courseBody" class="rf-course"></div>
+</dialog>
+
+<dialog id="glossDlg" class="sheet rf-scrolls" aria-label="Glossary">
+  <div class="pick-head"><h2>Glossary</h2><button class="btn" type="button" id="glossClose">Close</button></div>
+  <div id="glossBody" class="rf-gloss"></div>
+</dialog>
+
+<dialog id="doneDlg" class="sheet" aria-labelledby="doneTitle">
+  <div class="pick-head"><h2 id="doneTitle">At par</h2><button class="btn" type="button" id="doneClose">Close</button></div>
+  <div id="doneBody" class="rf-done"></div>
 </dialog>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
