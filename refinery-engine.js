@@ -14,13 +14,13 @@ const HOME = {
   gas: "gasPool", lpg: "lpg", butane: "lpg", propylene: "propylene", c4: "lpg", lsr: "naphtha", hsr: "naphtha", hsrT: "naphtha", reformate: "gasoline",
   isomerate: "gasoline", catNaphtha: "naphtha", catNaphthaT: "gasoline", alkylate: "gasoline", cokerNaphtha: "naphtha", hcNaphtha: "naphtha", ethanol: "gasoline",
   kero: "gasoil", jet: "jet", lgo: "gasoil", hgo: "fuelOil", lco: "fuelOil", ulsd: "diesel", hcJet: "jet", hcDiesel: "diesel", cokerGo: "fuelOil", fuelOilCutter: "fuelOil",
-  hvo: "diesel", fame: "diesel", vegOil: "notBought", spk: "jet", lvgo: "fuelOil", hvgo: "fuelOil", slurry: "fuelOil", atmResid: "fuelOil", vacResid: "fuelOil", visResid: "fuelOil",
+  hvo: "diesel", fame: "diesel", vegOil: "notBought", tallow: "notBought", rso: "notBought", cto: "notBought", pyro: "notBought", spk: "jet", lvgo: "fuelOil", hvgo: "fuelOil", slurry: "fuelOil", atmResid: "fuelOil", vacResid: "fuelOil", visResid: "fuelOil",
   coke: "coke", bitumen: "bitumen", etbe: "gasoline", bzCut: "naphtha", heavyReformate: "gasoline", importVgo: "notBought",
   lcn: "gasoline", lcnT: "gasoline", icn: "gasoline", hcn: "fuelOil", lcgo: "fuelOil", hcgo: "fuelOil", goT: "gasoil",
   vgoT: "vgoExport", importVgoT: "notBought", mhcGo: "gasoil", mtbe: "gasoline", raff: "lpg", cumene: "cumene", dao: "hsfo", asphalt: "hsfo", power: "power",
 };
 const T_PER_KB = 158.987;                        // m³ in a thousand barrels: kb/d × kg/m³ × this / 1000 is t/d
-const ZERO = new Set(["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "ghg", "s"]);   // a stream without these has none
+const ZERO = new Set(["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "ghg", "s", "e360"]);   // a stream without these has none
 
 // ---------- the level's plant ----------
 const crudeOf = level => CRUDES[level.crude];
@@ -161,8 +161,23 @@ export function productProps(level, u, f, o, fp) {
   }
   return p;
 }
+/**
+ * A level as played: its crude, and the market chosen where it has a choice of them, a market being its prices and what
+ * its scheme credits (its `props`: a scheme that doesn't count a feed co-processed gives it no saving).
+ */
+export function asPlayed(lv, crude = lv.crude, deck = null) {
+  const d = lv.decks?.find(x => x.id === deck) || lv.decks?.[0];
+  if (!d) return { ...lv, crude };
+  const props = { ...(lv.props || {}) };
+  for (const [s, p] of Object.entries(d.props || {})) props[s] = { ...(props[s] || {}), ...p };
+  return { ...lv, crude, deck: d.id, prices: { ...(lv.prices || {}), ...d.prices }, props };
+}
+/** A name inside a sentence: a plain word's capital dropped, an initialism's or a regulated category's kept ("HSFO 3.5%", "FCC C4s", "Category 1 tallow"). */
+export const lower = s => (/^[A-Z][a-z]/.test(s) && !/^Category\b/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 /** The most of a unit's feed a co-processed renewable feed may be: the unit's own limit, or the level's. */
 export const coLimits = (level, u) => ({ ...(UNITS[u].co || {}), ...(level.co?.[u] || {}) });
+/** The most of a unit's feed its renewable feeds may be together (the heat, hydrogen and carbon oxides are theirs together). */
+export const coTotalOf = (level, u) => level.coTotal?.[u] ?? UNITS[u].coTotal ?? null;
 
 // ---------- running the refinery ----------
 /**
@@ -191,18 +206,24 @@ export function evaluate(level, routing) {
     if (!takes.length) continue;
     // a renewable feed co-processed is held to its share of what the unit runs; what's over goes where it would have
     // gone without it, as a full unit's overflow does
-    const co = coLimits(level, u), coOver = {};
+    const co = coLimits(level, u), coOver = {}, fossil = takes.reduce((a, [s, v]) => a + (s in co ? 0 : v), 0);
     for (const t of takes) {
       const lim = co[t[0]];
       if (lim == null) continue;
-      const most = (lim / (1 - lim)) * takes.reduce((a, [s, v]) => a + (s in co ? 0 : v), 0);
+      const most = (lim / (1 - lim)) * fossil;
       if (t[1] > most + 1e-9) { coOver[t[0]] = t[1] - most; t[1] = most; }
-      if ((coOver[t[0]] || 0) >= 0.05) issues.push({ kind: "co", unit: u, text: `The ${def.name.toLowerCase()} takes ${STREAMS[t[0]].name.toLowerCase()} up to ${Math.round(lim * 100)}% of its feed: ${coOver[t[0]].toFixed(1)} kb/d of it went where it would have gone without it.` });
+      if ((coOver[t[0]] || 0) >= 0.05) issues.push({ kind: "co", unit: u, text: `The ${lower(def.name)} takes ${lower(STREAMS[t[0]].name)} up to ${Math.round(lim * 100)}% of its feed: ${coOver[t[0]].toFixed(1)} kb/d of it went where it would have gone without it.` });
+    }
+    const all = coTotalOf(level, u), renew = takes.filter(([s]) => s in co), together = renew.reduce((a, [, v]) => a + v, 0);
+    if (all != null && together > (all / (1 - all)) * fossil + 1e-9) {
+      const k = ((all / (1 - all)) * fossil) / together;
+      for (const t of renew) { coOver[t[0]] = (coOver[t[0]] || 0) + t[1] * (1 - k); t[1] *= k; }
+      if (together * (1 - k) >= 0.05) issues.push({ kind: "co", unit: u, text: `The ${lower(def.name)} takes renewable feeds up to ${Math.round(all * 100)}% of its feed together: ${(together * (1 - k)).toFixed(1)} kb/d of them went where they would have gone without it.` });
     }
     const total = takes.reduce((a, [, v]) => a + v, 0), cap = level.caps?.[u];
     const k = cap != null && total > cap ? cap / total : 1;
     // a plan that fills a unit to the barrel overshoots it by a rounding's worth: not worth a word
-    if (total - (cap ?? total) >= 0.05) issues.push({ kind: "cap", unit: u, text: `The ${def.name.toLowerCase()} is full at ${cap} kb/d: ${(total - cap).toFixed(1)} kb/d of its feed went where it would have gone without it.` });
+    if (total - (cap ?? total) >= 0.05) issues.push({ kind: "cap", unit: u, text: `The ${lower(def.name)} is full at ${cap} kb/d: ${(total - cap).toFixed(1)} kb/d of its feed went where it would have gone without it.` });
     const unit = units[u] = { feed: 0, cap: cap ?? null, feeds: {}, outputs: {}, h2: 0, sRemoved: 0, ...(Object.keys(coOver).length ? { coOver } : {}) };
     for (const [s, want] of takes) {
       const v = want * k, fp = propsOf(acc[s]);
@@ -264,10 +285,10 @@ export function evaluate(level, routing) {
     const market = level.markets?.[p], over = market != null && soldAs === p ? Math.max(0, vol - market) : 0;
     const overPrice = over ? priceOf(level, POOLS[p].fallback || "slops") : 0;
     revenue += (vol - over) * price + over * overPrice;
-    if (over > 1e-6) issues.push({ kind: "market", pool: p, text: `The ${POOLS[p].name.toLowerCase()} market takes ${market} kb/d: ${over.toFixed(1)} kb/d more sold as ${POOLS[POOLS[p].fallback || "slops"].name.toLowerCase()}.` });
+    if (over > 1e-6) issues.push({ kind: "market", pool: p, text: `The ${lower(POOLS[p].name)} market takes ${market} kb/d: ${over.toFixed(1)} kb/d more sold as ${lower(POOLS[POOLS[p].fallback || "slops"].name)}.` });
     sold[p] = { vol, props, parts: pool.parts, specs: specsOf(level, p), inSpec: !fails.length, fails, soldAs, price, over };
     // a hair of a stream in a pool (a full unit's overflow by a rounding) isn't a product the page shows, nor worth a word
-    if (fails.length && vol > 1e-4) issues.push({ kind: "spec", pool: p, text: `${POOLS[p].name} is off spec (${fails.map(failText).join(", ")}): sold as ${POOLS[soldAs].name.toLowerCase()} at $${price}.` });
+    if (fails.length && vol > 1e-4) issues.push({ kind: "spec", pool: p, text: `${POOLS[p].name} is off spec (${fails.map(failText).join(", ")}): sold as ${lower(POOLS[soldAs].name)} at $${price}.` });
   }
   // hydrogen: the reformer's first, then the hydrogen plant up to its capacity, then bought in; any spare is burned
   const short = Math.max(0, h2Used - h2Made), plantCap = has("smr") ? (level.caps?.smr ?? Infinity) : 0;
@@ -276,7 +297,8 @@ export function evaluate(level, routing) {
   // the barrels went unsold, and the plan doesn't count
   const noImport = level.h2Import === false;
   const h2Cost = plant * H2_PRICE + imported * H2_PRICE * (noImport ? 40 : H2_IMPORT) - spare * 2;
-  if (imported > 1e-6) issues.push(noImport ? { kind: "h2short", text: `Not enough hydrogen: ${imported.toFixed(1)} MMscf/d short, so the treaters can't run as planned.` }
+  // a plan that uses the hydrogen to the last scf overshoots it by a rounding's worth: not worth a word, nor a refusal
+  if (imported >= 0.05) issues.push(noImport ? { kind: "h2short", text: `Not enough hydrogen: ${imported.toFixed(1)} MMscf/d short, so the treaters can't run as planned.` }
     : { kind: "h2", text: `${has("smr") ? "The hydrogen plant is full" : "No hydrogen plant"}: ${imported.toFixed(1)} MMscf/d bought in at ${H2_IMPORT} times the price.` });
   // sulphur: the Claus plant's, up to its capacity; beyond it the treaters can't run, which costs as if it went elsewhere
   const sruCap = has("sru") ? (level.caps?.sru ?? Infinity) : 0, sOver = Math.max(0, sRemoved - sruCap);
@@ -376,6 +398,12 @@ function buildLP(level, cols, q, x0, gradient) {
       for (const g of feedsOf(level, u)) if (!(g in co) && idx.has(`${g}>${u}`)) a[idx.get(`${g}>${u}`)] = -lim;
       rows.push({ a, op: "<=", b: 0 }); tag.push(["co", u, f]);
     }
+    const all = coTotalOf(level, u), mine = Object.keys(co).filter(f => idx.has(`${f}>${u}`));
+    if (all == null || mine.length < 2) continue;
+    const a = {};
+    for (const f of mine) a[idx.get(`${f}>${u}`)] = 1 - all;
+    for (const g of feedsOf(level, u)) if (!(g in co) && idx.has(`${g}>${u}`)) a[idx.get(`${g}>${u}`)] = -all;
+    rows.push({ a, op: "<=", b: 0 }); tag.push(["co", u, "all"]);
   }
   {
     const a = {};
@@ -620,9 +648,10 @@ export function solve(level, { starts: extra = [], tries = 6 } = {}) {
     if (again && again.margin > best.margin + 1e-6) best = { ...again, lp: again.lp || best.lp };
   }
   // the plan as it really flows: a unit sent more than it takes passes the rest on to where it would have gone, which
-  // the exact moves may find pays; written as the shares that actually went, the same plant runs with no overflow
+  // the exact moves may find pays; written as the shares that actually went, the same plant runs with no overflow (to
+  // within the hundredth of a cent a barrel that dropping the tiniest shares costs)
   const exact = routingOf(cols, flowsOf(cols, best.result).x), again = evaluate(level, exact);
-  if (inSpec(again) && again.margin >= best.margin - 1e-6) best = { ...best, margin: again.margin, routing: exact, result: again };
+  if (inSpec(again) && again.margin >= best.margin - 1e-4) best = { ...best, margin: again.margin, routing: exact, result: again };
   const values = {}, capacity = {};
   if (best.lp) best.lp.tag.forEach((t, r) => {
     if (t[0] === "stream") values[t[1]] = best.lp.sol.duals[r];

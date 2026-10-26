@@ -1,7 +1,8 @@
 // Refinery's exam bank: what carries over to any refinery, not what one plan made. Cut ranges, every product's specs
 // and which of them usually binds, what each unit does and which unit a situation calls for, typical sizes, yields and
 // operating figures. refinery-exam.js deals each level the ones its plant is about: a fact's tags (on) must all be in
-// the level, and one of any if it has any. u:unit, p:pool, k:pool.spec (judged there), c:chapter, * any level.
+// the level, and one of any if it has any. u:unit, p:pool, k:pool.spec (judged there), b:a feed bought in, c:chapter,
+// * any level.
 // skip: levels whose own questions already ask it. Wrong options are as long and as specific as the right one, with a
 // figure wherever the right one has one (tests/refinery.mjs holds them to it).
 
@@ -256,4 +257,38 @@ export const FACTS = [
     "E10: up to 10%, and oxygen up to 3.7%; E5 is up to 5%, and E85 is a separate fuel for flexible-fuel cars."),
   C("bio.etbe", ["k:gasoline.ether"], "ETBE is made from", "Ethanol and isobutene", ["Methanol and isobutene", "Ethanol and propylene", "Methanol and butane"],
     "Ethanol joined to isobutene: its ethanol part, about 37% of it, counts as renewable; MTBE is made with methanol."),
+
+  // ---------- co-processing ----------
+  C("co.share", ["c:12", "u:dht"], "Without a revamp, a diesel hydrotreater co-processes fats up to about", "5–10% of its feed", ["1–2% of its feed", "25–30% of its feed", "50–60% of its feed"],
+    "The deoxygenation's heat, the hydrogen, and the CO and CO₂ in the recycle gas set it; more needs extra quench, an amine wash on the recycle gas and acid-proof metallurgy.", { any: ["b:tallow", "b:vegOil", "b:rso"] }),
+  C("co.propane", ["c:12"], "In a hydrotreater, a triglyceride's glycerine backbone becomes", "Propane", ["Methanol", "Ethylene", "Glycerine, unchanged"],
+    "Three carbons, saturated: about 4–5% of the fat's weight comes out as propane, bio-LPG.", { any: ["b:tallow", "b:vegOil", "b:rso"] }),
+  C("co.water", ["c:12"], "Hydrodeoxygenating a fat makes water of about what share of its weight?", "About a tenth", ["About a hundredth", "About a third", "About half"],
+    "A fat is about 11% oxygen by weight; taken out as water, that's about 12% of the feed, which is why a co-processed barrel makes less product by weight.", { any: ["b:tallow", "b:vegOil", "b:rso"] }),
+  C("co.coco2", ["c:12"], "Why do CO and CO₂ in a co-processing hydrotreater's recycle gas matter?", "They slow its desulphurising and turn to methane on the catalyst", ["They oxidise its catalyst's metals back to their oxides", "They raise its diesel's flash point past the limit", "They carry its sulphur on to the flare instead"],
+    "CO competes for the catalyst's sites, and both methanate, eating hydrogen: co-processors purge or wash the recycle gas.", { any: ["b:tallow", "b:vegOil", "b:rso"] }),
+  C("co.ffa", ["c:12"], "Which part of a waste fat corrodes a hydrotreater's hot carbon steel?", "Its free fatty acids", ["Its triglycerides", "Its water", "Its sulphur"],
+    "The free acids: used cooking oil holds a few per cent, tallow can hold more, crude tall oil is nearly all acid.", { any: ["b:tallow", "b:vegOil", "b:rso"] }),
+  C("co.pretreat", ["c:12"], "What does a fat's pretreatment take out before it meets a hydrotreating catalyst?", "Phosphorus, metals and polymers", ["Oxygen, its double bonds and its glycerine", "Sulphur, nitrogen and aromatics", "Free fatty acids, every last one"],
+    "Degumming and bleaching take out the phosphorus, the sodium, potassium, calcium and iron, and the polyethylene that would poison or plug the catalyst; the oxygen is the hydrotreater's job.", { any: ["b:tallow", "b:vegOil", "b:rso"] }),
+  C("co.c14", ["c:12"], "How does carbon-14 tell co-processed renewable carbon from fossil?", "Fossil carbon has lost all its carbon-14", ["Renewable carbon has no carbon-13 at all", "Fossil carbon holds more carbon-14 than living carbon", "Renewable carbon is richer in deuterium"],
+    "Carbon-14's half-life is about 5,700 years: in crude oil, millions of years old, none is left; in a fat or wood, it's today's share."),
+  C("co.fccox", ["c:12", "u:fcc"], "Cracked in an FCC, a fat's oxygen leaves mostly as", "Water, with some CO and CO₂", ["Hydrogen sulphide and ammonia", "Nitrogen oxides in the flue gas", "Methanol in the cracked naphtha"],
+    "About a tenth of a fat's weight leaves as water and carbon oxides in the riser; the rest cracks to the products gas oil makes.", { any: ["b:tallow", "b:vegOil", "b:rso"] }),
+  C("cto.yield", ["c:12", "b:cto"], "A kraft pulp mill recovers about how much crude tall oil a tonne of pine pulp?", "30–50 kg", ["1–2 kg", "300–500 kg", "800–900 kg"],
+    "Tens of kilograms a tonne, more from pine than from birch or eucalyptus: a mill's tall oil is a few per cent of its output, which caps how much there is."),
+  C("cto.fractions", ["c:12", "b:cto"], "Distilling crude tall oil gives", "Tall oil fatty acids, rosin and pitch", ["Naphtha, kerosene and gas oil", "Glycerine, methanol and soap", "Lignin, cellulose and sugars"],
+    "A tall oil distillery splits it into fatty acids, distilled tall oil, rosin and pitch, most of them sold to chemicals: why its use as fuel is argued over."),
+  C("pyro.yield", ["c:12", "b:pyro"], "Fast pyrolysis turns about what share of dry wood into liquid?", "60–75%", ["5–10%", "25–35%", "90–95%"],
+    "Most of it: the rest leaves as char and gas, which are burned to heat the reactor."),
+  C("saf.synth", ["c:12", "k:jet.bio"], "From 2030, ReFuelEU asks for at least about what share of synthetic aviation fuel, within its SAF?", "1.2%", ["0.1%", "6%", "20%"],
+    "1.2% on average over 2030 and 2031, rising to 35% by 2050: fuels made from hydrogen and captured carbon, which co-processing can't make."),
+  C("pyro.water", ["c:12", "b:pyro"], "Fast pyrolysis oil is about what share water?", "About a quarter", ["Under 1%", "About half", "About three-quarters"],
+    "20–30% water, and nearly 40% oxygen all told: half the energy of fuel oil a tonne, acidic, and unstable when heated."),
+  C("cold.winter", ["k:diesel.cfpp"], "Germany's winter diesel, from mid-November to February, must not plug a filter above", "−20 °C", ["−10 °C", "0 °C", "−32 °C"],
+    "Grade F, −20 °C; the transition grade D, −10 °C, from October; summer's grade B, 0 °C; arctic classes −32 °C and colder.", { skip: ["12.2"] }),
+  C("cold.improver", ["k:diesel.cfpp"], "A flow improver lowers a diesel's CFPP by", "Keeping its wax crystals small", ["Dissolving its wax into aromatics", "Raising its cetane number", "Lowering its pour point only"],
+    "Small crystals pass a filter where large plates block it: several degrees colder, but no help once there's too much wax."),
+  C("spec.t95", ["k:diesel.e360"], "EN 590 diesel must have 95% of it recovered by", "360 °C", ["320 °C", "400 °C", "450 °C"],
+    "Its heaviest part must boil off by 360 °C: so vacuum gas oil, even desulphurised, can't go into road diesel beyond a few per cent."),
 ];

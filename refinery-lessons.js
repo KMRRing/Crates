@@ -51,6 +51,12 @@ export const TEACHES = {
   "11.3": "A cracker fed only treated gas oil, and its light ends: MTBE, alkylate, cumene",
   "11.4": "A turnaround: one VGO hydrotreater down, and treated VGO on offer",
   "11.5": "The whole of Brackwater, and the crude that fills it best",
+  "12.1": "A fat in the diesel hydrotreater: the hydrogen it takes, and its ticket",
+  "12.2": "The cold filter plugging point, and the wax a fat's paraffins bring",
+  "12.3": "Which fat, which unit, and what each scheme credits co-processed",
+  "12.4": "Crude tall oil: its acids, its rosin, and a stainless hydrotreater",
+  "12.5": "Co-processed jet for ReFuelEU, and fat where there's hydrogen to spare",
+  "12.6": "Pyrolysis oil, which only the FCC takes, and every renewable at once",
 };
 
 /** The craft's words, for the glossary and the exams: no definition says its own word or holds a figure that gives it away. */
@@ -178,6 +184,21 @@ export const GLOSSARY = [
   ["Synthesis gas", "Carbon monoxide and hydrogen together, made by gasifying or reforming a fuel: burned for power, shifted to hydrogen, or made into chemicals."],
   ["Mild hydrocracking", "Hydrotreating a vacuum gas oil at enough pressure that a part of it cracks, to low-sulphur diesel and naphtha, while the rest is cleaned for the cracker."],
   ["FCC pretreatment", "Hydrotreating a catalytic cracker's feed first, to take out the sulphur, nitrogen and metals that would foul its products, its catalyst and its flue gas."],
+  ["Hydrodeoxygenation", "Taking the oxygen out of a fat or a bio-oil with hydrogen, as water, keeping every carbon: HDO."],
+  ["Decarboxylation", "Cutting a fatty acid's carboxyl group off as CO₂, one carbon with it, for less hydrogen than hydrodeoxygenation takes."],
+  ["CFPP", "Cold filter plugging point: the temperature at which a diesel's wax blocks a standard filter; EN 590 sets it by grade, and a country's grade by season."],
+  ["Flow improver", "An additive that keeps a diesel's wax crystals small, so that it passes a filter several degrees colder than it would."],
+  ["Category 1 fat", "Fat rendered from animal material that may never enter the food or feed chain: fuel or energy only. With Category 2, Annex IX Part B."],
+  ["Crude tall oil", "The fatty and rosin acids a kraft pulp mill recovers from its black liquor: an advanced feed, Annex IX Part A."],
+  ["Rosin acid", "A three-ringed acid of pine resin, abietic acid the commonest: hydrotreated, a ringed hydrocarbon, dense and low in cetane."],
+  ["Acid number", "The milligrams of potassium hydroxide that neutralise a gram of oil: how corrosive it is hot. A crude over 0.5 counts as acidic; crude tall oil's is near 150."],
+  ["Fast pyrolysis", "Heating biomass to about 500 °C for a second or two without air and quenching the vapour: pyrolysis oil, with char and gas."],
+  ["Pyrolysis oil", "Fast pyrolysis's liquid: a quarter water and nearly 40% oxygen, acidic, unstable when heated, and immiscible with oil."],
+  ["Pretreatment", "Degumming and bleaching a fat to take out the phosphorus, metals, nitrogen and polymers that would poison or plug a hydrotreating catalyst."],
+  ["37. BImSchV", "The German ordinance under which co-processed oil counts toward the GHG quota: since 2024, only oil from Annex IX Part A feeds and Category 1 and 2 animal fats."],
+  ["Def Stan 91-091", "The UK's jet fuel specification, beside ASTM D1655: since 2025 it allows jet from a hydrotreater's feed of up to 30% fats, where ASTM allows 5%."],
+  ["Advanced biofuel", "A biofuel from an Annex IX Part A feedstock (straw, forest residues, tall oil, manure and the like), counted toward a sub-target of its own."],
+  ["Yield method", "Delegated Regulation 2023/1640's way of setting a co-processing unit's renewable share in each product: what more of it the renewable feed makes."],
 ];
 
 const W = (k, s) => ({ say: s, scene: k });
@@ -466,6 +487,56 @@ const LESSONS = {
     W(brackwater(), "Both works together, every product to its full specification: Brackwater as its planners run it each month, starting from the month's crude."),
     W({ bars: { items: ["brent", "cpc", "arabLight", "sverdrup", "arabHeavy"].map(c => [CRUDES[c].short || CRUDES[c].name, CRUDES[c].cuts.atmResid * (1 - CRUDES[c].vgoShare) * LV("11.5").feed, "resid"]), unit: "kb/d of vacuum residue" } }, "The residue chain was built for a medium sour crude: the visbreaker, the deasphalter and the gasifier take about 30 thousand barrels a day of vacuum residue. A light crude gives less and leaves them part idle, a sweet one's residue earns more as VLSFO than as pitch, and a heavy one overfills them: the rest goes to fuel oil with cutter."),
     W(brackwater({ only: ["reformer", "isom", "fcc", "mtbeUnit", "alky"] }), "Petrol's limits set the naphtha side: octane, with the FCC's naphtha at RON 92, and aromatics at 35%, which holds back the reformer. Light naphtha the pool can't carry goes to the steam crackers."),
+  ],
+  // ---------- 12. Co-processing ----------
+  "12.1": [
+    W({ molecules: ["triglyceride", "octadecane", "propane"] }, "A fat is three fatty acids on a glycerine backbone. Over a hydrotreating catalyst, hydrogen takes out its oxygen and saturates its chains: each becomes a straight paraffin, C15 to C18, and the backbone propane."),
+    W({ molecules: ["fattyAcid", "octadecane"] }, "Two routes run at once. Hydrodeoxygenation takes the oxygen out as water and keeps every carbon, for the most hydrogen: a C18 acid makes C18. Decarboxylation cuts the acid group off as CO₂, one carbon with it, for less: C17. The catalyst and the pressure set the split, nickel-molybdenum leaning to the first."),
+    W({ bars: { items: [["Straight-run gas oil", -UNITS.dht.h2.lgo * 1000, "middle"], ["Category 1 tallow", -UNITS.dht.h2.tallow * 1000, "renewable"], ["Used cooking oil", -UNITS.dht.h2.vegOil * 1000, "renewable"], ["Rapeseed oil", -UNITS.dht.h2.rso * 1000, "renewable"]], unit: "scf/bbl" } },
+      "Most of a fat's hydrogen goes to its oxygen, about a tenth of its weight, and the rest to its double bonds: tallow, the most saturated fat, needs least, rapeseed oil most. Each needs six or seven times what straight-run gas oil does."),
+    W(alder({ only: ["srReformer", "nht", "kht", "hds", "dht"] }), "Alder Point's semi-regenerative reformer is its only hydrogen, and its treaters use all it makes. A barrel of tallow in the diesel hydrotreater takes the hydrogen of six barrels of gas oil, which then leave the second stage for heating oil; or the reformer runs harder, as far as petrol's aromatics let its reformate in."),
+    W({ bars: { items: [["Tallow, delivered", BOUGHT.tallow, "renewable"], ["Its ticket as diesel", ticketOf("tallow", "12.1"), "renewable"], ["Diesel", price("diesel"), "middle"]], unit: "$/bbl" } },
+      `Germany has credited co-processed oil since 2024, but only from Annex IX Part A feeds and Category 1 and 2 animal fats (37. BImSchV, section 12): tallow counts, used cooking oil doesn't. A barrel of tallow saves about ${STREAMS.tallow.p.ghg} kg of CO₂e as diesel, a $${Math.round(ticketOf("tallow", "12.1"))} ticket at $${LV("12.1").ticket} a tonne, on a $${BOUGHT.tallow} fat that becomes $${price("diesel")} diesel.`),
+    W(level({ only: ["dht", "tallow"], routing: { tallow: "dht" } }), "Without a revamp a diesel hydrotreater takes a tenth of its feed as fat: deoxygenating releases several times desulphurising's heat, quenched between the beds; its CO and CO₂ build up in the recycle gas and slow the desulphurising; and the free fatty acids corrode hot carbon steel ahead of the reactor."),
+  ],
+  "12.2": [
+    W({ blend: { prop: "cfpp", parts: [["Gas oil, treated", 9, STREAMS.lgo.p.cfpp], ["Fat's paraffins", 1, STREAMS.tallow.p.cfpp]], limit: -10, dir: "max" } },
+      "Cooled, a diesel's straight paraffins crystallise first. The cold filter plugging point (CFPP) is where their wax blocks a standard filter, with flow improver dosed. EN 590 sets it by grade, and Germany by season: grade B, 0 °C, in summer; D, −10 °C, from October; F, −20 °C, from mid-November to February."),
+    W({ bars: { items: [["Kerosene", STREAMS.kero.p.cfpp, "middle"], ["Light gas oil", STREAMS.lgo.p.cfpp, "middle"], ["Saharan's", CRUDES.saharan.props.lgo.cfpp, "middle"], ["Heavy gas oil", STREAMS.hgo.p.cfpp, "middle"], ["HVO, isomerised", STREAMS.hvo.p.cfpp, "renewable"], ["Fat, co-processed", STREAMS.tallow.p.cfpp, "renewable"]], unit: "°C", limit: [-10, "October"] } },
+      "The paraffins a fat becomes are the waxiest molecules diesel holds: n-hexadecane freezes at 18 °C, n-octadecane at 28. Co-processed, they plug a filter near +15 °C, whichever fat they came from. An HVO unit isomerises its paraffins, branching them, so its diesel stays fluid to −20 °C and below; co-processing can't."),
+    W({ blend: { prop: "cfpp", parts: [["Diesel", 8, -9], ["Kerosene", 2, STREAMS.kero.p.cfpp]], limit: -10, dir: "max" } },
+      "The waxiest part dominates a blend's plugging point, as the lightest dominates its flash point: a tenth of fat lifts a −12 °C gas oil to about −6. Kerosene, at −45 °C, pulls it back, but kerosene's flash point is 42 °C and diesel's floor is 55: the plan trades the wax against the flash."),
+    W(level({ only: ["hgo", "hds", "gasoil"] }), "Heavy gas oil is the waxiest straight-run cut, and Saharan Blend's paraffinic gas oils plug a filter warmer than most crudes' do. Heating oil, to looser limits, takes what the autumn diesel can't."),
+  ],
+  "12.3": [
+    W({ bars: { items: [["Used cooking oil", STREAMS.vegOil.p.ghg, "renewable"], ["Category 1 tallow", STREAMS.tallow.p.ghg, "renewable"], ["Rapeseed oil", STREAMS.rso.p.ghg, "renewable"]], unit: "kg CO₂e/bbl" } },
+      `What a barrel saves as diesel, by RED II's default values: used cooking oil 83% of fossil diesel's emissions, tallow 77%, rapeseed oil 47%. At $${LV("12.3").ticket} a tonne that's a ticket of $${Math.round(ticketOf("vegOil", "12.3"))}, $${Math.round(ticketOf("tallow", "12.3"))} and $${Math.round(ticketOf("rso", "12.3"))}, against prices of $${LV("12.3").prices.vegOil}, $${BOUGHT.tallow} and $${BOUGHT.rso}: where saved CO₂e is what's paid, a waste is worth nearly twice a crop.`),
+    W({ bars: { items: [["Germany: tallow", ticketOf("tallow", "12.3"), "renewable"], ["Germany: UCO, RSO", 0.01, "renewable"], ["Elsewhere: UCO", ticketOf("vegOil", "12.3"), "renewable"], ["Elsewhere: tallow", ticketOf("tallow", "12.3"), "renewable"], ["Elsewhere: RSO", ticketOf("rso", "12.3"), "renewable"]], unit: "$/bbl", fmt: v => (v < 1 ? "none" : `$${Math.round(v)}`) } },
+      "Each scheme draws its own line for co-processing. Germany's counts co-processed oil only from Annex IX Part A feeds and Category 1 and 2 fats, so used cooking oil and rapeseed oil co-processed earn nothing there, though HVO made from them in a unit of its own does. Other schemes count co-processed used cooking oil too, and crop oils within their cap."),
+    W(level({ only: ["fcc", "tallow", "vegOil"], routing: { tallow: "fcc", vegOil: "fcc" } }), "Alder Point's FCC needs no hydrogen for a fat: its oxygen leaves as water and carbon oxides, about a tenth of its weight, and the rest cracks to the products gas oil makes. But those all go on to treaters short of the same hydrogen, and a third of the renewable carbon ends in propylene, LPG, slurry and gas, which earn no ticket."),
+    W(level({ only: ["dht", "fcc"] }), "The FCC takes fats up to 7% of its feed, the diesel hydrotreater up to a tenth, and each holds its renewables to that share together. Category 1 tallow is scarce: rendering makes what it makes, and Germany's co-processors all want it."),
+  ],
+  "12.4": [
+    W({ molecules: ["fattyAcid", "rosin"] }, "Crude tall oil is what a kraft pulp mill skims off its black liquor: about half fatty acids, mostly oleic and linoleic, a quarter to a third rosin acids, three rings and an acid group, and the rest sterols and other neutrals. An Annex IX Part A feed, advanced: Germany credits it co-processed."),
+    W({ bars: { items: [["Diesel", 0.05, "middle"], ["Acidic crude", 0.5, "heavy"], ["Crude tall oil", 150, "renewable"]], fmt: v => `${v < 1 ? v : Math.round(v)} mg KOH/g` } },
+      "Its acids are free, not bound in triglycerides: no glycerine, so no propane, and an acid number near 150 mg KOH/g, where a crude over 0.5 counts as acidic. Hot, it eats carbon steel: the heater, the exchangers, the reactor's inlet. A unit not built for it takes a few per cent at most."),
+    W(level({ only: ["hght", "cto"], routing: { cto: "hght" } }), "Brackwater's heavy gas oil hydrotreater, built in stainless steel for its higher pressure, takes it up to a tenth of its feed. Its sulphur, a few thousand ppm from the pulping, goes to the sulphur plant with the gas oil's; its oxygen leaves as water and carbon oxides."),
+    W({ bars: { items: [["Gas oil, treated", STREAMS.lgo.p.cfpp, "middle"], ["Tall oil, treated", STREAMS.cto.p.cfpp, "renewable"], ["Fat, co-processed", STREAMS.tallow.p.cfpp, "renewable"]], unit: "°C", limit: [-10, "October"] } },
+      "Its fatty acids become a fat's straight paraffins; its rosin acids become ringed hydrocarbons, naphthenes, denser and lower in cetane but far less waxy. So treated tall oil plugs a filter some ten degrees colder than a co-processed fat, and holds the diesel's density up where a fat's paraffins pull it down."),
+  ],
+  "12.5": [
+    W({ bars: { items: [["2025", 2, "renewable"], ["2030", 6, "renewable"], ["2035", 20, "renewable"], ["2040", 34, "renewable"], ["2045", 42, "renewable"], ["2050", 70, "renewable"]], unit: "%" } },
+      "ReFuelEU Aviation has fuel suppliers at EU airports put a rising share of sustainable aviation fuel in their jet: 2% from 2025, 6% from 2030, 70% by 2050, part of it synthetic from 2030. Biofuels count when they're made from wastes, residues or advanced feeds: no food or feed crops."),
+    W(level({ only: ["kht", "tallow", "jet"], routing: { tallow: "kht" } }), "Jet may come from a hydrotreater's feed of up to 5% fats, fatty acids and their esters under ASTM D1655: a cautious limit, since straight paraffins freeze warm and jet must stay fluid to −47 °C. The UK's Def Stan 91-091 raised it to 30% in 2025. Co-processed in the kerosene hydrotreater, tallow makes jet that counts for ReFuelEU, and is renewable by the same mass balance as a co-processed diesel."),
+    W(level({ only: ["dht", "dht2", "hght", "smr"] }), "Brackwater has a hydrogen plant, so a fat's six times a gas oil's hydrogen is a cost here, not a limit: each diesel hydrotreater takes fat up to a tenth of its feed, the heavy gas oil hydrotreater a tenth of fat and tall oil together. The autumn grade's wax is the limit that binds."),
+  ],
+  "12.6": [
+    W({ molecules: ["guaiacol"] }, "Fast pyrolysis heats sawdust and forest residues to about 500 °C for a second or two without air and quenches the vapour: 60–75% of the wood comes out as a dark liquid, a quarter of it water, with nearly 40% oxygen in sugars, acids, aldehydes and lignin's phenols. It has half the energy of fuel oil a tonne, and it's an advanced feed, Annex IX Part A."),
+    W(level({ only: ["fcc", "pyro"], routing: { pyro: "fcc" } }), "It won't mix with oil, it's acidic, at a pH of 2 to 3, and heated it polymerises: in a hydrotreater's preheat train it would coke the exchangers and plug the catalyst bed. Raw, only an FCC takes it, through a nozzle of its own into the riser, at a few per cent of its feed; hydrotreating it first, gently and in stages, is the alternative."),
+    W({ bars: { items: [...Object.entries(UNITS.fcc.yields.pyro).map(([s, f]) => [STREAMS[s].name, f * 100, STREAMS[s].group]), ["Water, CO₂, coke", (1 - Object.values(UNITS.fcc.yields.pyro).reduce((a, b) => a + b, 0)) * 100, "other"]], unit: "%" } },
+      "What a barrel of it makes, by volume. In the riser most of its oxygen leaves as water, CO and CO₂, and it lays down more coke than gas oil does. About a third of its carbon reaches the products: under half a barrel of them, the naphtha half of that."),
+    W(level({ only: ["fcc", "vgoT", "vgoExport"] }), `Brackwater's FCC is full: each barrel of pyrolysis oil in it is a barrel of treated gas oil not cracked, sold instead as low-sulphur VGO. At $${BOUGHT.pyro} a barrel, a little over what the fuel oil it would replace in a boiler costs for the same heat, it barely pays, and only for its ticket: what of its renewable carbon reaches petrol and diesel, proved by carbon-14 at least every four months.`),
+    W(level({ only: ["kht", "dht", "dht2", "hght", "fcc"] }), "Then every renewable at once, from the summer plan: tall oil in the stainless heavy gas oil hydrotreater, tallow wherever it earns most, pyrolysis oil in the FCC, each unit holding its renewables to its share together, the diesel to autumn's grade and the jet to its 2%."),
   ],
 };
 

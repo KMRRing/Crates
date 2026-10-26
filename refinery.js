@@ -4,7 +4,7 @@
 // an exam (refinery-exam.js). The engine (refinery-engine.js) runs the plant; the data (refinery-data.js) describes it.
 // Together, the same level for everyone at the table (duel.js).
 import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR, REAGENTS } from "./refinery-data.js";
-import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, homeOf, solve, ownProps, unitYields, columnFeeds } from "./refinery-engine.js";
+import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, coTotalOf, homeOf, solve, ownProps, unitYields, columnFeeds, asPlayed, lower } from "./refinery-engine.js";
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
 import { PAR } from "./refinery-par.js";
 import { drawSheet, hitTest, GROUP_COLOUR, amount } from "./refinery-sheet.js";
@@ -37,11 +37,7 @@ let target = null;   // par for the best crude (the level's goal)
 let history = [], view = null, full = null, picked = null, toastTimer = 0;
 let D = null;        // a match's plant (duel.js), kept apart from yours: { level, crude, routing, done, margin }
 
-/** The level as played: its crude, and its market's prices where it has a choice of markets. */
-function played(lv, crude, deck) {
-  const d = lv.decks?.find(x => x.id === deck) || lv.decks?.[0];
-  return { ...lv, crude, ...(d ? { deck: d.id, prices: { ...(lv.prices || {}), ...d.prices } } : {}) };
-}
+const played = asPlayed;
 /** Par for a level, crude and market: worked out ahead (refinery-par.js), or here if a level is new since. */
 function parOf(lv, crude, deck = null) {
   const d = lv.decks ? (deck || lv.decks[0].id) : null, p = PAR[lv.id]?.[d ? `${crude}/${d}` : crude];
@@ -411,7 +407,10 @@ function openCard(id) {
     else if (run) {
       add("p", "rf-facts", `Running at ${kbd(run.feed)}${cap ? ` of ${cap} (${Math.round((run.feed / cap) * 100)}%)` : ""}.${run.h2 ? ` Hydrogen: ${run.h2 > 0 ? "makes" : "uses"} ${Math.abs(run.h2).toFixed(1)} MMscf/d.` : ""}${run.sRemoved > 0.05 ? ` Strips ${run.sRemoved.toFixed(1)} t/d of sulphur.` : ""}`);
       // a co-processed renewable feed against its limit
-      for (const [f, lim] of Object.entries(coLimits(L, id))) if (run.feeds[f]) add("p", "rf-facts", `Co-processing: ${STREAMS[f].name.toLowerCase()} is ${Math.round((run.feeds[f] / run.feed) * 100)}% of its feed, of ${Math.round(lim * 100)}% at most${run.coOver?.[f] ? `; ${kbd(run.coOver[f])} more went elsewhere` : ""}.`);
+      const co = coLimits(L, id), all = coTotalOf(L, id), mine = Object.keys(co).filter(f => run.feeds[f]);
+      for (const f of mine) add("p", "rf-facts", `Co-processing: ${lower(STREAMS[f].name)} is ${Math.round((run.feeds[f] / run.feed) * 100)}% of its feed, of ${Math.round(co[f] * 100)}% at most${run.coOver?.[f] >= 0.05 ? `; ${kbd(run.coOver[f])} more went elsewhere` : ""}.`);
+      // and together, where it takes more than one
+      if (all != null && mine.length > 1) add("p", "rf-facts", `Together they're ${Math.round((mine.reduce((a, f) => a + run.feeds[f], 0) / run.feed) * 100)}% of its feed, of ${Math.round(all * 100)}% at most.`);
       shadow();
       add("h3", null, "Now");
       table([...Object.entries(run.feeds).map(([s, v]) => ["in", streamLink(s), amount(s, v)]), ...Object.entries(run.uses || {}).map(([r, v]) => ["in", REAGENTS[r].name, kbd(v)]), ...Object.entries(run.outputs).map(([s, v]) => ["out", streamLink(s), amount(s, v)])]);
@@ -429,14 +428,14 @@ function openCard(id) {
     const h = Object.entries(u.h2 || {}).filter(([, v]) => v);
     if (h.length) add("p", "rf-facts", `Hydrogen: ${h.map(([f, v]) => `${STREAMS[f].short} ${v > 0 ? "makes" : "uses"} ${Math.abs(v * 1000)} scf/bbl`).join("; ")}. Hydrogen from the plant costs $${H2_PRICE} per thousand scf.`);
     // what it takes besides its feed: a bought reactant, a share of each barrel
-    for (const [f, rs] of Object.entries(u.uses || {})) for (const [r, per] of Object.entries(rs)) add("p", "rf-facts", `${REAGENTS[r].name}: ${per} of a barrel with each barrel of ${STREAMS[f].name.toLowerCase()}, bought at $${REAGENTS[r].price} a barrel.`);
+    for (const [f, rs] of Object.entries(u.uses || {})) for (const [r, per] of Object.entries(rs)) add("p", "rf-facts", `${REAGENTS[r].name}: ${per} of a barrel with each barrel of ${lower(STREAMS[f].name)}, bought at $${REAGENTS[r].price} a barrel.`);
     if (u.opex) add("p", "rf-facts", `Running cost about $${u.opex}/bbl of feed.`);
   } else if (POOLS[id]) {
     const def = POOLS[id], pool = R.pools[id];
     $("cardTitle").textContent = def.name;
     add("p", "rf-purpose", def.note);
     const per = def.per || "bbl";
-    add("p", "rf-facts", pool ? `${amount(id, pool.vol)} at $${+pool.price.toFixed(2)}/${per}${pool.soldAs !== id ? `: off spec, so sold as ${POOLS[pool.soldAs].name.toLowerCase()}` : ""}.${pool.over ? ` The market takes ${L.markets[id]} kb/d.` : ""}` : `Nothing goes here now. $${priceOf(L, id)}/${per}.`);
+    add("p", "rf-facts", pool ? `${amount(id, pool.vol)} at $${+pool.price.toFixed(2)}/${per}${pool.soldAs !== id ? `: off spec, so sold as ${lower(POOLS[pool.soldAs].name)}` : ""}.${pool.over ? ` The market takes ${L.markets[id]} kb/d.` : ""}` : `Nothing goes here now. $${priceOf(L, id)}/${per}.`);
     // its tickets: the renewable part's saving at the quota price, a quarter more for aviation fuel's premium
     if (L.ticket && def.tickets) add("p", "rf-value", pool?.tickets ? `Its renewable part saves ${pool.saved.toFixed(0)} t of CO₂e a day against fossil fuel: tickets worth $${pool.tickets.toFixed(1)} thousand a day at $${L.ticket} a tonne${def.tickets !== 1 ? `, and ${Math.round((def.tickets - 1) * 100)}% more for sustainable aviation fuel's premium` : ""}.` : `Renewable blendstocks here earn a ticket on what they save, at $${L.ticket} a tonne of CO₂e.`);
     const judged = specsOf(L, id);
@@ -487,12 +486,12 @@ function hint() {
   const mv = bestMove();
   if (!mv) {
     const diff = streamsOf(L).find(s => R.streams[s] && Object.keys(par.routing[s] || {}).some(d => Math.abs((par.routing[s][d] || 0) - (routing[s]?.[d] || 0)) > 0.05));
-    box.textContent = diff ? `No single change helps from here: several streams have to move together. Start with ${STREAMS[diff].name.toLowerCase()}: par sends ${Object.entries(par.routing[diff]).map(([d, f]) => `${Math.round(f * 100)}% to ${(UNITS[d] || POOLS[d]).name.toLowerCase()}`).join(", ")}.`
+    box.textContent = diff ? `No single change helps from here: several streams have to move together. Start with ${lower(STREAMS[diff].name)}: par sends ${Object.entries(par.routing[diff]).map(([d, f]) => `${Math.round(f * 100)}% to ${lower((UNITS[d] || POOLS[d]).name)}`).join(", ")}.`
       : "You're on par's plan, or as near it as matters.";
     return;
   }
-  const name = d => (UNITS[d] || POOLS[d]).name.toLowerCase();
-  box.append(`${mv.f >= 0.999 ? `All the ${STREAMS[mv.s].name.toLowerCase()}` : `${Math.round(mv.f * 100)}% of the ${STREAMS[mv.s].name.toLowerCase()}`} to the ${name(mv.d)}: ${money(mv.m - R.margin)}/bbl better. `);
+  const name = d => lower((UNITS[d] || POOLS[d]).name);
+  box.append(`${mv.f >= 0.999 ? `All the ${lower(STREAMS[mv.s].name)}` : `${Math.round(mv.f * 100)}% of the ${lower(STREAMS[mv.s].name)}`} to the ${name(mv.d)}: ${money(mv.m - R.margin)}/bbl better. `);
   const go = document.createElement("button"); go.type = "button"; go.className = "rf-link"; go.textContent = "Do it";
   go.addEventListener("click", () => { box.hidden = true; setShares(mv.s, mv.next); });
   box.append(go);

@@ -33,7 +33,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   for (const lv of LEVELS) if (lv.feeds || lv.yields) for (const u of lv.units) for (const o of Object.keys(Object.assign({}, ...Object.values(E.unitYields(lv, u))))) for (const m of lv.units) if (E.feedsOf(lv, m).includes(o) && E.ORDER.indexOf(m) <= E.ORDER.indexOf(u)) problems.push(`${lv.id}: ${u} makes ${o} but runs after ${m}, which takes it`);
   // a stream a pool takes has every property the pool is judged on (or one that's zero when missing)
   for (const [p, def] of Object.entries(D.POOLS)) for (const s of def.accept) for (const k of Object.keys(def.spec || {})) {
-    const zero = ["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "s"].includes(k);
+    const zero = ["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "s", "e360"].includes(k);
     if (!zero && D.STREAMS[s].p[k] == null && !(D.STREAMS[s].sr && k === "s")) problems.push(`${p} judges ${k}, which ${s} doesn't have`);
   }
   // the straight-run sulphur adds up to the crude's assay (within a fifth)
@@ -58,7 +58,9 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 
 // ---------- every level: solvable in spec, par above the start, par as written ----------
 const PAR_FILE = new URL("../refinery-par.js", import.meta.url);
-const { PAR } = WRITE ? { PAR: {} } : await import("../refinery-par.js");
+// the plans kept are read even when writing: each is a start for the solver, so a plan once found is never lost to a
+// search that wandered elsewhere (11.5 on Arab Heavy lost a dollar a barrel that way)
+const { PAR } = await import("../refinery-par.js");
 const fresh = {};
 {
   const notes = [], stale = [];
@@ -66,7 +68,7 @@ const fresh = {};
     fresh[lv.id] = {};
     for (const crude of lv.crudes || [lv.crude]) for (const deck of lv.decks || [null]) {
       const key = deck ? `${crude}/${deck.id}` : crude;
-      const L = { ...lv, crude, ...(deck ? { deck: deck.id, prices: { ...(lv.prices || {}), ...deck.prices } } : {}) }, start = E.evaluate(L, E.defaultRouting(L)), par = E.solve(L);
+      const kept = PAR[lv.id]?.[key], L = E.asPlayed(lv, crude, deck?.id), start = E.evaluate(L, E.defaultRouting(L)), par = E.solve(L, { starts: kept ? [kept.routing] : [] });
       const ok = Object.values(par.result.pools).every(p => p.inSpec || p.vol < 1e-4) && !par.result.issues.some(i => ["sru", "lost", "h2short"].includes(i.kind));
       // the routing kept to six decimals: a share is a slider's step at most
       const routing = Object.fromEntries(Object.entries(par.routing).filter(([s]) => par.result.streams[s]).map(([s, r]) => [s, Object.fromEntries(Object.entries(r).filter(([, f]) => f > 1e-5).map(([d, f]) => [d, +f.toFixed(6)]))]));
@@ -77,7 +79,6 @@ const fresh = {};
       fresh[lv.id][key] = { margin: +rerun.margin.toFixed(4), routing, ...(lv.values ? { values, capacity } : {}) };
       notes.push(`${lv.id}${lv.crudes || lv.decks ? `/${key}` : ""}: ${start.margin.toFixed(2)} → ${rerun.margin.toFixed(2)}`);
       if (!ok || !(rerun.margin > start.margin + 0.5 || lv.crudes || lv.decks)) { bad++; console.log(`FAIL level ${lv.id} [${key}]: ${ok ? "par barely beats its start" : "par isn't in spec"} (${start.margin.toFixed(2)} → ${par.margin.toFixed(2)})`, par.result.issues.map(i => i.text)); }
-      const kept = PAR[lv.id]?.[key];
       if (!WRITE && (!kept || Math.abs(E.evaluate(L, kept.routing).margin - kept.margin) > 0.01 || rerun.margin > kept.margin + 0.05)) stale.push(`${lv.id}/${key}`);
     }
   }
@@ -123,7 +124,7 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
       if (steps.length < 2 || !steps[steps.length - 1].task) problems.push(`${lv.id}: a lesson needs steps and its task last`);
       if (!lessons.TEACHES[lv.id]) problems.push(`${lv.id}: no line for the course map`);
       for (const st of steps) if (!st.say || !st.scene) problems.push(`${lv.id}: a step without words or a picture`);
-      const key = lv.decks ? `${lv.crude}/${lv.decks[0].id}` : lv.crude, L = { ...lv, crude: lv.crude, ...(lv.decks ? { deck: lv.decks[0].id, prices: { ...(lv.prices || {}), ...lv.decks[0].prices } } : {}) };
+      const key = lv.decks ? `${lv.crude}/${lv.decks[0].id}` : lv.crude, L = E.asPlayed(lv);
       const res = E.evaluate(L, fresh[lv.id]?.[key]?.routing || PAR[lv.id]?.[key]?.routing || E.defaultRouting(L));
       for (const seed of [1, 2, 3]) {
         const qs = exam.buildTest(L, res, { seed });
@@ -156,7 +157,7 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
       ids.add(f.id);
       for (const t of [...f.on, ...(f.any || [])]) {
         const [kind, name] = t.split(":");
-        const known = t === "*" || (kind === "u" && D.UNITS[name]) || (kind === "p" && D.POOLS[name]) || (kind === "c" && CHAPTERS.some(c => String(c.id) === name)) || (kind === "k" && D.POOLS[name.split(".")[0]]?.spec?.[name.split(".")[1]]);
+        const known = t === "*" || (kind === "u" && D.UNITS[name]) || (kind === "p" && D.POOLS[name]) || (kind === "b" && D.STREAMS[name]) || (kind === "c" && CHAPTERS.some(c => String(c.id) === name)) || (kind === "k" && D.POOLS[name.split(".")[0]]?.spec?.[name.split(".")[1]]);
         if (!known) problems.push(`bank: ${f.id} is tagged ${t}, which names nothing`);
       }
       if (!LEVELS.some(lv => exam.dealtFrom(lv, f.id))) problems.push(`bank: ${f.id} fits no level`);

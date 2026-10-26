@@ -149,11 +149,15 @@ function barsScene(sc) {
   const lo = sc.min ?? Math.min(0, ...items.map(i => i[1])), top = Math.max(...items.map(i => i[1]), sc.limit?.[0] ?? 0), hi = sc.max ?? lo + (top - lo) * 1.3;
   const X = v => x0 + ((v - lo) / (hi - lo)) * w;
   const parts = [];
+  // bars grow from zero, or from the scale's floor where it's above zero; a value below zero grows left, its figure
+  // to the right of the zero line
+  const base = lo > 0 ? lo : 0;
   items.forEach(([label, v, group], i) => {
     const y = 10 + i * rowH, col = group ? GROUP_COLOUR[group] || group : "var(--rf-in)";
-    parts.push(`<text class="rf-sc-label rf-end" x="${x0 - 6}" y="${y + rowH / 2 + 3}">${esc(label)}</text><rect class="rf-bar-rect" x="${X(Math.min(lo, 0) < 0 ? 0 : lo)}" y="${y + 3}" width="${Math.max(1, X(v) - X(Math.max(lo, 0)))}" height="${rowH - 7}" fill="${col}"/>` +
-      `<text class="rf-sc-small" x="${X(v) + 4}" y="${y + rowH / 2 + 3}" style="text-anchor:start">${esc(sc.fmt ? sc.fmt(v) : `${+v.toFixed(1)}${sc.unit ? ` ${sc.unit}` : ""}`)}</text>`);
+    parts.push(`<text class="rf-sc-label rf-end" x="${x0 - 6}" y="${y + rowH / 2 + 3}">${esc(label)}</text><rect class="rf-bar-rect" x="${X(Math.min(v, base))}" y="${y + 3}" width="${Math.max(1, Math.abs(X(v) - X(base)))}" height="${rowH - 7}" fill="${col}"/>` +
+      `<text class="rf-sc-small" x="${(v < base ? X(base) : X(v)) + 4}" y="${y + rowH / 2 + 3}" style="text-anchor:start">${esc(sc.fmt ? sc.fmt(v) : `${+v.toFixed(1)}${sc.unit ? ` ${sc.unit}` : ""}`)}</text>`);
   });
+  if (lo < 0) parts.push(`<line class="rf-axis" x1="${X(0)}" x2="${X(0)}" y1="6" y2="${10 + n * rowH}"/>`);
   if (sc.limit) parts.push(`<line class="rf-limit" x1="${X(sc.limit[0])}" x2="${X(sc.limit[0])}" y1="4" y2="${10 + n * rowH}"/><text class="rf-sc-small rf-limit-label" x="${X(sc.limit[0])}" y="${16 + n * rowH}">${esc(sc.limit[1])}</text>`);
   return { vb: `0 0 ${W} ${H}`, body: parts.join("") };
 }
@@ -209,11 +213,21 @@ const MOL = {
   etbe: { name: "ETBE", note: "RON 118", ether: true },
   mtbe: { name: "MTBE", note: "RON 118", ether: true, short: true },
   cumene: { name: "cumene", note: "isopropylbenzene", ring: 6, aromatic: true, isopropyl: true },
+  // what co-processing makes and takes: a fat's paraffin and propane, tall oil's two acids, a phenol of lignin's
+  octadecane: { name: "n-octadecane", note: "melts at 28 °C", chain: 14 },
+  propane: { name: "propane", note: "from the glycerine", chain: 3 },
+  fattyAcid: { name: "a fatty acid", note: "free: an acid", chain: 10, acid: true },
+  rosin: { name: "abietic acid", note: "a rosin acid", rosin: true },
+  guaiacol: { name: "guaiacol", note: "a phenol of lignin's", ring: 6, aromatic: true, guaiacol: true },
 };
 function molecule(key, ox, oy) {
   const m = MOL[key], b = 11, out = [];
   const line = pts => `<path class="rf-bond" d="${pts.map(([x, y], i) => `${i ? "L" : "M"}${(ox + x).toFixed(1)} ${(oy + y).toFixed(1)}`).join("")}"/>`;
-  if (m.chain) out.push(line(Array.from({ length: m.chain }, (_, i) => [i * b * 0.87, i % 2 ? -b / 2 : 0])));
+  if (m.chain) {
+    out.push(line(Array.from({ length: m.chain }, (_, i) => [i * b * 0.87, i % 2 ? -b / 2 : 0])));
+    // a fatty acid's carboxyl at the chain's end
+    if (m.acid) { const x = (m.chain - 1) * b * 0.87, y = (m.chain - 1) % 2 ? -b / 2 : 0; out.push(line([[x, y], [x + 7, y + (y ? b / 2 : -b / 2)]]), `<text class="rf-atom" x="${ox + x + 19}" y="${oy + y + (y ? b / 2 : -b / 2) + 3}">COOH</text>`); }
+  }
   else if (m.branched) {
     out.push(line([[0, 0], [9.5, -5.5], [19, 0], [28.5, -5.5], [38, 0]]));
     out.push(line([[9.5, -5.5], [9.5, -16.5]]), line([[9.5, -5.5], [0, -11]]), line([[28.5, -5.5], [28.5, -16.5]]));
@@ -226,6 +240,9 @@ function molecule(key, ox, oy) {
     if (m.methyl) out.push(line([[14, -6 - b], [14, -6 - 2 * b]]));
     // an isopropyl: a carbon on the ring holding two methyls
     if (m.isopropyl) out.push(line([[14, -6 - b], [14, -6 - 2 * b]]), line([[14, -6 - 2 * b], [4.5, -6 - 2.5 * b]]), line([[14, -6 - 2 * b], [23.5, -6 - 2.5 * b]]));
+    // guaiacol: a hydroxyl and a methoxy on neighbouring carbons
+    if (m.guaiacol) out.push(line([[14, -6 - b], [14, -6 - 1.6 * b]]), `<text class="rf-atom" x="${ox + 14}" y="${oy - 6 - 1.6 * b - 3}">OH</text>`,
+      line([[14 + b * 0.866, -6 - b * 0.5], [14 + b * 1.4, -6 - b * 0.8]]), `<text class="rf-atom" x="${ox + 14 + b * 1.4 + 11}" y="${oy - 6 - b * 0.8 + 2}">OCH₃</text>`);
     if (m.naphthalene) { out.push(line(hex(14 + b * 1.732, -6))); out.push(`<circle class="rf-bond" cx="${ox + 14}" cy="${oy - 6}" r="6" fill="none"/><circle class="rf-bond" cx="${ox + 14 + b * 1.732}" cy="${oy - 6}" r="6" fill="none"/>`); out.push(line([[14, -6 - b], [14, -6 - 2 * b]])); }
   } else if (m.thiophene) {
     const pts = Array.from({ length: 6 }, (_, i) => [14 + 10 * Math.cos(-Math.PI / 2 + (i * 2 * Math.PI) / 5), -6 + 10 * Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / 5)]);
@@ -233,13 +250,21 @@ function molecule(key, ox, oy) {
   } else if (m.tri) {
     for (let r = 0; r < 3; r++) out.push(line(Array.from({ length: 9 }, (_, i) => [8 + i * 8, -16 + r * 10 + (i % 2 ? -2.5 : 0)])));
     out.push(line([[4, -16], [4, 4]]), `<text class="rf-atom" x="${ox - 2}" y="${oy - 4}">O₆</text>`);
+  } else if (m.rosin) {
+    // three rings fused as phenanthrene's are, the acid on the first and an isopropyl on the last
+    const hex = (cx, cy) => Array.from({ length: 7 }, (_, i) => [cx + b * Math.cos(Math.PI / 6 + (i * Math.PI) / 3), cy + b * Math.sin(Math.PI / 6 + (i * Math.PI) / 3)]);
+    const A = [8, -2], B = [8 + b * 1.732, -2], C = [B[0] + b * 1.5, B[1] - b * 1.5];
+    out.push(line(hex(...A)), line(hex(...B)), line(hex(...C)));
+    out.push(line([[A[0] - b * 0.866, A[1] - b * 0.5], [A[0] - b * 0.866 - 4, A[1] - b * 0.5 - 7]]), `<text class="rf-atom" x="${ox + A[0] - b * 0.866 - 4}" y="${oy + A[1] - b * 0.5 - 10}">COOH</text>`);
+    const top = [C[0] + b * 0.866, C[1] - b * 0.5];
+    out.push(line([top, [top[0] + 8, top[1] - 4]]), line([[top[0] + 8, top[1] - 4], [top[0] + 16, top[1]]]), line([[top[0] + 8, top[1] - 4], [top[0] + 8, top[1] - 13]]));
   } else if (m.ethanol) out.push(line([[0, 0], [9.5, -5.5], [19, 0]]), `<text class="rf-atom" x="${ox + 24}" y="${oy + 3}">OH</text>`);
   else if (m.ether) {
     // a tertiary butyl, its carbon holding three methyls, joined through the oxygen to an ethyl (ETBE) or a methyl (MTBE)
     out.push(line([[0, 0], [9.5, -5.5], [16.5, -1.5]]), line([[9.5, -5.5], [9.5, -16.5]]), line([[9.5, -5.5], [0, -11]]),
       `<text class="rf-atom" x="${ox + 19}" y="${oy + 3}">O</text>`, line(m.short ? [[21.5, -1.5], [28.5, -5.5]] : [[21.5, -1.5], [28.5, -5.5], [38, 0]]));
   }
-  const mid = m.chain ? ((m.chain - 1) * b * 0.87) / 2 : m.naphthalene ? 14 + b * 0.87 : m.tri ? 36 : m.branched || m.ether ? 19 : 14;
+  const mid = m.chain ? ((m.chain - 1) * b * 0.87) / 2 : m.naphthalene ? 14 + b * 0.87 : m.tri ? 36 : m.rosin ? 26 : m.branched || m.ether ? 19 : 14;
   out.push(`<text class="rf-sc-label" x="${ox + mid}" y="${oy + 22}">${esc(m.name)}</text><text class="rf-sc-small" x="${ox + mid}" y="${oy + 32}">${esc(m.note)}</text>`);
   return out.join("");
 }
@@ -247,12 +272,13 @@ function molecule(key, ox, oy) {
 function moleculesScene(keys) {
   const per = Math.min(3, keys.length), W = 300;
   let rowsNeeded = 1, cx = 0;
-  for (const k of keys) { const m = MOL[k], wide = m.chain ? (m.chain - 1) * 11 * 0.87 : m.tri ? 76 : m.naphthalene ? 48 : 40; if (cx && cx + wide > W - 30) { cx = 0; rowsNeeded++; } cx += Math.max(wide + 40, W / per); }
+  const wideOf = m => (m.chain ? (m.chain - 1) * 11 * 0.87 + (m.acid ? 30 : 0) : m.tri ? 76 : m.rosin ? 64 : m.naphthalene ? 48 : m.guaiacol ? 52 : 40);
+  for (const k of keys) { const wide = wideOf(MOL[k]); if (cx && cx + wide > W - 30) { cx = 0; rowsNeeded++; } cx += Math.max(wide + 40, W / per); }
   const H = rowsNeeded * 72 + 10;
   // a long chain takes a row of its own
   let x = 0, y = 0;
   const body = keys.map(k => {
-    const m = MOL[k], wide = m.chain ? (m.chain - 1) * 11 * 0.87 : m.tri ? 76 : m.naphthalene ? 48 : 40;
+    const wide = wideOf(MOL[k]);
     if (x && x + wide > W - 30) { x = 0; y++; }
     const at = molecule(k, 26 + x, 40 + y * 72);
     x += Math.max(wide + 40, W / per);

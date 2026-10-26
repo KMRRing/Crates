@@ -257,6 +257,56 @@ const Q = {
     ["Why does a refinery with a deasphalter and a gasifier favour a medium sour crude?", "Its residue fills them, and sour crude sells at a discount", ["Its residue makes the most road bitumen", "Its naphtha has the highest octane", "Its sulphur makes the most hydrogen"], "Residue units pay when they're full of cheap residue; a light sweet crude leaves them idle and costs more."],
     ["In a petrol pool held to 35% aromatics, where must extra octane come from?", "Blendstocks without aromatics: alkylate, isomerate, ethers", ["More reformate, at a higher severity", "More FCC naphtha, at a higher conversion", "More straight-run heavy naphtha"], "Reformate's octane comes with its aromatics; alkylate, isomerate and ethers add octane without them."],
   ],
+  "12.1": [
+    ["What does a fat become over a hydrotreating catalyst?", "Straight C15–C18 paraffins, propane, water and carbon oxides", ["Fatty acid methyl esters and glycerine, as in a biodiesel plant", "Branched C8–C12 paraffins and aromatics, ready for jet", "Naphtha, LPG and coke, as an FCC makes"],
+      "Hydrogen strips the oxygen and saturates the chains: straight paraffins; the glycerine backbone becomes propane. FAME is transesterification, with methanol, not hydrotreating."],
+    ["Why does decarboxylation take less hydrogen than hydrodeoxygenation?", "It takes the oxygen out as CO₂, a carbon with it, not as water", ["It takes out only half the oxygen, leaving an alcohol behind", "It runs at a higher pressure, where hydrogen goes further", "It cracks the chain to naphtha, which needs no hydrogen"],
+      "As CO₂ the oxygen leaves with a carbon of the chain instead of with hydrogen: C17 from a C18 acid, and less hydrogen, but CO and CO₂ in the recycle gas."],
+    ["In Germany, which of these co-processed in a refinery counts toward the GHG quota?", "Category 1 tallow", ["Category 3 tallow", "Used cooking oil", "Rapeseed oil"],
+      "Since 2024 the 37. BImSchV credits co-processed oil only from Annex IX Part A feeds and Category 1 and 2 animal fats. Category 3 fat is fit for feed, so it's in no part of Annex IX; HVO from used cooking oil made in a unit of its own counts."],
+  ],
+  "12.2": [
+    ["What does a diesel's cold filter plugging point measure?", "The temperature at which its wax blocks a standard filter", ["The temperature at which it freezes into a solid", "The temperature at which it first gives off a vapour that catches fire", "The temperature at which its viscosity doubles"],
+      "Cooled, the straight paraffins crystallise; the CFPP is where their wax stops a standard filter. EN 590 sets it by grade, each country its grade by season."],
+    ["Why does co-processed fat lift a diesel's CFPP more than its share suggests?", "The waxiest part of a blend sets its plugging point", ["Its oxygen stays in the diesel and gels in the cold", "Its propane boils off and chills the filter", "Its cetane is too high for a cold engine to start on"],
+      "Straight C15–C18 paraffins are wax at room temperature, and cold flow blends by an index the waxiest part dominates: a tenth of them lifts a −12 °C gas oil to about −6."],
+    ["What lets an HVO unit's diesel stay fluid in winter, where co-processed fat's doesn't?", "Isomerising its paraffins, branching them", ["Blending it with a tenth of FAME", "Desulphurising it to under 1 ppm", "Cracking it lighter, into naphtha"],
+      "Branched paraffins crystallise far colder than straight ones: HVO's second, isomerising step is what makes winter grades; co-processing has none."],
+    ["From October to mid-November, German diesel must not plug a filter above", "−10 °C", ["0 °C", "−20 °C", "−32 °C"],
+      "Grade D, the transition grade. Summer's grade B is 0 °C; winter's grade F, from mid-November to February, −20 °C; arctic grades go to −32 °C and below."],
+  ],
+  "12.3": [
+    ["By RED II's default values, which of these saves the most greenhouse gas as HVO?", "Used cooking oil", ["Category 1 tallow", "Rapeseed oil", "Palm oil"],
+      "Used cooking oil 83%, animal fat from rendering 77%, rapeseed oil 47%; palm oil less, and none at all without methane capture at the mill."],
+    ["Why does a fat earn a smaller ticket co-processed in an FCC than in a hydrotreater?", "Part of its renewable carbon ends in propylene, LPG, slurry and gas", ["The FCC's heat destroys the renewable carbon as it cracks", "Cracked fuels can't be certified renewable at all", "The FCC's catalyst keeps all of the fat's carbon as coke"],
+      "The carbon follows the yields: a third of a fat's ends in products that aren't road fuels, which earn no ticket, while a hydrotreater puts nearly all of it into diesel."],
+    ["What does RED's Annex IX Part B list?", "Used cooking oil, and animal fats unfit for food or feed", ["Straw, manure and forest residues", "Rapeseed, sunflower and soybean oil", "Tall oil, its pitch and palm oil mill effluent"],
+      "Part B is the two waste fats, capped in many schemes; Part A the advanced feeds, from straw and manure to tall oil and forest residues; crops are capped apart."],
+  ],
+  "12.4": [
+    ["Why can't most hydrotreaters take much crude tall oil?", "Its free acids corrode hot carbon steel", ["Its sulphur poisons the catalyst at once", "It's solid until heated above 80 °C", "It boils off before it reaches the reactor"],
+      "An acid number near 150 mg KOH/g: in the heater, the exchangers and the reactor's inlet, carbon steel corrodes. Stainless units, or a few per cent at most."],
+    ["What do tall oil's rosin acids become when hydrotreated?", "Ringed hydrocarbons: dense, low in cetane, little wax", ["Straight paraffins: light, high in cetane, waxy", "Aromatics that put the diesel over its PAH limit", "Propane and water, and nothing else"],
+      "Their three rings stay, saturated to naphthenes; the fatty acids become straight paraffins as a fat's do. Together, a diesel component colder-flowing than a fat's."],
+    ["Under RED, crude tall oil is", "An advanced feed, in Annex IX Part A", ["A waste fat, in Annex IX Part B", "A food and feed crop, under the crop cap", "Not a biofuel feedstock at all"],
+      "It's a residue of the pulp industry: Part A, with forest residues, straw and manure, counted toward the advanced sub-target."],
+  ],
+  "12.5": [
+    ["ASTM D1655 lets jet come from a hydrotreater whose feed is fat up to", "5%", ["1%", "10%", "50%"],
+      "5% of mono-, di- and triglycerides, fatty acids and their esters; 50% is D7566's limit for blending HEFA-SPK. The UK's Def Stan 91-091 raised co-processing to 30% in 2025."],
+    ["From 2030, ReFuelEU Aviation asks fuel suppliers at EU airports for at least what share of SAF?", "6%", ["2%", "20%", "70%"],
+      "2% from 2025, 6% from 2030, 20% from 2035 and 70% by 2050, part of it synthetic."],
+    ["Why wouldn't jet co-processed from rapeseed oil count for ReFuelEU?", "Food and feed crops are excluded", ["Its sulphur is too high for jet", "Its freezing point is too warm for jet", "Carbon-14 can't tell it from fossil"],
+      "ReFuelEU counts biofuels from wastes, residues and advanced feeds; crop-based fuels count for road transport under the crop cap, not for aviation."],
+  ],
+  "12.6": [
+    ["Why does raw pyrolysis oil go to an FCC and not to a hydrotreater?", "It polymerises when heated and won't mix with oil", ["It holds too much sulphur for a hydrotreater", "It's too light for a hydrotreater's feed pump", "It needs a catalyst only an FCC has"],
+      "Heated in a preheat train it thickens and cokes; in an FCC's riser it meets hot catalyst at once, through a nozzle of its own."],
+    ["About how much of a pyrolysis oil's carbon reaches an FCC's liquid products?", "About a third", ["Nearly all of it", "About two-thirds", "None: all of it burns as coke"],
+      "Its oxygen takes much of it out as CO and CO₂, more goes to coke and gas: about a third is left in the naphtha, cycle oil and LPG."],
+    ["How often does Delegated Regulation 2023/1640 have a co-processor's renewable share checked by carbon-14?", "At least every four months", ["Once, when the unit starts co-processing", "Every day, on every batch it makes", "Every five years, with its permit"],
+      "The mass balance or yield method sets the share; carbon-14 checks it at least every four months, and whenever the feed or the unit changes by more than 5%."],
+  ],
   "10.5": [
     ["When Alder Point's reformer stops to regenerate, what has to give?", "The hydrotreaters, for want of hydrogen", ["The benzene splitter only, for want of feed", "The FCC, for want of hot catalyst", "Nothing: hydrogen is bought in by pipeline"], "There's no other hydrogen: the whole plant's turnaround is planned round the reformer's."],
     ["Why is a sulphur plant of a single train a weak point?", "If it trips, every hydrotreater has to stop", ["If it trips, the crude unit floods its trays", "If it trips, the FCC loses its catalyst", "If it trips, the reformer loses its hydrogen"], "Every hydrotreater sends it hydrogen sulphide; with no second train, the hydrogen sulphide has nowhere else to go."],
@@ -279,6 +329,8 @@ const WORDS = {
   "10.4": ["Heating oil", "Hydrodesulphurisation", "Cutter stock", "ULSD"], "10.5": ["Cogeneration", "Claus process", "Linear programming"],
   "11.1": ["Side stream", "Hydrodesulphurisation", "Isomerisation", "Flash point"], "11.2": ["Solvent deasphalting", "Deasphalted oil", "Pitch", "Gasification", "IGCC", "Synthesis gas", "Mild hydrocracking"],
   "11.3": ["FCC pretreatment", "MTBE", "Raffinate", "Cumene", "Alkylation"], "11.4": ["Turnaround", "Marginal value"], "11.5": ["Crude differential", "Opportunity crude", "Linear programming"],
+  "12.1": ["Hydrodeoxygenation", "Decarboxylation", "Category 1 fat", "37. BImSchV", "Pretreatment"], "12.2": ["CFPP", "Flow improver"], "12.3": ["Annex IX", "Yield method", "Mass balance"],
+  "12.4": ["Crude tall oil", "Rosin acid", "Acid number", "Advanced biofuel"], "12.5": ["ReFuelEU Aviation", "Def Stan 91-091", "ASTM D7566"], "12.6": ["Fast pyrolysis", "Pyrolysis oil", "Carbon-14 method"],
 };
 const AREAS = {
   1: ["Distillation", "Crudes", "Products"], 2: ["Sulphur", "Treating", "Specs"], 3: ["Reforming", "Octane", "Volatility", "Isomerisation", "Oxygenates"],
@@ -287,6 +339,7 @@ const AREAS = {
   9: ["Renewables", "HVO", "FAME", "SAF", "Co-processing", "Policy"],
   10: ["Distillation", "Reforming", "Cracking", "Treating", "Configuration", "Specs"],
   11: ["Cracking", "Residue", "Treating", "Hydrogen", "Oxygenates", "Petrochemicals", "Alkylation", "Configuration", "Energy"],
+  12: ["Renewables", "HVO", "Co-processing", "Policy", "SAF", "Cold flow", "Hydrogen", "Treating"],
 };
 
 // ---------- the flowsheet ----------
@@ -345,6 +398,7 @@ const routingFrom = res => Object.fromEntries(Object.entries(res.streams).map(([
 function tagsOf(level) {
   const t = new Set(["*", `c:${level.chapter}`]);
   for (const u of level.units) t.add(`u:${u}`);
+  for (const s of Object.keys(level.bought || {})) t.add(`b:${s}`);
   for (const p of poolsOf(level)) { t.add(`p:${p}`); for (const k of specsOf(level, p)) t.add(`k:${p}.${k}`); }
   return t;
 }
@@ -353,14 +407,18 @@ export const dealtFrom = (level, id) => { const f = FACTS.find(x => x.id === id)
 /** The level before this one in the course, whose plant this one builds on. */
 const previous = level => LEVELS[LEVELS.findIndex(l => l.id === level.id) - 1] || null;
 /**
- * The bank's questions for a level: those its plant is about, the ones on what it brings in first (a new unit before a
- * new product, a new product before a new spec, against the level before), then the rest, dealt from the seed.
+ * The bank's questions for a level: those its plant is about, its chapter's own first, then the ones on what it brings
+ * in (a new unit before a new product, a new product before a new spec, against the level before), then the rest, dealt
+ * from the seed.
  */
 function factQuestions(level, rnd, n) {
   const tags = tagsOf(level), prev = previous(level), old = prev ? tagsOf(prev) : new Set(["*"]);
   const fits = f => f.on.every(t => tags.has(t)) && (!f.any || f.any.some(t => tags.has(t))) && !f.skip?.includes(level.id);
+  // a fact written for this chapter first (chapter 12's co-processing, say, at refineries whose units earlier chapters
+  // asked about), then those on what the level brings in
   const weight = { u: 3, p: 2, k: 1 }, fresh = f => Math.max(0, ...f.on.filter(t => !old.has(t)).map(t => weight[t[0]] || 0));
-  const dealt = shuffle(FACTS.filter(fits), rnd).sort((a, b) => fresh(b) - fresh(a));
+  const rank = f => (f.on.includes(`c:${level.chapter}`) ? 10 : 0) + fresh(f);
+  const dealt = shuffle(FACTS.filter(fits), rnd).sort((a, b) => rank(b) - rank(a));
   return dealt.slice(0, n).map(f => (f.kind === "number" ? number(f.ask, f.answer, f.why, { unit: f.unit, tol: f.tol }) : choice(f.ask, f.right, f.wrongs, f.why)));
 }
 

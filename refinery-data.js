@@ -7,8 +7,9 @@
 // Each property blends linearly in its own index, by volume or by mass: octane, cetane and density by volume (octane
 // really blends unevenly, which refiners handle with blending values; here it's linear), sulphur and viscosity by mass,
 // vapour pressure as RVP^1.25 by volume (the Chevron blending index), viscosity as the Refutas index, flash point by the
-// Wickey-Chittenden index, which the lightest part dominates. A pool's spec on a property is then a linear limit on its
-// blend, which is what lets an LP plan the refinery.
+// Wickey-Chittenden index, which the lightest part dominates, and the cold filter plugging point by Hu and Burns' cloud
+// point index, which the waxiest part dominates. A pool's spec on a property is then a linear limit on its blend, which
+// is what lets an LP plan the refinery.
 export const PROPS = {
   ron: { name: "RON", long: "research octane number", basis: "vol", dp: 1 },
   mon: { name: "MON", long: "motor octane number", basis: "vol", dp: 1 },
@@ -32,16 +33,24 @@ export const PROPS = {
   ghg: { name: "GHG saved", long: "greenhouse gas saved", unit: "kg CO₂e/bbl", basis: "vol", dp: 0 },
   // the lowest temperature at which a fuel's vapour catches fire: a safety limit, so it's judged in every level
   flash: { name: "Flash point", long: "flash point", unit: "°C", basis: "vol", index: "flash", dp: 0 },
+  // the coldest a diesel can be before its wax plugs a filter, with the usual flow improver dosed: judged where a level
+  // sets a season's grade
+  cfpp: { name: "CFPP", long: "cold filter plugging point", unit: "°C", basis: "vol", index: "cold", dp: 0 },
+  // the share of a diesel that boils above 360 °C: EN 590 has 95% recovered by then, so at most 5%. A cut's own share
+  // follows it through the treaters, so vacuum gas oil desulphurised is still too heavy for road diesel
+  e360: { name: "Above 360 °C", long: "share boiling above 360 °C", unit: "% vol", basis: "vol", dp: 1 },
 };
 /** A property's blending index, and back. */
 // flash point's index is the vapour's, 10^(2414/(T°F + 230.56) − 6.1188), negated so that it rises with the flash point
-// as the others rise with their property
+// as the others rise with their property; the cold one is the absolute temperature to the 20th power, here over 0 °C's
 export const toIndex = (k, v) => (PROPS[k].index === "rvp" ? Math.pow(Math.max(v, 0), 1.25)
   : PROPS[k].index === "refutas" ? 14.534 * Math.log(Math.log(Math.max(v, 0.25) + 0.8)) + 10.975
-  : PROPS[k].index === "flash" ? -Math.pow(10, 2414 / (1.8 * Math.max(v, -100) + 262.56) - 6.1188) : v);
+  : PROPS[k].index === "flash" ? -Math.pow(10, 2414 / (1.8 * Math.max(v, -100) + 262.56) - 6.1188)
+  : PROPS[k].index === "cold" ? Math.pow(Math.max(v + 273.15, 1) / 273.15, 20) : v);
 export const fromIndex = (k, i) => (PROPS[k].index === "rvp" ? Math.pow(Math.max(i, 0), 0.8)
   : PROPS[k].index === "refutas" ? Math.exp(Math.exp((i - 10.975) / 14.534)) - 0.8
-  : PROPS[k].index === "flash" ? (2414 / (Math.log10(Math.max(-i, 1e-12)) + 6.1188) - 262.56) / 1.8 : i);
+  : PROPS[k].index === "flash" ? (2414 / (Math.log10(Math.max(-i, 1e-12)) + 6.1188) - 262.56) / 1.8
+  : PROPS[k].index === "cold" ? 273.15 * Math.pow(Math.max(i, 1e-300), 0.05) - 273.15 : i);
 
 // ---------- streams ----------
 // p: the stream's own properties. sr: a straight-run cut, whose sulphur comes from the crude's assay (CUT_S: the cut's
@@ -75,30 +84,37 @@ export const STREAMS = {
   mtbe: { name: "MTBE", short: "MTBE", group: "naphtha", about: "C5 ether", p: { ron: 118, mon: 101, rvp: 55, arom: 0, olef: 0, benz: 0, oxy: 18.2, ether: 100, d: 745, s: 2 }, note: "Methyl tert-butyl ether: methanol joined to the FCC's isobutene. Octane near 118 in a blend and 18% oxygen; fossil, as its methanol is." },
   bzCut: { name: "Light reformate", short: "Lt ref.", group: "naphtha", about: "C5–C6", p: { ron: 85, mon: 80, rvp: 75, arom: 31, olef: 0, benz: 23, d: 780, s: 0.5 }, note: "The light end of reformate, its C5s and C6s, where its benzene is: about a quarter benzene, sold to an aromatics plant so the rest can go to gasoline." },
   heavyReformate: { name: "Heavy reformate", short: "Hvy ref.", group: "naphtha", about: "C7+", p: { ron: 102, mon: 90, rvp: 20, arom: 74, olef: 1, benz: 0.3, d: 820, s: 0.5 }, note: "Reformate with its benzene cut out: still high in aromatics." },
-  kero: { name: "Kerosene", short: "Kero", group: "middle", sr: true, about: "160–240 °C", p: { cet: 43, d: 800, grade: 0, visc: 1.2, flash: 42 }, note: "The straight-run kerosene cut: jet fuel once its mercaptans (and, if sour, its sulphur) are dealt with." },
-  jet: { name: "Jet fuel", short: "Jet", group: "middle", about: "160–240 °C", p: { cet: 43, d: 800, grade: 1, visc: 1.2, flash: 42 }, note: "Treated kerosene, to the Jet A-1 specification." },
-  lgo: { name: "Light gas oil", short: "LGO", group: "middle", sr: true, about: "240–320 °C", p: { cet: 52, d: 845, visc: 3.5, flash: 75 }, note: "Straight-run diesel: good cetane, and sour until it's hydrotreated." },
-  hgo: { name: "Heavy gas oil", short: "HGO", group: "middle", sr: true, about: "320–370 °C", p: { cet: 47, d: 870, visc: 6, flash: 110 }, note: "The heaviest atmospheric cut: diesel as far as density allows, or cracker feed." },
-  lco: { name: "Light cycle oil", short: "LCO", group: "middle", about: "220–350 °C", p: { cet: 22, d: 945, visc: 3, flash: 75 }, note: "The FCC's cracked gas oil: aromatic and dense, with cetane in the 20s. It drags a diesel pool down." },
-  ulsd: { name: "Hydrotreated diesel", short: "ULSD", group: "middle", about: "diesel range", p: { cet: 53, d: 840, s: 8, visc: 3.5, flash: 65 }, note: "Gas oil with its sulphur taken to under 10 ppm; its cetane and density are what its feeds bring." },
-  lcgo: { name: "Light cycle gas oil", short: "LCGO", group: "middle", about: "220–340 °C", p: { cet: 23, d: 935, visc: 2.8, flash: 75 }, note: "The FCC's light cycle oil, drawn on its own: aromatic, dense, cetane in the 20s. Hydrotreated into diesel or heating oil, or fuel oil cutter." },
-  goT: { name: "Desulphurised gas oil", short: "GO (HT)", group: "middle", about: "240–370 °C", p: { cet: 50, d: 850, s: 400, visc: 4, flash: 70 }, note: "Gas oil after a first stage of desulphurising, to a few hundred ppm: heating oil as it is, or a second stage's feed for road diesel." },
-  mhcGo: { name: "Mild hydrocracked gas oil", short: "MHC GO", group: "middle", about: "200–370 °C", p: { cet: 42, d: 865, s: 30, visc: 4.5, flash: 70 }, note: "The diesel-range part a VGO hydrotreater cracks out of its feed: low in sulphur but not 10 ppm, cetane in the low forties. A distillate hydrotreater finishes it for road diesel." },
-  hcJet: { name: "Hydrocracker jet", short: "HC jet", group: "middle", about: "150–250 °C", p: { cet: 46, d: 800, s: 3, grade: 1, visc: 1.3, flash: 45 }, note: "Clean, low-aromatic kerosene from the hydrocracker: straight to the jet pool." },
-  hcDiesel: { name: "Hydrocracker diesel", short: "HC diesel", group: "middle", about: "250–370 °C", p: { cet: 58, d: 830, s: 3, visc: 3.5, flash: 70 }, note: "High-cetane, sulphur-free diesel: the hydrocracker's best product." },
-  cokerGo: { name: "Coker gas oil", short: "Coker GO", group: "middle", about: "200–480 °C", p: { cet: 36, d: 915, visc: 8, flash: 70 }, note: "Sour, olefinic gas oil from the coker: hydrotreat or hydrocrack it." },
-  fuelOilCutter: { name: "Visbreaker gas oil", short: "Visb. GO", group: "middle", about: "200–350 °C", p: { cet: 38, d: 885, visc: 5, flash: 65 }, note: "A little gas oil cracked out by the visbreaker, sour." },
-  hvo: { name: "HVO", short: "HVO", group: "renewable", p: { cet: 80, d: 780, s: 1, visc: 2.8, bio: 100, ghg: 430, flash: 70 }, note: "Renewable diesel (hydrotreated vegetable oil), here from waste fats: paraffinic, cetane near 80, light at 780 kg/m³, no sulphur, no aromatics. It saves about 80% of fossil diesel's emissions." },
-  fame: { name: "FAME", short: "FAME", group: "renewable", p: { cet: 53, d: 883, s: 5, fame: 100, visc: 4.5, bio: 100, ghg: 230, flash: 150 }, note: "Biodiesel (fatty acid methyl ester), here from rapeseed: up to 7% in EN 590 diesel. It saves about half of fossil diesel's emissions." },
-  vegOil: { name: "Used cooking oil and fats", short: "UCO", group: "renewable", p: { d: 920, s: 10, bio: 100, ghg: 430 }, note: "Waste lipids, used cooking oil and animal fat (RED's Annex IX Part B): triglycerides, the HVO unit's feed and the cheapest renewable carbon to co-process. Its saving is counted on the diesel it makes." },
-  spk: { name: "HEFA-SPK", short: "SPK", group: "renewable", about: "150–280 °C", p: { cet: 55, d: 760, s: 1, grade: 1, visc: 1.4, bio: 100, ghg: 415, flash: 45 }, note: "Synthetic paraffinic kerosene from hydroprocessed fats (HEFA): sustainable aviation fuel, blended up to half with fossil Jet A-1 under ASTM D7566." },
-  lvgo: { name: "Light vacuum gas oil", short: "LVGO", group: "heavy", about: "370–450 °C", p: { d: 905, visc: 15, flash: 160 }, note: "The lighter vacuum gas oil: hydrocracker or FCC feed." },
-  hvgo: { name: "Heavy vacuum gas oil", short: "HVGO", group: "heavy", about: "450–550 °C", p: { d: 930, visc: 80, flash: 200 }, note: "The heavy vacuum gas oil: the FCC's main feed, or the hydrocracker's." },
-  importVgo: { name: "Imported VGO", short: "Imp. VGO", group: "heavy", about: "370–550 °C", p: { d: 915, visc: 40, s: 4000, flash: 170 }, note: "Low-sulphur vacuum gas oil bought on the market as cracker feed: worth buying if the plant earns more from it than it costs." },
-  vgoT: { name: "Hydrotreated VGO", short: "VGO (HT)", group: "heavy", about: "370–550 °C", p: { d: 895, visc: 30, s: 150, flash: 160 }, note: "Vacuum gas oil with nearly all its sulphur, nitrogen and metals taken out and some of its aromatics saturated: the FCC's best feed, cracking further and cleaner, or sold to other refineries as low-sulphur VGO." },
-  importVgoT: { name: "Imported hydrotreated VGO", short: "Imp. VGO (HT)", group: "heavy", about: "370–550 °C", p: { d: 900, visc: 30, s: 300, flash: 165 }, note: "Vacuum gas oil bought already hydrotreated, at 300 ppm: cracker feed for an FCC with no post-treater when its own pretreater is down." },
+  kero: { name: "Kerosene", short: "Kero", group: "middle", sr: true, about: "160–240 °C", p: { cet: 43, d: 800, grade: 0, visc: 1.2, flash: 42, cfpp: -45 }, note: "The straight-run kerosene cut: jet fuel once its mercaptans (and, if sour, its sulphur) are dealt with." },
+  jet: { name: "Jet fuel", short: "Jet", group: "middle", about: "160–240 °C", p: { cet: 43, d: 800, grade: 1, visc: 1.2, flash: 42, cfpp: -45 }, note: "Treated kerosene, to the Jet A-1 specification." },
+  lgo: { name: "Light gas oil", short: "LGO", group: "middle", sr: true, about: "240–320 °C", p: { cet: 52, d: 845, visc: 3.5, flash: 75, cfpp: -12 }, note: "Straight-run diesel: good cetane, and sour until it's hydrotreated." },
+  hgo: { name: "Heavy gas oil", short: "HGO", group: "middle", sr: true, about: "320–370 °C", p: { cet: 47, d: 870, visc: 6, flash: 110, cfpp: 3, e360: 10 }, note: "The heaviest atmospheric cut: diesel as far as density allows, or cracker feed." },
+  lco: { name: "Light cycle oil", short: "LCO", group: "middle", about: "220–350 °C", p: { cet: 22, d: 945, visc: 3, flash: 75, cfpp: -15, e360: 2 }, note: "The FCC's cracked gas oil: aromatic and dense, with cetane in the 20s. It drags a diesel pool down." },
+  ulsd: { name: "Hydrotreated diesel", short: "ULSD", group: "middle", about: "diesel range", p: { cet: 53, d: 840, s: 8, visc: 3.5, flash: 65, cfpp: -10 }, note: "Gas oil with its sulphur taken to under 10 ppm; its cetane and density are what its feeds bring." },
+  lcgo: { name: "Light cycle gas oil", short: "LCGO", group: "middle", about: "220–340 °C", p: { cet: 23, d: 935, visc: 2.8, flash: 75, cfpp: -15, e360: 2 }, note: "The FCC's light cycle oil, drawn on its own: aromatic, dense, cetane in the 20s. Hydrotreated into diesel or heating oil, or fuel oil cutter." },
+  goT: { name: "Desulphurised gas oil", short: "GO (HT)", group: "middle", about: "240–370 °C", p: { cet: 50, d: 850, s: 400, visc: 4, flash: 70, cfpp: -8 }, note: "Gas oil after a first stage of desulphurising, to a few hundred ppm: heating oil as it is, or a second stage's feed for road diesel." },
+  mhcGo: { name: "Mild hydrocracked gas oil", short: "MHC GO", group: "middle", about: "200–370 °C", p: { cet: 42, d: 865, s: 30, visc: 4.5, flash: 70, cfpp: 4, e360: 8 }, note: "The diesel-range part a VGO hydrotreater cracks out of its feed: low in sulphur but not 10 ppm, cetane in the low forties. A distillate hydrotreater finishes it for road diesel." },
+  hcJet: { name: "Hydrocracker jet", short: "HC jet", group: "middle", about: "150–250 °C", p: { cet: 46, d: 800, s: 3, grade: 1, visc: 1.3, flash: 45, cfpp: -50 }, note: "Clean, low-aromatic kerosene from the hydrocracker: straight to the jet pool." },
+  hcDiesel: { name: "Hydrocracker diesel", short: "HC diesel", group: "middle", about: "250–370 °C", p: { cet: 58, d: 830, s: 3, visc: 3.5, flash: 70, cfpp: -20, e360: 5 }, note: "High-cetane, sulphur-free diesel: the hydrocracker's best product." },
+  cokerGo: { name: "Coker gas oil", short: "Coker GO", group: "middle", about: "200–480 °C", p: { cet: 36, d: 915, visc: 8, flash: 70, cfpp: -6, e360: 30 }, note: "Sour, olefinic gas oil from the coker: hydrotreat or hydrocrack it." },
+  fuelOilCutter: { name: "Visbreaker gas oil", short: "Visb. GO", group: "middle", about: "200–350 °C", p: { cet: 38, d: 885, visc: 5, flash: 65, cfpp: -8, e360: 2 }, note: "A little gas oil cracked out by the visbreaker, sour." },
+  hvo: { name: "HVO", short: "HVO", group: "renewable", p: { cet: 80, d: 780, s: 1, visc: 2.8, bio: 100, ghg: 430, flash: 70, cfpp: -20 }, note: "Renewable diesel (hydrotreated vegetable oil), here from waste fats: paraffinic, cetane near 80, light at 780 kg/m³, no sulphur, no aromatics. It saves about 80% of fossil diesel's emissions." },
+  fame: { name: "FAME", short: "FAME", group: "renewable", p: { cet: 53, d: 883, s: 5, fame: 100, visc: 4.5, bio: 100, ghg: 230, flash: 150, cfpp: -12 }, note: "Biodiesel (fatty acid methyl ester), here from rapeseed: up to 7% in EN 590 diesel. It saves about half of fossil diesel's emissions." },
+  // the renewable oils a refinery buys to hydrotreat or co-process. A fat's cfpp is that of the straight C15–C18
+  // paraffins hydrotreating makes of it, much the same whichever fat (isomerising them, as an HVO unit does, is what
+  // makes winter diesel); its saving is what a barrel saves as the fuel it becomes (RED II's default for HVO from it)
+  vegOil: { name: "Used cooking oil", short: "UCO", group: "renewable", p: { d: 920, s: 10, bio: 100, ghg: 430, cfpp: 15 }, note: "Frying oil collected from kitchens and food plants (RED's Annex IX Part B): triglycerides with a few per cent of free fatty acids, which corrode, and the salts and polymers of cooking, which a pretreatment takes out. Hydrotreated, it saves about 83% of fossil diesel's emissions." },
+  tallow: { name: "Category 1 tallow", short: "Tallow", group: "renewable", p: { d: 900, s: 40, bio: 100, ghg: 400, cfpp: 15 }, note: "Fat rendered from animal material that may never enter the food or feed chain (Category 1, Annex IX Part B): more saturated than vegetable oil, so it takes less hydrogen, but it carries nitrogen, phosphorus and polyethylene that a pretreatment takes out. Hydrotreated, it saves about 77%." },
+  rso: { name: "Rapeseed oil", short: "RSO", group: "renewable", p: { d: 920, s: 5, bio: 100, ghg: 250, cfpp: 15 }, note: "A food crop's oil, refined and clean, but the most unsaturated of the three fats, so it takes the most hydrogen. Hydrotreated it saves about 47%, half a waste's, and crop fuels are capped under RED." },
+  cto: { name: "Crude tall oil", short: "CTO", group: "renewable", p: { d: 950, s: 2000, bio: 100, ghg: 410, cfpp: 5, e360: 15 }, note: "What a kraft pulp mill skims off its black liquor (Annex IX Part A, an advanced feed): about half fatty acids, a quarter to a third rosin acids, the rest sterols and other neutrals. Free acids, not triglycerides: no propane. Its acid number is about 150 and it carries sulphur from the pulping." },
+  pyro: { name: "Pyrolysis oil", short: "Pyro oil", group: "renewable", p: { d: 1200, s: 100, bio: 100, ghg: 180 }, note: "Sawdust and forest residues heated to 500 °C in a second without air and the vapour quenched (Annex IX Part A): a quarter water and nearly 40% oxygen, acidic, half the energy of fuel oil a tonne. It won't mix with oil and it thickens when heated, so only a cracker takes it, through a nozzle of its own." },
+  spk: { name: "HEFA-SPK", short: "SPK", group: "renewable", about: "150–280 °C", p: { cet: 55, d: 760, s: 1, grade: 1, visc: 1.4, bio: 100, ghg: 415, flash: 45, cfpp: -40 }, note: "Synthetic paraffinic kerosene from hydroprocessed fats (HEFA): sustainable aviation fuel, blended up to half with fossil Jet A-1 under ASTM D7566." },
+  lvgo: { name: "Light vacuum gas oil", short: "LVGO", group: "heavy", about: "370–450 °C", p: { d: 905, visc: 15, flash: 160, e360: 90 }, note: "The lighter vacuum gas oil: hydrocracker or FCC feed." },
+  hvgo: { name: "Heavy vacuum gas oil", short: "HVGO", group: "heavy", about: "450–550 °C", p: { d: 930, visc: 80, flash: 200, e360: 100 }, note: "The heavy vacuum gas oil: the FCC's main feed, or the hydrocracker's." },
+  importVgo: { name: "Imported VGO", short: "Imp. VGO", group: "heavy", about: "370–550 °C", p: { d: 915, visc: 40, s: 4000, flash: 170, e360: 95 }, note: "Low-sulphur vacuum gas oil bought on the market as cracker feed: worth buying if the plant earns more from it than it costs." },
+  vgoT: { name: "Hydrotreated VGO", short: "VGO (HT)", group: "heavy", about: "370–550 °C", p: { d: 895, visc: 30, s: 150, flash: 160, e360: 95 }, note: "Vacuum gas oil with nearly all its sulphur, nitrogen and metals taken out and some of its aromatics saturated: the FCC's best feed, cracking further and cleaner, or sold to other refineries as low-sulphur VGO." },
+  importVgoT: { name: "Imported hydrotreated VGO", short: "Imp. VGO (HT)", group: "heavy", about: "370–550 °C", p: { d: 900, visc: 30, s: 300, flash: 165, e360: 95 }, note: "Vacuum gas oil bought already hydrotreated, at 300 ppm: cracker feed for an FCC with no post-treater when its own pretreater is down." },
   dao: { name: "Deasphalted oil", short: "DAO", group: "heavy", about: "500 °C+", p: { d: 950, visc: 4000, flash: 230 }, note: "The oil a solvent extracts from vacuum residue, leaving the asphaltenes behind: heavier, sourer and richer in metals than vacuum gas oil, but cracker feed once it's hydrotreated." },
-  hcgo: { name: "Heavy cycle gas oil", short: "HCGO", group: "heavy", about: "340–420 °C", p: { cet: 15, d: 990, visc: 15, flash: 120 }, note: "The FCC's heavy cycle oil: very aromatic and dense, a fuel oil component or cutter." },
+  hcgo: { name: "Heavy cycle gas oil", short: "HCGO", group: "heavy", about: "340–420 °C", p: { cet: 15, d: 990, visc: 15, flash: 120, e360: 60 }, note: "The FCC's heavy cycle oil: very aromatic and dense, a fuel oil component or cutter." },
   slurry: { name: "Slurry oil", short: "Slurry", group: "heavy", about: "350 °C+", p: { d: 1080, visc: 200, flash: 110 }, note: "Decant oil from the FCC's bottom: dense, aromatic; fuel oil, or carbon black feed." },
   atmResid: { name: "Atmospheric residue", short: "Atm. resid", group: "resid", sr: true, about: "370 °C+", p: { d: 960, visc: 800, flash: 150 }, note: "What doesn't boil in the crude column: vacuum unit feed, or fuel oil." },
   vacResid: { name: "Vacuum residue", short: "Vac. resid", group: "resid", about: "550 °C+", p: { d: 1005, visc: 250000, asph: 0, flash: 250 }, note: "The bottom of the barrel: coker, visbreaker, bitumen, or fuel oil with a lot of cutter." },
@@ -139,13 +155,16 @@ export const UNITS = {
       "It doesn't take sulphur out, only changes its form, so it works only on a sweet crude's kerosene.",
       "It costs a fraction of a hydrotreater and needs no hydrogen."],
     facts: [["Process", "mercaptans oxidised to disulphides over a cobalt catalyst, with air and caustic"], ["Sulphur", "unchanged in total"], ["After it", "salt drier and clay filter for water and surfactants"]] },
-  kht: { name: "Kerosene hydrotreater", short: "KHT", kind: "treating", stage: 5, feeds: ["kero", "hcn"], opex: 0.8,
-    yields: { kero: { jet: 0.99, gas: 0.01 }, hcn: { jet: 0.98, gas: 0.02 } }, carry: { to: "jet", set: { grade: 1, s: 10 }, perFeed: { hcn: { cet: 3, d: -5, olef: -8 } } }, h2: { kero: -0.15, hcn: -0.45 },
+  kht: { name: "Kerosene hydrotreater", short: "KHT", kind: "treating", stage: 5, feeds: ["kero", "hcn", "tallow"], opex: 0.8,
+    yields: { kero: { jet: 0.99, gas: 0.01 }, hcn: { jet: 0.98, gas: 0.02 }, tallow: { jet: 0.99, lpg: 0.075 } },
+    carry: { to: "jet", set: { grade: 1, s: 10 }, perFeed: { hcn: { cet: 3, d: -5, olef: -8 }, tallow: { d: -120 } } }, h2: { kero: -0.15, hcn: -0.45, tallow: -2.2 },
+    // ASTM D1655 lets jet come from a hydrotreater's feed of up to 5% fats: their long paraffins freeze warm
+    co: { tallow: 0.05 },
     purpose: "Hydrotreats kerosene to the jet specification: sulphur, mercaptans and acidity out over a catalyst with hydrogen.",
     card: ["A sour crude's kerosene carries more sulphur than Jet A-1's 0.3% allows: it has to be hydrotreated, not just sweetened.",
       "The same chemistry as every hydrotreater: sulphur leaves as hydrogen sulphide, bound for the sulphur plant.",
       "Jet usually prices above diesel, so a refinery sends every barrel of kerosene it can to jet."],
-    facts: [["Pressure", "20–40 bar"], ["Temperature", "300–340 °C"], ["Catalyst", "cobalt-molybdenum on alumina"], ["Hydrogen", "about 150 scf a barrel"]] },
+    facts: [["Pressure", "20–40 bar"], ["Temperature", "300–340 °C"], ["Catalyst", "cobalt-molybdenum on alumina"], ["Hydrogen", "about 150 scf a barrel"], ["Co-processing", "fats up to 5% of the feed under ASTM D1655; 30% under the UK's Def Stan 91-091 since 2025"]] },
   nht: { name: "Naphtha hydrotreater", short: "NHT", kind: "treating", stage: 5, feeds: ["hsr", "cokerNaphtha", "hcNaphtha", "icn"], opex: 0.6,
     yields: { hsr: { hsrT: 0.99, gas: 0.01 }, cokerNaphtha: { hsrT: 0.97, gas: 0.03 }, hcNaphtha: { hsrT: 1 }, icn: { hsrT: 0.98, gas: 0.02 } },
     carry: { to: "hsrT", set: { s: 0.5 }, perFeed: { cokerNaphtha: { ron: -4, mon: -3, olef: -40 }, icn: { ron: -25, mon: -18, olef: -25 } } },
@@ -169,7 +188,7 @@ export const UNITS = {
       "Over a chlorided platinum or zeolite catalyst with a little hydrogen, normal pentane and hexane become their branched isomers.",
       "Octane rises from about 70 to 88 with almost no loss of volume, and none of the aromatics that limit reformate."],
     facts: [["Temperature", "120–180 °C (chlorided alumina) or 250 °C (zeolite)"], ["Recycle", "a deisohexaniser recycling the unconverted C6s lifts RON from 82 to about 88–90"], ["Feed", "benzene in it is saturated too"]] },
-  fcc: { name: "Fluid catalytic cracker", short: "FCC", kind: "conversion", stage: 4, feeds: ["lvgo", "hvgo", "importVgo", "hgo", "cokerGo", "vegOil", "vgoT", "importVgoT"], opex: 2.5,
+  fcc: { name: "Fluid catalytic cracker", short: "FCC", kind: "conversion", stage: 4, feeds: ["lvgo", "hvgo", "importVgo", "hgo", "cokerGo", "vegOil", "tallow", "rso", "pyro", "vgoT", "importVgoT"], opex: 2.5,
     yields: { lvgo: { gas: 0.03, propylene: 0.055, lpg: 0.02, c4: 0.135, catNaphtha: 0.6, lco: 0.17, slurry: 0.05 },
       // hydrotreated feed cracks further, to more naphtha and less cycle oil and slurry (deasphalted oil reaches the
       // cracker only through a VGO hydrotreater, as part of its product)
@@ -180,8 +199,16 @@ export const UNITS = {
       hgo: { gas: 0.03, propylene: 0.05, lpg: 0.02, c4: 0.12, catNaphtha: 0.54, lco: 0.22, slurry: 0.06 },
       cokerGo: { gas: 0.045, propylene: 0.04, lpg: 0.02, c4: 0.1, catNaphtha: 0.47, lco: 0.25, slurry: 0.1 },
       // fats crack readily; a tenth of their weight leaves as water and carbon oxides, so the products take less room
-      vegOil: { gas: 0.03, propylene: 0.05, lpg: 0.1, c4: 0.07, catNaphtha: 0.52, lco: 0.1, slurry: 0.02 } },
-    sOf: { catNaphtha: 0.12, lco: 1.0, slurry: 2.0, c4: 0.01, lcn: 0.02, icn: 0.1, hcn: 0.4, lcgo: 1.0, hcgo: 1.6 }, co: { vegOil: 0.07 },
+      vegOil: { gas: 0.03, propylene: 0.05, lpg: 0.1, c4: 0.07, catNaphtha: 0.52, lco: 0.1, slurry: 0.02 },
+      tallow: { gas: 0.03, propylene: 0.05, lpg: 0.1, c4: 0.07, catNaphtha: 0.52, lco: 0.1, slurry: 0.02 },
+      rso: { gas: 0.03, propylene: 0.05, lpg: 0.1, c4: 0.07, catNaphtha: 0.52, lco: 0.1, slurry: 0.02 },
+      // pyrolysis oil, a quarter water and 40% oxygen: nearly two thirds of its weight leaves as water, carbon oxides
+      // and coke, and about a third of its carbon reaches the products
+      pyro: { gas: 0.04, propylene: 0.02, lpg: 0.02, c4: 0.03, catNaphtha: 0.25, lco: 0.06, slurry: 0.03 } },
+    sOf: { catNaphtha: 0.12, lco: 1.0, slurry: 2.0, c4: 0.01, lcn: 0.02, icn: 0.1, hcn: 0.4, lcgo: 1.0, hcgo: 1.6 },
+    // the most of its feed each renewable may be, and all of them together: fats change the heat balance and the yields,
+    // pyrolysis oil needs its own nozzle and leaves coke and water
+    co: { vegOil: 0.07, tallow: 0.07, rso: 0.07, pyro: 0.05 }, coTotal: 0.1,
     purpose: "Cracks vacuum gas oil over a hot fluidised zeolite catalyst into gasoline, LPG and olefins; the coke left on the catalyst is burned off to heat the next pass.",
     card: ["The workhorse of a gasoline refinery. Hot catalyst meets the feed at the bottom of a riser; in two or three seconds the big molecules crack into smaller ones.",
       "More than half the feed becomes high-octane but sour naphtha; a sixth is light cycle oil, with terrible cetane; the rest is LPG, propylene and slurry. The products take more room than the feed: about 103 barrels from 100.",
@@ -209,13 +236,16 @@ export const UNITS = {
       "Butenes and isobutane react over a strong acid into branched C8 paraffins: octane 95, low vapour pressure, no sulphur, no aromatics, no olefins.",
       "The acid is the hazard: HF units are fenced and watched; sulphuric units ship their spent acid away by the truckload to be regenerated."],
     facts: [["Temperature", "5–10 °C (sulphuric) or 30–40 °C (HF)"], ["Isobutane", "in large excess, 8–12 to 1 at the reactor"], ["Alkylate", "RON 94–96, MON 92"]] },
-  dht: { name: "Diesel hydrotreater", short: "DHT", kind: "treating", stage: 5, feeds: ["lgo", "hgo", "lco", "lcgo", "cokerGo", "fuelOilCutter", "kero", "goT", "mhcGo", "vegOil"], opex: 1.2,
+  dht: { name: "Diesel hydrotreater", short: "DHT", kind: "treating", stage: 5, feeds: ["lgo", "hgo", "lco", "lcgo", "cokerGo", "fuelOilCutter", "kero", "goT", "mhcGo", "vegOil", "tallow", "rso"], opex: 1.2,
     yields: { lgo: { ulsd: 0.99, gas: 0.01 }, hgo: { ulsd: 0.98, gas: 0.02 }, lco: { ulsd: 0.98, gas: 0.02 }, lcgo: { ulsd: 0.98, gas: 0.02 }, cokerGo: { ulsd: 0.97, gas: 0.03 }, fuelOilCutter: { ulsd: 0.98, gas: 0.02 }, kero: { ulsd: 0.99, gas: 0.01 },
-      goT: { ulsd: 0.99, gas: 0.01 }, mhcGo: { ulsd: 0.99, gas: 0.01 }, vegOil: { ulsd: 0.99, lpg: 0.08 } },
-    carry: { to: "ulsd", set: { s: 8 }, delta: { cet: 1.5, d: -5 }, perFeed: { lco: { cet: 8, d: -25 }, lcgo: { cet: 8, d: -25 }, cokerGo: { cet: 5, d: -15 }, fuelOilCutter: { cet: 4, d: -10 }, kero: { cet: 0.5, d: -2 }, goT: { cet: 0.5, d: -2 }, mhcGo: { cet: 1, d: -4 }, vegOil: { cet: 27, d: -140 } } },
-    h2: { lgo: -0.35, hgo: -0.5, lco: -1.2, lcgo: -1.2, cokerGo: -1.0, fuelOilCutter: -0.7, kero: -0.2, goT: -0.15, mhcGo: -0.2, vegOil: -2.4 },
-    // co-processing: the most of its feed a renewable one may be, before the heat, hydrogen and carbon oxides need a revamp
-    co: { vegOil: 0.1 },
+      goT: { ulsd: 0.99, gas: 0.01 }, mhcGo: { ulsd: 0.99, gas: 0.01 }, vegOil: { ulsd: 0.99, lpg: 0.08 }, tallow: { ulsd: 0.99, lpg: 0.075 }, rso: { ulsd: 0.99, lpg: 0.08 } },
+    carry: { to: "ulsd", set: { s: 8 }, delta: { cet: 1.5, d: -5 }, perFeed: { lco: { cet: 8, d: -25 }, lcgo: { cet: 8, d: -25 }, cokerGo: { cet: 5, d: -15 }, fuelOilCutter: { cet: 4, d: -10 }, kero: { cet: 0.5, d: -2 }, goT: { cet: 0.5, d: -2 }, mhcGo: { cet: 1, d: -4 },
+      vegOil: { cet: 27, d: -140 }, tallow: { cet: 27, d: -120 }, rso: { cet: 27, d: -140 } } },
+    // a fat takes hydrogen for its oxygen and for its double bonds: rapeseed oil has the most of them, tallow the fewest
+    h2: { lgo: -0.35, hgo: -0.5, lco: -1.2, lcgo: -1.2, cokerGo: -1.0, fuelOilCutter: -0.7, kero: -0.2, goT: -0.15, mhcGo: -0.2, vegOil: -2.4, tallow: -2.2, rso: -2.6 },
+    // co-processing: the most of its feed a renewable one may be, alone and with the others, before the heat, hydrogen
+    // and carbon oxides need a revamp
+    co: { vegOil: 0.1, tallow: 0.1, rso: 0.1 }, coTotal: 0.1,
     purpose: "Takes gas oil to under 10 ppm sulphur over a catalyst with hydrogen, so it can be sold as road diesel.",
     card: ["Straight-run gas oil holds up to 1% sulphur; EN 590 allows 0.001%. The hydrotreater is where the difference goes.",
       "Cracked gas oils, LCO and coker gas oil, take far more hydrogen: their aromatics and olefins are partly saturated too, which lifts their cetane a little and makes them lighter.",
@@ -329,11 +359,17 @@ export const UNITS = {
       "A phenol plant oxidises the cumene and splits it into phenol and acetone, for resins, polycarbonate and nylon.",
       "It ties the refinery to the chemical industry: the propylene is worth what the cumene pays less its benzene, against what it would sell for as polymer-grade propylene."],
     facts: [["Catalyst", "zeolite (beta or MWW type), liquid phase, 150–250 °C"], ["Benzene to propylene", "3–7 to 1 in the reactor, the excess recycled"], ["Yield", "about 1.7 barrels of cumene a barrel of propylene, with 1.1 of benzene"]] },
-  hght: { name: "Heavy gas oil hydrotreater", short: "HGO HT", kind: "treating", stage: 5, feeds: ["hgo", "mhcGo", "lco", "lcgo", "fuelOilCutter", "cokerGo", "lgo"], opex: 1.4,
-    yields: { hgo: { ulsd: 0.98, gas: 0.02 }, mhcGo: { ulsd: 0.99, gas: 0.01 }, lco: { ulsd: 0.97, gas: 0.03 }, lcgo: { ulsd: 0.97, gas: 0.03 }, fuelOilCutter: { ulsd: 0.98, gas: 0.02 }, cokerGo: { ulsd: 0.97, gas: 0.03 }, lgo: { ulsd: 0.99, gas: 0.01 } },
-    // at its higher pressure it saturates more of a cracked gas oil's aromatics than a diesel hydrotreater does
-    carry: { to: "ulsd", set: { s: 8 }, delta: { cet: 2, d: -7 }, perFeed: { lco: { cet: 11, d: -32 }, lcgo: { cet: 11, d: -32 }, mhcGo: { cet: 1.5, d: -5 }, fuelOilCutter: { cet: 6, d: -14 }, cokerGo: { cet: 7, d: -20 }, lgo: { cet: 1.5, d: -5 } } },
-    h2: { hgo: -0.6, mhcGo: -0.25, lco: -1.4, lcgo: -1.4, fuelOilCutter: -0.85, cokerGo: -1.2, lgo: -0.4 },
+  hght: { name: "Heavy gas oil hydrotreater", short: "HGO HT", kind: "treating", stage: 5, feeds: ["hgo", "mhcGo", "lco", "lcgo", "fuelOilCutter", "cokerGo", "lgo", "cto", "tallow"], opex: 1.4,
+    yields: { hgo: { ulsd: 0.98, gas: 0.02 }, mhcGo: { ulsd: 0.99, gas: 0.01 }, lco: { ulsd: 0.97, gas: 0.03 }, lcgo: { ulsd: 0.97, gas: 0.03 }, fuelOilCutter: { ulsd: 0.98, gas: 0.02 }, cokerGo: { ulsd: 0.97, gas: 0.03 }, lgo: { ulsd: 0.99, gas: 0.01 },
+      // tall oil's acids are free, with no glycerine to become propane: its oxygen leaves as water and carbon oxides
+      cto: { ulsd: 0.96, gas: 0.02 }, tallow: { ulsd: 0.99, lpg: 0.075 } },
+    // at its higher pressure it saturates more of a cracked gas oil's aromatics than a diesel hydrotreater does; tall
+    // oil's fatty acids become straight paraffins and its rosin acids ringed ones, denser and lower in cetane
+    carry: { to: "ulsd", set: { s: 8 }, delta: { cet: 2, d: -7 }, perFeed: { lco: { cet: 11, d: -32 }, lcgo: { cet: 11, d: -32 }, mhcGo: { cet: 1.5, d: -5 }, fuelOilCutter: { cet: 6, d: -14 }, cokerGo: { cet: 7, d: -20 }, lgo: { cet: 1.5, d: -5 },
+      cto: { cet: 7, d: -110 }, tallow: { cet: 27, d: -120 } } },
+    h2: { hgo: -0.6, mhcGo: -0.25, lco: -1.4, lcgo: -1.4, fuelOilCutter: -0.85, cokerGo: -1.2, lgo: -0.4, cto: -2.3, tallow: -2.2 },
+    // built in stainless steel at higher pressure, it takes acidic tall oil as well as fat, up to a tenth together
+    co: { cto: 0.1, tallow: 0.1 }, coTotal: 0.1,
     purpose: "A diesel hydrotreater built for the heaviest and hardest gas oils, at higher pressure: the heavy side stream, cracked gas oils, and what the VGO hydrotreaters crack.",
     card: ["The heavier a gas oil, the more of its sulphur sits in alkylated dibenzothiophenes, rings that shield the sulphur atom from the catalyst. Taking them to 10 ppm needs more pressure, more catalyst and more hydrogen than straight-run light gas oil does.",
       "So a refinery with several distillate hydrotreaters gives its heaviest feeds to the one built hardest: heavy gas oil, cycle oil, visbreaker gas oil, and the mild hydrocracker's gas oil, low in sulphur but in its hardest form.",
@@ -383,7 +419,8 @@ export const POOLS = {
     note: "Jet A-1: only kerosene that's been sweetened or hydrotreated, and synthetic kerosene up to half. Off spec, it drops to the diesel pool.",
     sheet: [["Sulphur", "≤ 0.30% m/m (3,000 ppm)"], ["Mercaptan sulphur", "≤ 0.003% m/m"], ["Aromatics", "≤ 25% v/v"], ["Flash point", "≥ 38 °C"], ["Freezing point", "≤ −47 °C"], ["Density at 15 °C", "775–840 kg/m³"], ["Smoke point", "≥ 25 mm, or ≥ 18 mm with naphthalenes ≤ 3%"], ["Acidity", "≤ 0.015 mg KOH/g"], ["Thermal stability", "JFTOT at 260 °C"], ["Specific energy", "≥ 42.8 MJ/kg"], ["Synthetic blend (ASTM D7566)", "HEFA-SPK ≤ 50% v/v"]] },
   diesel: { name: "Diesel", short: "Diesel", group: "middle", price: 96, tickets: 1,
-    accept: MIDDLE, spec: { cet: [51, null], d: [820, 845], s: [null, 10], fame: [null, 7], flash: [55, null] }, always: { d: [820, 845], flash: [55, null] }, fallback: "gasoil",
+    // the cold filter plugging point by season's grade: Germany's summer grade B here, a level sets autumn's or winter's
+    accept: MIDDLE, spec: { cet: [51, null], d: [820, 845], s: [null, 10], fame: [null, 7], flash: [55, null], cfpp: [null, 0], e360: [null, 5] }, always: { d: [820, 845], flash: [55, null], e360: [null, 5] }, fallback: "gasoil",
     note: "Road diesel to EN 590. Off spec, it's sold as 0.1% gasoil.",
     sheet: [["Cetane number", "≥ 51.0"], ["Cetane index", "≥ 46.0"], ["Density at 15 °C", "820–845 kg/m³"], ["Sulphur", "≤ 10 mg/kg"], ["Polyaromatics", "≤ 8% m/m"], ["FAME", "≤ 7% v/v (B7)"], ["Flash point", "> 55 °C"], ["Viscosity at 40 °C", "2.0–4.5 mm²/s"], ["95% recovered at", "≤ 360 °C"], ["CFPP", "+5 to −20 °C by grade and season"], ["Lubricity (HFRR)", "≤ 460 µm"]] },
   gasoil: { name: "Gasoil 0.1%", short: "Gasoil", group: "middle", price: 91,
@@ -401,7 +438,7 @@ export const POOLS = {
   slops: { name: "Slops", short: "Slops", group: "resid", price: 55, fallbackOnly: true,
     accept: ["lsr", "hsr", "hsrT", "reformate", "heavyReformate", "bzCut", "isomerate", "catNaphtha", "catNaphthaT", "lcn", "lcnT", "icn", "hcn", "alkylate", "cokerNaphtha", "hcNaphtha", "ethanol", "etbe", "mtbe", ...MIDDLE, ...HEAVY],
     note: "Off-spec product sold at a distress price, or taken back to be reprocessed.", sheet: [] },
-  notBought: { name: "Not bought", short: "Not bought", group: "other", price: 0, fallbackOnly: true, accept: ["importVgo", "importVgoT", "vegOil", "ethanol", "fame", "etbe"],
+  notBought: { name: "Not bought", short: "Not bought", group: "other", price: 0, fallbackOnly: true, accept: ["importVgo", "importVgoT", "vegOil", "tallow", "rso", "cto", "pyro", "ethanol", "fame", "etbe"],
     note: "What you choose not to buy stays with the seller: you don't pay for it. Its price here is the purchase price, handed back.", sheet: [] },
   lpg: { name: "LPG", short: "LPG", group: "gas", price: 45, accept: ["lpg", "butane", "c4", "raff"], note: "Propane and butane, as bottled gas or petrochemical feed.", sheet: [["Vapour pressure", "by grade (propane, butane, mix)"]] },
   propylene: { name: "Propylene", short: "C3=", group: "gas", price: 85, accept: ["propylene"], note: "Polymer-grade propylene for polypropylene.", sheet: [["Purity", "≥ 99.5%"]] },
@@ -421,7 +458,10 @@ export const CORE_SPECS = { naphtha: ["olef"], gasoline: ["ron", "s"], jet: ["gr
 export const H2_PRICE = 5;              // $ per thousand scf from the hydrogen plant (about $2 a kg)
 export const H2_IMPORT = 1.5;           // merchant hydrogen beyond the plant, as a multiple
 export const SULPHUR = { price: 120, cost: 40 };   // $ a tonne sold, and the Claus plant's cost a tonne
-export const BOUGHT = { vegOil: 168, ethanol: 120, fame: 160, etbe: 125, importVgo: 79, importVgoT: 84 };   // $/bbl delivered (UCO about $1,150 a tonne)
+// $/bbl delivered: UCO about $1,150 a tonne, Category 1 tallow $980 (it trades under UCO), rapeseed oil $1,220, crude tall oil $950,
+// pyrolysis oil $230, a little over what the fuel oil it replaces in a boiler costs for the same heat (it has half the
+// energy a tonne); the fats pretreated
+export const BOUGHT = { vegOil: 168, tallow: 140, rso: 178, cto: 143, pyro: 44, ethanol: 120, fame: 160, etbe: 125, importVgo: 79, importVgoT: 84 };
 /** Reactants a unit consumes in proportion to its feed (UNITS' uses), $/bbl delivered: methanol about $350 a tonne, benzene $950. */
 export const REAGENTS = { methanol: { name: "Methanol", price: 44 }, benzene: { name: "Benzene", price: 133 } };
 /** A ticket's price, $ a tonne of CO2e saved: about €320, as Germany's quota traded in 2026. A level sets its own. */
@@ -445,7 +485,8 @@ export const CRUDES = {
   saharan: { name: "Saharan Blend", short: "Saharan", api: 45, sulphur: 0.1, price: 75.5, vgoShare: 0.65, ar: { d: 920, visc: 150 }, vr: { d: 975, visc: 20000 },
     cuts: { gas: 0.006, lpg: 0.012, butane: 0.02, lsr: 0.1, hsr: 0.2, kero: 0.13, lgo: 0.18, hgo: 0.08, atmResid: 0.272 },
     // a light paraffinic crude's middle distillates: lighter and higher in cetane than the textbook cuts
-    props: { kero: { d: 795, cet: 45 }, lgo: { d: 835, cet: 54 }, hgo: { d: 858, cet: 50 } },
+    // and waxier: its gas oils' paraffins plug a filter a little warmer
+    props: { kero: { d: 795, cet: 45 }, lgo: { d: 835, cet: 54, cfpp: -10 }, hgo: { d: 858, cet: 50, cfpp: 5 } },
     note: "Algeria's light sweet export grade: rich in naphtha and distillate, with almost no sulphur, so even its residue is very-low-sulphur fuel oil. A Mediterranean staple." },
   cpc: { name: "CPC Blend", api: 45, sulphur: 0.55, price: 73.5, vgoShare: 0.65, ar: { d: 930, visc: 250 }, vr: { d: 985, visc: 60000 },
     cuts: { gas: 0.006, lpg: 0.012, butane: 0.022, lsr: 0.105, hsr: 0.2, kero: 0.12, lgo: 0.17, hgo: 0.07, atmResid: 0.295 },

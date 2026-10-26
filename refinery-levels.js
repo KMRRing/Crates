@@ -3,6 +3,7 @@
 // judged on, and where every stream starts; par is the LP's plan for it (refinery-par.js, worked out by
 // tests/refinery.mjs --write-par). The lessons are refinery-lessons.js, the exams refinery-exam.js.
 import { TICKET } from "./refinery-data.js";
+import { PAR } from "./refinery-par.js";
 
 export const CHAPTERS = [
   { id: 1, title: "The barrel", about: "What crude oil is made of, how the crude unit sorts it by boiling point, and what each cut is worth on its own." },
@@ -16,6 +17,7 @@ export const CHAPTERS = [
   { id: 9, title: "Renewables", about: "Biofuels in a refinery: the tickets that pay for them, the blend limits that cap them, HVO, co-processing in the hydrotreater and the FCC, and sustainable aviation fuel." },
   { id: 10, title: "Alder Point", about: "A whole refinery, unit by unit: a fuels plant of about 120 thousand barrels a day with an FCC and no hydrocracker, whose semi-regenerative reformer is its only hydrogen." },
   { id: 11, title: "Brackwater", about: "A second whole refinery: two works joined by pipelines, about 200 thousand barrels a day, whose FCC is fed only hydrotreated gas oil, whose light ends make ethers, alkylate and cumene, and whose bottom of the barrel becomes power." },
+  { id: 12, title: "Co-processing", about: "Renewable feeds run through the units the two refineries already have: fats, tall oil and pyrolysis oil, where each can go, what each does to a unit and a product, and what each earns under the rules." },
 ];
 
 const TOPPING_POOLS = ["gasPool", "lpg", "naphtha", "gasoil", "fuelOil", "hsfo"];
@@ -61,6 +63,21 @@ const BRACK_LAYOUT = { vdu: [2, 11.4], isom: [2, 3], kht: [2, 6], dht: [2, 7.1],
 const BRACK_PROPS = { reformate: { benz: 0.8 } };
 const brack = (units, extra = {}) => ({ crude: "arabLight", feed: BRACK_FEED, cdu2: BRACK_EAST, units, feeds: BRACK_FEEDS, caps: Object.fromEntries(Object.entries(BRACK_CAPS).filter(([u]) => units.includes(u))),
   layout: BRACK_LAYOUT, props: BRACK_PROPS, ...extra });
+// Chapter 12: each level starts from the plant as the level before left it, at par (the first at each refinery from
+// its own chapter's last), since co-processing is a change made to a running plant
+const running = (id, crude, deck) => PAR[id]?.[deck ? `${crude}/${deck}` : crude]?.routing || {};
+// fats crack in Alder Point's FCC as its gas oils do, the naphtha cut three ways, less of everything as their oxygen
+// leaves as water and carbon oxides
+const ALDER_FAT = { gas: 0.03, propylene: 0.07, lpg: 0.1, c4: 0.07, lcn: 0.25, icn: 0.14, hcn: 0.11, lcgo: 0.09, hcgo: 0.01, slurry: 0.02 };
+const ALDER_CO_FCC = { ...ALDER_FCC, vegOil: ALDER_FAT, tallow: ALDER_FAT, rso: ALDER_FAT };
+// late October in Germany: diesel to the transition grade's cold filter plugging point (summer's is 0 °C, winter's −20)
+const AUTUMN = { cfpp: [null, -10] };
+const FULL = { gasoline: ALL_SPECS.gasoline, diesel: ALL_SPECS.diesel, jet: ALL_SPECS.jet, gasoil: ALL_SPECS.gasoil, fuelOil: ALL_SPECS.fuelOil, hsfo: ALL_SPECS.hsfo };
+const alder12 = o => ({ chapter: 12, crude: "saharan", feed: ALDER_FEED, units: ALDER_UNITS, layout: ALDER_LAYOUT, yields: { fcc: ALDER_CO_FCC }, prices: ALDER_PRICES, h2Import: false,
+  caps: { fcc: 22 }, pools: [...ALDER_POOLS, "notBought"], ticket: TICKET, specs: FULL, ...o });
+const brack12 = o => ({ chapter: 12, ...brack(BRACK_UNITS), pools: [...BRACK_POOLS, "notBought"], ticket: TICKET, specs: { ...FULL, diesel: [...ALL_SPECS.diesel, "cfpp"], vgoExport: ["s"] },
+  limits: { diesel: AUTUMN }, ...o });
+
 // where a plant starts: everything sold as it comes off the crude unit, nothing sent to a unit; with a sour crude the
 // distillates go with the residue into high-sulphur fuel oil, which takes them as cutter, rather than into VLSFO
 const RAW = { kero: "fuelOil", lgo: "fuelOil", hgo: "fuelOil" };
@@ -255,4 +272,37 @@ export const LEVELS = [
     specs: { gasoline: ALL_SPECS.gasoline, diesel: ["cet", "d", "s"], jet: ALL_SPECS.jet, gasoil: ALL_SPECS.gasoil, vgoExport: ["s"], fuelOil: ALL_SPECS.fuelOil, hsfo: ALL_SPECS.hsfo },
     task: "Both works together, every product to its full specification, and five crudes to choose from: Brackwater as its planners run it each month. Which crude fills its units best, against its price?",
     watch: ["A light crude leaves the residue chain idle; a heavy one overfills it, and the rest of its residue is cut into fuel oil.", "Petrol's aromatics limit holds back the reformer: octane has to come from somewhere else."] },
+  // ---------- 12. Co-processing ----------
+  { id: "12.1", title: "Fat and hydrogen", ...alder12({ feeds: { ...ALDER_FEEDS, dht: [...ALDER_FEEDS.dht, "tallow"] }, bought: { fame: 4, ethanol: 1, etbe: 2, tallow: 3 },
+      start: { ...running("10.5", "saharan"), tallow: "notBought" } }),
+    task: "Alder Point as you left it, with Category 1 tallow on offer, which Germany credits co-processed. The diesel hydrotreater takes it up to a tenth of its feed, and a barrel of fat takes about six times the hydrogen a barrel of gas oil does, from a reformer that is all the hydrogen there is.",
+    watch: ["Hydrogen for the fat comes from treating less gas oil, or from reforming more naphtha.", "The fat's paraffins are light and high in cetane: room in the diesel for heavier, duller gas oil."] },
+  { id: "12.2", title: "Autumn diesel", ...alder12({ feeds: { ...ALDER_FEEDS, dht: [...ALDER_FEEDS.dht, "tallow"] }, bought: { fame: 4, ethanol: 1, etbe: 2, tallow: 3 },
+      specs: { ...FULL, diesel: [...ALL_SPECS.diesel, "cfpp"] }, limits: { diesel: AUTUMN }, start: running("12.1", "saharan") }),
+    task: "It's late October, and German diesel must not plug a filter above −10 °C. The fat's straight paraffins are wax: they lift the diesel's cold filter plugging point. Kerosene lowers it, as far as the diesel's flash point lets it in.",
+    watch: ["The waxiest part sets the plugging point, as the lightest sets the flash point.", "Heavy gas oil is waxy too: heating oil takes it."] },
+  { id: "12.3", title: "Which fat, which unit", ...alder12({ feeds: { ...ALDER_FEEDS, dht: [...ALDER_FEEDS.dht, "tallow", "vegOil", "rso"], fcc: [...ALDER_FEEDS.fcc, "tallow", "vegOil", "rso"] },
+      // Category 1 tallow is scarce: rendering makes only so much
+      bought: { fame: 4, ethanol: 1, etbe: 2, tallow: 0.5, vegOil: 3, rso: 3 }, prices: { ...ALDER_PRICES, vegOil: 160 }, specs: { ...FULL, diesel: [...ALL_SPECS.diesel, "cfpp"] }, limits: { diesel: AUTUMN },
+      // from before the tallow: a scarcer tallow leaves 12.2's plan's diesel over its FAME and short of its cetane
+      start: { ...running("10.5", "saharan"), tallow: "notBought", vegOil: "notBought", rso: "notBought" },
+      decks: [{ id: "de", name: "Sold in Germany", props: { vegOil: { ghg: 0 }, rso: { ghg: 0 } } }, { id: "eu", name: "Where all co-processing counts" }] }),
+    task: "Three fats on offer, used cooking oil, tallow and rapeseed oil, and two units that take them: the diesel hydrotreater, short of hydrogen, and the FCC, which needs none. Germany credits only co-processed tallow of the three; a scheme that counts all co-processing credits each by what it saves. Play both markets.",
+    watch: ["The FCC needs no hydrogen for the fat, but its naphtha and cycle oil do, from the same reformer.", "There's only so much Category 1 tallow: rendering makes what it makes."] },
+  { id: "12.4", title: "Tall oil", ...brack12({ feeds: { ...BRACK_FEEDS, hght: [...BRACK_FEEDS.hght, "cto"] }, bought: { cto: 3 },
+      start: { ...running("11.5", "arabLight"), cto: "notBought" } }),
+    task: "Brackwater, as you left it, with crude tall oil on offer from a pulp mill, an advanced feed Germany credits co-processed. Its acids would eat a carbon-steel unit; the heavy gas oil hydrotreater, built of stainless steel at higher pressure, takes it up to a tenth of its feed. Diesel is held to autumn's −10 °C.",
+    watch: ["Tall oil's rosin acids become ringed molecules: denser, lower in cetane, and less waxy than a fat's paraffins.", "Its sulphur goes to the sulphur plant like any gas oil's."] },
+  { id: "12.5", title: "Co-processed jet", ...brack12({ feeds: { ...BRACK_FEEDS, kht: [...BRACK_FEEDS.kht, "tallow"], dht: [...BRACK_FEEDS.dht, "tallow"], dht2: [...BRACK_FEEDS.dht2, "tallow"],
+      hght: [...BRACK_FEEDS.hght, "cto", "tallow"] }, bought: { cto: 3, tallow: 3 },
+      specs: { ...FULL, diesel: [...ALL_SPECS.diesel, "cfpp"], jet: [...ALL_SPECS.jet, "bio"], vgoExport: ["s"] }, limits: { diesel: AUTUMN, jet: { bio: [2, 50] } },
+      start: { ...running("12.4", "arabLight"), tallow: "notBought" } }),
+    task: "ReFuelEU asks 2% sustainable aviation fuel in the jet Brackwater sells. Category 1 tallow is on offer beside the tall oil: the kerosene hydrotreater may take fat up to 5% of its feed under ASTM D1655, and the diesel hydrotreaters up to a tenth of theirs, with hydrogen from the plant.",
+    watch: ["Jet short of its 2% isn't jet: it sells as something less.", "The diesel's autumn grade still holds: the fat's paraffins are wax."] },
+  { id: "12.6", title: "Pyrolysis oil, and all of it", ...brack12({ feeds: { ...BRACK_FEEDS, kht: [...BRACK_FEEDS.kht, "tallow"], dht: [...BRACK_FEEDS.dht, "tallow"], dht2: [...BRACK_FEEDS.dht2, "tallow"],
+      hght: [...BRACK_FEEDS.hght, "cto", "tallow"], fcc: [...BRACK_FEEDS.fcc, "pyro", "tallow"] }, bought: { cto: 3, tallow: 3, pyro: 2 },
+      specs: { ...FULL, diesel: [...ALL_SPECS.diesel, "cfpp"], jet: [...ALL_SPECS.jet, "bio"], vgoExport: ["s"] }, limits: { diesel: AUTUMN, jet: { bio: [2, 50] } },
+      start: { ...running("11.5", "arabLight"), cto: "notBought", tallow: "notBought", pyro: "notBought" } }),
+    task: "Brackwater from its summer plan, with all three on offer: tall oil, tallow, and pyrolysis oil from forest residues, which only the FCC takes, up to 5% of its feed through a nozzle of its own. Every product to its full specification, diesel to autumn's grade, jet to its 2%.",
+    watch: ["The FCC is full: a barrel of pyrolysis oil in it is a barrel of gas oil not cracked.", "Each unit holds its renewables to its share together."] },
 ];
