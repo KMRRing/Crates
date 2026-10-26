@@ -10,9 +10,13 @@
 // The early tricks are the dear ones (a whole hand to search): there the deals are fewer and only the lines that pay
 // (61, Schneider's 31 and 91) are searched for; from the third trick every card's points are exact and schwarz looked
 // for. A game to say is weighed by trumps-bids.js (fitted to many deals played out the same way, and to Hard's play).
+//
+// What the others have played is read as well (cardChance): everyone is taken to play perfectly, so a deal in which a
+// card played would have thrown points away is less likely than one in which it was its player's best, and each deal
+// counts by how well the play so far fits it.
 import { GAMES, laufende } from "./trumps-games.js";
 import { dealFor, fittingDeal, sidesOf, voidsOf, fits, callerFits, playedFits } from "./trumps-deals.js";
-import { solver, TooLong } from "./trumps-dd.js";
+import { solver, newTable, TooLong } from "./trumps-dd.js";
 import { BIDS } from "./trumps-bids.js";
 
 const S = GAMES.schafkopf;
@@ -41,25 +45,26 @@ function laufendeOf(s, hands, side) {
 
 /**
  * Each card a seat may play, weighed over `deals` deals of what it can't see: [{ card, worth (to its side, in
- * tariffs, on average), win (the share of deals its side wins, 0–1), n (deals), per (each deal's worth, with `keep`)
- * }], best first. `ms` stops early (but after a few deals) when the time is up; `depth` how closely each deal is
- * searched ("win", "bands" or "exact": what the stage of the hand calls for unless asked); a deal whose search runs
- * past `limit` positions is left out.
+ * tariffs, on average), win (the share of deals its side wins, 0–1), n (deals), per (each deal's worth, with `keep`),
+ * ws (each deal's weight: how well the play so far fits it, with `keep`) }], best first. `ms` stops early (but after a
+ * few deals) when the time is up; `depth` how closely each deal is searched ("win", "bands" or "exact": what the stage
+ * of the hand calls for unless asked); a deal whose search runs past `limit` positions is left out; `read` how the
+ * play is read (READ; null to weigh every deal alike).
  */
-export function weighCards(s, seat, { deals = 16, rng = Math.random, ms = 0, depth = depthOf(s), limit = LIMIT, keep = false } = {}) {
+export function weighCards(s, seat, { deals = 16, rng = Math.random, ms = 0, depth = depthOf(s), limit = LIMIT, keep = false, read = READ } = {}) {
   const c = s.contract, legal = S.legal(s, seat);
-  if (legal.length === 1) return [{ card: legal[0], worth: 0, win: null, n: 0, per: [] }];
+  if (legal.length === 1) return [{ card: legal[0], worth: 0, win: null, n: 0, per: [], ws: [] }];
   const exact = depth === "exact", late = s.tricks.length >= 3;
-  const sum = new Map(legal.map(id => [id, 0])), won = new Map(legal.map(id => [id, 0])), per = new Map(legal.map(id => [id, []]));
-  const start = now();
-  let n = 0;
+  const start = now(), rows = [], plays = read ? playsOf(s, seat, read) : [];
+  // one table of positions for the whole weighing: every deal's search, and the play's, learns from the others'
+  newTable();
   for (let i = 0; i < deals; i++) {
-    if (ms && n >= 4 && now() - start > ms) break;
+    if (ms && rows.length >= 4 && now() - start > ms) break;
     const hands = likelyDeal(s, seat, rng);
     if (!hands) continue;
     const side = sidesOf(s, hands), pts = [0, 0], took = [false, false], lauf = laufendeOf(s, hands, side);
     for (const t of s.tricks) { pts[side(t.winner)] += t.pts; took[side(t.winner)] = true; }
-    const sv = solver(c, { hands, trick: s.trick, turn: seat, side, limit }), mine = side(seat), vals = [];
+    const sv = solver(c, { hands, trick: s.trick, turn: seat, side, limit, shared: true }), mine = side(seat), vals = [];
     try {
       for (const card of legal) {
         let p0;
@@ -82,18 +87,84 @@ export function weighCards(s, seat, { deals = 16, rng = Math.random, ms = 0, dep
       if (e instanceof TooLong) continue;                    // a deal too long to search is left out
       throw e;
     }
-    for (const [card, v, w] of vals) { sum.set(card, sum.get(card) + v); if (w) won.set(card, won.get(card) + 1); if (keep) per.get(card).push(v); }
-    n++;
+    rows.push({ vals, fit: plays.map(x => cardChance(c, hands, x, side, read)) });
   }
-  return legal.map(card => ({ card, worth: n ? sum.get(card) / n : 0, win: n ? won.get(card) / n : null, n, per: per.get(card) }))
+  // a card played whose search ran too long in any deal is read in none, so every deal is weighed on the same cards
+  const unread = plays.map((x, j) => rows.some(r => Number.isNaN(r.fit[j])));
+  const ws = rows.map(r => r.fit.reduce((w, f, j) => (unread[j] ? w : w * f), 1));
+  const total = ws.reduce((a, w) => a + w, 0), n = rows.length;
+  const sum = new Map(legal.map(id => [id, 0])), won = new Map(legal.map(id => [id, 0])), per = new Map(legal.map(id => [id, []]));
+  rows.forEach(({ vals }, i) => {
+    for (const [card, v, w] of vals) { sum.set(card, sum.get(card) + ws[i] * v); if (w) won.set(card, won.get(card) + ws[i]); if (keep) per.get(card).push(v); }
+  });
+  return legal.map(card => ({ card, worth: n ? sum.get(card) / total : 0, win: n ? won.get(card) / total : null, n, per: per.get(card), ws: keep ? ws : [] }))
     .sort((a, b) => b.worth - a.worth);
 }
-/** How far apart two cards weighed over the same deals are: the gap in worth (a over b) and its standard error. */
+/** How far apart two cards weighed over the same deals are: the gap in worth (a over b) and its standard error, each
+ *  deal counting by its weight (the standard error then as from as many deals as the weights are worth). */
 export function gapOf(a, b) {
   const d = a.per.map((v, i) => v - b.per[i]), n = d.length;
   if (n < 2) return { gap: a.worth - b.worth, se: Infinity };
-  const mean = d.reduce((x, y) => x + y, 0) / n, sd = Math.sqrt(d.reduce((x, y) => x + (y - mean) ** 2, 0) / (n - 1));
-  return { gap: mean, se: sd / Math.sqrt(n) };
+  const w = a.ws?.length === n ? a.ws : d.map(() => 1), W = w.reduce((x, y) => x + y, 0);
+  const mean = d.reduce((x, y, i) => x + w[i] * y, 0) / W, sq = d.reduce((x, y, i) => x + w[i] * (y - mean) ** 2, 0) / W;
+  const eff = W ** 2 / w.reduce((x, y) => x + y * y, 0);
+  return { gap: mean, se: eff > 1 ? Math.sqrt((sq * eff) / (eff - 1) / eff) : Infinity };
+}
+
+// ---------- what the play says ----------
+// Everyone at the table is taken to play perfectly: each card played was its player's best, every card seen and both
+// sides at their best from there for points (trumps-dd.js). So a deal of the cards a seat can't see in which a card the
+// others played would have thrown points away is less likely than one in which it was the best: each such card counts
+// against a deal by exp(−β × the points it fell short of its player's best there), never below `floor`, and a deal is
+// weighed by the product. β and the floor are measured, not assumed: over 1,030 decisions of Hard's self-play, they
+// are the ones that make the real deal likeliest among the deals Hard draws. Nobody plays perfectly who can't see the
+// cards, the computer included: a card that would have thrown ten points or more away turns up in the real deal 7.8%
+// of the time against 10.1% in a drawn one, so the reading is gentle. A first trick's cards and a second trick's lead
+// say nothing measurable about the cards (they're played the most blind); the second trick's other cards say a little
+// but cost the most to search, so the cards read are those of the last trick and this one, from the third trick on.
+// What it buys, measured the same way: the real deal some 3% likelier than an average drawn one (a log-likelihood of
+// +0.030 ± 0.007 a decision, against +0.058 for every card read from the second trick).
+
+/** How the play is read: β per card point short, the least a card counts for, the first trick read and the first
+ *  whose lead is, how many tricks back (this one counted), and the positions a card's search may take (past them it's
+ *  read in no deal). */
+export const READ = { beta: 0.08, floor: 0.6, from: 3, leadFrom: 3, back: 2, limit: 150000 };
+
+/** The cards the others have played this hand that are read: each with its trick (k), the trick so far when it was
+ *  played, and the hand's tricks (their cards, winners and points, for the position to be rebuilt in a deal). */
+export function playsOf(s, seat, read = READ) {
+  const out = [], all = [...s.tricks.map(t => t.cards), s.trick];
+  all.forEach((cards, k) => cards.forEach((x, i) => {
+    if (x.seat !== seat && k + 1 >= read.from && (i || k + 1 >= read.leadFrom) && k > s.tricks.length - read.back) out.push({ seat: x.seat, card: x.card, k, before: cards.slice(0, i), all });
+  }));
+  return out;
+}
+/**
+ * How well a card played fits a deal, everyone playing perfectly: exp(−β × the points it fell short of its player's
+ * best in that deal), at least `floor`; NaN when the position's search runs too long (the card is then read in no
+ * deal). The position is rebuilt from the deal: each hand as it is now, with what its player has played since put back.
+ */
+export function cardChance(c, hands, x, side, read = READ) {
+  const held = hands.map(h => h.slice()), all = x.all;
+  for (const t of all) for (const y of t) held[y.seat].push(y.card);
+  for (let k = 0; k < x.k; k++) for (const y of all[k]) held[y.seat] = held[y.seat].filter(id => id !== y.card);
+  for (const y of x.before) held[y.seat] = held[y.seat].filter(id => id !== y.card);
+  try {
+    const sv = solver(c, { hands: held, trick: x.before, turn: x.seat, side, limit: read.limit, shared: true }), cards = sv.cards();
+    if (cards.length < 2 || !cards.includes(x.card)) return 1;
+    // the solver counts the players' points; a defender's best is the fewest
+    const sign = side(x.seat) === 0 ? 1 : -1;
+    let best = -Infinity, got = 0;
+    for (const card of cards) {
+      const u = sign * sv.value(card);
+      if (u > best) best = u;
+      if (card === x.card) got = u;
+    }
+    return Math.max(read.floor, Math.exp(-read.beta * (best - got)));
+  } catch (e) {
+    if (e instanceof TooLong) return NaN;
+    throw e;
+  }
 }
 
 /** How closely a deal is searched, by how far the hand has got: in the first trick only whether the game is won, in
@@ -104,9 +175,10 @@ export function dealsFor(s, budget = HARD) {
   if (!s.tricks.length) return s.trick.length ? budget.first : budget.lead;
   return s.tricks.length === 1 ? budget.second : budget.rest;
 }
-/** Hard's card: the one that does best over the deals (between cards alike, the one its rule of thumb would play). */
-export function thinkPlay(s, seat, rng, { budget = HARD, ms = 0, prefer = null } = {}) {
-  const list = weighCards(s, seat, { deals: dealsFor(s, budget), rng, ms });
+/** Hard's card: the one that does best over the deals, read as the play so far makes them likely (between cards
+ *  alike, the one its rule of thumb would play). */
+export function thinkPlay(s, seat, rng, { budget = HARD, ms = 0, prefer = null, read = READ } = {}) {
+  const list = weighCards(s, seat, { deals: dealsFor(s, budget), rng, ms, read });
   const top = list[0];
   const tied = list.filter(x => top.worth - x.worth < 1e-9);
   return (prefer != null && tied.some(x => x.card === prefer) ? prefer : top.card);

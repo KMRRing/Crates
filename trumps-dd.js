@@ -34,11 +34,15 @@ function tablesOf(c) {
   return { cls, pow, mask, order, ace, aceCls: ace >= 0 ? cls[ace] : -1 };
 }
 
-// the transposition table: positions at a trick's start (the four hands, who leads), with the bounds known of their
-// worth and the card that did best; entries from an earlier deal are told apart by a generation
+// the transposition table: positions at a trick's start (the four hands, who leads, which seats are the players),
+// with the bounds known of their worth and the card that did best; entries from an earlier table are told apart by a
+// generation. A position's worth depends only on those, so within one contract and one play so far (one weighing:
+// many deals, and the positions the play went through) a table can be shared, and every search learns from the rest.
 const TT_BITS = 18, TT_SIZE = 1 << TT_BITS;
 const ttH = new Int32Array(TT_SIZE * 4), ttMeta = new Int32Array(TT_SIZE), ttLo = new Int8Array(TT_SIZE), ttHi = new Int8Array(TT_SIZE), ttBest = new Int8Array(TT_SIZE);
 let gen = 0;
+/** A fresh table: what was learnt of positions so far is forgotten. */
+export function newTable() { gen = (gen + 1) & 0xffffff; }
 const slot = (h, lead) => (Math.imul(h[0], 0x9E3779B1) ^ Math.imul(h[1], 0x85EBCA77) ^ Math.imul(h[2], 0xC2B2AE3D) ^ Math.imul(h[3], 0x27D4EB2F) ^ Math.imul(lead + 1, 0x165667B1)) >>> (32 - TT_BITS);
 
 /**
@@ -52,13 +56,15 @@ export class TooLong extends Error {}
 /** Positions searched, all told (for the tests and the tools). */
 export const stats = { nodes: 0 };
 
-export function solver(contract, { hands, trick, turn, side, limit = Infinity }) {
+export function solver(contract, { hands, trick, turn, side, limit = Infinity, shared = false }) {
   const X = tablesOf(contract), { cls, pow, mask, order, ace, aceCls } = X;
   const h = Int32Array.from(hands, maskOf), sideOf = Int8Array.from([0, 1, 2, 3], side);
   const tSeat = new Int8Array(4), tBit = new Int8Array(4);
   let n = 0, lead = trick.length ? trick[0].seat : turn;
   for (const t of trick) { tSeat[n] = t.seat; tBit[n] = BIT.get(t.card); n++; }
-  gen = (gen + 1) & 0x3fffffff;
+  if (!shared) newTable();
+  // the players' seats are part of a position's key: a shared table may hold positions from deals with another partner
+  const tag = (sideOf.reduce((m, sd, seat) => m | (sd === 0 ? 1 << seat : 0), 0) << 2) | (gen << 6);
   const moves = new Int8Array(33 * 8), scores = new Float64Array(8), hist = new Float64Array(32 * 4);
 
   /** What a seat may play now, as bits (the called Sau's rules included). */
@@ -136,7 +142,7 @@ export function solver(contract, { hands, trick, turn, side, limit = Infinity })
     let e = -1, firstMove = -1;
     if (!n) {
       e = slot(h, lead);
-      if (ttMeta[e] === ((gen << 2) | lead) && ttH[e * 4] === h[0] && ttH[e * 4 + 1] === h[1] && ttH[e * 4 + 2] === h[2] && ttH[e * 4 + 3] === h[3]) {
+      if (ttMeta[e] === (tag | lead) && ttH[e * 4] === h[0] && ttH[e * 4 + 1] === h[1] && ttH[e * 4 + 2] === h[2] && ttH[e * 4 + 3] === h[3]) {
         const lo = ttLo[e] & 0xff, hi = ttHi[e] & 0xff;
         if (lo >= beta) return lo;
         if (hi <= alpha) return hi;
@@ -169,11 +175,11 @@ export function solver(contract, { hands, trick, turn, side, limit = Infinity })
       if (alpha >= beta) { hist[seat * 32 + b] += (33 - ply) * (33 - ply); break; }
     }
     if (e >= 0) {
-      const known = ttMeta[e] === ((gen << 2) | lead) && ttH[e * 4] === h[0] && ttH[e * 4 + 1] === h[1] && ttH[e * 4 + 2] === h[2] && ttH[e * 4 + 3] === h[3];
+      const known = ttMeta[e] === (tag | lead) && ttH[e * 4] === h[0] && ttH[e * 4 + 1] === h[1] && ttH[e * 4 + 2] === h[2] && ttH[e * 4 + 3] === h[3];
       let lo = known ? ttLo[e] & 0xff : 0, hi = known ? ttHi[e] & 0xff : 255;
       if (best <= a0) hi = Math.min(hi, best); else if (best >= b0) lo = Math.max(lo, best); else lo = hi = best;
       ttH[e * 4] = h[0]; ttH[e * 4 + 1] = h[1]; ttH[e * 4 + 2] = h[2]; ttH[e * 4 + 3] = h[3];
-      ttMeta[e] = (gen << 2) | lead; ttLo[e] = lo; ttHi[e] = Math.min(hi, 255); ttBest[e] = bestMove;
+      ttMeta[e] = tag | lead; ttLo[e] = lo; ttHi[e] = Math.min(hi, 255); ttBest[e] = bestMove;
     }
     return best;
   }

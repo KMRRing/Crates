@@ -9,7 +9,7 @@ import { rules } from "../trumps-rules.js";
 import { cid, deckFrom, rankOf } from "../trumps-cards.js";
 import { solver } from "../trumps-dd.js";
 import { dealFor, voidsOf, sidesOf } from "../trumps-deals.js";
-import { weighCards, gapOf, bidOptions, bidWorth, thinkBid, depthOf, likelyDeal, bidLikelihood } from "../trumps-think.js";
+import { weighCards, gapOf, bidOptions, bidWorth, thinkBid, depthOf, likelyDeal, bidLikelihood, cardChance, playsOf, READ } from "../trumps-think.js";
 import { botMove, aheadKey, remember } from "../trumps-bot.js";
 import { adviceWords, verdictOf, bidAdvice, bidVerdict, cardRows, handWords, cardWhy } from "../trumps-coach.js";
 import { PUZZLES } from "../trumps-puzzles.js";
@@ -130,6 +130,29 @@ function anyTrick(c, hands, trick, turn, side, want) {
   check(said > plain + 1.5, `a Solo said: its player dealt ${said.toFixed(1)} trumps on average, against ${plain.toFixed(1)} dealt plainly`);
   const kept = bidLikelihood(s, likelyDeal(s, first, rng), first);
   check(kept.like > 0 && kept.like <= 1, "the bidding's likelihood of a deal, between nothing and one");
+}
+
+// ---------- what the play says ----------
+{
+  // a Sauspiel on the Gras-Sau, Herz trumps, seat 1 the caller: it leads the Eichel-Ober, which takes the trick, and
+  // seat 2, out of trumps, puts the Schellen-Sau on it. If seat 2 holds the Gras-Sau it's the caller's partner and the
+  // Sau its best card; if seat 3 holds it, seat 2 has given the caller eleven points it could have put on seat 0's
+  // Herz-Ober later instead
+  const P = t => parseCards(t), c = { type: "sau", trump: 1, ace: 2, declarer: 1 };
+  const lead = { seat: 1, card: P("EO")[0] }, smear = { seat: 2, card: P("SA")[0] };
+  const x = { seat: 2, card: smear.card, k: 0, before: [lead], all: [[lead, smear]] };
+  const partner = [P("HO HU S8"), P("G8 E7"), P("S7 GA"), P("E9 G9 E8")], other = [P("HO HU S8"), P("G8 E7"), P("S7 E9"), P("GA G9 E8")];
+  const fitPartner = cardChance(c, partner, x, sideFor(c, [partner[0], partner[1], [...partner[2], smear.card], partner[3]]));
+  const fitOther = cardChance(c, other, x, sideFor(c, [other[0], other[1], [...other[2], smear.card], other[3]]));
+  check(fitPartner === 1 && fitOther === READ.floor, `a Sau put on the caller's trick fits the deal where its player is the partner (${fitPartner}) better than the one where it isn't (${fitOther.toFixed(2)})`);
+  // which cards are read: the last trick's and this one's, from the third trick on, none of the reader's own
+  const trick = (k, lead) => ({ cards: [0, 1, 2, 3].map(i => ({ seat: (lead + i) % 4, card: 10 * k + i })) });
+  const at = (done, now) => ({ tricks: Array.from({ length: done }, (_, k) => trick(k, k)), trick: now });
+  const said = (st, seat) => playsOf(st, seat).map(x => `${x.k}:${x.seat}`).join();
+  check(said(at(2, [{ seat: 2, card: 30 }]), 0) === "2:2" && said(at(3, [{ seat: 3, card: 40 }]), 0) === "2:2,2:3,2:1,3:3" && said(at(1, [{ seat: 1, card: 30 }]), 0) === "",
+    `the cards read: from the third trick on, the last trick's and this one's, never the reader's own (${said(at(3, [{ seat: 3, card: 40 }]), 0)})`);
+  const g = gapOf({ worth: 1, per: [1, 2, 3, 4], ws: [1, 1, 1, 1] }, { worth: 0, per: [0, 1, 3, 3] }), h = gapOf({ worth: 1, per: [2, 0, 5], ws: [1, 0, 1] }, { worth: 0, per: [0, 9, 1] });
+  check(Math.abs(g.gap - 0.75) < 1e-9 && Math.abs(h.gap - 3) < 1e-9, "the gap between two cards counts each deal by its weight");
 }
 
 // ---------- weighing a position: the puzzle rush's best found ----------
