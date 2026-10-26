@@ -403,8 +403,8 @@ function splitRow(s, d) {
   // a finger on the slider holds the stream's other shares as they were, so the drag stays on the one path its
   // breaks were found along (dragged to all and back, the others come back as they were, not to the home)
   range.addEventListener("pointerdown", () => {
-    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, w = range.getBoundingClientRect().width - THUMB * rem;
-    drag = { d, from: { ...(routing[s] || {}) }, first: true, reach: w > 0 ? (SNAP * rem) / w : 0 };
+    const { rem, run } = trackOf(range);
+    drag = { d, from: { ...(routing[s] || {}) }, first: true, reach: run > 0 ? (SNAP * rem) / run : 0 };
   });
   range.addEventListener("input", () => {
     const raw = +range.value / 100;
@@ -438,7 +438,12 @@ function allHere(s) {
 // that fails sells as the next grade down. The worker finds those breaks (refinery-worker.js); the track shows each in
 // green on the side that earns more and red on the side that loses, and a dragged thumb that comes near one stops on
 // its edge when that earns more than where the finger is: a plan earns most on the edge of a spec, more often than not.
-const THUMB = 0.75, SNAP = 0.75, NEAR = 0.25;   // rem: the thumb's width, how near an edge pulls it, how near two breaks look one
+const SNAP = 0.75, NEAR = 0.25;   // rem: how near an edge pulls the thumb, how near two breaks look one
+/** A slider in pixels: the root's rem, and the run of the thumb's centre (the slider's width less the thumb's, refinery.css's --rf-thumb). */
+function trackOf(range) {
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  return { rem, run: range.getBoundingClientRect().width - (parseFloat(getComputedStyle(range).getPropertyValue("--rf-thumb")) || 0) * rem };
+}
 let scanner = null, scanId = 0, asked = null, sentLevel = null, scanPaths = {};
 const breaks = new Map();   // destination → { path, list }, for the stream open
 /** What a slider's breaks depend on: the level as played, the rest of the plan, and the stream's other shares in proportion. */
@@ -476,8 +481,7 @@ function stopBreaks() { if (scanner) scanner.postMessage({ id: ++scanId }); aske
 function paintBreaks(d) {
   const p = splitRows.get(d), list = breaks.get(d)?.list || [];
   if (!p) return;
-  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, w = p.range.getBoundingClientRect().width - THUMB * rem;
-  const edges = list.length && w > 0 ? edgesOf(list, (NEAR * rem) / w) : [];
+  const { rem, run } = trackOf(p.range), edges = list.length && run > 0 ? edgesOf(list, (NEAR * rem) / run) : [];
   const at = x => `calc(var(--rf-thumb) / 2 + ${+x.toFixed(6)} * (100% - var(--rf-thumb)))`;
   const loses = v => v >= 0.05, colour = v => (loses(v) ? "var(--rf-bad)" : "var(--rf-good)");
   const stops = edges.flatMap((e, i) => {
@@ -505,8 +509,11 @@ function settle(s, d, raw) {
   }
   return edge ? { x: edge.b.at, edge: edge.b } : { x: free };
 }
-/** A spec edge in a few words: the grade and the spec it holds to ("diesel CFPP", "VLSFO 0.5% sulphur"). */
-const edgeWords = b => [...new Set(b.pools.flatMap(p => (p.specs.length ? p.specs.map(k => `${lower(POOLS[p.was].name)} ${lower(PROPS[k].name)}`) : [lower(POOLS[p.was].name)])))].join(" · ");
+/** A spec edge in a few words: the product, the grade it sells as if that's another, and the specs it holds to there ("diesel: CFPP", "gasoil as VLSFO: flash point"). */
+const edgeWords = b => b.pools.map(p => {
+  const what = `${lower(POOLS[p.pool].short)}${p.was !== p.pool ? ` as ${POOLS[p.was].short}` : ""}`;
+  return p.specs.length ? `${what}: ${p.specs.map(k => lower(PROPS[k].name)).join(", ")}` : `${what}, else ${lower(POOLS[p.soldAs].short)}`;
+}).join(" · ");
 
 // ---------- cards: a unit, a product, the crude ----------
 /** Where a stream goes now, in a few words: "→ NHT 62% · Naphtha 38%", and "nowhere else" when it has one way out. */

@@ -163,13 +163,15 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-split-ctl { grid-column: 1 / -1; display: flex; align-items: center; gap: .4rem; }
 /* the share's slider, drawn here so its track can carry the spec edges (refinery.js, paintBreaks): the thumb's width is
    in the sums that place them, so the thumb is a fixed index rather than the browser's own */
-.rf-track { --rf-thumb: .75rem; --rf-band: .9rem; --at: 0; --marks: none; --rf-fill: calc(var(--rf-thumb) / 2 + var(--at) * (100% - var(--rf-thumb)));
+.rf-track { --rf-thumb: 1.75rem; --rf-band: .9rem; --at: 0; --marks: none; --rf-fill: calc(var(--rf-thumb) / 2 + var(--at) * (100% - var(--rf-thumb)));
   position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
 #splitDlg .rf-track input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; width: auto; min-width: 0; height: 1.75rem; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
 #splitDlg .rf-track input[type="range"]::-webkit-slider-runnable-track { height: .375rem; border-radius: 3px; background: var(--marks), linear-gradient(to right, var(--rf-in) var(--rf-fill), var(--rf-track) var(--rf-fill)); }
 #splitDlg .rf-track input[type="range"]::-moz-range-track { height: .375rem; border-radius: 3px; background: var(--marks), linear-gradient(to right, var(--rf-in) var(--rf-fill), var(--rf-track) var(--rf-fill)); }
-#splitDlg .rf-track input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; box-sizing: border-box; width: var(--rf-thumb); height: 1.375rem; margin-top: -.5rem; border: 2px solid var(--tile); border-radius: 3px; background: var(--rf-in); box-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
-#splitDlg .rf-track input[type="range"]::-moz-range-thumb { box-sizing: border-box; width: var(--rf-thumb); height: 1.375rem; border: 2px solid var(--tile); border-radius: 3px; background: var(--rf-in); box-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+/* the thumb: a narrow index to the eye, a fingertip wide to the touch (its sides are transparent border, which a finger
+   still catches: iOS moves a range only by its thumb) */
+#splitDlg .rf-track input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; box-sizing: border-box; width: var(--rf-thumb); height: 1.5rem; margin-top: -.5625rem; border: solid transparent; border-width: 0 .4375rem; border-radius: calc(.4375rem + 3px) / 3px; background: var(--rf-in) padding-box; box-shadow: inset 0 0 0 2px var(--tile); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
+#splitDlg .rf-track input[type="range"]::-moz-range-thumb { box-sizing: border-box; width: var(--rf-thumb); height: 1.5rem; border: solid transparent; border-width: 0 .4375rem; border-radius: calc(.4375rem + 3px) / 3px; background: var(--rf-in) padding-box; box-shadow: inset 0 0 0 2px var(--tile); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
 #splitDlg .rf-track input[type="range"]:focus-visible { outline: none; }
 #splitDlg .rf-track input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--brass); outline-offset: 1px; }
 #splitDlg .rf-track input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--brass); outline-offset: 1px; }
