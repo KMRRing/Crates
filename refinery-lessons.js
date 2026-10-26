@@ -2,7 +2,7 @@
 // the task. A picture is a small plant of its own or the level's plant as it starts (never its answer), the crude
 // column, boiling curves, bars of values, a blend against its limit, or molecules. Also the course map's line for each
 // level, and the glossary the exams take their words from.
-import { STREAMS, UNITS, POOLS, CRUDES, CUT_S } from "./refinery-data.js";
+import { STREAMS, UNITS, POOLS, CRUDES, CUT_S, BOUGHT } from "./refinery-data.js";
 import { ownProps } from "./refinery-engine.js";
 import { LEVELS } from "./refinery-levels.js";
 
@@ -36,6 +36,11 @@ export const TEACHES = {
   "8.2": "Choosing a crude: what its barrel makes here, against its price",
   "8.3": "Marginal values: buy a feed while it earns more than it costs",
   "8.4": "Shadow prices on capacity: where the next investment goes",
+  "9.1": "Tickets: what a biofuel's saving is worth, and the blend walls",
+  "9.2": "HVO: renewable diesel against diesel's density floor",
+  "9.3": "Co-processing fats in the diesel hydrotreater",
+  "9.4": "Co-processing in the FCC: where the renewable carbon lands",
+  "9.5": "Sustainable aviation fuel: meeting a mandate at least cost",
 };
 
 /** The craft's words, for the glossary and the exams: no definition says its own word or holds a figure that gives it away. */
@@ -126,6 +131,24 @@ export const GLOSSARY = [
   ["Marginal value", "What one more barrel of a stream would add to a plan's margin, wherever the plan would put it: a feed is bought while it beats the price."],
   ["Intermediate feedstock", "A part-refined stream traded between refineries, such as vacuum gas oil or atmospheric residue, bought to fill a unit."],
   ["Debottlenecking", "Raising a plant's throughput by enlarging the one unit that limits the rest: often the cheapest capacity a refinery can buy."],
+  ["RED III", "The EU's Renewable Energy Directive of 2023: by 2030, a share of renewable energy in transport or a cut in its fuels' greenhouse gas intensity, each member state choosing."],
+  ["Ticket", "A certificate for renewable fuel supplied, traded among fuel suppliers to meet their obligation: its price sets what blending a biofuel is worth."],
+  ["GHG quota", "Germany's obligation on fuel suppliers to cut their fuels' emissions by a rising percentage, traded in tonnes of CO2e saved."],
+  ["Carbon intensity", "A fuel's life-cycle emissions per unit of energy, in grams of CO2e a megajoule, set against fossil fuel's comparator."],
+  ["Blend wall", "The most of a biofuel a fuel standard lets into a blend, whatever its tickets are worth: FAME in diesel, ethanol in petrol."],
+  ["FAME", "Fatty acid methyl ester: vegetable oil or fat reacted with methanol, the first generation of biodiesel, limited in road diesel by its stability and cold flow."],
+  ["HVO", "Hydrotreated vegetable oil: fats turned into paraffins with hydrogen, a renewable diesel like fossil paraffins, limited in a blend only by density."],
+  ["EN 15940", "The European standard for paraffinic diesel, from fats or synthesis gas: high cetane, low density, sold neat."],
+  ["Co-processing", "Running a renewable feed through a refinery's own unit together with fossil oil, so that its products carry a renewable share."],
+  ["UCO", "Used cooking oil: collected waste frying fat, a feedstock of the waste class whose biofuels save the most emissions."],
+  ["Annex IX", "The Renewable Energy Directive's list of feedstocks from wastes and residues: Part A the advanced, such as straw and manure; Part B used cooking oil and animal fat."],
+  ["Carbon-14 method", "Telling renewable from fossil carbon in a fuel by its radiocarbon: fossil carbon has none left, carbon from living plants has today's share."],
+  ["Mass balance", "Accounting that follows a certified input's share through a process into its outputs, without separating the molecules."],
+  ["SAF", "Sustainable aviation fuel: jet fuel from wastes, residues or renewable hydrogen, blended with fossil kerosene and certified for aircraft."],
+  ["HEFA", "Hydroprocessed esters and fatty acids: the route that turns fats into jet-range paraffins, most of today's sustainable aviation fuel."],
+  ["ReFuelEU Aviation", "The EU regulation obliging fuel suppliers at its airports to blend a rising share of sustainable aviation fuel, with a synthetic part within it."],
+  ["ASTM D7566", "The standard certifying synthetic kerosene for blending with fossil jet fuel: each route's blend limit, half for most."],
+  ["Double counting", "Counting a waste-based biofuel's energy twice toward a target, as many member states have; Germany's 2026 law ends it."],
 ];
 
 const W = (k, s) => ({ say: s, scene: k });
@@ -143,6 +166,8 @@ const lcoShare = (k, lim) => (treated("lgo")[k] - lim) / (treated("lgo")[k] - tr
 const vgoOf = id => { const c = CRUDES[LV(id).crude]; return 100 * c.cuts.atmResid * c.vgoShare; };
 // the cracks of a level's markets: product less crude
 const crack = (id, i, p) => LV(id).decks[i].prices[p] - CRUDES[LV(id).crude].price;
+// a biofuel's ticket at a level's quota price, $/bbl: its saving in tonnes times the price
+const ticketOf = (s, id) => (STREAMS[s].p.ghg * LV(id).ticket) / 1000;
 /** What a barrel of vacuum gas oil earns in 8.3's hydrocracker, as its lesson says: tests/refinery.mjs holds it to par's. */
 export const VGO_IN_HCU = 87;
 const crackBars = id => LV(id).decks.flatMap((d, i) => [[`Petrol, ${i ? "winter" : "summer"}`, crack(id, i, "gasoline"), "naphtha"], [`Diesel, ${i ? "winter" : "summer"}`, crack(id, i, "diesel"), "middle"]]);
@@ -307,6 +332,39 @@ const LESSONS = {
     W(level({ only: ["fcc", "hcu", "dht", "smr"], routing: { hgo: "dht", kero: "kht" } }), `Four limits on capacity: an FCC of ${LV("8.4").caps.fcc} thousand barrels a day and a hydrocracker of ${LV("8.4").caps.hcu} for about ${Math.round(vgoOf("8.4"))} of vacuum gas oil, a diesel hydrotreater of ${LV("8.4").caps.dht} for the gas oils, and a hydrogen plant of ${LV("8.4").caps.smr} million scf a day.`),
     W(level({ only: ["hcu", "hsfo", "hvgo"], routing: { hgo: "dht" } }), "A capacity's shadow price is what one more barrel a day of it would add to the margin, with the rest of the plan rearranged round it. A unit that isn't full has none. A full one's is the margin its last barrel earns over the next-best use of its feed: for a cracker, cracking the gas oil against selling it as fuel oil."),
     W(level({ only: ["dht", "diesel"], routing: { kero: "kht" } }), "Debottlenecking spends where the shadow price is highest: a few per cent more on the one unit that limits the rest is often the cheapest capacity a refinery can buy. The price holds only for small changes: expand far enough and the bottleneck moves to another unit, or to a spec."),
+  ],
+  // ---------- 9. Renewables ----------
+  "9.1": [
+    W({ bars: { items: [["HVO from UCO", STREAMS.hvo.p.ghg, "renewable"], ["SAF from UCO", STREAMS.spk.p.ghg, "renewable"], ["FAME, rapeseed", STREAMS.fame.p.ghg, "renewable"], ["Ethanol", STREAMS.ethanol.p.ghg, "renewable"], ["ETBE", STREAMS.etbe.p.ghg, "renewable"]], unit: "kg CO₂e/bbl" } },
+      "The Renewable Energy Directive (RED III) has every member state oblige its fuel suppliers: by 2030, 29% renewable energy in transport, or a 14.5% cut in its fuels' greenhouse gas intensity. Each state runs its own scheme: Germany a quota on greenhouse gas saved, France a tax incentive, Italy certificates on energy. What a barrel saves is its energy times how far its emissions sit under fossil fuel's 94 g CO₂e per megajoule."),
+    W({ bars: { items: [["HVO", ticketOf("hvo", "9.1"), "renewable"], ["FAME", ticketOf("fame", "9.1"), "renewable"], ["Ethanol", ticketOf("ethanol", "9.1"), "renewable"], ["ETBE", ticketOf("etbe", "9.1"), "renewable"]], unit: "$/bbl" } },
+      `A ticket is that saving's price: here $${LV("9.1").ticket} a tonne of CO₂e, about where Germany's quota traded in 2026 at €310–340. Rapeseed FAME saves about 230 kg a barrel, a ticket of $${Math.round(ticketOf("fame", "9.1"))}; HVO from used cooking oil, a waste, saves about 430 kg and earns $${Math.round(ticketOf("hvo", "9.1"))}. That's why FAME at $${BOUGHT.fame} a barrel blends into diesel at $${price("diesel")}.`),
+    W({ blend: { prop: "fame", parts: [["Diesel, fossil", 9.3, 0], ["fame", 0.7]], limit: 7, dir: "max" } }, "But the fuel standards cap the blends, whatever the tickets are worth: EN 590 takes 7% FAME (B7), EN 228 10% ethanol (E10) within 3.7% oxygen. These blend walls, not the tickets, set how much goes in."),
+    W({ blend: { prop: "rvp", parts: [["reformate", 6.5], ["isomerate", 2], ["ethanol", 1], ["butane", 0.5]], limit: 60, dir: "max" } }, "Ethanol and hydrocarbons mix far from ideally: a tenth of ethanol lifts a petrol's vapour pressure by several kPa, more than its own would suggest. Each barrel of it pushes butane, the cheapest octane, out of summer petrol; the plan weighs that against the ticket."),
+  ],
+  "9.2": [
+    W({ molecules: ["triglyceride", "hexadecane"] }, "Fats and oils are triglycerides: three fatty-acid chains on a glycerine backbone. Hydrotreated at 30–60 bar, they lose their oxygen as water, or as CO₂ with a carbon off the chain, and the backbone as propane, leaving straight paraffins: HVO, or renewable diesel. It has no oxygen, aromatics or sulphur, and cetane near 80."),
+    W({ blend: { prop: "d", parts: [["Gas oil, treated", 6, treated("lgo").d], ["hvo", 4]], limit: 820, dir: "min" } }, "EN 590 sets no cap on HVO, but its density floor of 820 kg/m³ is one: HVO is 780, so it can be only about a third of a blend with treated gas oil at 840. Neat, it's sold to EN 15940 as HVO100, to fleets that pay a premium for it, but that market is small."),
+    W({ blend: { prop: "d", parts: [["Gas oil, treated", 5.6, treated("lgo").d], ["hvo", 3.7], ["fame", 0.7]], limit: 820, dir: "min" } }, "FAME, at 883, pulls the other way: a full 7% of it makes room for about five more points of HVO. Blenders set the two against each other, to the floor."),
+    W(level({ only: ["hvoUnit", "smr"], routing: { vegOil: "hvoUnit", hgo: "dht" } }), "The HVO unit takes about 2,400 scf of hydrogen a barrel, seven times a gas oil's, so it comes with a hydrogen plant of its own. The steam reformer's CO₂ counts against the HVO's saving when its carbon intensity is certified."),
+  ],
+  "9.3": [
+    W(level({ only: ["dht", "vegOil"], routing: { vegOil: "dht", kero: "merox" } }), "Co-processing puts fats into an existing hydrotreater with its gas oil: no new reactor, and a renewable share in every barrel of its diesel. The chemistry is the HVO unit's: the triglycerides become paraffins and propane, for about seven times a gas oil's hydrogen."),
+    W({ bars: { items: [["Straight-run gas oil", -UNITS.dht.h2.lgo * 1000, "middle"], ["Heavy gas oil", -UNITS.dht.h2.hgo * 1000, "middle"], ["Light cycle oil", -UNITS.dht.h2.lco * 1000, "heavy"], ["Used cooking oil", -UNITS.dht.h2.vegOil * 1000, "renewable"]], unit: "scf/bbl" } },
+      "Without a revamp, a hydrotreater takes only 5–10% fats. The oxygen leaves as water, CO and CO₂, releasing far more heat than desulphurising; CO and CO₂ build up in the recycle gas and slow the catalyst, or turn to methane on it, eating more hydrogen; and the long straight paraffins make a waxier diesel, which winter grades can't take. Here the limit is a tenth of the unit's feed."),
+    W(level({ only: ["dht", "diesel"], routing: { vegOil: "dht", kero: "merox" } }), "The molecules can't tell you the renewable share: they're the same as fossil ones. EU rules (Delegated Regulation 2023/1640) have it set by a mass balance over the unit, with yield factors for each product, checked by carbon-14 at least every four months: fossil carbon has none left, carbon from living plants has today's."),
+    W({ blend: { prop: "d", parts: [["Gas oil, treated", 9, 848], ["Co-processed", 1, 780]], limit: 845, dir: "max" } }, "Here it also helps the density: Bonny's treated gas oils together are 848 kg/m³, over EN 590's 845, and the renewable paraffins at 780 bring them under."),
+  ],
+  "9.4": [
+    W(level({ only: ["fcc", "vegOil"], routing: { vegOil: "fcc", hgo: "dht" } }), "An FCC can crack fats too, at 5–10% of its feed: they crack readily, about a tenth of their weight leaving as water and carbon oxides, and the rest into the same naphtha, LPG and cycle oil that gas oil makes."),
+    W({ bars: { items: Object.entries(UNITS.fcc.yields.vegOil).map(([s, f]) => [STREAMS[s].name, f * 100, STREAMS[s].group]), unit: "% of feed" } }, "Its renewable carbon goes wherever the FCC's products go, by the yields. Only what reaches a road fuel earns a ticket: the naphtha, into petrol, and the cycle oil, through the diesel hydrotreater. Propylene, LPG and slurry earn none here; renewable propylene sells to chemical makers, at a premium of its own."),
+    W(level({ only: ["fcc", "dht", "cnht", "gasoline", "diesel"], routing: { vegOil: { fcc: 0.5, dht: 0.5 }, hgo: "dht" } }), "So a barrel of used cooking oil earns less in the FCC than in the hydrotreater, and each unit holds it to a share of its own feed. The plan fills the hydrotreater first and gives the FCC what's left, as far as that pays. Proving the share is harder in the FCC too: seven products, each with its own yield factor."),
+  ],
+  "9.5": [
+    W({ bars: { items: [["2025", 2], ["2030", 6], ["2035", 20], ["2040", 34], ["2045", 42], ["2050", 70]].map(([y, v]) => [y, v, "renewable"]), unit: "% of jet" } }, "ReFuelEU Aviation obliges fuel suppliers at EU airports to blend sustainable aviation fuel (SAF): 2% from 2025, 6% from 2030, 70% by 2050, with a rising part of it synthetic, made from renewable hydrogen. Fuels from food and feed crops don't count; wastes and residues do. Missing it costs a penalty of at least twice the gap between SAF's price and fossil jet's."),
+    W(level({ only: ["hvoUnit", "safUnit", "jet"], routing: { vegOil: "hvoUnit", hvo: { safUnit: 0.3, diesel: 0.7 }, hgo: "dht" } }), "HEFA, hydroprocessed esters and fatty acids, is most of today's SAF: HVO's long paraffins isomerised and cracked into the jet range in a second reactor. It costs yield: ten barrels of HVO give about six of synthetic paraffinic kerosene (SPK), the rest naphtha and gas."),
+    W({ blend: { prop: "bio", parts: [["Jet, fossil", 9.4, 0], ["spk", 0.6]], limit: 6, dir: "min" } }, "ASTM D7566 certifies HEFA-SPK for blending with fossil Jet A-1 up to half, and the blend is then Jet A-1, kept to at least 8% aromatics for the seals. Co-processing fats with fossil feed for jet is held to 5% under ASTM D1655."),
+    W(level({ only: ["safUnit", "jet", "diesel"], routing: { vegOil: "hvoUnit", hvo: { safUnit: 0.3, diesel: 0.7 }, hgo: "dht" } }), `SAF sells at a premium over HVO, here a quarter more on its ticket. Even so, a barrel of HVO earns more in diesel once the yield lost to naphtha and gas is counted, so the plan makes what the mandate asks and no more: with the mandate at 2% to 2029, producers have mostly favoured renewable diesel.`),
   ],
 };
 

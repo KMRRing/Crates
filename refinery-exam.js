@@ -190,6 +190,30 @@ const Q = {
     ["A unit that isn't full has a shadow price on its capacity of", "Nothing: more of it would sit idle", ["Its running cost per barrel of feed", "Its products' value over its feed's", "Its share of the plant's whole margin"], "Only a binding limit has a shadow price: capacity the plan doesn't use is worth nothing at the margin."],
     ["Why does a capacity's shadow price hold only for small changes?", "A large expansion moves the bottleneck elsewhere", ["A large expansion costs more per barrel to build", "A large expansion needs a new operating permit", "A large expansion lowers the products' prices"], "The price holds while the same limits bind. Expand far enough and another unit, or a spec, binds instead."],
   ],
+  "9.1": [
+    ["What does RED III ask of transport by 2030?", "29% renewable energy, or a 14.5% cut in its fuels' greenhouse gas intensity", ["10% renewable energy, or a 6% cut in its fuels' greenhouse gas intensity", "14% renewable energy, or a 29% cut in its fuels' greenhouse gas intensity", "42% renewable energy, or a 55% cut in its fuels' greenhouse gas intensity"], "Each member state chooses one of the two, with 5.5% from advanced biofuels and renewable hydrogen fuels within it."],
+    ["Under a greenhouse gas quota, a biofuel's ticket grows with", "Its energy and how far its emissions are under fossil fuel's", ["Its volume, whatever it's made from", "Its price over the fossil fuel it replaces", "Its share of the blend it goes into"], "The saving is energy times the gap to fossil fuel's 94 g CO2e/MJ: a waste-based fuel saves far more than a crop-based one."],
+    ["Why does a summer petrol pool take less butane once it holds ethanol?", "Ethanol raises the blend's vapour pressure more than its share", ["Ethanol lowers the blend's octane below 95", "Ethanol and butane together break the oxygen limit", "Ethanol needs the butane's room in the aromatics limit"], "Ethanol and hydrocarbons mix far from ideally: a tenth of it lifts vapour pressure by several kPa, so butane comes out to hold 60."],
+  ],
+  "9.2": [
+    ["What limits how much HVO goes into EN 590 diesel?", "The density floor of 820 kg/m³", ["A cap of 7% by volume, as for FAME", "A cap of 30% set by the standard", "A cetane ceiling of 65"], "EN 590 has no limit on HVO as such: at about 780 kg/m³, the 820 floor holds it near a third of a blend."],
+    ["HVO's cetane number is about", "80", ["51", "45", "30"], "Straight paraffins ignite readily: HVO's cetane is 70 to 90, far over EN 590's 51."],
+    ["How does an HVO unit take the oxygen out of a triglyceride?", "As water, or as carbon dioxide cut off the chain", ["As methanol, which is recovered and sold", "As glycerine, which is separated and sold", "As sulphur dioxide, through the Claus plant"], "Hydrodeoxygenation makes water; decarboxylation makes CO2 and a chain one carbon shorter. The glycerine backbone leaves as propane."],
+  ],
+  "9.3": [
+    ["Without a revamp, a diesel hydrotreater usually co-processes fats up to about", "5–10% of its feed", ["30–40% of its feed", "1% of its feed", "50% of its feed"], "Heat release, hydrogen, CO and CO2 in the recycle gas, and a waxier diesel set the limit; a revamp takes it further."],
+    ["How is the renewable share of co-processed diesel set in the EU?", "By a mass balance over the unit, checked by radiocarbon", ["By its density, as renewable paraffins are lighter", "By its cetane, as renewable paraffins ignite sooner", "By the supplier's declaration, with no test at all"], "Delegated Regulation 2023/1640: a mass balance with a yield factor for each product, checked by radiocarbon at least every four months."],
+    ["Why does co-processing fats make winter diesel harder to blend?", "Their straight paraffins raise its cloud point", ["Their oxygen raises its water content", "Their sulphur takes it over 10 ppm", "Their aromatics lower its cetane"], "Straight C15–C18 paraffins crystallise in the cold: renewable diesel is isomerised for winter grades."],
+  ],
+  "9.4": [
+    ["Fats co-processed in an FCC: where does their renewable carbon go?", "Into every product, by the yields", ["Into the naphtha only, as it cracks first", "Into the coke only, as it burns off", "Into the slurry only, as it's heaviest"], "The renewable share follows the cracking into gas, LPG, naphtha, cycle oil and slurry, each with its own yield factor."],
+    ["Why does a barrel of used cooking oil earn less in the FCC than in the diesel hydrotreater here?", "Part of its renewable carbon lands in products that earn no ticket", ["The FCC's catalyst is poisoned by its oxygen", "The FCC turns all of its oxygen into hydrogen", "The FCC's naphtha may not carry a renewable share"], "Propane, propylene, slurry, and the oxygen lost as water and carbon oxides, earn nothing; only the naphtha and cycle oil reach road fuels."],
+  ],
+  "9.5": [
+    ["ReFuelEU Aviation's minimum share of SAF from 2030 is", "6%", ["2%", "20%", "10%"], "2% from 2025, 6% from 2030, 20% from 2035 and 70% by 2050, with a synthetic part from 2030."],
+    ["ASTM D7566 allows HEFA-SPK in a blend with fossil Jet A-1 up to", "50% by volume", ["5% by volume", "10% by volume", "100% by volume"], "Half; the blend is then Jet A-1. Co-processing fats with fossil feed for jet is held to 5% under ASTM D1655."],
+    ["Why does the plan make no more SAF than the mandate asks?", "HVO earns more in diesel once the yield lost to naphtha is counted", ["The SAF unit's catalyst can't run past the mandate's share", "Jet A-1 may hold no more than 6% synthetic kerosene", "SAF earns no ticket at all in the jet pool here"], "Ten barrels of HVO make about six of SPK: the naphtha and gas lose more than SAF's premium makes back."],
+  ],
 };
 
 // the glossary words each level brings in, and the bank's areas it covers
@@ -202,11 +226,14 @@ const WORDS = {
   "6.1": ["VLSFO", "HSFO", "IMO 2020", "Refutas index"], "6.2": ["Visbreaking", "Asphaltenes", "Cutter stock"], "6.3": ["Delayed coking", "Petroleum coke"], "6.4": ["Bitumen", "Asphaltenes"],
   "7.1": ["EN 590", "Cetane number", "Cetane index"], "7.2": ["EN 228", "Oxygenates", "ETBE", "Light reformate", "Sensitivity"], "7.3": ["ISO 8217", "Cutter stock", "Refutas index", "Total sediment", "Compatibility"], "7.4": ["Linear programming", "Give-away", "Blending index"],
   "8.1": ["Crack spread", "Price deck", "Margin"], "8.2": ["Gross product worth", "Crude differential", "Breakeven price", "Opportunity crude"], "8.3": ["Marginal value", "Intermediate feedstock", "Shadow price"], "8.4": ["Shadow price", "Debottlenecking", "Nelson complexity index"],
+  "9.1": ["RED III", "Ticket", "GHG quota", "Carbon intensity", "Blend wall"], "9.2": ["HVO", "EN 15940", "FAME", "UCO"], "9.3": ["Co-processing", "Mass balance", "Carbon-14 method", "Annex IX"], "9.4": ["Co-processing", "Carbon-14 method", "Mass balance"],
+  "9.5": ["SAF", "HEFA", "ReFuelEU Aviation", "ASTM D7566", "Double counting"],
 };
 const AREAS = {
   1: ["Distillation", "Crudes", "Products"], 2: ["Sulphur", "Treating", "Specs"], 3: ["Reforming", "Octane", "Volatility", "Isomerisation", "Oxygenates"],
   4: ["Cracking", "Alkylation"], 5: ["Hydrogen", "Cracking"], 6: ["Residue", "Coking", "Specs"],
   7: ["Specs", "Blending", "Volatility", "Oxygenates", "Cetane", "Cold flow", "Stability", "Components"], 8: ["Margins", "Configuration", "Operations", "Crudes"],
+  9: ["Renewables", "HVO", "FAME", "SAF", "Co-processing", "Policy"],
 };
 
 // ---------- your plant ----------
@@ -282,6 +309,8 @@ function plantQuestions(level, res, rnd) {
       break;
     }
   }
+  // where tickets are priced, what the renewable blends save
+  if (level.ticket && res.saved > 5) out.push(number("How many tonnes of CO2e a day do your renewable blends save, as their tickets count it?", Math.round(res.saved), `${Math.round(res.saved)} t/d: every product's card shows its part.`, { unit: "t/d", tol: Math.max(20, res.saved * 0.06) }));
   // hydrogen, or sulphur
   if (res.h2.used > 2 && rnd() < 0.5) out.push(number("How much hydrogen does your plant use, in million scf a day?", +res.h2.used.toFixed(1), `${res.h2.used.toFixed(1)} MMscf/d: tap the reformer or the hydrogen plant for where it comes from.`, { unit: "MMscf/d", tol: Math.max(0.5, res.h2.used * 0.06) }));
   else if (res.sulphur.removed > 2) out.push(number("How many tonnes of sulphur a day does your plant recover?", +res.sulphur.removed.toFixed(1), `${res.sulphur.removed.toFixed(1)} t/d: the sulphur plant's card shows it.`, { unit: "t/d", tol: Math.max(0.8, res.sulphur.removed * 0.08) }));

@@ -4,7 +4,7 @@
 // an exam (refinery-exam.js). The engine (refinery-engine.js) runs the plant; the data (refinery-data.js) describes it.
 // Together, the same level for everyone at the table (duel.js).
 import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR } from "./refinery-data.js";
-import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, homeOf, solve, ownProps } from "./refinery-engine.js";
+import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, homeOf, solve, ownProps } from "./refinery-engine.js";
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
 import { PAR } from "./refinery-par.js";
 import { drawSheet, hitTest, GROUP_COLOUR } from "./refinery-sheet.js";
@@ -187,7 +187,7 @@ function renderMargin() {
   const m = R.margin, el = $("margin");
   el.textContent = `${money(m)}/bbl`;
   el.className = m >= 0 ? "good" : "bad";
-  $("par").textContent = base.crudes ? `par ${money(par.margin)} · best crude ${money(target)}` : `par ${money(par.margin)}`;
+  $("par").textContent = `${base.crudes ? `par ${money(par.margin)} · best crude ${money(target)}` : `par ${money(par.margin)}`}${L.ticket ? ` · tickets ${money(R.tickets / (L.feed ?? FEED))}` : ""}`;
   const lo = Math.min(-5, m - 1, target - 6), hi = Math.max(target + 1.5, m + 1);
   const pct = v => `${Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100)).toFixed(1)}%`;
   $("marginBar").style.width = pct(m);
@@ -307,6 +307,8 @@ function keyProps(s, props) {
   const ks = new Set();
   for (const d of destinations(L, s)) if (POOLS[d]) for (const k of specsOf(L, d)) if (!PROPS[k].flag) ks.add(k);
   if (props.s != null) ks.add("s");
+  // where tickets are priced, what a barrel of it saves
+  if (L.ticket && props.ghg > 0) ks.add("ghg");
   return [...ks].filter(k => props[k] != null);
 }
 function openSplit(s) {
@@ -340,7 +342,7 @@ function fillSplit(s) {
     const row = document.createElement("div"), f = shares[d] || 0;
     row.className = `rf-split-row${f > 1e-4 ? " on" : ""}`;
     const name = document.createElement("div"); name.className = "rf-split-name";
-    const b = document.createElement("b"); b.textContent = UNITS[d] ? UNITS[d].name : `${POOLS[d].name} · $${priceOf(L, d)}`;
+    const b = document.createElement("b"); b.textContent = UNITS[d] ? UNITS[d].name : `${POOLS[d].name} · $${d === "notBought" ? refundOf(L, s) : priceOf(L, d)}`;
     const why = document.createElement("small");
     why.textContent = UNITS[d] ? UNITS[d].purpose : POOLS[d].note;
     name.append(b, why);
@@ -408,6 +410,8 @@ function openCard(id) {
     else if (id === "sru") { add("p", "rf-facts", `Recovering ${R.sulphur.removed.toFixed(1)} t/d of sulphur${cap != null ? ` of a capacity of ${cap}` : ""}, sold at $${SULPHUR.price}/t.`); shadow(); }
     else if (run) {
       add("p", "rf-facts", `Running at ${kbd(run.feed)}${cap ? ` of ${cap} (${Math.round((run.feed / cap) * 100)}%)` : ""}.${run.h2 ? ` Hydrogen: ${run.h2 > 0 ? "makes" : "uses"} ${Math.abs(run.h2).toFixed(1)} MMscf/d.` : ""}${run.sRemoved > 0.05 ? ` Strips ${run.sRemoved.toFixed(1)} t/d of sulphur.` : ""}`);
+      // a co-processed renewable feed against its limit
+      for (const [f, lim] of Object.entries(coLimits(L, id))) if (run.feeds[f]) add("p", "rf-facts", `Co-processing: ${STREAMS[f].name.toLowerCase()} is ${Math.round((run.feeds[f] / run.feed) * 100)}% of its feed, of ${Math.round(lim * 100)}% at most${run.coOver?.[f] ? `; ${kbd(run.coOver[f])} more went elsewhere` : ""}.`);
       shadow();
       add("h3", null, "Now");
       table([...Object.entries(run.feeds).map(([s, v]) => ["in", streamLink(s), kbd(v)]), ...Object.entries(run.outputs).map(([s, v]) => ["out", streamLink(s), kbd(v)])]);
@@ -427,7 +431,9 @@ function openCard(id) {
     const def = POOLS[id], pool = R.pools[id];
     $("cardTitle").textContent = def.name;
     add("p", "rf-purpose", def.note);
-    add("p", "rf-facts", pool ? `${kbd(pool.vol)} at $${pool.price}/bbl${pool.soldAs !== id ? `: off spec, so sold as ${POOLS[pool.soldAs].name.toLowerCase()}` : ""}.${pool.over ? ` The market takes ${L.markets[id]} kb/d.` : ""}` : `Nothing goes here now. $${priceOf(L, id)}/bbl.`);
+    add("p", "rf-facts", pool ? `${kbd(pool.vol)} at $${+pool.price.toFixed(2)}/bbl${pool.soldAs !== id ? `: off spec, so sold as ${POOLS[pool.soldAs].name.toLowerCase()}` : ""}.${pool.over ? ` The market takes ${L.markets[id]} kb/d.` : ""}` : `Nothing goes here now. $${priceOf(L, id)}/bbl.`);
+    // its tickets: the renewable part's saving at the quota price, a quarter more for aviation fuel's premium
+    if (L.ticket && def.tickets) add("p", "rf-value", pool?.tickets ? `Its renewable part saves ${pool.saved.toFixed(0)} t of CO₂e a day against fossil fuel: tickets worth $${pool.tickets.toFixed(1)} thousand a day at $${L.ticket} a tonne${def.tickets !== 1 ? `, and ${Math.round((def.tickets - 1) * 100)}% more for sustainable aviation fuel's premium` : ""}.` : `Renewable blendstocks here earn a ticket on what they save, at $${L.ticket} a tonne of CO₂e.`);
     const judged = specsOf(L, id);
     if (def.spec) {
       add("h3", null, "Its specification, as judged here");

@@ -2,6 +2,7 @@
 // (or a choice of crudes), the units and their capacities, the product pools it sells into, the specs those pools are
 // judged on, and where every stream starts; par is the LP's plan for it (refinery-par.js, worked out by
 // tests/refinery.mjs --write-par). The lessons are refinery-lessons.js, the exams refinery-exam.js.
+import { TICKET } from "./refinery-data.js";
 
 export const CHAPTERS = [
   { id: 1, title: "The barrel", about: "What crude oil is made of, how the crude unit sorts it by boiling point, and what each cut is worth on its own." },
@@ -12,6 +13,7 @@ export const CHAPTERS = [
   { id: 6, title: "The bottom of the barrel", about: "Residue: sell it as fuel oil, crack it gently, coke it, or blow it into bitumen." },
   { id: 7, title: "Blending to spec", about: "Every product is a blend held to a dozen limits at once; the money is in meeting all of them exactly, with nothing given away." },
   { id: 8, title: "Economics", about: "Cracks, crude selection and the LP's marginal values: how a refinery decides what to run, what to buy and what to make." },
+  { id: 9, title: "Renewables", about: "Biofuels in a refinery: the tickets that pay for them, the blend limits that cap them, HVO, co-processing in the hydrotreater and the FCC, and sustainable aviation fuel." },
 ];
 
 const TOPPING_POOLS = ["gasPool", "lpg", "naphtha", "gasoil", "fuelOil", "hsfo"];
@@ -136,4 +138,30 @@ export const LEVELS = [
     start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" },
     task: "Every conversion unit here is small for the crude. Plan to par, then read the cards: which unit's next thousand barrels of capacity would earn most? That's where the next investment goes.",
     watch: ["A unit that isn't full has a shadow price of nothing: more of it earns nothing."] },
+  // ---------- 9. Renewables ----------
+  // Bonny Light, so the residue is VLSFO as it comes and the gas oils go where the lesson is; tickets at $350 a tonne
+  // of CO2e saved (TICKET in refinery-data.js); what isn't bought is handed back
+  { id: "9.1", chapter: 9, title: "Tickets", crude: "bonny", units: ["cdu", "merox", "nht", "reformer", "isom", "kht", "dht", "sru"], pools: [...HYDROSKIM_POOLS, "notBought"], ticket: TICKET,
+    bought: { fame: 3, ethanol: 3 }, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", fame: "notBought", ethanol: "notBought" },
+    specs: { diesel: ["cet", "s", "fame"], gasoline: ["ron", "rvp", "etoh", "oxy", "s"] },
+    task: "FAME and ethanol cost more than the diesel and petrol they blend into, but each barrel earns a ticket on the greenhouse gas it saves. Buy what pays, and blend it to the limits: 7% FAME in diesel, 10% ethanol in petrol.",
+    watch: ["Ethanol raises a blend's vapour pressure far more than its share: it pushes butane out of summer petrol.", "What isn't bought costs nothing: it stays with the seller."] },
+  { id: "9.2", chapter: 9, title: "HVO", crude: "bonny", units: ["cdu", "merox", "nht", "reformer", "isom", "kht", "dht", "hvoUnit", "smr", "sru"], caps: { dht: 18, hvoUnit: 20 }, pools: [...HYDROSKIM_POOLS, "hvo100", "notBought"], ticket: TICKET,
+    bought: { vegOil: 20, fame: 3 }, markets: { hvo100: 2 }, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", vegOil: "notBought", fame: "notBought" },
+    specs: { diesel: ["cet", "d", "s", "fame"], hvo100: ["cet", "d"] },
+    task: "An HVO unit turns used cooking oil into renewable diesel at 780 kg/m³. EN 590 sets no limit on HVO, only a density of 820 at least; FAME, at 883, makes room for more. Fleets take two thousand barrels a day of it neat, as HVO100.",
+    watch: ["Diesel's density window is 820 to 845: HVO pulls a blend down to its floor.", "HVO100 past what the fleets take sells as plain diesel, with no ticket."] },
+  { id: "9.3", chapter: 9, title: "Co‑processing", crude: "bonny", units: ["cdu", "merox", "nht", "reformer", "isom", "kht", "dht", "smr", "sru"], pools: [...HYDROSKIM_POOLS, "notBought"], ticket: TICKET,
+    bought: { vegOil: 5 }, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", vegOil: "notBought" }, specs: { diesel: ["cet", "d", "s"] },
+    task: "No HVO unit here: the diesel hydrotreater can take used cooking oil with its gas oil, up to a tenth of its feed. Its diesel then carries a renewable share, and earns its ticket.",
+    watch: ["A tenth of the feed, not of the gas oil: the UCO counts in what the unit runs.", "Fats take seven times the hydrogen gas oil does."] },
+  { id: "9.4", chapter: 9, title: "FCC co‑processing", crude: "bonny", units: ["cdu", "vdu", "fcc", "cnht", "alky", "merox", "nht", "reformer", "isom", "kht", "dht", "smr", "sru"], caps: { fcc: 25 }, pools: [...CRACKING_POOLS, "notBought"], ticket: TICKET,
+    bought: { vegOil: 8 }, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "fuelOil", vegOil: "notBought" }, specs: { diesel: ["cet", "d", "s"] },
+    task: "The FCC can crack used cooking oil with its gas oil, up to 7% of its feed, and the diesel hydrotreater can take it up to a tenth. A ticket is earned only where the renewable part ends up in a road fuel. Place the UCO where it earns most.",
+    watch: ["An FCC spreads its feed's renewable carbon over everything it makes: propane and slurry earn no ticket.", "Each unit's limit is a share of its own feed."] },
+  { id: "9.5", chapter: 9, title: "Sustainable aviation fuel", crude: "bonny", units: ["cdu", "merox", "nht", "reformer", "isom", "kht", "dht", "hvoUnit", "safUnit", "smr", "sru"], caps: { hvoUnit: 8 }, pools: [...HYDROSKIM_POOLS, "notBought"], ticket: TICKET,
+    bought: { vegOil: 8 }, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", vegOil: "notBought" },
+    specs: { jet: ["grade", "s", "d", "bio"], diesel: ["cet", "d", "s"] }, limits: { jet: { bio: [6, 50] } },
+    task: "The jet you sell must hold 6% sustainable aviation fuel, as ReFuelEU asks from 2030. The SAF unit turns HVO into synthetic kerosene, at a cost in yield. Meet the mandate, and put the rest of the HVO where it pays.",
+    watch: ["Jet short of its 6% isn't sold as jet.", "Ten barrels of HVO make about six of SAF."] },
 ];

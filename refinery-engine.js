@@ -8,17 +8,17 @@ import { simplex } from "./refinery-lp.js";
 
 export const FEED = 100;                         // kb/d of crude, unless a level says otherwise
 /** Units in the order their feeds are ready: every producer of a stream comes before every unit that takes it. */
-export const ORDER = ["cdu", "vdu", "coker", "visbreaker", "blowing", "hvoUnit", "fcc", "hcu", "merox", "kht", "nht", "reformer", "bzhc", "isom", "alky", "cnht", "dht"];
+export const ORDER = ["cdu", "vdu", "coker", "visbreaker", "blowing", "hvoUnit", "safUnit", "fcc", "hcu", "merox", "kht", "nht", "reformer", "bzhc", "isom", "alky", "cnht", "dht"];
 /** Where a stream sells when it isn't sent anywhere: as it comes, unprocessed. */
 const HOME = {
   gas: "gasPool", lpg: "lpg", butane: "lpg", propylene: "propylene", c4: "lpg", lsr: "naphtha", hsr: "naphtha", hsrT: "naphtha", reformate: "gasoline",
   isomerate: "gasoline", catNaphtha: "naphtha", catNaphthaT: "gasoline", alkylate: "gasoline", cokerNaphtha: "naphtha", hcNaphtha: "naphtha", ethanol: "gasoline",
   kero: "gasoil", jet: "jet", lgo: "gasoil", hgo: "fuelOil", lco: "fuelOil", ulsd: "diesel", hcJet: "jet", hcDiesel: "diesel", cokerGo: "fuelOil", fuelOilCutter: "fuelOil",
-  hvo: "diesel", fame: "diesel", vegOil: null, lvgo: "fuelOil", hvgo: "fuelOil", slurry: "fuelOil", atmResid: "fuelOil", vacResid: "fuelOil", visResid: "fuelOil",
+  hvo: "diesel", fame: "diesel", vegOil: "notBought", spk: "jet", lvgo: "fuelOil", hvgo: "fuelOil", slurry: "fuelOil", atmResid: "fuelOil", vacResid: "fuelOil", visResid: "fuelOil",
   coke: "coke", bitumen: "bitumen", etbe: "gasoline", bzCut: "naphtha", heavyReformate: "gasoline", importVgo: "notBought",
 };
 const T_PER_KB = 158.987;                        // m³ in a thousand barrels: kb/d × kg/m³ × this / 1000 is t/d
-const ZERO = new Set(["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "s"]);   // a stream without these has none
+const ZERO = new Set(["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "ghg", "s"]);   // a stream without these has none
 
 // ---------- the level's plant ----------
 const crudeOf = level => CRUDES[level.crude];
@@ -135,8 +135,17 @@ export function productProps(level, u, f, o, fp) {
   } else p = { ...STREAMS[o].p };
   if (u === "vdu" && o === "vacResid") Object.assign(p, crudeOf(level).vr, { asph: crudeOf(level).asphaltic ? 1 : 0 });
   if (def.sOf?.[o] != null) p.s = (fp.s ?? 0) * def.sOf[o];
+  // renewable carbon follows a feed into every product without its own: its share by volume, and its saving spread
+  // over the barrels made, so a cracker's products together save what its feed did
+  if (!(c && c.to === o) && (fp.bio || fp.ghg)) {
+    const made = Object.values(yieldsOf(level, u, f)).reduce((a, b) => a + b, 0) || 1;
+    if (STREAMS[o].p.bio == null && fp.bio) p.bio = fp.bio;
+    if (STREAMS[o].p.ghg == null && fp.ghg) p.ghg = fp.ghg / made;
+  }
   return p;
 }
+/** The most of a unit's feed a co-processed renewable feed may be: the unit's own limit, or the level's. */
+export const coLimits = (level, u) => ({ ...(UNITS[u].co || {}), ...(level.co?.[u] || {}) });
 
 // ---------- running the refinery ----------
 /**
@@ -162,11 +171,21 @@ export function evaluate(level, routing) {
     const def = UNITS[u];
     const takes = def.feeds.map(s => [s, (acc[s]?.v || 0) * (share[s]?.find(([d]) => d === u)?.[1] || 0)]).filter(([, v]) => v > 1e-9);
     if (!takes.length) continue;
+    // a renewable feed co-processed is held to its share of what the unit runs; what's over goes where it would have
+    // gone without it, as a full unit's overflow does
+    const co = coLimits(level, u), coOver = {};
+    for (const t of takes) {
+      const lim = co[t[0]];
+      if (lim == null) continue;
+      const most = (lim / (1 - lim)) * takes.reduce((a, [s, v]) => a + (s in co ? 0 : v), 0);
+      if (t[1] > most + 1e-9) { coOver[t[0]] = t[1] - most; t[1] = most; }
+      if ((coOver[t[0]] || 0) >= 0.05) issues.push({ kind: "co", unit: u, text: `The ${def.name.toLowerCase()} takes ${STREAMS[t[0]].name.toLowerCase()} up to ${Math.round(lim * 100)}% of its feed: ${coOver[t[0]].toFixed(1)} kb/d of it went where it would have gone without it.` });
+    }
     const total = takes.reduce((a, [, v]) => a + v, 0), cap = level.caps?.[u];
     const k = cap != null && total > cap ? cap / total : 1;
     // a plan that fills a unit to the barrel overshoots it by a rounding's worth: not worth a word
     if (total - (cap ?? total) >= 0.05) issues.push({ kind: "cap", unit: u, text: `The ${def.name.toLowerCase()} is full at ${cap} kb/d: ${(total - cap).toFixed(1)} kb/d of its feed went where it would have gone without it.` });
-    const unit = units[u] = { feed: 0, cap: cap ?? null, feeds: {}, outputs: {}, h2: 0, sRemoved: 0 };
+    const unit = units[u] = { feed: 0, cap: cap ?? null, feeds: {}, outputs: {}, h2: 0, sRemoved: 0, ...(Object.keys(coOver).length ? { coOver } : {}) };
     for (const [s, want] of takes) {
       const v = want * k, fp = propsOf(acc[s]);
       send(s, u, v);
@@ -220,7 +239,8 @@ export function evaluate(level, routing) {
     const props = propsOf(pool.acc), vol = pool.acc.v, fails = judge(p, props);
     let soldAs = p, f = fails;
     while (f.length && POOLS[soldAs].fallback) { soldAs = POOLS[soldAs].fallback; f = judge(soldAs, props); }
-    const price = priceOf(level, soldAs);
+    // what isn't bought is refunded at each stream's own price
+    const price = soldAs === "notBought" ? Object.entries(pool.parts).reduce((t, [s, v]) => t + v * refundOf(level, s), 0) / vol : priceOf(level, soldAs);
     // a market that takes only so much: the rest sells as the next grade down
     const market = level.markets?.[p], over = market != null && soldAs === p ? Math.max(0, vol - market) : 0;
     const overPrice = over ? priceOf(level, POOLS[p].fallback || "slops") : 0;
@@ -242,16 +262,28 @@ export function evaluate(level, routing) {
   const sruCap = has("sru") ? (level.caps?.sru ?? Infinity) : 0, sOver = Math.max(0, sRemoved - sruCap);
   const sulphurNet = ((sRemoved - sOver) * (SULPHUR.price - SULPHUR.cost) - sOver * 5000) / 1000;   // $ a tonne, so k$/d
   if (sOver > 0.05) issues.push({ kind: "sru", text: `${has("sru") ? "The sulphur plant is full" : "No sulphur plant"}: ${sOver.toFixed(0)} t/d of sulphur has nowhere to go.` });
+  // tickets: where a level prices them, what each road or aviation fuel's renewable part saves, at the quota price (kb/d
+  // times kg a barrel is tonnes a day). An off-spec pool earns what it's sold as earns; what a market can't take, sold
+  // on as the next grade down, earns none
+  let tickets = 0, saved = 0;
+  if (level.ticket) for (const x of Object.values(sold)) {
+    const scale = POOLS[x.soldAs].tickets, t = (x.vol - x.over) * (x.props.ghg || 0);
+    if (!scale || t <= 0) continue;
+    x.saved = t; x.tickets = (t * level.ticket * scale) / 1000;
+    saved += t; tickets += x.tickets;
+  }
   const crudeCost = F * (level.crudePrice ?? crude.price);
   const boughtCost = Object.entries(level.bought || {}).reduce((t, [s, v]) => t + v * (level.prices?.[s] ?? BOUGHT[s] ?? 0), 0);
-  const margin = (revenue - crudeCost - boughtCost - opex - h2Cost + sulphurNet) / F;
-  return { margin, revenue, crudeCost, boughtCost, opex, h2Cost, sulphurNet, h2: { made: h2Made, used: h2Used, plant, imported, spare },
+  const margin = (revenue + tickets - crudeCost - boughtCost - opex - h2Cost + sulphurNet) / F;
+  return { margin, revenue, tickets, saved, crudeCost, boughtCost, opex, h2Cost, sulphurNet, h2: { made: h2Made, used: h2Used, plant, imported, spare },
     sulphur: { removed: sRemoved, cap: sruCap, over: sOver }, streams, units, pools: sold, issues };
 }
 /** A pool's price in a level (a level may have its own deck). */
 export const priceOf = (level, p) => level.prices?.[p] ?? (p === "notBought" ? boughtPrice(level) : POOLS[p].price);
 /** What the level's optional purchase costs a barrel: handed back for what isn't bought. */
 const boughtPrice = level => { const s = Object.keys(level.bought || {}).find(x => POOLS.notBought.accept.includes(x)); return s ? (level.prices?.[s] ?? BOUGHT[s] ?? 0) : 0; };
+/** A bought stream's price, handed back for each barrel of it left with the seller. */
+export const refundOf = (level, s) => level.prices?.[s] ?? BOUGHT[s] ?? 0;
 /** A failed spec in words: "RON 93.2 under 95.0", "not all jet grade". */
 export function failText(f) {
   if (PROPS[f.k].flag) return f.k === "grade" ? "untreated kerosene in it" : "not an asphaltic crude's residue";
@@ -297,7 +329,7 @@ function buildLP(level, cols, q, x0, gradient) {
   const F = feedOf(level), crude = crudeOf(level), has = u => level.units.includes(u);
   const { streams, vars, idx, H2P, H2B, H2X, made } = cols;
   const n = vars.length, c = new Float64Array(n), rows = [], tag = [], elastic = [];
-  vars.forEach(([, d], j) => { if (POOLS[d]) c[j] = priceOf(level, d); else if (UNITS[d]) c[j] = -UNITS[d].opex; });
+  vars.forEach(([s, d], j) => { if (POOLS[d]) c[j] = d === "notBought" ? refundOf(level, s) : priceOf(level, d); else if (UNITS[d]) c[j] = -UNITS[d].opex; });
   if (H2P >= 0) c[H2P] = -H2_PRICE;
   c[H2B] = -H2_PRICE * H2_IMPORT; c[H2X] = 2;
   const supply = s => F * (crude.cuts[s] || 0) + (level.bought?.[s] || 0);
@@ -314,6 +346,16 @@ function buildLP(level, cols, q, x0, gradient) {
     const a = {};
     for (const f of UNITS[u].feeds) if (idx.has(`${f}>${u}`)) a[idx.get(`${f}>${u}`)] = 1;
     if (Object.keys(a).length) { rows.push({ a, op: "<=", b: cap }); tag.push(["cap", u]); }
+  }
+  // co-processing: a renewable feed at most its share of what the unit runs, (1 − share) of it against share of the rest
+  for (const u of level.units) {
+    const co = coLimits(level, u);
+    for (const [f, lim] of Object.entries(co)) {
+      if (!idx.has(`${f}>${u}`)) continue;
+      const a = { [idx.get(`${f}>${u}`)]: 1 - lim };
+      for (const g of UNITS[u].feeds) if (!(g in co) && idx.has(`${g}>${u}`)) a[idx.get(`${g}>${u}`)] = -lim;
+      rows.push({ a, op: "<=", b: 0 }); tag.push(["co", u, f]);
+    }
   }
   {
     const a = {};
@@ -340,6 +382,7 @@ function buildLP(level, cols, q, x0, gradient) {
     const cap = has("sru") ? level.caps?.sru : 0;
     if (cap != null && Object.keys(a).length) { rows.push({ a, op: "<=", b: cap }); tag.push(["cap", "sru"]); }
   }
+  if (level.ticket) ticketTerms(level, cols, q, x0, c, product);
   // specs: each a linear limit on a pool's blend. A stream contributes its volume times how far its quality is past the
   // limit (by mass, times its density, for a mass property); with the gradient, also how that would change as each of
   // its sources (the crude, or a unit's column) gave more or less of it
@@ -385,6 +428,35 @@ function buildLP(level, cols, q, x0, gradient) {
   cc.set(c);
   cc.fill(-1e5, n);
   return { n: n + elastic.length, c: cc, rows, tag };
+}
+/**
+ * Tickets in the LP's objective. A barrel's saving is earned only where it's finally sold, often several units on (fats
+ * into the FCC, its naphtha through the post-treater, into petrol), so each stream's saving is valued at what a kilogram
+ * of it earns downstream as the plan now routes it (tau, worked back from the pools), and every column is credited with
+ * the saving it moves on, at its destination's value, less the value it had where it was: a first-order view that holds
+ * however long the chain is, as the specs' one-step gradient wouldn't.
+ */
+function ticketTerms(level, cols, q, x0, c, product) {
+  const { streams, vars, idx } = cols, ghg = s => (q[s] || ownProps(level, s)).ghg || 0;
+  const k = pl => (level.ticket * (POOLS[pl].tickets || 0)) / 1000;
+  // how much of a kilogram of a feed's saving each product of a unit carries on: all of it into a carried product (a
+  // treater's), a share by volume into the others, none into a product that has a saving of its own
+  const pass = (u, f) => {
+    const ys = yieldsOf(level, u, f), tot = Object.values(ys).reduce((a, b) => a + b, 0) || 1, carry = UNITS[u].carry?.to;
+    return Object.entries(ys).map(([o, y]) => [o, STREAMS[o].p.ghg != null ? 0 : o === carry ? y : y / tot]);
+  };
+  const share = s => {
+    const ds = destinations(level, s).filter(d => idx.has(`${s}>${d}`)), tot = x0 ? ds.reduce((a, d) => a + x0.x[idx.get(`${s}>${d}`)], 0) : 0;
+    return tot > 1e-9 ? ds.map(d => [d, x0.x[idx.get(`${s}>${d}`)] / tot]) : [[homeOf(level, s), 1]];
+  };
+  const tau = Object.fromEntries(streams.map(s => [s, 0])), via = (s, d) => (POOLS[d] ? k(d) : pass(d, s).reduce((a, [o, r]) => a + r * (tau[o] || 0), 0));
+  // worked back from the pools: a chain is at most a few units long
+  for (let pass_ = 0; pass_ < 8; pass_++) for (const s of streams) tau[s] = share(s).reduce((a, [d, f]) => a + f * via(s, d), 0);
+  vars.forEach(([s, d], j) => {
+    if (!STREAMS[s]) return;
+    const out = POOLS[d] ? ghg(s) * k(d) : Object.entries(yieldsOf(level, d, s)).reduce((a, [o, y]) => a + y * (product(d, s, o).ghg || 0) * (tau[o] || 0), 0);
+    c[j] += out - ghg(s) * tau[s];
+  });
 }
 /** A limit pulled a hair inside itself, so a plan on the boundary still passes when it's run. */
 function inside(k, lim, op) {
