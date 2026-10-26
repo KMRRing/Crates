@@ -15,7 +15,7 @@ const HOME = {
   isomerate: "gasoline", catNaphtha: "naphtha", catNaphthaT: "gasoline", alkylate: "gasoline", cokerNaphtha: "naphtha", hcNaphtha: "naphtha", ethanol: "gasoline",
   kero: "gasoil", jet: "jet", lgo: "gasoil", hgo: "fuelOil", lco: "fuelOil", ulsd: "diesel", hcJet: "jet", hcDiesel: "diesel", cokerGo: "fuelOil", fuelOilCutter: "fuelOil",
   hvo: "diesel", fame: "diesel", vegOil: null, lvgo: "fuelOil", hvgo: "fuelOil", slurry: "fuelOil", atmResid: "fuelOil", vacResid: "fuelOil", visResid: "fuelOil",
-  coke: "coke", bitumen: "bitumen", etbe: "gasoline", bzCut: "naphtha", heavyReformate: "gasoline",
+  coke: "coke", bitumen: "bitumen", etbe: "gasoline", bzCut: "naphtha", heavyReformate: "gasoline", importVgo: "notBought",
 };
 const T_PER_KB = 158.987;                        // m³ in a thousand barrels: kb/d × kg/m³ × this / 1000 is t/d
 const ZERO = new Set(["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "s"]);   // a stream without these has none
@@ -164,7 +164,8 @@ export function evaluate(level, routing) {
     if (!takes.length) continue;
     const total = takes.reduce((a, [, v]) => a + v, 0), cap = level.caps?.[u];
     const k = cap != null && total > cap ? cap / total : 1;
-    if (k < 1) issues.push({ kind: "cap", unit: u, text: `The ${def.name.toLowerCase()} is full at ${cap} kb/d: ${(total - cap).toFixed(1)} kb/d of its feed went where it would have gone without it.` });
+    // a plan that fills a unit to the barrel overshoots it by a rounding's worth: not worth a word
+    if (total - (cap ?? total) >= 0.05) issues.push({ kind: "cap", unit: u, text: `The ${def.name.toLowerCase()} is full at ${cap} kb/d: ${(total - cap).toFixed(1)} kb/d of its feed went where it would have gone without it.` });
     const unit = units[u] = { feed: 0, cap: cap ?? null, feeds: {}, outputs: {}, h2: 0, sRemoved: 0 };
     for (const [s, want] of takes) {
       const v = want * k, fp = propsOf(acc[s]);
@@ -248,7 +249,9 @@ export function evaluate(level, routing) {
     sulphur: { removed: sRemoved, cap: sruCap, over: sOver }, streams, units, pools: sold, issues };
 }
 /** A pool's price in a level (a level may have its own deck). */
-export const priceOf = (level, p) => level.prices?.[p] ?? POOLS[p].price;
+export const priceOf = (level, p) => level.prices?.[p] ?? (p === "notBought" ? boughtPrice(level) : POOLS[p].price);
+/** What the level's optional purchase costs a barrel: handed back for what isn't bought. */
+const boughtPrice = level => { const s = Object.keys(level.bought || {}).find(x => POOLS.notBought.accept.includes(x)); return s ? (level.prices?.[s] ?? BOUGHT[s] ?? 0) : 0; };
 /** A failed spec in words: "RON 93.2 under 95.0", "not all jet grade". */
 export function failText(f) {
   if (PROPS[f.k].flag) return f.k === "grade" ? "untreated kerosene in it" : "not an asphaltic crude's residue";

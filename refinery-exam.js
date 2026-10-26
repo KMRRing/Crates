@@ -2,11 +2,12 @@
 // few kinds: pick one of several, type a number or a word, tap a unit or a stream on the flowsheet, put a path in
 // order. They come from four places: your own plant (its volumes, its blends' qualities, where its streams go, what
 // limits a pool, its hydrogen and sulphur), the level's own questions on its ideas (written below), the words it
-// brought in (the glossary's), and Punt's refining bank on its subjects. Pure, no page: tests/refinery.mjs builds every
-// level's exam and answers it.
-import { STREAMS, UNITS, POOLS, PROPS } from "./refinery-data.js";
+// brought in (the glossary's), and Punt's refining bank on its subjects; where a level compares crudes or shows the
+// plan's marginal values, par's numbers too. Pure, no page: tests/refinery.mjs builds every level's exam and answers it.
+import { STREAMS, UNITS, POOLS, PROPS, CRUDES } from "./refinery-data.js";
 import { specsOf, limitOf, fmtProp, destinations } from "./refinery-engine.js";
 import { GLOSSARY } from "./refinery-lessons.js";
+import { PAR } from "./refinery-par.js";
 import { MATHS as BANK } from "./refining-bank.js";
 
 /** A seeded random source (mulberry32). */
@@ -148,7 +149,46 @@ const Q = {
   ],
   "6.4": [
     ["How is bitumen graded?", "By penetration: how far a needle sinks in", ["By viscosity at 50 °C in centistokes", "By its sulphur content in per cent", "By its density at 15 °C"], "Penetration grades such as 50/70 give the needle's depth in tenths of a millimetre."],
-    ["About how much sulphur does Maya's vacuum residue hold?", "About 6%", ["About 3.5%", "About 1.5%", "About 0.5%"], "Maya is 3.4% sulphur and its vacuum residue nearly twice that: too sour even for 3.5% fuel oil, so it's converted, blown into bitumen, or blended down."],
+    ["About how much sulphur does Maya's vacuum residue hold?", "About 5.5%", ["About 3.5%", "About 1.5%", "About 0.5%"], "Maya is 3.4% sulphur and its vacuum residue more than half as much again: too sour even for 3.5% fuel oil, so it's converted, blown into bitumen, or blended down."],
+  ],
+  "7.1": [
+    ["EN 590's density window for road diesel is", "820 to 845 kg/m³ at 15 °C", ["800 to 890 kg/m³ at 15 °C", "845 to 870 kg/m³ at 15 °C", "775 to 840 kg/m³ at 15 °C"], "820–845 kg/m³. Injectors meter by volume, so density sets the energy in each stroke; 775–840 is Jet A-1's window."],
+    ["Why is diesel's density capped at the top?", "A denser fuel puts more into each stroke, and the engine smokes", ["A denser fuel freezes sooner and blocks the filters in winter", "A denser fuel carries more sulphur than the 10 ppm limit allows", "A denser fuel ignites too early and knocks the engine"], "Injectors meter by volume: a denser fuel delivers more mass per stroke, a richer burn with more smoke and particulates."],
+    ["Treated light cycle oil fails both cetane and density. Blended into treated straight-run gas oil, which limit does it reach first?", "Density, at about 6% of the pool", ["Cetane, at about 6% of the pool", "Density, at about 15% of the pool", "Cetane, at about 15% of the pool"], "Gas oil at 840 kg/m³ and cetane 53.5 against LCO at 920 and 30: the blend reaches 845 at about 6% LCO, cetane 51 only at about 11%."],
+  ],
+  "7.2": [
+    ["EN 228's limit on benzene in petrol is", "1% by volume", ["5% by volume", "0.1% by volume", "3.5% by volume"], "1% benzene, a carcinogen; reformate alone carries 2–5%."],
+    ["Why does a benzene splitter take the reformate's light end, not its heavy end?", "Benzene boils at 80 °C, among the C6s", ["Benzene boils at 140 °C, among the C8s", "Benzene stays a gas at the column's pressure", "Benzene forms only in the reformer's last reactor"], "Benzene is the only C6 aromatic and boils at 80 °C: it leaves overhead with the C5s and C6s."],
+    ["What do ethanol and ETBE both use up in a petrol pool?", "Its oxygen allowance, 3.7% by mass", ["Its aromatics allowance, 35% by volume", "Its olefins allowance, 18% by volume", "Its benzene allowance, 1% by volume"], "Both carry oxygen, ethanol 35% by mass and ETBE 16%; EN 228 allows 3.7% in all, and E10's full tenth of ethanol uses nearly all of it."],
+    ["Which of these loses most octane between the research and the motor test?", "Ethanol", ["Alkylate", "Isomerate", "Butane"], "Ethanol is RON 109 but MON 90, a sensitivity of 19; alkylate, isomerate and butane lose 2 to 4 points."],
+  ],
+  "7.3": [
+    ["ISO 8217's RMG 380 grade allows a viscosity of", "380 cSt at 50 °C", ["380 cSt at 100 °C", "180 cSt at 50 °C", "700 cSt at 50 °C"], "380 cSt at 50 °C; the same family of grades runs from 180 to 700."],
+    ["As a fuel oil cutter, light cycle oil is good for", "Viscosity, much less for density", ["Density, much less for viscosity", "Sulphur, much less for viscosity", "Density and sulphur, not viscosity"], "LCO is thin, 3 cSt, but 945 kg/m³: it thins residue well and does little for its density."],
+    ["What makes two fuel oils incompatible?", "Asphaltenes falling out when a paraffinic oil meets an aromatic residue", ["Water separating out when a dense fuel meets a much lighter one", "Wax forming when a sweet fuel oil meets a sour one in the tank", "Sulphur rising when a visbroken fuel meets a straight-run one"], "A paraffinic low-sulphur oil can't keep a residue's asphaltenes dissolved: they fall out as sludge, the sediment ISO 8217 caps at 0.10%."],
+  ],
+  "7.4": [
+    ["EN 590 allows biodiesel (FAME) in road diesel up to", "7% by volume", ["10% by volume", "5% by volume", "20% by volume"], "B7: up to 7% FAME. B10 and B20 are separate grades, with standards of their own."],
+    ["In a refinery's blending plan, a binding spec is", "A limit the best blend sits exactly on", ["A limit the blend may not cross by law", "A limit the buyer has agreed to waive", "A limit no single blendstock can meet"], "Binding means the plan would earn more if the limit moved: its shadow price isn't zero."],
+    ["Why do refiners blend each pool right to its limits?", "Quality past a limit earns nothing extra", ["Blending past a limit is against the law", "Blendstocks are cheaper bought near a limit", "Buyers pay a bonus for blends at the limit"], "Give-away: a pool sold to a spec is paid as meeting it, however far inside it is."],
+  ],
+  "8.1": [
+    ["A product's crack spread is", "Its price less the crude's, per barrel", ["Its price less the next grade's, per barrel", "Its yield from the crude, per barrel", "Its margin after the plant's running costs"], "Product less crude: petrol's and diesel's cracks are the refining market's headline numbers."],
+    ["Diesel's crack rises against petrol's. Where does the vacuum gas oil move?", "From the FCC towards the hydrocracker", ["From the hydrocracker towards the FCC", "From both crackers into fuel oil", "From the hydrocracker into the coker"], "The hydrocracker makes mostly jet and diesel, the FCC mostly petrol: a diesel market fills the hydrocracker first."],
+    ["Which of these cuts swings between jet and diesel as their cracks move?", "Hydrocracker jet", ["Light cycle oil", "Heavy gas oil", "Light naphtha"], "Hydrocracker jet is light and high in cetane, so it meets both specs and goes wherever pays more; LCO and heavy gas oil can't make jet."],
+  ],
+  "8.2": [
+    ["A crude's gross product worth in a refinery is", "What its yields sell for there, at market prices", ["What it sells for on the spot market today", "What it costs delivered to the refinery's jetty", "What its yields sell for less its own price"], "GPW is the value of its products in that refinery; less the crude's price and running costs, it's the margin."],
+    ["Why can a conversion refinery pay more for a heavy crude than a hydroskimmer can?", "It cracks and cokes the residue into light products", ["It sells the heavy crude's residue as road bitumen", "It needs no hydrogen to treat a heavy crude's cuts", "It runs a heavy crude through the crude unit faster"], "Residue sold as fuel oil is worth less than crude; cracked and coked, it's worth more. A heavy crude's discount pays for that conversion."],
+  ],
+  "8.3": [
+    ["A plan's marginal value of a stream is", "What one more barrel of it would add to the margin", ["What it sells for if it's sold just as it is", "What it cost to make, per barrel, in this plan", "What the market pays for it, delivered"], "It's the LP's dual: the margin the next barrel would earn, wherever the plan would put it."],
+    ["At par some of the imported VGO is left unbought. What is its marginal value?", "$84, exactly its price", ["$87, its worth in the hydrocracker", "$80, its worth as VLSFO", "$70, its worth as HSFO"], "A feed bought in part is worth exactly its price at the margin: if the next barrel were worth more the plan would buy it, if less it would buy fewer."],
+    ["The plan buys imported VGO until", "The last barrel bought is worth what it costs", ["The hydrocracker's feed is all imported", "The fuel oil's sulphur reaches its limit", "The plant's own gas oil has all been sold"], "Buy while the marginal value is above the price; once the hydrocracker is full, the next barrel's uses earn less."],
+  ],
+  "8.4": [
+    ["A unit that isn't full has a shadow price on its capacity of", "Nothing: more of it would sit idle", ["Its running cost per barrel of feed", "Its products' value over its feed's", "Its share of the plant's whole margin"], "Only a binding limit has a shadow price: capacity the plan doesn't use is worth nothing at the margin."],
+    ["Why does a capacity's shadow price hold only for small changes?", "A large expansion moves the bottleneck elsewhere", ["A large expansion costs more per barrel to build", "A large expansion needs a new operating permit", "A large expansion lowers the products' prices"], "The price holds while the same limits bind. Expand far enough and another unit, or a spec, binds instead."],
   ],
 };
 
@@ -160,10 +200,13 @@ const WORDS = {
   "4.1": ["Vacuum gas oil", "Vacuum residue", "FCC", "Riser", "Regenerator"], "4.2": ["Cetane number", "Light cycle oil", "EN 590"], "4.3": ["Alkylation", "Alkylate", "Olefins"],
   "5.1": ["Hydrocracking", "Volume swell"], "5.2": ["SMR", "Hydrogen network", "Shadow price"], "5.3": ["Hydrocracking", "FCC"],
   "6.1": ["VLSFO", "HSFO", "IMO 2020", "Refutas index"], "6.2": ["Visbreaking", "Asphaltenes", "Cutter stock"], "6.3": ["Delayed coking", "Petroleum coke"], "6.4": ["Bitumen", "Asphaltenes"],
+  "7.1": ["EN 590", "Cetane number", "Cetane index"], "7.2": ["EN 228", "Oxygenates", "ETBE", "Light reformate", "Sensitivity"], "7.3": ["ISO 8217", "Cutter stock", "Refutas index", "Total sediment", "Compatibility"], "7.4": ["Linear programming", "Give-away", "Blending index"],
+  "8.1": ["Crack spread", "Price deck", "Margin"], "8.2": ["Gross product worth", "Crude differential", "Breakeven price", "Opportunity crude"], "8.3": ["Marginal value", "Intermediate feedstock", "Shadow price"], "8.4": ["Shadow price", "Debottlenecking", "Nelson complexity index"],
 };
 const AREAS = {
   1: ["Distillation", "Crudes", "Products"], 2: ["Sulphur", "Treating", "Specs"], 3: ["Reforming", "Octane", "Volatility", "Isomerisation", "Oxygenates"],
   4: ["Cracking", "Alkylation"], 5: ["Hydrogen", "Cracking"], 6: ["Residue", "Coking", "Specs"],
+  7: ["Specs", "Blending", "Volatility", "Oxygenates", "Cetane", "Cold flow", "Stability", "Components"], 8: ["Margins", "Configuration", "Operations", "Crudes"],
 };
 
 // ---------- your plant ----------
@@ -246,6 +289,29 @@ function plantQuestions(level, res, rnd) {
 }
 const routingFrom = res => Object.fromEntries(Object.entries(res.streams).map(([s, st]) => { const t = Object.values(st.to).reduce((a, b) => a + b, 0) || 1; return [s, Object.fromEntries(Object.entries(st.to).map(([d, v]) => [d, v / t]))]; }));
 
+// ---------- what par knows ----------
+// the crudes against each other (the price at which another would earn what the best one does), and which unit's next
+// barrel of capacity the plan's marginal values say pays most
+function parQuestions(level, rnd) {
+  const out = [], par = PAR[level.id] || {};
+  if (level.crudes?.length > 1 && level.crudes.every(c => par[c])) {
+    const ranked = [...level.crudes].sort((a, b) => par[b].margin - par[a].margin), best = ranked[0], other = pick(ranked.slice(1), rnd);
+    const gap = par[best].margin - par[other].margin, even = CRUDES[other].price - gap;
+    out.push(number(`At par, ${CRUDES[best].name} earns most here: $${par[best].margin.toFixed(2)} a barrel, bought at $${CRUDES[best].price}. At what price would ${CRUDES[other].name} earn as much?`, +even.toFixed(2),
+      `${CRUDES[other].name} earns $${par[other].margin.toFixed(2)} at $${CRUDES[other].price}; $${gap.toFixed(2)} cheaper, at $${even.toFixed(2)}, the same plan would earn as much.`, { unit: "$/bbl", tol: 0.3 }));
+  }
+  const key = level.decks ? `${level.crude}/${level.deck || level.decks[0].id}` : level.crude;
+  const caps = Object.entries(par[key]?.capacity || {}).filter(([u]) => UNITS[u] && level.caps?.[u] != null);
+  if (level.values && caps.length) {
+    const [top, v] = caps.reduce((a, b) => (b[1] > a[1] ? b : a)), rest = caps.filter(([u]) => u !== top);
+    const paid = rest.filter(([, x]) => x >= 0.01), idle = rest.filter(([, x]) => x < 0.01);
+    if (v > 0.5 && caps.length >= 3) out.push(choice("At par, which unit's next thousand barrels a day of capacity would earn most?", UNITS[top].name, rest.map(([u]) => UNITS[u].name),
+      `The ${lc(UNITS[top].name)}'s, at $${v.toFixed(2)} a barrel${paid.map(([u, x]) => `; the ${lc(UNITS[u].name)}'s is $${x.toFixed(2)}`).join("")}${idle.length ? `; more ${idle.map(([u]) => lc(UNITS[u].name)).join(" or ")} would earn nothing` : ""}.`));
+    else if (v > 0.5) out.push(number(`At par, what would one more barrel a day of ${lc(UNITS[top].name)} capacity earn, in dollars?`, +v.toFixed(2), `$${v.toFixed(2)} a barrel: what the last barrel of its feed earns in it over that feed's next-best use.`, { unit: "$/bbl", tol: Math.max(0.4, v * 0.12) }));
+  }
+  return out;
+}
+
 // ---------- words and the bank ----------
 function wordQuestion(level, rnd) {
   const words = WORDS[level.id] || [];
@@ -271,9 +337,9 @@ function bankQuestion(level, rnd, used) {
 export function buildTest(level, res, { seed = 1 } = {}) {
   const rnd = seeded(seed), used = new Set();
   const own = shuffle(Q[level.id] || [], rnd).slice(0, 3).map(([ask, right, wrongs, why]) => choice(ask, right, wrongs, why));
-  const plant = plantQuestions(level, res, rnd);
+  const plant = plantQuestions(level, res, rnd), fromPar = parQuestions(level, rnd);
   const extra = [wordQuestion(level, rnd), bankQuestion(level, rnd, used), bankQuestion(level, rnd, used)].filter(Boolean);
-  // about ten: the plant's first, then the level's ideas, then a word and the bank
-  const qs = [...plant.slice(0, 5), ...own, ...extra].slice(0, 10);
+  // about ten: the plant's first, then par's, the level's ideas, a word and the bank
+  const qs = [...plant.slice(0, 5), ...fromPar, ...own, ...extra].slice(0, 10);
   return qs.map(q => deal(q, rnd));
 }

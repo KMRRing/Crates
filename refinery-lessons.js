@@ -4,6 +4,7 @@
 // level, and the glossary the exams take their words from.
 import { STREAMS, UNITS, POOLS, CRUDES, CUT_S } from "./refinery-data.js";
 import { ownProps } from "./refinery-engine.js";
+import { LEVELS } from "./refinery-levels.js";
 
 /** What each level teaches, a line each, for the course map. */
 export const TEACHES = {
@@ -27,6 +28,14 @@ export const TEACHES = {
   "6.2": "The visbreaker saves cutter",
   "6.3": "The coker: residue into lighter products and coke",
   "6.4": "Bitumen from an asphaltic crude's residue",
+  "7.1": "Diesel's density window, and what each cut does to it",
+  "7.2": "Petrol to every EN 228 limit: benzene, oxygen, motor octane",
+  "7.3": "Fuel oil to viscosity, density and sulphur at once",
+  "7.4": "The whole refinery, every product to its full specification",
+  "8.1": "Cracks move the plan: petrol summers, diesel winters",
+  "8.2": "Choosing a crude: what its barrel makes here, against its price",
+  "8.3": "Marginal values: buy a feed while it earns more than it costs",
+  "8.4": "Shadow prices on capacity: where the next investment goes",
 };
 
 /** The craft's words, for the glossary and the exams: no definition says its own word or holds a figure that gives it away. */
@@ -102,6 +111,21 @@ export const GLOSSARY = [
   ["Shadow price", "What one more unit of something would add to the plan's margin: a stream, a unit's capacity, a spec's limit."],
   ["Linear programming", "Optimising a linear objective within linear limits: how refiners plan crude, units and blends."],
   ["Recursion", "Solving a refinery plan again and again, each time with the stream qualities the last plan implied, until they agree."],
+  ["Cetane index", "Ignition quality worked out from a diesel's density and distillation rather than run in an engine: an ignition improver lifts the engine figure but not this one."],
+  ["Oxygenates", "Blendstocks that carry oxygen, alcohols and ethers: octane without aromatics, all drawing on petrol's one oxygen limit."],
+  ["ETBE", "Ethyl tertiary-butyl ether: bio-ethanol joined to isobutene, a petrol blendstock of high octane and low vapour pressure, partly renewable."],
+  ["Light reformate", "The top of a reformate splitter: the C5s and C6s, carrying nearly all the benzene, sold to an aromatics plant or as naphtha."],
+  ["ISO 8217", "The international standard for marine fuels: distillate and residual grades, each with limits on viscosity, density, sulphur, stability and more."],
+  ["Total sediment", "What a residual fuel throws down as it ages, asphaltenes and solids together: the marine standard's test of a blend's stability."],
+  ["Compatibility", "Whether two fuel oils mix without their asphaltenes falling out: a waxy, paraffinic blendstock and an aromatic residue often don't."],
+  ["Gross product worth", "What a barrel of crude's yields sell for in a given refinery, at market prices, before the crude's own price is taken off."],
+  ["Crude differential", "A crude's price against its marker, such as dated Brent: set by its quality, its freight and the market for its cuts."],
+  ["Breakeven price", "The price at which a crude would earn a refinery as much as the best alternative: below it, the crude is worth buying."],
+  ["Opportunity crude", "A crude priced under what it's worth to most refiners, for its acidity, metals or awkward quality, that suits a particular plant."],
+  ["Price deck", "The set of prices a refinery plans against, for crude, products and utilities: usually a month's forward prices."],
+  ["Marginal value", "What one more barrel of a stream would add to a plan's margin, wherever the plan would put it: a feed is bought while it beats the price."],
+  ["Intermediate feedstock", "A part-refined stream traded between refineries, such as vacuum gas oil or atmospheric residue, bought to fill a unit."],
+  ["Debottlenecking", "Raising a plant's throughput by enlarging the one unit that limits the rest: often the cheapest capacity a refinery can buy."],
 ];
 
 const W = (k, s) => ({ say: s, scene: k });
@@ -110,6 +134,18 @@ const level = (o = {}) => ({ sheet: { ...o } });
 const price = p => POOLS[p].price;
 // the Urals cuts' sulphur, as the assay sets it, for the pictures
 const uralsS = s => CRUDES.urals.sulphur * 10000 * CUT_S[s];
+const LV = id => LEVELS.find(l => l.id === id);
+// a gas oil's properties once the diesel hydrotreater has had it, as the unit's carry sets them
+const treated = s => { const c = UNITS.dht.carry, dl = c.perFeed?.[s] || c.delta, p = STREAMS[s].p; return { d: p.d + (dl.d || 0), cet: p.cet + (dl.cet || 0) }; };
+// how much of a pool of treated straight-run gas oil treated LCO can be before it reaches a limit (both blend by volume)
+const lcoShare = (k, lim) => (treated("lgo")[k] - lim) / (treated("lgo")[k] - treated("lco")[k]);
+// a level's vacuum gas oil, kb/d: the residue the crude gives, times the share the vacuum unit lifts
+const vgoOf = id => { const c = CRUDES[LV(id).crude]; return 100 * c.cuts.atmResid * c.vgoShare; };
+// the cracks of a level's markets: product less crude
+const crack = (id, i, p) => LV(id).decks[i].prices[p] - CRUDES[LV(id).crude].price;
+/** What a barrel of vacuum gas oil earns in 8.3's hydrocracker, as its lesson says: tests/refinery.mjs holds it to par's. */
+export const VGO_IN_HCU = 87;
+const crackBars = id => LV(id).decks.flatMap((d, i) => [[`Petrol, ${i ? "winter" : "summer"}`, crack(id, i, "gasoline"), "naphtha"], [`Diesel, ${i ? "winter" : "summer"}`, crack(id, i, "diesel"), "middle"]]);
 
 const LESSONS = {
   // ---------- 1. The barrel ----------
@@ -196,7 +232,7 @@ const LESSONS = {
   ],
   "5.3": [
     W({ bars: { items: [["FCC: naphtha", 57, "naphtha"], ["FCC: LCO", 18, "middle"], ["HCU: naphtha", 20, "naphtha"], ["HCU: jet and diesel", 85, "middle"]], unit: "% of feed" } }, "The FCC makes gasoline and propylene; the hydrocracker jet and diesel. Which pays depends on the cracks: petrol against diesel, and the price of hydrogen."),
-    W(level({ only: ["fcc", "hcu"] }), "With both full, the vacuum gas oil splits between them. Light VGO cracks into more middle distillate in a hydrocracker; heavy VGO suits the FCC."),
+    W(level({ only: ["fcc", "hcu"], routing: { hgo: "dht" } }), "With both full, the vacuum gas oil splits between them. Light VGO cracks into more middle distillate in a hydrocracker; heavy VGO suits the FCC."),
   ],
   // ---------- 6. The bottom of the barrel ----------
   "6.1": [
@@ -215,7 +251,62 @@ const LESSONS = {
   ],
   "6.4": [
     W(level({ only: ["blowing"] }), "Bitumen is vacuum residue from an asphaltic crude, blown with air at 240–290 °C to harden it, and graded by penetration: how far a needle sinks into it, in tenths of a millimetre."),
-    W(level({ only: ["blowing", "coker", "bitumen"] }), "Roads are built in summer, and the bitumen market takes only so much. Maya's residue is also over 6% sulphur, too sour even for 3.5% fuel oil: what isn't bitumen has to be converted."),
+    W(level({ only: ["blowing", "coker", "bitumen"] }), "Roads are built in summer, and the bitumen market takes only so much. Maya's vacuum residue is also over 5% sulphur, too sour even for 3.5% fuel oil: what isn't bitumen has to be converted."),
+  ],
+  // ---------- 7. Blending to spec ----------
+  "7.1": [
+    W({ bars: { items: [["Kerosene", treated("kero").d, "middle"], ["HC jet", STREAMS.hcJet.p.d, "middle"], ["HC diesel", STREAMS.hcDiesel.p.d, "middle"], ["Gas oil, treated", treated("lgo").d, "middle"], ["HGO, treated", treated("hgo").d, "heavy"], ["LCO, treated", treated("lco").d, "heavy"]], unit: "kg/m³", limit: [845, "EN 590: 845"], min: 760 } },
+      "EN 590 holds road diesel between 820 and 845 kg/m³ at 15 °C. Injectors meter fuel by volume, so density is the energy in every stroke: too light and the engine loses power, too heavy and it smokes. A hydrotreater takes the sulphur out and barely touches density: each cut keeps nearly its own."),
+    W({ blend: { prop: "d", parts: [["Gas oil, treated", 6, treated("lgo").d], ["HGO, treated", 3, treated("hgo").d], ["LCO, treated", 1, treated("lco").d]], limit: 845, dir: "max" } },
+      "Density blends by volume, a plain average, and 845 binds the pool, not each part. Treated straight-run gas oil leaves five kg/m³ to spare, and heavy gas oil and LCO use it up fast: with three tenths of the one and a tenth of the other, this pool is off spec."),
+    W({ blend: { prop: "d", parts: [["Gas oil, treated", 6, treated("lgo").d], ["HGO, treated", 3, treated("hgo").d], ["LCO, treated", 1, treated("lco").d], ["HC diesel", 4, STREAMS.hcDiesel.p.d], ["Kerosene", 2, treated("kero").d]], limit: 845, dir: "max" } },
+      "Light parts make room. Hydrocracker diesel at 830, with cetane 58, helps both limits. Kerosene at 800 helps the density but, at cetane 43, hurts the cetane, and every barrel of it in diesel is one not sold as jet."),
+    W(level({ only: ["lco", "dht", "diesel", "fcc"], routing: { kero: "kht", hgo: "dht" } }), `In chapter 4 the cetane limited how much LCO diesel could take. With density counted it's tighter: on straight-run gas oil alone, LCO reaches 845 at about ${Math.round(lcoShare("d", 845) * 100)}% of the pool, before cetane bites at ${Math.round(lcoShare("cet", 51) * 100)}%. EN 590 also asks a cetane index of 46, worked out from density and distillation: an ignition improver can lift the cetane number, never the index.`),
+  ],
+  "7.2": [
+    W({ bars: { items: ["reformate", "lsr", "catNaphthaT", "heavyReformate", "isomerate", "alkylate"].map(s => [STREAMS[s].name, STREAMS[s].p.benz, STREAMS[s].group]), unit: "% benzene", limit: [1, "EN 228: 1%"] } },
+      "EN 228 sets more than a dozen limits; this plant is held to the ten that bind most often. New here is benzene, a carcinogen, held to 1% of the pool. Reformate carries 3.5% and light naphtha 1.5%: a pool built on them breaks that limit before any other."),
+    W(level({ only: ["reformer", "bzhc", "naphtha"] }), "A benzene splitter is a column that takes the reformate's light end overhead: its C5s and C6s, with nearly all the benzene, which boils at 80 °C. That light reformate is a seventh of the reformate and a quarter benzene, and goes to petrochemical naphtha or an aromatics plant; the heavy reformate below holds 0.3%. Only as much reformate as the limit needs goes through it."),
+    W({ molecules: ["ethanol", "etbe"] }, "Oxygen is a shared limit: 3.7% by mass. Ethanol is 35% oxygen, ETBE (ethyl tertiary-butyl ether, ethanol joined to isobutene) 16%, and E10's full tenth of ethanol alone uses nearly all of it. ETBE brings more octane for its oxygen, RON 118, and less vapour pressure, and counts as 37% renewable. Ethers are capped at 22% of the pool, ethanol at 10%."),
+    W({ bars: { items: ["ethanol", "etbe", "catNaphthaT", "reformate", "butane", "alkylate", "isomerate"].map(s => [STREAMS[s].name, STREAMS[s].p.ron - STREAMS[s].p.mon, STREAMS[s].group]), unit: "points" } },
+      "And MON 85 as well as RON 95. The motor test runs hotter and faster, and olefins, aromatics and oxygenates (the blendstocks carrying oxygen) lose most in it; the gap, RON less MON, is a blendstock's sensitivity. A pool rich in FCC naphtha and ethanol can make RON 95 and miss MON 85. Alkylate and isomerate, nearly insensitive, are the cure."),
+  ],
+  "7.3": [
+    W({ bars: { items: [["Slurry oil", STREAMS.slurry.p.d, "resid"], ["Vacuum residue", CRUDES.urals.vr.d, "resid"], ["Visbroken residue", STREAMS.visResid.p.d, "resid"], ["Atm. residue", CRUDES.urals.ar.d, "resid"], ["Light cycle oil", STREAMS.lco.p.d, "heavy"], ["Light gas oil", STREAMS.lgo.p.d, "middle"]], unit: "kg/m³", limit: [991, "ISO 8217: 991"], min: 800 } },
+      "Marine fuel is bought to ISO 8217. Its RMG 380 grade allows 380 cSt at 50 °C and 991 kg/m³; VLSFO adds 0.5% sulphur, HSFO 3.5% for ships that scrub their exhaust. No blendstock meets all three alone: residue is too thick, slurry too dense, gas oil worth more as diesel."),
+    W({ blend: { prop: "visc", parts: [["visResid", 3], ["lco", 1]], limit: 380, dir: "max" } }, "Viscosity blends by its Refutas index, by mass, so a thin cutter does far more than its share. Even so, visbroken residue at 40,000 cSt needs about a third of one: three parts to one of light cycle oil come to over 600 cSt."),
+    W({ blend: { prop: "d", parts: [["visResid", 2], ["lco", 1], ["slurry", 0.4]], limit: 991, dir: "max" } }, "Density blends by volume. Light cycle oil is thin but 945 kg/m³, so it cuts viscosity far better than density. Slurry, the FCC's bottoms at 1,080, fits only in small amounts. Gas oil at 845 cuts both, at diesel's price. The cheapest blend uses each cutter against the limit it's cheapest for."),
+    W(level({ only: ["fuelOil", "hsfo"] }), "Then stability. Since 2020, VLSFO is often a waxy, paraffinic low-sulphur oil blended with an aromatic residue, and the two can be incompatible: the residue's asphaltenes fall out as sludge that clogs a ship's filters. ISO 8217 caps total sediment at 0.10%, and every batch is tested before it ships. This plan doesn't track it; a blender's does."),
+  ],
+  "7.4": [
+    W(level(), "Every pool to its full specification at once: twenty-five limits on six pools, on a plant with two crackers and three blendstocks bought in. This is the monthly plan, and refiners solve it as a linear programme (LP): a row for every stream's balance, every unit's capacity and every limit on every pool, and the margin to maximise. A real refinery's has thousands of rows."),
+    W({ blend: { prop: "d", parts: [["Gas oil, treated", 9.3, treated("lgo").d], ["fame", 0.7]], limit: 845, dir: "max" } }, "New here is FAME, fatty acid methyl ester or biodiesel, which EN 590 allows up to 7%. Its cetane is fine, but at 883 kg/m³ a full 7% uses three of the five kg/m³ that treated straight-run gas oil leaves."),
+    W(level({ only: ["kero", "kht", "jet", "lco", "hsfo"] }), "Where a pool sits on a limit, the limit has a price: the plan would earn more if it moved. Here they interact. The fuel oils' viscosity and density set how much cutter the residue needs; the cheapest cutter is whatever earns least elsewhere; what goes into fuel oil can't go to jet or diesel. Find the blend that meets them all."),
+  ],
+  // ---------- 8. Economics ----------
+  "8.1": [
+    W({ bars: { items: crackBars("8.1"), unit: "$/bbl" } }, `A product's crack is its price over the crude's. Petrol's peaks with the summer driving season, diesel's and heating oil's in winter, and both move with outages, freight and stocks. Against ${CRUDES[LV("8.1").crude].name} at $${CRUDES[LV("8.1").crude].price}, this summer pays $${crack("8.1", 0, "gasoline")} for petrol to $${crack("8.1", 0, "diesel")} for diesel; this winter $${crack("8.1", 1, "gasoline")} to $${crack("8.1", 1, "diesel")}.`),
+    W(level({ only: ["fcc", "hcu", "lvgo", "hvgo"], routing: { hgo: "dht" } }), "The vacuum gas oil is where the plan swings. The FCC makes mostly petrol; the hydrocracker mostly jet and diesel, for its hydrogen. In a petrol market the FCC takes all the gas oil it can; in a diesel market the hydrocracker fills first, and light VGO, which cracks into more middle distillate, is the first to move."),
+    W(level({ only: ["hcu", "hcJet", "jet", "diesel"], routing: { hgo: "dht" } }), "Hydrocracker jet swings too: light and high in cetane, it meets both specs and goes wherever pays more. Refiners call the two plans max-gasoline and max-distillate; they also move the crude column's cut points and the FCC's severity, which this plant holds fixed."),
+  ],
+  "8.2": [
+    W({ bars: { items: LV("8.2").crudes.map(c => [CRUDES[c].name, CRUDES[c].price, CRUDES[c].api > 31.1 ? "naphtha" : CRUDES[c].api > 22.3 ? "heavy" : "resid"]), unit: "$/bbl", min: 60 } },
+      `Six crudes at their delivered prices. CPC Blend, API 45, is two-fifths naphtha and kerosene; Johan Sverdrup is medium and 0.8% sulphur; Maya, API 22 and 3.4% sulphur, is $${CRUDES.brent.price - CRUDES.maya.price} under Brent. A crude's price against its marker, here Brent, is its differential: it prices the crude's quality for a typical buyer, not for this plant.`),
+    W({ curve: { crudes: ["cpc", "brent", "sverdrup", "arabHeavy", "maya"] } }, "By 370 °C, CPC has boiled 70% and Maya under 40%. What doesn't boil is residue: vacuum gas oil for the crackers and, below it, vacuum residue for the coker or for fuel oil."),
+    W(level({ only: ["coker", "fcc", "hcu"], routing: { hgo: "dht" } }), "A crude's worth to a refinery is its gross product worth (GPW): what its yields sell for there. Less its price and the cost of running it, that's its margin. The conversion units decide it: here the coker and the hydrocracker make a heavy crude's residue pay, and their capacities limit how much of it."),
+    W({ column: { crude: "maya", yields: true } }, "Crude buyers run the plan for every candidate at its delivered price, and for blends of several, which this plant doesn't. For each, the number to know is its breakeven: the price at which it would earn as much as the best. Below that, it's a buy."),
+  ],
+  "8.3": [
+    W(level({ only: ["vdu", "hcu"], routing: { importVgo: "notBought", hgo: "dht" } }), `${CRUDES[LV("8.3").crude].name} gives this plant about ${Math.round(vgoOf("8.3"))} thousand barrels a day of vacuum gas oil, and the hydrocracker takes ${LV("8.3").caps.hcu}. Refineries fill spare conversion with intermediate feedstocks, part-refined streams like vacuum gas oil and atmospheric residue, traded between refineries much as crude is.`),
+    W({ bars: { items: [["In the hydrocracker", VGO_IN_HCU, "middle"], ["As VLSFO", price("fuelOil"), "resid"], ["As HSFO", price("hsfo"), "resid"]], unit: "$/bbl", limit: [LV("8.3").prices.importVgo, `offered at $${LV("8.3").prices.importVgo}`], min: 60 } },
+      `What a barrel of the import is worth depends on where it goes. In the hydrocracker, its jet, diesel and reformed naphtha, less hydrogen and running cost, come to about $${VGO_IN_HCU}. Sold on as VLSFO, which its 0.4% sulphur allows, $${price("fuelOil")}; as HSFO, $${price("hsfo")}. At $${LV("8.3").prices.importVgo} it pays only in the hydrocracker, and only while there's room.`),
+    W(level({ only: ["hcu", "notBought", "importVgo"], routing: { hgo: "dht" } }), "So the plan buys until the hydrocracker is full and stops there: the last barrel bought is worth exactly its price. That's a stream's marginal value, the LP's dual: what one more barrel would add to the margin, wherever the plan would put it. Each stream's sheet shows it now, and each full unit's card the value of more room."),
+    W(level({ only: ["vacResid", "hsfo"] }), "One use more. Arab Light's vacuum residue is 3.8% sulphur, over the limit even for HSFO, so that pool needs a sweeter part in it, and the import, at 0.4%, is the cheapest one here. A barrel can be worth buying for its quality as well as its yields."),
+  ],
+  "8.4": [
+    W(level({ only: ["fcc", "hcu", "dht", "smr"], routing: { hgo: "dht", kero: "kht" } }), `Four limits on capacity: an FCC of ${LV("8.4").caps.fcc} thousand barrels a day and a hydrocracker of ${LV("8.4").caps.hcu} for about ${Math.round(vgoOf("8.4"))} of vacuum gas oil, a diesel hydrotreater of ${LV("8.4").caps.dht} for the gas oils, and a hydrogen plant of ${LV("8.4").caps.smr} million scf a day.`),
+    W(level({ only: ["hcu", "hsfo", "hvgo"], routing: { hgo: "dht" } }), "A capacity's shadow price is what one more barrel a day of it would add to the margin, with the rest of the plan rearranged round it. A unit that isn't full has none. A full one's is the margin its last barrel earns over the next-best use of its feed: for a cracker, cracking the gas oil against selling it as fuel oil."),
+    W(level({ only: ["dht", "diesel"], routing: { kero: "kht" } }), "Debottlenecking spends where the shadow price is highest: a few per cent more on the one unit that limits the rest is often the cheapest capacity a refinery can buy. The price holds only for small changes: expand far enough and the bottleneck moves to another unit, or to a spec."),
   ],
 };
 

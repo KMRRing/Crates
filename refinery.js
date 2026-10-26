@@ -3,7 +3,7 @@
 // be sent anywhere that takes it, in shares, and the margin shows against par (the LP's plan, refinery-par.js); then
 // an exam (refinery-exam.js). The engine (refinery-engine.js) runs the plant; the data (refinery-data.js) describes it.
 // Together, the same level for everyone at the table (duel.js).
-import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE } from "./refinery-data.js";
+import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR } from "./refinery-data.js";
 import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, homeOf, solve, ownProps } from "./refinery-engine.js";
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
 import { PAR } from "./refinery-par.js";
@@ -37,14 +37,20 @@ let target = null;   // par for the best crude (the level's goal)
 let history = [], view = null, full = null, picked = null, toastTimer = 0;
 let D = null;        // a match's plant (duel.js), kept apart from yours: { level, crude, routing, done, margin }
 
-/** Par for a level and crude: worked out ahead (refinery-par.js), or here if a level is new since. */
-function parOf(lv, crude) {
-  const p = PAR[lv.id]?.[crude];
-  if (p) return p;
-  const s = solve({ ...lv, crude });
-  return { margin: s.margin, routing: s.routing };
+/** The level as played: its crude, and its market's prices where it has a choice of markets. */
+function played(lv, crude, deck) {
+  const d = lv.decks?.find(x => x.id === deck) || lv.decks?.[0];
+  return { ...lv, crude, ...(d ? { deck: d.id, prices: { ...(lv.prices || {}), ...d.prices } } : {}) };
 }
-const targetOf = lv => Math.max(...(lv.crudes || [lv.crude]).map(c => parOf(lv, c).margin));
+/** Par for a level, crude and market: worked out ahead (refinery-par.js), or here if a level is new since. */
+function parOf(lv, crude, deck = null) {
+  const d = lv.decks ? (deck || lv.decks[0].id) : null, p = PAR[lv.id]?.[d ? `${crude}/${d}` : crude];
+  if (p) return p;
+  const s = solve(played(lv, crude, d));
+  return { margin: s.margin, routing: s.routing, values: s.values, capacity: s.capacity };
+}
+/** The level's goal: par for the market chosen, or for the best crude where the crude is the choice. */
+const targetOf = (lv, deck) => (lv.decks ? parOf(lv, lv.crude, deck).margin : Math.max(...(lv.crudes || [lv.crude]).map(c => parOf(lv, c).margin)));
 
 // ---------- levels ----------
 /** Opens a level: your routing on it where you left it (fresh: as the level starts). */
@@ -54,10 +60,10 @@ function load(id, fresh = false) {
   write(AT, base.id);
   const work = read(WORK, {}), w = fresh ? null : work[base.id];
   if (fresh && work[base.id]) { delete work[base.id]; write(WORK, work); }
-  const crude = base.crudes?.includes(w?.crude) ? w.crude : base.crude;
-  L = { ...base, crude };
+  const crude = base.crudes?.includes(w?.crude) ? w.crude : base.crude, deck = base.decks?.some(d => d.id === w?.deck) ? w.deck : base.decks?.[0].id;
+  L = played(base, crude, deck);
   routing = normalise(L, w?.routing || defaultRouting(L));
-  par = parOf(base, crude); target = targetOf(base);
+  par = parOf(base, crude, deck); target = targetOf(base, deck);
   history = []; picked = null; view = null;
   $("hint").hidden = true;
   $("level").value = base.id;
@@ -68,15 +74,23 @@ function load(id, fresh = false) {
 function keep() {
   if (D) { duel.keep(D); return; }
   const work = read(WORK, {});
-  work[base.id] = { routing, crude: L.crude, at: Date.now() };
+  work[base.id] = { routing, crude: L.crude, deck: L.deck, at: Date.now() };
   write(WORK, Object.fromEntries(Object.entries(work).sort((a, b) => b[1].at - a[1].at).slice(0, 60)));
 }
 function chooseCrude(id) {
   if (D?.done) return;
-  L = { ...base, crude: id };
+  L = played(base, id, L.deck);
   routing = normalise(L, routing);
-  par = parOf(base, id);
+  par = parOf(base, id, L.deck);
   if (D) { D.crude = id; D.routing = routing; }
+  keep(); render();
+}
+/** A level with a choice of markets: the same plant at another price deck, with its own par. */
+function chooseDeck(id) {
+  if (D?.done) return;
+  L = played(base, L.crude, id);
+  par = parOf(base, L.crude, id); target = targetOf(base, id);
+  if (D) { D.deck = id; }
   keep(); render();
 }
 
@@ -128,25 +142,31 @@ function render() {
   drawPlant();
   if ($("splitDlg").open && splitFor) fillSplit(splitFor);
 }
+const showStars = n => { $("stars").textContent = n ? "★".repeat(n) + "☆".repeat(3 - n) : ""; };
 function renderBrief() {
   const ch = CHAPTERS.find(c => c.id === base.chapter), p = progress()[base.id] || {};
   $("where").textContent = `${ch.id}. ${ch.title} · ${base.id} ${base.title}`;
-  $("stars").textContent = p.stars ? "★".repeat(p.stars) + "☆".repeat(3 - p.stars) : "";
+  showStars(p.stars);
   $("task").textContent = base.task;
-  // a choice of crudes: each with its price and sulphur
+  // a choice of crudes (each with its price and sulphur) or of markets (each a price deck)
   const pick = $("crudePick");
-  pick.hidden = !base.crudes;
-  if (base.crudes && pick.dataset.level !== base.id + (D ? ":duel" : "")) {
+  pick.hidden = !base.crudes && !base.decks;
+  if ((base.crudes || base.decks) && pick.dataset.level !== base.id + (D ? ":duel" : "")) {
     pick.dataset.level = base.id + (D ? ":duel" : "");
     pick.replaceChildren();
-    const label = document.createElement("span"); label.textContent = "Crude";
-    const sel = document.createElement("select"); sel.className = "pool"; sel.dataset.accent = "rf"; sel.id = "crudeSel";
-    for (const c of base.crudes) { const o = document.createElement("option"); o.value = c; o.textContent = `${CRUDES[c].name} · $${CRUDES[c].price} · ${CRUDES[c].sulphur}% S`; sel.append(o); }
-    sel.addEventListener("change", e => chooseCrude(e.target.value));
-    pick.append(label, sel);
-    dropdown(sel);
+    const row = (name, id, options, on) => {
+      const label = document.createElement("span"); label.textContent = name;
+      const sel = document.createElement("select"); sel.className = "pool"; sel.dataset.accent = "rf"; sel.id = id;
+      for (const [v, t] of options) { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.append(o); }
+      sel.addEventListener("change", e => on(e.target.value));
+      pick.append(label, sel);
+      dropdown(sel);
+    };
+    if (base.crudes) row("Crude", "crudeSel", base.crudes.map(c => [c, `${CRUDES[c].name} · $${CRUDES[c].price} · ${CRUDES[c].sulphur}% S`]), chooseCrude);
+    if (base.decks) row("Market", "deckSel", base.decks.map(d => [d.id, d.name]), chooseDeck);
   }
   if (base.crudes) $("crudeSel").value = L.crude;
+  if (base.decks) $("deckSel").value = L.deck;
   $("undoBtn").disabled = !history.length || !!D?.done;
   const done = p.stars > 0;
   $("testBtn").hidden = !done || !!D;
@@ -176,15 +196,20 @@ function renderMargin() {
   const gap = target - m, v = $("verdict");
   if (D) { duelVerdict(off, gap); return; }
   const stars = starsFor(m, R), p = progress(), was = p[base.id] || {};
+  // a level of several markets is done in each of them: it holds the fewest stars any market has
+  const decks = base.decks ? { ...(was.decks || {}), [L.deck]: Math.max(was.decks?.[L.deck] || 0, stars) } : null;
+  const won = decks ? Math.min(...base.decks.map(d => decks[d.id] || 0)) : stars, deckBetter = decks && decks[L.deck] > (was.decks?.[L.deck] || 0);
   v.className = `rf-verdict${stars === 3 ? " good" : ""}`;
   v.textContent = hard ? hard.text : off.length ? `${off.map(([id]) => POOLS[id].name).join(" and ")} off spec: ${failText(off[0][1].fails[0])}.`
     : gap <= 0.1 ? "At par, every pool in spec." : `${money(gap)}/bbl short of par${base.crudes && L.crude !== bestCrude() ? " (another crude does better)" : ""}.`;
   // stars won are kept; a first finish, or more stars, says so
-  if (stars > (was.stars || 0) || m > (was.best ?? -Infinity) + 1e-9) {
-    p[base.id] = { ...was, stars: Math.max(stars, was.stars || 0), best: Math.max(m, was.best ?? -Infinity) };
+  if (won > (was.stars || 0) || deckBetter || m > (was.best ?? -Infinity) + 1e-9) {
+    p[base.id] = { ...was, stars: Math.max(won, was.stars || 0), best: Math.max(m, was.best ?? -Infinity), ...(decks ? { decks } : {}) };
     write(PROGRESS, p);
     noteStars("refinery", starsAll());
-    if (stars > (was.stars || 0)) setTimeout(() => finished(stars), 350);
+    showStars(p[base.id].stars);
+    if (won > (was.stars || 0)) setTimeout(() => finished(won), 350);
+    else if (deckBetter) toast(`${base.decks.find(d => d.id === L.deck).name}: ${"★".repeat(stars)}${"☆".repeat(3 - stars)}. The level counts once every market runs.`);
   }
   const next = LEVELS[LEVELS.indexOf(base) + 1];
   $("nextBtn").hidden = !(progress()[base.id]?.stars && next);
@@ -195,7 +220,7 @@ function renderMargin() {
   issue.hidden = !first;
   if (first) issue.textContent = first.text;
 }
-const bestCrude = () => (base.crudes || [base.crude]).reduce((a, c) => (parOf(base, c).margin > parOf(base, a).margin ? c : a));
+const bestCrude = () => (base.crudes || [base.crude]).reduce((a, c) => (parOf(base, c, L.deck).margin > parOf(base, a, L.deck).margin ? c : a));
 function starsAll() { return LEVELS.reduce((n, l) => n + (progress()[l.id]?.stars || 0), 0); }
 /** The level done, or done better: its stars, and the way on (the exam first). */
 function finished(stars) {
@@ -300,6 +325,7 @@ function fillSplit(s) {
   what.textContent = `${run ? kbd(run.vol) : "not made now"}${st.about ? ` · ${st.about}` : ""} · ${keyProps(s, props).map(k => `${PROPS[k].name === "RON" || PROPS[k].name === "MON" ? PROPS[k].name : PROPS[k].name.toLowerCase()} ${fmtProp(k, props[k])}`).join(" · ")}`;
   const note = document.createElement("small"); note.textContent = st.note;
   meta.append(what, note);
+  if (base.values && par.values?.[s] != null) { const v = document.createElement("small"); v.className = "rf-value"; v.textContent = `At par, one more barrel of it is worth $${par.values[s].toFixed(2)} to this plant: its marginal value.`; meta.append(v); }
   // the split as a bar, then a row a destination
   const shares = routing[s] || {}, dests = destinations(L, s), now = R.margin;
   $("splitBar").replaceChildren(...dests.filter(d => shares[d] > 1e-4).map(d => {
@@ -369,15 +395,20 @@ function openCard(id) {
     if (id === "cdu") { for (const t of UNITS.cdu.card) add("p", null, t); add("h3", null, "Operating"); table(UNITS.cdu.facts); }
   } else if (id === "bought") {
     $("cardTitle").textContent = "Bought in";
-    table(Object.entries(L.bought || {}).map(([s, v]) => [streamLink(s), kbd(v), `$${L.prices?.[s] ?? ({ vegOil: 150, ethanol: 120, fame: 160, etbe: 125 }[s] ?? 0)}/bbl`]), ["Stream", "Volume", "Price"]);
+    table(Object.entries(L.bought || {}).map(([s, v]) => [streamLink(s), kbd(v), `$${L.prices?.[s] ?? BOUGHT[s] ?? 0}/bbl`]), ["Stream", "Volume", "Price"]);
   } else if (UNITS[id]) {
     const u = UNITS[id], run = R.units[id], cap = L.caps?.[id];
     $("cardTitle").textContent = `${u.name} (${u.short})`;
     add("p", "rf-purpose", u.purpose);
-    if (id === "smr") add("p", "rf-facts", `Making ${R.h2.plant.toFixed(1)} of the ${R.h2.used.toFixed(1)} MMscf/d of hydrogen used; the reformer makes ${R.h2.made.toFixed(1)}.${cap != null ? ` Capacity ${cap} MMscf/d.` : ""}`);
-    else if (id === "sru") add("p", "rf-facts", `Recovering ${R.sulphur.removed.toFixed(1)} t/d of sulphur${cap != null ? ` of a capacity of ${cap}` : ""}, sold at $${120}/t.`);
+    // where a level teaches them, what more of its capacity would earn at par, in the capacity's own unit (the
+    // plan's duals are thousand dollars a day per kb/d, MMscf/d or t/d)
+    const v = base.values ? par.capacity?.[id] : null;
+    const shadow = () => v != null && add("p", "rf-value", `At par, ${id === "smr" ? "a million scf a day" : id === "sru" ? "a tonne a day" : "a thousand barrels a day"} more of its capacity would earn ${id === "sru" ? `$${Math.round(Math.max(0, v) * 1000)} a tonne` : `$${Math.max(0, v).toFixed(2)} ${id === "smr" ? "per thousand scf" : "a barrel"}`}: its shadow price${v < 0.005 ? ", nothing, as the plan doesn't fill it" : ""}.`);
+    if (id === "smr") { add("p", "rf-facts", `Making ${R.h2.plant.toFixed(1)} of the ${R.h2.used.toFixed(1)} MMscf/d of hydrogen used; the reformer makes ${R.h2.made.toFixed(1)}.${cap != null ? ` Capacity ${cap} MMscf/d.` : ""}`); shadow(); }
+    else if (id === "sru") { add("p", "rf-facts", `Recovering ${R.sulphur.removed.toFixed(1)} t/d of sulphur${cap != null ? ` of a capacity of ${cap}` : ""}, sold at $${SULPHUR.price}/t.`); shadow(); }
     else if (run) {
       add("p", "rf-facts", `Running at ${kbd(run.feed)}${cap ? ` of ${cap} (${Math.round((run.feed / cap) * 100)}%)` : ""}.${run.h2 ? ` Hydrogen: ${run.h2 > 0 ? "makes" : "uses"} ${Math.abs(run.h2).toFixed(1)} MMscf/d.` : ""}${run.sRemoved > 0.05 ? ` Strips ${run.sRemoved.toFixed(1)} t/d of sulphur.` : ""}`);
+      shadow();
       add("h3", null, "Now");
       table([...Object.entries(run.feeds).map(([s, v]) => ["in", streamLink(s), kbd(v)]), ...Object.entries(run.outputs).map(([s, v]) => ["out", streamLink(s), kbd(v)])]);
     } else add("p", "rf-facts", `Idle: nothing is sent to it.${cap ? ` Capacity ${cap} kb/d.` : ""}`);
@@ -730,13 +761,13 @@ const duel = createDuel({
     const lv = LEVELS.find(l => l.id === String(match.level)) || LEVELS[0];
     base = lv;
     D = kept?.level === lv.id && kept.routing ? kept : { level: lv.id, crude: lv.crude, routing: null, done: false, margin: null };
-    L = { ...lv, crude: lv.crudes?.includes(D.crude) ? D.crude : lv.crude };
+    L = played(lv, lv.crudes?.includes(D.crude) ? D.crude : lv.crude, D.deck);
     routing = D.routing = normalise(L, D.routing || defaultRouting(L));
-    par = parOf(lv, L.crude); target = targetOf(lv); history = []; view = null; picked = null;
+    par = parOf(lv, L.crude, L.deck); target = targetOf(lv, L.deck); history = []; view = null; picked = null;
     $("level").value = lv.id;
     keep(); render(); tell();
   },
-  onLobby: match => { D = null; const lv = LEVELS.find(l => l.id === String(match.level)) || LEVELS[0]; base = lv; L = { ...lv }; routing = normalise(L, defaultRouting(L)); par = parOf(lv, lv.crude); target = targetOf(lv); render(); $("verdict").textContent = "The same plant for everyone."; },
+  onLobby: match => { D = null; const lv = LEVELS.find(l => l.id === String(match.level)) || LEVELS[0]; base = lv; L = played(lv, lv.crude); routing = normalise(L, defaultRouting(L)); par = parOf(lv, lv.crude, L.deck); target = targetOf(lv, L.deck); render(); $("verdict").textContent = "The same plant for everyone."; },
   onLeave: () => { D = null; load(read(AT, LEVELS[0].id)); },
 });
 function duelVerdict(off, gap) {

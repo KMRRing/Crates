@@ -123,6 +123,7 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-curve-1 { stroke: var(--rf-naphtha); } .rf-scene text.rf-curve-1 { fill: var(--rf-naphtha); }
 .rf-curve-2 { stroke: var(--rf-heavy); } .rf-scene text.rf-curve-2 { fill: var(--rf-heavy); }
 .rf-curve-3 { stroke: var(--rf-resid); } .rf-scene text.rf-curve-3 { fill: var(--rf-resid); }
+.rf-curve-4 { stroke: var(--rf-renew); } .rf-scene text.rf-curve-4 { fill: var(--rf-renew); }
 .rf-scene text.rf-curve-label { text-anchor: start; }
 .rf-bar-rect { stroke: none; }
 .rf-blob { stroke: var(--sheet); stroke-width: 1; fill-opacity: .9; }
@@ -157,6 +158,7 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-card p { margin: .4rem 0; line-height: 1.42; font-size: .9rem; }
 .rf-card h3 { margin: .9rem 0 .3rem; font-size: .8rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--ink-soft); }
 .rf-purpose { font-weight: 700; }
+.rf-value { color: var(--rf-in); font-weight: 700; }
 .rf-facts { color: var(--ink-soft); }
 .rf-table { width: 100%; border-collapse: collapse; font-size: .82rem; font-variant-numeric: tabular-nums; }
 .rf-table th { text-align: left; font-size: .72rem; color: var(--ink-soft); font-weight: 750; padding: .2rem .3rem; border-bottom: 1px solid var(--rule); }

@@ -10,11 +10,14 @@ export const CHAPTERS = [
   { id: 4, title: "Cracking", about: "The vacuum unit lifts gas oil out of the residue; the catalytic cracker turns it into gasoline, LPG and propylene." },
   { id: 5, title: "Hydrogen and the hydrocracker", about: "The hydrocracker makes clean diesel and jet from vacuum gas oil, with more hydrogen than the reformer can give." },
   { id: 6, title: "The bottom of the barrel", about: "Residue: sell it as fuel oil, crack it gently, coke it, or blow it into bitumen." },
+  { id: 7, title: "Blending to spec", about: "Every product is a blend held to a dozen limits at once; the money is in meeting all of them exactly, with nothing given away." },
+  { id: 8, title: "Economics", about: "Cracks, crude selection and the LP's marginal values: how a refinery decides what to run, what to buy and what to make." },
 ];
 
 const TOPPING_POOLS = ["gasPool", "lpg", "naphtha", "gasoil", "fuelOil", "hsfo"];
 const HYDROSKIM_POOLS = ["gasPool", "lpg", "gasoline", "naphtha", "jet", "diesel", "gasoil", "fuelOil", "hsfo"];
 const CRACKING_POOLS = ["gasPool", "lpg", "propylene", "gasoline", "naphtha", "jet", "diesel", "gasoil", "fuelOil", "hsfo"];
+const ALL_SPECS = { gasoline: ["ron", "mon", "rvp", "arom", "olef", "benz", "oxy", "etoh", "ether", "s"], diesel: ["cet", "d", "s", "fame"], jet: ["grade", "s"], gasoil: ["cet", "d", "s"], fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] };
 // where a plant starts: everything sold as it comes off the crude unit, nothing sent to a unit
 const RAW = { kero: "fuelOil", lgo: "fuelOil", hgo: "fuelOil" };
 
@@ -96,6 +99,41 @@ export const LEVELS = [
   { id: "6.4", chapter: 6, title: "Bitumen", crude: "maya", units: ["cdu", "vdu", "blowing", "coker", "kht", "nht", "reformer", "dht", "smr", "sru"], caps: { coker: 25 }, markets: { bitumen: 12 },
     pools: ["gasPool", "lpg", "gasoline", "naphtha", "jet", "diesel", "gasoil", "fuelOil", "hsfo", "bitumen", "coke"],
     start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" }, specs: { fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
-    task: "Maya's residue is asphaltic: it makes road bitumen, and the market takes 12 thousand barrels a day. It's also over 6% sulphur, too sour even for 3.5% fuel oil. What isn't bitumen goes to the coker.",
+    task: "Maya's residue is asphaltic: it makes road bitumen, and the market takes 12 thousand barrels a day. Its vacuum residue is also over 5% sulphur, too sour even for 3.5% fuel oil. What isn't bitumen goes to the coker.",
     watch: ["Only an asphaltic crude's residue makes bitumen.", "Maya's residue can't be fuel oil on its own: HSFO allows 3.5% sulphur."] },
+  // ---------- 7. Blending to spec ----------
+  { id: "7.1", chapter: 7, title: "Diesel's density", crude: "arabLight", units: ["cdu", "vdu", "fcc", "hcu", "smr", "cnht", "kht", "nht", "reformer", "isom", "dht", "sru"], caps: { fcc: 18, hcu: 12 }, pools: CRACKING_POOLS,
+    start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" }, specs: { diesel: ["cet", "d", "s"], gasoil: ["cet", "d", "s"] },
+    task: "EN 590 holds diesel between 820 and 845 kg/m³ as well as at cetane 51. Heavy gas oil and light cycle oil push it up; kerosene and hydrocracker diesel bring it down. Fill the diesel pool as far as the window allows.",
+    watch: ["Density blends by volume: 845 is an average, not a limit on each part.", "Kerosene sent to diesel is kerosene not sold as jet."] },
+  { id: "7.2", chapter: 7, title: "Petrol in full", crude: "brent", units: ["cdu", "vdu", "fcc", "cnht", "alky", "merox", "nht", "reformer", "bzhc", "isom", "dht", "sru"], caps: { fcc: 22 }, pools: CRACKING_POOLS,
+    bought: { ethanol: 2.5, etbe: 3 }, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "fuelOil" }, specs: { gasoline: ALL_SPECS.gasoline },
+    task: "Every limit EN 228 sets, at once: RON 95 and MON 85, 60 kPa, aromatics 35%, olefins 18%, benzene 1%, oxygen 3.7%, ethanol 10%, ethers 22%, sulphur 10 ppm. Ethanol and ETBE are bought in.",
+    watch: ["Reformate is 3.5% benzene: the benzene splitter cuts it out.", "Oxygen counts both ethanol's and ETBE's."] },
+  { id: "7.3", chapter: 7, title: "Fuel oil in full", crude: "urals", units: ["cdu", "vdu", "fcc", "visbreaker", "cnht", "kht", "nht", "reformer", "isom", "dht", "sru"], caps: { fcc: 20 }, pools: CRACKING_POOLS,
+    start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" }, specs: { fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
+    task: "Residue, slurry and cycle oil into fuel oil: 380 cSt, 991 kg/m³, and 0.5% or 3.5% sulphur. Slurry is dense, residue thick, cutters cost money. Find the cheapest blend that meets them all.",
+    watch: ["Slurry oil is 1,080 kg/m³: a little of it pushes the pool over 991."] },
+  { id: "7.4", chapter: 7, title: "Every limit at once", crude: "arabLight", units: ["cdu", "vdu", "fcc", "hcu", "smr", "cnht", "alky", "kht", "nht", "reformer", "bzhc", "isom", "dht", "sru"], caps: { fcc: 18, hcu: 12 }, pools: CRACKING_POOLS,
+    bought: { ethanol: 2, etbe: 2, fame: 2 }, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" }, specs: ALL_SPECS,
+    task: "The whole refinery with every product held to its full specification: petrol, diesel, jet, gasoil and both fuel oils. This is what a refinery's planners do every month.",
+    watch: ["FAME may be at most 7% of diesel.", "A pool that fails one limit sells as the next grade down: check them all."] },
+  // ---------- 8. Economics ----------
+  { id: "8.1", chapter: 8, title: "Cracks", crude: "arabLight", units: ["cdu", "vdu", "fcc", "hcu", "smr", "cnht", "alky", "kht", "nht", "reformer", "isom", "dht", "sru"], caps: { fcc: 22, hcu: 22 }, pools: CRACKING_POOLS,
+    decks: [{ id: "petrol", name: "Petrol strong", prices: { gasoline: 101, diesel: 91, jet: 92, gasoil: 86 } }, { id: "diesel", name: "Diesel strong", prices: { gasoline: 87, diesel: 108, jet: 104, gasoil: 103 } }],
+    start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" },
+    task: "The same plant in two markets: a summer when petrol's crack is strong, a winter when diesel's is. Plan each to its par: watch where the vacuum gas oil goes, and the hydrocracker's jet.",
+    watch: ["A crack is a product's price over crude's: it's the difference between cracks that moves the plan."] },
+  { id: "8.2", chapter: 8, title: "Choosing a crude", crude: "brent", crudes: ["brent", "cpc", "sverdrup", "arabLight", "arabHeavy", "maya"], units: ["cdu", "vdu", "fcc", "hcu", "smr", "coker", "cnht", "alky", "kht", "nht", "reformer", "isom", "dht", "sru"], caps: { fcc: 25, hcu: 15, coker: 15 },
+    pools: [...CRACKING_POOLS, "coke"], start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" },
+    task: "A full-conversion refinery and six crudes, light sweet to heavy sour, each at its own price. Which one earns most here? A refinery's crude buyer asks that every month.",
+    watch: ["A crude's value is what its barrel makes in this plant, against its price.", "The coker, the hydrocracker and the FCC are what make a heavy crude pay; their capacities are what limit it."] },
+  { id: "8.3", chapter: 8, title: "What a barrel is worth", crude: "arabLight", units: ["cdu", "vdu", "hcu", "smr", "kht", "nht", "reformer", "isom", "dht", "sru"], caps: { hcu: 30 }, pools: [...HYDROSKIM_POOLS, "notBought"], values: true,
+    bought: { importVgo: 12 }, prices: { importVgo: 84 }, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo", importVgo: "notBought" },
+    task: "The hydrocracker has room the crude's own gas oil can't fill. Twelve thousand barrels a day of imported VGO are on offer at $84. Buy what pays: what isn't bought stays with the seller.",
+    watch: ["A feed is worth buying while the plant earns more from a barrel of it than it costs: its marginal value.", "Each stream's sheet and each unit's card now show the plan's marginal values."] },
+  { id: "8.4", chapter: 8, title: "The bottleneck", crude: "arabLight", units: ["cdu", "vdu", "fcc", "hcu", "smr", "cnht", "alky", "kht", "nht", "reformer", "isom", "dht", "sru"], caps: { fcc: 12, hcu: 10, smr: 26, dht: 26 }, pools: CRACKING_POOLS, values: true,
+    start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" },
+    task: "Every conversion unit here is small for the crude. Plan to par, then read the cards: which unit's next thousand barrels of capacity would earn most? That's where the next investment goes.",
+    watch: ["A unit that isn't full has a shadow price of nothing: more of it earns nothing."] },
 ];

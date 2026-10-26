@@ -62,23 +62,28 @@ const fresh = {};
   const notes = [], stale = [];
   for (const lv of LEVELS) {
     fresh[lv.id] = {};
-    for (const crude of lv.crudes || [lv.crude]) {
-      const L = { ...lv, crude }, start = E.evaluate(L, E.defaultRouting(L)), par = E.solve(L);
+    for (const crude of lv.crudes || [lv.crude]) for (const deck of lv.decks || [null]) {
+      const key = deck ? `${crude}/${deck.id}` : crude;
+      const L = { ...lv, crude, ...(deck ? { deck: deck.id, prices: { ...(lv.prices || {}), ...deck.prices } } : {}) }, start = E.evaluate(L, E.defaultRouting(L)), par = E.solve(L);
       const ok = Object.values(par.result.pools).every(p => p.inSpec || p.vol < 1e-4) && !par.result.issues.some(i => ["sru", "lost", "h2short"].includes(i.kind));
       // the routing kept to six decimals: a share is a slider's step at most
       const routing = Object.fromEntries(Object.entries(par.routing).filter(([s]) => par.result.streams[s]).map(([s, r]) => [s, Object.fromEntries(Object.entries(r).filter(([, f]) => f > 1e-5).map(([d, f]) => [d, +f.toFixed(6)]))]));
       const rerun = E.evaluate(L, routing);
-      fresh[lv.id][crude] = { margin: +rerun.margin.toFixed(4), routing };
-      notes.push(`${lv.id}${lv.crudes ? `/${crude}` : ""}: ${start.margin.toFixed(2)} → ${rerun.margin.toFixed(2)}`);
-      if (!ok || !(rerun.margin > start.margin + 0.5 || lv.crudes)) { bad++; console.log(`FAIL level ${lv.id} [${crude}]: ${ok ? "par barely beats its start" : "par isn't in spec"} (${start.margin.toFixed(2)} → ${par.margin.toFixed(2)})`, par.result.issues.map(i => i.text)); }
-      const kept = PAR[lv.id]?.[crude];
-      if (!WRITE && (!kept || Math.abs(E.evaluate(L, kept.routing).margin - kept.margin) > 0.01 || rerun.margin > kept.margin + 0.05)) stale.push(`${lv.id}/${crude}`);
+      // the plan's marginal values, for the levels that teach them: a barrel more of each stream, of each unit's capacity
+      const values = Object.fromEntries(Object.entries(par.values).filter(([s]) => par.result.streams[s]).map(([s, v]) => [s, +v.toFixed(2)]));
+      const capacity = Object.fromEntries(Object.entries(par.capacity).map(([u, v]) => [u, +v.toFixed(2)]));
+      fresh[lv.id][key] = { margin: +rerun.margin.toFixed(4), routing, ...(lv.values ? { values, capacity } : {}) };
+      notes.push(`${lv.id}${lv.crudes || lv.decks ? `/${key}` : ""}: ${start.margin.toFixed(2)} → ${rerun.margin.toFixed(2)}`);
+      if (!ok || !(rerun.margin > start.margin + 0.5 || lv.crudes || lv.decks)) { bad++; console.log(`FAIL level ${lv.id} [${key}]: ${ok ? "par barely beats its start" : "par isn't in spec"} (${start.margin.toFixed(2)} → ${par.margin.toFixed(2)})`, par.result.issues.map(i => i.text)); }
+      const kept = PAR[lv.id]?.[key];
+      if (!WRITE && (!kept || Math.abs(E.evaluate(L, kept.routing).margin - kept.margin) > 0.01 || rerun.margin > kept.margin + 0.05)) stale.push(`${lv.id}/${key}`);
     }
   }
   check(true, `levels: start → par in $/bbl (${notes.join(", ")})`);
   if (WRITE) {
     fs.writeFileSync(PAR_FILE, `// Refinery's par for every level and crude: the LP's plan, worked out by tests/refinery.mjs --write-par (rerun it after
-// changing the data or a level; the test fails while this is stale). { level: { crude: { margin, routing } } }.
+// changing the data or a level; the test fails while this is stale). { level: { crude, or crude/market for a level with
+// markets: { margin, routing, and for a level that shows them, its marginal values and capacities' shadow prices } } }.
 export const PAR = ${JSON.stringify(fresh)};\n`);
     console.log("wrote refinery-par.js");
   } else check(!stale.length, `par as written in refinery-par.js is still the solver's${stale.length ? ` (stale: ${stale.join(", ")}: run node tests/refinery.mjs --write-par)` : ""}`);
@@ -116,8 +121,8 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
       if (steps.length < 2 || !steps[steps.length - 1].task) problems.push(`${lv.id}: a lesson needs steps and its task last`);
       if (!lessons.TEACHES[lv.id]) problems.push(`${lv.id}: no line for the course map`);
       for (const st of steps) if (!st.say || !st.scene) problems.push(`${lv.id}: a step without words or a picture`);
-      const L = { ...lv, crude: lv.crude };
-      const res = E.evaluate(L, fresh[lv.id]?.[lv.crude]?.routing || PAR[lv.id]?.[lv.crude]?.routing || E.defaultRouting(L));
+      const key = lv.decks ? `${lv.crude}/${lv.decks[0].id}` : lv.crude, L = { ...lv, crude: lv.crude, ...(lv.decks ? { deck: lv.decks[0].id, prices: { ...(lv.prices || {}), ...lv.decks[0].prices } } : {}) };
+      const res = E.evaluate(L, fresh[lv.id]?.[key]?.routing || PAR[lv.id]?.[key]?.routing || E.defaultRouting(L));
       for (const seed of [1, 2, 3]) {
         const qs = exam.buildTest(L, res, { seed });
         if (qs.length < 6 || qs.length > 12) problems.push(`${lv.id}: ${qs.length} questions`);
@@ -137,6 +142,9 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
         }
       }
     }
+    // a lesson's figure that par decides: a barrel of VGO in 8.3's hydrocracker is worth its price and the unit's shadow price
+    const p83 = fresh["8.3"]?.[LEVELS.find(l => l.id === "8.3").crude];
+    if (p83 && Math.abs(p83.capacity.hcu + LEVELS.find(l => l.id === "8.3").prices.importVgo - lessons.VGO_IN_HCU) > 1.5) problems.push(`8.3: the lesson says VGO earns $${lessons.VGO_IN_HCU} in the hydrocracker; par says $${(p83.capacity.hcu + LEVELS.find(l => l.id === "8.3").prices.importVgo).toFixed(2)}`);
     for (const [term, def] of lessons.GLOSSARY) if (def.toLowerCase().includes(term.toLowerCase().replace(/s$/, ""))) problems.push(`glossary: ${term}'s definition says its own word`);
     check(!problems.length, `lessons and exams: every level's lesson ends in its task, every exam (dealt three times) holds 6–12 questions whose right answers are right and wrong ones wrong, none giving itself away${problems.length ? `\n     ${problems.slice(0, 30).join("\n     ")}` : ""}`);
     check(CHAPTERS.every(c => LEVELS.some(l => l.chapter === c.id)), "every chapter has levels");

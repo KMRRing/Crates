@@ -10,8 +10,8 @@ const NS = "http://www.w3.org/2000/svg";
 /** How light a stream is: 0 the gases, 13 the coke. Units and pools sit at the height of what they take. */
 export const RANK = { gas: 0, lpg: 1, propylene: 1.3, butane: 1.7, c4: 2, lsr: 3, isomerate: 3.2, alkylate: 3.4, etbe: 3.6, bzCut: 3.8, hsr: 4, hsrT: 4.2, reformate: 4.4, heavyReformate: 4.45, hcNaphtha: 4.5,
   catNaphtha: 4.6, catNaphthaT: 4.7, cokerNaphtha: 4.8, ethanol: 4.9, kero: 6, jet: 6.1, hcJet: 6.2, lgo: 7, ulsd: 7.2, hcDiesel: 7.3, hvo: 7.4, fame: 7.5, lco: 7.6,
-  hgo: 8, fuelOilCutter: 8.2, cokerGo: 8.4, lvgo: 9, hvgo: 9.5, vegOil: 9.8, slurry: 10, atmResid: 11, visResid: 11.5, vacResid: 12, bitumen: 12.5, coke: 13 };
-const POOL_RANK = { gasPool: 0, lpg: 1.2, propylene: 1.6, gasoline: 3.6, naphtha: 4.6, jet: 6, diesel: 7, hvo100: 7.6, gasoil: 8.1, fuelOil: 10, hsfo: 11, bitumen: 12.3, coke: 13, slops: 13 };
+  hgo: 8, fuelOilCutter: 8.2, cokerGo: 8.4, lvgo: 9, hvgo: 9.5, importVgo: 9.6, vegOil: 9.8, slurry: 10, atmResid: 11, visResid: 11.5, vacResid: 12, bitumen: 12.5, coke: 13 };
+const POOL_RANK = { gasPool: 0, lpg: 1.2, propylene: 1.6, gasoline: 3.6, naphtha: 4.6, jet: 6, diesel: 7, hvo100: 7.6, gasoil: 8.1, fuelOil: 10, hsfo: 11, bitumen: 12.3, coke: 13, slops: 13, notBought: 12 };
 const UNIT_RANK = { vdu: 11.4, coker: 12.2, visbreaker: 11.6, blowing: 12.8, hvoUnit: 9.8, fcc: 9.4, hcu: 8.6, merox: 5.6, kht: 6.3, nht: 4.2, dht: 7.6, reformer: 4.3, bzhc: 4.4, isom: 3, alky: 2, cnht: 5, smr: 0.2, sru: 13 };
 export const GROUP_COLOUR = { gas: "var(--rf-gas)", naphtha: "var(--rf-naphtha)", middle: "var(--rf-middle)", heavy: "var(--rf-heavy)", resid: "var(--rf-resid)", renewable: "var(--rf-renew)", other: "var(--rf-gas)" };
 // sizes, in the diagram's own units
@@ -173,10 +173,19 @@ export function drawSheet(svg, level, result, opts = {}) {
     }
     // a pool: its name, its volume and price, and its key specs passing or failing
     // a lesson's small picture shows where things go, not whether they pass: no verdicts on it
-    const pool = result.pools[n.id], def = POOLS[n.id], specs = poolSpecs(level, n.id, pool), off = pool && !pool.inSpec && !opts.mini;
+    // a pool with a rounding's worth in it is empty, not off spec
+    const pool = result.pools[n.id]?.vol > 1e-4 ? result.pools[n.id] : null, def = POOLS[n.id], specs = poolSpecs(level, n.id, pool), off = pool && !pool.inSpec && !opts.mini;
     const line2 = opts.labels?.[n.id] ?? (opts.mini ? "" : pool ? `${pool.vol.toFixed(1)} kb/d · $${pool.price}` : "–");
-    // the key specs, value by value, each ticked or crossed
-    const line3 = !opts.mini && pool && specs.length ? specs.map(s => `<tspan class="${s.ok ? "ok" : "no"}">${s.ok ? "✓" : "✗"}</tspan>${esc(PROPS[s.k].flag ? (s.k === "grade" ? "grade" : "asph.") : shortProp(s.k, s.v))}`).join(" ") : "";
+    // the key specs, value by value, each ticked or crossed: as many as the box holds, the failing first, then those
+    // nearest their limits, and a count of the rest (a pool held to all ten of petrol's would run far past its box)
+    let line3 = "";
+    if (!opts.mini && pool && specs.length) {
+      const slack = s => { if (PROPS[s.k].flag || s.v == null) return Infinity; const span = Math.max(Math.abs(s.hi ?? s.lo), 1); return Math.min(s.lo != null ? (s.v - s.lo) / span : Infinity, s.hi != null ? (s.hi - s.v) / span : Infinity); };
+      const words = [...specs].sort((a, b) => a.ok - b.ok || slack(a) - slack(b)).map(s => [s.ok, PROPS[s.k].flag ? (s.k === "grade" ? "grade" : "asph.") : shortProp(s.k, s.v)]);
+      const fit = [];
+      for (const w of words) { if (fit.length && fit.reduce((n, [, t]) => n + t.length + 2, 0) + w[1].length + 2 > 24) break; fit.push(w); }
+      line3 = fit.map(([ok, t]) => `<tspan class="${ok ? "ok" : "no"}">${ok ? "✓" : "✗"}</tspan>${esc(t)}`).join(" ") + (words.length > fit.length ? ` +${words.length - fit.length}` : "");
+    }
     parts.push(`<g class="rf-node rf-pool${off ? " off" : ""}${!pool ? " empty" : ""}${picked ? " sel" : ""}${dim ? " dim" : ""}" data-node="${n.id}"><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="3"/>` +
       `<text x="${n.x + 4}" y="${n.y + 9.5}" class="rf-p1">${esc(def.short)}${off ? ` → ${esc(POOLS[pool.soldAs].short)}` : ""}</text>${line2 ? `<text x="${n.x + 4}" y="${n.y + 17.5}" class="rf-p2">${esc(line2)}</text>` : ""}${line3 ? `<text x="${n.x + 4}" y="${n.y + 25}" class="rf-p3">${line3}</text>` : ""}</g>`);
   }

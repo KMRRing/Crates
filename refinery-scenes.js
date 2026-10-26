@@ -38,20 +38,23 @@ function sheetScene(svg, sc, level) {
   if (sc.crude) lv.crude = sc.crude;
   if (sc.pools) lv.pools = sc.pools;
   if (sc.bought !== undefined) lv.bought = sc.bought;
-  // a lit unit is fed what it takes (unless the picture routes it otherwise), so it's shown running
-  const demo = { ...(sc.routing || {}) };
+  // a lit unit is fed what it takes (unless the picture routes it otherwise), so it's shown running; a feed two lit
+  // units take is shared between them (vacuum gas oil between the crackers)
+  const demo = { ...(sc.routing || {}) }, takers = {};
   // and what feeds it is made: the units upstream that make its feed are fed too (residue to the vacuum unit for a coker)
   const cuts = CRUDES[lv.crude].cuts;
   const feedUnit = (u, depth = 0) => {
     if (!UNITS[u] || !lv.units.includes(u) || depth > 3) return;
     for (const f of UNITS[u].feeds) {
-      if (demo[f]) continue;
-      if (cuts[f] || lv.bought?.[f]) { demo[f] = { [u]: 1 }; continue; }
-      const maker = lv.units.find(m => UNITS[m].yields && Object.values(UNITS[m].yields).some(y => f in y) && m !== u);
-      if (maker) { demo[f] = { [u]: 1 }; feedUnit(maker, depth + 1); }
+      if (sc.routing?.[f] || takers[f]?.includes(u)) continue;
+      const maker = cuts[f] || lv.bought?.[f] ? null : lv.units.find(m => UNITS[m].yields && Object.values(UNITS[m].yields).some(y => f in y) && m !== u);
+      if (!cuts[f] && !lv.bought?.[f] && !maker) continue;
+      (takers[f] ||= []).push(u);
+      if (maker) feedUnit(maker, depth + 1);
     }
   };
   for (const u of sc.only || []) feedUnit(u);
+  for (const [f, us] of Object.entries(takers)) demo[f] = Object.fromEntries(us.map(u => [u, 1 / us.length]));
   const routing = normalise(lv, { ...defaultRouting(lv), ...demo });
   const res = evaluate(lv, routing);
   svg.classList.add("rf-scene-sheet");
@@ -134,7 +137,7 @@ function curveScene(sc) {
   for (let k = 1; k < ends.length; k++) ends[k].y = Math.max(ends[k].y, ends[k - 1].y + 10);
   for (const { c, i, pts, y } of ends) {
     const d = pts.map(([t, f], j) => `${j ? "L" : "M"}${X(t).toFixed(1)} ${Y(f).toFixed(1)}`).join("");
-    parts.push(`<path class="rf-curve rf-curve-${i}" d="${d}"/><text class="rf-sc-label rf-curve-label rf-curve-${i}" x="${X(550) + 4}" y="${(y + 3).toFixed(1)}">${esc(CRUDES[c].name)}</text>`);
+    parts.push(`<path class="rf-curve rf-curve-${i}" d="${d}"/><text class="rf-sc-label rf-curve-label rf-curve-${i}" x="${X(550) + 4}" y="${(y + 3).toFixed(1)}">${esc(CRUDES[c].short || CRUDES[c].name)}</text>`);
   }
   return { vb: `0 0 ${W} ${H}`, body: parts.join("") };
 }
@@ -169,8 +172,16 @@ function blendScene(sc, level) {
   for (const p of parts) { const wt = PROPS[k].basis === "mass" ? p.v * (STREAMS[sc.parts.find(q => (STREAMS[q[0]]?.short || q[0]) === p.label)?.[0]]?.p?.d ?? 850) : p.v; wsum += wt; isum += wt * toIndex(k, p.val); }
   const blendVal = fromIndex(k, isum / wsum);
   const y = 84, out = [`<line class="rf-axis" x1="${x0}" x2="${x0 + w}" y1="${y}" y2="${y}"/>`];
-  parts.forEach((p, i) => {
-    const r = 4 + Math.sqrt(p.v) * 2.2, yy = y - r - 12 - (i % 2) * 18;
+  // labels stacked in rows over their blobs, left to right, each on the lowest row it doesn't overlap
+  const row = new Map(), ends = [];
+  for (const p of [...parts].sort((a, b) => X(a.val) - X(b.val))) {
+    const half = Math.max(p.label.length * 2.7, fmtProp(k, p.val).length * 2.1), x = X(p.val);
+    let at = ends.findIndex(e => e < x - half - 3);
+    if (at < 0) at = ends.length < 3 ? ends.length : ends.indexOf(Math.min(...ends));
+    ends[at] = x + half; row.set(p, at);
+  }
+  parts.forEach(p => {
+    const r = 4 + Math.sqrt(p.v) * 2.2, yy = y - r - 12 - row.get(p) * 18;
     out.push(`<circle cx="${X(p.val)}" cy="${y}" r="${r.toFixed(1)}" fill="${GROUP_COLOUR[p.group] || "var(--rf-in)"}" class="rf-blob"/><text class="rf-sc-label" x="${X(p.val)}" y="${yy}">${esc(p.label)}</text><text class="rf-sc-small" x="${X(p.val)}" y="${yy + 10}">${esc(fmtProp(k, p.val))}</text>`);
   });
   const ok = sc.dir === "min" ? blendVal >= sc.limit - 1e-9 : blendVal <= sc.limit + 1e-9;
@@ -195,6 +206,7 @@ const MOL = {
   thiophene: { name: "thiophene", note: "sulphur in a ring", thiophene: true },
   triglyceride: { name: "a triglyceride", note: "vegetable oil", tri: true },
   ethanol: { name: "ethanol", note: "RON 109", ethanol: true },
+  etbe: { name: "ETBE", note: "RON 118", ether: true },
 };
 function molecule(key, ox, oy) {
   const m = MOL[key], b = 11, out = [];
@@ -218,7 +230,12 @@ function molecule(key, ox, oy) {
     for (let r = 0; r < 3; r++) out.push(line(Array.from({ length: 9 }, (_, i) => [8 + i * 8, -16 + r * 10 + (i % 2 ? -2.5 : 0)])));
     out.push(line([[4, -16], [4, 4]]), `<text class="rf-atom" x="${ox - 2}" y="${oy - 4}">O₆</text>`);
   } else if (m.ethanol) out.push(line([[0, 0], [9.5, -5.5], [19, 0]]), `<text class="rf-atom" x="${ox + 24}" y="${oy + 3}">OH</text>`);
-  const mid = m.chain ? ((m.chain - 1) * b * 0.87) / 2 : m.naphthalene ? 14 + b * 0.87 : m.tri ? 36 : m.branched ? 19 : 14;
+  else if (m.ether) {
+    // a tertiary butyl, its carbon holding three methyls, joined through the oxygen to an ethyl
+    out.push(line([[0, 0], [9.5, -5.5], [16.5, -1.5]]), line([[9.5, -5.5], [9.5, -16.5]]), line([[9.5, -5.5], [0, -11]]),
+      `<text class="rf-atom" x="${ox + 19}" y="${oy + 3}">O</text>`, line([[21.5, -1.5], [28.5, -5.5], [38, 0]]));
+  }
+  const mid = m.chain ? ((m.chain - 1) * b * 0.87) / 2 : m.naphthalene ? 14 + b * 0.87 : m.tri ? 36 : m.branched || m.ether ? 19 : 14;
   out.push(`<text class="rf-sc-label" x="${ox + mid}" y="${oy + 22}">${esc(m.name)}</text><text class="rf-sc-small" x="${ox + mid}" y="${oy + 32}">${esc(m.note)}</text>`);
   return out.join("");
 }
