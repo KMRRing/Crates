@@ -1,13 +1,16 @@
-// Refinery's exams: once a plant runs in spec, about ten questions on what you made and what the level taught, of a
-// few kinds: pick one of several, type a number or a word, tap a unit or a stream on the flowsheet, put a path in
-// order. They come from four places: your own plant (its volumes, its blends' qualities, where its streams go, what
-// limits a pool, its hydrogen and sulphur), the level's own questions on its ideas (written below), the words it
-// brought in (the glossary's), and Punt's refining bank on its subjects; where a level compares crudes or shows the
-// plan's marginal values, par's numbers too. Pure, no page: tests/refinery.mjs builds every level's exam and answers it.
-import { STREAMS, UNITS, POOLS, PROPS, CRUDES } from "./refinery-data.js";
-import { specsOf, limitOf, fmtProp, destinations } from "./refinery-engine.js";
+// Refinery's exams: once a plant runs in spec, about ten questions on what carries over to any refinery, of a few
+// kinds: pick one of several, type a number or a word, tap a unit on the flowsheet, put a path in order. They come from
+// five places: the level's own questions on its ideas (written below), the bank of cut ranges, specs, units and typical
+// figures its plant is about (refinery-facts.js), its flowsheet as par runs it (a unit by what it does, a cut's path),
+// the words it brought in (the glossary's), and Punt's refining bank on its subjects. Nothing asks what your own plan
+// made: a figure that holds only for one plan teaches nothing to take elsewhere. Pure, no page: tests/refinery.mjs
+// builds every level's exam and answers it.
+import { STREAMS, UNITS, POOLS } from "./refinery-data.js";
+import { specsOf, poolsOf, evaluate } from "./refinery-engine.js";
 import { GLOSSARY } from "./refinery-lessons.js";
+import { LEVELS } from "./refinery-levels.js";
 import { PAR } from "./refinery-par.js";
+import { FACTS } from "./refinery-facts.js";
 import { MATHS as BANK } from "./refining-bank.js";
 
 /** A seeded random source (mulberry32). */
@@ -22,11 +25,10 @@ const lc = s => (/^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 // ---------- kinds ----------
 const choice = (ask, right, wrongs, explain, extra = {}) => ({ kind: "choice", ask, right, wrongs, explain, ...extra });
 const number = (ask, answer, explain, extra = {}) => ({ kind: "number", ask, answer, explain, ...extra });
-const truth = (ask, yes, explain) => choice(ask, yes ? "True" : "False", [yes ? "False" : "True"], explain, { order: ["True", "False"] });
 
 /** The numbers a typed answer could mean: "7,5" is 7.5 the European way, "18,000" is 18000 the English way. */
 export function readNumbers(text) {
-  const s = String(text ?? "").trim().replace(/\s+/g, "").replace(/[$%]|ppm|kb\/d|kPa|cSt/gi, "");
+  const s = String(text ?? "").trim().replace(/\s+/g, "").replace(/[$%]|°c?|ppm|kb\/d|kPa|cSt|scf/gi, "");
   if (!s) return [];
   return [Number(s.replace(/,/g, "")), Number(s.replace(/\./g, "").replace(",", ".")), Number(s.replace(",", "."))].filter(Number.isFinite);
 }
@@ -261,60 +263,32 @@ const AREAS = {
   10: ["Distillation", "Reforming", "Cracking", "Treating", "Configuration", "Specs"],
 };
 
-// ---------- your plant ----------
-const NUMBER_TOL = { ron: 0.3, mon: 0.3, cet: 0.4, d: 1.5, rvp: 1.5, arom: 0.5, olef: 0.5, etoh: 0.3, benz: 0.05, oxy: 0.1 };
+// ---------- the flowsheet ----------
 const nameOf = id => (UNITS[id] ? UNITS[id].name : POOLS[id] ? POOLS[id].name : id.startsWith("stream:") ? STREAMS[id.slice(7)].name : id);
 /** Units' roles, for "tap the unit that…" questions: the first of a level's units that has the role. */
 const ROLES = [
-  ["sorts the crude by boiling point", ["cdu"]], ["makes the refinery's hydrogen from naphtha", ["reformer"]], ["makes hydrogen from natural gas", ["smr"]],
+  ["sorts the crude by boiling point", ["cdu"]], ["makes the refinery's hydrogen from naphtha", ["reformer", "srReformer"]], ["makes hydrogen from natural gas", ["smr"]],
   ["takes the sulphur out of the gas oil", ["dht"]], ["turns hydrogen sulphide into sulphur", ["sru"]], ["sweetens kerosene without hydrogen", ["merox"]],
   ["hydrotreats kerosene to jet fuel", ["kht"]], ["protects the reformer's platinum", ["nht"]], ["lifts light naphtha's octane", ["isom"]],
   ["distils the residue under vacuum", ["vdu"]], ["cracks gas oil over a hot catalyst", ["fcc"]], ["cracks gas oil under high hydrogen pressure", ["hcu"]],
   ["joins butenes to isobutane", ["alky"]], ["takes the sulphur out of cracked naphtha", ["cnht"]], ["leaves solid carbon behind in a drum", ["coker"]],
-  ["thins the residue by cracking it mildly", ["visbreaker"]], ["blows air through residue for roads", ["blowing"]],
+  ["thins the residue by cracking it mildly", ["visbreaker"]], ["blows air through residue for roads", ["blowing"]], ["cuts the benzene out of reformate", ["bzhc"]],
+  ["turns fats into renewable diesel", ["hvoUnit"]], ["desulphurises gas oil to heating oil's 0.1%", ["hds"]],
 ];
-function plantQuestions(level, res, rnd) {
-  const out = [], pools = Object.entries(res.pools).filter(([p, x]) => x.vol > 0.5 && p !== "slops");
-  // a volume
-  const main = pools.filter(([p]) => ["gasoline", "diesel", "jet", "gasoil", "fuelOil", "hsfo", "naphtha"].includes(p));
-  if (main.length) {
-    const [p, x] = pick(main, rnd);
-    out.push(number(`How many thousand barrels a day of ${lc(POOLS[p].name)} does your plant make?`, +x.vol.toFixed(1), `${x.vol.toFixed(1)} kb/d: tap the ${lc(POOLS[p].name)} on the flowsheet for its card.`, { unit: "kb/d", tol: Math.max(0.6, x.vol * 0.05) }));
-  }
-  // a blend's quality
-  const graded = pools.flatMap(([p, x]) => specsOf(level, p).filter(k => !PROPS[k].flag && x.props[k] != null).map(k => [p, x, k]));
-  if (graded.length) {
-    const [p, x, k] = pick(graded, rnd), v = x.props[k];
-    // sulphur in per cent from a thousand ppm up, as fuel oil's is quoted; else in the property's own unit
-    const pct = k === "s" && v >= 1000, val = pct ? v / 10000 : v;
-    const tol = k === "s" ? Math.max(pct ? 0.01 : 0.6, val * 0.06) : k === "visc" ? Math.max(3, v * 0.06) : NUMBER_TOL[k] ?? Math.max(0.5, Math.abs(v) * 0.03);
-    const unit = pct || PROPS[k].unit === "% vol" || PROPS[k].unit === "% mass" ? "%" : PROPS[k].unit || "";
-    out.push(number(`What is the ${PROPS[k].long} of your ${lc(POOLS[p].name)} pool?`, +val.toFixed(pct ? 3 : 2), `${fmtProp(k, v)}, against a limit of ${limitOf(level, p, k).filter(l => l != null).map(l => fmtProp(k, l)).join(" to ")}.`, { unit, tol }));
-  }
-  // what limits a pool: the spec it sits closest to
-  const multi = pools.filter(([p, x]) => specsOf(level, p).filter(k => !PROPS[k].flag && x.props[k] != null).length >= 2);
-  if (multi.length) {
-    const [p, x] = pick(multi, rnd), ks = specsOf(level, p).filter(k => !PROPS[k].flag && x.props[k] != null);
-    const slack = k => { const [lo, hi] = limitOf(level, p, k), v = x.props[k], span = Math.max(Math.abs(lo ?? hi), 1); return Math.min(lo != null ? (v - lo) / span : Infinity, hi != null ? (hi - v) / span : Infinity); };
-    const tight = ks.reduce((a, k) => (slack(k) < slack(a) ? k : a));
-    if (slack(tight) < 0.01 && ks.filter(k => slack(k) < 0.01).length === 1) {
-      out.push(choice(`Which of its limits is your ${lc(POOLS[p].name)} pool right on?`, PROPS[tight].long[0].toUpperCase() + PROPS[tight].long.slice(1), ks.filter(k => k !== tight).map(k => PROPS[k].long[0].toUpperCase() + PROPS[k].long.slice(1)), `${fmtProp(tight, x.props[tight])} against ${limitOf(level, p, tight).filter(l => l != null).map(l => fmtProp(tight, l)).join(" to ")}: the plan fills the pool to that limit and no further.`));
-    }
-  }
-  // where a stream goes
-  const flows = Object.entries(res.streams).filter(([s, st]) => st.vol > 1 && destinations(level, s).length >= 3 && Object.keys(st.to).length);
-  if (flows.length) {
-    const [s, st] = pick(flows, rnd), [top] = Object.entries(st.to).sort((a, b) => b[1] - a[1]), others = destinations(level, s).filter(d => d !== top[0]);
-    if (top[1] / st.vol > 0.6 && others.length >= 2) out.push(choice(`Where does most of your ${lc(STREAMS[s].name)} go?`, nameOf(top[0]), shuffle(others, rnd).slice(0, 3).map(nameOf), `${Math.round((top[1] / st.vol) * 100)}% of it goes to the ${lc(nameOf(top[0]))}.`));
-  }
-  // a unit by what it does, tapped on the flowsheet
-  const roles = ROLES.filter(([, ids]) => ids.some(id => level.units.includes(id)) && (ids[0] !== "smr" || res.h2.plant > 0));
+/**
+ * What the flowsheet shows, asked of the plan par makes (the right one, so the answer holds anywhere): a unit tapped by
+ * what it does, and the path a cut takes through the units in order.
+ */
+function flowsheetQuestions(level, res, rnd) {
+  const out = [], prev = previous(level);
+  // a unit this level brings in, where it has one
+  const roles = ROLES.filter(([, ids]) => ids.some(id => level.units.includes(id))), fresh = roles.filter(([, ids]) => ids.some(id => level.units.includes(id) && !prev?.units.includes(id)));
   if (roles.length) {
-    const [what, ids] = pick(roles, rnd), id = ids.find(x => level.units.includes(x));
+    const [what, ids] = pick(fresh.length ? fresh : roles, rnd), id = ids.find(x => level.units.includes(x));
     const names = Object.fromEntries([...level.units, ...Object.keys(POOLS)].map(x => [x, nameOf(x)]));
     out.push({ kind: "tap", ask: `Tap the unit that ${what}.`, answer: [id], answerName: `the ${lc(UNITS[id].name)}`, names: Object.fromEntries(Object.entries(names).map(([k, v]) => [k, `the ${lc(v)}`])), scene: { sheet: { plant: { parRouting: null }, routing: routingFrom(res), figures: false } }, explain: UNITS[id].purpose });
   }
-  // a path in order: where heavy naphtha (or another stream) goes, unit by unit
+  // a path in order: where heavy naphtha (or another cut) goes, unit by unit, to the product it ends in
   for (const s0 of shuffle(["hsr", "atmResid", "kero", "lgo"], rnd)) {
     const path = [], seen = new Set();
     let s = s0;
@@ -330,40 +304,36 @@ function plantQuestions(level, res, rnd) {
       s = outs[0]?.[0];
     }
     if (path.length >= 3 && new Set(path).size === path.length) {
-      out.push({ kind: "order", ask: `Put in order where your ${lc(STREAMS[s0].name)} goes, from the crude unit on.`, items: path, options: shuffle(path, rnd), explain: `${STREAMS[s0].name}: ${path.join(" → ")}.` });
+      out.push({ kind: "order", ask: `Put in order where ${lc(STREAMS[s0].name)} goes here, from the crude unit on.`, items: path, options: shuffle(path, rnd), explain: `${STREAMS[s0].name}: ${path.join(" → ")}.` });
       break;
     }
   }
-  // where tickets are priced, what the renewable blends save
-  if (level.ticket && res.saved > 5) out.push(number("How many tonnes of CO2e a day do your renewable blends save, as their tickets count it?", Math.round(res.saved), `${Math.round(res.saved)} t/d: every product's card shows its part.`, { unit: "t/d", tol: Math.max(20, res.saved * 0.06) }));
-  // hydrogen, or sulphur
-  if (res.h2.used > 2 && rnd() < 0.5) out.push(number("How much hydrogen does your plant use, in million scf a day?", +res.h2.used.toFixed(1), `${res.h2.used.toFixed(1)} MMscf/d: tap the reformer or the hydrogen plant for where it comes from.`, { unit: "MMscf/d", tol: Math.max(0.5, res.h2.used * 0.06) }));
-  else if (res.sulphur.removed > 2) out.push(number("How many tonnes of sulphur a day does your plant recover?", +res.sulphur.removed.toFixed(1), `${res.sulphur.removed.toFixed(1)} t/d: the sulphur plant's card shows it.`, { unit: "t/d", tol: Math.max(0.8, res.sulphur.removed * 0.08) }));
   return out;
 }
 const routingFrom = res => Object.fromEntries(Object.entries(res.streams).map(([s, st]) => { const t = Object.values(st.to).reduce((a, b) => a + b, 0) || 1; return [s, Object.fromEntries(Object.entries(st.to).map(([d, v]) => [d, v / t]))]; }));
 
-// ---------- what par knows ----------
-// the crudes against each other (the price at which another would earn what the best one does), and which unit's next
-// barrel of capacity the plan's marginal values say pays most
-function parQuestions(level, rnd) {
-  const out = [], par = PAR[level.id] || {};
-  if (level.crudes?.length > 1 && level.crudes.every(c => par[c])) {
-    const ranked = [...level.crudes].sort((a, b) => par[b].margin - par[a].margin), best = ranked[0], other = pick(ranked.slice(1), rnd);
-    const gap = par[best].margin - par[other].margin, even = CRUDES[other].price - gap;
-    out.push(number(`At par, ${CRUDES[best].name} earns most here: $${par[best].margin.toFixed(2)} a barrel, bought at $${CRUDES[best].price}. At what price would ${CRUDES[other].name} earn as much?`, +even.toFixed(2),
-      `${CRUDES[other].name} earns $${par[other].margin.toFixed(2)} at $${CRUDES[other].price}; $${gap.toFixed(2)} cheaper, at $${even.toFixed(2)}, the same plan would earn as much.`, { unit: "$/bbl", tol: 0.3 }));
-  }
-  const key = level.decks ? `${level.crude}/${level.deck || level.decks[0].id}` : level.crude;
-  const caps = Object.entries(par[key]?.capacity || {}).filter(([u]) => UNITS[u] && level.caps?.[u] != null);
-  if (level.values && caps.length) {
-    const [top, v] = caps.reduce((a, b) => (b[1] > a[1] ? b : a)), rest = caps.filter(([u]) => u !== top);
-    const paid = rest.filter(([, x]) => x >= 0.01), idle = rest.filter(([, x]) => x < 0.01);
-    if (v > 0.5 && caps.length >= 3) out.push(choice("At par, which unit's next thousand barrels a day of capacity would earn most?", UNITS[top].name, rest.map(([u]) => UNITS[u].name),
-      `The ${lc(UNITS[top].name)}'s, at $${v.toFixed(2)} a barrel${paid.map(([u, x]) => `; the ${lc(UNITS[u].name)}'s is $${x.toFixed(2)}`).join("")}${idle.length ? `; more ${idle.map(([u]) => lc(UNITS[u].name)).join(" or ")} would earn nothing` : ""}.`));
-    else if (v > 0.5) out.push(number(`At par, what would one more barrel a day of ${lc(UNITS[top].name)} capacity earn, in dollars?`, +v.toFixed(2), `$${v.toFixed(2)} a barrel: what the last barrel of its feed earns in it over that feed's next-best use.`, { unit: "$/bbl", tol: Math.max(0.4, v * 0.12) }));
-  }
-  return out;
+// ---------- what carries over ----------
+/** A level's tags, for the bank: its units, the pools it sells into, the specs each is judged on, its chapter. */
+function tagsOf(level) {
+  const t = new Set(["*", `c:${level.chapter}`]);
+  for (const u of level.units) t.add(`u:${u}`);
+  for (const p of poolsOf(level)) { t.add(`p:${p}`); for (const k of specsOf(level, p)) t.add(`k:${p}.${k}`); }
+  return t;
+}
+/** Whether a level's plant is about a fact of the bank: what deals it there (and tests/refinery.mjs checks each fits one). */
+export const dealtFrom = (level, id) => { const f = FACTS.find(x => x.id === id), tags = tagsOf(level); return !!f && f.on.every(t => tags.has(t)) && (!f.any || f.any.some(t => tags.has(t))) && !f.skip?.includes(level.id); };
+/** The level before this one in the course, whose plant this one builds on. */
+const previous = level => LEVELS[LEVELS.findIndex(l => l.id === level.id) - 1] || null;
+/**
+ * The bank's questions for a level: those its plant is about, the ones on what it brings in first (a new unit before a
+ * new product, a new product before a new spec, against the level before), then the rest, dealt from the seed.
+ */
+function factQuestions(level, rnd, n) {
+  const tags = tagsOf(level), prev = previous(level), old = prev ? tagsOf(prev) : new Set(["*"]);
+  const fits = f => f.on.every(t => tags.has(t)) && (!f.any || f.any.some(t => tags.has(t))) && !f.skip?.includes(level.id);
+  const weight = { u: 3, p: 2, k: 1 }, fresh = f => Math.max(0, ...f.on.filter(t => !old.has(t)).map(t => weight[t[0]] || 0));
+  const dealt = shuffle(FACTS.filter(fits), rnd).sort((a, b) => fresh(b) - fresh(a));
+  return dealt.slice(0, n).map(f => (f.kind === "number" ? number(f.ask, f.answer, f.why, { unit: f.unit, tol: f.tol }) : choice(f.ask, f.right, f.wrongs, f.why)));
 }
 
 // ---------- words and the bank ----------
@@ -387,13 +357,18 @@ function bankQuestion(level, rnd, used) {
   return choice(b.q, b.o[b.a[0]], b.o.filter((_, i) => i !== b.a[0]), b.x);
 }
 
-/** A level's exam: on the plant given (yours if it runs, else par's), dealt from the seed. */
+/**
+ * A level's exam: about ten questions on what carries over to any refinery. The level's own on its ideas, the bank's on
+ * its units, products and specs, two on its flowsheet as par runs it, a word it brought in, and Punt's refining bank.
+ */
 export function buildTest(level, res, { seed = 1 } = {}) {
   const rnd = seeded(seed), used = new Set();
+  const key = level.decks ? `${level.crude}/${level.deck || level.decks[0].id}` : level.crude, par = PAR[level.id]?.[key];
   const own = shuffle(Q[level.id] || [], rnd).slice(0, 3).map(([ask, right, wrongs, why]) => choice(ask, right, wrongs, why));
-  const plant = plantQuestions(level, res, rnd), fromPar = parQuestions(level, rnd);
-  const extra = [wordQuestion(level, rnd), bankQuestion(level, rnd, used), bankQuestion(level, rnd, used)].filter(Boolean);
-  // about ten: the plant's first, then par's, the level's ideas, a word and the bank
-  const qs = [...plant.slice(0, 5), ...fromPar, ...own, ...extra].slice(0, 10);
+  const sheet = flowsheetQuestions(level, par ? evaluate(level, par.routing) : res, rnd), word = wordQuestion(level, rnd);
+  const fixed = [...sheet, ...own, ...(word ? [word] : [])];
+  const facts = factQuestions(level, rnd, Math.max(3, 9 - fixed.length));
+  const extra = [bankQuestion(level, rnd, used), bankQuestion(level, rnd, used)].filter(Boolean);
+  const qs = [...sheet, ...own, ...facts, ...(word ? [word] : []), ...extra].slice(0, 10);
   return qs.map(q => deal(q, rnd));
 }

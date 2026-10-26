@@ -161,6 +161,7 @@ export const GLOSSARY = [
   ["Cat naphtha splitter", "A column cutting FCC naphtha into light, intermediate and heavy fractions, so that each goes to the treater that suits it."],
   ["Heating oil", "Gas oil sold to be burned in boilers, to a looser sulphur limit than road diesel's: a tenth of a per cent in Europe."],
   ["Cogeneration", "Making power and process steam together from one fuel, in a gas turbine with a heat-recovery boiler behind it."],
+  ["Flash point", "The lowest temperature at which a fuel gives off enough vapour to catch fire over it: a safety limit, dominated in a blend by its lightest part."],
 ];
 
 const W = (k, s) => ({ say: s, scene: k });
@@ -194,7 +195,7 @@ const LESSONS = {
     W({ molecules: ["nhexane", "cyclohexane", "toluene", "hexadecane"] }, "Crude oil is thousands of hydrocarbons mixed: chains and rings of carbon with hydrogen round them, from methane's one carbon to asphaltenes of a hundred and more. The bigger the molecule, the higher it boils."),
     W({ column: { yields: true } }, "The crude distillation unit (CDU) heats the crude to about 360 °C and flashes it into a tall column. Vapour rises through the trays and cools as it climbs; each molecule condenses on the tray as cool as its boiling point. Draws at different heights take the cuts off: gases at the top, then naphtha, kerosene, light and heavy gas oil, and from the bottom what never boiled, the atmospheric residue."),
     W({ bars: { items: [["Diesel", price("diesel"), "middle"], ["Gasoil 0.1%", price("gasoil"), "middle"], ["VLSFO 0.5%", price("fuelOil"), "resid"], ["HSFO 3.5%", price("hsfo"), "resid"], ["Naphtha", price("naphtha"), "naphtha"], ["LPG", price("lpg"), "gas"]], unit: "$/bbl", limit: [CRUDES.bonny.price, `Bonny Light $${CRUDES.bonny.price}`], min: 30 } }, "Each cut is sold as a product, or as part of one, at its own price. Against the crude's price, that's its crack: middle distillates sell well above crude, naphtha below it, high-sulphur fuel oil further below."),
-    W(level({ only: ["cdu", "gasoil", "fuelOil", "naphtha", "hsfo"] }), "Where a cut may go is set by specifications. 0.1% gasoil, heating oil and marine gasoil, must hold under 1,000 ppm of sulphur. Very-low-sulphur fuel oil (VLSFO), since 2020 the ships' fuel, must hold under 0.5%. A cut that meets a better product's spec should go there."),
+    W(level({ only: ["cdu", "gasoil", "fuelOil", "naphtha", "hsfo"] }), "Where a cut may go is set by specifications. 0.1% gasoil, heating oil and marine gasoil, must hold under 1,000 ppm of sulphur and a flash point of at least 60 °C. Very-low-sulphur fuel oil (VLSFO), since 2020 the ships' fuel, must hold under 0.5% sulphur and 380 cSt. A cut that meets a better product's spec should go there."),
   ],
   "1.2": [
     W({ curve: { crudes: ["bonny", "brent", "urals", "arabHeavy"] } }, "Crudes differ most in how much of them boils, and where. Their density is quoted as API gravity, where higher is lighter: Brent is 38°, Arab Heavy 28°. A light crude boils off more below 370 °C, so more naphtha and distillate and less residue. Arab Heavy leaves more than half of itself as residue."),
@@ -204,6 +205,7 @@ const LESSONS = {
   "1.3": [
     W({ blend: { prop: "s", parts: [["kero", 12], ["lgo", 3]], limit: 1000, dir: "max" } }, "A specification limits the blend, not each part of it. Brent's kerosene is under 0.1% sulphur, its light gas oil nearly three times over. Put too much gas oil in with the kerosene and the whole gasoil pool is off spec."),
     W({ blend: { prop: "s", parts: [["kero", 12], ["lgo", 0.5]], limit: 1000, dir: "max" } }, "Sulphur blends by mass, each part's sulphur weighted by its weight. Just enough gas oil puts the pool right on its limit. Every ppm under the limit is quality given away, sold as if it weren't there."),
+    W({ blend: { prop: "flash", parts: [["kero", 12], ["lgo", 17.5]], limit: 60, dir: "min" } }, "But gasoil has a safety limit too, its flash point: the lowest temperature at which its vapour catches fire, 60 °C for marine gasoil. Kerosene's is about 42 °C, and flash point doesn't blend as an average: the lightest part sets most of it, so kerosene can be only about a fifth of the blend. Brent's gas oils are too sour to carry the rest, so a topping plant on Brent makes no 0.1% gasoil at all."),
     W({ blend: { prop: "s", parts: [["atmResid", 36.8], ["kero", 12], ["lgo", 17.5], ["hgo", 8.5]], limit: 5000, dir: "max" } }, "Fuel oil the same way. Brent's residue is 0.7% sulphur, too sour for VLSFO on its own. It takes nearly all of the crude's kerosene and gas oil, blended in as cutter, to bring it to 0.5%, and they then sell at the fuel oil's price: that's what a topping plant on Brent has to accept."),
     W(level({ only: ["cdu", "gasoil", "fuelOil"] }), "That's what splitting a stream is for. A stream can go to several places at once, in shares, and refineries blend exactly that way: each pool filled to its limit, no further."),
   ],

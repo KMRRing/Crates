@@ -197,7 +197,7 @@ export function drawSheet(svg, level, result, opts = {}) {
 /** A property in a pool's few characters: "RON 95.1", "S 9 ppm", "CN 51.2", "380 cSt". */
 function shortProp(k, v) {
   if (v == null) return "–";
-  const name = { ron: "RON", mon: "MON", cet: "CN", s: "S", d: "ρ", rvp: "RVP", arom: "Ar", olef: "Ol", benz: "Bz", oxy: "O₂", etoh: "EtOH", ether: "Eth", fame: "FAME", visc: "", bio: "Bio" }[k] ?? k;
+  const name = { ron: "RON", mon: "MON", cet: "CN", s: "S", d: "ρ", rvp: "RVP", arom: "Ar", olef: "Ol", benz: "Bz", oxy: "O₂", etoh: "EtOH", ether: "Eth", fame: "FAME", visc: "", bio: "Bio", flash: "FP" }[k] ?? k;
   return `${name}${name ? " " : ""}${fmtProp(k, v).replace(" kg/m³", "").replace(" kPa", "")}`;
 }
 /** What a tap on the diagram hit: { stream } on a link, { node } on a node, or null. */

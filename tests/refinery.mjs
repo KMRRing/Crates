@@ -108,7 +108,7 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
   const V = { crude: "urals", units: ["cdu", "vdu"], specs: { hsfo: ["s", "visc", "d"] } };
   const vr = E.evaluate(V, { ...E.defaultRouting(V), atmResid: "vdu", vacResid: "hsfo", lvgo: "hsfo", hvgo: "hsfo" });
   const ar = E.evaluate(V, { ...E.defaultRouting(V), atmResid: "hsfo" });
-  check(vr.pools.hsfo.props.visc < 3000 && vr.pools.hsfo.props.visc > ar.pools.hsfo.props.visc * 0.5 && Math.abs(D.fromIndex("visc", D.toIndex("visc", 380)) - 380) < 1e-6 && Math.abs(D.fromIndex("rvp", D.toIndex("rvp", 60)) - 60) < 1e-9,
+  check(vr.pools.hsfo.props.visc < 3000 && vr.pools.hsfo.props.visc > ar.pools.hsfo.props.visc * 0.5 && Math.abs(D.fromIndex("visc", D.toIndex("visc", 380)) - 380) < 1e-6 && Math.abs(D.fromIndex("rvp", D.toIndex("rvp", 60)) - 60) < 1e-9 && Math.abs(D.fromIndex("flash", D.toIndex("flash", 60)) - 60) < 1e-6,
     `residue and its gas oils blend back to a viscosity near the atmospheric residue's (${Math.round(vr.pools.hsfo.props.visc)} against ${Math.round(ar.pools.hsfo.props.visc)} cSt); the indices invert`);
 }
 
@@ -148,6 +148,24 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
     const p83 = fresh["8.3"]?.[LEVELS.find(l => l.id === "8.3").crude];
     if (p83 && Math.abs(p83.capacity.hcu + LEVELS.find(l => l.id === "8.3").prices.importVgo - lessons.VGO_IN_HCU) > 1.5) problems.push(`8.3: the lesson says VGO earns $${lessons.VGO_IN_HCU} in the hydrocracker; par says $${(p83.capacity.hcu + LEVELS.find(l => l.id === "8.3").prices.importVgo).toFixed(2)}`);
     for (const [term, def] of lessons.GLOSSARY) if (def.toLowerCase().includes(term.toLowerCase().replace(/s$/, ""))) problems.push(`glossary: ${term}'s definition says its own word`);
+    // the bank, every question of it and not only those dealt: tags that name what exists, and options that don't give
+    // the answer away
+    const { FACTS } = await import("../refinery-facts.js"), ids = new Set();
+    for (const f of FACTS) {
+      if (ids.has(f.id)) problems.push(`bank: ${f.id} twice`);
+      ids.add(f.id);
+      for (const t of [...f.on, ...(f.any || [])]) {
+        const [kind, name] = t.split(":");
+        const known = t === "*" || (kind === "u" && D.UNITS[name]) || (kind === "p" && D.POOLS[name]) || (kind === "c" && CHAPTERS.some(c => String(c.id) === name)) || (kind === "k" && D.POOLS[name.split(".")[0]]?.spec?.[name.split(".")[1]]);
+        if (!known) problems.push(`bank: ${f.id} is tagged ${t}, which names nothing`);
+      }
+      if (!LEVELS.some(lv => exam.dealtFrom(lv, f.id))) problems.push(`bank: ${f.id} fits no level`);
+      if (f.kind === "number") continue;
+      const options = [f.right, ...f.wrongs], lens = options.map(o => o.length), digit = o => /\d/.test(o);
+      if (new Set(options).size !== options.length) problems.push(`bank: ${f.id} repeats an option`);
+      if (f.right.length > Math.max(...lens.slice(1)) * 1.6 && f.right.length > 30) problems.push(`bank: ${f.id}'s right option is the longest by far`);
+      if (digit(f.right) && options.filter(digit).length === 1) problems.push(`bank: only ${f.id}'s right option has a figure`);
+    }
     check(!problems.length, `lessons and exams: every level's lesson ends in its task, every exam (dealt three times) holds 6–12 questions whose right answers are right and wrong ones wrong, none giving itself away${problems.length ? `\n     ${problems.slice(0, 30).join("\n     ")}` : ""}`);
     check(CHAPTERS.every(c => LEVELS.some(l => l.chapter === c.id)), "every chapter has levels");
   }

@@ -26,10 +26,12 @@ const crudeOf = level => CRUDES[level.crude];
 const feedOf = level => level.feed ?? FEED;
 /** The pools a level sells into (all of them unless it lists its own). */
 export const poolsOf = level => level.pools || Object.keys(POOLS).filter(p => !POOLS[p].fallbackOnly);
-/** The specs a pool is judged on in a level: the level's own, or the core ones. */
-export const specsOf = (level, p) => (level.specs?.[p] ?? CORE_SPECS[p] ?? []).filter(k => POOLS[p].spec?.[k]);
-/** The limits a pool's specs set in a level: its own, or the pool's. */
-export const limitOf = (level, p, k) => level.limits?.[p]?.[k] ?? POOLS[p].spec[k];
+/** The specs a level teaches on a pool: its own list, or the core ones. */
+const taught = (level, p) => level.specs?.[p] ?? CORE_SPECS[p] ?? [];
+/** The specs a pool is judged on in a level: those it teaches, and those no product goes without (POOLS' always). */
+export const specsOf = (level, p) => [...new Set([...taught(level, p), ...Object.keys(POOLS[p].always || {})])].filter(k => POOLS[p].spec?.[k]);
+/** The limits a pool's specs set in a level: the level's own, the pool's where the level teaches it, else the always-held one. */
+export const limitOf = (level, p, k) => level.limits?.[p]?.[k] ?? (taught(level, p).includes(k) ? POOLS[p].spec[k] : POOLS[p].always?.[k] ?? POOLS[p].spec[k]);
 /** The destinations a stream may go to in a level: the level's units that take it, then its pools that take it. */
 export function destinations(level, s) {
   const units = level.units.filter(u => feedsOf(level, u).includes(s));
