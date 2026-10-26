@@ -149,7 +149,7 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
   const r = { ...E.defaultRouting(L), lgo: { dht: 0.9, diesel: 0.1 }, hgo: "dht", kero: "kht", hsr: "nht", hsrT: "reformer" };
   const R = E.evaluate(L, r), why = E.culprits(L, R, "diesel"), s = why[0], lgo = s?.by.find(c => c.s === "lgo"), vol = R.streams.lgo.vol;
   const fixed = lgo && E.evaluate(L, { ...r, lgo: { dht: 0.9, diesel: 0.1 - lgo.out / vol, gasoil: lgo.out / vol } });
-  check(s?.k === "s" && lgo?.share > 0.99 && s.by.every(c => c.v > 10) && Math.abs(fixed?.pools.diesel.props.s - 10) < 1e-6 && E.failText({ k: "cet", v: 50.97, lim: 51, dir: "min" }) === "cetane 50.97 under 51.0",
+  check(s?.k === "s" && lgo?.share > 0.99 && s.by.every(c => c.v > 10) && Math.abs(fixed?.pools.diesel.props.s - 10) < 1e-6 && E.failText({ k: "cet", v: 50.97, lim: 51, dir: "min" }) === "cetane 50.97 under 51.0" && E.failText({ k: "rvp", v: 60.004, lim: 60, dir: "max" }) === "RVP 60.004 kPa over 60 kPa",
     `what puts a product off spec: diesel with untreated gas oil misses on sulphur first (${s && E.failText(s)}), the gas oil all of it, and taking out ${lgo?.out.toFixed(2)} kb/d of it meets 10 ppm (${fixed?.pools.diesel.props.s.toFixed(4)}); a miss finer than its figures is told to more places`);
 }
 
@@ -210,6 +210,53 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
     check(!problems.length, `lessons and exams: every level's lesson ends in its task, every exam (dealt three times) holds 6–12 questions whose right answers are right and wrong ones wrong, none giving itself away${problems.length ? `\n     ${problems.slice(0, 30).join("\n     ")}` : ""}`);
     check(CHAPTERS.every(c => LEVELS.some(l => l.chapter === c.id)), "every chapter has levels");
   }
+}
+
+// ---------- the hint: how standard each pattern is ----------
+{
+  const P = await import("../refinery-practice.js"), { PAR } = await import("../refinery-par.js");
+  const T = P.practice(), cells = Object.entries(T).flatMap(([s, ds]) => Object.entries(ds).map(([d, t]) => ({ s, d, ...t })));
+  const plans = Object.values(PAR).reduce((a, x) => a + Object.keys(x).length, 0);
+  check(cells.length > 50 && cells.every(t => t.n === t.all + t.most + t.part + t.none && t.n >= 1 && t.n <= plans),
+    `every stream and destination counted over the optimal plans where it can go there: all, most, part or none of it (${cells.length} pairs, ${plans} plans)`);
+  // a plan that sends the bulk somewhere counts once in the bulk, whichever bucket
+  const c = P.commonness("lgo", "dht", 1), t = T.lgo.dht;
+  check(c.n === t.n && c.count === t.all + t.most && Math.abs(c.p - c.count / c.n) < 1e-12 && P.commonness("lgo", "dht", 0.7, true).count === t.most, "a share's commonness: by its class (bulk, part, none), or its finer bucket for fine-tuning");
+  // on every level and crude: par against the start, ranked; par against itself, nothing
+  let ordered = true, none = true, some = 0, gone = true;
+  const gap = x => Math.abs(x.theirs - x.mine);
+  for (const lv of LEVELS) for (const [key, p] of Object.entries(PAR[lv.id] || {})) {
+    const [crude, deck = null] = key.split("/"), L = E.asPlayed(lv, crude, deck), start = E.normalise(L, E.defaultRouting(L)), made = E.evaluate(L, start).streams;
+    const list = P.differences(L, start, p.routing, st => made[st]?.vol > 1e-6);
+    if (list.some(x => !(made[x.s]?.vol > 1e-6) || x.tier !== (P.classOf(x.mine) !== P.classOf(x.theirs) ? 0 : gap(x) > P.FINE ? 1 : 2))) ordered = false;
+    if (list.length) some++;
+    if (list.some((x, i) => i && (x.tier < list[i - 1].tier || (x.tier === list[i - 1].tier && (x.tier < 2 ? x.p > list[i - 1].p + 1e-12 : gap(x) > gap(list[i - 1]) + 1e-12))))) ordered = false;
+    if (P.differences(L, E.normalise(L, p.routing), p.routing).length) none = false;
+    // taking the top one's row puts that stream right
+    if (list.length && P.differences(L, { ...start, [list[0].s]: p.routing[list[0].s] }, p.routing).some(x => x.s === list[0].s)) gone = false;
+  }
+  check(some > plans / 2 && ordered, `from each level's start, par's differences in the streams it makes ranked: where the bulk goes, then how much, each by how many optimal plans share it, then trims by size (${some} plans differ from their start)`);
+  check(none && gone, "par against itself has no differences, and taking a difference's row puts that stream right");
+  // the hint followed from every level's start, in every market (a choice of crude from the level's own), the way the
+  // page takes it (the crude, then each difference's row, a newly made stream sent where it earns most): it reaches par
+  let reached = 0, starts = 0, most = 0;
+  const stuck = [];
+  for (const lv of LEVELS) for (const deck of lv.decks ? lv.decks.map(d => d.id) : [null]) {
+    const parOf = c => PAR[lv.id][deck ? `${c}/${deck}` : c], crudes = lv.crudes || [lv.crude];
+    const best = crudes.reduce((a, c) => (parOf(c).margin > parOf(a).margin ? c : a));
+    let L = E.asPlayed(lv, lv.crude, deck), routing = E.normalise(L, E.defaultRouting(L)), n = 0, end = null;
+    starts++;
+    for (; n < 40 && !end; n++) {
+      const R = E.evaluate(L, routing), step = P.nextHint(L, routing, R, parOf(L.crude), lv.crudes ? { crude: best, margin: parOf(best).margin } : null);
+      if (step.crude) { L = E.asPlayed(lv, step.crude, deck); routing = E.normalise(L, routing); }
+      else if (step.atPar) end = "par";
+      else if (!step.x) end = `nothing left to name at ${R.margin.toFixed(2)}`;
+      else routing = E.withShares(L, routing, step.x.s, { ...parOf(L.crude).routing[step.x.s] }, R);
+    }
+    if (end === "par") { reached++; most = Math.max(most, n - 1); } else stuck.push(`${lv.id}${deck ? `/${deck}` : ""}: ${end || "40 hints"}`);
+  }
+  check(reached === starts, `following the hint from every level's start reaches par (${reached} of ${starts}, the longest in ${most} hints)${stuck.length ? `: ${stuck.slice(0, 4).join("; ")}` : ""}`);
+  check(P.standing(0.95) === "Standard practice" && P.standing(60 / 67) === "Standard practice" && P.standing(0.8) === "Very common" && P.standing(0.6) === "Common" && P.standing(0.3) === "Done in some plans" && P.standing(0.1) === "Particular to this plan", "a pattern's standing in words, by the share of plans that follow it");
 }
 
 console.log(bad ? `${bad} problems` : "all checks pass");

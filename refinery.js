@@ -4,8 +4,9 @@
 // an exam (refinery-exam.js). The engine (refinery-engine.js) runs the plant; the data (refinery-data.js) describes it.
 // Together, the same level for everyone at the table (duel.js).
 import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR, REAGENTS } from "./refinery-data.js";
-import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, coTotalOf, solve, ownProps, unitYields, columnFeeds, asPlayed, lower, shareTo, edgesOf, culprits, fmtPast } from "./refinery-engine.js";
+import { FEED, evaluate, runs, destinations, streamsOf, sharesOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, coTotalOf, solve, ownProps, unitYields, columnFeeds, asPlayed, lower, shareTo, withShares, edgesOf, culprits, fmtPast } from "./refinery-engine.js";
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
+import { differences, nextHint, rowCommonness, standing, bucketOf, EPS, AT_PAR } from "./refinery-practice.js";
 import { PAR } from "./refinery-par.js";
 import { drawSheet, hitTest, GROUP_COLOUR, amount } from "./refinery-sheet.js";
 import { lessonFor, TEACHES, GLOSSARY } from "./refinery-lessons.js";
@@ -95,19 +96,7 @@ function chooseDeck(id) {
 function setShares(s, shares, { remember = true } = {}) {
   if (D?.done || (duel.on && !D)) return;
   if (remember) { history.push(JSON.stringify(routing)); if (history.length > 80) history.shift(); }
-  const before = R;
-  routing = { ...routing, [s]: shares };
-  // a unit that starts running: its products, made for the first time, go where they earn most
-  const made = evaluate(L, routing);
-  for (const st of streamsOf(L)) {
-    if (st === s || !made.streams[st] || before?.streams[st]) continue;
-    let best = null;
-    for (const d of destinations(L, st)) {
-      const m = evaluate(L, { ...routing, [st]: { [d]: 1 } }).margin;
-      if (!best || m > best.m + 1e-9) best = { d, m };
-    }
-    if (best) routing = { ...routing, [st]: { [best.d]: 1 } };
-  }
+  routing = withShares(L, routing, s, shares, R);
   if (D) D.routing = routing;
   keep();
   render();
@@ -161,13 +150,11 @@ function renderBrief() {
   $("hintBtn").hidden = !!D;
   $("lessonBtn").hidden = false;
 }
-/** Whether the plan runs: every pool in spec, the sulphur plant and hydrogen within their limits, nothing lost. */
-const runs = res => Object.values(res.pools).every(p => p.inSpec || p.vol <= 1e-4) && !res.issues.some(i => ["sru", "lost", "h2short"].includes(i.kind));
 /** Stars for a margin: three at par, two near it, one in spec and not far off; a hint caps them at two, par's plan at one. */
 function starsFor(m, res, p = progress()[base.id] || {}) {
   if (!runs(res)) return 0;
   const gap = target - m;
-  const s = gap <= 0.1 ? 3 : gap <= 0.5 ? 2 : gap <= 1.5 ? 1 : 0;
+  const s = gap <= AT_PAR ? 3 : gap <= 0.5 ? 2 : gap <= 1.5 ? 1 : 0;
   return Math.min(s, p.shown ? 1 : p.hinted ? 2 : 3);
 }
 function renderMargin() {
@@ -188,9 +175,10 @@ function renderMargin() {
   const won = decks ? Math.min(...base.decks.map(d => decks[d.id] || 0)) : stars, deckBetter = decks && decks[L.deck] > (was.decks?.[L.deck] || 0);
   v.className = `rf-verdict${stars === 3 ? " good" : ""}`;
   const worst = off.length ? culprits(L, R, off[0][0])[0] : null, from = worst?.by.filter(c => c.share >= 0.25).slice(0, 2) || [];
-  // short names, as the flowsheet labels them: two lines hold the products, the worst miss and where it comes from
-  v.textContent = hard ? hard.text : off.length ? `${listOf(off.map(([id]) => POOLS[id].short))} off spec: ${failText(worst)}${from.length ? `, from the ${from.map(c => STREAMS[c.s].short).join(" and the ")}` : ""}.`
-    : gap <= 0.1 ? "At par, every pool in spec." : `${money(gap)}/bbl short of par${base.crudes && L.crude !== bestCrude() ? " (another crude does better)" : ""}.`;
+  // short names, as the flowsheet labels them: two lines hold the products, the worst miss and where it comes from (a
+  // short name ending in its own full stop, "Isom.", ends the sentence)
+  v.textContent = hard ? hard.text : off.length ? `${listOf(off.map(([id]) => POOLS[id].short))} off spec: ${failText(worst)}${from.length ? `, from the ${from.map(c => STREAMS[c.s].short).join(" and the ")}` : ""}.`.replace(/\.\.$/, ".")
+    : gap <= AT_PAR ? "At par, every pool in spec." : `${money(gap)}/bbl short of par${base.crudes && L.crude !== bestCrude() ? " (another crude does better)" : ""}.`;
   // stars won are kept; a first finish, or more stars, says so
   if (won > (was.stars || 0) || deckBetter || m > (was.best ?? -Infinity) + 1e-9) {
     p[base.id] = { ...was, stars: Math.max(won, was.stars || 0), best: Math.max(m, was.best ?? -Infinity), ...(decks ? { decks } : {}) };
@@ -675,60 +663,78 @@ function openCard(id) {
 }
 
 // ---------- hints ----------
-/** The single change worth most from here: a share of one stream moved, judged by running the plant. */
-function bestMove() {
-  const now = R.margin, ok = runs(R);
-  let best = null;
-  for (const s of streamsOf(L)) {
-    if (!R.streams[s]) continue;
-    for (const d of destinations(L, s)) for (const f of [1, 0.5, 0.25, 0.1, 0.05]) {
-      const cur = routing[s]?.[d] || 0;
-      if (cur >= 1 - 1e-9) break;
-      const next = setShare(s, d, Math.min(1, cur + f)), r = evaluate(L, { ...routing, [s]: next });
-      const good = runs(r) || !ok;
-      if (good && r.margin > now + 0.02 && (!best || r.margin > best.m)) best = { s, d, f: Math.min(1, cur + f), next, m: r.margin };
-    }
+// A hint goes by how standard a pattern is (refinery-practice.js; Korbi, October 2026: "the player starts with the
+// obvious then fine tunes in the end"): the crude where it's the choice (no routing of a worse one reaches the level's
+// par), then of the ways your plan differs from par the one most of the course's optimal plans share, where the bulk of
+// a stream goes before how much, each with how many plans do the same and what doing it alone comes to here; trims last,
+// and only while the plan is short of par.
+
+/** As many decimals of a percentage as it takes to tell two apart (up to four: a trim can be a thousandth of a point). */
+const placesFor = (same, most = 4) => [0, 1, 2, 3].find(dp => !same(dp)) ?? most;
+const pcs = (a, b) => { const dp = placesFor(k => (a * 100).toFixed(k) === (b * 100).toFixed(k)); return [a, b].map(f => `${+(f * 100).toFixed(dp)}%`); };
+/** A difference from par in words: what par does with the stream, and how standard that is. */
+function practiceWords(x) {
+  const what = lower(STREAMS[x.s].name), name = d => lower((UNITS[d] || POOLS[d]).name), pc = f => `${Math.round(f * 100)}%`;
+  // a purchase not made goes nowhere: it's left unbought
+  const left = x.d === "notBought", where = left ? " unbought" : ` to the ${name(x.d)}`;
+  const plans = `${standing(x.p)}: ${x.count} of the ${x.n} optimal plans in the course ${left ? "that could buy it" : "where it can go there"}`;
+  if (x.tier) {
+    const [theirs, mine] = pcs(x.theirs, x.mine), whole = f => (f >= 1 - EPS ? "all" : f <= EPS ? "none" : null);
+    const told = `Fine-tuning: par ${left ? "leaves" : "sends"} ${whole(x.theirs) || theirs} of the ${what}${where}, you ${whole(x.mine) ? `${whole(x.mine)} of it` : mine}.`;
+    if (x.same) return `${told} Your pattern is par's; the amount is particular to this plan.`;
+    const how = { all: "all of it", most: "most of it, not all", part: "part of it", none: "none of it" }[bucketOf(x.theirs)];
+    return `${told} ${plans} ${left ? "leave" : "send"} ${how}${left ? " unbought" : ""} (${pc(x.p)}).`;
   }
-  return best;
+  const amount = x.theirs >= 0.995 ? `all of the ${what}` : x.theirs >= 0.5 ? `most of the ${what} (${pc(x.theirs)})` : x.theirs > 0.005 ? `some of the ${what} (${pc(x.theirs)})` : `none of the ${what}`;
+  // none of it there: say where it does go
+  const main = Object.entries(par.routing[x.s]).sort((a, b) => b[1] - a[1])[0][0];
+  const instead = x.theirs > 0.005 ? "" : main === "notBought" ? " (par leaves it unbought)" : ` (par sends it to the ${name(main)})`;
+  return `In this plan the margin is best with ${amount} ${left ? "left unbought" : `going${where}`}${instead}. ${plans} do the same (${pc(x.p)}).`;
 }
 function hint() {
-  const p = progress(), was = p[base.id] || {};
-  p[base.id] = { ...was, hinted: true, hints: (was.hints || 0) + 1 };
+  const p = progress();
+  p[base.id] = { ...(p[base.id] || {}), hinted: true };
   write(PROGRESS, p);
   const box = $("hint");
   box.hidden = false;
   box.replaceChildren();
-  if ((was.hints || 0) >= 3) { showPar(); return; }
-  const mv = bestMove();
-  if (!mv) {
-    const diff = streamsOf(L).find(s => R.streams[s] && Object.keys(par.routing[s] || {}).some(d => Math.abs((par.routing[s][d] || 0) - (routing[s]?.[d] || 0)) > 0.05));
-    box.textContent = diff ? `No single change helps from here: several streams have to move together. Start with ${lower(STREAMS[diff].name)}: par sends ${Object.entries(par.routing[diff]).map(([d, f]) => `${Math.round(f * 100)}% to ${lower((UNITS[d] || POOLS[d]).name)}`).join(", ")}.`
-      : "You're on par's plan, or as near it as matters.";
-    return;
+  const link = (text, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "rf-link"; b.textContent = text; b.addEventListener("click", fn); return b; };
+  const step = nextHint(L, routing, R, par, base.crudes ? { crude: bestCrude(), margin: target } : null), x = step.x;
+  if (step.crude) box.append(`The crude first: at par, ${CRUDES[step.crude].name} earns ${money(target)}/bbl here and ${CRUDES[L.crude].name} ${money(par.margin)}. `, link("Do it", () => { box.hidden = true; chooseCrude(step.crude); }));
+  else if (step.atPar) box.append("You're at par, every pool in spec: nothing left to find. ", link("Par's plan", showPar));
+  else if (!x) box.textContent = "You're on par's plan, or as near it as matters.";
+  else {
+    box.append(`${practiceWords(x)} `);
+    // what taking par's whole row for the stream comes to here, the rest of your plan as it is
+    const row = par.routing[x.s], after = evaluate(L, { ...routing, [x.s]: row }), gain = after.margin - R.margin;
+    const worth = Math.abs(gain) < 0.005 ? "" : gain > 0 ? `earns ${money(gain)}/bbl` : `costs ${money(-gain)}/bbl`;
+    if (!runs(R) && runs(after)) box.append(`Alone it gets the plant running in spec${worth ? ` and ${worth}` : ""}. `);
+    else if (worth) box.append(gain > 0 ? `Alone it ${worth}. ` : `Alone it ${worth}; with par's other changes it pays. `);
+    box.append(link("Do it", () => { box.hidden = true; setShares(x.s, { ...row }); }), " · ", link("Par's plan", showPar));
   }
-  const name = d => lower((UNITS[d] || POOLS[d]).name);
-  box.append(`${mv.f >= 0.999 ? `All the ${lower(STREAMS[mv.s].name)}` : `${Math.round(mv.f * 100)}% of the ${lower(STREAMS[mv.s].name)}`} to the ${name(mv.d)}: ${money(mv.m - R.margin)}/bbl better. `);
-  const go = document.createElement("button"); go.type = "button"; go.className = "rf-link"; go.textContent = "Do it";
-  go.addEventListener("click", () => { box.hidden = true; setShares(mv.s, mv.next); });
-  box.append(go);
   renderBrief();
 }
-/** Par's plan, stream by stream, where yours differs; taking it caps the level at one star. */
+/** Par's plan, the most standard rows first (the share of the course's optimal plans that route each stream the same
+ *  way), where yours differs marked; taking it caps the level at one star. */
 function showPar() {
   const body = $("cardBody");
   body.replaceChildren();
   $("cardTitle").textContent = "Par's plan";
   const p = document.createElement("p"); p.className = "rf-facts";
-  p.textContent = `What the LP does with ${CRUDES[L.crude].name}, for ${money(par.margin)}/bbl. Where yours differs, it's marked.`;
+  p.textContent = `What the LP does with ${CRUDES[L.crude].name}, for ${money(par.margin)}/bbl, the most standard rows first: the last column is the share of the course's optimal plans that send the bulk of the stream the same way. Where yours differs, it's marked.`;
   body.append(p);
   const t = document.createElement("table"); t.className = "rf-table";
-  const fmt = r => Object.entries(r || {}).filter(([, f]) => f > 0.0005).map(([d, f]) => `${(UNITS[d] || POOLS[d]).short} ${Math.round(f * 100)}%`).join(", ");
-  for (const s of streamsOf(L)) {
-    if (!par.routing[s] || !(R.streams[s] || parRun().streams[s])) continue;
-    const mine = fmt(routing[s]), theirs = fmt(par.routing[s]), tr = document.createElement("tr");
-    tr.className = mine !== theirs ? "rf-differs" : "";
-    tr.innerHTML = "<td></td><td></td><td></td>";
-    tr.children[0].textContent = STREAMS[s].name; tr.children[1].textContent = theirs; tr.children[2].textContent = mine !== theirs ? `you: ${mine}` : "";
+  // a row differs as the hint has it, and shows as many decimals as it takes to see how
+  const differs = new Set(differences(L, routing, par.routing).map(x => x.s));
+  const fmt = (s, r, dp) => sharesOf(L, r, s).filter(([, f]) => +(f * 100).toFixed(dp) > 0).map(([d, f]) => `${(UNITS[d] || POOLS[d]).short} ${+(f * 100).toFixed(dp)}%`).join(", ");
+  const rows = streamsOf(L).filter(s => par.routing[s] && (R.streams[s] || parRun().streams[s])).map(s => ({ s, c: rowCommonness(s, par.routing[s]) })).sort((a, b) => b.c.p - a.c.p);
+  for (const { s, c } of rows) {
+    const off = differs.has(s), dp = off ? placesFor(k => fmt(s, routing, k) === fmt(s, par.routing, k)) : 0;
+    const mine = fmt(s, routing, dp), theirs = fmt(s, par.routing, dp), tr = document.createElement("tr");
+    tr.className = off ? "rf-differs" : "";
+    tr.innerHTML = "<td></td><td></td><td></td><td class=\"rf-common\"></td>";
+    tr.children[0].textContent = STREAMS[s].name; tr.children[1].textContent = theirs; tr.children[2].textContent = off ? `you: ${mine}` : "";
+    tr.children[3].textContent = `${Math.round(c.p * 100)}%`; tr.children[3].title = `${c.count} of ${c.n} optimal plans`;
     t.append(tr);
   }
   body.append(t);
@@ -740,7 +746,11 @@ function showPar() {
   if (!$("cardDlg").open) $("cardDlg").showModal();
 }
 let parRunCache = null;
-function parRun() { if (parRunCache?.k !== base.id + L.crude) parRunCache = { k: base.id + L.crude, r: evaluate(L, par.routing) }; return parRunCache.r; }
+function parRun() {
+  const k = `${base.id}|${L.crude}|${L.deck}`;
+  if (parRunCache?.k !== k) parRunCache = { k, r: evaluate(L, par.routing) };
+  return parRunCache.r;
+}
 
 // ---------- the lesson ----------
 let lesson = null;
@@ -780,7 +790,7 @@ function showStep() {
     const how = document.createElement("details"), sum = document.createElement("summary");
     how.className = "rf-how"; sum.textContent = "How to play"; how.append(sum);
     const hp = document.createElement("p");
-    hp.textContent = "Tap an arrow on the flowsheet to choose where that stream goes: each destination takes a share, set with its slider or typed, and All sends the whole stream there. Each row says what sending all of it there would do to the margin. Tap a unit for its card and what it's running, a product for its specification, the crude for its assay. Drag to move the flowsheet, pinch or + and − to zoom. Hint finds the change worth most; it caps the stars at two.";
+    hp.textContent = "Tap an arrow on the flowsheet to choose where that stream goes: each destination takes a share, set with its slider or typed, and All sends the whole stream there. Each row says what sending all of it there would do to the margin. Tap a unit for its card and what it's running, a product for its specification, the crude for its assay. Drag to move the flowsheet, pinch or + and − to zoom. Hint points out where your plan differs from par, the most standard difference first (with how many of the course's optimal plans do the same), then the fine-tuning; it caps the stars at two.";
     how.append(hp); say.append(how);
     p(progress()[base.id]?.stars ? "Done already: the exam is in the brief." : "Once the plant runs with every product in spec, the exam asks about what you made and what this lesson taught.", "rf-after");
   } else p(st.say);
@@ -999,7 +1009,7 @@ const duel = createDuel({
 function duelVerdict(off, gap) {
   const v = $("verdict");
   v.className = "rf-verdict";
-  v.textContent = D.done ? `Submitted at ${money(D.margin)}/bbl.` : off.length ? `${off.map(([id]) => POOLS[id].name).join(" and ")} off spec.` : gap <= 0.1 ? "At par." : `${money(gap)}/bbl short of par.`;
+  v.textContent = D.done ? `Submitted at ${money(D.margin)}/bbl.` : off.length ? `${off.map(([id]) => POOLS[id].name).join(" and ")} off spec.` : gap <= AT_PAR ? "At par." : `${money(gap)}/bbl short of par.`;
   $("nextBtn").hidden = false;
   $("nextBtn").textContent = D.done ? "Submitted ✓" : "Submit";
   $("nextBtn").disabled = !!D.done;

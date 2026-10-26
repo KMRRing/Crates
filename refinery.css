@@ -194,6 +194,8 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-table th { text-align: left; font-size: .72rem; color: var(--ink-soft); font-weight: 750; padding: .2rem .3rem; border-bottom: 1px solid var(--rule); }
 .rf-table td { padding: .28rem .3rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
 .rf-table tr.rf-differs td { color: var(--rf-in); font-weight: 750; }
+/* how standard a row of par's plan is: the share of the course's optimal plans that route the stream the same way */
+.rf-table td.rf-common { text-align: right; color: var(--ink-soft); font-weight: 400; white-space: nowrap; }
 .rf-ok { color: var(--rf-good); } .rf-no { color: var(--rf-bad); } .rf-muted { color: var(--ink-soft); font-weight: 600; font-size: .74rem; }
 .rf-inline { background: none; border: 0; padding: 0; color: var(--rf-in); font: inherit; text-decoration: underline; cursor: pointer; text-align: left; }
 /* a card's streams: a row each, in its family's colour, to tap for its sheet (refinery.js, streamRow) */

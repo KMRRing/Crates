@@ -366,11 +366,15 @@ export function failText(f) {
   if (PROPS[f.k].flag) return f.k === "grade" ? "untreated kerosene in it" : "not an asphaltic crude's residue";
   return `${/^[A-Z]{2,}/.test(PROPS[f.k].name) ? PROPS[f.k].name : PROPS[f.k].name.toLowerCase()} ${fmtPast(f.k, f.v, f.lim)} ${f.dir === "min" ? "under" : "over"} ${fmtProp(f.k, f.lim)}`;
 }
-/** A value that misses a limit, to as many places as tell it from the limit: "cetane 50.97 under 51.0", never "51.0 under 51.0". */
+/** A value that misses a limit, to as many places as tell it from the limit: "cetane 50.97 under 51.0", never "51.0 under
+ *  51.0" (each place compared with the limit at as many: "RVP 60.0 over 60" told them apart only by its zero). */
 export function fmtPast(k, v, lim) {
-  const at = fmtProp(k, lim);
   let out = fmtProp(k, v);
-  for (let dp = (PROPS[k].dp ?? 1) + 1; out === at && dp <= 4; dp++) out = fmtProp(k, v, dp);
+  if (out !== fmtProp(k, lim)) return out;
+  for (let dp = (PROPS[k].dp ?? 1) + 1; dp <= 4; dp++) {
+    out = fmtProp(k, v, dp);
+    if (out !== fmtProp(k, lim, dp)) break;
+  }
   return out;
 }
 /** A property's value as it reads, with its unit: 10 ppm, 0.45%, 845 kg/m³, RON 95.0; to dp places where asked. */
@@ -392,6 +396,24 @@ export function shareTo(level, s, from, d, f) {
   if (rest > 1e-6) {
     if (sum > 1e-9) for (const [x, v] of others) next[x] = (v / sum) * rest;
     else { const h = homeOf(level, s) !== d ? homeOf(level, s) : destinations(level, s).find(x => x !== d); if (h) next[h] = rest; }
+  }
+  return next;
+}
+/**
+ * A routing with one stream's shares set, and every stream the change makes for the first time (a unit newly fed makes
+ * its products) sent wherever it earns most on its own, so it has somewhere to go. `before` is the run of `routing`.
+ */
+export function withShares(level, routing, s, shares, before = null) {
+  const was = before || evaluate(level, routing), made = evaluate(level, { ...routing, [s]: shares });
+  let next = { ...routing, [s]: shares };
+  for (const st of streamsOf(level)) {
+    if (st === s || !made.streams[st] || was.streams[st]) continue;
+    let best = null;
+    for (const d of destinations(level, st)) {
+      const m = evaluate(level, { ...next, [st]: { [d]: 1 } }).margin;
+      if (!best || m > best.m + 1e-9) best = { d, m };
+    }
+    if (best) next = { ...next, [st]: { [best.d]: 1 } };
   }
   return next;
 }
@@ -682,7 +704,11 @@ function guessProps(level) {
   }
   return q;
 }
-/** A plan that really runs: every pool in spec, the sulphur plant within its capacity, nothing with nowhere to go. */
+/** Whether a plan runs, as the page counts it for stars and the hint: every pool in spec (or empty), the sulphur plant
+ *  and hydrogen within their limits, nothing with nowhere to go. */
+export const runs = res => Object.values(res.pools).every(p => p.inSpec || p.vol <= 1e-4) && !res.issues.some(i => ["sru", "lost", "h2short"].includes(i.kind));
+/** A plan that really runs, as the solver keeps it: every pool in spec, the sulphur plant within its capacity, nothing
+ *  with nowhere to go. */
 const inSpec = res => Object.values(res.pools).every(p => p.inSpec || p.vol <= 1e-4) && res.sulphur.over <= 0.01 && !res.issues.some(i => i.kind === "lost" || i.kind === "h2short");
 /** Shares mixed: (1 − t) of one routing's flows and t of another's, as shares. */
 function mix(cols, a, b, t) {
