@@ -113,12 +113,24 @@ function lookAhead(v) {
     if (ahead === a) page?.runner.kick();
   });
 }
-const holding = () => want != null && !(ahead.key === want && ahead.done);
+const holding = () => (want != null && !(ahead.key === want && ahead.done)) || awaitingDeal();
 /** The table's pace, the computer's thinking counted in it. */
 const paceNow = () => (want != null && ahead.key === want ? Math.max(120, PACE - (Date.now() - ahead.since)) : PACE);
 
 // ---------- the table ----------
 let V = null, page = null;
+
+// Solo, a hand's score stays up until you deal the next (Next hand, or a tap on the score): the table holds its clock
+// till then. At a table with others it moves on by itself after a few seconds, so nobody's tap holds up the rest.
+let dismissed = null;                                            // the hand whose score you've put away
+const handKey = v => `${v.G.seq}:${v.state.handNo}`;
+const awaitingDeal = () => V?.mode === "solo" && V.seat != null && V.state?.step === "scored" && dismissed !== handKey(V);
+function nextHand() {
+  if (!awaitingDeal()) return;
+  dismissed = handKey(V);
+  page.runner.kick();
+}
+const nextLabel = s => (GAMES[s.game].done(s) ? "The result" : "Next hand");
 page = seatPage({
   // app 2: the table's coach is the table's (house), kept on every phone; an older page at the table updates first
   rules, id: "trumps", app: 2, pace: paceNow, hold: holding, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
@@ -209,7 +221,7 @@ function playProbe(s) {
     probe.setAttribute("aria-hidden", "true");
     $("controls").after(probe);
   }
-  const html = coaching() ? coachBar(s, "Your card") : `<p class="tr-status">Your card</p>`;
+  const html = coaching() ? coachBar(s, "Your card", false) : `<p class="tr-status">Your card</p>`;
   if (probe.dataset.html !== html) { probe.innerHTML = html; probe.dataset.html = html; }
   return probe.offsetHeight;
 }
@@ -307,7 +319,7 @@ function handResult(s) {
   const mine = teamOf(me());
   if (s.game === "schafkopf") {
     const c = s.contract, side = r.side.map(nameOf).join(" and ");
-    return `<div class="tr-result"><b>${esc(side)} ${r.won ? "win" : "lose"}</b><span>${r.pts[0]} to ${r.pts[1]}${r.schwarz ? " · schwarz" : r.schneider ? " · Schneider" : ""}${r.laufende ? ` · ${r.laufende} Laufende` : ""}</span>
+    return `<div class="tr-result"><b>${esc(side)} ${r.side.length > 1 ? (r.won ? "win" : "lose") : r.won ? "wins" : "loses"}</b><span>${r.pts[0]} to ${r.pts[1]}${r.schwarz ? " · schwarz" : r.schneider ? " · Schneider" : ""}${r.laufende ? ` · ${r.laufende} Laufende` : ""}</span>
       <span class="tr-delta ${r.delta[me()] >= 0 ? "up" : "down"}">${r.delta[me()] >= 0 ? "+" : ""}${r.delta[me()]} for you</span><small>${c.type === "sau" ? "Sauspiel" : c.type === "wenz" ? "Wenz" : "Solo"}, ${r.amount} a player</small></div>`;
   }
   if (s.game === "jass") {
@@ -330,6 +342,8 @@ function drawHand(s) {
   box.innerHTML = hand.map(id => card(id, s, { cls: mine ? `${ok.has(id) ? "ok" : "dim"}${id === best ? " coach" : ""}` : "", data: { card: id } })).join("");
   spreadHand();
 }
+// a tap on a hand's score puts it away too, and deals the next
+$("centre").addEventListener("click", () => { if (awaitingDeal()) nextHand(); });
 $("hand").addEventListener("click", async e => {
   const el = e.target.closest("[data-card]");
   const s = V?.state;
@@ -413,10 +427,11 @@ function coachLine(s, status) {
   else if (word && !myTurn(s)) { text = `<b class="tr-coach miss">Coach</b> ${esc(word.words)}`; why = true; }
   return { text, why };
 }
-function coachBar(s, status) {
+function coachBar(s, status, next = awaitingDeal()) {
   const { text, why } = coachLine(s, status), turn = myTurn(s) && s.step === "play";
-  // Always marks its card unasked: no Hint to ask with
-  const hint = coach() === "on" ? "" : `<button class="btn tr-hint" type="button" data-act="hint"${turn ? "" : " disabled"}>Hint</button>`;
+  // Always marks its card unasked: no Hint to ask with; between hands, solo, the next hand is dealt from here
+  const hint = next ? `<button class="btn primary tr-hint" type="button" data-act="next">${nextLabel(s)}</button>`
+    : coach() === "on" ? "" : `<button class="btn tr-hint" type="button" data-act="hint"${turn ? "" : " disabled"}>Hint</button>`;
   return `<div class="tr-coachbar"><p class="tr-say">${text}</p><span class="tr-coachgo">${hint}${why ? `<button class="link tr-why-btn" type="button" data-act="why">Why?</button>` : ""}</span></div>`;
 }
 /** The coach's reasons, in a sheet: each card (or game) it weighed, what it wins and comes to, what it does. */
@@ -457,6 +472,10 @@ function drawControls(s) {
   if (s.step === "over") {
     const won = s.winners.includes(seat);
     box.innerHTML = `<p class="tr-status">${won ? "You win" : "You lose"}</p><button class="btn primary tr-go" type="button" data-act="${page.host ? "new" : "result"}">${page.host ? "New game" : "The result"}</button>`;
+    return;
+  }
+  if (s.step === "scored" && awaitingDeal() && !coaching()) {
+    box.innerHTML = `<button class="btn primary tr-go" type="button" data-act="next">${nextLabel(s)}</button>`;
     return;
   }
   if (s.step !== "bid") {
@@ -507,6 +526,7 @@ $("controls").addEventListener("click", async e => {
   const b = e.target.closest("button");
   if (!b || b.disabled || !V?.G) return;
   if (b.dataset.act === "new") { newGame(); return; }
+  if (b.dataset.act === "next") { nextHand(); return; }
   if (b.dataset.act === "result") { showEnd(V); return; }
   if (b.dataset.act === "hint") { showHint(); return; }
   if (b.dataset.act === "why") { showWhy(); return; }
