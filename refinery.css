@@ -53,6 +53,18 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-sheet { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
 .rf-zoom { position: absolute; top: .4rem; right: .4rem; display: grid; gap: .25rem; }
 .rf-zoom button { width: 2rem; height: 2rem; border-radius: 6px; border: 1px solid var(--tile-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; padding: 0; }
+.rf-zoom button svg { display: block; width: 1rem; height: 1rem; margin: auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.rf-zoom button.on { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
+/* which lines show: a card beside the zoom buttons (refinery.js, fillLines), built of the menu's own controls */
+.rf-lines { position: absolute; top: .4rem; right: 2.8rem; z-index: 2; box-sizing: border-box; width: min(17.5rem, calc(100% - 3.4rem)); max-height: calc(100% - .8rem); overflow-y: auto; overscroll-behavior: contain;
+  padding: .05rem .7rem .55rem; border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--sheet); box-shadow: 0 6px 18px rgba(0, 0, 0, .2); }
+.rf-lines .menu-row, .rf-lines .menu-grid-wrap { margin: .4rem 0; }
+.rf-lines .menu-label { font-size: .85rem; }
+.rf-lines .menu-seg button { font-size: .8rem; padding: .32rem .55rem; }
+.rf-lines .menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; margin-top: .3rem; }
+.rf-lines .menu-grid button { font-size: .8rem; padding: .32rem .45rem; }
+.rf-lines .menu-grid button.rf-fam { display: flex; align-items: center; gap: .4rem; text-align: left; }
+.rf-lines .menu-grid button.rf-fam::before { content: ""; flex: none; width: .7rem; height: .7rem; border-radius: 2px; background: var(--c); }
 .rf-issue { position: absolute; left: .4rem; right: 2.9rem; bottom: .4rem; margin: 0; padding: .3rem .5rem; border-radius: 6px; background: color-mix(in srgb, var(--rf-bad) 12%, var(--sheet)); color: var(--ink); font-size: .76rem; line-height: 1.3; }
 .rf-issue[hidden] { display: none; }
 
@@ -64,6 +76,7 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 @keyframes rf-flow { to { stroke-dashoffset: -7.5; } }
 @media (prefers-reduced-motion: reduce) { .rf-link-flow { animation: none; } }
 .rf-link.dim { opacity: .14; }
+.rf-link.back { opacity: .12; }   /* left out by the lines panel: faint, and not to be tapped (it has no hit path) */
 .rf-link.sel .rf-link-line { stroke-opacity: 1; }
 .rf-link.sel { filter: drop-shadow(0 0 1.5px var(--ink)); }
 .rf-link.rf-right .rf-link-line { stroke: var(--rf-good); stroke-opacity: 1; }
@@ -181,6 +194,17 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-table tr.rf-differs td { color: var(--rf-in); font-weight: 750; }
 .rf-ok { color: var(--rf-good); } .rf-no { color: var(--rf-bad); } .rf-muted { color: var(--ink-soft); font-weight: 600; font-size: .74rem; }
 .rf-inline { background: none; border: 0; padding: 0; color: var(--rf-in); font: inherit; text-decoration: underline; cursor: pointer; text-align: left; }
+/* a card's streams: a row each, in its family's colour, to tap for its sheet (refinery.js, streamRow) */
+.rf-streams { display: grid; gap: .3rem; margin: .1rem 0 .4rem; }
+.rf-stream { display: grid; grid-template-columns: .25rem minmax(0, 1fr) auto 1rem; grid-template-areas: "c n v k" "c w w k"; align-items: center; gap: .05rem .55rem;
+  width: 100%; padding: .4rem .45rem .4rem .4rem; border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.rf-stream::before { content: ""; grid-area: c; align-self: stretch; border-radius: 2px; background: var(--c, var(--tile-edge)); }
+.rf-stream::after { content: "›"; grid-area: k; justify-self: end; font-size: 1.3rem; line-height: 1; color: var(--rf-in); }
+.rf-stream.fixed { cursor: default; }
+.rf-stream.fixed::after { content: none; }
+.rf-stream b { grid-area: n; font-size: .9rem; }
+.rf-stream span { grid-area: v; font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rf-stream small { grid-area: w; font-size: .76rem; color: var(--ink-soft); line-height: 1.3; }
 .rf-done p { margin: .4rem 0; }
 .rf-done-stars { font-size: 1.6rem; color: var(--brass-lo, var(--brass)); letter-spacing: .15em; }
 

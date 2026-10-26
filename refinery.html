@@ -40,7 +40,8 @@
   </section>
   <div id="stage" class="rf-stage fit-grow">
     <svg id="sheet" class="rf-sheet" role="img" aria-label="The refinery's flowsheet: tap an arrow to send a stream elsewhere, a unit or a product for its card; drag to move, pinch to zoom"></svg>
-    <div class="rf-zoom"><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomOut" aria-label="Zoom out">−</button><button type="button" id="zoomFit" aria-label="The whole plant">⤢</button></div>
+    <div class="rf-zoom"><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomOut" aria-label="Zoom out">−</button><button type="button" id="zoomFit" aria-label="The whole plant">⤢</button><button type="button" id="linesBtn" aria-label="Which lines to show" aria-expanded="false" aria-controls="linesPanel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.2 3.2h11.6L9.3 8.6v4.3l-2.6 1.4V8.6Z"/></svg></button></div>
+    <div id="linesPanel" class="rf-lines" hidden></div>
     <p id="issue" class="rf-issue" hidden></p>
   </div>
   <select id="level" class="rf-level-select" aria-label="Level" hidden></select>

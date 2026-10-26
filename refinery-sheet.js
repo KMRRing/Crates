@@ -96,13 +96,14 @@ export function poolSpecs(level, p, pool) {
 /**
  * Draws the plant into an svg: the layout, the links as the result runs them, the units with what they're running at,
  * the pools with their volumes and key specs. opts: { select: { stream } | { node }, only (node ids to draw full; the
- * rest faint), labels ({ node id: text }), flow (animate the flow), mini (a lesson's small picture: no figures) }.
+ * rest faint), fade (a stream → whether its links recede: faint, under the rest and not to be tapped, unless it's the
+ * one selected), labels ({ node id: text }), flow (animate the flow), mini (a lesson's small picture: no figures) }.
  * Returns the layout, so taps can be told apart (hitTest).
  */
 export function drawSheet(svg, level, result, opts = {}) {
   const lay = layout(level), N = lay.nodes, links = linksOf(level, result);
   const sel = opts.select || {}, only = opts.only ? new Set(opts.only) : null;
-  const faint = id => (only && !only.has(id)) || (sel.stream && false);
+  const recede = l => sel.stream !== l.stream && !!opts.fade?.(l.stream);
   const parts = [];
   // ports: where each link leaves its source (stacked by the stream's lightness) and enters its destination
   const outs = {}, ins = {};
@@ -122,20 +123,20 @@ export function drawSheet(svg, level, result, opts = {}) {
   };
   for (const [id, list] of Object.entries(outs)) port(N[id], list, "out");
   for (const [id, list] of Object.entries(ins)) port(N[id], list, "in");
-  // links under the nodes, lightest on top
+  // links under the nodes, those receding under the rest, then the widest first so the lightest are on top
   const linkSvg = [];
-  for (const l of links.sort((a, b) => b.vol - a.vol)) {
+  for (const l of links.sort((a, b) => recede(b) - recede(a) || b.vol - a.vol)) {
     const a = N[l.from], b = N[l.to];
     if (!a || !b) continue;
     const x1 = a.x + a.w, x2 = b.x, y1 = l.y1 ?? a.y + a.h / 2, y2 = l.y2 ?? b.y + b.h / 2;
     const dx = Math.max(18, (x2 - x1) * 0.5), w = Math.min(width(l.vol), l.w2 ?? 99, a.column ? 99 : (l.w1 ?? 99));
     const d = `M${x1.toFixed(1)} ${y1.toFixed(1)}C${(x1 + dx).toFixed(1)} ${y1.toFixed(1)} ${(x2 - dx).toFixed(1)} ${y2.toFixed(1)} ${(x2 - 1.5).toFixed(1)} ${y2.toFixed(1)}`;
-    const picked = sel.stream === l.stream, dim = (sel.stream && !picked) || (only && !(only.has(l.from) && only.has(l.to)) && !only.has(l.stream));
+    const picked = sel.stream === l.stream, dim = (sel.stream && !picked) || (only && !(only.has(l.from) && only.has(l.to)) && !only.has(l.stream)), back = recede(l);
     const col = GROUP_COLOUR[STREAMS[l.stream].group] || GROUP_COLOUR.other;
-    linkSvg.push(`<g class="rf-link${picked ? " sel" : ""}${dim ? " dim" : ""}" data-stream="${l.stream}">` +
-      `<path class="rf-link-hit" d="${d}" stroke-width="${Math.max(10, w + 6)}"/>` +
+    linkSvg.push(`<g class="rf-link${picked ? " sel" : ""}${dim ? " dim" : ""}${back ? " back" : ""}" data-stream="${l.stream}">` +
+      (back ? "" : `<path class="rf-link-hit" d="${d}" stroke-width="${Math.max(10, w + 6)}"/>`) +
       `<path class="rf-link-line" d="${d}" stroke="${col}" stroke-width="${w.toFixed(2)}"/>` +
-      (opts.flow !== false && !dim ? `<path class="rf-link-flow" d="${d}" stroke-width="${Math.max(0.8, w * 0.35).toFixed(2)}"/>` : "") +
+      (opts.flow !== false && !dim && !back ? `<path class="rf-link-flow" d="${d}" stroke-width="${Math.max(0.8, w * 0.35).toFixed(2)}"/>` : "") +
       `<path class="rf-link-head" d="M${(x2 - 4.5).toFixed(1)} ${(y2 - Math.max(2.2, w * 0.45)).toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}L${(x2 - 4.5).toFixed(1)} ${(y2 + Math.max(2.2, w * 0.45)).toFixed(1)}Z" fill="${col}"/></g>`);
   }
   parts.push(`<g class="rf-links">${linkSvg.join("")}</g>`);

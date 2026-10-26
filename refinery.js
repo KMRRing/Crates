@@ -15,7 +15,7 @@ import { noteStars } from "./suite.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, action, mirror, line, toggle } from "./menu.js";
+import { part, action, mirror, line, toggle, choice } from "./menu.js";
 import { createDuel } from "./duel.js";
 
 const $ = id => document.getElementById(id);
@@ -229,8 +229,9 @@ function finished(stars) {
 const svg = $("sheet"), pointers = new Map();
 let gesture = null, lastTap = 0;
 function drawPlant() {
-  const flow = read(FLOW, true) && !matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const lay = drawSheet(svg, L, R, { select: picked, flow });
+  const flow = read(FLOW, true) && !matchMedia("(prefers-reduced-motion: reduce)").matches, fade = fadeOf();
+  const lay = drawSheet(svg, L, R, { select: picked, flow, fade });
+  $("linesBtn").classList.toggle("on", !!fade);
   // room on the right for the zoom buttons, so they never sit on a product
   full = { x: -4, y: -4, w: lay.width + 8 + 40, h: lay.height + 8 };
   if (!view) view = { ...full };
@@ -286,6 +287,39 @@ svg.addEventListener("wheel", e => { e.preventDefault(); zoomAt(Math.exp(e.delta
 $("zoomIn").addEventListener("click", () => zoomAt(1 / 1.5));
 $("zoomOut").addEventListener("click", () => zoomAt(1.5));
 $("zoomFit").addEventListener("click", () => { view = { ...full }; applyView(); });
+
+// ---------- which lines the flowsheet shows ----------
+// A whole refinery draws a hundred lines, and most of a cracker's products have only one place to go. The lines panel
+// lets the rest recede: the streams with no other destination, and the families not chosen. What recedes stays faint,
+// so the plant still reads, and can't be tapped, so the lines left are easy to hit.
+const LINES = "refinery:lines";
+const FAMILIES = [["gas", "Gas & LPG"], ["naphtha", "Naphtha"], ["middle", "Distillates"], ["heavy", "Heavy oils"], ["resid", "Residue"], ["renewable", "Renewables"], ["other", "Other"]];
+let lines = { choices: false, family: "all", ...read(LINES, {}) };
+/** The families a level's streams come in: a family chosen on another level never leaves this one blank. */
+const familiesOf = lv => new Set(streamsOf(lv).map(s => STREAMS[s].group));
+/** Whether a stream's lines recede as the panel is set, or null when nothing does. */
+function fadeOf() {
+  const family = familiesOf(L).has(lines.family) ? lines.family : "all";
+  if (!lines.choices && family === "all") return null;
+  return s => (lines.choices && destinations(L, s).length < 2) || (family !== "all" && STREAMS[s].group !== family);
+}
+function setLines(next) { lines = { ...lines, ...next }; write(LINES, lines); drawPlant(); fillLines(); }
+function fillLines() {
+  const present = familiesOf(L), families = [["all", "All"], ...FAMILIES.filter(([g]) => present.has(g))];
+  const fam = choice("Family", families, present.has(lines.family) ? lines.family : "all", v => setLines({ family: v }));
+  // each family's button in the colour its lines are drawn in
+  fam.querySelectorAll("button").forEach((b, i) => { if (i) { b.classList.add("rf-fam"); b.style.setProperty("--c", GROUP_COLOUR[families[i][0]]); } });
+  $("linesPanel").replaceChildren(choice("Streams", [[false, "All"], [true, "With a choice"]], lines.choices, v => setLines({ choices: v })), fam);
+}
+function showLines(open) {
+  $("linesPanel").hidden = !open;
+  $("linesBtn").setAttribute("aria-expanded", String(open));
+  if (open) fillLines();
+}
+$("linesBtn").addEventListener("click", () => showLines($("linesPanel").hidden));
+// a tap anywhere else, or Escape, puts it away
+document.addEventListener("pointerdown", e => { if (!$("linesPanel").hidden && !e.target.closest?.("#linesPanel, #linesBtn")) showLines(false); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("linesPanel").hidden) showLines(false); });
 
 // ---------- a stream: where it goes, in shares ----------
 let splitFor = null, rowsFor = null, drag = null, allCache = null;
@@ -475,6 +509,17 @@ function settle(s, d, raw) {
 const edgeWords = b => [...new Set(b.pools.flatMap(p => (p.specs.length ? p.specs.map(k => `${lower(POOLS[p.was].name)} ${lower(PROPS[k].name)}`) : [lower(POOLS[p.was].name)])))].join(" · ");
 
 // ---------- cards: a unit, a product, the crude ----------
+/** Where a stream goes now, in a few words: "→ NHT 62% · Naphtha 38%", and "nowhere else" when it has one way out. */
+function goesTo(s) {
+  const to = Object.entries(R.streams[s]?.to || {}).filter(([, v]) => v > 1e-4).sort((a, b) => b[1] - a[1]), all = to.reduce((a, [, v]) => a + v, 0);
+  const name = d => (UNITS[d] || POOLS[d]).short;
+  return `→ ${to.length === 1 ? name(to[0][0]) : to.map(([d, v]) => `${name(d)} ${Math.round((v / all) * 100)}%`).join(" · ")}${destinations(L, s).length < 2 ? " · nowhere else" : ""}`;
+}
+/** Where a stream comes from now: the units that make it (the crude unit for a cut), or bought in. */
+function comesFrom(s) {
+  const from = [...Object.entries(R.units).filter(([, x]) => x.outputs?.[s] > 1e-4).map(([u]) => UNITS[u].short), ...(L.bought?.[s] ? ["bought in"] : [])];
+  return from.length ? `from ${from.join(" · ")}` : "";
+}
 function openCard(id) {
   picked = { node: id };
   drawPlant();
@@ -488,6 +533,19 @@ function openCard(id) {
     return t;
   };
   const streamLink = (s, text) => { const b = document.createElement("button"); b.type = "button"; b.className = "rf-inline"; b.textContent = text || STREAMS[s].name; b.addEventListener("click", () => { $("cardDlg").close(); openSplit(s); }); return b; };
+  // a stream as a row to tap for its sheet: its colour, name and flow, and where it goes or comes from
+  const streamRow = (s, v, where) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "rf-stream";
+    b.style.setProperty("--c", GROUP_COLOUR[STREAMS[s].group] || GROUP_COLOUR.other);
+    const name = document.createElement("b"); name.textContent = STREAMS[s].name;
+    const vol = document.createElement("span"); vol.textContent = amount(s, v);
+    const note = document.createElement("small"); note.textContent = where;
+    b.append(name, vol, note);
+    b.addEventListener("click", () => { $("cardDlg").close(); openSplit(s); });
+    return b;
+  };
+  const reagentRow = (r, v) => { const d = document.createElement("div"); d.className = "rf-stream fixed"; d.innerHTML = "<b></b><span></span><small></small>"; d.children[0].textContent = REAGENTS[r].name; d.children[1].textContent = kbd(v); d.children[2].textContent = "bought in"; return d; };
+  const streams = (head, rows) => { if (!rows.length) return; add("h3", null, head); add("div", "rf-streams").append(...rows); };
   if (id === "crude" || id === "cdu" || id === "cdu2") {
     const c = CRUDES[L.crude], cols = columnFeeds(L), F = id === "crude" ? L.feed ?? FEED : cols[id], unit = UNITS[id];
     $("cardTitle").textContent = unit ? `${unit.name} (${unit.short})` : `Crude: ${c.name}`;
@@ -517,8 +575,8 @@ function openCard(id) {
       // and together, where it takes more than one
       if (all != null && mine.length > 1) add("p", "rf-facts", `Together they're ${Math.round((mine.reduce((a, f) => a + run.feeds[f], 0) / run.feed) * 100)}% of its feed, of ${Math.round(all * 100)}% at most.`);
       shadow();
-      add("h3", null, "Now");
-      table([...Object.entries(run.feeds).map(([s, v]) => ["in", streamLink(s), amount(s, v)]), ...Object.entries(run.uses || {}).map(([r, v]) => ["in", REAGENTS[r].name, kbd(v)]), ...Object.entries(run.outputs).map(([s, v]) => ["out", streamLink(s), amount(s, v)])]);
+      streams("In", [...Object.entries(run.feeds).map(([s, v]) => streamRow(s, v, comesFrom(s))), ...Object.entries(run.uses || {}).map(([r, v]) => reagentRow(r, v))]);
+      streams("Out", Object.entries(run.outputs).filter(([, v]) => v > 1e-4).map(([s, v]) => streamRow(s, v, goesTo(s))));
     } else add("p", "rf-facts", `Idle: nothing is sent to it.${cap ? ` Capacity ${cap} kb/d.` : ""}`);
     for (const t of u.card) add("p", null, t);
     if (u.facts) { add("h3", null, "Operating"); table(u.facts); }
@@ -555,8 +613,7 @@ function openCard(id) {
       }), ["", "Limit", "Blend", ""]);
     }
     if (pool) {
-      add("h3", null, "What's in it");
-      table(Object.entries(pool.parts).sort((a, b) => b[1] - a[1]).map(([s, v]) => [streamLink(s), amount(s, v), `${Math.round((v / pool.vol) * 100)}%`]));
+      streams("What's in it", Object.entries(pool.parts).sort((a, b) => b[1] - a[1]).map(([s, v]) => streamRow(s, v, `${v / pool.vol < 0.005 ? "under 1%" : `${Math.round((v / pool.vol) * 100)}%`} of it · ${comesFrom(s)}`)));
     }
     if (def.sheet?.length) { add("h3", null, "The published specification"); table(def.sheet); }
   }
