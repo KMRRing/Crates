@@ -5,9 +5,9 @@
 // deals as its own; its words and its verdict on a move of yours follow its figures; and the weights it gives what a seat
 // has done match what Medium's computer players really held when they acted.
 // Run: node tests/holdem-coach.mjs
-import { rules, fresh, legal, alive, blindsOf, copy, STACK } from "../holdem-rules.js";
+import { rules, fresh, legal, alive, blindsOf, copy, sizes, STACK } from "../holdem-rules.js";
 import { botMove } from "../holdem-bot.js";
-import { think, options, known, ranges, holdings, ladder, weigh, sameMove, BUDGET } from "../holdem-think.js";
+import { think, options, known, ranges, holdings, ladder, weigh, sameMove, asGood, BUDGET } from "../holdem-think.js";
 import { moveName, moveSaid, adviceLine, verdict, near, gain, MARGIN } from "../holdem-coach.js";
 import { parseCards } from "../holdem-eval.js";
 import { seeded } from "../seats.js";
@@ -97,18 +97,24 @@ const spots = [5, 11, 17, 23, 29, 35].map(i => decisions[i % decisions.length]);
 
 // ---------- the same position, the same answer; what it advises is legal ----------
 {
-  let again = true, legalAll = true, finite = true, tried = 0, sorted = true;
+  let again = true, legalAll = true, finite = true, tried = 0, sorted = true, textbook = 0;
   for (const s of decisions.filter((_, i) => i % 3 === 0).slice(0, 12)) {
     const seat = s.turn, r = weigh_(s, seat, { maxDeals: 24 }), r2 = weigh_(s, seat, { maxDeals: 24 });
     tried++;
     if (!same(noTime(r), noTime(r2))) again = false;
     if (typeof rules.act(copy(s), seat, r.best, { now: NOW }) === "string") legalAll = false;
     if (!(r.equity >= 0 && r.equity <= 1) || !r.list.every(c => Number.isFinite(c.mean) && Number.isFinite(c.se)) || r.list.length < 2) finite = false;
-    const top = r.list.filter(c => c.n === r.deals).map(c => c.mean);
-    if (top.some((x, i) => i && x > top[i - 1] + 1e-9) || !sameMove(r.list[0].move, r.best)) sorted = false;
+    // best first, then by what each comes to; the best is the top figure, or as good as it: the next best when the top
+    // is an all-in it can't tell from it, or the textbook size
+    const top = r.list.filter(c => c.n === r.deals), rest = top.slice(1).map(c => c.mean), hi = top.reduce((a, c) => (c.mean > a.mean ? c : a));
+    if (rest.some((x, i) => i && x > rest[i - 1] + 1e-9) || !sameMove(r.list[0].move, r.best)) sorted = false;
+    if (hi !== top[0]) {
+      const shove = hi.move.t === "raise" && hi.move.to >= legal(s, seat).maxTo, std = r.best.t === "raise" && sizes(s, seat).find(x => x.std)?.to === r.best.to;
+      if (asGood({ gap: -hi.gap, se: hi.gapSe }) && (shove || std)) textbook++; else sorted = false;
+    }
   }
   check(again, `the same position weighed twice comes out the same (${tried} decisions)`);
-  check(legalAll && finite && sorted, "what it advises is a legal move; its figures are numbers, its equity a share, its list best first");
+  check(legalAll && finite && sorted, `what it advises is a legal move; its figures are numbers, its equity a share, its list best first (${textbook} times a move as good as the top figure: the textbook size, or not a shove)`);
 }
 
 // ---------- a move of yours, kept in to the end ----------

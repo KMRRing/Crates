@@ -7,7 +7,7 @@
 import { rules, alive, legal, sizes, blindsOf, potOf, HANDS, RAKES, DEFAULTS, STACK, SHOW_MS, FOLDED_MS } from "./holdem-rules.js";
 import { LEVEL_NAMES } from "./holdem-bot.js";
 import { think, sameMove, BUDGET } from "./holdem-think.js";
-import { moveSaid, adviceLine, verdict, gain, near } from "./holdem-coach.js";
+import { moveSized, adviceLine, verdict, gain, near } from "./holdem-coach.js";
 import { score, describe, equity, vsRandom, rankOf, suitOf, RANKS, RANK_WORDS, RANK_PLURAL, cardName } from "./holdem-eval.js";
 import { seatPage, fillNames } from "./seats-ui.js";
 import { seeded, mix } from "./seats.js";
@@ -55,7 +55,7 @@ const card = (id, cls = "") => cardHtml(face(id), { cls, label: cardName(id) });
 const cards = (ids, cls = "") => `<span class="cd-line">${ids.map(id => card(id, cls)).join("")}</span>`;
 const cap = s => s[0].toUpperCase() + s.slice(1);
 
-let V = null, page = null, raiseTo = null, sizeKey = "", eqCache = { key: "", v: null }, oddsCache = { key: "", v: null };
+let V = null, page = null, raiseTo = null, sizeMoved = false, sizeKey = "", eqCache = { key: "", v: null }, oddsCache = { key: "", v: null };
 page = seatPage({
   rules, id: "holdem", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
   onView: v => { V = v; draw(); }, onOver, toast, newGame,
@@ -125,7 +125,7 @@ function advise(v) {
   if (opts.coach !== "on" || IN_FRAME || !mine() || [advice?.key, weighing?.key, failed].includes(decisionOf(v))) return;
   weigh(v).then(a => {
     if (!a || !V?.G || decisionOf(V) !== a.key) return;
-    if (a.r.best.t === "raise" && mine() && (raiseTo == null || raiseTo === legal(V.state, V.seat).minTo)) raiseTo = a.r.best.to;
+    if (a.r.best.t === "raise" && mine() && !sizeMoved) raiseTo = a.r.best.to;
     draw();
   });
 }
@@ -318,17 +318,20 @@ const mine = () => V?.G && V.seat != null && V.state.step === "bet" && V.state.t
 const toOf = (t, lo, hi) => { const x = lo + (hi - lo) * (t / 1000) ** 2; return t >= 1000 ? hi : Math.max(lo, Math.min(hi, Math.round(x / 50) * 50)); };
 const tOf = (to, lo, hi) => (hi > lo ? Math.round(1000 * Math.sqrt(Math.max(0, to - lo) / (hi - lo))) : 1000);
 
+const IDLE = [["⅓ pot", "small"], ["¾ pot", "big"], ["Geometric", "to all in"], ["1¼ pot", "overbet"], ["All in", ""]].map(([label, role]) => ({ label, role }));
 function drawSize(v) {
   const box = $("size"), on = mine(), s = v.state;
   const list = on ? sizes(s, v.seat) : [];
   const me = on ? legal(s, v.seat) : null;
   const key = on ? `${v.G.seq}:${v.G.n}` : "";
-  if (key !== sizeKey) { sizeKey = key; raiseTo = me?.canRaise ? me.minTo : null; }
+  // a decision starts at the textbook size (holdem-rules.js' std), the cut point to weigh first
+  if (key !== sizeKey) { sizeKey = key; sizeMoved = false; raiseTo = me?.canRaise ? (list.find(x => x.std)?.to ?? me.minTo) : null; }
   const sig = `${key}:${list.map(x => x.to).join()}`;
   if (box.dataset.sig !== sig || !box.firstChild) {
     box.dataset.sig = sig;
-    box.innerHTML = `<div class="hd-presets">${(list.length ? list : [{ key: "min", label: "Min" }, { key: "half", label: "½ pot" }, { key: "three", label: "¾ pot" }, { key: "pot", label: "Pot" }, { key: "all", label: "All in" }])
-      .map(x => `<button type="button" class="btn" data-to="${x.to ?? ""}" ${list.length ? "" : "disabled"}>${esc(x.label)}</button>`).join("")}</div>
+    // the sizes worth a tap here (holdem-rules.js), each with what it's for; off your turn, the kinds there are
+    box.innerHTML = `<div class="hd-presets">${(list.length ? list : IDLE)
+      .map(x => `<button type="button" class="btn" data-to="${x.to ?? ""}" ${list.length ? "" : "disabled"}><span>${esc(x.label)}</span><small>${esc(x.role)}</small></button>`).join("")}</div>
       <input type="range" class="hd-slide" min="0" max="1000" step="1" aria-label="Raise to" ${list.length > 1 ? "" : "disabled"}>`;
   }
   syncSlide();
@@ -338,17 +341,26 @@ function syncSlide() {
   if (!sl) return;
   const me = mine() ? legal(V.state, V.seat) : null;
   sl.value = me?.canRaise && raiseTo != null ? tOf(raiseTo, me.minTo, me.maxTo) : 0;
+  markSize();
+}
+/** The size the raise is at, lit among the buttons when it's one of theirs. */
+function markSize() {
+  const on = mine();
+  for (const b of document.querySelectorAll(".hd-presets button[data-to]")) b.classList.toggle("on", on && b.dataset.to !== "" && Number(b.dataset.to) === raiseTo);
 }
 $("size").addEventListener("input", e => {
   if (!e.target.classList.contains("hd-slide") || !mine()) return;
   const me = legal(V.state, V.seat);
   raiseTo = toOf(Number(e.target.value), me.minTo, me.maxTo);
+  sizeMoved = true;
+  markSize();
   drawBar();
 });
 $("size").addEventListener("click", e => {
   const b = e.target.closest("button[data-to]");
   if (!b || b.disabled || !mine() || b.dataset.to === "") return;
   raiseTo = Number(b.dataset.to);
+  sizeMoved = true;
   syncSlide();
   drawBar();
 });
@@ -365,8 +377,8 @@ function drawBar() {
   const adv = on && coaching() ? advised(v) : null, ring = (...ts) => (adv && ts.includes(adv.t) ? " advised" : "");
   // a fold is for when there's something to call: a free fold is never right, so it waits
   bar.innerHTML = `<button type="button" class="btn hd-go${ring("fold")}" data-act="fold" ${on && me.toCall ? "" : "disabled"}>Fold</button>
-    <button type="button" class="btn hd-go call${ring("check", "call")}" data-act="${on && !me.toCall ? "check" : "call"}" ${on ? "" : "disabled"}>${esc(cLabel)}</button>
-    <button type="button" class="btn primary hd-go raise${ring("raise")}" data-act="raise" ${raise ? "" : "disabled"}>${esc(rLabel)}</button>`;
+    <button type="button" class="btn hd-go call${ring("check", "call")}${cLabel.length > 10 ? " long" : ""}" data-act="${on && !me.toCall ? "check" : "call"}" ${on ? "" : "disabled"}>${esc(cLabel)}</button>
+    <button type="button" class="btn primary hd-go raise${ring("raise")}${rLabel.length > 12 ? " long" : ""}" data-act="raise" ${raise ? "" : "disabled"}>${esc(rLabel)}</button>`;
 }
 $("bar").addEventListener("click", async e => {
   const b = e.target.closest("button");
@@ -395,10 +407,10 @@ function showWhy(which) {
     const rows = r.list.slice(0, 8).map((c, i) => {
       const you = mineMove && sameMove(c.move, mineMove);
       const figs = c.move.t === "fold" ? "what folding comes to" : `${gain(c.mean)} (±${near(c.se)}) beyond folding · wins the pot ${pc(c.won)}${c.alone >= 0.01 ? ` · everyone folds ${pc(c.alone)}` : ""}`;
-      return `<li class="${i === 0 ? "best" : ""}${you ? " mine" : ""}"><b>${esc(moveSaid(c.move, st, seat))}</b>${i === 0 ? " · the coach's choice" : you ? " · yours" : ""}<span class="hd-fig">${esc(figs)}${c.n ? ` · ${c.n} deals` : ""}</span></li>`;
+      return `<li class="${i === 0 ? "best" : ""}${you ? " mine" : ""}"><b>${esc(moveSized(c.move, st, seat))}</b>${i === 0 ? " · the coach's choice" : you ? " · yours" : ""}<span class="hd-fig">${esc(figs)}${c.n ? ` · ${c.n} deals` : ""}</span></li>`;
     }).join("");
     const yours = mineMove && !r.list.slice(0, 8).some(c => sameMove(c.move, mineMove)) ? r.list.find(c => sameMove(c.move, mineMove)) : null;
-    const extra = yours ? `<li class="mine"><b>${esc(moveSaid(yours.move, st, seat))}</b> · yours<span class="hd-fig">${esc(`${gain(yours.mean)} (±${near(yours.se)}) beyond folding`)} · ${yours.n} deals</span></li>` : "";
+    const extra = yours ? `<li class="mine"><b>${esc(moveSized(yours.move, st, seat))}</b> · yours<span class="hd-fig">${esc(`${gain(yours.mean)} (±${near(yours.se)}) beyond folding`)} · ${yours.n} deals</span></li>` : "";
     return `<ol class="hd-choices">${rows}${extra}</ol><p class="hd-why-note">Each move played to the end of the hand in the same ${r.deals} deals of the cards you can't see (the others' drawn from the hands their betting shows), every seat by Medium's rules, the house's commission taken; the figure is the chips it comes to beyond folding, on average.</p>`;
   };
   if (which === "review") {

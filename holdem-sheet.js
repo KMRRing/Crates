@@ -41,6 +41,14 @@ export function rulesHtml(opts = {}) {
       <li><b>All in</b> (全押, cyun4 aat3): bet every chip you have. There's no limit on a bet but your chips (Article 11); a player all in can win only what the others matched, and the rest is played for in a side pot between those with chips left.</li>
       <li>An all-in bet short of a full raise can be called but doesn't let those who had already acted raise again.</li>
     </ul>
+    <h3>How much to bet</h3>
+    <p>The regulation has no say in this. The size buttons offer what bet-sizing theory has a player consider, worked out for the spot; the slider sets any other.</p>
+    <ul>
+      <li><b>Before the flop.</b> Open to 2, 2½ or 3 big blinds (2½ is usual), one more for each player who limped in. Re-raise (a 3-bet) to three times the raise if you'll act after the raiser on the later streets (in position), four if you won't, and one more for each player who called it; a 4-bet is 2.2 times in position, 2.5 out of it. With fifteen big blinds or fewer, all in or fold.</li>
+      <li><b>After it.</b> A third of the pot (small): bet with much of your range, for thin value and to protect a middling hand, cheaply. Three quarters (big): strong hands and bluffs, the middle checked, and a draw pays to see a card. The geometric size: the same share of the pot on every street to come puts the stacks in on the river, the most a calling hand can be made to pay. 1¼ pots (an overbet), when you hold the strongest hands and they can't. Facing a bet: three times it, the geometric raise (on the river, the pot), all in.</li>
+      <li><b>What a size asks.</b> A call must win bet ÷ (pot + 2 × bet) of the time: 20% against a third of the pot, 30% against three quarters, a third against the pot. The bigger the bet, the more it says the hand is strong or nothing (polarized) and the fewer hands should call; a small bet says little and is called by much.</li>
+      <li>A size that would leave less than a third of the pot behind is all in: there'd be nothing left to play for.</li>
+    </ul>
     <h3>The hands</h3>
     <table class="hd-ranks"><tbody>${HAND_EXAMPLES.map(row).join("")}</tbody></table>
     <p>Suits never rank (Article 14). Equal hands split the pot, and the odd chips go to the first of them left of the button (Article 10). When two hands are of one kind the higher cards win; the other cards count as the regulation has it (Article 15): four of a kind takes the best other card, three of a kind two, two pair one, a pair three; a flush, a straight's top card and a high card compare card by card from the top.</p>

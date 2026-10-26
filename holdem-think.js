@@ -270,15 +270,36 @@ export function think(state, seat, { maxDeals = 320, ms = 6000, minDeals = 40, m
     const mean = c.sum / c.n, sd = Math.sqrt(Math.max(0, c.sq / c.n - mean * mean));
     return { move: c.move, mean, se: sd / Math.sqrt(c.n), n: c.n, vals: c.vals, won: c.won / c.n, alone: c.alone / c.n };
   });
-  const most = Math.max(...done.map(c => c.n)), top = done.filter(c => c.n === most).sort((a, b) => b.mean - a.mean), best = top[0];
+  const most = Math.max(...done.map(c => c.n)), top = done.filter(c => c.n === most).sort((a, b) => b.mean - a.mean);
+  let best = top[0];
+  // An all-in must be clearly better than the next best move to be the choice: its figure is the noisiest, and the
+  // best of several noisy figures is most often the noisiest by luck (a shove the deals can't tell from a fold is a
+  // hundred big blinds risked for nothing anyone can measure).
+  const allIn = c => c.move.t === "raise" && c.move.to >= me.maxTo;
+  if (allIn(best)) {
+    const next = top.find(c => !allIn(c));
+    if (next && asGood(behind(best, next))) best = next;
+  }
+  // Between sizes of raise its deals can't tell apart, the textbook one (sizes()' std): a size picked by the deals'
+  // luck would wander from spot to spot, and say more about the hand than it should. Only while it still comes to more
+  // than not raising, so the choice to raise stands; and not all in, which must be clearly better, as above.
+  if (best.move.t === "raise") {
+    const std = sizes(s, seat).find(x => x.std), c = std && top.find(c => c.move.t === "raise" && c.move.to === std.to);
+    const rest = Math.max(...top.filter(x => x.move.t !== "raise").map(x => x.mean));
+    if (c && c !== best && !allIn(c) && c.mean >= rest && asGood(behind(best, c))) best = c;
+  }
   for (const c of done) { const { gap, se } = behind(best, c); c.gap = gap; c.gapSe = se; }
   for (const c of done) delete c.vals;
   const used = deals.slice(0, best.n);
   return {
-    best: best.move, list: [...top, ...done.filter(c => c.n !== most).sort((a, b) => b.mean - a.mean)], deals: best.n, only: false, ...base,
+    best: best.move, list: [best, ...top.filter(c => c !== best), ...done.filter(c => c.n !== most).sort((a, b) => b.mean - a.mean)], deals: best.n, only: false, ...base,
     equity: sum(used.map(d => d.share)) / used.length, ms: Date.now() - start,
   };
 }
+/** Below this a move is as good as the best, in chips (a big blind), unless it's two standard errors behind as well. */
+export const MARGIN = BLINDS.big;
+/** Whether a move so far behind the best ({ gap, se }) is as good as it, as near as the deals can tell. */
+export const asGood = ({ gap, se }) => !(gap > MARGIN && gap > 2 * se);
 /** How far one move is behind another, deal by deal over the deals both saw, and how sure. */
 function behind(a, c) {
   const n = Math.min(c.n, a.n);

@@ -83,13 +83,22 @@ html[data-theme="office"][data-mode="night"] { --hd-in: #479EF5; }
 .hd-watch { margin: auto; color: var(--ink-soft); }
 .hd-size { display: grid; gap: .25rem; height: 4.1rem; align-content: start; }
 .hd-presets { display: flex; gap: .3rem; }
-.hd-presets button { flex: 1 1 0; min-width: 0; min-height: 1.95rem; padding: .1rem .15rem; font-size: .74rem; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hd-presets button { flex: 1 1 0; min-width: 0; min-height: 1.95rem; padding: .1rem .15rem; font-size: .74rem; letter-spacing: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; }
+/* each size says what it is and, smaller, what it's for: "⅓ pot / small", "3× / in position" */
+.hd-presets button span, .hd-presets button small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hd-presets button small { font-size: .58rem; font-weight: 400; color: var(--ink-soft); }
+.hd-presets button:disabled small { color: inherit; }
+/* the size the raise is at, when it's one of these */
+.hd-presets button.on { border-color: var(--hd-in); background: color-mix(in srgb, var(--hd-in) 15%, var(--sheet)); }
+.hd-presets button.on small { color: var(--hd-in); }
 .hd-slide { width: 100%; height: 1.6rem; margin: 0; accent-color: var(--hd-in); touch-action: pan-y; }
 .hd-slide:disabled { opacity: .35; }
 .hd-bar { display: flex; gap: .45rem; align-items: center; }
 .hd-go { flex: 1 1 0; min-width: 0; min-height: 2.9rem; padding: .3rem .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hd-go.raise { flex: 1.7 1 0; }
 .hd-go.call { flex: 1.3 1 0; }
+/* a long label ("Raise to 1,200", a call all in) drops the wide lettering rather than be cut short on a phone */
+.hd-go.long { letter-spacing: 0; font-stretch: 100%; }
 
 /* ---------- the coach ---------- */
 /* up to three lines under your cards, and a Hint button; while it is on it keeps its room, so the table holds its size as the coach speaks and falls quiet */

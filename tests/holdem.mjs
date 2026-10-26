@@ -89,17 +89,59 @@ const spread = (n, ...texts) => Array.from({ length: n }, (_, i) => texts[i] || 
   const r2 = ok(r, 1, { t: "raise", to: 1500 });
   check(r2.raise === 1200 && legal(r2, 2).minTo === 2700 && legal(r2, 2).toCall === 1400, "a raise of 1,200 sets the least for the next: to 2,700");
   check(s.raises === 0 && r.raises === 1 && r2.raises === 2 && ok(ok(r, 1, { t: "call" }), 2, { t: "call" }).raises === 0, "bets and raises are counted for the round (the blinds aren't), and start again with the flop");
-  check(sizes(s, 0).map(x => x.to).join() === "200,250,300,350,10000" && sizes(s, 0).map(x => x.label).join() === "Min,½ pot,¾ pot,Pot,All in", "the raises offered in a tap: the least, half the pot, three quarters, the pot (call, then raise the pot: 100 + 250), all in, on the table's steps of 50");
+  check(sizes(s, 0).map(x => `${x.label}/${x.role}:${x.to}${x.std ? "*" : ""}`).join() === "2 BB/open:200,2½ BB/open:250*,3 BB/open:300,All in/10,000:10000", "the raises offered in a tap, first in before the flop: an open of 2, 2½ (the textbook one) or 3 big blinds, and all in");
   const board = "Ac 7s 9d Jh 3c";
   const deep = stacks => rig({ seats: 3, button: 0, holes: spread(3), board, stacks });
   const at300 = ok(deep([STACK, 400, STACK]), 0, { t: "raise", to: 300 });
-  check(sizes(deep([STACK, 400, STACK]), 0).length === 5 && sizes(at300, 1).map(x => `${x.label}:${x.to}`).join() === "All in:400", "a player with too little for a full raise is offered only all in");
+  check(sizes(deep([STACK, 400, STACK]), 0).length === 4 && sizes(at300, 1).map(x => `${x.label}:${x.to}`).join() === "All in:400", "a player with too little for a full raise is offered only all in");
   check(sizes(ok(deep([STACK, 150, STACK]), 0, { t: "raise", to: 300 }), 1).length === 0, "one who can't even cover the bet isn't offered a raise at all");
   const bb = many(s, [[0, { t: "call" }], [1, { t: "call" }]]);
   check(bb.turn === 2 && bb.step === "bet" && bb.seen === 0 && legal(bb, 2).canCheck && legal(bb, 2).toCall === 0, "the big blind has the option to check when no one has raised (Article 6)");
   check(ok(bb, 2, { t: "check" }).seen === 3, "the round over, the flop is turned");
   const rb = ok(bb, 2, { t: "raise", to: 300 });
   check(rb.turn === 0 && rb.acted[2] && !rb.acted[0] && !rb.acted[1], "the big blind may raise instead, and the others must answer");
+}
+
+// ---------- the sizes worth a tap ----------
+{
+  const said = (st, seat) => sizes(st, seat).map(x => `${x.label}/${x.role}:${x.to}${x.std ? "*" : ""}`).join(" ");
+  const six = rig({ seats: 6, button: 0, holes: spread(6), board: "Ac 7s 9d Jh 3c" });
+  const limped = ok(six, 3, { t: "call" });
+  check(said(limped, 4) === "3 BB/+1 limper:300 3½ BB/+1 limper:350* 4 BB/+1 limper:400 All in/10,000:10000", `after a limper, a big blind more for it (${said(limped, 4)})`);
+  const opened = ok(limped, 4, { t: "raise", to: 400 });
+  check(said(opened, 5) === "3×/in position:1200* 4×/out of position:1600 All in/10,000:10000", `a 3-bet: three times the raise in position, four out of it; the cutoff is in position to the hijack's open (${said(opened, 5)})`);
+  const called = many(opened, [[5, { t: "call" }], [0, { t: "fold" }]]);
+  check(said(called, 1) === "4×/in position:1600 5×/out of position:2000* All in/10,000:10000", `with a caller one raise more; the small blind is out of position (${said(called, 1)})`);
+  const three = ok(called, 1, { t: "raise", to: 2000 });
+  check(said(three, 2) === "2.2×/in position:4400* 2.5×/out of position:5000 All in/10,000:10000", `a 4-bet: 2.2 times in position, 2.5 out of it; the big blind acts after the small after the flop (${said(three, 2)})`);
+  const short = rig({ seats: 3, button: 0, holes: spread(3), board: "Ac 7s 9d Jh 3c", stacks: [1200, STACK, STACK] });
+  check(sizes(short, 0).find(x => x.std)?.key === "all", "with fifteen big blinds or fewer all in is the textbook raise");
+  // heads-up, a single raised pot: 600 in the middle, 9,700 behind
+  const hu = many(rig({ seats: 2, button: 0, holes: spread(2), board: "Ac 7s 9d Jh 3c" }), [[0, { t: "raise", to: 300 }], [1, { t: "call" }]]);
+  check(said(hu, 1) === "⅓ pot/small:200* ¾ pot/big:450 110%/geometric:650 All in/9,700:9700", `on the flop: a third (the textbook one), three quarters, the geometric size, all in; past the pot the geometric size is the overbet (${said(hu, 1)})`);
+  const f = (((1 + (2 * 9700) / 600) ** (1 / 3)) - 1) / 2, g = sizes(hu, 1).find(x => x.key === "geo");
+  check(Math.abs(600 * (1 + 2 * f) ** 3 - (600 + 2 * 9700)) < 1e-6 && Math.abs(g.to - 600 * f) <= 25, "the geometric size: the same share of the pot bet on the flop, the turn and the river puts 9,700 in by the river");
+  const faced = many(hu, [[1, { t: "check" }], [0, { t: "raise", to: 200 }]]);
+  check(said(faced, 1) === "3×/raise:600* 5.3×/geometric:1050 All in/9,700:9700", `facing a bet: three times it, the geometric raise, all in (${said(faced, 1)})`);
+  const river = many(hu, [[1, { t: "check" }], [0, { t: "check" }], [1, { t: "check" }], [0, { t: "check" }]]);
+  check(river.seen === 5 && said(river, 1) === "⅓ pot/small:200 ¾ pot/big:450* 1¼ pot/overbet:750 All in/9,700:9700", `on the river no geometric size (it's all in), and the big bet the textbook one (${said(river, 1)})`);
+  // a 3-bet pot's turn: the stacks are less than the pot, and any bet leaves too little behind to play for
+  const low = many(rig({ seats: 2, button: 0, holes: spread(2), board: "Ac 7s 9d Jh 3c" }), [[0, { t: "raise", to: 300 }], [1, { t: "raise", to: 3000 }], [0, { t: "call" }], [1, { t: "raise", to: 2000 }], [0, { t: "call" }]]);
+  check(low.seen === 4 && said(low, 1) === "All in/5,000:5000*", `a size that would leave less than a third of the pot behind is all in (${said(low, 1)})`);
+  // the others' chips: past what anyone can match, a bet is only handed back
+  const covered = many(rig({ seats: 2, button: 0, holes: spread(2), board: "Ac 7s 9d Jh 3c", stacks: [STACK, 2000] }), [[0, { t: "raise", to: 300 }], [1, { t: "call" }]]);
+  check(sizes(covered, 0).every(x => x.key === "all" || x.to < 1700) && sizes(covered, 0).some(x => x.key === "geo"), "the geometric size is worked out from what the others can match");
+  let fine = true;
+  for (let k = 0; k < 300; k++) {
+    const rng = seeded(500 + k);
+    let st = fresh({ seats: 2 + (k % 5), options: {}, rng, now: NOW, fixed: { button: k % 3 } });
+    for (let n = 0; n < 60 && st.step === "bet"; n++) {
+      const i = st.turn, me = legal(st, i), list = sizes(st, i);
+      if (me.canRaise && (list.filter(x => x.std).length !== 1 || list[list.length - 1].key !== "all" || list.some((x, j) => (x.key !== "all" && x.to % 50) || x.to < me.minTo || x.to > me.maxTo || (j && x.to <= list[j - 1].to)))) fine = false;
+      st = rules.act(st, i, botMove(st, i, { level: "medium", rng }), { now: NOW });
+    }
+  }
+  check(fine, "at every decision of 300 hands: the sizes ascend on the table's steps between the least raise and all in, all in last, one of them the textbook size");
 }
 
 // ---------- the board in stages, and the order of play ----------

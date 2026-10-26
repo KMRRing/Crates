@@ -73,13 +73,90 @@ export function sizeTo(s, seat, me, frac) {
   const to = s.bets[seat] + me.toCall + frac * (me.pot + me.toCall);
   return Math.max(me.minTo, Math.min(me.maxTo, roundTo(to, BLINDS.small)));
 }
-/** The raises a page offers a seat in one tap: the least, half the pot, three quarters, the pot, all in ([] when it can't raise). */
+// ---------- the sizes worth a tap ----------
+// The sizes bet-sizing theory has a player consider, worked out for the spot (README, Texas Hold'em: the sizes). Before
+// the flop, an open of 2, 2½ or 3 big blinds and one more for each limper; a 3-bet of three times the raise in position
+// and four out of it, one more for each caller; a 4-bet of 2.2 times in position and 2.5 out of it. After it, a third of
+// the pot (small: a wide range, thin value, protection), three quarters (big: a polarized range, the draws charged), the
+// geometric size (the same share of the pot on every street to come puts the stacks in on the river), 1¼ pots (an
+// overbet, for the side holding the strongest hands) and all in; facing a bet, three times it and the geometric raise
+// (the pot on the river, where the geometric raise is all in). A size that would leave less than a third of the pot
+// behind is all in, and of two sizes a step apart only one is offered.
+
+/** Seats in the order they act after the flop (0 first): the button last. */
+const turnOrder = (s, i) => (i - s.button - 1 + 2 * s.seats) % s.seats;
+/** Which of two sizes a step apart is offered: the geometric over a plain fraction, either over the least raise. */
+const RANK = { min: 0, open: 1, x: 1, third: 1, three: 1, pot: 1, over: 1, geo: 2 };
+
+/**
+ * The raises a page offers a seat in one tap, smallest first and all in last ([] when it can't raise): { key, label (the
+ * size: "⅓ pot", "2½ BB", "3×"), role (what it's for: "small", "open", "in position", "geometric"; all in's chips), to,
+ * std (the textbook size here, one of them: the coach plays it when its deals can't tell the sizes apart) }.
+ */
 export function sizes(s, seat) {
   const me = legal(s, seat);
   if (!me.canRaise) return [];
-  if (me.minTo >= me.maxTo) return [{ key: "all", label: "All in", to: me.maxTo }];
-  return [{ key: "min", label: "Min", to: me.minTo }, { key: "half", label: "½ pot", to: sizeTo(s, seat, me, 0.5) }, { key: "three", label: "¾ pot", to: sizeTo(s, seat, me, 0.75) },
-    { key: "pot", label: "Pot", to: sizeTo(s, seat, me, 1) }, { key: "all", label: "All in", to: me.maxTo }];
+  const all = { key: "all", label: "All in", role: fmt(me.maxTo), to: me.maxTo, std: false };
+  if (me.minTo >= me.maxTo) return [{ ...all, std: true }];
+  const bb = BLINDS.big, mine = s.bets[seat], P = me.pot + me.toCall, log = s.log || [];
+  // what the others can match: past it a bet is only handed back
+  const cover = Math.min(me.maxTo, Math.max(...alive(s).filter(i => i !== seat).map(i => s.bets[i] + s.stacks[i])));
+  const list = [];
+  const add = (key, label, role, to, std = false) => list.push({ key, label, role, to, std });
+  /** The geometric share of the pot: bet on each of the `n` streets left, it puts the stacks in on the last. */
+  const geoShare = n => { const behind = cover - mine - me.toCall; return behind > 0 ? ((1 + (2 * behind) / P) ** (1 / n) - 1) / 2 : null; };
+  // a bet says its share of the pot; a raise, like the others offered against a bet, its multiple of the bet
+  const geo = f => { const to = mine + me.toCall + f * P; add("geo", me.toCall ? `${+(to / s.bet).toFixed(1)}×` : `${5 * Math.round(20 * f)}%`, "geometric", to); };
+  const blinds = x => `${String(x).replace(".5", "½")} BB`;
+  if (s.seen === 0) {
+    const raise = [...log].reverse().find(e => e.seen === 0 && e.t === "raise");
+    const ip = !!raise && turnOrder(s, seat) > turnOrder(s, raise.i);
+    const short = cover <= 15 * bb;                          // fifteen big blinds or fewer: all in or fold
+    if (!s.raises) {
+      const limpers = alive(s).filter(i => i !== seat && s.last[i].startsWith("call")).length;
+      const role = limpers ? `+${limpers} limper${limpers > 1 ? "s" : ""}` : "open";
+      for (const x of [2, 2.5, 3]) add("open", blinds(x + limpers), role, (x + limpers) * bb, !short && x === 2.5);
+    } else if (s.raises === 1) {
+      // one more raise for each player who called it: they've priced themselves in
+      const callers = alive(s).filter(i => i !== seat && i !== raise?.i && s.bets[i] === s.bet && s.last[i].startsWith("call")).length;
+      add("x", `${3 + callers}×`, "in position", (3 + callers) * s.bet, !short && ip);
+      add("x", `${4 + callers}×`, "out of position", (4 + callers) * s.bet, !short && !ip);
+    } else {
+      add("x", "2.2×", "in position", 2.2 * s.bet, !short && ip && s.raises === 2);
+      add("x", "2.5×", "out of position", 2.5 * s.bet, !short && !ip && s.raises === 2);
+    }
+    if (short || s.raises >= 3) all.std = true;
+  } else {
+    const left = s.seen === 3 ? 3 : s.seen === 4 ? 2 : 1;   // streets to bet on, this one included
+    const f = left > 1 ? geoShare(left) : null;
+    if (!me.toCall) {
+      // a small bet on the flop, a big one later: ranges narrow, and the bets that are left polarize them
+      add("third", "⅓ pot", "small", P / 3, s.seen === 3);
+      add("three", "¾ pot", "big", 0.75 * P, s.seen > 3);
+      if (f != null) geo(f);
+      if (f == null || f < 1) add("over", "1¼ pot", "overbet", 1.25 * P);   // a geometric size past the pot is the overbet
+    } else {
+      add("x", "3×", "raise", 3 * s.bet, true);
+      if (f != null) geo(f); else add("pot", "Pot", "raise", mine + me.toCall + P);
+    }
+  }
+  // on the table's steps, at least the least raise; all in when it leaves too little behind to play for; one of two alike
+  const out = [];
+  for (const x of list.map(x => ({ ...x, to: roundTo(x.to, BLINDS.small) })).sort((a, b) => a.to - b.to)) {
+    if (x.to < me.minTo) Object.assign(x, { key: "min", label: "Min", to: me.minTo });
+    const potAfter = me.pot + (x.to - mine) + (x.to - s.bet);
+    if (x.to >= cover || cover - x.to < Math.max(bb, potAfter / 3)) { all.std ||= x.std; continue; }
+    const prev = out[out.length - 1];
+    if (prev && x.to - prev.to < Math.max(BLINDS.small, 0.1 * P)) {
+      const std = prev.std || x.std;
+      if (RANK[x.key] > RANK[prev.key]) out[out.length - 1] = x;
+      out[out.length - 1].std = std;
+      continue;
+    }
+    out.push(x);
+  }
+  if (!out.some(x => x.std)) all.std = true;
+  return [...out, all];
 }
 
 // ---------- a hand ----------

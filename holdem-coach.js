@@ -2,8 +2,10 @@
 // A move by name ("raise to 900", "call 400", "all in 9,600"), the coach's line at a decision (its move, how often the hand
 // wins against what the others have shown, what a call costs against that, how often a raise takes the pot at once), and the
 // check's verdict on a move of yours: as good, or how many chips worse and why. Pure, so the tests read it as the page does.
-import { legal } from "./holdem-rules.js";
-import { sameMove } from "./holdem-think.js";
+import { legal, sizes } from "./holdem-rules.js";
+import { sameMove, asGood, MARGIN } from "./holdem-think.js";
+
+export { MARGIN };
 
 const fmt = n => Math.round(n).toLocaleString("en-GB");
 const pc = x => `${Math.round(100 * x)}%`;
@@ -23,6 +25,14 @@ export function moveName(m, s, seat) {
 }
 /** A move as an instruction: "Fold", "Call 400", "Raise to 900". */
 export const moveSaid = (m, s, seat) => { const w = moveName(m, s, seat); return w[0].toUpperCase() + w.slice(1); };
+/** Which of the page's sizes a raise is, if it's one: "⅓ pot", "2½ BB", "3×", "geometric, 110%" ("" for all in, or a size of its own). */
+export function sizeName(m, s, seat) {
+  if (m?.t !== "raise") return "";
+  const x = sizes(s, seat).find(x => x.to === m.to);
+  return !x || x.key === "all" ? "" : x.key === "geo" ? `geometric, ${x.label}` : x.label;
+}
+/** A move with its size: "Bet 200 (⅓ pot)", "Raise to 1,200 (3×)". */
+export const moveSized = (m, s, seat) => { const n = sizeName(m, s, seat); return `${moveSaid(m, s, seat)}${n ? ` (${n})` : ""}`; };
 
 /** What the others have shown, for how the hand's chances are put: against the hands that bet once anyone has, else against any hand they could hold. */
 const against = s => (s.log.some(e => e.t === "raise") ? "the hands that bet" : "the hands they could hold");
@@ -32,7 +42,7 @@ const entry = (r, m) => r.list.find(c => sameMove(c.move, m));
 export function adviceLine(r, s, seat) {
   const m = r.best, c = entry(r, m);
   if (r.only) return `${moveSaid(m, s, seat)}: the only move`;
-  const parts = [moveSaid(m, s, seat)];
+  const parts = [moveSized(m, s, seat)];
   if (m.t === "raise" && c.alone >= 0.1) parts.push(`everyone folds ${pc(c.alone)} of the time`);
   else if (r.equity != null) parts.push(`about ${pc(r.equity)} to win${r.toCall && m.t !== "raise" ? `, a call needs ${pc(r.needs)}` : ""}`);
   if (m.t !== "fold") parts.push(`worth ${gain(c.mean)} on average`);
@@ -52,8 +62,6 @@ function why(r, mine, best, m, b, s) {
   return out.slice(0, 2);
 }
 
-/** Below this a move is as good as the coach's, in chips (a big blind), and it must be twice its standard error clear. */
-export const MARGIN = 100;
 /**
  * The check's verdict on a move of yours, from the coach's weighing of the position before it (`r`, with your move in it):
  * null when it's the coach's or as good, as near as the deals can tell; else { gap (chips), se, words, best }.
@@ -61,7 +69,7 @@ export const MARGIN = 100;
 export function verdict(r, mine, s, seat) {
   const best = r.list[0], m = entry(r, mine);
   if (!m || sameMove(best.move, mine) || r.only) return null;
-  if (!(m.gap > MARGIN && m.gap > 2 * m.gapSe)) return null;
+  if (asGood({ gap: m.gap, se: m.gapSe })) return null;
   const b = best.move, theirs = b.t === "fold" ? "folding" : moveName(b, s, seat);
   const yours = mine.t === "fold" ? "fold" : moveName(mine, s, seat);
   const reasons = why(r, mine, b, m, best, s);
