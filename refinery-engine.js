@@ -329,18 +329,57 @@ export const priceOf = (level, p) => level.prices?.[p] ?? (p === "notBought" ? b
 const boughtPrice = level => { const s = Object.keys(level.bought || {}).find(x => POOLS.notBought.accept.includes(x)); return s ? (level.prices?.[s] ?? BOUGHT[s] ?? 0) : 0; };
 /** A bought stream's price, handed back for each barrel of it left with the seller. */
 export const refundOf = (level, s) => level.prices?.[s] ?? BOUGHT[s] ?? 0;
+/**
+ * What puts a pool off spec: each limit it fails, the furthest missed first (against the limit), with the streams in
+ * it on the wrong side. A blend is the weighted mean of its streams' blending indices (by volume, or by mass), so a
+ * stream's push is its weight times how far its index lies past the limit's; streams on the right side give the rest
+ * room. Returns [{ k, dir, lim, v, by: [{ s, vol, v, share, out }] }]: the limit, the blend's value, and each stream
+ * pushing it over, the hardest first, with its value, its share of the push, and the kb/d of it in the least taken out
+ * that brings the blend to the limit (the streams that push most a barrel first, each wholly, the last in part; 0 for
+ * one that needn't move).
+ */
+export function culprits(level, result, p) {
+  const pool = result.pools[p];
+  if (!pool || pool.inSpec || pool.vol <= 1e-4) return [];
+  const miss = f => (PROPS[f.k].flag ? 1 : Math.abs(f.v - f.lim) / Math.max(Math.abs(f.lim), 1));
+  return [...pool.fails].sort((a, b) => miss(b) - miss(a)).map(f => {
+    const at = toIndex(f.k, f.lim), sign = f.dir === "max" ? 1 : -1;
+    const all = Object.entries(pool.parts).map(([s, vol]) => {
+      const pr = result.streams[s]?.props || {}, v = pr[f.k] ?? (ZERO.has(f.k) ? 0 : null);
+      if (v == null) return null;                    // a stream without the property doesn't blend in it
+      const w = PROPS[f.k].basis === "mass" ? vol * (pr.d ?? 0) : vol;
+      return { s, vol, v, push: sign * w * (toIndex(f.k, v) - at), out: 0 };
+    }).filter(Boolean);
+    // how far over the blend is, in the same weighted index: the pushes less the room the others give
+    let left = all.reduce((a, x) => a + x.push, 0);
+    const parts = all.filter(x => x.push > 0), pushed = parts.reduce((a, x) => a + x.push, 0);
+    for (const x of [...parts].sort((a, b) => b.push / b.vol - a.push / a.vol)) {
+      if (left <= 1e-12) break;
+      x.out = Math.min(x.vol, (left / x.push) * x.vol);
+      left -= (x.out / x.vol) * x.push;
+    }
+    return { k: f.k, dir: f.dir, lim: f.lim, v: f.v, by: parts.sort((a, b) => b.push - a.push).map(x => ({ s: x.s, vol: x.vol, v: x.v, share: x.push / pushed, out: x.out })) };
+  });
+}
 /** A failed spec in words: "RON 93.2 under 95.0", "not all jet grade". */
 export function failText(f) {
   if (PROPS[f.k].flag) return f.k === "grade" ? "untreated kerosene in it" : "not an asphaltic crude's residue";
-  return `${/^[A-Z]{2,}/.test(PROPS[f.k].name) ? PROPS[f.k].name : PROPS[f.k].name.toLowerCase()} ${fmtProp(f.k, f.v)} ${f.dir === "min" ? "under" : "over"} ${fmtProp(f.k, f.lim)}`;
+  return `${/^[A-Z]{2,}/.test(PROPS[f.k].name) ? PROPS[f.k].name : PROPS[f.k].name.toLowerCase()} ${fmtPast(f.k, f.v, f.lim)} ${f.dir === "min" ? "under" : "over"} ${fmtProp(f.k, f.lim)}`;
 }
-/** A property's value as it reads, with its unit: 10 ppm, 0.45%, 845 kg/m³, RON 95.0. */
-export function fmtProp(k, v) {
+/** A value that misses a limit, to as many places as tell it from the limit: "cetane 50.97 under 51.0", never "51.0 under 51.0". */
+export function fmtPast(k, v, lim) {
+  const at = fmtProp(k, lim);
+  let out = fmtProp(k, v);
+  for (let dp = (PROPS[k].dp ?? 1) + 1; out === at && dp <= 4; dp++) out = fmtProp(k, v, dp);
+  return out;
+}
+/** A property's value as it reads, with its unit: 10 ppm, 0.45%, 845 kg/m³, RON 95.0; to dp places where asked. */
+export function fmtProp(k, v, dp = null) {
   if (v == null || Number.isNaN(v)) return "–";
-  if (k === "s") return v >= 1000 ? `${+(v / 10000).toFixed(v >= 10000 ? 1 : 2)}%` : `${v < 10 ? +v.toFixed(1) : Math.round(v)} ppm`;
-  if (k === "visc") return `${v >= 1000 ? Math.round(v).toLocaleString("en-GB") : +v.toFixed(v < 10 ? 1 : 0)} cSt`;
+  if (k === "s") return v >= 1000 ? `${+(v / 10000).toFixed(dp ?? (v >= 10000 ? 1 : 2))}%` : `${v < 10 || dp != null ? +v.toFixed(dp ?? 1) : Math.round(v)} ppm`;
+  if (k === "visc") return `${v >= 1000 ? Math.round(v).toLocaleString("en-GB") : +v.toFixed(dp ?? (v < 10 ? 1 : 0))} cSt`;
   if (PROPS[k].flag) return v >= 0.999 ? "yes" : "no";
-  const n = v.toFixed(PROPS[k].dp ?? 1);
+  const n = v.toFixed(dp ?? PROPS[k].dp ?? 1);
   return PROPS[k].unit ? `${n}${PROPS[k].unit.startsWith("%") ? "%" : ` ${PROPS[k].unit}`}` : n;
 }
 

@@ -4,7 +4,7 @@
 // an exam (refinery-exam.js). The engine (refinery-engine.js) runs the plant; the data (refinery-data.js) describes it.
 // Together, the same level for everyone at the table (duel.js).
 import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR, REAGENTS } from "./refinery-data.js";
-import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, coTotalOf, solve, ownProps, unitYields, columnFeeds, asPlayed, lower, shareTo, edgesOf } from "./refinery-engine.js";
+import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, coTotalOf, solve, ownProps, unitYields, columnFeeds, asPlayed, lower, shareTo, edgesOf, culprits, fmtPast } from "./refinery-engine.js";
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
 import { PAR } from "./refinery-par.js";
 import { drawSheet, hitTest, GROUP_COLOUR, amount } from "./refinery-sheet.js";
@@ -187,7 +187,9 @@ function renderMargin() {
   const decks = base.decks ? { ...(was.decks || {}), [L.deck]: Math.max(was.decks?.[L.deck] || 0, stars) } : null;
   const won = decks ? Math.min(...base.decks.map(d => decks[d.id] || 0)) : stars, deckBetter = decks && decks[L.deck] > (was.decks?.[L.deck] || 0);
   v.className = `rf-verdict${stars === 3 ? " good" : ""}`;
-  v.textContent = hard ? hard.text : off.length ? `${off.map(([id]) => POOLS[id].name).join(" and ")} off spec: ${failText(off[0][1].fails[0])}.`
+  const worst = off.length ? culprits(L, R, off[0][0])[0] : null, from = worst?.by.filter(c => c.share >= 0.25).slice(0, 2) || [];
+  // short names, as the flowsheet labels them: two lines hold the products, the worst miss and where it comes from
+  v.textContent = hard ? hard.text : off.length ? `${listOf(off.map(([id]) => POOLS[id].short))} off spec: ${failText(worst)}${from.length ? `, from the ${from.map(c => STREAMS[c.s].short).join(" and the ")}` : ""}.`
     : gap <= 0.1 ? "At par, every pool in spec." : `${money(gap)}/bbl short of par${base.crudes && L.crude !== bestCrude() ? " (another crude does better)" : ""}.`;
   // stars won are kept; a first finish, or more stars, says so
   if (won > (was.stars || 0) || deckBetter || m > (was.best ?? -Infinity) + 1e-9) {
@@ -225,12 +227,37 @@ function finished(stars) {
   $("doneDlg").showModal();
 }
 
-// ---------- the flowsheet: pan, pinch, tap ----------
+// ---------- what puts a product off spec ----------
+// Off spec, a product says which of the streams in it push it over each limit it fails (culprits in the engine), how
+// hard each pushes, and how much of one taken out would bring it back: the flowsheet draws them red, the product's card
+// lists them, the margin's line names the worst, and each one's own sheet says what it's doing there.
+const PUSH = 0.1;   // a stream with less of a limit's push than this isn't named for it
+/** Each off-spec product's culprits, for the plan as it runs: [[pool, [{ k, dir, lim, v, by }]]]. */
+const offSpec = () => Object.entries(R.pools).filter(([, p]) => !p.inSpec && p.vol > 1e-4).map(([p]) => [p, culprits(L, R, p)]);
+/** The streams the flowsheet draws red: "stream>pool" for each with a real share of a failing limit's push. */
+const culpritLinks = () => new Set(offSpec().flatMap(([p, fs]) => fs.flatMap(f => f.by.filter(c => c.share >= PUSH).map(c => `${c.s}>${p}`))));
+const pctOf = f => (f < 0.005 ? "under 1%" : `${Math.round(f * 100)}%`);
+const listOf = xs => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0] ?? "");
+const kbFine = v => `${v < 0.1 ? v.toFixed(2) : v < 10 ? v.toFixed(1) : Math.round(v)} kb/d`;
+const FIX = 0.25;   // a remedy that takes out more than this share of a product isn't one: its base stock is what misses
+/** A culprit's property in words: its value, or for a flag what it lacks. */
+const valueWords = (k, v) => (PROPS[k].flag ? (k === "grade" ? "untreated" : "not an asphaltic crude's") : `${lower(PROPS[k].name)} ${fmtProp(k, v)}`);
+const pushWord = f => (f.dir === "max" ? "excess" : "shortfall");
+/**
+ * The least taken out of a product that meets a failed limit, in words ("taking out all 2.4 kb/d of the light gas oil
+ * and a trace of the kerosene meets the limit"), or null where it would take out more than a FIX share of the product.
+ */
+function fixWords(f, vol) {
+  const out = f.by.filter(c => c.out > 1e-9);
+  if (!out.length || out.reduce((a, c) => a + c.out, 0) > FIX * vol) return null;
+  return `taking out ${out.map(c => `${c.out >= c.vol - 1e-6 ? `all ${kbFine(c.vol)} of` : c.out < 0.01 ? "a trace of" : `${kbFine(c.out)} of`} the ${lower(STREAMS[c.s].name)}`).join(" and ")} meets the limit`;
+}
+
 const svg = $("sheet"), pointers = new Map();
 let gesture = null, lastTap = 0;
 function drawPlant() {
   const flow = read(FLOW, true) && !matchMedia("(prefers-reduced-motion: reduce)").matches, fade = fadeOf();
-  const lay = drawSheet(svg, L, R, { select: picked, flow, fade });
+  const lay = drawSheet(svg, L, R, { select: picked, flow, fade, culprits: culpritLinks() });
   $("linesBtn").classList.toggle("on", !!fade);
   // room on the right for the zoom buttons, so they never sit on a product
   full = { x: -4, y: -4, w: lay.width + 8 + 40, h: lay.height + 8 };
@@ -351,6 +378,15 @@ function fillSplit(s) {
   what.textContent = `${run ? amount(s, run.vol) : "not made now"}${st.about ? ` · ${st.about}` : ""} · ${keyProps(s, props).map(k => `${lower(PROPS[k].name)} ${fmtProp(k, props[k])}`).join(" · ")}`;
   const note = document.createElement("small"); note.textContent = st.note;
   meta.append(what, note);
+  // where it's what puts a product off spec
+  for (const [p, fs] of offSpec()) for (const f of fs) {
+    const c = f.by.find(x => x.s === s);
+    if (!c || c.share < PUSH) continue;
+    const w = document.createElement("small"); w.className = "rf-why";
+    const fix = fixWords(f, R.pools[p].vol);
+    w.textContent = `It puts the ${lower(POOLS[p].name)} off spec (${failText(f)}), ${pctOf(c.share)} of the ${pushWord(f)}${fix ? `: ${fix}` : ""}.`;
+    meta.append(w);
+  }
   if (base.values && par.values?.[s] != null) { const v = document.createElement("small"); v.className = "rf-value"; v.textContent = `At par, one more barrel of it is worth $${par.values[s].toFixed(2)} to this plant: its marginal value.`; meta.append(v); }
   // the split as a bar, then a row a destination
   const shares = routing[s] || {}, dests = destinations(L, s), now = R.margin;
@@ -608,6 +644,16 @@ function openCard(id) {
     add("p", "rf-facts", pool ? `${amount(id, pool.vol)} at $${+pool.price.toFixed(2)}/${per}${pool.soldAs !== id ? `: off spec, so sold as ${lower(POOLS[pool.soldAs].name)}` : ""}.${pool.over ? ` The market takes ${L.markets[id]} kb/d.` : ""}` : `Nothing goes here now. $${priceOf(L, id)}/${per}.`);
     // its tickets: the renewable part's saving at the quota price, a quarter more for aviation fuel's premium
     if (L.ticket && def.tickets) add("p", "rf-value", pool?.tickets ? `Its renewable part saves ${pool.saved.toFixed(0)} t of CO₂e a day against fossil fuel: tickets worth $${pool.tickets.toFixed(1)} thousand a day at $${L.ticket} a tonne${def.tickets !== 1 ? `, and ${Math.round((def.tickets - 1) * 100)}% more for sustainable aviation fuel's premium` : ""}.` : `Renewable blendstocks here earn a ticket on what they save, at $${L.ticket} a tonne of CO₂e.`);
+    // off spec: what puts it there, limit by limit, each stream a tap from its sheet
+    const why = pool && !pool.inSpec ? culprits(L, R, id) : [];
+    if (why.length) {
+      add("h3", null, "What puts it off spec");
+      for (const f of why) {
+        const what = failText(f), fix = fixWords(f, pool.vol);
+        add("p", "rf-why", `${what[0].toUpperCase()}${what.slice(1)}${fix ? `: ${fix}` : ""}.`);
+        add("div", "rf-streams").append(...f.by.map(c => streamRow(c.s, c.vol, `${valueWords(f.k, c.v)} · ${pctOf(c.share)} of the ${pushWord(f)}${fix && c.out > 1e-9 ? ` · out: ${c.out >= c.vol - 1e-6 ? "all of it" : c.out < 0.01 ? "a trace" : kbFine(c.out)}` : ""}`)));
+      }
+    }
     const judged = specsOf(L, id);
     if (def.spec) {
       add("h3", null, "Its specification, as judged here");
@@ -616,7 +662,8 @@ function openCard(id) {
         const ok = pool && on ? !pool.fails.some(f => f.k === k) : null;
         const lim = PROPS[k].flag ? "required" : [jlo != null ? `≥ ${fmtProp(k, jlo)}` : "", jhi != null ? `≤ ${fmtProp(k, jhi)}` : ""].filter(Boolean).join(", ");
         const mark = document.createElement("b"); mark.className = ok == null ? "rf-muted" : ok ? "rf-ok" : "rf-no"; mark.textContent = !on ? "not judged here" : ok == null ? "–" : ok ? "✓" : "✗";
-        return [PROPS[k].name, lim, v == null ? "–" : fmtProp(k, v), mark];
+        const miss = ok === false && pool.fails.find(f => f.k === k);
+        return [PROPS[k].name, lim, v == null ? "–" : miss ? fmtPast(k, v, miss.lim) : fmtProp(k, v), mark];
       }), ["", "Limit", "Blend", ""]);
     }
     if (pool) {

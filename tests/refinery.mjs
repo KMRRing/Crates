@@ -141,6 +141,18 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
   check(!problems.length, `a slider's spec edges: found to a millionth, each stopping on its better side, named by the grade and spec that break${problems.length ? `\n     ${problems.join("\n     ")}` : ""}`);
 }
 
+// ---------- what puts a product off spec ----------
+{
+  // a tenth of the light gas oil sent to diesel untreated: its sulphur is the miss, the worst first, and taking out what
+  // the culprits say brings the diesel to its limit exactly
+  const L = { crude: "urals", units: ["cdu", "merox", "kht", "nht", "reformer", "dht", "sru"] };
+  const r = { ...E.defaultRouting(L), lgo: { dht: 0.9, diesel: 0.1 }, hgo: "dht", kero: "kht", hsr: "nht", hsrT: "reformer" };
+  const R = E.evaluate(L, r), why = E.culprits(L, R, "diesel"), s = why[0], lgo = s?.by.find(c => c.s === "lgo"), vol = R.streams.lgo.vol;
+  const fixed = lgo && E.evaluate(L, { ...r, lgo: { dht: 0.9, diesel: 0.1 - lgo.out / vol, gasoil: lgo.out / vol } });
+  check(s?.k === "s" && lgo?.share > 0.99 && s.by.every(c => c.v > 10) && Math.abs(fixed?.pools.diesel.props.s - 10) < 1e-6 && E.failText({ k: "cet", v: 50.97, lim: 51, dir: "min" }) === "cetane 50.97 under 51.0",
+    `what puts a product off spec: diesel with untreated gas oil misses on sulphur first (${s && E.failText(s)}), the gas oil all of it, and taking out ${lgo?.out.toFixed(2)} kb/d of it meets 10 ppm (${fixed?.pools.diesel.props.s.toFixed(4)}); a miss finer than its figures is told to more places`);
+}
+
 // ---------- the lessons, the scenes and the exams ----------
 {
   const lessons = await import("../refinery-lessons.js").catch(() => null), exam = await import("../refinery-exam.js").catch(() => null);

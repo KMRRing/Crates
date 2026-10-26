@@ -80,7 +80,7 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-link.sel .rf-link-line { stroke-opacity: 1; }
 .rf-link.sel { filter: drop-shadow(0 0 1.5px var(--ink)); }
 .rf-link.rf-right .rf-link-line { stroke: var(--rf-good); stroke-opacity: 1; }
-.rf-link.rf-wrong .rf-link-line { stroke: var(--rf-bad); stroke-opacity: 1; }
+.rf-link.rf-wrong .rf-link-line, .rf-link.culprit .rf-link-line { stroke: var(--rf-bad); stroke-opacity: 1; }
 .rf-feed { stroke: var(--ink-soft); stroke-opacity: .5; }
 .rf-node { cursor: pointer; }
 .rf-node rect { fill: var(--sheet); stroke: var(--tile-edge); stroke-width: .8; }
@@ -203,6 +203,9 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-stream::before { content: ""; grid-area: c; align-self: stretch; border-radius: 2px; background: var(--c, var(--tile-edge)); }
 .rf-stream::after { content: "›"; grid-area: k; justify-self: end; font-size: 1.3rem; line-height: 1; color: var(--rf-in); }
 .rf-stream.fixed { cursor: default; }
+/* what puts a product off spec: the limit failed, on its card; a stream's part in it, on its sheet */
+.rf-why, .rf-split-meta small.rf-why { color: var(--rf-bad); font-weight: 750; }
+p.rf-why { margin: .5rem 0 .25rem; font-size: .88rem; }
 .rf-stream.fixed::after { content: none; }
 .rf-stream b { grid-area: n; font-size: .9rem; }
 .rf-stream span { grid-area: v; font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums; }

@@ -97,13 +97,14 @@ export function poolSpecs(level, p, pool) {
  * Draws the plant into an svg: the layout, the links as the result runs them, the units with what they're running at,
  * the pools with their volumes and key specs. opts: { select: { stream } | { node }, only (node ids to draw full; the
  * rest faint), fade (a stream → whether its links recede: faint, under the rest and not to be tapped, unless it's the
- * one selected), labels ({ node id: text }), flow (animate the flow), mini (a lesson's small picture: no figures) }.
+ * one selected), culprits (a Set of "stream>pool": the streams putting a pool off spec, drawn red and never faded),
+ * labels ({ node id: text }), flow (animate the flow), mini (a lesson's small picture: no figures) }.
  * Returns the layout, so taps can be told apart (hitTest).
  */
 export function drawSheet(svg, level, result, opts = {}) {
   const lay = layout(level), N = lay.nodes, links = linksOf(level, result);
   const sel = opts.select || {}, only = opts.only ? new Set(opts.only) : null;
-  const recede = l => sel.stream !== l.stream && !!opts.fade?.(l.stream);
+  const culprit = l => !!opts.culprits?.has(`${l.stream}>${l.to}`), recede = l => sel.stream !== l.stream && !culprit(l) && !!opts.fade?.(l.stream);
   const parts = [];
   // ports: where each link leaves its source (stacked by the stream's lightness) and enters its destination
   const outs = {}, ins = {};
@@ -133,7 +134,7 @@ export function drawSheet(svg, level, result, opts = {}) {
     const d = `M${x1.toFixed(1)} ${y1.toFixed(1)}C${(x1 + dx).toFixed(1)} ${y1.toFixed(1)} ${(x2 - dx).toFixed(1)} ${y2.toFixed(1)} ${(x2 - 1.5).toFixed(1)} ${y2.toFixed(1)}`;
     const picked = sel.stream === l.stream, dim = (sel.stream && !picked) || (only && !(only.has(l.from) && only.has(l.to)) && !only.has(l.stream)), back = recede(l);
     const col = GROUP_COLOUR[STREAMS[l.stream].group] || GROUP_COLOUR.other;
-    linkSvg.push(`<g class="rf-link${picked ? " sel" : ""}${dim ? " dim" : ""}${back ? " back" : ""}" data-stream="${l.stream}">` +
+    linkSvg.push(`<g class="rf-link${picked ? " sel" : ""}${dim ? " dim" : ""}${back ? " back" : ""}${culprit(l) ? " culprit" : ""}" data-stream="${l.stream}">` +
       (back ? "" : `<path class="rf-link-hit" d="${d}" stroke-width="${Math.max(10, w + 6)}"/>`) +
       `<path class="rf-link-line" d="${d}" stroke="${col}" stroke-width="${w.toFixed(2)}"/>` +
       (opts.flow !== false && !dim && !back ? `<path class="rf-link-flow" d="${d}" stroke-width="${Math.max(0.8, w * 0.35).toFixed(2)}"/>` : "") +
@@ -206,7 +207,7 @@ export function drawSheet(svg, level, result, opts = {}) {
  */
 export function amount(id, v, { fine = false } = {}) {
   if ((STREAMS[id] || POOLS[id])?.per === "MWh") return `${Math.round((v * 1000) / 24)} MW`;
-  return `${fine || v < 10 ? v.toFixed(1) : Math.round(v)} kb/d`;
+  return `${v < 0.1 ? v.toFixed(2) : fine || v < 10 ? v.toFixed(1) : Math.round(v)} kb/d`;
 }
 /** A property in a pool's few characters: "RON 95.1", "S 9 ppm", "CN 51.2", "380 cSt". */
 function shortProp(k, v) {
