@@ -15,6 +15,7 @@ export const CHAPTERS = [
   { id: 8, title: "Economics", about: "Cracks, crude selection and the LP's marginal values: how a refinery decides what to run, what to buy and what to make." },
   { id: 9, title: "Renewables", about: "Biofuels in a refinery: the tickets that pay for them, the blend limits that cap them, HVO, co-processing in the hydrotreater and the FCC, and sustainable aviation fuel." },
   { id: 10, title: "Alder Point", about: "A whole refinery, unit by unit: a fuels plant of about 120 thousand barrels a day with an FCC and no hydrocracker, whose semi-regenerative reformer is its only hydrogen." },
+  { id: 11, title: "Brackwater", about: "A second whole refinery: two works joined by pipelines, about 200 thousand barrels a day, whose FCC is fed only hydrotreated gas oil, whose light ends make ethers, alkylate and cumene, and whose bottom of the barrel becomes power." },
 ];
 
 const TOPPING_POOLS = ["gasPool", "lpg", "naphtha", "gasoil", "fuelOil", "hsfo"];
@@ -40,6 +41,26 @@ const ALDER_FEEDS = { nht: ["hsr", "icn"], kht: ["kero", "hcn"], hds: ["lgo", "h
 const ALDER_PRICES = { fuelOil: 76, hsfo: 67 };
 // where its units stand on the flowsheet: [column, height]
 const ALDER_LAYOUT = { nht: [2, 2.6], srReformer: [3, 3.6], bzhc: [4, 3.4], kht: [3, 5.8], hds: [2, 7.4], dht: [4, 7.2], vdu: [2, 11.4], fcc: [3, 10.2], cnht: [4, 8.9], sru: [5, 12.6] };
+// Brackwater: two works joined by pipelines, about 200 kb/d in all (rounded and illustrative). The east works distils 80
+// and cracks: a VGO hydrotreater ahead of an FCC with no naphtha post-treater, and MTBE, alkylation and cumene on its
+// light ends. The west works distils 120 and does the rest: the naphtha side, four distillate hydrotreaters, the vacuum
+// unit and a second VGO hydrotreater, and the residue chain of visbreaker, solvent deasphalter and gasification power
+// plant. A hydrogen plant and a sulphur plant serve both
+const BRACK_FEED = 200, BRACK_EAST = 80;
+const BRACK_UNITS = ["cdu", "cdu2", "vdu", "nht", "reformer", "isom", "kht", "dht", "dht2", "hght", "vgoHt", "vgoHt2", "fcc", "mtbeUnit", "alky", "cumeneUnit", "visbreaker", "sda", "igcc", "smr", "sru"];
+const BRACK_POOLS = ["gasPool", "lpg", "propylene", "cumene", "gasoline", "naphtha", "jet", "diesel", "gasoil", "vgoExport", "fuelOil", "hsfo", "power"];
+// what each unit takes: imported VGO lands at the east works' jetty; the FCC takes only treated feed, as it has no
+// post-treater; the four distillate treaters split the gas oils light to heavy, the heaviest one the cracked ones too
+const BRACK_FEEDS = { vgoHt: ["lvgo", "hvgo", "importVgo", "dao"], vgoHt2: ["lvgo", "hvgo", "dao"], fcc: ["vgoT", "importVgoT"], kht: ["kero"], dht: ["kero", "lgo"], dht2: ["lgo", "hgo", "kero"],
+  hght: ["hgo", "mhcGo", "lco", "fuelOilCutter", "lgo"], nht: ["hsr", "hcNaphtha", "cokerNaphtha"], sda: ["visResid"] };
+const BRACK_CAPS = { reformer: 25, isom: 12, kht: 15, dht: 20, dht2: 20, hght: 20, vgoHt: 30, vgoHt2: 25, fcc: 30, alky: 5, cumeneUnit: 2, visbreaker: 30, sda: 25, igcc: 12 };
+// left to right as the oil flows, so no arrow runs back: the naphtha treater after the units whose naphtha it takes
+const BRACK_LAYOUT = { vdu: [2, 11.4], isom: [2, 3], kht: [2, 6], dht: [2, 7.1], visbreaker: [3, 12.2], dht2: [3, 7.5], sda: [4, 12.4], vgoHt: [5, 8.8], vgoHt2: [5, 10.2], igcc: [5, 12.8],
+  fcc: [6, 9.6], nht: [6, 4.2], mtbeUnit: [7, 2.4], cumeneUnit: [7, 1.2], reformer: [7, 4.3], hght: [7, 7.6], alky: [8, 2], smr: [8, 0.2], sru: [8, 13] };
+// its naphtha is cut so the C6s that would make benzene go to isomerisation, which saturates them: reformate under 1%
+const BRACK_PROPS = { reformate: { benz: 0.8 } };
+const brack = (units, extra = {}) => ({ crude: "arabLight", feed: BRACK_FEED, cdu2: BRACK_EAST, units, feeds: BRACK_FEEDS, caps: Object.fromEntries(Object.entries(BRACK_CAPS).filter(([u]) => units.includes(u))),
+  layout: BRACK_LAYOUT, props: BRACK_PROPS, ...extra });
 // where a plant starts: everything sold as it comes off the crude unit, nothing sent to a unit; with a sour crude the
 // distillates go with the residue into high-sulphur fuel oil, which takes them as cutter, rather than into VLSFO
 const RAW = { kero: "fuelOil", lgo: "fuelOil", hgo: "fuelOil" };
@@ -208,4 +229,30 @@ export const LEVELS = [
     specs: { gasoline: ALL_SPECS.gasoline, diesel: ALL_SPECS.diesel, gasoil: ALL_SPECS.gasoil, fuelOil: ALL_SPECS.fuelOil, hsfo: ALL_SPECS.hsfo },
     task: "The whole refinery, every product to its full specification, with FAME, ethanol and ETBE on offer for their tickets: Alder Point as its planners run it each month.",
     watch: ["Diesel is the plant's biggest product: its density, cetane and FAME all bind.", "ETBE and ethanol share petrol's oxygen limit."] },
+  // ---------- 11. Brackwater ----------
+  { id: "11.1", chapter: 11, title: "Two works", ...brack(["cdu", "cdu2", "vdu", "nht", "reformer", "isom", "kht", "dht", "dht2", "hght", "smr", "sru"]),
+    pools: ["gasPool", "lpg", "gasoline", "naphtha", "jet", "diesel", "gasoil", "fuelOil", "hsfo"], start: { ...RAW_SOUR, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" },
+    specs: { gasoline: ["ron", "rvp", "benz", "s"], diesel: ["cet", "d", "s"], gasoil: ["cet", "d", "s"], fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
+    task: "Brackwater distils Arab Light at two works joined by pipelines: 120 thousand barrels a day at the west works, 80 at the east. The west works treats every barrel of distillate both make, in four hydrotreaters built for lighter and heavier gas oils, and reforms and isomerises the naphtha. Route the cuts.",
+    watch: ["Each distillate hydrotreater takes only the gas oils it was built for: the heavy one the heaviest.", "Nothing cracks the vacuum gas oil yet: it's fuel oil, and Arab Light's is sour."] },
+  { id: "11.2", chapter: 11, title: "Pitch into power", ...brack(["cdu", "cdu2", "vdu", "vgoHt", "vgoHt2", "visbreaker", "sda", "igcc", "nht", "reformer", "isom", "kht", "dht", "dht2", "hght", "smr", "sru"]),
+    pools: ["gasPool", "lpg", "gasoline", "naphtha", "jet", "diesel", "gasoil", "vgoExport", "fuelOil", "hsfo", "power"], start: { ...RAW_SOUR, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" },
+    specs: { gasoline: ["ron", "rvp", "benz", "s"], diesel: ["cet", "d", "s"], gasoil: ["cet", "d", "s"], vgoExport: ["s"], fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
+    task: "The west works' heavy end. The vacuum unit lifts gas oil for a VGO hydrotreater, whose product sells as low-sulphur VGO. Its residue goes on through the visbreaker to the solvent deasphalter, which lifts out more oil for the hydrotreater and leaves pitch; the gasification plant turns pitch into power for the grid and hydrogen for the treaters.",
+    watch: ["Pitch is nearly solid: as fuel oil it needs almost its own volume of cutter.", "Deasphalted oil is sour and full of metals: low-sulphur VGO takes it only once it's hydrotreated."] },
+  { id: "11.3", chapter: 11, title: "The cracker and its light ends", ...brack(BRACK_UNITS),
+    pools: BRACK_POOLS, start: { ...RAW_SOUR, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" },
+    specs: { gasoline: ["ron", "mon", "rvp", "olef", "benz", "oxy", "ether", "s"], diesel: ["cet", "d", "s"], gasoil: ["cet", "d", "s"], vgoExport: ["s"], fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
+    task: "The east works' FCC has no naphtha post-treater: its petrol is only as clean as its feed, so it cracks only hydrotreated gas oil. On its light ends, propylene is joined to bought benzene as cumene, the C4s' isobutene to bought methanol as MTBE, and the rest of the C4s alkylated.",
+    watch: ["Petrol holds 10 ppm of sulphur, and the FCC's naphtha carries about a tenth of its feed's.", "The FCC's naphtha is RON 92: MTBE and alkylate carry it into the pool."] },
+  { id: "11.4", chapter: 11, title: "A turnaround", ...brack(BRACK_UNITS.filter(u => u !== "vgoHt"), { bought: { importVgoT: 10 }, prices: { importVgoT: 84 } }),
+    pools: [...BRACK_POOLS, "notBought"], start: { ...RAW_SOUR, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo", importVgoT: "notBought" },
+    specs: { gasoline: ["ron", "mon", "rvp", "olef", "benz", "oxy", "ether", "s"], diesel: ["cet", "d", "s"], gasoil: ["cet", "d", "s"], vgoExport: ["s"], fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
+    task: "The east works' VGO hydrotreater is down this month for its catalyst change, and the FCC cracks only treated feed. Ten thousand barrels a day of hydrotreated VGO are on offer at $84. Re-plan the month: what goes to the west works' treater, and how much do you buy?",
+    watch: ["The west works' VGO hydrotreater can't take all the gas oil: what it can't take is sour.", "A bought barrel pays only while the FCC earns more from it than it costs."] },
+  { id: "11.5", chapter: 11, title: "The whole of Brackwater", ...brack(BRACK_UNITS), crudes: ["arabLight", "sverdrup", "arabHeavy", "cpc", "brent"],
+    pools: BRACK_POOLS, start: { ...RAW_SOUR, lsr: "naphtha", hsr: "naphtha", atmResid: "hsfo" },
+    specs: { gasoline: ALL_SPECS.gasoline, diesel: ["cet", "d", "s"], jet: ALL_SPECS.jet, gasoil: ALL_SPECS.gasoil, vgoExport: ["s"], fuelOil: ALL_SPECS.fuelOil, hsfo: ALL_SPECS.hsfo },
+    task: "Both works together, every product to its full specification, and five crudes to choose from: Brackwater as its planners run it each month. Which crude fills its units best, against its price?",
+    watch: ["A light crude leaves the residue chain idle; a heavy one overfills it, and the rest of its residue is cut into fuel oil.", "Petrol's aromatics limit holds back the reformer: octane has to come from somewhere else."] },
 ];

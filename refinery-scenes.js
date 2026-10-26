@@ -207,6 +207,8 @@ const MOL = {
   triglyceride: { name: "a triglyceride", note: "vegetable oil", tri: true },
   ethanol: { name: "ethanol", note: "RON 109", ethanol: true },
   etbe: { name: "ETBE", note: "RON 118", ether: true },
+  mtbe: { name: "MTBE", note: "RON 118", ether: true, short: true },
+  cumene: { name: "cumene", note: "isopropylbenzene", ring: 6, aromatic: true, isopropyl: true },
 };
 function molecule(key, ox, oy) {
   const m = MOL[key], b = 11, out = [];
@@ -222,6 +224,8 @@ function molecule(key, ox, oy) {
     out.push(line(hex(14, -6)));
     if (m.aromatic) out.push(`<circle class="rf-bond" cx="${ox + 14}" cy="${oy - 6}" r="6" fill="none"/>`);
     if (m.methyl) out.push(line([[14, -6 - b], [14, -6 - 2 * b]]));
+    // an isopropyl: a carbon on the ring holding two methyls
+    if (m.isopropyl) out.push(line([[14, -6 - b], [14, -6 - 2 * b]]), line([[14, -6 - 2 * b], [4.5, -6 - 2.5 * b]]), line([[14, -6 - 2 * b], [23.5, -6 - 2.5 * b]]));
     if (m.naphthalene) { out.push(line(hex(14 + b * 1.732, -6))); out.push(`<circle class="rf-bond" cx="${ox + 14}" cy="${oy - 6}" r="6" fill="none"/><circle class="rf-bond" cx="${ox + 14 + b * 1.732}" cy="${oy - 6}" r="6" fill="none"/>`); out.push(line([[14, -6 - b], [14, -6 - 2 * b]])); }
   } else if (m.thiophene) {
     const pts = Array.from({ length: 6 }, (_, i) => [14 + 10 * Math.cos(-Math.PI / 2 + (i * 2 * Math.PI) / 5), -6 + 10 * Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / 5)]);
@@ -231,9 +235,9 @@ function molecule(key, ox, oy) {
     out.push(line([[4, -16], [4, 4]]), `<text class="rf-atom" x="${ox - 2}" y="${oy - 4}">O₆</text>`);
   } else if (m.ethanol) out.push(line([[0, 0], [9.5, -5.5], [19, 0]]), `<text class="rf-atom" x="${ox + 24}" y="${oy + 3}">OH</text>`);
   else if (m.ether) {
-    // a tertiary butyl, its carbon holding three methyls, joined through the oxygen to an ethyl
+    // a tertiary butyl, its carbon holding three methyls, joined through the oxygen to an ethyl (ETBE) or a methyl (MTBE)
     out.push(line([[0, 0], [9.5, -5.5], [16.5, -1.5]]), line([[9.5, -5.5], [9.5, -16.5]]), line([[9.5, -5.5], [0, -11]]),
-      `<text class="rf-atom" x="${ox + 19}" y="${oy + 3}">O</text>`, line([[21.5, -1.5], [28.5, -5.5], [38, 0]]));
+      `<text class="rf-atom" x="${ox + 19}" y="${oy + 3}">O</text>`, line(m.short ? [[21.5, -1.5], [28.5, -5.5]] : [[21.5, -1.5], [28.5, -5.5], [38, 0]]));
   }
   const mid = m.chain ? ((m.chain - 1) * b * 0.87) / 2 : m.naphthalene ? 14 + b * 0.87 : m.tri ? 36 : m.branched || m.ether ? 19 : 14;
   out.push(`<text class="rf-sc-label" x="${ox + mid}" y="${oy + 22}">${esc(m.name)}</text><text class="rf-sc-small" x="${ox + mid}" y="${oy + 32}">${esc(m.note)}</text>`);

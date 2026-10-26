@@ -3,11 +3,11 @@
 // be sent anywhere that takes it, in shares, and the margin shows against par (the LP's plan, refinery-par.js); then
 // an exam (refinery-exam.js). The engine (refinery-engine.js) runs the plant; the data (refinery-data.js) describes it.
 // Together, the same level for everyone at the table (duel.js).
-import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR } from "./refinery-data.js";
-import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, homeOf, solve, ownProps, unitYields } from "./refinery-engine.js";
+import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR, REAGENTS } from "./refinery-data.js";
+import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, homeOf, solve, ownProps, unitYields, columnFeeds } from "./refinery-engine.js";
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
 import { PAR } from "./refinery-par.js";
-import { drawSheet, hitTest, GROUP_COLOUR } from "./refinery-sheet.js";
+import { drawSheet, hitTest, GROUP_COLOUR, amount } from "./refinery-sheet.js";
 import { lessonFor, TEACHES, GLOSSARY } from "./refinery-lessons.js";
 import { playScene } from "./refinery-scenes.js";
 import { buildTest, isRight, rightAnswer, passMark, missedTap } from "./refinery-exam.js";
@@ -324,7 +324,7 @@ function fillSplit(s) {
   const meta = $("splitMeta");
   meta.replaceChildren();
   const what = document.createElement("span");
-  what.textContent = `${run ? kbd(run.vol) : "not made now"}${st.about ? ` · ${st.about}` : ""} · ${keyProps(s, props).map(k => `${PROPS[k].name === "RON" || PROPS[k].name === "MON" ? PROPS[k].name : PROPS[k].name.toLowerCase()} ${fmtProp(k, props[k])}`).join(" · ")}`;
+  what.textContent = `${run ? amount(s, run.vol) : "not made now"}${st.about ? ` · ${st.about}` : ""} · ${keyProps(s, props).map(k => `${PROPS[k].name === "RON" || PROPS[k].name === "MON" ? PROPS[k].name : PROPS[k].name.toLowerCase()} ${fmtProp(k, props[k])}`).join(" · ")}`;
   const note = document.createElement("small"); note.textContent = st.note;
   meta.append(what, note);
   if (base.values && par.values?.[s] != null) { const v = document.createElement("small"); v.className = "rf-value"; v.textContent = `At par, one more barrel of it is worth $${par.values[s].toFixed(2)} to this plant: its marginal value.`; meta.append(v); }
@@ -387,14 +387,14 @@ function openCard(id) {
     return t;
   };
   const streamLink = (s, text) => { const b = document.createElement("button"); b.type = "button"; b.className = "rf-inline"; b.textContent = text || STREAMS[s].name; b.addEventListener("click", () => { $("cardDlg").close(); openSplit(s); }); return b; };
-  if (id === "crude" || id === "cdu") {
-    const c = CRUDES[L.crude];
-    $("cardTitle").textContent = id === "cdu" ? `${UNITS.cdu.name} (CDU)` : `Crude: ${c.name}`;
-    add("p", "rf-purpose", id === "cdu" ? UNITS.cdu.purpose : c.note);
-    add("p", "rf-facts", `${c.name}: API ${c.api}, ${c.sulphur}% sulphur, $${c.price}/bbl delivered, ${L.feed ?? FEED} kb/d.`);
+  if (id === "crude" || id === "cdu" || id === "cdu2") {
+    const c = CRUDES[L.crude], cols = columnFeeds(L), F = id === "crude" ? L.feed ?? FEED : cols[id], unit = UNITS[id];
+    $("cardTitle").textContent = unit ? `${unit.name} (${unit.short})` : `Crude: ${c.name}`;
+    add("p", "rf-purpose", unit ? unit.purpose : c.note);
+    add("p", "rf-facts", `${c.name}: API ${c.api}, ${c.sulphur}% sulphur, $${c.price}/bbl delivered, ${F} kb/d${cols.cdu2 ? (unit ? ` of the ${L.feed ?? FEED} its two crude units run` : `: ${cols.cdu} through the crude unit, ${cols.cdu2} through the second`) : ""}.`);
     add("h3", null, "The cuts");
-    table(Object.entries(c.cuts).map(([s, f]) => [streamLink(s), STREAMS[s].about || "", `${(f * 100).toFixed(1)}%`, kbd((L.feed ?? FEED) * f), R.streams[s]?.props?.s != null ? fmtProp("s", R.streams[s].props.s) : ""]), ["Cut", "Boils", "Yield", "Flow", "Sulphur"]);
-    if (id === "cdu") { for (const t of UNITS.cdu.card) add("p", null, t); add("h3", null, "Operating"); table(UNITS.cdu.facts); }
+    table(Object.entries(c.cuts).map(([s, f]) => [streamLink(s), STREAMS[s].about || "", `${(f * 100).toFixed(1)}%`, kbd(F * f), R.streams[s]?.props?.s != null ? fmtProp("s", R.streams[s].props.s) : ""]), ["Cut", "Boils", "Yield", "Flow", "Sulphur"]);
+    if (unit) { for (const t of unit.card) add("p", null, t); add("h3", null, "Operating"); table(unit.facts); }
   } else if (id === "bought") {
     $("cardTitle").textContent = "Bought in";
     table(Object.entries(L.bought || {}).map(([s, v]) => [streamLink(s), kbd(v), `$${L.prices?.[s] ?? BOUGHT[s] ?? 0}/bbl`]), ["Stream", "Volume", "Price"]);
@@ -414,7 +414,7 @@ function openCard(id) {
       for (const [f, lim] of Object.entries(coLimits(L, id))) if (run.feeds[f]) add("p", "rf-facts", `Co-processing: ${STREAMS[f].name.toLowerCase()} is ${Math.round((run.feeds[f] / run.feed) * 100)}% of its feed, of ${Math.round(lim * 100)}% at most${run.coOver?.[f] ? `; ${kbd(run.coOver[f])} more went elsewhere` : ""}.`);
       shadow();
       add("h3", null, "Now");
-      table([...Object.entries(run.feeds).map(([s, v]) => ["in", streamLink(s), kbd(v)]), ...Object.entries(run.outputs).map(([s, v]) => ["out", streamLink(s), kbd(v)])]);
+      table([...Object.entries(run.feeds).map(([s, v]) => ["in", streamLink(s), amount(s, v)]), ...Object.entries(run.uses || {}).map(([r, v]) => ["in", REAGENTS[r].name, kbd(v)]), ...Object.entries(run.outputs).map(([s, v]) => ["out", streamLink(s), amount(s, v)])]);
     } else add("p", "rf-facts", `Idle: nothing is sent to it.${cap ? ` Capacity ${cap} kb/d.` : ""}`);
     for (const t of u.card) add("p", null, t);
     if (u.facts) { add("h3", null, "Operating"); table(u.facts); }
@@ -428,12 +428,15 @@ function openCard(id) {
     if (id === "vdu") add("p", "rf-facts", `It lifts ${Math.round(CRUDES[L.crude].vgoShare * 100)}% of ${CRUDES[L.crude].name}'s residue as gas oil, four parts light to six heavy.`);
     const h = Object.entries(u.h2 || {}).filter(([, v]) => v);
     if (h.length) add("p", "rf-facts", `Hydrogen: ${h.map(([f, v]) => `${STREAMS[f].short} ${v > 0 ? "makes" : "uses"} ${Math.abs(v * 1000)} scf/bbl`).join("; ")}. Hydrogen from the plant costs $${H2_PRICE} per thousand scf.`);
+    // what it takes besides its feed: a bought reactant, a share of each barrel
+    for (const [f, rs] of Object.entries(u.uses || {})) for (const [r, per] of Object.entries(rs)) add("p", "rf-facts", `${REAGENTS[r].name}: ${per} of a barrel with each barrel of ${STREAMS[f].name.toLowerCase()}, bought at $${REAGENTS[r].price} a barrel.`);
     if (u.opex) add("p", "rf-facts", `Running cost about $${u.opex}/bbl of feed.`);
   } else if (POOLS[id]) {
     const def = POOLS[id], pool = R.pools[id];
     $("cardTitle").textContent = def.name;
     add("p", "rf-purpose", def.note);
-    add("p", "rf-facts", pool ? `${kbd(pool.vol)} at $${+pool.price.toFixed(2)}/bbl${pool.soldAs !== id ? `: off spec, so sold as ${POOLS[pool.soldAs].name.toLowerCase()}` : ""}.${pool.over ? ` The market takes ${L.markets[id]} kb/d.` : ""}` : `Nothing goes here now. $${priceOf(L, id)}/bbl.`);
+    const per = def.per || "bbl";
+    add("p", "rf-facts", pool ? `${amount(id, pool.vol)} at $${+pool.price.toFixed(2)}/${per}${pool.soldAs !== id ? `: off spec, so sold as ${POOLS[pool.soldAs].name.toLowerCase()}` : ""}.${pool.over ? ` The market takes ${L.markets[id]} kb/d.` : ""}` : `Nothing goes here now. $${priceOf(L, id)}/${per}.`);
     // its tickets: the renewable part's saving at the quota price, a quarter more for aviation fuel's premium
     if (L.ticket && def.tickets) add("p", "rf-value", pool?.tickets ? `Its renewable part saves ${pool.saved.toFixed(0)} t of CO₂e a day against fossil fuel: tickets worth $${pool.tickets.toFixed(1)} thousand a day at $${L.ticket} a tonne${def.tickets !== 1 ? `, and ${Math.round((def.tickets - 1) * 100)}% more for sustainable aviation fuel's premium` : ""}.` : `Renewable blendstocks here earn a ticket on what they save, at $${L.ticket} a tonne of CO₂e.`);
     const judged = specsOf(L, id);
@@ -449,7 +452,7 @@ function openCard(id) {
     }
     if (pool) {
       add("h3", null, "What's in it");
-      table(Object.entries(pool.parts).sort((a, b) => b[1] - a[1]).map(([s, v]) => [streamLink(s), kbd(v), `${Math.round((v / pool.vol) * 100)}%`]));
+      table(Object.entries(pool.parts).sort((a, b) => b[1] - a[1]).map(([s, v]) => [streamLink(s), amount(s, v), `${Math.round((v / pool.vol) * 100)}%`]));
     }
     if (def.sheet?.length) { add("h3", null, "The published specification"); table(def.sheet); }
   }

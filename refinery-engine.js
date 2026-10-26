@@ -3,12 +3,12 @@
 // properties through the units, blends the pools by their blending indices, judges each against the specs the level
 // sets (an off-spec blend sells as something cheaper), balances hydrogen and sulphur, and prices it all to a margin in
 // $/bbl of crude. Par is the LP's plan (solve), as a refinery's planners would make it. The data is refinery-data.js.
-import { STREAMS, UNITS, POOLS, CRUDES, PROPS, toIndex, fromIndex, CUT_S, CORE_SPECS, H2_PRICE, H2_IMPORT, SULPHUR, BOUGHT } from "./refinery-data.js";
+import { STREAMS, UNITS, POOLS, CRUDES, PROPS, toIndex, fromIndex, CUT_S, CORE_SPECS, H2_PRICE, H2_IMPORT, SULPHUR, BOUGHT, REAGENTS } from "./refinery-data.js";
 import { simplex } from "./refinery-lp.js";
 
 export const FEED = 100;                         // kb/d of crude, unless a level says otherwise
 /** Units in the order their feeds are ready: every producer of a stream comes before every unit that takes it. */
-export const ORDER = ["cdu", "vdu", "coker", "visbreaker", "blowing", "hvoUnit", "safUnit", "fcc", "hcu", "merox", "kht", "nht", "reformer", "srReformer", "bzhc", "isom", "alky", "cnht", "hds", "dht"];
+export const ORDER = ["cdu", "cdu2", "vdu", "coker", "visbreaker", "sda", "igcc", "blowing", "hvoUnit", "safUnit", "vgoHt", "vgoHt2", "fcc", "hcu", "mtbeUnit", "cumeneUnit", "merox", "kht", "nht", "reformer", "srReformer", "bzhc", "isom", "alky", "cnht", "hds", "hght", "dht", "dht2"];
 /** Where a stream sells when it isn't sent anywhere: as it comes, unprocessed. */
 const HOME = {
   gas: "gasPool", lpg: "lpg", butane: "lpg", propylene: "propylene", c4: "lpg", lsr: "naphtha", hsr: "naphtha", hsrT: "naphtha", reformate: "gasoline",
@@ -17,6 +17,7 @@ const HOME = {
   hvo: "diesel", fame: "diesel", vegOil: "notBought", spk: "jet", lvgo: "fuelOil", hvgo: "fuelOil", slurry: "fuelOil", atmResid: "fuelOil", vacResid: "fuelOil", visResid: "fuelOil",
   coke: "coke", bitumen: "bitumen", etbe: "gasoline", bzCut: "naphtha", heavyReformate: "gasoline", importVgo: "notBought",
   lcn: "gasoline", lcnT: "gasoline", icn: "gasoline", hcn: "fuelOil", lcgo: "fuelOil", hcgo: "fuelOil", goT: "gasoil",
+  vgoT: "vgoExport", importVgoT: "notBought", mhcGo: "gasoil", mtbe: "gasoline", raff: "lpg", cumene: "cumene", dao: "hsfo", asphalt: "hsfo", power: "power",
 };
 const T_PER_KB = 158.987;                        // m³ in a thousand barrels: kb/d × kg/m³ × this / 1000 is t/d
 const ZERO = new Set(["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "grade", "asph", "bio", "ghg", "s"]);   // a stream without these has none
@@ -24,6 +25,10 @@ const ZERO = new Set(["arom", "olef", "benz", "oxy", "etoh", "ether", "fame", "g
 // ---------- the level's plant ----------
 const crudeOf = level => CRUDES[level.crude];
 const feedOf = level => level.feed ?? FEED;
+/** What each crude unit runs, kb/d: a level with a second crude unit gives it its share of the feed (level.cdu2). */
+export const columnFeeds = level => { const F = feedOf(level), F2 = level.units.includes("cdu2") ? level.cdu2 ?? 0 : 0; return F2 ? { cdu: F - F2, cdu2: F2 } : { cdu: F }; };
+/** What the reactants a unit takes with a barrel of a feed cost, $ (methanol for MTBE, benzene for cumene). */
+export const reagentCost = (u, f) => Object.entries(UNITS[u]?.uses?.[f] || {}).reduce((a, [r, v]) => a + v * REAGENTS[r].price, 0);
 /** The pools a level sells into (all of them unless it lists its own). */
 export const poolsOf = level => level.pools || Object.keys(POOLS).filter(p => !POOLS[p].fallbackOnly);
 /** The specs a level teaches on a pool: its own list, or the core ones. */
@@ -102,7 +107,7 @@ function propsOf(acc) {
 }
 /** A stream's own properties in a level: straight-run cuts take their sulphur, and the residue its body, from the crude. */
 export function ownProps(level, s) {
-  const crude = crudeOf(level), p = { ...STREAMS[s].p, ...(STREAMS[s].sr ? crude.props?.[s] : null) };
+  const crude = crudeOf(level), p = { ...baseProps(level, s), ...(STREAMS[s].sr ? crude.props?.[s] : null) };
   if (STREAMS[s].sr && CUT_S[s] != null) p.s = crude.sulphur * 10000 * CUT_S[s] * sulphurScale(level.crude);
   if (s === "atmResid") Object.assign(p, crude.ar);
   return p;
@@ -124,6 +129,11 @@ function sulphurScale(c) {
   }
   return (scales[c] = mass / s);
 }
+/**
+ * A stream's textbook properties, or a whole refinery's own where its chapter gives them (level.props: Brackwater's
+ * naphtha is cut so the benzene-forming C6s go to isomerisation, and its reformate holds under 1% benzene).
+ */
+const baseProps = (level, s) => (level.props?.[s] ? { ...STREAMS[s].p, ...level.props[s] } : STREAMS[s].p);
 /** What a unit makes of a feed: [product, volume per volume of feed] (the vacuum unit by the crude's own split). */
 export function yieldsOf(level, u, f) {
   if (u === "vdu") { const g = crudeOf(level).vgoShare; return { lvgo: g * 0.4, hvgo: g * 0.6, vacResid: 1 - g }; }
@@ -134,12 +144,12 @@ export function productProps(level, u, f, o, fp) {
   const def = UNITS[u], c = def.carry;
   let p;
   if (c && c.to === o) {
-    p = { ...STREAMS[o].p, ...fp };
+    p = { ...baseProps(level, o), ...fp };
     const dl = c.perFeed?.[f] || c.delta || {};
     for (const [k, v] of Object.entries(dl)) if (p[k] != null) p[k] = Math.max(0, p[k] + v);
     for (const [k, v] of Object.entries(c.scale || {})) if (p[k] != null) p[k] *= v;
-    Object.assign(p, c.set || {});
-  } else p = { ...STREAMS[o].p };
+    Object.assign(p, c.set || {}, c.setFeed?.[f] || {});
+  } else p = { ...baseProps(level, o) };
   if (u === "vdu" && o === "vacResid") Object.assign(p, crudeOf(level).vr, { asph: crudeOf(level).asphaltic ? 1 : 0 });
   if (def.sOf?.[o] != null) p.s = (fp.s ?? 0) * def.sOf[o];
   // renewable carbon follows a feed into every product without its own: its share by volume, and its saving spread
@@ -157,9 +167,9 @@ export const coLimits = (level, u) => ({ ...(UNITS[u].co || {}), ...(level.co?.[
 // ---------- running the refinery ----------
 /**
  * Runs the refinery on a routing ({ stream: { destination: share } }, or a destination's name for all of it).
- * Returns { margin ($/bbl of crude), revenue, crudeCost, boughtCost, opex, h2Cost, sulphurNet, h2, sulphur, streams,
- * units, pools, issues }: streams[s] = { vol, props, to: { destination: kb/d } }, units[u] = { feed, cap, feeds,
- * outputs }, pools[p] = { vol, props, parts, specs, inSpec, fails, soldAs, price }.
+ * Returns { margin ($/bbl of crude), revenue, crudeCost, boughtCost, reagentCost, reagents, opex, h2Cost, sulphurNet,
+ * h2, sulphur, streams, units, pools, issues }: streams[s] = { vol, props, to: { destination: kb/d } }, units[u] =
+ * { feed, cap, feeds, outputs, uses }, pools[p] = { vol, props, parts, specs, inSpec, fails, soldAs, price }.
  */
 export function evaluate(level, routing) {
   const crude = crudeOf(level), F = feedOf(level), has = u => level.units.includes(u);
@@ -171,8 +181,9 @@ export function evaluate(level, routing) {
   for (const s of streamsOf(level)) share[s] = sharesOf(level, routing, s);
   const to = {};                                 // stream → { dest: kb/d }, as it actually went
   const send = (s, d, v) => { if (v > 1e-9) { const t = to[s] || (to[s] = {}); t[d] = (t[d] || 0) + v; } };
-  let opex = F * UNITS.cdu.opex, h2Made = 0, h2Used = 0, sRemoved = 0;
-  units.cdu = { feed: F, cap: level.caps?.cdu ?? null, feeds: { crude: F }, outputs: Object.fromEntries(Object.entries(crude.cuts).map(([s, f]) => [s, F * f])) };
+  let opex = F * UNITS.cdu.opex, h2Made = 0, h2Used = 0, sRemoved = 0, reagentCostAll = 0;
+  const reagents = {};                           // reactant → kb/d bought for the units that take it
+  for (const [u, v] of Object.entries(columnFeeds(level))) units[u] = { feed: v, cap: level.caps?.[u] ?? null, feeds: { crude: v }, outputs: Object.fromEntries(Object.entries(crude.cuts).map(([s, f]) => [s, v * f])) };
   for (const u of ORDER) {
     if (u === "cdu" || !has(u) || !UNITS[u].feeds.length) continue;
     const def = UNITS[u];
@@ -199,6 +210,7 @@ export function evaluate(level, routing) {
       if (want - v > 1e-9) (unit.overflow || (unit.overflow = {}))[s] = want - v;
       unit.feed += v; unit.feeds[s] = v;
       opex += v * def.opex;
+      for (const [r, per] of Object.entries(def.uses?.[s] || {})) { reagents[r] = (reagents[r] || 0) + v * per; (unit.uses || (unit.uses = {}))[r] = (unit.uses?.[r] || 0) + v * per; reagentCostAll += v * per * REAGENTS[r].price; }
       let sOut = 0;
       for (const [o, f] of Object.entries(yieldsOf(level, u, s))) {
         const p = productProps(level, u, s, o, fp);
@@ -254,7 +266,8 @@ export function evaluate(level, routing) {
     revenue += (vol - over) * price + over * overPrice;
     if (over > 1e-6) issues.push({ kind: "market", pool: p, text: `The ${POOLS[p].name.toLowerCase()} market takes ${market} kb/d: ${over.toFixed(1)} kb/d more sold as ${POOLS[POOLS[p].fallback || "slops"].name.toLowerCase()}.` });
     sold[p] = { vol, props, parts: pool.parts, specs: specsOf(level, p), inSpec: !fails.length, fails, soldAs, price, over };
-    if (fails.length) issues.push({ kind: "spec", pool: p, text: `${POOLS[p].name} is off spec (${fails.map(failText).join(", ")}): sold as ${POOLS[soldAs].name.toLowerCase()} at $${price}.` });
+    // a hair of a stream in a pool (a full unit's overflow by a rounding) isn't a product the page shows, nor worth a word
+    if (fails.length && vol > 1e-4) issues.push({ kind: "spec", pool: p, text: `${POOLS[p].name} is off spec (${fails.map(failText).join(", ")}): sold as ${POOLS[soldAs].name.toLowerCase()} at $${price}.` });
   }
   // hydrogen: the reformer's first, then the hydrogen plant up to its capacity, then bought in; any spare is burned
   const short = Math.max(0, h2Used - h2Made), plantCap = has("smr") ? (level.caps?.smr ?? Infinity) : 0;
@@ -281,8 +294,8 @@ export function evaluate(level, routing) {
   }
   const crudeCost = F * (level.crudePrice ?? crude.price);
   const boughtCost = Object.entries(level.bought || {}).reduce((t, [s, v]) => t + v * (level.prices?.[s] ?? BOUGHT[s] ?? 0), 0);
-  const margin = (revenue + tickets - crudeCost - boughtCost - opex - h2Cost + sulphurNet) / F;
-  return { margin, revenue, tickets, saved, crudeCost, boughtCost, opex, h2Cost, sulphurNet, h2: { made: h2Made, used: h2Used, plant, imported, spare },
+  const margin = (revenue + tickets - crudeCost - boughtCost - reagentCostAll - opex - h2Cost + sulphurNet) / F;
+  return { margin, revenue, tickets, saved, crudeCost, boughtCost, reagentCost: reagentCostAll, reagents, opex, h2Cost, sulphurNet, h2: { made: h2Made, used: h2Used, plant, imported, spare },
     sulphur: { removed: sRemoved, cap: sruCap, over: sOver }, streams, units, pools: sold, issues };
 }
 /** A pool's price in a level (a level may have its own deck). */
@@ -336,7 +349,7 @@ function buildLP(level, cols, q, x0, gradient) {
   const F = feedOf(level), crude = crudeOf(level), has = u => level.units.includes(u);
   const { streams, vars, idx, H2P, H2B, H2X, made } = cols;
   const n = vars.length, c = new Float64Array(n), rows = [], tag = [], elastic = [];
-  vars.forEach(([s, d], j) => { if (POOLS[d]) c[j] = d === "notBought" ? refundOf(level, s) : priceOf(level, d); else if (UNITS[d]) c[j] = -UNITS[d].opex; });
+  vars.forEach(([s, d], j) => { if (POOLS[d]) c[j] = d === "notBought" ? refundOf(level, s) : priceOf(level, d); else if (UNITS[d]) c[j] = -UNITS[d].opex - reagentCost(d, s); });
   if (H2P >= 0) c[H2P] = -H2_PRICE;
   c[H2B] = -H2_PRICE * H2_IMPORT; c[H2X] = 2;
   const supply = s => F * (crude.cuts[s] || 0) + (level.bought?.[s] || 0);
@@ -606,6 +619,10 @@ export function solve(level, { starts: extra = [], tries = 6 } = {}) {
     const again = slp(level, cols, p.routing, q0);
     if (again && again.margin > best.margin + 1e-6) best = { ...again, lp: again.lp || best.lp };
   }
+  // the plan as it really flows: a unit sent more than it takes passes the rest on to where it would have gone, which
+  // the exact moves may find pays; written as the shares that actually went, the same plant runs with no overflow
+  const exact = routingOf(cols, flowsOf(cols, best.result).x), again = evaluate(level, exact);
+  if (inSpec(again) && again.margin >= best.margin - 1e-6) best = { ...best, margin: again.margin, routing: exact, result: again };
   const values = {}, capacity = {};
   if (best.lp) best.lp.tag.forEach((t, r) => {
     if (t[0] === "stream") values[t[1]] = best.lp.sol.duals[r];

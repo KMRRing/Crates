@@ -46,6 +46,11 @@ export const TEACHES = {
   "10.3": "The FCC with ZSM-5, its naphtha cut three ways",
   "10.4": "Gas oil in two stages: heating oil and road diesel",
   "10.5": "The whole of Alder Point, as its planners run it",
+  "11.1": "Brackwater's two works, and four treaters for its distillates",
+  "11.2": "Vacuum gas oil treated for export; the residue into deasphalted oil and power",
+  "11.3": "A cracker fed only treated gas oil, and its light ends: MTBE, alkylate, cumene",
+  "11.4": "A turnaround: one VGO hydrotreater down, and treated VGO on offer",
+  "11.5": "The whole of Brackwater, and the crude that fills it best",
 };
 
 /** The craft's words, for the glossary and the exams: no definition says its own word or holds a figure that gives it away. */
@@ -162,6 +167,17 @@ export const GLOSSARY = [
   ["Heating oil", "Gas oil sold to be burned in boilers, to a looser sulphur limit than road diesel's: a tenth of a per cent in Europe."],
   ["Cogeneration", "Making power and process steam together from one fuel, in a gas turbine with a heat-recovery boiler behind it."],
   ["Flash point", "The lowest temperature at which a fuel gives off enough vapour to catch fire over it: a safety limit, dominated in a blend by its lightest part."],
+  ["MTBE", "Methyl tertiary-butyl ether: methanol joined to isobutene, a petrol blendstock of high octane and some oxygen, made from the cracker's C4s."],
+  ["Raffinate", "What's left of a stream once a unit has taken a part out of it: the C4s once their isobutene has gone to ethers, alkylation's feed."],
+  ["Cumene", "Isopropylbenzene, made from propylene and benzene: a phenol plant splits it into phenol and acetone."],
+  ["Solvent deasphalting", "Dissolving the oil out of vacuum residue with propane, butane or pentane near its critical point, leaving the asphaltenes behind as pitch."],
+  ["Deasphalted oil", "The oil a light paraffin solvent extracts from vacuum residue: cracker feed once hydrotreated, heavier and richer in metals than vacuum gas oil."],
+  ["Pitch", "The asphaltenes, metals and most of the sulphur a deasphalter leaves of the residue: nearly solid when cold, a gasifier's feed or a bitumen base."],
+  ["Gasification", "Partly oxidising a heavy oil or coal with pure oxygen and steam into synthesis gas, carbon monoxide and hydrogen, instead of burning it."],
+  ["IGCC", "Integrated gasification combined cycle: a gasifier's cleaned gas burned in gas turbines whose exhaust raises steam for steam turbines."],
+  ["Synthesis gas", "Carbon monoxide and hydrogen together, made by gasifying or reforming a fuel: burned for power, shifted to hydrogen, or made into chemicals."],
+  ["Mild hydrocracking", "Hydrotreating a vacuum gas oil at enough pressure that a part of it cracks, to low-sulphur diesel and naphtha, while the rest is cleaned for the cracker."],
+  ["FCC pretreatment", "Hydrotreating a catalytic cracker's feed first, to take out the sulphur, nitrogen and metals that would foul its products, its catalyst and its flue gas."],
 ];
 
 const W = (k, s) => ({ say: s, scene: k });
@@ -185,6 +201,10 @@ const alder = (o = {}) => { const L = LV("10.5"); return { sheet: { plant: { cru
 const vrOf = c => { const L = { crude: c, units: [] }; return productProps(L, "vdu", "atmResid", "vacResid", ownProps(L, "atmResid")); };
 // a biofuel's ticket at a level's quota price, $/bbl: its saving in tonnes times the price
 const ticketOf = (s, id) => (STREAMS[s].p.ghg * LV(id).ticket) / 1000;
+// Brackwater whole, for its chapter's pictures: its two works as its last level has them, on its first level's crude
+const brackwater = (o = {}) => { const L = LV("11.5"); return { sheet: { plant: { crude: LV("11.1").crude, feed: L.feed, cdu2: L.cdu2, units: L.units, feeds: L.feeds, caps: L.caps, layout: L.layout, props: L.props, pools: L.pools, bought: {}, prices: L.prices }, ...o } }; };
+// what the FCC makes of a barrel of feed, treated against untreated, for 11.3's picture
+const fccOn = f => UNITS.fcc.yields[f];
 /** What a barrel of vacuum gas oil earns in 8.3's hydrocracker, as its lesson says: tests/refinery.mjs holds it to par's. */
 export const VGO_IN_HCU = 87;
 const crackBars = id => LV(id).decks.flatMap((d, i) => [[`Petrol, ${i ? "winter" : "summer"}`, crack(id, i, "gasoline"), "naphtha"], [`Diesel, ${i ? "winter" : "summer"}`, crack(id, i, "diesel"), "middle"]]);
@@ -415,6 +435,37 @@ const LESSONS = {
     W(alder(), "The whole plant to its full specification, as its planners run it each month: petrol to every EN 228 limit, diesel to EN 590 with FAME, heating oil, VLSFO, propylene and light virgin naphtha. FAME, ethanol and ETBE are bought in, for their tickets, as a refinery blending for a national mandate does."),
     W(alder({ only: ["sru"] }), "Around the process units stand the utilities. A cogeneration plant makes power and steam together from the refinery's fuel gas; an amine wash and a sulphur plant of a single train take every hydrotreater's hydrogen sulphide, so a trip of it stops them all; a water treatment plant, flotation then a biological stage, cleans what leaves; the tank farm holds crude, components and products."),
     W(alder({ only: ["srReformer", "dht", "hds", "kht", "nht", "cnht"] }), "What sets the plan is mostly hydrogen: one reformer, whose output rises and falls with how much naphtha petrol can take, feeds five treaters. Then diesel's density and cetane, petrol's oxygen, aromatics and benzene, and fuel oil's viscosity. Every limit has a price, and the plan sits on several at once."),
+  ],
+  // ---------- 11. Brackwater ----------
+  "11.1": [
+    W(brackwater(), `Brackwater is an invented refinery of two works a few kilometres apart, joined by pipelines: about ${LV("11.1").feed} thousand barrels a day in all. The east works distils ${LV("11.1").cdu2} and cracks; the west works distils ${LV("11.1").feed - LV("11.1").cdu2} and does nearly everything else: the naphtha side, the distillate treating, the vacuum unit and the residue. This chapter takes it a part at a time.`),
+    W(level({ only: ["cdu", "cdu2"] }), "Each works has its own crude unit, cutting the same crude the same way, so each cut is one stream whichever column made it, and goes where the plan sends it. The east's distillates and residue travel west by pipeline, as all the distillate treating and the vacuum unit are there."),
+    W(level({ only: ["kht", "dht", "dht2", "hght"] }), "Four hydrotreaters share the distillates by how hard they are to treat: one for kerosene, to jet; two for the lighter gas oils, to diesel; and one at higher pressure for the heaviest gas oil, which will take the cracked gas oils too once the cracker runs. Each takes only what it was built for."),
+    W({ blend: { prop: "d", parts: [["Light gas oil", 32, 840], ["Heavy gas oil", 16, 865]], limit: 845, dir: "max" } }, "Arab Light's heavy gas oil comes out of its treater at about 865 kg/m³, over diesel's 845: diesel can take it only as far as the lighter gas oils and kerosene make up the difference. What it can't take goes to heating oil, or cuts the residue into fuel oil."),
+    W(level({ only: ["nht", "reformer", "isom"] }), "On the naphtha side the heavy naphtha goes through its hydrotreater to a CCR reformer, the light to isomerisation. The naphtha is cut so that the C6s that would become benzene go with the light end, and isomerisation saturates them: the reformate holds under 1% benzene, so there's no benzene splitter."),
+  ],
+  "11.2": [
+    W(level({ only: ["vdu", "vgoHt", "vgoHt2"] }), "The vacuum unit, at the west works, takes both crude units' residue. Its gas oil goes to two VGO hydrotreaters, one at each works, which take it to 150 ppm at 80–120 bar, cracking some of it to diesel on the way. With no cracker running yet, the treated gas oil is sold: as low-sulphur VGO to other refineries, or into VLSFO, where it carries residue under 0.5%."),
+    W(level({ only: ["visbreaker", "sda"] }), "The vacuum residue goes on to the visbreaker, which thins it, and then to the solvent deasphalter: propane or butane near its critical point dissolves the residue's oil and leaves its asphaltenes. The deasphalted oil, sour and full of metals, goes to the VGO hydrotreaters; what's left is pitch, nearly solid when cold."),
+    W({ blend: { prop: "visc", parts: [["asphalt", 1], ["lgo", 1]], limit: 380, dir: "max" } }, "Pitch could be fuel oil, but only with about its own volume of cutter: diesel-range gas oil sold at the fuel oil's price. So it goes to the gasification plant instead."),
+    W(level({ only: ["igcc", "sru"] }), "In the gasifier, pitch meets pure oxygen and steam at 1,300–1,400 °C and becomes synthesis gas, carbon monoxide and hydrogen. Washed of its hydrogen sulphide, which goes to the sulphur plant, it drives gas turbines whose exhaust raises steam for steam turbines: an IGCC. About a third of the pitch's energy goes out as power, 0.65 MWh a barrel, sold to the grid; a slipstream is shifted to hydrogen for the treaters."),
+  ],
+  "11.3": [
+    W(level({ only: ["vgoHt", "fcc"] }), "The east works' FCC has no naphtha post-treater: its naphtha carries about a tenth of its feed's sulphur into petrol, so it cracks only hydrotreated gas oil. Treated feed cracks further, too, to more naphtha and less cycle oil and slurry, and the regenerator puts out far less sulphur dioxide."),
+    W({ bars: { items: [["Naphtha, treated feed", fccOn("vgoT").catNaphtha * 100, "naphtha"], ["Naphtha, untreated", fccOn("lvgo").catNaphtha * 100, "naphtha"], ["Cycle oil, treated", fccOn("vgoT").lco * 100, "middle"], ["Cycle oil, untreated", fccOn("lvgo").lco * 100, "middle"], ["Slurry, treated", fccOn("vgoT").slurry * 100, "heavy"], ["Slurry, untreated", fccOn("lvgo").slurry * 100, "heavy"]], unit: "% of feed" } }, "What a barrel of gas oil makes in the FCC, hydrotreated or not: the treater's hydrogen buys conversion as well as clean products."),
+    W({ molecules: ["mtbe", "cumene"] }, "Its light ends become petrol and chemicals. The isobutene in its C4s joins bought methanol over an acidic resin: MTBE, an ether of octane near 118. Its propylene joins bought benzene over a zeolite: cumene, which a phenol plant splits into phenol and acetone."),
+    W(level({ only: ["fcc", "mtbeUnit", "alky", "cumeneUnit"] }), "What's left of the C4s, the raffinate, is alkylated: butenes joined to isobutane, alkylate of octane 95 with no aromatics, olefins or sulphur. Taking the isobutene out first makes a better alkylate and costs less acid. The propylene is worth what the cumene pays less its benzene, against polymer-grade propylene's price."),
+    W(level({ only: ["gasoline"] }), "Petrol takes the FCC's naphtha, the reformate, isomerate, alkylate and MTBE, and octane is what limits it: the FCC's naphtha is RON 92 and a third olefins, and the reformate is held back by the aromatics. MTBE and alkylate carry the cracker's naphtha into the pool."),
+  ],
+  "11.4": [
+    W(level({ only: ["vgoHt2", "fcc"] }), "Every unit stops every few years for inspection and a new catalyst: a turnaround, planned months ahead. This month it's the east works' VGO hydrotreater, the FCC's own pretreater. The west works' hydrotreater is left, and it takes 25 thousand barrels a day."),
+    W(level({ only: ["vdu", "vgoHt2", "sda", "igcc"] }), "What the one hydrotreater can't take is sour, and the FCC can't crack it: it goes to fuel oil. The deasphalter has no home for its oil either, so the visbroken residue goes to the gasification plant or fuel oil instead. One unit stopped ripples through the plant."),
+    W({ bars: { items: [["Bought at", LV("11.4").prices.importVgoT, "heavy"], ["VLSFO", price("fuelOil"), "resid"], ["Low-sulphur VGO", price("vgoExport"), "heavy"], ["Petrol", price("gasoline"), "naphtha"]], unit: "$/bbl", min: 50 } }, "Hydrotreated VGO is on offer to fill the FCC. It pays while what the FCC makes of a barrel is worth more than the barrel costs: buy up to where the next one isn't."),
+  ],
+  "11.5": [
+    W(brackwater(), "Both works together, every product to its full specification: Brackwater as its planners run it each month, starting from the month's crude."),
+    W({ bars: { items: ["brent", "cpc", "arabLight", "sverdrup", "arabHeavy"].map(c => [CRUDES[c].short || CRUDES[c].name, CRUDES[c].cuts.atmResid * (1 - CRUDES[c].vgoShare) * LV("11.5").feed, "resid"]), unit: "kb/d of vacuum residue" } }, "The residue chain was built for a medium sour crude: the visbreaker, the deasphalter and the gasifier take about 30 thousand barrels a day of vacuum residue. A light crude gives less and leaves them part idle, a sweet one's residue earns more as VLSFO than as pitch, and a heavy one overfills them: the rest goes to fuel oil with cutter."),
+    W(brackwater({ only: ["reformer", "isom", "fcc", "mtbeUnit", "alky"] }), "Petrol's limits set the naphtha side: octane, with the FCC's naphtha at RON 92, and aromatics at 35%, which holds back the reformer. Light naphtha the pool can't carry goes to the steam crackers."),
   ],
 };
 

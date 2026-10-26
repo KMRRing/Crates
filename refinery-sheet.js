@@ -8,14 +8,15 @@ import { streamsOf, poolsOf, specsOf, limitOf, fmtProp, destinations } from "./r
 
 const NS = "http://www.w3.org/2000/svg";
 /** How light a stream is: 0 the gases, 13 the coke. Units and pools sit at the height of what they take. */
-export const RANK = { gas: 0, lpg: 1, propylene: 1.3, butane: 1.7, c4: 2, lsr: 3, lcn: 3.1, lcnT: 3.15, isomerate: 3.2, alkylate: 3.4, etbe: 3.6, bzCut: 3.8, hsr: 4, icn: 4.1, hsrT: 4.2, reformate: 4.4, heavyReformate: 4.45, hcNaphtha: 4.5,
-  catNaphtha: 4.6, catNaphthaT: 4.7, cokerNaphtha: 4.8, ethanol: 4.9, hcn: 5.5, kero: 6, jet: 6.1, spk: 6.15, hcJet: 6.2, lgo: 7, ulsd: 7.2, hcDiesel: 7.3, hvo: 7.4, fame: 7.5, lco: 7.6, lcgo: 7.65, goT: 7.8,
-  hgo: 8, fuelOilCutter: 8.2, cokerGo: 8.4, lvgo: 9, hvgo: 9.5, importVgo: 9.6, vegOil: 9.8, hcgo: 9.9, slurry: 10, atmResid: 11, visResid: 11.5, vacResid: 12, bitumen: 12.5, coke: 13 };
-const POOL_RANK = { gasPool: 0, lpg: 1.2, propylene: 1.6, gasoline: 3.6, naphtha: 4.6, jet: 6, diesel: 7, hvo100: 7.6, gasoil: 8.1, fuelOil: 10, hsfo: 11, bitumen: 12.3, coke: 13, slops: 13, notBought: 12 };
-const UNIT_RANK = { vdu: 11.4, coker: 12.2, visbreaker: 11.6, blowing: 12.8, hvoUnit: 9.8, safUnit: 6.8, fcc: 9.4, hcu: 8.6, merox: 5.6, kht: 6.3, nht: 4.2, dht: 7.6, hds: 7.9, reformer: 4.3, srReformer: 4.3, bzhc: 4.4, isom: 3, alky: 2, cnht: 5, smr: 0.2, sru: 13 };
+export const RANK = { gas: 0, lpg: 1, propylene: 1.3, cumene: 1.5, butane: 1.7, c4: 2, raff: 2.1, lsr: 3, lcn: 3.1, lcnT: 3.15, isomerate: 3.2, alkylate: 3.4, mtbe: 3.5, etbe: 3.6, bzCut: 3.8, hsr: 4, icn: 4.1, hsrT: 4.2, reformate: 4.4, heavyReformate: 4.45, hcNaphtha: 4.5,
+  catNaphtha: 4.6, catNaphthaT: 4.7, cokerNaphtha: 4.8, ethanol: 4.9, hcn: 5.5, kero: 6, jet: 6.1, spk: 6.15, hcJet: 6.2, lgo: 7, ulsd: 7.2, hcDiesel: 7.3, hvo: 7.4, fame: 7.5, lco: 7.6, lcgo: 7.65, goT: 7.8, mhcGo: 7.9,
+  hgo: 8, fuelOilCutter: 8.2, cokerGo: 8.4, lvgo: 9, vgoT: 9.3, importVgoT: 9.4, hvgo: 9.5, importVgo: 9.6, vegOil: 9.8, hcgo: 9.9, slurry: 10, dao: 10.5, atmResid: 11, visResid: 11.5, vacResid: 12, asphalt: 12.3, bitumen: 12.5, power: 12.9, coke: 13 };
+const POOL_RANK = { gasPool: 0, lpg: 1.2, propylene: 1.6, cumene: 2, gasoline: 3.6, naphtha: 4.6, jet: 6, diesel: 7, hvo100: 7.6, gasoil: 8.1, vgoExport: 9.2, fuelOil: 10, hsfo: 11, bitumen: 12.3, power: 12.6, coke: 13, slops: 13, notBought: 12 };
+const UNIT_RANK = { vdu: 11.4, coker: 12.2, visbreaker: 11.6, blowing: 12.8, hvoUnit: 9.8, safUnit: 6.8, fcc: 9.4, hcu: 8.6, merox: 5.6, kht: 6.3, nht: 4.2, dht: 7.6, hds: 7.9, reformer: 4.3, srReformer: 4.3, bzhc: 4.4, isom: 3, alky: 2, cnht: 5, smr: 0.2, sru: 13,
+  vgoHt: 9, vgoHt2: 9.8, mtbeUnit: 2.2, cumeneUnit: 1.3, hght: 7.9, dht2: 7.4, sda: 12.4, igcc: 12.8 };
 export const GROUP_COLOUR = { gas: "var(--rf-gas)", naphtha: "var(--rf-naphtha)", middle: "var(--rf-middle)", heavy: "var(--rf-heavy)", resid: "var(--rf-resid)", renewable: "var(--rf-renew)", other: "var(--rf-gas)" };
 // sizes, in the diagram's own units
-const NODE_W = 44, NODE_H = 22, COL = 60, TOP = 18, ROW = 25, POOL_W = 78, POOL_H = 29;
+const NODE_W = 44, NODE_H = 22, COL = 60, TOP = 18, ROW = 25, POOL_W = 78, POOL_H = 29, TWIN = 28;
 
 /**
  * The layout of a level's plant: { nodes: { id: { id, kind (crude | bought | unit | pool), x, y, w, h, col } },
@@ -24,8 +25,10 @@ const NODE_W = 44, NODE_H = 22, COL = 60, TOP = 18, ROW = 25, POOL_W = 78, POOL_
 export function layout(level) {
   const units = level.units.filter(u => UNITS[u]), pools = sheetPools(level);
   const stages = [...new Set(units.map(u => colOf(level, u)))].sort((a, b) => a - b);
-  const colX = new Map(stages.map((s, i) => [s, 40 + i * COL]));
-  const poolX = 40 + stages.length * COL + 6;
+  // a second crude unit stands to the left of the first, and the rest of the plant moves over to make room
+  const twin = units.includes("cdu2") ? TWIN : 0;
+  const colX = new Map(stages.map((s, i) => [s, 40 + twin + i * COL]));
+  const poolX = 40 + twin + stages.length * COL + 6;
   const y = r => TOP + r * ROW;
   const nodes = {};
   nodes.crude = { id: "crude", kind: "crude", x: 0, y: y(9), w: 30, h: NODE_H, col: -1 };
@@ -35,7 +38,7 @@ export function layout(level) {
     const list = units.filter(u => colOf(level, u) === s).map(u => ({ u, r: level.layout?.[u]?.[1] ?? UNIT_RANK[u] ?? 6 })).sort((a, b) => a.r - b.r);
     let last = -Infinity;
     for (const { u, r } of list) {
-      if (u === "cdu") { nodes.cdu = { id: "cdu", kind: "unit", x: colX.get(s), y: y(0) - 6, w: 26, h: y(11) - y(0) + 12, col: s, column: true }; continue; }
+      if (u === "cdu" || u === "cdu2") { nodes[u] = { id: u, kind: "unit", x: u === "cdu2" ? colX.get(s) - TWIN : colX.get(s), y: y(0) - 6, w: u === "cdu2" ? TWIN - 6 : 26, h: y(11) - y(0) + 12, col: s, column: true }; continue; }
       const top = Math.max(y(r) - NODE_H / 2, last + 6);
       nodes[u] = { id: u, kind: "unit", x: colX.get(s), y: top, w: NODE_W, h: NODE_H, col: s };
       last = top + NODE_H;
@@ -50,7 +53,7 @@ export function layout(level) {
   const height = Math.max(y(13) + NODE_H, last + 6), width = poolX + POOL_W + 4;
   return { nodes, width, height };
 }
-const colOf = (level, u) => level.layout?.[u]?.[0] ?? (u === "cdu" ? 1 : UNITS[u].stage);
+const colOf = (level, u) => level.layout?.[u]?.[0] ?? (u === "cdu" || u === "cdu2" ? 1 : UNITS[u].stage);
 /** The pools drawn: the level's, less those nothing in it can reach. */
 export function sheetPools(level) {
   const reach = new Set(streamsOf(level).flatMap(s => destinations(level, s)));
@@ -148,7 +151,8 @@ export function drawSheet(svg, level, result, opts = {}) {
     if (n.kind === "crude") {
       const c = CRUDES[level.crude];
       parts.push(`<g class="rf-node rf-src${dim ? " dim" : ""}" data-node="crude"><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="3"/><text x="${n.x + n.w / 2}" y="${n.y + 9}" class="rf-n1">CRUDE</text><text x="${n.x + n.w / 2}" y="${n.y + 17.5}" class="rf-n2">${esc(c.name.split(" ")[0])}</text></g>`);
-      if (cdu) parts.push(`<path class="rf-feed" d="M${n.x + n.w} ${n.y + n.h / 2}L${cdu.x - 1} ${n.y + n.h / 2}" stroke-width="${width(level.feed ?? 100) * 0.7}"/>`);
+      const first = N.cdu2 || cdu;
+      if (first) parts.push(`<path class="rf-feed" d="M${n.x + n.w} ${n.y + n.h / 2}L${first.x - 1} ${n.y + n.h / 2}" stroke-width="${width(level.feed ?? 100) * 0.7}"/>`);
       continue;
     }
     if (n.kind === "bought") {
@@ -159,9 +163,10 @@ export function drawSheet(svg, level, result, opts = {}) {
       const u = UNITS[n.id], run = result.units[n.id], cap = level.caps?.[n.id];
       const idle = !run && !["smr", "sru", "cdu"].includes(n.id) || (n.id === "smr" && !(result.h2.plant > 0.01)) || (n.id === "sru" && !(result.sulphur.removed > 0.01));
       if (n.column) {
-        parts.push(`<g class="rf-node rf-unit rf-column${picked ? " sel" : ""}${dim ? " dim" : ""}" data-node="cdu"><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="8"/>` +
+        // a crude column: its trays, its name and what it runs; a second one's cuts leave through the first's outlets
+        parts.push(`<g class="rf-node rf-unit rf-column${picked ? " sel" : ""}${dim ? " dim" : ""}" data-node="${n.id}"><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="8"/>` +
           Array.from({ length: 11 }, (_, i) => `<line x1="${n.x + 3}" x2="${n.x + n.w - 3}" y1="${n.y + 10 + i * (n.h - 20) / 10}" y2="${n.y + 10 + i * (n.h - 20) / 10}" class="rf-tray"/>`).join("") +
-          `<text x="${n.x + n.w / 2}" y="${n.y + n.h / 2}" class="rf-n1 rf-vert" transform="rotate(-90 ${n.x + n.w / 2} ${n.y + n.h / 2})">CDU${opts.mini ? "" : ` · ${Math.round(run?.feed ?? level.feed ?? 100)} kb/d`}</text></g>`);
+          `<text x="${n.x + n.w / 2}" y="${n.y + n.h / 2}" class="rf-n1 rf-vert" transform="rotate(-90 ${n.x + n.w / 2} ${n.y + n.h / 2})">${esc(u.short)}${opts.mini ? "" : ` · ${Math.round(run?.feed ?? level.feed ?? 100)} kb/d`}</text></g>`);
         continue;
       }
       const util = cap && run ? Math.min(1, run.feed / cap) : null;
@@ -175,7 +180,7 @@ export function drawSheet(svg, level, result, opts = {}) {
     // a lesson's small picture shows where things go, not whether they pass: no verdicts on it
     // a pool with a rounding's worth in it is empty, not off spec
     const pool = result.pools[n.id]?.vol > 1e-4 ? result.pools[n.id] : null, def = POOLS[n.id], specs = poolSpecs(level, n.id, pool), off = pool && !pool.inSpec && !opts.mini;
-    const line2 = opts.labels?.[n.id] ?? (opts.mini ? "" : pool ? `${pool.vol.toFixed(1)} kb/d · $${+pool.price.toFixed(1)}` : "–");
+    const line2 = opts.labels?.[n.id] ?? (opts.mini ? "" : pool ? `${amount(n.id, pool.vol, { fine: true })} · $${+pool.price.toFixed(1)}` : "–");
     // the key specs, value by value, each ticked or crossed: as many as the box holds, the failing first, then those
     // nearest their limits, and a count of the rest (a pool held to all ten of petrol's would run far past its box)
     let line3 = "";
@@ -194,6 +199,14 @@ export function drawSheet(svg, level, result, opts = {}) {
   return lay;
 }
 
+/**
+ * A volume as it reads: kb/d of oil, or for power (counted in thousand MWh a day) the megawatts it averages. Takes a
+ * stream or a pool.
+ */
+export function amount(id, v, { fine = false } = {}) {
+  if ((STREAMS[id] || POOLS[id])?.per === "MWh") return `${Math.round((v * 1000) / 24)} MW`;
+  return `${fine || v < 10 ? v.toFixed(1) : Math.round(v)} kb/d`;
+}
 /** A property in a pool's few characters: "RON 95.1", "S 9 ppm", "CN 51.2", "380 cSt". */
 function shortProp(k, v) {
   if (v == null) return "–";

@@ -234,6 +234,29 @@ const Q = {
     ["Why does Alder Point desulphurise gas oil in two stages?", "The first reaches heating oil's 0.1%; the second takes part of it to 10 ppm", ["The first takes out 90% of the nitrogen; the second the sulphur", "The first cracks 20% of the gas oil; the second treats the rest", "The first makes summer diesel to 51 cetane; the second winter diesel"], "Heating oil needs only the first stage; road diesel both, so the second stage's hydrogen goes only to what diesel takes."],
     ["What makes a desulphurised cycle oil useful in fuel oil?", "It cuts residue's viscosity and sulphur together", ["It raises fuel oil's flash point over 60 °C", "It adds cetane to the residue", "It lowers fuel oil's density under 900"], "Thin, and once treated low in sulphur: it carries residue into VLSFO's 0.5% and 380 cSt."],
   ],
+  "11.1": [
+    ["Why might a refinery run two crude units rather than one?", "Built at different times, or at works of their own", ["A crude unit can cut only one crude, never a blend", "Two columns halve the furnace fuel for the same crude", "Each crude unit makes only light or only heavy cuts"], "Crude units are often added as a refinery grows, or stand at separate works; each runs its share of the crude, and their cuts join."],
+    ["Why do refineries run several distillate hydrotreaters rather than one large one?", "Each is built for its feeds: harder gas oils need more pressure", ["One large hydrotreater can't reach 10 ppm on any feed", "Each product needs its own platinum catalyst", "A hydrotreater can take only one crude's cuts"], "Heavy and cracked gas oils hold their sulphur in shielded rings that need pressure and hydrogen; the light ones go to a cheaper unit."],
+    ["Why does cutting naphtha so its C6s go to isomerisation lower the reformate's benzene?", "The rings that would form benzene are saturated instead", ["The reformer's catalyst destroys benzene once it's formed", "The heavy naphtha then holds no aromatics at all", "Isomerisation turns the benzene into toluene"], "Cyclohexane and methylcyclopentane become benzene in a reformer; sent with the light naphtha, they're isomerised and saturated."],
+  ],
+  "11.2": [
+    ["What does a solvent deasphalter separate the residue's oil with?", "A light paraffin solvent near its critical point", ["Hydrogen at 150 bar over a nickel catalyst", "Air blown through the residue at 250 °C", "Steam at 850 °C in a furnace coil"], "Propane, butane or pentane dissolves the oils and rejects the asphaltenes."],
+    ["Why does deasphalted oil go through a VGO hydrotreater before the cracker?", "It carries more sulphur, nitrogen and metals than vacuum gas oil", ["It's too light to crack without being saturated", "It holds no sulphur but far too much water", "It would freeze solid in the cracker's riser"], "Its metals poison the cracking catalyst and its sulphur would end up in the products: it's treated first."],
+    ["What does an IGCC gasify its pitch with?", "Pure oxygen and steam", ["Air and natural gas", "Hydrogen and nitrogen", "Carbon dioxide and water"], "An air separation unit supplies the oxygen; partial oxidation makes synthesis gas, carbon monoxide and hydrogen."],
+  ],
+  "11.3": [
+    ["Why does an FCC with no naphtha post-treater crack only hydrotreated feed?", "Its naphtha carries about a tenth of its feed's sulphur", ["Untreated feed stops its catalyst from circulating", "Its regenerator can't burn coke from untreated feed", "Untreated feed makes no naphtha in it at all"], "A feed of 2% sulphur would give naphtha of about 2,000 ppm; treated to 150 ppm, the naphtha is near 20, which petrol can carry diluted."],
+    ["Why is isobutene taken out of the FCC's C4s before alkylation?", "It alkylates to a lower octane and costs more acid", ["It would freeze in the alkylation reactor", "It's the one C4 alkylation can't take at all", "It makes alkylate too volatile for summer"], "As MTBE it's worth more, and the butenes left alkylate better."],
+    ["A cumene unit's propylene is worth", "What the cumene sells for, less its benzene", ["What polymer-grade propylene sells for", "What LPG sells for, as it's a C3", "What petrol sells for, by its octane"], "Its netback: the product's value less the other feed's cost, against what the propylene would fetch sold as it is."],
+  ],
+  "11.4": [
+    ["With its feed pretreater down, what can a cracker with no post-treater do?", "Run on bought treated feed, or at a lower rate", ["Run on untreated feed, its naphtha to petrol as usual", "Run its regenerator hotter to burn off the sulphur", "Run at full rate on vacuum residue instead"], "Its naphtha would be too sour for petrol: it needs treated feed or a cut in throughput."],
+    ["Why does one unit's turnaround reach units that keep running?", "They lose their feed or their outlet", ["They share its catalyst", "They share its furnace", "They must stop by law"], "With a VGO hydrotreater down, the cracker loses feed and the deasphalter loses the outlet for its oil."],
+  ],
+  "11.5": [
+    ["Why does a refinery with a deasphalter and a gasifier favour a medium sour crude?", "Its residue fills them, and sour crude sells at a discount", ["Its residue makes the most road bitumen", "Its naphtha has the highest octane", "Its sulphur makes the most hydrogen"], "Residue units pay when they're full of cheap residue; a light sweet crude leaves them idle and costs more."],
+    ["In a petrol pool held to 35% aromatics, where must extra octane come from?", "Blendstocks without aromatics: alkylate, isomerate, ethers", ["More reformate, at a higher severity", "More FCC naphtha, at a higher conversion", "More straight-run heavy naphtha"], "Reformate's octane comes with its aromatics; alkylate, isomerate and ethers add octane without them."],
+  ],
   "10.5": [
     ["When Alder Point's reformer stops to regenerate, what has to give?", "The hydrotreaters, for want of hydrogen", ["The benzene splitter only, for want of feed", "The FCC, for want of hot catalyst", "Nothing: hydrogen is bought in by pipeline"], "There's no other hydrogen: the whole plant's turnaround is planned round the reformer's."],
     ["Why is a sulphur plant of a single train a weak point?", "If it trips, every hydrotreater has to stop", ["If it trips, the crude unit floods its trays", "If it trips, the FCC loses its catalyst", "If it trips, the reformer loses its hydrogen"], "Every hydrotreater sends it hydrogen sulphide; with no second train, the hydrogen sulphide has nowhere else to go."],
@@ -254,6 +277,8 @@ const WORDS = {
   "9.5": ["SAF", "HEFA", "ReFuelEU Aviation", "ASTM D7566", "Double counting"],
   "10.1": ["Side stream", "VLSFO", "Vacuum gas oil", "Sweet crude"], "10.2": ["Semi-regenerative reformer", "Light virgin naphtha", "Hydrogen network", "Turnaround"], "10.3": ["Cat naphtha splitter", "ZSM-5", "Light cycle oil", "Slurry oil"],
   "10.4": ["Heating oil", "Hydrodesulphurisation", "Cutter stock", "ULSD"], "10.5": ["Cogeneration", "Claus process", "Linear programming"],
+  "11.1": ["Side stream", "Hydrodesulphurisation", "Isomerisation", "Flash point"], "11.2": ["Solvent deasphalting", "Deasphalted oil", "Pitch", "Gasification", "IGCC", "Synthesis gas", "Mild hydrocracking"],
+  "11.3": ["FCC pretreatment", "MTBE", "Raffinate", "Cumene", "Alkylation"], "11.4": ["Turnaround", "Marginal value"], "11.5": ["Crude differential", "Opportunity crude", "Linear programming"],
 };
 const AREAS = {
   1: ["Distillation", "Crudes", "Products"], 2: ["Sulphur", "Treating", "Specs"], 3: ["Reforming", "Octane", "Volatility", "Isomerisation", "Oxygenates"],
@@ -261,6 +286,7 @@ const AREAS = {
   7: ["Specs", "Blending", "Volatility", "Oxygenates", "Cetane", "Cold flow", "Stability", "Components"], 8: ["Margins", "Configuration", "Operations", "Crudes"],
   9: ["Renewables", "HVO", "FAME", "SAF", "Co-processing", "Policy"],
   10: ["Distillation", "Reforming", "Cracking", "Treating", "Configuration", "Specs"],
+  11: ["Cracking", "Residue", "Treating", "Hydrogen", "Oxygenates", "Petrochemicals", "Alkylation", "Configuration", "Energy"],
 };
 
 // ---------- the flowsheet ----------
@@ -274,6 +300,8 @@ const ROLES = [
   ["joins butenes to isobutane", ["alky"]], ["takes the sulphur out of cracked naphtha", ["cnht"]], ["leaves solid carbon behind in a drum", ["coker"]],
   ["thins the residue by cracking it mildly", ["visbreaker"]], ["blows air through residue for roads", ["blowing"]], ["cuts the benzene out of reformate", ["bzhc"]],
   ["turns fats into renewable diesel", ["hvoUnit"]], ["desulphurises gas oil to heating oil's 0.1%", ["hds"]],
+  ["dissolves the oil out of the residue with a solvent", ["sda"]], ["turns pitch into power and hydrogen", ["igcc"]], ["joins isobutene to methanol", ["mtbeUnit"]],
+  ["joins propylene to benzene", ["cumeneUnit"]], ["hydrotreats the cracker's feed", ["vgoHt", "vgoHt2"]], ["treats the heaviest gas oils to diesel", ["hght"]],
 ];
 /**
  * What the flowsheet shows, asked of the plan par makes (the right one, so the answer holds anywhere): a unit tapped by
