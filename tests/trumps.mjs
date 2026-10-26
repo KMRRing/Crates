@@ -4,9 +4,9 @@
 // it; beat a trump in), its bidding (the turned card taken, the second round, a redeal) and scoring; Coinche's auction
 // (bids, coinche, surcoinche) and scoring; Schafkopf's trumps, the called ace's duties, the Laufende and the tariff;
 // the state through the database; whole games of computer players in each, every card legal.
-import { GAMES, weisOf, laufende, jassMult, teamOf } from "../trumps-games.js";
+import { GAMES, weisOf, laufende, jassMult, teamOf, sortHand } from "../trumps-games.js";
 import { rules } from "../trumps-rules.js";
-import { cid, suitOf, deckFrom } from "../trumps-cards.js";
+import { cid, suitOf, rankOf, deckFrom } from "../trumps-cards.js";
 import { botMove as trumpsBot } from "../trumps-bot.js";
 import { newRecord, applyMove, applyWake, botMove } from "../seats.js";
 import { roundTrip } from "./rtdb.js";
@@ -90,6 +90,12 @@ const set = a => [...a].sort((x, y) => x - y).join(",");
   check(!legal([C(2, "A"), C(0, "K"), C(3, "K")], [{ seat: 1, card: C(1, "9") }]).includes(C(2, "A")) && legal([C(2, "A")], [{ seat: 1, card: C(1, "9") }]).includes(C(2, "A")), "the called ace isn't thrown away, except on the last trick");
   check(set(legal([C(2, "A"), C(2, "7"), C(3, "K")], [])) === set([C(2, "A"), C(3, "K")]), "its holder can't run from the suit with fewer than four of it");
   check(set(legal([C(1, "K"), C(3, "Q"), C(0, "7")], [{ seat: 1, card: C(2, "J") }])) === set([C(1, "K"), C(3, "Q")]), "an Unter led is a trump led: follow with trumps");
+  // the hand as held: before the game is called, as for a Sauspiel (Korbi: "the colours, then hearts, then U/Os"), each
+  // rising to the right, the Zehner over the König; once a Wenz is called, the Obers back in their Farben
+  const held = [C(3, "Q"), C(0, "J"), C(1, "7"), C(1, "A"), C(2, "A"), C(2, "T"), C(2, "K"), C(0, "9"), C(3, "J")];
+  const names = ids => ids.map(id => { const r = rankOf(id); return "SHGE"[suitOf(id)] + ({ T: "10", J: "U", Q: "O" }[r] ?? r); }).join(" ");
+  const opening = names(sortHand({ game: "schafkopf" }, held)), wenz = names(sortHand({ game: "schafkopf", contract: { type: "wenz", trump: -1 } }, held));
+  check(opening === "S9 GK G10 GA H7 HA SU EU EO" && wenz === "S9 H7 HA GK G10 GA EO SU EU", `Schafkopf's hand held: the Farben, hearts, the Unters and Obers (${opening}); in a Wenz the Obers back in their Farben (${wenz})`);
   const hands = [[C(3, "Q"), C(2, "Q"), C(1, "Q")], [C(0, "Q")], [], []];
   check(laufende(c, hands, [0, 1]) === 4 && laufende({ type: "wenz" }, [[C(3, "J"), C(2, "J")], [], [C(1, "J")], []], [0]) === 2, "the Laufende: the top trumps held unbroken");
   let G = newRecord(rules, { seats: 4, options: { game: "schafkopf", deals: 1 }, seed: 7, now: 0 });

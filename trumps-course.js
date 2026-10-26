@@ -11,7 +11,7 @@
 //   hand: "EO GA HK SU E9 H7 G10 SK"          your cards
 // and the exercises: tap: "trumps" | "legal", count (tap every trump, or every card you may play); answer: "GA",
 // accept, wrong, why (play a card); quiz: [options], answer, why.
-import { GAMES, sTrump, sFollow } from "./trumps-games.js";
+import { GAMES, sTrump, sFollow, sortHand } from "./trumps-games.js";
 import { cid, suitOf, rankOf, PACKS, packCard } from "./trumps-cards.js";
 import { fitCardStage } from "./course-cards.js";
 
@@ -156,13 +156,8 @@ function whyNot(t, id) {
   const led = t.trick[0]?.card;
   return led != null && sTrump(c, led) ? "A trump is led: follow with a trump." : `${PACKS.german.suits[suitOf(led)]} is led: follow it.`;
 }
-/** A hand as a player holds it: Farben left to right (Eichel, Gras, Herz, Schellen), trumps on the right, high first. */
-export function hold(step, ids) {
-  const c = contractOf(step), t = { contract: c, trick: [] };
-  const strength = id => ids.filter(o => o !== id && S.winner(t, [{ seat: 0, card: id }, { seat: 1, card: o }]) === 0).length;
-  const group = id => (sTrump(c, id) ? 9 : [3, 2, 1, 0].indexOf(suitOf(id)));
-  return [...ids].sort((a, b) => group(a) - group(b) || strength(b) - strength(a));
-}
+/** A hand as the table holds it (sortHand): the Farben, then the trumps (hearts, the Unters, the Obers in a Sauspiel), rising to the right. */
+export const hold = (step, ids) => sortHand({ game: "schafkopf", contract: contractOf(step) }, ids);
 
 // ---------- the stage ----------
 const isTask = s => !!(s.tap || (s.answer != null && !s.quiz));

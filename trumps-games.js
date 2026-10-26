@@ -432,4 +432,25 @@ const schafkopf = {
 };
 
 export const GAMES = { jass, belote, coinche, schafkopf };
+
+/**
+ * A hand sorted as a player holds it: by suit, the trumps together on the right, each suit rising to the right, by the
+ * contract once there is one. Schafkopf's before its game is called sorts as for the usual game, a Sauspiel: the
+ * Farben (the plain suits), then hearts, then the Unters and the Obers, as a player sorts it to see what to play.
+ */
+export function sortHand(s, hand) {
+  const g = GAMES[s.game], c = s.contract || (s.game === "schafkopf" ? { type: "sau", trump: HERZ } : null);
+  const key = id => {
+    let su = suitOf(id), hi;
+    if (c) {
+      // a card's strength: how many of the hand's others it beats, led against each
+      const t = { ...s, contract: c, trick: [] };
+      hi = 0;
+      for (const o of hand) if (o !== id && g.winner(t, [{ seat: 0, card: id }, { seat: 1, card: o }]) === 0) hi++;
+      if ((s.game === "schafkopf" && sTrump(c, id)) || (s.game === "jass" && c.mode === "trump" && su === c.suit) || ((s.game === "belote" || s.game === "coinche") && su === c.suit)) su = 9;
+    } else hi = RANKS.indexOf(rankOf(id));
+    return su * 100 + hi;
+  };
+  return [...hand].sort((a, b) => key(a) - key(b));
+}
 export { teamOf, sTrump, sTrumpPower, sFollow };

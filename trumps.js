@@ -5,7 +5,7 @@
 // bidding under your hand: a tap on a card you may play plays it. The cards are as large as the screen allows, your
 // hand the trick's size (fitTable); Full screen (the menu) gives them the header's row too.
 import { rules } from "./trumps-rules.js";
-import { GAMES, teamOf, COINCHE_VALUES, laufende } from "./trumps-games.js";
+import { GAMES, teamOf, COINCHE_VALUES, laufende, sortHand } from "./trumps-games.js";
 import { LEVEL_NAMES, aheadKey, remember, THINK, thinksAhead } from "./trumps-bot.js";
 import { weighCards, bidOptions } from "./trumps-think.js";
 import { adviceWords, verdictOf, cardRows, bidAdvice, bidVerdict, bidRows, pct, signed } from "./trumps-coach.js";
@@ -329,23 +329,6 @@ function drawHand(s) {
   const best = a?.list?.[0]?.card;
   box.innerHTML = hand.map(id => card(id, s, { cls: mine ? `${ok.has(id) ? "ok" : "dim"}${id === best ? " coach" : ""}` : "", data: { card: id } })).join("");
   spreadHand();
-}
-/** A hand sorted as a player holds it: by suit, trumps together and on the right, each suit high to low. */
-function sortHand(s, hand) {
-  const g = GAMES[s.game];
-  const key = id => {
-    let su = suitOf(id), hi;
-    if (s.contract) {
-      // a card's strength: how it fares led against the lowest of its suit
-      const t = { ...s, trick: [] };
-      hi = 0;
-      for (const o of hand) if (o !== id && g.winner(t, [{ seat: 0, card: id }, { seat: 1, card: o }]) === 0) hi++;
-      if (s.game === "schafkopf" && (rankOf(id) === "Q" || rankOf(id) === "J" || suitOf(id) === s.contract.trump) && !(s.contract.type === "wenz" && rankOf(id) !== "J")) su = 9;
-      else if ((s.game === "jass" && s.contract.mode === "trump" && su === s.contract.suit) || ((s.game === "belote" || s.game === "coinche") && su === s.contract.suit)) su = 9;
-    } else hi = ["6", "7", "8", "9", "T", "J", "Q", "K", "A"].indexOf(rankOf(id));
-    return su * 100 + hi;
-  };
-  return [...hand].sort((a, b) => key(a) - key(b));
 }
 $("hand").addEventListener("click", async e => {
   const el = e.target.closest("[data-card]");
