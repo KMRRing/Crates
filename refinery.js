@@ -4,7 +4,7 @@
 // an exam (refinery-exam.js). The engine (refinery-engine.js) runs the plant; the data (refinery-data.js) describes it.
 // Together, the same level for everyone at the table (duel.js).
 import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR, REAGENTS } from "./refinery-data.js";
-import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, coTotalOf, homeOf, solve, ownProps, unitYields, columnFeeds, asPlayed, lower } from "./refinery-engine.js";
+import { FEED, evaluate, destinations, streamsOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, coTotalOf, solve, ownProps, unitYields, columnFeeds, asPlayed, lower, shareTo, edgesOf } from "./refinery-engine.js";
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
 import { PAR } from "./refinery-par.js";
 import { drawSheet, hitTest, GROUP_COLOUR, amount } from "./refinery-sheet.js";
@@ -113,16 +113,7 @@ function setShares(s, shares, { remember = true } = {}) {
   render();
 }
 /** One destination's share set, the stream's others scaled to make up the rest (or the rest to its home). */
-function setShare(s, d, f) {
-  const cur = routing[s] || {}, next = {}, others = Object.entries(cur).filter(([x]) => x !== d);
-  const rest = 1 - f, sum = others.reduce((a, [, v]) => a + v, 0);
-  if (f > 0) next[d] = f;
-  if (rest > 1e-6) {
-    if (sum > 1e-9) for (const [x, v] of others) next[x] = (v / sum) * rest;
-    else { const h = homeOf(L, s) !== d ? homeOf(L, s) : destinations(L, s).find(x => x !== d); if (h) next[h] = rest; }
-  }
-  return next;
-}
+const setShare = (s, d, f) => shareTo(L, s, routing[s], d, f);
 function undo() {
   if (!history.length) return;
   routing = JSON.parse(history.pop());
@@ -297,7 +288,9 @@ $("zoomOut").addEventListener("click", () => zoomAt(1.5));
 $("zoomFit").addEventListener("click", () => { view = { ...full }; applyView(); });
 
 // ---------- a stream: where it goes, in shares ----------
-let splitFor = null;
+let splitFor = null, rowsFor = null, drag = null, allCache = null;
+const splitRows = new Map();   // destination → its row's parts, while a stream's sheet is open
+const pctText = f => `${+(f * 100).toFixed(f * 100 % 1 ? 1 : 0)}`;
 /** The properties worth showing for a stream: those the pools it can reach are judged on, then its sulphur. */
 function keyProps(s, props) {
   const ks = new Set();
@@ -314,13 +307,14 @@ function openSplit(s) {
   fillSplit(s);
   if (!$("splitDlg").open) $("splitDlg").showModal();
 }
+/** A stream's sheet: its rows built once while it's open and brought up to date after, so a slider being dragged is never replaced under the finger. */
 function fillSplit(s) {
   const st = STREAMS[s], run = R.streams[s], props = run?.props || ownProps(L, s);
   $("splitTitle").textContent = st.name;
   const meta = $("splitMeta");
   meta.replaceChildren();
   const what = document.createElement("span");
-  what.textContent = `${run ? amount(s, run.vol) : "not made now"}${st.about ? ` · ${st.about}` : ""} · ${keyProps(s, props).map(k => `${PROPS[k].name === "RON" || PROPS[k].name === "MON" ? PROPS[k].name : PROPS[k].name.toLowerCase()} ${fmtProp(k, props[k])}`).join(" · ")}`;
+  what.textContent = `${run ? amount(s, run.vol) : "not made now"}${st.about ? ` · ${st.about}` : ""} · ${keyProps(s, props).map(k => `${lower(PROPS[k].name)} ${fmtProp(k, props[k])}`).join(" · ")}`;
   const note = document.createElement("small"); note.textContent = st.note;
   meta.append(what, note);
   if (base.values && par.values?.[s] != null) { const v = document.createElement("small"); v.className = "rf-value"; v.textContent = `At par, one more barrel of it is worth $${par.values[s].toFixed(2)} to this plant: its marginal value.`; meta.append(v); }
@@ -333,41 +327,152 @@ function fillSplit(s) {
     i.textContent = shares[d] > 0.12 ? (UNITS[d] || POOLS[d]).short : "";
     return i;
   }));
-  const rows = $("splitRows");
-  rows.replaceChildren(...dests.map(d => {
-    const row = document.createElement("div"), f = shares[d] || 0;
-    row.className = `rf-split-row${f > 1e-4 ? " on" : ""}`;
-    const name = document.createElement("div"); name.className = "rf-split-name";
-    const b = document.createElement("b"); b.textContent = UNITS[d] ? UNITS[d].name : `${POOLS[d].name} · $${d === "notBought" ? refundOf(L, s) : priceOf(L, d)}`;
-    const why = document.createElement("small");
-    why.textContent = UNITS[d] ? UNITS[d].purpose : POOLS[d].note;
-    name.append(b, why);
-    // what sending it all here would do, with everything else as it is
-    const all = { ...routing, [s]: { [d]: 1 } }, m = f > 0.999 ? now : evaluate(L, all).margin;
-    const delta = document.createElement("em");
-    delta.className = `rf-delta${m - now > 0.005 ? " up" : m - now < -0.005 ? " down" : ""}`;
-    delta.textContent = f > 0.999 ? "all here" : `all: ${m - now >= 0 ? "+" : "−"}${Math.abs(m - now).toFixed(2)}`;
-    const ctl = document.createElement("div"); ctl.className = "rf-split-ctl";
-    const range = document.createElement("input");
-    range.type = "range"; range.min = "0"; range.max = "100"; range.step = "1"; range.value = String(Math.round(f * 100));
-    range.setAttribute("aria-label", `Share to ${(UNITS[d] || POOLS[d]).name}`);
-    const pctBox = document.createElement("input");
-    pctBox.type = "text"; pctBox.inputMode = "decimal"; pctBox.className = "rf-pct"; pctBox.value = `${+(f * 100).toFixed(f * 100 % 1 ? 1 : 0)}`;
-    pctBox.setAttribute("aria-label", `Per cent to ${(UNITS[d] || POOLS[d]).name}`);
-    const unit = document.createElement("span"); unit.textContent = "%";
-    let first = true;
-    range.addEventListener("input", () => { setShares(s, setShare(s, d, +range.value / 100), { remember: first }); first = false; });
-    range.addEventListener("change", () => { first = true; });
-    pctBox.addEventListener("change", () => { const v = Math.max(0, Math.min(100, parseFloat(pctBox.value.replace(",", ".")) || 0)); setShares(s, setShare(s, d, v / 100)); });
-    const allBtn = document.createElement("button"); allBtn.type = "button"; allBtn.className = "rf-all"; allBtn.textContent = "All";
-    allBtn.addEventListener("click", () => setShares(s, { [d]: 1 }));
-    ctl.append(range, pctBox, unit, allBtn);
-    row.append(name, delta, ctl);
-    return row;
-  }));
-  const m = $("splitMargin");
-  m.textContent = `Margin ${money(R.margin)}/bbl · par ${money(target)}`;
+  if (rowsFor !== `${L.id}:${s}`) {
+    rowsFor = `${L.id}:${s}`;
+    splitRows.clear(); breaks.clear(); asked = null;
+    $("splitRows").replaceChildren(...dests.map(d => splitRow(s, d)));
+  }
+  const all = allHere(s);
+  for (const [d, p] of splitRows) {
+    const f = shares[d] || 0, m = f > 0.999 ? now : all[d];
+    p.row.classList.toggle("on", f > 1e-4);
+    p.delta.className = `rf-delta${m - now > 0.005 ? " up" : m - now < -0.005 ? " down" : ""}`;
+    p.delta.textContent = f > 0.999 ? "all here" : `all: ${m - now >= 0 ? "+" : "−"}${Math.abs(m - now).toFixed(2)}`;
+    p.range.value = String(f * 100);
+    p.track.style.setProperty("--at", f);
+    if (document.activeElement !== p.pct) p.pct.value = pctText(f);
+  }
+  $("splitMargin").textContent = `Margin ${money(R.margin)}/bbl · par ${money(target)}`;
+  if (!drag) askBreaks(s);
 }
+/** A destination's row: its share as a slider (its spec breaks marked on the track) and as a number, and All. */
+function splitRow(s, d) {
+  const dest = UNITS[d] || POOLS[d];
+  const row = document.createElement("div"); row.className = "rf-split-row";
+  const name = document.createElement("div"); name.className = "rf-split-name";
+  const b = document.createElement("b"); b.textContent = UNITS[d] ? UNITS[d].name : `${POOLS[d].name} · $${d === "notBought" ? refundOf(L, s) : priceOf(L, d)}`;
+  const why = document.createElement("small"); why.textContent = UNITS[d] ? UNITS[d].purpose : POOLS[d].note;
+  name.append(b, why);
+  const delta = document.createElement("em");
+  const ctl = document.createElement("div"); ctl.className = "rf-split-ctl";
+  const track = document.createElement("div"); track.className = "rf-track";
+  const range = document.createElement("input");
+  range.type = "range"; range.min = "0"; range.max = "100"; range.step = "any";
+  range.setAttribute("aria-label", `Share to ${dest.name}`);
+  const tip = document.createElement("span"); tip.className = "rf-edge-tip"; tip.hidden = true;
+  track.append(range, tip);
+  const pct = document.createElement("input");
+  pct.type = "text"; pct.inputMode = "decimal"; pct.className = "rf-pct";
+  pct.setAttribute("aria-label", `Per cent to ${dest.name}`);
+  const unit = document.createElement("span"); unit.textContent = "%";
+  const allBtn = document.createElement("button"); allBtn.type = "button"; allBtn.className = "rf-all"; allBtn.textContent = "All";
+  // a finger on the slider holds the stream's other shares as they were, so the drag stays on the one path its
+  // breaks were found along (dragged to all and back, the others come back as they were, not to the home)
+  range.addEventListener("pointerdown", () => {
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, w = range.getBoundingClientRect().width - THUMB * rem;
+    drag = { d, from: { ...(routing[s] || {}) }, first: true, reach: w > 0 ? (SNAP * rem) / w : 0 };
+  });
+  range.addEventListener("input", () => {
+    const raw = +range.value / 100;
+    if (drag?.d !== d) { setShares(s, setShare(s, d, Math.round(raw * 100) / 100)); return; }   // the keys step whole per cents
+    const { x, edge } = settle(s, d, raw);
+    if (edge) range.value = String(x * 100);
+    tip.hidden = !edge;
+    if (edge) tip.textContent = edgeWords(edge);
+    setShares(s, shareTo(L, s, drag.from, d, x), { remember: drag.first });
+    drag.first = false;
+  });
+  const end = () => { if (drag?.d !== d) return; drag = null; tip.hidden = true; fillSplit(s); };
+  range.addEventListener("change", end);
+  for (const t of ["pointerup", "pointercancel"]) range.addEventListener(t, () => setTimeout(end));
+  pct.addEventListener("change", () => { const v = Math.max(0, Math.min(100, parseFloat(pct.value.replace(",", ".")) || 0)); setShares(s, setShare(s, d, v / 100)); });
+  allBtn.addEventListener("click", () => setShares(s, { [d]: 1 }));
+  ctl.append(track, pct, unit, allBtn);
+  row.append(name, delta, ctl);
+  splitRows.set(d, { row, track, range, pct, delta, tip });
+  return row;
+}
+/** What sending all of a stream to each of its destinations would earn, the rest of the plan as it is: its own shares don't come into it, so a drag of them reuses it. */
+function allHere(s) {
+  const key = JSON.stringify([L.id, L.crude, L.deck, s, { ...routing, [s]: null }]);
+  if (allCache?.key !== key) allCache = { key, m: Object.fromEntries(destinations(L, s).map(d => [d, evaluate(L, { ...routing, [s]: { [d]: 1 } }).margin])) };
+  return allCache.m;
+}
+
+// ---------- where a share crosses a spec ----------
+// Along each slider a pool can go on or off spec, and the margin steps there: often by dollars a barrel, as a blend
+// that fails sells as the next grade down. The worker finds those breaks (refinery-worker.js); the track shows each in
+// green on the side that earns more and red on the side that loses, and a dragged thumb that comes near one stops on
+// its edge when that earns more than where the finger is: a plan earns most on the edge of a spec, more often than not.
+const THUMB = 0.75, SNAP = 0.75, NEAR = 0.25;   // rem: the thumb's width, how near an edge pulls it, how near two breaks look one
+let scanner = null, scanId = 0, asked = null, sentLevel = null, scanPaths = {};
+const breaks = new Map();   // destination → { path, list }, for the stream open
+/** What a slider's breaks depend on: the level as played, the rest of the plan, and the stream's other shares in proportion. */
+function pathOf(s, d, shares = routing[s]) {
+  const others = Object.entries(shares || {}).filter(([x, v]) => x !== d && v > 0), sum = others.reduce((a, [, v]) => a + v, 0);
+  return JSON.stringify([L.id, L.crude, L.deck, others.map(([x, v]) => [x, Math.round((v / sum) * 1e9)]).sort(), { ...routing, [s]: null }]);
+}
+/** Asks the worker for every slider's breaks as the plan now stands (the sliders in use first); each is drawn as it comes. */
+function askBreaks(s) {
+  const key = JSON.stringify([L.id, L.crude, L.deck, routing]), sh = routing[s] || {}, rows = destinations(L, s);
+  if (key === asked || rows.length < 2) return;
+  asked = key;
+  if (scanner === null) scanner = startScanner();
+  if (!scanner) return;
+  rows.sort((a, b) => (sh[b] > 1e-4) - (sh[a] > 1e-4));
+  scanPaths = Object.fromEntries(rows.map(d => [d, pathOf(s, d)]));
+  scanner.postMessage({ id: ++scanId, s, routing, rows, level: sentLevel === L ? null : L });
+  sentLevel = L;
+}
+function startScanner() {
+  try {
+    const w = new Worker(new URL("./refinery-worker.js", import.meta.url), { type: "module" });
+    w.addEventListener("message", ({ data }) => {
+      if (data.id !== scanId || !splitRows.has(data.d)) return;
+      breaks.set(data.d, { path: scanPaths[data.d], list: data.breaks });
+      paintBreaks(data.d);
+    });
+    w.addEventListener("error", () => { scanner = false; });
+    return w;
+  } catch { return false; }
+}
+/** The sheet closed: the worker drops what it was doing. */
+function stopBreaks() { if (scanner) scanner.postMessage({ id: ++scanId }); asked = null; }
+/** A slider's breaks on its track, those too close to tell apart as one: each fading out from its edge, green on a side that loses nothing against the edge's best point, red on one that does; an edge that loses either way (a narrow spec window) has a green line at its best point, one that loses neither way (a narrow dip) a red one. */
+function paintBreaks(d) {
+  const p = splitRows.get(d), list = breaks.get(d)?.list || [];
+  if (!p) return;
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, w = p.range.getBoundingClientRect().width - THUMB * rem;
+  const edges = list.length && w > 0 ? edgesOf(list, (NEAR * rem) / w) : [];
+  const at = x => `calc(var(--rf-thumb) / 2 + ${+x.toFixed(6)} * (100% - var(--rf-thumb)))`;
+  const loses = v => v >= 0.05, colour = v => (loses(v) ? "var(--rf-bad)" : "var(--rf-good)");
+  const stops = edges.flatMap((e, i) => {
+    const x = at(e.at), from = `calc(${x} - var(--rf-band))`, to = `calc(${x} + var(--rf-band))`;
+    // a band reaches halfway to the next edge at most
+    const start = i ? `max(${from}, ${at((edges[i - 1].at + e.at) / 2)})` : from, stop = i < edges.length - 1 ? `min(${to}, ${at((e.at + edges[i + 1].at) / 2)})` : to;
+    const line = loses(e.left) === loses(e.right) ? (loses(e.left) ? "var(--rf-good)" : "var(--rf-bad)") : null;
+    return [`transparent ${start}`, ...(line ? [`${colour(e.left)} calc(${x} - 1.5px)`, `${line} calc(${x} - 1.5px)`, `${line} calc(${x} + 1.5px)`, `${colour(e.right)} calc(${x} + 1.5px)`] : [`${colour(e.left)} ${x}`, `${colour(e.right)} ${x}`]), `transparent ${stop}`];
+  });
+  p.track.style.setProperty("--marks", stops.length ? `linear-gradient(to right, ${stops.join(", ")})` : "none");
+}
+/**
+ * Where a dragged share settles: on a spec edge within reach of the finger if one earns more than the share under it
+ * (the best of them), else on the whole per cent under it. Only breaks found along this drag's own path count.
+ */
+function settle(s, d, raw) {
+  const free = Math.round(raw * 100) / 100, k = breaks.get(d);
+  const near = k && k.path === pathOf(s, d, drag.from) ? k.list.filter(b => Math.abs(b.at - raw) <= drag.reach) : [];
+  if (!near.length) return { x: free };
+  const here = evaluate(L, { ...routing, [s]: shareTo(L, s, drag.from, d, free) }).margin;
+  let edge = null;
+  for (const b of near) {
+    const m = Math.max(b.below, b.above);
+    if (m > here + 1e-6 && (!edge || m > edge.m + 1e-9 || (m > edge.m - 1e-9 && Math.abs(b.at - raw) < Math.abs(edge.b.at - raw)))) edge = { b, m };
+  }
+  return edge ? { x: edge.b.at, edge: edge.b } : { x: free };
+}
+/** A spec edge in a few words: the grade and the spec it holds to ("diesel CFPP", "VLSFO 0.5% sulphur"). */
+const edgeWords = b => [...new Set(b.pools.flatMap(p => (p.specs.length ? p.specs.map(k => `${lower(POOLS[p.was].name)} ${lower(PROPS[k].name)}`) : [lower(POOLS[p.was].name)])))].join(" · ");
 
 // ---------- cards: a unit, a product, the crude ----------
 function openCard(id) {
@@ -812,6 +917,7 @@ $("courseBtn").addEventListener("click", openCourse);
 $("menuBtn").addEventListener("click", openMenu);
 for (const [btn, dlg] of [["splitClose", "splitDlg"], ["cardClose", "cardDlg"], ["lessonClose", "lessonDlg"], ["testClose", "testDlg"], ["courseClose", "courseDlg"], ["glossClose", "glossDlg"], ["doneClose", "doneDlg"], ["menuClose", "menuDlg"]]) $(btn).addEventListener("click", () => $(dlg).close());
 for (const id of ["splitDlg", "cardDlg"]) $(id).addEventListener("close", () => { splitFor = null; picked = null; drawPlant(); });
+$("splitDlg").addEventListener("close", () => { rowsFor = null; drag = null; splitRows.clear(); breaks.clear(); stopBreaks(); });
 $("lessonNext").addEventListener("click", () => stepLesson(1));
 $("lessonBack").addEventListener("click", () => stepLesson(-1));
 $("lessonDlg").addEventListener("close", () => { lesson?.player?.stop(); lesson = null; });
@@ -843,11 +949,11 @@ document.addEventListener("keydown", e => {
   if ((e.key === "z" || e.key === "Z") && !e.altKey) { e.preventDefault(); undo(); }
   else if (e.key === "h" || e.key === "H") hint();
 });
-window.addEventListener("resize", () => { if (L) { view = null; drawPlant(); } });
+window.addEventListener("resize", () => { if (L) { view = null; drawPlant(); } for (const d of splitRows.keys()) paintBreaks(d); });
 
 // for tests and debugging
 window.__refinery = { get level() { return L; }, get routing() { return routing; }, get result() { return R; }, get par() { return par; }, get target() { return target; },
-  load, setShares, chooseCrude, openSplit, openCard, openLesson, openTest, openCourse, duel, submit, get test() { return test; }, get lesson() { return lesson; } };
+  load, setShares, chooseCrude, openSplit, openCard, openLesson, openTest, openCourse, duel, submit, get test() { return test; }, get lesson() { return lesson; }, get sliders() { return [...splitRows.keys()]; }, get breaks() { return breaks; } };
 
 if (duel.inAddress) duel.join().then(ok => { if (!ok) load(read(AT, null) || (LEVELS.find(l => !progress()[l.id]?.stars) || LEVELS[0]).id); });
 else load(read(AT, null) || (LEVELS.find(l => !progress()[l.id]?.stars) || LEVELS[0]).id);

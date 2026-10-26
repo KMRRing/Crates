@@ -2,6 +2,7 @@
    each stream is coloured by what it is (gas grey, naphtha amber, middle distillates blue, heavy oils brown, residue
    near black, renewables green). */
 :root { --rf-in: #35607E; --rf-in-soft: color-mix(in srgb, var(--rf-in) 15%, var(--sheet)); --rf-good: #2F7D5B; --rf-bad: #A8382B; --rf-edge: var(--tile-edge);
+  --rf-track: color-mix(in srgb, var(--ink) 18%, var(--tile));
   --rf-naphtha: #D9A23B; --rf-middle: #3C8DBC; --rf-heavy: #8B5E3C; --rf-resid: #3A3A3A; --rf-gas: #9BB0BC; --rf-renew: #4FA36B; --rf-flowline: rgba(255, 255, 255, .55); }
 @media (prefers-color-scheme: dark) {
   html:not([data-mode="day"]) { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806F; --rf-resid: #8C8C8C; --rf-heavy: #B07A52; --rf-flowline: rgba(16, 24, 31, .55); }
@@ -147,7 +148,20 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-delta.up { color: var(--rf-good); }
 .rf-delta.down { color: var(--rf-bad); }
 .rf-split-ctl { grid-column: 1 / -1; display: flex; align-items: center; gap: .4rem; }
-#splitDlg .rf-split-ctl input[type="range"] { flex: 1; width: auto; min-width: 0; margin: 0; padding: 0; border: 0; background: none; accent-color: var(--rf-in); }
+/* the share's slider, drawn here so its track can carry the spec edges (refinery.js, paintBreaks): the thumb's width is
+   in the sums that place them, so the thumb is a fixed index rather than the browser's own */
+.rf-track { --rf-thumb: .75rem; --rf-band: .9rem; --at: 0; --marks: none; --rf-fill: calc(var(--rf-thumb) / 2 + var(--at) * (100% - var(--rf-thumb)));
+  position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
+#splitDlg .rf-track input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; width: auto; min-width: 0; height: 1.75rem; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
+#splitDlg .rf-track input[type="range"]::-webkit-slider-runnable-track { height: .375rem; border-radius: 3px; background: var(--marks), linear-gradient(to right, var(--rf-in) var(--rf-fill), var(--rf-track) var(--rf-fill)); }
+#splitDlg .rf-track input[type="range"]::-moz-range-track { height: .375rem; border-radius: 3px; background: var(--marks), linear-gradient(to right, var(--rf-in) var(--rf-fill), var(--rf-track) var(--rf-fill)); }
+#splitDlg .rf-track input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; box-sizing: border-box; width: var(--rf-thumb); height: 1.375rem; margin-top: -.5rem; border: 2px solid var(--tile); border-radius: 3px; background: var(--rf-in); box-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+#splitDlg .rf-track input[type="range"]::-moz-range-thumb { box-sizing: border-box; width: var(--rf-thumb); height: 1.375rem; border: 2px solid var(--tile); border-radius: 3px; background: var(--rf-in); box-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+#splitDlg .rf-track input[type="range"]:focus-visible { outline: none; }
+#splitDlg .rf-track input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--brass); outline-offset: 1px; }
+#splitDlg .rf-track input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--brass); outline-offset: 1px; }
+/* while a thumb rests on an edge: what the edge is, above it, sliding so it never leaves the track */
+.rf-edge-tip { position: absolute; bottom: 100%; left: var(--rf-fill); transform: translateX(calc(var(--at) * -100%)); padding: .05rem .35rem; border: 1px solid var(--rf-good); border-radius: 4px; background: var(--sheet); color: var(--rf-good); font-size: .72rem; font-weight: 800; white-space: nowrap; pointer-events: none; z-index: 1; }
 #splitDlg .rf-split-ctl input.rf-pct { flex: none; width: 3.4rem; margin: 0; padding: .25rem .35rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--yard); color: var(--ink); font: inherit; font-size: .9rem; text-align: right; font-variant-numeric: tabular-nums; }
 .rf-split-ctl span { color: var(--ink-soft); font-size: .85rem; }
 .rf-all { padding: .25rem .55rem; border: 1px solid var(--rf-in); border-radius: 4px; background: var(--sheet); color: var(--rf-in); font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }

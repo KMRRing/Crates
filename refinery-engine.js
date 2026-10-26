@@ -271,14 +271,10 @@ export function evaluate(level, routing) {
   // the pools: blended, judged on the level's specs, and sold as what they are
   let revenue = 0;
   const sold = {};
-  const judge = (p, props) => specsOf(level, p).map(k => {
-    const [lo, hi] = limitOf(level, p, k), v = props[k] ?? (ZERO.has(k) ? 0 : NaN);
-    return lo != null && !(v >= lo - 1e-6) ? { k, v, lim: lo, dir: "min" } : hi != null && !(v <= hi + 1e-6) ? { k, v, lim: hi, dir: "max" } : null;
-  }).filter(Boolean);
   for (const [p, pool] of Object.entries(pools)) {
-    const props = propsOf(pool.acc), vol = pool.acc.v, fails = judge(p, props);
+    const props = propsOf(pool.acc), vol = pool.acc.v, fails = failsOf(level, p, props);
     let soldAs = p, f = fails;
-    while (f.length && POOLS[soldAs].fallback) { soldAs = POOLS[soldAs].fallback; f = judge(soldAs, props); }
+    while (f.length && POOLS[soldAs].fallback) { soldAs = POOLS[soldAs].fallback; f = failsOf(level, soldAs, props); }
     // what isn't bought is refunded at each stream's own price
     const price = soldAs === "notBought" ? Object.entries(pool.parts).reduce((t, [s, v]) => t + v * refundOf(level, s), 0) / vol : priceOf(level, soldAs);
     // a market that takes only so much: the rest sells as the next grade down
@@ -320,6 +316,13 @@ export function evaluate(level, routing) {
   return { margin, revenue, tickets, saved, crudeCost, boughtCost, reagentCost: reagentCostAll, reagents, opex, h2Cost, sulphurNet, h2: { made: h2Made, used: h2Used, plant, imported, spare },
     sulphur: { removed: sRemoved, cap: sruCap, over: sOver }, streams, units, pools: sold, issues };
 }
+/** The specs a blend fails as a pool in a level: [{ k, v, lim, dir }], each within a rounding's worth of its limit passing. */
+function failsOf(level, p, props) {
+  return specsOf(level, p).map(k => {
+    const [lo, hi] = limitOf(level, p, k), v = props[k] ?? (ZERO.has(k) ? 0 : NaN);
+    return lo != null && !(v >= lo - 1e-6) ? { k, v, lim: lo, dir: "min" } : hi != null && !(v <= hi + 1e-6) ? { k, v, lim: hi, dir: "max" } : null;
+  }).filter(Boolean);
+}
 /** A pool's price in a level (a level may have its own deck). */
 export const priceOf = (level, p) => level.prices?.[p] ?? (p === "notBought" ? boughtPrice(level) : POOLS[p].price);
 /** What the level's optional purchase costs a barrel: handed back for what isn't bought. */
@@ -339,6 +342,98 @@ export function fmtProp(k, v) {
   if (PROPS[k].flag) return v >= 0.999 ? "yes" : "no";
   const n = v.toFixed(PROPS[k].dp ?? 1);
   return PROPS[k].unit ? `${n}${PROPS[k].unit.startsWith("%") ? "%" : ` ${PROPS[k].unit}`}` : n;
+}
+
+// ---------- a share's spec breaks ----------
+/** A stream's shares with one destination's set to f: the others it had (`from`) scaled to make up the rest, or the rest to its home. */
+export function shareTo(level, s, from, d, f) {
+  const next = {}, others = Object.entries(from || {}).filter(([x, v]) => x !== d && v > 0);
+  const rest = 1 - f, sum = others.reduce((a, [, v]) => a + v, 0);
+  if (f > 0) next[d] = f;
+  if (rest > 1e-6) {
+    if (sum > 1e-9) for (const [x, v] of others) next[x] = (v / sum) * rest;
+    else { const h = homeOf(level, s) !== d ? homeOf(level, s) : destinations(level, s).find(x => x !== d); if (h) next[h] = rest; }
+  }
+  return next;
+}
+/**
+ * A run's state where a share can tip it: each pool's grade, the limits it fails on which side, and whether its market
+ * is full; each unit's capacity and co-processing limits; hydrogen bought, sulphur over. Along a share the plant is
+ * smooth between changes of state, so a sample on either side of a change finds it; the limits matter because a spec
+ * window can lie between two of them (two treaters each full on either side of it, the pool off spec on both).
+ */
+function stateOf(r) {
+  const g = { h2: r.h2.imported > 1e-6, s: r.sulphur.over > 1e-6 };
+  for (const [p, x] of Object.entries(r.pools)) if (x.vol > 1e-6) g[p] = `${x.soldAs}|${x.fails.map(f => f.k + f.dir).join()}|${x.over > 1e-6}`;
+  for (const [u, x] of Object.entries(r.units)) g[`unit:${u}`] = `${!!x.overflow}|${!!x.coOver}`;
+  return g;
+}
+const changed = (a, b) => Object.keys(a).some(k => k in b && a[k] !== b[k]);
+/**
+ * The breaks along one destination's share of a stream, from none of it to all (the stream's other destinations,
+ * `from`, scaled to make up the rest): each share where a pool goes on or off spec and the margin jumps. Sampled, then
+ * halved down to `tol` at every change. A generator that yields after each run of the plant, so a page can spread the
+ * work; it returns, in order, [{ at, lo, hi, below, above, jump, better, pools: [{ pool, was, soldAs, specs }] }]: the
+ * break lies between shares lo and hi, earning `below` under it and `above` over it ($/bbl); `better` is the side that
+ * earns more (−1 under, 1 over), `jump` what crossing costs, and `at` the share to stop at, a hair inside the better
+ * side. Each pool whose grade changes: what it was sold as on the better side, what as on the worse, and the specs of
+ * the better grade it fails there.
+ */
+export function* specBreaks(level, routing, s, d, { from = routing?.[s], samples = 32, tol = 1e-6, least = 0.05 } = {}) {
+  const at = x => { const r = evaluate(level, { ...routing, [s]: shareTo(level, s, from, d, x) }); return { x, r, g: stateOf(r) }; };
+  const pts = [];
+  for (let i = 0; i <= samples; i++) { pts.push(at(i / samples)); yield; }
+  const out = [];
+  for (let i = 0; i < samples; i++) {
+    let a = pts[i], left = 40;
+    const b = pts[i + 1];
+    // a stretch can hold more than one break: find the first, then look on from there (a few dozen at most, so a state
+    // that flickers in the last digits near a limit can't hold it up)
+    while (changed(a.g, b.g) && left--) {
+      let lo = a, hi = b;
+      while (hi.x - lo.x > tol) {
+        const mid = at((lo.x + hi.x) / 2);
+        yield;
+        if (changed(lo.g, mid.g)) hi = mid; else lo = mid;
+      }
+      const jump = hi.r.margin - lo.r.margin;
+      if (Math.abs(jump) >= least) {
+        const good = jump > 0 ? hi : lo, worse = jump > 0 ? lo : hi;
+        // stop a hair inside the better side, where rounding in the shares can't tip it over, if that's still the same plant
+        const inside = at(Math.min(1, Math.max(0, good.x + (jump > 0 ? tol : -tol))));
+        yield;
+        const pools = Object.keys(good.r.pools).filter(p => worse.r.pools[p] && good.r.pools[p].soldAs !== worse.r.pools[p].soldAs).map(p => {
+          const was = good.r.pools[p].soldAs, w = worse.r.pools[p];
+          return { pool: p, was, soldAs: w.soldAs, specs: failsOf(level, was, w.props).map(f => f.k) };
+        });
+        out.push({ at: changed(good.g, inside.g) ? good.x : inside.x, lo: lo.x, hi: hi.x, below: lo.r.margin, above: hi.r.margin, jump: Math.abs(jump), better: jump > 0 ? 1 : -1, pools });
+      }
+      a = hi;
+    }
+  }
+  return out;
+}
+/** All of a share's breaks at once (specBreaks, run to the end). */
+export function breaksOf(level, routing, s, d, options) {
+  const it = specBreaks(level, routing, s, d, options);
+  for (;;) { const n = it.next(); if (n.done) return n.value; }
+}
+/**
+ * A slider's breaks as the eye sees them: those closer together than `near` (a share) as one edge. Each edge is
+ * { at, best, left, right }: the share of its best point (the better side of one of its breaks), the margin there, and
+ * what leaving the edge to the left or right loses against it. A spec window too narrow to see is an edge that loses
+ * either way; a narrow dip, one that loses neither way.
+ */
+export function edgesOf(list, near) {
+  const groups = [];
+  for (const b of list) {
+    const g = groups[groups.length - 1];
+    if (g && b.lo - g[g.length - 1].hi <= near) g.push(b); else groups.push([b]);
+  }
+  return groups.map(g => {
+    const top = g.reduce((a, b) => (Math.max(b.below, b.above) > Math.max(a.below, a.above) ? b : a)), best = Math.max(top.below, top.above);
+    return { at: top.at, best, left: best - g[0].below, right: best - g[g.length - 1].above };
+  });
 }
 
 // ---------- par: the LP's plan ----------

@@ -113,6 +113,34 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
     `residue and its gas oils blend back to a viscosity near the atmospheric residue's (${Math.round(vr.pools.hsfo.props.visc)} against ${Math.round(ar.pools.hsfo.props.visc)} cSt); the indices invert`);
 }
 
+// ---------- a slider's spec edges ----------
+{
+  const problems = [], atPar = id => { const lv = LEVELS.find(l => l.id === id), L = E.asPlayed(lv, lv.crude); return { L, routing: E.normalise(L, PAR[id][lv.crude].routing), par: PAR[id][lv.crude].margin }; };
+  // a share set, the others keep their proportions; with none, the rest goes to the stream's home
+  const L1 = LEVELS.find(l => l.id === "11.3"), sh = E.shareTo(L1, "lgo", { dht: 0.6, dht2: 0.3, diesel: 0.1 }, "dht", 0.2), alone = E.shareTo(L1, "lgo", { dht: 1 }, "dht", 0.25);
+  if (Math.abs(sh.dht2 / sh.diesel - 3) > 1e-9 || Math.abs(sh.dht2 + sh.diesel - 0.8) > 1e-9 || alone[E.homeOf(L1, "lgo")] !== 0.75) problems.push(`shareTo: ${JSON.stringify(sh)}, ${JSON.stringify(alone)}`);
+  // every edge stops on its better side, earning what that side does
+  const along = (id, s, d, options) => {
+    const { L, routing, par } = atPar(id), list = E.breaksOf(L, routing, s, d, options);
+    for (const b of list) {
+      const r = E.evaluate(L, { ...routing, [s]: E.shareTo(L, s, routing[s], d, b.at) });
+      if (Math.abs(r.margin - Math.max(b.below, b.above)) > 1e-3 || (b.better < 0 ? b.at > b.lo + 1e-9 : b.at < b.hi - 1e-9)) problems.push(`${id} ${s}>${d}: the edge at ${(b.at * 100).toFixed(3)}% earns ${r.margin.toFixed(3)}, its better side ${Math.max(b.below, b.above).toFixed(3)}`);
+    }
+    return { list, share: routing[s][d], par };
+  };
+  // 11.3's two diesel hydrotreaters are each full on either side of par: a spec window a few thousandths of a per cent
+  // wide that no sample lands in (par's share is 62.5%, so not a 32nd: 31 samples), found by the treaters' limits that
+  // bound it, and par sits in it
+  const lgo = along("11.3", "lgo", "dht", { samples: 31 }), inWindow = lgo.list.find(b => Math.abs(b.at - lgo.share) < 1e-4);
+  if (!inWindow || Math.abs(Math.max(inWindow.below, inWindow.above) - lgo.par) > 1e-3) problems.push(`11.3: no edge at par's ${(lgo.share * 100).toFixed(2)}% of light gas oil to the DHT (${lgo.list.map(b => (b.at * 100).toFixed(3)).join(", ")})`);
+  const wide = E.edgesOf(lgo.list, 0.002).find(e => Math.abs(e.at - lgo.share) < 1e-3);
+  if (!wide || !(wide.left >= 0.05 && wide.right >= 0.05)) problems.push(`11.3: par's window, seen from afar, should be one edge that loses either way (${JSON.stringify(wide)})`);
+  // 12.2's tallow in the diesel hydrotreater: too little and the diesel's FAME is over 7%, too much and its CFPP over −10 °C
+  const tallow = along("12.2", "tallow", "dht"), named = tallow.list.map(b => b.pools.map(p => `${p.was}:${p.specs.join("+")}`).join()).join(" ");
+  if (tallow.list.length !== 2 || tallow.list[0].better !== 1 || tallow.list[1].better !== -1 || named !== "diesel:fame diesel:cfpp" || !(tallow.list[0].at < tallow.share && tallow.share < tallow.list[1].at)) problems.push(`12.2: tallow to the DHT should break on the diesel's FAME below par and its CFPP above (${named}; ${tallow.list.map(b => (b.at * 100).toFixed(2)).join(", ")} around par's ${(tallow.share * 100).toFixed(2)})`);
+  check(!problems.length, `a slider's spec edges: found to a millionth, each stopping on its better side, named by the grade and spec that break${problems.length ? `\n     ${problems.join("\n     ")}` : ""}`);
+}
+
 // ---------- the lessons, the scenes and the exams ----------
 {
   const lessons = await import("../refinery-lessons.js").catch(() => null), exam = await import("../refinery-exam.js").catch(() => null);
