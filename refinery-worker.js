@@ -16,7 +16,7 @@ function work() {
   const end = performance.now() + 10;
   while (job && performance.now() < end) {
     const j = job;
-    j.it ||= specBreaks(level, j.routing, j.s, j.rows[j.row]);
+    j.it ||= specBreaks(level, j.routing, j.s, j.rows[j.row], { locked: j.locked });
     const n = j.it.next();
     if (!n.done) continue;
     self.postMessage({ id: j.id, d: j.rows[j.row], breaks: n.value });

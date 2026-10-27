@@ -141,6 +141,38 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
   check(!problems.length, `a slider's spec edges: found to a millionth, each stopping on its better side, named by the grade and spec that break${problems.length ? `\n     ${problems.join("\n     ")}` : ""}`);
 }
 
+// ---------- a share held: the sheet's locks ----------
+{
+  const problems = [], L1 = LEVELS.find(l => l.id === "11.3"), from = { dht: 0.5, dht2: 0.3, diesel: 0.2 }, near = (a = 0, b = 0) => Math.abs(a - b) < 1e-9;
+  const say = (what, sh) => problems.push(`${what}: ${JSON.stringify(sh)}`);
+  // split three ways, the diesel's share held: the DHT's change is the second DHT's alone
+  const one = E.shareTo(L1, "lgo", from, "dht", 0.6, ["diesel"]);
+  if (!near(one.dht, 0.6) || !near(one.dht2, 0.2) || !near(one.diesel, 0.2)) say("one held", one);
+  // and the DHT goes no further than the held share leaves it
+  const capped = E.shareTo(L1, "lgo", from, "dht", 0.95, new Set(["diesel"]));
+  if (!near(capped.dht, 0.8) || !near(capped.dht2) || !near(capped.diesel, 0.2) || !near(E.roomFor(from, "dht", ["diesel"]), 0.8)) say("capped at what the held share leaves", capped);
+  // two held and the rest free: the change goes to the home, as with no share elsewhere; every other one held: it can't move
+  const two = E.shareTo(L1, "lgo", from, "dht", 0.1, ["dht2", "diesel"]), home = E.homeOf(L1, "lgo");
+  if (!near(two.dht, 0.1) || !near(two.dht2, 0.3) || !near(two.diesel, 0.2) || !near(two[home], 0.4)) say(`two held, the rest to the home (${home})`, two);
+  const pinned = E.shareTo(L1, "lgo", from, "dht", 0.1, E.destinations(L1, "lgo").filter(x => x !== "dht"));
+  if (!near(pinned.dht, 0.5) || !near(pinned.dht2, 0.3) || !near(pinned.diesel, 0.2) || Object.keys(pinned).length !== 3) say("pinned by every other held", pinned);
+  // held at nothing, it takes nothing: the home held, the rest goes to the next destination free
+  const empty = E.shareTo(L1, "lgo", { dht: 1 }, "dht", 0.4, [home]);
+  if (empty[home] || !near(Object.values(empty).reduce((a, v) => a + v, 0), 1) || !near(empty.dht, 0.4)) say(`the home (${home}) held at nothing`, empty);
+  // a destination asked for its own lock is free to move, and no lock is as ever
+  if (JSON.stringify(E.shareTo(L1, "lgo", from, "dht", 0.2, ["dht"])) !== JSON.stringify(E.shareTo(L1, "lgo", from, "dht", 0.2)) || JSON.stringify(E.shareTo(L1, "lgo", from, "dht", 0.2, [])) !== JSON.stringify(E.shareTo(L1, "lgo", from, "dht", 0.2))) problems.push("a lock on the moving share, or none, should change nothing");
+  // a slider's breaks along a held path: 12.2's kerosene split four ways at par, its fuel oil held while the kerosene
+  // treater's share moves; every edge lies short of what the fuel oil leaves, and earns what the held path does there
+  const lv = LEVELS.find(l => l.id === "12.2"), L = E.asPlayed(lv, lv.crude), routing = E.normalise(L, PAR["12.2"][lv.crude].routing), locked = ["fuelOil"];
+  const cap = E.roomFor(routing.kero, "kht", locked), held = E.breaksOf(L, routing, "kero", "kht", { locked }), plain = E.breaksOf(L, routing, "kero", "kht");
+  for (const b of held) {
+    const sh = E.shareTo(L, "kero", routing.kero, "kht", b.at, locked), r = E.evaluate(L, { ...routing, kero: sh });
+    if (b.hi > cap + 1e-12 || !near(sh.fuelOil, routing.kero.fuelOil) || Math.abs(r.margin - Math.max(b.below, b.above)) > 1e-3) problems.push(`12.2 kerosene to the KHT, fuel oil held: the edge at ${(b.at * 100).toFixed(3)}% (ceiling ${(cap * 100).toFixed(2)}%) earns ${r.margin.toFixed(3)}, its better side ${Math.max(b.below, b.above).toFixed(3)}`);
+  }
+  if (!held.length || JSON.stringify(held.map(b => b.at)) === JSON.stringify(plain.map(b => b.at))) problems.push(`12.2: the held path's edges (${held.map(b => (b.at * 100).toFixed(2)).join(", ")}) should be its own, not the free path's`);
+  check(!problems.length, `a share held: the others take up a change, none passes what the held ones leave, every other held pins it, and a slider's edges follow the held path${problems.length ? `\n     ${problems.join("\n     ")}` : ""}`);
+}
+
 // ---------- what puts a product off spec ----------
 {
   // a tenth of the light gas oil sent to diesel untreated: its sulphur is the miss, the worst first, and taking out what

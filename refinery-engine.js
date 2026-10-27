@@ -388,14 +388,29 @@ export function fmtProp(k, v, dp = null) {
 }
 
 // ---------- a share's spec breaks ----------
-/** A stream's shares with one destination's set to f: the others it had (`from`) scaled to make up the rest, or the rest to its home. */
-export function shareTo(level, s, from, d, f) {
-  const next = {}, others = Object.entries(from || {}).filter(([x, v]) => x !== d && v > 0);
-  const rest = 1 - f, sum = others.reduce((a, [, v]) => a + v, 0);
+/** What the locked destinations other than d leave of a stream for d (shareTo's ceiling): one less their shares in `from`. */
+export const roomFor = (from, d, locked) => Math.max(0, 1 - [...new Set(locked || [])].reduce((a, x) => a + (x === d ? 0 : from?.[x] || 0), 0));
+/**
+ * A stream's shares with one destination's set to f: the others it had (`from`) scaled to make up the rest, or the rest
+ * to its home. Those in `locked` (Korbi, October 2026: a stream split three ways, one share to hold while another moves)
+ * keep their share in `from`: f goes no higher than they leave, and the rest is shared among the others, or goes to the
+ * home if that isn't locked, else to the first destination that isn't; with none left, d takes it.
+ */
+export function shareTo(level, s, from, d, f, locked = null) {
+  const held = new Set(locked || []), next = {};
+  held.delete(d);
+  for (const x of held) if (from?.[x] > 0) next[x] = from[x];
+  const room = roomFor(from, d, held), others = Object.entries(from || {}).filter(([x, v]) => x !== d && v > 0 && !held.has(x));
+  f = Math.max(0, Math.min(f, room));
+  const rest = room - f, sum = others.reduce((a, [, v]) => a + v, 0);
   if (f > 0) next[d] = f;
   if (rest > 1e-6) {
     if (sum > 1e-9) for (const [x, v] of others) next[x] = (v / sum) * rest;
-    else { const h = homeOf(level, s) !== d ? homeOf(level, s) : destinations(level, s).find(x => x !== d); if (h) next[h] = rest; }
+    else {
+      const home = homeOf(level, s), h = home !== d && !held.has(home) ? home : destinations(level, s).find(x => x !== d && !held.has(x));
+      if (h) next[h] = rest;
+      else if (held.size) next[d] = room;
+    }
   }
   return next;
 }
@@ -432,7 +447,8 @@ function stateOf(r) {
 const changed = (a, b) => Object.keys(a).some(k => k in b && a[k] !== b[k]);
 /**
  * The breaks along one destination's share of a stream, from none of it to all (the stream's other destinations,
- * `from`, scaled to make up the rest): each share where a pool goes on or off spec and the margin jumps. Sampled, then
+ * `from`, scaled to make up the rest), or to all that the `locked` ones leave it (shareTo): each share where a pool goes
+ * on or off spec and the margin jumps. Sampled, then
  * halved down to `tol` at every change. A generator that yields after each run of the plant, so a page can spread the
  * work; it returns, in order, [{ at, lo, hi, below, above, jump, better, pools: [{ pool, was, soldAs, specs }] }]: the
  * break lies between shares lo and hi, earning `below` under it and `above` over it ($/bbl); `better` is the side that
@@ -440,10 +456,11 @@ const changed = (a, b) => Object.keys(a).some(k => k in b && a[k] !== b[k]);
  * side. Each pool whose grade changes: what it was sold as on the better side, what as on the worse, and the specs of
  * the better grade it fails there.
  */
-export function* specBreaks(level, routing, s, d, { from = routing?.[s], samples = 32, tol = 1e-6, least = 0.05 } = {}) {
-  const at = x => { const r = evaluate(level, { ...routing, [s]: shareTo(level, s, from, d, x) }); return { x, r, g: stateOf(r) }; };
+export function* specBreaks(level, routing, s, d, { from = routing?.[s], samples = 32, tol = 1e-6, least = 0.05, locked = null } = {}) {
+  const cap = roomFor(from, d, locked);
+  const at = x => { const r = evaluate(level, { ...routing, [s]: shareTo(level, s, from, d, x, locked) }); return { x, r, g: stateOf(r) }; };
   const pts = [];
-  for (let i = 0; i <= samples; i++) { pts.push(at(i / samples)); yield; }
+  for (let i = 0; i <= samples; i++) { pts.push(at((i / samples) * cap)); yield; }
   const out = [];
   for (let i = 0; i < samples; i++) {
     let a = pts[i], left = 40;
@@ -461,7 +478,7 @@ export function* specBreaks(level, routing, s, d, { from = routing?.[s], samples
       if (Math.abs(jump) >= least) {
         const good = jump > 0 ? hi : lo, worse = jump > 0 ? lo : hi;
         // stop a hair inside the better side, where rounding in the shares can't tip it over, if that's still the same plant
-        const inside = at(Math.min(1, Math.max(0, good.x + (jump > 0 ? tol : -tol))));
+        const inside = at(Math.min(cap, Math.max(0, good.x + (jump > 0 ? tol : -tol))));
         yield;
         const pools = Object.keys(good.r.pools).filter(p => worse.r.pools[p] && good.r.pools[p].soldAs !== worse.r.pools[p].soldAs).map(p => {
           const was = good.r.pools[p].soldAs, w = worse.r.pools[p];

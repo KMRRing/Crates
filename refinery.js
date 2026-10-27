@@ -4,7 +4,7 @@
 // an exam (refinery-exam.js). The engine (refinery-engine.js) runs the plant; the data (refinery-data.js) describes it.
 // Together, the same level for everyone at the table (duel.js).
 import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR, REAGENTS } from "./refinery-data.js";
-import { FEED, evaluate, runs, destinations, streamsOf, sharesOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, coTotalOf, solve, ownProps, unitYields, columnFeeds, asPlayed, lower, shareTo, withShares, edgesOf, culprits, fmtPast } from "./refinery-engine.js";
+import { FEED, evaluate, runs, destinations, streamsOf, sharesOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, coTotalOf, solve, ownProps, unitYields, columnFeeds, asPlayed, lower, shareTo, roomFor, withShares, edgesOf, culprits, fmtPast } from "./refinery-engine.js";
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
 import { differences, nextHint, rowCommonness, mainOf, bucketOf, EPS, AT_PAR } from "./refinery-practice.js";
 import { PAR } from "./refinery-par.js";
@@ -37,6 +37,7 @@ let par = null;      // { margin, routing } for this crude
 let target = null;   // par for the best crude (the level's goal)
 let history = [], view = null, full = null, picked = null, toastTimer = 0;
 let D = null;        // a match's plant (duel.js), kept apart from yours: { level, crude, routing, done, margin }
+const locks = new Map();   // stream → the destinations whose shares hold while its others move (its sheet's locks), for the level open
 
 const played = asPlayed;
 /** Par for a level, crude and market: worked out ahead (refinery-par.js), or here if a level is new since. */
@@ -61,7 +62,7 @@ function load(id, fresh = false) {
   L = played(base, crude, deck);
   routing = normalise(L, w?.routing || defaultRouting(L));
   par = parOf(base, crude, deck); target = targetOf(base, deck);
-  history = []; picked = null; view = null;
+  history = []; picked = null; view = null; locks.clear();
   $("hint").hidden = true;
   $("level").value = base.id;
   render();
@@ -101,8 +102,10 @@ function setShares(s, shares, { remember = true } = {}) {
   keep();
   render();
 }
-/** One destination's share set, the stream's others scaled to make up the rest (or the rest to its home). */
-const setShare = (s, d, f) => shareTo(L, s, routing[s], d, f);
+/** The destinations of a stream whose shares hold while its others move. */
+const heldOf = s => locks.get(s) || new Set();
+/** One destination's share set, the stream's others scaled to make up the rest (or the rest to its home), the locked ones held. */
+const setShare = (s, d, f) => shareTo(L, s, routing[s], d, f, heldOf(s));
 function undo() {
   if (!history.length) return;
   routing = JSON.parse(history.pop());
@@ -390,10 +393,20 @@ function fillSplit(s) {
     splitRows.clear(); breaks.clear(); asked = null;
     $("splitRows").replaceChildren(...dests.map(d => splitRow(s, d)));
   }
-  const all = allHere(s);
+  const all = allHere(s), held = heldOf(s);
   for (const [d, p] of splitRows) {
     const f = shares[d] || 0, m = f > 0.999 ? now : all[d];
+    // a held share doesn't move, nor one nothing else could take up; the others go no further than the held ones leave
+    const locked = held.has(d), pinned = !locked && !dests.some(x => x !== d && !held.has(x)), cap = roomFor(shares, d, held);
     p.row.classList.toggle("on", f > 1e-4);
+    p.row.classList.toggle("held", locked);
+    p.lock.setAttribute("aria-pressed", String(locked));
+    p.lock.title = locked ? "Let this share move" : "Hold this share";
+    p.range.disabled = p.pct.disabled = p.all.disabled = locked || pinned;
+    p.all.textContent = [...held].some(x => x !== d) ? "Rest" : "All";
+    p.track.classList.toggle("capped", !locked && !pinned && cap < 1 - 1e-9);
+    p.track.style.setProperty("--cap", cap);
+    if (locked || pinned) { breaks.delete(d); p.track.style.setProperty("--marks", "none"); }
     p.delta.className = `rf-delta${m - now > 0.005 ? " up" : m - now < -0.005 ? " down" : ""}`;
     p.delta.textContent = f > 0.999 ? "all here" : `all: ${m - now >= 0 ? "+" : "−"}${Math.abs(m - now).toFixed(2)}`;
     p.range.value = String(f * 100);
@@ -403,7 +416,13 @@ function fillSplit(s) {
   $("splitMargin").textContent = `Margin ${money(R.margin)}/bbl · par ${money(target)}`;
   if (!drag) askBreaks(s);
 }
-/** A destination's row: its share as a slider (its spec breaks marked on the track) and as a number, and All. */
+/** A padlock, shut and open: the stylesheet shows the one its button's state calls for. */
+const PADLOCK = `<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path class="shut" d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/><path class="open" d="M10.5 7V4.5a2.5 2.5 0 0 0-5 0v.6"/><rect x="3.5" y="7" width="9" height="6.5" rx="1.3"/></svg>`;
+/**
+ * A destination's row: its share as a slider (its spec breaks marked on the track) and as a number, All, and a lock
+ * (Korbi, October 2026: in a split three ways, one share to hold while another moves): a locked share stays as it is
+ * whatever the others do, so the rest is shared among the unlocked, and none of them can pass what it leaves.
+ */
 function splitRow(s, d) {
   const dest = UNITS[d] || POOLS[d];
   const row = document.createElement("div"); row.className = "rf-split-row";
@@ -424,6 +443,8 @@ function splitRow(s, d) {
   pct.setAttribute("aria-label", `Per cent to ${dest.name}`);
   const unit = document.createElement("span"); unit.textContent = "%";
   const allBtn = document.createElement("button"); allBtn.type = "button"; allBtn.className = "rf-all"; allBtn.textContent = "All";
+  const lock = document.createElement("button"); lock.type = "button"; lock.className = "rf-lock"; lock.innerHTML = PADLOCK;
+  lock.setAttribute("aria-label", `Hold the share to ${dest.name}`); lock.setAttribute("aria-pressed", "false");
   // a finger on the slider holds the stream's other shares as they were, so the drag stays on the one path its
   // breaks were found along (dragged to all and back, the others come back as they were, not to the home)
   range.addEventListener("pointerdown", () => {
@@ -431,23 +452,39 @@ function splitRow(s, d) {
     drag = { d, from: { ...(routing[s] || {}) }, first: true, reach: run > 0 ? (SNAP * rem) / run : 0 };
   });
   range.addEventListener("input", () => {
-    const raw = +range.value / 100;
+    const cap = roomFor(drag?.d === d ? drag.from : routing[s], d, heldOf(s));
+    let raw = +range.value / 100;
+    if (raw > cap) { raw = cap; range.value = String(cap * 100); }
     if (drag?.d !== d) { setShares(s, setShare(s, d, Math.round(raw * 100) / 100)); return; }   // the keys step whole per cents
     const { x, edge } = settle(s, d, raw);
     if (edge) range.value = String(x * 100);
     tip.hidden = !edge;
     if (edge) tip.textContent = edgeWords(edge);
-    setShares(s, shareTo(L, s, drag.from, d, x), { remember: drag.first });
+    setShares(s, shareTo(L, s, drag.from, d, x, heldOf(s)), { remember: drag.first });
     drag.first = false;
   });
   const end = () => { if (drag?.d !== d) return; drag = null; tip.hidden = true; fillSplit(s); };
   range.addEventListener("change", end);
   for (const t of ["pointerup", "pointercancel"]) range.addEventListener(t, () => setTimeout(end));
-  pct.addEventListener("change", () => { const v = Math.max(0, Math.min(100, parseFloat(pct.value.replace(",", ".")) || 0)); setShares(s, setShare(s, d, v / 100)); });
-  allBtn.addEventListener("click", () => setShares(s, { [d]: 1 }));
-  ctl.append(track, pct, unit, allBtn);
+  pct.addEventListener("change", () => {
+    const v = Math.max(0, Math.min(100, parseFloat(pct.value.replace(",", ".")) || 0));
+    setShares(s, setShare(s, d, v / 100));
+    pct.value = pctText(routing[s]?.[d] || 0);   // as far as the held shares let it go
+  });
+  // with another share held, All is the rest: everything not held
+  allBtn.addEventListener("click", () => setShares(s, shareTo(L, s, routing[s], d, 1, heldOf(s))));
+  lock.addEventListener("click", () => {
+    const held = new Set(heldOf(s));
+    if (!held.delete(d)) held.add(d);
+    if (held.size) locks.set(s, held); else locks.delete(s);
+    // every slider's path changes with a lock: its breaks are found again
+    breaks.clear();
+    for (const p of splitRows.values()) p.track.style.setProperty("--marks", "none");
+    fillSplit(s);
+  });
+  ctl.append(track, pct, unit, allBtn, lock);
   row.append(name, delta, ctl);
-  splitRows.set(d, { row, track, range, pct, delta, tip });
+  splitRows.set(d, { row, track, range, pct, delta, tip, all: allBtn, lock });
   return row;
 }
 /** What sending all of a stream to each of its destinations would earn, the rest of the plan as it is: its own shares don't come into it, so a drag of them reuses it. */
@@ -470,21 +507,23 @@ function trackOf(range) {
 }
 let scanner = null, scanId = 0, asked = null, sentLevel = null, scanPaths = {};
 const breaks = new Map();   // destination → { path, list }, for the stream open
-/** What a slider's breaks depend on: the level as played, the rest of the plan, and the stream's other shares in proportion. */
+/** What a slider's breaks depend on: the level as played, the rest of the plan, the stream's held shares as they are and its other shares in proportion. */
 function pathOf(s, d, shares = routing[s]) {
-  const others = Object.entries(shares || {}).filter(([x, v]) => x !== d && v > 0), sum = others.reduce((a, [, v]) => a + v, 0);
-  return JSON.stringify([L.id, L.crude, L.deck, others.map(([x, v]) => [x, Math.round((v / sum) * 1e9)]).sort(), { ...routing, [s]: null }]);
+  const held = [...heldOf(s)].filter(x => x !== d);
+  const others = Object.entries(shares || {}).filter(([x, v]) => x !== d && v > 0 && !held.includes(x)), sum = others.reduce((a, [, v]) => a + v, 0);
+  return JSON.stringify([L.id, L.crude, L.deck, held.map(x => [x, Math.round((shares?.[x] || 0) * 1e9)]).sort(), others.map(([x, v]) => [x, Math.round((v / sum) * 1e9)]).sort(), { ...routing, [s]: null }]);
 }
-/** Asks the worker for every slider's breaks as the plan now stands (the sliders in use first); each is drawn as it comes. */
+/** Asks the worker for every slider's breaks as the plan now stands (the sliders in use first, none held or pinned by the locks); each is drawn as it comes. */
 function askBreaks(s) {
-  const key = JSON.stringify([L.id, L.crude, L.deck, routing]), sh = routing[s] || {}, rows = destinations(L, s);
+  const held = heldOf(s), key = JSON.stringify([L.id, L.crude, L.deck, routing, [...held].sort()]), sh = routing[s] || {}, dests = destinations(L, s);
+  const rows = dests.filter(d => !held.has(d) && dests.some(x => x !== d && !held.has(x)));
   if (key === asked || rows.length < 2) return;
   asked = key;
   if (scanner === null) scanner = startScanner();
   if (!scanner) return;
   rows.sort((a, b) => (sh[b] > 1e-4) - (sh[a] > 1e-4));
   scanPaths = Object.fromEntries(rows.map(d => [d, pathOf(s, d)]));
-  scanner.postMessage({ id: ++scanId, s, routing, rows, level: sentLevel === L ? null : L });
+  scanner.postMessage({ id: ++scanId, s, routing, rows, locked: [...held], level: sentLevel === L ? null : L });
   sentLevel = L;
 }
 function startScanner() {
@@ -522,10 +561,10 @@ function paintBreaks(d) {
  * (the best of them), else on the whole per cent under it. Only breaks found along this drag's own path count.
  */
 function settle(s, d, raw) {
-  const free = Math.round(raw * 100) / 100, k = breaks.get(d);
+  const held = heldOf(s), free = Math.min(Math.round(raw * 100) / 100, roomFor(drag.from, d, held)), k = breaks.get(d);
   const near = k && k.path === pathOf(s, d, drag.from) ? k.list.filter(b => Math.abs(b.at - raw) <= drag.reach) : [];
   if (!near.length) return { x: free };
-  const here = evaluate(L, { ...routing, [s]: shareTo(L, s, drag.from, d, free) }).margin;
+  const here = evaluate(L, { ...routing, [s]: shareTo(L, s, drag.from, d, free, held) }).margin;
   let edge = null;
   for (const b of near) {
     const m = Math.max(b.below, b.above);
@@ -1009,11 +1048,11 @@ const duel = createDuel({
     D = kept?.level === lv.id && kept.routing ? kept : { level: lv.id, crude: lv.crude, routing: null, done: false, margin: null };
     L = played(lv, lv.crudes?.includes(D.crude) ? D.crude : lv.crude, D.deck);
     routing = D.routing = normalise(L, D.routing || defaultRouting(L));
-    par = parOf(lv, L.crude, L.deck); target = targetOf(lv, L.deck); history = []; view = null; picked = null;
+    par = parOf(lv, L.crude, L.deck); target = targetOf(lv, L.deck); history = []; view = null; picked = null; locks.clear();
     $("level").value = lv.id;
     keep(); render(); tell();
   },
-  onLobby: match => { D = null; const lv = LEVELS.find(l => l.id === String(match.level)) || LEVELS[0]; base = lv; L = played(lv, lv.crude); routing = normalise(L, defaultRouting(L)); par = parOf(lv, lv.crude, L.deck); target = targetOf(lv, L.deck); render(); $("verdict").textContent = "The same plant for everyone."; },
+  onLobby: match => { D = null; const lv = LEVELS.find(l => l.id === String(match.level)) || LEVELS[0]; base = lv; L = played(lv, lv.crude); routing = normalise(L, defaultRouting(L)); par = parOf(lv, lv.crude, L.deck); target = targetOf(lv, L.deck); locks.clear(); render(); $("verdict").textContent = "The same plant for everyone."; },
   onLeave: () => { D = null; load(read(AT, LEVELS[0].id)); },
 });
 function duelVerdict(off, gap) {
