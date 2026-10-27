@@ -165,12 +165,27 @@ export function strikeAt(s, at) {
 }
 
 // ---------- a game ----------
-/** The place a planet could land on: of two hoops picked at random the one with more room, then a free place on it, or null. */
-function spot(s) {
-  const open = s.rings.flatMap((r, ring) => (r.places.includes(-1) ? [ring] : []));
+/**
+ * The most planets of one colour a hoop holds: its even share, three of its twelve places (Korbi, 27 October 2026). A
+ * line takes one planet from each hoop, so a hoop crowded with one colour could only be worn down a planet a line, and
+ * kept its places from the others: the game could stall with room nowhere but there. A landing never takes a hoop past
+ * it, and a colour lands on a hoop holding one of it already only half as often (ALIKE) for each it holds.
+ */
+export const CAP = PLACES / COLOURS;
+export const ALIKE = 0.5;
+/** How many planets of a colour a hoop holds. */
+export const holds = (r, c) => r.places.reduce((n, x) => n + (x === c ? 1 : 0), 0);
+/**
+ * The place a planet could land on: of two hoops picked at random the one with more room, then a free place on it, or
+ * null. For a colour, only hoops holding fewer than CAP of it, the one holding fewer of it first.
+ */
+function spot(s, colour = -1) {
+  const open = s.rings.flatMap((r, ring) => (r.places.includes(-1) && (colour < 0 || holds(r, colour) < CAP) ? [ring] : []));
   if (!open.length) return null;
   const free = ring => s.rings[ring].places.filter(c => c < 0).length;
-  const a = open[pick(s, open.length)], b = open[pick(s, open.length)], ring = free(b) > free(a) ? b : a;
+  const fewer = ring => (colour < 0 ? 0 : holds(s.rings[ring], colour));
+  const a = open[pick(s, open.length)], b = open[pick(s, open.length)];
+  const ring = fewer(b) < fewer(a) || (fewer(b) === fewer(a) && free(b) > free(a)) ? b : a;
   const places = s.rings[ring].places.flatMap((c, p) => (c < 0 ? [p] : []));
   return { ring, place: places[pick(s, places.length)] };
 }
@@ -213,22 +228,45 @@ function aimed(s) {
     if (best.length) { const x = best[pick(s, best.length)]; return { ring: x.ring, place: x.free[pick(s, x.free.length)], colour: x.colour }; }
   }
   for (let k = 0; k < 12; k++) {
-    const at = spot(s);
+    const at = newcomer(s);
     if (!at) return null;
-    const colour = colourFor(s);
-    if (now < AIMS.most || aimsWith(s, at.ring, at.place, colour) <= now) return { ...at, colour };
+    if (now < AIMS.most || aimsWith(s, at.ring, at.place, at.colour) <= now) return at;
   }
-  const at = spot(s);
-  return at && { ...at, colour: colourFor(s) };
+  return newcomer(s);
 }
-/** A colour for a newcomer: any, but the scarcer ones likelier, so every colour stays in play. */
-function colourFor(s) {
-  const count = new Array(COLOURS).fill(0);
-  for (const r of s.rings) for (const c of r.places) if (c >= 0) count[c]++;
-  const top = Math.max(...count), weight = count.map(n => 1 + top - n), total = weight.reduce((a, b) => a + b, 0);
-  let x = rnd(s) * total;
-  for (let c = 0; c < COLOURS; c++) if ((x -= weight[c]) < 0) return c;
-  return COLOURS - 1;
+/** How many planets of each colour the orrery holds. */
+function counts(s) {
+  const n = new Array(COLOURS).fill(0);
+  for (const r of s.rings) for (const c of r.places) if (c >= 0) n[c]++;
+  return n;
+}
+/** A colour's weight among the newcomers: the scarcer the likelier, so every colour stays in play. */
+const scarcity = n => { const top = Math.max(...n); return c => 1 + top - n[c]; };
+/** One of a list drawn by its weights (w). */
+function weighted(s, list) {
+  let x = rnd(s) * list.reduce((a, o) => a + o.w, 0);
+  return list.find(o => o.w > 0 && (x -= o.w) < 0) || list.findLast(o => o.w > 0);
+}
+/**
+ * The next planet's hoop, place and colour, drawn together: a hoop the likelier the more room it has, a colour the
+ * scarcer, and a colour on a hoop holding it already ALIKE times as likely for each of it there, never one holding CAP
+ * of it (a hoop with room always has a colour it can take: four colours of CAP fill it). So a colour mostly lands where
+ * it isn't, which is where it can make a line.
+ */
+function newcomer(s) {
+  const weight = scarcity(counts(s)), options = [];
+  s.rings.forEach((r, ring) => {
+    const free = r.places.filter(c => c < 0).length;
+    if (free) for (let c = 0; c < COLOURS; c++) { const h = holds(r, c); if (h < CAP) options.push({ ring, colour: c, w: free * weight(c) * ALIKE ** h }); }
+  });
+  if (!options.length) return null;
+  const { ring, colour } = weighted(s, options), places = s.rings[ring].places.flatMap((c, p) => (c < 0 ? [p] : []));
+  return { ring, place: places[pick(s, places.length)], colour };
+}
+/** A colour for a newcomer with no place yet (the orrery full as it's foretold), or for a hoop (`ring`): as newcomer() weighs it. */
+function colourFor(s, ring = -1) {
+  const r = s.rings[ring], weight = scarcity(counts(s));
+  return weighted(s, [...Array(COLOURS).keys()].map(c => { const h = r ? holds(r, c) : 0; return { c, w: h >= CAP ? 0 : weight(c) * ALIKE ** h }; })).c;
 }
 /** Foretells the next planet, to land a gap after now. */
 function foretell(s) {
@@ -391,7 +429,7 @@ function beat(s, events) {
 function land(s, events) {
   let { ring, place, colour } = s.next;
   if (ring < 0 || s.rings[ring].places[place] >= 0) {
-    const at = spot(s);
+    const at = spot(s, colour) || spot(s);
     if (!at) {
       // a line standing is already made: the beat strikes it first, and the planet lands in the room it leaves
       if (s.locks.length) { s.next.due = Math.min(...s.locks.map(l => strikeAt(s, l.at))); return; }
@@ -401,6 +439,9 @@ function land(s, events) {
       return;
     }
     ({ ring, place } = at);
+    // the room left is only on hoops holding CAP of its colour already: it comes as one they may take (rare: it was
+    // foretold onto a full orrery, and the line that made room took its colour from each hoop)
+    if (holds(s.rings[ring], colour) >= CAP) colour = colourFor(s, ring);
   }
   s.rings[ring].places[place] = colour;
   events.push({ type: "land", ring, place, colour });

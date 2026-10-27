@@ -10,8 +10,9 @@
 // just before a beat; a fourth pressed into it; a press for one hoop keeping a line on the others; a landing or a press
 // completing one; one broken first); the drift (its pace, its step and its turn at 45 degrees, no clock wound by a press,
 // breaking a line, standing still with the game); clearing, the points and the combo; the planets landing on the clock
-// (the pace, foretold, the place, a full orrery ending it); a game saved and opened again; the old version replaced; and
-// whole games played out by simple players with a person's delays.
+// (the pace, foretold, the place, a full orrery ending it); no hoop taking more than three of a colour, and a colour
+// landing where it is already less often; a game saved and opened again; the old version replaced; and whole games
+// played out by simple players with a person's delays.
 // `node tests/orrery.mjs measure` plays more games for each player instead, at every tempo, and prints what the README's
 // numbers come from; `games=40`, `limit=1500` (seconds), `tempo=2`, `pace=6.5,1,170`, `drift=30,36,42,48` (or
 // `drift=off`), `wind=all` or `wind=moved` (a press winding the drift's clocks) and a
@@ -19,7 +20,7 @@
 import {
   VERSION, RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, TEMPOS, FIRST_TEMPO, SPIN, REFERENCE, FIRST_SET, TIP, TIP_MAX, PLANE, DRIFT, TICK, TIP_TIME, DWELL, AWARD, COMBO_WINDOW,
   FORETELL, PACE, gap, multiplier, period, between, id, seatOf, angleOf, room, planets, dirOf, keyOf, planeOf, turnOf, tiltOf, clusters, crowds, newGame, valid, copy, setRing,
-  setTempo, nextDrift, driftTime, aims, AIMS, step, look, strikeAt, setPlane,
+  setTempo, nextDrift, driftTime, aims, AIMS, step, look, strikeAt, setPlane, CAP, ALIKE, holds,
 } from "../orrery-engine.js";
 
 let bad = 0;
@@ -455,6 +456,37 @@ const inBeats = g => g.rings.map(r => ({ ...r, driftAt: Math.round((r.driftAt / 
   last.next = { due: 0.05, ring: 3, place: 5, colour: 0 };
   const e5 = run(last, 1.1, 0.01);
   check(!last.over && locks(e5).length >= 1 && e5.findIndex(e => e.type === "lock") < e5.findIndex(e => e.type === "land"), "a full orrery with a line standing: the beat strikes it first, and the planet lands in its room");
+}
+
+// ---------- a colour's share of a hoop (Korbi, 27 October 2026) ----------
+{
+  // a hoop crowded with one colour can only be worn down a planet a line, so no landing takes a hoop past CAP of a
+  // colour: played with no hand to a full orrery, every hoop then holds exactly CAP of each
+  let past = 0, games = 0, even = 0, lands = 0, already = 0, twice = 0;
+  for (let k = 1; k <= 120; k++) {
+    const g = newGame(k, 5);
+    for (let t = 0; t < 4000 && !g.over; t++) {
+      const before = g.rings.map(r => [...r.places]);
+      for (const e of step(g, 1)) {
+        if (e.type !== "land" || planets(g) > 30) continue;           // how a colour lands, before the orrery crowds
+        const h = before[e.ring].filter(c => c === e.colour).length;
+        lands++; already += h; if (h >= 2) twice++;
+      }
+      if (g.rings.some(r => [0, 1, 2, 3].some(c => holds(r, c) > CAP))) past++;
+    }
+    games++;
+    if (g.over && g.rings.every(r => [0, 1, 2, 3].every(c => holds(r, c) === CAP))) even++;
+  }
+  check(!past && even === games && CAP === PLACES / COLOURS, `no landing takes a hoop past ${CAP} of a colour: ${games} games played with no hand to a full orrery, every hoop then ${CAP} of each`);
+  // and a colour lands on a hoop holding it already less often (with no weighting, 1.25 of it there on average and two or more 35% of the time)
+  check(ALIKE === 0.5 && already / lands < 1.05 && twice / lands < 0.27, `a colour lands where it is already half as often for each one there: ${(already / lands).toFixed(2)} of it on the hoop on average, two or more ${Math.round((100 * twice) / lands)}% of the time, over the first thirty planets of ${games} games`);
+  // a planet foretold onto a full orrery, where the room a line made is only on a hoop holding CAP of its colour: it comes as one that hoop can take
+  const f = sky();
+  f.rings[0].places = [2, 2, 2, 0, 0, 0, 1, 1, 1, 3, 3, -1];
+  for (let k = 1; k < RINGS; k++) f.rings[k].places = f.rings[k].places.map((_, p) => (p + k) % COLOURS);
+  f.next = { due: 0.1, ring: -1, place: -1, colour: 2 };
+  const l = run(f, 0.2).find(e => e.type === "land");
+  check(l && l.ring === 0 && l.place === 11 && l.colour === 3 && [0, 1, 2, 3].every(c => holds(f.rings[0], c) <= CAP), "a planet with nowhere its colour may land comes as a colour the hoop with room can take");
 }
 
 // ---------- saved and opened again ----------
