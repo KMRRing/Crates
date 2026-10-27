@@ -1,9 +1,10 @@
-// Guilloché: a rose engine. A target plate is shown engraved, and a machine with its knobs bare: the rosette's lobes and
-// throw, how many passes to cut and how far to turn the rosette between them, a feed, a second rosette; and a dial is
-// several cuts, each in its own zone. Set them until the plate you cut is the target's, and what a person learns is how a
-// guilloché is made. The rules are guilloche-engine.js's, the watch is drawn in 3D by guilloche-3d.js (guilloche-flat.js where
+// Guilloché: a rose engine. A target plate is shown faint, and a machine with its knobs bare: the rosette's lobes and
+// throw, how many passes to cut and how far to turn the rosette between them, a feed, a second rosette, the straight
+// engine's pitch and angle, the rays of a sunburst, how deep the graver goes; and a dial is several cuts, each in its own
+// zone. Set the machine up (its path is drawn as a fine line), then Cut, zone by zone, until the plate is the target's:
+// what a person learns is how a guilloché is made. The rules are guilloche-engine.js's, the watch is drawn in 3D by guilloche-3d.js (guilloche-flat.js where
 // there is no WebGL) to the spec of guilloche-watch.js; this file takes the fingers and keeps the work.
-import { LEVELS, KNOBS, STARS, cutNames, CLUE_CAP, stepOf, makeJob, newRun, setKnob, undo, finish, say, closeness, takeClue, lessonJob, lessonRun, lessonStep, stepDone } from "./guilloche-engine.js";
+import { LEVELS, KNOBS, STARS, cutNames, CLUE_CAP, stepOf, makeJob, newRun, setKnob, undo, finish, say, closeness, takeClue, lessonJob, lessonRun, lessonStep, stepDone, cutPlate, asCut, cutRight, passes, settingsOf } from "./guilloche-engine.js";
 import { createWatch } from "./guilloche-3d.js";
 import { createFlat } from "./guilloche-flat.js";
 import { watchOf } from "./guilloche-watch.js";
@@ -50,7 +51,7 @@ const SOUND = {
 const made = () => read(MADE, {});
 // open once the one before has a star, or once played (the plates were reordered when the straight engine came: a plate with stars stays open)
 const unlocked = i => i === 0 || (made()[LEVELS[i].id] ?? 0) > 0 || (made()[LEVELS[i - 1].id] ?? 0) >= STARS[0];
-let plate = null, job = null, run = null, engraving = 0, doneTimer = 0;
+let plate = null, job = null, run = null, engraving = 0, carving = 0, doneTimer = 0;      // engraving: the watch being put together; carving: a cut being cut
 let history = [];                                  // the batches of changes a finger made, for Undo (not kept: a reload starts it fresh)
 let hint = null;                                   // the clue on show: { cut, name, tier, text }; it stays until its knob is touched
 const taught = id => read(TAUGHT, {})[id] || (made()[id] ?? 0) > 0;      // a plate already played needs no lesson
@@ -58,7 +59,9 @@ const taught = id => read(TAUGHT, {})[id] || (made()[id] ?? 0) > 0;      // a pl
 const save = () => { if (!job.lesson) write(RUN, { v: 1, run }); };
 function stop() {
   cancelAnimationFrame(engraving);
-  engraving = 0;
+  cancelAnimationFrame(carving);
+  engraving = carving = 0;
+  afterCarve = null;
   clearTimeout(doneTimer);
   hint = null;
   history = [];
@@ -89,11 +92,19 @@ function endLesson() {
 /** A saved run, if it is whole and of a plate the engine still makes; else the first plate. */
 function load() {
   const s = read(RUN, null), r = s?.v === 1 ? s.run : null;
-  if (r && LEVELS[r.job]?.id === r.id && Number.isFinite(r.seed)) {      // (a run kept before the plates were reordered has no id: it is let go)
-    const j = makeJob(r.job, r.seed);
-    const ok = Array.isArray(r.vals) && r.vals.length === j.cuts.length && r.vals.every((v, i) => j.cuts[i].free.every(n => Number.isInteger(v?.[n]) && v[n] >= KNOBS[n].min && v[n] <= KNOBS[n].max && v[n] % stepOf(n) === 0))
+  // the plate by its name, not its number: the plates were reordered when the straight engine came (a run kept before then
+  // has no name, and is let go) and again when the textures came (27 October 2026)
+  const at = r?.id ? LEVELS.findIndex(l => l.id === r.id) : -1;
+  if (at >= 0 && Number.isFinite(r.seed)) {
+    const j = makeJob(at, r.seed);
+    const knobsOk = (v, i) => j.cuts[i].free.every(n => Number.isInteger(v?.[n]) && v[n] >= KNOBS[n].min && v[n] <= KNOBS[n].max && v[n] % stepOf(n) === 0);
+    const ok = Array.isArray(r.vals) && r.vals.length === j.cuts.length && r.vals.every(knobsOk)
       && Number.isInteger(r.at) && r.at >= 0 && r.at < j.cuts.length && Number.isFinite(r.taps);
-    if (ok) { job = j; run = { clues: 0, ...r }; history = []; open(); return; }
+    // what was cut: a run kept before a plate was cut zone by zone has none (one already done was cut as it was set)
+    const cut = Array.isArray(r.cut) && r.cut.length === j.cuts.length && r.cut.every((v, i) => v === null || knobsOk(v, i)) ? r.cut : r.vals?.map(v => (r.done ? { ...v } : null));
+    if (ok) { job = j; run = { clues: 0, ...r, job: at, cut }; history = []; open(); return; }
+    begin(at, r.seed, false);                       // the plate's knobs have changed since: the same plate, set afresh
+    return;
   }
   begin(0);
 }
@@ -111,6 +122,7 @@ function open() {
 /** What the line under the plate says: a lesson's step, a clue, or how near the plate is. */
 function lineText() {
   if (job.lesson) { const st = lessonStep(job, run); return stepDone(job, run) ? st.learn : st.do; }
+  if (carving) { const name = job.cuts.length > 1 ? `${cutNames(job.index)[run.at]}: ` : ""; return `${name}the cutter runs it, pass by pass.`; }
   return hint && !run.done ? hint.text : say(job, run);
 }
 const counts = () => `${job.index + 1} of ${LEVELS.length} · ${run.taps} tap${run.taps === 1 ? "" : "s"}`;
@@ -124,14 +136,19 @@ function render() {
   $("line").textContent = lineText();
   if (job.lesson) {
     const last = run.step === job.steps - 1;
-    $("acts").innerHTML = button("skip", "Skip the lesson") + button("step", last ? "Cut the plate" : "Next", "primary", stepDone(job, run) ? "" : "disabled");
+    $("acts").innerHTML = button("skip", "Skip the lesson") + button("step", last ? "Cut the plate" : "Next", "primary", stepDone(job, run) && !carving ? "" : "disabled");
   } else if (run.done) {
     $("acts").innerHTML = button("again", "A fresh one") + button("next", job.index === LEVELS.length - 1 ? "Back to the first" : "Next plate", "primary");
   } else {
     const nextTier = Math.min(3, (hint ? hint.tier : 0) + 1);
-    $("acts").innerHTML = button("undo", "Undo", "", history.length ? "" : "disabled") + button("clue", `Clue<small>${NEXT_CLUE[nextTier]}</small>`, "lg-clue") + button("over", "Start over");
+    $("acts").innerHTML = button("undo", "Undo", "", history.length && !carving ? "" : "disabled") + button("clue", `Clue<small>${NEXT_CLUE[nextTier]}</small>`, "lg-clue", carving ? "disabled" : "")
+      + button("cut", "Cut", "primary", asCut(run) || carving ? "disabled" : "");
   }
-  $("tabs").querySelectorAll("button").forEach((b, n) => b.classList.toggle("lg-hint", !!hint && hint.cut === n && !run.done));
+  $("tabs").querySelectorAll("button").forEach((b, n) => {
+    b.classList.toggle("lg-hint", !!hint && hint.cut === n && !run.done);
+    b.classList.toggle("lg-cut", !!run.cut?.[n] && !job.lesson);
+    b.classList.toggle("lg-true", !job.lesson && cutRight(job, run, n));
+  });
   document.querySelectorAll(".lg-knob").forEach(k => k.classList.toggle("lg-hint", !!hint && !run.done && hint.name === k.dataset.knob && hint.cut === run.at));
   document.querySelectorAll(".lg-knob").forEach(k => k.classList.toggle("lg-want", !!job.lesson && !!lessonStep(job, run) && !stepDone(job, run) && k.dataset.knob in lessonStep(job, run).set));
 }
@@ -141,6 +158,7 @@ $("acts").addEventListener("click", e => {
   const act = b.dataset.act;
   if (act === "undo") { const last = history.pop(); if (last) { undo(job, run, last); save(); changed(); render(); } }
   else if (act === "over") begin(job.index, job.seed, false);
+  else if (act === "cut") cutNow();
   else if (act === "again") begin(job.index);
   else if (act === "next") begin(job.index === LEVELS.length - 1 ? 0 : job.index + 1);
   else if (act === "clue") giveClue();
@@ -149,7 +167,7 @@ $("acts").addEventListener("click", e => {
 });
 /** The next clue: about the knob that matters most, on a tier from the last if it is still that knob; its cut is shown and ringed on the dial. */
 function giveClue() {
-  if (run.done || engraving) return;
+  if (run.done || engraving || carving) return;
   const c = takeClue(job, run, hint);
   if (!c) return;
   hint = c;
@@ -161,7 +179,7 @@ function giveClue() {
   render();
 }
 function nextStep() {
-  if (!stepDone(job, run)) return;
+  if (!stepDone(job, run) || carving) return;
   if (run.step === job.steps - 1) { endLesson(); return; }
   run.step++;
   const st = lessonStep(job, run);
@@ -181,7 +199,7 @@ function buildTabs() {
     b.title = n;
     b.setAttribute("aria-label", `Cut ${i + 1}: ${n}`);
     b.setAttribute("aria-selected", String(i === run.at));
-    b.addEventListener("click", () => { if (run.done || i === run.at) return; run.at = i; save(); buildTabs(); buildKnobs(); plate.refresh(); render(); });
+    b.addEventListener("click", () => { if (run.done || carving || i === run.at) return; run.at = i; save(); buildTabs(); buildKnobs(); plate.refresh(); render(); });
     box.append(b);
   });
 }
@@ -238,11 +256,11 @@ function release() {
 function end() {
   save();
   render();
-  if (job.lesson) { if (stepDone(job, run)) SOUND.set(); return; }
-  if (finish(job, run)) { save(); engrave(); }
+  // a lesson's step, once set, is cut for you, so what it did is seen engraved
+  if (job.lesson && stepDone(job, run)) { SOUND.set(); cutNow(); }
 }
 $("knobs").addEventListener("pointerdown", e => {
-  if (IN_FRAME || run.done || engraving) return;
+  if (IN_FRAME || run.done || engraving || carving) return;
   const range = e.target.closest('input[type="range"]'), step = e.target.closest(".lg-step");
   const name = e.target.closest("[data-knob]")?.dataset.knob;
   if (!name) return;
@@ -260,7 +278,7 @@ $("knobs").addEventListener("pointerdown", e => {
 });
 $("knobs").addEventListener("input", e => {
   const range = e.target.closest('input[type="range"]'), name = e.target.closest("[data-knob]")?.dataset.knob;
-  if (!range || !name || IN_FRAME || run.done || engraving) return;
+  if (!range || !name || IN_FRAME || run.done || engraving || carving) return;
   turn(name, Number(range.value));
 });
 // the end of a drag on a slider (the pointer is up wherever it is: the slider keeps it)
@@ -269,37 +287,66 @@ addEventListener("pointercancel", () => release());
 $("knobs").addEventListener("click", e => {
   // a step button from the keyboard (a press has no pointer, so detail is 0)
   const step = e.target.closest(".lg-step");
-  if (!step || e.detail !== 0 || run.done || engraving) return;
+  if (!step || e.detail !== 0 || run.done || engraving || carving) return;
   const name = step.closest("[data-knob]").dataset.knob;
   turn(name, run.vals[run.at][name] + Number(step.dataset.d) * stepOf(name));
 });
 
-// ---------- a plate matched: it is engraved pass by pass under the cutter, then the watch is put together ----------
-const CUT_MS = 2400, SET_MS = 2000, REST_MS = 600;
-function engrave() {
+// ---------- a cut: the zone in hand engraved pass by pass under the cutter; the plate true, the watch put together ----------
+const SET_MS = 2000, REST_MS = 600, clamp01 = x => Math.max(0, Math.min(1, x));
+/** How long a cut takes to cut: longer for more passes, never so long it drags. */
+const carveMs = n => Math.max(900, Math.min(2600, 500 + n * 45));
+let afterCarve = null;
+/**
+ * Cut the zone in hand as the machine is set (Korbi, 27 October 2026: "user should make the lines first, then cut"):
+ * what was cut there before is faced off, the cutter runs the new cut pass by pass, and then the line says what it
+ * came to. When every zone is cut true, the watch is put together. In a lesson it is the step's own cut, free.
+ */
+function cutNow() {
+  if (IN_FRAME || run.done || engraving || carving) return;
+  const i = run.at, r = cutPlate(job, run, i);
+  if (!r) return;
+  save();
+  const n = passes(settingsOf(job.cuts[i], run.cut[i])).length, ms = carveMs(n), t0 = performance.now();
+  plate.carve(i, 0);
+  SOUND.cut();
+  afterCarve = () => {
+    afterCarve = null;
+    plate.carve(i, 1);
+    if (!job.lesson && finish(job, run)) { save(); assemble(); return; }
+    if (!job.lesson) SOUND.done();
+    render();
+  };
+  const step = now => {
+    const x = clamp01((now - t0) / ms);            // (a frame's time can be a moment before the cut was asked for)
+    plate.carve(i, x);
+    if (x < 1) carving = requestAnimationFrame(step); else { carving = 0; afterCarve?.(); }
+  };
+  carving = requestAnimationFrame(step);
+  render();
+}
+/** Every zone cut true: the markers and hands are set, the glass goes on, and the watch is drawn back to be seen whole. */
+function assemble() {
   hint = null;
   plate.mark(-1);
   render();
   plate.peek(false);
+  plate.refresh();                                  // the target's ghost and the machine's path go: the plate is done
   const t0 = performance.now();
   clearTimeout(doneTimer);
-  plate.reveal(0);
   plate.assemble(0);
-  SOUND.cut();
   let set = false;
   const step = now => {
     const t = now - t0;
-    plate.reveal(Math.min(1, t / CUT_MS));
-    plate.assemble(Math.max(0, Math.min(1, (t - CUT_MS) / SET_MS)));
-    if (!set && t > CUT_MS + 300) { set = true; SOUND.set(); }
-    if (t < CUT_MS + SET_MS + REST_MS) engraving = requestAnimationFrame(step); else engraved();
+    plate.assemble(Math.max(0, Math.min(1, t / SET_MS)));
+    if (!set && t > 300) { set = true; SOUND.set(); }
+    if (t < SET_MS + REST_MS) engraving = requestAnimationFrame(step); else engraved();
   };
   engraving = requestAnimationFrame(step);
 }
 /** The watch is made: the plate whole, the hands set, a sound, and the result a moment on. */
 function engraved() {
   engraving = 0;
-  plate.reveal(1);
   plate.assemble(1);
   SOUND.done();
   clearTimeout(doneTimer);
@@ -307,11 +354,11 @@ function engraved() {
 }
 function showDone() {
   const all = made(), before = all[job.id] ?? 0, d = run.done;
-  const cutPasses = job.cuts.reduce((n, c, i) => n + (job.answer[i].n ?? c.fixed.n), 0), watch = watchOf(job.id);
+  const cutPasses = job.cuts.reduce((n, c, i) => n + passes(settingsOf(c, job.answer[i])).length, 0), watch = watchOf(job.id);
   $("doneHead").textContent = `${job.name}: ${["", "engraved", "well engraved", "engraved by the book"][d.stars]}`;
   $("doneStars").textContent = starText(d.stars);
   $("doneBody").innerHTML = [["Taps", d.taps], ["Par", job.par], ["Passes cut", cutPasses], ["Clues", d.clues]].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
-  const why = d.clues && CLUE_CAP[d.clues] < 3 ? `Clues cap the stars at ${CLUE_CAP[d.clues]}. ` : d.stars === 3 ? "" : `Par is the knobs to set, a tap each: within ${Math.ceil(job.par * 1.5) + 2} taps is three stars. `;
+  const why = d.clues && CLUE_CAP[d.clues] < 3 ? `Clues cap the stars at ${CLUE_CAP[d.clues]}. ` : d.stars === 3 ? "" : `Par is the knobs to set and a cut for each zone, a tap each: within ${Math.ceil(job.par * 1.5) + 2} taps is three stars. `;
   $("doneNote").textContent = `Set in a ${watch.name.toLowerCase()} watch. ${job.story} ${why}`.trim();
   if (d.stars > before) {
     all[job.id] = d.stars;
@@ -371,7 +418,7 @@ catch (err) {
   // two fingers (pinch to zoom, both together to slide), the wheel (zoom), a mouse's right button or shift (slide) or a double tap (back) look closer
   const c = plate.canvas, fingers = new Map();
   let hold = 0, peeking = false, tipped = false, pinch = 0, mid = null;
-  const idle = () => !job || engraving || $("doneDlg").open;
+  const idle = () => !job || engraving || carving || $("doneDlg").open;
   const gap = () => { const [a, b] = [...fingers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
   const centre = () => { const [a, b] = [...fingers.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
   c.addEventListener("pointerdown", e => {
@@ -407,8 +454,17 @@ catch (err) {
   c.addEventListener("dblclick", () => plate.resetView());
   c.addEventListener("contextmenu", e => e.preventDefault());
 }
-// the menu stands the cutting point still; a plate being engraved when it opens is finished when it closes
+// the menu stands the cutting point still; a cut, or the watch being put together, when it opens is finished when it closes
 let stopped = false;
-onPause(() => { plate.pause(true); if (engraving) { cancelAnimationFrame(engraving); engraving = 0; stopped = true; } }, () => { plate.pause(false); if (stopped) { stopped = false; engraved(); } });
+onPause(() => {
+  plate.pause(true);
+  if (carving) { cancelAnimationFrame(carving); carving = 0; stopped = true; }
+  if (engraving) { cancelAnimationFrame(engraving); engraving = 0; stopped = true; }
+}, () => {
+  plate.pause(false);
+  if (!stopped) return;
+  stopped = false;
+  if (afterCarve) afterCarve(); else if (run.done) engraved();
+});
 load();
-window.__guilloche = { get job() { return job; }, get run() { return run; }, plate, begin, teach, endLesson, nextStep, giveClue, showDone, render, engrave, setKnob, finish, save, closeness, changed: () => { changed(); render(); } };
+window.__guilloche = { get job() { return job; }, get run() { return run; }, get busy() { return !!(carving || engraving); }, plate, begin, teach, endLesson, nextStep, giveClue, showDone, render, cutNow, assemble, setKnob, finish, save, closeness, changed: () => { changed(); render(); } };

@@ -8,11 +8,11 @@
 // plate is engraved pass by pass under a cutter, then the markers and hands are set, the glass goes on and the camera draws
 // back to show the whole watch. In the corner a gauge shows the rosette of the cut in hand, turning against its rubbing
 // block, so the lobes and throw are seen where they come from. The page (guilloche.js) calls: set, refresh, peek, ghost,
-// reveal, assemble, mark, orbit, zoom, pause; guilloche-flat.js answers to the same calls where there is no WebGL.
+// carve, assemble, mark, orbit, zoom, pause; guilloche-flat.js answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
 import { scale } from "./wide.js";
-import { passes, settingsOf, maxPasses, lineCount, linePoint } from "./guilloche-engine.js";
-import { watchOf, METALS, ghostOf, luma } from "./guilloche-watch.js";
+import { passes, settingsOf, grooveWidth } from "./guilloche-engine.js";
+import { watchOf, METALS, ghostOf, pathOf, luma } from "./guilloche-watch.js";
 
 const DOUBLE = 2, ADD = 2, NORMAL = 1;                      // THREE.DoubleSide, AdditiveBlending, NormalBlending (not in the bundle's exports)
 const TAU = Math.PI * 2, DEG = Math.PI / 180, M = 720;      // M: samples round a pass, as the engine's `passes` has them
@@ -22,8 +22,8 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const EDGE = [p => Math.sin(p), p => 2 * Math.abs(Math.sin(p / 2)) - 1, p => (2 / Math.PI) * Math.asin(Math.sin(p))];
 
 // ---------- the light and the surfaces ----------
-const LIGHT = { uKey: { value: new THREE.Vector3(-0.5, 0.78, 0.42).normalize() }, uEnv: { value: 1 }, uTime: { value: 0 }, uPx: { value: 0.004 }, uW: { value: 0.0042 } };
-const VDECL = "uniform float uPx; uniform float uW; varying vec3 vTg;";
+const LIGHT = { uKey: { value: new THREE.Vector3(-0.5, 0.78, 0.42).normalize() }, uEnv: { value: 1 }, uTime: { value: 0 }, uPx: { value: 0.004 } };
+const VDECL = "uniform float uPx; varying vec3 vTg;";
 const COMMON = `
 uniform vec3 uKey; uniform float uEnv; uniform float uTime;
 varying vec3 vW; varying vec3 vNw; varying vec3 vL; varying vec3 vTg;
@@ -107,83 +107,59 @@ const dialMaterial = spec => {
     own: { uBase: { value: base }, uTint: { value: base.clone().lerp(col3("#ffffff"), 0.62) }, uInk: { value: col3(spec.dial.ink) }, uFinish: { value: FINISH[spec.dial.finish] ?? 0 }, uRing: { value: luma(spec.dial.base) > 0.45 ? 0.9 : 1.25 } } });
 };
 
-// the grooves: a ribbon of two vertices a point, a V in section, each wall lit as the metal it is
-const GROOVE_VERT = "attribute float aSide; attribute vec2 aPerp; attribute float aT; varying float vU; varying float vT; varying vec3 vBw;";
-const GROOVE_VERTEX = `float hw = max(uW, uPx * .9); transformed = position + vec3(aPerp.x, 0., aPerp.y) * aSide * hw; vU = aSide; vT = aT; vBw = mat3(modelMatrix) * vec3(aPerp.x, 0., aPerp.y);`;
-const GROOVE_DECL = "varying float vU; varying float vT; varying vec3 vBw; uniform float uFrom; uniform float uTotal; uniform float uReveal; uniform float uAlpha;";
+// The grooves. Each pass is a ribbon of three vertices a point (the groove's two edges and its floor), a V in section as wide
+// as the cut is deep (grooveWidth), each wall lit as the metal it is. Where grooves cross, what is seen is the lowest
+// surface, as on the plate, where a groove takes away what another left: the grooves are drawn straight after the dial,
+// opaque, with the depth test turned round (GREATER: the farther surface wins), so the deepest cut at each point is the one
+// drawn and crossing V's leave ridges and pyramids by themselves. That holds because the camera never looks flatter than
+// the walls slope (it stops at 50° above the dial; the walls are 28°): a ray then meets the cut surface once, and every
+// groove surface it passes on the way lies above that surface, in air the other cut removed. The V is drawn a quarter as
+// deep as it is lit, so the grooves don't swim as the watch is tipped.
+const SLOPE = Math.tan(28 * DEG), SINK = 0.25;
+const GREATER = 6;                                          // THREE.GreaterDepth (not in the bundle's exports)
+const GROOVE_VERT = "attribute float aSide; attribute vec2 aPerp; attribute float aT; varying float vU; varying float vT; varying vec3 vBw; uniform float uW; uniform float uSink; uniform float uLift; uniform float uMinPx;";
+const GROOVE_VERTEX = `float hw = max(uW, uPx * uMinPx); transformed = position + vec3(aPerp.x, 0., aPerp.y) * aSide * hw;
+transformed.y += uLift - (1. - abs(aSide)) * hw * ${SLOPE.toFixed(4)} * uSink; vU = aSide; vT = aT; vBw = mat3(modelMatrix) * vec3(aPerp.x, 0., aPerp.y);`;
+const GROOVE_DECL = "varying float vU; varying float vT; varying vec3 vBw; uniform float uReveal; uniform float uAlpha; uniform float uW; uniform float uMinPx; uniform float uPx;";
 const ENGRAVED_MAIN = `{
-  float au = abs(vU), cover = 1. - smoothstep(.5, 1., au);
-  if ((uFrom + vT) / uTotal > uReveal) discard;
-  vec3 N = normalize(vNw - sign(vU) * normalize(vBw) * 1.15 * smoothstep(.04, .3, au));
-  vec3 c = matte(uBase, N) * .7 + metal(uTint, N, .06) * 1.35;
-  outgoingLight = c * mix(.5, 1., smoothstep(0., .7, au));
-  diffuseColor.a = cover * uAlpha;
-}`;
-const GHOST_MAIN = `{
+  if (vT > uReveal) discard;
   float au = abs(vU);
+  vec3 N = normalize(vNw - sign(vU) * normalize(vBw) * ${SLOPE.toFixed(4)} * smoothstep(0., .14, au));
+  vec3 c = matte(uBase, N) * .3 + metal(uTint, N, .05) * 1.25;
+  outgoingLight = c * mix(.5, 1., smoothstep(0., .55, au));
+}`;
+// the target, faint: a line down each groove's middle, a little bolder the deeper the target's cut (held, the plate shows
+// the target engraved, its depth and all); not a wash as wide as the groove, which a dense rose piles into a solid band
+const GHOST_MAIN = `{
+  float hw = max(uW, uPx * uMinPx), px = abs(vU) * hw / uPx;
   outgoingLight = uGhost;
-  diffuseColor.a = (1. - smoothstep(.45, 1., au)) * uAlpha;
+  diffuseColor.a = (1. - smoothstep(uLine * .55, uLine * 1.35, px)) * uAlpha;
 }`;
-const grooveMaterial = (spec, from, total) => surface({ main: ENGRAVED_MAIN, vdecl: GROOVE_VERT, vertex: GROOVE_VERTEX, normal: "vec3(0., 1., 0.)", transparent: true, depthWrite: false,
-  decl: `${GROOVE_DECL} uniform vec3 uBase; uniform vec3 uTint;`,
-  own: { uBase: { value: col3(spec.dial.base) }, uTint: { value: col3(spec.dial.base).lerp(col3("#ffffff"), 0.55) }, uFrom: { value: from }, uTotal: { value: total }, uReveal: { value: 1 }, uAlpha: { value: 1 } } });
-const ghostMaterial = (spec, from, total) => surface({ main: GHOST_MAIN, vdecl: GROOVE_VERT, vertex: GROOVE_VERTEX, normal: "vec3(0., 1., 0.)", transparent: true, depthWrite: false,
-  decl: `${GROOVE_DECL} uniform vec3 uGhost;`,
-  own: { uGhost: { value: col3(ghostOf(spec.dial.base)) }, uFrom: { value: from }, uTotal: { value: total }, uReveal: { value: 1 }, uAlpha: { value: 0.62 } } });
-
-// The straight engine's cuts are drawn as a field, not as ribbons: wherever a groove is, the surface slopes toward its line, so a
-// right-angled cross leaves square pyramids (clous de Paris) and each facet takes the studio's light as the watch tips. The
-// shader works out, for the point on the dial, the nearest line of each set and which way the wall there faces.
-const FIELD_DECL = `uniform vec3 uBase; uniform vec3 uTint; uniform float uFrom; uniform float uTotal; uniform float uReveal; uniform float uAlpha; uniform float uCount;
-uniform float uR; uniform vec3 uHole; uniform float uPitch; uniform float uAng; uniform float uCross; uniform float uFill; uniform vec2 uWave; uniform float uShape; uniform float uIdx;
-float edgeF(float p) { if (uShape < .5) return sin(p); if (uShape < 1.5) return 2. * abs(sin(p * .5)) - 1.; return .63662 * asin(clamp(sin(p), -1., 1.)); }
-float dedgeF(float p) { if (uShape < .5) return cos(p); if (uShape < 1.5) return cos(p * .5) * sign(sin(p * .5)); return .63662 * sign(cos(p)); }
-// one set of lines at angle th: x the signed distance to the nearest line in pitches, yz the way that distance grows (per pitch);
-// jo is that line's number and so how far along it the point is (the cutter takes a line from its low end to its high)
-vec3 fam(vec2 p, float th, float waved, out float jo, out float so) {
-  vec2 t = vec2(cos(th), sin(th)), n = vec2(-t.y, t.x);
-  float u = dot(p, n) / uPitch, s = dot(p, t), j = floor(u + .5);
-  vec2 g = n / uPitch;
-  so = s;
-  if (waved > .5 && uWave.y > 0.) {
-    for (int i = 0; i < 2; i++) j = floor(u - uWave.y * edgeF(uWave.x * s + j * uIdx) / uPitch + .5);
-    float ph = uWave.x * s + j * uIdx;
-    g -= t * (uWave.y * dedgeF(ph) * uWave.x / uPitch);
-    jo = j;
-    return vec3(u - uWave.y * edgeF(ph) / uPitch - j, g);
-  }
-  jo = j;
-  return vec3(u - j, g);
-}
-// when the cutter reaches a point on line j (of the set that starts at line number first): the lines before it, and the share of this one
-float lineTime(float j, float s, float first) {
-  float hl = sqrt(max(uR * uR - j * j * uPitch * uPitch, 1e-4));
-  return first + j + floor(uR / uPitch) + clamp((s + hl) / (2. * hl), 0., 1.);
+// the machine's setting before it is cut: the path the point would take, a fine line over everything on the dial
+const PATH_MAIN = `{
+  if (vT > uReveal) discard;
+  outgoingLight = uInk;
+  diffuseColor.a = (1. - smoothstep(.35, 1., abs(vU))) * uAlpha;
 }`;
-const FIELD_MAIN = `{
-  vec2 p = vL.xy;
-  if (length(p) > uR || length(p - uHole.xy) < uHole.z) discard;
-  float x = uReveal * uTotal - uFrom, per = uCross > 0. ? uCount * .5 : uCount;       // x: the lines cut so far, and how far along the one in hand
-  float ja, sa, jb, sb;
-  vec3 a = fam(p, uAng, 1., ja, sa);
-  float gw = uFill * .5, da = lineTime(ja, sa, 0.) <= x ? abs(a.x) / gw : 1e3, dn = da;
-  vec3 pick = a;
-  if (uCross > 0.) { vec3 b = fam(p, uAng + uCross, 0., jb, sb); float db = lineTime(jb, sb, per) <= x ? abs(b.x) / gw : 1e3; if (db < da) { pick = b; dn = db; } }
-  if (dn > 100.) discard;                                   // no line here has been cut yet
-  float cover = uFill > .99 ? 1. : 1. - smoothstep(.7, 1., dn);
-  vec2 dir = normalize(pick.yz);
-  float side = smoothstep(-.03, .03, pick.x) * 2. - 1.;
-  vec3 N = normalize(vec3(-side * dir.x * .95, 1., -side * dir.y * .95));
-  vec3 c = matte(uBase, N) * .7 + metal(uTint, N, .06) * 1.35;
-  outgoingLight = c * mix(.55, 1., smoothstep(0., .5, dn));
-  diffuseColor.a = cover * uAlpha;
-}`;
-const fieldMaterial = spec => surface({ main: FIELD_MAIN, transparent: true, depthWrite: false, decl: FIELD_DECL, normal: "vec3(0., 1., 0.)",
-  own: { uBase: { value: col3(spec.dial.base) }, uTint: { value: col3(spec.dial.base).lerp(col3("#ffffff"), 0.55) }, uFrom: { value: 0 }, uTotal: { value: 1 }, uReveal: { value: 1 }, uAlpha: { value: 1 }, uCount: { value: 1 },
-    uR: { value: 0.86 }, uHole: { value: new THREE.Vector3(0, 0, 0) }, uPitch: { value: 0.1 }, uAng: { value: 0 }, uCross: { value: 0 }, uFill: { value: 0.5 }, uWave: { value: new THREE.Vector2(0, 0) }, uShape: { value: 0 }, uIdx: { value: 0 } } });
-/** A field's uniforms from a straight cut's settings. */
-const fieldOf = (s, extra = {}) => ({ uR: s.R, uHole: new THREE.Vector3(...(s.holes?.[0] || [0, 0, 0])), uPitch: s.pitch * 0.02, uAng: (s.angle * Math.PI) / 180, uCross: (s.cross * Math.PI) / 180, uFill: s.fill ?? 0.5,
-  uWave: new THREE.Vector2(s.a ? s.k * Math.PI : 0, s.a * 0.02), uShape: s.shape, uIdx: (s.index * Math.PI) / 180, ...extra });
+const grooveMaterial = spec => {
+  const m = surface({ main: ENGRAVED_MAIN, vdecl: GROOVE_VERT, vertex: GROOVE_VERTEX, normal: "vec3(0., 1., 0.)",
+    decl: `${GROOVE_DECL} uniform vec3 uBase; uniform vec3 uTint;`,
+    own: { uBase: { value: col3(spec.dial.base) }, uTint: { value: col3(spec.dial.base).lerp(col3("#ffffff"), 0.15) }, uReveal: { value: 1e9 }, uAlpha: { value: 1 }, uW: { value: 0.006 }, uSink: { value: SINK }, uLift: { value: 0 }, uMinPx: { value: 0.75 } } });
+  m.depthFunc = GREATER;
+  return m;
+};
+// The ghost lies a hair under the dial's face and is drawn where it is the farther (GREATER): on the uncut face it shows, and
+// where you have cut, your groove is deeper than it and hides it, so your engraving is never under the target's colour.
+const ghostMaterial = spec => {
+  const m = surface({ main: GHOST_MAIN, vdecl: GROOVE_VERT, vertex: GROOVE_VERTEX, normal: "vec3(0., 1., 0.)", transparent: true, depthWrite: false,
+    decl: `${GROOVE_DECL} uniform vec3 uGhost; uniform float uLine;`,
+    own: { uGhost: { value: col3(ghostOf(spec.dial.base)) }, uReveal: { value: 1e9 }, uAlpha: { value: 0.75 }, uW: { value: 0.006 }, uSink: { value: 0 }, uLift: { value: -0.0002 }, uMinPx: { value: 2.2 }, uLine: { value: 1 } } });
+  m.depthFunc = GREATER;
+  return m;
+};
+const pathMaterial = spec => surface({ main: PATH_MAIN, vdecl: GROOVE_VERT, vertex: GROOVE_VERTEX, normal: "vec3(0., 1., 0.)", transparent: true, depthWrite: false, depthTest: false,
+  decl: `${GROOVE_DECL} uniform vec3 uInk;`,
+  own: { uInk: { value: col3(pathOf(spec.dial.base)) }, uReveal: { value: 1e9 }, uAlpha: { value: 0.95 }, uW: { value: 0 }, uSink: { value: 0 }, uLift: { value: 0.0012 }, uMinPx: { value: 0.85 } } });
 
 // the case: metal with a fluted top or a coin-edged side, brushed on its flanks
 const caseMain = ang => `{
@@ -371,45 +347,48 @@ function quad() {
   g.setIndex([0, 1, 2, 0, 2, 3]);
   return g;
 }
-/** A ribbon's buffers for up to \`cap\` passes: two vertices a point (the groove's two edges), the index fixed. */
-const RIBBON_INDEX = new Map();                              // a ribbon's triangles by how many passes it has room for (a plain Array: setIndex picks 32 bits itself)
-function ribbon(cap) {
-  const verts = cap * (M + 1) * 2;
-  if (!RIBBON_INDEX.has(cap)) {
-    const idx = [];
-    for (let j = 0; j < cap; j++) for (let m = 0; m < M; m++) { const a = (j * (M + 1) + m) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
-    RIBBON_INDEX.set(cap, idx);
-  }
-  const g = new THREE.BufferGeometry();
+/** A ribbon with room for `room` points, three vertices each (a groove's two edges and its floor between them). */
+function ribbon(room = 1024) {
+  const g = new THREE.BufferGeometry(), verts = room * 3;
   g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(verts * 3), 3));
   g.setAttribute("aPerp", new THREE.Float32BufferAttribute(new Float32Array(verts * 2), 2));
   g.setAttribute("aSide", new THREE.Float32BufferAttribute(new Float32Array(verts), 1));
   g.setAttribute("aT", new THREE.Float32BufferAttribute(new Float32Array(verts), 1));
-  g.setIndex(RIBBON_INDEX.get(cap));
+  g.userData.room = room;
+  g.setIndex([]);
   g.setDrawRange(0, 0);
   return g;
 }
-/** Writes passes into a ribbon (the plate's own units, lying at height h). */
-function cutRibbon(g, list, h) {
-  const P = g.attributes.position.array, Q = g.attributes.aPerp.array, S = g.attributes.aSide.array, T = g.attributes.aT.array;
+/**
+ * Writes passes (the plate's own units) into a ribbon and returns it, or a bigger one in its place if they need more room.
+ * aT is the pass's number and how far along it a point is, so a cut can be shown up to where the cutter has got.
+ */
+function cutRibbon(g, list) {
+  const need = list.reduce((n, p) => n + p.length / 2, 0);
+  if (need > g.userData.room) { g.dispose(); g = ribbon(Math.ceil(need * 1.25)); }
+  const P = g.attributes.position.array, Q = g.attributes.aPerp.array, S = g.attributes.aSide.array, T = g.attributes.aT.array, idx = [];
+  let v = 0;
   list.forEach((p, j) => {
-    for (let m = 0; m <= M; m++) {
-      const pm = (m ? m - 1 : M - 1) * 2, pn = (m < M ? m + 1 : 1) * 2;
-      let tx = p[pn] - p[pm], tz = p[pn + 1] - p[pm + 1];
+    const n = p.length / 2, closed = n > 2 && Math.abs(p[0] - p[2 * n - 2]) < 1e-6 && Math.abs(p[1] - p[2 * n - 1]) < 1e-6;
+    for (let m = 0; m < n; m++) {
+      // the way along: from the point before to the one after (round a closed pass; one side only at an open end)
+      const a = m > 0 ? m - 1 : closed ? n - 2 : 0, b = m < n - 1 ? m + 1 : closed ? 1 : n - 1;
+      let tx = p[2 * b] - p[2 * a], tz = p[2 * b + 1] - p[2 * a + 1];
       const l = Math.hypot(tx, tz) || 1;
       tx /= l; tz /= l;
-      const v0 = (j * (M + 1) + m) * 2;
-      for (let s = 0; s < 2; s++) {
-        const v = v0 + s;
-        P[3 * v] = p[2 * m]; P[3 * v + 1] = h; P[3 * v + 2] = p[2 * m + 1];
+      for (let side = -1; side <= 1; side++, v++) {
+        P[3 * v] = p[2 * m]; P[3 * v + 1] = 0; P[3 * v + 2] = p[2 * m + 1];
         Q[2 * v] = -tz; Q[2 * v + 1] = tx;
-        S[v] = s ? 1 : -1;
-        T[v] = j + m / M;
+        S[v] = side;
+        T[v] = j + (n > 1 ? m / (n - 1) : 0);
       }
+      if (m) { const c = v - 3, o = c - 3; idx.push(o, o + 1, c, o + 1, c + 1, c, o + 1, o + 2, c + 1, o + 2, c + 2, c + 1); }
     }
   });
+  g.setIndex(idx);
   for (const a of ["position", "aPerp", "aSide", "aT"]) g.attributes[a].needsUpdate = true;
-  g.setDrawRange(0, list.length * M * 6);
+  g.setDrawRange(0, idx.length);
+  return g;
 }
 
 // ---------- the watch ----------
@@ -435,7 +414,7 @@ export function createWatch(host) {
   camera.isPerspectiveCamera = true;
   camera.updateProjectionMatrix = () => {};
 
-  const view = { job: null, run: null, ghost: true, peek: false, reveal: 1, assembled: 0, markCut: -1, gauge: true };
+  const view = { job: null, run: null, ghost: true, peek: false, carving: -1, assembled: 0, markCut: -1, gauge: true };
   const cam = { az: 0, el: 78 * DEG, zoom: 1, pan: [0, 0], sway: [0, 0] };
   let W = 1, H = 1, spec = null, parts = null, layers = [], paused = false, t = 0, last = performance.now(), lastDt = 0.016;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -454,7 +433,10 @@ export function createWatch(host) {
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
     const half = lerp(E0, E1, f) / cam.zoom, hu = W >= H ? half * (W / H) : half, hv = W >= H ? half : half * (H / W);
     const px = -cam.pan[0], py = cam.pan[1];                     // the picture follows the finger: the window moves the other way
-    camera.projectionMatrix.makePerspective((-hu + px) / DIST, (hu + px) / DIST, (hv + py) / DIST, (-hv + py) / DIST, 1, 100);
+    // the near plane well out from the eye (nothing of the watch comes within 8 of it): the depth test that composes the
+    // grooves tells apart heights of a ten-thousandth, and depth is finest near the near plane
+    const NEAR = 8;
+    camera.projectionMatrix.makePerspective((NEAR * (-hu + px)) / DIST, (NEAR * (hu + px)) / DIST, (NEAR * (hv + py)) / DIST, (NEAR * (-hv + py)) / DIST, NEAR, 40);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     LIGHT.uPx.value = (2 * hv) / H;
   }
@@ -469,6 +451,7 @@ export function createWatch(host) {
     layers = [];
     const c = spec.case, bodyMetal = c.body || c.metal, octagon = c.bezel === "octagon", P = {};
     P.dial = mesh(lathe([[0, 0], [FLANGE_R, 0]], 96), dialMaterial(spec));
+    P.dial.renderOrder = -10;                                // first, so the grooves after it find its depth to cut below
     const bezelKind = octagon ? "smooth" : c.bezel;
     const bezelMat = metalMaterial(c.metal, { flute: bezelKind === "fluted" ? 72 : 0, knurl: c.bezel === "coin" ? 150 : 0, brush: 0.15 });
     const bodyMat = metalMaterial(bodyMetal, { brush: 0.8 });
@@ -562,55 +545,73 @@ export function createWatch(host) {
   }
 
   // ----- the engraving of a plate -----
-  const fieldQuad = quad();
-  let held = [], frames = [];                                // the engraving's own geometries and materials, and the rings round the registers
+  // Each cut has three ribbons: what is engraved (the settings it was last cut with), the path of the machine as it is set
+  // now (shown for the cut in hand until it is cut), and the target's, drawn faint (or, held, engraved in place of yours).
+  let held = [], frames = [];
+  const sameVals = (a, b) => !!a && !!b && Object.keys(b).every(n => a[n] === b[n]);
   function buildCuts() {
-    for (const L of layers) parts.cuts.remove(L.mine, L.goal);
+    for (const L of layers) { parts.cuts.remove(L.eng, L.goal, L.path); held.push(L.eng.geometry, L.goal.geometry, L.path.geometry); }
     for (const F of frames) parts.cuts.remove(F);
     held.splice(0).forEach(o => o.dispose?.());
     layers = []; frames = [];
+    view.carving = -1;
     const { job } = view;
     if (!job) return;
     job.cuts.forEach((c, i) => {
-      const lines = c.kind === "lines", cap = maxPasses(c);
-      const mineGeo = lines ? null : ribbon(cap), goalGeo = ribbon(cap), engraved = lines ? fieldMaterial(spec) : grooveMaterial(spec, 0, 1), ghost = ghostMaterial(spec, 0, 1), peekMat = grooveMaterial(spec, 0, 1);
-      held.push(...[mineGeo, goalGeo, engraved, ghost, peekMat].filter(Boolean));
-      const mine = new THREE.Mesh(lines ? fieldQuad : mineGeo, engraved), goal = new THREE.Mesh(goalGeo, ghost);
-      if (lines) mine.rotation.x = Math.PI / 2;               // the quad is in x and y: laid flat, its y is the plate's
-      mine.renderOrder = 10 + i; goal.renderOrder = 5 + i; mine.frustumCulled = goal.frustumCulled = false;
-      mine.position.y = 0.0035; goal.position.y = 0.0045;
-      parts.cuts.add(goal, mine);
-      layers.push({ mine, goal, mineGeo, goalGeo, ghost, peekMat, key: "", pts: [], count: 0, s: null, from: 0, lines });
-      if (job.answer) cutRibbon(goalGeo, passes(settingsOf(c, job.answer[i])), 0);
+      const L = { eng: new THREE.Mesh(ribbon(), grooveMaterial(spec)), goal: new THREE.Mesh(ribbon(), ghostMaterial(spec)), path: new THREE.Mesh(ribbon(), pathMaterial(spec)),
+        peekMat: grooveMaterial(spec), engKey: null, pathKey: null, pts: [], count: 0, carve: 1, order: 6 + i };
+      L.ghost = L.goal.material;
+      held.push(L.eng.material, L.ghost, L.path.material, L.peekMat);
+      for (const m of [L.eng, L.goal, L.path]) m.frustumCulled = false;
+      L.eng.renderOrder = -9; L.goal.renderOrder = L.order; L.path.renderOrder = 12 + i;
+      parts.cuts.add(L.eng, L.goal, L.path);
+      if (job.answer) {
+        const s = settingsOf(c, job.answer[i]);
+        L.goal.geometry = cutRibbon(L.goal.geometry, passes(s));
+        setU(L.ghost, { uW: 0, uLine: 0.8 + 0.2 * (s.depth - 1) }); setU(L.peekMat, { uW: grooveWidth(s.depth) });
+      }
+      layers.push(L);
       if (c.at) {
         // a register is edged with a fine ring of its own, as a real one is, so it reads as a dial in the dial
-        const geo = ribbon(1), mat = grooveMaterial(spec, 0, 1), edge = new THREE.Mesh(geo, mat);
+        const geo = cutRibbon(ribbon(722), passes({ R: 0.99, k: 2, a: 0, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2: 0, at: c.at, size: c.size })), mat = grooveMaterial(spec), edge = new THREE.Mesh(geo, mat);
         held.push(geo, mat);
-        cutRibbon(geo, passes({ R: 0.99, k: 2, a: 0, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2: 0, at: c.at, size: c.size }), 0);
-        setU(mat, { uFrom: 0, uTotal: 1, uReveal: 1, uAlpha: 1 });
-        edge.renderOrder = 4; edge.frustumCulled = false; edge.position.y = 0.0035;
+        setU(mat, { uW: grooveWidth(1) });
+        edge.renderOrder = -9; edge.frustumCulled = false;
         parts.cuts.add(edge); frames.push(edge);
       }
     });
     refresh();
   }
-  function refresh() {
+  // A knob dragged sends many changes a frame, and a cut of many rays is many thousands of points: the ribbons are rebuilt
+  // once a frame at most, just before it is drawn.
+  let dirty = false;
+  const refresh = () => { dirty = true; };
+  function sync() {
+    dirty = false;
     const { job, run } = view;
     if (!job || !parts) return;
-    let from = 0;
+    const peek = view.peek && !!job.answer;
     job.cuts.forEach((c, i) => {
-      const L = layers[i], s = settingsOf(c, run.vals[i]), key = JSON.stringify(s);
-      if (L.key !== key) { L.key = key; L.s = s; if (L.lines) { L.pts = []; L.count = lineCount(s); setU(L.mine.material, fieldOf(s, { uCount: L.count })); } else { L.pts = passes(s); L.count = L.pts.length; cutRibbon(L.mineGeo, L.pts, 0); } }
-      L.from = from;
-      from += L.count;
-    });
-    const total = Math.max(1, from), dim = job.cuts.length > 1 && !run.done && !job.lesson, peek = view.peek && !!job.answer;
-    layers.forEach((L, i) => {
-      L.mine.visible = !peek;
+      const L = layers[i], made = run.cut?.[i] || null;
+      const ek = made ? JSON.stringify(made) : "";
+      if (L.engKey !== ek) {
+        L.engKey = ek;
+        const s = made && settingsOf(c, made);
+        L.pts = s ? passes(s) : [];
+        L.count = L.pts.length;
+        L.eng.geometry = cutRibbon(L.eng.geometry, L.pts);
+        if (s) setU(L.eng.material, { uW: grooveWidth(s.depth) });
+      }
+      // the path: the cut in hand as the machine is set, until it is cut so (nothing to show while one is being cut)
+      const showPath = i === run.at && !run.done && view.carving < 0 && !sameVals(made, run.vals[i]);
+      const pk = showPath ? JSON.stringify(run.vals[i]) : "";
+      if (L.pathKey !== pk) { L.pathKey = pk; L.path.geometry = cutRibbon(L.path.geometry, pk ? passes(settingsOf(c, run.vals[i])) : []); }
+      L.eng.visible = !peek && L.count > 0;
+      L.path.visible = !peek && !!pk;
       L.goal.visible = !!job.answer && (peek || (view.ghost && !run.done));
       L.goal.material = peek ? L.peekMat : L.ghost;
-      setU(L.mine.material, { uFrom: L.from, uTotal: total, uReveal: view.reveal, uAlpha: dim && i !== run.at ? 0.55 : 1 });
-      setU(L.goal.material, { uFrom: L.from, uTotal: total, uReveal: 1, uAlpha: peek ? 1 : 0.62 });
+      L.goal.renderOrder = peek ? -9 : L.order;
+      setU(L.eng.material, { uReveal: L.carve >= 1 ? 1e9 : L.carve * L.count });
     });
     syncGauge();
   }
@@ -651,7 +652,7 @@ export function createWatch(host) {
     const { job, run } = view;
     if (!job || !run) { gauge.hidden = gcap.hidden = true; return; }
     const at = Math.min(run.at, job.cuts.length - 1), s = settingsOf(job.cuts[at], run.vals[at]), key = `${s.k}/${s.a}/${s.shape}`;
-    gauge.hidden = gcap.hidden = !gaugeShown() || (s.kind === "lines" && !s.a);          // a straight cut with no wave has no rosette to show
+    gauge.hidden = gcap.hidden = !gaugeShown() || (!!s.kind && !s.a);                    // a straight, radial or woven cut with no wave has no rosette to show
     Object.assign(ros, { k: s.k, a: s.a, shape: s.shape });
     gcap.textContent = `${s.k} lobes · throw ${s.a}`;
     if (key === ros.key) return;
@@ -670,7 +671,7 @@ export function createWatch(host) {
     Object.assign(gauge.style, { left: `${at}px`, bottom: `${at}px`, width: `${size}px`, height: `${size}px` });
     Object.assign(gcap.style, { left: `${at + size + Math.round(9 * sc)}px`, bottom: `${at + Math.round(4 * sc)}px` });
     // the rosette turns and the block rides its edge: where the block touches, at the top, is the edge back through the turn
-    ros.phase += (view.reveal < 1 ? 3.2 : 0.5) * lastDt;
+    ros.phase += (view.carving >= 0 ? 3.2 : 0.5) * lastDt;
     ros.mesh.rotation.y = -ros.phase;
     const top = edgeR(ros.k, ros.a, ros.shape, -ros.phase);
     ros.block.position.z = -(top + 0.15);
@@ -688,6 +689,7 @@ export function createWatch(host) {
 
   // ----- the frame -----
   function frame(dt) {
+    if (dirty) sync();
     lastDt = dt;
     t += dt;
     LIGHT.uTime.value = t;
@@ -708,21 +710,12 @@ export function createWatch(host) {
         P.ring.scale.set(rr, 1, rr);
         setU(P.ring.material, { uRingA: 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 5)) });
       }
-      // the cutter rides the pass being cut
-      const cutting = view.reveal > 0 && view.reveal < 1 && layers.length > 0;
+      // the cutter rides the pass being cut, point for point on the groove it leaves
+      const L = view.carving >= 0 ? layers[view.carving] : null, cutting = !!L && L.carve < 1 && L.count > 0;
       P.cutter.visible = cutting;
       if (cutting) {
-        const total = layers.reduce((n, L) => n + L.count, 0), at = view.reveal * total;
-        let acc = 0;
-        for (const L of layers) {
-          if (at <= acc + L.count) {
-            const j = Math.min(L.count - 1, Math.floor(at - acc)), u = Math.min(1, at - acc - j);
-            if (L.lines) { const [x, z] = linePoint(L.s, j, u); P.cutter.position.set(x, 0.004, z); }       // the field is cut along the same line, in the same order
-            else { const m = Math.min(M, Math.floor(u * M)), p = L.pts[j]; P.cutter.position.set(p[2 * m], 0.004, p[2 * m + 1]); }
-            break;
-          }
-          acc += L.count;
-        }
+        const at = L.carve * L.count, j = Math.min(L.count - 1, Math.floor(at)), p = L.pts[j], n = p.length / 2, m = Math.min(n - 1, Math.round((at - j) * (n - 1)));
+        P.cutter.position.set(p[2 * m], 0.004, p[2 * m + 1]);
       }
     }
     renderer.setViewport(0, 0, W, H);
@@ -754,15 +747,22 @@ export function createWatch(host) {
     set(job, run) {
       const next = watchOf(job.id);
       if (next !== spec || !parts) { spec = next; build(); }
-      Object.assign(view, { job, run, peek: false, reveal: 1, markCut: -1, assembled: run.done ? 1 : 0 });
+      Object.assign(view, { job, run, peek: false, carving: -1, markCut: -1, assembled: run.done ? 1 : 0 });
       ros.key = "";
       buildCuts();
     },
     refresh() { refresh(); },
     peek(on) { if (view.peek !== on) { view.peek = on; refresh(); } },
     ghost(on) { view.ghost = on; refresh(); },
-    /** The engraving cut up to a part (0 to 1); 1 is the whole. */
-    reveal(x) { view.reveal = x; refresh(); },
+    /** Cut `i` being cut, up to a part (0 to 1) of it, the cutter riding where it has got to; 1 is cut. */
+    carve(i, x) {
+      const L = layers[i];
+      if (!L) return;
+      x = clamp01(x);
+      L.carve = x;
+      view.carving = x < 1 ? i : -1;
+      refresh();
+    },
     /** The watch put together (0 to 1): markers, hands, glass, and the camera drawing back. */
     assemble(x) { view.assembled = x; syncGauge(); },
     /** The ring on the dial where a cut sits (-1: none), for a clue. */
@@ -779,7 +779,7 @@ export function createWatch(host) {
     showGauge(on) { view.gauge = on; syncGauge(); },
     pause(on) { paused = on; last = performance.now(); },
     repalette() { applySkin(); },
-    get state() { return { w: W, h: H, assembled: view.assembled, reveal: view.reveal, spec, zoom: cam.zoom, angles: [cam.az, cam.el] }; },
+    get state() { return { w: W, h: H, assembled: view.assembled, carving: view.carving, spec, zoom: cam.zoom, angles: [cam.az, cam.el] }; },
   };
   new ResizeObserver(resize).observe(host);
   new MutationObserver(applySkin).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });

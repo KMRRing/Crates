@@ -2,10 +2,10 @@
 // in the plate's own colour in a ring of the case's metal, the engraving on it (the passes of every cut, as the machine
 // would have made them), the target faint beneath as a ghost, and in the corner the rosette of the cut being set, the disc
 // whose edge pushes the cutting point in and out, so lobes and throw are seen where they come from. It answers to the same
-// calls as the 3D watch, so the page doesn't know which it has: set, refresh, peek, ghost, reveal, assemble, mark, orbit,
+// calls as the 3D watch, so the page doesn't know which it has: set, refresh, peek, ghost, carve, assemble, mark, orbit,
 // zoom, resetView, showGauge, pause, repalette.
-import { passes, settingsOf, SHAPES } from "./guilloche-engine.js";
-import { watchOf, METALS, ghostOf, luma } from "./guilloche-watch.js";
+import { passes, settingsOf, grooveWidth, SHAPES } from "./guilloche-engine.js";
+import { watchOf, METALS, ghostOf, pathOf, luma } from "./guilloche-watch.js";
 
 const EDGE = [p => Math.sin(p), p => 2 * Math.abs(Math.sin(p / 2)) - 1, p => (2 / Math.PI) * Math.asin(Math.sin(p))];
 
@@ -17,7 +17,7 @@ export function createFlat(host) {
   host.append(canvas);
   const ctx = canvas.getContext("2d");
   let W = 0, H = 0, dpr = 1, colours = null;
-  const view = { job: null, run: null, ghost: true, peek: false, reveal: 1, assembled: 0, markCut: -1, gauge: true };
+  const view = { job: null, run: null, ghost: true, peek: false, carving: -1, carve: 1, assembled: 0, markCut: -1, gauge: true };
   const cache = new Map();                                   // a cut's passes by its settings: moving one knob cuts one cut again, not all
   const cached = c => {
     const key = JSON.stringify(c);
@@ -54,25 +54,21 @@ export function createFlat(host) {
     for (let m = 0; m < n; m++) { const x = cx + pts[2 * m] * R, y = cy + pts[2 * m + 1] * R; if (m) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
     ctx.stroke();
   }
-  /** The target's cuts, or the player's, at an opacity. `lit` is the cut being set, the rest dimmer. `part` (0 to 1) is how much has been engraved. */
-  function engrave(sets, cx, cy, R, colour, lw, lit, part = 1, opacity = 1) {
-    const total = sets.reduce((n, s) => n + s.n, 0), upTo = part * total;
-    let done = 0;
+  /** A cut's passes drawn as lines `lw` wide in a colour, up to a part of them (0 to 1). */
+  function engrave(s, cx, cy, R, colour, lw, part = 1, opacity = 1) {
+    const list = cached(s), upTo = part * list.length;
     ctx.lineWidth = lw;
     ctx.lineJoin = "round";
+    ctx.lineCap = "round";
     ctx.strokeStyle = colour;
-    sets.forEach((s, i) => {
-      ctx.globalAlpha = opacity * (lit < 0 || i === lit ? 1 : 0.5);
-      cached(s).forEach((pts, j) => {
-        const at = done + j;
-        if (at + 1 <= upTo) stroke(pts, cx, cy, R);
-        else if (at < upTo) stroke(pts, cx, cy, R, Math.max(2, Math.round((upTo - at) * (pts.length / 2))));
-      });
-      done += s.n;
+    ctx.globalAlpha = opacity;
+    list.forEach((pts, j) => {
+      if (j + 1 <= upTo) stroke(pts, cx, cy, R);
+      else if (j < upTo) stroke(pts, cx, cy, R, Math.max(2, Math.round((upTo - j) * (pts.length / 2))));
     });
     ctx.globalAlpha = 1;
-    return upTo;
   }
+  const sameVals = (a, b) => !!a && !!b && Object.keys(b).every(n => a[n] === b[n]);
 
   /** The rosette of a cut: a disc with a wavy edge (its lobes, its throw, its shape) and the block that rubs on it. */
   function rosette(s, cx, cy, r) {
@@ -127,22 +123,26 @@ export function createFlat(host) {
     ctx.globalAlpha = 1;
     const rr = R * 0.84 - 3, inkOn = dark ? "#f3efe4" : "#23262b", ghostOn = ghostOf(spec.dial.base);
     const lw = Math.max(0.7, Math.min(1.3, rr / 160));
-    const goal = job.answer ? job.cuts.map((c, i) => settingsOf(c, job.answer[i])) : [];
-    const mine = job.cuts.map((c, i) => settingsOf(c, run.vals[i]));
+    const goal = job.answer ? job.cuts.map((c, i) => settingsOf(c, job.answer[i])) : [], pathOn = pathOf(spec.dial.base);
+    const width = s => Math.max(lw, 1.2 * grooveWidth(s.depth) * rr);       // wider the deeper the cut (a little under its full width, so a dense rose stays a lattice)
     // a register is edged with a ring of its own
     ctx.strokeStyle = inkOn; ctx.lineWidth = lw; ctx.globalAlpha = 0.7;
     for (const c of job.cuts) if (c.at) { ctx.beginPath(); ctx.arc(cx + c.at[0] * rr, cy + c.at[1] * rr, rr * c.size * 0.99, 0, 2 * Math.PI); ctx.stroke(); }
     ctx.globalAlpha = 1;
-    if (view.peek && job.answer) engrave(goal, cx, cy, rr, inkOn, lw * 1.2, -1);
+    if (view.peek && job.answer) goal.forEach(s => engrave(s, cx, cy, rr, inkOn, width(s), 1, 0.6));
     else {
-      if (view.ghost && job.answer && !run.done) engrave(goal, cx, cy, rr, ghostOn, lw * 1.1, -1, 1, 0.5);
-      engrave(mine, cx, cy, rr, inkOn, lw, job.cuts.length > 1 && !run.done && !job.lesson ? run.at : -1, view.reveal);
-    if (view.markCut >= 0 && !run.done) { ctx.strokeStyle = ghostOn; ctx.lineWidth = 2; ctx.beginPath(); const m = job.cuts[view.markCut]; ctx.arc(cx + (m.at ? m.at[0] : 0) * rr, cy + (m.at ? m.at[1] : 0) * rr, rr * (m.size || m.R), 0, 2 * Math.PI); ctx.stroke(); }
-    if (view.assembled > 0) hands(cx, cy, rr, spec, inkOn);
+      // the target faint (a wash as wide as its grooves and a hairline down them), what is cut, and the machine's path as it is set
+      if (view.ghost && job.answer && !run.done) goal.forEach(s => { engrave(s, cx, cy, rr, ghostOn, width(s), 1, 0.14); engrave(s, cx, cy, rr, ghostOn, lw, 1, 0.55); });
+      job.cuts.forEach((c, i) => { const made = run.cut?.[i]; if (made) { const s = settingsOf(c, made); engrave(s, cx, cy, rr, inkOn, width(s), view.carving === i ? view.carve : 1, 0.6); } });
+      const at = Math.min(run.at, job.cuts.length - 1);
+      if (!run.done && view.carving < 0 && !sameVals(run.cut?.[at], run.vals[at])) engrave(settingsOf(job.cuts[at], run.vals[at]), cx, cy, rr, pathOn, lw, 1, 0.95);
+      if (view.markCut >= 0 && !run.done) { ctx.strokeStyle = ghostOn; ctx.lineWidth = 2; ctx.beginPath(); const m = job.cuts[view.markCut]; ctx.arc(cx + (m.at ? m.at[0] : 0) * rr, cy + (m.at ? m.at[1] : 0) * rr, rr * (m.size || m.R), 0, 2 * Math.PI); ctx.stroke(); }
+      if (view.assembled > 0) hands(cx, cy, rr, spec, inkOn);
     }
     // the rosette of the cut in hand, in the plate's corner, and which it is
     const rs = Math.min(W, H) * 0.065;                      // small and in the corner, clear of the plate's rim
-    if (!run.done && view.gauge) rosette(mine[Math.min(run.at, mine.length - 1)], rs * 1.2 + 4, rs * 1.2 + 4, rs);
+    const inHand = settingsOf(job.cuts[Math.min(run.at, job.cuts.length - 1)], run.vals[Math.min(run.at, job.cuts.length - 1)]);
+    if (!run.done && view.gauge && !(inHand.kind && !inHand.a)) rosette(inHand, rs * 1.2 + 4, rs * 1.2 + 4, rs);
     if (view.peek) {
       ctx.fillStyle = colours.soft; ctx.font = `700 ${Math.max(10, rr * 0.05)}px system-ui, sans-serif`; ctx.textAlign = "center";
       ctx.fillText("THE TARGET", cx, H - 8);
@@ -152,12 +152,12 @@ export function createFlat(host) {
   // ----- what the page asks of it -----
   const api = {
     canvas,
-    set(job, run) { view.job = job; view.run = run; view.reveal = 1; view.peek = false; draw(); },
+    set(job, run) { view.job = job; view.run = run; view.carving = -1; view.carve = 1; view.peek = false; draw(); },
     refresh() { draw(); },
     peek(on) { if (view.peek !== on) { view.peek = on; draw(); } },
     ghost(on) { view.ghost = on; draw(); },
-    /** The engraving cut up to a part (0 to 1), for the finish; 1 is the whole. */
-    reveal(t) { view.reveal = t; draw(); },
+    /** Cut `i` being cut, up to a part (0 to 1) of it; 1 is cut. */
+    carve(i, t) { t = Math.max(0, Math.min(1, t)); view.carving = t < 1 ? i : -1; view.carve = t; draw(); },
     assemble(t) { view.assembled = t; draw(); },
     mark(cut) { view.markCut = cut; draw(); },
     orbit() {}, zoom() {}, pan() {}, resetView() {},

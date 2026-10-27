@@ -1,6 +1,6 @@
 // The watch each plate is cut for (pure data; guilloche-3d.js builds it in 3D, guilloche-flat.js paints it flat). A dial is
 // not a bare plate: it has a colour and a finish, a case of a metal and a bezel of a make, hands and markers of a style, and a
-// strap, and each of the eight plates has its own, so that going on through the plates is going through a watchmaker's range.
+// strap, and each plate has its own, so that going on through the plates is going through a watchmaker's range.
 // Colours are CSS hex; nothing here is drawn.
 export const METALS = {
   steel: { name: "Steel", hex: "#cfd3d8", rough: 0.1 },
@@ -32,6 +32,13 @@ export const WATCHES = {
   registers: { name: "Burgundy and bronze", dial: { base: "#5b1f2e", finish: "satin", ink: "#f0d9c2" }, case: { metal: "bronze", bezel: "step" }, hands: { style: "leaf", metal: "bronze" }, marks: "wedge", strap: { kind: "croc", colour: "#3a1620" } },
   chrono: { name: "Glacier and steel", dial: { base: "#a9bfcc", finish: "sunburst", ink: "#1d2f3d" }, case: { metal: "steel", bezel: "fluted" }, hands: { style: "sword", metal: "steel" }, marks: "baton", strap: { kind: "rubber", colour: "#1b3550" } },
   grand: { name: "Aubergine and gold", dial: { base: "#3a2142", finish: "grain", ink: "#f1dea8" }, case: { metal: "gold", bezel: "domed" }, hands: { style: "spade", metal: "gold", tint: "#f1dea8" }, marks: "diamond", strap: { kind: "suede", colour: "#2a1d30" } },
+  waves: { name: "Ocean and steel", dial: { base: "#1d4e6b", finish: "satin", ink: "#e8f1f5" }, case: { metal: "steel", bezel: "domed" }, hands: { style: "sword", metal: "steel" }, marks: "baton", strap: { kind: "rubber", colour: "#13283a" } },
+  sunburst: { name: "Copper sunburst", dial: { base: "#9a4f22", finish: "sunburst", ink: "#fbeee0" }, case: { metal: "rose", bezel: "smooth" }, hands: { style: "dauphine", metal: "rose" }, marks: "diamond", strap: { kind: "leather", colour: "#3b2418" } },
+  moire: { name: "Pearl and platinum", dial: { base: "#dcdfe6", finish: "satin", ink: "#262b38" }, case: { metal: "platinum", bezel: "smooth" }, hands: { style: "leaf", metal: "platinum" }, marks: "dot", strap: { kind: "croc", colour: "#2b2f3a" } },
+  scales: { name: "Jade and gold", dial: { base: "#2f6b50", finish: "grain", ink: "#f3ead0" }, case: { metal: "gold", bezel: "coin" }, hands: { style: "spade", metal: "gold" }, marks: "wedge", strap: { kind: "suede", colour: "#25392d" } },
+  flinque: { name: "Cobalt enamel", dial: { base: "#1e3fa0", finish: "matte", ink: "#eef2ff" }, case: { metal: "steel", bezel: "step" }, hands: { style: "baton", metal: "steel" }, marks: "baton", strap: { kind: "leather", colour: "#1a1f33" } },
+  flames: { name: "Ember and bronze", dial: { base: "#8a2f1c", finish: "sunburst", ink: "#fbe6d4" }, case: { metal: "bronze", bezel: "fluted" }, hands: { style: "sword", metal: "bronze" }, marks: "wedge", strap: { kind: "leather", colour: "#2e1a12" } },
+  panier: { name: "Sand and titanium", dial: { base: "#c9b089", finish: "grain", ink: "#2d2416" }, case: { metal: "titanium", bezel: "smooth" }, hands: { style: "alpha", metal: "titanium" }, marks: "dot", strap: { kind: "suede", colour: "#5a4a36" } },
   master: { name: "Onyx and gold", dial: { base: "#101114", finish: "satin", ink: "#ead9a4" }, case: { metal: "gold", bezel: "fluted" }, hands: { style: "dauphine", metal: "gold" }, marks: "diamond", strap: { kind: "croc", colour: "#151515" } },
 };
 export const watchOf = id => WATCHES[id] || WATCHES.rose;                  // the first plate's, the showpiece
@@ -41,3 +48,5 @@ const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
 export const luma = hex => { const [r, g, b] = rgb(hex); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 /** The colour the target is drawn in over a dial: a deep verdigris on a light dial, a bright one on a dark. */
 export const ghostOf = dial => (luma(dial) > 0.42 ? "#0d6f5c" : "#7fe8c6");
+/** The colour the machine's path is drawn in before it cuts (a fine line over the dial): a deep cobalt on a light dial, gilt on a dark. */
+export const pathOf = dial => (luma(dial) > 0.42 ? "#1f3f9a" : "#ffd27a");
