@@ -1099,17 +1099,28 @@ function onOver(v) {
 function showEnd(v) {
   const s = v.state, mine = s.winner === v.seat;
   $("endHead").textContent = s.winner < 0 ? "A drawn game" : mine ? "You win" : `${nameOf(s.winner)} wins`;
-  const loser = s.winner < 0 ? "Both" : nameOf(1 - s.winner);
-  const why = s.winner < 0 ? "Both players lost on the same check." : s.why === "library" ? `${isMe(1 - s.winner) ? "You drew" : `${loser} drew`} from an empty library.` : `${isMe(1 - s.winner) ? "You are" : `${loser} is`} out of life.`;
+  const loser = nameOf(1 - s.winner), you = isMe(1 - s.winner);
+  const why = s.winner < 0 ? "Both players lost on the same check."
+    : s.why === "library" ? `${you ? "You" : loser} drew from an empty library.`
+    : s.why === "conceded" ? `${you ? "You" : loser} conceded.`
+    : `${you ? "You are" : `${loser} is`} out of life.`;
   $("endBody").innerHTML = `<p>${esc(why)}</p>
     <ul class="dd-standings"><li class="${isMe(0) ? "me" : ""}"><span>${esc(nameOf(0))}</span><b>${s.life[0]}</b></li><li class="${isMe(1) ? "me" : ""}"><span>${esc(nameOf(1))}</span><b>${s.life[1]}</b></li></ul>
-    <p class="dd-end-note">${s.turn} turns. ${s.lib.length} cards were left in the library. The loser goes first next game.</p>`;
+    <p class="dd-end-note">${s.turn ? `${s.turn} turn${s.turn === 1 ? "" : "s"}` : "Over before the first turn"}. ${s.lib.length} cards were left in the library. The loser goes first next game.</p>`;
   $("endAgain").hidden = !page.host;
   if (!$("endDlg").open) $("endDlg").showModal();
 }
 function newGame() {
   $("endDlg").open && $("endDlg").close();
   page.deal({}, 2);
+}
+/** Whether you may concede: a game of yours still on (a partner's game watched from the games screen isn't yours). */
+const mayConcede = () => !!V?.G && !V.over && V.seat != null && !IN_FRAME;
+/** Menu, Concede: the game lost there and then, whoever's decision it is, once you've said so (it counts as a loss). */
+async function concede() {
+  if (!mayConcede() || !confirm(`Concede this game to ${nameOf(1 - V.seat)}? It counts as a loss.`)) return;
+  const why = await page.move({ t: "concede" });
+  if (why) toast(why);
 }
 $("endAgain").addEventListener("click", newGame);
 $("endTable").addEventListener("click", () => $("endDlg").close());
@@ -1223,6 +1234,7 @@ function openMenu() {
   body.replaceChildren();
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
+  if (mayConcede()) play.append(action("Concede", concede, ""));
   page.menu(play);
   play.append(action("The rules and cards", showRules, "link"));
   play.append(action("Copy log", copyLog, "link"));

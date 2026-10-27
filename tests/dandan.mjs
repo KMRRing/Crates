@@ -2,7 +2,8 @@
 // mulligans, the turn and its stops, the stack with responses (a counter countered, a copy, a spell sent back to the
 // library and drawn again), each card's effect, the lands, combat (a Dandân attacks only a player with an Island, is
 // sacrificed with none, dies to +2/−1; Mind Bend changing what it looks for), the ends of a game (life, an empty
-// library), the state through the database, the computer player's choices, and whole games of computer players.
+// library, conceding), the state through the database, the computer player's choices, and whole games of computer
+// players.
 import { DECK, CARDS, HALVES, NAMES, TOKEN_AT, parseCost, total } from "../dandan-cards.js";
 import { deal, act, settle, restore, moves, toMove, nextDrawer, costOf, halfOf, unplayable, afterFetch, payment, MOST_MULLS } from "../dandan-engine.js";
 import { sameMove } from "../dandan-coach.js";
@@ -636,6 +637,25 @@ test("a draw spell on an empty library loses too — once it has finished resolv
   s = answer(s, { t: "putback", cards: s.hand[0] });
   return s.over && s.winner === 1 && s.why === "library";
 });
+// conceding (Korbi, October 2026): either seat, whoever's decision it is, and the game is the other's there and then
+test("a player may concede whoever's decision it is, and the other wins there and then; nothing else goes out of turn", () => {
+  const G = newRecord(rules, { seats: 2, seed: 91, now: 0 }), idle = 1 - rules.toMove(rules.restore(J(G.state)));
+  if (applyMove(rules, G, idle, { t: "pass" }).error !== "It isn't your turn") return "a pass out of turn wasn't refused";
+  const r = applyMove(rules, G, idle, { t: "concede" });
+  if (r.error) return r.error;
+  const s = rules.restore(J(r.G.state));
+  return s.over && s.winner === 1 - idle && s.why === "conceded" && toMove(s) === null && /wins: \{s\d\} concedes$/.test(s.log.at(-1).t)
+    && applyMove(rules, r.G, 1 - idle, { t: "concede" }).error === "The game is over";
+});
+test("conceding with a question put to you; the game so through the database; the loser goes first next game", () => {
+  const G = newRecord(rules, { seats: 2, seed: 92, now: 0 }), asked = rules.toMove(rules.restore(J(G.state)));
+  const r = applyMove(rules, G, asked, { t: "concede" });
+  if (r.error) return r.error;
+  const back = roundTrip(r.G), s = rules.restore(J(back.state));
+  if (!same(s, rules.restore(J(r.G.state)))) return "the conceded game changed through the database";
+  const next = newRecord(rules, { seats: 2, seed: 93, now: 0, prev: back });
+  return s.over && !s.pending && s.winner === 1 - asked && rules.restore(J(next.state)).first === asked;
+});
 
 // ---------- moves ----------
 test("every move moves() offers is one the game accepts", () => {
@@ -913,7 +933,7 @@ test("its answers are always legal ones, for every kind of question and at every
 // pass of hundreds of games would take minutes (one game read in full is dandan-coach.mjs's)
 const bulk = { ...rules, act: (s, seat, m, ctx) => rules.act(s, seat, m, { ...ctx, quiet: true }) };
 {
-  let refusedAt = null, unfinished = 0, lengths = [], bySeat = [0, 0];
+  let refusedAt = null, unfinished = 0, conceded = 0, lengths = [], bySeat = [0, 0];
   const t0 = Date.now();
   for (let g = 0; g < 100; g++) {
     let G = newRecord(bulk, { seats: 2, seed: 9000 + g, now: 0 });
@@ -931,11 +951,11 @@ const bulk = { ...rules, act: (s, seat, m, ctx) => rules.act(s, seat, m, { ...ct
     }
     if (refusedAt) break;
     if (!rules.over(G.state)) unfinished++;
-    else { lengths.push(G.state.turn); bySeat[G.state.winner]++; }
+    else { lengths.push(G.state.turn); bySeat[G.state.winner]++; if (G.state.why === "conceded") conceded++; }
   }
   const mean = lengths.reduce((a, b) => a + b, 0) / lengths.length;
   check(!refusedAt, `100 games of Medium against Medium, no illegal move and no card lost or made${refusedAt ? ` (${refusedAt})` : ""} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
-  check(!unfinished && Math.min(...lengths) >= 6 && Math.max(...lengths) < 150 && mean > 14 && mean < 60, `…every one finished, in ${Math.min(...lengths)}–${Math.max(...lengths)} turns, ${mean.toFixed(1)} on average`);
+  check(!unfinished && !conceded && Math.min(...lengths) >= 6 && Math.max(...lengths) < 150 && mean > 14 && mean < 60, `…every one finished and none conceded (the computer never does), in ${Math.min(...lengths)}–${Math.max(...lengths)} turns, ${mean.toFixed(1)} on average`);
   check(Math.min(...bySeat) >= 25, `…neither seat has the game (${bySeat.join(" and ")} wins)`);
 }
 test("a seeded game is played the same way twice", () => {

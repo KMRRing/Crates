@@ -47,6 +47,11 @@ const TOY = {
   check(G.say?.text === "Off we go" && G.say.n === 1 && G.state.say === undefined, "the deal's line goes to the record for the narrator");
   const who = G.state.turn;
   check(applyMove(TOY, G, (who + 1) % 4, 1).error === "It isn't your turn", "a move out of turn is refused");
+  // a move a game allows whoever's decision it is (anytime: Dandan's conceding) goes through out of turn; no other does
+  const QUITS = { ...TOY, anytime: m => m === "quit", act: (s, seat, m, ctx) => (m === "quit" ? { ...s, step: "over", winner: (seat + 1) % s.seats } : TOY.act(s, seat, m, ctx)) };
+  const idle = (who + 1) % 4, quit = applyMove(QUITS, G, idle, "quit").G;
+  check(quit?.state.step === "over" && quit.state.winner === (idle + 1) % 4 && applyMove(QUITS, G, idle, 1).error === "It isn't your turn" && applyMove(TOY, G, idle, "quit").error === "It isn't your turn",
+    "a game's any-time move (conceding) is taken out of turn; any other move, or the same where the game has none, is refused");
   check(applyMove(TOY, G, who, 3).error === "Add one or two", "an illegal move says why");
   const one = applyMove(TOY, G, who, 1, 5).G, two = applyMove(TOY, G, who, 1, 5).G;
   check(JSON.stringify(one) === JSON.stringify(two) && one.n === 1 && G.n === 0 && G.state.count === 0, "a move made twice comes out the same, and leaves the record it was made on as it was");

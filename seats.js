@@ -12,6 +12,8 @@
 //     act(state, seat, move, { rng, now }) → state | string   the move made (on a copy), or why it can't be
 //     bot(state, seat, { level, rng }) → move              a computer player's move, from what that seat may know
 //     over(state) → bool
+//     anytime?(move) → bool                                a move a seat may make whoever's decision it is (conceding);
+//                                                          any other is refused out of turn
 //     wakeAt?(state) → time | null                         when a timed step ends (the table's clock: a trick shown, the dice seen)
 //     wake?(state, { rng, now }) → state | null            that step moved on
 //     restore?(state) → state                              a state read back from the database made whole (it keeps no
@@ -71,7 +73,7 @@ export function newRecord(rules, { seats, options = {}, prev = null, seq = 1, no
 export function applyMove(rules, G, seat, move, now = Date.now()) {
   const st = stateOf(rules, G);
   if (rules.over(st)) return { error: "The game is over" };
-  if (rules.toMove(st) !== seat) return { error: "It isn't your turn" };
+  if (rules.toMove(st) !== seat && !rules.anytime?.(move)) return { error: "It isn't your turn" };
   const r = rules.act(st, seat, move, { rng: seeded(mix(G.seed, G.n + 1)), now });
   if (typeof r === "string") return { error: r };
   if (!r) return { error: "That can't be played" };

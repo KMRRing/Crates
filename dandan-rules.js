@@ -1,5 +1,6 @@
 // Dandan on seats.js: a module of pure functions, so one runner moves it solo or at a table (README, Seats). Two
-// seats; the computer takes the one nobody sits in. Whose decision it is: whoever holds priority, or is asked a question.
+// seats; the computer takes the one nobody sits in. Whose decision it is: whoever holds priority, or is asked a question;
+// conceding is anyone's at any time.
 // A move made at the table is read for what it shows of the mover's hand (dandan-observe.js): every pass it led to at a
 // moment that could show something, asked or not.
 import { deal, toMove, act, restore, passPoints } from "./dandan-engine.js";
@@ -19,5 +20,6 @@ export const rules = {
   },
   bot: (s, seat, ctx) => botMove(s, seat, ctx),
   over: s => s.over,
+  anytime: m => m?.t === "concede",
   restore,
 };

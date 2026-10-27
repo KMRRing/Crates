@@ -187,15 +187,19 @@ function combatDamage(s) {
   }
 }
 
-// ---------- state-based checks ----------
-function gameOver(s, out) {
+// ---------- the end ----------
+const HOW = { library: "drew from an empty library", life: "is out of life", conceded: "concedes" };
+/** The game over, `out` the seats that lost it: by drawing from an empty library, at no life, or conceding. */
+function gameOver(s, out, why = s.lost[out[0]] ? "library" : "life") {
   s.over = true;
   s.step = "over";
   s.pending = null;
   s.winner = out.length === 2 ? -1 : other(out[0]);
-  s.why = s.lost[out[0]] ? "library" : "life";
-  say(s, s.winner < 0 ? "Both players lose: a draw" : `{s${s.winner}} wins: {s${other(s.winner)}} ${s.why === "library" ? "drew from an empty library" : "is out of life"}`);
+  s.why = why;
+  say(s, s.winner < 0 ? "Both players lose: a draw" : `{s${s.winner}} wins: {s${other(s.winner)}} ${HOW[why]}`);
 }
+
+// ---------- state-based checks ----------
 /**
  * Players at 0 life or who drew from an empty library lose; creatures with no toughness left or enough damage die;
  * each Dandân whose controller has none of the land type its text names gets a trigger (once, until it resolves).
@@ -656,11 +660,16 @@ function answer(s, seat, m) {
   return "Not now";
 }
 
-/** A seat's move made on a game (the runner hands in a copy and keeps it if this returns one). quiet: no log (a game played out in the computer's head). */
+/**
+ * A seat's move made on a game (the runner hands in a copy and keeps it if this returns one). quiet: no log (a game
+ * played out in the computer's head). A seat may concede ({ t: "concede" }) whoever's decision it is, as in Magic a
+ * player may at any time: the game is lost there and then (Korbi, October 2026).
+ */
 export function act(s, seat, m, { rng, quiet = false } = {}) {
   if (!quiet) passPoints.length = 0;
   return withRng(rng, () => {
     if (s.over) return "The game is over";
+    if (m?.t === "concede") { gameOver(s, [seat], "conceded"); return s; }
     const err = s.pending ? (s.pending.seat === seat ? answer(s, seat, m) : "It isn't your turn") : (s.prio === seat ? priorityMove(s, seat, m) : "You don't have priority");
     if (err) return err;
     settle(s);
