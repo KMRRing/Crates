@@ -11,6 +11,7 @@ import { watchOf } from "./guilloche-watch.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, action, line, toggle, onPause } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
+import { roundOver } from "./random.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -313,7 +314,7 @@ function cutNow() {
   afterCarve = () => {
     afterCarve = null;
     plate.carve(i, 1);
-    if (!job.lesson && finish(job, run)) { save(); assemble(); return; }
+    if (!job.lesson && finish(job, run)) { save(); record(); roundOver("guilloche"); assemble(); return; }
     if (!job.lesson) SOUND.done();
     render();
   };
@@ -324,6 +325,15 @@ function cutNow() {
   };
   carving = requestAnimationFrame(step);
   render();
+}
+/** A plate engraved: its stars count at once (the plate's best, and the stars in all for the games screen), so leaving
+ *  while the watch is put together (random mode moves on from here) loses nothing. */
+function record() {
+  const all = made(), d = run.done;
+  if (!d || d.stars <= (all[job.id] ?? 0)) return;
+  all[job.id] = d.stars;
+  write(MADE, all);
+  write(BEST, LEVELS.reduce((n, l) => n + (all[l.id] ?? 0), 0));
 }
 /** Every zone cut true: the markers and hands are set, the glass goes on, and the watch is drawn back to be seen whole. */
 function assemble() {
@@ -353,18 +363,14 @@ function engraved() {
   doneTimer = setTimeout(showDone, 500);
 }
 function showDone() {
-  const all = made(), before = all[job.id] ?? 0, d = run.done;
+  const d = run.done;
   const cutPasses = job.cuts.reduce((n, c, i) => n + passes(settingsOf(c, job.answer[i])).length, 0), watch = watchOf(job.id);
   $("doneHead").textContent = `${job.name}: ${["", "engraved", "well engraved", "engraved by the book"][d.stars]}`;
   $("doneStars").textContent = starText(d.stars);
   $("doneBody").innerHTML = [["Taps", d.taps], ["Par", job.par], ["Passes cut", cutPasses], ["Clues", d.clues]].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
   const why = d.clues && CLUE_CAP[d.clues] < 3 ? `Clues cap the stars at ${CLUE_CAP[d.clues]}. ` : d.stars === 3 ? "" : `Par is the knobs to set and a cut for each zone, a tap each: within ${Math.ceil(job.par * 1.5) + 2} taps is three stars. `;
   $("doneNote").textContent = `Set in a ${watch.name.toLowerCase()} watch. ${job.story} ${why}`.trim();
-  if (d.stars > before) {
-    all[job.id] = d.stars;
-    write(MADE, all);
-    write(BEST, LEVELS.reduce((n, l) => n + (all[l.id] ?? 0), 0));
-  }
+  record();                                          // (counted already when the last zone was cut true: nothing new)
   const last = job.index === LEVELS.length - 1;
   $("nextBtn").textContent = last ? "Back to the first" : "Next plate";
   $("nextBtn").dataset.next = last ? "0" : String(job.index + 1);

@@ -59,6 +59,7 @@ export const ROUNDS = {
   drift: "a game over",
   slipway: "a part carved to a star, or an assembly that holds",
   loom: "a cloth woven",
+  guilloche: "a plate, every zone cut true",
   // Board & card games: a hand where the game is dealt hand by hand, else a game
   cartel: "a game",
   hong: "a hand",
@@ -90,7 +91,6 @@ export const LEFT_OUT = {
   deck: "the review of every game's misses: it deals only what's due, so there's often nothing to play",
   lexicon: "the knowledge base to look things up in, not a game",
   ledger: "the record of how well you learn, not a game",
-  guilloche: "being rebuilt; it comes in once it says when its round is over",
   party: "a room for people round a table, each on their own phone",
   cue: "a word to act, draw or describe for the people round you",
   quest: "hidden loyalties, a game for people round a table (Party's section)",
