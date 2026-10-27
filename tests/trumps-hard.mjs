@@ -192,6 +192,29 @@ function anyTrick(c, hands, trick, turn, side, want) {
   check(ok && cards === 32 && s.step === "scored", `Hard through a hand: every bid and card legal (${cards} cards, ${s.contract?.type})`);
 }
 
+// ---------- what Hard can't see ----------
+// Hard goes by its own cards, the bidding and the play, never the hands it can't see: each of its moves through two
+// hands, asked again with the same random numbers and the other three hands dealt afresh from their cards (each keeping
+// its size), is the same move
+{
+  let asked = 0, same = 0;
+  for (const deal of [41, 42]) {
+    const rng = rngOf(deal);
+    let s = rules.deal({ options: { game: "schafkopf", deals: 1 }, rng });
+    for (let guard = 0; guard < 200 && s.step !== "scored"; guard++) {
+      if (s.step === "trick") { s = rules.wake(s, { rng, now: 1e12 }); continue; }
+      const seat = rules.toMove(s), seed = deal * 1000 + guard, blind = structuredClone(s);
+      const pool = shuffled(rngOf(seed + 7), blind.hands.flatMap((h, p) => (p === seat ? [] : h)));
+      blind.hands = blind.hands.map((h, p) => (p === seat ? h : h.map(() => pool.pop())));
+      const mv = botMove(structuredClone(s), seat, "hard", rngOf(seed)), again = botMove(blind, seat, "hard", rngOf(seed));
+      asked++;
+      if (JSON.stringify(mv) === JSON.stringify(again)) same++;
+      s = rules.act(s, seat, mv, { rng, now: 0 });
+    }
+  }
+  check(asked > 50 && same === asked, `Hard never reads the hands it can't see: ${same} of ${asked} moves the same with them dealt afresh`);
+}
+
 // ---------- the coach's words ----------
 {
   const rng = rngOf(31), p = PUZZLES.find(x => x.ok.length === 1 && x.opts.length >= 3 && x.win[x.opts.indexOf(x.best)] - Math.min(...x.win) >= 40) || PUZZLES[0];
