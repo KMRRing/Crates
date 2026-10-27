@@ -6,7 +6,7 @@
 import { STREAMS, UNITS, POOLS, CRUDES, PROPS, H2_PRICE, BOUGHT, SULPHUR, REAGENTS } from "./refinery-data.js";
 import { FEED, evaluate, runs, destinations, streamsOf, sharesOf, defaultRouting, normalise, poolsOf, specsOf, limitOf, fmtProp, failText, priceOf, refundOf, coLimits, coTotalOf, solve, ownProps, unitYields, columnFeeds, asPlayed, lower, shareTo, withShares, edgesOf, culprits, fmtPast } from "./refinery-engine.js";
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
-import { differences, nextHint, rowCommonness, standing, bucketOf, EPS, AT_PAR } from "./refinery-practice.js";
+import { differences, nextHint, rowCommonness, mainOf, bucketOf, EPS, AT_PAR } from "./refinery-practice.js";
 import { PAR } from "./refinery-par.js";
 import { drawSheet, hitTest, GROUP_COLOUR, amount } from "./refinery-sheet.js";
 import { lessonFor, TEACHES, GLOSSARY } from "./refinery-lessons.js";
@@ -665,9 +665,9 @@ function openCard(id) {
 // ---------- hints ----------
 // A hint goes by how standard a pattern is (refinery-practice.js; Korbi, October 2026: "the player starts with the
 // obvious then fine tunes in the end"): the crude where it's the choice (no routing of a worse one reaches the level's
-// par), then of the ways your plan differs from par the one most of the course's optimal plans share, where the bulk of
-// a stream goes before how much, each with how many plans do the same and what doing it alone comes to here; trims last,
-// and only while the plan is short of par.
+// par), then of the ways your plan differs from par where the bulk of a stream goes before how much, what refineries do
+// as standard first and then what most of the course's optimal plans share, each said as refining has it with the
+// course's count beside it and what doing it alone comes to here; trims last, and only while the plan is short of par.
 
 /** As many decimals of a percentage as it takes to tell two apart (up to four: a trim can be a thousandth of a point). */
 const placesFor = (same, most = 4) => [0, 1, 2, 3].find(dp => !same(dp)) ?? most;
@@ -677,19 +677,29 @@ function practiceWords(x) {
   const what = lower(STREAMS[x.s].name), name = d => lower((UNITS[d] || POOLS[d]).name), pc = f => `${Math.round(f * 100)}%`;
   // a purchase not made goes nowhere: it's left unbought
   const left = x.d === "notBought", where = left ? " unbought" : ` to the ${name(x.d)}`;
-  const plans = `${standing(x.p)}: ${x.count} of the ${x.n} optimal plans in the course ${left ? "that could buy it" : "where it can go there"}`;
+  const tally = `${x.count} of the ${x.n} optimal plans`, scope = left ? "that could buy it" : "where it can go there";
   if (x.tier) {
+    // how much is the plan's own: the course's count, no claim for refining
     const [theirs, mine] = pcs(x.theirs, x.mine), whole = f => (f >= 1 - EPS ? "all" : f <= EPS ? "none" : null);
     const told = `Fine-tuning: par ${left ? "leaves" : "sends"} ${whole(x.theirs) || theirs} of the ${what}${where}, you ${whole(x.mine) ? `${whole(x.mine)} of it` : mine}.`;
     if (x.same) return `${told} Your pattern is par's; the amount is particular to this plan.`;
     const how = { all: "all of it", most: "most of it, not all", part: "part of it", none: "none of it" }[bucketOf(x.theirs)];
-    return `${told} ${plans} ${left ? "leave" : "send"} ${how}${left ? " unbought" : ""} (${pc(x.p)}).`;
+    return `${told} In the course, ${tally} ${scope} ${left ? "leave" : "send"} ${how}${left ? " unbought" : ""} (${pc(x.p)}).`;
   }
   const amount = x.theirs >= 0.995 ? `all of the ${what}` : x.theirs >= 0.5 ? `most of the ${what} (${pc(x.theirs)})` : x.theirs > 0.005 ? `some of the ${what} (${pc(x.theirs)})` : `none of the ${what}`;
   // none of it there: say where it does go
-  const main = Object.entries(par.routing[x.s]).sort((a, b) => b[1] - a[1])[0][0];
+  const main = mainOf(par.routing[x.s]), there = main === "notBought" ? "leaving it unbought" : `the ${name(main)}`;
   const instead = x.theirs > 0.005 ? "" : main === "notBought" ? " (par leaves it unbought)" : ` (par sends it to the ${name(main)})`;
-  return `In this plan the margin is best with ${amount} ${left ? "left unbought" : `going${where}`}${instead}. ${plans} do the same (${pc(x.p)}).`;
+  // refining's word on par's pattern (refinery-practice.js, ROLES), the course's count beside it
+  const course = `${scope} do the same (${pc(x.p)})`;
+  const why = {
+    standard: x.p >= 0.5 ? `Standard practice: ${tally} in the course ${course}.` : `Standard practice, though only ${tally} in the course ${course}.`,
+    common: `Common practice: ${tally} in the course ${course}.`,
+    usual: `Refineries usually send it to the ${name(x.d)}; here ${there} pays more. In the course, ${tally} ${course}.`,
+    share: `Refineries usually send only a share there; here more of it pays. In the course, ${tally} ${course}.`,
+    rare: `Rarely done in refining; here it pays. In the course, ${tally} ${course}.`,
+  }[x.practice.kind] || `In the course, ${tally} ${course}.`;
+  return `In this plan the margin is best with ${amount} ${left ? "left unbought" : `going${where}`}${instead}. ${why}`;
 }
 function hint() {
   const p = progress();
@@ -714,20 +724,20 @@ function hint() {
   }
   renderBrief();
 }
-/** Par's plan, the most standard rows first (the share of the course's optimal plans that route each stream the same
- *  way), where yours differs marked; taking it caps the level at one star. */
+/** Par's plan, the rows refining does as standard first (then by the share of the course's optimal plans that route each
+ *  stream the same way), where yours differs marked; taking it caps the level at one star. */
 function showPar() {
   const body = $("cardBody");
   body.replaceChildren();
   $("cardTitle").textContent = "Par's plan";
   const p = document.createElement("p"); p.className = "rf-facts";
-  p.textContent = `What the LP does with ${CRUDES[L.crude].name}, for ${money(par.margin)}/bbl, the most standard rows first: the last column is the share of the course's optimal plans that send the bulk of the stream the same way. Where yours differs, it's marked.`;
+  p.textContent = `What the LP does with ${CRUDES[L.crude].name}, for ${money(par.margin)}/bbl: the rows refining does as standard first, each with the share of the course's optimal plans that send the bulk of the stream the same way. Where yours differs, it's marked.`;
   body.append(p);
   const t = document.createElement("table"); t.className = "rf-table";
   // a row differs as the hint has it, and shows as many decimals as it takes to see how
   const differs = new Set(differences(L, routing, par.routing).map(x => x.s));
   const fmt = (s, r, dp) => sharesOf(L, r, s).filter(([, f]) => +(f * 100).toFixed(dp) > 0).map(([d, f]) => `${(UNITS[d] || POOLS[d]).short} ${+(f * 100).toFixed(dp)}%`).join(", ");
-  const rows = streamsOf(L).filter(s => par.routing[s] && (R.streams[s] || parRun().streams[s])).map(s => ({ s, c: rowCommonness(s, par.routing[s]) })).sort((a, b) => b.c.p - a.c.p);
+  const rows = streamsOf(L).filter(s => par.routing[s] && (R.streams[s] || parRun().streams[s])).map(s => ({ s, c: rowCommonness(s, par.routing[s], destinations(L, s)) })).sort((a, b) => a.c.tier - b.c.tier || b.c.p - a.c.p);
   for (const { s, c } of rows) {
     const off = differs.has(s), dp = off ? placesFor(k => fmt(s, routing, k) === fmt(s, par.routing, k)) : 0;
     const mine = fmt(s, routing, dp), theirs = fmt(s, par.routing, dp), tr = document.createElement("tr");
@@ -790,7 +800,7 @@ function showStep() {
     const how = document.createElement("details"), sum = document.createElement("summary");
     how.className = "rf-how"; sum.textContent = "How to play"; how.append(sum);
     const hp = document.createElement("p");
-    hp.textContent = "Tap an arrow on the flowsheet to choose where that stream goes: each destination takes a share, set with its slider or typed, and All sends the whole stream there. Each row says what sending all of it there would do to the margin. Tap a unit for its card and what it's running, a product for its specification, the crude for its assay. Drag to move the flowsheet, pinch or + and − to zoom. Hint points out where your plan differs from par, the most standard difference first (with how many of the course's optimal plans do the same), then the fine-tuning; it caps the stars at two.";
+    hp.textContent = "Tap an arrow on the flowsheet to choose where that stream goes: each destination takes a share, set with its slider or typed, and All sends the whole stream there. Each row says what sending all of it there would do to the margin. Tap a unit for its card and what it's running, a product for its specification, the crude for its assay. Drag to move the flowsheet, pinch or + and − to zoom. Hint points out where your plan differs from par: what refineries do as standard first (with how many of the course's optimal plans do the same), then the fine-tuning; it caps the stars at two.";
     how.append(hp); say.append(how);
     p(progress()[base.id]?.stars ? "Done already: the exam is in the brief." : "Once the plant runs with every product in spec, the exam asks about what you made and what this lesson taught.", "rf-after");
   } else p(st.say);

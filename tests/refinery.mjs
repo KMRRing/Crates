@@ -225,17 +225,21 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
   // on every level and crude: par against the start, ranked; par against itself, nothing
   let ordered = true, none = true, some = 0, gone = true;
   const gap = x => Math.abs(x.theirs - x.mine);
+  // the order a hint takes: where the bulk goes before how much before trims; the bulk by refining's word on par's
+  // pattern, then the course's count; how much by the course's count; trims by size; ties to the bigger gap
+  const rank = x => [x.tier, x.tier ? 0 : x.practice.tier, x.tier < 2 ? -x.p : 0, -gap(x)];
+  const inOrder = (a, b) => { const ka = rank(a), kb = rank(b); for (let i = 0; i < ka.length; i++) if (Math.abs(ka[i] - kb[i]) > 1e-12) return ka[i] < kb[i]; return true; };
   for (const lv of LEVELS) for (const [key, p] of Object.entries(PAR[lv.id] || {})) {
     const [crude, deck = null] = key.split("/"), L = E.asPlayed(lv, crude, deck), start = E.normalise(L, E.defaultRouting(L)), made = E.evaluate(L, start).streams;
     const list = P.differences(L, start, p.routing, st => made[st]?.vol > 1e-6);
     if (list.some(x => !(made[x.s]?.vol > 1e-6) || x.tier !== (P.classOf(x.mine) !== P.classOf(x.theirs) ? 0 : gap(x) > P.FINE ? 1 : 2))) ordered = false;
     if (list.length) some++;
-    if (list.some((x, i) => i && (x.tier < list[i - 1].tier || (x.tier === list[i - 1].tier && (x.tier < 2 ? x.p > list[i - 1].p + 1e-12 : gap(x) > gap(list[i - 1]) + 1e-12))))) ordered = false;
+    if (list.some((x, i) => i && !inOrder(list[i - 1], x))) ordered = false;
     if (P.differences(L, E.normalise(L, p.routing), p.routing).length) none = false;
     // taking the top one's row puts that stream right
     if (list.length && P.differences(L, { ...start, [list[0].s]: p.routing[list[0].s] }, p.routing).some(x => x.s === list[0].s)) gone = false;
   }
-  check(some > plans / 2 && ordered, `from each level's start, par's differences in the streams it makes ranked: where the bulk goes, then how much, each by how many optimal plans share it, then trims by size (${some} plans differ from their start)`);
+  check(some > plans / 2 && ordered, `from each level's start, par's differences in the streams it makes ranked: where the bulk goes (refining's standard first), then how much, each then by how many optimal plans share it, then trims by size (${some} plans differ from their start)`);
   check(none && gone, "par against itself has no differences, and taking a difference's row puts that stream right");
   // the hint followed from every level's start, in every market (a choice of crude from the level's own), the way the
   // page takes it (the crude, then each difference's row, a newly made stream sent where it earns most): it reaches par
@@ -256,7 +260,20 @@ export const PAR = ${JSON.stringify(fresh)};\n`);
     if (end === "par") { reached++; most = Math.max(most, n - 1); } else stuck.push(`${lv.id}${deck ? `/${deck}` : ""}: ${end || "40 hints"}`);
   }
   check(reached === starts, `following the hint from every level's start reaches par (${reached} of ${starts}, the longest in ${most} hints)${stuck.length ? `: ${stuck.slice(0, 4).join("; ")}` : ""}`);
-  check(P.standing(0.95) === "Standard practice" && P.standing(60 / 67) === "Standard practice" && P.standing(0.8) === "Very common" && P.standing(0.6) === "Common" && P.standing(0.3) === "Done in some plans" && P.standing(0.1) === "Particular to this plan", "a pattern's standing in words, by the share of plans that follow it");
+  // refining's word on a pattern: every pair it speaks of is one the course has (no misspelt stream or unit), and the
+  // kinds come out as refining has them
+  const unknown = Object.entries(P.ROLES).flatMap(([s, ds]) => Object.keys(ds).filter(d => !T[s]?.[d]).map(d => `${s}→${d}`));
+  check(!unknown.length, `refining's word on routing names only streams and destinations the course has${unknown.length ? `: ${unknown.join(", ")}` : ""}`);
+  const kind = (s, d, f, row, here) => P.practiceOf(s, d, f, row, here).kind;
+  check(kind("lsr", "isom", 1, { isom: 1 }) === "standard" && kind("atmResid", "vdu", 0.8, { vdu: 0.8, fuelOil: 0.2 }) === "standard"
+    && kind("hvgo", "fcc", 0, { hcu: 1 }) === "common" && kind("vacResid", "coker", 0, { hsfo: 1 }) === "usual"
+    && kind("kero", "hsfo", 0.6, { hsfo: 0.6, kht: 0.4 }, ["kht", "hsfo", "gasoil"]) === "share" && kind("kero", "hsfo", 1, { hsfo: 1 }, ["hsfo", "gasoil", "diesel"]) === null
+    && kind("kero", "hsfo", 0.2, { kht: 0.8, hsfo: 0.2 }) === "common" && kind("rso", "dht", 0, { notBought: 1 }) === null
+    && kind("cokerNaphtha", "gasoline", 0, { nht: 1 }) === "standard" && kind("cokerNaphtha", "gasoline", 0.04, { nht: 0.96, gasoline: 0.04 }) === "rare"
+    && kind("rso", "notBought", 1, { notBought: 1 }) === null,
+    "what refining makes of a pattern: the light naphtha to isomerisation standard, none of the HVGO to the FCC common when the hydrocracker has it, none of the vacuum residue to the coker unusual, the bulk of the kerosene in fuel oil more than a cutter's share where a treater could take it (no claim in a topping plant), untreated coker naphtha in petrol rare, leaving rapeseed oil unbought no claim");
+  const R1 = P.rowCommonness("kero", { hsfo: 0.6, kht: 0.4 }), R2 = P.rowCommonness("lsr", { isom: 0.9, naphtha: 0.1 });
+  check(R2.tier < R1.tier && R2.count > 0, "par's rows by refining's standing first: the light naphtha to isomerisation before the kerosene sunk in fuel oil");
 }
 
 console.log(bad ? `${bad} problems` : "all checks pass");
