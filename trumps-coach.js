@@ -7,7 +7,7 @@ import { GAMES, sTrump } from "./trumps-games.js";
 import { cid, suitOf, rankOf } from "./trumps-cards.js";
 import { stepOfState, motifsOf, cardWords, contractWords } from "./trumps-course.js";
 import { whyText } from "./trumps-rush.js";
-import { gapOf } from "./trumps-think.js";
+import { gapOf, conventionalLead } from "./trumps-think.js";
 
 const S = GAMES.schafkopf;
 export const pct = x => `${Math.round(100 * x)}%`;
@@ -47,7 +47,9 @@ function sidesKnown(s, seat) {
 }
 /** What a card does, in a few words for the coach's line: "a trump led, to draw theirs". */
 export function cardDoes(s, seat, card) {
-  const step = stepOfState(s, seat), tags = motifsOf(step, card), playing = s.contract.declarer === seat || (s.contract.type === "sau" && s.hands[seat].includes(cid(s.contract.ace, "A")));
+  const step = stepOfState(s, seat), playing = s.contract.declarer === seat || (s.contract.type === "sau" && s.hands[seat].includes(cid(s.contract.ace, "A")));
+  // the partner's trump lead the conventions call for tells the caller who its partner is (trumps-think.js, signalFirst)
+  const tags = [...motifsOf(step, card), ...(conventionalLead(s, seat)?.includes(card) ? ["signal"] : [])];
   const said = {
     trumpf: playing ? "a trump led, to draw theirs" : "a trump led, to take theirs before they're used",
     suchen: "the called Farbe searched while its Sau is out",
@@ -56,6 +58,7 @@ export function cardDoes(s, seat, card) {
     stechen: "the Farbe trumped, the trick yours",
     take: "it takes the trick",
     duck: "it lets the trick go, keeping what takes one later",
+    signal: "it tells the caller you're the partner",
   };
   return tags.map(t => said[t]).filter(Boolean).join("; ");
 }
@@ -68,7 +71,7 @@ export function adviceWords(s, seat, list) {
   if (!best) return "";
   if (!next) return `${cap(the(best.card))}: the only card you may play.`;
   if (best.n && list.every(x => Math.abs(x.worth - best.worth) < unitOf(s.contract) / 100)) {
-    // the first trick is weighed for the game alone (a whole hand is long to search): Schneider isn't in it yet
+    // the first trick is weighed for the game, and Schneider only where it's lost (a whole hand is long to search)
     return `Any card does as well${s.tricks.length ? "" : " for the game"}: your side wins in ${pct(best.win)} of the deals whatever you play.`;
   }
   const does = cardDoes(s, seat, best.card);

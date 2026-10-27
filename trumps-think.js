@@ -1,16 +1,18 @@
 // Schafkopf as well as the computer can play it: the Hard players and the coach. A card is weighed over deals of the
 // cards the player can't see (trumps-deals.js: each hand's size, the Farben shown out of, the call, every card played
-// legal; and here, as the bidding makes likely: likelyDeal), each deal played out to the end with every card seen, both
-// sides at their best (trumps-dd.js), and the card that does best for the player's side on average is the one to play:
-// perfect-information Monte Carlo, the way the strongest programs for Skat and bridge play. What a deal comes to is
-// what the hand pays in tariffs: a Sauspiel won 1, a Solo or Wenz won 5 (50 to the 10), Schneider, schwarz and each
-// Laufende one more, the same lost the other way, and a hair for each card point, so that between cards alike in what
-// they pay, more points is better.
+// legal; and here, as the bidding and the play make likely: likelyDeal), each deal played out to the end with every
+// card seen, both sides at their best (trumps-dd.js), and the card that does best for the player's side on average is
+// the one to play: perfect-information Monte Carlo, the way the strongest programs for Skat and bridge play. What a
+// deal comes to is what the hand pays in tariffs: a Sauspiel won 1, a Solo or Wenz won 5 (50 to the 10), Schneider,
+// schwarz and each Laufende one more, the same lost the other way, and a hair for each card point, so that between
+// cards alike in what they pay, more points is better.
 //
 // The early tricks are the dear ones (a whole hand to search): there the deals are fewer and only the lines that pay
-// (61, Schneider's 31 and 91) are searched for; from the third trick every card's points are exact and schwarz looked
-// for. A game to say is weighed by trumps-bids.js (fitted to many deals played out the same way, and to Hard's play).
-import { GAMES, laufende } from "./trumps-games.js";
+// are searched for (in the first, whether the game is won, and Schneider where it's lost; in the second, 31, 61 and
+// 91); from the third trick every card's points are exact and schwarz looked for. A game to say is weighed by
+// trumps-bids.js (fitted to many deals played out the same way, and to Hard's play).
+import { GAMES, laufende, sTrump } from "./trumps-games.js";
+import { cid, deckFrom } from "./trumps-cards.js";
 import { dealFor, fittingDeal, sidesOf, voidsOf, fits, callerFits, playedFits } from "./trumps-deals.js";
 import { solver, TooLong } from "./trumps-dd.js";
 import { BIDS } from "./trumps-bids.js";
@@ -61,14 +63,25 @@ export function weighCards(s, seat, { deals = 16, rng = Math.random, ms = 0, dep
     for (const t of s.tricks) { pts[side(t.winner)] += t.pts; took[side(t.winner)] = true; }
     const sv = solver(c, { hands, trick: s.trick, turn: seat, side, limit }), mine = side(seat), vals = [];
     try {
-      for (const card of legal) {
-        let p0;
-        if (exact) p0 = pts[0] + sv.value(card);
-        else {
-          // which of the lines that pay the points fall between: 0–30, 31–60, 61–90, 91–120 (or only won or lost)
-          const at = t => t - pts[0] <= 0 || sv.atLeast(card, t - pts[0]);
-          p0 = depth === "win" ? (at(61) ? 61 : 60) : at(61) ? (at(91) ? 91 : 61) : at(31) ? 31 : 0;
+      // the players' points after each card: exact, or which of the lines that pay they fall between (0–30, 31–60,
+      // 61–90, 91–120), or in the first trick only whether the game is won
+      const at = (card, t) => t - pts[0] <= 0 || sv.atLeast(card, t - pts[0]);
+      const p = legal.map(card => (exact ? pts[0] + sv.value(card) : depth === "win" ? (at(card, 61) ? 61 : 60) : at(card, 61) ? (at(card, 91) ? 91 : 61) : at(card, 31) ? 31 : 0));
+      // a game this side loses is still kept out of Schneider where it can be (Korbi, October 2026): in the first trick,
+      // after each card that loses it, whether it's lost in Schneider, on a budget of its own and for every such card or
+      // none, so no deal is left out for it and no card is set against another on unequal terms
+      const lost = i => (p[i] >= 61) !== (mine === 0);
+      if (depth === "win" && legal.some((_, i) => lost(i))) {
+        sv.extend(limit);
+        try {
+          const q = legal.map((card, i) => (!lost(i) ? p[i] : p[i] >= 61 ? (at(card, 91) ? 91 : 61) : at(card, 31) ? 60 : 0));
+          q.forEach((x, i) => { p[i] = x; });
+        } catch (e) {
+          if (!(e instanceof TooLong)) throw e;
         }
+      }
+      for (const [i, card] of legal.entries()) {
+        const p0 = p[i];
         // schwarz, which is tricks, not points: looked for once a side would take no more points, late in the hand
         let took0 = took[0] || p0 > pts[0], took1 = took[1] || 120 - p0 > pts[1];
         if (late && exact) {
@@ -104,10 +117,17 @@ export function dealsFor(s, budget = HARD) {
   if (!s.tricks.length) return s.trick.length ? budget.first : budget.lead;
   return s.tricks.length === 1 ? budget.second : budget.rest;
 }
-/** Hard's card: the one that does best over the deals (between cards alike, the one its rule of thumb would play). */
+/** A weighed list with the lead the conventions call for put first where it does next to as well as the best
+ *  (SIGNAL), so the table can read the side its leader is on: Hard plays it, and the coach advises it. */
+export function signalFirst(s, seat, list) {
+  const conv = conventionalLead(s, seat), signal = conv && list.find(x => conv.includes(x.card));
+  return signal && signal !== list[0] && list[0].worth - signal.worth <= SIGNAL ? [signal, ...list.filter(x => x !== signal)] : list;
+}
+/** Hard's card: the one that does best over the deals, the conventions' lead on a near-tie (signalFirst); between cards
+ *  alike, the one its rule of thumb would play. */
 export function thinkPlay(s, seat, rng, { budget = HARD, ms = 0, prefer = null } = {}) {
-  const list = weighCards(s, seat, { deals: dealsFor(s, budget), rng, ms });
-  const top = list[0];
+  const list = weighCards(s, seat, { deals: dealsFor(s, budget), rng, ms }), top = list[0], first = signalFirst(s, seat, list)[0];
+  if (first !== top) return first.card;
   const tied = list.filter(x => top.worth - x.worth < 1e-9);
   return (prefer != null && tied.some(x => x.card === prefer) ? prefer : top.card);
 }
@@ -177,17 +197,45 @@ export const thinkBid = (s, seat) => bidOptions(s, seat)[0].bid;
 
 // ---------- what the bidding says ----------
 // The bidding tells of the hands: whoever plays a game is likely to hold one worth playing, and whoever passed (or
-// called a lesser game) not one worth more. A deal of the unseen cards is kept with the likelihood of what was said
-// from the hands it deals, as Hard bids (bidWorth): so a Solo's defenders deal its player his trumps, and a Sauspiel's
-// caller holds a game worth calling.
+// called a lesser game) not one worth more. Every seat is taken to bid as Hard does until it's shown otherwise (Korbi,
+// October 2026: "assume perfect play until proven otherwise"): a deal of the unseen cards is weighed by whether each
+// seat, holding what the deal gives it, would have said just what it said, with a little room (1 − PERFECT) for a seat
+// that didn't, read then as likely to hold a game worth saying. A seat whose revealed hand has broken Hard's rule
+// (s.unlike, which the rules keep at each hand's end) is read that softer way only. Read exactly, the real deal comes
+// out about five times likelier than a deal that only fits the call in a Sauspiel, against 2.3 read softly. The
+// players' side reads so; a defender softly (reads, below).
 const sig = z => 1 / (1 + Math.exp(-z));
 /** How likely a hand was to say its game, from what the game is worth to it (a Sauspiel's in tariffs, the others' in
  *  fifteens, three times five): about even at nothing, all but sure a tariff (or fifteen) up, and the reverse down. */
 const sure = (c, worth) => sig((6 * worth) / (c.type === "sau" ? 1 : 15));
+/** How much a seat not yet shown otherwise is taken to bid as Hard does. */
+export const PERFECT = 0.99;
+const sameGame = (g, c) => g.type === c.type && (g.type !== "sau" || g.ace === c.ace) && (g.type !== "solo" || g.trump === c.trump);
+/** How likely a seat was to say what it said (`b`, when the game said so far ranked `top`) from a hand: { exact: 1 if
+ *  Hard would have said just that (a game: worth something and worth most of those it might have said; a pass: none
+ *  worth anything), else 0; soft }, or null if it couldn't have (a Sauspiel calling a Sau it holds, or a Farbe it hasn't). */
+function saidLikelihood(s, hand, b, top, pos) {
+  const worth = g => bidWorth(hand, { ...g, declarer: b.seat }, pos, s.opts).worth, games = gamesOver(hand, top);
+  if (b.t === "play") {
+    const c = { type: b.type, trump: b.type === "solo" ? b.suit : b.type === "sau" ? 1 : -1, ace: b.ace };
+    if (c.type === "sau" && !S.callable(hand).includes(c.ace)) return null;
+    const w = worth(c);
+    return { exact: w > 0 && games.every(g => sameGame(g, c) || worth(g) <= w) ? 1 : 0, soft: sure(c, w) };
+  }
+  let raw = -Infinity, best = null;
+  for (const g of games) {
+    const w = worth(g), n = w / (g.type === "sau" ? 1 : 15);
+    if (w > raw) raw = w;
+    if (best === null || n > best) best = n;
+  }
+  return { exact: raw <= 0 ? 1 : 0, soft: best === null ? 1 : sig(-4 * best) };
+}
 /** How likely the bidding is from a deal's hands (each as dealt: what it holds and what it has played): { like, kept }.
  *  With `rng`, each said game's and each pass's likelihood is drawn on its own (which keeps a deal with their product)
- *  and a deal is let go at the first that fails: the games said first, being the likeliest to. */
-export function bidLikelihood(s, hands, seat, rng = null) {
+ *  and a deal is let go at the first that fails: the games said first, being the likeliest to. `memo` keeps what a
+ *  seat's hand comes to between calls (a Metropolis step changes two hands at most); `exact` false reads every seat
+ *  softly. */
+export function bidLikelihood(s, hands, seat, { rng = null, memo = null, exact = true } = {}) {
   if (!s.bidlog?.length) return { like: 1, kept: true };
   const dealt = hands.map(h => h.slice());
   for (const t of [...s.tricks.flatMap(x => x.cards), ...s.trick]) dealt[t.seat].push(t.card);
@@ -197,21 +245,14 @@ export function bidLikelihood(s, hands, seat, rng = null) {
   for (const b of s.bidlog) { tops.push(top); if (b.t === "play") top = rank[b.type]; }
   const order = s.bidlog.map((b, i) => i).filter(i => s.bidlog[i].seat !== seat).sort((i, j) => (s.bidlog[j].t === "play") - (s.bidlog[i].t === "play"));
   for (const i of order) {
-    const b = s.bidlog[i];
-    let f = 1;
-    if (b.t === "play") {
-      const c = { type: b.type, declarer: b.seat, trump: b.type === "solo" ? b.suit : b.type === "sau" ? 1 : -1, ace: b.ace };
-      if (c.type === "sau" && !S.callable(dealt[b.seat]).includes(c.ace)) return { like: 0, kept: false };
-      f = sure(c, bidWorth(dealt[b.seat], c, pos(b.seat), s.opts).worth);
-    } else {
-      // a pass: the best game it could have said then wasn't worth it
-      let best = null;
-      for (const g of gamesOver(dealt[b.seat], tops[i])) {
-        const w = bidWorth(dealt[b.seat], { ...g, declarer: b.seat }, pos(b.seat), s.opts).worth / (g.type === "sau" ? 1 : 15);
-        if (best === null || w > best) best = w;
-      }
-      if (best !== null) f = sig(-4 * best);
+    const b = s.bidlog[i], key = memo && `${i}|${dealt[b.seat].slice().sort((x, y) => x - y).join()}`;
+    let f = memo?.get(key);
+    if (f === undefined) {
+      const said = saidLikelihood(s, dealt[b.seat], b, tops[i], pos(b.seat)), trust = exact && !s.unlike?.[b.seat] ? PERFECT : 0;
+      f = said ? trust * said.exact + (1 - trust) * said.soft : 0;
+      memo?.set(key, f);
     }
+    if (!f) return { like: 0, kept: false };
     like *= f;
     if (rng && !(rng() < f)) return { like, kept: false };
   }
@@ -227,18 +268,164 @@ function gamesOver(hand, top) {
   if (top < 3) for (const suit of [3, 2, 1, 0]) if (count(id => ou(id) || Math.floor(id / 9) === suit) >= 5) out.push({ type: "solo", trump: suit });
   return out;
 }
+/** Which seats bid otherwise than Hard would have with the hands they were dealt (the hand over, every card shown):
+ *  1 for each such seat. The rules add it up in s.unlike, and those seats' bids are read softly from then on. */
+export function unlikeHard(s) {
+  const out = [0, 0, 0, 0];
+  let call = null;
+  for (const b of s.bidlog || []) {
+    const want = thinkBid({ game: s.game, opts: s.opts, dealer: s.dealer, hands: s.dealt, call }, b.seat);
+    if (want.t !== b.t || (b.t === "play" && (want.type !== b.type || want.ace !== b.ace || want.suit !== b.suit))) out[b.seat] = 1;
+    if (b.t === "play") call = { ...b };
+  }
+  return out;
+}
+
+// ---------- signals: the leads and Schmieren ----------
+// The table's conventions in a Sauspiel (Korbi, October 2026: signal, and read the signals; guess who the partner is):
+// the caller's partner leads trump while any may be out, and a defender a Farbe (the called one if it can, searching
+// for its Sau); and a non-caller following to a trick another holds gives it a Sau or a Zehner it could have kept
+// (schmiert) when the holder is on its side. Until the called Sau shows, what a non-caller leads and gives says which
+// side it's on. Hard gives so by its own weighing (with every card seen, points go to the side that will take the
+// trick), and as partner keeps the trump lead where that costs next to nothing (SIGNAL, in tariffs), so its caller can
+// tell. The players' side reads the others so (reads): each taken to lead as Hard does until its own leads show how it
+// does, as partner and as defender apart (s.signals, kept by the rules at each hand's end), and to give as Hard does.
+export const SIGNAL = 0.05;
+/** How often Hard as partner leads trump, and as a defender a Farbe, where it could have led either while trumps were
+ *  out (its own hands, October 2026), and how many leads that's worth before a seat's own are counted. */
+const KEEPS = { partner: 0.5, def: 0.75 }, PRIOR = 4;
+/** How often Hard gives a Sau or a Zehner to a trick another holds, where it could have played a card of 4 points or
+ *  less and the holder keeps the trick either way: as partner to the caller's trick, as a defender to the caller's, as a
+ *  defender to the other defender's, and as either to a non-caller of the other side (its own hands, October 2026: a
+ *  defender can't tell its fellow from the partner either, so it gives to both alike). */
+const SMEAR = { partner: 0.75, def: 0.08, mate: 0.3, other: 0.2 };
+const PACK = deckFrom("7");
+const PTS = id => S.points(null, id);
+/** The cards the conventions would have a seat lead: role "decl", "partner" or "def", its legal cards, every card it
+ *  has seen (its own and those played), whether the called Sau is out. Null where none applies (no trump out, or a
+ *  defender once the Sau shows) or it leaves no choice. */
+export function conventional(c, role, legal, seen, aceOut) {
+  const trump = id => sTrump(c, id);
+  if ((role === "def" && aceOut) || !PACK.some(id => trump(id) && !seen.has(id))) return null;
+  const allowed = legal.filter(id => (role === "def") !== trump(id));
+  return allowed.length && allowed.length < legal.length ? allowed : null;
+}
+/** A seat's role as it knows it itself: the caller, the partner (it holds or has played the called Sau), a defender. */
+function ownRole(s, seat) {
+  const c = s.contract, ace = cid(c.ace, "A");
+  if (seat === c.declarer) return "decl";
+  return s.hands[seat].includes(ace) || s.tricks.some(t => t.cards.some(x => x.seat === seat && x.card === ace)) ? "partner" : "def";
+}
+/** Whether a seat reads the bidding exactly and the play by the conventions: the players' side (a Sauspiel's caller
+ *  and its partner, who knows itself; a Solo's or Wenz's player). A defender reads the bidding softly and the play not
+ *  at all, as Hard always had: in whole hands played both ways, a defender reading so lost a quarter of a tariff a hand
+ *  (README, "What Hard reads"). */
+const reads = (s, seat) => (s.contract.type === "sau" ? ownRole(s, seat) !== "def" : seat === s.contract.declarer);
+/** The trumps the conventions would have the seat to move lead now as the caller's partner, before its Sau shows (the
+ *  signal), or null. */
+export function conventionalLead(s, seat) {
+  const c = s.contract;
+  if (c?.type !== "sau" || s.trick.length || ownRole(s, seat) !== "partner") return null;
+  const played = s.tricks.flatMap(t => t.cards.map(x => x.card)), ace = cid(c.ace, "A");
+  return played.includes(ace) ? null : conventional(c, "partner", S.legal(s, seat), new Set([...s.hands[seat], ...played]), false);
+}
+/** How often a seat leads by the conventions in a role ("partner" or "def"), as its leads so far say, starting from
+ *  Hard's own (KEEPS). */
+export function keepsTo(s, p, role) {
+  const at = 4 * p + (role === "partner" ? 0 : 2);
+  return ((s.signals?.[at] || 0) + KEEPS[role] * PRIOR) / ((s.signals?.[at + 1] || 0) + PRIOR);
+}
+const legalFrom = (c, p, hand, trick) => { const hands = []; hands[p] = hand; return S.legal({ contract: c, hands, trick }, p); };
+/** Each lead of a Sauspiel a non-caller made before the called Sau showed, with the seat's legal cards then, what it
+ *  had seen, and its role as `holder` (the seat with the called Sau) makes it. */
+function* leadsOf(s, dealt, holder) {
+  const c = s.contract, ace = cid(c.ace, "A"), held = dealt.map(h => new Set(h)), seen = new Set();
+  let out = false;
+  for (const t of [...s.tricks.map(x => x.cards), s.trick]) {
+    if (!t.length) continue;
+    const lead = t[0], p = lead.seat;
+    if (!out && p !== c.declarer) yield { p, card: lead.card, legal: legalFrom(c, p, [...held[p]], []), seen: new Set([...seen, ...held[p]]), role: p === holder ? "partner" : "def" };
+    for (const x of t) { held[x.seat].delete(x.card); seen.add(x.card); if (x.card === ace) out = true; }
+  }
+}
 /**
- * A deal of the cards a seat can't see as the play and the bidding make it likely: a deal as they could lie, then
- * cards swapped between the hands it can't see, each swap kept by the Metropolis rule on the bidding's likelihood (one
- * that makes what was said likelier always, one that makes it less likely in proportion), so that after a while the
- * deal comes as the bidding says: a Solo's player with a Solo's trumps, not a random hand that couldn't have said it.
+ * How likely what the non-callers led and gave before the called Sau showed is, from a deal's hands (each as dealt):
+ * every seat but `seat` leading as it's known to in the role the deal gives it (keepsTo), and giving as Hard does
+ * (SMEAR). 1 outside a Sauspiel. `memo` keeps what a seat's hand says of each of its cards between calls (a Metropolis
+ * step changes two hands at most).
+ */
+export function playLikelihood(s, dealt, seat, memo = null) {
+  const c = s.contract;
+  if (c?.type !== "sau") return 1;
+  const ace = cid(c.ace, "A"), holder = dealt.findIndex(h => h.includes(ace)), st = { contract: c };
+  const held = dealt.map(h => new Set(h)), seen = new Set(), keys = memo && dealt.map(h => h.slice().sort((a, b) => a - b).join());
+  let like = 1;
+  for (const [k, t] of [...s.tricks.map(x => x.cards), s.trick].entries()) {
+    for (const [i, x] of t.entries()) {
+      if (x.card === ace) return like;                         // the Sau shows: the sides are known from here
+      const p = x.seat;
+      if (p === c.declarer || p === seat) continue;
+      // what the card says, from the hand the deal gives its player: a lead's likelihood in the role that hand makes
+      // it; a card to a trick another held, whether it gave points it could have kept (1), kept them (0), or neither
+      const key = memo && `${k}.${i}|${keys[p]}`;
+      let f = memo?.get(key);
+      const before = t.slice(0, i), w = i ? before[S.winner(st, before)].seat : -1;
+      if (f === undefined) {
+        const legal = legalFrom(c, p, [...held[p]], before);
+        if (!i) {
+          const role = held[p].has(ace) ? "partner" : "def", allowed = conventional(c, role, legal, new Set([...seen, ...held[p]]), false), keep = keepsTo(s, p, role);
+          f = allowed ? (allowed.includes(x.card) ? keep : 1 - keep) : 1;
+        } else {
+          const holds = id => { const a = [...before, { seat: p, card: id }]; return a[S.winner(st, a)].seat === w; };
+          const could = legal.some(id => PTS(id) <= 4) && legal.some(id => PTS(id) >= 10 && id !== ace && holds(id));
+          f = could ? (PTS(x.card) >= 10 && holds(x.card) ? 1 : 0) : -1;
+        }
+        memo?.set(key, f);
+      }
+      if (!i) like *= f;
+      else if (f >= 0) {
+        const r = w === c.declarer ? SMEAR[p === holder ? "partner" : "def"] : SMEAR[p !== holder && w !== holder ? "mate" : "other"];
+        like *= f ? r : 1 - r;
+      }
+    }
+    for (const x of t) { held[x.seat].delete(x.card); seen.add(x.card); }
+  }
+  return like;
+}
+/** Each seat's leads of the hand just played against the conventions, every card shown: [kept as partner, of them,
+ *  kept as defender, of them] a seat. The rules add them up in s.signals. */
+export function leadsKept(s) {
+  const out = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], c = s.contract;
+  if (c?.type !== "sau") return out;
+  for (const x of leadsOf(s, s.dealt, c.partner)) {
+    const allowed = conventional(c, x.role, x.legal, x.seen, false), at = x.role === "partner" ? 0 : 2;
+    if (allowed) { out[x.p][at + 1]++; if (allowed.includes(x.card)) out[x.p][at]++; }
+  }
+  return out;
+}
+
+/**
+ * A deal of the cards a seat can't see as the bidding and the play make it likely: a deal as they could lie, then
+ * cards swapped between the hands it can't see, each swap kept by the Metropolis rule on how likely what was said, led
+ * and given is from the deal (one that makes it likelier always, one that makes it less likely in proportion), so that
+ * after a while the deal comes as the table says: a Solo's player with a Solo's trumps, a Sauspiel's partner likelier
+ * the seat that led trump or gave the caller's trick its Sau. Who holds the called Sau, the partner, moves with the
+ * swaps like any card.
  */
 export function likelyDeal(s, seat, rng, steps = 80) {
   let hands = fittingDeal(s, seat, rng);
   if (!hands || !s.bidlog?.some(b => b.seat !== seat)) return hands || dealFor(s, seat, rng);
   const others = [0, 1, 2, 3].filter(p => p !== seat && hands[p].length), voids = [0, 1, 2, 3].map(p => voidsOf(s, p));
   if (others.length < 2) return hands;
-  let like = bidLikelihood(s, hands, seat).like;
+  const bids = new Map(), plays = new Map(), played = [...s.tricks.flatMap(x => x.cards), ...s.trick], reader = reads(s, seat);
+  const likeOf = h => {
+    const b = bidLikelihood(s, h, seat, { memo: bids, exact: reader }).like;
+    if (!b || !reader) return b;
+    const dealt = h.map(x => x.slice());
+    for (const t of played) dealt[t.seat].push(t.card);
+    return b * playLikelihood(s, dealt, seat, plays);
+  };
+  let like = likeOf(hands);
   for (let k = 0; k < steps; k++) {
     const i = Math.floor(rng() * others.length), j = (i + 1 + Math.floor(rng() * (others.length - 1))) % others.length;
     const a = others[i], b = others[j], x = Math.floor(rng() * hands[a].length), y = Math.floor(rng() * hands[b].length);
@@ -248,7 +435,7 @@ export function likelyDeal(s, seat, rng, steps = 80) {
     next[a] = hands[a].slice(); next[a][x] = cb;
     next[b] = hands[b].slice(); next[b][y] = ca;
     if (!callerFits(s, next) || !playedFits(s, next)) continue;
-    const l2 = bidLikelihood(s, next, seat).like;
+    const l2 = likeOf(next);
     if (l2 >= like || rng() * like < l2) { hands = next; like = l2; }
   }
   return hands;

@@ -3,6 +3,7 @@
 // own rules are trumps-games.js's; the computer players' trumps-bot.js's.
 import { GAMES, teamOf } from "./trumps-games.js";
 import { botMove } from "./trumps-bot.js";
+import { unlikeHard, leadsKept } from "./trumps-think.js";
 
 export const TRICK_MS = 1150;          // a trick taken stays on the table this long
 export const HAND_MS = 3400;           // a hand's score, shown before the next deal
@@ -84,6 +85,13 @@ export const rules = {
       const r = g.scoreHand(s);
       s.result = r;
       s.history.push(g.teams === "fixed" ? r.delta : r.delta.slice());
+      // every card shown: who bid otherwise than Hard would have, and how each kept the leads' conventions, for the
+      // computer players to read the rest of the game by (trumps-think.js)
+      if (s.game === "schafkopf") {
+        const u = unlikeHard(s), k = leadsKept(s);
+        s.unlike = [0, 1, 2, 3].map(p => (s.unlike?.[p] || 0) + u[p]);
+        s.signals = [0, 1, 2, 3].flatMap(p => k[p].map((n, i) => (s.signals?.[4 * p + i] || 0) + n));
+      }
       s.step = "scored";
       s.until = now + HAND_MS;
       s.say = summary(s, r);

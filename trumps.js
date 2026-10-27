@@ -7,7 +7,7 @@
 import { rules } from "./trumps-rules.js";
 import { GAMES, teamOf, COINCHE_VALUES, laufende, sortHand } from "./trumps-games.js";
 import { LEVEL_NAMES, aheadKey, remember, THINK, thinksAhead } from "./trumps-bot.js";
-import { weighCards, bidOptions } from "./trumps-think.js";
+import { weighCards, bidOptions, signalFirst } from "./trumps-think.js";
 import { adviceWords, verdictOf, cardRows, bidAdvice, bidVerdict, bidRows, pct, signed } from "./trumps-coach.js";
 import { sextant } from "./loading.js";
 import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName, packCard, suitIcon, LOOK } from "./trumps-cards.js";
@@ -384,7 +384,7 @@ const myTurn = s => (s.step === "play" || s.step === "bid") && s.turn === V?.sea
 function lookAt(s, seat) {
   const a = { key: aheadKey(s, seat, "coach"), kind: s.step, list: null, shown: false };
   if (s.step === "bid") { a.list = bidOptions(s, seat); a.ready = Promise.resolve(a.list); return a; }
-  a.ready = ask("coach", { kind: "weigh", state: s, seat }).then(list => (a.list = list || weighCards(s, seat, { deals: 12, ms: 700, keep: true })));
+  a.ready = ask("coach", { kind: "weigh", state: s, seat }).then(list => (a.list = list || signalFirst(s, seat, weighCards(s, seat, { deals: 12, ms: 700, keep: true }))));
   return a;
 }
 /** The coach's look at your decision now, asked for once. */

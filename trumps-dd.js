@@ -270,5 +270,7 @@ export function solver(contract, { hands, trick, turn, side, limit = Infinity })
     }),
     /** Whether `want` can still take a trick after `card` (this trick, if it falls to it, counts). */
     tricks: (card, want) => play(card, done => (done && sideOf[done.w] === want) || anyTrick(want, 0)),
+    /** More positions to search, on top of what's left of the budget (a refinement after the main questions). */
+    extend: n => { budget = Math.max(budget, 0) + n; },
   };
 }

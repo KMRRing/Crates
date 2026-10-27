@@ -9,7 +9,7 @@ import { rules } from "../trumps-rules.js";
 import { cid, deckFrom, rankOf } from "../trumps-cards.js";
 import { solver } from "../trumps-dd.js";
 import { dealFor, voidsOf, sidesOf } from "../trumps-deals.js";
-import { weighCards, gapOf, bidOptions, bidWorth, thinkBid, depthOf, likelyDeal, bidLikelihood } from "../trumps-think.js";
+import { weighCards, gapOf, bidOptions, bidWorth, thinkBid, depthOf, dealsFor, likelyDeal, bidLikelihood, unlikeHard, conventional, conventionalLead, playLikelihood, keepsTo, thinkPlay, SIGNAL } from "../trumps-think.js";
 import { botMove, aheadKey, remember } from "../trumps-bot.js";
 import { adviceWords, verdictOf, bidAdvice, bidVerdict, cardRows, handWords, cardWhy } from "../trumps-coach.js";
 import { PUZZLES } from "../trumps-puzzles.js";
@@ -132,6 +132,97 @@ function anyTrick(c, hands, trick, turn, side, want) {
   check(kept.like > 0 && kept.like <= 1, "the bidding's likelihood of a deal, between nothing and one");
 }
 
+// ---------- the bidding read as Hard bids, until a seat shows otherwise ----------
+{
+  // whether every other seat, holding what a deal gives it, would have bid just as it did (Hard's rule, replayed)
+  const asSaid = (s0, said, hands, seat) => {
+    let t = structuredClone({ ...s0, hands });
+    for (const { seat: p, bid } of said) {
+      if (p !== seat && JSON.stringify(thinkBid(t, p)) !== JSON.stringify(bid)) return false;
+      t = rules.act(t, p, bid, { rng: Math.random, now: 0 });
+    }
+    return true;
+  };
+  let read = 0, plain = 0, soft = 0, n = 0, hands = 0, unlike = 0;
+  for (const d of [3, 5, 8, 13, 21, 34]) {
+    const rng = rngOf(500 + d);
+    let s = rules.deal({ options: { game: "schafkopf", deals: 1 }, rng }), s0 = null, said = [];
+    for (let g = 0; g < 20 && s.step === "bid"; g++) {
+      if (!s.bidlog.length) { s0 = structuredClone(s); said = []; }
+      const bid = thinkBid(s, s.turn);
+      said.push({ seat: s.turn, bid });
+      s = rules.act(s, s.turn, bid, { rng, now: 0 });
+    }
+    hands++;
+    if (unlikeHard({ ...s, dealt: s0.hands }).some(Boolean)) unlike++;
+    // the players' side reads exactly: the partner, who knows itself, reads the caller's call and the others' passes
+    const seat = s.contract.type === "sau" ? s.contract.partner : s.contract.declarer, r = rngOf(900 + d), shown = { ...s, unlike: [1, 1, 1, 1] };
+    for (let k = 0; k < 12; k++, n++) {
+      if (asSaid(s0, said, likelyDeal(s, seat, r), seat)) read++;
+      if (asSaid(s0, said, dealFor(s, seat, r), seat)) plain++;
+      if (asSaid(s0, said, likelyDeal(shown, seat, r), seat)) soft++;
+    }
+  }
+  check(!unlike, `Hard's own bids are Hard's: no seat of ${hands} hands bid by Hard shown otherwise`);
+  check(read / n > 0.6 && read > soft && soft > plain, `a seat's bids read as Hard's own: ${read} of ${n} deals drawn are ones whose seats would have bid just so, against ${soft} read softly (each seat shown otherwise) and ${plain} dealt plainly`);
+  const s = rules.deal({ options: { game: "schafkopf", deals: 1 }, rng: rngOf(77) }), want = thinkBid(s, s.turn);
+  const other = want.t === "pass" ? S.bids(s, s.turn).find(b => b.t === "play") : { t: "pass" };
+  s.dealt = s.hands; s.bidlog = [{ seat: s.turn, ...other }];
+  check(unlikeHard(s)[s.turn] === 1 && unlikeHard({ ...s, bidlog: [{ seat: s.turn, ...want }] }).every(x => !x), "a bid unlike Hard's own, its hand shown, marks its seat; Hard's own doesn't");
+}
+
+// ---------- the leads' conventions: kept on a near-tie, and read ----------
+{
+  const c = { type: "sau", declarer: 0, trump: 1, ace: 2 }, cards = t => parseCards(t), seen = h => new Set(h);
+  // the players' side leads trump while one may be out, a defender a Farbe while its Sau is out (searching the called
+  // one or not); with no trump out, or the Sau out for a defender, there's nothing to keep
+  const h1 = cards("EO H8 G7 S9 SK E7"), h2 = cards("EO H8 S9 SK E7");
+  check(JSON.stringify(conventional(c, "partner", h1, seen(h1), false)) === JSON.stringify(cards("EO H8"))
+    && JSON.stringify(conventional(c, "def", h1, seen(h1), false)) === JSON.stringify(cards("G7 S9 SK E7"))
+    && JSON.stringify(conventional(c, "def", h2, seen(h2), false)) === JSON.stringify(cards("S9 SK E7"))
+    && conventional(c, "def", h1, seen(h1), true) === null && conventional(c, "decl", h1, new Set(deckFrom("7")), false) === null,
+    "the conventions: the players' side leads trump while one may be out, a defender a Farbe while the Sau is out");
+  // a non-caller's trump lead before the Sau shows: the deals where it holds the Sau the likelier, as far as it keeps them
+  const s = { contract: c, tricks: [], trick: [{ seat: 1, card: cid(3, "Q") }], dealer: 3 }, base = deckFrom("7");
+  const rest = base.filter(id => id !== cid(3, "Q") && id !== cid(2, "A"));
+  const dealt = holder => [0, 1, 2, 3].map(p => [...(p === 1 ? [cid(3, "Q")] : []), ...(p === holder ? [cid(2, "A")] : []), ...rest.filter((id, i) => i % 4 === p)].slice(0, 8));
+  const ratio = playLikelihood(s, dealt(1), 2) / playLikelihood(s, dealt(3), 2);
+  const shown = { signals: [0, 0, 0, 0, 0, 0, 0, 0, 2, 10, 0, 0, 0, 0, 0, 0] };
+  check(Math.abs(ratio - keepsTo(s, 1, "partner") / (1 - keepsTo(s, 1, "def"))) < 1e-9 && keepsTo(shown, 2, "partner") < keepsTo(s, 2, "partner") && keepsTo(shown, 2, "def") === keepsTo(s, 2, "def"),
+    `a trump led by a non-caller before the Sau shows: the deals with it as partner ${ratio.toFixed(1)} times as likely as with it a defender, as far as its leads have kept the conventions as partner and as defender`);
+  // Schmieren: the caller's Schellen-Sau holds the trick; seat 2 gives it the Zehner (it could have played the Neuner),
+  // which all but only the partner does, and seat 3, out of Schellen, keeps its Eichel-Sau back, as a defender does:
+  // read from seat 1, the deals with seat 2 as partner far likelier than with seat 3
+  const g = { contract: c, trick: [], dealer: 3, tricks: [{ cards: ["SA", "S7", "S10", "E7"].map((t, seat) => ({ seat, card: parseCards(t)[0] })), winner: 0, pts: 32 }] };
+  const dealtWith = mate => ["SA SK EO GO HO SO EU G7", "S7 S8 GU HU SU H10 HK H9", `S10 S9 E8 E9 G8 ${mate === 2 ? "GA" : "G9"} EK H8`, `E7 EA E10 GK G10 H7 HA ${mate === 3 ? "GA" : "G9"}`].map(cards);
+  const gave = playLikelihood(g, dealtWith(2), 1) / playLikelihood(g, dealtWith(3), 1);
+  check(gave > 20, `the caller's trick given a Zehner: the deals with the giver as partner ${gave.toFixed(0)} times as likely as with the one who kept its Sau back`);
+  // only the partner signals: the caller's side is known, and a defender's lead would tell the caller who isn't partner
+  const t0 = { contract: c, tricks: [], trick: [], hands: [h1, cards("GA HO S7"), h2, []] };
+  check(conventionalLead({ ...t0 }, 1) && conventionalLead({ ...t0 }, 2) === null && conventionalLead({ ...t0, contract: { ...c, declarer: 1 } }, 1) === null, "Hard signals only as the partner: a defender or the caller has no convention to keep");
+  // Hard's own leads as partner: a trump wherever it's within SIGNAL of the best, so its caller can tell
+  let leads = 0, keptOrFar = 0;
+  for (const d of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
+    const rng = rngOf(700 + d);
+    let t = rules.deal({ options: { game: "schafkopf", deals: 1 }, rng });
+    for (let g = 0; g < 20 && t.step === "bid"; g++) t = rules.act(t, t.turn, thinkBid(t, t.turn), { rng, now: 0 });
+    if (t.step !== "play" || t.contract.type !== "sau") continue;
+    for (let g = 0; g < 80 && t.step !== "scored"; g++) {
+      if (t.step === "trick") { t = rules.wake(t, { rng, now: 1e12 }); continue; }
+      const seat = t.turn, conv = conventionalLead(t, seat);
+      let card;
+      if (conv) {
+        const list = weighCards(t, seat, { deals: dealsFor(t), rng: rngOf(g + 1) }), best = list.find(x => conv.includes(x.card));
+        card = thinkPlay(t, seat, rngOf(g + 1));
+        leads++;
+        if (conv.includes(card) || list[0].worth - best.worth > SIGNAL) keptOrFar++;
+      } else card = botMove(t, seat, "hard", rng).card;
+      t = rules.act(t, seat, { t: "card", card }, { rng, now: 0 });
+    }
+  }
+  check(leads >= 3 && keptOrFar === leads, `Hard as partner leads trump wherever that costs at most ${SIGNAL} tariffs (${keptOrFar} of ${leads} leads)`);
+}
+
 // ---------- weighing a position: the puzzle rush's best found ----------
 {
   const rng = rngOf(11), picks = PUZZLES.filter((p, i) => i % 40 === 3).slice(0, 10);
@@ -148,6 +239,19 @@ function anyTrick(c, hands, trick, turn, side, want) {
   const g = gapOf({ worth: 1, per: [1, 2, 3, 4] }, { worth: 0, per: [0, 1, 3, 3] });
   check(Math.abs(g.gap - 0.75) < 1e-9 && g.se > 0, "the gap between two cards over the same deals, and its standard error");
   check(depthOf({ tricks: [] }) === "win" && depthOf({ tricks: [{}] }) === "bands" && depthOf({ tricks: [{}, {}] }) === "exact", "how closely a deal is searched, by the hand's stage");
+  // a game lost is kept out of Schneider from the first trick: there, where a card loses the game for the side weighing
+  // it, whether it's lost in Schneider counts just as the finer search of the second trick counts it, deal by deal
+  let lostVals = 0, asFine = 0;
+  for (const d of [3, 5]) {
+    const rng = rngOf(d);
+    let t = rules.deal({ options: { game: "schafkopf", deals: 1 }, rng });
+    for (let g = 0; g < 20 && t.step === "bid"; g++) t = rules.act(t, t.turn, thinkBid(t, t.turn), { rng, now: 0 });
+    const side = sidesOf(t, t.hands), win = weighCards(t, t.turn, { deals: 4, rng: rngOf(31), depth: "win", limit: Infinity, keep: true });
+    const fine = weighCards(t, t.turn, { deals: 4, rng: rngOf(31), depth: "bands", limit: Infinity, keep: true });
+    if (side(t.turn) !== 1) continue;
+    for (const x of win) x.per.forEach((v, i) => { if (v < 0) { lostVals++; if (Math.abs(v - fine.find(y => y.card === x.card).per[i]) < 0.1) asFine++; } });
+  }
+  check(lostVals >= 20 && asFine === lostVals, `a game lost is weighed with its Schneider from the first trick: ${asFine} of ${lostVals} losing cards' worths as the finer search has them`);
 }
 
 // ---------- the bidding ----------
@@ -206,6 +310,9 @@ function anyTrick(c, hands, trick, turn, side, want) {
       const seat = rules.toMove(s), seed = deal * 1000 + guard, blind = structuredClone(s);
       const pool = shuffled(rngOf(seed + 7), blind.hands.flatMap((h, p) => (p === seat ? [] : h)));
       blind.hands = blind.hands.map((h, p) => (p === seat ? h : h.map(() => pool.pop())));
+      // what the state remembers of the deal goes with it: the hands as dealt, and who holds the called Sau
+      blind.dealt = blind.hands.map((h, p) => [...h, ...[...blind.tricks.flatMap(t => t.cards), ...blind.trick].filter(x => x.seat === p).map(x => x.card)]);
+      if (blind.contract?.type === "sau") blind.contract.partner = blind.dealt.findIndex(h => h.includes(cid(blind.contract.ace, "A")));
       const mv = botMove(structuredClone(s), seat, "hard", rngOf(seed)), again = botMove(blind, seat, "hard", rngOf(seed));
       asked++;
       if (JSON.stringify(mv) === JSON.stringify(again)) same++;
