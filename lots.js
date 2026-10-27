@@ -13,6 +13,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, topicMix, onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";
+import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { createDuel } from "./duel.js";
 import { busy, sextant } from "./loading.js";
@@ -373,6 +374,7 @@ function finished() {
     write(DAILY, Object.fromEntries(Object.entries(days).sort(([a], [b]) => b - a).slice(0, 60)));
     write(BEST, Math.max(read(BEST, 0) || 0, v));
   }
+  roundOver("lots");
 }
 
 // ---------- naming the links (the wall, frozen) ----------

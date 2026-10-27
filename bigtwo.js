@@ -12,6 +12,7 @@ import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
 import { cardStage } from "./course-cards.js";
@@ -53,9 +54,10 @@ let V = null, sel = new Set(), selFor = "", page = null;
 // it, in a vacuum (its plan of a hand: the fewest leads it needs): { key (the decision it was asked for), cards (the play;
 // none for a pass), groups: [{ cards, kind }], r (the coach's weighing) }. It shows while the cards picked are its play.
 let hinted = null;
+const randomRounds = seatRounds("bigtwo", ["shown"]);   // random mode's round: a deal
 page = seatPage({
   rules, id: "bigtwo", app: 1, pace: 950, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; draw(); }, onOver, toast, newGame,
+  onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
 const isMe = seat => V?.seat != null && seat === V.seat;

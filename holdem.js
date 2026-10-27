@@ -14,6 +14,7 @@ import { seeded, mix } from "./seats.js";
 import { cardHtml, backHtml } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { rulesHtml } from "./holdem-sheet.js";
 import { createCourse, progressOf } from "./course.js";
@@ -56,9 +57,10 @@ const cards = (ids, cls = "") => `<span class="cd-line">${ids.map(id => card(id,
 const cap = s => s[0].toUpperCase() + s.slice(1);
 
 let V = null, page = null, raiseTo = null, sizeMoved = false, sizeKey = "", eqCache = { key: "", v: null }, oddsCache = { key: "", v: null };
+const randomRounds = seatRounds("holdem", ["shown"]);   // random mode's round: a hand
 page = seatPage({
   rules, id: "holdem", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; draw(); }, onOver, toast, newGame,
+  onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
 const isMe = seat => V?.seat != null && seat === V.seat;

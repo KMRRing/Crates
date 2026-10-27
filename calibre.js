@@ -10,6 +10,7 @@ import { playScene, drawThumb, workAround, ringAround, arborUnder } from "./cali
 import { buildTest, isRight, rightAnswer, missedTap, passMark } from "./calibre-quiz.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
+import { roundOver } from "./random.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -676,6 +677,7 @@ function won() {
   body.append(action("Watch it run", () => $("doneDlg").close(), "link"));
   renderBrief();
   $("doneDlg").showModal();
+  roundOver("calibre");
 }
 function stop(note) { sim.state = "stopped"; sim.balance = 0; sim.fork = 0; $("windBtn").textContent = barrelOf() ? "Wind" : "Turn"; if (note) toast(note); renderBrief(); }
 

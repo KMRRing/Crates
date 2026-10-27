@@ -21,6 +21,7 @@ import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from 
 import { gameHref, GAMES, joiningWords } from "./rooms.js";
 import { part, choice, action, mirror, line, weights, ticks } from "./menu.js";
 import { today, noteComparable, arrivedForToday } from "./suite.js";   // the day, the same for everyone; comparable results
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records", MATHS_PICKS = "punt:maths";
@@ -219,6 +220,7 @@ async function dealTable({ level = "mix", length = lengthOf(S), picks = null, mo
 function endRun() {
   if (S.done || !S.log.length) return;
   change(g => { if (g.done) return false; g.done = { at: Date.now(), ended: true }; });
+  if (!together.room) roundOver("punt");
 }
 
 const resetChoice = () => { pick = []; typed = ""; pct = 0; };
@@ -293,6 +295,7 @@ function countIfOver() {
   const avg = averageReturn(S.log) ?? 0;
   recordBest(avg);
   if (S.ranked) noteComparable("punt", avg, S.daily ? S.seed : null);
+  roundOver("punt");
 }
 
 /** An endless run's next block, dealt as the last question of the one before is passed (null for a run of a set length). */

@@ -10,6 +10,7 @@ import { busy, sextant } from "./loading.js";
 import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
 import { reportDuo, today, noteDayTime, arrivedForToday, playerId, sayWhere } from "./suite.js";
+import { roundOver } from "./random.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { dropdown } from "./dropdown.js";
 import { part, action, mirror, isPaused, onPause } from "./menu.js";
@@ -333,6 +334,7 @@ function giveUp() {
   if (!confirm("Show our fill and end this board?")) return;
   clockPause();
   act(g => { if (g.done) return false; g.done = { gaveUp: true, at: Date.now() }; });
+  roundOver(GAME);
 }
 
 function newBoard(level = S.level) {
@@ -353,6 +355,7 @@ function afterChange() {
     clockPause();
     if (S.daily && !room) noteDayTime("slate", (S.ms || 0) / 1000, S.daily);    // today's puzzle: the first solve's time
     act(g => { if (g.done) return false; g.done = { won: true, at: Date.now() }; });
+    roundOver(GAME);
     return;
   }
   render();

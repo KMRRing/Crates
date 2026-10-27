@@ -7,6 +7,7 @@
 import { PARTS, SLACK, newBlock, place, saw, plane, chisel, drill, sand, hit, grade, pack, unpack, normalAt, steady, exposed, planeCut } from "./slipway-carve.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, action, line, toggle } from "./menu.js";
+import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { createFit } from "./slipway-fit.js";
 import { starsTotal, ASSEMBLIES } from "./slipway-yard.js";
@@ -319,6 +320,7 @@ function finish() {
   $("nextBtn").dataset.next = !g.stars ? "stay" : last ? "0" : String(run.part + 1);
   $("againBtn").textContent = g.stars ? "Carve it again" : "A fresh block";
   if (!$("doneDlg").open) $("doneDlg").showModal();
+  if (g.stars) roundOver("slipway");                       // a part made (not yet good enough, it's carved on)
 }
 $("nextBtn").addEventListener("click", () => {
   $("doneDlg").close();
@@ -394,7 +396,7 @@ document.querySelector(".sw-modes").addEventListener("click", e => {
   const b = e.target.closest("[data-mode]");
   if (b && !IN_FRAME && (b.dataset.mode === "yard") !== fit.open) setMode(b.dataset.mode);
 });
-fit = createFit({ $, read, write, scores: made, toast, sound, setMode, sayBest: n => write(BEST, n), IN_FRAME });
+fit = createFit({ $, read, write, scores: made, toast, sound, setMode, sayBest: n => { write(BEST, n); roundOver("slipway"); }, IN_FRAME });   // told once an assembly holds
 load();
 document.querySelectorAll(".sw-modes button").forEach(b => b.setAttribute("aria-selected", String((b.dataset.mode === "yard") === fit.open)));
 window.__slipway = { fit, get block() { return B; }, get run() { return run; }, bench: () => bench, start, finish, cutSaw, bore, cutAt, setTool: t => { tool = t; render(); } };

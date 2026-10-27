@@ -10,6 +10,7 @@ import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, ticks } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { noteStreak, IN_FRAME } from "./suite.js";
 import { scale } from "./wide.js";
 
@@ -94,6 +95,7 @@ function tapOn(e) {
 function onView(v) {
   V = v;
   g = v.state;
+  randomRounds(v);
   if (!v.G) {
     for (const id of ["seats", "centre", "mine", "notes"]) $(id).replaceChildren();
     $("controls").replaceChildren();
@@ -817,6 +819,7 @@ let refit = 0;
 addEventListener("resize", () => { cancelAnimationFrame(refit); refit = requestAnimationFrame(() => { if (g && mind) render(); }); });
 
 // the game itself, last: its first view is drawn as it's made, with everything above in place
+const randomRounds = seatRounds("cartel");   // random mode's round: a game
 const page = seatPage({
   rules, id: "cartel", app: 1, pace: moveMs, toast,
   botName: (s, G) => PERSONAS[G?.state?.players?.[s]?.persona]?.name || "Quant",

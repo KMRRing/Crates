@@ -13,6 +13,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, topicMix, action, line, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";   // the day, the same for everyone; a partner watching's frame runs no clock and writes nothing
+import { roundOver } from "./random.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
 import * as pile from "./pile.js";
 import * as known from "./known.js";
@@ -191,6 +192,7 @@ function finish() {
       rec[S.rival] = mine;
       write(RIVAL_RECORD, rec);
     }
+    roundOver("isomer");
   }
   save();
   tell(true);

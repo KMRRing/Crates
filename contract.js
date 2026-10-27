@@ -14,6 +14,7 @@ import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, courseStage } from "./contract-course.js";
@@ -112,9 +113,10 @@ function paceNow(s) {
 
 // ---------- the table ----------
 let V = null, page = null;
+const randomRounds = seatRounds("contract", ["scored"]);   // random mode's round: a deal played (one passed out is dealt again, no round)
 page = seatPage({
   rules, id: "contract", app: 1, pace: paceNow, hold: holding, botName: s => SEATS[s],
-  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; lookAhead(v); draw(); }, onOver, toast, newGame,
+  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; lookAhead(v); draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => (V?.seats?.[seat]?.name ?? SEATS[seat]);

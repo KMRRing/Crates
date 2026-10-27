@@ -52,29 +52,42 @@ export function choice(label, options, value, onChange) {
 }
 /**
  * Some of: a label and a grid of options to tick; onChange(values) with the ticked values, in the options' order. With
- * max, ticking one more lets go of the one ticked longest ago.
+ * max, ticking one more lets go of the one ticked longest ago. With all (the include kind), All and None beside the
+ * label tick every option or none.
  */
-export function ticks(label, options, values, onChange, max = Infinity) {
+export function ticks(label, options, values, onChange, max = Infinity, { all = false } = {}) {
   const wrap = el("div", "menu-grid-wrap"), grid = el("div", options.every(([, t]) => String(t).length <= 3) ? "menu-grid dense" : "menu-grid");
   if (grid.classList.contains("dense")) grid.style.gridTemplateColumns = `repeat(${Math.min(options.length, 10)}, minmax(0, 1fr))`;   // 1–10 in one row
   grid.setAttribute("role", "group");
   grid.setAttribute("aria-label", label);
   const order = [...values], buttons = new Map();               // order: ticked values, oldest first
   const show = () => { for (const [v, b] of buttons) b.setAttribute("aria-pressed", String(order.includes(v))); };
+  const changed = () => { show(); onChange(options.map(([x]) => x).filter(x => order.includes(x))); };
   for (const [v, text] of options) {
     const b = el("button", null, text);
     b.type = "button";
     b.addEventListener("click", () => {
       const at = order.indexOf(v);
       if (at >= 0) order.splice(at, 1); else { order.push(v); if (order.length > max) order.shift(); }
-      show();
-      onChange(options.map(([x]) => x).filter(x => order.includes(x)));
+      changed();
     });
     buttons.set(v, b);
     grid.appendChild(b);
   }
   show();
-  wrap.append(el("span", "menu-label", label), grid);
+  const name = el("span", "menu-label", label);
+  if (!all) { wrap.append(name, grid); return wrap; }
+  const head = el("div", "menu-ticks-head"), both = el("span", "menu-allnone");
+  for (const [text, keep] of [["All", true], ["None", false]]) {
+    const b = el("button", "link", text);
+    b.type = "button";
+    b.setAttribute("aria-label", `${text}: ${label}`);
+    b.addEventListener("click", () => { order.splice(0, order.length, ...(keep ? options.map(([x]) => x).slice(0, max) : [])); changed(); });
+    both.append(b);
+  }
+  both.insertBefore(document.createTextNode(" · "), both.lastChild);
+  head.append(name, both);
+  wrap.append(head, grid);
   return wrap;
 }
 /**
@@ -169,7 +182,7 @@ export function mirror(label, select) {
 /** A short status line (a best, where you are). */
 export const line = text => el("p", "menu-line", text);
 
-const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+export const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 // Kontor's menu button: three rules, technical
 const KONTOR_MENU = '<svg class="k-menu" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg>';
 // the menu button: an astrolabe's rete, Almanac's large loader standing still (rete.svg): the navy plate with its brass
@@ -180,6 +193,21 @@ export const RETE = `<svg class="rete" viewBox="0 0 100 100" aria-hidden="true">
 // then: it connects to the party to follow the host)
 let partyPart = null;
 if (/[?&]party=[A-Za-z]{4}\b/.test(location.search)) import("./party-link.js").then(m => { partyPart = m.menuPart; }).catch(e => console.error(e));
+// parts that head every game's menu while something of the suite's is under way (random mode's Next and Stop:
+// random.js), by name, each made afresh when the game fills its menu
+const heads = new Map();
+/** Puts the part make() returns at the head of the page's menu (a menu filled once, not at every opening, too), until
+ *  dropMenuHead(name). */
+export function menuHead(name, make) {
+  heads.set(name, make);
+  const body = document.getElementById("menuBody");
+  if (body?.children.length) shape(body);
+}
+/** Takes a part menuHead put there out of the menu, at once and from then on. */
+export function dropMenuHead(name) {
+  heads.delete(name);
+  document.querySelector(`#menuBody > [data-head="${name}"]`)?.remove();
+}
 
 let shaping = false;
 /** Lays out what the game just put in the menu: parts in order, under their headings; long explanations folded away. */
@@ -187,6 +215,11 @@ function shape(body) {
   if (shaping) return;
   shaping = true;
   try {
+    for (const [name, make] of [...heads].reverse()) {
+      if (body.querySelector(`:scope > [data-head="${name}"]`)) continue;
+      const part = make();
+      if (part) { part.dataset.head = name; body.prepend(part); }
+    }
     if (partyPart && !body.querySelector(":scope > [data-party]")) body.prepend(partyPart());
     // parts in the standard order, each with its heading (Play needs none: it's the top), after anything unmarked
     for (const box of body.querySelectorAll(":scope > [data-part]")) {
@@ -215,7 +248,7 @@ function shape(body) {
 // Games listen with onPause(pause, resume): pause() when it should stop, resume(ms) when it may go on, ms being how
 // long it stood (to move a deadline or a start on by). A duo match's shared clock doesn't stop; the games see to that.
 // (a game's own sheet that should stop it too, River's course say, carries the class pauses)
-const PAUSERS = "#menuDlg[open], #helpDlg[open], #rulesDlg[open], dialog.apps[open], dialog.apps-pop[open], dialog.pauses[open]";
+export const PAUSERS = "#menuDlg[open], #helpDlg[open], #rulesDlg[open], dialog.apps[open], dialog.apps-pop[open], dialog.pauses[open]";
 let pausedAt = null;
 export const isPaused = () => pausedAt !== null;
 export function onPause(pause, resume) {

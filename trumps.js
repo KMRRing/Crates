@@ -16,6 +16,7 @@ import { cardHtml, backHtml } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, cardStage } from "./trumps-course.js";
@@ -131,10 +132,11 @@ function nextHand() {
   page.runner.kick();
 }
 const nextLabel = s => (GAMES[s.game].done(s) ? "The result" : "Next hand");
+const randomRounds = seatRounds("trumps", ["scored"]);   // random mode's round: a hand
 page = seatPage({
   // app 2: the table's coach is the table's (house), kept on every phone; an older page at the table updates first
   rules, id: "trumps", app: 2, pace: paceNow, hold: holding, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
-  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; lookAhead(v); draw(); }, onOver, toast, newGame,
+  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; lookAhead(v); draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => V?.seats?.[seat]?.name ?? `Seat ${seat + 1}`;

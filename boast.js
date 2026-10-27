@@ -8,6 +8,7 @@ import { seatPage, fillNames } from "./seats-ui.js";
 import { seeded, mix } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
 import { diceStage } from "./course-dice.js";
@@ -69,9 +70,10 @@ let V = null;                                     // the view on screen
 let ui = { key: "", n: 0, f: 0, z: false };       // the bid you're setting, for the position it was set in
 let shaken = "";                                  // the round whose dice last shook
 let page = null;                                  // set once the runner is up (it draws its first view while starting)
+const randomRounds = seatRounds("boast", ["shown"]);   // random mode's round: a round of bidding, its cups lifted
 page = seatPage({
   rules, id: "boast", app: 1, pace: 1150, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; draw(); }, onOver, toast, newGame,
+  onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const lastBid = s => (s?.bids?.length ? s.bids[s.bids.length - 1] : null);
 const nameOf = seat => (V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`);

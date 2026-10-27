@@ -802,3 +802,46 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 
 /* where flags come from the flag font, the elements that name their own font take it too */
 html.flag-font :is(button, input, select, textarea) { font-family: var(--font); }
+
+/* Random mode (random.js; README, Random mode). On the games screen, under its head: Random (Next game and Stop while
+   it plays this game) and the games it may deal; a way to play, not a tile. Its icon is a line icon in every theme,
+   in the colour of the button it's on. */
+.rd-row { display: flex; gap: .5rem; margin: .75rem 0 0; flex: none; max-width: 30rem; }
+.rd-row .btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 2.5rem; margin: 0; padding: .4rem .65rem;
+  letter-spacing: calc(.05em * var(--track)); white-space: nowrap; }
+/* the plate takes the room; on a screen narrower than a phone's 390 its words give way last, never the row */
+.rd-row .rd-play { flex: 1 1 auto; min-width: 0; }
+.rd-row .rd-play span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rd-ico { width: 1.125rem; height: 1.125rem; flex: none; }
+html :is(.rd-tag, .rd-row, .rd-next) svg.k-ico { color: inherit; }
+/* the games it may deal, by section, each with All and None (menu.js's ticks); the sheet scrolls, the screen doesn't */
+.rd-sheet .rd-sheet-body { padding: .2rem 0 .4rem; }
+.rd-sheet .menu-grid { grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr)); }
+.menu-ticks-head { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; }
+.menu-allnone { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; }
+.menu-allnone .link { font-size: .8rem; }
+/* in a game's title while random mode plays it: a tag beside the name, in the room the header has left (as the partner
+   pill takes it); random.js shows it whole there, its mark alone (.rd-short) or nothing (.rd-none) */
+.rd-tag { flex: 1 1 0; width: 0; min-width: 0; display: flex; align-items: center; overflow: hidden; }
+.rd-chip { display: inline-flex; align-items: center; gap: .2rem; flex: none; padding: .125rem .3125rem; border: 1px solid var(--brass); border-radius: 3px;
+  font-size: .56rem; font-weight: 800; line-height: 1.2; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps);
+  color: var(--brass-lo); white-space: nowrap; }
+.rd-chip .rd-ico { width: .75rem; height: .75rem; }
+.rd-tag.rd-short .rd-word { display: none; }
+.rd-tag.rd-none .rd-chip { visibility: hidden; }
+/* at the head of the game's menu: Next game and Stop side by side */
+.rd-acts { display: flex; gap: .5rem; margin-top: .45rem; }
+.rd-acts .btn { flex: 1 1 0; margin: 0; }
+/* a round over: the next game named over the page, three seconds counting down in the figure and the fuse under it */
+.rd-next { position: fixed; left: .5rem; right: .5rem; top: calc(env(safe-area-inset-top, 0px) + .5rem); z-index: 1001; display: flex; align-items: center; gap: .7rem;
+  max-width: 34rem; margin: 0 auto; padding: .55rem .6rem .7rem .75rem; overflow: hidden; box-sizing: border-box;
+  background: var(--sheet); color: var(--ink); border: 1.5px solid var(--brass); border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
+.rd-next-logo { width: 2.25rem; height: 2.25rem; flex: none; display: grid; place-items: center; --wire: 1; }
+.rd-next-logo svg { width: 100%; height: 100%; display: block; }
+.rd-next-words { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: .1rem; line-height: 1.15; }
+.rd-next-words small { font-size: .62rem; font-weight: 800; color: var(--brass-lo); font-stretch: var(--wide); letter-spacing: calc(.16em * var(--track)); text-transform: var(--caps); }
+.rd-next-words b { font-size: 1.05rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rd-next-count { flex: none; min-width: 1.25rem; text-align: center; font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--brass-lo); }
+.rd-next .btn { flex: none; min-height: 2.375rem; padding: .35rem .9rem; }
+.rd-next-fuse { position: absolute; left: 0; right: 0; bottom: 0; height: .1875rem; background: var(--brass-lo); transform-origin: left; }

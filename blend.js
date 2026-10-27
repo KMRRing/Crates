@@ -3,6 +3,7 @@
 // tank farm and keeps your blends. Together, the same order for everyone at the table (duel.js).
 import { COMPONENTS, PRODUCTS, PROPS, LEVELS, STEP, blendProps, blendCost, bioShare, margin, judge, solve, hint } from "./blend-engine.js";
 import { noteStars } from "./suite.js";
+import { roundOver } from "./random.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
@@ -76,6 +77,7 @@ function certify() {
   save();
   render();
   toast(m >= par.margin - 5 ? `Certified at ${euro(m)}/m³: par.` : `Certified at ${euro(m)}/m³. Par is ${euro(par.margin)}: there's a cheaper way to pass.`, 4500);
+  roundOver("blend");
 }
 function giveHint() {
   const h = hint(L, pct());
@@ -264,7 +266,7 @@ function openMenu() {
 const parcels = createParcels({
   explain: (title, body) => { $("whyTitle").textContent = title; $("whyBody").textContent = body; if (!$("whyDlg").open) $("whyDlg").showModal(); },
   synced: () => deskDD.sync(),
-  starred: () => noteStars("blend", starsAll()),
+  starred: () => { noteStars("blend", starsAll()); roundOver("blend"); },   // a desk's tanks closed: its day is final
 });
 /** Puts one mode's parts on the page and the other's away, and the header's order or desk with them. */
 function showMode(m) {

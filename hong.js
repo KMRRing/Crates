@@ -12,6 +12,7 @@ import { createTogether, seatsOf, seatOfSlot, peopleSeats, runsElsewhere } from 
 import { GAMES, roomInAddress, joiningWords } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { roundOver } from "./random.js";
 import { IN_FRAME, today } from "./suite.js";
 import { MODES, modeOf, clockText, strikeMarks, clockFor, runDown, graceAgain, timeUp, noteRun, bestsLine, endTitle } from "./rush-core.js";
 import { rushMenu } from "./rush-menu.js";
@@ -709,6 +710,7 @@ function handOver() {
   shownFor = id;
   record();
   setTimeout(() => { if (G?.phase === "over" && !$("resultDlg").open) showResult(); }, 650);
+  roundOver("hong");
 }
 /** Your stats from a finished hand, and the game's best once it's over (solo only: a duo match is the pair's). */
 function record() {

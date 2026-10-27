@@ -20,6 +20,7 @@ import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, onPause } from "./menu.js";
+import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";                      // a partner watching's frame: it draws a copy, runs no clock and writes nothing
 
 const $ = id => document.getElementById(id);
@@ -289,6 +290,7 @@ function handle(ev) {
     restArm();
     settle();
     redrawOver();
+    roundOver("orrery");
   }
 }
 function settle() {

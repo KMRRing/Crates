@@ -17,6 +17,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, ticks, topicMix, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a watching frame runs no clock and writes nothing
+import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords, branchPath } from "./rooms.js";
 import { busy, sextant } from "./loading.js";
@@ -372,6 +373,7 @@ function finishSolo() {
   learnFrom(S.board, S.run);
   save();
   render();
+  roundOver("lode");
 }
 /** The pile (Deck): a word you needed a hint for, or were shown, comes back as a question; one found unaided that
  *  was due counts as known. */

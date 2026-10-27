@@ -7,6 +7,7 @@ import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
 import { LEVELS } from "./harbour-levels.js";
 import { noteStars } from "./suite.js";
+import { roundOver } from "./random.js";
 import { REGIONS, regionOf, newCompany, feedOf, engineOf, PAR } from "./harbour-season.js";
 import { createSeasonScreen } from "./harbour-season-ui.js";
 import { createWorldScreen } from "./harbour-world-ui.js";
@@ -415,6 +416,7 @@ function keepBests() {
   const opened = progressChanged(), more = parsMet(L, best).length - had, fed = REGIONS.find(R => R.feed.levels.includes(L.id) && company.regions[R.id]);
   if (opened.length) nextOn(`${listOf(opened.map((id, i) => (i ? nameOf(id).replace(/^The /, "the ") : nameOf(id))))} ${opened.length > 1 ? "are" : "is"} open.`, opened.find(id => id.startsWith("region:")) || opened[0]);
   else if (more > 0 && fed) nextOn(`${more > 1 ? `${more} drops` : "A drop"} for ${fed.name.replace(/^The /, "the ")}: ${fed.feed.name.toLowerCase()} now ${fed.feed.name.endsWith("s") ? "feed" : "feeds"} ${fed.terminal.name} ${feedOf(fed, dropsAt)} a week.`, `region:${fed.id}`);
+  roundOver("harbour");
 }
 
 // ---------- drawing ----------
@@ -912,6 +914,7 @@ function onWeek(before, after, reports, news) {
   if (opened.includes("first-blend")) { news.push(["North-West Europe is open", "The long-term contracts here need more diesel than the plant and ORLEN can bring. Build a terminal of your own in ARA: its harbours come first."]); actions.push(["Go to First blend", "first-blend"]); }
   if (opened.includes("roundabout")) { news.push(["The Straits are open", "The Baltic runs on its own, on the company's clock, while you play on: four harbours of timing at its hardest."]); actions.push(["Go to Roundabout", "roundabout"]); }
   SEASON.news(news, actions);
+  if (Object.keys(reports).length) roundOver("harbour");     // a week played (the par's week taken over plays none)
 }
 const SEASON = createSeasonScreen({ root: $("region"), brief: $("brief"), company: () => company, save: saveCompany, feeds, harbours: harboursOf, goTo, onWeek });
 const WORLD = createWorldScreen({ root: $("region"), brief: $("brief"), company: () => company, save: saveCompany, feeds, goTo });

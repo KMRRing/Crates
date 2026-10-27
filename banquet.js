@@ -11,6 +11,7 @@ import { bestsLine } from "./rush-core.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import "./pwa.js";
 
@@ -48,9 +49,10 @@ let V = null;
 // both throw at once, as at the table, though the runner takes the throws one at a time)
 let ui = { key: "", hand: null, queued: null, sent: false };
 let page = null;
+const randomRounds = seatRounds("banquet");   // random mode's round: a match
 page = seatPage({
   rules, id: "banquet", app: 1, pace: 650, botName: () => BOT, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; draw(); }, onOver, toast, newGame,
+  onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? BOT;
 const me = () => V?.seat ?? 0;

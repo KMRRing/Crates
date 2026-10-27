@@ -16,6 +16,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, toggle, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
+import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { branchPath } from "./rooms.js";
 import { busy } from "./loading.js";
@@ -323,6 +324,7 @@ function finish() {
     if (G.plan) { const rv = read(RIVALS, {}), k = G.pace, beat = sc < G.plan.score; rv[k] = { won: (rv[k]?.won || 0) + (beat ? 1 : 0), lost: (rv[k]?.lost || 0) + (beat ? 0 : 1) }; write(RIVALS, rv); }
   }
   save();
+  roundOver("mines");
 }
 
 // ---------- the computer partner: it reads the other half of the numbers ----------

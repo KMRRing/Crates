@@ -14,6 +14,7 @@ import { COURSE } from "./sicbo-course.js";
 import { sicboStage } from "./sicbo-stage.js";
 import { rulesHtml } from "./sicbo-rules.js";
 import { IN_FRAME } from "./suite.js";
+import { roundOver } from "./random.js";
 import { hk, short, chipsHtml, toast } from "./casino.js";
 
 const $ = id => document.getElementById(id);
@@ -139,6 +140,7 @@ async function rollNow() {
   shown = { dice: r.dice, net, lit: new Set(LAYOUT.filter(k => multiple(k, r.dice) > 0)), results: Object.fromEntries(r.settled.lines.map(l => [l.key, l.net])) };
   render();
   if (S.balance < LIMITS.min) toast("Below the table's minimum: Menu tops you up");
+  roundOver("sicbo");
 }
 
 // ---------- the menu, the course, the rules ----------

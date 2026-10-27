@@ -7,6 +7,7 @@ import { holdScene, drawPiece } from "./stow-3d.js";
 import { CHAPTERS, LEVELS } from "./stow-levels.js";
 import { part, action } from "./menu.js";
 import { scale } from "./wide.js";
+import { roundOver } from "./random.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const RUN = "stow:run", PROGRESS = "stow:progress";
@@ -316,6 +317,7 @@ export function createLoose(ctx) {
       write(PROGRESS, progress);
       ctx.stars();
     } else if (!anyFits(F, S.board, piecesNow().filter((_, j) => S.slots[j]))) S.done = { won: false };
+    if (S.done) roundOver("stow");
   }
   const starsAll = () => Object.values(progress).reduce((n, p) => n + (p?.stars || 0), 0);
 

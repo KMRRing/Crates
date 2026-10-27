@@ -18,6 +18,7 @@ import { blackjackStage } from "./blackjack-stage.js";
 import { rulesHtml, feltWords, chartHtml } from "./blackjack-rules.js";
 import { sideways } from "./wide.js";
 import { IN_FRAME } from "./suite.js";
+import { roundOver } from "./random.js";
 import { hk, short, chipsHtml, toast } from "./casino.js";
 
 const $ = id => document.getElementById(id);
@@ -217,7 +218,7 @@ async function run(step) {
     cleared = false;
     save();
     await playOut(res.events);
-    if (S.round.phase === "over" && before.round?.phase !== "over") announce();
+    if (S.round.phase === "over" && before.round?.phase !== "over") { announce(); roundOver("blackjack"); }
   } catch (e) { toast(e.message); }
   busy = false;
   render();

@@ -10,6 +10,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
+import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { createTogether } from "./together.js";
 import { openBranch, joiningWords } from "./rooms.js";
@@ -322,6 +323,7 @@ function finish() {
     S.fresh = recordBest(sc);
     if (S.mode === "daily") noteDayTime("codeword", sc, P.seed);   // today's grid: the first solve's score
     save();
+    roundOver("codeword");
   }
   celebrate();
 }

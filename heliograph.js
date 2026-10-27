@@ -11,6 +11,7 @@ import { createFlat } from "./heliograph-flat.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "heliograph:run2", BEST = "heliograph:best", SEEN = "heliograph:seen2", MOVED = "heliograph:v2";
@@ -289,6 +290,7 @@ async function shoot() {
   if (S.shots >= 4) write(SEEN, true);
   playing = false;
   render();
+  if (S.over) roundOver("heliograph");
   if (r.gain) pop(r, before);
   if (r.cleared) toast(`The chandelier is cleared: ${fmt(1000)} more`);
   else if (r.crushed.length) toast(r.crushed.length === 1 ? "The cluster came down on a mirror: it's back in hand" : `The cluster came down on ${r.crushed.length} mirrors: they're back in hand`);

@@ -14,6 +14,7 @@ import { presentSlots } from "./duel-core.js";
 import { leaderboard } from "./standings.js";
 import "./pwa.js";
 import { today, reportDuo } from "./suite.js";
+import { roundOver } from "./random.js";
 import { part, choice, action, line, onPause } from "./menu.js";
 
 
@@ -302,6 +303,7 @@ function showResults(st) {
   if (!solo) reportDuo("spot", `${run.seed}-${run.startAt}`, { score: st.score, won: null, coop: true }).catch(e => console.error(e));
   if (run.mode === "solo") { best = Math.max(read(BEST, 0), st.score); write(BEST, best); }
   if (run.mode === "daily") { const d = read(DAILY, {}); d[today()] = Math.max(d[today()] || 0, st.score); write(DAILY, d); best = d[today()]; }
+  if (solo) roundOver("spot");
   card((add, go) => {
     add("h2", null, "Out of lives");
     add("div", "sp-big", st.score.toLocaleString("en-GB"));

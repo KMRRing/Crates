@@ -16,9 +16,10 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
    `tests/<game>.mjs`. Change only those, and only that game's section of README.md.
 2. **Shared files are one Claude at a time.** Before starting on any of these, the owner should know, so nobody else
    is in them: `style.css`, `apps.js`, `pwa.js`, `suite.js`, `pile.js`, `deck.*`, `core.js`, `rooms.js`, `together.js`,
-   `rich.js`, `pics.js`, `wide.js`, `net.js`, `memdb.js`, the offline party's `lan*.js`, `tools/`, `.github/`, `kb/`
-   and every bank built from it (`bank.js`, `chart-bank.js`, `chart-geo.js`, `quote-bank.js`, `kb-index.js`, and
-   Punt's `art`, `cities`, `flags`, `eco`, `phy`, `chm`, `cs`, `phil`, `rel`, `refining` banks), and this file.
+   `rich.js`, `pics.js`, `wide.js`, `net.js`, `memdb.js`, `random*.js`, the offline party's `lan*.js`, `tools/`,
+   `.github/`, `kb/` and every bank built from it (`bank.js`, `chart-bank.js`, `chart-geo.js`, `quote-bank.js`,
+   `kb-index.js`, and Punt's `art`, `cities`, `flags`, `eco`, `phy`, `chm`, `cs`, `phil`, `rel`, `refining` banks), and
+   this file.
 3. **Pull before you push:** `git pull --rebase`. Never force-push, never rewrite `main`'s history: that is how one
    Claude silently deletes another's work.
 4. **Never commit `sw.js`.** It lists every file for offline play with a version from their contents, so every
@@ -133,6 +134,15 @@ in `tests/offline.mjs`, which fails until you do. The service worker's logic is 
   `suite.js`): `noteComparable`, `noteDayTime`, or `<game>:daily` by the day.
 - **The tile opens today's** while it's still to play (`#today`): a game with a daily takes it with
   `arrivedForToday()` at start-up and opens today's, asking before it leaves a run you've started.
+
+## Random mode
+
+The games screen's Random plays a game, then the next each time a round is over (README, Random mode). A game played
+alone calls `roundOver("<id>")` from `random.js` in its own end-of-round code, the moment the result is final and after
+counting it (random mode leaves the page three seconds later); a game on `seats.js` gives each view to `seatRounds`. A
+new game goes in `random-core.js`'s `ROUNDS` with what its round is, or `LEFT_OUT` with why: `tests/random.mjs` fails
+until it's one or the other (Party's own games are out by themselves). Never import `random.js` from a module a Node
+test loads.
 
 ## Playing together
 

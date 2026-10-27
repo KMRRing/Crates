@@ -15,6 +15,7 @@ import { COURSE } from "./craps-course.js";
 import { crapsStage } from "./craps-stage.js";
 import { rulesHtml } from "./craps-rules.js";
 import { IN_FRAME } from "./suite.js";
+import { roundOver } from "./random.js";
 import { hk, chipsHtml, toast } from "./casino.js";
 
 const $ = id => document.getElementById(id);
@@ -182,6 +183,7 @@ async function rollNow() {
   const moved = r.settled.lines.filter(l => l.how === "moved");
   if (moved.length) toast(`${moved.map(l => nameOf(l.key)).join(" and ")} to the ${t}`);
   else if (S.balance < LIMITS.min && !Object.keys(S.bets).length) toast("Below the table's minimum: Menu tops you up");
+  if (!S.point) roundOver("craps");                          // the pass line decided: no point on after this roll
 }
 
 // ---------- the menu, the course, the rules ----------

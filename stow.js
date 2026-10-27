@@ -15,6 +15,7 @@ import { GAMES, roomInAddress, otherHere, joiningWords } from "./rooms.js";
 import "./pwa.js";
 import { part, action, line, choice } from "./menu.js";
 import { today, noteStars } from "./suite.js";
+import { roundOver } from "./random.js";
 import { busy, sextant } from "./loading.js";
 
 const $ = id => document.getElementById(id);
@@ -112,11 +113,14 @@ function commitSolo(m) {
 }
 /** A manifest stowed: its stars kept the moment the last piece seats (today's by the day). */
 function stowed(L, done) {
-  if (L.day) { const d = read(DAILY, {}); if (!(d[L.day] >= done.stars)) { d[L.day] = done.stars; write(DAILY, d); } return; }
-  const was = progress[L.id] || {};
-  progress[L.id] = { stars: Math.max(was.stars || 0, done.stars), restows: Math.min(was.restows ?? Infinity, done.restows) };
-  write(PLANS, progress);
-  noteStars("stow", starsAll());
+  if (L.day) { const d = read(DAILY, {}); if (!(d[L.day] >= done.stars)) { d[L.day] = done.stars; write(DAILY, d); } }
+  else {
+    const was = progress[L.id] || {};
+    progress[L.id] = { stars: Math.max(was.stars || 0, done.stars), restows: Math.min(was.restows ?? Infinity, done.restows) };
+    write(PLANS, progress);
+    noteStars("stow", starsAll());
+  }
+  roundOver("stow");
 }
 const nextPlan = () => after(plan.level);
 /** Manifests you can open: each chapter's first, and every one after one you've stowed. */

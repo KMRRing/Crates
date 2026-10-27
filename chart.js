@@ -51,6 +51,7 @@ function picture(p) {
 }
 import "./pwa.js";
 import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked run for your best
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const APP = 2;       // this code's version of the table (2: up to six seats, everything kept by seat)
@@ -151,7 +152,7 @@ function confirmPin() {
   else if (pile.has("chart", p.id)) pile.answer("chart", p.id, true);
   S.phase = "reveal";
   save();
-  if (S.index + 1 >= S.set.length) count();          // the last pin is in: the set's score is final
+  if (S.index + 1 >= S.set.length) { count(); roundOver("chart"); }   // the last pin is in: the set's score is final
   render();
 }
 /** A set's final score counts at once, for your best and today's, not when its summary is opened; the summary counts it

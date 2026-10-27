@@ -12,6 +12,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";   // the day, the same for everyone (UTC); a watching frame writes nothing
+import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
 import { busy, sextant } from "./loading.js";
@@ -581,6 +582,7 @@ function tryLock(input) {
     write(LOCKS, all);
     message = null;
     navigator.vibrate?.([20, 40, 20]);
+    roundOver("bulls");
   } else {
     run.strikes++;
     say(`Not that one: ${WRONG} seconds on the clock. Every clue holds it.`, "bad");
@@ -614,12 +616,14 @@ function finishBreak() {
   // today's code counts the moment it's broken (or its rows run out), the first finish of the day only
   if (run.daily && run.day === today() && !dayDone()) write(TODAY, { key: run.day, v: run.done === "broken" ? run.rows.length : 0 });
   navigator.vibrate?.(run.done === "broken" ? [20, 40, 20] : 80);
+  roundOver("bulls");
 }
 function finishDuel() {
   const all = read(DUELS, {}), key = `${run.variant}/${run.level}`, r = all[key] || { won: 0, lost: 0, drawn: 0 };
   r[run.done === "won" ? "won" : run.done === "lost" ? "lost" : "drawn"]++;
   all[key] = r;
   write(DUELS, all);
+  roundOver("bulls");
 }
 
 // ---------- together: the table (together.js; bulls-table.js its rules) ----------

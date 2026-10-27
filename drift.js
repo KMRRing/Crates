@@ -7,6 +7,7 @@ import { N, WINDS, newGame, upgrade, lay, blow, lines, gale, worth } from "./dri
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
@@ -161,6 +162,7 @@ async function commit(i) {
   render();
   if (r.gain) popup(r.gusts.flatMap(g => g.cleared), r.gain);
   playing = false;
+  if (S.over) roundOver("drift");
 }
 function popup(cells, gain) {
   const fx = $("board").querySelector("#fx"), u = [...new Set(cells)];

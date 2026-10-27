@@ -13,6 +13,7 @@ import { lessonFor, TEACHES, GLOSSARY } from "./refinery-lessons.js";
 import { playScene } from "./refinery-scenes.js";
 import { buildTest, isRight, rightAnswer, passMark, missedTap } from "./refinery-exam.js";
 import { noteStars } from "./suite.js";
+import { roundOver } from "./random.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
@@ -188,7 +189,7 @@ function renderMargin() {
     write(PROGRESS, p);
     noteStars("refinery", starsAll());
     showStars(p[base.id].stars);
-    if (won > (was.stars || 0)) setTimeout(() => finished(won), 350);
+    if (won > (was.stars || 0)) { setTimeout(() => finished(won), 350); roundOver("refinery"); }
     else if (deckBetter) toast(`${base.decks.find(d => d.id === L.deck).name}: ${"★".repeat(stars)}${"☆".repeat(3 - stars)}. The level counts once every market runs.`);
   }
   const next = LEVELS[LEVELS.indexOf(base) + 1];

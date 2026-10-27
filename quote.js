@@ -36,6 +36,7 @@ function picture(q) {
 import "./pwa.js";
 import { part, choice, topicMix, action, line } from "./menu.js";
 import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked set for your best
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const APP = 2;                       // this code's version of the table (2: up to six seats, everything kept by seat)
@@ -118,7 +119,7 @@ function quote() {
   S.log.push({ id: q.id, bid, ask, delta: r.delta, inside: r.inside, width: r.width, beyond: r.beyond, grade: r.grade });
   S.phase = "reveal";
   save();
-  if (S.index + 1 >= S.set.length) count();         // the last quote settled: the book is final
+  if (S.index + 1 >= S.set.length) { count(); roundOver("quote"); }   // the last quote settled: the book is final
   render();
 }
 /** A set's final book counts at once, for your best and today's, not when the closing bell is rung; the bell counts

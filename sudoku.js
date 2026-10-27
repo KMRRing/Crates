@@ -18,6 +18,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, toggle, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
+import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
 
 dropdown(document.getElementById("level"));
@@ -287,6 +288,7 @@ function finishSolo() {
   flash = { key: `done:${S.done.at}`, cells: [...Array(P.n * P.n).keys()] };
   hintShown = null;
   save();
+  roundOver("sudoku");
 }
 
 // ---------- hints: the next step, named, on the board ----------

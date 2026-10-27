@@ -8,6 +8,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { today, IN_FRAME } from "./suite.js";           // the day, the same for everyone (UTC); a partner watching's frame
+import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 
 const $ = id => document.getElementById(id);
@@ -82,6 +83,7 @@ function levelOver() {
   if (F.phase === "over" && !match) noteBest("flat", { score: F.total, level: F.n }, F.slowest || 1);
   save();
   if (F.phase === "over") tell(true);
+  if (!match) roundOver("pipes");                          // a level over: cleared (the next waits) or the run with it
 }
 
 // ---------- the descent ----------
@@ -100,6 +102,7 @@ function descentOver() {
   if (!match) noteBest("deep", { score: G.scoreOf(R.D), depth: G.depthOf(R.D) }, R.slowest || 1);
   save();
   tell(true);
+  if (!match) roundOver("pipes");
 }
 
 // ---------- bests: by mode and pace, and today's ----------

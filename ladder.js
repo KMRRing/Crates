@@ -12,6 +12,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, ticks, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";   // a partner watching's frame runs no clock and writes nothing
+import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
 import { createLadderRoom } from "./ladder-room.js";
 
@@ -347,6 +348,7 @@ function finish() {
   pars.best = Math.max(pars.best, pars.now);
   write(PARS, pars);
   save();
+  roundOver("ladder");
 }
 
 // ---------- drawing ----------

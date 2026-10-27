@@ -14,6 +14,7 @@ import { KB_TOPICS, KB_PRESETS, cleanMix, presetOf } from "./topics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, topicMix, action, line, onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, dailyDue, noteDayTime, soloHref, IN_FRAME } from "./suite.js";
+import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { getSync } from "./net.js";
 import { roomInAddress, joiningWords, branchPath } from "./rooms.js";
@@ -716,6 +717,7 @@ function solvedSolo() {
   save();
   paint(); drawClock();
   setTimeout(() => showDone(), 500);
+  roundOver("crossword");
 }
 /**
  * What the grid teaches, for the knowledge entries you could read: one you got without a revealed letter moves up

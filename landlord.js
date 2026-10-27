@@ -8,6 +8,7 @@ import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
 import { cardStage } from "./course-cards.js";
@@ -55,9 +56,10 @@ function rows(ids, per) {
 const typeName = p => TYPE_NAMES[p.type];
 
 let V = null, sel = new Set(), selFor = "", page = null, hints = { key: "", list: [], i: 0 };
+const randomRounds = seatRounds("landlord", ["shown"]);   // random mode's round: a deal (one thrown in is dealt again, no round)
 page = seatPage({
   rules, id: "landlord", app: 1, pace: 950, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; draw(); }, onOver, toast, newGame,
+  onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
 const isMe = seat => V?.seat != null && seat === V.seat;

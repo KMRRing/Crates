@@ -15,6 +15,7 @@ import { createCourse, progressOf } from "./course.js";
 import { COURSE } from "./baccarat-course.js";
 import { baccaratStage, layoutHtml, paysAt } from "./baccarat-stage.js";
 import { IN_FRAME } from "./suite.js";
+import { roundOver } from "./random.js";
 import { squeeze } from "./baccarat-squeeze.js";
 import { rulesHtml } from "./baccarat-rules.js";
 import { hk, short, chipsHtml, toast } from "./casino.js";
@@ -203,6 +204,7 @@ async function dealNow() {
     toast(`A new shoe: the first card turned is ${RANKS[rankOf(S.burn.shown)]}, so ${S.burn.count} burned`);
   }
   if (S.balance < MIN && !Object.values(S.bets).some(v => v > 0)) toast("Below the table's minimum: Menu tops you up");
+  roundOver("baccarat");
 }
 
 // ---------- the ask buttons: hold (or tap) to see where the next hand would go ----------

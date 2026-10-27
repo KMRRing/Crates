@@ -12,6 +12,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a partner watching's frame runs no clock and writes nothing
+import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 
 dropdown(document.getElementById("size"));   // the header dropdown in the suite's style (see dropdown.js)
@@ -156,6 +157,7 @@ function finish() {
     S.fresh = recordBest(sc);
     if (S.mode === "daily") noteDayTime("survey", sc, S.seed);      // today's block: the first clear's score
     save();
+    roundOver("survey");
   }
   view.spin();
 }

@@ -16,6 +16,7 @@ import { createTogether, seatsOf } from "./together.js";
 import { roomInAddress } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { busy, sextant } from "./loading.js";
 import { bestsLine } from "./rush-core.js";
@@ -281,6 +282,7 @@ function recordEnd() {
     write(RECORD, rec);
     if (won) write(BEST, Math.max(read(BEST, 0) || 0, levelById(S.level).rating));
   }
+  roundOver("gambit");
 }
 /** Who resigned: the side that didn't win, named as the page names it. */
 function loserName(g) {

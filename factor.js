@@ -11,6 +11,7 @@ import { rulesHtml } from "./factor-sheet.js";
 import { seatPage, fillNames } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import "./pwa.js";
 
@@ -43,9 +44,10 @@ let seen = { seq: -1, h: null }, pulse = { until: 0, d: [0, 0, 0, 0, 0] }, pulse
 let island = null, viewReady = false;                                                         // the 3D island, once it's made
 // what the page holds between moves: the build mode, the cards picked to give up on a 7, the trade sheet's choices
 const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], tab: "bank", give: -1, og: [0, 0, 0, 0, 0], ow: [0, 0, 0, 0, 0], pick: [] };
+const randomRounds = seatRounds("factor");   // random mode's round: a game
 page = seatPage({
   rules, id: "factor", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; follow(v); draw(); }, onOver, toast, newGame,
+  onView: v => { V = v; follow(v); draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
 const isMe = seat => V?.seat != null && seat === V.seat;

@@ -11,6 +11,7 @@ import { createTogether, seatsOf, seatOfSlot, peopleSeats, runsElsewhere } from 
 import { GAMES, roomInAddress, joiningWords } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { roundOver } from "./random.js";
 import { IN_FRAME, noteStreak, today } from "./suite.js";
 import { MODES, modeOf, clockText, strikeMarks, clockFor, runDown, graceAgain, timeUp, noteRun, bestsLine, endTitle } from "./rush-core.js";
 import { rushMenu } from "./rush-menu.js";
@@ -643,6 +644,7 @@ function handOver() {
   shownFor = id;
   record();
   setTimeout(() => { if (G?.phase === "over" && !$("resultDlg").open) showResult(); }, 700);
+  roundOver("tribute");
 }
 function record() {
   if (together.room || IN_FRAME || !G?.result) return;

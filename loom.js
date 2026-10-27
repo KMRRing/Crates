@@ -7,6 +7,7 @@ import { JOBS, STARS, makeJob, newRun, setThread, setLift, setWeft, undo, finish
 import { createLoom } from "./loom-draw.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, action, line, toggle, onPause } from "./menu.js";
+import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import "./pwa.js";
 
@@ -159,6 +160,7 @@ function woven() {
   SOUND.done();
   clearTimeout(doneTimer);
   doneTimer = setTimeout(showDone, 350);
+  roundOver("loom");
 }
 function showDone() {
   const all = made(), before = all[job.id] ?? 0, d = run.done;

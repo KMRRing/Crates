@@ -10,6 +10,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line } from "./menu.js";
 import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
 import { presentSlots } from "./duel-core.js";
@@ -271,6 +272,9 @@ function judge() {
   write(RECORD, record);
   S.judged = true;
   drawHud();
+  // the run's last round judged (or its lives gone): its score is final, for your best and today's at once (the
+  // summary counts it again, changing nothing), and random mode goes on from here
+  if (S.lives <= 0 || S.round >= ROUNDS) { countRun(); roundOver("manifest"); }
 }
 
 // ---------- the review ----------
@@ -318,10 +322,12 @@ function reviewPanel(focus) {
   if (q && o.type === "turned") return stage(turnedOf(q), { turns: q.turns, ring: q.at }).panel;
   return stage(R.cells, { mark: q?.cell || null, highlight: q?.colour || (o?.type === "most" ? q.answer : null), tier: q?.tier ?? null }).panel;
 }
+/** The run's score, for your best (or today's), which it returns. */
+function countRun() { return S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score); }
 function over() {
   S.phase = "over";
   save();
-  const best = S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score);
+  const best = countRun();
   const body = $("menuBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = node(tag, cls, text); body.appendChild(n); return n; };

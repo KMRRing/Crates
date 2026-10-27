@@ -12,6 +12,7 @@ import { recognised, pairKey } from "./known.js";
 import * as view from "./view.js";
 import { part, action, line, mirror, isPaused, onPause } from "./menu.js";
 import { today, noteComparable, noteStreak } from "./suite.js";
+import { roundOver } from "./random.js";
 
 const MAX_MISTAKES = 4;
 const CLUES = 4;          // per board
@@ -248,6 +249,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       store.daily = { key: g.daily, pts: score(g), ms: g.ms || 0 };
       noteComparable("crates", boardScore(score(g), g.ms || 0), g.daily);
     }
+    roundOver("crates");
   }
 
   const count = x => x.toLocaleString("en-GB");

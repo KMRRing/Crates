@@ -8,6 +8,7 @@ import { lessonGame, lessonOf, nightOf, ready, instruction, told, LESSON_DAYS } 
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, choice, toggle } from "./menu.js";
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
@@ -279,6 +280,7 @@ async function commit() {
   await wait(r.buried ? 700 : 300);
   playing = false;
   render();
+  if (S.over && k == null) roundOver("avalanche");          // a lesson's day is no round of its own
 }
 /** Chalets a slide carries away: down the slope and gone (they're built again elsewhere). */
 function carry(gone) {

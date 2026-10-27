@@ -8,6 +8,7 @@ import { layout, rowLenFor, tileSvg } from "./bones-layout.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { scale } from "./wide.js";
 import { createCourse, progressOf } from "./course.js";
@@ -43,9 +44,10 @@ let V = null;
 // the tile you've picked when it would go on either end; cleared whenever the table moves on
 let ui = { key: "", sel: null };
 let page = null;
+const randomRounds = seatRounds("bones", ["scored"]);   // random mode's round: a hand
 page = seatPage({
   rules, id: "bones", app: 1, pace: 850, botName: s => (NAMES[V?.state?.game || opts.game] || NAMES.partnership)[(s + 2) % 3],
-  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; draw(); }, onOver, toast, newGame,
+  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => V?.seats?.[seat]?.name ?? `Seat ${seat + 1}`;

@@ -11,6 +11,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, toggle, action, line, mirror } from "./menu.js";
 import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 
 dropdown(document.getElementById("mode"));   // the header dropdown in the suite's style (see dropdown.js)
@@ -114,7 +115,10 @@ function call(id) {
     const right = f.stage < 2 && f.struck.length === 0;
     if (!right) pile.record("brut", `blind:${w.id}`, blindPayload(w, f.seed + f.at), "miss");
     else if (pile.has("brut", `blind:${w.id}`)) pile.answer("brut", `blind:${w.id}`, true);
-    if (f.duel && f.at + 1 >= FLIGHT) { f.done = true; tell(true); }   // the last wine named: the match's result is final
+    if (f.at + 1 >= FLIGHT) {                                // the last wine named: the flight's total is final
+      if (f.duel) { f.done = true; tell(true); }            // the match's result
+      else { countFlight(f); roundOver("brut"); }
+    }
     keepFlight();
     drawBlind();
     return;
@@ -139,14 +143,17 @@ function nextWine() {
   if (!f) return;
   if (f.at + 1 < FLIGHT) { f.at++; f.stage = 0; f.struck = []; keepFlight(); drawBlind(); return; }
   if (f.duel) { duel.open(); return; }
-  if (!f.done) {
-    f.done = true;
-    const total = f.scores.reduce((a, b) => a + b, 0), key = f.daily ? "daily" : "flight";
-    P.best[key] = Math.max(P.best[key] || 0, total);
-    if (f.daily) P.daily[today()] = Math.max(P.daily[today()] || 0, total);
-    save();
-  }
+  countFlight(f);
   showFlight();
+}
+/** A flight of yours over: its total counts once, for your best and today's, the moment its last wine is named. */
+function countFlight(f) {
+  if (f.done) return;
+  f.done = true;
+  const total = f.scores.reduce((a, b) => a + b, 0), key = f.daily ? "daily" : "flight";
+  P.best[key] = Math.max(P.best[key] || 0, total);
+  if (f.daily) P.daily[today()] = Math.max(P.daily[today()] || 0, total);
+  save();
 }
 function showFlight() {
   const f = F(), total = f.scores.reduce((a, b) => a + b, 0);
@@ -297,6 +304,7 @@ function finishStudy() {
   const s = session; session = null;
   studyHome();
   if (s) toast(`${s.right} right, ${s.wrong} wrong.`, 3500);
+  if (s && s.right + s.wrong > 0) roundOver("brut");
 }
 
 // ---------- menu and messages ----------

@@ -22,6 +22,7 @@ import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, choice, onPause } from "./menu.js";
+import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { ORDER, featuresOfRules, featuresOfHand, featuresAtCell } from "./topple-help.js";
 import { createHelp } from "./topple-help-ui.js";
@@ -488,6 +489,7 @@ async function commitLay(slot, q, r, onFloor = floor) {
   await wait(260);
   playing = false;
   checkHelp();
+  if (S.over) roundOver("topple");
 }
 /** Skips the knock that's due: nothing falls, and the next knock's points are doubled (the bell's 500 comes on top). */
 function commitSkip() {
@@ -517,6 +519,7 @@ async function commitKnock(i, way) {
   playing = false;
   if (first && S.stars >= 1 && S.level === level) toast(beatenWords());
   checkHelp();
+  if (S.over) roundOver("topple");
 }
 /** The points of a knock rising from where it fell: with a skip's or the gilding's multiplier (`times`), as the points before it and the times, and the bell's flat sum after them. */
 function popup(cells, gain, times, bell = 0) {

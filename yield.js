@@ -10,6 +10,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, dailyDue, reportDuo, IN_FRAME } from "./suite.js";
+import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { branchPath } from "./rooms.js";
 import { sextant } from "./loading.js";
@@ -236,11 +237,13 @@ function refuse(text, tone = "bad") {
 /** A word that counts: the daily's figure, the record, the table, and the end once everything is found. */
 function found() {
   const pts = pointsNow(), rank = rankOf(pts, P.total), have = foundMap(), all = P.words.every(w => have.has(w));
+  const master = S.top < MASTER && rank >= MASTER;                 // the rank to aim for, reached with this word
   if (S.kind === "day") noteDaily(pts);
   if (rank > S.top) { noteRank(S.top, rank); S.top = rank; }
   if (S.kind === "team") { tell(); if (all) endTeam(); return; }
   if (S.kind === "race") { if (all) S.over = true; tell(all); return; }     // a race's result sheet is duel.js's
   if (all) finish("full");
+  else if (master) roundOver("yield");                             // a puzzle with no end of its own: Master refiner is one
 }
 /** Today's points so far, for the games screen (and your partner's): every word counts the moment it's found. */
 function noteDaily(pts) {
@@ -481,6 +484,7 @@ function finish(how) {
   save();
   render();
   openDone();
+  if (S.kind === "day" || S.kind === "run") roundOver("yield");
 }
 function openDone() {
   const pts = pointsNow(), rank = rankOf(pts, P.total), map = foundMap(), got = [...map.keys()].filter(w => P.set.has(w));

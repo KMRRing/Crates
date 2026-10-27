@@ -15,6 +15,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, ticks, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
+import { roundOver } from "./random.js";
 import { busy, sextant } from "./loading.js";
 import { createDuel } from "./duel.js";
 import { createTogether } from "./together.js";
@@ -288,6 +289,7 @@ function finish() {
   if (S.rival) recordRival(S);
   save();
   showDone(true);
+  roundOver("acrostic");
 }
 const bestKey = s => `${s.P.level}:${s.P.twist}`;
 /** A solve's score as the best of its level and twist, lowest wins (kept apart from acrostic:best, which the games

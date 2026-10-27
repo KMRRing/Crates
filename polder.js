@@ -6,6 +6,7 @@ import { N, PIECES, DYKE, SILT, newGame, cover, lay, fitsAnywhere, siltEvery } f
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
@@ -159,6 +160,7 @@ async function commit(slot, x, y) {
   if (r.dealt && !S.over) for (const b of document.querySelectorAll(".pd-piece svg")) animate(b, [{ transform: "scale(.6)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: 220, easing: "ease-out" });
   await wait(r.water.length || r.silted.length ? 320 : 120);
   playing = false;
+  if (S.over) roundOver("polder");
 }
 function popup(fx, cells, gain) {
   const x = cells.reduce((a, i) => a + at(i)[0], 0) / cells.length + CELL / 2, y = cells.reduce((a, i) => a + at(i)[1], 0) / cells.length + CELL / 2;

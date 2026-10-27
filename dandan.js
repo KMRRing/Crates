@@ -17,6 +17,7 @@ import { same } from "./dandan-spells.js";
 import { seatPage, fillNames } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sextant } from "./loading.js";
 import { createTable3d } from "./dandan-3d.js";
@@ -224,6 +225,7 @@ function goOn() {
   page.runner.kick();
 }
 
+const randomRounds = seatRounds("dandan");   // random mode's round: a game
 page = seatPage({
   rules: pageRules, id: "dandan", app: 1, pace: paceNow, botName: () => "Gill", level: () => opts.level, voice: () => false,
   // Hard works its move out while a tap is awaited, so it comes the moment you tap
@@ -244,6 +246,7 @@ page = seatPage({
       closeCard();
     }
     draw();
+    randomRounds(v);
   },
   onOver, toast, newGame,
 });

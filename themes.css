@@ -402,3 +402,12 @@ html[data-theme="office"] .menu-seg button[aria-checked="true"],
 html[data-theme="office"] .menu-grid button:is([aria-checked="true"], [aria-pressed="true"]) { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
 html[data-theme="office"] .menu-switch[aria-checked="true"] { background: var(--plate); }
 html[data-theme="office"] .menu-switch[aria-checked="true"]::after { background: #FFFFFF; }
+
+/* random mode (style.css, random.js): the banner naming the next game, and the tag in a game's title, in each theme's
+   corners and surfaces: Modern's rounded card and pill, Kontor's square hairlines, Office's Fluent card */
+html[data-theme="modern"] .rd-next { border-radius: 14px; border-color: var(--tile-edge); }
+html[data-theme="modern"] .rd-chip { border-radius: 999px; border-color: var(--tile-edge); color: var(--ink-soft); padding-inline: .4375rem; }
+html[data-theme="kontor"] .rd-next { border-radius: 2px; border-width: 1px; }
+html[data-theme="kontor"] .rd-chip { border-radius: 2px; }
+html[data-theme="office"] .rd-next { border-radius: 8px; border: 1px solid var(--tile-edge); box-shadow: var(--of-shadow); }
+html[data-theme="office"] .rd-chip { border-radius: 4px; }

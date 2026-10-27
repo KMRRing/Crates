@@ -15,6 +15,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, toggle, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
+import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { busy } from "./loading.js";
 import { branchPath } from "./rooms.js";
@@ -372,7 +373,9 @@ function finish() {
   save();
   board.reveal();
   render();
-  if (S.rules.nameIt && !S.name) setTimeout(() => { if (S?.done && !S.name) openName(true); }, 1150);
+  // with naming on, the round is over once the picture is named too (closeName); else now
+  if (S.rules.nameIt && !S.name && pic) setTimeout(() => { if (S?.done && !S.name) openName(true); }, 1150);
+  else roundOver("nonogram");
 }
 
 // ---------- naming it ----------
@@ -438,7 +441,12 @@ function skipName() {
   }
   closeName();
 }
-function closeName() { naming = null; if ($("nameDlg").open) $("nameDlg").close(); render(); }
+function closeName() {
+  naming = null;
+  if ($("nameDlg").open) $("nameDlg").close();
+  render();
+  if (S?.done && S.name && S.mode !== "duel") roundOver("nonogram");   // the picture finished and named: the round's over
+}
 /** The pile: a picture you couldn't name comes back in Deck as a question (its picture, four names to pick from) and in
  *  this game's learning mode as a picture again; one named right that was due moves up. */
 function learnt(right) {

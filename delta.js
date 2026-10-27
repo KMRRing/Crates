@@ -2,6 +2,7 @@
 // Solo boards are saved in this browser; together games live in the room's delta branch (together.js, delta-room.js),
 // a pair's or a party's of up to six, and everyone draws on the same board, each in their own colour.
 import { today, noteDayTime, arrivedForToday } from "./suite.js";
+import { roundOver } from "./random.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { generate, LEVELS, CLUES, evaluate, isSolved, showOp, showValue, valueAlong, unkey, key, adjacent } from "./delta-gen.js";
 import { pathList, withPath, freshTable, presentSlots, drawingsOf, drawnBy } from "./delta-room.js";
@@ -159,7 +160,7 @@ function afterChange() {
     if (S.daily && !together.room) noteDayTime("delta", (S.ms || 0) / 1000, S.daily);    // today's puzzle: the first solve's time
     const at = Date.now();
     if (together.room) together.act(g => { if (g.done) return false; g.done = { won: true, at }; });
-    else S.done = { won: true, at };
+    else { S.done = { won: true, at }; roundOver("delta"); }
   }
   saveSolo();
   render();
@@ -203,6 +204,7 @@ function giveUp() {
   clockPause();
   const paths = Object.fromEntries(S.board.sol.map((p, i) => [`s${i}`, { c: i, k: p.cells.join(";") }]));
   change(g => { if (g.done) return false; g.paths = paths; g.done = { won: false, at: Date.now() }; });
+  roundOver("delta");
 }
 
 // ---------- geometry ----------

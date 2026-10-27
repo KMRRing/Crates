@@ -17,6 +17,7 @@ import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, topicMix, action, line } from "./menu.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
+import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
 import { busy, sextant } from "./loading.js";
@@ -64,6 +65,7 @@ function end() {
   if (S.ranked !== false && !(best[key] >= S.placed)) { best[key] = S.placed; write(BEST, best); }   // your own mix doesn't count
   if (S.daily) { const d = read(DAILY, {}), k = `${S.day ?? today()}/${S.mode}`; if (!(d[k] >= S.placed)) { d[k] = S.placed; write(DAILY, d); } }
   setTimeout(finish, 700);
+  roundOver("order");
 }
 // a card's own words, without the question's lead-in. A picture goes by its title ("this" means the picture), and its
 // question says what happened to it: "The year this was painted", "…was completed" (a painting, a building); a

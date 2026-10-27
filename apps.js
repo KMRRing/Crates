@@ -7,6 +7,7 @@ import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, clea
 import { duoLine } from "./duo-records.js";
 import { choice, toggle, line, RETE } from "./menu.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
+import { bindRandom } from "./random.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
 // times --wire, which style.css raises on the selected game; the engraved detail keeps its own fine weight.
@@ -845,6 +846,7 @@ export function bindSwitcher(button, current) {
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <p class="menu-line apps-note" role="status" hidden></p>
+    <div class="rd-row" data-random></div>
     <ul class="apps-list">${tiles(APPS, current)}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
@@ -895,4 +897,6 @@ export function bindSwitcher(button, current) {
       pill.classList.toggle("on", !!p?.online);
     }).catch(() => {});
   }
+  // Random (random.js): its row under the head, and random mode playing on in this game, or ended by your coming here
+  bindRandom({ games: APPS, sections: SECTIONS, row: dlg.querySelector("[data-random]"), title: current ? button : null, current });
 }

@@ -10,6 +10,7 @@ import { boardSvg } from "./gammon-draw.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, boardStage } from "./gammon-course.js";
@@ -49,9 +50,10 @@ const isMe = seat => V?.seat != null && seat === V.seat;
 const lastKey = s => (s?.last ? `${s.game}:${s.last.ply}` : "");
 // (before the page: seatPage may hand over the first view at once, and follow() asks whose seat is yours)
 let page = null;
+const randomRounds = seatRounds("gammon", ["gameover"]);   // random mode's round: a game of the match
 page = seatPage({
   rules, id: "gammon", app: 1, pace: 700, botName: () => BOT, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; follow(v); draw(); }, onOver, toast, newGame: newMatch,
+  onView: v => { V = v; follow(v); draw(); randomRounds(v); }, onOver, toast, newGame: newMatch,
 });
 
 /** A new play by the other side: shown a move at a time, from the position before it. */

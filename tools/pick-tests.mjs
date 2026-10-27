@@ -16,7 +16,7 @@ const QUICK = ["syntax", "imports", "offline", "wide", "days"].map(n => `tests/$
 /** Files that change nothing a page loads. */
 const DOCS = new Set(["README.md", "CLAUDE.md", "sw.js", ".gitignore"]);
 /** Names that look like a game's but are shared by several: a change there runs everything. */
-const SHARED = new Set(["party", "table", "seats", "duel", "duo", "lan", "kb", "banks", "pile", "deck", "core", "rooms", "together", "suite", "apps", "pwa", "rich", "pics", "wide", "net", "memdb", "standings", "menu", "style", "theme", "days", "loading", "dropdown", "syntax", "imports", "offline", "tex", "fake", "rtdb"]);
+const SHARED = new Set(["party", "table", "seats", "duel", "duo", "lan", "kb", "banks", "pile", "deck", "core", "rooms", "together", "suite", "apps", "pwa", "rich", "pics", "wide", "net", "memdb", "standings", "menu", "style", "theme", "days", "loading", "dropdown", "syntax", "imports", "offline", "tex", "fake", "rtdb", "random"]);
 
 /** The tests of the game a file belongs to, or null when it's not one game's alone. */
 export function testsOf(file) {

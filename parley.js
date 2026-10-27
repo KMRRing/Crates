@@ -12,6 +12,7 @@ import { dropdown } from "./dropdown.js";
 import { speak as say, hasVoice } from "./voice.js";
 import { part, action, line, mirror } from "./menu.js";
 import { today, noteDayCount } from "./suite.js";          // the day, the same for everyone (UTC)
+import { roundOver } from "./random.js";
 
 dropdown(document.getElementById("course"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -313,7 +314,7 @@ function finish() {
   const s = session; session = null;
   keepSession();
   home();
-  if (s && s.right + s.wrong > 0) noteDayCount("parley");          // lessons done today, on the games screen
+  if (s && s.right + s.wrong > 0) { noteDayCount("parley"); roundOver("parley"); }   // lessons done today, on the games screen
   if (s) toast(`${s.right} right, ${s.wrong} wrong this session.`, 4000);
 }
 

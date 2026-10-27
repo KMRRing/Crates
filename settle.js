@@ -10,6 +10,7 @@ import { TANKS, LEVELS, LIVES, NAMES, DENSITY, WATER, FAME, SLOP, SOUR, newGame,
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
@@ -274,6 +275,7 @@ async function commit(slot, t) {
     toast(`${r.soured.map(([a]) => `Tank ${a + 1}'s`).join(" and ")} FAME has soured on the water: slops`);
   }
   playing = false;
+  if (S.over) roundOver("settle");
 }
 function popup(cells, gain) {
   const fx = $("board").querySelector("#fx");

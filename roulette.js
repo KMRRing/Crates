@@ -15,6 +15,7 @@ import { COURSE } from "./roulette-course.js";
 import { rouletteStage } from "./roulette-stage.js";
 import { rulesHtml } from "./roulette-rules.js";
 import { IN_FRAME } from "./suite.js";
+import { roundOver } from "./random.js";
 import { hk, short, chipsHtml, toast } from "./casino.js";
 
 const $ = id => document.getElementById(id);
@@ -149,6 +150,7 @@ async function spinNow() {
   $("call").innerHTML = `${dot(p)}<span class="rl-say">${words}</span><small>${net > 0 ? `+${hk(net)}` : net < 0 ? `−${hk(net)}` : "even"}</small>`;
   render();
   if (S.balance < LIMITS.inside) toast("Below the table's minimum: Menu tops you up");
+  roundOver("roulette");
 }
 
 // ---------- the menu, the course, the rules ----------

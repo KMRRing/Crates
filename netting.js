@@ -7,6 +7,7 @@ import { HOUSES, N, LIMIT, LIVES, INTEREST, newGame, upgrade, book, net, owed, l
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
@@ -171,6 +172,7 @@ async function commit(slot, to) {
   render();
   if (r.dealt && !S.over) for (const b of document.querySelectorAll(".nt-card")) animate(b, [{ transform: "scale(.85)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: 220, easing: "ease-out" });
   playing = false;
+  if (S.over) roundOver("netting");
 }
 /**
  * Houses defaulting one after another from the table as it stood, each flashed as its debts go and its creditors'

@@ -12,6 +12,7 @@ import { ENGLISH } from "./assay-words.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";
+import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { isDuel } from "./duel-core.js";
 import { createTogether } from "./together.js";
@@ -157,7 +158,7 @@ document.addEventListener("keydown", e => {
 function finish() {
   clockStop();
   if (S.duel) { tell(true); save(); }
-  else record();
+  else { record(); roundOver("assay"); }
   save();
   setTimeout(() => { if (S?.over) showDone(); }, revealMs() + 350);
 }

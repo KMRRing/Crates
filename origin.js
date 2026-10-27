@@ -12,6 +12,7 @@ import { cleanMix, presetOf } from "./topics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, topicMix, action, line } from "./menu.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
+import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
 import { busy, sextant } from "./loading.js";
@@ -240,6 +241,7 @@ function count() {
   if (!decided(S)) return;
   const best = read(BEST, 0); if (S.ranked !== false && S.total > best) write(BEST, S.total);
   if (S.daily) { const d = read(DAILY, {}), day = S.day ?? today(); if (!(d[day] >= S.total)) { d[day] = S.total; write(DAILY, d); } }
+  roundOver("origin");
 }
 /** Today's run, still to play: asks before leaving a run you've started. */
 function openToday() {

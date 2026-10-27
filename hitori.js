@@ -11,6 +11,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
+import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { busy } from "./loading.js";
 import { branchPath } from "./rooms.js";
@@ -297,6 +298,7 @@ function finish() {
     S.fresh = recordBest(S.done.score);
     if (S.mode === "daily") noteDayTime("hitori", S.done.score, S.seed);       // today's puzzle: the first solve's time
     save();
+    roundOver("hitori");
   }
   wave();
 }

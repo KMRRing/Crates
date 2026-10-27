@@ -7,6 +7,7 @@ import { N, LIVES, SCRAP, newGame, roll, shove, track, worth, dropCount } from "
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
@@ -160,6 +161,7 @@ async function commit(move) {
   for (const i of r.dropped) animate(node(i), [{ transform: "translateY(-8px) scale(.6)", opacity: 0 }, { transform: "translateY(0) scale(1)", opacity: 1 }], { duration: 240, delay: ROLL + 200, easing: "ease-out" });
   await wait(ROLL + (r.dropped.length ? 460 : 300));
   playing = false;
+  if (S.over) roundOver("shunt");
 }
 function popup(fx, cells, gain) {
   const x = cells.reduce((a, i) => a + at(i)[0], 0) / cells.length, y = cells.reduce((a, i) => a + at(i)[1], 0) / cells.length;

@@ -10,6 +10,7 @@ import { cleanMix, presetOf, mixParam, mixFromParam } from "./topics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, topicMix, action, line } from "./menu.js";
 import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import "./pwa.js";
 
@@ -43,14 +44,23 @@ function hop(id) {
 }
 function back() { const x = R(); if (x && !x.done && x.path.length > 1) { x.path.pop(); save(); render(); } }
 function giveUp() { const x = R(); if (x && !x.done) { x.done = "gave up"; x.points = 0; settled(); save(); render(); } }
-/** A match's last route decided: its result is final at once, before Finish. */
-function settled() { if (S.duel && S.routes.every(x => x.done)) tell(true); }
+/** The last route decided: the run's total is final at once, before Finish (a match's, for the table; yours, for your
+ *  best and today's, which Finish counts again, changing nothing), and random mode goes on from here. */
+function settled() {
+  if (!S.routes.every(x => x.done)) return;
+  if (S.duel) { tell(true); return; }
+  count();
+  roundOver("arb");
+}
+function count() {
+  const best = read(BEST, 0); if (S.ranked !== false && S.total > best) write(BEST, S.total);
+  if (S.daily) { const d = read(DAILY, {}); if (!(d[today()] >= S.total)) { d[today()] = S.total; write(DAILY, d); } }
+}
 function next() {
   if (S.index + 1 < S.routes.length) { S.index++; save(); render(); return; }
   S.over = true; save();
   if (S.duel) { duel.open(); return; }                    // the table's result, not your best or today's
-  const best = read(BEST, 0); if (S.ranked !== false && S.total > best) write(BEST, S.total);
-  if (S.daily) { const d = read(DAILY, {}); if (!(d[today()] >= S.total)) { d[today()] = S.total; write(DAILY, d); } }
+  count();
   finish();
 }
 
