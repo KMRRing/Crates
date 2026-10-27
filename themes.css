@@ -199,15 +199,19 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sv
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sv-go { border-radius: 14px; background: var(--sv-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sv-toast { border-radius: 10px; }
 @media (prefers-color-scheme: dark) {
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .dd { color: var(--dd-tint, var(--ink)); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .dd-tick { stroke: color-mix(in srgb, var(--dd-edge, var(--ink)) 45%, var(--dd-tint, var(--ink))); }
+/* Modern's own logo tints stay light at night (a newer game's, from its own stylesheet, are deep), so a dropdown takes
+   a deep face of the logo's edge, as before the Deco update, lettered and ticked in the ink, which reads whatever the
+   tint; Kontor and Office keep Almanac's deep night face, lettered in the ink (dropdown.css). Lettered in the tint on
+   a face of the same tint, as all three once were, a choice couldn't be read. */
+html[data-theme="modern"]:not([data-mode="day"]) .dd { background: color-mix(in srgb, var(--dd-edge, var(--tile)) 30%, var(--yard)); color: var(--ink); }
+html[data-theme="modern"]:not([data-mode="day"]) .dd-tick { stroke: color-mix(in srgb, var(--dd-edge, var(--ink)) 45%, var(--ink)); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .ch-board .sq.light { fill: #CBD6E0; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .ch-board .sq.dark { fill: #4F6E8F; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .ch-board .coord.on-light { fill: #4F6E8F; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .ch-board .coord.on-dark { fill: #CBD6E0; }
 }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"])[data-mode="night"] .dd { color: var(--dd-tint, var(--ink)); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"])[data-mode="night"] .dd-tick { stroke: color-mix(in srgb, var(--dd-edge, var(--ink)) 45%, var(--dd-tint, var(--ink))); }
+html[data-theme="modern"][data-mode="night"] .dd { background: color-mix(in srgb, var(--dd-edge, var(--tile)) 30%, var(--yard)); color: var(--ink); }
+html[data-theme="modern"][data-mode="night"] .dd-tick { stroke: color-mix(in srgb, var(--dd-edge, var(--ink)) 45%, var(--ink)); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"])[data-mode="night"] .ch-board .sq.light { fill: #CBD6E0; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"])[data-mode="night"] .ch-board .sq.dark { fill: #4F6E8F; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"])[data-mode="night"] .ch-board .coord.on-light { fill: #4F6E8F; }
