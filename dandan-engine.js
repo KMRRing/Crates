@@ -14,7 +14,7 @@ import {
   payPlan, payFrom, pay, draw, shuffleLib, pushItem, itemOf, leaveStack, enterBf, leaveBf, toGrave, toLib, toYard, fromYard, fromLib, fromHand,
   mill, lands, permToLib, bounce, emptyPools, handToLib, toHandOpen, topKnown, isSpellCard, affords, tellsOf, freshTells, hushed,
 } from "./dandan-core.js";
-import { RES, T, same, targetLists, stillLegal, modesOf } from "./dandan-spells.js";
+import { RES, T, same, targetLists, stillLegal, modesOf, hasType } from "./dandan-spells.js";
 import { noteAction } from "./dandan-advantage.js";
 
 // what the end-of-game chart is told as an action settles (dandan-advantage.js `noteAction`): the seat whose action it
@@ -249,16 +249,30 @@ const UPKEEP = new Set(["Brainstorm", "Predict"]);
  * The upkeep is a stop when the coming draw is worth acting on: the seat knows the top card (and could draw it first,
  * bury it or shuffle it away), or, the other player's, it holds a Brainstorm (two cards of its choosing on top for them)
  * or a Predict (to mill the card they'd draw). An unknown top card taken first is as good as one taken at the end step.
+ * It is also a stop for an untapped Flood Plain (fetchWindow): the last moment to shuffle before the draw.
  */
 export function wants(s, seat) {
   if (s.stack.length) return hasMove(s, seat);
-  if (s.step === "upkeep") {
-    if (s.turn < 2) return false;
-    if (topKnown(s, seat) != null && hasMove(s, seat)) return true;
-    return seat !== s.active && hasMove(s, seat, UPKEEP);
-  }
+  if (s.step === "upkeep") return upkeepStop(s, seat) || (!hushed() && fetchWindow(s, seat));
   if (!(seat === s.active ? MY_STOPS : THEIR_STOPS).has(s.step)) return false;
   return hasMove(s, seat, s.step === "attackers" || s.step === "blockers" ? COMBAT : null);
+}
+/** An upkeep worth the computer's thought too: a known top card to act on, or a Brainstorm or Predict for the other player's draw. */
+export function upkeepStop(s, seat) {
+  if (s.turn < 2) return false;
+  if (topKnown(s, seat) != null && hasMove(s, seat)) return true;
+  return seat !== s.active && hasMove(s, seat, UPKEEP);
+}
+/**
+ * Whether a seat holds a Flood Plain it could crack before the draw: untapped, with a land of its kind left in the
+ * library. Not tied to knowing the top card: the shuffle is the player's to take now or never (the draw follows), and
+ * a stop that came only when the card was known would be a hint. So every upkeep from the second turn asks, the player
+ * whose turn it is first, then the other. The computer's own play and the look-ahead leave it out (hushed here, and
+ * dandan-rules.js passing for the computer): they never fetched here, and a stop costs a simulated game time.
+ */
+export function fetchWindow(s, seat) {
+  if (s.turn < 2) return false;
+  return s.bf.some(p => p.ctl === seat && !p.tapped && nm(p.id) === "Flood Plain" && s.lib.some(id => hasType(id, fetchTypes(p))));
 }
 /** Who draws next if nothing else is drawn first: the player whose draw step is next. */
 export const nextDrawer = s => (s.step === "upkeep" && s.turn > 1 ? s.active : other(s.active));

@@ -3,7 +3,7 @@
 // what its seat may know: its hand, the table, the graveyard, the library cards and the cards in the other hand it has
 // seen go there; the rest it takes as odds (Medium) or deals at random many times over (Hard).
 import { BASICS, NAMES } from "./dandan-cards.js";
-import { moves, MOST_MULLS } from "./dandan-engine.js";
+import { moves, upkeepStop, MOST_MULLS } from "./dandan-engine.js";
 import { policyMove, PASS } from "./dandan-policy.js";
 import { thinkMove } from "./dandan-think.js";
 import { shuffle } from "./seats.js";
@@ -42,6 +42,8 @@ export function randomMove(s, seat, rng) {
 
 /** The computer player's move at a level (Hard by default): an answer to the question put to it, or what it does with priority. */
 export function botMove(s, seat, { rng = Math.random, level = "hard" } = {}) {
+  // an upkeep stop only for a Flood Plain's window (engine fetchWindow) is for a person: the computer never fetched there
+  if (s.step === "upkeep" && !s.stack.length && !s.pending && !upkeepStop(s, seat)) return PASS;
   if (level === "hard" || !level) return thinkMove(s, seat);
   return policyMove(s, seat, { rng, level: level === "easy" ? "easy" : "medium" });
 }
