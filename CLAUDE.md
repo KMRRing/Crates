@@ -28,14 +28,17 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
    which you then don't commit.
 5. **Built files are rebuilt, not merged.** If a rebase conflicts in a bank built from `kb/`, settle `kb/` and run
    `node tools/build-kb.mjs`.
-6. **Test before pushing what CI will run:** `node tools/pick-tests.mjs --run $(git diff --name-only origin/main)` (a minute
-   or less). That is the push's own selection (Korbi, 29 October 2026: the full suite took too long, and uptime isn't
-   important here; of 594 pushes only 2 broke a game's rules, and 14 failures were one afternoon's bank rewrites): the
-   quick tests that read every page (syntax, imports, offline, wide, days); the tests of what changed (a game's own, and
-   for a shared file, a bank or a `kb/` file the tests that load it, found from the files each test names); and a twentieth
-   of the rest, a different one each push (`--slot N`), so every test gets its turn. The slow tests (Factor, Dandan,
-   Manifest, Refinery, Cartel, Punt, Topple's, about 60% of the suite's time) run on a push only when their own game
-   changed. Don't run all of `tests/*.mjs` by hand (nine minutes on four cores): the whole suite runs every night
+6. **Test before pushing what CI will run:** `node tools/pick-tests.mjs --run $(git diff --name-only origin/main)` (a
+   few seconds). By default only the tests that take under five seconds run (Korbi, 29 October 2026: the suite took too
+   long and uptime isn't important here; of 594 pushes only 2 broke a game's rules, and 14 failures were one afternoon's
+   bank rewrites; his standing rule: unless he says otherwise, only the under-five-second tests), and that is the push's
+   own selection too: the quick tests that read every page; the tests of what changed (a game's own, and for a shared
+   file, a bank or a `kb/` file the tests that load it, found from the files each test names); and a twentieth of the
+   rest, a different one each push (`--slot N`), so every test gets its turn. 53 of 149 tests take five seconds or
+   more (Factor, Dandan, Manifest, Refinery, Cartel, Punt, Topple's, `offline`...; 60% of the suite's time): they run
+   only when he says so (`--slow` adds the ones named for or loading your change; `--all` is everything) and in the
+   nightly run. Their times are in `tools/test-times.json`; `node tools/pick-tests.mjs --measure` writes it again (do it
+   after adding a test that's slow, or when the nightly shows one over five seconds). The whole suite runs every night
    (`.github/workflows/all-tests.yml`, 02:23 UTC) and on demand (`gh api -X POST
    repos/KMRRing/Crates/actions/workflows/all-tests.yml/dispatches -f ref=main`; `gh workflow run` needs GraphQL, which
    sessions can't reach). A push compares with the last commit the bot published, so a cancelled run's changes are never

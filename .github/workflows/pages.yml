@@ -1,6 +1,7 @@
-# Every push to main is tested, but only for what it changed and a rotating slice of the rest (tools/pick-tests.mjs: the quick
-# tests that read every page, the tests of the changed files, the slow ones only for their own game, and a twentieth of
-# the remaining tests, a different twentieth each push); the whole suite runs every night and on demand (all-tests.yml).
+# Every push to main is tested, but only with the tests that take under five seconds (Korbi, 29 October 2026), and only for what
+# it changed and a rotating slice of the rest (tools/pick-tests.mjs: the quick tests that read every page, the tests of the
+# changed files, and a twentieth of the remaining tests, a different twentieth each push); the whole suite, slow tests
+# included, runs every night and on demand (all-tests.yml).
 # sw.js is published only when the push's tests pass. GitHub Pages serves main as it is,
 # but devices with the app installed only move to a new version when sw.js changes (it lists every file with a version
 # from their contents), so a push that fails a test never reaches them: they stay on the last good version. sw.js is

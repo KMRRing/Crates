@@ -1,33 +1,38 @@
 // Which test files a push has to run, and a way to run them (the workflows' test step, and what a Claude runs before pushing).
-//   node tools/pick-tests.mjs [--slot N] file file …   the tests for a push that changed these files, one path a line
-//   node tools/pick-tests.mjs --all                    every test
-//   … --run                                            run the picked tests four at a time instead of listing them;
-//                                                      a failing one prints its output and the exit code is 1
+//   node tools/pick-tests.mjs [--slot N] [--slow] file …   the tests for a push that changed these files, one path a line
+//   node tools/pick-tests.mjs --all                        every test, slow ones too
+//   … --run                                                run the picked tests four at a time instead of listing them;
+//                                                          a failing one prints its output and the exit code is 1
+//   node tools/pick-tests.mjs --measure                    time every test and write tools/test-times.json
 //
-// A push runs, in this order of what it is sure of:
-//   1. the quick tests that read every page (syntax, imports, offline, wide, days), always;
+// Korbi (29 October 2026): unless he says otherwise, only the tests that take under five seconds run: a test's time is
+// in tools/test-times.json (`--measure` writes it again), and a test at five seconds or more is slow. A push, and a Claude
+// before pushing, runs, in this order of what it is sure of:
+//   1. the quick tests that read every page (syntax, imports, wide, days; offline is 13 seconds, so it's slow), always;
 //   2. the tests of what changed: those named for a changed file's game (`topple.js` → `tests/topple.mjs`, `topple-*.mjs`)
 //      and, for a file that isn't one game's alone (style.css, kb/, a bank, tools/), the tests that load it, read off the
 //      files each test names (imports and quoted file names, followed on). A test that reaches almost every file (the
 //      party games' through party-core, the ones that read every bank) names nothing in particular and is left to 3 and 4;
 //   3. one slice of the rest, a twentieth, a different slice each push (`--slot`, the commit count), so everything gets
 //      its turn whatever the changes were;
-//   4. every test every night (`.github/workflows/all-tests.yml`) and on demand, which is what finds what 2 and 3 missed.
-// The slow tests (HEAVY, a test of a game's own or a few seconds' worth of every bank, 25 seconds and more each, 60% of the
-// suite's time) run in 2 only when their own game changed, and in 4. Korbi (29 October 2026): the suite took too long
-// and uptime isn't important here; across 594 pushes 2 broke a game's rules (the 14 others were one afternoon's bank
-// rewrites), so a missed break costs a day at the most, and a push that fails still doesn't reach installed copies.
-import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
+//   4. every test every night (`.github/workflows/all-tests.yml`, slow ones too) and on demand, which is what finds what
+//      2 and 3 missed.
+// `--slow` adds the slow tests to 1 to 3 (when Korbi asks for the whole thing, or a game's own slow ones are the point).
+// Why this is safe enough: across 594 pushes 2 broke a game's rules (the 14 others were one afternoon's bank rewrites), so a
+// missed break costs a day at the most, and a push that fails still doesn't reach installed copies.
+import { readdirSync, readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { basename, dirname, join, normalize } from "node:path";
 import { execSync, spawn } from "node:child_process";
 
 const ROOT = new URL("../", import.meta.url).pathname;
 const ALL = readdirSync(join(ROOT, "tests")).filter(f => f.endsWith(".mjs")).map(f => `tests/${f}`).sort();
-/** Quick tests that read every page or script, so a change to any one game can break them. */
+/** Seconds each test took (four at a time on four cores); a test not listed is new and counts as quick. */
+const TIMES = existsSync(join(ROOT, "tools/test-times.json")) ? JSON.parse(readFileSync(join(ROOT, "tools/test-times.json"), "utf8")) : {};
+/** Five seconds or more. */
+export const SLOW_AFTER = 5;
+export const isSlow = t => (TIMES[basename(t, ".mjs")] ?? 0) >= SLOW_AFTER;
+/** Tests that read every page or script, so a change to any one game can break them. */
 export const QUICK = ["syntax", "imports", "offline", "wide", "days"].map(n => `tests/${n}.mjs`).filter(t => ALL.includes(t));
-/** 25 seconds or more each on four cores (October 2026): about 1,300 of the suite's 2,150 seconds. */
-export const HEAVY = new Set(["factor", "dandan", "manifest", "refinery", "topple-features", "topple-levels", "cartel", "punt", "gambit", "guilloche",
-  "timegrapher", "trumps-hard", "river", "bigtwo", "contract"].map(n => `tests/${n}.mjs`));
 /** Files that change nothing a page loads. */
 const DOCS = new Set(["README.md", "CLAUDE.md", "sw.js", ".gitignore"]);
 /** A test whose reach is this many files or more names nothing in particular. */
@@ -71,33 +76,36 @@ export function loading(file) {
   return ALL.filter(t => graph.get(t).size < WHOLE_APP && graph.get(t).has(file));
 }
 
-/** The tests for the changed files and a slice's turn (slot is the number of the push). */
-export function pick(files, slot = 0) {
-  const picked = new Set(QUICK);
+/** The tests for the changed files and a slice's turn (slot is the number of the push); the slow ones only with `slow`. */
+export function pick(files, slot = 0, { slow = false } = {}) {
+  const ok = t => slow || !isSlow(t);
+  const picked = new Set(QUICK.filter(ok));
   for (const f of files) {
     if (DOCS.has(f)) continue;
-    for (const t of namedFor(f)) picked.add(t);
-    for (const t of loading(f)) if (!HEAVY.has(t)) picked.add(t);
+    for (const t of namedFor(f)) if (ok(t)) picked.add(t);
+    for (const t of loading(f)) if (ok(t)) picked.add(t);
   }
-  const rest = ALL.filter(t => !picked.has(t) && !HEAVY.has(t));
+  const rest = ALL.filter(t => !picked.has(t) && ok(t));
   rest.forEach((t, i) => { if (i % SLICES === slot % SLICES) picked.add(t); });
   return ALL.filter(t => picked.has(t));
 }
 
 /** Run tests four at a time; a failure prints its output. Resolves to the number that failed. */
-export function run(tests, parallel = 4) {
+export function run(tests, parallel = 4, times = null) {
   return new Promise(done => {
     let next = 0, running = 0, failed = 0;
     const start = () => {
       while (running < parallel && next < tests.length) {
         const t = tests[next++];
         running++;
-        const out = [];
+        const out = [], began = Date.now();
         const child = spawn(process.execPath, [t], { cwd: ROOT });
         child.stdout.on("data", d => out.push(d)); child.stderr.on("data", d => out.push(d));
         child.on("close", code => {
           running--;
-          if (code === 0) console.log(`ok   ${t}`); else { failed++; console.log(`FAIL ${t}\n${Buffer.concat(out)}`); }
+          const secs = (Date.now() - began) / 1000;
+          if (times) times[basename(t, ".mjs")] = Math.round(secs * 10) / 10;
+          if (code === 0) console.log(`ok   ${secs.toFixed(1).padStart(5)}s ${t}`); else { failed++; console.log(`FAIL ${t}\n${Buffer.concat(out)}`); }
           if (next === tests.length && !running) done(failed); else start();
         });
       }
@@ -110,9 +118,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2), slotAt = args.indexOf("--slot");
   const slot = slotAt >= 0 ? Number(args[slotAt + 1]) || 0 : 0;
   const files = args.filter((a, i) => !a.startsWith("--") && !(slotAt >= 0 && i === slotAt + 1));
-  const tests = args.includes("--all") ? ALL : pick(files, slot);
-  if (args.includes("--run")) {
-    console.log(`tests to run: ${tests.length}`);
-    process.exitCode = (await run(tests)) ? 1 : 0;
-  } else console.log(tests.join("\n"));
+  if (args.includes("--measure")) {
+    const times = {}, failed = await run(ALL, 4, times);
+    const sorted = Object.fromEntries(Object.entries(times).sort((a, b) => b[1] - a[1]));
+    writeFileSync(join(ROOT, "tools/test-times.json"), JSON.stringify(sorted, null, 1) + "\n");
+    console.log(`${Object.values(sorted).filter(t => t >= SLOW_AFTER).length} of ${ALL.length} tests take ${SLOW_AFTER} seconds or more; tools/test-times.json written`);
+    process.exitCode = failed ? 1 : 0;
+  } else {
+    const tests = args.includes("--all") ? ALL : pick(files, slot, { slow: args.includes("--slow") });
+    if (args.includes("--run")) {
+      console.log(`tests to run: ${tests.length}`);
+      process.exitCode = (await run(tests)) ? 1 : 0;
+    } else console.log(tests.join("\n"));
+  }
 }

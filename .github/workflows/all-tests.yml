@@ -1,6 +1,6 @@
 # The whole suite, every night and whenever asked (Actions, "Every test", Run workflow). A push to main runs only the
 # tests of what it changed and a rotating slice of the rest (pages.yml, tools/pick-tests.mjs), so this is what finds a change
-# that broke something it doesn't own, and the slow tests of games that no push touched. It publishes nothing: a red run here means the last pushes need a look, not that installed copies are
+# that broke something it doesn't own, and the only run of the tests that take five seconds or more. It publishes nothing: a red run here means the last pushes need a look, not that installed copies are
 # on a bad version (they only ever move when a push's own tests passed).
 name: Every test
 on:
