@@ -99,13 +99,15 @@ export const moveSaid = (m, s, seat) => cap(moveName(m, s, seat));
  * about something (keeping Lapse mana, the free mana at their end step, the card on top…): two about the same thing
  * are one.
  */
-export function reasons(s, seat, a, b, { againstFirst = false } = {}) {
+export const reasons = (s, seat, a, b, opts) => themed(s, seat, a, b, opts).map(([, text]) => text);
+/** The same reasons with what each is about: [theme, sentence] pairs (THEMES says what a theme is). */
+export function themed(s, seat, a, b, { againstFirst = false } = {}) {
   const F = facts(s, seat), out = [], themes = new Set();
   const pro = forMove(s, seat, F, a, true), con = forMove(s, seat, F, b, false);
   for (const [theme, text] of againstFirst ? [...con, ...pro] : [...pro, ...con]) {
     if (themes.has(theme) || out.length >= 2) continue;
     themes.add(theme);
-    out.push(text);
+    out.push([theme, text]);
   }
   return out;
 }
@@ -298,6 +300,39 @@ function yardWords(s, seat, m, half, good) {
   return null;
 }
 
+// ---------- what a difference is about ----------
+/**
+ * Every theme a reason can have (the first word of each `say` above), the title it goes under in the review and the
+ * rule of thumb behind it: the review (dandan-review.js) counts a player's differences by theme. The last three are for
+ * a difference with no reason of its own: a pass where a play came out ahead, a play where keeping the card did, and
+ * the rest.
+ */
+export const THEMES = {
+  top: ["Who draws the top card", "The library is shared, so a card put on top of it is drawn by whoever draws next. Counter their spell when the draw is yours, and keep the counter when they would only draw it straight back."],
+  combat: ["Attacking and blocking", "Count the swing back before you attack: an attacker can't block, and each Dandân hits for 4. Keep home what their swing back could kill you with, and block when a Dandân for a Dandân is an even trade."],
+  mana: ["Taking their lands", "A land taken matters when they are short of mana or it makes two (Izzet Boilerworks). At nine mana it changes nothing, and it's wasted when Metamorphose lets them put a known Island straight back down."],
+  islands: ["Islands under Dandâns", "An Island keeps your Dandâns alive: with none they are sacrificed, and their first Island is what lets their Dandâns attack you. Count Islands, yours and theirs, before you play, tap, take or bend one."],
+  "counter-risk": ["Casting into open mana", "Count their open mana before you cast on your turn: a Memory Lapse puts your spell on top for them to draw. Cast when they are tapped out or have shown no Lapse, and keep the card when it is worth more later."],
+  "end-step": ["Mana at the end of their turn", "Your lands untap next, so mana still open at the end of their turn is free. Spend it then, on a cycle, an answer or a land taken, and don't leave it to go to waste."],
+  bend: ["Using Mind Bend", "Mind Bend kills a Dandân (told to look for a land type it lacks, it is sacrificed) or their last Island under one. On an Island that kills nothing it only makes a Swamp that still makes mana: keep it."],
+  "lapse-mana": ["Keeping the mana for Memory Lapse", "With a Memory Lapse or a Narset's Reversal in hand, keep two open on their turn: what you counter then goes on top for you to draw. Spending those two on your own turn throws the counter away."],
+  hand: ["Keeping and mulligans", "Keep a hand with enough lands and enough spells to play. A hand short of either is shown and dealt again free."],
+  clock: ["The clock", "A Dandân attacks for 4 a turn when they control an Island and can't attack them when they don't: put in what can attack, and hold back what couldn't."],
+  yard: ["The shared graveyard", "Either player can cast a flashback or an aftermath card from the graveyard: a Mystic Retrieval there brings back the Piracy Charm for anyone with red and three mana. Take the card out first, or leave them without the mana."],
+  wait: ["Waiting to answer", "Their turn isn't over: what you spend now is what would answer their next spell. Wait for the one worth answering."],
+  timing: ["Timing an answer", "An answer is better kept until it attacks, or the end of their turn, when the mana is free."],
+  tapped: ["Lands that come in tapped", "A land that comes in tapped gives no mana this turn: play it when you don't need the mana, and the other one when you do."],
+  reversal: ["Narset's Reversal", "Reversal sends their spell back to their hand unresolved and gives you a copy: use it on a spell worth copying."],
+  read: ["Reading what they leave alone", "When your last play went through with their blue open and they haven't drawn since, they very likely hold no answer: play into it."],
+  own: ["Countering your own spell", "A counter aimed at your own spell is wasted."],
+  land: ["Which land to return", "Return a land that's already tapped: you play it again next turn."],
+  keep: ["Answering what isn't worth it", "Not every spell is worth an answer: keep the card for something that is."],
+  answer: ["Bringing back an answer", "With the mana left to cast it, a card brought back from the graveyard answers their Dandân this turn."],
+  passed: ["Passing when a play was better", "Passing is a move, and often the right one, but here a play came out ahead in the deals: look for the one that develops your table or answers theirs."],
+  spent: ["Playing when waiting was better", "Here keeping the card and the mana came out ahead: play when it changes something."],
+  other: ["Other differences", "No one rule explains these: open each play to see what the deals showed."],
+};
+
 // ---------- the coach's lines ----------
 const entry = (r, m) => r.list.find(c => sameMove(c.move, m));
 
@@ -346,7 +381,8 @@ export function evidence(a, b, s, seat, { yours = false } = {}) {
 export const MARGIN = 0.03;
 /**
  * The check's verdict on a move of yours, from the coach's weighing of the decision before it (r, with your move in it):
- * null when it's the coach's or as good as near as the deals can tell; else { gap, words, best }.
+ * null when it's the coach's or as good as near as the deals can tell; else { gap, words, best, theme }, the theme one
+ * of THEMES' keys.
  */
 export function verdict(r, mine, s, seat) {
   const best = r.list[0], m = entry(r, mine);
@@ -355,9 +391,12 @@ export function verdict(r, mine, s, seat) {
   if (!(gap > MARGIN && gap > 2 * se)) return null;
   // what tells against yours first: it's your move the word is about; then what the deals showed, or with nothing
   // to show, how often each came out ahead
-  const why = [...reasons(s, seat, best.move, mine, { againstFirst: true }), ...evidence(best, m, s, seat, { yours: true })].slice(0, 3);
+  const given = themed(s, seat, best.move, mine, { againstFirst: true });
+  const why = [...given.map(([, text]) => text), ...evidence(best, m, s, seat, { yours: true })].slice(0, 3);
   if (!why.length && m.vs) why.push(`Played out, ${doing(best.move, s, seat)} came out ahead in ${m.better} of the ${m.vs} deals and behind in ${m.worse}.`);
-  return { gap, se, best: best.move, words: `${cap(doing(mine, s, seat))}: about ${Math.round(100 * gap)} points worse than ${doing(best.move, s, seat)} (${pc(m.mean)} to win against ${pc(best.mean)}).${why.length ? ` ${why.join(" ")}` : ""}` };
+  // what it is about: the first thing said against your move, else what kind of move was swapped for what
+  const theme = given[0]?.[0] || (mine.t === "pass" ? "passed" : best.move.t === "pass" ? "spent" : "other");
+  return { gap, se, best: best.move, theme, words: `${cap(doing(mine, s, seat))}: about ${Math.round(100 * gap)} points worse than ${doing(best.move, s, seat)} (${pc(m.mean)} to win against ${pc(best.mean)}).${why.length ? ` ${why.join(" ")}` : ""}` };
 }
 /** A move as a doing: "passing", "casting Memory Lapse on their Dandân". */
 function doing(m, s, seat) {

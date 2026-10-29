@@ -229,7 +229,7 @@ dialog.dd-sheet:has(.pick-head) { padding-top: 0; }
 .dd-end-note { color: var(--ink-soft); font-size: .9rem; }
 /* the end of a game: how it went (your chance of winning at each turn's start, drawn in a 320 by 124 box whatever its
    size: verdigris where you were ahead, oxblood where you were behind), and the record */
-.dd-end-h { margin: .8rem 0 .25rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.dd-end-h, .dd-rv-h { margin: .8rem 0 .25rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .dd-adv-wrap { border: 1px solid var(--rule); border-radius: 4px; background: var(--tile); padding: .2rem .3rem 0; cursor: pointer; }
 .dd-adv { display: block; width: 100%; height: auto; }
 .dd-adv-grid { stroke: var(--rule); stroke-width: 1; }
@@ -266,6 +266,28 @@ dialog.dd-sheet:has(.pick-head) { padding-top: 0; }
 /* the end sheet scrolls on a short screen (the chart and the record make it tall): its buttons stay at the foot of it */
 dialog.dd-sheet:has(.dd-end-acts) { padding-bottom: 0; }
 .dd-end-acts { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .4rem; padding: .55rem 0 calc(1rem + env(safe-area-inset-bottom, 0px)); position: sticky; bottom: 0; background: var(--sheet); border-top: 1px solid var(--rule); }
+/* the review: the mistakes that come most often with the rule of thumb behind each, then the plays the coach disagreed with */
+.dd-rv { font-size: .92rem; line-height: 1.4; }
+.dd-rv-empty, .dd-rv-head { margin: .3rem 0 .5rem; }
+.dd-rv-playsh { scroll-margin-top: 4.6rem; }   /* below the sheet's header, which sticks */
+.dd-rv-kinds, .dd-rv-plays { list-style: none; margin: 0; padding: 0; }
+.dd-rv-kinds li, .dd-rv-plays li { padding: .55rem .15rem; border-bottom: 1px solid var(--rule); }
+.dd-rv-kinds li.on { background: color-mix(in srgb, var(--dd-in) 15%, var(--sheet)); }
+.dd-rv-k, .dd-rv-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .1rem .6rem; }
+.dd-rv-k b { font-weight: 800; }
+.dd-rv-k span, .dd-rv-top span, .dd-rv-ctx { font-size: .78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.dd-rv-top b { color: var(--dd-bad); font-variant-numeric: tabular-nums; }
+.dd-rv-kinds p, .dd-rv-plays p { margin: .2rem 0 0; font-size: .88rem; }
+.dd-rv-plays p.dd-rv-ctx { font-size: .78rem; }
+.dd-rv-link { padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: .84rem; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.dd-rv-kinds .dd-rv-link { margin-top: .3rem; }
+.dd-rv-seg { display: flex; margin: .3rem 0 .4rem; border: 1px solid var(--brass); border-radius: 4px; overflow: hidden; }
+.dd-rv-seg button { flex: 1; padding: .4rem .6rem; border: 0; background: var(--tile); color: var(--ink); font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.dd-rv-seg button + button { border-left: 1px solid var(--brass); }
+.dd-rv-seg button[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); }
+.dd-rv-tag { display: inline-block; margin-top: .35rem; padding: .05rem .4rem; border: 1px solid var(--rule); border-radius: 4px; font-size: .7rem; color: var(--ink-soft); }
+.dd-rv-note { margin: .8rem 0 0; font-size: .78rem; line-height: 1.4; color: var(--ink-soft); }
+.dd-rv-clear { display: inline-block; margin-top: .7rem; font-weight: 600; color: var(--ink-soft); }
 .dd-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
   max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
   transition: opacity .2s, transform .2s; z-index: 5; }

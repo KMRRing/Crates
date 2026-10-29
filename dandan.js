@@ -21,11 +21,12 @@ import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sextant } from "./loading.js";
 import { createTable3d } from "./dandan-3d.js";
-import { curveOf, worthDrawing, captionOf, readoutOf, chartSvg, pointAt, BOX, addResult, recordOf } from "./dandan-advantage.js";
+import { curveOf, worthDrawing, captionOf, readoutOf, chartSvg, pointAt, BOX, addResult, recordOf, emptyRecord } from "./dandan-advantage.js";
+import { noteDecision, emptyReview, reviewHtml } from "./dandan-review.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const OPTS = "dandan:opts", RECORD = "dandan:record";
+const OPTS = "dandan:opts", RECORD = "dandan:record", STREAK = "dandan:streak", REVIEW = "dandan:review";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -33,7 +34,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 // the coach: off; hints, when you ask; check, each move of yours weighed the moment it's made, and a word on one it
 // would have made otherwise, with no Hint (22 October 2026: the decision is yours, then set against its); always, its
 // move at each of your decisions, ringed on the table
-const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
+const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"], ["review", "Review"]];
 // how long Hard and the coach think over a move (dandan-think.js's DEPTH, coachBudget), with what that takes on a phone
 const THINKING = [["quick", "Quick"], ["long", "Long"], ["deep", "Deep"], ["deepest", "Deepest"]];
 const THINK_TIME = {
@@ -256,8 +257,12 @@ page = seatPage({
 // It weighs a decision in its own worker (dandan-think.js: each move played out a turn ahead in the same deals of the
 // cards you can't see), so the table never waits on it: a Hint or Always's advice in a moment, a check a little after
 // your move. (A partner's frame, watched from the games screen, coaches nobody.)
-const coaching = () => opts.coach !== "off" && !IN_FRAME;
+// the coach shows itself (a Hint, its line above the buttons) in Hints, Check and Always; its word on your moves is
+// shown in Check and Always; and it weighs your moves, to keep where it would have played otherwise for the review, in
+// those two and in Review, where nothing is shown while you play
+const coaching = () => opts.coach !== "off" && opts.coach !== "review" && !IN_FRAME;
 const speaks = () => (opts.coach === "check" || opts.coach === "on") && !IN_FRAME;
+const weighs = () => (speaks() || opts.coach === "review") && !IN_FRAME;
 const decisionOf = v => `${v.G.seq}:${v.G.n}`;
 /** Whether the decision now is yours: priority, or a question put to you. */
 const myDecision = () => !!V?.G && V.seat != null && !V.over && V.toMove === V.seat;
@@ -293,15 +298,20 @@ async function hint() {
   draw();
 }
 /** Check and Always: a move of yours set against the coach's, from the table as it was before it. */
-async function checkMove(state, seat, move, game) {
+async function checkMove(state, seat, move, game, started) {
   const { result } = await askThink("check", state, seat, move);
   if (!result || V?.G?.seq !== game) return;
   const vd = verdict(result, move, state, seat);
   notes.push(vd ? { agreed: false, gap: vd.gap, words: vd.words } : { agreed: true });
+  keepForReview(vd, state, seat, started);
   // the word stays until another replaces it, or the turn after next: a decision here comes in a run of several
   // (a spell, then the questions it asks), and the ones it agrees with mustn't take it away at once
-  if (vd) word = { words: vd.words, r: result, mine: move, state, seat, turn: state.turn };
+  if (vd && speaks()) word = { words: vd.words, r: result, mine: move, state, seat, turn: state.turn };
   draw();
+}
+/** A decision of yours weighed (null: the coach agreed), kept for the review sheet with the game it was in. */
+function keepForReview(vd, state, seat, started) {
+  if (!IN_FRAME) write(REVIEW, noteDecision(read(REVIEW, null), vd, { game: started, state, seat }));
 }
 /** The coach's move at this decision, while it stands: the Hint asked for, or Always's. */
 function advised(v) {
@@ -804,7 +814,7 @@ async function act(m) {
     const t = tapStart(m);
     if (t) { ui.tap = t; ui.look = null; closeView(); draw(); return; }
   }
-  const v = V, before = speaks() && myDecision() ? structuredClone(v.state) : null, seat = v?.seat, key = v?.G ? decisionOf(v) : "";
+  const v = V, before = weighs() && myDecision() ? structuredClone(v.state) : null, seat = v?.seat, key = v?.G ? decisionOf(v) : "";
   const known = advice?.key === key ? advice : hinted?.key === key ? { r: hinted.r } : null, game = v?.G?.seq;
   // holding priority keeps it after a spell or ability goes on the stack, to answer it yourself (fetch a land to shuffle, cycle another card to draw first); a cycled card always does (Korbi, 23 October 2026), and the game moves on where there is nothing you could do
   const hold = m.t === "cycle" || (opts.hold && (m.t === "cast" || m.t === "ability"));
@@ -812,8 +822,8 @@ async function act(m) {
   if (why) { toast(why); return; }
   closeView();
   if (before) {
-    if (known && sameMove(known.r.best, m)) { notes.push({ agreed: true }); draw(); }
-    else checkMove(before, seat, m, game);
+    if (known && sameMove(known.r.best, m)) { notes.push({ agreed: true }); keepForReview(null, before, seat, v.G.started); draw(); }
+    else checkMove(before, seat, m, game, v.G.started);
   }
 }
 
@@ -1167,6 +1177,37 @@ async function concede() {
 $("endAgain").addEventListener("click", newGame);
 $("endDlg").addEventListener("keydown", stepPoint); // the arrows step along the chart from wherever focus is in the sheet
 $("endTable").addEventListener("click", () => $("endDlg").close());
+/** Menu, Reset win/loss record: the games counted and the run of wins back to nothing, once you've said so. */
+function resetRecord() {
+  const r = recordOf(read(RECORD, {}));
+  if (!confirm(`Reset your record (${r.won} won of ${r.played} games) and your run of wins? This can't be undone.`)) return;
+  // the game counted last stays noted: a finished game opened again must not be counted into the new record
+  write(RECORD, { ...emptyRecord(), game: read(RECORD, {}).game });
+  write(STREAK, { now: 0, best: 0 });
+  toast("Record reset");
+}
+
+// ---------- the review ----------
+// Menu, Review your play: what the coach has kept of your moves (Coach: Review, Check or Always; dandan-review.js), the
+// mistakes that come most often and the plays it disagreed with by 5 points or more, one theme's or all
+let reviewView = { kind: null, order: "cost" };
+function paintReview() { $("reviewBody").innerHTML = reviewHtml(read(REVIEW, null), reviewView); }
+function openReview() {
+  reviewView = { kind: null, order: "cost" };
+  paintReview();
+  if (!$("reviewDlg").open) $("reviewDlg").showModal();
+}
+$("reviewBody").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if ("kind" in b.dataset) {
+    reviewView.kind = b.dataset.kind || null;
+    paintReview();
+    $("reviewBody").querySelector(".dd-rv-playsh")?.scrollIntoView({ block: "start" });
+  } else if (b.dataset.order) { reviewView.order = b.dataset.order; paintReview(); }
+  else if (b.dataset.clear && confirm("Clear everything the review has kept? This can't be undone.")) { write(REVIEW, emptyReview()); reviewView.kind = null; paintReview(); }
+});
+$("reviewClose").addEventListener("click", () => $("reviewDlg").close());
 
 // ---------- the log, copied (Menu) ----------
 // For checking a game elsewhere (a move of the computer's that looked wrong, the coach's word on one of yours): every
@@ -1297,14 +1338,21 @@ function openMenu() {
   set.append(choice("Computer player", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); showThinking(); page.runner.kick(); }), ...thinking);
   showThinking();
   set.append(choice("Computer's pace", PACES, opts.pace, v => { opts.pace = v; saveOpts(); draw(); page.runner.kick(); }));
-  set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; saveOpts(); word = null; hinted = null; showThinking(); draw(); }));
+  const review = read(REVIEW, null), plays = review?.m || 0;
+  const reviewNote = line("Review: nothing shows while you play. The coach weighs each move and keeps where it would have played otherwise.");
+  const showReviewNote = () => { reviewNote.hidden = opts.coach !== "review"; };
+  set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; saveOpts(); word = null; hinted = null; showThinking(); showReviewNote(); draw(); }), reviewNote);
+  showReviewNote();
+  set.append(action(plays ? `Review your play (${plays} to go through)` : "Review your play", openReview, ""));
   set.append(toggle("Full screen", opts.full, fullScreen));
   set.append(toggle("Hold priority when I cast", opts.hold, on => { opts.hold = on; saveOpts(); }));
   set.append(line("Holding priority lets you cast again before the other player can answer the first spell. A card you cycle always holds it, so you can answer your own cycling."));
   set.append(toggle("Choose which lands to tap", opts.manual, on => { opts.manual = on; saveOpts(); }));
   set.append(line("With different lands to pay with, you tap them yourself: so an Izzet Boilerworks can return a tapped one."));
-  const r = recordOf(read(RECORD, {})), st = read("dandan:streak", { now: 0, best: 0 });
-  part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games (${r.pct}%)${st.best > 1 ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
+  const r = recordOf(read(RECORD, {})), st = read(STREAK, { now: 0, best: 0 });
+  const about = part(body, "about");
+  about.append(line(r.played ? `Won ${r.won} of ${r.played} games (${r.pct}%)${st.best > 1 ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
+  if (r.played || st.best) about.append(action("Reset win/loss record", resetRecord, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
