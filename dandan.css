@@ -230,7 +230,7 @@ dialog.dd-sheet:has(.pick-head) { padding-top: 0; }
 /* the end of a game: how it went (your chance of winning at each turn's start, drawn in a 320 by 124 box whatever its
    size: verdigris where you were ahead, oxblood where you were behind), and the record */
 .dd-end-h, .dd-rv-h { margin: .8rem 0 .25rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
-.dd-adv-wrap { border: 1px solid var(--rule); border-radius: 4px; background: var(--tile); padding: .2rem .3rem 0; cursor: pointer; }
+.dd-adv-wrap { border: 1px solid var(--rule); border-radius: 4px; background: var(--tile); padding: .2rem .3rem 0; cursor: crosshair; touch-action: pan-y; scroll-margin-top: 4.6rem; user-select: none; }
 .dd-adv { display: block; width: 100%; height: auto; }
 .dd-adv-grid { stroke: var(--rule); stroke-width: 1; }
 .dd-adv-grid.mid { stroke: var(--brass); }
@@ -239,6 +239,11 @@ dialog.dd-sheet:has(.pick-head) { padding-top: 0; }
 .dd-adv-line { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
 .dd-adv-dot { fill: var(--tile); stroke: var(--ink); stroke-width: 1.2; }
 .dd-adv-dot.on { fill: var(--ink); }
+.dd-adv-dot.act { fill: var(--ink-soft); stroke: none; }
+.dd-adv-dot.act.on { fill: var(--ink); stroke: var(--tile); stroke-width: 1.2; }
+.dd-adv-tick { stroke: var(--ink-soft); stroke-width: 1; opacity: .6; }
+.dd-adv-flag { fill: none; stroke: var(--dd-bad); stroke-width: 1.6; }
+.dd-adv-num { fill: var(--dd-bad); font-family: inherit; font-weight: 700; paint-order: stroke; stroke: var(--tile); stroke-width: 2.4px; stroke-linejoin: round; }
 .dd-adv-end { fill: none; stroke: var(--ink-soft); stroke-width: 1.4; stroke-dasharray: 3 3; }
 .dd-adv-fin { stroke: var(--tile); stroke-width: 1.5; }
 .dd-adv-fin.won { fill: var(--dd-good); }
@@ -248,7 +253,7 @@ dialog.dd-sheet:has(.pick-head) { padding-top: 0; }
 .dd-adv-x, .dd-adv-y, .dd-adv-side { fill: var(--ink-soft); font-family: inherit; font-variant-numeric: tabular-nums; }
 .dd-adv-x.on { fill: var(--ink); font-weight: 700; }
 .dd-adv-side { opacity: .75; }
-.dd-adv-read { min-height: 1.35em; margin: .35rem 0 0; font-size: .85rem; font-weight: 650; line-height: 1.35; }
+.dd-adv-read { min-height: 2.75em; margin: .35rem 0 0; font-size: .85rem; font-weight: 650; line-height: 1.35; }
 .dd-adv-cap { margin: .2rem 0 0; font-size: .85rem; line-height: 1.4; color: var(--ink-soft); }
 .dd-adv-src { display: block; margin-top: .15rem; font-size: .78rem; }
 .dd-rec-top { display: flex; align-items: baseline; gap: .6rem; margin: .1rem 0 .25rem; font-size: .95rem; }
@@ -265,6 +270,7 @@ dialog.dd-sheet:has(.pick-head) { padding-top: 0; }
 .dd-rec-last i.lost { background: var(--dd-bad); border-color: var(--dd-bad); }
 /* the end sheet scrolls on a short screen (the chart and the record make it tall): its buttons stay at the foot of it */
 dialog.dd-sheet:has(.dd-end-acts) { padding-bottom: 0; }
+#endDlg:focus { outline: none; }
 .dd-end-acts { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .4rem; padding: .55rem 0 calc(1rem + env(safe-area-inset-bottom, 0px)); position: sticky; bottom: 0; background: var(--sheet); border-top: 1px solid var(--rule); }
 /* the review: the mistakes that come most often with the rule of thumb behind each, then the plays the coach disagreed with */
 .dd-rv { font-size: .92rem; line-height: 1.4; }
@@ -346,3 +352,13 @@ dialog.dd-sheet:has(.dd-end-acts) { padding-bottom: 0; }
 /* the corner's width (the menu's button and the two switches, whatever the theme makes of them) is measured by the page */
 #app.dandan.dd-full .dd-zone.foe .dd-zh { padding-right: var(--dd-corner, 2.6rem); }
 html[data-theme="office"] :is(.dd-zone, .dd-card, .dd-pile, .dd-st, .dd-cre) { border-radius: 4px; }
+
+/* the moves that cost the most, under the end chart: a row is a move, and shows on the chart when tapped */
+.dd-mv-h { margin: .7rem 0 .25rem; font-size: .82rem; font-weight: 700; }
+.dd-mv { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
+.dd-mv-row { display: flex; align-items: baseline; gap: .5rem; width: 100%; padding: .4rem .5rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .82rem; line-height: 1.35; text-align: left; cursor: pointer; }
+.dd-mv-row[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
+.dd-mv-n { flex: none; display: grid; place-items: center; align-self: center; width: 1.25rem; height: 1.25rem; border: 1.6px solid var(--dd-bad); border-radius: 50%; color: var(--dd-bad); font-size: .72rem; }
+.dd-mv-d { flex: none; min-width: 2.1rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--dd-bad); }
+.dd-mv-w { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.dd-mv-w i { font-style: normal; color: var(--ink-soft); }

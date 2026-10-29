@@ -15,6 +15,12 @@ import {
   mill, lands, permToLib, bounce, emptyPools, handToLib, toHandOpen, topKnown, isSpellCard, affords, tellsOf, freshTells, hushed,
 } from "./dandan-core.js";
 import { RES, T, same, targetLists, stillLegal, modesOf } from "./dandan-spells.js";
+import { noteAction } from "./dandan-advantage.js";
+
+// what the end-of-game chart is told as an action settles (dandan-advantage.js `noteAction`): the seat whose action it
+// was (`s.by`, who began it: the one who played the land, cast the spell the others answered, or attacked; a pass never
+// does), and where in the log this move's turn line is
+let turnAt = -1;
 
 export const STEPS = ["upkeep", "draw", "main1", "attackers", "blockers", "damage", "main2", "end"];
 const isMain = s => s.step === "main1" || s.step === "main2";
@@ -29,7 +35,7 @@ function blank() {
     lib: [], yard: [], exile: [], hand: [[], []], bf: [], stack: [], life: [LIFE, LIFE], kn: [], kh: [], pool: ["", ""], nid: 1, nt: 0,
     draws: [0, 0], tells: [freshTells(), freshTells()],
     played: 0, drawn: [0, 0], attacked: false, quick: [false, false], combat: null, pending: null, lost: [false, false],
-    over: false, winner: -1, why: "", mull: { n: [0, 0], done: [false, false] }, reveal: null, log: [], ln: 0,
+    over: false, winner: -1, why: "", mull: { n: [0, 0], done: [false, false] }, reveal: null, log: [], ln: 0, by: 0,
   };
 }
 
@@ -110,6 +116,7 @@ function startTurn(s) {
   s.prio = s.active;
   s.passes = 0;
   say(s, `Turn ${s.turn}: {s${s.active}}`);
+  turnAt = s.ln;
 }
 function endTurn(s) {
   for (const p of s.bf) { delete p.dmg; delete p.pump; delete p.walk; }
@@ -157,6 +164,7 @@ function advance(s) {
 function combatDamage(s) {
   const c = s.combat;
   if (!c) return;
+  s.by = s.active;
   const hurt = new Map(), loss = [0, 0];
   const add = (id, n) => hurt.set(id, (hurt.get(id) || 0) + n);
   for (const aid of c.att) {
@@ -305,6 +313,7 @@ export function settle(s) {
     if (s.over || s.pending) return;
     if (sba(s)) continue;
     if (aim(s)) continue;
+    if (s.adv && !hushed()) noteAction(s, s.by ?? 0, turnAt);   // an action has settled: a dot on the end-of-game chart
     if (wants(s, s.prio)) return;
     passPriority(s);
   }
@@ -667,9 +676,11 @@ function answer(s, seat, m) {
  */
 export function act(s, seat, m, { rng, quiet = false } = {}) {
   if (!quiet) passPoints.length = 0;
+  turnAt = -1;
   return withRng(rng, () => {
     if (s.over) return "The game is over";
     if (m?.t === "concede") { gameOver(s, [seat], "conceded"); return s; }
+    if (m?.t !== "pass" && !s.stack.length) s.by = seat;   // a move with nothing on the stack begins an action (an answer or a pass carries one on)
     const err = s.pending ? (s.pending.seat === seat ? answer(s, seat, m) : "It isn't your turn") : (s.prio === seat ? priorityMove(s, seat, m) : "You don't have priority");
     if (err) return err;
     settle(s);
@@ -791,6 +802,7 @@ export function restore(s) {
   if (s.adv != null) s.adv = list(s.adv);
   s.nt ||= 0;
   s.res ||= 0;
+  s.by ||= 0;
   s.why ||= "";
   s.ln ||= 0;
   return s;

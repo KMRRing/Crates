@@ -21,7 +21,7 @@ import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sextant } from "./loading.js";
 import { createTable3d } from "./dandan-3d.js";
-import { curveOf, worthDrawing, captionOf, readoutOf, chartSvg, pointAt, BOX, addResult, recordOf, emptyRecord } from "./dandan-advantage.js";
+import { curveOf, worthDrawing, hasActions, byTurn, momentsOf, linesBetween, MIN_FALL, captionOf, readoutOf, chartSvg, pointAt, BOX, addResult, recordOf, emptyRecord } from "./dandan-advantage.js";
 import { noteDecision, emptyReview, reviewHtml } from "./dandan-review.js";
 import "./pwa.js";
 
@@ -1120,26 +1120,46 @@ function onOver(v) {
   if (after !== before) { write(RECORD, after); noteStreak("dandan", won); }
   setTimeout(() => { if (V?.over) showEnd(V); }, 1100);
 }
-// the end of a game: who won and why, how the game went (the judge's chance of winning at the start of each turn, which
-// the rules note as it's played: tap a turn for its chances), and the record
-let endCurve = null, endNames = [], endSel = -1;
+// the end of a game: who won and why, how the game went (the judge's chance of winning after each action that settled and
+// at the start of each turn, which the engine and the rules note as it's played: tap or drag along it for the chances and
+// the words of the log), the moves that cost the most, and the record
+let endCurve = null, endNames = [], endSel = -1, endMode = "acts", endFlags = [], endDrag = false;
+/** The curve as it's drawn: every action, or only each turn's start. */
+const endShown = () => (endMode === "turns" ? byTurn(endCurve) : endCurve);
+/** What the log said as a point was noted (an action's), in words, the first few lines (the cast comes first). */
+const saidOf = p => {
+  const lines = p?.kind ? linesBetween(S().log, p.from, p.ln).map(words) : [];
+  return lines.length > 4 ? [...lines.slice(0, 3), `${lines[3]} …`] : lines;
+};
 function paintChart() {
-  $("endChart").innerHTML = chartSvg(endCurve, endSel);
-  $("endRead").textContent = endSel >= 0 ? readoutOf(endCurve, endSel, endNames) : "Tap a turn on the chart for its chances.";
+  const c = endShown();
+  $("endChart").innerHTML = chartSvg(c, endSel, endMode === "acts" ? endFlags : []);
+  $("endRead").textContent = endSel >= 0 ? readoutOf(c, endSel, endNames, saidOf(c.points[endSel]))
+    : hasActions(endCurve) ? "Tap or drag along the chart for the chances after each move." : "Tap a turn on the chart for its chances.";
+  for (const b of document.querySelectorAll("#endMode [data-detail]")) b.setAttribute("aria-pressed", String(b.dataset.detail === endMode));
+  for (const b of document.querySelectorAll(".dd-mv-row")) b.setAttribute("aria-pressed", String(endMode === "acts" && Number(b.dataset.i) === endSel));
 }
 function pickPoint(e) {
   const r = $("endChart").querySelector("svg")?.getBoundingClientRect();
   if (!r?.width) return;
-  endSel = pointAt(endCurve, ((e.clientX - r.left) / r.width) * BOX.w);
+  endSel = pointAt(endShown(), ((e.clientX - r.left) / r.width) * BOX.w);
   paintChart();
 }
 function stepPoint(e) {
   const k = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
   if (!k || !$("endChart")) return; // no chart on this game's sheet (the one before's curve is still in endCurve)
   e.preventDefault();
-  const n = endCurve.points.length + (endCurve.end == null ? 0 : 1);
+  const c = endShown(), n = c.points.length + (c.end == null ? 0 : 1);
   endSel = Math.max(0, Math.min(n - 1, (endSel < 0 ? (k > 0 ? -1 : n) : endSel) + k));
   paintChart();
+}
+/** The moves that cost the most, in two short lists: yours (numbered as they're ringed on the chart) and the other's. */
+function movesHtml(m) {
+  const row = (p, n) => `<li><button type="button" class="dd-mv-row" data-i="${p.i}" aria-pressed="false">${n ? `<b class="dd-mv-n">${n}</b>` : ""}<span class="dd-mv-d">${String(p.d).replace("-", "−")}</span><span class="dd-mv-w"><i>Turn ${p.turn}</i> ${esc(saidOf(p).join("; "))}</span></button></li>`;
+  const list = (head, ps, none, numbered) => `<h4 class="dd-mv-h">${esc(head)}</h4>${ps.length ? `<ol class="dd-mv">${ps.map((p, k) => row(p, numbered ? k + 1 : 0)).join("")}</ol>` : `<p class="dd-sub">${esc(none)}</p>`}`;
+  return list("Your moves that cost the most", m.mine, `No move of yours cost you more than ${MIN_FALL - 1} points.`, true)
+    + list(`${nameOf(1 - (V.seat ?? 0))}’s moves that hurt you`, m.theirs, `None of ${nameOf(1 - (V.seat ?? 0))}’s moves cost you more than ${MIN_FALL - 1} points.`, false)
+    + `<p class="dd-sub">A fall is the judge’s, who sees both hands: a play into a card you couldn’t know of can fall too. A pass isn’t a move here; what it let through is the other’s.</p>`;
 }
 function showEnd(v) {
   const s = v.state, mine = s.winner === v.seat;
@@ -1152,23 +1172,25 @@ function showEnd(v) {
   endCurve = curveOf(s, v.seat);
   endNames = [nameOf(0), nameOf(1)];
   endSel = -1;
+  endMode = "acts";
+  const moves = hasActions(endCurve) ? momentsOf(endCurve) : null;
+  endFlags = moves ? moves.mine.map((p, k) => [p.i, k + 1]) : [];
   const drawn = worthDrawing(endCurve), rec = recordOf(read(RECORD, {})), vs = opponentOf(v);
   const dots = rec.last.map(c => `<i class="${c === "W" ? "won" : c === "D" ? "drawn" : "lost"}" title="${c === "W" ? "Won" : c === "D" ? "Drawn" : "Lost"}"></i>`).join("");
   $("endBody").innerHTML = `<p>${esc(why)}</p>
     <ul class="dd-standings"><li class="${isMe(0) ? "me" : ""}"><span>${esc(nameOf(0))}</span><b>${s.life[0]}</b></li><li class="${isMe(1) ? "me" : ""}"><span>${esc(nameOf(1))}</span><b>${s.life[1]}</b></li></ul>
     ${drawn ? `<h3 class="dd-end-h">How the game went</h3>
+    ${moves ? `<div id="endMode" class="dd-rv-seg" role="group" aria-label="Chart detail"><button type="button" data-detail="acts" aria-pressed="true">Every action</button><button type="button" data-detail="turns" aria-pressed="false">By turn</button></div>` : ""}
     <div id="endChart" class="dd-adv-wrap"></div>
     <p id="endRead" class="dd-adv-read" aria-live="polite"></p>
-    <p class="dd-adv-cap">${esc(captionOf(endCurve, endNames))} <span class="dd-adv-src">Rated by the computer's judge, which sees both hands.</span></p>` : `<p class="dd-end-note">Over too soon for a chart.</p>`}
+    <p class="dd-adv-cap">${esc(captionOf(endCurve, endNames))} <span class="dd-adv-src">Rated by the computer's judge, which sees both hands.</span></p>
+    ${moves ? `<h3 class="dd-end-h">Where it turned</h3>${movesHtml(moves)}` : ""}` : `<p class="dd-end-note">Over too soon for a chart.</p>`}
     <h3 class="dd-end-h">Your record</h3>
     <p class="dd-rec-top"><b>Won ${rec.won} of ${rec.played}</b> <span>${rec.pct}%</span></p>
     <ul class="dd-rec-rows">${rec.rows.map(r => `<li class="${r.key === vs ? "on" : ""}"><span>${esc(r.label)}</span><b>${r.won} of ${r.played}</b><i>${r.pct}%</i></li>`).join("")}</ul>
     ${rec.last.length > 1 ? `<p class="dd-rec-last" aria-label="The last ${rec.last.length} results, the newest at the right">${dots}</p>` : ""}
     <p class="dd-end-note">${s.turn ? `${s.turn} turn${s.turn === 1 ? "" : "s"}` : "Over before the first turn"}. ${s.lib.length} cards were left in the library. The loser goes first next game.</p>`;
-  if (drawn) {
-    paintChart();
-    $("endChart").addEventListener("click", pickPoint);
-  }
+  if (drawn) paintChart();
   $("endAgain").hidden = !page.host;
   if (!$("endDlg").open) $("endDlg").showModal();
 }
@@ -1186,6 +1208,29 @@ async function concede() {
 }
 $("endAgain").addEventListener("click", newGame);
 $("endDlg").addEventListener("keydown", stepPoint); // the arrows step along the chart from wherever focus is in the sheet
+// the chart is read by touching it or dragging along it (a tap or a press moves the mark to the nearest point; the page
+// still scrolls up and down from it), the buttons under it by tapping: a move listed is shown on the chart
+$("endBody").addEventListener("pointerdown", e => {
+  const wrap = e.target.closest("#endChart");
+  if (!wrap) return;
+  endDrag = true;
+  wrap.setPointerCapture?.(e.pointerId);
+  pickPoint(e);
+});
+$("endBody").addEventListener("pointermove", e => { if (endDrag) pickPoint(e); });
+for (const type of ["pointerup", "pointercancel"]) $("endBody").addEventListener(type, () => {
+  if (endDrag) $("endDlg").focus({ preventScroll: true });   // a touch on the picture leaves focus on the page, where the arrow keys would be lost
+  endDrag = false;
+});
+$("endBody").addEventListener("click", e => {
+  const mode = e.target.closest("#endMode [data-detail]"), row = e.target.closest(".dd-mv-row");
+  if (mode) { endMode = mode.dataset.detail; endSel = -1; paintChart(); }
+  else if (row) {
+    endMode = "acts"; endSel = Number(row.dataset.i);
+    paintChart();
+    $("endChart").scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+});
 $("endTable").addEventListener("click", () => $("endDlg").close());
 /** Menu, Reset win/loss record: the games counted and the run of wins back to nothing, once you've said so. */
 function resetRecord() {
