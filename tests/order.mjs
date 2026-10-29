@@ -50,8 +50,10 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   const noArt = { ...balanced, art: 0 };
   check([1, 2, 3, 4, 5].every(seed => { const r = dealRun("dates", seed, noArt); return cards(r).length === 16 && cards(r).every(id => cat(id) !== "art") && !r.wide; }),
     "a topic out: none of its cards, still sixteen");
+  // twice as likely per card is twice as often only for a small topic: a topic with a share s of the pool is dealt 2 / (1 + s)
+  // times as often, so a big one (Trade, once the law's years joined it) would sink below the band
   let more = 0, inn = 0;
-  for (let seed = 0; seed < 300; seed++) { more += cards(dealRun("dates", seed, { ...noArt, trade: 2 })).filter(id => cat(id) === "trade").length; inn += cards(dealRun("dates", seed, noArt)).filter(id => cat(id) === "trade").length; }
+  for (let seed = 0; seed < 300; seed++) { more += cards(dealRun("dates", seed, { ...noArt, markets: 2 })).filter(id => cat(id) === "markets").length; inn += cards(dealRun("dates", seed, noArt)).filter(id => cat(id) === "markets").length; }
   check(more / inn > 1.6 && more / inn < 2.3, `a topic more is dealt about twice as often as in (${(more / inn).toFixed(2)} times)`);
   const refining = { ...none, refining: 1 }, q = dealRun("quantities", 7, refining);
   check(cards(q).length >= 6 && cards(q).every(id => cat(id) === "refining" && BY_ID.get(id).unit === q.unit), "quantities: one family with six cards or more in the topics in, and only those cards");

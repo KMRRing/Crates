@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings", "law"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   pics: "pics-list.js", whoami: "party-whoami-bank.js", decoy: "party-decoy-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -34,7 +34,8 @@ export async function build() {
   }));
   const crates = Buffer.from(JSON.stringify(raw), "utf8").toString("base64");
 
-  const gen = written(ENTITIES, LINKS, E, await load("items/choice/art.js").then(m => m.ITEMS), estimates.ESTIMATES, pins.PINS);
+  const gen = written(ENTITIES, LINKS, E, await load("items/choice/art.js").then(m => m.ITEMS), estimates.ESTIMATES, pins.PINS,
+    await load("items/choice/law.js").then(m => m.STAGES));
   // Chart: each pin shows its entity, with the pin's own overrides
   const PLACES = [...pins.PINS, ...gen.pins].map(({ id, cat, about, ...over }) => {
     const { name, lat, lon, note, country, region, pic, state, marks } = of(about);
@@ -86,7 +87,7 @@ export async function build() {
 // well); museums Chart can pin, then the rest. A painting's note, the story of the picture, closes the explanation of
 // who painted it and Quote's note on its year (Lexicon shows it too). The options' order and the ids come from
 // the entity, so the same build always writes the same questions, and the pile keeps track of them.
-function written(ENTITIES, LINKS, E, art, estimates, pins) {
+function written(ENTITIES, LINKS, E, art, estimates, pins, lawStages) {
   // each thing's first link of each kind, indexed once: the wrong options below ask for the movement of every painter's
   // every painting, for each painting, and a scan of every link each time made the build take fourteen seconds once
   // there were 200 paintings
@@ -108,7 +109,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], skiing: [], watches: [], lit: [], sayings: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], skiing: [], watches: [], lit: [], sayings: [], law: [], quotes: [], pins: [] };
   const meanYear = new Map([...byPainter, ...byMovement].map(([id, ps]) => [id, mean(ps.map(x => x.year))]));
   for (const p of paintings) {
     // a painting in no one museum (a print in many, a picture in two versions) is asked who and when, but not where
@@ -452,6 +453,32 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
       out.sayings.push({ id: `SY-${s.id}-from`, lv: s.stage, d: D[s.d] || 5, area: "Sayings", q: `Where does this come from? “${s.text}”`, o: from, a: [from.indexOf(s.from)], s: 1, x, about: [s.id] });
     }
   }
+  // Law: what a maxim or a doctrine means, and, asked the other way, which term a meaning describes. A maxim shows its
+  // literal rendering unless it's iconic (as in Sayings); a saying that is also a maxim is asked its meaning in Sayings,
+  // so here only the second way. The wrong terms are of the same kind (a maxim against maxims), in its own language where
+  // there are others, near in length first (a long name among short ones would give itself away) and then from its own
+  // branch of the law, so the right one never stands out; notWith lists what could fairly be said to mean the same (frustration, rebus sic stantibus, force majeure).
+  const lawArea = new Map(lawStages.map(s => [s.id, s.label]));
+  const lawTerms = ENTITIES.filter(e => e.branch && e.meaning && (e.wrong || []).length >= 3 && (e.sets.includes("legal-maxim") || e.sets.includes("legal-concept")));
+  const lawMaxim = t => t.sets.includes("legal-maxim");
+  // an answer like FOB or CISG is picked out by being the only capitals, so its wrong names are acronyms too
+  const isAcronym = t => /^[A-Z]{2,}$/.test(t.name);
+  const lawNames = t => lawTerms.filter(u => u !== t && !(t.notWith || []).includes(u.id) && !(u.notWith || []).includes(t.id))
+    .map(u => [(lawMaxim(u) === lawMaxim(t) ? 0 : 1e3) + (u.lang === t.lang ? 0 : 300) + (u.branch === t.branch ? 0 : 100) + (isAcronym(u) === isAcronym(t) ? 0 : 150) + 6 * Math.abs(u.name.length - t.name.length), u])
+    .sort((a, b) => a[0] - b[0] || (a[1].id < b[1].id ? -1 : 1)).map(([, u]) => u.name);
+  // the nearest few are the pool, three of them drawn by the question's own hash: the right name is then the longest about
+  // as often as chance says, not rarely (it would be if the wrong ones were always the very nearest in length)
+  const lawWrong = t => order(`${t.id}-name`, lawNames(t).slice(0, 7));
+  for (const t of lawTerms) {
+    if (!lawArea.has(t.branch)) throw new Error(`${t.id}: no branch ${t.branch} of the law`);
+    const x = `${t.name}: ${t.meaning}.${t.literal ? ` Literally: ${t.literal}.` : ""}${t.note ? ` ${t.note}` : ""}`;
+    const mk = (kind, d, q, right, pool) => { const options = order(t.id + kind, [right, ...[...new Set(pool)].filter(o => o !== right).slice(0, 3)]);
+      return { id: `LW-${t.id}${kind}`, lv: t.branch, d, area: lawArea.get(t.branch), q, o: options, a: [options.indexOf(right)], s: 1, x, about: [t.id] }; };
+    const d = D[t.d] || 5;
+    if (!t.sets.includes("saying")) out.law.push(mk("", d,
+      lawMaxim(t) ? `What does this mean? “${t.text}”${t.literal && !t.iconic ? ` (literally: ${t.literal})` : ""}` : `What is meant by “${t.name}”?`, t.meaning, t.wrong));
+    out.law.push(mk("-name", Math.min(10, d + 1), `Which legal term means this? “${t.meaning[0].toUpperCase()}${t.meaning.slice(1)}”`, t.name, lawWrong(t)));
+  }
   return out;
 }
 
@@ -645,7 +672,8 @@ function decoy(ENTITIES, QUOTES, FACTS) {
 // aspect, by its label in Crates' topics (History, Food & drink…).
 const SET_SUBJECT = [["country", "Countries"], ["commodity", "Commodities"], ["painting", "Paintings"], ["painter", "Painters"],
   ["art-movement", "Art movements"], ["museum", "Museums"], ["art-place", "Sites & structures"], ["city", "Cities"], ["trade-place", "Ports, plants and trade"],
-  ["wine-place", "Wine places"], ["people-place", "People's places"], ["feature", "Physical features"], ["geo-place", "Geography"]];
+  ["wine-place", "Wine places"], ["people-place", "People's places"], ["feature", "Physical features"], ["geo-place", "Geography"],
+  ["legal-maxim", "Law"], ["legal-concept", "Law"]];
 // A clue thing's kind, by the subject it belongs to: the kinds are finer than the subjects, and fold into Crates' topics
 const KIND_SUBJECT = { person: "People", company: "Companies & brands", organisation: "Policy & institutions", place: "Geography",
   natural: "Nature", site: "Sites & structures", event: "History", law: "Policy & institutions", market: "Markets",

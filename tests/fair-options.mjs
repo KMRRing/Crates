@@ -2,7 +2,7 @@
 // longest, nor much longer than the wrong ones (which were once, in some banks, a few words against a full sentence).
 // Every choice bank is held to it: their wrong options have been rewritten as real alternatives of matching length.
 const FAIR = ["phil-bank.js", "reasoning-bank.js", "refining-bank.js", "phy-bank.js", "chm-bank.js", "eco-bank.js", "cs-bank.js", "rel-bank.js",
-  "wine-bank.js", "art-bank.js", "words-bank.js", "maths-bank.js", "cities-bank.js", "flags-bank.js", "patterns-bank.js", "swiss-bank.js", "arch-bank.js", "myth-bank.js", "merchants-bank.js", "titles-bank.js", "artmarket-bank.js", "bavaria-bank.js", "britain-bank.js", "china-bank.js", "skiing-bank.js", "watches-bank.js"];   // every choice bank, since October 2026
+  "wine-bank.js", "art-bank.js", "words-bank.js", "maths-bank.js", "cities-bank.js", "flags-bank.js", "patterns-bank.js", "swiss-bank.js", "arch-bank.js", "myth-bank.js", "merchants-bank.js", "titles-bank.js", "artmarket-bank.js", "bavaria-bank.js", "britain-bank.js", "china-bank.js", "skiing-bank.js", "watches-bank.js", "law-bank.js"];   // every choice bank, since October 2026
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 for (const f of FAIR) {
@@ -93,6 +93,16 @@ for (const f of FAIR) {
   const { MATHS } = await import("../watches-bank.js"), core = t => t.replace(/^The /, "").toLowerCase();
   const said = MATHS.filter(q => /^WT-G-/.test(q.id) && q.q.toLowerCase().includes(core(q.o[q.a[0]])));
   check(!said.length, `watches: no generated question names its answer${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
+}
+// law: a question about a term never says the term, and a term's meaning never says the term's name (5-letter stems, but
+// not the words every legal term shares)
+{
+  const { MATHS } = await import("../law-bank.js");
+  const stems = name => name.toLowerCase().replace(/[()“”]/g, "").split(/[\s\-\/,']+/).filter(w => w.length >= 5 && !["which", "legal", "title", "goods", "court", "party", "trade"].includes(w)).map(w => w.slice(0, 5));
+  const generated = MATHS.filter(q => /^LW-(?!H)/.test(q.id)), ans = q => q.o[q.a[0]];
+  const named = generated.filter(q => q.id.endsWith("-name")).filter(q => stems(ans(q)).some(st => q.q.toLowerCase().includes(st)) || q.q.toLowerCase().includes(ans(q).toLowerCase()));
+  const meant = generated.filter(q => !q.id.endsWith("-name")).filter(q => stems(q.q.match(/“([^”]+)”/)?.[1] || "").some(st => ans(q).toLowerCase().includes(st)));
+  check(!named.length && !meant.length, `law: no generated question or meaning names its term${named.length + meant.length ? `: ${[...named, ...meant].map(q => q.id).slice(0, 8).join(", ")}` : ""}`);
 }
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

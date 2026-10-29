@@ -31,7 +31,7 @@ for (const q of QUOTES) if (q.about) (FACTS.get(q.about) || FACTS.set(q.about, [
 
 // ---------- words for the kinds and the topics ----------
 const KIND = { country: "country", city: "city", commodity: "commodity", painting: "painting", museum: "museum", feature: "natural feature",
-  "trade-place": "trade hub", "geo-place": "place", "art-place": "art place" };
+  "trade-place": "trade hub", "geo-place": "place", "art-place": "art place", "legal-maxim": "legal maxim", "legal-concept": "legal concept" };
 // the knowledge base's groups: regions for countries, families for commodities (Crates' pools)
 const GROUP = { eu: "Europe", asia: "Asia", me: "Middle East", am: "Americas", af: "Africa", soft: "soft commodity", met: "metal",
   nrg: "energy", grain: "grain", bio: "biofuel", chem: "chemical", cred: "credit", circ: "circular" };

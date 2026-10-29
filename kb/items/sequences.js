@@ -587,5 +587,80 @@ export const SEQUENCES = [
    "Montreux",
    "Villeneuve"
   ]
+ },
+ {
+  "id": "documentary-credit",
+  "name": "A documentary credit, step by step",
+  "unit": "step",
+  "ask": "Which came first? Tap where it goes",
+  "note": "The path of a letter of credit under the ICC's UCP 600. The issuing bank pays on the documents alone, whatever the quarrel over the goods (the autonomy principle).",
+  "steps": [
+   "Buyer and seller agree a sale on letter-of-credit terms",
+   "Buyer asks its bank to issue the credit",
+   "The advising bank tells the seller the credit is genuine",
+   "Seller ships the cargo and gets the bill of lading",
+   "Seller presents the documents to the nominated bank",
+   "The issuing bank has five banking days to check them",
+   "The issuing bank pays",
+   "Buyer repays the bank and takes the documents",
+   "Buyer collects the cargo against the bill of lading"
+  ]
+ },
+ {
+  "id": "cif-cargo",
+  "name": "A CIF cargo, from sale to delivery",
+  "unit": "step",
+  "ask": "Which came first? Tap where it goes",
+  "note": "How a cargo sold CIF (cost, insurance and freight) goes under the Incoterms: the seller arranges ship and insurance, risk passes on loading, and the buyer pays for documents, not goods.",
+  "steps": [
+   "Seller and buyer sign a CIF sale contract",
+   "Seller books the ship and takes out insurance",
+   "The cargo is loaded and the risk passes to the buyer",
+   "The master signs the bill of lading",
+   "Seller sends the invoice, bill of lading and policy",
+   "Buyer pays against the documents, with the ship at sea",
+   "The ship arrives and gives notice of readiness",
+   "Buyer presents the bill of lading and discharge begins",
+   "Discharge ends: time over laytime is demurrage"
+  ]
+ },
+ {
+  "id": "arbitration",
+  "name": "A London arbitration, from notice to award",
+  "unit": "step",
+  "ask": "Which came first? Tap where it goes",
+  "note": "The usual course of an ad hoc or institutional arbitration seated in London; the parties' rules and the Arbitration Act 1996 settle the details.",
+  "steps": [
+   "The contract is signed with an arbitration clause",
+   "A dispute arises; the claimant gives notice of arbitration",
+   "Each side names an arbitrator",
+   "The two arbitrators appoint the chair",
+   "The tribunal sets a timetable in its first order",
+   "Claimant serves its statement of case",
+   "Respondent serves its defence and any counterclaim",
+   "The sides exchange documents and witness statements",
+   "The hearing is held",
+   "The tribunal issues its award",
+   "The winner enforces the award abroad (New York Convention)"
+  ]
+ },
+ {
+  "id": "trade-law",
+  "name": "The law of trade through time",
+  "unit": "milestone",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1609, 1677, 1804, 1854, 1893, 1924, 1947, 1958, 1980, 1995.",
+  "steps": [
+   "Grotius argues the sea is free",
+   "England's Statute of Frauds",
+   "The French Code civil",
+   "Hadley v Baxendale limits damages",
+   "The Sale of Goods Act",
+   "The Hague Rules on bills of lading",
+   "The GATT",
+   "The New York Convention on awards",
+   "The UN Sales Convention (CISG)",
+   "The WTO opens"
+  ]
  }
 ];
