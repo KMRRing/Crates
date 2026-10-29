@@ -21,6 +21,7 @@ import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sextant } from "./loading.js";
 import { createTable3d } from "./dandan-3d.js";
+import { curveOf, worthDrawing, captionOf, readoutOf, chartSvg, pointAt, BOX, addResult, recordOf } from "./dandan-advantage.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -1089,15 +1090,36 @@ $("whyClose").addEventListener("click", () => $("whyDlg").close());
 $("whyDlg").addEventListener("click", e => { if (e.target === $("whyDlg")) $("whyDlg").close(); });
 
 // ---------- a game's end ----------
+/** Who the game was against, for the record: a person at the table, or the computer at the level it was set to. */
+function opponentOf(v) { return v.seats?.[1 - v.seat]?.uid ? "friend" : opts.level; } // a declaration: onOver runs while the page starts, with a finished game
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const won = v.state.winner === v.seat;
-  const r = read(RECORD, { played: 0, won: 0 });
-  r.played++;
-  if (won) r.won++;
-  write(RECORD, r);
-  noteStreak("dandan", won);
+  // a finished game opened again (a reload, the other phone) is over again: it counts once, by when it began
+  const before = read(RECORD, {}), after = addResult(before, { won, drawn: v.state.winner < 0, vs: opponentOf(v), game: v.G.started });
+  if (after !== before) { write(RECORD, after); noteStreak("dandan", won); }
   setTimeout(() => { if (V?.over) showEnd(V); }, 1100);
+}
+// the end of a game: who won and why, how the game went (the judge's chance of winning at the start of each turn, which
+// the rules note as it's played: tap a turn for its chances), and the record
+let endCurve = null, endNames = [], endSel = -1;
+function paintChart() {
+  $("endChart").innerHTML = chartSvg(endCurve, endSel);
+  $("endRead").textContent = endSel >= 0 ? readoutOf(endCurve, endSel, endNames) : "Tap a turn on the chart for its chances.";
+}
+function pickPoint(e) {
+  const r = $("endChart").querySelector("svg")?.getBoundingClientRect();
+  if (!r?.width) return;
+  endSel = pointAt(endCurve, ((e.clientX - r.left) / r.width) * BOX.w);
+  paintChart();
+}
+function stepPoint(e) {
+  const k = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+  if (!k || !$("endChart")) return; // no chart on this game's sheet (the one before's curve is still in endCurve)
+  e.preventDefault();
+  const n = endCurve.points.length + (endCurve.end == null ? 0 : 1);
+  endSel = Math.max(0, Math.min(n - 1, (endSel < 0 ? (k > 0 ? -1 : n) : endSel) + k));
+  paintChart();
 }
 function showEnd(v) {
   const s = v.state, mine = s.winner === v.seat;
@@ -1107,9 +1129,26 @@ function showEnd(v) {
     : s.why === "library" ? `${you ? "You" : loser} drew from an empty library.`
     : s.why === "conceded" ? `${you ? "You" : loser} conceded.`
     : `${you ? "You are" : `${loser} is`} out of life.`;
+  endCurve = curveOf(s, v.seat);
+  endNames = [nameOf(0), nameOf(1)];
+  endSel = -1;
+  const drawn = worthDrawing(endCurve), rec = recordOf(read(RECORD, {})), vs = opponentOf(v);
+  const dots = rec.last.map(c => `<i class="${c === "W" ? "won" : c === "D" ? "drawn" : "lost"}" title="${c === "W" ? "Won" : c === "D" ? "Drawn" : "Lost"}"></i>`).join("");
   $("endBody").innerHTML = `<p>${esc(why)}</p>
     <ul class="dd-standings"><li class="${isMe(0) ? "me" : ""}"><span>${esc(nameOf(0))}</span><b>${s.life[0]}</b></li><li class="${isMe(1) ? "me" : ""}"><span>${esc(nameOf(1))}</span><b>${s.life[1]}</b></li></ul>
+    ${drawn ? `<h3 class="dd-end-h">How the game went</h3>
+    <div id="endChart" class="dd-adv-wrap"></div>
+    <p id="endRead" class="dd-adv-read" aria-live="polite"></p>
+    <p class="dd-adv-cap">${esc(captionOf(endCurve, endNames))} <span class="dd-adv-src">Rated by the computer's judge, which sees both hands.</span></p>` : `<p class="dd-end-note">Over too soon for a chart.</p>`}
+    <h3 class="dd-end-h">Your record</h3>
+    <p class="dd-rec-top"><b>Won ${rec.won} of ${rec.played}</b> <span>${rec.pct}%</span></p>
+    <ul class="dd-rec-rows">${rec.rows.map(r => `<li class="${r.key === vs ? "on" : ""}"><span>${esc(r.label)}</span><b>${r.won} of ${r.played}</b><i>${r.pct}%</i></li>`).join("")}</ul>
+    ${rec.last.length > 1 ? `<p class="dd-rec-last" aria-label="The last ${rec.last.length} results, the newest at the right">${dots}</p>` : ""}
     <p class="dd-end-note">${s.turn ? `${s.turn} turn${s.turn === 1 ? "" : "s"}` : "Over before the first turn"}. ${s.lib.length} cards were left in the library. The loser goes first next game.</p>`;
+  if (drawn) {
+    paintChart();
+    $("endChart").addEventListener("click", pickPoint);
+  }
   $("endAgain").hidden = !page.host;
   if (!$("endDlg").open) $("endDlg").showModal();
 }
@@ -1126,6 +1165,7 @@ async function concede() {
   if (why) toast(why);
 }
 $("endAgain").addEventListener("click", newGame);
+$("endDlg").addEventListener("keydown", stepPoint); // the arrows step along the chart from wherever focus is in the sheet
 $("endTable").addEventListener("click", () => $("endDlg").close());
 
 // ---------- the log, copied (Menu) ----------
@@ -1263,8 +1303,8 @@ function openMenu() {
   set.append(line("Holding priority lets you cast again before the other player can answer the first spell. A card you cycle always holds it, so you can answer your own cycling."));
   set.append(toggle("Choose which lands to tap", opts.manual, on => { opts.manual = on; saveOpts(); }));
   set.append(line("With different lands to pay with, you tap them yourself: so an Izzet Boilerworks can return a tapped one."));
-  const r = read(RECORD, { played: 0, won: 0 }), st = read("dandan:streak", { now: 0, best: 0 });
-  part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best > 1 ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
+  const r = recordOf(read(RECORD, {})), st = read("dandan:streak", { now: 0, best: 0 });
+  part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games (${r.pct}%)${st.best > 1 ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

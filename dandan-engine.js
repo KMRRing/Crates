@@ -788,6 +788,7 @@ export function restore(s) {
     lists(s.pending, ["ids", "cards", "froms", "blockers", "attackers"]);
     if (s.pending.options) s.pending.options = list(s.pending.options).map(l => list(l));
   }
+  if (s.adv != null) s.adv = list(s.adv);
   s.nt ||= 0;
   s.res ||= 0;
   s.why ||= "";

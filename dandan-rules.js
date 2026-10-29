@@ -6,6 +6,7 @@
 import { deal, toMove, act, restore, passPoints } from "./dandan-engine.js";
 import { botMove } from "./dandan-bot.js";
 import { notePasses } from "./dandan-observe.js";
+import { noteTurn } from "./dandan-advantage.js";
 
 export const rules = {
   id: "dandan",
@@ -14,8 +15,12 @@ export const rules = {
   deal: ({ rng, prev }) => ({ ...deal({ rng, prev }), reading: 1, obs: [] }),
   toMove,
   act: (s, seat, move, ctx) => {
-    const r = act(s, seat, move, ctx);
-    if (typeof r !== "string" && !ctx?.quiet && passPoints.length) notePasses(r, passPoints.splice(0));
+    const turn = s.turn, r = act(s, seat, move, ctx);
+    if (typeof r !== "string" && !ctx?.quiet) {
+      if (passPoints.length) notePasses(r, passPoints.splice(0));
+      // a turn has begun: the judge's chance at its start, for the review at the end (a game ended in it has its result)
+      if (r.turn !== turn && !r.over) noteTurn(r);
+    }
     return r;
   },
   bot: (s, seat, ctx) => botMove(s, seat, ctx),
