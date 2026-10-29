@@ -10,8 +10,7 @@
 
 /* ---------- the bars at either end ---------- */
 .d3-bar { flex: none; display: flex; align-items: center; gap: .55rem; min-width: 0; height: 2.85rem; padding: 0 .15rem; }
-#app.dandan.dd-full .d3-bar.foe { padding-right: 2.6rem; }               /* the menu's button floats over its right end */
-html[data-theme="modern"] #app.dandan.dd-full .d3-bar.foe { padding-right: 4rem; }
+#app.dandan.dd-full .d3-bar.foe { padding-right: var(--dd-corner, 2.6rem); }   /* the menu's button and the two switches float over its right end */
 .d3-av { --seat: var(--dd-in); position: relative; flex: none; display: grid; place-items: center; width: 2.45rem; height: 2.45rem; margin-right: .5rem; padding: 0;
   border: 2px solid var(--brass); border-radius: 50%; color: #FFF; font: inherit; cursor: pointer;
   background: radial-gradient(circle at 34% 30%, color-mix(in srgb, var(--seat) 50%, #FFF), var(--seat) 72%); box-shadow: 0 .15rem .35rem rgba(0, 0, 0, .3); }

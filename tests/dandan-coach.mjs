@@ -6,7 +6,7 @@ import { toMove, deal, restore, act, passPoints } from "../dandan-engine.js";
 import { readPass, notePasses } from "../dandan-observe.js";
 import { T } from "../dandan-spells.js";
 import { think, determinize, seedOf, coachBudget, DEPTH } from "../dandan-think.js";
-import { moveSaid, moveName, adviceLine, verdict, reasons, sameMove, MARGIN, evidence } from "../dandan-coach.js";
+import { moveSaid, moveName, adviceLine, verdict, reasons, sameMove, MARGIN, evidence, forgetKnown } from "../dandan-coach.js";
 import { winChance, features, FEATURES } from "../dandan-eval.js";
 import { allAmong } from "../dandan-reads.js";
 import { facts, holds } from "../dandan-policy.js";
@@ -325,6 +325,20 @@ test("the shared graveyard: a Mystic Retrieval cast from the hand while they hav
   const v = verdict(think(s, 0, { deals: 96, wide: 9, must: mine }), mine, s, 0);
   return !!v && /flashes it back for the Piracy Charm, and your Dandân dies/.test(v.words) && /Their best answer to yours, in \d+ of the \d+ deals: they cast Mystic Retrieval for Piracy Charm with flashback/.test(v.words)
     && /you have a Dandân on the table in .* after yours/.test(v.words) || v?.words || "no word";
+});
+test("with Show revealed cards off the reasons still say a top card is known, but not which, and the page's switch puts it back", () => {
+  // their upkeep, a top card you saw: Brainstorm now draws it for you instead of them
+  const s = scene({ turn: 4, active: 1, step: "upkeep", hand: [["Brainstorm", "Island"], ["Island"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 3)] });
+  s.kn = [[s.lib[0], 3]];
+  const name = DECK[s.lib[0]], play = { t: "cast", card: idIn(s, 0, "Brainstorm"), from: "hand", targets: [] };
+  const said = () => reasons(s, 0, play, { t: "pass" }).join(" ");
+  const shown = said();
+  forgetKnown(true);
+  const hidden = said();
+  forgetKnown(false);
+  const back = said();
+  return shown.includes(`You know the top card is ${name}`) && /You know the top card: drawn now/.test(hidden) && !hidden.includes(name) && back === shown
+    || JSON.stringify({ shown, hidden });
 });
 test("a move the coach's weighing never saw (a refused one) has no verdict rather than a wrong one", () => {
   const s = lone(), r = think(s, 0, BUDGET);

@@ -177,7 +177,7 @@ export function createTable3d(c) {
   function bars() {
     const s = S(), v = c.view(), me = v.seat ?? 0, foe = 1 - me;
     // their hand: the backs of its cards, those you know face up (seen going there), tapped to see what you know
-    const known = v.seat != null ? knownIn(s, foe, me) : [], n = s.hand[foe].length;
+    const known = v.seat != null && c.sees() ? knownIn(s, foe, me) : [], n = s.hand[foe].length;
     const shown = [...known.slice(0, n), ...Array(Math.max(0, n - known.length)).fill(null)].slice(0, 12);
     const fan = `<button type="button" class="d3-fan" data-act="known" aria-label="${esc(c.nameOf(foe))}’s hand: ${n} card${n === 1 ? "" : "s"}${known.length ? `, ${known.length} known` : ""}" style="--n:${Math.max(1, shown.length)}">
       ${shown.map((id, j) => `<span class="d3-fc${id != null ? " known" : ""}" style="--j:${j - (shown.length - 1) / 2}"${id != null ? ` data-id="${id}"` : ""}>${id != null ? art(nm(id)) : back()}</span>`).join("")}<b class="d3-fn2">${n}</b></button>`;
@@ -221,7 +221,7 @@ export function createTable3d(c) {
   }
   /** The library and the graveyard on the line between the halves. */
   function drawPiles() {
-    const s = S(), v = c.view(), lib = s.lib.length, known = topKnown(s, v.seat ?? 0), top = s.yard[s.yard.length - 1];
+    const s = S(), v = c.view(), lib = s.lib.length, known = c.sees() ? topKnown(s, v.seat ?? 0) : null, top = s.yard[s.yard.length - 1];
     const deep = n => Math.min(5, Math.ceil(n / 14));
     const libEl = $("d3lib"), yardEl = $("d3yard");
     libEl.className = `d3-pile lib deep${deep(lib)}`;
@@ -387,7 +387,7 @@ export function createTable3d(c) {
   /** Whether a card in a zone is face up to you. */
   function seen(s, id, z, me) {
     if (z === "bf" || z === "st" || z === "y" || z === "x" || z === `h${me}`) return true;
-    return z === "l" || z === `h${1 - me}` ? !!(knOf(s, id) & (1 << me)) : false;
+    return z === "l" || z === `h${1 - me}` ? c.sees() && !!(knOf(s, id) & (1 << me)) : false;
   }
   function animate(before, was, s) {
     // the slots that stayed slide from where they were (a row that grew or shrank, a land untapped into its pile)

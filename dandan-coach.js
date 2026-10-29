@@ -111,6 +111,13 @@ export function themed(s, seat, a, b, { againstFirst = false } = {}) {
   }
   return out;
 }
+/**
+ * With the page's Show revealed cards off (the player is to remember what has been revealed), the reasons stop naming a
+ * card known to be on top or in their hand: they say there is one, and not which. What the coach weighs is unchanged.
+ */
+let forget = false;
+export const forgetKnown = on => { forget = !!on; };
+const topIs = id => (forget ? "the top card" : `the top card is ${nm(id)}`);
 /** What a move says for itself (good: it is the better one) or against itself (it is the worse): [theme, sentence] pairs. */
 function forMove(s, seat, F, m, good) {
   if (!m) return [];
@@ -197,7 +204,7 @@ function forMove(s, seat, F, m, good) {
           const mana = landMana(s, opp), two = Math.max(0, ...manaAlts(target).map(a => a.length)) > 1;
           const back = half === "Metamorphose" ? knownIn(s, opp, seat).find(isLandId) : undefined;
           const boil = s.stack.some(x => x.name === "@boil" && x.ctl === opp);
-          if (!good && back != null && !two) say("mana", `They hold the ${nm(back)} you know of: Metamorphose lets them put it straight down, so their mana doesn't drop.`);
+          if (!good && back != null && !two) say("mana", `They hold ${forget ? "a land" : `the ${nm(back)}`} you know of: Metamorphose lets them put it straight down, so their mana doesn't drop.`);
           else if (!good && mana >= 9) say("mana", `With ${mana} mana down, a land more or less is no matter to them now.`);
           else if (good && boil && two) say("mana", "Taken in answer to its trigger, the Boilerworks costs them its two mana and they still return a land for it, one not yet in their hand to put back down.");
           else if (good && two) say("mana", `${nm(target.id)} makes two mana: taking it slows them the most.`);
@@ -213,8 +220,8 @@ function forMove(s, seat, F, m, good) {
       }
       // the spells that draw: when the mana is free, and when the top card is known
       if (["Brainstorm", "Predict", "Quicken", "Take Inventory", "Chart a Course", "Lórien Revealed", "Mystic Retrieval"].includes(half)) {
-        if (good && stealing) say("top", `You know the top card is ${nm(F.known)}: drawn now, it's yours instead of theirs.`);
-        if (good && half === "Predict" && F.known != null) say("top", `You know the top card is ${nm(F.known)}: name it, and Predict draws two.`);
+        if (good && stealing) say("top", `You know ${topIs(F.known)}: drawn now, it's yours instead of theirs.`);
+        if (good && half === "Predict" && F.known != null) say("top", `You know ${topIs(F.known)}: name it, and Predict draws two.`);
         if (good && theirEnd) say("end-step", free);
         if (!good && myTurn && lapseOpen && F.my.n - total(costOf(s, seat, half, m.from)) < 2) say("lapse-mana", "It taps the two you'd keep for Memory Lapse on their turn.");
         if (!good && myTurn && risk >= 0.3 && CARDS[half].type === "sorcery") say("counter-risk", `Cast on your turn into ${F.their.n} open mana, a counter would put it on top for them.`);
@@ -222,11 +229,11 @@ function forMove(s, seat, F, m, good) {
       break;
     }
     case "cycle": case "ability": {
-      if (good && stealing && m.t === "cycle") say("top", `You know the top card is ${nm(F.known)}: drawn now, it's yours instead of theirs.`);
+      if (good && stealing && m.t === "cycle") say("top", `You know ${topIs(F.known)}: drawn now, it's yours instead of theirs.`);
       if (good && theirEnd) say("end-step", free);
       if (m.t === "ability" && nm(m.id) === "Flood Plain" && F.known != null) {
-        if (!good && next === seat) say("top", `It shuffles away the ${nm(F.known)} you'd draw next.`);
-        if (good && next !== seat) say("top", `It shuffles away the ${nm(F.known)} they'd draw next.`);
+        if (!good && next === seat) say("top", `It shuffles away the ${forget ? "card" : nm(F.known)} you'd draw next.`);
+        if (good && next !== seat) say("top", `It shuffles away the ${forget ? "card" : nm(F.known)} they'd draw next.`);
       }
       break;
     }

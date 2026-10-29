@@ -10,7 +10,7 @@ import { rules } from "./dandan-rules.js";
 import { LEVEL_NAMES } from "./dandan-bot.js";
 import { moves, afterFetch, bottomFor, payment, MOST_MULLS } from "./dandan-engine.js";
 import { think, BUDGET } from "./dandan-think.js";
-import { adviceLine, verdict, moveSaid, sameMove, whyNote, reasons, evidence } from "./dandan-coach.js";
+import { adviceLine, verdict, moveSaid, sameMove, whyNote, reasons, evidence, forgetKnown } from "./dandan-coach.js";
 import { CARDS, DECK, HALVES, NAMES, BASICS, costWords, total, parseCost } from "./dandan-cards.js";
 import { nm, defOf, perm, pt, isLand, isCreature, manaAlts, payFrom, topKnown, needType, poolOf, knownIn, knOf, typesOf } from "./dandan-core.js";
 import { same } from "./dandan-spells.js";
@@ -46,7 +46,11 @@ const PACES = [["quick", "Quick"], ["steady", "1.5 s"], ["slow", "3 s"], ["tap",
 const SHOWN_MS = { steady: 1500, slow: 3000 };
 // the table as tiles, or as a battlefield seen at an angle, its cards illustrated and moving (dandan-3d.js)
 const VIEWS = [["table", "Table"], ["3d", "3D"]];
-let opts = { level: "hard", hold: false, manual: false, coach: "hints", think: "quick", pace: "quick", full: true, view: "table", ...read(OPTS, {}) };
+let opts = { level: "hard", hold: false, manual: false, reveals: true, coach: "hints", think: "quick", pace: "quick", full: true, view: "table", ...read(OPTS, {}) };
+// Show revealed cards (Menu): off, nothing marks what you have seen of the other hand or of the library (the cards known
+// there, the top card when it is known), and the coach stops naming them: you have to remember
+const sees = () => opts.reveals !== false;
+forgetKnown(!sees());
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "hard";
 if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
 if (!THINKING.some(([k]) => k === opts.think)) opts.think = "quick";
@@ -439,7 +443,7 @@ function drawZone(box, seat, q) {
   const turn = s.active === seat && !s.over && s.step !== "mull";
   const them = seat !== (V.seat ?? 0);
   // what you know is in their hand (seen going there), and mana floating in a pool until the step ends
-  const known = them && V.seat != null ? knownIn(s, seat, V.seat).length : 0, pool = poolOf(s, seat);
+  const known = them && V.seat != null && sees() ? knownIn(s, seat, V.seat).length : 0, pool = poolOf(s, seat);
   box.className = `dd-zone ${them ? "foe" : "me"}${turn ? " turn" : ""}${V.toMove === seat ? " move" : ""}`;
   box.innerHTML = `<header class="dd-zh${armed.has(`p:${seat}`) ? " tgt" : ""}${RING.has(`t:p:${seat}`) ? " advised" : ""}" data-tk="p:${seat}"${them ? ' data-act="known"' : ""}>
       <b class="dd-who">${esc(nameOf(seat))}</b>
@@ -500,7 +504,7 @@ function itemWords(it) {
 const stackName = it => (it ? STACK_WORDS[it.name] || it.name : "a spell");
 
 function drawStrip() {
-  const s = S(), lib = s.lib.length, known = topKnown(s, V.seat ?? 0);
+  const s = S(), lib = s.lib.length, known = sees() ? topKnown(s, V.seat ?? 0) : null;
   $("mid").innerHTML = `<button type="button" class="dd-pile" data-act="lib" aria-label="Library, ${lib} cards"><b>${lib}</b><small class="${known != null ? "known" : ""}">${known != null ? `▲ ${esc(short(nm(known)))}` : "Library"}</small></button>
     <div class="dd-phase"><b>${headline()}</b><span class="dd-wait">${waitLine()}</span></div>
     <button type="button" class="dd-pile${RING.has("pile:yard") ? " advised" : ""}" data-act="yard" aria-label="Graveyard, ${s.yard.length} cards"><b>${s.yard.length}</b><small>Graveyard</small></button>`;
@@ -1018,6 +1022,12 @@ function fillView() {
     $("viewHead").textContent = `Library · ${s.lib.length}`;
     const me = V.seat ?? 0, known = s.kn.filter(([id, m]) => (m & (1 << me)) && s.lib.includes(id)).map(([id]) => id).sort((a, b) => s.lib.indexOf(a) - s.lib.indexOf(b));
     const theirs = V.seat != null ? knownIn(s, 1 - me, me) : [];
+    if (!sees()) {
+      body.innerHTML = `<p class="dd-ask-note">One library for both players. It was shuffled at the start.</p>
+        <p class="dd-sub">Revealed cards aren’t shown (Menu, Show revealed cards): remember what you have seen go there, or looked at. ${esc(nameOf(1 - me))} holds ${s.hand[1 - me].length}.</p>`;
+      VROWS = [];
+      return;
+    }
     body.innerHTML = `<p class="dd-ask-note">One library for both players. It was shuffled at the start; you know a card only if you have seen it go there or looked at it.</p>
       ${known.length ? `<ol class="dd-known">${known.map(id => `<li><span>${s.lib.indexOf(id) + 1}</span><button type="button" class="dd-chip dd-name" data-look="${id}">${esc(nm(id))}</button></li>`).join("")}</ol>` : `<p class="dd-sub">You know no card in it.</p>`}
       <h4>${esc(nameOf(1 - me))}’s hand · ${s.hand[1 - me].length}</h4>
@@ -1345,10 +1355,12 @@ function openMenu() {
   showReviewNote();
   set.append(action(plays ? `Review your play (${plays} to go through)` : "Review your play", openReview, ""));
   set.append(toggle("Full screen", opts.full, fullScreen));
-  set.append(toggle("Hold priority when I cast", opts.hold, on => { opts.hold = on; saveOpts(); }));
+  set.append(toggle("Hold priority when I cast", opts.hold, on => { opts.hold = on; saveOpts(); paintToggles(); }));
   set.append(line("Holding priority lets you cast again before the other player can answer the first spell. A card you cycle always holds it, so you can answer your own cycling."));
-  set.append(toggle("Choose which lands to tap", opts.manual, on => { opts.manual = on; saveOpts(); }));
+  set.append(toggle("Choose which lands to tap", opts.manual, on => { opts.manual = on; saveOpts(); paintToggles(); }));
   set.append(line("With different lands to pay with, you tap them yourself: so an Izzet Boilerworks can return a tapped one."));
+  set.append(toggle("Show revealed cards", sees(), on => { opts.reveals = on; saveOpts(); forgetKnown(!on); word = null; draw(); }));
+  set.append(line("Off: nothing marks what you have seen of the other hand or the library, and the coach doesn’t name it. You remember it yourself."));
   const r = recordOf(read(RECORD, {})), st = read(STREAK, { now: 0, best: 0 });
   const about = part(body, "about");
   about.append(line(r.played ? `Won ${r.won} of ${r.played} games (${r.pct}%)${st.best > 1 ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
@@ -1356,11 +1368,35 @@ function openMenu() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
+// ---------- the buttons at the top: hold priority, tap my own lands ----------
+// The menu's two switches, always to hand (29 October 2026, Korbi): lit while on, in the header and in full screen too
+const TOGGLES = [["holdBtn", "hold", "Hold priority when I cast"], ["tapBtn", "manual", "Choose which lands to tap"]];
+function paintToggles() {
+  $("quick").hidden = IN_FRAME;
+  for (const [id, key] of TOGGLES) $(id).setAttribute("aria-pressed", String(!!opts[key]));
+}
+for (const [id, key, label] of TOGGLES) {
+  $(id).addEventListener("click", () => {
+    opts[key] = !opts[key];
+    saveOpts();
+    paintToggles();
+    toast(`${label}: ${opts[key] ? "on" : "off"}`);
+  });
+}
+paintToggles();
+
 // ---------- full screen ----------
 // The header gives way to the menu's button, faded at the top right (the title, the partner's pill and Rules go: the
 // rules and the other games are in the menu); turned on from the menu, the browser's own full screen too, where it has
 // one and isn't an app on the home screen already.
-const showFull = () => $("app").classList.toggle("dd-full", !!opts.full);
+const showFull = () => { $("app").classList.toggle("dd-full", !!opts.full); fitCorner(); };
+// the room the corner takes (the menu's button and the two switches) in full screen, for the table's other side to leave
+function fitCorner() {
+  const r = document.querySelector("#app > .top").getBoundingClientRect();
+  $("app").style.setProperty("--dd-corner", opts.full ? `${Math.ceil(innerWidth - r.left + 6)}px` : "");
+}
+new ResizeObserver(fitCorner).observe(document.querySelector("#app > .top"));
+addEventListener("resize", fitCorner);
 function fullScreen(on) {
   opts.full = on;
   saveOpts();
@@ -1393,7 +1429,7 @@ $("copyClose").addEventListener("click", () => $("copyDlg").close());
 table3d = createTable3d({
   view: () => V, ui: () => ui, moves: () => MV, rings: () => RING, hover: () => hover, POINTER, LAND_CODE, quiet: IN_FRAME,
   esc, pips, nameOf, isMe, short, soft: n => SOFT[n] || n, words, typeLine, stateWords, itemWords, armedKeys, targetKey, payable,
-  headline, waitLine, readHead, canAct, handOrder, fetchable: () => FETCH,
+  headline, waitLine, readHead, canAct, handOrder, fetchable: () => FETCH, sees,
 });
 showView();
 window.__dandan = { page, get view() { return V; }, get ui() { return ui; }, opts };
