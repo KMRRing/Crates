@@ -28,15 +28,19 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
    which you then don't commit.
 5. **Built files are rebuilt, not merged.** If a rebase conflicts in a bank built from `kb/`, settle `kb/` and run
    `node tools/build-kb.mjs`.
-6. **Test before pushing:** `node tests/<game>.mjs` for what you touched, all of `tests/*.mjs` if you touched a shared
-   file. A push's own run is smaller than that (Korbi, 24 October 2026: the full run on every push was too slow):
-   `tools/pick-tests.mjs` gives a push that changes only one game's own files that game's tests plus the quick ones that
-   read every page (syntax, imports, offline, wide, days), and any shared file, bank, `tools/`, `kb/` or file with no
-   tests of its own runs everything. It compares with the last commit the bot published, so a cancelled run's changes
-   are never skipped. The whole suite runs every night (`.github/workflows/all-tests.yml`, 02:23 UTC) and on demand
-   (`gh api -X POST repos/KMRRing/Crates/actions/workflows/all-tests.yml/dispatches -f ref=main`; `gh workflow run` needs GraphQL, which sessions can't reach); a game change that could break another game's page should still get a full local
-   run first. If a test fails, `sw.js` isn't published and installed copies stay on the last good version (a fresh
-   visit to the site still gets the new files, so don't leave it broken).
+6. **Test before pushing what CI will run:** `node tools/pick-tests.mjs --run $(git diff --name-only origin/main)` (a minute
+   or less). That is the push's own selection (Korbi, 29 October 2026: the full suite took too long, and uptime isn't
+   important here; of 594 pushes only 2 broke a game's rules, and 14 failures were one afternoon's bank rewrites): the
+   quick tests that read every page (syntax, imports, offline, wide, days); the tests of what changed (a game's own, and
+   for a shared file, a bank or a `kb/` file the tests that load it, found from the files each test names); and a twentieth
+   of the rest, a different one each push (`--slot N`), so every test gets its turn. The slow tests (Factor, Dandan,
+   Manifest, Refinery, Cartel, Punt, Topple's, about 60% of the suite's time) run on a push only when their own game
+   changed. Don't run all of `tests/*.mjs` by hand (nine minutes on four cores): the whole suite runs every night
+   (`.github/workflows/all-tests.yml`, 02:23 UTC) and on demand (`gh api -X POST
+   repos/KMRRing/Crates/actions/workflows/all-tests.yml/dispatches -f ref=main`; `gh workflow run` needs GraphQL, which
+   sessions can't reach). A push compares with the last commit the bot published, so a cancelled run's changes are never
+   skipped. If a test fails, `sw.js` isn't published and installed copies stay on the last good version (a fresh visit to
+   the site still gets the new files, so don't leave it broken).
 7. **After pushing, check the run went green** (Actions on GitHub) and that the bot committed `sw.js` when you changed
    a game file; look at the last nightly "Every test" run when you start, and fix what it found; installed copies update a minute or two later.
 

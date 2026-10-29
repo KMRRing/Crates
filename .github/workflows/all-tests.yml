@@ -1,6 +1,6 @@
 # The whole suite, every night and whenever asked (Actions, "Every test", Run workflow). A push to main runs only the
-# tests of what it changed (pages.yml, tools/pick-tests.mjs), so this is what finds a change that broke something it
-# doesn't own. It publishes nothing: a red run here means the last pushes need a look, not that installed copies are
+# tests of what it changed and a rotating slice of the rest (pages.yml, tools/pick-tests.mjs), so this is what finds a change
+# that broke something it doesn't own, and the slow tests of games that no push touched. It publishes nothing: a red run here means the last pushes need a look, not that installed copies are
 # on a bad version (they only ever move when a push's own tests passed).
 name: Every test
 on:
@@ -21,4 +21,4 @@ jobs:
       - name: The banks are built from kb/ and current
         run: timeout 30 node tools/build-kb.mjs --check
       - name: Every game's tests
-        run: node tools/pick-tests.mjs --all | xargs -P 4 -I{} sh -c 'node {} > "/tmp/$(basename {}).log" 2>&1 && echo "ok   {}" || { echo "FAIL {}"; cat "/tmp/$(basename {}).log"; exit 1; }'
+        run: node tools/pick-tests.mjs --all --run
