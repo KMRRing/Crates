@@ -57,6 +57,12 @@ export const TEACHES = {
   "12.4": "Crude tall oil: its acids, its rosin, and a stainless hydrotreater",
   "12.5": "Co-processed jet for ReFuelEU, and fat where there's hydrogen to spare",
   "12.6": "Pyrolysis oil, which only the FCC takes, and every renewable at once",
+  "13.1": "Kestrel Flats' two crudes, and how a blend shares out their sulphur",
+  "13.2": "Naphtha, and hydrogen cleaned by a PSA: what the reformer leaves for the plant",
+  "13.3": "A hydrotreater with no recycle gas: diesel from kerosene, gas oil and vacuum gas oil",
+  "13.4": "Wax: the treater takes out sulphur, not the plugging point",
+  "13.5": "The whole small works: a cracker's cycle oil, and a renewable mandate on diesel",
+  "13.6": "Soybean oil at a hard 2.5%: what the rule counts, and where the hydrogen runs out",
 };
 
 /** The craft's words, for the glossary and the exams: no definition says its own word or holds a figure that gives it away. */
@@ -199,6 +205,12 @@ export const GLOSSARY = [
   ["Def Stan 91-091", "The UK's jet fuel specification, beside ASTM D1655: since 2025 it allows jet from a hydrotreater's feed of up to 30% fats, where ASTM allows 5%."],
   ["Advanced biofuel", "A biofuel from an Annex IX Part A feedstock (straw, forest residues, tall oil, manure and the like), counted toward a sub-target of its own."],
   ["Yield method", "Delegated Regulation 2023/1640's way of setting a co-processing unit's renewable share in each product: what more of it the renewable feed makes."],
+  ["Liquid-phase hydrotreating", "Hydrotreating in a reactor full of liquid: the hydrogen is dissolved in the oil and a recycle of product carries the heat, so there is no recycle gas and no recycle gas compressor."],
+  ["Pressure swing adsorption", "PSA: purifying hydrogen by holding every other gas back on beds of adsorbent at pressure and letting it go when the pressure drops, to 99.9% pure at 85 to 90% recovery."],
+  ["Fuel gas", "The refinery's own gas, methane, ethane and what hydrogen the plant can't use or recover, burned in its furnaces in place of natural gas."],
+  ["Shale crude", "Light, sweet crude from tight shale rock: high in naphtha and light distillate, low in residue, and paraffinic."],
+  ["Renewable mandate", "A law that fuel sold holds a minimum renewable share, by volume or energy: met by blending FAME or ethanol, or, where the law counts it, by co-processing."],
+  ["Wax", "The long straight paraffins that crystallise out of a fuel as it cools: they plug filters, and a hydrotreater doesn't remove them."],
 ];
 
 const W = (k, s) => ({ say: s, scene: k });
@@ -224,6 +236,10 @@ const vrOf = c => { const L = { crude: c, units: [] }; return productProps(L, "v
 const ticketOf = (s, id) => (STREAMS[s].p.ghg * LV(id).ticket) / 1000;
 // Brackwater whole, for its chapter's pictures: its two works as its last level has them, on its first level's crude
 const brackwater = (o = {}) => { const L = LV("11.5"); return { sheet: { plant: { crude: LV("11.1").crude, feed: L.feed, cdu2: L.cdu2, units: L.units, feeds: L.feeds, caps: L.caps, layout: L.layout, props: L.props, pools: L.pools, bought: {}, prices: L.prices }, ...o } }; };
+// Kestrel Flats whole, for its chapter's pictures: its units as its last level has them, on its blend
+const kestrel = (o = {}) => { const L = LV("13.5"); return { sheet: { plant: { crude: L.crude, feed: L.feed, units: L.units, feeds: L.feeds, caps: L.caps, layout: L.layout, pools: L.pools.filter(p => p !== "notBought"), bought: {}, prices: L.prices }, ...o } }; };
+// a crude's cut sulphur, ppm, as the assay sets it
+const cutS = (c, cut) => Math.round(ownProps({ crude: c, units: ["cdu"] }, cut).s);
 // what the FCC makes of a barrel of feed, treated against untreated, for 11.3's picture
 const fccOn = f => UNITS.fcc.yields[f];
 /** What a barrel of vacuum gas oil earns in 8.3's hydrocracker, as its lesson says: tests/refinery.mjs holds it to par's. */
@@ -537,6 +553,58 @@ const LESSONS = {
       "What a barrel of it makes, by volume. In the riser most of its oxygen leaves as water, CO and CO₂, and it lays down more coke than gas oil does. About a third of its carbon reaches the products: under half a barrel of them, the naphtha half of that."),
     W(level({ only: ["fcc", "vgoT", "vgoExport"] }), `Brackwater's FCC is full: each barrel of pyrolysis oil in it is a barrel of treated gas oil not cracked, sold instead as low-sulphur VGO. At $${BOUGHT.pyro} a barrel, a little over what the fuel oil it would replace in a boiler costs for the same heat, it barely pays, and only for its ticket: what of its renewable carbon reaches petrol and diesel, proved by carbon-14 at least every four months.`),
     W(level({ only: ["kht", "dht", "dht2", "hght", "fcc"] }), "Then every renewable at once, from the summer plan: tall oil in the stainless heavy gas oil hydrotreater, tallow wherever it earns most, pyrolysis oil in the FCC, each unit holding its renewables to its share together, the diesel to autumn's grade and the jet to its 2%."),
+  ],
+  // ---------- 13. Kestrel Flats ----------
+  "13.1": [
+    W(kestrel(), `Kestrel Flats is an invented small refinery of about ${LV("13.1").feed} thousand barrels a day, on two domestic crudes. It has a crude unit and a vacuum unit, a semi-regenerative reformer that is its only hydrogen, one hydrotreater for all its distillates, a small FCC, and a sulphur plant. No jet, no isomerisation, no hydrocracker, no residue conversion. This chapter takes it a part at a time.`),
+    W({ column: { crude: "mesa", yields: true } }, "Its main crude, Mesa Shale, is produced from tight shale rock: API 44 and 0.08% sulphur, over half of it boiling below 240 °C and under a quarter residue. A shale crude is paraffinic, so its gas oils are light and high in cetane, and a little waxy. Naphtha sells below the crude it came from, so a crude that is half naphtha has to be cheap or have its distillates to carry it."),
+    W({ curve: { crudes: ["mesa", "kestrel", "plateau"] } }, "Its second, Plateau Waxy, comes from an old basin: API 26, 0.22% sulphur, more than half residue, and rich in wax. The plant runs the two four to one by volume, which is what its pipelines and contracts deliver. The blend's curve sits between theirs, a third residue."),
+    W({ bars: { items: [["Mesa", cutS("mesa", "lgo"), "middle"], ["Kestrel blend", cutS("kestrel", "lgo"), "middle"], ["Plateau", cutS("plateau", "lgo"), "resid"]], unit: "ppm", limit: [1000, "Heating oil 0.1%"], min: 0 } },
+      `Blended ahead of the crude unit, the two share out their sulphur. Plateau's light gas oil, at ${cutS("plateau", "lgo").toLocaleString("en")} ppm, is over heating oil's limit of 1,000 on its own; in the blend it is ${cutS("kestrel", "lgo")}. So the blend earns more than the average of the crudes it is made of, and the plan decides which of the three to run.`),
+    W({ bars: { items: ["mesa", "kestrel", "plateau"].map(c => [CRUDES[c].short, CRUDES[c].price, c === "plateau" ? "resid" : "naphtha"]), unit: "$/bbl", min: 60 } },
+      "The waxy crude is four or five dollars under Mesa, and its barrel is mostly residue, which sells for less than the crude it came from. With nothing to treat or crack, what pays is where each cut can be sold as it is."),
+  ],
+  "13.2": [
+    W(level({ only: ["nht", "srReformer", "bzhc"], routing: { hsr: "nht", hsrT: "srReformer", reformate: "bzhc" } }), "A shale crude is a fifth heavy naphtha. It goes through the naphtha hydrotreater to a semi-regenerative reformer, as at any refinery, and the reformate through a benzene splitter. There is no isomerisation, so the light naphtha is steam-cracker feed or low-octane petrol, and no alkylation, so the plant's regular grade is RON 91, with aromatics allowed to 42%."),
+    W({ bars: { items: [["Reformer makes", UNITS.srReformer.h2.hsrT * 1000, "naphtha"], ["Naphtha HT", -UNITS.nht.h2.hsr * 1000, "naphtha"], ["LP-HT, gas oil", -UNITS.lpHt.h2.lgo * 1000, "middle"], ["LP-HT, light VGO", -UNITS.lpHt.h2.lvgo * 1000, "heavy"], ["LP-HT, soybean oil", -UNITS.lpHt.h2.sbo * 1000, "renewable"]], unit: "scf/bbl" } },
+      "The reformer is the refinery's only hydrogen. Its net gas, hydrogen with some methane and ethane, goes to a pressure swing adsorption unit, a PSA: at pressure its beds hold back everything but the hydrogen, which leaves 99.9% pure, and give the rest up as the pressure falls. Every hydrotreater draws on that stream, as the bars show."),
+    W({ bars: { items: [["To the plant, typically", 87, "naphtha"], ["To fuel gas, typically", 13, "gas"]], unit: "% of the hydrogen", fmt: v => `${Math.round(v)}%` } },
+      "A PSA recovers 85 to 90% of the hydrogen in what it is given. The rest leaves in its tail gas, with the methane and ethane, for the refinery's fuel gas, which is why a fuel gas can be anything from a seventh to three-fifths hydrogen, by how hard the reformer runs. Hydrogen the plant doesn't use is burned there, worth the natural gas it replaces."),
+    W(level({ only: ["bzhc", "naphtha", "gasoline"], routing: { hsr: "nht", hsrT: "srReformer", reformate: "bzhc" } }), "The benzene splitter sends the reformate's light end, with nearly all its benzene, to the steam crackers' naphtha, and the heavy reformate to petrol, which holds 1% benzene. The reformer's octane and the 42% aromatics both limit how much naphtha it can take, and what it can't take is sold as naphtha."),
+  ],
+  "13.3": [
+    W(level({ only: ["lpHt"], routing: { kero: "lpHt", lgo: "lpHt", lvgo: "lpHt" } }), "A conventional hydrotreater passes hydrogen gas down through the oil, and a recycle gas compressor keeps it moving: the costliest machine in the unit. This one has none. The hydrogen is dissolved in the feed before the reactor, which runs full of liquid, and some of the treated product is recycled to carry more of it and to soak up the heat."),
+    W({ bars: { items: [["Kerosene", -UNITS.lpHt.h2.kero * 1000, "middle"], ["Light gas oil", -UNITS.lpHt.h2.lgo * 1000, "middle"], ["Light vacuum gas oil", -UNITS.lpHt.h2.lvgo * 1000, "heavy"], ["Light cycle oil", -UNITS.lpHt.h2.lco * 1000, "middle"]], unit: "scf/bbl" } },
+      "Oil dissolves only so much hydrogen, so the unit suits feeds that need little: a light, modestly sulphurous kerosene or gas oil, and a little vacuum gas oil. Cracked cycle oil, which saturates its aromatics too, takes the most, and is what the FCC will bring in 13.5. Sulphur comes out as it does in any CoMo unit, to under 10 ppm."),
+    W({ blend: { prop: "e360", parts: [["Treated gas oil", 19, 0], ["Light vacuum gas oil", 1, STREAMS.lvgo.p.e360]], limit: 5, dir: "max" } },
+      "Diesel's distillation limit, 95% recovered by 360 °C, lets in only a little of the light vacuum gas oil, nine-tenths of which boils above it, and its density window of 820 to 845 kg/m³ has a floor, which a light shale gas oil with kerosene in it can fall through. What the treater makes and diesel can't take is heating oil."),
+    W({ bars: { items: [["Kerosene", STREAMS.kero.p.cfpp, "middle"], ["Mesa light gas oil", CRUDES.mesa.props.lgo.cfpp, "middle"], ["Plateau light gas oil", CRUDES.plateau.props.lgo.cfpp, "resid"]], unit: "°C", min: -50 } },
+      "The treater takes out sulphur, and little else: its product keeps its feed's cetane, density and plugging point, shifted a little. It doesn't dewax. Both the crudes' gas oils carry wax, and the next level is what that costs."),
+  ],
+  "13.4": [
+    W({ bars: { items: [["Kerosene", STREAMS.kero.p.cfpp, "middle"], ["Mesa gas oil", CRUDES.mesa.props.lgo.cfpp, "middle"], ["Kestrel gas oil", CRUDES.kestrel.props.lgo.cfpp, "middle"], ["Plateau gas oil", CRUDES.plateau.props.lgo.cfpp, "resid"], ["Plateau heavy gas oil", CRUDES.plateau.props.hgo.cfpp, "resid"]], unit: "°C", limit: [-10, "October"], min: -50 } },
+      "Wax is what a diesel's long straight paraffins make as it cools; where they plug a filter is its CFPP. A shale crude is paraffinic and a waxy one more so. Diesel in the autumn grade must stay fluid to −10 °C, and a Plateau gas oil plugs a filter above freezing."),
+    W({ blend: { prop: "cfpp", parts: [["Gas oil, treated", 6, CRUDES.kestrel.props.lgo.cfpp], ["Kerosene", 4, STREAMS.kero.p.cfpp]], limit: -10, dir: "max" } },
+      "The waxiest part sets a blend's plugging point, as the lightest sets its flash point. Kerosene, at −45 °C, pulls a gas oil's down, but its flash point is 42 and diesel's floor is 55, and its density is low: how much of it diesel can take is where the plan lives."),
+    W(level({ only: ["lpHt", "diesel", "gasoil"], routing: { lgo: "lpHt", kero: "lpHt", ulsd: "diesel" } }), "A refinery with a dewaxing unit could make the wax into something else, or isomerise it. This one has none, so what the crude brings is what diesel gets: it chooses its cuts and its kerosene, and sells the heavy and waxy ones as heating oil, which is judged on sulphur and cetane, not on cold."),
+    W({ bars: { items: ["mesa", "kestrel", "plateau"].map(c => [CRUDES[c].short, CRUDES[c].props.hgo.cfpp, c === "plateau" ? "resid" : "middle"]), unit: "°C, heavy gas oil", min: -10 } },
+      "The heavy gas oil is the waxiest cut of every crude: it goes to heating oil or the FCC, never to diesel. Plateau's cuts are too waxy and dense for autumn diesel at all, and a crude's price is no help to a plant that can't sell its gas oils as diesel."),
+  ],
+  "13.5": [
+    W(kestrel(), "The whole works to its full specification. Petrol to its own grade, diesel to EN 590's density, cetane and distillation, heating oil, VLSFO, propylene and the light naphtha to the steam crackers, and a renewable mandate on diesel."),
+    W(level({ only: ["fcc", "cnht", "lpHt"], routing: { lvgo: "fcc", hvgo: "fcc", catNaphtha: "cnht", lco: "lpHt" } }), "A small FCC cracks the heavy vacuum gas oil, about 6 thousand barrels a day at the most. Its naphtha, nearly all its sulphur, goes through a post-treater to 10 ppm for petrol. Its light cycle oil, aromatic and dense with a cetane in the 20s, goes to the liquid-phase hydrotreater with everything else, and diesel takes only as much of it as its cetane and density allow."),
+    W({ bars: { items: [["Diesel", LV("13.5").prices.diesel, "middle"], ["Heating oil", LV("13.5").prices.gasoil, "middle"], ["FAME, regulated", LV("13.5").prices.fame, "renewable"]], unit: "$/bbl", min: 60 } },
+      "The country asks that diesel hold 6% renewable, and FAME is the way to it, bought at a price set well over diesel's. Each barrel of diesel carries about six hundredths of a barrel of it: the premium of diesel over heating oil has to pay for that, or the plant sells its diesel as heating oil and takes the loss."),
+    W(level({ only: ["diesel", "gasoil", "fame"], routing: { fame: "diesel", ulsd: "diesel" } }), "Diesel is judged on everything at once: its flash point, density, cetane, distillation, sulphur and plugging point, and now its renewable content. The mandate is a minimum, and EN 590's 7% cap on FAME a maximum: the plan lives between 6 and 7."),
+  ],
+  "13.6": [
+    W({ bars: { items: [["Soybean oil", BOUGHT.sbo, "renewable"], ["FAME, regulated", LV("13.6").prices.fame, "renewable"], ["Diesel", LV("13.6").prices.diesel, "middle"]], unit: "$/bbl", min: 60 } },
+      "A barrel of soybean oil costs less than the biodiesel made from it, and the diesel made from it in the hydrotreater is worth diesel's price. Co-processed, it is renewable content at less than FAME's premium. Hydrotreating makes it: its oxygen leaves as water and carbon oxides, and its chains become paraffins."),
+    W({ bars: { items: [["Gas oil", -UNITS.lpHt.h2.lgo * 1000, "middle"], ["Soybean oil", -UNITS.lpHt.h2.sbo * 1000, "renewable"]], unit: "scf/bbl" } },
+      "It takes seven times the hydrogen a gas oil does. The unit was designed for 15% of it in the feed; it is run at 2.5%, because the plant's spare hydrogen is little, and a liquid-full reactor with no recycle gas has nowhere to put a fat's carbon oxides but in solution."),
+    W(level({ only: ["lpHt", "sbo"], routing: { sbo: "lpHt" } }), "The oil must come pretreated: phosphorus under 5 mg/kg, chlorine under 6, other metals under 10, and free fatty acids under 1%, or the catalyst plugs and the steel corrodes. At 2.5% of a feed of eight thousand barrels a day, that is about two hundred barrels of it."),
+    W(level({ only: ["lpHt", "diesel", "fame"], routing: { sbo: "lpHt", fame: "diesel", ulsd: "diesel" } }), "The law decides what the mandate counts. As the rule stands, only FAME does: co-processed content earns nothing, and soybean oil in the hydrotreater is a cost. Under the bill before the legislature, co-processed content counts too, and every barrel of it takes the place of a barrel of FAME. Play both."),
+    W(level({ only: ["lpHt", "srReformer"] }), "Raising the limit would not help much. The plan's spare hydrogen is nearly used at 2.5%, and it runs out at about 3.4% of the feed, long before the 15% the unit was designed for."),
   ],
 };
 

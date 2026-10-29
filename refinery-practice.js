@@ -2,12 +2,12 @@
 // market (refinery-par.js). For a stream and a destination it can go to in a plan, par sends it the bulk of the stream
 // (half or more), part of it, or none, and the share of plans that do the same is how common that pattern is in the
 // course: every one of the 21 plans with alkylate sends it to gasoline, 53 of 56 send the bulk of the light gas oil to
-// the diesel hydrotreater, 40 of 50 the bulk of the atmospheric residue to the vacuum unit, and only 3 of 67 the bulk
+// the diesel hydrotreater, 44 of 61 the bulk of the atmospheric residue to the vacuum unit, and only 3 of 78 the bulk
 // of the kerosene to gas oil. The hint goes by it (Korbi, October 2026): of the ways a plan differs from par, the most
 // standard first, so the obvious is put right before the fine-tuning.
 //
 // What counts as practice is refining's, not the course's (Korbi, October 2026: the statements must make sense in the
-// real world). The course's counts follow its levels: 15 of its 67 plans sink most of the kerosene into fuel oil
+// real world). The course's counts follow its levels: 25 of its 78 plans sink most of the kerosene into fuel oil
 // (cutter for a sour residue, or no treater to take it), where a refinery treats it for jet or diesel and cuts fuel oil
 // with only a share; its alkylation units and coker fill up, so only 6 of 24 plans send the bulk of the FCC's C4s to
 // alkylation and 3 of 8 the bulk of the vacuum residue to the coker, both their usual homes; and 2 plans of 2 leaving
@@ -49,23 +49,23 @@ export const ROLES = {
   hcn: { kht: "home" },
   hcNaphtha: { nht: "home", naphtha: "alt", gasoline: "trim" }, // reformer feed or a prized cracker feed; octane in the sixties
   cokerNaphtha: { nht: "home", gasoline: "rare" },              // olefinic and sour: never untreated into petrol
-  kero: { merox: "home", kht: "home", dht: "alt", dht2: "alt", gasoil: "alt", diesel: "trim", fuelOil: "trim", hsfo: "trim", jet: "rare", slops: "rare" },
+  kero: { merox: "home", kht: "home", lpHt: "alt", dht: "alt", dht2: "alt", gasoil: "alt", diesel: "trim", fuelOil: "trim", hsfo: "trim", jet: "rare", slops: "rare" },
   jet: { jet: "home", diesel: "alt", gasoil: "rare" },
   hcJet: { jet: "home", diesel: "alt", gasoil: "rare" },
   spk: { jet: "home" },
-  lgo: { dht: "home", dht2: "home", hds: "home", hght: "alt", gasoil: "alt", fuelOil: "trim", hsfo: "trim", diesel: "rare", slops: "rare" },
+  lgo: { dht: "home", dht2: "home", lpHt: "home", hds: "home", hght: "alt", gasoil: "alt", fuelOil: "trim", hsfo: "trim", diesel: "rare", slops: "rare" },
   hgo: { dht: "alt", dht2: "alt", hght: "alt", hds: "alt", hcu: "alt", fcc: "alt", gasoil: "alt", fuelOil: "alt", hsfo: "trim", diesel: "rare", slops: "rare" },
   ulsd: { diesel: "home", fuelOil: "trim", gasoil: "rare", hsfo: "rare" },
   hcDiesel: { diesel: "home", gasoil: "rare" },
   goT: { gasoil: "home", dht: "home", diesel: "rare", fuelOil: "rare", hsfo: "rare" },
   mhcGo: { gasoil: "alt", hght: "alt", diesel: "rare", fuelOil: "rare", hsfo: "rare" },
-  lco: { dht: "alt", hght: "alt", gasoil: "alt", fuelOil: "alt", hsfo: "alt", diesel: "rare" },   // cetane in the 20s: as much diesel as that allows, the rest heating oil or cutter
+  lco: { dht: "alt", lpHt: "alt", hght: "alt", gasoil: "alt", fuelOil: "alt", hsfo: "alt", diesel: "rare" },   // cetane in the 20s: as much diesel as that allows, the rest heating oil or cutter
   lcgo: { dht: "alt", hds: "alt", gasoil: "alt", fuelOil: "trim", hsfo: "trim", diesel: "rare" },
   hcgo: { fuelOil: "home", hsfo: "home" },
   slurry: { fuelOil: "home", hsfo: "home" },
   fuelOilCutter: { hght: "home", dht: "home", hsfo: "alt", fuelOil: "trim", diesel: "rare" },
   cokerGo: { dht: "home", hcu: "home", fcc: "alt", hsfo: "alt", diesel: "rare", gasoil: "rare" },
-  lvgo: { fcc: "home", hcu: "home", vgoHt: "home", vgoHt2: "home", hds: "alt", fuelOil: "alt", vgoExport: "alt" },
+  lvgo: { fcc: "home", hcu: "home", vgoHt: "home", vgoHt2: "home", lpHt: "alt", hds: "alt", fuelOil: "alt", vgoExport: "alt" },
   hvgo: { fcc: "home", hcu: "home", vgoHt: "home", vgoHt2: "home", fuelOil: "alt", vgoExport: "alt" },
   vgoT: { fcc: "home", fuelOil: "alt", vgoExport: "alt", hsfo: "rare" },
   importVgo: { hcu: "home", fuelOil: "rare", hsfo: "rare" },

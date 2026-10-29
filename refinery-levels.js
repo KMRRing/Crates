@@ -18,6 +18,7 @@ export const CHAPTERS = [
   { id: 10, title: "Alder Point", about: "A whole refinery, unit by unit: a fuels plant of about 120 thousand barrels a day with an FCC and no hydrocracker, whose semi-regenerative reformer is its only hydrogen." },
   { id: 11, title: "Brackwater", about: "A second whole refinery: two works joined by pipelines, about 200 thousand barrels a day, whose FCC is fed only hydrotreated gas oil, whose light ends make ethers, alkylate and cumene, and whose bottom of the barrel becomes power." },
   { id: 12, title: "Co-processing", about: "Renewable feeds run through the units the two refineries already have: fats, tall oil and pyrolysis oil, where each can go, what each does to a unit and a product, and what each earns under the rules." },
+  { id: 13, title: "Kestrel Flats", about: "A third whole refinery, small and on shale-rich crude: about 27 thousand barrels a day, a hydrotreater with no recycle gas, a reformer that is its only hydrogen, a renewable mandate on its diesel, and soybean oil co-processed up to a hard 2.5%." },
 ];
 
 const TOPPING_POOLS = ["gasPool", "lpg", "naphtha", "gasoil", "fuelOil", "hsfo"];
@@ -77,6 +78,29 @@ const alder12 = o => ({ chapter: 12, crude: "saharan", feed: ALDER_FEED, units: 
   caps: { fcc: 22 }, pools: [...ALDER_POOLS, "notBought"], ticket: TICKET, specs: FULL, ...o });
 const brack12 = o => ({ chapter: 12, ...brack(BRACK_UNITS), pools: [...BRACK_POOLS, "notBought"], ticket: TICKET, specs: { ...FULL, diesel: [...ALL_SPECS.diesel, "cfpp"], vgoExport: ["s"] },
   limits: { diesel: AUTUMN }, ...o });
+
+// Kestrel Flats: a small fuels works of about 27 kb/d (rounded and illustrative) on a shale-rich crude and a waxy one. Crude
+// and vacuum units; a semi-regenerative reformer, its only hydrogen, with a benzene splitter; a naphtha hydrotreater; one
+// hydrotreater for all its distillates and light vacuum gas oil, liquid-phase, with no recycle gas; a small FCC with a
+// post-treater on its naphtha; a sulphur plant. No jet, no isomerisation, no residue conversion
+const KEST_FEED = 27;
+const KEST_UNITS = ["cdu", "vdu", "nht", "srReformer", "bzhc", "lpHt", "fcc", "cnht", "sru"];
+const KEST_POOLS = ["gasPool", "lpg", "propylene", "gasoline", "naphtha", "diesel", "gasoil", "fuelOil", "hsfo"];
+// what its units take: the one distillate hydrotreater the kerosene, the light gas oil, the light vacuum gas oil and the cycle oil;
+// the FCC the vacuum gas oils and the heavy gas oil; the naphtha treaters only their own naphtha
+const KEST_FEEDS = { nht: ["hsr"], lpHt: ["kero", "lgo", "lvgo", "lco"], fcc: ["lvgo", "hvgo", "hgo"], cnht: ["catNaphtha"] };
+const KEST_CAPS = { fcc: 6, lpHt: 16 };
+// left to right as the oil flows: the hydrotreater after the FCC, whose cycle oil it takes
+const KEST_LAYOUT = { nht: [2, 2.6], srReformer: [3, 3.6], bzhc: [4, 3.4], lpHt: [4, 6.6], vdu: [2, 11.4], fcc: [3, 9.8], cnht: [4, 9], sru: [5, 12.6] };
+// a market with fuel oil weak against the cracks, as it often is, diesel well over heating oil, and biodiesel at a regulated price
+// far over both diesel and the soybean oil it is made from
+const KEST_PRICES = { fuelOil: 70, hsfo: 62, diesel: 102, gasoil: 90, fame: 175 };
+// its regular grade of petrol is RON 91 with aromatics to 42%, which lets the reformer run on all its naphtha
+const KEST_LIMITS = { gasoline: { ron: [91, null], mon: [81, null], arom: [null, 42] } };
+// diesel to the autumn grade, with a renewable mandate of 6%, met by FAME, which EN 590 allows up to 7%
+const MANDATE = { diesel: { ...AUTUMN, fame: [null, 7], bio: [6, null] } };
+const kest = (units, { limits, ...o } = {}) => ({ crude: "kestrel", feed: KEST_FEED, units, prices: KEST_PRICES, feeds: KEST_FEEDS, caps: Object.fromEntries(Object.entries(KEST_CAPS).filter(([u]) => units.includes(u))),
+  layout: KEST_LAYOUT, h2Import: false, limits: { ...KEST_LIMITS, ...limits }, ...o });
 
 // where a plant starts: everything sold as it comes off the crude unit, nothing sent to a unit; with a sour crude the
 // distillates go with the residue into high-sulphur fuel oil, which takes them as cutter, rather than into VLSFO
@@ -305,4 +329,34 @@ export const LEVELS = [
       start: { ...running("11.5", "arabLight"), cto: "notBought", tallow: "notBought", pyro: "notBought" } }),
     task: "Brackwater from its summer plan, with all three on offer: tall oil, tallow, and pyrolysis oil from forest residues, which only the FCC takes, up to 5% of its feed through a nozzle of its own. Every product to its full specification, diesel to autumn's grade, jet to its 2%.",
     watch: ["The FCC is full: a barrel of pyrolysis oil in it is a barrel of gas oil not cracked.", "Each unit holds its renewables to its share together."] },
+  // ---------- 13. Kestrel Flats ----------
+  { id: "13.1", chapter: 13, title: "Two crudes, one blend", ...kest(["cdu", "vdu"], { crude: "kestrel", crudes: ["mesa", "plateau", "kestrel"] }),
+    pools: ["gasPool", "lpg", "naphtha", "gasoil", "fuelOil", "hsfo"], start: { ...RAW, atmResid: "fuelOil" }, specs: { fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
+    task: "Kestrel Flats distils about 27 thousand barrels a day of two domestic crudes: Mesa Shale, light and nearly all naphtha and distillate, and Plateau Waxy, a medium crude that is half residue. It runs them four to one. With nothing yet to treat or crack, find the crude, or the blend, that earns most here, and route its cuts.",
+    watch: ["Both crudes are sweet: their residues can be very-low-sulphur fuel oil, but Plateau's is thick and takes cutter.", "Naphtha sells below the crude it came from: a crude that is mostly naphtha has to be cheap, or have its kerosene and gas oil to carry it."] },
+  { id: "13.2", chapter: 13, title: "Naphtha, and the only hydrogen", ...kest(["cdu", "vdu", "nht", "srReformer", "bzhc", "sru"]),
+    pools: ["gasPool", "lpg", "gasoline", "naphtha", "gasoil", "fuelOil", "hsfo"], start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "fuelOil" }, specs: { gasoline: ["ron", "benz", "s"] },
+    task: "The reformer is Kestrel Flats' only hydrogen, and a pressure-swing adsorption unit cleans it for the hydrotreaters. Reform the heavy naphtha for octane, split the benzene out, and sell the light naphtha to the steam crackers. What hydrogen the plant doesn't use goes to the fuel gas.",
+    watch: ["There is no isomerisation: light naphtha is petrochemical feed or low-octane petrol.", "A reformer this small makes little hydrogen: every treater drawn on it later takes some of it."] },
+  { id: "13.3", chapter: 13, title: "A hydrotreater with no recycle gas", ...kest(["cdu", "vdu", "nht", "srReformer", "bzhc", "lpHt", "sru"], { feeds: { ...KEST_FEEDS, lpHt: ["kero", "lgo", "lvgo"] } }),
+    pools: ["gasPool", "lpg", "gasoline", "naphtha", "diesel", "gasoil", "fuelOil", "hsfo"], start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "fuelOil" },
+    specs: { gasoline: ["ron", "benz", "s"], diesel: ["cet", "d", "s"], gasoil: ["cet", "d", "s"], fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
+    task: "One hydrotreater takes the kerosene, the light gas oil and the light vacuum gas oil to 10 ppm for road diesel. Its hydrogen is dissolved in the oil, with no recycle gas, and the reformer's is all there is. Make diesel, and send the rest where it pays.",
+    watch: ["Diesel's density window of 820 to 845 and its distillation limit decide how much light vacuum gas oil it can carry.", "Heating oil takes what the hydrogen can't finish."] },
+  { id: "13.4", chapter: 13, title: "Wax", ...kest(["cdu", "vdu", "nht", "srReformer", "bzhc", "lpHt", "sru"], { crude: "kestrel", crudes: ["mesa", "plateau", "kestrel"], feeds: { ...KEST_FEEDS, lpHt: ["kero", "lgo", "lvgo"] }, limits: { diesel: AUTUMN } }),
+    pools: ["gasPool", "lpg", "gasoline", "naphtha", "diesel", "gasoil", "fuelOil", "hsfo"], start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "fuelOil" },
+    specs: { gasoline: ["ron", "benz", "s"], diesel: ["cet", "d", "s", "cfpp"], gasoil: ["cet", "d", "s"], fuelOil: ["s", "visc", "d"], hsfo: ["s", "visc", "d"] },
+    task: "It is late October, and diesel must not plug a filter above −10 °C. Both crudes' gas oils are waxy, and the hydrotreater takes their sulphur out but not their wax: the plugging point leaves as it came. Choose the crude, and the cuts, that make diesel to the autumn grade.",
+    watch: ["The waxiest part sets the plugging point: the heavy gas oil and the light vacuum gas oil are the waxiest cuts.", "Kerosene is cold-fluid, as far as diesel's flash point lets it in."] },
+  { id: "13.5", chapter: 13, title: "The whole of Kestrel Flats", ...kest(KEST_UNITS, { limits: MANDATE }),
+    pools: [...KEST_POOLS, "notBought"], bought: { fame: 1.5 }, start: { ...RAW, lsr: "naphtha", hsr: "naphtha", atmResid: "fuelOil", fame: "notBought" },
+    specs: { gasoline: ALL_SPECS.gasoline, diesel: [...ALL_SPECS.diesel, "bio", "cfpp"], gasoil: ALL_SPECS.gasoil, fuelOil: ALL_SPECS.fuelOil, hsfo: ALL_SPECS.hsfo },
+    task: "The whole works to its full specification: a small FCC on the vacuum gas oil, its cycle oil to the hydrotreater and its naphtha through a post-treater. The country asks 6% renewable in diesel, and FAME is on offer to blend, up to 1.5 thousand barrels a day. Diesel is to the autumn grade.",
+    watch: ["The cycle oil is dense and low in cetane: diesel takes only a little of it.", "Diesel under 6% renewable isn't diesel: it sells as heating oil."] },
+  { id: "13.6", chapter: 13, title: "Soybean oil at 2.5%", ...kest(KEST_UNITS, { feeds: { ...KEST_FEEDS, lpHt: [...KEST_FEEDS.lpHt, "sbo"] }, limits: MANDATE }),
+    pools: [...KEST_POOLS, "notBought"], bought: { fame: 1.5, sbo: 2 }, start: { ...running("13.5", "kestrel"), sbo: "lpHt" },
+    specs: { gasoline: ALL_SPECS.gasoline, diesel: [...ALL_SPECS.diesel, "bio", "cfpp"], gasoil: ALL_SPECS.gasoil, fuelOil: ALL_SPECS.fuelOil, hsfo: ALL_SPECS.hsfo },
+    decks: [{ id: "rule", name: "As the rule stands", props: { sbo: { bio: 0 } } }, { id: "bill", name: "If co-processing counts" }],
+    task: "The plant starts with soybean oil in the hydrotreater, which was designed for 15% of it and is run at 2.5%: the hydrogen the reformer can spare and the reactor's heat and gas set that. As the rule stands, no renewable content counts in diesel unless it is FAME; under the bill before the legislature, co-processed content counts as well. Is it worth buying in each? Play both.",
+    watch: ["Soybean oil adds diesel without adding FAME, so where it doesn't count, the diesel's renewable share falls under the mandate: the oil has to go, or the FAME has to rise.", "Soybean oil takes the hydrogen of seven barrels of gas oil: where the reformer is short, it comes out of the diesel.", "Where the content counts, every barrel of oil co-processed is a barrel of FAME not bought."] },
 ];

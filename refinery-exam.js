@@ -307,6 +307,62 @@ const Q = {
     ["How often does Delegated Regulation 2023/1640 have a co-processor's renewable share checked by carbon-14?", "At least every four months", ["Once, when the unit starts co-processing", "Every day, on every batch it makes", "Every five years, with its permit"],
       "The mass balance or yield method sets the share; carbon-14 checks it at least every four months, and whenever the feed or the unit changes by more than 5%."],
   ],
+  "13.1": [
+    ["Why can a blend of a shale crude and a sulphurous one make a heating-oil cut that the sulphurous crude alone can't?", "Every cut shares out its sulphur: the blend's gas oil carries the volume-weighted average", ["The shale crude's sulphur reacts with the other's and leaves the crude unit as gas", "Blending narrows the boiling range, so less sulphur distils into the gas oil", "The crude unit strips the sulphur from the lighter crude's heavy cuts first"],
+      "Sulphur sits mostly in the heavier cuts of each crude; blended ahead of the crude unit, a cut holds each crude's sulphur in proportion to what it brought of that cut."],
+    ["Why are a shale crude's gas oils high in cetane but a little waxy?", "They are rich in straight-chain paraffins, which ignite readily and crystallise when cold", ["They are rich in aromatics, which ignite readily and crystallise when cold", "They are rich in sulphur compounds, which ignite readily and gel when cold", "They are rich in naphthenes, which burn cleanly and stay fluid when cold"],
+      "Normal paraffins have the best cetane of any hydrocarbon and the worst cold flow; aromatics are the other way about."],
+    ["Of a 26 API crude and a 44 API crude, which carries more of its barrel in atmospheric residue?", "The 26 API, the denser, with more than half", ["The 44 API, the lighter, with more than half", "Both the same, since residue depends on sulphur alone", "Neither: residue first appears in the vacuum unit"],
+      "A denser crude has more of its barrel boiling above the atmospheric cut point; a light shale crude is under a quarter residue."],
+  ],
+  "13.2": [
+    ["What does a pressure swing adsorption unit do to a reformer's net gas?", "Holds back everything but hydrogen on beds at pressure, and lets it go as the pressure falls", ["Washes out the methane and ethane in an amine solvent, and regenerates the solvent hot", "Cools the gas until all but the hydrogen condenses, and separates them by distillation", "Passes the gas across a membrane that holds the hydrogen back and lets the rest through"],
+      "Its beds adsorb the other gases at pressure, so the hydrogen leaves 99.9% pure, and give them up in the tail gas when the pressure drops."],
+    ["Where does the hydrogen that a PSA doesn't recover go?", "In its tail gas, with the methane and ethane, to the fuel gas", ["To the flare, where it is burned off and lost from the plant's books", "Back to the reformer's feed, to be recovered on the next pass", "To the LPG, which carries it out at the LPG's price"],
+      "A PSA recovers 85 to 90%; the rest burns in the furnaces, worth the natural gas it replaces."],
+    ["What sets how much hydrogen a refinery's fuel gas holds?", "How hard the reformer runs, and how much of its hydrogen the plant takes out", ["How much sulphur the crude holds, which the hydrotreaters turn into hydrogen", "How hot the crude unit's furnace runs, since heat cracks the oil to hydrogen", "How much of the FCC's coke burns, since the regenerator makes hydrogen"],
+      "Fuel gas runs from a seventh to three-fifths hydrogen: more when the reformer is severe and the plant takes less, less when the hydrotreaters take it."],
+    ["Why does the benzene splitter send the reformate's light end away from petrol?", "Nearly all the benzene is in it, and petrol allows 1%", ["Nearly all the sulphur is in it, and petrol allows 10 ppm", "Nearly all the olefins are in it, and petrol allows 18%", "Nearly all the octane is in it, and petrol needs RON 91"],
+      "Benzene boils at 80 °C, so it goes overhead with the light reformate; the heavy end keeps the octane and the aromatics."],
+  ],
+  "13.3": [
+    ["What does a liquid-phase hydrotreater do without that a conventional one needs?", "A recycle gas compressor: the hydrogen is dissolved in the feed", ["A hydrogen sulphide scrubber: the sulphur leaves the reactor as a liquid", "A fired furnace: the reaction's own heat is enough to start it", "A catalyst: dissolved hydrogen reacts with the sulphur unaided"],
+      "A conventional unit passes hydrogen gas through the oil and a compressor keeps it moving; here the reactor runs full of liquid and a recycle of product carries the hydrogen and the heat."],
+    ["What limits how much hydrogen a liquid-phase hydrotreater can give its feed?", "How much dissolves in the liquid at reactor pressure", ["How much its recycle gas compressor can circulate at reactor pressure", "How much the catalyst bed holds in its metals at reactor temperature", "How much the stripper can return to the reactor at its own pressure"],
+      "Oil dissolves only so much hydrogen, so the unit suits feeds that need little; a feed that needs more has to be thinned with recycle."],
+    ["What does a hydrotreater do to a gas oil's plugging point?", "Leaves it about where it was: it takes out sulphur, not wax", ["Lowers it a good deal, by cracking the long paraffins to short ones", "Lowers it a good deal, by isomerising straight paraffins to branched ones", "Raises it a good deal, by saturating the aromatics that held the wax in solution"],
+      "Dewaxing is a different catalyst and a different unit; a CoMo hydrotreater is judged on sulphur."],
+    ["Why can diesel take only a little light vacuum gas oil?", "Most of it boils above 360 °C, diesel's 95% point", ["Most of it boils below 250 °C, where diesel limits what may evaporate", "Its sulphur is too high for any hydrotreater to bring under 10 ppm", "Its flash point is below diesel's 55 °C floor"],
+      "It is a vacuum cut: only its lightest tenth lies in diesel's range, and the rest is heating oil or FCC feed."],
+  ],
+  "13.4": [
+    ["What is a diesel's CFPP?", "The lowest temperature at which a standard filter still passes it before wax plugs it", ["The temperature at which the first wax crystals show and cloud it to the eye", "The temperature at which it stops pouring in a tilted jar", "The temperature at which its water separates and freezes in a filter"],
+      "The cold filter plugging point is what an engine's filter meets; cloud point is higher and pour point lower."],
+    ["Which cut of a crude is the waxiest?", "The heavy gas oil, the heaviest cut that still boils in the diesel range", ["The kerosene, whose long chains are the straightest", "The light gas oil, which sits in the middle of the range", "The naphtha, whose paraffins are the straightest of all"],
+      "Wax is the longest straight chains, which boil highest; they are why heavy gas oil goes to heating oil or the FCC."],
+    ["Kerosene pulls a diesel blend's plugging point down, but diesel can't take much of it. Why?", "Its flash point and density are below diesel's floors", ["Its flash point and density are above diesel's ceilings", "Its sulphur and aromatics are above diesel's ceilings", "Its viscosity and water content are above diesel's ceilings"],
+      "Diesel's flash point has a floor of 55 °C and its density a floor of 820 kg/m³; kerosene sits under both."],
+    ["What does a refinery with no dewaxing unit do with a waxy gas oil?", "Sells it as heating oil, which isn't judged on cold flow, or leaves it out of diesel", ["Treats it harder, which cracks the wax to shorter chains", "Settles the wax out in a tank and sells the clear oil above it as diesel", "Filters the wax out at the pump so the diesel stays clear"],
+      "What the crude brings is what diesel gets: the plan chooses its cuts and its kerosene to stay inside the limit."],
+  ],
+  "13.5": [
+    ["Why is a renewable mandate costly for a refinery whose diesel earns little over its heating oil?", "The diesel's premium has to pay for the FAME, or the plant sells its diesel as heating oil", ["The FAME has to be hydrotreated first, and the hydrotreater is full", "The FAME's cetane is too low for any diesel, so the rest has to be raised", "The FAME can't be blended until the diesel's sulphur is over 10 ppm"],
+      "A mandate forces a bought component into the diesel pool; if the diesel's margin can't carry it, heating oil is the cheaper product."],
+    ["Why does an FCC's light cycle oil go to the hydrotreater, and diesel take only some of it?", "It is aromatic and dense with a cetane in the 20s, so diesel's cetane and density limit it", ["It is paraffinic and light with a cetane in the 70s, so diesel's density window limits it", "It is waxy and heavy with a plugging point above 20 °C, so diesel's cold-flow limit holds it", "It boils above 360 °C, and the hydrotreater can't crack it down into diesel's range"],
+      "Cracking leaves the aromatics behind in the cycle oil; the hydrotreater removes sulphur and saturates some of them, but not enough for more than a share of diesel."],
+    ["Why does an FCC's naphtha need a post-treater before it goes to petrol?", "It carries nearly all the plant's petrol sulphur, and petrol allows 10 ppm", ["It carries nearly all the plant's benzene, and petrol allows 1%", "It carries nearly all the plant's water, and petrol allows 200 mg/kg", "It has no octane of its own, and petrol needs RON 91"],
+      "An FCC's naphtha has a good octane and most of the sulphur that came in with its feed; a post-treater removes it."],
+  ],
+  "13.6": [
+    ["What does hydrotreating soybean oil make?", "Paraffins like diesel, its oxygen leaving as water and carbon oxides", ["Fatty acid methyl esters, its glycerol leaving as glycerine", "Aromatics like petrol, its oxygen leaving as water alone", "Light olefins like propylene, its glycerol leaving as carbon"],
+      "Hydrodeoxygenation and decarboxylation give straight paraffins, a cetane of 70 or more, and propane from the glycerol; FAME is the transesterified product, a different fuel."],
+    ["Why must soybean oil be pretreated to phosphorus under 5 mg/kg before it goes to a hydrotreater?", "Phosphorus and metals plug the catalyst bed and poison it", ["Phosphorus passes into the diesel and pushes its sulphur over 10 ppm", "Phosphorus raises the diesel's cloud point and spoils its cold flow", "Phosphorus reacts with hydrogen and takes the plant's spare supply"],
+      "Degumming and bleaching take out phosphorus, metals and chlorine; free fatty acids over 1% corrode the steel."],
+    ["Under a mandate that doesn't count co-processed content, what does co-processing earn?", "Only the diesel's ordinary price: the renewable content counts for nothing", ["The FAME price, since the diesel is renewable", "A discount on its hydrogen, since the oil makes some", "Half the mandate, since half the carbon is renewable"],
+      "Whether co-processing counts is the law's choice, and it decides whether the oil is a cost or a saving."],
+    ["Why does soybean oil at a few per cent of a hydrotreater's feed use so much of its hydrogen?", "Taking out its oxygen as water and saturating its double bonds takes several times a gas oil's", ["Its free fatty acids dissolve the catalyst's metals, which hydrogen then has to replace", "Its phosphorus has to be hydrogenated before it can leave the reactor", "Its glycerol hydrogenates to a heavy residue that the reactor must then crack"],
+      "It takes about seven times a gas oil's hydrogen per barrel, which is why spare hydrogen, not the reactor, sets how much a plant can run."],
+  ],
   "10.5": [
     ["When Alder Point's reformer stops to regenerate, what has to give?", "The hydrotreaters, for want of hydrogen", ["The benzene splitter only, for want of feed", "The FCC, for want of hot catalyst", "Nothing: hydrogen is bought in by pipeline"], "There's no other hydrogen: the whole plant's turnaround is planned round the reformer's."],
     ["Why is a sulphur plant of a single train a weak point?", "If it trips, every hydrotreater has to stop", ["If it trips, the crude unit floods its trays", "If it trips, the FCC loses its catalyst", "If it trips, the reformer loses its hydrogen"], "Every hydrotreater sends it hydrogen sulphide; with no second train, the hydrogen sulphide has nowhere else to go."],
@@ -331,6 +387,8 @@ const WORDS = {
   "11.3": ["FCC pretreatment", "MTBE", "Raffinate", "Cumene", "Alkylation"], "11.4": ["Turnaround", "Marginal value"], "11.5": ["Crude differential", "Opportunity crude", "Linear programming"],
   "12.1": ["Hydrodeoxygenation", "Decarboxylation", "Category 1 fat", "37. BImSchV", "Pretreatment"], "12.2": ["CFPP", "Flow improver"], "12.3": ["Annex IX", "Yield method", "Mass balance"],
   "12.4": ["Crude tall oil", "Rosin acid", "Acid number", "Advanced biofuel"], "12.5": ["ReFuelEU Aviation", "Def Stan 91-091", "ASTM D7566"], "12.6": ["Fast pyrolysis", "Pyrolysis oil", "Carbon-14 method"],
+  "13.1": ["Shale crude", "API gravity", "Sweet crude"], "13.2": ["Pressure swing adsorption", "Fuel gas", "Hydrogen network", "Semi-regenerative reformer"], "13.3": ["Liquid-phase hydrotreating", "Hydrodesulphurisation", "Cetane number"],
+  "13.4": ["Wax", "CFPP", "Flow improver"], "13.5": ["Renewable mandate", "Light cycle oil", "FAME"], "13.6": ["Renewable mandate", "Co-processing", "Mass balance"],
 };
 const AREAS = {
   1: ["Distillation", "Crudes", "Products"], 2: ["Sulphur", "Treating", "Specs"], 3: ["Reforming", "Octane", "Volatility", "Isomerisation", "Oxygenates"],
@@ -340,6 +398,7 @@ const AREAS = {
   10: ["Distillation", "Reforming", "Cracking", "Treating", "Configuration", "Specs"],
   11: ["Cracking", "Residue", "Treating", "Hydrogen", "Oxygenates", "Petrochemicals", "Alkylation", "Configuration", "Energy"],
   12: ["Renewables", "HVO", "Co-processing", "Policy", "SAF", "Cold flow", "Hydrogen", "Treating"],
+  13: ["Distillation", "Crudes", "Reforming", "Hydrogen", "Treating", "Cold flow", "Renewables", "Co-processing", "Policy"],
 };
 
 // ---------- the flowsheet ----------
@@ -352,7 +411,7 @@ const ROLES = [
   ["distils the residue under vacuum", ["vdu"]], ["cracks gas oil over a hot catalyst", ["fcc"]], ["cracks gas oil under high hydrogen pressure", ["hcu"]],
   ["joins butenes to isobutane", ["alky"]], ["takes the sulphur out of cracked naphtha", ["cnht"]], ["leaves solid carbon behind in a drum", ["coker"]],
   ["thins the residue by cracking it mildly", ["visbreaker"]], ["blows air through residue for roads", ["blowing"]], ["cuts the benzene out of reformate", ["bzhc"]],
-  ["turns fats into renewable diesel", ["hvoUnit"]], ["desulphurises gas oil to heating oil's 0.1%", ["hds"]],
+  ["turns fats into renewable diesel", ["hvoUnit"]], ["treats gas oil with hydrogen dissolved in the feed", ["lpHt"]], ["desulphurises gas oil to heating oil's 0.1%", ["hds"]],
   ["dissolves the oil out of the residue with a solvent", ["sda"]], ["turns pitch into power and hydrogen", ["igcc"]], ["joins isobutene to methanol", ["mtbeUnit"]],
   ["joins propylene to benzene", ["cumeneUnit"]], ["hydrotreats the cracker's feed", ["vgoHt", "vgoHt2"]], ["treats the heaviest gas oils to diesel", ["hght"]],
 ];

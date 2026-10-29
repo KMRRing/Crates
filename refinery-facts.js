@@ -291,4 +291,20 @@ export const FACTS = [
     "Small crystals pass a filter where large plates block it: several degrees colder, but no help once there's too much wax."),
   C("spec.t95", ["k:diesel.e360"], "EN 590 diesel must have 95% of it recovered by", "360 °C", ["320 °C", "400 °C", "450 °C"],
     "Its heaviest part must boil off by 360 °C: so vacuum gas oil, even desulphurised, can't go into road diesel beyond a few per cent."),
+
+  // ---------- a small refinery on shale crude ----------
+  C("psa.purity", ["c:13", "u:srReformer"], "A pressure swing adsorption unit delivers hydrogen at about what purity?", "99.9% or better", ["90% or so, as a membrane does", "95% at best, the rest methane", "99.99999%, as an electrolyser does"],
+    "Its beds hold back everything but hydrogen, so it comes out as pure as a hydrotreater's make-up gas needs; the rest of the gas leaves in the tail gas."),
+  C("psa.recovery", ["c:13", "u:srReformer"], "A pressure swing adsorption unit recovers about what share of the hydrogen it is fed?", "85–90%", ["50–60%", "97–99%", "25–30%"],
+    "The hydrogen that is not recovered leaves in the tail gas, and burns in the furnaces as fuel gas."),
+  C("lp.sulphur", ["c:13", "u:lpHt"], "A liquid-phase hydrotreater, with a cobalt-molybdenum catalyst, makes ULSD with sulphur under about", "10 ppm", ["50 ppm", "350 ppm", "1,000 ppm"],
+    "The same catalyst as a conventional unit: only the way the hydrogen reaches the oil is different."),
+  C("hdt.cycle", ["c:13", "u:lpHt"], "A distillate hydrotreater's catalyst usually runs about how long before it is changed?", "2–4 years", ["1–3 months", "6–9 months", "10–15 years"],
+    "Coke and metals slowly build up and the reactor's temperature is raised to hold the sulphur; at the end of a cycle the catalyst is regenerated or replaced at a turnaround."),
+  C("wax.dewax", ["c:13", "k:diesel.cfpp"], "Which unit lowers a diesel's cloud and pour points by changing its wax?", "A catalytic dewaxer, which isomerises or cracks the long straight chains", ["A hydrotreater at higher pressure, which saturates the wax", "A visbreaker, which thins the wax by mild cracking", "A Merox unit, which sweetens the wax with caustic and air"],
+    "Straight paraffins are the wax; branching them or cutting them shorter keeps them fluid in the cold. A hydrotreater takes out sulphur, nitrogen and aromatics but leaves the wax.", { skip: ["13.4"] }),
+  C("sbo.unsat", ["c:13", "b:sbo"], "Why does soybean oil take more hydrogen to hydrotreat than tallow does?", "Its chains hold several double bonds each, which hydrogen has to saturate", ["It holds more phosphorus, which hydrogen has to remove", "It holds more sulphur, which hydrogen has to remove as hydrogen sulphide", "It holds more free fatty acids, which hydrogen has to turn back into glycerine"],
+    "Soybean oil is mostly linoleic acid, with two double bonds; tallow is mostly saturated or has one. Each bond takes a mole of hydrogen before the oxygen comes out."),
+  C("co.limit", ["c:13", "b:sbo"], "What most limits how much fat a hydrotreater can co-process?", "Its hydrogen supply and the heat of the reaction", ["The fat's sulphur, which the catalyst can't hold", "The fat's density, which the feed pump can't lift", "The fat's price, which is above gas oil's"],
+    "Deoxygenation takes several times a gas oil's hydrogen and gives off heat: a unit designed for 15% is often run at far less when its hydrogen is short."),
 ];

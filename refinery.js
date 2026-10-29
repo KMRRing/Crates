@@ -26,6 +26,8 @@ const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; 
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 try { localStorage.removeItem("refinery:save"); } catch { /* the old campaign's save, before the course */ }
 const money = n => `${n < 0 ? "−" : ""}$${Math.abs(n).toFixed(2)}`;
+/** A share as a per cent for the words: a small one (a co-processing limit of 2.5%) keeps its decimal. */
+const pctWord = x => (x < 0.1 ? +(x * 100).toFixed(1) : Math.round(x * 100));
 const kbd = v => `${v < 10 ? v.toFixed(1) : Math.round(v)} kb/d`;
 const progress = () => read(PROGRESS, {});
 
@@ -642,9 +644,9 @@ function openCard(id) {
       add("p", "rf-facts", `Running at ${kbd(run.feed)}${cap ? ` of ${cap} (${Math.round((run.feed / cap) * 100)}%)` : ""}.${run.h2 ? ` Hydrogen: ${run.h2 > 0 ? "makes" : "uses"} ${Math.abs(run.h2).toFixed(1)} MMscf/d.` : ""}${run.sRemoved > 0.05 ? ` Strips ${run.sRemoved.toFixed(1)} t/d of sulphur.` : ""}`);
       // a co-processed renewable feed against its limit
       const co = coLimits(L, id), all = coTotalOf(L, id), mine = Object.keys(co).filter(f => run.feeds[f]);
-      for (const f of mine) add("p", "rf-facts", `Co-processing: ${lower(STREAMS[f].name)} is ${Math.round((run.feeds[f] / run.feed) * 100)}% of its feed, of ${Math.round(co[f] * 100)}% at most${run.coOver?.[f] >= 0.05 ? `; ${kbd(run.coOver[f])} more went elsewhere` : ""}.`);
+      for (const f of mine) add("p", "rf-facts", `Co-processing: ${lower(STREAMS[f].name)} is ${pctWord(run.feeds[f] / run.feed)}% of its feed, of ${pctWord(co[f])}% at most${run.coOver?.[f] >= 0.05 ? `; ${kbd(run.coOver[f])} more went elsewhere` : ""}.`);
       // and together, where it takes more than one
-      if (all != null && mine.length > 1) add("p", "rf-facts", `Together they're ${Math.round((mine.reduce((a, f) => a + run.feeds[f], 0) / run.feed) * 100)}% of its feed, of ${Math.round(all * 100)}% at most.`);
+      if (all != null && mine.length > 1) add("p", "rf-facts", `Together they're ${pctWord(mine.reduce((a, f) => a + run.feeds[f], 0) / run.feed)}% of its feed, of ${pctWord(all)}% at most.`);
       shadow();
       streams("In", [...Object.entries(run.feeds).map(([s, v]) => streamRow(s, v, comesFrom(s))), ...Object.entries(run.uses || {}).map(([r, v]) => reagentRow(r, v))]);
       streams("Out", Object.entries(run.outputs).filter(([, v]) => v > 1e-4).map(([s, v]) => streamRow(s, v, goesTo(s))));

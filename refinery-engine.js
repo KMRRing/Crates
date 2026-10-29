@@ -8,13 +8,13 @@ import { simplex } from "./refinery-lp.js";
 
 export const FEED = 100;                         // kb/d of crude, unless a level says otherwise
 /** Units in the order their feeds are ready: every producer of a stream comes before every unit that takes it. */
-export const ORDER = ["cdu", "cdu2", "vdu", "coker", "visbreaker", "sda", "igcc", "blowing", "hvoUnit", "safUnit", "vgoHt", "vgoHt2", "fcc", "hcu", "mtbeUnit", "cumeneUnit", "merox", "kht", "nht", "reformer", "srReformer", "bzhc", "isom", "alky", "cnht", "hds", "hght", "dht", "dht2"];
+export const ORDER = ["cdu", "cdu2", "vdu", "coker", "visbreaker", "sda", "igcc", "blowing", "hvoUnit", "safUnit", "vgoHt", "vgoHt2", "fcc", "hcu", "mtbeUnit", "cumeneUnit", "merox", "kht", "nht", "reformer", "srReformer", "bzhc", "isom", "alky", "cnht", "hds", "hght", "dht", "dht2", "lpHt"];
 /** Where a stream sells when it isn't sent anywhere: as it comes, unprocessed. */
 const HOME = {
   gas: "gasPool", lpg: "lpg", butane: "lpg", propylene: "propylene", c4: "lpg", lsr: "naphtha", hsr: "naphtha", hsrT: "naphtha", reformate: "gasoline",
   isomerate: "gasoline", catNaphtha: "naphtha", catNaphthaT: "gasoline", alkylate: "gasoline", cokerNaphtha: "naphtha", hcNaphtha: "naphtha", ethanol: "gasoline",
   kero: "gasoil", jet: "jet", lgo: "gasoil", hgo: "fuelOil", lco: "fuelOil", ulsd: "diesel", hcJet: "jet", hcDiesel: "diesel", cokerGo: "fuelOil", fuelOilCutter: "fuelOil",
-  hvo: "diesel", fame: "diesel", vegOil: "notBought", tallow: "notBought", rso: "notBought", cto: "notBought", pyro: "notBought", spk: "jet", lvgo: "fuelOil", hvgo: "fuelOil", slurry: "fuelOil", atmResid: "fuelOil", vacResid: "fuelOil", visResid: "fuelOil",
+  hvo: "diesel", fame: "diesel", vegOil: "notBought", tallow: "notBought", rso: "notBought", sbo: "notBought", cto: "notBought", pyro: "notBought", spk: "jet", lvgo: "fuelOil", hvgo: "fuelOil", slurry: "fuelOil", atmResid: "fuelOil", vacResid: "fuelOil", visResid: "fuelOil",
   coke: "coke", bitumen: "bitumen", etbe: "gasoline", bzCut: "naphtha", heavyReformate: "gasoline", importVgo: "notBought",
   lcn: "gasoline", lcnT: "gasoline", icn: "gasoline", hcn: "fuelOil", lcgo: "fuelOil", hcgo: "fuelOil", goT: "gasoil",
   vgoT: "vgoExport", importVgoT: "notBought", mhcGo: "gasoil", mtbe: "gasoline", raff: "lpg", cumene: "cumene", dao: "hsfo", asphalt: "hsfo", power: "power",
@@ -176,6 +176,8 @@ export function asPlayed(lv, crude = lv.crude, deck = null) {
 export const lower = s => (/^[A-Z][a-z]/.test(s) && !/^Category\b/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 /** The most of a unit's feed a co-processed renewable feed may be: the unit's own limit, or the level's. */
 export const coLimits = (level, u) => ({ ...(UNITS[u].co || {}), ...(level.co?.[u] || {}) });
+/** A share as a per cent for the words: a limit like 2.5% keeps its decimal, where 12% needs none. */
+const pct = x => (x < 0.1 ? +(x * 100).toFixed(1) : Math.round(x * 100));
 /** The most of a unit's feed its renewable feeds may be together (the heat, hydrogen and carbon oxides are theirs together). */
 export const coTotalOf = (level, u) => level.coTotal?.[u] ?? UNITS[u].coTotal ?? null;
 
@@ -212,13 +214,13 @@ export function evaluate(level, routing) {
       if (lim == null) continue;
       const most = (lim / (1 - lim)) * fossil;
       if (t[1] > most + 1e-9) { coOver[t[0]] = t[1] - most; t[1] = most; }
-      if ((coOver[t[0]] || 0) >= 0.05) issues.push({ kind: "co", unit: u, text: `The ${lower(def.name)} takes ${lower(STREAMS[t[0]].name)} up to ${Math.round(lim * 100)}% of its feed: ${coOver[t[0]].toFixed(1)} kb/d of it went where it would have gone without it.` });
+      if ((coOver[t[0]] || 0) >= 0.05) issues.push({ kind: "co", unit: u, text: `The ${lower(def.name)} takes ${lower(STREAMS[t[0]].name)} up to ${pct(lim)}% of its feed: ${coOver[t[0]].toFixed(1)} kb/d of it went where it would have gone without it.` });
     }
     const all = coTotalOf(level, u), renew = takes.filter(([s]) => s in co), together = renew.reduce((a, [, v]) => a + v, 0);
     if (all != null && together > (all / (1 - all)) * fossil + 1e-9) {
       const k = ((all / (1 - all)) * fossil) / together;
       for (const t of renew) { coOver[t[0]] = (coOver[t[0]] || 0) + t[1] * (1 - k); t[1] *= k; }
-      if (together * (1 - k) >= 0.05) issues.push({ kind: "co", unit: u, text: `The ${lower(def.name)} takes renewable feeds up to ${Math.round(all * 100)}% of its feed together: ${(together * (1 - k)).toFixed(1)} kb/d of them went where they would have gone without it.` });
+      if (together * (1 - k) >= 0.05) issues.push({ kind: "co", unit: u, text: `The ${lower(def.name)} takes renewable feeds up to ${pct(all)}% of its feed together: ${(together * (1 - k)).toFixed(1)} kb/d of them went where they would have gone without it.` });
     }
     const total = takes.reduce((a, [, v]) => a + v, 0), cap = level.caps?.[u];
     const k = cap != null && total > cap ? cap / total : 1;

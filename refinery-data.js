@@ -105,6 +105,7 @@ export const STREAMS = {
   vegOil: { name: "Used cooking oil", short: "UCO", group: "renewable", p: { d: 920, s: 10, bio: 100, ghg: 430, cfpp: 15 }, note: "Frying oil collected from kitchens and food plants (RED's Annex IX Part B): triglycerides with a few per cent of free fatty acids, which corrode, and the salts and polymers of cooking, which a pretreatment takes out. Hydrotreated, it saves about 83% of fossil diesel's emissions." },
   tallow: { name: "Category 1 tallow", short: "Tallow", group: "renewable", p: { d: 900, s: 40, bio: 100, ghg: 400, cfpp: 15 }, note: "Fat rendered from animal material that may never enter the food or feed chain (Category 1, Annex IX Part B): more saturated than vegetable oil, so it takes less hydrogen, but it carries nitrogen, phosphorus and polyethylene that a pretreatment takes out. Hydrotreated, it saves about 77%." },
   rso: { name: "Rapeseed oil", short: "RSO", group: "renewable", p: { d: 920, s: 5, bio: 100, ghg: 250, cfpp: 15 }, note: "A food crop's oil, refined and clean, but the most unsaturated of the three fats, so it takes the most hydrogen. Hydrotreated it saves about 47%, half a waste's, and crop fuels are capped under RED." },
+  sbo: { name: "Soybean oil", short: "SBO", group: "renewable", p: { d: 920, s: 10, bio: 100, ghg: 200, cfpp: 15 }, note: "The world's most traded vegetable oil, bought refined and bleached, with its phosphorus under 5 ppm and its free acids under 1% (a unit that co-processes it asks that). Rich in the doubly and triply unsaturated acids, so it takes more hydrogen than tallow and a little more than rapeseed oil. Hydrotreated it saves about 40% of fossil diesel's emissions, where a scheme counts it." },
   cto: { name: "Crude tall oil", short: "CTO", group: "renewable", p: { d: 950, s: 2000, bio: 100, ghg: 410, cfpp: 5, e360: 15 }, note: "What a kraft pulp mill skims off its black liquor (Annex IX Part A, an advanced feed): about half fatty acids, a quarter to a third rosin acids, the rest sterols and other neutrals. Free acids, not triglycerides: no propane. Its acid number is about 150 and it carries sulphur from the pulping." },
   pyro: { name: "Pyrolysis oil", short: "Pyro oil", group: "renewable", p: { d: 1200, s: 100, bio: 100, ghg: 180 }, note: "Sawdust and forest residues heated to 500 °C in a second without air and the vapour quenched (Annex IX Part A): a quarter water and nearly 40% oxygen, acidic, half the energy of fuel oil a tonne. It won't mix with oil and it thickens when heated, so only a cracker takes it, through a nozzle of its own." },
   spk: { name: "HEFA-SPK", short: "SPK", group: "renewable", about: "150–280 °C", p: { cet: 55, d: 760, s: 1, grade: 1, visc: 1.4, bio: 100, ghg: 415, flash: 45, cfpp: -40 }, note: "Synthetic paraffinic kerosene from hydroprocessed fats (HEFA): sustainable aviation fuel, blended up to half with fossil Jet A-1 under ASTM D7566." },
@@ -321,6 +322,19 @@ export const UNITS = {
       "Two stages share the work: this one takes them to a few hundred ppm, enough for heating oil; a second, at higher pressure, finishes the part that goes to road diesel at 10 ppm.",
       "It also desulphurises cutter stock: a treated cycle oil can carry vacuum residue into 0.5% fuel oil."],
     facts: [["Pressure", "30–40 bar"], ["Temperature", "330–370 °C"], ["Catalyst", "CoMo on alumina"], ["Product", "about 400 ppm sulphur"]] },
+  // Kestrel Flats' hydrotreater: liquid-full, no recycle gas, the hydrogen dissolved in the feed. It treats the distillates and the
+  // light vacuum gas oil, and soybean oil up to 2.5% of its feed: the hydrogen the oil can hold, and what the plant makes, set that
+  lpHt: { name: "Liquid-phase hydrotreater", short: "LP-HT", kind: "treating", stage: 5, feeds: ["kero", "lgo", "lvgo", "lco", "sbo"], opex: 1,
+    yields: { kero: { ulsd: 0.99, gas: 0.01 }, lgo: { ulsd: 0.99, gas: 0.01 }, lvgo: { ulsd: 0.97, gas: 0.03 }, lco: { ulsd: 0.98, gas: 0.02 }, sbo: { ulsd: 0.99, lpg: 0.08 } },
+    carry: { to: "ulsd", set: { s: 8 }, delta: { cet: 1.5, d: -5 }, perFeed: { kero: { cet: 0.5, d: -2 }, lvgo: { cet: 1, d: -15 }, lco: { cet: 8, d: -25 }, sbo: { cet: 27, d: -140 } } },
+    h2: { kero: -0.18, lgo: -0.4, lvgo: -0.6, lco: -1.2, sbo: -2.8 },
+    // designed for 15% soybean oil, run at 2.5%: the hydrogen the plant can spare and the reactor's heat and gas set it
+    co: { sbo: 0.025 }, coTotal: 0.025,
+    purpose: "Takes kerosene, gas oil, light vacuum gas oil and light cycle oil to under 10 ppm sulphur with hydrogen dissolved in the oil itself, in a reactor that runs full of liquid.",
+    card: ["A trickle-bed hydrotreater passes hydrogen gas down through the oil, and a recycle gas compressor, the costliest machine in the unit, keeps the gas moving. This one has none: hydrogen is dissolved into the feed before the reactor, and the reactor is full of liquid.",
+      "The oil can dissolve only so much hydrogen, so some of the treated product is recycled to carry more of it and to soak up the heat of the reactions. Sulphur comes out as it does in any CoMo unit; and as in any, the cloud and pour point come out as they went in: it does not dewax.",
+      "It suits a light, modestly sulphurous feed and a small plant. It is a poor home for a feed that takes a great deal of hydrogen, or releases gas: a fat's oxygen leaves as water and carbon oxides, which a liquid-full reactor has nowhere to put but in solution."],
+    facts: [["Pressure", "30–60 bar"], ["Temperature", "320–360 °C"], ["Catalyst", "CoMo on alumina, a first cycle of about two years"], ["Hydrogen", "dissolved in the feed, with a liquid recycle; no recycle gas compressor"], ["Co-processing", "designed for 15% soybean oil; run at 2.5% for the hydrogen available and the reactor's heat and gas"]] },
   safUnit: { name: "SAF unit", short: "SAF", kind: "renewable", stage: 4, feeds: ["hvo"], opex: 3,
     yields: { hvo: { spk: 0.62, hcNaphtha: 0.2, lpg: 0.1, gas: 0.03 } }, h2: { hvo: -0.6 },
     purpose: "Isomerises and mildly hydrocracks renewable diesel's long paraffins into the jet range: sustainable aviation fuel.",
@@ -420,7 +434,7 @@ export const POOLS = {
     sheet: [["Sulphur", "≤ 0.30% m/m (3,000 ppm)"], ["Mercaptan sulphur", "≤ 0.003% m/m"], ["Aromatics", "≤ 25% v/v"], ["Flash point", "≥ 38 °C"], ["Freezing point", "≤ −47 °C"], ["Density at 15 °C", "775–840 kg/m³"], ["Smoke point", "≥ 25 mm, or ≥ 18 mm with naphthalenes ≤ 3%"], ["Acidity", "≤ 0.015 mg KOH/g"], ["Thermal stability", "JFTOT at 260 °C"], ["Specific energy", "≥ 42.8 MJ/kg"], ["Synthetic blend (ASTM D7566)", "HEFA-SPK ≤ 50% v/v"]] },
   diesel: { name: "Diesel", short: "Diesel", group: "middle", price: 96, tickets: 1,
     // the cold filter plugging point by season's grade: Germany's summer grade B here, a level sets autumn's or winter's
-    accept: MIDDLE, spec: { cet: [51, null], d: [820, 845], s: [null, 10], fame: [null, 7], flash: [55, null], cfpp: [null, 0], e360: [null, 5] }, always: { d: [820, 845], flash: [55, null], e360: [null, 5] }, fallback: "gasoil",
+    accept: MIDDLE, spec: { cet: [51, null], d: [820, 845], s: [null, 10], fame: [null, 7], bio: [null, 100], flash: [55, null], cfpp: [null, 0], e360: [null, 5] }, always: { d: [820, 845], flash: [55, null], e360: [null, 5] }, fallback: "gasoil",
     note: "Road diesel to EN 590. Off spec, it's sold as 0.1% gasoil.",
     sheet: [["Cetane number", "≥ 51.0"], ["Cetane index", "≥ 46.0"], ["Density at 15 °C", "820–845 kg/m³"], ["Sulphur", "≤ 10 mg/kg"], ["Polyaromatics", "≤ 8% m/m"], ["FAME", "≤ 7% v/v (B7)"], ["Flash point", "> 55 °C"], ["Viscosity at 40 °C", "2.0–4.5 mm²/s"], ["95% recovered at", "≤ 360 °C"], ["CFPP", "+5 to −20 °C by grade and season"], ["Lubricity (HFRR)", "≤ 460 µm"]] },
   gasoil: { name: "Gasoil 0.1%", short: "Gasoil", group: "middle", price: 91,
@@ -438,7 +452,7 @@ export const POOLS = {
   slops: { name: "Slops", short: "Slops", group: "resid", price: 55, fallbackOnly: true,
     accept: ["lsr", "hsr", "hsrT", "reformate", "heavyReformate", "bzCut", "isomerate", "catNaphtha", "catNaphthaT", "lcn", "lcnT", "icn", "hcn", "alkylate", "cokerNaphtha", "hcNaphtha", "ethanol", "etbe", "mtbe", ...MIDDLE, ...HEAVY],
     note: "Off-spec product sold at a distress price, or taken back to be reprocessed.", sheet: [] },
-  notBought: { name: "Not bought", short: "Not bought", group: "other", price: 0, fallbackOnly: true, accept: ["importVgo", "importVgoT", "vegOil", "tallow", "rso", "cto", "pyro", "ethanol", "fame", "etbe"],
+  notBought: { name: "Not bought", short: "Not bought", group: "other", price: 0, fallbackOnly: true, accept: ["importVgo", "importVgoT", "vegOil", "tallow", "rso", "sbo", "cto", "pyro", "ethanol", "fame", "etbe"],
     note: "What you choose not to buy stays with the seller: you don't pay for it. Its price here is the purchase price, handed back.", sheet: [] },
   lpg: { name: "LPG", short: "LPG", group: "gas", price: 45, accept: ["lpg", "butane", "c4", "raff"], note: "Propane and butane, as bottled gas or petrochemical feed.", sheet: [["Vapour pressure", "by grade (propane, butane, mix)"]] },
   propylene: { name: "Propylene", short: "C3=", group: "gas", price: 85, accept: ["propylene"], note: "Polymer-grade propylene for polypropylene.", sheet: [["Purity", "≥ 99.5%"]] },
@@ -460,8 +474,8 @@ export const H2_IMPORT = 1.5;           // merchant hydrogen beyond the plant, a
 export const SULPHUR = { price: 120, cost: 40 };   // $ a tonne sold, and the Claus plant's cost a tonne
 // $/bbl delivered: UCO about $1,150 a tonne, Category 1 tallow $980 (it trades under UCO), rapeseed oil $1,220, crude tall oil $950,
 // pyrolysis oil $230, a little over what the fuel oil it replaces in a boiler costs for the same heat (it has half the
-// energy a tonne); the fats pretreated
-export const BOUGHT = { vegOil: 168, tallow: 140, rso: 178, cto: 143, pyro: 44, ethanol: 120, fame: 160, etbe: 125, importVgo: 79, importVgoT: 84 };
+// energy a tonne), soybean oil $905 (a crop oil under rapeseed oil); the fats pretreated
+export const BOUGHT = { vegOil: 168, tallow: 140, rso: 178, sbo: 132, cto: 143, pyro: 44, ethanol: 120, fame: 160, etbe: 125, importVgo: 79, importVgoT: 84 };
 /** Reactants a unit consumes in proportion to its feed (UNITS' uses), $/bbl delivered: methanol about $350 a tonne, benzene $950. */
 export const REAGENTS = { methanol: { name: "Methanol", price: 44 }, benzene: { name: "Benzene", price: 133 } };
 /** A ticket's price, $ a tonne of CO2e saved: about €320, as Germany's quota traded in 2026. A level sets its own. */
@@ -507,3 +521,32 @@ export const CRUDES = {
     cuts: { gas: 0.003, lpg: 0.004, butane: 0.008, lsr: 0.03, hsr: 0.08, kero: 0.08, lgo: 0.12, hgo: 0.07, atmResid: 0.605 },
     note: "Mexico's heavy sour benchmark, cheap for a reason: coker feed, or bitumen." },
 };
+
+// Kestrel Flats' crudes: a light shale-rich blend that is nearly all naphtha and distillate, and a waxy medium one that is half residue
+// and whose gas oils plug a filter warm; the plant runs them at 79 to 21 (blendOf)
+CRUDES.mesa = { name: "Mesa Shale", short: "Mesa", api: 44, sulphur: 0.08, price: 76.5, vgoShare: 0.68, ar: { d: 900, visc: 60 }, vr: { d: 960, visc: 9000 },
+  cuts: { gas: 0.006, lpg: 0.014, butane: 0.022, lsr: 0.12, hsr: 0.22, kero: 0.13, lgo: 0.17, hgo: 0.07, atmResid: 0.248 },
+  props: { kero: { d: 790, cet: 46 }, lgo: { d: 835, cet: 55, cfpp: -9 }, hgo: { d: 855, cet: 51, cfpp: 6 } },
+  note: "A light, sweet, paraffinic shale crude: over half of it boils below kerosene's end, and less than a quarter is residue. Its gas oils are light and high in cetane and a little waxy." };
+CRUDES.plateau = { name: "Plateau Waxy", short: "Plateau", api: 26, sulphur: 0.22, price: 72, vgoShare: 0.5, ar: { d: 950, visc: 700 }, vr: { d: 1000, visc: 200000 },
+  cuts: { gas: 0.003, lpg: 0.004, butane: 0.007, lsr: 0.03, hsr: 0.085, kero: 0.085, lgo: 0.145, hgo: 0.105, atmResid: 0.536 },
+  props: { kero: { d: 812, cet: 42 }, lgo: { d: 856, cet: 51, cfpp: 4 }, hgo: { d: 884, cet: 46, cfpp: 20 } },
+  note: "A medium crude from an old basin, low in sulphur and rich in wax: more than half residue, and gas oils that plug a filter at room temperature." };
+/**
+ * A crude blended from two, the first a share of the volume: the cuts, the sulphur and the price by volume, the cuts' own
+ * properties by the volume of each cut, the residues by the volume of residue each brings (viscosity as a geometric mean).
+ */
+function blendOf(a, b, share, rest) {
+  const mix = (x, y) => share * x + (1 - share) * y, out = { cuts: {}, props: {} };
+  for (const c of Object.keys(a.cuts)) out.cuts[c] = +mix(a.cuts[c], b.cuts[c]).toFixed(4);
+  const sg = mix(141.5 / (a.api + 131.5), 141.5 / (b.api + 131.5)), ra = share * a.cuts.atmResid, rb = (1 - share) * b.cuts.atmResid, wa = ra / (ra + rb);
+  const pair = k => Object.fromEntries(Object.keys(a[k]).map(f => [f, f === "visc" ? Math.round(Math.exp(wa * Math.log(a[k][f]) + (1 - wa) * Math.log(b[k][f]))) : Math.round(wa * a[k][f] + (1 - wa) * b[k][f])]));
+  for (const cut of ["kero", "lgo", "hgo"]) {
+    const wc = share * a.cuts[cut] / (share * a.cuts[cut] + (1 - share) * b.cuts[cut]);
+    out.props[cut] = Object.fromEntries(Object.keys(a.props[cut]).map(k => [k, Math.round(wc * a.props[cut][k] + (1 - wc) * b.props[cut][k])]));
+  }
+  return { ...rest, api: +(141.5 / sg - 131.5).toFixed(1), sulphur: +mix(a.sulphur, b.sulphur).toFixed(2), price: +mix(a.price, b.price).toFixed(1),
+    vgoShare: +((ra * a.vgoShare + rb * b.vgoShare) / (ra + rb)).toFixed(2), ar: pair("ar"), vr: pair("vr"), cuts: out.cuts, props: out.props };
+}
+CRUDES.kestrel = blendOf(CRUDES.mesa, CRUDES.plateau, 0.79, { name: "Kestrel Blend", short: "Kestrel",
+  note: "What the Kestrel Flats works runs: four parts of Mesa Shale to one of Plateau Waxy by volume. The waxy crude puts residue and wax into a mostly light slate." });
