@@ -21,7 +21,7 @@ bindSwitcher(document.getElementById("appsBtn"), "crates");
 document.querySelector(".cr-mark").innerHTML = APPS.find(a => a.id === "crates").logo;
 
 const solo = createSolo({ setPoolParam, setBoardParam });
-const coop = createCoop({ onLeave: () => solo.start(), setRoomParam, setPoolParam, mySettings: () => solo.settings(), myPool: () => solo.pool() });
+const coop = createCoop({ onLeave: () => solo.start(), setRoomParam, mySettings: () => solo.settings() });
 
 const params = new URLSearchParams(location.search);
 const pool = parsePool(params.get("cat"));

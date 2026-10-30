@@ -7,17 +7,15 @@
 // your screen, and you see that tile's description and crate colour yourself; its owner only sees
 // that a clue was used on it. The clue's ? takes the crate colour. Sealed tiles carry no labels: you
 // point them out to each other.
-import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, arr, cleanSettings, defaultSettings } from "./core.js";
-import { generate, generateSplit, encode, decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
+import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, cleanSettings } from "./core.js";
+import { decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
+import { LIVES, CLUES, POOL, newBoard, tidy } from "./coop-room.js";
 import { getSync } from "./net.js";
 import * as view from "./view.js";
-import { branchPath, openBranch, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, GAMES } from "./rooms.js";
+import { branchPath, openBranch, enterRoom, leaveRoom, reseat, pickSeat, otherHere, GAMES } from "./rooms.js";
 import { reportDuo } from "./suite.js";
 import { part, action, line, choice } from "./menu.js";
 
-const LIVES = 4;          // team pool per board
-const CLUES = 4;          // team pool per board; unused clues don't carry over
-const RECENT_ANSWERS = 16;
 // Crates' state lives in the crates branch of the app's shared rooms (rooms.js), beside the other games'.
 const roomPath = code => branchPath(code, "crates");
 export const MODES = {
@@ -26,50 +24,9 @@ export const MODES = {
 };
 
 
-/** A fresh board from the room's pool and settings; in hidden mode each side uses its own player's. */
-function newBoard(room, n) {
-  const recentA = arr(room.recentA);
-  const shared = cleanSettings(room.settings);
-  let b, fellBack = false;
-  if (room.mode === "hidden") {
-    const sides = [0, 1].map(slot => cleanSettings(Object.values(room.players).find(p => p.slot === slot)?.settings));
-    b = generateSplit({ pool: room.pool, sides, off: shared.off, recentA });
-    if (!b) { fellBack = true; b = generateSplit({ pool: room.pool, sides: [defaultSettings(), defaultSettings()], recentA }); }
-  } else {
-    b = generate({ pool: room.pool, settings: shared, recentA });
-    if (!b) { fellBack = true; b = generate({ pool: room.pool, settings: defaultSettings(), recentA }); }
-  }
-  room.recentA = [...b.groups.map(g => g.a), ...recentA].filter((a, i, all) => all.indexOf(a) === i).slice(0, RECENT_ANSWERS);
-  return {
-    n, code: encode(b), sides: b.sides ? b.sides.flat().join("") : null, order: shuffled(describe(b).flatMap(g => g.words)),
-    found: [], guesses: [], revealed: [], pending: null, done: false, won: false,
-    lives: LIVES, clues: CLUES, fellBack,
-  };
-}
-
-/** Normalise a room snapshot: Realtime Database drops empty arrays and nulls. */
-function tidy(room) {
-  if (!room || room.v !== 3 || !room.players) return null;
-  for (const pl of Object.values(room.players)) {
-    pl.sel = arr(pl.sel);
-    pl.settings = cleanSettings(pl.settings);
-    pl.ready = pl.ready === true;
-  }
-  room.settings = cleanSettings(room.settings);
-  room.recentA = arr(room.recentA);
-  room.tally = room.tally || { maps: 0, points: 0 };
-  const b = room.board;
-  if (b) {
-    b.order = arr(b.order); b.found = arr(b.found);
-    b.guesses = arr(b.guesses).map(g => ({ ...g, words: arr(g.words), lv: arr(g.lv) }));
-    b.revealed = arr(b.revealed);
-    b.pending = b.pending || null; b.sides = b.sides || null;
-  }
-  return room;
-}
 const boardScore = b => b.found.reduce((s, f) => s + 1 + (f.named ? 1 : 0), 0);
 
-export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, myPool }) {
+export function createCoop({ onLeave, setRoomParam, mySettings }) {
   let sync, code, room, unwatch, uid, stopHere;
   let here = {};                // who has which game of this room open: { uid: { game, name, online } }
   let mySel = new Set();
@@ -77,7 +34,6 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
   let clueShown = null;         // word whose clue is on show
   let peek = null;              // hidden mode: the sealed tile you've tapped, offering a clue
   let lobbyPrompted = false;    // the setup sheet opens by itself once per game
-  let menuOnFirstSnapshot = false;
   let decoded = { code: null };
 
   const me = () => room?.players?.[uid];
@@ -174,7 +130,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
     if (!partner) status = waiting();
     else if (me().ready) status = room.players[partner].ready ? "Dealing…" : `Waiting for ${nameOf(partner)} to get ready.`;
     return {
-      mode: "coop", category: null, pool: room.pool, label: "–", boardKey: "lobby",
+      mode: "coop", category: null, pool: POOL, label: "–", boardKey: "lobby",
       brief: "Hidden game: you each set up your own side, and your settings shape only the eight words dealt to you. The first board is dealt once you're both ready.",
       players: players(), team: null, status, groupsInfo: [], solved: [], cells: [], clue: null, feed: [],
       pending: null, hideControls: true, done: false,
@@ -226,7 +182,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
     const picks = mySel.size + (hidden() ? partnerSel.length : 0);
     const pts = boardScore(b);
     return {
-      mode: "coop", category: board.cat, pool: room.pool, label: b.n, boardKey: `${b.code}#${b.n}`,
+      mode: "coop", category: board.cat, pool: POOL, label: b.n, boardKey: `${b.code}#${b.n}`,
       brief: hidden() ? "" : null,           // hidden mode shows no description
       boardKey: b.code, groupsInfo: info, solved, cells, clue, players: players(),
       team: { lives: b.lives, maxLives: LIVES, clues: b.clues, maxClues: CLUES },
@@ -306,7 +262,6 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
     const taken = takenSet();
     for (const w of [...mySel]) if (taken.has(w) || b.done) mySel.delete(w);
     draw();
-    if (menuOnFirstSnapshot) { menuOnFirstSnapshot = false; handlers.menu(); }
   }
 
   // ---------- actions ----------
@@ -325,15 +280,15 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
     const owner = room.owner === uid, back = () => handlers.menu();
     if (!hidden()) {
       view.openSettings({
-        settings: room.settings, editable: owner, onBack: back, pool: room.pool,
+        settings: room.settings, editable: owner, onBack: back, pool: POOL,
         note: owner ? "Your settings apply to both of you, from the next board." : `${nameOf(room.owner)}'s settings apply to this game.`,
         onChange: s => change(cur => { if (cur.owner !== uid) return false; cur.settings = cleanSettings(s); return cur; }),
       });
       return;
     }
     view.openSettings({
-      settings: { ...me().settings, off: room.settings.off }, editable: { words: true, groups: owner }, onBack: back, pool: room.pool,
-      note: `Your preset, difficulty and topics shape only the eight words dealt to you. Which countries and commodities can come up is shared${owner ? " and set by you" : `, set by ${nameOf(room.owner)}`}.${room.board ? " Changes apply from the next board." : ""}`,
+      settings: { ...me().settings, off: room.settings.off }, editable: { words: true, groups: owner }, onBack: back, pool: POOL,
+      note: `Your preset, difficulty and topics shape only the eight words dealt to you. Which countries can come up is shared${owner ? " and set by you" : `, set by ${nameOf(room.owner)}`}.${room.board ? " Changes apply from the next board." : ""}`,
       onChange: s => change(cur => {
         cur.players[uid].settings = cleanSettings({ ...s, off: [] });
         if (cur.owner === uid) cur.settings = cleanSettings({ ...cur.settings, off: s.off });
@@ -482,11 +437,6 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
       });
       if (!committed) view.toast("Finish this board first", 2500);
     },
-    async pool(value) {
-      setPoolParam(value);
-      await change(cur => { cur.pool = value; return cur; });
-      view.toast(room.board ? "Next board comes from the new pool" : "Pool set for the first board", 2200);
-    },
     share() {},
     menu() {
       // the duo match's menu: Play (in the hidden-mode lobby: ready, and your side), Together (who's here, the match's
@@ -541,31 +491,15 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
     stopHere = enterRoom(sync, code, "crates", name, h => { here = h; draw(); });
   }
 
-  /** Crates' state for a room: this mode, pool and settings, with you seated. */
-  function freshRoom(mode, pool, settings, name) {
+  /** Crates' state for a room: this mode and these settings, with you seated. */
+  function freshRoom(mode, settings, name) {
     const room0 = {
-      v: 3, mode, owner: uid, created: Date.now(), pool, settings: cleanSettings(settings), recentA: [],
+      v: 3, mode, owner: uid, created: Date.now(), pool: POOL, settings: cleanSettings(settings), recentA: [],
       players: { [uid]: { name, slot: 0, sel: [], online: true, ready: false, settings: cleanSettings(settings) } },
       tally: { maps: 0, points: 0 },
     };
     if (mode !== "hidden") room0.board = newBoard(room0, 1);
     return room0;
-  }
-
-  async function create(mode, pool, settings) {
-    const name = await askName();
-    if (!(await connect())) return false;
-    try {
-      const c = await createRoom(sync, "crates", freshRoom(mode, pool, settings, name));
-      if (!c) { view.toast("Couldn't start a game, try again", 3000); return false; }
-      code = c;
-      seen = null;
-      lobbyPrompted = false;
-      menuOnFirstSnapshot = mode !== "hidden";   // show the link to send (the lobby opens its own sheet)
-      watch(name);
-      return true;
-    } catch (e) { explain(e); }
-    return false;
   }
 
   /**
@@ -593,7 +527,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
       let full = false;
       const r = await sync.tx(roomPath(c), cur => {
         full = false;
-        if (cur === null) return before ? null : freshRoom("shared", myPool(), mySettings(), name);
+        if (cur === null) return before ? null : freshRoom("shared", mySettings(), name);
         const t = tidy(cur);
         if (!t) return undefined;
         if (t.players[uid]) { t.players[uid].name = name; return t; }
@@ -635,5 +569,5 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
     onLeave();
   }
 
-  return { create, join, stop };
+  return { join, stop };
 }
