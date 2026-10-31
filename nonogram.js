@@ -5,7 +5,7 @@
 // and the strokes, names the picture, plays the computer (a partner with half the clues, or a rival on its own copy)
 // and plays together on duel.js: a race on the same picture, or the clues split between you on one grid.
 import { cellAt, withCell, emptyGrid, EMPTY, CROSS, agrees, drawn, wrongCells, knownFrom, nextStep, scoreOf, creditFor, ownerOf, MISTAKE, HINT, WRONG_NAME, CREDIT } from "./nonogram-engine.js";
-import { PICTURES, TOPICS, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, poolOf, madeAlready, remember } from "./nonogram-pictures.js";
+import { PICTURES, TOPICS, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, siblingsOf, poolOf, madeAlready, remember } from "./nonogram-pictures.js";
 import { hexGrid, hexOwner, lineName } from "./nonogram-hex.js";
 import { PACES, createMind, botMove } from "./nonogram-bot.js";
 import { createBoard, HOLD_SECOND } from "./nonogram-board.js";
@@ -27,13 +27,13 @@ dropdown(document.getElementById("size"));
 const $ = id => document.getElementById(id);
 const RUN = "nonogram:run", SETTINGS = "nonogram:settings", TIMES = "nonogram:times", SEEN = "nonogram:seen", STATS = "nonogram:stats";
 const SAVE_EVERY = 5000;                 // ms between saves of a picture in play (a partner watching sees it that often)
-const SEEN_KEEP = 80;                    // pictures remembered as dealt lately, so they don't come round again soon
+const SEEN_KEEP = PICTURES.length;         // pictures remembered as dealt lately: every one the game has, so even All comes round in turn
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 /** Seconds as 1:05 (or 1:02:05), a minus before a score below nothing. */
 const fmt = secs => { const neg = secs < 0, s = Math.abs(Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return `${neg ? "−" : ""}${h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`}`; };
-const TOPIC_ONE = { countries: "country", flags: "flag", lakes: "lake" };
+const TOPIC_ONE = { countries: "country", flags: "flag", lakes: "lake", regions: "region" };
 const S3 = Math.sqrt(3);
 
 // ---------- settings (the menu's) ----------
@@ -372,17 +372,33 @@ function finish() {
   bump("solved");
   save();
   board.reveal();
+  const asking = askNameSoon();
   render();
   // with naming on, the round is over once the picture is named too (closeName); else now
-  if (S.rules.nameIt && !S.name && pic) setTimeout(() => { if (S?.done && !S.name) openName(true); }, 1150);
-  else roundOver("nonogram");
+  if (!asking) roundOver("nonogram");
+}
+
+/** The picture is revealed for a moment between the last cell and the question "What is it?". The result panel keeps the
+ *  name back for that moment: it used to show the answer 1.15 s before the question was asked (Korbi, 31 October 2026).
+ *  True when the question is coming. */
+let askingName = false;
+function askNameSoon() {
+  if (!rules().nameIt || !S || S.name || !pic) return false;
+  askingName = true;
+  setTimeout(() => {
+    askingName = false;
+    if (S?.done && !S.name) openName(true);
+    if (S) render();
+  }, 1150);
+  return true;
 }
 
 // ---------- naming it ----------
 const NAME_TOPIC_NAMES = new Map();
-function namesFor(topic) {                                        // every name a picture of this kind goes by, for the list
-  if (!NAME_TOPIC_NAMES.has(topic)) NAME_TOPIC_NAMES.set(topic, [...new Set(PICTURES.filter(p => p.topic === topic).flatMap(p => [p.name]))].sort((a, b) => a.localeCompare(b)));
-  return NAME_TOPIC_NAMES.get(topic);
+function namesFor(pic) {                                         // every name a picture of this kind goes by, for the list
+  const key = `${pic.topic}|${pic.topic === "regions" ? pic.of : ""}`;
+  if (!NAME_TOPIC_NAMES.has(key)) NAME_TOPIC_NAMES.set(key, [...new Set(siblingsOf(pic).map(p => p.name))].sort((a, b) => a.localeCompare(b)));
+  return NAME_TOPIC_NAMES.get(key);
 }
 let naming = null;                                                 // { final }
 function openName(final = false) {
@@ -391,7 +407,7 @@ function openName(final = false) {
   naming = { final };
   const hidden = 1 - drawn(S.grid, P.answer), credit = creditFor(S.size, hidden);
   $("nameHead").textContent = final ? "What is it?" : "Name it";
-  $("nameAsk").textContent = final ? askOf(pic.topic) : `${askOf(pic.topic)} Right now takes ${credit} s off; wrong adds ${WRONG_NAME} s. One go.`;
+  $("nameAsk").textContent = final ? askOf(pic.topic, pic) : `${askOf(pic.topic, pic)} Right now takes ${credit} s off; wrong adds ${WRONG_NAME} s. One go.`;
   $("nameNote").textContent = ""; $("nameNote").className = "ng-name-note";
   $("nameSkip").textContent = final ? "I don't know" : "Not yet";
   $("nameInput").value = "";
@@ -402,7 +418,7 @@ function openName(final = false) {
   $("nameInput").focus();
 }
 function listNames(typed) {
-  const t = normalize(typed), all = namesFor(pic.topic);
+  const t = normalize(typed), all = namesFor(pic);
   const hits = t ? all.filter(n => normalize(n).startsWith(t)).concat(all.filter(n => !normalize(n).startsWith(t) && normalize(n).includes(t))).slice(0, 8) : [];
   $("nameList").replaceChildren(...hits.map(n => {
     const li = document.createElement("li"), b = document.createElement("button");
@@ -452,12 +468,12 @@ function closeName() {
 function learnt(right) {
   if (IN_FRAME) return;
   if (right) { bump("named"); pile.answer("nonogram", pic.id, true); return; }
-  const others = poolOf(pic.topic, pic.regions[0] || "world").filter(p => p.id !== pic.id && p.name !== pic.name);
+  const others = (pic.topic === "regions" ? siblingsOf(pic) : poolOf(pic.topic, pic.regions[0] || "world")).filter(p => p.id !== pic.id && p.name !== pic.name);
   const picks = [];
   while (picks.length < 3 && others.length) picks.push(others.splice(Math.floor(Math.random() * others.length), 1)[0].name);
   pile.record("nonogram", pic.id, {
-    ask: `Nonogram · ${TOPIC_ONE[pic.topic]}`, prompt: askOf(pic.topic), svg: svgOf(P), options: [pic.name, ...picks], right: [0],
-    note: `${pic.flag ? `${pic.flag} ` : ""}${pic.name}${pic.note ? `: ${pic.note}` : "."}`, about: [pic.about],
+    ask: `Nonogram · ${TOPIC_ONE[pic.topic]}`, prompt: askOf(pic.topic, pic), svg: svgOf(P), options: [pic.name, ...picks], right: [0],
+    note: `${pic.flag ? `${pic.flag} ` : ""}${pic.name}${pic.note ? `: ${pic.note}` : "."}`, about: pic.about ? [pic.about] : [],
   }, "wrong");
 }
 /** The finished picture as an SVG, small, for Deck: a one-colour picture in the page's ink, a flag in its colours. */
@@ -607,7 +623,7 @@ function drawResult() {
   $("result").hidden = !done;
   if (!done) return;
   const v = $("verdict"), head = document.createElement("b");
-  head.textContent = `${pic.flag && pic.topic !== "lakes" ? `${pic.flag} ` : ""}${pic.name}`;
+  head.textContent = askingName ? "Solved" : `${pic.flag && pic.topic !== "lakes" ? `${pic.flag} ` : ""}${pic.name}`;
   v.replaceChildren(head, document.createElement("br"));
   if (S.mode === "duel") {                                         // a match: the team's time, or the way to the race's result
     const pen = S.play === "split" ? split.teamPenalty() : S.score - Math.round(S.ms / 1000);
@@ -729,7 +745,7 @@ const duel = createDuel({
   },
   onLobby: match => { split.stop(); S = null; P = null; $("size").value = SIZES[match.size] ? match.size : "medium"; render(); },
   onLeave: () => { split.stop(); solo(); },
-  extra: () => (S && pic ? Object.assign(document.createElement("p"), { textContent: `${pic.flag && pic.topic !== "lakes" ? `${pic.flag} ` : ""}${pic.name}${S.name ? (S.name.right ? ": you named it" : ": not named") : ""}.` }) : null),
+  extra: () => (S && pic && (S.name || !rules().nameIt) ? Object.assign(document.createElement("p"), { textContent: `${pic.flag && pic.topic !== "lakes" ? `${pic.flag} ` : ""}${pic.name}${S.name ? (S.name.right ? ": you named it" : ": not named") : ""}.` }) : null),
   extraTitle: "The picture",
 });
 
@@ -744,8 +760,8 @@ const race = {
   finished() {
     S.ms = elapsed(); S.done = true; S.score = scoreOf(S);
     board.reveal();
+    askNameSoon();
     save(); render();
-    if (S.rules.nameIt && !S.name) setTimeout(() => { if (S?.done && !S.name) openName(true); }, 1150);
     race.tell(true);
   },
 };
@@ -802,10 +818,10 @@ const split = (() => {
     botSleep();
     board.update(S.grid, boardExtras());
     board.reveal();
+    askNameSoon();
     save(); render();
     duel.report({ score: 0, text: `${fmt(S.score)} together` });
     if (reported !== n) { reported = n; reportDuo("nonogram", `split-${room().data?.created || ""}-${n}`, { score: S.score, coop: true, lower: true }).catch(e => console.error(e)); }
-    if (S.rules.nameIt && !S.name) setTimeout(() => { if (S?.done && !S.name) openName(true); }, 1150);
   }
   return {
     start(match) {

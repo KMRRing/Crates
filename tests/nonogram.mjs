@@ -84,7 +84,7 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
   const topics = Object.keys(TOPICS);
   const count = t => PICTURES.filter(p => p.topic === t).length;
   check(count("countries") === 168 && count("flags") >= 190 && count("lakes") === 34, `the pictures: ${count("countries")} country outlines (Chart's), ${count("flags")} flags, ${count("lakes")} lakes`);
-  check(PICTURES.every(p => p.about && p.name && p.regions.length && REGIONS.some(([id]) => p.regions.includes(id))), "every picture names its knowledge-base entity and a region");
+  check(PICTURES.every(p => (p.about || p.topic === "regions") && p.name && p.regions.length && REGIONS.some(([id]) => p.regions.includes(id))), "every picture names its knowledge-base entity (a region of a country has none yet) and a region");
   check(new Set(PICTURES.map(p => p.id)).size === PICTURES.length && PICTURES.every(p => pictureOf(p.id) === p), "every picture's id is its own");
   check(Object.keys(FLAGS).every(id => PICTURES.some(p => p.id === `f-${id}`)), "every flag drawn is a country the flags bank knows");
   const letters = new Set(Object.values(FLAGS).flatMap(f => rasterFlag(f, 15, 10).letters));
@@ -135,7 +135,7 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
   const got = dealPicture({ topic: "flags", region: "europe", size: "small", seen, rand: rng(9) });
   check(got && !seen.includes(got.id) && pictureOf(got.id).regions.includes("europe"), "a picture not dealt lately comes first, from the region asked");
   const due = poolOf("countries", "asia").at(-1).id;
-  check(dealPicture({ topic: "countries", region: "asia", size: "medium", prefer: [due], rand: rng(1) }).id === due, "learning mode's picks (due again, weak elsewhere) come before the rest");
+  check(dealPicture({ topic: "countries", region: "asia", size: "medium", prefer: [due], share: 1, rand: rng(1) }).id === due, "learning mode's picks (due again, weak elsewhere) come before the rest");
   const days = [20261020, 20261021, 20261022, 20261101, 20270101];
   const here = days.map(d => { const id = dailyPicture(d), z = puzzleOf(id, DAILY.size); return `${id}:${z.answer.join("")}`; });
   check(here.every(x => x.startsWith("c-")) && new Set(here).size === days.length, "every day has its own picture, a country's outline");

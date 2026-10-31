@@ -1,68 +1,23 @@
 // Nonogram's pictures, pure (no page): what the knowledge base can draw, each made into a puzzle with exactly one
-// answer that a person can reach by reasoning (nonogram-engine.js proves both). Three kinds:
+// answer that a person can reach by reasoning (nonogram-engine.js proves both). Four kinds:
 //  - countries: the outlines Chart draws them with (chart-countries.js, Natural Earth at 1:110m), one colour;
 //  - flags, in colour, drawn from nonogram-flags.js (the knowledge base has them only as emoji);
 //  - lakes: Chart's lake shapes (chart-geo.js, Natural Earth at 1:50m), one colour.
+//  - regions: the cantons, states, provinces and prefectures of twenty countries (nonogram-regions.js, Natural Earth's admin-1
+//    boundaries at 1:10m, simplified), one colour; the question names the country.
 // Each is named as the knowledge base names it and carries its entity, so a picture you couldn't name goes to the pile
 // about it. The same picture and size always make the same puzzle, so today's is the same on every phone and a match
 // the same for everyone at the table.
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
 import { GEO } from "./chart-geo.js";
+import { PLACES } from "./nonogram-regions.js";
 import { MATHS as FLAG_QUESTIONS } from "./flags-bank.js";
 import { FLAGS, COLOURS, COLOUR_NAMES, rasterFlag } from "./nonogram-flags.js";
 import { cluesOf, grade, countSolutions, depthOf, overlap } from "./nonogram-engine.js";
 import { HEX_SIZES, hexGrid, hexCoverage, hexPuzzleFrom } from "./nonogram-hex.js";
 
-// ---------- the outline of a country ----------
-const RAD = Math.PI / 180;
-/** Mercator's y, in degrees like the longitude, so the shapes look as they do on Chart's map (and every map). */
-const mercator = lat => Math.log(Math.tan(Math.PI / 4 + (Math.max(-82, Math.min(82, lat)) * RAD) / 2)) / RAD;
-
-/** A ring's area on the ground (in square degrees at the equator), its centre, and its box on the map. */
-function ringInfo(ring) {
-  let a = 0, cx = 0, cy = 0, x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  for (let i = 0; i < ring.length - 1; i++) {
-    const [ax, ay] = ring[i], [bx, by] = ring[i + 1], cr = ax * by - bx * ay;
-    a += cr; cx += (ax + bx) * cr; cy += (ay + by) * cr;
-  }
-  for (const [x, y] of ring) { const m = mercator(y); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, m); y1 = Math.max(y1, m); }
-  const lat = a ? cy / (3 * a) : ring[0][1];
-  return { area: Math.abs(a / 2) * Math.cos(lat * RAD), cx: a ? cx / (3 * a) : ring[0][0], cy: mercator(lat), x0, x1, y0, y1 };
-}
-
-/**
- * The part of a country its picture shows, projected: its largest piece of land and whatever lies near it, so France
- * is drawn without French Guiana and the United States without Alaska and Hawaii (each would shrink the rest to a few
- * cells), while Indonesia keeps its islands, which lie near one another. A ring joins when its centre is within a
- * quarter of the picture's diagonal of the picture so far. Rings cut at the antimeridian (Russia's Chukotka, a piece
- * of Fiji) are moved round to the side they belong to.
- */
-export function landOf(country) {
-  const east = country.rings.some(r => r.some(([x]) => x > 150));
-  const rings = country.rings.map(r => (east && r.every(([x]) => x < -150) ? r.map(([x, y]) => [x + 360, y]) : r));
-  const infos = rings.map(ringInfo), order = infos.map((_, i) => i).sort((a, b) => infos[b].area - infos[a].area);
-  const take = new Set([order[0]]);
-  const near = { ...infos[order[0]] };                            // the box of what has joined, for who joins next
-  for (let grew = true; grew;) {
-    grew = false;
-    const reach = 0.25 * Math.hypot(near.x1 - near.x0, near.y1 - near.y0);
-    for (const i of order) {
-      if (take.has(i)) continue;
-      const r = infos[i], dx = Math.max(near.x0 - r.cx, 0, r.cx - near.x1), dy = Math.max(near.y0 - r.cy, 0, r.cy - near.y1);
-      if (Math.hypot(dx, dy) > reach) continue;
-      take.add(i); grew = true;
-      near.x0 = Math.min(near.x0, r.x0); near.x1 = Math.max(near.x1, r.x1); near.y0 = Math.min(near.y0, r.y0); near.y1 = Math.max(near.y1, r.y1);
-    }
-  }
-  // the frame holds the pieces big enough to show: an islet or a pond beside a lake would only add empty rows
-  const all = [...take].reduce((a, i) => a + infos[i].area, 0), box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
-  for (const i of take) {
-    const r = infos[i];
-    if (r.area < 0.01 * all) continue;
-    box.x0 = Math.min(box.x0, r.x0); box.x1 = Math.max(box.x1, r.x1); box.y0 = Math.min(box.y0, r.y0); box.y1 = Math.max(box.y1, r.y1);
-  }
-  return { rings: [...take].sort((a, b) => a - b).map(i => rings[i].map(([x, y]) => [x, mercator(y)])), box };
-}
+import { landOf } from "./nonogram-land.js";
+export { landOf };
 
 /**
  * How much of each cell the land covers, from 0 to 1: a w×h grid over `box` (in projected degrees, y up), each cell
@@ -166,7 +121,7 @@ export function puzzleFrom(cov0, w0, h0, { flips = 10, colours = 1, short = 1 } 
 }
 
 // ---------- what there is to draw ----------
-export const TOPICS = { countries: "Countries", flags: "Flags", lakes: "Lakes" };
+export const TOPICS = { countries: "Countries", flags: "Flags", lakes: "Lakes", regions: "Regions" };
 export const REGIONS = [["world", "Worldwide"], ["europe", "Europe"], ["middle-east", "Middle East"], ["asia", "Asia"], ["africa", "Africa"],
   ["north-america", "North America"], ["south-america", "South America"], ["oceania", "Oceania"]];
 const REGION_ID = Object.fromEntries(REGIONS.map(([id, label]) => [label, id]));
@@ -201,6 +156,9 @@ export const PICTURES = [
   ...COUNTRIES.map(c => { shapes.set(`c-${c.about}`, c); return { id: `c-${c.about}`, topic: "countries", about: c.about, name: c.name, regions: c.regions, fame: fame.get(c.about) || "ha", flag: c.flag }; }),
   ...Object.keys(FLAGS).filter(id => flagNames.has(id)).map(id => ({ id: `f-${id}`, topic: "flags", about: id, name: flagNames.get(id), regions: REGION_OF[flagNames.get(id)] || [], fame: fame.get(id) || "ha", flag: emoji.get(id) })),
   ...GEO.filter(g => g.kind === "lake").map(g => { shapes.set(`l-${g.about}`, g); return { id: `l-${g.about}`, topic: "lakes", about: g.about, name: g.name, regions: [REGION_ID[g.region]].filter(Boolean), fame: "mi", flag: "", note: g.note, where: g.country }; }),
+  // no entity in the knowledge base yet (about: null): a miss goes to the pile as a picture, not about anything
+  ...PLACES.map(r => { shapes.set(`r-${r.id}`, { rings: r.rings, reach: r.reach }); return { id: `r-${r.id}`, topic: "regions", about: null, name: r.name, alt: r.alt || [], regions: [r.cont], fame: "mi", flag: "", of: r.of, unit: r.unit,
+    note: `${/^[aeiou]/.test(r.unit) ? "an" : "a"} ${r.unit} of ${r.of}` }; }),
 ];
 const byId = new Map(PICTURES.map(p => [p.id, p]));
 export const pictureOf = id => byId.get(id) || null;
@@ -208,14 +166,18 @@ export const pictureOf = id => byId.get(id) || null;
 /** The names a picture may be given: its own, without "Lake" or "the", and what else it goes by; for a flag, any flag
  *  that looks the same. */
 export function namesOf(pic) {
-  const out = [pic.name, ...(ALIASES[pic.about] || [])];
+  const out = [pic.name, ...(pic.alt || []), ...(ALIASES[pic.about] || [])];
   const bare = pic.name.replace(/^(the|lake)\s+/i, "").replace(/\s+lake$/i, "");
   if (bare !== pic.name) out.push(bare);
   if (pic.topic === "flags") for (const pair of SAME_FLAG) if (pair.includes(pic.about)) for (const other of pair) if (other !== pic.about) out.push(flagNames.get(other), ...(ALIASES[other] || []));
   return out.filter(Boolean);
 }
 /** What a picture is, in a few words: "the outline of Chile", "the flag of Chile", "Lake Geneva". */
-export const askOf = topic => (topic === "flags" ? "Whose flag is this?" : topic === "lakes" ? "Which lake is this?" : "Whose outline is this?");
+export const askOf = (topic, pic = null) => (topic === "flags" ? "Whose flag is this?" : topic === "lakes" ? "Which lake is this?"
+  : topic === "regions" ? `Which ${pic?.unit || "part"} of ${pic?.of || "its country"} is this?` : "Whose outline is this?");
+/** The pictures whose names are the choices for naming this one: every name of its kind, and for a part of a country the
+ *  others of the same country (the question has told you which). */
+export const siblingsOf = pic => PICTURES.filter(p => p.topic === pic.topic && (pic.topic !== "regions" || p.of === pic.of));
 
 // ---------- the puzzle a picture makes ----------
 // how hard, from how a person would solve it (grade() and depthOf() in nonogram-engine.js): Easy is the simple rules
@@ -322,17 +284,30 @@ const shuffle = (rand, xs) => { const a = xs.slice(); for (let i = a.length - 1;
 export const poolOf = (topic, region, grid = "square") => PICTURES.filter(p => (topic === "all" || p.topic === topic) && (region === "world" || p.regions.includes(region)) && !(grid === "hex" && p.topic === "flags"));
 
 /**
- * The picture for a new game: { id, nearest } or null. From the pool in a random order (by `rand`), those due again
- * or weak elsewhere (`prefer`, in order) first, then those not dealt lately (not in `seen`), then the rest; the first
- * that makes a puzzle at this size (and grid) of the band asked ("any" for all), or failing that the nearest band
- * (nearest: true).
+ * How a due picture (learning mode's `prefer`) is dealt: a picture you couldn't name used to be put first at every deal
+ * and nothing it was just dealt counted against it, so one miss came back every game (Korbi, 31 October 2026: "always
+ * giving me the same one, Switzerland"). Now a deal offers one half the time (`share`) and not one shown within the last
+ * HOLD_BACK deals, so a single miss comes back about once in eight games and several share the turns.
  */
-export function dealPicture({ topic = "countries", region = "world", size = "medium", band = "any", grid = "square", seen = [], prefer = [], rand = Math.random } = {}) {
+export const PREFER_SHARE = 0.5, HOLD_BACK = 6;
+
+/**
+ * The picture for a new game: { id, nearest } or null. `seen` is what was dealt lately, newest first. From the pool,
+ * those due again or weak elsewhere (`prefer`, in order) first when this deal offers one, then those not dealt lately in
+ * a random order (by `rand`), then the rest, longest ago first so the pool comes round in turn; the first that makes a
+ * puzzle at this size (and grid) of the band asked ("any" for all), or failing that the nearest band (nearest: true).
+ */
+export function dealPicture({ topic = "countries", region = "world", size = "medium", band = "any", grid = "square", seen = [], prefer = [], share = PREFER_SHARE, rand = Math.random } = {}) {
   const pool = poolOf(topic, region, grid);
   if (!pool.length) return null;
-  const ids = new Set(pool.map(p => p.id)), lately = new Set(seen);
-  const fresh = shuffle(rand, pool.filter(p => !lately.has(p.id)).map(p => p.id)), stale = shuffle(rand, pool.filter(p => lately.has(p.id)).map(p => p.id));
-  const order = [...new Set([...prefer.filter(id => ids.has(id)), ...fresh, ...stale])];
+  const ids = new Set(pool.map(p => p.id)), lately = new Set(seen), held = new Set(seen.slice(0, HOLD_BACK));
+  // the draw is only made when there is something due, so a deal without (a day's picture) is the same as ever
+  const due = prefer.length && rand() < share ? prefer.filter(id => ids.has(id) && !held.has(id)) : [];
+  const fresh = shuffle(rand, pool.filter(p => !lately.has(p.id)).map(p => p.id));
+  const age = new Map();                                          // how many deals ago; the newest showing counts if it's in twice
+  seen.forEach((id, i) => { if (!age.has(id)) age.set(id, i); });
+  const stale = pool.filter(p => lately.has(p.id)).map(p => p.id).sort((a, b) => age.get(b) - age.get(a));
+  const order = [...new Set([...due, ...fresh, ...stale])];
   const rank = b => ["easy", "medium", "hard"].indexOf(b);
   let near = null;
   for (const id of order) {
