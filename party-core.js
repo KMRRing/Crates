@@ -179,6 +179,7 @@ export function endGame(branch) {
 export const ELSEWHERE = [
   { id: "boast", name: "Boast", kind: "table", page: "boast.html", max: 6, blurb: "Liar's dice with Chinese rules: bid on all the dice under the cups, or open." },
   { id: "bigtwo", name: "Big Two", kind: "table", page: "bigtwo.html", max: 4, blurb: "鋤大D, Hong Kong's climbing card game: be first to shed your cards." },
+  { id: "pegs", name: "Pegs", kind: "table", page: "pegs.html", max: 2, blurb: "Cribbage for two: discard to the crib, peg to 31, count fifteens, pairs and runs; first to 121." },
   { id: "meld", name: "Meld", kind: "table", page: "meld.html", max: 2, blurb: "Gin rummy for two: meld sets and runs, knock with 10 or less in deadwood, or go gin." },
   { id: "landlord", name: "Landlord", kind: "table", page: "landlord.html", max: 3, blurb: "斗地主: the landlord against the two peasants." },
   { id: "holdem", name: "Texas Hold'em", kind: "table", page: "holdem.html", max: 6, blurb: "德州撲克: Macau's rules, no limit, a commission to the house; up to six at the felt." },

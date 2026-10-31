@@ -1,0 +1,111 @@
+/* Pegs (cribbage for two): a walnut-brown enamel under brass. Upright: the other hand, the board with each side's two
+   pegs, the crib, the starter and this round's cards, then your cards and buttons. Sideways: the table on the left,
+   your cards beside it with the buttons low. */
+:root {
+  --pg-in: #9A5B2B;                                                /* walnut: the game's enamel */
+  --pg-soft: color-mix(in srgb, var(--pg-in) 13%, var(--sheet));
+  --pg-felt: color-mix(in srgb, var(--pg-in) 7%, var(--sheet));
+}
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --pg-in: #D9A066; --pg-felt: color-mix(in srgb, #9A5B2B 20%, var(--sheet)); } }
+html[data-mode="night"] { --pg-in: #D9A066; --pg-felt: color-mix(in srgb, #9A5B2B 20%, var(--sheet)); }
+html[data-theme="kontor"] { --pg-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --pg-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --pg-in: #2EB36A; }
+html[data-theme="office"] { --pg-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --pg-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --pg-in: #479EF5; }
+
+.pg-mark { display: inline-block; }
+.pg-mark svg { width: 100%; height: 100%; display: block; }
+.pg-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); }
+.pg-strip b { color: var(--ink); }
+
+/* ---------- the table ---------- */
+.pg-table { display: flex; flex-direction: column; gap: .4rem; padding: .6rem; min-height: 0; border-radius: 6px; background: var(--pg-felt);
+  border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--pg-felt), inset 0 0 0 5px var(--rule); overflow: hidden; container-type: size; }
+.pg-table > * { --cd-line: clamp(.6rem, min(2.4cqh, 1.9cqw), 1.1rem); }
+.pg-foe { display: grid; gap: .3rem; justify-items: center; padding: .3rem; border-radius: 6px; min-width: 0; }
+.pg-foe.turn { box-shadow: inset 0 0 0 1.5px var(--pg-in); }
+.pg-who { display: flex; align-items: center; gap: .45rem; margin: 0; font-size: .9rem; }
+.pg-deal { padding: 0 .35rem; border-radius: 3px; background: var(--pg-in); color: var(--sheet); font-size: .66rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.pg-backs { display: flex; justify-content: center; font-size: clamp(.5rem, min(1.8cqh, 2.2cqw), .95rem); max-width: 100%; }
+.pg-backs .cd + .cd { margin-left: -1.4em; }
+
+/* the board: a lane a side, the holes as ticks every five, the skunk lines, a back peg and a front peg */
+.pg-board { display: grid; gap: .45rem; padding: .5rem .6rem; border-radius: 6px; background: color-mix(in srgb, var(--pg-in) 14%, var(--sheet)); border: 1px solid var(--tile-edge); }
+.pg-lane { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr) 2.2rem; align-items: center; gap: .5rem; }
+.pg-nm { font-size: .8rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-pts { text-align: right; font-variant-numeric: tabular-nums; }
+.pg-track { position: relative; height: .9rem; margin: 0 .5rem; border-radius: 3px; background-color: var(--sheet);
+  background-image: repeating-linear-gradient(90deg, var(--rule) 0 1px, transparent 1px calc(100% / 24)); box-shadow: inset 0 0 0 1px var(--tile-edge); }
+.pg-line { position: absolute; top: -.2rem; bottom: -.2rem; width: 0; border-left: 1.5px dashed var(--brass); }
+.pg-peg { position: absolute; top: 50%; width: .7rem; height: .7rem; margin: -.35rem 0 0 -.35rem; border-radius: 50%; background: var(--brass); box-shadow: 0 0 0 1.5px var(--sheet); transition: left .45s ease; }
+.pg-lane.me .pg-peg { background: var(--pg-in); }
+.pg-peg.back { opacity: .55; width: .55rem; height: .55rem; margin: -.275rem 0 0 -.275rem; }
+@media (prefers-reduced-motion: reduce) { .pg-peg { transition: none; } }
+
+.pg-mid { flex: 1 1 auto; display: grid; justify-items: center; align-content: center; gap: .5rem; min-height: 0; text-align: center; }
+.pg-play { display: flex; align-items: flex-end; justify-content: center; gap: clamp(.8rem, 5cqw, 2rem); font-size: clamp(.8rem, min(5cqh, 6cqw), 2rem); }
+.pg-starter, .pg-crib, .pg-count { display: grid; justify-items: center; gap: .3rem; }
+.pg-starter small, .pg-crib small, .pg-count small { font-size: .32em; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); font-weight: 700; white-space: nowrap; }
+.pg-count b { font-size: 1.6em; font-variant-numeric: tabular-nums; line-height: 1; }
+.pg-cribcards { display: flex; font-size: .42em; }
+.pg-cribcards .cd + .cd { margin-left: -1.7em; }
+.pg-cribcards .cd.empty { opacity: .25; }
+.pg-seq { display: flex; flex-wrap: wrap; justify-content: center; min-height: calc(var(--cd-line) * 3.5); }
+.pg-seq > .cd.mine { box-shadow: 0 0 0 1.5px var(--pg-in); }
+.pg-new { align-self: center; font-size: .8rem; color: var(--ink-soft); }
+.pg-last { margin: 0; font-size: .86rem; color: var(--ink-soft); min-height: 1.3em; }
+
+/* a count of the show: the cards and the starter, then what they score */
+.pg-showing { gap: .4rem; }
+.pg-title { margin: 0; font-size: .8rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--pg-in); }
+.pg-showcards { align-items: center; gap: .1rem; }
+.pg-showcards .pg-plus { margin: 0 .5em; font-size: 1.4em; color: var(--ink-soft); }
+.pg-showcards .cd.starter { box-shadow: 0 0 0 1.5px var(--brass); }
+.pg-rows { min-width: min(15rem, 90%); border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.pg-rows td { padding: .22rem .2rem; text-align: left; border-bottom: 1px solid var(--rule); }
+.pg-rows td + td { text-align: right; font-weight: 800; }
+.pg-rows tfoot td { border-bottom: 0; border-top: 1.5px solid var(--brass); font-weight: 800; }
+.pg-over { gap: .6rem; }
+.pg-result { margin: 0; max-width: 28rem; font-size: 1rem; line-height: 1.4; }
+.pg-next { display: block; width: min(9rem, 80%); height: .3rem; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.pg-next i { display: block; height: 100%; background: var(--pg-in); transform-origin: left; animation: pg-fuse linear forwards; }
+@keyframes pg-fuse { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .pg-next i { animation: none; } }
+
+/* ---------- your cards and your buttons ---------- */
+.pg-side { display: flex; flex-direction: column; gap: .35rem; padding-top: .45rem; }
+.pg-status { display: flex; align-items: center; justify-content: center; height: 2.6em; margin: 0; overflow: hidden; line-height: 1.3; text-align: center; font-size: .9rem; color: var(--ink-soft); }
+.pg-status b { color: var(--pg-in); }
+.pg-hand { height: 4.6rem; padding-top: .45rem; box-sizing: border-box; justify-content: center; }
+.pg-hand .cd { cursor: pointer; transition: transform .1s; }
+.pg-hand .cd.sel { transform: translateY(-.4rem); background: color-mix(in srgb, var(--pg-in) 18%, var(--cd-face)); border-color: var(--pg-in); box-shadow: 0 0 0 1.5px var(--pg-in); }
+@media (prefers-reduced-motion: reduce) { .pg-hand .cd { transition: none; } }
+.pg-watch { margin: auto; color: var(--ink-soft); }
+.pg-bar { display: flex; gap: .45rem; align-items: center; }
+.pg-go { flex: 1 1 0; min-width: 0; min-height: 2.9rem; padding: .3rem .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- the sheets ---------- */
+.pg-rules p { line-height: 1.45; }
+.pg-end-head { margin: .2rem 0 .6rem; }
+.pg-tally { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pg-tally th, .pg-tally td { padding: .5rem .3rem; border-bottom: 1px solid var(--rule); }
+.pg-tally th { text-align: left; font-weight: 700; }
+.pg-tally td { text-align: right; }
+.pg-tally tr.won th::after { content: " ★"; color: var(--pg-in); }
+.pg-end-note { color: var(--ink-soft); font-size: .9rem; }
+.pg-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.pg-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.pg-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* held sideways: the table on the left, your cards and buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.pegs { --beside: 24rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.pegs .pg-strip { grid-column: 1 / -1; grid-row: 2; }
+  #app.pegs .pg-table { grid-column: 1; grid-row: 3; }
+  #app.pegs .pg-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
+}
+html[data-theme="office"] .pg-table { border-radius: 4px; }

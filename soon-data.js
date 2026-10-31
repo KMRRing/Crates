@@ -36,7 +36,7 @@ export const SOON = {
     todo: [
       "The engine: a solver on edges with propagation, a generator that checks the solution is unique, difficulty by the hardest human step.",
       "Tapping an edge draws it, a second tap marks it as not used, a third clears it. The loop engine is then Masyu's too.",
-      "Next after Meld and Pegs; the best of the loop puzzles, and Classics has no loop yet.",
+      "The next to build: the best of the loop puzzles, and Classics has no loop yet.",
     ],
   },
   rack: {
@@ -57,16 +57,6 @@ export const SOON = {
       "Rules are small: capture, ko (no repeating a position), no suicide. Chinese area scoring (stones plus territory) so a finished game needs no dispute over dead stones.",
       "Boards of 9, 13 and 19; two on one phone and a partner's match are cheap, the opponent is the cost.",
       "Beside Gambit (chess) and River (xiangqi); the same reason: a real board when meeting Chinese counterparties.",
-    ],
-  },
-  pegs: {
-    name: "Pegs", sec: "table",
-    line: "Cribbage for two: discard two cards to the dealer's crib, peg to 31, then count fifteens, pairs, runs, flushes and the jack; first to 121 round the board.",
-    todo: [
-      "On seats.js (README, Seats): a pure rules module and a bot, the runner and the page around it, as Big Two and Landlord are.",
-      "The counting is the engine: every hand scores exactly, so tests can check hundreds of hands against known totals.",
-      "The bot's discards by expected value over the possible starter cards; its pegging by a simple rule of thumb.",
-      "A two-player game, so it suits a partner's match.",
     ],
   },
   tarot: {
