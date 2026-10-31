@@ -53,6 +53,7 @@ export const GAMES = {
   nonogram: { name: "Nonogram", page: "./nonogram.html" },
   hitori: { name: "Hitori", page: "./hitori.html" },
   slitherlink: { name: "Slitherlink", page: "./slitherlink.html" },
+  masyu: { name: "Masyu", page: "./masyu.html" },
   bridges: { name: "Bridges", page: "./bridges.html" },
   bulls: { name: "Bulls", page: "./bulls.html" },
   assay: { name: "Assay", page: "./assay.html" },

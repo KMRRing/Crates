@@ -4,15 +4,6 @@
 // `line` is the game in a sentence, `todo` what building it takes and where the risk is. A game that gets built loses its entry
 // here and its tile points at its own page; tests/soon.mjs fails while a tile and its entry disagree.
 export const SOON = {
-  masyu: {
-    name: "Masyu", sec: "classics",
-    line: "One loop through a grid, passing every pearl: it turns on a black pearl and runs straight for at least a cell either side of it; it goes straight through a white pearl and turns in at least one of the cells beside it.",
-    todo: [
-      "Slitherlink is built, and its edge solver, loop rule and trial-based grading carry over: Masyu is pearls on cells instead of numbers, and a generator that keeps one answer.",
-      "Generating boards with a single solution is the risk: more pearls than needed make it easy, fewer leave it ambiguous.",
-      "Drawing the loop is a drag across cells; a tap on a cell edge is the alternative on a phone.",
-    ],
-  },
   nurikabe: {
     name: "Nurikabe", sec: "classics",
     line: "Numbered cells are islands of exactly that many cells, each with one number; the rest is one connected sea, with no 2×2 block of it.",
