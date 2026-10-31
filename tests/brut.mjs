@@ -11,6 +11,21 @@ check(new Set(WINES.map(w => w.id)).size === WINES.length && WINES.every(w => w.
 const units = new Set(STAGES.map(s => s.id));
 check(new Set(MATHS.map(c => c.id)).size === MATHS.length && MATHS.every(c => units.has(c.lv) && c.o.length === 4 && new Set(c.o).size === 4 && c.a.length === 1 && c.o[c.a[0]] && c.fact && c.x && c.q),
   `${MATHS.length} cards in ${STAGES.length} units, four distinct options each, one right`);
+// ---------- a hundred wines, and room for them ----------
+{
+  const where = re => WINES.filter(w => re.test(w.region));
+  check(where(/Geneva/).length >= 4 && where(/Valais/).length >= 2 && where(/Ticino/).length >= 1 && where(/Franken/).length >= 1, "Switzerland's Geneva, Valais and Ticino, and Bavaria's Franken, are in the flight");
+  check(WINES.filter(w => w.world === "New World").length >= 20 && WINES.filter(w => w.colour === "white").length >= 40 && WINES.filter(w => w.sparkling).length >= 6 && WINES.filter(w => w.fortified).length >= 6, "the New World, whites, sparkling and fortified wines are there in number");
+  const palate = w => [w.colour, w.sweet, w.acid, w.tannin, w.alc, w.body, w.sparkling, w.fortified].join();
+  const same = Object.values(WINES.reduce((m, w) => ((m[palate(w)] ||= []).push(w.id), m), {}));
+  check(Math.max(...same.map(g => g.length)) <= 3, `no more than three wines taste alike on the palate dots, or the palate stage tells nothing (${same.filter(g => g.length > 1).length} pairs and triples)`);
+  const grapes = new Set(WINES.map(w => w.grape.split(/,| and /)[0].trim()));
+  const sib = [...grapes].filter(g => WINES.filter(w => w.grape.split(/,| and /)[0].trim() === g).length > 1);
+  check(sib.length >= 20, `${sib.length} grapes grown in more than one place: the same grape from elsewhere is always a candidate`);
+  // a candidate card is its name (two lines at most) and its grape and region (two): longer and three rows of them squeeze the glass
+  check(WINES.every(w => w.name.length <= 32 && `${w.grape} · ${w.region}`.length <= 54), "every name and grape-and-region line fits its card on a phone");
+  check(new Set(WINES.map(w => w.nose.join())).size === WINES.length && new Set(WINES.map(w => w.tell)).size === WINES.length, "no two wines share a nose or a tell");
+}
 let fair = 0, optionsOk = 0;
 for (let s = 1; s <= 200; s++) {
   const f = E.pickFlight(s).map(id => E.byId.get(id));
