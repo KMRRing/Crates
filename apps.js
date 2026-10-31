@@ -9,6 +9,7 @@ import { choice, toggle, line, RETE } from "./menu.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 import { bindRandom } from "./random.js";
 import { bindDeckRow } from "./deck-row.js";
+import { SOON_ALMANAC, SOON_MODERN, SOON_KONTOR } from "./soon-logos.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
 // times --wire, which style.css raises on the selected game; the engraved detail keeps its own fine weight.
@@ -197,6 +198,7 @@ const CALCUDOKU_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse c
 // Kakuro: a clue cell heading its two runs, a Γ of paper cells tilted on the page: the clue split by its brass diagonal, 23 across over 6 8 9, 16 down over 1 7 and an 8 just written in verdigris
 const KAKURO_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="94" rx="36" ry="3" fill="#1C2A34" opacity=".2"/><g transform="rotate(-6 50 47)"><path d="M8 5H92V26H29V89H8Z" fill="#F7F1E3"/><rect x="8" y="5" width="21" height="21" fill="#1C2A34"/><rect x="9.4" y="6.4" width="18.2" height="18.2" fill="none" stroke="#A47528" stroke-width="1.3"/><path d="M9.4 6.4L27.6 24.6" stroke="#A47528" stroke-width="1.6"/><rect x="9.6" y="69.6" width="17.8" height="17.8" fill="#3D7A66"/><path d="M50 6.6V24.4M71 6.6V24.4M9.6 47H27.4M9.6 68H27.4" stroke="#A47528" stroke-width="1.4"/><g font-family="Archivo, system-ui, sans-serif" font-weight="800" text-anchor="middle"><text x="23.3" y="13.6" font-size="8.2" fill="#E9C47C">23</text><text x="14.3" y="23.6" font-size="8.2" fill="#E9C47C">16</text><text x="39.5" y="20.8" font-size="14.5" fill="#1C2A34">6</text><text x="60.5" y="20.8" font-size="14.5" fill="#1C2A34">8</text><text x="81.5" y="20.8" font-size="14.5" fill="#1C2A34">9</text><text x="18.5" y="41.8" font-size="14.5" fill="#1C2A34">1</text><text x="18.5" y="62.8" font-size="14.5" fill="#1C2A34">7</text><text x="18.5" y="83.8" font-size="14.5" fill="#F7F1E3">8</text></g><path d="M8 5H92V26H29V89H8Z" fill="none" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))" stroke-linejoin="round"/></g></svg>`;
 const MODERN_LOGOS = {
+  ...SOON_MODERN,
   blackjack: `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.4" y="2.8" width="8.2" height="11.8" rx="1.3" transform="rotate(-11 6.5 8.7)" fill="#FFFFFF" stroke="#A23C30" stroke-width="1.1"/><rect x="7.6" y="3" width="8.2" height="11.8" rx="1.3" transform="rotate(7 11.7 8.9)" fill="#FFFFFF" stroke="#22303A" stroke-width="1.1"/><path d="M11.9 5.6C10.8 6.9 9.6 7.6 9.6 8.8C9.6 9.6 10.2 10.1 10.9 10.1C11.3 10.1 11.6 9.9 11.8 9.6C11.7 10.3 11.5 10.8 11.1 11.2H12.7C12.3 10.8 12.1 10.3 12 9.6C12.2 9.9 12.5 10.1 12.9 10.1C13.6 10.1 14.2 9.6 14.2 8.8C14.2 7.6 13 6.9 11.9 5.6Z" fill="#22303A"/><circle cx="14.6" cy="14.8" r="3.9" fill="#C8922A"/><circle cx="14.6" cy="14.8" r="2.7" fill="none" stroke="#FFFFFF" stroke-width=".8" stroke-dasharray="1.3 1"/></svg>`,
   roulette: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9.4" fill="#6B4A2E"/><path d="M7.8 1.7A8.6 8.6 0 0 1 12.2 1.7L11.2 5.6A4.6 4.6 0 0 0 8.8 5.6Z" fill="#2E8B62"/><path d="M12.2 1.7A8.6 8.6 0 0 1 16.1 3.9L13.3 6.7A4.6 4.6 0 0 0 11.2 5.6Z" fill="#C0392B"/><path d="M16.1 3.9A8.6 8.6 0 0 1 18.3 7.8L14.4 8.8A4.6 4.6 0 0 0 13.3 6.7Z" fill="#22303A"/><path d="M18.3 7.8A8.6 8.6 0 0 1 18.3 12.2L14.4 11.2A4.6 4.6 0 0 0 14.4 8.8Z" fill="#C0392B"/><path d="M18.3 12.2A8.6 8.6 0 0 1 16.1 16.1L13.3 13.3A4.6 4.6 0 0 0 14.4 11.2Z" fill="#22303A"/><path d="M16.1 16.1A8.6 8.6 0 0 1 12.2 18.3L11.2 14.4A4.6 4.6 0 0 0 13.3 13.3Z" fill="#C0392B"/><path d="M12.2 18.3A8.6 8.6 0 0 1 7.8 18.3L8.8 14.4A4.6 4.6 0 0 0 11.2 14.4Z" fill="#22303A"/><path d="M7.8 18.3A8.6 8.6 0 0 1 3.9 16.1L6.7 13.3A4.6 4.6 0 0 0 8.8 14.4Z" fill="#C0392B"/><path d="M3.9 16.1A8.6 8.6 0 0 1 1.7 12.2L5.6 11.2A4.6 4.6 0 0 0 6.7 13.3Z" fill="#22303A"/><path d="M1.7 12.2A8.6 8.6 0 0 1 1.7 7.8L5.6 8.8A4.6 4.6 0 0 0 5.6 11.2Z" fill="#C0392B"/><path d="M1.7 7.8A8.6 8.6 0 0 1 3.9 3.9L6.7 6.7A4.6 4.6 0 0 0 5.6 8.8Z" fill="#22303A"/><path d="M3.9 3.9A8.6 8.6 0 0 1 7.8 1.7L8.8 5.6A4.6 4.6 0 0 0 6.7 6.7Z" fill="#C0392B"/><circle cx="10" cy="10" r="4.6" fill="#C8923A"/><circle cx="13.3" cy="15.7" r="1.5" fill="#FFFFFF" stroke="#22303A" stroke-width=".5"/></svg>`,
   sicbo: `<svg viewBox="0 0 20 20" aria-hidden="true"><g transform="rotate(-10 5.6 6.4)"><rect x="1.8" y="2.6" width="7.6" height="7.6" rx="1.4" fill="#FFFFFF" stroke="#22303A" stroke-width="1.1"/><circle cx="3.7" cy="4.5" r=".75" fill="#A23C30"/><circle cx="7.5" cy="4.5" r=".75" fill="#A23C30"/><circle cx="3.7" cy="8.3" r=".75" fill="#A23C30"/><circle cx="7.5" cy="8.3" r=".75" fill="#A23C30"/></g><g transform="rotate(9 14 7.2)"><rect x="10.2" y="3.4" width="7.6" height="7.6" rx="1.4" fill="#FFFFFF" stroke="#22303A" stroke-width="1.1"/><circle cx="14" cy="7.2" r="1.3" fill="#A23C30"/></g><g transform="rotate(-3 9.8 14.4)"><rect x="6" y="10.6" width="7.6" height="7.6" rx="1.4" fill="#FFFFFF" stroke="#A23C30" stroke-width="1.1"/><circle cx="7.9" cy="12.5" r=".75" fill="#22303A"/><circle cx="11.7" cy="12.5" r=".75" fill="#22303A"/><circle cx="9.8" cy="14.4" r=".75" fill="#22303A"/><circle cx="7.9" cy="16.3" r=".75" fill="#22303A"/><circle cx="11.7" cy="16.3" r=".75" fill="#22303A"/></g></svg>`,
@@ -357,6 +359,7 @@ const MODERN_LOGOS = {
   kakuro: `<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M1.4 1.4H18.6V5.7H5.7V18.6H1.4Z" fill="#FFFFFF"/><rect x="1.4" y="1.4" width="4.3" height="4.3" fill="#2D5E88"/><path d="M1.6 1.6L5.5 5.5" stroke="#FFFFFF" stroke-width=".7"/><rect x="1.9" y="14.8" width="3.3" height="3.3" fill="#E1AB24"/><path d="M10 1.8V5.3M14.3 1.8V5.3M1.8 10H5.3M1.8 14.3H5.3" stroke="#2D5E88" stroke-width=".7" opacity=".6"/><path d="M1.4 1.4H18.6V5.7H5.7V18.6H1.4Z" fill="none" stroke="#2D5E88" stroke-width="1.3" stroke-linejoin="round"/></svg>`,
 };
 const KONTOR_LOGOS = {
+  ...SOON_KONTOR,
   blackjack: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="3.5" width="9.5" height="14" rx="1.5" transform="rotate(-10 7.2 10.5)"/><rect x="9" y="3.5" width="9.5" height="14" rx="1.5" transform="rotate(8 13.7 10.5)"/><path class="f" d="M13.7 7.4C12.6 8.7 11.6 9.4 11.6 10.6C11.6 11.4 12.2 11.9 12.9 11.9C13.2 11.9 13.5 11.7 13.6 11.5L13.2 13.1H14.4L14 11.5C14.1 11.7 14.4 11.9 14.7 11.9C15.4 11.9 16 11.4 16 10.6C16 9.4 15 8.7 13.7 7.4Z"/><circle class="a" cx="18" cy="18" r="3.8"/></svg>`,
   roulette: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><circle class="a" cx="12" cy="12" r="4.5"/><path d="M12 2.5V7.5M12 16.5V21.5M2.5 12H7.5M16.5 12H21.5M5.3 5.3L8.8 8.8M15.2 15.2L18.7 18.7M18.7 5.3L15.2 8.8M8.8 15.2L5.3 18.7"/><circle class="f" cx="16.6" cy="5.2" r="1.5"/></svg>`,
   sicbo: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-10 6.7 7.3)"><rect x="2.2" y="2.8" width="9" height="9" rx="1.6"/><circle class="f" cx="4.8" cy="5.4" r=".85"/><circle class="f" cx="8.6" cy="5.4" r=".85"/><circle class="f" cx="4.8" cy="9.2" r=".85"/><circle class="f" cx="8.6" cy="9.2" r=".85"/></g><g transform="rotate(9 17.1 8.1)"><rect class="a" x="12.6" y="3.6" width="9" height="9" rx="1.6"/><circle class="f" cx="17.1" cy="8.1" r="1.2"/></g><g transform="rotate(-3 11.9 17.1)"><rect x="7.4" y="12.6" width="9" height="9" rx="1.6"/><circle class="f" cx="9.6" cy="14.8" r=".8"/><circle class="f" cx="14.2" cy="14.8" r=".8"/><circle class="f" cx="11.9" cy="17.1" r=".8"/><circle class="f" cx="9.6" cy="19.4" r=".8"/><circle class="f" cx="14.2" cy="19.4" r=".8"/></g></svg>`,
@@ -501,6 +504,11 @@ export const APPS = [
   { id: "acrostic", sec: "classics", name: "Acrostic", href: "./acrostic.html", logo: LOGO("acrostic", ACROSTIC_LOGO), team: "time" },
   { id: "calcudoku", sec: "classics", name: "Calcudoku", href: "./calcudoku.html", logo: LOGO("calcudoku", CALCUDOKU_LOGO), team: "time" },
   { id: "kakuro", sec: "classics", name: "Kakuro", href: "./kakuro.html", logo: LOGO("kakuro", KAKURO_LOGO), team: "time" },
+  // Not built yet: each tile opens soon.html, which says what the game will be and what's left to do (soon-data.js)
+  { id: "bridges", sec: "classics", name: "Bridges", href: "./soon.html?game=bridges", logo: LOGO("bridges", SOON_ALMANAC.bridges), soon: true },
+  { id: "masyu", sec: "classics", name: "Masyu", href: "./soon.html?game=masyu", logo: LOGO("masyu", SOON_ALMANAC.masyu), soon: true },
+  { id: "nurikabe", sec: "classics", name: "Nurikabe", href: "./soon.html?game=nurikabe", logo: LOGO("nurikabe", SOON_ALMANAC.nurikabe), soon: true },
+  { id: "slitherlink", sec: "classics", name: "Slitherlink", href: "./soon.html?game=slitherlink", logo: LOGO("slitherlink", SOON_ALMANAC.slitherlink), soon: true },
   { id: "party", sec: "party", name: "Party", href: "./party.html", logo: LOGO("party", PARTY_LOGO) },
   // Party's games, each with a tile of its own: it opens Party on that game (the room's made there)
   { id: "undercover", sec: "party", name: "Undercover", href: "./party.html?game=undercover", logo: LOGO("undercover", UNDERCOVER_LOGO), party: true },
@@ -532,6 +540,11 @@ export const APPS = [
   { id: "bones", sec: "table", name: "Bones", href: "./bones.html", logo: LOGO("bones", BONES_LOGO) },
   { id: "factor", sec: "table", name: "Factor", href: "./factor.html", logo: LOGO("factor", FACTOR_LOGO) },
   { id: "dandan", sec: "table", name: "Dandan", href: "./dandan.html", logo: LOGO("dandan", DANDAN_LOGO) },
+  { id: "rack", sec: "table", name: "Rack", href: "./soon.html?game=rack", logo: LOGO("rack", SOON_ALMANAC.rack), soon: true },
+  { id: "stone", sec: "table", name: "Stone", href: "./soon.html?game=stone", logo: LOGO("stone", SOON_ALMANAC.stone), soon: true },
+  { id: "pegs", sec: "table", name: "Pegs", href: "./soon.html?game=pegs", logo: LOGO("pegs", SOON_ALMANAC.pegs), soon: true },
+  { id: "meld", sec: "table", name: "Meld", href: "./soon.html?game=meld", logo: LOGO("meld", SOON_ALMANAC.meld), soon: true },
+  { id: "tarot", sec: "table", name: "Tarot", href: "./soon.html?game=tarot", logo: LOGO("tarot", SOON_ALMANAC.tarot), soon: true },
   // Idle: as much thinking as a bubble shooter, and no more (README, Idle)
   { id: "heliograph", sec: "idle", name: "Heliograph", href: "./heliograph.html", logo: LOGO("heliograph", HELIOGRAPH_LOGO) },
   { id: "shunt", sec: "idle", name: "Shunt", href: "./shunt.html", logo: LOGO("shunt", SHUNT_LOGO) },
@@ -641,7 +654,7 @@ function startOver() {
   note.className = "menu-line";
   note.textContent = "Its levels, stars, saves and settings go, on this device and every other with your solo code. Crates resets its learning in its own Settings.";
   const here = (location.pathname.split("/").pop() || "index.html");
-  for (const a of APPS.filter(x => !KEEP_ON_RESET.has(x.id) && !x.party && !x.within)) {   // a game's mode goes with the game
+  for (const a of APPS.filter(x => !KEEP_ON_RESET.has(x.id) && !x.party && !x.within && !x.soon)) {   // a game's mode goes with the game
     const b = document.createElement("button");
     b.type = "button"; b.textContent = a.name;
     b.addEventListener("click", async () => {
@@ -832,9 +845,9 @@ function bindCodes(dlg) {
   });
   draw();
   // your other devices' results, once they've come in: drawn here, and passed on to your partner's tiles
-  addEventListener("suite:pulled", () => { draw(); if (duoCode() && !IN_FRAME) shareBests(APPS.map(a => a.id)).catch(() => {}); });
+  addEventListener("suite:pulled", () => { draw(); if (duoCode() && !IN_FRAME) shareBests(APPS.filter(a => !a.soon).map(a => a.id)).catch(() => {}); });
   if (duoCode() && !IN_FRAME) {
-    shareBests(APPS.map(a => a.id)).catch(() => {});
+    shareBests(APPS.filter(a => !a.soon).map(a => a.id)).catch(() => {});
     watchPartner(p => { partner = p; draw(); }).catch(() => {});
     watchBests((bests, name, marks) => { theirs = bests; theirName = name; theirMarks = marks || {}; draw(); }).catch(() => {});
     watchDuoRecords(r => { duoRecords = r; draw(); }).catch(() => {});

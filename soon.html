@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Coming soon</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="soon.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="soon fit-screen">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon so-mark" aria-hidden="true"></span><span id="name">Almanac</span></button></h1>
+  </header>
+  <section class="so-card fit-col">
+    <p class="so-tag">Coming soon</p>
+    <p class="so-line" id="line"></p>
+    <h2 class="so-h" id="todoHead">To do</h2>
+    <ul class="so-todo fit-grow fit-scroll" id="todo"></ul>
+  </section>
+</div>
+<script type="module" src="soon.js"></script>
+</body>
+</html>

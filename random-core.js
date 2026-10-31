@@ -96,6 +96,9 @@ export const LEFT_OUT = {
   cue: "a word to act, draw or describe for the people round you",
   quest: "hidden loyalties, a game for people round a table (Party's section)",
   timegrapher: "an instrument, not a game",
+  // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
+  bridges: "not built yet", masyu: "not built yet", nurikabe: "not built yet", slitherlink: "not built yet",
+  rack: "not built yet", stone: "not built yet", pegs: "not built yet", meld: "not built yet", tarot: "not built yet",
 };
 
 /** Every game random mode can deal, in the order above. */

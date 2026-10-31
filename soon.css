@@ -1,0 +1,9 @@
+/* A game that isn't built yet (soon.js; README, Coming soon): its mark and name in the header, what it will be and what's left to do in a card. */
+.so-mark { display: inline-block; }
+.so-mark svg { width: 100%; height: 100%; display: block; }
+/* as tall as its words, no taller; where they're more than the screen holds the list scrolls inside it */
+#app.fit-screen > .so-card { flex: 0 1 auto; min-height: 0; max-width: 46rem; }
+.so-card { margin-top: .75rem; padding: 1rem 1.1rem; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; min-height: 0; }
+.so-tag, .so-h { margin: 0; font-size: .78rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass-lo); }
+.so-line { margin: .5rem 0 1.1rem; font-size: 1rem; line-height: 1.5; }
+.so-todo { margin: .5rem 0 0; padding: 0 0 0 1.1rem; display: flex; flex-direction: column; gap: .65rem; color: var(--ink-soft); line-height: 1.45; }
