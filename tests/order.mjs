@@ -9,6 +9,7 @@ const { QUOTES } = await import("../quote-bank.js");
 const { LIVES, MOST, BY_ID, FEWEST, FAMILIES, familyOf, bestIn, size, dealRun, topicsIn, fits, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } = await import("../order-engine.js");
 const { TOPICS, TOPIC_PRESETS, presetOf, cleanTopics } = await import("../quote-engine.js");
 const { roundTrip, same } = await import("./rtdb.js");
+import fs from "node:fs";
 let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } };
 
@@ -58,6 +59,38 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   check(ok.ok && run.placed === 1 && run.lives === LIVES && run.line.length === 2 && run.line[ok.at].fresh && sorted(run.line), "a card in its gap counts, marked as asked");
   const miss = placeCard(run, wrongGap(run));
   check(!miss.ok && run.placed === 1 && run.lives === LIVES - 1 && sorted(run.line) && !run.line[miss.at].ok, "a card in the wrong gap costs a life and goes where it belongs");
+}
+
+// ---------- the dealer remembers (a run of your own, not a daily or a table) ----------
+// what you've been dealt comes after what you haven't, so the same sixteen dates don't come round while hundreds wait; the
+// same seed with nothing seen is the deal it always was (a daily, a table's deal and a shared board code must not move)
+{
+  const cards = run => [run.line[0].id, ...run.deck];
+  const plain = dealRun("dates", 99, null), none = dealRun("dates", 99, null, new Set());
+  check(JSON.stringify(plain) === JSON.stringify(none), "nothing seen: the deal is the seed's, as it always was");
+  const first = dealRun("dates", 5, null, new Set()), seen = new Set(cards(first));
+  const again = dealRun("dates", 5, null, seen);
+  check(cards(first).length === 16 && !cards(again).some(id => seen.has(id)) && !again.recycled, "the next deal has none of the sixteen just played");
+  // played to the end, the dates come round only once all of them have been dealt
+  const all = new Set(); let runs = 0, recycledAt = 0;
+  for (let i = 1; i < 200 && !recycledAt; i++) { const run = dealRun("dates", 1000 + i, null, all); if (run.recycled) recycledAt = i; else { cards(run).forEach(id => all.add(id)); runs++; } }
+  check(recycledAt > 0 && all.size > dates.length - 16, `no date is dealt twice until fewer than a run's worth are left (${runs} runs, ${all.size} of ${dates.length} cards)`);
+  const ids = dates.map(q => q.id), last = dealRun("dates", 7, null, new Set(ids.slice(0, ids.length - 5)));
+  check(cards(last).length === 16 && last.recycled && ids.slice(ids.length - 5).every(id => cards(last).includes(id)), "a deal short of fresh cards takes all that are left, then reaches back, and says so");
+  // a mix of topics: the same, within the topics in
+  const trader = cleanTopics({ trade: 2, markets: 2, art: 0, people: 0, wine: 0 });
+  const t1 = dealRun("dates", 11, trader, new Set()), t2 = dealRun("dates", 11, trader, new Set(cards(t1)));
+  check(cards(t1).every(id => BY_ID.get(id).cat !== "art") && !cards(t2).some(id => cards(t1).includes(id)) && cards(t2).every(id => BY_ID.get(id).cat !== "art"), "with a mix the unseen ones are drawn within its topics");
+  // quantities: a family you've played has its unseen cards first, and a family with none unseen is rare, not barred
+  const q1 = dealRun("quantities", 3, null, new Set()), fam = familyOf(q1.unit), played = new Set(cards(q1).slice(0, 5));
+  const q2 = dealRun("quantities", 3, null, played);
+  check(q2.unit !== q1.unit || cards(q2).slice(0, fam.ids.length - 5).every(id => !played.has(id)), "in a family the unseen cards come first");
+  const allSeen = new Set(FAMILIES.flatMap(f => f.ids)), q3 = dealRun("quantities", 4, null, allSeen);
+  check(q3.deck.length >= 5 && q3.recycled, "every card seen: a deal still comes, and says it went back over them");
+  check(!dealRun("stories", 2, null, allSeen).recycled && dealRun("stories", 2, null, allSeen).story === dealRun("stories", 2).story, "a story is dealt whole, as it was, and has nothing to forget");
+  const page = fs.readFileSync(new URL("../order.js", import.meta.url), "utf8");
+  check(/dealRun\(mode, seed, daily \? null : mix\(\), daily \|\| mode === "stories" \? null : new Set\(seenIds\(\)\)\)/.test(page) && /if \(tracked\(S\)\) markSeen\(\[id\]\)/.test(page), "the page deals a run of your own from what you've seen, and notes each card you place; a daily doesn't");
+  check(!/dealRun\([^)]*new Set/.test(fs.readFileSync(new URL("../order-engine.js", import.meta.url), "utf8").split("export function freshTable")[1] || ""), "a table's deal is never from one phone's memory");
 }
 
 // ---------- topics ----------

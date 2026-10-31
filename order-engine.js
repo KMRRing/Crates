@@ -54,23 +54,37 @@ const even = (mode, weights) => !weights || topicsIn(mode).every(([id]) => (weig
  * The cards of a seed in a mode, the line starting with one face up. Dates: sixteen cards, each drawn by its topic's
  * weight; quantities: one family, drawn by its cards' mean weight, its cards in the topics in (a family needs six). A mix
  * that leaves too few cards deals from every topic instead, and says so (wide).
+ *
+ * `seen` (a Set of card ids, for a run played alone; a daily or a table's deal passes none, so everyone gets the same
+ * cards from the seed) is what you've already been dealt: a deal takes cards you haven't seen before any you have, so the
+ * same few don't come round while hundreds wait. A deal that has to reach back into the seen ones says `recycled`, and the
+ * page lets them go (cards are forgotten when too few are left to deal from, not on a clock).
  */
-export function dealRun(mode, seed, weights = null) {
+export function dealRun(mode, seed, weights = null, seen = null) {
   const r = rng(seed), w = id => weights?.[topicOf(id)] ?? 1;
-  let ids, unit = "year", story = null, wide = false;
+  const isNew = id => !seen?.has(id), newFirst = xs => (seen ? [...xs.filter(isNew), ...xs.filter(id => !isNew(id))] : xs);
+  let ids, unit = "year", story = null, wide = false, recycled = false;
   if (mode === "dates") {
-    const pool = even(mode, weights) ? [] : DATES.filter(id => w(id) > 0);
-    if (pool.length >= FEWEST) ids = drawWeighted(r, pool, w, DATES_PER_RUN);
-    else { wide = !even(mode, weights); ids = shuffle(r, DATES).slice(0, DATES_PER_RUN); }
+    const pool = even(mode, weights) ? [] : DATES.filter(id => w(id) > 0), want = Math.min(DATES_PER_RUN, pool.length);
+    if (pool.length >= FEWEST) {
+      ids = drawWeighted(r, pool.filter(isNew), w, DATES_PER_RUN);
+      if (seen && ids.length < want) { recycled = true; ids.push(...drawWeighted(r, pool.filter(id => !isNew(id)), w, DATES_PER_RUN - ids.length)); }
+    } else { wide = !even(mode, weights); ids = newFirst(shuffle(r, DATES)).slice(0, DATES_PER_RUN); recycled = ids.some(id => !isNew(id)); }
   } else if (mode === "stories") { const s = SEQUENCES[Math.floor(r() * SEQUENCES.length)]; story = s.id; unit = s.unit; ids = shuffle(r, s.steps.map((_, i) => `st:${s.id}:${i + 1}`)); }
   else {
     const mixed = even(mode, weights) ? [] : FAMILIES.map(f => ({ ...f, ids: f.ids.filter(id => w(id) > 0) })).filter(f => f.ids.length >= 6);
-    const mean = f => f.ids.reduce((a, id) => a + w(id), 0) / f.ids.length;
-    const fam = mixed.length ? drawWeighted(r, mixed, mean, 1)[0] : FAMILIES[Math.floor(r() * FAMILIES.length)];
+    // a family is as likely as the share of its cards you haven't seen (times its topics' weight); with none unseen anywhere
+    // the share doesn't count
+    const fresh = f => f.ids.filter(isNew).length;
+    const share = (f, among) => (seen && among.some(g => fresh(g) > 0) ? fresh(f) / f.ids.length : 1);
+    const mean = f => f.ids.reduce((a, id) => a + w(id), 0) / f.ids.length * share(f, mixed);
+    const fam = mixed.length ? drawWeighted(r, mixed, mean, 1)[0]
+      : seen ? drawWeighted(r, FAMILIES, f => share(f, FAMILIES), 1)[0] : FAMILIES[Math.floor(r() * FAMILIES.length)];
     wide = !mixed.length && !even(mode, weights);
-    unit = fam.unit; ids = shuffle(r, fam.ids);
+    unit = fam.unit; ids = newFirst(shuffle(r, fam.ids));
+    recycled = fresh(fam) < Math.min(fam.ids.length, DATES_PER_RUN);      // a run is rarely longer than that
   }
-  return { seed, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false, ...(wide ? { wide } : {}) };
+  return { seed, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false, ...(wide ? { wide } : {}), ...(recycled && seen ? { recycled } : {}) };
 }
 export const truth = id => BY_ID.get(id).truth;
 /** What a card is worth in the line: its truth, in its dimension's base where the unit is one of several (a story's place

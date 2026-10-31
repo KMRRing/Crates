@@ -24,7 +24,7 @@ import { busy, sextant } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "order:run", BEST = "order:best", DAILY = "order:daily", TOPICS_KEY = "order:topics";
+const RUN = "order:run", BEST = "order:best", DAILY = "order:daily", TOPICS_KEY = "order:topics", SEEN = "order:seen";
 const APP = 2;                 // the table's version: one run for everyone (1 was a head-to-head, each on their own deck)
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -46,9 +46,17 @@ const ranked = (mode, daily) => daily || mode === "stories" || presetFor(mode) !
 // ---------- your own run ----------
 let S = read(RUN, null);
 const save = () => write(RUN, S);
+// The cards you've played in runs of your own (not a daily, which everyone gets alike): a new run deals the ones you haven't
+// seen first (order-engine.js, dealRun), and lets them go when too few are left to deal from.
+const tracked = run => !run.daily && run.mode !== "stories";       // a story is dealt whole, so it has nothing to remember
+const seenIds = () => read(SEEN, []);
+const markSeen = ids => { const had = new Set(seenIds()); if (ids.some(id => !had.has(id))) write(SEEN, [...had, ...ids.filter(id => !had.has(id))]); };
+const forget = ids => { const out = new Set(ids); write(SEEN, seenIds().filter(id => !out.has(id))); };
 function newRun(mode, daily) {
   const seed = daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31);
-  S = { ...dealRun(mode, seed, daily ? null : mix()), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
+  S = { ...dealRun(mode, seed, daily ? null : mix(), daily || mode === "stories" ? null : new Set(seenIds())), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
+  if (S.recycled) { forget(mode === "dates" ? DATES : familyOf(S.unit).ids); delete S.recycled; }
+  if (tracked(S)) markSeen([S.line[0].id]);
   save(); render();
   if (S.wide) toast("Too few cards in your topics: this run deals from all of them");
 }
@@ -56,6 +64,7 @@ function place(slot) {
   if (G) { placeTogether(slot); return; }
   if (!S || S.over || !S.deck.length) return;
   const { id, ok, at } = placeCard(S, slot, { fresh: true });
+  if (tracked(S)) markSeen([id]);
   if (!ok) toast(`${valueOf(BY_ID.get(id))}: it goes ${whereIn(S.line, at)}`);
   if (S.over) end();
   save(); render();
