@@ -4,15 +4,6 @@
 // `line` is the game in a sentence, `todo` what building it takes and where the risk is. A game that gets built loses its entry
 // here and its tile points at its own page; tests/soon.mjs fails while a tile and its entry disagree.
 export const SOON = {
-  bridges: {
-    name: "Bridges", sec: "classics",
-    line: "Hashiwokakero: islands numbered with how many bridges they need, joined by one or two straight bridges, none crossing, until every island is in one network.",
-    todo: [
-      "The engine: a generator that makes boards with exactly one solution, and a solver that grades them by the hardest step a person would need (Hitori's and Sudoku's pipeline, README, Classics).",
-      "Dragging from island to island builds a bridge; tapping a bridge cycles none, one, two. Undo, hints and the time, as the other Classics have them.",
-      "Then dailies, Random's round (a board solved) and the head-to-head by duel.js, as for every Classic.",
-    ],
-  },
   masyu: {
     name: "Masyu", sec: "classics",
     line: "One loop through a grid, passing every pearl: it turns on a black pearl and runs straight for at least a cell either side of it; it goes straight through a white pearl and turns in at least one of the cells beside it.",

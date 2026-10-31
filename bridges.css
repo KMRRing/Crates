@@ -1,0 +1,114 @@
+/* Bridges: islands on a chart of water, joined by bridges in the game's enamel, a deep sea blue (by night a lifted one).
+   An island that has its bridges turns pale; what breaks a rule is oxblood, a hint's bridge gilt, and the solved network
+   turns gilt from the top left. The board is an SVG drawn to a viewBox in cell units, so it grows with its box. */
+:root {
+  --brg-in: #2B6E99; --brg-in-soft: color-mix(in srgb, var(--brg-in) 15%, var(--sheet));
+  --brg-good: #2F7D5B; --brg-bad: #A8382B; --brg-gilt: #C8923A;
+  --brg-tile: var(--tile); --brg-guide: color-mix(in srgb, var(--ink) 22%, var(--brg-tile));
+  --brg-logo-tint: #D6E6F1; --brg-logo-edge: var(--logo-edge);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865;
+    --brg-tile: color-mix(in srgb, var(--tile) 90%, var(--ink)); --brg-logo-tint: #1E3547; }
+}
+html[data-mode="night"] { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865;
+  --brg-tile: color-mix(in srgb, var(--tile) 90%, var(--ink)); --brg-logo-tint: #1E3547; }
+/* Kontor's enamel is its green; Modern's logo tint and edge, as its theme gives every game's */
+html[data-theme="kontor"] { --brg-in: #1E7A45; --brg-gilt: #C8901A; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --brg-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --brg-in: #2EB36A; }
+html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; }
+
+.brg-mark { display: inline-block; }
+.brg-mark svg { width: 100%; height: 100%; display: block; }
+
+.brg-strip { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .1rem .6rem; margin: .6rem 0 .5rem;
+  font-size: .92rem; color: var(--ink-soft); white-space: nowrap; }
+.brg-time b { color: var(--ink); font-weight: 800; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.brg-time small { margin-left: .4rem; font-size: .78rem; font-weight: 700; color: var(--brg-bad); font-variant-numeric: tabular-nums; }
+.brg-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
+  letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+
+/* the board: the stage, framed in a double rule (a brass edge, a hairline four pixels inside it) */
+.brg-card { position: relative; border-radius: 6px; background: var(--sheet); padding: .5rem;
+  box-shadow: inset 0 0 0 1px var(--brass), inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+.brg-board { width: 100%; height: 100%; display: grid; place-items: center; min-height: 0; }
+.brg-svg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }
+.brg-paper { fill: var(--brg-tile); stroke: var(--tile-edge); stroke-width: .03; }
+/* a link a bridge could go on: a faint dashed guide; its bridges over it, one line or two */
+.brg-guide { stroke: var(--brg-guide); stroke-width: .035; stroke-dasharray: .09 .13; stroke-linecap: round; }
+.brg-b { stroke: var(--brg-in); stroke-width: .075; stroke-linecap: round; visibility: hidden; }
+.brg-l.c1 .brg-one, .brg-l.c2 .brg-two { visibility: visible; }
+.brg-l.c1 .brg-guide, .brg-l.c2 .brg-guide { visibility: hidden; }
+.brg-l.lit .brg-b { stroke: var(--brg-gilt); }
+.brg-l.lit .brg-guide { stroke: var(--brg-gilt); stroke-width: .07; }
+/* the islands: a disc with its number; pale once it has all its bridges, oxblood when it has too many, ringed when its
+   group is shut off from the rest */
+.brg-disc { fill: var(--brg-tile); stroke: var(--ink); stroke-width: .06; }
+.brg-num { font-family: var(--font); font-weight: 750; fill: var(--ink); text-anchor: middle; pointer-events: none; font-variant-numeric: tabular-nums; }
+.brg-i.met .brg-disc { fill: color-mix(in srgb, var(--brg-in) 22%, var(--brg-tile)); stroke: var(--brg-in); }
+.brg-i.over .brg-disc { fill: color-mix(in srgb, var(--brg-bad) 22%, var(--brg-tile)); stroke: var(--brg-bad); stroke-width: .1; }
+.brg-i.cut .brg-disc { stroke: var(--brg-bad); stroke-dasharray: .12 .08; stroke-width: .09; }
+.brg-i.why .brg-disc { stroke: var(--brg-gilt); stroke-width: .11; }
+/* the solve: the bridges turn gilt from the top left */
+.brg-svg.solved .brg-l .brg-b { animation: brg-wave .8s ease-out var(--d, 0ms) both; }
+/* every keyframe written out: an implicit one took SVG's default stroke while a bridge waited for its turn */
+@keyframes brg-wave { 0% { stroke: var(--brg-in); } 40% { stroke: var(--brg-gilt); } 100% { stroke: var(--brg-gilt); } }
+@media (prefers-reduced-motion: reduce) { .brg-svg.solved .brg-l .brg-b { animation: none; stroke: var(--brg-gilt); } }
+
+/* under the board: a line of what to do or what happened, three tools; at the end, how it went and the way on, in the
+   same room. The line keeps three lines' height, so a long hint never moves the board. */
+.brg-side { display: grid; align-content: start; margin-top: .6rem; min-height: 7.2rem; }
+.brg-side > * { grid-area: 1 / 1; }
+.brg-controls { display: grid; gap: .45rem; align-content: start; }
+.brg-controls[hidden], .brg-result[hidden] { display: none; }
+.brg-say { margin: 0; height: 4.05em; overflow: hidden; font-size: .86rem; line-height: 1.35; color: var(--ink-soft); }
+.brg-say.bad { color: var(--brg-bad); }
+.brg-say.good { color: var(--brg-good); }
+.brg-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.brg-tool { display: grid; gap: .05rem; align-content: center; min-height: 3.25rem; border-radius: 5px; border: 2px solid var(--tile-edge); background: var(--yard);
+  color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
+.brg-tool b { font-weight: 800; }
+.brg-tool small { font-size: .72rem; color: var(--ink-soft); }
+.brg-tool:disabled { opacity: .45; cursor: default; }
+.brg-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-self: start; gap: .8rem; min-height: 6.6rem; }
+.brg-verdict { margin: 0; font-size: .98rem; font-weight: 750; line-height: 1.3; color: var(--brg-good); }
+.brg-go { min-height: 3.125rem; padding: 0 1.2rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem;
+  font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps);
+  outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.brg-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.brg-toast.show { opacity: 1; }
+
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.brg-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.brg-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.brg-sheet .pick-head h2 { font-size: 1rem; }
+.brg-rules p { margin: .5rem 0; line-height: 1.45; }
+.brg-rules h4 { margin: 1.1rem 0 .2rem; }
+
+/* held sideways: the board on the left with all the height; the time, the line and the tools beside it, the tools low */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.bridges { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.bridges .brg-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; white-space: normal; }
+  #app.bridges .brg-card { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.bridges .brg-side { grid-column: 2; grid-row: 3; align-content: end; margin-top: 0; min-height: 0; }
+  #app.bridges .brg-controls { align-content: end; }
+  #app.bridges .brg-say { height: auto; max-height: 8.2em; }
+  #app.bridges .brg-tools { grid-template-columns: 1fr; }
+  #app.bridges .brg-tool { min-height: 2.9rem; }
+  #app.bridges .brg-result { grid-template-columns: 1fr; align-self: end; }
+}
+
+/* the themes beyond Almanac: no double rule, rounder corners, the main action in the enamel (as themes.css does for the
+   other games) */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .brg-card { border-radius: 20px; box-shadow: none; border: 1px solid var(--tile-edge); }
+html:is([data-theme="modern"], [data-theme="office"]) .brg-tool { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .brg-go { border-radius: 14px; background: var(--brg-in); color: #fff; font-size: 1.02rem; font-stretch: 100%;
+  letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .brg-toast { border-radius: 10px; }
+html[data-theme="kontor"] .brg-card { border-radius: 2px; }
+html[data-theme="kontor"] .brg-tool { border-radius: 2px; border-width: 1px; }
+html[data-theme="kontor"] .brg-go { border-radius: 2px; text-transform: uppercase; letter-spacing: .06em; font-size: .8rem; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .brg-kind { font-stretch: 100%; }
