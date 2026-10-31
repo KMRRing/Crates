@@ -18,6 +18,7 @@
 // holds every hand and each phone shows only its own: a table of friends, not a casino.
 import { h, button, pickPlayer, waitingFor, countdown } from "./party-kit.js";
 import { shuffle } from "./party-core.js";
+import { play } from "./party-coup-solo.js";
 
 export const CARDS = ["duke", "assassin", "captain", "ambassador", "contessa"];
 export const COPIES = 3;
@@ -304,6 +305,8 @@ export default {
   name: "Coup",
   min: 2,
   max: 6,
+  solo: play,                                       // alone against one to four computer players (party-coup-solo.js)
+  soloText: "Alone against 1–4 computer players",
   css: "party-coup.css",
   blurb: "Bluff, challenge, and be the last with any influence.",
   rules: [

@@ -65,6 +65,14 @@
 .cp-log li:first-child { color: var(--ink); }
 .cp-final li span:last-child { text-align: right; }
 
+/* alone on one phone (party-coup-solo.js): the table as above, a row of buttons under it, and before the deal the number of opponents */
+.cp-solo { gap: .3rem; }
+.cp-solo-foot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; padding-top: .3rem; }
+.cp-solo-foot.three { grid-template-columns: 1.4fr 1fr 1fr; }
+.cp-solo-foot .pk-btn { min-height: 2.4rem; margin-top: 0; padding-left: .3rem; padding-right: .3rem; }
+.cp-solo .pk-pick { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
+.cp-solo .pk-pick button { min-height: 2.6rem; }
+
 html[data-theme="office"] :is(.cp-p, .cp-act, .cp-hand, .cp-pick) { border-radius: 4px; }
 @media (max-height: 700px) { .cp-log li:nth-child(n+3) { display: none; } }
 @media (prefers-color-scheme: dark) {

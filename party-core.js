@@ -9,7 +9,7 @@
 //     wakeAt(state) → a time (the database's, ms) to call advance again, or null,
 //     view(stage, ctx),
 //     solo?(stage, { back }) → it's also played on one phone, no party needed: drawn on Party's page before a party's
-//       open, where its tile opens it (Higher or Lower) }
+//       open, where its tile opens it (Higher or Lower; Coup, against the computer), soloText? in words for its card }
 //
 // start and advance are pure: advance runs inside the table's transaction on the device that runs the table (the
 // host's phone), on the freshest copy, and may run more than once, so its randomness comes from rng (seeded by the
@@ -241,7 +241,7 @@ export function playable(id) {
  *  fills the rest), a duo match by two (Tribute and Hong by up to four). */
 export const fits = (entry, n) => !!entry && n >= entry.min && n <= entry.max;
 /** Who plays a game, as words on its card. */
-export const seatsText = entry => (entry.def?.solo ? `Any number on one phone, or ${entry.min}–${entry.max} on their own`
+export const seatsText = entry => (entry.def?.solo ? `${entry.def.soloText || "Any number on one phone"}, or ${entry.min}–${entry.max} on their own`
   : entry.kind === "duo" && entry.max === 2 ? "2 players"
   : entry.kind === "party" || (entry.kind === "duo" && !entry.bots) ? `${entry.min}–${entry.max} players`
     : `${entry.min}–${entry.max} players, the computer in any empty seat`);
