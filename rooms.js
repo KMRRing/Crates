@@ -37,6 +37,7 @@ export const GAMES = {
   gambit: { name: "Gambit", page: "./gambit.html" },
   boast: { name: "Boast", page: "./boast.html" },
   bigtwo: { name: "Big Two", page: "./bigtwo.html" },
+  meld: { name: "Meld", page: "./meld.html" },
   landlord: { name: "Landlord", page: "./landlord.html" },
   holdem: { name: "Texas Hold'em", page: "./holdem.html" },
   factor: { name: "Factor", page: "./factor.html" },

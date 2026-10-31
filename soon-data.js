@@ -69,16 +69,6 @@ export const SOON = {
       "A two-player game, so it suits a partner's match.",
     ],
   },
-  meld: {
-    name: "Meld", sec: "table",
-    line: "Gin rummy for two: draw and discard to form sets and runs, knock when the cards left over (deadwood) count ten or fewer, or go gin with none.",
-    todo: [
-      "On seats.js, first of the new card games to build: a pure rules module and a bot, as Big Two and Landlord are.",
-      "The bot: a standard deadwood heuristic (keep what melds, discard the highest unmelded card, knock when ahead), with a level for each strength.",
-      "Scoring the knock, the undercut and the match to a hundred, with the bonuses; tests over many dealt hands.",
-      "A two-player game, so it suits a partner's match.",
-    ],
-  },
   tarot: {
     name: "Tarot", sec: "table",
     line: "French tarot (le tarot): 78 cards, the 21 trumps and the Excuse beside four suits, three to five players, a bid to win the points, the dog (the cards set aside) taken by the bidder.",

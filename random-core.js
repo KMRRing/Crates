@@ -69,6 +69,7 @@ export const ROUNDS = {
   gambit: "a game",
   boast: "a round of bidding, its cups lifted",
   bigtwo: "a deal",
+  meld: "a hand",
   landlord: "a deal",
   banquet: "a match",
   gammon: "a game (a point or more of the match)",
@@ -98,7 +99,7 @@ export const LEFT_OUT = {
   timegrapher: "an instrument, not a game",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
   bridges: "not built yet", masyu: "not built yet", nurikabe: "not built yet", slitherlink: "not built yet",
-  rack: "not built yet", stone: "not built yet", pegs: "not built yet", meld: "not built yet", tarot: "not built yet",
+  rack: "not built yet", stone: "not built yet", pegs: "not built yet", tarot: "not built yet",
 };
 
 /** Every game random mode can deal, in the order above. */

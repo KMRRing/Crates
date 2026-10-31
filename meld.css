@@ -1,0 +1,98 @@
+/* Meld (gin rummy for two): a card table in steel-blue enamel under brass. Upright: the other hand and what it has
+   picked up, the stock and the pile between, then your cards and your buttons. Sideways: the table on the left, your
+   cards beside it with the buttons low. */
+:root {
+  --ml-in: #2F6F8F;                                                /* steel blue: the game's enamel */
+  --ml-soft: color-mix(in srgb, var(--ml-in) 13%, var(--sheet));
+  --ml-felt: color-mix(in srgb, var(--ml-in) 8%, var(--sheet));
+}
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --ml-in: #7FB6D4; --ml-felt: color-mix(in srgb, #2F6F8F 22%, var(--sheet)); } }
+html[data-mode="night"] { --ml-in: #7FB6D4; --ml-felt: color-mix(in srgb, #2F6F8F 22%, var(--sheet)); }
+html[data-theme="kontor"] { --ml-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --ml-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --ml-in: #2EB36A; }
+html[data-theme="office"] { --ml-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --ml-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --ml-in: #479EF5; }
+
+.ml-mark { display: inline-block; }
+.ml-mark svg { width: 100%; height: 100%; display: block; }
+.ml-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); }
+.ml-strip b { color: var(--ink); }
+
+/* ---------- the table ---------- */
+.ml-table { display: flex; flex-direction: column; gap: .4rem; padding: .6rem; min-height: 0; border-radius: 6px; background: var(--ml-felt);
+  border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--ml-felt), inset 0 0 0 5px var(--rule); overflow: hidden; container-type: size; }
+/* cards in lines drawn as large as the table allows: a tablet's table shows them larger */
+.ml-table > * { --cd-line: clamp(.6rem, min(2.4cqh, 1.9cqw), 1.1rem); }
+.ml-foe { display: grid; gap: .3rem; justify-items: center; align-content: start; padding: .3rem; border-radius: 6px; min-width: 0; }
+.ml-foe.turn { box-shadow: inset 0 0 0 1.5px var(--ml-in); }
+.ml-who { display: flex; align-items: center; gap: .45rem; margin: 0; font-size: .9rem; }
+.ml-sc { padding: 0 .35rem; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); font-size: .78rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ml-n { color: var(--ink-soft); font-size: .78rem; }
+.ml-backs { display: flex; justify-content: center; font-size: clamp(.5rem, min(1.8cqh, 2.2cqw), .95rem); max-width: 100%; }
+.ml-backs .cd + .cd { margin-left: -1.4em; }
+.ml-grabs { margin: 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .35rem; font-size: .76rem; color: var(--ink-soft); text-align: center; }
+.ml-mid { flex: 1 1 auto; display: grid; justify-items: center; align-content: center; gap: .5rem; min-height: 0; text-align: center; }
+.ml-piles { display: flex; gap: clamp(.8rem, 6cqw, 2rem); align-items: flex-end; font-size: clamp(.9rem, min(6.5cqh, 7cqw), 2.4rem); }
+.ml-stock, .ml-pile { position: relative; padding: 0; border: 0; border-radius: .25em; background: none; color: inherit; font: inherit; cursor: pointer; }
+.ml-stock:disabled, .ml-pile:disabled { cursor: default; }
+.ml-stock.live, .ml-pile.live { box-shadow: 0 0 0 2px var(--ml-in); }
+.ml-stock.live .cd, .ml-pile.live .cd { box-shadow: none; }
+.ml-count { position: absolute; right: -.5em; top: -.55em; min-width: 1.5em; padding: 0 .25em; border-radius: 1em; background: var(--plate); color: var(--plate-ink); font-size: .52em; font-weight: 800; line-height: 1.7; text-align: center; font-variant-numeric: tabular-nums; }
+.ml-empty { display: block; width: 2.5em; height: 3.5em; border: 1px dashed var(--brass); border-radius: .2em; }
+.ml-last { margin: 0; font-size: .86rem; color: var(--ink-soft); min-height: 1.3em; }
+
+/* a hand's end: every card shown, melds set apart, the rest loose; cards laid off by the other in brass */
+.ml-reveal { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .35rem .6rem; }
+.ml-meld, .ml-rest { padding: .15rem .3rem .25rem; border-radius: 4px; }
+.ml-meld { background: color-mix(in srgb, var(--ml-in) 11%, transparent); box-shadow: inset 0 -2px 0 var(--ml-in); }
+.ml-rest { box-shadow: inset 0 -2px 0 var(--rule); }
+.ml-dead { flex-basis: 100%; text-align: center; font-size: .8rem; font-weight: 800; color: var(--ink-soft); }
+.ml-over { gap: .6rem; }
+.ml-result { margin: 0; max-width: 28rem; font-size: .96rem; line-height: 1.4; }
+.ml-next { display: block; width: min(9rem, 80%); height: .3rem; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.ml-next i { display: block; height: 100%; background: var(--ml-in); transform-origin: left; animation: ml-fuse linear forwards; }
+@keyframes ml-fuse { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .ml-next i { animation: none; } }
+
+/* ---------- your cards and your buttons ---------- */
+.ml-side { display: flex; flex-direction: column; gap: .35rem; padding-top: .45rem; }
+/* two lines kept, the words centred in them, so a longer line doesn't push the cards down as it comes and goes */
+.ml-status { display: flex; align-items: center; justify-content: center; height: 2.6em; margin: 0; overflow: hidden; line-height: 1.3; text-align: center; font-size: .9rem; color: var(--ink-soft); }
+.ml-status b { color: var(--ml-in); }
+.ml-hand { height: 4.6rem; padding-top: .45rem; box-sizing: border-box; justify-content: center; }
+.ml-hand .cd { cursor: pointer; transition: transform .1s; }
+.ml-hand .cd.sel { transform: translateY(-.4rem); background: color-mix(in srgb, var(--ml-in) 18%, var(--cd-face)); border-color: var(--ml-in); box-shadow: 0 0 0 1.5px var(--ml-in); }
+.ml-hand .cd.fresh:not(.sel) { outline: 2px solid var(--ml-in); outline-offset: -3px; }
+.ml-hand .cd.lit { box-shadow: 0 0 0 2px var(--brass); }
+@media (prefers-reduced-motion: reduce) { .ml-hand .cd { transition: none; } }
+/* a meld set apart from the one before it */
+.ml-hand.cd-row > .cd.grp { margin-left: calc(var(--cd-step, 1.6em) - 2.5em + .55em); }
+.ml-watch { margin: auto; color: var(--ink-soft); }
+.ml-bar { display: flex; gap: .45rem; align-items: center; }
+.ml-go { flex: 1 1 0; min-width: 0; min-height: 2.9rem; padding: .3rem .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- the sheets ---------- */
+.ml-rules p { line-height: 1.45; }
+.ml-end-head { margin: .2rem 0 .6rem; }
+.ml-tally { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.ml-tally th, .ml-tally td { padding: .45rem .3rem; text-align: right; border-bottom: 1px solid var(--rule); }
+.ml-tally thead td { font-size: .72rem; color: var(--ink-soft); }
+.ml-tally tbody th { text-align: left; font-weight: 700; }
+.ml-tally tr.won th::after { content: " ★"; color: var(--ml-in); }
+.ml-end-note { color: var(--ink-soft); font-size: .9rem; }
+.ml-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.ml-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.ml-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* held sideways: the table on the left, your cards and buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.meld { --beside: 24rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.meld .ml-strip { grid-column: 1 / -1; grid-row: 2; }
+  #app.meld .ml-table { grid-column: 1; grid-row: 3; }
+  #app.meld .ml-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
+}
+html[data-theme="office"] .ml-table { border-radius: 4px; }
