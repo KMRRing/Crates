@@ -74,6 +74,7 @@ export const ROUNDS = {
   boast: "a round of bidding, its cups lifted",
   bigtwo: "a deal",
   meld: "a hand",
+  rack: "a game",
   pegs: "a deal",
   landlord: "a deal",
   banquet: "a match",
@@ -102,7 +103,7 @@ export const LEFT_OUT = {
   quest: "hidden loyalties, a game for people round a table (Party's section)",
   timegrapher: "an instrument, not a game",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
-  rack: "not built yet", stone: "not built yet", tarot: "not built yet",
+  stone: "not built yet", tarot: "not built yet",
 };
 
 /** Every game random mode can deal, in the order above. */

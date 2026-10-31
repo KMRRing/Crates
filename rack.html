@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Rack</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="rack.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="rack fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon rk-mark" aria-hidden="true"></span>Rack</button></h1>
+    <div class="top-right">
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <div id="strip" class="rk-strip" aria-live="polite"></div>
+  <section id="boardBox" class="rk-box fit-box fit-grow" aria-label="The board"><div id="board" class="rk-board"></div></section>
+  <section id="side" class="rk-side" aria-label="Your tiles">
+    <p id="status" class="rk-status" aria-live="polite"></p>
+    <div id="rack" class="rk-rack" role="group" aria-label="Your rack"></div>
+    <div id="bar" class="rk-bar"></div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet rk-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="rk-rules"></div>
+</dialog>
+
+<dialog id="swapDlg" class="sheet rk-sheet" aria-labelledby="swapHead">
+  <h2 id="swapHead" class="rk-end-head">Swap or pass</h2>
+  <p id="swapNote" class="rk-note"></p>
+  <div id="swapRack" class="rk-rack rk-swap"></div>
+  <div class="rk-end-go rk-three"><button class="btn" type="button" id="swapCancel">Cancel</button><button class="btn" type="button" id="swapPass">Pass</button><button class="btn primary" type="button" id="swapGo">Swap</button></div>
+</dialog>
+
+<dialog id="blankDlg" class="sheet rk-sheet" aria-labelledby="blankHead">
+  <h2 id="blankHead" class="rk-end-head">The blank is…</h2>
+  <div id="blankKeys" class="rk-keys"></div>
+  <div class="rk-end-go"><button class="btn" type="button" id="blankCancel">Cancel</button></div>
+</dialog>
+
+<dialog id="endDlg" class="sheet rk-sheet" aria-labelledby="endHead">
+  <h2 id="endHead" class="rk-end-head"></h2>
+  <div id="endBody" class="rk-end"></div>
+  <div class="rk-end-go"><button class="btn" type="button" id="endTable">The table</button><button class="btn primary" type="button" id="endAgain">New game</button></div>
+</dialog>
+
+<p id="toast" class="rk-toast" role="status" aria-live="polite"></p>
+<script type="module" src="rack.js"></script>
+</body>
+</html>

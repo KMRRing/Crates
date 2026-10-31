@@ -1,0 +1,102 @@
+/* Rack (a word game on a board): boxwood tiles on a board of enamelled premium squares, under brass. Upright: the scores, the
+   board as large as the width allows, then your rack and your buttons. Sideways: the board on the left, your rack and buttons
+   in a column beside it. */
+:root {
+  --rk-in: #A47528;                                                /* brass-gold: the game's enamel */
+  --rk-soft: color-mix(in srgb, var(--rk-in) 14%, var(--sheet));
+  --rk-wood: #EFDDB0; --rk-wood-edge: #B8975A; --rk-wood-ink: #1C2A34;
+  --rk-word: #8F3328; --rk-letter: #2C5B8A;                        /* triple word / triple letter; the doubles are paler */
+  --rk-felt: color-mix(in srgb, var(--rk-in) 7%, var(--sheet));
+}
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --rk-in: #E1AB24; --rk-wood: #D9C48E; --rk-word: #B24A3B; --rk-letter: #3E78B0; } }
+html[data-mode="night"] { --rk-in: #E1AB24; --rk-wood: #D9C48E; --rk-word: #B24A3B; --rk-letter: #3E78B0; }
+html[data-theme="kontor"] { --rk-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --rk-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --rk-in: #2EB36A; }
+html[data-theme="office"] { --rk-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --rk-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --rk-in: #479EF5; }
+
+.rk-mark { display: inline-block; }
+.rk-mark svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- the scores ---------- */
+.rk-strip { display: flex; flex-wrap: wrap; gap: .3rem; margin: .45rem 0 .35rem; font-size: .8rem; }
+.rk-pl { display: inline-flex; align-items: baseline; gap: .35rem; min-width: 0; max-width: 100%; padding: .12rem .45rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); color: var(--ink-soft); }
+.rk-pl b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.rk-pl span { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
+.rk-pl.turn { border-color: var(--rk-in); box-shadow: inset 0 0 0 1px var(--rk-in); background: var(--rk-soft); }
+.rk-bag { margin-left: auto; align-self: center; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* ---------- the board ---------- */
+.rk-box { min-height: 0; }
+.rk-board { --n: 15; --cell: calc(min(100cqw, 100cqh) / var(--n)); width: calc(var(--cell) * var(--n)); height: calc(var(--cell) * var(--n));
+  display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 1px; padding: 1px; box-sizing: border-box;
+  background: var(--brass); box-shadow: 0 0 0 1.5px var(--brass); touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+.rk-board:empty { background: none; box-shadow: none; }
+.rk-sq { position: relative; min-width: 0; min-height: 0; display: grid; place-items: center; overflow: hidden; background: var(--rk-felt); color: var(--ink-soft);
+  font-size: max(.5rem, calc(var(--cell) * .3)); font-weight: 800; font-style: normal; line-height: 1; cursor: pointer; }
+.rk-sq.W { background: var(--rk-word); color: #fff; }
+.rk-sq.w, .rk-sq.s { background: color-mix(in srgb, var(--rk-word) 38%, var(--sheet)); color: var(--ink); }
+.rk-sq.L { background: var(--rk-letter); color: #fff; }
+.rk-sq.l { background: color-mix(in srgb, var(--rk-letter) 36%, var(--sheet)); color: var(--ink); }
+.rk-sq.s { font-size: calc(var(--cell) * .6); color: var(--rk-word); }
+/* a tile: boxwood with its letter, its value small at the corner; a blank's letter is paler and has no value */
+.rk-sq.t { background: var(--rk-wood); color: var(--rk-wood-ink); box-shadow: inset 0 0 0 1px var(--rk-wood-edge); cursor: default; }
+.rk-sq.t b { font-size: calc(var(--cell) * .64); font-weight: 800; }
+.rk-sq.t i { position: absolute; right: 7%; bottom: 3%; font-size: max(.5rem, calc(var(--cell) * .27)); font-weight: 700; font-style: normal; }
+.rk-sq.t.blank b { opacity: .55; }
+.rk-sq.t.pend { box-shadow: inset 0 0 0 2px var(--rk-in); background: color-mix(in srgb, var(--rk-in) 24%, var(--rk-wood)); cursor: pointer; }
+.rk-sq.t.last { box-shadow: inset 0 0 0 2px var(--rk-word); }
+
+/* ---------- your rack and your buttons ---------- */
+.rk-side { display: flex; flex-direction: column; gap: .4rem; padding-top: .45rem; }
+/* two lines kept, the words centred in them, so a longer line doesn't push the rack down as it comes and goes */
+.rk-status { display: flex; align-items: center; justify-content: center; height: 2.6em; margin: 0; overflow: hidden; line-height: 1.3; text-align: center; font-size: .88rem; color: var(--ink-soft); }
+.rk-status b { color: var(--ink); }
+.rk-status em { font-style: normal; font-weight: 800; color: var(--rk-in); }
+.rk-rack { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .3rem; width: 100%; max-width: 24rem; margin: 0 auto; }
+.rk-t { position: relative; aspect-ratio: 1; min-width: 0; display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; cursor: pointer;
+  background: var(--rk-wood); color: var(--rk-wood-ink); box-shadow: inset 0 0 0 1px var(--rk-wood-edge), 0 2px 0 var(--rk-wood-edge); font: inherit; }
+.rk-t b { font-size: clamp(1.1rem, 6.4vw, 1.8rem); font-weight: 800; line-height: 1; }
+.rk-t i { position: absolute; right: 9%; bottom: 5%; font-size: .62rem; font-weight: 700; font-style: normal; }
+.rk-t.blank b { opacity: .5; }
+.rk-t.sel { transform: translateY(-.25rem); box-shadow: inset 0 0 0 2.5px var(--rk-in), 0 2px 0 var(--rk-wood-edge); background: color-mix(in srgb, var(--rk-in) 22%, var(--rk-wood)); }
+.rk-t.gone { visibility: hidden; }
+.rk-t.pick { background: color-mix(in srgb, var(--rk-word) 30%, var(--rk-wood)); box-shadow: inset 0 0 0 2.5px var(--rk-word), 0 2px 0 var(--rk-wood-edge); }
+.rk-t:disabled { cursor: default; }
+@media (prefers-reduced-motion: reduce) { .rk-t.sel { transform: none; } }
+.rk-bar { display: flex; gap: .4rem; align-items: center; }
+/* the suite's wide capitals are broad: a little smaller and closer here, so Shuffle and Recall are whole in a quarter of the width */
+.rk-go { flex: 1 1 0; min-width: 0; min-height: 2.8rem; padding: .3rem .1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .74rem; letter-spacing: calc(.04em * var(--track)); }
+.rk-go.play { flex: 1.3 1 0; }
+.rk-go:disabled { opacity: .45; }
+
+/* ---------- the sheets ---------- */
+.rk-rules p { line-height: 1.45; }
+.rk-end-head { margin: .2rem 0 .6rem; }
+.rk-note { margin: 0 0 .6rem; color: var(--ink-soft); font-size: .9rem; }
+.rk-swap { margin-bottom: .8rem; }
+.rk-keys { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .3rem; }
+.rk-keys button { aspect-ratio: 1; padding: 0; border: 0; border-radius: 4px; background: var(--rk-wood); color: var(--rk-wood-ink); box-shadow: inset 0 0 0 1px var(--rk-wood-edge); font: inherit; font-weight: 800; font-size: 1.1rem; cursor: pointer; }
+.rk-tally { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.rk-tally th, .rk-tally td { padding: .45rem .3rem; text-align: right; border-bottom: 1px solid var(--rule); }
+.rk-tally thead td { font-size: .72rem; color: var(--ink-soft); }
+.rk-tally tbody th { text-align: left; font-weight: 700; }
+.rk-tally tr.won th::after { content: " ★"; color: var(--rk-in); }
+.rk-end-note { color: var(--ink-soft); font-size: .9rem; }
+.rk-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.rk-end-go.rk-three { grid-template-columns: 1fr 1fr 1.3fr; }
+.rk-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.rk-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* held sideways: the board on the left, your rack and buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.rack { --beside: 21rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.rack .rk-strip { grid-column: 1 / -1; grid-row: 2; }
+  #app.rack .rk-box { grid-column: 1; grid-row: 3; }
+  #app.rack .rk-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
+}
+html[data-theme="office"] :is(.rk-pl, .rk-t, .rk-keys button) { border-radius: 3px; }

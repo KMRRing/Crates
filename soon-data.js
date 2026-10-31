@@ -4,16 +4,6 @@
 // `line` is the game in a sentence, `todo` what building it takes and where the risk is. A game that gets built loses its entry
 // here and its tile points at its own page; tests/soon.mjs fails while a tile and its entry disagree.
 export const SOON = {
-  rack: {
-    name: "Rack", sec: "table",
-    line: "A word game on a board: seven tiles on a rack, premium squares, words that cross, a bag drawn from.",
-    todo: [
-      "The decision before any code: the word list. ENABLE is public domain but lacks British words; Collins is the one UK players expect and is proprietary. Check what Assay's and Codeword's lists already carry.",
-      "A strong computer opponent is cheap once the list is a compact word index: find every word that fits on an anchor square, score them, play the best (or a weaker one, by level).",
-      "Two players on one phone and a partner's match, as the other table games have. Quiet, tactile: wooden tiles, no flash.",
-      "A full list adds weight to the offline cache (sw.js keeps every file); size it first.",
-    ],
-  },
   stone: {
     name: "Stone", sec: "table",
     line: "Go (Weiqi, 围棋): black and white stones on a board, territory taken and held, stones captured when they lose their last liberty.",
