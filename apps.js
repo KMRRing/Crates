@@ -8,6 +8,7 @@ import { duoLine } from "./duo-records.js";
 import { choice, toggle, line, RETE } from "./menu.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 import { bindRandom } from "./random.js";
+import { bindDeckRow } from "./deck-row.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
 // times --wire, which style.css raises on the selected game; the engraved detail keeps its own fine weight.
@@ -457,33 +458,33 @@ const LINE = LOOK === "kontor" || LOOK === "office";
 const LOGO = (id, almanac) => (LOOK === "modern" ? MODERN_LOGOS[id] : LINE ? KONTOR_LOGOS[id] : null) || almanac;
 
 export const APPS = [
-  { id: "crates", sec: "learn", name: "Crates", href: "./crates.html", logo: LOGO("crates", CRATES_LOGO), score: "board" },   // its best: today's board, points then time
+  { id: "crates", sec: "knowledge", name: "Crates", href: "./crates.html", logo: LOGO("crates", CRATES_LOGO), score: "board" },   // its best: today's board, points then time
   { id: "glyph", sec: "puzzle", name: "Slate", href: "./slate.html", logo: LOGO("slate", SLATE_LOGO) },
   { id: "delta", sec: "puzzle", name: "Delta", href: "./delta.html", logo: LOGO("delta", DELTA_LOGO) },
-  { id: "punt", sec: "learn", name: "Punt", href: "./punt.html", logo: LOGO("punt", PUNT_LOGO), score: "return" },   // its best: a return a question
+  { id: "punt", sec: "knowledge", name: "Punt", href: "./punt.html", logo: LOGO("punt", PUNT_LOGO), score: "return" },   // its best: a return a question
   { id: "cartel", sec: "table", name: "Cartel", href: "./cartel.html", logo: LOGO("cartel", CARTEL_LOGO) },
   { id: "spot", sec: "puzzle", name: "Spot", href: "./spot.html", logo: LOGO("spot", SPOT_LOGO) },
-  { id: "quote", sec: "learn", name: "Quote", href: "./quote.html", logo: LOGO("quote", QUOTE_LOGO) },
-  { id: "origin", sec: "learn", name: "Origin", href: "./origin.html", logo: LOGO("origin", ORIGIN_LOGO) },
-  { id: "order", sec: "learn", name: "Order", href: "./order.html", logo: LOGO("order", ORDER_LOGO) },
-  { id: "calibre", sec: "learn", name: "Calibre", href: "./calibre.html", logo: LOGO("calibre", CALIBRE_LOGO) },
+  { id: "quote", sec: "knowledge", name: "Quote", href: "./quote.html", logo: LOGO("quote", QUOTE_LOGO) },
+  { id: "origin", sec: "knowledge", name: "Origin", href: "./origin.html", logo: LOGO("origin", ORIGIN_LOGO) },
+  { id: "order", sec: "knowledge", name: "Order", href: "./order.html", logo: LOGO("order", ORDER_LOGO) },
+  { id: "calibre", sec: "courses", name: "Calibre", href: "./calibre.html", logo: LOGO("calibre", CALIBRE_LOGO) },
   { id: "manifest", sec: "puzzle", name: "Manifest", href: "./manifest.html", logo: LOGO("manifest", MANIFEST_LOGO) },
-  { id: "chart", sec: "learn", name: "Chart", href: "./chart.html", logo: LOGO("chart", CHART_LOGO) },
+  { id: "chart", sec: "knowledge", name: "Chart", href: "./chart.html", logo: LOGO("chart", CHART_LOGO) },
   { id: "harbour", sec: "puzzle", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO) },
   { id: "pipes", sec: "puzzle", name: "Pipes", href: "./pipes.html", logo: LOGO("pipes", PIPES_LOGO) },
   { id: "hong", sec: "table", name: "Hong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO) },
-  { id: "deck", sec: "learn", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO) },
+  { id: "deck", sec: "knowledge", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO) },
   { id: "tribute", sec: "table", name: "Tribute", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO) },
-  { id: "arb", sec: "learn", name: "Arb", href: "./arb.html", logo: LOGO("arb", ARB_LOGO) },
+  { id: "arb", sec: "knowledge", name: "Arb", href: "./arb.html", logo: LOGO("arb", ARB_LOGO) },
   { id: "survey", sec: "puzzle", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO) },
-  { id: "blend", sec: "learn", name: "Blend", href: "./blend.html", logo: LOGO("blend", BLEND_LOGO) },
-  { id: "refinery", sec: "learn", name: "Refinery", href: "./refinery.html", logo: LOGO("refinery", REFINERY_LOGO) },
-  { id: "brut", sec: "learn", name: "Brut", href: "./brut.html", logo: LOGO("brut", BRUT_LOGO) },
-  { id: "lexicon", sec: "learn", name: "Lexicon", href: "./lexicon.html", logo: LOGO("lexicon", LEXICON_LOGO) },
-  { id: "ledger", sec: "learn", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO) },
+  { id: "blend", sec: "courses", name: "Blend", href: "./blend.html", logo: LOGO("blend", BLEND_LOGO) },
+  { id: "refinery", sec: "courses", name: "Refinery", href: "./refinery.html", logo: LOGO("refinery", REFINERY_LOGO) },
+  { id: "brut", sec: "courses", name: "Brut", href: "./brut.html", logo: LOGO("brut", BRUT_LOGO) },
+  { id: "lexicon", sec: "knowledge", name: "Lexicon", href: "./lexicon.html", logo: LOGO("lexicon", LEXICON_LOGO) },
+  { id: "ledger", sec: "knowledge", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO) },
   { id: "stow", sec: "puzzle", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO) },
-  { id: "parley", sec: "learn", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO) },
-  { id: "crossword", sec: "learn", name: "Crossword", href: "./crossword.html", logo: LOGO("crossword", CROSSWORD_LOGO), team: "time" },
+  { id: "parley", sec: "courses", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO) },
+  { id: "crossword", sec: "knowledge", name: "Crossword", href: "./crossword.html", logo: LOGO("crossword", CROSSWORD_LOGO), team: "time" },
   // Classics: the canonical puzzle genres, by their usual rules (README, Classics)
   { id: "sudoku", sec: "classics", name: "Sudoku", href: "./sudoku.html", logo: LOGO("sudoku", SUDOKU_LOGO), team: "time" },
   { id: "mines", sec: "classics", name: "Mines", href: "./mines.html", logo: LOGO("mines", MINES_LOGO), team: "time" },
@@ -563,6 +564,9 @@ const THEMES = [["deco", "Almanac"], ["modern", "Modern"], ["kontor", "Kontor"],
 const MODES = [["auto", "Auto"], ["day", "Day"], ["night", "Night"]];
 export const theme = () => document.documentElement.dataset.theme || "deco";
 const mode = () => document.documentElement.dataset.mode || "auto";
+// The Random and Deck lines under the head can be put away in Settings (on this device; on at first)
+const BANNER = "suite:banner";
+const bannerOn = () => { try { return localStorage.getItem(BANNER) !== "off"; } catch { return true; } };
 /** Keeps a look on this device and redraws the page in it (the logos and the menu button are the theme's own). */
 function keep(key, value, fallback) {
   try { if (value === fallback) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch { /* private mode */ }
@@ -586,6 +590,10 @@ function openSettings(host) {
   sheet.querySelector(".settings-body").replaceChildren(
     choice("Theme", THEMES, theme(), t => keep("suite:theme", t, "deco")),
     choice("Appearance", MODES, mode(), m => keep("suite:mode", m, "auto")),
+    toggle("Random and Deck on this screen", bannerOn(), on => {
+      try { if (on) localStorage.removeItem(BANNER); else localStorage.setItem(BANNER, "off"); } catch { /* private mode */ }
+      host.querySelector("[data-rows]")?.toggleAttribute("hidden", !on);      // at once, nothing to reload
+    }),
     picturesPart(sheet),
     startOver());
   sheet.showModal();
@@ -652,7 +660,7 @@ function startOver() {
 }
 
 /** The games screen's sections, in order: every game is in one (APPS' sec). */
-export const SECTIONS = [["learn", "Learning"], ["puzzle", "Puzzles"], ["classics", "Classics"], ["idle", "Idle"], ["table", "Board & card games"], ["casino", "Casino"], ["party", "Party"], ["tools", "Tools"]];
+export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["classics", "Classics"], ["idle", "Idle"], ["table", "Board & card games"], ["casino", "Casino"], ["party", "Party"], ["tools", "Tools"]];
 /** A tile's name: a long one (Refinery, Manifest) set closer, a longer one (Undercover) smaller too, to fit its tile. */
 export const nameClass = name => `app-name${name.length >= 10 ? " long longer" : name.length >= 8 ? " long" : ""}`;
 const tile = (a, current) => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
@@ -846,7 +854,7 @@ export function bindSwitcher(button, current) {
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <p class="menu-line apps-note" role="status" hidden></p>
-    <div class="rd-row" data-random></div>
+    <div class="rd-rows" data-rows${bannerOn() ? "" : " hidden"}><div class="rd-row" data-random></div><div class="rd-row" data-deck></div></div>
     <ul class="apps-list">${tiles(APPS, current)}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
@@ -899,4 +907,5 @@ export function bindSwitcher(button, current) {
   }
   // Random (random.js): its row under the head, and random mode playing on in this game, or ended by your coming here
   bindRandom({ games: APPS, sections: SECTIONS, row: dlg.querySelector("[data-random]"), title: current ? button : null, current });
+  bindDeckRow({ row: dlg.querySelector("[data-deck]"), host: dlg });
 }

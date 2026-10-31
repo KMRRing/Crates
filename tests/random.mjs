@@ -5,7 +5,7 @@
 // the session, the solo-only address and a seats game's round as its step changes.
 import fs from "fs";
 import { ROUNDS, LEFT_OUT, ELIGIBLE, chosenFrom, keptFrom, canStart, pickNext, soloAddress, runOf, endsRound } from "../random-core.js";
-import { testsOf } from "../tools/pick-tests.mjs";
+import { pick } from "../tools/pick-tests.mjs";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -104,7 +104,7 @@ check(/sessionStorage\.setItem\(RUN/.test(page) && /localStorage\.setItem\(CHOIC
   "the choice is kept on the device under a suite: key (never synced), the run in the session");
 check(/IN_FRAME/.test(page) && /\blan\b/.test(page) && /soloAddress\(location\.search\)/.test(page), "random.js asks the frame, the offline party and the address before anything");
 check(/bindRandom\(\{[^}]*row: dlg\.querySelector\("\[data-random\]"\)/.test(apps) && /class="rd-row" data-random/.test(apps), "the games screen has its Random row");
-check(testsOf("random.js") === null && testsOf("random-core.js") === null, "a change to random mode runs every test (every game loads it)");
+check(["random.js", "random-core.js"].every(f => pick([f], 0, { slow: true }).includes("tests/random.mjs")), "a change to random mode runs its own test");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log(`random: ${ELIGIBLE.length} games dealt, each saying when its round is over; the pick, the choice and the run as they should be`);

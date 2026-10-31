@@ -807,6 +807,13 @@ html.flag-font :is(button, input, select, textarea) { font-family: var(--font); 
    it plays this game) and the games it may deal; a way to play, not a tile. Its icon is a line icon in every theme,
    in the colour of the button it's on. */
 .rd-row { display: flex; gap: .5rem; margin: .75rem 0 0; flex: none; max-width: 30rem; }
+/* Random's line and Deck's under it, one box so Settings can put both away; sideways they stand side by side */
+.rd-rows { display: grid; gap: .5rem; margin: .75rem 0 0; flex: none; max-width: 30rem; }
+.rd-rows > .rd-row { margin: 0; max-width: none; min-width: 0; }
+.rd-rows .rd-choose { flex: none; min-width: 7.25rem; }       /* the two lines end alike, whatever their counts say */
+@media (orientation: landscape) and (min-width: 700px) {
+  .rd-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 46rem; gap: .75rem; }
+}
 .rd-row .btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 2.5rem; margin: 0; padding: .4rem .65rem;
   letter-spacing: calc(.05em * var(--track)); white-space: nowrap; }
 /* the plate takes the room; on a screen narrower than a phone's 390 its words give way last, never the row */
@@ -815,8 +822,11 @@ html.flag-font :is(button, input, select, textarea) { font-family: var(--font); 
 .rd-ico { width: 1.125rem; height: 1.125rem; flex: none; }
 html :is(.rd-tag, .rd-row, .rd-next) svg.k-ico { color: inherit; }
 /* the games it may deal, by section, each with All and None (menu.js's ticks); the sheet scrolls, the screen doesn't */
-.rd-sheet .rd-sheet-body { padding: .2rem 0 .4rem; }
+.rd-sheet .rd-sheet-body, .rd-scope .rd-sheet-body { padding: .2rem 0 .4rem; }
 .rd-sheet .menu-grid { grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr)); }
+/* Deck's scope: topics have longer names than games, so wider cells; the sheet scrolls, the screen doesn't */
+.rd-scope .menu-grid { grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); }
+.rd-scope .rd-sheet-body > * + * { margin-top: .8rem; }
 .menu-ticks-head { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; }
 .menu-allnone { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; }
 .menu-allnone .link { font-size: .8rem; }

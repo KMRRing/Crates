@@ -8,20 +8,21 @@
  * here must make that call (tests/random.mjs reads every one's files for it).
  */
 export const ROUNDS = {
-  // Learning
+  // Knowledge
   crates: "a board, solved or out of lives",
   punt: "a run, its last bet settled (an endless run, when you end it)",
   quote: "a set, its last quote settled",
   origin: "a run of five countries, its last one decided",
   order: "a run, its last card placed or its lives gone",
-  calibre: "a level, its movement running",
   chart: "a set, its last pin in",
   arb: "a run of five routes, its last one decided",
+  crossword: "a grid, solved or revealed",
+  // Courses
+  calibre: "a level, its movement running",
   blend: "an order certified, or a desk's tanks closed",
   refinery: "a level, its plant run to more stars than it had",
   brut: "a flight of six wines named, or a study session",
   parley: "a study session",
-  crossword: "a grid, solved or revealed",
   // Puzzles
   glyph: "a board, solved or given up",
   delta: "a board, solved or given up",

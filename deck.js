@@ -20,6 +20,8 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { setRich } from "./rich.js";
 import { showPicture, askedWith } from "./pics.js";
 import { SUBJECTS, SUBJECT } from "./kb-index.js";
+import { scopeNow, labelOf, openScope } from "./deck-row.js";
+import { inScope, sayScope } from "./deck-scope.js";
 import { speak } from "./voice.js";
 import { check } from "./typing.js";
 import { COURSES } from "./parley-courses.js";
@@ -30,6 +32,9 @@ const MAX_REVIEW = 40;
 let session = null;    // { items, at, right, wrong }
 let board = null;
 let picked = [];
+const kbIndex = { SUBJECTS, SUBJECT };
+/** What's due in the games and topics Deck covers (deck-scope.js), the most revised first: a review's order, and the count the games screen shows. */
+const dueNow = () => inScope(pile.due(), scopeNow(), labelOf(kbIndex));
 let answered = false;  // the card on show has been answered: Enter (or, on a typed card, typing) moves on
 let submitTyped = null;
 
@@ -48,8 +53,8 @@ function overview() {
   $("overview").hidden = false;
   $("review").hidden = true;
   board?.destroy(); board = null;
-  const c = pile.counts();
-  $("lead").textContent = c.total ? `What you missed, passed on or barely staked on, brought back until you know it. Right moves an item up a pile; wrong drops it to the first. ${c.due ? `${c.due} due now.` : "Nothing due yet."}`
+  const c = pile.counts(), due = dueNow().length;
+  $("lead").textContent = c.total ? `What you missed, passed on or barely staked on, brought back until you know it. Right moves an item up a pile; wrong drops it to the first. ${due ? `${due} due now.` : c.due ? "Nothing due in what Deck covers." : "Nothing due yet."}`
     : "Nothing banked yet. Play Punt, Quote, Chart, Crates or Gambit's puzzle rush: what you miss, pass on or stake 20% or less on lands here, and comes back until you know it.";
   $("piles").replaceChildren(...PILES.map((p, i) => {
     const d = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span"), small = document.createElement("small");
@@ -68,8 +73,9 @@ function overview() {
     return d;
   }).filter(Boolean));
   drawSubjects();
-  $("reviewBtn").textContent = c.due ? `Review ${Math.min(c.due, MAX_REVIEW)} due` : "Nothing to review";
-  $("reviewBtn").disabled = !c.due;
+  $("coverSay").textContent = sayScope(scopeNow());
+  $("reviewBtn").textContent = due ? `Review ${Math.min(due, MAX_REVIEW)} due` : "Nothing to review";
+  $("reviewBtn").disabled = !due;
 }
 /**
  * Coverage by subject, across the games: for each subject of the knowledge base, how many of its things the pile is
@@ -121,7 +127,7 @@ function arrange(items) {
   return out.flatMap(x => (x.block ? shuffle(Math.random, blocks.get(x.block)) : [x]));
 }
 function startReview() {
-  const items = arrange(pile.due().slice(0, MAX_REVIEW));
+  const items = arrange(dueNow().slice(0, MAX_REVIEW));
   if (!items.length) { overview(); return; }
   session = { items, at: 0, right: 0, wrong: 0 };
   $("overview").hidden = true;
@@ -506,11 +512,10 @@ function next() {
 }
 function finish() {
   board?.destroy(); board = null;
-  const c = pile.counts();
   $("overview").hidden = false;
   $("review").hidden = true;
   overview();
-  if (session) toast(`${session.right} right, ${session.wrong} wrong. ${c.due ? `${c.due} still due.` : "Nothing more due now."}`, 5000);
+  if (session) toast(`${session.right} right, ${session.wrong} wrong. ${dueNow().length ? `${dueNow().length} still due.` : "Nothing more due now."}`, 5000);
   session = null;
 }
 
@@ -523,10 +528,15 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
-// the menu: Settings (learning mode; forgetting the pile), About (the piles' gaps)
+/** The games and topics a review covers (deck-scope.js), the same sheet as the games screen's Deck line. */
+function chooseScope() { openScope(document.body, { subjects: kbIndex, onChange: () => { if (!$("overview").hidden) overview(); } }); }
+// the menu: what to cover, Settings (learning mode; forgetting the pile), About (the piles' gaps)
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  part(body, "content").append(
+    line(sayScope(scopeNow())),
+    action("Choose games and topics", chooseScope));
   part(body, "settings").append(
     choice("Learning mode", pile.MODES, pile.mode(), pile.setMode),
     action("Forget everything", () => { if (confirm("Empty the pile? Every banked item goes.")) { pile.clear(); overview(); } }, "link"));
@@ -549,6 +559,7 @@ document.querySelector(".dk-mark").innerHTML = APPS.find(a => a.id === "deck").l
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("reviewBtn").addEventListener("click", startReview);
+$("scopeBtn").addEventListener("click", chooseScope);
 $("nextBtn").addEventListener("click", next);
 // the keyboard, for a card without a field: 1 to 9 pick an option, Enter moves on once it's answered
 document.addEventListener("keydown", e => {
@@ -581,3 +592,7 @@ async function refreshPunt() {
 window.__deck = { get session() { return session; }, startReview, overview, pile };
 try { await refreshPunt(); } catch { /* the stored questions still serve */ }
 overview();
+// the games screen's Deck button comes here as deck.html#review (or sets it, when it's pressed on this page): a review at once
+const fromAddress = () => { if (location.hash === "#review") { history.replaceState(null, "", location.pathname + location.search); if (!session || $("review").hidden) startReview(); } };
+addEventListener("hashchange", fromAddress);
+fromAddress();

@@ -31,6 +31,9 @@ html[data-mode="night"] { --dk-in: #C08FD0; --dk-good: #7FC2A8; --dk-bad: #E8806
 .dk-games span.due { color: var(--dk-in); font-weight: 750; }
 .dk-go { width: 100%; min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .dk-go:disabled { opacity: .45; cursor: default; }
+/* what the review covers, under the lists and above the button: the games and topics left out, and the way to change them */
+.dk-cover { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; margin: .55rem 0; color: var(--ink-soft); font-size: .85rem; line-height: 1.35; }
+.dk-cover .link { flex: none; font-size: .85rem; }
 .dk-go[hidden] { display: none; }
 
 .dk-review { display: grid; gap: .5rem; }
