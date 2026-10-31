@@ -7,6 +7,7 @@ import { QUOTES } from "./quote-bank.js";
 import { TOPICS } from "./quote-engine.js";
 import { drawWeighted } from "./topics.js";
 import { SEQUENCES } from "./kb/items/sequences.js";
+import { DIMENSIONS, dimensionOf, sizeOf } from "./kb/units.js";
 
 export const LIVES = 3, DATES_PER_RUN = 16, MOST = 6;     // MOST: the most at one table (a party's)
 export const FEWEST = 8;          // a mix of topics with fewer dated cards than this deals from every topic instead
@@ -17,9 +18,19 @@ const shuffle = (r, xs) => { const a = [...xs]; for (let i = a.length - 1; i > 0
 // ---------- the cards ----------
 export const BY_ID = new Map(QUOTES.map(q => [q.id, q]));
 export const DATES = QUOTES.filter(q => q.unit === "year").map(q => q.id);
-// quantities: one family a run, a unit with enough cards to make a line
-export const FAMILIES = Object.entries(QUOTES.filter(q => q.unit !== "year").reduce((f, q) => ((f[q.unit] ||= []).push(q.id), f), {}))
-  .filter(([, ids]) => ids.length >= 6).map(([unit, ids]) => ({ unit, ids }));
+// quantities: one family a run, the cards of one dimension with enough of them to make a line (kb/units.js: a hectare and a
+// square kilometre are areas, so they share a line, each card in its own unit; a unit nothing else shares is its own family).
+// `unit` is the family's name as a run keeps it: the dimension, or the unit when it stands alone.
+export const FAMILIES = Object.values(QUOTES.filter(q => q.unit !== "year").reduce((f, q) => {
+  const unit = dimensionOf(q.unit), fam = (f[unit] ||= { unit, ids: [], units: [] });
+  fam.ids.push(q.id);
+  if (!fam.units.includes(q.unit)) fam.units.push(q.unit);
+  return f;
+}, {})).filter(f => f.ids.length >= 6).map(f => ({ ...f, mixed: f.units.length > 1, label: f.units.length > 1 ? DIMENSIONS[f.unit]?.label || f.unit : f.unit }));
+/** A run's family by the name it keeps; a run saved before the dimensions (one unit, say metres) still reads. */
+export const familyOf = unit => FAMILIES.find(f => f.unit === unit || f.units.includes(unit)) || { unit, ids: [], units: [unit], mixed: false, label: unit };
+/** Your best in a family: the keys it was kept under before the units were put together count too. */
+export const bestIn = (best, fam) => Math.max(0, best[`q:${fam.unit}`] ?? 0, ...fam.units.map(u => best[`q:${u}`] ?? 0));
 // stories: each event a card whose truth is its place in the story
 export const STORIES = new Map(SEQUENCES.map(s => [s.id, s]));
 for (const s of SEQUENCES) s.steps.forEach((text, i) => BY_ID.set(`st:${s.id}:${i + 1}`, { id: `st:${s.id}:${i + 1}`, q: text, truth: i + 1, unit: s.unit, story: s.id }));
@@ -62,8 +73,15 @@ export function dealRun(mode, seed, weights = null) {
   return { seed, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false, ...(wide ? { wide } : {}) };
 }
 export const truth = id => BY_ID.get(id).truth;
+/** What a card is worth in the line: its truth, in its dimension's base where the unit is one of several (a story's place
+ *  and a year are their truth). A line is in order of this. */
+export const size = id => { const q = BY_ID.get(id); return q.story ? q.truth : sizeOf(q.truth, q.unit); };
+// Two quantities within a hundredth of each other are the same size to anyone (the sources round differently: Egypt's 116.5
+// million and the Philippines' 115.8), so a card goes either side of its neighbour then. Years and stories are exact.
+const NEAR = 1.01;
+const notAbove = (a, b) => size(a) <= size(b) || (!BY_ID.get(a).story && BY_ID.get(a).unit !== "year" && size(a) <= size(b) * NEAR);
 /** Whether a card belongs in a slot of the line: its neighbours hold it (ties go either side). */
-export const fits = (line, id, slot) => (slot === 0 || truth(line[slot - 1].id) <= truth(id)) && (slot === line.length || truth(id) <= truth(line[slot].id));
+export const fits = (line, id, slot) => (slot === 0 || notAbove(line[slot - 1].id, id)) && (slot === line.length || notAbove(id, line[slot].id));
 /**
  * Places the card in hand in a slot of the line (the run changes): a wrong place costs a life and the card goes where
  * it belongs, so the line is always right; the run is over when the lives or the deck run out. `mark` goes on the card
@@ -72,7 +90,7 @@ export const fits = (line, id, slot) => (slot === 0 || truth(line[slot - 1].id) 
 export function placeCard(run, slot, mark = {}) {
   const id = run.deck[0], ok = fits(run.line, id, slot);
   let at = slot;
-  if (!ok) { at = run.line.findIndex(c => truth(c.id) > truth(id)); if (at < 0) at = run.line.length; run.lives--; }
+  if (!ok) { at = run.line.findIndex(c => size(c.id) > size(id)); if (at < 0) at = run.line.length; run.lives--; }
   else run.placed++;
   run.line.splice(at, 0, { id, ok, ...mark });
   run.deck.shift();

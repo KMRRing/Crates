@@ -35,7 +35,7 @@ export async function build() {
   const crates = Buffer.from(JSON.stringify(raw), "utf8").toString("base64");
 
   const gen = written(ENTITIES, LINKS, E, await load("items/choice/art.js").then(m => m.ITEMS), estimates.ESTIMATES, pins.PINS,
-    await load("items/choice/law.js").then(m => m.STAGES));
+    await load("items/choice/law.js").then(m => m.STAGES), await load("measures.js").then(m => m.MEASURES));
   // Chart: each pin shows its entity, with the pin's own overrides
   const PLACES = [...pins.PINS, ...gen.pins].map(({ id, cat, about, ...over }) => {
     const { name, lat, lon, note, country, region, pic, state, marks } = of(about);
@@ -87,7 +87,7 @@ export async function build() {
 // well); museums Chart can pin, then the rest. A painting's note, the story of the picture, closes the explanation of
 // who painted it and Quote's note on its year (Lexicon shows it too). The options' order and the ids come from
 // the entity, so the same build always writes the same questions, and the pile keeps track of them.
-function written(ENTITIES, LINKS, E, art, estimates, pins, lawStages) {
+function written(ENTITIES, LINKS, E, art, estimates, pins, lawStages, measures) {
   // each thing's first link of each kind, indexed once: the wrong options below ask for the movement of every painter's
   // every painting, for each painting, and a scan of every link each time made the build take fourteen seconds once
   // there were 200 paintings
@@ -207,6 +207,14 @@ function written(ENTITIES, LINKS, E, art, estimates, pins, lawStages) {
       tiers: { SS: 0.006, S: 0.045, A: 0.105, B: 0.21 }, d: 4, about: b.id, fact: "height", pic: b.pic, note: `${b.name}: ${b.height} metres.` });
   }
   for (const b of ENTITIES.filter(e => e.sets.includes("building") && e.lat !== undefined)) if (!pinned.has(b.id)) { out.pins.push({ id: `ah-p-${b.id}`, cat: "architecture", about: b.id }); pinned.add(b.id); }
+
+  // Numbers an entity carries (kb/measures.js: a country's area and population, a river's length, a lake's depth…): one
+  // Quote question for each, its truth the entity's, unless a question is written by hand for the same fact
+  const handled = new Set(estimates.filter(q => q.about && q.fact).map(q => `${q.about}:${q.fact}`));
+  for (const m of measures) for (const e of ENTITIES) {
+    if (!e.sets.includes(m.set) || !Number.isFinite(e[m.key]) || handled.has(`${e.id}:${m.key}`)) continue;
+    out.quotes.push({ id: `mq-${m.key}-${e.id}`, cat: m.cat, q: m.q(e), unit: m.unit, scale: m.scale, tol: m.tol, note: m.note(e, e[m.key]), tiers: m.tiers, d: m.d(e), fam: `${m.set.replace("feature:", "")}-${m.key}`, about: e.id, fact: m.key });
+  }
 
   // The gods, asked by what they ruled and by their signs, and the Greeks by their Roman names: the wrong answers are
   // the other gods of the same pantheon, in an order fixed by the god. A domain or a sign never names its own god.
@@ -647,6 +655,8 @@ function decoy(ENTITIES, QUOTES, FACTS) {
     if (q.cat === "refining" || TECHNICAL.has(q.unit) || typeof q.truth !== "number" || q.truth < 0.1) continue;
     const text = q.title ? q.q.replace(/\bthis\b/, q.title) : q.q;
     if (/\bthis\b/i.test(text)) continue;                                     // a question about a picture it can't show
+    // a figure the build wrote from a thing's area or length (385,207 km²) is exact to the digit and the house's lies are round: it would show
+    if (q.fam && Number(q.truth.toPrecision(3)) !== q.truth) continue;
     const t = q.truth, step = q.unit === "year" ? (q.scale >= 25 ? 4 : q.scale >= 10 ? 2 : 1) : q.scale, round = q.scale >= 5 ? 5 : 1;
     // a year's lies are near it and never to come (the year written, 2026); a magnitude's by ratio; the rest by steps.
     // How many lie above the truth comes from its id, so the truth is as often the least as the greatest and its place

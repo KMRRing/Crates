@@ -9,7 +9,7 @@
 // Punt and Crates do; today's run is the same for everyone, whatever the mix.
 // Together, one run for the table (together.js): one deck and one line for everyone at it, anyone placing the card in
 // hand, the team's lives, each card marked with who placed it.
-import { LIVES, MODES, BY_ID, DATES, FAMILIES, STORIES, dealRun, topicsIn, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } from "./order-engine.js";
+import { LIVES, MODES, BY_ID, DATES, FAMILIES, STORIES, familyOf, bestIn, dealRun, topicsIn, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } from "./order-engine.js";
 import { withUnit, TOPIC_PRESETS, cleanTopics } from "./quote-engine.js";
 import { presetOf } from "./topics.js";
 import { showPicture, pictureName, nameIn } from "./pics.js";
@@ -86,14 +86,15 @@ const whereIn = (line, at) => (at === 0 ? "first" : at === line.length - 1 ? "la
 function render() {
   const R = G?.run || S;
   if (!R) { newRun("dates", false); return; }
-  $("where").textContent = `${R.mode === "stories" ? STORIES.get(R.story)?.name || MODES.stories : MODES[R.mode]}${R.mode === "quantities" ? `, in ${R.unit}` : ""}${R.daily ? " · today's" : R.ranked === false ? " · your topics" : ""} · placed ${R.placed}`;
+  $("where").textContent = `${R.mode === "stories" ? STORIES.get(R.story)?.name || MODES.stories : MODES[R.mode]}${R.mode === "quantities" ? `, ${familyOf(R.unit).mixed ? familyOf(R.unit).label : `in ${R.unit}`}` : ""}${R.daily ? " · today's" : R.ranked === false ? " · your topics" : ""} · placed ${R.placed}`;
   $("lives").textContent = "●".repeat(Math.max(0, R.lives)) + "○".repeat(LIVES - Math.max(0, R.lives));
   const next = R.deck[0];
   $("deal").hidden = !next || R.over;
   if (next && !R.over) {
     const q = BY_ID.get(next);
-    $("ask").textContent = R.mode === "dates" ? `When? Tap where it goes in ${G ? "the" : "your"} line` : R.mode === "stories" ? STORIES.get(R.story).ask : `How much, in ${R.unit}? Tap where it goes`;
-    $("card").textContent = cardText(q);
+    $("ask").textContent = R.mode === "dates" ? `When? Tap where it goes in ${G ? "the" : "your"} line` : R.mode === "stories" ? STORIES.get(R.story).ask : familyOf(R.unit).mixed ? "How much? Tap where it goes" : `How much, in ${R.unit}? Tap where it goes`;
+    // a family of several units (metres and kilometres) says which one this card is in
+    $("card").textContent = cardText(q) + (R.mode === "quantities" && familyOf(R.unit).mixed ? ` (in ${q.unit})` : "");
     // a painting's card shows the painting (fetched once per card, like Quote's: not again on every redraw)
     const pic = $("cardPic");
     if (!q.pic) { showPicture(pic, null); delete pic.dataset.title; }
@@ -318,7 +319,7 @@ function openMenu() {
   // with today's picked turns the next run to a random one
   topicsPart(content, pick.mode, true, () => { if (pick.daily) { pick.daily = false; openMenu(); } });
   const best = read(BEST, {});
-  part(body, "about").append(line(`Best: dates ${best.dates ?? "–"}${FAMILIES.some(f => best[`q:${f.unit}`] != null) ? `, quantities ${Math.max(...FAMILIES.map(f => best[`q:${f.unit}`] ?? 0))}` : ""} · ${DATES.length} dated cards, ${FAMILIES.length} families of quantities`));
+  part(body, "about").append(line(`Best: dates ${best.dates ?? "–"}${FAMILIES.some(f => bestIn(best, f)) ? `, quantities ${Math.max(...FAMILIES.map(f => bestIn(best, f)))}` : ""} · ${DATES.length} dated cards, ${FAMILIES.length} families of quantities`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

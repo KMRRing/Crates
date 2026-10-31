@@ -57,6 +57,32 @@ check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted
   check(all && fair && ENTITIES.filter(e => e.sets.includes("museum") && e.lat !== undefined).every(m => pinned.has(m.id)),
     `every painting asked in Punt and Quote (${gen.length} questions written by the build, each with four different options), every museum with a position pinned in Chart`);
 }
+// the numbers a thing carries (kb/measures.js): each a positive figure on a thing of the set it's for, asked once in Quote
+// (by hand, or written by the build with the figure as its truth); a figure no measure knows is a typo in a key
+{
+  const { MEASURES } = await import("../kb/measures.js");
+  const { UNITS } = await import("../kb/units.js");
+  const { QUOTES } = await import("../quote-bank.js");
+  const strays = ENTITIES.flatMap(e => Object.keys(e).filter(k => ["area", "population", "depth", "length", "top"].includes(k) && !MEASURES.some(m => m.key === k && e.sets.includes(m.set))).map(k => `${e.id}.${k}`));
+  check(!strays.length, `a figure only on a thing its measure is for${strays.length ? `: ${strays.slice(0, 4)}` : ""}`);
+  const carried = MEASURES.flatMap(m => ENTITIES.filter(e => e.sets.includes(m.set) && e[m.key] !== undefined).map(e => ({ m, e })));
+  // the built bank keeps what a question is about but not which fact; a hand-written one says so in kb/, a built one in its id
+  const byId = new Map(QUOTES.map(q => [q.id, q]));
+  const asked = new Map([...ESTIMATES.filter(q => q.about && q.fact).map(q => [`${q.about}:${q.fact}`, byId.get(q.id)]),
+    ...carried.filter(({ m, e }) => byId.has(`mq-${m.key}-${e.id}`)).map(({ m, e }) => [`${e.id}:${m.key}`, byId.get(`mq-${m.key}-${e.id}`)])]);
+  check(carried.every(({ m, e }) => Number.isFinite(e[m.key]) && e[m.key] > 0), `${carried.length} figures, each a positive number`);
+  const unasked = carried.filter(({ m, e }) => !asked.has(`${e.id}:${m.key}`));
+  check(!unasked.length, `every figure is a question in Quote${unasked.length ? `: not ${unasked.slice(0, 4).map(({ e, m }) => `${e.id}.${m.key}`)}` : ""}`);
+  const wrong = carried.filter(({ m, e }) => { const q = asked.get(`${e.id}:${m.key}`); return q && (q.truth !== e[m.key] || q.unit !== m.unit); });
+  check(!wrong.length, `a question's truth is the thing's figure, in the measure's unit${wrong.length ? `: ${wrong.slice(0, 3).map(({ e, m }) => `${e.id}.${m.key}`)}` : ""}`);
+  check(MEASURES.every(m => m.unit === "year" || m.unit in UNITS || m.unit === "million"), "every measure's unit is one Order can line up (kb/units.js)");
+  const built = QUOTES.filter(q => q.id.startsWith("mq-"));
+  const leaks = built.filter(q => q.q.replace(/,/g, "").includes(String(q.truth)) && q.truth > 99);
+  check(built.length >= 500 && new Set(built.map(q => q.id)).size === built.length && !leaks.length, `${built.length} questions written from figures, each once, none naming its own answer`);
+  const count = (set, key) => ENTITIES.filter(e => e.sets.includes(set) && e[key] !== undefined).length;
+  check(count("country", "area") === ENTITIES.filter(e => e.sets.includes("country")).length && count("country", "population") >= 160 && count("feature:river", "length") >= 55 && count("feature:lake", "area") >= 28 && count("feature:desert", "area") >= 20 && count("feature:range", "top") >= 25,
+    `every country has its area; ${count("country", "population")} their population, ${count("feature:river", "length")} rivers their length, ${count("feature:lake", "area")} lakes their area, ${count("feature:desert", "area")} deserts, ${count("feature:range", "top")} ranges their highest summit`);
+}
 const floor = { entities: 4396, clue: 5526, pins: 415, features: 172, estimates: 355 };
 const now = { entities: ENTITIES.length, clue: LINKS.filter(l => l.rel === "clue").length, pins: PINS.length, features: FEATURES.length, estimates: ESTIMATES.length };
 check(Object.entries(floor).every(([k, v]) => now[k] >= v), `nothing lost since the move: ${Object.entries(now).map(([k, v]) => `${v} ${k}`).join(", ")}`);

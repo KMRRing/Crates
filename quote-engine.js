@@ -129,14 +129,16 @@ function rng(seed) {
   let a = seed >>> 0;
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-/** The set for a seed: PER_SET questions from the bank in a seeded order, at most two from any category. */
+/** The set for a seed: PER_SET questions from the bank in a seeded order, at most two from any category and one of a
+ *  family (`fam`: the build writes hundreds of one sort, a country's area, and a set shouldn't be those alone). */
 export function pickSet(seed, bank, perSet = PER_SET, perCat = 2) {
   const r = rng(seed), order = [...bank];
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-  const used = {}, out = [];
+  const used = {}, fams = new Set(), out = [];
   for (const q of order) {
-    if ((used[q.cat] || 0) >= perCat) continue;
+    if ((used[q.cat] || 0) >= perCat || fams.has(q.fam)) continue;
     used[q.cat] = (used[q.cat] || 0) + 1;
+    if (q.fam) fams.add(q.fam);
     out.push(q);
     if (out.length === perSet) break;
   }
@@ -168,10 +170,11 @@ export function pickMixed(seed, bank, weights, perSet = PER_SET) {
   const w = q => weights?.[q.cat] ?? 1, ins = TOPICS.filter(([id]) => (weights?.[id] ?? 1) > 0);
   if (even(TOPICS, weights)) return pickSet(seed, bank, perSet);
   if (ins.length === 1) return pickSet(seed, bank.filter(q => w(q) > 0), perSet, perSet);
-  const order = drawWeighted(rng(seed), bank, w), used = {}, out = [];
+  const order = drawWeighted(rng(seed), bank, w), used = {}, fams = new Set(), out = [];
   for (const q of order) {
-    if ((used[q.cat] || 0) >= 2 * w(q)) continue;
+    if ((used[q.cat] || 0) >= 2 * w(q) || fams.has(q.fam)) continue;
     used[q.cat] = (used[q.cat] || 0) + 1;
+    if (q.fam) fams.add(q.fam);
     out.push(q);
     if (out.length === perSet) return out;
   }

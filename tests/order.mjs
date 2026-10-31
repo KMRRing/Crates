@@ -6,7 +6,7 @@
 // trip (tests/rtdb.js), which refuses undefined, drops what's empty and may give a list back as an object.
 // Run: node tests/order.mjs
 const { QUOTES } = await import("../quote-bank.js");
-const { LIVES, MOST, BY_ID, FEWEST, dealRun, topicsIn, fits, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } = await import("../order-engine.js");
+const { LIVES, MOST, BY_ID, FEWEST, FAMILIES, familyOf, bestIn, size, dealRun, topicsIn, fits, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } = await import("../order-engine.js");
 const { TOPICS, TOPIC_PRESETS, presetOf, cleanTopics } = await import("../quote-engine.js");
 const { roundTrip, same } = await import("./rtdb.js");
 let bad = 0;
@@ -14,17 +14,39 @@ const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } }
 
 // ---------- the cards ----------
 const dates = QUOTES.filter(q => q.unit === "year");
-const fams = Object.entries(QUOTES.filter(q => q.unit !== "year").reduce((f, q) => ((f[q.unit] ||= []).push(q), f), {})).filter(([, qs]) => qs.length >= 6);
 check(dates.length >= 16, `enough dated cards for a run (${dates.length})`);
-check(fams.length >= 4, `enough quantity families (${fams.length})`);
+check(FAMILIES.length >= 4 && FAMILIES.every(f => f.ids.length >= 6), `enough quantity families (${FAMILIES.length}), each of six cards or more`);
 const notNumbers = QUOTES.filter(q => !Number.isFinite(q.truth));
 check(!notNumbers.length, `every card a number (not: ${notNumbers.map(q => q.id).join(", ")})`);
 
 // ---------- a run ----------
-const truth = id => BY_ID.get(id).truth;
-const sorted = line => line.every((c, i) => i === 0 || truth(line[i - 1].id) <= truth(c.id));
+const sorted = line => line.every((c, i) => i === 0 || size(line[i - 1].id) <= size(c.id));
 const rightGap = run => [...run.line.keys(), run.line.length].find(s => fits(run.line, run.deck[0], s));
 const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(run.line, run.deck[0], s));
+
+// ---------- units that are sizes of one thing (kb/units.js) ----------
+// a family is one dimension: a hectare and a square kilometre are areas and share a line, each card in its own unit, ordered by
+// what it is in the dimension's base; a unit nothing else shares stands alone, as every unit once did
+{
+  const unitsIn = FAMILIES.flatMap(f => f.units);
+  check(new Set(unitsIn).size === unitsIn.length, "no unit is in two families");
+  const mixed = FAMILIES.filter(f => f.mixed), length = familyOf("metres");
+  check(mixed.length >= 4 && length.unit === "length" && length.units.includes("km") && length.units.includes("metres"), `${mixed.length} families put units together (${mixed.map(f => f.unit).join(", ")}); metres and kilometres are one`);
+  check(familyOf("km") === length && familyOf("no such unit").units.join() === "no such unit" && !familyOf("no such unit").mixed, "a run saved under a unit still finds its family, and an unknown unit is its own");
+  const a = BY_ID.get("tr-05"), b = BY_ID.get("tr-06");        // the Suez Canal (193 km) and the Ever Given (400 metres)
+  check(a.unit === "km" && b.unit === "metres" && a.truth < b.truth && size(a.id) > size(b.id), "193 km is longer than 400 metres though 193 is the smaller number");
+  const run = dealRun("quantities", 21, null);
+  const line = [...run.deck].map(id => ({ id })).sort((x, y) => size(x.id) - size(y.id));
+  check(sorted(line) && line.every((c, i) => i === 0 || fits(line, c.id, i) || size(line[i - 1].id) === size(c.id)), "a line of cards in different units is in order of their sizes");
+  const pops = FAMILIES.flatMap(f => f.ids).filter(id => id.startsWith("mq-population-")).map(id => [id, size(id)]).sort((x, y) => x[1] - y[1]);
+  const close = pops.findIndex(([, v], k) => k && v > pops[k - 1][1] && v / pops[k - 1][1] < 1.01), far = pops.findIndex(([, v], k) => k && v / pops[k - 1][1] > 1.05);
+  check(close > 0 && fits([{ id: pops[close - 1][0] }], pops[close][0], 0) && fits([{ id: pops[close - 1][0] }], pops[close][0], 1)
+    && far > 0 && !fits([{ id: pops[far - 1][0] }], pops[far][0], 0) && fits([{ id: pops[far - 1][0] }], pops[far][0], 1), "two quantities within one per cent fit either side of each other, others only in their place");
+  const years = dates.filter(q => !q.pic).map(q => q.truth).sort((a, b) => a - b), k = years.findIndex((v, n) => n && v === years[n - 1] + 1);
+  const [early, late] = [dates.find(q => q.truth === years[k - 1]), dates.find(q => q.truth === years[k])];
+  check(k > 0 && !fits([{ id: early.id }], late.id, 0) && fits([{ id: early.id }], late.id, 1), "years are exact: a year after another is never before it");
+  check(bestIn({ "q:metres": 7, "q:km": 4 }, length) === 7 && bestIn({ "q:length": 9, "q:km": 4 }, length) === 9 && bestIn({}, length) === 0, "a best kept under a unit before the units were put together still counts");
+}
 {
   const a = dealRun("dates", 11), b = dealRun("dates", 11);
   check(same(a, b) && !same(a, dealRun("dates", 12)), "a seed deals the same run every time, another seed another");
@@ -56,7 +78,7 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   for (let seed = 0; seed < 300; seed++) { more += cards(dealRun("dates", seed, { ...noArt, markets: 2 })).filter(id => cat(id) === "markets").length; inn += cards(dealRun("dates", seed, noArt)).filter(id => cat(id) === "markets").length; }
   check(more / inn > 1.6 && more / inn < 2.3, `a topic more is dealt about twice as often as in (${(more / inn).toFixed(2)} times)`);
   const refining = { ...none, refining: 1 }, q = dealRun("quantities", 7, refining);
-  check(cards(q).length >= 6 && cards(q).every(id => cat(id) === "refining" && BY_ID.get(id).unit === q.unit), "quantities: one family with six cards or more in the topics in, and only those cards");
+  check(cards(q).length >= 6 && cards(q).every(id => cat(id) === "refining" && familyOf(q.unit).units.includes(BY_ID.get(id).unit)), "quantities: one family with six cards or more in the topics in, and only those cards");
   const wine = dealRun("dates", 9, { ...none, wine: 1 });
   check(wine.wide && cards(wine).length === 16 && topicsIn("dates").length && [...new Set(cards(wine).map(cat))].length > 1 && FEWEST > 5,
     "a mix that leaves too few cards deals from every topic, and says so");
@@ -132,5 +154,5 @@ const seat = (name, slot) => ({ name, slot, pid: `p${slot}`, online: true });
     "the record counts the cards placed, each player's share adding up to it");
 }
 
-console.log(bad ? `order: ${bad} problems` : `order: ${dates.length} dated cards, ${fams.length} quantity families (${fams.map(([u, qs]) => `${u} ${qs.length}`).join(", ")}); a run, its topics and a table of three played through`);
+console.log(bad ? `order: ${bad} problems` : `order: ${dates.length} dated cards, ${FAMILIES.length} quantity families (${FAMILIES.map(f => `${f.unit} ${f.ids.length}`).join(", ")}); a run, its topics and a table of three played through`);
 if (bad) process.exitCode = 1;
