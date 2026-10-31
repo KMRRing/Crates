@@ -17,7 +17,7 @@ export const SOON = {
     name: "Masyu", sec: "classics",
     line: "One loop through a grid, passing every pearl: it turns on a black pearl and runs straight for at least a cell either side of it; it goes straight through a white pearl and turns in at least one of the cells beside it.",
     todo: [
-      "Shares a loop engine with Slitherlink, so it waits for that one.",
+      "Slitherlink is built, and its edge solver, loop rule and trial-based grading carry over: Masyu is pearls on cells instead of numbers, and a generator that keeps one answer.",
       "Generating boards with a single solution is the risk: more pearls than needed make it easy, fewer leave it ambiguous.",
       "Drawing the loop is a drag across cells; a tap on a cell edge is the alternative on a phone.",
     ],
@@ -28,15 +28,6 @@ export const SOON = {
     todo: [
       "The risk is the generator: boards that are unique and solvable by reasoning alone, never by guessing, are hard to make (Survey's and Hitori's rule), and many generators fail it.",
       "Do not ship it until a solver that only reasons as a person does can finish every board it makes.",
-    ],
-  },
-  slitherlink: {
-    name: "Slitherlink", sec: "classics",
-    line: "One loop along the edges of a grid of dots; each number says how many of its cell's four sides the loop uses.",
-    todo: [
-      "The engine: a solver on edges with propagation, a generator that checks the solution is unique, difficulty by the hardest human step.",
-      "Tapping an edge draws it, a second tap marks it as not used, a third clears it. The loop engine is then Masyu's too.",
-      "The next to build: the best of the loop puzzles, and Classics has no loop yet.",
     ],
   },
   rack: {

@@ -37,6 +37,7 @@ export const ROUNDS = {
   mines: "a field, cleared or blown up",
   nonogram: "a picture finished, and named when naming is on",
   hitori: "a puzzle solved",
+  slitherlink: "a puzzle solved",
   bulls: "a code broken or its rows run out, a duel settled, or a lock opened",
   assay: "a word, found or its guesses gone",
   yield: "a puzzle to Master refiner, or over (every word, the clock, or the words shown)",
@@ -99,7 +100,7 @@ export const LEFT_OUT = {
   quest: "hidden loyalties, a game for people round a table (Party's section)",
   timegrapher: "an instrument, not a game",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
-  bridges: "not built yet", masyu: "not built yet", nurikabe: "not built yet", slitherlink: "not built yet",
+  bridges: "not built yet", masyu: "not built yet", nurikabe: "not built yet",
   rack: "not built yet", stone: "not built yet", tarot: "not built yet",
 };
 

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Slitherlink</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dropdown.css">
+<link rel="stylesheet" href="slitherlink.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="slitherlink fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon slk-mark" aria-hidden="true"></span>Slitherlink</button></h1>
+    <div class="top-right">
+      <select id="level" class="pool" data-accent="slk" aria-label="Level">
+        <option value="easy" data-note="The numbers and the corners settle it">Easy</option>
+        <option value="medium" data-note="A short trial: suppose an edge, see it break">Medium</option>
+        <option value="hard" data-note="A longer trial, with few numbers to help">Hard</option>
+      </select>
+      <button id="rulesBtn" class="pick" aria-haspopup="dialog">Rules</button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <div class="slk-strip" id="strip">
+    <span class="slk-time">Time <b id="time">0:00</b><small id="penalty"></small></span>
+    <span class="slk-kind" id="kind"></span>
+  </div>
+
+  <section class="slk-card fit-grow fit-box" aria-label="The board">
+    <div id="board" class="slk-board"></div>
+  </section>
+
+  <section class="slk-side">
+    <div id="controls" class="slk-controls">
+      <p id="line" class="slk-say" aria-live="polite"></p>
+      <div class="slk-tools" role="group" aria-label="Tools">
+        <button class="slk-tool" type="button" id="undoBtn"><b>Undo</b><small>the last mark</small></button>
+        <button class="slk-tool" type="button" id="redoBtn"><b>Redo</b><small>it again</small></button>
+        <button class="slk-tool" type="button" id="hintBtn"><b>Hint</b><small>+30 s</small></button>
+      </div>
+    </div>
+    <div id="result" class="slk-result" hidden>
+      <p class="slk-verdict" id="verdict"></p>
+      <button class="slk-go" type="button" id="nextBtn">Another puzzle</button>
+    </div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet slk-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="slk-rules"></div>
+</dialog>
+
+<p id="toast" class="slk-toast" role="status" aria-live="polite"></p>
+<script type="module" src="slitherlink.js"></script>
+</body>
+</html>
