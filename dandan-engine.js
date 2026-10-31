@@ -1,7 +1,7 @@
 // Dandan's rules: the turn, the stack and priority, combat, the state-based checks, and the moves a seat may make.
 // A game is a plain object (JSON-safe, nothing undefined) moved by act(); toMove() says whose decision it is: whoever
 // holds priority, or whoever a question is put to (pending). Priority passes by itself where a seat has nothing it
-// could do (see wants): nobody is asked at an upkeep, or to answer a spell they can't answer.
+// could do (see wants): nobody is asked where they have nothing to do, or to answer a spell they can't answer.
 //
 // The turn: untap, upkeep, draw, main, declare attackers, declare blockers, combat damage, main, end step, cleanup.
 // (The beginning and end of combat have no stop of their own: what could be done there is as well done at the
@@ -249,11 +249,13 @@ const UPKEEP = new Set(["Brainstorm", "Predict"]);
  * The upkeep is a stop when the coming draw is worth acting on: the seat knows the top card (and could draw it first,
  * bury it or shuffle it away), or, the other player's, it holds a Brainstorm (two cards of its choosing on top for them)
  * or a Predict (to mill the card they'd draw). An unknown top card taken first is as good as one taken at the end step.
- * It is also a stop for an untapped Flood Plain (fetchWindow): the last moment to shuffle before the draw.
+ * It is also a stop for an untapped Flood Plain (fetchWindow): the last moment to shuffle before the draw. And, for a
+ * person, a stop whenever there is anything to do (anyUpkeepMove): the draw follows at once, so it's the last moment
+ * for every instant, cycling card or ability, and not passing them over is a choice only the player can make.
  */
 export function wants(s, seat) {
   if (s.stack.length) return hasMove(s, seat);
-  if (s.step === "upkeep") return upkeepStop(s, seat) || (!hushed() && fetchWindow(s, seat));
+  if (s.step === "upkeep") return upkeepStop(s, seat) || (!hushed() && (fetchWindow(s, seat) || anyUpkeepMove(s, seat)));
   if (!(seat === s.active ? MY_STOPS : THEIR_STOPS).has(s.step)) return false;
   return hasMove(s, seat, s.step === "attackers" || s.step === "blockers" ? COMBAT : null);
 }
@@ -274,6 +276,14 @@ export function fetchWindow(s, seat) {
   if (s.turn < 2) return false;
   return s.bf.some(p => p.ctl === seat && !p.tapped && nm(p.id) === "Flood Plain" && s.lib.some(id => hasType(id, fetchTypes(p))));
 }
+/**
+ * Whether a seat could do anything at all before the draw, from the second turn: a Predict or a Quicken held with the
+ * top card unknown (31 October 2026, Korbi: "before draw, if user can do anything, including cast predict or any instant
+ * speed action, they need to be able to choose to not do that"; the game had drawn on without asking). Like the Flood
+ * Plain's window it is for a person: the computer's own play and the look-ahead leave it out (hushed, and dandan-bot.js
+ * passing unless upkeepStop), as they never stopped here without a known card to act on.
+ */
+export const anyUpkeepMove = (s, seat) => s.turn >= 2 && hasMove(s, seat);
 /** Who draws next if nothing else is drawn first: the player whose draw step is next. */
 export const nextDrawer = s => (s.step === "upkeep" && s.turn > 1 ? s.active : other(s.active));
 /**

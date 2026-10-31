@@ -212,12 +212,28 @@ test("Quicken: the next sorcery this turn can be cast with flash, once", () => {
 const toTheirUpkeep = (mine, bf) => drive(scene({ active: 0, step: "end", prio: 0, passes: 1, hand: [mine, []], bf }), c => c.turn === 6, 40);
 test("the other player's upkeep is a stop for a Brainstorm (two cards of our choosing for them to draw) and a Predict", () => {
   const bs = toTheirUpkeep(["Brainstorm"], islandsOf(0, 1)), pr = toTheirUpkeep(["Predict"], islandsOf(0, 2));
-  // an unknown top card taken first with a Quicken is as good as one taken at the end step: no stop for that
-  const quick = toTheirUpkeep(["Quicken"], islandsOf(0, 1));
   const asked = c => c.step === "upkeep" && c.active === 1 && toMove(c) === 0;
-  return asked(bs) && asked(pr) && !asked(quick) || `${bs.step}/${toMove(bs)} ${pr.step}/${toMove(pr)} ${quick.step}`;
+  return asked(bs) && asked(pr) || `${bs.step}/${toMove(bs)} ${pr.step}/${toMove(pr)}`;
 });
-test("…and so is any upkeep where the seat knows the top card and could act on it: it draws the card before its owner can", () => {
+// 31 October 2026, Korbi: "before draw, if user can do anything, including cast predict or any instant speed action,
+// they need to be able to choose to not do that. just happened that I could have cast predict but game continued to
+// draw automatically": the top card unknown, and a Predict held in our own upkeep, was no stop at all
+/** A scene at the other player's end step, played on to our turn 7 until someone is asked. */
+const toMyUpkeep = (mine, bf) => drive(scene({ active: 1, step: "end", turn: 6, prio: 1, passes: 1, hand: [mine, []], bf }), c => c.turn === 7, 40);
+test("any upkeep from the second turn where a person could do anything is a stop, theirs or ours, the top card known or not", () => {
+  const mine = ["Predict", "Quicken", "Remote Isle"].map(n => toMyUpkeep([n], islandsOf(0, 2)));
+  const theirs = toTheirUpkeep(["Quicken"], islandsOf(0, 1));
+  const none = toMyUpkeep(["Predict"], []);                         // nothing to pay with: nothing to ask
+  const askedMe = c => c.step === "upkeep" && c.active === 0 && toMove(c) === 0;
+  return mine.every(askedMe) && theirs.step === "upkeep" && toMove(theirs) === 0 && !askedMe(none)
+    && go(mine[0], 0, { t: "pass" }).step !== "upkeep"              // and passing goes on to the draw
+    || `${mine.map(c => c.step + "/" + toMove(c))} ${theirs.step}/${toMove(theirs)} ${none.step}/${toMove(none)}`;
+});
+test("…but not the computer's own: it is asked there, and passes, only where it has a known top card or a Brainstorm or Predict for your draw", () => {
+  const c = drive(scene({ active: 0, step: "end", turn: 5, prio: 0, passes: 1, hand: [[], ["Quicken"]], bf: islandsOf(1, 2) }), x => x.turn === 6, 40);
+  return c.step === "upkeep" && toMove(c) === 1 && botMove(c, 1, { rng: seeded(1) }).t === "pass";
+});
+test("an upkeep where the seat knows the top card and could act on it is a stop too: it draws the card before its owner can", () => {
   // our Memory Lapse put their spell on top at our end step: theirs to draw; in their upkeep, a cycling land draws it first
   let s = scene({ active: 0, step: "end", prio: 1, passes: 1, hand: [["Memory Lapse", "Lonely Sandbar"], ["Take Inventory"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 2)] });
   s.quick[1] = true;                                              // (a Quicken resolved earlier: their sorcery at instant speed)
