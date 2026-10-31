@@ -400,18 +400,55 @@ export function snapEscapement(design, x, y, kind) {
   return null;
 }
 
-/** Where a new arbor should sit so its part meshes with a neighbour's: on the line from that neighbour to the tap. */
-export function snap(design, x, y, teeth, layer, exclude, m = MODULE) {
-  const r = radius(teeth, m);
-  let best = null;
+/** The circles a new wheel's arbor must stand on to mesh with each toothed wheel on its layer (pitch radii added), each
+ *  naming the arbor it belongs to. Escape wheels and stars have teeth of their own kind and no wheel meshes with them
+ *  this way; wheels of another module can't mesh. */
+export function meshCircles(design, teeth, layer, exclude, m = MODULE) {
+  const r = radius(teeth, m), out = [];
   for (const a of design.arbors) {
     if (a.id === exclude) continue;
     for (const p of a.parts || []) {
       if (p.layer !== layer || !p.teeth || ["escape", "star"].includes(p.kind) || (p.m || MODULE) !== m) continue;
-      const d = r + radius(p.teeth, p.m), dx = x - a.x, dy = y - a.y, len = Math.hypot(dx, dy) || 1;
-      const sx = a.x + (dx / len) * d, sy = a.y + (dy / len) * d, off = Math.hypot(sx - x, sy - y);
-      if (off < Math.max(1.2, r) && (!best || off < best.off)) best = { x: sx, y: sy, off, to: a.id };
+      out.push({ x: a.x, y: a.y, r: r + radius(p.teeth, p.m), of: a.id });
     }
+  }
+  return out;
+}
+/** Where two of those circles cross: the few places where one wheel meshes with both at once (the arbor between two
+ *  gears, say). Each is { x, y, of: [the two arbors] }; a point that would put the wheel (radius rr) off the plate is
+ *  left out. */
+export function meshPoints(circles, plate, rr) {
+  const out = [];
+  for (let i = 0; i < circles.length; i++) for (let j = i + 1; j < circles.length; j++) {
+    const A = circles[i], B = circles[j], d = Math.hypot(B.x - A.x, B.y - A.y);
+    if (d < 1e-9 || d > A.r + B.r + 1e-9 || d < Math.abs(A.r - B.r) - 1e-9) continue;   // concentric, apart, or one inside the other
+    const k = (A.r * A.r - B.r * B.r + d * d) / (2 * d), h = Math.sqrt(Math.max(0, A.r * A.r - k * k));
+    const mx = A.x + ((B.x - A.x) * k) / d, my = A.y + ((B.y - A.y) * k) / d;
+    for (const sign of h < 1e-9 ? [0] : [1, -1]) {
+      const q = { x: mx - ((B.y - A.y) * h * sign) / d, y: my + ((B.x - A.x) * h * sign) / d, of: [A.of, B.of] };
+      if (plate == null || onPlate(plate, q.x, q.y, rr)) out.push(q);
+    }
+  }
+  return out;
+}
+/** How near a tap must be to a place that meshes with two wheels, in the reach of a single wheel's circle: nearer than
+ *  that and the two-wheel place wins (a circle alone would meet only one of them). */
+const BOTH = 0.75;
+/** Where a new wheel's arbor goes when it's put near others: onto the place that meshes with two wheels if one is near
+ *  enough, else onto the nearest wheel's mesh circle. { x, y, off (how far it moved), to (an arbor it meshes with),
+ *  also (the second, at a two-wheel place) }, or null. */
+export function snap(design, x, y, teeth, layer, exclude, m = MODULE) {
+  const r = radius(teeth, m), reach = Math.max(1.2, r), circles = meshCircles(design, teeth, layer, exclude, m);
+  let best = null;
+  for (const q of meshPoints(circles, design.plate, r)) {
+    const off = Math.hypot(q.x - x, q.y - y);
+    if (off < reach * BOTH && (!best || off < best.off)) best = { x: q.x, y: q.y, off, to: q.of[0], also: q.of[1] };
+  }
+  if (best) return best;
+  for (const c of circles) {
+    const dx = x - c.x, dy = y - c.y, len = Math.hypot(dx, dy) || 1;
+    const sx = c.x + (dx / len) * c.r, sy = c.y + (dy / len) * c.r, off = Math.hypot(sx - x, sy - y);
+    if (off < reach && (!best || off < best.off)) best = { x: sx, y: sy, off, to: c.of };
   }
   return best;
 }

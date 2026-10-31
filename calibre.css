@@ -98,6 +98,7 @@ dialog.cb-scrolls .pick-head { position: -webkit-sticky; position: sticky; top: 
 .cb-undo { min-width: 2.6rem; padding-left: .5rem; padding-right: .5rem; }
 /* the new parts: guides, the ratchet and click, the date ring, the moon, fingers, star wheels, the 24-hour hand */
 .cb-guide { fill: none; stroke: #2F7D5B; stroke-width: .06; stroke-dasharray: .3 .25; opacity: .7; pointer-events: none; }
+.cb-guide.dot { fill: #2F7D5B; stroke: var(--sheet); stroke-width: .06; stroke-dasharray: none; opacity: .95; }
 .cb-ratchet { fill: #B3BDC4; }
 .cb-click { fill: #55626B; stroke: #1C2A34; stroke-width: .05; }
 .cb-ring { fill: #F4EFE3; stroke: #8A949C; stroke-width: .05; }

@@ -1,7 +1,7 @@
 // Calibre: learn watchmaking by drafting movements on the calibre plan. Each level gives a plate, the parts already
 // fixed there and a tray; you place wheels and pinions on layers, the engine runs the train as it would really turn,
 // and winding sets it going in time-lapse. Goals are met only when the watch truly keeps time.
-import { judge, inState, MONTHS, CENTURIES, amplitudeOf, startDesign, solved, partsUsed, snap, snapEscapement, radius, rateText, workings, MODULE, DIAL_LAYERS, MAINSPRING_TURNS } from "./calibre-engine.js";
+import { judge, inState, MONTHS, CENTURIES, amplitudeOf, startDesign, solved, partsUsed, snap, meshCircles, meshPoints, snapEscapement, radius, rateText, workings, MODULE, DIAL_LAYERS, MAINSPRING_TURNS } from "./calibre-engine.js";
 import { LEVELS, CHAPTERS, GLOSSARY } from "./calibre-levels.js";
 import { LAYER_NAMES, partName, chipName, arborName, drawDesign, reachOf, extentOf } from "./calibre-draw.js";
 import { draw3d, CAM } from "./calibre-3d.js";
@@ -129,14 +129,13 @@ function render() {
 }
 /** The layer the part in hand goes on: its own (a barrel's, an escape wheel's) or the one chosen. */
 const chosenLayer = () => { const t = tray[chosen]; return t ? FORCED[t.kind] || layer : null; };
-/** With a gear in hand, faint circles where its arbor would have to stand to mesh with each wheel on its layer. */
+/** With a gear in hand, faint circles where its arbor would have to stand to mesh with each wheel on its layer, and a dot
+ *  where two of them cross: the one place it meshes with both. */
 function guides() {
   const t = tray[chosen];
   if (!t?.teeth || ["escape", "star", "finger", "balance", "fork"].includes(t.kind)) return [];
-  const rr = radius(t.teeth, t.m), lay = FORCED[t.kind] || layer, out = [];
-  for (const a of design.arbors) for (const q of a.parts || []) if (q.layer === lay && q.teeth && !["escape", "star"].includes(q.kind) && (q.m || MODULE) === (t.m || MODULE))
-    out.push({ x: a.x, y: a.y, r: radius(q.teeth, q.m) + rr });
-  return out;
+  const circles = meshCircles(design, t.teeth, FORCED[t.kind] || layer, undefined, t.m || MODULE);
+  return [...circles, ...meshPoints(circles, design.plate, radius(t.teeth, t.m)).map(q => ({ x: q.x, y: q.y, r: 0.22, dot: true }))];
 }
 /** Moves what moves: wheels, hands, the spring, the fork and the balance, from the simulation's state. */
 function frame() { for (const [, update] of dyn) update(sim); }

@@ -255,7 +255,7 @@ export function drawDesign(parent, o) {
   const { arbors, out } = o, clashing = new Set((out?.clashes || []).flatMap(c => c.arbors)), reach = reachOf(o.plate);
   const faint = id => !!o.focus && !o.focus.has(id) && !o.focus.has(id.replace(/~$/, ""));
   drawPlate(parent, o.plate);
-  for (const c of o.guides || []) el("circle", { cx: c.x, cy: c.y, r: c.r, class: "cb-guide" }, parent);
+  for (const c of o.guides || []) el("circle", { cx: c.x, cy: c.y, r: c.r, class: c.dot ? "cb-guide dot" : "cb-guide" }, parent);
   for (const a of arbors) if (a.lever) el("line", { x1: a.lever.x, y1: a.lever.y, x2: a.x, y2: a.y, class: `cb-lever${faint(a.id) ? " ghost" : ""}` }, parent);
   const parts = arbors.flatMap(a => (a.parts || []).map(p => ({ a, p }))).sort((u, v) => u.p.layer - v.p.layer);
   for (const { a, p } of parts) drawPart(parent, a, p, { arbors, layer: o.layer, reach, clash: clashing.has(a.id), ghost: faint(a.id), dyn: o.dyn });

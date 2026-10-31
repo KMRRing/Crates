@@ -2353,6 +2353,15 @@ side). Choose a part from the tray: faint circles show where its arbor would hav
 that layer; tap an arbor to add it there, or near a wheel to set a new arbor that snaps into mesh. Drag your own arbors;
 tap one to see how it turns or take a part off.
 
+Meshing with two wheels at once (31 October 2026; Korbi: placing a gear "can be a bit fiddly when there's two existing
+gears and you want to place one that gets both"). Where two of those circles cross, one wheel meshes with both, and a
+green dot marks the place (in 3D too, on the layer's plane). A tap or a drag within three quarters of the single snap's
+reach of a dot (the reach is 1.2 mm or the wheel's own radius, whichever is more) snaps to it, ahead of the nearest
+circle, which would have left the wheel touching one of the two. A place that would put the wheel off the plate is
+left out, and wheels on another layer or of another module have no circles, as they can't mesh. The circles and the
+crossings are `meshCircles` and `meshPoints` in `calibre-engine.js`, which `snap` and the plan's guides both use, so
+what the dot shows is where the snap goes.
+
 3D (the button over the zoom, October 2026) pulls the movement apart: each layer at a height of its own, drawn with the
 plan's own artwork under one axonometric map (turned by the azimuth, tilted by the elevation, lifted by its height), so
 straight down it is the plan and the button swings the camera between the two. The main plate is the floor and the side
@@ -2365,6 +2374,10 @@ movement the way the finger goes, as any 3D viewer does: across spins it about i
 the finger, down tips its top towards you, up tips it away and over to show the back. (Until October 2026 a drag moved
 the camera instead, so the movement turned against the finger and down flattened it.) Pinch and the buttons zoom, and the
 parts on the layer in hand are named where they sit. The view you chose is kept (`calibre:view`).
+Each staff ends in its pivot as on the plan (a red jewel in its chaton where the arbor carries the train, a grey stud
+where it carries only the dial's side, a black head for a bridge's post), and the fixed arbors keep their names
+(31 October 2026; Korbi: in 3D "you don't get arbor marker for the output the same you do in 2d"). The Output of an early
+level has no part yet, so no staff either, and the 3D view drew nothing where it stood.
 
 The engine (`calibre-engine.js`) runs the plan as it would really turn, at real size (one module, 0.1 mm a tooth, or a
 gear's own finer module, which meshes only its own kind): ratios and directions through every mesh, a finger pushing a

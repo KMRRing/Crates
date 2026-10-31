@@ -9,7 +9,7 @@
 // height (a tap chooses it), and the parts on the layer in hand are named where they sit. The drag that pans the plan
 // turns the view here; pinch and the buttons zoom.
 import { el, drawPart, drawPlate, drawHands, handLength, extentOf, reachOf, arborName, LAYER_NAMES } from "./calibre-draw.js";
-import { radius, MODULE, ESCAPE_R, BALANCE_R } from "./calibre-engine.js";
+import { radius, MODULE, ESCAPE_R, BALANCE_R, DIAL_LAYERS } from "./calibre-engine.js";
 
 const DIAL = [6, 7, 8], TRAIN = [1, 2, 3, 4, 5, 9, 10, 11, 12];
 /** Where the view starts: turned a little, and tilted low enough to open the stack. */
@@ -99,7 +99,7 @@ export function draw3d(svg, o) {
     if (layer === o.layer || layer === o.target) {                // the plane being built on, and where a chosen part goes
       const work = plane(z, "cb-3d-work", -2 * T);
       if (typeof plate === "number") el("circle", { r: plate }, work); else el("rect", { x: -plate.w / 2, y: -plate.h / 2, width: plate.w, height: plate.h, rx: 1.2 }, work);
-      if (layer === (o.target ?? o.layer)) for (const c of o.guides || []) el("circle", { cx: c.x, cy: c.y, r: c.r, class: "cb-guide" }, work);
+      if (layer === (o.target ?? o.layer)) for (const c of o.guides || []) el("circle", { cx: c.x, cy: c.y, r: c.r, class: c.dot ? "cb-guide dot" : "cb-guide" }, work);
     }
     if (!parts.length) continue;
     const side = el("g", { class: "cb-3d-side" }, world), face = el("g", { class: "cb-3d-face" }, world);
@@ -130,6 +130,22 @@ export function draw3d(svg, o) {
     const lo = Math.min(...zs), hi = Math.max(...zs), cuts = heights.filter(z => z >= lo - 1e-9 && z <= hi + 1e-9);
     for (let i = 1; i < cuts.length; i++) staffs.push({ a, lo: cuts[i - 1], hi: cuts[i], line: el("line", { class: `cb-staff${faint(a.id) ? " ghost" : ""}${a.noParts ? " post" : ""}` }, world) });
   }
+  // the pivots, as the plan has them: a red jewel in its chaton where the arbor carries part of the train, a grey stud
+  // where it carries only the dial's side, a black head for a post; one at each end of every staff. An arbor with no parts yet (the output the level asks for) has no staff, so this is all that shows
+  // where it stands. Drawn just ahead of the face at their height, so a wheel nearer the eye still hides them.
+  const pivotPlanes = new Map();
+  for (const a of arbors) {
+    if (a.on) continue;                                         // an arbor riding another's shares its pivots
+    const zs = [0, ...arbors.filter(b => b === a || b.on === a.id).flatMap(b => (b.parts || []).map(p => zOf(p.layer)))];
+    if (a.noParts) zs.push(postTop);
+    const train = (a.parts || []).some(p => !DIAL_LAYERS.includes(p.layer));
+    for (const z of new Set([Math.min(...zs), Math.max(...zs)])) {
+      if (!pivotPlanes.has(z)) pivotPlanes.set(z, plane(z, "cb-3d-pivots", T * 0.5));
+      const pin = el("g", { class: `cb-pivot${a.fixed ? " fixed" : ""}${o.selected === a.id ? " sel" : ""}${a.noParts ? " post" : ""}${faint(a.id) ? " ghost" : ""}` }, pivotPlanes.get(z));
+      if (a.noParts) el("circle", { cx: a.x, cy: a.y, r: 0.4, class: "cb-post" }, pin);
+      else { el("circle", { cx: a.x, cy: a.y, r: 0.3, class: "cb-chaton" }, pin); el("circle", { cx: a.x, cy: a.y, r: 0.17, class: train ? "cb-jewel" : "cb-stud" }, pin); }
+    }
+  }
   // the rail: each layer named at its height, the one in hand marked; a tap chooses it
   const rail = el("g", { class: "cb-rail" }, svg), marks = [];
   for (const [layer, slot] of [...stack.slot].sort((u, v) => v[1] - u[1])) {
@@ -151,6 +167,14 @@ export function draw3d(svg, o) {
     const t = el("text", { class: `cb-callout${a.id === o.selected ? " sel" : ""}` }, notes);
     t.textContent = `${arborName(a)}${p.teeth ? ` · ${p.teeth}` : ""}`;
     callouts.push({ a, z: zOf(p.layer), t });
+  }
+  // the fixed arbors keep their names as in the plan (the crank, the output: it has no part to name it yet), unless a
+  // name is already up for one of their parts; they stand at the arbor's highest end
+  if (o.callouts !== false && o.labels) for (const a of arbors) {
+    if (!a.label || !a.fixed || a.on || faint(a.id) || callouts.some(c => c.a === a)) continue;
+    const t = el("text", { class: `cb-callout${a.id === o.selected ? " sel" : ""}` }, notes);
+    t.textContent = arborName(a);
+    callouts.push({ a, z: topOf(a), t });
   }
 
   let flipped = null;

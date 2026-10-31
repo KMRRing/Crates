@@ -1,6 +1,6 @@
 // Calibre: the engine's rules on their own, then every level: unsolved at the start, solved by its worked solution,
 // and that solution built only from the level's tray; then the workings, and every lesson's pictures.
-import { run, judge, startDesign, solved, partsUsed, radius, rateText, workings, inState } from "../calibre-engine.js";
+import { run, judge, startDesign, solved, partsUsed, radius, rateText, workings, inState, snap, meshCircles, meshPoints } from "../calibre-engine.js";
 import { LEVELS, CHAPTERS } from "../calibre-levels.js";
 import { ALL_LESSONS, TEACHES } from "../calibre-lessons.js";
 import { sceneDesign, motionOf, workAround } from "../calibre-scenes.js";
@@ -18,6 +18,25 @@ check(r.rates.b === -120 && r.meshes.length === 1, `a 60 drives a 30 at twice it
 const s = 4;
 r = run({ plate: 10, arbors: [{ id: "a", x: 0, y: 0, drive: 60, parts: [W(40)] }, { id: "b", x: s, y: 0, parts: [W(40)] }, { id: "c", x: s / 2, y: s * Math.sqrt(3) / 2, parts: [W(40)] }] });
 check(r.jammed.length === 3 && r.rates.b === 0, "three wheels meshing in a triangle lock");
+// putting a wheel down near two others: it snaps to the place that meshes with both (where their mesh circles cross), not
+// just to the nearer circle, which would leave it touching one
+{
+  const pair = layerB => ({ plate: 10, arbors: [{ id: "a", x: 0, y: 0, parts: [W(60)] }, { id: "b", x: 6, y: 0, parts: [W(40, layerB)] }] });
+  const two = snap(pair(1), 3.4, 1.4, 20, 1), at = (o, q) => Math.hypot(o.x - q.x, o.y - q.y);
+  check(two && two.also && Math.abs(at(two, { x: 0, y: 0 }) - 4) < 1e-9 && Math.abs(at(two, { x: 6, y: 0 }) - 3) < 1e-9, "a tap near where two mesh circles cross snaps to the crossing, 4 from the 60 and 3 from the 40");
+  const d = pair(1); d.arbors.push({ id: "c", x: two.x, y: two.y, parts: [W(20)] });
+  check(run(d).meshes.length === 2, "…and a 20 put there meshes with both");
+  const one = snap(pair(1), -4, 0.2, 20, 1);
+  check(one && !one.also && one.to === "a" && Math.abs(at(one, { x: 0, y: 0 }) - 4) < 1e-9, "a tap by one wheel only still snaps to its circle");
+  check(!snap(pair(1), 3.4, 6, 20, 1), "…and a tap far from every circle doesn't snap at all");
+  const circles = meshCircles(pair(1), 20, 1);
+  check(circles.length === 2 && meshPoints(circles, 10, 1).length === 2, "two circles that cross give two places");
+  check(meshPoints(circles, 4.5, 1).length === 0, "…none where the wheel would stick out of the plate");
+  check(meshCircles(pair(2), 20, 1).length === 1 && !snap(pair(2), 3.4, 1.4, 20, 1).also, "wheels on another layer don't count: they can't mesh");
+  check(meshPoints([{ x: 0, y: 0, r: 4, of: "a" }, { x: 0, y: 0, r: 3, of: "b" }], 10, 1).length === 0, "wheels on one centre never cross");
+  const tangent = meshPoints(meshCircles({ plate: 10, arbors: [{ id: "a", x: 0, y: 0, parts: [W(60)] }, { id: "b", x: 7, y: 0, parts: [W(40)] }] }, 20, 1), 10, 1);
+  check(tangent.length === 1 && Math.abs(tangent[0].x - 4) < 1e-9, "circles that just touch give their one point");
+}
 // a wheel over another arbor's pivot clashes; a wheel off the plate clashes
 r = run({ plate: 10, arbors: [{ id: "a", x: 0, y: 0, parts: [W(60)] }, { id: "post", x: 1, y: 0, parts: [] }] });
 check(r.clashes.some(c => c.kind === "pivot"), "a wheel can't cover another arbor's pivot");
