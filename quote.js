@@ -15,6 +15,7 @@ import { leaderboard, rank } from "./standings.js";
 import { busy, sextant } from "./loading.js";
 import * as pile from "./pile.js";
 import { noteMarket } from "./ledger-log.js";
+import { mountDial } from "./quote-dial.js";
 import { showPicture, askedWith, nameIn, pictureName } from "./pics.js";
 /** The question as asked: about "this" picture, or naming the painting once its picture couldn't be shown. */
 const questionOf = q => askedWith(q.q, q.pic, q.title);
@@ -142,6 +143,18 @@ function next() {
 }
 const parse = s => { const n = Number(String(s).replace(/,/g, "").trim()); return s.trim() === "" ? NaN : n; };
 
+// ---------- the ruler ----------
+// A ruler above the boxes sets a market by hand (quote-dial.js); the boxes show what it set, and typing in a box moves it
+const dial = mountDial($("dial"), { onChange: (b, a) => { for (const [id, v] of [["bid", b], ["ask", a]]) $(id).value = v == null ? "" : fmt(v, current()); $("fault").textContent = ""; } });
+let dialFor = null;
+function syncDial() {
+  const q = current();
+  if (dialFor !== q.id) { dial.use(q); dialFor = q.id; }
+  $("dial").hidden = $("market").hidden;             // with the boxes: a settled market is drawn on the tape instead
+  dial.lock($("bid").disabled);
+  dial.show(parse($("bid").value), parse($("ask").value));
+}
+
 // ---------- drawing ----------
 function render() {
   if (!S) return;
@@ -177,6 +190,7 @@ function render() {
     $("note").textContent = noteOf(q);
     $("nextBtn").textContent = S.index + 1 >= S.set.length ? "Closing bell" : "Next";
   }
+  syncDial();
 }
 /** A market's verdict: its grade and what it earned, in the colours of how it went. */
 function showVerdict(q, entry) {
@@ -324,6 +338,7 @@ function renderRoom() {
   picture(q);
   $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
   if (g.mode === "trade") renderTrade(g, q); else renderRanges(g, q);
+  syncDial();
   graceTimer();
 }
 /** Ranges: your market in private, then everyone's against the truth. */
@@ -721,6 +736,7 @@ $("liftBtn").addEventListener("click", () => take("lift"));
 $("passBtn").addEventListener("click", () => take("pass"));
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
+for (const id of ["bid", "ask"]) $(id).addEventListener("input", syncDial);
 for (const id of ["bid", "ask"]) $(id).addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); if (id === "bid" && !$("ask").value) $("ask").focus(); else quote(); } });
 window.addEventListener("hashchange", () => { const h = new URLSearchParams(location.hash.slice(1)); if (!inRoom() && (h.get("s") || h.get("d"))) load(h); });
 
