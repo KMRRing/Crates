@@ -8,7 +8,7 @@
 // The rules (which games, what a round of each is, the pick) are random-core.js's.
 import { IN_FRAME, dailyDue } from "./suite.js";
 import { lan } from "./net.js";
-import { ticks, line, menuHead, dropMenuHead, PAUSERS, CLOSE } from "./menu.js";
+import { ticks, line, menuHead, dropMenuHead, PAUSERS } from "./menu.js";
 import { ELIGIBLE, chosenFrom, keptFrom, canStart, pickNext, soloAddress, runOf, endsRound } from "./random-core.js";
 
 const CHOICE = "suite:random", RUN = "suite:random-run";
@@ -21,7 +21,7 @@ let games = [], sections = [];           // the games screen's games and its sec
 let here = null;                         // the game this page is, while random mode plays it: { id, button, tag, fitting }
 let acted = false, fired = false;        // a tap or a key on this page since it opened; this page's round announced
 let banner = null;                       // the banner naming the next game, while it counts
-const rows = new Set();                  // the games screen's Random rows on this page, drawn again as things change
+const rows = new Set();                  // the games screen's Random cells on this page, drawn again as things change
 
 // ---------- what's kept ----------
 const appOf = id => games.find(a => a.id === id) || null;
@@ -57,23 +57,24 @@ function stop() {
   here?.tag?.remove();
   here = null;
   dropMenuHead("random");
-  drawRows();
+  redrawRandom();
 }
 
 /**
  * The games screen's part in random mode, from apps.js's bindSwitcher: `games` and `sections` (apps.js), its Random
- * row (`row`, under the screen's head), the page's title button (`title`) and the game it is (`current`, null at home).
+ * cell (`row`, in the banner under the screen's head), the page's title button (`title`) and the game it is (`current`,
+ * null at home).
  * A run that sent you here plays on; any other page you open yourself (home too) ends it.
  */
 export function bindRandom({ games: list, sections: groups, row, title, current }) {
   games = list; sections = groups;
-  if (row) { row.hidden = IN_FRAME || !!lan; rows.add({ row, host: row.closest("dialog") || document.body, current }); }
+  if (row) { row.hidden = IN_FRAME || !!lan; rows.add({ row, current }); }
   if (!IN_FRAME) {
     const run = runNow();
     if (run && run.game === current && soloNow() && title) arm(current, title);
     else if (run) endRun();
   }
-  drawRows();
+  redrawRandom();
 }
 
 /** Random mode plays this game: RANDOM in its title, Next game and Stop at the head of its menu. */
@@ -202,34 +203,23 @@ function menuPart() {
 }
 
 // ---------- the games screen: Random, and the games it may deal ----------
-function drawRows() {
+/** Draws Random again in the banner: its plate (and Stop, while random mode plays this game) says what it may do now. */
+export function redrawRandom() {
   for (const r of rows) drawRow(r);
 }
-function drawRow({ row, host, current }) {
+function drawRow({ row, current }) {
   if (row.hidden) return;
-  const chosen = chosenNow(), on = !!here && here.id === current, n = chosen.length;
+  const chosen = chosenNow(), on = !!here && here.id === current;
   const play = button("", "btn primary rd-play", () => { const id = pickNext(chosenNow(), current); if (id) go(id); });
   play.innerHTML = `${SHUFFLE}<span></span>`;
-  play.lastChild.textContent = on ? "Next game" : "Random";
+  play.lastChild.textContent = on ? "Next" : "Random";             // beside Stop, in a third of the row
+  if (on) play.setAttribute("aria-label", "Next game");
   play.disabled = !canStart(chosen);
-  const pick = button(n ? `${n} game${n === 1 ? "" : "s"}` : "No games", "btn rd-choose", () => choose(host));
-  pick.setAttribute("aria-haspopup", "dialog");
-  pick.setAttribute("aria-label", `The games Random deals: ${n === ELIGIBLE.length ? "all" : n} of ${ELIGIBLE.length}`);
-  row.replaceChildren(play, ...(on ? [button("Stop", "btn rd-stop", stop)] : []), pick);
+  row.replaceChildren(play, ...(on ? [button("Stop", "btn rd-stop", stop)] : []));
 }
-/** The games Random may deal, by the games screen's sections, each ticked or not (all at first), with All and None. */
-function choose(host) {
-  let sheet = host.querySelector(":scope > dialog.rd-sheet");
-  if (!sheet) {
-    sheet = document.createElement("dialog");
-    sheet.className = "apps-pop rd-sheet";
-    sheet.setAttribute("aria-label", "Random's games");
-    sheet.innerHTML = `<div class="pick-head"><h2>Random</h2><button class="icon-btn" type="button" aria-label="Close">${CLOSE}</button></div><div class="rd-sheet-body"></div>`;
-    sheet.querySelector(".pick-head button").addEventListener("click", () => sheet.close());
-    sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
-    sheet.addEventListener("close", drawRows);
-    host.appendChild(sheet);
-  }
+/** The games Random may deal, by the games screen's sections, each ticked or not (all at first), with All and None:
+ *  the nodes for the banner's Choose sheet (banner.js). */
+export function randomPane() {
   const on = new Set(chosenNow()), say = line("");
   const tell = () => { say.textContent = on.size ? `${on.size} of ${ELIGIBLE.length} games: one of them at random, and the next when its round is over.` : "Tick a game or more for Random to deal."; };
   const parts = sections.map(([sec, title]) => {
@@ -243,6 +233,5 @@ function choose(host) {
     }, Infinity, { all: true });
   }).filter(Boolean);
   tell();
-  sheet.querySelector(".rd-sheet-body").replaceChildren(say, ...parts);
-  sheet.showModal();
+  return [say, ...parts];
 }

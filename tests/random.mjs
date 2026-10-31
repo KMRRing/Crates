@@ -103,7 +103,7 @@ check(/export function roundOver\(/.test(page) && /export function seatRounds\(/
 check(/sessionStorage\.setItem\(RUN/.test(page) && /localStorage\.setItem\(CHOICE/.test(page) && /CHOICE = "suite:random"/.test(page) && /RUN = "suite:random-run"/.test(page),
   "the choice is kept on the device under a suite: key (never synced), the run in the session");
 check(/IN_FRAME/.test(page) && /\blan\b/.test(page) && /soloAddress\(location\.search\)/.test(page), "random.js asks the frame, the offline party and the address before anything");
-check(/bindRandom\(\{[^}]*row: dlg\.querySelector\("\[data-random\]"\)/.test(apps) && /class="rd-row" data-random/.test(apps), "the games screen has its Random row");
+check(/bindRandom\(\{[^}]*row: dlg\.querySelector\("\[data-random\]"\)/.test(apps) && /class="rd-cell" data-random/.test(apps), "the games screen has its Random cell, beside Deck's");
 check(["random.js", "random-core.js"].every(f => pick([f], 0, { slow: true }).includes("tests/random.mjs")), "a change to random mode runs its own test");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

@@ -58,9 +58,10 @@ check(/^Everything/.test(sayScope(none)) && sayScope({ games: ["punt"] }) === "L
 
 // ---------- the pages are wired to it ----------
 const apps = fs.readFileSync(root + "apps.js", "utf8"), deckJs = fs.readFileSync(root + "deck.js", "utf8"), row = fs.readFileSync(root + "deck-row.js", "utf8"), html = fs.readFileSync(root + "deck.html", "utf8");
-check(/class="rd-row" data-deck/.test(apps) && /bindDeckRow\(\{\s*row: dlg\.querySelector\("\[data-deck\]"\)/.test(apps), "the games screen has its Deck line, under Random's");
-check(/BANNER = "suite:banner"/.test(apps) && /toggle\("Random and Deck on this screen"/.test(apps) && /data-rows/.test(apps), "Settings puts the Random and Deck lines away, on this device (a suite: key, which doesn't sync)");
-check(/KEY = "suite:deck"/.test(row) && /deck\.html#review/.test(row) && /IN_FRAME/.test(row) && /\blan\b/.test(row), "the Deck line keeps its scope under a suite: key, starts a review by the address, and keeps out of a partner's frame and an offline party");
+check(/class="rd-cell" data-deck/.test(apps) && /bindDeckRow\(\{\s*row: dlg\.querySelector\("\[data-deck\]"\)/.test(apps), "the games screen has its Deck cell, first in the banner");
+check(/class="rd-cell" data-choose/.test(apps) && /bindChoose\(\{\s*cell: dlg\.querySelector\("\[data-choose\]"\)/.test(apps) && /deckPane\(/.test(fs.readFileSync(root + "banner.js", "utf8")), "the banner's one Choose button opens the sheet that holds Deck's choice with Random's");
+check(/BANNER = "suite:banner"/.test(apps) && /toggle\("Deck and Random on this screen"/.test(apps) && /data-rows/.test(apps), "Settings puts the banner away, on this device (a suite: key, which doesn't sync)");
+check(/KEY = "suite:deck"/.test(row) && /deck\.html#review/.test(row) && /IN_FRAME/.test(row) && /\blan\b/.test(row), "the Deck button keeps its scope under a suite: key, starts a review by the address, and keeps out of a partner's frame and an offline party");
 check(/import\("\.\/kb-index\.js"\)/.test(row) && !/^import[^\n]*kb-index/m.test(row), "the knowledge base's index is fetched only when it's needed, not carried by every page");
 check(/inScope\(pile\.due\(\)/.test(deckJs) && /arrange\(dueNow\(\)/.test(deckJs) && /#review/.test(deckJs) && /id="scopeBtn"/.test(html), "Deck's own page reviews, counts and starts from the same scope");
 

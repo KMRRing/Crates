@@ -1,6 +1,6 @@
-// Deck on the games screen (README, Deck, "Scope"): the line under Random. Deck starts a review of what's due, across
-// the games, in one tap (deck.html#review), and the button beside it says how many cards Deck covers and opens the sheet
-// where games and topics are left in or out. The rules are deck-scope.js's; the choice is kept on this device
+// Deck on the games screen (README, Deck, "Scope"): its plate in the banner beside Random's. Deck starts a review of
+// what's due, across the games, in one tap (deck.html#review); the banner's Choose button (banner.js) opens the sheet
+// where games and topics are left in or out, which Deck's own page opens too. The rules are deck-scope.js's; the choice is kept on this device
 // (suite:deck, the games and topics taken out; suite: keys don't sync). Deck's own page asks the same scope for its
 // review, so what the line counts is what the review deals.
 //
@@ -19,7 +19,7 @@ const KEY = "suite:deck";
 const CARDS = '<svg class="k-ico rd-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3.5" width="12" height="15" rx="2"/><path d="M4 7.5V19a2 2 0 0 0 2 2h9.5"/></svg>';
 
 let index = null;                          // kb-index.js, once it's here: { SUBJECTS, SUBJECT }
-const rows = new Set();                    // the games screen's Deck rows on this page, drawn again as things change
+const rows = new Set();                    // the games screen's Deck cells on this page, drawn again as things change
 
 // ---------- what's kept ----------
 export function scopeNow() { try { return scopeOf(JSON.parse(localStorage.getItem(KEY))); } catch { return scopeOf(null); } }
@@ -54,59 +54,44 @@ function review(host) {
     location.hash = "#review";
   } else location.href = new URL("./deck.html#review", location.href).href;
 }
-function draw() {
+/** Draws Deck's plate again in the banner: the cards due now, in the scope. */
+export function redrawDeck() {
   const scope = scopeNow(), waiting = scope.subjects.length > 0 && !index;
-  if (waiting) loadIndex().then(draw);
+  if (waiting) loadIndex().then(redrawDeck);
   const c = waiting ? null : covered(scope, scope.subjects.length ? index : null);
   for (const { row, host } of rows) {
-    const go = button("btn primary rd-play", () => review(host));
-    const words = document.createElement("span");
-    words.textContent = waiting ? "Deck" : `Deck · ${c.due.length ? `${c.due.length} due` : "none due"}`;
-    if (waiting) go.append(sextant()); else go.insertAdjacentHTML("beforeend", CARDS);
-    go.append(words);
-    go.disabled = waiting || !c.due.length;
-    const pick = button("btn rd-choose", () => openScope(host));
-    pick.setAttribute("aria-haspopup", "dialog");
-    if (waiting) pick.append(sextant());
+    const go = button("btn primary rd-play rd-deck", () => review(host));
+    if (waiting) go.append(sextant(), "Deck");
     else {
-      pick.append(c.cards ? `${c.cards} card${c.cards === 1 ? "" : "s"}` : "No cards");
-      pick.setAttribute("aria-label", `What Deck covers: ${c.cards === c.total ? "all" : c.cards} of ${c.total} cards`);
+      go.insertAdjacentHTML("beforeend", `${CARDS}<span class="rd-words"><b>Deck</b><small></small></span>`);
+      go.querySelector("small").textContent = `${c.due.length} due`;
     }
-    row.replaceChildren(go, pick);
+    go.disabled = waiting || !c.due.length;
+    row.replaceChildren(go);
   }
 }
-/** The games screen's Deck line (apps.js's bindSwitcher), in `row`; `host` is the dialog it's in. Not in a partner's
+/** The games screen's Deck cell (apps.js's bindSwitcher), `row`; `host` is the dialog it's in. Not in a partner's
  *  watching frame or an offline party, as Random's isn't. */
 export function bindDeckRow({ row, host }) {
   if (!row) return;
   row.hidden = IN_FRAME || !!lan;
   if (row.hidden) return;
   rows.add({ row, host: host || document.body });
-  draw();
+  redrawDeck();
 }
 // the pile or the scope changed on another device while the screen is open
-addEventListener("storage", e => { if (rows.size && (e.key === null || e.key === KEY || e.key === "pile:items")) draw(); });
+addEventListener("storage", e => { if (rows.size && (e.key === null || e.key === KEY || e.key === "pile:items")) redrawDeck(); });
 
 // ---------- the sheet: which games and topics ----------
 /**
- * The games and topics Deck covers, each ticked or not (all at first), with All and None. `host` is where the dialog
- * goes; `subjects` the knowledge base's index when the caller has it (Deck's page does), `onChange(scope)` after every
- * tap. The topics are those the piles have something about, so the list is the ones that matter.
+ * The games and topics Deck covers, each ticked or not (all at first), with All and None, drawn into `body`: the pane of
+ * the banner's Choose sheet and of Deck's own. `subjects` is the knowledge base's index when the caller has it (Deck's
+ * page does), `onChange(scope)` after every tap. The topics are those the piles have something about, so the list is
+ * the ones that matter; they come when the index has (it's fetched only now), if `body` is still on show.
  */
-export function openScope(host, { subjects = null, onChange = null } = {}) {
-  let sheet = host.querySelector(":scope > dialog.rd-scope");
-  if (!sheet) {
-    sheet = document.createElement("dialog");
-    sheet.className = "apps-pop rd-scope";
-    sheet.setAttribute("aria-label", "What Deck covers");
-    sheet.innerHTML = `<div class="pick-head"><h2>Deck</h2><button class="icon-btn" type="button" aria-label="Close">${CLOSE}</button></div><div class="rd-sheet-body"></div>`;
-    sheet.querySelector(".pick-head button").addEventListener("click", () => sheet.close());
-    sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
-    sheet.addEventListener("close", draw);
-    host.appendChild(sheet);
-  }
+export function deckPane(body, { subjects = null, onChange = null } = {}) {
   if (subjects) index = subjects;
-  const body = sheet.querySelector(".rd-sheet-body"), say = line("");
+  const say = line("");
   let scope = scopeNow();
   const tell = () => { say.textContent = sayScope(scope); };
   const change = (kind, all) => ticked => { scope = afterTicks(scope, kind, all, ticked); keepScope(scope); tell(); onChange?.(scope); };
@@ -124,6 +109,21 @@ export function openScope(host, { subjects = null, onChange = null } = {}) {
     if (!list.length) { body.append(line("Topics appear here once the piles hold cards about them.")); return; }
     body.append(ticks("Topics", list.map(l => [l, l]), list.filter(l => !scope.subjects.includes(l)), change("subjects", list), Infinity, { all: true }));
   };
-  if (index) topics(); else loadIndex().then(i => { if (i && sheet.open) topics(); else wait.remove(); });
+  if (index) topics(); else loadIndex().then(i => { if (i && body.closest("dialog")?.open) topics(); else wait.remove(); });
+}
+/** Deck's own sheet of the same (Deck's page: its menu and its overview), in `host`. */
+export function openScope(host, options = {}) {
+  let sheet = host.querySelector(":scope > dialog.rd-scope");
+  if (!sheet) {
+    sheet = document.createElement("dialog");
+    sheet.className = "apps-pop rd-scope";
+    sheet.setAttribute("aria-label", "What Deck covers");
+    sheet.innerHTML = `<div class="pick-head"><h2>Deck</h2><button class="icon-btn" type="button" aria-label="Close">${CLOSE}</button></div><div class="rd-sheet-body"></div>`;
+    sheet.querySelector(".pick-head button").addEventListener("click", () => sheet.close());
+    sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
+    sheet.addEventListener("close", redrawDeck);
+    host.appendChild(sheet);
+  }
+  deckPane(sheet.querySelector(".rd-sheet-body"), options);
   sheet.showModal();
 }

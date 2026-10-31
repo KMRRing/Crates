@@ -9,6 +9,7 @@ import { choice, toggle, line, RETE } from "./menu.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 import { bindRandom } from "./random.js";
 import { bindDeckRow } from "./deck-row.js";
+import { bindChoose } from "./banner.js";
 import { SOON_ALMANAC, SOON_MODERN, SOON_KONTOR } from "./soon-logos.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
@@ -589,7 +590,7 @@ const THEMES = [["deco", "Almanac"], ["modern", "Modern"], ["kontor", "Kontor"],
 const MODES = [["auto", "Auto"], ["day", "Day"], ["night", "Night"]];
 export const theme = () => document.documentElement.dataset.theme || "deco";
 const mode = () => document.documentElement.dataset.mode || "auto";
-// The Random and Deck lines under the head can be put away in Settings (on this device; on at first)
+// The banner under the head (Deck, Random, Choose) can be put away in Settings (on this device; on at first)
 const BANNER = "suite:banner";
 const bannerOn = () => { try { return localStorage.getItem(BANNER) !== "off"; } catch { return true; } };
 /** Keeps a look on this device and redraws the page in it (the logos and the menu button are the theme's own). */
@@ -615,7 +616,7 @@ function openSettings(host) {
   sheet.querySelector(".settings-body").replaceChildren(
     choice("Theme", THEMES, theme(), t => keep("suite:theme", t, "deco")),
     choice("Appearance", MODES, mode(), m => keep("suite:mode", m, "auto")),
-    toggle("Random and Deck on this screen", bannerOn(), on => {
+    toggle("Deck and Random on this screen", bannerOn(), on => {
       try { if (on) localStorage.removeItem(BANNER); else localStorage.setItem(BANNER, "off"); } catch { /* private mode */ }
       host.querySelector("[data-rows]")?.toggleAttribute("hidden", !on);      // at once, nothing to reload
     }),
@@ -879,7 +880,7 @@ export function bindSwitcher(button, current) {
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <p class="menu-line apps-note" role="status" hidden></p>
-    <div class="rd-rows" data-rows${bannerOn() ? "" : " hidden"}><div class="rd-row" data-random></div><div class="rd-row" data-deck></div></div>
+    <div class="rd-rows" data-rows${bannerOn() ? "" : " hidden"}><div class="rd-row"><div class="rd-cell" data-deck></div><div class="rd-cell" data-random></div><div class="rd-cell" data-choose></div></div></div>
     <ul class="apps-list">${tiles(APPS, current)}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
@@ -933,4 +934,5 @@ export function bindSwitcher(button, current) {
   // Random (random.js): its row under the head, and random mode playing on in this game, or ended by your coming here
   bindRandom({ games: APPS, sections: SECTIONS, row: dlg.querySelector("[data-random]"), title: current ? button : null, current });
   bindDeckRow({ row: dlg.querySelector("[data-deck]"), host: dlg });
+  bindChoose({ cell: dlg.querySelector("[data-choose]"), host: dlg });
 }
