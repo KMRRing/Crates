@@ -4,14 +4,6 @@
 // `line` is the game in a sentence, `todo` what building it takes and where the risk is. A game that gets built loses its entry
 // here and its tile points at its own page; tests/soon.mjs fails while a tile and its entry disagree.
 export const SOON = {
-  nurikabe: {
-    name: "Nurikabe", sec: "classics",
-    line: "Numbered cells are islands of exactly that many cells, each with one number; the rest is one connected sea, with no 2×2 block of it.",
-    todo: [
-      "The risk is the generator: boards that are unique and solvable by reasoning alone, never by guessing, are hard to make (Survey's and Hitori's rule), and many generators fail it.",
-      "Do not ship it until a solver that only reasons as a person does can finish every board it makes.",
-    ],
-  },
   rack: {
     name: "Rack", sec: "table",
     line: "A word game on a board: seven tiles on a rack, premium squares, words that cross, a bag drawn from.",

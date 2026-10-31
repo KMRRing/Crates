@@ -54,6 +54,7 @@ export const GAMES = {
   hitori: { name: "Hitori", page: "./hitori.html" },
   slitherlink: { name: "Slitherlink", page: "./slitherlink.html" },
   masyu: { name: "Masyu", page: "./masyu.html" },
+  nurikabe: { name: "Nurikabe", page: "./nurikabe.html" },
   bridges: { name: "Bridges", page: "./bridges.html" },
   bulls: { name: "Bulls", page: "./bulls.html" },
   assay: { name: "Assay", page: "./assay.html" },
