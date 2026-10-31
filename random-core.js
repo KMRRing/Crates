@@ -95,7 +95,6 @@ export const ROUNDS = {
 /** The games random mode leaves out, and why. Party's own games (`party: true` in apps.js: they open Party) are out
  *  without a word here; every other game on the games screen is in ROUNDS or here (tests/random.mjs checks). */
 export const LEFT_OUT = {
-  deck: "the review of every game's misses: it deals only what's due, so there's often nothing to play",
   lexicon: "the knowledge base to look things up in, not a game",
   ledger: "the record of how well you learn, not a game",
   party: "a room for people round a table, each on their own phone",

@@ -497,15 +497,15 @@ export const APPS = [
   { id: "harbour", sec: "puzzle", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO) },
   { id: "pipes", sec: "puzzle", name: "Pipes", href: "./pipes.html", logo: LOGO("pipes", PIPES_LOGO) },
   { id: "hong", sec: "table", name: "Hong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO) },
-  { id: "deck", sec: "knowledge", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO) },
+  // Deck: no tile (31 October 2026, Korbi): the banner under the head opens it, as a third choice beside Random and Choose, and
+  // its page keeps its name and logo here
+  { id: "deck", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO) },
   { id: "tribute", sec: "table", name: "Tribute", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO) },
   { id: "arb", sec: "knowledge", name: "Arb", href: "./arb.html", logo: LOGO("arb", ARB_LOGO) },
   { id: "survey", sec: "puzzle", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO) },
   { id: "blend", sec: "courses", name: "Blend", href: "./blend.html", logo: LOGO("blend", BLEND_LOGO) },
   { id: "refinery", sec: "courses", name: "Refinery", href: "./refinery.html", logo: LOGO("refinery", REFINERY_LOGO) },
   { id: "brut", sec: "courses", name: "Brut", href: "./brut.html", logo: LOGO("brut", BRUT_LOGO) },
-  { id: "lexicon", sec: "knowledge", name: "Lexicon", href: "./lexicon.html", logo: LOGO("lexicon", LEXICON_LOGO) },
-  { id: "ledger", sec: "knowledge", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO) },
   { id: "stow", sec: "puzzle", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO) },
   { id: "parley", sec: "courses", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO) },
   { id: "crossword", sec: "knowledge", name: "Crossword", href: "./crossword.html", logo: LOGO("crossword", CROSSWORD_LOGO), team: "time" },
@@ -587,6 +587,8 @@ export const APPS = [
   { id: "craps", sec: "casino", name: "Craps", href: "./craps.html", logo: LOGO("craps", CRAPS_LOGO) },
   { id: "holdem", sec: "casino", name: "Hold'em", href: "./holdem.html", logo: LOGO("holdem", HOLDEM_LOGO) },
   // Tools: instruments rather than games
+  { id: "lexicon", sec: "tools", name: "Lexicon", href: "./lexicon.html", logo: LOGO("lexicon", LEXICON_LOGO) },
+  { id: "ledger", sec: "tools", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO) },
   { id: "timegrapher", sec: "tools", name: "Timegrapher", href: "./timegrapher.html", logo: LOGO("timegrapher", TIMEGRAPHER_LOGO) },
 ];
 
