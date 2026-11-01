@@ -1,21 +1,24 @@
 // Bridges as a model, drawn with three.js (vendor/three.js, kept on the device, so it works offline): the chart's islands as
-// a relief map's, hills in terraces like contour lines, timber bridges on piles, a viaduct as a stone arcade high over the low
-// bridges, and on the water, slowly, seventeenth-century merchantmen: one on each part of a fairway, to and fro between its
+// a relief map's, each as big as its number (a one is an islet, an eight nearly fills its cell) with a beach, grass and trees,
+// hills in terraces like contour lines, timber bridges arched over their trestles with railings, a viaduct as a stone arcade
+// with a parapet high over the low bridges, and on the water, slowly, seventeenth-century merchantmen: one on each part of a fairway, to and fro between its
 // buoys, and others sailing right round the archipelago. It is the puzzle, played: a dashed guide lies on every link without a
 // bridge, a tap on a link calls the page's press(link, "tap") and a hold press(link, "hold") (the page builds, cycles and
-// clears, as on the chart), a drag turns the board, and a hint's link glows gilt. Which link a finger means is worked out in
+// clears, as on the chart), a drag turns the board, two fingers (or the wheel, or the + and − beside it) zoom in and pan, and a
+// hint's link glows gilt. Which link a finger means is worked out in
 // bridges-model.js (the links as the screen shows them, the nearest wins), tested in Node.
 // The page calls set(layout, grid, …) for a new puzzle and update(marks, breaks, hint) after a change; this file builds every
 // link's bridges once (a single and a double), and a change only shows and hides them. It draws only while it is on screen
 // and nothing has paused it (the menu, a hidden tab), at most thirty frames a second: the ships go slowly.
 // Throws where there is no WebGL (the page then keeps the chart).
 import * as THREE from "./vendor/three.js";
-import { cellXZ, labelOf, routesOf, shipAt, buoysOf, piersOf, wallOutline, linkLine, pickLink, pickTolerance } from "./bridges-model.js";
+import { cellXZ, labelOf, routesOf, shipAt, buoysOf, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile } from "./bridges-model.js";
 
 const DEG = Math.PI / 180;
 const DOUBLE_SIDE = 2;                           // THREE.DoubleSide (not in the bundle's exports)
 const MIN_EL = 30 * DEG, MAX_EL = 80 * DEG, FOV = 30 * DEG;   // not lower: from the side the hills hide the links behind them
 const HOME_AZ = 32 * DEG, HOME_EL = 52 * DEG;
+const MAX_ZOOM = 3.6;                           // how far in: the board's fit is 1
 const HOLD = 430, SLIP = 9;                     // ms a press takes to clear a link (as on the chart), and the pixels a finger may stray and still tap
 const FRAME_MS = 1000 / 30;
 const DECK = 0.17, VIADUCT = 0.8;               // the heights of a low bridge's deck and of the top of a viaduct
@@ -24,8 +27,8 @@ const WAVE = (x, z, t) => 0.028 * Math.sin(x * 0.9 + t * 0.8) + 0.02 * Math.sin(
 
 // ---------- the skins ----------
 const MODES = {
-  day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], copper: 0xd9a27a, timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, rock: 0x6f6a62, guide: 0xffffff, guideA: 0.62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false },
-  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], copper: 0xc08a68, timber: 0x84603a, stone: 0xb4aea0, deck: 0x9a9380, rock: 0x625e58, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true },
+  day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], copper: 0xd9a27a, timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, rock: 0x6f6a62, guide: 0xffffff, guideA: 0.62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false, grass: 0x8fae62, tree: 0x4d7a45, shallow: 0xb9e6e3, shallowA: 0.42, rail: 0x6b4a2b },
+  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], copper: 0xc08a68, timber: 0x84603a, stone: 0xb4aea0, deck: 0x9a9380, rock: 0x625e58, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true, grass: 0x6f8a55, tree: 0x3e6339, shallow: 0x8fb8c4, shallowA: 0.34, rail: 0x5e4328 },
 };
 function skinNow() {
   const root = document.documentElement, night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -40,6 +43,24 @@ function wall(points, depth) {
   const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 4 });
   g.translate(0, 0, -depth / 2);
   return g;
+}
+
+/** A box `w` × `h` × `d` with its middle at (x, y, z), as a piece for `merged`. */
+const box = (w, h, d, x, y, z) => [new THREE.BoxGeometry(w, h, d), new THREE.Matrix4().makeTranslation(x, y, z)];
+/** Many pieces [geometry, matrix] as one geometry, so a bridge with a hundred posts is one thing to draw and not a hundred. */
+function merged(list) {
+  const pos = [], nor = [];
+  for (const [geo, m] of list) {
+    const g = geo.index ? geo.toNonIndexed() : geo.clone();
+    if (m) g.applyMatrix4(m);
+    const p = g.attributes.position.array, n = g.attributes.normal.array;
+    for (let i = 0; i < p.length; i++) { pos.push(p[i]); nor.push(n[i]); }
+    g.dispose(); geo.dispose();
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  out.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  return out;
 }
 
 /**
@@ -80,7 +101,8 @@ export function createModel(host, opts = {}) {
     sea: mat(0x3f8db4, { roughness: 0.55, metalness: 0.05 }), sand: mat(0xe6d6ab), copper: mat(0xd9a27a), rock: mat(0x6f6a62),
     h0: mat(0xd8c28f), h1: mat(0xc4a870), h2: mat(0xa98b55), timber: mat(0x9a6a3b), stone: mat(0xd9d0bc), deck: mat(0xbfb394),
     hull: mat(0x6a4426), trim: mat(0xc9a23c, { metalness: 0.4, roughness: 0.4 }), sail: mat(0xf0e6cc, { side: DOUBLE_SIDE }), flag: mat(0xb5432f, { side: DOUBLE_SIDE }),
-    red: mat(0xb5432f), white: mat(0xf4efe2), lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }),
+    grass: mat(0x8fae62), tree: mat(0x4d7a45), rail: mat(0x6b4a2b), red: mat(0xb5432f), white: mat(0xf4efe2), lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }),
+    shallow: new THREE.MeshBasicMaterial({ color: 0xb9e6e3, transparent: true, opacity: 0.4, depthWrite: false }),
     guide: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, side: DOUBLE_SIDE }),
     halo: new THREE.MeshBasicMaterial({ color: 0xf2c14e, transparent: true, opacity: 0.5, depthWrite: false, side: DOUBLE_SIDE }),
   };
@@ -153,42 +175,83 @@ export function createModel(host, opts = {}) {
   const place = (obj, x, y, z, ry = 0) => { obj.position.set(x, y, z); obj.rotation.y = ry; return obj; };
   const shadowed = obj => { obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return obj; };
 
+  /** An island as big as its number: on sand, a beach, a lawn and trees (more of them the bigger it is); a hill in terraces; and a pale ring of shallows round it. */
   function island(i) {
-    const isle = lay.isl[i], [x, z] = cellXZ(size, isle.r, isle.c), g = new THREE.Group(), top = isle.realm ? M.copper : M.sand;
+    const isle = lay.isl[i], [x, z] = cellXZ(size, isle.r, isle.c), R = islandRadius(isle.n), g = new THREE.Group(), top = isle.realm ? M.copper : M.sand;
     if (isle.hill) {
       // terraces: contour lines made solid
-      const t = [[0.47, 0.44, 0.3, M.h0], [0.37, 0.36, 0.62, M.h1], [0.27, 0.26, 1.0, M.h2]];
-      for (const [rb, rt, h, m] of t) { const c = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h + 0.1, 18), isle.realm ? M.copper : m); c.position.y = (h - 0.1) / 2; g.add(c); }
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.05, 14), M.trim);
+      const k = R / 0.47, t = [[0.47, 0.44, 0.3, M.h0], [0.37, 0.36, 0.62, M.h1], [0.27, 0.26, 1.0, M.h2]];
+      for (const [rb, rt, h, m] of t) { const c = new THREE.Mesh(new THREE.CylinderGeometry(rt * k, rb * k, h + 0.1, 20), isle.realm ? M.copper : m); c.position.y = (h - 0.1) / 2; g.add(c); }
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * k, 0.26 * k, 0.05, 14), M.trim);
       cap.position.y = 1.02;
       g.add(cap);
     } else {
-      const c = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.47, 0.34, 18), top);
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.93, R, 0.34, 24), top);
       c.position.y = 0.03;
       g.add(c);
+      if (!isle.realm && R > 0.3) {
+        const lawn = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.66, R * 0.74, 0.04, 20), M.grass);
+        lawn.position.y = 0.2;
+        g.add(lawn);
+        // trees on the diagonals, the bridges leaving by the four sides
+        const trunks = [], crowns = [], count = isle.n >= 7 ? 3 : isle.n >= 5 ? 2 : isle.n >= 3 ? 1 : 0;
+        for (let q = 0; q < count; q++) {
+          const a = (((i + [0, 2, 1][q]) % 4) + 0.5) * (Math.PI / 2) + 0.1 * q, d = R * (0.42 + 0.07 * q), s = 0.8 + 0.12 * ((i * 7 + q * 3) % 4), px = Math.cos(a) * d, pz = Math.sin(a) * d;
+          trunks.push([new THREE.CylinderGeometry(0.014 * s, 0.02 * s, 0.1 * s, 5), new THREE.Matrix4().makeTranslation(px, 0.22 + 0.05 * s, pz)]);
+          crowns.push([new THREE.ConeGeometry(0.085 * s, 0.24 * s, 7), new THREE.Matrix4().makeTranslation(px, 0.22 + 0.2 * s, pz)]);
+        }
+        if (count) g.add(new THREE.Mesh(merged(trunks), M.rail), new THREE.Mesh(merged(crowns), M.tree));
+      }
     }
-    g.position.set(x, 0, z);
-    return shadowed(g);
+    shadowed(g);
+    const out = new THREE.Group(), ring = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.2, R + 0.26, 0.012, 28), M.shallow);
+    ring.position.y = 0.07;                                      // over the swell's crests
+    out.add(g, ring);
+    out.position.set(x, 0, z);
+    return out;
+  }
+  /** Where a low bridge's deck runs along its link (from the first island's middle): its ends tucked a little into the islands, and how high it arches. */
+  function lowSpan(a, b, span) {
+    const xa = islandRadius(a.n) - 0.06, xb = span - islandRadius(b.n) + 0.06, len = xb - xa;
+    return { xa, xb, len, hump: Math.max(0.04, Math.min(0.15, 0.035 * len)) };
   }
   /** A link's bridges, once: a single and a double of each, shown and hidden as the marks change. */
   function bridgesOf(l) {
     const link = lay.links[l], a = lay.isl[link.a], b = lay.isl[link.b], [x, z] = cellXZ(size, a.r, a.c), span = link.vertical ? b.r - a.r : b.c - a.c;
     const ry = link.vertical ? -Math.PI / 2 : 0, one = new THREE.Group(), two = new THREE.Group(), deckM = a.realm ? M.copper : M.timber;
     if (link.high) {
-      const piers = piersOf(lay, l, P.lanes || "");
-      const outline = wallOutline(span, piers, { top: VIADUCT - 0.04, rise: 0.7 });
+      // a stone arcade with a kerb along each edge of the road
+      const ra = islandRadius(a.n), rb = islandRadius(b.n), piers = piersOf(lay, l, P.lanes || "");
+      const outline = wallOutline(span, piers, { top: VIADUCT - 0.04, rise: 0.7, reach: ra, reachEnd: rb }), xa = 0.55 * ra, xb = span - 0.55 * rb, mid = (xa + xb) / 2;
       for (const [grp, lanes] of [[one, [0]], [two, [-0.1, 0.1]]]) for (const off of lanes) {
-        const w = wall(outline, lanes.length === 1 ? 0.17 : 0.08), m = new THREE.Mesh(w, M.stone), d = new THREE.Mesh(new THREE.BoxGeometry(span - 0.6, 0.05, lanes.length === 1 ? 0.24 : 0.12), M.deck);
+        const w = lanes.length === 1 ? 0.24 : 0.12, m = new THREE.Mesh(wall(outline, lanes.length === 1 ? 0.17 : 0.08), M.stone), d = new THREE.Mesh(new THREE.BoxGeometry(xb - xa, 0.05, w), M.deck);
         m.position.z = off;
-        d.position.set(span / 2, VIADUCT - 0.02, off);
-        grp.add(m, d);
+        d.position.set(mid, VIADUCT - 0.02, off);
+        const kerb = new THREE.Mesh(merged([box(xb - xa, 0.07, 0.022, mid, VIADUCT + 0.04, off - (w / 2 - 0.011)), box(xb - xa, 0.07, 0.022, mid, VIADUCT + 0.04, off + (w / 2 - 0.011))]), M.stone);
+        grp.add(m, d, kerb);
       }
     } else {
+      // an arched timber deck with railings, on trestles
+      const { xa, xb, len, hump } = lowSpan(a, b, span), ytop = u => DECK + hump * Math.sin((Math.PI * (u - xa)) / len);
       for (const [grp, lanes] of [[one, [0]], [two, [-0.1, 0.1]]]) for (const off of lanes) {
-        const w = lanes.length === 1 ? 0.15 : 0.085, len = span - 0.7, d = new THREE.Mesh(new THREE.BoxGeometry(len, 0.045, w), deckM);
-        d.position.set(span / 2, DECK, off);
-        grp.add(d);
-        for (let s = 0.2; s <= len; s += 0.5) { const pile = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.26, 6), M.hull); pile.position.set(0.35 + s, 0.03, off + (w / 2 - 0.012)); const q = pile.clone(); q.position.z = off - (w / 2 - 0.012); grp.add(pile, q); }
+        const w = lanes.length === 1 ? 0.15 : 0.085, top = deckProfile(len, hump, Math.max(6, Math.round(len * 5))).map(([u, dy]) => [xa + u, DECK + dy]);
+        const deck = wall([...top, ...top.map(([u, y]) => [u, y - 0.045]).reverse()], w);
+        deck.translate(0, 0, off);
+        grp.add(new THREE.Mesh(deck, deckM));
+        const parts = [];
+        for (const side of lanes.length === 1 ? [-1, 1] : [off < 0 ? -1 : 1]) {      // posts and a rail along the edges (a double has its outer ones)
+          const zz = off + side * (w / 2 - 0.011);
+          for (let u = xa + 0.12; u <= xb - 0.1; u += 0.3) parts.push(box(0.02, 0.09, 0.02, u, ytop(u) + 0.045, zz));
+          const rail = wall([...top.map(([u, y]) => [u, y + 0.1]), ...top.map(([u, y]) => [u, y + 0.082]).reverse()], 0.018);
+          rail.translate(0, 0, zz);
+          parts.push([rail, null]);
+        }
+        for (let u = xa + 0.35; u <= xb - 0.3; u += 0.75) {                             // trestles: a pair of piles and a beam under the deck
+          const below = ytop(u) - 0.045, h = below + 0.12;
+          for (const side of [-1, 1]) parts.push([new THREE.CylinderGeometry(0.02, 0.024, h, 5), new THREE.Matrix4().makeTranslation(u, below - h / 2, off + side * (w / 2 - 0.02))]);
+          parts.push(box(0.04, 0.03, w + 0.01, u, below - 0.015, off));
+        }
+        grp.add(new THREE.Mesh(merged(parts), M.rail));
       }
     }
     const out = new THREE.Group();
@@ -208,18 +271,29 @@ export function createModel(host, opts = {}) {
     g.setIndex(idx);
     return g;
   }
+  /** One strip from x0 to x1 that follows a deck's arch (`hump` high over the deck that runs from `xa`, `len` long), above y = 0: the glow of a built bridge. */
+  function arched(x0, x1, hw, hump, xa, len) {
+    const n = Math.max(2, Math.round((x1 - x0) / 0.2)), pos = [], idx = [];
+    for (let i = 0; i <= n; i++) { const x = x0 + ((x1 - x0) * i) / n, y = hump * Math.sin(Math.PI * Math.max(0, Math.min(1, (x - xa) / len))); pos.push(x, y, -hw, x, y, hw); }
+    for (let i = 0; i < n; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 2, i * 2 + 1, i * 2 + 3);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    return g;
+  }
   /** What a link shows before it has a bridge: dashes along it (where a finger may tap), and the glow a hint or a finger gives it. */
   function guideOf(l) {
     const link = lay.links[l], a = lay.isl[link.a], b = lay.isl[link.b], [x, z] = cellXZ(size, a.r, a.c), span = link.vertical ? b.r - a.r : b.c - a.c;
-    const ry = link.vertical ? -Math.PI / 2 : 0, high = !!link.high, y = high ? GUIDE_HIGH : GUIDE, from = 0.58, to = span - 0.58;
+    const ry = link.vertical ? -Math.PI / 2 : 0, high = !!link.high, y = high ? GUIDE_HIGH : GUIDE, from = islandRadius(a.n) + 0.1, to = span - islandRadius(b.n) - 0.1;
     const n = Math.max(1, Math.round((to - from) / 0.3)), step = (to - from) / n, hw = 0.04 + 0.004 * Math.max(0, size - 7), list = [];
     for (let i = 0; i < n; i++) list.push([from + i * step + (step - 0.17) / 2, from + i * step + (step + 0.17) / 2, hw]);
-    const dashes = new THREE.Mesh(strips(list, y), M.guide), halo = new THREE.Mesh(strips([[0.5, span - 0.5, 0.2]], 0), M.halo);
+    const low = high ? null : lowSpan(a, b, span);
+    const dashes = new THREE.Mesh(strips(list, y), M.guide), halo = new THREE.Mesh(high ? strips([[from - 0.05, to + 0.05, 0.2]], 0) : arched(from - 0.05, to + 0.05, 0.2, low.hump, low.xa, low.len), M.halo);
     halo.visible = false;
     const out = new THREE.Group();
     out.add(dashes, halo);
     place(out, x, 0, z, ry);
-    return { out, dashes, halo, haloY: high ? VIADUCT + 0.04 : DECK + 0.045, guideY: y + 0.012 };
+    return { out, dashes, halo, haloY: high ? VIADUCT + 0.085 : DECK + 0.115, guideY: y + 0.012 };
   }
 
   /** Shows a puzzle: `p` is { lay, grid, lanes, hills, realms } (the page's P and its run's strings). */
@@ -245,7 +319,7 @@ export function createModel(host, opts = {}) {
       world.add(shadowed(rock));
     }
     isleReach = Math.max(0, ...lay.isl.map(o => Math.hypot(...cellXZ(size, o.r, o.c)))) + 1.0;
-    lines = lay.links.map((_, l) => linkLine(lay, size, l, { deck: DECK, viaduct: VIADUCT }));
+    lines = lay.links.map((_, l) => linkLine(lay, size, l, { deck: DECK, viaduct: VIADUCT, pad: o => islandRadius(o.n) + 0.05 }));
     linkMeshes = lay.links.map((_, l) => { const m = bridgesOf(l), g = guideOf(l); world.add(m.out, g.out); return { ...m, ...g }; });
     // the sea's own: buoys round the fairways, merchantmen on them and round the board
     for (const b of p.lanes ? buoysOf(size, p.lanes) : []) {
@@ -273,6 +347,7 @@ export function createModel(host, opts = {}) {
       one.visible = m[l] === "1"; two.visible = m[l] === "2";
       dashes.visible = m[l] === "0";
       halo.position.y = m[l] === "0" ? guideY : haloY;
+      halo.scale.y = m[l] === "0" ? 0 : 1;                    // a link without a bridge glows flat; a bridge's glow follows its arch
     });
     const over = new Set(br?.over), met = new Set(br?.met), cut = new Set(br?.cut);
     for (const pl of plates) {
@@ -294,6 +369,7 @@ export function createModel(host, opts = {}) {
     M.sea.color.set(k.sea); M.sand.color.set(k.sand); M.copper.color.set(k.copper); M.rock.color.set(k.rock);
     M.h0.color.set(k.hill[0]); M.h1.color.set(k.hill[1]); M.h2.color.set(k.hill[2]);
     M.timber.color.set(k.timber); M.stone.color.set(k.stone); M.deck.color.set(k.deck);
+    M.grass.color.set(k.grass); M.tree.color.set(k.tree); M.rail.color.set(k.rail); M.shallow.color.set(k.shallow); M.shallow.opacity = k.shallowA;
     M.guide.color.set(k.guide); M.guide.opacity = k.guideA;
     hemi.color.set(k.sky); hemi.groundColor.set(k.ground); hemi.intensity = k.hemi;
     sun.color.set(k.key); sun.intensity = k.keyI;
@@ -304,9 +380,12 @@ export function createModel(host, opts = {}) {
 
   // ---------- the camera: round the board under a finger ----------
   let isleReach = 0;                                             // how far the farthest island is from the board's middle, and room for its plate
-  let width = 1, height = 1, az = HOME_AZ, el = HOME_EL, dist = 14, spinUntil = 0;
-  const LOOK = new THREE.Vector3(0, 0.15, 0), V = new THREE.Vector3();
+  let width = 1, height = 1, az = HOME_AZ, el = HOME_EL, dist = 14, fitDist = 14, spinUntil = 0;
+  let zoom = 1;                                                  // 1 shows the whole board; in, the camera comes nearer to what it looks at
+  const pan = { x: 0, z: 0 };                                    // where it looks, from the board's middle, once zoomed in
+  const LOOK = new THREE.Vector3(0, 0.15, 0), V = new THREE.Vector3(), G = new THREE.Vector3();
   function pose() {
+    LOOK.set(pan.x, 0.15, pan.z);
     camera.position.set(Math.sin(az) * Math.cos(el) * dist, Math.sin(el) * dist, Math.cos(az) * Math.cos(el) * dist).add(LOOK);
     camera.up.set(0, 1, 0);
     camera.lookAt(LOOK);
@@ -321,7 +400,8 @@ export function createModel(host, opts = {}) {
     // the islands (and the plates over them) in view from any side, the tighter of the two fields of view; a board whose islands
     // keep off its corners comes nearer, but not so near that the sea round it, where the ships sail, is all out of sight
     const edge = (size / 2 - 0.5) * Math.SQRT2 + 0.7, reach = Math.max(isleReach, 0.8 * edge), half = Math.min(FOV / 2, Math.atan(Math.tan(FOV / 2) * aspect));
-    dist = reach / Math.sin(half);
+    fitDist = reach / Math.sin(half);
+    dist = fitDist / zoom;
     pose();
     const D = size * 3 + 8, la = az - 0.6, le = Math.min(el + 0.5, 1.3);
     sun.position.set(Math.sin(la) * Math.cos(le) * D, Math.sin(le) * D, Math.cos(la) * Math.cos(le) * D);
@@ -338,10 +418,11 @@ export function createModel(host, opts = {}) {
     wake();
   }
   function placePlates() {
+    const plateScale = Math.round((1 + 0.22 * Math.min(2, zoom - 1)) * 100) / 100;      // the plates grow a little with the islands
     for (const pl of plates) {
       const isle = lay.isl[pl.i], [x, z] = cellXZ(size, isle.r, isle.c);
       V.set(x, isle.hill ? 1.35 : 0.55, z).project(camera);
-      pl.el.style.transform = `translate(${((V.x + 1) / 2) * width}px, ${((1 - V.y) / 2) * height}px) translate(-50%, -50%)`;
+      pl.el.style.transform = `translate(${((V.x + 1) / 2) * width}px, ${((1 - V.y) / 2) * height}px) translate(-50%, -50%)${plateScale === 1 ? "" : ` scale(${plateScale})`}`;
     }
   }
 
@@ -386,7 +467,7 @@ export function createModel(host, opts = {}) {
       const [ax, ay] = scr(q.x0, q.y, q.z0), [bx, by] = scr(q.x1, q.y, q.z1);
       return { l, ax, ay, bx, by, high: q.high, bias: opts.blocked?.(l) ? 3 : 0 };
     });
-    const isles = lay.isl.map(o => { const [wx, wz] = cellXZ(size, o.r, o.c), [x, y] = scr(wx, o.hill ? 0.5 : 0.15, wz); return { x, y, r: 0.42 * ppu }; });
+    const isles = lay.isl.map(o => { const [wx, wz] = cellXZ(size, o.r, o.c), [x, y] = scr(wx, o.hill ? 0.5 : 0.15, wz); return { x, y, r: (islandRadius(o.n) - 0.02) * ppu }; });
     return { r, kx, ky, segs, isles, tol: pickTolerance(ppu * Math.sin(el)) };
   }
   /** The link under a finger at the page's (clientX, clientY), or -1. */
@@ -397,10 +478,56 @@ export function createModel(host, opts = {}) {
   }
   const aimAt = l => { if (l === aim) return; aim = l; glow(); canvas.style.cursor = l >= 0 ? "pointer" : ""; wake(); };
 
+  // ---------- zoom and pan ----------
+  /** The point of the islands' plane (as high as the camera looks) under a pixel of the canvas. */
+  function groundAt(sx, sy) {
+    G.set((sx / width) * 2 - 1, 1 - (sy / height) * 2, 0.5).applyMatrix4(camera.projectionMatrixInverse).applyMatrix4(camera.matrixWorld);
+    const o = camera.position, t = (LOOK.y - o.y) / (G.y - o.y);
+    return { x: o.x + (G.x - o.x) * t, z: o.z + (G.z - o.z) * t };
+  }
+  const canvasPoint = (cx, cy) => { const r = canvas.getBoundingClientRect(); return [(cx - r.left) * (width / (r.width || 1)), (cy - r.top) * (height / (r.height || 1))]; };
+  /** Keeps the view over the board: the further in, the further from the middle it may look. */
+  function clampPan() {
+    const lim = (size / 2) * (1 - 1 / zoom) + 0.5;
+    pan.x = Math.max(-lim, Math.min(lim, pan.x)); pan.z = Math.max(-lim, Math.min(lim, pan.z));
+  }
+  /** Zooms to `z` (1 to MAX_ZOOM) keeping what is under the page's point (cx, cy) under it (the middle if none). */
+  function zoomAt(z, cx, cy) {
+    if (!lay) return;
+    const [sx, sy] = cx == null ? [width / 2, height / 2] : canvasPoint(cx, cy), before = groundAt(sx, sy);
+    zoom = Math.max(1, Math.min(MAX_ZOOM, z));
+    fit();
+    if (zoom === 1) { pan.x = pan.z = 0; } else { const after = groundAt(sx, sy); pan.x += before.x - after.x; pan.z += before.z - after.z; clampPan(); }
+    fit(); wake();
+  }
+  /** Moves the view so what was under the canvas pixel (ax, ay) is under (bx, by): a drag of the ground. */
+  function panBy(ax, ay, bx, by) {
+    const p = groundAt(ax, ay), q = groundAt(bx, by);
+    pan.x += p.x - q.x; pan.z += p.z - q.z;
+    clampPan(); fit(); wake();
+  }
+  /** Back to where it began: turned to the first view, all of the board in sight. */
+  function reset() { zoom = 1; pan.x = pan.z = 0; orbit(HOME_AZ, HOME_EL); }
+  canvas.addEventListener("wheel", e => {
+    e.preventDefault();
+    zoomAt(zoom * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 16 : 1) * (e.ctrlKey ? 0.01 : 0.0016)), e.clientX, e.clientY);       // ctrl is a trackpad's pinch
+  }, { passive: false });
+  const fingers = new Map();       // the pointers down: id → { x, y } on the page
+  let pinch = null;                // two fingers: { d0, zoom0, anchor } the distance when they met, the zoom then, and the ground under their middle
+  const pinchNow = () => { const [a, b] = [...fingers.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; };
+
   let g = null, lastTap = null;      // the finger down: { id, x0, y0, x, y, link, turning, held, timer }; the last tap that hit nothing
   canvas.addEventListener("pointerdown", e => {
     if (e.button === 2) { const l = playable() ? pickAt(e.clientX, e.clientY) : -1; if (l >= 0) opts.press?.(l, "hold"); return; }   // a right click clears, as on the chart
-    if (e.button > 0 || g) return;
+    if (e.button > 0) return;
+    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (g && fingers.size === 2 && !pinch) {            // a second finger: no tap or hold now, the two zoom and pan
+      clearTimeout(g.timer); g.turning = true; aimAt(-1);
+      const { d, mx, my } = pinchNow();
+      pinch = { d0: d, zoom0: zoom, anchor: groundAt(...canvasPoint(mx, my)) };
+      return;
+    }
+    if (g) return;
     const link = playable() ? pickAt(e.clientX, e.clientY) : -1;
     g = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, link, turning: false, held: false, timer: 0 };
     try { canvas.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
@@ -415,6 +542,15 @@ export function createModel(host, opts = {}) {
     }, HOLD);
   });
   canvas.addEventListener("pointermove", e => {
+    if (fingers.has(e.pointerId)) fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && fingers.size === 2) {
+      const { d, mx, my } = pinchNow();
+      zoom = Math.max(1, Math.min(MAX_ZOOM, pinch.zoom0 * (d / pinch.d0)));
+      fit();
+      if (zoom === 1) pan.x = pan.z = 0; else { const now = groundAt(...canvasPoint(mx, my)); pan.x += pinch.anchor.x - now.x; pan.z += pinch.anchor.z - now.z; clampPan(); }
+      fit(); wake();
+      return;
+    }
     if (!g) { if (e.pointerType === "mouse" && lay) aimAt(playable() ? pickAt(e.clientX, e.clientY) : -1); return; }
     if (e.pointerId !== g.id) return;
     if (!g.turning) {
@@ -425,13 +561,18 @@ export function createModel(host, opts = {}) {
       g.x = e.clientX; g.y = e.clientY;
       return;
     }
-    az -= (e.clientX - g.x) * 0.008;
-    el = Math.max(MIN_EL, Math.min(MAX_EL, el + (e.clientY - g.y) * 0.006));
+    if (e.shiftKey && e.pointerType === "mouse") panBy(...canvasPoint(g.x, g.y), ...canvasPoint(e.clientX, e.clientY));      // shift and drag moves the board
+    else {
+      az -= (e.clientX - g.x) * 0.008;
+      el = Math.max(MIN_EL, Math.min(MAX_EL, el + (e.clientY - g.y) * 0.006));
+      fit();
+      wake();
+    }
     g.x = e.clientX; g.y = e.clientY;
-    fit();
-    wake();
   });
   const letGo = e => {
+    fingers.delete(e.pointerId);
+    if (pinch && fingers.size < 2) { pinch = null; const p = g && fingers.get(g.id); if (p) { g.x = p.x; g.y = p.y; } }     // one finger left: it turns the board on from where it is
     if (!g || e.pointerId !== g.id) return;
     clearTimeout(g.timer);
     const { link, turning, held } = g, now = performance.now();
@@ -440,7 +581,7 @@ export function createModel(host, opts = {}) {
     if (e.type === "pointercancel" || turning || held) return;
     if (link >= 0) { lastTap = null; opts.press?.(link, "tap"); return; }
     // two taps on the water turn the board back to where it began
-    if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { lastTap = null; orbit(HOME_AZ, HOME_EL); } else lastTap = { t: now, x: e.clientX, y: e.clientY };
+    if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { lastTap = null; reset(); } else lastTap = { t: now, x: e.clientX, y: e.clientY };
   };
   canvas.addEventListener("pointerup", letGo);
   canvas.addEventListener("pointercancel", letGo);
@@ -448,6 +589,16 @@ export function createModel(host, opts = {}) {
   canvas.addEventListener("contextmenu", e => e.preventDefault());
   canvas.style.touchAction = "none";
   function orbit(a, e) { az = a; el = Math.max(MIN_EL, Math.min(MAX_EL, e)); fit(); wake(); }
+  // the zoom buttons, for a mouse without a wheel and a hand that doesn't pinch
+  const zoomBox = document.createElement("div");
+  zoomBox.className = "brg3-zoom";
+  for (const [text, label, by] of [["+", "Zoom in", 1.4], ["−", "Zoom out", 1 / 1.4]]) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = text; b.setAttribute("aria-label", label);
+    b.addEventListener("click", () => zoomAt(zoom * by));
+    zoomBox.appendChild(b);
+  }
+  host.appendChild(zoomBox);
 
   new ResizeObserver(resize).observe(host);
   new MutationObserver(applySkin).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
@@ -466,8 +617,11 @@ export function createModel(host, opts = {}) {
     hold(on) { held = !!on; if (held && frameId) { cancelAnimationFrame(frameId); frameId = 0; } else wake(); },
     /** After a win: the board turns slowly for a few seconds. */
     spin(ms = 7000) { spinUntil = performance.now() + ms; winUntil = performance.now() + 3200; glow(); wake(); },
-    orbit,
+    orbit, reset,
     get angles() { return [az, el]; },
+    /** For tests and the page: the zoom (1 is all of the board) and where it looks. */
+    get view() { return { zoom, x: pan.x, z: pan.z }; },
+    zoomTo(z, cx, cy) { zoomAt(z, cx, cy); },
     /** For tests: the page's (clientX, clientY) of link `l`, a fraction `f` of the way along it (the middle), as a finger would tap it. */
     where(l, f = 0.5) {
       const q = lines[l], r = canvas.getBoundingClientRect();

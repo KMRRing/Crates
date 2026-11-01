@@ -4,7 +4,7 @@
 // when asked, and keeps to the offline rules. The picture itself (bridges-3d.js, three.js) needs a browser with WebGL and is
 // looked at, not run here.
 import fs from "node:fs";
-import { cellXZ, labelOf, headingOf, laneRuns, laneParts, routesOf, shipAt, buoysOf, piersOf, archPoints, wallOutline, linkLine, segDistance, pickTolerance, pickLink } from "../bridges-model.js";
+import { cellXZ, labelOf, headingOf, laneRuns, laneParts, routesOf, shipAt, buoysOf, piersOf, archPoints, deckProfile, islandRadius, wallOutline, linkLine, segDistance, pickTolerance, pickLink } from "../bridges-model.js";
 import { layoutOf, generate } from "../bridges-engine.js";
 
 let bad = 0;
@@ -109,6 +109,23 @@ const lanes = Array.from({ length: size * size }, (_, i) => { const r = Math.flo
   check(crown > 0.6, `an arch over open water is high enough for a ship to pass under (crown ${crown.toFixed(2)})`);
 }
 
+// ---------- how big an island is, and how a timber deck rises ----------
+{
+  const rs = [1, 2, 3, 4, 5, 6, 7, 8].map(islandRadius);
+  check(rs.every((r, i) => i === 0 || r > rs[i - 1]) && rs[0] >= 0.25 && rs[7] < 0.55, `an island is as big as its number: a one is an islet (${rs[0].toFixed(2)} cells across the middle to the shore), an eight (${rs[7].toFixed(2)}) about fills its cell`);
+  check(islandRadius(0) === islandRadius(1) && islandRadius(undefined) === islandRadius(1) && islandRadius(12) === islandRadius(8), "a number off the scale is the nearest end of it (a range's bound, a missing one)");
+  // islands lie two cells apart at the least, so even two eights leave a gap for a bridge's span and its ramps
+  check(2 * islandRadius(8) < 2 - 0.5, "two of the biggest islands two cells apart still leave water for a bridge between them");
+  const d = deckProfile(3, 0.12, 10);
+  check(d.length === 11 && near(d[0][0], 0) && near(d[0][1], 0) && near(d[10][0], 3) && near(d[10][1], 0, 1e-9) && near(Math.max(...d.map(p => p[1])), 0.12) && d.every((p, i) => i === 0 || p[0] > d[i - 1][0]), "a timber deck rises from nothing at one island to its hump in the middle and down to nothing at the other");
+  // a link's ends are set in by each island's own size
+  const lay = { isl: [{ r: 0, c: 0, n: 1 }, { r: 0, c: 4, n: 8 }], links: [{ a: 0, b: 1, vertical: false }] };
+  const q = linkLine(lay, 7, 0, { pad: o => islandRadius(o.n) + 0.05 }), plain = linkLine(lay, 7, 0);
+  check(near(q.x0 - cellXZ(7, 0, 0)[0], islandRadius(1) + 0.05) && near(cellXZ(7, 0, 4)[0] - q.x1, islandRadius(8) + 0.05) && near(plain.x0 - cellXZ(7, 0, 0)[0], 0.45), "a link starts further out from a big island than from a small one, and from 0.45 cells where no function is given");
+  const w = wallOutline(6, [2, 4], { reach: 0.5, reachEnd: 0.8 }), lastFoot = Math.max(...w.filter(p => p[0] < 6 && near(p[1], -0.06)).map(p => p[0]));
+  check(near(lastFoot, 6 - 0.8), "a viaduct's last arch stops where the far island's own shore is (reachEnd), not where the first's is");
+}
+
 // ---------- playing on it: which link a finger is on ----------
 {
   check(near(segDistance(0, 0, 10, 0, 5, 3), 3) && near(segDistance(0, 0, 10, 0, 14, 3), 5) && near(segDistance(2, 2, 2, 2, 5, 6), 5), "a point's distance to a segment: beside it, past its end, and to a point");
@@ -171,6 +188,7 @@ const lanes = Array.from({ length: size * size }, (_, i) => { const r = Math.flo
   const hold = +/const HOLD = (\d+)/.exec(js)[1], hold3 = +/const HOLD = (\d+)/.exec(d3)[1];
   check(hold === hold3 && /opts\.press\?\.\(link, "tap"\)/.test(d3) && /opts\.press\?\.\(g\.link, "hold"\)/.test(d3) && /e\.button === 2/.test(d3) && /contextmenu/.test(d3), `a tap, a hold (${hold3} ms, as on the chart) and a right click reach the page's press`);
   check(/Math\.hypot\(e\.clientX - g\.x0, e\.clientY - g\.y0\) <= SLIP/.test(d3) && /clearTimeout\(g\.timer\)/.test(d3), "a finger that strays turns the board and builds nothing");
+  check(/class="brg3-zoom"|brg3-zoom/.test(d3) && /\.brg3-zoom button/.test(css) && /wheel/.test(d3) && /MAX_ZOOM/.test(d3) && /pinch or scroll to zoom/.test(js) && /pinch to zoom/.test(html), "the board zooms by the wheel, two fingers and a pair of buttons, and the hint under it and the board's label say so");
   check(/model\?\.hold\(true\)/.test(js) && /document\.hidden/.test(d3) && /prefers-reduced-motion/.test(d3), "the model stands still while the menu is open or the tab hidden, and for a player who asks for less motion");
 }
 

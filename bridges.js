@@ -513,7 +513,7 @@ function drawLine() {
   else if (S.lit) { text = S.lit.text; tone = "good"; }
   else if (message) { text = message.text; tone = message.tone; }
   else if (S.came && S.came !== S.level && !/[12]/.test(S.marks)) text = `No ${LEVELS[S.level]} puzzle came of this size this time: this one is ${LEVELS[S.came]}.`;
-  else if (!/[12]/.test(S.marks)) text = `${prefs.view === "model" ? "Tap a dashed line to build a bridge, again for a second, again to clear it. Hold to clear. Drag to turn." : "Tap the dotted line between two islands to build a bridge, again for a second, again to clear it. Hold to clear."}${S.twist === "none" || !S.twist ? "" : twistHint()}`;
+  else if (!/[12]/.test(S.marks)) text = `${prefs.view === "model" ? "Tap a dashed line to build a bridge, again for a second, again to clear it. Hold to clear. Drag to turn, pinch or scroll to zoom." : "Tap the dotted line between two islands to build a bridge, again for a second, again to clear it. Hold to clear."}${S.twist === "none" || !S.twist ? "" : twistHint()}`;
   else text = `${P.lay.isl.some(x => x.kind) ? "Every island with its number, or within its bound (4+ at least, ≤3 at most)" : "Every island with as many bridges as its number"}${P.lay.realmSize[1] ? ", each colour one network" : ", all of them joined"}, no bridge crossing another${P.lay.links.some(k => k.high) ? " (a viaduct goes over)" : ""}.`;
   if (l.textContent !== text) l.textContent = text;
   l.className = `brg-say${tone ? ` ${tone}` : ""}`;

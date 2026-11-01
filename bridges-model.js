@@ -7,6 +7,8 @@
 export const cellXZ = (size, r, c) => [c + 0.5 - size / 2, r + 0.5 - size / 2];
 /** The number on an island's plate: 4, 4+ (at least) or ≤4 (at most). */
 export const labelOf = isle => (isle.kind === 1 ? `${isle.n}+` : isle.kind === 2 ? `≤${isle.n}` : String(isle.n));
+/** An island's radius in cells from its number: a one is an islet, an eight nearly fills its cell. Islands are two cells apart at least, so even two eights leave a cell of water for the bridge. */
+export const islandRadius = n => 0.28 + 0.032 * (Math.max(1, Math.min(8, n || 1)) - 1);
 /** The heading, a turn about y, that points a ship (whose bow is its +x) along (dx, dz). */
 export const headingOf = (dx, dz) => Math.atan2(-dz, dx);
 
@@ -131,15 +133,21 @@ export function archPoints(x0, x1, rise, n = 10) {
   for (let i = 0; i <= n; i++) { const th = Math.PI * (1 - i / n); pts.push([mid + rx * Math.cos(th), ry * Math.sin(th)]); }
   return pts;
 }
+/** The rise of a timber bridge's deck over its length `len`: a shallow hump `hump` high at the middle, none at the ends, as [x, dy] points, `n` segments. */
+export function deckProfile(len, hump, n = 10) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) pts.push([(len * i) / n, hump * Math.sin(Math.PI * (i / n))]);
+  return pts;
+}
 /**
  * The side of a viaduct's wall as a closed outline (x along the span in cells, y up) with an arch under each stretch between
- * supports: the islands' ends (its first and last stand `reach` cells in from the island's middle, inside the hill) and its
+ * supports: the islands' ends (its first stands `reach` cells in from the first island's middle, its last `reachEnd` from the other's, inside the hills) and its
  * piers (`pier` cells wide). The wall runs from `below` under the water to `top`.
  */
-export function wallOutline(span, piers, { reach = 0.5, pier = 0.1, rise = 0.7, top = 0.76, below = -0.06 } = {}) {
+export function wallOutline(span, piers, { reach = 0.5, reachEnd = reach, pier = 0.1, rise = 0.7, top = 0.76, below = -0.06 } = {}) {
   const stops = [0, ...piers, span], pts = [[0, below]];
   for (let i = 0; i + 1 < stops.length; i++) {
-    const x0 = stops[i] + (i === 0 ? reach : pier / 2), x1 = stops[i + 1] - (i + 2 === stops.length ? reach : pier / 2);
+    const x0 = stops[i] + (i === 0 ? reach : pier / 2), x1 = stops[i + 1] - (i + 2 === stops.length ? reachEnd : pier / 2);
     if (x1 - x0 < 0.3) continue;
     pts.push([x0, below], ...archPoints(x0, x1, rise), [x1, below]);
   }
@@ -150,13 +158,14 @@ export function wallOutline(span, piers, { reach = 0.5, pier = 0.1, rise = 0.7, 
 // ---------- playing on the model: which link a finger is on ----------
 /**
  * Where link `l` lies in the world, for picking and for its guide: the line between its islands, its ends set `pad` cells in from
- * the island's middle (a finger on an island means the island, not one of its four links), at the height its bridge has:
+ * the island's middle (a finger on an island means the island, not one of its four links; `pad` may be a function of the island, for
+ * islands of different sizes), at the height its bridge has:
  * { x0, z0, x1, z1, y, high }. `deck` and `viaduct` are the heights of a low bridge and of the top of a viaduct.
  */
 export function linkLine(lay, size, l, { deck = 0.17, viaduct = 0.8, pad = 0.45 } = {}) {
   const k = lay.links[l], a = lay.isl[k.a], b = lay.isl[k.b], [x0, z0] = cellXZ(size, a.r, a.c), [x1, z1] = cellXZ(size, b.r, b.c);
-  const dx = Math.sign(x1 - x0), dz = Math.sign(z1 - z0);
-  return { x0: x0 + dx * pad, z0: z0 + dz * pad, x1: x1 - dx * pad, z1: z1 - dz * pad, y: k.high ? viaduct : deck, high: !!k.high };
+  const dx = Math.sign(x1 - x0), dz = Math.sign(z1 - z0), pa = typeof pad === "function" ? pad(a) : pad, pb = typeof pad === "function" ? pad(b) : pad;
+  return { x0: x0 + dx * pa, z0: z0 + dz * pa, x1: x1 - dx * pb, z1: z1 - dz * pb, y: k.high ? viaduct : deck, high: !!k.high };
 }
 /** The distance from (x, y) to the segment (ax, ay)–(bx, by), on the screen's plane. */
 export function segDistance(ax, ay, bx, by, x, y) {

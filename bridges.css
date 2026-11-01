@@ -85,6 +85,10 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
 .brg3-gl:active { cursor: grabbing; }
 .brg3-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+/* zoom, for a mouse without a wheel and a hand that doesn't pinch */
+.brg3-zoom { position: absolute; right: .5rem; bottom: .5rem; display: grid; gap: .3rem; }
+.brg3-zoom button { width: 2.1rem; height: 2.1rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--brg-tile); color: var(--ink); font: inherit; font-size: 1.15rem; font-weight: 700; line-height: 1; cursor: pointer; box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 30%, transparent); }
+.brg3-zoom button:active { background: color-mix(in srgb, var(--brass) 25%, var(--brg-tile)); }
 .brg3-n { position: absolute; left: 0; top: 0; display: grid; place-items: center; min-width: 1.1rem; height: 1.1rem; padding: 0 .15rem; border-radius: 999px;
   border: 1.5px solid var(--ink); background: var(--brg-tile); color: var(--ink); font-weight: 750; font-size: .66rem; font-variant-numeric: tabular-nums; line-height: 1;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 35%, transparent); will-change: transform; }
