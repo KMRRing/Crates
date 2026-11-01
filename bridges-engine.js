@@ -14,61 +14,75 @@
 // number may be only a bound ("4+" at least four, "≤3" at most three), given by a second string, `kinds`, a character a
 // cell ("=" exactly, "+" at least, "-" at most). Two realms: the islands are of two colours, given by a third string,
 // `realms` ("0" or "1" a cell), a bridge joins two of a colour, an island of the other colour in the way stops a link
-// as another island does, and each colour must be one network of its own.
+// as another island does, and each colour must be one network of its own. Viaducts: some islands are hills, given by a
+// fourth string, `hills` ("1" a cell), and a bridge between two hills is high: a high bridge may cross a low one (the
+// others still may not cross), so a hill's viaduct goes over the lowland's bridges. Fairways: shipping lanes, given by a
+// fifth string, `lanes` ("~" a cell, water that nothing but a viaduct may span), so a link over a lane is only where it
+// joins two hills.
 
 export const SIZES = [7, 9, 11];
 export const LEVELS = { easy: "Easy", medium: "Medium", hard: "Hard" };
 export const ORDER = ["easy", "medium", "hard"];
 export const DAILY = { size: 9, level: "medium" };
-export const TWISTS = { none: "Classic", reefs: "Reefs", ranges: "Ranges", realms: "Two realms" };
-/** Which twists a twist name holds: "none", or one or more of reefs, ranges and realms joined by "+". */
-export const flagsOf = t => ({ reefs: String(t).includes("reefs"), ranges: String(t).includes("ranges"), realms: String(t).includes("realms") });
-/** A twist name made canonical (the order reefs, ranges, realms), or "none" for anything unknown. */
-export const twistOn = t => { const f = flagsOf(t), out = ["reefs", "ranges", "realms"].filter(k => f[k]); return out.length ? out.join("+") : "none"; };
+export const TWISTS = { none: "Classic", reefs: "Reefs", ranges: "Ranges", realms: "Two realms", hills: "Viaducts", lanes: "Fairways" };
+/**
+ * Which twists a twist name holds: "none", or one or more of reefs, ranges, realms, hills and lanes joined by "+". Lanes
+ * are shipping lanes only a viaduct may span, so a puzzle with them has hills too.
+ */
+export const flagsOf = t => { const s = String(t), lanes = s.includes("lanes"); return { reefs: s.includes("reefs"), ranges: s.includes("ranges"), realms: s.includes("realms"), hills: lanes || s.includes("hills"), lanes }; };
+/** A twist name made canonical (the order reefs, ranges, realms, then hills or, which holds them, lanes), or "none" for anything unknown. */
+export const twistOn = t => { const f = flagsOf(t), out = ["reefs", "ranges", "realms"].filter(k => f[k]); if (f.lanes) out.push("lanes"); else if (f.hills) out.push("hills"); return out.length ? out.join("+") : "none"; };
 const TRIES = 600;                 // layouts tried towards a level before the nearest is dealt
 
 // ---------- the board ----------
 const LAYOUTS = new Map();
-/** The islands of a grid and the links between them (not remembered: the generator makes thousands): { size, isl, at, links, byIsl, cross, realmSize, first }. */
-function buildLayout(size, grid, kinds = "", realms = "") {
+/**
+ * The islands of a grid and the links between them (not remembered: the generator makes thousands): { size, isl, at, links, byIsl, cross, realmSize, first }.
+ * A link between two hills is `high`; a link across a lane is only there if it is high.
+ */
+function buildLayout(size, grid, kinds = "", realms = "", hills = "", lanes = "") {
   const isl = [], at = new Int16Array(size * size).fill(-1);
   for (let i = 0; i < grid.length; i++) {
     if (grid[i] === "." || grid[i] === "#") continue;
     const n = +grid[i], kind = kinds[i] === "+" ? 1 : kinds[i] === "-" ? 2 : 0;
     // mn and mx: the fewest and most bridges the island may have (an island "at most" may be left with none by the numbers, but the network asks for one)
-    at[i] = isl.length; isl.push({ r: Math.floor(i / size), c: i % size, n, kind, mn: kind === 2 ? 0 : n, mx: kind === 1 ? 8 : n, realm: realms[i] === "1" ? 1 : 0 });
+    at[i] = isl.length; isl.push({ r: Math.floor(i / size), c: i % size, n, kind, mn: kind === 2 ? 0 : n, mx: kind === 1 ? 8 : n, realm: realms[i] === "1" ? 1 : 0, hill: hills[i] === "1" });
   }
   const links = [], byIsl = isl.map(() => []);
-  const add = (a, b, vertical) => { byIsl[a].push(links.length); byIsl[b].push(links.length); links.push({ a, b, vertical }); };
+  const add = (a, b, vertical) => { byIsl[a].push(links.length); byIsl[b].push(links.length); links.push({ a, b, vertical, high: isl[a].hill && isl[b].hill }); };
   isl.forEach((x, a) => {
-    // the first thing along the row or column stops the scan: a reef, or an island (joined only if a cell of water lies between and it is of the same realm)
-    for (let c = x.c + 1; c < size; c++) { const k = x.r * size + c; if (grid[k] === "#") break; const b = at[k]; if (b >= 0) { if (c - x.c >= 2 && isl[b].realm === x.realm) add(a, b, false); break; } }
-    for (let r = x.r + 1; r < size; r++) { const k = r * size + x.c; if (grid[k] === "#") break; const b = at[k]; if (b >= 0) { if (r - x.r >= 2 && isl[b].realm === x.realm) add(a, b, true); break; } }
+    // the first thing along the row or column stops the scan: a reef, or an island (joined only if a cell of water lies between and it is of the same realm, and,
+    // if a lane runs under the way, if both are hills)
+    let wet = false;
+    for (let c = x.c + 1; c < size; c++) { const k = x.r * size + c; if (grid[k] === "#") break; if (lanes[k] === "~") wet = true; const b = at[k]; if (b >= 0) { if (c - x.c >= 2 && isl[b].realm === x.realm && (!wet || (x.hill && isl[b].hill))) add(a, b, false); break; } }
+    wet = false;
+    for (let r = x.r + 1; r < size; r++) { const k = r * size + x.c; if (grid[k] === "#") break; if (lanes[k] === "~") wet = true; const b = at[k]; if (b >= 0) { if (r - x.r >= 2 && isl[b].realm === x.realm && (!wet || (x.hill && isl[b].hill))) add(a, b, true); break; } }
   });
-  // two links cross when one's row is strictly inside the other's rows and its column inside the other's columns
+  // two links cross when one's row is strictly inside the other's rows and its column inside the other's columns; a high bridge goes over a low one, so
+  // those two don't hinder each other (two high ones, or two low ones, do)
   const cross = links.map(() => []);
   links.forEach((h, i) => {
     if (h.vertical) return;
     links.forEach((v, j) => {
       if (!v.vertical) return;
       const r = isl[h.a].r, c = isl[v.a].c;
-      if (c > isl[h.a].c && c < isl[h.b].c && r > isl[v.a].r && r < isl[v.b].r) { cross[i].push(j); cross[j].push(i); }
+      if (c > isl[h.a].c && c < isl[h.b].c && r > isl[v.a].r && r < isl[v.b].r && h.high === v.high) { cross[i].push(j); cross[j].push(i); }
     });
   });
   const realmSize = [0, 0], first = [-1, -1];
   isl.forEach((x, i) => { realmSize[x.realm]++; if (first[x.realm] < 0) first[x.realm] = i; });
   return { size, isl, at, links, byIsl, cross, realmSize, first };
 }
-/** The layout of a grid (and, for the twists, its kinds and realms), made once. */
-export function layoutOf(size, grid, kinds = "", realms = "") {
-  const key = `${size}:${grid}:${kinds}:${realms}`;
-  if (!LAYOUTS.has(key)) LAYOUTS.set(key, buildLayout(size, grid, kinds, realms));
+/** The layout of a grid (and, for the twists, its kinds, realms, hills and lanes), made once. */
+export function layoutOf(size, grid, kinds = "", realms = "", hills = "", lanes = "") {
+  const key = `${size}:${grid}:${kinds}:${realms}:${hills}:${lanes}`;
+  if (!LAYOUTS.has(key)) LAYOUTS.set(key, buildLayout(size, grid, kinds, realms, hills, lanes));
   return LAYOUTS.get(key);
 }
-/** A puzzle from its grid and, if known, its answer (a character a link, the bridges there); `kinds` and `realms` are the twists' strings, "" for none. */
-export function puzzleOf(size, grid, sol = null, kinds = "", realms = "") {
-  const lay = layoutOf(size, grid, kinds, realms);
-  return { size, grid, kinds, realms, lay, sol: sol && Uint8Array.from(sol, Number), solMarks: sol };
+/** A puzzle from its grid and, if known, its answer (a character a link, the bridges there); `kinds`, `realms`, `hills` and `lanes` are the twists' strings, "" for none. */
+export function puzzleOf(size, grid, sol = null, kinds = "", realms = "", hills = "", lanes = "") {
+  const lay = layoutOf(size, grid, kinds, realms, hills, lanes);
+  return { size, grid, kinds, realms, hills, lanes, lay, sol: sol && Uint8Array.from(sol, Number), solMarks: sol };
 }
 
 // ---------- the rules, as a solver follows them ----------
@@ -229,8 +243,8 @@ export function count(lay, limit = 2, st = freshState(lay)) {
   return n;
 }
 /** The answer of a board that has one, as bridges a link. */
-export function answerOf(size, grid, kinds = "", realms = "") {
-  const lay = layoutOf(size, grid, kinds, realms), r = solveAs(lay, 2);
+export function answerOf(size, grid, kinds = "", realms = "", hills = "", lanes = "") {
+  const lay = layoutOf(size, grid, kinds, realms, hills, lanes), r = solveAs(lay, 2);
   if (r.ok) return Array.from(r.st.lo, String).join("");
   const go = (st = freshState(lay)) => {
     if (propagate(lay, st) < 0) return null;
@@ -255,9 +269,10 @@ const DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]];
  * water, then more bridges between islands side by side where nothing crosses. Returns { grid, sol, bridges, realms }:
  * with `realms`, two networks are grown at once (a second island of its own colour is placed first, and a new island
  * takes its parent's colour), and null if either is too small to be a puzzle. The classic board draws the same numbers
- * from `rng` as it always has.
+ * from `rng` as it always has. With `hills`, some islands are hills (the `hills` string, "1" a cell) and viaducts are added
+ * between hills side by side over the low bridges that cross their way at right angles, at least one; null if none came.
  */
-export function randomBoard(size, rng, wanted, extra, realms = false) {
+export function randomBoard(size, rng, wanted, extra, realms = false, hills = false) {
   const occ = new Uint8Array(size * size);                         // 0 water, 1 island, 2 a bridge over it
   const isl = [], bridges = [], colour = [];
   const place = (r, c, k = 0) => { occ[r * size + c] = 1; isl.push([r, c]); colour.push(k); };
@@ -299,15 +314,62 @@ export function randomBoard(size, rng, wanted, extra, realms = false) {
     bridges.push([r0, c0, r, c, rng() < 0.4 ? 2 : 1]);
   } });
   if (realms && (colour.filter(k => k === 0).length < 3 || colour.filter(k => k === 1).length < 3)) return null;
+  let hillStr = "";
+  if (hills) {
+    // what passes over each cell: bit 1 a low bridge along a row, 2 a low one down a column, 4 and 8 the same, high (between two hills)
+    const passOf = high => {
+      const pass = new Uint8Array(size * size);
+      for (const [ra, ca, rb, cb] of bridges) {
+        const r1 = Math.min(ra, rb), c1 = Math.min(ca, cb), r2 = Math.max(ra, rb), c2 = Math.max(ca, cb), horizontal = ra === rb;
+        const bit = (horizontal ? 1 : 2) << (high(index.get(r1 * size + c1), index.get(r2 * size + c2)) ? 2 : 0);
+        for (let r = r1, c = c1; ; ) { if (r !== r1 || c !== c1) { if (r === r2 && c === c2) break; pass[r * size + c] |= bit; } if (horizontal) c++; else r++; }
+      }
+      return pass;
+    };
+    // the island a hill at (r0, c0) would reach going (dr, dc), if the way is clear, and how many low bridges pass under it on the way
+    const spanFrom = (pass, from, dr, dc) => {
+      const [r0, c0] = isl[from], along = dr === 0 ? 1 : 2, over = dr === 0 ? 2 : 1;      // my own direction's low bit, and the other direction's
+      let s = 1, crossing = 0;
+      for (; ; s++) {
+        const r = r0 + dr * s, c = c0 + dc * s;
+        if (r >= size || c >= size) return null;
+        const k = r * size + c;
+        if (occ[k] === 1) break;                                                           // an island
+        if (pass[k] & (along | (along << 2) | (over << 2))) return null;                   // along a bridge, or across a high one
+        if (pass[k] & over) crossing++;
+      }
+      const to = index.get((r0 + dr * s) * size + c0 + dc * s);
+      return s < 2 || to == null || colour[to] !== colour[from] || !crossing ? null : { to, s, along };
+    };
+    // Where two islands of a colour face each other over a low bridge a viaduct could go; hills are drawn so that some of them
+    // are hills at both ends (else a board with a viaduct is rare, and the generator wastes its tries), the rest by chance.
+    const spans = [], flat = passOf(() => false);
+    isl.forEach((_, from) => { for (const [dr, dc] of [[0, 1], [1, 0]]) { const sp = spanFrom(flat, from, dr, dc); if (sp) spans.push([from, sp.to]); } });
+    if (!spans.length) return null;
+    const hill = isl.map(() => rng() < 0.25);
+    for (let n = 1 + (rng() < 0.4 ? 1 : 0); n > 0 && spans.length; n--) { const [x, y] = spans.splice(Math.floor(rng() * spans.length), 1)[0]; hill[x] = hill[y] = true; }
+    const pass = passOf((x, y) => hill[x] && hill[y]);
+    let crossings = 0;
+    isl.forEach(([r0, c0], from) => { if (!hill[from]) return; for (const [dr, dc] of [[0, 1], [1, 0]]) {
+      const sp = spanFrom(pass, from, dr, dc);
+      if (!sp || !hill[sp.to] || rng() >= 0.85) continue;
+      const { to, s, along } = sp, r = r0 + dr * s, c = c0 + dc * s;
+      for (let t = 1; t < s; t++) { const k = (r0 + dr * t) * size + c0 + dc * t; pass[k] |= along << 2; if (!occ[k]) occ[k] = 2; }
+      bridges.push([r0, c0, r, c, rng() < 0.4 ? 2 : 1]);
+      crossings++;
+    } });
+    if (!crossings) return null;
+    hillStr = Array.from({ length: size * size }, (_, i) => (index.has(i) && hill[index.get(i)] ? "1" : ".")).join("");
+  }
   const numbers = new Map(isl.map(([r, c]) => [r * size + c, 0]));
   for (const [r1, c1, r2, c2, k] of bridges) { numbers.set(r1 * size + c1, numbers.get(r1 * size + c1) + k); numbers.set(r2 * size + c2, numbers.get(r2 * size + c2) + k); }
   const grid = Array.from({ length: size * size }, (_, i) => (numbers.has(i) ? String(numbers.get(i)) : ".")).join("");
   const colours = realms ? Array.from({ length: size * size }, (_, i) => (index.has(i) ? String(colour[index.get(i)]) : ".")).join("") : "";
-  return { grid, sol: answerFrom(size, grid, "", colours, bridges), bridges, realms: colours };
+  return { grid, sol: answerFrom(size, grid, "", colours, bridges, hillStr), bridges, realms: colours, hills: hillStr };
 }
 /** The answer of a board as a character a link, from the bridges it was made with: [r1, c1, r2, c2, bridges]. */
-function answerFrom(size, grid, kinds, realms, bridges) {
-  const lay = buildLayout(size, grid, kinds, realms), keyOf = (x, y) => `${Math.min(x, y)}:${Math.max(x, y)}`;
+function answerFrom(size, grid, kinds, realms, bridges, hills = "", lanes = "") {
+  const lay = buildLayout(size, grid, kinds, realms, hills, lanes), keyOf = (x, y) => `${Math.min(x, y)}:${Math.max(x, y)}`;
   const by = new Map(bridges.map(([r1, c1, r2, c2, k]) => [keyOf(r1 * size + c1, r2 * size + c2), k]));
   return lay.links.map(l => by.get(keyOf(lay.isl[l.a].r * size + lay.isl[l.a].c, lay.isl[l.b].r * size + lay.isl[l.b].c)) || 0).join("");
 }
@@ -317,7 +379,7 @@ function answerFrom(size, grid, kinds, realms, bridges) {
  * the links across them, so a board needs fewer clues to have one answer. Returns the board with `#` in its grid.
  */
 function withReefs(size, board, rng) {
-  const lay = buildLayout(size, board.grid, "", board.realms), used = new Set(), maybe = [];
+  const lay = buildLayout(size, board.grid, "", board.realms, board.hills), used = new Set(), maybe = [];
   lay.links.forEach((l, k) => {
     const a = lay.isl[l.a], b = lay.isl[l.b], cells = [];
     for (let r = a.r, c = a.c; (r !== b.r || c !== b.c);) { if (r !== a.r || c !== a.c) cells.push(r * size + c); if (l.vertical) r++; else c++; }
@@ -329,7 +391,44 @@ function withReefs(size, board, rng) {
   const chosen = new Set(pool.slice(0, want));
   if (!chosen.size) return null;
   const grid = Array.from(board.grid, (ch, i) => (chosen.has(i) ? "#" : ch)).join("");
-  return { ...board, grid, sol: answerFrom(size, grid, "", board.realms, board.bridges) };
+  return { ...board, grid, sol: answerFrom(size, grid, "", board.realms, board.bridges, board.hills) };
+}
+/**
+ * Shipping lanes: a run of water across a viaduct's span, at right angles to it, over cells no low bridge of the answer
+ * crosses, out to an island, a reef or the edge. Only a viaduct may span a lane, so the lowland's links over it are gone.
+ * One lane, or two where the board has the room. Returns the board with `lanes` ("~" a cell) and its answer, null if no lane came.
+ */
+export function withLanes(size, board, rng) {
+  const low = new Uint8Array(size * size), spans = [];
+  for (const [r1, c1, r2, c2] of board.bridges) {
+    const horizontal = r1 === r2, cells = [];
+    for (let r = Math.min(r1, r2), c = Math.min(c1, c2); ; ) {
+      if (horizontal ? c === Math.max(c1, c2) : r === Math.max(r1, r2)) break;
+      if (horizontal) c++; else r++;
+      if (horizontal ? c < Math.max(c1, c2) : r < Math.max(r1, r2)) cells.push(r * size + c);
+    }
+    if (board.hills[r1 * size + c1] === "1" && board.hills[r2 * size + c2] === "1") spans.push({ horizontal, cells }); else cells.forEach(k => { low[k] = 1; });
+  }
+  for (let i = spans.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [spans[i], spans[j]] = [spans[j], spans[i]]; }
+  const lane = new Set();
+  for (const { horizontal, cells } of spans) {
+    if (lane.size && lane.size >= size * 2) break;
+    const free = cells.filter(k => !low[k]);
+    if (!free.length) continue;
+    const x = free[Math.floor(rng() * free.length)], [dr, dc] = horizontal ? [1, 0] : [0, 1], run = [x];
+    for (const sign of [1, -1]) for (let t = 1; ; t++) {
+      const r = Math.floor(x / size) + sign * dr * t, c = (x % size) + sign * dc * t;
+      if (r < 0 || r >= size || c < 0 || c >= size) break;
+      const k = r * size + c;
+      if (board.grid[k] !== "." || low[k]) break;
+      run.push(k);
+    }
+    if (run.length >= 3) run.forEach(k => lane.add(k));
+    if (lane.size >= size) break;
+  }
+  if (!lane.size) return null;
+  const lanes = Array.from({ length: size * size }, (_, i) => (lane.has(i) ? "~" : ".")).join("");
+  return { ...board, lanes, sol: answerFrom(size, board.grid, "", board.realms, board.bridges, board.hills, lanes) };
 }
 /**
  * Numbers loosened to bounds: islands, in random order, have their number replaced by "at least" or "at most" while the
@@ -337,7 +436,7 @@ function withReefs(size, board, rng) {
  * kinds string and the grade the loosened puzzle came to.
  */
 function loosen(size, board, rng, share, most) {
-  const lay0 = buildLayout(size, board.grid, "", board.realms), order = lay0.isl.map((_, i) => i);
+  const lay0 = buildLayout(size, board.grid, "", board.realms, board.hills, board.lanes), order = lay0.isl.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
   const kinds = Array.from(board.grid, ch => (ch === "." || ch === "#" ? "." : "=")), want = Math.round(order.length * share);
   let done = 0, grade = gradeOf(lay0);
@@ -348,7 +447,7 @@ function loosen(size, board, rng, share, most) {
     const choices = [pick, pick === "+" ? "-" : "+"].filter(k => (k === "+" ? n < 8 : n > 1));
     for (const k of choices) {
       kinds[at] = k;
-      const g = gradeOf(buildLayout(size, board.grid, kinds.join(""), board.realms));
+      const g = gradeOf(buildLayout(size, board.grid, kinds.join(""), board.realms, board.hills, board.lanes));
       if (g >= 0 && g <= most) { done++; grade = g; break; }
       kinds[at] = "=";
     }
@@ -359,23 +458,24 @@ function loosen(size, board, rng, share, most) {
  * A puzzle of a size and level, the same for the same seed: { size, grid, sol, level } with level what it came to (the
  * nearest when the level asked for wouldn't come in the tries allowed). Boards are made at random and kept when a solver
  * of the level finishes them: that proves the answer is the only one, since every step it takes is forced. A twist
- * ("reefs", "ranges", "realms", or several joined by "+") adds `twist`, `kinds` and `realms` to it as it needs them.
+ * ("reefs", "ranges", "realms", "hills", "lanes", or several joined by "+") adds `twist`, `kinds`, `realms`, `hills` and `lanes` to it as it needs them.
  */
 export function generate(seed, size, level, twist = "none") {
-  const want = Math.max(0, ORDER.indexOf(level)), rng = rngOf(seed), T = flagsOf(twist), twisted = T.reefs || T.ranges || T.realms;
+  const want = Math.max(0, ORDER.indexOf(level)), rng = rngOf(seed), T = flagsOf(twist), twisted = T.reefs || T.ranges || T.realms || T.hills;
   let best = null;
   for (let t = 0; t < TRIES; t++) {
     const wanted = Math.round(size * size * (0.2 + rng() * 0.14)), extra = [0.45, 0.15, 0.2][want] * (0.5 + rng());
-    let board = randomBoard(size, rng, wanted, extra, T.realms);
+    let board = randomBoard(size, rng, wanted, extra, T.realms, T.hills);
     if (board && T.reefs) board = withReefs(size, board, rng);
+    if (board && T.lanes) board = withLanes(size, board, rng);
     if (!board) continue;
-    const { grid, sol } = board, lay = buildLayout(size, grid, "", board.realms);
+    const { grid, sol } = board, lay = buildLayout(size, grid, "", board.realms, board.hills, board.lanes);
     if (lay.isl.length < 4) continue;
     let got = gradeOf(lay), kinds = "";
     if (got < 0) continue;
     if (T.ranges) ({ kinds, grade: got } = loosen(size, board, rng, 0.25 + 0.15 * rng(), want));
     const found = { size, grid, sol, level: ORDER[got] };
-    if (twisted) { found.twist = twistOn(twist); if (kinds) found.kinds = kinds; if (board.realms) found.realms = board.realms; }
+    if (twisted) { found.twist = twistOn(twist); if (kinds) found.kinds = kinds; if (board.realms) found.realms = board.realms; if (board.hills) found.hills = board.hills; if (board.lanes) found.lanes = board.lanes; }
     if (got === want) return found;
     if (!best || Math.abs(got - want) < Math.abs(ORDER.indexOf(best.level) - want)) best = found;
   }

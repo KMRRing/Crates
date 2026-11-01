@@ -58,11 +58,25 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-i.r1.met .brg-disc { fill: color-mix(in srgb, var(--brg-copper) 22%, var(--brg-tile)); stroke: var(--brg-copper); }
 .brg-l.k1 .brg-b { stroke: var(--brg-copper); }
 .brg-l.k1.lit .brg-b { stroke: var(--brg-gilt); }
+/* viaducts: a high bridge is cased in the paper's colour (a low bridge under it seems to pass beneath) and ribbed with piers; a hill has contour lines round it;
+   a fairway is water for ships, tinted and waved */
+.brg-hill { fill: none; stroke: var(--brass); stroke-width: .03; pointer-events: none; }
+.brg-i.hill.met .brg-hill { stroke: var(--brg-in); }
+.brg-i.hill.r1 .brg-hill { stroke: var(--brg-copper); }
+.brg-i.hill.over .brg-hill { stroke: var(--brg-bad); }
+.brg-case { stroke: var(--brg-tile); stroke-width: .3; stroke-linecap: butt; visibility: hidden; }
+.brg-piers { stroke: var(--brg-in); stroke-width: .3; stroke-dasharray: .035 .2; stroke-linecap: butt; visibility: hidden; }
+.brg-l.hi.c1 .brg-case, .brg-l.hi.c2 .brg-case, .brg-l.hi.c1 .brg-piers, .brg-l.hi.c2 .brg-piers { visibility: visible; }
+.brg-l.hi .brg-guide { stroke: var(--brg-in); stroke-opacity: .6; stroke-width: .05; }
+.brg-l.hi.k1 .brg-piers { stroke: var(--brg-copper); }
+.brg-l.hi.lit .brg-piers { stroke: var(--brg-gilt); }
+.brg-lane { fill: var(--brg-in); fill-opacity: .17; pointer-events: none; }
+.brg-wave { fill: none; stroke: var(--brg-in); stroke-opacity: .5; stroke-width: .04; stroke-linecap: round; pointer-events: none; }
 /* the solve: the bridges turn gilt from the top left */
-.brg-svg.solved .brg-l .brg-b { animation: brg-wave .8s ease-out var(--d, 0ms) both; }
+.brg-svg.solved .brg-l .brg-b, .brg-svg.solved .brg-l .brg-piers { animation: brg-wave .8s ease-out var(--d, 0ms) both; }
 /* every keyframe written out: an implicit one took SVG's default stroke while a bridge waited for its turn */
 @keyframes brg-wave { 0% { stroke: var(--brg-in); } 40% { stroke: var(--brg-gilt); } 100% { stroke: var(--brg-gilt); } }
-@media (prefers-reduced-motion: reduce) { .brg-svg.solved .brg-l .brg-b { animation: none; stroke: var(--brg-gilt); } }
+@media (prefers-reduced-motion: reduce) { .brg-svg.solved .brg-l .brg-b, .brg-svg.solved .brg-l .brg-piers { animation: none; stroke: var(--brg-gilt); } }
 
 /* under the board: a line of what to do or what happened, three tools; at the end, how it went and the way on, in the
    same room. The line keeps three lines' height, so a long hint never moves the board. */
@@ -114,6 +128,8 @@ dialog.brg-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; oversc
 .brg-lmap .i.r1 { stroke: var(--brg-copper); }
 .brg-lmap .i.range { fill: color-mix(in srgb, var(--brass) 30%, var(--sheet)); }
 .brg-lmap .reef { fill: color-mix(in srgb, var(--ink) 34%, var(--brg-tile)); stroke: var(--ink); stroke-width: .06; stroke-linejoin: round; }
+.brg-lmap .hill { fill: none; stroke: var(--brass); stroke-width: .09; }
+.brg-lmap .lane { fill: color-mix(in srgb, var(--brg-in) 26%, var(--brg-tile)); }
 .brg-lrow { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; min-width: 0; }
 .brg-lrow b { font-size: .9rem; font-variant-numeric: tabular-nums; }
 .brg-lrow span { color: var(--brass); font-size: .66rem; letter-spacing: .1em; white-space: nowrap; }

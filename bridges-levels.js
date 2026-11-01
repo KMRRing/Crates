@@ -1,7 +1,9 @@
 // Bridges' levels, pure (no page): a ladder of puzzles in chapters, each chapter bringing a twist to the one before: the
 // plain game on charts from 7×7 to 11×11; reefs, rock in the water that no bridge crosses; ranges, numbers that are only
-// a bound ("4+", "≤3"); two realms, two colours of island each with a network of its own; and the admiralty's charts, where
-// they meet. A level is a kind of puzzle (a size, a difficulty, a twist), not one puzzle: the first time it is the same
+// a bound ("4+", "≤3"); two realms, two colours of island each with a network of its own; the admiralty's charts, where
+// they meet; then viaducts, hills whose bridges go over the lowland's; fairways, lanes of water for ships that only a
+// viaduct may span; and the grand charts with every twist. The later chapters come last, after the admiralty, so a level's
+// number (and with it the stars won, the puzzle left half done and its seed) is what it always was. A level is a kind of puzzle (a size, a difficulty, a twist), not one puzzle: the first time it is the same
 // puzzle for everyone (the level's own seed), and a new puzzle of the level is another from the same recipe, so a level can
 // be replayed for its stars. Stars are for the score as everywhere in Bridges (seconds plus 30 a hint, lower is better):
 // one for solving it, two for a score within twice the par, three within the par, which is a few seconds an island and
@@ -16,6 +18,9 @@ export const CHAPTERS = [
   { name: "Ranges", from: 11, about: "Some numbers are only a bound: 4+ is at least four bridges, ≤3 at most three." },
   { name: "Two realms", from: 16, about: "Two colours of island. A bridge joins two of one colour, an island of the other colour in the way stops a link, and each colour is a network of its own." },
   { name: "The admiralty", from: 21, about: "The twists together." },
+  { name: "Viaducts", from: 25, about: "Some islands are hills, ringed like a map's contour lines. A bridge between two hills is a viaduct, and goes over any low bridge it meets. Two viaducts, or two low bridges, still can't cross." },
+  { name: "Fairways", from: 30, about: "Lanes of open water for the ships. Nothing but a viaduct may span a lane: two islands with a lane between are linked only if both are hills, and a low bridge never runs over one." },
+  { name: "The grand charts", from: 35, about: "Viaducts and fairways with the older twists." },
 ];
 export const LEVELS = [
   level({ name: "First light", size: 7, level: "easy" }),
@@ -47,6 +52,23 @@ export const LEVELS = [
   level({ name: "Rival reefs", size: 9, level: "hard", twist: "reefs+realms" }),
   level({ name: "Rival ledgers", size: 11, level: "medium", twist: "ranges+realms" }),
   level({ name: "Admiralty chart", size: 11, level: "hard", twist: "reefs+ranges+realms" }),
+
+  level({ name: "First arch", size: 7, level: "easy", twist: "hills" }),
+  level({ name: "The causeway", size: 9, level: "easy", twist: "hills" }),
+  level({ name: "Pier and pillar", size: 9, level: "medium", twist: "hills" }),
+  level({ name: "High road", size: 11, level: "medium", twist: "hills" }),
+  level({ name: "The great span", size: 11, level: "hard", twist: "hills" }),
+
+  level({ name: "Sailing lanes", size: 7, level: "easy", twist: "lanes" }),
+  level({ name: "Merchantmen", size: 9, level: "easy", twist: "lanes" }),
+  level({ name: "The sound", size: 9, level: "medium", twist: "lanes" }),
+  level({ name: "Spice route", size: 11, level: "medium", twist: "lanes" }),
+  level({ name: "The narrows", size: 11, level: "hard", twist: "lanes" }),
+
+  level({ name: "Reef and span", size: 9, level: "medium", twist: "reefs+hills" }),
+  level({ name: "Fog on the lanes", size: 9, level: "medium", twist: "ranges+lanes" }),
+  level({ name: "Rival fairways", size: 11, level: "medium", twist: "realms+lanes" }),
+  level({ name: "Grand chart", size: 11, level: "hard", twist: "reefs+ranges+realms+lanes" }),
 ];
 export const COUNT = LEVELS.length;
 /** The chapter a level is in. */
