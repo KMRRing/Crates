@@ -189,6 +189,22 @@ const aidOk = who => all(who, { b: "allow" });
   // b really has the Captain; a challenges and loses
   const c1 = run(s1, { a: { c: "challenge" }, c: { c: "allow" }, d: { c: "allow" } });
   check(c1.loser === "a" && c1.then === "stood", "challenged wrongly: the challenger loses an influence, then the steal goes on");
+  // the Captain blocks a steal as the Ambassador does: the target claims it, whether or not they hold one, and whoever was stolen from (or anyone else) may challenge the block
+  const cb = run(s2, { c: { b: "captain" } });
+  check(cb.phase === "challenge" && cb.claim.by === "c" && cb.claim.card === "captain" && cb.claim.on === "block", "a block with the Captain, claimed against a Captain's steal");
+  const bluff = run(cb, { b: { c: "challenge" }, a: { c: "allow" }, d: { c: "allow" } });
+  check(bluff.phase === "lose" && bluff.loser === "c" && bluff.then === "caught", "c has no Captain and b, who stole, challenges the block: caught");
+  const bluffEnd = run(bluff, { c: { lose: 0 } });
+  check(D(bluffEnd, "c").join() === "contessa" && bluffEnd.coins.b === 4 && bluffEnd.coins.c === 0 && bluffEnd.turn === "c" && counted(bluffEnd), "…c loses an influence and the steal goes ahead");
+  const other = run(cb, { a: { c: "challenge" }, b: { c: "allow" }, d: { c: "allow" } });
+  check(other.loser === "c" && other.then === "caught", "a player other than the one who stole may challenge the block too");
+  const real = rg({ hands: { ...HANDS, c: ["captain", "duke"] } });
+  const r3 = run(run(run(run(real, { b: { do: "steal", target: "c" } }), allow(["a", "c", "d"])), { c: { b: "captain" } }), { b: { c: "challenge" }, a: { c: "allow" }, d: { c: "allow" } });
+  check(r3.phase === "lose" && r3.loser === "b" && r3.then === "stood" && H(r3, "c").length === 2 && counted(r3), "c does hold the Captain: shown, b who challenged loses an influence, and c takes a fresh card for it");
+  const r4 = run(r3, { b: { lose: 0 } });
+  check(r4.coins.b === 2 && r4.coins.c === 2 && r4.turn === "c" && D(r4, "b").length === 1 && counted(r4), "…and the steal is blocked: nothing is taken");
+  const quiet = run(cb, allow(["a", "b", "d"]));
+  check(quiet.coins.b === 2 && quiet.coins.c === 2 && quiet.turn === "c" && D(quiet, "c").length === 0, "an unchallenged Captain block stands, bluff or not");
 }
 
 // ---------- Exchange ----------
