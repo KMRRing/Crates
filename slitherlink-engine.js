@@ -6,6 +6,11 @@
 // Edges are numbered row by row: the horizontal ones first (row 0 of dots, its C edges, then row 1…), then the vertical
 // ones (cell row 0, its C+1 edges, …). A state is one number an edge: 0 unknown, 1 line, 2 crossed (known not to be
 // part of the loop). The marks a player keeps are the same as characters, "0" "1" "2", one string a board.
+//
+// Shaded puzzles (November 2026) add a second kind of clue beside the numbers: a cell marked as inside the loop (clue
+// code 5, "i" in a puzzle's grid) or outside it (6, "o"). Every cell is on one side of a loop, and a line is exactly
+// where the sides change, so the shading and the edges known so far settle other edges (sides(), below). It is a rule of
+// the shaded puzzles only: a plain puzzle never runs it, so plain puzzles are the puzzles they always were.
 
 import { NONE, LINE, CROSS, TRIAL_ROUNDS, geometry, vertexRule, note, loopSolver, rngOf, shuffle, randomLoop, outlineMarks } from "./loop-engine.js";
 export { NONE, LINE, CROSS, geometry };
@@ -14,14 +19,75 @@ export const SIZES = [5, 7, 10];
 export const LEVELS = { easy: "Easy", medium: "Medium", hard: "Hard" };
 export const ORDER = ["easy", "medium", "hard"];
 export const DAILY = { size: 7, level: "medium" };
+/** The clue codes after the numbers 0 to 4: a cell known to be inside the loop, and one known to be outside it. */
+export const INSIDE = 5, OUTSIDE = 6;
+const hasShade = clue => { for (let k = 0; k < clue.length; k++) if (clue[k] > 4) return true; return false; };
 const TRIES = 8;                   // puzzles made towards a level before the nearest is dealt
 
 // ---------- the board ----------
 // (the board itself, its edges and corners, is loop-engine.js's)
-/** A puzzle from its clues (one character a cell: a digit, or "-" for none) and, if known, its answer (marks). */
+/** A puzzle from its clues (one character a cell: a digit, "i" inside, "o" outside, or "-" for none) and, if known, its answer (marks). */
 export function puzzleOf(size, grid, sol = null) {
   const g = geometry(size, size);
-  return { size, g, grid, clue: Int8Array.from(grid, ch => (ch === "-" ? -1 : +ch)), sol: sol && Uint8Array.from(sol, ch => (ch === LINE ? 1 : 0)), solMarks: sol };
+  return { size, g, grid, shaded: /[io]/.test(grid), clue: Int8Array.from(grid, ch => (ch === "-" ? -1 : ch === "i" ? INSIDE : ch === "o" ? OUTSIDE : +ch)), sol: sol && Uint8Array.from(sol, ch => (ch === LINE ? 1 : 0)), solMarks: sol };
+}
+
+// ---------- which side of the loop a cell is on ----------
+// A set of nodes (the cells and the outside of the board, the last), each with its parent and its side relative to it
+// (0 the same, 1 the opposite), kept in module scratch: this runs inside every trial of every shaded puzzle, so it
+// allocates nothing. Not re-entrant, and nothing here calls anything that is.
+const SIDE = { par: new Int16Array(0), rel: new Uint8Array(0), size: new Int16Array(0), p: 0 };
+/** The root of x's set; SIDE.p is left as x's side relative to that root. The path is shortened as it is walked. */
+function rootOf(x) {
+  const { par, rel } = SIDE;
+  let r = x, p = 0;
+  while (par[r] !== r) { p ^= rel[r]; r = par[r]; }
+  let y = x, py = p;
+  while (y !== r && par[y] !== r) { const next = par[y], was = rel[y]; par[y] = r; rel[y] = py; py ^= was; y = next; }
+  SIDE.p = p;
+  return r;
+}
+/** Says that a and b are on the same side of the loop (d = 0) or opposite sides (1). False when what is known says otherwise. */
+function join(a, b, d) {
+  const { par, rel, size } = SIDE;
+  let ra = rootOf(a); const pa = SIDE.p;
+  let rb = rootOf(b); const pb = SIDE.p;
+  if (ra === rb) return (pa ^ pb) === d;
+  if (size[ra] > size[rb]) { const t = ra; ra = rb; rb = t; }
+  par[ra] = rb; rel[ra] = pa ^ pb ^ d; size[rb] += size[ra];
+  return true;
+}
+/**
+ * What the shading and the edges known so far say of the sides: the cells and the outside of the board as nodes, each
+ * joined to another with "same side" (a crossed edge between them) or "opposite sides" (a line), the shaded cells to
+ * the outside as opposite and the dotted as the same. Returns the cells where two of those say different things (an
+ * empty list when they agree); then rootOf says which cells are known to be on the same side as which. Only shaded puzzles use it.
+ */
+function sidesOf(g, clue, st) {
+  const { cells, E, ecells } = g;
+  if (SIDE.par.length < cells + 1) { SIDE.par = new Int16Array(cells + 1); SIDE.rel = new Uint8Array(cells + 1); SIDE.size = new Int16Array(cells + 1); }
+  for (let i = 0; i <= cells; i++) { SIDE.par[i] = i; SIDE.rel[i] = 0; SIDE.size[i] = 1; }
+  const clash = [];
+  for (let k = 0; k < cells; k++) if (clue[k] > 4 && !join(k, cells, clue[k] === INSIDE ? 1 : 0)) clash.push(k);
+  for (let e = 0; e < E; e++) {
+    if (!st[e]) continue;
+    const [a, b = cells] = ecells[e];
+    if (!join(a, b, st[e] === 1 ? 1 : 0)) { clash.push(a); if (b !== cells) clash.push(b); }
+  }
+  return clash;
+}
+/** The cells the loop leaves outside, when the lines (and `e`, one more) are one closed loop: those reached from beyond the board without crossing a line. */
+function outsideCells(g, st, e) {
+  const { cells, E, ecells } = g, par = new Int16Array(cells + 1);
+  for (let i = 0; i <= cells; i++) par[i] = i;
+  const find = x => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  for (let f = 0; f < E; f++) {
+    if (st[f] === 1 || f === e) continue;
+    const [a, b = cells] = ecells[f];
+    par[find(a)] = find(b);
+  }
+  const out = find(cells);
+  return Array.from({ length: cells }, (_, k) => find(k) === out);
 }
 
 // ---------- the rules, as a solver follows them ----------
@@ -35,7 +101,7 @@ function sweep(g, clue, st, rec) {
   // a cell: its number is how many of its four sides are lines
   for (let k = 0; k < cells; k++) {
     const n = clue[k];
-    if (n < 0) continue;
+    if (n < 0 || n > 4) continue;
     let l = 0, u = 0;
     for (let j = 0; j < 4; j++) { const s = st[ce[k * 4 + j]]; if (s === 1) l++; else if (s === 0) u++; }
     if (l > n || l + u < n) return -1;
@@ -49,16 +115,34 @@ function sweep(g, clue, st, rec) {
   // a corner: the loop passes through it (two lines) or not at all (none)
   const v = vertexRule(g, st, rec);
   if (v < 0) return -1;
+  if (!hasShade(clue)) return changed || v ? 1 : 0;
+  if (v && rec) return 1;
+  // the sides: two cells the shading and the lines put on the same side of the loop have no line between them, on
+  // opposite sides they have one
+  if (sidesOf(g, clue, st).length) return -1;
+  for (let e = 0; e < g.E; e++) {
+    if (st[e]) continue;
+    const [a, b = g.cells] = g.ecells[e];
+    const ra = rootOf(a), pa = SIDE.p, rb = rootOf(b), pb = SIDE.p;
+    if (ra !== rb) continue;
+    const w = (pa ^ pb) ? 1 : 2;
+    st[e] = w; changed = 1;
+    if (rec) { note(rec, e, w); rec.tech = "sides"; rec.cell = a; rec.cell2 = b === g.cells ? null : b; rec.edge = e; return 1; }
+  }
   return changed || v ? 1 : 0;
 }
 
 /** Whether the lines drawn so far, with edge `e` added, satisfy every number exactly. */
 function satisfiedWith(g, clue, st, e) {
   for (let k = 0; k < g.cells; k++) {
-    if (clue[k] < 0) continue;
+    if (clue[k] < 0 || clue[k] > 4) continue;
     let l = 0;
     for (let j = 0; j < 4; j++) { const f = g.ce[k * 4 + j]; if (st[f] === 1 || f === e) l++; }
     if (l !== clue[k]) return false;
+  }
+  if (hasShade(clue)) {
+    const out = outsideCells(g, st, e);
+    for (let k = 0; k < g.cells; k++) if ((clue[k] === INSIDE && out[k]) || (clue[k] === OUTSIDE && !out[k])) return false;
   }
   return true;
 }
@@ -80,27 +164,50 @@ function loopMarks(g, loop) {
   for (let k = 0; k < g.cells; k++) for (let j = 0; j < 4; j++) if (marks[g.ce[k * 4 + j]] === LINE) clue[k]++;
   return { marks: marks.join(""), clue };
 }
-/** Takes numbers away, in random order, for as long as a solver of the level can still finish the puzzle. */
-function pare(g, clue, level, rng) {
+/**
+ * Takes clues away, in random order, for as long as a solver of the level can still finish the puzzle. A shaded puzzle
+ * keeps at least `floor` of its shaded and dotted cells, or the shading would pare away and leave a plain puzzle.
+ */
+function pare(g, clue, level, rng, floor = 0) {
+  let shades = floor ? clue.filter(n => n > 4).length : 0;
   for (const k of shuffle(Array.from({ length: g.cells }, (_, i) => i), rng)) {
     const was = clue[k];
+    if (was > 4 && shades <= floor) continue;
     clue[k] = -1;
     if (!solveAs(g, clue, level).ok) clue[k] = was;
+    else if (was > 4) shades--;
   }
 }
+/** The share of cells whose number is first swapped for the side of the loop it is on, before the repair and the paring. */
+const SHADED_SHARE = 0.4;
+/**
+ * Swaps the numbers of a random share of the cells for shading, inside the loop or outside it. A shading says less of
+ * a cell than its number does, so the puzzle may no longer be one the level can solve; numbers are put back, on the
+ * shaded cells in turn, until it is (the puzzle with every number always is).
+ */
+function shadeCells(g, clue, { ins, at }, want, rng) {
+  const numbers = Int8Array.from(clue), chosen = shuffle(Array.from({ length: g.cells }, (_, i) => i), rng).slice(0, Math.round(g.cells * SHADED_SHARE));
+  for (const k of chosen) clue[k] = ins[at(Math.floor(k / g.C), k % g.C)] ? INSIDE : OUTSIDE;
+  for (const k of chosen) {
+    if (solveAs(g, clue, want).ok) break;
+    clue[k] = numbers[k];
+  }
+}
+const gridOf = clue => Array.from(clue, n => (n < 0 ? "-" : n === INSIDE ? "i" : n === OUTSIDE ? "o" : String(n))).join("");
 /**
  * A puzzle of a size and level, the same for the same seed: { size, grid, sol, level } with level what it came to (the
- * nearest when the asked-for one wouldn't come in the tries allowed).
+ * nearest when the asked-for one wouldn't come in the tries allowed). `shade` makes a shaded one (and says `shade: true`).
  */
-export function generate(seed, size, level) {
+export function generate(seed, size, level, shade = false) {
   const want = Math.max(0, ORDER.indexOf(level)), g = geometry(size, size), rng = rngOf(seed);
   let best = null;
   for (let t = 0; t < TRIES; t++) {
-    const { marks, clue } = loopMarks(g, randomLoop(size, size, rng));
-    pare(g, clue, want, rng);
+    const loop = randomLoop(size, size, rng), { marks, clue } = loopMarks(g, loop);
+    if (shade) shadeCells(g, clue, loop, want, rng);
+    pare(g, clue, want, rng, shade ? Math.round(g.cells * 0.12) : 0);
     const got = gradeOf(g, clue);
     if (got < 0) continue;
-    const found = { size, grid: Array.from(clue, n => (n < 0 ? "-" : String(n))).join(""), sol: marks, level: ORDER[got] };
+    const found = { size, grid: gridOf(clue), sol: marks, level: ORDER[got], ...(shade ? { shade: true } : {}) };
     if (got === want) return found;
     if (!best || Math.abs(got - want) < Math.abs(ORDER.indexOf(best.level) - want)) best = found;
   }
@@ -121,13 +228,13 @@ export function solvedBy(P, marks) {
 }
 /**
  * What the marks break, from the rules alone (never the answer): the numbers with too many lines, the corners with
- * three lines or a dead end (one line, every other side crossed), a closed loop that isn't the answer, and the
- * numbers already met.
+ * three lines or a dead end (one line, every other side crossed), a closed loop that isn't the answer, the numbers
+ * already met, and in a shaded puzzle the cells where the shading and the lines say two things of one cell's side.
  */
 export function breaks(P, marks) {
   const { g, clue } = P, st = stateOf(marks), over = [], met = [], bad = [], loop = [];
   for (let k = 0; k < g.cells; k++) {
-    if (clue[k] < 0) continue;
+    if (clue[k] < 0 || clue[k] > 4) continue;
     let l = 0;
     for (let j = 0; j < 4; j++) if (st[g.ce[k * 4 + j]] === 1) l++;
     if (l > clue[k]) over.push(k); else if (l === clue[k]) met.push(k);
@@ -149,7 +256,8 @@ export function breaks(P, marks) {
     const root = find(g.ea[closing]);
     for (let e = 0; e < g.E; e++) if (st[e] === 1 && find(g.ea[e]) === root) loop.push(e);
   }
-  return { over, met, bad, loop };
+  const shade = P.shaded ? [...new Set(sidesOf(g, clue, st))] : [];
+  return { over, met, bad, loop, shade };
 }
 
 // ---------- hints ----------

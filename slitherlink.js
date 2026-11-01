@@ -1,8 +1,9 @@
 // Slitherlink: draw one loop along the edges of a grid of dots; each number says how many of its cell's four sides the
-// loop uses, and the loop never crosses or touches itself. The rules, the puzzles and the reasoning are
+// loop uses, and the loop never crosses or touches itself; a shaded puzzle also marks some cells as inside the loop
+// (tinted) or outside it (dotted). The rules, the puzzles and the reasoning are
 // slitherlink-engine.js's (every puzzle has one answer, and is graded by the hardest step a person needs); the puzzles
 // are made in slitherlink-worker.js. This file keeps the run, the clock and the taps, and draws the board.
-import { SIZES, LEVELS, DAILY, NONE, LINE, CROSS, puzzleOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn } from "./slitherlink-engine.js";
+import { SIZES, LEVELS, DAILY, NONE, LINE, CROSS, INSIDE, OUTSIDE, puzzleOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn } from "./slitherlink-engine.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -25,15 +26,17 @@ const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 /** Seconds as 1:05 (or 1:02:05). */
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`; };
-const kindText = k => `${k.size}×${k.size} · ${LEVELS[k.level]}`;
-const kindKey = k => `${k.size}:${k.level}`;
+const shadeOn = t => t === "shade";
+const kindText = k => `${k.size}×${k.size} · ${LEVELS[k.level]}${shadeOn(k.twist) ? " · Shaded" : ""}`;
+const kindKey = k => `${k.size}:${k.level}${shadeOn(k.twist) ? ":shade" : ""}`;
 
 // ---------- what you chose ----------
-const prefs = { size: 7, level: "easy", ...read(PREFS, {}) };
+const prefs = { size: 7, level: "easy", twist: "none", ...read(PREFS, {}) };
 if (!SIZES.includes(prefs.size)) prefs.size = 7;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
+if (!shadeOn(prefs.twist)) prefs.twist = "none";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
-const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level) });
+const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level), twist: prefs.twist });
 
 // ---------- making puzzles ----------
 // Made in a worker, so the screen stays responsive, and a spare of each kind played lately is made in the background
@@ -41,18 +44,18 @@ const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.l
 let worker = null, workerless = false, asked = 0;
 const waiting = new Map();
 function make(seed, k) {
-  if (workerless) return Promise.resolve(generate(seed, k.size, k.level));
+  if (workerless) return Promise.resolve(generate(seed, k.size, k.level, shadeOn(k.twist)));
   try {
     worker ||= new Worker(new URL("./slitherlink-worker.js", import.meta.url), { type: "module" });
     worker.onmessage = e => { waiting.get(e.data.id)?.resolve(e.data.puzzle); waiting.delete(e.data.id); };
     worker.onerror = () => {
       workerless = true; worker = null;
-      for (const w of waiting.values()) w.resolve(generate(w.seed, w.k.size, w.k.level));
+      for (const w of waiting.values()) w.resolve(generate(w.seed, w.k.size, w.k.level, shadeOn(w.k.twist)));
       waiting.clear();
     };
-  } catch { workerless = true; return Promise.resolve(generate(seed, k.size, k.level)); }
+  } catch { workerless = true; return Promise.resolve(generate(seed, k.size, k.level, shadeOn(k.twist))); }
   const id = ++asked;
-  return new Promise(resolve => { waiting.set(id, { resolve, seed, k }); worker.postMessage({ id, seed, size: k.size, level: k.level }); });
+  return new Promise(resolve => { waiting.set(id, { resolve, seed, k }); worker.postMessage({ id, seed, size: k.size, level: k.level, shade: shadeOn(k.twist) }); });
 }
 const SPARE_KINDS = 6;                 // spares kept for the kinds played most lately
 function takeSpare(k) {
@@ -86,7 +89,7 @@ async function nextPuzzle(k) {
 }
 
 // ---------- the run ----------
-// S: { v, mode ("random" or "daily"), seed, size, level (asked), came (what it graded), grid, sol, marks, undo, redo, ms,
+// S: { v, mode ("random" or "daily"), seed, size, level (asked), twist ("shade", or none), came (what it graded), grid, sol, marks, undo, redo, ms,
 //      hints, done ({ ms, score } once solved), lit (a hint's edges, its place and its words), fresh (a new best) }
 let S = null, P = null;
 let clockFrom = null, savedAt = 0, message = null, paused = false;
@@ -125,7 +128,7 @@ async function start(mode, k = chosenKind()) {
   const { seed, puzzle } = await nextPuzzle(k);
   if (puzzle) begin(fromPuzzle("random", seed, k, puzzle));
 }
-const fromPuzzle = (mode, seed, k, puzzle) => ({ mode, seed, size: k.size, level: k.level, came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol, marks: NONE.repeat(puzzle.sol.length) });
+const fromPuzzle = (mode, seed, k, puzzle) => ({ mode, seed, size: k.size, level: k.level, twist: puzzle.shade ? "shade" : "none", came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol, marks: NONE.repeat(puzzle.sol.length) });
 function confirmStart(mode, k) {
   if (started() && !confirm("Start a new puzzle? This one isn't solved.")) return false;
   start(mode, k);
@@ -150,11 +153,11 @@ const penalty = () => HINT * (S?.hints || 0);
 const scoreOf = ms => Math.round(ms / 1000) + penalty();
 
 // ---------- bests ----------
-// Kept in slitherlink:times by size and level, lowest first, not slitherlink:best (the games screen reads a best as
+// Kept in slitherlink:times by size, level and shading, lowest first, not slitherlink:best (the games screen reads a best as
 // highest-is-best); the games screen's figure is today's time (noteDayTime, slitherlink:today).
-const bestOf = s => read(TIMES, {})[kindKey({ size: s.size, level: s.came || s.level })];
+const bestOf = s => read(TIMES, {})[kindKey({ size: s.size, level: s.came || s.level, twist: s.twist })];
 function recordBest(sc) {
-  const times = read(TIMES, {}), k = kindKey({ size: S.size, level: S.came || S.level }), fresh = times[k] == null || sc < times[k];
+  const times = read(TIMES, {}), k = kindKey({ size: S.size, level: S.came || S.level, twist: S.twist }), fresh = times[k] == null || sc < times[k];
   if (fresh) { times[k] = sc; write(TIMES, times); }
   return fresh;
 }
@@ -197,6 +200,7 @@ function changed(at = -1) {
     if (over) note("A number has more lines round it than it says.", "bad");
     else if (three) note("Three lines meet at a corner: the loop passes through a corner once.", "bad");
     else if (br.loop.includes(at)) note("That closes a loop that isn't the answer: the loop must meet every number.", "bad");
+    else if (g.ecells[at].some(k => br.shade.includes(k))) note("That leaves a shaded cell outside the loop or a dotted one inside it.", "bad");
     else message = null;
   } else if (at >= 0) message = null;
   if (!S.done && solvedBy(P, S.marks)) finish();
@@ -216,6 +220,9 @@ function explain(x) {
     case "two": return `A corner the loop already passes through is done: ${many ? "its other sides are" : "its other side is"} crossed.`;
     case "through": return "A line runs into this corner and has only one way on: it is a line.";
     case "dead": return "A corner with one side left can't be passed through: that side is crossed.";
+    case "sides": return x.set[0][1] === 1
+      ? "The shading and the lines so far put the two sides of this edge on opposite sides of the loop (one inside, one outside): it is a line."
+      : "The shading and the lines so far put the two sides of this edge on the same side of the loop (both inside or both outside): it is crossed.";
     case "loop": return "A line here would join the two ends of one path and close a loop before the rest is drawn: it is crossed.";
     case "closed": return "The loop is closed, so nothing else is part of it: every other edge is crossed.";
     case "trial": {
@@ -230,13 +237,13 @@ function useHint() {
   const h = hintFor(P, S.marks);
   if (!h) return;
   S.hints++;
-  let set, text, cell = null, vertex = null;
+  let set, text, cell = null, cell2 = null, vertex = null;
   if (h.wrong != null) {
     set = [[h.wrong, h.should]];
     text = h.should === CROSS ? "Hint: this one isn't part of the loop. It is crossed now." : "Hint: this one is part of the loop. It is drawn now.";
   } else if (h.step) {
     set = h.step.set.map(([e, v]) => [e, String(v)]);
-    ({ cell, vertex } = h.step);
+    ({ cell, cell2, vertex } = h.step);
     const said = explain(h.step);
     text = `Hint: ${said[0].toLowerCase()}${said.slice(1)}`;
   } else {
@@ -244,7 +251,7 @@ function useHint() {
     text = h.should === LINE ? "Hint: this one is part of the loop." : "Hint: this one isn't part of the loop.";
   }
   for (const [e, m] of set) setEdge(e, S.marks[e], m);
-  S.lit = { set: set.map(([e]) => e), cell: cell ?? null, vertex: vertex ?? null, text };
+  S.lit = { set: set.map(([e]) => e), cell: cell ?? null, cell2: cell2 ?? null, vertex: vertex ?? null, text };
   message = null;
   save();
   paint();
@@ -273,13 +280,15 @@ const TEXT_SCALE = 100;
 let svg = null, edgeEls = [], cellEls = [], dotEls = [];
 function drawBoard() {
   const { R, C, E, V, cells, ea, eb } = P.g, pad = 0.4, at = x => [x % (C + 1), Math.floor(x / (C + 1))];
-  svg = svgEl("svg", { viewBox: `${-pad} ${-pad} ${C + 2 * pad} ${R + 2 * pad}`, role: "img", "aria-label": `${kindText(S)}: the board. Tap an edge to draw it, again to cross it.`, class: "slk-svg" });
+  svg = svgEl("svg", { viewBox: `${-pad} ${-pad} ${C + 2 * pad} ${R + 2 * pad}`, role: "img", "aria-label": `${kindText(S)}: the board. Tap an edge to draw it, again to cross it.`, class: `slk-svg${P.shaded ? " shaded" : ""}` });
   svgEl("rect", { x: -pad / 2, y: -pad / 2, width: C + pad, height: R + pad, rx: 0.12, class: "slk-paper" }, svg);
   cellEls = Array.from({ length: cells }, (_, k) => {
     const x = k % C + 0.5, y = Math.floor(k / C) + 0.5, g = svgEl("g", { class: "slk-cell" }, svg);
     svgEl("rect", { x: x - 0.4, y: y - 0.4, width: 0.8, height: 0.8, rx: 0.1, class: "slk-ring" }, g);
     const n = P.clue[k];
-    if (n < 0) return { g };
+    if (n === INSIDE) svgEl("rect", { x: x - 0.4, y: y - 0.4, width: 0.8, height: 0.8, rx: 0.1, class: "slk-in-mark" }, g);       // inside the loop: the cell tinted
+    if (n === OUTSIDE) svgEl("circle", { cx: x, cy: y, r: 0.13, class: "slk-out-mark" }, g);                                         // outside it: a dot
+    if (n < 0 || n > 4) return { g };
     const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "slk-num", "font-size": 0.56 * TEXT_SCALE, transform: `translate(${x} ${y}) scale(${1 / TEXT_SCALE})` }, g);
     t.textContent = String(n);
     return { g };
@@ -300,14 +309,14 @@ function drawBoard() {
 /** Each edge's look from the run: line, crossed, lit by a hint, part of a wrong loop; each number's: met, over, a hint's. */
 function paint() {
   if (!svg || !S) return;
-  const br = breaks(P, S.marks), over = new Set(br.over), met = new Set(br.met), wrong = new Set(br.loop), bad = new Set(br.bad);
+  const br = breaks(P, S.marks), over = new Set([...br.over, ...br.shade]), met = new Set(br.met), wrong = new Set(br.loop), bad = new Set(br.bad);
   const lit = new Set(S.lit?.set || []);
   for (let e = 0; e < edgeEls.length; e++) {
     const m = S.marks[e], cls = ["slk-e", m === LINE ? "ln" : m === CROSS ? "cr" : "", lit.has(e) ? "lit" : "", wrong.has(e) ? "wrong" : ""].filter(Boolean).join(" ");
     if (edgeEls[e].g.getAttribute("class") !== cls) edgeEls[e].g.setAttribute("class", cls);
   }
   cellEls.forEach(({ g }, k) => {
-    const cls = ["slk-cell", over.has(k) ? "over" : met.has(k) ? "met" : "", S.lit?.cell === k ? "why" : ""].filter(Boolean).join(" ");
+    const cls = ["slk-cell", over.has(k) ? "over" : met.has(k) ? "met" : "", S.lit?.cell === k || S.lit?.cell2 === k ? "why" : ""].filter(Boolean).join(" ");
     if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
   });
   dotEls.forEach((d, x) => d.setAttribute("class", `slk-dot${bad.has(x) ? " bad" : S.lit?.vertex === x ? " lit" : ""}`));
@@ -365,7 +374,7 @@ function drawStrip() {
   if (!S) { put("time", "0:00"); put("penalty", ""); put("kind", ""); return; }
   put("time", fmt(elapsed() / 1000 + penalty()));
   put("penalty", penalty() ? `+${penalty()} s` : "");
-  put("kind", `${S.mode === "daily" ? "Today · " : ""}${kindText({ size: S.size, level: S.came || S.level })}`);
+  put("kind", `${S.mode === "daily" ? "Today · " : ""}${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}`);
 }
 function drawLine() {
   const l = $("line");
@@ -374,8 +383,8 @@ function drawLine() {
   else if (S.lit) { text = S.lit.text; tone = "good"; }
   else if (message) { text = message.text; tone = message.tone; }
   else if (S.came && S.came !== S.level && !S.marks.includes(LINE)) text = `No ${LEVELS[S.level]} puzzle came of this size this time: this one is ${LEVELS[S.came]}.`;
-  else if (!S.marks.includes(LINE) && !S.marks.includes(CROSS)) text = "Tap an edge to draw it, again to cross it (not part of the loop), again to clear it. Hold an edge to cross it.";
-  else text = "One loop, through no corner twice, with every number met.";
+  else if (!S.marks.includes(LINE) && !S.marks.includes(CROSS)) text = `Tap an edge to draw it, again to cross it (not part of the loop), again to clear it. Hold an edge to cross it.${shadeOn(S.twist) ? " A tinted cell is inside the loop, a dotted one outside." : ""}`;
+  else text = shadeOn(S.twist) ? "One loop, through no corner twice, every number met, shaded cells inside it and dotted ones outside." : "One loop, through no corner twice, with every number met.";
   if (l.textContent !== text) l.textContent = text;
   l.className = `slk-say${tone ? ` ${tone}` : ""}`;
 }
@@ -416,10 +425,12 @@ function showRules() {
     <h4>Playing</h4>
     <p>Tap an edge to draw it, again to cross it (a small mark for "not part of the loop", a note for yourself), again to clear it; hold an edge, or right-click it, to cross it at once. Only the lines count: the puzzle is solved the moment exactly its answer is drawn. Undo and Redo step through your marks, and the menu clears the board.</p>
     <p>A broken rule shows at once, the line under the board saying which: a number with too many lines in oxblood, three lines at a corner, a dead end, or a loop closed round the wrong cells. That comes from the rules, never the answer. A number turns pale once it has all its lines. Hint (+${HINT}&nbsp;s) puts a wrong mark right first; otherwise it makes the next step a person would take and says why, the edges it settled in gilt.</p>
+    <h4>Shaded puzzles</h4>
+    <p>The menu's Clues choice, With shading, marks some cells as being on one side of the loop: a <b>tinted</b> cell is inside the loop, a <b>dotted</b> one outside it (a cell with one of these has no number). The loop is the line between inside and outside, so a line runs between a tinted cell and a dotted one, never between two tinted or two dotted; and the sides carry on through the lines you have drawn and crossed, so a tinted cell with a crossed edge to its neighbour makes that neighbour tinted too. A cell that clashes with what you have drawn turns oxblood. The outside of the board counts as outside.</p>
     <h4>Levels</h4>
     <p>A puzzle's level is the hardest step it needs, never how many numbers it shows. <b>Easy</b>: the numbers and the corners alone (a number with all its lines crosses its other sides; a corner with two lines is done; a line with one way on takes it; a line may not close the loop early). <b>Medium</b>: a short trial as well, an edge supposed one way and followed for a couple of rounds until a rule breaks. <b>Hard</b>: a trial followed as far as it goes, with few numbers to help. When no puzzle of the level comes of a size, the nearest is dealt and the line says so.</p>
     <h4>Time</h4>
-    <p>Your score is your time plus ${HINT} seconds a hint; lower is better, and your best is kept for each size and level. The clock stops while the menu, these rules or the games screen is open.</p>
+    <p>Your score is your time plus ${HINT} seconds a hint; lower is better, and your best is kept for each size, level and kind of clue. The clock stops while the menu, these rules or the games screen is open.</p>
     <h4>Today's puzzle</h4>
     <p>A 7×7 at Medium, the same for everyone. Its first solve counts the moment the loop is drawn, and is Slitherlink's figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
@@ -441,10 +452,11 @@ function openMenu() {
   if (pick === "random") {
     content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
     content.append(mirror("Level", $("level")));
+    content.append(choice("Clues", [["none", "Numbers"], ["shade", "With shading"]], prefs.twist, v => { prefs.twist = v; savePrefs(); kindChanged(); openMenu(); }));
   } else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
   const best = S ? bestOf(S) : null;
   part(body, "about").append(
-    line(S ? `${kindText({ size: S.size, level: S.came || S.level })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Draw the loop."),
+    line(S ? `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Draw the loop."),
     action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -464,13 +476,13 @@ async function copyLink() {
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
 
-// ---------- links: #s=SEED&n=7&l=medium (#d= for a day's) ----------
-const hashOf = s => `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&l=${s.level}`;
+// ---------- links: #s=SEED&n=7&l=medium&t=shade (#d= for a day's; t only for a shaded puzzle) ----------
+const hashOf = s => `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&l=${s.level}${shadeOn(s.twist) ? "&t=shade" : ""}`;
 function linked() {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("d") || h.get("s"));
   if (!seed) return null;
   const size = SIZES.includes(Number(h.get("n"))) ? Number(h.get("n")) : 7;
-  return { seed, mode: h.get("d") ? "daily" : "random", k: { size, level: levelOn(size, LEVELS[h.get("l")] ? h.get("l") : "medium") } };
+  return { seed, mode: h.get("d") ? "daily" : "random", k: { size, level: levelOn(size, LEVELS[h.get("l")] ? h.get("l") : "medium"), twist: !h.get("d") && h.get("t") === "shade" ? "shade" : "none" } };
 }
 async function openLinked(l) {
   const done = busy("Making the puzzle", { delay: 250 });

@@ -119,3 +119,10 @@ html[data-theme="kontor"] .slk-card { border-radius: 2px; }
 html[data-theme="kontor"] .slk-tool { border-radius: 2px; border-width: 1px; }
 html[data-theme="kontor"] .slk-go { border-radius: 2px; text-transform: uppercase; letter-spacing: .06em; font-size: .8rem; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .slk-kind { font-stretch: 100%; }
+
+/* shaded puzzles: a cell known to be inside the loop is tinted, one known to be outside it carries a dot */
+.slk-in-mark { fill: color-mix(in srgb, var(--slk-in) 24%, var(--slk-tile)); stroke: color-mix(in srgb, var(--slk-in) 45%, transparent); stroke-width: .03; pointer-events: none; }
+.slk-out-mark { fill: color-mix(in srgb, var(--ink) 55%, var(--slk-tile)); pointer-events: none; }
+.slk-cell.over .slk-in-mark { fill: color-mix(in srgb, var(--slk-bad) 28%, var(--slk-tile)); stroke: var(--slk-bad); }
+.slk-cell.over .slk-out-mark { fill: var(--slk-bad); }
+.slk-svg.shaded .slk-cell.over .slk-ring { stroke: var(--slk-bad); }

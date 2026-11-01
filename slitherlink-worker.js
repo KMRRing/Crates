@@ -3,6 +3,6 @@
 import { generate } from "./slitherlink-engine.js";
 
 self.onmessage = e => {
-  const { id, seed, size, level } = e.data;
-  self.postMessage({ id, puzzle: generate(seed, size, level) });
+  const { id, seed, size, level, shade } = e.data;
+  self.postMessage({ id, puzzle: generate(seed, size, level, !!shade) });
 };
