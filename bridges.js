@@ -420,26 +420,30 @@ function wave() {
   svg.classList.add("solved");
 }
 
-// ---------- the model: the same board as a relief with ships (bridges-3d.js, loaded when first asked for) ----------
+// ---------- 3D: the same board as a relief with ships, played the same way (bridges-3d.js, loaded when first asked for) ----------
 let model = null, modelFor = null;
-/** The model follows the run: a new puzzle is built into it, a change of marks shows and hides bridges. */
+/** The model follows the run: a new puzzle is built into it, a change of marks shows and hides bridges, a hint's link glows. */
 function feedModel(br) {
   if (!model || prefs.view !== "model" || !S || !P) return;
   if (modelFor !== P) { model.set({ lay: P.lay, size: P.size, grid: P.grid, lanes: S.lanes || "" }); modelFor = P; }
-  model.update(S.marks, br || breaks(P, S.marks));
+  model.update(S.marks, br || breaks(P, S.marks), S.lit);
 }
-/** Chart or model. The model's code (three.js) comes only when it is first wanted; where there is no WebGL the chart stays. */
+/** Chart (2D) or model (3D; `prefs.view` keeps "chart" and "model"). The model's code (three.js) comes only when it is first wanted; where there is no WebGL the chart stays. */
 async function setView(v, remember = true) {
   if (v === "model" && !model) {
-    try { model = (await import("./bridges-3d.js")).createModel($("model")); }
-    catch (err) { console.warn("Bridges: no 3D here.", err); toast("This browser can't draw the model."); v = "chart"; }
+    try {
+      model = (await import("./bridges-3d.js")).createModel($("model"), {
+        press, playable: () => !!S && !S.done && !IN_FRAME && !paused, blocked: l => S.marks[l] === "0" && crossed(P, S.marks, l),
+      });
+    }
+    catch (err) { console.warn("Bridges: no 3D here.", err); toast("This browser can't draw 3D."); v = "chart"; }
   }
   prefs.view = v;
   if (remember) savePrefs();
   const on = v === "model";
   $("card").classList.toggle("is-model", on);
   $("model").hidden = !on;
-  $("viewBtn").innerHTML = on ? "<b>Chart</b><small>back to it</small>" : "<b>Model</b><small>with ships</small>";
+  $("viewBtn").innerHTML = on ? "<b>2D</b><small>the chart</small>" : "<b>3D</b><small>scenic view</small>";
   $("viewBtn").setAttribute("aria-pressed", String(on));
   model?.show(on);
   if (on) feedModel();
@@ -509,8 +513,7 @@ function drawLine() {
   else if (S.lit) { text = S.lit.text; tone = "good"; }
   else if (message) { text = message.text; tone = message.tone; }
   else if (S.came && S.came !== S.level && !/[12]/.test(S.marks)) text = `No ${LEVELS[S.level]} puzzle came of this size this time: this one is ${LEVELS[S.came]}.`;
-  else if (prefs.view === "model" && !/[12]/.test(S.marks)) text = "The model shows what is built. Drag it to turn it; build on the chart.";
-  else if (!/[12]/.test(S.marks)) text = `Tap the dotted line between two islands to build a bridge, again for a second, again to clear it. Hold to clear.${S.twist === "none" || !S.twist ? "" : twistHint()}`;
+  else if (!/[12]/.test(S.marks)) text = `${prefs.view === "model" ? "Tap a dashed line to build a bridge, again for a second, again to clear it. Hold to clear. Drag to turn." : "Tap the dotted line between two islands to build a bridge, again for a second, again to clear it. Hold to clear."}${S.twist === "none" || !S.twist ? "" : twistHint()}`;
   else text = `${P.lay.isl.some(x => x.kind) ? "Every island with its number, or within its bound (4+ at least, ≤3 at most)" : "Every island with as many bridges as its number"}${P.lay.realmSize[1] ? ", each colour one network" : ", all of them joined"}, no bridge crossing another${P.lay.links.some(k => k.high) ? " (a viaduct goes over)" : ""}.`;
   if (l.textContent !== text) l.textContent = text;
   l.className = `brg-say${tone ? ` ${tone}` : ""}`;
@@ -632,7 +635,7 @@ function openMenu() {
   pick ??= S?.mode === "daily" ? "daily" : "random";
   play.append(action("New puzzle", () => (levels ? confirmLevelBlock() : confirmStart(pick)), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
-  play.append(action(prefs.view === "model" ? "Show the chart" : "Show the model", () => setView(prefs.view === "model" ? "chart" : "model"), "link"));
+  play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "chart" : "model"), "link"));
   play.append(action("The rules", showRules, "link"));
   content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
   if (levels) content.append(levelList());

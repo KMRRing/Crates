@@ -78,7 +78,7 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 @keyframes brg-wave { 0% { stroke: var(--brg-in); } 40% { stroke: var(--brg-gilt); } 100% { stroke: var(--brg-gilt); } }
 @media (prefers-reduced-motion: reduce) { .brg-svg.solved .brg-l .brg-b, .brg-svg.solved .brg-l .brg-piers { animation: none; stroke: var(--brg-gilt); } }
 
-/* the model: the board as a relief with ships (bridges-3d.js), over the chart's place; the numbers are plates of the page laid over its islands */
+/* the 3D view: the board as a relief with ships (bridges-3d.js), over the chart's place, played the same way; the numbers are plates of the page laid over its islands */
 .brg-model { position: absolute; inset: .5rem; overflow: hidden; border-radius: 4px; background: var(--brg-tile); }
 .brg-model[hidden] { display: none; }
 .brg-card.is-model .brg-board { visibility: hidden; }
@@ -93,6 +93,7 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg3-n.met { background: color-mix(in srgb, var(--brg-in) 26%, var(--brg-tile)); border-color: var(--brg-in); }
 .brg3-n.over { background: color-mix(in srgb, var(--brg-bad) 26%, var(--brg-tile)); border-color: var(--brg-bad); }
 .brg3-n.cut { border-style: dashed; border-color: var(--brg-bad); }
+.brg3-n.why { border-color: var(--brg-gilt); box-shadow: 0 0 0 2px var(--brg-gilt); }
 
 /* under the board: a line of what to do or what happened, three tools; at the end, how it went and the way on, in the
    same room. The line keeps three lines' height, so a long hint never moves the board. */

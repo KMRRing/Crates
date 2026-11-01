@@ -4,7 +4,7 @@
 // when asked, and keeps to the offline rules. The picture itself (bridges-3d.js, three.js) needs a browser with WebGL and is
 // looked at, not run here.
 import fs from "node:fs";
-import { cellXZ, labelOf, headingOf, laneRuns, laneParts, routesOf, shipAt, buoysOf, piersOf, archPoints, wallOutline } from "../bridges-model.js";
+import { cellXZ, labelOf, headingOf, laneRuns, laneParts, routesOf, shipAt, buoysOf, piersOf, archPoints, wallOutline, linkLine, segDistance, pickTolerance, pickLink } from "../bridges-model.js";
 import { layoutOf, generate } from "../bridges-engine.js";
 
 let bad = 0;
@@ -109,6 +109,53 @@ const lanes = Array.from({ length: size * size }, (_, i) => { const r = Math.flo
   check(crown > 0.6, `an arch over open water is high enough for a ship to pass under (crown ${crown.toFixed(2)})`);
 }
 
+// ---------- playing on it: which link a finger is on ----------
+{
+  check(near(segDistance(0, 0, 10, 0, 5, 3), 3) && near(segDistance(0, 0, 10, 0, 14, 3), 5) && near(segDistance(2, 2, 2, 2, 5, 6), 5), "a point's distance to a segment: beside it, past its end, and to a point");
+  check(pickTolerance(8) === 10 && pickTolerance(30) === 15 && pickTolerance(200) === 24, "a finger reaches half a cell, but never under ten pixels nor over twenty-four");
+  // a board seen from straight above, 40 pixels a cell, every link picked along its length
+  const S = 40, px = (x, z) => [x * S, z * S];
+  let links = 0, wrong = 0, viaducts = 0, onIsland = 0, isleCount = 0, missed = 0, why = "";
+  for (const [i, sz, twist] of [[1, 7, "none"], [2, 9, "hills"], [3, 9, "lanes"], [4, 11, "hills+reefs"], [5, 11, "lanes"], [6, 9, "none"]]) {
+    const p = generate(7000 + i * 17, sz, "medium", twist);
+    if (!p) continue;
+    const lay = layoutOf(p.size, p.grid, p.kinds || "", p.realms || "", p.hills, p.lanes);
+    const lines = lay.links.map((_, l) => linkLine(lay, p.size, l));
+    const segs = lines.map((q, l) => { const [ax, ay] = px(q.x0, q.z0), [bx, by] = px(q.x1, q.z1); return { l, ax, ay, bx, by, high: q.high }; });
+    const isles = lay.isl.map(o => { const [x, z] = cellXZ(p.size, o.r, o.c), [ix, iy] = px(x, z); return { x: ix, y: iy, r: 0.4 * S }; });
+    lay.links.forEach((k, l) => {
+      links++;
+      const a = lay.isl[k.a], b = lay.isl[k.b], q = lines[l], span = k.vertical ? b.r - a.r : b.c - a.c;
+      if (!(near(q.y, k.high ? 0.8 : 0.17) && (k.vertical ? near(q.x0, q.x1) && near(Math.abs(q.z1 - q.z0), span - 0.9) : near(q.z0, q.z1) && near(Math.abs(q.x1 - q.x0), span - 0.9)))) { wrong++; why = "a link's line is not the span less the islands' share"; }
+      if (k.high) viaducts++;
+      for (const f of [0.2, 0.5, 0.8]) {
+        const x = segs[l].ax + (segs[l].bx - segs[l].ax) * f, y = segs[l].ay + (segs[l].by - segs[l].ay) * f, got = pickLink(segs, x, y, pickTolerance(S), isles);
+        if (got === l) continue;
+        // only where another link crosses this one right there, and only a viaduct takes it from a low bridge
+        const o = got >= 0 ? segs[got] : null;
+        if (o && o.high && !segs[l].high && segDistance(o.ax, o.ay, o.bx, o.by, x, y) < 4) continue;
+        if (o && !o.high && !segs[l].high && segDistance(o.ax, o.ay, o.bx, o.by, x, y) < 1) continue;
+        missed++; why = `link ${l} at ${f} gave ${got}`;
+      }
+    });
+    isleCount += isles.length;
+    for (const o of isles) if (pickLink(segs, o.x, o.y, pickTolerance(S), isles) === -1 && pickLink(segs, o.x + 0.3 * S, o.y, pickTolerance(S), isles) === -1) onIsland++;
+  }
+  check(links > 60 && viaducts > 0 && !wrong, `every link's line runs between its islands at its bridge's height (${links} links, ${viaducts} of them viaducts)${why ? `: ${why}` : ""}`);
+  check(!missed, `a finger on a link (a fifth, half, four fifths along it) picks that link, but where another crosses it${missed ? `: ${why}` : ""}`);
+  check(isleCount > 40 && onIsland === isleCount, `a finger on an island, or a little off its middle, picks no link (${onIsland} of ${isleCount} islands)`);
+  // the cases, made by hand: a viaduct over a low bridge, two low links crossing, a blocked one
+  const low = { l: 0, ax: 0, ay: 100, bx: 200, by: 100, high: false }, high = { l: 1, ax: 100, ay: 0, bx: 100, by: 200, high: true };
+  check(pickLink([low, high], 102, 100, 18) === 1 && pickLink([high, low], 100, 101, 18) === 1, "where a viaduct passes over a low bridge a finger at the crossing means the viaduct");
+  check(pickLink([low, high], 160, 103, 18) === 0 && pickLink([low, high], 100, 40, 18) === 1, "…but a finger away from the crossing means the link it is on");
+  check(pickLink([low, high], 160, 130, 18) === -1 && pickLink([], 5, 5, 18) === -1, "a finger far from every link picks none");
+  const crossA = { l: 0, ax: 0, ay: 100, bx: 200, by: 100, high: false, bias: 2 }, crossB = { l: 1, ax: 100, ay: 0, bx: 100, by: 200, high: false };
+  check(pickLink([crossA, crossB], 100, 100, 18) === 1 && pickLink([crossB, { ...crossA, bias: 0 }], 100, 100, 18) === 1, "of two low links crossing, the one a bridge can go on wins a close call (the other has a bias)");
+  check(pickLink([crossA, crossB], 160, 100, 18) === 0, "…and still gets a finger that is well along it");
+  check(pickLink([low, high], 100, 108, 18, [{ x: 100, y: 110, r: 14 }]) === -1, "a finger on an island is on no link, though one is close");
+  check(pickLink([{ l: 4, ax: 0, ay: 0, bx: 100, by: 0, high: false }], 50, 19, 18) === -1 && pickLink([{ l: 4, ax: 0, ay: 0, bx: 100, by: 0, high: false }], 50, 17, 18) === 4, "the tolerance is a distance in pixels");
+}
+
 // ---------- the page ----------
 {
   const html = fs.readFileSync(root + "bridges.html", "utf8"), js = fs.readFileSync(root + "bridges.js", "utf8"), css = fs.readFileSync(root + "bridges.css", "utf8"), d3 = fs.readFileSync(root + "bridges-3d.js", "utf8");
@@ -117,6 +164,13 @@ const lanes = Array.from({ length: size * size }, (_, i) => { const r = Math.flo
   check(/from "\.\/vendor\/three\.js"/.test(d3) && /from "\.\/bridges-model\.js"/.test(d3), "the picture uses the three.js the app keeps on the device, so it works offline");
   check(/\.brg-card\.is-model/.test(css) && /\.brg3-n\b/.test(css) && /\.brg3-gl\b/.test(css), "the stylesheet has the model's plates, canvas and the card's other state");
   check(/prefs\.view/.test(js) && /"model"/.test(js) && /catch \(err\)/.test(js.slice(js.indexOf("async function setView"), js.indexOf("async function setView") + 600)), "the choice is kept with the prefs, and where there is no WebGL the chart stays");
+  check(/>3D</.test(html) && /<b>2D<\/b>/.test(js) && /Play in 3D/.test(js) && !/Show the model|<b>Model<\/b>/.test(js + html), "the button says 3D, and 2D when it is on; the menu says Play in 3D / 2D");
+  const mouth = js.slice(js.indexOf("async function setView"), js.indexOf("async function setView") + 700);
+  check(/createModel\(\$\("model"\), \{/.test(mouth) && /press,/.test(mouth) && /playable: \(\) => !!S && !S\.done && !IN_FRAME && !paused/.test(mouth) && /blocked: l => S\.marks\[l\] === "0" && crossed\(P, S\.marks, l\)/.test(mouth), "the model is given the page's press, and plays only while a run is on (not won, not watching a partner, not paused)");
+  check(/model\.update\(S\.marks, br \|\| breaks\(P, S\.marks\), S\.lit\)/.test(js), "a hint's link is handed to the model with the marks");
+  const hold = +/const HOLD = (\d+)/.exec(js)[1], hold3 = +/const HOLD = (\d+)/.exec(d3)[1];
+  check(hold === hold3 && /opts\.press\?\.\(link, "tap"\)/.test(d3) && /opts\.press\?\.\(g\.link, "hold"\)/.test(d3) && /e\.button === 2/.test(d3) && /contextmenu/.test(d3), `a tap, a hold (${hold3} ms, as on the chart) and a right click reach the page's press`);
+  check(/Math\.hypot\(e\.clientX - g\.x0, e\.clientY - g\.y0\) <= SLIP/.test(d3) && /clearTimeout\(g\.timer\)/.test(d3), "a finger that strays turns the board and builds nothing");
   check(/model\?\.hold\(true\)/.test(js) && /document\.hidden/.test(d3) && /prefers-reduced-motion/.test(d3), "the model stands still while the menu is open or the tab hidden, and for a player who asks for less motion");
 }
 

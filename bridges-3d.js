@@ -1,26 +1,31 @@
 // Bridges as a model, drawn with three.js (vendor/three.js, kept on the device, so it works offline): the chart's islands as
 // a relief map's, hills in terraces like contour lines, timber bridges on piles, a viaduct as a stone arcade high over the low
 // bridges, and on the water, slowly, seventeenth-century merchantmen: one on each part of a fairway, to and fro between its
-// buoys, and others sailing right round the archipelago. It is a view of the puzzle, not a second way to play: the page
-// (bridges.js) builds bridges on the chart, and this shows what stands. Drag to turn it.
-// The page calls set(layout, grid, …) for a new puzzle and update(marks, breaks) after a change; this file builds every
+// buoys, and others sailing right round the archipelago. It is the puzzle, played: a dashed guide lies on every link without a
+// bridge, a tap on a link calls the page's press(link, "tap") and a hold press(link, "hold") (the page builds, cycles and
+// clears, as on the chart), a drag turns the board, and a hint's link glows gilt. Which link a finger means is worked out in
+// bridges-model.js (the links as the screen shows them, the nearest wins), tested in Node.
+// The page calls set(layout, grid, …) for a new puzzle and update(marks, breaks, hint) after a change; this file builds every
 // link's bridges once (a single and a double), and a change only shows and hides them. It draws only while it is on screen
 // and nothing has paused it (the menu, a hidden tab), at most thirty frames a second: the ships go slowly.
 // Throws where there is no WebGL (the page then keeps the chart).
 import * as THREE from "./vendor/three.js";
-import { cellXZ, labelOf, routesOf, shipAt, buoysOf, piersOf, wallOutline } from "./bridges-model.js";
+import { cellXZ, labelOf, routesOf, shipAt, buoysOf, piersOf, wallOutline, linkLine, pickLink, pickTolerance } from "./bridges-model.js";
 
 const DEG = Math.PI / 180;
 const DOUBLE_SIDE = 2;                           // THREE.DoubleSide (not in the bundle's exports)
-const MIN_EL = 24 * DEG, MAX_EL = 80 * DEG, FOV = 30 * DEG;
+const MIN_EL = 30 * DEG, MAX_EL = 80 * DEG, FOV = 30 * DEG;   // not lower: from the side the hills hide the links behind them
+const HOME_AZ = 32 * DEG, HOME_EL = 52 * DEG;
+const HOLD = 430, SLIP = 9;                     // ms a press takes to clear a link (as on the chart), and the pixels a finger may stray and still tap
 const FRAME_MS = 1000 / 30;
 const DECK = 0.17, VIADUCT = 0.8;               // the heights of a low bridge's deck and of the top of a viaduct
+const GUIDE = 0.09, GUIDE_HIGH = VIADUCT + 0.02;  // the dashes on a link without a bridge lie a little over the swell (a viaduct's in the air where it would stand)
 const WAVE = (x, z, t) => 0.028 * Math.sin(x * 0.9 + t * 0.8) + 0.02 * Math.sin(z * 1.3 - t * 0.6) + 0.012 * Math.sin((x + z) * 2.1 + t * 1.7);
 
 // ---------- the skins ----------
 const MODES = {
-  day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], copper: 0xd9a27a, timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, rock: 0x6f6a62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false },
-  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], copper: 0xc08a68, timber: 0x84603a, stone: 0xb4aea0, deck: 0x9a9380, rock: 0x625e58, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true },
+  day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], copper: 0xd9a27a, timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, rock: 0x6f6a62, guide: 0xffffff, guideA: 0.62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false },
+  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], copper: 0xc08a68, timber: 0x84603a, stone: 0xb4aea0, deck: 0x9a9380, rock: 0x625e58, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true },
 };
 function skinNow() {
   const root = document.documentElement, night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -38,11 +43,13 @@ function wall(points, depth) {
 }
 
 /**
- * The model in `host`. Calls: set(puzzle) for a new puzzle (its layout `lay`, `grid`, `lanes`, `hills`), update(marks, br) when the
- * bridges or the islands' state changed, show(on) to start or stop drawing, spin() after a win, orbit(az, el) / angles for the
- * camera, dispose().
+ * The model in `host`. Calls: set(puzzle) for a new puzzle (its layout `lay`, `grid`, `lanes`, `hills`), update(marks, br, hint)
+ * when the bridges, the islands' state or the hint's link changed, show(on) to start or stop drawing, spin() after a win,
+ * orbit(az, el) / angles for the camera, dispose(). `opts`: press(link, "tap" | "hold") is called for a finger on a link,
+ * playable() says whether a finger may build now (not when it is won, paused, or only watching), blocked(link) whether no
+ * bridge can go on the link (another crosses it), which makes it lose a close call.
  */
-export function createModel(host) {
+export function createModel(host, opts = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
   renderer.shadowMap.enabled = true;
@@ -74,6 +81,8 @@ export function createModel(host) {
     h0: mat(0xd8c28f), h1: mat(0xc4a870), h2: mat(0xa98b55), timber: mat(0x9a6a3b), stone: mat(0xd9d0bc), deck: mat(0xbfb394),
     hull: mat(0x6a4426), trim: mat(0xc9a23c, { metalness: 0.4, roughness: 0.4 }), sail: mat(0xf0e6cc, { side: DOUBLE_SIDE }), flag: mat(0xb5432f, { side: DOUBLE_SIDE }),
     red: mat(0xb5432f), white: mat(0xf4efe2), lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }),
+    guide: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, side: DOUBLE_SIDE }),
+    halo: new THREE.MeshBasicMaterial({ color: 0xf2c14e, transparent: true, opacity: 0.5, depthWrite: false, side: DOUBLE_SIDE }),
   };
   const C = new THREE.Color();
 
@@ -133,11 +142,13 @@ export function createModel(host) {
 
   // ---------- the puzzle on show ----------
   let P = null, size = 0, lay = null;
-  let world = null, linkMeshes = [], plates = [], ships = [], buoys = [], routes = [], marks = "";
+  let world = null, linkMeshes = [], lines = [], plates = [], ships = [], buoys = [], routes = [], marks = "";
+  let lit = new Set(), litIsland = -1, aim = -1, winUntil = 0;     // the hint's links and island, the link under a finger or the pointer, the end of the win's glow
   function disposeWorld() {
     if (world) { scene.remove(world); world.traverse(o => o.geometry?.dispose()); }
-    world = null; linkMeshes = []; ships = []; buoys = [];
+    world = null; linkMeshes = []; lines = []; ships = []; buoys = [];
     labels.replaceChildren(); plates = [];
+    lit = new Set(); litIsland = aim = -1; winUntil = 0;
   }
   const place = (obj, x, y, z, ry = 0) => { obj.position.set(x, y, z); obj.rotation.y = ry; return obj; };
   const shadowed = obj => { obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return obj; };
@@ -188,6 +199,29 @@ export function createModel(host) {
     return { out, one, two };
   }
 
+  /** Flat strips along a link in its own frame (from its first island along +x, `y` up), each [from, to, half width]. */
+  function strips(list, y) {
+    const pos = [], idx = [];
+    for (const [x0, x1, hw] of list) { const n = pos.length / 3; pos.push(x0, y, -hw, x1, y, -hw, x0, y, hw, x1, y, hw); idx.push(n, n + 1, n + 2, n + 2, n + 1, n + 3); }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    return g;
+  }
+  /** What a link shows before it has a bridge: dashes along it (where a finger may tap), and the glow a hint or a finger gives it. */
+  function guideOf(l) {
+    const link = lay.links[l], a = lay.isl[link.a], b = lay.isl[link.b], [x, z] = cellXZ(size, a.r, a.c), span = link.vertical ? b.r - a.r : b.c - a.c;
+    const ry = link.vertical ? -Math.PI / 2 : 0, high = !!link.high, y = high ? GUIDE_HIGH : GUIDE, from = 0.58, to = span - 0.58;
+    const n = Math.max(1, Math.round((to - from) / 0.3)), step = (to - from) / n, hw = 0.04 + 0.004 * Math.max(0, size - 7), list = [];
+    for (let i = 0; i < n; i++) list.push([from + i * step + (step - 0.17) / 2, from + i * step + (step + 0.17) / 2, hw]);
+    const dashes = new THREE.Mesh(strips(list, y), M.guide), halo = new THREE.Mesh(strips([[0.5, span - 0.5, 0.2]], 0), M.halo);
+    halo.visible = false;
+    const out = new THREE.Group();
+    out.add(dashes, halo);
+    place(out, x, 0, z, ry);
+    return { out, dashes, halo, haloY: high ? VIADUCT + 0.04 : DECK + 0.045, guideY: y + 0.012 };
+  }
+
   /** Shows a puzzle: `p` is { lay, grid, lanes, hills, realms } (the page's P and its run's strings). */
   function set(p) {
     P = p; lay = p.lay; size = p.size;
@@ -210,7 +244,9 @@ export function createModel(host) {
       rock.position.set(x, 0.05, z);
       world.add(shadowed(rock));
     }
-    linkMeshes = lay.links.map((_, l) => { const m = bridgesOf(l); world.add(m.out); return m; });
+    isleReach = Math.max(0, ...lay.isl.map(o => Math.hypot(...cellXZ(size, o.r, o.c)))) + 1.0;
+    lines = lay.links.map((_, l) => linkLine(lay, size, l, { deck: DECK, viaduct: VIADUCT }));
+    linkMeshes = lay.links.map((_, l) => { const m = bridgesOf(l), g = guideOf(l); world.add(m.out, g.out); return { ...m, ...g }; });
     // the sea's own: buoys round the fairways, merchantmen on them and round the board
     for (const b of p.lanes ? buoysOf(size, p.lanes) : []) {
       const buoy = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.12, 8), b.red ? M.red : M.white);
@@ -227,17 +263,29 @@ export function createModel(host) {
     update(marks.length === lay.links.length ? marks : "0".repeat(lay.links.length), null);
     draw(performance.now());
   }
-  /** Shows the bridges the marks say, and each island's state (met, over, cut) on its plate. */
-  function update(m, br) {
+  /** Shows the bridges the marks say (a dashed guide on each link without one), each island's state (met, over, cut) on its plate, and the hint's: `hint` is { set: [links], island } or null. */
+  function update(m, br, hint) {
     if (!lay) return;
     marks = m;
-    linkMeshes.forEach(({ one, two }, l) => { one.visible = m[l] === "1"; two.visible = m[l] === "2"; });
+    lit = new Set(hint?.set || []);
+    litIsland = hint?.island ?? -1;
+    linkMeshes.forEach(({ one, two, dashes, halo, haloY, guideY }, l) => {
+      one.visible = m[l] === "1"; two.visible = m[l] === "2";
+      dashes.visible = m[l] === "0";
+      halo.position.y = m[l] === "0" ? guideY : haloY;
+    });
     const over = new Set(br?.over), met = new Set(br?.met), cut = new Set(br?.cut);
     for (const pl of plates) {
-      const isle = lay.isl[pl.i], cls = `brg3-n${isle.realm ? " r1" : ""}${isle.kind ? " rng" : ""}${over.has(pl.i) ? " over" : met.has(pl.i) ? " met" : ""}${cut.has(pl.i) ? " cut" : ""}`;
+      const isle = lay.isl[pl.i], cls = `brg3-n${isle.realm ? " r1" : ""}${isle.kind ? " rng" : ""}${over.has(pl.i) ? " over" : met.has(pl.i) ? " met" : ""}${cut.has(pl.i) ? " cut" : ""}${pl.i === litIsland ? " why" : ""}`;
       if (cls !== pl.cls) { pl.cls = cls; pl.el.className = cls; }
     }
+    glow();
     wake();
+  }
+  /** Which links glow gilt: the hint's, the one under a finger, and after a win every bridge. */
+  function glow() {
+    const win = performance.now() < winUntil, under = playable() ? aim : -1;      // a pointer left over a link after the win shows nothing
+    linkMeshes.forEach(({ halo }, l) => { halo.visible = l === under || lit.has(l) || (win && marks[l] !== "0"); });
   }
 
   // ---------- the skin ----------
@@ -246,6 +294,7 @@ export function createModel(host) {
     M.sea.color.set(k.sea); M.sand.color.set(k.sand); M.copper.color.set(k.copper); M.rock.color.set(k.rock);
     M.h0.color.set(k.hill[0]); M.h1.color.set(k.hill[1]); M.h2.color.set(k.hill[2]);
     M.timber.color.set(k.timber); M.stone.color.set(k.stone); M.deck.color.set(k.deck);
+    M.guide.color.set(k.guide); M.guide.opacity = k.guideA;
     hemi.color.set(k.sky); hemi.groundColor.set(k.ground); hemi.intensity = k.hemi;
     sun.color.set(k.key); sun.intensity = k.keyI;
     renderer.toneMappingExposure = k.exposure;
@@ -254,7 +303,8 @@ export function createModel(host) {
   }
 
   // ---------- the camera: round the board under a finger ----------
-  let width = 1, height = 1, az = 32 * DEG, el = 52 * DEG, dist = 14, spinUntil = 0;
+  let isleReach = 0;                                             // how far the farthest island is from the board's middle, and room for its plate
+  let width = 1, height = 1, az = HOME_AZ, el = HOME_EL, dist = 14, spinUntil = 0;
   const LOOK = new THREE.Vector3(0, 0.15, 0), V = new THREE.Vector3();
   function pose() {
     camera.position.set(Math.sin(az) * Math.cos(el) * dist, Math.sin(el) * dist, Math.cos(az) * Math.cos(el) * dist).add(LOOK);
@@ -268,8 +318,9 @@ export function createModel(host) {
     const aspect = width / height, near = 0.5, far = 120, top = near * Math.tan(FOV / 2), right = top * aspect;
     camera.projectionMatrix.makePerspective(-right, right, top, -top, near, far);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
-    // the board's circle (and the plates over its islands) in view from any side: the tighter of the two fields of view
-    const reach = (size / 2 - 0.5) * Math.SQRT2 + 0.7, half = Math.min(FOV / 2, Math.atan(Math.tan(FOV / 2) * aspect));
+    // the islands (and the plates over them) in view from any side, the tighter of the two fields of view; a board whose islands
+    // keep off its corners comes nearer, but not so near that the sea round it, where the ships sail, is all out of sight
+    const edge = (size / 2 - 0.5) * Math.SQRT2 + 0.7, reach = Math.max(isleReach, 0.8 * edge), half = Math.min(FOV / 2, Math.atan(Math.tan(FOV / 2) * aspect));
     dist = reach / Math.sin(half);
     pose();
     const D = size * 3 + 8, la = az - 0.6, le = Math.min(el + 0.5, 1.3);
@@ -300,6 +351,8 @@ export function createModel(host) {
     const t = still ? 0 : (now - t0) / 1000;
     if (spinUntil > now) { az += 0.35 * (FRAME_MS / 1000); fit(); }
     stirSea(t);
+    M.halo.opacity = still ? 0.5 : 0.42 + 0.18 * Math.sin(t * 5);
+    if (winUntil && now > winUntil) { winUntil = 0; glow(); }
     for (const { buoy, x, z } of buoys) buoy.position.y = 0.02 + WAVE(x, z, t);
     for (const { s, route } of ships) {
       const at = shipAt(route, t), bob = WAVE(at.x, at.z, t);
@@ -322,21 +375,79 @@ export function createModel(host) {
     if (!frameId) frameId = requestAnimationFrame(frame);
   }
 
-  // ---------- turning it: a finger drags the board round ----------
-  let drag = null;
-  canvas.addEventListener("pointerdown", e => { drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { canvas.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ } });
+  // ---------- playing it: a tap builds, a hold clears, a drag turns the board ----------
+  const playable = () => (opts.playable ? !!opts.playable() : false);
+  /** The links and islands as the screen shows them right now, and how near a finger must be. */
+  function onScreen() {
+    const r = canvas.getBoundingClientRect(), kx = width / (r.width || 1), ky = height / (r.height || 1);
+    const scr = (x, y, z) => { V.set(x, y, z).project(camera); return [((V.x + 1) / 2) * width, ((1 - V.y) / 2) * height]; };
+    const ppu = (height / 2) / (dist * Math.tan(FOV / 2));      // a cell's pixels across the board's middle; down a column it is less, the lower the camera
+    const segs = lines.map((q, l) => {
+      const [ax, ay] = scr(q.x0, q.y, q.z0), [bx, by] = scr(q.x1, q.y, q.z1);
+      return { l, ax, ay, bx, by, high: q.high, bias: opts.blocked?.(l) ? 3 : 0 };
+    });
+    const isles = lay.isl.map(o => { const [wx, wz] = cellXZ(size, o.r, o.c), [x, y] = scr(wx, o.hill ? 0.5 : 0.15, wz); return { x, y, r: 0.42 * ppu }; });
+    return { r, kx, ky, segs, isles, tol: pickTolerance(ppu * Math.sin(el)) };
+  }
+  /** The link under a finger at the page's (clientX, clientY), or -1. */
+  function pickAt(cx, cy) {
+    if (!lay || !lines.length) return -1;
+    const { r, kx, ky, segs, isles, tol } = onScreen();
+    return pickLink(segs, (cx - r.left) * kx, (cy - r.top) * ky, tol, isles);
+  }
+  const aimAt = l => { if (l === aim) return; aim = l; glow(); canvas.style.cursor = l >= 0 ? "pointer" : ""; wake(); };
+
+  let g = null, lastTap = null;      // the finger down: { id, x0, y0, x, y, link, turning, held, timer }; the last tap that hit nothing
+  canvas.addEventListener("pointerdown", e => {
+    if (e.button === 2) { const l = playable() ? pickAt(e.clientX, e.clientY) : -1; if (l >= 0) opts.press?.(l, "hold"); return; }   // a right click clears, as on the chart
+    if (e.button > 0 || g) return;
+    const link = playable() ? pickAt(e.clientX, e.clientY) : -1;
+    g = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, link, turning: false, held: false, timer: 0 };
+    try { canvas.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
+    if (link < 0) return;
+    aimAt(link);
+    g.timer = setTimeout(() => {
+      if (!g || g.turning) return;
+      g.held = true;
+      navigator.vibrate?.(14);
+      opts.press?.(g.link, "hold");
+      aimAt(-1);
+    }, HOLD);
+  });
   canvas.addEventListener("pointermove", e => {
-    if (!drag || e.pointerId !== drag.id) return;
-    az -= (e.clientX - drag.x) * 0.008;
-    el = Math.max(MIN_EL, Math.min(MAX_EL, el + (e.clientY - drag.y) * 0.006));
-    drag.x = e.clientX; drag.y = e.clientY;
+    if (!g) { if (e.pointerType === "mouse" && lay) aimAt(playable() ? pickAt(e.clientX, e.clientY) : -1); return; }
+    if (e.pointerId !== g.id) return;
+    if (!g.turning) {
+      if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) <= SLIP) return;      // a finger shakes: still a tap
+      g.turning = true;
+      clearTimeout(g.timer);
+      aimAt(-1);
+      g.x = e.clientX; g.y = e.clientY;
+      return;
+    }
+    az -= (e.clientX - g.x) * 0.008;
+    el = Math.max(MIN_EL, Math.min(MAX_EL, el + (e.clientY - g.y) * 0.006));
+    g.x = e.clientX; g.y = e.clientY;
     fit();
     wake();
   });
-  const letGo = e => { if (drag && e.pointerId === drag.id) drag = null; };
+  const letGo = e => {
+    if (!g || e.pointerId !== g.id) return;
+    clearTimeout(g.timer);
+    const { link, turning, held } = g, now = performance.now();
+    g = null;
+    if (e.pointerType !== "mouse") aimAt(-1);
+    if (e.type === "pointercancel" || turning || held) return;
+    if (link >= 0) { lastTap = null; opts.press?.(link, "tap"); return; }
+    // two taps on the water turn the board back to where it began
+    if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { lastTap = null; orbit(HOME_AZ, HOME_EL); } else lastTap = { t: now, x: e.clientX, y: e.clientY };
+  };
   canvas.addEventListener("pointerup", letGo);
   canvas.addEventListener("pointercancel", letGo);
+  canvas.addEventListener("pointerleave", e => { if (!g && e.pointerType === "mouse") aimAt(-1); });
+  canvas.addEventListener("contextmenu", e => e.preventDefault());
   canvas.style.touchAction = "none";
+  function orbit(a, e) { az = a; el = Math.max(MIN_EL, Math.min(MAX_EL, e)); fit(); wake(); }
 
   new ResizeObserver(resize).observe(host);
   new MutationObserver(applySkin).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
@@ -354,11 +465,19 @@ export function createModel(host) {
     /** Holds the drawing still while the menu is open, then lets it go on. */
     hold(on) { held = !!on; if (held && frameId) { cancelAnimationFrame(frameId); frameId = 0; } else wake(); },
     /** After a win: the board turns slowly for a few seconds. */
-    spin(ms = 7000) { spinUntil = performance.now() + ms; wake(); },
-    orbit(a, e) { az = a; el = Math.max(MIN_EL, Math.min(MAX_EL, e)); fit(); wake(); },
+    spin(ms = 7000) { spinUntil = performance.now() + ms; winUntil = performance.now() + 3200; glow(); wake(); },
+    orbit,
     get angles() { return [az, el]; },
+    /** For tests: the page's (clientX, clientY) of link `l`, a fraction `f` of the way along it (the middle), as a finger would tap it. */
+    where(l, f = 0.5) {
+      const q = lines[l], r = canvas.getBoundingClientRect();
+      V.set(q.x0 + (q.x1 - q.x0) * f, q.y, q.z0 + (q.z1 - q.z0) * f).project(camera);
+      return { x: r.left + ((V.x + 1) / 2) * r.width, y: r.top + ((1 - V.y) / 2) * r.height };
+    },
+    /** For tests: the link under the page's (clientX, clientY). */
+    pick: pickAt,
     /** For tests: what is on show. */
-    get live() { return { ships: ships.length, buoys: buoys.length, bridges: linkMeshes.filter(m => m.one.visible || m.two.visible).length, plates: plates.length, shown }; },
+    get live() { return { ships: ships.length, buoys: buoys.length, bridges: linkMeshes.filter(m => m.one.visible || m.two.visible).length, guides: linkMeshes.filter(m => m.dashes.visible).length, glowing: linkMeshes.filter(m => m.halo.visible).length, lit: [...lit], aim, plates: plates.length, shown }; },
     dispose() { shown = false; if (frameId) cancelAnimationFrame(frameId); disposeWorld(); renderer.dispose(); },
   };
 }

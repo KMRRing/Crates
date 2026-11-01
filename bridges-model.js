@@ -146,3 +146,37 @@ export function wallOutline(span, piers, { reach = 0.5, pier = 0.1, rise = 0.7, 
   pts.push([span, below], [span, top], [0, top]);
   return pts;
 }
+
+// ---------- playing on the model: which link a finger is on ----------
+/**
+ * Where link `l` lies in the world, for picking and for its guide: the line between its islands, its ends set `pad` cells in from
+ * the island's middle (a finger on an island means the island, not one of its four links), at the height its bridge has:
+ * { x0, z0, x1, z1, y, high }. `deck` and `viaduct` are the heights of a low bridge and of the top of a viaduct.
+ */
+export function linkLine(lay, size, l, { deck = 0.17, viaduct = 0.8, pad = 0.45 } = {}) {
+  const k = lay.links[l], a = lay.isl[k.a], b = lay.isl[k.b], [x0, z0] = cellXZ(size, a.r, a.c), [x1, z1] = cellXZ(size, b.r, b.c);
+  const dx = Math.sign(x1 - x0), dz = Math.sign(z1 - z0);
+  return { x0: x0 + dx * pad, z0: z0 + dz * pad, x1: x1 - dx * pad, z1: z1 - dz * pad, y: k.high ? viaduct : deck, high: !!k.high };
+}
+/** The distance from (x, y) to the segment (ax, ay)–(bx, by), on the screen's plane. */
+export function segDistance(ax, ay, bx, by, x, y) {
+  const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy, t = len2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len2)) : 0;
+  return Math.hypot(x - (ax + t * dx), y - (ay + t * dy));
+}
+/** How near a finger must be to a link on the screen, in pixels, when a cell of the board is `ppu` pixels across: half a cell, never under a thumb's tip nor so wide that it reaches the next link. */
+export const pickTolerance = ppu => Math.max(10, Math.min(24, ppu * 0.5));
+/**
+ * The link under a finger at (x, y), or -1. `segs` are the links as the screen shows them, { l, ax, ay, bx, by, high, bias },
+ * `isles` the islands as discs, { x, y, r }. A finger on an island is on no link. Else the nearest link within `tol` pixels
+ * wins; a `bias` (pixels, a link no bridge can go on, where another crosses it) makes it lose a close call; and a viaduct, the one on
+ * top, wins a call as close as `tie` pixels over the low bridge that seems to pass under it.
+ */
+export function pickLink(segs, x, y, tol, isles = [], tie = 3) {
+  for (const o of isles) if (Math.hypot(x - o.x, y - o.y) < o.r) return -1;
+  const d = segs.map(s => segDistance(s.ax, s.ay, s.bx, s.by, x, y) + (s.bias || 0));
+  let best = -1;
+  for (let i = 0; i < segs.length; i++) if (d[i] <= tol && (best < 0 || d[i] < d[best])) best = i;
+  if (best < 0) return -1;
+  for (let i = 0; i < segs.length; i++) if (segs[i].high && d[i] <= tol && d[i] <= d[best] + tie && (!segs[best].high || d[i] < d[best])) best = i;
+  return segs[best].l;
+}
