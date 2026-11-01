@@ -227,5 +227,14 @@ for (const fs of [44100, 48000]) {
   check(w.list[1].served === null && w.list[1].photo === null && w.list[1].print === null && w.list[1].ref === "", "a date that isn't one, a photo that isn't one, a print that isn't one: dropped");
 }
 
+// ---------- the sheet before the first listen ----------
+{
+  const fs = await import("node:fs"), root = new URL("../", import.meta.url).pathname;
+  const html = fs.readFileSync(root + "timegrapher.html", "utf8"), page = fs.readFileSync(root + "timegrapher.js", "utf8");
+  const sheet = html.match(/<dialog id="readyDlg"[\s\S]*?<\/dialog>/)?.[0] || "";
+  check(/3 to 5 mm of foam or cork/.test(sheet) && /Compass/.test(sheet) && /magnetis/.test(sheet), "the sheet before a listen says to check the watch with the compass and to put a 3 to 5 mm pad under the case back");
+  check(/if \(!read\(PRIMER, false\)\) \{ showReady\(\); return false; \}/.test(page) && /action\("Before you listen", showReady/.test(page), "the first listen on a device asks for it to be read, and the menu has it after");
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("timegrapher: rate, beat error, amplitude and vph from synthetic watches; nothing from a room; the calibres, the positions, the worn rate, the keeping, which watch and how it's keeping");

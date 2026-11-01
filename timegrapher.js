@@ -122,10 +122,20 @@ function append(env) {
   while (R.len - R.chunks[0].length >= max) { R.len -= R.chunks[0].length; R.dropped += R.chunks.shift().length; }
 }
 
+// ---------- before you listen ----------
+// A sheet of two things to do first (the watch checked for magnetism with the phone's compass, a thin pad under the case
+// back), shown before the first listen on a device and from the menu after. The wording is the page's; whether the pad's
+// 3 to 5 mm is right is for Korbi's ear to say.
+const PRIMER = "timegrapher:primer";
+function showReady() { if (!$("readyDlg").open) $("readyDlg").showModal(); }
+$("readyGo").addEventListener("click", () => $("readyDlg").close());
+$("readyDlg").addEventListener("close", () => { const first = !read(PRIMER, false); write(PRIMER, 1); if (first) say("Now press Listen, with the case back on the pad."); });
+
 // ---------- listening ----------
 let audio = null, stream = null, source = null, node = null, workletReady = false, listening = false, lock = null;
 async function listen() {
   if (IN_FRAME || listening) return listening;
+  if (!read(PRIMER, false)) { showReady(); return false; }          // the first time: what to do before a reading, and the press that follows is a fresh one
   if (!ident && setting().quartz) { say("A quartz watch steps once a second from its crystal: there's no escapement for a timegrapher to hear.", "bad"); return false; }
   if (!navigator.mediaDevices?.getUserMedia) { say("Listening needs the app opened from its own address (https).", "bad"); return false; }
   try {
@@ -842,7 +852,7 @@ function openMenu() {
   settings.append(choice("Each position", [["20", "20 s"], ["40", "40 s"], ["60", "60 s"]], String(opts.length), v => { opts.length = Number(v); saveOpts(); }));
   settings.append(choice("Settling", [["10", "10 s"], ["15", "15 s"], ["20", "20 s"]], String(opts.settle), v => { opts.settle = Number(v); saveOpts(); }));
   const about = part(body, "about");
-  about.append(action("History of this watch", openHistory));
+  about.append(action("History of this watch", openHistory), action("Before you listen", showReady, "link"));
   const last = w.readings[0];
   about.append(line(last ? `Last: ${signed(last.rate)} s/d, ${new Date(last.at).toLocaleDateString("en-GB")}. ${w.sessions.length} session${w.sessions.length === 1 ? "" : "s"} kept.` : "Nothing kept for this watch yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -853,9 +863,9 @@ bindSwitcher($("appsBtn"), "timegrapher");
 document.querySelector(".tg-mark").innerHTML = APPS.find(a => a.id === "timegrapher")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-for (const id of ["histClose", "wornClose", "resClose", "libClose", "watchClose", "idClose"]) $(id).addEventListener("click", e => e.target.closest("dialog").close());
+for (const id of ["histClose", "wornClose", "resClose", "libClose", "watchClose", "idClose", "readyClose"]) $(id).addEventListener("click", e => e.target.closest("dialog").close());
 $("watchDlg").addEventListener("close", () => { if ($("libDlg").open) openLibrary(); });
-for (const d of ["histDlg", "wornDlg", "resultDlg", "askDlg", "libDlg", "watchDlg", "idDlg"]) $(d).addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+for (const d of ["histDlg", "wornDlg", "resultDlg", "askDlg", "libDlg", "watchDlg", "idDlg", "readyDlg"]) $(d).addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $("listenBtn").addEventListener("click", () => {
   if (S) { if (S.phase === "place") stepStart(); else { restart(); S.phase = "place"; drawSession(); say(stepWords()); } return; }
   if (listening) stop(); else listen();

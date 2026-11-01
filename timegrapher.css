@@ -191,3 +191,8 @@ html .tg-add { width: 100%; min-height: 2.8rem; }
 .tg-wacts { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; margin-top: .8rem; }
 .tg-wacts .primary { grid-column: 1 / -1; }
 html .tg-wacts .btn { min-height: 2.8rem; }
+
+/* the sheet shown before the first listen: two things to do first */
+.tg-ready { margin: 0 0 .9rem; padding-left: 1.2rem; font-size: .9rem; line-height: 1.45; color: var(--ink-soft); }
+.tg-ready li + li { margin-top: .7rem; }
+.tg-ready b { color: var(--ink); font-weight: 800; }
