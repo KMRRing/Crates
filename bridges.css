@@ -78,6 +78,22 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 @keyframes brg-wave { 0% { stroke: var(--brg-in); } 40% { stroke: var(--brg-gilt); } 100% { stroke: var(--brg-gilt); } }
 @media (prefers-reduced-motion: reduce) { .brg-svg.solved .brg-l .brg-b, .brg-svg.solved .brg-l .brg-piers { animation: none; stroke: var(--brg-gilt); } }
 
+/* the model: the board as a relief with ships (bridges-3d.js), over the chart's place; the numbers are plates of the page laid over its islands */
+.brg-model { position: absolute; inset: .5rem; overflow: hidden; border-radius: 4px; background: var(--brg-tile); }
+.brg-model[hidden] { display: none; }
+.brg-card.is-model .brg-board { visibility: hidden; }
+.brg3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.brg3-gl:active { cursor: grabbing; }
+.brg3-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.brg3-n { position: absolute; left: 0; top: 0; display: grid; place-items: center; min-width: 1.1rem; height: 1.1rem; padding: 0 .15rem; border-radius: 999px;
+  border: 1.5px solid var(--ink); background: var(--brg-tile); color: var(--ink); font-weight: 750; font-size: .66rem; font-variant-numeric: tabular-nums; line-height: 1;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 35%, transparent); will-change: transform; }
+.brg3-n.rng { background: color-mix(in srgb, var(--brass) 28%, var(--brg-tile)); }
+.brg3-n.r1 { border-color: var(--brg-copper); }
+.brg3-n.met { background: color-mix(in srgb, var(--brg-in) 26%, var(--brg-tile)); border-color: var(--brg-in); }
+.brg3-n.over { background: color-mix(in srgb, var(--brg-bad) 26%, var(--brg-tile)); border-color: var(--brg-bad); }
+.brg3-n.cut { border-style: dashed; border-color: var(--brg-bad); }
+
 /* under the board: a line of what to do or what happened, three tools; at the end, how it went and the way on, in the
    same room. The line keeps three lines' height, so a long hint never moves the board. */
 .brg-side { display: grid; align-content: start; margin-top: .6rem; min-height: 7.2rem; }
@@ -87,12 +103,13 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-say { margin: 0; height: 4.05em; overflow: hidden; font-size: .86rem; line-height: 1.35; color: var(--ink-soft); }
 .brg-say.bad { color: var(--brg-bad); }
 .brg-say.good { color: var(--brg-good); }
-.brg-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.brg-tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
 .brg-tool { display: grid; gap: .05rem; align-content: center; min-height: 3.25rem; border-radius: 5px; border: 2px solid var(--tile-edge); background: var(--yard);
   color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
 .brg-tool b { font-weight: 800; }
 .brg-tool small { font-size: .72rem; color: var(--ink-soft); }
 .brg-tool:disabled { opacity: .45; cursor: default; }
+.brg-tool[aria-pressed="true"] { border-color: var(--brg-in); background: var(--brg-in-soft); }
 .brg-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-self: start; gap: .8rem; min-height: 6.6rem; }
 .brg-verdict { margin: 0; font-size: .98rem; font-weight: 750; line-height: 1.3; color: var(--brg-good); }
 .brg-go { min-height: 3.125rem; padding: 0 1.2rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem;

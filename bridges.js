@@ -40,10 +40,11 @@ const kindText = k => `${k.size}×${k.size} · ${LEVELS[k.level]}${hasTwist(k.tw
 const kindKey = k => `${k.size}:${k.level}${hasTwist(k.twist) ? `:${twistOn(k.twist)}` : ""}`;
 
 // ---------- what you chose ----------
-const prefs = { size: 9, level: "easy", twist: "none", ...read(PREFS, {}) };
+const prefs = { size: 9, level: "easy", twist: "none", view: "chart", ...read(PREFS, {}) };
 if (!SIZES.includes(prefs.size)) prefs.size = 9;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
 if (!TWISTS[prefs.twist]) prefs.twist = "none";
+if (prefs.view !== "model") prefs.view = "chart";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
 const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level), twist: prefs.twist });
 
@@ -227,7 +228,7 @@ function clockPause() {
   clockFrom = null;
   save();
 }
-onPause(() => { paused = true; clockPause(); cancelPress(); }, () => { paused = false; clockRun(); });
+onPause(() => { paused = true; clockPause(); cancelPress(); model?.hold(true); }, () => { paused = false; clockRun(); model?.hold(false); });
 const elapsed = () => (!S ? 0 : S.done ? S.done.ms : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
 const penalty = () => HINT * (S?.hints || 0);
 const scoreOf = ms => Math.round(ms / 1000) + penalty();
@@ -345,6 +346,7 @@ function finish() {
   save();
   roundOver("bridges");
   wave();
+  if (prefs.view === "model") model?.spin();
 }
 
 // ---------- the board ----------
@@ -407,6 +409,7 @@ function paint() {
     const cls = islandClass(i, [over.has(i) ? "over" : met.has(i) ? "met" : "", cut.has(i) ? "cut" : "", S.lit?.island === i ? "why" : ""]);
     if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
   });
+  feedModel(br);
 }
 /** The solve, shown: the bridges turn gilt from the top left. */
 function wave() {
@@ -415,6 +418,32 @@ function wave() {
   void svg.getBoundingClientRect();
   linkEls.forEach(({ g, d }) => g.style.setProperty("--d", `${d}ms`));
   svg.classList.add("solved");
+}
+
+// ---------- the model: the same board as a relief with ships (bridges-3d.js, loaded when first asked for) ----------
+let model = null, modelFor = null;
+/** The model follows the run: a new puzzle is built into it, a change of marks shows and hides bridges. */
+function feedModel(br) {
+  if (!model || prefs.view !== "model" || !S || !P) return;
+  if (modelFor !== P) { model.set({ lay: P.lay, size: P.size, grid: P.grid, lanes: S.lanes || "" }); modelFor = P; }
+  model.update(S.marks, br || breaks(P, S.marks));
+}
+/** Chart or model. The model's code (three.js) comes only when it is first wanted; where there is no WebGL the chart stays. */
+async function setView(v, remember = true) {
+  if (v === "model" && !model) {
+    try { model = (await import("./bridges-3d.js")).createModel($("model")); }
+    catch (err) { console.warn("Bridges: no 3D here.", err); toast("This browser can't draw the model."); v = "chart"; }
+  }
+  prefs.view = v;
+  if (remember) savePrefs();
+  const on = v === "model";
+  $("card").classList.toggle("is-model", on);
+  $("model").hidden = !on;
+  $("viewBtn").innerHTML = on ? "<b>Chart</b><small>back to it</small>" : "<b>Model</b><small>with ships</small>";
+  $("viewBtn").setAttribute("aria-pressed", String(on));
+  model?.show(on);
+  if (on) feedModel();
+  drawLine();
 }
 
 // ---------- the board under a finger: a tap adds a bridge, a hold clears the link ----------
@@ -480,6 +509,7 @@ function drawLine() {
   else if (S.lit) { text = S.lit.text; tone = "good"; }
   else if (message) { text = message.text; tone = message.tone; }
   else if (S.came && S.came !== S.level && !/[12]/.test(S.marks)) text = `No ${LEVELS[S.level]} puzzle came of this size this time: this one is ${LEVELS[S.came]}.`;
+  else if (prefs.view === "model" && !/[12]/.test(S.marks)) text = "The model shows what is built. Drag it to turn it; build on the chart.";
   else if (!/[12]/.test(S.marks)) text = `Tap the dotted line between two islands to build a bridge, again for a second, again to clear it. Hold to clear.${S.twist === "none" || !S.twist ? "" : twistHint()}`;
   else text = `${P.lay.isl.some(x => x.kind) ? "Every island with its number, or within its bound (4+ at least, ≤3 at most)" : "Every island with as many bridges as its number"}${P.lay.realmSize[1] ? ", each colour one network" : ", all of them joined"}, no bridge crossing another${P.lay.links.some(k => k.high) ? " (a viaduct goes over)" : ""}.`;
   if (l.textContent !== text) l.textContent = text;
@@ -602,6 +632,7 @@ function openMenu() {
   pick ??= S?.mode === "daily" ? "daily" : "random";
   play.append(action("New puzzle", () => (levels ? confirmLevelBlock() : confirmStart(pick)), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
+  play.append(action(prefs.view === "model" ? "Show the chart" : "Show the model", () => setView(prefs.view === "model" ? "chart" : "model"), "link"));
   play.append(action("The rules", showRules, "link"));
   content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
   if (levels) content.append(levelList());
@@ -686,6 +717,7 @@ $("level").addEventListener("change", () => {
   prefs.level = v; savePrefs();
   if (!confirmStart("random")) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.level) : before; }
 });
+$("viewBtn").addEventListener("click", () => setView(prefs.view === "model" ? "chart" : "model"));
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
@@ -700,7 +732,7 @@ setInterval(() => {
 
 // for tests and debugging
 window.__bridges = {
-  get state() { return S; }, get puzzle() { return P; }, get camp() { return camp; }, get track() { return track; }, press, useHint, undo, redo, start, playLevel, setTrack, linkAt,
+  get state() { return S; }, get model() { return model; }, setView, get puzzle() { return P; }, get camp() { return camp; }, get track() { return track; }, press, useHint, undo, redo, start, playLevel, setTrack, linkAt,
   /** Where a link's middle is on the screen, for tests that tap it as a finger would. */
   screenOf: l => {
     const m = svg.getScreenCTM(), { x1, y1, x2, y2 } = seg[l], x = (x1 + x2) / 2, y = (y1 + y2) / 2;
@@ -724,3 +756,4 @@ async function solo() {
 }
 $("level").value = chosenKind().level;
 solo();
+if (prefs.view === "model") setView("model", false);
