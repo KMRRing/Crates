@@ -3,12 +3,15 @@
 // lengths and three levels, with Wordle's hard rule or a strict one, and a computer rival if you like. The rules,
 // the words, the levels and the daily are assay-engine.js's; the rivals assay-solve.js's; the team's table
 // assay-table.js's. Together: the pair as a team, each seeing one colour of the marks (together.js), or everyone
-// racing the same word (duel.js), from the partner sheet or a Party.
+// racing the same word (duel.js), from the partner sheet or a Party. Levels (assay-levels.js) are a ladder of recipes
+// beside free play, each kept as it was left (assay:lruns), its stars in assay:camp.
 import { LENGTHS, LEVELS, BOARDS, DAILY, HIT, NEAR, GREY, UNSEEN, SPRINT_MS, newGame, guessIn, rowsOf, solvedAt, limitOf, guessesFor, answersOf,
   scoreOf, sprintSolved, guessesUsed, timeUp, dailyWord, seenAs, unhide, packOf, levelOf, meanGuesses } from "./assay-engine.js";
 import { RIVALS, RIVAL_NAMES, rivalPlan, rivalSoFar, rivalMarks } from "./assay-solve.js";
 import { freshTeam, isTeam, tidy, guessAt, rowsOfTable, roleAt, resultOf as teamResult, dealAt, limitOfTable } from "./assay-table.js";
 import { ENGLISH } from "./assay-words.js";
+import * as LV from "./assay-levels.js";
+import { miniature } from "./assay-mini.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";
@@ -24,7 +27,8 @@ import "./pwa.js";
 const $ = id => document.getElementById(id);
 const LEX = ENGLISH;
 const RUN = "assay:run", PREFS = "assay:prefs", STATS = "assay:stats", DAILY_KEY = "assay:daily", BEST = "assay:best", STREAK = "assay:streak",
-  RIVAL_KEY = "assay:rivals", SEEN = "assay:seen", NOTES = "assay:notes";
+  RIVAL_KEY = "assay:rivals", SEEN = "assay:seen", NOTES = "assay:notes", TRACK = "assay:track", CAMP = "assay:camp", LRUNS = "assay:lruns";
+const STAR = "★", HOLLOW = "☆";
 const APP = 1;                 // the tables' version (the team's and the race's)
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -57,6 +61,20 @@ let prefs = cleanPrefs(read(PREFS, null));
 const setPref = (k, v) => { prefs = cleanPrefs({ ...prefs, [k]: v }); write(PREFS, prefs); };
 const applyContrast = () => document.documentElement.classList.toggle("as-contrast", prefs.contrast);
 
+// ---------- the levels ----------
+/** The campaign as kept: the level being played and the stars won in each, mended if it is not what it should be. */
+function readCamp() {
+  const c = read(CAMP, null), stars = LV.LEVELS.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
+  const open = stars.findIndex(s => s < 1);                          // the first level not beaten is the last one open
+  return { at: Number.isInteger(c?.at) ? Math.max(0, Math.min(c.at, open < 0 ? LV.COUNT - 1 : open)) : 0, stars };
+}
+let camp = readCamp();
+/** Whether level n (0 on) is open: the first, and any whose one before is beaten. */
+const isOpen = n => n === 0 || camp.stars[n - 1] >= 1;
+// Someone who has played before carries on with free play (the daily among it); a new player begins on the ladder.
+let track = read(TRACK, null);
+if (track !== "levels" && track !== "free") track = read(RUN, null) ? "free" : "levels";
+
 // ---------- the game on the screen ----------
 // S: a game of yours (assay-engine.js's, with kind "daily" or "random", the draft being typed, the rival's plan), or
 // the race's (S.duel, kept by duel.js apart from yours); T: the team's table as last seen. Everything the screen shows
@@ -67,18 +85,21 @@ let lobbyMatch = null;                    // a race dealt, not yet started here
 const valid = s => !!s && s.v === 1 && Array.isArray(s.secret) && Array.isArray(s.guesses) && LENGTHS.includes(s.len) && Number.isFinite(s.ms);
 function save() {
   if (IN_FRAME || !S) return;
-  if (S.duel) duel.keep(S); else write(RUN, S);
+  if (S.duel) duel.keep(S);
+  else if (S.kind === "level") write(LRUNS, { ...read(LRUNS, {}), [S.lv]: S });
+  else write(RUN, S);
+}
+/** The game saved for the way being played (and the level), or null. */
+function savedGame() {
+  const g = track === "levels" ? read(LRUNS, {})[camp.at] : read(RUN, null);
+  return valid(g) && !g.duel && (track === "levels" ? g.kind === "level" && g.lv === camp.at : g.kind !== "level") ? g : null;
 }
 const started = () => !!S && !S.duel && !S.over && (S.guesses.length > 0 || (S.past || []).length > 0);
 const dueToday = () => read(DAILY_KEY, {})[today()] == null;
 
-/** Starts a game of yours: today's, or a random one as the menu has it. */
-function start(kind) {
-  const day = today();
-  const g = kind === "daily"
-    ? newGame({ lex: LEX, ...DAILY, rules: prefs.rules, words: [dailyWord(day, LEX)], day, seed: day })
-    : newGame({ lex: LEX, mode: prefs.mode, len: prefs.len, boards: prefs.boards, level: prefs.level, rules: prefs.rules, seed: randomSeed(), avoid: read(SEEN, []) });
-  S = { ...g, kind, draft: "", rival: prefs.rival !== "off" ? rivalPlan(g, prefs.rival, LEX) : null };
+/** Puts game g on the table as yours: `extra` is what makes it a daily's or a level's. */
+function begin(g, kind, extra = {}) {
+  S = { ...g, kind, ...extra, draft: "", rival: prefs.rival !== "off" ? rivalPlan(g, prefs.rival, LEX) : null };
   if (kind !== "daily" && g.mode !== "dodge") write(SEEN, [...answersOf(g).slice(0, 8), ...read(SEEN, [])].slice(0, 400));   // a sprint's first few
   fresh = true; reveal = null; shownDone = null;
   clockFrom = null;
@@ -86,9 +107,43 @@ function start(kind) {
   render();
   clockRun();
 }
+/** Starts a game of yours: today's, or a random one as the menu has it. */
+function start(kind) {
+  const day = today();
+  begin(kind === "daily"
+    ? newGame({ lex: LEX, ...DAILY, rules: prefs.rules, words: [dailyWord(day, LEX)], day, seed: day })
+    : newGame({ lex: LEX, mode: prefs.mode, len: prefs.len, boards: prefs.boards, level: prefs.level, rules: prefs.rules, seed: randomSeed(), avoid: read(SEEN, []) }), kind);
+}
 function confirmStart(kind) {
   if (started() && !confirm(kind === "daily" ? "Leave this word for today's?" : "Start a new word? This one isn't finished.")) return;
   start(kind);
+}
+/** A word of level n (0 on): the level's own the first time, until it is cleared; another from the same recipe after that or when asked. */
+function startLevel(n, again = false) {
+  camp.at = n;
+  if (!IN_FRAME) write(CAMP, camp);
+  begin(LV.levelGame(n, !again && camp.stars[n] < 1 ? LV.seedOf(n) : randomSeed(), read(SEEN, []), LEX), "level", { lv: n });
+}
+function confirmLevelWord() {
+  if (started() && !confirm("Start a new word of this level? This one isn't finished.")) return;
+  startLevel(camp.at, true);
+}
+/** Plays level n (0 on) as it was left, or with a new word if it was not begun. */
+function playLevel(n) {
+  if (!isOpen(n)) return;
+  clockStop();
+  camp.at = n;
+  write(CAMP, camp);
+  track = "levels";
+  write(TRACK, track);
+  resume();
+}
+function setTrack(next) {
+  if (next === track) return;
+  clockStop();
+  track = next;
+  write(TRACK, track);
+  resume();
 }
 
 // ---------- the clock ----------
@@ -169,12 +224,18 @@ function record() {
   if (IN_FRAME || S.counted) return;
   S.counted = true;
   const won = S.over === "won" || (S.mode === "sprint" && sprintSolved(S) > 0), used = S.mode === "sprint" ? sprintSolved(S) : S.guesses.length;
-  const stats = read(STATS, {}), st = stats[modeKey(S)] || { played: 0, won: 0, dist: {}, now: 0, best: 0 };
-  st.played++;
-  if (won) { st.won++; st.now++; st.best = Math.max(st.best, st.now); st.dist[used] = (st.dist[used] || 0) + 1; } else st.now = 0;
-  if (S.mode === "sprint" || S.mode === "dodge") st.top = st.top == null ? used : S.mode === "sprint" ? Math.max(st.top, used) : (won ? Math.min(st.top, used) : st.top);
-  stats[modeKey(S)] = st;
-  write(STATS, stats);
+  if (S.kind === "level") {                                     // a level counts in its stars (the best it has had), not in the stats of free play
+    S.stars = LV.starsFor(S.lv, S);
+    S.better = S.stars > camp.stars[S.lv];
+    if (S.better) { camp.stars[S.lv] = S.stars; write(CAMP, camp); }
+  } else {
+    const stats = read(STATS, {}), st = stats[modeKey(S)] || { played: 0, won: 0, dist: {}, now: 0, best: 0 };
+    st.played++;
+    if (won) { st.won++; st.now++; st.best = Math.max(st.best, st.now); st.dist[used] = (st.dist[used] || 0) + 1; } else st.now = 0;
+    if (S.mode === "sprint" || S.mode === "dodge") st.top = st.top == null ? used : S.mode === "sprint" ? Math.max(st.top, used) : (won ? Math.min(st.top, used) : st.top);
+    stats[modeKey(S)] = st;
+    write(STATS, stats);
+  }
   if (S.kind === "daily") {
     const days = read(DAILY_KEY, {}), day = S.day;
     if (days[day] == null) {                                     // the first play of a day counts; a replay doesn't
@@ -353,8 +414,10 @@ function drawKeys() {
 
 // ---------- the strip over the board, the line under it ----------
 function drawStrip() {
-  const what = $("what"), count = $("count"), rival = $("rival");
+  const what = $("what"), count = $("count"), rival = $("rival"), lb = $("levelBtn");
   rival.hidden = true;
+  lb.hidden = !(S && !T && S.kind === "level" && !S.duel);
+  if (!lb.hidden) lb.textContent = `Level ${S.lv + 1}`;
   if (T) {
     what.replaceChildren(el("b", "", "Together"), ` · ${T.len} letters · ${LEVEL_NAMES[T.level] || ""}`);
     count.textContent = T.over ? (T.over === "won" ? `Solved in ${T.guesses.length}` : "Not solved") : `Guess ${T.guesses.length + 1} of ${limitOfTable(T)}`;
@@ -364,8 +427,9 @@ function drawStrip() {
   $("notesBtn")?.remove();
   if (!S) { what.replaceChildren(el("b", "", "The race"), lobbyMatch ? ` · ${describeMatch(lobbyMatch)}` : ""); count.textContent = ""; return; }
   // what's being played, shortest first: one word needs no name, several boards their count
-  const kind = S.duel ? "Race" : S.kind === "daily" ? "Today's" : S.mode === "boards" ? `${NUMBER[S.boards]} boards` : S.mode === "classic" ? null : MODE_NAMES[S.mode];
-  const bits = [S.duel && S.mode === "boards" ? `${NUMBER[S.boards]} boards` : null, `${S.len} letters`, S.kind === "daily" ? null : LEVEL_NAMES[S.level], S.rules !== "free" ? RULE_NAMES[S.rules] : null].filter(Boolean);
+  const lvl = S.kind === "level" && !S.duel;
+  const kind = S.duel ? "Race" : S.kind === "daily" ? "Today's" : lvl ? `Level ${S.lv + 1}` : S.mode === "boards" ? `${NUMBER[S.boards]} boards` : S.mode === "classic" ? null : MODE_NAMES[S.mode];
+  const bits = [(S.duel || lvl) && S.mode === "boards" ? `${NUMBER[S.boards]} boards` : null, lvl && (S.mode === "dodge" || S.mode === "sprint") ? MODE_NAMES[S.mode] : null, `${S.len} letters`, S.kind === "daily" || lvl ? null : LEVEL_NAMES[S.level], S.rules !== "free" ? RULE_NAMES[S.rules] : null].filter(Boolean);
   what.replaceChildren(...(kind ? [el("b", "", kind), " · "] : []), bits.join(" · "));
   if (S.mode === "sprint") {
     const left = Math.max(0, SPRINT_MS - elapsed());
@@ -434,6 +498,8 @@ function showDone() {
   if (S.mode === "sprint") title.textContent = `${plural(sprintSolved(S), "word")} in three minutes`;
   else if (S.mode === "dodge") title.textContent = `Pinned down in ${S.guesses.length}`;
   else title.textContent = won ? `Solved in ${S.guesses.length}` : S.mode === "boards" ? `${S.boards - answersOf(S).filter((_, b) => solvedAt(S, b) < 0).length} of ${S.boards} solved` : "Not this time";
+  const lvl = S.kind === "level", stars = lvl ? (S.stars ?? LV.starsFor(S.lv, S)) : 0;
+  if (lvl && stars) title.textContent = `${title.textContent} · ${STAR.repeat(stars)}${HOLLOW.repeat(3 - stars)}`;
   const words = S.mode === "sprint" ? answersOf(S).slice(0, S.past.length) : answersOf(S);
   const list = el("div", "as-words");
   words.forEach((w, b) => {
@@ -449,10 +515,15 @@ function showDone() {
     body.append(el("p", `as-vs ${S.beat || ""}`, `${S.beat === "won" ? "You beat" : S.beat === "lost" ? "Beaten by" : "Level with"} ${name}, who solved it ${theirs}${S.mode === "sprint" ? " in three minutes" : ""}.`));
     if (S.mode !== "sprint" && S.mode !== "boards") body.append(el("p", "as-their", p.rows.map(r => big(r.guess)).join(" · ")));
   }
-  const key = modeKey(S), st = read(STATS, {})[key];
+  const key = modeKey(S), st = lvl ? null : read(STATS, {})[key];
+  if (lvl) body.append(el("p", `as-vs ${stars ? "won" : ""}`, `${stars ? `${plural(stars, "star")}${S.better ? ", your best yet" : ""}` : "Not cleared"}. ${LV.parText(S.lv)[0].toUpperCase()}${LV.parText(S.lv).slice(1)}.`));
   if (st) body.append(statsBlock(st, S));
   const buttons = el("div", "as-buttons");
-  if (S.kind === "daily" || dueToday()) {
+  if (lvl) {
+    const next = S.lv + 1;
+    if (next < LV.COUNT && isOpen(next)) buttons.append(action("Next level", () => playLevel(next), "primary"));
+    buttons.append(action(stars ? "Another word" : "Try again", () => startLevel(S.lv, true), next < LV.COUNT && isOpen(next) ? "" : "primary"));
+  } else if (S.kind === "daily" || dueToday()) {
     if (dueToday()) buttons.append(action("Today's word", () => start("daily"), "primary"));
     buttons.append(action(S.kind === "daily" ? "A random word" : "New word", () => start("random"), dueToday() ? "" : "primary"));
   } else buttons.append(action("New word", () => start("random"), "primary"));
@@ -507,7 +578,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const dayText = day => `${day % 100} ${MONTHS[Math.floor(day / 100) % 100 - 1]} ${Math.floor(day / 10000)}`;
 async function copyGrid() {
   const sq = { [HIT]: "🟩", [NEAR]: "🟨", [GREY]: "⬜" }, n = S.mode === "boards" ? S.boards : 1;
-  const what = S.kind === "daily" ? dayText(S.day) : S.mode === "dodge" ? `Dodge, ${S.len} letters` : S.mode === "boards" ? `${NUMBER[S.boards]} boards, ${S.len} letters` : `${S.len} letters`;
+  const what = S.kind === "daily" ? dayText(S.day) : S.kind === "level" ? `level ${S.lv + 1}, ${S.len} letters` : S.mode === "dodge" ? `Dodge, ${S.len} letters` : S.mode === "boards" ? `${NUMBER[S.boards]} boards, ${S.len} letters` : `${S.len} letters`;
   const score = S.mode === "dodge" ? `in ${S.guesses.length}` : `${S.over === "won" ? S.guesses.length : "X"}/${limitOf(S)}`;
   const head = `Assay ${what} ${score}${S.rules !== "free" ? "*" : ""}`;
   const grids = Array.from({ length: n }, (_, b) => rowsOf(S, b).map(r => r.marks.map(m => sq[m]).join("")).join("\n"));
@@ -766,15 +837,44 @@ function openMenu() {
     showMenu(body);
     return;
   }
+  const levels = track === "levels", content = part(body, "content");
   pick ??= (S?.kind === "daily" && !S.over) || dueToday() ? "daily" : "random";
-  part(body, "play").append(action(pick === "daily" ? "Today's word" : "New word", () => confirmStart(pick), "primary"));
-  const content = part(body, "content");
-  content.append(choice("Word", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") nextChoices(content, null);
-  else content.append(line(`Today's word: five letters, Medium, six guesses, the same for everyone.${dueToday() ? "" : ` You took ${dayResult()}.`}`));
+  part(body, "play").append(action(levels ? "New word" : pick === "daily" ? "Today's word" : "New word", () => (levels ? confirmLevelWord() : confirmStart(pick)), "primary"));
+  content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
+  if (levels) content.append(levelList());
+  else {
+    content.append(choice("Word", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
+    if (pick === "random") nextChoices(content, null);
+    else content.append(line(`Today's word: five letters, Medium, six guesses, the same for everyone.${dueToday() ? "" : ` You took ${dayResult()}.`}`));
+  }
   settingsPart(body, true);
-  part(body, "about").append(line(aboutLine()), line("Words from SCOWL (Kevin Atkinson); meanings from Open English WordNet."));
+  const about = part(body, "about");
+  if (levels) about.append(line(`${camp.stars.filter(Boolean).length} of ${LV.COUNT} levels cleared, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}. Each level sets its own rules.`));
+  else about.append(line(aboutLine()));
+  about.append(line("Words from SCOWL (Kevin Atkinson); meanings from Open English WordNet."));
   showMenu(body);
+}
+/** The levels, three to a row under their chapter: each its board in miniature, its number and name and the stars won. Those not open yet are dimmed; any open one can be played at any time, as it was left. */
+function levelList() {
+  const all = el("div", "as-levels");
+  LV.CHAPTERS.forEach((ch, c) => {
+    const grid = el("div", "as-lgrid"), to = LV.CHAPTERS[c + 1]?.from ?? LV.COUNT;
+    all.append(el("h3", "as-chap", ch.name), grid);
+    for (let n = ch.from; n < to; n++) {
+      const L = LV.LEVELS[n], won = camp.stars[n], open = isOpen(n), b = el("button", won ? "done" : ""), map = el("div", "as-lmap"), row = el("div", "as-lrow");
+      b.type = "button";
+      b.disabled = !open;
+      if (n === camp.at && track === "levels") b.setAttribute("aria-current", "true");
+      b.setAttribute("aria-label", `Level ${n + 1}, ${L.name}${won ? `, ${plural(won, "star")}` : ""}${open ? "" : ", not open yet"}`);
+      map.innerHTML = miniature(L);
+      row.append(el("b", "", String(n + 1)), el("span", "", open ? STAR.repeat(won) + HOLLOW.repeat(3 - won) : ""));
+      const bits = [L.mode === "boards" ? `${NUMBER[L.boards]} boards` : L.mode === "dodge" ? "Dodge" : L.mode === "sprint" ? "Sprint" : null, `${L.len} letters`, L.rules !== "free" ? RULE_NAMES[L.rules] : null].filter(Boolean);
+      b.append(map, row, el("div", "as-lname", L.name), el("div", "as-lsize", bits.join(" · ")));
+      b.addEventListener("click", () => { $("menuDlg").close(); playLevel(n); });
+      grid.append(b);
+    }
+  });
+  return all;
 }
 /** Opens the menu as built, the rules at the foot of its play part. */
 function showMenu(body) {
@@ -796,7 +896,7 @@ function nextChoices(box, note) {
 }
 function settingsPart(body, solo) {
   const settings = part(body, "settings");
-  settings.append(choice("Rules", Object.entries(RULE_NAMES), prefs.rules, v => {
+  if (!(solo && track === "levels")) settings.append(choice("Rules", Object.entries(RULE_NAMES), prefs.rules, v => {
     setPref("rules", v);
     if (S && !S.duel && !S.guesses.length && S.boards === 1) { S.rules = v; save(); render(); }
     openMenu();
@@ -840,6 +940,7 @@ document.querySelector(".as-mark").innerHTML = APPS.find(a => a.id === "assay")?
 bindSwitcher($("appsBtn"), "assay");
 applyContrast();
 $("menuBtn").addEventListener("click", openMenu);
+$("levelBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
@@ -862,21 +963,32 @@ setInterval(() => {
 let tellTimer = 0;
 const tellSoon = () => { if (!tellTimer) tellTimer = setTimeout(() => { tellTimer = 0; if (S?.duel && !S.over) tell(); }, 5000); };
 
-function solo() {
-  S = read(RUN, null);
-  if (!valid(S) || S.duel) S = null;
+/** The game of the way now chosen, as it was left (else a new one); a level cleared goes on to the next that is open. */
+function resume() {
   T = null; built = null;
-  if (forToday && !IN_FRAME && !(S?.kind === "daily" && S.day === today())) {
-    if (!started() || confirm("Today's word is waiting. Leave the one you've started?")) { start("daily"); return; }
-  }
-  if (!S || (S.over && !IN_FRAME)) { start(dueToday() ? "daily" : "random"); return; }
+  S = savedGame();
+  if (track === "levels") {
+    if (S?.over && !IN_FRAME && S.stars >= 1 && camp.at + 1 < LV.COUNT && isOpen(camp.at + 1)) { camp.at++; write(CAMP, camp); S = savedGame(); }
+    if (!S || (S.over && !IN_FRAME)) { startLevel(camp.at, !!S); return; }     // a word that was played (and told, if lost) is not dealt again
+  } else if (!S || (S.over && !IN_FRAME)) { start(dueToday() ? "daily" : "random"); return; }
   fresh = !S.guesses.length;
   render();
   clockRun();
+}
+function solo() {
+  if (forToday && !IN_FRAME) {                                // the games screen's tile opens today's word, on the free way
+    const run = read(RUN, null);
+    if (track !== "free") { track = "free"; write(TRACK, track); }
+    if (!(valid(run) && run.kind === "daily" && run.day === today() && !run.duel)) {
+      S = valid(run) && !run.duel ? run : null;
+      if (!started() || confirm("Today's word is waiting. Leave the one you've started?")) { T = null; built = null; start("daily"); return; }
+    }
+  }
+  resume();
 }
 const forToday = arrivedForToday();
 const code = roomInAddress();
 if (code && !IN_FRAME) joinRoom(code); else solo();
 
 // for tests and debugging
-window.__assay = { get state() { return S; }, get table() { return T; }, typeKey, start, duel, team, switchTo, get prefs() { return prefs; }, setPref, showDone };
+window.__assay = { get state() { return S; }, get table() { return T; }, get camp() { return camp; }, get track() { return track; }, typeKey, start, startLevel, playLevel, setTrack, duel, team, switchTo, get prefs() { return prefs; }, setPref, showDone };

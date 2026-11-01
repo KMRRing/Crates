@@ -164,3 +164,25 @@ html[data-theme="kontor"] .as-tile, html[data-theme="kontor"] .as-key, html[data
   .assay .as-say { grid-column: 2; grid-row: 4; justify-content: flex-start; white-space: normal; text-align: left; min-height: 3rem; align-items: flex-start; }
   .assay .as-keys { grid-column: 2; grid-row: 6; --kh: clamp(2.75rem, 10svh, 4.25rem); }
 }
+
+/* the menu's ladder of levels (the same three to a row as Topple's and Survey's): each game in miniature, its number, stars and name, under its chapter */
+#menuBody .as-chap { margin: .9rem 0 .35rem; font-size: .66rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass); }
+#menuBody .as-chap:first-child { margin-top: .4rem; }
+.as-lgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.as-lgrid button { display: grid; align-content: start; gap: .2rem; padding: .35rem .4rem .4rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.as-lgrid button.done { background: var(--assay-soft); }
+.as-lgrid button[aria-current] { border-color: var(--assay-in); box-shadow: inset 0 0 0 1.5px var(--assay-in); }
+.as-lgrid button:disabled { opacity: .4; cursor: default; }
+.as-lmap { position: relative; aspect-ratio: 10 / 7; width: 100%; }
+.as-lmap svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* the tiles take the marks' colours; a dodging word's are dashed, as it has not settled */
+.as-lmap rect.g { fill: var(--as-out); } .as-lmap rect.n { fill: var(--as-near); } .as-lmap rect.h { fill: var(--as-hit); }
+.as-lmap rect.d.n { fill: none; stroke: var(--as-near); stroke-width: .12; stroke-dasharray: .3 .2; }
+.as-lmap circle.f { fill: var(--sheet); stroke: var(--brass); stroke-width: .35; }
+.as-lmap .k { stroke: var(--ink-soft); stroke-width: .3; fill: var(--ink-soft); }
+.as-lmap .p { stroke: var(--as-hit); stroke-width: .5; stroke-linecap: round; }
+.as-lrow { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; min-width: 0; }
+.as-lrow b { font-size: .9rem; font-variant-numeric: tabular-nums; }
+.as-lrow span { color: var(--brass); font-size: .66rem; letter-spacing: .1em; white-space: nowrap; }
+.as-lname { font-size: .62rem; line-height: 1.2; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--ink-soft); overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.as-lsize { font-size: .62rem; color: var(--ink-soft); }
