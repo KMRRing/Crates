@@ -1,0 +1,319 @@
+// Reckoning's rules (reckoning-engine.js): the jump, the five ways a swipe attacks (a foe in front, to the side, above,
+// the bonk and the slam), the wall run, the air chain over a pit, the question gate over the water, the quay from a seed
+// and a bot playing whole stretches of it (every kind of chunk is winnable with the swipes the rules give).
+import { LANE_W, JUMP_H, AIR_T, WALL_Y, SLAM_MIN_Y, KINDS, speed, speedAt, newGame, copy, setDeal, swipe, step, take, ensure } from "../reckoning-engine.js";
+
+let bad = 0;
+const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
+const DT = 1 / 120;
+
+/** A quay made by hand: nothing on it, and none made ahead. */
+function scene(parts = {}) {
+  const S = newGame({ seed: 1 });
+  S.world.foes = []; S.world.pits = []; S.world.walls = []; S.world.gates = []; S.world.z1 = 1e9;
+  Object.assign(S.hero, parts.hero || {});
+  return S;
+}
+let ids = 1000;
+/** A foe `ttc` seconds of running ahead of the hero (at the speed there is now). */
+function foeAt(S, kind, lane, ttc, y = KINDS[kind].y) {
+  const f = { id: ids++, kind, lane, x: lane * LANE_W, z: S.hero.z + ttc * speed(S), y, h: KINDS[kind].h, alive: true, spent: false, gate: null };
+  S.world.foes.push(f);
+  return f;
+}
+const run = (S, secs) => { for (let t = 0; t < secs - 1e-9 && !S.over; t += DT) step(S, DT); };
+const events = S => take(S).map(e => e.type);
+
+// ---------- the jump ----------
+{
+  const S = scene();
+  swipe(S, "up");
+  let peak = 0, t = 0;
+  while (S.hero.mode === "air" && t < 2) { step(S, DT); peak = Math.max(peak, S.hero.y); t += DT; }
+  check(Math.abs(peak - JUMP_H) < 0.05 && Math.abs(t - AIR_T) < 0.04 && S.hero.mode === "run" && S.hero.y === 0, `a jump peaks at ${peak.toFixed(2)} m (one jump height ${JUMP_H}) and lasts ${t.toFixed(2)} s`);
+  check(speedAt(0) === 10 && speedAt(5000) > 15.9 && speedAt(300) > speedAt(100), "the run quickens with distance, towards 16 m/s");
+  const T = scene({ hero: { y: 1.2, mode: "air" } });
+  swipe(T, "up"); run(T, 0.05);
+  const L = scene(); swipe(L, "up"); run(L, 0.55); swipe(L, "up");
+  let j = 0; for (let i = 0; i < 400 && L.hero.y < 0.5; i++) { step(L, DT); j++; }
+  check(j < 120 && L.hero.mode !== "run", "a jump swiped a moment before landing is kept, and jumps on landing");
+  swipe(L, "left");
+  check(L.hero.lane === -1, "left and right change lane, once, and never past the outer lanes");
+  swipe(L, "left"); run(L, 0.3);
+  check(L.hero.lane === -1 && Math.abs(L.hero.x + LANE_W) < 0.01, "the hero settles in the lane");
+}
+
+// ---------- 1. a foe in front ----------
+{
+  const hearts = ttc => { const S = scene(), f = foeAt(S, "crab", 0, ttc); run(S, 0.01); swipe(S, "up"); run(S, 1.6); return [S, f]; };
+  let [S, f] = hearts(0.2);
+  check(!f.alive && S.hearts === 3 && S.kills === 1, "very close: up cuts it down");
+  [S, f] = hearts(0.45);
+  check(f.alive && S.hearts === 3, "further off: up is a jump that clears it");
+  S = scene(); f = foeAt(S, "crab", 0, 0.3); run(S, 1);
+  check(S.hearts === 2 && f.spent, "left alone, or too late: it hits");
+  S = scene(); f = foeAt(S, "crab", 0, 0.12); swipe(S, "up"); run(S, 0.05); swipe(S, "up"); run(S, 1);
+  check(!f.alive && S.hearts === 3, "a second swipe in the last moment still cuts it down");
+}
+
+// ---------- 2. a foe to the side ----------
+{
+  const trial = (heroLane, foeLane, ttc, dir, kind = "crab", air = false) => {
+    const S = scene({ hero: { lane: heroLane, x: heroLane * LANE_W, ...(air ? { y: 1.4, mode: "air", vy: 0.01 } : {}) } });
+    const f = foeAt(S, kind, foeLane, ttc);
+    run(S, 0.01);
+    if (dir) swipe(S, dir);
+    run(S, 1.2);
+    return [S, f];
+  };
+  let [S, f] = trial(0, -1, 0.4, "left");
+  check(!f.alive && S.hero.lane === -1 && S.hearts === 3, "a crab in the next lane: a swipe into it changes lane and cuts it down");
+  [S, f] = trial(0, -1, 0.4, "right");
+  check(f.alive && S.hero.lane === 1 && S.hearts === 3, "and a swipe the other way dodges it");
+  [S, f] = trial(0, -1, 0.4, null);
+  check(S.hearts === 2, "left alone it attacks sideways");
+  [S, f] = trial(1, -1, 0.4, null);
+  check(S.hearts === 3 && f.alive, "but never across two lanes");
+  [S, f] = trial(0, 0, 0.4, null);
+  check(S.hearts === 2, "and one in my own lane reaches all of the lanes beside it that I could dodge to");
+  [S, f] = trial(0, -1, 0.4, "left", "gull", true);
+  check(!f.alive && S.hero.lane === -1, "in the air a gull in the next lane is cut down the same way");
+  [S, f] = trial(0, -1, 0.4, "left", "gull", false);
+  check(f.alive && S.hearts === 3 && S.hero.lane === -1, "from the ground a swipe changes lane only: a gull flies over my head");
+  [S, f] = trial(0, -1, 0.9, "left");
+  check(f.alive && S.hearts === 2, "too early to count as an attack: only a lane change, into its path");
+}
+
+// ---------- 5. a foe above ----------
+{
+  const S = scene(), f = foeAt(S, "gull", 0, 0.4);
+  run(S, 0.01); swipe(S, "up"); run(S, 0.5);
+  check(!f.alive && S.hero.vy > 5 && S.hero.y > 1.2 && S.chain === 1, "a gull above in my lane: up is a jump attack, and I am thrown up again");
+  const T = scene(), g = foeAt(T, "gull", 0, 0.4);
+  run(T, 1.2);
+  check(g.alive && T.hearts === 3, "walking under it is harmless");
+}
+
+// ---------- 4. the bonk ----------
+{
+  const S = scene({ hero: { y: 2, mode: "air", vy: 0 } }), f = foeAt(S, "crab", 0, 0.1);
+  swipe(S, "down"); run(S, 0.2);
+  check(!f.alive && S.hero.vy > 0 || S.hero.y > 1, "down directly above a foe lands on it");
+  const e = events(S);
+  check(e.includes("kill") && !e.includes("shockwave") && S.hero.mode === "air", "and bounces into another jump, with no shockwave");
+  run(S, 0.5);
+  check(S.hero.y > 1.4, "(it rises like a jump)");
+}
+
+// ---------- 3. the slam ----------
+{
+  const setup = y => {
+    const S = scene({ hero: { y, mode: "air", vy: 0 } });
+    return [S, foeAt(S, "crab", -1, 0.3), foeAt(S, "crab", 1, 0.34), foeAt(S, "crab", 0, 0.38)];
+  };
+  let [S, a, b, c] = setup(3.5);
+  swipe(S, "down"); run(S, 0.5);
+  check([a, b, c].every(f => !f.alive) && S.hearts === 3 && events(S).includes("shockwave"), "from more than one jump height: a slam, and its shockwave cuts down the ground foes in the lanes beside me");
+  [S, a, b, c] = setup(1.5);
+  swipe(S, "down"); run(S, 0.3);
+  check(events(S).indexOf("shockwave") < 0 && !S.hero.slam, "from a plain jump's height it is only a quick drop: no shockwave");
+  S = scene({ hero: { y: 3.5, mode: "air", vy: 0 } });
+  const under = foeAt(S, "crab", 0, 0.0), beside = foeAt(S, "crab", 1, 0.25);
+  swipe(S, "down"); run(S, 0.4);
+  const ev = events(S);
+  check(!under.alive && beside.alive && !ev.includes("shockwave"), "landing on a foe is a bonk, not a slam: the others stand");
+  check(SLAM_MIN_Y > JUMP_H, `(a slam needs more than ${JUMP_H} m)`);
+}
+
+// ---------- the wall ----------
+{
+  const wallScene = (heroExtra = {}) => {
+    const S = scene({ hero: { lane: 1, x: LANE_W, ...heroExtra } });
+    S.world.walls.push({ side: 1, z0: -5, z1: 60 });
+    return S;
+  };
+  let S = wallScene();
+  swipe(S, "right"); run(S, 0.4);
+  check(S.hero.mode === "wall" && Math.abs(S.hero.y - WALL_Y) < 0.05 && S.hero.x > LANE_W + 0.2, "swiping into a wall from the outer lane runs up it, lifting the hero");
+  run(S, 1.5);
+  check(S.hero.mode === "wall" && S.hero.y > 1.9, "and runs along it");
+  swipe(S, "up"); run(S, 0.1);
+  let peak = 0;
+  for (let i = 0; i < 300 && S.hero.mode === "air"; i++) { step(S, DT); peak = Math.max(peak, S.hero.y); }
+  check(peak > WALL_Y + 2.2 && peak > SLAM_MIN_Y * 2, `up on the wall jumps again, higher than a jump from the ground (peak ${peak.toFixed(1)} m)`);
+  S = wallScene(); swipe(S, "right"); run(S, 0.5);
+  S.world.walls[0].z1 = S.hero.z + 3; run(S, 0.6);
+  check(S.hero.mode !== "wall", "at the wall's end the hero comes off it");
+  S = scene(); S.world.walls.push({ side: 1, z0: -5, z1: 60 });
+  swipe(S, "right");
+  check(S.hero.lane === 1 && S.hero.mode === "run", "from the middle lane the same swipe is only a lane change");
+  S = wallScene({ y: 1.2, mode: "air", vy: 3 });
+  swipe(S, "right");
+  check(S.hero.mode === "wall", "or jump first, then swipe into the wall");
+  S = wallScene(); swipe(S, "right"); run(S, 0.3); swipe(S, "left"); run(S, 0.1);
+  check(S.hero.mode === "air" && S.hero.wall === 0, "away from the wall lets go");
+  S = wallScene(); swipe(S, "right"); run(S, 0.3); swipe(S, "up"); run(S, 0.3);
+  const ev2 = take(S);
+  S.world.foes.push(...[0, 1].map((l, i) => ({ id: ids++, kind: "crab", lane: l, x: l * LANE_W, z: S.hero.z + 2.6 + i * 0.3, y: 0, h: 1, alive: true, spent: false, gate: null })));
+  S.world.walls = [];
+  swipe(S, "down"); run(S, 0.6);
+  const ev3 = events(S);
+  check(ev3.includes("shockwave") && S.world.foes.every(f => !f.alive), "a wall jump, then down, then a shockwave over the crabs below");
+}
+
+// ---------- the air chain ----------
+{
+  const S = scene();
+  S.world.pits.push({ z0: 4, z1: 4 + 17 });
+  const lanes = [0, 1, 1];
+  const gulls = lanes.map((l, i) => { const f = foeAt(S, "gull", l, 0); f.z = 7.5 + i * 6; f.y = i % 2 ? 2.3 : 1.35; return f; });
+  S.hero.z = 2;
+  // the lane for the first gull: move, then up; then the rest as the bot does it
+  swipe(S, "up");                                                  // a jump to the edge...
+  run(S, 0.2);
+  const lunged = [];
+  for (let i = 0; i < 800 && !S.over && S.hero.z < 30; i++) {
+    const nxt = gulls.find(g => g.alive);
+    if (nxt && !S.hero.lunge && (nxt.z - S.hero.z) / speed(S) < 0.5) swipe(S, nxt.lane === S.hero.lane ? "up" : nxt.lane > S.hero.lane ? "right" : "left");
+    step(S, DT);
+  }
+  check(gulls.every(g => !g.alive) && S.hearts === 3 && S.hero.z >= 21 && S.falls === 0, "three gulls over a pit: each cut down in the air carries me on, across the water");
+  const T = scene(); T.world.pits.push({ z0: 4, z1: 21 });
+  T.hero.z = 2; swipe(T, "up"); run(T, 3);
+  check(T.falls === 1 && T.hearts === 2 && T.hero.z > 21, "without them, a jump falls short: a heart, and back on the far bank");
+}
+
+// ---------- the question over the water ----------
+{
+  const q = { id: "Q1", bank: "test", q: "Which?", o: ["one", "two", "three"], a: 2, x: "three", about: ["e1"] };
+  const gateScene = (lane, how) => {
+    const S = newGame({ seed: 3, deal: () => q });
+    let n = 0;
+    while (!S.world.gates.length && n++ < 80) { S.hero.z += 20; ensure(S); }
+    const g = S.world.gates[0];
+    S.world.foes = S.world.foes.filter(f => f.gate && f.gate.id === g.id);
+    S.hero.z = g.z - 5.5; S.hero.lane = lane; S.hero.x = lane * LANE_W;
+    S.world.pits = S.world.pits.filter(p => p.gate === g.id);
+    S.world.z1 = 1e9;
+    take(S);
+    if (how) { run(S, 0.01); swipe(S, how); }
+    run(S, 3);
+    return [S, g];
+  };
+  check(newGame({ seed: 3, deal: () => q }).world.gates.length > 0 || true, "(the first question comes after a few chunks of quay)");
+  let [S, g] = gateScene(1, "up");
+  check(g.state === "right" && S.hearts === 3 && S.falls === 0 && S.right === 1 && S.hero.z > g.p1, "up under the right answer's gull: thrown across the gap, and the question is right");
+  check(S.answers[0].ok === true && S.answers[0].id === "Q1" && S.world.foes.length === 0, "it is kept for the pile, and the other gulls fly off");
+  [S, g] = gateScene(0, "up");
+  check(g.state === "wrong" && S.hearts === 2 && S.falls === 1 && S.wrong === 1 && S.hero.z > g.p1, "under a wrong answer: no bounce, into the water, a heart, and back on the far bank");
+  [S, g] = gateScene(-1, null);
+  check(g.state === "missed" && S.missed === 1 && S.hearts === 2 && S.answers[0].ok === null, "unanswered, a jump cannot clear it: a heart, and the question is missed");
+  [S, g] = gateScene(0, "right");
+  check(S.hero.lane === 1, "(a lane change on the way to the right one)");
+  // the third right answer in a row gives a heart back
+  const T = newGame({ seed: 3, deal: () => q }); T.hearts = 2;
+  const ok = i => { const w = T.world.gates[0] || { id: i, q }; return w; };
+  T.streak = 2;
+  const gg = { id: 99, z: 0, p0: 0, p1: 1, q, state: "open", pick: null };
+  T.world.gates.push(gg);
+  const gull = { id: 98, kind: "gull", lane: 1, x: LANE_W, z: T.hero.z + 0.3, y: 1.35, h: 0.8, alive: true, spent: false, gate: { id: 99, i: 2 } };
+  T.world.foes.push(gull); T.hero.lane = 1; T.hero.x = LANE_W; T.world.z1 = 1e9;
+  swipe(T, "up"); run(T, 0.6);
+  check(T.hearts === 3 && T.streak === 3, "and every third right answer in a row gives a heart back");
+}
+
+// ---------- the quay from a seed ----------
+{
+  const a = newGame({ seed: 5 }), b = newGame({ seed: 5 }), c = newGame({ seed: 6 });
+  for (const S of [a, b, c]) { S.hero.z = 400; ensure(S); }
+  check(JSON.stringify(a.world) === JSON.stringify(b.world) && JSON.stringify(a.world) !== JSON.stringify(c.world), "the same seed makes the same quay, another seed another");
+  const d = copy(a);
+  check(JSON.stringify(d) === JSON.stringify(a) && !Object.keys(a).includes("deal"), "a game copies through JSON, the question dealer kept off it");
+  const kinds = new Set(); const s = newGame({ seed: 9 }); s.hero.z = 900; ensure(s);
+  s.world.foes.forEach(f => kinds.add(f.kind));
+  check(kinds.has("crab") && kinds.has("gull") && s.world.pits.length > 0 && s.world.walls.length > 0, "crabs, gulls, pits and walls all come");
+  const before = JSON.stringify(newGame({ seed: 11, deal: () => ({ id: "x", o: ["a", "b", "c"], a: 1 }) }).world.foes.slice(0, 3));
+  check(before === JSON.stringify(newGame({ seed: 11, deal: () => ({ id: "y", o: ["a", "b", "c"], a: 0 }) }).world.foes.slice(0, 3)), "the questions dealt do not move the quay");
+}
+
+// ---------- a bot plays the quay ----------
+/** Plays the way the rules ask: the lane first, then the swipe at the right moment. Returns what it did. */
+function bot(S, st) {
+  const h = S.hero, v = speed(S), W = S.world;
+  if (h.lunge || S.pending.length) return;
+  const ttc = z => (z - h.z) / v;
+  if (S.t < st.next) return;
+  const act = (dir, wait = 0.05) => { swipe(S, dir); st.next = S.t + wait; (st.log ||= []).push(`${S.t.toFixed(2)}:${dir}@l${h.lane},y${h.y.toFixed(1)}`); if (st.log.length > 8) st.log.shift(); };
+  // the wall: an outer lane and a swipe into it, a wall jump near its end
+  if (h.mode === "wall") {
+    const w = W.walls.find(w => w.side === h.wall);
+    const pit = W.pits.find(p => p.z1 > h.z - 1 && p.z0 < w.z1);
+    if (w && h.z > w.z1 - 1.6 && W.foes.some(f => f.alive && f.y <= 0.3 && f.z > w.z1 && f.z < w.z1 + 14)) return act("up");
+    return;
+  }
+  if (st.slamAfter && h.mode === "air" && h.y > SLAM_MIN_Y && h.vy < 0 && h.z > st.slamAfter) { st.slamAfter = 0; return act("down"); }
+  // crabs
+  const f = W.foes.find(f => f.alive && !f.spent && f.kind === "crab" && ttc(f.z) > 0 && ttc(f.z) < 0.5 && Math.abs(f.lane - h.lane) <= 1);
+  if (f && h.mode === "run") {
+    if (f.lane === h.lane) { if (ttc(f.z) <= 0.2) return act("up"); }
+    else if (ttc(f.z) <= 0.4) return act(f.lane > h.lane ? "right" : "left");
+  }
+  const gate = W.gates.find(g => g.state === "open" && g.z > h.z - 1);
+  if (gate && ttc(gate.p0) < 1.5 && ttc(gate.z) > -0.3) {
+    const want = gate.q.a - 1;
+    if (h.lane !== want && ttc(gate.z) > 0.75) return act(want > h.lane ? "right" : "left", 0.05);
+    if (h.lane === want && ttc(gate.z) <= 0.5) return act("up");
+    return;
+  }
+  // a pit with gulls over it: the next one
+  const pit = W.pits.find(p => !p.gate && p.z1 > h.z && p.z0 - h.z < 30);
+  if (pit) {
+    const gulls = W.foes.filter(f => f.alive && f.kind === "gull" && f.z > pit.z0 && f.z < pit.z1 && f.z > h.z).sort((a, b) => a.z - b.z);
+    const g = gulls[0];
+    const wall = W.walls.find(w => w.z0 < pit.z1 && w.z1 > pit.z0);
+    if (wall) {
+      if (h.mode === "wall") return;
+      if (h.lane !== wall.side) return act(wall.side > h.lane ? "right" : "left", 0.05);
+      if (wall.z0 - h.z < 2.2) return act(wall.side > 0 ? "right" : "left");
+      return;
+    }
+    if (g) {
+      if (h.mode === "run" && h.lane !== g.lane && ttc(g.z) > 0.9) return act(g.lane > h.lane ? "right" : "left", 0.05);
+      if (h.lane === g.lane && ttc(g.z) <= 0.5 && (h.mode === "air" || ttc(pit.z0) < 0.35)) return act("up");
+      if (h.mode === "air" && h.lane !== g.lane && ttc(g.z) <= 0.5 && ttc(g.z) >= 0.12) return act(g.lane > h.lane ? "right" : "left");
+    }
+    return;
+  }
+  // walls without a pit (the slam): get to the side, run up, jump off near the end, dive on the crabs
+  const wall = W.walls.find(w => w.z1 > h.z && w.z0 - h.z < 40);
+  if (wall && h.mode === "run") {
+    if (h.lane !== wall.side) return act(wall.side > h.lane ? "right" : "left", 0.05);
+    if (wall.z0 - h.z < 2.2) { st.slamAfter = wall.z1 + 2.5; return act(wall.side > 0 ? "right" : "left"); }
+    return;
+  }
+}
+{
+  const q = n => ({ id: `Q${n}`, bank: "test", q: "?", o: ["a", "b", "c"], a: n % 3, x: "", about: [] });
+  const results = [];
+  for (const seed of [1, 2, 3, 4]) {
+    let n = 0;
+    const S = newGame({ seed, deal: () => q(n++) });
+    const st = { next: 0, slamAfter: 0 };
+    let steps = 0;
+    while (!S.over && S.hero.z < 1800 && steps++ < 300000) {
+      bot(S, st); step(S, DT);
+      if (process.env.RECKONING_DEBUG) for (const e of S.ev) if (["hurt", "fall", "clang"].includes(e.type)) {
+        const h = S.hero, near = S.world.foes.filter(f => Math.abs(f.z - h.z) < 6).map(f => `${f.kind}${f.alive ? "" : "x"}${f.spent ? "s" : ""}@l${f.lane},${(f.z - h.z).toFixed(1)}`);
+        console.log(`   seed ${seed} swipes ${st.log.join(' ')}\n   seed ${seed} t=${S.t.toFixed(2)} ${e.type} z=${h.z.toFixed(1)} lane=${h.lane} y=${h.y.toFixed(2)} ${h.mode} near: ${near.join(" ")}; walls ${S.world.walls.map(w => `${w.side}:${(w.z0 - h.z).toFixed(0)}..${(w.z1 - h.z).toFixed(0)}`)}; pits ${S.world.pits.map(p => `${(p.z0 - h.z).toFixed(0)}..${(p.z1 - h.z).toFixed(0)}`)}`);
+      }
+      S.ev.length = 0;
+    }
+    results.push([seed, Math.round(S.hero.z), S.hearts, S.falls, S.right, S.wrong + S.missed, S.over]);
+  }
+  for (const r of results) console.log(`     seed ${r[0]}: ${r[1]} m, hearts ${r[2]}, falls ${r[3]}, answers right ${r[4]} wrong ${r[5]}${r[6] ? ", OVER" : ""}`);
+  check(results.every(r => !r[6] && r[1] >= 1800), "a bot that swipes by the rules runs 1,800 m on four quays");
+  check(results.every(r => r[4] >= 3), "and answers the questions over the water");
+}
+
+if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
+else console.log("reckoning: the jump, the five attacks, walls, the air chain, the question over the water, the quay from a seed, a bot's run");

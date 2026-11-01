@@ -66,6 +66,7 @@ export const ROUNDS = {
   slipway: "a part carved to a star, or an assembly that holds",
   loom: "a cloth woven",
   guilloche: "a plate, every zone cut true",
+  reckoning: "a run over (the hearts gone)",
   // Board & card games: a hand where the game is dealt hand by hand, else a game
   cartel: "a game",
   hong: "a hand",
