@@ -192,7 +192,7 @@ function typeKey(k) {
   else if (S.draft.length < S.len) S.draft += k;
   fresh = false; message = null;
   save();
-  render();
+  render(true);
 }
 function enter() {
   const w = S.draft;
@@ -340,27 +340,29 @@ function buildBoards(v) {
 }
 const MARK = { [HIT]: "h", [NEAR]: "n", [GREY]: "g", [UNSEEN]: "u" };
 const SAY = { [HIT]: "in place", [NEAR]: "elsewhere", [GREY]: "not in the word", [UNSEEN]: "not yours to see" };
-function drawBoards() {
+/** Draws the boards; `typing` when only the letters in the row being typed in changed, so the rows already played stay as they are. */
+function drawBoards(typing = false) {
   const v = boardsView(), [bc, br] = arrange(v.boards.length, v.len, v.fit);
-  if (!built || built.key !== `${v.key}:${bc}x${br}`) buildBoards(v);
+  if (!built || built.key !== `${v.key}:${bc}x${br}`) { buildBoards(v); typing = false; }
   const lastKey = S && !T ? rowKey() : T ? `t:${T.n}:${T.guesses.length - 1}` : null;
   const turning = reveal && reveal.key === lastKey && performance.now() - reveal.at < revealMs() + 100;
   v.boards.forEach((b, bi) => {
     const { board, rows } = built.boards[bi];
     board.classList.toggle("solved", b.solved);
     rows.forEach((row, ri) => {
-      const done = b.rows[ri], typing = !done && !b.solved && ri === b.rows.length ? v.draft : "";
+      if (typing && ri !== b.rows.length) return;
+      const done = b.rows[ri], draft = !done && !b.solved && ri === b.rows.length ? v.draft : "";
       row.classList.toggle("now", !done && !b.solved && ri === b.rows.length && (!S || !S.over));
       row.classList.toggle("shake", shake && !done && ri === b.rows.length);
       row.classList.toggle("turn", !!(turning && done && ri === b.rows.length - 1));
       row.classList.toggle("win", !!(done && b.solved && ri === b.rows.length - 1 && !turning));
       if (v.team) {
-        const by = row.querySelector(".as-by"), who = done ? done.by : typing ? v.draftBy : null;
+        const by = row.querySelector(".as-by"), who = done ? done.by : draft ? v.draftBy : null;
         by.hidden = who == null;
         if (who != null) { by.textContent = initialOf(who); by.style.setProperty("--who", `var(--p${who % 6})`); }
       }
       [...row.querySelectorAll(".as-tile")].forEach((tile, i) => {
-        const letter = done ? done.guess[i] : typing[i] || "";
+        const letter = done ? done.guess[i] : draft[i] || "";
         tile.textContent = lexNow().show ? lexNow().show(letter) : letter;
         tile.className = `as-tile${done ? ` ${MARK[done.marks[i]]}` : letter ? " d" : ""}`;
         tile.style.setProperty("--i", String(i));
@@ -378,6 +380,7 @@ let keyNodes = null, keysFor = null;
 function buildKeys() {
   const lex = lexNow(), rows = lex.rows.map((letters, r) => (r === lex.rows.length - 1 ? ["ENTER", ...letters, "BACK"] : r === 1 ? ["", ...letters, ""] : [...letters]));
   keyNodes = new Map();
+  tapOf.clear();
   keysFor = lex.id;
   $("keys").replaceChildren(...rows.map(keys => {
     const row = el("div", "as-krow");
@@ -388,19 +391,46 @@ function buildKeys() {
       if (k === "ENTER") { b.textContent = "Enter"; b.classList.add("enter"); }
       else if (k === "BACK") { b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11v12H9l-6-6z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>'; b.setAttribute("aria-label", "Delete"); }
       else { b.append(el("span", "as-segs"), el("span", "as-l", lex.show ? lex.show(k) : k)); b.dataset.key = k; }
-      // a key answers as the finger goes down (no wait for the click), and only once: the click a tap brings after it
-      // is passed over; a click with no press before it is a keyboard's Enter or Space on a focused key
-      let pressed = 0;
-      b.addEventListener("pointerdown", e => { e.preventDefault(); if (e.button > 0) return; pressed = performance.now(); b.classList.add("down"); keyTap(k); });
-      b.addEventListener("pointerup", () => b.classList.remove("down"));
-      b.addEventListener("pointerleave", () => b.classList.remove("down"));
-      b.addEventListener("click", () => { if (performance.now() - pressed > 1000) keyTap(k); });
+      tapOf.set(b, k);
       row.append(b);
       if (k.length === 1) keyNodes.set(k, b);
     }
     return row;
   }));
 }
+// A key answers as the finger goes down (no wait for the click), and a tap that lands between keys or just off their edge goes
+// to the nearest one: the gaps are a seventh of a key's pitch, and a thumb typing fast lands in them (Chrome moves such a
+// tap to a key itself; Safari doesn't, and the letter was lost). One listener on the keyboard, not on each key, so the gaps
+// belong to it. The click a tap brings after it is passed over; a click with no tap before it is a keyboard's Enter or Space
+// on a focused key. A key held down does not repeat.
+const tapOf = new Map();          // key button -> its key ("a", "ENTER", "BACK")
+const holding = new Map();        // pointer id -> the button it pressed, to lift when it lets go
+let lastLift = -1e9;
+function keyAt(x, y) {
+  const reach = parseFloat(getComputedStyle(document.documentElement).fontSize) * .5;
+  let best = null, nearest = reach + 1;
+  for (const b of tapOf.keys()) {
+    const r = b.getBoundingClientRect(), d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+    if (d < nearest) { nearest = d; best = b; }
+  }
+  return best;
+}
+$("keys").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  if (e.button > 0) return;
+  const b = keyAt(e.clientX, e.clientY);
+  if (!b) return;
+  holding.set(e.pointerId, b);
+  b.classList.add("down");
+  keyTap(tapOf.get(b));
+});
+for (const type of ["pointerup", "pointercancel", "pointerleave"]) {
+  $("keys").addEventListener(type, e => { holding.get(e.pointerId)?.classList.remove("down"); holding.delete(e.pointerId); lastLift = performance.now(); });
+}
+$("keys").addEventListener("click", e => {
+  const b = e.target.closest?.(".as-key");
+  if (b && tapOf.has(b) && performance.now() - lastLift > 500) keyTap(tapOf.get(b));
+});
 function keyTap(k) {
   if (T && notesOn && k.length === 1) { toggleNote(k); return; }
   typeKey(k);
@@ -496,7 +526,9 @@ function drawSay() {
 }
 const linkButton = (text, fn) => { const b = el("button", "link", text); b.type = "button"; b.addEventListener("click", fn); return b; };
 
-function render() {
+/** Draws everything; after a letter typed or deleted (`typing`) just the row it is in and the line under the board, since nothing else changed. */
+function render(typing = false) {
+  if (typing && keyNodes && keysFor === lexNow().id) { drawBoards(true); drawSay(); return; }
   if (!keyNodes || keysFor !== lexNow().id) buildKeys();
   if (!duel.on) drawTeamLine();
   drawStrip();

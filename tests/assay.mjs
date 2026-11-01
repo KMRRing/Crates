@@ -73,6 +73,7 @@ check(marksOf("crane", "crane").every(m => m === HIT) && codeOfMarks(marksOf("cr
   const crude = ["cums", "crap", "sluts", "rapes", "faggots", "rapists", "condom", "retard", "midget", "slave", "lynch"].filter(w => all.includes(w));
   check(!crude.length, `nothing crude, and no slur's neighbour${crude.length ? `: ${crude.join(" ")}` : ""}`);
   check(ENGLISH.accepts("xylyl") === false && ENGLISH.accepts("qajaq") === false && ENGLISH.accepts("zebra") && ENGLISH.accepts("quixotic"), "a non-word is turned away; any real word is a guess");
+  check(ENGLISH.accepts("penis") && ENGLISH.answers(5).every(x => x.w !== "penis"), "penis may be guessed (people open with it) but is never the answer");
 }
 
 // ---------- the grades and the levels ----------

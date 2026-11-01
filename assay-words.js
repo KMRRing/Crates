@@ -87,6 +87,10 @@ const DROP = new Set(`
   eagerer exacter
 `.trim().split(/\s+/));
 
+// Words the widest list leaves out as crude but that people do type as an opener: a guess, never an answer (answers() comes
+// from the lists above, which don't have it). Strict play still turns it away, since it can't be the word.
+const GUESS_ONLY = new Set(["penis"]);
+
 const pools = new Map();
 /**
  * The answers of a length, alphabetical: [{ w, tier }] (tier 0 the commonest). The same array each time: don't change it.
@@ -108,7 +112,7 @@ export const ENGLISH = Object.freeze({
   rows: ["qwertyuiop", "asdfghjkl", "zxcvbnm"],
   /** A typed character as a letter of this alphabet, or "" (a game keeps letters lower case). */
   letter: ch => (/^[a-z]$/i.test(ch) ? ch.toLowerCase() : ""),
-  accepts: w => isWord(w),
+  accepts: w => isWord(w) || GUESS_ONLY.has(w),
   answers,
 });
 export const LEXICONS = { en: ENGLISH };
