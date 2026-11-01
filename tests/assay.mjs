@@ -9,6 +9,8 @@ import { GREY, NEAR, HIT, LENGTHS, LEVELS, guessesFor, marksOf, codeOfMarks, mar
   gradeOf, gradesOf, levelOf, meanGuesses, RUNS, deal, dailyWord, dayNumber, DAILY, newGame, guessIn, rowsOf, solvedAt, answersOf,
   hide, unhide, dodgeStep, dodgeCands, timeUp, sprintSolved, scoreOf, lettersOf, refusal, roleOf, seenAs, UNSEEN, limitOf, allHit } from "../assay-engine.js";
 import { ENGLISH, inflection } from "../assay-words.js";
+import { CRUDE } from "../assay-crude.js";
+import { isWord } from "../wordlist.js";
 import { GRADES } from "../assay-grades.js";
 import { RIVALS, rivalPlan, rivalSoFar, rivalMarks, BEST_OPENER } from "../assay-solve.js";
 import { freshTeam, isTeam, tidy, guessAt, rowsOfTable, roleAt, resultOf as teamResult, dealAt, wordOf } from "../assay-table.js";
@@ -73,7 +75,9 @@ check(marksOf("crane", "crane").every(m => m === HIT) && codeOfMarks(marksOf("cr
   const crude = ["cums", "crap", "sluts", "rapes", "faggots", "rapists", "condom", "retard", "midget", "slave", "lynch"].filter(w => all.includes(w));
   check(!crude.length, `nothing crude, and no slur's neighbour${crude.length ? `: ${crude.join(" ")}` : ""}`);
   check(ENGLISH.accepts("xylyl") === false && ENGLISH.accepts("qajaq") === false && ENGLISH.accepts("zebra") && ENGLISH.accepts("quixotic"), "a non-word is turned away; any real word is a guess");
-  check(ENGLISH.accepts("penis") && ENGLISH.answers(5).every(x => x.w !== "penis"), "penis may be guessed (people open with it) but is never the answer");
+  check(CRUDE.size > 150 && [...CRUDE].every(w => /^[a-z]{4,7}$/.test(w) && ENGLISH.accepts(w)), `crude words (${CRUDE.size}) may be guessed, as in Wordle`);
+  check([...CRUDE].every(w => !isWord(w)) && ["penis", "fuck", "pussy", "vagina", "boobs", "whore"].every(w => CRUDE.has(w)), "assay-crude.js holds only what the shared list lacks, and the words people open with");
+  check(LENGTHS.every(n => ENGLISH.answers(n).every(x => !CRUDE.has(x.w))), "none of them is ever the answer");
 }
 
 // ---------- the grades and the levels ----------

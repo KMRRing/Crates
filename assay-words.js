@@ -9,6 +9,7 @@
 // word that makes a poor answer (crude, a slur's neighbour, jargon, archaic, informal spelling), is on a list.
 // Guesses: any word of the length in the widest list, so no real word is turned away.
 import { wordsOf, isWord, tierOf } from "./wordlist.js";
+import { CRUDE } from "./assay-crude.js";
 
 const ANSWER_TIERS = 2;              // SCOWL sizes 10, 20 and 35
 const common = w => w.length >= 3 && isWord(w, 3);
@@ -87,10 +88,6 @@ const DROP = new Set(`
   eagerer exacter
 `.trim().split(/\s+/));
 
-// Words the widest list leaves out as crude but that people do type as an opener: a guess, never an answer (answers() comes
-// from the lists above, which don't have it). Strict play still turns it away, since it can't be the word.
-const GUESS_ONLY = new Set(["penis"]);
-
 const pools = new Map();
 /**
  * The answers of a length, alphabetical: [{ w, tier }] (tier 0 the commonest). The same array each time: don't change it.
@@ -112,7 +109,7 @@ export const ENGLISH = Object.freeze({
   rows: ["qwertyuiop", "asdfghjkl", "zxcvbnm"],
   /** A typed character as a letter of this alphabet, or "" (a game keeps letters lower case). */
   letter: ch => (/^[a-z]$/i.test(ch) ? ch.toLowerCase() : ""),
-  accepts: w => isWord(w) || GUESS_ONLY.has(w),
+  accepts: w => isWord(w) || CRUDE.has(w),         // crude words may be guessed (assay-crude.js), never be the answer
   answers,
 });
 export const LEXICONS = { en: ENGLISH };
