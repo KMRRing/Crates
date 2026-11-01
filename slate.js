@@ -1,7 +1,7 @@
 // Slate: solo and together play. Boards and rules come from slate-gen.js. Together games live in the app's
 // shared rooms (rooms.js): the room's glyph branch holds this game's state (slate-room.js), a pair's or a party's of
 // up to six; everyone fills the one board and sees everything, each player's letters and cursor in their own colour.
-import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt, keyVerdicts } from "./slate-gen.js";
+import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, replay, candidates, shortOf, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt, keyVerdicts, keyVerdictsAmong } from "./slate-gen.js";
 import { branchPath, openBranch, enterRoom, leaveRoom, sitDown, seatsOf, pickSeat, otherHere, gameHref, GAMES, joiningWords } from "./rooms.js";
 import { askedFor, freshTable, seatsFor, logOf, ownersFrom, placedBy, presentSlots, cursorsOf, storable } from "./slate-room.js";
 import { cagePath } from "./slate-cage.js";
@@ -56,6 +56,17 @@ const checksUsed = () => S.log.filter(e => e.check).length;
 const lastCheck = () => { for (let i = S.log.length - 1; i >= 0; i--) if (S.log[i].check) return S.log[i].check.v === 2 ? S.log[i].check.out || {} : {}; return {}; };
 const hintsUsed = () => S.log.filter(e => e.hint != null).length;
 const revealed = () => new Set(S.log.filter(e => e.reveal != null).map(e => e.reveal));
+/** What the log has told you and cost you (replay in slate-gen.js), worked out again only when the log has grown. */
+let replayed = null;
+const played = () => {
+  if (!replayed || replayed.board !== S.board || replayed.log !== S.log || replayed.n !== S.log.length) replayed = { board: S.board, log: S.log, n: S.log.length, ...replay(S.board, S.log) };
+  return replayed;
+};
+/** Lives: the board's, those gone (the placements that cost one, with the fields that failed) and what's left; none on a board dealt before lives. */
+const lives = () => {
+  const total = S.board.lives || 0, by = total ? played().lost : [];
+  return { total, lost: by.length, left: total - by.length, by };
+};
 const other = d => (d === "Across" ? "Down" : "Across");
 const slotFor = (k, d) => grid().slots.find(s => s.dir === d && s.cells.includes(k));
 const currentSlot = () => slotFor(cursor, dir) || slotFor(cursor, other(dir));
@@ -144,8 +155,8 @@ async function act(change) {
 }
 
 // Bumped when together games change shape, so a device still running older code reloads instead of mangling them
-// (5: a party's table of up to six, and each player's cursor).
-const APP = 5;
+// (5: a party's table of up to six, and each player's cursor; 6: lives, and a board lost when they run out).
+const APP = 6;
 
 /** Another device runs newer code: switch to the newest version, once per session. */
 async function updateApp() {
@@ -349,12 +360,20 @@ function newBoard(level = S.level) {
   act(g => { g.level = level; g.seed = seed; g.board = board; g.log = []; g.done = null; g.startedAt = Date.now(); });
 }
 
-/** Solved boards end themselves; both players see the result. */
+/** How a board ends by itself: solved, or lost with its last life (a board dealt before lives has no lives to lose). */
+function ending() {
+  if (S.done) return null;
+  if (isSolved(S.board, lettersFrom(S.board, S.log))) return { won: true };
+  return S.board.lives && lives().lost >= S.board.lives ? { lost: true } : null;
+}
+
+/** Boards end themselves, solved or lost; everyone at the table sees the result. */
 function afterChange() {
-  if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) {
+  const end = ending();
+  if (end) {
     clockPause();
-    if (S.daily && !room) noteDayTime("slate", (S.ms || 0) / 1000, S.daily);    // today's puzzle: the first solve's time
-    act(g => { if (g.done) return false; g.done = { won: true, at: Date.now() }; });
+    if (end.won && S.daily && !room) noteDayTime("slate", (S.ms || 0) / 1000, S.daily);    // today's puzzle: the first solve's time
+    act(g => { if (g.done) return false; g.done = { ...end, at: Date.now() }; });
     roundOver(GAME);
     return;
   }
@@ -488,7 +507,7 @@ function onRoom(val) {
       .catch(e => console.error(e));
   }
   try {
-    if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) afterChange();
+    if (ending()) afterChange();
     drawSoon();
     if ($("menuDlg").open && menuDrawn !== menuKey()) drawMenu();
   } catch (e) {
@@ -587,18 +606,40 @@ function render() {
   labelLeft($("hintBtn"), "Suggest", hintsLeft);
   $("hintBtn").disabled = !!S.done || hintsLeft === 0 || thinking;
   $("clearBtn").disabled = !!S.done;
-  const notes = notesFrom(S.board, S.log);
+  const notes = played().notes, cands = candidates(S.board, notes, revealed()), life = lives();
+  drawStatus(life);
   drawPartner();
+  $("status").hidden = $("lives").hidden && $("partner").hidden;
   drawBoard(g, fs, letters, slot);
   // the fields sheet only when what it shows has changed: a ? redrawn under a finger loses its tap
   const fieldsKey = `${boardOf(S)}|${S.log.length}|${!!S.done}`;
-  if (fieldsKey !== fieldsDrawn) { fieldsDrawn = fieldsKey; drawFields(fs, notes); }
-  drawKeys(fs, notes);
+  if (fieldsKey !== fieldsDrawn) { fieldsDrawn = fieldsKey; drawFields(fs, notes, cands); }
+  drawKeys(fs, notes, cands);
   shareCursor();
   const doneKey = S.done ? JSON.stringify(S.done) : null;
   if (doneKey && doneKey !== shownDone) { shownDone = doneKey; showDone(); }
 }
 let fieldsDrawn = null;
+
+// ---------- lives ----------
+let seenLives = null;   // the board and how many lives it had cost at the last draw
+/**
+ * The pips over the board, one a life (spent ones hollow). A life lost since the last draw says which fields failed,
+ * so it's plain what is costing you; at a table that's for everyone, the lives being the team's.
+ */
+function drawStatus(life) {
+  const el = $("lives");
+  el.hidden = !life.total;
+  if (life.total) {
+    el.setAttribute("aria-label", `${life.left} of ${life.total} lives left`);
+    el.replaceChildren(...Array.from({ length: life.total }, (_, n) => { const pip = document.createElement("i"); pip.className = `g-pip${n < life.left ? "" : " gone"}`; return pip; }));
+  }
+  if (seenLives?.id === boardOf(S) && life.lost > seenLives.lost && life.left > 0 && !S.done) {
+    const names = [...new Set(life.by.slice(seenLives.lost).flatMap(x => x.fields))].map(i => styleOf(i).name);
+    toast(`Life lost: the ${names.join(" and ")} field${names.length > 1 ? "s" : ""} failed. ${life.left} left.`);
+  }
+  seenLives = { id: boardOf(S), lost: life.lost };
+}
 
 // ---------- the table: who's at it, in their colours ----------
 const firstName = name => String(name || "Player").split(" ")[0];
@@ -759,7 +800,7 @@ function fitLayout(g) {
   GAP = 6 * k;
   // measured from what sits above the board, since the board centres itself in the space it gets (beside it, the
   // partner's line is in the other column)
-  const above = $("partner").hidden || side ? document.querySelector("#app > .top") : $("partner");
+  const above = $("status").hidden || side ? document.querySelector("#app > .top") : $("status");
   const top = above.getBoundingClientRect().bottom + window.scrollY + 12 * k;
   const app = getComputedStyle($("app"));
   const bottom = parseFloat(app.paddingBottom) || 0;
@@ -800,9 +841,11 @@ const KEYS_MEAN = {
  * what its field has told you or its rule once revealed (keyVerdicts in slate-gen.js): a single field's letters, a
  * pair field's pairs with the lettered neighbours, a whole field's letters once its other cells are all filled.
  */
-function drawKeys(fs, notes) {
+function drawKeys(fs, notes, cands) {
   const i = cursorField(fs);
-  const verdict = i == null ? null : keyVerdicts(fs[i], notes[i], enteredLetters(), cursor, revealed().has(i));
+  // with the rules in play listed, a letter is green or red when every rule the field could be agrees on it
+  const verdict = i == null ? null : cands ? keyVerdictsAmong(fs[i], cands[i], notes[i], enteredLetters(), cursor)
+    : keyVerdicts(fs[i], notes[i], enteredLetters(), cursor, revealed().has(i));
   $("kbd").title = verdict ? KEYS_MEAN[fs[i].rule.type](styleOf(i).name) : "";
   const mustGo = (!S.done && cursor && lastCheck()[cursor]) || null;   // the last check said this letter has to change here
   document.querySelectorAll("#kbd button[data-key]").forEach(b => {
@@ -835,7 +878,7 @@ function mark(ok) {
   return m;
 }
 
-function drawFields(fs, notes) {
+function drawFields(fs, notes, cands) {
   const shown = revealed(), left = limitsFor(S.level).reveals - shown.size, badge = $("revealsBadge");
   badge.hidden = left === Infinity || !!S.done;
   badge.innerHTML = `${left} × <span class="g-q" aria-hidden="true">?</span>`;
@@ -863,8 +906,26 @@ function drawFields(fs, notes) {
     noteLine(row, label[0], ok, "ok");
     noteLine(row, label[1], no, "no");
     if (S.done || shown.has(i)) { const r = line(row, "Rule: "); const b = document.createElement("span"); b.className = "rule"; b.textContent = f.rule.text; r.appendChild(b); }
+    else if (cands?.[i].length === 1) { const r = line(row, "Worked out: "); const b = document.createElement("span"); b.className = "rule"; b.textContent = cands[i][0].text; r.appendChild(b); }
+    else if (cands) couldBe(row, cands[i]);
     return row;
   }));
+}
+/** The rules a field could still be, short names to tap for the whole rule underneath. */
+function couldBe(row, rules) {
+  const d = line(row, "Could be: "), box = document.createElement("span"), say = line(row, "");
+  box.className = "g-notes";
+  say.hidden = true;
+  say.classList.add("g-say");
+  for (const r of rules) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "g-note cand";
+    b.textContent = shortOf(r);
+    b.addEventListener("click", () => { say.hidden = false; say.textContent = r.text; });
+    box.appendChild(b);
+  }
+  d.appendChild(box);
 }
 function line(row, text) { const d = document.createElement("div"); d.className = "g-fline"; d.append(text); row.appendChild(d); return d; }
 function noteLine(row, label, items, kind) {
@@ -879,8 +940,11 @@ function noteLine(row, label, items, kind) {
 function showDone() {
   const g = grid(), letters = lettersFrom(S.board, S.log);
   const ours = g.slots.every(s => s.cells.every(k => letters[k] === S.board.sol[k]));
-  $("doneTitle").textContent = S.done.won ? "Solved" : "Our fill";
-  const stats = [["Placements", placements()], ["Checks", checksUsed()], ["Clues", revealed().size], ["Suggestions", hintsUsed()], ["Time", clockText(elapsed())]];
+  const life = lives();
+  $("doneTitle").textContent = S.done.won ? "Solved" : S.done.lost ? "Out of lives" : "Our fill";
+  // lives lost is the score; the rest is how the board went
+  const stats = [...(life.total ? [["Lives lost", `${life.lost} of ${life.total}`]] : []),
+    ["Placements", placements()], ["Checks", checksUsed()], ["Clues", revealed().size], ["Suggestions", hintsUsed()], ["Time", clockText(elapsed())]];
   $("doneStats").replaceChildren(...stats.flatMap(([label, value]) => {
     const dt = document.createElement("dt"), dd = document.createElement("dd");
     dt.textContent = label; dd.textContent = value;
@@ -1137,6 +1201,7 @@ function soloStart() {
   else if (!S) soloBoard(randomSeed(), "easy");
   else {
     shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.pathname}${location.search}#s=${S.seed}&d=${S.level}`); render();
+    if (ending()) afterChange();                // out of lives before it could be told (another tab, a save from a moment ago)
     // today's, once the board you left is drawn (it asks before leaving one you've started)
     if (forToday && !code && S.daily !== today()) setTimeout(() => newBoard("today"), 0);
   }

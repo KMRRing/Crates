@@ -92,6 +92,21 @@ export function ruleById(id) {
   return BASE_RULES.find(r => r.id === id);
 }
 
+// What a rule is called in the list of rules in play (the legend), short enough to sit several to a line; the
+// rule's own text is what a revealed or worked-out field spells out.
+const SHORT = {
+  vowel: "Vowels", consonant: "Consonants", firstHalf: "A to M", secondHalf: "N to Z", third1: "A to I", third2: "J to R",
+  third3: "S to Z", straight: "Straight", curved: "Curved", enclosed: "Enclosed", top: "Top row", mid: "Middle row",
+  bottom: "Bottom row", left: "Left hand", right: "Right hand", mirrorLR: "Mirror", mirrorTB: "Upside down", odd: "Odd places",
+  rare: "Rarer letters",
+  asc: "Climbing", desc: "Falling", mixed: "Vowel + consonant", sameClass: "Same class", sameShape: "Same shape", sameRow: "Same row",
+  sameHand: "Same hand", near: "Close", double: "Doubled",
+  noDup: "No repeats", noVowels: "No vowels", oneVowel: "One vowel", repeat: "A repeat", oneShape: "One shape", anagram: "Anagram",
+  oneRow: "One row", evenSum: "Even sum",
+};
+/** A rule's short name, for the legend. */
+export const shortOf = rule => (rule.id.startsWith("kw:") ? `Letters of ${rule.id.slice(3)}` : SHORT[rule.id]);
+
 // How often a rule passes ordinary letters (for a whole, at the field's size).
 const passCache = new Map();
 function passRate(rule, size) {
@@ -114,11 +129,11 @@ function passRate(rule, size) {
 // ---------- levels ----------
 // Difficulty comes from the rules: each level draws its rules by rating, every level mixes all three field types.
 export const LEVELS = {
-  easy: { label: "Easy", ratings: { 1: 1 },
+  easy: { label: "Easy", ratings: { 1: 1 }, lives: 5, decoys: 2,
     shapes: ["e01", "e02", "e03", "e04", "e05", "e06", "e07", "e08", "e09", "e10", "e11", "e12"] },
-  medium: { label: "Medium", ratings: { 1: 0.35, 2: 0.65 },
+  medium: { label: "Medium", ratings: { 1: 0.35, 2: 0.65 }, lives: 6, decoys: 2,
     shapes: ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10", "m11", "m12"] },
-  hard: { label: "Hard", ratings: { 2: 0.45, 3: 0.55 },
+  hard: { label: "Hard", ratings: { 2: 0.45, 3: 0.55 }, lives: 7, decoys: 3,
     shapes: ["h01", "h02", "h03", "h04", "h05", "h06", "h07", "h08", "h09", "h10", "h11", "h12"] },
 };
 // Every horizontal and every vertical run of two or more cells is a word of three to five letters: no
@@ -391,13 +406,30 @@ export function generate(seed, levelId) {
       }
       const types = new Set(fields.map(f => f.rule.type));
       if (fields.length >= 3 && types.size === 3 && covered() >= COVERAGE - 0.15) {
-        return { level: levelId, shape: shapeId, rows, sol, fields: fields.map(f => ({ rule: f.rule.id, cells: f.cells })) };
+        return { level: levelId, shape: shapeId, rows, sol, fields: fields.map(f => ({ rule: f.rule.id, cells: f.cells })),
+          legend: legendFor(level, fields, rnd), lives: level.lives };
       }
     }
   }
   return null;
 }
 const COVERAGE = 0.75;
+
+/**
+ * The rules in play, as the player is told them (README): every field's rule and, for each type of field, a few
+ * others of the level that could have been, so a field's rule is one of a short list to work out rather than anything
+ * in the catalogue. In the catalogue's order, which gives no field away.
+ */
+function legendFor(level, fields, rnd) {
+  const taken = new Set(fields.map(f => f.rule.id)), ids = [...taken];
+  for (const type of ["single", "pair", "whole"]) {
+    const pool = BASE_RULES.filter(r => r.type === type && level.ratings[r.level] && !taken.has(r.id));
+    if (type === "single" && level.ratings[3]) pool.push(...shuffle(KEYWORDS, rnd).slice(0, 3).map(keywordRule).filter(r => !taken.has(r.id)));
+    ids.push(...shuffle(pool, rnd).slice(0, level.decoys).map(r => r.id));
+  }
+  const at = id => (id.startsWith("kw:") ? BASE_RULES.length : BASE_RULES.findIndex(r => r.id === id));
+  return ids.sort((a, b) => at(a) - at(b) || (a < b ? -1 : 1));
+}
 
 // ---------- judging ----------
 export const fieldsOf = board => board.fields.map(f => ({ ...f, rule: ruleById(f.rule) }));
@@ -419,12 +451,31 @@ export function judge(board, letters) {
   return out;
 }
 
-/** Everything each field has told you, replayed from the placements and checks in order. */
-export function notesFrom(board, log) {
+/**
+ * The failing marks the letters show, each named by what it failed on: a single letter in its cell, a pair of
+ * neighbours, a whole field by its letters (never their order, which a whole rule doesn't read). Only judged letters
+ * (those in a complete real word) can fail, as only they wear a mark on the board.
+ */
+export function failingMarks(board, fields, letters) {
+  const ok = eligibleCells(board, letters), j = judge(board, letters), out = new Set();
+  fields.forEach((f, i) => {
+    if (f.rule.type === "single") f.cells.forEach(k => { if (ok.has(k) && j.cells[k] && !j.cells[k].ok) out.add(`${i}:${k}:${letters[k]}`); });
+    else if (f.rule.type === "pair") j.joints.forEach(x => { if (x.field === i && ok.has(x.a) && ok.has(x.b) && !x.ok) out.add(`${i}:${x.a}>${x.b}:${letters[x.a]}${letters[x.b]}`); });
+    else if (i in j.wholes && !j.wholes[i] && f.cells.every(k => ok.has(k))) out.add(`${i}:${f.cells.map(k => letters[k]).sort().join("")}`);
+  });
+  return out;
+}
+
+/**
+ * Everything the board has told you, replayed from the placements and checks in order: what each field passed and
+ * failed (notes), and which entries of the log put up a failing mark that wasn't on the board before (lost: one
+ * life each, however many marks it put up, with the fields that failed; a mark that stays up costs nothing again).
+ */
+export function replay(board, log) {
   const fields = fieldsOf(board);
   const notes = fields.map(() => ({ ok: new Set(), no: new Set() }));
   const grid = gridOf(rowsOf(board));
-  const letters = {};
+  const letters = {}, lost = [];
   const record = placed => {
     // judged: letters in complete real words. A placement also judges crossing words it just completed.
     const ok = eligibleCells(board, letters), j = judge(board, letters);
@@ -441,16 +492,64 @@ export function notesFrom(board, log) {
       }
     });
   };
-  for (const e of log) {
-    if (e.clear) { e.clear.forEach(k => { delete letters[k]; }); continue; }
-    if (e.draft) { Object.assign(letters, e.draft); continue; }      // letters short of a word: not judged
-    if (e.check) continue;                      // a check judges the board as a whole, not a field
-    if (!e.word) continue;                      // a rule reveal
-    const slot = grid.slots[e.slot];
-    slot.cells.forEach((k, i) => { letters[k] = e.word[i]; });
-    record(new Set(slot.cells));
-  }
-  return notes;
+  let marks = new Set();
+  log.forEach((e, n) => {
+    if (e.check || (!e.clear && !e.draft && !e.word)) return;       // a check judges the board as a whole, not a field; a rule reveal
+    if (e.clear) Object.values(e.clear).forEach(k => { delete letters[k]; });
+    else if (e.draft) { Object.assign(letters, e.draft); record(new Set(Object.keys(e.draft))); }   // a frame is judged only where it completes a word
+    else { const slot = grid.slots[e.slot]; slot.cells.forEach((k, i) => { letters[k] = e.word[i]; }); record(new Set(slot.cells)); }
+    const now = failingMarks(board, fields, letters), fresh = [...now].filter(m => !marks.has(m));
+    if (fresh.length) lost.push({ n, fields: [...new Set(fresh.map(m => +m.split(":")[0]))] });
+    marks = now;
+  });
+  return { notes, lost };
+}
+
+/** What each field has told you: a replay's notes. */
+export const notesFrom = (board, log) => replay(board, log).notes;
+
+/** Lives: how many a board has (none, for a board dealt before lives), and how many the log has cost. */
+export const livesOf = (board, log) => {
+  const total = board.lives || 0, lost = total ? replay(board, log).lost.length : 0;
+  return { total, lost, left: total - lost };
+};
+
+// ---------- the legend: which rule each field could be ----------
+const TYPES = ["single", "pair", "whole"];
+/** Whether a rule agrees with everything a field has passed and failed. */
+function agrees(rule, note) {
+  const test = s => (rule.type === "single" ? rule.test(s) : rule.type === "pair" ? rule.test(...s.split("→")) : rule.test([...s]));
+  return [...note.ok].every(test) && ![...note.no].some(test);
+}
+
+/**
+ * The ways the legend's rules can be dealt to the fields, as far as the notes and the rules revealed say (shown: the
+ * fields whose rule is known), type by type: [{ type, fields: [field index…], deals: [[rule id per field]…] }]. Every
+ * rule is one field's at most, so a rule that one field must have is taken from the others. Null for a board without
+ * a legend.
+ */
+export function dealsOf(board, notes, shown = new Set()) {
+  if (!board.legend) return null;
+  const fs = fieldsOf(board), legend = board.legend.map(ruleById);
+  return TYPES.map(type => {
+    const at = fs.flatMap((f, i) => (f.rule.type === type ? [i] : []));
+    const options = at.map(i => (shown.has(i) ? [fs[i].rule] : legend.filter(r => r.type === type && agrees(r, notes[i]))));
+    const deals = [], cur = [], used = new Set();
+    (function pick(n) {
+      if (n === at.length) { deals.push(cur.map(r => r.id)); return; }
+      for (const r of options[n]) if (!used.has(r.id)) { used.add(r.id); cur.push(r); pick(n + 1); cur.pop(); used.delete(r.id); }
+    })(0);
+    return { type, fields: at, deals };
+  });
+}
+
+/** Per field, the rules it could be (legend order), or null for a board without a legend. */
+export function candidates(board, notes, shown = new Set()) {
+  const dealt = dealsOf(board, notes, shown);
+  if (!dealt) return null;
+  const out = board.fields.map(() => []);
+  for (const { fields, deals } of dealt) fields.forEach((i, n) => { out[i] = board.legend.filter(id => deals.some(d => d[n] === id)).map(ruleById); });
+  return out;
 }
 
 /**
@@ -488,6 +587,20 @@ export function keyVerdicts(field, note, letters, at, revealed = false) {
       if (ok !== true) all = false;
     }
     return all || null;
+  };
+}
+
+/**
+ * The keyboard's colours when a field could be any of several rules (the legend, narrowed by the notes): a letter is
+ * green when every one of them passes it, red when every one fails it, else uncoloured. Down to one rule, it's the
+ * field's rule revealed.
+ */
+export function keyVerdictsAmong(field, rules, note, letters, at) {
+  const each = rules.map(rule => keyVerdicts({ ...field, rule }, note, letters, at, true));
+  if (!each.length || each.some(f => f === null)) return null;
+  return c => {
+    const v = each.map(f => f(c));
+    return v.every(x => x === true) ? true : v.every(x => x === false) ? false : null;
   };
 }
 
