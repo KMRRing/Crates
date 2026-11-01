@@ -4,7 +4,7 @@
 // This file keeps the run, the clock and the taps, and draws the board. Two ways to play: Levels (bridges-levels.js: a ladder
 // of puzzles in chapters, each bringing a twist, with stars, each kept as it was left, as Topple's are) and Free play (a size,
 // a difficulty and a twist, a random puzzle or today's).
-import { SIZES, LEVELS, DAILY, TWISTS, puzzleOf, generate, nextMark, withMark, solvedBy, crossed, breaks, hintFor, levelOn, twistOn } from "./bridges-engine.js";
+import { SIZES, LEVELS, DAILY, TWISTS, puzzleOf, generate, nextMark, withMark, solvedBy, crossed, breaks, whatBreaks, labelOf, hintFor, levelOn, twistOn } from "./bridges-engine.js";
 import { LEVELS as LADDER, CHAPTERS, COUNT, chapterOf, seedOf, kindOf, parOf, starsFor } from "./bridges-levels.js";
 import { miniature } from "./bridges-mini.js";
 import { scale } from "./wide.js";
@@ -281,15 +281,10 @@ function redo() {
   S.undo.push(next);
   setLink(l, from, to, false);
 }
-/** After any change: the line says what broke (from the rules alone, never the answer), the end is settled the moment
- *  the bridges are the answer, and the run is kept. */
+/** After any change: the end is settled the moment the bridges are the answer, and the run is kept. What is broken is said
+ *  by the line under the board for as long as it is (`trouble`, from the marks), not only by the tap that broke it. */
 function changed(at = -1) {
-  const br = breaks(P, S.marks), { a, b } = at >= 0 ? P.lay.links[at] : {};
-  if (at >= 0 && S.marks[at] !== "0") {
-    if (br.over.includes(a) || br.over.includes(b)) note("An island has more bridges than its number.", "bad");
-    else if (br.cut.includes(a) || br.cut.includes(b)) note(`That group has all its bridges, and the other islands${P.lay.realmSize[1] ? " of its colour" : ""} aren't joined to it.`, "bad");
-    else message = null;
-  } else if (at >= 0) message = null;
+  if (at >= 0) message = null;                                   // what the last tap said (a bridge refused) is spent
   if (!S.done && solvedBy(P, S.marks)) finish();
   else save();
   paint();
@@ -299,7 +294,6 @@ function note(text, tone = "") { message = text ? { text, tone } : null; }
 
 // ---------- hints ----------
 /** A step of reasoning in words, as a hint says it. */
-const labelOf = x => (x.kind === 1 ? `${x.n}+` : x.kind === 2 ? `≤${x.n}` : String(x.n));
 function explain(x) {
   const n = labelOf(P.lay.isl[x.at]), bridges = plural(x.to, "bridge");
   switch (x.tech) {
@@ -356,6 +350,8 @@ const svgEl = (tag, attrs, parent) => { const n = document.createElementNS(NS, t
  *  under a unit tall badly (as Hitori's and Delta's are). */
 const TEXT_SCALE = 100;
 let svg = null, linkEls = [], islEls = [], seg = [];
+/** What the marks break now, in words (bridges-engine.js's whatBreaks), for the line under the board. */
+let trouble = "";
 function drawBoard() {
   const { size, lay } = P, pad = 0.3, at = i => [lay.isl[i].c + 0.5, lay.isl[i].r + 0.5];
   svg = svgEl("svg", { viewBox: `${-pad} ${-pad} ${size + 2 * pad} ${size + 2 * pad}`, role: "img", "aria-label": `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: the board. Tap a link between two islands to build a bridge.`, class: "brg-svg" });
@@ -385,6 +381,7 @@ function drawBoard() {
   islEls = lay.isl.map((isle, i) => {
     const [x, y] = at(i), g = svgEl("g", { class: islandClass(i) }, svg);
     if (isle.hill) for (const r of [DISC + 0.09, DISC + 0.17]) svgEl("circle", { cx: x, cy: y, r, class: "brg-hill" }, g);       // a hill: contour lines round it
+    svgEl("circle", { cx: x, cy: y, r: DISC + (isle.hill ? 0.26 : 0.1), class: "brg-halo" }, g);        // drawn only round an island that breaks a rule
     svgEl("circle", { cx: x, cy: y, r: DISC, class: "brg-disc" }, g);
     const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "brg-num", "font-size": (isle.kind ? 0.4 : 0.5) * TEXT_SCALE, transform: `translate(${x} ${y}) scale(${1 / TEXT_SCALE})` }, g);
     t.textContent = labelOf(isle);
@@ -401,8 +398,10 @@ const islandClass = (i, extra = []) => ["brg-i", P.lay.isl[i].realm ? "r1" : "",
 function paint() {
   if (!svg || !S) return;
   const br = breaks(P, S.marks), over = new Set(br.over), met = new Set(br.met), cut = new Set(br.cut), lit = new Set(S.lit?.set || []);
+  trouble = whatBreaks(P, S.marks, br);
   linkEls.forEach(({ g }, l) => {
-    const cls = ["brg-l", P.lay.isl[P.lay.links[l].a].realm ? "k1" : "", P.lay.links[l].high ? "hi" : "", S.marks[l] === "1" ? "c1" : S.marks[l] === "2" ? "c2" : "", lit.has(l) ? "lit" : ""].filter(Boolean).join(" ");
+    const { a, b } = P.lay.links[l], wrong = S.marks[l] !== "0" && (over.has(a) || over.has(b) || (cut.has(a) && cut.has(b)));   // a bridge on an island that has too many, or inside a group shut off
+    const cls = ["brg-l", P.lay.isl[a].realm ? "k1" : "", P.lay.links[l].high ? "hi" : "", S.marks[l] === "1" ? "c1" : S.marks[l] === "2" ? "c2" : "", wrong ? "bad" : "", lit.has(l) ? "lit" : ""].filter(Boolean).join(" ");
     if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
   });
   islEls.forEach((g, i) => {
@@ -512,6 +511,7 @@ function drawLine() {
   if (!S) text = "";
   else if (S.lit) { text = S.lit.text; tone = "good"; }
   else if (message) { text = message.text; tone = message.tone; }
+  else if (trouble) { text = trouble; tone = "bad"; }
   else if (S.came && S.came !== S.level && !/[12]/.test(S.marks)) text = `No ${LEVELS[S.level]} puzzle came of this size this time: this one is ${LEVELS[S.came]}.`;
   else if (!/[12]/.test(S.marks)) text = `${prefs.view === "model" ? "Tap a dashed line to build a bridge, again for a second, again to clear it. Hold to clear. Drag to turn, pinch or scroll to zoom." : "Tap the dotted line between two islands to build a bridge, again for a second, again to clear it. Hold to clear."}${S.twist === "none" || !S.twist ? "" : twistHint()}`;
   else text = `${P.lay.isl.some(x => x.kind) ? "Every island with its number, or within its bound (4+ at least, ≤3 at most)" : "Every island with as many bridges as its number"}${P.lay.realmSize[1] ? ", each colour one network" : ", all of them joined"}, no bridge crossing another${P.lay.links.some(k => k.high) ? " (a viaduct goes over)" : ""}.`;

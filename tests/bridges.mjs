@@ -4,7 +4,7 @@
 // does not), hints (each step true of the answer, and enough to solve a puzzle alone), the rules the marks break, and
 // a run through JSON and the database's round trip; and the page wired to it.
 import fs from "node:fs";
-import { SIZES, LEVELS, ORDER, DAILY, layoutOf, puzzleOf, solveAs, gradeOf, count, answerOf, generate, randomBoard, rngOf, nextMark, withMark, solvedBy, crossed, breaks, hintFor, levelOn } from "../bridges-engine.js";
+import { SIZES, LEVELS, ORDER, DAILY, layoutOf, puzzleOf, solveAs, gradeOf, count, answerOf, generate, randomBoard, rngOf, nextMark, withMark, solvedBy, crossed, breaks, whatBreaks, hintFor, levelOn } from "../bridges-engine.js";
 import { roundTrip } from "./rtdb.js";
 
 let bad = 0;
@@ -161,6 +161,31 @@ function everyBridgeFree(P, marks) {
   check(shut.length === 2 && shut.includes(pair.lay.links[top].a) && shut.includes(pair.lay.links[top].b), "two 1s joined to each other, and nothing else, are marked as shut off");
   const cr = puzzleOf(5, "..2.." + "....." + "2...2" + "....." + "..2.."), none5 = "00";
   check(crossed(cr, "10", 1) && crossed(cr, "01", 0) && !crossed(cr, none5, 0), "a bridge that would cross another is found, and not when nothing is built");
+}
+
+// ---------- what is broken, in words (the line under the board) ----------
+{
+  const water = n => ".".repeat(n), say = (P, marks) => whatBreaks(P, marks);
+  const links = P => P.lay.links.length, mark = (P, ...ls) => { const m = Array(links(P)).fill("0"); for (const [l, v] of ls) m[l] = v; return m.join(""); };
+  const at = (P, r1, c1, r2, c2) => P.lay.links.findIndex(l => P.lay.isl[l.a].r === r1 && P.lay.isl[l.a].c === c1 && P.lay.isl[l.b].r === r2 && P.lay.isl[l.b].c === c2);
+  // a 1 with two bridges to a 3: only the 1 is over
+  const plain = puzzleOf(5, "1.3.." + water(20));
+  check(say(plain, mark(plain, [0, "2"])) === "The 1 has 2 bridges, one too many.", "a plain island over its number is named, with how many too many");
+  check(say(plain, mark(plain, [0, "1"])) === "" && say(plain, mark(plain)) === "", "a board that breaks nothing says nothing");
+  // a ≤2 with a double bridge each way: four where two are the most. Said as its bound, not as a number
+  const range = puzzleOf(5, "3.2.." + water(5) + "..3.." + water(10), null, "..-" + water(22));
+  const two = mark(range, [at(range, 0, 0, 0, 2), "2"], [at(range, 0, 2, 2, 2), "2"]);
+  check(breaks(range, two).over.length === 1 && say(range, two) === "The ≤2 has 4 bridges, two too many.", "a range island over its bound is named as its bound (≤2), not as a number");
+  // several: counted by their number, so islands that look alike are not listed one by one
+  const pairs = puzzleOf(5, "1.1.." + water(5) + "1.1.." + water(10)), top = at(pairs, 0, 0, 0, 2), bottom = at(pairs, 2, 0, 2, 2);
+  check(say(pairs, mark(pairs, [top, "2"], [bottom, "2"])) === "Too many bridges on 4 islands: four 1s.", "several islands over are said by how many of each number");
+  // a group shut off, when nothing is over
+  const shut = puzzleOf(5, "1.1.." + water(5) + "1.1.." + water(10));
+  check(/group has all its bridges/.test(say(shut, mark(shut, [top, "1"]))), "a shut-off group is said when nothing is over");
+  check(/^Too many/.test(say(shut, mark(shut, [top, "2"]))), "…and what is over is said first");
+  // every line fits the three lines under the board
+  const lines = [say(plain, mark(plain, [0, "2"])), say(range, two), say(pairs, mark(pairs, [top, "2"], [bottom, "2"])), say(shut, mark(shut, [top, "1"]))];
+  check(lines.every(t => t.length <= 110), `every line is short enough for the line under the board (longest ${Math.max(...lines.map(t => t.length))} characters)`);
 }
 
 // ---------- hints ----------

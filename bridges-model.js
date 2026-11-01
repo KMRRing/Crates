@@ -6,7 +6,7 @@
 /** The world's x and z of the middle of a cell. */
 export const cellXZ = (size, r, c) => [c + 0.5 - size / 2, r + 0.5 - size / 2];
 /** The number on an island's plate: 4, 4+ (at least) or ≤4 (at most). */
-export const labelOf = isle => (isle.kind === 1 ? `${isle.n}+` : isle.kind === 2 ? `≤${isle.n}` : String(isle.n));
+export { labelOf } from "./bridges-engine.js";
 /** An island's radius in cells from its number: a one is an islet, an eight nearly fills its cell. Islands are two cells apart at least, so even two eights leave a cell of water for the bridge. */
 export const islandRadius = n => 0.28 + 0.032 * (Math.max(1, Math.min(8, n || 1)) - 1);
 /** The heading, a turn about y, that points a ship (whose bow is its +x) along (dx, dz). */

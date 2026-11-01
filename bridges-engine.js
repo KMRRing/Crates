@@ -508,6 +508,31 @@ export function breaks(P, marks) {
   return { over, met, cut };
 }
 
+/** An island's number as printed: 4, 4+ (at least) or ≤4 (at most). */
+export const labelOf = isle => (isle.kind === 1 ? `${isle.n}+` : isle.kind === 2 ? `≤${isle.n}` : String(isle.n));
+const NUMBER = ["", "one", "two", "three", "four", "five", "six", "seven", "eight"];
+/**
+ * What the marks break, as a line that names it (from the rules alone, never the answer), or "" when nothing is broken: the
+ * islands with more bridges than their number or bound (the island and how many too many), else a group shut off from the
+ * rest. The line is the board's words for what its oxblood marks show, so it is the same after any tap, undo or reload.
+ */
+export function whatBreaks(P, marks, br = breaks(P, marks)) {
+  const { over, cut } = br, { isl, byIsl } = P.lay;
+  const has = i => byIsl[i].reduce((t, l) => t + +marks[l], 0);
+  if (over.length === 1) {
+    const i = over[0], by = has(i) - isl[i].mx;
+    return `The ${labelOf(isl[i])} has ${has(i)} bridges, ${NUMBER[by] ?? by} too many.`;
+  }
+  if (over.length) {                                              // several: which, counted by their number ("two 1s and the ≤3"), since many islands share one
+    const tally = new Map();
+    for (const i of over) tally.set(labelOf(isl[i]), (tally.get(labelOf(isl[i])) || 0) + 1);
+    const parts = [...tally].map(([lab, n]) => (n === 1 ? `the ${lab}` : `${NUMBER[n] ?? n} ${lab}s`)).slice(0, 4);
+    return `Too many bridges on ${over.length} islands: ${parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0]}${tally.size > 4 ? ", …" : ""}.`;
+  }
+  if (cut.length) return `A group has all its bridges, and the other islands${P.lay.realmSize[1] ? " of its colour" : ""} aren't joined to it.`;
+  return "";
+}
+
 // ---------- hints ----------
 /**
  * The next thing to tell a player: a link with more bridges than the answer ({ wrong, should }); else the next bridge a

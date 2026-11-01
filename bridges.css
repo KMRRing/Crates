@@ -48,9 +48,6 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-disc { fill: var(--brg-tile); stroke: var(--ink); stroke-width: .06; }
 .brg-num { font-family: var(--font); font-weight: 750; fill: var(--ink); text-anchor: middle; pointer-events: none; font-variant-numeric: tabular-nums; }
 .brg-i.met .brg-disc { fill: color-mix(in srgb, var(--brg-in) 22%, var(--brg-tile)); stroke: var(--brg-in); }
-.brg-i.over .brg-disc { fill: color-mix(in srgb, var(--brg-bad) 22%, var(--brg-tile)); stroke: var(--brg-bad); stroke-width: .1; }
-.brg-i.cut .brg-disc { stroke: var(--brg-bad); stroke-dasharray: .12 .08; stroke-width: .09; }
-.brg-i.why .brg-disc { stroke: var(--brg-gilt); stroke-width: .11; }
 /* the twists: a reef is rock; a number that is only a bound sits on a warm disc; the second realm is copper, its bridges and its discs */
 .brg-reef { fill: color-mix(in srgb, var(--ink) 34%, var(--brg-tile)); stroke: var(--ink); stroke-width: .03; stroke-linejoin: round; pointer-events: none; }
 .brg-i.rng .brg-disc { fill: color-mix(in srgb, var(--brass) 20%, var(--brg-tile)); }
@@ -58,12 +55,26 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-i.r1.met .brg-disc { fill: color-mix(in srgb, var(--brg-copper) 22%, var(--brg-tile)); stroke: var(--brg-copper); }
 .brg-l.k1 .brg-b { stroke: var(--brg-copper); }
 .brg-l.k1.lit .brg-b { stroke: var(--brg-gilt); }
+/* what breaks a rule, loud and the same on every kind of island (the warm fill of a 4+ or a ≤3 and a realm's copper ring come
+   first above, so neither hides it): an island with too many bridges is filled oxblood, numbered in oxblood and ringed twice
+   (the disc and a halo outside it), with the bridges on it oxblood too; a group shut off from the rest is ringed in dashes,
+   its bridges oxblood. The line under the board says which, in words. */
+.brg-halo { fill: none; stroke: var(--brg-bad); stroke-width: .06; visibility: hidden; pointer-events: none; }
+.brg-i.over .brg-halo, .brg-i.cut .brg-halo { visibility: visible; }
+.brg-i.cut .brg-halo { stroke-dasharray: .16 .1; }
+.brg-i.over .brg-disc, .brg-i.rng.over .brg-disc, .brg-i.r1.over .brg-disc { fill: color-mix(in srgb, var(--brg-bad) 42%, var(--brg-tile)); stroke: var(--brg-bad); stroke-width: .12; }
+.brg-i.cut .brg-disc, .brg-i.r1.cut .brg-disc { stroke: var(--brg-bad); stroke-dasharray: .14 .08; stroke-width: .11; }
+.brg-i.over .brg-num { fill: var(--brg-bad); }
+/* a hint's island is ringed in gilt over anything else */
+.brg-i.why .brg-disc, .brg-i.over.why .brg-disc, .brg-i.cut.why .brg-disc, .brg-i.r1.why .brg-disc, .brg-i.rng.over.why .brg-disc { stroke: var(--brg-gilt); stroke-width: .11; stroke-dasharray: none; }
+.brg-l.bad .brg-b, .brg-l.bad .brg-piers, .brg-l.hi.k1.bad .brg-piers { stroke: var(--brg-bad); }
+.brg-l.bad.lit .brg-b, .brg-l.hi.bad.lit .brg-piers { stroke: var(--brg-gilt); }
 /* viaducts: a high bridge is cased in the paper's colour (a low bridge under it seems to pass beneath) and ribbed with piers; a hill has contour lines round it;
    a fairway is water for ships, tinted and waved */
 .brg-hill { fill: none; stroke: var(--brass); stroke-width: .03; pointer-events: none; }
 .brg-i.hill.met .brg-hill { stroke: var(--brg-in); }
 .brg-i.hill.r1 .brg-hill { stroke: var(--brg-copper); }
-.brg-i.hill.over .brg-hill { stroke: var(--brg-bad); }
+.brg-i.hill.over .brg-hill, .brg-i.hill.cut .brg-hill { stroke: var(--brg-bad); stroke-width: .05; }
 .brg-case { stroke: var(--brg-tile); stroke-width: .3; stroke-linecap: butt; visibility: hidden; }
 .brg-piers { stroke: var(--brg-in); stroke-width: .3; stroke-dasharray: .035 .2; stroke-linecap: butt; visibility: hidden; }
 .brg-l.hi.c1 .brg-case, .brg-l.hi.c2 .brg-case, .brg-l.hi.c1 .brg-piers, .brg-l.hi.c2 .brg-piers { visibility: visible; }
@@ -95,8 +106,8 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg3-n.rng { background: color-mix(in srgb, var(--brass) 28%, var(--brg-tile)); }
 .brg3-n.r1 { border-color: var(--brg-copper); }
 .brg3-n.met { background: color-mix(in srgb, var(--brg-in) 26%, var(--brg-tile)); border-color: var(--brg-in); }
-.brg3-n.over { background: color-mix(in srgb, var(--brg-bad) 26%, var(--brg-tile)); border-color: var(--brg-bad); }
-.brg3-n.cut { border-style: dashed; border-color: var(--brg-bad); }
+.brg3-n.over { background: color-mix(in srgb, var(--brg-bad) 42%, var(--brg-tile)); border-color: var(--brg-bad); color: var(--brg-bad); box-shadow: 0 0 0 2px var(--brg-bad); }
+.brg3-n.cut { border-style: dashed; border-color: var(--brg-bad); outline: 2px dashed var(--brg-bad); outline-offset: 1px; }
 .brg3-n.why { border-color: var(--brg-gilt); box-shadow: 0 0 0 2px var(--brg-gilt); }
 
 /* under the board: a line of what to do or what happened, three tools; at the end, how it went and the way on, in the
