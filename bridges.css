@@ -6,12 +6,13 @@
   --brg-good: #2F7D5B; --brg-bad: #A8382B; --brg-gilt: #C8923A;
   --brg-tile: var(--tile); --brg-guide: color-mix(in srgb, var(--ink) 22%, var(--brg-tile));
   --brg-logo-tint: #D6E6F1; --brg-logo-edge: var(--logo-edge);
+  --brg-copper: #B5582B;
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865;
+  html:not([data-mode="day"]) { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865; --brg-copper: #E39560;
     --brg-tile: color-mix(in srgb, var(--tile) 90%, var(--ink)); --brg-logo-tint: #1E3547; }
 }
-html[data-mode="night"] { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865;
+html[data-mode="night"] { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865; --brg-copper: #E39560;
   --brg-tile: color-mix(in srgb, var(--tile) 90%, var(--ink)); --brg-logo-tint: #1E3547; }
 /* Kontor's enamel is its green; Modern's logo tint and edge, as its theme gives every game's */
 html[data-theme="kontor"] { --brg-in: #1E7A45; --brg-gilt: #C8901A; }
@@ -50,6 +51,13 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-i.over .brg-disc { fill: color-mix(in srgb, var(--brg-bad) 22%, var(--brg-tile)); stroke: var(--brg-bad); stroke-width: .1; }
 .brg-i.cut .brg-disc { stroke: var(--brg-bad); stroke-dasharray: .12 .08; stroke-width: .09; }
 .brg-i.why .brg-disc { stroke: var(--brg-gilt); stroke-width: .11; }
+/* the twists: a reef is rock; a number that is only a bound sits on a warm disc; the second realm is copper, its bridges and its discs */
+.brg-reef { fill: color-mix(in srgb, var(--ink) 34%, var(--brg-tile)); stroke: var(--ink); stroke-width: .03; stroke-linejoin: round; pointer-events: none; }
+.brg-i.rng .brg-disc { fill: color-mix(in srgb, var(--brass) 20%, var(--brg-tile)); }
+.brg-i.r1 .brg-disc { stroke: var(--brg-copper); }
+.brg-i.r1.met .brg-disc { fill: color-mix(in srgb, var(--brg-copper) 22%, var(--brg-tile)); stroke: var(--brg-copper); }
+.brg-l.k1 .brg-b { stroke: var(--brg-copper); }
+.brg-l.k1.lit .brg-b { stroke: var(--brg-gilt); }
 /* the solve: the bridges turn gilt from the top left */
 .brg-svg.solved .brg-l .brg-b { animation: brg-wave .8s ease-out var(--d, 0ms) both; }
 /* every keyframe written out: an implicit one took SVG's default stroke while a bridge waited for its turn */
@@ -87,6 +95,35 @@ dialog.brg-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; oversc
 .brg-sheet .pick-head h2 { font-size: 1rem; }
 .brg-rules p { margin: .5rem 0; line-height: 1.45; }
 .brg-rules h4 { margin: 1.1rem 0 .2rem; }
+
+/* the menu's ladder of levels (three to a row as Topple's are): each chart in miniature, its number, stars and name, under its chapter */
+#menuBody .brg-chap { margin: .9rem 0 .35rem; font-size: .66rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass); }
+#menuBody .brg-chap:first-child { margin-top: .4rem; }
+.brg-lgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.brg-lgrid button { display: grid; gap: .2rem; padding: .35rem .4rem .4rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.brg-lgrid button.done { background: var(--brg-in-soft); }
+.brg-lgrid button[aria-current] { border-color: var(--brg-in); box-shadow: inset 0 0 0 1.5px var(--brg-in); }
+.brg-lgrid button:disabled { opacity: .4; cursor: default; }
+.brg-lmap { aspect-ratio: 1; width: 100%; }
+.brg-lmap svg { width: 100%; height: 100%; display: block; }
+/* strokes and radii in the drawing's own units (a cell is 1) */
+.brg-lmap .sea { fill: var(--brg-tile); }
+.brg-lmap .b { stroke: var(--brg-in); stroke-width: .2; stroke-linecap: round; }
+.brg-lmap .b.r1 { stroke: var(--brg-copper); }
+.brg-lmap .i { fill: var(--sheet); stroke: var(--ink); stroke-width: .13; }
+.brg-lmap .i.r1 { stroke: var(--brg-copper); }
+.brg-lmap .i.range { fill: color-mix(in srgb, var(--brass) 30%, var(--sheet)); }
+.brg-lmap .reef { fill: color-mix(in srgb, var(--ink) 34%, var(--brg-tile)); stroke: var(--ink); stroke-width: .06; stroke-linejoin: round; }
+.brg-lrow { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; min-width: 0; }
+.brg-lrow b { font-size: .9rem; font-variant-numeric: tabular-nums; }
+.brg-lrow span { color: var(--brass); font-size: .66rem; letter-spacing: .1em; white-space: nowrap; }
+.brg-lname { font-size: .62rem; line-height: 1.2; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--ink-soft); overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.brg-lsize { font-size: .62rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* a level's header holds its number and the menu: the rules are in the menu (a phone has no room for all three), and the strip stays on one line, the level's name giving way */
+@media (max-width: 440px) { #app.lv #rulesBtn { display: none; } }
+#app.lv .brg-strip { flex-wrap: nowrap; }
+#app.lv .brg-kind { flex: 0 1 auto; }
 
 /* held sideways: the board on the left with all the height; the time, the line and the tools beside it, the tools low */
 @media (orientation: landscape) and (min-width: 700px) {
