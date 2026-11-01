@@ -16,6 +16,7 @@ export const ROUNDS = {
   order: "a run, its last card placed or its lives gone",
   chart: "a set, its last pin in",
   arb: "a run of five routes, its last one decided",
+  nexus: "a run of five rounds, its last one checked",
   crossword: "a grid, solved or revealed",
   // Courses
   calibre: "a level, its movement running",

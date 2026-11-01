@@ -1,0 +1,79 @@
+/* Nexus: the thing in the middle on top (a card), the ring of candidates below it in two columns, tapped to pick; Check
+   turns the ring into the same list with each one's verdict and the link that was written for it. The ring takes the rest
+   of the screen and scrolls in it (.fit-grow: a column's children otherwise keep their full height). The game's enamel is
+   plum, lifted by night; Kontor's is its green. */
+:root {
+  --nx-in: #7A4E8F; --nx-in-soft: color-mix(in srgb, var(--nx-in) 15%, var(--sheet));
+  --nx-good: #2F7D5B; --nx-bad: #A8382B;
+  --nx-logo-tint: #EADDF1; --nx-logo-edge: var(--logo-edge);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --nx-in: #C79BDB; --nx-good: #7FC2A8; --nx-bad: #E8806F; --nx-logo-tint: #3A2B45; }
+}
+html[data-mode="night"] { --nx-in: #C79BDB; --nx-good: #7FC2A8; --nx-bad: #E8806F; --nx-logo-tint: #3A2B45; }
+html[data-theme="kontor"] { --nx-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --nx-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --nx-in: #2EB36A; }
+html[data-theme="modern"] { --nx-logo-tint: #F0E6F5; --nx-logo-edge: #7A4E8F; }
+
+.nx-mark { display: inline-block; }
+.nx-mark svg { width: 100%; height: 100%; display: block; }
+.nx-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .5rem; color: var(--ink-soft); }
+/* together, the others' scores between where you are and yours (duel.js fills it; a tap opens the match) */
+.nx-rival { flex: 1 1 auto; min-width: 0; padding: 0 .6rem; text-align: center; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nx-rival[hidden], .nx-centre[hidden], .nx-board[hidden], .nx-foot[hidden], .nx-verdict[hidden] { display: none; }
+.nx-score b { color: var(--ink); font-size: 1.25rem; }
+
+.nx-centre { flex: none; background: var(--sheet); border: 1px solid var(--tile-edge); border-top: 2px solid var(--nx-in); border-radius: 6px; padding: .6rem .9rem .7rem; margin-bottom: .55rem; }
+.nx-label, .nx-kind { margin: 0; font-size: .7rem; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); }
+.nx-label { color: var(--nx-in); font-weight: 800; }
+.nx-centre h2 { margin: .1rem 0 .05rem; font-size: 1.55rem; line-height: 1.15; overflow-wrap: anywhere; }
+.nx-ask { margin: .4rem 0 0; font-size: .95rem; }
+
+.nx-board { min-height: 0; gap: .5rem; }
+.nx-ring { list-style: none; margin: 0; padding: 0 0 .1rem; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; align-content: start; }
+.nx-chip { width: 100%; height: 100%; min-height: 2.9rem; display: grid; align-content: center; gap: .1rem; text-align: left; padding: .35rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 5px; background: var(--tile); color: var(--ink); font: inherit; cursor: pointer; }
+.nx-chip b { font-size: .95rem; line-height: 1.2; overflow-wrap: anywhere; }
+.nx-chip small { color: var(--ink-soft); font-size: .62rem; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
+.nx-chip[aria-pressed="true"] { border-color: var(--nx-in); background: var(--nx-in-soft); box-shadow: inset 2px 0 0 var(--nx-in); }
+.nx-chip:disabled { opacity: .5; cursor: default; }
+
+/* the reveal: the same ring as a list, a row each */
+.nx-ring.revealed { grid-template-columns: 1fr; gap: .35rem; }
+.nx-row { border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--tile); padding: .4rem .65rem .45rem; }
+.nx-head { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; }
+.nx-head b { font-size: .95rem; overflow-wrap: anywhere; }
+.nx-tag { flex: none; font-size: .62rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); }
+.nx-row p { margin: .12rem 0 0; font-size: .8rem; line-height: 1.3; color: var(--ink-soft); }
+.nx-row .nx-lead { color: var(--ink); font-weight: 600; }
+.nx-row.found { border-color: var(--nx-good); box-shadow: inset 2px 0 0 var(--nx-good); }
+.nx-row.found .nx-tag { color: var(--nx-good); }
+.nx-row.missed { border-style: dashed; border-color: var(--nx-good); }
+.nx-row.missed .nx-tag { color: var(--nx-good); }
+.nx-row.wrong { border-color: var(--nx-bad); box-shadow: inset 2px 0 0 var(--nx-bad); }
+.nx-row.wrong .nx-tag { color: var(--nx-bad); }
+.nx-row.clear { opacity: .8; }
+
+.nx-foot { flex: none; display: grid; gap: .5rem; margin-top: .5rem; }
+.nx-verdict { margin: 0; font-size: 1.05rem; font-weight: 800; }
+.nx-verdict.good { color: var(--nx-good); }
+.nx-verdict.bad { color: var(--nx-bad); }
+.nx-go { min-height: 2.875rem; border: 0; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 800; cursor: pointer; }
+.nx-go:disabled { opacity: .45; cursor: default; }
+.nx-sum { font-size: 1.1rem; }
+.nx-sumlist { margin: .4rem 0 .8rem; padding-left: 1.2rem; display: grid; gap: .2rem; }
+.nx-toast { position: fixed; left: 50%; bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--sheet); padding: .5rem .9rem; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.nx-toast.on { opacity: 1; }
+
+/* held sideways (#app.beside): the ring, or the verdicts, take the board's column, as many across as fit; beside it the
+   nexus with the question, and the verdict and the button low in the column */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.nexus { --beside: 24rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+  .nx-strip { grid-column: 2; grid-row: 2; margin-top: .6rem; }
+  .nx-centre { grid-column: 2; grid-row: 3; margin: 0; padding: .9rem 1.1rem; }
+  .nx-centre h2 { font-size: 1.9rem; }
+  .nx-board { grid-column: 1; grid-row: 2 / -1; margin-top: .6rem; }
+  .nx-foot { grid-column: 2; grid-row: 5; margin: 0; }
+  .nx-ring { grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); }
+  .nx-ring.revealed { grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr)); }
+}

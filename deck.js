@@ -264,6 +264,7 @@ function mix(r, labels, right) {
  * clues X doesn't carry. Anything else (a subject bank's question) keeps its own choices. Null when it can't.
  */
 function freshChoices(r, p) {
+  if (p.fixed) return null;                                      // Nexus: its options are its own near misses, not others of the kind
   const byName = new Map(BANK.map(a => [a.name, a]));
   const rightLabels = p.right.map(i => p.options[i]), n = p.options.length;
   if (p.options.every(o => byName.has(o))) {                   // the options are answers: swap in others of the kind
