@@ -4,12 +4,15 @@
 // the words, the levels and the daily are assay-engine.js's; the rivals assay-solve.js's; the team's table
 // assay-table.js's. Together: the pair as a team, each seeing one colour of the marks (together.js), or everyone
 // racing the same word (duel.js), from the partner sheet or a Party. Levels (assay-levels.js) are a ladder of recipes
-// beside free play, each kept as it was left (assay:lruns), its stars in assay:camp.
+// beside free play, each kept as it was left (assay:lruns), its stars in assay:camp. Words are one of three games (the
+// lexicon, assay-lexicons.js): the other two, primes and equations (assay-numbers.js), are played alone, in free play
+// and on the ladder, with every mode; the daily, the team and the race are words.
 import { LENGTHS, LEVELS, BOARDS, DAILY, HIT, NEAR, GREY, UNSEEN, SPRINT_MS, newGame, guessIn, rowsOf, solvedAt, limitOf, guessesFor, answersOf,
   scoreOf, sprintSolved, guessesUsed, timeUp, dailyWord, seenAs, unhide, packOf, levelOf, meanGuesses } from "./assay-engine.js";
 import { RIVALS, RIVAL_NAMES, rivalPlan, rivalSoFar, rivalMarks } from "./assay-solve.js";
 import { freshTeam, isTeam, tidy, guessAt, rowsOfTable, roleAt, resultOf as teamResult, dealAt, limitOfTable } from "./assay-table.js";
 import { ENGLISH } from "./assay-words.js";
+import { lexOf, unitOf, nounOf, ready, IDS } from "./assay-lexicons.js";
 import * as LV from "./assay-levels.js";
 import { miniature } from "./assay-mini.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -21,11 +24,13 @@ import { isDuel } from "./duel-core.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords, openBranch, branchPath } from "./rooms.js";
 import { getSync } from "./net.js";
-import { busy, sextant } from "./loading.js";
+import { busy, whileBusy, sextant } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const LEX = ENGLISH;
+const LEX = ENGLISH;                      // the daily's, the team's and the race's
+/** The lexicon on the screen: the team's is English, a game's is its own, else what the menu has chosen. */
+const lexNow = () => (T ? ENGLISH : S ? lexOf(S.lang) : lexOf(prefs.lang));
 const RUN = "assay:run", PREFS = "assay:prefs", STATS = "assay:stats", DAILY_KEY = "assay:daily", BEST = "assay:best", STREAK = "assay:streak",
   RIVAL_KEY = "assay:rivals", SEEN = "assay:seen", NOTES = "assay:notes", TRACK = "assay:track", CAMP = "assay:camp", LRUNS = "assay:lruns";
 const STAR = "★", HOLLOW = "☆";
@@ -45,11 +50,13 @@ const RULE_NAMES = { free: "Free", hard: "Hard", strict: "Strict" };
 const RULE_LINES = { free: "Any word may be guessed.", hard: "Hard: a letter found stays in place, and every letter shown is used.", strict: "Strict: every guess could be the word." };
 
 // ---------- what you've chosen ----------
-const DEFAULTS = { mode: "classic", len: 5, boards: 4, level: "medium", rules: "free", rival: "off", contrast: false };
+const DEFAULTS = { lang: "en", mode: "classic", len: 5, boards: 4, level: "medium", rules: "free", rival: "off", contrast: false };
 function cleanPrefs(p) {
   const x = { ...DEFAULTS, ...(p && typeof p === "object" ? p : {}) };
   if (!MODE_NAMES[x.mode]) x.mode = DEFAULTS.mode;
-  if (!LENGTHS.includes(x.len)) x.len = DEFAULTS.len;
+  if (!IDS.includes(x.lang)) x.lang = DEFAULTS.lang;
+  const lens = lexOf(x.lang).lengths;
+  if (!lens.includes(x.len)) x.len = lens.includes(DEFAULTS.len) ? DEFAULTS.len : lens.at(-1);
   if (!BOARDS.includes(x.boards) || x.boards === 1) x.boards = DEFAULTS.boards;
   if (!LEVELS.includes(x.level)) x.level = DEFAULTS.level;
   if (!RULE_NAMES[x.rules]) x.rules = DEFAULTS.rules;
@@ -82,7 +89,7 @@ if (track !== "levels" && track !== "free") track = read(RUN, null) ? "free" : "
 let S = null, T = null;
 let joining = null;                       // the rete while this phone sits down at the table in its address
 let lobbyMatch = null;                    // a race dealt, not yet started here
-const valid = s => !!s && s.v === 1 && Array.isArray(s.secret) && Array.isArray(s.guesses) && LENGTHS.includes(s.len) && Number.isFinite(s.ms);
+const valid = s => !!s && s.v === 1 && Array.isArray(s.secret) && Array.isArray(s.guesses) && lexOf(s.lang).lengths.includes(s.len) && Number.isFinite(s.ms);
 function save() {
   if (IN_FRAME || !S) return;
   if (S.duel) duel.keep(S);
@@ -99,51 +106,60 @@ const dueToday = () => read(DAILY_KEY, {})[today()] == null;
 
 /** Puts game g on the table as yours: `extra` is what makes it a daily's or a level's. */
 function begin(g, kind, extra = {}) {
-  S = { ...g, kind, ...extra, draft: "", rival: prefs.rival !== "off" ? rivalPlan(g, prefs.rival, LEX) : null };
-  if (kind !== "daily" && g.mode !== "dodge") write(SEEN, [...answersOf(g).slice(0, 8), ...read(SEEN, [])].slice(0, 400));   // a sprint's first few
+  S = { ...g, kind, ...extra, draft: "", rival: prefs.rival !== "off" ? rivalPlan(g, prefs.rival, lexOf(g.lang)) : null };
+  if (kind !== "daily" && g.mode !== "dodge" && g.lang === "en") write(SEEN, [...answersOf(g).slice(0, 8), ...read(SEEN, [])].slice(0, 400));   // a sprint's first few
   fresh = true; reveal = null; shownDone = null;
   clockFrom = null;
   save();
   render();
   clockRun();
 }
+const loaded = new Set();
+/** Makes a lexicon ready to deal from: equations have a file to fetch, said while it comes; the others are ready. */
+async function prepare(lex) {
+  if (!lex.load || loaded.has(lex.id)) return;
+  await whileBusy(`Loading the ${nounOf(lex)}s`, () => ready(lex));
+  loaded.add(lex.id);
+}
 /** Starts a game of yours: today's, or a random one as the menu has it. */
-function start(kind) {
-  const day = today();
+async function start(kind) {
+  const day = today(), lex = kind === "daily" ? LEX : lexOf(prefs.lang);
+  await prepare(lex);
   begin(kind === "daily"
-    ? newGame({ lex: LEX, ...DAILY, rules: prefs.rules, words: [dailyWord(day, LEX)], day, seed: day })
-    : newGame({ lex: LEX, mode: prefs.mode, len: prefs.len, boards: prefs.boards, level: prefs.level, rules: prefs.rules, seed: randomSeed(), avoid: read(SEEN, []) }), kind);
+    ? newGame({ lex, ...DAILY, rules: prefs.rules, words: [dailyWord(day, lex)], day, seed: day })
+    : newGame({ lex, mode: prefs.mode, len: prefs.len, boards: prefs.boards, level: prefs.level, rules: prefs.rules, seed: randomSeed(), avoid: read(SEEN, []) }), kind);
 }
 function confirmStart(kind) {
   if (started() && !confirm(kind === "daily" ? "Leave this word for today's?" : "Start a new word? This one isn't finished.")) return;
   start(kind);
 }
 /** A word of level n (0 on): the level's own the first time, until it is cleared; another from the same recipe after that or when asked. */
-function startLevel(n, again = false) {
+async function startLevel(n, again = false) {
   camp.at = n;
   if (!IN_FRAME) write(CAMP, camp);
-  begin(LV.levelGame(n, !again && camp.stars[n] < 1 ? LV.seedOf(n) : randomSeed(), read(SEEN, []), LEX), "level", { lv: n });
+  await prepare(LV.lexOfLevel(n));
+  begin(LV.levelGame(n, !again && camp.stars[n] < 1 ? LV.seedOf(n) : randomSeed(), read(SEEN, [])), "level", { lv: n });
 }
 function confirmLevelWord() {
   if (started() && !confirm("Start a new word of this level? This one isn't finished.")) return;
   startLevel(camp.at, true);
 }
 /** Plays level n (0 on) as it was left, or with a new word if it was not begun. */
-function playLevel(n) {
+async function playLevel(n) {
   if (!isOpen(n)) return;
   clockStop();
   camp.at = n;
   write(CAMP, camp);
   track = "levels";
   write(TRACK, track);
-  resume();
+  await resume();
 }
-function setTrack(next) {
+async function setTrack(next) {
   if (next === track) return;
   clockStop();
   track = next;
   write(TRACK, track);
-  resume();
+  await resume();
 }
 
 // ---------- the clock ----------
@@ -180,8 +196,8 @@ function typeKey(k) {
 }
 function enter() {
   const w = S.draft;
-  if (w.length < S.len) { refuse("Not enough letters"); return; }
-  const before = S.mode === "sprint" ? S.at : null, r = guessIn(S, w, LEX);
+  if (w.length < S.len) { refuse(`Not enough ${unitOf(lexOf(S.lang))}`); return; }
+  const before = S.mode === "sprint" ? S.at : null, r = guessIn(S, w, lexOf(S.lang));
   if (!r.ok) { refuse(r.why); return; }
   S.draft = "";
   // a sprint's word solved or spent moves on at once: its last row turns over on a board that's already the next
@@ -204,7 +220,7 @@ document.addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]") || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
   if (e.key === "Enter") typeKey("ENTER");
   else if (e.key === "Backspace") typeKey("BACK");
-  else if (LEX.letter(e.key)) typeKey(LEX.letter(e.key));
+  else if (lexNow().letter(e.key)) typeKey(lexNow().letter(e.key));
   else return;
   e.preventDefault();
 });
@@ -218,7 +234,7 @@ function finish() {
   setTimeout(() => { if (S?.over) showDone(); }, revealMs() + 350);
 }
 const revealMs = () => (matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : (S?.len || 5) * 110 + 250);
-const modeKey = s => (s.kind === "daily" ? "daily" : `${s.mode}-${s.len}${s.mode === "boards" ? `x${s.boards}` : ""}-${s.level}`);
+const modeKey = s => (s.kind === "daily" ? "daily" : `${s.lang && s.lang !== "en" ? `${s.lang}-` : ""}${s.mode}-${s.len}${s.mode === "boards" ? `x${s.boards}` : ""}-${s.level}`);
 /** Counts a game of yours the moment it's over: its stats, today's (the daily), and the rival's record. */
 function record() {
   if (IN_FRAME || S.counted) return;
@@ -345,7 +361,7 @@ function drawBoards() {
       }
       [...row.querySelectorAll(".as-tile")].forEach((tile, i) => {
         const letter = done ? done.guess[i] : typing[i] || "";
-        tile.textContent = letter;
+        tile.textContent = lexNow().show ? lexNow().show(letter) : letter;
         tile.className = `as-tile${done ? ` ${MARK[done.marks[i]]}` : letter ? " d" : ""}`;
         tile.style.setProperty("--i", String(i));
         if (done) tile.setAttribute("aria-label", `${big(letter)}, ${SAY[done.marks[i]]}`); else tile.removeAttribute("aria-label");
@@ -358,10 +374,11 @@ function drawBoards() {
 }
 
 // ---------- the keyboard ----------
-let keyNodes = null;
+let keyNodes = null, keysFor = null;
 function buildKeys() {
-  const rows = LEX.rows.map((letters, r) => (r === LEX.rows.length - 1 ? ["ENTER", ...letters, "BACK"] : r === 1 ? ["", ...letters, ""] : [...letters]));
+  const lex = lexNow(), rows = lex.rows.map((letters, r) => (r === lex.rows.length - 1 ? ["ENTER", ...letters, "BACK"] : r === 1 ? ["", ...letters, ""] : [...letters]));
   keyNodes = new Map();
+  keysFor = lex.id;
   $("keys").replaceChildren(...rows.map(keys => {
     const row = el("div", "as-krow");
     for (const k of keys) {
@@ -370,7 +387,7 @@ function buildKeys() {
       b.type = "button";
       if (k === "ENTER") { b.textContent = "Enter"; b.classList.add("enter"); }
       else if (k === "BACK") { b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11v12H9l-6-6z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>'; b.setAttribute("aria-label", "Delete"); }
-      else { b.append(el("span", "as-segs"), el("span", "as-l", k)); b.dataset.key = k; }
+      else { b.append(el("span", "as-segs"), el("span", "as-l", lex.show ? lex.show(k) : k)); b.dataset.key = k; }
       // a key answers as the finger goes down (no wait for the click), and only once: the click a tap brings after it
       // is passed over; a click with no press before it is a keyboard's Enter or Space on a focused key
       let pressed = 0;
@@ -429,7 +446,8 @@ function drawStrip() {
   // what's being played, shortest first: one word needs no name, several boards their count
   const lvl = S.kind === "level" && !S.duel;
   const kind = S.duel ? "Race" : S.kind === "daily" ? "Today's" : lvl ? `Level ${S.lv + 1}` : S.mode === "boards" ? `${NUMBER[S.boards]} boards` : S.mode === "classic" ? null : MODE_NAMES[S.mode];
-  const bits = [(S.duel || lvl) && S.mode === "boards" ? `${NUMBER[S.boards]} boards` : null, lvl && (S.mode === "dodge" || S.mode === "sprint") ? MODE_NAMES[S.mode] : null, `${S.len} letters`, S.kind === "daily" || lvl ? null : LEVEL_NAMES[S.level], S.rules !== "free" ? RULE_NAMES[S.rules] : null].filter(Boolean);
+  const lx = lexOf(S.lang);
+  const bits = [(S.duel || lvl) && S.mode === "boards" ? `${NUMBER[S.boards]} boards` : null, lvl && (S.mode === "dodge" || S.mode === "sprint") ? MODE_NAMES[S.mode] : null, lx.id === "en" ? null : lx.name, `${S.len} ${unitOf(lx)}`, S.kind === "daily" || lvl ? null : LEVEL_NAMES[S.level], S.rules !== "free" ? RULE_NAMES[S.rules] : null].filter(Boolean);
   what.replaceChildren(...(kind ? [el("b", "", kind), " · "] : []), bits.join(" · "));
   if (S.mode === "sprint") {
     const left = Math.max(0, SPRINT_MS - elapsed());
@@ -474,12 +492,12 @@ function drawSay() {
     box.append(text, linkButton(S.duel ? "The result" : "How it went", () => (S.duel ? duel.open() : showDone())));
     return;
   }
-  if (fresh && !S.guesses.length) box.textContent = S.mode === "dodge" ? "No word is chosen: it dodges every guess it can" : S.mode === "sprint" ? "As many words as you can in three minutes" : `Guess the ${S.len}-letter word${S.mode === "boards" ? "s" : ""}`;
+  if (fresh && !S.guesses.length) box.textContent = S.mode === "dodge" ? "No word is chosen: it dodges every guess it can" : S.mode === "sprint" ? `As many ${nounOf(lexOf(S.lang))}s as you can in three minutes` : `Guess the ${S.len}-${S.lang === "en" ? "letter" : lexOf(S.lang).unit.replace(/s$/, "")} ${nounOf(lexOf(S.lang))}${S.mode === "boards" ? "s" : ""}`;
 }
 const linkButton = (text, fn) => { const b = el("button", "link", text); b.type = "button"; b.addEventListener("click", fn); return b; };
 
 function render() {
-  if (!keyNodes) buildKeys();
+  if (!keyNodes || keysFor !== lexNow().id) buildKeys();
   if (!duel.on) drawTeamLine();
   drawStrip();
   drawBoards();
@@ -505,11 +523,11 @@ function showDone() {
   words.forEach((w, b) => {
     const solved = S.mode === "sprint" ? S.past[b]?.won : solvedAt(S, b) >= 0;
     const row = el("div", `as-word${solved ? "" : " missed"}`);
-    for (const ch of w) row.append(el("span", `as-tile ${solved ? "h" : "g"}`, ch));
+    for (const ch of w) row.append(el("span", `as-tile ${solved ? "h" : "g"}`, lexOf(S.lang).show ? lexOf(S.lang).show(ch) : ch));
     list.append(row);
   });
   body.append(list);
-  if (words.length === 1 || (S.mode === "boards" && S.boards <= 2)) defineInto(body, words);
+  if (S.lang === "en" && (words.length === 1 || (S.mode === "boards" && S.boards <= 2))) defineInto(body, words);
   if (S.rival) {
     const p = S.rival, name = RIVAL_NAMES[p.level], theirs = S.mode === "sprint" ? `${plural(p.solved, "word")}` : p.won ? `in ${p.rows.length}` : "not at all";
     body.append(el("p", `as-vs ${S.beat || ""}`, `${S.beat === "won" ? "You beat" : S.beat === "lost" ? "Beaten by" : "Level with"} ${name}, who solved it ${theirs}${S.mode === "sprint" ? " in three minutes" : ""}.`));
@@ -578,9 +596,10 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const dayText = day => `${day % 100} ${MONTHS[Math.floor(day / 100) % 100 - 1]} ${Math.floor(day / 10000)}`;
 async function copyGrid() {
   const sq = { [HIT]: "🟩", [NEAR]: "🟨", [GREY]: "⬜" }, n = S.mode === "boards" ? S.boards : 1;
-  const what = S.kind === "daily" ? dayText(S.day) : S.kind === "level" ? `level ${S.lv + 1}, ${S.len} letters` : S.mode === "dodge" ? `Dodge, ${S.len} letters` : S.mode === "boards" ? `${NUMBER[S.boards]} boards, ${S.len} letters` : `${S.len} letters`;
+  const lx = lexOf(S.lang), size = `${S.len} ${unitOf(lx)}`;
+  const what = S.kind === "daily" ? dayText(S.day) : S.kind === "level" ? `level ${S.lv + 1}, ${size}` : S.mode === "dodge" ? `Dodge, ${size}` : S.mode === "boards" ? `${NUMBER[S.boards]} boards, ${size}` : size;
   const score = S.mode === "dodge" ? `in ${S.guesses.length}` : `${S.over === "won" ? S.guesses.length : "X"}/${limitOf(S)}`;
-  const head = `Assay ${what} ${score}${S.rules !== "free" ? "*" : ""}`;
+  const head = `Assay ${lx.id === "en" ? "" : `${lx.name} `}${what} ${score}${S.rules !== "free" ? "*" : ""}`;
   const grids = Array.from({ length: n }, (_, b) => rowsOf(S, b).map(r => r.marks.map(m => sq[m]).join("")).join("\n"));
   const text = `${head}\n${grids.join("\n\n")}`;
   try { await navigator.clipboard.writeText(text); toast("Grid copied"); } catch { toast(text, 6000); }
@@ -808,6 +827,7 @@ function showRules() {
     <p><b>Playing.</b> Type on the keyboard under the board, Enter at its left and Delete at its right, or on a keyboard of your own. The keys take the colours your guesses have shown, so what's left is plain to see.</p>
     <p><b>Hard and Strict.</b> Settings' Rules: <b>Free</b> takes any word; <b>Hard</b> is Wordle's hard mode, where a letter found in place stays there and every letter shown is used, as often as shown; <b>Strict</b> asks for a word that could still be the answer, so a letter shown elsewhere also moves and a grey one stays out. A guess they forbid is turned away with the reason. A change takes effect at once on a word not yet guessed at, otherwise from the next. Several boards always play free.</p>
     <p><b>Modes.</b> In the menu, with the letters (${inWords(LENGTHS[0])} to ${inWords(LENGTHS.at(-1))}) and the level: <b>One word</b>; <b>Boards</b>, two, four or eight words at once, every guess played on each, with ${guessesFor(5, 2)}, ${guessesFor(5, 4)} or ${guessesFor(5, 8)} guesses at five letters; <b>Dodge</b>, where no word is chosen: each guess is marked to keep as many words in play as it can, and you beat it by leaving it one word and guessing that, in as few guesses as you can; <b>Sprint</b>, as many words as you can in ${inWords(SPRINT_MS / 60000)} minutes, a word solved or spent moving on at once. The levels go by how many guesses a player needs, not by how rare the word is.</p>
+    <p><b>Numbers.</b> The menu's Game also has <b>Primes</b>, where the hidden number is a prime of four or five digits and every guess must be a prime too, and <b>Equations</b>, where the hidden sum balances, six to eight characters of digits, + − × ÷ and one =, with a whole number alone on the right (the sum is worked in the usual order: 6÷4×2 is 3), and every guess must balance too. The marks, the keys, the guesses, the rules, the modes and the rival are the same, a digit or a sign at a time. These are played alone, not as the daily or at a table.</p>
     <p><b>The rival.</b> In Settings, the computer plays the same word beside you, at ${RIVALS.map(l => RIVAL_NAMES[l]).join(", ").replace(/, (\w+)$/, " or $1")}; its latest marks show over the board, its words at the end. Fewer guesses win, and equal guesses go to the quicker. It plays on your clock, which stands still while the menu or these rules are open.</p>
     <p><b>Today's word.</b> The same for everyone: ${inWords(DAILY.len)} letters at ${LEVEL_NAMES[DAILY.level]}, ${inWords(guessesFor(DAILY.len))} guesses, and a new one at midnight UTC. It counts the moment your last guess lands, and your streak is the days solved in a row. Hard or Strict may be on for it; Copy the grid then marks your grid with an asterisk, as Wordle does.</p>
     <p><b>Together.</b> With your partner, as a team: one word, guesses taken in turns, and the colours split, one of you seeing what's in place and the other what's elsewhere; a letter is out only when neither of you has it lit, so say what you see. Notes strikes letters out on your own keyboard. Or a race, at a party too: the same word on every phone, the fewest guesses winning, then the quicker.</p>`;
@@ -824,7 +844,7 @@ function openMenu() {
     if (duel.on) {
       duel.menu(together);
       if (duel.together.others().length === 1) together.append(action("Play as a team instead", () => switchTo("team"), ""));
-      nextChoices(part(body, "content"), "The next match");
+      nextChoices(part(body, "content"), "The next match", false);
     } else if (team.room) {
       together.append(action("Another word", () => teamNext(), "primary"), action("Race instead", () => switchTo("race"), ""));
       const all = people().map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`);
@@ -868,7 +888,7 @@ function levelList() {
       b.setAttribute("aria-label", `Level ${n + 1}, ${L.name}${won ? `, ${plural(won, "star")}` : ""}${open ? "" : ", not open yet"}`);
       map.innerHTML = miniature(L);
       row.append(el("b", "", String(n + 1)), el("span", "", open ? STAR.repeat(won) + HOLLOW.repeat(3 - won) : ""));
-      const bits = [L.mode === "boards" ? `${NUMBER[L.boards]} boards` : L.mode === "dodge" ? "Dodge" : L.mode === "sprint" ? "Sprint" : null, `${L.len} letters`, L.rules !== "free" ? RULE_NAMES[L.rules] : null].filter(Boolean);
+      const bits = [L.mode === "boards" ? `${NUMBER[L.boards]} boards` : L.mode === "dodge" ? "Dodge" : L.mode === "sprint" ? "Sprint" : null, `${L.len} ${unitOf(lexOf(L.lex)).replace("characters", "chars")}`, L.rules !== "free" ? RULE_NAMES[L.rules] : null].filter(Boolean);
       b.append(map, row, el("div", "as-lname", L.name), el("div", "as-lsize", bits.join(" · ")));
       b.addEventListener("click", () => { $("menuDlg").close(); playLevel(n); });
       grid.append(b);
@@ -881,16 +901,19 @@ function showMenu(body) {
   part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-/** The choices for the next game: mode, length, boards, level. */
-function nextChoices(box, note) {
-  const redraw = () => { openMenu(); };
+/** The choices for the next game: the game (words, primes or equations), mode, length, boards, level. */
+function nextChoices(box, note, solo = true) {
+  const redraw = () => { openMenu(); }, lex = lexOf(solo ? prefs.lang : "en"), unit = unitOf(lex), noun = nounOf(lex);
+  if (solo) box.append(choice("Game", IDS.map(id => [id, id === "en" ? "Words" : lexOf(id).name]), prefs.lang, async v => { setPref("lang", v); await prepare(lexOf(v)); redraw(); }));
   box.append(choice("Mode", Object.entries(MODE_NAMES), prefs.mode, v => { setPref("mode", v); redraw(); }),
-    choice("Letters", LENGTHS.map(n => [n, String(n)]), prefs.len, v => { setPref("len", v); redraw(); }));
+    choice(unit[0].toUpperCase() + unit.slice(1), lex.lengths.map(n => [n, String(n)]), prefs.len, v => { setPref("len", v); redraw(); }));
   if (prefs.mode === "boards") box.append(choice("Boards", [[2, "Two"], [4, "Four"], [8, "Eight"]], prefs.boards, v => { setPref("boards", v); redraw(); }));
-  box.append(choice("Words", LEVELS.map(l => [l, LEVEL_NAMES[l]]), prefs.level, v => { setPref("level", v); redraw(); }));
-  const P = packOf(LEX, prefs.len), g = guessesFor(prefs.len, prefs.mode === "boards" ? prefs.boards : 1), mean = meanGuesses(P, prefs.level);
-  const say = prefs.mode === "dodge" ? `${levelOf(P, prefs.level).length} words to dodge with; no limit, the fewest guesses best.`
-    : prefs.mode === "sprint" ? `Three minutes, ${plural(guessesFor(prefs.len), "guess", "guesses")} a word.`
+  box.append(choice(lex.id === "en" ? "Words" : lex.name, LEVELS.map(l => [l, LEVEL_NAMES[l]]), prefs.level, v => { setPref("level", v); redraw(); }));
+  if (lex.levelNote) box.append(line(lex.levelNote));
+  if (lex.load && !loaded.has(lex.id)) { prepare(lex).then(redraw); box.append(line(`${lex.name} are on their way.`)); return; }
+  const P = packOf(lex, prefs.len), g = guessesFor(prefs.len, prefs.mode === "boards" ? prefs.boards : 1), mean = meanGuesses(P, prefs.level);
+  const say = prefs.mode === "dodge" ? `${levelOf(P, prefs.level).length} ${noun}s to dodge with; no limit, the fewest guesses best.`
+    : prefs.mode === "sprint" ? `Three minutes, ${plural(guessesFor(prefs.len), "guess", "guesses")} a ${noun}.`
     : `${plural(g, "guess", "guesses")}${Number.isFinite(mean) ? `; a player like most needs about ${mean.toFixed(1)} on one board` : ""}.`;
   box.append(line(note ? `${note}: ${say}` : say));
 }
@@ -903,7 +926,7 @@ function settingsPart(body, solo) {
   }), line(prefs.mode === "boards" ? "Several boards always play free." : RULE_LINES[prefs.rules]));
   if (solo) settings.append(choice("Rival", [["off", "Off"], ...RIVALS.map(l => [l, RIVAL_NAMES[l]])], prefs.rival, v => {
     setPref("rival", v);
-    if (S && !S.duel && !S.over && !S.guesses.length) { S.rival = v === "off" ? null : rivalPlan(S, v, LEX); S.ms = 0; save(); render(); }
+    if (S && !S.duel && !S.over && !S.guesses.length) { S.rival = v === "off" ? null : rivalPlan(S, v, lexOf(S.lang)); S.ms = 0; save(); render(); }
     openMenu();
   }), line(prefs.rival === "off" ? "The computer can play the same word beside you." : `${RIVAL_NAMES[prefs.rival]} plays the same word beside you, at a person's pace.${rivalRecord()}`));
   settings.append(toggle("High contrast", prefs.contrast, on => { setPref("contrast", on); applyContrast(); }));
@@ -964,27 +987,29 @@ let tellTimer = 0;
 const tellSoon = () => { if (!tellTimer) tellTimer = setTimeout(() => { tellTimer = 0; if (S?.duel && !S.over) tell(); }, 5000); };
 
 /** The game of the way now chosen, as it was left (else a new one); a level cleared goes on to the next that is open. */
-function resume() {
+async function resume() {
   T = null; built = null;
   S = savedGame();
+  if (S) await prepare(lexOf(S.lang));
   if (track === "levels") {
     if (S?.over && !IN_FRAME && S.stars >= 1 && camp.at + 1 < LV.COUNT && isOpen(camp.at + 1)) { camp.at++; write(CAMP, camp); S = savedGame(); }
-    if (!S || (S.over && !IN_FRAME)) { startLevel(camp.at, !!S); return; }     // a word that was played (and told, if lost) is not dealt again
-  } else if (!S || (S.over && !IN_FRAME)) { start(dueToday() ? "daily" : "random"); return; }
+    if (!S || (S.over && !IN_FRAME)) { await startLevel(camp.at, !!S); return; }     // a word that was played (and told, if lost) is not dealt again
+  } else if (!S || (S.over && !IN_FRAME)) { await start(dueToday() ? "daily" : "random"); return; }
   fresh = !S.guesses.length;
   render();
   clockRun();
 }
-function solo() {
+async function solo() {
+  prepare(lexOf(prefs.lang));                                // what the menu has chosen is on its way before it is asked for
   if (forToday && !IN_FRAME) {                                // the games screen's tile opens today's word, on the free way
     const run = read(RUN, null);
     if (track !== "free") { track = "free"; write(TRACK, track); }
     if (!(valid(run) && run.kind === "daily" && run.day === today() && !run.duel)) {
       S = valid(run) && !run.duel ? run : null;
-      if (!started() || confirm("Today's word is waiting. Leave the one you've started?")) { T = null; built = null; start("daily"); return; }
+      if (!started() || confirm("Today's word is waiting. Leave the one you've started?")) { T = null; built = null; await start("daily"); return; }
     }
   }
-  resume();
+  await resume();
 }
 const forToday = arrivedForToday();
 const code = roomInAddress();

@@ -41,7 +41,7 @@ const sameMarks = (a, b) => a.length === b.length && a.every((m, i) => m === b[i
 /** Whether a word could still be the answer after these rows ({ guess, marks }). */
 export const fits = (word, rows) => rows.every(r => sameMarks(marksOf(r.guess, word), r.marks));
 
-const ORD = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
+const ORD = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
 const big = l => l.toUpperCase();
 const times = n => (n === 2 ? "twice" : `${n} times`);
 const countIn = (w, l) => [...w].filter(c => c === l).length;
@@ -187,6 +187,7 @@ const quantile = (sorted, q) => sorted[Math.min(sorted.length - 1, Math.floor(q 
 /** The pack indices of a level's answers, in alphabetical order. */
 export function levelOf(P, level) {
   const key = `${P.lex.id}:${P.len}:${level}`;
+  if (!levelLists.has(key) && P.lex.levelOf) levelLists.set(key, Object.freeze(P.lex.levelOf(P, level)));   // numbers have their own kinds
   if (!levelLists.has(key)) {
     const g = gradesOf(P), sorted = g ? [...g].sort((a, b) => a - b) : [], q = f => quantile(sorted, f);
     const keep = !g ? (level === "easy" ? i => P.tier[i] <= 1 : level === "hard" ? i => P.tier[i] >= 1 : () => true)
@@ -241,8 +242,17 @@ export function dodgeStep(P, cands, guess) {
 
 // ---------- hiding the answers in what's kept ----------
 // A game, a table and a link carry their answers, so that a reload, a partner and another phone have them; shifted a
-// different way at every letter, so a glance at them gives nothing away. Letters outside a to z pass unchanged.
-const shift = (w, k) => [...w].map((c, i) => (/[a-z]/.test(c) ? String.fromCharCode(97 + ((c.charCodeAt(0) - 97 + k * (7 * i + 3)) % 26 + 26) % 26) : c)).join("");
+// different way at every character, so a glance at them gives nothing away: a letter moves along a to z, a digit
+// along 0 to 9, a sign along + - * /; an = and anything else passes unchanged.
+const SIGNS = "+-*/";
+const turn = (c, k, from, n) => from + (((c - from) + k) % n + n) % n;
+const shift = (w, k) => [...w].map((c, i) => {
+  const d = k * (7 * i + 3);
+  if (/[a-z]/.test(c)) return String.fromCharCode(turn(c.charCodeAt(0), d, 97, 26));
+  if (/[0-9]/.test(c)) return String.fromCharCode(turn(c.charCodeAt(0), d, 48, 10));
+  const j = SIGNS.indexOf(c);
+  return j >= 0 ? SIGNS[turn(j, d, 0, 4)] : c;
+}).join("");
 export const hide = w => shift(w, 1);
 export const unhide = w => shift(w, -1);
 
@@ -284,7 +294,7 @@ export const limitOf = g => (g.mode === "dodge" ? Infinity : guessesFor(g.len, g
 export function refusal(g, word, lex = ENGLISH) {
   if (g.over) return "The game is over";
   if (word.length !== g.len) return `${g.len} letters`;
-  if (!lex.accepts(word)) return "Not in the word list";
+  if (!lex.accepts(word)) return lex.why ? lex.why(word) : "Not in the word list";
   return g.boards > 1 ? null : rulesBreak(word, rowsOf(g, 0), g.rules);
 }
 /**

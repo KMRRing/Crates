@@ -17,7 +17,7 @@ const THINK = { novice: [22000, 10000], steady: [16000, 7000], sharp: [11000, 50
 export const BEST_OPENER = { 4: "tale", 5: "slate", 6: "satire", 7: "certain" };
 
 // ---------- information ----------
-const counts = new Int32Array(3 ** 8), touched = new Int32Array(4096);
+const counts = new Int32Array(3 ** 8), touched = new Int32Array(3 ** 8);          // as many as there are marks of eight characters
 /** How well a guess (pack index) splits the candidates: the information in bits (more is better). */
 function splitBits(P, g, cands) {
   let k = 0;
@@ -66,7 +66,7 @@ function noviceNarrow(P, cands, g, code) {
 
 /** The next guess on one board, from what this level knows (cands), or the probes it may try. */
 function nextGuess(level, P, cands, r, first) {
-  if (first) return level === "sharp" || level === "master" ? P.at.get(BEST_OPENER[P.len]) ?? cands[0] : humanOpener(P, r);
+  if (first) return level === "sharp" || level === "master" ? P.at.get(BEST_OPENER[P.lex.id === "en" ? P.len : 0]) ?? openerOf(P) : humanOpener(P, r);
   if (cands.length <= 2 || level === "novice" || level === "steady") return level === "novice" || level === "steady" ? weighted(P, cands, r) : cands[0];
   const probes = level === "master" ? [...sample(cands, 60, r), ...sample([...P.words.keys()], 240, r)] : sample(cands, 160, r);
   const field = sample(cands, 400, r), isCand = new Set(cands);
@@ -76,6 +76,16 @@ function nextGuess(level, P, cands, r, first) {
     if (s > bestScore + 1e-9) { bestScore = s; best = g; }
   }
   return best;
+}
+/** The first guess for a lexicon with no known best: the one of a fixed sample that splits a fixed field best (kept on the pack). */
+function openerOf(P) {
+  if (P.opener == null) {
+    const r = rng(hashOf(`${P.lex.id}:${P.len}:opener`)), field = sample([...P.words.keys()], 400, r);
+    let best = 0, top = -Infinity;
+    for (const g of sample([...P.words.keys()], 150, r)) { const s = splitBits(P, g, field); if (s > top + 1e-9) { top = s; best = g; } }
+    P.opener = best;
+  }
+  return P.opener;
 }
 const humanOpener = (P, r) => {
   const open = ["slate", "crane", "trace", "stare", "raise", "arise", "irate", "store", "tale", "care", "sore", "rate", "lane", "tone",

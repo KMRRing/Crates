@@ -2,13 +2,15 @@
 // for everyone and in its level's pool; the stars are the par's, to the guess; the Steady rival plays every level through
 // the real rules and the stars it earns come out whole; the ladder's miniatures draw; and the page keeps the ladder in
 // its own keys, a game per level.
-import { LENGTHS, LEVELS as LEVEL_NAMES, BOARDS, RULES, MODES, guessesFor, newGame, guessIn, answersOf, levelOf, packOf, timeUp, sprintSolved } from "../assay-engine.js";
+import { LEVELS as LEVEL_NAMES, BOARDS, RULES, MODES, newGame, guessIn, answersOf, levelOf, packOf, timeUp } from "../assay-engine.js";
 import { ENGLISH } from "../assay-words.js";
+import { ALL, IDS, lexOf, ready } from "../assay-lexicons.js";
 import { rivalPlan } from "../assay-solve.js";
 import * as LV from "../assay-levels.js";
 import { miniature } from "../assay-mini.js";
 import { readFileSync } from "fs";
 
+await ready(ALL.equations);                     // the answers a few levels deal from
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const t0 = Date.now();
@@ -18,7 +20,7 @@ const t0 = Date.now();
   const names = new Set(LV.LEVELS.map(L => L.name));
   check(LV.COUNT === LV.LEVELS.length && LV.COUNT >= 20, `${LV.COUNT} levels`);
   check(names.size === LV.COUNT, "every level has a name of its own");
-  check(LV.LEVELS.every(L => MODES.includes(L.mode) && LENGTHS.includes(L.len) && BOARDS.includes(L.boards) && LEVEL_NAMES.includes(L.level) && RULES.includes(L.rules)), "every recipe is a mode, length, board count, word level and rule the engine has");
+  check(LV.LEVELS.every(L => MODES.includes(L.mode) && IDS.includes(L.lex) && lexOf(L.lex).lengths.includes(L.len) && BOARDS.includes(L.boards) && LEVEL_NAMES.includes(L.level) && RULES.includes(L.rules)), "every recipe is a lexicon, mode, length, board count, answer level and rule the engine has");
   check(LV.LEVELS.every(L => (L.mode === "boards") === (L.boards > 1) && (L.boards === 1 || L.rules === "free")), "several boards only in the boards mode, and always free (the engine plays them so)");
   check(LV.CHAPTERS[0].from === 0 && LV.CHAPTERS.every((c, i) => i === 0 || c.from > LV.CHAPTERS[i - 1].from) && LV.CHAPTERS.at(-1).from < LV.COUNT, "the chapters begin at the first level and run in order");
   check(LV.LEVELS.every((_, i) => LV.chapterOf(i) === LV.CHAPTERS.findLastIndex(c => c.from <= i)), "a level is in the last chapter that has begun");
@@ -37,15 +39,16 @@ const t0 = Date.now();
   const seen = new Map();
   LV.LEVELS.forEach((L, i) => {
     const g = LV.levelGame(i), again = LV.levelGame(i), w = answersOf(g);
-    const P = packOf(ENGLISH, L.len), pool = new Set(levelOf(P, L.level).map(k => P.words[k]));
+    const P = packOf(lexOf(L.lex), L.len), pool = new Set(levelOf(P, L.level).map(k => P.words[k]));
     if (!w.every(x => pool.has(x))) pooled = false;
+    if (L.mode === "sprint" && pool.size < 60) pooled = `level ${i + 1}'s pool is ${pool.size}, a sprint deals 60`;
     if (w.length !== (L.mode === "boards" ? L.boards : L.mode === "dodge" ? 0 : L.mode === "sprint" ? 60 : 1)) pooled = false;
     if (JSON.stringify(g.secret) !== JSON.stringify(again.secret)) sameAgain = false;
     if (JSON.stringify(LV.levelGame(i, LV.seedOf(i), w).secret) !== JSON.stringify(g.secret)) ignoresAvoid = false;
-    if (g.len !== L.len || g.mode !== L.mode || g.boards !== L.boards || g.rules !== L.rules || g.level !== L.level) lengthOk = false;
+    if (g.lang !== L.lex || g.len !== L.len || g.mode !== L.mode || g.boards !== L.boards || g.rules !== L.rules || g.level !== L.level) lengthOk = false;
     if (L.mode === "classic" || L.mode === "boards") for (const x of w) { if (seen.has(x)) distinct = `${x} in levels ${seen.get(x) + 1} and ${i + 1}`; seen.set(x, i); }
   });
-  check(pooled, "a level's own words come from its level's pool, as many as its mode deals");
+  check(pooled === true, `a level's own words come from its level's pool, as many as its mode deals${pooled === true ? "" : ` (${pooled})`}`);
   check(sameAgain, "the level's own seed deals the same words every time (the same for everyone)");
   check(ignoresAvoid, "...even when words are to be avoided: the first game is not shaped by what you saw lately");
   check(lengthOk, "a level's game has the recipe's mode, length, boards, rules and level");
@@ -94,8 +97,8 @@ const t0 = Date.now();
   const tally = [0, 0, 0, 0];
   let finished = true, whole = true;
   LV.LEVELS.forEach((L, i) => {
-    const g = LV.levelGame(i), plan = rivalPlan(g, "steady", ENGLISH);
-    for (const row of plan.rows) { const r = guessIn(g, row.guess, ENGLISH); if (!r.ok) finished = false; if (g.over) break; }
+    const lex = lexOf(L.lex), g = LV.levelGame(i), plan = rivalPlan(g, "steady", lex);
+    for (const row of plan.rows) { const r = guessIn(g, row.guess, lex); if (!r.ok) finished = false; if (g.over) break; }
     if (L.mode === "sprint") timeUp(g);
     if (!g.over) finished = false;
     const s = LV.starsFor(i, g);
@@ -105,7 +108,7 @@ const t0 = Date.now();
   check(finished, "the Steady rival's moves are all legal, and every level ends");
   check(whole, "every finished level has 0 to 3 stars");
   console.log(`     Steady on each level's own word: ${tally.map((n, s) => `${s} stars ${n}`).join(", ")}`);
-  check(tally[0] <= 4, "Steady clears nearly every level on its first word");
+  check(tally[0] <= 6, "Steady clears nearly every level on its first word");
 }
 
 // ---------- the miniatures ----------

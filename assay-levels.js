@@ -1,7 +1,8 @@
 // Assay's levels, pure (no page): a ladder of word games in chapters, each chapter bringing a twist to the ones before:
 // plain words of four to six letters; longer words and the hardest of each length; Wordle's hard rule and the strict
-// one; several boards at once; the word that dodges; and the three-minute sprint. A level is a kind of game (a mode, a
-// length, how hard the words are, a rule), not one word: the first time it is the same word for everyone (the level's
+// one; several boards at once; the word that dodges; the three-minute sprint; and the two number games, primes and
+// equations, in the same ways. A level is a kind of game (a lexicon, a mode, a length, how hard the answers are, a
+// rule), not one word: the first time it is the same word for everyone (the level's
 // own seed), and a new word of the level is another from the same recipe, so a level can be replayed for its stars.
 // Stars are for the guesses (a sprint's: the words solved): one for solving it, two within a guess of the par (two
 // for the dodging word), three within the par. A par is the middle score of the Steady computer player
@@ -10,9 +11,9 @@
 // of its limit at most, so a solve on the last guess is still a star. Solving a level opens the next; any level open
 // can be played at any time, as it was left.
 import { newGame, guessesFor, sprintSolved } from "./assay-engine.js";
-import { ENGLISH } from "./assay-words.js";
+import { lexOf } from "./assay-lexicons.js";
 
-const level = spec => ({ boards: 1, rules: "free", ...spec });
+const level = spec => ({ boards: 1, rules: "free", lex: "en", ...spec });
 /** The chapters: where each begins in LEVELS, its name and what it brings. */
 export const CHAPTERS = [
   { name: "First words", from: 0, about: "Guess the hidden word. Each letter is marked in place, elsewhere in the word, or not in it." },
@@ -21,6 +22,8 @@ export const CHAPTERS = [
   { name: "Boards", from: 15, about: "Two, four or eight words at once, every guess played on all of them, with a few guesses more." },
   { name: "The dodging word", from: 20, about: "No word is chosen. Each guess is marked to keep as many words in play as it can. Leave it one, and guess it." },
   { name: "Sprints", from: 24, about: "Three minutes, as many words as you can. A word spent or solved moves you on at once." },
+  { name: "Primes", from: 28, about: "Four- and five-digit primes. A guess must be a prime too, and the marks are the same, a digit at a time. Hard has a digit that repeats." },
+  { name: "Equations", from: 33, about: "A sum that balances, of six to eight characters: digits, + − × ÷ and one =, a number alone on the right. A guess must balance too." },
 ];
 export const LEVELS = [
   level({ name: "Warm-up", len: 5, level: "easy", par: 4 }),
@@ -56,20 +59,38 @@ export const LEVELS = [
   level({ name: "Quick fives", mode: "sprint", len: 5, level: "easy", par: 6 }),
   level({ name: "Against the clock", mode: "sprint", len: 5, level: "medium", par: 5 }),
   level({ name: "Long sprint", mode: "sprint", len: 6, level: "easy", par: 8 }),
+
+  level({ name: "Prime time", lex: "primes", len: 4, level: "easy", par: 4 }),
+  level({ name: "Five digits", lex: "primes", len: 5, level: "easy", par: 4 }),
+  level({ name: "Repeat primes", lex: "primes", len: 5, level: "hard", par: 5 }),
+  level({ name: "Twin primes", lex: "primes", mode: "boards", len: 5, boards: 2, level: "easy", par: 5 }),
+  level({ name: "Prime sprint", lex: "primes", mode: "sprint", len: 4, level: "easy", par: 6 }),
+
+  level({ name: "Mini sums", lex: "equations", len: 6, level: "easy", par: 4 }),
+  level({ name: "Balanced", lex: "equations", len: 7, level: "easy", par: 4 }),
+  level({ name: "Full sums", lex: "equations", len: 8, level: "easy", par: 4 }),
+  level({ name: "Times and plus", lex: "equations", len: 8, level: "medium", par: 4 }),
+  level({ name: "Long division", lex: "equations", len: 8, level: "hard", par: 4 }),
+  level({ name: "Twin sums", lex: "equations", mode: "boards", len: 7, boards: 2, level: "easy", par: 5 }),
+  level({ name: "Slippery sums", lex: "equations", mode: "dodge", len: 7, level: "easy", par: 6 }),
+  level({ name: "Sum sprint", lex: "equations", mode: "sprint", len: 6, level: "easy", par: 8 }),
 ].map(L => ({ mode: "classic", ...L }));
 export const COUNT = LEVELS.length;
 /** The chapter a level is in. */
 export const chapterOf = i => { let c = 0; CHAPTERS.forEach((ch, k) => { if (i >= ch.from) c = k; }); return c; };
 
+/** The lexicon a level plays (which, for equations, has to be made ready first: assay-lexicons.js). */
+export const lexOfLevel = i => lexOf(LEVELS[i].lex);
 /** A level's own seed: the word everyone gets the first time. */
 export const seedOf = i => 6007 + 7919 * i;
 /**
  * A new game of level i (0 on), from a seed (default: the level's own, which asks for no word to be avoided so it is
- * the same for everyone); `avoid` is words seen lately, for a seed of your own.
+ * the same for everyone); `avoid` is words seen lately, for a seed of your own. The level's lexicon is to be ready
+ * (lexOfLevel, and assay-lexicons.js's `ready`).
  */
-export function levelGame(i, seed = seedOf(i), avoid = [], lex = ENGLISH) {
+export function levelGame(i, seed = seedOf(i), avoid = []) {
   const L = LEVELS[i];
-  return newGame({ lex, mode: L.mode, len: L.len, boards: L.boards, level: L.level, rules: L.rules, seed, avoid: seed === seedOf(i) ? [] : avoid });
+  return newGame({ lex: lexOf(L.lex), mode: L.mode, len: L.len, boards: L.boards, level: L.level, rules: L.rules, seed, avoid: seed === seedOf(i) ? [] : avoid });
 }
 
 // ---------- the stars ----------
