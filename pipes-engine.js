@@ -3,6 +3,10 @@
 // quota of pipe before it spills. A piece of yours the oil hasn't reached can be blasted out by laying another over
 // it, at a cost. Pure: the page (pipes.js) draws it and runs the clock, tests/pipes.mjs plays it.
 //
+// Two ways to play it. Rush is Pipe Dream's: the oil runs on a clock. Plan (November 2026) has no clock: the oil moves
+// one square for each piece you lay (a tank takes four), after the first `lead` pieces, so what you have to beat is
+// the pieces, not the seconds; tests/pipes-plan.mjs plays it.
+//
 // Squares are numbered c = y * COLS + x. Sides: 0 N, 1 E, 2 S, 3 W. A piece is its channels, each a pair of sides the
 // oil can pass between; a crossing has two, and the oil may pass through it twice, once each way.
 
@@ -51,6 +55,7 @@ export function levelOf(n) {
     pumps: n < 3 ? 0 : n < 7 ? 1 : 2,
     tanks: n < 5 ? 0 : n < 10 ? 1 : 2,
     terminal: n >= 4,
+    lead: Math.max(5, Math.round(15 - n / 2)),   // Plan: the pieces laid before the oil leaves, then one square a piece
   };
 }
 const at = (x, y) => y * COLS + x;
@@ -135,10 +140,14 @@ export const queueOf = (L, next, n = SHOWN) => Array.from({ length: n }, (_, k) 
  * pump, terminal, unused, blast, early: the countdown cut short), hurry,
  * lockUntil (a blast's moment), blasts, over ({ win, why, c } once it ends).
  */
-export function newPlay() {
-  return { grid: Array(COLS * ROWS).fill(null), next: 0, t: 0, flowing: false, path: [], p: 0, filled: {}, count: 0,
+export function newPlay(L = null, plan = false) {
+  const P = { grid: Array(COLS * ROWS).fill(null), next: 0, t: 0, flowing: false, path: [], p: 0, filled: {}, count: 0,
     pts: { pipe: 0, loop: 0, pump: 0, terminal: 0, unused: 0, blast: 0, early: 0 }, hurry: false, lockUntil: 0, blasts: 0, over: null };
+  // Plan: lead (pieces still to lay before the oil leaves), beats (the pieces the oil has waited out in a tank), undos left
+  if (plan) Object.assign(P, { plan: true, lead: L.lead, beats: 0, undos: UNDOS });
+  return P;
 }
+export const UNDOS = 3;               // Plan: pieces a level lets you take back
 /** The channel of a square's piece that takes the oil in by side a (its index and the side it leaves by), if any. */
 export function channelOf(piece, a) {
   const chs = PIECES[piece] || [];
@@ -161,11 +170,44 @@ export function place(L, P, c) {
   if (oiled(P, c)) return "oil";
   const had = P.grid[c];
   P.grid[c] = pieceAt(L, P.next++);
-  if (!had) return "laid";
+  if (!had) { if (P.plan) beat(L, P); return "laid"; }
   P.blasts++;
   P.pts.blast += POINTS.blast;
-  P.lockUntil = P.t + BLAST_MS;
+  if (P.plan) beat(L, P); else P.lockUntil = P.t + BLAST_MS;     // a blast costs a moment on the clock; in Plan it's a piece like any
   return "blast";
+}
+
+// ---------- Plan: the oil moves with the pieces ----------
+/**
+ * A piece has been laid. Until the level's `lead` pieces are down the oil waits; the piece that makes the lead lets it
+ * out at the wellhead. After that each piece moves it one square on (into the next piece, or the spill), a tank
+ * holding it for TANK of them.
+ */
+export function beat(L, P) {
+  if (P.over) return;
+  if (!P.flowing) {
+    if (--P.lead > 0) return;
+    P.flowing = true; P.beats = 0;
+    P.path.push({ c: L.source.c, a: -1, b: L.source.d });
+    P.p = 0;
+    return;
+  }
+  const head = P.path[P.path.length - 1], need = head.a >= 0 && L.cells[head.c]?.k === "tank" ? TANK : 1;
+  if (++P.beats < need) { P.p = P.beats / need; return; }
+  P.beats = 0; P.p = 1;
+  passed(L, P, head);
+  onward(L, P, head);
+}
+/** Whether the route as it stands would clear the level if the oil ran it to the end now (Plan's Run). */
+export function winsNow(L, P) {
+  if (P.over) return false;
+  const a = ahead(L, P);
+  return a.length >= L.quota && a.end.why !== "early";
+}
+/** Plan: lets the oil run the route as it stands to its end, as the pieces would have moved it. */
+export function runOut(L, P) {
+  if (P.flowing === false && !P.over) P.lead = 1;
+  for (let guard = 0; !P.over && guard < 2000; guard++) beat(L, P);
 }
 /** The oil now, before the countdown is out: each whole second of it left pays a little, once the level is cleared. */
 export function release(L, P) {

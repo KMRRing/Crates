@@ -1,6 +1,7 @@
 // Pipes: Pipe Dream's game on a board (pipes-engine.js), and the descent in 3D (pipes-deep.js, drawn by
-// pipes-3d.js). This file draws the board and the queue, takes taps and keys, runs the clock, keeps both runs and the
-// bests, and plays a match for everyone at the table on the same seed (duel.js).
+// pipes-3d.js). The board plays two ways: Plan, where the oil moves a square for each piece you lay and nothing runs on
+// a clock, and Rush, Pipe Dream's own, where it does. This file draws the board and the queue, takes taps and keys,
+// runs the clock, keeps the runs and the bests, and plays a match for everyone at the table on the same seed (duel.js).
 import * as B from "./pipes-engine.js";
 import * as G from "./pipes-deep.js";
 import { createShaftView } from "./pipes-3d.js";
@@ -13,7 +14,7 @@ import { createDuel } from "./duel.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const KEY = { flat: "pipes:flat", deep: "pipes:deep", prefs: "pipes:prefs", best: "pipes:best", daily: "pipes:daily" };
+const KEY = { flat: "pipes:flat", plan: "pipes:plan", deep: "pipes:deep", prefs: "pipes:prefs", best: "pipes:best", daily: "pipes:daily" };
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const num = v => Math.round(v).toLocaleString("en-GB");
@@ -22,23 +23,31 @@ const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ---------- the state ----------
-// prefs: the mode on show ("flat", the board; "deep", the shaft in 3D), the pace (1, Normal; 1.5 or 2, the countdown
-// and the oil taking that many times as long) and a match's length on the board (levels; 0: till the spill). Each mode
-// keeps its own run, so trying the other leaves yours where it was.
-let prefs = { mode: "flat", length: 0, pace: 1, ...read(KEY.prefs, {}) };
+// prefs: the mode on show ("flat", the board; "deep", the shaft in 3D), how the board plays (flow: "plan" or "rush"), the
+// pace (1, Normal; 1.5 or 2, the countdown and the oil taking that many times as long: Rush's and 3D's) and a match's
+// length on the board (levels; 0: till the spill). Each mode, and each flow of the board, keeps its own run, so trying
+// another leaves yours where it was.
+let prefs = { mode: "flat", flow: "plan", length: 0, pace: 1, ...read(KEY.prefs, {}) };
+const FLOWS = [["plan", "Plan"], ["rush", "Rush"]];
+const flowOf = v => (v === "rush" ? "rush" : "plan");
+const keyOf = f => (f === "plan" ? KEY.plan : KEY.flat);     // Rush keeps the board's first key: its runs and bests were Pipes' only ones
+let flow = flowOf(prefs.flow);                              // how the board on show plays
+const planned = () => F?.flow === "plan";
 const PACES = [[1, "Normal"], [1.5, "Slower"], [2, "Slowest"]];
 const paceName = p => (PACES.find(([v]) => v === p) || PACES[0])[1];
 /** The pace a new game plays at: a match's own, else yours. */
 const paceNow = () => (match ? match.pace || 1 : PACES.some(([v]) => v === prefs.pace) ? prefs.pace : 1);
 let mode = prefs.mode === "deep" ? "deep" : "flat";
-// the board's run: { v, kind: "random" | "daily" | "duel", seed, pace (as it's played now) and slowest (the slowest it
+// the board's run: { v, kind: "random" | "daily" | "duel", seed, flow ("plan"; a run with none is Rush's), pace (as it's played now) and slowest (the slowest it
 // was played at, which its score counts under), n (the level), total (the levels' points before this one's, or with it
 // once it's over), phase: "play" | "done" (a level cleared, its card up) | "over", P (the level: pipes-engine.js; kept
-// once it's over, so the card stands over the board as it ended), last (how the level went), at }; L is its level
+// once it's over, so the card stands over the board as it ended), last (how the level went), at }; in Plan also sel (the
+// square tapped once, the piece shown there ghosted), snaps (the level so far before each of the last few pieces, for
+// Undo) and running (Run the oil under way); all kept with the run, so a partner watching sees what you see. L is its level
 let F = null, L = null;
 // the descent: { v, kind, seed, slowest, D (pipes-deep.js, its pace in it), phase: "play" | "over", at }; S its shaft
 let R = null, S = null;
-let match = null;            // a match being played here: { mode, seed, length, pace }
+let match = null;            // a match being played here: { mode, seed, length, pace, flow }
 let turns = 0;               // quarter turns given the piece in hand: the 3D view swings the piece round only for these
 let view = null;             // the 3D view, made the first time the shaft shows
 let raf = 0, last = 0, held = false;
@@ -48,26 +57,29 @@ const save = () => {
   if (F) F.at = now;
   if (R) R.at = now;
   if (match) { duel.keep({ match, F, R }); tell(); return; }
-  if (mode === "flat" && F) write(KEY.flat, F);
+  if (mode === "flat" && F) write(keyOf(F.flow), F);
   if (mode === "deep" && R) write(KEY.deep, R);
 };
 let savedAt = 0;
 const saveSoon = () => { const now = performance.now(); if (now - savedAt > 1000) { savedAt = now; save(); } };
 
 // ---------- the board's run ----------
-function startFlat(kind, seed = kind === "daily" ? today() : randomSeed()) {
-  const pace = paceNow();
-  F = { v: 2, kind, seed, pace, slowest: pace, n: 1, total: 0, phase: "play", P: B.newPlay(), at: Date.now() };
+/** How a new board plays: a match's own, else yours. */
+const flowNow = () => (match ? flowOf(match.flow) : flow);
+function startFlat(kind, seed = kind === "daily" ? today() : randomSeed(), how = flowNow()) {
+  const plan = how === "plan", pace = plan ? 1 : paceNow();      // Plan has no clock to slow
   L = B.deal(seed, 1, pace);
+  F = { v: 2, kind, seed, ...(plan ? { flow: "plan" } : {}), pace, slowest: pace, n: 1, total: 0, phase: "play", P: B.newPlay(L, plan), at: Date.now() };
   showFlat(true);
   save();
 }
 function nextLevel() {
   if (F.phase !== "done") return;
   F.n++;
-  F.P = B.newPlay();
-  F.phase = "play";
   L = B.deal(F.seed, F.n, F.pace || 1);
+  F.P = B.newPlay(L, planned());
+  F.phase = "play";
+  delete F.sel; delete F.snaps; delete F.running;
   showFlat(true);
   save();
 }
@@ -80,7 +92,8 @@ function levelOver() {
   F.total += pts;
   F.phase = P.over.win && !(match?.length && F.n >= match.length) ? "done" : "over";
   if (!P.over.win) navigator.vibrate?.([60, 40, 60]);
-  if (F.phase === "over" && !match) noteBest("flat", { score: F.total, level: F.n }, F.slowest || 1);
+  delete F.sel; delete F.running;
+  if (F.phase === "over" && !match) noteBest(planned() ? "plan" : "flat", { score: F.total, level: F.n }, F.slowest || 1);
   save();
   if (F.phase === "over") tell(true);
   if (!match) roundOver("pipes");                          // a level over: cleared (the next waits) or the run with it
@@ -106,15 +119,15 @@ function descentOver() {
 }
 
 // ---------- bests: by mode and pace, and today's ----------
-// kept as { flat, deep, "flat:slower", "deep:slowest", … }: a slower game is an easier one, so it keeps a best of its
-// own (the games screen shows the highest of them)
+// kept as { plan, flat (Rush's), deep, "flat:slower", "deep:slowest", … }: a slower game is an easier one, so it keeps a
+// best of its own (the games screen shows the highest of them)
 const paced = (m, pace) => (pace > 1 ? `${m}:${paceName(pace).toLowerCase()}` : m);
 /** A run's end, against the best of its mode at the slowest pace it was played at, and today's if it was today's. */
 function noteBest(m, result, pace) {
   if (IN_FRAME) return;
   const k = paced(m, pace), best = read(KEY.best, {}) || {};
   if (!best[k] || result.score > best[k].score) { best[k] = result; write(KEY.best, best); }
-  const run = m === "flat" ? F : R;
+  const run = m === "deep" ? R : F;
   if (run.kind === "daily" && run.seed === today()) {
     const d = read(KEY.daily, {}) || {}, day = d[today()] || {};
     if (!day[k] || result.score > day[k].score) { day[k] = result; d[today()] = day; write(KEY.daily, d); }
@@ -127,7 +140,7 @@ const todayOf = (m, pace = 1) => ((read(KEY.daily, {}) || {})[today()] || {})[pa
 function setPace(v) {
   prefs.pace = v; write(KEY.prefs, prefs);
   if (match || IN_FRAME) return;
-  if (F && F.phase !== "over") {
+  if (F && F.phase !== "over" && !planned()) {
     F.pace = v; F.slowest = Math.max(F.slowest || 1, v);
     L = B.deal(F.seed, F.n, v);
   }
@@ -148,7 +161,8 @@ function step(dt, now = performance.now()) {
   // a watching frame holds still while your partner's game does (their menu open, their app out of sight)
   if (IN_FRAME && (mode === "flat" ? F : R)?.still) dt = 0;
   if (mode === "flat") {
-    if (F?.phase === "play" && F.P && !F.P.over) {
+    if (planned()) { if (F.running && F.phase === "play" && F.P && !F.P.over) runOn(dt); }
+    else if (F?.phase === "play" && F.P && !F.P.over) {
       const P = F.P, cells = P.path.length, pts = B.pointsOf(P), flowing = P.flowing;
       B.advance(L, P, dt);
       if (P.path.length !== cells || P.flowing !== flowing) { drawPathCells(cells); drawRoute(); saveSoon(); }
@@ -176,7 +190,7 @@ function run() { cancelAnimationFrame(raf); last = 0; raf = requestAnimationFram
 function catchUp(ms) {
   if (IN_FRAME) ms = Math.min(ms, 30000);
   if (!(ms > 0)) return;
-  if (mode === "flat" && F?.phase === "play" && F.P && !F.P.over) {
+  if (mode === "flat" && F?.phase === "play" && F.P && !F.P.over && !planned()) {
     B.advance(L, F.P, ms);
     if (F.P.over) levelOver();
     showFlat(false);
@@ -256,7 +270,15 @@ function drawCell(c) {
       el("circle", { cx: MID, cy: MID, r: 13, class: "fixed-mark" }, g);
       el("path", { d: fixed.piece === "h" ? "M25 24 l10 6 l-10 6 z" : "M24 25 l6 10 l6 -10 z", fill: "#fff" }, g);
     } else el("rect", { x: fixed.piece === "h" ? 12 : 17, y: fixed.piece === "h" ? 17 : 12, width: fixed.piece === "h" ? 36 : 26, height: fixed.piece === "h" ? 26 : 36, rx: 8, class: "tank-body" }, g);
-  } else if (P?.grid[c]) drawPipe(g, P.grid[c], inChannel(P.grid[c]));
+  } else {
+    if (P?.grid[c]) drawPipe(g, P.grid[c], inChannel(P.grid[c]));
+    if (c === pickedSquare()) {
+      // Plan's first tap: the piece as it would lie, faint, and a frame (red where laying it ends the level in a spill)
+      const out = outcome();
+      drawPipe(el("g", { class: "ghost" }, g), B.pieceAt(L, P.next));
+      el("rect", { x: 3, y: 3, width: T - 6, height: T - 6, rx: 8, class: `pick${out.over && !out.over.win ? " bad" : P.grid[c] ? " blast-pick" : ""}` }, g);
+    }
+  }
 }
 let cellG = [];
 function buildBoard() {
@@ -299,7 +321,10 @@ function drawRoute() {
   layer.replaceChildren();
   const P = F.P;
   if (!P || P.over || F.phase !== "play") return;
-  const a = B.ahead(L, P);
+  // with a square picked, the route as it would run with the piece laid there
+  const c = pickedSquare(), shown = c < 0 ? P : { ...P, grid: P.grid.map((x, i) => (i === c ? B.pieceAt(L, P.next) : x)) };
+  const a = B.ahead(L, shown);
+  routeEnd = a.end; routeCells = a.cells.length;
   for (const s of a.cells) {
     const [x, y] = B.xy(s.c);
     el("path", { d: channel(s.a, s.b).d, class: "route", transform: `translate(${x * T} ${y * T})` }, layer);
@@ -315,7 +340,7 @@ function drawRoute() {
   }
   routeLength = a.length;
 }
-let routeLength = 0;
+let routeLength = 0, routeEnd = null, routeCells = 0;     // the route drawn: its pipe, where it ends and the pieces between the oil and that end
 /** Points rising off the square they were made in: a crossing passed both ways, a pump, the terminal. */
 function popPoints(P, before) {
   const layer = $("board").querySelector(".pops"), gained = B.pointsOf(P) - before;
@@ -326,23 +351,107 @@ function popPoints(P, before) {
   t.textContent = signed(gained);
   t.addEventListener("animationend", () => t.remove());
 }
-/** A tap on a square: the next piece laid there (or over a piece of yours, a blast). */
+/** A tap on a square: the next piece laid there (or over a piece of yours, a blast). In Plan the first tap picks the
+ *  square, showing the piece there and the route that would follow, and a second on the same square lays it. */
 function tapSquare(c) {
-  if (IN_FRAME || mode !== "flat" || F?.phase !== "play" || !F.P || F.P.over) return;
-  const P = F.P, r = B.place(L, P, c);
+  if (IN_FRAME || mode !== "flat" || F?.phase !== "play" || !F.P || F.P.over || F.running) return;
+  const P = F.P;
+  if (planned() && F.sel !== c) {
+    if (L.cells[c]) return pickSquare(-1);
+    if (B.oiled(P, c)) { toast("The oil's in that one"); return pickSquare(-1); }
+    return pickSquare(c);
+  }
+  const before = P.path.length, pts = B.pointsOf(P);
+  if (planned()) snap();
+  const r = B.place(L, P, c);
   if (r === "laid" || r === "blast") {
+    if (planned()) delete F.sel;
     drawCell(c);
     if (r === "blast") {
       cellG[c].classList.remove("blast"); void cellG[c].getBBox(); cellG[c].classList.add("blast");
       toast(`Blasted: ${signed(B.POINTS.blast)}`, 1200);
       navigator.vibrate?.(25);
     }
+    if (planned()) {
+      drawPathCells(before);
+      popPoints(P, pts);
+      drawOil();
+    }
     drawQueue(true);
     drawRoute();
     drawFlatHud();
-    save();
-  } else if (r === "oil") toast("The oil's in that one");
-  else if (r === "busy") toast("A blast going off: a moment");
+    if (P.over) { levelOver(); showFlat(false); } else save();
+  } else {
+    if (planned()) F.snaps.pop();
+    if (r === "oil") toast("The oil's in that one");
+    else if (r === "busy") toast("A blast going off: a moment");
+  }
+}
+
+// ---------- Plan: picking a square, taking a piece back, running the oil ----------
+/** The square tapped once, while a piece can be laid there (-1: none). */
+const pickedSquare = () => (planned() && F.phase === "play" && F.P && !F.P.over && !F.running && F.sel >= 0 ? F.sel : -1);
+/** The level as laying the next piece on the picked square would leave it: a copy, nothing is laid. */
+function outcome() {
+  const c = pickedSquare();
+  if (c < 0) return null;
+  const Q = JSON.parse(JSON.stringify(F.P));
+  B.place(L, Q, c);
+  return { over: Q.over };
+}
+function pickSquare(c) {
+  const was = F.sel ?? -1;
+  if (c === was) return;
+  if (c < 0) delete F.sel; else F.sel = c;
+  if (was >= 0) drawCell(was);
+  if (c >= 0) drawCell(c);
+  drawRoute();
+  drawFlatHud();
+  save();
+}
+/** The level as it stands, before a piece goes down: what Undo takes back to (the last few only). */
+function snap() {
+  const { undos, ...rest } = F.P;
+  F.snaps = [...(F.snaps || []), JSON.stringify(rest)].slice(-B.UNDOS);
+}
+function undo() {
+  if (IN_FRAME || mode !== "flat" || !planned() || F.phase !== "play" || F.running || !F.P || F.P.over || !F.P.undos || !F.snaps?.length) return;
+  F.P = { ...JSON.parse(F.snaps.pop()), undos: F.P.undos - 1 };
+  delete F.sel;
+  showFlat(false);
+  save();
+}
+let runAcc = 0, runEvery = 100;
+/** Run the oil: once the route as laid clears the level, the oil is let go along it to the end. */
+function runTheOil() {
+  const P = F?.P;
+  if (IN_FRAME || mode !== "flat" || !planned() || F.phase !== "play" || !P || P.over || F.running || !B.winsNow(L, P)) return;
+  const was = F.sel ?? -1;
+  delete F.sel;
+  if (!P.flowing) P.lead = 1;
+  if (reduced()) B.runOut(L, P);
+  else { F.running = true; runAcc = 0; runEvery = Math.max(40, Math.min(140, 3200 / (B.ahead(L, P).cells.length + 1))); }
+  if (was >= 0) drawCell(was);
+  if (P.over) { drawPathCells(0); drawRoute(); levelOver(); showFlat(false); return; }
+  drawRoute();
+  drawFlatHud();
+  save();
+}
+/** The oil walking the route, a square every runEvery ms. */
+function runOn(dt) {
+  const P = F.P;
+  runAcc += dt;
+  while (runAcc >= runEvery && !P.over) {
+    runAcc -= runEvery;
+    const cells = P.path.length, pts = B.pointsOf(P);
+    B.beat(L, P);
+    drawPathCells(cells);
+    if (B.pointsOf(P) !== pts) popPoints(P, pts);
+  }
+  drawOil();
+  drawRoute();
+  drawFlatHud();
+  if (P.over) { levelOver(); showFlat(false); } else saveSoon();
 }
 
 // ---------- the queue ----------
@@ -407,32 +516,55 @@ function drawFlatHud() {
   setStat("stat3", P ? (left ? String(left) : "✓") : "–", left || !P ? "" : "met");
   drawFlatStatus();
 }
+/** Plan's line, in pieces: what picking a square shows, how far the oil is from the end of the route laid, or how long
+ *  till it leaves; and its buttons' words. */
+const PLAN_WHY = { edge: "off the edge", rock: "into rock", open: "into an empty square", shape: "into a piece that won't take it", full: "into pipe it has filled",
+  early: "into the terminal short of the quota", loop: "round and round" };
+const pieces = n => `${n} piece${n === 1 ? "" : "s"}`;
+function planStatus(P) {
+  const route = `route ${routeLength} of ${L.quota}`, out = outcome(), why = routeEnd?.why;
+  const wins = B.winsNow(L, P);
+  let text;
+  if (F.running) text = `The oil is running · ${route}`;
+  else if (out) {
+    text = out.over ? (out.over.win ? "Lay here and the oil goes into the terminal" : `Lay here and the oil spills ${PLAN_WHY[out.over.why] || ""}`)
+      : `${P.grid[F.sel] ? `Lay again to blast it (${signed(B.POINTS.blast)})` : "Tap again to lay it"} · ${route}`;
+  } else if (!P.flowing) text = `Oil leaves after ${pieces(P.lead)} · ${route}`;
+  else if (why === "open") text = routeCells ? `${pieces(routeCells)} laid ahead of the oil · ${route}` : `The oil needs the ringed square · ${route}`;
+  else if (why === "terminal") text = `Route runs into the terminal · ${route}`;
+  else text = `${wins ? "Quota met" : "Short of the quota"}: route ends ${PLAN_WHY[why] || ""} · ${route}`;
+  return { text, label: "Run the oil", quiet: !wins, off: !wins || !!F.running, undo: `Undo · ${P.undos}`, undoOff: !P.undos || !F.snaps?.length || !!F.running };
+}
 function drawFlatStatus() {
-  const P = F?.P, go = $("goBtn");
+  const P = F?.P, go = $("goBtn"), back = $("undoBtn");
   $("ahead").hidden = true;
   // what the line and the button say: text, the button's words, whether it's quiet, pressable, or away (it keeps its
   // room when there's nothing to press, so the board never changes size); written only when it changes
-  let text, label = "", quiet = true, off = false, away = false;
+  let text, label = "", quiet = true, off = false, away = false, undo = "Undo", undoOff = true;
   if (!P || F.phase !== "play") { text = F?.phase === "done" ? `Level ${F.n} cleared` : F ? "The run is over" : ""; away = true; }
+  else if (planned()) ({ text, label, quiet, off, undo, undoOff } = planStatus(P));
   else {
     const route = `route ${routeLength} of ${L.quota}`;
     if (!P.flowing) { text = `Oil in ${Math.ceil((L.countdown - P.t) / 1000)} s · ${route}`; label = `Oil now · +${B.POINTS.early} a second`; }
     else if (P.hurry) { text = `Hurrying: double points · ${route}`; label = "Hurrying"; off = true; }
     else { text = `${P.count >= L.quota ? "Quota met" : "Flowing"} · ${route}`; label = `Hurry · ×${B.HURRY}, double points`; quiet = routeLength < L.quota; }
   }
-  const key = `${text}|${label}|${quiet}|${off}|${away}`;
+  const key = `${text}|${label}|${quiet}|${off}|${away}|${undo}|${undoOff}`;
   if (key === flatKey) return;
   flatKey = key;
   $("status").textContent = text;
   go.classList.toggle("away", away);
+  back.classList.toggle("away", away);
   if (away) return;
   go.textContent = label; go.disabled = off; go.classList.toggle("quiet", quiet);
+  back.textContent = undo; back.disabled = undoOff;
 }
 let flatKey = "";
 /** The board's run on show: the board, the queue, the numbers, and a level's card when it's over. */
 function showFlat(fresh) {
   $("board").hidden = false; $("shaft").hidden = true;
   $("flatControls").hidden = false; $("deepControls").hidden = true;
+  $("flatControls").classList.toggle("plan", planned()); $("undoBtn").hidden = !planned();
   if (fresh || !cellG.length || $("board").dataset.for !== `${F.seed}/${F.n}`) { buildBoard(); $("board").dataset.for = `${F.seed}/${F.n}`; }
   else for (let c = 0; c < cellG.length; c++) drawCell(c);
   queueKey = ""; flatKey = "";
@@ -577,7 +709,7 @@ function drawFlatCard() {
   const h = make("h3", won ? "good" : "bad", won ? "The match is done" : "Run over");
   const why = make("p", "why", won ? `${match?.length || l.n} levels, the same for everyone.` : `It passed ${l.count} pipes of the ${l.quota} needed, then ${WHY[l.why] || "spilled"}.`);
   const big = make("p", "pi-big", num(F.total));
-  const pace = F.slowest || 1, best = bestOf("flat", pace), day = todayOf("flat", pace), at = pace > 1 ? `, ${paceName(pace).toLowerCase()}` : "";
+  const kind = planned() ? "plan" : "flat", pace = F.slowest || 1, best = bestOf(kind, pace), day = todayOf(kind, pace), at = pace > 1 ? `, ${paceName(pace).toLowerCase()}` : "";
   const stats = statBoxes([[l.n, "level reached"], [best ? num(best.score) : "–", `your best${at}`], [day ? num(day.score) : "–", `today's${at}`]]);
   if (match) { card([h, why, lines(rows), big], ["See the table", () => duel.open()]); return; }
   card([h, why, lines(rows), big, stats], ["Again", () => startFlat("random")], [F.kind === "daily" ? "A random run" : "Today's run", () => startFlat(F.kind === "daily" ? "random" : "daily"), true]);
@@ -612,7 +744,7 @@ function setMode(m) {
   if (!match) { prefs.mode = m; write(KEY.prefs, prefs); }
   $("app").classList.toggle("deep", m === "deep");
   if (m === "flat") {
-    if (!F) { F = loadRun(KEY.flat); if (F) L = B.deal(F.seed, F.n, F.pace || 1); }
+    if (!F) { F = loadRun(keyOf(flow), flow); if (F) L = B.deal(F.seed, F.n, F.pace || 1); }
     if (!F) return startFlat("random");
     delete F.still;
     showFlat(true);
@@ -625,32 +757,58 @@ function setMode(m) {
   // kept at once, as it's shown: a partner's watching frame runs it on from now, not from when it was last played
   if (!match) save();
 }
-/** A run kept here, if it's this version's. */
-function loadRun(key) {
+/** A run kept here, if it's this version's (and, on the board, plays the way asked for: a run with no flow is Rush's). */
+function loadRun(key, how = null) {
   const v = read(key, null);
-  return v?.v === 2 ? v : null;
+  return v?.v === 2 && (how == null || (v.flow === "plan") === (how === "plan")) ? v : null;
+}
+/** The board plays the other way from here: that way's run where it was left, or a fresh one. */
+function setFlow(f) {
+  f = flowOf(f);
+  if (match || mode !== "flat" || (f === flow && planned() === (f === "plan"))) return;
+  save();
+  flow = f; prefs.flow = f; write(KEY.prefs, prefs);
+  F = null;
+  setMode("flat");
 }
 
 // ---------- the rules ----------
 function showRules() {
   const lv = B.levelOf(1);
-  let top = 1;                                          // the first level as hard as any after it
-  while (top < 60 && JSON.stringify({ ...B.levelOf(top), n: 0 }) !== JSON.stringify({ ...B.levelOf(top + 1), n: 0 })) top++;
+  // the level from which the clock's play stops getting harder (Plan's lead has its own run-down, so it's left out)
+  const hard = n => { const { n: _n, lead: _lead, ...rest } = B.levelOf(n); return JSON.stringify(rest); };
+  let top = 1;
+  while (top < 60 && hard(top) !== hard(top + 1)) top++;
   const last = B.levelOf(top);
+  let low = 1;                                          // and the level from which the oil leaves after the fewest pieces
+  while (low < 60 && B.levelOf(low).lead !== B.levelOf(low + 1).lead) low++;
   $("rulesBody").innerHTML = `
     <p>Lay pipe ahead of the oil. On the board, the pieces come off a queue and go wherever you tap; in 3D, the oil comes down a shaft and you lay its pipe at the open end, a segment at a time.</p>
     <h4>The board</h4>
-    <p>The next piece is the large one at the left of the queue; tap a square and it goes there. Pieces can't be turned: straights, bends and crossings come as they are, in bags of thirteen, so no shape stays away long.</p>
-    <p>After a countdown (${lv.countdown / 1000} seconds on level 1) the oil leaves the wellhead and runs from piece to piece, a piece every ${lv.fill / 1000} seconds at first. It must pass through the level's quota of pipe (${lv.quota} on level 1) before it spills: off the edge, into rock, into an empty square or a piece that doesn't take it in. Short of the quota, the spill ends the run; past it, the level is cleared.</p>
+    <p>The next piece is the large one at the left of the queue. Pieces can't be turned: straights, bends and crossings come as they are, in bags of thirteen, so no shape stays away long. The oil leaves the wellhead and runs from piece to piece, and it must pass through the level's quota of pipe (${lv.quota} on level 1) before it spills: off the edge, into rock, into an empty square or a piece that doesn't take it in. Short of the quota, the spill ends the run; past it, the level is cleared. The menu's Board switch chooses how the oil is paced.</p>
+    <h4>Plan</h4>
+    <p>No clock. The oil moves one square on for each piece you lay, so what you have to beat is the pieces, not the seconds. It stays at the wellhead until the first ${lv.lead} pieces are down (${B.levelOf(low).lead} from level ${low}), then each piece you lay moves it a square; a tank holds it for ${B.TANK} pieces. Stop and think as long as you like.</p>
+    <ul>
+      <li><b>Tap a square once</b> and the piece shows there, faint, with the dashed route the oil would take; the line under the board says what laying it does. <b>Tap it again</b> to lay it. A red frame means the oil would spill the moment you did.</li>
+      <li><b>Undo</b> takes back the last piece, and the oil's step with it; ${B.UNDOS} times a level.</li>
+      <li><b>Run the oil</b> lights once the route as laid clears the quota (and doesn't run into the terminal short of it): it lets the oil go to the end at once, and the pieces it never reaches cost their points as ever.</li>
+      <li>The ringed square is where the route needs a piece next; a piece laid elsewhere still moves the oil, so it can run out of road. A blast (laying over a piece of yours the oil hasn't reached) is a piece like any: the oil moves.</li>
+    </ul>
+    <h4>Rush</h4>
+    <p>Pipe Dream's own: the oil runs on a clock. After a countdown (${lv.countdown / 1000} seconds on level 1) it leaves the wellhead and runs from piece to piece, a piece every ${lv.fill / 1000} seconds at first, while you lay pipe ahead of it.</p>
     <ul>
       <li><b>Blasting</b>: tap one of your pieces the oil hasn't reached and the next piece replaces it. It costs ${-B.POINTS.blast} points and a moment before you can lay again.</li>
+      <li>Oil now starts it before the countdown is out, ${B.POINTS.early} for each second left (on a level cleared); once it flows, Hurry runs it ${B.HURRY} times faster to the end of the level, and everything it fills from then scores double.</li>
+      <li>Every level is faster than the one before, its quota longer and its rock more, until level ${top}: ${last.fill / 1000} seconds a piece, a quota of ${last.quota}, ${last.countdown / 1000} seconds' countdown. From there on they stay as hard.</li>
+    </ul>
+    <h4>On either board</h4>
+    <ul>
       <li><b>Crossings</b> carry the oil straight across either way, and it may pass through one twice, once each way: a loop, worth ${B.POINTS.loop} more.</li>
-      <li><b>Pumps</b> (from level 3) are fixed straights: ${B.POINTS.pump} when the oil goes through one. <b>Tanks</b> (from level 5) take ${B.TANK} times as long to fill: time in hand.</li>
+      <li><b>Pumps</b> (from level 3) are fixed straights: ${B.POINTS.pump} when the oil goes through one. <b>Tanks</b> (from level 5) are fixed straights that hold the oil ${B.TANK} times as long: time in hand in Rush, ${B.TANK} pieces in Plan.</li>
       <li><b>The terminal</b> (from level 4): lead the oil into it once the quota is met for ${B.POINTS.terminal} and a clean end to the level. Into it any sooner, it's refused: a spill.</li>
     </ul>
     <p>The dashed line shows where the oil will go as the board stands; the ringed square is where its route needs a piece next, and a red cross is where it would spill.</p>
-    <p><b>Points</b>: ${B.POINTS.pipe} for each piece the oil passes through; on a level cleared, ${-B.POINTS.unused} less for each piece of yours it never reached. Oil now starts it before the countdown is out, ${B.POINTS.early} for each second left (on a level cleared); once it flows, Hurry runs it ${B.HURRY} times faster to the end of the level, and everything it fills from then scores double.</p>
-    <p>Every level is faster than the one before, its quota longer and its rock more, until level ${top}: ${last.fill / 1000} seconds a piece, a quota of ${last.quota}, ${last.countdown / 1000} seconds' countdown. From there on they stay as hard.</p>
+    <p><b>Points</b>: ${B.POINTS.pipe} for each piece the oil passes through; on a level cleared, ${-B.POINTS.unused} less for each piece of yours it never reached.</p>
     <h4>In 3D</h4>
     <p>The menu's 3D switch takes you down a shaft four squares across. The oil waits ${G.START / 1000} seconds at the wellhead, then runs down the pipe, slowly at first (${(G.fillTime(0) / 1000).toFixed(1)} seconds a square) and faster the deeper it gets. It's over when it catches the pipe's open end.</p>
     <ul>
@@ -662,9 +820,9 @@ function showRules() {
     </ul>
     <p><b>Points</b>: a point for every metre the oil gets down (a layer is ${G.METRES} m), and ${G.BARREL} a barrel. Drag the shaft to look round it.</p>
     <h4>Pace</h4>
-    <p>The times above are the Normal pace. The menu's Pace slows it down: Slower takes half as long again over everything (the countdown, the oil's every pipe or square, the wait at the wellhead), Slowest twice as long; the boards and the shaft stay the same. It changes the game under way at once. A slower game is an easier one, so it keeps bests of its own, and a game counts under the slowest pace it was played at.</p>
+    <p>In Rush and in 3D the menu's Pace slows the clock down: Slower takes half as long again over everything (the countdown, the oil's every pipe or square, the wait at the wellhead), Slowest twice as long; the boards and the shaft stay the same. It changes the game under way at once. A slower game is an easier one, so it keeps bests of its own, and a game counts under the slowest pace it was played at.</p>
     <h4>Today's and together</h4>
-    <p>Today's run and today's shaft are the same for everyone, dealt from the day. In a match, everyone at the table gets the same boards and pieces (or the same shaft), at the pace the match was dealt at, each on their own phone: the highest score wins. On the board, the menu's Match length sets how many levels a match runs: 5, 10, or till the spill.</p>`;
+    <p>Today's run and today's shaft are the same for everyone, dealt from the day. In a match, everyone at the table gets the same boards and pieces (or the same shaft), each on their own phone: the highest score wins. On the board, the menu's Match length sets how many levels a match runs: 5, 10, or till the spill; the match is played the way the board is set (Plan or Rush) when it's dealt, and at its pace.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;
 }
@@ -682,7 +840,8 @@ function openMenu() {
     part(body, "play").append(action("The rules", showRules, "link"));
     const settings = part(body, "settings");
     settings.append(toggle("3D (the next match)", prefs.mode === "deep", on => { prefs.mode = on ? "deep" : "flat"; write(KEY.prefs, prefs); openMenu(); }));
-    settings.append(choice("Pace (the next match)", PACES, PACES.some(([v]) => v === prefs.pace) ? prefs.pace : 1, v => { prefs.pace = v; write(KEY.prefs, prefs); }));
+    if (prefs.mode !== "deep") settings.append(choice("Board (the next match)", FLOWS, flowOf(prefs.flow), v => { prefs.flow = v; write(KEY.prefs, prefs); openMenu(); }));
+    if (prefs.mode === "deep" || flowOf(prefs.flow) === "rush") settings.append(choice("Pace (the next match)", PACES, PACES.some(([v]) => v === prefs.pace) ? prefs.pace : 1, v => { prefs.pace = v; write(KEY.prefs, prefs); }));
     if (prefs.mode === "flat") settings.append(matchLength());
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -690,16 +849,22 @@ function openMenu() {
   const run = mode === "flat" ? F : R;
   pick ??= run?.kind === "daily" ? "daily" : "random";
   part(body, "play").append(action("New game", () => confirmStart(pick), "primary"), action("The rules", showRules, "link"));
-  part(body, "content").append(choice(mode === "flat" ? "Run" : "Shaft", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
-  part(body, "settings").append(toggle("3D", mode === "deep", on => { $("menuDlg").close(); setMode(on ? "deep" : "flat"); }),
-    choice("Pace", PACES, paceNow(), v => { setPace(v); openMenu(); }));
+  const content = [choice(mode === "flat" ? "Run" : "Shaft", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; })];
+  // the board plays two ways, each keeping its own run
+  if (mode === "flat") content.push(choice("Board", FLOWS, flow, v => { $("menuDlg").close(); pick = null; setFlow(v); }));
+  part(body, "content").append(...content);
+  const settings = [toggle("3D", mode === "deep", on => { $("menuDlg").close(); setMode(on ? "deep" : "flat"); })];
+  if (mode === "deep" || flow === "rush") settings.push(choice("Pace", PACES, paceNow(), v => { setPace(v); openMenu(); }));     // Plan has no clock to slow
+  part(body, "settings").append(...settings);
   part(body, "together").append(matchLength());
-  // the bests at the pace you're playing at (a slower game keeps its own)
+  // the bests at the pace you're playing at (a slower game keeps its own; Plan has no pace)
   const pace = paceNow(), at = pace > 1 ? `, ${paceName(pace).toLowerCase()}` : "";
-  const fb = bestOf("flat", pace), db = bestOf("deep", pace), ft = todayOf("flat", pace), dt = todayOf("deep", pace);
+  const pb = bestOf("plan"), rb = bestOf("flat", pace), db = bestOf("deep", pace), pt = todayOf("plan"), rt = todayOf("flat", pace), dt = todayOf("deep", pace);
+  const bestLine = (name, b, t, what, none = "no run finished yet") => line(`${name}: ${b ? `best ${num(b.score)} (${what(b)})` : none}${t ? `, today ${num(t.score)}` : ""}.`);
   part(body, "about").append(
-    line(`The board${at}: ${fb ? `best ${num(fb.score)} (level ${fb.level})` : "no run finished yet"}${ft ? `, today ${num(ft.score)}` : ""}.`),
-    line(`3D${at}: ${db ? `best ${num(db.score)} (${num(db.depth)} m)` : "no descent yet"}${dt ? `, today ${num(dt.score)}` : ""}.`));
+    bestLine("Plan", pb, pt, b => `level ${b.level}`),
+    bestLine(`Rush${at}`, rb, rt, b => `level ${b.level}`),
+    bestLine(`3D${at}`, db, dt, b => `${num(b.depth)} m`, "no descent yet"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function confirmStart(kind) {
@@ -730,15 +895,16 @@ const duel = createDuel({
   // oil caught first)
   compare: (a, b) => (b.score - a.score) || 0,
   deal: () => ({ seed: randomSeed(), mode: prefs.mode === "deep" ? "deep" : "flat", length: prefs.mode === "deep" ? 0 : prefs.length || 0,
-    pace: PACES.some(([v]) => v === prefs.pace) ? prefs.pace : 1 }),
+    flow: flowOf(prefs.flow), pace: prefs.mode !== "deep" && flowOf(prefs.flow) === "plan" ? 1 : PACES.some(([v]) => v === prefs.pace) ? prefs.pace : 1 }),
   describe: m => {
     const pace = m.pace > 1 ? `, at the ${paceName(m.pace).toLowerCase()} pace` : "";
-    return m.mode === "deep" ? `The same shaft for everyone${pace}: the highest score wins` : `The same boards for everyone, ${m.length ? `${m.length} levels` : "till the spill"}${pace}: the highest score wins`;
+    return m.mode === "deep" ? `The same shaft for everyone${pace}: the highest score wins`
+      : `The same boards for everyone, ${m.flow === "plan" ? "Plan (the oil moves with your pieces), " : ""}${m.length ? `${m.length} levels` : "till the spill"}${pace}: the highest score wins`;
   },
   extra: () => null,
   play: (m, { kept }) => {
     cancelAnimationFrame(raf);
-    match = { mode: m.mode === "deep" ? "deep" : "flat", seed: m.seed, length: m.length || 0, pace: m.pace || 1 };
+    match = { mode: m.mode === "deep" ? "deep" : "flat", seed: m.seed, length: m.length || 0, pace: m.pace || 1, flow: m.flow === "plan" ? "plan" : "rush" };   // a match dealt before Plan was Rush
     $("card").hidden = true;
     if (kept?.match?.seed === m.seed && (kept.F || kept.R)) {
       F = kept.F; R = kept.R;
@@ -777,6 +943,7 @@ function lobby() {
   $("board").replaceChildren(); cellG = [];
   $("board").hidden = false; $("shaft").hidden = true;
   $("flatControls").hidden = false; $("deepControls").hidden = true;
+  $("flatControls").classList.remove("plan"); $("undoBtn").hidden = true;
   $("queue").replaceChildren(); queueKey = ""; flatKey = ""; statusKey = "";
   $("card").hidden = true;
   $("goBtn").classList.add("away");
@@ -792,8 +959,10 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
+$("undoBtn").addEventListener("click", undo);
 $("goBtn").addEventListener("click", () => {
   if (IN_FRAME || mode !== "flat" || F?.phase !== "play" || !F.P) return;
+  if (planned()) return runTheOil();
   const P = F.P;
   if (!P.flowing) { B.release(L, P); drawPathCells(0); drawRoute(); }
   else B.hurry(L, P);
@@ -830,7 +999,7 @@ window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("resize", () => { if (mode === "deep") view?.resize(); });
 
 // for tests and debugging
-window.__pipes = { get F() { return F; }, get L() { return L; }, get R() { return R; }, get S() { return S; }, get mode() { return mode; }, B, G, step, tapSquare, act, setMode, startFlat, startDeep, duel };
+window.__pipes = { get F() { return F; }, get L() { return L; }, get R() { return R; }, get S() { return S; }, get mode() { return mode; }, B, G, step, tapSquare, undo, runTheOil, act, setMode, setFlow, startFlat, startDeep, duel };
 
 /** Your own game: the old Pipes' saves cleared away (its runs and bests were another game's), then the mode you were
  *  in, where you left it. A watching frame picks it up and runs it on by the time since it was kept. */
@@ -843,10 +1012,11 @@ function solo() {
     if (daily && Object.values(daily).some(v => typeof v?.score === "number")) localStorage.removeItem(KEY.daily);
   }
   F = R = null;
-  const shown = read(KEY.prefs, {})?.mode;                  // your own mode, whatever a match just played
-  setMode(shown === "deep" ? "deep" : "flat");
-  const kept = mode === "flat" ? F : R;
-  if (IN_FRAME && kept?.at && !kept.still) catchUp(Date.now() - kept.at);
+  const kept = read(KEY.prefs, {});                         // your own mode and way of playing the board, whatever a match just played
+  flow = flowOf(kept?.flow);
+  setMode(kept?.mode === "deep" ? "deep" : "flat");
+  const shownRun = mode === "flat" ? F : R;
+  if (IN_FRAME && shownRun?.at && !shownRun.still) catchUp(Date.now() - shownRun.at);
   run();
 }
 // a match in the address: its run, with no solo one dealt under it

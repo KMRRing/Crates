@@ -61,6 +61,12 @@ html[data-theme="office"][data-mode="night"] { --pi-stone: #5C5C5C; --pi-wall: #
 .pi-board .tank-body { fill: var(--pi-good); stroke: #fff; stroke-width: 2; }
 .pi-board .route { fill: none; stroke: var(--pi-in); stroke-width: 2.5; stroke-dasharray: 5 5; opacity: .75; pointer-events: none; }
 .pi-board .next { fill: none; stroke: var(--pi-in); stroke-width: 3; pointer-events: none; animation: pi-pulse 1.1s ease-in-out infinite; }
+/* Plan's first tap: the piece faint where it would lie, in a dashed frame (red where the oil would spill at once, the
+   blast colour where it would replace a piece of yours) */
+.pi-board .ghost { opacity: .55; pointer-events: none; }
+.pi-board .pick { fill: none; stroke: var(--pi-in); stroke-width: 3; stroke-dasharray: 6 4; pointer-events: none; }
+.pi-board .pick.blast-pick { stroke: var(--pi-bad); }
+.pi-board .pick.bad { stroke: var(--pi-bad); stroke-dasharray: none; }
 .pi-board .spill { fill: none; stroke: var(--pi-bad); stroke-width: 4; pointer-events: none; }
 .pi-board .spill-x { stroke: var(--pi-bad); stroke-width: 5; stroke-linecap: round; pointer-events: none; }
 .pi-board .blast { animation: pi-blast .45s ease-out; transform-box: fill-box; transform-origin: center; }
@@ -106,6 +112,8 @@ html[data-theme="office"][data-mode="night"] { --pi-stone: #5C5C5C; --pi-wall: #
 @media (prefers-reduced-motion: reduce) { .pi-ahead.low i { animation: none; } }
 .pi-controls[hidden] { display: none; }
 .pi-controls.flat { display: grid; }
+/* Plan: Undo beside Run the oil, which is the wider */
+.pi-controls.flat.plan { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: .45rem; }
 .pi-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%;
   letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
   cursor: pointer; touch-action: manipulation; }
