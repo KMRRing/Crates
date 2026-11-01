@@ -115,7 +115,7 @@ export function createBlock(host) {
   const LOOK = new THREE.Vector3(0, -0.15, 0);
 
   // the puzzle on show
-  let P = null, R = null, n = 0, cubes = null, marks = null, lab = [];
+  let P = null, R = null, n = 0, size = 0, mid = [0, 0, 0], cubes = null, marks = null, lab = [];     // size: the rock's longest side, what the camera frames; mid: its middle (a rock that doesn't fill its block is centred)
   let ctr = new Float32Array(0), tint = new Float32Array(0);
   let st = new Int8Array(0), mk = new Uint8Array(0), left = new Int16Array(0);           // per cube: 0 rock, 1 gone, 2 ore shown; marked; per row: cubes left in it
   const anims = new Map();                                                                 // cube -> { kind, t0 }
@@ -148,7 +148,7 @@ export function createBlock(host) {
   }
   // what must stay in view from any side at this height: the block with room for its readings, and the plinth
   function extent(e) {
-    const H = n / 2 + 0.4, B = n / 2 + 0.65, lo = -n / 2 - 0.52;               // the plates round the block; the plinth, a little wider, below
+    const H = size / 2 + 0.4, B = size / 2 + 0.65, lo = -size / 2 - 0.52;               // the plates round the block; the plinth, a little wider, below
     let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
     for (let a = 0; a < 90; a += 10) {
       pose(a * DEG, e);
@@ -161,7 +161,7 @@ export function createBlock(host) {
     return { u0, u1, v0, v1 };
   }
   function fit() {
-    if (!n) return;
+    if (!size) return;
     const x = extent(el), pad = 0.015, aspect = width / height;
     const cu = (x.u0 + x.u1) / 2, cv = (x.v0 + x.v1) / 2;
     let hu = ((x.u1 - x.u0) / 2) * (1 + pad), hv = ((x.v1 - x.v0) / 2) * (1 + pad);
@@ -170,10 +170,10 @@ export function createBlock(host) {
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     pose();
     // the light turns with the camera (from above, a little to the left), so the faces you see are lit the same from every side
-    const la = az - 0.55, le = Math.min(el + 0.45, 1.3), D = n * 3 + 8;
+    const la = az - 0.55, le = Math.min(el + 0.45, 1.3), D = size * 3 + 8;
     sun.position.set(Math.sin(la) * Math.cos(le) * D, Math.sin(le) * D, Math.cos(la) * Math.cos(le) * D);
     sun.target.position.set(0, 0, 0);
-    const s = n * 0.95 + 2.2;
+    const s = size * 0.95 + 2.2;
     Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s, near: 1, far: D * 2 });
     sun.shadow.camera.updateProjectionMatrix();
   }
@@ -192,7 +192,13 @@ export function createBlock(host) {
   /** Shows a puzzle (and the run in it, which the page goes on changing: call update() after). */
   function set(puzzle, run) {
     P = puzzle; R = run; n = puzzle.n;
-    dist = n * 3.9 + 8;
+    // where the rock is within its block: the least and the most of each coordinate over the cubes there
+    const lows = [n, n, n], highs = [-1, -1, -1];
+    for (let i = 0; i < n ** 3; i++) if (P.present[i]) coordsOf(n, i).forEach((v, a) => { lows[a] = Math.min(lows[a], v); highs[a] = Math.max(highs[a], v); });
+    const span = lows.map((lo, a) => highs[a] - lo + 1);
+    mid = lows.map((lo, a) => (lo + highs[a]) / 2);
+    size = Math.max(...span);
+    dist = size * 3.9 + 8;
     anims.clear(); hot = new Set(); focusCell = -1; haloCell = -1; hintRows = []; haloUntil = 0; halo.visible = false; spinUntil = 0;
     if (cubes) { scene.remove(cubes, marks); cubes.dispose(); marks.dispose(); }
     const count = n ** 3;
@@ -204,14 +210,14 @@ export function createBlock(host) {
     ctr = new Float32Array(count * 3); tint = new Float32Array(count);
     for (let i = 0; i < count; i++) {
       const c = coordsOf(n, i);
-      ctr.set(c.map(v => v - (n - 1) / 2), i * 3);
+      ctr.set(c.map((v, a) => v - mid[a]), i * 3);
       const h = Math.sin(i * 78.233 + n) * 43758.5453;
       tint[i] = 0.93 + 0.1 * (h - Math.floor(h));
     }
     st = new Int8Array(count).fill(-1); mk = new Uint8Array(count);
     left = new Int16Array(3 * n * n);
-    plinth.scale.set(n + 0.9, 0.34, n + 0.9); plinth.position.set(0, -n / 2 - 0.17, 0);
-    trim.scale.set(n + 1.2, 0.12, n + 1.2); trim.position.set(0, -n / 2 - 0.34 - 0.06, 0);
+    plinth.scale.set(span[0] + 0.9, 0.34, span[2] + 0.9); plinth.position.set(0, -span[1] / 2 - 0.17, 0);
+    trim.scale.set(span[0] + 1.2, 0.12, span[2] + 1.2); trim.position.set(0, -span[1] / 2 - 0.34 - 0.06, 0);
     lab = buildLabels();
     applySkin();
     fit();
@@ -220,17 +226,20 @@ export function createBlock(host) {
   function buildLabels() {
     labels.replaceChildren();
     return linesOf(n).map((ln, k) => {
-      const el = document.createElement("div"), shape = P.readings === "counts" ? "" : ["", "", " ring", " box"][P.clues[k].g];   // one seam or none: a plain plate
+      const at = ln.cells.map((c, i) => (P.present[c] ? i : -1)).filter(i => i >= 0);
+      if (!at.length) return { ln, none: true };                                                   // no rock along this row: no plate
+      const cl = P.clues[k], el = document.createElement("div");
+      const shape = !cl ? " fog" : P.kind === "runs" ? " runs" : P.kind === "counts" ? "" : ["", "", " ring", " box"][cl.g];   // one seam or none: a plain plate
       el.className = "sv-lab";
       el.style.visibility = "hidden";                                                              // until its first place on the screen
-      el.textContent = String(P.clues[k].c);
+      el.textContent = !cl ? "?" : P.kind === "runs" ? (cl.r.length ? cl.r.join(" ") : "0") : String(cl.c);
       labels.append(el);
-      return { el, ln, shape, x: -1e9, y: -1e9, o: -1, cls: "" };
+      return { el, ln, shape, first: at[0], last: at[at.length - 1], x: -1e9, y: -1e9, o: -1, cls: "" };   // first, last: where the rock begins and ends along the row
     });
   }
 
   /** What a cube is in the run now: 0 rock, 1 gone, 2 ore shown (at the end, every cube left is). */
-  function stateOf(i, gone, shown) { return gone.has(i) ? 1 : R.done || shown.has(i) ? 2 : 0; }
+  function stateOf(i, gone, shown) { return !P.present[i] || gone.has(i) ? 1 : R.done || shown.has(i) ? 2 : 0; }
   /** Reads the run again: every cube's look, with a chip, a strike or a mark animated where one just happened (not on the first call after set(), or with animate off). */
   function update(animate = true) {
     if (!P) return;
@@ -245,7 +254,7 @@ export function createBlock(host) {
       } else if (m && !mk[i] && animate && !first) anims.set(i, { kind: "mark", t0: now });
       st[i] = s; mk[i] = m;
     }
-    for (let k = 0; k < lab.length; k++) left[k] = lab[k].ln.cells.reduce((t, c) => t + (st[c] === 1 ? 0 : 1), 0);
+    for (let k = 0; k < lab.length; k++) left[k] = lab[k].ln.cells.reduce((t, c) => t + (st[c] === 1 ? 0 : 1), 0);   // (a cube not there counts as gone)
     paintAll();
     invalidate();
   }
@@ -316,12 +325,15 @@ export function createBlock(host) {
     dir.copy(camera.position).sub(LOOK).normalize();
     const px = cellPx();
     labels.style.setProperty("--cell", `${px.toFixed(1)}px`);
-    const lo = (n - 1) / 2, d = [dir.x, dir.y, dir.z];
+    const d = [dir.x, dir.y, dir.z];
     for (let k = 0; k < lab.length; k++) {
-      const l = lab[k], { a, u, v } = l.ln, s = d[a] >= 0 ? 1 : -1, facing = Math.abs(d[a]), p = [0, 0, 0];
-      p[a] = s * (n / 2 + OFF); p[(a + 1) % 3] = u - lo; p[(a + 2) % 3] = v - lo;
+      const l = lab[k];
+      if (l.none) continue;
+      const { a, u, v } = l.ln, s = d[a] >= 0 ? 1 : -1, facing = Math.abs(d[a]), p = [0, 0, 0];
+      p[a] = s > 0 ? l.last - mid[a] + 0.5 + OFF : l.first - mid[a] - 0.5 - OFF;                   // on the face of the rock's end of the row nearer you
+      p[(a + 1) % 3] = u - mid[(a + 1) % 3]; p[(a + 2) % 3] = v - mid[(a + 2) % 3];
       const [x, y] = screenOf(p[0], p[1], p[2]);
-      const empty = left[k] === 0, done = !empty && left[k] === P.clues[k].c, on = hot.has(k);
+      const empty = left[k] === 0, done = !empty && left[k] === P.clues[k]?.c, on = hot.has(k);
       const fade = Math.max(0, Math.min(1, (facing - 0.2) / 0.3));
       const o = empty ? 0 : fade * (done && !on ? 0.4 : 1), cls = `sv-lab${l.shape}${done ? " done" : ""}${on ? " hot" : ""}`;
       if (Math.abs(x - l.x) > 0.15 || Math.abs(y - l.y) > 0.15) { l.x = x; l.y = y; l.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`; }

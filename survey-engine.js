@@ -1,6 +1,8 @@
 // Survey's rules, pure (no page): a block of rock, n cubes each way, hides a body of ore. Seismic readings are printed
 // on its faces, one for every straight row of cubes through it, in all three directions: how many of that row's cubes
-// are ore, and (with the seams marked) whether the ore lies in one seam, two, or three or more. You chip away the waste
+// are ore, and (with the seams marked) whether the ore lies in one seam, two, or three or more, or (runs given) how long
+// each seam is, in order. The rock need not fill its block (a pyramid, a cross, an arch: `present` says which cubes
+// there are) and a row's reading can be left off (fog). You chip away the waste
 // rock, a cube at a time from the outside in, and what is left is the ore. A cube chipped that was ore stays and
 // costs a strike; marking cubes you are sure of costs nothing. Every puzzle has exactly one answer and can be got
 // to by reasoning along the rows alone, without a guess (the generator checks both); a hint says which cube the rows
@@ -15,7 +17,8 @@ export const SIZES = {
   large: { label: "Large", n: 5, depth: [3, 5] },
   vast: { label: "Vast", n: 6, depth: [4, 6] },
 };
-export const READINGS = { seams: "Seams marked", counts: "Counts only" };
+export const READINGS = { seams: "Seams marked", counts: "Counts only", runs: "Runs given" };
+const KIND_NUMBER = { seams: 0, counts: 1, runs: 2 };        // what a block's readings add to its seed's mix: seams and counts as they always were
 export const STRIKE = 20;      // seconds added to your time for a cube chipped that was ore
 export const HINT = 30;        // and for a hint
 
@@ -49,38 +52,62 @@ export function linesThrough(n, i) {
 
 // ---------- what a row can be ----------
 const popcount = m => { let c = 0; while (m) { m &= m - 1; c++; } return c; };
-const seamsOf = m => popcount(m & ~(m << 1));                 // runs of ore: where one starts, the cube before it is not ore
-const PATTERNS = new Map();
-/** Every row (bit i: the i-th cube is ore) with c ore cubes and, if g >= 0, g seams (3: three or more). */
-function patterns(n, c, g) {
-  const key = `${n},${c},${g}`;
-  if (PATTERNS.has(key)) return PATTERNS.get(key);
+/** The lengths of the seams (runs of ore) of a row, in order (bit i: the i-th cube is ore; rows are at most 8 long). */
+function runsOf(m) {
   const out = [];
-  for (let m = 0; m < 1 << n; m++) if (popcount(m) === c) { const s = seamsOf(m); if (g < 0 || (g === 3 ? s >= 3 : s === g)) out.push(m); }
-  PATTERNS.set(key, out);
+  let len = 0;
+  for (let i = 0; i <= 8; i++) { if (m >> i & 1) len++; else if (len) { out.push(len); len = 0; } }
   return out;
 }
-/** The readings of a layout: [{ c (ore cubes), g (seams: 0 for none, 1, 2, 3 for three or more) }] for every row. */
-export function readingsOf(n, ore) {
-  return linesOf(n).map(l => { let m = 0; l.cells.forEach((c, i) => { if (ore[c]) m |= 1 << i; }); return { c: popcount(m), g: m ? Math.min(3, seamsOf(m)) : 0 }; });
+/** What a row reads: c (ore cubes), g (seams: 0, 1, 2, or 3 for three or more) and r (the seams' lengths). */
+const readMask = m => { const r = runsOf(m); return { c: popcount(m), g: Math.min(3, r.length), r }; };
+/** What the kind of reading keeps of one row's: its key, which two rows with the same reading share. */
+const keyOf = (kind, cl) => (kind === "counts" ? cl.c : kind === "seams" ? cl.c * 4 + cl.g : cl.r.join(","));
+const INDEX = new Map(), EVERY = new Map();
+/** Every row of n cubes (bit i: the i-th cube is ore) by its reading's key, for the kind of reading. */
+function indexOf(n, kind) {
+  const id = `${n}/${kind}`;
+  if (!INDEX.has(id)) {
+    const by = new Map();
+    for (let m = 0; m < 1 << n; m++) { const k = keyOf(kind, readMask(m)); if (!by.has(k)) by.set(k, []); by.get(k).push(m); }
+    INDEX.set(id, by);
+  }
+  return INDEX.get(id);
+}
+/** Every row there could be: what a row with no reading (fog) might be. */
+function everyRow(n) { if (!EVERY.has(n)) EVERY.set(n, Array.from({ length: 1 << n }, (_, m) => m)); return EVERY.get(n); }
+/**
+ * The readings of a layout: [{ c (ore cubes), g (seams: 0 for none, 1, 2, 3 for three or more), r (the seams' lengths) }] for
+ * every row, null for a row with no cube in the rock. `present` (1 for a cube there) is for a rock that doesn't fill its block.
+ */
+export function readingsOf(n, ore, present = null) {
+  return linesOf(n).map(l => {
+    let m = 0, any = !present;
+    l.cells.forEach((c, i) => { if (ore[c]) m |= 1 << i; if (present?.[c]) any = true; });
+    return any ? readMask(m) : null;
+  });
 }
 
 /**
  * What the rows force, given what is known (st: -1 unknown, 0 waste, 1 ore, for every cube): the cubes whose value
  * every row pattern that fits agrees on, [{ cell, v, line }], or null if some row has no pattern that fits (what is
- * known contradicts the readings). seams false: the readings give the counts only.
+ * known contradicts the readings). `frame` is { n, kind (how the rows are read), present (cubes there, or null for all) }; a
+ * row whose reading is null has none to go by (fog) and can be anything the rock allows.
  */
-export function forced(n, clues, seams, st) {
-  const L = linesOf(n), full = (1 << n) - 1, out = [], seen = new Set();
+export function forcedIn(frame, clues, st) {
+  const { n, kind, present } = frame, L = linesOf(n), full = (1 << n) - 1, out = [], seen = new Set(), by = indexOf(n, kind);
   for (let k = 0; k < L.length; k++) {
-    let om = 0, wm = 0;
-    L[k].cells.forEach((c, i) => { if (st[c] === 1) om |= 1 << i; else if (st[c] === 0) wm |= 1 << i; });
+    const cells = L[k].cells;
+    let pm = full, om = 0, wm = 0;
+    if (present) { pm = 0; cells.forEach((c, i) => { if (present[c]) pm |= 1 << i; }); if (!pm) continue; }
+    cells.forEach((c, i) => { if (st[c] === 1) om |= 1 << i; else if (st[c] === 0) wm |= 1 << i; });
+    const list = clues[k] ? by.get(keyOf(kind, clues[k])) || [] : everyRow(n);
     let and = full, or = 0, any = false;
-    for (const p of patterns(n, clues[k].c, seams ? clues[k].g : -1)) if ((p & wm) === 0 && (p & om) === om) { and &= p; or |= p; any = true; }
+    for (const p of list) if ((p & ~pm) === 0 && (p & wm) === 0 && (p & om) === om) { and &= p; or |= p; any = true; }
     if (!any) return null;
     for (let i = 0; i < n; i++) {
-      const c = L[k].cells[i];
-      if (st[c] >= 0 || seen.has(c)) continue;
+      const c = cells[i];
+      if (st[c] >= 0 || seen.has(c) || (present && !present[c])) continue;
       if (and >> i & 1) { out.push({ cell: c, v: 1, line: k }); seen.add(c); }
       else if (!(or >> i & 1)) { out.push({ cell: c, v: 0, line: k }); seen.add(c); }
     }
@@ -88,11 +115,12 @@ export function forced(n, clues, seams, st) {
   return out;
 }
 /** Reasons along the rows until nothing more follows: { st, depth } (depth: the rounds of reasoning, each using only what the round before settled), or null on a contradiction. */
-export function reason(n, clues, seams, st0 = null) {
-  const st = st0 ? Int8Array.from(st0) : new Int8Array(n * n * n).fill(-1);
+export function reasonIn(frame, clues, st0 = null) {
+  const { n, present } = frame, st = st0 ? Int8Array.from(st0) : new Int8Array(n * n * n).fill(-1);
+  if (present && !st0) for (let i = 0; i < st.length; i++) if (!present[i]) st[i] = 0;        // no cube there: nothing to find
   let depth = 0;
   for (;;) {
-    const f = forced(n, clues, seams, st);
+    const f = forcedIn(frame, clues, st);
     if (!f) return null;
     if (!f.length) break;
     for (const { cell, v } of f) st[cell] = v;
@@ -100,39 +128,53 @@ export function reason(n, clues, seams, st0 = null) {
   }
   return { st, depth, solved: !st.includes(-1) };
 }
+/** A full block read by seams (or counts only): the first form of the rules, kept for the callers that only ever had that. */
+export const forced = (n, clues, seams, st) => forcedIn({ n, kind: seams ? "seams" : "counts", present: null }, clues, st);
+export const reason = (n, clues, seams, st0 = null) => reasonIn({ n, kind: seams ? "seams" : "counts", present: null }, clues, st0);
+/** The frame of a puzzle's rules. */
+export const frameOf = p => ({ n: p.n, kind: p.kind, present: p.present });
 
 // ---------- a puzzle ----------
-/** A body of ore grown from one cube by adding a neighbour of a cube it has, to `target` cubes. */
-function grow(n, r, target) {
+/** A body of ore grown from one cube by adding a neighbour of a cube it has, to `target` cubes (within the rock, if it has a shape). */
+function grow(n, r, target, present) {
   const ore = new Uint8Array(n ** 3), cells = [];
-  const first = [Math.floor(r() * n), Math.floor(r() * n), Math.floor(r() * n)];
+  let first;
+  if (present) { const there = []; present.forEach((v, i) => { if (v) there.push(i); }); first = coordsOf(n, there[Math.floor(r() * there.length)]); }
+  else first = [Math.floor(r() * n), Math.floor(r() * n), Math.floor(r() * n)];
   ore[cellAt(n, ...first)] = 1; cells.push(first);
   for (let guard = 0; cells.length < target && guard < 4000; guard++) {
     const [cx, cy, cz] = cells[Math.floor(r() * cells.length)], d = AXES[Math.floor(r() * 6)];
     const x = cx + d[0], y = cy + d[1], z = cz + d[2];
-    if (x < 0 || y < 0 || z < 0 || x >= n || y >= n || z >= n || ore[cellAt(n, x, y, z)]) continue;
+    if (x < 0 || y < 0 || z < 0 || x >= n || y >= n || z >= n || ore[cellAt(n, x, y, z)] || (present && !present[cellAt(n, x, y, z)])) continue;
     ore[cellAt(n, x, y, z)] = 1; cells.push([x, y, z]);
   }
   return ore;
 }
 /** One to three bodies, then fractured a little: some ore broken off, some waste turned to ore beside it. */
-function layout(n, r) {
-  const target = Math.max(4, Math.round(n ** 3 * 0.5 * (0.85 + 0.3 * r()))), bodies = 1 + Math.floor(r() * 3), ore = new Uint8Array(n ** 3);
-  for (let b = 0; b < bodies; b++) { const body = grow(n, r, Math.max(3, Math.round(target / bodies))); for (let i = 0; i < ore.length; i++) if (body[i]) ore[i] = 1; }
+function layout(n, r, present, total) {
+  const target = Math.max(4, Math.round(total * 0.5 * (0.85 + 0.3 * r()))), bodies = 1 + Math.floor(r() * 3), ore = new Uint8Array(n ** 3);
+  for (let b = 0; b < bodies; b++) { const body = grow(n, r, Math.max(3, Math.round(target / bodies)), present); for (let i = 0; i < ore.length; i++) if (body[i]) ore[i] = 1; }
   const out = ore.slice();
   for (let z = 0; z < n; z++) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const i = cellAt(n, x, y, z);
+    if (present && !present[i]) continue;
     if (ore[i]) { if (r() < 0.1) out[i] = 0; }
     else if (r() < 0.06 && AXES.some(d => { const a = x + d[0], b = y + d[1], c = z + d[2]; return a >= 0 && b >= 0 && c >= 0 && a < n && b < n && c < n && ore[cellAt(n, a, b, c)]; })) out[i] = 1;
   }
   return out;
 }
-/** Can every waste cube be chipped in the end: does each have a way out to the surface through waste? (A cube sealed inside the ore could never be reached.) */
-export function reachable(n, ore) {
-  const seen = new Uint8Array(n ** 3), stack = [];
+/**
+ * Can every waste cube be chipped in the end: does each have a way out to the surface through waste? (A cube sealed inside
+ * the ore could never be reached.) Where there is no rock, there is air: a cube beside a gap is on the surface.
+ */
+export function reachable(n, ore, present = null) {
+  const seen = new Uint8Array(n ** 3), stack = [], there = i => !present || present[i];
   for (let z = 0; z < n; z++) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const i = cellAt(n, x, y, z);
-    if (!ore[i] && (x === 0 || y === 0 || z === 0 || x === n - 1 || y === n - 1 || z === n - 1)) { seen[i] = 1; stack.push([x, y, z]); }
+    if (!there(i) || ore[i]) continue;
+    const open = x === 0 || y === 0 || z === 0 || x === n - 1 || y === n - 1 || z === n - 1
+      || (present && AXES.some(d => !present[cellAt(n, x + d[0], y + d[1], z + d[2])]));      // (an edge cube was handled above, so these neighbours are all inside the block)
+    if (open) { seen[i] = 1; stack.push([x, y, z]); }
   }
   while (stack.length) {
     const [x, y, z] = stack.pop();
@@ -140,44 +182,82 @@ export function reachable(n, ore) {
       const a = x + d[0], b = y + d[1], c = z + d[2];
       if (a < 0 || b < 0 || c < 0 || a >= n || b >= n || c >= n) continue;
       const j = cellAt(n, a, b, c);
-      if (!ore[j] && !seen[j]) { seen[j] = 1; stack.push([a, b, c]); }
+      if (there(j) && !ore[j] && !seen[j]) { seen[j] = 1; stack.push([a, b, c]); }
     }
   }
-  return ore.every((o, i) => o || seen[i]);
+  return ore.every((o, i) => o || !there(i) || seen[i]);
+}
+const sum = a => a.reduce((t, v) => t + v, 0);
+/**
+ * Leaves the reading off `share` of the rows that have one (fog), a row at a time in random order, keeping each only if the
+ * rock can still be got by reasoning without it. Returns { clues, depth } with the readings that are left.
+ */
+function fog(frame, clues, share, r) {
+  const rows = clues.map((c, k) => (c ? k : -1)).filter(k => k >= 0);
+  for (let i = rows.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [rows[i], rows[j]] = [rows[j], rows[i]]; }
+  const out = clues.slice(), want = Math.round(rows.length * share);
+  let off = 0;
+  for (const k of rows) {
+    if (off >= want) break;
+    const keep = out[k];
+    out[k] = null;
+    if (reasonIn(frame, out)?.solved) off++; else out[k] = keep;
+  }
+  return { clues: out, depth: reasonIn(frame, out).depth };
 }
 /**
- * A puzzle from a seed: { seed, size, readings, n, ore (1 for ore), clues (readingsOf), depth }. The same seed makes the
+ * The best rock of a few tries (the first that needs at least `want` rounds of reasoning, else the hardest of the first
+ * `patience`): { ore, clues, depth } with one answer reached by reasoning along the rows, a sensible amount of ore, no
+ * waste cube sealed in. `present` is the rock's shape (null: it fills the block), `share` the fog.
+ */
+function build({ n, present, kind, want, share = 0, r }) {
+  const total = present ? sum(present) : n ** 3, frame = { n, kind, present };
+  let best = null;
+  for (let attempt = 0; attempt < 400; attempt++) {
+    const ore = layout(n, r, present, total), count = sum(ore);
+    if (count < total * 0.28 || count > total * 0.6 || !reachable(n, ore, present)) continue;
+    let clues = readingsOf(n, ore, present), got = reasonIn(frame, clues);
+    if (!got?.solved) continue;
+    if (share) { const f = fog(frame, clues, share, r); clues = f.clues; got = { ...got, depth: f.depth }; }
+    if (!best || got.depth > best.depth) best = { ore, clues, depth: got.depth };
+    if (best.depth >= want || attempt >= 60) break;                 // hard enough, or out of patience for a harder one
+  }
+  if (!best) throw new Error("couldn't make a puzzle");
+  return best;
+}
+/**
+ * A puzzle from a seed: { seed, size, readings, kind, n, present, ore, clues, depth, waste }. The same seed makes the
  * same puzzle. It has one answer, got by reasoning along the rows (depth rounds of it) without a guess, every waste
  * cube can be reached, and it takes at least the reasoning its size and readings ask for, if some layout in the
  * first tries does (else the hardest of those).
  */
 export function makePuzzle(seed, sizeId, readings = "seams") {
-  const size = SIZES[sizeId] ?? SIZES.small, n = size.n, seams = readings !== "counts";
-  const r = rng(mix(mix(seed, Object.keys(SIZES).indexOf(sizeId)), seams ? 0 : 1)), want = size.depth[seams ? 0 : 1];
-  let best = null;
-  for (let attempt = 0; attempt < 400; attempt++) {
-    const ore = layout(n, r), count = ore.reduce((a, b) => a + b, 0);
-    if (count < n ** 3 * 0.28 || count > n ** 3 * 0.6 || !reachable(n, ore)) continue;
-    const clues = readingsOf(n, ore), got = reason(n, clues, seams);
-    if (!got?.solved) continue;
-    if (!best || got.depth > best.depth) best = { seed, size: sizeId, readings: seams ? "seams" : "counts", n, ore, clues, depth: got.depth };
-    if (best.depth >= want || attempt >= 60) break;                 // hard enough, or out of patience for a harder one
-  }
-  if (!best) throw new Error("couldn't make a puzzle");
-  return best;
+  const size = SIZES[sizeId] ?? SIZES.small, n = size.n, kind = KIND_NUMBER[readings] != null ? readings : "seams";
+  const r = rng(mix(mix(seed, Object.keys(SIZES).indexOf(sizeId)), KIND_NUMBER[kind])), want = size.depth[kind === "counts" ? 1 : 0];
+  const got = build({ n, present: null, kind, want, r });
+  return { seed, size: sizeId, readings: kind, kind, n, present: new Uint8Array(n ** 3).fill(1), ...got, waste: n ** 3 - sum(got.ore) };
+}
+/**
+ * A puzzle for a level (survey-levels.js): `spec` is { n, present (the rock's shape), kind (how the rows are read), fog
+ * (the share of readings left off), depth (the rounds of reasoning it should ask), salt }.
+ */
+export function makeLevel(spec, seed) {
+  const { n, present, kind, fog: share = 0, depth: want, salt = 0 } = spec, r = rng(mix(mix(seed, 5000 + salt), KIND_NUMBER[kind]));
+  const got = build({ n, present, kind, want, share, r });
+  return { seed, size: null, readings: kind, kind, n, present, ...got, waste: sum(present) - sum(got.ore) };
 }
 
 // ---------- a run ----------
 /** A run as the page keeps it (plain, so it saves): gone (waste chipped), shown (ore found by a strike or a hint), marked, strikes, hints, ms played, done. */
 export const newRun = () => ({ gone: [], shown: [], marked: [], strikes: 0, hints: 0, ms: 0, done: false });
 const set = list => new Set(list);
-/** A cube still in the block and with a face to the open air (the surface, or beside a chipped cube): the only ones that can be chipped or marked. */
+/** A cube still in the rock and with a face to the open air (the surface, a gap in the rock, or beside a chipped cube): the only ones that can be chipped or marked. */
 export function exposed(p, run, i) {
-  if (run.gone.includes(i)) return false;
+  if (!p.present[i] || run.gone.includes(i)) return false;
   const n = p.n, [x, y, z] = coordsOf(n, i), gone = set(run.gone);
-  return AXES.some(d => { const a = x + d[0], b = y + d[1], c = z + d[2]; return a < 0 || b < 0 || c < 0 || a >= n || b >= n || c >= n || gone.has(cellAt(n, a, b, c)); });
+  return AXES.some(d => { const a = x + d[0], b = y + d[1], c = z + d[2]; return a < 0 || b < 0 || c < 0 || a >= n || b >= n || c >= n || !p.present[cellAt(n, a, b, c)] || gone.has(cellAt(n, a, b, c)); });
 }
-export const wasteLeft = (p, run) => p.ore.reduce((t, o) => t + (o ? 0 : 1), 0) - run.gone.length;
+export const wasteLeft = (p, run) => p.waste - run.gone.length;
 /**
  * Chips a cube: "chipped" (it was waste, and is gone), "strike" (it was ore: it stays, shown, and costs a strike) or "no" (gone
  * already, covered, marked or known to be ore: nothing happens). The last waste cube gone ends the run.
@@ -201,6 +281,7 @@ export function mark(p, run, i) {
 /** What is known for sure to the player: waste chipped, ore found. (Marks are their own opinion.) */
 export function known(p, run) {
   const st = new Int8Array(p.n ** 3).fill(-1);
+  for (let i = 0; i < st.length; i++) if (!p.present[i]) st[i] = 0;
   for (const i of run.gone) st[i] = 0;
   for (const i of run.shown) st[i] = 1;
   return st;
@@ -213,7 +294,7 @@ export function known(p, run) {
  */
 export function hint(p, run, prefer = () => 0) {
   if (run.done) return null;
-  const f = forced(p.n, p.clues, p.readings === "seams", known(p, run));
+  const f = forcedIn(frameOf(p), p.clues, known(p, run));
   if (!f?.length) return null;
   const gone = set(run.gone), open = f.filter(x => exposed(p, run, x.cell) && !gone.has(x.cell));
   const best = list => list.reduce((b, x) => (b == null || prefer(x.cell) > prefer(b.cell) ? x : b), null);      // the one the caller likes best (the first of equals)
@@ -223,10 +304,10 @@ export function hint(p, run, prefer = () => 0) {
   if (out.v === 1 && out.exposed && !run.shown.includes(out.cell)) run.shown.push(out.cell);    // ore you can see is shown from now on, as if found
   return out;
 }
-/** A row's state in the run: the cubes still in it, and whether it is done (only ore left in it: it has no waste to chip). */
+/** A row's state in the run: the cubes still in it, and whether it is done (only ore left in it: it has no waste to chip). A row with no reading (fog) is never done, however little is left. */
 export function lineState(p, run, k) {
-  const gone = set(run.gone), left = linesOf(p.n)[k].cells.filter(c => !gone.has(c)).length, { c } = p.clues[k];
-  return { left, count: c, done: left === c };
+  const gone = set(run.gone), left = linesOf(p.n)[k].cells.filter(c => p.present[c] && !gone.has(c)).length, c = p.clues[k]?.c ?? null;
+  return { left, count: c, done: c != null && left === c };
 }
 /** Your time: seconds played, and the penalties. Lower is better. */
 export const score = run => Math.round(run.ms / 1000) + STRIKE * run.strikes + HINT * run.hints;

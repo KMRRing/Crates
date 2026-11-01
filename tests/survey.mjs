@@ -1,7 +1,7 @@
 // Survey's rules (survey-engine.js): a block of rock hiding a body of ore, readings on every row of it, chipping waste
 // from the outside in, strikes for ore chipped, hints, and puzzles that have one answer, reachable by reasoning along
 // the rows without a guess.
-import { SIZES, READINGS, STRIKE, HINT, cellAt, coordsOf, linesOf, linesThrough, readingsOf, forced, reason, reachable, makePuzzle, newRun, exposed, wasteLeft, chip, mark, known, hint, lineState, score } from "../survey-engine.js";
+import { SIZES, READINGS, STRIKE, HINT, cellAt, coordsOf, linesOf, linesThrough, readingsOf, forced, reason, reasonIn, frameOf, reachable, makePuzzle, newRun, exposed, wasteLeft, chip, mark, known, hint, lineState, score } from "../survey-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -50,14 +50,14 @@ const sizes = Object.keys(SIZES);
   const depths = {};
   const t0 = Date.now();
   for (const sizeId of sizes) for (const readings of Object.keys(READINGS)) for (let seed = 1; seed <= 25; seed++) {
-    const p = makePuzzle(seed, sizeId, readings), q = makePuzzle(seed, sizeId, readings), n = SIZES[sizeId].n, seams = readings === "seams";
+    const p = makePuzzle(seed, sizeId, readings), q = makePuzzle(seed, sizeId, readings), n = SIZES[sizeId].n;
     total++;
     if (p.ore.join() !== q.ore.join()) problems.push(`not repeatable ${sizeId} ${readings} ${seed}`);
     const count = p.ore.reduce((a, b) => a + b, 0);
     if (p.n !== n || p.ore.length !== n ** 3 || count < n ** 3 * 0.28 || count > n ** 3 * 0.6) problems.push(`size/ore ${sizeId} ${seed}: ${count}`);
     if (JSON.stringify(p.clues) !== JSON.stringify(readingsOf(n, p.ore))) problems.push(`readings ${sizeId} ${seed}`);
     if (!reachable(n, p.ore)) problems.push(`sealed ${sizeId} ${seed}`);
-    const r = reason(n, p.clues, seams);
+    const r = reasonIn(frameOf(p), p.clues);
     if (!r?.solved || !r.st.every((v, i) => v === p.ore[i])) problems.push(`not solved by reasoning ${sizeId} ${readings} ${seed}`);
     if (r && r.depth !== p.depth) problems.push(`depth ${sizeId} ${seed}`);
     (depths[`${sizeId}/${readings}`] ??= []).push(p.depth);

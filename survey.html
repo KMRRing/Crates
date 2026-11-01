@@ -30,12 +30,14 @@
         <option value="large">Large</option>
         <option value="vast">Vast</option>
       </select>
+      <button id="levelBtn" class="pick sv-lvbtn" aria-haspopup="dialog" hidden>Level</button>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
   </header>
 
   <div class="sv-strip">
     <span class="sv-score">Score <b id="score">0:00</b><small id="penalty"></small></span>
+    <span id="parWrap" class="sv-par" hidden>Par <b id="par"></b></span>
     <span class="sv-left">Rock left <b id="left">0</b></span>
     <span id="rival" class="sv-rival" hidden></span>
   </div>
