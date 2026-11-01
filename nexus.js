@@ -5,6 +5,8 @@
 // ring into a list of verdicts with the link that was written for each, and what you missed or picked wrongly goes to the
 // pile (Deck asks it again; learning mode deals those nexuses again, and the ones other games found you weak on).
 // Together, the same five rounds for everyone at the table (duel.js), from the dealer's mix.
+import { clueLines, pictureOf, whatCard } from "./thing-clues.js";
+import { showPicture, credit } from "./pics.js";
 import { PER_RUN, SIZES, MODES, CENTRES, dealRun, judge, reasonOf, askOf, cardsFor, settles, name, kind, TOPIC_LIST, TOPIC_GROUPS, TOPIC_PRESETS } from "./nexus-engine.js";
 import { cleanMix, presetOf, mixParam, mixFromParam } from "./topics.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -112,12 +114,19 @@ function next() {
 /** A kind as a chip says it: "kind:company" → "company", "art-movement" → "art movement". */
 const kindLabel = id => kind(id).replace(/^(kind|feature):/, "").replace(/-/g, " ");
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+/** The "?" beside a thing: what it is, a clue at a time (it marks the thing as not known, for Deck). */
+function whatBtn(id) {
+  const b = el("button", "nx-what", "?");
+  b.type = "button"; b.setAttribute("aria-label", `What is ${name(id)}?`);
+  b.addEventListener("click", e => { e.stopPropagation(); openClues(id, false); });
+  return b;
+}
 function chip(r, c) {
-  const li = el("li"), b = el("button", "nx-chip");
+  const li = el("li", "nx-cell"), b = el("button", "nx-chip");
   b.type = "button"; b.dataset.id = c.id;
   b.append(el("b", null, name(c.id)), el("small", null, kindLabel(c.id)));
   b.addEventListener("click", () => pickOne(c.id));
-  li.append(b);
+  li.append(b, whatBtn(c.id));
   return li;
 }
 /** One candidate after the check: found, missed, picked wrongly or rightly left out, with the link that was written for it. */
@@ -127,12 +136,62 @@ function row(r, c) {
   const state = odd ? (c.linked ? (picked ? "wrong" : "clear") : (picked ? "found" : "missed")) : (c.linked ? (picked ? "found" : "missed") : (picked ? "wrong" : "clear"));
   const tag = { found: "Found", missed: odd ? "The intruder" : "Missed", wrong: "Wrong pick", clear: odd ? "Linked" : c.near ? "Other aspect" : "Not linked" }[state];
   const li = el("li", `nx-row ${state}`), head = el("div", "nx-head");
-  head.append(el("b", null, name(c.id)), el("span", "nx-tag", tag));
+  head.append(el("b", null, name(c.id)), whatBtn(c.id), el("span", "nx-tag", tag));
   li.append(head);
   if (why.lead) li.append(el("p", "nx-lead", why.lead));
   if (why.because) li.append(el("p", null, why.because));
   return li;
 }
+// ---------- clues for any thing, and the centre's picture ----------
+/** The clues for a thing of this round: never a line that names the nexus or a candidate (bar itself), which would give a link away.
+ *  Only the nexus has its hints; a candidate's were written for its links, one of which could be the one asked. */
+const cluesOf = (r, id) => clueLines(id, [r.centre, ...r.cands.map(c => c.id)].filter(x => x !== id).map(name), { hints: id === r.centre });
+let looking = null;                                               // the thing whose clues the dialog shows
+function drawClues() {
+  const r = R(), all = cluesOf(r, looking), n = Math.min(r.looked?.[looking] || 0, all.length);
+  $("clueTitle").textContent = name(looking);
+  $("clueList").replaceChildren(...(all.length ? all.slice(0, n).map(t => el("li", null, t)) : [el("li", null, "Nothing more is known of it here.")]));
+  $("clueMore").disabled = n >= all.length;
+  $("clueMore").textContent = n >= all.length ? "No more clues" : "Another clue";
+  $("clueNote").hidden = !!S.duel || !whatCard(looking);            // only what Deck can be asked about is marked
+}
+/** Asking for a thing's description: the first clue the first time, then the ones you have. Clues cost no points; they mark the
+ *  thing as not known, so Deck brings it back (once a round, and not in a match, whose rounds are no one's to learn from). */
+function openClues(id, more) {
+  const r = R();
+  if (!r || !r.cands.some(c => c.id === id) && id !== r.centre) return;
+  looking = id;
+  const total = cluesOf(r, id).length;
+  r.looked ??= {};
+  if (more || !r.looked[id]) r.looked[id] = Math.min(total, (r.looked[id] || 0) + 1);
+  if (!S.duel && !(r.marked ??= []).includes(id)) { r.marked.push(id); const card = whatCard(id); if (card) pile.record("nexus", card.key, card.payload, "clue"); }
+  save(); drawClues();
+  $("clueBtn").textContent = r.looked[r.centre] ? `Clues · ${r.looked[r.centre]}` : "Clue";
+  if (!$("clueDlg").open) $("clueDlg").showModal();
+}
+/** The nexus's picture, small, if it has one; a tap shows it in full. A thing without one, or one that won't load, shows nothing. */
+function drawThumb(r) {
+  const title = pictureOf(r.centre), thumb = $("thumb");
+  thumb.hidden = !title;
+  if ((thumb.dataset.title || "") === (title || "")) return;
+  thumb.dataset.title = title || "";
+  showPicture($("thumbBox"), title, { width: 250, alt: "" }).then(ok => { if (ok === false && thumb.dataset.title === title) thumb.hidden = true; });
+}
+$("clueBtn").addEventListener("click", () => openClues(R().centre, false));
+$("clueMore").addEventListener("click", () => openClues(looking, true));
+$("clueClose").addEventListener("click", () => $("clueDlg").close());
+$("thumb").addEventListener("click", () => {
+  const r = R(), title = r && pictureOf(r.centre);
+  if (!title) return;
+  $("picTitle").textContent = name(r.centre);
+  $("picCredit").href = credit(title);
+  $("picDlg").showModal();
+  // a picture that can't be had (offline, and not kept) gives way to a word, not an empty frame
+  showPicture($("picBox"), title, { width: 1280, alt: name(r.centre) }).then(ok => { if (ok === false) { $("picDlg").close(); toast("That picture can't be reached now."); } });
+});
+$("picClose").addEventListener("click", () => $("picDlg").close());
+$("picBox").addEventListener("click", () => $("picDlg").close());
+
 function markPicks() {
   const r = R();
   for (const b of $("ring").querySelectorAll(".nx-chip")) b.setAttribute("aria-pressed", String(r.picked.includes(b.dataset.id)));
@@ -147,6 +206,8 @@ function render() {
   $("centreName").textContent = name(r.centre);
   $("centreKind").textContent = kindLabel(r.centre);
   $("ask").textContent = askOf(r);
+  $("clueBtn").textContent = r.looked?.[r.centre] ? `Clues · ${r.looked[r.centre]}` : "Clue";
+  drawThumb(r);
   const ring = $("ring");
   ring.classList.toggle("revealed", r.done);
   ring.replaceChildren(...r.cands.map(c => (r.done ? row(r, c) : chip(r, c))));
@@ -258,4 +319,4 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) duel
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 
 // for tests and debugging
-window.__nexus = { get state() { return S; }, pickOne, check, next, duel };
+window.__nexus = { get state() { return S; }, pickOne, check, next, duel, openClues, newRun };

@@ -26,9 +26,11 @@
   </header>
   <div class="nx-strip"><span id="where"></span><span id="rival" class="nx-rival" hidden></span><span id="score" class="nx-score"></span></div>
   <section class="nx-centre" id="centre" aria-live="polite">
-    <p class="nx-label">Nexus</p>
-    <h2 id="centreName"></h2>
-    <p class="nx-kind" id="centreKind"></p>
+    <div class="nx-top"><p class="nx-label">Nexus</p><button class="nx-quiet" type="button" id="clueBtn">Clue</button></div>
+    <div class="nx-mid">
+      <div class="nx-who"><h2 id="centreName"></h2><p class="nx-kind" id="centreKind"></p></div>
+      <button class="nx-thumb" type="button" id="thumb" aria-label="View the picture in full" hidden><span id="thumbBox"></span></button>
+    </div>
     <p class="nx-ask" id="ask"></p>
   </section>
   <section class="nx-board fit-col fit-grow" id="board">
@@ -42,6 +44,17 @@
 <dialog id="doneDlg" class="sheet" aria-label="How it went">
   <div class="pick-head"><h2 id="doneTitle">Run over</h2><button class="btn" type="button" id="doneClose">Close</button></div>
   <div id="doneBody"></div>
+</dialog>
+<dialog id="clueDlg" class="sheet" aria-label="Clues">
+  <div class="pick-head"><h2 id="clueTitle">Clues</h2><button class="btn" type="button" id="clueClose">Close</button></div>
+  <ol id="clueList" class="nx-clues"></ol>
+  <p class="nx-note" id="clueNote">Asking marks it as not known: Deck will bring it back.</p>
+  <button class="nx-go" type="button" id="clueMore">Another clue</button>
+</dialog>
+<dialog id="picDlg" class="sheet nx-picdlg" aria-label="Picture">
+  <div class="pick-head"><h2 id="picTitle"></h2><button class="btn" type="button" id="picClose">Close</button></div>
+  <div id="picBox" class="nx-pic"></div>
+  <p class="nx-credit"><a id="picCredit" target="_blank" rel="noopener">The picture on Wikipedia</a></p>
 </dialog>
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>

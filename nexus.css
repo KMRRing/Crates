@@ -25,6 +25,34 @@ html[data-theme="modern"] { --nx-logo-tint: #F0E6F5; --nx-logo-edge: #7A4E8F; }
 .nx-score b { color: var(--ink); font-size: 1.25rem; }
 
 .nx-centre { flex: none; background: var(--sheet); border: 1px solid var(--tile-edge); border-top: 2px solid var(--nx-in); border-radius: 6px; padding: .6rem .9rem .7rem; margin-bottom: .55rem; }
+.nx-top { display: flex; justify-content: space-between; align-items: center; gap: .6rem; }
+.nx-quiet { border: 1.5px solid var(--tile-edge); background: none; color: var(--ink); border-radius: 5px; padding: .15rem .6rem; font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; }
+.nx-mid { display: flex; align-items: center; justify-content: space-between; gap: .7rem; margin-top: .4rem; }
+.nx-who { min-width: 0; }
+/* the picture, small: a tap opens it in full (an architect's building is the thing to look at) */
+.nx-thumb { flex: none; position: relative; width: 4rem; height: 4rem; padding: 0; overflow: hidden; border: 1.5px solid var(--brass); border-radius: 4px; background: var(--tile); cursor: zoom-in; }
+.nx-thumb[hidden] { display: none; }
+.nx-thumb span { display: block; width: 100%; height: 100%; }
+.nx-thumb span[hidden] { display: none; }
+.nx-thumb img.pic { width: 100%; height: 100%; object-fit: cover; display: block; }
+.nx-thumb::after { content: "⤢"; position: absolute; right: 0; bottom: 0; padding: 0 .22rem; font-size: .7rem; line-height: 1.2; color: var(--plate-ink); background: var(--plate); border-top-left-radius: 4px; }
+/* a "?" on every thing: its description, a clue at a time. On a candidate it sits at the chip's right edge, apart from the pick. */
+.nx-cell { position: relative; }
+.nx-cell .nx-chip { padding-right: 2.1rem; }
+.nx-what { flex: none; width: 1.7rem; height: 1.7rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 50%; background: var(--sheet); color: var(--ink-soft); font: inherit; font-size: .8rem; font-weight: 800; line-height: 1; cursor: pointer; }
+.nx-cell .nx-what { position: absolute; top: .3rem; right: .3rem; }
+.nx-head .nx-what { margin-left: auto; width: 1.5rem; height: 1.5rem; font-size: .72rem; }
+.nx-note { margin: .6rem 0 0; font-size: .75rem; color: var(--ink-soft); }
+.nx-note[hidden] { display: none; }
+.nx-clues { margin: .2rem 0 .9rem; padding-left: 1.2rem; display: grid; gap: .5rem; }
+.nx-clues:empty { display: none; }
+#clueDlg .nx-go { width: 100%; }
+.nx-picdlg { max-width: min(96vw, 64rem); border-radius: 12px; margin: auto; padding: .6rem .8rem .8rem; }
+.nx-pic { display: grid; place-items: center; min-height: 6rem; cursor: zoom-out; }
+.nx-pic[hidden] { display: none; }
+.nx-pic img.pic { max-width: 100%; max-height: 70vh; max-height: 70svh; object-fit: contain; display: block; }
+.nx-credit { margin: .5rem 0 0; font-size: .75rem; color: var(--ink-soft); text-align: right; }
+.nx-credit a { color: inherit; }
 .nx-label, .nx-kind { margin: 0; font-size: .7rem; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); }
 .nx-label { color: var(--nx-in); font-weight: 800; }
 .nx-centre h2 { margin: .1rem 0 .05rem; font-size: 1.55rem; line-height: 1.15; overflow-wrap: anywhere; }

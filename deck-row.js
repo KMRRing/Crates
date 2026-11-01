@@ -126,4 +126,5 @@ export function openScope(host, options = {}) {
   }
   deckPane(sheet.querySelector(".rd-sheet-body"), options);
   sheet.showModal();
+  return sheet;
 }

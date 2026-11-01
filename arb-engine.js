@@ -33,8 +33,8 @@ export const degree = id => NEAR.get(id)?.size || 0;
 export const cost = id => 1 + Math.log2(Math.max(1, degree(id)));
 export const name = id => { const e = ENT.get(id); return e ? (e.qualifier ? `${e.name} (${e.qualifier})` : e.name) : id; };
 export const kind = id => (ENT.get(id)?.sets || []).find(s => !s.startsWith("group:")) || "";
-/** The cheapest route from a to everything (Dijkstra, paying for each thing stepped onto). */
-function cheapest(a) {
+/** The cheapest route from a to everything (Dijkstra, paying for each thing stepped onto), treading on nothing in `blocked`. */
+function cheapest(a, blocked = null) {
   const dist = new Map([[a, 0]]), prev = new Map(), hops = new Map([[a, 0]]), done = new Set();
   const queue = [[0, a]];
   while (queue.length) {
@@ -44,6 +44,7 @@ function cheapest(a) {
     if (done.has(u)) continue;
     done.add(u);
     for (const v of NEAR.get(u)?.keys() || []) {
+      if (blocked?.has(v)) continue;
       const nd = d + cost(v);
       if (nd < (dist.get(v) ?? Infinity)) { dist.set(v, nd); prev.set(v, u); hops.set(v, hops.get(u) + 1); queue.push([nd, v]); }
     }
@@ -51,6 +52,24 @@ function cheapest(a) {
   return { dist, prev, hops };
 }
 const routeTo = (prev, a, b) => { const r = [b]; while (r[0] !== a) r.unshift(prev.get(r[0])); return r; };
+/**
+ * The cheapest way on from where `path` stands to `goal`, treading on nothing already on the path: the things to step
+ * onto, the first of them the next best word; null when there is none, a true dead end (every way on is back onto the
+ * route).
+ */
+export function bestOn(path, goal) {
+  const here = path[path.length - 1], { dist, prev } = cheapest(here, new Set(path.slice(0, -1)));
+  return dist.has(goal) && here !== goal ? routeTo(prev, here, goal).slice(1) : null;
+}
+/**
+ * What to do when `path` can't reach `goal`: the longest part of it from which the goal can still be reached, `keep`
+ * of its things, and the way on from there (what should have been taken); null if the path is already fine.
+ */
+export function backOut(path, goal) {
+  if (bestOn(path, goal)) return null;
+  for (let keep = path.length - 1; keep >= 1; keep--) { const way = bestOn(path.slice(0, keep), goal); if (way) return { keep, way }; }
+  return null;
+}
 // the ends of a route: things with a few links (not hubs, not dead ends)
 export const ENDS = [...NEAR.keys()].filter(id => degree(id) >= 2 && degree(id) <= 25).sort();
 // ---------- topics ----------

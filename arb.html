@@ -26,14 +26,14 @@
   </header>
   <div class="ab-strip"><span id="where"></span><span id="rival" class="ab-rival" hidden></span><span id="score" class="ab-score"></span></div>
   <section class="ab-route" id="route">
-    <p class="ab-ends"><b id="from"></b><span class="ab-to" aria-hidden="true">→</span><b id="to"></b></p>
+    <p class="ab-ends"><span class="ab-end"><b id="from"></b><button class="ab-what" type="button" id="fromWhat" aria-label="What is the start?">?</button></span><span class="ab-end"><span class="ab-to" aria-hidden="true">→</span><b id="to"></b><button class="ab-what" type="button" id="toWhat" aria-label="What is the end?">?</button></span></p>
     <p class="ab-par" id="par"></p>
     <ol id="path" class="ab-path" aria-label="Your route so far"></ol>
   </section>
   <section class="ab-pick fit-col fit-grow" id="pick">
     <div class="ab-tools"><input id="filter" placeholder="Filter the links" aria-label="Filter the links" autocomplete="off" spellcheck="false"><button class="ab-quiet" type="button" id="backBtn">Back</button></div>
     <ul id="links" class="ab-links fit-scroll fit-grow" aria-label="Linked from here"></ul>
-    <button class="link" type="button" id="giveBtn">Give up</button>
+    <div class="ab-foot"><button class="ab-quiet" type="button" id="hintBtn">Hint</button><button class="ab-quiet" type="button" id="showBtn">Show</button><button class="link" type="button" id="giveBtn">Give up</button></div>
   </section>
   <section id="result" class="ab-result fit-col fit-grow" hidden>
     <p id="verdict" class="ab-verdict"></p>
@@ -45,6 +45,18 @@
 <dialog id="doneDlg" class="sheet" aria-label="How it went">
   <div class="pick-head"><h2 id="doneTitle">Run over</h2><button class="btn" type="button" id="doneClose">Close</button></div>
   <div id="doneBody"></div>
+</dialog>
+<dialog id="whatDlg" class="sheet" aria-label="Clues">
+  <div class="pick-head"><h2 id="whatTitle">Clues</h2><button class="btn" type="button" id="whatClose">Close</button></div>
+  <ol id="whatList" class="ab-clues"></ol>
+  <p class="ab-small" id="whatNote">Asking marks it as not known: Deck will bring it back.</p>
+  <button class="ab-go" type="button" id="whatMore">Another clue</button>
+</dialog>
+<dialog id="hintDlg" class="sheet" aria-label="Hint">
+  <div class="pick-head"><h2>Hint</h2><button class="btn" type="button" id="hintClose">Close</button></div>
+  <ol id="hintList" class="ab-clues"></ol>
+  <p class="ab-small" id="hintNote"></p>
+  <button class="ab-go" type="button" id="hintMore">Another hint</button>
 </dialog>
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>

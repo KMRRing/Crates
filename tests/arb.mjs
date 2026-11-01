@@ -3,7 +3,7 @@
 // mix of topics: every topic in deals as it always did, an end is never only about topics out, a topic more ends
 // routes more often, a mix that leaves nothing deals from everything, and a match's link carries its mix whole.
 // Run: node tests/arb.mjs
-import { NEAR, ENDS, ABOUT, degree, cost, dealRun, drawEnd, endWeight, TOPIC_LIST, TOPIC_PRESETS, PER_RUN } from "../arb-engine.js";
+import { NEAR, ENDS, ABOUT, degree, cost, dealRun, drawEnd, endWeight, bestOn, backOut, TOPIC_LIST, TOPIC_PRESETS, PER_RUN } from "../arb-engine.js";
 import { mixParam, mixFromParam, presetOf } from "../topics.js";
 let bad = 0;
 const fail = (...why) => { bad++; console.log(...why); };
@@ -66,6 +66,31 @@ const own = mixOf(1, { cult: 0, nrg: 2, mkts: 2, ppl: 0 });
 if (presetOf(TOPIC_LIST, TOPIC_PRESETS, own) !== "custom") fail("an own mix taken for a preset");
 if (JSON.stringify(mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, own))) !== JSON.stringify(own)) fail("a match's mix changed on its way through the link");
 if (JSON.stringify(dealRun(77, false, mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, own)))) !== JSON.stringify(dealRun(77, false, own))) fail("a match deals other routes on the partner's phone");
+
+// ---------- the next best word, and backing out of a dead end ----------
+{
+  const spend = ids => ids.reduce((t, id) => t + cost(id), 0), routes = [11, 23, 37].flatMap(seed => dealRun(seed, false, null).routes);
+  for (const x of routes) {
+    const way = bestOn([x.a], x.b);
+    if (!way || Math.abs(spend(way) - x.par) > 1e-9 || way.join() !== x.parRoute.slice(1).join()) fail("from the start the way on is not the par route", x.a, x.b);
+    // taking the next best word every time arrives at par; and a wrong first step still has a way on, never through the route
+    let path = [x.a];
+    while (path.at(-1) !== x.b && path.length < 12) path.push(bestOn(path, x.b)[0]);
+    if (path.at(-1) !== x.b || Math.abs(spend(path.slice(1)) - x.par) > 1e-9) fail("following the next best word every time does not make par", x.a, x.b);
+    const wrong = [...NEAR.get(x.a).keys()].find(id => id !== x.parRoute[1] && id !== x.b && bestOn([x.a, id], x.b));
+    if (!wrong) continue;                                          // a start with no other step to take
+    const on = bestOn([x.a, wrong], x.b);
+    if (!on || on.includes(x.a) || spend(on) + cost(wrong) < x.par - 1e-9) fail("a way on from a wrong first step crosses the route or beats par", x.a, wrong);
+  }
+  // a true dead end: every neighbour of the goal is already on the route (but not where you stand), so nothing reaches it
+  const x = routes[0], around = [...NEAR.get(x.b).keys()].filter(id => id !== x.a);
+  const here = [...NEAR.keys()].find(id => id !== x.b && id !== x.a && !around.includes(id) && !NEAR.get(x.b).has(id));
+  const stuck = [x.a, ...around, here];
+  if (bestOn(stuck, x.b) !== null) fail("a dead end has a way on");
+  const out = backOut(stuck, x.b);
+  if (!out || out.keep !== around.length + 1 || out.way.length !== 1 || out.way[0] !== x.b) fail("backing out does not go back to the last thing that touches the goal", out?.keep, around.length + 1);
+  if (backOut([x.a], x.b) !== null || backOut(x.parRoute.slice(0, 3), x.b) !== null) fail("a route that can go on is told to back out");
+}
 
 console.log(bad ? `arb: ${bad} problems` : `arb: ${NEAR.size} linked things, ${ENDS.length} ends, routes for ${made} of 20 starts; a step onto ${hub} costs ${cost(hub).toFixed(1)}; History more puts it in ${Math.round(moreShare * 100)}% of ends (Balanced ${Math.round(evenShare * 100)}%), only Energy in, every end about energy`);
 if (bad) process.exitCode = 1;

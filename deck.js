@@ -21,7 +21,7 @@ import { setRich } from "./rich.js";
 import { showPicture, askedWith } from "./pics.js";
 import { SUBJECTS, SUBJECT } from "./kb-index.js";
 import { scopeNow, labelOf, openScope } from "./deck-row.js";
-import { inScope, sayScope } from "./deck-scope.js";
+import { inScope, sayScope, revised } from "./deck-scope.js";
 import { speak } from "./voice.js";
 import { check } from "./typing.js";
 import { COURSES } from "./parley-courses.js";
@@ -143,12 +143,14 @@ function figure(pic, it, asked) {
   $("figure").hidden = false;
   showPicture(box, pic).then(shown => { if (shown !== null && session?.items[session.at] === it && box.isConnected) asked(); });
 }
+const drawProgress = () => { $("progress").textContent = `${session.at + 1} of ${session.items.length}`; };
+const nextLabel = () => (session.at + 1 < session.items.length ? "Next" : "Finish");
 function ask() {
   const it = session.items[session.at];
   board?.destroy(); board = null;
   picked = [];
   answered = false;
-  $("progress").textContent = `${session.at + 1} of ${session.items.length}`;
+  drawProgress();
   $("source").textContent = `${GAMES[it.game] || it.game} · ${PILES[it.pile].name.toLowerCase()} pile`;
   $("verdict").textContent = ""; $("verdict").className = "dk-verdict";
   $("note").textContent = "";
@@ -473,7 +475,7 @@ function settle(right, note) {
   v.textContent = right ? (after?.learned ? "Right: learned." : `Right: up to the ${PILES[after.pile].name.toLowerCase()} pile, back in ${PILES[after.pile].gap ? gapText(PILES[after.pile].gap) : "a moment"}.`) : "Wrong: back to the ultra-short pile.";
   setRich($("note"), note || "");
   $("nextBtn").hidden = false;
-  $("nextBtn").textContent = session.at + 1 < session.items.length ? "Next" : "Finish";
+  $("nextBtn").textContent = nextLabel();
 }
 /**
  * The field for typed answers, made once and kept: it stays focused from one typed card to the next, so you can go
@@ -511,13 +513,25 @@ function next() {
   if (session.at + 1 < session.items.length) { session.at++; ask(); return; }
   finish();
 }
-function finish() {
+function finish(emptied = false) {
   board?.destroy(); board = null;
   $("overview").hidden = false;
   $("review").hidden = true;
   overview();
-  if (session) toast(`${session.right} right, ${session.wrong} wrong. ${dueNow().length ? `${dueNow().length} still due.` : "Nothing more due now."}`, 5000);
+  if (session) toast(emptied ? "Nothing left to review in what Deck covers." : `${session.right} right, ${session.wrong} wrong. ${dueNow().length ? `${dueNow().length} still due.` : "Nothing more due now."}`, 5000);
   session = null;
+}
+/** The scope changed with a review under way: the cards it no longer covers leave the stack (deck-scope.js, revised), the one
+ *  on show too if it isn't answered yet. The stack isn't topped up; a later review deals what is in. */
+function reviseSession() {
+  if (!session || $("review").hidden) return;
+  const r = revised(session.items, session.at, answered, scopeNow(), labelOf(kbIndex));
+  if (!r.dropped) return;
+  session.items = r.items;
+  if (session.at >= session.items.length) { finish(!session.right && !session.wrong); return; }
+  if (r.replaced) ask();
+  else { drawProgress(); if (answered) $("nextBtn").textContent = nextLabel(); }
+  toast(`${r.dropped} ${r.dropped === 1 ? "card" : "cards"} left out of this review.`);
 }
 
 // ---------- menu and messages ----------
@@ -530,7 +544,10 @@ function toast(msg, ms = 2600) {
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
 /** The games and topics a review covers (deck-scope.js), the same sheet as the games screen's Deck line. */
-function chooseScope() { openScope(document.body, { subjects: kbIndex, onChange: () => { if (!$("overview").hidden) overview(); } }); }
+function chooseScope() {
+  const sheet = openScope(document.body, { subjects: kbIndex, onChange: () => { if (!$("overview").hidden) overview(); } });
+  sheet.addEventListener("close", reviseSession, { once: true });      // once the choice is made, not at every tick: ticking a game back in keeps its cards
+}
 // the menu: what to cover, Settings (learning mode; forgetting the pile), About (the piles' gaps)
 function openMenu() {
   const body = $("menuBody");

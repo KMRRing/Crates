@@ -3,7 +3,7 @@
 // cards only about it, not a card with another topic in; a card about nothing the base knows follows its game; the topics
 // on offer; the ticks of the sheet; and that the games screen, Settings and Deck's page are wired to it.
 import fs from "node:fs";
-import { scopeOf, keptScope, whole, covers, inScope, topicsOf, withOut, afterTicks, sayScope } from "../deck-scope.js";
+import { scopeOf, keptScope, whole, covers, inScope, topicsOf, withOut, afterTicks, sayScope, revised } from "../deck-scope.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -56,6 +56,25 @@ check(same(withOut({ games: ["punt"] }, "subjects", ["Law", "Law"]), { games: ["
 // ---------- in words ----------
 check(/^Everything/.test(sayScope(none)) && sayScope({ games: ["punt"] }) === "Left out: 1 game." && sayScope({ games: ["a", "b"], subjects: ["Law"] }) === "Left out: 2 games and 1 topic.", "the sheet says what is out, or that nothing is");
 
+// ---------- a review under way ----------
+// five cards, the third on show: what was answered stays, what's still to come goes if the scope no longer covers it
+const stack = [card("punt", "norway"), card("quote", "brent"), card("chart", "chile"), card("punt", "mona"), card("rush"), card("quote", "exile")];
+const ids = r => r.items.map(c => c.id);
+let r = revised(stack, 2, false, { games: ["quote"] }, of);
+check(same(ids(r), ["punt:norway", "quote:brent", "chart:chile", "punt:mona", "rush:x"]) && r.dropped === 1 && !r.replaced && r.at === 2, "a game ticked out takes its cards still to come out of the stack, and not the one on show");
+r = revised(stack, 2, false, { games: ["chart"] }, of);
+check(same(ids(r), ["punt:norway", "quote:brent", "punt:mona", "rush:x", "quote:exile"]) && r.replaced && r.at === 2, "…but the card on show goes too when it's out and unanswered: the next one slides into its place");
+r = revised(stack, 2, true, { games: ["chart", "quote"] }, of);
+check(same(ids(r), ["punt:norway", "quote:brent", "chart:chile", "punt:mona", "rush:x"]) && !r.replaced, "an answered card on show stays (it counted), and so does everything already answered");
+r = revised(stack, 0, false, { subjects: ["Countries", "Law"] }, of);
+check(same(ids(r), ["quote:brent", "punt:mona", "rush:x"]) && r.replaced && r.dropped === 3, "a topic ticked out takes the cards about it, and a card about nothing the base knows stays");
+r = revised(stack, 3, false, { games: ["punt", "rush", "quote"] }, of);
+check(same(ids(r), ["punt:norway", "quote:brent", "chart:chile"]) && r.at === 3 && r.at >= r.items.length, "everything still to come out: nothing left to ask (at is past the end)");
+check(revised(stack, 1, false, none, of).dropped === 0 && revised(stack, 1, false, { games: ["gone"] }, of).dropped === 0, "a scope that covers the rest changes nothing");
+check(revised([], 0, false, { games: ["punt"] }, of).dropped === 0, "an empty stack is left as it is");
+r = revised(stack, 1, false, { games: ["punt"] }, null);
+check(r.items.every(c => c.game !== "punt" || c.id === "punt:norway") && r.dropped === 1, "with no index loaded a card is judged by its game alone");
+
 // ---------- the pages are wired to it ----------
 const apps = fs.readFileSync(root + "apps.js", "utf8"), deckJs = fs.readFileSync(root + "deck.js", "utf8"), row = fs.readFileSync(root + "deck-row.js", "utf8"), html = fs.readFileSync(root + "deck.html", "utf8");
 check(/class="rd-cell" data-deck/.test(apps) && /bindDeckRow\(\{\s*row: dlg\.querySelector\("\[data-deck\]"\)/.test(apps), "the games screen has its Deck cell, first in the banner");
@@ -63,6 +82,7 @@ check(/class="rd-cell" data-choose/.test(apps) && /bindChoose\(\{\s*cell: dlg\.q
 check(/BANNER = "suite:banner"/.test(apps) && /toggle\("Deck and Random on this screen"/.test(apps) && /data-rows/.test(apps), "Settings puts the banner away, on this device (a suite: key, which doesn't sync)");
 check(/KEY = "suite:deck"/.test(row) && /deck\.html#review/.test(row) && /IN_FRAME/.test(row) && /\blan\b/.test(row), "the Deck button keeps its scope under a suite: key, starts a review by the address, and keeps out of a partner's frame and an offline party");
 check(/import\("\.\/kb-index\.js"\)/.test(row) && !/^import[^\n]*kb-index/m.test(row), "the knowledge base's index is fetched only when it's needed, not carried by every page");
+check(/revised\(session\.items, session\.at, answered/.test(deckJs) && /addEventListener\("close", reviseSession/.test(deckJs) && /return sheet;/.test(row), "Deck's page revises the stack under review when the sheet of games and topics closes");
 check(/inScope\(pile\.due\(\)/.test(deckJs) && /arrange\(dueNow\(\)/.test(deckJs) && /#review/.test(deckJs) && /id="scopeBtn"/.test(html), "Deck's own page reviews, counts and starts from the same scope");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

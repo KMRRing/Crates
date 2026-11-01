@@ -41,6 +41,18 @@ export function covers(scope, item, subjectOf = null) {
 /** The items a scope covers, in their order. */
 export const inScope = (items, scope, subjectOf = null) => items.filter(it => covers(scope, it, subjectOf));
 
+/**
+ * A review under way after the scope changed (Deck's page, with the sheet opened from its menu): what was answered stays,
+ * since it's counted; the card on show goes if it's out and not yet answered; every card still to come that the scope no
+ * longer covers goes. `at` is the card on show, `answered` whether it has been. Its index doesn't move: what leaves is
+ * the card on show (the next one slides into its place, `replaced`) or lies after it. `dropped` is how many went.
+ */
+export function revised(items, at, answered, scope, subjectOf = null) {
+  const shown = items[at], keepShown = !shown || answered || covers(scope, shown, subjectOf);
+  const out = [...items.slice(0, at), ...(shown && keepShown ? [shown] : []), ...inScope(items.slice(at + 1), scope, subjectOf)];
+  return { items: out, at, dropped: items.length - out.length, replaced: !!shown && !keepShown };
+}
+
 /** The topics a scope can be set on: those the pile has something about, and any already out (so none is stuck out
  *  unseen), in the order of `labels` (the base's own). */
 export function topicsOf(items, labels, scope, subjectOf) {
