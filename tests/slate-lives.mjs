@@ -1,8 +1,9 @@
 // Slate's lives and the rules in play (README, Slate): a board has a few lives and a list of the rules in play, one of
 // which each field has; a word that puts up a failing mark the board didn't show costs a life (however many marks, and
 // one that stays up costs nothing again); the list narrows by what the fields have passed and failed, each rule being
-// one field's at most, and colours the keys by what every rule a field could be agrees on. Run: node tests/slate-lives.mjs
-import { generate, LEVELS, BASE_RULES, ruleById, shortOf, gridOf, rowsOf, VALID, replay, livesOf, candidates, dealsOf, keyVerdicts, keyVerdictsAmong, lettersFrom, fieldsOf, rng32 } from "../slate-gen.js";
+// one field's at most, and colours the keys by what every rule a field could be agrees on (as the player has crossed rules off:
+// the sheet lists every rule in play of a field's kind and the player does the eliminating). Run: node tests/slate-lives.mjs
+import { generate, LEVELS, BASE_RULES, ruleById, shortOf, gridOf, rowsOf, VALID, replay, livesOf, candidates, optionsOf, legendOf, dealsOf, keyVerdicts, keyVerdictsAmong, lettersFrom, fieldsOf, rng32 } from "../slate-gen.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -121,6 +122,41 @@ const alone = keys(keyVerdictsAmong(field, [ruleById("vowel")], none(), {}, "0,0
 check(JSON.stringify(alone) === JSON.stringify(revealedKeys), "down to one rule, the keys are those of the rule revealed");
 check(keyVerdictsAmong({ rule: ruleById("asc"), cells: ["0,0", "0,1"] }, [ruleById("asc"), ruleById("mixed")], none(), {}, "0,0") === null, "a pair field with no lettered neighbour colours nothing");
 check(keyVerdictsAmong(field, [], none(), {}, "0,0") === null, "no candidates colour nothing");
+
+// ---------- the player's own elimination ----------
+{
+  let listed = 0, whole = 0, nothing = 0, bare = 0, honest = 0, boards2 = 0;
+  for (let seed = 1; seed <= 60; seed++) for (const level of Object.keys(LEVELS)) {
+    const b = generate(seed * 131, level), fs = fieldsOf(b);
+    boards2++;
+    const all = optionsOf(b, {}, new Set());
+    if (fs.every((f, i) => JSON.stringify(all[i].map(r => r.id)) === JSON.stringify(legendOf(b, f.rule.type).map(r => r.id)) && all[i].some(r => r.id === f.rule.id))) listed++;
+    if (["single", "pair", "whole"].every(t => legendOf(b, t).every(r => r.type === t))) whole++;
+    // the notes narrow nothing on their own: after a failing word the list is still every rule of the kind
+    const log = [{ slot: 0, word: "ZZZZZ".slice(0, gridOf(rowsOf(b)).slots[0].cells.length) }], c = candidates(b, replay(b, log).notes, new Set());
+    if (all.every((list, i) => list.length >= c[i].length) && all.every((list, i) => list.length === legendOf(b, fs[i].rule.type).length)) nothing++;
+    // striking every rule of the kind but the field's own leaves the field's own, and the keys are those of the rule revealed
+    const struck = Object.fromEntries(fs.map((f, i) => [i, legendOf(b, f.rule.type).filter(r => r.id !== f.rule.id).map(r => r.id)]));
+    const left = optionsOf(b, struck, new Set());
+    if (left.every((list, i) => list.length === 1 && list[0].id === fs[i].rule.id)) bare++;
+    // a revealed field is its rule alone, whatever was struck
+    const shown = optionsOf(b, Object.fromEntries(fs.map((f, i) => [i, legendOf(b, f.rule.type).map(r => r.id)])), new Set(fs.map((_, i) => i)));
+    if (shown.every((list, i) => list.length === 1 && list[0].id === fs[i].rule.id)) honest++;
+  }
+  check(listed === boards2, `a field's options are every rule of its kind in play, in the legend's order, its own among them (${listed}/${boards2} boards)`);
+  check(whole === boards2, "the options of a kind are all of that kind");
+  check(nothing === boards2, "what a field has passed or failed narrows nothing: crossing off is the player's");
+  check(bare === boards2, "crossing off every other rule of the kind leaves the field's own");
+  check(honest === boards2, "a revealed field is its own rule, whatever was crossed off");
+  const b = generate(9, "medium");
+  check(optionsOf({ ...b, legend: undefined }, {}, new Set()) === null && legendOf({ ...b, legend: undefined }, "single").length === 0, "a board dealt without a legend has no options");
+  const f0 = fieldsOf(b)[0], mine = legendOf(b, f0.rule.type), other = mine.find(r => r.id !== f0.rule.id);
+  const keysLeft = optionsOf(b, { 0: mine.filter(r => r.id !== f0.rule.id).map(r => r.id) }, new Set())[0];
+  const cell = f0.cells[0], ks = keyVerdictsAmong(f0, keysLeft, { ok: new Set(), no: new Set() }, f0.rule.type === "pair" ? { [f0.cells[1]]: "A" } : {}, cell);
+  const own = keyVerdicts(f0, { ok: new Set(), no: new Set() }, f0.rule.type === "pair" ? { [f0.cells[1]]: "A" } : {}, cell, true);
+  if (f0.rule.type === "whole") check(true, "(the first field is a whole one: its keys wait for the other cells)");
+  else check(ALPHABET.every(c => (ks ? ks(c) : null) === (own ? own(c) : null)), `with every other rule crossed off, the keys are the field's own rule's (${other ? other.id : "none"} struck)`);
+}
 
 console.log(bad ? `\n${bad} FAILED` : "\nall passed");
 process.exit(bad ? 1 : 0);

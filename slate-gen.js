@@ -552,6 +552,19 @@ export function candidates(board, notes, shown = new Set()) {
   return out;
 }
 
+/** The rules in play of one type (a field's kind), in the legend's order: what a field of that kind could be. */
+export const legendOf = (board, type) => (board.legend ? board.legend.map(ruleById).filter(r => r.type === type) : []);
+
+/**
+ * Per field, the rules it could be as the player has worked it out: every rule of its type in play except those they
+ * crossed off (struck: field index -> rule ids), and a field whose rule was revealed has that alone. The player does the
+ * eliminating (`candidates` is what the notes allow, which the game no longer tells). Null for a board without a legend.
+ */
+export function optionsOf(board, struck = {}, shown = new Set()) {
+  if (!board.legend) return null;
+  return fieldsOf(board).map((f, i) => (shown.has(i) ? [f.rule] : legendOf(board, f.rule.type).filter(r => !(struck[i] || []).includes(r.id))));
+}
+
 /**
  * The keyboard's colours: what each letter would do typed into one cell (at) of a field, as far as the player can
  * know, from what the field has told them (its notes) or from its rule once revealed. Every judgement of the field

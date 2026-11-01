@@ -1,7 +1,7 @@
 // Slate: solo and together play. Boards and rules come from slate-gen.js. Together games live in the app's
 // shared rooms (rooms.js): the room's glyph branch holds this game's state (slate-room.js), a pair's or a party's of
 // up to six; everyone fills the one board and sees everything, each player's letters and cursor in their own colour.
-import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, replay, candidates, shortOf, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt, keyVerdicts, keyVerdictsAmong } from "./slate-gen.js";
+import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, replay, optionsOf, legendOf, shortOf, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt, keyVerdicts, keyVerdictsAmong } from "./slate-gen.js";
 import { branchPath, openBranch, enterRoom, leaveRoom, sitDown, seatsOf, pickSeat, otherHere, gameHref, GAMES, joiningWords } from "./rooms.js";
 import { askedFor, freshTable, seatsFor, logOf, ownersFrom, placedBy, presentSlots, cursorsOf, storable } from "./slate-room.js";
 import { cagePath } from "./slate-cage.js";
@@ -606,15 +606,15 @@ function render() {
   labelLeft($("hintBtn"), "Suggest", hintsLeft);
   $("hintBtn").disabled = !!S.done || hintsLeft === 0 || thinking;
   $("clearBtn").disabled = !!S.done;
-  const notes = played().notes, cands = candidates(S.board, notes, revealed()), life = lives();
+  const notes = played().notes, opts = optionsOf(S.board, struckNow(), revealed()), life = lives();
   drawStatus(life);
   drawPartner();
-  $("status").hidden = $("lives").hidden && $("partner").hidden;
+  $("status").hidden = $("partner").hidden;
   drawBoard(g, fs, letters, slot);
   // the fields sheet only when what it shows has changed: a ? redrawn under a finger loses its tap
   const fieldsKey = `${boardOf(S)}|${S.log.length}|${!!S.done}`;
-  if (fieldsKey !== fieldsDrawn) { fieldsDrawn = fieldsKey; drawFields(fs, notes, cands); }
-  drawKeys(fs, notes, cands);
+  if (fieldsKey !== fieldsDrawn) { fieldsDrawn = fieldsKey; drawFields(fs, notes, opts); }
+  drawKeys(fs, notes, opts);
   shareCursor();
   const doneKey = S.done ? JSON.stringify(S.done) : null;
   if (doneKey && doneKey !== shownDone) { shownDone = doneKey; showDone(); }
@@ -624,7 +624,7 @@ let fieldsDrawn = null;
 // ---------- lives ----------
 let seenLives = null;   // the board and how many lives it had cost at the last draw
 /**
- * The pips over the board, one a life (spent ones hollow). A life lost since the last draw says which fields failed,
+ * The pips in the header, one a life (spent ones hollow), where they cost the board no room. A life lost since the last draw says which fields failed,
  * so it's plain what is costing you; at a table that's for everyone, the lives being the team's.
  */
 function drawStatus(life) {
@@ -841,10 +841,10 @@ const KEYS_MEAN = {
  * what its field has told you or its rule once revealed (keyVerdicts in slate-gen.js): a single field's letters, a
  * pair field's pairs with the lettered neighbours, a whole field's letters once its other cells are all filled.
  */
-function drawKeys(fs, notes, cands) {
+function drawKeys(fs, notes, opts) {
   const i = cursorField(fs);
-  // with the rules in play listed, a letter is green or red when every rule the field could be agrees on it
-  const verdict = i == null ? null : cands ? keyVerdictsAmong(fs[i], cands[i], notes[i], enteredLetters(), cursor)
+  // with the rules in play listed, a letter is green or red when every rule the player has left for the field agrees on it
+  const verdict = i == null ? null : opts ? keyVerdictsAmong(fs[i], opts[i], notes[i], enteredLetters(), cursor)
     : keyVerdicts(fs[i], notes[i], enteredLetters(), cursor, revealed().has(i));
   $("kbd").title = verdict ? KEYS_MEAN[fs[i].rule.type](styleOf(i).name) : "";
   const mustGo = (!S.done && cursor && lastCheck()[cursor]) || null;   // the last check said this letter has to change here
@@ -878,7 +878,7 @@ function mark(ok) {
   return m;
 }
 
-function drawFields(fs, notes, cands) {
+function drawFields(fs, notes, opts) {
   const shown = revealed(), left = limitsFor(S.level).reveals - shown.size, badge = $("revealsBadge");
   badge.hidden = left === Infinity || !!S.done;
   badge.innerHTML = `${left} × <span class="g-q" aria-hidden="true">?</span>`;
@@ -906,26 +906,50 @@ function drawFields(fs, notes, cands) {
     noteLine(row, label[0], ok, "ok");
     noteLine(row, label[1], no, "no");
     if (S.done || shown.has(i)) { const r = line(row, "Rule: "); const b = document.createElement("span"); b.className = "rule"; b.textContent = f.rule.text; r.appendChild(b); }
-    else if (cands?.[i].length === 1) { const r = line(row, "Worked out: "); const b = document.createElement("span"); b.className = "rule"; b.textContent = cands[i][0].text; r.appendChild(b); }
-    else if (cands) couldBe(row, cands[i]);
+    else if (opts) options(row, i);
     return row;
   }));
 }
-/** The rules a field could still be, short names to tap for the whole rule underneath. */
-function couldBe(row, rules) {
-  const d = line(row, "Could be: "), box = document.createElement("span"), say = line(row, "");
-  box.className = "g-notes";
-  say.hidden = true;
-  say.classList.add("g-say");
-  for (const r of rules) {
+// What the player has crossed off, field by field, for the board in play: pencil marks, so their own (a table's other
+// players keep theirs) and kept under glyph: with the rest, where a second device and a watcher find them.
+const STRUCK = "glyph:struck";
+let struck = (() => { try { const s = JSON.parse(localStorage.getItem(STRUCK)); if (s && typeof s.board === "string" && s.fields) return s; } catch { /* none yet */ } return { board: null, fields: {} }; })();
+const struckNow = () => (S && struck.board === boardOf(S) ? struck.fields : {});
+function strike(i, id) {
+  if (struck.board !== boardOf(S)) struck = { board: boardOf(S), fields: {} };
+  const ids = new Set(struck.fields[i] || []);
+  if (!ids.delete(id)) ids.add(id);
+  if (ids.size) struck.fields[i] = [...ids]; else delete struck.fields[i];
+  try { localStorage.setItem(STRUCK, JSON.stringify(struck)); } catch { /* private mode */ }
+}
+/**
+ * Every rule of the field's kind that is in play, each to tap to cross it off (and again to take it back), with its whole
+ * rule beside its name: what the field has taken and rejected is above, and which rules that rules out is the player's to
+ * work out. The keyboard follows what is left.
+ */
+function options(row, i) {
+  line(row, "Could be (tap what it can't be):");
+  const list = document.createElement("div");
+  list.className = "g-opts";
+  const gone = new Set(struckNow()[i] || []);
+  for (const r of legendOf(S.board, fields()[i].rule.type)) {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "g-note cand";
-    b.textContent = shortOf(r);
-    b.addEventListener("click", () => { say.hidden = false; say.textContent = r.text; });
-    box.appendChild(b);
+    b.className = "g-opt";
+    b.setAttribute("aria-pressed", String(gone.has(r.id)));
+    const name = document.createElement("b");
+    name.textContent = shortOf(r);
+    const text = document.createElement("span");
+    text.textContent = r.text;
+    b.append(name, text);
+    b.addEventListener("click", () => {
+      strike(i, r.id);
+      b.setAttribute("aria-pressed", String(!(b.getAttribute("aria-pressed") === "true")));
+      render();   // the keyboard follows; the sheet is already as it should be, so it isn't drawn again
+    });
+    list.append(b);
   }
-  d.appendChild(box);
+  row.append(list);
 }
 function line(row, text) { const d = document.createElement("div"); d.className = "g-fline"; d.append(text); row.appendChild(d); return d; }
 function noteLine(row, label, items, kind) {

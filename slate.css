@@ -35,7 +35,7 @@ html[data-mode="night"] {
 .g-partner { margin: 0; flex: 1 1 auto; min-width: 0; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .g-partner[hidden] { display: none; }
 /* lives: one pip each, hollow once spent (they stay in place, so nothing moves when one goes) */
-.g-lives { display: inline-flex; gap: .3125rem; margin: 0 0 0 auto; flex: none; }
+.g-lives { display: inline-flex; gap: .3125rem; margin: 0 .35rem 0 0; flex: none; }
 .g-lives[hidden] { display: none; }
 .g-pip { width: .8125rem; height: .8125rem; border-radius: 50%; border: 2px solid var(--plate); background: var(--plate); box-sizing: border-box; }
 .g-pip.gone { background: transparent; border-color: color-mix(in srgb, var(--ink-soft) 55%, transparent); }
@@ -137,9 +137,15 @@ html[data-mode="night"] {
 .g-note { padding: 1px .4375rem; border-radius: 6px; font-weight: 700; font-size: .9rem; color: var(--ink); }
 .g-note.ok { background: color-mix(in srgb, var(--g-ok) 22%, transparent); }
 .g-note.no { background: color-mix(in srgb, var(--g-no) 18%, transparent); text-decoration: line-through; }
-/* a rule the field could be: a short name to tap for the whole rule */
-.g-note.cand { border: 1px solid var(--brass); background: none; font: inherit; font-weight: 650; font-size: .85rem; cursor: pointer; padding: .0625rem .4375rem; }
-.g-say { color: var(--ink); font-weight: 600; }
+/* the rules the field could be, every one in play: each a row to tap to cross it off, its short name and its whole rule */
+.g-opts { grid-column: 2; display: grid; gap: .3rem; margin-top: .1rem; }
+.g-opt { display: grid; grid-template-columns: 1.15rem minmax(0, 1fr); column-gap: .45rem; row-gap: .05rem; align-items: baseline; text-align: left; min-height: 2.5rem; padding: .35rem .55rem; border: 1px solid var(--brass); border-radius: 6px; background: none; color: var(--ink); font: inherit; font-size: .88rem; line-height: 1.3; cursor: pointer; touch-action: manipulation; }
+.g-opt::before { content: ""; grid-row: 1 / span 2; align-self: center; width: 1rem; height: 1rem; box-sizing: border-box; border: 1.5px solid var(--ink-soft); border-radius: 3px; }
+.g-opt b { grid-column: 2; font-weight: 700; }
+.g-opt span { grid-column: 2; color: var(--ink-soft); font-size: .82rem; }
+.g-opt[aria-pressed="true"] { border-color: color-mix(in srgb, var(--ink-soft) 40%, transparent); }
+.g-opt[aria-pressed="true"]::before { content: "✕"; display: grid; place-items: center; border-color: var(--g-no); color: var(--g-no); font-size: .8rem; font-weight: 800; line-height: 1; }
+.g-opt[aria-pressed="true"] b, .g-opt[aria-pressed="true"] span { text-decoration: line-through; color: var(--ink-soft); opacity: .75; }
 
 /* the fields sheet reaches up to the header (just under the status bar) and scrolls inside */
 #fieldsDlg { height: calc(100vh - 1.2rem); height: calc(100svh - env(safe-area-inset-top, 0px) - .6rem); max-height: none;
