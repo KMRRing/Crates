@@ -1,5 +1,5 @@
-// Harbour's world, which is the League's: a chart of the North Sea and the Baltic with every kontor (a trading house's
-// post abroad) the Hanse kept, yours lit and the rest waiting for later chapters, and the lanes between yours. A lane's
+// Harbour's world, which is the League's: a chart of the North Sea and the Baltic with the ports the Hanse traded
+// through, yours lit and the rest waiting for later chapters, and the lanes between yours. A lane's
 // hulks carry metal from one of your warehouses to another, a cargo a week each; the League is where you put them on,
 // and where you see the whole company at once. The lanes' rules are in harbour-season.js, with the regions'.
 import { REGIONS, LANES, SEASONS, regionOf, seasonOf, weekOf, setMRs, engineOf, netOf, lacks, laneCtx } from "./harbour-season.js";
@@ -46,7 +46,7 @@ const LAND = [
   [[22, 58.85], [22.6, 59.1], [23, 58.9], [22.7, 58.6], [22.2, 58.6]],
   [[19.7, 60.1], [20.3, 60.45], [21, 60.3], [20.7, 59.95], [20, 59.9]],
 ];
-// where each region sits: Reval, and the Zwin by Sluis; the ones with no region yet are the League's other kontors,
+// where each region sits: Reval, and the Zwin by Sluis; the ones with no region yet are the League's other ports,
 // the campaign still to come
 const PLACES = {
   baltic: [24.75, 59.45], ara: [3.4, 51.3],
@@ -116,7 +116,7 @@ export function createWorldScreen({ root, brief, company, save, feeds, goTo }) {
   });
   root.addEventListener("keydown", e => { if (on && (e.key === "Enter" || e.key === " ") && e.target.dataset?.go) { e.preventDefault(); goTo(e.target.dataset.go); } });
   return {
-    open() { on = true; brief.textContent = "Your regions on the League's chart, the lanes between them, and the kontors still to come."; root.hidden = false; root.scrollTop = 0; draw(); },
+    open() { on = true; brief.textContent = "Your regions on the League's chart, the lanes between them, and the ports still to come."; root.hidden = false; root.scrollTop = 0; draw(); },
     close() { on = false; root.hidden = true; root.innerHTML = ""; },
     active: () => on,
     redraw() { if (on) draw(); },
