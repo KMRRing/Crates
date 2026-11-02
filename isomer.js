@@ -3,15 +3,17 @@
 // clock, the menu; solo (random or today's, with a computer rival if you like), with your partner (two jumbles each,
 // the final together: isomer-table.js) or a race at a table of up to six (duel.js). The puzzle and the rules are
 // isomer-engine.js's.
-import { MODES, LEVELS, DAILY, PER_HINT, RIVALS, makePuzzle, newRun, tidyRun, itemsOf, rackOf, place, placeLetter, unplace, back, clear, reshuffle, hint, solveFrom, hintsOf, scoreOf, nextOpen, clock, rivalPlan, rivalSolved, rng, revealTo } from "./isomer-engine.js";
+import { MODES, LEVELS, DAILY, PER_HINT, RIVALS, topicsOf, makePuzzle, newRun, tidyRun, itemsOf, rackOf, place, placeLetter, unplace, back, clear, reshuffle, hint, solveFrom, hintsOf, scoreOf, nextOpen, clock, rivalPlan, rivalSolved, rng, revealTo } from "./isomer-engine.js";
 import { isPair, freshPair, tidy as tidyTable, beginAt, solveAt, hintAt, newGameAt, resultOf as pairResult, halfFor, teamScore, itemKey, APP as PAIR_APP } from "./isomer-table.js";
-import { KB_TOPICS, KB_PRESETS, cleanMix, presetOf } from "./topics.js";
+import { subjectPreset } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
+import { topicsPart } from "./topics-ui.js";
 import { createTogether } from "./together.js";
 import { createDuel } from "./duel.js";
 import { busy, waitMark } from "./loading.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, topicMix, action, line, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";   // the day, the same for everyone; a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
@@ -23,12 +25,11 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { if (IN_FRAME) return; try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
-const RUN = "isomer:run", OPTS = "isomer:opts", MIX = "isomer:mix", TIMES = "isomer:times", RIVAL_RECORD = "isomer:rivals", PAIR = "isomer:pair";
+const RUN = "isomer:run", OPTS = "isomer:opts", TIMES = "isomer:times", RIVAL_RECORD = "isomer:rivals", PAIR = "isomer:pair";
 const SAVE_EVERY = 5000;                 // ms between saves of the clock while a puzzle is in play (a partner watching sees it that often)
 const first = name => String(name || "Player").trim().split(/\s+/)[0];
 
 // ---------- what to deal: the menu's choices ----------
-const TOPICS = [...KB_TOPICS.country, ...KB_TOPICS.commodity];
 const CATS = { mixed: "Mixed", country: "Countries", commodity: "Commodities" };
 const RIVAL_NAMES = { off: "Off", ...Object.fromEntries(Object.entries(RIVALS).map(([k, v]) => [k, v.label])) };
 function opts() {
@@ -36,8 +37,10 @@ function opts() {
   return { mode: MODES[o.mode] ? o.mode : "classic", level: LEVELS[o.level] ? o.level : "medium", cat: CATS[o.cat] ? o.cat : "mixed", rival: RIVAL_NAMES[o.rival] ? o.rival : "off" };
 }
 const setOpt = (k, v) => write(OPTS, { ...opts(), [k]: v });
-const mix = () => cleanMix(TOPICS, read(MIX, null));
-const presetNow = () => presetOf(TOPICS, KB_PRESETS, mix());
+// The topics are the suite's one set (Settings; topics-on.js), read when a puzzle is dealt, never once at start-up: a
+// change reaches the next puzzle, and one already dealt keeps what it was dealt. A mix of your own doesn't count for your best.
+const mix = () => topicsOf(subjectsOn());
+const onPreset = () => subjectPreset(subjectsOn()) !== "custom";
 
 // ---------- the puzzle on the screen ----------
 // S: { kind ("random", "daily", "race" or "pair"), puzzle, run (the engine's), day, ranked (a preset or today's: it
@@ -95,7 +98,7 @@ async function deal(kind = "random") {
   try {
     const seed = daily ? today() : randomSeed();
     const puzzle = makePuzzle(seed, daily ? DAILY : { mode: o.mode, level: o.level, cat: o.cat, mix: mix() });
-    show({ kind, puzzle, run: null, day: daily ? seed : null, ranked: daily || presetNow() !== "custom", rival: o.rival });
+    show({ kind, puzzle, run: null, day: daily ? seed : null, ranked: daily || onPreset(), rival: o.rival });
     if (puzzle.wide) toast("Too few clues in your topics for that: dealt from every topic");
   } catch (e) { console.error(e); toast("Couldn't deal a puzzle: try another level"); }
   finally { done(); }
@@ -598,23 +601,20 @@ function showRules() {
     <p><b>Playing.</b> Tap a row and its letters stand in the rack at the bottom; tap them in order and each goes to the next empty square. A tap on a placed letter, ⌫ or Clear takes letters back, and Shuffle puts the rack in another order. A full row that's right turns green and the next comes up; a wrong one shakes, its letters left to be moved, and costs nothing. The final's rack is the tray of circled letters, each blank until its jumble is solved. On a keyboard: letters, Backspace, Enter for the next row, and the arrows.</p>
     <p><b>Hint.</b> Puts the right letter in the first square that lacks it, locked there and marked with a dot, for ${PER_HINT} seconds. On the final it can lend a letter whose jumble isn't solved yet.</p>
     <p><b>Score.</b> Your time plus ${PER_HINT} seconds a hinted letter, lower being better; the end shows par too, the standard solver's time. Playing alone, the clock stands still while the menu or these rules are open.</p>
-    <p><b>Modes.</b> In the menu: <b>Classic</b>, two words of five letters and two of six; <b>Theme</b>, the four jumbles a country's or a commodity's own clues, each with its hint, the circled letters naming what all four point to; <b>Double</b>, two finals from one tray, a thing and its country or commodity, the tray's letters yours to split between them; <b>Jumbo</b>, six words of five to seven letters and a longer final. The levels, Easy to Hard, go by how deep each jumble hides its word: how many likelier-looking arrangements of its letters come before it. Answers: Countries, Commodities or Mixed, with the topics as a mix.</p>
+    <p><b>Modes.</b> In the menu: <b>Classic</b>, two words of five letters and two of six; <b>Theme</b>, the four jumbles a country's or a commodity's own clues, each with its hint, the circled letters naming what all four point to; <b>Double</b>, two finals from one tray, a thing and its country or commodity, the tray's letters yours to split between them; <b>Jumbo</b>, six words of five to seven letters and a longer final. The levels, Easy to Hard, go by how deep each jumble hides its word: how many likelier-looking arrangements of its letters come before it. Answers: Countries, Commodities or Mixed. Which topics the finals come from is set once for every game, in Settings.</p>
     <p><b>The rival.</b> In Settings: ${paces} plays the same puzzle beside you, its progress in the strip; Sharp is par.</p>
     <p><b>Today's puzzle.</b> A ${MODES[DAILY.mode].label} at ${LEVELS[DAILY.level].label}, every topic in, the same for everyone, and a new one at midnight UTC. It counts the moment its last answer goes in.</p>
     <p><b>Together.</b> Two jumbles each (three in Jumbo): your partner's are sealed on your screen and yours on theirs, and each of you holds half the final's clue, so you read them out. The final needs every circled letter, so neither of you can finish alone. Or a race: the same puzzle for everyone, the quickest winning.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
-/** The content choices: the mode, the level, what the finals are about (countries, commodities) and the topics. */
+/** The content choices: the mode, the level, what the finals are about (countries, commodities) and, for a random puzzle of
+ *  your own, where the topics stand (they're Settings', changed in a sheet from here). */
 function contentPart(body, topics) {
   const o = opts(), content = part(body, "content");
   content.append(choice("Mode", Object.entries(MODES).map(([k, m]) => [k, m.label]), o.mode, v => setOpt("mode", v)),
     choice("Level", Object.entries(LEVELS).map(([k, l]) => [k, l.label]), o.level, v => setOpt("level", v)),
     choice("Answers", Object.entries(CATS), o.cat, v => { setOpt("cat", v); openMenu(); }));
-  if (!topics) return;
-  const groups = o.cat === "country" ? [["Country topics", KB_TOPICS.country]] : o.cat === "commodity" ? [["Commodity topics", KB_TOPICS.commodity]]
-    : [["Country topics", KB_TOPICS.country], ["Commodity topics", KB_TOPICS.commodity]];
-  content.append(topicMix(TOPICS, KB_PRESETS, mix(), w => write(MIX, w),
-    { groups, note: w => (presetOf(TOPICS, KB_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's and the presets do." : null) }));
+  if (topics) content.append(...topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; the presets and today's do"));
 }
 const backToSolo = () => { if (together.room) together.leave(); else if (duel.on) duel.leave(); else location.replace(location.pathname); };
 

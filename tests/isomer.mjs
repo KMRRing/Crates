@@ -95,6 +95,33 @@ const made = {};
   check(each < 150, `a puzzle is dealt in ${each.toFixed(0)} ms here (a phone a few times that)`);
 }
 
+// ---------- the suite's one set of topics: a puzzle is dealt from the mix the subjects that are on make ----------
+{
+  const TG = await import("../topics.js");
+  const subjects = preset => TG.cleanSubjects(TG.SUBJECT_PRESETS[preset].topics);
+  const only = id => TG.cleanSubjects({ ...TG.SUBJECT_PRESETS.none.topics, [id]: 1 });
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const balanced = Object.fromEntries(E.TOPIC_LIST.map(([id]) => [id, 1]));
+  check(same(E.topicsOf(subjects("all")), balanced) && same(E.topicsOf(TG.cleanSubjects(null)), balanced), "every subject on is the old Balanced: each of Crates' country and commodity topics in once");
+  const every = (mode, level, cat, seed) => {
+    const o = { mode, level, cat }, all = E.makePuzzle(seed, { ...o, mix: E.topicsOf(subjects("all")) });
+    return same(all, E.makePuzzle(seed, { ...o, mix: balanced })) && same(all, E.makePuzzle(seed, { ...o, mix: null })) && !all.wide;
+  };
+  check(MODES.every((mode, i) => every(mode, LEVELS[i % LEVELS.length], ["mixed", "country", "commodity"][i % 3], 31 + i)) && every("classic", "medium", "mixed", 5),
+    "…and deals the puzzle the Balanced mix dealt, in every mode: the same seed the same puzzle");
+  const topicsOfFinal = f => K.finalsAll().find(x => x.a === f.a && x.i === f.i && x.kind === f.kind).topics;
+  const energy = Array.from({ length: 6 }, (_, s) => E.makePuzzle(700 + s, { mode: "classic", level: "medium", cat: ["mixed", "country", "commodity"][s % 3], mix: E.topicsOf(only("nrg")) }));
+  check(energy.every(p => !p.wide && p.finals.every(f => topicsOfFinal(f).includes("nrg"))), "turning subjects off changes the deal: with only Energy on, every final is an energy one");
+  const stem = E.topicsOf(subjects("stem")), inStem = new Set(Object.entries(stem).filter(([, w]) => w).map(([t]) => t));
+  const stemmed = Array.from({ length: 6 }, (_, s) => E.makePuzzle(800 + s, { mode: "classic", level: "medium", mix: stem }));
+  check(stemmed.every(p => !p.wide && p.finals.every(f => topicsOfFinal(f).some(t => inStem.has(t)))) && !same(stemmed[0], E.makePuzzle(800, { mode: "classic", level: "medium", mix: E.topicsOf(subjects("all")) })),
+    "STEM on: every final is one of a STEM subject's topics, and the puzzle is not the all-on one");
+  const nothing = E.topicsOf(subjects("none")), blank = E.makePuzzle(41, { mode: "classic", level: "medium", mix: nothing });
+  check(Object.values(nothing).every(w => w === 0) && blank.wide === true && E.countSolutions(blank).one, "nothing on is a mix no final fits: dealt from every topic, and the puzzle says it was (wide)");
+  const old = { ...balanced, nrg: 2, met: 0 }, oldPuzzle = E.makePuzzle(43, { mode: "classic", level: "medium", mix: old });
+  check(oldPuzzle && !oldPuzzle.wide && E.countSolutions(oldPuzzle).one, "a mix with a weight of 2, as an old save or a link had, still deals");
+}
+
 // ---------- the grading: the levels apart ----------
 {
   const median = xs => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];

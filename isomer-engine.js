@@ -7,6 +7,7 @@ import { pool, depthOf, holds, jumble, jumbleLong, spellings, canHide } from "./
 import { finalsAll, themesAll, weightOf, clueOf, halvesOf, partnerOf, pairedClue, pairable, cardOf, pairOf, pileKey, lettersOf, TOPIC, NOUN } from "./isomer-kb.js";
 import { isWord } from "./wordlist.js";
 import { BANK } from "./core.js";
+import { KB_TOPICS, TOPIC_OF, mixFromSubjects } from "./topics.js";
 
 export const PER_HINT = 15;                 // seconds a hinted letter adds to the score
 export const MOST_PEOPLE = 6;
@@ -117,6 +118,15 @@ function fitWords(letters, lengths, L, r, finals) {
 }
 const RARE = "jqxzkvwyfbghmp";                            // the letters fewest words hold, rarest first
 const rarity = g => g.reduce((n, ch) => { const at = RARE.indexOf(ch); return n + (at < 0 ? 0 : RARE.length - at); }, 0);
+
+/** Crates' topics, a country's and a commodity's in one list: a final's aspects are from either. */
+export const TOPIC_LIST = [...KB_TOPICS.country, ...KB_TOPICS.commodity];
+/**
+ * The mix (`mix` of makePuzzle) from the suite's subjects that are on (topics-on.js: { subject: 0 | 1 }): each topic in at
+ * weight 1, Isomer's Balanced, when its subject is on, out when it isn't. Every subject on is the mix the page dealt from
+ * before there was one set of topics, so the same seed makes the same puzzle. A mix of weight 2 (an old one) still deals.
+ */
+export const topicsOf = on => mixFromSubjects(TOPIC_LIST, TOPIC_OF.kb, on);
 
 /** The finals a deal can draw from: their category in the pool, their letters in range, their topics in the mix. */
 function finalsFor({ cats, range, L, mix, double = false }) {
