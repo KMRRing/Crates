@@ -513,6 +513,8 @@ export const APPS = [
   { id: "stow", sec: "puzzle", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO) },
   { id: "parley", sec: "courses", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO) },
   { id: "crossword", sec: "knowledge", name: "Crossword", href: "./crossword.html", logo: LOGO("crossword", CROSSWORD_LOGO), team: "time" },
+  { id: "lexicon", sec: "knowledge", name: "Lexicon", href: "./lexicon.html", logo: LOGO("lexicon", LEXICON_LOGO) },
+  { id: "ledger", sec: "knowledge", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO) },
   // Classics: the canonical puzzle genres, by their usual rules (README, Classics)
   { id: "sudoku", sec: "classics", name: "Sudoku", href: "./sudoku.html", logo: LOGO("sudoku", SUDOKU_LOGO), team: "time" },
   { id: "mines", sec: "classics", name: "Mines", href: "./mines.html", logo: LOGO("mines", MINES_LOGO), team: "time" },
@@ -594,16 +596,13 @@ export const APPS = [
   { id: "reckoning", sec: "idle", name: "Reckoning", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO) },
   { id: "ingot", sec: "idle", name: "Ingot", href: "./soon.html?game=ingot", logo: LOGO("ingot", SOON_CODEX.ingot), soon: true },
   { id: "cargo", sec: "idle", name: "Cargo", href: "./soon.html?game=cargo", logo: LOGO("cargo", SOON_CODEX.cargo), soon: true },
-  // Casino: games of chance, played to learn the floor rather than to get good at (README, Casino)
-  { id: "baccarat", sec: "casino", name: "Baccarat", href: "./baccarat.html", logo: LOGO("baccarat", BACCARAT_LOGO) },
-  { id: "blackjack", sec: "casino", name: "Blackjack", href: "./blackjack.html", logo: LOGO("blackjack", BLACKJACK_LOGO) },
-  { id: "roulette", sec: "casino", name: "Roulette", href: "./roulette.html", logo: LOGO("roulette", ROULETTE_LOGO) },
-  { id: "sicbo", sec: "casino", name: "Sic Bo", href: "./sicbo.html", logo: LOGO("sicbo", SICBO_LOGO) },
-  { id: "craps", sec: "casino", name: "Craps", href: "./craps.html", logo: LOGO("craps", CRAPS_LOGO) },
-  { id: "holdem", sec: "casino", name: "Hold'em", href: "./holdem.html", logo: LOGO("holdem", HOLDEM_LOGO) },
-  // Tools: instruments rather than games
-  { id: "lexicon", sec: "tools", name: "Lexicon", href: "./lexicon.html", logo: LOGO("lexicon", LEXICON_LOGO) },
-  { id: "ledger", sec: "tools", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO) },
+  // Casino: games of chance, played to learn the floor rather than to get good at (README, Casino); in the Appendix until they leave for an app of their own
+  { id: "baccarat", sec: "appendix", name: "Baccarat", href: "./baccarat.html", logo: LOGO("baccarat", BACCARAT_LOGO) },
+  { id: "blackjack", sec: "appendix", name: "Blackjack", href: "./blackjack.html", logo: LOGO("blackjack", BLACKJACK_LOGO) },
+  { id: "roulette", sec: "appendix", name: "Roulette", href: "./roulette.html", logo: LOGO("roulette", ROULETTE_LOGO) },
+  { id: "sicbo", sec: "appendix", name: "Sic Bo", href: "./sicbo.html", logo: LOGO("sicbo", SICBO_LOGO) },
+  { id: "craps", sec: "appendix", name: "Craps", href: "./craps.html", logo: LOGO("craps", CRAPS_LOGO) },
+  { id: "holdem", sec: "appendix", name: "Hold'em", href: "./holdem.html", logo: LOGO("holdem", HOLDEM_LOGO) },
   { id: "timegrapher", sec: "appendix", name: "Timegrapher", href: "./timegrapher.html", logo: LOGO("timegrapher", TIMEGRAPHER_LOGO) },
 ];
 
@@ -718,7 +717,7 @@ function startOver() {
 
 /** The games screen's sections, in order: every game is in one (APPS' sec). The Appendix at the back holds what is set aside for
  *  now: games flagged to leave, or to become an app of their own (README, The Appendix). */
-export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["classics", "Classics"], ["idle", "Idle"], ["table", "Board & card games"], ["casino", "Casino"], ["party", "Party"], ["tools", "Tools"], ["appendix", "Appendix"]];
+export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["classics", "Classics"], ["idle", "Idle"], ["table", "Board & card games"], ["party", "Party"], ["appendix", "Appendix"]];
 /** A tile's name: a long one (Refinery, Manifest) set closer, a longer one (Undercover) smaller too, to fit its tile. */
 export const nameClass = name => `app-name${name.length >= 10 ? " long longer" : name.length >= 8 ? " long" : ""}`;
 const tile = (a, current) => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
