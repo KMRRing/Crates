@@ -77,7 +77,7 @@ const events = S => take(S).map(e => e.type);
   [S, f] = trial(1, -1, 0.4, null);
   check(S.hearts === 3 && f.alive, "but never across two lanes");
   [S, f] = trial(0, 0, 0.4, null);
-  check(S.hearts === 2, "and one in my own lane reaches all of the lanes beside it that I could dodge to");
+  check(S.hearts === 2, "and one in my own lane hits me where I stand");
   [S, f] = trial(0, -1, 0.4, "left", "gull", true);
   check(!f.alive && S.hero.lane === -1, "in the air a gull in the next lane is cut down the same way");
   [S, f] = trial(0, -1, 0.4, "left", "gull", false);
@@ -187,6 +187,173 @@ const events = S => take(S).map(e => e.type);
   check(S.hero.roll === 0, "a roll that runs off the edge ends");
 }
 
+// ---------- the foes telegraph: see me, wind up, launch ----------
+{
+  // a crab one lane over, the hero standing still in his lane: what it does, in order, as the quay brings it
+  const S = scene({ hero: { lane: 0 } }), f = foeAt(S, "crab", -1, 1.4);
+  const seen = []; let aim = null;
+  for (let i = 0; i < 400 && !S.over && S.hero.z < f.z + 2; i++) {
+    step(S, DT);
+    for (const e of take(S)) if (["notice", "wind", "launch"].includes(e.type)) seen.push([e.type, +(((f.z - S.hero.z) / speed(S)).toFixed(2)), e.look ?? e.aim]);
+  }
+  check(seen.map(e => e[0]).join() === "notice,wind,launch", `a crab a lane over sees me, winds up and launches, in that order (${seen.map(e => `${e[0]} at ${e[1]} s`).join(", ")})`);
+  check(seen[0][1] <= 1.1 && seen[0][1] > 1.0 && seen[1][1] <= 0.6 && seen[2][1] <= 0.3, "from 1.1 s, 0.6 s and 0.3 s before it reaches me");
+  check(seen[0][2] === 1 && seen[2][2] === 0, "it looks my way (to its right, my lane being to the right of its own), and launches at the lane I am in");
+  check(S.hearts === 2, "and the launch hits");
+  const T = scene({ hero: { lane: 1, x: LANE_W } }), g = foeAt(T, "crab", -1, 1.4);
+  run(T, 1.7);
+  check(!g.ph && T.hearts === 3, "two lanes away it never notices me, let alone attacks");
+  const U = scene({ hero: { lane: 0 } }), c = foeAt(U, "crab", -1, 1.4);
+  run(U, 0.5);
+  const phBefore = c.ph; swipe(U, "right"); run(U, 0.1);
+  check(phBefore === 1 && c.ph === 0, "if I leave before it winds up it has lost me again");
+  run(U, 1.5);
+  check(U.hearts === 3 && U.hero.lane === 1, "and it never attacks");
+  const V = scene({ hero: { lane: 0 } }), d = foeAt(V, "crab", 0, 1.0);
+  run(V, 0.3);
+  check(d.ph === 1 && d.look === 0, "a crab in my own lane sees me too, looking straight ahead");
+}
+
+// ---------- a launched foe hits where it aimed ----------
+{
+  const crab = (swipes, ttc = 1.0, lane = -1) => {
+    const S = scene({ hero: { lane: 0 } }), f = foeAt(S, "crab", lane, ttc);
+    let at = 0;
+    for (const [secs, dir] of swipes) { run(S, secs - at); at = secs; swipe(S, dir); }
+    run(S, 2.5);
+    return [S, f];
+  };
+  let [S, f] = crab([]);
+  check(S.hearts === 2 && Math.abs(f.x - 0) < 0.01, "the crab slides across to my lane and hits there");
+  // the launch is at 0.3 s before it; a lane away made at 0.2 s before it is in time
+  [S, f] = crab([[0.8, "right"]]);
+  check(S.hearts === 3, "a lane away after it has launched still dodges it, if it is early enough");
+  [S, f] = crab([[0.6, "right"]]);
+  check(S.hearts === 3 && f.ph === 0, "and before the launch it never launches at all");
+  [S, f] = crab([[0.95, "right"]]);
+  check(S.hearts === 2, "but in the last moment it is too late: it hits where it aimed");
+  [S, f] = crab([[0.7, "up"]]);
+  check(S.hearts === 3 && f.alive, "so does a jump over it");
+}
+
+// ---------- a gull one lane over dives on a hero on the ground ----------
+{
+  const gull = (swipes, ttc = 1.2, lane = -1, hero = {}) => {
+    const S = scene({ hero: { lane: 0, ...hero } }), f = foeAt(S, "gull", lane, ttc);
+    let at = 0;
+    for (const [secs, dir] of swipes) { run(S, secs - at); at = secs; swipe(S, dir); }
+    run(S, 2.5);
+    return [S, f];
+  };
+  let [S, f] = gull([]);
+  check(S.hearts === 2 && f.ph === 3 && f.y < 0.05 && f.aim === 0, "a gull in the next lane winds up, then dives down onto the hero on the ground");
+  const T = scene({ hero: { lane: 0 } }), t = foeAt(T, "gull", -1, 1.2);
+  run(T, 0.8);
+  check(t.ph === 2 && t.y === 1.35, "(until it launches it stays up at its height)");
+  [S, f] = gull([[1.0, "up"]]);
+  check(S.hearts === 3, "a jump after it has launched goes over the dive");
+  [S, f] = gull([[0.95, "right"]]);
+  check(S.hearts === 3, "so does a lane away");
+  [S, f] = gull([[0.96, "down"]]);
+  check(S.hearts === 3 && f.alive, "and so does a roll: it goes under the dive");
+  [S, f] = gull([], 1.2, 0);
+  check(S.hearts === 3 && !f.ph, "a gull in my own lane never attacks: I run under it");
+  {
+    const U = scene({ hero: { lane: 0, y: 6, mode: "air", vy: 9 } }), g = foeAt(U, "gull", -1, 1.2);
+    run(U, 1.0);
+    check(U.hero.mode === "air" && g.ph === 2 && g.y === 1.35, "and none dives on a hero in the air (it waits for him to come down)");
+  }
+  {
+    const U = scene({ hero: { lane: 0 } }), g = foeAt(U, "gull", -1, 1.2);
+    U.world.pits.push({ z0: g.z - 2, z1: g.z + 2 });
+    run(U, 1.4);
+    check(!g.ph && U.hearts === 3, "a gull over a pit is the bridge, not an enemy");
+  }
+  {
+    const U = scene({ hero: { lane: 0 } }), g = foeAt(U, "gull", -1, 1.2);
+    g.gate = { id: 1, i: 0 };
+    run(U, 1.4);
+    check(!g.ph, "and the gulls of a question are the answers, not enemies");
+  }
+}
+
+// ---------- repeated rolls leave no gap ----------
+{
+  // down every 0.15 s, with a crab reaching me at every moment in turn: none gets through
+  let worst = null, n = 0;
+  for (let ttc = 0.3; ttc < 1.6; ttc += 0.013) {
+    const S = scene(), f = foeAt(S, "crab", 0, ttc);
+    for (let t = 0; t < 2.2; t += 0.15) { swipe(S, "down"); run(S, 0.15); }
+    n++;
+    if (S.hearts < 3 && !worst) worst = ttc;
+  }
+  check(worst === null, `rolling again and again, no foe in front gets through (${n} arrival times from 0.3 to 1.6 s)`);
+  const S = scene(); swipe(S, "down");
+  let gaps = 0; for (let t = 0; t < 2; t += DT) { if (t % 0.2 < DT) swipe(S, "down"); step(S, DT); if (S.hero.roll === 0) gaps++; }
+  check(gaps === 0, "the next roll follows the last at once");
+  const T = scene(); swipe(T, "down"); run(T, 0.1); swipe(T, "down"); run(T, 0.1); swipe(T, "up"); run(T, 0.05);
+  check(T.hero.mode === "air" && T.hero.roll === 0, "and up still jumps out of the run of them");
+  const U = scene(); swipe(U, "down"); run(U, 0.1); swipe(U, "down"); run(U, 1);
+  check(U.hero.roll === 0, "one queued roll is one more roll, not a run");
+  // a lunge from the next lane is not dodged by a roll
+  const V = scene({ hero: { lane: 0 } }), c = foeAt(V, "crab", 1, 1.0);
+  for (let t = 0; t < 1.6; t += 0.15) { swipe(V, "down"); run(V, 0.15); }
+  check(V.hearts === 2, "but a roll in a lane the crab is not on does not dodge its lunge: it hits me rolling");
+  const W = scene({ hero: { lane: 0 } }), g = foeAt(W, "gull", 1, 1.0);
+  for (let t = 0; t < 1.6; t += 0.15) { swipe(W, "down"); run(W, 0.15); }
+  check(W.hearts === 3 && g.alive, "while a gull's dive goes over a rolling hero");
+}
+
+// ---------- one swipe sideways takes the foes in a row ----------
+{
+  const row = (heroLane, foes, dir, air = false) => {
+    const S = scene({ hero: { lane: heroLane, x: heroLane * LANE_W, ...(air ? { y: 1.4, mode: "air", vy: 0.01 } : {}) } });
+    const made = foes.map(([kind, lane, ttc]) => foeAt(S, kind, lane, ttc));
+    run(S, 0.01); take(S);
+    swipe(S, dir); run(S, 1.5);
+    return [S, made];
+  };
+  let [S, [a, b]] = row(-1, [["crab", 0, 0.4], ["crab", 1, 0.45]], "right");
+  check(!a.alive && !b.alive && S.hero.lane === 1 && S.hearts === 3 && S.kills === 2, "on the left with a foe in the middle and one on the right: one swipe right takes both");
+  [S, [a, b]] = row(1, [["crab", 0, 0.4], ["crab", -1, 0.45]], "left");
+  check(!a.alive && !b.alive && S.hero.lane === -1 && S.hearts === 3, "and the same from the other side");
+  [S, [a, b]] = row(-1, [["crab", 0, 0.4], ["crab", 1, 0.4]], "right");
+  check(!a.alive && !b.alive && S.hearts === 3, "side by side in a row");
+  [S, [a, b]] = row(-1, [["crab", 0, 0.4], ["crab", 1, 1.4]], "right");
+  check(!a.alive && b.alive && S.hero.lane === 0, "a second foe too far on is left for another swipe");
+  [S, [a, b]] = row(-1, [["crab", 0, 0.4], ["crab", -1, 0.45]], "right");
+  check(!a.alive && b.alive, "a foe the other way is not taken");
+  [S, [a, b]] = row(-1, [["gull", 0, 0.4], ["gull", 1, 0.5]], "right", true);
+  check(!a.alive && !b.alive && S.hero.lane === 1 && S.bestChain === 2, "in the air, gulls in a row are a chain");
+  [S, [a, b]] = row(-1, [["crab", 0, 0.4], ["gull", 1, 0.75]], "right");
+  check(!a.alive && b.alive, "(a gull in the air is out of reach of a cut from the ground)");
+  {
+    const T = scene({ hero: { lane: -1, x: -LANE_W } }), c = foeAt(T, "crab", 0, 0.4), e = foeAt(T, "crab", 1, 0.45);
+    run(T, 0.01); take(T); swipe(T, "right"); run(T, 1.5);
+    const ev = take(T);
+    check(T.hero.lane === 1, "(the lane it ends in is the far one)");
+  }
+  {
+    const T = scene({ hero: { lane: -1, x: -LANE_W } }); foeAt(T, "crab", 0, 0.4); foeAt(T, "crab", 1, 0.45);
+    run(T, 0.01); take(T); swipe(T, "right");
+    const ev = []; for (let i = 0; i < 90; i++) { step(T, DT); ev.push(...take(T)); }
+    const kinds = ev.filter(e => ["kill", "lane", "lunge"].includes(e.type)).map(e => e.type + (e.sweep ? "*" : "")).join();
+    check(/kill,lane,lunge\*,kill/.test(kinds), `the events say so: ${kinds}`);
+  }
+  {
+    const q = { id: "Q1", bank: "test", q: "?", o: ["a", "b", "c"], a: 2, x: "", about: [] };
+    const T = newGame({ seed: 3, deal: () => q });
+    let n = 0; while (!T.world.gates.length && n++ < 80) { T.hero.z += 20; ensure(T); }
+    const g = T.world.gates[0];
+    T.world.foes = T.world.foes.filter(f => f.gate && f.gate.id === g.id);
+    T.world.pits = T.world.pits.filter(p => p.gate === g.id); T.world.z1 = 1e9;
+    T.hero.lane = -1; T.hero.x = -LANE_W; T.hero.z = g.z - 0.7 * speed(T); take(T);
+    run(T, 0.01); const m = foeAt(T, "crab", 0, 0.45); T.hero.z = g.z - 0.7 * speed(T);
+    m.z = T.hero.z + 0.45 * speed(T); swipe(T, "right"); run(T, 0.3);
+    check(g.state === "open" && g.pick === null, "a cut that goes on never goes on to the gulls of a question: those are chosen");
+  }
+}
+
 // ---------- the jump comes back after a cut in the air ----------
 {
   const S = scene(), f = foeAt(S, "gull", 0, 0.4);
@@ -249,9 +416,12 @@ const events = S => take(S).map(e => e.type);
   S = scene({ hero: { lane: -1, x: -LANE_W } }); f = foeAt(S, "crab", 0, 0.085);
   run(S, 0.005); swipe(S, "up"); run(S, 1);
   check(S.hearts === 2, "but it guards only the side it was made towards: a foe beside me hits as it did");
+  S = scene({ hero: { lane: 0 } }); f = foeAt(S, "crab", 1, 0.3);
+  run(S, 0.005); swipe(S, "left"); run(S, 1);
+  check(S.hearts === 3 && f.alive, "(and a swipe away from it, in time, still dodges)");
   S = scene({ hero: { lane: 0 } }); f = foeAt(S, "crab", 1, 0.085);
   run(S, 0.005); swipe(S, "left"); run(S, 1);
-  check(S.hearts === 3 && f.alive, "(and a swipe away from it still dodges)");
+  check(S.hearts === 2, "(but one that has launched at my lane is not dodged in the last moment: it hits where it aimed)");
   S = scene({ hero: { lane: 0 } }); f = foeAt(S, "crab", 1, 0.9);
   run(S, 0.005); swipe(S, "right"); run(S, 1.3);
   check(S.hearts === 2, "the guard ends: a foe that arrives after it hits");
@@ -409,6 +579,15 @@ const events = S => take(S).map(e => e.type);
   const T = scene({ hero: { y: 0 } }); const L2 = new RunLog(T);
   swipe(T, "down"); T.hero.mode = "run"; swipe(T, "up"); for (const e of take(T)) L2.event(T, e);
   check(describe(T, { type: "wait", dir: "up" }).includes("kept for 0.14 s") && describe(T, { type: "drop", dir: "left" }).includes("dropped"), "a swipe that waits, and one dropped, are said");
+  {
+    const A = scene({ hero: { lane: 0 } }); foeAt(A, "crab", -1, 1.4); foeAt(A, "gull", 1, 1.4);
+    const L3 = new RunLog(A);
+    const seenAt = [];
+    for (let i = 0; i < 150; i++) { step(A, DT); for (const e of take(A)) L3.event(A, e); if (i === 50) { L3.swipe(A, "up"); seenAt.push(L3.lines.at(-1)); } }
+    const t3 = L3.lines.join("\n");
+    check(/crab L sees me, looks right/.test(t3) && /crab L winds up/.test(t3) && /crab L launches at lane M/.test(t3) && /gull R launches at lane M \(dives\)/.test(t3), "the log says what the foes make up their minds to");
+    check(/crab L \+\d\.\d\ds (sees me|winding up)/.test(seenAt[0]), "and a swipe's line says what each foe near is about to do");
+  }
   const U = scene(); swipe(U, "left"); run(U, 0.1);
   const big = new RunLog(U); for (let i = 0; i < 1000; i++) big.note(U, "x");
   check(big.lines.length === 900 && big.n === 1000 && big.lines[0].startsWith("#101 "), "a long run keeps its last 900 lines, numbers unchanged");
@@ -453,6 +632,9 @@ function bot(S, st) {
     return;
   }
   if (st.slamAfter && h.mode === "air" && h.y > SLAM_MIN_Y && h.vy < 0 && h.z > st.slamAfter) { st.slamAfter = 0; return act("down"); }
+  // a gull one lane over that has wound up is about to dive: a roll goes under it (and a run of them leaves no gap)
+  const dive = W.foes.find(f => f.alive && !f.spent && f.kind === "gull" && !f.gate && f.ph >= 2 && ttc(f.z) > -0.1 && ttc(f.z) < 0.2 && Math.abs(f.lane - h.lane) === 1);
+  if (dive && h.mode === "run" && !h.roll) return act("down");
   // crabs
   const f = W.foes.find(f => f.alive && !f.spent && f.kind === "crab" && ttc(f.z) > 0 && ttc(f.z) < 0.5 && Math.abs(f.lane - h.lane) <= 1);
   if (f && h.mode === "run") {

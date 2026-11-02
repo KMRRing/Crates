@@ -14,14 +14,17 @@ const f1 = x => x.toFixed(1), f2 = x => x.toFixed(2);
 
 export const LEGEND = [
   "L, M, R: the left, middle and right lane. +0.31s: the seconds until a foe reaches me (it is in seconds that the swipes' windows are).",
+  "A foe within a lane of me sees me, winds up, then launches at the lane I was in; \"launched at M\" is where the hit will land.",
   "y: my height in metres, vy: how fast I am going up (m/s). A gull of a question is marked gate<n>; its answer is the card over its lane.",
   "#n is the line's number: say \"#n, I wanted …\" and I can find the moment.",
 ].join("\n");
 
-/** What a foe is, for a line: kind, lane, and the seconds until it reaches the hero. */
+const MIND = ["", " sees me", " winding up", ""];
+/** What a foe is, for a line: kind, lane, the seconds until it reaches the hero, and what it is about to do. */
 function foeText(S, f) {
   const t = (f.z - S.hero.z) / speed(S);
-  return `${f.kind} ${lane(f.lane)} ${num(t)}s${f.y > 0.3 ? ` y${f1(f.y)}` : ""}${f.gate ? ` gate${f.gate.id}` : ""}`;
+  const mind = f.ph === 3 ? ` launched at ${lane(f.aim)}${f.kind === "gull" ? " (a dive)" : ""}` : MIND[f.ph || 0];
+  return `${f.kind} ${lane(f.lane)} ${num(t)}s${f.y > 0.3 ? ` y${f1(f.y)}` : ""}${f.gate ? ` gate${f.gate.id}` : ""}${mind}`;
 }
 
 /** The hero: lane, what he is doing, and what the rules are holding for him. */
@@ -93,9 +96,12 @@ export function describe(S, ev) {
     case "drop": return `${ev.dir.toUpperCase()}: nothing came of it, dropped`;
     case "jump": return ev.air ? "jump again, in the air" : "jump";
     case "lane": return `lane → ${lane(ev.lane)}`;
-    case "lunge": return `${ev.retarget ? "the cut moves to" : "cut at"} ${ev.kind}${ev.gate ? ` gate${ev.gate}` : ""} (${ev.how})`;
+    case "lunge": return `${ev.retarget ? "the cut moves to" : ev.sweep ? "the cut goes on to" : "cut at"} ${ev.kind}${ev.gate ? ` gate${ev.gate}` : ""} (${ev.how})`;
     case "kill": return `KILL ${named(ev.id)} (${ev.how}${ev.chain ? `, chain ${ev.chain}` : ""}${ev.right ? ", the right answer" : ""})`;
-    case "roll": return "roll";
+    case "roll": return ev.again ? "roll again, no gap" : "roll";
+    case "notice": return `${named(ev.id)} sees me${ev.look ? `, looks ${ev.look < 0 ? "left" : "right"}` : ""}`;
+    case "wind": return `${named(ev.id)} winds up`;
+    case "launch": return `${named(ev.id)} launches at lane ${lane(ev.aim)}${ev.kind === "gull" ? " (dives)" : ""}`;
     case "dive": return ev.slam ? "dive, a slam" : "dive";
     case "walljump": return `wall jump off the ${lane(ev.side)} wall`;
     case "wallrun": return `wall run, the ${lane(ev.side)} wall`;

@@ -16,7 +16,9 @@
 //                                        On the way down, a swipe sideways swoops onto a foe on the ground the same way
 //   left/right, while I fly at a foe     the cut moves to the foe in the next lane, if it hasn't landed (up, left, left from
 //                                        the lane on the right: the right gull, the middle one, then the left one)
-//   down, on the ground                  a roll (ROLL_T): any foe on the ground that reaches me in my lane is cut down
+//   down, on the ground                  a roll (ROLL_T): any foe on the ground that reaches me in my lane is cut down. Down
+//                                        again in the middle of one queues the next, so a run of them leaves no gap; a roll
+//                                        goes under a gull's dive, but not under a lunge from the next lane
 //   down, in the air above a foe         a bonk: I land on it and bounce into another jump
 //   down, in the air above one jump      a slam: on the planks (never on a foe) a shockwave cuts the ground foes in
 //     height                             the lanes beside me
@@ -28,6 +30,12 @@
 // A kill in the air throws me up again (CHAIN_V), so a chain of flying foes carries me across a pit, and gives me back
 // my jump: one more up in the air, with nothing to cut, jumps again. A swipe that has no use yet waits BUFFER seconds (a
 // jump swiped a moment before landing still jumps).
+//
+// The foes telegraph (think()): one within a lane of me sees me (it looks my way), then winds up, then launches at the lane
+// I am in then, a crab sliding across to it, a gull diving onto it (only while I am on the ground: a gull in my own lane
+// never attacks; I run under it). The hit lands where it aimed, so a lane changed, a jump or a roll after the launch dodges it.
+// A cut sideways goes on to the next foe in the same direction (SWEEP_WIN), so from the left lane one swipe right takes
+// the foes in the middle and the right lane.
 //
 // The question twist: now and then the quay breaks at a gap no jump clears, and three gulls hang over it carrying
 // three answers, one to a lane. Only the right gull throws me across; the others turn me back into the water. Where
@@ -55,6 +63,9 @@ export const FRONT_WIN = 0.28, ABOVE_WIN = 0.55, SIDE_MIN = 0.08, SIDE_WIN = 0.6
 export const RETARGET_MIN = 0.03;          // a cut already in flight can be moved until this close to landing
 export const SIDE_MIN2 = 0.16;             // two lanes across is twice the way, so it needs twice the time to cross
 export const ROLL_T = 0.32;                // seconds a roll lasts: 3 to 5 m of quay, about what an attack in front reaches
+export const SIGHT_T = 1.1, WIND_T = 0.6, LAUNCH_T = 0.3;   // seconds to contact: a foe sees me, winds up, launches
+export const HIT_X = 0.8 * LANE_W;         // a launched foe hits what is this near the lane it aimed at
+export const SWEEP_WIN = 0.5;              // a cut sideways goes on to the next foe in the same direction if it is within this
 export const GATE_WIN = 1.0;               // a gull of a question can be jumped at from this far off (a plain gull, ABOVE_WIN)
 export const GUARD_T = 0.4;                // seconds after a swipe that the foes on its side cannot hurt me
 export const ROLL_REACH = 1.2;             // and how far in front of the hero a rolling cut lands
@@ -88,7 +99,7 @@ export function newGame({ seed = 1, deal = null, hearts = 3 } = {}) {
     v: 1, seed, rng: seed | 0, qrng: (seed ^ 0x9E3779B9) | 0,
     t: 0, over: false, hearts, maxHearts: hearts, score: 0, bonus: 0, kills: 0, chain: 0, bestChain: 0,
     right: 0, wrong: 0, missed: 0, streak: 0, falls: 0, fwd: 1,
-    hero: { z: 0, x: 0, y: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0, roll: 0, jumps: 0 },
+    hero: { z: 0, x: 0, y: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0, roll: 0, rollQ: false, jumps: 0 },
     world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], foes: [], gates: [], id: 1 },
     pending: [], answers: [], asked: [], ev: [],
   };
@@ -267,7 +278,7 @@ function up(S) {
     const up = f.y + f.h * 0.3 - h.y;
     return t <= (f.gate ? GATE_WIN : ABOVE_WIN) && up <= REACH_UP && up >= -2.6;      // a swoop down to a gull below counts
   });
-  if (f) { startLunge(S, f, "up", f.y <= 0.3 ? "front" : "above"); return true; }
+  if (f) { startLunge(S, f, 0, f.y <= 0.3 ? "front" : "above"); return true; }
   if (grounded(h)) {
     h.mode = "air"; h.vy = JUMP_V; h.roll = 0;
     S.ev.push({ type: "jump" });
@@ -304,7 +315,7 @@ function side(S, dir) {
   if (!f && lane + dir >= -1 && lane + dir <= 1) { f = sideFoe(S, lane + dir, SIDE_MIN2); if (f) to = lane + dir; }
   h.lane = to;
   S.ev.push({ type: "lane", lane: to, dir });
-  if (f) startLunge(S, f, "side", "side");
+  if (f) startLunge(S, f, dir, "side");
   return true;
 }
 
@@ -321,7 +332,7 @@ function retarget(S, dir) {
     (f.y <= 0.3 || Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4));
   if (!f) return false;
   h.lane = lane;
-  L.foe = f.id; L.left = Math.max(0.06, ttcOf(S, f)); L.how = "side"; L.air = L.air || f.y > 0.3;
+  L.foe = f.id; L.left = Math.max(0.06, ttcOf(S, f)); L.how = "side"; L.dir = dir; L.air = L.air || f.y > 0.3;
   S.ev.push({ type: "lane", lane, dir }, { type: "lunge", how: "side", kind: f.kind, gate: f.gate ? f.gate.id : 0, retarget: true });
   return true;
 }
@@ -342,25 +353,26 @@ function down(S) {
     return true;
   }
   if (grounded(h)) {
-    if (h.roll > 0) return false;                                 // already rolling: the next one waits its turn
-    h.roll = ROLL_T;
+    if (h.roll > 0) { h.rollQ = true; return true; }              // rolling: the next one follows at once, so a run of them leaves no gap
+    h.roll = ROLL_T; h.rollQ = false;
     S.ev.push({ type: "roll" });
     return true;
   }
   const f = nearest(S, (f, t) => f.lane === h.lane && t <= 0.22 && h.y >= f.y + f.h - 0.1 && h.y - (f.y + f.h) <= 4);
-  if (f) { startLunge(S, f, "down", "bonk"); return true; }
+  if (f) { startLunge(S, f, 0, "bonk"); return true; }
   h.slam = h.y >= SLAM_MIN_Y;
   h.vy = -SLAM_V;
   S.ev.push({ type: "dive", slam: h.slam });
   return true;
 }
 
-/** The hero commits to a foe: he is carried to it in the time it takes the quay to bring it to him. */
-function startLunge(S, f, dir, how) {
+/** The hero commits to a foe: he is carried to it in the time it takes the quay to bring it to him. `dir` is the way a
+ *  swipe sideways went (-1, 1; 0 for the others), which a cut that goes on to the next foe carries on in. */
+function startLunge(S, f, dir, how, extra = {}) {
   const h = S.hero;
-  h.lunge = { foe: f.id, how, left: Math.max(0.06, ttcOf(S, f)), air: h.y > 0.5 };       // air: it set off from the air, so it counts as an attack in the air
+  h.lunge = { foe: f.id, how, dir, left: Math.max(0.06, ttcOf(S, f)), air: h.y > 0.5 };       // air: it set off from the air, so it counts as an attack in the air
   h.vy = 0; h.slam = false; h.roll = 0;
-  S.ev.push({ type: "lunge", how, kind: f.kind, gate: f.gate ? f.gate.id : 0 });
+  S.ev.push({ type: "lunge", how, kind: f.kind, gate: f.gate ? f.gate.id : 0, ...extra });
 }
 
 // ---------- the step ----------
@@ -423,14 +435,19 @@ export function step(S, dt) {
       f.alive = false; S.kills++; S.bonus += 100;
       S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "roll", y: f.y });
     }
+    if (h.roll === 0 && h.rollQ) { h.roll = ROLL_T; h.rollQ = false; ev.push({ type: "roll", again: true }); }
   }
+
+  think(S);
 
   // what the foes do
   for (const f of alive(S)) {
     if (f.gate) continue;
     const dz = f.z - h.z;
     if (dz < -FOE_REACH || dz > FOE_REACH) continue;
-    if (h.hurt > 0 || (h.lunge && h.lunge.foe === f.id) || Math.abs(f.x - h.x) > LANE_W * 1.05 || guarded(S, f)) continue;
+    if (h.hurt > 0 || (h.lunge && h.lunge.foe === f.id) || guarded(S, f)) continue;
+    if (Math.abs(f.x - h.x) > (f.ph === 3 ? HIT_X : LANE_W * 1.05)) continue;     // a launched foe hits where it aimed; the others, the lane they are in and the next
+    if (KINDS[f.kind].air && h.roll > 0 && grounded(h)) continue;                  // a roll goes under a gull's dive
     if (h.y < f.y + f.h - 0.15 && h.y + HERO_H > f.y + 0.1) hit(S, f);
     if (S.over) return ev;
   }
@@ -460,7 +477,7 @@ function lungeStep(S, dt) {
 
 /** A lunge arrives. */
 function strike(S, f, how) {
-  const h = S.hero, high = h.y > 0.5 || !!h.lunge?.air;
+  const h = S.hero, L = h.lunge, high = h.y > 0.5 || !!L?.air;
   if (h.guard) h.guard.until = Math.max(h.guard.until, S.t + GUARD_T);   // the swipe is complete: the guard runs from now
   h.lunge = null;
   h.y = Math.max(h.y, 0);
@@ -487,14 +504,73 @@ function strike(S, f, how) {
   }
   f.alive = false;
   const air = high || how === "bonk" || how === "above";
-  h.mode = "air";
-  h.vy = how === "bonk" ? BONK_V : air ? CHAIN_V : HOP_V;
   if (air) h.jumps = 1;                                              // an attack in the air gives my jump back
   S.chain = air ? S.chain + 1 : S.chain;
   S.bestChain = Math.max(S.bestChain, S.chain);
   S.kills++;
   S.bonus += 100 + 50 * Math.min(S.chain, 8);
-  S.ev.push({ type: "kill", id: f.id, kind: f.kind, how, chain: S.chain, y: f.y });
+  S.ev.push({ type: "kill", id: f.id, kind: f.kind, how, chain: S.chain, y: f.y, dir: L?.dir || 0 });
+  // a cut sideways goes on, in the same direction, to the next foe in reach: no hop in between
+  const next = how === "side" && L?.dir ? sweepFoe(S, h.lane + L.dir) : null;
+  if (next) {
+    h.lane += L.dir;
+    S.ev.push({ type: "lane", lane: h.lane, dir: L.dir });
+    startLunge(S, next, L.dir, "side", { sweep: true });
+    h.lunge.air = air || next.y > 0.3;
+    return;
+  }
+  h.mode = "air";
+  h.vy = how === "bonk" ? BONK_V : air ? CHAIN_V : HOP_V;
+}
+
+/** The foe a cut sideways goes on to: in the next lane along, not a gull of a question (that is an answer, and is chosen),
+ *  within SWEEP_WIN, and the way a swipe sideways picks one: a foe on the ground from the ground, a foe in the air from
+ *  the air. */
+function sweepFoe(S, lane) {
+  const h = S.hero;
+  if (lane < -1 || lane > 1) return null;
+  return nearest(S, (f, t) => f.lane === lane && !f.gate && t >= -0.02 && t <= SWEEP_WIN &&
+    (f.y <= 0.3 ? h.y < 1 : h.y >= 0.5 && Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4));
+}
+
+// ---------- the foes' minds ----------
+
+const isAir = f => KINDS[f.kind].air;
+
+/** A foe within a lane of me sees me (`ph` 1: it looks my way), winds up (2) and launches (3), by seconds to contact so
+ *  it is the same at any speed. The launch commits it to the lane I am in then (`aim`): a crab slides across to it, a gull
+ *  dives onto it, and the hit lands there, so a lane changed, a jump or a roll after the launch is a dodge. A gull in my own
+ *  lane never attacks (I run under it), and none attacks me in the air or on a wall. A foe I only come within a lane of at the
+ *  last moment goes through all three in a step or two: it was not given the time to be seen. Foes over a pit, and the
+ *  gulls of a question, are the bridge, not an enemy. */
+function think(S) {
+  const h = S.hero, v = speed(S), reachT = FOE_REACH / v;
+  for (const f of alive(S)) {
+    if (f.gate || !floorAt(S, f.z)) continue;
+    const t = (f.z - h.z) / v;
+    let ph = f.ph || 0;
+    if (ph === 3) { fly(f, t - reachT); continue; }
+    if (t < -reachT) continue;
+    const dl = h.lane - f.lane;
+    if (t > SIGHT_T || Math.abs(dl) > 1 || (isAir(f) && dl === 0)) { f.ph = 0; continue; }
+    f.look = Math.sign(dl);
+    if (ph === 0) { ph = 1; f.pt = S.t; S.ev.push({ type: "notice", id: f.id, kind: f.kind, lane: f.lane, look: f.look }); }
+    if (ph === 1 && t <= WIND_T) { ph = 2; f.pt = S.t; S.ev.push({ type: "wind", id: f.id, kind: f.kind, lane: f.lane }); }
+    if (ph === 2 && t <= LAUNCH_T && (!isAir(f) || grounded(h))) {
+      ph = 3; f.pt = S.t; f.aim = h.lane; f.lt = Math.max(0, t - reachT); f.y0 = f.y;
+      S.ev.push({ type: "launch", id: f.id, kind: f.kind, lane: f.lane, aim: f.aim });
+      fly(f, t - reachT);
+    }
+    f.ph = ph;
+  }
+}
+
+/** A launched foe on its way: `p` is how far, from the launch to the moment it is within reach of me. */
+function fly(f, toReach) {
+  const p = f.lt > 0.001 ? clamp(1 - toReach / f.lt, 0, 1) : 1, e = p * p * (3 - 2 * p);
+  f.p = p;
+  f.x = laneX(f.lane) + (laneX(f.aim) - laneX(f.lane)) * e;
+  if (isAir(f)) f.y = f.y0 * (1 - e);
 }
 
 function answered(S, g, ok) {

@@ -10,7 +10,7 @@
 // The page (reckoning.js) steps the rules and calls frame(S, dt) each time it draws; ping(ev) turns the rules' events
 // into what is seen (a burst, a ring, a shake).
 import * as THREE from "./vendor/three-run.js";
-import { LANE_W, WALL_X, KINDS, ROLL_T } from "./reckoning-engine.js";
+import { LANE_W, WALL_X, KINDS, ROLL_T, speed } from "./reckoning-engine.js";
 
 const BEND = 0.0013;                    // how fast the world drops away: metres of fall per metre-squared of distance
 const BEND_FROM = 9;                    // from this far in front of the camera (the hero is nearer, and stays level)
@@ -61,7 +61,8 @@ function palette() {
   const yard = token("--yard"), sheet = token("--sheet"), ink = token("--ink"), brass = token("--brass"), plate = token("--plate");
   const e = [0, 1, 2, 3].map(i => mix(grey(token(`--c${i}`), 0.45), yard, 0.25));
   const dark = night();
-  const moon = c => (dark ? mix(c, [150, 172, 200], 0.3) : c);       // by night things are lit by a moon: the same colours, lifted towards a cool grey
+  const moon = c => (dark ? mix(c, [150, 172, 200], 0.3) : c);
+  const glow = c => (dark ? mix(c, [235, 140, 105], 0.35) : c);        // the foes are lit more than the quay by night: they have to be seen       // by night things are lit by a moon: the same colours, lifted towards a cool grey
   return {
     sky: dark ? mix(yard, [40, 62, 92], 0.6) : mix(yard, [236, 228, 208], 0.35),
     stone: moon(mix(sheet, yard, 0.35)),
@@ -75,7 +76,13 @@ function palette() {
     roof: moon(mix(e[2], ink, 0.35)),
     hero: grey(plate, 0.1),
     gilt: brass,
-    crab: moon(mix(e[3], ink, 0.15)),
+    crab: glow(moon(mix(mix(e[3], [205, 84, 58], 0.5), sheet, 0.05))),   // a boiled-red shell, its claws a shade towards orange, its belly pale
+    claw: glow(moon(mix(mix(e[3], [205, 84, 58], 0.5), e[0], 0.4))),
+    belly: moon(mix(sheet, e[0], 0.35)),
+    eye: mix(sheet, [255, 255, 255], 0.4),
+    pupil: ink,
+    alert: token("--rk-bad"),                                  // the mark over a foe that has seen me
+    mark: sheet,
     gull: moon(mix(sheet, ink, 0.12)),
     banner: e[0],
     ink,
@@ -116,7 +123,9 @@ export function createRunner(host) {
   const M = {
     stone: mat("stone"), plank: mat("plank"), seam: mat("seam"), water: mat("water"), brick: mat("brick"), wall: mat("wall"),
     timber: mat("timber"), roof: mat("roof"), hero: mat("hero"), gilt: mat("gilt"), crab: mat("crab"), gull: mat("gull"),
-    banner: mat("banner"), skin: mat("skin"), good: mat("good"),
+    banner: mat("banner"), skin: mat("skin"), good: mat("good"), claw: mat("claw"), belly: mat("belly"), eye: mat("eye"), pupil: mat("pupil"),
+    markBg: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), markSees: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
+    markWind: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
     shadow: curved(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })),
     ring: curved(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })),
   };
@@ -126,6 +135,8 @@ export function createRunner(host) {
     set(M.stone, pal.stone); set(M.plank, pal.plank); set(M.seam, pal.seam); set(M.water, pal.water); M.brick.color.set(0xffffff); set(M.wall, pal.wall);        // the warehouses take their own colours (instance colours multiply the material's)
     set(M.timber, pal.timber); set(M.roof, pal.roof); set(M.hero, pal.hero); set(M.gilt, pal.gilt); set(M.crab, pal.crab); set(M.gull, pal.gull);
     set(M.banner, pal.banner); set(M.skin, mix(pal.gull, pal.brick, 0.3)); set(M.good, pal.good); set(M.ring, pal.ring);
+    set(M.claw, pal.claw); set(M.belly, pal.belly); set(M.eye, pal.eye); set(M.pupil, pal.pupil);
+    set(M.markBg, pal.mark); set(M.markSees, pal.gilt); set(M.markWind, pal.alert);
     scene.background = col(pal.sky);
     scene.fog.color = col(pal.sky);
     hemi.color = col(mix(pal.sky, [255, 255, 255], night() ? 0.1 : 0.4));
@@ -187,22 +198,55 @@ export function createRunner(host) {
   let runSeed = null;
   function makeFoe(f) {
     const g = new THREE.Group(), parts = {};
+    const rig = new THREE.Group(); g.add(rig); parts.rig = rig;                         // what pitches, rears and hops; the group above it only turns
+    const put = (geo, m, sx, sy, sz, x, y, z, to = rig) => { const o = new THREE.Mesh(geo, m); o.scale.set(sx, sy, sz); o.position.set(x, y, z); to.add(o); return o; };
     if (f.kind === "crab") {
-      const b = new THREE.Mesh(box, M.crab); b.scale.set(1.15, 0.5, 0.9); b.position.y = 0.4; g.add(b);
-      const top = new THREE.Mesh(sph, M.crab); top.scale.set(0.9, 0.5, 0.7); top.position.y = 0.72; g.add(top);
-      parts.claws = [-1, 1].map(s => { const c = new THREE.Mesh(box, M.crab); c.scale.set(0.34, 0.3, 0.6); c.position.set(s * 0.58, 0.62, 0.5); g.add(c); return c; });
-      parts.legs = [-1, 1].map(s => { const l = new THREE.Mesh(box, M.crab); l.scale.set(0.5, 0.1, 0.12); l.position.set(s * 0.62, 0.18, 0); g.add(l); return l; });
+      // a crab, so that it is read as one: a wide low shell over a pale belly, two eyes on stalks, six legs, and two big
+      // claws with a thumb and a finger each, held up in front (all of it under 1.5 m across, the asset list's size)
+      put(sph, M.crab, 1.0, 0.5, 0.78, 0, 0.46, 0);
+      put(sph, M.belly, 0.86, 0.2, 0.66, 0, 0.3, 0.02);
+      put(sph, M.crab, 0.5, 0.2, 0.3, 0, 0.66, 0.2);                                    // the brow
+      parts.eyes = [-1, 1].map(s => {
+        const e = new THREE.Group(); e.position.set(s * 0.17, 0.68, 0.34); rig.add(e);
+        put(cyl, M.belly, 0.05, 0.2, 0.05, 0, 0.1, 0, e);
+        put(sph, M.eye, 0.15, 0.15, 0.15, 0, 0.23, 0, e);
+        put(sph, M.pupil, 0.08, 0.08, 0.08, 0, 0.24, 0.07, e);
+        return e;
+      });
+      parts.arms = [-1, 1].map(s => {
+        const arm = new THREE.Group(); arm.position.set(s * 0.46, 0.52, 0.28); rig.add(arm);
+        put(cyl, M.crab, 0.11, 0.34, 0.11, 0, 0, 0.17, arm).rotation.x = Math.PI / 2;
+        const claw = new THREE.Group(); claw.position.set(0, 0.03, 0.4); arm.add(claw);
+        put(sph, M.claw, 0.42, 0.3, 0.46, 0, 0, 0.08, claw);
+        const jaw = d => { const piv = new THREE.Group(); piv.position.set(d * 0.09, 0, 0.2); claw.add(piv); put(cone, M.claw, 0.17, 0.46, 0.12, 0, 0, 0.22, piv).rotation.x = Math.PI / 2; return piv; };
+        arm.userData.jaws = [jaw(-1), jaw(1)];
+        return arm;
+      });
+      parts.legs = [];
+      for (const s of [-1, 1]) for (const k of [-1, 0, 1]) {
+        const leg = new THREE.Group(); leg.position.set(s * 0.46, 0.34, k * 0.2 + 0.02); rig.add(leg);
+        const up = put(cyl, M.crab, 0.06, 0.3, 0.06, s * 0.13, 0.04, 0, leg); up.rotation.z = -s * 1.1;
+        const low = put(cyl, M.crab, 0.05, 0.3, 0.05, s * 0.3, -0.1, 0, leg); low.rotation.z = s * 0.25;
+        parts.legs.push(leg);
+        leg.userData = { s, k };
+      }
     } else {
-      const b = new THREE.Mesh(sph, M.gull); b.scale.set(0.5, 0.42, 1.0); b.position.y = 0.4; g.add(b);
-      const beak = new THREE.Mesh(cone, M.gilt); beak.scale.set(0.12, 0.3, 0.12); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.42, 0.55); g.add(beak);
-      parts.wings = [-1, 1].map(s => { const pivot = new THREE.Group(); pivot.position.set(s * 0.22, 0.46, 0); const w = new THREE.Mesh(box, M.gull); w.scale.set(0.6, 0.06, 0.5); w.position.x = s * 0.3; pivot.add(w); g.add(pivot); return pivot; });
-      parts.banner = new THREE.Mesh(box, M.banner); parts.banner.scale.set(0.5, 0.36, 0.04); parts.banner.position.set(0, -0.22, 0); g.add(parts.banner);
-      parts.rope = new THREE.Mesh(box, M.timber); parts.rope.scale.set(0.03, 0.4, 0.03); parts.rope.position.set(0, 0.04, 0); g.add(parts.rope);
+      put(sph, M.gull, 0.5, 0.42, 1.0, 0, 0.4, 0);
+      put(cone, M.gilt, 0.12, 0.3, 0.12, 0, 0.42, 0.55).rotation.x = Math.PI / 2;
+      parts.wings = [-1, 1].map(s => { const pivot = new THREE.Group(); pivot.position.set(s * 0.22, 0.46, 0); const w = new THREE.Mesh(box, M.gull); w.scale.set(0.6, 0.06, 0.5); w.position.x = s * 0.3; pivot.add(w); rig.add(pivot); return pivot; });
+      parts.banner = put(box, M.banner, 0.5, 0.36, 0.04, 0, -0.22, 0);
+      parts.rope = put(box, M.timber, 0.03, 0.4, 0.03, 0, 0.04, 0);
     }
     g.traverse(o => { o.frustumCulled = false; });
     const shadow = new THREE.Mesh(disc, M.shadow); shadow.frustumCulled = false;
-    world.add(g, shadow);
-    return { group: g, parts, shadow, kind: f.kind };
+    // the mark over a foe that has seen me: an exclamation point on a pale plate, facing the camera (behind the hero, so
+    // facing -z), brass when it has just seen me and red when it is winding up
+    const mark = new THREE.Group();
+    put(cyl, M.markBg, 0.62, 0.05, 0.62, 0, 0, 0, mark).rotation.x = Math.PI / 2;
+    const bar = put(box, M.markSees, 0.12, 0.3, 0.04, 0, 0.1, -0.05, mark), dot = put(sph, M.markSees, 0.13, 0.13, 0.06, 0, -0.17, -0.05, mark);
+    mark.visible = false; mark.traverse(o => { o.frustumCulled = false; });
+    world.add(g, shadow, mark);
+    return { group: g, parts, shadow, mark, markParts: [bar, dot], kind: f.kind };
   }
 
   // effects: rings on the planks, bursts
@@ -235,6 +279,87 @@ export function createRunner(host) {
     camera.updateProjectionMatrix();
   }
   new ResizeObserver(resize).observe(host);
+
+  // ---------- the foes' poses ----------
+  const ease = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+  const hideFoe = o => { o.group.visible = o.shadow.visible = o.mark.visible = false; };
+
+  /** A foe at rest, or seeing me (f.ph 1: it turns to look, the claws go up and snap, the mark pops over its head), winding
+   *  up (2: it rears, the mark is red and shakes) or launched (3: it springs, a crab hopping at me, a gull diving). The rules
+   *  put the foe where it is (f.x and f.y move as it launches); this is only how it holds itself. */
+  function poseFoe(o, f, S) {
+    const g = o.group, rig = o.parts.rig, P = o.parts;
+    const ph = f.ph || 0, since = S.t - (f.pt || 0), p = f.p || 0, e3 = ease(p), look = f.look || 0;
+    const crab = f.kind === "crab", id = f.id;
+    let yaw = 0, pitch = 0, hop = 0, adv = 0, rise = 0, shiver = 0, marked = 0;
+    if (ph === 1) { yaw = look * 0.75 * ease(since / 0.15); marked = 1; }
+    else if (ph === 2) { yaw = look * 0.75; pitch = -(crab ? 0.4 : 0.55) * ease(since / 0.2); rise = crab ? 0 : 0.45 * ease(since / 0.25); shiver = Math.sin(now * 70) * 0.03; marked = 2; }
+    else if (ph === 3) { yaw = look * 0.5 * (1 - e3); pitch = (crab ? 0.5 : 1.0) * e3 - (crab ? 0.4 : 0.55) * (1 - e3); hop = crab ? 0.45 * Math.sin(Math.PI * p) : 0; adv = crab ? 0.8 * e3 : 0; rise = crab ? 0 : 0.45 * (1 - e3); }
+    const lift = f.kind === "gull" ? f.y + rise + 0.05 * Math.sin(now * 3 + id) : f.y;
+    g.visible = true;
+    g.position.set(f.x + shiver, lift, f.z - adv);
+    g.rotation.set(0, Math.PI - yaw, 0);
+    g.scale.setScalar(1);
+    rig.rotation.set(-pitch, 0, 0);
+    rig.position.set(0, hop, 0);
+    if (f.spent && f.alive) g.rotation.z = Math.sin(now * 30) * 0.08;
+    if (crab) {
+      let raise = 0.4 + 0.12 * Math.sin(now * 5 + id), spread = 0.15, jaw = 0.18 + 0.12 * Math.sin(now * 7 + id);
+      if (ph === 1) { raise = 0.75; jaw = 0.1 + 0.4 * (0.5 + 0.5 * Math.sin(now * 20)); }
+      else if (ph === 2) { raise = 0.75 + 0.6 * ease(since / 0.2); spread = 0.65; jaw = 0.55; }
+      else if (ph === 3) { raise = 1.35 * (1 - e3) - 0.25 * e3; spread = 0.65 * (1 - e3); jaw = 0.55 * (1 - e3) + 0.05; }
+      P.arms.forEach((a, i) => { const s = i ? 1 : -1; a.rotation.set(-raise, s * spread, 0); a.userData.jaws.forEach((j, n) => { j.rotation.y = (n ? -1 : 1) * jaw; }); });
+      P.eyes.forEach((e, i) => { e.rotation.z = (i ? 1 : -1) * (ph ? 0.1 : 0.25 + 0.1 * Math.sin(now * 3 + id)); e.position.y = 0.68 + (ph ? 0.06 : 0); });
+      P.legs.forEach(l => { l.rotation.y = Math.sin(now * (ph === 3 ? 30 : 12) + l.userData.k * 2 + l.userData.s + id) * 0.3; });
+    } else {
+      const fast = ph === 1 ? 14 : ph === 2 ? 5 : 9, amp = ph === 2 ? 0.95 : 0.55;
+      P.wings.forEach((w, i) => {
+        const s = i ? 1 : -1;
+        w.rotation.z = s * (ph === 3 ? 0.45 : Math.sin(now * fast + id) * amp + (ph === 2 ? 0.3 : 0));
+        w.rotation.y = ph === 3 ? s * 0.9 * e3 : 0;
+      });
+      P.banner.visible = P.rope.visible = !!f.gate;                                         // only the gulls of a question carry a banner
+    }
+    // the mark
+    const m = o.mark;
+    m.visible = !!marked;
+    if (marked) {
+      const pop = ease(since / 0.15) * (1 + 0.3 * Math.sin(Math.min(1, since / 0.15) * Math.PI)), beat = marked === 2 ? 1 + 0.12 * Math.sin(now * 26) : 1;
+      m.position.set(f.x, lift + (crab ? 1.5 : 1.15), f.z - adv);
+      m.scale.setScalar(Math.max(0.01, pop * beat) * (marked === 2 ? 1.15 : 1));
+      o.markParts.forEach(x => { x.material = marked === 2 ? M.markWind : M.markSees; });
+    }
+  }
+
+  /** How a foe is thrown when it is cut down, from the way the cut came: a cut from in front sends it on ahead, one from the
+   *  side to that side, a roll along the planks, a slam outward from me, a bonk straight up. */
+  function knock(o, f, S) {
+    const h = S.hero, v = speed(S), side = Math.sign(f.x - h.x) || 1;
+    const how = o.how, dir = o.dir;
+    let vx = side * 2.5, vy = 5, vz = v + 3, sx = -9, sz = side * 4;
+    if (how === "side") { vx = (dir || side) * 8; vy = 4.5; vz = v + 1; sx = -4; sz = -(dir || side) * 12; }
+    else if (how === "front" || how === "above" || how === "up") { vx = 0; vy = 7.5; vz = v + 4; sx = -9; sz = side * 3; }
+    else if (how === "roll") { vx = 0; vy = 4; vz = v + 9; sx = -14; sz = 0; }
+    else if (how === "slam") { vx = side * 7; vy = 9; vz = v + 3; sx = -8; sz = side * 9; }
+    else if (how === "bonk") { vx = side * 1.5; vy = 3; vz = v + 1; sx = -5; sz = side * 4; }
+    return { x: f.x, y: f.y, z: f.z, vx, vy, vz, sx, sz, r: 0, q: 0, flat: how === "bonk" };
+  }
+
+  /** A foe that has been cut down flies off the way it was thrown, tumbling, and shrinks away. */
+  function flyBack(o, f, dt) {
+    const k = o.fly, t = (now - o.died) / 0.85;
+    if (!k || t >= 1) { hideFoe(o); return; }
+    k.vy -= 16 * dt; k.x += k.vx * dt; k.y = Math.max(0, k.y + k.vy * dt); k.z += k.vz * dt; k.r += k.sx * dt; k.q += k.sz * dt;
+    const g = o.group;
+    g.visible = true;
+    g.position.set(k.x, k.y, k.z);
+    g.rotation.set(0, Math.PI, 0);
+    o.parts.rig.rotation.set(k.r, 0, k.q);
+    o.parts.rig.position.set(0, 0.3, 0);
+    g.scale.set(1, k.flat && t < 0.2 ? 0.3 : 1, 1).multiplyScalar(t < 0.55 ? 1 : 1 - ease((t - 0.55) / 0.45));
+    o.mark.visible = false;
+    o.shadow.visible = false;
+  }
 
   function frame(S, dt) {
     now += dt;
@@ -309,31 +434,21 @@ export function createRunner(host) {
     });
 
     // foes (ids start again with each run, so a new run puts every foe back in the pool first)
-    if (S.seed !== runSeed) { for (const o of foes.values()) { o.group.visible = o.shadow.visible = false; free.push(o); } foes.clear(); runSeed = S.seed; }
+    if (S.seed !== runSeed) { for (const o of foes.values()) { hideFoe(o); free.push(o); } foes.clear(); runSeed = S.seed; }
     const seen = new Set();
     for (const f of W_.foes) {
       if (f.z < z0 - 4 || f.z > z1) continue;
       seen.add(f.id);
       let o = foes.get(f.id);
-      if (!o) { o = free.find(x => x.kind === f.kind) || makeFoe(f); const k = free.indexOf(o); if (k >= 0) free.splice(k, 1); o.born = now; o.died = 0; o.group.visible = o.shadow.visible = true; foes.set(f.id, o); }
-      if (!f.alive && !o.died) o.died = now;
-      const dying = o.died ? Math.min(1, (now - o.died) / 0.35) : 0;
-      const g = o.group, bob = Math.sin(now * 5 + f.id) * 0.5 + 0.5;
-      const lift = f.kind === "gull" ? f.y + 0.05 * Math.sin(now * 3 + f.id) : f.y;
-      g.position.set(f.x, lift + dying * (f.kind === "gull" ? 3 : 0.6), f.z);
-      g.rotation.set(0, Math.PI + (f.kind === "crab" ? 0.12 * Math.sin(now * 6 + f.id) : 0), 0);
-      g.scale.setScalar(1 - dying * (f.alive ? 1 : 0.85));
-      if (f.kind === "gull") {
-        o.parts.wings.forEach((w, i) => { w.rotation.z = (i ? 1 : -1) * Math.sin(now * 9 + f.id) * 0.55; });
-        o.parts.banner.visible = o.parts.rope.visible = !!f.gate;                                                // only the gulls of a question carry a banner
-      }
-      else { o.parts.claws.forEach((c, i) => { c.position.z = 0.5 + 0.08 * Math.sin(now * 7 + i * 2 + f.id); }); }
-      if (f.spent && f.alive) g.rotation.z = Math.sin(now * 30) * 0.08;
+      if (!o) { o = free.find(x => x.kind === f.kind) || makeFoe(f); const k = free.indexOf(o); if (k >= 0) free.splice(k, 1); o.born = now; o.died = 0; o.fly = null; o.how = ""; o.dir = 0; o.group.visible = o.shadow.visible = true; foes.set(f.id, o); }
+      if (!f.alive && !o.died) { o.died = now; o.fly = knock(o, f, S); }
+      if (o.died) { flyBack(o, f, dt); continue; }
+      poseFoe(o, f, S);
       o.shadow.position.set(f.x, 0.025, f.z);
       o.shadow.scale.setScalar(f.kind === "crab" ? 1.2 : 0.8 + 0.1 * (2 - Math.min(2, f.y)));
-      o.shadow.visible = inSpan(f.z) && !dying && f.y < 3;
+      o.shadow.visible = inSpan(f.z) && f.y < 3;
     }
-    for (const [id, o] of foes) if (!seen.has(id)) { o.group.visible = o.shadow.visible = false; free.push(o); foes.delete(id); }
+    for (const [id, o] of foes) if (!seen.has(id)) { hideFoe(o); free.push(o); foes.delete(id); }
 
     // the hero
     const run = Math.sin(now * 16);
@@ -389,7 +504,11 @@ export function createRunner(host) {
     const h = S.hero;
     switch (ev.type) {
       case "jump": if (ev.air) ring(h.x, h.y + 0.1, h.z, 1.6, 0.35); break;
-      case "kill": burst(h.x, h.y + 0.8, h.z + 0.5, ev.how === "slam" ? 4 : 7); shake = Math.max(shake, 0.4); break;
+      case "kill": {
+        const o = foes.get(ev.id); if (o) { o.how = ev.how; o.dir = ev.dir || 0; }
+        burst(h.x, h.y + 0.8, h.z + 0.5, ev.how === "slam" ? 4 : 7); shake = Math.max(shake, 0.4); break;
+      }
+      case "launch": shake = Math.max(shake, 0.12); break;
       case "shockwave": ring(h.x, 0.06, h.z, 5.5, 0.5); shake = 1; break;
       case "hurt": shake = 1.2; break;
       case "fall": shake = 0.8; burst(h.x, -1.5, h.z, 8); break;
