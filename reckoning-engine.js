@@ -11,13 +11,16 @@
 //                                        across two lanes)
 //   up, a foe above in my lane           within ABOVE_WIN: a jump attack
 //   left/right, a foe in the next lane   SIDE_MIN..SIDE_WIN, both on the ground or both in the air (within reach of
-//                                        my height): a lane change into it with a cut; otherwise a dodge
+//                                        my height): a lane change into it with a cut; otherwise a dodge. With none in
+//                                        the next lane, one two lanes across (SIDE_MIN2..SIDE_WIN) is cut the same way
+//   down, on the ground                  a roll (ROLL_T): any foe on the ground that reaches me in my lane is cut down
 //   down, in the air above a foe         a bonk: I land on it and bounce into another jump
 //   down, in the air above one jump      a slam: on the planks (never on a foe) a shockwave cuts the ground foes in
 //     height                             the lanes beside me
 //   left/right in the outer lane, with a wall beside me: a wall run, which lifts me; up on the wall is a higher jump
-// A kill in the air throws me up again (CHAIN_V), so a chain of flying foes carries me across a pit. A swipe that has
-// no use yet waits BUFFER seconds (a jump swiped a moment before landing still jumps).
+// A kill in the air throws me up again (CHAIN_V), so a chain of flying foes carries me across a pit, and gives me back
+// my jump: one more up in the air, with nothing to cut, jumps again. A swipe that has no use yet waits BUFFER seconds (a
+// jump swiped a moment before landing still jumps).
 //
 // The question twist: now and then the quay breaks at a gap no jump clears, and three gulls hang over it carrying
 // three answers, one to a lane. Only the right gull throws me across; the others turn me back into the water. Where
@@ -42,6 +45,9 @@ export const WALL_HERO_X = WALL_X - 0.5;   // where a wall runner's feet are
 export const WALL_Y = 2.0;
 export const LANE_T = 0.13;                // seconds to change lane
 export const FRONT_WIN = 0.28, ABOVE_WIN = 0.55, SIDE_MIN = 0.08, SIDE_WIN = 0.6, BUFFER = 0.14;
+export const SIDE_MIN2 = 0.16;             // two lanes across is twice the way, so it needs twice the time to cross
+export const ROLL_T = 0.32;                // seconds a roll lasts: 3 to 5 m of quay, about what an attack in front reaches
+export const ROLL_REACH = 1.2;             // and how far in front of the hero a rolling cut lands
 export const SLAM_R = 3.2;                 // how far ahead a slam's shockwave runs (and a metre behind)
 export const REACH_UP = 3.2;               // how far above me a jump attack can reach
 export const FOE_REACH = 0.7;              // a foe hits when this close along the quay
@@ -72,7 +78,7 @@ export function newGame({ seed = 1, deal = null, hearts = 3 } = {}) {
     v: 1, seed, rng: seed | 0, qrng: (seed ^ 0x9E3779B9) | 0,
     t: 0, over: false, hearts, maxHearts: hearts, score: 0, bonus: 0, kills: 0, chain: 0, bestChain: 0,
     right: 0, wrong: 0, missed: 0, streak: 0, falls: 0, fwd: 1,
-    hero: { z: 0, x: 0, y: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0 },
+    hero: { z: 0, x: 0, y: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0, roll: 0, jumps: 0 },
     world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], foes: [], gates: [], id: 1 },
     pending: [], answers: [], asked: [], ev: [],
   };
@@ -245,8 +251,13 @@ function up(S) {
   });
   if (f) { startLunge(S, f, "up", f.y <= 0.3 ? "front" : "above"); return true; }
   if (grounded(h)) {
-    h.mode = "air"; h.vy = JUMP_V;
+    h.mode = "air"; h.vy = JUMP_V; h.roll = 0;
     S.ev.push({ type: "jump" });
+    return true;
+  }
+  if (h.mode === "air" && h.jumps > 0) {                          // a cut in the air gave my jump back: one more, from here
+    h.jumps = 0; h.slam = false; h.vy = Math.max(h.vy, JUMP_V);
+    S.ev.push({ type: "jump", air: true });
     return true;
   }
   return false;
@@ -263,19 +274,26 @@ function side(S, dir) {
   if (h.lane === dir && S.t >= h.noWall && wallAt(S, dir, h.z + 0.6)) {
     h.wallY = grounded(h) ? WALL_Y : clamp(h.y, 1.4, 3);          // from the planks the wall lifts me; from the air I keep my height
     h.mode = "wall"; h.wall = dir;
-    h.vy = 0;
+    h.vy = 0; h.roll = 0; h.jumps = 0;
     S.ev.push({ type: "wallrun", side: dir });
     return true;
   }
   const lane = h.lane + dir;
   if (lane < -1 || lane > 1) return false;
-  // on the ground I cut down a foe on the ground; in the air, one in the air within reach of my height
-  const f = nearest(S, (f, t) => f.lane === lane && t >= SIDE_MIN && t <= SIDE_WIN &&
-    (f.y <= 0.3 ? h.y < 1 : h.y >= 0.5 && Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4));
-  h.lane = lane;
-  S.ev.push({ type: "lane", lane, dir });
+  // the next lane's foe first; with none in range there, one two lanes across (the hero crosses both lanes to it)
+  let f = sideFoe(S, lane, SIDE_MIN), to = lane;
+  if (!f && lane + dir >= -1 && lane + dir <= 1) { f = sideFoe(S, lane + dir, SIDE_MIN2); if (f) to = lane + dir; }
+  h.lane = to;
+  S.ev.push({ type: "lane", lane: to, dir });
   if (f) startLunge(S, f, "side", "side");
   return true;
+}
+
+/** The foe a swipe sideways can cut in `lane`: on the ground I cut one on the ground; in the air, one in the air within reach of my height. */
+function sideFoe(S, lane, tMin) {
+  const h = S.hero;
+  return nearest(S, (f, t) => f.lane === lane && t >= tMin && t <= SIDE_WIN &&
+    (f.y <= 0.3 ? h.y < 1 : h.y >= 0.5 && Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4));
 }
 
 function down(S) {
@@ -285,7 +303,12 @@ function down(S) {
     S.ev.push({ type: "wallleave" });
     return true;
   }
-  if (grounded(h)) return false;
+  if (grounded(h)) {
+    if (h.roll > 0) return false;                                 // already rolling: the next one waits its turn
+    h.roll = ROLL_T;
+    S.ev.push({ type: "roll" });
+    return true;
+  }
   const f = nearest(S, (f, t) => f.lane === h.lane && t <= 0.22 && h.y >= f.y + f.h - 0.1 && h.y - (f.y + f.h) <= 4);
   if (f) { startLunge(S, f, "down", "bonk"); return true; }
   h.slam = h.y >= SLAM_MIN_Y;
@@ -298,7 +321,7 @@ function down(S) {
 function startLunge(S, f, dir, how) {
   const h = S.hero;
   h.lunge = { foe: f.id, how, left: Math.max(0.06, ttcOf(S, f)) };
-  h.vy = 0; h.slam = false;
+  h.vy = 0; h.slam = false; h.roll = 0;
   S.ev.push({ type: "lunge", how, kind: f.kind, gate: f.gate ? f.gate.id : 0 });
 }
 
@@ -336,7 +359,7 @@ export function step(S, dt) {
     if (!w || h.z > w.z1) { h.mode = "air"; h.vy = 0; h.lane = h.wall; h.wall = 0; h.noWall = S.t + 0.3; ev.push({ type: "wallend" }); }
     else { h.y += clamp(h.wallY - h.y, -14 * dt, 14 * dt); h.vy = 0; }
   } else {
-    if (h.mode === "run" && !floorAt(S, h.z)) { h.mode = "air"; h.vy = 0; }
+    if (h.mode === "run" && !floorAt(S, h.z)) { h.mode = "air"; h.vy = 0; h.roll = 0; }
     if (h.mode === "air") {
       if (h.vy > -SLAM_V + 0.01 || !h.slam) h.vy -= G * dt;
       h.y += h.vy * dt;
@@ -346,6 +369,18 @@ export function step(S, dt) {
     }
   }
   if (S.over) return ev;
+
+  // a roll cuts down every foe on the ground that reaches me in my lane
+  if (h.roll > 0) {
+    h.roll = Math.max(0, h.roll - dt);
+    for (const f of alive(S)) {
+      if (f.gate || f.y > 0.3 || f.lane !== h.lane) continue;
+      const dz = f.z - h.z;
+      if (dz < -FOE_REACH || dz > ROLL_REACH) continue;
+      f.alive = false; S.kills++; S.bonus += 100;
+      S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "roll", y: f.y });
+    }
+  }
 
   // what the foes do
   for (const f of alive(S)) {
@@ -388,19 +423,19 @@ function strike(S, f, how) {
   if (f.gate) {
     const g = gateById(S, f.gate.id);
     const right = g && g.state === "open" && f.gate.i === g.q.a;
-    if (!g || g.state !== "open") { h.vy = high ? CHAIN_V : HOP_V; h.mode = "air"; return; }
+    if (!g || g.state !== "open") { h.vy = high ? CHAIN_V : HOP_V; h.mode = "air"; if (high) h.jumps = 1; return; }
     g.pick = f.gate.i;
     if (right) {
       g.state = "right";
       f.alive = false;
       for (const o of S.world.foes) if (o.gate && o.gate.id === g.id) o.alive = false;         // the others fly off
-      h.vy = CHAIN_V; h.mode = "air";
+      h.vy = CHAIN_V; h.mode = "air"; h.jumps = 1;
       answered(S, g, true);
       S.ev.push({ type: "kill", id: f.id, kind: f.kind, how, gate: g.id, right: true, y: f.y });
     } else {
       g.state = "wrong";
       f.spent = true;                                                  // a gull that stays where it is
-      h.vy = -2; h.mode = "air"; S.fwd = 0.25;                         // I bounce off and drop short
+      h.vy = -2; h.mode = "air"; h.jumps = 0; S.fwd = 0.25;                         // I bounce off and drop short
       answered(S, g, false);
       S.ev.push({ type: "clang", id: f.id, gate: g.id });
     }
@@ -410,6 +445,7 @@ function strike(S, f, how) {
   const air = high || how === "bonk" || how === "above";
   h.mode = "air";
   h.vy = how === "bonk" ? BONK_V : air ? CHAIN_V : HOP_V;
+  if (air) h.jumps = 1;                                              // an attack in the air gives my jump back
   S.chain = air ? S.chain + 1 : S.chain;
   S.bestChain = Math.max(S.bestChain, S.chain);
   S.kills++;
@@ -443,7 +479,7 @@ function diveHits(S, prevY) {
 
 function land(S) {
   const h = S.hero, slam = h.slam;
-  h.y = 0; h.vy = 0; h.mode = "run"; h.slam = false;
+  h.y = 0; h.vy = 0; h.mode = "run"; h.slam = false; h.jumps = 0;
   S.chain = 0;
   S.ev.push({ type: "land", slam });
   if (!slam) return;
@@ -474,7 +510,7 @@ function fall(S) {
   S.ev.push({ type: "fall", hearts: S.hearts });
   if (S.hearts <= 0) { end(S); return; }
   if (p) h.z = p.z1 + 1.5;
-  h.y = 0; h.vy = 0; h.mode = "run"; h.slam = false; h.lunge = null; h.hurt = HURT_T + 0.3;
+  h.y = 0; h.vy = 0; h.mode = "run"; h.slam = false; h.lunge = null; h.hurt = HURT_T + 0.3; h.roll = 0; h.jumps = 0;
 }
 
 function end(S) {

@@ -10,7 +10,7 @@
 // The page (reckoning.js) steps the rules and calls frame(S, dt) each time it draws; ping(ev) turns the rules' events
 // into what is seen (a burst, a ring, a shake).
 import * as THREE from "./vendor/three-run.js";
-import { LANE_W, WALL_X, KINDS } from "./reckoning-engine.js";
+import { LANE_W, WALL_X, KINDS, ROLL_T } from "./reckoning-engine.js";
 
 const BEND = 0.0013;                    // how fast the world drops away: metres of fall per metre-squared of distance
 const BEND_FROM = 9;                    // from this far in front of the camera (the hero is nearer, and stays level)
@@ -348,6 +348,14 @@ export function createRunner(host) {
     body.rotation.x = lean + (air ? -0.15 : 0);
     body.position.y = air || h.mode === "wall" ? 0 : Math.abs(run) * 0.06;
     legs[0].rotation.x = air ? -0.7 : run * 0.9; legs[1].rotation.x = air ? 0.5 : -run * 0.9;
+    // a roll: one forward somersault about the middle of the body (the legs, which hang from the hero, are tucked away)
+    const rolling = h.roll > 0 && h.mode === "run" && !h.lunge;
+    if (rolling) {
+      const a = (1 - h.roll / ROLL_T) * Math.PI * 2;
+      body.rotation.x = a;
+      body.position.set(0, 0.9 * (1 - Math.cos(a)) - 0.3, -0.9 * Math.sin(a));
+    } else body.position.z = 0;
+    legs.forEach(l => { l.visible = !rolling; });
     const lanesLean = (h.x - (h.lane * LANE_W)) * -0.25;
     hero.rotation.z = h.mode === "wall" ? 0 : lanesLean;
     blink = h.hurt > 0 ? blink + dt : 0;
@@ -380,6 +388,7 @@ export function createRunner(host) {
   function ping(ev, S) {
     const h = S.hero;
     switch (ev.type) {
+      case "jump": if (ev.air) ring(h.x, h.y + 0.1, h.z, 1.6, 0.35); break;
       case "kill": burst(h.x, h.y + 0.8, h.z + 0.5, ev.how === "slam" ? 4 : 7); shake = Math.max(shake, 0.4); break;
       case "shockwave": ring(h.x, 0.06, h.z, 5.5, 0.5); shake = 1; break;
       case "hurt": shake = 1.2; break;

@@ -44,7 +44,7 @@ function newRun() {
   $("result").hidden = true;
   $("ask").hidden = false;
   say("");
-  hint("Swipe to run. Up jumps, down dives, sideways changes lane, and into a wall runs up it.");
+  hint("Swipe to run. Up jumps, down rolls, sideways changes lane, and into a wall runs up it.");
   save();
   drawPage(true);
 }

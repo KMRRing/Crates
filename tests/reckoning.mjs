@@ -1,7 +1,7 @@
 // Reckoning's rules (reckoning-engine.js): the jump, the five ways a swipe attacks (a foe in front, to the side, above,
 // the bonk and the slam), the wall run, the air chain over a pit, the question gate over the water, the quay from a seed
 // and a bot playing whole stretches of it (every kind of chunk is winnable with the swipes the rules give).
-import { LANE_W, JUMP_H, AIR_T, WALL_Y, SLAM_MIN_Y, KINDS, speed, speedAt, newGame, copy, setDeal, swipe, step, take, ensure } from "../reckoning-engine.js";
+import { LANE_W, JUMP_H, AIR_T, WALL_Y, SLAM_MIN_Y, ROLL_T, KINDS, speed, speedAt, newGame, copy, setDeal, swipe, step, take, ensure } from "../reckoning-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -123,6 +123,91 @@ const events = S => take(S).map(e => e.type);
   const ev = events(S);
   check(!under.alive && beside.alive && !ev.includes("shockwave"), "landing on a foe is a bonk, not a slam: the others stand");
   check(SLAM_MIN_Y > JUMP_H, `(a slam needs more than ${JUMP_H} m)`);
+}
+
+// ---------- a foe two lanes across ----------
+{
+  const trial = (heroLane, foeLane, ttc, dir, kind = "crab", air = false) => {
+    const S = scene({ hero: { lane: heroLane, x: heroLane * LANE_W, ...(air ? { y: 1.4, mode: "air", vy: 0.01 } : {}) } });
+    const f = foeAt(S, kind, foeLane, ttc);
+    run(S, 0.01);
+    if (dir) swipe(S, dir);
+    run(S, 1.2);
+    return [S, f];
+  };
+  let [S, f] = trial(-1, 1, 0.4, "right");
+  check(!f.alive && S.hero.lane === 1 && S.hearts === 3, "a crab two lanes across: a swipe towards it crosses both lanes and cuts it down");
+  [S, f] = trial(1, -1, 0.4, "left");
+  check(!f.alive && S.hero.lane === -1, "and the same from the other side");
+  [S, f] = trial(-1, 1, 0.4, "left");
+  check(f.alive && S.hero.lane === -1, "a swipe the other way leaves it alone");
+  [S, f] = trial(-1, 1, 0.12, "right");
+  check(f.alive && S.hero.lane === 0, "too close to cross two lanes in time: only the one lane");
+  [S, f] = trial(-1, 1, 0.9, "right");
+  check(f.alive && S.hero.lane === 0, "too far off to count as an attack: only a lane change");
+  {
+    const T = scene({ hero: { lane: -1, x: -LANE_W } }), near = foeAt(T, "crab", 0, 0.4), far = foeAt(T, "crab", 1, 0.3);
+    run(T, 0.01); swipe(T, "right"); run(T, 0.6);
+    check(!near.alive && far.alive && T.hero.lane === 0, "with a foe in the next lane too, the next lane's is the one cut");
+  }
+  [S, f] = trial(-1, 1, 0.4, "right", "gull", true);
+  check(!f.alive && S.hero.lane === 1, "in the air a gull two lanes across is cut down the same way");
+  [S, f] = trial(-1, 1, 0.4, "right", "gull", false);
+  check(f.alive && S.hero.lane === 0, "from the ground a gull is out of reach, two lanes across as much as one");
+}
+
+// ---------- the roll ----------
+{
+  const trial = (ttc, lane = 0, swipeAt = 0) => {
+    const S = scene(), f = foeAt(S, "crab", lane, ttc);
+    run(S, swipeAt + 0.005); swipe(S, "down");
+    const rolled = S.hero.roll > 0;
+    run(S, 1.2);
+    return [S, f, rolled];
+  };
+  let [S, f, rolled] = trial(0.22);
+  check(rolled && !f.alive && S.hearts === 3 && S.kills === 1 && S.hero.mode === "run", "down on the planks is a roll, and it cuts down a foe in front if it is close enough");
+  [S, f] = trial(0.12);
+  check(!f.alive && S.hearts === 3, "even one almost on me");
+  [S, f] = trial(0.8);
+  check(f.alive && S.hearts === 2, "a roll that ends before the foe reaches me does not stop it");
+  S = scene({ hero: { lane: -1, x: -LANE_W } }); f = foeAt(S, "crab", 1, 0.25); run(S, 0.01); swipe(S, "down"); run(S, 1);
+  check(f.alive && S.hearts === 3, "a roll cuts only what is in my lane (a foe two lanes across never hits)");
+  S = scene(); f = foeAt(S, "crab", 1, 0.3); S.hero.lane = 0; run(S, 0.01); swipe(S, "down"); run(S, 1);
+  check(f.alive && S.hearts === 2, "and a foe in the next lane still hits a rolling hero");
+  S = scene(); f = foeAt(S, "crab", 0, 0.2); run(S, 0.01); swipe(S, "down"); run(S, 0.05);
+  check(S.hero.y === 0 && S.hero.mode === "run", "a roll keeps the hero on the planks (no hop after the cut)");
+  S = scene(); swipe(S, "down"); run(S, ROLL_T + 0.05);
+  check(S.hero.roll === 0, "a roll ends");
+  S = scene(); swipe(S, "down"); run(S, 0.05); swipe(S, "up"); run(S, 0.05);
+  check(S.hero.roll === 0 && S.hero.mode === "air", "up in the middle of a roll jumps out of it");
+  S = scene(); S.world.pits.push({ z0: 3, z1: 20 }); swipe(S, "down"); run(S, 0.5);
+  check(S.hero.roll === 0, "a roll that runs off the edge ends");
+}
+
+// ---------- the jump comes back after a cut in the air ----------
+{
+  const S = scene(), f = foeAt(S, "gull", 0, 0.4);
+  run(S, 0.01); swipe(S, "up"); run(S, 0.5);
+  check(!f.alive && S.hero.mode === "air" && S.hero.jumps === 1, "a jump attack on a gull throws me up again and gives my jump back");
+  const y0 = S.hero.y; swipe(S, "up"); run(S, 0.05);
+  check(S.hero.jumps === 0 && S.hero.vy > 7 && S.hero.y > y0, "one more up in the air, with nothing to cut: a second jump from where I am");
+  const peakBefore = S.hero.y; let peak = peakBefore; for (let i = 0; i < 300 && S.hero.mode === "air"; i++) { step(S, DT); peak = Math.max(peak, S.hero.y); }
+  check(peak - y0 > JUMP_H - 0.1, `and it rises a whole jump height (${(peak - y0).toFixed(2)} m)`);
+  const T = scene(), g = foeAt(T, "gull", 0, 0.4);
+  run(T, 0.01); swipe(T, "up"); run(T, 0.5); swipe(T, "up"); run(T, 0.05); take(T); swipe(T, "up"); run(T, 0.05);
+  check(T.hero.jumps === 0 && !take(T).some(e => e.type === "jump"), "but only the one: a third up does nothing");
+  const U = scene(); swipe(U, "up"); run(U, 0.2); swipe(U, "up"); run(U, 0.05);
+  check(U.hero.jumps === 0 && U.hero.vy < 5, "a plain jump has no second one to give");
+  const V = scene(), h1 = foeAt(V, "gull", 0, 0.4), h2 = foeAt(V, "gull", 1, 0.9);
+  h2.y = 2.6;
+  run(V, 0.01); swipe(V, "up"); run(V, 0.45); swipe(V, "right"); run(V, 1.2);
+  check(!h1.alive && !h2.alive && V.chain === 2, "and after a cut I can swipe sideways to the next gull as before");
+  const W = scene({ hero: { y: 2, mode: "air", vy: 0 } }), c = foeAt(W, "crab", 0, 0.1);
+  swipe(W, "down"); run(W, 0.2);
+  check(!c.alive && W.hero.jumps === 1, "a bonk gives it back too");
+  run(W, 3);
+  check(W.hero.jumps === 0 && W.hero.mode === "run", "landing takes it away");
 }
 
 // ---------- the wall ----------
