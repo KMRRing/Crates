@@ -7,6 +7,7 @@
 import { BANK, TOPICS } from "./core.js";
 import { normalize } from "./typing.js";
 import { pairKey } from "./known.js";
+import { SUBJECT_PRESETS, TOPIC_OF, mixFromSubjects, subjectsIn } from "./topics.js";
 
 // questions: a standard run's length; diff: clue difficulties, dealt in these proportions; multi: how often a clue
 // that fits several answers shows more than one of them. Every question has four options, filling the 2×2 grid.
@@ -121,24 +122,37 @@ function plan(rnd, L, count, kinds) {
 }
 
 // ---------- topics: what a run deals from (countries and commodities from Crates' bank, beside the subject banks) ----------
-// A run mixes the topics the player has in, a "more" topic dealt twice as often as an "in" one; every question is on
-// the subject banks' difficulty scale (1–10). The clue topics turn the chosen difficulties into the clue bank's own
-// terms: how obscure the clue.
+// A Topics run mixes the topics whose subjects are on (Settings' one set of topics, for every game: topics.js), each at the
+// weight below; every question is on the subject banks' difficulty scale (1–10). The clue topics turn the chosen
+// difficulties into the clue bank's own terms: how obscure the clue.
 export const CLUE_TOPICS = { countries: "country", commodities: "commodity" };
 export const TOPIC_LIST = [["countries", "Countries"], ["commodities", "Commodities"],
   ...Object.entries(LEVELS).filter(([, L]) => L.maths).map(([id, L]) => [id, L.label])];
 const allTopics = w => Object.fromEntries(TOPIC_LIST.map(([id]) => [id, w]));
-// The presets. Balanced has every topic in, and more of each except the four specialist ones (watches, skiing, the art
-// market, etiquette), which are in once; Trader weights markets and numbers; Culture night weights art, wine,
-// architecture, myth and literature, with every regional and cultural topic in.
+// Balanced is what a topic is dealt at when its subject is on: every topic in and dealt twice as often as one weighted 1,
+// except the four specialist banks (watches, skiing, the art market, etiquette), which are in once. It was the menu's
+// default preset; Trader and Culture night went with the menu's own topics control, since Settings has presets for
+// every game now (Culture, STEM, Trade) and a topic is on or off, not "more".
 const NICHE = ["watches", "skiing", "artmarket", "titles"];
 export const TOPIC_PRESETS = {
   balanced: { label: "Balanced", topics: { ...allTopics(2), ...Object.fromEntries(NICHE.map(id => [id, 1])) } },
-  trader: { label: "Trader", topics: { ...allTopics(0), commodities: 2, refining: 2, economics: 2, maths: 2, reasoning: 1, patterns: 1, code: 1, chemistry: 1,
-    physics: 1, countries: 1, cities: 1, merchants: 1, law: 1, china: 1, swiss: 1, artmarket: 1 } },
-  culture: { label: "Culture night", topics: { ...allTopics(0), art: 2, wine: 2, architecture: 2, mythology: 2, lit: 2, sayings: 1, words: 1, philosophy: 1, religion: 1, titles: 1,
-    artmarket: 1, watches: 1, merchants: 1, britain: 1, bavaria: 1, swiss: 1, china: 1, skiing: 1, countries: 1, cities: 1, flags: 1 } },
 };
+/** The weights a Topics run is dealt at, from the subjects that are on (topics-on.js's subjectsOn()): each topic in at its
+ *  Balanced weight when its subject is on, out when it isn't. With every subject on that is the old Balanced run, seed for
+ *  seed. Nothing in (every subject off, or only subjects Punt has no topic on) deals every topic, as Settings says. */
+export const topicsOf = on => {
+  const w = mixFromSubjects(TOPIC_LIST, TOPIC_OF.punt, on, TOPIC_PRESETS.balanced.topics);
+  return Object.values(w).some(x => x > 0) ? w : { ...TOPIC_PRESETS.balanced.topics };
+};
+/** Whether the subjects leave Punt nothing to deal, so a run deals every topic: some are on, but none of Punt's topics
+ *  belong to them (every subject off says so itself). */
+export const dealsEverything = on => subjectsIn(on).length > 0 && !Object.values(mixFromSubjects(TOPIC_LIST, TOPIC_OF.punt, on)).some(x => x > 0);
+/** Whether a mix (weights, as a run carries them) is what one of Settings' presets deals: a run from a link counts for a
+ *  best only if it is, since your own topics don't. */
+export const isPresetMix = weights => Object.values(SUBJECT_PRESETS).some(p => {
+  const w = topicsOf(p.topics);
+  return TOPIC_LIST.every(([id]) => (weights?.[id] || 0) === w[id]);
+});
 export const MIX = { label: "Topics", questions: 15 };
 LEVELS.mix = MIX;                                   // a run of topics is a level of its own (its label, its length)
 let ONLY = null;                                    // while a clue topic is dealt: the one category its pairs come from

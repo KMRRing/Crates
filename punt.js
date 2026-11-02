@@ -3,7 +3,7 @@
 // same question and stakes on their own phone: Against, each on a pot of their own; Together, on one pot for the
 // table. A question settles once everyone at the table has staked, and the reveal shows what each did and where
 // everyone stands (punt-table.js has the rules of the table).
-import { makeSession, moreQuestions, rightCount, averageReturn, showReturn, knowledgeStats, guessChance, LEVELS, LENGTHS, START_POT, NAME_MODES, ODDS, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
+import { makeSession, moreQuestions, rightCount, averageReturn, showReturn, knowledgeStats, guessChance, LEVELS, LENGTHS, START_POT, NAME_MODES, ODDS, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, topicsOf, dealsEverything, isPresetMix, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
 import { picksOf, judged, lengthOf, logOf, settleRound, advance, runOver, stake as stakeAt, pressNext, goOn, carryOn, waitingFor, goOnAt, presentIds, seatedIds, potOf, isBust, maxShare, modeOf, MODES, peopleFor, standingsAfter, resultFor, averageFor } from "./punt-table.js";
 import { createTogether } from "./together.js";
 import { leaderboard, signed } from "./standings.js";
@@ -19,7 +19,10 @@ import { check } from "./typing.js";
 import * as known from "./known.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./question-flags.js";
 import { gameHref, GAMES, joiningWords } from "./rooms.js";
-import { part, choice, action, mirror, line, weights, ticks } from "./menu.js";
+import { part, choice, action, line, ticks } from "./menu.js";
+import { subjectPreset } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
+import { topicsPart } from "./topics-ui.js";
 import { today, noteComparable, arrivedForToday } from "./suite.js";   // the day, the same for everyone; comparable results
 import { roundOver } from "./random.js";
 
@@ -85,20 +88,11 @@ async function bankDeal(level, picks, personal = true) {
   const seenKeys = learning ? new Set(pile.all("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1))) : new Set();
   return { deal: { pool, stages: Object.fromEntries(STAGES.map(x => [x.id, x.label])), dueKeys, seenKeys }, picks: resolved };
 }
-// ---------- topics: a run mixes the topics in (each in, or more), on one difficulty range ----------
-const TOPICS_KEY = "punt:topics", DIFFS_KEY = "punt:diffs";
-/** The topics chosen: { preset, weights: { topic: 0 | 1 | 2 } } (Balanced to start). */
-function chosenTopics() {
-  try {
-    const t = JSON.parse(localStorage.getItem(TOPICS_KEY));
-    // a preset is taken as it stands now (a topic added since, or a preset rebalanced, reaches those who chose it);
-    // weights set by hand are kept as they were
-    if (t?.preset && TOPIC_PRESETS[t.preset]) return { ...t, weights: { ...TOPIC_PRESETS[t.preset].topics } };
-    if (t?.weights) return t;
-  } catch { /* first time */ }
-  return { preset: "balanced", weights: { ...TOPIC_PRESETS.balanced.topics } };
-}
-const keepTopics = t => { try { localStorage.setItem(TOPICS_KEY, JSON.stringify(t)); } catch { /* private mode */ } };
+// ---------- topics: a Topics run mixes the topics whose subjects are on (Settings), on one difficulty range ----------
+// The subjects are Settings' one set of topics for every game (topics-on.js), read when a run is dealt: a change reaches the
+// next run, and a run already dealt keeps what it was dealt (its mix is in the run). The old key, punt:topics, is no longer
+// written or read; what's in it stays where it is.
+const DIFFS_KEY = "punt:diffs";
 /** The difficulties chosen (1–10), for every topic. */
 function chosenDiffs() {
   try { const d = JSON.parse(localStorage.getItem(DIFFS_KEY)); if (Array.isArray(d) && d.length) return d.filter(x => DIFFICULTIES.includes(x)); } catch { /* first time */ }
@@ -115,23 +109,21 @@ async function topicSources(mixPicks, personal = true) {
     return { id, label, weight, ...deal };
   }));
 }
-const mixNow = () => ({ weights: chosenTopics().weights, diffs: chosenDiffs() });
+const mixNow = () => ({ weights: topicsOf(subjectsOn()), diffs: chosenDiffs() });
 /** A mixed run's questions: a fixed length in one batch, an endless run's first block. */
 async function mixSession(seed, length, mixPicks, { personal = true, name = nameDeal() } = {}) {
   const count = length === "endless" ? BATCH : LENGTHS[length]?.questions ?? MIX.questions;
   return mixQuestions(seed, await topicSources(mixPicks, personal), count, [], name);
 }
-// ---------- what counts: today's run and Standard ----------
-// Your best (the games screen's, the one your partner sees) counts only runs anyone could have played: today's run,
-// dealt from the date on the Standard settings with nothing of yours in it, and any run you set up on those settings
-// with learning off. Standard: the Balanced topics, every difficulty, the standard length, and name-it off (Known
-// deals from your own history).
-// a run that counts for your best: today's, or a mix on one of the presets (Balanced, Trader, Culture night) with every
-// difficulty in, at any length
-const onPreset = (level, picks) => level === "mix" && !!TOPIC_PRESETS[picks?.preset] && (!picks.diffs || DIFFICULTIES.every(d => picks.diffs.includes(d)));
+// ---------- what counts: today's run and the presets ----------
+// Your best (the games screen's, the one your partner sees) counts only runs anyone could have played: today's run, dealt
+// from the date on the Standard settings (every topic, every difficulty, 15 questions, name-it off) with nothing of yours in
+// it, and a Topics run on one of Settings' presets (All on, Culture, STEM, Trade, All off) with every difficulty in, at any
+// length. Your own mix of subjects doesn't count; a run from a link counts only if its mix is what a preset deals.
 const standardPicks = () => ({ weights: { ...TOPIC_PRESETS.balanced.topics }, diffs: [...DIFFICULTIES] });
-const isStandard = (level, length, picks) => level === "mix" && length === "standard" && !pile.learning() && nameMode() === "off"
-  && TOPIC_LIST.every(([id]) => (picks?.weights?.[id] || 0) === 1) && DIFFICULTIES.every(d => picks?.diffs?.includes(d));
+/** Whether a Topics run counts for your best; fromSettings: dealt from your own topics rather than a link's. */
+const countsForBest = (mixPicks, fromSettings) => DIFFICULTIES.every(d => mixPicks.diffs?.includes(d))
+  && (fromSettings ? subjectPreset(subjectsOn()) !== "custom" : isPresetMix(mixPicks.weights));
 
 /** A run's link: today's run by its date; else seed, level, length, and for a bank its stages and difficulties. */
 function linkOf(s) {
@@ -176,10 +168,10 @@ function saveSolo() { if (!together.room) try { localStorage.setItem(STORE, JSON
 async function soloSession(seed, level, length = chosenLength(), picks = null, daily = false) {
   if (level === "mix") {
     if (daily) length = "standard";
-    const mixPicks = daily ? standardPicks() : picks?.weights ? picks : mixNow();
+    const own = !picks?.weights, mixPicks = daily ? standardPicks() : own ? mixNow() : picks;
     const questions = await mixSession(seed, length, mixPicks, daily ? { personal: false, name: { mode: "off", known: {} } } : {});
-    if (!questions.length) { toast("Put at least one topic in"); render(); return; }
-    S = { v: 1, seed, level, length, mix: mixPicks, ...(daily && { daily: true }), ranked: daily || onPreset(level, mixPicks),
+    if (!questions.length) { toast("Nothing matches those topics and difficulties"); render(); return; }
+    S = { v: 1, seed, level, length, mix: mixPicks, ...(daily && { daily: true }), ranked: daily || countsForBest(mixPicks, own),
       questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
     resetChoice(); shownDone = null; saveSolo(); history.replaceState(null, "", linkOf(S)); render();
     return;
@@ -984,6 +976,15 @@ let pickLength = null;                                        // the length the 
 let pickCopies = [];                                          // the menu's copies of the bar's pickers: [button, source, fallback]
 new MutationObserver(() => { for (const [b, src, fb] of pickCopies) b.textContent = src.textContent || fb; })
   .observe($("mathsBar"), { childList: true, characterData: true, subtree: true });
+/** What the topics line adds for Punt: when the subjects on leave it nothing to deal, that a run deals every topic; at a
+ *  table, whose topics are dealt; else, with some off, that today's run ignores them (it says nothing when all are on or off,
+ *  as the run is then the same). */
+function topicsNote() {
+  const on = subjectsOn(), preset = subjectPreset(on);
+  if (dealsEverything(on)) return "Punt has nothing on these, so a run deals every topic";
+  if (together.room) return "A table's run is dealt from the topics of whoever starts it";
+  return preset === "all" || preset === "none" ? "" : "Today's run deals every topic";
+}
 function drawMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -992,23 +993,17 @@ function drawMenu() {
   // at a table a new run is the whole table's (dealt from your choices below), and today's run is played alone
   if (together.room) play.append(action("New run", () => newSession("mix", pickLength), "primary"));
   else play.append(action("New run", () => newSession("mix", pickLength), "primary"), action("Today's run", newDaily),
-    line(S?.daily ? "Today's run: it counts for your best." : S?.ranked ? "A preset with every difficulty in: it counts for your best."
-      : "Your best counts today's run, and runs on a preset (Balanced, Trader, Culture night) with every difficulty in, at any length."));
+    line(S?.daily ? "Today's run: it counts for your best." : S?.ranked ? "A topics preset with every difficulty in: it counts for your best."
+      : "Your best counts today's run, and runs on a topics preset with every difficulty in, at any length: not your own mix."));
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
-  // what a run deals: a preset or your own mix of topics (each out, in or more), the difficulties for all of them,
-  // and each subject bank's stages; a change applies to the next run
-  const topics = chosenTopics(), content = part(body, "content");
-  const presets = [...Object.entries(TOPIC_PRESETS).map(([id, p]) => [id, p.label]), ...(topics.preset === "custom" ? [["custom", "Your own"]] : [])];
-  content.append(
-    choice("Preset", presets, topics.preset, id => { if (id === "custom") return; keepTopics({ preset: id, weights: { ...TOPIC_PRESETS[id].topics } }); drawMenu(); }),
-    weights("Topics", TOPIC_LIST, topics.weights, w => {
-      keepTopics({ preset: "custom", weights: w });
-      content.querySelector("[aria-label='Preset']")?.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", "false"));   // your own mix now
-    }),
+  // what a run deals: the topics set in Settings (a line and a link here, never a control of its own), the difficulties
+  // for all of them, and each subject bank's stages; a change applies to the next run
+  const inMix = topicsOf(subjectsOn()), content = part(body, "content");
+  content.append(...topicsPart(content, topicsNote()),
     ticks("Difficulty", DIFFICULTIES.map(d => [d, String(d)]), chosenDiffs(), d => keepDiffs(d.length ? d : [...DIFFICULTIES])));
   const stages = document.createElement("div");
   content.append(stages);
-  for (const [id, label] of TOPIC_LIST.filter(([id]) => !CLUE_TOPICS[id] && (topics.weights[id] || 0) > 0)) {
+  for (const [id, label] of TOPIC_LIST.filter(([id]) => !CLUE_TOPICS[id] && inMix[id] > 0)) {
     loadBank(id).then(({ STAGES }) => {
       const mine = chosenPicks(id), on = (mine.stages || STAGES.map(x => x.id)).filter(x => STAGES.some(y => y.id === x));
       const box = document.createElement("details"), sum = document.createElement("summary"), what = document.createElement("span");
@@ -1025,7 +1020,7 @@ function drawMenu() {
   }
   content.append(choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${MIX.questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }),
     // countries and commodities only; a change applies to the next run
-    ...(["countries", "commodities"].some(id => (topics.weights[id] || 0) > 0) ? [choice("Name it", Object.entries(NAME_MODES), nameMode(), mo => {
+    ...(["countries", "commodities"].some(id => inMix[id] > 0) ? [choice("Name it", Object.entries(NAME_MODES), nameMode(), mo => {
       try { localStorage.setItem(NAME, mo); } catch { /* private mode */ }
     })] : []));
   part(body, "settings").append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
