@@ -62,7 +62,7 @@ export const LANE_T = 0.13;                // seconds to change lane
 export const FRONT_WIN = 0.28, ABOVE_WIN = 0.55, SIDE_MIN = 0.08, SIDE_WIN = 0.6, BUFFER = 0.14;
 export const RETARGET_MIN = 0.03;          // a cut already in flight can be moved until this close to landing
 export const SIDE_MIN2 = 0.16;             // two lanes across is twice the way, so it needs twice the time to cross
-export const ROLL_T = 0.32;                // seconds a roll lasts: 3 to 5 m of quay, about what an attack in front reaches
+export const ROLL_T = 0.45;                // seconds a roll lasts (it was 0.32; Korbi, 2 November 2026: "rolls should last a bit longer"): 4.5 to 7 m of quay
 export const SIGHT_T = 1.1, WIND_T = 0.6, LAUNCH_T = 0.3;   // seconds to contact: a foe sees me, winds up, launches
 export const HIT_X = 0.8 * LANE_W;         // a launched foe hits what is this near the lane it aimed at
 export const SWEEP_WIN = 0.5;              // a cut sideways goes on to the next foe in the same direction if it is within this
