@@ -39,6 +39,7 @@ check(/\.cx-load \.b \{ transform-origin: 38\.96% 56\.38%; \}/.test(css) && /\.c
 const { MARK } = await import("../mark.js");
 check(/class="cx-a"/.test(MARK) && /class="cx-r"/.test(MARK) && /class="cx-b"/.test(MARK) && /class="cx-d"/.test(MARK), "the inline mark carries the classes the menu button turns by");
 check(css.includes(`.turning .cx .cx-a { animation: cx-turn ${T_A}s`) && css.includes(`.turning .cx .cx-r { animation: cx-turn ${T_R}s`) && css.includes(`.turning .cx .cx-b, .turning .cx .cx-d { animation: cx-turn ${T_B}s`), "…at the same speeds");
+check(theme.includes(`a: [${T_A * 1000}, "normal"]`) && theme.includes(`r: [${T_R * 1000}, "reverse"]`) && theme.includes(`b: [${T_B * 1000}, "reverse"]`) && theme.includes(`d: [${T_B * 1000}, "reverse"]`), "theme.js turns a layer that CSS leaves still at the same speeds and directions");
 check(["rete.svg", "sextant.svg", "logo-modern.svg"].every(p => !fs.existsSync(root + p)), "the old rete, sextant and Modern logo are gone");
 check(!/almanac/i.test(read("manifest.webmanifest")) && /"name": "Codex"/.test(read("manifest.webmanifest")), "the app is called Codex");
 

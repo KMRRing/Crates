@@ -110,11 +110,21 @@ const defs = () => "<defs>" +
   radial("gscrew", 'cx=".4" cy=".35" r=".7"', [[0, HI], [1, BR]]) +
   linear("ggloss", 'x1="0" y1="0" x2="0" y2="1"', [[0, "#FFFFFF", .17], [1, "#FFFFFF", 0]]) +
   '<clipPath id="cdial"><circle cx="50" cy="50" r="45"/></clipPath>' +
-  // a soft shadow under a layer's parts: `sh` falls a little down and right (for what stands still), `ao` all round (for what turns)
-  '<filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation=".8" result="b"/><feOffset in="b" dx=".3" dy=".55" result="o"/><feComponentTransfer in="o" result="s"><feFuncA type="linear" slope=".6"/></feComponentTransfer><feMerge><feMergeNode in="s"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-  '<filter id="ao" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation=".9" result="b"/><feComponentTransfer in="b" result="s"><feFuncA type="linear" slope=".55"/></feComponentTransfer><feMerge><feMergeNode in="s"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
   "</defs>";
-const shade = (kind, body, rich) => (rich ? `<g filter="url(#${kind})">${body}</g>` : body);
+// A soft shadow under a layer's parts, made of paint and not of an SVG filter: Safari draws a filter at a coarser grid than
+// the screen's, so a filtered layer came out blurry on a phone, and a filter is what a turning layer would repaint each
+// frame. The part's silhouette (its black shape, highlights left out) is stamped at a few offsets round it, faintly, which
+// piles up into a soft edge. `sh` falls a little down and right (what stands still), `ao` all round (what turns).
+const silhouette = body => body
+  .replace(/<(?:path|circle|ellipse)\b[^>]*\sopacity="[^"]*"[^>]*\/>/g, "")   // stripes and glints lie inside what is covered
+  .replace(/\b(fill|stroke)="(?!none")[^"]*"/g, '$1="#000"');
+const around = (r, n, o) => Array.from({ length: n }, (_, i) => [r * Math.cos(2 * Math.PI * i / n + .5), r * Math.sin(2 * Math.PI * i / n + .5), o]);
+const STAMPS = [...around(.7, 6, .1), ...around(1.5, 6, .045)];
+const shadow = (id, kind, body) => {
+  const [dx, dy] = kind === "sh" ? [.3, .55] : [0, 0];
+  return `<defs><g id="${id}">${silhouette(body)}</g></defs>` +
+    STAMPS.map(([x, y, o]) => `<use href="#${id}" x="${f(x + dx)}" y="${f(y + dy)}" opacity="${o}"/>`).join("") + body;
+};
 
 const wedge = (r1, r2, a0, a1, fill, opacity) => {
   const [x0, y0] = P(r2, a0), [x1, y1] = P(r2, a1), [x2, y2] = P(r1, a1), [x3, y3] = P(r1, a0);
@@ -164,7 +174,7 @@ const greatWheel = rich => {                            // the great wheel: teet
 /** The layers bottom to top: [name, what turns it (null: nothing, "a" the great wheel, "r" the ring, "b"/"d" a pinion), markup]. */
 const DIAL = rich => `<circle cx="50" cy="50" r="46" fill="${rich ? "url(#gdial)" : NAVY}"/>`;
 export function layers(detail = true, rich = true) {
-  const L = [];
+  const L = [], shade = (kind, body, rich) => rich ? shadow(`s${L.length}`, kind, body) : body;
   const rim = rich ? `<circle cx="50" cy="50" r="45.1" fill="none" stroke="url(#gbez)" stroke-width="1.5"/>` : `<circle cx="50" cy="50" r="45" fill="none" stroke="${BR}" stroke-width="${detail ? .7 : 1}"/>`;
   L.push(["base", null, DIAL(rich) + rim + shade("sh", tier(1, detail, rich), rich) + `<circle cx="50" cy="50" r="22" fill="${rich ? "url(#ginner)" : NAVY2}"/>`]);
   const ring = `<path fill-rule="evenodd" d="M${f(50 + RING_OUT)} 50A${f(RING_OUT)} ${f(RING_OUT)} 0 1 1 ${f(50 - RING_OUT)} 50A${f(RING_OUT)} ${f(RING_OUT)} 0 1 1 ${f(50 + RING_OUT)} 50Z ${path(int(NR, RR, PH_R).map(([x, y]) => [50 + x, 50 + y]))}" fill="${rich ? "url(#gring)" : BR}" stroke="${BRD}" stroke-width=".3"/>`;

@@ -12,15 +12,29 @@
 // The loader's mark, large (style.css, .cx-load): nine pictures stacked, each moving part its own layer, put in here so it
 // is there from the page's first moment and turns on the GPU, whatever the page's own thread is busy with. It shows
 // (style.css) only while a page loads or a task runs, and only once every picture has come, so it never draws half a mark.
-// [file, what turns it: a the great wheel, r the ring, b and d the pinions, "" nothing]; the order is the stacking.
 (function () {
+  // What turns the layers is CSS (style.css), and a phone that asks for less motion, or one still holding a stylesheet from
+  // before that was kept, switches CSS animation off: the mark then showed still. A frame after it shows, a layer with no
+  // CSS animation running is turned from here instead (Web Animations: the same turning, on the GPU, which no style rule
+  // reaches). Seconds a turn as in style.css, and the direction (tests/mark.mjs checks they agree).
+  var TURN = { a: [3000, "normal"], r: [6000, "reverse"], b: [1500, "reverse"], d: [1500, "reverse"] };
+  function turnWhatStands(box) {
+    requestAnimationFrame(function () {
+      Array.prototype.forEach.call(box.querySelectorAll("img.m"), function (img) {
+        if (!img.animate || !img.getAnimations || img.getAnimations().some(function (a) { return a.animationName; })) return;
+        var t = TURN[img.className.split(" ")[1]];
+        img.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }], { duration: t[0], iterations: Infinity, direction: t[1] });
+      });
+    });
+  }
+  // [file, what turns it: a the great wheel, r the ring, b and d the pinions, "" nothing]; the order is the stacking.
   var layers = [["mark/base.svg", ""], ["mark/ring.svg", "r"], ["mark/pin-b.svg", "b"], ["mark/pin-d.svg", "d"], ["mark/great.svg", "a"], ["mark/fixed.svg", ""], ["mark/bar-ring.svg", "r"], ["mark/bar-great.svg", "a"], ["mark/top.svg", ""]];
   var box = document.createElement("div"), left = layers.length;
   box.className = "cx-load"; box.setAttribute("aria-hidden", "true");
   layers.forEach(function (l) {
     var img = new Image();
     img.alt = ""; img.draggable = false; if (l[1]) img.className = "m " + l[1];
-    img.onload = img.onerror = function () { if (--left === 0) box.className += " on"; };
+    img.onload = img.onerror = function () { if (--left === 0) { box.className += " on"; turnWhatStands(box); } };
     img.src = l[0];
     box.appendChild(img);
   });
