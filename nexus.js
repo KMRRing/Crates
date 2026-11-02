@@ -4,13 +4,16 @@
 // the same for everyone. A round scores what you found less what you picked wrongly, out of 100. Checking turns the
 // ring into a list of verdicts with the link that was written for each, and what you missed or picked wrongly goes to the
 // pile (Deck asks it again; learning mode deals those nexuses again, and the ones other games found you weak on).
-// Together, the same five rounds for everyone at the table (duel.js), from the dealer's mix.
+// Random runs draw their nexuses from the topics that are on (the suite's one set, in Settings: topics.js, topics-on.js),
+// read when the run is dealt. Together, the same five rounds for everyone at the table (duel.js), from the dealer's topics.
 import { clueLines, pictureOf, whatCard } from "./thing-clues.js";
 import { showPicture, credit } from "./pics.js";
-import { PER_RUN, SIZES, MODES, CENTRES, dealRun, judge, reasonOf, askOf, cardsFor, settles, name, kind, TOPIC_LIST, TOPIC_GROUPS, TOPIC_PRESETS } from "./nexus-engine.js";
-import { cleanMix, presetOf, mixParam, mixFromParam } from "./topics.js";
+import { PER_RUN, SIZES, MODES, CENTRES, dealRun, judge, reasonOf, askOf, cardsFor, settles, name, kind, TOPIC_LIST, topicsOf } from "./nexus-engine.js";
+import { subjectPreset, even, mixParam, mixFromParam } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
+import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, topicMix, action, line } from "./menu.js";
+import { part, choice, action, line } from "./menu.js";
 import { today, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
@@ -18,17 +21,18 @@ import * as pile from "./pile.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "nexus:run", BEST = "nexus:best", DAILY = "nexus:daily", TOPICS_KEY = "nexus:topics", PREFS = "nexus:prefs";
+const RUN = "nexus:run", BEST = "nexus:best", DAILY = "nexus:daily", PREFS = "nexus:prefs";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const DEFAULT = { mode: "mixed", size: 10 };
 const prefs = (p => ({ mode: MODES.some(([m]) => m === p.mode) ? p.mode : DEFAULT.mode, size: SIZES.includes(p.size) ? p.size : DEFAULT.size }))(read(PREFS, {}));
 const keepPrefs = () => write(PREFS, prefs);
 
-// ---------- your mix of topics ----------
-const mix = () => cleanMix(TOPIC_LIST, read(TOPICS_KEY, null));
-const keepMix = w => write(TOPICS_KEY, w);
-const presetNow = () => presetOf(TOPIC_LIST, TOPIC_PRESETS, mix());
+// ---------- your topics ----------
+// The suite's one set (Settings, or Change topics in the menu), read when a run is dealt, never kept here; the old
+// nexus:topics key is no longer read or written. A preset counts for your best, your own mix doesn't.
+const mix = () => topicsOf(subjectsOn());
+const onPreset = () => subjectPreset(subjectsOn()) !== "custom";
 
 // ---------- a run ----------
 let S = read(RUN, null);
@@ -54,7 +58,7 @@ function newRun(daily) {
   const run = dealRun(seed, opts);
   // your own mix, a kind of round or a size of ring doesn't count for your best: today's run and the presets' standard run do
   S = { ...fresh(run), daily, day: daily ? today() : null, due: learn?.items || [],
-    ranked: daily || (presetNow() !== "custom" && prefs.mode === DEFAULT.mode && prefs.size === DEFAULT.size) };
+    ranked: daily || (onPreset() && prefs.mode === DEFAULT.mode && prefs.size === DEFAULT.size) };
   if (!daily) pile.dealt("nexus", run.rounds.map(x => x.centre), 600);
   save(); render();
 }
@@ -248,8 +252,8 @@ function toast(text, ms = 2600) {
 // total wins, then the quicker. Your solo run, your best, today's and your pile stay as they were.
 const duel = createDuel({
   game: "nexus", name: "Nexus", line: $("rival"), toast,
-  // the match carries the dealer's kind of round, ring and mix (unless Balanced), so every phone deals the same rounds from it
-  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31), mode: prefs.mode, size: prefs.size, ...(presetNow() === "balanced" ? {} : { t: mixParam(TOPIC_LIST, mix()) }) }),
+  // the match carries the dealer's kind of round, ring and mix (unless every topic is in), so every phone deals the same rounds from it
+  deal: () => { const w = mix(); return { seed: Math.floor(Math.random() * 2 ** 31), mode: prefs.mode, size: prefs.size, ...(even(TOPIC_LIST, w) ? {} : { t: mixParam(TOPIC_LIST, w) }) }; },
   describe: () => `The same ${PER_RUN} rounds for everyone: find the links`,
   play: (match, { kept }) => {
     S = kept?.seed === match.seed && kept.rounds ? kept
@@ -273,13 +277,15 @@ function lobby() {
 
 // ---------- the menu ----------
 let pick = null;
+// topics changed (in the sheet Change topics opens) with today's picked: the next run is a random one, which they are for
+addEventListener("topics:changed", () => { if (pick === "daily") pick = "random"; });
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (duel.on) {
     const table = part(body, "together");
     duel.menu(table);
-    table.append(topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), keepMix, { groups: TOPIC_GROUPS }));     // the next match's rounds come from your mix
+    table.append(...topicsPart(table, "The next match is dealt from your topics"));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
@@ -287,12 +293,10 @@ function openMenu() {
   part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
   const content = part(body, "content");
   content.append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  // today's run is the same for everyone, so your rounds and topics are for random runs
-  if (pick === "random") {
-    content.append(choice("Rounds", MODES, prefs.mode, v => { prefs.mode = v; keepPrefs(); openMenu(); }));
-    content.append(topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), keepMix,
-      { groups: TOPIC_GROUPS, note: w => (presetOf(TOPIC_LIST, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's run and the presets do." : null) }));
-  }
+  // today's run is the same for everyone, so your rounds are for random runs, and so are your topics, but they're shown
+  // either way: a game opens on today's, and topics shown only with Random were never found
+  if (pick === "random") content.append(choice("Rounds", MODES, prefs.mode, v => { prefs.mode = v; keepPrefs(); openMenu(); }));
+  content.append(...topicsPart(content, pick === "daily" ? "Today's run deals every topic" : onPreset() ? "" : "Your own mix doesn't count for your best"));
   const settings = part(body, "settings");
   if (pick === "random") settings.append(choice("Candidates", SIZES.map(n => [n, String(n)]), prefs.size, v => { prefs.size = v; keepPrefs(); openMenu(); }));
   settings.append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));

@@ -3,9 +3,12 @@
 // loosely fits counts as neither); an Orbit has three to five links among eight to twelve, an Aspect round only those under
 // one aspect (with the nexus's other links under other aspects among the decoys), an Intruder four links and one that
 // isn't; decoys are mostly of the kind of the links, never hubs; a round is judged by what's found less what's wrongly
-// picked; the pile's cards ask the right thing with the right answer; a mix of topics and the pile's wishes are kept.
+// picked; the pile's cards ask the right thing with the right answer; a mix of topics and the pile's wishes are kept; and
+// the mix is made from the suite's one set of subjects (topicsOf): every subject on is the old Balanced, seed for seed,
+// subjects off take their topics out, and nothing on deals every topic.
 // Run: node tests/nexus.mjs
-import { LINKED, CENTRES, SIZES, PER_RUN, dealRun, judge, cardsFor, settles, reasonOf, askOf, barred, name, kind, ABOUT, TOPIC_LIST, ASPECT } from "../nexus-engine.js";
+import { LINKED, CENTRES, SIZES, PER_RUN, dealRun, judge, cardsFor, settles, reasonOf, askOf, barred, name, kind, ABOUT, TOPIC_LIST, topicsOf, ASPECT } from "../nexus-engine.js";
+import { cleanMix, cleanSubjects, subjectsIn, subjectsSay, mixParam, mixFromParam, SUBJECT_PRESETS, TOPIC_OF } from "../topics.js";
 let bad = 0;
 const fail = (...why) => { bad++; if (bad < 40) console.log(...why); };
 const t0 = performance.now();
@@ -119,6 +122,43 @@ if (cards < 100) fail("too few cards tried", cards);
   if (kept < all * 0.9) fail("a mix of two topics dealt", kept, "of", all, "from them");
   const nothing = dealRun(3, { mode: "orbit", weights: mixOf(0) });
   if (nothing.rounds.length !== PER_RUN) fail("a mix that leaves nothing deals nothing");
+}
+// ---------- the suite's one set of subjects (topics.js, topics-on.js; Settings) ----------
+{
+  const on = cleanSubjects(null), none = cleanSubjects(SUBJECT_PRESETS.none.topics);
+  const only = (...ids) => cleanSubjects({ ...SUBJECT_PRESETS.none.topics, ...Object.fromEntries(ids.map(id => [id, 1])) });
+  const json = x => JSON.stringify(x), mixIn = w => TOPIC_LIST.filter(([id]) => w[id] > 0).map(([id]) => id);
+  if (TOPIC_LIST.some(([id]) => !TOPIC_OF.kb[id])) fail("a topic of Nexus's belongs to no subject");
+  // all on is the old Balanced: every topic in once, and the same rounds, seed for seed, in every kind of round
+  const all = topicsOf(on);
+  if (json(all) !== json(cleanMix(TOPIC_LIST, null)) || !TOPIC_LIST.every(([id]) => all[id] === 1)) fail("all subjects on is not every topic in once");
+  for (const mode of ["mixed", "orbit", "aspect", "intruder"]) for (const seed of seeds(3)) {
+    const old = json(dealRun(seed, { mode, weights: cleanMix(TOPIC_LIST, null) }));
+    if (json(dealRun(seed, { mode, weights: all })) !== old || json(dealRun(seed, { mode })) !== old) fail("all subjects on deals other rounds than Balanced did", mode, seed);
+  }
+  // subjects off take their topics out: only Geography and History on, and the nexuses are about those topics (Origins and
+  // History, the commodity ones, belong to the same two subjects), and the deal is not all on's
+  const two = topicsOf(only("geo", "hist")), keep = mixIn(two);
+  if (json(keep) !== json(["geo", "hist", "orig", "past"])) fail("Geography and History did not bring their topics", json(keep));
+  let kept = 0, got = 0;
+  for (const seed of seeds(10)) for (const rd of dealRun(seed, { mode: "orbit", weights: two }).rounds) { got++; if ([...ABOUT.get(rd.centre) || []].some(t => keep.includes(t))) kept++; }
+  if (kept < got * 0.9) fail("subjects on dealt", kept, "of", got, "from their topics");
+  if (json(dealRun(7, { mode: "mixed", weights: two })) === json(dealRun(7, { mode: "mixed", weights: all }))) fail("subjects off dealt the same rounds as all on");
+  const noArts = topicsOf(cleanSubjects({ cult: 0, screen: 0, style: 0 }));
+  if (!(noArts.cult === 0 && noArts.screen === 0 && noArts.style === 0 && noArts.geo === 1 && noArts.life === 1)) fail("subjects off did not take just their topics out", json(noArts));
+  if (json(topicsOf(cleanSubjects({ math: 0, cities: 0, rel: 0, art: 0 }))) !== json(all)) fail("a subject none of Nexus's topics belongs to changed its mix");
+  // nothing on: every topic is dealt (five rounds, from many topics), and the menu line says so
+  const nothing = topicsOf(none);
+  if (mixIn(nothing).length || subjectsIn(none).length) fail("all subjects off is not nothing in");
+  const dealt = [3, 4, 5].flatMap(seed => dealRun(seed, { mode: "orbit", weights: nothing }).rounds);
+  const topics = new Set(dealt.flatMap(rd => [...ABOUT.get(rd.centre) || []]));
+  if (dealt.length !== 3 * PER_RUN || topics.size < 6) fail("nothing on did not deal rounds from every topic", dealt.length, topics.size);
+  if (!/every topic/.test(subjectsSay(none))) fail("the topics line does not say nothing on deals every topic");
+  // a match carries the dealer's mix whole, and a weight of 2 (an older link's) still deals
+  const custom = topicsOf(cleanSubjects({ hist: 0, sport: 0 }));
+  if (json(mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, custom))) !== json(custom)) fail("a mix made from subjects changed on its way through the link");
+  const more = { ...all, hist: 2, past: 2 }, twice = dealRun(8, { mode: "mixed", weights: mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, more)) });
+  if (twice.rounds.length !== PER_RUN || json(twice) === json(dealRun(8, { mode: "mixed", weights: all }))) fail("a linked mix with weights of 2 does not deal as one");
 }
 if (performance.now() - t0 > 8000) fail("too slow", Math.round(performance.now() - t0), "ms");
 console.log(bad ? `${bad} failed` : `Nexus ok (${Math.round(performance.now() - t0)} ms)`);
