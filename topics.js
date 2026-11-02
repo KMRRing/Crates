@@ -1,7 +1,9 @@
-// A mix of topics, as every game that deals from the knowledge base deals it (Crates, Punt, Quote, Order, Origin, Arb,
-// Chart): each topic out (0), in (1) or more (2: dealt twice as often as it would be in), from a preset or your own,
-// chosen in the menu (menu.js's topicMix). These are the pieces the games share, pure: a mix made whole, which preset
-// it is, and a seeded draw by weight. A game's topics are a list of [id, label]; its presets { id: { label, topics } }.
+// A mix of topics, as every game that deals from the knowledge base deals it: each of the game's own topics 0 (out), 1
+// (in) or 2 (more), kept as a mix. Since 2 November 2026 no game has a control for it: Settings holds one set of subjects,
+// each on or off (SUBJECTS, below), a game maps its topics to them (TOPIC_OF) and derives its mix when it deals
+// (mixFromSubjects); the 0, 1, 2 mixes are what old links and saved runs still carry. These are the pieces the games share,
+// pure: a mix made whole, which preset it is, and a seeded draw by weight. A game's topics are a list of [id, label];
+// its presets { id: { label, topics } }.
 
 /** A mix as kept (anything: an old save, a link), made whole for a list of topics: each 0, 1 or 2 (one it doesn't
  *  know, in). */

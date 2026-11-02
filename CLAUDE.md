@@ -54,7 +54,7 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 
 - **Entities** have sets (what they are: country, commodity, city, painting…) and facts (position, note, year…).
 - **Links** say why two things connect. A clue link is one of Crates' pairs: the hand-written hint (the "because"), its
-  aspects (the topics Crates' settings weight: they belong to the link, not the thing), difficulty, the other answers
+  aspects (the topics the Settings subjects choose among: they belong to the link, not the thing), difficulty, the other answers
   it fits, its position. Typed links: in, painted-by, hangs-in, movement.
 - **Crates is append-only:** shared board codes point at answer and clue positions (`crates`, `pos`). New answers and
   new clues go at the end; nothing is reordered or removed.
@@ -217,9 +217,11 @@ a wide screen, an × at the top right, a tap outside closes it. Fill `#menuBody`
   under the same small heading: `play` (new run, where you are: no heading), `content` (daily or random, difficulty or
   level, topics, chapters), `together` (only what's specific to this game's duo match: pairing, watching and asking
   live on the games screen), `settings` (learning mode, length, the game's own options), `about` (stats, sources).
-- **Content choices come in four kinds** and should look the same in every game: one of (a dropdown or segmented
-  control), include (tick boxes with All/None), mix (Off/Less/Normal/More, Crates' topics), progression (chapters in
-  order: done, current, locked, with Continue).
+- **Content choices come in three kinds** and should look the same in every game: one of (a dropdown or segmented
+  control), include (tick boxes with All/None), progression (chapters in order: done, current, locked, with Continue).
+  Topics are not a content choice of a game's: they are Settings' one set of subjects (`topics.js`, `topics-on.js`,
+  `topics-ui.js`), each on or off. A game maps its topics to subjects with `TOPIC_OF`, derives its mix when it deals with
+  `mixFromSubjects` (all on is its old Balanced, seed for seed), and its menu shows `topicsPart` (a line and a link).
 - **No instructions in the menu.** A line longer than about two sentences is folded into a closed "How it works" at
   the bottom by `menu.js`; better still, cut it. Keep a menu to choices, buttons and a short status line.
 
