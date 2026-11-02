@@ -3,14 +3,17 @@
 // red for close. Five countries a run, random or today's; fewer clues and fewer guesses score more. The clues are
 // the knowledge base's own (the ones Crates and Punt draw on, here every one of a country's, hardest first); the
 // places are Chart's; the countries, clues and scoring are origin-engine.js's.
-// Together, one run for the table (together.js): the same five countries for everyone at it, the clues, the guesses
-// and the score shared, anyone guessing, each guess marked with who made it.
+// A random run's clues come from the topics that are on (the suite's one set, in Settings: topics.js, topics-on.js),
+// read when the run is dealt. Together, one run for the table (together.js): the same five countries for everyone at it,
+// the clues, the guesses and the score shared, anyone guessing, each guess marked with who made it.
 import { COUNTRIES } from "./chart-countries.js";
-import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, TOPIC_LIST, TOPIC_PRESETS, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
+import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, topicsOf, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
   freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } from "./origin-engine.js";
-import { cleanMix, presetOf } from "./topics.js";
+import { subjectPreset } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
+import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, topicMix, action, line } from "./menu.js";
+import { part, choice, action, line } from "./menu.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -19,7 +22,7 @@ import { busy, waitMark } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "origin:run", BEST = "origin:best", DAILY = "origin:daily", TOPICS_KEY = "origin:topics";
+const RUN = "origin:run", BEST = "origin:best", DAILY = "origin:daily";
 const APP = 2;                 // the table's version: one run for everyone (1 was a head-to-head, each on their own run)
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -207,18 +210,18 @@ function moveActive(step) {
   $("guessIn").setAttribute("aria-activedescendant", items[active].id);
 }
 
-// ---------- your mix of topics ----------
-// a country's clues come from your mix of Crates' country topics (each out, in or more); today's run is the same for
-// everyone, whatever the mix, and your own mix doesn't count for your best (today's run and the presets do)
-const mix = () => cleanMix(TOPIC_LIST, read(TOPICS_KEY, null));
-const keepMix = w => write(TOPICS_KEY, w);
-const presetNow = () => presetOf(TOPIC_LIST, TOPIC_PRESETS, mix());
+// ---------- your topics ----------
+// A country's clues come from Crates' country topics that are on: the suite's one set (Settings, or Change topics in the
+// menu), read when a run is dealt, never kept here; the old origin:topics key is no longer read or written. Today's run
+// is the same for everyone, whatever is on, and your own mix doesn't count for your best (today's run and the presets do).
+const mix = () => topicsOf(subjectsOn());
+const onPreset = () => subjectPreset(subjectsOn()) !== "custom";
 
 // ---------- the run: your own, or the table's ----------
 let S = read(RUN, null);
 const save = () => write(RUN, S);
 function newRun(daily) {
-  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily ? null : mix()), daily, day: daily ? today() : null, ranked: daily || presetNow() !== "custom" };
+  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily ? null : mix()), daily, day: daily ? today() : null, ranked: daily || onPreset() };
   save(); render();
 }
 const current = () => G?.run || S;                              // the run on the screen: the table's while at one
@@ -460,6 +463,8 @@ const backToSolo = () => { if (together.room) together.leave(); else location.re
 
 // ---------- the menu ----------
 let pick = null;
+// topics changed (in the sheet Change topics opens) with today's picked: the next run is a random one, which they are for
+addEventListener("topics:changed", () => { if (pick === "daily") pick = "random"; });
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -467,7 +472,7 @@ function openMenu() {
     const table = part(body, "together");
     if (G) {
       const all = people().map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`);
-      table.append(action("New game", dealAgain, "primary"), topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), keepMix),
+      table.append(action("New game", dealAgain, "primary"), ...topicsPart(table, "The next game is dealt from your topics"),
         line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`));
     } else { const wait = line(joiningWords()); wait.prepend(waitMark()); table.append(wait); }
     table.append(action("Back to solo", backToSolo, "link"));
@@ -478,10 +483,10 @@ function openMenu() {
   part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
   const content = part(body, "content");
   content.append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  // your topics (the clues they bring first, or leave out) are for random runs, today's being the same for everyone:
-  // shown either way, and one changed with today's picked turns the next run to a random one
-  content.append(topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), w => { keepMix(w); if (pick === "daily") { pick = "random"; openMenu(); } },
-    { note: w => (presetOf(TOPIC_LIST, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's run and the presets do." : null) }));
+  // your topics (the clues they leave out) are for random runs, today's being the same for everyone: shown either way
+  // (a game opens on today's, and topics shown only with Random were never found), and one changed with today's picked
+  // turns the next run to a random one (below)
+  content.append(...topicsPart(content, pick === "daily" ? "Today's run deals every topic" : onPreset() ? "" : "Your own mix doesn't count for your best"));
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${ANSWERS.length} countries`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

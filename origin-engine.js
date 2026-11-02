@@ -7,7 +7,7 @@
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
 import { COUNTRIES } from "./chart-countries.js";
-import { KB_TOPICS, KB_PRESETS } from "./topics.js";
+import { KB_TOPICS, KB_PRESETS, TOPIC_OF, mixFromSubjects, anyIn } from "./topics.js";
 
 export const PER_RUN = 5, FULL = 100, PER_CLUE = 10, PER_GUESS = 5, LEAST = 5, MAX_CLUES = 12, MOST = 6;   // MOST: the most at one table
 const rng = seed => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -37,11 +37,14 @@ for (const l of LINKS) {
 export const ANSWERS = [...CLUES.keys()].filter(id => CLUES.get(id).length >= 6).sort();
 
 // ---------- topics ----------
-// A clue is about its link's aspects, Crates' country topics, and a run's clues come from your mix of them, each out,
-// in or more, as Crates deals them: within each difficulty a clue of a topic more comes first, and a clue only of
-// topics out never comes, unless its country would be left with fewer than six. The presets are Crates' own.
+// A clue is about its link's aspects, Crates' country topics, and a run's clues come from a mix of them, made from the
+// suite's one set of subjects (topicsOf), as Crates deals them: within each difficulty a clue of a topic weighed 2 comes
+// first, and a clue only of topics out never comes, unless its country would be left with fewer than six.
 export const TOPIC_LIST = KB_TOPICS.country;
-export const TOPIC_PRESETS = Object.fromEntries(["balanced", "trader", "culture"].map(k => [k, { label: KB_PRESETS[k].label, topics: Object.fromEntries(TOPIC_LIST.map(([id]) => [id, KB_PRESETS[k].topics[id] ?? 1])) }]));
+/** The mix the suite's subjects (topics-on.js) make of the country topics: each in, at Balanced's weight, when its subject
+ *  is on, out when it isn't; every subject on is Balanced, the clues Origin always dealt. A weight of 2 still puts a clue
+ *  first (a mix a saved table or link carries from before topics were on or off), so the draw below is unchanged. */
+export const topicsOf = on => mixFromSubjects(TOPIC_LIST, TOPIC_OF.kb, on, KB_PRESETS.balanced.topics);
 export const FEWEST_CLUES = 6;
 /**
  * A country's clues for this deal: the most obscure first (difficulty 3 before 2 before 1), and within each, a clue
@@ -59,10 +62,11 @@ export const GUESSABLE = new Map();
 for (const c of COUNTRIES) for (const n of [c.name, ...(ALIASES.get(c.about || c.id) || [])]) GUESSABLE.set(n.toLowerCase(), c.about || c.id);
 
 // ---------- a run ----------
-/** The five countries of a seed, each with its clues for this deal, from a mix of topics (none: every topic in). */
+/** The five countries of a seed, each with its clues for this deal, from a mix of topics (none, or a mix with no topic in
+ *  at all, which is every subject off: every topic in). */
 export function dealRun(seed, weights = null) {
-  const r = rng(seed), picks = shuffle(r, ANSWERS).slice(0, PER_RUN);
-  return { seed, index: 0, total: 0, rounds: picks.map(id => ({ id, clues: cluesFor(id, r, weights), shown: 1, guesses: [], done: null, points: 0 })) };
+  const r = rng(seed), picks = shuffle(r, ANSWERS).slice(0, PER_RUN), mix = anyIn(TOPIC_LIST, weights) ? weights : null;
+  return { seed, index: 0, total: 0, rounds: picks.map(id => ({ id, clues: cluesFor(id, r, mix), shown: 1, guesses: [], done: null, points: 0 })) };
 }
 /** What the country scores if found now: 100, less 10 a clue after the first and 5 a wrong guess, at least 5. */
 export const pointsNow = R => Math.max(LEAST, FULL - PER_CLUE * (R.shown - 1) - PER_GUESS * R.guesses.length);

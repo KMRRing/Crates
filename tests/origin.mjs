@@ -7,9 +7,10 @@
 // undefined, drops what's empty and may give a list back as an object. Run: node tests/origin.mjs
 const { ENTITIES } = await import("../kb/entities.js");
 const { COUNTRIES } = await import("../chart-countries.js");
-const { PER_RUN, FULL, PER_CLUE, PER_GUESS, MOST, PLACE, ALIASES, ANSWERS, GUESSABLE, TOPIC_LIST, TOPIC_PRESETS, FEWEST_CLUES, dealRun, pointsNow, guessIn, clueIn, giveUpIn, nextIn, decided,
+const { PER_RUN, FULL, PER_CLUE, PER_GUESS, MOST, PLACE, ALIASES, ANSWERS, GUESSABLE, TOPIC_LIST, topicsOf, FEWEST_CLUES, dealRun, pointsNow, guessIn, clueIn, giveUpIn, nextIn, decided,
   freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } = await import("../origin-engine.js");
 const { LINKS } = await import("../kb/links.js");
+const { cleanMix, cleanSubjects, subjectsIn, subjectsSay, mixParam, mixFromParam, SUBJECT_PRESETS, TOPIC_OF } = await import("../topics.js");
 const { roundTrip, same } = await import("./rtdb.js");
 let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } };
@@ -28,13 +29,14 @@ check(COUNTRIES.every(c => GUESSABLE.get(c.name.toLowerCase()) === (c.about || c
 }
 
 // ---------- topics ----------
-// a run's clues come from a mix of Crates' country topics (each out, in or more): the topic out never, unless a country
-// would be left with fewer than six; a topic more ahead within each difficulty
+// a run's clues come from a mix of Crates' country topics (each in or out, made from the suite's one set of subjects;
+// a weight of 2 still puts a clue first): the topic out never, unless a country would be left with fewer than six; a
+// topic weighed twice ahead within each difficulty
 {
   const aspects = new Map(LINKS.filter(l => l.hint).map(l => [`${l.to}|${l.hint}`, l.aspects || []]));
   const of = (R, c) => aspects.get(`${R.id}|${c.hint}`) || [];
-  const balanced = TOPIC_PRESETS.balanced.topics;
-  check(TOPIC_LIST.length === 19 && Object.keys(TOPIC_PRESETS).join() === "balanced,trader,culture", "the topics: Crates' nineteen country topics, its three presets");
+  const balanced = cleanMix(TOPIC_LIST, null);                                   // what the page read when nothing was kept
+  check(TOPIC_LIST.length === 19 && TOPIC_LIST.every(([id]) => TOPIC_OF.kb[id]), "the topics: Crates' nineteen country topics, each belonging to a subject");
   check([1, 2, 3, 4].every(seed => same(dealRun(seed), dealRun(seed, balanced))), "every topic in deals as it always did: today's run is the same whatever anyone's mix");
   const noHistory = { ...balanced, hist: 0 }, runs = [5, 6, 7, 8, 9, 10].map(seed => dealRun(seed, noHistory));
   const onlyHistory = (R, c) => of(R, c).length && of(R, c).every(a => a === "hist");
@@ -46,6 +48,43 @@ check(COUNTRIES.every(c => GUESSABLE.get(c.name.toLowerCase()) === (c.about || c
   const t = freshTable({}, { seed: 14, weights: noHistory }), g = freshTable({}, { seed: 15 });
   newGameAt(g, { n: 1, seed: 16, weights: noHistory });
   check(same(t.run, dealRun(14, noHistory)) && same(g.run, dealRun(16, noHistory)), "a table's games dealt from the dealer's mix");
+}
+
+// ---------- the suite's one set of subjects (topics.js, topics-on.js; Settings) ----------
+{
+  const on = cleanSubjects(null), none = cleanSubjects(SUBJECT_PRESETS.none.topics);
+  const only = (...ids) => cleanSubjects({ ...SUBJECT_PRESETS.none.topics, ...Object.fromEntries(ids.map(id => [id, 1])) });
+  const mixIn = w => TOPIC_LIST.filter(([id]) => w[id] > 0).map(([id]) => id);
+  const aspects = new Map(LINKS.filter(l => l.hint).map(l => [`${l.to}|${l.hint}`, l.aspects || []]));
+  const of = (R, c) => aspects.get(`${R.id}|${c.hint}`) || [];
+  // all on is the old Balanced: every topic in once, and the same countries and clues, seed for seed
+  const all = topicsOf(on);
+  check(same(all, cleanMix(TOPIC_LIST, null)) && TOPIC_LIST.every(([id]) => all[id] === 1), "all subjects on is every topic in once");
+  check([1, 2, 3, 4, 5, 6].every(seed => same(dealRun(seed, all), dealRun(seed)) && same(dealRun(seed, all), dealRun(seed, cleanMix(TOPIC_LIST, null)))),
+    "all subjects on deals the same countries and clues as Balanced did, and as no mix does");
+  // a subject off takes its topics out: no clue only of those, unless the country would have fewer than six; the deal changes
+  const noHist = topicsOf(cleanSubjects({ hist: 0 })), runs = [5, 6, 7, 8, 9, 10].map(seed => dealRun(seed, noHist));
+  check(noHist.hist === 0 && mixIn(noHist).length === 18, "History off takes the History topic out and no other");
+  const onlyHist = (R, c) => of(R, c).length && of(R, c).every(a => a === "hist");
+  check(runs.every(run => run.rounds.every(R => R.clues.every(c => !onlyHist(R, c) || R.clues.filter(x => !onlyHist(R, x)).length < FEWEST_CLUES))), "a subject off: none of its clues, unless the country would have fewer than six");
+  check(runs.some((run, i) => !same(run, dealRun([5, 6, 7, 8, 9, 10][i]))), "a subject off changes the clues dealt");
+  check(same(topicsOf(cleanSubjects({ math: 0, cities: 0, rel: 0, art: 0 })), all), "a subject none of Origin's topics belongs to changes nothing");
+  // one subject on: only its topics in (Energy is nrg alone among the country topics), so a country's clues are about it where it has six
+  const nrg = topicsOf(only("nrg"));
+  check(mixIn(nrg).join() === "nrg", "only Energy on is the energy topic alone");
+  const energy = [11, 12, 13].flatMap(seed => dealRun(seed, nrg).rounds);
+  check(energy.every(R => R.clues.length >= FEWEST_CLUES) && energy.some(R => R.clues.filter(c => of(R, c).includes("nrg")).length >= FEWEST_CLUES), "with only Energy on, countries keep six clues, those about energy among them");
+  // nothing on: every topic is dealt (as all on does, a country never left with fewer than six), and the menu line says so
+  const nothing = topicsOf(none);
+  check(!mixIn(nothing).length && !subjectsIn(none).length, "all subjects off is nothing in");
+  check([1, 2, 3].every(seed => dealRun(seed, nothing).rounds.every(R => R.clues.length >= FEWEST_CLUES) && same(dealRun(seed, nothing), dealRun(seed))) && /every topic/.test(subjectsSay(none)),
+    "nothing on deals every topic (a country left with fewer than six clues takes the rest), as all on does, and the line says so");
+  // a table deals from the dealer's mix, a mix made from subjects survives the link, and a weight of 2 (an older one) still puts a clue first
+  const custom = topicsOf(cleanSubjects({ hist: 0, sport: 0 }));
+  check(same(mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, custom)), custom), "a mix made from subjects survives its way through a link");
+  check(same(freshTable({}, { seed: 21, weights: custom }).run, dealRun(21, custom)), "a table's first game dealt from subjects");
+  const ppl2 = { ...all, ppl: 2 };
+  check(same(dealRun(30, mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, ppl2))), dealRun(30, ppl2)) && !same(dealRun(30, ppl2), dealRun(30, all)), "a weight of 2 still deals clues of its topic first");
 }
 
 // ---------- a run ----------
