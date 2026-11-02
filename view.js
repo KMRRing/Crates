@@ -1,6 +1,6 @@
 // Everything that touches the page. Controllers hand render() a plain view model.
-import { NOUN, RESULT_LABEL, TOPICS, WEIGHTS, GROUPS, PRESETS, POOL_CATS } from "./core.js";
-import { weights } from "./menu.js";
+import { NOUN, RESULT_LABEL, GROUPS } from "./core.js";
+import { topicsPart } from "./topics-ui.js";
 import { dropdown } from "./dropdown.js";
 
 const $ = id => document.getElementById(id);
@@ -401,7 +401,6 @@ export function askWho(defaultName = "") {
 /** Renders the settings editor into the menu sheet. onChange gets a fresh settings object. */
 export function openSettings(opts) {
   const { settings, note, onChange, onBack, learning = null } = opts;
-  const cats = POOL_CATS[opts.pool] || POOL_CATS.mixed;   // show only what the current pool deals from
   // editable: true, or { words, groups } when only part is yours to change (hidden mode)
   const canWords = opts.editable === true || !!opts.editable?.words;
   const canGroups = opts.editable === true || !!opts.editable?.groups;
@@ -453,40 +452,26 @@ export function openSettings(opts) {
     const s = structuredClone(settings);
     const change = mutate => { mutate(s); onChange(structuredClone(s)); };
 
-    add("h4", null, "Preset");
-    const presetRow = segmented(Object.entries(PRESETS).map(([k, p]) => [k, p.label]), s.preset, v => {
-      change(x => { x.preset = v; x.topics = { ...PRESETS[v].topics }; });
-      openSettings({ ...opts, settings: s });                 // redraw the topic rows
-    }, "Preset");
-    body.appendChild(presetRow);
+    add("h4", null, "Topics");
+    for (const node of topicsPart(body)) body.appendChild(node);           // the subjects are Settings’, not this game’s
 
     add("h4", null, "Difficulty");
     body.appendChild(segmented([["easy", "Easy"], ["mixed", "Mixed"], ["hard", "Hard"]], s.difficulty,
       v => change(x => { x.difficulty = v; }), "Difficulty"));
 
-    // each topic tapped round out, in and more (the same control as Punt's topics)
-    for (const cat of cats) {
-      body.appendChild(weights(cats.length > 1 ? `${NOUN[cat][0].toUpperCase()}${NOUN[cat].slice(1)} topics` : "Topics", TOPICS[cat], s.topics, w => {
-        change(x => { for (const [k] of TOPICS[cat]) x.topics[k] = w[k] || 0; x.preset = "custom"; });
-        presetRow.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", "false"));
-      }));
-    }
-
-    for (const [cat, title] of [["country", "Countries from"], ["commodity", "Commodities from"]].filter(([c]) => cats.includes(c))) {
-      add("h4", null, title);
-      const chips = add("div", "chips");
-      GROUPS[cat].forEach(([k, name]) => {
-        const b = document.createElement("button");
-        b.className = "chip";
-        b.textContent = name;
+    add("h4", null, "Countries from");
+    const chips = add("div", "chips");
+    GROUPS.country.forEach(([k, name]) => {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.textContent = name;
+      b.setAttribute("aria-pressed", String(!s.off.includes(k)));
+      b.disabled = !canGroups;
+      b.addEventListener("click", () => {
+        change(x => { x.off = x.off.includes(k) ? x.off.filter(o => o !== k) : [...x.off, k]; });
         b.setAttribute("aria-pressed", String(!s.off.includes(k)));
-        b.disabled = !canGroups;
-        b.addEventListener("click", () => {
-          change(x => { x.off = x.off.includes(k) ? x.off.filter(o => o !== k) : [...x.off, k]; });
-          b.setAttribute("aria-pressed", String(!s.off.includes(k)));
-        });
-        chips.appendChild(b);
       });
-    }
+      chips.appendChild(b);
+    });
   }, "settings");
 }

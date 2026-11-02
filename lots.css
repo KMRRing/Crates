@@ -10,8 +10,6 @@
 /* night, set in Settings */
 html[data-mode="night"] { --lt-in: #6FA0D2; --lt-logo-tint: #22344A; --lt-good: #7FC2A8; --lt-bad: #E8806F; }
 
-.lt-mark { display: inline-block; }
-.lt-mark svg { width: 100%; height: 100%; display: block; }
 
 /* what's on the board, and the mistakes left (or the wall's clock and lives) */
 .lt-strip { display: flex; justify-content: space-between; align-items: center; gap: .75rem; margin: .65rem 0 .3rem; min-height: 1.6rem; }

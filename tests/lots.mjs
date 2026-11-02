@@ -2,7 +2,7 @@
 // decoys counted), the difficulty it measures and the levels it deals, the computer player, a solo board through
 // classic and the wall and through JSON, the pair's table through the database's round trip, the hidden split, the
 // crossed one, and the daily.
-import { CATS, BY_ID, SET, TOPICS, PRESETS, LEVELS, LEVEL, SIZE, MISTAKES, WALL, fits, fitsOf, reason, deal, daily, analyse,
+import { CATS, BY_ID, SET, TOPICS, BALANCED, LEVELS, LEVEL, SIZE, MISTAKES, WALL, fits, fitsOf, reason, deal, daily, analyse,
   solutions, sortings, classify, points, wallPoints, reverseRainbow, namingOptions, split, SPLITS, cleanMix } from "../lots-engine.js";
 import { plan, at, RIVALS } from "../lots-bot.js";
 import * as run from "../lots-run.js";
@@ -114,7 +114,7 @@ const dealt = Object.fromEntries(LEVELS.map(level => [level, []]));
   check(share("easy") === 0 && share("medium") > 0.25 && share("medium") < 0.7 && share("hard") === 1 && two > 0.05 && two < 0.5 && dealt.hard.every(b => analyse(b).lookPast >= 1),
     `herrings: none on Easy, ${Math.round(share("medium") * 100)}% of Medium boards, every Hard board (${Math.round(two * 100)}% two), every Hard board makes you find a harder lot first`);
   const narrow = deal({ seed: 5, level: "medium", weights: { ...Object.fromEntries(TOPICS.map(([t]) => [t, 0])), mk: 1, wp: 1, ph: 1, sc: 1 } });
-  check(narrow && narrow.g.every(g => ["mk", "wp", "ph", "sc"].includes(BY_ID.get(g.c).topic)) && same(cleanMix({ wp: 0, ph: 0, mn: 0, th: 0, mk: 0, sc: 0, pl: 0, cu: 0, sp: 0, fd: 0 }), PRESETS.balanced.topics),
+  check(narrow && narrow.g.every(g => ["mk", "wp", "ph", "sc"].includes(BY_ID.get(g.c).topic)) && same(cleanMix({ wp: 0, ph: 0, mn: 0, th: 0, mk: 0, sc: 0, pl: 0, cu: 0, sp: 0, fd: 0 }), BALANCED),
     "the topics a player leaves out aren't dealt; a mix of nothing is every topic");
   const recent = deal({ seed: 9, level: "medium" }).g.map(g => g.c);
   let again = 0;

@@ -48,7 +48,6 @@ export const ROUNDS = {
   isomer: "a puzzle solved",
   ladder: "a ladder climbed",
   lode: "a board finished",
-  lots: "a board over",
   codeword: "a grid solved",
   acrostic: "a text solved",
   calcudoku: "a grid solved",

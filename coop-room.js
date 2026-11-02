@@ -11,13 +11,16 @@ export const CLUES = 4;          // team pool per board; unused clues don't carr
 export const POOL = "country";
 const RECENT_ANSWERS = 16;
 
-/** A fresh board from the countries and the room's settings; in hidden mode each side uses its own player's. */
-export function newBoard(room, n) {
+/** A fresh board from the countries and the room's settings; in hidden mode each side uses its own player's. `topics` is
+ *  the topic weights of whoever deals (core.js dealTopics: the subjects on in Settings), which both sides share; the
+ *  tests deal without it, every topic in. */
+export function newBoard(room, n, topics = null) {
   const recentA = arr(room.recentA);
-  const shared = cleanSettings(room.settings);
+  const withTopics = s => (topics ? { ...s, topics } : s);
+  const shared = withTopics(cleanSettings(room.settings));
   let b, fellBack = false;
   if (room.mode === "hidden") {
-    const sides = [0, 1].map(slot => cleanSettings(Object.values(room.players).find(p => p.slot === slot)?.settings));
+    const sides = [0, 1].map(slot => withTopics(cleanSettings(Object.values(room.players).find(p => p.slot === slot)?.settings)));
     b = generateSplit({ pool: POOL, sides, off: shared.off, recentA });
     if (!b) { fellBack = true; b = generateSplit({ pool: POOL, sides: [defaultSettings(), defaultSettings()], recentA }); }
   } else {

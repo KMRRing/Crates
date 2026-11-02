@@ -139,13 +139,9 @@ export function reason(c, word) {
 export const TOPICS = [["wp", "Wordplay"], ["ph", "Phrases"], ["mn", "Meanings"], ["th", "Things with"], ["mk", "Markets"],
   ["sc", "Science & nature"], ["pl", "Places"], ["cu", "Culture"], ["sp", "Sport & games"], ["fd", "Food & drink"]];
 const every = v => Object.fromEntries(TOPICS.map(([id]) => [id, v]));
-/** The suite's presets (Balanced, Trader, Culture night), and Wordsmith for the wordplay. */
-export const PRESETS = {
-  balanced: { label: "Balanced", topics: every(1) },
-  trader: { label: "Trader", topics: { ...every(1), mk: 2, pl: 2 } },
-  culture: { label: "Culture night", topics: { ...every(1), cu: 2, fd: 2 } },
-  wordsmith: { label: "Wordsmith", topics: { ...every(1), wp: 2, ph: 2, mn: 2 } },
-};
+/** Every topic in at its usual weight. The topics a solo board deals from are Settings’ (topics.js: TOPIC_OF.lots), with
+ *  this as the weight of each one that is on; a race and a pair's table deal from all of them. */
+export const BALANCED = every(1);
 /** A mix from storage (or anything) as a whole one: every topic 0, 1 or 2, at least one in. */
 export function cleanMix(mix) {
   const out = every(1);

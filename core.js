@@ -1,5 +1,5 @@
 // Word bank, topics, settings and the rules shared by solo and together play.
-import { KB_TOPICS as TOPICS, KB_PRESETS as PRESETS } from "./topics.js";
+import { KB_TOPICS as TOPICS, KB_PRESETS as PRESETS, TOPIC_OF, mixFromSubjects } from "./topics.js";
 const RAW = JSON.parse(new TextDecoder().decode(
   Uint8Array.from(atob(window.CRATES_BANK), c => c.charCodeAt(0))));
 
@@ -28,8 +28,17 @@ export const RESULT_LABEL = { right: "Right", one: "One away", miss: "Miss", hid
  *  weight them: the knowledge base's own, kept in topics.js, so the games that deal from it load them without the bank. */
 export { TOPICS, PRESETS };
 export const ALL_TOPICS = [...TOPICS.country, ...TOPICS.commodity];
-/** Which categories a pool deals from. */
+/** Which categories a pool deals from. Crates offers countries only (2 November 2026: commodities are Classic's now, in
+ *  Lots); a commodity board arriving by an old link, a saved run or a room still plays, because the bank still has them. */
 export const POOL_CATS = { country: ["country"], commodity: ["commodity"], mixed: ["country", "commodity"] };
+
+/** The topic weights a deal uses: Balanced's, with every topic whose subject is off taken out (Settings, Topics; topics.js).
+ *  All subjects on is Balanced exactly, so a seed deals what it always dealt; if the subjects on leave no country topic
+ *  to deal, every topic is dealt, as the control says. `on` is topics-on.js's `subjectsOn()`. */
+export function dealTopics(on) {
+  const mix = mixFromSubjects(ALL_TOPICS, TOPIC_OF.kb, on, PRESETS.balanced.topics);
+  return TOPICS.country.some(([k]) => mix[k] > 0) ? mix : { ...PRESETS.balanced.topics };
+}
 export const WEIGHTS = [[0, "Out"], [1, "In"], [2, "More"]];   // tapped round on one button: out, in, more
 export const GROUPS = {
   country: [["eu", "Europe"], ["me", "Middle East & N. Africa"], ["af", "Sub-Saharan Africa"], ["asia", "Asia & Pacific"], ["am", "Americas"]],
@@ -59,15 +68,14 @@ export function cleanSettings(s) {
   };
 }
 
-/** "countries" / "commodity" / "mixed" (any casing or plural) → pool id, else null. */
+/** ?cat= (any casing or plural) → "country", or "classic" for Lots; an old link's commodities or mixed are countries now. */
 export function parsePool(s) {
   s = String(s || "").trim().toLowerCase();
-  if (s.startsWith("countr")) return "country";
-  if (s.startsWith("commod")) return "commodity";
-  if (/^(mix|all|both)/.test(s)) return "mixed";
+  if (s.startsWith("classic") || s.startsWith("lot")) return "classic";
+  if (/^(countr|commod|mix|all|both)/.test(s)) return "country";
   return null;
 }
-export const POOL_PARAM = { country: "countries", commodity: "commodities", mixed: "mixed" };
+export const POOL_PARAM = { country: "countries", commodity: "countries", mixed: "countries" };
 
 export const norm = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/^the /, "");

@@ -1,6 +1,6 @@
 // Solo play: generated boards, progress in this browser's localStorage, and optionally synced to a run
 // that other devices follow (run.js).
-import { APP_VERSION, BANK, BANK_SIZE, POOL_CATS, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, formatTime } from "./core.js";
+import { APP_VERSION, BANK, BANK_SIZE, POOL_CATS, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, dealTopics, formatTime } from "./core.js";
 import { generate, encode, decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
 import {
   MODES, REVIEW_GAP, emptyDeck, cleanDeck, learnFromBoard, learnFromClues, deckStats, clueStats,
@@ -11,6 +11,8 @@ import { busy } from "./loading.js";
 import { recognised, pairKey } from "./known.js";
 import * as view from "./view.js";
 import { part, action, line, mirror, isPaused, onPause } from "./menu.js";
+import { topicsPart } from "./topics-ui.js";
+import { subjectsOn } from "./topics-on.js";
 import { today, noteComparable, noteStreak } from "./suite.js";
 import { roundOver } from "./random.js";
 
@@ -30,7 +32,7 @@ const MODE = {
 function normalise(raw) {
   const s = raw && typeof raw === "object" ? raw : {};
   s.settings = cleanSettings(s.settings);
-  s.pool = s.pool || "mixed";
+  s.pool = "country";                       // Crates deals countries; Classic is Lots, a page of its own
   s.n = s.n || 0;
   s.history = s.history || [];
   s.recentA = s.recentA || [];
@@ -44,7 +46,7 @@ function normalise(raw) {
 }
 
 // ---------- today's board ----------
-// The same board for everyone today: dealt from the date on the standard puzzles (mixed) and settings, with nothing of
+// The same board for everyone today: dealt from the date on the standard puzzles (countries) and settings, with nothing of
 // yours passed in (recent words, learning, clues seen). It counts for your best, by points and then time, on the first
 // go only: a second would know the answers.
 const seeded = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
@@ -127,7 +129,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       view.toast(d.pts != null ? `Today's board: ${d.pts}/8 in ${formatTime(d.ms)}. A new one tomorrow` : "You've had today's board. A new one tomorrow", 3500);
       return false;
     }
-    const b = generate({ pool: "mixed", settings: defaultSettings(), rng: seeded(day) });
+    const b = generate({ pool: "country", settings: defaultSettings(), rng: seeded(day) });
     if (!b) { view.toast("Today's board couldn't be dealt", 3000); return false; }
     begin(b, null, day);
     return true;
@@ -137,7 +139,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     const mode = store.mode;
     const learn = mode === "learn" || mode === "clues" ? store.deck : null;
     if (learn) learn.t += 1;
-    const opts = { pool: store.pool, settings: store.settings, recentA: store.recentA, recentW: store.recentW,
+    const opts = { pool: store.pool, settings: { ...store.settings, topics: dealTopics(subjectsOn()) }, recentA: store.recentA, recentW: store.recentW,
       learn, review: mode === "clues" ? "clues" : "all" };
     const deal = () => generate(mode === "norepeat" ? { ...opts, seen: seenTexts(store.seen) } : opts);
     let b = deal();
@@ -302,7 +304,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
 
   function settingsSheet() {
     view.openSettings({
-      settings: store.settings, editable: true, pool: store.pool,
+      settings: store.settings, editable: true,
       note: "Everything below applies from the next board.",
       onChange: s => { store.settings = cleanSettings(s); save(); },
       onBack: () => handlers.menu(),
@@ -389,12 +391,11 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     async share() {
       view.toast(await view.copyText(vm().shareText) ? "Result copied" : "Couldn't copy", 1600);
     },
+    // the header's links: Countries is this page; Classic is Lots, which is Crates' other half (README, Crates and Lots)
     pool(value) {
-      store.pool = value;
-      setPoolParam(value);
-      save();
-      if (value !== "mixed" && value !== board.cat && !game().guesses.length) fresh();
-      else { view.toast("Next board comes from the new pool", 2000); draw(); }
+      if (value !== "classic") return;
+      if (!game().done && game().guesses.length && !confirm("Leave this board unfinished?")) { draw(); return; }
+      location.href = "lots.html";
     },
     menu() {
       // the menu: Play (a new board, or skip this one), Content (topics and difficulty, in Settings), About (your stats,
@@ -410,7 +411,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
           if (!g.done && g.guesses.length && !confirm("Leave this board unfinished?")) return;
           if (daily()) close();
         }));
-        part(body, "content").append(mirror("Puzzles", document.getElementById("pool")), action("Topics and difficulty", settingsSheet));
+        part(body, "content").append(mirror("Links", document.getElementById("pool")), ...topicsPart(body), action("Difficulty and regions", settingsSheet));
         const about = part(body, "about"), done = store.history.length;
         if (done) {
           const total = store.history.reduce((t, r) => t + r.pts, 0), perfect = store.history.filter(r => r.pts === 8).length;

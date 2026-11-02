@@ -1,5 +1,5 @@
 // Entry point: solo by default; together when the address carries ?room=CODE;
-// ?b=CODE opens a specific board, ?cat=countries|commodities|mixed picks the pool,
+// ?b=CODE opens a specific board, ?cat=classic opens Lots (Crates' other half), any other ?cat= is countries,
 // ?run=CODE makes this device follow a solo run synced from another device.
 import { parsePool, POOL_PARAM } from "./core.js";
 import { createSolo } from "./solo.js";
@@ -25,6 +25,7 @@ const coop = createCoop({ onLeave: () => solo.start(), setRoomParam, mySettings:
 
 const params = new URLSearchParams(location.search);
 const pool = parsePool(params.get("cat"));
+if (pool === "classic") location.replace("lots.html");
 const room = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 const runCode = params.get("run");
 if (runCode) setParam("run", null);
@@ -34,4 +35,4 @@ if (runCode) setParam("run", null);
 if (room.length === 4) {
   const joined = busy("Joining your partner", { delay: 0 });
   coop.join(room).then(ok => { joined(); if (!ok) { setRoomParam(null); solo.start(pool, params.get("b"), runCode); } });
-} else solo.start(pool, params.get("b"), runCode);
+} else solo.start(pool === "classic" ? null : pool, params.get("b"), runCode);

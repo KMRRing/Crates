@@ -7,7 +7,8 @@
 // your screen, and you see that tile's description and crate colour yourself; its owner only sees
 // that a clue was used on it. The clue's ? takes the crate colour. Sealed tiles carry no labels: you
 // point them out to each other.
-import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, cleanSettings } from "./core.js";
+import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, cleanSettings, dealTopics } from "./core.js";
+import { subjectsOn } from "./topics-on.js";
 import { decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
 import { LIVES, CLUES, POOL, newBoard, tidy } from "./coop-room.js";
 import { getSync } from "./net.js";
@@ -271,7 +272,7 @@ export function createCoop({ onLeave, setRoomParam, mySettings }) {
     await change(cur => {
       cur.players[uid].ready = !cur.players[uid].ready;
       const everyone = Object.values(cur.players);
-      if (!cur.board && everyone.length === 2 && everyone.every(p => p.ready)) cur.board = newBoard(cur, 1);
+      if (!cur.board && everyone.length === 2 && everyone.every(p => p.ready)) cur.board = newBoard(cur, 1, dealing());
       return cur;
     });
   }
@@ -280,15 +281,15 @@ export function createCoop({ onLeave, setRoomParam, mySettings }) {
     const owner = room.owner === uid, back = () => handlers.menu();
     if (!hidden()) {
       view.openSettings({
-        settings: room.settings, editable: owner, onBack: back, pool: POOL,
+        settings: room.settings, editable: owner, onBack: back,
         note: owner ? "Your settings apply to both of you, from the next board." : `${nameOf(room.owner)}'s settings apply to this game.`,
         onChange: s => change(cur => { if (cur.owner !== uid) return false; cur.settings = cleanSettings(s); return cur; }),
       });
       return;
     }
     view.openSettings({
-      settings: { ...me().settings, off: room.settings.off }, editable: { words: true, groups: owner }, onBack: back, pool: POOL,
-      note: `Your preset, difficulty and topics shape only the eight words dealt to you. Which countries can come up is shared${owner ? " and set by you" : `, set by ${nameOf(room.owner)}`}.${room.board ? " Changes apply from the next board." : ""}`,
+      settings: { ...me().settings, off: room.settings.off }, editable: { words: true, groups: owner }, onBack: back,
+      note: `Your difficulty shapes only the eight words dealt to you; the topics are those of whoever deals the board (Settings, Topics). Which countries can come up is shared${owner ? " and set by you" : `, set by ${nameOf(room.owner)}`}.${room.board ? " Changes apply from the next board." : ""}`,
       onChange: s => change(cur => {
         cur.players[uid].settings = cleanSettings({ ...s, off: [] });
         if (cur.owner === uid) cur.settings = cleanSettings({ ...cur.settings, off: s.off });
@@ -296,6 +297,9 @@ export function createCoop({ onLeave, setRoomParam, mySettings }) {
       }),
     });
   }
+
+  /** The topics a board is dealt from: the dealer's own subjects (Settings, Topics), the same for both sides. */
+  const dealing = () => dealTopics(subjectsOn());
 
   const handlers = {
     toggle(w) {
@@ -415,7 +419,7 @@ export function createCoop({ onLeave, setRoomParam, mySettings }) {
       const n = room.board.n;
       await change(cur => {
         if (cur.board.n !== n || !cur.board.done) return false;
-        cur.board = newBoard(cur, n + 1);
+        cur.board = newBoard(cur, n + 1, dealing());
         for (const pl of Object.values(cur.players)) pl.sel = [];
         return cur;
       });
@@ -432,7 +436,7 @@ export function createCoop({ onLeave, setRoomParam, mySettings }) {
         if (cur.mode === value || !MODES[value] || (b && !b.done && (b.guesses.length || b.found.length || b.revealed.length))) return false;
         cur.mode = value;
         for (const pl of Object.values(cur.players)) { pl.sel = []; pl.ready = false; }
-        if (value === "hidden") delete cur.board; else cur.board = newBoard(cur, b ? b.n + 1 : 1);
+        if (value === "hidden") delete cur.board; else cur.board = newBoard(cur, b ? b.n + 1 : 1, dealing());
         return cur;
       });
       if (!committed) view.toast("Finish this board first", 2500);
@@ -498,7 +502,7 @@ export function createCoop({ onLeave, setRoomParam, mySettings }) {
       players: { [uid]: { name, slot: 0, sel: [], online: true, ready: false, settings: cleanSettings(settings) } },
       tally: { maps: 0, points: 0 },
     };
-    if (mode !== "hidden") room0.board = newBoard(room0, 1);
+    if (mode !== "hidden") room0.board = newBoard(room0, 1, dealing());
     return room0;
   }
 

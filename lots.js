@@ -3,7 +3,7 @@
 // keeps the run, the clock and the taps, and draws. Three ways to play: alone (classic, or Only Connect's wall, against
 // the computer if you like, today's board for everyone), the pair at one board (open, crossed or hidden), and a race on
 // one board through duel.js, for a pair or a party.
-import { SIZE, MISTAKES, WALL, LEVELS, LEVEL_NAMES, TOPICS, PRESETS, BY_ID, cleanMix, deal, daily, reason, fits, shuffle } from "./lots-engine.js";
+import { SIZE, MISTAKES, WALL, LEVELS, LEVEL_NAMES, TOPICS, BY_ID, deal, daily, reason, fits, shuffle } from "./lots-engine.js";
 import { RIVALS } from "./lots-bot.js";
 import { newRun, isRun, pick, clearPicks, shuffleLeft, submit, tick, wallLeft, phaseOf, placedOf, toName, namingFor, nameLot, scoreOf, maxScore,
   dayScore, rainbow, rivalNow, versus } from "./lots-run.js";
@@ -11,18 +11,18 @@ import * as room from "./lots-room.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, topicMix, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { topicsPart } from "./topics-ui.js";
+import { subjectsOn } from "./topics-on.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { createDuel } from "./duel.js";
 import { busy, waitMark } from "./loading.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
-import { presetOf } from "./topics.js";
+import { TOPIC_OF, mixFromSubjects } from "./topics.js";
 
 const $ = id => document.getElementById(id);
-// the logo until the games screen knows Lots: four lot tags on one string, one in each enamel
-const LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="44" cy="94" rx="30" ry="3" fill="#1C2A34" opacity=".2"/><path d="M19.77 16.38L40.16 21.47M19.77 16.38L36.55 29.03M19.77 16.38L30.28 34.59M19.77 16.38L22.33 37.25" stroke="#1C2A34" stroke-width="1.6" stroke-linecap="round" fill="none"/><g transform="translate(19.77 16.38) rotate(14)"><path d="M10.51 0L21.02 -13.43H66.56Q70.07 -13.43 70.07 -9.93V9.93Q70.07 13.43 66.56 13.43H21.02Z" fill="#D49A22" stroke="#1C2A34" stroke-linejoin="round" style="stroke-width: calc(3 * var(--wire, 1))"/><path d="M31.53 -4.67H61.89M31.53 4.09H53.72" stroke="#F7F1E3" stroke-width="1.5" stroke-linecap="round" opacity=".75"/><circle cx="21.02" cy="0" r="4.2" fill="#F7F1E3" stroke="#A47528" stroke-width="2"/></g><g transform="translate(19.77 16.38) rotate(37)"><path d="M10.51 0L21.02 -13.43H66.56Q70.07 -13.43 70.07 -9.93V9.93Q70.07 13.43 66.56 13.43H21.02Z" fill="#3D7A66" stroke="#1C2A34" stroke-linejoin="round" style="stroke-width: calc(3 * var(--wire, 1))"/><path d="M31.53 -4.67H61.89M31.53 4.09H53.72" stroke="#F7F1E3" stroke-width="1.5" stroke-linecap="round" opacity=".75"/><circle cx="21.02" cy="0" r="4.2" fill="#F7F1E3" stroke="#A47528" stroke-width="2"/></g><g transform="translate(19.77 16.38) rotate(60)"><path d="M10.51 0L21.02 -13.43H66.56Q70.07 -13.43 70.07 -9.93V9.93Q70.07 13.43 66.56 13.43H21.02Z" fill="#2C5B8A" stroke="#1C2A34" stroke-linejoin="round" style="stroke-width: calc(3 * var(--wire, 1))"/><path d="M31.53 -4.67H61.89M31.53 4.09H53.72" stroke="#F7F1E3" stroke-width="1.5" stroke-linecap="round" opacity=".75"/><circle cx="21.02" cy="0" r="4.2" fill="#F7F1E3" stroke="#A47528" stroke-width="2"/></g><g transform="translate(19.77 16.38) rotate(83)"><path d="M10.51 0L21.02 -13.43H66.56Q70.07 -13.43 70.07 -9.93V9.93Q70.07 13.43 66.56 13.43H21.02Z" fill="#8F3328" stroke="#1C2A34" stroke-linejoin="round" style="stroke-width: calc(3 * var(--wire, 1))"/><path d="M31.53 -4.67H61.89M31.53 4.09H53.72" stroke="#F7F1E3" stroke-width="1.5" stroke-linecap="round" opacity=".75"/><circle cx="21.02" cy="0" r="4.2" fill="#F7F1E3" stroke="#A47528" stroke-width="2"/></g><circle cx="19.77" cy="16.38" r="4.4" fill="#A47528" stroke="#1C2A34" stroke-width="1.8"/></svg>`;
 const RUN = "lots:run", PREFS = "lots:prefs", SEEN = "lots:seen", STATS = "lots:stats", DAILY = "lots:daily", BEST = "lots:best";
 const ROOM_APP = 1, RACE_APP = 1;
 const SQUARES = ["🟨", "🟩", "🟦", "🟥"];
@@ -42,7 +42,6 @@ function cleanPrefs(p) {
   return {
     level: LEVELS.includes(p.level) ? p.level : "medium",
     mode: MODES[p.mode] ? p.mode : "classic",
-    mix: cleanMix(p.mix),
     rival: RIVALS[p.rival] ? p.rival : null,
     duo: room.MODES[p.duo] ? p.duo : "hidden",
   };
@@ -52,7 +51,7 @@ const keepPrefs = () => write(PREFS, prefs);
 
 // ---------- the page ----------
 const el = { board: $("board"), what: $("what"), count: $("count"), rival: $("rival"), line: $("line"), controls: $("controls"), feed: $("feed"),
-  shuffle: $("shuffleBtn"), clear: $("clearBtn"), submit: $("submitBtn"), level: $("level") };
+  shuffle: $("shuffleBtn"), clear: $("clearBtn"), submit: $("submitBtn"), level: $("level"), links: $("links") };
 let mode = "solo";             // "solo", "duo" (the pair at one board) or "race" (duel.js)
 let S = null;                  // the run on the board, alone or in a race
 let G = null;                  // the pair's table, as last seen
@@ -294,7 +293,7 @@ function newBoard(kind = "random") {
     begin(newRun({ board: daily(day), kind: "daily", day, rival: prefs.rival, n }));
     return;
   }
-  let board = deal({ seed: randomSeed(), level: prefs.level, weights: prefs.mix, recent: seenRecent() });
+  let board = deal({ seed: randomSeed(), level: prefs.level, weights: mixFromSubjects(TOPICS, TOPIC_OF.lots, subjectsOn()), recent: seenRecent() });
   if (!board) { toast("Those topics are too narrow for a board: this one deals from every topic"); board = deal({ seed: randomSeed(), level: prefs.level }); }
   noteSeen(board);
   begin(newRun({ board, kind: "random", mode: prefs.mode, rival: prefs.rival, n }));
@@ -439,7 +438,7 @@ function openMenu() {
 }
 
 // ---------- the rules ----------
-// The header's Rules and the menu's The rules: Lots as it's played here, its numbers the engine's own, so the sheet
+// The menu's The rules: Classic as it's played here, its numbers the engine's own, so the sheet
 // can't drift from the game. A board's clock and the rival stand still while it's open, as for the menu (menu.js).
 function showRules() {
   const rivals = Object.values(RIVALS).map(r => r.name).join(", ").replace(/, (\w+)$/, " or $1");
@@ -449,7 +448,7 @@ function showRules() {
     <p><b>The lots.</b> Ranked from plain to devious and coloured ochre, green, blue and red. A link can be a set or a meaning, things with something (things with keys: PIANO, MAP), a phrase (___&nbsp;JACK: FLAP, CRACKER, LUMBER, APPLE), sounds alike (SEA, GEE, AYE and CUE sound like letters), or wordplay: a word hidden inside, an anagram, a letter added or taken off. Beware red herrings, words that fit two links. A tap on a lot's bar says why its words belong, and once the board is over every lot shows, with its herrings.</p>
     <p><b>Playing.</b> Tap a word to pick it and again to let it go; Deselect drops every pick, Shuffle reorders the words left, and Enter submits from a keyboard.</p>
     <p><b>Score.</b> A point a lot, and once all four are found a point for each mistake to spare: ${SIZE + MISTAKES} is perfect. Solving the hardest lot first and the plainest last is a reverse rainbow. Playing alone, the clock stands still while the menu or these rules are open.</p>
-    <p><b>Levels.</b> In the menu, with the topics as a mix: Easy, plain links and no red herrings; Medium, plain to devious, sometimes a herring; Hard, devious links, and always a herring that bites.</p>
+    <p><b>Levels.</b> In the header or the menu (the topics are Settings’): Easy, plain links and no red herrings; Medium, plain to devious, sometimes a herring; Hard, devious links, and always a herring that bites.</p>
     <p><b>The wall.</b> Settings' Play: Only Connect's connecting wall, against a clock of ${clock(WALL.ms)}. There's no Submit (your fourth pick is the guess, Wrong if it isn't a lot), and guesses are free until ${inWords(WALL.free)} lots are found, with ${inWords(WALL.lives)} lives after. When the clock or the lives run out, or the wall is solved, it freezes and you name each lot's link from four, found or not: a point a lot, a point a link, and ${inWords(WALL.bonus)} more for all eight, ${2 * SIZE + WALL.bonus} in all.</p>
     <p><b>The rival.</b> Settings' Against the computer: ${rivals} plays your classic board beside you as a person would, four squares under the header filling in as it finds lots. More points win, then the quicker.</p>
     <p><b>Today's board.</b> Medium, classic, every topic, the same for everyone, and a new one at midnight UTC: one go. It counts the moment it's over, as points then time (7/8 in 1:23), and Share copies your guesses as coloured squares.</p>
@@ -458,6 +457,7 @@ function showRules() {
 }
 // the header's level, in the menu as everywhere (menu.js mirrors the select; its change handler deals)
 const levelChoice = () => mirror("Level", el.level);
+const linksChoice = () => mirror("Links", el.links);
 function soloMenu(body) {
   pickBoard ??= (S?.kind === "daily" && !S.done) || !dayDone() ? "daily" : "random";
   part(body, "play").append(action(S && !S.done ? "New board" : "Next board", () => {
@@ -465,10 +465,9 @@ function soloMenu(body) {
     if (confirmLeave()) newBoard();
   }, "primary"));
   const content = part(body, "content");
-  content.append(choice("Board", [["random", "Random"], ["daily", "Today's"]], pickBoard, v => { pickBoard = v; openMenu(); }));
+  content.append(linksChoice(), choice("Board", [["random", "Random"], ["daily", "Today's"]], pickBoard, v => { pickBoard = v; openMenu(); }));
   if (pickBoard === "random") {
-    content.append(levelChoice(), topicMix(TOPICS, PRESETS, prefs.mix, mix => { prefs.mix = cleanMix(mix); keepPrefs(); },
-      { note: w => (presetOf(TOPICS, PRESETS, w) === "custom" ? "Your own mix of topics; today's board deals from every one." : null) }));
+    content.append(levelChoice(), ...topicsPart(content, "Today’s board deals from every one"));
   } else content.append(line(dayDone() ? "Today's board is done: a new one tomorrow." : "Today's board: Medium, classic, the same for everyone."));
   const settings = part(body, "settings");
   settings.append(choice("Play", Object.entries(MODES), prefs.mode, v => {
@@ -680,8 +679,15 @@ function tell() {
 }
 
 // ---------- wiring ----------
-document.querySelector(".lt-mark").innerHTML = APPS.find(a => a.id === "lots")?.logo || LOGO;
-bindSwitcher($("appsBtn"), "lots");
+document.querySelector(".cr-mark").innerHTML = APPS.find(a => a.id === "crates").logo;
+bindSwitcher($("appsBtn"), "crates");
+// the header's links: Classic is this page, Countries is Crates (README, Crates and Lots); leaving a board unfinished asks
+dropdown(el.links);
+el.links.value = "classic";
+el.links.addEventListener("change", () => {
+  if (el.links.value === "classic") return;
+  if (confirmLeave()) location.href = "crates.html"; else el.links.value = "classic";
+});
 dropdown(el.level);
 el.level.addEventListener("change", () => {
   const v = el.level.value;
@@ -706,7 +712,6 @@ el.shuffle.addEventListener("click", () => {
 });
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 document.addEventListener("keydown", e => {
   if (document.querySelector("dialog[open]")) return;
