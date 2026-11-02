@@ -3,7 +3,7 @@
 // (solo, or a table through seats-ui.js). This page seats everyone round an oval, you at the foot and the lead passing
 // clockwise, the quests in the middle; your role and what it lets you know under it (beside it, held sideways), and
 // your part in the step: name a party (a tap on each player), approve or refuse one, succeed or fail a quest, or, when
-// the traitors confer at the end, name the Seer. Votes and quest cards can be given before your turn comes: they're
+// the traitors confer at the end, name the Lookout. Votes and quest cards can be given before your turn comes: they're
 // sent when it does. A tap on a player at any other time is talk: accuse them, say you trust them, or take it back;
 // what's been said of each shows at their foot, the newest line under the table, and the computer players talk too
 // (questChat, from the device that runs the table).
@@ -22,7 +22,7 @@ const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const NAMES = ["Alys", "Bertram", "Cecily", "Dunstan", "Edith", "Godric", "Hilda", "Osric", "Rowena", "Wulfric"];
-const ROLE_OPTIONS = [["seer", "Seer, Assassin"], ["guardian", "Guardian, Impostor"], ["veiled", "Veiled"], ["hermit", "Hermit"]];
+const ROLE_OPTIONS = [["seer", "Lookout, Mutineer"], ["guardian", "Pilot, Wrecker"], ["veiled", "Stowaway"], ["hermit", "Smuggler"]];
 const PLAYERS = [5, 6, 7, 8, 9, 10];
 
 let opts = { players: 7, roles: ["seer", "guardian"], level: "medium", voice: true, chat: true, ...read(OPTS, {}) };
@@ -42,12 +42,12 @@ function toast(msg, ms = 2600) {
 // ---------- the roles and marks, drawn ----------
 const ICON = {
   seer: `<path d="M1.8 10Q10 2.6 18.2 10Q10 17.4 1.8 10Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="3" fill="currentColor"/>`,
-  guardian: `<path d="M10 2.4L16.6 4.9V9.8C16.6 13.9 13.6 16.4 10 17.8C6.4 16.4 3.4 13.9 3.4 9.8V4.9Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 6V14.2M6.4 9.4H13.6" stroke="currentColor" stroke-width="1.5"/>`,
+  guardian: `<circle cx="10" cy="10" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/><path d="M10 1.6V18.4M1.6 10H18.4M4.06 4.06L15.94 15.94M15.94 4.06L4.06 15.94" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
   loyal: `<path d="M10 2.2V13.2M6.2 13.2H13.8M10 13.2V16.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="17.6" r="1.2" fill="currentColor"/>`,
   assassin: `<path d="M8.5 8.8L10 18.4L11.5 8.8Z" fill="currentColor"/><path d="M6.2 8.4H13.8M10 8.4V3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="2.7" r="1.2" fill="currentColor"/>`,
-  impostor: `<path d="M3.2 4.6Q10 2.4 16.8 4.6Q16.8 13.4 10 17Q3.2 13.4 3.2 4.6Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M5.8 8.6Q7.2 7.4 8.6 8.6M11.4 8.6Q12.8 7.4 14.2 8.6M7.4 12.6Q10 11 12.6 12.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>`,
+  impostor: `<path d="M7.2 6.2H12.8L13.8 15.2H6.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.8 4.2H12.2M10 1.8V4.2M5.6 15.2H14.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 8.4Q11.8 10.6 10 12.8Q8.2 10.6 10 8.4Z" fill="currentColor"/>`,
   veiled: `<path d="M3.8 17.8Q3.6 4.6 10 2.6Q16.4 4.6 16.2 17.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.8 17.8Q6.8 9.4 10 7.6Q13.2 9.4 13.2 17.8Z" fill="currentColor" opacity=".55"/>`,
-  hermit: `<path d="M7.2 6.2H12.8L13.8 15.2H6.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.8 4.2H12.2M10 1.8V4.2M5.6 15.2H14.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 8.4Q11.8 10.6 10 12.8Q8.2 10.6 10 8.4Z" fill="currentColor"/>`,
+  hermit: `<path d="M5.4 3.6H14.6C16 7 16 13 14.6 16.4H5.4C4 13 4 7 5.4 3.6Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.7 7.2H15.3M4.7 12.8H15.3" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="10" r="1.1" fill="currentColor"/>`,
   traitor: `<path d="M10 2.2V6.4M10 9V13.2M6.2 13.2H13.8M10 13.2V16.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="17.6" r="1.2" fill="currentColor"/><path d="M7.4 6.2L12.6 9.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>`,
   crown: `<path d="M3 15.5L2 5.8L6.6 9.4L10 3.6L13.4 9.4L18 5.8L17 15.5Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>`,
   flag: `<path d="M5 2.4V17.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M5.6 3.2H15.6L13 6.8L15.6 10.4H5.6Z" fill="currentColor"/>`,
@@ -58,20 +58,20 @@ const ICON = {
   speech: `<path d="M2.8 3.4H17.2V12.8H9.6L5.4 16.6V12.8H2.8Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>`,
 };
 const icon = (name, cls = "") => `<svg class="qs-ico${cls ? ` ${cls}` : ""}" viewBox="0 0 20 20" aria-hidden="true">${ICON[name]}</svg>`;
-const SHORT = { seer: "Seer", guardian: "Guardian", loyal: "Loyal", assassin: "Assassin", impostor: "Impostor", veiled: "Veiled", hermit: "Hermit", traitor: "Traitor" };
-const TITLE = { seer: "the Seer", guardian: "the Guardian", loyal: "a loyal knight", assassin: "the Assassin", impostor: "the Impostor", veiled: "the Veiled", hermit: "the Hermit", traitor: "a traitor" };
+const SHORT = { seer: "Lookout", guardian: "Pilot", loyal: "Loyal", assassin: "Mutineer", impostor: "Wrecker", veiled: "Stowaway", hermit: "Smuggler", traitor: "Traitor" };
+const TITLE = { seer: "the Lookout", guardian: "the Pilot", loyal: "a loyal hand", assassin: "the Mutineer", impostor: "the Wrecker", veiled: "the Stowaway", hermit: "the Smuggler", traitor: "a traitor" };
 
 /** What your role means, in a line or two, given who's in the game. */
 function roleText(s, seat) {
   const r = s.roles[seat], has = role => s.roles.includes(role);
-  const others = has("hermit") && r !== "hermit" ? "You know the other traitors (marked), all but the Hermit." : "You know the other traitors (marked).";
+  const others = has("hermit") && r !== "hermit" ? "You know the other traitors (marked), all but the Smuggler." : "You know the other traitors (marked).";
   switch (r) {
-    case "seer": return `Loyal. You know the traitors (marked)${has("veiled") ? ", all but the Veiled" : ""}. Don't let it show: if the loyal win, the Assassin names the Seer.`;
-    case "guardian": return has("impostor") ? "Loyal. Of the two marked, one is the Seer, the other the Impostor." : "Loyal. The one marked is the Seer: keep them safe.";
+    case "seer": return `Loyal. You know the traitors (marked)${has("veiled") ? ", all but the Stowaway" : ""}. Don't let it show: if the loyal win, the Mutineer names the Lookout.`;
+    case "guardian": return has("impostor") ? "Loyal. Of the two marked, one is the Lookout, the other the Wrecker." : "Loyal. The one marked is the Lookout: keep them safe.";
     case "loyal": return "Loyal. You know only yourself: watch the votes and the quests.";
-    case "assassin": return `A traitor. ${others} If the loyal win three quests, the traitors name the Seer: yours is the last word.`;
-    case "impostor": return `A traitor, and to the Guardian you look like the Seer. ${others}`;
-    case "veiled": return `A traitor the Seer can't see. ${others}`;
+    case "assassin": return `A traitor. ${others} If the loyal win three quests, the traitors name the Lookout: yours is the last word.`;
+    case "impostor": return `A traitor, and to the Pilot you look like the Lookout. ${others}`;
+    case "veiled": return `A traitor the Lookout can't see. ${others}`;
     case "hermit": return "A traitor on your own: the others don't know you, nor you them.";
     default: return `A traitor. ${others} Fail three quests.`;
   }
@@ -100,7 +100,7 @@ const SAYS = {
   dropTrust: ["I'm less sure of {x} now.", "I'd think twice about {x} now."],
   deny: ["Not me.", "I'm loyal. Look elsewhere.", "Wrong. I'm loyal.", "That isn't me."],
   name: {
-    votes: ["The Seer is {x}: never a vote for a party with one of us on it.", "I say {x}: voted like someone who knew."],
+    votes: ["The Lookout is {x}: never a vote for a party with one of us on it.", "I say {x}: voted like someone who knew."],
     talk: ["Strike at {x}: named us too well.", "I say {x}. Too sure of us, too soon."],
     gut: ["My guess is {x}.", "I'd say {x}."],
     agree: ["Agreed: strike at {x}.", "I'm with that: strike at {x}."],
@@ -119,7 +119,7 @@ function lineHtml(s, i) {
   if (l.t === "accuse") return `${by} ${verb("accuse", "accuses")} ${obj(l.seat)}`;
   if (l.t === "trust") return `${by} ${verb("trust", "trusts")} ${obj(l.seat)}`;
   if (l.t === "drop") return `${by} ${verb("take", "takes")} back what ${me ? "you" : "they"} said of ${obj(l.seat)}`;
-  if (l.t === "name") return `${by} ${verb("name", "names")} ${obj(l.seat)} as the Seer`;
+  if (l.t === "name") return `${by} ${verb("name", "names")} ${obj(l.seat)} as the Lookout`;
   return `${by} ${verb("say", "says")}: not me`;
 }
 
@@ -240,7 +240,7 @@ function placeChips(ring, n, mine) {
 
 /**
  * Everyone round the table: name, the lead, the party, the votes, what your role lets you know of them, and what's been
- * said of them (accused, trusted; named as the Seer while the traitors confer, when the table sees who they are).
+ * said of them (accused, trusted; named as the Lookout while the traitors confer, when the table sees who they are).
  */
 function drawRing(v) {
   const ring = $("ring");
@@ -267,20 +267,20 @@ function drawRing(v) {
     let tag = "";
     if (over || isMe(p) || (open && evil)) tag = `${icon(s.roles[p])}${SHORT[s.roles[p]]}`;
     else if (known[p] === "evil") tag = `${icon("traitor")}traitor`;
-    else if (known[p] === "seer?") tag = `${icon("seer")}${s.roles.includes("impostor") ? "Seer?" : "Seer"}`;
+    else if (known[p] === "seer?") tag = `${icon("seer")}${s.roles.includes("impostor") ? "Lookout?" : "Lookout"}`;
     // the vote: given (unseen) while it goes on, then each one, until the next
     let vote = "";
     if (s.step === "vote") vote = s.votes[p] !== null ? `<span class="qs-vote done" title="Voted"></span>` : "";
     else if (last && !over) vote = `<span class="qs-vote ${last.votes[p] ? "yes" : "no"}${fresh ? "" : " old"}">${icon(last.votes[p] ? "yes" : "no")}</span>`;
     const played = s.step === "quest" && s.team.includes(p) && s.cards[p] !== null ? `<span class="qs-played" title="Played"></span>` : "";
-    // what's said of them, at their foot: how many accuse them and trust them (yours ringed), or name them the Seer
+    // what's said of them, at their foot: how many accuse them and trust them (yours ringed), or name them the Lookout
     const acc = st.filter((w, a) => a !== p && w[p] === "accuse").length, tru = st.filter((w, a) => a !== p && w[p] === "trust").length;
     const nm = names.filter(x => x === p).length;
     let said = "";
-    if (open) said = nm ? `<i class="named" title="Named as the Seer">${icon("assassin")}${nm}</i>` : "";
+    if (open) said = nm ? `<i class="named" title="Named as the Lookout">${icon("assassin")}${nm}</i>` : "";
     else if (!over) said = `${acc ? `<i class="acc${myWord[p] === "accuse" ? " mine" : ""}" title="Accused">${icon("down")}${acc}</i>` : ""}${tru ? `<i class="tru${myWord[p] === "trust" ? " mine" : ""}" title="Trusted">${icon("up")}${tru}</i>` : ""}`;
     const label = `${nameOf(p)}${isMe(p) ? " (you)" : ""}${s.leader === p && !over ? ", leading" : ""}${party.includes(p) ? ", in the party" : ""}${acc ? `, accused by ${acc}` : ""}${tru ? `, trusted by ${tru}` : ""}${nm ? `, named by ${nm}` : ""}`;
-    // a tap: chooses, while you name a party or the Seer; else opens what's said of them (to say your own)
+    // a tap: chooses, while you name a party or the Lookout; else opens what's said of them (to say your own)
     const tap = picking ? (picking === "team" || canStrike(s, p) ? `aria-pressed="${ui.pick.includes(p)}"` : "disabled") : over || open ? "disabled" : `aria-haspopup="dialog" aria-expanded="${popSeat === p}"`;
     html.push(`<button type="button" class="${cls.join(" ")}" data-seat="${p}" ${tap} aria-label="${esc(label)}">
       ${s.leader === p && !over ? `<span class="qs-lead" title="Leads">${icon("crown")}</span>` : ""}${party.includes(p) && s.step !== "propose" ? `<span class="qs-flag" title="In the party">${icon("flag")}</span>` : ""}${talker === p ? `<span class="qs-speak" title="Speaking">${icon("speech")}</span>` : ""}
@@ -291,7 +291,7 @@ function drawRing(v) {
 }
 /**
  * What a tap on a player does now: "team" (you're naming a party, unless you'd rather talk first), "kill" (the strike is
- * yours), "name" (a traitor telling the one who strikes whom they think is the Seer), or null (it opens what's said).
+ * yours), "name" (a traitor telling the one who strikes whom they think is the Lookout), or null (it opens what's said).
  */
 function pickMode(v) {
   if (!v?.G || v.seat == null) return null;
@@ -300,7 +300,7 @@ function pickMode(v) {
   if (s.step === "assassin" && isEvil(s.roles[v.seat])) return rules.toMove(s) === v.seat ? "kill" : "name";
   return null;
 }
-/** The Seer is among the loyal: the traitors know each other now. */
+/** The Lookout is among the loyal: the traitors know each other now. */
 const canStrike = (s, p) => !isEvil(s.roles[p]);
 
 /** The middle: the five quests, the refusals, and what's happening. */
@@ -324,7 +324,7 @@ function drawCentre(v) {
 function nowHtml(v) {
   const s = v.state, q = s.quests[s.q], last = s.log.at(-1);
   if (s.step === "over") {
-    const why = { rejects: "five parties refused", quests: s.side === "evil" ? "three quests failed" : "three quests won", assassin: "the traitors named the Seer", safe: "the Seer was never found" }[s.why];
+    const why = { rejects: "five parties refused", quests: s.side === "evil" ? "three quests failed" : "three quests won", assassin: "the traitors named the Lookout", safe: "the Lookout was never found" }[s.why];
     return `<b class="qs-big ${s.side}">${s.side === "evil" ? "The traitors win" : "The loyal win"}</b><small>${why}</small>`;
   }
   if (s.step === "shown" && s.show === "vote") {
@@ -345,7 +345,7 @@ function nowHtml(v) {
     const left = s.team.filter(p => s.cards[p] === null).length;
     return `<small>Quest ${s.q + 1}</small><b>The party sets out</b><small>${left ? `${left} of ${s.team.length} still to choose` : "All back"}</small>`;
   }
-  if (s.step === "assassin") { const k = rules.toMove(s); return `<small>Three quests won, but</small><b>the traitors confer</b><small>${esc(Who(k))} ${isMe(k) ? "strike" : "strikes"} at the Seer</small>`; }
+  if (s.step === "assassin") { const k = rules.toMove(s); return `<small>Three quests won, but</small><b>the traitors confer</b><small>${esc(Who(k))} ${isMe(k) ? "strike" : "strikes"} at the Lookout</small>`; }
   return "";
 }
 
@@ -522,11 +522,11 @@ function drawControls(v) {
       for (const [a, x] of Object.entries(named(s))) if (Number(a) !== me) by.set(x, [...(by.get(x) || []), nameOf(Number(a))]);
       const advice = [...by].map(([x, l]) => `${list(l)} ${l.length > 1 ? "name" : "names"} ${nameOf(x)}`).join("; ");
       const t = ui.pick[0];
-      box.innerHTML = `<p class="qs-hint">${t == null ? `The strike is yours: tap the Seer${advice ? `. ${esc(advice)}` : ""}` : "Strike, or tap another"}</p>
-        <button class="btn primary qs-go" type="button" data-act="kill" ${t == null ? "disabled" : ""}>${t == null ? "Choose the Seer" : `Strike ${esc(nameOf(t))}`}</button>`;
+      box.innerHTML = `<p class="qs-hint">${t == null ? `The strike is yours: tap the Lookout${advice ? `. ${esc(advice)}` : ""}` : "Strike, or tap another"}</p>
+        <button class="btn primary qs-go" type="button" data-act="kill" ${t == null ? "disabled" : ""}>${t == null ? "Choose the Lookout" : `Strike ${esc(nameOf(t))}`}</button>`;
     } else if (isEvil(s.roles[me])) {
       const mine = named(s)[me];
-      box.innerHTML = `<p class="qs-hint">${mine == null ? `Tell ${esc(nameOf(k))}, who strikes, whom you think is the Seer: tap them` : `You named ${esc(nameOf(mine))}: ${esc(nameOf(k))} strikes`}</p>`;
+      box.innerHTML = `<p class="qs-hint">${mine == null ? `Tell ${esc(nameOf(k))}, who strikes, whom you think is the Lookout: tap them` : `You named ${esc(nameOf(mine))}: ${esc(nameOf(k))} strikes`}</p>`;
     } else box.innerHTML = `<p class="qs-hint">The traitors are choosing whom to strike: ${esc(nameOf(k))} has the last word</p>`;
     return;
   }
@@ -617,7 +617,7 @@ function showEnd(v) {
   const s = v.state, mine = v.seat != null && s.winners.includes(v.seat);
   $("endHead").textContent = v.seat == null ? (s.side === "evil" ? "The traitors win" : "The loyal win") : mine ? `You win: ${s.side === "evil" ? "the traitors" : "the loyal"} carry it` : `You lose: ${s.side === "evil" ? "the traitors" : "the loyal"} carry it`;
   const struck = s.striker != null && isMe(s.striker) ? "you" : "the traitors";
-  const why = { rejects: "Five parties were refused in a row.", quests: s.side === "evil" ? "Three quests failed." : "Three quests succeeded, and there was no Seer to find.", assassin: `Three quests succeeded, but ${struck} named ${who(s.target)}: the Seer.`, safe: `Three quests succeeded, and ${struck} named ${who(s.target)}, not the Seer.` }[s.why];
+  const why = { rejects: "Five parties were refused in a row.", quests: s.side === "evil" ? "Three quests failed." : "Three quests succeeded, and there was no Lookout to find.", assassin: `Three quests succeeded, but ${struck} named ${who(s.target)}: the Lookout.`, safe: `Three quests succeeded, and ${struck} named ${who(s.target)}, not the Lookout.` }[s.why];
   const order = [...Array(s.seats).keys()].sort((a, b) => isEvil(s.roles[b]) - isEvil(s.roles[a]) || a - b);
   $("endBody").innerHTML = `<p class="qs-end-note">${esc(why)}</p><ol class="qs-standings">${order.map(p => `<li class="${s.winners.includes(p) ? "won" : ""}${isMe(p) ? " me" : ""} ${isEvil(s.roles[p]) ? "evil" : "good"}">${icon(s.roles[p])}<span class="nm">${esc(nameOf(p))}</span><b>${SHORT[s.roles[p]]}</b></li>`).join("")}</ol>`;
   $("endAgain").hidden = !page.host;
@@ -640,21 +640,21 @@ function showRules() {
     <p>On the quest each member chooses, unseen, to succeed or to fail. The loyal can only succeed; a traitor may do either. One fail fails the quest, but the fourth from seven players up (*) needs two. You learn how many fails there were, never whose.</p>
     <table class="qs-sizes"><thead><tr><th>Players</th><th>Traitors</th><th colspan="5">Party for each quest</th></tr></thead><tbody>${sizes}</tbody></table>
     <h3>The roles</h3>
-    <p class="qs-role-line">${icon("seer")}<span><b>The Seer</b> (loyal) knows the traitors. If the loyal win three quests, the traitors name whom they think is the Seer, and naming them wins it for the traitors. So the Seer steers, but quietly.</span></p>
-    <p class="qs-role-line">${icon("assassin")}<span><b>The Assassin</b> (a traitor) has the last word on whom the traitors name.</span></p>
-    <p class="qs-role-line">${icon("guardian")}<span><b>The Guardian</b> (loyal) knows the Seer and the <b>Impostor</b> ${icon("impostor")} (a traitor), but not which is which.</span></p>
-    <p class="qs-role-line">${icon("veiled")}<span><b>The Veiled</b> (a traitor) is hidden from the Seer.</span></p>
-    <p class="qs-role-line">${icon("hermit")}<span><b>The Hermit</b> (a traitor) doesn't know the other traitors, nor they the Hermit.</span></p>
-    <p class="qs-role-line">${icon("loyal")}<span><b>Loyal knights</b> know only themselves; the other <b>traitors</b> ${icon("traitor")} know each other.</span></p>
-    <p>Choose the roles in the menu: the Guardian and the Veiled come only with the Seer, and a table has room for as many traitors' roles as it has traitors (the last chosen go first).</p>
+    <p class="qs-role-line">${icon("seer")}<span><b>The Lookout</b> (loyal) knows the traitors. If the loyal win three quests, the traitors name whom they think is the Lookout, and naming them wins it for the traitors. So the Lookout guides, but quietly.</span></p>
+    <p class="qs-role-line">${icon("assassin")}<span><b>The Mutineer</b> (a traitor) has the last word on whom the traitors name.</span></p>
+    <p class="qs-role-line">${icon("guardian")}<span><b>The Pilot</b> (loyal) knows the Lookout and the <b>Wrecker</b> ${icon("impostor")} (a traitor), but not which is which.</span></p>
+    <p class="qs-role-line">${icon("veiled")}<span><b>The Stowaway</b> (a traitor) is hidden from the Lookout.</span></p>
+    <p class="qs-role-line">${icon("hermit")}<span><b>The Smuggler</b> (a traitor) doesn't know the other traitors, nor they the Smuggler.</span></p>
+    <p class="qs-role-line">${icon("loyal")}<span><b>Loyal hands</b> know only themselves; the other <b>traitors</b> ${icon("traitor")} know each other.</span></p>
+    <p>Choose the roles in the menu: the Pilot and the Stowaway come only with the Lookout, and a table has room for as many traitors' roles as it has traitors (the last chosen go first).</p>
     <h3>The strike</h3>
-    <p>When the loyal have won three quests, the traitors confer: they know each other now (and the table sees who they are), each may name whom they think is the Seer, and then one strikes. The Assassin, when a person plays them; if the computer does, a traitor a person plays; with no person among the traitors, the computer's Assassin, going with the name most of them gave.</p>
+    <p>When the loyal have won three quests, the traitors confer: they know each other now (and the table sees who they are), each may name whom they think is the Lookout, and then one strikes. The Mutineer, when a person plays them; if the computer does, a traitor a person plays; with no person among the traitors, the computer's Mutineer, going with the name most of them gave.</p>
     <h3>Talk</h3>
     <p>Tap a player to accuse them of being a traitor, or to say you trust them; tap the same again to take it back. You can accuse no more players than there are traitors. What's been said of each player shows at their foot (${icon("down")} accused, ${icon("up")} trusted, yours ringed), the newest line under the table, and all of it in the parties so far. Leading, tap Talk to speak before you choose.</p>
     <p>The computer players weigh what's said by who says it: a loyal player's accusation leans true, a traitor seldom accuses another, so an accusation from someone under suspicion counts for its target. They speak their minds too, answer when accused, and the traitors among them lie.</p>
     <h3>Playing</h3>
     <p>The quests are in the middle (tap them for every party so far, who led it and who voted how, and what was said); round them the table, you at the foot. Votes and quest cards can be given before your turn: they're kept secret till all are in. At a table, each sees only their own role: tap yours to cover it. Accusing, defending and bluffing out loud is the game.</p>
-    <p class="qs-rules-note">The computer players reason from what their role lets them know and from the play: who led which party, who voted how, which quests failed with whom on them, who said what of whom. On Sharp a traitor votes much as a loyal player would and the Seer hides what it knows; on Easy they're looser all round.</p>`;
+    <p class="qs-rules-note">The computer players reason from what their role lets them know and from the play: who led which party, who voted how, which quests failed with whom on them, who said what of whom. On Sharp a traitor votes much as a loyal player would and the Lookout hides what it knows; on Easy they're looser all round.</p>`;
   $("rulesDlg").showModal();
 }
 

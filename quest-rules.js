@@ -3,20 +3,24 @@
 // (in turn round the table) names a party; everyone votes on it, openly; a majority sends it, else the lead passes, and
 // a fifth party refused in a row hands the game to the traitors. On a quest each member plays, unseen, success or fail:
 // the loyal must succeed, a traitor may fail it. Three quests succeeding win it for the loyal, three failing for the
-// traitors; but if the loyal win, the traitors name whom they think is the Seer, and naming them wins it back.
+// traitors; but if the loyal win, the traitors name whom they think is the Lookout, and naming them wins it back.
 //
-// The roles: the Seer (loyal) knows the traitors, all but the Veiled; the Guardian (loyal) knows who the Seer and the
-// Impostor are, but not which is which; the Impostor (a traitor) looks like the Seer to the Guardian; the Veiled (a
-// traitor) is hidden from the Seer; the Hermit (a traitor) neither knows the other traitors nor is known to them; the
-// Assassin (a traitor) has the traitors' last word on the Seer. The other loyal and the other traitors know only
+// The ids in the state, the database and the tests are the first names the roles had (seer, guardian, assassin,
+// impostor, veiled, hermit); only the words shown changed (2 November 2026), to Lookout, Pilot, Mutineer, Wrecker,
+// Stowaway and Smuggler, so saved games and rooms in flight still read.
+//
+// The roles: the Lookout (loyal) knows the traitors, all but the Stowaway; the Pilot (loyal) knows who the Lookout and the
+// Wrecker are, but not which is which; the Wrecker (a traitor) looks like the Lookout to the Pilot; the Stowaway (a
+// traitor) is hidden from the Lookout; the Smuggler (a traitor) neither knows the other traitors nor is known to them; the
+// Mutineer (a traitor) has the traitors' last word on the Lookout. The other loyal and the other traitors know only
 // themselves (the traitors know each other).
 //
 // Table talk: anyone may, at any time, accuse another of being a traitor, say they trust them, or take it back (no
 // more accused than there are traitors, no more trusted than there are other loyal); a word isn't a move, so the game
 // never waits for one (talk() makes it, the page puts it on the table). When the loyal have won three, the traitors
-// confer: they know each other now, each may name whom they think is the Seer, and the strike is theirs to agree on:
-// the Assassin's when a person plays it, else any traitor's a person plays (the first round the table from the
-// Assassin), else the computer's Assassin's. Which seats people play is read from the moves (the computer's carry bot).
+// confer: they know each other now, each may name whom they think is the Lookout, and the strike is theirs to agree on:
+// the Mutineer's when a person plays it, else any traitor's a person plays (the first round the table from the
+// Mutineer), else the computer's Mutineer's. Which seats people play is read from the moves (the computer's carry bot).
 
 import { questBot } from "./quest-bot.js";
 
@@ -24,7 +28,7 @@ export const EVIL_COUNT = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4 };
 /** Each quest's party size by players; the fourth quest needs two fails from seven players up. */
 export const SIZES = { 5: [2, 3, 2, 3, 3], 6: [2, 3, 4, 3, 4], 7: [2, 3, 3, 4, 4], 8: [3, 4, 4, 5, 5], 9: [3, 4, 4, 5, 5], 10: [3, 4, 4, 5, 5] };
 export const EVIL = new Set(["assassin", "impostor", "veiled", "hermit", "traitor"]);
-export const ROLE_NAMES = { seer: "the Seer", guardian: "the Guardian", loyal: "a Loyal knight", assassin: "the Assassin", impostor: "the Impostor", veiled: "the Veiled", hermit: "the Hermit", traitor: "a Traitor" };
+export const ROLE_NAMES = { seer: "the Lookout", guardian: "the Pilot", loyal: "a Loyal hand", assassin: "the Mutineer", impostor: "the Wrecker", veiled: "the Stowaway", hermit: "the Smuggler", traitor: "a Traitor" };
 export const SHOW_MS = 2600;
 /** A game's talk is kept to this many lines (a table that says more has said enough). */
 export const TALK_MAX = 400;
@@ -51,7 +55,7 @@ export function dealRoles(n, opts, rng) {
   return all;
 }
 
-/** What a seat knows at the start: each other seat it knows something of, and what ("evil", or "seer?" for the Guardian). */
+/** What a seat knows at the start: each other seat it knows something of, and what ("evil", or "seer?" for the Pilot). */
 export function knowledge(roles, seat) {
   const me = roles[seat], out = {};
   roles.forEach((r, i) => {
@@ -72,14 +76,14 @@ export function stances(s) {
   }
   return out;
 }
-/** While the traitors confer: whom each traitor has named as the Seer (their last word). */
+/** While the traitors confer: whom each traitor has named as the Lookout (their last word). */
 export function named(s) {
   const out = {};
   for (const l of s.talk || []) if (l.t === "name") out[l.by] = l.seat;
   return out;
 }
-/** Whose the strike is: the Assassin's when a person plays it, else the first traitor a person plays round the table
- *  from the Assassin, else the computer's Assassin's. */
+/** Whose the strike is: the Mutineer's when a person plays it, else the first traitor a person plays round the table
+ *  from the Mutineer, else the computer's Mutineer's. */
 export function striker(s) {
   const a = s.roles.indexOf("assassin");
   if (s.people?.[a]) return a;
@@ -90,7 +94,7 @@ export function striker(s) {
 /**
  * A word at the table, said by the player in `seat` whenever they like (it isn't a move): { t: "accuse" | "trust" |
  * "drop", seat } of another player, { t: "deny", seat? } (not me: to whoever accused them), or, while the traitors
- * confer, a traitor's { t: "name", seat } of the one they think is the Seer. A computer player's carries why (its
+ * confer, a traitor's { t: "name", seat } of the one they think is the Lookout. A computer player's carries why (its
  * reason, worded by the page). The state with the line added (on a copy, as act's), or why it can't be said.
  */
 export function talk(s, seat, m) {
@@ -101,7 +105,7 @@ export function talk(s, seat, m) {
   if (target !== null && !(Number.isInteger(target) && target >= 0 && target < s.seats && target !== seat)) return "Choose another player";
   if (s.step === "assassin") {
     if (!isEvil(s.roles[seat])) return "The traitors are choosing whom to strike";
-    if (t !== "name" || target === null) return "Name the one you think is the Seer";
+    if (t !== "name" || target === null) return "Name the one you think is the Lookout";
     if (isEvil(s.roles[target])) return "Name one of the loyal";
     if (named(s)[seat] === target) return "You've named them";
   } else if (t === "deny") {
@@ -190,7 +194,7 @@ export const rules = {
     }
     if (s.step === "assassin") {
       const target = Number(m?.seat);
-      if (m?.t !== "kill" || !(target >= 0 && target < s.seats) || target === seat) return "Name the one you think is the Seer";
+      if (m?.t !== "kill" || !(target >= 0 && target < s.seats) || target === seat) return "Name the one you think is the Lookout";
       if (isEvil(s.roles[target])) return "Name one of the loyal";
       s.target = target;
       s.striker = seat;
@@ -229,7 +233,7 @@ export const rules = {
     if (won >= 3) {
       if (s.roles.includes("seer") && s.roles.includes("assassin")) {
         s.step = "assassin";
-        s.say = "Three quests won for the loyal. But the traitors may yet name the Seer: they confer.";
+        s.say = "Three quests won for the loyal. But the traitors may yet name the Lookout: they confer.";
         return s;
       }
       return end(s, "good", "quests");
@@ -268,8 +272,8 @@ function end(s, side, why) {
   const seer = s.roles.indexOf("seer");
   s.say = why === "rejects" ? "Five parties refused: the traitors win."
     : why === "quests" ? (side === "evil" ? "Three quests failed: the traitors win." : "Three quests won: the loyal win.")
-      : why === "assassin" ? `The traitors name {s${s.target}}: the Seer. The traitors win.`
-        : `The traitors name {s${s.target}}, but the Seer was {s${seer}}. The loyal win.`;
+      : why === "assassin" ? `The traitors name {s${s.target}}: the Lookout. The traitors win.`
+        : `The traitors name {s${s.target}}, but the Lookout was {s${seer}}. The loyal win.`;
   delete s.until;
   return s;
 }

@@ -61,7 +61,7 @@ html[data-theme="office"][data-mode="night"] { --qs-in: #479EF5; }
 .qs-vote.done { width: .8em; height: .8em; top: -.35em; right: -.25em; background: var(--brass); border: 1.5px solid var(--sheet); }
 .qs-played { position: absolute; bottom: -.4em; right: -.3em; width: .7em; height: .95em; border-radius: 2px; background: var(--qs-in); border: 1.5px solid var(--sheet); }
 /* what's been said of a player, at their foot: how many accuse and trust them (yours ringed in brass); named as the
-   Seer while the traitors confer */
+   Lookout while the traitors confer */
 .qs-said { position: absolute; left: 50%; bottom: -.7em; transform: translateX(-50%); display: flex; gap: .2em; pointer-events: none; }
 .qs-said i { display: inline-flex; align-items: center; gap: .15em; height: 1.3em; padding: 0 .32em; border-radius: 3px; border: 1.5px solid var(--sheet);
   color: var(--sheet); font-style: normal; font-size: .72em; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }

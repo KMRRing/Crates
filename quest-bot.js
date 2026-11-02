@@ -6,15 +6,15 @@
 // fail together); every vote, by how often a loyal player and a traitor, on the party or off it, approve a party clean
 // or foul (measured from their own play: a traitor refuses clean parties far more often than the loyal, and on Sharp
 // votes on foul ones much as they do, on Easy for them nearly always); a traitor leading takes no other traitor along. What the role knows rules ways out: the
-// Seer knows the traitors (but the Veiled); the Guardian knows one of two is the Impostor; a traitor knows the others
-// (but the Hermit). From those weights, each player's chance of being a traitor and each party's chance of being clean.
+// Lookout knows the traitors (but the Stowaway); the Pilot knows one of two is the Wrecker; a traitor knows the others
+// (but the Smuggler). From those weights, each player's chance of being a traitor and each party's chance of being clean.
 //
 // The loyal name the cleanest party with themselves in it, approve one nearly as clean as the best they could name, and
 // always their own and the fifth in a row, which the loyal can't afford to refuse; besides, at five, one with nobody on
 // it they suspect more than most (on the first quest, then, any party), and from six, one as clean as the next leader
-// is likely to name instead (measured: each plays best at its sizes). The Seer plays as a loyal player would on what
-// everyone can see, nudged by what it knows (too sure a hand gives it away to the strike). The Guardian hears its two:
-// in each seating the loyal one of them is the Seer, whose words are true and whose votes follow what it knows; once
+// is likely to name instead (measured: each plays best at its sizes). The Lookout plays as a loyal player would on what
+// everyone can see, nudged by what it knows (too sure a hand gives it away to the strike). The Pilot hears its two:
+// in each seating the loyal one of them is the Lookout, whose words are true and whose votes follow what it knows; once
 // they've spoken, it votes for a party only if it's more likely clean than not.
 //
 // Traitors vote as a loyal player in their seat would, no more readily for a party with one of their own (that would
@@ -25,15 +25,15 @@
 // pass, to be trusted. An Easy player knows only its own side and chooses and votes loosely; an Easy traitor fails
 // every quest it can and now and then takes another traitor along.
 //
-// The table's talk weighs in too: a loyal player's accusation doubles the odds against its target (the Seer's is always
+// The table's talk weighs in too: a loyal player's accusation doubles the odds against its target (the Lookout's is always
 // true); a traitor's says nothing, since it accuses the loyal and, once the table suspects one of its own as much as
 // most, that one too; a loyal player's trust counts a little for its target, a traitor's covers its own a little. With
-// no Seer in the game, only the first few to accuse each player and to trust them count (two at five or six, three at
-// seven, six from eight), since those who join in mostly repeat what the first saw; with the Seer, everyone's.
+// no Lookout in the game, only the first few to accuse each player and to trust them count (two at five or six, three at
+// seven, six from eight), since those who join in mostly repeat what the first saw; with the Lookout, everyone's.
 //
-// They talk as they think (questChat), each with a temper of its own: a knight accuses the players it's fairly sure of,
-// trusts the ones it's surest are loyal once a quest has been played, and takes back what it no longer thinks; the Seer
-// only accuses traitors and never trusts one, and waits for the play to give it some cover, less with a Guardian
+// They talk as they think (questChat), each with a temper of its own: a hand accuses the players it's fairly sure of,
+// trusts the ones it's surest are loyal once a quest has been played, and takes back what it no longer thinks; the Lookout
+// only accuses traitors and never trusts one, and waits for the play to give it some cover, less with a Pilot
 // listening for it. A traitor blames the loyal player beside it on a failed quest, joins in against the loyal the table
 // doubts more than their share and trusts the ones it trusts; on Sharp it accuses one of its own the table suspects as
 // much as most already, on Easy it now and then defends one. Accused, a player answers: back at the accuser when it
@@ -65,16 +65,16 @@ function questOdds(quest, fails, inParty) {
 // each level (a traitor on a party makes it foul, so [1][0][1] never comes up): on Sharp a traitor's votes are much like
 // the loyal's, on Easy it approves a party with its own on it nearly every time
 const VOTE = { medium: [[[0.72, 0.87], [0.48, 0.75]], [[0.38, 0.5], [0.45, 0.78]]], easy: [[[0.47, 0.87], [0.37, 0.72]], [[0.08, 0.5], [0.82, 0.97]]] };
-// the Seer's, as the Guardian reads its two: [party foul]
+// the Lookout's, as the Pilot reads its two: [party foul]
 const SEER_VOTE = [0.81, 0.42];
 // how likely a word is in a seating, by who says it of whom: [speaker a traitor][target a traitor]
 const SAY = { accuse: [[1, 2], [1, 1]], trust: [[1, 0.7], [1, 1.05]] };
-// a word of the Seer's, as the Guardian hears its two: [target a traitor]
+// a word of the Lookout's, as the Pilot hears its two: [target a traitor]
 const SEER_SAY = { accuse: [0.1, 10], trust: [10, 0.1] };
 /**
- * Of each player, how many of the first to accuse them, and of the first to trust them, a seat weighs: with no Seer in
+ * Of each player, how many of the first to accuse them, and of the first to trust them, a seat weighs: with no Lookout in
  * the game, those who join in mostly repeat what the first saw (two at five or six, three at seven, six from eight);
- * with the Seer, any of them may be the one who knows.
+ * with the Lookout, any of them may be the one who knows.
  */
 const heard = s => (s.roles.includes("seer") ? Infinity : s.seats <= 6 ? 2 : s.seats === 7 ? 3 : 6);
 
@@ -101,7 +101,7 @@ function standing(s, seat, view) {
 /**
  * The ways the traitors could be seated, as this seat sees them, each weighed by the play: { sets: [Set], w: [weight] }.
  * The view is "own" (all the role knows), "loyal" (as a plain loyal player in this seat would: only that they're loyal
- * themselves; a traitor's or the Seer's cover) or "table" (what everyone can see; what the table trusts). `easy`: the
+ * themselves; a traitor's or the Lookout's cover) or "table" (what everyone can see; what the table trusts). `easy`: the
  * table plays Easy, and votes so.
  */
 function worlds(s, seat, view = "own", easy = false) {
@@ -109,12 +109,12 @@ function worlds(s, seat, view = "own", easy = false) {
   const said = standing(s, seat, view);
   const known = view === "own" ? knowledge(s.roles, seat) : {};
   const sure = new Set(Object.keys(known).filter(p => known[p] === "evil").map(Number));
-  // the Guardian's two, the Seer and the Impostor, and what they've said
+  // the Pilot's two, the Lookout and the Wrecker, and what they've said
   const pair = Object.keys(known).filter(p => known[p] === "seer?").map(Number);
   const pairSaid = pair.length === 2 ? stances(s).flatMap((st, a) => (pair.includes(a) ? Object.entries(st).map(([x, t]) => [a, Number(x), t]) : [])) : [];
   const meEvil = view === "own" && isEvil(me);
   if (meEvil) sure.add(seat);
-  // the Seer and the traitors who know each other know all of them but the Veiled or the Hermit
+  // the Lookout and the traitors who know each other know all of them but the Stowaway or the Smuggler
   const hidden = view !== "own" ? null : me === "seer" ? +s.roles.includes("veiled") : meEvil && me !== "hermit" ? +s.roles.includes("hermit") : null;
   const free = [...Array(n).keys()].filter(p => !sure.has(p) && (view === "table" || p !== seat));
   const sets = [], w = [], vote = VOTE[easy ? "easy" : "medium"];
@@ -122,7 +122,7 @@ function worlds(s, seat, view = "own", easy = false) {
     if (hidden !== null && add.length !== hidden) continue;
     const E = new Set([...sure, ...add]);
     if (pair.length === 2 && E.has(pair[0]) === E.has(pair[1])) continue;
-    // in this seating, the loyal one of the Guardian's two is the Seer
+    // in this seating, the loyal one of the Pilot's two is the Lookout
     const seer = pair.find(p => !E.has(p));
     let weight = 1;
     for (const l of s.log) {
@@ -170,7 +170,7 @@ function approves(W, s, seat, team, rng, strict = 0.78) {
   const others = [...Array(s.seats).keys()].filter(p => p !== seat), avg = others.reduce((a, p) => a + evilOdds(W, p), 0) / others.length;
   return team.every(p => p === seat || evilOdds(W, p) <= avg + 0.02);
 }
-/** The traitors this seat knows, itself included (the Hermit knows only itself). */
+/** The traitors this seat knows, itself included (the Smuggler knows only itself). */
 const ourSide = (s, seat) => new Set([seat, ...Object.keys(knowledge(s.roles, seat)).filter(() => isEvil(s.roles[seat])).map(Number)]);
 
 export function questBot(s, seat, level = "medium", rng = Math.random) {
@@ -223,7 +223,7 @@ function vote(s, seat, easy, rng) {
   if (easy) return rng() < (approves(worlds(s, seat, "loyal", true), s, seat, team, rng, 0.5) ? 0.85 : 0.3);
   if (me === "seer") {
     const known = new Set(Object.keys(knowledge(s.roles, seat)).map(Number)), foul = team.some(p => known.has(p));
-    // what the table can see says one thing; what the Seer knows may say otherwise, but not every time
+    // what the table can see says one thing; what the Lookout knows may say otherwise, but not every time
     const cover = approves(worlds(s, seat, "loyal"), s, seat, team, rng);
     return foul ? cover && rng() < 0.7 : cover || rng() < 0.25;
   }
@@ -239,7 +239,7 @@ function vote(s, seat, easy, rng) {
 function shouldFail(s, seat, easy, rng) {
   const quest = s.quests[s.q], me = s.roles[seat], lost = s.quests.filter(q => q.result === "fail").length;
   if (easy) return rng() < 0.9;
-  // the traitors on it that this one knows (the Hermit knows none), the one the table suspects most first: a fail costs
+  // the traitors on it that this one knows (the Smuggler knows none), the one the table suspects most first: a fail costs
   // it least; the others keep clean
   const T = worlds(s, seat, "table"), side = ourSide(s, seat);
   const ours = s.team.filter(p => side.has(p)).sort((a, b) => evilOdds(T, b) - evilOdds(T, a) || a - b);
@@ -282,7 +282,7 @@ function seerGuess(s, seat, easy, rng) {
   return { pick, score, why: t.talk > 0.4 && t.talk >= t.votes ? "talk" : t.votes > 0.4 ? "votes" : "gut" };
 }
 
-/** While the traitors confer: its pick for the Seer, said once; then agreement, once, with another's it nearly made. */
+/** While the traitors confer: its pick for the Lookout, said once; then agreement, once, with another's it nearly made. */
 function confer(s, seat, easy, rng) {
   const lines = s.talk || [], guess = seerGuess(s, seat, easy, rng);
   const at = lines.findLastIndex(l => l.by === seat && l.t === "name");
@@ -316,7 +316,7 @@ export const suspicion = (s, seat, level = "medium") => readOf(s, seat, level ==
 /** What this seat makes of everyone now, as it would talk of them: each one's odds of being a traitor; its own side. */
 function readOf(s, seat, easy) {
   const me = s.roles[seat], odds = W => seatList(s).map(p => evilOdds(W, p));
-  // a traitor talks to what the table thinks (it knows the truth); an Easy player, to what a plain knight would think
+  // a traitor talks to what the table thinks (it knows the truth); an Easy player, to what a plain hand would think
   if (isEvil(me)) return { odds: odds(worlds(s, seat, "table", easy)), ours: ourSide(s, seat) };
   if (easy) return { odds: odds(worlds(s, seat, "loyal", true)), ours: new Set() };
   return { odds: odds(worlds(s, seat, me === "seer" ? "loyal" : "own")), ours: new Set() };
@@ -341,7 +341,7 @@ function whyTrust(s, seat, x) {
  * What a computer player says now, if anything: { t, seat, why } for talk() (quest-rules.js), or null. Accused since
  * it last spoke, it answers; else, at most one word of its own a party (none before the first), and not every time:
  * the strongest change in what it thinks of someone. `quiet`: the table has heard enough for now, only an answer.
- * While the traitors confer, a traitor names its pick for the Seer.
+ * While the traitors confer, a traitor names its pick for the Lookout.
  */
 export function questChat(s, seat, level = "medium", rng = Math.random, { quiet = false } = {}) {
   if (s.step === "over") return null;
@@ -354,7 +354,7 @@ export function questChat(s, seat, level = "medium", rng = Math.random, { quiet 
   if (reply) return reply;
   if (quiet || !s.log.length) return null;
   if (lines.some(l => l.by === seat && l.k === s.log.length && l.t !== "deny" && l.why !== "back")) return null;
-  // not every time: less often on Easy, and from a Seer with no Guardian listening for it
+  // not every time: less often on Easy, and from a Lookout with no Pilot listening for it
   if (rng() > (easy || (me === "seer" && !s.roles.includes("guardian")) ? 0.6 : 0.8)) return null;
   return opinion(s, seat, readOf(s, seat, easy), easy);
 }
@@ -382,8 +382,8 @@ function opinion(s, seat, read, easy) {
   const temper = stable(s, seat, "temper") * 2 - 1;
   const accuseAt = Math.max(0.6, base + 0.2) + temper * 0.05 - (easy ? 0.1 : 0), trustAt = Math.min(0.2, base - 0.2) + (easy ? 0.05 : 0);
   if (!isEvil(me)) {
-    // the Seer accuses only traitors (or, with the Veiled about, those it can't see), and trusts none of them; it waits
-    // for the play to give it some cover, less with a Guardian to follow its lead
+    // the Lookout accuses only traitors (or, with the Stowaway about, those it can't see), and trusts none of them; it waits
+    // for the play to give it some cover, less with a Pilot to follow its lead
     const known = me === "seer" ? knowledge(s.roles, seat) : {}, veiled = s.roles.includes("veiled");
     const may = x => me !== "seer" || known[x] === "evil" || (veiled && !known[x]);
     const sure = x => (me === "seer" && known[x] === "evil" ? Math.min(1, odds[x] + (easy || !s.roles.includes("guardian") ? 0.3 : 0.5)) : odds[x]);

@@ -54,4 +54,33 @@ export const SOON = {
       "A search that scores the four swipes would give a hint and a par.",
     ],
   },
+  flank: {
+    name: "Flank", sec: "table",
+    line: "Reversi for two: discs black on one side and white on the other; place one so it brackets a line of the other's discs between two of yours, and they all turn. Most discs when the board is full wins.",
+    todo: [
+      "Added 2 November 2026 (Korbi: \"othello\"). Othello is a trademark and Reversi, the 1880s game it came from, is the name anyone may use; the tile is Flank, for what a move does. Rules belong to no one.",
+      "On seats.js, so two on one phone, a partner's match and a table of friends come with it: a legal move must flank at least one line, a player with none passes, and the game ends when neither can move. The turning discs are the only drawing.",
+      "The computer is our own search: the board is small enough for a few plies with weights for corners, edges and how many moves each side has left (mobility), and the weaker levels make a chosen share of mistakes. The strong free engines (Edax) are GPL, which is the case for writing our own.",
+      "Needs, as every board game here: a coach, a daily puzzle (a position and its best move), and a calm mode with the discs in 3D.",
+    ],
+  },
+  crown: {
+    name: "Crown", sec: "table",
+    line: "Draughts (checkers) for two: men step diagonally forward on the dark squares, a jump over an enemy man is compulsory, and a man that reaches the far row is crowned and moves both ways.",
+    todo: [
+      "Added 2 November 2026 (Korbi: \"draughts\"). Both names are the common words for the game and free; the tile is Crown, for the move that decides it.",
+      "English draughts (8\u00d78, American checkers) first, International (10\u00d710, men capture backwards, kings fly, the longest capture is compulsory) as a second set of rules. The sets are data: the board's size, whether men capture backwards, whether a king flies, whether the longest capture is compulsory. A forced capture is where the beginner's mistakes are, so the board marks the pieces that must jump.",
+      "On seats.js. The computer is our own search with a transposition table (the game tree is small; English draughts is a solved draw). The strong engines (Scan, GPL) are not needed.",
+      "Needs: a coach, a daily puzzle (a shot: a sacrifice that wins), and a calm mode with the men in 3D.",
+    ],
+  },
+  cargo: {
+    name: "Cargo", sec: "idle",
+    line: "Falling blocks: crates of four squares fall into a well; slide and turn them to fill a row across, which clears and lets the rest fall. The well fills as you slip, and the game ends when a new crate cannot enter.",
+    todo: [
+      "Added 2 November 2026 (Korbi: \"falling blocks\"). The idea of falling pieces is free; the Tetris Company has won against a clone that copied the look and feel (Tetris Holding v. Xio, 2012), so Cargo is built to share none of it: its own piece set (not the seven tetrominoes in their standard colours), a narrower well, crates in the almanac's own colours, and no use of Tetris's guideline names. Build it last of the three.",
+      "Idle's rule applies: little thinking, a move that is remembered. A pause with the menu (README, The pause), a gravity that rises slowly, a best, and a calm mode with the crates in 3D and no loss, only a tidy well.",
+      "Touch: drag to slide, tap to turn, swipe down to drop; the page never scrolls, which a swipe has to be built around.",
+    ],
+  },
 };
