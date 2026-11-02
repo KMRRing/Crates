@@ -186,14 +186,14 @@ export function createRunner(host) {
     if (f.kind === "crab") {
       const b = new THREE.Mesh(box, M.crab); b.scale.set(1.15, 0.5, 0.9); b.position.y = 0.4; g.add(b);
       const top = new THREE.Mesh(sph, M.crab); top.scale.set(0.9, 0.5, 0.7); top.position.y = 0.72; g.add(top);
-      parts.claws = [-1, 1].map(s => { const c = new THREE.Mesh(box, M.crab); c.scale.set(0.34, 0.3, 0.6); c.position.set(s * 0.72, 0.62, 0.5); g.add(c); return c; });
+      parts.claws = [-1, 1].map(s => { const c = new THREE.Mesh(box, M.crab); c.scale.set(0.34, 0.3, 0.6); c.position.set(s * 0.58, 0.62, 0.5); g.add(c); return c; });
       parts.legs = [-1, 1].map(s => { const l = new THREE.Mesh(box, M.crab); l.scale.set(0.5, 0.1, 0.12); l.position.set(s * 0.62, 0.18, 0); g.add(l); return l; });
     } else {
       const b = new THREE.Mesh(sph, M.gull); b.scale.set(0.5, 0.42, 1.0); b.position.y = 0.4; g.add(b);
-      const beak = new THREE.Mesh(cone, M.gilt); beak.scale.set(0.12, 0.3, 0.12); beak.rotation.x = -Math.PI / 2; beak.position.set(0, 0.42, -0.55); g.add(beak);
-      parts.wings = [-1, 1].map(s => { const pivot = new THREE.Group(); pivot.position.set(s * 0.22, 0.46, 0); const w = new THREE.Mesh(box, M.gull); w.scale.set(1.0, 0.06, 0.5); w.position.x = s * 0.5; pivot.add(w); g.add(pivot); return pivot; });
+      const beak = new THREE.Mesh(cone, M.gilt); beak.scale.set(0.12, 0.3, 0.12); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.42, 0.55); g.add(beak);
+      parts.wings = [-1, 1].map(s => { const pivot = new THREE.Group(); pivot.position.set(s * 0.22, 0.46, 0); const w = new THREE.Mesh(box, M.gull); w.scale.set(0.6, 0.06, 0.5); w.position.x = s * 0.3; pivot.add(w); g.add(pivot); return pivot; });
       parts.banner = new THREE.Mesh(box, M.banner); parts.banner.scale.set(0.5, 0.36, 0.04); parts.banner.position.set(0, -0.22, 0); g.add(parts.banner);
-      const rope = new THREE.Mesh(box, M.timber); rope.scale.set(0.03, 0.4, 0.03); rope.position.set(0, 0.04, 0); g.add(rope);
+      parts.rope = new THREE.Mesh(box, M.timber); parts.rope.scale.set(0.03, 0.4, 0.03); parts.rope.position.set(0, 0.04, 0); g.add(parts.rope);
     }
     g.traverse(o => { o.frustumCulled = false; });
     const shadow = new THREE.Mesh(disc, M.shadow); shadow.frustumCulled = false;
@@ -319,7 +319,10 @@ export function createRunner(host) {
       g.position.set(f.x, lift + dying * (f.kind === "gull" ? 3 : 0.6), f.z);
       g.rotation.set(0, Math.PI + (f.kind === "crab" ? 0.12 * Math.sin(now * 6 + f.id) : 0), 0);
       g.scale.setScalar(1 - dying * (f.alive ? 1 : 0.85));
-      if (f.kind === "gull") o.parts.wings.forEach((w, i) => { w.rotation.z = (i ? 1 : -1) * Math.sin(now * 9 + f.id) * 0.55; });
+      if (f.kind === "gull") {
+        o.parts.wings.forEach((w, i) => { w.rotation.z = (i ? 1 : -1) * Math.sin(now * 9 + f.id) * 0.55; });
+        o.parts.banner.visible = o.parts.rope.visible = !!f.gate;                                                // only the gulls of a question carry a banner
+      }
       else { o.parts.claws.forEach((c, i) => { c.position.z = 0.5 + 0.08 * Math.sin(now * 7 + i * 2 + f.id); }); }
       if (f.spent && f.alive) g.rotation.z = Math.sin(now * 30) * 0.08;
       o.shadow.position.set(f.x, 0.025, f.z);
