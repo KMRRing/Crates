@@ -62,3 +62,76 @@ export const KB_PRESETS = {
     life: 2, past: 2, uses: 2, spec: 1, mkts: 1, logi: 1, reg: 1 } },
 };
 
+
+// ---------- one set of topics for every game (2 November 2026) ----------
+// Korbi: "the topics should be set in settings in the main menu, not for each knowledge game independently"; "remove the
+// more/less thing, on/off is the only needed"; presets all on, all off, culture and stem. A subject is on or off; each game
+// keeps its own topics (a clue's aspect, a bank, a category) and says which subject each belongs to (TOPIC_OF below), so a
+// game's mix is made from what's on: a topic is in, at the weight its game has always dealt it at, when its subject is on,
+// and out when it isn't. With every subject on that is each game's old Balanced, seed for seed.
+/** The subjects, in the order Settings shows them. `group` says which preset leans on it. */
+export const SUBJECTS = [
+  ["geo", "Geography", ""], ["cities", "Cities", ""], ["nat", "Nature", "stem"],
+  ["mkt", "Money & economy", "trade"], ["fin", "Finance", "trade"], ["trade", "Trade & shipping", "trade"], ["co", "Companies & brands", "trade"],
+  ["nrg", "Energy", "stem trade"], ["met", "Metals & mining", "stem trade"], ["agr", "Agriculture", "trade"],
+  ["pol", "Policy & law", "trade"], ["hist", "History", "culture"], ["ppl", "People", "culture"], ["lang", "Language & words", "culture"], ["rel", "Religion & philosophy", "culture"],
+  ["art", "Art & architecture", "culture"], ["cult", "Literature, music & myth", "culture"], ["screen", "Film, TV & games", "culture"],
+  ["style", "Craft & style", "culture"], ["food", "Food & drink", "culture"], ["sport", "Sport", "culture"],
+  ["sci", "Science & tech", "stem"], ["math", "Maths & logic", "stem"],
+].map(([id, label, group]) => ({ id, label, group }));
+export const SUBJECT_LIST = SUBJECTS.map(s => [s.id, s.label]);
+const ofGroup = g => Object.fromEntries(SUBJECTS.map(s => [s.id, s.group.split(" ").includes(g) ? 1 : 0]));
+const every = v => Object.fromEntries(SUBJECTS.map(s => [s.id, v]));
+/** Presets of the subjects: all on (what the games dealt before topics, so "Balanced" to every game), all off (a place to
+ *  start choosing from), culture, stem, and trade (the markets side). */
+export const SUBJECT_PRESETS = {
+  all: { label: "All on", topics: every(1) },
+  culture: { label: "Culture", topics: ofGroup("culture") },
+  stem: { label: "STEM", topics: ofGroup("stem") },
+  trade: { label: "Trade", topics: ofGroup("trade") },
+  none: { label: "All off", topics: every(0) },
+};
+/** A set of subjects as kept (anything: an old save, a link), made whole: each 0 or 1, one it doesn't know left out, and
+ *  one missing on (a subject added later starts on). */
+export function cleanSubjects(saved) {
+  const out = {};
+  for (const s of SUBJECTS) { const v = saved?.[s.id]; out[s.id] = v === 0 || v === false ? 0 : 1; }
+  return out;
+}
+/** The preset a set of subjects is (its id), or "custom". */
+export const subjectPreset = on => Object.keys(SUBJECT_PRESETS).find(k => SUBJECTS.every(s => (on?.[s.id] ?? 1) === SUBJECT_PRESETS[k].topics[s.id])) || "custom";
+/** The subjects that are on, as a list of ids. */
+export const subjectsIn = on => SUBJECTS.filter(s => (on?.[s.id] ?? 1) > 0).map(s => s.id);
+/** Whether every subject is on: every game deals as it did before it had topics. */
+export const allSubjects = on => SUBJECTS.every(s => (on?.[s.id] ?? 1) > 0);
+/** A line saying where the subjects stand, for a game's menu. */
+export function subjectsSay(on) {
+  const p = subjectPreset(on), n = subjectsIn(on).length;
+  return p === "all" ? "Topics: all on" : p === "none" ? "Topics: all off, so every topic is dealt" : p !== "custom" ? `Topics: ${SUBJECT_PRESETS[p].label} (${n} of ${SUBJECTS.length} on)` : `Topics: ${n} of ${SUBJECTS.length} on`;
+}
+
+/** Which subject each game's own topics belong to. A game's topic list is [id, label] pairs; every id must be here
+ *  (tests/topics.mjs). kb: the clue links' aspects (Crates, Origin, Arb, Nexus, Crossword, Isomer, Lode), country ones
+ *  then commodity ones. */
+export const TOPIC_OF = {
+  kb: {
+    geo: "geo", nat: "nat", nrg: "nrg", met: "met", agr: "agr", food: "food", mkt: "mkt", fin: "fin", trade: "trade", co: "co", pol: "pol",
+    hist: "hist", cult: "cult", screen: "screen", style: "style", sport: "sport", ppl: "ppl", sci: "sci", lang: "lang",
+    orig: "geo", prod: "trade", uses: "sci", spec: "sci", mkts: "fin", logi: "trade", reg: "pol", firm: "co", past: "hist", life: "lang",
+  },
+  quote: { trade: "trade", cities: "cities", wine: "food", art: "art", people: "ppl", geo: "geo", markets: "fin", refining: "nrg", scale: "geo" },
+  chart: { cities: "cities", countries: "geo", trade: "trade", geo: "geo", physical: "nat", art: "art", museums: "art", architecture: "art", myth: "cult",
+    history: "hist", people: "ppl", wine: "food", local: "geo" },
+  lots: { wp: "lang", ph: "lang", mn: "lang", th: "lang", mk: "fin", sc: "sci", pl: "geo", cu: "cult", sp: "sport", fd: "food" },
+  punt: { countries: "geo", commodities: "trade", maths: "math", refining: "nrg", reasoning: "math", words: "lang", cities: "cities", flags: "geo", patterns: "math",
+    wine: "food", art: "art", economics: "mkt", physics: "sci", chemistry: "sci", code: "sci", philosophy: "rel", religion: "rel", watches: "style", skiing: "sport",
+    china: "geo", britain: "geo", bavaria: "geo", swiss: "geo", artmarket: "art", titles: "hist", lit: "cult", sayings: "lang", law: "pol", merchants: "trade",
+    mythology: "cult", architecture: "art" },
+};
+/** A game's mix of its own topics, from the subjects that are on: each topic of `list` ([id, label]) in at its `base`
+ *  weight (1 where the game says nothing) when its subject is on, out when it isn't. `map` is the game's TOPIC_OF. */
+export function mixFromSubjects(list, map, on, base = {}) {
+  const out = {};
+  for (const [id] of list) out[id] = (on?.[map[id]] ?? 1) > 0 ? (base[id] ?? 1) : 0;
+  return out;
+}

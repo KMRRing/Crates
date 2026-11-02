@@ -83,4 +83,14 @@ export const SOON = {
       "Touch: drag to slide, tap to turn, swipe down to drop; the page never scrolls, which a swipe has to be built around.",
     ],
   },
+  speedmaths: {
+    name: "Speed maths", sec: "puzzle",
+    line: "Arithmetic against the clock: a sum appears, you type the answer, the next comes at once. Scored by how many you clear in a minute and how steady you are, with the sums growing harder as you go.",
+    todo: [
+      "Added 2 November 2026 (Korbi: \"add a speed maths placeholder in puzzle\"). The name is a working name: a tile's name is a string in apps.js and here, its id (`speedmaths`) is what saves and Random's lists use, so a rename later costs nothing.",
+      "Spot is the other fast-arithmetic game and stays what it is (tap the right answers among fakes, with modifiers, together). This one is typed answers, one sum at a time, alone first: Zetamac's genre, with the operations and ranges chosen in the menu, and a pair's race on duel.js (everyone gets the same sums).",
+      "Its second mode is the unit chains recorded in README (Coming soon): a start figure and a chain of operations, each unit followed by the next step, a trader's order of working (a flow in thousand barrels a day, tonnes a month, 5% of that, a saving against a baseline, pounds a month, dollars a year).",
+      "Needs: a number pad built into the page (a phone's own keyboard covers half the screen), a pause with the menu (README, The pause), a best per mode under `speedmaths:best`, and a daily set from `today()`.",
+    ],
+  },
 };

@@ -7,6 +7,7 @@ import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, clea
 import { duoLine } from "./duo-records.js";
 import { choice, toggle, line } from "./menu.js";
 import { MARK } from "./mark.js";
+import { topicsControls } from "./topics-ui.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 import { bindRandom } from "./random.js";
 import { bindDeckRow } from "./deck-row.js";
@@ -498,6 +499,7 @@ export const APPS = [
   { id: "punt", sec: "knowledge", name: "Punt", href: "./punt.html", logo: LOGO("punt", PUNT_LOGO), score: "return" },   // its best: a return a question
   { id: "cartel", sec: "table", name: "Cartel", href: "./cartel.html", logo: LOGO("cartel", CARTEL_LOGO) },
   { id: "spot", sec: "puzzle", name: "Spot", href: "./spot.html", logo: LOGO("spot", SPOT_LOGO) },
+  { id: "speedmaths", sec: "puzzle", name: "Speed maths", href: "./soon.html?game=speedmaths", logo: LOGO("speedmaths", SOON_CODEX.speedmaths), soon: true },
   { id: "quote", sec: "knowledge", name: "Quote", href: "./quote.html", logo: LOGO("quote", QUOTE_LOGO) },
   { id: "origin", sec: "knowledge", name: "Origin", href: "./origin.html", logo: LOGO("origin", ORIGIN_LOGO) },
   { id: "order", sec: "knowledge", name: "Order", href: "./order.html", logo: LOGO("order", ORDER_LOGO) },
@@ -649,9 +651,18 @@ function openSettings(host) {
       try { if (on) localStorage.removeItem(BANNER); else localStorage.setItem(BANNER, "off"); } catch { /* private mode */ }
       host.querySelector("[data-rows]")?.toggleAttribute("hidden", !on);      // at once, nothing to reload
     }),
+    topicsPart(),
     picturesPart(sheet),
     startOver());
   sheet.showModal();
+}
+/** Settings' Topics: which subjects every knowledge game deals from (topics.js), set once here, not in each game. */
+function topicsPart() {
+  const box = document.createElement("section"), head = document.createElement("h4");
+  head.className = "menu-h";
+  head.textContent = "Topics";
+  box.append(head, topicsControls());
+  return box;
 }
 /** Settings' "Keep pictures offline": every picture the games show, kept on this device (pics.js), and how far it's got. */
 function picturesPart(sheet) {
