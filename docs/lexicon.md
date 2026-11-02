@@ -1,0 +1,5 @@
+# Lexicon
+
+Everything the games know, looked up. Search any of the knowledge base's 4,396 things, a country, a company, a painting, a river, a law, by its name or another of its names, accents ignored, names that start with what you typed first and the best-connected first among them. An entry shows what the thing is (its kinds, and its region or commodity family), its picture where it has one, what's said about it (its note, its country and region, a painting's year), the numbers Quote knows about it, the topics its links touch (energy, metals, history…), and every link in groups (clues to it, a clue to, painted by, paintings, hangs in, on its walls, movement, in, within it), each with the reason and a tap through to its own entry. `#e=<id>` opens an entry, so links can be shared and the back button walks back through what you've opened.
+
+Held sideways (README, Bigger screens), the search and what it found stand on the left and the entry beside it, wider, so one thing after another can be opened from the list without losing it (the list is filled even when the page opens on an entry); with no entry open the list takes the whole width.
