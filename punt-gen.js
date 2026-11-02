@@ -6,6 +6,7 @@
 // difficulties is exactly the level's mix. Runs differ in which questions they get, nothing else.
 import { BANK, TOPICS } from "./core.js";
 import { normalize } from "./typing.js";
+import { mentions } from "./give-away.js";
 import { pairKey } from "./known.js";
 import { SUBJECT_PRESETS, TOPIC_OF, mixFromSubjects, subjectsIn } from "./topics.js";
 
@@ -107,8 +108,8 @@ const entitiesOf = list => [...new Set(list.map(([a, w]) => (w == null ? BANK[a]
 const NOUN = { country: "country", commodity: "commodity" };
 const PLURAL_NOUN = { country: "countries", commodity: "commodities" };
 
-/** Whether a clue gives an answer away by naming it. */
-const names = (w, a) => [BANK[a].name, ...(BANK[a].aliases || [])].some(n => n.length > 3 && w.toLowerCase().includes(n.toLowerCase()));
+/** Whether a clue gives an answer away by naming it, accents and word endings aside ("Grupo México" names Mexico). */
+const names = (w, a) => [BANK[a].name, ...(BANK[a].aliases || [])].some(n => mentions(w, n));
 
 const choose = (n, k) => { let r = 1; for (let i = 0; i < k; i++) r = r * (n - i) / (i + 1); return r; };
 

@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { givesAway } from "../give-away.js";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings", "law"];
@@ -64,10 +65,15 @@ export async function build() {
     const e = q.pic && !q.title && (q.about || []).map(id => E.get(id)).find(x => x?.pic === q.pic);
     return e ? titleOf(e) : undefined;
   };
+  let leaking = 0;
   for (const b of CHOICE_BANKS) {
     const m = await load(`items/choice/${b}.js`);
-    choice[b] = { STAGES: m.STAGES, MATHS: [...m.ITEMS, ...(gen[b] || [])].map(q => { const title = named(q); return title ? { ...q, title } : q; }) };
+    // a question whose right answer is a word of it is left out of the bank, not out of kb/ (give-away.js)
+    const all = [...m.ITEMS, ...(gen[b] || [])], asked = all.filter(q => !givesAway(q));
+    leaking += all.length - asked.length;
+    choice[b] = { STAGES: m.STAGES, MATHS: asked.map(q => { const title = named(q); return title ? { ...q, title } : q; }) };
   }
+  console.log(`${leaking} questions left out: the right answer is a word of the question`);
   const cards = await load("items/whoami.js"), decoyFacts = (await load("items/decoy.js")).FACTS;
   const who = whoami(ENTITIES, LINKS, E, cards.DECKS, cards.PEOPLE);
   // every picture a game shows (Settings' "Keep pictures offline" downloads them all): the entities' own (Lexicon) and
