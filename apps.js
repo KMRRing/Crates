@@ -6,7 +6,6 @@ import { waitMark } from "./loading.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
 import { duoLine } from "./duo-records.js";
 import { choice, toggle, line } from "./menu.js";
-import { MARK } from "./mark.js";
 import { topicsControls } from "./topics-ui.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 import { bindRandom } from "./random.js";
@@ -476,8 +475,10 @@ const KONTOR_LOGOS = {
   kakuro: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 2.5h19v4.75h-14.25v14.25h-4.75z"/><path d="M11.9 2.5v4.75M16.7 2.5v4.75M2.5 11.9h4.75M2.5 16.7h4.75"/><path class="a" d="M2.5 2.5l4.75 4.75"/></svg>`,
 };
 const LOOK = document.documentElement.dataset.theme;
-// the games screen's title mark: Codex's mark in brass on navy; Modern's on a rounded tile (icon.svg); Office has the name alone
+// the games screen's title mark: Codex's mark in brass on navy; Modern's on a rounded tile (icon.svg); Office has the name alone.
+// In Codex and Kontor the mark is the name's first letter ("odex" follows it); Modern and Office spell the whole name.
 const BRAND = LOOK === "office" ? "" : `<img src="${LOOK === "modern" ? "icon.svg" : "logo.svg"}" alt="">`;
+const NAME = LOOK === "modern" || LOOK === "office" ? "Codex" : "odex";
 // Office wears Kontor's line drawings, restyled in themes.css: thin, rounded, monochrome, like an Office app's icons
 const LINE = LOOK === "kontor" || LOOK === "office";
 const LOGO = (id, codex) => (LOOK === "modern" ? MODERN_LOGOS[id] : LINE ? KONTOR_LOGOS[id] : null) || codex;
@@ -607,7 +608,7 @@ export const APPS = [
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
-// Settings, at the top right of the games screen (Codex's mark, the other themes' sliders): the theme (Deco, Modern,
+// Settings, at the top right of the games screen (a gear in Codex, sliders in the other themes): the theme (Deco, Modern,
 // Kontor or Office; each with a day and a night that follow the system).
 // The choice lives on this device and applies at once, here and on every page (theme.js reads it before drawing).
 const THEMES = [["deco", "Codex"], ["modern", "Modern"], ["kontor", "Kontor"], ["office", "Office"]];
@@ -633,9 +634,6 @@ function openSettings(host) {
     sheet.querySelector("[data-close]").addEventListener("click", () => sheet.close());
     sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
     host.appendChild(sheet);
-    // Codex's mark turns while Settings is open, as a game's does while its menu is (the sliders have nothing to turn)
-    const btn = host.querySelector("[data-settings]");
-    new MutationObserver(() => btn.classList.toggle("turning", sheet.open)).observe(sheet, { attributes: true, attributeFilter: ["open"] });
   }
   sheet.querySelector(".settings-body").replaceChildren(
     choice("Theme", THEMES, theme(), t => keep("suite:theme", t, "deco")),
@@ -770,6 +768,7 @@ const ICON = {
   update: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 4.2v4.6h-4.6"/></svg>',
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.95 5.31L10.37 2.74L13.63 2.74L14.05 5.31A7.0 7.0 0 0 1 16.77 6.88L19.20 5.96L20.83 8.79L18.82 10.43A7.0 7.0 0 0 1 18.82 13.57L20.83 15.21L19.20 18.04L16.77 17.12A7.0 7.0 0 0 1 14.05 18.69L13.63 21.26L10.37 21.26L9.95 18.69A7.0 7.0 0 0 1 7.23 17.12L4.80 18.04L3.17 15.21L5.18 13.57A7.0 7.0 0 0 1 5.18 10.43L3.17 8.79L4.80 5.96L7.23 6.88A7.0 7.0 0 0 1 9.95 5.31Z"/><circle cx="12" cy="12" r="2.6"/></svg>',
   tick: '<svg class="code-tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
 /**
@@ -905,12 +904,12 @@ function bindCodes(dlg) {
 export function bindSwitcher(button, current) {
   const dlg = document.createElement("dialog");
   // A full screen of games, a tile each with its logo and name, every game on it: the tiles scroll in their own box when
-  // they don't all fit, the screen around them never does. Settings (in Codex the mark every game's menu button is, in
-  // the ring the other icons have) and refresh at the top right.
+  // they don't all fit, the screen around them never does. Settings (a gear in Codex, sliders in the other themes)
+  // and refresh at the top right.
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
-  dlg.innerHTML = `<div class="apps-inner"><h2 class="apps-brand">${BRAND}Codex</h2><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
-      <button class="icon-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${theme() === "deco" ? MARK : ICON.settings}</button>
+  dlg.innerHTML = `<div class="apps-inner"><h2 class="apps-brand" aria-label="Codex">${BRAND}${NAME}</h2><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
+      <button class="icon-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${theme() === "deco" ? ICON.gear : ICON.settings}</button>
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <p class="menu-line apps-note" role="status" hidden></p>
