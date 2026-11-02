@@ -85,6 +85,39 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
   check(count(noArt, "art") === 0 && more > even * 1.5 && E.TOPICS.every(([id]) => E.TOPIC_PRESETS.balanced.topics[id] === 1) && Object.keys(E.OLD_TOPICS).every(k => E.oldTopicOf(E.OLD_TOPICS[k]) === k)
     && E.presetOf(E.TOPIC_PRESETS.culture.topics) === "culture" && E.topicOf("bavaria") === "local" && E.topicOf("art") === "art",
     `a mix: Art out never deals it, Art more ${more.toFixed(1)} a set (in, ${even.toFixed(1)}); every old topic and preset known as itself; a region's own places are Local places`);
+  // the subjects (topics.js: one set of topics for every game, set in Settings, each on or off): a topic is in when its
+  // subject is on, so all on is Balanced and deals the sets it always did, seed for seed; a subject off takes its topics
+  // out (Local places go with Geography); with nothing on the game deals every topic
+  {
+    const Tp = await import("../topics.js");
+    const on = Tp.cleanSubjects(null), off = id => Tp.cleanSubjects({ ...on, [id]: 0 }), preset = k => Tp.cleanSubjects(Tp.SUBJECT_PRESETS[k].topics), nothing = preset("none");
+    const topics = w => E.TOPICS.filter(([id]) => w[id] > 0).map(([id]) => id).join();
+    const seeds = Array.from({ length: 40 }, (_, i) => i + 1), dealt = (w, seed) => E.pickMixed(seed, pool(w), w);
+    check(same(E.topicsOf(on), E.TOPIC_PRESETS.balanced.topics) && seeds.every(seed => same(dealt(E.topicsDealt(on), seed), dealt(E.OLD_TOPICS.all, seed)) && same(dealt(E.topicsDealt(on), seed), E.pickSet(seed, bank, E.PER_SET, Math.max(2, Math.ceil(E.PER_SET / cats(E.OLD_TOPICS.all)))))),
+      "subjects: all on is Balanced and deals the same set as the old Everything, seed for seed, 40 seeds");
+    const noArt = E.topicsDealt(off("art")), sets = seeds.map(seed => dealt(noArt, seed));
+    check(topics(E.topicsOf(off("art"))) === "cities,countries,trade,geo,physical,myth,history,people,wine,local" && sets.every(q => q.length === 10 && !q.some(x => ["art", "museums", "architecture"].includes(x.cat)))
+      && sets.some((q, i) => !same(q, dealt(E.topicsDealt(on), seeds[i]))), "Art & architecture off: art, museums and architecture out, none dealt, still ten, and the deal is not Balanced's");
+    const noGeo = E.topicsOf(off("geo"));
+    check(!noGeo.countries && !noGeo.geo && !noGeo.local && noGeo.cities === 1 && noGeo.physical === 1 && same(E.topicsOf(off("sport")), E.topicsOf(on)),
+      "Geography off takes countries, geography and Local places; Sport (none of Chart's) takes nothing");
+    check(topics(E.topicsOf(preset("culture"))) === "art,museums,architecture,myth,history,people,wine" && topics(E.topicsOf(preset("stem"))) === "physical" && topics(E.topicsOf(preset("trade"))) === "trade",
+      `the presets: Culture deals ${topics(E.topicsOf(preset("culture")))}, STEM ${topics(E.topicsOf(preset("stem")))}, Trade ${topics(E.topicsOf(preset("trade")))}`);
+    // nothing on: no topic in, so the page deals every topic and says so
+    check(!E.TOPICS.some(([id]) => E.topicsOf(nothing)[id]) && same(E.topicsDealt(nothing), E.TOPIC_PRESETS.balanced.topics) && seeds.every(seed => same(dealt(E.topicsDealt(nothing), seed), dealt(E.OLD_TOPICS.all, seed)))
+      && same(E.topicsDealt(Tp.cleanSubjects({ ...Tp.SUBJECT_PRESETS.none.topics, sport: 1 })), E.TOPIC_PRESETS.balanced.topics),
+      "nothing on, or only subjects Chart has none of: no topic in, so every topic is dealt");
+    // a link carries a mix, not the subjects: which best it keeps, whether it counts, and the earlier topics and presets still known
+    const key = w => E.bestTopicOf(w);
+    check(key(E.topicsOf(on)) === "all" && key(E.topicsOf(preset("trade"))) === "commodities" && key(E.topicsOf(preset("stem"))) === "physical" && key(E.topicsOf(preset("culture"))) === "s:culture"
+      && key(E.OLD_TOPICS.nature) === "nature" && key(E.OLD_TOPICS.culture) === "culture" && key(E.TOPIC_PRESETS.trader.topics) === "p:trader" && key(E.TOPIC_PRESETS.culture.topics) === "p:culture"
+      && key(E.topicsOf(off("art"))) === null && key(E.topicsOf(off("hist"))) === null, "a mix keeps its best under Everything, its one topic, a preset or an old topic; your own mix of several keeps none");
+    check(E.comparableMix(E.topicsOf(on)) && E.comparableMix(E.topicsOf(preset("culture"))) && E.comparableMix(E.TOPIC_PRESETS.trader.topics) && !E.comparableMix(E.topicsOf(preset("trade"))) && !E.comparableMix(E.topicsOf(preset("stem")))
+      && !E.comparableMix(E.topicsOf(off("art"))) && !E.comparableMix(E.OLD_TOPICS.nature), "a preset's deal counts for your best, one topic (Trade, STEM here), your own mix and an old topic don't");
+    // Local places follow Geography: dealt in a region of their own only, and only with Geography on
+    const local = PLACES.filter(p => E.LOCAL.has(p.cat));
+    check(local.length > 20 && local.every(p => E.topicOf(p.cat) === "local") && E.topicsOf(on).local === 1 && E.topicsOf(off("geo")).local === 0, `Local places (${local.length} of them) are one topic, in with Geography`);
+  }
   // a region's opening view shows its whole window
   const ok = Object.entries(E.REGIONS).every(([k, r]) => { const v = E.viewWindow(E.regionView(k, 360, 240), 360, 240), [lon0, lon1, lat0, lat1] = r.window; return v.lon0 <= lon0 + 0.5 && v.lon1 >= lon1 - 0.5 && v.lat0 <= lat0 + 0.5 && v.lat1 >= lat1 - 0.5; });
   check(ok, "each region's opening view shows its whole window");

@@ -1,6 +1,6 @@
 // Chart: pin a place on the map; score by how close you were. Distances are great-circle; points fall off
 // smoothly with distance, so a near miss on a city and a rough fix on a mine are both worth something.
-import { drawWeighted, even, presetOf as presetIn } from "./topics.js";
+import { drawWeighted, even, anyIn, presetOf as presetIn, mixFromSubjects, TOPIC_OF, SUBJECT_PRESETS } from "./topics.js";
 
 export const PER_SET = 10;
 const R = 6371;                                  // km
@@ -130,8 +130,9 @@ function fill(order, perSet, capOf) {
 }
 
 // ---------- what a set deals: topics and regions ----------
-/** The topics a set deals from, each out, in or more (twice as often), as every knowledge game deals them (topics.js):
- *  the bank's categories, and a region's own places (Bavaria's towns, the Alps' runs, dealt only in that region) as one. */
+/** The topics a set deals from (topics.js): the bank's categories, and a region's own places (Bavaria's towns, the Alps'
+ *  runs, dealt only in that region) as one. A set is dealt from the subjects that are on in Settings (below); a topic out,
+ *  in, or more (twice as often) is still how a mix is carried: by a link, a saved set, a table, or the earlier control. */
 export const TOPICS = [["cities", "Cities"], ["countries", "Countries"], ["trade", "Commodities"], ["geo", "Geography"], ["physical", "Physical"],
   ["art", "Art"], ["museums", "Museums"], ["architecture", "Architecture"], ["myth", "Myth"], ["history", "History"], ["people", "People"],
   ["wine", "Wine"], ["local", "Local places"]];
@@ -143,12 +144,32 @@ export const TOPIC_PRESETS = {
   culture: { label: "Culture night", topics: { ...every(1), art: 2, museums: 2, architecture: 2, myth: 2, history: 2, people: 2, wine: 2 } },
 };
 export const presetOf = w => presetIn(TOPICS, TOPIC_PRESETS, w);
+
+// ---------- the subjects that are on (topics.js: SUBJECTS, TOPIC_OF.chart) ----------
+// Settings holds one set of subjects for every game, each on or off; a topic is in, at Balanced's weight, when its subject
+// is on, and out when it isn't (Local places go with Geography). With every subject on that is Balanced, seed for seed,
+// which is what a daily deals.
+/** Chart's mix from the subjects on ({ subject: 0 | 1 }): can be nothing at all, when none of its topics' subjects is. */
+export const topicsOf = on => mixFromSubjects(TOPICS, TOPIC_OF.chart, on, TOPIC_PRESETS.balanced.topics);
+/** The mix a set deals from: topicsOf, and every topic in when that is nothing (a game with nothing on its subjects deals them all). */
+export const topicsDealt = on => { const w = topicsOf(on); return anyIn(TOPICS, w) ? w : TOPIC_PRESETS.balanced.topics; };
+const sameMix = (a, b) => TOPICS.every(([id]) => (a?.[id] ?? 1) === (b?.[id] ?? 1));
+/** The subject preset (All on, Culture, STEM, Trade) whose deal a mix is, else null: a link carries the mix, not the subjects. */
+export const subjectPresetOf = w => Object.keys(SUBJECT_PRESETS).find(k => sameMix(topicsDealt(SUBJECT_PRESETS[k].topics), w)) ?? null;
+/** The one topic a mix has in, if only one: a set of that topic alone. */
+export const focusOf = w => { const ins = TOPICS.filter(([id]) => (w?.[id] ?? 1) > 0); return ins.length === 1 ? ins[0][0] : null; };
 /** The one topic Chart's dropdown chose before it had a mix (a link's &t=, a set saved then), as the mix it was. */
 export const OLD_TOPICS = { all: every(1), cities: only(["cities"]), countries: only(["countries"]), commodities: only(["trade"]),
   nature: only(["geo", "physical"]), culture: only(["art", "architecture", "myth", "history", "people", "wine"]) };
 export const OLD_NAMES = { all: "Everything", cities: "Cities", countries: "Countries", commodities: "Commodities", nature: "Nature", culture: "Culture" };
 /** The old topic a mix is, if it's one ("all" for Balanced). */
 export const oldTopicOf = w => Object.keys(OLD_TOPICS).find(k => TOPICS.every(([id]) => (w?.[id] ?? 1) === OLD_TOPICS[k][id])) || null;
+/** What a mix keeps its best under (with the region): an old topic's name (all for Balanced, nature…), the one topic it has
+ *  in, a subject preset's (s:culture), an earlier preset's (p:trader, p:culture); null for your own mix of several. */
+export const bestTopicOf = w => oldTopicOf(w) ?? focusOf(w) ?? (subjectPresetOf(w) ? `s:${subjectPresetOf(w)}` : presetOf(w) !== "custom" ? `p:${presetOf(w)}` : null);
+/** Whether a mix is a preset's deal (a subject preset's, or an earlier Trader or Culture night mix from a link) rather than
+ *  your own; and not one topic alone, which has a best of its own. Only that counts for your best (the games screen's). */
+export const comparableMix = w => !focusOf(w) && (subjectPresetOf(w) !== null || presetOf(w) !== "custom");
 /** The topic a place is dealt under: its category, or a region's own places under local. */
 export const topicOf = cat => (LOCAL.has(cat) ? "local" : cat);
 /** The set for a seed from a mix: its topics' places, a few of a category at most while others can fill the set, topped
