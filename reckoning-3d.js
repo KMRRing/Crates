@@ -74,7 +74,13 @@ function palette() {
     wall: moon(mix(e[3], sheet, 0.5)),
     timber: moon(mix(brass, ink, 0.45)),
     roof: moon(mix(e[2], ink, 0.35)),
-    hero: grey(plate, 0.1),
+    hero: dark ? [84, 120, 182] : mix(plate, [36, 66, 124], 0.75),        // the coat: navy, a lighter blue by night so he is seen against the water
+    scarf: moon(mix(e[3], [200, 56, 48], 0.55)),
+    boot: dark ? [176, 112, 68] : mix(ink, [96, 62, 40], 0.45),     // leather: brown by night too (the ink turns pale then, and the moon's blue light washes a dark brown to grey)
+    steel: moon(mix(sheet, [150, 172, 196], 0.55)),
+    hair: dark ? [168, 112, 62] : mix(ink, [92, 60, 34], 0.45),
+    shirt: moon(mix(sheet, [255, 250, 238], 0.3)),
+    skin: dark ? [255, 200, 150] : mix([228, 186, 152], yard, 0.1),
     gilt: brass,
     crab: glow(moon(mix(mix(e[3], [205, 84, 58], 0.5), sheet, 0.05))),   // a boiled-red shell, its claws a shade towards orange, its belly pale
     claw: glow(moon(mix(mix(e[3], [205, 84, 58], 0.5), e[0], 0.4))),
@@ -126,6 +132,7 @@ export function createRunner(host) {
     banner: mat("banner"), skin: mat("skin"), good: mat("good"), claw: mat("claw"), belly: mat("belly"), eye: mat("eye"), pupil: mat("pupil"),
     markBg: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), markSees: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
     markWind: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
+    scarf: mat("scarf"), boot: mat("boot"), steel: mat("steel"), hair: mat("hair"), shirt: mat("shirt"),
     shadow: curved(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })),
     ring: curved(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })),
   };
@@ -134,7 +141,8 @@ export function createRunner(host) {
     const set = (m, a) => col(a, m.color);
     set(M.stone, pal.stone); set(M.plank, pal.plank); set(M.seam, pal.seam); set(M.water, pal.water); M.brick.color.set(0xffffff); set(M.wall, pal.wall);        // the warehouses take their own colours (instance colours multiply the material's)
     set(M.timber, pal.timber); set(M.roof, pal.roof); set(M.hero, pal.hero); set(M.gilt, pal.gilt); set(M.crab, pal.crab); set(M.gull, pal.gull);
-    set(M.banner, pal.banner); set(M.skin, mix(pal.gull, pal.brick, 0.3)); set(M.good, pal.good); set(M.ring, pal.ring);
+    set(M.banner, pal.banner); set(M.skin, pal.skin);
+    set(M.scarf, pal.scarf); set(M.boot, pal.boot); set(M.steel, pal.steel); set(M.hair, pal.hair); set(M.shirt, pal.shirt); set(M.good, pal.good); set(M.ring, pal.ring);
     set(M.claw, pal.claw); set(M.belly, pal.belly); set(M.eye, pal.eye); set(M.pupil, pal.pupil);
     set(M.markBg, pal.mark); set(M.markSees, pal.gilt); set(M.markWind, pal.alert);
     scene.background = col(pal.sky);
@@ -178,16 +186,88 @@ export function createRunner(host) {
   const wallBoxes = [];
   const wallBox = () => { const m = new THREE.Mesh(box, M.wall); m.frustumCulled = false; world.add(m); wallBoxes.push(m); return m; };
 
-  // the hero, in boxes
+  // The hero: a young merchant-adventurer of the Hanse in a tricorn with a plume, a navy coat with gilt trim and a red sash,
+  // cream breeches and tall boots, a red scarf streaming behind him, a rapier in his right hand and its scabbard at his left
+  // hip. He is built round joints (hips, knees, shoulders, elbows, neck, and the tails of the coat and the scarf) so that a run,
+  // a jump, a thrust and a roll are only poses of them (poseHero), and a glTF with joints of these names can take over.
   const hero = new THREE.Group();
   const body = new THREE.Group(); hero.add(body);
-  const torso = new THREE.Mesh(box, M.hero); torso.scale.set(0.62, 0.78, 0.38); torso.position.y = 0.88; body.add(torso);
-  const belt = new THREE.Mesh(box, M.gilt); belt.scale.set(0.66, 0.1, 0.42); belt.position.y = 0.62; body.add(belt);
-  const head = new THREE.Mesh(sph, M.skin); head.scale.set(0.34, 0.36, 0.34); head.position.y = 1.44; body.add(head);
-  const hat = new THREE.Mesh(cyl, M.hero); hat.scale.set(0.5, 0.1, 0.5); hat.position.y = 1.62; body.add(hat);
-  const hatTop = new THREE.Mesh(cyl, M.hero); hatTop.scale.set(0.3, 0.2, 0.3); hatTop.position.y = 1.75; body.add(hatTop);
-  const blade = new THREE.Mesh(box, M.gilt); blade.scale.set(0.06, 0.06, 0.8); blade.position.set(0.36, 0.95, 0.35); body.add(blade);
-  const legs = [-1, 1].map(s => { const g = new THREE.Group(); g.position.set(s * 0.15, 0.5, 0); const m = new THREE.Mesh(box, M.hero); m.scale.set(0.2, 0.5, 0.22); m.position.y = -0.25; g.add(m); hero.add(g); return g; });
+  const tp = (rt, rb, h, seg = 12) => new THREE.CylinderGeometry(rt, rb, h, seg);
+  const mesh = (geo, m, x, y, z, to, sx = 1, sy = 1, sz = 1) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.scale.set(sx, sy, sz); to.add(o); return o; };
+  const joint = (to, x, y, z) => { const g = new THREE.Group(); g.position.set(x, y, z); to.add(g); return g; };
+  const J = {};
+  // legs: cream breeches to the knee, tall boots below it
+  J.hip = [-1, 1].map(s => {
+    const hip = joint(body, s * 0.1, 0.86, 0), knee = joint(hip, 0, -0.42, 0);
+    mesh(tp(0.085, 0.07, 0.43), M.shirt, 0, -0.21, 0, hip);
+    mesh(tp(0.07, 0.055, 0.4), M.boot, 0, -0.19, 0, knee);
+    mesh(tp(0.092, 0.08, 0.1), M.boot, 0, 0.0, 0, knee);
+    mesh(tp(0.097, 0.097, 0.025), M.gilt, 0, 0.045, 0, knee);
+    mesh(box, M.boot, 0, -0.4, 0.07, knee, 0.13, 0.09, 0.28);
+    hip.userData.knee = knee;
+    return hip;
+  });
+  // the torso, from the waist up: the coat's chest and its skirt, the sash, the belt, the strap and the scabbard
+  J.torso = joint(body, 0, 0.86, 0);
+  mesh(tp(0.24, 0.19, 0.5), M.hero, 0, 0.27, 0, J.torso, 1.1, 1, 0.78);
+  mesh(tp(0.21, 0.3, 0.34, 14), M.hero, 0, -0.12, 0, J.torso, 1.12, 1, 0.88);
+  mesh(tp(0.305, 0.305, 0.025, 14), M.gilt, 0, -0.29, 0, J.torso, 1.12, 1, 0.88);
+  mesh(tp(0.206, 0.206, 0.09), M.scarf, 0, 0.07, 0, J.torso, 1.12, 1, 0.82);
+  mesh(tp(0.2, 0.2, 0.03), M.gilt, 0, 0.0, 0, J.torso, 1.12, 1, 0.82);
+  mesh(box, M.gilt, 0, 0.0, 0.17, J.torso, 0.09, 0.08, 0.03);
+  for (let i = 0; i < 3; i++) for (const s of [-1, 1]) mesh(sph, M.gilt, s * 0.045, 0.2 + i * 0.1, 0.152, J.torso, 0.035, 0.035, 0.035);
+  mesh(box, M.boot, 0, 0.3, -0.172, J.torso, 0.07, 0.64, 0.02).rotation.z = 0.5;
+  mesh(box, M.gilt, 0, 0.3, -0.18, J.torso, 0.09, 0.07, 0.015);
+  J.tails = [-1, 1].map(s => {                                     // the coat's two tails behind, split down the middle
+    const t = joint(J.torso, s * 0.1, -0.02, -0.19);
+    mesh(box, M.hero, 0, -0.27, 0, t, 0.17, 0.54, 0.03);
+    mesh(box, M.gilt, 0, -0.545, 0, t, 0.17, 0.025, 0.036);
+    return t;
+  });
+  J.sheath = joint(J.torso, -0.23, -0.03, -0.05); J.sheath.rotation.x = -0.6;
+  mesh(box, M.boot, 0, 0, -0.34, J.sheath, 0.045, 0.045, 0.68);
+  mesh(sph, M.gilt, 0, 0, -0.69, J.sheath, 0.06, 0.06, 0.06);
+  mesh(box, M.gilt, 0, 0, -0.02, J.sheath, 0.06, 0.06, 0.05);
+  // the neck: scarf round it, two tails streaming from it
+  mesh(tp(0.07, 0.08, 0.1), M.skin, 0, 0.58, 0, J.torso);
+  mesh(tp(0.14, 0.16, 0.09), M.scarf, 0, 0.54, 0, J.torso, 1, 1, 0.95);
+  J.scarf = [-1, 1].map(s => { const t = joint(J.torso, s * 0.07, 0.53, -0.14); mesh(box, M.scarf, 0, -0.23, 0, t, 0.1, 0.46, 0.02); mesh(box, M.gilt, 0, -0.465, 0, t, 0.1, 0.02, 0.025); return t; });
+  // the head: a face, the hair tied back in a tail, and the tricorn with its plume
+  J.head = joint(J.torso, 0, 0.74, 0);
+  mesh(sph, M.skin, 0, 0, 0, J.head, 0.33, 0.35, 0.33);
+  mesh(sph, M.hair, 0, 0.025, -0.04, J.head, 0.36, 0.34, 0.34);
+  for (const s of [-1, 1]) mesh(sph, M.pupil, s * 0.058, 0.0, 0.153, J.head, 0.04, 0.05, 0.03);
+  J.ponytail = joint(J.head, 0, -0.02, -0.17);
+  mesh(tp(0.045, 0.02, 0.3), M.hair, 0, -0.15, 0, J.ponytail);
+  mesh(sph, M.scarf, 0, 0.0, 0, J.ponytail, 0.1, 0.1, 0.1);
+  J.hat = joint(J.head, 0, 0.1, 0);
+  mesh(tp(0.35, 0.35, 0.035, 18), M.hero, 0, 0.03, 0, J.hat);
+  mesh(tp(0.17, 0.2, 0.14, 16), M.hero, 0, 0.11, 0, J.hat);
+  mesh(tp(0.206, 0.206, 0.035, 16), M.gilt, 0, 0.065, 0, J.hat);
+  for (const s of [-1, 1]) mesh(box, M.hero, s * 0.3, 0.1, 0, J.hat, 0.16, 0.03, 0.3).rotation.z = -s * 0.55;     // the brim turned up on three sides
+  mesh(box, M.hero, 0, 0.1, -0.3, J.hat, 0.3, 0.03, 0.16).rotation.x = 0.55;
+  mesh(box, M.hero, 0, 0.08, 0.32, J.hat, 0.3, 0.03, 0.1).rotation.x = -0.35;
+  J.plume = joint(J.hat, 0.2, 0.14, -0.05); J.plume.rotation.set(-0.5, 0, -0.7);
+  mesh(cone, M.shirt, 0, 0.21, 0, J.plume, 0.07, 0.44, 0.05);
+  mesh(cone, M.scarf, 0.03, 0.1, 0.01, J.plume, 0.05, 0.22, 0.04);
+  // arms: coat sleeves, cream cuffs under gilt, gloves; the right hand holds the rapier, which runs along its forearm
+  J.arm = [-1, 1].map(s => {
+    const sh = joint(J.torso, s * 0.3, 0.46, 0), el = joint(sh, 0, -0.31, 0);
+    mesh(sph, M.hero, 0, 0, 0, sh, 0.16, 0.16, 0.16);
+    mesh(tp(0.062, 0.052, 0.3), M.hero, 0, -0.16, 0, sh);
+    mesh(tp(0.052, 0.04, 0.27), M.shirt, 0, -0.13, 0, el);
+    mesh(tp(0.064, 0.064, 0.03), M.gilt, 0, -0.24, 0, el);
+    mesh(sph, M.boot, 0, -0.29, 0, el, 0.1, 0.1, 0.1);
+    sh.userData.elbow = el;
+    return sh;
+  });
+  {
+    const hand = joint(J.arm[1].userData.elbow, 0, -0.29, 0);
+    mesh(tp(0.02, 0.02, 0.16), M.boot, 0, -0.02, 0, hand);
+    mesh(box, M.gilt, 0, -0.1, 0, hand, 0.2, 0.025, 0.05);
+    mesh(sph, M.gilt, 0, 0.07, 0, hand, 0.05, 0.05, 0.05);
+    mesh(box, M.steel, 0, -0.56, 0, hand, 0.035, 0.9, 0.012);
+  }
   hero.traverse(o => { o.frustumCulled = false; });
   world.add(hero);
   const heroShadow = new THREE.Mesh(disc, M.shadow); heroShadow.scale.set(1, 1, 1); heroShadow.frustumCulled = false; world.add(heroShadow);
@@ -279,6 +359,51 @@ export function createRunner(host) {
     camera.updateProjectionMatrix();
   }
   new ResizeObserver(resize).observe(host);
+
+  // ---------- the hero's poses ----------
+  /** The hero's joints for what the rules say he is doing: running (the stride follows the quay, a stride to each 3.3 m), up
+   *  in a jump (a knee drawn up, the arms high), coming down (arms out), at a foe (a lunge, the rapier out in front), in a
+   *  roll (tucked), a slam (rapier down), or on a wall. Coat tails and scarf stream the way the wind from the run takes them. */
+  function poseHero(h, dt) {
+    const phi = h.z * 1.9, sn = Math.sin(phi), cs = Math.cos(phi), tt = now;
+    const rolling = h.roll > 0 && h.mode === "run" && !h.lunge;
+    // [hip x, knee x] of the left and the right leg; the shoulders' x and z, the elbows' x, of the left and the right arm
+    let legs = [[-sn * 0.9, 0.2 + 0.85 * Math.max(0, cs)], [sn * 0.9, 0.2 + 0.85 * Math.max(0, -cs)]];
+    let arms = [[sn * 0.8, 0, -1.0 + 0.3 * sn], [-0.55 + 0.15 * sn, 0, -1.25]];
+    let lean = 0.16, twist = sn * 0.12, bob = Math.abs(sn) * 0.05, tails = 0.3 + 0.3 * Math.abs(sn), scarf = 1.15, headDip = 0, roll = 0;
+    const fwd = h.lunge ? Math.sign(h.lunge.dir || 0) : 0;
+    if (h.mode === "wall") { roll = -h.wall * 1.15; lean = 0.1; }
+    else if (h.lunge) {
+      const bonk = h.lunge.how === "bonk";
+      lean = bonk ? 0.9 : 0.5; twist = -fwd * 0.3; bob = 0; tails = 0.7; scarf = 1.35;
+      legs = [[-1.05, 0.75], [0.8, 0.12]];
+      arms = [[0.9, 0, -0.6], [bonk ? -0.2 : -1.45, 0, bonk ? 0 : -0.08]];
+    } else if (h.mode === "air") {
+      bob = 0; twist = 0;
+      if (h.slam) { lean = 0.4; legs = [[0.1, 0.25], [0.2, 0.25]]; arms = [[0.7, 0.2, -0.4], [0.15, -0.2, 0]]; tails = 2.3; scarf = 2.4; }
+      else if (h.vy > 0) { lean = -0.05; legs = [[-1.0, 1.35], [0.4, 0.55]]; arms = [[-2.4, 0.3, -0.5], [-2.2, -0.2, -0.3]]; tails = 0.9; scarf = 0.7; }
+      else { lean = 0.1; legs = [[-0.5, 0.45], [0.45, 0.4]]; arms = [[-0.2, 0.9, -0.3], [-0.2, -0.9, -0.3]]; tails = 2.0; scarf = 2.1; }
+    }
+    if (rolling) {
+      const a = (1 - h.roll / ROLL_T) * Math.PI * 2;
+      body.rotation.x = a;
+      body.position.set(0, 0.9 * (1 - Math.cos(a)) - 0.3, -0.9 * Math.sin(a));
+      legs = [[-1.55, 2.3], [-1.55, 2.3]]; arms = [[-1.2, 0.2, -1.7], [-1.2, -0.2, -1.7]];
+      lean = 0; twist = 0; bob = 0; headDip = 0.5; tails = 0.3; scarf = 0.9;
+    } else {
+      body.rotation.x = lean * 0.5;                                  // the rest of the lean is in the waist, so the legs do not lean with it
+      body.rotation.z = roll;
+      body.position.y = bob;
+    }
+    J.hip.forEach((hip, i) => { hip.rotation.x = legs[i][0]; hip.userData.knee.rotation.x = legs[i][1]; });
+    J.arm.forEach((a, i) => { a.rotation.set(arms[i][0], 0, arms[i][1] * (i ? 1 : -1)); a.userData.elbow.rotation.x = arms[i][2]; });
+    J.torso.rotation.set(rolling ? 0 : lean * 0.5, twist, 0);
+    J.head.rotation.set(headDip - (rolling ? 0 : lean * 0.35), -twist * 0.8, 0);
+    J.tails.forEach((t, i) => { t.rotation.set(tails + 0.12 * Math.sin(tt * 12 + i * 1.9), 0, (i ? 1 : -1) * 0.08 * Math.sin(tt * 9 + i)); });
+    J.scarf.forEach((t, i) => { t.rotation.set(scarf + 0.13 * Math.sin(tt * 11 + i * 1.7), 0, (i ? 1 : -1) * (0.12 + 0.1 * Math.sin(tt * 8 + i))); });
+    J.ponytail.rotation.x = 0.45 + 0.25 * Math.sin(phi * 2 + 1) + (h.mode === "air" ? 0.3 : 0);
+    J.plume.rotation.set(-0.5 + 0.12 * Math.sin(tt * 7), 0, -0.7 + 0.1 * Math.sin(tt * 5));
+  }
 
   // ---------- the foes' poses ----------
   const ease = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
@@ -451,26 +576,10 @@ export function createRunner(host) {
     for (const [id, o] of foes) if (!seen.has(id)) { hideFoe(o); free.push(o); foes.delete(id); }
 
     // the hero
-    const run = Math.sin(now * 16);
-    const air = h.mode === "air" || h.lunge;
     hero.position.set(h.x, h.y, h.z);
-    hero.rotation.set(0, 0, 0); body.rotation.set(0, 0, 0); body.position.y = 0;
-    let lean = 0, roll = 0;
-    if (h.mode === "wall") { roll = -h.wall * 1.15; hero.position.x = h.x + h.wall * 0.1; }
-    else if (h.lunge) lean = h.lunge.how === "bonk" ? 0.9 : -0.5;
-    else if (h.slam) lean = 0.5;
-    body.rotation.z = roll;
-    body.rotation.x = lean + (air ? -0.15 : 0);
-    body.position.y = air || h.mode === "wall" ? 0 : Math.abs(run) * 0.06;
-    legs[0].rotation.x = air ? -0.7 : run * 0.9; legs[1].rotation.x = air ? 0.5 : -run * 0.9;
-    // a roll: one forward somersault about the middle of the body (the legs, which hang from the hero, are tucked away)
-    const rolling = h.roll > 0 && h.mode === "run" && !h.lunge;
-    if (rolling) {
-      const a = (1 - h.roll / ROLL_T) * Math.PI * 2;
-      body.rotation.x = a;
-      body.position.set(0, 0.9 * (1 - Math.cos(a)) - 0.3, -0.9 * Math.sin(a));
-    } else body.position.z = 0;
-    legs.forEach(l => { l.visible = !rolling; });
+    hero.rotation.set(0, 0, 0); body.rotation.set(0, 0, 0); body.position.set(0, 0, 0);
+    if (h.mode === "wall") hero.position.x = h.x + h.wall * 0.1;
+    poseHero(h, dt);
     const lanesLean = (h.x - (h.lane * LANE_W)) * -0.25;
     hero.rotation.z = h.mode === "wall" ? 0 : lanesLean;
     blink = h.hurt > 0 ? blink + dt : 0;

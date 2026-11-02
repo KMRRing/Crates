@@ -34,7 +34,8 @@
 // The foes telegraph (think()): one within a lane of me sees me (it looks my way), then winds up, then launches at the lane
 // I am in then, a crab sliding across to it, a gull diving onto it (only while I am on the ground: a gull in my own lane
 // never attacks; I run under it). The hit lands where it aimed, so a lane changed, a jump or a roll after the launch dodges it.
-// A cut sideways goes on to the next foe in the same direction (SWEEP_WIN), so from the left lane one swipe right takes
+// A flyer that has launched its dive can be cut down from the ground by a swipe sideways towards it, from the launch until
+// the last DIVE_MIN seconds before it hits. A cut sideways goes on to the next foe in the same direction (SWEEP_WIN), so from the left lane one swipe right takes
 // the foes in the middle and the right lane.
 //
 // The question twist: now and then the quay breaks at a gap no jump clears, and three gulls hang over it carrying
@@ -65,6 +66,7 @@ export const SIDE_MIN2 = 0.16;             // two lanes across is twice the way,
 export const ROLL_T = 0.45;                // seconds a roll lasts (it was 0.32; Korbi, 2 November 2026: "rolls should last a bit longer"): 4.5 to 7 m of quay
 export const SIGHT_T = 1.1, WIND_T = 0.6, LAUNCH_T = 0.3;   // seconds to contact: a foe sees me, winds up, launches
 export const HIT_X = 0.8 * LANE_W;         // a launched foe hits what is this near the lane it aimed at
+export const DIVE_MIN = 0.03;             // a flyer already diving at me can be cut from the side until this close to hitting
 export const SWEEP_WIN = 0.5;              // a cut sideways goes on to the next foe in the same direction if it is within this
 export const GATE_WIN = 1.0;               // a gull of a question can be jumped at from this far off (a plain gull, ABOVE_WIN)
 export const GUARD_T = 0.4;                // seconds after a swipe that the foes on its side cannot hurt me
@@ -341,9 +343,13 @@ function retarget(S, dir) {
  *  from up to 4.5 m above it); in the air, one in the air within reach of my height. */
 function sideFoe(S, lane, tMin) {
   const h = S.hero, falling = h.mode === "air" && h.vy <= 0;
-  return nearest(S, (f, t) => f.lane === lane && t >= tMin && t <= (f.gate ? GATE_WIN : SIDE_WIN) &&
-    (f.y <= 0.3 ? h.y < 1 || (falling && h.y - (f.y + f.h * 0.3) <= 4.5) : h.y >= 0.5 && Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4));
+  return nearest(S, (f, t) => f.lane === lane && t >= (diving(f) ? Math.min(tMin, DIVE_MIN) : tMin) && t <= (f.gate ? GATE_WIN : SIDE_WIN) &&
+    (f.y <= 0.3 ? h.y < 1 || (falling && h.y - (f.y + f.h * 0.3) <= 4.5)
+      : (diving(f) && h.y < 1) || (h.y >= 0.5 && Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4)));
 }
+
+/** A flyer that has launched its dive: from the ground, from the side, it can be cut down while it comes. */
+const diving = f => f.ph === 3 && KINDS[f.kind].air;
 
 function down(S) {
   const h = S.hero;
@@ -370,7 +376,7 @@ function down(S) {
  *  swipe sideways went (-1, 1; 0 for the others), which a cut that goes on to the next foe carries on in. */
 function startLunge(S, f, dir, how, extra = {}) {
   const h = S.hero;
-  h.lunge = { foe: f.id, how, dir, left: Math.max(0.06, ttcOf(S, f)), air: h.y > 0.5 };       // air: it set off from the air, so it counts as an attack in the air
+  h.lunge = { foe: f.id, how, dir, left: Math.max(0.06, ttcOf(S, f)), air: h.y > 0.5 || f.y > 0.3 };       // air: it set off from the air, or is at a foe in it, so it counts as an attack in the air
   h.vy = 0; h.slam = false; h.roll = 0;
   S.ev.push({ type: "lunge", how, kind: f.kind, gate: f.gate ? f.gate.id : 0, ...extra });
 }
@@ -573,16 +579,21 @@ function fly(f, toReach) {
   if (isAir(f)) f.y = f.y0 * (1 - e);
 }
 
+/** A question settled. Right: 500 points and a heart back (if I am short of one). Wrong, or passed under unanswered: a heart
+ *  here, and the fall into the water that follows is the second (2 November 2026, Korbi: "getting a question wrong costs 2
+ *  lives; right restores one"). */
 function answered(S, g, ok) {
   S.answers.push({ id: g.q.id, bank: g.q.bank, about: g.q.about, ok });
   if (ok) {
     S.right++; S.streak++; S.bonus += 500;
-    if (S.streak % 3 === 0 && S.hearts < S.maxHearts) { S.hearts++; S.ev.push({ type: "heart", hearts: S.hearts }); }
+    if (S.hearts < S.maxHearts) { S.hearts++; S.ev.push({ type: "heart", hearts: S.hearts }); }
   } else {
     if (ok === false) S.wrong++; else S.missed++;
     S.streak = 0;
+    S.hearts = Math.max(0, S.hearts - 1);
   }
   S.ev.push({ type: "answer", gate: g.id, ok, q: g.q, pick: g.pick });
+  if (!ok && S.hearts <= 0) end(S);
 }
 
 /** A dive meets a foe's back on the way down: I land on it. */

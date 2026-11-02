@@ -277,6 +277,27 @@ const events = S => take(S).map(e => e.type);
   }
 }
 
+// ---------- a swipe sideways cuts down a diving flyer from the ground ----------
+{
+  const dive = (swipeAt, dir = "left", lane = -1, hero = {}) => {
+    const S = scene({ hero: { lane: 0, ...hero } }), f = foeAt(S, "gull", lane, 1.2);
+    run(S, swipeAt); if (dir) swipe(S, dir); run(S, 2);
+    return [S, f];
+  };
+  let [S, f] = dive(0.95);
+  check(!f.alive && S.hearts === 3 && S.hero.lane === -1, "once a gull has launched its dive from the next lane, a swipe towards it cuts it down, from the ground");
+  [S, f] = dive(0.95);
+  check(S.kills === 1 && S.bestChain === 1, "and counts as an attack in the air");
+  [S, f] = dive(0.95, "right", 1);
+  check(!f.alive && S.hearts === 3 && S.hero.lane === 1, "from the other side the same");
+  [S, f] = dive(1.1);
+  check(!f.alive && S.hearts === 3, "right up to the last moments before it hits (0.1 s before)");
+  [S, f] = dive(0.7);
+  check(f.alive && S.hearts === 3, "before the launch it is only a lane change: it has not dived yet, and I am in its lane");
+  [S, f] = dive(0.95, "right", -1);
+  check(f.alive && S.hearts === 3, "a swipe away from it still only dodges");
+}
+
 // ---------- repeated rolls leave no gap ----------
 {
   // down every 0.15 s, with a crab reaching me at every moment in turn: none gets through
@@ -536,21 +557,35 @@ const events = S => take(S).map(e => e.type);
   [S, g] = gateScene(1, ["up", "left", "left"], 0.15);
   check(g.pick === 1, "too late for the last swipe: the cut lands on the middle gull before the second left is done");
   [S, g] = gateScene(0, "up");
-  check(g.state === "wrong" && S.hearts === 2 && S.falls === 1 && S.wrong === 1 && S.hero.z > g.p1, "under a wrong answer: no bounce, into the water, a heart, and back on the far bank");
+  check(g.state === "wrong" && S.hearts === 1 && S.falls === 1 && S.wrong === 1 && S.hero.z > g.p1, "under a wrong answer: no bounce, into the water, two hearts, and back on the far bank");
   [S, g] = gateScene(-1, null);
-  check(g.state === "missed" && S.missed === 1 && S.hearts === 2 && S.answers[0].ok === null, "unanswered, a jump cannot clear it: a heart, and the question is missed");
+  check(g.state === "missed" && S.missed === 1 && S.hearts === 1 && S.answers[0].ok === null, "unanswered, a jump cannot clear it: two hearts, and the question is missed");
   [S, g] = gateScene(0, "right");
   check(S.hero.lane === 1, "(a lane change on the way to the right one)");
   // the third right answer in a row gives a heart back
   const T = newGame({ seed: 3, deal: () => q }); T.hearts = 2;
+  {
+    const A = newGame({ seed: 3, deal: () => q }); A.hearts = 1; const ans = { ...A.world.gates[0] || { id: 7, q } };
+    const O = newGame({ seed: 3, deal: () => q });
+    O.hearts = 2; const gate = { id: 7, z: 0, p0: 0, p1: 1, q, state: "open", pick: null }; O.world.gates.push(gate); O.world.z1 = 1e9;
+    const gl = { id: 8, kind: "gull", lane: 0, x: 0, z: O.hero.z + 0.3, y: 1.35, h: 0.8, alive: true, spent: false, gate: { id: 7, i: 0 } };
+    O.world.foes.push(gl);
+    swipe(O, "up"); run(O, 0.6);
+    check(O.hearts === 0 && O.over, "a wrong answer with two hearts left is the end");
+  }
   const ok = i => { const w = T.world.gates[0] || { id: i, q }; return w; };
-  T.streak = 2;
+  T.streak = 0;
   const gg = { id: 99, z: 0, p0: 0, p1: 1, q, state: "open", pick: null };
   T.world.gates.push(gg);
   const gull = { id: 98, kind: "gull", lane: 1, x: LANE_W, z: T.hero.z + 0.3, y: 1.35, h: 0.8, alive: true, spent: false, gate: { id: 99, i: 2 } };
   T.world.foes.push(gull); T.hero.lane = 1; T.hero.x = LANE_W; T.world.z1 = 1e9;
   swipe(T, "up"); run(T, 0.6);
-  check(T.hearts === 3 && T.streak === 3, "and every third right answer in a row gives a heart back");
+  check(T.hearts === 3 && T.streak === 1, "and a right answer gives a heart back (the first one, if I am short of one)");
+  const full = newGame({ seed: 3, deal: () => q }); full.world.z1 = 1e9;
+  full.world.gates.push({ id: 99, z: 0, p0: 0, p1: 1, q, state: "open", pick: null });
+  full.world.foes.push({ id: 98, kind: "gull", lane: 1, x: LANE_W, z: full.hero.z + 0.3, y: 1.35, h: 0.8, alive: true, spent: false, gate: { id: 99, i: 2 } });
+  full.hero.lane = 1; full.hero.x = LANE_W; swipe(full, "up"); run(full, 0.6);
+  check(full.hearts === 3 && full.right === 1, "(and never more than the three)");
 }
 
 // ---------- the log ----------
