@@ -5,14 +5,16 @@
 // same for everyone; a computer rival to race; and at a table, the clues split between the players (one grid, nobody
 // can finish alone) or a race on the same grid. The puzzles are crossword-engine.js's (made in crossword-worker.js),
 // the solvers crossword-solve.js's, the table crossword-table.js's; this page draws them and takes the typing.
-import { LEVELS, LEVEL_IDS, SIZES, SIZE_IDS, KINDS, kindOf, ASKS, MODES, POOLS, themeFits, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
+import { LEVELS, LEVEL_IDS, SIZES, SIZE_IDS, KINDS, kindOf, ASKS, MODES, POOLS, topicsOf, themeFits, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
 import { span, clamp, zoomTo, squareAt, rectOf, show, fingers } from "./crossword-zoom.js";
 import { rivalRun, rivalAt, partnerMove, seeded, RIVALS } from "./crossword-solve.js";
 import { TABLE_MODES, peopleOf, isTable, freshTable, tidy, newGameAt, readable, holders, lettersOf, writers, writeAt, checkAt, revealAt, runOf, reportAt, runTotal, standings, raceOver, resultOf } from "./crossword-table.js";
 import { kbEntry, entriesAbout, reviewCard, BANK } from "./crossword-kb.js";
-import { KB_TOPICS, KB_PRESETS, cleanMix, presetOf } from "./topics.js";
+import { subjectPreset } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
+import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, topicMix, action, line, onPause, isPaused } from "./menu.js";
+import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, dailyDue, noteDayTime, soloHref, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -28,7 +30,7 @@ const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-const RUN = "crossword:run", SETTINGS = "crossword:settings", TOPICS = "crossword:topics", TIMES = "crossword:times", TABLE_RUN = "crossword:table";
+const RUN = "crossword:run", SETTINGS = "crossword:settings", TIMES = "crossword:times", TABLE_RUN = "crossword:table";
 const APP = 1;                 // the table's version
 
 // ---------- settings ----------
@@ -42,11 +44,10 @@ const sizeOf = s => (SIZE_IDS.includes(Number(s.size)) ? Number(s.size) : LEVELS
 /** The computer player a new grid of yours gets: { kind, level } or null (never on today's, which is the same for everyone). */
 const computerFor = daily => (daily || settings().computer === "off" ? null : { kind: settings().computer, level: RIVALS[settings().pace] ? settings().pace : "quick" });
 const setSetting = (k, v) => write(SETTINGS, { ...settings(), [k]: v });
-// a mix of Crates' topics, both lists in one (a country's and a commodity's), as every knowledge game deals them
-const TOPIC_LIST = [...KB_TOPICS.country, ...KB_TOPICS.commodity];
-const TOPIC_PRESETS = Object.fromEntries(Object.entries(KB_PRESETS).map(([k, p]) => [k, { label: p.label, topics: Object.fromEntries(TOPIC_LIST.map(([id]) => [id, p.topics[id] ?? 1])) }]));
-const mix = () => cleanMix(TOPIC_LIST, read(TOPICS, null));
-const presetNow = () => presetOf(TOPIC_LIST, TOPIC_PRESETS, mix());
+// The topics are the suite's one set (Settings; topics-on.js), read when a grid is dealt, never once at start-up: a change
+// reaches the next grid, and a grid already dealt keeps what it was dealt. A mix of your own doesn't count for your best.
+const mix = () => topicsOf(subjectsOn());
+const onPreset = () => subjectPreset(subjectsOn()) !== "custom";
 
 // ---------- making a puzzle, off the page ----------
 let worker = null, asked = 0;
@@ -790,6 +791,7 @@ async function newGrid(daily, { ask = true } = {}) {
   try {
     const day = today();
     let opts = daily ? dailyOptions(day) : randomOptions(), narrow = false;
+    const preset = onPreset();                       // as the grid is dealt, not as it is when it's made
     let p = await makePuzzleOff(opts);
     if (!p && !daily && opts.kind !== "classic") { narrow = true; p = await makePuzzleOff({ ...opts, topics: null, pool: "mixed", asks: "both" }); }   // too narrow a choice: every topic
     if (!p) { toast("Couldn't set a grid: try again"); return; }
@@ -798,7 +800,7 @@ async function newGrid(daily, { ask = true } = {}) {
     S = { v: 1, puzzle: p, play: freshPlay(p), daily: daily ? day : null, opts: daily ? null : { level: opts.level, size: opts.size, kind: opts.kind, pool: opts.pool, asks: opts.asks, mode: opts.mode },
       // a best is a grid you played alone, today's or one like it: the level's own size, both kinds of entry, on a
       // preset, both ways, mixed answers, no twist
-      ranked: comp?.kind !== "partner" && (daily || (!narrow && presetNow() !== "custom" && opts.size === LEVELS[opts.level]?.size && opts.kind === "both"
+      ranked: comp?.kind !== "partner" && (daily || (!narrow && preset && opts.size === LEVELS[opts.level]?.size && opts.kind === "both"
         && opts.mode === "classic" && opts.asks === "both" && opts.pool === "mixed")),
       rival: comp?.kind === "rival" ? { level: comp.level, seed: p.seed } : null,
       partner: comp?.kind === "partner" ? { level: comp.level, seed: p.seed } : null };
@@ -1163,9 +1165,8 @@ function openMenu() {
       // a Lexicon grid of country and commodity names alone can't be filled: there are too few of them
       keyed("asks", choice("Knowledge", Object.entries(ASKS).filter(([k]) => s.kind !== "lexicon" || k !== "fwd"), s.kind === "lexicon" && s.asks === "fwd" ? "both" : s.asks, set("asks"))),
       ...(themeFits({ level: s.level, size: sizeOf(s), kind: s.kind }) ? [keyed("mode", choice("Twist", Object.entries(MODES), s.mode, set("mode")))] : []),
-      keyed("topics", topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), w => { write(TOPICS, w); if (pick !== "random") { pick = "random"; redrawMenu("topics"); } },
-        { groups: [["Country topics", KB_TOPICS.country], ["Commodity topics", KB_TOPICS.commodity]],
-          note: w => (presetOf(TOPIC_LIST, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's grid and the presets do." : null) })),
+      // Settings' topics, in a sheet from here, for the next random grid (the Grid line above says today's takes every topic)
+      ...topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; the presets and today's do"),
     ] : []),
   );
   const settingsPart = part(body, "settings");

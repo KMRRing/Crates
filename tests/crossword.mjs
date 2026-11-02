@@ -99,6 +99,31 @@ check(learned.filter(p => p.entries.some(e => e.key === dueKey)).length >= 2, "l
 const trollOut = Object.fromEntries(K.kbEntry(dueKey).topics.map(t => [t, 0]));
 check([0, 1, 2, 3].every(i => !E.makePuzzle({ seed: 300 + i, level: "medium", due: [dueKey], topics: trollOut }).entries.some(e => e.key === dueKey)),
   "learning mode's due cards keep to the topics: one whose topics are all out is never dealt");
+// The suite's one set of topics (topics.js: SUBJECTS; Settings): a grid is dealt from the mix the subjects that are on make
+{
+  const TG = await import("../topics.js");
+  const subjects = preset => TG.cleanSubjects(TG.SUBJECT_PRESETS[preset].topics);
+  const balanced = Object.fromEntries(E.TOPIC_LIST.map(([id]) => [id, 1]));
+  check(same(E.topicsOf(subjects("all")), balanced) && same(E.topicsOf(TG.cleanSubjects(null)), balanced),
+    "every subject on is the old Balanced: each of Crates' country and commodity topics in once");
+  const seed = 79, opts = { seed, level: "medium" };
+  const onAll = E.makePuzzle({ ...opts, topics: E.topicsOf(subjects("all")) });
+  check(same(onAll, E.makePuzzle({ ...opts, topics: balanced })) && same(onAll, E.makePuzzle({ ...opts, topics: null })),
+    "…and deals the grid the Balanced mix dealt, the same seed the same grid");
+  const only = id => TG.cleanSubjects({ ...TG.SUBJECT_PRESETS.none.topics, [id]: 1 });
+  check(same(Object.entries(E.topicsOf(only("nrg"))).filter(([, w]) => w).map(([t]) => t), ["nrg"]), "one subject on brings in the topics that belong to it (Energy: energy alone)");
+  const energyOn = E.makePuzzle({ ...opts, pool: "country", topics: E.topicsOf(only("nrg")) });
+  check(energyOn && energyOn.entries.filter(e => e.kind !== "word").every(e => K.kbEntry(e.key).topics.includes("nrg")) && !same(energyOn, onAll),
+    "turning subjects off changes the grid: with only Energy on, every link is an energy one");
+  const stem = E.topicsOf(subjects("stem")), inStem = new Set(Object.entries(stem).filter(([, w]) => w).map(([t]) => t));
+  const stemmed = E.makePuzzle({ ...opts, topics: stem });
+  check(stemmed && !same(stemmed, onAll) && stemmed.entries.filter(e => e.kind !== "word").every(e => K.kbEntry(e.key).topics.some(t => inStem.has(t))),
+    "STEM on: every link is one of a STEM subject's topics");
+  check(Object.values(E.topicsOf(subjects("none"))).every(w => w === 0)
+    && E.makePuzzle({ ...opts, topics: E.topicsOf(subjects("none")) }) === null && !!E.makePuzzle({ ...opts, topics: null }),
+    "nothing on is a mix no link fits, no grid: the page falls back to every topic and says so");
+  check(Object.values(E.topicsOf({ ...subjects("all"), geo: 0 })).filter(w => !w).length === 2, "one subject off takes out the topics that belong to it alone (Geography: geo, and Origins)");
+}
 // No repeats: keys dealt lately are far less likely in the next grid (not out: a bank all dealt still fills one)
 {
   const keysOf = p => p.entries.map(e => e.key).filter(Boolean);

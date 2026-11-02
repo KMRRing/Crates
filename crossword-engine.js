@@ -9,6 +9,7 @@ import { makeGrid, slotsOf, fillGrid, mix, shuffled } from "./gridfill.js";
 import { cluesOf, cluedWords } from "./clues.js";
 import { kbEntries, saysWords, wordsOf, BANK } from "./crossword-kb.js";
 import { seeded, allowed, countSolutions, grade, REVEAL_COST, CHECK_COST } from "./crossword-solve.js";
+import { KB_TOPICS, TOPIC_OF, mixFromSubjects } from "./topics.js";
 
 export { REVEAL_COST, CHECK_COST };
 export const BLACK = "#", EMPTY = ".";
@@ -121,6 +122,15 @@ function counter(wordsOf) {
 const popcount = x => { x -= (x >>> 1) & 0x55555555; x = (x & 0x33333333) + ((x >>> 2) & 0x33333333); return (((x + (x >>> 4)) & 0x0F0F0F0F) * 0x01010101) >>> 24; };
 
 // ---------- the knowledge entries a deal draws from ----------
+/** Crates' topics, a country's and a commodity's in one list: an entry's aspects are from either. */
+export const TOPIC_LIST = [...KB_TOPICS.country, ...KB_TOPICS.commodity];
+/**
+ * The mix of topics a deal takes (`topics` below) from the suite's subjects that are on (topics-on.js: { subject: 0 | 1 }):
+ * a topic in at weight 1, Crossword's Balanced, when its subject is on, out when it isn't. With every subject on that is
+ * the mix the page dealt from before there was one set of topics, so the same seed makes the same grid. A weight of 2
+ * still works in `topics` (an old mix, a test), the engine below doesn't mind where one comes from.
+ */
+export const topicsOf = on => mixFromSubjects(TOPIC_LIST, TOPIC_OF.kb, on);
 /** The weight of an entry dealt lately, against 1 for one not (No repeats, README, Learning modes). */
 const FRESH = 0.02;
 /**
