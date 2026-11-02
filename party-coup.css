@@ -1,4 +1,4 @@
-/* Coup (Party): the table as a row of tiles (name, coins, the cards face down or turned up), what is happening and what
+/* Cabal (Party): the table as a row of tiles (name, coins, the cards face down or turned up), what is happening and what
    this phone can do about it, your own two cards, and the last few lines of what happened. The five characters have
    an enamel each (a card's border and band) and a picture, so nobody reads them by colour alone. */
 .cp-col { --cc-duke: #7B4FA2; --cc-assassin: #5A5A66; --cc-captain: #2C6AA8; --cc-ambassador: #2F7D5B; --cc-contessa: #A8382B; --bad: #A8382B; gap: .4rem; }

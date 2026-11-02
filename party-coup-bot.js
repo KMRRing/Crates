@@ -1,4 +1,4 @@
-// Coup's computer player (README, Coup), for playing alone: given the table and a seat, what that seat would send for the
+// Cabal's computer player (README, Cabal), for playing alone: given the table and a seat, what that seat would send for the
 // step in play, in the shapes the game reads (party-coup.js: { do, target }, { c }, { b }, { lose }, { keep }). It reads only
 // what that player may know: its own cards, the coins, who has which cards face up, and what has been claimed; never
 // another player's hidden hand (tests/party-coup-bot.mjs plays it against tables whose hidden cards are swapped for others
@@ -7,7 +7,7 @@
 // It reckons as a careful player does. A claim is a bluff with some chance, more the fewer copies of that character
 // are left unseen (three in the deck, less those face up and those in its own hand: with none left, a claim is a lie
 // for certain). It takes the action that's worth most: its own characters at no risk, a bluff when the chance of being
-// challenged is low or the prize large, Coup at seven coins, and always at ten. It challenges when a claim is likely
+// challenged is low or the prize large, an Oust at seven coins, and always at ten. It challenges when a claim is likely
 // enough a bluff for the card it risks, blocks with what it holds and bluffs a block when the alternative is to lose an
 // influence. Each computer player has its own temper (how readily it bluffs and how readily it believes a claim), by its seat.
 import { CARDS, COPIES, ACTIONS, MUST_COUP, alive, blockers, challengers } from "./party-coup.js";
@@ -63,7 +63,7 @@ function target(s, uid, rng) {
 
 function chooseAction(s, uid, rng) {
   const coins = s.coins[uid], mine = hand(s, uid), foes = alive(s).filter(u => u !== uid), [bold] = temper(s, uid);
-  const aim = target(s, uid, rng);                                         // who a Coup or an assassination goes at
+  const aim = target(s, uid, rng);                                         // who an Oust or a sabotage goes at
   if (coins >= MUST_COUP) return { do: "coup", target: aim };
   const has = c => mine.includes(c);
   // how likely a claim of this character is to be challenged: if none can exist, certainly; the rest by how scarce they are
@@ -107,7 +107,7 @@ function challengeVote(s, uid, rng) {
   let bluff = liar / (liar + pHas), need = [.5, .58, .64, .68, .7][Math.min(4, alive(s).length - 2)];
   if (on === "act" && act.target === uid) {
     if (act.kind === "assassinate") {                                    // it takes my card whether or not I'm right, unless I'm
-      need = k === 1 ? 0 : mine.includes("contessa") ? .75 : .38;       // left with a card to lose twice over; a Contessa blocks it
+      need = k === 1 ? 0 : mine.includes("contessa") ? .75 : .38;       // left with a card to lose twice over; a Kontor blocks it
     } else if (act.kind === "steal" && (mine.includes("captain") || mine.includes("ambassador"))) need = .75;
   } else if (on === "block" && act.by === uid) need = .42;               // the block is all that stops my own action
   else if (k === 1) need += .06;

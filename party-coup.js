@@ -1,15 +1,17 @@
-// Coup (Rikki Tahta, 2012), the bluffing game of influence, at Party's table. Everyone has two secret influence cards
-// (a Duke, an Assassin, a Captain, an Ambassador or a Contessa) and two coins. On your turn you take an action; most
+// Cabal, the bluffing game of influence, at Party's table: Rikki Tahta's Coup (2012) with its rules and none of its words
+// (README, Cabal). The ids (`coup`, `duke`, `assassinate`...) keep their old spelling so a saved game or a room from
+// before the rename still reads; only what a player sees was renamed. Everyone has two secret influence cards (a Syndic,
+// a Saboteur, a Privateer, an Astronomer or a Kontor) and two coins. On your turn you take an action; most
 // of them need a character, and you may claim any character whether you hold it or not. Anyone may challenge a claim:
 // whoever is wrong loses an influence. Some actions can be blocked, by claiming the character that stops them, and a
 // block can be challenged too. A player with no influence left is out; the last one in wins.
 //
-// The rules are the published ones: Income 1, Foreign Aid 2 (the Duke blocks it), Coup for 7 (compulsory from 10, never
-// blocked), Tax 3 (Duke), Assassinate for 3 (Assassin; the Contessa blocks), Steal 2 (Captain; the Captain or the
-// Ambassador blocks), Exchange (Ambassador: draw two, keep as many as you hold). A challenge that fails costs the
+// The rules are the published ones: Income 1, Foreign Aid 2 (the Syndic blocks it), Oust for 7 (compulsory from 10, never
+// blocked), Tax 3 (Syndic), Sabotage for 3 (Saboteur; the Kontor blocks), Steal 2 (Privateer; the Privateer or the
+// Astronomer blocks), Exchange (Astronomer: draw two, keep as many as you hold). A challenge that fails costs the
 // challenger an influence and the claimant swaps the shown card for a new one from the deck; one that succeeds costs the
-// claimant an influence and the action. The 3 coins of an assassination are paid when it is declared, come back if the
-// Assassin is challenged and found false, and are lost if the Contessa blocks it. Two players: the first to play starts
+// claimant an influence and the action. The 3 coins of a sabotage are paid when it is declared, come back if the
+// Saboteur is challenged and found false, and are lost if the Kontor blocks it. Two players: the first to play starts
 // with one coin, not two.
 //
 // Each decision is a step of its own ("challenge#9": the phase and a counter), so what a phone sent for one is never
@@ -24,22 +26,22 @@ export const CARDS = ["duke", "assassin", "captain", "ambassador", "contessa"];
 export const COPIES = 3;
 export const MUST_COUP = 10;
 export const CARD = {
-  duke: { name: "Duke", glyph: "👑" },
-  assassin: { name: "Assassin", glyph: "🗡️" },
-  captain: { name: "Captain", glyph: "⚓" },
-  ambassador: { name: "Ambassador", glyph: "📜" },
-  contessa: { name: "Contessa", glyph: "🌹" },
+  duke: { name: "Syndic", glyph: "⚖️" },
+  assassin: { name: "Saboteur", glyph: "💣" },
+  captain: { name: "Privateer", glyph: "⚓" },
+  ambassador: { name: "Astronomer", glyph: "🔭" },
+  contessa: { name: "Kontor", glyph: "🗝️" },
 };
 /** The actions. `claim` is the character it needs, `blockedBy` who can stop it (`anyone`: any other player, else the
  *  target only), `cost` what it takes up front. `sub` is the line under its button. */
 export const ACTIONS = {
   income: { name: "Income", sub: "+1" },
-  aid: { name: "Foreign Aid", sub: "+2 · Duke blocks", blockedBy: ["duke"], anyone: true },
-  coup: { name: "Coup", sub: "pay 7 · a player loses a card", cost: 7, target: true },
-  tax: { name: "Tax", sub: "+3 · Duke", claim: "duke" },
-  assassinate: { name: "Assassinate", sub: "pay 3 · Assassin", claim: "assassin", cost: 3, target: true, blockedBy: ["contessa"] },
-  steal: { name: "Steal", sub: "+2 · Captain", claim: "captain", target: true, blockedBy: ["captain", "ambassador"] },
-  exchange: { name: "Exchange", sub: "swap · Ambassador", claim: "ambassador" },
+  aid: { name: "Foreign Aid", sub: "+2 · Syndic blocks", blockedBy: ["duke"], anyone: true },
+  coup: { name: "Oust", sub: "pay 7 · a player loses a card", cost: 7, target: true },
+  tax: { name: "Tax", sub: "+3 · Syndic", claim: "duke" },
+  assassinate: { name: "Sabotage", sub: "pay 3 · Saboteur", claim: "assassin", cost: 3, target: true, blockedBy: ["contessa"] },
+  steal: { name: "Steal", sub: "+2 · Privateer", claim: "captain", target: true, blockedBy: ["captain", "ambassador"] },
+  exchange: { name: "Exchange", sub: "swap · Astronomer", claim: "ambassador" },
 };
 const ORDER = ["income", "aid", "tax", "steal", "exchange", "assassinate", "coup"];
 const LOG = 30;                                   // lines of history kept
@@ -100,7 +102,7 @@ function startTurn(G) {
   s.turn = after(s, s.turn);
   for (const k of ["act", "claim", "block", "loser", "then", "exch"]) delete s[k];
   enter(G, "turn");
-  G.say.push(s.coins[s.turn] >= MUST_COUP ? `${nm(s, s.turn)}, you have ${coin(s.coins[s.turn])}: you must launch a Coup.` : `${nm(s, s.turn)}, your turn.`);
+  G.say.push(s.coins[s.turn] >= MUST_COUP ? `${nm(s, s.turn)}, you have ${coin(s.coins[s.turn])}: you must Oust a rival.` : `${nm(s, s.turn)}, your turn.`);
 }
 /** On with what was waiting for a loss of influence to settle. */
 function go(G, then) {
@@ -144,17 +146,17 @@ function declare(G, by, inp) {
     note(G, `${who} takes Income: 1 coin.`);
     startTurn(G);
   } else if (kind === "coup") {
-    note(G, `${who} pays 7 coins and launches a Coup on ${at}.`);
+    note(G, `${who} pays 7 coins to oust one of ${at}'s influence.`);
     lose(G, target, "next");
   } else if (kind === "aid") {
-    note(G, `${who} takes Foreign Aid. Anyone with the Duke may block it.`);
+    note(G, `${who} takes Foreign Aid. Anyone with the Syndic may block it.`);
     enter(G, "block");
   } else {
     s.claim = { by, card: a.claim, on: "act" };
-      note(G, kind === "tax" ? `${who} claims the Duke and takes Tax. Challenge?`
-      : kind === "assassinate" ? `${who} pays 3 coins and claims the Assassin against ${at}. Challenge?`
-      : kind === "steal" ? `${who} claims the Captain and steals from ${at}. Challenge?`
-      : `${who} claims the Ambassador and exchanges cards. Challenge?`);
+      note(G, kind === "tax" ? `${who} claims the Syndic and takes Tax. Challenge?`
+      : kind === "assassinate" ? `${who} pays 3 coins and claims the Saboteur against ${at}. Challenge?`
+      : kind === "steal" ? `${who} claims the Privateer and steals from ${at}. Challenge?`
+      : `${who} claims the Astronomer and exchanges cards. Challenge?`);
     enter(G, "challenge");
   }
   return true;
@@ -216,7 +218,7 @@ function land(G) {
   }
   if (kind === "assassinate") {
     if (!alive(s).includes(target)) return startTurn(G);
-    note(G, `The assassin reaches ${nm(s, target)}.`);
+    note(G, `The saboteur reaches ${nm(s, target)}.`);
     return lose(G, target, "next");
   }
   if (kind === "exchange") {
@@ -302,7 +304,7 @@ function settle(G, inputs) {
 // ---------- the module ----------
 export default {
   id: "coup",
-  name: "Coup",
+  name: "Cabal",
   min: 2,
   max: 6,
   solo: play,                                       // alone against one to four computer players (party-coup-solo.js)
@@ -310,10 +312,10 @@ export default {
   css: "party-coup.css",
   blurb: "Bluff, challenge, and be the last with any influence.",
   rules: [
-    "Everyone has two secret influence cards and two coins. The court deck has three each of the Duke, Assassin, Captain, Ambassador and Contessa. Lose both cards and you are out; the last player with influence wins.",
-    "On your turn take one action. Income: 1 coin. Foreign Aid: 2 coins. Coup: pay 7 and a player loses an influence; with 10 coins you must. Then the characters: the Duke takes Tax (3 coins); the Assassin pays 3 so a player loses an influence; the Captain steals 2 coins from a player; the Ambassador draws two cards from the deck and keeps as many as you hold.",
-    "You may claim any character, whether you hold it or not. Anyone may challenge the claim. If you have the card you show it, the challenger loses an influence and you swap it for a new one; if not, you lose an influence and the action fails (an assassination's 3 coins come back).",
-    "Some actions can be blocked by claiming a character: the Duke blocks Foreign Aid (anyone may), the Contessa an assassination, the Captain or the Ambassador a steal (the target only). A block can be challenged too. An assassination that is challenged and true, then blocked wrongly, can cost the target both cards.",
+    "Everyone has two secret influence cards and two coins. The court deck has three each of the Syndic, Saboteur, Privateer, Astronomer and Kontor. Lose both cards and you are out; the last player with influence wins.",
+    "On your turn take one action. Income: 1 coin. Foreign Aid: 2 coins. Oust: pay 7 and a player loses an influence; with 10 coins you must. Then the characters: the Syndic takes Tax (3 coins); the Saboteur pays 3 so a player loses an influence; the Privateer steals 2 coins from a player; the Astronomer draws two cards from the deck and keeps as many as you hold.",
+    "You may claim any character, whether you hold it or not. Anyone may challenge the claim. If you have the card you show it, the challenger loses an influence and you swap it for a new one; if not, you lose an influence and the action fails (a sabotage's 3 coins come back).",
+    "Some actions can be blocked by claiming a character: the Syndic blocks Foreign Aid (anyone may), the Kontor a sabotage, the Privateer or the Astronomer a steal (the target only). A block can be challenged too. A sabotage that is challenged and true, then blocked wrongly, can cost the target both cards.",
     "With two players the first to play starts with one coin, not two.",
   ],
   options: [
@@ -331,7 +333,7 @@ export default {
     const s = {
       step: "turn#1", phase: "turn", n: 1, seats, names: Object.fromEntries(players.map(p => [p.uid, p.name])),
       hand: hands, coins, deck, turn: first, clock, log: [`${who} starts.`],
-      say: `Coup. ${who} starts.`,
+      say: `Cabal. ${who} starts.`,
     };
     if (!clock) delete s.clock;
     else s.deadline = now + clock;
@@ -405,7 +407,7 @@ function drawCoup(stage, ctx) {
         targets.append(h("button", { type: "button", class: "cp-back", onclick: () => { local.pick = null; draw(); } }, "Back"));
         parts.push(targets);
       } else {
-        parts.push(ask(must ? `You have ${coins} coins: you must Coup` : "Your turn"));
+        parts.push(ask(must ? `You have ${coins} coins: you must Oust` : "Your turn"));
         parts.push(h("div", { class: "cp-acts" }, ...ORDER.map(kind => {
           const a = ACTIONS[kind], ok = must ? kind === "coup" : !a.cost || coins >= a.cost;
           return h("button", { type: "button", class: `cp-act ${kind}`, disabled: !ok, onclick: () => {
@@ -432,7 +434,7 @@ function drawCoup(stage, ctx) {
     parts.push(clock());
   } else if (s.phase === "block") {
     const el = blockers(s), a = ACTIONS[s.act.kind], mine = inputs[me.uid]?.b, target = s.act.target;
-    parts.push(ask(s.act.kind === "aid" ? `${name(s.act.by)} is taking Foreign Aid` : `${name(s.act.by)} is ${s.act.kind === "steal" ? "stealing from" : "assassinating"} ${who(target)}`));
+    parts.push(ask(s.act.kind === "aid" ? `${name(s.act.by)} is taking Foreign Aid` : `${name(s.act.by)} is ${s.act.kind === "steal" ? "stealing from" : "sabotaging"} ${who(target)}`));
     if (el.includes(me.uid)) {
       parts.push(sub(`You may block it, claiming the ${a.blockedBy.map(c => CARD[c].name).join(" or the ")}.`));
       parts.push(h("div", { class: "cp-row" },

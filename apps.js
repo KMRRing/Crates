@@ -558,7 +558,7 @@ export const APPS = [
   { id: "forger", sec: "party", name: "Forger", href: "./party.html?game=forger", logo: LOGO("forger", FORGER_LOGO), party: true },
   { id: "gallery", sec: "party", name: "Gallery", href: "./party.html?game=gallery", logo: LOGO("gallery", GALLERY_LOGO), party: true },
   { id: "hilo", sec: "party", name: "Higher or Lower", href: "./party.html?game=hilo", logo: LOGO("hilo", HILO_LOGO), party: true },
-  { id: "coup", sec: "party", name: "Coup", href: "./party.html?game=coup", logo: LOGO("coup", COUP_LOGO), party: true },
+  { id: "coup", sec: "party", name: "Cabal", href: "./party.html?game=coup", logo: LOGO("coup", COUP_LOGO), party: true },
   { id: "cue", sec: "party", name: "Cue", href: "./cue.html", logo: LOGO("cue", CUE_LOGO) },
   { id: "river", sec: "table", name: "River", href: "./river.html", logo: LOGO("river", RIVER_LOGO) },
   { id: "gambit", sec: "table", name: "Gambit", href: "./gambit.html", logo: LOGO("gambit", GAMBIT_LOGO) },
@@ -581,6 +581,8 @@ export const APPS = [
   { id: "pegs", sec: "table", name: "Pegs", href: "./pegs.html", logo: LOGO("pegs", PEGS_LOGO) },
   { id: "meld", sec: "table", name: "Meld", href: "./meld.html", logo: LOGO("meld", MELD_LOGO) },
   { id: "tarot", sec: "table", name: "Tarot", href: "./soon.html?game=tarot", logo: LOGO("tarot", SOON_ALMANAC.tarot), soon: true },
+  { id: "solitaire", sec: "table", name: "Solitaire", href: "./soon.html?game=solitaire", logo: LOGO("solitaire", SOON_ALMANAC.solitaire), soon: true },
+  { id: "silo", sec: "table", name: "Silo", href: "./soon.html?game=silo", logo: LOGO("silo", SOON_ALMANAC.silo), soon: true },
   // Idle: as much thinking as a bubble shooter, and no more (README, Idle)
   { id: "heliograph", sec: "idle", name: "Heliograph", href: "./heliograph.html", logo: LOGO("heliograph", HELIOGRAPH_LOGO) },
   { id: "shunt", sec: "idle", name: "Shunt", href: "./shunt.html", logo: LOGO("shunt", SHUNT_LOGO) },
@@ -595,6 +597,7 @@ export const APPS = [
   { id: "slipway", sec: "idle", name: "Slipway", href: "./slipway.html", logo: LOGO("slipway", SLIPWAY_LOGO) },
   { id: "loom", sec: "idle", name: "Loom", href: "./loom.html", logo: LOGO("loom", LOOM_LOGO) },
   { id: "reckoning", sec: "idle", name: "Reckoning", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO) },
+  { id: "ingot", sec: "idle", name: "Ingot", href: "./soon.html?game=ingot", logo: LOGO("ingot", SOON_ALMANAC.ingot), soon: true },
   // Casino: games of chance, played to learn the floor rather than to get good at (README, Casino)
   { id: "baccarat", sec: "casino", name: "Baccarat", href: "./baccarat.html", logo: LOGO("baccarat", BACCARAT_LOGO) },
   { id: "blackjack", sec: "casino", name: "Blackjack", href: "./blackjack.html", logo: LOGO("blackjack", BLACKJACK_LOGO) },

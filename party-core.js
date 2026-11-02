@@ -9,7 +9,7 @@
 //     wakeAt(state) → a time (the database's, ms) to call advance again, or null,
 //     view(stage, ctx),
 //     solo?(stage, { back }) → it's also played on one phone, no party needed: drawn on Party's page before a party's
-//       open, where its tile opens it (Higher or Lower; Coup, against the computer), soloText? in words for its card }
+//       open, where its tile opens it (Higher or Lower; Cabal, against the computer), soloText? in words for its card }
 //
 // start and advance are pure: advance runs inside the table's transaction on the device that runs the table (the
 // host's phone), on the freshest copy, and may run more than once, so its randomness comes from rng (seeded by the
@@ -192,7 +192,7 @@ export const ELSEWHERE = [
   { id: "quest", name: "Quest", kind: "table", page: "quest.html", max: 10, blurb: "Hidden loyalties: find the traitors before three quests fail." },
   { id: "bones", name: "Bones", kind: "table", page: "bones.html", max: 4, blurb: "Dominoes: Partnership, Gaple, or Fives and Threes." },
   { id: "dandan", name: "Dandan", kind: "table", page: "dandan.html", max: 2, blurb: "Forgetful Fish: one shared deck of eighty cards, two players, and Dandâns that only attack across an Island." },
-  { id: "cartel", name: "Cartel", kind: "table", page: "cartel.html", max: 4, blurb: "Coup and Liar's Dice in dice: claim roles you may not hold, bid on dice you can't see." },
+  { id: "cartel", name: "Cartel", kind: "table", page: "cartel.html", max: 4, blurb: "Secret roles and Liar's Dice in dice: claim roles you may not hold, bid on dice you can't see." },
   { id: "contract", name: "Contract", kind: "table", page: "contract.html", max: 4, across: true, blurb: "Bridge: the auction in SAYC, then the play, a Chicago match of four deals." },
   { id: "crates", name: "Crates", kind: "duo", duo: "crates", page: "crates.html", max: 2, blurb: "Sixteen words into four crates, one board between you, or hidden sides: each of you sees only eight." },
   { id: "glyph", name: "Slate", kind: "duo", duo: "glyph", page: "slate.html", max: 6, blurb: "A small crossword with secret letter rules, everyone filling the one board." },

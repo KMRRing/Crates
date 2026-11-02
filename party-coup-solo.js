@@ -1,4 +1,4 @@
-// Coup alone on one phone (README, Coup): you against one to four computer players, on the same engine Party's table runs
+// Cabal alone on one phone (README, Cabal): you against one to four computer players, on the same engine Party's table runs
 // (party-coup.js), so the rules can't differ. The phone does what the host's phone does at a table: it holds the state,
 // asks the computer players (party-coup-bot.js) when it is their turn to answer, and calls the game's `advance` when the
 // step has all its answers. The first half of this file is that loop as plain functions (tests/party-coup-solo.mjs plays
@@ -139,7 +139,7 @@ export function play(stage, { back }) {
     const pick = pickPlayer([1, 2, 3, 4].map(n => ({ uid: String(n), name: n === 1 ? "1 opponent" : `${n} opponents` })),
       { picked: String(foes), label: "Opponents", onPick: u => { foes = clampFoes(u); save(); show(); } });
     root.replaceChildren(h("div", { class: "pa-home fit-col fit-grow" },
-      h("p", { class: "pa-intro" }, "Coup against the computer: Quill, Sable, Pip and Wren each play in their own way, one bluffing freely, another seldom. Choose how many sit down with you."),
+      h("p", { class: "pa-intro" }, "Cabal against the computer: Quill, Sable, Pip and Wren each play in their own way, one bluffing freely, another seldom. Choose how many sit down with you."),
       pick,
       h("div", { class: "fit-grow" }),
       button("Deal", () => begin()),

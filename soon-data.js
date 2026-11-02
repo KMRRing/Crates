@@ -24,4 +24,34 @@ export const SOON = {
       "On seats.js; the largest of the new games, so it comes last.",
     ],
   },
+  solitaire: {
+    name: "Solitaire", sec: "table",
+    line: "Patience for one: Klondike, FreeCell and Spider, each with a daily deal, the cards dealt from the day's seed so everyone plays the same game.",
+    todo: [
+      "Added 2 November 2026 (Korbi: \"solitaire, 2048, connect four: ok, add placeholders\"). The most conspicuous absence from a games library, and the cheapest of the board and card games to hold a player: no opponent, so no computer player to write.",
+      "The rules are small and well known: Klondike (draw one or three), FreeCell (all cards face up, four free cells; nearly every deal can be won, so a solver can certify a deal) and Spider (one, two or four suits).",
+      "The cost is the feel, not the rules: drag a card or tap it to send it where it goes, auto-move to the foundations, undo without limit, and a hint from the solver. A deal is kept only if the solver wins it, as Classics' puzzles are proven to have an answer.",
+      "A daily deal per variant, by `today()` from `suite.js`; the best is a win streak or a time, whichever the games screen reads best.",
+    ],
+  },
+  silo: {
+    name: "Silo", sec: "table",
+    line: "Four in a row for two: discs dropped into a standing grid of seven columns, six high, and the first to line up four across, down or on a diagonal wins.",
+    todo: [
+      "Added 2 November 2026 (Korbi: \"connect four\"). Connect Four is Hasbro's name for the game, so the tile is Silo; the rules of the game belong to no one, the name does.",
+      "A solved game: with perfect play the first player wins by starting in the middle column. So the computer's levels are about how often it misses a threat, not how deep it sees: a few plies of search with a count of open threes plays as well as anyone will beat, and the weaker levels make a chosen share of mistakes.",
+      "On seats.js, so two on one phone, a partner's match and a table of friends come with it; a drop that falls and the winning four lit are the only drawing.",
+      "Possible later: Gambit's and River's coach (why a move is a mistake), and a bigger grid with five to win.",
+    ],
+  },
+  ingot: {
+    name: "Ingot", sec: "idle",
+    line: "2048's game: slide numbered tiles about a four-by-four board; two equal tiles that meet merge into their sum, and a new tile appears after every move. Tiles are bars of metal that double.",
+    todo: [
+      "Added 2 November 2026 (Korbi: \"2048\"). 2048 (Gabriele Cirulli, 2014) was released under the MIT licence, and the number is no one's name, but the tile is Ingot, in Idle beside Orrery and Topple.",
+      "The rules are four swipes and a spawn (a 2 nine times in ten, a 4 otherwise). The choice is one of four, and the board remembers a careless one, as every idle game here asks.",
+      "Needs: a limited undo, the day's seed for the spawns (so a daily is the same board for everyone), a best, and a calm mode with the bars in 3D.",
+      "A search that scores the four swipes would give a hint and a par.",
+    ],
+  },
 };

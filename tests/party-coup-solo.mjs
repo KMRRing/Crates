@@ -1,4 +1,4 @@
-// Coup alone on one phone (party-coup-solo.js, with the computer player in party-coup-bot.js), played in Node: the deal for
+// Cabal alone on one phone (party-coup-solo.js, with the computer player in party-coup-bot.js), played in Node: the deal for
 // one to four computer players; that the computer's answer is always one the game accepts, and never depends on a hand it
 // can't see (the same position with the other players' hidden cards swapped for others gives the same answer); that it
 // plays better than a player choosing at random; whole games with a computer in your seat too, every state through the
@@ -26,7 +26,7 @@ const keepState = g => ({ ...g, state: roundTrip(g.state) });             // the
     check(s.names[YOU] === "Korbi" && s.names.bot1 === FOES[0] && seatsOf(n, "Korbi").length === n + 1, "named: you, then Quill, Sable, Pip and Wren in order");
   }
   check(deal(9, seeded(1), 0).foes === 4 && deal(0, seeded(1), 0).foes >= 1, "the number of opponents is kept within one to four");
-  check(typeof coup.solo === "function" && /1–4 computer/.test(coup.soloText), "Coup has a way to be played alone");
+  check(typeof coup.solo === "function" && /1–4 computer/.test(coup.soloText), "Cabal has a way to be played alone");
   check(seatsText(playable("coup")) === "Alone against 1–4 computer players, or 2–6 on their own", `its card says so (“${seatsText(playable("coup"))}”)`);
   check(seatsText(playable("hilo")) === "Any number on one phone, or 2–24 on their own", "Higher or Lower's card still says what it did");
   check(fs.existsSync(new URL(`../${coup.css}`, import.meta.url)) && GAMES.includes(coup), "the stylesheet is there");

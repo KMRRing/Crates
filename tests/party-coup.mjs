@@ -1,5 +1,5 @@
-// Coup (party-coup.js), played in Node: the deal; each action's rules (what it costs, who may challenge or block it, what
-// a wrong challenge and a wrong bluff cost); the assassination that can cost the target both cards; the exchange; the
+// Cabal (party-coup.js), played in Node: the deal; each action's rules (what it costs, who may challenge or block it, what
+// a wrong challenge and a wrong bluff cost); the sabotage that can cost the target both cards; the exchange; the
 // clock; a player who leaves; and 400 games played at random, two to six players, with every card counted at every step
 // and every state put through the database's round trip. Last, a whole game at a table on tests/party-harness.js.
 import { GAMES, gameById, seeded, needOf, playable, fits } from "../party-core.js";
@@ -49,9 +49,9 @@ const aidOk = who => all(who, { b: "allow" });
 // ---------- the module and the deal ----------
 {
   const g = gameById("coup");
-  check(g === coup && GAMES.includes(coup) && g.min === 2 && g.max === 6 && Array.isArray(g.rules) && g.rules.length >= 4 && g.blurb, "Coup is one of Party's games, for two to six");
+  check(g === coup && GAMES.includes(coup) && g.min === 2 && g.max === 6 && Array.isArray(g.rules) && g.rules.length >= 4 && g.blurb, "Cabal is one of Party's games, for two to six");
   check(fs.existsSync(new URL(`../${g.css}`, import.meta.url)), "its stylesheet exists");
-  check(needOf(g, people(1)) === "Coup needs 2 players: 1 more to join" && needOf(g, people(2)) === "" && needOf(g, people(6)) === "" && needOf(g, [...people(6), { uid: "g", name: "Gus", seat: 6 }]) === "Coup takes at most 6", "it needs two players, and takes six");
+  check(needOf(g, people(1)) === "Cabal needs 2 players: 1 more to join" && needOf(g, people(2)) === "" && needOf(g, people(6)) === "" && needOf(g, [...people(6), { uid: "g", name: "Gus", seat: 6 }]) === "Cabal takes at most 6", "it needs two players, and takes six");
   check(playable("coup")?.kind === "party" && fits(playable("coup"), 6) && !fits(playable("coup"), 1), "a party of two to six can play it");
   check(ACTIONS.tax.claim === "duke" && ACTIONS.steal.blockedBy.join() === "captain,ambassador" && ACTIONS.aid.anyone && !ACTIONS.income.claim && !ACTIONS.coup.blockedBy, "the actions' characters and blocks");
   for (const n of [2, 3, 4, 5, 6]) {
@@ -71,14 +71,14 @@ const aidOk = who => all(who, { b: "allow" });
   const s1 = run(s, { a: { do: "income" } });
   check(s1.coins.a === 3 && s1.turn === "b" && s1.phase === "turn" && s1.step !== s.step, "Income: a coin, and the next player's turn");
   check(step(s, { b: { do: "income" } }) === null, "a player out of turn is ignored");
-  check(step(s, { a: { do: "assassinate", target: "b" } }) === null && step(s, { a: { do: "coup", target: "b" } }) === null, "no Assassination without 3 coins, no Coup without 7");
+  check(step(s, { a: { do: "assassinate", target: "b" } }) === null && step(s, { a: { do: "coup", target: "b" } }) === null, "no Sabotage without 3 coins, no Oust without 7");
   check(step(s, { a: { do: "steal" } }) === null && step(s, { a: { do: "steal", target: "a" } }) === null && step(s, { a: { do: "steal", target: "z" } }) === null && step(s, { a: { do: "nonsense" } }) === null, "a target is needed, and not yourself, and someone in the game");
   const ten = rig({ hands: HANDS, coins: { a: 10 } });
   check(step(ten, { a: { do: "income" } }) === null && step(ten, { a: { do: "tax" } }) === null && step(ten, { a: { do: "aid" } }) === null && step(ten, { a: { do: "coup", target: "b" } }), "with 10 coins a Coup is all you may do");
-  check(/must launch a Coup/.test(run(rig({ hands: HANDS, coins: { b: 11 } }), { a: { do: "income" } }) && step(rig({ hands: HANDS, coins: { b: 11 } }), { a: { do: "income" } }).__say), "…and the table says so when it's their turn");
+  check(/must Oust a rival/.test(run(rig({ hands: HANDS, coins: { b: 11 } }), { a: { do: "income" } }) && step(rig({ hands: HANDS, coins: { b: 11 } }), { a: { do: "income" } }).__say), "…and the table says so when it's their turn");
 }
 
-// ---------- Foreign Aid: anyone with the Duke blocks it ----------
+// ---------- Foreign Aid: anyone with the Syndic blocks it ----------
 {
   const s1 = run(rig({ hands: HANDS }), { a: { do: "aid" } });
   check(s1.phase === "block" && blockers(s1).join() === "b,c,d", "Foreign Aid: the other three may block it");
@@ -87,14 +87,14 @@ const aidOk = who => all(who, { b: "allow" });
   const ok = run(s1, aidOk(["b", "c", "d"]));
   check(ok.coins.a === 4 && ok.turn === "b" && ok.phase === "turn", "all allow: 2 coins");
   const blocked = run(s1, { b: { b: "allow" }, c: { b: "duke" }, d: { b: "allow" } });
-  check(blocked.phase === "challenge" && blocked.claim.by === "c" && blocked.claim.on === "block" && challengers(blocked).join() === "a,b,d", "a Duke's block can be challenged by anyone else, the one taking aid too");
+  check(blocked.phase === "challenge" && blocked.claim.by === "c" && blocked.claim.on === "block" && challengers(blocked).join() === "a,b,d", "a Syndic's block can be challenged by anyone else, the one taking aid too");
   const stands = run(blocked, allow(["a", "b", "d"]));
   check(stands.coins.a === 2 && stands.turn === "b" && stands.phase === "turn", "unchallenged, the block stands: no coins");
   const first = run(s1, { b: { b: "duke" }, c: { b: "duke" }, d: { b: "allow" } });
   check(first.claim.by === "b", "two block: the one nearest the player taking aid is the block");
-  // c really has the Duke
+  // c really has the Syndic
   const c1 = run(blocked, { a: { c: "allow" }, b: { c: "allow" }, d: { c: "challenge" } });
-  check(c1.phase === "lose" && c1.loser === "d" && H(c1, "c").length === 2 && counted(c1), "challenged wrongly: the challenger must lose an influence, the Duke swapped for a new card");
+  check(c1.phase === "lose" && c1.loser === "d" && H(c1, "c").length === 2 && counted(c1), "challenged wrongly: the challenger must lose an influence, the Syndic swapped for a new card");
   const c2 = run(c1, { d: { lose: 1 } });
   check(D(c2, "d").join() === "captain" && H(c2, "d").join() === "assassin" && c2.coins.a === 2 && c2.turn === "b" && counted(c2), "…of their choice, and the block stands");
   // b bluffs
@@ -108,15 +108,15 @@ const aidOk = who => all(who, { b: "allow" });
 // ---------- Tax: a claim, challenged true or false ----------
 {
   const s1 = run(rig({ hands: HANDS }), { a: { do: "tax" } });
-  check(s1.phase === "challenge" && s1.claim.by === "a" && s1.claim.card === "duke" && s1.claim.on === "act" && challengers(s1).join() === "b,c,d" && s1.coins.a === 2, "Tax claims the Duke, and anyone else may challenge");
+  check(s1.phase === "challenge" && s1.claim.by === "a" && s1.claim.card === "duke" && s1.claim.on === "act" && challengers(s1).join() === "b,c,d" && s1.coins.a === 2, "Tax claims the Syndic, and anyone else may challenge");
   const free = run(s1, allow(["b", "c", "d"]));
   check(free.coins.a === 5 && free.turn === "b", "unchallenged: 3 coins");
   check(step(s1, allow(["b", "c"])) === null, "the window waits for everyone…");
   const late = step(s1, { b: { c: "allow" }, c: { c: "allow" } }, { now: 1 });
   check(late === null, "…and without a clock, for ever");
-  // a really has the Duke; b and d both challenge: the one next to a speaks first
+  // a really has the Syndic; b and d both challenge: the one next to a speaks first
   const t1 = run(s1, { b: { c: "challenge" }, c: { c: "allow" }, d: { c: "challenge" } });
-  check(t1.phase === "lose" && t1.loser === "b" && H(t1, "a").length === 2 && counted(t1), "challenged wrongly, with two challengers: the first after the player loses, and the Duke is swapped for a card from the deck");
+  check(t1.phase === "lose" && t1.loser === "b" && H(t1, "a").length === 2 && counted(t1), "challenged wrongly, with two challengers: the first after the player loses, and the Syndic is swapped for a card from the deck");
   const t2 = run(t1, { b: { lose: 0 } });
   check(D(t2, "b").join() === "captain" && t2.coins.a === 5 && t2.turn === "b", "…and the Tax goes ahead");
   // b bluffs Tax
@@ -127,31 +127,31 @@ const aidOk = who => all(who, { b: "allow" });
   check(D(f2, "b").join() === "ambassador" && f2.coins.b === 2 && f2.turn === "c" && f2.phase === "turn" && counted(f2), "…and gets no coins");
 }
 
-// ---------- Assassinate ----------
+// ---------- Sabotage ----------
 {
   const rg = o => rig({ hands: HANDS, coins: { a: 3 }, ...o });
   const s1 = run(rg(), { a: { do: "assassinate", target: "b" } });
-  check(s1.coins.a === 0 && s1.claim.card === "assassin" && s1.act.paid === 3 && s1.phase === "challenge", "Assassinate: 3 coins paid at once, and the Assassin claimed");
+  check(s1.coins.a === 0 && s1.claim.card === "assassin" && s1.act.paid === 3 && s1.phase === "challenge", "Sabotage: 3 coins paid at once, and the Saboteur claimed");
   const s2 = run(s1, allow(["b", "c", "d"]));
   check(s2.phase === "block" && blockers(s2).join() === "b", "unchallenged, only the target may block it");
   const s3 = run(s2, { b: { b: "allow" } });
   check(s3.phase === "lose" && s3.loser === "b" && s3.then === "next", "not blocked: the target loses an influence");
   const s4 = run(s3, { b: { lose: 1 } });
   check(D(s4, "b").join() === "ambassador" && H(s4, "b").join() === "captain" && s4.turn === "b" && s4.coins.a === 0, "…of their choice");
-  // the Contessa
+  // the Kontor
   const k1 = run(s2, { b: { b: "contessa" } });
-  check(k1.phase === "challenge" && k1.claim.card === "contessa" && k1.claim.on === "block" && step(s2, { b: { b: "duke" } }) === null, "the Contessa blocks it (and nothing else does), and that can be challenged");
+  check(k1.phase === "challenge" && k1.claim.card === "contessa" && k1.claim.on === "block" && step(s2, { b: { b: "duke" } }) === null, "the Kontor blocks it (and nothing else does), and that can be challenged");
   const k2 = run(k1, allow(["a", "c", "d"]));
   check(k2.phase === "turn" && k2.turn === "b" && H(k2, "b").length === 2 && k2.coins.a === 0, "unchallenged: the target lives, and the 3 coins are gone");
-  // b has no Contessa: challenged, loses both
+  // b has no Kontor: challenged, loses both
   const k3 = run(k1, { a: { c: "challenge" }, c: { c: "allow" }, d: { c: "allow" } });
-  check(k3.phase === "lose" && k3.loser === "b" && k3.then === "caught", "a bluffed Contessa, challenged: the bluffer loses an influence…");
+  check(k3.phase === "lose" && k3.loser === "b" && k3.then === "caught", "a bluffed Kontor, challenged: the bluffer loses an influence…");
   const k4 = run(k3, { b: { lose: 0 } });
-  check(D(k4, "b").length === 2 && H(k4, "b").length === 0 && alive(k4).join() === "a,c,d" && k4.turn === "c" && counted(k4), "…and the assassination goes ahead: both cards gone, out of the game");
-  // a bluffs the Assassin
+  check(D(k4, "b").length === 2 && H(k4, "b").length === 0 && alive(k4).join() === "a,c,d" && k4.turn === "c" && counted(k4), "…and the sabotage goes ahead: both cards gone, out of the game");
+  // a bluffs the Saboteur
   const bl = run(rig({ hands: HANDS, coins: { b: 3 }, turn: "b" }), { b: { do: "assassinate", target: "a" } });
   const bl1 = run(bl, { c: { c: "challenge" }, a: { c: "allow" }, d: { c: "allow" } });
-  check(bl1.loser === "b" && bl1.coins.b === 0, "a bluffed Assassin: caught…");
+  check(bl1.loser === "b" && bl1.coins.b === 0, "a bluffed Saboteur: caught…");
   const bl2 = run(bl1, { b: { lose: 0 } });
   check(bl2.coins.b === 3 && bl2.turn === "c" && H(bl2, "a").length === 2 && D(bl2, "b").join() === "captain", "…the 3 coins come back, and nobody is hurt");
   // a really has it: the target challenges and loses both
@@ -165,7 +165,7 @@ const aidOk = who => all(who, { b: "allow" });
   const lone = rig({ hands: { ...HANDS, b: ["captain"] }, coins: { a: 3 } });
   const l1 = run(lone, { a: { do: "assassinate", target: "b" } });
   const l2 = run(l1, { b: { c: "challenge" }, c: { c: "allow" }, d: { c: "allow" } });
-  check(H(l2, "b").length === 0 && D(l2, "b").join() === "captain" && l2.turn === "c" && l2.phase === "turn" && l2.coins.a === 0, "a lone card lost to a wrong challenge: out at once, and the assassination has nobody left to hit");
+  check(H(l2, "b").length === 0 && D(l2, "b").join() === "captain" && l2.turn === "c" && l2.phase === "turn" && l2.coins.a === 0, "a lone card lost to a wrong challenge: out at once, and the saboteuration has nobody left to hit");
 }
 
 // ---------- Steal ----------
@@ -179,39 +179,39 @@ const aidOk = who => all(who, { b: "allow" });
   const one = run(run(run(rg({ coins: { c: 1 } }), { b: { do: "steal", target: "c" } }), allow(["a", "c", "d"])), { c: { b: "allow" } });
   const none = run(run(run(rg({ coins: { c: 0 } }), { b: { do: "steal", target: "c" } }), allow(["a", "c", "d"])), { c: { b: "allow" } });
   check(one.coins.b === 3 && one.coins.c === 0 && none.coins.b === 2 && none.coins.c === 0, "…or what the target has: 1, or none");
-  check(step(s2, { c: { b: "duke" } }) === null && step(s2, { c: { b: "contessa" } }) === null, "only the Captain or the Ambassador stops it");
+  check(step(s2, { c: { b: "duke" } }) === null && step(s2, { c: { b: "contessa" } }) === null, "only the Privateer or the Astronomer stops it");
   const blk = run(s2, { c: { b: "ambassador" } });
-  check(blk.phase === "challenge" && blk.claim.by === "c" && blk.claim.card === "ambassador", "a block with the Ambassador");
+  check(blk.phase === "challenge" && blk.claim.by === "c" && blk.claim.card === "ambassador", "a block with the Astronomer");
   const stand = run(blk, allow(["a", "b", "d"]));
   check(stand.coins.b === 2 && stand.coins.c === 2 && stand.turn === "c", "unchallenged, nothing is taken");
   const caught = run(run(blk, { b: { c: "challenge" }, a: { c: "allow" }, d: { c: "allow" } }), { c: { lose: 0 } });
-  check(D(caught, "c").join() === "contessa" && caught.coins.b === 4 && caught.coins.c === 0, "c has no Ambassador: caught, and the steal goes ahead");
-  // b really has the Captain; a challenges and loses
+  check(D(caught, "c").join() === "contessa" && caught.coins.b === 4 && caught.coins.c === 0, "c has no Astronomer: caught, and the steal goes ahead");
+  // b really has the Privateer; a challenges and loses
   const c1 = run(s1, { a: { c: "challenge" }, c: { c: "allow" }, d: { c: "allow" } });
   check(c1.loser === "a" && c1.then === "stood", "challenged wrongly: the challenger loses an influence, then the steal goes on");
-  // the Captain blocks a steal as the Ambassador does: the target claims it, whether or not they hold one, and whoever was stolen from (or anyone else) may challenge the block
+  // the Privateer blocks a steal as the Astronomer does: the target claims it, whether or not they hold one, and whoever was stolen from (or anyone else) may challenge the block
   const cb = run(s2, { c: { b: "captain" } });
-  check(cb.phase === "challenge" && cb.claim.by === "c" && cb.claim.card === "captain" && cb.claim.on === "block", "a block with the Captain, claimed against a Captain's steal");
+  check(cb.phase === "challenge" && cb.claim.by === "c" && cb.claim.card === "captain" && cb.claim.on === "block", "a block with the Privateer, claimed against a Privateer's steal");
   const bluff = run(cb, { b: { c: "challenge" }, a: { c: "allow" }, d: { c: "allow" } });
-  check(bluff.phase === "lose" && bluff.loser === "c" && bluff.then === "caught", "c has no Captain and b, who stole, challenges the block: caught");
+  check(bluff.phase === "lose" && bluff.loser === "c" && bluff.then === "caught", "c has no Privateer and b, who stole, challenges the block: caught");
   const bluffEnd = run(bluff, { c: { lose: 0 } });
   check(D(bluffEnd, "c").join() === "contessa" && bluffEnd.coins.b === 4 && bluffEnd.coins.c === 0 && bluffEnd.turn === "c" && counted(bluffEnd), "…c loses an influence and the steal goes ahead");
   const other = run(cb, { a: { c: "challenge" }, b: { c: "allow" }, d: { c: "allow" } });
   check(other.loser === "c" && other.then === "caught", "a player other than the one who stole may challenge the block too");
   const real = rg({ hands: { ...HANDS, c: ["captain", "duke"] } });
   const r3 = run(run(run(run(real, { b: { do: "steal", target: "c" } }), allow(["a", "c", "d"])), { c: { b: "captain" } }), { b: { c: "challenge" }, a: { c: "allow" }, d: { c: "allow" } });
-  check(r3.phase === "lose" && r3.loser === "b" && r3.then === "stood" && H(r3, "c").length === 2 && counted(r3), "c does hold the Captain: shown, b who challenged loses an influence, and c takes a fresh card for it");
+  check(r3.phase === "lose" && r3.loser === "b" && r3.then === "stood" && H(r3, "c").length === 2 && counted(r3), "c does hold the Privateer: shown, b who challenged loses an influence, and c takes a fresh card for it");
   const r4 = run(r3, { b: { lose: 0 } });
   check(r4.coins.b === 2 && r4.coins.c === 2 && r4.turn === "c" && D(r4, "b").length === 1 && counted(r4), "…and the steal is blocked: nothing is taken");
   const quiet = run(cb, allow(["a", "b", "d"]));
-  check(quiet.coins.b === 2 && quiet.coins.c === 2 && quiet.turn === "c" && D(quiet, "c").length === 0, "an unchallenged Captain block stands, bluff or not");
+  check(quiet.coins.b === 2 && quiet.coins.c === 2 && quiet.turn === "c" && D(quiet, "c").length === 0, "an unchallenged Privateer block stands, bluff or not");
 }
 
 // ---------- Exchange ----------
 {
   const s1 = run(rig({ hands: HANDS, turn: "b" }), { b: { do: "exchange" } });
   const s2 = run(s1, allow(["a", "c", "d"]));
-  check(s2.phase === "exchange" && s2.exch.drawn.length === 2 && s2.deck.length === 5 && counted(s2), "Exchange: the Ambassador claimed, then two cards drawn from the deck");
+  check(s2.phase === "exchange" && s2.exch.drawn.length === 2 && s2.deck.length === 5 && counted(s2), "Exchange: the Astronomer claimed, then two cards drawn from the deck");
   check(step(s2, { b: { keep: [0] } }) === null && step(s2, { b: { keep: [0, 0] } }) === null && step(s2, { b: { keep: [0, 9] } }) === null && step(s2, { a: { keep: [0, 1] } }) === null, "keep as many as you hold: no more, no fewer, no repeats, nothing out of range, and only the one exchanging");
   const pool = [...H(s2, "b"), ...s2.exch.drawn];
   const s3 = run(s2, { b: { keep: [1, 3] } });
@@ -222,10 +222,10 @@ const aidOk = who => all(who, { b: "allow" });
   check(H(l3, "b").length === 1 && H(l3, "b")[0] === [...H(l2, "b"), ...l2.exch.drawn][2] && counted(l3), "…and one kept");
 }
 
-// ---------- Coup ----------
+// ---------- Oust ----------
 {
   const s1 = run(rig({ hands: HANDS, coins: { a: 7 } }), { a: { do: "coup", target: "d" } });
-  check(s1.coins.a === 0 && s1.phase === "lose" && s1.loser === "d" && s1.then === "next", "Coup: 7 coins, and the player loses an influence at once: it can't be challenged or blocked");
+  check(s1.coins.a === 0 && s1.phase === "lose" && s1.loser === "d" && s1.then === "next", "Oust: 7 coins, and the player loses an influence at once: it can't be challenged or blocked");
   const s2 = run(s1, { d: { lose: 0 } });
   check(D(s2, "d").join() === "assassin" && s2.turn === "b", "…their choice");
   const one = run(rig({ hands: { ...HANDS, d: ["assassin"] }, coins: { a: 7 } }), { a: { do: "coup", target: "d" } });
@@ -233,7 +233,7 @@ const aidOk = who => all(who, { b: "allow" });
   const s3 = step(s1, { d: { lose: 5 } });
   check(s3 === null, "a card that isn't theirs isn't a choice");
   const some = run(rig({ hands: HANDS, coins: { a: 7 } }), { a: { do: "coup", target: "d" } });
-  check(run(some, { d: { lose: 0 } }).phase === "turn", "a Coup that ends nothing passes the turn");
+  check(run(some, { d: { lose: 0 } }).phase === "turn", "an Oust that ends nothing passes the turn");
 }
 
 // ---------- a game to the end: two players, then the win ----------
@@ -259,7 +259,7 @@ const aidOk = who => all(who, { b: "allow" });
   check(t.coins.a === 3 && t.turn === "b" && t.deadline === 61000, "a turn that runs out is Income, and the next player has a new 30 seconds");
   const ten = rig({ hands: HANDS, coins: { a: 10 }, clock: 30 }); ten.deadline = 31000;
   const tc = run(ten, {}, { now: 31000 });
-  check(tc.coins.a === 3 && tc.phase === "lose" && tc.loser !== "a", "…or, with 10 coins, a Coup on someone else");
+  check(tc.coins.a === 3 && tc.phase === "lose" && tc.loser !== "a", "…or, with 10 coins, an Oust on someone else");
   const c = run(rig({ hands: HANDS, clock: 30 }), { a: { do: "tax" } }, { now: 0 });
   c.deadline = 30000;
   const late = run(c, { b: { c: "challenge" }, c: { c: "allow" } }, { now: 30000 });
