@@ -37,7 +37,7 @@
     start();
   }
   // [file, what turns it: a the great wheel, r the ring, b and d the pinions, "" nothing]; the order is the stacking.
-  var layers = [["mark/base.svg", ""], ["mark/ring.svg", "r"], ["mark/bar-ring.svg", "r"], ["mark/pin-b.svg", "b"], ["mark/pin-d.svg", "d"], ["mark/great.svg", "a"], ["mark/fixed.svg", ""], ["mark/top.svg", ""], ["mark/bar-great.svg", "a"]];
+  var layers = [["mark/base.svg", ""], ["mark/bar-ring.svg", "r"], ["mark/ring.svg", "r"], ["mark/pin-b.svg", "b"], ["mark/pin-d.svg", "d"], ["mark/great.svg", "a"], ["mark/fixed.svg", ""], ["mark/top.svg", ""], ["mark/bar-great.svg", "a"]];
   var box = document.createElement("div"), left = layers.length;
   box.className = "cx-load"; box.setAttribute("aria-hidden", "true");
   layers.forEach(function (l) {

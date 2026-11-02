@@ -26,11 +26,11 @@ check(Math.abs(T_B - T_A * NBF / NA) < 1e-9 && Math.abs(T_R - T_B * NR / NBB) < 
 
 // the layers: the loader's order, and one picture each
 const layerNames = Object.keys(files).filter(p => p.startsWith("mark/")).map(p => p.slice(5, -4));
-const loaderOrder = ["base", "ring", "bar-ring", "pin-b", "pin-d", "great", "fixed", "top", "bar-great"];
+const loaderOrder = ["base", "bar-ring", "ring", "pin-b", "pin-d", "great", "fixed", "top", "bar-great"];
 check(JSON.stringify(layerNames) === JSON.stringify(loaderOrder), "the mark is nine layers, in the order the loader stacks them");
 const theme = read("theme.js"), css = read("style.css");
 check(loaderOrder.every(n => theme.includes(`"mark/${n}.svg"`)), "theme.js puts every layer in (by name, so the offline list keeps each file)");
-check(/\[\["mark\/base\.svg", ""\], \["mark\/ring\.svg", "r"\], \["mark\/bar-ring\.svg", "r"\], \["mark\/pin-b\.svg", "b"\], \["mark\/pin-d\.svg", "d"\], \["mark\/great\.svg", "a"\], \["mark\/fixed\.svg", ""\], \["mark\/top\.svg", ""\], \["mark\/bar-great\.svg", "a"\]\]/.test(theme),
+check(/\[\["mark\/base\.svg", ""\], \["mark\/bar-ring\.svg", "r"\], \["mark\/ring\.svg", "r"\], \["mark\/pin-b\.svg", "b"\], \["mark\/pin-d\.svg", "d"\], \["mark\/great\.svg", "a"\], \["mark\/fixed\.svg", ""\], \["mark\/top\.svg", ""\], \["mark\/bar-great\.svg", "a"\]\]/.test(theme),
   "…each turned by the part it belongs to: the ring's bar with the ring, the great wheel's with the great wheel");
 const secs = n => +new RegExp(`\\.cx-load \\.${n}\\b[^}]*animation-duration: ([\\d.]+)s`).exec(css)?.[1];
 check(secs("a") === T_A && secs("r") === T_R && secs("b") === T_B, "style.css turns the loader's layers at those speeds");
