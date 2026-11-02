@@ -1,15 +1,17 @@
-// Harbour's rules, apart from the page: a harbour of hexes, jetties, and ships whose programs all run in lockstep.
-// The page (harbour.js) draws it, harbour-tape.js edits the programs, and tests/harbour.mjs replays reference
-// solutions through the same rules.
+// Harbour's rules, apart from the page: a Hanseatic harbour of hexes, quays, and ships whose programs all run in
+// lockstep. The page (harbour.js) draws it, harbour-tape.js edits the programs, and tests/harbour.mjs replays reference
+// solutions through the same rules. (What the code calls a jetty is a quay, a tank a stockpile, a spec an alloy's
+// standard, a blend an alloy: Harbour began as a game of fuels and became one of metals in November 2026, and the
+// identifiers kept their names so that every saved plan and every test still reads.)
 //
 // Each hour every ship carries out its program's instruction for that hour. Programs loop, and the longest sets the
 // loop's length for all of them, so ships stay in step for good. Moves happen together. A ship that would end on land
 // or off the map runs aground; two that would end on one tile, or pass through each other, collide; either ends the
 // run. A ship may move onto a tile another is leaving that same hour: ships can follow each other. Then loads and
-// discharges, each in full or not at all, and one that can't happen does nothing: a load needs the jetty's whole
-// parcel on hand and room for it aboard; a discharge needs the cargo to be the size the jetty takes and on its spec.
-// That rule (an impossible transfer is no transfer) is what later levels build their logic on. Last, every
-// refinery's tank fills at its rate, up to what it holds; when it's full the refinery waits.
+// discharges, each in full or not at all, and one that can't happen does nothing: a load needs the quay's whole
+// parcel on hand and room for it aboard; a discharge needs the cargo to be the size the quay takes and up to its
+// standard. That rule (an impossible transfer is no transfer) is what later levels build their logic on. Last, every
+// smelter's stockpile gains at its rate, up to what its yard holds; when it's full the smelter waits.
 
 // The harbour is hexes, pointy side up, every odd row set half a hex to the right; a tile is (x, y), its column and
 // row. Ships steer as ships do, relative to their heading: ahead; port, a 60° turn to the left and one hex on; starboard,
@@ -35,14 +37,17 @@ export function steer(ship, op) {
   return { x: ship.x, y: ship.y, h: ship.h };
 }
 
-// Ships come in classes, the same in every level: what each carries and what it costs to hire. The sizes aren't
-// multiples of each other, so a Handy isn't two coasters: a ship of N units blends in steps of 1/N (a coaster 25%, a
-// Handy 10%), so a spec can suit one and not the other, and fleets of both reach totals neither reaches alone. A level offers some of
-// them, so many of each (its fleet); a ship's type is its class, the level's first if it has none.
+// Ships come in classes, the same in every level: what each carries and what it costs to hire (in marks). The sizes
+// aren't multiples of each other, so a Cog isn't two and a half Schniggen: a ship of N ingots alloys in steps of 1/N (a
+// Schnigge 25%, a Cog 10%), so a standard can suit one and not the other, and fleets of both reach totals neither
+// reaches alone. The ids are the ones the game began with (a coaster is a Schnigge, a Handy a Cog) so that saved plans
+// still load. A level offers some of them, so many of each (its fleet); a ship's type is its class, the level's first
+// if it has none.
 export const CLASSES = {
-  coaster: { name: "Coaster", cap: 4, cost: 20 },
-  handy: { name: "Handy", cap: 10, cost: 30 },
+  coaster: { name: "Schnigge", plural: "Schniggen", cap: 4, cost: 20 },     // a small coasting craft
+  handy: { name: "Cog", plural: "Cogs", cap: 10, cost: 30 },                  // the League's workhorse, the Kogge
 };
+export const namesOf = c => c.plural || `${c.name}s`;
 export const classOf = (level, ship) => CLASSES[ship.type || Object.keys(level.fleet)[0]];
 export const typeOf = (level, ship) => ship.type || Object.keys(level.fleet)[0];
 export const jettiesOf = level => level.jetties;
@@ -50,7 +55,7 @@ export const total = cargo => Object.values(cargo).reduce((a, b) => a + b, 0);
 const priceOf = (level, j) => level.products?.[j.product]?.price || 0;
 const pct = v => `${Math.round(v * 100)}%`;
 
-/** The level's grid: its size, and what each tile is (land, water, or a jetty, by its letter on the map). */
+/** The level's grid: its size, and what each tile is (land, water, or a quay, by its letter on the map). */
 export function grid(level) {
   const rows = level.map, h = rows.length, w = rows[0].length, J = jettiesOf(level);
   const at = (x, y) => {
@@ -88,8 +93,8 @@ export function invalid(level, solution) {
   const g = grid(level), seen = new Set(), used = {};
   for (const [i, s] of solution.ships.entries()) {
     const type = typeOf(level, s), n = (used[type] = (used[type] || 0) + 1);
-    if (!(type in level.fleet) || !CLASSES[type]) return `This harbour has no ${CLASSES[type]?.name || type}s`;
-    if (n > level.fleet[type]) return `The fleet has ${level.fleet[type]} ${CLASSES[type].name}${level.fleet[type] > 1 ? "s" : ""}`;
+    if (!(type in level.fleet) || !CLASSES[type]) return `This harbour has no ${CLASSES[type] ? namesOf(CLASSES[type]) : `${type}s`}`;
+    if (n > level.fleet[type]) return `The fleet has ${level.fleet[type]} ${level.fleet[type] > 1 ? namesOf(CLASSES[type]) : CLASSES[type].name}`;
     if (!g.afloat(s.x, s.y)) return `Ship ${i + 1} isn't on water`;
     if (!Number.isInteger(s.h ?? 0) || (s.h ?? 0) < 0 || (s.h ?? 0) > 5) return `Ship ${i + 1} has no heading`;
     if (seen.has(`${s.x},${s.y}`)) return `Two ships start on one tile`;
@@ -99,7 +104,7 @@ export function invalid(level, solution) {
   return null;
 }
 
-/** Why a cargo is off a jetty's spec (each product's share of it between a least and a most), or null if it's on. */
+/** Why a cargo is off a quay's standard (each product's share of it between a least and a most), or null if it's up to it. */
 export function offSpec(level, spec, cargo) {
   const all = total(cargo);
   for (const [p, [lo, hi]] of Object.entries(spec || {})) {
@@ -149,11 +154,11 @@ export function step(level, solution, state) {
       next.bought += p * priceOf(level, j);
       next.events.push({ ship: i, kind: "load" });
     }
-    // a discharge takes the jetty's parcel out of the ship's blend, every product in its share; the rest stays aboard
+    // a discharge takes the quay's parcel out of the ship's alloy, every product in its share; the rest stays aboard
     if (op(i) === DISCHARGE && j.kind === "discharge") {
       const amount = total(s.cargo), p = j.parcel;
       if (!amount) continue;
-      const why = amount < p - 1e-9 ? `carries ${+amount.toFixed(2)}, the jetty takes ${p}` : offSpec(level, j.spec, s.cargo);
+      const why = amount < p - 1e-9 ? `carries ${+amount.toFixed(2)}, the quay takes ${p}` : offSpec(level, j.spec, s.cargo);
       if (why) { next.events.push({ ship: i, kind: "refused", why }); continue; }
       const keep = (amount - p) / amount;
       for (const k of Object.keys(s.cargo)) { s.cargo[k] *= keep; if (s.cargo[k] < 1e-9) delete s.cargo[k]; }
@@ -183,7 +188,7 @@ export function run(level, solution, limit = limitOf(level)) {
   return s;
 }
 
-/** The four measures, each kept for itself: what it cost (ships hired and product bought), the hours to the last
+/** The four measures, each kept for itself: what it cost (ships hired and metal bought), the hours to the last
  * delivery, the water used (every tile a ship was on at some point) and the instructions written. */
 export function score(level, solution, final) {
   const hire = solution.ships.reduce((n, s) => n + classOf(level, s).cost, 0);

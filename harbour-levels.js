@@ -1,9 +1,10 @@
-// Harbour's levels. A map is rows of hexes, pointy side up, every odd row set half a hex to the right: # land, . water,
-// and a letter for each jetty the level spells out. A load jetty has a product, the parcel it lifts in an hour and, if
-// it's a refinery's, the tank behind it; a discharge jetty the parcel it takes in an hour and the spec it holds it to. A
+// Harbour's levels, the Hanseatic League's metal trade. A map is rows of hexes, pointy side up, every odd row set half
+// a hex to the right: # land, . water, and a letter for each quay the level spells out (the code calls a quay a jetty).
+// A load quay has a metal, the parcel it lifts in an hour and, if it's a smelter's, the stockpile behind it (the code's
+// tank); a discharge quay the parcel it takes in an hour and the standard it holds it to (its spec). A
 // level's fleet is the ships it offers, so many of each class (the classes, what each carries and costs, are the
 // engine's, the same in every level). A ship can't turn on the spot, so a dead end means backing out. A level may set
-// a delivery window (deadline: "sixteen units within 80 hours"), and a customer its own target. The par on each
+// a delivery window (deadline: "sixteen ingots within 80 hours"), and a buyer its own target. The par on each
 // measure is the best found by searching every plan of up to three ships on the level's routes, from every starting
 // point; each level carries the plans that reach it, so the page can show them (tap a par in the menu) and
 // tests/harbour.mjs runs the same plans and holds the par there.
@@ -24,24 +25,24 @@ export function program(text) {
 // The campaign's chapters, region by region: each teaches four or five ideas, the hardest timing last.
 export const CHAPTERS = [
   { id: "baltic", name: "The Baltic", note: "learning to move" },
-  { id: "nwe", name: "North-West Europe", note: "learning to trade and blend" },
-  { id: "world", name: "The world", note: "joining your regions" },
-  { id: "straits", name: "The Straits", note: "mastering timing" },
+  { id: "nwe", name: "Bruges and London", note: "learning to trade and alloy" },
+  { id: "world", name: "The League", note: "joining your regions" },
+  { id: "straits", name: "The Sound", note: "mastering timing" },
 ];
 
 export const LEVELS = [
   {
     id: "first-cargo", name: "First cargo",
     chapter: "baltic", teaches: "programs and loops",
-    brief: "Load at the refinery's jetty (L), discharge at the customer's (D), round the island. Sixteen units: four coaster loads.",
+    brief: "Load copper at the smelter's quay (L), discharge at the founder's (D), round the island. Sixteen ingots: four Schnigge loads.",
     map: [
       "######",
       "#....#",
       "#L###D",
       "#....#",
     ],
-    products: { oil: { name: "Oil", price: 0 } },
-    jetties: { L: { kind: "load", product: "oil", parcel: 4 }, D: { kind: "discharge", parcel: 4 } },
+    products: { copper: { name: "Copper", price: 0 } },
+    jetties: { L: { kind: "load", product: "copper", parcel: 4 }, D: { kind: "discharge", parcel: 4 } },
     fleet: { coaster: 4 }, target: 16, maxCycles: 400,
     par: { cost: 20, hours: 13, water: 10, instructions: 8 },
     plans: [
@@ -57,7 +58,7 @@ export const LEVELS = [
   {
     id: "up-the-creek", name: "Up the creek",
     chapter: "baltic", teaches: "astern",
-    brief: "The refinery (L) is up a creek too narrow to turn in: Astern backs a ship out, keeping its heading. The customer (D) is down the shore. Sixteen units.",
+    brief: "The ironworks (L) is up a creek too narrow to turn in: Astern backs a ship out, keeping its heading. The smithy (D) is down the shore. Sixteen ingots.",
     map: [
       "#########",
       "###....##",
@@ -65,9 +66,9 @@ export const LEVELS = [
       "L.....D##",
       "#########",
     ],
-    products: { oil: { name: "Oil", price: 0 } },
+    products: { iron: { name: "Iron", price: 0 } },
     jetties: {
-      L: { kind: "load", product: "oil", parcel: 2 },
+      L: { kind: "load", product: "iron", parcel: 2 },
       D: { kind: "discharge", parcel: 2 },
     },
     fleet: { coaster: 3 }, target: 16, maxCycles: 400,
@@ -83,21 +84,21 @@ export const LEVELS = [
     ],
   },
   {
-    id: "rundown", name: "Rundown",
-    chapter: "baltic", teaches: "a tank's rhythm: two ships taking turns",
+    id: "rundown", name: "Casting",                        // it was Rundown, the refinery's tank filling
+    chapter: "baltic", teaches: "a stockpile's rhythm: two ships taking turns",
     rev: 3,              // a forty-hour window since one ship could do it all: plans and bests from before don't carry over
-    brief: "The refinery's tank (L) fills a unit an hour and holds ten. Both jetties pump two units an hour. Twenty-four units to the customer (D) within forty hours: more than one ship can carry alone.",
+    brief: "The smelter (L) casts an ingot an hour into a yard that holds ten; both quays work two an hour. Twenty-four ingots to the founder (D) in forty hours.",
     map: [
       "#####",
       "#.L.#",
       "#.##.",
       "#.D.#",
     ],
-    products: { diesel: { name: "Diesel", price: 0 } },
-    jetties: { L: { kind: "load", product: "diesel", parcel: 2, tank: { start: 0, rate: 1, cap: 10 } }, D: { kind: "discharge", parcel: 2 } },
+    products: { copper: { name: "Copper", price: 0 } },
+    jetties: { L: { kind: "load", product: "copper", parcel: 2, tank: { start: 0, rate: 1, cap: 10 } }, D: { kind: "discharge", parcel: 2 } },
     fleet: { coaster: 3, handy: 1 }, target: 24, deadline: 40, maxCycles: 400,
-    // one ship's best is 49 hours; two coasters on one loop, half a turn apart, take turns at the tank: one lifts while
-    // the other delivers (39 hours, the cheapest of 174 two-ship fleets that make it); three coasters are quickest
+    // one ship's best is 49 hours; two Schniggen on one loop, half a turn apart, take turns at the stockpile: one lifts while
+    // the other delivers (39 hours, the cheapest of 174 two-ship fleets that make it); three Schniggen are quickest
     par: { cost: 40, hours: 31, water: 8, instructions: 13 },
     plans: [
       { par: ["cost", "water", "instructions"], ships: [
@@ -112,21 +113,21 @@ export const LEVELS = [
     ],
   },
   {
-    id: "first-blend", name: "First blend",
-    chapter: "nwe", teaches: "blending to a spec",
-    rev: 4,              // FAME at $5k (the Handy's exact blend cheapest again): plans and bests from before don't carry over
-    brief: "Blend in the ship. G: gasoil, two units a lift at $1k each. F: FAME, one at $5k. The customer (D) takes two an hour, at least 20% FAME. Twenty units.",
+    id: "first-blend", name: "Bell metal",                   // it was First blend: gasoil with at least 20% FAME
+    chapter: "nwe", teaches: "alloying to a standard",
+    rev: 4,              // tin at 5 marks (the Cog's exact alloy cheapest again): plans and bests from before don't carry over
+    brief: "Alloy in the hold. C: copper, two a lift at 1 mark. T: tin, one at 5. The bell-founder (D) takes two an hour, at least 20% tin. Twenty ingots.",
     map: [
       "#######",
-      "#.G.F.#",
+      "#.C.T.#",
       "#.####.",
       "#...D.#",
     ],
-    products: { gasoil: { name: "Gasoil", price: 1 }, fame: { name: "FAME", price: 5 } },
+    products: { copper: { name: "Copper", price: 1 }, tin: { name: "Tin", price: 5 } },
     jetties: {
-      G: { kind: "load", product: "gasoil", parcel: 2 },
-      F: { kind: "load", product: "fame", parcel: 1 },
-      D: { kind: "discharge", parcel: 2, spec: { fame: [0.2, 1] } },
+      C: { kind: "load", product: "copper", parcel: 2 },
+      T: { kind: "load", product: "tin", parcel: 1 },
+      D: { kind: "discharge", parcel: 2, spec: { tin: [0.2, 1] } },
     },
     fleet: { coaster: 2, handy: 1 }, target: 20, maxCycles: 400,
     par: { cost: 66, hours: 30, water: 12, instructions: 7 },
@@ -145,9 +146,9 @@ export const LEVELS = [
     ],
   },
   {
-    id: "two-refineries", name: "Two refineries",
+    id: "two-refineries", name: "Two smelters",
     chapter: "nwe", teaches: "ship sizes and a delivery window",
-    brief: "The near refinery (N) is closing, with 12 units left in its tank; the far one (F) makes two an hour. The customer (D) takes two an hour. Forty units within 100 hours.",
+    brief: "The near smelter (N) is closing, with 12 ingots left; the far one (F) casts two an hour. The founder (D) takes two an hour. Forty ingots in 100 hours.",
     map: [
       "############",
       "############",
@@ -156,10 +157,10 @@ export const LEVELS = [
       "###N.#####..",
       "############",
     ],
-    products: { diesel: { name: "Diesel", price: 0 } },
+    products: { lead: { name: "Lead", price: 0 } },
     jetties: {
-      N: { kind: "load", product: "diesel", parcel: 2, tank: { start: 12, rate: 0, cap: 12 } },
-      F: { kind: "load", product: "diesel", parcel: 2, tank: { start: 10, rate: 2, cap: 20 } },
+      N: { kind: "load", product: "lead", parcel: 2, tank: { start: 12, rate: 0, cap: 12 } },
+      F: { kind: "load", product: "lead", parcel: 2, tank: { start: 10, rate: 2, cap: 20 } },
       D: { kind: "discharge", parcel: 2 },
     },
     fleet: { coaster: 2, handy: 1 }, target: 40, deadline: 100, maxCycles: 600,
@@ -179,22 +180,22 @@ export const LEVELS = [
   {
     id: "trickle", name: "Trickle",                    // found by the level lab
     chapter: "nwe", teaches: "cheap and slow, or dear and fast",
-    brief: "G, beside the customer (D), sells oil at $1k a unit, one a lift, but its tank fills only half a unit an hour. L, down the channel, sells at $2k, four a lift. The customer takes four an hour. Thirty units.",
+    brief: "Bog iron (B), beside the smithy (D), costs 1 an ingot, one a lift, but its yard gains half an ingot an hour. L, down the channel, costs 2: four a lift. Thirty ingots.",
     map: [
       "######",
       "######",
       "###.D#",
-      "##.G##",
+      "##.B##",
       "#..###",
       "#.####",
       "#L####",
       "######",
     ],
-    products: { oil: { name: "Oil", price: 2 }, cheap: { name: "Oil, cheaper", price: 1 } },
+    products: { iron: { name: "Iron", price: 2 }, cheap: { name: "Bog iron", price: 1 } },
     jetties: {
-      L: { kind: "load", product: "oil", parcel: 4 },
+      L: { kind: "load", product: "iron", parcel: 4 },
       D: { kind: "discharge", parcel: 4 },
-      G: { kind: "load", product: "cheap", parcel: 1, tank: { start: 0, rate: 0.5, cap: 10 } },
+      B: { kind: "load", product: "cheap", parcel: 1, tank: { start: 0, rate: 0.5, cap: 10 } },
     },
     fleet: { coaster: 3, handy: 1 }, target: 30, maxCycles: 500,
     par: { cost: 52, hours: 35, water: 2, instructions: 4 },
@@ -212,21 +213,21 @@ export const LEVELS = [
     ],
   },
   {
-    id: "blend-wall", name: "Blend wall",
+    id: "blend-wall", name: "Pewter stamp",                 // it was Blend wall: E10, at most 10% ethanol
     chapter: "nwe", teaches: "a ceiling that pays",
-    brief: "E10: the customer (D) takes gasoline with at most 10% ethanol. G: gasoline, three units a lift at $2k each. E: ethanol up the creek, a unit a lift, and its tickets pay $4k a unit. Thirty units.",
+    brief: "The pewterers' stamp (D): at most 10% lead. T: tin, three a lift at 2 marks. P: lead up the creek, one a lift, and its premium pays 4 an ingot. Thirty ingots.",
     map: [
       "#########",
-      "###..G.##",
+      "###..T.##",
       "###.###.#",
-      "E.....D##",
+      "P.....D##",
       "#########",
     ],
-    products: { gasoline: { name: "Gasoline", price: 2 }, ethanol: { name: "Ethanol", price: -4 } },
+    products: { tin: { name: "Tin", price: 2 }, lead: { name: "Lead", price: -4 } },
     jetties: {
-      G: { kind: "load", product: "gasoline", parcel: 3 },
-      E: { kind: "load", product: "ethanol", parcel: 1 },
-      D: { kind: "discharge", parcel: 2, spec: { ethanol: [0, 0.1] } },
+      T: { kind: "load", product: "tin", parcel: 3 },
+      P: { kind: "load", product: "lead", parcel: 1 },
+      D: { kind: "discharge", parcel: 2, spec: { lead: [0, 0.1] } },
     },
     fleet: { coaster: 2, handy: 1 }, target: 30, maxCycles: 400,
     par: { cost: 72, hours: 34, water: 10, instructions: 6 },
@@ -247,20 +248,20 @@ export const LEVELS = [
   {
     id: "heels", name: "Heels",
     chapter: "nwe", teaches: "what stays aboard",
-    brief: "Two customers, two grades: A takes pure diesel, B at least 30% FAME, twelve units each. G: diesel, two units a lift at $1k each. F: FAME, two at $3k. A discharge leaves the rest aboard.",
+    brief: "A takes pure copper, B brass (at least 30% calamine), twelve ingots each. C: copper, two a lift at 1. Z: calamine, two at 3. A discharge leaves the rest aboard.",
     map: [
       "#########",
       "###..A.##",
-      "###G###F#",
+      "###C###Z#",
       "###..B.##",
       "#########",
     ],
-    products: { diesel: { name: "Diesel", price: 1 }, fame: { name: "FAME", price: 3 } },
+    products: { copper: { name: "Copper", price: 1 }, calamine: { name: "Calamine", price: 3 } },
     jetties: {
-      G: { kind: "load", product: "diesel", parcel: 2 },
-      F: { kind: "load", product: "fame", parcel: 2 },
-      A: { kind: "discharge", parcel: 2, spec: { fame: [0, 0] }, target: 12 },
-      B: { kind: "discharge", parcel: 2, spec: { fame: [0.3, 1] }, target: 12 },
+      C: { kind: "load", product: "copper", parcel: 2 },
+      Z: { kind: "load", product: "calamine", parcel: 2 },
+      A: { kind: "discharge", parcel: 2, spec: { calamine: [0, 0] }, target: 12 },
+      B: { kind: "discharge", parcel: 2, spec: { calamine: [0.3, 1] }, target: 12 },
     },
     fleet: { coaster: 2, handy: 1 }, target: 24, maxCycles: 400,
     par: { cost: 62, hours: 24, water: 10, instructions: 11 },
@@ -278,7 +279,7 @@ export const LEVELS = [
   {
     id: "roundabout", name: "Roundabout",              // found by the level lab
     chapter: "straits", teaches: "ships sharing one route",
-    brief: "Both berths are dead ends off a ring round a little island: the refinery (L) to the east, the customer (D) to the west, taking four units an hour. Sixteen units.",
+    brief: "Both berths are dead ends off a ring round a little island: the smelter (L) to the east, the founder (D) to the west, taking four ingots an hour. Sixteen ingots.",
     map: [
       "#######",
       "##...##",
@@ -286,9 +287,9 @@ export const LEVELS = [
       "#D..###",
       "#######",
     ],
-    products: { oil: { name: "Oil", price: 0 } },
+    products: { copper: { name: "Copper", price: 0 } },
     jetties: {
-      L: { kind: "load", product: "oil", parcel: 2 },
+      L: { kind: "load", product: "copper", parcel: 2 },
       D: { kind: "discharge", parcel: 4 },
     },
     fleet: { coaster: 3 }, target: 16, maxCycles: 500,
@@ -305,9 +306,9 @@ export const LEVELS = [
     ],
   },
   {
-    id: "queue", name: "Queue",                              // drawn in the level lab
+    id: "queue", name: "Toll queue",                              // drawn in the level lab
     chapter: "straits", teaches: "holding at a slow berth",
-    brief: "The refinery (L) fills a ship a unit an hour; the customer (D) takes four. One channel joins them, with room to pass halfway and a little basin at each end. Twenty-four units.",
+    brief: "The ironworks (L) lifts an ingot an hour; the toll quay (D) takes four. One channel joins them, with room to pass halfway and a basin at each end. Twenty-four ingots.",
     map: [
       "#..#####",
       "..L#####",
@@ -320,9 +321,9 @@ export const LEVELS = [
       "######..",
       "########",
     ],
-    products: { oil: { name: "Oil", price: 0 } },
+    products: { iron: { name: "Iron", price: 0 } },
     jetties: {
-      L: { kind: "load", product: "oil", parcel: 1 },
+      L: { kind: "load", product: "iron", parcel: 1 },
       D: { kind: "discharge", parcel: 4 },
     },
     fleet: { coaster: 4 }, target: 24, maxCycles: 600,
@@ -344,7 +345,7 @@ export const LEVELS = [
   {
     id: "passing-places", name: "Passing places",                 // drawn in the level lab
     chapter: "straits", teaches: "stepping aside to pass",
-    brief: "One channel from the refinery (L) to the customer (D), with three wider stretches where ships can get by. Twelve units.",
+    brief: "One channel from the smelter (L) to the founder (D), with three wider stretches where ships can get by. Twelve ingots.",
     map: [
       "#L####",
       "#.####",
@@ -356,9 +357,9 @@ export const LEVELS = [
       "####D#",
       "######",
     ],
-    products: { oil: { name: "Oil", price: 0 } },
+    products: { tin: { name: "Tin", price: 0 } },
     jetties: {
-      L: { kind: "load", product: "oil", parcel: 2 },
+      L: { kind: "load", product: "tin", parcel: 2 },
       D: { kind: "discharge", parcel: 2 },
     },
     fleet: { coaster: 3 }, target: 12, maxCycles: 600,
@@ -377,7 +378,7 @@ export const LEVELS = [
   {
     id: "lockstep", name: "Lockstep",                 // drawn in the level lab
     chapter: "straits", teaches: "moving as a pair",
-    brief: "One straight channel from the refinery (L) to the customer (D), with a hex to spare past each. Twelve units.",
+    brief: "One straight channel from the smelter (L) to the founder (D), with a hex to spare past each. Twelve ingots.",
     map: [
       "#.####",
       "#L####",
@@ -389,9 +390,9 @@ export const LEVELS = [
       "####D#",
       "#####.",
     ],
-    products: { oil: { name: "Oil", price: 0 } },
+    products: { lead: { name: "Lead", price: 0 } },
     jetties: {
-      L: { kind: "load", product: "oil", parcel: 2 },
+      L: { kind: "load", product: "lead", parcel: 2 },
       D: { kind: "discharge", parcel: 2 },
     },
     fleet: { coaster: 3 }, target: 12, maxCycles: 600,

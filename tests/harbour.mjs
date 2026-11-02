@@ -1,5 +1,8 @@
 // Harbour: the rules, case by case; the program edits; and every level's reference solutions, which must reach the
 // level's par on each measure (so a change to the rules can't quietly make a level easier, harder or impossible).
+// (The game was one of fuels until November 2026, when it became the Hanseatic metal trade: the toy levels here speak of
+// copper and tin where they spoke of gasoil and FAME, a Cog where a Handy, a Schnigge where a coaster; the ids and the
+// numbers are the same, so these checks are the checks they were.)
 import { start, step, run, score, period, invalid, flatten, total, instructions } from "../harbour-engine.js";
 import * as T from "../harbour-tape.js";
 import { LEVELS, CHAPTERS, program } from "../harbour-levels.js";
@@ -39,39 +42,39 @@ check(invalid({ ...sea, map: ["#...."] }, sol([0, 0, ""])) !== null, "a ship can
 check(invalid(sea, sol([0, 0, ""], [0, 0, ""])) !== null, "two ships can't start on one hex");
 
 // transfers: whole parcels or nothing, and nothing when they can't happen
-const toy = { map: ["L..D"], products: { oil: { name: "Oil", price: 0 } }, jetties: { L: { kind: "load", product: "oil", parcel: 4 }, D: { kind: "discharge", parcel: 4 } },
+const toy = { map: ["L..D"], products: { copper: { name: "Copper", price: 0 } }, jetties: { L: { kind: "load", product: "copper", parcel: 4 }, D: { kind: "discharge", parcel: 4 } },
   fleet: { coaster: 4 }, target: 1, maxCycles: 50 };
 check(hours(toy, sol([3, 0, "D"]), 1).delivered === 0, "discharging an empty ship does nothing");
-check(total(hours(toy, sol([1, 0, "L"]), 1).ships[0].cargo) === 0, "loading off a jetty does nothing");
+check(total(hours(toy, sol([1, 0, "L"]), 1).ships[0].cargo) === 0, "loading off a quay does nothing");
 { const r = run(toy, sol([0, 0, "LAAAD"])); check(r.done === 5 && score(toy, sol([0, 0, "LAAAD"]), r).water === 4, `load, three hexes on, discharge: 5 hours, 4 hexes (${r.done})`); }
 const tankToy = (startLevel, cap = 8) => ({ map: ["L.D"], target: 1, fleet: { coaster: 2 }, maxCycles: 50,
-  products: { diesel: { name: "Diesel", price: 2 } }, jetties: { L: { kind: "load", product: "diesel", parcel: 4, tank: { start: startLevel, rate: 1, cap } }, D: { kind: "discharge", parcel: 4 } } });
+  products: { copper: { name: "Copper", price: 2 } }, jetties: { L: { kind: "load", product: "copper", parcel: 4, tank: { start: startLevel, rate: 1, cap } }, D: { kind: "discharge", parcel: 4 } } });
 {
   const lvl = tankToy(3), s1 = hours(lvl, sol([0, 0, "LL"]), 1), s2 = hours(lvl, sol([0, 0, "LL"]), 2);
-  check(total(s1.ships[0].cargo) === 0 && total(s2.ships[0].cargo) === 4, "a load waits for the whole parcel: three in the tank lifts nothing, four lifts four");
-  check(s2.bought === 8, "product lifted is paid for");
+  check(total(s1.ships[0].cargo) === 0 && total(s2.ships[0].cargo) === 4, "a load waits for the whole parcel: three in the stockpile lifts nothing, four lifts four");
+  check(s2.bought === 8, "metal lifted is paid for");
 }
-{ const s = hours(tankToy(8), sol([0, 0, "LL"]), 2); check(total(s.ships[0].cargo) === 4 && s.tanks.L === 6, `a full ship lifts no more (tank ${s.tanks.L})`); }
-check(hours(tankToy(7), sol([1, 0, " "]), 3).tanks.L === 8, "a refinery waits when its tank is full");
-const blend = { map: ["GFD"], target: 10, fleet: { coaster: 1, handy: 1 }, maxCycles: 30, products: { gasoil: { name: "Gasoil", price: 1 }, fame: { name: "FAME", price: 3 } },
-  jetties: { G: { kind: "load", product: "gasoil", parcel: 2 }, F: { kind: "load", product: "fame", parcel: 1 }, D: { kind: "discharge", parcel: 2, spec: { fame: [0.2, 1] } } } };
+{ const s = hours(tankToy(8), sol([0, 0, "LL"]), 2); check(total(s.ships[0].cargo) === 4 && s.tanks.L === 6, `a full ship lifts no more (stockpile ${s.tanks.L})`); }
+check(hours(tankToy(7), sol([1, 0, " "]), 3).tanks.L === 8, "a smelter waits when its yard is full");
+const blend = { map: ["CTD"], target: 10, fleet: { coaster: 1, handy: 1 }, maxCycles: 30, products: { copper: { name: "Copper", price: 1 }, tin: { name: "Tin", price: 3 } },
+  jetties: { C: { kind: "load", product: "copper", parcel: 2 }, T: { kind: "load", product: "tin", parcel: 1 }, D: { kind: "discharge", parcel: 2, spec: { tin: [0.2, 1] } } } };
 const typed = (type, x, y, p) => ({ ships: [{ x, y, h: 0, type, prog: prog(p) }] });
 {
   const short = hours(blend, typed("coaster", 1, 0, "LAD"), 3);
-  check(total(short.ships[0].cargo) === 1 && short.delivered === 0 && /carries 1, the jetty takes 2/.test(short.events[0]?.why), `less than the jetty's parcel is refused and stays aboard (${short.events[0]?.why})`);
-  const noFame = hours(blend, typed("coaster", 0, 0, "LLAAD"), 5);
-  check(noFame.delivered === 0 && /FAME 0%, needs at least 20%/.test(noFame.events[0]?.why), `a cargo off spec is refused (${noFame.events[0]?.why})`);
+  check(total(short.ships[0].cargo) === 1 && short.delivered === 0 && /carries 1, the quay takes 2/.test(short.events[0]?.why), `less than the quay's parcel is refused and stays aboard (${short.events[0]?.why})`);
+  const noTin = hours(blend, typed("coaster", 0, 0, "LLAAD"), 5);
+  check(noTin.delivered === 0 && /Tin 0%, needs at least 20%/.test(noTin.events[0]?.why), `a cargo below the standard is refused (${noTin.events[0]?.why})`);
   const full = hours(blend, typed("coaster", 0, 0, "LLL"), 3);
-  check(total(full.ships[0].cargo) === 4, "a coaster holds four: a third lift of two doesn't fit");
+  check(total(full.ships[0].cargo) === 4, "a Schnigge holds four: a third lift of two doesn't fit");
   const rich = hours(blend, typed("coaster", 0, 0, "LALLADD"), 7);
-  check(rich.delivered === 4 && total(rich.ships[0].cargo) === 0, "a coaster's best blend on spec here: two gasoil, two FAME, 50%, delivered two an hour");
+  check(rich.delivered === 4 && total(rich.ships[0].cargo) === 0, "a Schnigge's best alloy to the standard here: two copper, two tin, 50%, delivered two an hour");
   const handy = typed("handy", 0, 0, "LLLLALLADDDDD"), h7 = hours(blend, handy, 7), h9 = hours(blend, handy, 9);
-  check(total(h7.ships[0].cargo) === 10 && h7.ships[0].cargo.fame === 2, "a Handy holds ten: eight gasoil, two FAME, exactly 20%");
-  check(h9.delivered === 2 && Math.abs(total(h9.ships[0].cargo) - 8) < 1e-9 && Math.abs(h9.ships[0].cargo.fame - 1.6) < 1e-9, "a discharge takes the jetty's two out of the blend, every product in its share; the rest stays aboard, still 20%");
-  check(run(blend, handy).done === 13 && run(blend, handy).delivered === 10, "five parcels of two, every one on spec: ten delivered");
-  check(invalid(blend, { ships: [{ x: 0, y: 0, h: 0, type: "handy", prog: [] }, { x: 1, y: 0, h: 0, type: "handy", prog: [] }] })?.includes("1 Handy"), "no more of a class than the fleet has");
+  check(total(h7.ships[0].cargo) === 10 && h7.ships[0].cargo.tin === 2, "a Cog holds ten: eight copper, two tin, exactly 20%");
+  check(h9.delivered === 2 && Math.abs(total(h9.ships[0].cargo) - 8) < 1e-9 && Math.abs(h9.ships[0].cargo.tin - 1.6) < 1e-9, "a discharge takes the quay's two out of the alloy, every metal in its share; the rest stays aboard, still 20%");
+  check(run(blend, handy).done === 13 && run(blend, handy).delivered === 10, "five parcels of two, every one up to the standard: ten delivered");
+  check(invalid(blend, { ships: [{ x: 0, y: 0, h: 0, type: "handy", prog: [] }, { x: 1, y: 0, h: 0, type: "handy", prog: [] }] })?.includes("1 Cog"), "no more of a class than the fleet has");
   check(invalid(sea, typed("handy", 0, 0, "")) !== null, "no class the harbour doesn't offer");
-  check(score(blend, { ships: [{ x: 0, y: 0, h: 0, type: "coaster", prog: [] }, { x: 1, y: 0, h: 0, type: "handy", prog: [] }] }, { bought: 0, done: 1, visited: new Set() }).cost === 50, "hire is each ship's class: a coaster $20k, a Handy $30k");
+  check(score(blend, { ships: [{ x: 0, y: 0, h: 0, type: "coaster", prog: [] }, { x: 1, y: 0, h: 0, type: "handy", prog: [] }] }, { bought: 0, done: 1, visited: new Set() }).cost === 50, "hire is each ship's class: a Schnigge 20 marks, a Cog 30");
 }
 check(instructions(sol([0, 0, ["L", { n: 3, body: ["A", null] }, ".", null]])) === 3, "instructions: a loop's body counts once, empty hours not at all");
 
@@ -122,87 +125,87 @@ for (const level of LEVELS) {
   for (const k of Object.keys(level.par)) check(plans.some(p => p.par.includes(k)), `${level.id}: a plan to show for ${k}`);
   check(new Set(level.map.map(r => r.length)).size === 1, `${level.id}: every row of the map is as wide`);
 }
-// around the pars: a coaster's blend is on spec too, and dearer; two ships an hour apart meet at the jetty
+// around the pars: a Schnigge's alloy is up to the standard too, and dearer; two ships an hour apart meet at the quay
 const [L3] = ["first-blend"].map(id => LEVELS.find(l => l.id === id));
-// a coaster's blends, half FAME (four units) or a third (three, its heel topped up every lap), are on spec and dearer
-// than the Handy's exact B20: what the level teaches
+// a Schnigge's alloys, half tin (four ingots) or a third (three, its heel topped up every lap), are up to the standard and
+// dearer than the Cog's exact 20%: what the level teaches
 for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   const coaster = { ships: [{ x: 2, y: 1, h: 0, type: "coaster", prog: program(prog) }] }, r = run(L3, coaster), c = r.done && score(L3, coaster, r).cost;
-  check(r.done && c > L3.par.cost, `level 3: a coaster's blend (${prog}) is on spec and dearer than the Handy's exact B20 ($${c}k against $${L3.par.cost}k)`);
+  check(r.done && c > L3.par.cost, `Bell metal: a Schnigge's alloy (${prog}) is up to the standard and dearer than the Cog's exact 20% (${c} marks against ${L3.par.cost})`);
 }
 { const lead = L1.plans[0].ships[0], flat = flatten(lead.prog), next = hours(L1, { ships: [lead] }, 1).ships[0];
   const close = { ships: [lead, { x: next.x, y: next.y, h: next.h, prog: flat.slice(1).concat(flat.slice(0, 1)) }] };
-  check(run(L1, close).crash?.kind === "collision", "level 1: two ships an hour apart meet at the jetty"); }
-// a delivery window: the Handy alone on the far run takes 117 hours, so Two refineries' 100-hour window stops it there
+  check(run(L1, close).crash?.kind === "collision", "First cargo: two ships an hour apart meet at the quay"); }
+// a delivery window: the Cog alone on the far run takes 117 hours, so Two smelters' 100-hour window stops it there
 { const TR = LEVELS.find(l => l.id === "two-refineries"), handy = { ships: [{ x: 2, y: 3, h: 2, type: "handy", prog: program("DDDDDSSSPAAAAPSSLLLLLSSSPAAAAPSS") }] };
   const r = run(TR, handy);
-  check(!r.done && !r.crash && r.t === TR.deadline, `two refineries: the Handy alone is stopped by the window at hour ${TR.deadline} (${r.t}, ${r.delivered} delivered)`);
-  check(run({ ...TR, deadline: undefined }, handy).done > TR.deadline, "two refineries: without the window, the Handy alone gets there, late"); }
-// each customer its own target: a plan that serves only A never finishes Heels, however much it delivers
+  check(!r.done && !r.crash && r.t === TR.deadline, `two smelters: the Cog alone is stopped by the window at hour ${TR.deadline} (${r.t}, ${r.delivered} delivered)`);
+  check(run({ ...TR, deadline: undefined }, handy).done > TR.deadline, "two smelters: without the window, the Cog alone gets there, late"); }
+// each buyer its own target: a plan that serves only A never finishes Heels, however much it delivers
 { const H = LEVELS.find(l => l.id === "heels"), onlyA = { ships: [{ x: 3, y: 2, h: 2, type: "handy", prog: program("(5L)(2S)A(5D)A(3S)(2A)S") }] };
   const r = run(H, onlyA);
   check(!r.done && r.got.A >= 12 && !r.got.B, `heels: serving only A delivers ${r.got.A} there and never finishes`); }
-// the heel: B30 first leaves FAME aboard, so the pure grade is refused at A
+// the heel: brass first leaves calamine aboard, so the pure copper is refused at A
 { const H = LEVELS.find(l => l.id === "heels"), wrong = { ships: [{ x: 3, y: 2, h: 2, type: "handy", prog: program("(3L)(2S)A.ASL(2S)(3D)(2A)S(2L)(2S)A(3D)ASA(2S)(2A)S") }] };
   let st = start(H, wrong), refused = null;
   for (let t = 0; t < 60 && !refused; t++) { st = step(H, wrong, st); refused = st.events.find(e => e.kind === "refused"); }
-  check(refused && /FAME/i.test(refused.why), `heels: a FAME heel is refused by the pure customer (${refused?.why})`); }
-// the regions, a week at a time: the par run reaches both regions' engines, ARA's lane is what lets the Baltic finish,
-// a region is fed a drop a week for every par met in its chapter's harbours, two drops more a week are worth a star (and
+  check(refused && /Calamine/i.test(refused.why), `heels: a calamine heel is refused by the pure-copper buyer (${refused?.why})`); }
+// the regions, a week at a time: the par run reaches both regions' engines, the Zwin's lane is what lets the Baltic finish,
+// a region is fed an ingot a week for every par met in its chapter's harbours, two ingots more a week are worth a star (and
 // a contract) in the Baltic's first season, and the rules case by case
 { const S = await import("../harbour-season.js");
   const B = S.regionOf("baltic"), A = S.regionOf("ara");
   const { company: C, weeks } = S.parRun();
   check(C.regions.baltic.solved && C.regions.ara.solved, "the par run solves both regions");
-  check(C.regions.baltic.solvedAt === 14 && weeks[13].reports.baltic.solved, `the par run: the Baltic solved in its 14th week, the week after ARA's first cargo lands (${C.regions.baltic.solvedAt})`);
+  check(C.regions.baltic.solvedAt === 14 && weeks[13].reports.baltic.solved, `the par run: the Baltic solved in its 14th week, the week after the Zwin's first cargo lands (${C.regions.baltic.solvedAt})`);
   for (const id of ["baltic", "ara"]) { const e = S.engineOf(C, id, S.PAR.feeds); check(Math.abs(e - S.PAR.engine[id]) < 0.05, `${id}: the par run's engine is the par (${e} against ${S.PAR.engine[id]})`); }
   check(weeks.every(w => Object.values(w.reports).every(r => r.age < 4 || r.star >= 0 || r.event)), "the par run breaks no contract outside an event week");
-  // the Baltic's contracts want more than stars: its harbours' drops or ARA's lane for the medium ones (6 of 12), both
-  // for the long-term ones (8), whatever its stars; and so it runs on its own only with ARA and eight drops
-  check(S.dropsFor(B, B.needs[1]) === 6 && S.dropsFor(B, B.needs[2]) === 8 && !A.needs, "the Baltic's medium contracts want 6 of its harbours' 12 drops or the lane, its long-term ones 8 and the lane; ARA's want stars alone");
+  // the Baltic's contracts want more than stars: its harbours' ingots or the Zwin's lane for the medium ones (6 of 12), both
+  // for the long-term ones (8), whatever its stars; and so it runs on its own only with the Zwin and eight ingots
+  check(S.dropsFor(B, B.needs[1]) === 6 && S.dropsFor(B, B.needs[2]) === 8 && !A.needs, "the Baltic's medium contracts want 6 of its harbours' 12 ingots or the lane, its long-term ones 8 and the lane; the Zwin's want stars alone");
   { const at = (season, stars) => ({ ...S.newRegion(B), age: season * S.WEEKS, stars });
     const takes = (season, id, ctx) => S.accept(B, at(season, 9), id, ctx).held.includes(id);
-    check(!takes(1, "tallinn-1", { feed: 5 }) && takes(1, "tallinn-1", { feed: 6 }) && takes(1, "tallinn-1", { feed: 2, lane: true }), "a medium contract: six drops, or ARA's lane with fewer");
-    check(!takes(2, "tallinn-2", { feed: 12 }) && !takes(2, "tallinn-2", { feed: 7, lane: true }) && takes(2, "tallinn-2", { feed: 8, lane: true }), "a long-term contract: ARA's lane and eight drops, neither alone");
-    check(!S.accept(B, at(1, 1), "tallinn-1", { feed: 12, lane: true }).held.length && S.accept(A, { ...S.newRegion(A), age: 4, stars: 2 }, "rotterdam-1").held.length === 1, "stars still come first; ARA's contracts want nothing more"); }
+    check(!takes(1, "tallinn-1", { feed: 5 }) && takes(1, "tallinn-1", { feed: 6 }) && takes(1, "tallinn-1", { feed: 2, lane: true }), "a medium contract: six ingots, or the Zwin's lane with fewer");
+    check(!takes(2, "tallinn-2", { feed: 12 }) && !takes(2, "tallinn-2", { feed: 7, lane: true }) && takes(2, "tallinn-2", { feed: 8, lane: true }), "a long-term contract: the Zwin's lane and eight ingots, neither alone");
+    check(!S.accept(B, at(1, 1), "tallinn-1", { feed: 12, lane: true }).held.length && S.accept(A, { ...S.newRegion(A), age: 4, stars: 2 }, "rotterdam-1").held.length === 1, "stars still come first; the Zwin's contracts want nothing more"); }
   { const play = (feed, lane = true) => { let c = S.startRegion(S.newCompany(), "baltic");
       const feeds = { ...S.PAR.feeds, baltic: feed };
       for (const w of S.PAR.weeks) { for (const id of ["world", "baltic", "ara"]) for (const a of w[id] || []) if (lane || id !== "world") c = S.act(c, id, a, feeds); c = S.playCompany(c, feeds).company; }
       return { solved: c.regions.baltic.solved, longs: c.regions.baltic.held.filter(h => h.endsWith("-2")).length }; };
     const alone = play(12, false), seven = play(7), eight = play(8);
-    check(!alone.solved && !alone.longs, "without ARA's lane, even on all twelve drops, the Baltic can't take its long-term contracts: never solved");
-    check(!seven.solved && !seven.longs && eight.solved && eight.longs === 3, "with the lane, on seven drops it can't take them either; on eight it takes all three and runs on its own"); }
-  // the long-term contracts held and kept, but no lane cargo landing, or too few drops: not solved, and the week says why
+    check(!alone.solved && !alone.longs, "without the Zwin's lane, even on all twelve ingots, the Baltic can't take its long-term contracts: never solved");
+    check(!seven.solved && !seven.longs && eight.solved && eight.longs === 3, "with the lane, on seven ingots it can't take them either; on eight it takes all three and runs on its own"); }
+  // the long-term contracts held and kept, but no lane cargo landing, or too few ingots: not solved, and the week says why
   { const held = { ...S.newRegion(B), age: 8, cap: 30, tank: 0, ships: 1, held: ["tallinn-2", "tartu-2", "rakvere-2"], placed: { tallinn: ["truck", "truck"], rakvere: ["truck"], tartu: ["train"] } };
     const week = inputs => S.playWeek(B, held, inputs).report;
     const noLane = week({ feed: 12 }), fewDrops = week({ feed: 7, laneIn: 8 }), both = week({ feed: 8, laneIn: 8 });
     check(noLane.star === 1 && !noLane.solved && noLane.short.join() === "lane" && !fewDrops.solved && fewDrops.short.join() === "drops" && both.solved,
-      `kept with no lane cargo landing, or on seven drops: not running on its own, and the week says what it's short of (${noLane.short}; ${fewDrops.short}); with both, it runs`); }
-  // net a week, not a balance: a region keeps no running total; rented tank costs its rent every week, and the par's
-  // room is the right size, a tank more only rent and stock, a tank fewer short of its contracts
+      `kept with no lane cargo landing, or on seven ingots: not running on its own, and the week says what it's short of (${noLane.short}; ${fewDrops.short}); with both, it runs`); }
+  // net a week, not a balance: a region keeps no running total; rented room costs its rent every week, and the par's
+  // room is the right size, a room more only rent and stock, a room fewer short of its contracts
   { check(!("coins" in S.newRegion(B)), "a region keeps no running balance, only each week's net");
     // steady: a region's net a week over two seasons' offers, once a change of room has settled (its stock drawn down
     // or filled), from where the par run ends
     const steady = (k, d) => { let c = JSON.parse(JSON.stringify(C)), sum = 0; const r = c.regions[k]; r.cap += d; r.tank = Math.min(r.tank, r.cap);
       for (let w = 0; w < 12; w++) { const out = S.playCompany(c, S.PAR.feeds); c = out.company; if (w >= 4) sum += out.reports[k].net; } return Math.round(sum / 8 * 10) / 10; };
     for (const k of ["baltic", "ara"]) { const [fewer, par, more] = [-6, 0, 6].map(d => steady(k, d));
-      check(par > fewer && par > more, `${k}: the par's room, ${C.regions[k].cap}, is the best size: ${par} a week, a tank fewer ${fewer}, a tank more ${more}`); }
+      check(par > fewer && par > more, `${k}: the par's room, ${C.regions[k].cap}, is the best size: ${par} a week, a room fewer ${fewer}, a room more ${more}`); }
     const r = { ...S.newRegion(B), cap: 24 }, out = S.playWeek(B, r, {}).report;
-    check(S.tanksOf(B, r) === 2 && out.rent === 6 && out.net === -6, "two rented tanks cost 6 a week, whatever comes in");
-    check(S.unrent(B, { ...r, tank: 18 }).cap === 18 && S.unrent(B, { ...r, tank: 19 }).cap === 24 && S.unrent(B, S.newRegion(B)).cap === 12, "a tank goes back when what's in the terminal fits without it, and only a rented one"); }
-  // the feed: a drop a week for every par met in the region's own chapter's harbours, and no other's
+    check(S.tanksOf(B, r) === 2 && out.rent === 6 && out.net === -6, "two rented rooms cost 6 a week, whatever comes in");
+    check(S.unrent(B, { ...r, tank: 18 }).cap === 18 && S.unrent(B, { ...r, tank: 19 }).cap === 24 && S.unrent(B, S.newRegion(B)).cap === 12, "a room goes back when what's in the warehouse fits without it, and only a rented one"); }
+  // the feed: an ingot a week for every par met in the region's own chapter's harbours, and no other's
   { const chapterOf = id => LEVELS.find(l => l.id === id).chapter, drops = { "first-cargo": 2, "up-the-creek": 3, rundown: 3, "first-blend": 4, "two-refineries": 3, trickle: 1, roundabout: 4 };
     check(S.REGIONS.every(R => R.feed.levels.length && R.feed.levels.join() === LEVELS.filter(l => l.chapter === R.chapter).map(l => l.id).join()), "each region is fed by its own chapter's harbours, all of them");
     check(S.feedOf(B, id => drops[id]) === 8 && S.feedOf(A, id => drops[id]) === 8 && S.feedOf(B, () => 0) === 0 && S.feedOf(B, () => 4) === 12 && S.feedOf(A, () => 4) === 20,
-      "a drop a week for every par met: the Baltic's 2 + 3 + 3 feed 8, ARA's 4 + 3 + 1 feed 8 (the Straits' drops feed neither); none, nothing; every par, 12 and 20"); }
+      "an ingot a week for every par met: the Baltic's 2 + 3 + 3 feed 8, the Zwin's 4 + 3 + 1 feed 8 (the Sound's ingots feed neither); none, nothing; every par, 12 and 20"); }
   { const stars = feed => { let c = S.startRegion(S.newCompany(), "baltic"); for (const w of S.PAR.weeks.slice(0, 4)) { for (const a of w.baltic || []) c = S.act(c, "baltic", a); c = S.playCompany(c, { baltic: feed }).company; } return c.regions.baltic.stars; };
-    check(stars(8) === 3 && stars(6) === 2, `the first season: ★${stars(8)} on eight drops a week, ★${stars(6)} on six (Rakvere's contract wants ★3)`); }
+    check(stars(8) === 3 && stars(6) === 2, `the first season: ★${stars(8)} on eight ingots a week, ★${stars(6)} on six (Wesenberg's contract wants ★3)`); }
   // the rules, case by case
   let s = S.newRegion(B);
   check(S.pick(B, S.pick(B, s, "truck"), "tank") === S.pick(B, s, "truck") || S.pick(B, S.pick(B, s, "truck"), "tank").pool.truck === 2 && S.pick(B, S.pick(B, s, "truck"), "tank").cap === 12, "one offer a week");
   check(S.pick(B, s, "ship") === s, "only this week's offers can be taken");
   { const full = { ...S.newRegion(B), tank: 12 }, out = S.playWeek(B, full, { feed: 8 }).report;
-    check(out.arrived.feed === 0 && out.turned === 8 && out.net === 0, `a full tank turns the plant away and pays nothing for it (${JSON.stringify(out.arrived)}, ${out.net})`); }
+    check(out.arrived.feed === 0 && out.turned === 8 && out.net === 0, `a full warehouse turns the smelter away and pays nothing for it (${JSON.stringify(out.arrived)}, ${out.net})`); }
   { let r = S.newRegion(B); r.stars = 3; r.age = 4; r = S.accept(B, r, "tallinn-1", { feed: 8 });
     const out = S.playWeek(B, r, { feed: 8 });
     check(out.report.towns.tallinn.got === 0 && out.report.star === -1 && out.state.stars === 2, "a contract left short (no vehicle on the road) costs a star");
@@ -212,13 +215,13 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
     const room = x => ({ ...x, regions: { ...x.regions, baltic: { ...x.regions.baltic, tank: 0 } } });
     const w1 = S.playCompany(c, { ara: 7 }), w2 = S.playCompany(room(w1.company), { ara: 7 });
     check(w1.reports.ara.exported > 0 && !w1.reports.baltic.arrived.lane && w2.reports.baltic.arrived.lane === w1.reports.ara.exported, `a lane's cargo loads one week and lands the next (${w1.reports.ara.exported} loaded, ${w2.reports.baltic.arrived.lane} landed)`);
-    const w2full = S.playCompany(w1.company, { ara: 7 });       // the Baltic's tank, six in twelve: room for six
-    check(w2full.reports.baltic.arrived.lane === 6 && w2full.reports.ara.exported === 6 && w2full.company.lanes["ara-baltic"].aboard === 8, "lane cargo that doesn't fit waits aboard, and the MR loads only what it has room for");
+    const w2full = S.playCompany(w1.company, { ara: 7 });       // the Baltic's warehouse, six in twelve: room for six
+    check(w2full.reports.baltic.arrived.lane === 6 && w2full.reports.ara.exported === 6 && w2full.company.lanes["ara-baltic"].aboard === 8, "lane cargo that doesn't fit waits aboard, and the hulk loads only what it has room for");
     check(w1.company.regions.baltic.age === 1 && w1.company.regions.ara.age === 1 && w1.company.week === 1, "a company week plays every region started"); }
   check(!S.playCompany(S.startRegion(S.newCompany(), "baltic"), {}).company.regions.ara, "a region not opened yet doesn't run");
-  check(S.setMRs(S.startRegion(S.newCompany(), "baltic"), "ara-baltic", 1).lanes["ara-baltic"].mrs === 0, "no MR on a lane until both its ends run"); }
-// the campaign: a new player meets one level; each finish opens the next; the regions, North-West Europe, the world and
-// the Straits open when they should; Continue passes over the Baltic while it waits on ARA
+  check(S.setMRs(S.startRegion(S.newCompany(), "baltic"), "ara-baltic", 1).lanes["ara-baltic"].mrs === 0, "no hulk on a lane until both its ends run"); }
+// the campaign: a new player meets one level; each finish opens the next; the regions, Bruges and London, the League and
+// the Sound open when they should; Continue passes over the Baltic while it waits on the Zwin
 { const K = await import("../harbour-campaign.js"), S = await import("../harbour-season.js");
   const run = S.parRun(), f = (done, company = S.newCompany()) => ({ finished: id => done.includes(id), company });
   const open = x => K.STEPS.filter(s => K.isOpen(s, x)).map(s => s.id);
@@ -227,13 +230,13 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   check(open(f([])).join() === "first-cargo" && K.continueTo(f([])) === "first-cargo" && K.chaptersShown(f([])).length === 1, "a new player meets First cargo alone");
   check(open(f(["first-cargo", "up-the-creek", "rundown"])).includes("region:baltic") && !open(f(["first-cargo", "up-the-creek"])).includes("region:baltic"), "the Baltic opens with Rundown finished");
   const harbours = ["first-cargo", "up-the-creek", "rundown"];
-  check(!open(f(harbours, run.weeks[6].after)).includes("first-blend") && open(f(harbours, run.weeks[7].after)).includes("first-blend"), "North-West Europe opens when the Baltic reaches its long-term contracts");
+  check(!open(f(harbours, run.weeks[6].after)).includes("first-blend") && open(f(harbours, run.weeks[7].after)).includes("first-blend"), "Bruges and London open when the Baltic reaches its long-term contracts");
   const nwe = [...harbours, "first-blend", "two-refineries"];
   check(["region:ara", "world", "trickle"].every(id => open(f(nwe, run.weeks[8].after)).includes(id)) && K.continueTo(f(nwe, run.weeks[8].after)) === "region:ara", "ARA, the world and Trickle open with Two refineries; Continue goes to ARA, not the waiting Baltic");
   check(K.continueTo(f(nwe, run.weeks[12].after)) === "region:baltic", "with the lane running, Continue goes back to the Baltic");
-  check(!open(f(nwe, run.weeks[12].after)).includes("roundabout") && open(f(nwe, run.weeks[13].after)).includes("roundabout"), "the Straits open when the Baltic runs on its own");
+  check(!open(f(nwe, run.weeks[12].after)).includes("roundabout") && open(f(nwe, run.weeks[13].after)).includes("roundabout"), "the Sound opens when the Baltic runs on its own");
   check(/^Finish Up the creek$/.test(K.lockedWhy(K.stepOf("rundown"))) && /the Baltic/.test(K.lockedWhy(K.stepOf("first-blend"))), "a locked step says why");
-  // drops: a par met is one; the plan that met it is kept, and only a better one on that measure replaces it
+  // ingots: a par met is one; the plan that met it is kept, and only a better one on that measure replaces it
   const R3 = LEVELS.find(l => l.id === "rundown"), par = R3.par;
   check(K.parsMet(R3, {}).length === 0 && K.parsMet(R3, { ...par }).join() === "cost,hours,water,instructions" && K.parsMet(R3, { cost: par.cost, hours: par.hours + 1 }).join() === "cost", "a par met is a drop: at par or under, each measure on its own");
   const shipsA = [{ x: 1, y: 1, h: 0, prog: ["A"] }], shipsB = [{ x: 2, y: 2, h: 0, prog: ["L"] }];
@@ -245,7 +248,7 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   check(K.keepPlans(k2, { cost: par.cost + 1, hours: par.hours + 1, water: par.water, instructions: par.instructions }, par, shipsA) === k2, "a run that does no better keeps nothing new");
   // the menu's glimpse of the chapter ahead, and what opens it
   const ahead = x => { const c = K.nextChapter(x); return c && `${c.id}: ${c.why}`; };
-  check(ahead(f([])) === "nwe: when the Baltic reaches its long-term contracts" && ahead(f(harbours, run.weeks[7].after)) === "world: when you finish Two refineries"
+  check(ahead(f([])) === "nwe: when the Baltic reaches its long-term contracts" && ahead(f(harbours, run.weeks[7].after)) === "world: when you finish Two smelters"
     && ahead(f(nwe, run.weeks[8].after)) === "straits: when the Baltic runs on its own" && ahead(f(nwe, run.weeks[13].after)) === null, `the chapter ahead, and what opens it (${ahead(f([]))})`); }
 console.log(bad ? `${bad} FAILED` : `harbour: rules, tape, ${LEVELS.length} levels' pars, the regions' engines and the campaign hold`);
 process.exitCode = bad ? 1 : 0;

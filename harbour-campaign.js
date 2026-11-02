@@ -1,8 +1,9 @@
 // Harbour's campaign: what opens what, so a new player meets the game a piece at a time. A level opens when the one
-// before it is finished; a region when its chapter's first harbours are (Rundown for the Baltic, Two refineries for
-// ARA); North-West Europe when the Baltic reaches its long-term contracts, which need more diesel than ORLEN can spare
-// (so you build a terminal in ARA); the world with ARA, the second region; the Straits once the Baltic runs on its own.
-// And what a level has earned: its drops, and the plans that earned them. Pure: the page tells it what's finished.
+// before it is finished; a region when its chapter's first harbours are (Casting for the Baltic, Two smelters for the
+// Zwin); Bruges and London when the Baltic reaches its long-term contracts, which need more tin than Falun can spare
+// (so you build a warehouse on the Zwin); the League with the Zwin, the second region; the Sound once the Baltic runs on
+// its own. And what a level has earned: its ingots (a par met), and the plans that earned them. Pure: the page tells it
+// what's finished.
 import { LEVELS, CHAPTERS } from "./harbour-levels.js";
 import { REGIONS, LANES, seasonOf } from "./harbour-season.js";
 
@@ -33,7 +34,7 @@ export function chapterOf(id) {
 }
 /** A step's name as the picker and the menu show it. */
 export function nameOf(id) {
-  if (id === "world") return "The world";
+  if (id === "world") return "The League";
   const r = regionId(id);
   return r ? REGIONS.find(x => x.id === r).name : LEVELS.find(l => l.id === id).name;
 }
@@ -47,7 +48,7 @@ export function isOpen(step, f) {
   if (step.solved) return !!regionState(f, step.solved)?.solved;
   return true;
 }
-/** Whether a step is done: a level finished, a region solved, the world joined up by a lane with an MR on it. */
+/** Whether a step is done: a level finished, a region solved, the League joined up by a lane with a hulk on it. */
 export function isDone(step, f) {
   if (step.id === "world") return LANES.some(l => f.company?.lanes?.[l.id]?.mrs > 0);
   const r = regionId(step.id);
@@ -62,7 +63,7 @@ export function lockedWhy(step) {
   return "";
 }
 /** A region that can't get further until something else is done: the Baltic in its long-term season, with no lane
- *  bringing it ARA's diesel (its contracts there need more than the plant and ORLEN). */
+ *  bringing it the Zwin's tin (its contracts there need more than the smelter and Falun). */
 function waiting(step, f) {
   const r = regionId(step.id), s = r && regionState(f, r);
   if (!s || s.solved || seasonOf(s) < 2) return false;
@@ -91,11 +92,12 @@ export function nextChapter(f) {
 export const openedSince = (before, f) => STEPS.filter(s => isOpen(s, f) && !before.has(s.id)).map(s => s.id);
 export const openSet = f => new Set(STEPS.filter(s => isOpen(s, f)).map(s => s.id));
 
-// ---------- drops ----------
-// A par met on a level is a drop, and a drop a week for the region its chapter feeds (harbour-season.js). The plan that
-// met it is kept, to watch again and take back; short of a par, a level keeps only your plan as you left it.
+// ---------- ingots ----------
+// A par met on a level is an ingot, and an ingot a week for the region its chapter feeds (harbour-season.js). The plan
+// that met it is kept, to watch again and take back; short of a par, a level keeps only your plan as you left it.
+// (The code still says drops: it was a drop of fuel before it was an ingot.)
 const MEASURES = ["cost", "hours", "water", "instructions"];
-/** The pars a level's bests meet, by measure: its drops. */
+/** The pars a level's bests meet, by measure: its ingots. */
 export const parsMet = (level, best) => MEASURES.filter(k => best?.[k] != null && level.par?.[k] != null && best[k] <= level.par[k]);
 /** A level's kept plans after a finished run (sc its score, ships its plan): for each measure met at par, the run's plan
  *  is kept if none is yet or it does better there ({ measure: { v, ships } }); the same object if nothing changed. */
