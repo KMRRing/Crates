@@ -49,13 +49,14 @@ check(a.length === E.PER_SET && JSON.stringify(a) === JSON.stringify(b) && JSON.
   const noArt = seeds.map(seed => E.pickMixed(seed, QUOTES, E.topicsDealt(off("art"))));
   check(!E.topicsOf(off("art")).art && E.topicsOf(off("art")).wine === 1 && noArt.every(s => s.length === E.PER_SET && !has(s, "art") && new Set(s.map(q => q.id)).size === s.length)
     && noArt.some((s, i) => !same(s, E.pickSet(seeds[i], QUOTES))), "Art & architecture off: no art, still ten, and the deal is not Balanced's");
-  check(cats(E.topicsOf(off("geo"))) === "trade,cities,wine,art,people,markets,refining" && cats(E.topicsOf(off("food"))) === "trade,cities,art,people,geo,markets,refining,scale"
-    && same(E.topicsOf(off("sport")), E.topicsOf(on)), "Geography off takes geography and scale, Food & drink takes wine, Sport (none of Quote's) takes nothing");
-  check(cats(E.topicsOf(preset("culture"))) === "wine,art,people" && cats(E.topicsOf(preset("stem"))) === "refining" && cats(E.topicsOf(preset("trade"))) === "trade,markets,refining",
+  check(cats(E.topicsOf(off("geo"))) === "trade,cities,wine,art,people,markets,refining,scale" && cats(E.topicsOf(off("food"))) === "trade,cities,art,people,geo,markets,refining,scale"
+    && same(E.topicsOf(off("sport")), E.topicsOf(on)), "Geography off takes geography, Food & drink takes wine, Sport (none of Quote's) takes nothing");
+  check(cats(E.topicsOf(preset("culture"))) === "wine,art,people" && cats(E.topicsOf(preset("stem"))) === "refining,scale" && cats(E.topicsOf(preset("trade"))) === "trade,markets,refining",
     `the presets: Culture deals ${cats(E.topicsOf(preset("culture")))}, STEM ${cats(E.topicsOf(preset("stem")))}, Trade ${cats(E.topicsOf(preset("trade")))}`);
-  const one = E.pickMixed(5, QUOTES, E.topicsDealt(preset("stem")));
-  check(one.length === E.PER_SET && one.every(q => q.cat === "refining") && E.focusOf(E.topicsOf(preset("stem"))) === "refining" && E.focusOf(E.topicsOf(on)) === null,
-    "one category left (STEM): all ten from it, a set with a best of its own");
+  const artOnly = Tp.cleanSubjects(Object.fromEntries(Tp.SUBJECTS.map(s => [s.id, s.id === "art" ? 1 : 0])));
+  const one = E.pickMixed(5, QUOTES, E.topicsDealt(artOnly));
+  check(one.length === E.PER_SET && one.every(q => q.cat === "art") && E.focusOf(E.topicsOf(artOnly)) === "art" && E.focusOf(E.topicsOf(on)) === null,
+    "one category left (Art alone): all ten from it, a set with a best of its own");
   // nothing on: no topic in, so the page deals every topic (Balanced) and says so
   check(!E.TOPICS.some(([id]) => E.topicsOf(nothing)[id]) && same(E.topicsDealt(nothing), E.TOPIC_PRESETS.balanced.topics) && seeds.every(seed => same(E.pickMixed(seed, QUOTES, E.topicsDealt(nothing)), E.pickSet(seed, QUOTES)))
     && !E.TOPICS.some(([id]) => E.topicsOf(Tp.cleanSubjects({ ...Tp.SUBJECT_PRESETS.none.topics, sport: 1 }))[id]) && same(E.topicsDealt(Tp.cleanSubjects({ ...Tp.SUBJECT_PRESETS.none.topics, sport: 1 })), E.topicsDealt(on)),

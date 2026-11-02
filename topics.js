@@ -119,7 +119,7 @@ export const TOPIC_OF = {
     hist: "hist", cult: "cult", screen: "screen", style: "style", sport: "sport", ppl: "ppl", sci: "sci", lang: "lang",
     orig: "geo", prod: "trade", uses: "sci", spec: "sci", mkts: "fin", logi: "trade", reg: "pol", firm: "co", past: "hist", life: "lang",
   },
-  quote: { trade: "trade", cities: "cities", wine: "food", art: "art", people: "ppl", geo: "geo", markets: "fin", refining: "nrg", scale: "geo" },
+  quote: { trade: "trade", cities: "cities", wine: "food", art: "art", people: "ppl", geo: "geo", markets: "fin", refining: "nrg", scale: "sci" },
   chart: { cities: "cities", countries: "geo", trade: "trade", geo: "geo", physical: "nat", art: "art", museums: "art", architecture: "art", myth: "cult",
     history: "hist", people: "ppl", wine: "food", local: "geo" },
   lots: { wp: "lang", ph: "lang", mn: "lang", th: "lang", mk: "fin", sc: "sci", pl: "geo", cu: "cult", sp: "sport", fd: "food" },
