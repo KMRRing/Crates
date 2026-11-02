@@ -144,6 +144,39 @@ const boards = [], timings = [];
   check(!!b && on.filter(w => w.topics.some(t => trade[t] > 0)).length >= on.length - 1, "a mix of topics deals its topics' words, the others only if the theme needs them to fill a board");
 }
 
+// ---------- the suite's one set of topics: a board is dealt from the mix the subjects that are on make ----------
+{
+  const TG = await import("../topics.js");
+  const subjects = preset => TG.cleanSubjects(TG.SUBJECT_PRESETS[preset].topics);
+  const only = id => TG.cleanSubjects({ ...TG.SUBJECT_PRESETS.none.topics, [id]: 1 });
+  const balanced = Object.fromEntries(E.TOPIC_LIST.map(([id]) => [id, 1]));
+  check(same(E.topicsOf(subjects("all")), balanced) && same(E.topicsOf(TG.cleanSubjects(null)), balanced), "every subject on is the old Balanced: each of Crates' country and commodity topics in once");
+  check(E.dealMix(E.topicsOf(subjects("all"))) === null && E.dealMix(null) === null && E.dealMix(E.topicsOf(subjects("none"))) === null && !!E.dealMix(E.topicsOf(subjects("stem"))),
+    "a deal keeps no mix for all on or none on (every topic), and the mix for any other");
+  // the same deals as the old Balanced (the page kept no mix for it), seed for seed, at every level and shape
+  const cases = [["norway", "easy", "square"], ["coffee", "medium", "hex"], ["zambia", "hard", "square"], ["copper", "medium", "square"], ["brazil", "easy", "hex"]];
+  check(cases.every(([theme, level, shape], i) => {
+    const deal = { seed: 5000 + i, theme, level, shape }, was = makeBoard(deal);
+    return !!was && same(was, makeBoard({ ...deal, mix: E.dealMix(E.topicsOf(subjects("all"))) })) && same(was, makeBoard({ ...deal, mix: balanced }));
+  }), "…and deals the board the Balanced mix dealt: the same deal, the same board");
+  const stem = E.topicsOf(subjects("stem")), allOn = makeBoard({ seed: 77, theme: "norway", level: "medium", shape: "square" });
+  const stemmed = makeBoard({ seed: 77, theme: "norway", level: "medium", shape: "square", mix: stem });
+  const ws = wordsOf(E.themeById("norway")), words = b => b.words.slice(1).map(w => ws.find(x => x.text === w.text));
+  check(!!stemmed && !same(stemmed.letters, allOn.letters) && words(stemmed).filter(w => w.topics.some(t => stem[t] > 0)).length >= stemmed.words.length - 2,
+    "turning subjects off changes the deal: with STEM on a board is of STEM's words, the others only where the theme needs them to fill it");
+  const energy = E.topicsOf(only("nrg")), coal = makeBoard({ seed: 78, theme: "norway", level: "medium", shape: "square", mix: energy });
+  check(!!coal && words(coal).filter(w => w.topics.includes("nrg")).length >= words(makeBoard({ seed: 78, theme: "norway", level: "medium", shape: "square" })).filter(w => w.topics.includes("nrg")).length,
+    "with only Energy on, a board has at least as many energy words as it would with everything on");
+  // nothing on is every topic, whether the page passes it on as nothing (dealMix) or the engine is handed the whole mix of zeros
+  const none = E.topicsOf(subjects("none")), deal = { seed: 6001, theme: "coffee", level: "medium", shape: "square" };
+  check(Object.values(none).every(w => w === 0) && same(makeBoard({ ...deal, mix: none }), makeBoard(deal)) && same(boardFor({ seed: 6002, level: "medium", shape: "square", mix: none }).board, boardFor({ seed: 6002, level: "medium", shape: "square", mix: null }).board),
+    "nothing on is a mix no word fits: the board is the every-topic one, as a theme short of words always took the ones left out");
+  // a link, a saved settings object or a table may carry a mix of the old kind, with a weight of 2, and still deals
+  const { mixParam, mixFromParam } = TG, old = { ...balanced, nrg: 2, met: 0 };
+  check(same(mixFromParam(E.TOPIC_LIST, mixParam(E.TOPIC_LIST, old)), old) && !!makeBoard({ seed: 7001, theme: "norway", level: "medium", shape: "square", mix: mixFromParam(E.TOPIC_LIST, mixParam(E.TOPIC_LIST, old)) }),
+    "a link's mix, weight 2 and topics out among them, is read back whole and deals a board");
+}
+
 // ---------- a run ----------
 {
   const b = makeBoard({ seed: 31337, theme: "coffee", level: "medium", shape: "square" }), run = newRun();

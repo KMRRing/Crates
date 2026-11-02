@@ -7,7 +7,7 @@
 // word, it is the board's own) and the words cover the board in exactly one way. Nothing here reads the clock, a
 // random number of its own or the page.
 import { BANK, GROUPS } from "./core.js";
-import { KB_TOPICS, drawWeighted } from "./topics.js";
+import { KB_TOPICS, TOPIC_OF, drawWeighted, mixFromSubjects, even, anyIn } from "./topics.js";
 import { isWord } from "./wordlist.js";
 import { SPAN } from "./lode-themes.js";
 
@@ -115,6 +115,19 @@ export const LEVELS = {
   hard: { label: "Hard", weight: { 1: 1, 2: 3, 3: 4 }, acronyms: 1, straight: 0, turn: 0.45, reads: "back", lean: 10, title: 3 },
 };
 export const SHAPES = { square: "Square", hex: "Hex" };
+
+/** Crates' topics, a country's and a commodity's in one list: a word's aspects are from either. */
+export const TOPIC_LIST = [...KB_TOPICS.country, ...KB_TOPICS.commodity];
+/**
+ * The mix (`mix` of a deal) the suite's subjects that are on make (topics-on.js: { subject: 0 | 1 }): each topic in at
+ * weight 1, Lode's Balanced, when its subject is on, out when it isn't. A link or an old save may still carry a mix
+ * with a weight of 2, which deals as it did.
+ */
+export const topicsOf = on => mixFromSubjects(TOPIC_LIST, TOPIC_OF.kb, on);
+/** The mix as a deal keeps it: null where it deals as no mix does, with every topic in (the board a deal made before
+ *  there was one set of topics, seed for seed) and with none in (a mix no word fits: every topic, as a theme too short
+ *  of words for a board always took the ones left out). */
+export const dealMix = m => (!m || even(TOPIC_LIST, m) || !anyIn(TOPIC_LIST, m) ? null : m);
 
 /** A mix of topics (KB_TOPICS, out 0, in 1, more 2) as the weight of a word: its likeliest topic's. */
 const topicWeight = (w, mix) => (!mix || !w.topics.length ? 1 : Math.max(...w.topics.map(t => mix[t] ?? 1)));

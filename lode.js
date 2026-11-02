@@ -5,17 +5,19 @@
 // lode-engine.js's, the table lode-table.js's, the drawing and the finger lode-board.js's; this file keeps the run, the
 // clock, the menu and the table. Together (together.js): one board for the table, as a team with the letters shared out
 // (each sees only theirs) or as a race, everyone on their own phone.
-import { CELLS, MIN_WORD, LEVELS, SHAPES, RIVALS, PER_HINT, HINT_COST, SHOW_COST, POOLS, GROUPS, THEMES, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
+import { CELLS, MIN_WORD, LEVELS, SHAPES, RIVALS, PER_HINT, HINT_COST, SHOW_COST, POOLS, GROUPS, THEMES, TOPIC_LIST, topicsOf, dealMix, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
   scoreOf, missesOf, lockedCells, rivalPlan, rivalAt } from "./lode-engine.js";
 import { MODES, isTable, tidy, tidyBoard, freshTable, readable, presentSlots, traceText, tracesOf, submitAt, hintAt, giveUpAt, runOf, beginAt, reportAt,
   botAt, standingsOf, raceOver, newGameAt, resultOf } from "./lode-table.js";
 import { createBoardView } from "./lode-board.js";
 import { BANK } from "./core.js";
-import { KB_TOPICS, KB_PRESETS, cleanMix, presetOf, even, mixParam, mixFromParam } from "./topics.js";
+import { subjectPreset, even, mixParam, mixFromParam } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
+import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, ticks, topicMix, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, ticks, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a watching frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -40,7 +42,6 @@ const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const first = name => String(name || "Player").trim().split(/\s+/)[0];
 
 // ---------- settings: what the next board deals, and how it's shown ----------
-const ALL_TOPICS = [...KB_TOPICS.country, ...KB_TOPICS.commodity];
 const CLUES = { title: "Title", every: "Every word" };
 const ALL_GROUPS = [...GROUPS.country, ...GROUPS.commodity].map(([k]) => k);
 function cleanSettings(s) {
@@ -50,19 +51,25 @@ function cleanSettings(s) {
     clues: CLUES[s?.clues] ? s.clues : "title",
     rival: RIVALS[s?.rival] ? s.rival : "off",
     pool: POOLS[s?.pool] ? s.pool : "mixed",
-    mix: cleanMix(ALL_TOPICS, s?.mix),
     off: Array.isArray(s?.off) ? s.off.filter(k => ALL_GROUPS.includes(k)) : [],
   };
 }
 let settings = cleanSettings(read(SET, {}));
 const saveSettings = () => { if (!IN_FRAME) write(SET, settings); };
 $("pool").value = settings.pool;
-const mixOf = set => (even(ALL_TOPICS, set.mix) ? null : set.mix);
+// The topics are the suite's one set (Settings; topics-on.js), not kept here: read when a board is dealt, never once at
+// start-up, so a change reaches the next board and one already dealt keeps what it was dealt. An old settings object that
+// still carries a mix of its own is read as any other and its mix never used.
+const mixNow = () => dealMix(topicsOf(subjectsOn()));
+/** Whether a board of your own counts for your best: on one of the presets of the topics (All on, Culture, STEM, Trade,
+ *  All off), not a mix of your own. */
+const onPreset = () => subjectPreset(subjectsOn()) !== "custom";
 
 // ---------- the solo board ----------
 // S: { deal ({ seed, theme, level, shape, mix }), mode ("random", "daily" or "link"), day (a daily's), board (the board
 // itself, kept so a reload or a new version never re-deals it), run (the engine's), clues, rival (a level, or null),
-// fresh (a new best), told (the rival's finish was said) }
+// ranked (counts for your best; absent in a run kept before topics were Settings', which did), fresh (a new best),
+// told (the rival's finish was said) }
 let S = null;
 let clockFrom = null, savedAt = 0, paused = false;
 let message = null;                  // { text, tone }: what the line under the board says until the next trace
@@ -299,7 +306,7 @@ function drawResult(ctx) {
   } else {
     const best = read(TIMES, {})[bestKey(S)];
     head = took(r.ms);
-    if (!r.gaveUp) head += S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
+    if (!r.gaveUp && S.ranked !== false) head += S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
     if (S.rival) {
       const end = Math.round(rivalAt(planFor(S), Infinity).at / 1000);
       head += sc < end ? ` ${RIVALS[S.rival].label} took ${fmt(end)}: you win by ${fmt(end - sc)}.` : sc > end ? ` ${RIVALS[S.rival].label} was ${fmt(sc - end)} quicker.` : ` ${RIVALS[S.rival].label} tied.`;
@@ -327,7 +334,9 @@ function recordBest(sc) {
 /** Puts a board on the table: made = { deal, board }. */
 function begin(made, mode, day = null) {
   // today's board is the same for everyone, shown by its title too (a rival changes nothing of its score)
-  S = { deal: made.deal, mode, day, board: made.board, run: newRun(), clues: mode === "daily" ? "title" : settings.clues, rival: settings.rival !== "off" ? settings.rival : null, fresh: false, told: false };
+  // a best is today's board, a linked one that deals every topic, or a random one dealt on a preset of the topics
+  const ranked = mode === "daily" || (mode === "link" ? !made.deal.mix : onPreset());
+  S = { deal: made.deal, mode, day, board: made.board, run: newRun(), clues: mode === "daily" ? "title" : settings.clues, rival: settings.rival !== "off" ? settings.rival : null, ranked, fresh: false, told: false };
   lastFound = null; clueAt = 0; message = null; clockFrom = null;
   view.clear();
   if (mode !== "daily") write(SEEN, [...read(SEEN, []).filter(id => id !== made.deal.theme), made.deal.theme].slice(-30));
@@ -337,12 +346,12 @@ function begin(made, mode, day = null) {
   render();
   setTimeout(dealSpare, 1500);
 }
-const spareKey = s => JSON.stringify([s.level, s.shape, s.pool, s.off, mixOf(s)]);
+const spareKey = s => JSON.stringify([s.level, s.shape, s.pool, s.off, mixNow()]);
 /** A random board for the settings: the one dealt ahead if it's for them, else a new one. Nothing in the regions and
  *  sectors chosen can fill a board: every theme. */
 function dealRandom(set = settings) {
   if (spare?.key === spareKey(set)) { const m = spare.made; spare = null; return m; }
-  const deal = { seed: randomSeed(), level: set.level, shape: set.shape, mix: mixOf(set), pool: set.pool, off: set.off, avoid: read(SEEN, []) };
+  const deal = { seed: randomSeed(), level: set.level, shape: set.shape, mix: mixNow(), pool: set.pool, off: set.off, avoid: read(SEEN, []) };
   return boardFor(deal) || { ...boardFor({ ...deal, pool: "mixed", off: [] }), fell: true };
 }
 /** The next board, dealt while you play this one, so Another board is at once. */
@@ -368,7 +377,7 @@ function confirmStart(mode) {
 function finishSolo() {
   clockPause();
   const sc = scoreOf(S.run);
-  if (!S.run.gaveUp) S.fresh = recordBest(sc);
+  if (!S.run.gaveUp && S.ranked !== false) S.fresh = recordBest(sc);
   if (S.mode === "daily") noteDayTime("lode", sc, S.day);          // today's board: the first finish counts
   learnFrom(S.board, S.run);
   save();
@@ -423,15 +432,15 @@ function watchRival() {
 
 // ---------- links ----------
 function hashFor(s) {
-  const d = s.deal, m = d.mix ? `&m=${mixParam(ALL_TOPICS, d.mix)}` : "";
+  const d = s.deal, m = d.mix ? `&m=${mixParam(TOPIC_LIST, d.mix)}` : "";
   return `#${s.mode === "daily" ? "d" : "s"}=${d.seed}&t=${d.theme}&l=${d.level}&b=${d.shape}${m}`;
 }
 /** The board a link names, or null. */
 function hashDeal() {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("d") || h.get("s")), theme = h.get("t");
   if (!seed || !themeById(theme)) return null;
-  const mix = h.get("m") ? mixFromParam(ALL_TOPICS, h.get("m")) : null;
-  return { seed, theme, level: LEVELS[h.get("l")] ? h.get("l") : "medium", shape: SHAPES[h.get("b")] ? h.get("b") : "square", mix: mix && !even(ALL_TOPICS, mix) ? mix : null, daily: h.has("d") };
+  const mix = h.get("m") ? mixFromParam(TOPIC_LIST, h.get("m")) : null;
+  return { seed, theme, level: LEVELS[h.get("l")] ? h.get("l") : "medium", shape: SHAPES[h.get("b")] ? h.get("b") : "square", mix: mix && !even(TOPIC_LIST, mix) ? mix : null, daily: h.has("d") };
 }
 const sameDeal = (s, d) => !!s && s.deal.seed === d.seed && s.deal.theme === d.theme && s.deal.level === d.level && s.deal.shape === d.shape;
 function startLinked(d) {
@@ -472,7 +481,6 @@ function openWords() {
 
 // ---------- the menu ----------
 let pick = null;                                              // what the menu's New board starts: "random" or "daily"
-const presetsOfKb = Object.fromEntries(Object.entries(KB_PRESETS).map(([k, p]) => [k, { label: p.label, topics: cleanMix(ALL_TOPICS, p.topics) }]));
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -490,21 +498,23 @@ function menuSolo(body) {
     content.append(mirror("Themes", $("pool")));
     content.append(choice("Level", Object.entries(LEVELS).map(([k, L]) => [k, L.label]), settings.level, v => { settings.level = v; saveSettings(); }));
     contentChoices(content);
-  } else content.append(line("Today's board is Medium and square, from every theme: the same for everyone."));
+  } else content.append(line("Today's board is Medium and square, from every theme and topic: the same for everyone."));
   settingsPart(part(body, "settings"));
   if (S && !S.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
   const about = part(body, "about"), times = read(TIMES, {});
   about.append(line(S ? `${LEVELS[S.deal.level].label}, ${SHAPES[S.deal.shape].toLowerCase()}: ${times[bestKey(S)] != null ? `best ${fmt(times[bestKey(S)])}` : "no best yet"}. A hint adds ${HINT_COST} s.` : ""),
     action("Copy a link to this board", copyLink, "link"));
 }
-/** Topics, regions and sectors: what the next random board deals from. */
+/** What the topics line says of them for Lode: a word of a topic left out still comes when a theme can't fill a board
+ *  without it, and a mix of your own isn't ranked. Nothing is said with all on or none on (every topic is dealt). */
+function topicsNote() {
+  const p = subjectPreset(subjectsOn());
+  if (p === "all" || p === "none") return "";
+  return `A left-out topic's words come only when a theme can't fill a board without them${p === "custom" ? ". Your own mix doesn't count for your best" : ""}`;
+}
+/** Topics (Settings', changed in a sheet from here), regions and sectors: what the next random board deals from. */
 function contentChoices(box) {
-  const groups = [];
-  if (settings.pool !== "commodities") groups.push(["Country topics", KB_TOPICS.country]);
-  if (settings.pool !== "countries") groups.push(["Commodity topics", KB_TOPICS.commodity]);
-  box.append(topicMix(ALL_TOPICS, presetsOfKb, settings.mix, v => { settings.mix = cleanMix(ALL_TOPICS, v); saveSettings(); }, {
-    groups, note: m => (presetOf(ALL_TOPICS, presetsOfKb, m) === "custom" ? "A word of topics left out comes only when a theme can't fill a board without it." : ""),
-  }));
+  box.append(...topicsPart(box, topicsNote()));
   const kinds = settings.pool === "mixed" ? ["country", "commodity"] : settings.pool === "countries" ? ["country"] : ["commodity"];
   for (const kind of kinds) {
     const options = GROUPS[kind], label = kind === "country" ? "Regions" : "Sectors";
@@ -561,7 +571,7 @@ function showRules() {
     <p><b>Playing.</b> Drag a finger through a word's letters, or tap them one at a time and tap the last again; slide back to take a letter off, and tap away from the letters to clear. A theme word found turns blue, the mother lode gold, and the line under the board says what links it to the theme. Words lists what you've found, and how long the rest are.</p>
     <p><b>Hints.</b> Any other English word of ${inWords(MIN_WORD)} letters or more counts towards a hint, ${inWords(PER_HINT)} words to a hint, as in Strands: the dots on the Hint button fill as they come. A hint rings the letters of the hardest word still hidden; a second while they're ringed numbers them in order. Each hint adds ${HINT_COST} seconds.</p>
     <p><b>Score.</b> Your time plus the hints' seconds, lower being better. Show the words still hidden, in the menu, ends the board at ${SHOW_COST} seconds a word, more than a hint ever costs. Playing alone, the clock stands still while the menu or these rules are open.</p>
-    <p><b>Levels.</b> Easy deals well-known links whose paths run straight and read rightwards or down; Hard leans on specialists' links, turns its paths and runs them backwards, and doesn't say if the theme is a country or a commodity. The menu also chooses the themes (countries, commodities or both), the topics, and the regions and sectors they come from.</p>
+    <p><b>Levels.</b> Easy deals well-known links whose paths run straight and read rightwards or down; Hard leans on specialists' links, turns its paths and runs them backwards, and doesn't say if the theme is a country or a commodity. The menu also chooses the themes (countries, commodities or both) and the regions and sectors they come from; which topics the words are of is set once for every game, in Settings.</p>
     <p><b>Settings.</b> Board: ${SHAPES.square}, or ${SHAPES.hex}, a honeycomb where each letter touches six. Clues: ${CLUES.title}, or ${CLUES.every}, each word's clue with its length in place of the title, one at a time with the arrows, the mother lode's last. Rival: ${paces} finds the words beside you at a person's pace. They apply from the next board.</p>
     <p><b>Today's board.</b> Medium and square, from every theme, the same for everyone, and a new one at midnight UTC. It counts the moment its last word is found.</p>
     <p><b>Together.</b> As a team, one board with its letters shared out: you see only yours, and a sealed letter is a team mate's, marked with where it is (C4, the third column's fourth letter) so you can ask for it. Anyone traces through any letters, and what you trace shows on the others' boards as it grows. Or a race: the same board on every phone from the same moment, the lowest score winning.</p>`;
