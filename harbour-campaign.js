@@ -1,6 +1,6 @@
 // Harbour's campaign: what opens what, so a new player meets the game a piece at a time. A level opens when the one
 // before it is finished; a region when its chapter's first harbours are (Casting for the Baltic, Two smelters for the
-// Zwin); Bruges and London when the Baltic reaches its long-term contracts, which need more tin than Falun can spare
+// Zwin); Bruges and London when the Baltic reaches its long-term contracts, which need more metal than Falun can spare
 // (so you build a warehouse on the Zwin); the League with the Zwin, the second region; the Sound once the Baltic runs on
 // its own. And what a level has earned: its ingots (a par met), and the plans that earned them. Pure: the page tells it
 // what's finished.

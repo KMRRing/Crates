@@ -1,6 +1,8 @@
-// Harbour: plan every ship's program, then run them all at once, and deliver the cargoes as cheaply, quickly or
-// compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js and the levels in
-// harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs the clock.
+// Harbour: the Hanseatic metal trade. Plan every ship's program, then run them all at once, and deliver the cargoes as
+// cheaply, quickly or compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js
+// and the levels in harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs
+// the clock. (It was a game of fuels until November 2026; the code still says drop for the ingot a par earns, tank for
+// a stockpile and jetty for a quay: the names saved plans and the tests know.)
 import { steer, flatten, neighbour, limitOf, ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, run, score, instructions, classOf, typeOf } from "./harbour-engine.js";
 import { sound } from "./harbour-sound.js";
 import { createFlat, HULL, hullScale } from "./harbour-flat.js";
@@ -23,14 +25,14 @@ const ROWS = 4;                       // program rows always shown, so nothing c
 const SPEED = [420, 110, 28];         // ms an hour takes: 1×, 4×, 16×
 const SPEED_LABELS = ["1×", "4×", "16×"];
 const HOLD = 450;                     // ms: holding a loop's count lowers it
-const MEASURES = [["cost", "Cost", v => `$${v}k`], ["hours", "Hours", v => `${v} h`], ["water", "Water", v => `${v} tiles`], ["instructions", "Instructions", v => `${v} instr`]];
+const MEASURES = [["cost", "Cost", v => `${v} mk`], ["hours", "Hours", v => `${v} h`], ["water", "Water", v => `${v} tiles`], ["instructions", "Instructions", v => `${v} instr`]];
 const REPEAT = [380, 110];            // ms: holding a shift arrow repeats it, after a pause, this often
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
 const svg = body => `<svg viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
-// a drop: a par met, as a run's line, the menu and the bests mark it (the region's board draws its diesel the same way)
-const DROP = '<svg class="hb-drop" viewBox="0 0 10 13" role="img" aria-label="a drop"><path d="M5 .6C6.9 3.6 9 5.9 9 8.6A4 4 0 0 1 1 8.6C1 5.9 3.1 3.6 5 .6Z"/></svg>';
+// an ingot: a par met, as a run's line, the menu and the bests mark it (the region's board draws its metal the same way)
+const DROP = '<svg class="hb-drop" viewBox="0 0 10 13" role="img" aria-label="an ingot"><path d="M2.6 3.4h4.8L10 10.6H0z"/><path class="cut" d="M3.1 5.6h3.8"/></svg>';
 // the steering, drawn as the ship sees it: ahead, a curve to port, a curve to starboard, astern
 const STEERING = { A: "M8 13V3M3.8 7.2 8 3l4.2 4.2", P: "M11 13V9a4 4 0 0 0-4-4H4M6.6 2.4 4 5l2.6 2.6", S: "M5 13V9a4 4 0 0 1 4-4h3M9.4 2.4 12 5l-2.6 2.6", B: "M8 3v10M3.8 8.8 8 13l4.2-4.2" };
 const arrow = op => `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${STEERING[op]}"/></svg>`;
@@ -107,7 +109,7 @@ function load(level) {
   render(true);
   keepUnkept();
 }
-/** A drop earned before plans were kept has none to watch: your plan as it stands is kept for it, if it meets that par. */
+/** An ingot earned before plans were kept has none to watch: your plan as it stands is kept for it, if it meets that par. */
 function keepUnkept() {
   const kept = read(keptKey(), {}), missing = parsMet(L, bests()).filter(k => !kept[k]);
   if (!missing.length || !sol.ships.length) return;
@@ -366,7 +368,7 @@ const over = () => sim.done || sim.crash || sim.t >= limitOf(L);
 /** An hour's sounds: loads, deliveries, refusals, a ship leaving a berth, a crash, the plan done. */
 function hear(before, after) {
   if (!sound.on) return;
-  for (const ev of after.events) { if (ev.kind === "load") sound.pump(); else if (ev.kind === "discharge") sound.chime(); else if (ev.kind === "refused") sound.thud(); }
+  for (const ev of after.events) { if (ev.kind === "load") sound.clank(); else if (ev.kind === "discharge") sound.chime(); else if (ev.kind === "refused") sound.thud(); }
   if (after.ships.some((s, i) => G.jetty(before.ships[i].x, before.ships[i].y) && (s.x !== before.ships[i].x || s.y !== before.ships[i].y))) sound.horn();
   if (after.crash) sound.thud();
   if (after.done && !before.done) sound.done();
@@ -412,10 +414,10 @@ function keepBests() {
   const kept = read(keptKey(), {}), now = keepPlans(kept, sc, L.par, sol.ships);
   if (now !== kept) write(keptKey(), now);
   noteStars("harbour", dropsAll());
-  // what the finish opened (the next level, a region), or the drops it earned and what they feed
+  // what the finish opened (the next level, a region), or the ingots it earned and what they feed
   const opened = progressChanged(), more = parsMet(L, best).length - had, fed = REGIONS.find(R => R.feed.levels.includes(L.id) && company.regions[R.id]);
   if (opened.length) nextOn(`${listOf(opened.map((id, i) => (i ? nameOf(id).replace(/^The /, "the ") : nameOf(id))))} ${opened.length > 1 ? "are" : "is"} open.`, opened.find(id => id.startsWith("region:")) || opened[0]);
-  else if (more > 0 && fed) nextOn(`${more > 1 ? `${more} drops` : "A drop"} for ${fed.name.replace(/^The /, "the ")}: ${fed.feed.name.toLowerCase()} now ${fed.feed.name.endsWith("s") ? "feed" : "feeds"} ${fed.terminal.name} ${feedOf(fed, dropsAt)} a week.`, `region:${fed.id}`);
+  else if (more > 0 && fed) nextOn(`${more > 1 ? `${more} ingots` : "An ingot"} for ${fed.name.replace(/^The /, "the ")}: ${fed.feed.name.replace(/^The /, "the ")} now ${fed.feed.name.endsWith("s") ? "feed" : "feeds"} ${fed.terminal.name} ${feedOf(fed, dropsAt)} a week.`, `region:${fed.id}`);
   roundOver("harbour");
 }
 
@@ -436,7 +438,7 @@ function trailsOf(plan = sol) {
     return pts;
   });
 }
-/** The map (flat or 3D): the ships as planned or as the run has them, the picked one, a crash, the tanks' levels. */
+/** The map (flat or 3D): the ships as planned or as the run has them, the picked one, a crash, the stockpiles' levels. */
 function drawMap(still) {
   // routes while you plan (a run speaks for itself); while a finger draws, the route so far; in draw mode a dot where
   // the picked ship's program leaves it, where its route goes on from
@@ -456,9 +458,9 @@ function classes() {
   $("classes").innerHTML = Object.entries(L.fleet).map(([t, n]) => {
     const c = CLASSES[t], on = (picked || shipType) === t, k = left(t);
     return `<button type="button" class="hb-class${on ? " on" : ""}${k <= 0 ? " out" : ""}" data-type="${t}" aria-pressed="${on}"`
-      + ` aria-label="${c.name}: holds ${c.cap}, hire $${c.cost}k, ${k} of ${n} left">`
+      + ` aria-label="${c.name}: holds ${c.cap}, hire ${c.cost} marks, ${k} of ${n} left">`
       + `<svg viewBox="0 1.5 10 7" aria-hidden="true"><path class="hb-hull" d="${HULL}" transform="${hullScale(t)}"/></svg>`
-      + `<b>${c.name}</b><span>${c.cap} · $${c.cost}k</span><i>×${k}</i></button>`;
+      + `<b>${c.name}</b><span>${c.cap} · ${c.cost} mk</span><i>×${k}</i></button>`;
   }).join("");
 }
 
@@ -532,7 +534,7 @@ function controls() {
   sc.disabled = !sim; sc.max = String(Math.max(1, seen)); sc.value = String(sim ? sim.t : 0);
 }
 
-/** What's delivered: of the target, or, where each customer wants its own, each one's ("A 6/12 · B 4/12"). */
+/** What's delivered: of the target, or, where each buyer wants its own, each one's ("A 6/12 · B 4/12"). */
 function progress(st) {
   const own = Object.entries(L.jetties).filter(([, j]) => j.kind === "discharge" && j.target != null);
   return own.length ? own.map(([k, j]) => `${k} ${+(st.got[k] || 0).toFixed(1)}/${j.target}`).join(" · ") : `${st.delivered} of ${L.target} delivered`;
@@ -551,7 +553,7 @@ function status() {
     : sel >= 0 ? `Draw ship ${sel + 1}'s route on from the dot at the end of its trail.` : "Pick a ship, then draw its route on the map.";
   else if (!sim) text = !n ? "Tap the water to put a ship there."
     : sel >= 0 ? `Ship ${sel + 1}: tap to turn it, drag to move it, onto land to scrap it.`
-    : `${n} ship${n > 1 ? "s" : ""} · loop ${period(sol)} h · ${instructions(sol)} instr · hire $${sol.ships.reduce((m, sh) => m + classOf(L, sh).cost, 0)}k`;
+    : `${n} ship${n > 1 ? "s" : ""} · loop ${period(sol)} h · ${instructions(sol)} instr · hire ${sol.ships.reduce((m, sh) => m + classOf(L, sh).cost, 0)} mk`;
   else if (sim.crash) {
     tone = "bad";
     text = `${crashText(sim.crash)} Tap for the hour before.`;
@@ -562,8 +564,8 @@ function status() {
   } else if (sim.t >= limitOf(L)) { tone = "bad"; text = L.deadline ? `Out of time: ${progress(sim)} in ${L.deadline} hours.` : `Not done after ${L.maxCycles} hours.`; }
   else {
     const no = sim.events.find(e => e.kind === "refused"), tank = Object.entries(sim.tanks)[0];
-    if (no) { tone = "bad"; text = `Hour ${sim.t}: the jetty refused ship ${no.ship + 1}, ${no.why}.`; }
-    else text = `Hour ${sim.t} · ${progress(sim)}${tank ? ` · tank ${tank[1]}/${L.jetties[tank[0]].tank.cap}` : ""}`;
+    if (no) { tone = "bad"; text = `Hour ${sim.t}: the quay refused ship ${no.ship + 1}, ${no.why}.`; }
+    else text = `Hour ${sim.t} · ${progress(sim)}${tank ? ` · stock ${tank[1]}/${L.jetties[tank[0]].tank.cap}` : ""}`;
   }
   const end = frames[seen]?.crash;
   // scrubbed back before a crash: what's coming, and when
@@ -601,7 +603,7 @@ function openMenu() {
   camp.addEventListener("click", e => { const b = e.target.closest("[data-step]"); if (b) { $("menuDlg").close(); goTo(b.dataset.step); } });
   part(body, "content").append(camp);
   const set = part(body, "settings");
-  if (screenOn === SEASON) set.append(action("Start this region over", () => { if (confirm(`Start ${nameOf(shown)} over? Its weeks, vehicles, tanks and contracts all go.`)) SEASON.restart(); }, "link"));
+  if (screenOn === SEASON) set.append(action("Start this region over", () => { if (confirm(`Start ${nameOf(shown)} over? Its weeks, carriers, warehouse space and contracts all go.`)) SEASON.restart(); }, "link"));
   else if (!screenOn) set.append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"));
   set.append(action(sound.on ? "Sound off" : "Sound on", () => { sound.on = !sound.on; write("harbour:sound", sound.on); }, "link"));
   if (!screenOn) set.append(action(mapView.flat ? "Draw the harbour in 3D" : "Draw the harbour flat", async () => {
@@ -634,7 +636,7 @@ function openMenu() {
       + `<td><button type="button" class="hb-par" data-k="${k}" aria-label="Watch the par plan for ${name.toLowerCase()}">${fmt(L.par[k])}</button></td></tr>`).join("") + `</tbody>`;
     t.addEventListener("click", e => { const p = e.target.closest(".hb-par"); if (p) { $("menuDlg").close(); view(p.dataset.mine || p.dataset.k, !!p.dataset.mine); } });
     const R = REGIONS.find(x => x.feed.levels.includes(L.id));
-    note.textContent = `A par met is a drop: ${R ? `a drop a week for ${R.name.replace(/^The /, "the ")}` : "for a region still to come"}. Tap one to watch the plan that met it, a par to watch one that reaches it.`;
+    note.textContent = `A par met is an ingot: ${R ? `an ingot a week for ${R.name.replace(/^The /, "the ")}` : "for a region still to come"}. Tap one to watch the plan that met it, a par to watch one that reaches it.`;
     about.append(t, note);
   }
   $("menuDlg").showModal();
@@ -885,13 +887,13 @@ addEventListener("keydown", e => {
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const listOf = names => (names.length < 2 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
 const harbourBest = id => { const l = LEVELS.find(x => x.id === id); return l ? bestsOf(l) : {}; };
-/** A level's drops: its pars met. */
+/** A level's ingots: its pars met. */
 const dropsAt = id => { const l = LEVELS.find(x => x.id === id); return l ? parsMet(l, bestsOf(l)).length : 0; };
 let company = read(`${KEY}company`, null) || newCompany();
 const facts = () => ({ finished: id => harbourBest(id).hours != null, company });
-/** Drops a week each region's harbours feed its terminal: a drop a week for every par met in them. */
+/** Ingots a week each region's harbours feed its warehouse: an ingot a week for every par met in them. */
 const feeds = () => Object.fromEntries(REGIONS.map(R => [R.id, feedOf(R, dropsAt)]));
-/** The harbours that feed a region, for its screen: each with its drops and whether it's open to play. */
+/** The harbours that feed a region, for its screen: each with its ingots and whether it's open to play. */
 const harboursOf = R => R.feed.levels.map(id => ({ id, name: nameOf(id), drops: dropsAt(id), of: MEASURES.length, open: isOpen(stepOf(id), facts()) }));
 let shown = null;                                            // the step on screen: a level's id, "region:id" or "world"
 let openNow = openSet(facts());
@@ -911,8 +913,8 @@ function onWeek(before, after, reports, news) {
     if (e != null && (b.engine == null || e > b.engine)) write(k, { ...b, engine: e });
   }
   const opened = progressChanged(), actions = [];
-  if (opened.includes("first-blend")) { news.push(["North-West Europe is open", "The long-term contracts here need more diesel than the plant and ORLEN can bring. Build a terminal of your own in ARA: its harbours come first."]); actions.push(["Go to First blend", "first-blend"]); }
-  if (opened.includes("roundabout")) { news.push(["The Straits are open", "The Baltic runs on its own, on the company's clock, while you play on: four harbours of timing at its hardest."]); actions.push(["Go to Roundabout", "roundabout"]); }
+  if (opened.includes("first-blend")) { news.push(["Bruges and London are open", "The long-term contracts here need more metal than the smelter and Falun can bring. Build a warehouse of your own on the Zwin: its harbours come first."]); actions.push(["Go to Bell metal", "first-blend"]); }
+  if (opened.includes("roundabout")) { news.push(["The Sound is open", "The Baltic runs on its own, on the company's clock, while you play on: four harbours of timing at its hardest, where the toll is paid in hours."]); actions.push(["Go to Roundabout", "roundabout"]); }
   SEASON.news(news, actions);
   if (Object.keys(reports).length) roundOver("harbour");     // a week played (the par's week taken over plays none)
 }
@@ -945,12 +947,12 @@ function goTo(id) {
   else { load(LEVELS.find(l => l.id === id)); levelSel.value = id; dd.sync(); }
 }
 // a step's name in the picker and the menu, and what it says under the name: what it teaches, or how far you've got
-const labelOf = id => (id === "world" ? "The world" : id.startsWith("region:") ? `Region · ${nameOf(id)}` : `${LEVELS.findIndex(l => l.id === id) + 1} · ${nameOf(id)}`);
+const labelOf = id => (id === "world" ? "The League" : id.startsWith("region:") ? `Region · ${nameOf(id)}` : `${LEVELS.findIndex(l => l.id === id) + 1} · ${nameOf(id)}`);
 function noteOf(id, done) {
   if (id === "world") return done ? "your regions joined" : "joining your regions";
   if (id.startsWith("region:")) { const R = regionOf(id.slice(7)), s = company.regions[R.id]; return s?.solved ? "runs on its own" : s ? `${R.teaches} · ★ ${s.stars}` : R.teaches; }
   const l = LEVELS.find(x => x.id === id), n = dropsAt(id);
-  return done ? `${l.teaches} · ${n} of ${MEASURES.length} drops` : l.teaches;
+  return done ? `${l.teaches} · ${n} of ${MEASURES.length} ingots` : l.teaches;
 }
 
 const levelSel = $("level");
@@ -999,6 +1001,6 @@ const at = read(`${KEY}at`, null), startAt = at && stepOf(at) && isOpen(stepOf(a
 await makeMap();
 load(LEVELS.find(l => l.id === startAt) || LEVELS[0]);    // a level is always loaded, under a region or the world if one's on top
 if (startAt !== L.id) goTo(startAt);
-// the games screen's figure: drops collected, every par met on every level
+// the games screen's figure: ingots collected, every par met on every level
 const dropsAll = () => LEVELS.reduce((n, l) => n + parsMet(l, bestsOf(l)).length, 0);
 noteStars("harbour", dropsAll());

@@ -163,7 +163,7 @@ export function step(level, solution, state) {
       const keep = (amount - p) / amount;
       for (const k of Object.keys(s.cargo)) { s.cargo[k] *= keep; if (s.cargo[k] < 1e-9) delete s.cargo[k]; }
       next.delivered += p;                                // a level's target is units delivered, whatever the ships' sizes
-      next.got[key] = (next.got[key] || 0) + p;          // and per customer, for a level whose customers each want their own
+      next.got[key] = (next.got[key] || 0) + p;          // and per buyer, for a level whose buyers each want their own
       next.events.push({ ship: i, kind: "discharge" });
     }
   }
@@ -172,7 +172,7 @@ export function step(level, solution, state) {
   return next;
 }
 
-/** Whether a run has delivered what the level asks: its total, and each customer's own target where it sets one. */
+/** Whether a run has delivered what the level asks: its total, and each buyer's own target where it sets one. */
 export function met(level, state) {
   if (level.target != null && state.delivered < level.target) return false;
   return Object.entries(jettiesOf(level)).every(([k, j]) => j.kind !== "discharge" || j.target == null || (state.got[k] || 0) >= j.target);

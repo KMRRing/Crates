@@ -1,5 +1,5 @@
 // Harbour's sounds, made as they play (Web Audio: oscillators and filtered noise, no files, so they're there offline):
-// a horn as a ship leaves a berth, a pump's blip on a load, a chime on a delivery, a dull thud for a refusal or a crash,
+// a horn as a ship leaves a quay, an iron clank on a load, a bell on a delivery, a dull thud for a refusal or a crash,
 // a little flourish when the plan is done, and the sea's hush under a run. Quiet by design, and rate-limited, so 16×
 // stays a texture rather than a racket. Off, and nothing is made at all.
 let ctx = null, master = null, sea = null, on = true;
@@ -54,11 +54,11 @@ export const sound = {
   get on() { return on; },
   set on(v) { on = !!v; if (!on) this.sea(false); },
   played: 0,                                       // how many sounds were made (for the tests)
-  /** A ship leaves a berth: two low reeds, a fifth apart. */
+  /** A ship leaves a quay: two low reeds, a fifth apart (a Hanseatic horn). */
   horn() { if (!often("horn", 260)) return; this.played++; tone(110, 0.32, { type: "sawtooth", gain: 0.05, attack: 0.05, release: 0.22 }); tone(164.8, 0.32, { type: "sawtooth", gain: 0.035, attack: 0.05, release: 0.22 }); },
-  /** A parcel lifted: the pump's short hum. */
-  pump() { if (!often("pump", 90)) return; this.played++; tone(72, 0.1, { type: "triangle", gain: 0.12, release: 0.08 }); },
-  /** A parcel delivered: a small bell. */
+  /** A parcel lifted: an iron clank, two partials that aren't harmonics (a struck bar) and a tick of noise. */
+  clank() { if (!often("clank", 90)) return; this.played++; tone(180, 0.04, { type: "triangle", gain: 0.1, release: 0.1 }); tone(497, 0.02, { gain: 0.035, release: 0.12 }); noise(0.05, { gain: 0.07, freq: 2400 }); },
+  /** A parcel delivered: a small ship's bell. */
   chime() { if (!often("chime", 110)) return; this.played++; tone(880, 0.04, { gain: 0.07, release: 0.6 }); tone(1318.5, 0.04, { gain: 0.045, release: 0.7, at: 0.06 }); },
   /** A refusal or a crash: something soft, struck. */
   thud() { if (!often("thud", 150)) return; this.played++; noise(0.22, { gain: 0.45, freq: 170 }); tone(55, 0.08, { gain: 0.18, release: 0.25 }); },
