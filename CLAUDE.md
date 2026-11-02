@@ -6,14 +6,14 @@ Trumps, Quest, Bones), plain HTML, CSS and JavaScript modules with no build step
 Every push to `main` is tested by `.github/workflows/pages.yml`, but only for what it changed (below); GitHub Pages serves `main` at
 https://kmrring.github.io/Crates/, and installed copies (his phone) move to it only when the workflow publishes
 `sw.js`, which it does only when every test passes.
-README.md describes every game and every decision; read the section of the game you work on first.
+`docs/` has one file per game or topic (README.md is the index; "(README, Idle)" in a comment means `docs/idle.md`). Read the file of the game you work on first.
 
 The owner, Korbi, never uses a command line: do the git work yourself, and make anything he needs work from the app.
 
 ## Several Claudes at once
 
 1. **Stay in one app.** A game is its `<game>.html`, `.js` and `.css`, its own engine and data files, and
-   `tests/<game>.mjs`. Change only those, and only that game's section of README.md.
+   `tests/<game>.mjs`. Change only those, and only that game's `docs/<game>.md`.
 2. **Shared files are one Claude at a time.** Before starting on any of these, the owner should know, so nobody else
    is in them: `style.css`, `apps.js`, `pwa.js`, `suite.js`, `pile.js`, `deck.*`, `core.js`, `rooms.js`, `together.js`,
    `rich.js`, `pics.js`, `wide.js`, `net.js`, `memdb.js`, `random*.js`, the offline party's `lan*.js`, `tools/`,
@@ -78,7 +78,7 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 - **Look before you push** a visible change: a browser at 390×664 and 390×844 (Playwright works in the container),
   and on an iPad both ways, 820×1180 and 1180×820 (README, Bigger screens).
 - **Clean code as you go**, don't just flag it; comments say why, not what.
-- **Write the README** for every change: plain prose, what it does and why, in the game's section.
+- **Docs only when needed, and short.** Write to `docs/<game>.md` only for a ruling of Korbi's (the date and his words, one line) or a trap the code can't show (an invariant; something that looks wrong and isn't). No account of what you changed (git has it), no how the code works (the code has it), no test lists or measurements. Most changes need no docs; a change that makes a line there false fixes or deletes that line.
 - He's a biofuels trader and wants expert, terse engagement; define a technical term the first time you use it.
 
 ## Bigger screens

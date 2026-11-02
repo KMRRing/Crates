@@ -81,7 +81,7 @@ export function pick(files, slot = 0, { slow = false } = {}) {
   const ok = t => slow || !isSlow(t);
   const picked = new Set(QUICK.filter(ok));
   for (const f of files) {
-    if (DOCS.has(f)) continue;
+    if (DOCS.has(f) || f.startsWith("docs/")) continue;
     for (const t of namedFor(f)) if (ok(t)) picked.add(t);
     for (const t of loading(f)) if (ok(t)) picked.add(t);
   }
