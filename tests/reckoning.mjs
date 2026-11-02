@@ -1,6 +1,8 @@
 // Reckoning's rules (reckoning-engine.js): the jump, the five ways a swipe attacks (a foe in front, to the side, above,
 // the bonk and the slam), the wall run, the air chain over a pit, the question gate over the water, the quay from a seed
 // and a bot playing whole stretches of it (every kind of chunk is winnable with the swipes the rules give).
+import { RunLog, describe } from "../reckoning-log.js";
+import { MAX_QUESTION, MAX_ANSWER, load, dealer } from "../reckoning-questions.js";
 import { LANE_W, JUMP_H, AIR_T, WALL_Y, SLAM_MIN_Y, ROLL_T, KINDS, speed, speedAt, newGame, copy, setDeal, swipe, step, take, ensure } from "../reckoning-engine.js";
 
 let bad = 0;
@@ -332,7 +334,9 @@ const events = S => take(S).map(e => e.type);
     S.world.pits = S.world.pits.filter(p => p.gate === g.id);
     S.world.z1 = 1e9;
     take(S);
-    if (how) { run(S, 0.01); swipe(S, how); }
+    const hows = [].concat(how || []);
+    if (hows.length) run(S, 0.01);
+    hows.forEach((d, i) => { if (i) run(S, 0.06); swipe(S, d); });          // quick swipes, one after the other
     run(S, 3);
     return [S, g];
   };
@@ -346,6 +350,21 @@ const events = S => take(S).map(e => e.type);
   }
   [S, g] = gateScene(1, "up", 1.4);
   check(g.state !== "right", "from further off than that it is only a jump");
+  // the cut can be moved from gull to gull while I fly at the first
+  [S, g] = gateScene(1, ["up", "left"], 0.95);
+  check(g.pick === 1 && g.state === "wrong" && S.hero.lane === 0, "up, then left, in time: the attack moves from the right gull to the middle one");
+  [S, g] = gateScene(1, ["up", "left", "left"], 0.95);
+  check(g.pick === 0 && g.state === "wrong" && S.hero.lane === -1, "up, left, left, in time: from the right lane to the left gull");
+  [S, g] = gateScene(-1, ["up", "right", "right"], 0.95);
+  check(g.pick === 2 && g.state === "right" && S.falls === 0 && S.hero.z > g.p1, "and from the left lane to the right one, over the gap");
+  [S, g] = gateScene(1, ["up", "left", "right"], 0.95);
+  check(g.pick === 2 && g.state === "right", "left and right again: back on the right gull");
+  [S, g] = gateScene(1, ["up", "right"], 0.95);
+  check(g.pick === 2 && g.state === "right" && S.hero.lane === 1, "no lane beyond the right one: nothing moves");
+  [S, g] = gateScene(1, ["up", "left", "left", "left"], 0.95);
+  check(g.pick === 0 && S.hero.lane === -1, "(nor beyond the left)");
+  [S, g] = gateScene(1, ["up", "left", "left"], 0.15);
+  check(g.pick === 1, "too late for the last swipe: the cut lands on the middle gull before the second left is done");
   [S, g] = gateScene(0, "up");
   check(g.state === "wrong" && S.hearts === 2 && S.falls === 1 && S.wrong === 1 && S.hero.z > g.p1, "under a wrong answer: no bounce, into the water, a heart, and back on the far bank");
   [S, g] = gateScene(-1, null);
@@ -362,6 +381,46 @@ const events = S => take(S).map(e => e.type);
   T.world.foes.push(gull); T.hero.lane = 1; T.hero.x = LANE_W; T.world.z1 = 1e9;
   swipe(T, "up"); run(T, 0.6);
   check(T.hearts === 3 && T.streak === 3, "and every third right answer in a row gives a heart back");
+}
+
+// ---------- the log ----------
+{
+  const q = { id: "Q1", bank: "test", q: "Which?", o: ["one", "two", "three"], a: 2, x: "three", about: ["e1"] };
+  const S = newGame({ seed: 3, deal: () => q });
+  let n = 0;
+  while (!S.world.gates.length && n++ < 80) { S.hero.z += 20; ensure(S); }
+  const g = S.world.gates[0];
+  S.world.foes = S.world.foes.filter(f => f.gate && f.gate.id === g.id);
+  S.world.pits = S.world.pits.filter(p => p.gate === g.id); S.world.z1 = 1e9;
+  S.hero.lane = 1; S.hero.x = LANE_W; S.hero.z = g.z - 0.95 * speed(S); take(S);
+  const log = new RunLog(S);
+  const send = d => { log.swipe(S, d); swipe(S, d); for (const e of take(S)) log.event(S, e); };
+  const go = secs => { for (let t = 0; t < secs - 1e-9 && !S.over; t += DT) { step(S, DT); for (const e of take(S)) log.event(S, e); } };
+  go(0.01); send("up"); go(0.06); send("left"); go(0.06); send("left"); go(3);
+  const text = log.lines.join("\n");
+  check(log.lines.every((l, i) => l.startsWith(`#${i + 1} `)) && log.n === log.lines.length, "every line is numbered, in order");
+  check(/#1 t=0\.0\d z=\S+ \| swipe UP \| me: lane R, running/.test(text) && /foes: .*gull R \+0\.\d\ds y1\.4 gate\d+/.test(text), "a swipe line says where I was and the foes about to reach me, in seconds");
+  check(/swipe LEFT \| me: lane R, flying y=\S+ at gull R/.test(text), "a swipe in flight says what I am flying at");
+  check(/lane → M/.test(text) && /lane → L/.test(text) && /the cut moves to gull gate\d+ \(side\)/.test(text), "the lines after it say what the rules did: the lane, and the cut moving");
+  check(/ANSWER gate\d+ wrong: "Which\?" picked one; right three/.test(text) && /FALL into the water/.test(text), "the answer is in it, with what was picked and what was right");
+  check(log.text("test").startsWith("Reckoning log, run 3, test\nL, M, R:") && log.text().includes("#1 "), "the whole log has a head and the legend before the lines");
+  const back = RunLog.from(JSON.parse(JSON.stringify(log)));
+  check(back.text() === log.text() && (back.note(S, "x"), back.n === log.n + 1), "a log survives being saved and carries on numbering");
+  const T = scene({ hero: { y: 0 } }); const L2 = new RunLog(T);
+  swipe(T, "down"); T.hero.mode = "run"; swipe(T, "up"); for (const e of take(T)) L2.event(T, e);
+  check(describe(T, { type: "wait", dir: "up" }).includes("kept for 0.14 s") && describe(T, { type: "drop", dir: "left" }).includes("dropped"), "a swipe that waits, and one dropped, are said");
+  const U = scene(); swipe(U, "left"); run(U, 0.1);
+  const big = new RunLog(U); for (let i = 0; i < 1000; i++) big.note(U, "x");
+  check(big.lines.length === 900 && big.n === 1000 && big.lines[0].startsWith("#101 "), "a long run keeps its last 900 lines, numbers unchanged");
+}
+
+// ---------- the questions are capped ----------
+{
+  const pool = await load("quay");
+  check(pool.length > 400 && pool.every(p => p.q.q.length <= MAX_QUESTION && p.q.o.every(o => o.length <= MAX_ANSWER)), `every question is at most ${MAX_QUESTION} characters and every answer ${MAX_ANSWER} (${pool.length} of them)`);
+  check(new Set(pool.map(p => p.bank)).size >= 4, "and the banks are all still in it");
+  const deal = dealer(pool); let r = 0.37; const d = deal(() => (r = (r * 9301 + 49297) % 233280 / 233280), 0, []);
+  check(d.q.length <= MAX_QUESTION && d.o.length === 3 && d.o[d.a] !== undefined, "a dealt question carries three answers");
 }
 
 // ---------- the quay from a seed ----------

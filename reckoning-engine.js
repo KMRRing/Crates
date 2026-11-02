@@ -14,6 +14,8 @@
 //                                        my height): a lane change into it with a cut; otherwise a dodge. With none in
 //                                        the next lane, one two lanes across (SIDE_MIN2..SIDE_WIN) is cut the same way
 //                                        On the way down, a swipe sideways swoops onto a foe on the ground the same way
+//   left/right, while I fly at a foe     the cut moves to the foe in the next lane, if it hasn't landed (up, left, left from
+//                                        the lane on the right: the right gull, the middle one, then the left one)
 //   down, on the ground                  a roll (ROLL_T): any foe on the ground that reaches me in my lane is cut down
 //   down, in the air above a foe         a bonk: I land on it and bounce into another jump
 //   down, in the air above one jump      a slam: on the planks (never on a foe) a shockwave cuts the ground foes in
@@ -50,6 +52,7 @@ export const WALL_HERO_X = WALL_X - 0.5;   // where a wall runner's feet are
 export const WALL_Y = 2.0;
 export const LANE_T = 0.13;                // seconds to change lane
 export const FRONT_WIN = 0.28, ABOVE_WIN = 0.55, SIDE_MIN = 0.08, SIDE_WIN = 0.6, BUFFER = 0.14;
+export const RETARGET_MIN = 0.03;          // a cut already in flight can be moved until this close to landing
 export const SIDE_MIN2 = 0.16;             // two lanes across is twice the way, so it needs twice the time to cross
 export const ROLL_T = 0.32;                // seconds a roll lasts: 3 to 5 m of quay, about what an attack in front reaches
 export const GATE_WIN = 1.0;               // a gull of a question can be jumped at from this far off (a plain gull, ABOVE_WIN)
@@ -229,13 +232,13 @@ const grounded = h => h.mode === "run";
 /** A swipe: "up" | "down" | "left" | "right". It works now if it can, else waits a moment (BUFFER) for something to work on. */
 export function swipe(S, dir) {
   if (S.over) return S.ev;
-  if (!resolve(S, dir)) S.pending.push({ dir, until: S.t + BUFFER });
+  if (!resolve(S, dir)) { S.pending.push({ dir, until: S.t + BUFFER }); S.ev.push({ type: "wait", dir }); }
   return S.ev;
 }
 
 function resolve(S, dir) {
   const h = S.hero;
-  if (h.lunge) return false;
+  if (h.lunge && (dir === "up" || dir === "down")) return false;   // while I fly at a foe only a swipe sideways counts: it moves the cut
   const lane = h.lane;
   const done = dir === "up" ? up(S) : dir === "down" ? down(S) : side(S, dir === "left" ? -1 : 1);
   if (done) h.guard = { dir, lane, until: S.t + GUARD_T };       // from the lane I swiped from: which side is "that direction"
@@ -280,6 +283,7 @@ function up(S) {
 
 function side(S, dir) {
   const h = S.hero;
+  if (h.lunge) return retarget(S, dir);
   if (h.mode === "wall") {
     if (dir !== -h.wall) return false;                            // already at the wall
     h.mode = "air"; h.vy = 0; h.noWall = S.t + 0.3; h.lane = h.wall; h.wall = 0;
@@ -304,11 +308,29 @@ function side(S, dir) {
   return true;
 }
 
+/** Flying at a foe, a swipe sideways moves the attack to the foe in the next lane (the one I leave stays where it is),
+ *  for as long as the cut has not landed: so up, left, left from the right lane reaches the left gull of a question,
+ *  if it is done before the cut lands on the first or the second. The cut lands when the quay brings the foe to me,
+ *  so the time to do it in is the time left, whichever gull I am flying at. */
+function retarget(S, dir) {
+  const h = S.hero, L = h.lunge;
+  if (L.how === "bonk") return false;
+  const lane = h.lane + dir;
+  if (lane < -1 || lane > 1) return false;
+  const f = nearest(S, (f, t) => f.lane === lane && t >= RETARGET_MIN && t <= (f.gate ? GATE_WIN : SIDE_WIN) &&
+    (f.y <= 0.3 || Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4));
+  if (!f) return false;
+  h.lane = lane;
+  L.foe = f.id; L.left = Math.max(0.06, ttcOf(S, f)); L.how = "side"; L.air = L.air || f.y > 0.3;
+  S.ev.push({ type: "lane", lane, dir }, { type: "lunge", how: "side", kind: f.kind, gate: f.gate ? f.gate.id : 0, retarget: true });
+  return true;
+}
+
 /** The foe a swipe sideways can cut in `lane`: on the ground I cut one on the ground (and, coming down, I swoop onto one
  *  from up to 4.5 m above it); in the air, one in the air within reach of my height. */
 function sideFoe(S, lane, tMin) {
   const h = S.hero, falling = h.mode === "air" && h.vy <= 0;
-  return nearest(S, (f, t) => f.lane === lane && t >= tMin && t <= SIDE_WIN &&
+  return nearest(S, (f, t) => f.lane === lane && t >= tMin && t <= (f.gate ? GATE_WIN : SIDE_WIN) &&
     (f.y <= 0.3 ? h.y < 1 || (falling && h.y - (f.y + f.h * 0.3) <= 4.5) : h.y >= 0.5 && Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4));
 }
 
@@ -356,7 +378,12 @@ export function step(S, dt) {
   // swipes that had nothing to work on try again
   if (S.pending.length) {
     const keep = [];
-    for (const p of S.pending) { if (!resolve(S, p.dir) && S.t < p.until) keep.push(p); }
+    for (const p of S.pending) {
+      const n = S.ev.length;
+      if (resolve(S, p.dir)) S.ev.splice(n, 0, { type: "late", dir: p.dir });          // the kept swipe worked, and what it did follows
+      else if (S.t < p.until) keep.push(p);
+      else S.ev.push({ type: "drop", dir: p.dir });
+    }
     S.pending = keep;
   }
 

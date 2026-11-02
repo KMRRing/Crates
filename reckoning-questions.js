@@ -19,7 +19,7 @@ export const WORLDS = {
 };
 
 export const MAX_ANSWER = 34;          // characters an answer may have (it sits on a gull's banner)
-export const MAX_QUESTION = 110;
+export const MAX_QUESTION = 70;         // characters a question may have: two lines over the quay on the narrowest phone, never cut
 
 /** Questions that fit: one right answer, at least two wrong ones, all short. */
 export function fitting(q) {

@@ -5,6 +5,7 @@
 // kept between visits. The clock starts at the first swipe and stops with the menu, the tab and the end of the run.
 import { newGame, valid, setDeal, swipe, step, take, speed, speedAt } from "./reckoning-engine.js";
 import { load, dealer, WORLDS } from "./reckoning-questions.js";
+import { RunLog } from "./reckoning-log.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, onPause } from "./menu.js";
@@ -15,6 +16,7 @@ import { busy } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "reckoning:run", BEST = "reckoning:best", STATS = "reckoning:stats", MISS = "reckoning:miss";
+const LOG = "reckoning:log";                                     // the swipe log: in sessionStorage, so it is not synced between devices (it is long)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const fmt = n => Math.floor(n).toLocaleString("en-GB");
@@ -26,20 +28,28 @@ const THINK_T = 12;                                           // seconds of runn
 let S = null;            // the run (reckoning-engine.js's), as saved
 let running = false;     // the clock going: from the first swipe
 let paused = false;      // the menu, the rules or the games screen open
+let logOpen = false;     // the log's own dialog: kept apart from `paused`, since the menu it was opened from resumes the game as it closes
 let frozen = false;      // for tests: the clock held while a picture is taken
 let best = 0, savedAt = 0, acc = 0, last = 0;
 let view = null, deal = null, pool = [];
 let shown = null;        // the gate whose answer is on the cards: { id, until }
 let toastTimer = 0;
+let log = null, lastLog = null;   // this run's swipe log, and the run before's (reckoning-log.js)
 const cache = {};        // what the page last wrote, so a frame writes only what changed
 const put = (key, fn) => { const v = fn(); if (cache[key] !== v) { cache[key] = v; return true; } return false; };
 
 // ---------- the run ----------
 
-function save() { if (IN_FRAME || !S) return; write(RUN, S); savedAt = performance.now(); }
+function save() {
+  if (IN_FRAME || !S) return;
+  write(RUN, S); savedAt = performance.now();
+  try { if (log) sessionStorage.setItem(LOG, JSON.stringify({ now: log, last: lastLog })); } catch { /* private mode, or full */ }
+}
 
 function newRun() {
   S = setDeal(newGame({ seed: Math.floor(Math.random() * 2 ** 31), deal }), deal);
+  if (log && log.n > 1) lastLog = log;                         // the run just left stays to be copied
+  log = new RunLog(S);
   running = false; acc = 0; shown = null;
   $("result").hidden = true;
   say("");
@@ -55,8 +65,9 @@ function start() {
 }
 
 function send(dir) {
-  if (IN_FRAME || paused || !S || S.over || !view) return;
+  if (IN_FRAME || paused || logOpen || !S || S.over || !view) return;
   if (!running) start();
+  log.swipe(S, dir);
   swipe(S, dir);
   handle(take(S));
 }
@@ -64,6 +75,7 @@ function send(dir) {
 /** The rules' events: what to show and what to keep. */
 function handle(events) {
   for (const ev of events) {
+    log.event(S, ev);
     view.ping(ev, S);
     switch (ev.type) {
       case "kill": if (ev.chain >= 2) say(`Chain ×${ev.chain}`, "good"); else if (ev.how === "slam") say("Slam", "good"); break;
@@ -174,7 +186,7 @@ function tick(ts) {
   const dt = Math.min(0.05, (ts - (tick.at || ts)) / 1000);
   tick.at = ts;
   if (S && view) {
-    const go = running && !paused && !frozen && !S.over && !IN_FRAME;
+    const go = running && !paused && !logOpen && !frozen && !S.over && !IN_FRAME;
     if (go) {
       acc += dt;
       while (acc >= STEP && !S.over) { step(S, STEP); acc -= STEP; handle(take(S)); }
@@ -190,7 +202,7 @@ function tick(ts) {
 const swipes = new Map();                                     // fingers down: pointer id -> { x, y }
 const app = $("app");
 app.addEventListener("pointerdown", e => {
-  if (e.button > 0 || IN_FRAME || paused || e.target.closest("button, a, dialog, .top")) return;
+  if (e.button > 0 || IN_FRAME || paused || logOpen || e.target.closest("button, a, dialog, .top")) return;
   swipes.set(e.pointerId, { x: e.clientX, y: e.clientY });
 });
 app.addEventListener("pointermove", e => {
@@ -220,7 +232,7 @@ function openMenu() {
   part(body, "play").append(action("New run", newRun, "primary"));
   const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
   part(body, "content").append(line(`${WORLDS.quay.name}: ${pool.length.toLocaleString("en-GB")} questions`));
-  part(body, "about").append(line(`This run: ${fmt(S.score)}, ${S.right} right, ${S.wrong + S.missed} not${best ? `; your best ${fmt(best)}` : ""}`),
+  part(body, "about").append(action("Swipe log", openLog, "link"), line(`This run: ${fmt(S.score)}, ${S.right} right, ${S.wrong + S.missed} not${best ? `; your best ${fmt(best)}` : ""}`),
     line(`${st.runs} runs, ${st.right} right and ${st.wrong} not, over all`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -232,7 +244,52 @@ document.querySelector(".rk-mark").innerHTML = APPS.find(a => a.id === "reckonin
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("againBtn").addEventListener("click", newRun);
-onPause(() => { paused = true; swipes.clear(); save(); }, () => { paused = false; last = performance.now(); });
+onPause(() => { paused = true; swipes.clear(); log?.note(S, "paused (the menu or another screen is open)"); save(); }, () => { paused = false; last = performance.now(); log?.note(S, "carried on"); });
+
+// ---------- the log ----------
+
+let logOf = "now";
+function openLog() {
+  logOpen = true; swipes.clear();                               // the run stands still behind it
+  log?.note(S, "log opened: the run stands still");
+  logOf = "now"; drawLog();
+  if (!$("logDlg").open) $("logDlg").showModal();
+}
+function drawLog() {
+  const opts = [["now", "This run", log]];
+  if (lastLog) opts.push(["last", "Last run", lastLog]);
+  const which = $("logWhich");
+  which.hidden = opts.length < 2;
+  which.replaceChildren(...opts.map(([id, name]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn"; b.textContent = name; b.setAttribute("aria-pressed", String(logOf === id));
+    b.addEventListener("click", () => { logOf = id; drawLog(); });
+    return b;
+  }));
+  const t = $("logText");
+  t.value = (logOf === "last" && lastLog ? lastLog : log).text(`${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC, screen ${innerWidth}×${innerHeight}`);
+  t.scrollTop = t.scrollHeight;                                 // the end: what has just happened
+}
+async function copyLog() {
+  const t = $("logText"), b = $("logCopy");
+  let ok = false;
+  try { await navigator.clipboard.writeText(t.value); ok = true; }
+  catch { try { t.focus(); t.select(); ok = document.execCommand("copy"); } catch { /* the text is selected: copy by hand */ } }
+  b.textContent = ok ? "Copied" : "Selected: copy it";
+  setTimeout(() => { b.textContent = "Copy"; }, 1800);
+}
+$("logCopy").addEventListener("click", copyLog);
+$("logClose").addEventListener("click", () => $("logDlg").close());
+$("logDlg").addEventListener("close", () => { logOpen = false; last = performance.now(); log?.note(S, "log closed: carried on"); });
+$("logBtn").addEventListener("click", openLog);
+
+/** The log of the run kept for this tab, if it is the run being picked up. */
+function restoreLog() {
+  let kept = null;
+  try { kept = JSON.parse(sessionStorage.getItem(LOG)); } catch { /* none */ }
+  lastLog = kept?.last ? RunLog.from(kept.last) : null;
+  log = kept?.now && kept.now.seed === S.seed ? RunLog.from(kept.now) : new RunLog(S, true);
+}
 
 async function boot() {
   best = read(BEST, 0);
@@ -251,7 +308,7 @@ async function boot() {
   S = read(RUN, null);
   if (valid(S)) { setDeal(S, deal); for (const g of S.world.gates) asks.set(g.q.id, g.q); }
   if (!valid(S)) newRun();
-  else if (S.over) { showResult(); drawPage(true); }
+  else if (restoreLog(), S.over) { showResult(); drawPage(true); }
   else { hint(IN_FRAME ? "" : "Swipe to carry on."); drawPage(true); }
   requestAnimationFrame(tick);
 }
@@ -259,7 +316,7 @@ async function boot() {
 // for tests and debugging
 window.__reckoning = {
   get state() { return S; }, set state(g) { S = g; if (deal) setDeal(S, deal); drawPage(true); },
-  get view() { return view; }, get running() { return running; }, newRun, start, send, speed: () => speed(S),
+  get view() { return view; }, get running() { return running; }, get log() { return log; }, newRun, start, send, speed: () => speed(S),
   set frozen(v) { frozen = !!v; },
   /** Plays `seconds` of the run at once, events and all (as the clock would), then draws. */
   advance(seconds) { if (!running) start(); for (let t = 0; t < seconds - 1e-9 && !S.over; t += STEP) { step(S, STEP); handle(take(S)); } view.frame(S, 0); drawPage(false); },
