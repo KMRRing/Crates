@@ -9,7 +9,7 @@ import { GAMES, teamOf, COINCHE_VALUES, laufende, sortHand } from "./trumps-game
 import { LEVEL_NAMES, aheadKey, remember, THINK, thinksAhead } from "./trumps-bot.js";
 import { weighCards, bidOptions, signalFirst } from "./trumps-think.js";
 import { adviceWords, verdictOf, cardRows, bidAdvice, bidVerdict, bidRows, pct, signed } from "./trumps-coach.js";
-import { sextant } from "./loading.js";
+import { waitMark } from "./loading.js";
 import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName, packCard, suitIcon, LOOK } from "./trumps-cards.js";
 import { deckPics } from "./trumps-deck.js";
 import { cardHtml, backHtml } from "./cards.js";
@@ -483,7 +483,7 @@ function drawControls(s) {
   if (s.step !== "bid") {
     const who = s.step === "play" ? (isMe(s.turn) ? "Your card" : `${nameOf(s.turn)}…`) : s.step === "trick" ? `${isMe(s.tricks.at(-1).winner) ? "You take" : `${nameOf(s.tricks.at(-1).winner)} takes`} it` : "";
     box.innerHTML = coaching() ? coachBar(s, who) : `<p class="tr-status">${esc(who)}</p>`;
-    box.querySelector(".tr-wait")?.append(sextant());
+    box.querySelector(".tr-wait")?.append(waitMark());
     return;
   }
   if (s.turn !== seat) {

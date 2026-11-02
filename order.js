@@ -20,7 +20,7 @@ import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // th
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -170,7 +170,7 @@ let G = null;                  // the table as last seen, made whole (null: play
 let drawn = { n: null, ids: new Set() };     // the cards of this game on the screen, so a new one comes in fresh
 let told = { n: null, ids: new Set() };      // the cards of this game already seen placed, so a wrong one is told once
 let shownOver = null, pickMode = null, placing = false;
-let joining = null;            // the rete while this phone sits down at the table in its address, until it's drawn
+let joining = null;            // the mark while this phone sits down at the table in its address, until it's drawn
 const seated = () => { joining?.(); joining = null; };
 const first = name => String(name || "Player").trim().split(/\s+/)[0];
 /** Everyone seated at the table, by seat: [{ slot, name, me, here }] (here: this game open on a phone that's online). */
@@ -313,7 +313,7 @@ function openMenu() {
         choice("Order", Object.entries(MODES), pickMode, v => { pickMode = v; openMenu(); }));
       topicsPart(table, pickMode);
       table.append(line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`));
-    } else { const wait = line(joiningWords()); wait.prepend(sextant()); table.append(wait); }
+    } else { const wait = line(joiningWords()); wait.prepend(waitMark()); table.append(wait); }
     table.append(action("Back to solo", backToSolo, "link"));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -349,7 +349,7 @@ function solo() {
   else if (!S || S.over) newRun(S?.mode || "dates", dailyDue("order"));
   else render();
 }
-// a table in the address (a duo match, a party's game): the rete until it's drawn, and no solo run under it
+// a table in the address (a duo match, a party's game): the mark until it's drawn, and no solo run under it
 const code = roomInAddress();
 if (code) { joining = busy(joiningWords(), { delay: 0 }); together.join(code).then(ok => { if (!ok) { seated(); solo(); } }); }
 else solo();

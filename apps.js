@@ -2,15 +2,16 @@
 // that checks for a newer version and loads it (pwa.js). Going to another game carries the room code, so you stay
 // in the same room (rooms.js).
 import { hardUpdate } from "./pwa.js";
-import { sextant } from "./loading.js";
+import { waitMark } from "./loading.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
 import { duoLine } from "./duo-records.js";
-import { choice, toggle, line, RETE } from "./menu.js";
+import { choice, toggle, line } from "./menu.js";
+import { MARK } from "./mark.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 import { bindRandom } from "./random.js";
 import { bindDeckRow } from "./deck-row.js";
 import { bindChoose } from "./banner.js";
-import { SOON_ALMANAC, SOON_MODERN, SOON_KONTOR } from "./soon-logos.js";
+import { SOON_CODEX, SOON_MODERN, SOON_KONTOR } from "./soon-logos.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
 // times --wire, which style.css raises on the selected game; the engraved detail keeps its own fine weight.
@@ -132,7 +133,7 @@ const FORGER_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="
 const GALLERY_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="94" rx="34" ry="3" fill="#1C2A34" opacity=".22"/><path d="M28 26L50 8L72 26" fill="none" stroke="#1C2A34" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="8" r="2.6" fill="#C8923A" stroke="#1C2A34" stroke-width="1.4"/><rect x="12" y="24" width="76" height="56" rx="2" fill="#C8923A" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))"/><rect x="16" y="28" width="68" height="48" rx="1" fill="none" stroke="#F3E1BA" stroke-width="1.2" opacity=".8"/><rect x="20" y="32" width="60" height="40" fill="#FBF4E4" stroke="#1C2A34" stroke-width="1.8"/><path d="M20 66Q34 58 48 63T80 60V72H20Z" fill="#1E7F8C" opacity=".85"/><path d="M47 66L48.6 44H55.4L57 66Z" fill="#FBF4E4" stroke="#1C2A34" stroke-width="1.8" stroke-linejoin="round"/><path d="M47.6 58H56.4M48.2 51H55.8" stroke="#A8382B" stroke-width="3"/><rect x="47.8" y="38.5" width="8.4" height="5.5" rx="1" fill="#E1A82E" stroke="#1C2A34" stroke-width="1.6"/><path d="M50 37.5L52 34.5L54 37.5Z" fill="#1C2A34"/><path d="M58 40L71 35M58 42.5L72 42.5M46 40L33 35M46 42.5L32 42.5" stroke="#E1A82E" stroke-width="1.8" stroke-linecap="round"/><rect x="35" y="83" width="30" height="7.5" rx="1.5" fill="#FBF4E4" stroke="#1C2A34" stroke-width="1.8"/><path d="M40 86.8H60" stroke="#C8923A" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 const PARTY_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="44" cy="93" rx="34" ry="3" fill="#1C2A34" opacity=".22"/><path d="M37 57V73Q37 80 44 80H53" fill="none" stroke="#1C2A34" stroke-width="6" stroke-linecap="round"/><path d="M37 57V73Q37 80 44 80H53" fill="none" stroke="#C8923A" stroke-width="2.4" stroke-linecap="round"/><path d="M15 44H24L62 25V75L24 56H15Z" fill="#C8923A" stroke="#1C2A34" style="stroke-width: calc(3.2 * var(--wire, 1))" stroke-linejoin="round"/><path d="M26 46.5L59 30.5" stroke="#F3E1BA" stroke-width="1.8" stroke-linecap="round" opacity=".85"/><path d="M33 41V59M44 36V64" stroke="#1C2A34" stroke-width="1.3" opacity=".45"/><ellipse cx="62" cy="50" rx="7.5" ry="25" fill="#1C2A34" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))"/><ellipse cx="62" cy="50" rx="4.6" ry="20.5" fill="none" stroke="#C8923A" stroke-width="1.6"/><rect x="7" y="45" width="9" height="10" rx="2.5" fill="#FBF4E4" stroke="#1C2A34" stroke-width="2.2"/><path d="M75.5 38Q81 50 75.5 62M84 30Q93 50 84 70" fill="none" stroke="#1C2A34" stroke-width="7" stroke-linecap="round"/><path d="M75.5 38Q81 50 75.5 62M84 30Q93 50 84 70" fill="none" stroke="#1E7F8C" stroke-width="4" stroke-linecap="round"/><g stroke="#1C2A34" stroke-width="1"><path d="M78 14L81 17L78 20L75 17Z" fill="#1E7F8C"/><path d="M90 19L92.5 21.5L90 24L87.5 21.5Z" fill="#C8923A"/><path d="M83 80L85.5 82.5L83 85L80.5 82.5Z" fill="#C8923A"/><circle cx="92" cy="77" r="2" fill="#1E7F8C"/></g></svg>`;
 
-// Each theme draws the games its own way: Almanac's instruments (above), Modern's logos as they were before Almanac,
+// Each theme draws the games its own way: Codex's instruments (above), Modern's logos as they were before Codex,
 // Kontor's technical line icons. theme.js has set the theme before this runs.
 // Two cards fanned, the one in front marked up and down, for Higher or Lower.
 // A heliograph: a round signal mirror on its tripod, a flash of sunlight off it and the splinters of a gem where it lands
@@ -484,15 +485,11 @@ const KONTOR_LOGOS = {
   kakuro: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 2.5h19v4.75h-14.25v14.25h-4.75z"/><path d="M11.9 2.5v4.75M16.7 2.5v4.75M2.5 11.9h4.75M2.5 16.7h4.75"/><path class="a" d="M2.5 2.5l4.75 4.75"/></svg>`,
 };
 const LOOK = document.documentElement.dataset.theme;
-// the games screen's title mark: Almanac's sextant in brass on navy, Modern's flat on a rounded tile (logo-modern.svg),
-// Kontor's in line, its scale and index arm in green: three versions of the same sextant
-const BRAND = LOOK === "modern" ? '<img src="logo-modern.svg" alt="">'
-  : LOOK === "kontor" ? '<svg class="k-ico k-brand" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8L3.9 19.1A17.3 17.3 0 0 0 20.1 19.1Z"/><path d="M7.7 11.9A9.1 9.1 0 0 0 16.3 11.9"/><path class="a" d="M6.1 20.1L6.7 18.5M9 20.8L9.3 19.2M12 21.1V19.4M15 20.8L14.7 19.2M17.9 20.1L17.3 18.5M12 3.8L14.5 19.5"/><circle class="f" cx="12" cy="3.8" r="1.2"/></svg>'
-  : LOOK === "office" ? ""                              // Office: the name alone, no mark
-  : '<img src="logo.svg" alt="">';
+// the games screen's title mark: Codex's mark in brass on navy; Modern's on a rounded tile (icon.svg); Office has the name alone
+const BRAND = LOOK === "office" ? "" : `<img src="${LOOK === "modern" ? "icon.svg" : "logo.svg"}" alt="">`;
 // Office wears Kontor's line drawings, restyled in themes.css: thin, rounded, monochrome, like an Office app's icons
 const LINE = LOOK === "kontor" || LOOK === "office";
-const LOGO = (id, almanac) => (LOOK === "modern" ? MODERN_LOGOS[id] : LINE ? KONTOR_LOGOS[id] : null) || almanac;
+const LOGO = (id, codex) => (LOOK === "modern" ? MODERN_LOGOS[id] : LINE ? KONTOR_LOGOS[id] : null) || codex;
 
 export const APPS = [
   { id: "crates", sec: "knowledge", name: "Crates", href: "./crates.html", logo: LOGO("crates", CRATES_LOGO), score: "board" },   // its best: today's board, points then time
@@ -577,14 +574,14 @@ export const APPS = [
   { id: "factor", sec: "table", name: "Factor", href: "./factor.html", logo: LOGO("factor", FACTOR_LOGO) },
   { id: "dandan", sec: "table", name: "Dandan", href: "./dandan.html", logo: LOGO("dandan", DANDAN_LOGO) },
   { id: "rack", sec: "table", name: "Rack", href: "./rack.html", logo: LOGO("rack", RACK_LOGO) },
-  { id: "stone", sec: "table", name: "Stone", href: "./soon.html?game=stone", logo: LOGO("stone", SOON_ALMANAC.stone), soon: true },
+  { id: "stone", sec: "table", name: "Stone", href: "./soon.html?game=stone", logo: LOGO("stone", SOON_CODEX.stone), soon: true },
   { id: "pegs", sec: "table", name: "Pegs", href: "./pegs.html", logo: LOGO("pegs", PEGS_LOGO) },
   { id: "meld", sec: "table", name: "Meld", href: "./meld.html", logo: LOGO("meld", MELD_LOGO) },
-  { id: "tarot", sec: "table", name: "Tarot", href: "./soon.html?game=tarot", logo: LOGO("tarot", SOON_ALMANAC.tarot), soon: true },
-  { id: "solitaire", sec: "table", name: "Solitaire", href: "./soon.html?game=solitaire", logo: LOGO("solitaire", SOON_ALMANAC.solitaire), soon: true },
-  { id: "silo", sec: "table", name: "Silo", href: "./soon.html?game=silo", logo: LOGO("silo", SOON_ALMANAC.silo), soon: true },
-  { id: "flank", sec: "table", name: "Flank", href: "./soon.html?game=flank", logo: LOGO("flank", SOON_ALMANAC.flank), soon: true },
-  { id: "crown", sec: "table", name: "Crown", href: "./soon.html?game=crown", logo: LOGO("crown", SOON_ALMANAC.crown), soon: true },
+  { id: "tarot", sec: "table", name: "Tarot", href: "./soon.html?game=tarot", logo: LOGO("tarot", SOON_CODEX.tarot), soon: true },
+  { id: "solitaire", sec: "table", name: "Solitaire", href: "./soon.html?game=solitaire", logo: LOGO("solitaire", SOON_CODEX.solitaire), soon: true },
+  { id: "silo", sec: "table", name: "Silo", href: "./soon.html?game=silo", logo: LOGO("silo", SOON_CODEX.silo), soon: true },
+  { id: "flank", sec: "table", name: "Flank", href: "./soon.html?game=flank", logo: LOGO("flank", SOON_CODEX.flank), soon: true },
+  { id: "crown", sec: "table", name: "Crown", href: "./soon.html?game=crown", logo: LOGO("crown", SOON_CODEX.crown), soon: true },
   // Idle: as much thinking as a bubble shooter, and no more (README, Idle)
   { id: "heliograph", sec: "idle", name: "Heliograph", href: "./heliograph.html", logo: LOGO("heliograph", HELIOGRAPH_LOGO) },
   { id: "shunt", sec: "idle", name: "Shunt", href: "./shunt.html", logo: LOGO("shunt", SHUNT_LOGO) },
@@ -599,8 +596,8 @@ export const APPS = [
   { id: "slipway", sec: "idle", name: "Slipway", href: "./slipway.html", logo: LOGO("slipway", SLIPWAY_LOGO) },
   { id: "loom", sec: "idle", name: "Loom", href: "./loom.html", logo: LOGO("loom", LOOM_LOGO) },
   { id: "reckoning", sec: "idle", name: "Reckoning", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO) },
-  { id: "ingot", sec: "idle", name: "Ingot", href: "./soon.html?game=ingot", logo: LOGO("ingot", SOON_ALMANAC.ingot), soon: true },
-  { id: "cargo", sec: "idle", name: "Cargo", href: "./soon.html?game=cargo", logo: LOGO("cargo", SOON_ALMANAC.cargo), soon: true },
+  { id: "ingot", sec: "idle", name: "Ingot", href: "./soon.html?game=ingot", logo: LOGO("ingot", SOON_CODEX.ingot), soon: true },
+  { id: "cargo", sec: "idle", name: "Cargo", href: "./soon.html?game=cargo", logo: LOGO("cargo", SOON_CODEX.cargo), soon: true },
   // Casino: games of chance, played to learn the floor rather than to get good at (README, Casino)
   { id: "baccarat", sec: "casino", name: "Baccarat", href: "./baccarat.html", logo: LOGO("baccarat", BACCARAT_LOGO) },
   { id: "blackjack", sec: "casino", name: "Blackjack", href: "./blackjack.html", logo: LOGO("blackjack", BLACKJACK_LOGO) },
@@ -615,10 +612,10 @@ export const APPS = [
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
-// Settings, at the top right of the games screen (Almanac's rete, the other themes' sliders): the theme (Deco, Modern,
+// Settings, at the top right of the games screen (Codex's mark, the other themes' sliders): the theme (Deco, Modern,
 // Kontor or Office; each with a day and a night that follow the system).
 // The choice lives on this device and applies at once, here and on every page (theme.js reads it before drawing).
-const THEMES = [["deco", "Almanac"], ["modern", "Modern"], ["kontor", "Kontor"], ["office", "Office"]];
+const THEMES = [["deco", "Codex"], ["modern", "Modern"], ["kontor", "Kontor"], ["office", "Office"]];
 const MODES = [["auto", "Auto"], ["day", "Day"], ["night", "Night"]];
 export const theme = () => document.documentElement.dataset.theme || "deco";
 const mode = () => document.documentElement.dataset.mode || "auto";
@@ -641,7 +638,7 @@ function openSettings(host) {
     sheet.querySelector("[data-close]").addEventListener("click", () => sheet.close());
     sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
     host.appendChild(sheet);
-    // Almanac's rete turns while Settings is open, as a game's does while its menu is (the sliders have nothing to turn)
+    // Codex's mark turns while Settings is open, as a game's does while its menu is (the sliders have nothing to turn)
     const btn = host.querySelector("[data-settings]");
     new MutationObserver(() => btn.classList.toggle("turning", sheet.open)).observe(sheet, { attributes: true, attributeFilter: ["open"] });
   }
@@ -904,12 +901,12 @@ function bindCodes(dlg) {
 export function bindSwitcher(button, current) {
   const dlg = document.createElement("dialog");
   // A full screen of games, a tile each with its logo and name, every game on it: the tiles scroll in their own box when
-  // they don't all fit, the screen around them never does. Settings (in Almanac the rete every game's menu button is, in
+  // they don't all fit, the screen around them never does. Settings (in Codex the mark every game's menu button is, in
   // the ring the other icons have) and refresh at the top right.
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
-  dlg.innerHTML = `<div class="apps-inner"><h2 class="apps-brand">${BRAND}Almanac</h2><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
-      <button class="icon-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${theme() === "deco" ? RETE : ICON.settings}</button>
+  dlg.innerHTML = `<div class="apps-inner"><h2 class="apps-brand">${BRAND}Codex</h2><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
+      <button class="icon-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${theme() === "deco" ? MARK : ICON.settings}</button>
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <p class="menu-line apps-note" role="status" hidden></p>
@@ -932,9 +929,9 @@ export function bindSwitcher(button, current) {
   // after an update the app reloads: open the games screen again, where Update was pressed
   try { if (sessionStorage.getItem("crates:games")) { sessionStorage.removeItem("crates:games"); dlg.showModal(); } } catch { /* private mode */ }
   // Update says what it finds in a line under the head (up to date, offline); a newer version downloads under the
-  // rete, over the page, which then reloads onto it (pwa.js)
+  // mark, over the page, which then reloads onto it (pwa.js)
   const update = dlg.querySelector("[data-update]"), note = dlg.querySelector(".apps-note");
-  const tell = (words, waiting = false) => { note.replaceChildren(...(waiting ? [sextant()] : []), words); note.hidden = false; };
+  const tell = (words, waiting = false) => { note.replaceChildren(...(waiting ? [waitMark()] : []), words); note.hidden = false; };
   dlg.addEventListener("close", () => { note.hidden = true; });
   update.addEventListener("click", async () => {
     update.disabled = true;

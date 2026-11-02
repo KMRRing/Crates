@@ -16,7 +16,7 @@ import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { createDuel } from "./duel.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
 import { presetOf } from "./topics.js";
 
@@ -577,7 +577,7 @@ function drawDuo() {
   el.what.textContent = `${room.MODES[G.mode].label} · ${LEVEL_NAMES[G.level]}`;
   dots(MISTAKES - G.mistakes);
   el.rival.hidden = false;
-  el.rival.replaceChildren(...(them ? [Object.assign(document.createElement("b"), { textContent: first(them.name) }), them.here ? (v.theirs.length ? ` · ${plural(v.theirs.length, "pick")}` : " · here") : " · away"] : [sextant(), "Waiting for your partner"]));
+  el.rival.replaceChildren(...(them ? [Object.assign(document.createElement("b"), { textContent: first(them.name) }), them.here ? (v.theirs.length ? ` · ${plural(v.theirs.length, "pick")}` : " · here") : " · away"] : [waitMark(), "Waiting for your partner"]));
   setControls(G.done ? "end" : "play");
   if (!G.done) {
     el.submit.hidden = false;
@@ -635,7 +635,7 @@ function goRace(at) {
 }
 function duoMenu(body) {
   const t = part(body, "together");
-  if (!G) { const w = line(joiningWords()); w.prepend(sextant()); t.append(w, action("Back to solo", () => location.replace(soloHref()), "link")); return; }
+  if (!G) { const w = line(joiningWords()); w.prepend(waitMark()); t.append(w, action("Back to solo", () => location.replace(soloHref()), "link")); return; }
   const others = together.others();
   t.append(line(others.length ? `With ${list2(others.map(o => `${first(o.name)}${o.here ? "" : " (away)"}`))}` : "Waiting for your partner"));
   t.append(choice("Together", Object.entries(room.MODES).map(([k, m]) => [k, m.label]), G.mode, v => {
@@ -745,7 +745,7 @@ function solo() {
   else newBoard(dayDone() ? "random" : "daily");
 }
 const forToday = arrivedForToday();
-// a table in the address: the race (a party's, or the pair's when they chose one) or the pair's board; the rete until
+// a table in the address: the race (a party's, or the pair's when they chose one) or the pair's board; the mark until
 // it's drawn, and no board of your own under it
 const code = roomInAddress(), q = new URLSearchParams(location.search);
 if (code && (q.has("party") || q.has("race"))) duel.join(code).then(ok => { if (!ok) solo(); });

@@ -60,6 +60,7 @@ const RUNTIME = [
   ["pics.js", /^fetch\(url, \{ mode: "(?:no-)?cors"/, "Keep pictures offline: Wikipedia's pictures, kept in the pictures cache"],
   ["sync.js", /^fetch\(url \+/, "Firebase: playing together, watching and syncing need a connection"],
   ["timegrapher.js", /^img\.src = url$/, "a photo of a watch chosen on the phone (a blob: URL), read to be made small: nothing from the network"],
+  ["theme.js", /^img\.src = l\[0\]$/, "the loader's mark: nine files named in the list beside it, every one kept"],
   ["lan-ui.js", /^frame\.src = (`party\.html\?table=\$\{partyCode\}`|url)$/, "an offline party's frame: Party and the pages it goes to, every one kept"],
 ];
 const unknown = built.filter(b => !RUNTIME.some(([file, re]) => b.file === file && re.test(b.load)));
@@ -120,7 +121,7 @@ function worker(b, site, version) {
 const run = async (h, type, extra = {}) => { let p = null; h[type]({ ...extra, waitUntil: x => { p = x; }, respondWith: x => { p = x; } }); return p; };
 const text = async res => (res ? new TextDecoder().decode(await res.arrayBuffer()) : null);
 {
-  const v1 = { "index.html": "<title>Almanac</title>", "app.js": "export const a = 1;", "kb/links.js": "export const LINKS = [];", "puzzles/band-0600.txt": "p1" };
+  const v1 = { "index.html": "<title>Codex</title>", "app.js": "export const a = 1;", "kb/links.js": "export const LINKS = [];", "puzzles/band-0600.txt": "p1" };
   const b = browser({ ...v1 });
   let h = worker(b, v1, "one");
   await run(h, "install"); await run(h, "activate");

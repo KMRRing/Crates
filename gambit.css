@@ -70,7 +70,7 @@ html[data-mode="night"] :is(.gb-miss, .gb-list li.faulted i) { color: #E8806F; }
   outline-offset: -5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gb-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .gb-go:disabled { opacity: .4; cursor: default; }
-/* Modern's buttons: rounded, in the game's enamel, sentence case (the gilt hairline is Almanac's) */
+/* Modern's buttons: rounded, in the game's enamel, sentence case (the gilt hairline is Codex's) */
 html[data-theme="modern"] .gb-go { border-radius: 14px; background: var(--gb-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
 html[data-theme="modern"] .gb-go.quiet { background: var(--sheet); color: var(--ink); box-shadow: inset 0 0 0 1px var(--tile-edge); }
 html[data-theme="modern"] .gb-list li { border-radius: 10px; }

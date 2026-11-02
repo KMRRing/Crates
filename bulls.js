@@ -15,7 +15,7 @@ import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";   // th
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { scale, sideways } from "./wide.js";
 import { leaderboard } from "./standings.js";
 
@@ -77,7 +77,7 @@ function startDuel({ variant = prefs.variant, level = prefs.cpu, seed = randomSe
 function startLock({ level = prefs.lock, seed = randomSeed() } = {}) {
   const deal = () => { run = withWork({ kind: "lock", level, seed, tries: [], strikes: 0, hints: 0, ms: 0, done: false }); begun(); };
   if (LOCK_CACHE.has(`${level}/${seed}`) || !SLOW_LOCKS.has(level)) { deal(); return; }
-  // an Expert is one lock in twenty tried, a fraction of a second here and more on a phone: the rete turns meanwhile,
+  // an Expert is one lock in twenty tried, a fraction of a second here and more on a phone: the mark turns meanwhile,
   // drawn before the work starts (it can't paint while the work holds the page)
   const done = busy("Making a lock", { delay: 0 });
   setTimeout(() => { try { lockFor(level, seed); deal(); } finally { done(); } }, 40);
@@ -458,8 +458,8 @@ function drawLine(m) {
   const l = $("line");
   l.className = `bu-line${message?.tone ? ` ${message.tone}` : ""}`;
   if (!m) { l.textContent = ""; return; }
-  if (m.thinking && !message) { l.replaceChildren(sextant(), "The computer is working out its guess…"); return; }
-  if (m.waiting && !message) { l.replaceChildren(sextant(), m.waiting); return; }
+  if (m.thinking && !message) { l.replaceChildren(waitMark(), "The computer is working out its guess…"); return; }
+  if (m.waiting && !message) { l.replaceChildren(waitMark(), m.waiting); return; }
   l.textContent = message ? message.text : m.result ? "" : m.say ?? howTo(m);
 }
 function howTo(m) {
@@ -838,10 +838,10 @@ function openDone() {
   body.append(action("Another game", () => { $("doneDlg").close(); dealAgain(); }, "primary"), action("Back to solo", () => { $("doneDlg").close(); backToSolo(); }, "link"));
   if (!$("doneDlg").open) $("doneDlg").showModal();
 }
-let making = null;                              // the table's Expert lock being made, behind the rete
+let making = null;                              // the table's Expert lock being made, behind the mark
 function onState(val) {
   const next = tidy(structuredClone(val));
-  if (!lockReady(next.game)) {                                // made once a phone, the rete turning meanwhile
+  if (!lockReady(next.game)) {                                // made once a phone, the mark turning meanwhile
     const key = `${next.created}/${next.n}`;
     if (making !== key) {
       making = key;
@@ -953,7 +953,7 @@ function aboutLine() {
 function tableMenu(body) {
   part(body, "play").append(action("The rules", showRules, "link"));
   const table = part(body, "together");
-  if (!G) { const wait = line(joiningWords()); wait.prepend(sextant()); table.append(wait, action("Back to solo", backToSolo, "link")); if (!$("menuDlg").open) $("menuDlg").showModal(); return; }
+  if (!G) { const wait = line(joiningWords()); wait.prepend(waitMark()); table.append(wait, action("Back to solo", backToSolo, "link")); if (!$("menuDlg").open) $("menuDlg").showModal(); return; }
   const t = prefs.table, set = (k, v) => { prefs.table = { ...prefs.table, [k]: v }; if (prefs.table.kind === "lock" && prefs.table.play === "versus") prefs.table.play = "team"; keepPrefs(); openMenu(); };
   table.append(line(`This game: ${describe(G.game)}.`), action("New game for the table", dealAgain, "primary"),
     choice("Play", Object.entries(PLAYS).filter(([k]) => !(t.kind === "lock" && k === "versus")), t.play, v => set("play", v)),
@@ -1079,7 +1079,7 @@ function solo() {
 // for tests and debugging
 window.__bulls = { get run() { return run; }, get table() { return G; }, get prefs() { return prefs; }, model, go, tapPick, tapSlot, backspace, useHint, startPicked, together };
 
-// a table in the address (a duo match, a party's game): the rete until it's drawn, and no solo game dealt under it
+// a table in the address (a duo match, a party's game): the mark until it's drawn, and no solo game dealt under it
 const code = roomInAddress();
 if (code) { joining = busy(joiningWords(), { delay: 0 }); together.join(code).then(ok => { if (!ok) { joined(); solo(); } }); }
 else solo();

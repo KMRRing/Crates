@@ -27,7 +27,7 @@ export function createParcels({ explain, synced, starred }) {
   const save = () => { if (!IN_FRAME) try { localStorage.setItem(KEY, JSON.stringify({ ...S, run })); } catch { /* private mode */ } };
 
   // ---------- the day ----------
-  /** Deals a desk: a saved day whole, else a fresh one (or the same seed over). The deal can take a moment, so the rete holds the screen. */
+  /** Deals a desk: a saved day whole, else a fresh one (or the same seed over). The deal can take a moment, so the mark holds the screen. */
   function start(desk = S.desk, seed = null, resume = null) {
     const token = ++dealing, done = busy("Dealing the parcels");
     setTimeout(() => {

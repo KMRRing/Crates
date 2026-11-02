@@ -19,7 +19,7 @@
 html[data-mode="night"] { --rv-in: #E58A6E; --rv-wood: #7C5E38; --rv-wood-edge: #5E4527; --rv-line: #1E1309; --rv-face: #E4D7B9; --rv-rim: #C99A45;
   --rv-last: rgba(240, 170, 70, .95); --rv-target: rgba(16, 24, 31, .55); --rv-hint: #7FC2A8; --rv-red-text: #E8806F; --rv-shadow: rgba(0, 0, 0, .45);
   --rv-good: #7FC2A8; --rv-bad: #E8806F; }
-/* the brass rim is Almanac's: the other themes edge a disc in its own wood */
+/* the brass rim is Codex's: the other themes edge a disc in its own wood */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) { --rv-rim: #8E6B3C; }
 /* Kontor and Office lend it their own accent, as their other games */
 html[data-theme="kontor"] { --rv-in: #1E7A45; }
@@ -141,7 +141,7 @@ html[data-mode="night"] :is(.rv-miss, .rv-list li.faulted em) { color: #E8806F; 
   outline-offset: -5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rv-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .rv-go:disabled { opacity: .4; cursor: default; }
-/* Modern's buttons: rounded, in the game's enamel, sentence case (the gilt hairline is Almanac's) */
+/* Modern's buttons: rounded, in the game's enamel, sentence case (the gilt hairline is Codex's) */
 html[data-theme="modern"] .rv-go { border-radius: 14px; background: var(--rv-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
 html[data-theme="modern"] .rv-go.quiet { background: var(--sheet); color: var(--ink); box-shadow: inset 0 0 0 1px var(--tile-edge); }
 html[data-theme="modern"] .rv-list li { border-radius: 10px; }

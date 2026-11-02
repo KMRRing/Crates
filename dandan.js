@@ -19,7 +19,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
-import { sextant } from "./loading.js";
+import { waitMark } from "./loading.js";
 import { createTable3d } from "./dandan-3d.js";
 import { curveOf, worthDrawing, hasActions, byTurn, momentsOf, linesBetween, MIN_FALL, captionOf, readoutOf, chartSvg, pointAt, BOX, addResult, recordOf, emptyRecord } from "./dandan-advantage.js";
 import { noteDecision, emptyReview, reviewHtml } from "./dandan-review.js";
@@ -325,7 +325,7 @@ function advised(v) {
   return opts.coach === "on" && advice?.key === key ? advice.r.best : null;
 }
 const WHY = ' <button type="button" class="link dd-why" data-why="1">Why?</button>';
-const waiting = () => `${sextant().outerHTML}The coach is weighing it…`;
+const waiting = () => `${waitMark().outerHTML}The coach is weighing it…`;
 /** What the coach says now: its move when asked or in Always, its word on your last move, or how the game went by its lights. */
 function coachLine(v) {
   const s = v.state, key = decisionOf(v), turn = myDecision();
@@ -487,7 +487,7 @@ function waitLine() {
   if (V.seat == null) return `${nameOf(tm)} to move`;
   if (tm === V.seat) return s.pending ? "Your answer" : s.stack.length ? "Your priority: answer, or let it resolve" : "Your move";
   if (tapHold()) return `${esc(nameOf(tm))} waits for your tap`;
-  return `${sextant().outerHTML}${esc(nameOf(tm))} is ${s.pending ? "choosing" : "thinking"}`;
+  return `${waitMark().outerHTML}${esc(nameOf(tm))} is ${s.pending ? "choosing" : "thinking"}`;
 }
 function headline() {
   const s = S();

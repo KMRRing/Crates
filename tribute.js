@@ -945,7 +945,7 @@ function drawRush(box, say) {
 // A pair sits at seats 0 and 2, which are one side (the first to sit down at 0, the other across), so they always play
 // as partners, and the computer players take 1 and 3. A party of three or four (README, Party) seats its others at 1
 // and 3, the other side, as they sit down; the computer plays any seat nobody has.
-let roomData = null, joining = null;                            // joining: the rete while you sit down, until the table's drawn
+let roomData = null, joining = null;                            // joining: the mark while you sit down, until the table's drawn
 const seated = () => { joining?.(); joining = null; };
 const mySlot = () => (together.room ? seatsOf(roomData).find(([id]) => id === together.room.uid)?.[1].slot ?? 0 : 0);
 /** A new match at the table, for so many people: the request's (a party's), or the table's as it was; its rules (the

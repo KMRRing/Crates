@@ -1,5 +1,5 @@
 // Nexus: the knowledge base's links make rounds of a nexus and a ring of candidates. A run is five rounds, the same for a
-// seed; every candidate marked linked is linked to the nexus in the Almanac and every decoy is not (a clue that only
+// seed; every candidate marked linked is linked to the nexus in the Codex and every decoy is not (a clue that only
 // loosely fits counts as neither); an Orbit has three to five links among eight to twelve, an Aspect round only those under
 // one aspect (with the nexus's other links under other aspects among the decoys), an Intruder four links and one that
 // isn't; decoys are mostly of the kind of the links, never hubs; a round is judged by what's found less what's wrongly

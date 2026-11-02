@@ -997,7 +997,7 @@ function reasonsFor(j, act) {
 // from each other, at seats 0 and 2 (the first to sit down at 0); a party of three or four (README, Party) seats its
 // others at 1 and 3, as they sit down, and the computer plays any seat nobody has.
 const mySlot = () => (together.room ? seatsOf(roomData).find(([id]) => id === together.room.uid)?.[1].slot ?? 0 : 0);
-let roomData = null, joining = null;                            // joining: the rete while you sit down, until the table's drawn
+let roomData = null, joining = null;                            // joining: the mark while you sit down, until the table's drawn
 const seated = () => { joining?.(); joining = null; };
 /**
  * At a table together, the device whose player sat down first, of those here, moves the computer players; the others

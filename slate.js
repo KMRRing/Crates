@@ -6,7 +6,7 @@ import { branchPath, openBranch, enterRoom, leaveRoom, sitDown, seatsOf, pickSea
 import { askedFor, freshTable, seatsFor, logOf, ownersFrom, placedBy, presentSlots, cursorsOf, storable } from "./slate-room.js";
 import { cagePath } from "./slate-cage.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
 import { reportDuo, today, noteDayTime, arrivedForToday, playerId, sayWhere } from "./suite.js";
@@ -566,7 +566,7 @@ function setRoomParam(code) {
   sayWhere();                             // your partner sees you at the table, or back in solo
 }
 
-// The rete covers your own board while you sit down at a table, so nothing goes into it by mistake; it waits as you
+// The mark covers your own board while you sit down at a table, so nothing goes into it by mistake; it waits as you
 // left it, for Back to solo.
 let joining = null;
 function seated() { joining?.(); joining = null; }
@@ -668,7 +668,7 @@ function drawPartner() {
   if (!room) { el.hidden = true; return; }
   el.hidden = false;
   el.replaceChildren();
-  if (room.online === false) { el.append(sextant(), "Reconnecting… moves made now may not reach the others."); return; }
+  if (room.online === false) { el.append(waitMark(), "Reconnecting… moves made now may not reach the others."); return; }
   const g = room.data, here = new Set(presentSlots(g, room.here, room.uid));
   const others = seatsOf(g).filter(([id, p]) => id !== room.uid && !(room.pid && p.pid === room.pid)).sort((a, b) => a[1].slot - b[1].slot);
   if (seatsFor(g) === 2) {
@@ -1068,7 +1068,7 @@ async function define(k) {
   if (!words.length) { toast("Finish a word through this cell first"); return; }
   const body = $("defineBody"), show = () => body.replaceChildren(...words.map(entryBox), make("p", "Definitions: Open English WordNet (CC BY 4.0), and Slate's own for words it lacks.", "credit"));
   if (DEFS) show();
-  else { const p = make("p", "Looking it up…"); p.prepend(sextant()); body.replaceChildren(p); }
+  else { const p = make("p", "Looking it up…"); p.prepend(waitMark()); body.replaceChildren(p); }
   if (!$("defineDlg").open) $("defineDlg").showModal();
   if (!DEFS) {
     try { await loadDefs(); show(); }
@@ -1170,7 +1170,7 @@ function buildKeyboard() {
 let toastTimer = null;
 function toast(msg) {
   const t = $("toast");
-  t.replaceChildren(...(msg.endsWith("…") ? [sextant()] : []), msg);   // still working: the small sextant says so
+  t.replaceChildren(...(msg.endsWith("…") ? [waitMark()] : []), msg);   // still working: the small waiting says so
   // float just above the action buttons, so the board stays visible
   t.style.top = `${Math.max(8, $("actions").getBoundingClientRect().top - t.offsetHeight - 10)}px`;
   t.classList.add("show");
@@ -1180,7 +1180,7 @@ function toast(msg) {
 
 document.addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]") || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
-  if (!S || joining) return;                  // no board yet: a room is being joined (a hardware keyboard reaches under the rete)
+  if (!S || joining) return;                  // no board yet: a room is being joined (a hardware keyboard reaches under the mark)
   if (e.key === "Enter") typeKey("ENTER");
   else if (e.key === "Backspace") typeKey("BACK");
   else if (e.key.startsWith("Arrow")) arrow(e.key.slice(5));
@@ -1233,7 +1233,7 @@ function soloStart() {
 }
 // a room in the address: the board you share from the first moment, never your own while the room is joined (the others
 // would be on another board until it was, your own clock running), and your own only if the join doesn't come off. The
-// rete stays until the table's board is drawn (onRoom).
+// mark stays until the table's board is drawn (onRoom).
 if (code.length === 4) {
   joining = busy(joiningWords(), { delay: 0 });
   join(code).then(ok => { if (!ok) { seated(); setRoomParam(null); soloStart(); } });

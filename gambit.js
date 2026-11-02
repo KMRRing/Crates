@@ -18,7 +18,7 @@ import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { bestsLine } from "./rush-core.js";
 
 const $ = id => document.getElementById(id);
@@ -362,7 +362,7 @@ function drawEnd() {
     else lines.push(`<ol class="gb-review">${r.items.map(it => `<li><b>${Math.floor(it.ply / 2) + 1}${it.ply % 2 ? "…" : "."} ${esc(it.san)}</b>${yourColour() ? "" : ` (${cap(it.mover)})`}: about ${lossWords(it.loss)} given away; better was <b>${esc(it.better)}</b>.</li>`).join("")}</ol>`);
   } else if (reviewing) lines.push(`<p class="gb-reviewing"><span class="gb-wait"></span>Reviewing the game: ${reviewing.done} of ${reviewing.of} positions</p>`);
   $("endBody").innerHTML = lines.join("");
-  $("endBody").querySelector(".gb-wait")?.append(sextant());
+  $("endBody").querySelector(".gb-wait")?.append(waitMark());
   $("endAgain").hidden = inRoom();
 }
 const lossWords = cp => (cp >= 900 ? "the game" : cp < 150 ? "a pawn" : `${(cp / 100).toFixed(1)} pawns`);
@@ -400,8 +400,8 @@ function drawSeat(el, white, p, words = null) {
   const busyHere = thinking && !inRoom() && g.mode === "engine" && (g.white !== 0) === white;
   el.innerHTML = `<span class="gb-who${toMove ? " turn" : ""}">${mini(white ? "wK" : "bK")}${words ?? "<b></b>"}</span><span class="gb-taken" aria-label="Taken">${taken.map(t => mini((white ? "b" : "w") + t.toUpperCase())).join("")}${lead > 0 ? `<small>+${lead}</small>` : ""}</span>`;
   if (words === null) el.querySelector("b").textContent = seatLabel(white);
-  el.querySelector(".gb-wait")?.append(sextant());
-  if (busyHere) { const s = document.createElement("span"); s.className = "gb-thinking"; s.append(sextant(), "thinking"); el.querySelector(".gb-who").append(s); }
+  el.querySelector(".gb-wait")?.append(waitMark());
+  if (busyHere) { const s = document.createElement("span"); s.className = "gb-thinking"; s.append(waitMark(), "thinking"); el.querySelector(".gb-who").append(s); }
 }
 function evalWords(h, whiteToMove) {
   const you = yourColour(), moverIsYou = you ? (you === "white") === whiteToMove : false;

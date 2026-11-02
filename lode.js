@@ -20,7 +20,7 @@ import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   //
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords, branchPath } from "./rooms.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { leaderboard } from "./standings.js";
 import * as pile from "./pile.js";
 
@@ -534,7 +534,7 @@ function settingsPart(box) {
 }
 function menuTable(body) {
   const table = part(body, "together");
-  if (!G) { const wait = line(joiningWords()); wait.prepend(sextant()); table.append(wait); return; }
+  if (!G) { const wait = line(joiningWords()); wait.prepend(waitMark()); table.append(wait); return; }
   const here = people().filter(p => p.here || p.me).map(p => (p.me ? "you" : first(p.name)));
   table.append(line(`${MODES[G.mode]}: ${here.join(", ")}${G.mode === "team" ? ". Each sees only their own letters." : ", each on their own board."}`));
   nextMode ??= G.mode;
@@ -693,7 +693,7 @@ function openRace() {
   })), { lower: true });
   const body = $("raceBody");
   body.replaceChildren(list);
-  if (!over) { const wait = el("p", "duel-note"); wait.append(sextant(), "Waiting for the others to finish"); body.append(wait); }
+  if (!over) { const wait = el("p", "duel-note"); wait.append(waitMark(), "Waiting for the others to finish"); body.append(wait); }
   const again = el("button", "btn wide primary", "Another board"), solo = el("button", "link duel-link", "Back to solo");
   again.type = solo.type = "button";
   again.addEventListener("click", () => { closeRace(); dealForTable(); });
@@ -776,7 +776,7 @@ function solo() {
   else if (IN_FRAME) render();
   else start("random");
 }
-// a table in the address: its board, under the rete, with no solo board dealt beneath it
+// a table in the address: its board, under the mark, with no solo board dealt beneath it
 const code = roomInAddress();
 if (code && !IN_FRAME) { joining = busy(joiningWords(), { delay: 0 }); together.join(code).then(ok => { if (!ok) { seated(); solo(); } }); }
 else solo();

@@ -118,8 +118,8 @@ function bump(field) { const st = read(STATS, {}); st[field] = (st[field] || 0) 
 // ---------- starting ----------
 const hashFor = s => (s.mode === "daily" ? `#d=${s.day}` : `#p=${s.id}&z=${s.size}${s.hex ? "&g=hex" : ""}`);
 /**
- * A picture's puzzle, made with the rete showing when it isn't made yet: a sparse Large picture can take a moment, and
- * the page should say so rather than freeze. The yield lets the rete draw before the work starts.
+ * A picture's puzzle, made with the mark showing when it isn't made yet: a sparse Large picture can take a moment, and
+ * the page should say so rather than freeze. The yield lets the mark draw before the work starts.
  */
 async function made(id, size, hex = false, label = "Drawing the picture") {
   const grid = hex ? "hex" : "square";

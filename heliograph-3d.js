@@ -12,10 +12,10 @@ const TAU = Math.PI * 2, DOUBLE = 2, ADD = 2;                 // THREE.DoubleSid
 const UP = new THREE.Vector3(0, 1, 0);
 
 // ---------- the skins ----------
-// Almanac: brass on a navy plate under warm glass. Modern: an architect's white model with gilt. Office: Fluent's greys
+// Codex: brass on a navy plate under warm glass. Modern: an architect's white model with gilt. Office: Fluent's greys
 // and blue. Kontor: white and green, as its drawings are. At night the room is dark and the light is brighter for it.
 const SKINS = {
-  almanac: {
+  codex: {
     day: { brass: 0xcfa142, plate: 0x1c2a34, line: 0xcfa142, glass: 0xe9dcc0, sky: 0xf2e8d2, ground: 0x4a4034, key: 0xffffff, keyI: 0.75, amb: 0.62, exposure: 1.0, beam: 0xfff3d0 },
     night: { brass: 0xc39a3e, plate: 0x0d151c, line: 0xc39a3e, glass: 0x5b6f96, sky: 0x5b6f96, ground: 0x10151b, key: 0xb9cdee, keyI: 0.55, amb: 0.55, exposure: 1.12, beam: 0xfff0c8 },
   },
@@ -33,7 +33,7 @@ const SKINS = {
   },
 };
 export function skinNow() {
-  const root = document.documentElement, theme = SKINS[root.dataset.theme] ? root.dataset.theme : "almanac";
+  const root = document.documentElement, theme = SKINS[root.dataset.theme] ? root.dataset.theme : "codex";
   const night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
   const css = getComputedStyle(root), v = (name, or) => (css.getPropertyValue(name) || "").trim() || or;
   return { name: `${theme} ${night ? "night" : "day"}`, night, ...SKINS[theme][night ? "night" : "day"],

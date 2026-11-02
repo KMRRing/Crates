@@ -207,7 +207,7 @@ dialog.bu-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   #app.bulls .bu-entry { --size: 3rem; }
 }
 
-/* ---------- the themes: Almanac's ornaments (the double rule, the brass hatching, the domed enamel) are its own ---------- */
+/* ---------- the themes: Codex's ornaments (the double rule, the brass hatching, the domed enamel) are its own ---------- */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-board { box-shadow: none; border-color: var(--tile-edge); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-shield { background: color-mix(in srgb, var(--ink) 8%, var(--sheet)); box-shadow: inset 0 0 0 1px var(--tile-edge); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-go { outline: 0; }

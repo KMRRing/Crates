@@ -16,7 +16,7 @@ import "./pwa.js";
 import { part, choice, ticks, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { createDuel } from "./duel.js";
 import { createTogether } from "./together.js";
 import { joiningWords } from "./rooms.js";
@@ -766,7 +766,7 @@ async function teamAgain() {
 let toastTimer = null;
 function toast(msg, ms = 2600) {
   const t = $("toast");
-  t.replaceChildren(...(msg.endsWith("…") ? [sextant()] : []), msg);
+  t.replaceChildren(...(msg.endsWith("…") ? [waitMark()] : []), msg);
   // just above the buttons, clear of the clock and the text
   t.style.top = `${Math.max(8, $("dock").getBoundingClientRect().top - t.offsetHeight - 10)}px`;
   t.classList.add("show");

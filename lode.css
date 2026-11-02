@@ -119,7 +119,7 @@ dialog.lo-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .lo-toast.show { opacity: 1; }
 
-/* Almanac's double rule round the theme and the board; the other themes keep their own frames */
+/* Codex's double rule round the theme and the board; the other themes keep their own frames */
 html:not([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.lo-theme, .lo-stage) { box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.lo-theme, .lo-stage) { border-radius: 16px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .lo-wlist li { border-radius: 10px; }

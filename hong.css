@@ -193,8 +193,8 @@ html[data-mode="night"] .hk-opt.missed { border-color: #E8806F; }
 .hk-table > .top .mark-icon { width: 2.1rem; height: 2.1rem; }
 .hk-table > .top .top-right { gap: .3rem; }
 .hk-table > .top .pick { min-height: 2.1rem; padding: .2rem .5rem; font-size: .72rem; }
-.hk-table > .top .rete-btn { width: 2.25rem; height: 2.25rem; }
-.hk-table > .top .rete-btn .rete { width: 2.1rem; height: 2.1rem; }
+.hk-table > .top .cx-btn { width: 2.25rem; height: 2.25rem; }
+.hk-table > .top .cx-btn .cx { width: 2.1rem; height: 2.1rem; }
 
 /* held sideways: the table on the left with all the height but your tiles' row under it, your seat and your move in
    the column beside it, the buttons low */
@@ -225,8 +225,8 @@ html[data-mode="night"] .hk-opt.missed { border-color: #E8806F; }
   #app.hong .top .mark-icon { width: 2.1rem; height: 2.1rem; }
   #app.hong .top .top-right { gap: .35rem; }
   #app.hong .top .pick { min-height: 2rem; padding: .2rem .5rem; font-size: .72rem; }
-  #app.hong .top .rete-btn { width: 2.25rem; height: 2.25rem; }
-  #app.hong .top .rete-btn .rete { width: 2.1rem; height: 2.1rem; }
+  #app.hong .top .cx-btn { width: 2.25rem; height: 2.25rem; }
+  #app.hong .top .cx-btn .cx { width: 2.1rem; height: 2.1rem; }
 
   /* the cloth is the section, all the height; the drawing fills it but for the room your row needs at its foot */
   #app.hong .hk-table { grid-column: 1; grid-row: 1 / -1; margin: 0; padding: .5rem .55rem; place-items: start center; border-radius: 6px; border: 1px solid var(--tile-edge);

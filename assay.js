@@ -24,7 +24,7 @@ import { isDuel } from "./duel-core.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords, openBranch, branchPath } from "./rooms.js";
 import { getSync } from "./net.js";
-import { busy, whileBusy, sextant } from "./loading.js";
+import { busy, whileBusy, waitMark } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -87,7 +87,7 @@ if (track !== "levels" && track !== "free") track = read(RUN, null) ? "free" : "
 // the race's (S.duel, kept by duel.js apart from yours); T: the team's table as last seen. Everything the screen shows
 // is in S (kept in assay:run as it changes), so a partner watching sees it as it stands.
 let S = null, T = null;
-let joining = null;                       // the rete while this phone sits down at the table in its address
+let joining = null;                       // the mark while this phone sits down at the table in its address
 let lobbyMatch = null;                    // a race dealt, not yet started here
 const valid = s => !!s && s.v === 1 && Array.isArray(s.secret) && Array.isArray(s.guesses) && lexOf(s.lang).lengths.includes(s.len) && Number.isFinite(s.ms);
 function save() {
@@ -509,7 +509,7 @@ function drawSay() {
   box.className = "as-say";
   box.replaceChildren();
   if (message) { box.textContent = message.text; if (message.tone) box.classList.add(message.tone); return; }
-  if (joining) { box.append(sextant(), joiningWords()); return; }
+  if (joining) { box.append(waitMark(), joiningWords()); return; }
   if (T) {
     if (T.over) { box.append(T.over === "won" ? `Solved together in ${T.guesses.length}. ` : `It was ${big(unhide(T.secret))}. `, linkButton("Another word", () => teamNext())); return; }
     const mine = T.turn === team.slot, theirs = nameOfSlot(T.turn);
@@ -884,7 +884,7 @@ function openMenu() {
       const content = part(body, "content");
       content.append(choice("Letters", LENGTHS.map(n => [n, String(n)]), T?.len ?? prefs.len, v => { setPref("len", v); }),
         choice("Words", LEVELS.map(l => [l, LEVEL_NAMES[l]]), prefs.level, v => setPref("level", v)), line("For the next word."));
-    } else { const wait = line(joiningWords()); wait.prepend(sextant()); together.append(wait, action("Back to solo", backToSolo, "link")); }
+    } else { const wait = line(joiningWords()); wait.prepend(waitMark()); together.append(wait, action("Back to solo", backToSolo, "link")); }
     settingsPart(body, false);
     showMenu(body);
     return;
@@ -975,7 +975,7 @@ function aboutLine() {
 let toastTimer = 0;
 function toast(text, ms = 2200) {
   const t = $("toast");
-  t.replaceChildren(...(text.endsWith("…") ? [sextant()] : []), text);
+  t.replaceChildren(...(text.endsWith("…") ? [waitMark()] : []), text);
   t.classList.add("on");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("on"), ms);

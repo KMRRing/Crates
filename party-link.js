@@ -21,7 +21,7 @@ const path = () => `crates/rooms/${partyCode}/party`;
 let sync = null, state = null, moving = false;
 const boxes = new Set();
 
-/** Leaves this page for another, once (a later change of the party's mind waits for that page to read it), the rete
+/** Leaves this page for another, once (a later change of the party's mind waits for that page to read it), the mark
  *  saying where to while it loads: the page stays as it is until the next one is ready. */
 function go(href, [title, words]) {
   if (moving || IN_FRAME) return;

@@ -20,7 +20,7 @@ import { createCourse, progressOf } from "./course.js";
 import { COURSE, courseStage } from "./contract-course.js";
 import { createRush } from "./contract-rush-ui.js";
 import { bestsLine } from "./rush-core.js";
-import { sextant } from "./loading.js";
+import { waitMark } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -272,7 +272,7 @@ function drawSay(s) {
   if (hint?.html) { el.innerHTML = hint.html; return; }
   if (said?.html) { el.innerHTML = said.html; return; }
   el.innerHTML = esc(statusOf(s));
-  el.querySelector(".bd-wait")?.append(sextant());
+  el.querySelector(".bd-wait")?.append(waitMark());
 }
 function statusOf(s) {
   const seat = V.seat, who = rules.toMove(s);
@@ -402,7 +402,7 @@ async function showHint() {
   if (s.step !== "play" || rules.toMove(s) !== V.seat) return;
   hint = { key, kind: "play", card: null, html: `<span class="bd-wait"></span>Thinking it through…` };
   drawSay(s);
-  $("say").querySelector(".bd-wait")?.append(sextant());
+  $("say").querySelector(".bd-wait")?.append(waitMark());
   const ans = await ask({ kind: "hint", state: s, seat: V.seat });
   if (!hint || hint.key !== key) return;
   if (!ans) { hint = { key, kind: "play", card: null, html: "The hint couldn't be worked out here." }; drawSay(s); return; }
@@ -451,7 +451,7 @@ function showReview() {
     <p class="bd-review-line"><b>${contractHtml(h.contract)} by ${esc(nameOf(h.contract.declarer))}</b>: ${h.tricks} tricks, ${diff >= 0 ? (diff ? `made with ${diff} over` : "made") : `down ${-diff}`}, ${Math.abs(r.score)} to ${esc(SIDES[r.score >= 0 ? sideOf(h.contract.declarer) : 1 - sideOf(h.contract.declarer)])}.</p>
     <p class="bd-review-line" id="parLine"><span class="bd-wait"></span>With every card seen…</p>
     ${auctionTable({ ...s, auction: h.auction, dealer: h.dealer, vul: h.vul, step: "done" })}`;
-  $("parLine").querySelector(".bd-wait")?.append(sextant());
+  $("parLine").querySelector(".bd-wait")?.append(waitMark());
   if (!$("reviewDlg").open) $("reviewDlg").showModal();
   ask({ kind: "par", state: { dealt: h.dealt, contract: h.contract } }).then(p => {
     const el = $("parLine");

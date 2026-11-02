@@ -20,7 +20,7 @@ const PORT_AWAY = 0.72;
 // The table, its frame and the light for each theme by day and by night. The land's colours are the game's own and come
 // from factor.css (--r0..--r5, --sea), the seats' from style.css (--p0..--p3), so they follow the page.
 const SKINS = {
-  almanac: {
+  codex: {
     day: { table: [0x6e5038, 0x5a3f2a], grain: 1, rim: 0x4a2c17, rimTop: 0xc49a3e, sun: 0xfff1d8, sunI: 2.6, sunAt: [-5, 12, 7], sky: 0xfff4de, ground: 0x6f5c45, hemi: 1.05, exposure: 1.05 },
     night: { table: [0x37281c, 0x2c1f15], grain: 1, rim: 0x2d1a0d, rimTop: 0xb38c38, sun: 0xc4d4f0, sunI: 1.9, sunAt: [-5, 12, 6], sky: 0x8fa3cc, ground: 0x24242a, hemi: 0.85, exposure: 1.2 },
   },
@@ -39,7 +39,7 @@ const SKINS = {
 };
 /** The skin in force: the suite's theme and day or night (as set, else as the device), with the page's colours. */
 export function skinNow() {
-  const root = document.documentElement, theme = SKINS[root.dataset.theme] ? root.dataset.theme : "almanac";
+  const root = document.documentElement, theme = SKINS[root.dataset.theme] ? root.dataset.theme : "codex";
   const night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
   const css = getComputedStyle(root), pick = (name, or) => {
     const v = (css.getPropertyValue(name) || "").trim();

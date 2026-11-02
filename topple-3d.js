@@ -34,7 +34,7 @@ const FADE = 0.28, FADE_KNOCK = 0.55;                   // how much of a floor n
 // ---------- the skins ----------
 // The wood and the light, for each theme and day or night. The enamels come from the theme's own colours.
 const SKINS = {
-  almanac: {
+  codex: {
     day: { birch: [0xe6cd9f, 0xdfc392, 0xebd7b0], mahoL: 0x68250f, mahoD: 0x2c0e06, brass: 0xcaa040, inlay: 0x3f160c, sun: 0xfff0d6, sunI: 2.9, sunAt: [-6, 13, 8], fill: 0xdce6ff, fillI: 0.7, sky: 0xfff4de, ground: 0x7a6650, hemi: 0.95, exposure: 1.12 },
     night: { birch: [0xcdb487, 0xc6aa7c, 0xd2bc93], mahoL: 0x58200f, mahoD: 0x260c06, brass: 0xc09638, inlay: 0x33120a, sun: 0xb9cdee, sunI: 1.7, sunAt: [-6, 13, 7], fill: 0xffc98a, fillI: 0.85, sky: 0x8fa6d4, ground: 0x2a2a30, hemi: 0.75, exposure: 1.18 },
   },
@@ -51,7 +51,7 @@ const SKINS = {
 // dark, the metal of the bands and studs, the line between the dominoes' hexagons (`line`) and the bands' dark (`inlay`), by day
 // and by night, and how the shader draws it (`style`: 1 marble, 2 planks, 3 flagstones, 4 gravel; 0 is the birch and mahogany of
 // Classic, which this leaves exactly as it was) and how glossy field and frame are (`rough`). Water and stone take the scene's too.
-// The theme still sets the light and the enamels, so a scene follows Almanac, Modern and Kontor, and day and night.
+// The theme still sets the light and the enamels, so a scene follows Codex, Modern and Kontor, and day and night.
 const SCENES = {
   marble: {
     style: 1, rough: [0.2, 0.24],
@@ -82,7 +82,7 @@ const LEVEL_ENAMEL = {
 const LEVEL_INK = ["#2A2005", "#F7F1E3", "#F7F1E3", "#F7F1E3", "#1C2A34", "#F7F1E3", "#F7F1E3", "#F7F1E3", "#1C2A34", "#1C2A34"];
 /** The skin in force: the suite's theme and day or night (as set, else as the device), the enamels of the palette ("classic" or "levels"), and a scene's materials. */
 export function skinNow(scene = "birch", palette = "classic") {
-  const root = document.documentElement, theme = SKINS[root.dataset.theme] ? root.dataset.theme : "almanac";
+  const root = document.documentElement, theme = SKINS[root.dataset.theme] ? root.dataset.theme : "codex";
   const night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
   const css = getComputedStyle(root), pick = (name, or) => (css.getPropertyValue(name) || "").trim() || or;
   const made = SCENES[scene]?.[night ? "night" : "day"];

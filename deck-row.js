@@ -9,7 +9,7 @@
 import { IN_FRAME } from "./suite.js";
 import { lan } from "./net.js";
 import { ticks, line, CLOSE } from "./menu.js";
-import { sextant } from "./loading.js";
+import { waitMark } from "./loading.js";
 import * as pile from "./pile.js";
 import { GAMES } from "./pile.js";
 import { scopeOf, keptScope, inScope, topicsOf, afterTicks, sayScope } from "./deck-scope.js";
@@ -61,7 +61,7 @@ export function redrawDeck() {
   const c = waiting ? null : covered(scope, scope.subjects.length ? index : null);
   for (const { row, host } of rows) {
     const go = button("btn primary rd-play rd-deck", () => review(host));
-    if (waiting) go.append(sextant(), "Deck");
+    if (waiting) go.append(waitMark(), "Deck");
     else {
       go.insertAdjacentHTML("beforeend", `${CARDS}<span class="rd-words"><b>Deck</b><small></small></span>`);
       go.querySelector("small").textContent = `${c.due.length} due`;
@@ -99,7 +99,7 @@ export function deckPane(body, { subjects = null, onChange = null } = {}) {
   const games = ticks("Games", gameIds.map(id => [id, GAMES[id]]), gameIds.filter(id => !scope.games.includes(id)), change("games", gameIds), Infinity, { all: true });
   tell();
   const wait = line("");
-  wait.prepend(sextant());
+  wait.prepend(waitMark());
   wait.append("Reading the topics");
   body.replaceChildren(say, games, ...(index ? [] : [wait]));
   const topics = () => {

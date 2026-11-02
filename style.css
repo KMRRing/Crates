@@ -11,7 +11,7 @@
   --caps: uppercase; --track: 1; --stretch-btn: 112%;   /* the Deco lettering; the other themes reset these */
   --gap: .375rem;             /* between tiles, and between solved crates */
   --tile-ratio: .8;       /* tile height / width */
-  /* Almanac's look: brass instruments on an almanac's page. Light is the page (parchment, navy ink, brass rules);
+  /* Codex's look: brass instruments on a codex's page. Light is the page (parchment, navy ink, brass rules);
      dark is the instrument (a night-navy dial, parchment lettering, bright brass). The four crate colours are
      enamels: ochre, verdigris (copper's green patina), cobalt and oxblood. */
   --yard: #E8DFC9;      /* the page */
@@ -230,7 +230,7 @@ button, input { font: inherit; color: inherit; }
   display: flex; align-items: center; gap: .55rem; margin: 0; min-width: 0; flex: 0 1 auto;
   font-size: 1.16rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); line-height: 1;
 }
-.mark-icon { width: 2.5rem; height: 2.5rem; flex: none; }   /* the game's logo: as large as the rete across the header */
+.mark-icon { width: 2.5rem; height: 2.5rem; flex: none; }   /* the game's logo: as large as the mark across the header */
 .cr-mark { display: inline-block; }
 .cr-mark svg { width: 100%; height: 100%; display: block; }
 /* The title opens the game switcher. */
@@ -660,8 +660,8 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
   background: var(--sheet); color: var(--ink); cursor: pointer; padding: 0; }
 .icon-btn svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .icon-btn:disabled { opacity: .6; }
-/* the rete in a ring of its own (the games screen's Settings, in Almanac): drawn in its own colours, not the line icons' */
-.icon-btn svg.rete { width: 1.75rem; height: 1.75rem; stroke: none; }
+/* the mark in a ring of its own (the games screen's Settings, in Codex): drawn in its own colours, not the line icons' */
+.icon-btn svg.cx { width: 1.75rem; height: 1.75rem; stroke: none; }
 .icon-btn.spin svg { animation: icon-spin 1s linear infinite; }
 @keyframes icon-spin { to { transform: rotate(360deg); } }
 
@@ -684,13 +684,14 @@ details.menu-how { margin-top: 1rem; padding-top: .7rem; border-top: 1px solid c
 details.menu-how summary { cursor: pointer; font-weight: 700; color: var(--ink); list-style-position: inside; padding: .2rem 0; }
 details.menu-how p { margin: .5rem 0 0; line-height: 1.45; }
 
-/* Loading (loading.js). While a page loads, and while a long task runs, the rete turns large in the middle of the
+/* Loading (loading.js). While a page loads, and while a long task runs, the mark turns large in the middle of the
    screen, the task's words under it: a page that's ready at once never shows it (it fades in after a moment), and it
-   lets taps through while a page loads, so a page that somehow never says it's ready isn't locked behind it. */
+   lets taps through while a page loads, so a page that somehow never says it's ready isn't locked behind it. The mark
+   itself is the .cx-load layers below (theme.js puts them in), over this overlay's page-coloured ground. */
 html:not(.ready) body::after, html.busy body::after {
   content: attr(data-busy); position: fixed; inset: 0; z-index: 2147483000; display: block; box-sizing: border-box;
   padding: calc(50vh + min(23vw, 6.5rem) + .4rem) 1.5rem 0; text-align: center;
-  background: var(--yard) url("rete.svg") center calc(50% - .9rem) / min(46vw, 13rem) no-repeat;
+  background: var(--yard);
   color: var(--brass-lo); font: 800 .76rem/1.4 var(--font); font-stretch: var(--wide); letter-spacing: calc(.16em * var(--track)); text-transform: var(--caps);
   animation: busy-in .2s .35s both;
 }
@@ -698,11 +699,27 @@ html:not(.ready) body::after { pointer-events: none; }
 html.busy body::after { animation-delay: 0s; }
 @keyframes busy-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { html:not(.ready) body::after { display: none; } }   /* without its fade-in delay it would flash on every page */
-/* A task with stages (loading.js, progress): under the rete's words, a bar filling as it goes, a glint running along
+/* A task with stages (loading.js, progress): under the mark's words, a bar filling as it goes, a glint running along
    it so a long stage never looks stuck, and the stage's words under the bar; the bar in the brass that reads as text
    (Modern's --brass is a hairline grey). A page opened to join others (a party, a table, a partner's match) shows its
    words and a bar from its first moment, while its own files load (theme.js sets html.joining and the words, before
    anything of the page has run); the page's own take over once it runs. */
+/* The mark, large: nine pictures stacked (mark/*.svg, put in by theme.js), each moving part its own layer, so the GPU
+   turns them as textures and nothing is repainted: a page still loading, its main thread busy, can't make it stutter
+   (an animated SVG on the page's own thread dropped to 26 frames a second under that load; this holds 60). Speeds are
+   the movement's own: the great wheel (.a) clockwise in 3 s, the ring (.r) anticlockwise in 6 s, the pinions (.b, .d)
+   anticlockwise in 1.5 s about their own axes (tools/build-mark.mjs); everything is back where it began every 6 s. */
+.cx-load { display: none; position: fixed; z-index: 2147483001; left: 50%; top: calc(50% - .9rem); width: min(46vw, 13rem); aspect-ratio: 1; translate: -50% -50%; pointer-events: none; }
+html:not(.ready) .cx-load.on, html.busy .cx-load.on { display: block; animation: busy-in .2s .35s both; }
+html.busy .cx-load.on { animation-delay: 0s; }
+.cx-load img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cx-load .m { will-change: transform; animation: cx-turn linear infinite; }
+.cx-load .a { animation-duration: 3s; }
+.cx-load .r { animation-duration: 6s; animation-direction: reverse; }
+.cx-load .b, .cx-load .d { animation-duration: 1.5s; animation-direction: reverse; }
+.cx-load .b { transform-origin: 38.96% 56.38%; }
+.cx-load .d { transform-origin: 61.04% 56.38%; }
+@media (prefers-reduced-motion: reduce) { html:not(.ready) .cx-load { display: none; } .cx-load .m { animation: none; } }
 html.joining:not(.ready) body::after { content: var(--busy-say, ""); }
 html.busy body[data-busy-step]::before, html.joining:not(.ready) body::before {
   content: attr(data-busy-step); position: fixed; z-index: 2147483001; left: 50%; top: calc(50vh + min(23vw, 6.5rem) + 2.6rem);
@@ -721,12 +738,12 @@ html.joining:not(.ready) body::before { content: var(--busy-step, ""); pointer-e
   html:not(.ready) body::before { display: none; }
   html.busy body::before { animation: none; transition: none; }
 }
-/* a picture on its way (pics.js): the sextant turns where it will appear, until the painting covers it */
-img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
-/* the small sextant, before the words of a short wait */
-.ld { display: inline-block; width: 1.3em; height: 1.3em; margin-right: .4em; vertical-align: -.32em; background: url("sextant.svg") center / contain no-repeat; }
+/* a picture on its way (pics.js): the small mark turns where it will appear, until the painting covers it */
+img.pic { background: url("loader-small.svg") center / 2.2rem no-repeat; }
+/* the small mark, before the words of a short wait */
+.ld { display: inline-block; width: 1.3em; height: 1.3em; margin-right: .4em; vertical-align: -.32em; background: url("loader-small.svg") center / contain no-repeat; }
 
-/* Almanac's home: the screen of games is the page, so there's nothing to close it back to */
+/* Codex's home: the screen of games is the page, so there's nothing to close it back to */
 .home dialog.apps [data-close] { display: none; }
 
 /* the menu's controls: a row with its label; one-of as a segmented row, on-off as a switch; a quiet status line */
@@ -759,16 +776,20 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
    takes the rest of the line */
 .code-chip .code-tick { width: .95rem; height: .95rem; color: #3a9d57; stroke-width: 2.6; }
 .code-chip { padding: .3rem .5rem .3rem .45rem; }
-/* in a game's header: the dropdowns live in the menu now (under Content), and the menu button is the rete */
+/* in a game's header: the dropdowns live in the menu now (under Content), and the menu button is the mark */
 .top .dd, .top select.pool, .ch-pick { display: none !important; }   /* Chart's topic and region too */
-/* the menu button: the rete, large and unboxed (no frame or fill round it, as an instrument sits on the page) */
-.rete-btn { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0 !important; border: 0 !important; background: none !important; border-radius: 50%; }
-.rete-btn .rete { width: 2.5rem; height: 2.5rem; display: block; }
-.rete .rete-turn, .rete .rete-rule { transform-box: view-box; transform-origin: 50px 50px; }
-.turning .rete .rete-turn { animation: rete-turn 9s linear infinite; }
-.turning .rete .rete-rule { animation: rete-turn 15s linear infinite reverse; }
-@keyframes rete-turn { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .turning .rete .rete-turn, .turning .rete .rete-rule { animation: none; } }
+/* the menu button: the mark, large and unboxed (no frame or fill round it, as an instrument sits on the page). It stands
+   still, and while the menu is open its movement turns at the true speeds (see .cx-load): the great wheel (.cx-a), the
+   ring (.cx-r), the pinions (.cx-b, .cx-d; mark.js gives them their own centres) */
+.cx-btn { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0 !important; border: 0 !important; background: none !important; border-radius: 50%; }
+.cx-btn .cx { width: 2.5rem; height: 2.5rem; display: block; }
+.cx g { transform-box: view-box; }
+.cx-a, .cx-r { transform-origin: 50px 50px; }
+.turning .cx .cx-a { animation: cx-turn 3s linear infinite; }
+.turning .cx .cx-r { animation: cx-turn 6s linear infinite reverse; }
+.turning .cx .cx-b, .turning .cx .cx-d { animation: cx-turn 1.5s linear infinite reverse; }
+@keyframes cx-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .turning .cx g { animation: none !important; } }
 
 /* the partner pill in a game's title: plain lettering (not the title's capitals), and the room the header now has */
 .partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; flex: 0 1 auto; min-width: 0; }

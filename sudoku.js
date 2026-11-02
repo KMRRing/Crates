@@ -81,7 +81,7 @@ function refill(kind) {
   refilling = true;
   gridOf(kind).then(g => { const all = read(SPARES, {}); all[kindKey(kind)] = g; write(SPARES, all); }).catch(e => console.error(e)).finally(() => { refilling = false; });
 }
-/** A new grid of this kind: the spare (at once), else made now with the rete showing. */
+/** A new grid of this kind: the spare (at once), else made now with the mark showing. */
 async function dealGrid(kind, words = "Setting the grid") {
   const spare = kind.seed == null ? takeSpare(kind) : null, next = { rules: kind.rules, size: kind.size, level: kind.level };
   if (spare) { setTimeout(() => refill(next), 1500); return spare; }
@@ -314,7 +314,7 @@ function hintFor({ view, placed, notes, solutionAt }) {
 function soloHint() {
   const view = soloView(), shape = S.mode === "pair" ? viewOf(P, S.split, 0).shape : SH;
   const h = hintFor({ view: { ...view, shape }, placed: S.entries.v, notes: S.entries.n, solutionAt: i => P.solution[i] });
-  if (!h) { message = { text: S.mode === "pair" ? "Nothing more follows from what you can see: Almanac's digits will." : "Nothing more to find here.", tone: "" }; return; }
+  if (!h) { message = { text: S.mode === "pair" ? "Nothing more follows from what you can see: Codex's digits will." : "Nothing more to find here.", tone: "" }; return; }
   S.hints++;
   showHint(h, S, view, strike => { set(S.entries, strike); });
 }
@@ -398,10 +398,10 @@ function drawStrip() {
   let text = "";
   if (S.mode === "rival" && plan) {
     const left = rivalLeft(), end = plan.at(-1)?.at ?? 0;
-    text = left > 0 ? `Almanac (${pace}): ${plural(left, "digit")} to go` : `Almanac (${pace}) finished in ${fmt(end / 1000)}`;
+    text = left > 0 ? `Codex (${pace}): ${plural(left, "digit")} to go` : `Codex (${pace}) finished in ${fmt(end / 1000)}`;
   } else if (S.mode === "pair") {
     const its = [...S.by].filter(ch => ch === "1").length;
-    text = `With Almanac (${pace}): ${plural(its, "digit")} of its${S.bot || S.done ? "" : ", waiting on you"}`;
+    text = `With Codex (${pace}): ${plural(its, "digit")} of its${S.bot || S.done ? "" : ", waiting on you"}`;
   }
   r.hidden = !text;
   if (r.textContent !== text) r.textContent = text;
@@ -409,7 +409,7 @@ function drawStrip() {
 function drawLine(done) {
   const l = $("line");
   const text = done ? "" : message ? message.text
-    : S.mode === "pair" ? (P.cages ? "A ? is a sum only Almanac can see, as it can't see some of yours. Its digits are in copper." : "You and Almanac each see some givens the other can't (hatched). Its digits are in copper.")
+    : S.mode === "pair" ? (P.cages ? "A ? is a sum only Codex can see, as it can't see some of yours. Its digits are in copper." : "You and Codex each see some givens the other can't (hatched). Its digits are in copper.")
     : P.cages ? "Each cage adds up to its sum, with no digit twice. Tap a cell, then a digit." : "Tap a cell, then a digit. Notes writes in pencil.";
   if (l.textContent !== text) l.textContent = text;
   l.className = `su-line${message?.tone ? ` ${message.tone}` : ""}`;
@@ -427,8 +427,8 @@ function drawResult() {
   let tail = "";
   if (S.mode === "rival" && plan) {
     const its = Math.round((plan.at(-1)?.at ?? 0) / 1000), gap = Math.abs(its - S.done.score);
-    tail = S.done.score < its ? `You beat Almanac by ${fmt(gap)}.` : S.done.score > its ? `Almanac was ${fmt(gap)} quicker.` : "A dead heat with Almanac.";
-  } else if (S.mode === "pair") tail = `Almanac placed ${[...S.by].filter(ch => ch === "1").length}, you ${[...S.by].filter(ch => ch === "0").length}.`;
+    tail = S.done.score < its ? `You beat Codex by ${fmt(gap)}.` : S.done.score > its ? `Codex was ${fmt(gap)} quicker.` : "A dead heat with Codex.";
+  } else if (S.mode === "pair") tail = `Codex placed ${[...S.by].filter(ch => ch === "1").length}, you ${[...S.by].filter(ch => ch === "0").length}.`;
   else {
     const best = read(TIMES, {})[kindKey({ rules: P.rules, size: P.n, level: P.level })];
     tail = S.done.fresh ? "A new best." : best != null ? `Your best: ${fmt(best)}.` : "";
@@ -792,7 +792,7 @@ function settingsPart(body, atTable) {
   if (!atTable) {
     s.append(choice("Computer", [["off", "Off"], ["rival", "Race it"], ["partner", "With it"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
     if (settings.computer !== "off") s.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }),
-      line(settings.computer === "rival" ? "Almanac solves the same grid alongside you, step by step at a person's pace." : "You and Almanac each see part of the givens; its digits show as it finds them. From the next grid."));
+      line(settings.computer === "rival" ? "Codex solves the same grid alongside you, step by step at a person's pace." : "You and Codex each see part of the givens; its digits show as it finds them. From the next grid."));
   }
   s.append(toggle("Mark repeats", settings.repeats, v => { settings.repeats = v; saveSettings(); render(); }),
     toggle("Clear pencil marks as you write", settings.tidy, v => { settings.tidy = v; saveSettings(); }));

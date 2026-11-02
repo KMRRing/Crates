@@ -43,7 +43,7 @@ html[data-mode="night"] { --cw-in: #6FA0D2; --cw-black: color-mix(in srgb, var(-
 .cw-boardbox { display: grid; place-items: center; min-height: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
 #app.crossword > .cw-boardbox.grows { flex: 1 1 auto; }
 .cw-grid { display: grid; gap: 1px; padding: 1px; background: var(--cw-black); box-shadow: 0 0 0 1px var(--tile-edge); cursor: pointer; }
-/* Almanac frames the grid in a double brass rule, as it frames a stage; the other themes keep the plain edge */
+/* Codex frames the grid in a double brass rule, as it frames a stage; the other themes keep the plain edge */
 html:not([data-theme]) .cw-grid { box-shadow: 0 0 0 1px var(--brass), 0 0 0 3px var(--yard), 0 0 0 4px var(--brass); }
 /* zoomed, the grid is larger than its window, which keeps the size and the frame it has whole, and moves inside it */
 .cw-win { position: relative; }
@@ -75,7 +75,7 @@ html:not([data-theme]) .cw-win.zoomed { box-shadow: 0 0 0 1px var(--brass), 0 0 
 /* the clue being solved: step back, the clue (a tap turns across or down), step on */
 .cw-bar { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr) 2.4rem; align-items: stretch; height: 3.7rem; margin-top: .5rem; border: 1px solid var(--tile-edge);
   border-radius: 6px; background: var(--sheet); }
-html:not([data-theme]) .cw-bar { box-shadow: inset 0 0 0 3px var(--sheet), inset 0 0 0 4px var(--rule); }   /* Almanac's inset hairline */
+html:not([data-theme]) .cw-bar { box-shadow: inset 0 0 0 3px var(--sheet), inset 0 0 0 4px var(--rule); }   /* Codex's inset hairline */
 .cw-step { border: 0; background: none; color: var(--brass-lo); font-size: 1.6rem; font-weight: 700; cursor: pointer; padding: 0; }
 .cw-step:active { background: var(--cw-soft); }
 .cw-cluetext { border: 0; background: none; color: var(--ink); text-align: left; padding: .3rem .2rem; cursor: pointer; overflow: hidden;

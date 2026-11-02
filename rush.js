@@ -45,7 +45,7 @@ async function loadBand(b) {
   return list;
 }
 const firstBands = () => Promise.all([loadBand(600), loadBand(800), loadBand(1000)]);
-/** The first bands, fetched once (the rete while they come): false if they can't be. */
+/** The first bands, fetched once (the mark while they come): false if they can't be. */
 async function ready() {
   if (bands.has(1000)) return true;
   const done = busy("Loading the puzzles");

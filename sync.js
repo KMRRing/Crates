@@ -53,7 +53,7 @@ addEventListener("pagehide", () => { hiddenAt = Date.now(); });
 
 export async function connect() {
   try { localStorage.removeItem(FAILED); } catch { /* private mode */ }
-  // Firebase's code has loaded by now (this module's imports): the stages from here, for the rete's bar (net.js)
+  // Firebase's code has loaded by now (this module's imports): the stages from here, for the mark's bar (net.js)
   connecting("Finding the game server", 0.25);
   const app = initializeApp(CONFIG, "crates");
   const db = getDatabase(app, await resolveDbUrl());

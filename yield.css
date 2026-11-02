@@ -175,7 +175,7 @@ dialog.yd-sheet { max-height: 86vh; max-height: 86svh; overflow-y: auto; overscr
   #app.yield .yd-keys { max-width: 30rem; width: 100%; margin: .6rem auto 0; }
 }
 
-/* ---------- Almanac's ornaments, undone for the other themes ---------- */
+/* ---------- Codex's ornaments, undone for the other themes ---------- */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-found { border-radius: 12px; outline: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-chart-btn { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-key { border-radius: 12px; }

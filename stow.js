@@ -16,7 +16,7 @@ import "./pwa.js";
 import { part, action, line, choice } from "./menu.js";
 import { today, noteStars } from "./suite.js";
 import { roundOver } from "./random.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const MODE = "stow:mode", RUN = "stow:plan", PLANS = "stow:plans", DAILY = "stow:daily", DAYPLAN = "stow:dayplan", TURNED = "stow:view";
@@ -173,7 +173,7 @@ function drawPartner() {
   el.hidden = !inRoom();
   if (!inRoom()) return;
   el.replaceChildren();
-  if (!together.online) { el.append(sextant(), "Reconnecting…"); return; }
+  if (!together.online) { el.append(waitMark(), "Reconnecting…"); return; }
   const g = S(), others = together.others(), people = g?.people || 2;
   if (people === 2) {
     const there = otherHere(together.room.here, together.room.uid, together.room.pid, "stow");
@@ -185,7 +185,7 @@ function drawPartner() {
       return;
     }
   }
-  if (!others.length) { el.append(sextant(), people > 2 ? "Waiting for the others to join" : "Waiting for your partner to join"); return; }
+  if (!others.length) { el.append(waitMark(), people > 2 ? "Waiting for the others to join" : "Waiting for your partner to join"); return; }
   if (!g || g.done) { el.hidden = true; return; }                       // the result says how it went
   const pres = present(), now = turnNow(g, pres), skipped = (g.turn ?? 0) !== now && !pres.includes(g.turn) ? seatsOf(g).find(([, p]) => p.slot === g.turn)?.[1] : null;
   el.append(seatChip(now === mySlot() ? "Your turn" : `${firstName(seatName(now))}'s turn`, now));
@@ -363,7 +363,7 @@ window.__stow = {
 $("app").dataset.mode = mode;
 enter(mode);
 noteStars("stow", starsAll());
-// Opened for a duo match or a party's table: the rete covers your own hold while you sit down (a new manifest starts at
+// Opened for a duo match or a party's table: the mark covers your own hold while you sit down (a new manifest starts at
 // yours), so nothing's stowed in it by mistake; it waits as you left it, for Back to solo.
 const code = roomInAddress();
 if (code) {

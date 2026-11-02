@@ -5,7 +5,7 @@
 // the lobby and its countdown (as duel.js runs a head-to-head), the others' progress, the result, the pair's record.
 import { createTogether } from "./together.js";
 import { joiningWords } from "./rooms.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { part, choice, action, line } from "./menu.js";
 import { newRun, steps, LEVELS, RULES } from "./ladder-engine.js";
 import { MODES, RACE_LADDERS, dealFor, freshTable, isTable, defaultMode, teamMove, teamUndo, teamHint, teamOn, teamRun, startTable, raceReport, raceOrder, teamResult, raceOver } from "./ladder-table.js";
@@ -23,7 +23,7 @@ const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M1
 export function createLadderRoom({ onState, toast, askName, solo, begin, prefs, keepPrefs }) {
   let cur = null;          // the table as last seen
   let offset = 0, stopOffset = null;
-  let joining = null;      // the rete while sitting down
+  let joining = null;      // the mark while sitting down
   let firstDrawn = null;
   let shownFor = null;     // the match whose ladder is on the page (race: n/i; team: n)
   let race = null;         // this device's race: { n, created, i, done: [{ over, hints }], begun }
@@ -210,7 +210,7 @@ export function createLadderRoom({ onState, toast, askName, solo, begin, prefs, 
     else {
       const waiting = seated(cur).filter(([, p]) => p.slot !== mySlot() && !runOf(cur, p.slot)?.ready).map(([, p]) => first(p.name));
       const wait = el("p", "duel-note");
-      wait.append(sextant(), waiting.length ? `Waiting for ${list(waiting)}` : "Waiting for someone to join");
+      wait.append(waitMark(), waiting.length ? `Waiting for ${list(waiting)}` : "Waiting for someone to join");
       body.append(wait);
       body.append(button("Start without waiting", startNow, ""));             // a team's absent players' letters are let go to the rest
     }
@@ -248,7 +248,7 @@ export function createLadderRoom({ onState, toast, askName, solo, begin, prefs, 
         ol.append(li);
       }
       body.append(ol);
-      if (mine?.run.done && !done) { const w = el("p", "duel-note"); w.append(sextant(), "The others are still climbing"); body.append(w); }
+      if (mine?.run.done && !done) { const w = el("p", "duel-note"); w.append(waitMark(), "The others are still climbing"); body.append(w); }
     }
     if (over()) body.append(button(M.mode === "team" ? "Another ladder" : "Rematch", again, "primary"));
     body.append(button("Back to solo", () => together.leave(), "link"));
@@ -302,7 +302,7 @@ export function createLadderRoom({ onState, toast, askName, solo, begin, prefs, 
   // ---------- the menu's together part ----------
   function menu(body) {
     const table = part(body, "together");
-    if (!cur) { const wait = line(joiningWords()); wait.prepend(sextant()); table.append(wait, action("Back to solo", () => { location.replace(location.pathname); }, "link")); return; }
+    if (!cur) { const wait = line(joiningWords()); wait.prepend(waitMark()); table.append(wait, action("Back to solo", () => { location.replace(location.pathname); }, "link")); return; }
     const pres = present(), names = seated(cur).map(([uid, p]) => `${uid === me() ? "you" : first(p.name)}${pres.includes(p.slot) ? "" : " (away)"}`);
     table.append(line(`At the table: ${list(names)}. This game: ${MODES[cur.match.mode]}.`),
       choice("Next game", Object.entries(MODES), prefs.together || defaultMode(people()), v => { prefs.together = v; keepPrefs(); }),
@@ -329,7 +329,7 @@ export function createLadderRoom({ onState, toast, askName, solo, begin, prefs, 
     if (box.dataset.t === sig) return;
     box.dataset.t = sig;
     box.replaceChildren();
-    if (!parts.length) { box.append(sextant(), "Waiting for the others"); return; }
+    if (!parts.length) { box.append(waitMark(), "Waiting for the others"); return; }
     parts.forEach(([slot, text], i) => {
       if (i) box.append(" · ");
       const s = el("span", "ld-who", text);

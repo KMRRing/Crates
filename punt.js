@@ -7,7 +7,7 @@ import { makeSession, moreQuestions, rightCount, averageReturn, showReturn, know
 import { picksOf, judged, lengthOf, logOf, settleRound, advance, runOver, stake as stakeAt, pressNext, goOn, carryOn, waitingFor, goOnAt, presentIds, seatedIds, potOf, isBust, maxShare, modeOf, MODES, peopleFor, standingsAfter, resultFor, averageFor } from "./punt-table.js";
 import { createTogether } from "./together.js";
 import { leaderboard, signed } from "./standings.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import * as pile from "./pile.js";
 import { noteStake } from "./ledger-log.js";
 import { setRich } from "./rich.js";
@@ -881,7 +881,7 @@ function drawPartner() {
   if (!together.room || !S?.players) { el.hidden = true; return; }
   el.hidden = false;
   el.replaceChildren();
-  if (!together.online) { el.append(sextant(), "Reconnecting… stakes made now may not reach the table."); return; }
+  if (!together.online) { el.append(waitMark(), "Reconnecting… stakes made now may not reach the table."); return; }
   const others = together.others(), p = together.partner();
   if (others.length <= 1 && p?.game) {
     const b = document.createElement("b"), go = document.createElement("a");
@@ -891,7 +891,7 @@ function drawPartner() {
     el.append(b, ` is in ${GAMES[p.game]?.name || "another game"}. `, go);
     return;
   }
-  if (!others.length) { el.append(sextant(), "Waiting for the others to sit down"); return; }
+  if (!others.length) { el.append(waitMark(), "Waiting for the others to sit down"); return; }
   const against = modeOf(S) === "against", ready = id => (S.phase === "reveal" ? !!S.next?.[id] : !!S.bets?.[id]);
   if (!against) el.append("Sharing a pot with ");
   others.forEach((o, i) => {
@@ -919,7 +919,7 @@ async function askName() {
 
 // a run at a table: the same questions for everyone, Against (a pot each, head to head) or Together (one pot, a team)
 let stopOffset = null;
-let joining = null;                                           // the rete over the page while a room is joined
+let joining = null;                                           // the mark over the page while a room is joined
 const joined = () => { joining?.(); joining = null; };
 const together = createTogether({
   game: "punt",

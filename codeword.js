@@ -62,7 +62,7 @@ function work(msg, which = "now") {
   const id = ++jobN;
   return new Promise((resolve, reject) => { jobs.set(id, { resolve, reject, w }); w.postMessage({ ...msg, id }); });
 }
-/** Where workers can't run, the same on the page (a stall of a second or two, under the rete). */
+/** Where workers can't run, the same on the page (a stall of a second or two, under the mark). */
 async function inPage(msg) {
   const E = await import("./codeword-engine.js");
   if (msg.make) {

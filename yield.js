@@ -13,7 +13,7 @@ import { today, arrivedForToday, dailyDue, reportDuo, IN_FRAME } from "./suite.j
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { branchPath } from "./rooms.js";
-import { sextant } from "./loading.js";
+import { waitMark } from "./loading.js";
 import { sideways } from "./wide.js";
 
 dropdown(document.getElementById("pick"));   // the header dropdown in the suite's style (dropdown.js)
@@ -304,7 +304,7 @@ function say(text, tone = "", pts = null, waiting = false) {
 function drawLine() {
   const l = $("line");
   l.className = `yd-line${message?.tone ? ` ${message.tone}` : ""}`;
-  if (message?.waiting) { l.replaceChildren(sextant(), "Looking it up"); return; }
+  if (message?.waiting) { l.replaceChildren(waitMark(), "Looking it up"); return; }
   if (message) {
     l.replaceChildren(message.text);
     if (message.pts != null) l.append(el("span", "pts", `+${message.pts}`));

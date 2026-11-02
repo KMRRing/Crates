@@ -30,10 +30,10 @@ const MODES = {
   day: { sunCol: 0xffe0a8, sunI: 1.7, key: 0xffffff, keyI: 0.42, sky: 0xe9dcc0, ground: 0x4a4034, amb: 0.5, exposure: 0.98, halo: 0xffc860, haloI: 0.38 },
   night: { sunCol: 0xffd08a, sunI: 2.0, key: 0xb9cdee, keyI: 0.3, sky: 0x5b6f96, ground: 0x10151b, amb: 0.5, exposure: 1.08, halo: 0xffc46a, haloI: 0.55 },
 };
-const THEMES = { almanac: { brass: [0xcfa142, 0xc39a3e], plate: [0x1c2a34, 0x0d151c] }, modern: { brass: [0xd7ad3f, 0xc9a23c], plate: [0x2a3238, 0x151b20] }, kontor: { brass: [0xc4a248, 0xbb9a40], plate: [0x22302a, 0x0f1612] } };
+const THEMES = { codex: { brass: [0xcfa142, 0xc39a3e], plate: [0x1c2a34, 0x0d151c] }, modern: { brass: [0xd7ad3f, 0xc9a23c], plate: [0x2a3238, 0x151b20] }, kontor: { brass: [0xc4a248, 0xbb9a40], plate: [0x22302a, 0x0f1612] } };
 /** The skin in force: the suite's theme and day or night (as set, else as the device), and the theme's four enamels. */
 export function skinNow() {
-  const root = document.documentElement, theme = THEMES[root.dataset.theme] ? root.dataset.theme : "almanac";
+  const root = document.documentElement, theme = THEMES[root.dataset.theme] ? root.dataset.theme : "codex";
   const night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
   const css = getComputedStyle(root), pick = (name, or) => (css.getPropertyValue(name) || "").trim() || or;
   const i = night ? 1 : 0;

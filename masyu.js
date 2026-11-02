@@ -79,7 +79,7 @@ function refill(k) {
     write(SPARES, all);
   });
 }
-/** A new puzzle of a kind: the spare if there is one (instant), else made now, the rete showing if it takes a moment. */
+/** A new puzzle of a kind: the spare if there is one (instant), else made now, the mark showing if it takes a moment. */
 async function nextPuzzle(k) {
   const spare = takeSpare(k);
   if (spare) { setTimeout(() => refill(k), 400); return spare; }

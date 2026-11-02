@@ -187,7 +187,7 @@ dialog.brg-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; oversc
   #app.bridges .brg-result { grid-template-columns: 1fr; align-self: end; }
 }
 
-/* the themes beyond Almanac: no double rule, rounder corners, the main action in the enamel (as themes.css does for the
+/* the themes beyond Codex: no double rule, rounder corners, the main action in the enamel (as themes.css does for the
    other games) */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .brg-card { border-radius: 20px; box-shadow: none; border: 1px solid var(--tile-edge); }
 html:is([data-theme="modern"], [data-theme="office"]) .brg-tool { border-radius: 12px; }

@@ -16,7 +16,7 @@ import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { createCourse, progress } from "./river-learn.js";
 import { createRush } from "./river-rush-ui.js";
 import { bestsLine } from "./rush-core.js";
@@ -79,7 +79,7 @@ const FULL = { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false };     //
 // Xiangqi's engine scores a soldier at about 1.25 of a chess pawn: the coach's judgement is scaled to match (uci-coach.js)
 const coach = createCoach(engine, { limit: HINT.limit, alone: HINT.alone, scale: 1.25 });
 let engineUp = false;
-/** The engine, started if it isn't: the rete shows while it loads (a moment, or the first download). */
+/** The engine, started if it isn't: the mark shows while it loads (a moment, or the first download). */
 async function ensureEngine() {
   if (engineUp) return true;
   const done = busy("Loading the engine");
@@ -379,7 +379,7 @@ function drawEnd() {
     else lines.push(`<ol class="rv-review">${r.items.map(it => `<li><b>${Math.floor(it.ply / 2) + 1}${it.ply % 2 ? "…" : "."} ${named(it.ply, it.move)}</b>${yourColour() ? "" : ` (${cap(it.mover)})`}: ${lossWords(it.loss)} given away; better was <b>${named(it.ply, it.better)}</b>.</li>`).join("")}</ol>`);
   } else if (reviewing) lines.push(`<p class="rv-reviewing"><span class="rv-wait"></span>Reviewing the game: ${reviewing.done} of ${reviewing.of} positions</p>`);
   $("endBody").innerHTML = lines.join("");
-  $("endBody").querySelector(".rv-wait")?.append(sextant());
+  $("endBody").querySelector(".rv-wait")?.append(waitMark());
   $("endAgain").hidden = inRoom();
 }
 
@@ -424,8 +424,8 @@ function drawSeat(el, red, p, words = null) {
   const busyHere = thinking && !inRoom() && g.mode === "engine" && (g.red !== 0) === red;   // the computer's seat, while it thinks
   el.innerHTML = `<span class="rv-who${toMove ? " turn" : ""}">${tag(red)}${words ?? "<b></b>"}</span><span class="rv-taken" aria-label="Taken">${taken.map(v => `<i class="${v > 0 ? "red" : "black"}">${pieceMark(v, opts.script)}</i>`).join("")}</span>`;
   if (words === null) el.querySelector("b").textContent = seatLabel(red);
-  el.querySelector(".rv-wait")?.append(sextant());
-  if (busyHere) { const s = document.createElement("span"); s.className = "rv-thinking"; s.append(sextant(), "thinking"); el.querySelector(".rv-who").append(s); }
+  el.querySelector(".rv-wait")?.append(waitMark());
+  if (busyHere) { const s = document.createElement("span"); s.className = "rv-thinking"; s.append(waitMark(), "thinking"); el.querySelector(".rv-who").append(s); }
 }
 /** A move in the engine's words named from a position: Chinese notation, and WXF's beside it. */
 function named(pos, uci) {
@@ -686,7 +686,7 @@ async function moveTogether(uci) {
   });
   if (!ok) render();
 }
-let joining = null;                                              // the rete while you sit down, until the room's game is drawn
+let joining = null;                                              // the mark while you sit down, until the room's game is drawn
 const seated = () => { joining?.(); joining = null; };
 const together = createTogether({
   game: "river",
@@ -738,6 +738,6 @@ if (!code && rush.boot()) {
   joining = busy("Joining your partner", { delay: 0 });
   together.join(code).then(ok => { if (!ok) { seated(); kick(); } });
 } else if (!IN_FRAME && G.mode === "engine" && !G.result) {
-  if (X.waitingOn(G) === 1) kick();                              // the computer's move: it loads the engine, the rete showing
+  if (X.waitingOn(G) === 1) kick();                              // the computer's move: it loads the engine, the mark showing
   else engine.start().then(() => { engineUp = true; render(); advise(); }, () => {});   // yours: it loads quietly meanwhile
 } else advise();

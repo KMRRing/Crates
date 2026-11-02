@@ -3,7 +3,7 @@
 // built in one place (`makeFoe`, the hero's block, the scenery's) so a glTF can take over one at a time. What stays when the models arrive is the look:
 //  - a world that curves away below the horizon (a vertex patch on every material: the further from the camera, the
 //    lower), which is what makes a straight run read as a run over the top of something;
-//  - the Almanac's palette, read from the page's own colours (style.css's tokens), so the three themes, day and night,
+//  - the Codex's palette, read from the page's own colours (style.css's tokens), so the three themes, day and night,
 //    each get their quay: pale stone and brass in the day, navy and brass at night. Colour is held down; the Brim look
 //    is a candy one and this one is dusk in a Hanse port;
 //  - fog to the sky's colour, a hemisphere light and one sun, no shadows (a soft disc under each thing instead).

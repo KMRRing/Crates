@@ -13,7 +13,8 @@
 // camera, which the scanning asks for anyway, so the phone that has just scanned shows its real address, and one
 // direction that works is enough for the two to find each other.
 
-const MAGIC = "AL1:";                         // an Almanac link code, version 1: anything else scanned is turned down
+const MAGIC = "AL1:";                         // a Codex link code, version 1: anything else scanned is turned down (the prefix keeps the suite's old name
+                                              // so a phone not yet updated still reads a new one's code, and the other way round)
 const KIND = { offer: 1, answer: 2 };
 const ALG = ["sha-256", "sha-384", "sha-512"];
 const RTC = { iceServers: [] };              // the local network only: there's no internet to find a public address on
@@ -153,7 +154,7 @@ function opened(pc, channel, ms) {
   });
 }
 // one channel, the same on both phones (negotiated: no message to set it up), ordered and reliable
-const channelOf = pc => pc.createDataChannel("almanac", { negotiated: true, id: 0, ordered: true });
+const channelOf = pc => pc.createDataChannel("codex", { negotiated: true, id: 0, ordered: true });
 
 /**
  * The host's side of one link: a connection waiting for a guest, its code to show. accept(reply) takes the code read

@@ -155,7 +155,7 @@ html #app.hong.hk3.full .hk-table { padding: .3rem; }
   html #app.hong.hk3.full .hk-table { padding: 0 calc(11.5rem + 1.25rem) 0 0; }
 }
 
-/* ---------- the themes: Almanac's frame is its own ---------- */
+/* ---------- the themes: Codex's frame is its own ---------- */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hk3-cloth { border-width: 1px; border-color: var(--tile-edge); box-shadow: inset 0 0 2.4rem rgba(0, 0, 0, .2), 0 .5rem 0 -.1rem var(--hk3-felt-lo); }
 html:is([data-theme="modern"], [data-theme="kontor"]) .hk3-cloth { border-radius: 14px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hk3-centre { box-shadow: 0 .25rem .6rem rgba(0, 0, 0, .35); border-width: 1px; border-color: var(--tile-edge); }

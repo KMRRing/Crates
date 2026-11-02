@@ -18,7 +18,7 @@ import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { getSync } from "./net.js";
 import { roomInAddress, joiningWords, branchPath } from "./rooms.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { scale, sideways } from "./wide.js";
 import * as pile from "./pile.js";
 import * as known from "./known.js";
@@ -1138,7 +1138,7 @@ function openMenu() {
         line(`The next grid: ${s.tableMode === "race" ? "a race, each on their own grid" : "one grid, its clues split between you"}.`));
       const all = people().map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`);
       table.append(line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`));
-    } else { const wait = line(joiningWords()); wait.prepend(sextant()); table.append(wait); }
+    } else { const wait = line(joiningWords()); wait.prepend(waitMark()); table.append(wait); }
     table.append(action("Back to solo", backToSolo, "link"));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -1272,7 +1272,7 @@ function solo() {
   afterNewRun();
   if (S.play.done) setTimeout(showDone, 300);
 }
-// a table in the address (a duo match, a party's game): the rete until it's drawn, and no solo grid under it
+// a table in the address (a duo match, a party's game): the mark until it's drawn, and no solo grid under it
 const code = roomInAddress();
 if (code && !IN_FRAME) { joining = busy(joiningWords(), { delay: 0 }); together.join(code).then(ok => { if (!ok) { seated(); solo(); } }); }
 else solo();

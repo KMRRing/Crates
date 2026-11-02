@@ -6,7 +6,7 @@
 // deal a match and how to play one, reports its score as it goes, and keeps its solo run out of it; the rest is here.
 import { createTogether } from "./together.js";
 import { joiningWords } from "./rooms.js";
-import { busy, sextant, progress } from "./loading.js";
+import { busy, waitMark, progress } from "./loading.js";
 import { COUNTDOWN, freshDuel, isDuel, seated, slotOf, runOf, presentSlots, allReady, startAll, sayReady, noteRun, rematch, byScore, standings, isOver, resultOf } from "./duel-core.js";
 
 export { COUNTDOWN, byScore, standings, runOf };
@@ -228,7 +228,7 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
     } else if (!under) {
       const waiting = seated(cur).filter(([, p]) => p.slot !== mySlot() && !runOf(cur, p.slot)?.ready).map(([, p]) => first(p.name));
       const wait = el("p", "duel-note");
-      wait.append(sextant(), waiting.length ? `Waiting for ${list2(waiting)}` : "Waiting for someone to join");
+      wait.append(waitMark(), waiting.length ? `Waiting for ${list2(waiting)}` : "Waiting for someone to join");
       body.append(wait, button("Start without waiting", startNow, ""));
     }
     body.append(button("Back to solo", () => together.leave(), "link"));
@@ -266,7 +266,7 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
       const names = [...still, ...coming].map(s => first(seated(cur).find(([, p]) => p.slot === s)?.[1].name));
       if (names.length) {
         const wait = el("p", "duel-note");
-        if ([...still, ...coming].some(s => pres.includes(s))) wait.append(sextant());
+        if ([...still, ...coming].some(s => pres.includes(s))) wait.append(waitMark());
         wait.append(`${list2(names)} ${names.length > 1 ? "haven't" : "hasn't"} finished yet`);
         body.append(wait);
       }
@@ -306,9 +306,9 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
     }
     bar.hidden = false;
     bar.replaceChildren();
-    if (!together.online) { bar.append(sextant(), "Reconnecting…"); return; }
+    if (!together.online) { bar.append(waitMark(), "Reconnecting…"); return; }
     const pres = present(), others = seated(cur).filter(([id]) => id !== me());
-    if (!others.length) { bar.append(sextant(), "Waiting for the others"); return; }
+    if (!others.length) { bar.append(waitMark(), "Waiting for the others"); return; }
     others.forEach(([, p], i) => {
       const run = runOf(cur, p.slot), here = pres.includes(p.slot);
       const say = run?.begun ? `${run.text ?? run.score ?? 0}${run.done ? " ✓" : ""}` : run?.ready ? "ready" : here ? "not ready" : "away";

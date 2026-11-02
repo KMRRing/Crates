@@ -78,7 +78,7 @@ export const SOON = {
     name: "Cargo", sec: "idle",
     line: "Falling blocks: crates of four squares fall into a well; slide and turn them to fill a row across, which clears and lets the rest fall. The well fills as you slip, and the game ends when a new crate cannot enter.",
     todo: [
-      "Added 2 November 2026 (Korbi: \"falling blocks\"). The idea of falling pieces is free; the Tetris Company has won against a clone that copied the look and feel (Tetris Holding v. Xio, 2012), so Cargo is built to share none of it: its own piece set (not the seven tetrominoes in their standard colours), a narrower well, crates in the almanac's own colours, and no use of Tetris's guideline names. Build it last of the three.",
+      "Added 2 November 2026 (Korbi: \"falling blocks\"). The idea of falling pieces is free; the Tetris Company has won against a clone that copied the look and feel (Tetris Holding v. Xio, 2012), so Cargo is built to share none of it: its own piece set (not the seven tetrominoes in their standard colours), a narrower well, crates in the codex's own colours, and no use of Tetris's guideline names. Build it last of the three.",
       "Idle's rule applies: little thinking, a move that is remembered. A pause with the menu (README, The pause), a gravity that rises slowly, a best, and a calm mode with the crates in 3D and no loss, only a tidy well.",
       "Touch: drag to slide, tap to turn, swipe down to drop; the page never scrolls, which a swipe has to be built around.",
     ],

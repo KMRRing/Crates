@@ -7,7 +7,7 @@
 import { play, LIVES, SHELF, levelAt, modifierAt, modText } from "./spot-engine.js";
 import { MODES, freshTable, modeOf, runMode, slotsOf, seatOf, tapsOf, theirTaps, versusStandings, versusOver, versusResult } from "./spot-table.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { createTogether } from "./together.js";
 import { branchPath, gameHref, GAMES, joiningWords } from "./rooms.js";
 import { presentSlots } from "./duel-core.js";
@@ -354,7 +354,7 @@ function drawVersusResult() {
     const box = add("div", "sp-standings");
     box.append(leaderboard(rows.map(r => ({ name: r.slot === mySlot ? "You" : firstName(r.slot), value: r.score, seat: r.slot, me: r.slot === mySlot,
       note: r.over == null ? `playing · ${r.lives} ${r.lives === 1 ? "life" : "lives"} left` : `${r.cleared} sums · out at ${Math.round(r.over / 1000)} s` }))));
-    if (!over) { const wait = add("p", "sp-wait"); wait.append(sextant(), `${listed(playing.map(r => (r.slot === mySlot ? "you" : firstName(r.slot))))} still playing`); }
+    if (!over) { const wait = add("p", "sp-wait"); wait.append(waitMark(), `${listed(playing.map(r => (r.slot === mySlot ? "you" : firstName(r.slot))))} still playing`); }
     if (over) go("Play again", startTogether);
     soloLink(add);
   }, "fill");
@@ -398,7 +398,7 @@ function showLobby() {
       seats.append(who);
     }
     const missing = (g?.people || 2) - seats.children.length;
-    if (missing > 0) { const wait = add("p", "sp-wait"); wait.append(sextant(), `${missing} more on their way`); }
+    if (missing > 0) { const wait = add("p", "sp-wait"); wait.append(waitMark(), `${missing} more on their way`); }
     go("Start", startTogether, false, here.length < 2);
     soloLink(add);
   });
@@ -451,7 +451,7 @@ function drawPartner() {
   if (!together.room) { el.hidden = true; return; }
   el.hidden = false;
   el.replaceChildren();
-  if (!together.online) { el.append(sextant(), "Reconnecting…"); return; }
+  if (!together.online) { el.append(waitMark(), "Reconnecting…"); return; }
   const others = together.others(), p = together.partner();
   if (others.length <= 1 && p?.game && p.game !== "spot") {
     const b = document.createElement("b"), a = document.createElement("a");
@@ -461,7 +461,7 @@ function drawPartner() {
     el.append(b, ` is in ${GAMES[p.game]?.name || "another game"}. `, a);
     return;
   }
-  if (!others.length) { el.append(sextant(), "Waiting for the others to sit down"); return; }
+  if (!others.length) { el.append(waitMark(), "Waiting for the others to sit down"); return; }
   const scores = run?.mode === "versus" && versusRows ? new Map(versusRows.map(r => [r.slot, r])) : null;
   if (!scores) el.append("Playing with ");
   others.forEach((o, i) => {
@@ -487,7 +487,7 @@ async function askName() {
   return name;
 }
 
-let joining = null;                                           // the rete over the page while a room is joined
+let joining = null;                                           // the mark over the page while a room is joined
 const joined = () => { joining?.(); joining = null; };
 const together = createTogether({
   game: "spot",

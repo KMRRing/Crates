@@ -1,6 +1,6 @@
 # Working on Crates
 
-Almanac: a suite of web games, opening on the screen of games (`index.html`, `home.js`; Crates is at `crates.html`) (Crates, Slate, Delta, Punt, Cartel, Spot, Quote, Manifest, Chart, Survey, Pipes, Rush, Deck,
+Codex: a suite of web games, opening on the screen of games (`index.html`, `home.js`; Crates is at `crates.html`) (Crates, Slate, Delta, Punt, Cartel, Spot, Quote, Manifest, Chart, Survey, Pipes, Rush, Deck,
 Parley, Blend, Refinery, Brut, Stow, Hong, Tribute, Cue, Party, River, Gambit, Boast, Big Two, Landlord, Banquet, Gammon,
 Trumps, Quest, Bones), plain HTML, CSS and JavaScript modules with no build step for the games themselves.
 Every push to `main` is tested by `.github/workflows/pages.yml`, but only for what it changed (below); GitHub Pages serves `main` at
@@ -98,17 +98,19 @@ sideways puts a game's parts beside its board (README, "Bigger screens"; `style.
 
 ## The look
 
-Brass instruments on an almanac's page (README, "The look"). Build every screen from `style.css`'s tokens: `--yard`
+Brass instruments on a codex's page (README, "The look"). Build every screen from `style.css`'s tokens: `--yard`
 (the page), `--sheet` (cards, dialogs), `--tile`/`--tile-edge`, `--ink`, `--ink-soft`, `--brass` (lines, frames, scales),
 `--rule` (hairlines), `--plate`/`--plate-ink` (a primary action: navy lettered in gilt by day, brass lettered in navy by
 night), the enamels `--c0`..`--c3`, `--learn`. A game's own accent is one enamel, `--<game>-in`, with its soft fill
 `color-mix(in srgb, var(--<game>-in) 15%, var(--sheet))`; good and bad are verdigris `#2F7D5B`/`#7FC2A8` and oxblood
 `#A8382B`/`#E8806F`. No cool greys, no pills: corners are square-ish (4–6px), the main action is the plate, names of
 things are wide spaced capitals (`font-stretch: var(--wide); text-transform: uppercase; letter-spacing: .08em+`).
-**Loading:** `busy(label)` from `loading.js` for any wait that holds up the screen (the rete, large, mid-screen);
+**Loading:** `busy(label)` from `loading.js` for any wait that holds up the screen (the Codex mark, large, mid-screen);
 a wait with stages says each as it begins with `progress(words, at)` (a bar under the label, `at` 0 to 1 for the whole
-wait; joining, the connection and updates already do); `sextant()` before the words of a short wait in a line or a box.
+wait; joining, the connection and updates already do); `waitMark()` before the words of a short wait in a line or a box.
 Never a spinner of your own, never "Loading…" alone.
+**The mark** (README, "The mark") is generated: edit `tools/build-mark.mjs` and run it; never edit `mark/*.svg`, `logo.svg`, `icon.svg`,
+`loader-small.svg` or `mark.js` by hand (`tests/mark.mjs` fails on a drift). The app icons are 3D renders from `tools/mark-3d/`.
 
 ## Saved state syncs
 
@@ -165,7 +167,7 @@ call `reportDuo(game, match, { score, won, coop, lower })` from `suite.js` on ea
 A duo match can seat up to six (a party's table; the request's `people`): give `createTogether`
 `slots: g => g?.people || 2` and deal for `people` in `fresh`. `together.others()` and `together.slot` say who's at the
 table (away: asleep, or on another page; nobody away holds a table up), each player's colour is `--p<slot>`
-(`style.css`), a round's standings are `leaderboard()` from `standings.js`, and the rete says `joiningWords()`
+(`style.css`), a round's standings are `leaderboard()` from `standings.js`, and the loader says `joiningWords()`
 (`rooms.js`). Chart, Quote and Punt show everyone's answer and the standings after each question; follow one.
 
 An offline party (`lan.html`, README "Offline party") plays every page in a frame on the host phone's database,
@@ -223,14 +225,14 @@ a wide screen, an × at the top right, a tap outside closes it. Fill `#menuBody`
 
 ## Themes
 
-Three themes (Almanac, Modern, Kontor), each day and night, set by `theme.js` on `<html data-theme data-mode>`.
+Three themes (Codex, Modern, Kontor), each day and night, set by `theme.js` on `<html data-theme data-mode>`.
 - Write styles that follow them: colours from the variables (`--yard`, `--ink`, `--sheet`, `--tile`, `--brass`,
   `--plate`…), never fixed hex for the page, panels or buttons (a game's own board colours are fine); spaced capitals
   as `text-transform: var(--caps); letter-spacing: calc(.1em * var(--track))`, wide lettering as `var(--wide)`.
 - Dark rules go in `@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) … }` plus a copy under
   `html[data-mode="night"] …` (every stylesheet is written that way now).
-- Almanac's ornaments (ticks, inset frames, gilt) are Almanac's: if you add one, undo it for Modern and Kontor in
-  `themes.css`. A new game needs a Modern logo and a Kontor icon in `apps.js` (else it shows Almanac's).
+- Codex's ornaments (ticks, inset frames, gilt) are Codex's: if you add one, undo it for Modern and Kontor in
+  `themes.css`. A new game needs a Modern logo and a Kontor icon in `apps.js` (else it shows Codex's).
 - Check a new screen in all three, day and night.
 
 ## Checking syntax

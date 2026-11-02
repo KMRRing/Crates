@@ -97,7 +97,7 @@ html[data-mode="night"] { --dg-block: #070C10; --dg-block-ink: #E9C47C; --dg-bad
 .dg-tool[aria-pressed="true"] { border-color: var(--dg-in); background: color-mix(in srgb, var(--dg-in) 15%, transparent); color: var(--dg-in); }
 .dg-tool:disabled { opacity: .3; cursor: default; }
 
-/* Almanac's double frame is Almanac's own: the other themes have a plain one */
+/* Codex's double frame is Codex's own: the other themes have a plain one */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dg { box-shadow: none; }
 html:is([data-theme="modern"], [data-theme="office"]) .dg { border-radius: 6px; }
 html[data-theme="kontor"] .dg-key, html[data-theme="kontor"] .dg-tool { border-radius: 2px; }

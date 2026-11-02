@@ -1,6 +1,6 @@
 // Harbour's map in 3D: hex tiles, the jetties' shore tanks and little ships, drawn with three.js (vendor/three.js, kept
 // on the device like every other file, so it plays offline). Everything is built in code, no models and no textures, so
-// every colour comes from the skin: Almanac, Modern or Kontor (the suite's theme), each by day and by night, and the
+// every colour comes from the skin: Codex, Modern or Kontor (the suite's theme), each by day and by night, and the
 // products' colours from the theme itself. It answers the same calls as the flat map (harbour-flat.js): setLevel, draw,
 // pick, drag, release, theme, resize, dispose. It draws only while something moves.
 import * as THREE from "./vendor/three.js";
@@ -11,12 +11,12 @@ const centre = (x, y) => new THREE.Vector3(W * (x + 0.5 + (y & 1) / 2), 0, 1.5 *
 const EL = 52, YAW = 18;                                  // the camera: degrees above the sea, and turned off south
 const SHIP = { coaster: { len: 1.12, beam: .42 }, handy: { len: 1.5, beam: .5 } };
 
-// The skins. Almanac: a chart in brass and navy, ships with red boot-topping. Modern: an architect's white model.
+// The skins. Codex: a chart in brass and navy, ships with red boot-topping. Modern: an architect's white model.
 // Kontor: a drawing office, every edge inked; at night a green trace on black. At night, in all three, windows and
 // jetty lamps are lit, ships carry their sidelights (red to port, green to starboard), deckhouses glow a little, and the
 // sea has a glow of its own, as moonlit water does, so it always reads against the land.
 const SKINS = {
-  almanac: {
+  codex: {
     day: { land: 0xd9cda6, grass: 0x9aae74, side: .8, plate: 0x2c3a40, water: [0x5f97ab, 0x5891a5], decor: "pine", leaf: 0x5f7f4a,
       hull: 0x24323e, boot: 0x9b4434, deck: 0x9b4434, house: 0xf4efe3, glass: 0x2b3a47, funnel: 0x24323e, band: 0xc8892a,
       tank: 0xf2eee4, pier: 0x8b7b63, empty: 0xd9d4c7, sky: 0xfff4e2, ground: 0x7d745f, hemi: 1.25, sun: 0xfff0d6, sunI: 2.4, sunAt: [6, 10, 7], exposure: 1.05 },
@@ -54,9 +54,9 @@ const SKINS = {
       night: true, lamp: 0x6bffb0 },
   },
 };
-/** The skin in force: the suite's theme (Almanac unless Modern or Kontor) and day or night (as set, else as the device). */
+/** The skin in force: the suite's theme (Codex unless Modern or Kontor) and day or night (as set, else as the device). */
 export function skinNow() {
-  const root = document.documentElement, theme = SKINS[root.dataset.theme] ? root.dataset.theme : "almanac";
+  const root = document.documentElement, theme = SKINS[root.dataset.theme] ? root.dataset.theme : "codex";
   const night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
   const css = getComputedStyle(root), v = (name, or) => new THREE.Color((css.getPropertyValue(name) || "").trim() || or);
   return { name: `${theme} ${night ? "night" : "day"}`, ...SKINS[theme][night ? "night" : "day"], c0: v("--c0", "#d9a21b"), c1: v("--c1", "#3f8a55"), c2: v("--c2", "#2f6690") };
@@ -169,7 +169,7 @@ export function create3D(box) {
     }
     instanced(hexGeo(R * .965, .16), mat(0xffffff, { roughness: .35, emissive: skin.water[0], emissiveIntensity: skin.seaGlow || 0 }), wet, (c, m) => m.makeTranslation(c.p.x, -.08, c.p.z),
       c => skin.water[(c.x + c.y) & 1]);
-    // trees on Almanac's land, shrubs on Modern's, none on Kontor's
+    // trees on Codex's land, shrubs on Modern's, none on Kontor's
     if (skin.decor) {
       const spots = [];
       for (const c of land) if (c.d <= 1 && hash(c.x, c.y, 2) < .5) for (let i = 0; i < 1 + Math.floor(hash(c.x, c.y, 3) * 3); i++) {

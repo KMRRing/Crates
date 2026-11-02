@@ -1,7 +1,7 @@
 // Loads the Firebase connection once, on first need (together mode, or a synced solo run). A page in an offline party
 // (lan.html: no internet) runs in a frame of the page that holds the phones' links, and gets its database from there
 // instead: the host phone's, answering the same calls the same way (lan.js). While the connection is being made it says
-// how far it has got (loading.js: progress), so a page joining a game shows it under the rete; a page that asks while
+// how far it has got (loading.js: progress), so a page joining a game shows it under the mark; a page that asks while
 // the connection is already on its way (theme.js starts it early on a page opened to join others) picks it up there.
 import { progress } from "./loading.js";
 

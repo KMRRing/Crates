@@ -14,7 +14,7 @@ import "./menu.js";    // every game's menu: one popup, laid out the same
 import "./flags.js";   // flags drawn as flags where the system shows only their letters
 import { busy, progress } from "./loading.js";
 
-// The page is drawn: the rete style.css shows while a page loads (html:not(.ready)) goes. Module scripts have all
+// The page is drawn: the mark style.css shows while a page loads (html:not(.ready)) goes. Module scripts have all
 // run by DOMContentLoaded, so the game's first render is in.
 const drawn = () => document.documentElement.classList.add("ready");
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", drawn, { once: true }); else drawn();
@@ -45,8 +45,8 @@ const short = version => version.slice(0, 7);
 const reason = e => String(e?.message || e);
 const STALL = 30000;   // a copy filling with nothing come in for this long has stalled: the connection's gone, or the worker's stuck
 let running = false;   // an update under way: a second one asked for meanwhile waits for its reload
-let at = 0, said = ""; // how far the update under the rete has got (0 to 1; a fallback carries on from it) and its words
-/** Says what the update under the rete is doing; the bar only ever moves on. */
+let at = 0, said = ""; // how far the update under the mark has got (0 to 1; a fallback carries on from it) and its words
+/** Says what the update under the mark is doing; the bar only ever moves on. */
 function say(words, to = at) {
   if (words === said && to <= at) return;
   said = words;
@@ -164,7 +164,7 @@ async function nextWorker(reg, version) {
   return "The browser didn't start the new version within 20 seconds";
 }
 /**
- * Under the rete: the site's version through the service worker's own update, which fetches only the files that
+ * Under the mark: the site's version through the service worker's own update, which fetches only the files that
  * changed, then a reload onto it; the full refresh if that fails or stalls. Resolves "reloading", or why nothing changed.
  */
 async function upgrade({ site, reg, here }, games) {
@@ -264,7 +264,7 @@ async function fetchAll(urls) {
 /**
  * The Update button. Compares this device's version with the site's, saying what it finds through `tell(words,
  * waiting)` (a line on the games screen): up to date or offline, nothing changes. A newer version downloads under
- * the rete (`before` runs first: the games screen closes, so the rete shows over the page), only the files that
+ * the mark (`before` runs first: the games screen closes, so the mark shows over the page), only the files that
  * changed, and the page reloads onto it: resolves true. Resolves false when nothing changed, `tell` having said why.
  * Saves, stats, settings and Wikipedia's pictures are never touched.
  */
@@ -283,16 +283,16 @@ export async function hardUpdate({ before = () => {}, tell = () => {} } = {}) {
     let broken = null;
     if (here?.version === site.version) {
       if (here.whole && swapped) { tell(`Version ${v} took over since this page opened: reloading onto it`, true); reload(true); return true; }
-      if (here.whole) { tell(`Almanac is up to date: version ${v}.`); return false; }
+      if (here.whole) { tell(`Codex is up to date: version ${v}.`); return false; }
       // the site's version, missing files here (it took over offline): only those are fetched, and nothing reloads
       tell(`Version ${v} is missing files on this device: fetching them`, true);
       const r = await watch(ask(reg.active, "fill", 30 * 60000).then(a => !!a?.ok), words => tell(words, true), true);
-      if (r.ok) { tell(`Almanac is up to date: version ${v}, its missing files fetched.`); return false; }
+      if (r.ok) { tell(`Codex is up to date: version ${v}, its missing files fetched.`); return false; }
       if (r.refused) { tell(`${r.why}, so nothing changed.`); return false; }   // as for a new version (upgrade)
       broken = r.why;
     }
     before();
-    done = busy("Updating Almanac", { delay: 0 });          // until the reload replaces the page
+    done = busy("Updating Codex", { delay: 0 });          // until the reload replaces the page
     at = 0; said = "";
     const outcome = broken ? await refresh(broken, true) : await upgrade(now, true);
     if (outcome === "reloading") return true;
@@ -309,12 +309,12 @@ export async function hardUpdate({ before = () => {}, tell = () => {} } = {}) {
 
 /**
  * Loads the newest version right away (another device is already on it): Update's comparison and download, under the
- * rete from the start, always ending in a reload (onto the same version when there's nothing newer to be had).
+ * mark from the start, always ending in a reload (onto the same version when there's nothing newer to be had).
  */
 export async function reloadFresh() {
   if (running) return;
   running = true;
-  busy("Updating Almanac", { delay: 0 });                   // until the reload replaces the page
+  busy("Updating Codex", { delay: 0 });                   // until the reload replaces the page
   at = 0; said = "";
   say("Checking the site for a new version", 0.02);
   let outcome;

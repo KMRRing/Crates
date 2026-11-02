@@ -10,7 +10,7 @@ import { cleanMix, anyIn, mixParam, mixFromParam } from "./topics.js";
 import { missOf, isTable, peopleFor, freshTable, newSet, keyOf, waitingFor, graceAt, clueIn, pinIn, revealNow, nextIn, moveOnNow, settleUp, entryAt, totals, placeRows, standingRows, resultOf, initials } from "./chart-table.js";
 import { presentSlots, seated } from "./duel-core.js";
 import { leaderboard, rank } from "./standings.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { PLACES as BANK_PLACES, CATS as BANK_CATS } from "./chart-bank.js";
 import { GEO } from "./chart-geo.js";
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
@@ -769,7 +769,7 @@ function finishRoom(asked = false) {                    // asked: the button was
   leave.type = "button"; leave.addEventListener("click", () => { $("doneDlg").close(); together.leave(); });
   bell();
 }
-let joining = null;                                     // the rete while this phone sits down, until the table's drawn
+let joining = null;                                     // the mark while this phone sits down, until the table's drawn
 const joined = () => { joining?.(); joining = null; };
 function onState(val) {
   const was = S;
@@ -799,7 +799,7 @@ function drawPartner() {
   if (!together.room) { el.hidden = true; return; }
   el.hidden = false;
   el.replaceChildren();
-  if (!together.online) { el.append(sextant(), "Reconnecting…"); return; }
+  if (!together.online) { el.append(waitMark(), "Reconnecting…"); return; }
   const others = together.others(), known = Object.keys(together.room.here || {}).length > 0;   // who's here, once heard
   if (others.length > 1) {                               // a party's table: everyone else, and who's away
     el.append("Pinning with ");
@@ -850,7 +850,7 @@ const together = createTogether({
   onState,
   onPresence,
   onLeave: () => {
-    joined();                                             // a join that ends in leaving (the table gone) takes the rete too
+    joined();                                             // a join that ends in leaving (the table gone) takes the mark too
     shownBell = null;
     clearTimeout(graceTimeout);
     stopOffset?.(); stopOffset = null;

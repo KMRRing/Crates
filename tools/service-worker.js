@@ -41,7 +41,7 @@ async function tellPages(message) {
 /**
  * How far a copy has got, a few times a second while it fills: the files looked for on the device (checked, of
  * total), found there (copied), left to download (fetch), downloaded (fetched, and the bytes so far), and the ones on
- * their way (pending). pwa.js shows it under the rete while an update someone is waiting for fills; a page that isn't
+ * their way (pending). pwa.js shows it under the mark while an update someone is waiting for fills; a page that isn't
  * waiting ignores it. done is the count a page from before these counts shows ("Downloading 120 of 747 files").
  * Whatever comes too soon after the last word is told once the moment has passed, so the last state before a long
  * wait (the file a slow download is stuck on) is always heard.

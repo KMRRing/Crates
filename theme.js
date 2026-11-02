@@ -1,4 +1,4 @@
-// Almanac's look, chosen on the games screen (More, Settings): the theme (Almanac, the default; Modern; Kontor; Office) and
+// Codex's look, chosen on the games screen (More, Settings): the theme (Codex, the default; Modern; Kontor; Office) and
 // day or night (following the phone unless set). A plain script in every page's head, so the look is set before the
 // page draws and never flashes the wrong one; and, being the first thing every page runs, where a page that plays with
 // others starts connecting.
@@ -7,7 +7,24 @@
     var t = localStorage.getItem("suite:theme"), m = localStorage.getItem("suite:mode");
     if (t === "modern" || t === "kontor" || t === "office") document.documentElement.dataset.theme = t;
     if (m === "day" || m === "night") document.documentElement.dataset.mode = m;
-  } catch (e) { /* private mode: Almanac, following the phone */ }
+  } catch (e) { /* private mode: Codex, following the phone */ }
+})();
+// The loader's mark, large (style.css, .cx-load): nine pictures stacked, each moving part its own layer, put in here so it
+// is there from the page's first moment and turns on the GPU, whatever the page's own thread is busy with. It shows
+// (style.css) only while a page loads or a task runs, and only once every picture has come, so it never draws half a mark.
+// [file, what turns it: a the great wheel, r the ring, b and d the pinions, "" nothing]; the order is the stacking.
+(function () {
+  var layers = [["mark/base.svg", ""], ["mark/ring.svg", "r"], ["mark/pin-b.svg", "b"], ["mark/pin-d.svg", "d"], ["mark/great.svg", "a"], ["mark/fixed.svg", ""], ["mark/bar-ring.svg", "r"], ["mark/bar-great.svg", "a"], ["mark/top.svg", ""]];
+  var box = document.createElement("div"), left = layers.length;
+  box.className = "cx-load"; box.setAttribute("aria-hidden", "true");
+  layers.forEach(function (l) {
+    var img = new Image();
+    img.alt = ""; img.draggable = false; if (l[1]) img.className = "m " + l[1];
+    img.onload = img.onerror = function () { if (--left === 0) box.className += " on"; };
+    img.src = l[0];
+    box.appendChild(img);
+  });
+  document.documentElement.appendChild(box);
 })();
 // A page opened to play with others (a table, a room or a party in its address) starts reaching the game server here,
 // in its first moment, while the rest of the page loads, rather than once the game asks: connecting is most of the
@@ -16,7 +33,7 @@
 if (/[?&](?:table|room|party)=/.test(location.search) && !/[?&]frame\b/.test(location.search)) {
   import("./net.js").then(function (m) { return m.getSync(); }).catch(function () { /* the game reports it when it asks */ });
   // and it says what it's doing from its first moment, while its own files load, before anything of it has run: the
-  // rete's words and a bar (style.css, html.joining), the page's own words taking over once it runs (loading.js)
+  // mark's words and a bar (style.css, html.joining), the page's own words taking over once it runs (loading.js)
   (function () {
     var root = document.documentElement, q = location.search, page = (location.pathname.split("/").pop() || "").replace(/\.html$/, "");
     var say = page === "party" ? "Joining the party" : /[?&]party=/.test(q) ? "Joining the table" : "Joining your partner";

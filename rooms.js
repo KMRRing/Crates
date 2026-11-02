@@ -83,7 +83,7 @@ export const roomInAddress = () => {
   const c = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "");
   return c.length === 4 ? c : null;
 };
-/** The rete's words while the room in the address is joined: a party's table, or the pair's match. */
+/** The mark's words while the room in the address is joined: a party's table, or the pair's match. */
 export const joiningWords = () => (new URLSearchParams(location.search).has("party") ? "Joining the table" : "Joining your partner");
 
 /** An older room in the shared layout, or null if it isn't a room we know. */

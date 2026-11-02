@@ -8,7 +8,7 @@ const $ = id => document.getElementById(id);
 const id = new URLSearchParams(location.search).get("game");
 const game = SOON[id], app = APPS.find(a => a.id === id);
 document.title = game ? `${game.name}: coming soon` : "Coming soon";
-$("name").textContent = game?.name ?? "Almanac";
+$("name").textContent = game?.name ?? "Codex";
 document.querySelector(".so-mark").innerHTML = app?.logo ?? "";
 $("line").textContent = game?.line ?? "This game isn't on the list. The games screen has every game there is.";
 $("todoHead").hidden = !game;

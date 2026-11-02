@@ -72,7 +72,7 @@ export function lockOf(G) {
   if (!LOCKS.has(key)) { LOCKS.set(key, makeLock(G.level, G.seed, { minClues: G.play === "team" ? Math.min(G.ring.length, 4) : 0 })); if (LOCKS.size > 8) LOCKS.delete(LOCKS.keys().next().value); }
   return LOCKS.get(key);
 }
-/** Whether the game's lock is made already (an Expert takes a moment: a page shows the rete while it's made). */
+/** Whether the game's lock is made already (an Expert takes a moment: a page shows the mark while it's made). */
 export const lockReady = G => G.kind !== "lock" || LOCKS.has(lockKey(G));
 /** Versus: the seat whose code this seat breaks (the one before it round the table). */
 export function setterOf(G, slot) {

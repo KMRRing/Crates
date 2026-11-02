@@ -196,7 +196,7 @@ export function inviteSheet(table, { title = "Invite players", note = "", deal =
  */
 export function openTable({ game, app, max, onState, onLeave = () => {}, toast = () => {} }) {
   let updating = false;
-  // what each stage of opening or joining says under the rete (loading.js), and how far along it puts the bar
+  // what each stage of opening or joining says under the mark (loading.js), and how far along it puts the bar
   const what = game === "party" ? "the party" : "the table";
   const STAGES = { open: ["Reserving a room for it", 0.6], find: [`Finding ${what}`, 0.55], seat: ["Taking your seat", 0.75], in: [`Setting out ${what}`, 0.88] };
   const table = createTable({

@@ -84,7 +84,7 @@ function useView(shape) {
 async function fieldFor(o) {
   const key = `${o.seed}|${o.shape}|${o.size}|${o.level}|${o.team ? 1 : 0}`;
   if (fields.has(key)) return fields.get(key);
-  // a large field can hold the page a moment while it's dealt: the rete first, so it shows meanwhile
+  // a large field can hold the page a moment while it's dealt: the mark first, so it shows meanwhile
   const slow = o.size === "large", done = slow ? busy("Dealing a field", { delay: 0 }) : () => {};
   if (slow) await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
   try {
@@ -687,7 +687,7 @@ function showRules() {
     <p>Tap an open number to work it at once (Minesweeper's chording): if as many flags stand round it as its number, the rest of its neighbours are dug; if its hidden neighbours are exactly the mines it still lacks, they're flagged. A wrong flag under it means a mine dug. Hold a number to see which cells it counts. On a solid, a cell turned far from you is a slanted sliver, so a tap on it first turns it to face you; then tap it again.</p>
     <p>Hint (+${HINT}&nbsp;s) rings what the open numbers prove next, green a safe cell and red a mine, and in blue the numbers that prove it; it never trusts your flags, so it also finds a wrong one. A mine dug stays on the field, shown, and costs ${STRIKE} seconds; the menu's A mine: Ends the field is the classic rule instead, the field lost at the first mine.</p>
     <h4>Levels</h4>
-    <p>Small, Medium and Large are the field's size. Easy, Medium and Hard are how much reasoning it takes, as Almanac's solver measures it, with more mines as it rises: an Easy field never needs more than one number at a time (on triangles, hardly ever), a Hard one often needs two or more numbers taken together. A flat field is hardest at its edges and corners, where mines hide behind the border; a solid has none, so it carries more mines for the same level.</p>
+    <p>Small, Medium and Large are the field's size. Easy, Medium and Hard are how much reasoning it takes, as Codex's solver measures it, with more mines as it rises: an Easy field never needs more than one number at a time (on triangles, hardly ever), a Hard one often needs two or more numbers taken together. A flat field is hardest at its edges and corners, where mines hide behind the border; a solid has none, so it carries more mines for the same level.</p>
     <h4>Score</h4>
     <p>Your time, plus ${STRIKE} seconds for every mine dug and ${HINT} for every hint; lower is better. The clock starts with your first dig and stops while the menu, these rules or the games screen is open. Every kind of field keeps its own best, flat or 3D.</p>
     <h4>Today's field</h4>

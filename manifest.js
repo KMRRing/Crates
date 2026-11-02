@@ -15,7 +15,7 @@ import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
 import { presentSlots } from "./duel-core.js";
 import { leaderboard } from "./standings.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "manifest:run2", BEST = "manifest:best", DAILY = "manifest:daily", RECORD = "manifest:record";
@@ -539,7 +539,7 @@ function hud(game, st) {
   const at = $("atTable");
   at.hidden = false;
   at.replaceChildren();
-  if (!together.online) { at.append(sextant(), "Reconnecting…"); return; }
+  if (!together.online) { at.append(waitMark(), "Reconnecting…"); return; }
   if (!others.length) { at.append("Waiting for the others"); return; }
   at.append(team ? "With " : "Against ");
   others.forEach(([name, mark, away], i) => {
@@ -689,7 +689,7 @@ function playShipped(game, tl, key, t) {
     runTimer(R.level.exposure, tl.landed - t);
   });
   const round = game.round, pres = here(), still = (round.seats || []).filter(s => pres.includes(s) && !round.ship?.[`s${s}`] && s !== mySlot());
-  part2("shipped", still, () => { $("note").hidden = false; $("note").replaceChildren(sextant(), still.length ? `Shipped: ${names(still.map(nameOf))} still ${still.length > 1 ? "have" : "has"} theirs` : "Shipped"); });
+  part2("shipped", still, () => { $("note").hidden = false; $("note").replaceChildren(waitMark(), still.length ? `Shipped: ${names(still.map(nameOf))} still ${still.length > 1 ? "have" : "has"} theirs` : "Shipped"); });
 }
 
 /** The round in your shape: its plain prices, the bonus, the replies so far as answers and passes (with who gave
@@ -950,7 +950,7 @@ function tableMenu(body) {
   );
 }
 
-/** Joins the table in the address: the rete until it's drawn, and solo if it doesn't come off. */
+/** Joins the table in the address: the mark until it's drawn, and solo if it doesn't come off. */
 async function joinTable(code) {
   const done = busy(joiningWords(), { delay: 0 });
   const drawn = new Promise(res => { joined = res; setTimeout(res, 8000); });

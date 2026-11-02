@@ -11,7 +11,7 @@ import { createHost, createClient } from "./lan.js";
 import { hostLink, guestLink, decodeLink } from "./lan-link.js";
 import { scanQr } from "./qr-scan.js";
 import { qrSvg } from "./qr.js";
-import { sextant } from "./loading.js";
+import { waitMark } from "./loading.js";
 
 document.documentElement.classList.add("ready");   // the page is drawn as it opens (pwa.js says so on the others)
 
@@ -62,7 +62,7 @@ function show(id) {
 function note(id, text, waiting = false) {
   const n = $(id);
   n.replaceChildren();
-  if (waiting) n.append(sextant());
+  if (waiting) n.append(waitMark());
   n.append(text);
 }
 
@@ -153,7 +153,7 @@ const pairing = (() => {
     link?.close();
     link = null;
     const box = $("pairQr");
-    box.replaceChildren(sextant());
+    box.replaceChildren(waitMark());
     $("pairScan").disabled = true;
     making = hostLink({ name: NAME });
     try { link = await making; } catch (e) { console.error(e); say("This phone can't make a code: try again in a moment."); return; } finally { making = null; }
@@ -174,12 +174,12 @@ const pairing = (() => {
       want: t => { const r = decodeLink(t); return r?.kind === "answer" && r.id === linking.id; },
       onOther: t => {
         const r = decodeLink(t);
-        say(!r ? "That isn't a code from Almanac." : r.kind === "offer" ? "That's a host's code: scan the code their phone shows after scanning yours."
+        say(!r ? "That isn't a code from Codex." : r.kind === "offer" ? "That's a host's code: scan the code their phone shows after scanning yours."
           : `That's ${r.name ? `${r.name}'s` : "a"} code for an earlier one of yours: they scan your code again.`);
       },
     });
     let text = null;
-    try { text = await scanner.done; } catch { say("No camera: allow Almanac the camera, then try again."); view(false); return; } finally { scanner = null; }
+    try { text = await scanner.done; } catch { say("No camera: allow Codex the camera, then try again."); view(false); return; } finally { scanner = null; }
     view(false);
     if (!text) { say(""); return; }
     const reply = decodeLink(text);
@@ -231,18 +231,18 @@ async function scanHost(again = false) {
   note("scanNote", again && hostName ? `On ${hostName}'s phone: Add a player, in Party's menu.` : "On the host's phone: Party › Offline party › Host, or Add a player in its menu.");
   const scanner = scanQr($("scanVideo"), {
     want: t => decodeLink(t)?.kind === "offer",
-    onOther: t => note("scanNote", decodeLink(t) ? "That's another guest's code: scan the host's." : "That isn't a code from Almanac."),
+    onOther: t => note("scanNote", decodeLink(t) ? "That's another guest's code: scan the host's." : "That isn't a code from Codex."),
   });
   $("scanLeave").onclick = () => { scanner.stop(); leave(); };
   let text = null;
   try { text = await scanner.done; }
-  catch { note("scanNote", "No camera: allow Almanac the camera (Settings › Safari › Camera), then open the party again."); return; }
+  catch { note("scanNote", "No camera: allow Codex the camera (Settings › Safari › Camera), then open the party again."); return; }
   if (!text) return;
   const offer = decodeLink(text);
   hostName = offer.name || "the host";
   show("replyPanel");
   $("replyHead").textContent = `Now ${hostName} scans this`;
-  $("replyQr").replaceChildren(sextant());
+  $("replyQr").replaceChildren(waitMark());
   note("replyNote", "Making this phone's code…", true);
   let link = null;
   $("replyAgain").onclick = () => { link?.close(); scanHost(true); };

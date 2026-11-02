@@ -331,7 +331,7 @@
   #app.dandan.dd3 #hand { --hh: 5rem; }
 }
 
-/* ---------- the themes: Almanac's chart lines and inset frame are its own ---------- */
+/* ---------- the themes: Codex's chart lines and inset frame are its own ---------- */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .d3-mat {
   background: linear-gradient(to bottom, color-mix(in srgb, var(--dd-bad) 6%, transparent), transparent 40%, transparent 60%, color-mix(in srgb, var(--dd-in) 8%, transparent)), var(--d3-felt);
   box-shadow: 0 1.2rem 1.4rem -1rem rgba(0, 0, 0, .45); border-width: 1px; border-color: var(--tile-edge); }

@@ -120,7 +120,7 @@ function follow() {
   const p = branch?.playing;
   if (!p || IN_FRAME || moving || !joins(p, table.uid)) return moving;
   moving = true;
-  // the page stays as it is until the game's has loaded: the rete says where this phone is going meanwhile
+  // the page stays as it is until the game's has loaded: the mark says where this phone is going meanwhile
   const name = playable(p.id)?.name || "the game";
   busy(`Opening ${name}`, { delay: 0 });
   progress("The host has started it: loading the game", 0.5);

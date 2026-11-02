@@ -102,7 +102,7 @@ const started = () => !!G && G.mode === "solo" && !G.run.done && (G.run.top.leng
 const bestKey = g => `${g.kind}:${g.P.level || levelOf(g.P)}:${g.P.rules}${g.partner ? ":partner" : ""}`;
 
 // ---------- dealing ----------
-/** Lets the page draw the rete before a long piece of work (a graph to build, a hard ladder to find). */
+/** Lets the page draw the mark before a long piece of work (a graph to build, a hard ladder to find). */
 const paint = () => new Promise(res => requestAnimationFrame(() => setTimeout(res, 0)));
 /** A pair played as a ladder: its analysis, with the line and where it's from. */
 function pairLadder(p, rules, extra = {}) {

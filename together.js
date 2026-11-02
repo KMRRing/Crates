@@ -62,7 +62,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     return JSON.parse(json);
   }
 
-  /** Starts a new room with a fresh game in it. Says its stages to the rete's bar (loading.js), as joining does. */
+  /** Starts a new room with a fresh game in it. Says its stages to the mark's bar (loading.js), as joining does. */
   async function start() {
     const name = await askName();
     if (!name) return false;
@@ -96,7 +96,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     // the branch held in this page's cache while joining, so the joining transaction takes one round trip, not two
     const warm = sync.watch(path(code), () => {}, () => {});
     try {
-      // each stage said to the rete's bar as it begins (loading.js): every game's joining shows them
+      // each stage said to the mark's bar as it begins (loading.js): every game's joining shows them
       progress("Finding the game", 0.55);
       const shared = await openBranch(sync, code, game);
       if (!shared) return solo("No game with that code");
@@ -129,7 +129,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
   }
 
   function enter(code, sync, name, pid) {
-    progress("Setting out the game", 0.88);           // until the game draws the first state and takes the rete down
+    progress("Setting out the game", 0.88);           // until the game draws the first state and takes the mark down
     room = { code, sync, uid: sync.uid, pid, name, data: null, here: {}, online: true, stop: [] };
     setRoomParam(code);
     watch();

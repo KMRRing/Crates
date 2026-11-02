@@ -8,7 +8,7 @@ import { isPair, freshPair, tidy as tidyTable, beginAt, solveAt, hintAt, newGame
 import { KB_TOPICS, KB_PRESETS, cleanMix, presetOf } from "./topics.js";
 import { createTogether } from "./together.js";
 import { createDuel } from "./duel.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, topicMix, action, line, onPause, isPaused } from "./menu.js";
@@ -91,7 +91,7 @@ function show(next) {
 async function deal(kind = "random") {
   const o = opts(), daily = kind === "daily";
   const done = busy("Jumbling the words", { delay: 200 });
-  await new Promise(res => setTimeout(res, 30));               // let the rete show before the first deal's work
+  await new Promise(res => setTimeout(res, 30));               // let the mark show before the first deal's work
   try {
     const seed = daily ? today() : randomSeed();
     const puzzle = makePuzzle(seed, daily ? DAILY : { mode: o.mode, level: o.level, cat: o.cat, mix: mix() });
@@ -561,7 +561,7 @@ function openMenu() {
   if (together.room || joining) {                              // the pair's match: a new puzzle, a race, back to solo
     const t = part(body, "together");
     if (G) t.append(action("New puzzle together", againTogether, "primary"), line(`With ${partnerName()}: two jumbles each, the final together.`), action("Race instead", raceInstead));
-    else { const wait = line(joiningWords()); wait.prepend(sextant()); t.append(wait); }
+    else { const wait = line(joiningWords()); wait.prepend(waitMark()); t.append(wait); }
     t.append(action("Back to solo", backToSolo, "link"));
     contentPart(body, false);
     showMenu(body);
@@ -707,7 +707,7 @@ function solo() {
   if (ok) show(kept);
   else if (!IN_FRAME) deal(dailyDue("isomer") ? "daily" : "random");
 }
-// a table in the address (the pair's match or their race, a party's race): the rete until it's drawn, and no solo
+// a table in the address (the pair's match or their race, a party's race): the mark until it's drawn, and no solo
 // puzzle under it. A request said yes to (&new=) is always the pair's split match; a reload goes back to whichever of
 // the pair's two tables this phone was at.
 const code = roomInAddress(), where = read(WHERE, null);

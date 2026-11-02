@@ -1,5 +1,5 @@
 // Nexus's rounds, pure (nexus.js draws them; tests/nexus.mjs checks them). A round puts one thing from the knowledge base
-// in the middle (the nexus) with a ring of candidates round it, and you pick the ones the Almanac links to it directly:
+// in the middle (the nexus) with a ring of candidates round it, and you pick the ones the Codex links to it directly:
 // a link somebody wrote down with its "because" (kb/links.js), either way round (Norway has Equinor as a clue; Equinor
 // has Norway as its answer). Three kinds of round:
 //   Orbit     all the candidates that are linked to the nexus (3 to 5 of 8 to 12)
@@ -7,9 +7,9 @@
 //   Intruder  four are linked and one isn't: find it
 // The decoys are near misses, never random things: another thing of the same kind that belongs to a sibling of the nexus
 // (a Swedish company beside Norway's), or one step beyond a true link (what Equinor goes with, that isn't Norway), and the
-// kind of the true links is the kind most of them are. What the Almanac holds loosely (a clue that "also fits" another
+// kind of the true links is the kind most of them are. What the Codex holds loosely (a clue that "also fits" another
 // answer, `alt` in the links) is neither a true link nor a decoy: it could fairly be called either. Everything here is
-// "in this Almanac": a decoy may be linked in life, and the reveal says where it goes instead.
+// "in this Codex": a decoy may be linked in life, and the reveal says where it goes instead.
 import { ENT, name, kind, ABOUT, TOPIC_LIST, TOPIC_GROUPS, TOPIC_PRESETS, drawEnd } from "./arb-engine.js";
 import { LINKS } from "./kb/links.js";
 import { KB_TOPICS, drawWeighted } from "./topics.js";
@@ -28,7 +28,7 @@ const CANON = id => ENT.get(id)?.same || id;                  // a duplicate ent
 // relation's hint is the verb between the two ("Heracles strangled The Nemean lion")
 const DESCRIBES = new Set(["clue", "link", "from", "led-to", "style"]);
 const PHRASE = { in: "is in", "painted-by": "was painted by", "hangs-in": "hangs in", movement: "belongs to", "designed-by": "was designed by", "written-by": "was written by", "in-work": "is in" };
-/** id → Map(other → { from, to, rel, hint, aspects }): what the Almanac links directly to a thing, with the clue's side (from) and the "because". */
+/** id → Map(other → { from, to, rel, hint, aspects }): what the Codex links directly to a thing, with the clue's side (from) and the "because". */
 export const LINKED = new Map();
 /** id → Set(other): what a clue also fits loosely (its `alt`): neither a true link nor a fair decoy. */
 const LOOSE = new Map();
@@ -55,7 +55,7 @@ for (const id of LINKED.keys()) { const s = primary(id); if (!BY_SET.has(s)) BY_
 
 const MAX_NAME = 38;                                          // a chip holds a name, not a quotation
 const usable = id => ENT.has(id) && name(id).length <= MAX_NAME;
-/** What the link between two things says, as the Almanac wrote it: a clue ("Troll → Norway: One of the largest offshore gas fields"), or a sentence ("Heracles strangled The Nemean lion"). */
+/** What the link between two things says, as the Codex wrote it: a clue ("Troll → Norway: One of the largest offshore gas fields"), or a sentence ("Heracles strangled The Nemean lion"). */
 export function say(a, b) {
   const info = LINKED.get(a)?.get(b);
   if (!info) return "";
@@ -79,7 +79,7 @@ export const ASPECT_CENTRES = CENTRES.filter(id => [...aspectsOf(id).values()].s
 export const INTRUDER_CENTRES = CENTRES.filter(id => truthsOf(id).length >= 4);
 
 // ---------- decoys ----------
-const HUB = 60;                                               // a thing linked to more than this is linked to half the world in life, if not in the Almanac
+const HUB = 60;                                               // a thing linked to more than this is linked to half the world in life, if not in the Codex
 const PEERS = 40, SIBLINGS = 12;
 /**
  * Where the decoys come from, each with its home (the thing it is linked to instead):
@@ -200,7 +200,7 @@ export function askOf(round) {
   const c = name(round.centre);
   if (round.type === "intruder") return `Which one is not linked to ${c}?`;
   if (round.type === "aspect") return `Pick everything linked to ${c} as ${ASPECT.get(round.aspect) || round.aspect}`;
-  return `Pick everything the Almanac links to ${c}`;
+  return `Pick everything the Codex links to ${c}`;
 }
 
 // ---------- what the pile keeps ----------
@@ -221,17 +221,17 @@ export function cardsFor(round, picked) {
     note: noteOf(round, cand), about: [c, cand.id], centre: c, pick: cand.id, linked,
   });
   const aspected = round.type === "aspect", key = (sep, id) => `${c}${aspected ? `~${round.aspect}` : ""}${sep}${id}`;
-  const askLinked = aspected ? `Which of these is linked to ${cn} as ${an}?` : `Which of these is linked to ${cn} in the Almanac?`;
+  const askLinked = aspected ? `Which of these is linked to ${cn} as ${an}?` : `Which of these is linked to ${cn} in the Codex?`;
   const where = aspected ? `Nexus · ${cn}, ${an}` : `Nexus · linked to ${cn}`;
   const out = [];
   if (round.type === "intruder") {
-    if (!j.perfect) { const odd = decoysIn[0]; out.push({ key: key("!", odd.id), why: "wrong", payload: card(`Nexus · not linked to ${cn}`, `Which of these is not linked to ${cn} in the Almanac?`, odd.id, trues.map(x => x.id), false, odd) }); }
+    if (!j.perfect) { const odd = decoysIn[0]; out.push({ key: key("!", odd.id), why: "wrong", payload: card(`Nexus · not linked to ${cn}`, `Which of these is not linked to ${cn} in the Codex?`, odd.id, trues.map(x => x.id), false, odd) }); }
     return out;
   }
   for (const m of left) out.push({ key: key(">", m.id), why: "miss", payload: card(where, askLinked, m.id, [...wrongPicks, ...decoysIn.filter(x => !set.has(x.id))].map(x => x.id), true, m) });
   if (!left.length && wrongPicks.length) {
     if (aspected) { const t = trues[0]; out.push({ key: key(">", t.id), why: "wrong", payload: card(where, askLinked, t.id, [...wrongPicks, ...decoysIn.filter(x => !set.has(x.id))].map(x => x.id), true, t) }); }
-    else for (const w of wrongPicks) out.push({ key: key("!", w.id), why: "wrong", payload: card(`Nexus · not linked to ${cn}`, `Which of these is not linked to ${cn} in the Almanac?`, w.id, trues.map(x => x.id), false, w) });
+    else for (const w of wrongPicks) out.push({ key: key("!", w.id), why: "wrong", payload: card(`Nexus · not linked to ${cn}`, `Which of these is not linked to ${cn} in the Codex?`, w.id, trues.map(x => x.id), false, w) });
   }
   return out;
 }

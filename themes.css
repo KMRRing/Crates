@@ -1,5 +1,5 @@
-/* The themes beyond Almanac (whose look is the stylesheets themselves). Loaded last on every page.
-   Modern is Almanac as it was before the Art Deco update: its palette, logos and every visual property (colour,
+/* The themes beyond Codex (whose look is the stylesheets themselves). Loaded last on every page.
+   Modern is Codex as it was before the Art Deco update: its palette, logos and every visual property (colour,
    lettering, borders, corners, shadows, ornaments) restored from the stylesheets of 253953f^ for each selector Deco
    changed; spacing is today's. Kontor starts from the same undecorated base and dresses it as Kontor: dense, technical,
    an office's green. Office starts from it too and dresses it as Microsoft Office does, after Outlook: Fluent's neutrals
@@ -135,7 +135,7 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .coord.on-light { fill: #6B8DB0; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .coord.on-dark { fill: #E4ECF3; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ru-stats div { border-radius: 12px; }
-/* Stow without Almanac's wood: the cargo a neutral grey, the stamp in the theme's own accent */
+/* Stow without Codex's wood: the cargo a neutral grey, the stamp in the theme's own accent */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) { --sw-cell: color-mix(in srgb, var(--ink) 7%, var(--sheet)); --sw-cargo: color-mix(in srgb, var(--ink) 30%, var(--sheet)); --sw-stamp: var(--sw-in); --sw-stamp-edge: var(--sheet); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-board { border-radius: 20px; box-shadow: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-slot { border-radius: 12px; }
@@ -201,7 +201,7 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sv
 @media (prefers-color-scheme: dark) {
 /* Modern's own logo tints stay light at night (a newer game's, from its own stylesheet, are deep), so a dropdown takes
    a deep face of the logo's edge, as before the Deco update, lettered and ticked in the ink, which reads whatever the
-   tint; Kontor and Office keep Almanac's deep night face, lettered in the ink (dropdown.css). Lettered in the tint on
+   tint; Kontor and Office keep Codex's deep night face, lettered in the ink (dropdown.css). Lettered in the tint on
    a face of the same tint, as all three once were, a choice couldn't be read. */
 html[data-theme="modern"]:not([data-mode="day"]) .dd { background: color-mix(in srgb, var(--dd-edge, var(--tile)) 30%, var(--yard)); color: var(--ink); }
 html[data-theme="modern"]:not([data-mode="day"]) .dd-tick { stroke: color-mix(in srgb, var(--dd-edge, var(--ink)) 45%, var(--ink)); }
@@ -254,11 +254,10 @@ html[data-theme="kontor"] .menu-h { color: var(--brass-lo); }
 html[data-theme="modern"] .top, html[data-theme="modern"] .apps-brand { background: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.btn.primary, [class*="-go"]) { outline: 0; }
 
-/* the games screen's title, per theme: Modern's bold sentence case beside its almanac icon; Kontor's tracked capitals */
+/* the games screen's title, per theme: Modern's bold sentence case beside the mark on its rounded tile; Kontor's tracked capitals */
 html[data-theme="modern"] .apps-brand { font-stretch: 100%; letter-spacing: -.01em; text-transform: none; font-size: 1.6rem; font-weight: 800; }
 html[data-theme="modern"] .apps-brand img { width: 2.1rem; height: 2.1rem; border-radius: 9px; }
 html[data-theme="kontor"] .apps-brand { font-family: var(--font); font-stretch: 100%; letter-spacing: .24em; text-transform: uppercase; font-size: 1.15rem; font-weight: 700; }
-html[data-theme="kontor"] .apps-brand .k-brand { width: 2rem; height: 2rem; stroke-width: 1.4; }
 
 /* Cartel in Kontor: the felt becomes a trading screen (near-black, a faint grid, a green hairline), gold becomes green */
 html[data-theme="kontor"] { --ct-gold: #2EB36A; --ct-gold-edge: #1E7A45; }

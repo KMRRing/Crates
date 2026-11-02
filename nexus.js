@@ -1,4 +1,4 @@
-// Nexus: a thing from the knowledge base in the middle, a ring of candidates round it, and you pick the ones the Almanac
+// Nexus: a thing from the knowledge base in the middle, a ring of candidates round it, and you pick the ones the Codex
 // links to it directly (nexus-engine.js says how a round is built). Five rounds a run, Orbit (everything linked), Aspect
 // (only what is linked under one aspect of it) and Intruder (the one that isn't), mixed or one kind; random or today's,
 // the same for everyone. A round scores what you found less what you picked wrongly, out of 100. Checking turns the

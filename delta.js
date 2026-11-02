@@ -8,7 +8,7 @@ import { generate, LEVELS, CLUES, evaluate, isSolved, showOp, showValue, valueAl
 import { pathList, withPath, freshTable, presentSlots, drawingsOf, drawnBy } from "./delta-room.js";
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { busy, sextant } from "./loading.js";
+import { busy, waitMark } from "./loading.js";
 import "./pwa.js";
 import { gameHref, GAMES, branchPath, otherHere, joiningWords } from "./rooms.js";
 import { dropdown } from "./dropdown.js";
@@ -28,7 +28,7 @@ let S = null;
 let drawing = null;   // the path under the finger: { id, c, cells }
 let clockFrom = null;
 let shownDone = null;
-let joining = null;   // the rete while you sit down at a table in the address, until its board is drawn
+let joining = null;   // the mark while you sit down at a table in the address, until its board is drawn
 
 const newId = () => Math.random().toString(36).slice(2, 8);
 
@@ -338,7 +338,7 @@ function drawPartner() {
   if (!together.room) { line.hidden = true; return; }
   line.hidden = false;
   line.replaceChildren();
-  if (!together.online) { line.append(sextant(), "Reconnecting… moves made now may not reach the others."); return; }
+  if (!together.online) { line.append(waitMark(), "Reconnecting… moves made now may not reach the others."); return; }
   const g = together.room.data, people = g?.people || 2, others = together.others();
   const here = new Set(presentSlots(g, together.room.here, together.room.uid));
   if (people === 2) {
@@ -547,7 +547,7 @@ async function askName() {
   return name;
 }
 
-/** The rete over the page while a room in the address is joined goes once its board is drawn, or the join fails. */
+/** The mark over the page while a room in the address is joined goes once its board is drawn, or the join fails. */
 const joined = () => { joining?.(); joining = null; };
 // a board solved together: a team result, the time it took (lower is better); a party's table seats as many as asked
 const together = createTogether({

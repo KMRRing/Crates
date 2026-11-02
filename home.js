@@ -1,4 +1,4 @@
-// Almanac's home: the app opens on the screen of games, with no game open. Crates used to be the front page; a link
+// Codex's home: the app opens on the screen of games, with no game open. Crates used to be the front page; a link
 // made for it then (a shared board, a room, a run, a pool) still goes to Crates, now at crates.html.
 const q = new URLSearchParams(location.search);
 if (["b", "room", "run", "cat"].some(k => q.has(k))) location.replace(`crates.html${location.search}${location.hash}`);
