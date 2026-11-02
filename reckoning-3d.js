@@ -95,11 +95,15 @@ export function createRunner(host) {
   canvas.addEventListener("webglcontextlost", e => e.preventDefault());
 
   const scene = new THREE.Scene();
+  // The camera looks down +z, where a right-handed world's +x falls on the screen's left. The rules put lane +1 on the
+  // right of the hero (a swipe right, the third answer), so everything is drawn in engine coordinates inside a group
+  // mirrored in x, and only the camera is told the mirrored x. (three flips the faces of a mirrored object itself.)
+  const world = new THREE.Group(); world.scale.x = -1; scene.add(world);
   const camera = new THREE.PerspectiveCamera(70, 1, 0.3, 160);
   const hemi = new THREE.HemisphereLight(0xffffff, 0x888888, 1.5);
   const sun = new THREE.DirectionalLight(0xffffff, 1.6);
   sun.position.set(-4, 9, -3);
-  scene.add(hemi, sun, sun.target);
+  world.add(hemi, sun, sun.target);
   scene.fog = new THREE.Fog(0xffffff, 28, 105);
 
   let pal = palette();
@@ -134,20 +138,20 @@ export function createRunner(host) {
 
   // the quay: solid stretches between the pits, seams across it, water below
   const solids = [];
-  const solid = () => { const m = new THREE.Mesh(box, M.stone); m.frustumCulled = false; scene.add(m); solids.push(m); return m; };
+  const solid = () => { const m = new THREE.Mesh(box, M.stone); m.frustumCulled = false; world.add(m); solids.push(m); return m; };
   const water = new THREE.Mesh(new THREE.PlaneGeometry(60, 400).rotateX(-Math.PI / 2), M.water);
-  water.position.y = -1.7; water.frustumCulled = false; scene.add(water);
+  water.position.y = -1.7; water.frustumCulled = false; world.add(water);
   const SEAMS = Math.ceil((AHEAD + BEHIND) / SEAM) + 2;
-  const seams = new THREE.InstancedMesh(box, M.seam, SEAMS); seams.frustumCulled = false; scene.add(seams);
+  const seams = new THREE.InstancedMesh(box, M.seam, SEAMS); seams.frustumCulled = false; world.add(seams);
   const edge = new THREE.InstancedMesh(box, M.plank, 2 * SEAMS);                         // a rail of planking down each side
-  edge.frustumCulled = false; scene.add(edge);
+  edge.frustumCulled = false; world.add(edge);
 
   // scenery: warehouses (a body and two steps of gable) and bollards, placed from the distance alone, so they are the same every time
   const HOUSES = 15;                                                                     // each side, each a body and two steps
-  const houses = new THREE.InstancedMesh(box, M.brick, HOUSES * 2 * 3); houses.frustumCulled = false; houses.userData.tint = true; scene.add(houses);
-  const roofs = new THREE.InstancedMesh(box, M.roof, HOUSES * 2); roofs.frustumCulled = false; scene.add(roofs);
+  const houses = new THREE.InstancedMesh(box, M.brick, HOUSES * 2 * 3); houses.frustumCulled = false; houses.userData.tint = true; world.add(houses);
+  const roofs = new THREE.InstancedMesh(box, M.roof, HOUSES * 2); roofs.frustumCulled = false; world.add(roofs);
   const BOLLARDS = 24;
-  const posts = new THREE.InstancedMesh(cyl, M.timber, BOLLARDS * 2); posts.frustumCulled = false; scene.add(posts);
+  const posts = new THREE.InstancedMesh(cyl, M.timber, BOLLARDS * 2); posts.frustumCulled = false; world.add(posts);
   function recolour(inst) {
     const c = new THREE.Color();
     for (let i = 0; i < inst.count; i++) {
@@ -161,7 +165,7 @@ export function createRunner(host) {
 
   // walls that can be run along
   const wallBoxes = [];
-  const wallBox = () => { const m = new THREE.Mesh(box, M.wall); m.frustumCulled = false; scene.add(m); wallBoxes.push(m); return m; };
+  const wallBox = () => { const m = new THREE.Mesh(box, M.wall); m.frustumCulled = false; world.add(m); wallBoxes.push(m); return m; };
 
   // the hero, in boxes
   const hero = new THREE.Group();
@@ -174,8 +178,8 @@ export function createRunner(host) {
   const blade = new THREE.Mesh(box, M.gilt); blade.scale.set(0.06, 0.06, 0.8); blade.position.set(0.36, 0.95, 0.35); body.add(blade);
   const legs = [-1, 1].map(s => { const g = new THREE.Group(); g.position.set(s * 0.15, 0.5, 0); const m = new THREE.Mesh(box, M.hero); m.scale.set(0.2, 0.5, 0.22); m.position.y = -0.25; g.add(m); hero.add(g); return g; });
   hero.traverse(o => { o.frustumCulled = false; });
-  scene.add(hero);
-  const heroShadow = new THREE.Mesh(disc, M.shadow); heroShadow.scale.set(1, 1, 1); heroShadow.frustumCulled = false; scene.add(heroShadow);
+  world.add(hero);
+  const heroShadow = new THREE.Mesh(disc, M.shadow); heroShadow.scale.set(1, 1, 1); heroShadow.frustumCulled = false; world.add(heroShadow);
 
   // foes
   const foes = new Map();                                                                 // foe id -> { group, parts, born, died }
@@ -197,7 +201,7 @@ export function createRunner(host) {
     }
     g.traverse(o => { o.frustumCulled = false; });
     const shadow = new THREE.Mesh(disc, M.shadow); shadow.frustumCulled = false;
-    scene.add(g, shadow);
+    world.add(g, shadow);
     return { group: g, parts, shadow, kind: f.kind };
   }
 
@@ -206,12 +210,12 @@ export function createRunner(host) {
   function ring(x, y, z, r, life) {
     const m = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28).rotateX(-Math.PI / 2), M.ring.clone());
     m.material = curved(M.ring.clone());
-    m.position.set(x, y, z); m.frustumCulled = false; scene.add(m);
+    m.position.set(x, y, z); m.frustumCulled = false; world.add(m);
     fx.push({ m, born: now, life, r, kind: "ring" });
   }
   function burst(x, y, z, n = 6) {
     for (let i = 0; i < n; i++) {
-      const m = new THREE.Mesh(box, M.gilt); m.scale.setScalar(0.12); m.position.set(x, y, z); m.frustumCulled = false; scene.add(m);
+      const m = new THREE.Mesh(box, M.gilt); m.scale.setScalar(0.12); m.position.set(x, y, z); m.frustumCulled = false; world.add(m);
       const a = (i / n) * Math.PI * 2 + hash(i + now) * 1.5;
       fx.push({ m, born: now, life: 0.45, kind: "spark", vx: Math.cos(a) * 2.6, vy: 2 + hash(i * 7 + now) * 2.6, vz: Math.sin(a) * 2.6 });
     }
@@ -356,7 +360,7 @@ export function createRunner(host) {
     // effects
     for (let i = fx.length - 1; i >= 0; i--) {
       const e = fx[i], t = (now - e.born) / e.life;
-      if (t >= 1) { scene.remove(e.m); if (e.kind === "ring") { e.m.geometry.dispose(); e.m.material.dispose(); } fx.splice(i, 1); continue; }
+      if (t >= 1) { world.remove(e.m); if (e.kind === "ring") { e.m.geometry.dispose(); e.m.material.dispose(); } fx.splice(i, 1); continue; }
       if (e.kind === "ring") { e.m.scale.setScalar(0.4 + e.r * t); e.m.material.opacity = 0.8 * (1 - t); }
       else { e.m.position.x += e.vx * dt; e.m.position.z += e.vz * dt; e.vy -= 9 * dt; e.m.position.y += e.vy * dt; e.m.scale.setScalar(0.12 * (1 - t)); }
     }
@@ -365,8 +369,8 @@ export function createRunner(host) {
     camX += (h.x * 0.55 - camX) * Math.min(1, dt * 6);
     camY += ((3.2 + Math.min(h.y, 4) * 0.35) - camY) * Math.min(1, dt * 4);
     const sx = (Math.random() - 0.5) * shake * 0.3, sy = (Math.random() - 0.5) * shake * 0.3;
-    camera.position.set(camX + sx, camY + sy, h.z - 5.4);
-    camera.lookAt(camX * 0.6, 1.2 + Math.min(h.y, 4) * 0.25, h.z + 10);
+    camera.position.set(-(camX + sx), camY + sy, h.z - 5.4);
+    camera.lookAt(-camX * 0.6, 1.2 + Math.min(h.y, 4) * 0.25, h.z + 10);
     sun.position.set(h.x - 5, 10, h.z - 2); sun.target.position.set(h.x, 0, h.z + 8);
     water.position.z = h.z;
     renderer.render(scene, camera);
