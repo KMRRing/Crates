@@ -57,7 +57,7 @@
   --sp-logo-edge: var(--logo-edge);
   --qt-logo-tint: #D7DAEE;  /* Quote's logo: quotation marks */
   --qt-logo-edge: var(--logo-edge);
-  --mf-logo-tint: #CDE5E1;  /* Manifest's logo: a stack of containers */
+  --mf-logo-tint: #CDE5E1;  /* Manifest's logo: a stack of packages */
   --mf-logo-edge: var(--logo-edge);
   --ch-logo-tint: #D2DEEA;  /* Chart's logo: a map pin */
   --ch-logo-edge: var(--logo-edge);
