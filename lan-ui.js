@@ -10,6 +10,7 @@
 import { createHost, createClient } from "./lan.js";
 import { hostLink, guestLink, decodeLink } from "./lan-link.js";
 import { scanQr } from "./qr-scan.js";
+import { sure } from "./sure.js";
 import { qrSvg } from "./qr.js";
 import { waitMark } from "./loading.js";
 
@@ -99,7 +100,7 @@ window.__lan = {
 
 async function leave() {
   if (role === "host") {
-    if (!ended && !confirm("End the offline party? Every phone leaves it.")) return;
+    if (!ended && !(await sure("End the offline party? Every phone leaves it.", { yes: "End it" }))) return;
     ended = true;
     try { host.db.set("lan/ended", true); } catch (e) { console.error(e); }
     await new Promise(r => setTimeout(r, 500));          // the others hear it before their links close

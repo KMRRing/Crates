@@ -75,6 +75,7 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 - **The page never scrolls.** Every game fits the screen from 390×600 up; anything long scrolls inside its own box
   (dialogs may scroll). Use `style.css`'s frame: `#app.fit-screen`, `.fit-col`, `.fit-grow`, `.fit-box`, `.fit-scroll`.
   Nothing should change size mid-game.
+- **No browser pop-ups.** Never `alert()`, `confirm()` or `prompt()` (2 November 2026, Korbi: "don't use alerts. just do in-app pop ups. feels budget."): ask with `sure()`, `typed()` or `notice()` from `sure.js`, which return promises, so the caller is async. `tests/no-native-dialogs.mjs` lists the games not yet changed with how many calls each has left; clean a game and lower its number there.
 - **Look before you push** a visible change: a browser at 390×664 and 390×844 (Playwright works in the container),
   and on an iPad both ways, 820×1180 and 1180×820 (README, Bigger screens).
 - **Clean code as you go**, don't just flag it; comments say why, not what.

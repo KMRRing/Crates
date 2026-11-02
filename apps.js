@@ -3,6 +3,7 @@
 // in the same room (rooms.js).
 import { hardUpdate } from "./pwa.js";
 import { waitMark } from "./loading.js";
+import { sure, typed, notice } from "./sure.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
 import { duoLine } from "./duo-records.js";
 import { choice, toggle, line } from "./menu.js";
@@ -701,7 +702,7 @@ function startOver() {
     const b = document.createElement("button");
     b.type = "button"; b.textContent = a.name;
     b.addEventListener("click", async () => {
-      if (!confirm(`Start ${a.name} over? Every level, star, save and setting of it goes, here and on your other devices. This can't be undone.`)) return;
+      if (!(await sure(`Start ${a.name} over? Every level, star, save and setting of it goes, here and on your other devices. This can't be undone.`, { yes: "Start over" }))) return;
       for (const x of grid.children) x.disabled = true;
       await resetGame(a.id);
       if (a.href.endsWith(here)) { location.reload(); return; }        // the game on screen: it starts again now
@@ -810,27 +811,27 @@ function bindCodes(dlg) {
   // typing a code: an existing one is followed (solo) or joined (partner); a new one starts fresh, from here
   const editSolo = async () => {
     const now = soloCode();
-    const typed = prompt(`Your solo code${now ? ` is ${now}` : ""}. Type 8 letters: a code you use on another device, or a new one of your own to start here${now ? "" : " (empty: a random one)"}:`, "");
-    if (typed === null) return;
-    const code = cleanCode(typed);
+    const typedCode = await typed(`Your solo code${now ? ` is ${now}` : ""}. Type 8 letters: a code you use on another device, or a new one of your own to start here${now ? "" : " (empty: a random one)"}:`);
+    if (typedCode === null) return;
+    const code = cleanCode(typedCode);
     if (!code && !now) startSolo();
     else if (code.length === 8 && code !== now) await chooseSolo(code);
-    else { if (code) alert("A solo code is 8 letters."); return; }
+    else { if (code) await notice("A solo code is 8 letters."); return; }
     location.reload();
   };
-  const editDuo = () => {
+  const editDuo = async () => {
     const now = duoCode();
-    const typed = prompt(`Your partner code${now ? ` is ${now}` : ""}. Type 4 letters: your partner's, or a new one of your own for them to type${now ? "" : " (empty: a random one)"}:`, "");
-    if (typed === null) return;
-    const code = cleanCode(typed);
+    const typedCode = await typed(`Your partner code${now ? ` is ${now}` : ""}. Type 4 letters: your partner's, or a new one of your own for them to type${now ? "" : " (empty: a random one)"}:`);
+    if (typedCode === null) return;
+    const code = cleanCode(typedCode);
     if (!code && !now) link();
     else if (code.length === 4 && code !== now) link(code);
-    else { if (code) alert("A partner code is 4 letters."); return; }
+    else { if (code) await notice("A partner code is 4 letters."); return; }
     location.reload();
   };
   const copy = async (kind, chip) => {
     const url = codesLink(kind), was = chip.innerHTML;
-    try { await navigator.clipboard.writeText(url); chip.innerHTML = `${ICON[kind]}<b>Copied</b>`; } catch { prompt("Copy this link:", url); return; }
+    try { await navigator.clipboard.writeText(url); chip.innerHTML = `${ICON[kind]}<b>Copied</b>`; } catch { await typed("Copy this link:", { value: url, yes: "Done" }); return; }
     setTimeout(() => { chip.innerHTML = was; }, 1200);
   };
   // tap copies the link, hold types a code (a code that isn't set yet is typed on a tap)
@@ -869,7 +870,7 @@ function bindCodes(dlg) {
         if (b) b.textContent = `Asking to play ${GAME_NAME(game)}…`;
         const answer = await ask(game);
         if (answer === "yes") return;                    // ask() is taking this page to the table
-        draw(); alert(answer === "no" ? "Not now, they said." : "No answer.");
+        draw(); await notice(answer === "no" ? "Not now, they said." : "No answer.");
       };
       if (them && partner.mode === "solo") button(`Watch ${first}'s ${GAME_NAME(them)}`, () => { location.href = watchHref(them); }, "btn primary wide");
       if (them && DUO_GAMES[them] && partner.mode === "solo") button(`Ask to play ${GAME_NAME(them)} together`, askFor(them));
@@ -877,7 +878,7 @@ function bindCodes(dlg) {
       if (them && DUO_GAMES[them] && partner.mode === "duo" && !(inDuo && mine === them)) button(`Join ${first} in ${GAME_NAME(them)}`, () => { location.href = duoHref(them); }, "btn primary wide");
       if (partner?.online && DUO_GAMES[mine] && mine !== them && !inDuo) button(`Ask to play ${GAME_NAME(mine)} together`, askFor(mine));   // only someone who's here can say Play
       if (inDuo) button("Back to solo", () => { location.href = soloHref(); });
-      button("Unlink", () => { if (confirm("Unlink from your partner on all your devices?")) { unlink(); location.reload(); } }, "link");
+      button("Unlink", async () => { if (await sure("Unlink from your partner on all your devices?", { yes: "Unlink" })) { unlink(); location.reload(); } }, "link");
     }
     sheet.showModal();
   };

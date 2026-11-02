@@ -628,6 +628,17 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .pair-sheet .link { display: block; margin: .7rem auto 0; }
 .pair-sheet::backdrop { background: rgba(0, 0, 0, .35); }
 .pair-sheet h3 { margin: 0 0 .5rem; }
+/* sure.js: a question, a line to type or a notice, over whatever page is open */
+dialog.sure { width: min(92vw, 22rem); box-sizing: border-box; margin: auto; padding: 0; border: 1.5px solid var(--brass); border-radius: 6px;
+  background: var(--sheet); color: var(--ink); box-shadow: 0 18px 50px rgba(0, 0, 0, .25); }
+dialog.sure::backdrop { background: rgba(10, 14, 18, .45); }
+dialog.sure form { margin: 0; padding: 1.1rem; }
+dialog.sure p { margin: 0 0 1rem; line-height: 1.45; font-size: .95rem; }
+dialog.sure input { display: block; width: 100%; box-sizing: border-box; margin: 0 0 1rem; padding: .55rem .65rem; font: inherit; font-size: 1rem;
+  color: var(--ink); background: var(--tile); border: 1.5px solid var(--tile-edge); border-radius: 4px; }
+dialog.sure input:focus { outline: 2px solid var(--brass); outline-offset: 1px; }
+dialog.sure .sure-row { display: flex; gap: .6rem; justify-content: flex-end; }
+dialog.sure .sure-row .btn { flex: 1; padding-inline: .8rem; }
 .pair-sheet .btn.wide { margin-top: .45rem; }
 /* your partner asks to play together: a banner over whatever you're playing */
 .pair-ask { position: fixed; left: .5rem; right: .5rem; top: calc(env(safe-area-inset-top, 0px) + .5rem); z-index: 1000; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
