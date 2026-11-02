@@ -9,13 +9,18 @@
 // Punt and Crates do; today's run is the same for everyone, whatever the mix.
 // Together, one run for the table (together.js): one deck and one line for everyone at it, anyone placing the card in
 // hand, the team's lives, each card marked with who placed it.
+// Higher or lower (the Play setting in the menu, November 2026): a second way to play Dates and Quantities, alone. Two
+// cards side by side, the left with its value showing; tap the one you think is higher, see both, and the left card goes,
+// the right one takes its place and a new one is dealt, until the first wrong tap.
 import { LIVES, MODES, BY_ID, DATES, FAMILIES, STORIES, familyOf, bestIn, dealRun, topicsIn, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } from "./order-engine.js";
+import { HL_MODES, HL_FAMILIES, dealHigherLower, answerHigherLower, advanceHigherLower, pairOf, higherOf, wasRight } from "./order-engine.js";
 import { withUnit, TOPIC_PRESETS, cleanTopics } from "./quote-engine.js";
 import { presetOf } from "./topics.js";
 import { showPicture, pictureName, nameIn } from "./pics.js";
 import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, topicMix, action, line } from "./menu.js";
+import { onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -25,6 +30,7 @@ import "./pwa.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "order:run", BEST = "order:best", DAILY = "order:daily", TOPICS_KEY = "order:topics", SEEN = "order:seen";
+const HL = "order:hl", HL_BEST = "order:hlbest", PLAY = "order:play";     // higher or lower: its run, its bests, and which way you play
 const APP = 2;                 // the table's version: one run for everyone (1 was a head-to-head, each on their own deck)
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -93,6 +99,9 @@ const whereIn = (line, at) => (at === 0 ? "first" : at === line.length - 1 ? "la
 
 // ---------- drawing ----------
 function render() {
+  const hl = hlOn();
+  $("app").classList.toggle("hl", hl);                        // higher or lower draws the same page its own way (order.css)
+  if (hl) { renderHL(); return; }
   const R = G?.run || S;
   if (!R) { newRun("dates", false); return; }
   $("where").textContent = `${R.mode === "stories" ? STORIES.get(R.story)?.name || MODES.stories : MODES[R.mode]}${R.mode === "quantities" ? `, ${familyOf(R.unit).mixed ? familyOf(R.unit).label : `in ${R.unit}`}` : ""}${R.daily ? " · today's" : R.ranked === false ? " · your topics" : ""} · placed ${R.placed}`;
@@ -160,6 +169,147 @@ function finish() {
 }
 let toastTimer;
 function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2600); }
+
+// ---------- higher or lower (the Play setting, November 2026) ----------
+// Two cards side by side, the left with its value showing; tap the one you think is higher. Both values show for a moment
+// and, if you were right, the left card goes, the right one takes its place and a new one is dealt; the first wrong tap
+// ends the run, and its score is the taps that were right. The run is order-engine.js's, a chain dealt whole from the seed
+// and kept in `order:hl` as it stands, the moment both values show included, so a reload or a partner's watching frame
+// draws the same screen. Its own bests are `order:hlbest`; its today's goes in the daily map as YYYYMMDD/hl-dates (or
+// hl-quantities), which counts it as today's run for the games screen. Alone only: a table plays the line.
+const MOMENT = 1100, FINAL = 900, SETTLE = 350;      // ms: both values show before the next pair; before the run's end is told; a tap this soon after the last was meant for it
+let H = read(HL, null), answeredAt = 0;
+const hlOn = () => !G && read(PLAY, "line") === "hl";
+/** The run the menu is about: higher or lower's, or the line's. */
+const current = () => (hlOn() ? H : S);
+const hlKey = run => (run.mode === "dates" ? "dates" : `q:${run.unit}`);
+
+// what follows the moment both values show (the next pair, or the end told): one at a time, held while the menu is open
+let step = null;                       // { fn, left (ms to go), from, id (0 while held) }
+const runStep = () => { const s = step; step = null; s?.fn(); };
+const cancelStep = () => { clearTimeout(step?.id); step = null; };
+function after(ms, fn) {
+  clearTimeout(step?.id);
+  step = { fn, left: ms, from: performance.now(), id: isPaused() ? 0 : setTimeout(runStep, ms) };
+}
+onPause(() => { if (step?.id) { clearTimeout(step.id); step.left -= performance.now() - step.from; step.id = 0; } },
+  () => { if (step && !step.id) { step.from = performance.now(); step.id = setTimeout(runStep, Math.max(0, step.left)); } });
+
+function newHL(mode, daily) {
+  cancelStep();
+  const m = HL_MODES[mode] ? mode : "dates";
+  const seed = daily ? today() * 7919 + (m === "dates" ? 17 : 19) : Math.floor(Math.random() * 2 ** 31);
+  H = { ...dealHigherLower(m, seed, daily ? null : mix(), daily ? null : new Set(seenIds())), daily, day: daily ? today() : null, ranked: ranked(m, daily) };
+  if (H.recycled) { forget(m === "dates" ? DATES : familyOf(H.unit).ids); delete H.recycled; }
+  if (!daily) markSeen([H.cards[0]]);
+  write(HL, H); render();
+  if (H.wide) toast("Too few cards in your topics: this run deals from all of them");
+}
+/** A tap on a card (its id): both values show; a right one goes on after a moment, a wrong one ends the run. A tap
+ *  while both values show moves on at once (unless it is a double tap, still the answer's). */
+function pickHL(id) {
+  if (!H || H.over) return;
+  if (H.picked) { if (performance.now() - answeredAt > SETTLE) advanceNow(); return; }
+  H = answerHigherLower(H, id);
+  if (!H.picked) return;
+  answeredAt = performance.now();
+  if (!H.daily) markSeen([pairOf(H)[1]]);                      // the card dealt beside the other is seen now
+  write(HL, H);
+  if (H.over) endHL(); else after(MOMENT, advanceNow);
+  render();
+}
+function advanceNow() {
+  cancelStep();
+  H = advanceHigherLower(H);
+  write(HL, H); render();
+}
+function endHL() {
+  const best = read(HL_BEST, {}), key = hlKey(H);
+  if (H.ranked !== false && !(best[key] >= H.score)) { best[key] = H.score; write(HL_BEST, best); }   // your own mix doesn't count
+  if (H.daily) { const d = read(DAILY, {}), k = `${H.day ?? today()}/hl-${H.mode}`; if (!(d[k] >= H.score)) { d[k] = H.score; write(DAILY, d); } }
+  after(FINAL, finishHL);
+  roundOver("order");
+}
+function finishHL() {
+  const body = $("doneBody"), cleared = wasRight(H), [a, b] = pairOf(H);
+  body.replaceChildren();
+  body.append(el("p", "or-sum", cleared ? `${H.score} right, every card dealt.` : `${H.score} right in a row.`));
+  if (!cleared) {                                              // the pair that ended it, the tapped one marked
+    const hi = higherOf(a, b), pair = el("div", "or-pair");
+    for (const id of [hi, H.picked]) {
+      const row = el("div", `or-item${id === hi ? "" : " wrong"}`);
+      row.append(el("b", "", valueOf(BY_ID.get(id))), el("span", "", `${short(id)} · ${id === hi ? (H.mode === "dates" ? "later" : "higher") : "you tapped"}`));
+      pair.append(row);
+    }
+    body.append(pair);
+  }
+  if (dailyDue("order")) body.append(action("Today's run", () => { $("doneDlg").close(); newHL(H.mode, true); }, "primary"));
+  body.append(action("Another run", () => { $("doneDlg").close(); newHL(H.mode, false); }, dailyDue("order") ? "" : "primary"));
+  $("doneDlg").showModal();
+}
+
+// the cards on the table, kept by id while they are (a card's picture stays loaded as it moves over to the left)
+const faces = new Map();
+function face(id) {
+  if (faces.has(id)) return faces.get(id);
+  const q = BY_ID.get(id), b = el("button", "or-face fresh"), pic = el("span", "or-fpic");
+  b.type = "button"; pic.hidden = true;
+  b.append(pic, el("span", "or-fname", cardText(q) + (H.mode === "quantities" && familyOf(H.unit).mixed ? ` (in ${q.unit})` : "")), el("b", "or-fval"));
+  if (q.pic) showPicture(pic, q.pic, { width: sideways() ? 720 : 480, alt: titleOf(q) });
+  b.addEventListener("click", () => pickHL(id));
+  b.addEventListener("animationend", () => b.classList.remove("fresh"), { once: true });
+  faces.set(id, b);
+  return b;
+}
+function renderHL() {
+  if (!H) { newHL("dates", dailyDue("order")); return; }
+  drawTeam();                                                  // (hides the team a table left behind)
+  $("line").classList.remove("or-shared");
+  const fam = H.mode === "quantities" ? familyOf(H.unit) : null, [a, b] = pairOf(H), shown = !!H.picked, hi = shown ? higherOf(a, b) : null;
+  $("where").textContent = `Higher or lower · ${fam ? (fam.mixed ? fam.label : `in ${H.unit}`) : "dates"}${H.daily ? " · today's" : H.ranked === false ? " · your topics" : ""}`;
+  $("lives").textContent = `${H.score} right ${H.over && wasRight(H) === false ? "○" : "●"}`;
+  $("lives").setAttribute("aria-label", `${H.score} right, one life`);
+  $("deal").hidden = false;
+  $("ask").textContent = !shown ? `Which is ${H.mode === "dates" ? "later" : "higher"}? Tap it` : wasRight(H) ? "Right" : "Not quite";
+  $("duel").replaceChildren(...[a, b].map(id => {
+    const q = BY_ID.get(id), f = face(id), open = shown || id === a;
+    f.classList.toggle("hid", !open);
+    f.classList.toggle("hi", shown && id === hi);
+    f.classList.toggle("no", shown && id === H.picked && id !== hi);
+    f.querySelector(".or-fval").textContent = open ? valueOf(q) : "?";
+    f.setAttribute("aria-label", `${f.querySelector(".or-fname").textContent}: ${open ? valueOf(q) : "value hidden"}`);
+    return f;
+  }));
+  for (const id of [...faces.keys()]) if (id !== a && id !== b) faces.delete(id);
+  // the cards that have gone, the latest first (sideways, the column beside the pair)
+  const box = $("line");
+  box.setAttribute("aria-label", "Cards played, latest first");
+  box.replaceChildren(...H.cards.slice(0, H.at).reverse().map(id => {
+    const li = el("li", "or-item");
+    li.append(el("b", "", valueOf(BY_ID.get(id))), el("span", "", short(id)));
+    return li;
+  }));
+}
+/** Today's run, still to play: asks before leaving one you've started. */
+function openTodayHL() {
+  if (H && !H.over && (H.at > 0 || H.picked) && !confirm("Start today's run? This one isn't finished.")) return;
+  newHL(H?.mode || "dates", true);
+}
+function soloHL() {
+  if (arrivedForToday() && !(H?.daily && H.day === today())) { if (H && !H.over) render(); setTimeout(openTodayHL, 0); }
+  else if (!H || H.over) newHL(H?.mode || "dates", dailyDue("order"));
+  else { render(); if (H.picked) after(MOMENT, advanceNow); }    // reloaded while both values showed: go on
+}
+/** Plays the line or higher or lower from now on (this device, and the others that follow your saved state). */
+function setPlay(how) {
+  write(PLAY, how);
+  cancelStep();
+  if ($("doneDlg").open) $("doneDlg").close();
+  solo();
+}
+// a picture is asked of Wikipedia at the width the layout needs: when the screen turns, the cards are drawn again
+let wasSideways = sideways();
+addEventListener("resize", () => { if (sideways() !== wasSideways) { wasSideways = sideways(); faces.clear(); if (hlOn()) render(); } });
 
 // ---------- together: one run for the table (together.js) ----------
 // The pair's duo match, or a party's table of up to six, each on their own phone: the same card in hand on every
@@ -318,17 +468,23 @@ function openMenu() {
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
-  pick ??= { mode: S?.mode || "dates", daily: (!!S?.daily && !S.over) || dailyDue("order") };   // today's first, while it's still to play
-  part(body, "play").append(action("New run", () => newRun(pick.mode, pick.daily), "primary"));
+  pick ??= { mode: current()?.mode || "dates", daily: (!!current()?.daily && !current().over) || dailyDue("order") };   // today's first, while it's still to play
+  if (hlOn() && !HL_MODES[pick.mode]) pick.mode = "dates";    // higher or lower has no History
+  part(body, "play").append(action("New run", () => (hlOn() ? newHL : newRun)(pick.mode, pick.daily), "primary"));
   const content = part(body, "content");
   content.append(
-    choice("Order", Object.entries(MODES), pick.mode, v => { pick.mode = v; openMenu(); }),
+    choice("Order", Object.entries(hlOn() ? HL_MODES : MODES), pick.mode, v => { pick.mode = v; openMenu(); }),
     choice("Run", [[false, "Random"], [true, "Today's"]], pick.daily, v => { pick.daily = v; openMenu(); }));
   // your topics are for random runs (today's is the same for everyone), so they're shown either way, and one changed
   // with today's picked turns the next run to a random one
   topicsPart(content, pick.mode, true, () => { if (pick.daily) { pick.daily = false; openMenu(); } });
   const best = read(BEST, {});
   part(body, "about").append(line(`Best: dates ${best.dates ?? "–"}${FAMILIES.some(f => bestIn(best, f)) ? `, quantities ${Math.max(...FAMILIES.map(f => bestIn(best, f)))}` : ""} · ${DATES.length} dated cards, ${FAMILIES.length} families of quantities`));
+  // the way to play: the line, or higher or lower (alone: a table plays the line, and its menu has no switch)
+  part(body, "settings").append(choice("Play", [["line", "Line"], ["hl", "Higher or lower"]], hlOn() ? "hl" : "line", v => { setPlay(v); openMenu(); }));
+  if (hlOn()) part(body, "together").append(line("Higher or lower is played alone; a table plays the line."));
+  const hlBest = read(HL_BEST, {});
+  if (hlOn() || Object.keys(hlBest).length) part(body, "about").append(line(`Best, higher or lower: dates ${hlBest.dates ?? "–"}, quantities ${Math.max(0, ...HL_FAMILIES.map(f => hlBest[`q:${f.unit}`] ?? 0)) || "–"}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -345,6 +501,7 @@ function openToday() {
 }
 // opening: from the tile, today's; a finished run gives way to today's while it's still to play, else a random one
 function solo() {
+  if (hlOn()) { soloHL(); return; }
   if (arrivedForToday() && !(S?.daily && S.day === today())) { if (S && !S.over) render(); setTimeout(openToday, 0); }
   else if (!S || S.over) newRun(S?.mode || "dates", dailyDue("order"));
   else render();
@@ -357,4 +514,4 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) toge
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 
 // for tests and debugging
-window.__order = { get state() { return S; }, get table() { return G; }, place, together };
+window.__order = { get state() { return S; }, get table() { return G; }, get hl() { return H; }, place, pickHL, together };

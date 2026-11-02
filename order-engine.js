@@ -1,8 +1,8 @@
 // Order's cards and rules, pure (order.js draws them; tests/order.mjs runs them): the cards of each kind, a run's deal,
-// where a card fits, a placement. And the table, when several play one run together (October 2026): one deck and one
-// line for everyone at it, the team's lives, each card marked with who placed it, a tap made on a screen the table has
-// moved on from turned down. The table's changes are made inside a transaction (together.js), on the state as the
-// database gives it back (tidy).
+// where a card fits, a placement; higher or lower (November 2026), its chain of cards and the tap on one. And the table,
+// when several play one run together (October 2026): one deck and one line for everyone at it, the team's lives, each
+// card marked with who placed it, a tap made on a screen the table has moved on from turned down. The table's changes
+// are made inside a transaction (together.js), on the state as the database gives it back (tidy).
 import { QUOTES } from "./quote-bank.js";
 import { TOPICS } from "./quote-engine.js";
 import { drawWeighted } from "./topics.js";
@@ -111,6 +111,81 @@ export function placeCard(run, slot, mark = {}) {
   if (run.lives <= 0 || !run.deck.length) run.over = true;
   return { id, ok, at };
 }
+
+// ---------- higher or lower (November 2026): one life, two cards, tap the higher ----------
+// A second way to play Dates and Quantities (History's stories have no value to compare). Two cards stand on the table,
+// the left with its value showing; you tap the one you think is higher. Both values then show, and if you were right the
+// left card goes, the one you just saw moves into its place with its value showing and a new card is dealt beside it;
+// the first wrong tap ends the run, and its score is the right taps. (The winner does not stay: that would make the card
+// in hand the largest seen so far, and the run a string of taps on it.) The whole run is dealt from the seed, a chain of
+// cards no two of them too close to call, so it is the same for everyone and can be saved and drawn as it stood.
+export const HL_MODES = { dates: MODES.dates, quantities: MODES.quantities };
+export const HL_LEAST = 15;       // a family of quantities with fewer cards than this is over too soon to be a run
+export const HL_WORTH = 20;       // fewer unseen cards than this and a deal reaches back into the ones you've seen
+/** The families a run of quantities can be dealt from. */
+export const HL_FAMILIES = FAMILIES.filter(f => f.ids.length >= HL_LEAST);
+/** Two cards too close to call: the same year, or quantities within a hundredth of each other (as `fits` lets them go
+ *  either side). Never dealt side by side. */
+export function tooClose(a, b) {
+  const x = size(a), y = size(b);
+  return BY_ID.get(a).unit === "year" ? x === y : Math.abs(x - y) <= (NEAR - 1) * Math.max(Math.abs(x), Math.abs(y));
+}
+/** The higher of two cards (the later, for years). */
+export const higherOf = (a, b) => (size(a) > size(b) ? a : b);
+/** The two cards on the table: the one with its value showing, and the one dealt beside it. */
+export const pairOf = run => [run.cards[run.at], run.cards[run.at + 1]];
+/** Whether the tap just made was right (null before one). */
+export const wasRight = run => (run.picked ? run.picked === higherOf(...pairOf(run)) : null);
+/**
+ * A run of higher or lower from a seed, in dates or quantities: { hl, seed, mode, unit, cards, at, score, over, picked }.
+ * `cards` is the whole chain (no card twice, none too close to the one before it), `at` the card with its value showing,
+ * `picked` the card tapped while both values show. The cards are drawn as a run of the line is, by their topics' weights
+ * (`weights`) and the unseen ones first (`seen`, a Set; none for a daily); quantities come from one family with
+ * HL_LEAST cards or more, chosen by the weight of the cards in it you haven't seen (its square root: a big family more
+ * often, not always). A mix that leaves too few cards deals from every topic instead and says so (`wide`); a deal short of
+ * unseen cards says `recycled`.
+ */
+export function dealHigherLower(mode, seed, weights = null, seen = null) {
+  if (!HL_MODES[mode]) mode = "dates";
+  const r = rng(seed), w = id => weights?.[topicOf(id)] ?? 1, isNew = id => !seen?.has(id), plain = even(mode, weights);
+  let pool, unit = "year", wide = false;
+  if (mode === "quantities") {
+    const inTopics = plain ? HL_FAMILIES : HL_FAMILIES.map(f => ({ ...f, ids: f.ids.filter(id => w(id) > 0) })).filter(f => f.ids.length >= HL_LEAST);
+    const among = inTopics.length ? inTopics : HL_FAMILIES;
+    wide = !plain && !inTopics.length;
+    // as likely as the square root of the weight of its cards you haven't seen (a big family more often than a small one,
+    // but not three runs in four); with none unseen anywhere the seen ones count
+    const weight = (f, onlyNew) => f.ids.reduce((a, id) => a + (onlyNew && !isNew(id) ? 0 : wide ? 1 : w(id)), 0);
+    const onlyNew = !!seen && among.some(f => weight(f, true) > 0);
+    const fam = drawWeighted(r, among, f => Math.sqrt(weight(f, onlyNew)), 1)[0];
+    pool = fam.ids; unit = fam.unit;
+  } else {
+    const inTopics = plain ? DATES : DATES.filter(id => w(id) > 0);
+    wide = !plain && inTopics.length < FEWEST;
+    pool = wide ? DATES : inTopics;
+  }
+  const weigh = wide ? () => 1 : w, fresh = pool.filter(isNew);
+  const order = [...drawWeighted(r, fresh, weigh), ...drawWeighted(r, pool.filter(id => !isNew(id)), weigh)];
+  // the chain: the next card is the first left in the order that isn't too close to the one before; a card passed over
+  // waits for the next turn (the run ends short only if everything left is too close to its last card)
+  const cards = [order[0]], rest = order.slice(1);
+  for (let i; (i = rest.findIndex(id => !tooClose(cards.at(-1), id))) >= 0;) cards.push(...rest.splice(i, 1));
+  const recycled = !!seen && fresh.length < Math.min(pool.length, HL_WORTH);
+  return { hl: true, seed, mode, unit, cards, at: 0, score: 0, over: false, picked: null, ...(wide ? { wide } : {}), ...(recycled ? { recycled } : {}) };
+}
+/**
+ * The tap on a card of the pair (its id), as a new run: both values show, a right tap scores, a wrong one ends the run,
+ * and so does a right one on the last pair (every card dealt). Nothing happens if a tap was already made, the run is
+ * over, or the card isn't on the table.
+ */
+export function answerHigherLower(run, pick) {
+  const pair = pairOf(run);
+  if (run.over || run.picked || !pair.includes(pick)) return run;
+  const ok = pick === higherOf(...pair);
+  return { ...run, picked: pick, score: run.score + (ok ? 1 : 0), over: !ok || run.at + 2 >= run.cards.length };
+}
+/** After a right tap, once both values have shown: the card dealt beside the other takes its place, a new one is dealt. */
+export const advanceHigherLower = run => (run.picked && !run.over ? { ...run, at: run.at + 1, picked: null } : run);
 
 // ---------- the table: one run for everyone at it ----------
 // The room's branch: { v: 2, app, created, people (the seats kept for people), players, n (the game's number at this

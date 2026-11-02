@@ -64,3 +64,40 @@
 .or-tally li.me { box-shadow: inset 0 0 0 1.5px var(--brass); }
 .or-tally b { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: .45rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .or-tally span { flex: none; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+/* Higher or lower (the Play setting, #app.hl): two cards side by side, the left with its value showing, the right's hidden
+   until you tap the one you think is higher; both then show, the higher in verdigris and a wrong tap in oxblood. The page
+   is the line's, with the pair where the card in hand was and the cards that have gone in the list. */
+:root { --or-good: #2F7D5B; --or-bad: #A8382B; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --or-good: #7FC2A8; --or-bad: #E8806F; } }
+html[data-mode="night"] { --or-good: #7FC2A8; --or-bad: #E8806F; }
+.or-duel { display: none; }
+#app.hl .or-card, #app.hl .or-pic { display: none; }
+#app.hl .or-duel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .6rem; height: clamp(13rem, 40svh, 24rem); }
+#app.hl #where { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#app.hl .or-lives { flex: none; margin-left: .6rem; letter-spacing: .04em; }
+.or-face { display: flex; flex-direction: column; gap: .4rem; min-width: 0; min-height: 0; margin: 0; padding: .6rem; text-align: center; font: inherit; color: var(--ink);
+  background: var(--tile); border: 1.5px solid var(--tile-edge); border-radius: 6px; cursor: pointer; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+.or-face:hover, .or-face:focus-visible { border-color: var(--brass); }
+.or-fpic { position: relative; flex: 1 1 0; min-height: 0; }
+.or-fpic[hidden] { display: none; }
+.or-fpic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }   /* drawn to the room the card leaves it */
+.or-fname { flex: none; min-height: 3.75em; display: grid; place-items: center; margin-block: auto; font-size: .94rem; line-height: 1.25; }   /* a card with no picture centres its words above its value */
+/* the value takes the same room hidden or shown, so nothing moves when it turns over */
+.or-fval { flex: none; box-sizing: border-box; min-height: 3.3rem; display: flex; align-items: center; justify-content: center; padding: .1rem .3rem;
+  border: 1.5px solid transparent; border-radius: 4px; font-size: 1.15rem; line-height: 1.1; text-align: center; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.or-face.hid .or-fval { color: var(--ink-soft); border: 1.5px dashed var(--tile-edge); }
+.or-face.hi { border-color: var(--or-good); box-shadow: inset 0 0 0 1px var(--or-good); }
+.or-face.hi .or-fval { color: var(--or-good); }
+.or-face.hi .or-fval::before { content: "▲\00a0"; font-size: .7em; }
+.or-face.no { border-color: var(--or-bad); box-shadow: inset 0 0 0 1px var(--or-bad); }
+.or-face.no .or-fval { color: var(--or-bad); }
+.or-face.no .or-fval::before { content: "✕\00a0"; font-size: .7em; }
+.or-face.fresh { animation: or-in .35s ease-out; }
+@media (prefers-reduced-motion: reduce) { .or-face.fresh { animation: none; } }
+/* the pair that ended a run, in its closing sheet */
+.or-pair { display: grid; gap: .3rem; margin: .2rem 0 .9rem; }
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.hl .or-duel { height: auto; flex: 1 1 auto; min-height: 0; }
+  #app.hl .or-fname { font-size: 1.2rem; }
+  #app.hl .or-fval { font-size: 1.6rem; min-height: 4.4rem; }
+}
