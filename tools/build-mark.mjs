@@ -1,7 +1,7 @@
 // Codex's mark: a C of three Geneva-striped tiers round a watch movement, and the "o" of its name as the chapter ring
 // between them. `node tools/build-mark.mjs` writes every file the mark is in (a test fails if one is edited by hand):
 //
-//   mark/*.svg        the large cut in nine layers, bottom to top: the loader turns each as a picture on the GPU
+//   mark/*.svg        the large cut in nine layers, bottom to top (base, ring, the ring's bar, the pinions, great wheel, bridge, jewels, the great wheel's bar): the loader turns each as a picture on the GPU
 //   logo.svg          the small cut at rest: the games screen's title, and the 3D scene's source of truth
 //   icon.svg          the same on a rounded navy tile (the favicon)
 //   loader-small.svg  the tiny cut, turning: before the words of a short wait
@@ -179,6 +179,8 @@ export function layers(detail = true, rich = true) {
   L.push(["base", null, DIAL(rich) + rim + shade("sh", tier(1, detail, rich), rich) + `<circle cx="50" cy="50" r="22" fill="${rich ? "url(#ginner)" : NAVY2}"/>`]);
   const ring = `<path fill-rule="evenodd" d="M${f(50 + RING_OUT)} 50A${f(RING_OUT)} ${f(RING_OUT)} 0 1 1 ${f(50 - RING_OUT)} 50A${f(RING_OUT)} ${f(RING_OUT)} 0 1 1 ${f(50 + RING_OUT)} 50Z ${path(int(NR, RR, PH_R).map(([x, y]) => [50 + x, 50 + y]))}" fill="${rich ? "url(#gring)" : BR}" stroke="${BRD}" stroke-width=".3"/>`;
   L.push(["ring", "r", shade("ao", tier(2, detail, rich) + ring, rich)]);
+  // the ring's bar lies on the ring it is screwed to and under every other part, so no arm or wheel passes through it
+  L.push(["bar-ring", "r", shade("ao", bar(ALPHA_OUT, R_RIM, 41.15, 2.6, 1.7, rich) + screw(...P(R_RIM, ALPHA_OUT), 1.3, ALPHA_OUT + 30, rich) + screw(...P(41.15, ALPHA_OUT), 1.5, ALPHA_OUT + 30, rich), rich)]);
   for (const k of Object.keys(PIN)) {
     const [cx, cy] = P(D, PIN[k]), face = rich ? "url(#gw)" : null;
     L.push([`pin-${k}`, k, shade("ao",
@@ -194,8 +196,6 @@ export function layers(detail = true, rich = true) {
   }
   for (const [ang, r0] of [[PIN.b, D], [PIN.d, D], [270, 0]]) fixed += bar(ang, r0, 23, 2.1, 2.1, rich);
   L.push(["fixed", null, shade("sh", fixed, rich)]);
-  L.push(["bar-ring", "r", shade("ao", bar(ALPHA_OUT, R_RIM, 41.15, 2.6, 1.7, rich) + screw(...P(R_RIM, ALPHA_OUT), 1.3, ALPHA_OUT + 30, rich) + screw(...P(41.15, ALPHA_OUT), 1.5, ALPHA_OUT + 30, rich), rich)]);
-  L.push(["bar-great", "a", shade("ao", bar(ALPHA_IN, 2.6, 33.85, 2.6, 1.7, rich) + screw(...P(33.85, ALPHA_IN), 1.5, ALPHA_IN + 30, rich), rich)]);
   let top = "";
   for (const [ang, [tx, ty], jr, rr] of [[PIN.b, P(D, PIN.b), 1.7, .85], [PIN.d, P(D, PIN.d), 1.7, .85], [270, [50, 50], 2.6, 1.3]]) {
     top += jewel(tx, ty, jr, rr, rich); const [x0, y0] = P(24.25, ang); top += screw(x0, y0, 1.45, ang + 40, rich);
@@ -203,6 +203,8 @@ export function layers(detail = true, rich = true) {
   // a crystal's gloss over the dial, upper left: the one lit-from-a-side thing over the turning parts, kept faint
   if (rich) top = shade("sh", top, true) + `<g clip-path="url(#cdial)"><ellipse cx="36" cy="26" rx="33" ry="17" transform="rotate(-32 36 26)" fill="url(#ggloss)"/></g>`;
   L.push(["top", null, top]);
+  // the great wheel's bar is the topmost part: it sweeps over the bridge, the jewels and the chapter ring, as it must for nothing to pass through it
+  L.push(["bar-great", "a", shade("ao", bar(ALPHA_IN, 2.6, 33.85, 2.6, 1.7, rich) + screw(...P(33.85, ALPHA_IN), 1.5, ALPHA_IN + 30, rich), rich)]);
   return L;
 }
 

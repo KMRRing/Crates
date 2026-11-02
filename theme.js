@@ -13,28 +13,37 @@
 // is there from the page's first moment and turns on the GPU, whatever the page's own thread is busy with. It shows
 // (style.css) only while a page loads or a task runs, and only once every picture has come, so it never draws half a mark.
 (function () {
-  // What turns the layers is CSS (style.css), and a phone that asks for less motion, or one still holding a stylesheet from
-  // before that was kept, switches CSS animation off: the mark then showed still. A frame after it shows, a layer with no
-  // CSS animation running is turned from here instead (Web Animations: the same turning, on the GPU, which no style rule
-  // reaches). Seconds a turn as in style.css, and the direction (tests/mark.mjs checks they agree).
+  // The layers turn by CSS (style.css), and CSS has left them still three ways: Reduce Motion, or a stylesheet from before
+  // the mark was exempted from it, switches CSS animation off; and on an iPhone a layer in a box that is shown, hidden and
+  // shown again sometimes stays still (seen opening Party, and not every time). So the page turns each layer itself as
+  // well, by script (Web Animations: on the GPU too, at the same speeds, and what is painted is this one, which no style
+  // rule reaches), starting it afresh each time the box comes into view, the page returns from the back/forward cache or
+  // the app from the background. Seconds a turn as in style.css, and the direction (tests/mark.mjs checks they agree).
   var TURN = { a: [3000, "normal"], r: [6000, "reverse"], b: [1500, "reverse"], d: [1500, "reverse"] };
-  function turnWhatStands(box) {
-    requestAnimationFrame(function () {
-      Array.prototype.forEach.call(box.querySelectorAll("img.m"), function (img) {
-        if (!img.animate || !img.getAnimations || img.getAnimations().some(function (a) { return a.animationName; })) return;
+  function keepTurning(box) {
+    var imgs = Array.prototype.slice.call(box.querySelectorAll("img.m")), shown = false;
+    function start() {
+      if (!box.offsetWidth) return;                       // hidden: nothing to turn
+      imgs.forEach(function (img) {
+        if (!img.animate) return;
+        if (img.turn) img.turn.cancel();
         var t = TURN[img.className.split(" ")[1]];
-        img.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }], { duration: t[0], iterations: Infinity, direction: t[1] });
+        img.turn = img.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }], { duration: t[0], iterations: Infinity, direction: t[1] });
       });
-    });
+    }
+    if (window.ResizeObserver) new ResizeObserver(function () { var now = box.offsetWidth > 0; if (now && !shown) start(); shown = now; }).observe(box);
+    addEventListener("pageshow", start);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) start(); });
+    start();
   }
   // [file, what turns it: a the great wheel, r the ring, b and d the pinions, "" nothing]; the order is the stacking.
-  var layers = [["mark/base.svg", ""], ["mark/ring.svg", "r"], ["mark/pin-b.svg", "b"], ["mark/pin-d.svg", "d"], ["mark/great.svg", "a"], ["mark/fixed.svg", ""], ["mark/bar-ring.svg", "r"], ["mark/bar-great.svg", "a"], ["mark/top.svg", ""]];
+  var layers = [["mark/base.svg", ""], ["mark/ring.svg", "r"], ["mark/bar-ring.svg", "r"], ["mark/pin-b.svg", "b"], ["mark/pin-d.svg", "d"], ["mark/great.svg", "a"], ["mark/fixed.svg", ""], ["mark/top.svg", ""], ["mark/bar-great.svg", "a"]];
   var box = document.createElement("div"), left = layers.length;
   box.className = "cx-load"; box.setAttribute("aria-hidden", "true");
   layers.forEach(function (l) {
     var img = new Image();
     img.alt = ""; img.draggable = false; if (l[1]) img.className = "m " + l[1];
-    img.onload = img.onerror = function () { if (--left === 0) { box.className += " on"; turnWhatStands(box); } };
+    img.onload = img.onerror = function () { if (--left === 0) { box.className += " on"; keepTurning(box); } };
     img.src = l[0];
     box.appendChild(img);
   });
