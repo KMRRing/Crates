@@ -1,10 +1,31 @@
-/* Manifest: the order book, the stack on a stage, then the questions where it stood. Teal is the house colour. */
-:root { --mf-in: #1F6E66; --mf-in-soft: color-mix(in srgb, var(--mf-in) 15%, var(--sheet)); --mf-good: #2F7D5B; --mf-bad: #A8382B; --mf-edge: var(--tile-edge); --mf-floor: #BCAE8C; --mf-grey: #A9A08A; }
+/* Manifest: the tally, the stack of packages on the quay of a Hanseatic harbour, then the questions where it stood.
+   Teal is the house colour: the harbour's water. Everything the setting is made of (timber, water, the town) is mixed
+   from the page's own tokens, so it follows each theme and each day and night without a rule of its own. */
+:root {
+  --mf-in: #1F6E66; --mf-in-soft: color-mix(in srgb, var(--mf-in) 15%, var(--sheet)); --mf-good: #2F7D5B; --mf-bad: #A8382B; --mf-edge: var(--tile-edge);
+  /* the quay: oak planks, a timber facing darker on the side away from the light, piles, the outline of a package */
+  --mf-timber: #B49866; --mf-line: rgba(0, 0, 0, .34); --mf-pile: rgba(24, 14, 4, .5); --mf-seam: rgba(40, 24, 6, .26);
+  --mf-floor: color-mix(in srgb, var(--mf-timber) 72%, var(--yard));
+  --mf-quay-l: color-mix(in srgb, var(--mf-floor) 50%, #000); --mf-quay-r: color-mix(in srgb, var(--mf-floor) 64%, #000);
+  /* the harbour: sky, the haze on the water's far edge, the sea, the town on the far shore */
+  --mf-sky: var(--sheet); --mf-haze: color-mix(in srgb, var(--mf-in) 9%, var(--sheet));
+  --mf-sea: color-mix(in srgb, var(--mf-in) 26%, var(--sheet)); --mf-deep: color-mix(in srgb, var(--mf-in) 42%, var(--sheet));
+  --mf-wave: color-mix(in srgb, var(--mf-in) 70%, var(--sheet));
+  --mf-town: color-mix(in srgb, var(--brass) 36%, var(--sheet));
+}
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806F; --mf-floor: #3A3A2E; --mf-grey: #6E6A5A; }
+  html:not([data-mode="day"]) { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806F; --mf-timber: #7E6B47; --mf-line: rgba(0, 0, 0, .5); --mf-pile: rgba(0, 0, 0, .55); --mf-seam: rgba(0, 0, 0, .3);
+    --mf-sea: color-mix(in srgb, var(--mf-in) 17%, var(--sheet)); --mf-deep: color-mix(in srgb, var(--mf-in) 28%, var(--sheet)); --mf-town: color-mix(in srgb, var(--brass) 30%, var(--sheet)); }
 }
 /* night, set in Settings */
-html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806F; --mf-floor: #3A3A2E; --mf-grey: #6E6A5A; }
+html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806F; --mf-timber: #7E6B47; --mf-line: rgba(0, 0, 0, .5); --mf-pile: rgba(0, 0, 0, .55); --mf-seam: rgba(0, 0, 0, .3);
+  --mf-sea: color-mix(in srgb, var(--mf-in) 17%, var(--sheet)); --mf-deep: color-mix(in srgb, var(--mf-in) 28%, var(--sheet)); --mf-town: color-mix(in srgb, var(--brass) 30%, var(--sheet)); }
+/* Modern's brass is its hairline grey, too faint for a skyline: its town takes the ink instead */
+html[data-theme="modern"] { --mf-town: color-mix(in srgb, var(--ink-soft) 20%, var(--sheet)); }
+@media (prefers-color-scheme: dark) {
+  html[data-theme="modern"]:not([data-mode="day"]) { --mf-town: color-mix(in srgb, var(--ink-soft) 26%, var(--sheet)); }
+}
+html[data-theme="modern"][data-mode="night"] { --mf-town: color-mix(in srgb, var(--ink-soft) 26%, var(--sheet)); }
 
 .mf-mark { display: inline-block; }
 .mf-mark svg { width: 100%; height: 100%; display: block; }
@@ -16,8 +37,9 @@ html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806
 .mf-at b { font-weight: 800; color: var(--ink); }
 .mf-at .away b { color: var(--ink-soft); font-weight: 650; }
 .mf-score b { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+/* a life is a coin of the League's: a teal disc with its milled rim; one lost is the rim alone */
 .mf-lives { display: flex; gap: .3rem; }
-.mf-life { width: .875rem; height: .875rem; border-radius: 50%; background: var(--mf-in); }
+.mf-life { width: .875rem; height: .875rem; border-radius: 50%; background: var(--mf-in); box-shadow: inset 0 0 0 .1875rem var(--mf-in), inset 0 0 0 .25rem color-mix(in srgb, #fff 55%, var(--mf-in)); }
 .mf-life.gone { background: none; box-shadow: inset 0 0 0 2px var(--mf-edge); }
 
 /* the stage fits the screen: the stack takes the room the questions leave (and steps aside when a question
@@ -28,13 +50,19 @@ html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806
 .mf-stage.no-view .mf-asks { flex: 1 1 auto; max-height: none; }
 .mf-title { margin: 0; font-size: 1.1rem; font-weight: 800; }
 
-/* the order book: rows before the stack comes in, a strip of chips while it's on the stage */
-.mf-book { display: grid; gap: .35rem; }
+/* the tally: a ledger's page before the stack comes in (an entry to a line, the clerk's notches in its margin, its price
+   in the column ruled off at the right), a strip of chips while the stack is on the quay */
+.mf-book { display: grid; gap: 0; }
 .mf-book:empty { display: none; }
-.mf-book .intro { margin: 0 0 .1rem; font-size: .86rem; color: var(--ink-soft); line-height: 1.35; }
-.mf-order { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .6rem; padding: .4rem .7rem; border-radius: 5px; background: var(--yard); }
+.mf-book .intro { margin: 0 0 .5rem; font-size: .86rem; color: var(--ink-soft); line-height: 1.35; }
+.mf-order { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) auto; align-items: center; gap: .55rem; padding: .45rem .7rem .45rem .55rem; background: var(--yard); border: 1px solid var(--tile-edge); border-top: 0; }
+.mf-book .intro + .mf-order { border-top: 1px solid var(--tile-edge); border-radius: 4px 4px 0 0; }
+.mf-order:last-child { border-radius: 0 0 4px 4px; }
 .mf-order b { display: block; font-size: .75rem; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); color: var(--mf-in); }
 .mf-order span { font-weight: 700; line-height: 1.3; }
+/* n notches, as a clerk cuts a tally stick: |, ||, ||| */
+.mf-notch { display: block; width: calc(var(--n, 1) * .3rem); height: 1.1rem; background: repeating-linear-gradient(90deg, var(--ink-soft) 0 2px, transparent 2px .3rem); opacity: .75; }
+.mf-order .mf-price { padding-left: .6rem; border-left: 3px double var(--brass); align-self: stretch; display: flex; align-items: center; }
 .mf-price { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 1.05rem; white-space: nowrap; }
 .mf-price small { font-size: .75rem; color: var(--ink-soft); margin-left: .15rem; }
 .mf-book.strip { display: flex; flex-wrap: wrap; gap: .3rem; }
@@ -46,23 +74,42 @@ html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806
 .mf-timer.run i { animation: drain var(--mf-ms, 5s) linear forwards; }
 @keyframes drain { to { transform: scaleX(0); } }
 .mf-timer[hidden] { display: none; }
-.mf-view { min-height: 0; }
+
+/* the harbour: the stack stands on its quay in front of the town and the water, a picture in a frame. Sky and sea are a
+   wash behind it, the town (manifest-town.svg) a silhouette at the horizon, its cogs in the water below; the stack and
+   its quay are drawn over them. The horizon is where the quay's side corners meet it. */
+.mf-view { min-height: 0; position: relative; isolation: isolate; overflow: hidden; border: 1px solid var(--rule); border-radius: 4px; --mf-horizon: 54%; }
+.mf-view::before { content: ""; position: absolute; inset: 0; z-index: -2; background: linear-gradient(to bottom, var(--mf-sky) 0, var(--mf-haze) var(--mf-horizon), var(--mf-sea) var(--mf-horizon), var(--mf-deep) 100%); }
+.mf-view::after { content: ""; position: absolute; left: 0; right: 0; height: 40%; bottom: calc(100% - var(--mf-horizon) - 9%); z-index: -1; background: var(--mf-town);
+  -webkit-mask: url("manifest-town.svg") repeat-x 50% 100% / auto 100%; mask: url("manifest-town.svg") repeat-x 50% 100% / auto 100%; }
 /* the stack as big as the room allows, keeping its shape (--aspect: the drawing's width over its height) */
 .mf-view svg { width: min(100cqw, calc(100cqh * var(--aspect, 1.3)), 26rem); height: auto; display: block; overflow: visible; margin: 0 auto; }
 .mf-panel { width: 100%; }
 .mf-panel.away svg { animation: away .38s ease-in forwards; }
 @keyframes away { to { transform: translateY(-40%) scale(.8); opacity: 0; } }
-/* a change round: the stack fades out, the stage stays empty, and it comes back all at once */
+/* a change round: the stack fades out, the quay stays empty, and it comes back all at once */
 .mf-panel.fade svg { animation: fadeout .5s ease-in forwards; }
 @keyframes fadeout { to { opacity: 0; } }
 .mf-panel.appear svg { animation: appear .35s ease-out both; }
 @keyframes appear { from { opacity: 0; } to { opacity: 1; } }
-/* a container drops from above and lands with a bounce; delays stagger them by the round's order */
+/* a package drops from above and lands with a bounce; delays stagger them by the round's order */
 .cube.drop { animation: land .5s cubic-bezier(.3, 1.4, .5, 1) both; }
 @keyframes land { from { transform: translateY(-4.375rem); opacity: 0; } 60% { opacity: 1; } to { transform: translateY(0); opacity: 1; } }
 .mf-view .tap .mf-cell { cursor: pointer; }
 .mf-note { margin: 0; font-weight: 750; color: var(--ink-soft); }
 .mf-note[hidden] { display: none; }
+
+/* what the stack stands on (manifest-art.js): oak planks laid along the packages, the quay's timber facing with its piles
+   and waling, water lapping at its foot; a package's faces take their colours from its ware and are outlined */
+.mf-floor { fill: var(--mf-floor); stroke: var(--sheet); stroke-width: 1; }
+.mf-floor.marked { fill: var(--mf-in); opacity: .9; }
+.mf-plank { fill: none; stroke: var(--mf-seam); stroke-width: 1; }
+.mf-quay { stroke: none; }
+.mf-quay.l { fill: var(--mf-quay-l); }
+.mf-quay.r { fill: var(--mf-quay-r); }
+.mf-pile { fill: none; stroke: var(--mf-pile); stroke-width: 1.6; }
+.mf-wave { fill: none; stroke: var(--mf-wave); stroke-width: 1.5; stroke-linecap: round; }
+.mf-cell { stroke: var(--mf-line); stroke-width: 1; stroke-linejoin: round; }
 
 /* the questions, once open: answer any, pass any */
 .mf-asks { display: grid; gap: .45rem; align-content: start; }   /* cards keep their height; the list scrolls if they must */
@@ -83,12 +130,13 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 .mf-pic svg { width: 100%; height: auto; max-height: 7.5rem; display: block; overflow: visible; }
 .mf-answers { display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); gap: .4rem; }   /* every answer in one row */
 .with-pic .mf-answers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-/* beside a picture, a colour is one line (swatch, then name), so the answers are no taller than the picture */
-.with-pic .mf-chip.colour { grid-auto-flow: column; justify-content: start; gap: .35rem; min-height: 2.375rem; padding: .3rem .45rem; }
-.with-pic .mf-chip i { width: 1rem; height: 1rem; }
+/* a ware answers by its name and its packing, drawn small: never by colour alone; beside a picture it's one line (the
+   package, then the name), so the answers are no taller than the picture */
+.with-pic .mf-chip.ware { grid-auto-flow: column; justify-content: start; gap: .35rem; min-height: 2.375rem; padding: .3rem .45rem; }
+.with-pic .mf-chip .mf-icon { width: 1.4rem; height: 1.4rem; }
 .mf-chip { min-height: 2.625rem; border-radius: 5px; border: 2px solid var(--mf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; gap: .15rem; }
-.mf-chip.colour { font-size: .78rem; font-weight: 750; padding: .35rem .15rem; }
-.mf-chip i { width: 1.125rem; height: 1.125rem; border-radius: 5px; display: block; }
+.mf-chip.ware { font-size: .78rem; font-weight: 750; padding: .3rem .15rem; }
+.mf-chip .mf-icon { width: 1.75rem; height: 1.75rem; display: block; }
 .mf-chip.good { border-color: var(--mf-good); background: var(--mf-good); color: #fff; }
 .mf-chip.bad { border-color: var(--mf-bad); background: var(--mf-bad); color: #fff; }
 .mf-chip:disabled { cursor: default; }
@@ -127,7 +175,7 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 /* questions come one at a time: those behind are answered or passed, those ahead show only their kind and price */
 .mf-row.done { opacity: .7; }
 .mf-row.later { opacity: .45; }
-.mf-pass { display: block; margin: .45rem 0 0 auto; border: 1px solid var(--tile-edge); border-radius: 999px; background: none; color: var(--ink-soft); font: inherit; font-size: .8rem; padding: .25rem .8rem; cursor: pointer; }
+.mf-pass { display: block; margin: .45rem 0 0 auto; border: 1px solid var(--tile-edge); border-radius: 4px; background: none; color: var(--ink-soft); font: inherit; font-size: .8rem; padding: .25rem .8rem; cursor: pointer; }
 
 /* at a table: the plate stands as a line of who the table waits for; a team's reply on its way takes no second tap;
    the lobby's seats and the standings (duel.css, standings.js) in Manifest's teal */
@@ -141,3 +189,10 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 .mf-who { margin: 0; padding: 0 .7rem .5rem; display: flex; flex-wrap: wrap; gap: .15rem .7rem; font-size: .8rem; font-weight: 650; color: var(--ink-soft); }
 .mf-who .ok { color: var(--mf-good); }
 .mf-who .bad { color: var(--mf-bad); }
+
+/* the themes beyond Codex keep their own look (themes.css rounds the tally's entries as chips and squares nothing off):
+   a ledger's ruled page is Codex's, the others' entries stand apart, and a pass is a chip */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-book:not(.strip) .mf-order { border: 0; border-radius: 12px; margin-bottom: .35rem; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-order .mf-price { border-left: 1px solid var(--rule); }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-pass { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-view { border-radius: 14px; }

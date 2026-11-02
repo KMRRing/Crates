@@ -1,9 +1,9 @@
-// Manifest: runs are twelve repeatable rounds; stacks obey gravity and stay within 4×4×3 and five colours; every order
+// Manifest: runs are twelve repeatable rounds; stacks obey gravity and stay within 4×4×3 and five wares; every order
 // is fair (its answer among its options and answerable from what the view showed); turning is consistent; the
 // which-stack question has four different stacks with exactly one the true one turned, and its mirror decoy is no
-// turn of the stack; change rounds change what they say they change, among containers you could see; prices
+// turn of the stack; change rounds change what they say they change, among packages you could see; prices
 // follow the round and your record.
-// Together: a team's stack in parts, every container seen by exactly one player, whole columns, one stretch of the
+// Together: a team's stack in parts, every package seen by exactly one player, whole columns, one stretch of the
 // floor each, as even as columns allow; a team's rounds as fair as alone, counted on what the team could see; and a
 // table in Node, every change read back as the database gives it: Ready and Next, the round's clock, replies in order,
 // a round settled for several players (each at their own bonus), who the table waits for and going on without the
@@ -22,15 +22,15 @@ function fair(a, b, seed, r, team = 0) {
   const L = a.level, where = `${seed}/${r}${team ? ` (a team of ${team})` : ""}`;
   rounds++;
   if (!same(a.cells, b.cells) || !same(a.orders, b.orders)) fail("not repeatable", where);
-  if (a.cells.length !== L.x || a.cells[0].length !== L.y || a.cells[0][0].length !== L.z || L.x > 4 || L.y > 4 || L.z > 3 || L.colours > 5) fail("size", where);
-  a.cells.forEach(col => col.forEach(row => { for (let z = 1; z < row.length; z++) if (row[z] && !row[z - 1]) fail("floating container", where); }));
+  if (a.cells.length !== L.x || a.cells[0].length !== L.y || a.cells[0][0].length !== L.z || L.x > 4 || L.y > 4 || L.z > 3 || L.wares > 5) fail("size", where);
+  a.cells.forEach(col => col.forEach(row => { for (let z = 1; z < row.length; z++) if (row[z] && !row[z - 1]) fail("floating package", where); }));
   if (Boolean(L.change) !== (r % 4 === 0)) fail("change round in the wrong place", where);
   byView[a.view] = (byView[a.view] || 0) + 1;
   const types = a.orders.map(o => o.type);
   if (new Set(types).size !== types.length) fail("two orders of one kind", where, types);
   if (!L.change && a.orders.length < Math.min(L.orders, 3)) fail("too few orders", where, a.orders.length);
   const X = L.x, Y = L.y;
-  // what the view showed: every container, the bottom two tiers, or (all at once) what could be seen
+  // what the view showed: every package, the bottom two tiers, or (all at once) what could be seen
   const shown = [];
   a.cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c && (a.view === "all" ? a.seen.has(key(x, y, z)) : a.view === "pair" ? z < 2 : true)) shown.push(c); })));
   for (const o of a.orders) {
@@ -39,19 +39,19 @@ function fair(a, b, seed, r, team = 0) {
     const q = o.question;
     if (!o.posted || !q.text) fail("an order without words", where, o.type);
     if (q.as === "number" && (!q.options.includes(q.answer) || q.options.length !== 5 || q.options.some(v => v < 0))) fail("number options", where, q);
-    if (q.as === "colour" && !q.options.includes(q.answer)) fail("colour options", where, q);
-    if (o.type === "count" && q.answer !== shown.filter(c => c === q.colour).length) fail("a count that isn't what the view showed", where);
+    if (q.as === "ware" && !q.options.includes(q.answer)) fail("ware options", where, q);
+    if (o.type === "count" && q.answer !== shown.filter(c => c === q.ware).length) fail("a count that isn't what the view showed", where);
     if (o.type === "total" && q.answer !== shown.length) fail("a total that isn't what the view showed", where);
     if (q.cell) {
       const { x, y, z } = q.cell, k = key(x, y, z);
       if (!a.cells[x][y][z]) fail("a marked cell that's empty", where, o.type);
-      if (a.view === "all" && !a.seen.has(k)) fail("all at once, asking about a container nobody could see", where, o.type);
+      if (a.view === "all" && !a.seen.has(k)) fail("all at once, asking about a package nobody could see", where, o.type);
       if (a.view === "pair" && z > 1) fail("two-tier view, asking above tier 2", where, o.type);
-      if (q.as === "colour" && a.cells[x][y][z] !== q.answer) fail("marked cell's colour isn't the answer", where, o.type);
+      if (q.as === "ware" && a.cells[x][y][z] !== q.answer) fail("marked cell's ware isn't the answer", where, o.type);
     }
     if (o.type === "turned") {
       const t = M.turn(a.cells, q.turns), [x, y, z] = q.at.split(",").map(Number);
-      if (t[x][y][z] !== q.answer) fail("turned spot doesn't carry the colour", where);
+      if (t[x][y][z] !== q.answer) fail("turned spot doesn't carry the ware", where);
       if (!M.visibleSet(t, M.boxFor(q.turns)).has(q.at)) fail("turned spot can't be seen", where);
     }
     if (o.type === "which") {
@@ -65,15 +65,15 @@ function fair(a, b, seed, r, team = 0) {
       const back = M.turn(q.back, (4 - q.turns) % 4);        // undo the turn to compare with the stack you saw
       let diffs = [];
       a.cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c !== back[x][y][z]) diffs.push(key(x, y, z)); })));
-      if (diffs.length !== 1 || diffs[0] !== key(q.cell.x, q.cell.y, q.cell.z) || !a.seen.has(diffs[0])) fail("a change round should change one container you could see", where, diffs);
-      if (M.turnKey(q.cell.x, q.cell.y, q.cell.z, X, Y, q.turns) !== q.answer) fail("change answer not where the container went", where);
-      if (!M.visibleSet(q.back, M.boxFor(q.turns)).has(q.answer)) fail("the changed container can't be seen when it's back", where);
+      if (diffs.length !== 1 || diffs[0] !== key(q.cell.x, q.cell.y, q.cell.z) || !a.seen.has(diffs[0])) fail("a change round should change one package you could see", where, diffs);
+      if (M.turnKey(q.cell.x, q.cell.y, q.cell.z, X, Y, q.turns) !== q.answer) fail("change answer not where the package went", where);
+      if (!M.visibleSet(q.back, M.boxFor(q.turns)).has(q.answer)) fail("the changed package can't be seen when it's back", where);
     }
     if (o.type === "swap") {
       const diffs = [];
       a.cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c !== q.back[x][y][z]) diffs.push(key(x, y, z)); })));
       const tally = s => JSON.stringify(s.flat(2).filter(Boolean).sort());
-      if (!same(diffs.sort(), q.answer) || !diffs.every(k => a.seen.has(k) && a.visible.has(k)) || tally(a.cells) !== tally(q.back)) fail("a swap round should swap two containers you could see, and can again", where, diffs);
+      if (!same(diffs.sort(), q.answer) || !diffs.every(k => a.seen.has(k) && a.visible.has(k)) || tally(a.cells) !== tally(q.back)) fail("a swap round should swap two packages you could see, and can again", where, diffs);
     }
   }
 }
@@ -86,12 +86,12 @@ for (let seed = 1; seed <= 60; seed++) for (let r = 1; r <= M.ROUNDS; r++) {
 }
 check(bad === 0, `${rounds} rounds, ${orders} orders, all fair (${JSON.stringify(byType)}; views ${JSON.stringify(byView)})`);
 const L = [1, 4, 8, 12].map(M.levelOf);
-check(L.map(l => l.change).join() === ",colour,turned,swap", `change rounds 4, 8, 12: ${L.slice(1).map(l => l.change).join(", ")}`);
+check(L.map(l => l.change).join() === ",ware,turned,swap", `change rounds 4, 8, 12: ${L.slice(1).map(l => l.change).join(", ")}`);
 // turning
 {
   const c = M.makeRound(7, 9).cells;
   const ok = same(M.turn(M.turn(c, 1), 3), c) && same(M.turn(c, 4), c) && [1, 2, 3].every(t => { const tc = M.turn(c, t); let good = true; c.forEach((col, x) => col.forEach((row, y) => row.forEach((v, z) => { const [a, b, d] = M.turnKey(x, y, z, c.length, c[0].length, t).split(",").map(Number); if (tc[a][b][d] !== v) good = false; }))); return good; });
-  check(ok, "turning: a quarter and three quarters cancel, four is none, and every container is found where turnKey says");
+  check(ok, "turning: a quarter and three quarters cancel, four is none, and every package is found where turnKey says");
 }
 {
   const full = [[[1, 1], [1, 1]], [[1, 1], [1, 1]]];
@@ -142,7 +142,7 @@ check(M.shipBonus(1) === 1.5 && M.shipBonus(0) === 1 && M.shipBonus(0.4) === 1.2
       }
     }
   }
-  check(!problems, `${splits} stacks shared among two to six: every container seen by exactly one player, in whole columns, one stretch of the floor each, the parts within ${worst} containers of each other (never more than the tallest column)`);
+  check(!problems, `${splits} stacks shared among two to six: every package seen by exactly one player, in whole columns, one stretch of the floor each, the parts within ${worst} packages of each other (never more than the tallest column)`);
   // a team's rounds: the same stack as alone, in its parts; all at once, the team's "you could see" is what any of them
   // could see of their own part, drawn alone (more than the whole stack shows), and every order is fair on that
   const before = { rounds, bad };
@@ -181,7 +181,7 @@ const would = (g, change) => !!change(structuredClone(g));
 const players = { ua: { name: "Korbi", slot: 0, pid: "pa", online: true }, ub: { name: "Sarah Li", slot: 1, pid: "pb", online: true }, uc: { name: "Tom", slot: 2, pid: "pc", online: true } };
 const all = [0, 1, 2];
 const right = (R, i) => ({ g: R.orders[i].question.answer });
-const wrong = (R, i) => { const q = R.orders[i].question; return { g: q.as === "number" || q.as === "colour" ? q.options.find(o => o !== q.answer) : q.as === "stack" ? (q.answer + 1) % 4 : "9,9,9" }; };
+const wrong = (R, i) => { const q = R.orders[i].question; return { g: q.as === "number" || q.as === "ware" ? q.options.find(o => o !== q.answer) : q.as === "stack" ? (q.answer + 1) % 4 : "9,9,9" }; };
 const PASS = { p: 1 };
 
 // against
@@ -198,7 +198,7 @@ const PASS = { p: 1 };
   check(!would(g, x => M.goOn(x, 0, all, w.at - 1)) && !would(g, x => M.goOn(x, 2, all, w.at)), "not before then, and not by the one it waits for");
   const lobby = g;
   g = act(g, x => M.goOn(x, 0, all, w.at));
-  check(M.stageOf(g.game) === "play" && g.game.round.r === 1 && g.game.round.at === w.at + M.LEAD && !g.game.ready, "then anyone else may: round 1 opens, its order book a moment later");
+  check(M.stageOf(g.game) === "play" && g.game.round.r === 1 && g.game.round.at === w.at + M.LEAD && !g.game.ready, "then anyone else may: round 1 opens, its tally a moment later");
   g = act(lobby, x => M.sayReady(x, 2, [0, 1, 2], 1300));
   check(M.stageOf(g.game) === "play" && g.game.round.at === 1300 + M.LEAD, "or the third says Ready, and it opens at once");
   const chosen = act(lobby, x => M.setNext(x, "team"));
@@ -207,7 +207,7 @@ const PASS = { p: 1 };
 
   const R = M.roundOf(g.game), tl = M.timeline(R, g.game.round.at), n = R.orders.length, prices = R.orders.map(o => M.priceOf(o.type, 1));
   check(tl.drop === g.game.round.at + M.BOOK && tl.landed > tl.drop && tl.holdEnd === tl.landed + R.level.exposure && Object.keys(tl.times).length === R.cells.flat(2).filter(Boolean).length,
-    `the round's clock, the same on every phone: the order book ${M.BOOK / 1000} s, the drop, then the hold of ${R.level.exposure / 1000} s`);
+    `the round's clock, the same on every phone: the tally ${M.BOOK / 1000} s, the drop, then the hold of ${R.level.exposure / 1000} s`);
   // Korbi ships the moment the stack lands (half as much again), and gets everything right
   g = act(g, x => M.ship(x, 0, 1, { present: all, now: tl.landed }));
   check(M.bonusOf(g.game, 0) === 1.5 && M.bonusOf(g.game, 1) === 1 && !would(g, x => M.ship(x, 0, 1, { present: all, now: tl.landed + 5 })), "Ship it: your own hold, your own bonus (once)");
@@ -286,7 +286,7 @@ const PASS = { p: 1 };
   for (const s of all) g = act(g, x => M.sayReady(x, s, all, 100 + s));
   const R = M.roundOf(g.game), tl = M.timeline(R, g.game.round.at), seats = g.game.round.seats;
   check(same(seats, all) && R.parts.length === 3 && same(all.map(s => M.partFor(R, seats, s)).flat().sort(), R.cells.flatMap((col, x) => col.flatMap((row, y) => row.flatMap((c, z) => (c ? [key(x, y, z)] : [])))).sort()),
-    "together: the round opens with the stack shared among the three at the table, every container someone's");
+    "together: the round opens with the stack shared among the three at the table, every package someone's");
   g = act(g, x => M.ship(x, 0, 1, { present: all, now: tl.landed + 1000 }));
   g = act(g, x => M.ship(x, 2, 1, { present: all, now: tl.landed + 2000 }));
   check(!g.game.round.shipped && M.bonusOf(g.game) === 1, "two of three have shipped: the team's hold goes on");
@@ -318,6 +318,55 @@ const PASS = { p: 1 };
   check(same(M.waitingFor(g, all, 9).waiting, []) && M.livesOf(g.game, 2) === 0 && M.playing(g.game, 1), "together, everyone plays every round; the lives are the team's");
 }
 check(trips > 60 && !lost, `${trips} changes to a table read back from the database just as they were written`);
+
+// The five wares must stay at least as easy to tell apart as the first version's five colours (red, blue, yellow, green,
+// orange), for a normal eye and for the three dichromacies (Machado 2009, severity 1), by CIEDE2000 between two wares
+// on the same face and on any two faces (a left face beside another ware's top). The drawing (strap, lozenge, hoop, bars)
+// is the second way to tell them apart; this keeps the first honest.
+{
+  const lin = c => (c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  const unlin = c => Math.round(255 * Math.min(1, Math.max(0, c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)));
+  const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const EYES = {
+    normal: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    protan: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+    deutan: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]],
+    tritan: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.3039]],
+  };
+  const FACES = [0.72, 0.86, 1.05];                                   // the shading manifest-art.js gives left, right and top
+  const seen = (hex, k, eye) => { const v = rgbOf(hex).map(n => lin(Math.min(255, n * k))); return EYES[eye].map(r => unlin(r[0] * v[0] + r[1] * v[1] + r[2] * v[2])); };
+  const lab = rgb => {
+    const [r, g, b] = rgb.map(lin), f = t => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+    const x = f((0.4124564 * r + 0.3575761 * g + 0.1804375 * b) / 0.95047), y = f(0.2126729 * r + 0.7151522 * g + 0.072175 * b), z = f((0.0193339 * r + 0.119192 * g + 0.9503041 * b) / 1.08883);
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+  };
+  const de = ([L1, a1, b1], [L2, a2, b2]) => {                          // CIEDE2000
+    const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI, p7 = c => c ** 7 / (c ** 7 + 25 ** 7);
+    const Cb = (Math.hypot(a1, b1) + Math.hypot(a2, b2)) / 2, G = 0.5 * (1 - Math.sqrt(p7(Cb)));
+    const A1 = (1 + G) * a1, A2 = (1 + G) * a2, C1 = Math.hypot(A1, b1), C2 = Math.hypot(A2, b2);
+    const h1 = (deg(Math.atan2(b1, A1)) + 360) % 360, h2 = (deg(Math.atan2(b2, A2)) + 360) % 360;
+    let dh = h2 - h1; if (C1 * C2 === 0) dh = 0; else if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
+    const dH = 2 * Math.sqrt(C1 * C2) * Math.sin(rad(dh / 2)), Lb = (L1 + L2) / 2, Cp = (C1 + C2) / 2;
+    let hb = h1 + h2; if (C1 * C2 !== 0 && Math.abs(h1 - h2) > 180) hb += hb < 360 ? 360 : -360; hb /= 2;
+    const T = 1 - 0.17 * Math.cos(rad(hb - 30)) + 0.24 * Math.cos(rad(2 * hb)) + 0.32 * Math.cos(rad(3 * hb + 6)) - 0.2 * Math.cos(rad(4 * hb - 63));
+    const Sl = 1 + 0.015 * (Lb - 50) ** 2 / Math.sqrt(20 + (Lb - 50) ** 2), Sc = 1 + 0.045 * Cp, Sh = 1 + 0.015 * Cp * T;
+    const Rt = -Math.sin(rad(60 * Math.exp(-(((hb - 275) / 25) ** 2)))) * 2 * Math.sqrt(p7(Cp));
+    return Math.sqrt(((L2 - L1) / Sl) ** 2 + ((C2 - C1) / Sc) ** 2 + (dH / Sh) ** 2 + Rt * ((C2 - C1) / Sc) * (dH / Sh));
+  };
+  /** The nearest two wares come, per eye: same face, and any two faces. */
+  const nearest = hexes => Object.fromEntries(Object.keys(EYES).map(eye => {
+    let same = Infinity, any = Infinity;
+    hexes.forEach((a, i) => hexes.slice(i + 1).forEach(b => FACES.forEach((ka, fa) => FACES.forEach((kb, fb) => {
+      const d = de(lab(seen(a, ka, eye)), lab(seen(b, kb, eye)));
+      any = Math.min(any, d); if (fa === fb) same = Math.min(same, d);
+    }))));
+    return [eye, { same, any }];
+  }));
+  const first = nearest(["#D23B2A", "#2F6FDE", "#F2C230", "#2E9E5B", "#E8832A"]), now = nearest(M.WARES.map(w => w.hex));
+  const worse = Object.keys(EYES).filter(eye => now[eye].same < first[eye].same || now[eye].any < first[eye].any);
+  check(M.WARES.length === 5 && !worse.length,
+    `the five wares are at least as far apart as the first version's colours, for every eye (nearest pair, ΔE: ${Object.keys(EYES).map(e => `${e} ${now[e].same.toFixed(0)}/${now[e].any.toFixed(0)} against ${first[e].same.toFixed(0)}/${first[e].any.toFixed(0)}`).join(", ")})`);
+}
 
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

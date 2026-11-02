@@ -1,11 +1,13 @@
-// Manifest: each round opens with an order book (the questions to come, by kind, with prices); the stack comes in,
-// holds (ship it early for a bonus) and is gone; then the questions open: answer any, pass any. Change rounds bring
-// the stack back after a blank stage with something different. The engine (manifest-engine.js) makes the rounds;
-// this file shows them and takes the answers. Together, a table of two to six plays the rounds in step, against each
-// other or as one team (together.js carries the room; the table's rules are the engine's last part).
-import { LIVES, ROUNDS, COLOURS, VIEWS, KINDS, makeRound, priceOf, skillFactor, recordAfter, shipBonus, turn, cubeFaces, drawOrder, isoPoint, visibleSet, boxFor,
-  dropTimes, LANDING, MODES, timeline, partCells, freshTable, isTable, stageOf, roundOf, partFor, livesOf, playing, repliesOf, firstOpen, waitingFor, sayReady, goOn, reply,
+// Manifest: each round opens with the tally (the questions to come, by kind, with prices); the stack of packages comes
+// onto the quay, holds (ship it early for a bonus) and is shipped; then the questions open: answer any, pass any.
+// Change rounds bring the stack back after an empty quay with something different. The engine (manifest-engine.js)
+// makes the rounds, manifest-art.js draws the packages and the quay; this file shows the rounds and takes the answers.
+// Together, a table of two to six plays the rounds in step, against each other or as one team (together.js carries
+// the room; the table's rules are the engine's last part).
+import { LIVES, ROUNDS, WARES, VIEWS, KINDS, makeRound, priceOf, skillFactor, recordAfter, shipBonus, turn,
+  LANDING, MODES, timeline, partCells, freshTable, isTable, stageOf, roundOf, partFor, livesOf, playing, repliesOf, firstOpen, waitingFor, sayReady, goOn, reply,
   ship as shipIn, settleIfDue, setNext, again, scoresOf, verdicts, resultOf, bonusAt } from "./manifest-engine.js";
+import { stage, wareIcon } from "./manifest-art.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line } from "./menu.js";
@@ -19,7 +21,6 @@ import { busy, waitMark } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "manifest:run2", BEST = "manifest:best", DAILY = "manifest:daily", RECORD = "manifest:record";
-const SVG = "http://www.w3.org/2000/svg";
 
 // S: { seed, mode, round, score, lives, right, wrong, passed, phase: "orders" | "show" | "ask" | "review" | "over",
 //      prices, answers: { [order]: { given, right, paid } }, skipped: [order], judged, bonus }
@@ -27,7 +28,7 @@ const SVG = "http://www.w3.org/2000/svg";
 let S = null;
 let R = null;                 // the current round from the engine
 let showTimer = null, holdStart = 0;
-let picked = [];              // a swap round: the containers tapped so far
+let picked = [];              // a swap round: the packages tapped so far
 
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -43,7 +44,7 @@ function start(mode) {
   history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`);
   openRound();
 }
-/** A new round: its order book, priced by the round and your record, before the stack comes in. */
+/** A new round: its tally, priced by the round and your record, before the stack comes in. */
 function openRound() {
   R = makeRound(S.seed, S.round);
   const record = read(RECORD, {});
@@ -53,7 +54,7 @@ function openRound() {
   save();
   drawOrders();
 }
-/** Whether the stage shows the stack: the questions get its room when there's nothing to show. */
+/** Whether the quay shows the stack: the questions get its room when there's nothing to show. */
 const viewOn = on => $("stage").classList.toggle("no-view", !on);
 function drawOrders() {
   drawHud();
@@ -61,31 +62,34 @@ function drawOrders() {
   clear();
   viewOn(false);
   fillBook(R.level.change
-    ? "Watch the stack: it will vanish and come back with something different."
-    : "The questions to come. Answer any, pass any; a wrong answer costs a life.");
-  go("Bring it in", showStack);
+    ? "Watch the stack: it will go aboard and come back with something different."
+    : "The tally: the questions to come. Answer any, pass any; a wrong answer costs a life.");
+  go("Land the cargo", showStack);
 }
-/** The order book: a line of what's coming, then each order's kind, what it asks about and its price. */
+/** The tally: a line of what's coming, then each entry's kind, what it asks about and its price, ruled like a ledger's
+ *  page and numbered with the clerk's notches (|, ||, |||). */
 function fillBook(intro) {
   const book = $("book");
   book.className = "mf-book";
   book.append(node("p", "intro", intro));
   R.orders.forEach((o, i) => {
-    const row = node("div", "mf-order"), left = node("div");
+    const row = node("div", "mf-order"), left = node("div"), notches = node("i", "mf-notch");
+    notches.style.setProperty("--n", i + 1);
+    notches.setAttribute("aria-hidden", "true");
     left.append(node("b", null, KINDS[o.type].name), node("span", null, o.posted));
     const price = node("span", "mf-price", money(S.prices[i]));
     if (S.trend[i]) price.appendChild(node("small", null, S.trend[i]));
-    row.append(left, price);
+    row.append(notches, left, price);
     book.appendChild(row);
   });
 }
-/** While the stack's on the stage, the order book is a strip of chips: each kind and its price. */
+/** While the stack's on the quay, the tally is a strip of chips: each kind and its price. */
 function bookStrip() {
   const book = $("book");
   book.className = "mf-book strip";
   R.orders.forEach((o, i) => { const c = node("span", "mf-chiplet", KINDS[o.type].name); c.appendChild(node("b", null, money(S.prices[i]))); book.appendChild(c); });
 }
-/** The containers drop in by the round's order and the stack holds; Ship it ends the hold early, for a bonus. */
+/** The packages come onto the quay by the round's order and the stack holds; Ship it ends the hold early, for a bonus. */
 function showStack() {
   S.phase = "show";
   save();
@@ -108,7 +112,7 @@ function showStack() {
     showTimer = setTimeout(() => endShow(0), R.level.exposure);
   }, drops.last + LANDING);
 }
-/** The hold is over: the stack flies off (or, in a change round, fades to an empty stage and comes back changed). */
+/** The hold is over: the stack is shipped (or, in a change round, fades to an empty quay and comes back changed). */
 function endShow(left) {
   if (S.phase !== "show") return;
   clearTimeout(showTimer);
@@ -155,14 +159,14 @@ function doneRow(o, i) {
   row.appendChild(head);
   return row;
 }
-/** A question still to come: only what the order book said, its kind and price; its picture and answers stay hidden. */
+/** A question still to come: only what the tally said, its kind and price; its picture and answers stay hidden. */
 function laterRow(o, i) {
   const row = node("div", "mf-row later"), head = node("div", "mf-row-head");
   head.append(node("span", null, o.posted), node("em", null, money(Math.round(S.prices[i] * S.bonus))));
   row.appendChild(head);
   return row;
 }
-const givenText = (q, g) => (q.as === "number" ? String(g) : q.as === "colour" ? COLOURS[g - 1].name.toLowerCase() : q.as === "stack" ? `stack ${g + 1}` : "your pick");
+const givenText = (q, g) => (q.as === "number" ? String(g) : q.as === "ware" ? WARES[g - 1].name.toLowerCase() : q.as === "stack" ? `stack ${g + 1}` : "your pick");
 function pass(i) {
   if (T) { tableReply(i, { p: 1 }); return; }
   if (S.phase !== "ask" || S.answers[i] || S.skipped.includes(i)) return;
@@ -171,8 +175,8 @@ function pass(i) {
   if (current() < 0) { reviewPhase(); return; }
   askPhase();
 }
-/** A change round's stage: the stack come back, to tap the container that changed (or the two that swapped). Other
- *  rounds need no stage here: each question carries its own picture. */
+/** A change round's quay: the stack come back, to tap the package that changed (or the two that swapped). Other
+ *  rounds need no quay here: each question carries its own picture. */
 function drawAskStage(appear = false) {
   const q = R.level.change ? R.orders[0].question : null;
   viewOn(!!q);
@@ -185,11 +189,11 @@ function drawAskStage(appear = false) {
 /** The round's stack turned the way a question turns it. */
 const turnedOf = q => turn(R.cells, q.turns);
 /** What a question asks about, drawn in its card: the floor with the spot marked, or the stack turned and grey with
- *  one container lit. Each question has its own, so two never share one stage. */
+ *  one package lit. Each question has its own, so two never share one quay. */
 function pictureFor(o) {
   const q = o.question;
   if (o.type === "turned") return stage(turnedOf(q), { turns: q.turns, grey: true, ring: q.at }).panel;
-  if (q.cell && q.as === "colour") return stage(R.cells, { blank: true, mark: q.cell }).panel;
+  if (q.cell && q.as === "ware") return stage(R.cells, { blank: true, mark: q.cell }).panel;
   return null;
 }
 /** The question in hand, as a card with everything needed to answer it at a tap: the words and the price, its picture,
@@ -206,13 +210,13 @@ function askRow(o, i) {
     frame.appendChild(pic);
     body.appendChild(frame);
   }
-  if (q.as === "number" || q.as === "colour") {
-    const opts = node("div", `mf-answers${q.as === "colour" ? " colours" : ""}`);
+  if (q.as === "number" || q.as === "ware") {
+    const opts = node("div", `mf-answers${q.as === "ware" ? " wares" : ""}`);
     opts.style.setProperty("--n", q.options.length);
     for (const opt of q.options) {
-      const b = node("button", `mf-chip${q.as === "colour" ? " colour" : ""}`);
+      const b = node("button", `mf-chip${q.as === "ware" ? " ware" : ""}`);
       b.type = "button";
-      if (q.as === "colour") { const sw = node("i"); sw.style.background = COLOURS[opt - 1].hex; b.append(sw, COLOURS[opt - 1].name); }
+      if (q.as === "ware") b.append(wareIcon(opt), WARES[opt - 1].name);       // the ware by name and by its packing, never by colour alone
       else b.textContent = String(opt);
       b.addEventListener("click", () => answer(i, opt));
       opts.appendChild(b);
@@ -239,7 +243,7 @@ function askRow(o, i) {
   }
   return row;
 }
-/** A tap on the stack that came back: one container, or two for a swap. */
+/** A tap on the stack that came back: one package, or two for a swap. */
 function tapBack(key) {
   if (S.phase !== "ask" || S.answers[0]) return;
   const q = R.orders[0].question;
@@ -278,7 +282,7 @@ function judge() {
 }
 
 // ---------- the review ----------
-const truthText = q => (q.as === "number" ? String(q.answer) : q.as === "colour" ? COLOURS[q.answer - 1].name.toLowerCase()
+const truthText = q => (q.as === "number" ? String(q.answer) : q.as === "ware" ? WARES[q.answer - 1].name.toLowerCase()
   : q.as === "stack" ? `stack ${q.answer + 1}` : q.as === "pair" ? "the two outlined" : "the outlined one");
 function reviewPhase(focus = null) {
   judge();
@@ -320,7 +324,7 @@ function reviewPanel(focus) {
   const o = focus != null ? R.orders[focus] : R.level.change ? R.orders[0] : null, q = o?.question;
   if (q && (q.as === "cell" || q.as === "pair")) return stage(q.back, { turns: q.turns, marks: [].concat(q.answer) }).panel;
   if (q && o.type === "turned") return stage(turnedOf(q), { turns: q.turns, ring: q.at }).panel;
-  return stage(R.cells, { mark: q?.cell || null, highlight: q?.colour || (o?.type === "most" ? q.answer : null), tier: q?.tier ?? null }).panel;
+  return stage(R.cells, { mark: q?.cell || null, highlight: q?.ware || (o?.type === "most" ? q.answer : null), tier: q?.tier ?? null }).panel;
 }
 /** The run's score, for your best (or today's), which it returns. */
 function countRun() { return S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score); }
@@ -355,7 +359,7 @@ function drawHud() {
 function title() {
   $("title").textContent = `Round ${S.round} · ${R.level.change ? "spot the change" : VIEWS[R.view]}`;
 }
-/** Empties the stage's parts, ready for a phase to fill them. */
+/** Empties the stage's parts (the card the quay and the questions sit on), ready for a phase to fill them. */
 function clear() {
   $("book").replaceChildren();
   $("asks").replaceChildren();
@@ -375,82 +379,8 @@ function go(text, fn) {
   b.onclick = fn;
 }
 
-// ---------- the stage: one isometric stack ----------
-const el = (tag, attrs = {}) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
-const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const ch = sh => Math.round(Math.min(255, Math.max(0, ((n >> sh) & 255) * k))); return `rgb(${ch(16)},${ch(8)},${ch(0)})`; };
-const GREY = "#A3ADB3", RING = "#F5F7F8";
-
-/**
- * The stack as one isometric panel: { panel, drops }. opts: drop (an arrival order: the containers fall in; at a
- * table, times gives each one's landing on the round's clock and since how far into the drop it is), blank (the
- * floor only, for a marked position), mark {x,y,z} (outline a container, or its floor cell with the
- * tier named when it's hidden), marks [keys] (outline these), highlight (dim every colour but this), tier (dim
- * every tier but this), tap(key), selected [keys], turns (a turned stack: containers lie along y after a quarter
- * turn), grey (every container grey), ring (a key: that container lit and outlined), small (no room for drops).
- */
-function stage(cells, opts = {}) {
-  const panel = node("div", `mf-panel${opts.small ? " small" : ""}`);
-  const b = boxFor(opts.turns || 0), X = cells.length, Y = cells[0].length, Z = cells[0][0].length, s = 46;
-  const pts = [];
-  const top = opts.blank ? 0 : Z;                                  // the floor alone is framed to its own size
-  for (let x = 0; x <= X; x++) for (let y = 0; y <= Y; y++) for (let z = 0; z <= top; z++) pts.push(isoPoint(x, y, z, b));
-  const minX = Math.min(...pts.map(p => p.sx)), maxX = Math.max(...pts.map(p => p.sx)), minY = Math.min(...pts.map(p => p.sy)), maxY = Math.max(...pts.map(p => p.sy));
-  const W = (maxX - minX) * s + 20, H = (maxY - minY) * s + 20, room = opts.drop ? s * 1.6 : s * 0.25;
-  const svg = el("svg", { viewBox: `0 ${-room} ${W} ${H + room}`, class: opts.tap ? "tap" : "" });
-  svg.style.setProperty("--aspect", (W / (H + room)).toFixed(3));
-  const P = ([sx, sy]) => `${((sx - minX) * s + 10).toFixed(1)},${((sy - minY) * s + 10).toFixed(1)}`;
-  const markKey = opts.mark ? `${opts.mark.x},${opts.mark.y},${opts.mark.z}` : null;
-  const visible = opts.blank || markKey ? visibleSet(cells, b) : null;
-  const outlined = new Set([...(opts.marks || []), ...(opts.selected || [])]);
-  for (let x = 0; x < X; x++) for (let y = 0; y < Y; y++) {        // the floor
-    const f = cubeFaces(x, y, -1, b).top;
-    const marked = opts.mark && opts.mark.x === x && opts.mark.y === y && (opts.blank || !visible.has(markKey));
-    svg.appendChild(el("polygon", { points: f.map(P).join(" "), fill: marked ? "var(--mf-in)" : "var(--mf-floor)", stroke: "var(--sheet)", "stroke-width": 1, opacity: marked ? 0.9 : 0.6 }));
-    if (marked) {
-      const c = f.reduce((a, q) => [a[0] + q[0] / 4, a[1] + q[1] / 4], [0, 0]);
-      const t = el("text", { x: ((c[0] - minX) * s + 10).toFixed(1), y: ((c[1] - minY) * s + 16).toFixed(1), "text-anchor": "middle", "font-size": 17, "font-weight": 800, fill: "#fff" });   // read in a question's card too
-      t.textContent = `tier ${opts.mark.z + 1}`;
-      svg.appendChild(t);
-    }
-  }
-  const drops = opts.drop ? (opts.times ? { times: opts.times, last: 0 } : dropTimes(cells, opts.drop)) : { times: {}, last: 0 };
-  const lengthwise = b.X >= b.Y;                                  // the containers' long side runs along x
-  if (!opts.blank) for (const cube of drawOrder(cells)) {
-    const faces = cubeFaces(cube.x, cube.y, cube.z, b), key = `${cube.x},${cube.y},${cube.z}`;
-    const dim = (opts.highlight && cube.c !== opts.highlight) || (opts.tier != null && cube.z !== opts.tier);
-    const ringed = opts.ring === key;
-    const hex = ringed && opts.grey ? RING : opts.grey ? GREY : COLOURS[cube.c - 1].hex;
-    const g = el("g", { class: `cube${opts.drop ? " drop" : ""}`, "data-key": key });
-    if (dim) g.setAttribute("opacity", 0.25);
-    if (opts.drop) g.style.animationDelay = `${drops.times[key] - (opts.since || 0)}ms`;   // landed already, for a phone that comes in late
-    for (const [name, k] of [["left", 0.72], ["right", 0.86], ["top", 1.05]]) {
-      const poly = el("polygon", { points: faces[name].map(P).join(" "), fill: shade(hex, k), stroke: "rgba(0,0,0,.3)", "stroke-width": 1, class: "mf-cell" });
-      if (opts.tap) poly.addEventListener("click", () => opts.tap(key));
-      g.appendChild(poly);
-    }
-    // the details that make a box a container: corrugations along the long side, doors on the end, roof ridges
-    const lerp = (a, c, t) => [a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t];
-    const lineOn = (face, t, from, to, attrs) => {
-      const [x1, y1] = P(lerp(face[from[0]], face[from[1]], t)).split(","), [x2, y2] = P(lerp(face[to[0]], face[to[1]], t)).split(",");
-      g.appendChild(el("line", { x1, y1, x2, y2, ...attrs }));
-    };
-    const ink = { stroke: "rgba(0,0,0,.28)", "stroke-width": 0.9 };
-    const side = lengthwise ? faces.left : faces.right, end = lengthwise ? faces.right : faces.left;
-    for (let i = 1; i < 8; i++) lineOn(side, i / 8, [0, 1], [3, 2], ink);
-    lineOn(end, 0.5, [0, 1], [3, 2], { stroke: "rgba(0,0,0,.45)", "stroke-width": 1.2 });
-    lineOn(end, 0.4, [0, 1], [3, 2], ink); lineOn(end, 0.6, [0, 1], [3, 2], ink);
-    for (const t of [0.33, 0.66]) lineOn(faces.top, t, lengthwise ? [0, 3] : [0, 1], lengthwise ? [1, 2] : [3, 2], { stroke: "rgba(0,0,0,.14)", "stroke-width": 0.9 });
-    if ((markKey === key && (!visible || visible.has(key))) || outlined.has(key) || ringed) {
-      for (const name of ringed ? ["left", "right", "top"] : ["top"]) g.appendChild(el("polygon", { points: faces[name].map(P).join(" "), fill: "none", stroke: "var(--ink)", "stroke-width": 3.5, "stroke-linejoin": "round" }));
-    }
-    svg.appendChild(g);
-  }
-  panel.appendChild(svg);
-  return { panel, drops };
-}
-
 // ---------- together: a table of two to six, the rounds in step ----------
-// The room keeps the round and when it opened, on the database's clock; this page runs the order book, the drop and
+// The room keeps the round and when it opened, on the database's clock; this page runs the tally, the drop and
 // the hold from that, as every phone at the table does, and a reload comes back to the same moment. Against: your own
 // questions, then the round's results for everyone, once everyone at the table has finished, and the next round once
 // everyone has pressed Next. Together: your part of the stack, the team's questions. Your solo run, bests and today's
@@ -605,14 +535,14 @@ function drawPlay(game) {
   const viewEnd = Math.min(myShip ?? Infinity, teamEnd), askAt = team ? teamEnd : viewEnd;
   if (t < tl.drop) { playOrders(game, tl, key, t); return; }
   if (t < viewEnd) { playShow(game, tl, key, t, myShip); return; }
-  if (shown === `${key}/show`) leave(key);              // the stack goes, as it does alone: off the stage, or a change round's fade
+  if (shown === `${key}/show`) leave(key);              // the stack goes, as it does alone: shipped, or a change round's fade
   if (performance.now() < leftAt + (R.level.change ? 1500 : 380)) return;
   if (t < askAt) { playShipped(game, tl, key, t); return; }
   if (team) teamAsk(game, key);
   else if (!playing(game, slot)) watchAsk(game, key);
   else ownAsk(game, key);
 }
-/** The round's order book, for the few seconds before the stack drops, its bar running down to it. */
+/** The round's tally, for the few seconds before the stack drops, its bar running down to it. */
 function playOrders(game, tl, key, t) {
   const team = game.mode === "team", watching = !playing(game, mySlot());
   once(`${key}/orders`, () => {
@@ -621,9 +551,9 @@ function playOrders(game, tl, key, t) {
     clear();
     viewOn(false);
     fillBook(watching ? "Out of lives: you're watching the others' stack."
-      : R.level.change ? (team ? "Watch your part of the stack: it will vanish and come back whole, with something different." : "Watch the stack: it will vanish and come back with something different.")
-        : team ? "The team's questions to come. You'll see only your part of the stack: pool what you saw."
-          : "The questions to come, the same for everyone. Answer any, pass any; a wrong answer costs a life.");
+      : R.level.change ? (team ? "Watch your part of the stack: it will go aboard and come back whole, with something different." : "Watch the stack: it will go aboard and come back with something different.")
+        : team ? "The team's tally: the questions to come. You'll see only your part of the stack: pool what you saw."
+          : "The tally, the same for everyone: the questions to come. Answer any, pass any; a wrong answer costs a life.");
     runTimer(tl.drop - tl.at, tl.at - t);
   });
 }
@@ -666,7 +596,7 @@ function shipNow() {
   else flush();                                               // against, it goes with your replies, and is sent again with them if it must be
   refresh();
 }
-/** The stack leaves the stage (a change round's fades, and the stage stays empty a second). */
+/** The stack leaves the quay (a change round's fades, and the quay stays empty a second). */
 function leave(key) {
   shown = `${key}/left`;
   drawnParts = {};
