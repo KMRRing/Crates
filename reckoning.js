@@ -3,7 +3,7 @@
 // draws them, reckoning-questions.js deals the questions from the knowledge banks. This file keeps the clock (a fixed
 // step, however fast the screen draws), takes the swipes, the page's words over the quay and under it, and the run
 // kept between visits. The clock starts at the first swipe and stops with the menu, the tab and the end of the run.
-import { newGame, valid, setDeal, swipe, step, take, speed } from "./reckoning-engine.js";
+import { newGame, valid, setDeal, swipe, step, take, speed, speedAt } from "./reckoning-engine.js";
 import { load, dealer, WORLDS } from "./reckoning-questions.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -21,7 +21,7 @@ const fmt = n => Math.floor(n).toLocaleString("en-GB");
 const STEP = 1 / 120;                                         // the rules' step, in seconds
 const SAVE_EVERY = 3000;                                      // ms between saves of a run in play (a partner watching sees it that often)
 const SWIPE = 22;                                             // px a finger must travel to be a swipe (times scale())
-const SHOW_AHEAD = 70;                                        // metres before a gap that its question is up
+const THINK_T = 12;                                           // seconds of running before a gap that its question is up (the engine makes the gap in time: LOOK)
 
 let S = null;            // the run (reckoning-engine.js's), as saved
 let running = false;     // the clock going: from the first swipe
@@ -42,7 +42,6 @@ function newRun() {
   S = setDeal(newGame({ seed: Math.floor(Math.random() * 2 ** 31), deal }), deal);
   running = false; acc = 0; shown = null;
   $("result").hidden = true;
-  $("ask").hidden = false;
   say("");
   hint("Swipe to run. Up jumps, down rolls, sideways changes lane, and into a wall runs up it.");
   save();
@@ -118,27 +117,20 @@ function drawHud() {
   if (put("combo", () => c)) { $("combo").textContent = c; $("combo").classList.toggle("on", !!c); }
 }
 
-/** The question under the quay: while its gap is near, or just answered; a quiet line between. */
+/** The question over the quay, under the hearts: from THINK_T seconds before its gap until it's answered (and a moment after,
+ *  to see the right one); nothing between. */
 function drawAsk() {
   if (S.over) return;
   const now = performance.now(), h = S.hero;
   if (shown && now > shown.until) shown = null;
-  const g = S.world.gates.find(g => (g.state === "open" && h.z > g.p0 - SHOW_AHEAD && h.z < g.p1) || (shown && shown.id === g.id));
-  const q = $("question"), cards = [...$("cards").children];
-  if (!g) {
-    if (put("ask", () => `idle${S.right}/${S.right + S.wrong + S.missed}`)) {
-      q.className = "rk-q idle";
-      q.textContent = S.right + S.wrong + S.missed ? `${S.right} right of ${S.right + S.wrong + S.missed} so far.` : "A gap in the quay ahead will ask you something.";
-      cards.forEach(c => { c.textContent = ""; c.className = "rk-card"; });
-    }
-    return;
-  }
+  const g = S.world.gates.find(g => (g.state === "open" && h.z < g.p1 && g.p0 - h.z <= THINK_T * speedAt(h.z)) || (shown && shown.id === g.id));
+  if (!g) { if (put("ask", () => "none")) $("ask").hidden = true; return; }
   const lane = h.lane + 1;
   const key = `${g.id}:${g.state}:${shown ? 1 : 0}:${lane}`;
   if (!put("ask", () => key)) return;
-  q.className = "rk-q";
-  q.textContent = g.q.q;
-  cards.forEach((c, i) => {
+  $("ask").hidden = false;
+  $("question").textContent = g.q.q;
+  [...$("cards").children].forEach((c, i) => {
     c.textContent = g.q.o[i] ?? "";
     let cls = "rk-card";
     if (g.state !== "open") { if (i === g.q.a) cls += " right"; else if (g.pick === i) cls += " wrong"; }
@@ -148,7 +140,7 @@ function drawAsk() {
 }
 
 function showResult() {
-  $("ask").hidden = true;
+  $("ask").hidden = true; cache.ask = "none";
   $("result").hidden = false;
   const asked = S.right + S.wrong + S.missed;
   $("verdict").textContent = `${fmt(S.score)} points, ${fmt(S.hero.z)} m. ${asked ? `${S.right} of ${asked} questions right.` : "No question reached."}`;

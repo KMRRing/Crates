@@ -1,7 +1,7 @@
 /* Reckoning: the quay drawn by reckoning-3d.js on a canvas filling the stage, with what the page says over it in the
-   screen's own pixels (hearts, distance, a line when something happens), and under it the question: a line and three
-   answer cards, one to a lane, in the order the lanes are across the quay. The page never scrolls; the cards keep their
-   height whether a question is up or not. Brass is the house colour, the plate the one action. */
+   screen's own pixels (hearts, distance, a line when something happens) and, under the hearts, the question: a line and
+   three answer cards, one to a lane, in the order the lanes are across the quay. The page never scrolls; the question
+   floats over the quay and moves nothing. Brass is the house colour, the plate the one action. */
 :root {
   --rk-in: var(--c2);
   --rk-soft: color-mix(in srgb, var(--rk-in) 15%, var(--sheet));
@@ -38,36 +38,36 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
   background: color-mix(in srgb, var(--sheet) 90%, transparent); color: var(--ink); font-size: .88rem; line-height: 1.35; pointer-events: none; }
 .rk-hint:empty { display: none; }
 
-/* under it: the question */
-.rk-side { position: relative; margin-top: .5rem; height: 7rem; touch-action: none; }
-.rk-ask { display: grid; grid-template-rows: 2.5rem 1fr; gap: .4rem; height: 100%; }
-.rk-q { margin: 0; font-size: .86rem; line-height: 1.25; font-weight: 650; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.rk-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; min-height: 0; }
-.rk-card { display: grid; place-items: center; padding: .3rem .35rem; border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--tile);
-  font-size: .76rem; line-height: 1.2; text-align: center; font-weight: 650; color: var(--ink); overflow: hidden; overflow-wrap: anywhere; hyphens: auto; }
+/* the question: over the top of the quay, under the hearts, with the three answers, one to a lane in the order the lanes
+   lie across the quay, so the card above the hero is the lane he is in */
+.rk-ask { position: absolute; left: .65rem; right: .65rem; top: 2.6rem; display: grid; gap: .35rem; pointer-events: none; }
+.rk-ask[hidden] { display: none; }
+.rk-q { margin: 0; padding: .4rem .55rem; border: 1px solid var(--brass); border-radius: 5px; background: color-mix(in srgb, var(--sheet) 92%, transparent);
+  font-size: .86rem; line-height: 1.25; font-weight: 650; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.rk-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.rk-card { display: grid; place-items: center; min-height: 2.7rem; padding: .3rem .35rem; border: 1px solid var(--tile-edge); border-radius: 5px;
+  background: color-mix(in srgb, var(--tile) 94%, transparent); font-size: .76rem; line-height: 1.2; text-align: center; font-weight: 650; color: var(--ink);
+  overflow: hidden; overflow-wrap: anywhere; hyphens: auto; }
 .rk-card:empty { visibility: hidden; }
 .rk-card.right { border-color: var(--rk-good); background: color-mix(in srgb, var(--rk-good) 18%, var(--sheet)); }
 .rk-card.wrong { border-color: var(--rk-bad); background: color-mix(in srgb, var(--rk-bad) 15%, var(--sheet)); }
 .rk-card.here { box-shadow: 0 0 0 2px var(--brass); }
-.rk-q.idle { color: var(--ink-soft); font-weight: 600; }
 
-/* the run is over */
-.rk-result { position: absolute; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: .4rem; background: var(--yard); }
+/* the run is over: a sheet over the quay */
+.rk-result { position: absolute; inset: .6rem; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: .5rem; padding: .7rem; border: 1px solid var(--brass);
+  border-radius: 6px; background: var(--sheet); }
 .rk-result[hidden] { display: none; }
 .rk-verdict { margin: 0; font-size: .9rem; font-weight: 700; color: var(--ink); }
 .rk-missed { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; align-content: start; font-size: .78rem; color: var(--ink-soft); }
-.rk-missed li { padding: .3rem .45rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); line-height: 1.25; }
+.rk-missed li { padding: .3rem .45rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--yard); line-height: 1.25; }
 .rk-missed b { color: var(--ink); font-weight: 700; }
 .rk-go { min-height: 2.6rem; border: 0; border-radius: 5px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 800;
   font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); cursor: pointer; }
 
-/* held sideways: the quay takes the height, the question stands in the column beside it */
+/* held sideways: the quay takes the whole width and the question stands over its middle, the way it does on a phone */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.reckoning { --beside: 21rem; grid-template-rows: auto minmax(0, 1fr); }
-  #app.reckoning .rk-sky { grid-column: 1; grid-row: 2; }
-  #app.reckoning .rk-side { grid-column: 2; grid-row: 2; height: auto; align-self: stretch; margin-top: .45rem; }
-  #app.reckoning .rk-ask { grid-template-rows: auto 1fr; align-content: start; }
-  #app.reckoning .rk-q { -webkit-line-clamp: 6; font-size: .95rem; min-height: 4.5rem; }
-  #app.reckoning .rk-cards { grid-template-columns: 1fr; grid-auto-rows: 3.2rem; align-content: start; }
-  #app.reckoning .rk-card { font-size: .88rem; grid-template-columns: 1fr; }
+  #app.reckoning .rk-ask { left: 50%; right: auto; width: min(44rem, 80%); transform: translateX(-50%); }
+  #app.reckoning .rk-q { font-size: .95rem; -webkit-line-clamp: 2; }
+  #app.reckoning .rk-card { font-size: .88rem; min-height: 3rem; }
+  #app.reckoning .rk-result { left: 50%; right: auto; width: min(34rem, 90%); transform: translateX(-50%); }
 }

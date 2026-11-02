@@ -210,6 +210,56 @@ const events = S => take(S).map(e => e.type);
   check(W.hero.jumps === 0 && W.hero.mode === "run", "landing takes it away");
 }
 
+// ---------- coming down, a swipe sideways swoops onto a foe on the ground ----------
+{
+  const trial = (y, vy, foeLane, ttc, dir, secs = 1.2) => {
+    const S = scene({ hero: { y, vy, mode: "air" } });
+    const f = foeAt(S, "crab", foeLane, ttc);
+    run(S, 0.005); swipe(S, dir); run(S, secs);
+    return [S, f];
+  };
+  let [S, f] = trial(3, -2, 1, 0.45, "right");
+  check(!f.alive && S.hero.lane === 1 && S.hearts === 3, "coming down from 3 m, a swipe sideways swoops onto a crab in the next lane and cuts it down");
+  [S, f] = trial(3, -2, 1, 0.45, "right", 0.5);
+  check(S.hero.jumps === 1 && S.chain === 1, "and counts as an attack in the air: my jump comes back");
+  [S, f] = trial(3, 4, 1, 0.45, "right");
+  check(f.alive && S.hero.lane === 1, "still going up, it is only a lane change");
+  [S, f] = trial(7, -2, 1, 0.45, "right");
+  check(f.alive && S.hero.lane === 1, "too high above it to reach: only a lane change");
+  [S, f] = trial(3, -2, -1, 0.45, "right");
+  check(f.alive && S.hero.lane === 1, "the other way, a dodge");
+  [S, f] = trial(3, -2, 1, 0.05, "right");
+  check(f.alive, "too late for the swoop to arrive");
+  {
+    const T = scene({ hero: { y: 3, vy: -2, mode: "air", lane: -1, x: -LANE_W } }), c = foeAt(T, "crab", 1, 0.45);
+    run(T, 0.005); swipe(T, "right"); run(T, 1.2);
+    check(!c.alive && T.hero.lane === 1, "and so is one two lanes across");
+  }
+}
+
+// ---------- the guard after a swipe ----------
+{
+  // 0.085 s of running is 0.85 m: just outside a foe's reach, and just inside the window of a swipe sideways, which the
+  // first step of the run leaves
+  let S = scene({ hero: { lane: 0 } }), f = foeAt(S, "crab", -1, 0.085);
+  run(S, 0.005); swipe(S, "left"); run(S, 1);
+  check(S.hearts === 3 && S.hero.lane === -1, "a swipe towards a foe a moment too late to cut it does not leave me hit by it");
+  S = scene({ hero: { lane: -1, x: -LANE_W } }); f = foeAt(S, "crab", 0, 0.085);
+  run(S, 0.005); swipe(S, "up"); run(S, 1);
+  check(S.hearts === 2, "but it guards only the side it was made towards: a foe beside me hits as it did");
+  S = scene({ hero: { lane: 0 } }); f = foeAt(S, "crab", 1, 0.085);
+  run(S, 0.005); swipe(S, "left"); run(S, 1);
+  check(S.hearts === 3 && f.alive, "(and a swipe away from it still dodges)");
+  S = scene({ hero: { lane: 0 } }); f = foeAt(S, "crab", 1, 0.9);
+  run(S, 0.005); swipe(S, "right"); run(S, 1.3);
+  check(S.hearts === 2, "the guard ends: a foe that arrives after it hits");
+  S = scene({ hero: { lane: 0 } }); f = foeAt(S, "crab", 0, 0.5);
+  run(S, 0.005); swipe(S, "up"); run(S, 0.2);
+  check(S.hero.guard && S.hero.guard.dir === "up", "a swipe that is made sets the guard");
+  S = scene(); swipe(S, "up"); run(S, 0.3); swipe(S, "up"); 
+  check(!S.hero.guard || S.hero.guard.until < S.t + 0.1 || S.hero.mode === "air", "(a swipe that does nothing sets none)");
+}
+
 // ---------- the wall ----------
 {
   const wallScene = (heroExtra = {}) => {
@@ -271,13 +321,14 @@ const events = S => take(S).map(e => e.type);
 // ---------- the question over the water ----------
 {
   const q = { id: "Q1", bank: "test", q: "Which?", o: ["one", "two", "three"], a: 2, x: "three", about: ["e1"] };
-  const gateScene = (lane, how) => {
+  const gateScene = (lane, how, ttc = 0) => {
     const S = newGame({ seed: 3, deal: () => q });
     let n = 0;
     while (!S.world.gates.length && n++ < 80) { S.hero.z += 20; ensure(S); }
     const g = S.world.gates[0];
     S.world.foes = S.world.foes.filter(f => f.gate && f.gate.id === g.id);
     S.hero.z = g.z - 5.5; S.hero.lane = lane; S.hero.x = lane * LANE_W;
+    if (ttc) S.hero.z = g.z - ttc * speed(S);
     S.world.pits = S.world.pits.filter(p => p.gate === g.id);
     S.world.z1 = 1e9;
     take(S);
@@ -289,6 +340,12 @@ const events = S => take(S).map(e => e.type);
   let [S, g] = gateScene(1, "up");
   check(g.state === "right" && S.hearts === 3 && S.falls === 0 && S.right === 1 && S.hero.z > g.p1, "up under the right answer's gull: thrown across the gap, and the question is right");
   check(S.answers[0].ok === true && S.answers[0].id === "Q1" && S.world.foes.length === 0, "it is kept for the pile, and the other gulls fly off");
+  for (const ttc of [0.95, 0.7, 0.45, 0.2]) {
+    [S, g] = gateScene(1, "up", ttc);
+    check(g.state === "right" && S.hearts === 3 && S.falls === 0 && S.hero.z > g.p1, `a jump ${ttc} s before the right gull is a jump attack, and the throw after it is enough to clear the gap`);
+  }
+  [S, g] = gateScene(1, "up", 1.4);
+  check(g.state !== "right", "from further off than that it is only a jump");
   [S, g] = gateScene(0, "up");
   check(g.state === "wrong" && S.hearts === 2 && S.falls === 1 && S.wrong === 1 && S.hero.z > g.p1, "under a wrong answer: no bounce, into the water, a heart, and back on the far bank");
   [S, g] = gateScene(-1, null);

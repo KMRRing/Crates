@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="reckoning fit-screen beside">
+<div id="app" class="reckoning fit-screen wide">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon rk-mark" aria-hidden="true"></span>Reckoning</button></h1>
@@ -31,15 +31,12 @@
         <span class="rk-score"><b id="score">0</b> m</span>
         <span id="combo" class="rk-combo" aria-live="polite"></span>
       </div>
+      <div id="ask" class="rk-ask" hidden>
+        <p id="question" class="rk-q" aria-live="polite"></p>
+        <div id="cards" class="rk-cards"><div class="rk-card"></div><div class="rk-card"></div><div class="rk-card"></div></div>
+      </div>
       <p id="toast" class="rk-toast" aria-live="polite"></p>
       <p id="hint" class="rk-hint" aria-live="polite"></p>
-    </div>
-  </section>
-
-  <section class="rk-side">
-    <div id="ask" class="rk-ask">
-      <p id="question" class="rk-q" aria-live="polite"></p>
-      <div id="cards" class="rk-cards"><div class="rk-card"></div><div class="rk-card"></div><div class="rk-card"></div></div>
     </div>
     <div id="result" class="rk-result" hidden>
       <p id="verdict" class="rk-verdict"></p>
