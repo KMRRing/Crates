@@ -33,10 +33,11 @@ html[data-mode="night"] { --lm-bad: #E8806F; }
 .lm-acts { display: flex; gap: .35rem; height: 2.75rem; }
 html #acts .lm-act { flex: 1 1 0; min-width: 0; min-height: 0; padding: .2rem .3rem; font-size: .8rem; font-stretch: normal; letter-spacing: 0; text-transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* the cloths' buttons: the brush (what a tap paints) and the two moves */
+/* the cloths' buttons: the brush (what a tap paints, in the cloths painted so) and the three moves; a plain cloth is laid
+   with taps and drags, so it has the moves alone */
 .lm-acts-play { gap: .5rem; }
-.lm-brushes { flex: 3 1 0; display: flex; gap: .25rem; min-width: 0; }
-.lm-moves { flex: 2 1 0; display: flex; gap: .25rem; min-width: 0; }
+.lm-brushes { flex: 1 1 0; display: flex; gap: .25rem; min-width: 0; }
+.lm-moves { flex: 1 1 0; display: flex; gap: .25rem; min-width: 0; }
 html #acts .lm-brush { flex: 1 1 0; min-width: 0; min-height: 0; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; padding: .15rem .1rem;
   font-size: .72rem; font-stretch: normal; letter-spacing: 0; text-transform: none; line-height: 1; }
 .lm-brush svg { width: 1.1rem; height: 1.1rem; flex: none; }
