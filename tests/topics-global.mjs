@@ -10,6 +10,7 @@ const Q = await import("../quote-engine.js");
 const C = await import("../chart-engine.js");
 const L = await import("../lots-engine.js");
 const P = await import("../punt-gen.js");
+const K = await import("../core.js");
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -37,6 +38,14 @@ check(JSON.stringify(T.mixFromSubjects(lists.kb, T.TOPIC_OF.kb, on)) === JSON.st
 check(JSON.stringify(T.mixFromSubjects(lists.quote, T.TOPIC_OF.quote, on)) === JSON.stringify(Q.TOPIC_PRESETS?.balanced?.topics ?? {}) || !Q.TOPIC_PRESETS, "all on, Quote's topics are its Balanced");
 const puntBase = P.TOPIC_PRESETS.balanced.topics;
 check(JSON.stringify(T.mixFromSubjects(lists.punt, T.TOPIC_OF.punt, on, puntBase)) === JSON.stringify(Object.fromEntries(lists.punt.map(([id]) => [id, puntBase[id]]))), "all on, Punt's topics keep its Balanced weights (the niche banks in once)");
+
+// Crates deals Balanced less what is off (core.js dealTopics): all on is Balanced exactly, one subject on is its topics only,
+// and subjects that no country topic answers to leave nothing to deal, so every topic is dealt
+const only = id => T.cleanSubjects(Object.fromEntries(T.SUBJECTS.map(s => [s.id, s.id === id ? 1 : 0])));
+check(JSON.stringify(K.dealTopics(on)) === JSON.stringify(K.PRESETS.balanced.topics), "Crates: all on deals exactly Balanced");
+const histOnly = K.dealTopics(only("hist"));
+check(histOnly.hist > 0 && Object.entries(histOnly).filter(([, w]) => w > 0).every(([id]) => T.TOPIC_OF.kb[id] === "hist"), "Crates: one subject on deals only its topics");
+check(JSON.stringify(K.dealTopics(only("math"))) === JSON.stringify(K.PRESETS.balanced.topics), "Crates: subjects no country topic answers to deal every topic");
 
 // presets
 const nothing = T.cleanSubjects(T.SUBJECT_PRESETS.none.topics);
