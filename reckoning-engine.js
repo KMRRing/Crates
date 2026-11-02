@@ -9,7 +9,7 @@
 //   up, a foe in my lane on the ground   within FRONT_WIN: a lunge that cuts it down; sooner: a plain jump that clears
 //                                        it; later: it has hit me (foes hit whoever is within a lane of them, never
 //                                        across two lanes)
-//   up, a foe above in my lane           within ABOVE_WIN: a jump attack
+//   up, a foe above in my lane           within ABOVE_WIN: a jump attack, from no more than UP_ABOVE over its base
 //   left/right, a foe in the next lane   SIDE_MIN..SIDE_WIN, both on the ground or both in the air (within reach of
 //                                        my height): a lane change into it with a cut; otherwise a dodge. With none in
 //                                        the next lane, one two lanes across (SIDE_MIN2..SIDE_WIN) is cut the same way
@@ -22,6 +22,7 @@
 //   down, in the air above a foe         a bonk: I land on it and bounce into another jump
 //   down, in the air above one jump      a slam: on the planks (never on a foe) a shockwave cuts the ground foes in
 //     height                             the lanes beside me
+//   down, in the air, neither of those   a quick drop, and a roll on landing (a plain jump's height or less)
 //   left/right in the outer lane, with a wall beside me: a wall run, which lifts me; up on the wall is a higher jump
 // The gulls of a question (a gate) can be jumped at from further off (GATE_WIN), so a jump in front of the right one
 // is a jump attack, and the throw after it carries me over the gap. A swipe that has been made guards me for GUARD_T
@@ -30,6 +31,12 @@
 // A kill in the air throws me up again (CHAIN_V), so a chain of flying foes carries me across a pit, and gives me back
 // my jump: one more up in the air, with nothing to cut, jumps again. A swipe that has no use yet waits BUFFER seconds (a
 // jump swiped a moment before landing still jumps).
+//
+// Flyers follow my height (drift()): a gull more than SIDE_ABOVE under me, or SIDE_BELOW over me, climbs or sinks towards
+// me at DRIFT_V until I am within a swipe sideways of it again, so nobody gets out of reach by going up (a chain over a
+// pit, and the gulls of a question, hang where they are: they are the bridge). Within reach, by how far over its base I am:
+// up to SIDE_ABOVE a swipe sideways from the next lane cuts it, up to UP_ABOVE the up swipe does in my lane, above that
+// only down does, as a bonk on the way (or a slam) that bounces me up again.
 //
 // The foes telegraph (think()): one within a lane of me sees me (it looks my way), then winds up, then launches at the lane
 // I am in then, a crab sliding across to it, a gull diving onto it (only while I am on the ground: a gull in my own lane
@@ -67,6 +74,10 @@ export const ROLL_T = 0.45;                // seconds a roll lasts (it was 0.32;
 export const SIGHT_T = 1.1, WIND_T = 0.6, LAUNCH_T = 0.3;   // seconds to contact: a foe sees me, winds up, launches
 export const HIT_X = 0.8 * LANE_W;         // a launched foe hits what is this near the lane it aimed at
 export const DIVE_MIN = 0.03;             // a flyer already diving at me can be cut from the side until this close to hitting
+export const SIDE_ABOVE = 2.0, SIDE_BELOW = 2.5;   // a swipe sideways in the air reaches a flyer in the next lane from this far above its base ("a bit above and next to it") or below it
+export const UP_ABOVE = 1.2;               // an up swipe cuts a flyer in my lane only from this far above its base ("just slightly above"); higher up it is down: a bonk
+export const DRIFT_V = 1.6, DRIFT_T = 4;   // a flyer climbs or sinks this many m/s towards a hero out of its reach, once he is within DRIFT_T seconds of it
+export const FLY_MAX = 7;                  // and no higher than this
 export const SWEEP_WIN = 0.5;              // a cut sideways goes on to the next foe in the same direction if it is within this
 export const GATE_WIN = 1.0;               // a gull of a question can be jumped at from this far off (a plain gull, ABOVE_WIN)
 export const GUARD_T = 0.4;                // seconds after a swipe that the foes on its side cannot hurt me
@@ -239,7 +250,6 @@ function nearest(S, ok) {
   }
   return best;
 }
-const centre = f => f.y + f.h / 2;
 const grounded = h => h.mode === "run";
 
 /** A swipe: "up" | "down" | "left" | "right". It works now if it can, else waits a moment (BUFFER) for something to work on. */
@@ -278,7 +288,7 @@ function up(S) {
     if (f.lane !== h.lane) return false;                          // by the lane I mean to be in, not the x I am passing through
     if (f.y <= 0.3) return t <= FRONT_WIN && h.y < 1;
     const up = f.y + f.h * 0.3 - h.y;
-    return t <= (f.gate ? GATE_WIN : ABOVE_WIN) && up <= REACH_UP && up >= -2.6;      // a swoop down to a gull below counts
+    return t <= (f.gate ? GATE_WIN : ABOVE_WIN) && up <= REACH_UP && h.y - f.y <= UP_ABOVE;      // a swoop down to a gull just below counts; from higher it is a bonk
   });
   if (f) { startLunge(S, f, 0, f.y <= 0.3 ? "front" : "above"); return true; }
   if (grounded(h)) {
@@ -331,7 +341,7 @@ function retarget(S, dir) {
   const lane = h.lane + dir;
   if (lane < -1 || lane > 1) return false;
   const f = nearest(S, (f, t) => f.lane === lane && t >= RETARGET_MIN && t <= (f.gate ? GATE_WIN : SIDE_WIN) &&
-    (f.y <= 0.3 || Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4));
+    (f.y <= 0.3 || sideReach(f, h)));
   if (!f) return false;
   h.lane = lane;
   L.foe = f.id; L.left = Math.max(0.06, ttcOf(S, f)); L.how = "side"; L.dir = dir; L.air = L.air || f.y > 0.3;
@@ -345,8 +355,12 @@ function sideFoe(S, lane, tMin) {
   const h = S.hero, falling = h.mode === "air" && h.vy <= 0;
   return nearest(S, (f, t) => f.lane === lane && t >= (diving(f) ? Math.min(tMin, DIVE_MIN) : tMin) && t <= (f.gate ? GATE_WIN : SIDE_WIN) &&
     (f.y <= 0.3 ? h.y < 1 || (falling && h.y - (f.y + f.h * 0.3) <= 4.5)
-      : (diving(f) && h.y < 1) || (h.y >= 0.5 && Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4)));
+      : (diving(f) && h.y < 1) || (h.y >= 0.5 && sideReach(f, h))));
 }
+
+/** Whether a flyer is within a swipe sideways of where I am: no more than SIDE_ABOVE over its base (a bit above and next to
+ *  it), no more than SIDE_BELOW under it. */
+const sideReach = (f, h) => { const dy = h.y - f.y; return dy <= SIDE_ABOVE && dy >= -SIDE_BELOW; };
 
 /** A flyer that has launched its dive: from the ground, from the side, it can be cut down while it comes. */
 const diving = f => f.ph === 3 && KINDS[f.kind].air;
@@ -445,6 +459,7 @@ export function step(S, dt) {
   }
 
   think(S);
+  drift(S, dt);
 
   // what the foes do
   for (const f of alive(S)) {
@@ -536,7 +551,7 @@ function sweepFoe(S, lane) {
   const h = S.hero;
   if (lane < -1 || lane > 1) return null;
   return nearest(S, (f, t) => f.lane === lane && !f.gate && t >= -0.02 && t <= SWEEP_WIN &&
-    (f.y <= 0.3 ? h.y < 1 : h.y >= 0.5 && Math.abs(centre(f) - (h.y + HERO_H / 2)) <= 2.4));
+    (f.y <= 0.3 ? h.y < 1 : h.y >= 0.5 && sideReach(f, h)));
 }
 
 // ---------- the foes' minds ----------
@@ -579,6 +594,24 @@ function fly(f, toReach) {
   if (isAir(f)) f.y = f.y0 * (1 - e);
 }
 
+/** Flyers follow my height (2 November 2026, Korbi: "enemy flyers slowly rise or fall closer to the player if the player is far
+ *  above or below them"; going up was too easy a way out of everything). A flyer within DRIFT_T seconds of me, that has not
+ *  launched, climbs while I am more than SIDE_ABOVE (less a tenth of a metre) over its base, until I am within that of it, and
+ *  sinks while I am as far under it (SIDE_BELOW), but never below where it flies. Not over a pit and not a gull of a question: those
+ *  are a bridge and an answer, and hang where they were put. */
+function drift(S, dt) {
+  const h = S.hero, v = speed(S);
+  const above = SIDE_ABOVE - 0.1, below = SIDE_BELOW - 0.1;      // it keeps a little inside what a swipe reaches, so the edge is never where it rests
+  for (const f of alive(S)) {
+    if (f.gate || !isAir(f) || f.ph === 3) continue;
+    const t = (f.z - h.z) / v;
+    if (t < -FOE_REACH / v || t > DRIFT_T || !floorAt(S, f.z)) continue;
+    const dy = h.y - f.y;
+    const want = dy > above ? Math.min(FLY_MAX, h.y - above) : dy < -below ? Math.max(KINDS[f.kind].y, h.y + below) : f.y;
+    f.y += clamp(want - f.y, -DRIFT_V * dt, DRIFT_V * dt);
+  }
+}
+
 /** A question settled. Right: 500 points and a heart back (if I am short of one). Wrong, or passed under unanswered: a heart
  *  here, and the fall into the water that follows is the second (2 November 2026, Korbi: "getting a question wrong costs 2
  *  lives; right restores one"). */
@@ -610,9 +643,14 @@ function diveHits(S, prevY) {
 
 function land(S) {
   const h = S.hero, slam = h.slam;
+  const dived = h.vy <= -SLAM_V + 1;                            // a down swipe in the air starts at SLAM_V; no fall of its own gets near it
   h.y = 0; h.vy = 0; h.mode = "run"; h.slam = false; h.jumps = 0;
   S.chain = 0;
   S.ev.push({ type: "land", slam });
+  if (dived && !slam) {                                         // down in a jump, with no foe to bonk and not high enough to slam, lands in a roll (2 November 2026, Korbi)
+    h.roll = ROLL_T; h.rollQ = false;
+    S.ev.push({ type: "roll", land: true });
+  }
   if (!slam) return;
   let n = 0;
   for (const f of alive(S)) {

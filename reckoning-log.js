@@ -98,7 +98,7 @@ export function describe(S, ev) {
     case "lane": return `lane → ${lane(ev.lane)}`;
     case "lunge": return `${ev.retarget ? "the cut moves to" : ev.sweep ? "the cut goes on to" : "cut at"} ${ev.kind}${ev.gate ? ` gate${ev.gate}` : ""} (${ev.how})`;
     case "kill": return `KILL ${named(ev.id)} (${ev.how}${ev.chain ? `, chain ${ev.chain}` : ""}${ev.right ? ", the right answer" : ""})`;
-    case "roll": return ev.again ? "roll again, no gap" : "roll";
+    case "roll": return ev.again ? "roll again, no gap" : ev.land ? "roll on landing" : "roll";
     case "notice": return `${named(ev.id)} sees me${ev.look ? `, looks ${ev.look < 0 ? "left" : "right"}` : ""}`;
     case "wind": return `${named(ev.id)} winds up`;
     case "launch": return `${named(ev.id)} launches at lane ${lane(ev.aim)}${ev.kind === "gull" ? " (dives)" : ""}`;

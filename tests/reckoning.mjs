@@ -3,7 +3,7 @@
 // and a bot playing whole stretches of it (every kind of chunk is winnable with the swipes the rules give).
 import { RunLog, describe } from "../reckoning-log.js";
 import { MAX_QUESTION, MAX_ANSWER, load, dealer } from "../reckoning-questions.js";
-import { LANE_W, JUMP_H, AIR_T, WALL_Y, SLAM_MIN_Y, ROLL_T, KINDS, speed, speedAt, newGame, copy, setDeal, swipe, step, take, ensure } from "../reckoning-engine.js";
+import { LANE_W, JUMP_H, AIR_T, WALL_Y, SLAM_MIN_Y, ROLL_T, SIDE_ABOVE, UP_ABOVE, DRIFT_V, KINDS, speed, speedAt, newGame, copy, setDeal, swipe, step, take, ensure } from "../reckoning-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -125,6 +125,72 @@ const events = S => take(S).map(e => e.type);
   const ev = events(S);
   check(!under.alive && beside.alive && !ev.includes("shockwave"), "landing on a foe is a bonk, not a slam: the others stand");
   check(SLAM_MIN_Y > JUMP_H, `(a slam needs more than ${JUMP_H} m)`);
+}
+
+// ---------- flyers follow the hero's height; what reaches them from above ----------
+{
+  // the hero held at a height (a real one would fall), a gull `ttc` seconds ahead in the next lane
+  const hold = (S, y, secs) => { for (let t = 0; t < secs - 1e-9 && !S.over; t += DT) { S.hero.y = y; S.hero.vy = 0; step(S, DT); } };
+  const seen = (y, secs, ttc = 4, tweak = () => {}) => {
+    const S = scene({ hero: { lane: 0, y: 0, mode: "air" } }), g = foeAt(S, "gull", -1, ttc);
+    tweak(S, g);
+    hold(S, y, secs);
+    return [S, g];
+  };
+  let [S, g] = seen(6, 1);
+  check(Math.abs(g.y - (1.35 + DRIFT_V)) < 0.05, `a hero far above a gull: it climbs, slowly (${DRIFT_V} m/s; ${g.y.toFixed(2)} m after a second)`);
+  [S, g] = seen(6, 3.5);
+  check(Math.abs(6 - g.y - (SIDE_ABOVE - 0.1)) < 0.02 && g.ph === 2, "and stops where I am within a swipe sideways of it, without diving on a hero in the air");
+  [S, g] = seen(0, 1, 3, (S, g) => { g.y = 5; });
+  S.hero.mode = "run";
+  check(Math.abs(g.y - (5 - DRIFT_V)) < 0.05, "one high above a hero on the ground sinks towards him");
+  [S, g] = seen(0, 1.9, 3, (S, g) => { g.y = 5; });
+  check(g.y > 1.35 + 0.99 && g.y < 5 - 2.5, `but only until he is within reach of it (${g.y.toFixed(2)} m)`);
+  [S, g] = seen(6, 1, 4, (S, g) => { g.gate = { id: 99, i: 0 }; });
+  check(g.y === 1.35, "a gull of a question hangs where it was put");
+  [S, g] = seen(6, 1, 4, (S, g) => { S.world.pits.push({ z0: g.z - 2, z1: g.z + 2 }); });
+  check(g.y === 1.35, "and so does one over a pit, the bridge");
+  [S, g] = seen(6, 1, 7);
+  check(g.y === 1.35, "a gull further off than four seconds has not noticed me");
+
+  // what reaches a gull at 1.35 m from where, by how far above its base I am
+  const reaches = (dy, dir, heroLane, gullLane) => {
+    const S = scene({ hero: { lane: heroLane, x: heroLane * LANE_W, y: 1.35 + dy, mode: "air", vy: 0.01 } });
+    foeAt(S, "gull", gullLane, 0.3);
+    swipe(S, dir);
+    return !!S.hero.lunge;
+  };
+  check(reaches(1.1, "up", 0, 0) && !reaches(1.5, "up", 0, 0), `up cuts a gull in my lane from just above it (up to ${UP_ABOVE} m over its base), not from higher`);
+  check(reaches(1.9, "left", 0, -1) && reaches(1.9, "right", 0, 1) && !reaches(2.3, "left", 0, -1), `a swipe sideways cuts one in the next lane from a bit above (up to ${SIDE_ABOVE} m), not from higher`);
+  check(reaches(-0.5, "left", 0, -1), "and from a little below it, on the way up");
+  // far above, in its lane: down. A bonk on the way, and I am thrown up again
+  S = scene({ hero: { y: 4.35, mode: "air", vy: 0 } });
+  g = foeAt(S, "gull", 0, 0.15);
+  swipe(S, "down");
+  check(S.hero.lunge?.how === "bonk", "from far above, down comes down on it: a bonk");
+  run(S, 0.3);
+  check(!g.alive && S.hero.mode === "air" && S.hero.vy > 0 || S.hero.y > g.y + 1.5, "and the hero jumps back up after it");
+}
+
+// ---------- down in a jump, with no foe under me and not from a slam's height, rolls on landing ----------
+{
+  let S = scene({ hero: { y: 1.5, mode: "air", vy: 0 } });
+  const crab = foeAt(S, "crab", 0, 0.3);
+  swipe(S, "down"); run(S, 0.12);
+  const e = take(S);
+  check(S.hero.mode === "run" && S.hero.roll > 0 && e.some(x => x.type === "roll" && x.land), "down in a jump lands in a roll");
+  run(S, 0.5);
+  check(!crab.alive && S.hearts === 3, "and the roll cuts down the foe that reaches me");
+  S = scene({ hero: { y: 3.5, mode: "air", vy: 0 } });
+  swipe(S, "down"); run(S, 0.4);
+  check(!events(S).includes("roll") && S.hero.roll === 0, "a slam is not a roll");
+  S = scene({ hero: { y: 1.5, mode: "air", vy: 0 } });
+  swipe(S, "up"); run(S, 1.5);
+  check(S.hero.mode === "run" && S.hero.roll === 0, "a jump that comes down by itself is only a landing");
+  S = scene({ hero: { y: 2, mode: "air", vy: 0 } });
+  foeAt(S, "crab", 0, 0.1);
+  swipe(S, "down"); run(S, 1.2);
+  check(!events(S).includes("roll"), "a bonk bounces into another jump, and lands as it does");
 }
 
 // ---------- a foe two lanes across ----------
@@ -261,7 +327,7 @@ const events = S => take(S).map(e => e.type);
   {
     const U = scene({ hero: { lane: 0, y: 6, mode: "air", vy: 9 } }), g = foeAt(U, "gull", -1, 1.2);
     run(U, 1.0);
-    check(U.hero.mode === "air" && g.ph === 2 && g.y === 1.35, "and none dives on a hero in the air (it waits for him to come down)");
+    check(U.hero.mode === "air" && g.ph === 2 && g.y > 1.35, "and none dives on a hero in the air (it waits for him to come down, climbing towards him)");
   }
   {
     const U = scene({ hero: { lane: 0 } }), g = foeAt(U, "gull", -1, 1.2);
@@ -502,7 +568,12 @@ const events = S => take(S).map(e => e.type);
   const lunged = [];
   for (let i = 0; i < 800 && !S.over && S.hero.z < 30; i++) {
     const nxt = gulls.find(g => g.alive);
-    if (nxt && !S.hero.lunge && (nxt.z - S.hero.z) / speed(S) < 0.5) swipe(S, nxt.lane === S.hero.lane ? "up" : nxt.lane > S.hero.lane ? "right" : "left");
+    if (nxt && !S.hero.lunge) {
+      const t = (nxt.z - S.hero.z) / speed(S);
+      if (nxt.lane !== S.hero.lane) { if (t < 0.5) swipe(S, nxt.lane > S.hero.lane ? "right" : "left"); }
+      else if (S.hero.y - nxt.y > UP_ABOVE - 0.2) { if (t < 0.2) swipe(S, "down"); }      // too high above it to cut upwards: come down on it
+      else if (t < 0.5) swipe(S, "up");
+    }
     step(S, DT);
   }
   check(gulls.every(g => !g.alive) && S.hearts === 3 && S.hero.z >= 21 && S.falls === 0, "three gulls over a pit: each cut down in the air carries me on, across the water");
@@ -697,6 +768,7 @@ function bot(S, st) {
     }
     if (g) {
       if (h.mode === "run" && h.lane !== g.lane && ttc(g.z) > 0.9) return act(g.lane > h.lane ? "right" : "left", 0.05);
+      if (h.lane === g.lane && h.mode === "air" && h.y - g.y > UP_ABOVE - 0.2) return ttc(g.z) <= 0.2 ? act("down") : undefined;      // too high above it to cut upwards: come down on it (a bonk)
       if (h.lane === g.lane && ttc(g.z) <= 0.5 && (h.mode === "air" || ttc(pit.z0) < 0.35)) return act("up");
       if (h.mode === "air" && h.lane !== g.lane && ttc(g.z) <= 0.5 && ttc(g.z) >= 0.12) return act(g.lane > h.lane ? "right" : "left");
     }
