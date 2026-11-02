@@ -10,7 +10,7 @@
 // tiers converted the same way; for a year, a count or a percentage, plain units.
 
 import { CATS } from "./quote-bank.js";
-import { cleanMix, presetOf as presetIn, drawWeighted, even } from "./topics.js";
+import { cleanMix, presetOf as presetIn, drawWeighted, even, anyIn, mixFromSubjects, TOPIC_OF, SUBJECT_PRESETS } from "./topics.js";
 
 export const START = 1000;                 // the book you start with
 export const PER_SET = 10;
@@ -146,9 +146,10 @@ export function pickSet(seed, bank, perSet = PER_SET, perCat = 2) {
 }
 
 // ---------- topics ----------
-// The bank's categories are the topics a set mixes (and Order's runs, dealt from the same questions), as Crates' and
-// Punt's are: each out, in, or more (dealt twice as often as it would be in). The presets lean towards the trade's
-// numbers or towards culture; Balanced is every topic in, the set as it always was.
+// The bank's categories are the topics a set mixes (and Order's runs, dealt from the same questions). A set is dealt from
+// the subjects that are on (below: topics.js, one set of topics for every game); the weights here, and the presets of the
+// earlier control, stay for what still carries them (a link, a saved set, Order). Balanced is every topic in, the set as
+// it always was.
 export const TOPICS = Object.entries(CATS);
 const every = w => Object.fromEntries(TOPICS.map(([id]) => [id, w]));
 export const TOPIC_PRESETS = {
@@ -160,6 +161,22 @@ export const TOPIC_PRESETS = {
 export const presetOf = w => presetIn(TOPICS, TOPIC_PRESETS, w);
 /** A mix as kept (anything: an old save, a link), made whole. */
 export const cleanTopics = saved => cleanMix(TOPICS, saved);
+
+// ---------- the subjects that are on (topics.js: SUBJECTS, TOPIC_OF.quote) ----------
+// Settings holds one set of subjects for every game, each on or off; a category is in, at Balanced's weight, when its
+// subject is on, and out when it isn't. With every subject on that is Balanced, seed for seed, which is what a daily deals.
+/** Quote's mix from the subjects on ({ subject: 0 | 1 }): can be nothing at all, when none of its categories' subjects is. */
+export const topicsOf = on => mixFromSubjects(TOPICS, TOPIC_OF.quote, on, TOPIC_PRESETS.balanced.topics);
+/** The mix a set deals from: topicsOf, and every topic in when that is nothing (a game with nothing on its subjects deals them all). */
+export const topicsDealt = on => { const w = topicsOf(on); return anyIn(TOPICS, w) ? w : TOPIC_PRESETS.balanced.topics; };
+const sameMix = (a, b) => TOPICS.every(([id]) => (a?.[id] ?? 1) === (b?.[id] ?? 1));
+/** The subject preset (All on, Culture, STEM, Trade) whose deal a mix is, else null: a link carries the mix, not the subjects. */
+export const subjectPresetOf = w => Object.keys(SUBJECT_PRESETS).find(k => sameMix(topicsDealt(SUBJECT_PRESETS[k].topics), w)) ?? null;
+/** The preset a mix is, by id, for a link's or a saved set's: a subject preset's, else one of the earlier control's
+ *  (balanced, trader, culture: an old link), else "custom", your own. Only a preset's counts for your best. */
+export const presetIdOf = w => subjectPresetOf(w) ?? presetOf(w);
+/** The one category a mix has in, if only one: a set of that topic alone, with a best of its own. */
+export const focusOf = w => { const ins = TOPICS.filter(([id]) => (w?.[id] ?? 1) > 0); return ins.length === 1 ? ins[0][0] : null; };
 /**
  * A set from a mix of topics: questions drawn by their topic's weight, at most two from a topic in and four from one
  * more, topped up past those caps only if the topics in can't fill the set. Balanced is pickSet's set and one topic in

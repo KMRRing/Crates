@@ -35,6 +35,39 @@ check(a.length === E.PER_SET && JSON.stringify(a) === JSON.stringify(b) && JSON.
     "a mix is a preset's or your own; a weight it doesn't know is in");
 }
 
+// the subjects (topics.js: one set of topics for every game, set in Settings, each on or off): a category is in when its
+// subject is on, so all on is Balanced and deals the sets it always did, seed for seed; a subject off takes its categories
+// out; with nothing on the game deals every topic, as a mix too narrow always did
+{
+  const Tp = await import("../topics.js");
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+  const on = Tp.cleanSubjects(null), off = id => Tp.cleanSubjects({ ...on, [id]: 0 }), nothing = Tp.cleanSubjects(Tp.SUBJECT_PRESETS.none.topics);
+  const preset = k => Tp.cleanSubjects(Tp.SUBJECT_PRESETS[k].topics), cats = w => E.TOPICS.filter(([id]) => w[id] > 0).map(([id]) => id).join();
+  const seeds = Array.from({ length: 60 }, (_, i) => i + 1), has = (s, cat) => s.some(q => q.cat === cat);
+  check(same(E.topicsOf(on), E.TOPIC_PRESETS.balanced.topics) && seeds.every(seed => same(E.pickMixed(seed, QUOTES, E.topicsDealt(on)), E.pickSet(seed, QUOTES))),
+    "subjects: all on is Balanced and deals the same set as pickSet, seed for seed, 60 seeds");
+  const noArt = seeds.map(seed => E.pickMixed(seed, QUOTES, E.topicsDealt(off("art"))));
+  check(!E.topicsOf(off("art")).art && E.topicsOf(off("art")).wine === 1 && noArt.every(s => s.length === E.PER_SET && !has(s, "art") && new Set(s.map(q => q.id)).size === s.length)
+    && noArt.some((s, i) => !same(s, E.pickSet(seeds[i], QUOTES))), "Art & architecture off: no art, still ten, and the deal is not Balanced's");
+  check(cats(E.topicsOf(off("geo"))) === "trade,cities,wine,art,people,markets,refining" && cats(E.topicsOf(off("food"))) === "trade,cities,art,people,geo,markets,refining,scale"
+    && same(E.topicsOf(off("sport")), E.topicsOf(on)), "Geography off takes geography and scale, Food & drink takes wine, Sport (none of Quote's) takes nothing");
+  check(cats(E.topicsOf(preset("culture"))) === "wine,art,people" && cats(E.topicsOf(preset("stem"))) === "refining" && cats(E.topicsOf(preset("trade"))) === "trade,markets,refining",
+    `the presets: Culture deals ${cats(E.topicsOf(preset("culture")))}, STEM ${cats(E.topicsOf(preset("stem")))}, Trade ${cats(E.topicsOf(preset("trade")))}`);
+  const one = E.pickMixed(5, QUOTES, E.topicsDealt(preset("stem")));
+  check(one.length === E.PER_SET && one.every(q => q.cat === "refining") && E.focusOf(E.topicsOf(preset("stem"))) === "refining" && E.focusOf(E.topicsOf(on)) === null,
+    "one category left (STEM): all ten from it, a set with a best of its own");
+  // nothing on: no topic in, so the page deals every topic (Balanced) and says so
+  check(!E.TOPICS.some(([id]) => E.topicsOf(nothing)[id]) && same(E.topicsDealt(nothing), E.TOPIC_PRESETS.balanced.topics) && seeds.every(seed => same(E.pickMixed(seed, QUOTES, E.topicsDealt(nothing)), E.pickSet(seed, QUOTES)))
+    && !E.TOPICS.some(([id]) => E.topicsOf(Tp.cleanSubjects({ ...Tp.SUBJECT_PRESETS.none.topics, sport: 1 }))[id]) && same(E.topicsDealt(Tp.cleanSubjects({ ...Tp.SUBJECT_PRESETS.none.topics, sport: 1 })), E.topicsDealt(on)),
+    "nothing on, or only subjects Quote has none of: no topic in, so every topic is dealt");
+  // a link or a saved set carries a mix, not the subjects: which preset's deal it is, an earlier preset's mix still known, the weights of the earlier control still dealt
+  check(E.presetIdOf(E.topicsOf(on)) === "all" && E.presetIdOf(E.topicsOf(preset("culture"))) === "culture" && E.presetIdOf(E.topicsOf(preset("stem"))) === "stem" && E.presetIdOf(E.topicsOf(preset("trade"))) === "trade"
+    && E.presetIdOf(E.TOPIC_PRESETS.trader.topics) === "trader" && E.presetIdOf(E.TOPIC_PRESETS.culture.topics) === "culture" && E.presetIdOf(E.topicsOf(off("art"))) === "custom" && E.presetIdOf({ ...E.topicsOf(on), trade: 2, art: 0 }) === "custom",
+    "a mix is a preset's deal (All on, Culture, STEM, Trade) or an earlier preset's (Trader, Culture night), else your own");
+  const heavy = seeds.map(seed => E.pickMixed(seed, QUOTES, { ...E.topicsOf(on), trade: 2, art: 0 }));
+  check(heavy.every(s => s.length === E.PER_SET && !has(s, "art")) && heavy.some(s => s.filter(q => q.cat === "trade").length > 2), "a link's mix with a topic more still deals (up to four of it), a topic out never");
+}
+
 // the tiers: every question has SS/S/A/B radii in order, and a difficulty 1–5
 check(QUOTES.every(q => q.tiers && q.tiers.S > 0 && q.tiers.A > q.tiers.S && q.tiers.B > q.tiers.A && (q.tiers.SS == null || q.tiers.SS < q.tiers.S) && q.d >= 1 && q.d <= 5), "every question carries tiers in order and a difficulty");
 // settling: graded by the tiers, continuous between them, scaled by difficulty

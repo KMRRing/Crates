@@ -3,8 +3,10 @@
 // everyone makes their own market on the same question and the reveal shows them all against the truth, with the
 // standings; a pair may trade instead, one making the market and the other hitting it, lifting it or passing
 // (quote-table.js is the table's rules).
-import { START, PER_SET, settle, fault, pickMixed, withUnit, fmt, adequate, TOPICS, TOPIC_PRESETS, presetOf, cleanTopics } from "./quote-engine.js";
-import { mixParam as linkMix, mixFromParam, anyIn } from "./topics.js";
+import { START, PER_SET, settle, fault, pickMixed, withUnit, fmt, adequate, TOPICS, TOPIC_PRESETS, topicsOf, topicsDealt, presetIdOf, focusOf } from "./quote-engine.js";
+import { mixParam as linkMix, mixFromParam, anyIn, even, subjectPreset } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
+import { topicsPart } from "./topics-ui.js";
 import { QUOTES, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether } from "./together.js";
@@ -35,13 +37,13 @@ function picture(q) {
   });
 }
 import "./pwa.js";
-import { part, choice, topicMix, action, line } from "./menu.js";
+import { part, choice, action, line } from "./menu.js";
 import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked set for your best
 import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 const APP = 2;                       // this code's version of the table (2: up to six seats, everything kept by seat)
-const RUN = "quote:run", BEST = "quote:best", DAILY = "quote:daily", TOPICS_KEY = "quote:topics";
+const RUN = "quote:run", BEST = "quote:best", DAILY = "quote:daily";
 const byId = new Map(QUOTES.map(q => [q.id, q]));
 
 let S = null;      // alone: { seed, mode: "random" | "daily", set: [ids], index, book, log: [{ id, bid, ask, delta, inside, width }], phase: "quote" | "reveal", done }
@@ -55,22 +57,22 @@ const money = n => (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("en-GB");
 const signed = n => (n >= 0 ? "+" : "−") + Math.abs(n).toLocaleString("en-GB");
 
 // ---------- your mix of topics ----------
-// A set deals from a mix of the bank's categories, each out, in or more (twice as likely), as Order, Punt and Crates
-// do; a mix of one topic is that topic's set (all ten from it), with a best of its own, as refining sets always had.
-/** Your topics, each 0 (out), 1 (in) or 2 (more): Balanced until you change them. */
-const mix = () => cleanTopics(read(TOPICS_KEY, null));
-const keepMix = w => write(TOPICS_KEY, w);
-/** The one topic a mix has in, if it has only one (a set of that topic), else null. */
-const focusOf = w => { const ins = TOPICS.filter(([id]) => w[id] > 0); return ins.length === 1 ? ins[0][0] : null; };
+// A set deals from the bank's categories whose subjects are on in Settings (quote-engine.js: topicsOf; one set of topics
+// for every game), read when a set is dealt and never before, so a change reaches the next set and a set already dealt
+// keeps what it was dealt. A mix of one topic is that topic's set (all ten from it), with a best of its own, as refining
+// sets always had. A link (&t=, with the weights of the earlier control) or a saved set can carry a mix of its own.
+/** The mix a new set deals from: the subjects on now, and every topic if none of Quote's is. */
+const mix = () => topicsDealt(subjectsOn());
 /** A mix as a link carries it (&t=trade.2,art.1: the topics in), and back. */
 const mixParam = w => linkMix(TOPICS, w);
 const mixFrom = t => mixFromParam(TOPICS, t);
 
 // ---------- the run ----------
-// A run counts for your best (the games screen's, your partner's) only if it's the daily, or a preset's mix (Balanced,
-// Trader, Culture night) with nothing from your pile in. A daily is always Balanced and has nothing of yours in it: the
+// A random set counts for your best (the games screen's, your partner's) only if the subjects are a preset (All on,
+// Culture, STEM, Trade or All off) that deals more than one topic, with nothing from your pile in; one topic keeps a
+// best of its own instead, as refining sets always did. A daily is always Balanced and has nothing of yours in it: the
 // same for everyone.
-const rankedRun = (mode, w) => mode === "daily" || (presetOf(w) !== "custom" && !pile.learning());
+const rankedRun = (mode, preset, focus) => mode === "daily" || (preset !== "custom" && !focus && !pile.learning());
 /** The questions a set draws from: the topics in, by their weights (a single topic in: all ten from it). */
 const setFor = (seed, w, personal = true, fresh = personal) => {
   const pool = QUOTES.filter(q => (w[q.cat] ?? 1) > 0);
@@ -88,14 +90,18 @@ const setFor = (seed, w, personal = true, fresh = personal) => {
 };
 const hashFor = s => `${s.mode === "daily" ? `#d=${s.seed}` : `#s=${s.seed}`}${s.focus ? `&f=${s.focus}` : s.topics ? `&t=${mixParam(s.topics)}` : ""}`;
 /** What a link needs of a mix: one topic in (focus), or the mix itself unless it's Balanced (topics). */
-const mixOf = w => { const focus = focusOf(w); return { focus, topics: focus || presetOf(w) === "balanced" ? null : w }; };
-/** A set to start: today's (Balanced, the same for everyone), or a random one from a mix (yours, unless a link's). */
-function newState(mode, seed, w, fresh = true) {
+const mixOf = w => { const focus = focusOf(w); return { focus, topics: focus || even(TOPICS, w) ? null : w }; };
+/** A set to start: today's (Balanced, the same for everyone), or a random one from a mix (the subjects', unless a link's).
+ *  `preset` is the subjects' preset id, which says whether the set counts for your best; a link carries only the mix, so
+ *  its preset is the one whose deal that mix is. Saved runs carry the ids of the earlier presets (balanced, trader…). */
+function newState(mode, seed, w, fresh = true, preset = presetIdOf(w)) {
   if (mode === "daily" || !anyIn(TOPICS, w)) w = TOPIC_PRESETS.balanced.topics;   // a link's mix of nothing deals Balanced
-  return { seed, mode, ...mixOf(w), preset: presetOf(w), ranked: rankedRun(mode, w), set: setFor(seed, w, mode !== "daily", fresh && mode !== "daily"), index: 0, book: START, log: [], phase: "quote", done: false };
+  if (mode === "daily") preset = "all";
+  const shape = mixOf(w);
+  return { seed, mode, ...shape, preset, ranked: rankedRun(mode, preset, shape.focus), set: setFor(seed, w, mode !== "daily", fresh && mode !== "daily"), index: 0, book: START, log: [], phase: "quote", done: false };
 }
 function start(mode) {
-  S = newState(mode, mode === "daily" ? today() : randomSeed(), mix());
+  S = newState(mode, mode === "daily" ? today() : randomSeed(), mix(), true, subjectPreset(subjectsOn()));
   save();
   history.replaceState(null, "", hashFor(S));
   render();
@@ -658,7 +664,7 @@ function finish() {
   link.addEventListener("click", copyLink);
   bell();
 }
-// your best: a preset's, or a single topic's of its own (a refining set's); your own mix of several keeps none
+// your best: a preset's, or a single topic's of its own (a refining set's, or any one topic the subjects leave); your own mix of several keeps none
 const bestKey = () => (S.focus ? `${BEST}:${S.focus}` : S.preset === "custom" ? null : BEST);
 const dailyKey = () => (S.focus ? `${today()}/${S.focus}` : String(today()));
 function bestEver(book) {
@@ -683,13 +689,21 @@ async function copyLink() {
   const link = `${location.origin}${location.pathname}${hashFor(S)}`;
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
-// the menu: Play (start the set you've chosen), Content (random or today's, and for a random set your mix of topics),
-// Settings (learning mode), About (your bests, a link to this set); at a table, how a pair plays (Ranges or Trade: a
-// fresh set either way) and the table's own part
+// the menu: Play (start the set you've chosen), Content (random or today's, and where the topics stand), Settings
+// (learning mode), About (your bests, a link to this set); at a table, how a pair plays (Ranges or Trade: a fresh set
+// either way) and the table's own part. The topics themselves are set once for every game (a link to the sheet that does).
 let pick = null;                                              // the set the menu will start: { mode }
-/** Your mix of topics, in the menu: a preset, or each topic tapped out, in or more. */
-const topicsPart = (box, solo = false, changed = () => {}) => box.append(topicMix(TOPICS, TOPIC_PRESETS, mix(), w => { keepMix(w); changed(); }, { note: solo ? w => (presetOf(w) !== "custom" ? null
-  : focusOf(w) ? "A set of one topic keeps a best of its own." : "Your own mix doesn't count for your best; today's set and the presets do.") : null }));
+// a change of topics with today's picked turns the next set to a random one: today's is the same for everyone
+addEventListener("topics:changed", () => { if (pick?.mode === "daily") pick.mode = "random"; });
+/** What the topics line adds for this game: how many of its categories the subjects leave in, and what that means for your best. */
+function topicsNote(daily = false) {
+  const on = subjectsOn(), w = topicsOf(on), n = TOPICS.filter(([id]) => w[id] > 0).length, p = subjectPreset(on), one = focusOf(w);
+  if (p === "none" || p === "all") return "";                 // the line says all there is to say
+  if (!n) return "None are Quote's, so every topic is dealt";
+  if (daily) return "Today's set deals every topic";
+  if (one) return `Quote deals ${CATS[one]} alone, a set with a best of its own`;
+  return `Quote deals ${n === TOPICS.length ? "all" : `${n} of`} its ${TOPICS.length} topics${p === "custom" ? "; your own mix keeps no best" : ""}`;
+}
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -698,8 +712,9 @@ function openMenu() {
     if ((S?.people || 2) === 2) box.append(choice("Play", [["ranges", "Ranges"], ["trade", "Trade"]], S?.mode || "ranges", v => { $("menuDlg").close(); startRoomSet(v); }));
     box.append(action(S?.done ? "Play again" : "A fresh set", () => startRoomSet(), "primary"),
       ...(S?.done ? [action("The closing bell", () => finishRoom(true))] : []));
-    topicsPart(box);                                          // the table's fresh set comes from your mix
     box.append(action("Back to solo", () => together.leave(), "link"));
+    const note = topicsNote();                                // the table's fresh set is dealt from the topics of whoever deals it
+    part(body, "content").append(...topicsPart(body, note ? `${note}; a fresh set is dealt from yours` : "A fresh set is dealt from yours"));
   } else {
     pick ??= { mode: S?.mode === "daily" || dailyDue("quote") ? "daily" : "random" };   // today's first, while it's still to play
     const play = part(body, "play");
@@ -707,13 +722,13 @@ function openMenu() {
     if (S?.done) play.append(action("See how it went", finish));
     const content = part(body, "content");
     content.append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; openMenu(); }));
-    // your topics are for random sets (today's is the same for everyone), so they're shown either way, and one changed
-    // with today's picked turns the next set to a random one
-    topicsPart(content, true, () => { if (pick.mode === "daily") { pick.mode = "random"; openMenu(); } });
+    // the topics are for random sets (today's is the same for everyone), so the line shows either way
+    content.append(...topicsPart(content, topicsNote(pick.mode === "daily")));
     part(body, "settings").append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
-    const best = read(BEST, null), daily = read(DAILY, {})[String(today())], bestRf = read(`${BEST}:refining`, null);
+    // a single topic's best beside the book: the topic the subjects leave alone, else refining, which had sets of its own first
+    const best = read(BEST, null), daily = read(DAILY, {})[String(today())], alone = focusOf(mix()) ?? "refining", bestOne = read(`${BEST}:${alone}`, null);
     part(body, "about").append(
-      line([best != null ? `Best book ${money(best)}` : "No finished set yet", daily != null ? `today ${money(daily)}` : "", bestRf != null ? `refining ${money(bestRf)}` : ""].filter(Boolean).join(" · ")),
+      line([best != null ? `Best book ${money(best)}` : "No finished set yet", daily != null ? `today ${money(daily)}` : "", bestOne != null ? `${CATS[alone].toLowerCase()} ${money(bestOne)}` : ""].filter(Boolean).join(" · ")),
       action("Copy a link to this set", copyLink, "link"));
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
