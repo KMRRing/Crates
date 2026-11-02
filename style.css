@@ -698,7 +698,6 @@ html:not(.ready) body::after, html.busy body::after {
 html:not(.ready) body::after { pointer-events: none; }
 html.busy body::after { animation-delay: 0s; }
 @keyframes busy-in { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { html:not(.ready) body::after { display: none; } }   /* without its fade-in delay it would flash on every page */
 /* A task with stages (loading.js, progress): under the mark's words, a bar filling as it goes, a glint running along
    it so a long stage never looks stuck, and the stage's words under the bar; the bar in the brass that reads as text
    (Modern's --brass is a hairline grey). A page opened to join others (a party, a table, a partner's match) shows its
@@ -719,7 +718,17 @@ html.busy .cx-load.on { animation-delay: 0s; }
 .cx-load .b, .cx-load .d { animation-duration: 1.5s; animation-direction: reverse; }
 .cx-load .b { transform-origin: 38.96% 56.38%; }
 .cx-load .d { transform-origin: 61.04% 56.38%; }
-@media (prefers-reduced-motion: reduce) { html:not(.ready) .cx-load { display: none; } .cx-load .m { animation: none; } }
+/* Reduce Motion stops every animation (the global rule above), and a phone with it on showed a mark that never turned, or
+   none at all while a page loaded. The turning is the progress indicator, not decoration, so the mark keeps it, and its fade-in
+   (which is what keeps it from flashing on a page that is ready at once). The rest of the stage's motion still goes. */
+@media (prefers-reduced-motion: reduce) {
+  .cx-load .m { animation: cx-turn linear infinite !important; }
+  .cx-load .a { animation-duration: 3s !important; }
+  .cx-load .r { animation-duration: 6s !important; animation-direction: reverse !important; }
+  .cx-load .b, .cx-load .d { animation-duration: 1.5s !important; animation-direction: reverse !important; }
+  html:not(.ready) .cx-load.on, html.busy .cx-load.on, html:not(.ready) body::after, html.busy body::after { animation: busy-in .2s .35s both !important; }
+  html.busy .cx-load.on, html.busy body::after { animation-delay: 0s !important; }
+}
 html.joining:not(.ready) body::after { content: var(--busy-say, ""); }
 html.busy body[data-busy-step]::before, html.joining:not(.ready) body::before {
   content: attr(data-busy-step); position: fixed; z-index: 2147483001; left: 50%; top: calc(50vh + min(23vw, 6.5rem) + 2.6rem);
@@ -789,7 +798,11 @@ img.pic { background: url("loader-small.svg") center / 2.2rem no-repeat; }
 .turning .cx .cx-r { animation: cx-turn 6s linear infinite reverse; }
 .turning .cx .cx-b, .turning .cx .cx-d { animation: cx-turn 1.5s linear infinite reverse; }
 @keyframes cx-turn { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .turning .cx g { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) {   /* the mark's turning is kept under Reduce Motion, as the loader's is (above) */
+  .turning .cx .cx-a { animation: cx-turn 3s linear infinite !important; }
+  .turning .cx .cx-r { animation: cx-turn 6s linear infinite reverse !important; }
+  .turning .cx .cx-b, .turning .cx .cx-d { animation: cx-turn 1.5s linear infinite reverse !important; }
+}
 
 /* the partner pill in a game's title: plain lettering (not the title's capitals), and the room the header now has */
 .partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; flex: 0 1 auto; min-width: 0; }
