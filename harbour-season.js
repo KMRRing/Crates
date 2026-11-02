@@ -21,7 +21,7 @@ export const WEEKS = 4;                                      // a season's weeks
 export const REGIONS = [
   {
     id: "baltic", chapter: "baltic", name: "The Baltic", teaches: "spot orders, then contracts",
-    brief: "Your warehouse at Reval, fed by the smelter: an ingot a week for every par you've met in the Baltic's harbours. Supply every town in a week for a star; stars win contracts.",
+    brief: "Your warehouse at Reval, fed by the smelter: an ingot a week per par met in the Baltic's harbours. Supply every town each week for a star; stars win contracts.",
     terminal: { name: "Reval", tank: 12, start: 6, grow: 6, rent: 3 },     // 12 its own; each 6 more rented at 3 a week
     // the smelter: an ingot a week for every par met in the Baltic's three harbours, twelve at most
     feed: { levels: ["first-cargo", "up-the-creek", "rundown"], price: 2, name: "The smelter" },
@@ -66,7 +66,7 @@ export const REGIONS = [
   },
   {
     id: "ara", chapter: "nwe", name: "The Zwin", teaches: "a warehouse that exports",
-    brief: "Your warehouse at Sluis on the Zwin, Bruges's deep water, fed by the smelters: an ingot a week for every par you've met in Bruges and London's harbours. The League's lane can take its tin to the Baltic.",
+    brief: "Your warehouse at Sluis, fed by the smelters: an ingot a week per par met in Bruges and London's harbours. The League's lane takes its metal to the Baltic.",
     terminal: { name: "Sluis", tank: 12, start: 6, grow: 6, rent: 3 },
     // the smelters: an ingot a week for every par met in Bruges and London's five harbours (eight at most when the Zwin
     // opens, after Bell metal and Two smelters; Trickle, Pewter stamp and Heels add theirs as they're played)

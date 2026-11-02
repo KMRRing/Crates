@@ -11,8 +11,9 @@ const hexPoints = (x, y, inset = 0) => {
   const { cx, cy } = centre(x, y), r = HEX_R - inset;
   return [0, 1, 2, 3, 4, 5].map(i => { const a = Math.PI / 180 * (60 * i - 30); return `${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`; }).join(" ");
 };
-/** A ship from above in a 10-unit square, bow to the east; a Handy drawn bigger than a coaster. The fleet's chips use it too. */
-export const HULL = "M1.2 2.9H6.2C8.4 2.9 9.4 4 9.5 5C9.4 6 8.4 7.1 6.2 7.1H1.2Q.6 5 1.2 2.9Z";
+/** A cog from above in a 10-unit square, bow to the east: a flat stern, full sides, a rounded bow; a Cog drawn bigger than
+ *  a Schnigge. The fleet's chips use it too. */
+export const HULL = "M1.3 3.1C1.3 2.6 2.6 2.5 4.6 2.5C7.4 2.5 9.2 3.8 9.6 5C9.2 6.2 7.4 7.5 4.6 7.5C2.6 7.5 1.3 7.4 1.3 6.9Q.8 5 1.3 3.1Z";
 const HULL_SCALE = { coaster: .84, handy: 1.06 };
 export const hullScale = type => `translate(5 5) scale(${HULL_SCALE[type] || 1}) translate(-5 -5)`;
 const GAP = 0.6, EDGE = 0.8;                 // between tiles; a jetty's border, inside its tile so every tile is as big
@@ -27,8 +28,8 @@ export function createFlat(box) {
 
   // Only the water is drawn, every hex the same tile with the same gap round it, and the page round them is the land.
   // The view is cropped to the water (plus a margin), so the harbour sits in the middle of its box whatever land the
-  // map has around it. A jetty is a water tile in its product's colour (the customer's in blue), lettered as on the
-  // map; a refinery's fills from the bottom up as its tank does.
+  // map has around it. A quay is a water tile in its metal's colour (the buyer's in blue), lettered as on the
+  // map; a smelter's fills from the bottom up as its stockpile does.
   function setLevel(level, g) {
     L = level; G = g;
     const tiles = [], parts = [], defs = [];
@@ -53,7 +54,7 @@ export function createFlat(box) {
   }
 
   /** ships: [{ x, y, h, type, cargo }], sel: the picked ship (or -1), crash: the run's crash (or null), tanks: each
-   *  refinery tank's level by its jetty's letter, still: no gliding (an edit), ms: how long a glide takes. */
+   *  stockpile's level by its quay's letter, still: no gliding (an edit), ms: how long a glide takes. */
   function draw({ ships, sel, crash, tanks, still, ms }) {
     svg.classList.toggle("still", still);
     svg.style.setProperty("--hb-hour", `${ms}ms`);
@@ -62,7 +63,8 @@ export function createFlat(box) {
     while (g.children.length < ships.length) {
       const i = g.children.length, el = document.createElementNS(NS, "g");
       el.setAttribute("class", "hb-ship");
-      el.innerHTML = `<g><path class="hb-hull" d="${HULL}"/><rect class="hb-bridge" x="1.7" y="3.5" width="1.5" height="3" rx=".35"/><g class="hb-cargo"></g></g>`
+      // the hull, the stern castle, the yard of the square sail across the beam, the cargo along the deck
+      el.innerHTML = `<g><path class="hb-hull" d="${HULL}"/><rect class="hb-bridge" x="1.7" y="3.5" width="1.5" height="3" rx=".35"/><path class="hb-yard" d="M3.6 2V8"/><g class="hb-cargo"></g></g>`
         + `<text class="hb-num" x="5.9" y="6.1">${i + 1}</text>`;
       g.appendChild(el);
     }
@@ -71,11 +73,11 @@ export function createFlat(box) {
       el.classList.remove("dragging", "scrap");
       const { cx, cy } = centre(p.x, p.y);
       el.style.transform = `translate(${cx - 5}px, ${cy - 5}px)`;
-      el.firstChild.setAttribute("transform", `rotate(${-60 * (p.h ?? 0)} 5 5) ${hullScale(p.type)}`);   // the bow along its heading, a Handy bigger
+      el.firstChild.setAttribute("transform", `rotate(${-60 * (p.h ?? 0)} 5 5) ${hullScale(p.type)}`);   // the bow along its heading, a Cog bigger
       // the cargo as a bar along the deck, a stretch per product, as long as the share of the ship it fills
-      let x = 3.6;
+      let x = 4;
       el.querySelector(".hb-cargo").innerHTML = Object.entries(p.cargo || {}).filter(([, u]) => u > 0).map(([prod, u]) => {
-        const w = 4.3 * u / CLASSES[p.type].cap, r = `<rect class="hb-load pr-${prod}" x="${x}" y="4" width="${w}" height="2" rx=".4"/>`;
+        const w = 3.9 * u / CLASSES[p.type].cap, r = `<rect class="hb-load pr-${prod}" x="${x}" y="4" width="${w}" height="2" rx=".4"/>`;
         x += w;
         return r;
       }).join("");

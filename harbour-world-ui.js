@@ -50,7 +50,7 @@ const LAND = [
 // the campaign still to come
 const PLACES = {
   baltic: [24.75, 59.45], ara: [3.4, 51.3],
-  med: [5.3, 60.4, "Bergen"], waf: [31.3, 58.5, "Novgorod"], usg: [10.7, 53.9, "Lübeck"], bra: [18.3, 57.6, "Visby"], ind: [18.65, 54.35, "Danzig"], sgp: [-0.1, 51.5, "London"],
+  med: [5.3, 60.4, "Bergen"], waf: [31.3, 58.5, "Novgorod"], usg: [10.7, 53.9, "Lübeck"], bra: [18.3, 57.6, "Visby"], ind: [18.65, 54.35, "Danzig"], sgp: [-0.1, 51.5, "London", "end"],
 };
 // each lane's way round the coasts: the Zwin to the Baltic up the North Sea, round Skagen, through the Sound and east of
 // Gotland to Reval
@@ -73,10 +73,10 @@ export function createWorldScreen({ root, brief, company, save, feeds, goTo }) {
       if (mrs) { const i = way.length >> 1, [lo, la] = way[i], [no, na] = way[i + 1], turn = Math.atan2(Y(na) - Y(la), X(no) - X(lo)) * 180 / Math.PI;
         g += `<g transform="translate(${X(lo).toFixed(1)} ${Y(la).toFixed(1)}) rotate(${turn.toFixed(0)})"><path class="hw-mr" d="M-6,-2H3L6,0L3,2H-6Z"/></g>`; }
     }
-    for (const [id, [lo, la, name]] of Object.entries(PLACES)) {
+    for (const [id, [lo, la, name, side]] of Object.entries(PLACES)) {
       const R = regionOf(id), mine = R && c.regions[id], x = X(lo), y = Y(la);
       if (mine) g += `<g class="hw-tap" data-go="region:${id}" role="button" tabindex="0" aria-label="${esc(R.name)}"><circle class="hw-halo" cx="${x}" cy="${y}" r="7"/><circle class="hw-mine" cx="${x}" cy="${y}" r="4"/></g>`;
-      else g += `<circle class="hw-later" cx="${x}" cy="${y}" r="2.6"/><text class="hw-later-name" x="${x + 5}" y="${y + 3}">${esc(name || R?.name || "")}</text>`;
+      else g += `<circle class="hw-later" cx="${x}" cy="${y}" r="2.6"/><text class="hw-later-name" x="${x + (side === "end" ? -5 : 5)}" y="${y + 3}" style="text-anchor:${side || "start"}">${esc(name || R?.name || "")}</text>`;
     }
     // your regions' names, set where they don't sit on each other
     const tag = (id, dx, dy, anchor) => c.regions[id] ? `<text class="hw-name" x="${(X(PLACES[id][0]) + dx).toFixed(1)}" y="${(Y(PLACES[id][1]) + dy).toFixed(1)}" style="text-anchor:${anchor}">${esc(regionOf(id).name)}</text>` : "";

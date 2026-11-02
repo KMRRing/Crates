@@ -460,7 +460,7 @@ function classes() {
     return `<button type="button" class="hb-class${on ? " on" : ""}${k <= 0 ? " out" : ""}" data-type="${t}" aria-pressed="${on}"`
       + ` aria-label="${c.name}: holds ${c.cap}, hire ${c.cost} marks, ${k} of ${n} left">`
       + `<svg viewBox="0 1.5 10 7" aria-hidden="true"><path class="hb-hull" d="${HULL}" transform="${hullScale(t)}"/></svg>`
-      + `<b>${c.name}</b><span>${c.cap} · ${c.cost} mk</span><i>×${k}</i></button>`;
+      + `<b>${c.name}</b><span>${c.cap} · ${c.cost}mk</span><i>×${k}</i></button>`;
   }).join("");
 }
 

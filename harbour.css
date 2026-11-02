@@ -3,28 +3,33 @@
 .harbour {
   --hb-water: #CDDADE; --hb-grid: rgba(28, 42, 52, .13); --hb-land: #EADFC6;
   --hb-hull: #FBF8F0; --hb-ship-ink: #1C2A34;   /* ships keep dark ink on a light hull in both schemes */
+  /* the metals, the same in every theme so a metal is known at a glance: copper orange-red, tin pale steel, lead blue-violet,
+     iron graphite, bog iron rust, calamine ochre (the 3D map asks for them here too); lighter at night to read on the sea */
+  --m-copper: #B85C2E; --m-tin: #7E97AD; --m-lead: #5F6490; --m-iron: #5E5B58; --m-bog: #9B5B38; --m-calamine: #C9A13A;
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8; }
+  html:not([data-mode="day"]) .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8;
+    --m-copper: #E0905A; --m-tin: #A9C0D4; --m-lead: #9EA3D0; --m-iron: #A8A39C; --m-bog: #C98A5E; --m-calamine: #E6CB6E; }
 }
 /* night, set in Settings */
-html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8; }
+html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8;
+  --m-copper: #E0905A; --m-tin: #A9C0D4; --m-lead: #9EA3D0; --m-iron: #A8A39C; --m-bog: #C98A5E; --m-calamine: #E6CB6E; }
 
 .hb-brief { margin: .5rem 0 .4rem; height: 3.9em; overflow: hidden; color: var(--ink-soft); font-size: .86rem; line-height: 1.3; }   /* three lines on every level, so switching levels moves nothing */
 
 /* the harbour: as big as the room left, at the map's own proportions */
 .hb-map { width: min(100cqw, calc(100cqh * var(--aspect, 1.6))); height: auto; display: block; border-radius: 10px;
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-/* products by colour: oil and its cuts amber, FAME green; the customer's jetty blue */
-.pr-oil, .pr-diesel, .pr-gasoil { --pr: var(--c0); }
-.pr-fame { --pr: var(--c1); }
+/* products by colour, a metal each (a level's product id is the class: pr-copper, pr-cheap for the bog iron); the buyer's quay is blue */
+.pr-copper { --pr: var(--m-copper); } .pr-tin { --pr: var(--m-tin); } .pr-lead { --pr: var(--m-lead); }
+.pr-iron { --pr: var(--m-iron); } .pr-cheap { --pr: var(--m-bog); } .pr-calamine { --pr: var(--m-calamine); }
 .hb-jetty { --hb-berth: var(--pr, var(--c0)); }
 .hb-jetty.discharge { --hb-berth: var(--c2); }
 .hb-load { fill: var(--pr); stroke: var(--hb-ship-ink); stroke-width: .2; }
 .hb-tile { fill: var(--hb-water); }
 .hb-jetty .hb-berth { fill: color-mix(in srgb, var(--hb-berth) 22%, var(--hb-water)); }
 .hb-jetty .hb-edge { fill: none; stroke: var(--hb-berth); stroke-width: .8; }
-.hb-level { fill: var(--hb-berth); opacity: .5; transition: y .25s, height .25s; }     /* the tank's level, filling the jetty */
+.hb-level { fill: var(--hb-berth); opacity: .5; transition: y .25s, height .25s; }     /* the stockpile's level, filling the quay */
 .hb-jetty text { font: 800 4px var(--font); text-anchor: middle; fill: var(--hb-berth); }
 
 /* ships glide from tile to tile over an hour's time; while you drag one, or after an edit, they jump */
@@ -33,6 +38,7 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-ship.dragging { cursor: grabbing; }
 .hb-hull { fill: var(--hb-hull); stroke: var(--hb-ship-ink); stroke-width: .55; stroke-linejoin: round; }
 .hb-bridge { fill: var(--hb-ship-ink); }
+.hb-yard { fill: none; stroke: var(--hb-ship-ink); stroke-width: .55; stroke-linecap: round; }   /* the yard of the square sail, across the beam */
 .hb-num { font: 800 3.1px var(--font); text-anchor: middle; fill: var(--hb-ship-ink); pointer-events: none;
   paint-order: stroke; stroke: var(--hb-hull); stroke-width: .7px; }   /* readable over the cargo bar */
 .hb-ship.sel .hb-hull { stroke: var(--focus); stroke-width: 1; }
@@ -77,8 +83,9 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hb-status.bad { color: var(--c3); }
 .hb-status.good { color: color-mix(in srgb, var(--c1) 80%, var(--ink)); }
-/* a drop: a par met, after its measure in a run's line and the menu's bests, in the board's diesel blue */
-.hb-drop { width: .62em; height: .8em; margin-left: .18em; vertical-align: -.04em; fill: var(--c2); }
+/* an ingot: a par met, after its measure in a run's line and the menu's bests, in the board's tin */
+.hb-drop { width: .62em; height: .8em; margin-left: .18em; vertical-align: -.04em; fill: var(--m-tin); stroke: color-mix(in srgb, var(--ink) 45%, transparent); stroke-width: .7; stroke-linejoin: round; }
+.hb-drop .cut { fill: none; stroke: var(--yard); stroke-width: 1; stroke-linecap: round; }
 /* held sideways (#app.beside): the harbour (or the region) takes the left, all the height under the header; the
    brief, the fleet, the programs and the controls stand beside it, the run's buttons at the bottom where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
@@ -159,7 +166,7 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .hb-tag { position: absolute; left: 0; top: 0; font: 800 .68rem/1 var(--font); white-space: nowrap; will-change: transform; }
 .hb-tag-ship { padding: 2px .3125rem; border-radius: 999px; background: var(--sheet, var(--tile)); color: var(--ink); border: 1.5px solid var(--ink); }
-.hb-tag-jetty { padding: .1875rem .375rem; border-radius: 6px; background: var(--tag); color: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+.hb-tag-jetty { padding: .1875rem .375rem; border-radius: 6px; background: var(--tag); color: var(--tag-ink, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
 html[data-theme="kontor"] .hb-tag { border-radius: 2px; }
 html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 /* the scrubber: the run's hours played so far; Undo and Redo share a cell; a crash's hour in the programs */
@@ -204,7 +211,7 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hs-board, .hw-world { width: min(100cqw, calc(100cqh / var(--tall, .90625))); height: auto; display: block; border: 1.5px solid var(--tile-edge); border-radius: 6px;
   user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .hw-world { width: min(100cqw, calc(100cqh * 2)); }
-/* the board: the harbour's water and land; routes in ink, rails dotted, barge routes on the water; vehicles in enamel */
+/* the board: the harbour's water and land; routes in ink, pack trails dotted, barge routes on the water; carriers in enamel */
 .hs-sea { fill: var(--hb-water); }
 .hs-land { fill: var(--hb-land); stroke: color-mix(in srgb, var(--ink) 25%, transparent); stroke-width: .8; }
 .hs-water-name { font: italic 600 9px var(--font); fill: var(--ink-soft); opacity: .75; }
@@ -217,20 +224,22 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hs-route.pipe { stroke: var(--c0); stroke-width: 2.2; }
 .hs-veh rect, .hs-veh path { stroke: var(--hb-ship-ink); stroke-width: .5; }
 .hs-veh.truck rect { fill: var(--c3); } .hs-veh.truck .cab { fill: color-mix(in srgb, var(--c3) 60%, #000); }
-.hs-veh.train rect { fill: var(--c2); } .hs-veh.barge path { fill: var(--hb-hull); }
+.hs-veh.train rect { fill: var(--c2); } .hs-veh.train .cab { fill: color-mix(in srgb, var(--c2) 55%, #000); } .hs-veh.barge path { fill: var(--hb-hull); }
 .hs-ship path { fill: var(--hb-hull); stroke: var(--hb-ship-ink); stroke-width: .8; stroke-linejoin: round; }
+.hs-ship .sail { fill: none; stroke-width: 1.5; stroke-linecap: round; }
 .hs-ship rect { fill: var(--c0); } .hs-ship.mr rect { fill: var(--c1); }
-.hs-plant path { fill: var(--c0); stroke: var(--hb-ship-ink); stroke-width: .8; stroke-linejoin: round; }
-.hs-tank { fill: var(--hb-hull); stroke: var(--hb-ship-ink); stroke-width: 1; }
-.hs-level { fill: var(--c0); transition: y .4s, height .4s; }
+.hs-plant path { fill: var(--m-copper); stroke: var(--hb-ship-ink); stroke-width: .8; stroke-linejoin: round; }
+.hs-tank { fill: color-mix(in srgb, var(--m-copper) 40%, var(--hb-hull)); stroke: var(--hb-ship-ink); stroke-width: 1; stroke-linejoin: round; }   /* brick */
+.hs-level { fill: var(--m-tin); stroke: color-mix(in srgb, var(--ink) 45%, transparent); stroke-width: .6; transition: y .4s, height .4s; }
 .hs-name { font: 800 9.5px var(--font); fill: var(--ink); text-anchor: middle; letter-spacing: .08em; text-transform: uppercase;
   paint-order: stroke; stroke: var(--hb-land); stroke-width: 3px; stroke-linejoin: round; }
 .hs-tag { font: 700 8.5px var(--font); fill: var(--ink-soft); text-anchor: middle; paint-order: stroke; stroke: var(--hb-land); stroke-width: 2.6px; stroke-linejoin: round; }
 .hs-tag.strong { font-size: 10px; font-weight: 800; fill: var(--ink); } :is(.hs-tag, .hs-name).sea { stroke: var(--hb-water); }
-.hs-house { fill: var(--tile); stroke: var(--ink); stroke-width: 1; stroke-linejoin: round; }
+.hs-house { fill: color-mix(in srgb, var(--m-copper) 16%, var(--tile)); stroke: var(--ink); stroke-width: 1; stroke-linejoin: round; }
 .hs-seal { fill: var(--brass-lo); stroke: var(--tile); stroke-width: 1; } .hs-seal-star { font: 800 7.5px var(--font); fill: var(--tile); text-anchor: middle; }
 .hs-bubble { fill: var(--tile); stroke: var(--tile-edge); stroke-width: .9; } .hs-bubble.held { stroke: var(--brass-lo); stroke-width: 1.4; }
-.hs-drop { fill: var(--c2); } .hs-none { font: 700 11px var(--font); fill: var(--ink-soft); } .hs-count { font: 800 10.5px var(--font); fill: var(--ink); }
+.hs-drop { fill: var(--m-tin); stroke: color-mix(in srgb, var(--ink) 45%, transparent); stroke-width: .6; stroke-linejoin: round; }
+.hs-groove { fill: none; stroke: var(--tile); stroke-width: .9; stroke-linecap: round; } .hs-none { font: 700 11px var(--font); fill: var(--ink-soft); } .hs-count { font: 800 10.5px var(--font); fill: var(--ink); }
 .hs-face circle { fill: var(--tile); stroke: var(--ink-soft); stroke-width: .6; } .hs-face .eye { fill: var(--ink); stroke: none; }
 .hs-face path { fill: none; stroke: var(--ink); stroke-width: 1.1; stroke-linecap: round; }
 .hs-face.happy circle:first-child { fill: color-mix(in srgb, var(--c1) 45%, var(--tile)); }
@@ -262,7 +271,7 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hs-pair { display: flex; gap: .25rem; }
 .hs-small { width: 2.125rem; height: 2rem; border: 1.5px solid var(--brass); border-radius: 4px; background: none; color: var(--ink); font: 800 .9rem var(--font); cursor: pointer; }
 .hs-small:disabled { opacity: .3; cursor: default; }
-/* a town's or the terminal's sheet */
+/* a town's or the warehouse's sheet */
 dialog.hs-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
 .hs-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); }
 .hs-sheet h4 { margin: .9rem 0 .35rem; }
@@ -277,7 +286,7 @@ dialog.hs-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .hs-deal .btn { flex: none; min-height: 2.375rem; padding: .35rem .75rem; }
 .hs-deal .btn:disabled { flex: 0 1 auto; max-width: 46%; white-space: normal; line-height: 1.15; }   /* what a contract still needs, in two lines if it must, beside its name */
 .hs-how { margin: .4rem 0 .6rem; padding-left: 1.3rem; line-height: 1.45; } .hs-how li { margin: .3rem 0; }
-/* the world: the chart, your regions lit, the regions to come in ink, the lanes */
+/* the League: the chart, your regions lit, the kontors to come in ink, the lanes */
 .hw-sea { fill: var(--hb-water); }
 .hw-land { fill: var(--hb-land); stroke: color-mix(in srgb, var(--ink) 25%, transparent); stroke-width: .5; stroke-linejoin: round; }
 .hw-lane { fill: none; stroke: var(--ink-soft); stroke-width: 1; stroke-dasharray: 2 2; stroke-linejoin: round; }

@@ -71,7 +71,7 @@ function measure(p) {
     return { x: x0 + (x1 - x0) * f, y: y0 + (y1 - y0) * f, dx: x1 - x0, dy: y1 - y0 };
   } };
 }
-/** A vehicle turned along its heading, the right way up: one heading left is mirrored, not rolled over. */
+/** A carrier turned along its heading, the right way up: one heading left is mirrored, not rolled over. */
 const heading = ({ dx, dy }) => (dx >= 0 ? `rotate(${(Math.atan2(dy, dx) * 180 / Math.PI).toFixed(1)})` : `rotate(${(Math.atan2(-dy, -dx) * 180 / Math.PI).toFixed(1)}) scale(-1 1)`);
 
 // ---------- little pictures ----------
@@ -144,7 +144,7 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
     g += `<path class="hs-route pipe" d="M${fx},${fy}L${tx},${ty}"/>`;
     for (const t of R.towns) {
       const on = s.placed[t.id], seen = {};
-      // each a vehicle's length apart from the terminal end, the fifth and later where the fourth is
+      // each a carrier's length apart from the warehouse end, the fifth and later where the fourth is
       on.forEach(type => {
         const k = (seen[type] = (seen[type] || 0) + 1) - 1, p = B.routes[t.id][ROUTE_OF[type]], m = measure(p);
         const d = Math.min(m.length - 14, 22 + 20 * Math.min(k, 3)), at = m.at(d), turned = `<g transform="${heading(at)}">${VEHICLE[type]}</g>`;
@@ -164,7 +164,7 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
     if (s.ships) fleet(B.ship, s.ships, "", `${esc(R.ship.name)} +${R.ship.drops * s.ships}`);
     if (L && c.lanes[L.id].mrs && c.regions[L.from] && c.regions[L.to]) {
       const into = L.to === R.id, drops = into ? c.lanes[L.id].aboard : c.lanes[L.id].mrs * L.mr.drops;
-      fleet(B.lane, c.lanes[L.id].mrs, "mr", into ? `From ${esc(regionOf(L.from).name)} +${num(drops)}` : `To ${esc(lower(regionOf(L.to).name))} ${num(drops)}`);
+      fleet(B.lane, c.lanes[L.id].mrs, "mr", into ? `From ${esc(lower(regionOf(L.from).name))} +${num(drops)}` : `To ${esc(lower(regionOf(L.to).name))} ${num(drops)}`);
     }
     // the smelter (or smelters) and the warehouse with its stock
     const fd = feed();
@@ -295,7 +295,7 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
     if (s.ships) b += `<div class="hs-deal"><div><b>${esc(R.ship.name)}'s ${s.ships > 1 ? `${s.ships} ships` : "ship"}</b><span>${R.ship.drops * s.ships} a week from ${esc(R.ship.from)}, at ${num(Math.min(...R.ship.price))}–${num(Math.max(...R.ship.price))} an ingot, ${num(R.ship.hire * s.ships)} a week to hire</span></div><button type="button" class="btn" data-release="1" ${ro ? "disabled" : ""}>Let one go</button></div>`;
     if (L && c.regions[L.from] && c.regions[L.to]) {
       const mrs = c.lanes[L.id].mrs, into = L.to === R.id, other = regionOf(into ? L.from : L.to).name;
-      b += `<div class="hs-deal"><div><b>${into ? `From ${esc(other)}` : `To ${esc(lower(other))}`}</b><span>${mrs ? `${plural(mrs, "hulk")} on the League's lane, ${L.mr.drops * mrs} a week at ${num(L.price)} an ingot` : "No hulk on the League's lane yet"}</span></div>${ro ? "" : `<button type="button" class="btn" data-go="world">The League</button>`}</div>`;
+      b += `<div class="hs-deal"><div><b>${into ? `From ${esc(lower(other))}` : `To ${esc(lower(other))}`}</b><span>${mrs ? `${plural(mrs, "hulk")} on the League's lane, ${L.mr.drops * mrs} a week at ${num(L.price)} an ingot` : "No hulk on the League's lane yet"}</span></div>${ro ? "" : `<button type="button" class="btn" data-go="world">The League</button>`}</div>`;
     }
     const free = Object.entries(s.pool).filter(([, n]) => n > 0).map(([type, n]) => plural(n, R.vehicles[type].name.toLowerCase()));
     b += `<h4>The yard</h4><p class="hs-soft">${free.length ? `${free.join(", ")}: tap a town to send one.` : "Empty: every carrier is out on a route."}</p>`;

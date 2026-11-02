@@ -248,7 +248,7 @@ export const LEVELS = [
   {
     id: "heels", name: "Heels",
     chapter: "nwe", teaches: "what stays aboard",
-    brief: "A takes pure copper, B brass (at least 30% calamine), twelve ingots each. C: copper, two a lift at 1. Z: calamine, two at 3. A discharge leaves the rest aboard.",
+    brief: "A takes pure copper, B brass (at least 30% calamine): 12 each. C: copper, 2 a lift at 1. Z: calamine, 2 at 3. A discharge leaves the rest aboard.",
     map: [
       "#########",
       "###..A.##",
@@ -308,7 +308,7 @@ export const LEVELS = [
   {
     id: "queue", name: "Toll queue",                              // drawn in the level lab
     chapter: "straits", teaches: "holding at a slow berth",
-    brief: "The ironworks (L) lifts an ingot an hour; the toll quay (D) takes four. One channel joins them, with room to pass halfway and a basin at each end. Twenty-four ingots.",
+    brief: "The ironworks (L) lifts an ingot an hour; the toll (D) takes four. One channel joins them, room to pass halfway, a basin at each end. Twenty-four ingots.",
     map: [
       "#..#####",
       "..L#####",
