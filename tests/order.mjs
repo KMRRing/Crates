@@ -90,7 +90,7 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   check(q3.deck.length >= 5 && q3.recycled, "every card seen: a deal still comes, and says it went back over them");
   check(!dealRun("stories", 2, null, allSeen).recycled && dealRun("stories", 2, null, allSeen).story === dealRun("stories", 2).story, "a story is dealt whole, as it was, and has nothing to forget");
   const page = fs.readFileSync(new URL("../order.js", import.meta.url), "utf8");
-  check(/dealRun\(mode, seed, daily \? null : mix\(\), daily \|\| mode === "stories" \? null : new Set\(seenIds\(\)\)\)/.test(page) && /if \(tracked\(S\)\) markSeen\(\[id\]\)/.test(page), "the page deals a run of your own from what you've seen, and notes each card you place; a daily doesn't");
+  check(/dealRun\(mode, seed, daily \? null : mixFor\(mode\), daily \|\| mode === "stories" \? null : new Set\(seenIds\(\)\)\)/.test(page) && /if \(tracked\(S\)\) markSeen\(\[id\]\)/.test(page), "the page deals a run of your own from what you've seen, and notes each card you place; a daily doesn't");
   check(!/dealRun\([^)]*new Set/.test(fs.readFileSync(new URL("../order-engine.js", import.meta.url), "utf8").split("export function freshTable")[1] || ""), "a table's deal is never from one phone's memory");
 }
 
@@ -226,7 +226,7 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   // the page: its own run, bests and daily, the seen memory, the round's end
   const page = fs.readFileSync(new URL("../order.js", import.meta.url), "utf8");
   check(/HL = "order:hl", HL_BEST = "order:hlbest", PLAY = "order:play"/.test(page) && /BEST = "order:best"/.test(page) && !/write\(BEST, [^)]*hl/i.test(page), "higher or lower keeps its run, its bests and the way you play under order:, apart from the line's best");
-  check(/dealHigherLower\(m, seed, daily \? null : mix\(\), daily \? null : new Set\(seenIds\(\)\)\)/.test(page) && /if \(!H\.daily\) markSeen\(/.test(page), "the page deals a run of your own from what you've seen and notes each card as it shows; a daily doesn't");
+  check(/dealHigherLower\(m, seed, daily \? null : mixFor\(m\), daily \? null : new Set\(seenIds\(\)\)\)/.test(page) && /if \(!H\.daily\) markSeen\(/.test(page), "the page deals a run of your own from what you've seen and notes each card as it shows; a daily doesn't");
   check(/\$\{H\.day \?\? today\(\)\}\/hl-\$\{H\.mode\}/.test(page) && bestOfDay({ "20261102/hl-dates": 9, "20261102/dates": 4, "20261101/hl-dates": 30 }, 20261102) === 9, "today's run is kept in the daily map by the day and its mode, where the games screen reads it");
   check((page.match(/roundOver\("order"\)/g) || []).length >= 2 && /onPause\(/.test(page), "both ways of playing end a round for Random mode, and the moment before the next pair stands still while the menu is open");
   check(/Object\.entries\(hlOn\(\) \? HL_MODES : MODES\)/.test(page), "the menu offers higher or lower no History");

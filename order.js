@@ -14,12 +14,14 @@
 // the right one takes its place and a new one is dealt, until the first wrong tap.
 import { LIVES, MODES, BY_ID, DATES, FAMILIES, STORIES, familyOf, bestIn, dealRun, topicsIn, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } from "./order-engine.js";
 import { HL_MODES, HL_FAMILIES, dealHigherLower, answerHigherLower, advanceHigherLower, pairOf, higherOf, wasRight } from "./order-engine.js";
-import { withUnit, TOPIC_PRESETS, cleanTopics } from "./quote-engine.js";
-import { presetOf } from "./topics.js";
+import { withUnit, topicsDealt } from "./quote-engine.js";
+import { subjectPreset } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
+import { topicsPart } from "./topics-ui.js";
 import { showPicture, pictureName, nameIn } from "./pics.js";
 import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, topicMix, action, line } from "./menu.js";
+import { part, choice, action, line } from "./menu.js";
 import { onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
@@ -29,7 +31,7 @@ import { busy, waitMark } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "order:run", BEST = "order:best", DAILY = "order:daily", TOPICS_KEY = "order:topics", SEEN = "order:seen";
+const RUN = "order:run", BEST = "order:best", DAILY = "order:daily", SEEN = "order:seen";
 const HL = "order:hl", HL_BEST = "order:hlbest", PLAY = "order:play";     // higher or lower: its run, its bests, and which way you play
 const APP = 2;                 // the table's version: one run for everyone (1 was a head-to-head, each on their own deck)
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
@@ -39,15 +41,14 @@ const ordinal = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st",
 /** A card's value as the line shows it: a story's place (5th), or the number with its unit. */
 const valueOf = q => (q.story ? ordinal(q.truth) : withUnit(q.truth, q));
 
-// ---------- your mix of topics ----------
-/** Your topics, each 0 (out), 1 (in) or 2 (more): Balanced until you change them. */
-const mix = () => cleanTopics(read(TOPICS_KEY, null));
-const keepMix = w => write(TOPICS_KEY, w);
-/** Your mix of a mode's topics: a preset's (its id), or "custom". */
-const presetFor = mode => presetOf(topicsIn(mode), TOPIC_PRESETS, mix());
-/** A run counts for your best if it's today's, or dealt from a preset's mix of its topics (Balanced, Trader, Culture
- *  night); the stories have none. */
-const ranked = (mode, daily) => daily || mode === "stories" || presetFor(mode) !== "custom";
+// ---------- the topics ----------
+/** The topics a random run is dealt from: Settings' subjects (topics.js; README, The knowledge base), as Quote's categories
+ *  at their usual weight. Nothing on, or none of a mode's topics on, deals every topic of the mode (null). Read at deal
+ *  time, so a change in Settings reaches the next run. */
+const mixFor = mode => { const w = topicsDealt(subjectsOn()); return topicsIn(mode).some(([id]) => w[id] > 0) ? w : null; };
+/** A run counts for your best if it's today's, or dealt on a preset of the subjects (All on, Culture, STEM, Trade), not on
+ *  a mix of your own; the stories have no topics. */
+const ranked = (mode, daily) => daily || mode === "stories" || subjectPreset(subjectsOn()) !== "custom";
 
 // ---------- your own run ----------
 let S = read(RUN, null);
@@ -60,7 +61,7 @@ const markSeen = ids => { const had = new Set(seenIds()); if (ids.some(id => !ha
 const forget = ids => { const out = new Set(ids); write(SEEN, seenIds().filter(id => !out.has(id))); };
 function newRun(mode, daily) {
   const seed = daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31);
-  S = { ...dealRun(mode, seed, daily ? null : mix(), daily || mode === "stories" ? null : new Set(seenIds())), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
+  S = { ...dealRun(mode, seed, daily ? null : mixFor(mode), daily || mode === "stories" ? null : new Set(seenIds())), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
   if (S.recycled) { forget(mode === "dates" ? DATES : familyOf(S.unit).ids); delete S.recycled; }
   if (tracked(S)) markSeen([S.line[0].id]);
   save(); render();
@@ -199,7 +200,7 @@ function newHL(mode, daily) {
   cancelStep();
   const m = HL_MODES[mode] ? mode : "dates";
   const seed = daily ? today() * 7919 + (m === "dates" ? 17 : 19) : Math.floor(Math.random() * 2 ** 31);
-  H = { ...dealHigherLower(m, seed, daily ? null : mix(), daily ? null : new Set(seenIds())), daily, day: daily ? today() : null, ranked: ranked(m, daily) };
+  H = { ...dealHigherLower(m, seed, daily ? null : mixFor(m), daily ? null : new Set(seenIds())), daily, day: daily ? today() : null, ranked: ranked(m, daily) };
   if (H.recycled) { forget(m === "dates" ? DATES : familyOf(H.unit).ids); delete H.recycled; }
   if (!daily) markSeen([H.cards[0]]);
   write(HL, H); render();
@@ -375,7 +376,7 @@ async function dealAgain(mode) {
   if (!G) return;
   const n = G.n;
   if (!G.run.over && G.run.line.length > 1 && !confirm("Deal a new game for the table? This one isn't finished.")) return;
-  const seed = Math.floor(Math.random() * 2 ** 31), weights = mix();      // the table's next game, from the dealer's topics
+  const seed = Math.floor(Math.random() * 2 ** 31), weights = mixFor(mode);      // the table's next game, from the dealer's topics
   await together.act(g => newGameAt(tidy(g), { n, mode, seed, weights }));
 }
 /** Who's at the table, each by their colour (the cards they placed carry it); those away greyed. */
@@ -428,7 +429,7 @@ const together = createTogether({
   askName,
   valid: isTable,
   slots: g => g?.people || 2,
-  fresh: (players, { ask } = {}) => freshTable(players, { mode: S?.mode, seed: Math.floor(Math.random() * 2 ** 31), people: ask?.people, app: APP, weights: mix() }),
+  fresh: (players, { ask } = {}) => freshTable(players, { mode: S?.mode, seed: Math.floor(Math.random() * 2 ** 31), people: ask?.people, app: APP, weights: mixFor(MODES[S?.mode] ? S.mode : "dates") }),
   onState,
   onPresence: () => { if (G) drawTeam(); },
   onLeave: () => {
@@ -445,11 +446,11 @@ const backToSolo = () => { if (together.room) together.leave(); else location.re
 
 // ---------- the menu ----------
 let pick = null;
-/** The mix of topics for a mode, in the menu: a preset, or each topic tapped out, in or more (none for the stories);
- *  alone, with what your own mix counts for. changed: after a tap, once the mix is kept. */
-function topicsPart(box, mode, solo = false, changed = () => {}) {
-  const list = topicsIn(mode), note = w => (presetOf(list, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's run and the presets do." : null);
-  if (list.length) box.append(topicMix(list, TOPIC_PRESETS, mix(), w => { keepMix(w); changed(); }, { note: solo ? note : null }));
+/** What the menu says of the topics for a mode: where they stand and a link to Settings' control (none for the stories,
+ *  which have no topics). Alone, a random run is dealt from them and today's from every topic; at a table, the next game
+ *  is dealt from the dealer's. */
+function topicsFor(box, mode, solo = false) {
+  if (topicsIn(mode).length) box.append(...topicsPart(box, solo ? "Today's run deals every topic" : "The table's next game is dealt from the topics of whoever deals it"));
 }
 function openMenu() {
   const body = $("menuBody");
@@ -461,7 +462,7 @@ function openMenu() {
       const all = people().map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`);
       table.append(action("New game", () => dealAgain(pickMode), "primary"),
         choice("Order", Object.entries(MODES), pickMode, v => { pickMode = v; openMenu(); }));
-      topicsPart(table, pickMode);
+      topicsFor(table, pickMode);
       table.append(line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`));
     } else { const wait = line(joiningWords()); wait.prepend(waitMark()); table.append(wait); }
     table.append(action("Back to solo", backToSolo, "link"));
@@ -475,9 +476,8 @@ function openMenu() {
   content.append(
     choice("Order", Object.entries(hlOn() ? HL_MODES : MODES), pick.mode, v => { pick.mode = v; openMenu(); }),
     choice("Run", [[false, "Random"], [true, "Today's"]], pick.daily, v => { pick.daily = v; openMenu(); }));
-  // your topics are for random runs (today's is the same for everyone), so they're shown either way, and one changed
-  // with today's picked turns the next run to a random one
-  topicsPart(content, pick.mode, true, () => { if (pick.daily) { pick.daily = false; openMenu(); } });
+  // the topics are for random runs (today's is the same for everyone), so they're shown either way
+  topicsFor(content, pick.mode, true);
   const best = read(BEST, {});
   part(body, "about").append(line(`Best: dates ${best.dates ?? "–"}${FAMILIES.some(f => bestIn(best, f)) ? `, quantities ${Math.max(...FAMILIES.map(f => bestIn(best, f)))}` : ""} · ${DATES.length} dated cards, ${FAMILIES.length} families of quantities`));
   // the way to play: the line, or higher or lower (alone: a table plays the line, and its menu has no switch)
