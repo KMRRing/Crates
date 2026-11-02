@@ -2,41 +2,44 @@
 // more the better-connected the thing you step onto: an obscure link costs 1, the United States about 9 (1 + log2 of
 // its links), so the cheap route runs through what you specifically know, not through the hubs. Par is the cheapest
 // route there is; matching it scores 100. Five routes a run, random or today's; every hop shows why the two are
-// linked, and the end shows the cheapest route. A random run's routes run between things of your mix of the knowledge
-// base's topics (each out, in or more, as Crates deals its clues); today's is the same for everyone, whatever the mix.
-// Together, the same five routes for everyone at the table (duel.js), from the dealer's mix.
+// linked, and the end shows the cheapest route. A random run's routes run between things of the topics that are on (the
+// suite's one set, in Settings: topics.js, topics-on.js), read when the run is dealt; today's is the same for everyone,
+// whatever is on. Together, the same five routes for everyone at the table (duel.js), from the dealer's topics.
 // Help: a "?" beside any thing (the two ends, every link on offer) gives its description a clue at a time, and files it
 // in the pile as not known (Deck); no points are lost, but a thing you had to ask about is one you didn't know. Hint and Show
 // cost points, in the steps' own currency: a hint is half a step (three, each a little more: what the next best word is,
 // something about it, its first letter), Show a whole one: it marks the next best word in the list, or, from a dead end
 // (no way on that doesn't cross your own route), takes you back to where the way on starts and says which word to take.
-import { PER_RUN, NEAR, cost, name, kind, TOPIC_LIST, TOPIC_GROUPS, TOPIC_PRESETS, dealRun, bestOn, backOut } from "./arb-engine.js";
+import { PER_RUN, NEAR, cost, name, kind, TOPIC_LIST, topicsOf, dealRun, bestOn, backOut } from "./arb-engine.js";
 import { clueLines, whatCard } from "./thing-clues.js";
 import * as pile from "./pile.js";
-import { cleanMix, presetOf, mixParam, mixFromParam } from "./topics.js";
+import { subjectPreset, even, mixParam, mixFromParam } from "./topics.js";
+import { subjectsOn } from "./topics-on.js";
+import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, topicMix, action, line } from "./menu.js";
+import { part, choice, action, line } from "./menu.js";
 import { today } from "./suite.js";          // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "arb:run", BEST = "arb:best", DAILY = "arb:daily", TOPICS_KEY = "arb:topics";
+const RUN = "arb:run", BEST = "arb:best", DAILY = "arb:daily";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
-// ---------- your mix of topics ----------
-const mix = () => cleanMix(TOPIC_LIST, read(TOPICS_KEY, null));
-const keepMix = w => write(TOPICS_KEY, w);
-const presetNow = () => presetOf(TOPIC_LIST, TOPIC_PRESETS, mix());
+// ---------- your topics ----------
+// The suite's one set (Settings, or Change topics in the menu), read when a run is dealt, never kept here; the old
+// arb:topics key is no longer read or written. A preset counts for your best, your own mix doesn't.
+const mix = () => topicsOf(subjectsOn());
+const onPreset = () => subjectPreset(subjectsOn()) !== "custom";
 
 // ---------- a run ----------
 let S = read(RUN, null);
 const save = () => { if (S?.duel) { duel.keep(S); tell(); } else write(RUN, S); };   // a match's run is kept apart from yours
 function newRun(daily) {
   // your own mix doesn't count for your best: today's run and the presets do
-  S = { ...dealRun(daily ? today() * 7919 + 29 : Math.floor(Math.random() * 2 ** 31), daily, daily ? null : mix()), ranked: daily || presetNow() !== "custom" };
+  S = { ...dealRun(daily ? today() * 7919 + 29 : Math.floor(Math.random() * 2 ** 31), daily, daily ? null : mix()), ranked: daily || onPreset() };
   save(); render();
 }
 const R = () => S?.routes[S.index];
@@ -247,8 +250,8 @@ function toast(text, ms = 2600) {
 // show in the strip. The highest total wins, then the quicker. Your solo run, your best and today's stay as they were.
 const duel = createDuel({
   game: "arb", name: "Arb", line: $("rival"), toast,
-  // the match carries the dealer's mix (unless Balanced), so every phone deals the same routes from it
-  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31), ...(presetNow() === "balanced" ? {} : { t: mixParam(TOPIC_LIST, mix()) }) }),
+  // the match carries the dealer's mix (unless every topic is in), so every phone deals the same routes from it
+  deal: () => { const w = mix(); return { seed: Math.floor(Math.random() * 2 ** 31), ...(even(TOPIC_LIST, w) ? {} : { t: mixParam(TOPIC_LIST, w) }) }; },
   describe: () => `The same ${PER_RUN} routes for everyone, as cheaply as you can`,
   play: (match, { kept }) => {
     S = kept?.seed === match.seed && kept.routes ? kept : { ...dealRun(match.seed, false, match.t ? mixFromParam(TOPIC_LIST, match.t) : null), duel: true };
@@ -274,13 +277,15 @@ function lobby() {
 
 // ---------- the menu ----------
 let pick = null;
+// topics changed (in the sheet Change topics opens) with today's picked: the next run is a random one, which they are for
+addEventListener("topics:changed", () => { if (pick === "daily") pick = "random"; });
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (duel.on) {
     const table = part(body, "together");
     duel.menu(table);
-    table.append(topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), keepMix, { groups: TOPIC_GROUPS }));     // the next match's routes come from your mix
+    table.append(...topicsPart(table, "The next match is dealt from your topics"));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
@@ -288,9 +293,9 @@ function openMenu() {
   part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
   const content = part(body, "content");
   content.append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  // today's run is the same for everyone, so your topics are for random runs: what the routes run between
-  if (pick === "random") content.append(topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), keepMix,
-    { groups: TOPIC_GROUPS, note: w => (presetOf(TOPIC_LIST, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's run and the presets do." : null) }));
+  // today's run is the same for everyone, so your topics are for random runs (what the routes run between), but shown
+  // either way: a game opens on today's, and topics shown only with Random were never found
+  content.append(...topicsPart(content, pick === "daily" ? "Today's run deals every topic" : onPreset() ? "" : "Your own mix doesn't count for your best"));
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${NEAR.size.toLocaleString("en-GB")} things, linked`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

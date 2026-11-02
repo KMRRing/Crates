@@ -1,10 +1,12 @@
 // Arb: the knowledge base's links make a graph with enough ends (things with a few links), routes three to five hops
-// long exist for every seed tried, a hub costs far more to step onto than an obscure thing, and a run deals from your
-// mix of topics: every topic in deals as it always did, an end is never only about topics out, a topic more ends
-// routes more often, a mix that leaves nothing deals from everything, and a match's link carries its mix whole.
+// long exist for every seed tried, a hub costs far more to step onto than an obscure thing, and a run deals from a mix
+// of topics: every topic in deals as it always did, an end is never only about topics out, a topic weighed twice ends
+// routes more often, a mix that leaves nothing deals from everything, a match's link carries its mix whole, and the
+// mix is made from the suite's one set of subjects (topicsOf): every subject on is the old Balanced, seed for seed,
+// subjects off take their topics out, and nothing on deals every topic.
 // Run: node tests/arb.mjs
-import { NEAR, ENDS, ABOUT, degree, cost, dealRun, drawEnd, endWeight, bestOn, backOut, TOPIC_LIST, TOPIC_PRESETS, PER_RUN } from "../arb-engine.js";
-import { mixParam, mixFromParam, presetOf } from "../topics.js";
+import { NEAR, ENDS, ABOUT, degree, cost, dealRun, drawEnd, endWeight, bestOn, backOut, TOPIC_LIST, topicsOf, PER_RUN } from "../arb-engine.js";
+import { mixParam, mixFromParam, cleanMix, cleanSubjects, subjectsIn, subjectsSay, SUBJECT_PRESETS, TOPIC_OF } from "../topics.js";
 let bad = 0;
 const fail = (...why) => { bad++; console.log(...why); };
 
@@ -60,12 +62,53 @@ if (Math.abs(evenShare - p) > .025 || Math.abs(moreShare - 2 * p / (1 + p)) > .0
 const empty = dealRun(5, false, mixOf(0));
 if (empty.routes.length !== PER_RUN) fail("a mix with every topic out dealt", empty.routes.length, "routes");
 
-// ---------- the mix as the menu and a match keep it ----------
-for (const [k, preset] of Object.entries(TOPIC_PRESETS)) if (presetOf(TOPIC_LIST, TOPIC_PRESETS, preset.topics) !== k) fail("preset", k, "not known as itself");
+// ---------- the mix as a match keeps it ----------
+// (a link from before topics were on or off may carry a weight of 2: it still deals)
 const own = mixOf(1, { cult: 0, nrg: 2, mkts: 2, ppl: 0 });
-if (presetOf(TOPIC_LIST, TOPIC_PRESETS, own) !== "custom") fail("an own mix taken for a preset");
 if (JSON.stringify(mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, own))) !== JSON.stringify(own)) fail("a match's mix changed on its way through the link");
 if (JSON.stringify(dealRun(77, false, mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, own)))) !== JSON.stringify(dealRun(77, false, own))) fail("a match deals other routes on the partner's phone");
+
+// ---------- the suite's one set of subjects (topics.js, topics-on.js; Settings) ----------
+{
+  const on = cleanSubjects(null), none = cleanSubjects(SUBJECT_PRESETS.none.topics);
+  const only = id => cleanSubjects({ ...SUBJECT_PRESETS.none.topics, [id]: 1 });
+  const without = (...ids) => cleanSubjects(Object.fromEntries(ids.map(id => [id, 0])));
+  if (TOPIC_LIST.some(([id]) => !TOPIC_OF.kb[id])) fail("a topic of Arb's belongs to no subject");
+  // all on is the old Balanced: every topic in once, and the same routes, seed for seed (with no mix at all, and with
+  // the mix the page used to read when nothing was kept)
+  const all = topicsOf(on);
+  if (JSON.stringify(all) !== JSON.stringify(cleanMix(TOPIC_LIST, null)) || !TOPIC_LIST.every(([id]) => all[id] === 1)) fail("all subjects on is not every topic in once");
+  const base = seeds.slice(0, 2).map(s => JSON.stringify(dealRun(s, false, null)));
+  seeds.slice(0, 2).forEach((s, i) => { if (JSON.stringify(dealRun(s, false, all)) !== base[i]) fail("all subjects on deals other routes than Balanced did, seed", s); });
+  // a subject off takes its topics out (Literature, music & myth is cult, Film, TV & games screen, Craft & style style),
+  // and the run is another one; the subjects Arb has no topic for (maths, cities...) change nothing
+  const noArts = topicsOf(without("cult", "screen", "style"));
+  if (!(noArts.cult === 0 && noArts.screen === 0 && noArts.style === 0 && noArts.geo === 1 && noArts.nrg === 1)) fail("subjects off did not take their topics out", JSON.stringify(noArts));
+  const offRuns = runs(noArts, seeds.slice(0, 2));
+  if (offRuns.flatMap(ends).some(id => [...ABOUT.get(id)].every(t => ART.includes(t)))) fail("an end only about subjects off");
+  if (offRuns.every((r, i) => JSON.stringify(r) === base[i])) fail("subjects off dealt the same routes as all on");
+  if (JSON.stringify(topicsOf(without("math", "cities", "rel", "art"))) !== JSON.stringify(all)) fail("a subject none of Arb's topics belongs to changed its mix");
+  // one subject on, the rest off: every end about its topics (Energy is nrg alone)
+  const nrgOnly = topicsOf(only("nrg"));
+  if (TOPIC_LIST.some(([id]) => (nrgOnly[id] === 1) !== (id === "nrg"))) fail("only Energy on is not the energy topic alone", JSON.stringify(nrgOnly));
+  const wrong = runs(nrgOnly, seeds.slice(0, 2)).flatMap(ends).filter(id => !about(id, ["nrg"]));
+  if (wrong.length) fail("with only Energy on, ends about other things:", wrong.join(" "));
+  // two subjects can share a topic's weight: Trade & shipping carries Production and Trade & logistics as well
+  const trade = topicsOf(only("trade"));
+  if (!(trade.trade === 1 && trade.prod === 1 && trade.logi === 1 && trade.hist === 0)) fail("Trade & shipping did not bring its commodity topics", JSON.stringify(trade));
+  // nothing on: every topic is dealt (a mix of nothing deals from everything), as all on does, and the menu says so
+  const nothing = topicsOf(none);
+  if (TOPIC_LIST.some(([id]) => nothing[id] !== 0) || subjectsIn(none).length) fail("all subjects off is not nothing in");
+  seeds.slice(0, 2).forEach((s, i) => { if (JSON.stringify(dealRun(s, false, nothing)) !== base[i]) fail("nothing on does not deal every topic, seed", s); });
+  if (!/every topic/.test(subjectsSay(none))) fail("the topics line does not say nothing on deals every topic");
+  // a match carries the dealer's mix whole: a custom set of subjects through the link deals the same on the partner's phone
+  const custom = topicsOf(without("hist", "sport", "agr"));
+  if (JSON.stringify(mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, custom))) !== JSON.stringify(custom)) fail("a mix made from subjects changed on its way through the link");
+  // a weight of 2 still draws twice (a saved or linked mix), and an old link of the Trader preset's weights still deals
+  if (!hist.every(id => endWeight(mixOf(1, { hist: 2 }), id) === 2)) fail("a weight of 2 no longer weighs twice");
+  const trader = mixOf(1, { nrg: 2, met: 2, agr: 2, mkt: 2, fin: 2, trade: 2, co: 2, mkts: 2, logi: 2, reg: 2, firm: 2 });
+  if (dealRun(5, false, mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, trader))).routes.length !== PER_RUN) fail("a linked mix with weights of 2 no longer deals");
+}
 
 // ---------- the next best word, and backing out of a dead end ----------
 {

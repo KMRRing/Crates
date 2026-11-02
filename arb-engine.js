@@ -1,15 +1,15 @@
 // Arb's graph and routes, pure (arb.js draws them; tests/arb.mjs checks them): the knowledge base's links as a graph,
 // what stepping onto a thing costs (1 + log2 of its links, so the cheap route runs through what you specifically know,
 // not through the hubs), the cheapest route (par), and a run's five routes, each between two things of a few links,
-// three to five hops apart. A run deals from a mix of the knowledge base's topics, each out, in or more, as Crates
-// deals its clues: a thing is about the topics of its links (a clue link's aspects; a painting's painter, museum and
-// movement and a book's author, Culture & arts; standing in a place, Geography), or, linked by none of those, its
-// kind's (a person, People; a company, Companies). A route's two ends are drawn by the weight of their likeliest topic,
-// as Crates weighs a word, so a thing only of topics out never ends one. The route between them runs through whatever
-// links there are.
+// three to five hops apart. A run deals from a mix of the knowledge base's topics, made from the suite's one set of
+// subjects, each on or off (topicsOf), as Crates deals its clues: a thing is about the topics of its links (a clue
+// link's aspects; a painting's painter, museum and movement and a book's author, Culture & arts; standing in a place,
+// Geography), or, linked by none of those, its kind's (a person, People; a company, Companies). A route's two ends are
+// drawn by the weight of their likeliest topic, as Crates weighs a word, so a thing only of topics out never ends one.
+// The route between them runs through whatever links there are.
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
-import { KB_TOPICS, KB_PRESETS, drawWeighted, even } from "./topics.js";
+import { KB_TOPICS, KB_PRESETS, TOPIC_OF, mixFromSubjects, drawWeighted, even } from "./topics.js";
 
 export const PER_RUN = 5;
 const rng = seed => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -73,9 +73,11 @@ export function backOut(path, goal) {
 // the ends of a route: things with a few links (not hubs, not dead ends)
 export const ENDS = [...NEAR.keys()].filter(id => degree(id) >= 2 && degree(id) <= 25).sort();
 // ---------- topics ----------
-export const TOPIC_GROUPS = [["Country topics", KB_TOPICS.country], ["Commodity topics", KB_TOPICS.commodity]];
 export const TOPIC_LIST = [...KB_TOPICS.country, ...KB_TOPICS.commodity];
-export const TOPIC_PRESETS = { balanced: KB_PRESETS.balanced, trader: KB_PRESETS.trader, culture: KB_PRESETS.culture };
+/** The mix the suite's subjects (topics-on.js) make of these topics: each in, at Balanced's weight, when its subject is
+ *  on, out when it isn't; every subject on is Balanced, the routes Arb always dealt. A weight of 2 still draws twice as
+ *  often (a mix a link or a saved match carries from before topics were on or off), so the draw below is unchanged. */
+export const topicsOf = on => mixFromSubjects(TOPIC_LIST, TOPIC_OF.kb, on, KB_PRESETS.balanced.topics);
 // a typed link's topic: a painting's painter, museum, movement and style, a book's author and lines, a style's
 // successor are culture; where a thing stands, geography
 const TYPED = { "painted-by": "cult", "hangs-in": "cult", movement: "cult", style: "cult", "designed-by": "cult", "written-by": "cult", "in-work": "cult", "led-to": "cult", in: "geo", city: "geo" };
