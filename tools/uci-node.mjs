@@ -1,9 +1,7 @@
 // The browser's engine workers, stood in for in Node, so the tests and tools/engine-levels.mjs run the same engines
-// through the same Engine (uci.js) as the pages: Fairy-Stockfish's WebAssembly through uci-wasi.js in this process,
-// Stockfish's script as a child Node process speaking UCI on its standard streams (its own Node mode).
-import fs from "fs";
+// through the same Engine (uci.js) as the pages: Stockfish's script as a child Node process speaking UCI on its
+// standard streams (its own Node mode). River's engine runs in this process (localWorker in river-uci.js).
 import { spawn } from "child_process";
-import { startWasi } from "../uci-wasi.js";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -16,20 +14,6 @@ function fakeWorker(begin) {
   w.terminate = () => { w.gone = true; run.end?.(); };
   return w;
 }
-
-/** Fairy-Stockfish in this process: each command runs as it's taken off the queue, a search to its end. */
-export const fairyWorker = () => fakeWorker((deliver, fail) => {
-  let engine = null, starting = null;
-  const pump = async w => {
-    if (!engine) {
-      starting ||= startWasi(fs.readFileSync(ROOT + "vendor/fairy-stockfish/fairy-stockfish.wasm"), deliver).then(e => { engine = e; }, fail);
-      await starting;
-      if (!engine) return;
-    }
-    while (w.queue.length && !w.gone) engine.command(w.queue.shift());
-  };
-  return { pump };
-});
 
 /** Stockfish as a child process (the script's Node mode reads commands from its standard input). */
 export const stockfishWorker = () => fakeWorker((deliver, fail) => {

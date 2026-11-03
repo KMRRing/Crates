@@ -63,4 +63,19 @@ export function createSession(out) {
     },
   };
 }
+
+/**
+ * Something a Worker's user can't tell from the worker, in this process (the tests and tools run the engine so): the
+ * same session, each command run to its end inside postMessage, each line it writes delivered a moment later.
+ */
+export function localWorker() {
+  const w = { onmessage: null, onerror: null, gone: false };
+  const session = createSession(line => queueMicrotask(() => { if (!w.gone) w.onmessage?.({ data: line }); }));
+  w.postMessage = cmd => {
+    if (w.gone) return;
+    try { session.command(String(cmd)); } catch (err) { queueMicrotask(() => w.onmessage?.({ data: { error: String(err?.message || err) } })); }
+  };
+  w.terminate = () => { w.gone = true; };
+  return w;
+}
 export { MATE };

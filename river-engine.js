@@ -11,9 +11,12 @@
 
 export const MATE = 30000, INF = 32000, RULE_WIN = 20000;       // a win by the rules (a perpetual check) is worth less than a mate
 const MAXPLY = 96, MAXM = 160, QPLY = 40, STACK = 2048;
-const NONE = 99999, TEMPO = 12, EXACT = 1, LOWER = 2, UPPER = 3;
+const NONE = 99999, EXACT = 1, LOWER = 2, UPPER = 3;
+const LF = 2;                                                            // the first moves tried are never reduced
+const LMP = [0, 5, 9, 14, 20];                                          // quiet moves tried before the rest are skipped, by depth
 const LMR = new Int8Array(32 * 64);                                      // late-move reductions by depth and move number
-for (let d = 1; d < 32; d++) for (let n = 1; n < 64; n++) LMR[d * 64 + n] = Math.max(0, Math.round(0.6 + Math.log(d) * Math.log(n) / 2.2));
+const LB = 0.6, LD = 2.2;
+for (let d = 1; d < 32; d++) for (let n = 1; n < 64; n++) LMR[d * 64 + n] = Math.max(0, Math.round(LB + Math.log(d) * Math.log(n) / LD));
 const K = 1, A = 2, B = 3, N = 4, R = 5, C = 6, P = 7;
 export const START = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1";
 
@@ -60,6 +63,9 @@ for (let side = 0; side < 2; side++) for (let s = 0; s < 90; s++) {
   EMOVE[side * 90 + s] = Int8Array.from(e); PMOVE[side * 90 + s] = Int8Array.from(p);
 }
 
+const PALACE = new Uint8Array(180), HOME = new Uint8Array(180);          // by side * 90 + point: inside that side's palace, on that side's half
+for (let side = 0; side < 2; side++) for (let q = 0; q < 90; q++) { PALACE[side * 90 + q] = inPalace(FILE[q], RANK[q], side) ? 1 : 0; HOME[side * 90 + q] = (side === 0 ? RANK[q] <= 4 : RANK[q] >= 5) ? 1 : 0; }
+
 // a 64-bit key as two 32-bit halves; the generator is fixed, so a key is the same in every run
 let seed = 0x9e3779b9;
 const rand32 = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return (t ^ (t >>> 14)) | 0; };
@@ -68,54 +74,47 @@ for (let i = 0; i < ZLO.length; i++) { ZLO[i] = rand32(); ZHI[i] = rand32(); }
 const SIDE_LO = rand32(), SIDE_HI = rand32();
 
 // ---------- evaluation tables ----------
-// Material and piece-square values, middlegame and endgame, from Red's side (rank 0 its own back rank). A soldier is 100
-// at home and worth more and more once across the river; a horse likes the centre and the enemy's palace, a cannon the
-// central file, a chariot the open ranks; the general stays home (a general stepping up into the cannons' range costs).
-const VALUE_MG = [0, 0, 205, 205, 420, 930, 460, 100], VALUE_EG = [0, 0, 190, 185, 460, 1010, 400, 120];
-const ADVANCE_P_MG = [0, 0, 0, 0, 8, 62, 86, 100, 92, 34], ADVANCE_P_EG = [0, 0, 0, 0, 12, 95, 135, 160, 150, 70];
-function pstValue(t, f, r, eg) {
-  const cf = Math.abs(f - 4);
-  switch (t) {
-    case P: {
-      let v = (eg ? ADVANCE_P_EG : ADVANCE_P_MG)[r];
-      if (r >= 5) v += cf <= 1 ? 12 : cf === 4 ? -22 : cf === 3 ? -6 : 0;
-      else if (r === 4) v += cf === 0 ? 4 : 0;
-      return v;
-    }
-    case A: return f === 4 && r === 1 ? (eg ? 8 : 14) : 0;
-    case B: return (f === 4 && r === 2 ? 12 : (r === 4 ? 6 : 0)) + (f === 0 || f === 8 ? -6 : 0);
-    case K: {
-      if (eg) return r === 1 && f === 4 ? 6 : r === 2 ? -4 : 0;
-      return (r === 0 ? (f === 4 ? 8 : 0) : r === 1 ? (f === 4 ? -14 : -12) : -34);
-    }
-    case N: {
-      const rank = [-14, -2, 6, 10, 14, 20, 24, 22, 12, -10][r];
-      let v = rank + (4 - cf) * 3 - (f === 0 || f === 8 ? 22 : f === 1 || f === 7 ? 4 : 0);
-      if (r >= 7 && cf <= 1) v += 10;                                     // by the enemy's palace (臥槽, 掛角)
-      return eg ? Math.round(v * 0.7) : v;
-    }
-    case C: {
-      const rank = [-6, 0, 8, 6, 6, 4, 2, 0, -4, -8][r];
-      let v = rank - (f === 0 || f === 8 ? 6 : 0);
-      if (f === 4 && r >= 2 && r <= 6) v += 12;                           // the central cannon (中炮)
-      return eg ? Math.round(v * 0.5) : v;
-    }
-    case R: {
-      const rank = [-6, 2, 2, 2, 6, 10, 14, 18, 16, 6][r];
-      return eg ? Math.round(rank * 0.6) : rank + (cf === 0 ? 3 : 0);
-    }
+// The weights of the evaluation, in centipawns from Red's side (rank 0 its own back rank). A piece is worth its material
+// plus what its square is worth: a rank profile (how far up the board) and a file profile (how far from the centre file),
+// each for the middlegame and the endgame. A soldier is worth 100 at home and more and more once across the river; a
+// horse likes the centre and the enemy's palace, a cannon the central file, a chariot the open ranks; the general stays
+// home (a general stepping up into the cannons' range costs). The numbers were fitted in the sandbox (README, River).
+export const W = {
+  mg: [0, 0, 205, 205, 420, 930, 460, 100], eg: [0, 0, 190, 185, 460, 1010, 400, 120],        // material by type
+  rankMg: [
+    [], [-4, -14, -30, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 6, 0, 0, 0, 0, 0],
+    [-14, -2, 6, 10, 14, 20, 24, 22, 12, -10], [-6, 2, 2, 2, 6, 10, 14, 18, 16, 6], [-6, 0, 8, 6, 6, 4, 2, 0, -4, -8], [0, 0, 0, 0, 8, 62, 86, 100, 92, 34]],
+  rankEg: [
+    [], [0, 6, -4, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 6, 0, 0, 0, 0, 0],
+    [-10, -1, 4, 7, 10, 14, 17, 15, 8, -7], [-4, 1, 1, 1, 4, 6, 8, 11, 10, 4], [-3, 0, 4, 3, 3, 2, 1, 0, -2, -4], [0, 0, 0, 0, 12, 95, 135, 160, 150, 70]],
+  fileMg: [[], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, -6], [12, 9, 6, 3, -10], [3, 0, 0, 0, 0], [2, 0, 0, 0, -6], [0, 0, 0, 0, 0]],   // by distance from the centre file
+  fileEg: [[], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, -6], [8, 6, 4, 2, -7], [2, 0, 0, 0, 0], [1, 0, 0, 0, -3], [0, 0, 0, 0, 0]],
+  centreAdvisor: 14, centreElephant: 12, centreCannon: 12, crossedFile: [12, 12, 0, -6, -22],
+  rookMob: 3, rookBase: 6, horseMob: 6, horseBase: 3, cannonMob: 1, cannonBase: 7,
+  pin: 14, aim1: 22, aim2: 6, adv: 22, advPair: 10, ele: 13, norm: 9, tempo: 12, zoneR: 0, zoneN: 0, zoneC: 0, zoneP: 0,
+};
+const PSQ_MG = new Int32Array(16 * 90), PSQ_EG = new Int32Array(16 * 90);   // by piece (type | side << 3) and point: Red's positive, Black's negative, so the sums are Red minus Black
+function pst(t, f, r, eg) {
+  const cf = Math.abs(f - 4), ranks = eg ? W.rankEg : W.rankMg, files = eg ? W.fileEg : W.fileMg;
+  let v = ranks[t][r];
+  if (t === P) { if (r >= 5) v += W.crossedFile[cf]; else if (r === 4 && cf === 0) v += 4; }
+  else v += files[t][cf];
+  if (!eg) {
+    if (t === A && f === 4 && r === 1) v += W.centreAdvisor;
+    else if (t === B && f === 4 && r === 2) v += W.centreElephant;
+    else if (t === C && f === 4 && r >= 2 && r <= 6) v += W.centreCannon;
   }
-  return 0;
+  return v;
 }
-// by piece (type | side << 3) and point: Red's pieces positive, Black's negative, so the sums are Red minus Black
-const PSQ_MG = new Int32Array(16 * 90), PSQ_EG = new Int32Array(16 * 90);
-for (let t = 1; t <= 7; t++) for (let s = 0; s < 90; s++) {
-  const f = FILE[s], r = RANK[s];
-  const mgRed = (VALUE_MG[t] || 0) + pstValue(t, f, r, false), egRed = (VALUE_EG[t] || 0) + pstValue(t, f, r, true);
-  PSQ_MG[t * 90 + s] = mgRed; PSQ_EG[t * 90 + s] = egRed;
-  const mirror = (9 - r) * 9 + f;
-  PSQ_MG[(t | 8) * 90 + mirror] = -mgRed; PSQ_EG[(t | 8) * 90 + mirror] = -egRed;
+/** Builds the piece-square sums from W (again, when the tuner changes it). */
+export function buildTables() {
+  for (let t = 1; t <= 7; t++) for (let s = 0; s < 90; s++) {
+    const f = FILE[s], r = RANK[s], mg = W.mg[t] + pst(t, f, r, false), eg = W.eg[t] + pst(t, f, r, true), mirror = (9 - r) * 9 + f;
+    PSQ_MG[t * 90 + s] = mg; PSQ_EG[t * 90 + s] = eg;
+    PSQ_MG[(t | 8) * 90 + mirror] = -mg; PSQ_EG[(t | 8) * 90 + mirror] = -eg;
+  }
 }
+buildTables();
 const PHASE = [0, 0, 0, 0, 2, 4, 2, 0], PHASE_ALL = 32;
 const ORDER_VALUE = [0, 0, 2, 2, 4, 9, 4, 1];                            // a victim's weight in move ordering
 
@@ -161,6 +160,8 @@ export class Engine {
     this.tt = new Table(hashMb * 1024 * 1024 / 12);
     this.tried = new Int32Array((MAXPLY + 2) * 64);
     this.att = new Int32Array(2); this.def = new Int32Array(2);
+    this.ecache = new Int32Array(1 << 17);
+    this.evs = new Int32Array(MAXPLY + 2); this.counter = new Int32Array(16 * 90);
     this.stopped = false; this.nodes = 0; this.nodeLimit = Infinity; this.deadline = Infinity; this.extendTo = 0;
     this.ttMove = 0; this.ttDepth = 0; this.ttBound = 0; this.ttScore = 0; this.rootScore = new Map(); this.partial = null;
     this.setFen(START);
@@ -190,17 +191,23 @@ export class Engine {
       const p = this.bd[s];
       if (!p) continue;
       this.lo ^= ZLO[p * 90 + s]; this.hi ^= ZHI[p * 90 + s];
-      this.mg += PSQ_MG[p * 90 + s]; this.eg += PSQ_EG[p * 90 + s];
       this.phase += PHASE[p & 7];
       if ((p & 7) === K) this.gsq[p >> 3] = s;
       else if ((p & 7) >= N) this.attackers++;
     }
+    this.recount();
     if (this.gsq[0] < 0 || this.gsq[1] < 0) throw new Error(`a Xiangqi position needs both generals: ${fen}`);
     if (this.stm) { this.lo ^= SIDE_LO; this.hi ^= SIDE_HI; }
     this.top = 0;
     this.kLo[0] = this.lo; this.kHi[0] = this.hi; this.quiet[0] = 0;
     this.chk[0] = this.attacked(this.gsq[this.stm], this.stm ^ 1) ? 1 : 0;
-    this.killer1.fill(0); this.killer2.fill(0); this.history.fill(0);
+    this.killer1.fill(0); this.killer2.fill(0); this.history.fill(0); this.counter.fill(0);
+  }
+  /** The material and square sums again from the board (when the weights change). */
+  recount() {
+    let mg = 0, eg = 0;
+    for (let s = 0; s < 90; s++) { const p = this.bd[s]; if (p) { mg += PSQ_MG[p * 90 + s]; eg += PSQ_EG[p * 90 + s]; } }
+    this.mg = mg; this.eg = eg;
   }
   fen() {
     const L = ".kabnrcp";
@@ -253,6 +260,29 @@ export class Engine {
     if (by === 1) { if (g + 9 < 90 && bd[g + 9] === soldier) return true; }
     else if (g >= 9 && bd[g - 9] === soldier) return true;
     if ((f > 0 && bd[g - 1] === soldier) || (f < 8 && bd[g + 1] === soldier)) return true;
+    return false;
+  }
+
+  /** Whether side `by` could take on `sq` by its pieces' paths (pins and the general aside). */
+  guarded(sq, by) {
+    const bd = this.bd;
+    for (let d = 0; d < 4; d++) {
+      const ray = RAY[d * 90 + sq];
+      let screen = false;
+      for (let k = 0; k < ray.length; k++) {
+        const p = bd[ray[k]];
+        if (!p) continue;
+        if (!screen) { if (p >> 3 === by && (p & 7) === R) return true; screen = true; }
+        else { if (p >> 3 === by && (p & 7) === C) return true; break; }
+      }
+    }
+    const nh = NATT[sq], horse = N | by << 3;
+    for (let k = 0; k < nh.length; k += 2) if (bd[nh[k]] === horse && !bd[nh[k + 1]]) return true;
+    const soldier = P | by << 3, f = FILE[sq], r = RANK[sq];
+    if (by === 0 ? r > 0 && bd[sq - 9] === soldier : r < 9 && bd[sq + 9] === soldier) return true;
+    if (by === 0 ? r >= 5 : r <= 4) { if ((f > 0 && bd[sq - 1] === soldier) || (f < 8 && bd[sq + 1] === soldier)) return true; }
+    if (PALACE[by * 90 + sq]) { const al = AMOVE[by * 90 + sq], adv = A | by << 3; for (let k = 0; k < al.length; k++) if (bd[al[k]] === adv) return true; }
+    if (HOME[by * 90 + sq]) { const el = EMOVE[by * 90 + sq], ele = B | by << 3; for (let k = 0; k < el.length; k += 2) if (bd[el[k]] === ele && !bd[el[k + 1]]) return true; }
     return false;
   }
 
@@ -393,11 +423,20 @@ export class Engine {
 
   // ----- evaluation -----
   /** The position's value in centipawns for the side to move. */
+  /** The evaluation, kept by position: the same position comes up again and again in a search. */
   evaluate() {
+    const at = (this.lo & 65535) << 1, c = this.ecache;
+    if (c[at] === this.hi) return c[at + 1];
+    const v = this.evalNow();
+    c[at] = this.hi; c[at + 1] = v;
+    return v;
+  }
+  evalNow() {
     const bd = this.bd, pl = this.pl, ph = this.phase > PHASE_ALL ? PHASE_ALL : this.phase;
     let total = ((this.mg * ph + this.eg * (PHASE_ALL - ph)) / PHASE_ALL) | 0;      // Red minus Black
     let dyn = 0;
     const att = this.att, defence = this.def;                                       // attacking force and defenders, by side
+    const rookMob = W.rookMob, rookBase = W.rookBase, horseMob = W.horseMob, horseBase = W.horseBase, cannonMob = W.cannonMob, cannonBase = W.cannonBase;
     for (let side = 0; side < 2; side++) {
       const sgn = side ? -1 : 1, eg = this.gsq[side ^ 1], efile = FILE[eg];
       let v = 0, force = 0, adv = 0, ele = 0;
@@ -405,44 +444,50 @@ export class Engine {
         const sq = pl[s];
         if (sq < 0) continue;
         const t = bd[sq] & 7;
+        // how far up the board toward the other side's palace, 0 (home) to 9
+        const up = side ? 9 - RANK[sq] : RANK[sq];
         if (t === R) {
           let m = 0;
           for (let d = 0; d < 4; d++) {
             const ray = RAY[d * 90 + sq];
             for (let k = 0; k < ray.length; k++) { const q = bd[ray[k]]; if (!q) m++; else { if (q >> 3 !== side) m++; break; } }
           }
-          v += (m - 6) * 3;
+          v += (m - rookBase) * rookMob;
           force += 3;
-          if (FILE[sq] === efile && this.between(sq, eg) === 1) v += 14;           // a chariot pinning what stands before the general
+          if (FILE[sq] === efile && this.between(sq, eg) === 1) v += W.pin;          // a chariot pinning what stands before the general
+          if (up >= 6 && FILE[sq] >= 2 && FILE[sq] <= 6) v += W.zoneR;
         } else if (t === N) {
           const list = NMOVE[sq];
           let m = 0;
           for (let k = 0; k < list.length; k += 2) if (!bd[list[k + 1]] && (!bd[list[k]] || bd[list[k]] >> 3 !== side)) m++;
-          v += (m - 3) * 6;
+          v += (m - horseBase) * horseMob;
           force += 2;
+          if (up >= 6 && FILE[sq] >= 2 && FILE[sq] <= 6) v += W.zoneN;
         } else if (t === C) {
           let m = 0;
           for (let d = 0; d < 4; d++) {
             const ray = RAY[d * 90 + sq];
             for (let k = 0; k < ray.length; k++) { if (bd[ray[k]]) break; m++; }
           }
-          v += m - 7;
+          v += (m - cannonBase) * cannonMob;
           force += 2;
-          if (FILE[sq] === efile) { const b = this.between(sq, eg); if (b === 1) v += 22; else if (b === 2) v += 6; }   // the cannon aimed at the general, a screen between
+          if (FILE[sq] === efile) { const b = this.between(sq, eg); if (b === 1) v += W.aim1; else if (b === 2) v += W.aim2; }   // the cannon aimed at the general, a screen between
+          if (up >= 6 && FILE[sq] >= 2 && FILE[sq] <= 6) v += W.zoneC;
         } else if (t === A) adv++;
         else if (t === B) ele++;
-        else if (t === P && (side ? RANK[sq] <= 4 : RANK[sq] >= 5)) force += 1;
+        else if (t === P && up >= 5) { force += 1; if (up >= 7 && FILE[sq] >= 3 && FILE[sq] <= 5) v += W.zoneP; }
       }
-      att[side] = force; defence[side] = adv * 22 + (adv === 2 ? 10 : 0) + ele * 13;
+      att[side] = force; defence[side] = adv * W.adv + (adv === 2 ? W.advPair : 0) + ele * W.ele;
       dyn += sgn * v;
     }
     // defenders are worth what the other side's attack makes of them
-    dyn += defence[0] * (att[1] >= 9 ? 1 : att[1] / 9) - defence[1] * (att[0] >= 9 ? 1 : att[0] / 9);
+    const norm = W.norm;
+    dyn += defence[0] * (att[1] >= norm ? 1 : att[1] / norm) - defence[1] * (att[0] >= norm ? 1 : att[0] / norm);
     total += dyn | 0;
     // without a chariot, horse or cannon (nor soldiers across the river) there is little to win with
     if (total > 0 && att[0] === 0) total >>= 2;
     else if (total < 0 && att[1] === 0) total >>= 2;
-    return this.stm ? TEMPO - total : total + TEMPO;
+    return this.stm ? W.tempo - total : total + W.tempo;
   }
   /** How many pieces stand between two points on one file. */
   between(a, b) {
@@ -511,7 +556,8 @@ export class Engine {
   /** Moves of `ply` scored for the order they are tried: the table's move, captures by victim and attacker, killers, history. */
   scoreMoves(ply, n, ttMove, caps) {
     const mv = this.mv, ms = this.ms, bd = this.bd, off = ply * MAXM, hist = this.history, side = this.stm * 8100;
-    const k1 = this.killer1[ply], k2 = this.killer2[ply];
+    const k1 = this.killer1[ply], k2 = this.killer2[ply], top = this.top;
+    const cm = top > 0 && this.uMove[top] ? this.counter[bd[this.uMove[top] >> 7] * 90 + (this.uMove[top] >> 7)] : 0;
     for (let i = off; i < off + n; i++) {
       const m = mv[i], from = m & 127, to = m >> 7, v = bd[to];
       if (m === ttMove) ms[i] = 1 << 24;
@@ -519,6 +565,7 @@ export class Engine {
       else if (caps) ms[i] = 0;
       else if (m === k1) ms[i] = 1 << 19;
       else if (m === k2) ms[i] = (1 << 19) - 1;
+      else if (m === cm) ms[i] = (1 << 19) - 2;
       else ms[i] = hist[side + from * 90 + to];
     }
   }
@@ -547,27 +594,40 @@ export class Engine {
     if (this.stopped) return 0;
     if (this.attackers === 0) return 0;
     if (ply >= MAXPLY + QPLY - 2) return this.evaluate();
-    const inCheck = this.chk[this.top] === 1;
+    const inCheck = this.chk[this.top] === 1, pvNode = beta - alpha > 1;
+    let ttMove = 0;
+    if (this.probe(ply)) {
+      ttMove = this.ttMove;
+      if (!pvNode) {
+        const sc = this.ttScore, bound = this.ttBound;
+        if (bound === EXACT || (bound === LOWER ? sc >= beta : sc <= alpha)) return sc;
+      }
+    }
     let best = -INF, ev = 0;
     if (!inCheck) {
       ev = best = this.evaluate();
       if (ev >= beta) return ev;
       if (ev > alpha) alpha = ev;
     } else if (qd >= 8) return this.evaluate();
-    const n = this.gen(ply, !inCheck), off = ply * MAXM, bd = this.bd;
-    this.scoreMoves(ply, n, 0, !inCheck);
-    let legal = 0;
+    const origAlpha = alpha, n = this.gen(ply, !inCheck), off = ply * MAXM, bd = this.bd, foe = this.stm ^ 1;
+    this.scoreMoves(ply, n, ttMove, !inCheck);
+    let legal = 0, bestMove = 0;
     for (let i = off; i < off + n; i++) {
-      const m = this.pick(i, off + n);
-      if (!inCheck && ev + (VALUE_MG[bd[m >> 7] & 7] || 0) + 180 < alpha) continue;
+      const m = this.pick(i, off + n), victim = bd[m >> 7] & 7;
+      if (!inCheck) {
+        if (ev + W.mg[victim] + 180 < alpha) continue;
+        // a capture that gives more than it gets, onto a point the other side guards, is not worth looking at
+        if (ORDER_VALUE[victim] < ORDER_VALUE[bd[m & 127] & 7] && this.guarded(m >> 7, foe)) continue;
+      }
       if (!this.make(m)) continue;
       legal++;
       const score = -this.qsearch(-beta, -alpha, ply + 1, qd + 1);
       this.unmake();
       if (this.stopped) return 0;
-      if (score > best) { best = score; if (score > alpha) { alpha = score; if (score >= beta) break; } }
+      if (score > best) { best = score; bestMove = m; if (score > alpha) { alpha = score; if (score >= beta) break; } }
     }
     if (inCheck && legal === 0) return -MATE + ply;
+    this.store(0, best, best >= beta ? LOWER : best > origAlpha ? EXACT : UPPER, bestMove, ply);
     return best;
   }
 
@@ -595,43 +655,65 @@ export class Engine {
         if (bound === EXACT || (bound === LOWER ? sc >= beta : sc <= alpha)) return sc;
       }
     }
-    const ev = inCheck ? 0 : this.evaluate();
-    if (!pvNode && !inCheck && depth <= 3 && ev - 130 * depth >= beta && beta > -MATE + 200) return ev - 130 * depth;
-    if (nullOk && !pvNode && !inCheck && depth >= 3 && ev >= beta && this.force(this.stm) >= 3) {
-      const r = 2 + (depth >= 6 ? 1 : 0) + (ev - beta > 300 ? 1 : 0);
-      this.makeNull();
-      const sc = -this.ab(-beta, -beta + 1, depth - 1 - r, ply + 1, false);
-      this.unmakeNull();
-      if (this.stopped) return 0;
-      if (sc >= beta) return sc >= MATE - MAXPLY ? beta : sc;
+    let ev = 0, improving = false;
+    if (!inCheck) {
+      ev = this.evaluate();
+      this.evs[ply] = ev;
+      improving = ply >= 2 && this.evs[ply - 2] !== NONE && ev > this.evs[ply - 2];
+    } else this.evs[ply] = NONE;
+    if (!pvNode && !inCheck) {
+      if (depth <= 3 && ev - (improving ? 110 : 140) * depth >= beta && beta > -MATE + 200) return ev - 130 * depth;     // so far ahead that nothing a move or two on will bring it back
+      if (depth <= 2 && ev + 330 * depth <= alpha) {                           // so far behind that only a capture can help
+        const q = this.qsearch(alpha, beta, ply, 0);
+        if (q <= alpha || this.stopped) return q;
+      }
+      if (nullOk && depth >= 3 && ev >= beta && this.force(this.stm) >= 3) {
+        const r = 2 + (depth >> 2) + (ev - beta > 300 ? 1 : 0);
+        this.makeNull();
+        const sc = -this.ab(-beta, -beta + 1, depth - 1 - r, ply + 1, false);
+        this.unmakeNull();
+        if (this.stopped) return 0;
+        if (sc >= beta) return sc >= MATE - MAXPLY ? beta : sc;
+      }
     }
-    if (!ttMove && depth >= 5 && pvNode) {
-      this.ab(alpha, beta, depth - 2, ply, false);                              // a shallower look to find a move to try first
-      if (this.stopped) return 0;
-      if (this.probe(ply)) ttMove = this.ttMove;
-      this.pvn[ply] = ply;
+    if (!ttMove && depth >= 5) {
+      if (pvNode) {
+        this.ab(alpha, beta, depth - 2, ply, false);                            // a shallower look to find a move to try first
+        if (this.stopped) return 0;
+        if (this.probe(ply)) ttMove = this.ttMove;
+        this.pvn[ply] = ply;
+      } else if (depth >= 7) depth--;
     }
 
     const n = this.gen(ply, false), off = ply * MAXM, bd = this.bd, me = this.stm;
     this.scoreMoves(ply, n, ttMove, false);
-    const origAlpha = alpha, tried = this.tried, tb = ply * 64;
-    let best = -INF, bestMove = 0, legal = 0, nq = 0;
+    const origAlpha = alpha, tried = this.tried, tb = ply * 64, hist = this.history, hb = me * 8100;
+    const k1 = this.killer1[ply], k2 = this.killer2[ply];
+    const prevTo = this.uMove[top] >> 7, counterAt = this.top > 0 && this.uMove[top] ? bd[prevTo] * 90 + prevTo : -1;
+    let best = -INF, bestMove = 0, legal = 0, nq = 0, skipped = 0;
+    const lmp = pvNode || inCheck || depth > 4 ? 1e9 : (improving ? LMP[depth] + 3 : LMP[depth]);
     for (let i = off; i < off + n; i++) {
       const m = this.pick(i, off + n), capture = bd[m >> 7] !== 0;
       if (!this.make(m)) continue;
       legal++;
       const gives = this.chk[this.top] === 1;
-      if (!pvNode && !inCheck && !gives && !capture && legal > 1 && depth <= 3 && ev + 70 + 90 * depth <= alpha && m !== this.killer1[ply]) {
-        this.unmake();
-        continue;
+      if (!capture && !gives && !pvNode && !inCheck && legal > 1 && best > -MATE + 200 && m !== k1 && m !== k2) {
+        // moves late in the order, on nodes that are not on the line, are not worth a full look
+        if ((depth <= 4 && legal > lmp) || (depth <= 4 && ev + 60 + 100 * depth <= alpha)) { this.unmake(); skipped++; continue; }
       }
       let score, childPv = true;
       if (legal === 1) score = -this.ab(-beta, -alpha, depth - 1, ply + 1, true);
       else {
         let red = 0;
-        if (depth >= 3 && legal > 3 && !capture && !inCheck && !gives) {
-          red = LMR[(depth > 31 ? 31 : depth) * 64 + (legal > 63 ? 63 : legal)] - (pvNode ? 1 : 0) - (m === this.killer1[ply] || m === this.killer2[ply] ? 1 : 0);
+        if (depth >= 3 && legal > LF && !capture && !inCheck && !gives) {
+          red = LMR[(depth > 31 ? 31 : depth) * 64 + (legal > 63 ? 63 : legal)];
+          if (pvNode) red--;
+          if (m === k1 || m === k2) red--;
+          const h = hist[hb + (m & 127) * 90 + (m >> 7)];
+          if (h < -2000) red++; else if (h > 6000) red--;
+          if (!improving && !pvNode) red++;
           if (red < 0) red = 0;
+          if (red > depth - 2) red = depth - 2;
         }
         score = -this.ab(-alpha - 1, -alpha, depth - 1 - red, ply + 1, true);
         if (score > alpha && red > 0) score = -this.ab(-alpha - 1, -alpha, depth - 1, ply + 1, true);
@@ -648,7 +730,8 @@ export class Engine {
           if (pvNode) this.setPv(ply, m, childPv);
           if (score >= beta) {
             if (!capture) {
-              if (this.killer1[ply] !== m) { this.killer2[ply] = this.killer1[ply]; this.killer1[ply] = m; }
+              if (k1 !== m) { this.killer2[ply] = k1; this.killer1[ply] = m; }
+              if (counterAt >= 0) this.counter[counterAt] = m;
               const bonus = depth * depth > 400 ? 400 : depth * depth;
               this.bump(me, m, bonus);
               for (let q = 0; q < nq - 1; q++) this.bump(me, tried[tb + q], -bonus);
@@ -777,5 +860,5 @@ export class Engine {
   }
   /** A new hash table of about this many megabytes. */
   setHash(mb) { this.tt.resize(Math.max(1, mb) * 1024 * 1024 / 12); }
-  clearHash() { this.tt.clear(); this.killer1.fill(0); this.killer2.fill(0); this.history.fill(0); }
+  clearHash() { this.tt.clear(); this.killer1.fill(0); this.killer2.fill(0); this.history.fill(0); this.counter.fill(0); }
 }
