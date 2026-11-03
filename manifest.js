@@ -7,7 +7,7 @@
 import { LIVES, ROUNDS, WARES, VIEWS, KINDS, makeRound, priceOf, skillFactor, recordAfter, shipBonus, turn,
   LANDING, MODES, timeline, partCells, freshTable, isTable, stageOf, roundOf, partFor, livesOf, playing, repliesOf, firstOpen, waitingFor, sayReady, goOn, reply,
   ship as shipIn, settleIfDue, setNext, again, scoresOf, verdicts, resultOf, bonusAt } from "./manifest-engine.js";
-import { stage, wareIcon } from "./manifest-art.js";
+import { stage, wareIcon, playOut } from "./manifest-art.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line } from "./menu.js";
@@ -18,6 +18,7 @@ import { roomInAddress, joiningWords } from "./rooms.js";
 import { presentSlots } from "./duel-core.js";
 import { leaderboard } from "./standings.js";
 import { busy, waitMark } from "./loading.js";
+import { sure } from "./sure.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "manifest:run2", BEST = "manifest:best", DAILY = "manifest:daily", RECORD = "manifest:record";
@@ -120,15 +121,12 @@ function endShow(left) {
   $("timer").hidden = true;
   $("shipBtn").hidden = true;
   const panel = $("view").firstChild;
-  if (R.level.change) {
-    panel.classList.add("fade");
-    showTimer = setTimeout(() => {
-      $("view").replaceChildren();
-      showTimer = setTimeout(() => { S.phase = "ask"; save(); askPhase(true); }, 1000);
-    }, 500);
+  if (R.level.change) {                               // the stack fades and the empty quay stays a second before it comes back
+    playOut(panel, "fade");
+    showTimer = setTimeout(() => { S.phase = "ask"; save(); askPhase(true); }, 1500);
     return;
   }
-  panel.classList.add("away");
+  playOut(panel, "away");
   showTimer = setTimeout(() => { S.phase = "ask"; save(); askPhase(); }, 380);
 }
 
@@ -182,9 +180,7 @@ function drawAskStage(appear = false) {
   viewOn(!!q);
   if (!q) { $("view").replaceChildren(); return; }
   const done = S.answers[0];
-  const panel = stage(q.back, { turns: q.turns, tap: done ? null : key => tapBack(key), selected: picked, marks: done ? [].concat(q.answer) : [] }).panel;
-  if (appear) panel.classList.add("appear");
-  $("view").replaceChildren(panel);
+  $("view").replaceChildren(stage(q.back, { turns: q.turns, tap: done ? null : key => tapBack(key), selected: picked, marks: done ? [].concat(q.answer) : [], appear }).panel);
 }
 /** The round's stack turned the way a question turns it. */
 const turnedOf = q => turn(R.cells, q.turns);
@@ -604,9 +600,7 @@ function leave(key) {
   $("timer").hidden = true;
   $("shipBtn").hidden = true;
   const panel = $("view").firstChild;
-  if (!panel) return;
-  if (R.level.change) { panel.classList.add("fade"); setTimeout(() => { if (shown === `${key}/left`) $("view").replaceChildren(); }, 500); }
-  else panel.classList.add("away");
+  if (panel) playOut(panel, R.level.change ? "fade" : "away");     // a change round's quay stays empty until the stack comes back
 }
 /** Together, once you've shipped: the others still have their parts in front of them. */
 function playShipped(game, tl, key, t) {
@@ -871,8 +865,8 @@ function tableMenu(body) {
   part(body, "together").append(
     choice("Next game", Object.entries(MODES), next, v => { write(MODE, v); together.act(g => setNext(g, v)).then(() => { if ($("menuDlg").open) openMenu(); }); }),
     line(st === "lobby" ? "This game too: it hasn't started." : `This game: ${MODES[game.mode]}.`),
-    action(st === "over" ? "Play again" : "A new game", () => {
-      if ((st === "play" || st === "results") && !confirm("Start a new game? This one isn't over.")) return;
+    action(st === "over" ? "Play again" : "A new game", async () => {
+      if ((st === "play" || st === "results") && !(await sure("Start a new game? This one isn't over."))) return;
       const n = game.n;
       together.act(g => again(g, slot, n, { seed: randomSeed(), present: here(), now: now() }));
     }),
@@ -922,8 +916,8 @@ function openMenu() {
   part(body, "about").append(line(`${best ? `Best ${money(best)}` : "No finished run yet"}${daily != null ? `, today ${money(daily)}` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-function confirmStart(mode) {
-  if (S && S.phase !== "over" && (S.round > 1 || answered()) && !confirm("Start a new run? This one isn't finished.")) return;
+async function confirmStart(mode) {
+  if (S && S.phase !== "over" && (S.round > 1 || answered()) && !(await sure("Start a new run? This one isn't finished."))) return;
   start(mode);
 }
 
