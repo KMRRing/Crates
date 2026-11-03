@@ -171,8 +171,8 @@ function fullHead(body) {
   if (!app) return null;
   const box = el("div", "menu-full"), games = document.getElementById("appsBtn");
   box.dataset.full = "1";
-  if (games && !IN_PARTY && !IN_FRAME) box.append(action("Back to menu", () => games.click()));
   const have = new Set([...body.querySelectorAll("button")].map(b => b.textContent.trim().toLowerCase()));
+  if (games && !IN_PARTY && !IN_FRAME && !have.has("back to menu")) box.append(action("Back to menu", () => games.click()));   // Almanac's own, if the page still has one
   const row = el("div", "menu-full-row");
   for (const b of app.querySelectorAll(":scope > .top .top-right > button:not(#menuBtn, .dd)")) {   // .dd: a header dropdown, which the menu has as its own choice
     const text = (b.textContent || b.getAttribute("aria-label") || "").trim();

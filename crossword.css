@@ -17,6 +17,7 @@ html[data-mode="night"] { --cw-in: #6FA0D2; --cw-black: color-mix(in srgb, var(-
 
 .cw-mark { display: inline-block; }
 .cw-mark svg { width: 100%; height: 100%; display: block; }
+#app.crossword.full { --full-slot: 6.5rem; }          /* the clock sits beside the mark: its strip keeps clear of both */
 .cw-clock { font-variant-numeric: tabular-nums; font-weight: 700; font-size: .95rem; color: var(--ink-soft); min-width: 3.2rem; text-align: right; }
 .cw-clock.paused { opacity: .45; }
 

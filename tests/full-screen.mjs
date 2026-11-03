@@ -10,16 +10,12 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const root = new URL("..", import.meta.url).pathname;
 const STILL = new Set([
-  "acrostic.html", "almanac.html", "assay.html", "avalanche.html", "baccarat.html", "banquet.html",
-  "bigtwo.html", "blackjack.html", "boast.html", "bones.html", "bridges.html", "bulls.html",
-  "calcudoku.html", "calibre.html", "codeword.html", "contract.html", "craps.html", "crossword.html",
-  "cue.html", "drift.html", "factor.html", "gambit.html", "gammon.html", "guilloche.html",
-  "holdem.html", "hong.html", "isomer.html", "kakuro.html", "landfall.html", "loom.html",
-  "masyu.html", "meld.html", "mines.html", "netting.html", "nexus.html", "nonogram.html",
-  "nurikabe.html", "party.html", "pegs.html", "pipes.html", "polder.html", "quest.html",
-  "river.html", "roulette.html", "settle.html", "shunt.html", "sicbo.html", "silo.html",
-  "slipway.html", "slitherlink.html", "solitaire.html", "soon.html", "sudoku.html", "timegrapher.html",
-  "tribute.html", "trumps.html",
+  "almanac.html", "avalanche.html", "baccarat.html", "banquet.html", "bigtwo.html", "blackjack.html",
+  "boast.html", "bones.html", "bulls.html", "contract.html", "craps.html", "cue.html",
+  "drift.html", "factor.html", "gambit.html", "gammon.html", "holdem.html", "hong.html",
+  "landfall.html", "meld.html", "netting.html", "party.html", "pegs.html", "polder.html",
+  "quest.html", "river.html", "roulette.html", "shunt.html", "sicbo.html", "silo.html",
+  "solitaire.html", "soon.html", "tribute.html", "trumps.html",
 ]);
 const pages = fs.readdirSync(root).filter(f => f.endsWith(".html")).sort();
 const withHeader = [], full = [], unlisted = [], stale = [], broken = [];
