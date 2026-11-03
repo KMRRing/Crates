@@ -11,6 +11,9 @@ import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
+import { sure } from "./sure.js";
+import { cellEdit, tallyEdit, onceEdit } from "./board-share.js";
+import nurikabeCoop from "./nurikabe-coop.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "nurikabe:run", TIMES = "nurikabe:times", PREFS = "nurikabe:prefs", SPARES = "nurikabe:spares";
@@ -26,6 +29,16 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`; };
 const kindText = k => `${k.size}×${k.size} · ${LEVELS[k.level]}`;
 const kindKey = k => `${k.size}:${k.level}`;
+
+// ---------- played with a partner ----------
+// A party of two opened this page (&coop=1, docs/coop.md): the board is the room's, one board for two phones, and what
+// this file does to it goes through `coop.edit` as edits instead of a change to S.marks. S is then built from the room's
+// board each time it moves (showBoard); undo, redo and a hint's gilt stay each player's own. The clock is the team's.
+const COOP = !IN_FRAME && /[?&]coop=1\b/.test(location.search) && /[?&]room=[A-Za-z]{4}\b/.test(location.search);
+let coop = null;                       // coop-page.js's controller once the room's board is on the screen
+let coopHost = false, team = null, sentDone = false;     // this phone is the host's; the board's start ({ at, ms, hints }); the solve is on its way
+const teamMs = () => (team ? (team.ms || 0) + Math.max(0, Date.now() - team.at) : 0);
+const hintId = () => `h${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 // ---------- what you chose ----------
 const prefs = { size: 8, level: "easy", ...read(PREFS, {}) };
@@ -95,6 +108,10 @@ const valid = s => !!s && s.v === 1 && SIZES.includes(s.size) && typeof s.grid =
 
 function save() {
   if (IN_FRAME || !S) return;
+  if (COOP) {       // the host's own run follows the shared board (it is theirs again when the co-op ends); the guest's is left alone
+    if (coopHost) write(RUN, { ...S, undo: [], redo: [], lit: null, ms: Math.round(teamMs()) });
+    return;
+  }
   write(RUN, S);
   savedAt = performance.now();
 }
@@ -115,6 +132,12 @@ function begin(s) {
 /** A new solo puzzle: today's, or a random one of the kind chosen. */
 async function start(mode, k = chosenKind()) {
   if (IN_FRAME) return;
+  if (COOP) {       // another puzzle for both of you
+    if (!coop) return;
+    const { seed, puzzle } = await nextPuzzle(k);
+    if (puzzle) await coop.renew(shareOf(fromPuzzle("random", seed, k, puzzle)));
+    return;
+  }
   if (mode === "daily") {
     const done = busy("Making today's puzzle", { delay: 250 });
     let puzzle;
@@ -126,8 +149,10 @@ async function start(mode, k = chosenKind()) {
   if (puzzle) begin(fromPuzzle("random", seed, k, puzzle));
 }
 const fromPuzzle = (mode, seed, k, puzzle) => ({ mode, seed, size: k.size, level: k.level, came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol, marks: NONE.repeat(puzzle.sol.length) });
-function confirmStart(mode, k) {
-  if (started() && !confirm("Start a new puzzle? This one isn't solved.")) return false;
+/** The shared board for a puzzle (what the host's run becomes when a partner joins). */
+const shareOf = run => nurikabeCoop.share({ [RUN]: JSON.stringify({ v: 1, ms: 0, hints: 0, ...run }) });
+async function confirmStart(mode, k) {
+  if (started() && !(await sure(coop ? "Start a new puzzle for both of you? This one isn't solved." : "Start a new puzzle? This one isn't solved.", { yes: "New puzzle" }))) return false;
   start(mode, k);
   return true;
 }
@@ -135,7 +160,7 @@ function confirmStart(mode, k) {
 // ---------- the clock ----------
 // A puzzle counts the time it's on screen (S.ms); it stands while the menu, the rules or the games screen is open.
 function clockRun() {
-  if (IN_FRAME || !S || S.done || clockFrom != null || document.hidden || isPaused()) return;
+  if (COOP || IN_FRAME || !S || S.done || clockFrom != null || document.hidden || isPaused()) return;
   clockFrom = performance.now();
 }
 function clockPause() {
@@ -145,7 +170,7 @@ function clockPause() {
   save();
 }
 onPause(() => { paused = true; clockPause(); cancelPress(); }, () => { paused = false; clockRun(); });
-const elapsed = () => (!S ? 0 : S.done ? S.done.ms : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
+const elapsed = () => (!S ? 0 : S.done ? S.done.ms : COOP ? teamMs() : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
 const penalty = () => HINT * (S?.hints || 0);
 const scoreOf = ms => Math.round(ms / 1000) + penalty();
 
@@ -171,7 +196,8 @@ function press(x, how) {
 }
 function setCell(x, from, to, stroke = 0) {
   if (from === to) return;
-  S.marks = withMark(S.marks, x, to);
+  if (coop) coop.edit(cellEdit("marks", x, from, to));      // shows at once (showBoard) and goes to the room
+  else S.marks = withMark(S.marks, x, to);
   S.undo.push([x, from, to, stroke]);
   if (S.undo.length > 400) S.undo.shift();
   S.redo = [];
@@ -183,12 +209,15 @@ function step(from, to, back) {
   if (!S || S.done) return;
   const last = from.at(-1);
   if (!last) return;
-  const group = last[3] || -1;
+  const group = last[3] || -1, edits = [];
   do {
     const [x, was, now] = from.pop();
     to.push([x, was, now, group > 0 ? group : 0]);
-    S.marks = withMark(S.marks, x, back ? was : now);
+    // an undo only puts back what is still as you left it: a mark your partner changed since stays theirs
+    if (coop) edits.push(cellEdit("marks", x, back ? now : was, back ? was : now, back));
+    else S.marks = withMark(S.marks, x, back ? was : now);
   } while (group > 0 && from.at(-1)?.[3] === group);
+  if (coop) coop.edit(edits);
   S.lit = null;
   changed(-1);
 }
@@ -234,7 +263,7 @@ function useHint() {
   if (!S || S.done || IN_FRAME || paused) return;
   const h = hintFor(P, S.marks);
   if (!h) return;
-  S.hints++;
+  if (!coop) S.hints++;
   let set, text, focus = [];
   if (h.wrong != null) {
     set = [[h.wrong, h.should]];
@@ -249,7 +278,12 @@ function useHint() {
     text = h.should === SEA ? "Hint: this one is sea." : "Hint: this one is island.";
   }
   const hinted = newStroke();                                       // a hint's cells are one step too
-  for (const [x, m] of set) setCell(x, S.marks[x], m, hinted);
+  if (coop) {       // the marks and the hint taken, together: the hint counts once for both of you
+    const marks = set.filter(([x, m]) => S.marks[x] !== m);
+    for (const [x, m] of marks) S.undo.push([x, S.marks[x], m, hinted]);
+    S.redo = [];
+    coop.edit([...marks.map(([x, m]) => cellEdit("marks", x, S.marks[x], m)), tallyEdit("hints", hintId())]);
+  } else for (const [x, m] of set) setCell(x, S.marks[x], m, hinted);
   S.lit = { set: set.map(([x]) => x), focus, text };
   message = null;
   save();
@@ -258,7 +292,15 @@ function useHint() {
 }
 
 // ---------- the end ----------
+/** The sea is the answer: the time stands for both of you, whoever saw it first (a value that is set once, board-share.js). */
+function finishTogether() {
+  if (S.done || sentDone || !coop) return;
+  sentDone = true;
+  const ms = Math.round(teamMs());
+  coop.edit(onceEdit("done", { ms, score: scoreOf(ms), by: coop.together.room?.name || "" }));
+}
 function finish() {
+  if (coop) { finishTogether(); return; }
   const ms = S.ms + (clockFrom != null ? performance.now() - clockFrom : 0);
   clockFrom = null;
   S.done = { ms, score: scoreOf(ms) };
@@ -395,8 +437,9 @@ function drawResult() {
   $("controls").hidden = done;
   $("result").hidden = !done;
   if (!done) return;
-  const d = S.done, bits = [`${fmt(d.ms / 1000)} on the clock`], best = bestOf(S);
+  const d = S.done, bits = [`${fmt(d.ms / 1000)} on the clock`], best = COOP ? null : bestOf(S);
   if (S.hints) bits.push(`${plural(S.hints, "hint")} (+${penalty()} s)`);
+  if (COOP) { $("verdict").textContent = `Solved together: ${fmt(d.score)}. ${bits.join(", ")}.`; return; }
   const tail = S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
   $("verdict").textContent = `Solved: ${fmt(d.score)}. ${bits.join(", ")}.${tail}`;
 }
@@ -444,20 +487,21 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const content = part(body, "content");
-  pick ??= S?.mode === "daily" ? "daily" : "random";
+  pick = COOP ? "random" : pick ?? (S?.mode === "daily" ? "daily" : "random");
   const play = part(body, "play");
-  play.append(action("New puzzle", () => confirmStart(pick), "primary"));
+  play.append(action(COOP ? "Another puzzle" : "New puzzle", () => confirmStart(pick), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
   play.append(action("The rules", showRules, "link"));
-  content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
+  if (!COOP) content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") {
     content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
     content.append(mirror("Level", $("level")));
   } else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
-  const best = S ? bestOf(S) : null;
-  part(body, "about").append(
-    line(S ? `${kindText({ size: S.size, level: S.came || S.level })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Shade the sea round the islands."),
-    action("Copy a link to this puzzle", copyLink, "link"));
+  if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
+  const best = S && !COOP ? bestOf(S) : null;
+  const about = part(body, "about");
+  about.append(line(S ? `${kindText({ size: S.size, level: S.came || S.level })}: ${COOP ? (S.done ? "solved" : "not solved yet") : best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Shade the sea round the islands."));
+  if (!COOP) about.append(action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 /** The size changed in the menu: the header's level follows, and a spare is made ready. */
@@ -466,10 +510,20 @@ function kindChanged() {
   $("level").value = k.level;
   refill(k);
 }
-function clearBoard() {
+async function clearBoard() {
   if (!S || S.done) return;
-  if (!confirm("Clear every mark on the board?")) return;
+  if (!(await sure(coop ? "Clear every mark on the board? It clears it for both of you." : "Clear every mark on the board?", { yes: "Clear" }))) return;
+  if (S.done) return;
   const clearing = newStroke();                                      // one step to undo
+  if (coop) {
+    const marks = [...S.marks].map((m, x) => (m !== NONE ? [x, m] : null)).filter(Boolean);
+    for (const [x, m] of marks) S.undo.push([x, m, NONE, clearing]);
+    S.redo = [];
+    S.lit = null;
+    coop.edit(marks.map(([x, m]) => cellEdit("marks", x, m, NONE)));
+    changed();
+    return;
+  }
   for (let x = 0; x < S.marks.length; x++) if (S.marks[x] !== NONE) setCell(x, S.marks[x], NONE, clearing);
 }
 async function copyLink() {
@@ -501,19 +555,19 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => start("random"));
-$("level").addEventListener("change", () => {
+$("level").addEventListener("change", async () => {
   const v = $("level").value;
   if (S && S.mode !== "daily" && v === S.level && S.size === prefs.size) return;
   const before = prefs.level;
   prefs.level = v; savePrefs();
-  if (!confirmStart("random")) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.level) : before; }
+  if (!(await confirmStart("random"))) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.level) : before; }
 });
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
-document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else clockRun(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); coop?.together.resync(); } });
 window.addEventListener("pagehide", () => clockPause());
-window.addEventListener("hashchange", () => { const l = linked(); if (l && !(S && S.seed === l.seed && S.mode === l.mode)) openLinked(l); });
+window.addEventListener("hashchange", () => { if (COOP) return; const l = linked(); if (l && !(S && S.seed === l.seed && S.mode === l.mode)) openLinked(l); });
 setInterval(() => {
   if (!S) return;
   drawStrip();
@@ -522,25 +576,55 @@ setInterval(() => {
 
 // for tests and debugging
 window.__nurikabe = {
-  get state() { return S; }, get puzzle() { return P; }, press, useHint, undo, redo, start,
+  get state() { return S; }, get puzzle() { return P; }, get coop() { return coop; }, press, useHint, undo, redo, start,
   /** Where a cell's middle is on the screen, for tests that tap or drag it as a finger would. */
   cellOf: x => { const m = svg.getScreenCTM(), [r, c] = rc(x); return { x: (c + 0.5) * m.a + m.e, y: (r + 0.5) * m.d + m.f }; },
 };
 
 const forToday = arrivedForToday();   // from the games screen's tile: today's puzzle, still to play
 /** Your own puzzle: a link's, today's from the tile, the saved one, or a first puzzle. */
-function solo() {
+async function solo() {
   const kept = read(RUN, null);
   S = null;
   if (valid(kept)) S = kept;
   const l = linked();
   if (l && !(S && S.seed === l.seed && S.mode === l.mode && S.size === l.k.size)) { openLinked(l); return; }
-  if (forToday && !IN_FRAME && !(S?.mode === "daily" && S.seed === today())) {
-    if (!started() || confirm("Today's puzzle is waiting. Leave the one you've started?")) { start("daily"); return; }
+  const todays = forToday && !IN_FRAME && !(S?.mode === "daily" && S.seed === today());
+  if (S) { const s = S; S = null; begin(s); if (!IN_FRAME) refill(chosenKind()); }       // yours is on the board while it asks about today's
+  if (todays && (!S || !started() || await sure("Today's puzzle is waiting. Leave the one you've started?", { yes: "Today's puzzle", no: "Keep mine" }))) { start("daily"); return; }
+  if (!S) { if (IN_FRAME) render(); else start("random"); }
+}
+
+/** The board of a party of two: the room's, drawn each time it moves (coop-page.js). */
+function showBoard(board, info) {
+  const run = nurikabeCoop.run(board), wasDone = !!S?.done;
+  team = board.start || team;
+  coopHost = info.host;
+  if (info.fresh || !S) {
+    S = { undo: [], redo: [], ms: 0, lit: null, ...run };
+    P = puzzleOf(S.size, S.grid, S.sol);
+    message = null; sentDone = false;
+    cancelPress();                                          // a finger painting on the board that has just been replaced
+    $("level").value = levelOn(S.size, S.level);
+    drawBoard();
+  } else {
+    S.marks = run.marks; S.hints = run.hints; S.done = run.done;
   }
-  if (S) { const s = S; S = null; begin(s); if (!IN_FRAME) refill(chosenKind()); }
-  else if (IN_FRAME) render();
-  else start("random");
+  if (S.done) S.lit = null;
+  else if (solvedBy(P, S.marks)) finishTogether();
+  if (S.done && !wasDone && !info.fresh) wave();
+  save();
+  paint();
+  render();
+}
+async function joinPartner() {
+  const { startCoop } = await import("./coop-page.js");
+  coop = await startCoop("nurikabe", {
+    toast, show: showBoard,
+    fresh: async () => { const k = chosenKind(), { seed, puzzle } = await nextPuzzle(k); return shareOf(fromPuzzle("random", seed, k, puzzle)); },
+    bar: el => { $("kind").hidden = true; $("kind").after(el); },
+  });
+  if (!coop && !IN_FRAME) solo();
 }
 $("level").value = chosenKind().level;
-solo();
+if (COOP) joinPartner().catch(e => { console.error(e); solo(); }); else solo();

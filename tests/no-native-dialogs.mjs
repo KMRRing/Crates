@@ -29,7 +29,6 @@ const STILL = {
   "lots.js": 4,
   "mines.js": 3,
   "nexus.js": 1,
-  "nurikabe.js": 3,
   "order.js": 3,
   "origin.js": 3,
   "parley.js": 1,
