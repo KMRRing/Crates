@@ -2,7 +2,7 @@
 // section and by players, and when a pull on the list brings the bar down. The pure parts run here; the bar itself was
 // tried in a browser by hand (wheel and touch), which a test of this suite doesn't do.
 import fs from "node:fs";
-import { favourites, setFavourite, starredFirst, FAV, takes, PLAYERS, AKA, fold, searchable, answers, shows, nothing, pulls } from "../games-find.js";
+import { favourites, setFavourite, listing, FAVOURITES, FAV, takes, PLAYERS, AKA, fold, searchable, answers, shows, nothing, pulls } from "../games-find.js";
 import { GAMES, ELSEWHERE } from "../party-core.js";
 
 let bad = 0;
@@ -63,10 +63,26 @@ const memory = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m
   let threw = false;
   try { favourites(ids, broken); setFavourite("quote", true, broken); setFavourite("quote", false, broken); } catch { threw = true; }
   check(!threw && favourites(ids, broken).size === 0, "with no storage (a private window) it neither breaks nor stars");
-  const knowledge = tiles.filter(a => a.sec === "knowledge");
-  const order = starredFirst(knowledge, new Set(["nexus", "punt"])).map(a => a.id), plain = knowledge.map(a => a.id);
-  check(same(order, ["punt", "nexus", ...plain.filter(i => i !== "punt" && i !== "nexus")]), "starred first, in the section's own order among themselves, the rest in theirs");
-  check(same(starredFirst(knowledge, new Set()).map(a => a.id), plain), "no stars: the section as it was");
+}
+
+// ---------- the Favourites section: every starred game, above the sections, once ----------
+{
+  const plain = listing(tiles, SECTIONS, new Set());
+  check(same(plain.map(g => g.id), SECTIONS.map(([id]) => id)) && plain.every(g => g.apps.every(a => a.sec === g.id)) && plain.flatMap(g => g.apps).length === tiles.length,
+    "nothing starred: no Favourites, just the sections, as they were");
+  const stars = ["river", "nexus", "punt", "crates"], lists = listing(tiles, SECTIONS, new Set(stars)), favs = lists[0];
+  const order = tiles.map(a => a.id).filter(i => stars.includes(i));
+  check(favs.id === FAVOURITES && favs.title === "Favourites" && same(favs.apps.map(a => a.id), order), "starred: Favourites comes first, with every starred game in the screen's order (sections, then each section's own)");
+  check(same(order.slice().sort(), stars.slice().sort()) && new Set(order.map(i => by0(i).sec)).size >= 2, "…across sections (the stars chosen here sit in more than one)");
+  const rest = lists.slice(1), shown = lists.flatMap(g => g.apps.map(a => a.id));
+  check(same(rest.map(g => g.id), SECTIONS.map(([id]) => id)) && rest.every(g => g.apps.every(a => !stars.includes(a.id) && a.sec === g.id)), "…the sections follow in their order, without the starred games");
+  check(shown.length === tiles.length && new Set(shown).size === tiles.length, "…and every game is on the screen once: a star moves a game, it doesn't copy it");
+  const home = listing(tiles, SECTIONS, new Set(stars.slice(0, 2))), back = listing(tiles, SECTIONS, new Set());
+  check(same(back.map(g => g.apps.map(a => a.id)), plain.map(g => g.apps.map(a => a.id))) && home.find(g => g.id === by0("nexus").sec).apps.every(a => a.id !== "nexus"), "taking the stars off puts each game back where it was");
+  const one = SECTIONS.map(([id]) => id), lone = tiles.filter(a => a.sec === "knowledge").map(a => a.id);
+  const empty = listing(tiles, SECTIONS, new Set(lone)), left = empty.find(g => g.id === "knowledge");
+  check(left && !left.apps.length && one.every(id => empty.some(g => g.id === id)), "a section with all its games starred stays in the list, empty (the screen hides it)");
+  function by0(id) { return tiles.find(a => a.id === id); }
 }
 
 // ---------- search ----------

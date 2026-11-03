@@ -264,6 +264,7 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
 .apps-sec { display: flex; align-items: center; gap: .6rem; margin: 0 0 .5rem; font-size: .7rem; font-weight: 800; font-stretch: var(--wide);
   letter-spacing: calc(.16em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .apps-sec::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+.apps-sec-star { flex: none; width: .8rem; height: .8rem; margin-right: -.2rem; fill: var(--brass); stroke: var(--brass-lo); stroke-width: 1.6; stroke-linejoin: round; }
 .apps-grid { list-style: none; padding: 0; margin: 0; display: grid; gap: .6rem; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 5.5rem; }
 @media (min-width: 36rem) { .apps-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* six across only on a screen held sideways: upright, a tablet keeps four, its tiles about as square as a phone's */

@@ -20,8 +20,18 @@ export function favourites(ids, from = store()) {
 export function setFavourite(id, on, to = store()) {
   try { if (on) to?.setItem(FAV + id, STAR); else to?.removeItem(FAV + id); } catch { /* private mode */ }
 }
-/** A section's games in the order they're shown: the starred first, each group in the section's own order. */
-export const starredFirst = (apps, favs) => [...apps.filter(a => favs.has(a.id)), ...apps.filter(a => !favs.has(a.id))];
+/** The id of the group of starred games above the sections. */
+export const FAVOURITES = "favourites";
+/** The games as the screen lists them, in groups: Favourites first (every starred game, in the order the games have on the
+ *  screen: the sections in order, each in its own order), then each section without its starred games, which show once, in
+ *  Favourites. A section with nothing left stays in the list, empty (the screen hides it); Favourites is left out while
+ *  nothing is starred. A game's own section (`sec`) is still the one a filter by section means. */
+export function listing(apps, sections, favs) {
+  const home = sections.map(([id, title]) => ({ id, title, apps: apps.filter(a => a.sec === id) }));
+  const starred = home.flatMap(s => s.apps.filter(a => favs.has(a.id)));
+  const rest = home.map(s => ({ ...s, apps: s.apps.filter(a => !favs.has(a.id)) }));
+  return starred.length ? [{ id: FAVOURITES, title: "Favourites", apps: starred }, ...rest] : rest;
+}
 
 // ---------- players ----------
 /** Who can play a game, [fewest, most]: 1 is one person alone (against the computer, or a solo puzzle). Taken from what the game

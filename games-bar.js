@@ -3,7 +3,7 @@
 // scroll down. The bar sits above the list's own scroller, not in it: it takes its room by shrinking the list, so the
 // page never scrolls and closing it moves nothing under your finger (an iPhone has no scroll anchoring: a bar in the
 // list's content that collapsed while you were lower down would jump the tiles).
-import { favourites, setFavourite, starredFirst, FAV, PLAYERS, searchable, shows, nothing, pulls } from "./games-find.js";
+import { favourites, setFavourite, listing, FAV, FAVOURITES, PLAYERS, searchable, shows, nothing, pulls } from "./games-find.js";
 
 const STAR = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.3l2.6 5.5 6 .8-4.4 4.2 1.1 5.9L12 16.8l-5.3 2.9 1.1-5.9-4.4-4.2 6-.8z"/></svg>`;
 /** A tile's star: beside the tile's link, not in it (a button can't be inside a link). */
@@ -18,16 +18,23 @@ const option = ([value, text]) => `<option value="${value}">${text}</option>`;
 const HIDE_AFTER = 400;      // ms a bar that has just come down ignores "scrolled down": the end of the pull's own bounce
 
 /**
- * Draws the stars and the order they make, and the search and the filter, on the games screen `dlg` (apps.js builds the
- * tiles: `li.app-tile` in `ul.apps-grid` in `li.apps-group[data-sec]`, each with its star button).
+ * Draws the stars and the Favourites they make, and the search and the filter, on the games screen `dlg` (apps.js builds the
+ * tiles: `li.app-tile` in `ul.apps-grid` in `li.apps-group[data-sec]`, each with its star button; the Favourites group is
+ * made here, above the sections). A starred tile is moved into it from its section, so it is on the screen once.
  */
 export function bindFind({ dlg, list, apps, sections }) {
   const tileApps = apps.filter(a => a.sec), ids = tileApps.map(a => a.id), byId = new Map(tileApps.map(a => [a.id, a]));
   const found = new Map(tileApps.map(a => [a.id, searchable(a, sections)]));
   const items = new Map([...list.querySelectorAll(".app-tile")].map(li => [li.dataset.id, li]));
-  const groups = [...list.querySelectorAll(".apps-group")];
+  const favGroup = document.createElement("li");
+  favGroup.className = "apps-group apps-favs";
+  favGroup.dataset.sec = FAVOURITES;
+  favGroup.hidden = true;                 // there is no Favourites while nothing is starred
+  favGroup.innerHTML = `<h3 class="apps-sec">${STAR.replace("<svg", '<svg class="apps-sec-star"')}Favourites</h3><ul class="apps-grid"></ul>`;
+  list.prepend(favGroup);
+  const groups = new Map([...list.querySelectorAll(".apps-group")].map(g => [g.dataset.sec, g]));
   const inner = dlg.querySelector(".apps-inner");
-  let want = { query: "", section: "", count: "" }, open = false, shownAt = 0;
+  let want = { query: "", section: "", count: "" }, open = false, shownAt = 0, settling = false;
 
   const bar = document.createElement("div");
   bar.className = "apps-find";
@@ -47,13 +54,15 @@ export function bindFind({ dlg, list, apps, sections }) {
   none.innerHTML = `<p></p><button class="link" type="button">Clear the search and filters</button>`;
   list.append(none);
 
-  /** The tiles as the stars, the search and the filter leave them: starred first in each section, the rest hidden. */
+  /** The tiles as the stars, the search and the filter leave them: the starred in Favourites, the rest in their sections, those
+   *  the search and filter don't match hidden (a filter by section means a game's own section, wherever the game shows). */
   function draw() {
     const favs = favourites(ids);
     let any = false;
-    for (const group of groups) {
-      const grid = group.querySelector(".apps-grid"), ordered = starredFirst(tileApps.filter(a => a.sec === group.dataset.sec), favs).map(a => items.get(a.id));
-      if (ordered.some((li, i) => grid.children[i] !== li)) grid.append(...ordered);       // moved only when the order changed
+    favGroup.hidden = true;               // until its list below has a game to show
+    for (const { id: sec, apps: games } of listing(tileApps, sections, favs)) {
+      const group = groups.get(sec), grid = group.querySelector(".apps-grid"), ordered = games.map(a => items.get(a.id));
+      if (grid.children.length !== ordered.length || ordered.some((li, i) => grid.children[i] !== li)) grid.append(...ordered);   // moved only when something changed
       let shown = 0;
       for (const li of ordered) {
         const id = li.dataset.id, show = shows(byId.get(id), found.get(id), want);
@@ -106,7 +115,7 @@ export function bindFind({ dlg, list, apps, sections }) {
   }, { passive: true });
   inner.addEventListener("touchmove", e => { if (e.touches.length === 1) act(pull.touchMove(e.touches[0].clientY, list.scrollTop)); }, { passive: true });
   for (const end of ["touchend", "touchcancel"]) inner.addEventListener(end, () => pull.touchEnd(), { passive: true });
-  list.addEventListener("scroll", () => { if (list.scrollTop > 12) act("push"); }, { passive: true });   // the keyboard, a scroll bar
+  list.addEventListener("scroll", () => { if (list.scrollTop > 12 && !settling) act("push"); }, { passive: true });   // the keyboard, a scroll bar
   dlg.addEventListener("keydown", e => {                // a keyboard has no pull: "/" brings the bar down
     if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) { e.preventDefault(); show({ focus: true }); }
   });
@@ -122,23 +131,29 @@ export function bindFind({ dlg, list, apps, sections }) {
   none.querySelector("button").addEventListener("click", () => { reset(); list.scrollTop = 0; });
   dlg.addEventListener("close", () => { reset(); hide(); });     // the next visit starts with the whole list
 
-  // ---- stars: the tile slides to the head of its section ----
+  // ---- stars: the tile slides into Favourites, or back to its section ----
   const rects = () => new Map([...list.querySelectorAll(".app-tile:not([hidden])")].map(li => [li, li.getBoundingClientRect()]));
+  const within = (r, box) => r.bottom > box.top && r.top < box.bottom;
   list.addEventListener("click", e => {
     const star = e.target.closest(".app-star");
     if (!star) return;
     e.preventDefault();
     e.stopPropagation();
-    const before = rects();
+    const box = list.getBoundingClientRect(), before = rects(), moving = items.get(star.dataset.star);
+    // The place you are reading stays put: a tile in view other than the one that moves holds still on the screen while the
+    // Favourites group above grows or goes. At the very top there is nothing to hold still against: the group opens there.
+    const anchor = [...before].find(([li, r]) => li !== moving && within(r, box));
     setFavourite(star.dataset.star, star.getAttribute("aria-pressed") !== "true");
     draw();
-    const li = items.get(star.dataset.star), r = li.getBoundingClientRect(), box = list.getBoundingClientRect();
-    if (r.top < box.top) list.scrollTop -= box.top - r.top + 8;        // the tile that moved stays in view
-    else if (r.bottom > box.bottom) list.scrollTop += r.bottom - box.bottom + 8;
+    if (anchor && list.scrollTop > 0) {
+      settling = true;
+      list.scrollTop += anchor[0].getBoundingClientRect().top - anchor[1].top;
+      setTimeout(() => { settling = false; }, 150);                    // that scroll isn't the person's: it doesn't put the bar away
+    }
     if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
       for (const [tile, was] of before) {
         const now = tile.getBoundingClientRect(), dx = was.left - now.left, dy = was.top - now.top;
-        if ((dx || dy) && now.bottom > box.top && now.top < box.bottom) tile.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 220, easing: "ease-out" });
+        if ((dx || dy) && (within(now, box) || within(was, box))) tile.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 220, easing: "ease-out" });
       }
     star.focus({ preventScroll: true });                               // the node moved: the focus follows it
   });
