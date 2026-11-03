@@ -63,6 +63,7 @@ export const inDrum = (L, x, y) => x >= L.drum.x - 8 && x <= L.drum.x + L.drum.w
  */
 export function drawSextant(ctx, w, h, st, sc) {
   const { cx, cy, rho, drum } = layout(w, h), k = sc.k || 1, col = skyColours(sc.sunAlt), lens = LENSES[st.lens], ppa = rho / lens;
+  ctx.clearRect(0, 0, w, h);                                  // the lens's label and the drum's are drawn outside the eyepiece: wipe the last frame's
   const rgb = (c, a = 1) => `rgba(${c.map(Math.round).join(",")},${a})`;
   // the eyepiece: sky above the horizon, sea below, both lit by the twilight
   ctx.save();
@@ -85,9 +86,20 @@ export function drawSextant(ctx, w, h, st, sc) {
     ctx.beginPath(); ctx.moveTo(-rho * 0.86, y); ctx.lineTo(-rho * 0.86 + (a === 0 ? 14 : 8) * k, y); ctx.stroke();
     if (a !== 0 && Math.abs(y) < rho * 0.92) ctx.fillText(step >= 60 ? `${a / 60}°` : `${a}′`, -rho * 0.86 + 12 * k, y);
   }
-  // the star's image
+  // the star's image; the sun's is a disc, its lower edge the thing that is brought to the horizon
   const off = sc.offset, y = -off * ppa;
-  if (Math.abs(y) < rho - 6) {
+  if (sc.sun) {
+    const sd = sc.sd || 16, r = sd * ppa, cyS = -(off + sd) * ppa;
+    if (cyS + r > -rho * 1.2 && cyS - r < rho * 1.2) {
+      const gl = ctx.createRadialGradient(0, cyS, r * 0.2, 0, cyS, r * 1.5);
+      gl.addColorStop(0, "rgba(255,246,206,.35)"); gl.addColorStop(1, "rgba(255,236,170,0)");
+      ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, cyS, r * 1.5, 0, 6.283); ctx.fill();
+      const disc = ctx.createRadialGradient(0, cyS, 0, 0, cyS, r);
+      disc.addColorStop(0, "#fffdf2"); disc.addColorStop(0.85, "#fff2c0"); disc.addColorStop(1, "#ffd978");
+      ctx.fillStyle = disc; ctx.beginPath(); ctx.arc(0, cyS, r, 0, 6.283); ctx.fill();
+      ctx.strokeStyle = "rgba(255,246,220,.7)"; ctx.lineWidth = 1 * k; ctx.beginPath(); ctx.arc(0, cyS, r, 0, 6.283); ctx.stroke();
+    }
+  } else if (Math.abs(y) < rho - 6) {
     const r = 3.2 * k, gg = ctx.createRadialGradient(0, y, 0, 0, y, r * 6);
     gg.addColorStop(0, "rgba(255,248,226,.95)"); gg.addColorStop(0.25, "rgba(255,240,200,.45)"); gg.addColorStop(1, "rgba(255,240,200,0)");
     ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(0, y, r * 6, 0, 6.283); ctx.fill();
@@ -123,5 +135,5 @@ export function drawSextant(ctx, w, h, st, sc) {
   ctx.restore();
   ctx.strokeStyle = "rgba(214,176,98,.9)"; ctx.lineWidth = 2 * k; ctx.beginPath(); ctx.roundRect(drum.x, drum.y, drum.w, drum.h, 6 * k); ctx.stroke();
   ctx.save(); ctx.translate(drum.x + drum.w / 2, drum.y + drum.h + 4 * k); ctx.font = `700 ${9.5 * k}px ${sc.mono || "monospace"}`; ctx.textAlign = "center"; ctx.textBaseline = "top";
-  ctx.fillStyle = "rgba(240,226,190,.85)"; ctx.fillText("FINE", 0, 0); ctx.restore();
+  ctx.fillStyle = "rgba(240,226,190,.85)"; ctx.fillText(sc.locked ? "SET" : "FINE", 0, 0); ctx.restore();
 }

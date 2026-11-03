@@ -36,6 +36,14 @@ export const HOW = [
   ["Read the latitude", "The almanac turns your reading into the latitude. The pole star stands as high as you are far north, and the fog around the ship collapses along that line."],
 ];
 
+/** How the sun is taken, for the first noon watch and the menu. */
+export const HOW_SUN = [
+  ["The morning altitude", "Press the sextant button while the sun is still climbing. Bring its lower edge down to the horizon with the drum and mark it. The chronometer notes the time to the second."],
+  ["The noon altitude", "Wait for noon by your reckoning (the almanac gives it). The sun stops climbing and hangs. Keep its lower edge on the horizon and mark when it has stopped rising: that height gives the latitude."],
+  ["The catch", "The drum stays where the morning sight set it. The sun is now falling back to that height. Press Now the moment its lower edge touches the horizon. Noon is half way between the two times, and the clock turns noon into the longitude."],
+  ["Cloud and the night", "Cloud can take the sun at the wrong minute: then skip the sight and let the pole star carry the night. The pole star never gives the longitude; only the sun and the clock do."],
+];
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /** The months in which a figure stands highest at nine in the evening, local mean time, in an 1850s year at latitude 55 degrees: "Mar to May". */
 export function monthsHigh(figure, lat = 55) {

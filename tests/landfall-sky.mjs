@@ -145,5 +145,27 @@ const ref = JSON.parse(readFileSync(new URL("./landfall-sky-reference.json", imp
   check(near(S.toLatLon(o, [0, 60]).lat, 56, 1e-12), "...while a minute of latitude is a mile everywhere");
 }
 
+// ---------- the sun sights ----------
+{
+  const jd = S.julianDate(1853, 6, 20, 12), lat = 55.9, lon = -1.3;
+  const tn = S.noonJd(jd, lon);
+  check(near(S.sunHourAngle(tn, lon), 0, 1e-6), "apparent noon is where the sun's hour angle is zero");
+  check(near(S.sunHourAngle(S.sunAtHourAngle(tn - 0.2, lon, -30), lon), -30, 1e-6), "the sun's hour angle of −30° is found to the minute");
+  const hs = S.sunReading(60, tn, 3.5);
+  check(near(S.sunObservedAltitude(hs, tn, 3.5), 60, 0.002), "the sun's corrections (dip, refraction, semi-diameter, parallax) undo what the sextant reading put in");
+  check(near(S.sunSemidiameter(S.julianDate(1853, 1, 3, 0)), 16.27, 0.05) && near(S.sunSemidiameter(S.julianDate(1853, 7, 4, 0)), 15.74, 0.05), "the semi-diameter is 16.3′ near the perihelion and 15.7′ near the aphelion");
+  const day = S.sunAltAz(tn, lat, lon);
+  check(near(S.latitudeFromMeridian(day.alt, day.dec, day.dec < lat), lat, 1e-6), "the meridian altitude gives the latitude back");
+  // equal altitudes: the morning and afternoon sights an equal time either side of noon give the longitude, the drift of declination allowed for
+  const t1 = S.sunAtHourAngle(tn - 0.4, lon, -35), t2 = S.sunAtHourAngle(tn - 0.2, lon, 35);
+  const a1 = S.sunAltAz(t1, lat, lon).alt;
+  const t2b = (() => { let lo = tn, hi = tn + 0.4; for (let i = 0; i < 50; i++) { const m = (lo + hi) / 2; (S.sunAltAz(m, lat, lon).alt > a1 ? lo = m : hi = m); } return (lo + hi) / 2; })();
+  const found = S.equalAltitudeLongitude(t1, t2b, lat, lon + 1.5);
+  check(found !== null && near(found, lon, 0.002), "equal altitudes find the longitude, even from a reckoning 1.5° out");
+  check(S.equalAltitudeLongitude(t1, t2b, lat, lon + 20) === null, "...and say so when the reckoning is too far out to fit");
+  check(near(S.longitudeFromNoon(S.julianDate(1853, 3, 1, 12), 0), 0, 1e-9), "noon by the clock at 12 h GMT with no equation of time is longitude 0");
+  check(near(S.longitudeFromNoon(S.julianDate(1853, 3, 1, 11), 0), 15, 1e-6), "…and the sun crossing an hour early is 15° east");
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("landfall-sky: time, the sky against astronomy-engine, Polaris, the sun, the zenith, dip and refraction, the intercept, the chart's plane");

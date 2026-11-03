@@ -6,7 +6,7 @@
 // Nothing is made until a tap has unlocked audio, nothing plays while the menu is open or the page is hidden (pause), and with
 // the sound off no audio context is ever made. Two gains sit in front of the speakers: `master`, and `bedGain` for the bed alone.
 let ctx = null, master = null, bedGain = null, bedNodes = null, noiseBuf = null;
-let muted = true, paused = false, bedOn = false, hushed = false, creakTimer = 0;
+let muted = true, paused = false, bedOn = false, hushed = false, creakTimer = 0, dayOn = false, gullTimer = 0;
 const BED_LEVEL = 0.9;
 
 function audio() {
@@ -87,6 +87,20 @@ function scheduleCreak() {
   creakTimer = setTimeout(() => { creak(); if (bedNodes) scheduleCreak(); }, 6500 + Math.random() * 9000);
 }
 
+/** A gull, now and then, by day: a few falling cries, high and thin, never while the sextant is up. */
+function scheduleGull() {
+  clearTimeout(gullTimer);
+  if (!dayOn || muted || paused) return;
+  gullTimer = setTimeout(() => {
+    const c = audio();
+    if (c && dayOn && !paused && !hushed && bedNodes) {
+      const t = c.currentTime + 0.02, n = 2 + Math.floor(Math.random() * 3), f = 1350 + Math.random() * 450;
+      for (let i = 0; i < n; i++) ping(c, t + i * 0.34, { freq: f * (1 - i * 0.05), gain: 0.028, dur: 0.3, attack: 0.04, type: "triangle", drop: 0.6 });
+    }
+    scheduleGull();
+  }, 9000 + Math.random() * 14000);
+}
+
 // ---------- single sounds ----------
 
 function ping(c, t, { freq, gain, dur, attack = 0.002, type = "sine", drop = 1, to = master }) {
@@ -118,8 +132,10 @@ export const sound = {
     else if (bedOn && !paused) { audio(); startBed(); }
   },
   /** The page stands still (menu, tab hidden): nothing plays; carrying on wakes it. */
-  pause() { paused = true; clearTimeout(creakTimer); if (ctx && ctx.state === "running") ctx.suspend().catch(() => {}); },
-  resume() { paused = false; if (!muted && ctx) { ctx.resume().catch(() => {}); if (bedNodes) scheduleCreak(); else if (bedOn) startBed(); } },
+  pause() { paused = true; clearTimeout(creakTimer); clearTimeout(gullTimer); if (ctx && ctx.state === "running") ctx.suspend().catch(() => {}); },
+  resume() { paused = false; if (!muted && ctx) { ctx.resume().catch(() => {}); if (bedNodes) scheduleCreak(); else if (bedOn) startBed(); scheduleGull(); } },
+  /** Gulls cry now and then while it is day (a noon watch); off by night. */
+  day(on) { dayOn = !!on; if (on) scheduleGull(); else clearTimeout(gullTimer); },
   bed(on) { bedOn = !!on; if (on) { if (!paused) startBed(); } else stopBed(); },
   /** The bed all but stops for the sight (and comes back after). */
   hush(on) { hushed = !!on; if (ctx && bedGain && bedNodes) bedGain.gain.setTargetAtTime(on ? 0.05 : BED_LEVEL, ctx.currentTime, on ? 0.35 : 1.2); },

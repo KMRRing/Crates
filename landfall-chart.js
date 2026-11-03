@@ -153,6 +153,15 @@ export function drawChart(ctx, w, h, sc) {
     ctx.shadowColor = `rgba(${pal.glow},.8)`; ctx.shadowBlur = 8 * k;
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(x1, y); ctx.stroke(); ctx.restore();
   }
+  // the line of position from the clock: a meridian, which leans a little with the chart's latitude, drawn in from the foot
+  if (sc.lopLon) {
+    const n = 8, upTo = Math.round(n * clamp(sc.lopLon.t, 0, 1));
+    ctx.save(); ctx.lineCap = "round"; ctx.strokeStyle = pal.brass; ctx.lineWidth = 2.4 * k;
+    ctx.shadowColor = `rgba(${pal.glow},.8)`; ctx.shadowBlur = 8 * k;
+    ctx.beginPath();
+    for (let i = 0; i <= upTo; i++) { const lat = o.lat + (wb[1] + (wt[1] - wb[1]) * i / n) / 60, p = S(fromLatLon(o, lat, sc.lopLon.lon)); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
+    ctx.stroke(); ctx.restore();
+  }
   // the pencilled track and its marks
   if (sc.trail?.length) {
     ctx.save(); ctx.strokeStyle = pal.pencil; ctx.lineWidth = 1.5 * k; ctx.lineJoin = "round";

@@ -51,6 +51,7 @@
     <div class="lf-scope-view"><canvas id="scopeCv" class="lf-scopecv"></canvas></div>
     <div class="lf-scope-side">
       <p id="readTxt" class="lf-read">00° 00.0′</p>
+      <p id="chronoTxt" class="lf-chrono" hidden></p>
       <p id="scopeNote" class="lf-scope-note"></p>
       <ol id="marks" class="lf-marks"></ol>
       <button type="button" id="markBtn" class="lf-btn go lf-mark-btn">Mark</button>
@@ -101,7 +102,7 @@
 </dialog>
 
 <dialog id="helpDlg" class="sheet lf-sheet" aria-label="How a sight works">
-  <div class="pick-head"><h2>How a sight works</h2><button class="btn" type="button" id="helpClose">Close</button></div>
+  <div class="pick-head"><h2 id="helpTitle">How a sight works</h2><button class="btn" type="button" id="helpClose">Close</button></div>
   <ol id="helpBody" class="lf-how"></ol>
   <div class="lf-sheet-acts"><button class="btn primary" type="button" id="helpOk">To the chart table</button></div>
 </dialog>

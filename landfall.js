@@ -4,20 +4,21 @@
 // in the voyage or in `landfall:` keys, so a partner watching in a frame draws the same page from them.
 import {
   newVoyage, apply, moves, restore, save, forecast, conditions, sextantTruth, swellAt, sightNoise, levelOf, truePlace, estPlace, sceneJd, hintFor, routeOf,
-  masteryAfter, cloudsNow, bellsBetween, shipClock, CLOCK, MAX_WAIT, POLARIS_HR, BY_HR, EYE,
+  masteryAfter, cloudsNow, bellsBetween, shipClock, lookSun, sunStage, reckonedNoonJd, expectedCatchJd, bodyOf, maxWait, CLOCK, MAX_WAIT, POLARIS_HR, SUN, BY_HR, EYE,
 } from "./landfall-engine.js";
 import { LEVELS } from "./landfall-levels.js";
 import { STARS } from "./landfall-stars.js";
 import { FIGURES } from "./landfall-figures.js";
-import { starAltAz, sunAltAz, sextantReading } from "./landfall-sky.js";
+import { starAltAz, sunAltAz, sextantReading, sunReading, sunSemidiameter } from "./landfall-sky.js";
 import { bearing, vec, norm180 } from "./landfall-model.js";
 import { makeView, project, unproject, degPx, pick, drawSky } from "./landfall-skyview.js";
 import * as sx from "./landfall-sextant.js";
 import { fitCamera, ellipsePoints, toWorld, palette, drawChart } from "./landfall-chart.js";
 import { sound } from "./landfall-sound.js";
-import { MASTERY, LORE, HOW, monthsText } from "./landfall-lore.js";
+import { MASTERY, LORE, HOW, HOW_SUN, monthsText } from "./landfall-lore.js";
 import {
   fmtLat, fmtCourse, fmtHours, fmtNm, starLabel, dateWords, watchWords, slateLines, bookLines, revealWords, refusedWords, logRows, almanacPage, endWords,
+  sunTaskWords, sunAlmanac, fmtGmt, fmtSecs,
 } from "./landfall-words.js";
 import { scale, sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -30,7 +31,7 @@ const $ = id => document.getElementById(id);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // ---------- what is kept ----------
-const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", help: "landfall:help", seen: "landfall:seen" };
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", help: "landfall:help", seen: "landfall:seen", seenSun: "landfall:seen-noon" };
 const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -109,7 +110,8 @@ function skyData() {
   skyCache = { key, stars, sun: sunAltAz(jd, p.lat, p.lon), lim: c.limMag, clouds };
   return skyCache;
 }
-const help = () => (S.phase === "find" && S.ui.tier < 4 ? hintFor(S, S.ui.tier) : null);
+const isDay = () => S.watch.kind === "noon";
+const help = () => (S.phase === "find" && !isDay() && S.ui.tier < 4 ? hintFor(S, S.ui.tier) : null);
 
 function drawSkyNow(now) {
   const b = fit(skyCv);
@@ -247,13 +249,15 @@ function drawChartNow(now) {
   if (S.phase === "ritual") sc.dividers = { from: S.E, course: S.leg.course, d: S.ui.d };
   if (S.phase === "steer" || (reveal && S.phase !== "end")) {
     const p = S.watch.plot;
-    if (p?.accepted) sc.lop = { y: (p.lat - L.origin.lat) * 60, t: 1 };
+    if (p?.accepted && p.lat !== undefined) sc.lop = { y: (p.lat - L.origin.lat) * 60, t: 1 };
+    if (p?.accepted && p.lon !== undefined) sc.lopLon = { lon: p.lon, t: 1 };
   }
   if (S.phase === "steer" && !reveal) sc.steer = { course: S.ui.course, forecast: forecast(S, S.ui.course) };
   if (S.phase === "end") sc.end = { truth: S.truth, T: S.T };
   if (reveal) {
     const u = reveal.hold ?? (now - reveal.t0) / 1000, s = smooth((u - 0.55) / 1.3);
-    sc.lop = { y: (reveal.lat - L.origin.lat) * 60, t: smooth(u / 0.8) };
+    sc.lop = reveal.lat === undefined ? null : { y: (reveal.lat - L.origin.lat) * 60, t: smooth(u / 0.8) };
+    sc.lopLon = reveal.lon === undefined ? null : { lon: reveal.lon, t: smooth(u / 0.8) };
     sc.E = [reveal.before.E[0] + (reveal.after.E[0] - reveal.before.E[0]) * s, reveal.before.E[1] + (reveal.after.E[1] - reveal.before.E[1]) * s];
     sc.P = mixP(reveal.before.P, reveal.after.P, s);
     sc.ghost = s < 0.98 ? reveal.before : null;
@@ -321,6 +325,13 @@ function after(m, prev, r) {
       break;
     }
     case "plot": if (r.accepted) { startReveal(); } break;
+    case "read":
+      if (isDay() && r.stage) {
+        const s = S.watch.sun, rec = r.stage === "morning" ? s.m1 : r.stage === "noon" ? s.noon : s.aft;
+        note = r.stage === "afternoon" ? `Called at ${fmtGmt(rec.jd)} GMT by the chronometer.` : `${r.stage === "morning" ? "Morning" : "Noon"} altitude ${sx.formatReading(rec.hs)} at ${fmtGmt(rec.jd)} GMT is in the sight book.`;
+      }
+      break;
+    case "skipstage": note = "That sight is given up."; break;
     case "sail": case "heave": passing(m, r); break;
     default: break;
   }
@@ -330,11 +341,16 @@ function after(m, prev, r) {
 /** What happens when a phase begins. */
 function arrive(prev) {
   const L = levelOf(S), ui = S.ui;
+  const day = isDay();
+  $("app").classList.toggle("lf-day", day && S.phase !== "end");
+  if (S.phase === "ritual" && day) { const sun = skyData().sun; view.az = free.az = Math.round(sun.az); free.alt = 35; }       // look where the sun is
+  if (day && prev === "ritual" && !read(KEY.seenSun, 0)) setTimeout(() => { if (isDay() && S.phase === "find") openHelp(true); }, 350);
+  sound.day(day && S.phase !== "end");
   switch (S.phase) {
     case "ritual": ui.d = 0; ui.lamp = true; ui.credited = false; ui.tier = 4; break;
     case "find":
-      ui.lamp = false;
-      if (prev === "ritual") {
+      ui.lamp = day;
+      if (prev === "ritual" && !day) {
         ui.tier = tierFor(L); ui.credited = false;
         const M = read(KEY.mastery, {}), fig = routeOf(S) === "plough" ? "UMa" : "Cas";
         if (ui.tier <= 1) { for (const k of ["UMi", fig]) M[k] = Math.max(M[k] || 0, 1); write(KEY.mastery, M); }
@@ -352,7 +368,7 @@ function arrive(prev) {
 }
 function startReveal() {
   const p = S.watch.plot;
-  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.lat, chimed: false };
+  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.latOk === false ? undefined : p.lat, lon: p.lonOk ? p.lon : undefined, chimed: false };
   retarget();
 }
 
@@ -369,26 +385,36 @@ function passing(m, r) {
 // ---------- the clock of the twilight ----------
 const strikes = ["", "One bell", "Two bells", "Three bells", "Four bells", "Five bells", "Six bells", "Seven bells", "Eight bells"];
 let bellShown = { text: "", until: 0 };
+/** Whether the sky's clock runs: in the window, and in the eyepiece while the sun is watched for its peak or its return. */
+const clockRuns = () => S.phase === "find" || (S.phase === "sight" && isDay() && S.watch.stage !== "morning");
 function tickClock(dt, now) {
-  if (!S || S.phase !== "find" || paused || document.hidden || IN_FRAME || S.watch.min >= MAX_WAIT + 30) return false;
+  if (!S || !clockRuns() || paused || document.hidden || IN_FRAME || S.watch.min >= maxWait(S)) return false;
   let dm = dt * CLOCK / 60;
   if (ff > 0) { const take = Math.min(ff, dt * 30); ff -= take; dm += take; }
   const jdA = sceneJd(S), lon = estPlace(S).lon;
   apply(S, { t: "wait", min: dm });
   const bells = bellsBetween(jdA, sceneJd(S), lon);
-  if (bells.length) { const n = bells.at(-1).bells; sound.bell(n); bellShown = { text: strikes[n], until: now + 5000 }; }
+  if (bells.length) { const n = bells.at(-1).bells; bellShown = { text: strikes[n], until: now + 5000 }; if (!sxs) sound.bell(n); }       // silence while the sextant is up
   return true;
 }
+/** Runs the clock on, fast, to a Julian date (the Wait buttons of a noon watch). */
+function waitUntil(jd) { ff = Math.max(ff, (jd - sceneJd(S)) * 1440 - 0.01); wake(); }
 
 // ---------- the sextant ----------
 let sxs = null;                                  // { st, exact, truth, t0, pid, lastY, fine, A }
 function openScope() {
-  const star = BY_HR.get(S.watch.picked), est = estPlace(S), a = starAltAz(star, sceneJd(S), est.lat, est.lon);
-  const r0 = sx.quantise(a.alt > 0 ? sextantReading(a.alt, EYE) * 60 : 0), truth = sextantTruth(S);
-  const st = sx.newSextant(r0);
+  ff = 0;
+  const W = S.watch, est = estPlace(S), jd = sceneJd(S), day = isDay(), locked = day && W.stage === "afternoon";
+  // the drum starts where the reckoning says the body is (the sun's lower limb for the sun); for the catch it is left where the morning sight set it
+  let r0;
+  if (locked) r0 = sx.quantise(W.sun.m1.hs);
+  else if (day) { const a = sunAltAz(jd, est.lat, est.lon); r0 = sx.quantise(a.alt > 0 ? sunReading(a.alt, jd, EYE) * 60 : 0); }
+  else { const a = starAltAz(BY_HR.get(W.picked), jd, est.lat, est.lon); r0 = sx.quantise(a.alt > 0 ? sextantReading(a.alt, EYE) * 60 : 0); }
+  const truth = sextantTruth(S), st = sx.newSextant(r0);
   st.lens = sx.lensFor(truth - r0, 0);
-  sxs = { st, exact: r0, truth, t0: performance.now(), pid: null, lastY: 0, fine: false, A: sightNoise(S, star).swell };
+  sxs = { st, exact: r0, truth, t0: performance.now(), pid: null, lastY: 0, fine: false, A: sightNoise(S, bodyOf(S)).swell, day, locked, stage: W.stage, sd: day ? sunSemidiameter(jd) : 0, cloud: false };
   $("scope").hidden = false;
+  $("scope").dataset.stage = day ? W.stage : "star";
   $("readTxt").textContent = sx.formatReading(st.reading);
   sound.hush(true);
   refreshScope();
@@ -403,11 +429,21 @@ function refreshScope() {
   const { st } = sxs, ol = $("marks");
   $("readTxt").textContent = sx.formatReading(st.reading);
   ol.replaceChildren(...st.marks.map(m => { const li = document.createElement("li"); li.textContent = sx.formatReading(m); return li; }));
-  $("markBtn").disabled = st.marks.length >= sx.MAX_MARKS;
-  $("markBtn").textContent = st.marks.length >= sx.MAX_MARKS ? "Three marks" : `Mark${st.marks.length ? ` (${st.marks.length + 1})` : ""}`;
-  $("readBtn").disabled = !st.marks.length;
+  const { day, locked, cloud, stage } = sxs;
+  $("markBtn").disabled = locked ? cloud : st.marks.length >= sx.MAX_MARKS || cloud;
+  $("markBtn").textContent = locked ? "Now" : st.marks.length >= sx.MAX_MARKS ? "Three marks" : `Mark${st.marks.length ? ` (${st.marks.length + 1})` : ""}`;
+  $("readBtn").disabled = !st.marks.length || cloud;
+  $("readBtn").textContent = day ? "Keep it" : "Read it";
   $("clearBtn").disabled = !st.marks.length;
-  $("scopeNote").textContent = st.marks.length ? "Three marks, averaged, beat one." : `Lens ${sx.MAGNIFY[st.lens]}. Bring the star to the horizon and let it swing evenly about it.`;
+  $("chronoTxt").hidden = !day;
+  let note;
+  if (cloud) note = "Cloud is across the sun. Wait for it to pass.";
+  else if (locked) note = "The drum is left where the morning sight set it. The sun is falling: press Now the moment its lower edge touches the horizon.";
+  else if (st.marks.length) note = "Three marks, averaged, beat one.";
+  else if (stage === "morning") note = `Lens ${sx.MAGNIFY[st.lens]}. The sun is climbing. Bring its lower edge to the horizon and mark: the chronometer notes the time.`;
+  else if (stage === "noon") note = `Lens ${sx.MAGNIFY[st.lens]}. The sun hangs near its peak. Keep its lower edge on the horizon and mark when it has stopped rising.`;
+  else note = `Lens ${sx.MAGNIFY[st.lens]}. Bring the star to the horizon and let it swing evenly about it.`;
+  $("scopeNote").textContent = note;
 }
 function settleReading() {
   const { st } = sxs;
@@ -418,7 +454,7 @@ function settleReading() {
 }
 scopeCv.addEventListener("pointerdown", e => {
   sound.unlock();
-  if (!sxs || sxs.pid !== null || IN_FRAME) return;
+  if (!sxs || sxs.pid !== null || IN_FRAME || sxs.locked) return;
   const r = scopeCv.getBoundingClientRect(), L = sx.layout(r.width, r.height);
   sxs.pid = e.pointerId; sxs.lastY = e.clientY; sxs.fine = sx.inDrum(L, e.clientX - r.left, e.clientY - r.top);
   scopeCv.setPointerCapture(e.pointerId); e.preventDefault();
@@ -433,10 +469,14 @@ scopeCv.addEventListener("pointermove", e => {
 const scopeUp = e => { if (sxs && e.pointerId === sxs.pid) sxs.pid = null; };
 scopeCv.addEventListener("pointerup", scopeUp);
 scopeCv.addEventListener("pointercancel", scopeUp);
-const nudge = d => { if (!sxs) return; sxs.exact = sx.quantise(sxs.exact + d); settleReading(); };
+const nudge = d => { if (!sxs || sxs.locked) return; sxs.exact = sx.quantise(sxs.exact + d); settleReading(); };
 $("nudgeDown").addEventListener("click", () => nudge(-0.1));
 $("nudgeUp").addEventListener("click", () => nudge(0.1));
-$("markBtn").addEventListener("click", () => { if (sxs && sx.mark(sxs.st)) { sound.mark(); refreshScope(); wake(); } });
+$("markBtn").addEventListener("click", () => {
+  if (!sxs || sxs.cloud) return;
+  if (sxs.locked) { sound.mark(); go({ t: "read", marks: [] }); return; }          // the catch: the moment is the reading
+  if (sx.mark(sxs.st)) { sound.mark(); refreshScope(); wake(); }
+});
 $("clearBtn").addEventListener("click", () => { if (sxs) { sx.clearMarks(sxs.st); refreshScope(); } });
 $("lowerBtn").addEventListener("click", () => { go({ t: "lower" }); });
 $("readBtn").addEventListener("click", () => { if (sxs?.st.marks.length) go({ t: "read", marks: sxs.st.marks.slice() }); });
@@ -446,7 +486,16 @@ function drawScopeNow(now) {
   if (!sxs) return;
   const sec = (now - sxs.t0) / 1000, sw = swellAt(S, sec), st = sxs.st;
   st.flash = Math.max(0, st.flash - 0.07);
-  sx.drawSextant(b.ctx, b.w, b.h, st, { offset: sx.offsetOf(sxs.truth, sxs.exact, sw), swellPhase: clamp(sw / Math.max(0.05, sxs.A), -1, 1), sunAlt: conditions(S).sun, t: sec, k: scale(), mono: pal.mono });
+  if (sxs.day) {
+    // the sun moves while it is watched (the clock runs in the eyepiece after the morning sight): the truth, the lens, the chronometer and the cloud follow it
+    if (clockRuns()) { sxs.truth = sextantTruth(S) ?? sxs.truth; if (sxs.locked) st.lens = sx.lensFor(sxs.truth - sxs.exact, st.lens); }
+    const cloud = lookSun(S).cloud;
+    if (cloud !== sxs.cloud) { sxs.cloud = cloud; refreshScope(); }
+    const gmt = `${fmtGmt(sceneJd(S))} GMT`;
+    if ($("chronoTxt").textContent !== gmt) $("chronoTxt").textContent = gmt;
+  }
+  const veil = sxs.cloud ? 1 : 0;
+  sx.drawSextant(b.ctx, b.w, b.h, st, { offset: sx.offsetOf(sxs.truth, sxs.exact, sw), swellPhase: clamp(sw / Math.max(0.05, sxs.A), -1, 1), sunAlt: conditions(S).sun, t: sec, k: scale(), mono: pal.mono, sun: sxs.day && !veil, sd: sxs.sd, locked: sxs.locked });
 }
 
 // ---------- the sight book and the reveal ----------
@@ -455,8 +504,11 @@ function openBook() {
   dl.replaceChildren(...rows.map(r => { const d = document.createElement("div"), t = document.createElement("dt"), v = document.createElement("dd"); t.textContent = r.label; v.textContent = r.value; if (r.key) d.className = "key"; d.append(t, v); return d; }));
   $("bookMsg").textContent = ""; $("bookMsg").className = "lf-bookmsg";
   $("plotBtn").disabled = false;
-  [...dl.children].forEach((d, i) => setTimeout(() => d.classList.add("on"), 120 + i * 230));
-  setTimeout(() => { if ($("bookDlg").open && !S.watch.plot) $("bookMsg").textContent = "The almanac has turned the reading into a latitude. Plot it to see what it does to the fog."; }, 120 + rows.length * 230);
+  $("retakeBtn").textContent = isDay() ? "Noon again" : "Take it again";
+  $("retakeBtn").disabled = isDay() && !S.watch.sun.noon;
+  const gap = Math.min(230, 2200 / Math.max(1, rows.length));
+  [...dl.children].forEach((d, i) => setTimeout(() => d.classList.add("on"), 120 + i * gap));
+  setTimeout(() => { if ($("bookDlg").open && !S.watch.plot) $("bookMsg").textContent = isDay() ? "The almanac has turned the sights into a latitude and a longitude. Plot them to see what they do to the fog." : "The almanac has turned the reading into a latitude. Plot it to see what it does to the fog."; }, 120 + rows.length * gap);
   if (!$("bookDlg").open) $("bookDlg").showModal();
 }
 $("bookClose").addEventListener("click", () => $("bookDlg").close());
@@ -465,7 +517,7 @@ $("plotBtn").addEventListener("click", () => {
   if (r.ok && r.accepted) $("bookDlg").close();
   else if (r.ok) { $("bookMsg").textContent = refusedWords(S); $("bookMsg").className = "lf-bookmsg off"; $("plotBtn").disabled = true; sound.off(); }
 });
-$("retakeBtn").addEventListener("click", () => { $("bookDlg").close(); go({ t: "retake" }); note = "You take it again, four minutes on."; renderText(); });
+$("retakeBtn").addEventListener("click", () => { $("bookDlg").close(); const day = isDay(); if (go({ t: "retake" }).ok) { note = day ? "The noon altitude again: the sun is further from its peak now, so be quick." : "You take it again, four minutes on."; renderText(); } });
 $("discardBtn").addEventListener("click", () => { $("bookDlg").close(); go({ t: "discard" }); });
 
 // ---------- the end ----------
@@ -516,6 +568,14 @@ function renderTools() {
       stepper([["−1", -1, "One mile less"], ["−0.1", -0.1, "A tenth less"], ["+0.1", 0.1, "A tenth more"], ["+1", 1, "One mile more"]], d => setDividers(S.ui.d + d), `${S.ui.d.toFixed(1)} nm`);
       break;
     case "find":
+      if (isDay()) {
+        const st = sunStage(S), spent = W.min >= maxWait(S);
+        const label = { morning: "Morning sight", noon: "Noon altitude", afternoon: "Catch the sun", done: "Sextant" }[st];
+        const [wt, wf] = st === "noon" ? ["To noon", () => waitUntil(reckonedNoonJd(S) - 3 / 1440)] : st === "afternoon" ? ["To the catch", () => waitUntil(expectedCatchJd(S) - 8 / 1440)] : ["Wait", () => { ff += 5; wake(); }];
+        acts.append(button(wt, wf, "lf-btn", { disabled: spent }), button(label, () => go({ t: "raise" }), "lf-btn go", { disabled: !can("raise") || st === "done" }));
+        auxFixed();
+        break;
+      }
       acts.append(
         button("Wait", () => { ff += 5; wake(); }, "lf-btn", { disabled: W.min >= MAX_WAIT + 30 }),
         button(W.bearing ? "Compass ✓" : "Compass", () => go({ t: "bearing" }), "lf-btn", { disabled: !can("bearing") }),
@@ -548,9 +608,11 @@ function renderTools() {
     aux.append(
       button("Almanac", openAlmanac, "lf-mini"), button("Log", openLog, "lf-mini"), button("Codex", openCodex, "lf-mini"),
     );
-    const lamp = button("Lamp", () => { S.ui.lamp = !S.ui.lamp; renderAll(); dirty.sky = true; }, "lf-mini");
-    lamp.setAttribute("aria-pressed", String(!!S.ui.lamp));
-    aux.append(lamp, button("Hint", () => { S.ui.tier = clamp(S.ui.tier - 1, 0, 4); persist(); renderAll(); dirty.sky = true; }, "lf-mini", { disabled: S.phase !== "find" || S.ui.tier <= 0 }));
+    // by day there is no lamp to put out: the fourth button gives up the sight that is next
+    const lamp = isDay() ? button("Skip", () => go({ t: "skipstage" }), "lf-mini", { disabled: S.phase !== "find" || !can("skipstage"), label: "Give up this sight of the sun" })
+      : button("Lamp", () => { S.ui.lamp = !S.ui.lamp; renderAll(); dirty.sky = true; }, "lf-mini");
+    if (!isDay()) lamp.setAttribute("aria-pressed", String(!!S.ui.lamp));
+    aux.append(lamp, button("Hint", () => { S.ui.tier = clamp(S.ui.tier - 1, 0, 4); persist(); renderAll(); dirty.sky = true; }, "lf-mini", { disabled: S.phase !== "find" || S.ui.tier <= 0 || isDay() }));
   }
 }
 function renderText() {
@@ -561,7 +623,8 @@ function renderText() {
     case "ritual": lines.push(`<b>${L.name}.</b> Set the dividers to the log's distance, then step them off.`); break;
     case "find": {
       const c = conditions(S);
-      if (W.min >= MAX_WAIT && !c.horizon) lines.push("The horizon has gone with the light. No sight is possible: sail on by the reckoning.");
+      if (isDay()) lines.push(W.min >= maxWait(S) ? "The day is spent. Sail on by the reckoning." : sunTaskWords(S, lookSun(S).cloud));
+      else if (W.min >= MAX_WAIT && !c.horizon) lines.push("The horizon has gone with the light. No sight is possible: sail on by the reckoning.");
       else if (W.picked === null) lines.push("Look north for the pole star, and tap a star to choose it.");
       else {
         const s = BY_HR.get(W.picked), p = skyData().stars.find(t => t.hr === s[0]);
@@ -585,10 +648,11 @@ function renderText() {
   $("task").innerHTML = lines.join(" ");
   // the window: which watch, the ship's time and the bell; the help in words
   $("watchTxt").textContent = S.phase === "end" ? L.name : watchWords(S);
-  $("clockTxt").textContent = `${shipClock(sceneJd(S), est.lon)}${bellShown.text && performance.now() < bellShown.until ? ` · ${bellShown.text}` : ""}`;
+  $("clockTxt").textContent = `${shipClock(sceneJd(S), est.lon)}${isDay() ? ` · ${fmtGmt(sceneJd(S))} GMT` : ""}${bellShown.text && performance.now() < bellShown.until ? ` · ${bellShown.text}` : ""}`;
   const h = help();
   $("skyNote").textContent = h ? h.text : "";
-  $("desk").classList.toggle("dark", !S.ui.lamp);
+  $("desk").classList.toggle("dark", !S.ui.lamp && !isDay());
+  $("app").classList.toggle("lf-day", isDay() && S.phase !== "end");
   const sl = $("slate");
   sl.hidden = S.phase !== "ritual";
   if (!sl.hidden) sl.replaceChildren(...slateLines(S).map(t => el("p", null, t)));
@@ -596,7 +660,27 @@ function renderText() {
 function renderAll() { renderTools(); renderText(); dirty.sky = dirty.chart = true; wake(); }
 
 // ---------- the sheets ----------
+/** The almanac's page for the sun: what the date gives, and when noon should be by the reckoning. */
+function openSunAlmanac() {
+  const A = sunAlmanac(S), body = $("almanacBody"), t = el("table", "lf-alm"), tb = el("tbody");
+  t.innerHTML = "<thead><tr><th>The sun, " + A.date + "</th><th></th></tr></thead>";
+  const row = (a, b, cls) => { const tr = el("tr", cls); tr.append(el("td", null, a), el("td", null, b)); tb.append(tr); };
+  row("Declination at noon", fmtLat(A.dec));
+  row("Semi-diameter", `${A.sd.toFixed(1)}′`);
+  row("Equation of time", `${fmtSecs(A.eot)}`);
+  row("Noon by your reckoning, ship", A.noonShip, "now");
+  row("...and on the chronometer", `${A.noonGmt} GMT`);
+  if (A.catchShip) row("The catch, by the morning drum", A.catchShip, "now");
+  t.append(tb);
+  body.replaceChildren(
+    el("p", "lf-note-p", "The sun is the one body whose time you can see: it stops climbing at apparent noon. A positive equation of time means the sun is ahead of the clock and noon comes early. Your reckoned longitude puts noon at the time below; if the ship is east or west of where you think, noon comes earlier or later by four minutes a degree, and that difference is the longitude."),
+    t,
+    el("p", "lf-note-p", "The morning altitude and the catch are two times at which the sun stood equally high: noon is half way between them. The page gives the declination for the latitude and the equation of time for the longitude."),
+  );
+  $("almanacDlg").showModal();
+}
 function openAlmanac() {
+  if (isDay()) return openSunAlmanac();
   const A = almanacPage(S), body = $("almanacBody");
   const head = el("p", "lf-note-p", `Polaris, ${A.date}. It stands ${A.pd.toFixed(2)}° (${Math.round(A.pd * 60)}′) from the pole and circles it once a day. The correction below is added to the true altitude to give the latitude. The pole star stands as high as you are far north, less or more by that much.`);
   const t = el("table", "lf-alm");
@@ -656,9 +740,12 @@ function openCodex() {
   }));
   $("codexDlg").showModal();
 }
-function openHelp() {
-  $("helpBody").replaceChildren(...HOW.map(([h, t]) => { const li = el("li"); li.append(el("b", null, h), el("span", null, t)); return li; }));
-  write(KEY.seen, 1);
+/** How a sight works; `sun` for the sun's three sights (shown by itself the first time a noon watch begins, and from the menu). */
+function openHelp(sun = false) {
+  const rows = sun === true ? HOW_SUN : HOW;
+  $("helpTitle").textContent = sun === true ? "How the sun is taken" : "How a sight works";
+  $("helpBody").replaceChildren(...rows.map(([h, t]) => { const li = el("li"); li.append(el("b", null, h), el("span", null, t)); return li; }));
+  write(sun === true ? KEY.seenSun : KEY.seen, 1);
   $("helpDlg").showModal();
 }
 for (const [btn, dlg] of [["almanacClose", "almanacDlg"], ["logClose", "logDlg"], ["codexClose", "codexDlg"], ["helpClose", "helpDlg"], ["helpOk", "helpDlg"]]) $(btn).addEventListener("click", () => $(dlg).close());
@@ -675,10 +762,10 @@ function openMenu() {
   part(body, "play").append(action(S.phase === "end" ? "Sail again" : "A new voyage", () => startLevel(S.level), "primary"));
   part(body, "content").append(choice("Voyage", LEVELS.map(l => [l.id, `${l.n} ${l.name}${best[l.id] ? ` ${"★".repeat(best[l.id])}` : ""}`]), S.level, v => { $("menuDlg").close(); startLevel(v); }));
   const set = part(body, "settings");
-  set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); } }));
+  set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); sound.day(!!S && isDay() && S.phase !== "end"); } }));
   set.append(choice("Help", [["-1", "Fuller"], ["0", "As set"], ["1", "Thinner"]], String(helpShift()), v => { write(KEY.help, Number(v)); renderAll(); }));
   const about = part(body, "about");
-  about.append(action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", openHelp, "link"));
+  about.append(action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", () => openHelp(false), "link"), action("How the sun is taken", () => openHelp(true), "link"));
   about.append(line(`${L.name}: ${L.lesson}`));
   about.append(line("The stars are the Yale Bright Star Catalogue (NASA data), checked against Hipparcos (ESA). The sun and the sky are our own arithmetic, checked against an independent library. The sea, its coasts and its harbours are invented."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -695,7 +782,7 @@ function frame(now) {
   const dt = Math.min(0.25, Math.max(0, (now - lastT) / 1000));
   lastT = now;
   let more = false;
-  if (tickClock(dt, now)) { more = true; dirty.sky = true; }
+  if (tickClock(dt, now)) { more = true; if (!sxs) dirty.sky = true; }
   if (stepCam(dt)) { more = true; dirty.chart = true; }
   if (reveal) {
     more = true; dirty.chart = true;
@@ -709,7 +796,7 @@ function frame(now) {
   if (skyLive) more = true;
   if (dirty.chart) drawChartNow(now);
   if (S.phase === "find" && now - lastText > 500) { lastText = now; renderText(); }          // the ship's time, the bell and the star's height
-  if (S.phase === "find" && now - lastPersist > 3000) { lastPersist = now; persist(); }
+  if ((S.phase === "find" || sxs) && now - lastPersist > 3000) { lastPersist = now; persist(); }
   if (more) raf = requestAnimationFrame(frame);
 }
 
@@ -750,7 +837,7 @@ renderAll();
 if (S.phase === "sight") openScope();
 else if (S.phase === "book") openBook();
 else if (S.phase === "end") showEnd();
-if (!IN_FRAME) { sound.bed(S.phase !== "end"); if (!read(KEY.seen, 0)) openHelp(); }
+if (!IN_FRAME) { sound.bed(S.phase !== "end"); sound.day(isDay() && S.phase !== "end"); if (!read(KEY.seen, 0)) openHelp(); }
 wake();
 
 // for tests and debugging
@@ -762,7 +849,8 @@ window.__landfall = {
   skyData, layout: () => { const b = fit(scopeCv); return sx.layout(b.w, b.h); },
   starAt(hr) { const s = skyData().stars.find(t => t.hr === hr), r = skyCv.getBoundingClientRect(); const p = project(curView(r.width, r.height), s.az, s.alt); return p && [p.x + r.left, p.y + r.top]; },
   frame: () => { lastT = performance.now() - 16; frame(performance.now()); },
-  tickClock,
+  tickClock, waitUntil,
+  setDrum(v) { if (sxs) { sxs.exact = v; settleReading(); } },
   /** Stands the reveal still at `u` seconds (a look at it), or lets it run again with no argument. */
   holdReveal(u) { if (reveal) { reveal.hold = u ?? undefined; dirty.chart = true; wake(); } },
 };

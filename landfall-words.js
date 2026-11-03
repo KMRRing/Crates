@@ -1,8 +1,8 @@
 // What Landfall says: numbers set as a navigator writes them, the lines of the sight book, the log slate and the almanac's page, the
 // ending in words. Pure functions of the voyage (tests/landfall-words.mjs); the page only puts them on the screen.
-import { levelOf, estPlace, sceneJd, shipClock, POLARIS, EYE } from "./landfall-engine.js";
+import { levelOf, estPlace, sceneJd, shipClock, reckonedNoonJd, expectedCatchJd, sunStage, POLARIS, EYE } from "./landfall-engine.js";
 import { ellipse, dist } from "./landfall-model.js";
-import { polarisAlmanac, polarisLatitude, toLatLon, placeOfDate, norm360 } from "./landfall-sky.js";
+import { polarisAlmanac, polarisLatitude, toLatLon, placeOfDate, norm360, sunPlace, sunSemidiameter, calendar } from "./landfall-sky.js";
 
 const pad = (n, w = 2) => String(n).padStart(w, "0");
 
@@ -35,7 +35,20 @@ const MONTH = ["January", "February", "March", "April", "May", "June", "July", "
 export const dateWords = S => `${S.date[2]} ${MONTH[S.date[1] - 1]} ${S.date[0]}`;
 
 /** Watch n of m, and which twilight. */
-export const watchWords = S => `Watch ${Math.min(S.w, S.watches)} of ${S.watches}, ${S.kinds[S.w - 1] === "dawn" ? "dawn" : "dusk"}`;
+export const watchWords = S => `Watch ${Math.min(S.w, S.watches)} of ${S.watches}, ${S.kinds[S.w - 1] ?? "dusk"}`;
+
+/** A Julian date's time of day on the chronometer, which keeps Greenwich: "11:57:12". */
+export function fmtGmt(jd) {
+  const c = calendar(jd);
+  return `${pad(c.h)}:${pad(c.mi)}:${pad(c.s)}`;
+}
+/** Seconds as a signed time: "+0:03:41", "−0:00:09". */
+export function fmtSecs(sec) {
+  const a = Math.round(Math.abs(sec)), sign = sec < -0.5 ? "−" : sec > 0.5 ? "+" : "±";
+  return `${sign}${Math.floor(a / 3600)}:${pad(Math.floor(a / 60) % 60)}:${pad(a % 60)}`;
+}
+/** East-west distance as nautical miles east or west: "3.2 nm east". */
+export const fmtEW = nm => `${fmtNm(nm)} ${nm >= 0 ? "east" : "west"}`;
 
 /** The leg just sailed, on the log slate: what the log says, in the units the chart has. Departure is east-west distance; a minute of longitude is shorter by the cosine. */
 export function slate(S) {
@@ -59,6 +72,7 @@ export function bookLines(S) {
   const B = S.watch.book;
   if (!B) return [];
   const est = estPlace(S);
+  if (B.kind === "sun") return sunBookLines(B, est);
   return [
     { label: B.n > 1 ? `Sextant, mean of ${B.n}` : "Sextant", value: fmtDM(B.hs) },
     { label: `Dip, eye ${EYE} m up`, value: `−${B.dip.toFixed(1)}′` },
@@ -72,17 +86,60 @@ export function bookLines(S) {
   ];
 }
 
+/** The sight book of a noon watch: the noon altitude to a latitude, and the two times to a longitude. Either part may be missing. */
+function sunBookLines(B, est) {
+  const out = [];
+  if (B.noon) {
+    const N = B.noon;
+    out.push(
+      { label: N.n > 1 ? `Sextant, lower limb, mean of ${N.n}` : "Sextant, lower limb", value: fmtDM(N.hs) },
+      { label: `Dip, eye ${EYE} m up`, value: `−${N.dip.toFixed(1)}′` },
+      { label: "Refraction", value: `−${N.refr.toFixed(1)}′` },
+      { label: "Semi-diameter and parallax", value: `+${N.sd.toFixed(1)}′ +${N.par.toFixed(1)}′` },
+      { label: "True altitude of the centre", value: fmtDM(N.ho) },
+      { label: `Almanac: declination (sun bears ${N.south ? "south" : "north"})`, value: fmtLat(N.dec) },
+      { label: N.south ? "Latitude = dec + (90° − Ho)" : "Latitude = dec − (90° − Ho)", value: fmtLat(N.lat), key: true },
+      { label: "Against the reckoning", value: `${fmtNm((N.lat - est.lat) * 60)} ${N.lat >= est.lat ? "north" : "south"}` },
+    );
+  }
+  if (B.lon) {
+    const T = B.lon, d = (12 * 3600 - T.eot) - ((((T.tn + 0.5) % 1) + 1) % 1) * 86400;      // 12 h less the equation of time, less the chronometer's time of noon
+    out.push(
+      { label: "Morning sight, chronometer", value: `${fmtGmt(T.t1)}` },
+      { label: "The catch, chronometer", value: `${fmtGmt(T.t2)}` },
+      { label: `Noon: half way, ${fmtSecs(T.corr)} for the sun's drift`, value: `${fmtGmt(T.tn)}` },
+      { label: `Almanac: equation of time ${fmtSecs(T.eot)}`, value: `${fmtSecs(d)}` },
+      { label: "Longitude = 15° × (12 h − eq − noon)", value: fmtLon(T.lon), key: true },
+      { label: "Against the reckoning", value: fmtEW((T.lon - est.lon) * 60 * Math.cos(T.lat * Math.PI / 180)) },
+    );
+  }
+  return out;
+}
+
 /** The north-south uncertainty (95 in 100) in nautical miles for a fog. */
 export const fogNS = P => 2.45 * Math.sqrt(Math.max(0, P[1][1]));
+/** The east-west uncertainty (95 in 100) in nautical miles for a fog. */
+export const fogEW = P => 2.45 * Math.sqrt(Math.max(0, P[0][0]));
 /** What a plotted sight did to the fog, in words. */
 export function revealWords(S) {
   const p = S.watch.plot;
   if (!p || !p.accepted) return "";
+  if (p.sun) {
+    const got = [p.latOk && `latitude ${fmtLat(p.lat)}`, p.lonOk && `longitude ${fmtLon(p.lon)}`].filter(Boolean).join(", ");
+    const lost = [p.latOk === false && p.zLat !== undefined && "The latitude was refused.", p.lonOk === false && p.zLon !== undefined && "The longitude was refused."].filter(Boolean).join(" ");
+    const fog = `Now north-south ±${fmtNm(fogNS(p.after.P))} (was ${fmtNm(fogNS(p.before.P))}), east-west ±${fmtNm(fogEW(p.after.P))} (was ${fmtNm(fogEW(p.before.P))}).`;
+    return `${got[0].toUpperCase()}${got.slice(1)}. ${fog}${p.lonOk ? " The clock fixed the longitude." : " Without the clock east-west stays foggy."} ${lost}`.trim();
+  }
   return `Latitude ${fmtLat(p.lat)}. North and south the ship is now within ${fmtNm(fogNS(p.after.P))}, from ${fmtNm(fogNS(p.before.P))}. East and west is as uncertain as before: Polaris gives latitude only.`;
 }
 /** Why a sight was refused, in words. */
 export function refusedWords(S) {
   const p = S.watch.plot;
+  if (p.sun) {
+    const bits = [p.zLat !== undefined && `The latitude is ${fmtNm(Math.abs(p.zLat))} ${p.zLat >= 0 ? "north" : "south"} of the reckoning (the fog allows ${fmtNm(p.gateLat)})`,
+      p.zLon !== undefined && `the longitude is ${fmtNm(Math.abs(p.zLon))} ${p.zLon >= 0 ? "east" : "west"} of it (the fog allows ${fmtNm(p.gateLon)})`].filter(Boolean).join("; ");
+    return `${bits[0].toUpperCase()}${bits.slice(1)}. Neither is plotted: was the sun at its peak, was the catch made on the moment, was the horizon clear? Take the noon altitude again, or throw the sights away.`;
+  }
   return `This latitude is ${fmtNm(Math.abs(p.z))} ${p.z >= 0 ? "north" : "south"} of the reckoning, and the fog allows ${fmtNm(p.gate)}. It is not plotted: was it Polaris, was the horizon right, was the reading? Take it again, or throw it away.`;
 }
 
@@ -125,4 +182,31 @@ export function endWords(S) {
 export function fogWords(P) {
   const e = ellipse(P);
   return `${fmtNm(e.rx)} × ${fmtNm(e.ry)}`;
+}
+
+// ---------- a noon watch ----------
+
+/** Ship's time of a Julian date at the estimate's longitude, as "HH:MM". */
+const shipAt = (S, jd) => shipClock(jd, estPlace(S).lon);
+
+/**
+ * The task line of a noon watch in the sky: what the sun is doing and which sight is next, with the times the navigator can work out
+ * from the almanac (noon by the reckoning, and when the falling sun should come back to the morning's altitude).
+ */
+export function sunTaskWords(S, cloud = false) {
+  const st = sunStage(S), noon = shipAt(S, reckonedNoonJd(S)), W = S.watch.sun;
+  const head = cloud ? "Cloud is over the sun. " : "";
+  if (st === "morning") return `${head}The sun is climbing. Take its altitude now: the lower edge on the horizon. Noon by your reckoning is <b>${noon}</b>.`;
+  if (st === "noon") return `${head}${W.m1 ? "The morning altitude is in the book. " : ""}Noon by your reckoning is <b>${noon}</b>. Wait for it, then take the sun's greatest height while it hangs.`;
+  if (st === "afternoon") return `${head}The sun is falling. By the morning's drum it should come back to the horizon at about <b>${shipAt(S, expectedCatchJd(S))}</b>: call the moment its lower edge touches.`;
+  return "All the sights of the sun are taken.";
+}
+
+/** The almanac's page for the sun: its declination, semi-diameter and equation of time, and noon by the reckoning. */
+export function sunAlmanac(S) {
+  const jd = sceneJd(S), sun = sunPlace(jd), est = estPlace(S), noon = reckonedNoonJd(S), at = sunPlace(noon);
+  return {
+    date: dateWords(S), dec: at.dec, sd: sunSemidiameter(noon), eot: at.eot * 3600, noonShip: shipAt(S, noon), noonGmt: fmtGmt(noon),
+    catchShip: S.watch.sun?.m1 ? shipAt(S, expectedCatchJd(S)) : null, ship: shipClock(jd, est.lon), lon: est.lon, decNow: sun.dec,
+  };
 }

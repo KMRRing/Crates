@@ -38,6 +38,11 @@
 #app.lf-full > .lf-desk { flex: 0 0 auto; }
 #app.lf-full .lf-chart { display: none; }
 
+/* by day (a noon watch): the cabin is lit by the sky, not by the lamp */
+#app.lf-day { --lf-teal: #1c4e50; --lf-teal-hi: #3e7e7a; --lf-wood: #4a3320; --lf-paper: #efe3c4; }
+#app.lf-day > .lf-window { background: #5b86b4; }
+#app.landfall.lf-day > .lf-desk { box-shadow: inset 0 0 1rem rgba(255, 236, 190, .18); }
+
 /* the chart table */
 #app.landfall > .lf-desk { margin: .5rem 0 0; padding: .5rem; min-height: 0; border: 1px solid rgba(201, 162, 74, .7); border-radius: 6px; color: var(--lf-cream);
   background: radial-gradient(ellipse at 50% 15%, var(--lf-teal-hi), var(--lf-teal) 78%); box-shadow: inset 0 0 1.2rem rgba(0, 0, 0, .45); }
@@ -73,6 +78,12 @@
 .lf-scopecv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 .lf-scope-side { display: grid; gap: .4rem; padding: .2rem .9rem 0; }
 .lf-read { margin: 0; text-align: center; font: 700 1.55rem/1.1 var(--lf-mono); letter-spacing: .02em; }
+.lf-chrono { margin: -.2rem 0 0; text-align: center; font: 600 .86rem/1.1 var(--lf-mono); letter-spacing: .06em; color: var(--lf-gilt-hi); }
+.lf-chrono[hidden] { display: none; }
+/* the catch: the drum is left alone, so the controls for turning it go */
+.lf-scope[data-stage="afternoon"] #nudgeDown, .lf-scope[data-stage="afternoon"] #nudgeUp, .lf-scope[data-stage="afternoon"] #clearBtn,
+.lf-scope[data-stage="afternoon"] #readBtn, .lf-scope[data-stage="afternoon"] #marks { display: none; }
+.lf-scope[data-stage="afternoon"] .lf-scope-row:first-of-type { display: none; }
 .lf-scope-note { margin: 0; min-height: 1.1rem; text-align: center; font-size: .74rem; color: rgba(240, 226, 190, .78); }
 .lf-marks { list-style: none; margin: 0; padding: 0; display: flex; justify-content: center; gap: .4rem; min-height: 1.7rem; }
 .lf-marks li { padding: .2rem .5rem; border: 1px solid var(--lf-gilt); border-radius: 4px; font: .74rem var(--lf-mono); background: rgba(201, 162, 74, .12); }

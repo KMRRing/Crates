@@ -3,7 +3,7 @@
 // the clouds, the helps and the saved voyage.
 import {
   newVoyage, apply, moves, validate, save, restore, nextCrossing, bellsAt, bellsBetween, shipClock, conditions, look, sextantTruth, swellAt,
-  sightNoise, filterSigma, reduce, forecast, levelOf, truePlace, estPlace, sceneJd, hintFor, routeOf, masteryAfter, regionWords, cloudsNow,
+  sightNoise, filterSigma, reduce, forecast, levelOf, truePlace, estPlace, sceneJd, hintFor, routeOf, masteryAfter, regionWords, cloudsNow, sunStage, expectedCatchJd, reckonedNoonJd,
   POLARIS, POLARIS_HR, BY_HR, DUSK_ALT, DAWN_ALT, MAX_WAIT, EYE,
 } from "../landfall-engine.js";
 import { LEVELS } from "../landfall-levels.js";
@@ -243,6 +243,49 @@ const toSky = (S, hr = POLARIS_HR) => { apply(S, { t: "skip" }); apply(S, { t: "
   apply(S, { t: "sail", course: 90 });
   check(Math.hypot(h.E[0] - S.pre.E[0], h.E[1] - S.pre.E[1]) < 3 && Math.abs(h.hours - S.leg.hours) < 0.4, "the forecast lands within a few miles of the reckoning the leg gives (the sun is judged from the estimate, not the truth)");
 }
+
+// ---------- the noon watch: the sun's three sights ----------
+{
+  // takes the sun now (waiting out a cloud over it) and returns the stage it was taken at
+  const take = S => { for (let i = 0; i < 40 && !apply(S, { t: "raise" }).ok; i++) apply(S, { t: "wait", min: 1 }); const st = S.watch.stage; apply(S, { t: "read", marks: [sextantTruth(S)] }); return st; };
+  const until = (S, jd) => { for (let i = 0; i < 400 && sceneJd(S) < jd; i++) apply(S, { t: "wait", min: 1 }); };
+  const S = newVoyage("noon-sight", 3);
+  apply(S, { t: "skip" });
+  check(S.watch.kind === "noon" && sunStage(S) === "morning" && moves(S).includes("skipstage"), "a noon-sight voyage opens with a noon watch at its morning sight");
+  check(take(S) === "morning" && S.phase === "find" && S.watch.sun.m1, "the morning sight is kept in the book and the watch goes on (nothing is plotted yet)");
+  check(!apply(S, { t: "plot" }).ok, "nothing can be plotted before the sun's sights are done");
+  until(S, reckonedNoonJd(S) - 3 / 1440);
+  check(sunStage(S) === "noon" && S.watch.min > 30, "waiting brings the sun to noon");
+  check(take(S) === "noon" && S.watch.sun.noon, "the noon altitude is taken");
+  check(Number.isFinite(expectedCatchJd(S)), "the almanac gives the moment the afternoon sun matches the morning's");
+  until(S, expectedCatchJd(S) - 8 / 1440);
+  apply(S, { t: "raise" });                                      // the drum stays where the morning sight left it; the catch is the moment the sun comes down to it
+  for (let i = 0; i < 400 && sextantTruth(S) > S.watch.sun.m1.hs; i++) apply(S, { t: "wait", min: 0.05 });
+  apply(S, { t: "lower" });
+  check(take(S) === "afternoon" && S.phase === "book" && S.watch.book.kind === "sun", "the catch ends the sights and opens the sight book");
+  const r = apply(S, { t: "plot" });
+  check(r.ok && r.accepted && S.phase === "steer" && S.watch.plot.latOk && S.watch.plot.lonOk, "a good run of sights fixes both the latitude and the longitude");
+  check(S.watch.plot.errorNm < 8, `...and the fix is ${S.watch.plot.errorNm.toFixed(1)} nm from the truth`);
+  check(S.P[0][0] < S.pre.P[0][0] * 0.5, "the east-west fog collapses, which the pole star alone never does");
+  const R = restore(JSON.parse(JSON.stringify(save(S))));
+  check(R && R.phase === S.phase && JSON.stringify(R.watch.sun) === JSON.stringify(S.watch.sun) && R.watch.plot.lonOk === true, "a noon watch survives saving and restoring");
+}
+{
+  const S = newVoyage("noon-sight", 4);
+  apply(S, { t: "skip" });
+  apply(S, { t: "skipstage" });
+  check(S.watch.sun.m1 === false && sunStage(S) === "noon", "the morning sight may be skipped");
+  for (let i = 0; i < 400 && sceneJd(S) < reckonedNoonJd(S) - 3 / 1440; i++) apply(S, { t: "wait", min: 1 });
+  for (let i = 0; i < 40 && !apply(S, { t: "raise" }).ok; i++) apply(S, { t: "wait", min: 1 });
+  apply(S, { t: "read", marks: [sextantTruth(S)] });
+  apply(S, { t: "skipstage" });
+  check(S.phase === "book" && !S.watch.book.lon && S.watch.book.noon, "without the morning and the catch the book holds the noon altitude only");
+  const again = JSON.parse(JSON.stringify(save(S))), T = restore(again);
+  check(apply(T, { t: "retake" }).ok && T.phase === "find" && T.watch.sun.noon === null, "the noon altitude (and only it) can be retaken");
+  const r = apply(S, { t: "plot" });
+  check(r.accepted && S.watch.plot.latOk && !S.watch.plot.lonOk, "...and without a catch the plot fixes the latitude and leaves the longitude foggy");
+}
+check(LEVELS.filter(l => l.section === 2).length === 4 && LEVELS.filter(l => l.section === 2).every(l => l.kinds.includes("noon")), "section 2's four levels all take the sun");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("landfall-engine: bells, twilights, the latitude reveal, the gate and fog, the legs and endings, clouds, helps, saving");

@@ -63,5 +63,28 @@ for (const [bot, seed] of [["careful", 3], ["blind", 7], ["sloppy", 8], ["confus
 }
 check(endWords(newVoyage("first-watch", 1)) === null, "a voyage under way has no ending");
 
+// the noon watch's words
+{
+  const { fmtGmt, fmtSecs, fmtEW, sunTaskWords, sunAlmanac } = await import("../landfall-words.js");
+  const { sceneJd, reckonedNoonJd, expectedCatchJd } = await import("../landfall-engine.js");
+  const N = newVoyage("noon-sight", 3);
+  check(watchWords(N) === `Watch 1 of ${N.watches}, noon`, "a noon watch is named for the sun");
+  check(fmtGmt(2451545.0) === "12:00:00" && fmtSecs(125) === "+0:02:05" && /east$/.test(fmtEW(3)) && /west$/.test(fmtEW(-3)), "a time of day, a count of seconds, east and west");
+  apply(N, { t: "skip" });
+  check(!/NaN|undefined/.test(sunTaskWords(N)) && !/NaN|undefined/.test(sunTaskWords(N, true)) && !/NaN|undefined/.test(sunAlmanac(N).toString()), "the sun's task line and almanac page are written without a gap");
+  const take = () => { for (let i = 0; i < 40 && !apply(N, { t: "raise" }).ok; i++) apply(N, { t: "wait", min: 1 }); apply(N, { t: "read", marks: [sextantTruth(N)] }); };
+  const until = jd => { for (let i = 0; i < 400 && sceneJd(N) < jd; i++) apply(N, { t: "wait", min: 1 }); };
+  take(); until(reckonedNoonJd(N) - 3 / 1440); take(); until(expectedCatchJd(N) - 8 / 1440);
+  apply(N, { t: "raise" });
+  for (let i = 0; i < 400 && sextantTruth(N) > N.watch.sun.m1.hs; i++) apply(N, { t: "wait", min: 0.05 });
+  apply(N, { t: "read", marks: [] });
+  const rows = bookLines(N);
+  check(rows.length >= 12 && rows.length <= 16 && rows.every(r => r.label && r.value && !/NaN|undefined/.test(r.label + r.value)), `the sun's sight book is ${rows.length} rows with no gaps`);
+  check(rows.filter(r => r.key).length === 2 && /Latitude/.test(rows.find(r => r.key).label), "...with the latitude and the longitude picked out");
+  apply(N, { t: "plot" });
+  const rv = revealWords(N);
+  check(!/NaN|undefined/.test(JSON.stringify(rv)) && JSON.stringify(rv).length < 700, "the reveal of a sun fix is short and whole");
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("landfall-words: formats, the slate, the sight book, the almanac and the endings");
