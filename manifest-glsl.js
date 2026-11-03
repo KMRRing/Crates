@@ -104,7 +104,7 @@ void sack(int f, float s, float t, float FS, float FT, float pw, inout Surf o) {
   if (f == 1) {
     vec2 q = vec2(s - .95, t - FT * .5);
     float tri = max(abs(q.x) * .86 + q.y * .5, -q.y) - .15;          // an upright triangle
-    tri = max(tri, -(abs(q.x) * .86 + q.y * .5 + .02 - .12 + (q.y + .1) * .0));
+    tri = max(tri, -(abs(q.x) * .86 + q.y * .5 - .1));              // hollow: the triangle's outline
     float ring = abs(length(q) - .26) - .012;
     float mark = max(cov(tri * .8, pw), cov(ring, pw));
     mark *= .5 + .5 * smoothstep(.25, .5, fbm(q * 28.) + .25);

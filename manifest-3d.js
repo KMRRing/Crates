@@ -194,29 +194,5 @@ export function createGL() {
     renderer.render(scene, camera);
     return canvas;
   };
-  /** The same scene with the packages flat, one colour each (its index + 1, in the red and green), to count what shows. */
-  out.ids = (spec, w, h, tk) => {
-    arrange(spec, tk, null);
-    quay.visible = false; tile.visible = false;
-    const saved = [];
-    pool.forEach((m, i) => { if (!m.visible) return; saved.push([m, m.material]); m.material = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(((i + 1) & 255) / 255, (((i + 1) >> 8) & 255) / 255, 0, "srgb-linear") }); });
-    const space = renderer.outputColorSpace;
-    renderer.shadowMap.enabled = false;
-    renderer.toneMapping = 0;
-    renderer.outputColorSpace = "srgb-linear";                     // the ids come back as they were written
-    renderer.setSize(w, h, false);
-    renderer.render(scene, camera);
-    const gl = renderer.getContext(), px = new Uint8Array(w * h * 4);
-    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
-    saved.forEach(([m, mat]) => { m.material.dispose(); m.material = mat; });
-    renderer.shadowMap.enabled = true;
-    renderer.outputColorSpace = space;
-    const seen = new Map();
-    for (let i = 0; i < px.length; i += 4) if (px[i + 3] === 255) { const id = px[i] + px[i + 1] * 256; if (id) seen.set(id - 1, (seen.get(id - 1) || 0) + 1); }
-    for (const [id, n] of seen) if (n < 3 || id >= spec.items.length) seen.delete(id);   // an antialiased edge blends two ids into a third
-    return { seen, items: spec.items };
-  };
-  out.debug = { scene, pool, THREE, LIGHT };
-  out.dispose = () => renderer.dispose();
   return out;
 }
