@@ -83,7 +83,7 @@ html[data-theme="modern"][data-mode="night"] { --mf-town: color-mix(in srgb, var
 .mf-view::after { content: ""; position: absolute; left: 0; right: 0; height: 40%; bottom: calc(100% - var(--mf-horizon) - 9%); z-index: -1; background: var(--mf-town);
   -webkit-mask: url("manifest-town.svg") repeat-x 50% 100% / auto 100%; mask: url("manifest-town.svg") repeat-x 50% 100% / auto 100%; }
 /* the stack as big as the room allows, keeping its shape (--aspect: the drawing's width over its height) */
-.mf-view svg { width: min(100cqw, calc(100cqh * var(--aspect, 1.3)), 26rem); height: auto; display: block; overflow: visible; margin: 0 auto; }
+.mf-view :is(svg, canvas) { width: min(100cqw, calc(100cqh * var(--aspect, 1.3)), 26rem); height: auto; display: block; overflow: visible; margin: 0 auto; }
 .mf-panel { width: 100%; }
 .mf-panel.away svg { animation: away .38s ease-in forwards; }
 @keyframes away { to { transform: translateY(-40%) scale(.8); opacity: 0; } }
@@ -95,7 +95,7 @@ html[data-theme="modern"][data-mode="night"] { --mf-town: color-mix(in srgb, var
 /* a package drops from above and lands with a bounce; delays stagger them by the round's order */
 .cube.drop { animation: land .5s cubic-bezier(.3, 1.4, .5, 1) both; }
 @keyframes land { from { transform: translateY(-4.375rem); opacity: 0; } 60% { opacity: 1; } to { transform: translateY(0); opacity: 1; } }
-.mf-view .tap .mf-cell { cursor: pointer; }
+.mf-view .tap :is(.mf-cell), .mf-view canvas.tap { cursor: pointer; }
 .mf-note { margin: 0; font-weight: 750; color: var(--ink-soft); }
 .mf-note[hidden] { display: none; }
 
@@ -127,7 +127,7 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 .mf-row-body { padding: 0 .7rem .6rem; display: grid; gap: .45rem; }
 /* a question with a picture: the picture beside its answers */
 .mf-row-body.with-pic { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center; gap: .5rem; }
-.mf-pic svg { width: 100%; height: auto; max-height: 7.5rem; display: block; overflow: visible; }
+.mf-pic :is(svg, canvas) { width: 100%; height: auto; max-height: 7.5rem; display: block; overflow: visible; object-fit: contain; }
 .mf-answers { display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); gap: .4rem; }   /* every answer in one row */
 .with-pic .mf-answers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* a ware answers by its name and its packing, drawn small: never by colour alone; beside a picture it's one line (the
@@ -144,7 +144,7 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 .mf-mini button { padding: .25rem; border-radius: 5px; border: 2px solid var(--mf-edge); background: var(--sheet); cursor: pointer; }
 .mf-mini button.good { border-color: var(--mf-good); box-shadow: inset 0 0 0 2px var(--mf-good); }
 .mf-mini button.bad { border-color: var(--mf-bad); box-shadow: inset 0 0 0 2px var(--mf-bad); }
-.mf-mini svg { width: 100%; height: auto; max-height: 4.6rem; display: block; }
+.mf-mini :is(svg, canvas) { width: 100%; height: auto; max-height: 4.6rem; display: block; object-fit: contain; }
 
 .mf-buttons { display: grid; grid-template-columns: 1fr; gap: .4rem; }
 /* the stage's two halves, what you're shown and what you answer (.fit-half: on a phone not boxes at all, their parts
@@ -155,7 +155,7 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
   .mf-look, .mf-answer { display: flex; flex-direction: column; gap: .5rem; min-height: 0; }
   .mf-answer .mf-asks { flex: 1 1 auto; max-height: none; }
   .mf-answer .mf-buttons { margin-top: auto; }
-  .mf-view svg { width: min(100cqw, calc(100cqh * var(--aspect, 1.3))); }
+  .mf-view :is(svg, canvas) { width: min(100cqw, calc(100cqh * var(--aspect, 1.3))); }
 }
 .mf-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .mf-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
