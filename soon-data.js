@@ -14,14 +14,4 @@ export const SOON = {
       "On seats.js; the largest of the new games, so it comes last.",
     ],
   },
-  ingot: {
-    name: "Ingot", sec: "idle",
-    line: "2048's game: slide numbered tiles about a four-by-four board; two equal tiles that meet merge into their sum, and a new tile appears after every move. Tiles are bars of metal that double.",
-    todo: [
-      "Added 2 November 2026 (Korbi: \"2048\"). 2048 (Gabriele Cirulli, 2014) was released under the MIT licence, and the number is no one's name, but the tile is Ingot, in Idle beside Orrery and Topple.",
-      "The rules are four swipes and a spawn (a 2 nine times in ten, a 4 otherwise). The choice is one of four, and the board remembers a careless one, as every idle game here asks.",
-      "Needs: a limited undo, the day's seed for the spawns (so a daily is the same board for everyone), a best, and a calm mode with the bars in 3D.",
-      "A search that scores the four swipes would give a hint and a par.",
-    ],
-  },
 };

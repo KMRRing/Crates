@@ -10,6 +10,7 @@ Games to play without much thought (October 2026): no puzzle to work out, but as
 - **Avalanche** (you set off the chain reaction, and where it runs matters): a slope of snow on the sandpile model.
 - **Netting** (lines replaced by loops): obligations between six counterparties; a cycle nets out and scores; a party past its credit limit defaults.
 - **Settle** (you pick the tank, density picks the level): parcels sink below everything lighter and lift it a level.
+- **Ingot** (2048 itself): four swipes on a four-by-four board of metal bars that double; the day's seed for a daily, limited undo, a hint and a par from a small search.
 - **Drift** (2048 turned round): the forecast wind picks the direction, you pick the square.
 - **Guilloché** (a rose engine: engrave the target plate), asked for as a game where you make something, in 3D, with guilloché as its base. Each plate teaches one part of the machine, so that someone who can set the last knows how every guilloché is made. Replaced Rosette.
 - **Slipway** (carving), asked for as something more casual and braindead, still about putting something together in 3D: a puzzle of saw, plane and drill levels, each part of a ship's cog a ghost in a block of timber (`docs/slipway.md`).

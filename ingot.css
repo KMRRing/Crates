@@ -1,0 +1,122 @@
+/* Ingot: a four-by-four board in a brass frame, a bar of metal on each square (lead, tin, copper, bronze, brass, silver,
+   electrum, gold, rose gold, platinum, then gilt at 2048 and steels beyond), the value always printed on the bar and a
+   small stamp on its top face, so colour is never the only thing that says what it is. Brass is the house colour; the
+   metals are the board's own colours, the same by day and by night. Sizes in cqw are of the board. */
+:root {
+  --ig-in: var(--brass-lo);
+  --ig-soft: color-mix(in srgb, var(--ig-in) 15%, var(--sheet));
+  --ig-slot: color-mix(in srgb, var(--brass) 16%, var(--yard));
+  --ig-slot-edge: color-mix(in srgb, var(--brass) 38%, var(--yard));
+}
+
+#app.ingot { touch-action: none; }      /* a swipe is the game's, never the page's */
+.ig-mark { display: inline-block; }
+.ig-mark svg { width: 100%; height: 100%; display: block; }
+.ig-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+.ig-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.ig-score b { font-size: 1.05rem; }
+
+/* the board: square, as large as its room allows */
+.ig-field { position: relative; place-items: center; }
+.ig-board { --pad: 2.4cqw; position: relative; box-sizing: border-box; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); container-type: size;
+  border: 2px solid var(--brass); border-radius: 6px; background: color-mix(in srgb, var(--brass) 9%, var(--sheet));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 30%, transparent);
+  touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.ig-slots, .ig-tiles { position: absolute; inset: var(--pad); }
+.ig-slots { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); }
+.ig-slots i { margin: 1.5cqw; border-radius: 3px; background: var(--ig-slot); box-shadow: inset 0 0 0 1px var(--ig-slot-edge); }
+
+/* a bar of metal: a top face, a front face, a foot narrower than its shoulders */
+.ig-tile { --c: 0; --r: 0; position: absolute; left: calc(var(--c) * 25%); top: calc(var(--r) * 25%); width: 25%; height: 25%; will-change: transform; }
+.ig-tile::before { content: ""; position: absolute; left: 10%; right: 10%; bottom: 4%; height: 9%; background: radial-gradient(closest-side, rgba(28, 42, 52, .38), transparent); }
+.ig-bar { position: absolute; inset: 7% 4.5% 9%; background: var(--edge); clip-path: polygon(14% 0, 86% 0, 97% 26%, 90% 100%, 10% 100%, 3% 26%); }
+.ig-bar::before { content: ""; position: absolute; inset: .1rem; clip-path: polygon(14% 0, 86% 0, 97% 26%, 90% 100%, 10% 100%, 3% 26%);
+  background: linear-gradient(to bottom, var(--hi) 0 26%, color-mix(in srgb, var(--hi) 55%, var(--mid)) 26% 30%, var(--mid) 30%, var(--lo) 100%); }
+.ig-num { position: absolute; left: 0; right: 0; top: 24%; bottom: 0; display: grid; place-items: center; color: var(--ink-m); font-weight: 800; line-height: 1;
+  font-size: calc(var(--k, 9) * 1cqw); font-variant-numeric: tabular-nums; letter-spacing: -.02em; text-shadow: 0 .05em 0 var(--shine); }
+.ig-tile[data-d="3"] { --k: 7.6; }
+.ig-tile[data-d="4"] { --k: 6.2; }
+.ig-tile[data-d="5"] { --k: 5; }
+.ig-tile[data-d="6"] { --k: 4.2; }
+.ig-tile[data-d="7"] { --k: 3.6; }
+.ig-stamp { position: absolute; left: 50%; top: 7%; height: 13%; aspect-ratio: 1; translate: -50% 0; background: var(--ink-m); opacity: .5; }
+
+/* the metals: highlight, body, shade, edge, lettering, and the stamp's shape */
+.ig-tile { --edge: #3b4650; --ink-m: #1C2A34; --shine: rgba(255, 255, 255, .22); }
+.ig-tile[data-m="0"] { --hi: #BAC2CC; --mid: #929DAA; --lo: #727D8A; }
+.ig-tile[data-m="1"] { --hi: #DDE2E7; --mid: #B9C1CA; --lo: #9AA4AF; }
+.ig-tile[data-m="2"] { --hi: #EDB08C; --mid: #CF7F50; --lo: #A8603A; }
+.ig-tile[data-m="3"] { --hi: #E0B96F; --mid: #BA8B44; --lo: #94682C; }
+.ig-tile[data-m="4"] { --hi: #F4D87C; --mid: #DCB23C; --lo: #B68C22; }
+.ig-tile[data-m="5"] { --hi: #F6F8FA; --mid: #D8DDE2; --lo: #B9C0C7; }
+.ig-tile[data-m="6"] { --hi: #F7EAB0; --mid: #E6CD70; --lo: #C6A944; }
+.ig-tile[data-m="7"] { --hi: #FFE595; --mid: #F4C03E; --lo: #D49D20; }
+.ig-tile[data-m="8"] { --hi: #F8CAB6; --mid: #E99F83; --lo: #CB7B5E; }
+.ig-tile[data-m="9"] { --hi: #E8F1F8; --mid: #C1D3E1; --lo: #9DB4C8; }
+.ig-tile[data-m="10"] { --hi: #FFF3B8; --mid: #F8CF4A; --lo: #DCA61F; --edge: #6B4408; }
+.ig-tile[data-m="11"] { --hi: #8296AB; --mid: #5A6F86; --lo: #41546A; --ink-m: #F7F1E3; --shine: rgba(0, 0, 0, .3); --edge: #202C38; }
+.ig-tile[data-m="12"] { --hi: #655443; --mid: #44382B; --lo: #2D241B; --ink-m: #F3D98A; --shine: rgba(0, 0, 0, .4); --edge: #14100B; }
+.ig-tile[data-m="13"] { --hi: #7CC2A6; --mid: #479478; --lo: #2D6F58; --edge: #1B3F33; }
+.ig-tile[data-m="10"] .ig-bar { box-shadow: 0 0 1.6cqw color-mix(in srgb, #F8CF4A 70%, transparent); }
+.ig-tile[data-s="0"] .ig-stamp { clip-path: circle(50%); }
+.ig-tile[data-s="1"] .ig-stamp { clip-path: polygon(8% 8%, 92% 8%, 92% 92%, 8% 92%); }
+.ig-tile[data-s="2"] .ig-stamp { clip-path: polygon(50% 4%, 96% 92%, 4% 92%); }
+.ig-tile[data-s="3"] .ig-stamp { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.ig-tile[data-s="4"] .ig-stamp { clip-path: polygon(50% 2%, 98% 38%, 80% 96%, 20% 96%, 2% 38%); }
+.ig-tile[data-s="5"] .ig-stamp { clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%); }
+.ig-tile[data-s="6"] .ig-stamp { clip-path: polygon(50% 0, 62% 36%, 100% 38%, 70% 60%, 80% 98%, 50% 76%, 20% 98%, 30% 60%, 0 38%, 38% 36%); }
+.ig-tile[data-s="7"] .ig-stamp { clip-path: polygon(36% 0, 64% 0, 64% 36%, 100% 36%, 100% 64%, 64% 64%, 64% 100%, 36% 100%, 36% 64%, 0 64%, 0 36%, 36% 36%); }
+.ig-tile[data-s="8"] .ig-stamp { clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
+.ig-tile[data-s="9"] .ig-stamp { clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.ig-tile[data-s="10"] .ig-stamp { clip-path: polygon(50% 0, 100% 100%, 50% 72%, 0 100%); }
+.ig-tile[data-s="11"] .ig-stamp { clip-path: polygon(0 20%, 100% 20%, 100% 80%, 0 80%); }
+.ig-board.over .ig-tile { filter: saturate(.55); }
+
+/* the hint: a chevron on the edge the search would swipe to */
+.ig-hint { position: absolute; z-index: 3; display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; pointer-events: none;
+  background: color-mix(in srgb, var(--sheet) 88%, transparent); border: 1px solid var(--brass); color: var(--ink); animation: ig-nudge 1.1s ease-in-out infinite; }
+.ig-hint[hidden] { display: none; }
+.ig-hint svg { width: 1.6rem; height: 1.6rem; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.ig-hint[data-dir="up"] { left: 50%; top: -.6rem; margin-left: -1.3rem; }
+.ig-hint[data-dir="down"] { left: 50%; bottom: -.6rem; margin-left: -1.3rem; }
+.ig-hint[data-dir="left"] { top: 50%; left: -.6rem; margin-top: -1.3rem; }
+.ig-hint[data-dir="right"] { top: 50%; right: -.6rem; margin-top: -1.3rem; }
+.ig-hint[data-dir="right"] svg { rotate: 90deg; }
+.ig-hint[data-dir="down"] svg { rotate: 180deg; }
+.ig-hint[data-dir="left"] svg { rotate: 270deg; }
+@keyframes ig-nudge { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .ig-hint { animation: none; } }
+
+/* under the board: a line, the two tools; at the end, how it went and New game, in the same room */
+.ig-side { display: grid; grid-template-rows: auto auto; gap: .4rem; min-height: 5.4rem; align-content: start; }
+.ig-line { margin: 0; min-height: 1.3rem; font-size: .88rem; line-height: 1.3; color: var(--ink-soft); }
+.ig-line[hidden] { display: none; }
+.ig-tools { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.ig-tools[hidden] { display: none; }
+.ig-tool { min-height: 3.125rem; display: flex; align-items: center; justify-content: center; gap: .5rem; border: 1px solid var(--rule); border-radius: 4px;
+  background: var(--ig-soft); color: var(--ink); font: inherit; font-size: .84rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track));
+  text-transform: var(--caps); cursor: pointer; }
+.ig-tool b { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.ig-tool:disabled { opacity: .45; cursor: default; }
+.ig-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.ig-result { grid-row: 1 / span 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; }
+.ig-result .ig-go { padding: 0 1.3rem; }
+.ig-result[hidden] { display: none; }
+.ig-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
+
+.ig-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.ig-toast.show { opacity: 1; }
+
+/* held sideways: the board on the left with all the height; the figures, the line and the tools beside it, the tools low
+   where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.ingot { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.ingot .ig-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.ingot .ig-field { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.ingot .ig-side { grid-column: 2; grid-row: 3; align-content: end; }
+  #app.ingot .ig-tools { grid-template-columns: 1fr; }
+  #app.ingot .ig-result { grid-template-columns: 1fr; grid-row: auto; }
+}
