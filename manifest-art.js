@@ -1,13 +1,22 @@
 // Manifest's drawing: the League's packages in their packing, the quay they stand on, and the little package beside an
 // answer. The geometry (where a package is, what hides what) is the engine's (manifest-engine.js); this file only
 // dresses it. A package is the box the engine draws and no smaller, so what shows through the stack is what the
-// engine says shows; the packing is a drawing on its three faces and never changes a silhouette.
+// engine says shows; the packing is a drawing on its faces and never changes a silhouette.
+//
+// Two drawings of the same pictures. The first is 3D (manifest-pictures.js and manifest-3d.js, three.js): lit boxes with
+// the packing worked out in the shader, shadows, a bounce as they land. Where WebGL won't start (an old phone, a lost
+// context) the second drawing, the flat one below (SVG, a package's three faces as polygons), takes over, and plays as
+// it always did.
 //
 // Each ware has its hue, its lightness (they stand five steps apart) and its packing, three ways to tell it from the
 // others, so that no one rests on colour alone: cloth is a bale lashed with crossed cord, salt a stitched sack, amber an
 // iron-strapped chest with a lozenge on it, iron a bundle of bars with straps, herring a hooped cask with a fish
 // chalked on it. A stack under tarpaulin (the turned question, which must not give the ware away) is ropes on grey.
 import { WARES, boxFor, isoPoint, cubeFaces, drawOrder, dropTimes, visibleSet } from "./manifest-engine.js";
+import { QUAY_DEPTH, frameOf } from "./manifest-model.js";
+import { ready, is3d, stage3d, icon3d, playOut as playOut3d } from "./manifest-pictures.js";
+
+export { QUAY_DEPTH, ready, is3d };
 
 const SVG = "http://www.w3.org/2000/svg";
 const el = (tag, attrs = {}) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
@@ -16,7 +25,6 @@ const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const ch = sh 
 
 // the tarpaulin over a stack whose wares are hidden, and the one package lit under it
 const TARP = "#AEA690", LIT = "#FFF8E4";
-export const QUAY_DEPTH = 0.42;          // how far the quay's edge goes down below the floor, in cell heights
 
 // ---------- a face as a unit square ----------
 /** A face's pen: draws in the face's own unit square (u along its length, v up it, or across a top), and gives back path
@@ -104,7 +112,7 @@ const ACCENT = {
  * quarter turn puts it along y), and options: `lit` (the package picked out under the tarpaulin), `detail` (the packing:
  * left out where a whole stack is the size of a thumb), `tap`.
  */
-export function paintPackage(g, faces, ware, lengthwise, { lit = false, detail = true, tap = null } = {}) {
+function paintPackage(g, faces, ware, lengthwise, { lit = false, detail = true, tap = null } = {}) {
   const base = ware ? WARES[ware - 1].hex : lit ? LIT : TARP;
   for (const [name, k] of [["left", 0.72], ["right", 0.86], ["top", 1.05]]) {
     const poly = el("polygon", { points: faces[name].map(q => q.map(n => n.toFixed(1)).join(",")).join(" "), fill: shade(base, k), class: "mf-cell" });
@@ -153,27 +161,25 @@ function ripples(svg, X, Y, b, to) {
   svg.appendChild(el("path", { d: wave(X * 0.3, Y) + wave(X * 0.78, Y) + wave(X, Y * 0.3) + wave(X, Y * 0.78), class: "mf-wave" }));
 }
 
-// ---------- one stack on the quay ----------
+// ---------- the flat drawing: one stack on the quay ----------
 /**
  * The stack as one isometric panel on the quay: { panel, drops }. opts: drop (an arrival order: the packages fall in; at
  * a table, times gives each one's landing on the round's clock and since how far into the drop it is), blank (the quay
  * only, for a marked position), mark {x,y,z} (outline a package, or its place on the quay with the tier named when it's
  * hidden), marks [keys] (outline these), highlight (dim every ware but this), tier (dim every tier but this), tap(key),
  * selected [keys], turns (a turned stack: packages lie along y after a quarter turn), grey (every package under
- * tarpaulin), ring (a key: that package uncovered and outlined), small (no room for drops or packing).
+ * tarpaulin), ring (a key: that package uncovered and outlined), small (no room for drops or packing), appear (it comes
+ * back on the quay: fades in).
  */
 export function stage(cells, opts = {}) {
+  return is3d() ? stage3d(cells, opts) : stageFlat(cells, opts);
+}
+function stageFlat(cells, opts) {
   const panel = node("div", `mf-panel${opts.small ? " small" : ""}`);
-  const b = boxFor(opts.turns || 0), X = cells.length, Y = cells[0].length, Z = cells[0][0].length, s = 46;
-  const pts = [];
-  const top = opts.blank ? 0 : Z;                                  // the quay alone is framed to its own size
-  for (let x = 0; x <= X; x++) for (let y = 0; y <= Y; y++) for (let z = 0; z <= top; z++) pts.push(isoPoint(x, y, z, b));
-  for (const [x, y] of [[0, Y], [X, Y], [X, 0]]) pts.push(isoPoint(x, y, -QUAY_DEPTH, b));
-  const minX = Math.min(...pts.map(p => p.sx)), maxX = Math.max(...pts.map(p => p.sx)), minY = Math.min(...pts.map(p => p.sy)), maxY = Math.max(...pts.map(p => p.sy));
-  const W = (maxX - minX) * s + 20, H = (maxY - minY) * s + 20, room = opts.drop ? s * 1.6 : s * 0.25;
+  const b = boxFor(opts.turns || 0), X = cells.length, Y = cells[0].length, Z = cells[0][0].length;
+  const frame = frameOf(X, Y, Z, b, opts), { W, H, room, to } = frame;
   const svg = el("svg", { viewBox: `0 ${-room} ${W} ${H + room}`, class: opts.tap ? "tap" : "" });
-  svg.style.setProperty("--aspect", (W / (H + room)).toFixed(3));
-  const to = ([sx, sy]) => [(sx - minX) * s + 10, (sy - minY) * s + 10];
+  svg.style.setProperty("--aspect", frame.aspect.toFixed(3));
   const markKey = opts.mark ? `${opts.mark.x},${opts.mark.y},${opts.mark.z}` : null;
   const visible = opts.blank || markKey ? visibleSet(cells, b) : null;
   const outlined = new Set([...(opts.marks || []), ...(opts.selected || [])]);
@@ -207,11 +213,15 @@ export function stage(cells, opts = {}) {
     svg.appendChild(g);
   }
   panel.appendChild(svg);
+  if (opts.appear) panel.classList.add("appear");
   return { panel, drops };
 }
 
 /** One package of a ware, small: beside an answer, so the answer names the ware and shows its packing. */
 export function wareIcon(ware) {
+  return is3d() ? icon3d(ware) : wareIconFlat(ware);
+}
+function wareIconFlat(ware) {
   const b = boxFor(0), faces = cubeFaces(0, 0, 0, b), all = Object.values(faces).flat();
   const xs = all.map(p => p[0]), ys = all.map(p => p[1]), minX = Math.min(...xs), minY = Math.min(...ys), k = 40 / Math.max(Math.max(...xs) - minX, Math.max(...ys) - minY);
   const to = p => [(p[0] - minX) * k + 2, (p[1] - minY) * k + 2];
@@ -220,4 +230,11 @@ export function wareIcon(ware) {
   paintPackage(g, Object.fromEntries(Object.entries(faces).map(([n, poly]) => [n, poly.map(to)])), ware, true, { detail: true });
   svg.appendChild(g);
   return svg;
+}
+
+/** What happens to a stack leaving the quay or coming back: "away" (shipped), "fade" (a change round: the stack goes and
+ *  the empty quay stays), "appear". A flat panel does it with its classes (manifest.css), a 3D one in its own canvas. */
+export function playOut(panel, kind) {
+  if (panel._pic) playOut3d(panel, kind);
+  else panel.classList.add(kind);
 }
