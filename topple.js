@@ -22,6 +22,7 @@ import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, choice, onPause, isPaused } from "./menu.js";
+import { sure } from "./sure.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { ORDER, featuresOfRules, featuresOfHand, featuresAtCell } from "./topple-help.js";
@@ -102,6 +103,15 @@ function newRun() {
   setFloor(0);
   render();
   checkHelp();
+}
+/** The menu's big button, the first thing in the sheet: a game that has scored is asked about before it is thrown away. */
+async function restart() {
+  if (S && !S.over && S.score > 0) {
+    const level = inLevels() ? LEVELS[camp.at].name : "";
+    const words = level ? `Replay ${level}? The game in it, at ${fmt(S.score)}, is lost; your stars stay.` : `Start a new game? This one is at ${fmt(S.score)}.`;
+    if (!(await sure(words, { yes: level ? "Replay" : "New game" }))) return;
+  }
+  newRun();
 }
 /** The game of the mode and level now chosen, as it was left (else a new one). */
 function resume() {
@@ -861,7 +871,7 @@ function levelList() {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  part(body, "play").append(inLevels() ? action(`Replay ${LEVELS[camp.at].name}`, newRun, "primary") : action("New game", newRun, "primary"));
+  part(body, "play").append(inLevels() ? action(`Replay ${LEVELS[camp.at].name}`, restart, "primary") : action("New game", restart, "primary"));
   const content = part(body, "content");
   content.append(choice("Mode", [["classic", "Classic"], ["levels", "Levels"]], mode, m => { setMode(m); openMenu(); }));
   if (inLevels()) content.append(levelList());
