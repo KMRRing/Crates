@@ -1,0 +1,145 @@
+/* The card games' shared 3D table (table3d.js): a cloth tipped away from you, the seats standing round it as plates, the
+   middle for whatever lies on the table, cards flown over it. Everything is the page's own tokens; a game sets its cloth
+   with --tk-felt on its #app (verdigris for a card room, cobalt for Tribute's), and gives .tk-field the room it grows into
+   (a flex child with flex: 1 1 0). Sizes are in rem so a tablet draws it larger; sideways, the plates and the middle
+   have more room. A card is drawn from --cw, its width (set on the middle, a plate or a ghost), by the suite's cards.css. */
+.tk-field { --tk-tilt: 20deg; position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; container-type: size; }
+/* the eye is level with the near edge, 1.7 field heights off: the far side is further and smaller */
+.tk-stage { position: absolute; inset: 0; overflow: hidden; perspective: 170cqh; perspective-origin: 50% 100%; }
+.tk-mat { --tk-c: var(--tk-felt, #29507A); --tk-lit: color-mix(in srgb, var(--tk-c) 74%, #FFF); --tk-text: #F5F0E2; --tk-soft: color-mix(in srgb, var(--tk-text) 72%, var(--tk-c));
+  --tk-gilt: #E9C47C; --tk-ink: #7A5518; --tk-go: #7FC2A8;
+  position: absolute; left: .1rem; right: .1rem; bottom: 0; height: 128%; transform-origin: 50% 100%; transform: rotateX(var(--tk-tilt)); transform-style: preserve-3d;
+  box-sizing: border-box; border: 2px solid var(--brass); border-radius: .5rem; color: var(--tk-text);
+  background:
+    radial-gradient(ellipse 62% 48% at 50% 54%, color-mix(in srgb, var(--tk-lit) 70%, transparent), transparent 74%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 52%, rgba(6, 14, 24, .4)),
+    repeating-conic-gradient(from 0deg at 50% 54%, color-mix(in srgb, var(--tk-gilt) 22%, transparent) 0deg .2deg, transparent .2deg 15deg),
+    var(--tk-c);
+  box-shadow: inset 0 0 0 .28rem var(--tk-c), inset 0 0 0 calc(.28rem + 1px) color-mix(in srgb, var(--brass) 70%, transparent), 0 1rem 1.2rem -.9rem rgba(0, 0, 0, .5); }
+/* a ring (and a word) cut into the cloth where the play lies */
+.tk-inlay { position: absolute; left: 50%; top: 52%; width: 8.4rem; aspect-ratio: 1; translate: -50% -50%; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--tk-gilt) 55%, transparent); box-shadow: inset 0 0 0 calc(.4rem + 1px) color-mix(in srgb, var(--tk-gilt) 30%, transparent);
+  color: color-mix(in srgb, var(--tk-gilt) 50%, transparent); font-size: 3.6rem; font-weight: 800; font-stretch: var(--wide); line-height: 1; transition: opacity .3s; }
+.tk-inlay:empty { display: none; }
+.tk-inlay.quiet { opacity: .32; }
+/* the middle: what lies on the table. The side plates keep it clear, so a table with none lets it use the width. */
+.tk-centre { --tk-side: 5.2rem; position: absolute; left: var(--tk-side); right: var(--tk-side); top: 22%; bottom: 20%; display: grid; place-items: center; pointer-events: none;
+  --cw: 2.6rem; }
+:is(.tk-n2, .tk-n3) .tk-centre { --tk-side: .8rem; top: 30%; bottom: 20%; }
+:is(.tk-n3, .tk-n5) .tk-centre { top: 40%; }
+
+/* ---------- the seats: a medallion, a name, a fan of backs and a count; each player's colour has a pattern too ---------- */
+/* (its padding and the margin taking it back leave room for the glow and the crown, which a plate on the plane would clip) */
+.tk-plate { --seat: var(--p0); position: absolute; left: var(--x); top: var(--y); z-index: 3; display: flex; align-items: center; gap: .45rem; width: max-content; max-width: 94%;
+  padding: 2rem .6rem .5rem; margin: -2rem -.6rem -.5rem; color: var(--tk-text); pointer-events: none;
+  transform-origin: 50% 100%; transform: translate(-50%, -100%) rotateX(calc(var(--tk-tilt) * -1)); }
+.tk-plate.at-t { padding: .9rem .6rem 1.9rem; margin: -.9rem -.6rem -1.9rem; }
+.tk-plate:is(.at-l, .at-r) { width: 4.9rem; flex-direction: column; gap: .2rem; text-align: center; padding: .9rem .4rem 1.9rem; margin: -.9rem -.4rem -1.9rem; }
+/* a column keeps off the cloth's rim, whatever its share says */
+.tk-plate.at-l { left: max(var(--x), 3.6rem); }
+.tk-plate.at-r { left: min(var(--x), calc(100% - 3.6rem)); }
+.tk-body { display: contents; }
+.tk-s0 { --seat: var(--p0); } .tk-s1 { --seat: var(--p1); } .tk-s2 { --seat: var(--p2); } .tk-s3 { --seat: var(--p3); } .tk-s4 { --seat: var(--p4); } .tk-s5 { --seat: var(--p5); }
+.tk-med { position: relative; flex: none; display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border: 2px solid var(--brass); border-radius: 50%; color: #FFF;
+  font-size: 1.12rem; font-weight: 800; font-stretch: var(--wide); line-height: 1; text-shadow: 0 1px 1px rgba(0, 0, 0, .45);
+  background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--seat) 52%, #FFF), var(--seat) 70%);
+  box-shadow: 0 .18rem .4rem rgba(0, 0, 0, .34), inset 0 -.2rem .35rem rgba(0, 0, 0, .18); }
+.tk-med b { position: relative; z-index: 1; font-weight: 800; }
+/* a pattern over the medallion, one to a seat, so a colour is never all that tells two players apart */
+.tk-med::after { content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: .5; pointer-events: none; }
+.tk-s1 .tk-med::after { background: repeating-linear-gradient(45deg, transparent 0 .2rem, rgba(255, 255, 255, .7) .2rem .3rem); }
+.tk-s2 .tk-med::after { background: radial-gradient(circle, rgba(255, 255, 255, .85) 0 .09rem, transparent .11rem) 0 0 / .44rem .44rem; }
+.tk-s3 .tk-med::after { background: repeating-linear-gradient(0deg, transparent 0 .2rem, rgba(255, 255, 255, .7) .2rem .3rem), repeating-linear-gradient(90deg, transparent 0 .2rem, rgba(255, 255, 255, .7) .2rem .3rem); }
+.tk-s4 .tk-med::after { background: repeating-radial-gradient(circle, transparent 0 .17rem, rgba(255, 255, 255, .7) .17rem .27rem); }
+.tk-s5 .tk-med::after { background: repeating-linear-gradient(90deg, transparent 0 .22rem, rgba(255, 255, 255, .7) .22rem .34rem); }
+.tk-plate.out .tk-med { filter: saturate(.4) brightness(.92); }
+.tk-mark { position: absolute; right: -.3rem; bottom: -.2rem; z-index: 2; display: grid; place-items: center; min-width: 1.05rem; height: 1.05rem; padding: 0 .2rem; border: 1px solid var(--tk-ink); border-radius: 50%;
+  background: #F5F0E2; color: #1E2730; font-size: .6rem; font-style: normal; font-weight: 800; line-height: 1; text-shadow: none; }
+.tk-info { display: grid; gap: .08rem; min-width: 0; text-align: left; }
+.tk-plate:is(.at-l, .at-r) .tk-info { text-align: center; max-width: 100%; }
+/* beside the cloth's edge a name has two lines before it is cut */
+.tk-plate:is(.at-l, .at-r) .tk-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; line-height: 1.05; }
+.tk-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; font-weight: 800; font-stretch: var(--wide); line-height: 1.1;
+  text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); }
+.tk-meta { font-size: .62rem; font-weight: 700; line-height: 1; color: var(--tk-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.tk-tally { display: flex; align-items: center; gap: .3rem; }
+.tk-plate:is(.at-l, .at-r) .tk-tally { flex-direction: column; gap: .15rem; }
+.tk-tally:empty { display: none; }
+/* a hand of five or so backs standing in a fan, the rest implied by the count beside it */
+.tk-fan { position: relative; flex: none; width: 1.7rem; height: 1.5rem; }
+.tk-fb { position: absolute; left: 50%; bottom: 0; margin-left: -.525rem; font-size: .42rem; transform-origin: 50% 160%; transform: rotate(calc(var(--j) * 9deg)); }
+.tk-n, .tk-count { color: var(--ink); min-width: 1.45rem; padding: .08rem .32rem; border: 1px solid var(--brass); border-radius: 4px; background: var(--sheet); font-size: .8rem; font-weight: 800; line-height: 1.1; text-align: center; font-variant-numeric: tabular-nums; }
+/* whose go it is: a ring that breathes round the medallion (its scale and opacity only, which the compositor does without
+   the page painting again); the play to beat: a crown on it, its ring gilt */
+.tk-plate.on .tk-med::before { content: ""; position: absolute; inset: -.3rem; border-radius: 50%; border: .16rem solid var(--tk-gilt); box-shadow: 0 0 .7rem .1rem color-mix(in srgb, var(--tk-gilt) 60%, transparent);
+  pointer-events: none; animation: tk-ring 1.5s ease-in-out infinite; }
+.tk-plate.on .tk-name { color: var(--tk-gilt); }
+@keyframes tk-ring { 0%, 100% { transform: scale(.88); opacity: .5; } 50% { transform: scale(1.06); opacity: 1; } }
+.tk-plate.tobeat .tk-med { border-color: var(--tk-gilt); }
+.tk-crown { position: absolute; left: 50%; top: -.78rem; width: 1.35rem; height: 1rem; translate: -50% 0; filter: drop-shadow(0 .1rem .1rem rgba(0, 0, 0, .35)); }
+.tk-crown svg { display: block; width: 100%; height: 100%; }
+.tk-plate.thinking .tk-info::after { content: "…"; position: absolute; font-weight: 800; color: var(--tk-ink); animation: tk-dots 1.1s steps(3, end) infinite; }
+@keyframes tk-dots { 0% { opacity: .2; } 50% { opacity: 1; } 100% { opacity: .2; } }
+/* its latest word at the seat (a pass, a raise, what it played): above the foot's plate, under the others' */
+.tk-act { position: absolute; left: 50%; bottom: .25rem; translate: -50% 0; z-index: 1; max-width: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: .12rem .5rem; border: 1px solid var(--rule);
+  border-radius: 4px; background: var(--sheet); font-size: .64rem; font-weight: 800; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); opacity: 0; transition: opacity .2s; }
+.tk-plate.said .tk-act { opacity: 1; }
+.tk-act.pass { background: transparent; border-style: dashed; border-color: var(--tk-soft); color: var(--tk-soft); }
+.tk-plate.at-b .tk-act { bottom: auto; top: .3rem; max-width: 16rem; }
+.tk-plate:is(.at-l, .at-r) .tk-act { width: max-content; max-width: 100%; white-space: normal; text-align: center; line-height: 1.15; overflow: visible; }
+
+/* ---------- cards on the cloth: the suite's own, drawn from --cw; piles; a card that is flying in waits unseen ---------- */
+.tk-c { font-size: calc(var(--cw, 2.6rem) / 2.5); }
+.tk-centre .tk-c, .tk-pile .tk-c { box-shadow: 0 .06em .16em rgba(0, 0, 0, .4); }
+.tk-coming { opacity: 0; }
+.tk-pile { --cw: 2.6rem; position: relative; display: inline-block; flex: none; width: var(--cw); height: calc(var(--cw) * 1.4); font-size: calc(var(--cw) / 2.5); }
+.tk-pile.empty { border: 1px dashed color-mix(in srgb, var(--tk-text) 40%, transparent); border-radius: .2em; }
+.tk-pl { position: absolute; left: 0; top: 0; translate: calc(var(--i) * .035em) calc(var(--i) * .075em); box-shadow: 0 .04em .1em rgba(0, 0, 0, .35); }
+.tk-pt > .tk-c { position: absolute; left: 0; top: 0; }
+.tk-pn { position: absolute; right: -.3em; bottom: -.55em; min-width: 1.5em; padding: .1em .35em; border: 1px solid var(--brass); border-radius: 4px; background: var(--sheet); color: var(--ink);
+  font-size: .72em; font-weight: 800; line-height: 1.1; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* ---------- motion: ghosts in a fixed layer, turned over by a face and a back ---------- */
+.tk-fx { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+.tk-ghost { position: fixed; perspective: 40rem; }
+.tk-ghost.sweep { perspective: none; }
+.tk-ghost.sweep > .cd { position: absolute; left: 0; top: 0; margin: 0 !important; }
+.tk-gin { position: absolute; inset: 0; transform-style: preserve-3d; }
+.tk-gf, .tk-gb { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.tk-gb { transform: rotateY(180deg); }
+.tk-gf > .cd, .tk-gb > .cd { position: absolute; left: 0; top: 0; box-shadow: 0 .4rem .9rem rgba(0, 0, 0, .38); }
+.tk-held .tk-field *, .tk-held .tk-field *::before, .tk-held .tk-field *::after { animation-play-state: paused !important; }
+
+/* ---------- themes: the chart rays and the double rule are Codex's own; at night the cloth is deeper ---------- */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .tk-mat { border-width: 1px; border-radius: .9rem;
+  background: radial-gradient(ellipse 62% 48% at 50% 54%, color-mix(in srgb, var(--tk-lit) 70%, transparent), transparent 74%), radial-gradient(ellipse 100% 100% at 50% 50%, transparent 52%, rgba(6, 14, 24, .4)), var(--tk-c);
+  box-shadow: 0 1rem 1.2rem -.9rem rgba(0, 0, 0, .5); }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .tk-inlay { box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .tk-act { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.tk-n, .tk-count, .tk-pn) { border-color: var(--rule); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .tk-mat { --tk-c: color-mix(in srgb, var(--tk-felt, #29507A) 72%, #000); } }
+html[data-mode="night"] .tk-mat { --tk-c: color-mix(in srgb, var(--tk-felt, #29507A) 72%, #000); }
+@media (prefers-reduced-motion: reduce) { .tk-plate.on .tk-med::before, .tk-plate.thinking .tk-info::after { animation: none; } }
+
+/* ---------- a short phone: the plates' room, the plane's, given up first ---------- */
+@media (max-height: 640px) and (orientation: portrait) {
+  .tk-med { width: 2.1rem; height: 2.1rem; font-size: 1rem; }
+  .tk-plate:is(.at-l, .at-r) { width: 4.4rem; }
+  .tk-plate:is(.at-l, .at-r) .tk-name { font-size: .7rem; letter-spacing: calc(.03em * var(--track)); }
+  .tk-inlay { width: 7rem; font-size: 3rem; }
+}
+
+/* ---------- held sideways: the plane the cloth's width, the plates larger on a tablet ---------- */
+@media (orientation: landscape) and (min-width: 700px) {
+  .tk-centre { --tk-side: 6.4rem; top: 20%; bottom: 18%; }
+  :is(.tk-n2, .tk-n3) .tk-centre { --tk-side: 1rem; }
+  .tk-plate:is(.at-l, .at-r) { width: 5.2rem; }
+  .tk-inlay { width: 10rem; font-size: 4.2rem; }
+}
+/* a phone on its side: the cloth is short, the plates and the plane compact */
+@media (orientation: landscape) and (min-width: 700px) and (max-height: 500px) {
+  .tk-med { width: 2.1rem; height: 2.1rem; font-size: 1rem; }
+  .tk-plate:is(.at-l, .at-r) { width: 4.4rem; }
+  .tk-centre { --tk-side: 5.4rem; top: 20%; bottom: 16%; }
+  .tk-inlay { width: 6.4rem; font-size: 2.6rem; }
+}
