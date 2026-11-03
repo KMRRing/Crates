@@ -10,6 +10,7 @@ import { seatPage } from "./seats-ui.js";
 import { applyMove } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
@@ -160,7 +161,11 @@ function drawSeats() {
   }
 }
 
+const view = tableView("silo", ["board", "Board"]);                   // Menu, View: the flat board (the default) or the frame leaning back on its feet (silo-3d.css)
+const applyView = () => $("app").classList.toggle("si3", view.get() === "3d");
+
 function drawBoard() {
+  applyView();
   const box = $("board"), v = V;
   if (!v?.G) { box.innerHTML = boardSvg({ enabled: false }); return; }
   const s = v.state, myTurn = !v.over && v.toMove != null && !fallNow() && (hotseat() ? true : v.seat === v.toMove);
@@ -300,6 +305,7 @@ function openMenu() {
     if (opts.opponent === "computer") content.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); thinking = null; draw(); }));
   }
   const set = part(body, "settings");
+  set.append(view.choice(() => drawBoard()));
   set.append(choice("Who starts", STARTS, opts.start, v => { opts.start = v; saveOpts(); }));
   set.append(toggle("Coach: hints, and who is winning", opts.coach, on => { opts.coach = on; saveOpts(); asked = ""; if (V) ask(V); draw(); }));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));

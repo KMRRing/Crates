@@ -1,0 +1,6 @@
+/* Four in a row's 3D view (Menu, View: 3D): the frame standing on its feet and leaning back, its top further and smaller, a base slab
+   under it. Only the picture changes: the drawing, the taps (one a column) and the falling discs are the flat board's own, and the
+   compositor does the tilt (nothing is redrawn). */
+.si3 .si-board { perspective: 70rem; perspective-origin: 50% 100%; }
+.si3 .si-svg { transform-origin: 50% 100%; transform: rotateX(14deg); border-radius: .4rem;
+  box-shadow: 0 .6rem 0 -.1rem color-mix(in srgb, var(--brass) 55%, #000), 0 1.4rem 1.4rem -.8rem rgba(0, 0, 0, .55); }
