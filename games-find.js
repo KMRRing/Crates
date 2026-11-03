@@ -68,7 +68,7 @@ export const AKA = {
   flank: "reversi", crown: "draughts checkers", ingot: "2048 sliding tiles",
   heliograph: "mirror", shunt: "rail wagons", polder: "dyke windmill", topple: "dominoes hex", orrery: "match three planets",
   netting: "obligations trading houses", settle: "tank farm parcels", slipway: "carving ship", loom: "weaving cloth",
-  reckoning: "runner quay", landfall: "celestial navigation sextant stars constellations sailing", blend: "blender gasoline fuel specification", refinery: "refining crude distillation",
+  reckoning: "runner quay", landfall: "celestial navigation sextant stars constellations sailing", navigation: "navigation course astrolabe sextant chronometer longitude tides compass chart", blend: "blender gasoline fuel specification", refinery: "refining crude distillation",
   speedfuels: "fuel pricing mental maths", baccarat: "casino punto banco", blackjack: "casino twenty-one pontoon",
   roulette: "casino wheel", sicbo: "casino dice", craps: "casino dice", holdem: "poker casino texas",
   guilloche: "engine turning watch dial", timegrapher: "watch rate microphone",
