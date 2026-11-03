@@ -1,4 +1,4 @@
-// Pipes: a fitting puzzle. A hand of pieces must all fit one route for the oil from the wellhead to the terminal, with
+// Gears (Pipes until 4 November 2026: the id, files and saved keys keep that name): a fitting puzzle. A hand of gears must all fit one train from the mainspring to the load, with
 // stars. The menu's Board chooses where it is played: flat, or the 3D map (a stack of floors you turn with a finger); both
 // are pipes-puzzle-ui.js with different levels. This file is the page round it: the menu, the rules, the old saves
 // cleared, and the games screen's Random round.
@@ -7,7 +7,7 @@ import { STAR_LIFTS } from "./pipes-puzzle.js";
 import { LEVELS as MAP_LEVELS, CHAPTERS as MAP_CHAPTERS } from "./pipes-map-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, line, onPause } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { IN_FRAME } from "./suite.js";           // a partner watching's frame: it writes nothing
 import { roundOver } from "./random.js";
 
@@ -21,7 +21,8 @@ const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const MODES = [["flat", "Flat (square)"], ["map", "Cube (3D map)"]];
 let prefs = { mode: "flat", ...read(KEY.prefs, {}) };
 let mode = "flat";
-const deps = { $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced };
+const deps = { $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced,
+  sound: () => !IN_FRAME && prefs.sound !== false };
 const flat = createPuzzle(deps);
 const map = createPuzzle(deps, { map: true, levels: MAP_LEVELS, chapters: MAP_CHAPTERS, run: "pipes:map", stars: "pipes:mapstars" });
 const boards = { flat, map };
@@ -43,17 +44,20 @@ function setMode(m) {
 // ---------- the rules ----------
 function showRules() {
   $("rulesBody").innerHTML = `
-    <p>Lay pipe for the oil. Every level is a board and a hand of pieces, and every piece must go down: the oil leaves the wellhead, runs through all of them, and into the terminal. No clock, no queue. The menu's Board chooses where it is played.</p>
+    <p>Wind a watch's train. Every level is a plate and a hand of gears, and every gear must go down: power leaves the <b>mainspring</b> (the barrel with its coil), runs through all of them, edge to edge, and turns the <b>load</b> at the end (a small watch dial) the way it is asked. No clock, no queue. The menu's Board chooses where it is played.</p>
     <ul>
-      <li><b>Tap a piece in the hand</b>, then a square, to lay it. <b>Tap a piece you've laid</b> to take it back up (it's in your hand again: tap another square). The dashed line is the oil's way from the wellhead, and back from the terminal; the ringed square is where it needs a piece next, and a red cross is where it's stopped.</li>
-      <li><b>Rock</b> can't be built on. <b>Old pipe</b> (dark, studded) is already in the ground, and the oil must run through it. <b>Stakes</b> are numbered: the oil passes them in order. A <b>crossing</b> carries the oil across itself, and the oil may pass it twice.</li>
-      <li><b>Undo</b> is free, as many times as you like. <b>Hint</b> shows where the next piece goes, or which of yours is in the way; with one, the level can earn only the one star.</li>
+      <li><b>Tap a piece in the hand</b>, then a square, to lay it. <b>Tap a piece you've laid</b> to take it back up (it's in your hand again). A gear's teeth show only on the sides it <b>meshes</b> with: a neighbour's teeth must face them. The dashed line is the train's way from the mainspring, and back from the load; the ringed square is where it needs a gear next, and a red cross is where it's stopped.</li>
+      <li><b>Meshed gears turn opposite ways.</b> A small arrow on each gear the train has reached says which way it turns. Gears meshed round a loop must agree: a closed loop that would need a gear to turn both ways <b>jams</b>, and the cross says so.</li>
+      <li><b>Loads</b> are numbered, with an arrow: the gear laid there must turn that way (clockwise or counter-clockwise), and the train reaches them in order. The last load, the dial, must turn the way its arrow shows.</li>
+      <li>A <b>reduction</b> is two small gears meshed in one square: the train goes in at one and out at the other, which turns the other way. It is the one piece that changes who turns which way, so count the gears before each load.</li>
+      <li><b>Pillars</b> can't be built on. A <b>fixed gear</b> (dark, with a stud) is already pinned to the plate, and the train must run through it. A <b>crossover</b> has two gears on separate levels: one piece, two trains, and the power may pass it twice.</li>
+      <li><b>Undo</b> is free, as many times as you like. <b>Hint</b> shows where the next piece goes, or which of yours is in the way; with one, the level can earn only the one star. Solved, the whole train turns, with a soft tick (the menu's Sound).</li>
       <li><b>Stars</b>: one for solving a level, two for solving it without a hint, three for that and hardly any piece taken back up (${STAR_LIFTS} at most, and one more for every six pieces in the hand).</li>
     </ul>
     <h4>Flat</h4>
-    <p>Pieces are never turned: a bend comes as it is, so the bends in your hand decide which ways the route can turn.</p>
+    <p>Pieces are never turned: a gear comes as it is, so the pieces in your hand decide which ways the train can turn.</p>
     <h4>Cube (3D map)</h4>
-    <p>The same puzzle in a cube of squares: a stack of <b>floors</b>, drawn lifted one above the next. Pieces still never turn, but now a piece can open <b>up</b> or <b>down</b> as well: a <b>riser</b> (a ring with arrows) carries the pipe through to the floor above or below, where the next piece must open the other way. <b>Tap a floor</b> (or its number on the left) to bring it forward and play on it; the floors above it fade so you can see through. <b>Drag</b> to turn the stack, <b>double-tap</b> empty space or tap the ⟲ to put it back, and <b>Look</b> brings forward the floor where the oil needs its next piece.</p>`;
+    <p>The same in a cube of squares: a stack of <b>floors</b>, drawn lifted one above the next. A piece can also open <b>up</b> or <b>down</b> (a ring with an arrow): an <b>arbor</b>, a shaft that joins the gear to the gear above or below it. An arbor does not mesh: both gears on it turn the <b>same</b> way. An arbor piece on its own passes the power straight through a floor. <b>Tap a floor</b> (or its number on the left) to bring it forward and play on it; the floors above it fade so you can see through. <b>Drag</b> to turn the stack, <b>double-tap</b> empty space or tap the ⟲ to put it back, and <b>Look</b> brings forward the floor where the train needs its next gear.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;
 }
@@ -67,6 +71,7 @@ function openMenu() {
   const solved = b.run?.solved;
   part(body, "play").append(action(solved ? "Next level" : "Level again", () => (solved ? b.next() : b.again()), "primary"), action("The rules", showRules, "link"));
   part(body, "content").append(MODES.length > 1 ? game : "", b.levelList(id => { $("menuDlg").close(); b.go(id); }));
+  part(body, "settings").append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; if (!IN_FRAME) write(KEY.prefs, prefs); }));
   part(body, "about").append(line(`${b.solvedCount()} of ${b.count} levels solved, ${b.totalStars()} of ${b.count * 3} stars. Three stars: no hint, and hardly a piece taken back up.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }

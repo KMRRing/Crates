@@ -2,7 +2,7 @@
 // at every empty square, tries each piece of the hand that takes the oil in, so every route it finds uses the hand
 // exactly, passes all the old pipe and the stakes in order, and ends in the terminal's inlet. Used by the generator
 // (pipes-puzzle-make.js) and tests/pipes-puzzle.mjs; no page loads it, the levels carry their answers.
-import { KINDS, SIDE, beyond, back, channelOf, isCrossing, xy, layerOf } from "./pipes-puzzle.js";
+import { KINDS, SIDE, beyond, back, channelOf, isCrossing, isReducer, xy, layerOf } from "./pipes-puzzle.js";
 
 /**
  * Every route that solves the level L, up to `cap` of them: { routes: ["EESSW…"], nodes, capped }, a route being the
@@ -20,24 +20,25 @@ export function solve(L, cap = 2, limit = 4e6, order = null) {
   const doubles = Object.entries(L.hand).reduce((m, [k, v]) => m + (isCrossing(k) ? v : 0), 0) + L.cells.filter(f => f?.k === "old" && isCrossing(f.piece)).length;
   let nodes = 0, left = L.total, oldsLeft = L.olds, nextStake = 1, aborted = false;
 
-  function go(c, a) {
+  function go(c, a, turn) {
     if (aborted || routes.length >= cap) return;
     if (++nodes > limit) { aborted = true; return; }
     const f = L.cells[c];
     if (f) {
-      if (f.k === "terminal") { if (f.d === a && !left && !oldsLeft && nextStake === L.stakes.length + 1) routes.push(dirs.join("")); return; }
+      if (f.k === "terminal") { if (f.d === a && (turn ^ (a < 4 ? 1 : 0)) === L.spin && !left && !oldsLeft && nextStake === L.stakes.length + 1) routes.push(dirs.join("")); return; }
       if (f.k !== "old") return;
     }
     if (dist[c] + 1 > left + oldsLeft + doubles) return;
     const stake = L.stakeAt[c], first = !filled[c];
-    if (stake && first && stake !== nextStake) return;
+    const e = turn ^ (a < 4 ? 1 : 0);
+    if (stake && first && (stake !== nextStake || e !== L.stakeDir[c])) return;
     const step = (piece, ch, isOld) => {
       filled[c] |= 1 << ch.i;
-      dirs.push(SIDE[ch.out]);
+      dirs.push(isReducer(piece) ? SIDE[ch.out].toLowerCase() : SIDE[ch.out]);
       if (stake && first) nextStake++;
       if (isOld && first) oldsLeft--;
       const next = beyond(L, c, ch.out);
-      if (next >= 0) go(next, back(ch.out));
+      if (next >= 0) go(next, back(ch.out), isReducer(piece) ? e ^ 1 : e);
       if (isOld && first) oldsLeft++;
       if (stake && first) nextStake--;
       dirs.pop();
@@ -60,6 +61,6 @@ export function solve(L, cap = 2, limit = 4e6, order = null) {
     }
   }
   const first = beyond(L, L.source.c, L.source.d);
-  if (first >= 0) go(first, back(L.source.d));
+  if (first >= 0) go(first, back(L.source.d), 0);
   return { routes, nodes, capped: routes.length >= cap || aborted, aborted };
 }

@@ -367,7 +367,7 @@ html[data-theme="office"] :is(.ct-log-line.act, .ct-log-line.free, .ct-log-line.
 html[data-theme="office"] .ct-die.picked { outline-color: #479EF5; border-radius: 4px; }
 html[data-theme="office"] .ct-notes li { border-color: rgba(71, 158, 245, .4); color: #FFFFFF; border-radius: 4px; }
 
-/* Pipes: a light grid of white tiles and grey pipes by day, charcoal at night; the flow's inlet and a good run in blue */
+/* Gears (Pipes until 4 November): a light grid of white tiles and grey gears by day, charcoal at night; the flow's inlet and a good run in blue */
 html[data-theme="office"] { --sw-in: #0F6CBD; }
 @media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --sw-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --sw-in: #479EF5; }

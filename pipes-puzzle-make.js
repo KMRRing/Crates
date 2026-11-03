@@ -3,7 +3,7 @@
 // answer and no other, and takes away whatever rock, old pipe or stake the answer doesn't need. A board of more than one
 // layer is the 3D map: the route may go up and down. Used to write the level files; no page loads it.
 import { rng, mix, PIECES, KINDS, axisOf, isCrossing } from "./pipes-pieces.js";
-import { beyond, back, pieceJoining, crossingOf, isStraight, parseLevel, specOf, layRoute, SIDE, GLYPH } from "./pipes-puzzle.js";
+import { beyond, back, pieceJoining, crossingOf, isStraight, parseLevel, specOf, layRoute, trace, stakeChar, SIDE, GLYPH } from "./pipes-puzzle.js";
 import { solve } from "./pipes-puzzle-solve.js";
 
 const pick = (r, a) => a[Math.floor(r() * a.length)];
@@ -94,16 +94,26 @@ export function makeLevel(seed, opts) {
   const wantX = !!opts.cross;
   if (wantX && ![...cells.values()].some(isCrossing)) return null;     // a crossing level needs one
   const hand = { ...parseLevel(bare).hand };
+  // reductions: some of the route's plain straights are two meshed gears, which turn the train the other way
+  let route = R.route;
+  const reds = [];
+  for (const c of shuffled(routeCells.filter(c => cells.get(c) === "h" || cells.get(c) === "v"), r).slice(0, opts.reds || 0)) {
+    reds.push(c);
+    const plain = cells.get(c), red = plain === "h" ? "rh" : "rv";
+    hand[plain]--; hand[red] = (hand[red] || 0) + 1; cells.set(c, red);
+    const i = R.passes.findIndex(p => p.c === c);
+    route = route.slice(0, i) + route[i].toLowerCase() + route.slice(i + 1);
+  }
   // old pipe: some of the route's pieces stay in the ground
   const olds = [];
-  const candidates = shuffled(routeCells.filter(c => !isCrossing(cells.get(c)) || r() < 0.3), r);
+  const candidates = shuffled(routeCells.filter(c => !reds.includes(c) && (!isCrossing(cells.get(c)) || r() < 0.3)), r);
   for (const c of candidates.slice(0, opts.olds || 0)) { olds.push(c); set(c, GLYPH[cells.get(c)]); hand[cells.get(c)]--; }
   // stakes: squares of the route, numbered in the order the oil first comes to them
   const order = [];
   for (const p of R.passes) if (!order.includes(p.c)) order.push(p.c);
   const stakeCells = [];
   if (opts.stakes) {
-    const pool = order.filter(c => !olds.includes(c));
+    const pool = order.filter(c => !olds.includes(c) && !reds.includes(c) && !isCrossing(cells.get(c)));
     // spread: one from each equal stretch of the route
     for (let i = 0; i < opts.stakes; i++) {
       const lo = Math.floor(pool.length * i / opts.stakes), hi = Math.max(lo + 1, Math.floor(pool.length * (i + 1) / opts.stakes));
@@ -112,18 +122,29 @@ export function makeLevel(seed, opts) {
     stakeCells.forEach((c, i) => set(c, String(i + 1)));
   }
   const handStr = () => KINDS.filter(k => hand[k] > 0).map(k => `${k}${hand[k]}`).join(" ");
-  const build = () => parseLevel({ ...bare, id: bare.id, map: mapOf(grid), hand: handStr() });
+  let spin = "cw";
+  const build = () => parseLevel({ ...bare, id: bare.id, map: mapOf(grid), hand: handStr(), spin });
+  // the loads turn the way the intended answer turns them: read that off its train (stakes first drawn clockwise)
+  const stakeDirs = stakeCells.map(() => 0);
+  {
+    const L0 = build(), laid0 = layRoute(L0, route);
+    if (!laid0) return null;
+    const tr = trace(L0, laid0);
+    if (tr.end.why !== "terminal") return null;
+    stakeCells.forEach((c, i) => { stakeDirs[i] = tr.passes.find(p => p.c === c).dir; set(c, stakeChar(i + 1, stakeDirs[i])); });
+    spin = tr.end.spin ? "ccw" : "cw";
+  }
   const free = c => get(c) === "." && !routeCells.includes(c);
   const rocks = [];
   let L = build();
-  const wanted = layRoute(L, R.route);
+  const wanted = layRoute(L, route);
   if (!wanted) return null;
   // rock, one square at a time, taken from where another answer goes and the intended one doesn't
   for (let guard = 0; guard < 60; guard++) {
     const s = solve(L, 3, 2e5);
     if (s.aborted) return null;
     if (s.routes.length === 1) break;
-    const others = s.routes.filter(x => x !== R.route);
+    const others = s.routes.filter(x => x !== route);
     const alt = layRoute(L, pick(r, others));
     const spots = alt.map((p, c) => (p && !wanted[c] && free(c) ? c : -1)).filter(c => c >= 0);
     if (!spots.length || rocks.length >= (opts.rocks ?? 99)) return null;
@@ -132,7 +153,7 @@ export function makeLevel(seed, opts) {
     L = build();
   }
   let final = solve(L, 2, 2e5);
-  if (final.routes.length !== 1 || final.routes[0] !== R.route) return null;
+  if (final.routes.length !== 1 || final.routes[0] !== route) return null;
   // whatever the answer doesn't need goes again: rock first
   for (const c of shuffled(rocks, r)) {
     set(c, ".");
@@ -154,11 +175,11 @@ export function makeLevel(seed, opts) {
     set(c, was); hand[piece]--;
   }
   stakeCells.forEach((gone, i) => {
-    stakeCells.forEach((c, j) => { if (j !== i) set(c, String(j < i ? j + 1 : j)); });
+    stakeCells.forEach((c, j) => { if (j !== i) set(c, stakeChar(j < i ? j + 1 : j, stakeDirs[j])); });
     set(gone, ".");
     const s = solve(build(), 2, 2e5);
     if (s.routes.length === 1 && !s.aborted) loose++;
-    stakeCells.forEach((c, j) => set(c, String(j + 1)));
+    stakeCells.forEach((c, j) => set(c, stakeChar(j + 1, stakeDirs[j])));
   });
-  return { spec: specOf(L), L, route: R.route, nodes: final.nodes, rocks: rocks.length, loose, olds: olds.length, stakes: stakeCells.length, passes: R.passes.length, climbs };
+  return { spec: specOf(L), L, route, reds: reds.length, nodes: final.nodes, rocks: rocks.length, loose, olds: olds.length, stakes: stakeCells.length, passes: R.passes.length, climbs };
 }

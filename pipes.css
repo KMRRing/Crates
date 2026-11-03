@@ -1,4 +1,4 @@
-/* Pipes: brass pipe on a navy board, the oil dark inside it; copper is the house colour. */
+/* Gears: brass wheels with steel hubs and ruby jewels on a navy plate; copper is the house colour (Pipes until 4 November: the --pi- names stay). */
 :root { --pi-in: #A9542B; --pi-in-soft: color-mix(in srgb, var(--pi-in) 15%, var(--sheet)); --pi-ground: #16212A; --pi-tile: #22303B; --pi-tile-edge: #3A3424;
   --pi-pipe: #C99A45; --pi-pipe-dark: #8A6424; --pi-rock: #0F171D; --pi-good: #2F7D5B; --pi-bad: #A8382B; --pi-edge: var(--tile-edge);
   --pi-oil: #15110D; --pi-stone: #6E5E4A; --pi-wall: #2B2620; --pi-label: #C9B892; }
@@ -40,11 +40,6 @@ html[data-theme="office"][data-mode="night"] { --pi-stone: #5C5C5C; --pi-wall: #
 .pi-board { width: min(100cqw - 1rem, calc((100cqh - 1rem) * var(--cols, 7) / var(--rows, 9))); border-radius: 6px; overflow: hidden; background: var(--pi-ground); }
 .pi-board, .pi-board svg { display: block; touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .pi-board svg { width: 100%; height: auto; cursor: pointer; }
-:is(.pi-board, .pi-queue) .pipe { fill: none; stroke: var(--pi-pipe); stroke-linecap: butt; }
-:is(.pi-board, .pi-queue) .pipe-edge { fill: none; stroke: var(--pi-pipe-dark); stroke-linecap: butt; }
-/* a shine along the pipe, as the light catches brass (the oil covers it, inside) */
-:is(.pi-board, .pi-queue) .pipe-shine { fill: none; stroke: color-mix(in srgb, var(--pi-pipe) 50%, #fff); stroke-linecap: butt; opacity: .55; }
-.pi-board .oil { fill: none; stroke: var(--pi-oil); stroke-linecap: butt; }
 .pi-board .fixed-mark { fill: var(--pi-in); stroke: #fff; stroke-width: 2; }
 .pi-board .route { fill: none; stroke: var(--pi-in); stroke-width: 2.5; stroke-dasharray: 5 5; opacity: .75; pointer-events: none; }
 .pi-board .next { fill: none; stroke: var(--pi-in); stroke-width: 3; pointer-events: none; animation: pi-pulse 1.1s ease-in-out infinite; }
@@ -79,11 +74,6 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) #ap
 .pi-board .plate.over { opacity: .16; }
 .pi-board .plate-bg { fill: var(--pi-ground); stroke: var(--brass); stroke-width: 1.5; }
 .pi-board .plate.on .plate-bg { stroke-width: 3; }
-.pi-board .shaft-edge { fill: none; stroke: var(--pi-pipe-dark); stroke-linecap: round; }
-.pi-board .shaft { fill: none; stroke: var(--pi-pipe); stroke-linecap: round; }
-.pi-board .shaft-oil { fill: none; stroke: var(--pi-oil); stroke-linecap: round; }
-.pi-board .shaft-open { fill: none; stroke: var(--pi-bad); stroke-linecap: round; stroke-dasharray: 2 5; }
-.pi-board .oil-dot { fill: var(--pi-oil); }
 .pi-layers { position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: grid; gap: .3rem; justify-items: center; width: 2.4rem; }
 .pi-layers small { font-size: .56rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); }
 .pi-layer { width: 2.4rem; height: 2.4rem; border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--tile); color: var(--ink); font: inherit; font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; cursor: pointer; touch-action: manipulation; padding: 0; }
@@ -100,9 +90,6 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) #ap
 .pi-q.pi-h.none { opacity: .35; cursor: default; }
 .pi-q.pi-h:disabled { cursor: default; }
 .pi-h .pi-n { position: absolute; right: 0; bottom: 0; min-width: 1.05rem; padding: 0 .22rem; border-radius: 3px 0 5px 0; background: var(--pi-in); color: #fff; font-size: .72rem; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; text-align: center; }
-.pi-board .old .pipe { stroke: var(--pi-pipe-dark); }
-.pi-board .old .pipe-edge { stroke: var(--pi-ground); }
-.pi-board .old .pipe-shine { opacity: .2; }
 .pi-board .stake { fill: var(--pi-in); stroke: #fff; stroke-width: 1.5; }
 .pi-board .stake.ok { fill: var(--pi-good); }
 .pi-board .stake.bad { fill: var(--pi-bad); }
@@ -156,3 +143,41 @@ dialog.pi-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .pi-hand.wrap { flex-wrap: wrap; }
 .pi-hand.wrap .pi-q-label { display: none; }
 .pi-hand.wrap .pi-q.pi-h { flex: 0 0 2.3rem; height: 2.3rem; }
+
+/* ---------- the gears: brass wheels with steel hubs and ruby jewels (pipes-draw.js); a fixed gear is darker ---------- */
+:root { --gr-steel: #9FA9B1; --gr-steel-dark: #5B6770; --gr-ruby: #B3263E; --gr-dial: #F1E8D2; --gr-ink: #231D14; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E7DDC4; } }
+html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E7DDC4; }
+:is(.pi-board, .pi-queue) .g-body, :is(.pi-board, .pi-queue) .g-tooth { fill: var(--pi-pipe); stroke: var(--pi-pipe-dark); stroke-width: 1.2; stroke-linejoin: round; }
+:is(.pi-board, .pi-queue) .g-rim { fill: none; stroke: var(--pi-pipe-dark); stroke-width: 1; opacity: .75; }
+:is(.pi-board, .pi-queue) .g-hole { fill: var(--pi-ground); }
+:is(.pi-board, .pi-queue) .g-hub { fill: var(--gr-steel); stroke: var(--gr-steel-dark); stroke-width: 1; }
+:is(.pi-board, .pi-queue) .g-jewel { fill: var(--gr-ruby); stroke: color-mix(in srgb, var(--pi-pipe) 60%, #fff); stroke-width: .6; }
+:is(.pi-board, .pi-queue) .gear.steel :is(.g-body, .g-tooth) { fill: var(--gr-steel); stroke: var(--gr-steel-dark); }
+:is(.pi-board, .pi-queue) .gear.lower :is(.g-body, .g-tooth) { fill: color-mix(in srgb, var(--pi-pipe-dark) 80%, var(--pi-ground)); stroke: var(--pi-ground); }
+:is(.pi-board, .pi-queue) .gear.barrel .g-body { fill: color-mix(in srgb, var(--gr-steel-dark) 65%, var(--pi-ground)); }
+:is(.pi-board, .pi-queue) .gear.barrel .g-tooth { fill: var(--gr-steel); stroke: var(--gr-steel-dark); }
+:is(.pi-board, .pi-queue) .g-spring { fill: none; stroke: var(--pi-pipe); stroke-width: 2.2; stroke-linejoin: round; }
+:is(.pi-board, .pi-queue) .g-steel { fill: var(--gr-steel); }
+:is(.pi-board, .pi-queue) .g-steel-edge { fill: var(--gr-steel-dark); }
+:is(.pi-board, .pi-queue) .g-arrow { fill: var(--pi-ground); }
+:is(.pi-board, .pi-queue) .g-rod { stroke: var(--gr-steel); stroke-width: 5; stroke-linecap: round; fill: none; }
+:is(.pi-board, .pi-queue) .g-dial { fill: var(--gr-dial); stroke: var(--pi-pipe-dark); stroke-width: 1.5; }
+:is(.pi-board, .pi-queue) .g-tick { stroke: var(--gr-ink); stroke-width: 1; fill: none; }
+:is(.pi-board, .pi-queue) .g-hand { stroke: var(--gr-ink); stroke-width: 1.8; stroke-linecap: round; fill: none; }
+:is(.pi-board, .pi-queue) .g-hand.hour { stroke-width: 2.6; }
+:is(.pi-board, .pi-queue) .g-pillar { fill: var(--pi-tile-edge); stroke: var(--pi-ground); stroke-width: 1; }
+:is(.pi-board, .pi-queue) .g-screw { fill: var(--pi-pipe-dark); stroke: var(--pi-pipe); stroke-width: 1.5; }
+:is(.pi-board, .pi-queue) .g-slot { stroke: var(--pi-ground); stroke-width: 3; stroke-linecap: round; }
+.pi-board .old :is(.g-body, .g-tooth) { fill: color-mix(in srgb, var(--pi-pipe-dark) 75%, var(--pi-ground)); stroke: var(--pi-ground); }
+/* which way a gear turns: a small circular arrow, quiet on a gear of the train, copper on a load, green or red once it is judged */
+.pi-board .g-turn { color: var(--pi-label); opacity: .9; pointer-events: none; }
+.pi-board .g-turn.bright, .pi-board .g-turn.load { color: var(--pi-in); }
+.pi-board .g-turn.ok { color: var(--pi-good); }
+.pi-board .g-turn.bad { color: var(--pi-bad); }
+.pi-board .g-turn-arc { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.pi-board .g-turn-head { fill: currentColor; }
+/* the arbors between floors of the 3D map: steel rods */
+.pi-board .shaft-edge { fill: none; stroke: var(--gr-steel-dark); stroke-linecap: round; }
+.pi-board .shaft { fill: none; stroke: var(--gr-steel); stroke-linecap: round; }
+.pi-board .shaft-open { fill: none; stroke: var(--pi-bad); stroke-linecap: round; stroke-dasharray: 2 5; }

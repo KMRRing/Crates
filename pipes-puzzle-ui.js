@@ -1,15 +1,16 @@
-// Pipes, the puzzle, on the page (November 2026): the board of the level in hand, the hand of pieces to lay, the oil's way as
+// Gears, the puzzle, on the page (November 2026; Pipes until 4 November): the board of the level in hand, the hand of pieces to lay, the train's way as
 // it stands, the hint, the stars and the levels. The rules are pipes-puzzle.js's (pure) and the levels are
 // pipes-puzzle-levels.js; this file draws them into pipes.html's board, queue, status line and buttons, and keeps the
 // level in hand and the stars under pipes:puzzle and pipes:stars, so a partner watching sees the same board.
-import { el, T, MID, channel, drawPipe, drawGround, drawSource, drawTerminal, pieceTile, PIECE_NAMES } from "./pipes-draw.js";
+import { el, T, MID, channel, drawGear, drawGround, drawSource, drawTerminal, turnArrow, pieceTile, PIECE_NAMES } from "./pipes-draw.js";
 import * as Z from "./pipes-puzzle.js";
 import { LEVELS as FLAT_LEVELS, CHAPTERS as FLAT_CHAPTERS } from "./pipes-puzzle-levels.js";
 import { camera, pick, clampView, HOME } from "./pipes-map-view.js";
 import { sure } from "./sure.js";
+import { tick as tickSound } from "./pipes-sound.js";
 
 const STAR = "★", HOLLOW = "☆";
-const OIL_STEP = 60;                      // ms between squares as the oil runs through a solved level
+const OIL_STEP = 60;                      // ms between gears as the train starts turning in a solved level
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const CHIPS = 46;                         // px kept clear at the map's left for the floor chips
 
@@ -30,7 +31,7 @@ export function createPuzzle(deps, cfg = {}) {
   let stars = {};                          // id -> the best stars won
   let L = null, laid = [], run = null, index = 0;
   let undoStack = [], hint = null, cellG = [], svg = null;
-  let oilTo = 0, oilTimer = 0, passes = [];            // the oil running through a level just solved: how many squares it has filled
+  let oilTo = 0, oilTimer = 0, passes = [];            // the train turning in a level just solved: how many gears have started
   let shownFor = "";
   // the map's stack: each floor's plate (a group the camera turns), the pipes between floors, each floor's overlay, the chips
   let plateG = [], linkG = [], overlayG = [], chipsEl = null, cam = null, gesture = null, lastBlank = 0, follow = false, observer = null;
@@ -65,7 +66,7 @@ export function createPuzzle(deps, cfg = {}) {
     oilTo = run.solved ? Infinity : 0;
     passes = run.solved ? Z.check(L, laid).passes : [];
     saved.layer = Math.min(Math.max(0, saved.layer), L.layers - 1);
-    follow = "start";                                      // the map shows the floor where the oil needs a piece
+    follow = "start";                                      // the map shows the floor where the train needs a piece
     persist();
   }
   function store() {
@@ -77,53 +78,65 @@ export function createPuzzle(deps, cfg = {}) {
   const sel = () => (run.sel && (handNow()[run.sel] || 0) > 0 ? run.sel : null);
 
   // ---------- drawing ----------
-  /** The middle of a channel's pipe, where an old pipe's stud goes. */
-  function midOf(a, b) {
-    if (a >= 4 || b >= 4) return a >= 4 && b >= 4 ? [MID + 17, MID + 17] : [MID + 18, MID + 18];      // beside the riser
-    if (a === Z.back(b)) return [MID, MID];
-    const cx = MID + (Z.DIRS[a][0] + Z.DIRS[b][0]) * MID, cy = MID + (Z.DIRS[a][1] + Z.DIRS[b][1]) * MID, k = MID / Math.hypot(MID - cx, MID - cy);
-    return [cx + (MID - cx) * k, cy + (MID - cy) * k];
+  /** The gears' look for a square: the way each of its channels turns on the route (from the train's trace), if the train
+   *  has come to it. For a reduction, the way its two gears turn (the west or north one first). */
+  function turnsOf(c, piece, res) {
+    const mine = res.passes.filter(s => s.c === c);
+    if (!mine.length) return null;
+    const dir = [];
+    let red = null;
+    for (const s of mine) {
+      const ch = Z.channelOf(piece, s.a);
+      if (ch) dir[ch.i] = s.dir;
+      if (Z.isReducer(piece)) red = s.a === 3 || s.a === 0 ? [s.dir, s.dir ^ 1] : [s.dir ^ 1, s.dir];
+    }
+    return { dir, red, first: mine[0].dir };
   }
+  /** Which phase of teeth a square has: a neighbour's are half a tooth along, so the two interleave. */
+  const phaseOf = c => { const [x, y] = Z.xy(L, c); return (x + y + Z.layerOf(L, c)) % 2 === 1; };
   function drawCell(c, res) {
     const g = cellG[c];
     g.replaceChildren();
     const f = L.cells[c], piece = Z.pieceOn(L, laid, c);
     drawGround(g, f?.k === "rock");
     if (f?.k === "rock") return;
-    const oilIn = test => () => {
-      passes.forEach((s, i) => {
-        if (s.c !== c || i >= oilTo || !test(s)) return;
-        el("path", { d: channel(s.a, s.b).d, class: "oil", "stroke-width": 9 }, g);
-        if (s.a >= 4 || s.b >= 4) el("circle", { cx: MID, cy: MID, r: 5.5, class: "oil-dot" }, g);
-      });
-    };
-    const stub = d => () => { if (oilTo > 0) el("path", { d: channel(-1, d).d, class: "oil", "stroke-width": 9 }, g); };
-    if (f?.k === "source") drawSource(g, f.d, stub(f.d));
-    else if (f?.k === "terminal") drawTerminal(g, f.d, () => { if (oilTo > passes.length) stub(f.d)(); });
-    else if (piece) {
-      const mark = f?.k === "old" ? el("g", { class: "old" }, g) : g;
-      drawPipe(mark, piece, i => oilIn(s => Z.channelOf(piece, s.a)?.i === i)());
-      if (f?.k === "old") for (const [p, q] of Z.PIECES[piece]) { const [x, y] = midOf(p, q); el("circle", { cx: x, cy: y, r: 6, class: "fixed-mark" }, g); }
+    const wrongEnd = res.end.why === "terminal" && !res.spinOk;
+    if (f?.k === "source") drawSource(g, f.d, { dir: 0 });
+    else if (f?.k === "terminal") {
+      drawTerminal(g, f.d, { dir: L.spin });
+      turnArrow(g, 47, 47, L.spin, 5, `g-turn load ${res.end.why === "terminal" ? (res.spinOk ? "ok" : "bad") : ""}`);
+    } else if (piece) {
+      const mark = f?.k === "old" ? el("g", { class: "old" }, g) : g, t = turnsOf(c, piece, res);
+      drawGear(mark, piece, { dir: t?.dir, red: t?.red, phase: phaseOf(c) });
+      if (f?.k === "old") el("circle", { cx: 8, cy: 52, r: 4, class: "fixed-mark" }, g);
+      if (t) turnArrow(g, 49, 49, t.first, 5, "g-turn");
     }
     if (L.stakeAt[c]) {
       const n = L.stakeAt[c], at = res.stakeState[n - 1];
       el("circle", { cx: 14, cy: 14, r: 10, class: `stake ${at}` }, g);
       const t = el("text", { x: 14, y: 18.5, "text-anchor": "middle", "font-size": 13, class: "stake-n" }, g);
       t.textContent = String(n);
+      turnArrow(g, 33, 12, L.stakeDir[c], 5, `g-turn load ${at}`);
     }
     if (hint) {
       if (hint.wrong?.includes(c)) el("rect", { x: 3, y: 3, width: T - 6, height: T - 6, rx: 8, class: "pick bad" }, g);
       if (hint.c === c) {
-        drawPipe(el("g", { class: "ghost" }, g), hint.piece);
+        drawGear(el("g", { class: "ghost" }, g), hint.piece, { phase: phaseOf(c) });
         el("rect", { x: 3, y: 3, width: T - 6, height: T - 6, rx: 8, class: "pick" }, g);
       }
     }
+    if (wrongEnd && c === res.end.c) el("rect", { x: 3, y: 3, width: T - 6, height: T - 6, rx: 8, class: "pick bad" }, g);
   }
-  /** How each stake stands: "ok" (passed in its turn), "bad" (passed out of turn) or "" (not yet). */
+  /** How each load stands: "ok" (reached in its turn, turning the way it is asked), "bad" (out of turn, or turning the
+   *  wrong way) or "" (not yet reached). */
   function stakeStates(passes) {
     const order = [];
     for (const s of passes) if (L.stakeAt[s.c] && !order.includes(s.c)) order.push(s.c);
-    return L.stakes.map((c, i) => { const at = order.indexOf(c); return at < 0 ? "" : L.stakes[at] === c ? "ok" : "bad"; });
+    return L.stakes.map((c, i) => {
+      const at = order.indexOf(c);
+      if (at < 0) return "";
+      return L.stakes[at] === c && passes.find(s => s.c === c).dir === L.stakeDir[c] ? "ok" : "bad";
+    });
   }
   function resOf() {
     const res = Z.check(L, laid);
@@ -131,7 +144,7 @@ export function createPuzzle(deps, cfg = {}) {
     res.feed = Z.feed(L, laid);
     return res;
   }
-  /** The group a square's overlay (the oil's dashed way, the ring, a cross) is drawn in: its floor's. */
+  /** The group a square's overlay (the train's dashed way, the ring, a cross) is drawn in: its floor's. */
   const overlayOf = c => (map ? overlayG[Z.layerOf(L, c)] : svg.querySelector(".overlay"));
   function drawOverlay(res) {
     (map ? overlayG : [svg.querySelector(".overlay")]).forEach(g => g.replaceChildren());
@@ -143,7 +156,7 @@ export function createPuzzle(deps, cfg = {}) {
     const { end } = res, fend = res.feed.end;
     if (end.why === "open") ring(end.c, "");
     else if (end.why !== "terminal") {
-      // the oil is stopped: a cross where (or, off the edge, beyond the last square)
+      // the train is stopped: a cross where (or, off the edge, beyond the last square)
       const [x, y] = Z.xy(L, end.c);
       let cx = x * T + MID, cy = y * T + MID;
       if (end.why === "edge") { const last = res.passes[res.passes.length - 1] || { b: L.source.d }; cx += Z.DIRS[last.b][0] * (MID - 6); cy += Z.DIRS[last.b][1] * (MID - 6); }
@@ -151,7 +164,7 @@ export function createPuzzle(deps, cfg = {}) {
     }
     if (fend.why === "open" && !(end.why === "open" && end.c === fend.c)) ring(fend.c, "out");
   }
-  /** Draws the level. `follow` ("start" for a level just opened, true after a move) brings the floor where the oil needs
+  /** Draws the level. `follow` ("start" for a level just opened, true after a move) brings the floor where the train needs
    *  its next piece, or a hint points, to the front; the player can look at another floor afterwards. */
   function drawBoard(follows = false) {
     const key = `${L.id}`;
@@ -168,6 +181,7 @@ export function createPuzzle(deps, cfg = {}) {
     if (map) { styleLayers(); drawLinks(); }
     drawHand();
     drawText(res);
+    if (run.solved && oilTo === Infinity) startSpin();
     return res;
   }
 
@@ -271,14 +285,11 @@ export function createPuzzle(deps, cfg = {}) {
     if (hit.c < 0) return setLayer(hit.z);
     tap(hit.c);
   }
-  /** The pipes between floors, drawn on the screen (not on a plate): from a square's middle up to the one above. A pipe
+  /** The arbors between floors, drawn on the screen (not on a plate): from a square's middle up to the one above. A pipe
    *  that one side has and the other lacks stops half way. */
   function drawLinks() {
     if (!map || !cam) return;
-    const size = L.cols * L.rows, wet = new Set();
-    passes.forEach((s, i) => { if (i < oilTo) { if (s.b === 4) wet.add(s.c); else if (s.b === 5) wet.add(Z.beyond(L, s.c, 5)); } });
-    if (oilTo > 0) { if (L.source.d === 4) wet.add(L.source.c); else if (L.source.d === 5) wet.add(Z.beyond(L, L.source.c, 5)); }
-    if (oilTo > passes.length) { const t = L.terminal; if (t.d === 4) wet.add(t.c); else if (t.d === 5) wet.add(Z.beyond(L, t.c, 5)); }
+    const size = L.cols * L.rows;
     const opens = (c, d) => {
       const f = L.cells[c];
       if (f?.k === "source" || f?.k === "terminal") return f.d === d;
@@ -296,7 +307,6 @@ export function createPuzzle(deps, cfg = {}) {
         const d = `M${p[0]} ${p[1]}L${q[0]} ${q[1]}`, w = cam.k;
         el("path", { d, class: "shaft-edge", "stroke-width": 20 * w }, g);
         el("path", { d, class: "shaft", "stroke-width": 14 * w }, g);
-        if (wet.has(lo) && up && down) el("path", { d, class: "shaft-oil", "stroke-width": 8 * w }, g);
         if (!(up && down)) el("path", { d, class: "shaft-open", "stroke-width": 3 }, g);
       }
     });
@@ -344,32 +354,35 @@ export function createPuzzle(deps, cfg = {}) {
   }
 
   // ---------- the line under the board, the numbers, the buttons ----------
-  const WHY = { edge: "The oil runs off the edge", rock: "The oil runs into rock", shape: "The oil meets a piece that won't take it in", full: "The oil meets pipe it has already filled", loop: "The oil goes round in a circle" };
+  const WHY = { edge: "The train runs off the plate", rock: "The train runs into a pillar", shape: "The train meets a gear that won't mesh with it", full: "The train comes back to a gear it already drives",
+    loop: "The train goes round in a circle", jam: "The train jams: a gear would have to turn both ways" };
   function textOf(res) {
     const spec = LEVELS[index], left = res.left;
-    if (run.solved) return `${spec.name} solved · ${STAR.repeat(run.solved)}${HOLLOW.repeat(3 - run.solved)}`;
-    if (hint?.wrong?.length) return "The red pieces aren't in an answer: lift them";
-    if (hint) return hint.done ? "Hint: nothing is left to lay" : "Hint: this piece goes in the dashed square";
+    if (run.solved) return `${spec.name} runs · ${STAR.repeat(run.solved)}${HOLLOW.repeat(3 - run.solved)}`;
+    if (hint?.wrong?.length) return "The red gears aren't in an answer: lift them";
+    if (hint) return hint.done ? "Hint: nothing is left to lay" : "Hint: this gear goes in the dashed square";
     if (!res.placed) {
       // a chapter's first level says what's new in it; the rest say what to do
       const ch = CHAPTERS.find(c => c.key === spec.chapter);
       return LEVELS.findIndex(l => l.chapter === spec.chapter) === index ? `${ch.name}: ${ch.rule}` : `${spec.name}: lay all ${plural(L.total, "piece")}`;
     }
+    if (res.wrongWay.length) return `Load ${L.stakeAt[res.wrongWay[0]]} turns the wrong way: count the gears before it`;
     if (!left) {
       if (res.end.why === "terminal") {
-        if (res.strays.length) return `${plural(res.strays.length, "piece")} the oil never reaches`;
-        if (res.missed.length) return `The oil misses old pipe`;
-        if (!res.stakesOk) return "The stakes must be passed in order";
+        if (res.strays.length) return `${plural(res.strays.length, "gear")} the train never reaches`;
+        if (res.missed.length) return "The train misses a fixed gear";
+        if (!res.stakesOk) return "The loads must be reached in order";
+        if (!res.spinOk) return `The last load turns ${L.spin ? "clockwise" : "counter-clockwise"} when it should ${L.spin ? "counter-" : ""}turn the other way: count the gears`;
         return "";
       }
-      if (res.end.why === "open") return "No pieces left, and a gap in the route";
-      return `${WHY[res.end.why] || "The oil is stopped"}, and no pieces left`;
+      if (res.end.why === "open") return "No pieces left, and a gap in the train";
+      return `${WHY[res.end.why] || "The train is stopped"}, and no pieces left`;
     }
     const cur = sel(), reach = res.passes.length;
-    if (res.end.why === "terminal") return `The oil is in the terminal with ${plural(left, "piece")} left: it must run through them all`;
+    if (res.end.why === "terminal") return `The train reaches the last load with ${plural(left, "piece")} left: every piece must be in it`;
     if (res.end.why !== "open" && res.end.why !== "terminal" && reach) return `${WHY[res.end.why]} · ${plural(left, "piece")} left`;
-    if (map && res.end.why === "open" && Z.layerOf(L, res.end.c) !== saved.layer) return `The oil waits on floor ${Z.layerOf(L, res.end.c) + 1} · tap Look · ${plural(left, "piece")} left`;
-    return `${cur ? `Tap a square for the ${PIECE_NAMES[cur]}` : "Pick a piece from the hand"} · the oil runs ${plural(reach, "piece")}`;
+    if (map && res.end.why === "open" && Z.layerOf(L, res.end.c) !== saved.layer) return `The train waits on floor ${Z.layerOf(L, res.end.c) + 1} · tap Look · ${plural(left, "piece")} left`;
+    return `${cur ? `Tap a square for the ${PIECE_NAMES[cur]}` : "Pick a piece from the hand"} · the train reaches ${plural(reach, "gear")}`;
   }
   function drawText(res) {
     const text = textOf(res);
@@ -443,7 +456,7 @@ export function createPuzzle(deps, cfg = {}) {
     store();
     drawBoard();
   }
-  /** A level finished: its stars, the oil running through it, and what the next step is. */
+  /** A level finished: its stars, the train turning, and what the next step is. */
   function solved(res) {
     run.solved = Z.starsFor(L, run);
     if (run.solved > starsOf(L.id)) { stars[L.id] = run.solved; if (!frame) write(KEY.stars, stars); }
@@ -451,16 +464,43 @@ export function createPuzzle(deps, cfg = {}) {
     store();
     onSolved?.(run.solved);
     if (reduced()) { oilTo = Infinity; return void drawBoard(); }
+    // the train starts turning gear by gear from the mainspring, each with its tick, and the load's hands move last
     oilTo = 0;
     drawBoard();
+    startSpin();
     const tick = () => {
       oilTo++;
-      if (oilTo >= passes.length + 1) { oilTo = Infinity; oilTimer = 0; drawBoard(); return; }
-      drawBoard();
+      if (oilTo >= passes.length + 2) { oilTo = Infinity; oilTimer = 0; return startSpin(); }
+      startSpin();
+      sound(oilTo <= passes.length ? 1 + (oilTo % 2) * 0.12 : 0.7);
       oilTimer = setTimeout(tick, OIL_STEP);
     };
     oilTimer = setTimeout(tick, OIL_STEP);
   }
+  /** Sets turning every gear of a solved level the train has reached (`oilTo` of them): each wheel at its own speed (a tooth
+   *  passes at the same rate on all), and the load's hands, minute and hour. Safe to call again: a wheel turns once. */
+  function startSpin() {
+    if (!run.solved || reduced() || !cellG.length) return;
+    const reach = new Set([L.source.c]);
+    passes.slice(0, oilTo).forEach(s => reach.add(s.c));
+    if (oilTo > passes.length) reach.add(L.terminal.c);
+    for (const c of reach) {
+      for (const sp of cellG[c].querySelectorAll(".spin.cw, .spin.ccw")) {
+        if (sp.dataset.on) continue;
+        sp.dataset.on = "1";
+        sp.animate([{ transform: "rotate(0deg)" }, { transform: `rotate(${sp.classList.contains("ccw") ? -360 : 360}deg)` }], { duration: Number(sp.dataset.n) * 800, iterations: Infinity });
+      }
+      if (c === L.terminal.c && oilTo > passes.length) {
+        const s = L.spin ? -1 : 1;
+        for (const [sel, from, turns, ms] of [[".g-hand.minute", 60, 6, 12000], [".g-hand.hour", -60, 0.5, 12000]]) {
+          const h = cellG[c].querySelector(sel);
+          if (h && !h.dataset.on) { h.dataset.on = "1"; h.animate([{ transform: `rotate(${from}deg)` }, { transform: `rotate(${from + s * 360 * turns}deg)` }], { duration: ms, iterations: Infinity }); }
+        }
+      }
+    }
+  }
+  /** A soft tick (pipes-sound.js), if the player has sound on. */
+  const sound = pitch => { if (deps.sound?.()) tickSound(pitch); };
   /** The hint: if the pieces laid can still be part of an answer, where the next piece goes along the oil's way; if not,
    *  the pieces that are in the way. It caps the level at one star (starsFor). */
   async function giveHint() {
@@ -530,7 +570,7 @@ export function createPuzzle(deps, cfg = {}) {
     pause() { clearTimeout(oilTimer); oilTimer = 0; },
     resume() { if (run?.solved && oilTo !== Infinity) { oilTo = Infinity; drawBoard(); } },
     resize() { fit(); },
-    /** The map: brings forward the floor where the oil needs its next piece. */
+    /** The map: brings forward the floor where the train needs its next piece. */
     look() {
       if (frame || !map || run.solved) return;
       const res = resOf(), at = res.end.why === "open" ? res.end.c : res.feed.end.why === "open" ? res.feed.end.c : null;

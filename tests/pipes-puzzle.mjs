@@ -1,6 +1,7 @@
-// Pipes' puzzle (README, Pipes): a hand of pieces to fit on a board so the oil runs through every one of them, with no clock.
-// What it has to do: follow the oil as the pieces stand (every way it can stop, a crossing passed twice, old pipe, the
-// stakes in order); call a level solved only when every piece is on the oil's way; and be what the levels say it is:
+// Gears' puzzle (README, Gears; the id stays pipes): a hand of gears to fit on a plate so the power runs through every one of
+// them, with no clock. What it has to do: follow the power as the pieces stand (every way it can stop, which way each gear
+// turns, a reduction flipping it, a closed loop jamming, a crossover passed twice, fixed gears, the loads in order and the
+// way they turn); call a level solved only when every piece is on the way; and be what the levels say it is:
 // every level solved by its own solver, which finds the routes the level lists and no others (one answer, nearly
 // always), every rock, old pipe and stake needed for that, the answer using exactly the hand, and a hint that, followed,
 // always ends in a solution (so no level can be stuck). Run: node tests/pipes-puzzle.mjs
@@ -10,7 +11,7 @@ import { LEVELS, CHAPTERS } from "../pipes-puzzle-levels.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const lv = (map, out, inlet, hand) => Z.parseLevel({ id: "t", map, out, inlet, hand, sols: [] });
+const lv = (map, out, inlet, hand, spin = "cw") => Z.parseLevel({ id: "t", map, out, inlet, hand, spin, sols: [] });
 const put = (L, cells) => { const laid = Z.emptyLaid(L); for (const [c, p] of Object.entries(cells)) laid[c] = p; return laid; };
 
 // ---------- the oil, as the pieces stand ----------
@@ -28,6 +29,12 @@ const put = (L, cells) => { const laid = Z.emptyLaid(L); for (const [c, p] of Ob
   check(r.end.why === "shape" && r.end.c === 7, "a straight across a straight: the oil meets a piece that won't take it in");
   r = Z.trace(L, put(L, { 6: "sw" }));
   check(r.end.why === "open" && r.end.c === 11 && r.passes[0].b === 2, "a bend turns it: it leaves by the south and needs a piece there");
+  r = Z.trace(L, put(L, { 6: "h", 7: "h", 8: "h" }));
+  check(r.end.spin === 0 && r.end.why === "terminal", "the mainspring turns clockwise, each meshed gear the other way: the third gear turns the load clockwise");
+  check(r.passes.map(p => p.dir).join("") === "101", "gears 1, 2, 3 turn ccw, cw, ccw (1 is counter-clockwise)");
+  const wrongSpin = lv([".....", "S...T", "....."], "E", "W", "h3", "ccw");
+  r = Z.check(wrongSpin, put(wrongSpin, { 6: "h", 7: "h", 8: "h" }));
+  check(r.end.why === "terminal" && !r.spinOk && !r.solved, "the load asked to turn the other way: not solved");
   const four = lv([".....", "S...T", "....."], "E", "W", "h4");
   r = Z.check(four, put(four, { 6: "h", 7: "h", 8: "h", 0: "h" }));
   check(r.strays.length === 1 && r.strays[0] === 0 && r.end.why === "terminal" && !r.solved, "a piece off the oil's way is a stray: the level isn't solved");
@@ -41,12 +48,12 @@ const put = (L, cells) => { const laid = Z.emptyLaid(L); for (const [c, p] of Ob
   check(Z.trace(f, put(f, { 1: "h" })).end.why === "shape", "led into the terminal by the wrong side, the oil is refused");
   const loop = lv([".....", ".S...", "....T"], "E", "W", "h1 ne1 nw1 se1 sw1");
   const round = put(loop, { 7: "sw", 12: "nw", 11: "ne" });
-  check(Z.trace(loop, round).end.why === "full", "pipe that leads the oil back to the wellhead stops it");
+  check(Z.trace(loop, round).end.why === "full", "gears that lead the train back to the mainspring, turning it as it turns: it stops there");
 }
 {
-  // a crossing is passed twice, once each way: its first channel and then the other; a straight can't be
-  const L = Z.parseLevel(LEVELS.find(l => l.id === "c1"));
-  const laid = Z.layRoute(L, LEVELS.find(l => l.id === "c1").sols[0]);
+  // a crossover is passed twice, once each way: its first channel and then the other; a straight can't be
+  const spec = LEVELS.find(l => l.chapter === "c"), L = Z.parseLevel(spec);
+  const laid = Z.layRoute(L, spec.sols[0]);
   const r = Z.check(L, laid), counts = {};
   for (const s of r.passes) counts[s.c] = (counts[s.c] || 0) + 1;
   const crossings = Object.keys(counts).filter(c => counts[c] === 2);
@@ -55,11 +62,23 @@ const put = (L, cells) => { const laid = Z.emptyLaid(L); for (const [c, p] of Ob
   check(!Z.check(L, wrong).solved && Z.trace(L, wrong).end.why !== "terminal", "with a straight in its place the oil can't cross itself");
 }
 {
-  // stakes: passed in their order, or the level isn't solved
-  const L = lv(["S12T"], "E", "W", "h2"), L2 = lv(["S21T"], "E", "W", "h2");
-  check(Z.check(L, put(L, { 1: "h", 2: "h" })).solved, "stakes 1 then 2 in the order of the oil's way: solved");
+  // loads: reached in their order, each turning the way its mark says (a digit clockwise, a letter counter-clockwise)
+  const L = lv(["Sa2T"], "E", "W", "h2", "ccw"), L2 = lv(["Sb1T"], "E", "W", "h2", "ccw");
+  check(Z.check(L, put(L, { 1: "h", 2: "h" })).solved, "loads 1 (ccw) then 2 (cw) in the order of the train, each turning its way: solved");
   const r = Z.check(L2, put(L2, { 1: "h", 2: "h" }));
-  check(r.end.why === "terminal" && !r.stakesOk && !r.solved, "stakes passed out of order: not solved");
+  check(r.end.why === "terminal" && !r.stakesOk && !r.wrongWay.length && !r.solved, "loads reached out of order: not solved");
+  const W = lv(["S12T"], "E", "W", "h2", "ccw"), w = Z.check(W, put(W, { 1: "h", 2: "h" }));
+  check(w.wrongWay.length === 1 && w.wrongWay[0] === 1 && !w.solved, "a load that turns the wrong way is named, and the level isn't solved");
+  // a reduction: the gear after it turns the other way from the one before
+  const R = lv(["S...T"], "E", "W", "rh1 h2", "ccw");
+  const rr = Z.trace(R, put(R, { 1: "rh", 2: "h", 3: "h" }));
+  check(rr.passes.map(p => p.dir).join("") === "110" && rr.end.spin === 1, "a reduction passes the turn on flipped: the gears after it swap places in the count, and the load turns the other way");
+  check(Z.check(R, put(R, { 1: "rh", 2: "h", 3: "h" })).solved, "the same row with a reduction in it turns the load ccw: solved");
+  const J = lv(["S..", ".T.", "..."], "E", "W", "h2 v2 rh1 sw1 nw1 ne1");
+  const ring = put(J, { 1: "rh", 2: "sw", 5: "v", 8: "nw", 7: "h", 6: "ne", 3: "v" });
+  check(Z.trace(J, ring).end.why === "jam", "a ring of gears through the mainspring with a reduction in it jams: it would have to turn both ways");
+  ring[1] = "h";
+  check(Z.trace(J, ring).end.why === "full", "the same ring with no reduction closes and runs");
   // old pipe: the oil must pass through it
   const O = lv(["S.─.T", "....."], "E", "W", "h2");
   check(Z.check(O, put(O, { 1: "h", 3: "h" })).solved, "old pipe on the way: the oil goes through it");
@@ -114,9 +133,10 @@ console.log(`    hardest by chapter (squares tried): ${CHAPTERS.map(c => `${c.na
 
 // each chapter's feature is on its levels, and every rock, old pipe and stake is needed: take it away and there's a second answer
 {
-  const needs = { b: L => L.cells.some(f => f?.k === "rock"), c: L => (L.hand.x || 0) > 0, d: L => L.olds > 0, e: L => L.stakes.length > 0 };
+  const reds = L => (L.hand.rh || 0) + (L.hand.rv || 0) > 0;
+  const needs = { b: L => L.cells.some(f => f?.k === "rock"), c: L => (L.hand.x || 0) > 0, d: L => L.olds > 0, e: L => L.stakes.length > 0, f: reds, g: reds };
   const lacking = parsed.filter(({ spec, L }) => needs[spec.chapter] && !needs[spec.chapter](L)).map(({ spec }) => spec.id);
-  check(!lacking.length, `every level of Rock, Crossings, Old pipe and Stakes has its feature${lacking.length ? ` (not ${lacking})` : ""}`);
+  check(!lacking.length, `every level of Pillars, Crossovers, Fixed gears, Loads and the reductions has its feature${lacking.length ? ` (not ${lacking})` : ""}`);
   const crossing = parsed.filter(({ spec, L }) => (L.hand.x || 0) > 0).every(({ spec, L }) => {
     const laid = Z.layRoute(L, spec.sols[0]), counts = {};
     for (const s of Z.trace(L, laid).passes) counts[s.c] = (counts[s.c] || 0) + 1;
@@ -130,7 +150,7 @@ console.log(`    hardest by chapter (squares tried): ${CHAPTERS.map(c => `${c.na
       let hand = { ...L.hand };
       edit(map, hand);
       const h = Object.entries(hand).filter(([, n]) => n > 0).map(([k, n]) => `${k}${n}`).join(" ");
-      return Z.parseLevel({ id: spec.id, map: map.map(r => r.join("")), out: spec.out, inlet: spec.inlet, hand: h });
+      return Z.parseLevel({ id: spec.id, map: map.map(r => r.join("")), out: spec.out, inlet: spec.inlet, hand: h, spin: spec.spin });
     };
     const tries = [];
     L.cells.forEach((f, c) => {
@@ -139,7 +159,7 @@ console.log(`    hardest by chapter (squares tried): ${CHAPTERS.map(c => `${c.na
       if (f?.k === "old") tries.push([`old pipe at ${x},${y}`, (map, hand) => { map[y][x] = "."; hand[f.piece] = (hand[f.piece] || 0) + 1; }]);
     });
     L.stakes.forEach((c, i) => tries.push([`stake ${i + 1}`, map => {
-      L.stakes.forEach((s, j) => { const sx = s % L.cols, sy = Math.floor(s / L.cols); map[sy][sx] = j === i ? "." : String(j < i ? j + 1 : j); });
+      L.stakes.forEach((s, j) => { const sx = s % L.cols, sy = Math.floor(s / L.cols); map[sy][sx] = j === i ? "." : Z.stakeChar(j < i ? j + 1 : j, L.stakeDir[s]); });
     }]));
     for (const [what, edit] of tries) if (solve(without(edit), 2).routes.length < 2) slack.push(`${spec.id} ${what}`);
   }

@@ -8,6 +8,8 @@ export const back = d => (d < 4 ? (d + 2) % 4 : 9 - d);
 export const axisOf = d => (d < 4 ? d % 2 : 2);
 export const PIECES = {
   h: [[1, 3]], v: [[0, 2]], ne: [[0, 1]], nw: [[0, 3]], se: [[2, 1]], sw: [[2, 3]], x: [[0, 2], [1, 3]],
+  // a reduction: two small gears meshed in one square, so the train leaves it turning the other way (pieces that flip)
+  rh: [[1, 3]], rv: [[0, 2]],
   // the 3D map's: a riser (straight up and down), a bend from a side to up or down, and a riser crossing a straight
   z: [[4, 5]], nu: [[0, 4]], eu: [[1, 4]], su: [[2, 4]], wu: [[3, 4]], nd: [[0, 5]], ed: [[1, 5]], sd: [[2, 5]], wd: [[3, 5]],
   xn: [[0, 2], [4, 5]], xe: [[1, 3], [4, 5]],
@@ -17,6 +19,7 @@ export const KINDS = Object.keys(PIECES);
 export const STRAIGHT = ["v", "h", "z"];
 export const CROSSING = { "01": "x", "02": "xn", "12": "xe" };
 export const isCrossing = k => PIECES[k].length === 2;
+export const isReducer = k => k === "rh" || k === "rv";
 
 /** The channel of a piece that takes the oil in by side a (its index and the side it leaves by), if any. */
 export function channelOf(piece, a) {

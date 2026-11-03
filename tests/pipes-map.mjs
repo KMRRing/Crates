@@ -1,4 +1,4 @@
-// Pipes' 3D map (README, Pipes): the flat puzzle's rules in a stack of floors, with pieces that open up and down. What it has
+// Gears' 3D map (README, Gears): the flat puzzle's rules in a stack of floors, with pieces that open up and down. What it has
 // to do: let the oil climb through risers and refuse a riser that meets nothing; be what the levels say it is (every level
 // solved by its own solver, which finds the listed routes and no others, the answer using exactly the hand and really
 // going between floors, every rock, old pipe and stake needed for the one answer); a hint that always ends in a solution;
@@ -35,6 +35,7 @@ const put = (L, cells) => { const laid = Z.emptyLaid(L); for (const [c, p] of Ob
   const ok = put(L, { 1: "wu", 7: "z", 13: "ed" });
   check(Z.check(L, ok).solved, "a riser passes the oil straight through a floor");
   check(!Z.check(L, put(L, { 1: "wu", 7: "v", 13: "ed" })).solved, "a straight where a riser should be does not");
+  check(Z.trace(L, ok).passes.map(p => p.dir).join("") === "111", "an arbor does not mesh: the gears on one shaft turn the same way");
   check(Z.layRoute(L, "UUE") === null && Z.layRoute(L, "EUUE") !== null || true, "routes are checked");
   check(Z.crossingOf(1, 4) === "xe" && Z.crossingOf(0, 5) === "xn" && Z.crossingOf(0, 1) === "x" && Z.crossingOf(1, 3) === null, "which crossing joins which two straights");
   check(Z.isCrossing("xn") && Z.isCrossing("xe") && Z.isCrossing("x") && !Z.isCrossing("z"), "the crossings have two channels");
@@ -89,7 +90,7 @@ console.log(`    hardest by chapter (squares tried): ${CHAPTERS.map(c => `${c.na
       const map = stack.map(l => l.map(r => [...r]));
       const hand = { ...L.hand };
       edit(map, hand);
-      return Z.parseLevel({ id: spec.id, map: map.map(l => l.map(r => r.join(""))), out: spec.out, inlet: spec.inlet, hand: Object.entries(hand).filter(([, n]) => n > 0).map(([k, n]) => `${k}${n}`).join(" ") });
+      return Z.parseLevel({ id: spec.id, map: map.map(l => l.map(r => r.join(""))), out: spec.out, inlet: spec.inlet, spin: spec.spin, hand: Object.entries(hand).filter(([, n]) => n > 0).map(([k, n]) => `${k}${n}`).join(" ") });
     };
     const at = c => [Math.floor(c / (L.cols * L.rows)), ...Z.xy(L, c).reverse()];
     const tries = [];
@@ -99,7 +100,7 @@ console.log(`    hardest by chapter (squares tried): ${CHAPTERS.map(c => `${c.na
       if (f?.k === "old") tries.push([`old pipe at ${x},${y},${z}`, (map, hand) => { map[z][y][x] = "."; hand[f.piece] = (hand[f.piece] || 0) + 1; }]);
     });
     L.stakes.forEach((c, i) => tries.push([`stake ${i + 1}`, map => {
-      L.stakes.forEach((s, j) => { const [z, y, x] = at(s); map[z][y][x] = j === i ? "." : String(j < i ? j + 1 : j); });
+      L.stakes.forEach((s, j) => { const [z, y, x] = at(s); map[z][y][x] = j === i ? "." : Z.stakeChar(j < i ? j + 1 : j, L.stakeDir[s]); });
     }]));
     for (const [what, edit] of tries) if (solve(without(edit), 2).routes.length < 2) slack.push(`${spec.id} ${what}`);
   }
