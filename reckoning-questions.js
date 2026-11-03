@@ -1,4 +1,4 @@
-// Where Reckoning's questions come from: the choice banks Punt asks from (the knowledge base, kb/, builds them), cut
+// Where Courier's questions come from: the choice banks Punt asks from (the knowledge base, kb/, builds them), cut
 // down to what a gull can carry across a phone's width: a question that fits a line or two, three answers of a few
 // words each, one right. Each world draws on the banks that suit it; a bank is loaded when a run starts (the pages
 // that list them are the ones tools/offline.mjs keeps for offline play). What a question is about (`about`, the

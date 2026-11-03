@@ -18,6 +18,7 @@ import { Spring, Inertia, Streamer, CameraRig, clamp, lerp, ease } from "./recko
 const BEND = 0.0013;                    // how fast the world drops away: metres of fall per metre-squared of distance
 const BEND_FROM = 9;                    // from this far in front of the camera (the hero is nearer, and stays level)
 const QUAY_W = 3 * LANE_W + 0.9;
+const WATER_Y = -1.7;                  // the water under the quay
 const SEAM = 1.2;                       // metres between plank seams
 const AHEAD = 105, BEHIND = 12;
 
@@ -172,7 +173,7 @@ export function createRunner(host) {
   const solids = [];
   const solid = () => { const m = new THREE.Mesh(box, M.stone); m.frustumCulled = false; world.add(m); solids.push(m); return m; };
   const water = new THREE.Mesh(new THREE.PlaneGeometry(60, 400).rotateX(-Math.PI / 2), M.water);
-  water.position.y = -1.7; water.frustumCulled = false; world.add(water);
+  water.position.y = WATER_Y; water.frustumCulled = false; world.add(water);
   const SEAMS = Math.ceil((AHEAD + BEHIND) / SEAM) + 2;
   const seams = new THREE.InstancedMesh(box, M.seam, SEAMS); seams.frustumCulled = false; world.add(seams);
   const edge = new THREE.InstancedMesh(box, M.plank, 2 * SEAMS);                         // a rail of planking down each side
@@ -375,6 +376,7 @@ export function createRunner(host) {
     p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.size = size; p.life = life; p.t = 0; p.g = o.g || 0; p.drag = o.drag ?? 2.5; p.grow = o.grow ?? 0;
   }
   const mP = new THREE.Matrix4(), qP = new THREE.Quaternion(), vP = new THREE.Vector3(), sP = new THREE.Vector3();
+  let nearZ = -1e9;                                      // what is behind this is by the camera: it thins out before it fills the picture's edge
   function tickPool(P, dt, spray) {
     for (let i = 0; i < P.ps.length; i++) {
       const p = P.ps[i];
@@ -384,8 +386,9 @@ export function createRunner(host) {
         const u = Math.min(1, p.t / p.life), d = Math.exp(-p.drag * dt);
         p.vy -= p.g * dt; p.vx *= d; p.vz *= d; if (!spray) p.vy *= d;
         p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-        if (spray && p.y < -1.72 && p.vy < 0) p.t = p.life;                                   // back in the water
+        if (spray && p.y < WATER_Y - 0.02 && p.vy < 0) p.t = p.life;                                   // back in the water
         sz = p.size * (0.5 + p.grow * Math.min(1, u * 2.2)) * (1 - u * u);
+        sz *= clamp((p.z - nearZ) / 2.5, 0, 1);
       }
       mP.compose(vP.set(p.x, p.y, p.z), qP, sP.setScalar(Math.max(0, sz)));
       P.mesh.setMatrixAt(i, mP);
@@ -403,9 +406,9 @@ export function createRunner(host) {
   function splash(x, z, n = 14, power = 1) {
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + hash(i + now) * 2, r = (1 + 2.6 * hash(i * 3 + now)) * power;
-      emit(sprays, x + Math.cos(a) * 0.15, -1.7, z + Math.sin(a) * 0.15, Math.cos(a) * r, (4.5 + 5 * hash(i * 7 + now)) * power, Math.sin(a) * r, 0.1 + 0.1 * hash(i * 11 + now), 0.9, { g: 15, drag: 0.6 });
+      emit(sprays, x + Math.cos(a) * 0.15, WATER_Y, z + Math.sin(a) * 0.15, Math.cos(a) * r, (4.5 + 5 * hash(i * 7 + now)) * power, Math.sin(a) * r, 0.14 + 0.12 * hash(i * 11 + now), 0.9, { g: 15, drag: 0.6 });
     }
-    ring(x, -1.68, z, 2.4 * power, 0.7, true);
+    ring(x, WATER_Y + 0.02, z, 2.4 * power, 0.7, true);
   }
 
   // streaks: thin lines in the air that run by at the sides, set in the world and wrapped about the hero, longer and clearer the faster he goes
@@ -464,7 +467,7 @@ export function createRunner(host) {
     const { sn, cs, k } = c, amp = 0.55 + 0.45 * k;
     const stride = (m = 1) => [-sn * 0.9 * amp * m, 0.2 + 0.85 * amp * m * Math.max(0, cs), sn * 0.9 * amp * m, 0.2 + 0.85 * amp * m * Math.max(0, -cs),
       sn * 0.8 * amp * m, 0, -1.0 + 0.3 * sn * amp, -0.55 + 0.15 * sn, 0, -1.25, 0.1 + 0.08 * k, sn * 0.12, 0, 0];
-    if (h.mode === "wall") { const v = stride(1.15); v[10] = 0.1; v[13] = h.wall * 1.2; return ["wall", v]; }       // feet on the wall, the body out from it (leaning into it put him inside the box)
+    if (h.mode === "wall") { const v = stride(1.15); v[10] = 0.1; v[13] = h.wall * 1.05; return ["wall", v]; }       // feet on the wall, the body out from it (leaning into it put him inside the box)
     if (h.lunge) return lungePose(h.lunge);
     if (h.mode === "air") {
       if (h.slam) return ["slam", SLAMP];
@@ -637,9 +640,15 @@ export function createRunner(host) {
     const lead = Math.min(o.lead || 0, 1 / 60);
     const hx = h.x + (h.vx || 0) * lead, hz = h.z + spd * lead;
     let hy = h.y;
-    if (h.mode === "air" && !h.lunge) hy = Math.max(h.y + h.vy * lead, h.vy < 0 ? 0 : h.y);
+    if (h.mode === "air" && !h.lunge) {
+      hy = h.y + h.vy * lead;
+      if (h.y >= 0 && !W_.pits.some(p => h.z > p.z0 && h.z < p.z1)) hy = Math.max(hy, 0);          // not through the planks he is about to land on
+    }
     if (S.seed !== vis.seed) { vis.seed = S.seed; vis.y = hy; vis.vy = 0; cam.reset(h.x); resetHero(); }
-    if (pdt > 1e-4) { vis.vy += (clamp((hy - vis.y) / pdt, -30, 30) - vis.vy) * Math.min(1, pdt * 40); vis.y = hy; }
+    if (pdt > 1e-4) {
+      if (dt > 0 && vis.y > WATER_Y && hy <= WATER_Y) splash(hx, hz, 22, clamp(-vis.vy / 9, 0.8, 1.5));     // he goes in: the rules call it a fall only a metre lower
+      vis.vy += (clamp((hy - vis.y) / pdt, -30, 30) - vis.vy) * Math.min(1, pdt * 40); vis.y = hy;
+    }
     const kin = { x: hx, y: hy, z: hz, vx: h.vx || 0, vy: vis.vy, speed: spd, idle: idle && h.mode === "run" };
 
     // the quay
@@ -779,6 +788,7 @@ export function createRunner(host) {
     streaks.visible = fast > 0.01;
 
     // particles and effects
+    nearZ = hz - cam.out.back + 0.8;
     tickPool(dusts, dt, false); tickPool(sprays, dt, true);
     for (let i = fx.length - 1; i >= 0; i--) {
       const e = fx[i], t = (now - e.born) / e.life;
@@ -839,7 +849,7 @@ export function createRunner(host) {
         puff(h.x, h.z + 0.4, 16, 5, 0.34, 0, 0, 1.2);
         break;
       case "hurt": shake = 1.2; break;
-      case "fall": shake = 0.8; splash(h.x, h.z, 20, 1.15); break;
+      case "fall": shake = 0.8; break;
       case "clang": shake = 1; break;
       case "wallrun": shake = Math.max(shake, 0.25); puff(h.x + ev.side * 0.4, h.z, 4, 1.6, 0.22, 0, -spd * 0.1, 1.2, 1.2); break;
       case "walljump": shake = Math.max(shake, 0.25); D.crouch.set(0.6); D.crouchW = 20; D.stretch.kick(2); cam.punch(1.5); puff(h.x + ev.side * 0.4, h.z, 5, 2, 0.24, -ev.side * 1.5, 0, 1.4, h.y); break;

@@ -83,8 +83,11 @@ export class CameraRig {
     this.sroll = new Spring(0); this.slook = new Spring(1.2); this.sdip = new Spring(0); this.spunch = new Spring(0);
     this.out = { x: 0, y: 3.2, back: 5.4, lookX: 0, lookY: 1.2, ahead: 10, fov: 0, roll: 0 };
   }
-  /** Where the camera is for a hero at rest in his lane, at once (a new run). */
-  reset(x = 0) { for (const s of Object.values(this)) if (s instanceof Spring) { s.v = 0; } this.sx.x = x * 0.55; this.sdip.x = this.spunch.x = this.sroll.x = this.sfov.x = 0; }
+  /** Back to where the camera stands for a hero at rest in his lane, at once (a new run). */
+  reset(x = 0) {
+    this.sx.set(x * 0.55); this.sy.set(3.2); this.sback.set(5.4); this.slook.set(1.2);
+    for (const s of [this.sfov, this.sroll, this.sdip, this.spunch]) s.set(0);
+  }
   /** A landing at `impact` m/s: the camera dips and the picture draws in a little, and both come back with an overshoot. */
   land(impact) { this.sdip.x -= clamp(impact * 0.028, 0.05, 0.5); this.spunch.x -= clamp(impact * 0.12, 0.4, 3); }
   /** The field of view opens for a moment (a cut, a dive): `deg` degrees, back in a third of a second. */

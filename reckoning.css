@@ -1,4 +1,4 @@
-/* Reckoning: the quay drawn by reckoning-3d.js on a canvas filling the stage, with what the page says over it in the
+/* Courier: the quay drawn by reckoning-3d.js on a canvas filling the stage, with what the page says over it in the
    screen's own pixels (hearts, distance, a line when something happens) and, under the hearts, the question: a line and
    three answer cards, one to a lane, in the order the lanes are across the quay. The page never scrolls; the question
    floats over the quay and moves nothing. Brass is the house colour, the plate the one action. */
