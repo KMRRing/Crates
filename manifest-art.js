@@ -9,7 +9,7 @@
 // away) is ropes on grey, every piece a plain box.
 import { WARES, boxFor, isoPoint, cubeFaces, drawOrder, dropTimes, visibleSet } from "./manifest-engine.js";
 import { QUAY_DEPTH, frameOf, yawOf } from "./manifest-model.js";
-import { barrelRadius, sackRadius, INGOT_SHRINK, GOLD_MARK, crownAt, BIRCH_LOGS, hull } from "./manifest-shapes.js";
+import { barrelRadius, sackRadius, INGOT_SHRINK, GOLD_MARK, GOLD_BARS, crownOn, BIRCH_LOGS, hull } from "./manifest-shapes.js";
 import { ready, is3d, stage3d, icon3d, playOut as playOut3d } from "./manifest-pictures.js";
 
 export { QUAY_DEPTH, ready, is3d };
@@ -159,11 +159,10 @@ const DRAW = {
     const c = A(0.8, 0.8, 0.32), u = A.unit * 0.1;
     B.line([[c[0], c[1] - u], [c[0] + u * 0.86, c[1] + u * 0.5], [c[0] - u * 0.86, c[1] + u * 0.5]], "rgba(80,50,28,.8)", 1.4, true);
   },
-  // gold ingots: the ingots' pile in gold with polished tops, and a crown stamped across the top (GOLD_MARK, the 3D one's too)
+  // gold ingots: the ingots' pile in gold with polished tops, and a crown stamped on each top bar (GOLD_MARK, the 3D one's too)
   7(B, A, hex) {
     ingotPile(B, A, hex, 1.14);
-    const at = q => { const [x, z] = crownAt(q); return A(0.5 + x, 0.5 + z, 0.995); };
-    B.shape(GOLD_MARK.map(at), "rgba(70,30,2,.82)");
+    for (const bar of GOLD_BARS) B.shape(GOLD_MARK.map(q => { const [x, z] = crownOn(bar, q); return A(0.5 + x, 0.5 + z, 0.995); }), "rgba(70,30,2,.85)");
   },
   // birch: six slender white logs in a pyramid, black dashes round the bark; seen from its end it is a triangle, not oak's square
   8(B, A, hex, alongY) {
@@ -172,15 +171,16 @@ const DRAW = {
     const ridge = alongY ? [A(0.5, 0.03, H), A(0.5, 0.97, H)] : [A(0.03, 0.5, H), A(0.97, 0.5, H)];
     // a point on the slope: e along the log (0 to 1), f up the slope (0 the foot, 1 the ridge)
     const slope = (e, f) => [0, 1].map(i => { const lo = bottom[0][i] + e * (bottom[1][i] - bottom[0][i]), hi = ridge[0][i] + e * (ridge[1][i] - ridge[0][i]); return lo + f * (hi - lo); });
-    B.fill([bottom[0], bottom[1], ridge[1], ridge[0]], shade(hex, alongY ? 0.86 : 0.72));
+    B.fill([bottom[0], bottom[1], ridge[1], ridge[0]], shade(hex, 0.97));
+    for (const f of [0.34, 0.67]) B.line([slope(0, f), slope(1, f)], "rgba(70,58,40,.55)", 1);              // the three logs' backs
     const end = (a, c) => (alongY ? A(a, 0.97, c) : A(0.97, a, c));
     B.fill([end(0.03, 0), end(0.97, 0), end(0.5, H)], "#3A3226");
     for (const rope of [0.22, 0.78]) B.line([slope(rope, 0), slope(rope, 1)], "#B99B64", 2);
-    const dashes = [[0.1, 0.18], [0.34, 0.1], [0.56, 0.22], [0.8, 0.14], [0.2, 0.48], [0.46, 0.4], [0.68, 0.52], [0.9, 0.44], [0.12, 0.78], [0.4, 0.7], [0.62, 0.84], [0.86, 0.74]];
-    for (const [e, f] of dashes) B.line([slope(e, f), slope(e + 0.012, f + 0.1)], ink, 1.6);
+    const dashes = [[0.1, 0.08], [0.34, 0.12], [0.56, 0.05], [0.8, 0.1], [0.2, 0.4], [0.46, 0.45], [0.68, 0.38], [0.9, 0.42], [0.12, 0.74], [0.4, 0.78], [0.62, 0.72], [0.86, 0.8]];
+    for (const [e, f] of dashes) B.line([slope(e, f), slope(e + 0.01, f + 0.15)], ink, 1.6);
     for (const L of BIRCH_LOGS) {
       const a = 0.5 + L.z, c = L.y + 0.5, ring = r => Array.from({ length: 12 }, (_, i) => end(a + Math.cos(i / 12 * TAU) * r, c + Math.sin(i / 12 * TAU) * r));
-      B.shape(ring(L.r), shade(hex, 0.86)); B.shape(ring(L.r * 0.78), "#EAD6A6");
+      B.shape(ring(L.r), shade(hex, 0.72)); B.shape(ring(L.r * 0.78), "#EAD6A6");
       B.line(ring(L.r * 0.4), "rgba(120,80,30,.5)", 0.8, true);
     }
   },

@@ -241,16 +241,16 @@ void birch(vec3 Q, vec3 N, int part, float seed, vec2 uv, float pw, inout Surf o
   float along = P.x;
   float tone = fbm(vec2(a * 2. + seed, along * 4.));
   vec3 c = o.col * (.88 + .22 * tone);
-  float dash = smoothstep(.6, .68, n2(vec2(along * 7. + seed * 3.1, a * 1.1 + seed))) * smoothstep(.38, .55, n2(vec2(a * 1.3 + seed * 2., along * 1.8 + 5.)));
-  float peel = smoothstep(.7, .86, n2(vec2(a * 2. + seed * 5., along * 3. + 2.)));
-  c = mix(c, vec3(.6, .54, .44), peel * .4);
+  float dash = smoothstep(.6, .66, n2(vec2(along * 21. + seed * 3.1, a * 1.1 + seed))) * smoothstep(.34, .5, n2(vec2(a * 1.3 + seed * 2., along * 2.5 + 5.)));
+  float peel = smoothstep(.72, .86, n2(vec2(a * 1.5 + seed * 5., along * 4. + 2.)));
+  c = mix(c, vec3(.7, .64, .54), peel * .35);
   c = mix(c, vec3(.06, .05, .045), dash * .9);
   o.col = c; o.rough = .8; o.h = .01 * tone - .008 * dash;
   vec3 toMid = normalize(vec3(0., P.y + .12, P.z) + vec3(0., 1e-4, 0.));
   o.ao = mix(.5, 1., smoothstep(-.35, .5, dot(N, toMid)));
 }
 
-// ---- gold ingots: the ingots' bars cast in gold, their tops polished bright, a crown stamped across the top of the pile
+// ---- gold ingots: the ingots' bars cast in gold, their tops polished bright, a crown stamped on each of the three top bars
 const vec2 CROWN[${GOLD_MARK.length}] = vec2[${GOLD_MARK.length}](${GOLD_MARK.map(q => `vec2(${q[0]}, ${q[1]})`).join(", ")});
 bool inCrown(vec2 p) {
   bool in_ = false;
@@ -268,14 +268,14 @@ void gold(vec3 Q, vec3 N, float seed, float pw, inout Surf o) {
   float s = alongX ? P.x : P.z, t = (alongX ? P.z : P.x) - across;
   float top = smoothstep(.5, .85, N.y);
   float tone = h21(vec2(seed, 7.));
-  vec3 c = o.col * (.9 + .16 * tone) * (.86 + .24 * n2(vec2(s * 30., t * 8. + seed)) + .1 * fbm(vec2(s, t) * 12. + seed));
-  c *= mix(.8, 1.55, top);                                           // the sides sit in shade, the polished tops catch the light
+  vec3 side = o.col * vec3(1.15, 1.45, 1.), polished = o.col * vec3(1.85, 2.9, 1.) + vec3(0., 0., .03);   // the sides sit in shade, the polished tops catch the light
+  vec3 c = mix(side, polished, top) * (.9 + .16 * tone) * (.86 + .24 * n2(vec2(s * 30., t * 8. + seed)) + .1 * fbm(vec2(s, t) * 12. + seed));
   vec2 m = vec2(s, t) / sc;
   float plate = cov(sdBox(m, vec2(0.), vec2(.2, .07), .01), pw) * top * step(float(layer), 2.5);
   c = mix(c, c * .7, plate);
   float crown = 0.;
   if (layer == 3 && top > .5) {
-    vec2 cp = vec2((P.x - P.z) * .70711 / ${GOLD_MARK_SIZE[0]}, -(P.x + P.z) * .70711 / ${GOLD_MARK_SIZE[1]});
+    vec2 cp = vec2((P.x - across) / ${GOLD_MARK_SIZE[0]}, -P.z / ${GOLD_MARK_SIZE[1]});
     crown = float(inCrown(cp)) * top;
   }
   c = mix(c, vec3(.2, .09, .01), crown * .85);

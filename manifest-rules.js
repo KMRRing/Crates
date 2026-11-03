@@ -22,7 +22,7 @@ export const CARGO = [
   { id: 4, key: "ingot", name: "Ingots", plural: "piles of ingots", w: 8, worth: 12, top: "flat", bears: 99 },
   { id: 5, key: "chest", name: "Chest", plural: "chests", w: 2, worth: 20, top: "domed", bears: 0 },
   { id: 6, key: "sack", name: "Sack", plural: "sacks", w: 1, worth: 2, top: "soft", bears: 2 },
-  { id: 7, key: "gold", name: "Gold ingots", plural: "piles of gold ingots", w: 12, worth: 40, top: "flat", bears: 99 },
+  { id: 7, key: "gold", name: "Gold", plural: "piles of gold ingots", w: 12, worth: 40, top: "flat", bears: 99 },
   { id: 8, key: "birch", name: "Birch", plural: "bundles of birch", w: 5, worth: 4, top: "round", bears: 14 },
 ];
 export const TYPES = CARGO.length;

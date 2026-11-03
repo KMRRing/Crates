@@ -197,13 +197,15 @@ function birch() {
   return m;
 }
 
-/** The crown stamped on the top of a pile of gold ingots: the second thing, besides its colour, that tells gold from tin. Its
- *  corners are in the crown's own square (across -1 to 1, up -1 to 1 as the viewer sees the top), and `crownAt` puts one on the
- *  cell's top plane (x right, z toward the viewer's left, each -.5 to .5; the isometric view's up is toward -x and -z). Both
- *  drawings read it from here. */
+/** The crown stamped on the top of each of the three top bars of a pile of gold ingots: the second thing, besides its colour,
+ *  that tells gold from tin. Its corners are in the crown's own square (across -1 to 1, up -1 to 1, up being toward the bar's
+ *  far end), GOLD_MARK_SIZE its half width and half length in cells, and `crownOn` puts a corner on a bar (its x in the cell) as
+ *  a point of the cell's top plane (x, z each -.5 to .5). The top bars run along z, at GOLD_BARS across. Both drawings read it
+ *  from here. */
 export const GOLD_MARK = [[-1, -1], [-1, 0.9], [-0.5, 0.1], [0, 1], [0.5, 0.1], [1, 0.9], [1, -1]];
-export const GOLD_MARK_SIZE = [0.29, 0.27];                                  // half its width and height on the top plane
-export const crownAt = ([across, up]) => { const s = across * GOLD_MARK_SIZE[0], t = up * GOLD_MARK_SIZE[1]; return [(s - t) * Math.SQRT1_2, (-s - t) * Math.SQRT1_2]; };
+export const GOLD_MARK_SIZE = [0.075, 0.15];
+export const GOLD_BARS = [-1, 0, 1].map(k => k * 0.318 * (1 - 3 * 0.045));
+export const crownOn = (barX, [across, up]) => [barX + across * GOLD_MARK_SIZE[0], -up * GOLD_MARK_SIZE[1]];
 
 /** A pile of ingots: four layers of three bars, each layer across the one below, every bar a frustum (the foot wider than the top). */
 export const INGOT_LAYERS = 4, INGOT_SHRINK = 0.045;

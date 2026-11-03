@@ -42,9 +42,11 @@ const NAMES = R.CARGO.map(c => c.key);
   const gold = Sh.meshOf(R.GOLD), tin = Sh.meshOf(R.INGOT);
   check(gold !== tin && gold.pos.length === tin.pos.length && gold.pos.every((v, i) => v === tin.pos[i]),
     "gold ingots are the ingots' shape exactly (the exception to 'no two types share an outline', which colour and the crown make up for)");
-  const [wx, wz] = [Sh.GOLD_MARK.map(q => Sh.crownAt(q)[0]), Sh.GOLD_MARK.map(q => Sh.crownAt(q)[1])];
-  check(Sh.GOLD_MARK.length >= 7 && Math.min(...wx, ...wz) > -0.45 && Math.max(...wx, ...wz) < 0.45 && new Set(Sh.GOLD_MARK.map(q => q[1])).size >= 3,
-    "the crown on gold's top has points and a base, and lies inside the pile's top");
+  const onBar = Sh.GOLD_BARS.map(bar => Sh.GOLD_MARK.map(q => Sh.crownOn(bar, q)));
+  const barHalf = 0.1 * (1 - 3 * Sh.INGOT_SHRINK);                            // a top bar's top is .2 wide, as the piece is shrunk
+  check(Sh.GOLD_MARK.length >= 7 && new Set(Sh.GOLD_MARK.map(q => q[1])).size >= 3 && Sh.GOLD_BARS.length === 3
+    && onBar.every((pts, k) => pts.every(([x, z]) => Math.abs(x - Sh.GOLD_BARS[k]) <= barHalf && Math.abs(z) <= 0.3)),
+    "the crown on gold has points and a base, and one is stamped inside the top of each of the three top bars")
 }
 
 // the cell is a cube, so a quarter turn changes nothing about it; a bundle of timber lies along x or y by its tier and the turns
