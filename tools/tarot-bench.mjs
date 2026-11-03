@@ -12,6 +12,8 @@ import { strength, LEVELS } from "../tarot-bot.js";
 import { newRecord, applyMove, applyWake, botMove } from "../seats.js";
 
 const [mode, ...args] = process.argv.slice(2);
+// TAROT_FREE=1: no time limit on the thinking, so a loaded machine measures the levels by their samples alone
+if (process.env.TAROT_FREE) for (const L of Object.values(LEVELS)) L.ms = 0;
 
 /** Plays one deal to its result; `levels[seat]` the level of each seat; `force`: { seat, bid } makes that seat the taker. */
 function playDeal(G, levels, force = null) {

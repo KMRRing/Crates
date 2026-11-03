@@ -420,7 +420,7 @@ function play(s, seat, m, now) {
   if (s.trick.plays.length < s.n) { s.turn = (seat + 1) % s.n; return s; }
   return endTrick(s, now);
 }
-function whyNot(s, seat, c) {
+export function whyNot(s, seat, c) {
   const plays = s.trick.plays;
   if (!plays.length) return "You may not lead the called king's suit on the first trick";
   const led = (() => { for (const p of plays) if (p.card !== EXCUSE) return classOf(p.card); return -1; })();

@@ -17,7 +17,7 @@ export const LEVELS = {
   plain: { samples: 0, top: 1, slip: 0, bid: 0, ms: 0 },             // the rule-of-thumb player alone
   easy: { samples: 0, top: 1, slip: 0.2, bid: 3.5, ms: 0 },
   medium: { samples: 8, top: 4, slip: 0.04, bid: 1.2, ms: 120 },
-  hard: { samples: 28, top: 5, slip: 0, bid: 0, ms: 220 },
+  hard: { samples: 48, top: 6, slip: 0, bid: 0, ms: 1500 },
 };
 const lvlOf = level => LEVELS[level] || LEVELS.hard;
 
@@ -51,9 +51,9 @@ export function strength(hand, n) {
 }
 /** Strength needed for each bid [Petite, Garde, Sans, Contre] by the number of players (fitted by the bench). */
 export const BID_AT = {
-  3: [20.5, 24, 28.5, 37],
-  4: [21, 25, 28.5, 37],
-  5: [12.5, 16, 24, 33],
+  3: [18, 22, 28.5, 37],
+  4: [18, 22, 28.5, 37],
+  5: [11, 14.5, 24, 33],
 };
 
 // ---------- the bid ----------
