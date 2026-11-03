@@ -28,6 +28,8 @@
 .cb-lv b { margin-right: .5em; color: var(--brass-lo, var(--brass)); }
 .cb-sub { display: flex; align-items: baseline; gap: .7rem; font-size: .82rem; color: var(--ink-soft); }
 .cb-sub b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.cb-goal { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; font-weight: 700; color: var(--ink); }
+.cb-goal[hidden] { display: none; }
 .cb-stars { color: var(--brass); letter-spacing: .12em; font-size: .9rem; }
 .cb-stars.bull::after { content: " ◎"; letter-spacing: 0; color: var(--cb-in); }
 
@@ -97,6 +99,10 @@
 /* the menu's levels: three to a row, each its place in miniature (the Earth, the gun, the ring), its number and name, and its stars */
 .cb-levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .5rem 0; }
 .cb-levels button { display: grid; grid-template-rows: auto auto 1fr; gap: .2rem; padding: .35rem .4rem .4rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.cb-sec { margin: .7rem 0 0; }
+.cb-sec b { display: block; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.09em * var(--track)); }
+.cb-sec span { display: block; margin-top: .1rem; font-size: .78rem; color: var(--ink-soft); line-height: 1.3; }
+.cb-levels button:disabled { opacity: .42; cursor: default; }
 .cb-levels button.done { background: var(--cb-soft); }
 .cb-levels button[aria-current] { border-color: var(--cb-in); box-shadow: inset 0 0 0 1.5px var(--cb-in); }
 .cb-lmap { aspect-ratio: 1 / 1; width: 100%; border-radius: 3px; background: #0b1020; }
@@ -108,3 +114,7 @@
 .cb-map-earth { vector-effect: non-scaling-stroke; fill: #2c4768; stroke: #e9dfc6; stroke-width: 1; }
 .cb-map-ring { vector-effect: non-scaling-stroke; fill: rgba(217, 164, 65, .25); stroke: #d9a441; stroke-width: 2; }
 .cb-map-gun { fill: #f0d58a; }
+.cb-map-moon { fill: #aeb4c2; stroke: none; }
+.cb-map-rail { vector-effect: non-scaling-stroke; fill: none; stroke: rgba(233, 223, 198, .35); stroke-width: 1; stroke-dasharray: 1 3; }
+.cb-map-gate { vector-effect: non-scaling-stroke; fill: none; stroke: #d9a441; stroke-width: 1.5; }
+.cb-map-num { fill: #f0d58a; font: 700 1px system-ui, sans-serif; text-anchor: middle; }

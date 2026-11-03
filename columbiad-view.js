@@ -41,7 +41,7 @@ export function createView(canvas, hooks = {}) {
   let clock = 0, bodies = [], sun = sunOf(135, 0.5), spin = 0;        // the game's time now; the bodies to draw; the Earth's turn (turns)
   let earthG = null, lastDraw = 0, idled = false;
   // the aim view: the level's own frame, grown to hold the whole cone, so the preview is never out of sight
-  const base = () => (coneBox ? { x0: Math.min(frame.x0, coneBox.x0), y0: Math.min(frame.y0, coneBox.y0), x1: Math.max(frame.x1, coneBox.x1), y1: Math.max(frame.y1, coneBox.y1) } : frame);
+  const base = () => (coneBox && !lvl.frame ? { x0: Math.min(frame.x0, coneBox.x0), y0: Math.min(frame.y0, coneBox.y0), x1: Math.max(frame.x1, coneBox.x1), y1: Math.max(frame.y1, coneBox.y1) } : frame);
   let flight = null, live = null;                                     // the flight playing; the trail it leaves until the next shot
   let recoil = 0, flash = 0, shake = 0, since = 0;                    // seconds since the shot, for the cannon's kick
   const smoke = [], sparks = [];
@@ -154,6 +154,16 @@ export function createView(canvas, hooks = {}) {
       label(`${lim.soft !== undefined ? "≤" : "≥"} ${(lim.soft ?? lim.fast).toFixed(lim.soft ?? lim.fast < 10 ? 1 : 0)}`, x, y - R - 18 * u, GOOD);
     }
     if (n > 1) label(String(i + 1), x, y - R - 8 * u, BRASS_HI, 13);
+    // a ring that moves: where it will be when the shot now aimed comes nearest (the preview's own moment), a faint ring, so the thumb can wait for it
+    if (cone && cone.tNear !== undefined && !flight && !live && (T.body != null || T.rail)) {
+      const q = ringAt(lvl, T, cone.tNear), gx = sx(q[0]), gy = sy(q[1]);
+      if (Math.hypot(gx - x, gy - y) > R * 0.6) {
+        ctx.save();
+        ctx.setLineDash([2 * u, 3 * u]); ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${BRASS_HI},.75)`;
+        ctx.beginPath(); ctx.arc(gx, gy, R, 0, 6.2832); ctx.stroke();
+        ctx.restore();
+      }
+    }
     if (goal.type === "orbit" && last) label(`↻ ${goal.sweep}°`, x, y + R + 14 * u, BRASS_HI);
     if (goal.type === "return" && last) label("down here", x, y - R - 8 * u, BRASS_HI);
     if (flare > 0 && last) {

@@ -4,9 +4,10 @@
 // and a held press runs it fast. A miss costs nothing: the gun is aimed as it was and the shot is a faint trail on the scene.
 // The rules are columbiad-engine.js's (it plays the whole shot at once and hands over its path); columbiad-view.js plays the path
 // back, columbiad-aim.js is the pull's arithmetic, columbiad-levels.js the levels. This file keeps the game and the page.
-// Milestone 1 is the Earth alone: the proving ground, six levels, all open (it is a place to try the gun).
-import { LEVELS } from "./columbiad-levels.js";
-import { newGame, apply, stars as starsOf, cone as coneOf, clampAim, sound as validState, direction, BARRELS } from "./columbiad-engine.js";
+// The levels come in sections (columbiad-levels.js): the proving ground (Earth alone, all open) and then the Moon's, each opening in
+// order. Where the Moon moves the world has a clock, and a shot is fired at the time it is: the cone is the aim for this very moment.
+import { LEVELS, SECTIONS } from "./columbiad-levels.js";
+import { newGame, apply, stars as starsOf, cone as coneOf, clampAim, sound as validState, direction, worldOf, ringAt, BARRELS } from "./columbiad-engine.js";
 import { PULL_REM, DEAD_REM, begin as pullBegin, move as pullMove, nudge, crossed } from "./columbiad-aim.js";
 import { createView } from "./columbiad-view.js";
 import { sound } from "./columbiad-sound.js";
@@ -22,6 +23,7 @@ const $ = id => document.getElementById(id);
 const CAMP = "columbiad:camp", RUN = "columbiad:run", AIMS = "columbiad:aims", BEST = "columbiad:best", SOUND = "columbiad:sound", SEEN = "columbiad:seen";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+const noted = new Set();       // the levels whose note has been said this visit
 const STAR = "★", HOLLOW = "☆";
 const starsWords = n => STAR.repeat(n) + HOLLOW.repeat(3 - n);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -38,10 +40,18 @@ let ghosts = [];              // the last four shots' trails: { pts (x, y pairs)
 let liveOn = false;           // the newest shot's bright trail is still on the scene (it is its own ghost until the gun is touched)
 let phase = "aim";            // "aim", "fly" (a shot being shown), "done" (the ring struck: how it went, and on)
 let touch = null;             // the finger on the scene: { id, kind ("aim" or "press"), x, y, drag, timer, ff }
-let coneDirty = true;
+let coneDirty = true, coneAt = 0;
 let saveTimer = 0, sayTimer = 0;
+/** The moment a shot fired now is fired at, in hundredths of a second (so it is the same number wherever it is replayed). */
+const stamp = () => Math.round(view.clock * 100) / 100;
+const moving = () => worldOf(lvl).moving;
 
 // ---------- keeping ----------
+/** A level is open when it begins its section or the one before it in the section has been struck; the proving ground is all open (a place to try the gun). */
+function isOpen(n) {
+  const L = LEVELS[n], sec = SECTIONS.find(x => x.levels.includes(L)), k = sec.levels.indexOf(L);
+  return sec.open === "all" || k === 0 || camp.stars[n - 1] > 0 || camp.stars[n] > 0;
+}
 function readCamp() {
   const c = read(CAMP, null);
   const stars = LEVELS.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
@@ -53,7 +63,7 @@ function keepCamp() {
   write(BEST, camp.stars.reduce((a, b) => a + b, 0));
 }
 const goodTrail = g => g && Array.isArray(g.pts) && g.pts.length >= 4 && g.pts.length <= 200 && g.pts.length % 2 === 0 && g.pts.every(Number.isFinite);
-function keepRun() { write(RUN, { id: lvl.id, s: { ...S, aim: { ...aim } }, ghosts }); }
+function keepRun() { write(RUN, { id: lvl.id, s: { ...S, aim: { ...aim }, clock: stamp() }, ghosts }); }
 function keepAim() {
   clearTimeout(saveTimer); saveTimer = 0;
   write(AIMS, { ...read(AIMS, {}), [lvl.id]: aim });
@@ -79,6 +89,7 @@ function loadRun() {
     ghosts = Array.isArray(r.ghosts) ? r.ghosts.filter(goodTrail).slice(-4) : [];
     aim = clampAim(lvl, S.aim);
     liveOn = false;
+    view.setClock(Number.isFinite(S.clock) ? S.clock : 0);
   } else fresh();
   phase = S.status === "won" ? "done" : "aim";
 }
@@ -140,6 +151,9 @@ function render() {
   const won = S.status === "won", k = won ? S.shots : S.shots + 1, earn = starsOf(lvl, { status: "won", shots: k });
   $("lvId").textContent = lvl.id;
   $("lvName").textContent = lvl.name;
+  const gw = goalWords(lvl);
+  $("goal").textContent = gw;
+  $("goal").hidden = !gw;
   $("shot").textContent = k;
   $("stars").textContent = starsWords(earn);
   $("stars").classList.toggle("bull", won && S.bull);
@@ -151,13 +165,14 @@ function render() {
   for (const id of ["fire", "angL", "angR", "powD", "powU"]) $(id).disabled = busy;
   if (done) {
     const i = camp.at, last = i + 1 >= LEVELS.length;
-    $("verdict").innerHTML = `<span class="cb-big">Hit</span><span class="cb-stars-big">${starsWords(earn)}</span><small>${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}${last ? " · that is all six" : ""}</small>`;
+    $("verdict").innerHTML = `<span class="cb-big">${WON[lvl.goal?.type || "hit"]}</span><span class="cb-stars-big">${starsWords(earn)}</span><small>${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}${last ? " · the last level so far" : ""}</small>`;
     $("nextBtn").hidden = last;
   }
   if (typeof measure === "function") measure();
   const seen = read(SEEN, false);
   $("hint").hidden = !!seen || IN_FRAME || phase !== "aim";
   if (!$("hint").hidden) $("hint").textContent = "Pull back like a slingshot: the shell flies the other way, and a longer pull loads more powder. Press Fire; the arrows fine-tune.";
+  else if (phase === "aim" && S.shots === 0 && lvl.note && !noted.has(lvl.id)) { noted.add(lvl.id); say(lvl.note, 5200); }
 }
 function say(words, ms = 2400) {
   const n = $("say");
@@ -171,9 +186,12 @@ const unsay = () => { clearTimeout(sayTimer); $("say").classList.remove("show");
 // ---------- the scene ----------
 const view = createView($("scene"), {
   before() {
+    // where the world moves, the preview is the aim for this moment: it is made again ten times a second (a coarse step keeps that cheap)
+    if (!coneDirty && moving() && phase === "aim" && !view.flying && performance.now() - coneAt > 100) coneDirty = true;
     if (!coneDirty) return;
     coneDirty = false;
-    view.setCone(aim.charge >= 0.05 ? coneOf(lvl, aim, 0) : null);
+    coneAt = performance.now();
+    view.setCone(aim.charge >= 0.05 ? coneOf(lvl, aim, stamp()) : null);
   },
   onHit() { sound.play("chime"); },
   onImpact() { sound.hushStop(); sound.play("thud"); },
@@ -182,11 +200,39 @@ const view = createView($("scene"), {
     view.setGhosts(liveOn ? ghosts.slice(0, -1) : ghosts);
     if (S.status === "won") { phase = "done"; render(); return; }
     phase = "aim";
-    const by = Math.max(0, res.near - lvl.target.r);
-    say(`Missed by ${by.toFixed(2)}`);
+    say(missWords(res), 3600);
     render();
   },
 });
+
+const unit = n => n.toFixed(n < 10 ? 1 : 0);
+/** What the level asks, in a line. */
+function goalWords(L) {
+  const g = L.goal || { type: "hit" };
+  switch (g.type) {
+    case "soft": return `Arrive at ${unit(g.speed)} or slower`;
+    case "fast": return `Arrive at ${unit(g.speed)} or faster`;
+    case "gates": return `Pass ${L.gates.length} gates in order`;
+    case "return": return `Round the ${g.via || "Moon"} and home`;
+    case "orbit": return `Sweep ${g.sweep}° round the ${g.body}`;
+    default: return "";
+  }
+}
+const WON = { hit: "Hit", soft: "Soft arrival", fast: "Fast pass", gates: "Through the gates", return: "Home again", orbit: "In orbit" };
+/** How a shot that did not win went, for the line over the picture. */
+function missWords(res) {
+  const g = lvl.goal || { type: "hit" }, list = lvl.gates || [lvl.target], gated = !!lvl.gates && (g.type === "gates" || g.type === "return");
+  const fell = res.end === "impact" ? `Struck the ${res.body === "earth" ? "Earth" : res.body}. ` : res.end === "lost" ? "Lost to space. " : res.end === "time" ? "Out of time. " : "";
+  if (g.type === "orbit") return `${fell}Swept ${Math.round(Math.abs(res.sweep) * 57.2958)}° of ${g.sweep}°`;
+  const T = gated ? list[Math.min(res.gates, list.length - 1)] : lvl.target;
+  if (res.hit && !res.hit.ok) {
+    const lim = gated ? T : g.type === "soft" ? { soft: g.speed } : { fast: g.speed };
+    return lim.soft !== undefined ? `In the ring at ${unit(res.hit.speed)}: too fast (${unit(lim.soft)} at most)` : `In the ring at ${unit(res.hit.speed)}: too slow (${unit(lim.fast)} at least)`;
+  }
+  const by = Math.max(0, res.near - T.r).toFixed(1);
+  if (gated && list.length > 1) return `${fell}${res.gates ? `Through ${res.gates} of ${list.length - 1} gates, ` : ""}${res.gates === list.length - 1 ? "ring" : `gate ${res.gates + 1}`} missed by ${by}`;
+  return `${fell}Missed by ${by}`;
+}
 
 /** The bright trail and the words of the last shot go as soon as the gun is touched; its faint ghost stays. */
 function touched() {
@@ -213,7 +259,7 @@ function fire() {
   if (aim.charge < 0.1) { say("Pull back to load powder"); return; }
   sound.unlock();
   touched();
-  const { state, res } = apply(lvl, S, { angle: aim.angle, charge: aim.charge, t: 0 });
+  const { state, res } = apply(lvl, S, { angle: aim.angle, charge: aim.charge, t: stamp() });
   const prior = ghosts;
   S = state;
   ghosts = [...ghosts, trailOf(res)].slice(-4);
@@ -332,37 +378,63 @@ $("nextBtn").addEventListener("click", () => { if (camp.at + 1 < LEVELS.length) 
 // ---------- the menu ----------
 /** A level's place in miniature: the Earth, the gun on it and the ring. */
 function mapSvg(L) {
-  const [tx, ty] = L.target.at, r = L.target.r;
-  const x0 = Math.min(-1.1, tx - r - 0.1), x1 = Math.max(1.1, tx + r + 0.1), y0 = Math.min(-1.1, ty - r - 0.1), y1 = Math.max(1.1, ty + r + 0.1);
-  const s = Math.max(x1 - x0, y1 - y0) * 1.04, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const w = worldOf(L), rings = L.gates || [L.target], f = n => n.toFixed(3);
+  // what the picture must hold: the Earth, each moon (all of its rail), each ring (all of its rail)
+  let x0 = -1.1, x1 = 1.1, y0 = -1.1, y1 = 1.1;
+  const grow = (x, y, r = 0) => { x0 = Math.min(x0, x - r); x1 = Math.max(x1, x + r); y0 = Math.min(y0, y - r); y1 = Math.max(y1, y + r); };
+  for (const b of w.bodies) if (b.id !== "earth") { if (b.rail) grow(b.cx, b.cy, Math.abs(b.a) + 1); else grow(b.x, b.y, b.r + 0.5); }
+  for (const T of rings) { if (T.rail) grow(T.rail.about?.[0] ?? 0, T.rail.about?.[1] ?? 0, Math.abs(T.rail.a) + T.r); else if (T.body != null) { const p = ringAt(L, T, 0); grow(p[0], p[1], T.r + 0.5); } else grow(T.at[0], T.at[1], T.r + 0.1); }
+  const s = Math.max(x1 - x0, y1 - y0) * 1.06, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, mark = s * 0.012;
   const [gx, gy] = direction(L.site ?? 90);
-  const f = n => n.toFixed(3);
-  return `<svg viewBox="${f(cx - s / 2)} ${f(-cy - s / 2)} ${f(s)} ${f(s)}" aria-hidden="true"><circle class="cb-map-earth" cx="0" cy="0" r="1"/><circle class="cb-map-ring" cx="${f(tx)}" cy="${f(-ty)}" r="${f(L.target.r)}"/><circle class="cb-map-gun" cx="${f(gx * 1.03)}" cy="${f(-gy * 1.03)}" r="${f(s * 0.035)}"/></svg>`;
+  let g = `<circle class="cb-map-earth" cx="0" cy="0" r="${f(Math.max(1, s * 0.02))}"/>`;
+  w.bodies.forEach((b, i) => {
+    if (b.id === "earth") return;
+    if (b.rail) g += `<circle class="cb-map-rail" cx="${f(b.cx)}" cy="${f(-b.cy)}" r="${f(Math.abs(b.a))}"/>`;
+    const p = ringAt(L, { body: b.id, r: 0 }, 0);
+    g += `<circle class="cb-map-moon" cx="${f(p[0])}" cy="${f(-p[1])}" r="${f(Math.max(b.r, s * 0.018))}"/>`;
+  });
+  rings.forEach((T, k) => {
+    if (T.rail) g += `<circle class="cb-map-rail" cx="${f(T.rail.about?.[0] ?? 0)}" cy="${f(-(T.rail.about?.[1] ?? 0))}" r="${f(Math.abs(T.rail.a))}"/>`;
+    const p = ringAt(L, T, 0), last = k === rings.length - 1;
+    g += `<circle class="${last ? "cb-map-ring" : "cb-map-gate"}" cx="${f(p[0])}" cy="${f(-p[1])}" r="${f(Math.max(T.r, s * 0.03))}"/>`;
+    if (rings.length > 1) g += `<text class="cb-map-num" font-size="${f(s * 0.06)}" x="${f(p[0])}" y="${f(-p[1] + s * 0.02)}">${k + 1}</text>`;
+  });
+  g += `<circle class="cb-map-gun" cx="${f(gx * 1.03)}" cy="${f(-gy * 1.03)}" r="${f(s * 0.035)}"/>`;
+  return `<svg viewBox="${f(cx - s / 2)} ${f(-cy - s / 2)} ${f(s)} ${f(s)}" aria-hidden="true">${g}</svg>`;
 }
-function levelList() {
+function levelList(sec) {
   const list = document.createElement("div");
   list.className = "cb-levels";
-  LEVELS.forEach((L, n) => {
-    const b = document.createElement("button"), won = camp.stars[n];
+  for (const L of sec.levels) {
+    const n = LEVELS.indexOf(L), b = document.createElement("button"), won = camp.stars[n], open = isOpen(n);
     b.type = "button";
+    b.disabled = !open;
     b.className = won ? "done" : "";
     if (n === camp.at) b.setAttribute("aria-current", "true");
-    b.setAttribute("aria-label", `Level ${L.id}, ${L.name}${won ? `, ${plural(won, "star")}${camp.bull[n] ? ", bullseye" : ""}` : ""}`);
-    b.innerHTML = `<div class="cb-lmap">${mapSvg(L)}</div><div class="cb-lrow"><b>${L.id}</b><span>${starsWords(won)}${camp.bull[n] ? " ◎" : ""}</span></div><div class="cb-lnamed"></div>`;
+    b.setAttribute("aria-label", `Level ${L.id}, ${L.name}${open ? "" : ", locked: strike the one before it"}${won ? `, ${plural(won, "star")}${camp.bull[n] ? ", bullseye" : ""}` : ""}`);
+    b.innerHTML = `<div class="cb-lmap">${mapSvg(L)}</div><div class="cb-lrow"><b>${L.id}</b><span>${open ? `${starsWords(won)}${camp.bull[n] ? " ◎" : ""}` : "locked"}</span></div><div class="cb-lnamed"></div>`;
     b.querySelector(".cb-lnamed").textContent = L.name;
     b.addEventListener("click", () => { $("menuDlg").close(); if (n !== camp.at) playLevel(n); });
     list.append(b);
-  });
+  }
   return list;
 }
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   part(body, "play").append(action(`Replay ${lvl.name}`, restart, "primary"));
-  part(body, "content").append(levelList());
+  const content = part(body, "content");
+  for (const sec of SECTIONS) {
+    const head = document.createElement("p");
+    head.className = "cb-sec";
+    head.innerHTML = "<b></b><span></span>";
+    head.firstChild.textContent = sec.name;
+    head.lastChild.textContent = sec.idea;
+    content.append(head, levelList(sec));
+  }
   part(body, "settings").append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); }));
   const total = camp.stars.reduce((a, b) => a + b, 0), beaten = camp.stars.filter(Boolean).length;
-  part(body, "about").append(line(`${plural(beaten, "level")} of ${LEVELS.length} struck, ${plural(total, "star")} of ${LEVELS.length * 3}. The Earth alone for now; the Moon comes later.`));
+  part(body, "about").append(line(`${plural(beaten, "level")} of ${LEVELS.length} struck, ${plural(total, "star")} of ${LEVELS.length * 3}.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
