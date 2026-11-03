@@ -22,6 +22,8 @@ import { topicsPart } from "./topics-ui.js";
 import { sure } from "./sure.js";
 import { busy } from "./loading.js";
 import { branchPath } from "./rooms.js";
+import { cellEdit, tallyEdit, onceEdit } from "./board-share.js";
+import nonogramCoop, { lookValue, looksOf } from "./nonogram-coop.js";
 import { check as checkTyped, normalize } from "./typing.js";
 import * as pile from "./pile.js";
 
@@ -53,6 +55,18 @@ const GRIDS = [["square", "Squares"], ["hex", "Hexes"]];
 const topicNow = () => (settings.grid === "hex" && settings.topic === "flags" ? "countries" : settings.topic);
 const topicChoices = () => [...Object.entries(TOPICS).filter(([k]) => !(settings.grid === "hex" && k === "flags")), ["all", "All"]];
 
+// A party of two opened this page (&coop=1, docs/coop.md): the grid is the room's, one grid for two phones, every clue seen by both
+// (not the Split match below, where the clues are dealt out), and what this file does to it goes through `coop.edit` as edits
+// instead of a change to S.grid. The host's own run follows the shared board, so it is theirs again when the co-op ends; the
+// guest's is left alone. The clock is the team's, and neither bests, today's nor a round for Random mode count.
+const COOP = !IN_FRAME && /[?&]coop=1\b/.test(location.search) && /[?&]room=[A-Za-z]{4}\b/.test(location.search);
+let coop = null;                       // coop-page.js's controller once the room's board is on the screen
+let coopHost = false, team = null, sentDone = false;   // this phone is the host's; the board's start ({ at, ms, mistakes, hints }); the solve is on its way
+let coopAt = null, shownAt = null, coopBoard = null;   // the start of the picture asked for (a new picture has a new one) and of the one on the page; the board as last heard
+let coopReady; const ready = new Promise(res => { coopReady = res; });   // coop-page.js's controller is known
+const teamMs = () => (team ? (team.ms || 0) + Math.max(0, Date.now() - team.at) : 0);
+const tallyId = () => `h${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
 // ---------- the game on the board ----------
 // S: { v, id (the picture), size, hex (on hexes), mode ("random" | "daily" | "duel"), day, play ("solo" | "split" |
 // "race"), grid, undo, redo (strokes: [[cell, before, after]…]), ms, mistakes, hints, name ({ typed, right, early,
@@ -83,7 +97,7 @@ const splitWithComputer = () => S?.play === "split" && S.mode !== "duel";
 // ---------- the clock ----------
 // A solo picture counts the time spent on screen (S.ms); a match's counts from when the table started it (duel.js).
 function clockRun() {
-  if (IN_FRAME || !S || S.mode === "duel" || S.done || clockFrom != null || document.hidden || isPaused()) return;
+  if (COOP || IN_FRAME || !S || S.mode === "duel" || S.done || clockFrom != null || document.hidden || isPaused()) return;
   clockFrom = performance.now();
 }
 function clockPause() {
@@ -93,11 +107,15 @@ function clockPause() {
   save();
 }
 onPause(() => { paused = true; clockPause(); botSleep(); }, () => { paused = false; clockRun(); botWake(); });
-const elapsed = () => (!S ? 0 : S.done ? S.ms : S.mode === "duel" ? Math.max(0, duel.now() - (S.begun || duel.now())) : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
+const elapsed = () => (!S ? 0 : S.done ? S.ms : COOP ? teamMs() : S.mode === "duel" ? Math.max(0, duel.now() - (S.begun || duel.now())) : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
 
 // ---------- keeping ----------
 function save() {
   if (IN_FRAME || !S) return;
+  if (COOP) {       // the host's own run follows the shared board; the guest's is left alone
+    if (coopHost) write(RUN, { ...S, rules: { ...S.rules, nameIt: coopBoard?.fixed?.nameIt !== false }, undo: [], redo: [], ms: Math.round(S.done ? S.ms : teamMs()) });
+    return;
+  }
   if (S.mode === "duel") duel.keep(S); else write(RUN, S);
   savedAt = performance.now();
 }
@@ -150,7 +168,7 @@ async function begin(s, run = null, at = {}) {
   useBoard(!!P.hex);
   board.set(P, S.grid, boardExtras());
   if (S.done) board.reveal(true);
-  if (S.mode !== "duel" && !IN_FRAME) history.replaceState(null, "", hashFor(S));
+  if (S.mode !== "duel" && !IN_FRAME && !COOP) history.replaceState(null, "", hashFor(S));
   buildTools();
   save();
   clockRun();
@@ -162,6 +180,12 @@ async function begin(s, run = null, at = {}) {
 const DAILY_RULES = { mistakes: "shown", nameIt: true, computer: "off", pace: "medium" };
 /** A new picture: today's, or one dealt from the menu's choices (learning mode first offering what's due again). */
 async function start(mode = "random", size = $("size").value) {
+  if (COOP) {       // another picture for both of you, dealt by the menu's choices on this phone
+    if (!coop) return;
+    const share = await coopFresh(size);
+    if (share) await coop.renew(share); else toast("Nothing to draw there at this size: try another region or size");
+    return;
+  }
   if (mode === "daily") {
     const day = today(), done = busy("Drawing today's picture");
     await new Promise(res => setTimeout(res, 30));
@@ -177,6 +201,15 @@ async function start(mode = "random", size = $("size").value) {
   const computer = settings.computer, play = computer === "partner" ? "split" : "solo";
   if (await begin({ id: got.id, size, hex: settings.grid === "hex", mode: "random", play, rules: { mistakes: settings.mistakes, nameIt: settings.nameIt, computer, pace: settings.pace } }) && got.nearest)
     note(`No ${BANDS[settings.band].toLowerCase()} picture here at this size: this is the nearest.`);
+}
+/** A picture dealt by the menu's choices, as the board a party of two draws on (coop-page.js); `always`: a country at Medium if the choices deal nothing. Null if none. */
+async function coopFresh(size = $("size").value || "medium", always = false) {
+  let hex = settings.grid === "hex", got = await nextPick(size), pz = got && await made(got.id, size, hex);
+  if (!pz && always) { size = "medium"; hex = false; got = dealPicture({ topic: "countries", region: "world", size, grid: "square" }); pz = await made(got.id, size, hex); }
+  if (!pz) return null;
+  noteSeen(got.id);
+  const rules = { mistakes: settings.mistakes, nameIt: settings.nameIt, computer: "off", pace: settings.pace };
+  return nonogramCoop.share({ [RUN]: JSON.stringify({ v: 1, id: got.id, size, hex, mode: "random", day: null, play: "solo", grid: emptyGrid(pz), undo: [], redo: [], ms: 0, mistakes: 0, hints: 0, name: null, done: false, rules, rival: null }) });
 }
 // The next random picture is dealt (and its puzzle made) while you play this one, so Next is instant; it's dealt
 // again if the choices it was dealt for have changed by then.
@@ -279,8 +312,13 @@ function endStroke() {
   const changes = [...stroke.orig].map(([i, before]) => [i, before, cellAt(S.grid, i)]).filter(([, b, a]) => b !== a);
   stroke = null;
   if (changes.length) { S.undo.push(changes); if (S.undo.length > 300) S.undo.shift(); S.redo = []; }
+  // a stroke is drawn here as the finger moves and goes to the room as one edit when it lifts (showBoard keeps it on top of the room's grid until then)
+  if (coop && changes.length) coop.edit(changes.map(([i, before, after]) => gridEdit(i, before, after)));
   changed();
 }
+/** A cell of the shared grid going from one value to another (a weak one is an undo's: it only puts back what it left). */
+const charOf = v => (v === EMPTY ? "." : v === CROSS ? "x" : String(v));
+const gridEdit = (i, from, to, weak = false) => cellEdit("grid", i, charOf(from), charOf(to), weak);
 function cancelStroke() {
   clearTimeout(stroke.timer);
   for (const [i, before] of stroke.orig) setCell(i, before);
@@ -291,8 +329,8 @@ function cancelStroke() {
 /** A mistake, where they're shown: the cell takes what it really is, the clock 20 seconds. */
 function mistake(i, tried) {
   const truth = P.answer[i] || CROSS;
-  setCell(i, truth);
-  S.mistakes++;
+  if (coop) coop.edit([gridEdit(i, cellAt(S.grid, i), truth), tallyEdit("mistakes", tallyId())]);   // the cell takes what it is, and the mistake counts once for both of you
+  else { setCell(i, truth); S.mistakes++; }
   if (S.play === "split" && S.mode === "duel") split.penalty();
   board.flash(i);
   navigator.vibrate?.(60);
@@ -306,16 +344,18 @@ function setCell(i, v) {
 function undo() {
   if (!S || S.done || IN_FRAME || !S.undo.length) return;
   const changes = S.undo.pop(), back = [];
-  for (const [i, before, after] of changes) if (cellAt(S.grid, i) === after) { setCell(i, before); back.push([i, before, after]); }
+  for (const [i, before, after] of changes) if (cellAt(S.grid, i) === after) { if (!coop) setCell(i, before); back.push([i, before, after]); }
   if (back.length) S.redo.push(back);
+  if (coop && back.length) coop.edit(back.map(([i, before, after]) => gridEdit(i, after, before, true)));   // weak: a cell your partner has changed since stays theirs
   hintCells = []; hintLine = null;
   changed(false);
 }
 function redo() {
   if (!S || S.done || IN_FRAME || !S.redo.length) return;
   const changes = S.redo.pop(), again = [];
-  for (const [i, before, after] of changes) if (cellAt(S.grid, i) === before) { setCell(i, after); again.push([i, before, after]); }
+  for (const [i, before, after] of changes) if (cellAt(S.grid, i) === before) { if (!coop) setCell(i, after); again.push([i, before, after]); }
   if (again.length) S.undo.push(again);
+  if (coop && again.length) coop.edit(again.map(([i, before, after]) => gridEdit(i, before, after)));
   changed(false);
 }
 /** The grid changed: drawn, kept, the end settled the moment the last cell is right, the computer woken. */
@@ -333,13 +373,18 @@ const complete = () => (checked() ? drawn(S.grid, P.answer) === 1 : agrees(P, S.
 // ---------- hints ----------
 /** A hint: the next cell the clues force, the simplest way a person would see it, filled in (or crossed out) and its
  *  line named. Where mistakes are hidden and one stands, the hint points it out instead. */
+/** A hint taken, with the cell it fills (or crosses out) if it gives one. In a pair both of you pay for it once, whoever asked (a tally in the room). */
+function takeHint(cell = null, v = null) {
+  if (coop) coop.edit([...(cell != null ? [gridEdit(cell, cellAt(S.grid, cell), v)] : []), tallyEdit("hints", tallyId())]);
+  else { S.hints++; if (cell != null) setCell(cell, v); }
+  if (S.mode === "duel" && S.play === "split") split.penalty();
+}
 function useHint() {
   if (!S || S.done || IN_FRAME || paused || board.revealed) return;
   if (!checked()) {
     const wrong = wrongCells(S.grid, P.answer);
     if (wrong.length) {
-      S.hints++;
-      if (S.mode === "duel" && S.play === "split") split.penalty();
+      takeHint();
       hintCells = [wrong[0]];
       note(`Hint: the ringed cell is wrong (+${HINT} s).`, "good");
       changed(false);
@@ -351,9 +396,7 @@ function useHint() {
   if (!step && allow) step = nextStep(P, knownFrom(P, S.grid, P.answer));     // your lines say no more: theirs do
   if (!step) { note("The clues tell no more than you've drawn."); return; }
   const [i, c] = step.cells[0];
-  S.hints++;
-  if (S.mode === "duel" && S.play === "split") split.penalty();
-  setCell(i, c || CROSS);
+  takeHint(i, c || CROSS);
   hintCells = [i];
   hintLine = P.hex && step.rule !== "contradiction" ? step.line : null;            // a slant is easier lit than named
   // a clash comes from the lines through the cell together, so it names none
@@ -364,8 +407,16 @@ function useHint() {
 }
 
 // ---------- the end ----------
+/** The picture is drawn: the time stands for both of you, whoever saw it first (a value that is set once, board-share.js). */
+function finishCoop() {
+  if (S.done || sentDone || !coop) return;
+  sentDone = true;
+  const ms = Math.round(teamMs());
+  coop.edit(onceEdit("done", { ms, score: scoreOf({ ms, mistakes: S.mistakes, hints: S.hints, name: S.name }), by: coop.together.room?.name || "" }));
+}
 function finish() {
   message = null; hintCells = []; hintLine = null;
+  if (COOP) { finishCoop(); return; }
   if (S.mode === "duel") { (S.play === "split" ? split.finished : race.finished)(); return; }
   if (clockFrom != null) { S.ms += performance.now() - clockFrom; clockFrom = null; }
   S.done = true;
@@ -587,7 +638,7 @@ const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent
 const myLine = k => (S?.play !== "split" ? true : S.mode === "duel" ? split.mine(k) : !computerReads(k));
 function boardExtras() {
   const hidden = S?.play === "split" ? (k => (myLine(k) ? null : S.mode === "duel" ? split.owner(k) : 1)) : null;
-  return { hidden, hint: hintCells, hintLine, locked: IN_FRAME || !!S?.done, point: S?.mode === "duel" ? split.points() : [] };
+  return { hidden, hint: hintCells, hintLine, locked: IN_FRAME || !!S?.done, point: S?.mode === "duel" ? split.points() : partnerLooks() };
 }
 function drawStrip() {
   if (!S || !P) { put("clock", "0:00"); put("penalty", ""); put("drawn", ""); put("what", ""); return; }
@@ -599,7 +650,7 @@ function drawStrip() {
   put("drawn", `${Math.floor(drawn(S.grid, P.answer) * 100)}%`);
   const what = S.mode === "daily" ? "Today's" : S.mode === "duel" ? (S.play === "split" ? "Split" : "Race") : TOPIC_ONE[pic.topic];
   put("what", `${what} · ${P.hex ? `${P.n} hexes` : `${P.w} × ${P.h}`} · ${BANDS[P.band]}`);
-  if (S.mode !== "duel") {                                         // the computer, as rival or partner, in the line under the strip
+  if (S.mode !== "duel" && !COOP) {                                // the computer, as rival or partner, in the line under the strip
     const r = $("rival");
     if (S.rules.computer === "rival" && S.rival) { r.hidden = false; r.textContent = S.rival.done ? `Computer: finished in ${fmt(S.rival.ms / 1000)}` : `Computer (${PACES[S.rules.pace].label.toLowerCase()}): ${Math.floor(drawn(S.rival.grid, P.answer) * 100)}%`; }
     else if (S.rules.computer === "partner") { r.hidden = false; r.textContent = `Partner: the computer (${PACES[S.rules.pace].label.toLowerCase()}), reading ${P.hex ? "the shaded lines" : "the columns"}${bot?.stuck ? ", waiting on you" : ""}`; }
@@ -612,6 +663,7 @@ function drawLine() {
   if (!text) {
     if (!S) text = "The same picture for everyone at the table.";
     else if (S.done) text = "";
+    else if (COOP) text = "One grid for both of you. Tap a clue to point your partner at that line.";
     else if (S.play === "split") text = S.mode === "duel" ? split.help()
       : P.hex ? "You read the lines with numbers: fill what they tell you, and the computer works the shaded ones from what you draw."
       : "You read the rows: fill what they tell you, and the computer works its columns from what you draw.";
@@ -640,8 +692,8 @@ function drawResult() {
   if (S.mistakes) bits.push(`${plural(S.mistakes, "mistake")} (+${MISTAKE * S.mistakes} s)`);
   if (S.hints) bits.push(`${plural(S.hints, "hint")} (+${HINT * S.hints} s)`);
   if (n?.early) bits.push(n.right ? `named with ${Math.round(n.hidden * 100)}% to draw (−${n.credit} s)` : `named wrong (+${WRONG_NAME} s)`);
-  const best = read(TIMES, {})[bestKey()];
-  v.append(`${fmt(S.score)}: ${bits.join(", ")}.`);
+  const best = COOP ? null : read(TIMES, {})[bestKey()];
+  v.append(`${COOP ? "Drawn together in " : ""}${fmt(S.score)}: ${bits.join(", ")}.`);
   if (S.rules.computer === "rival" && S.rival) {
     const s2 = document.createElement("span"), won = !S.rival.done || S.rival.ms > S.ms;
     s2.className = won ? "good" : "bad";
@@ -649,8 +701,8 @@ function drawResult() {
     v.append(s2);
   }
   if (n && !n.early) { const s3 = document.createElement("span"); s3.className = n.right ? "good" : "bad"; s3.textContent = n.right ? " Named." : " Not named: it'll come back."; v.append(s3); }
-  if (S.rules.computer !== "partner") v.append(S.fresh ? " A new best." : best != null ? ` Best ${fmt(best)}.` : "");
-  $("nextBtn").textContent = S.mode === "daily" ? "A random picture" : "Next picture";
+  if (S.rules.computer !== "partner" && !COOP) v.append(S.fresh ? " A new best." : best != null ? ` Best ${fmt(best)}.` : "");
+  $("nextBtn").textContent = COOP ? "Another picture" : S.mode === "daily" ? "A random picture" : "Next picture";
 }
 function drawZoom() {
   const b = $("zoomBtn"), on = !!P && (board.small || board.zoomed) && !S?.done;   // pinched in, there's a way back out
@@ -712,7 +764,23 @@ function toast(msg, ms = 2600) {
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
 /** A clue tapped: in a split match, the others see that line lit (it's the one you're talking about). */
-function onLine(k) { if (S?.mode === "duel" && S.play === "split") split.point(k); }
+function onLine(k) {
+  if (coop) pointAt(k);
+  else if (S?.mode === "duel" && S.play === "split") split.point(k);
+}
+/** Co-op: the line you tapped is lit on your partner's screen for a few seconds (written to your own place in the room). */
+function pointAt(k) {
+  const room = coop.together.room;
+  if (!S || S.done || !room?.data?.players?.[room.uid]) return;
+  Promise.resolve(room.sync.update(`${branchPath(room.code, "nonogram")}/players/${room.uid}`, { look: lookValue(k) })).catch(e => console.error(e));
+  toast(`Pointed at ${lineLabel(k)}`);
+}
+/** Co-op: the lines your partner is pointing at, if they are here, lit in their colour. */
+function partnerLooks() {
+  const room = coop?.together.room;
+  if (!room?.data || !P || S?.done) return [];
+  return looksOf(room.data.players, room.uid, coop.together.others().filter(o => o.here).map(o => o.id), P.clues.length);
+}
 
 // ---------- together, on duel.js ----------
 // Two ways (the menu's Together, for the next match): Split, the default for a pair, one grid between you and the clues
@@ -910,13 +978,13 @@ function openMenu() {
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
-  pick ??= S?.mode === "daily" ? "daily" : "random";
+  pick = COOP ? "random" : pick ?? (S?.mode === "daily" ? "daily" : "random");
   const play = part(body, "play");
-  play.append(action(pick === "daily" ? "Today's picture" : "New picture", () => confirmStart(pick), "primary"));
+  play.append(action(COOP ? "Another picture" : pick === "daily" ? "Today's picture" : "New picture", () => confirmStart(pick), "primary"));
   if (S && !S.done) play.append(action("Start this one again", restart, "link"));
   play.append(action("The rules", showRules, "link"));
   const c = content();
-  c.append(choice("Picture", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
+  if (!COOP) c.append(choice("Picture", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") {
     c.append(choice("Grid", GRIDS, settings.grid, v => { settings.grid = v; saveSettings(); openMenu(); }),
       choice("Pictures", topicChoices(), topicNow(), v => { settings.topic = v; saveSettings(); openMenu(); }),
@@ -926,27 +994,28 @@ function openMenu() {
     if (topicNow() === "all") c.append(...topicsPart(c, "Only for All pictures: a kind picked above is dealt as it is"));
   } else c.append(line("Today's is a country's outline, medium: the same for everyone, named for the score."));
   const st = part(body, "settings");
-  st.append(toggle("Name it", settings.nameIt, v => { settings.nameIt = v; saveSettings(); }),
-    choice("Mistakes", [["shown", "Shown"], ["hidden", "Hidden"]], settings.mistakes, v => { settings.mistakes = v; saveSettings(); }),
-    choice("The computer", [["off", "Off"], ["partner", "Partner"], ["rival", "Rival"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
-  if (settings.computer !== "off") st.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }));
+  if (!COOP) st.append(toggle("Name it", settings.nameIt, v => { settings.nameIt = v; saveSettings(); }));
+  st.append(choice("Mistakes", [["shown", "Shown"], ["hidden", "Hidden"]], settings.mistakes, v => { settings.mistakes = v; saveSettings(); }));
+  if (!COOP) st.append(choice("The computer", [["off", "Off"], ["partner", "Partner"], ["rival", "Rival"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
+  if (!COOP && settings.computer !== "off") st.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }));
   st.append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
+  if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one grid for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const times = read(TIMES, {}), stats = read(STATS, {});
-  const bests = S && pic ? times[bestKey()] : null;
-  part(body, "about").append(
-    line(S && pic ? `${TOPICS[pic.topic]}, ${SIZES[S.size].label.toLowerCase()}${S.hex ? " on hexes" : ""}: ${bests != null ? `best ${fmt(bests)}` : "not finished yet"}. Mistakes ${MISTAKE} s, hints ${HINT} s; naming it early takes off up to ${CREDIT[S.size]} s.` : "A picture in a grid, a clue on every line."),
-    line(`${plural(stats.solved || 0, "picture")} drawn, ${stats.named || 0} named.`),
-    action("Copy a link to this picture", copyLink, "link"));
+  const bests = S && pic && !COOP ? times[bestKey()] : null;
+  const about = part(body, "about");
+  about.append(line(S && pic ? `${TOPICS[pic.topic]}, ${SIZES[S.size].label.toLowerCase()}${S.hex ? " on hexes" : ""}: ${COOP ? (S.done ? "drawn" : "not drawn yet") : bests != null ? `best ${fmt(bests)}` : "not finished yet"}. Mistakes ${MISTAKE} s, hints ${HINT} s${COOP ? "." : `; naming it early takes off up to ${CREDIT[S.size]} s.`}` : "A picture in a grid, a clue on every line."));
+  if (!COOP) about.append(line(`${plural(stats.solved || 0, "picture")} drawn, ${stats.named || 0} named.`), action("Copy a link to this picture", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 async function confirmStart(mode) {
-  if (started() && !(await sure("Start a new picture? This one isn't finished.", { yes: "Start a new one" }))) return false;
+  if (started() && !(await sure(COOP ? "Another picture for both of you? This one isn't finished." : "Start a new picture? This one isn't finished.", { yes: COOP ? "Another picture" : "Start a new one" }))) return false;
   start(mode);
   return true;
 }
 async function restart() {
-  if (!S || S.done || !(await sure("Clear the grid and start this picture again? The clock carries on.", { yes: "Start again" }))) return;
-  for (let i = 0; i < P.answer.length; i++) if (cellAt(S.grid, i) !== EMPTY) setCell(i, EMPTY);
+  if (!S || S.done || !(await sure(COOP ? "Clear the grid for both of you and start this picture again? The clock carries on." : "Clear the grid and start this picture again? The clock carries on.", { yes: "Start again" }))) return;
+  const marked = [...P.answer.keys()].filter(i => cellAt(S.grid, i) !== EMPTY);
+  if (coop) { if (marked.length) coop.edit(marked.map(i => gridEdit(i, cellAt(S.grid, i), EMPTY))); } else for (const i of marked) setCell(i, EMPTY);
   S.undo = []; S.redo = [];
   if (S.rival) S.rival = { grid: emptyGrid(P), done: false, ms: 0 };
   botStart();
@@ -988,16 +1057,20 @@ document.addEventListener("keydown", e => {
   else if (e.key === "x" || e.key === "X") { tool = CROSS; render(); }
   else if (/^[1-7]$/.test(e.key) && Number(e.key) <= P.colours) { tool = Number(e.key); render(); }
 });
-document.addEventListener("visibilitychange", () => { if (document.hidden) { clockPause(); botSleep(); } else { clockRun(); botWake(); board.redraw(); duel.resync(); } });
+document.addEventListener("visibilitychange", () => { if (document.hidden) { clockPause(); botSleep(); } else { clockRun(); botWake(); board.redraw(); duel.resync(); coop?.together.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("pagehide", () => clockPause());
-window.addEventListener("hashchange", () => { const h = hashPicture(); if (!duel.on && h && !isShown(h)) begin(h); });
-let ticks = 0;
+window.addEventListener("hashchange", () => { const h = hashPicture(); if (!COOP && !duel.on && h && !isShown(h)) begin(h); });
+let ticks = 0, lookKey = "";
 setInterval(() => {
   if (!S) return;
   drawStrip();
   if (clockFrom != null && performance.now() - savedAt > SAVE_EVERY) { clockPause(); clockRun(); }
   if (S.mode === "duel" && S.play === "split" && ++ticks % 4 === 0) board.update(S.grid, boardExtras());   // a line pointed at fades after its seconds
+  if (coop && !S.done) {            // a partner's pointing comes and goes without the grid changing: draw it when it does
+    const key = JSON.stringify(partnerLooks());
+    if (key !== lookKey) { lookKey = key; board.update(S.grid, boardExtras()); }
+  }
 }, 250);
 
 /** The picture a link names (#p=ID&z=SIZE, or #d=DAY for a day's), or null. */
@@ -1021,7 +1094,7 @@ async function linked(h) {
 
 // for tests and debugging
 window.__nonogram = {
-  get state() { return S; }, get puzzle() { return P; }, get picture() { return pic; }, get upcoming() { return upcoming; }, get board() { return board; }, duel, start, begin, useHint, undo, redo,
+  get state() { return S; }, get puzzle() { return P; }, get picture() { return pic; }, get upcoming() { return upcoming; }, get board() { return board; }, get coop() { return coop; }, duel, start, begin, useHint, undo, redo,
   setTool: t => { tool = t; render(); }, openName, submitName,
 };
 
@@ -1037,6 +1110,60 @@ async function solo() {
   if (S) begin({ id: S.id, size: S.size, hex: S.hex, mode: S.mode, day: S.day, play: S.play }, S);
   else start("random", $("size").value || "medium");
 }
-// a match in the address: its picture, with no solo one dealt under it
-if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });
+/** The run of the shared board, as this page keeps one: the solve as the finished picture's clock and score. */
+function coopRun(shared) {
+  const r = nonogramCoop.run(shared);
+  return r.done ? { ...r, done: true, ms: r.done.ms, score: r.done.score } : r;
+}
+/** The grid of a party of two: the room's, drawn each time it moves (coop-page.js). */
+function showBoard(shared, info) {
+  coopBoard = shared;
+  team = shared.start || team;
+  coopHost = info.host;
+  const at = shared.start?.at;
+  if (coopAt !== at) { coopAt = at; coopOpen(); return; }          // a picture new to this page
+  if (shownAt === at && S) coopSync(shared);                         // else it is still being drawn, and opens on the latest board
+}
+/** A picture new to this page: its puzzle made, then the room's board on it. */
+async function coopOpen() {
+  const at = coopAt, f = coopBoard.fixed;
+  await ready;
+  if (!coop) return;
+  const pz = await made(f.id, f.size, !!f.hex);
+  if (at !== coopAt) return;                                         // another picture came while this one was being drawn
+  if (!pz || pz.answer.length !== f.cells) { toast("This picture comes out differently on this phone: it needs the latest version of the app", 7000); coop.leave(); return; }
+  sentDone = false;
+  if (!(await begin({ id: f.id, size: f.size, hex: !!f.hex, mode: f.mode, day: f.day }, coopRun(coopBoard)))) return;
+  if (at !== coopAt) return;
+  shownAt = at;
+  coopSync(coopBoard);                                               // what came while it was being drawn
+}
+/** The room's grid on the screen, with a stroke of yours not yet sent on top of it (it goes to the room when your finger lifts). */
+function coopSync(shared) {
+  const run = coopRun(shared), wasDone = !!S.done;
+  const mine = stroke ? [...stroke.orig.keys()].map(i => [i, cellAt(S.grid, i)]) : [];
+  S.grid = run.grid;
+  for (const [i, v] of mine) S.grid = withCell(S.grid, i, v);
+  Object.assign(S, { mistakes: run.mistakes, hints: run.hints, name: run.name, done: run.done, ms: run.done ? run.ms : S.ms, score: run.score });
+  if (S.done) { hintCells = []; hintLine = null; clearTimeout(stroke?.timer); stroke = null; }
+  board.update(S.grid, boardExtras());
+  if (S.done && !wasDone) { message = null; board.reveal(); }
+  else if (!S.done && !stroke && complete()) finishCoop();
+  save();
+  render();
+}
+async function joinPartner() {
+  const { startCoop } = await import("./coop-page.js");
+  coop = await startCoop("nonogram", {
+    toast, show: showBoard,
+    fresh: () => coopFresh($("size").value || "medium", true),
+    bar: el => { const r = $("rival"); r.hidden = false; r.replaceChildren(el); },
+  });
+  coopReady();
+  if (!coop && !IN_FRAME) solo();
+}
+
+// a party of two in the address (&coop=1): its one grid; else a match in the address: its picture, with no solo one dealt under it
+if (COOP) joinPartner().catch(e => { console.error(e); solo(); });
+else if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });
 else solo();

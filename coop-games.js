@@ -11,6 +11,7 @@ export const COOP_GAMES = {
   sudoku: { id: "sudoku", name: "Sudoku", page: "sudoku.html", keys: ["sudoku:run"], load: () => import("./sudoku-coop.js") },
   calcudoku: { id: "calcudoku", name: "Calcudoku", page: "calcudoku.html", keys: ["calcudoku:run"], load: () => import("./calcudoku-coop.js") },
   kakuro: { id: "kakuro", name: "Kakuro", page: "kakuro.html", keys: ["kakuro:run"], load: () => import("./kakuro-coop.js") },
+  nonogram: { id: "nonogram", name: "Nonogram", page: "nonogram.html", keys: ["nonogram:run"], load: () => import("./nonogram-coop.js") },
   masyu: { id: "masyu", name: "Masyu", page: "masyu.html", keys: ["masyu:run"], load: () => import("./masyu-coop.js") },
   bridges: { id: "bridges", name: "Bridges", page: "bridges.html", keys: ["bridges:run", "bridges:lruns", "bridges:track", "bridges:camp"], load: () => import("./bridges-coop.js") },
 };
