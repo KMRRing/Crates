@@ -1,8 +1,9 @@
 // Bridges as a model, drawn with three.js (vendor/three.js, kept on the device, so it works offline): the chart's islands as
 // a relief map's, each as big as its number (a one is an islet, an eight nearly fills its cell) with a beach, grass and trees,
-// hills in terraces like contour lines, timber bridges arched over their trestles with railings, a viaduct as a stone arcade
-// with a parapet high over the low bridges, and on the water, slowly, seventeenth-century merchantmen: one on each part of a fairway, to and fro between its
-// buoys, and others sailing right round the archipelago. It is the puzzle, played: a dashed guide lies on every link without a
+// hills in terraces like contour lines, timber bridges arched over their trestles with railings (up to three side by side on a
+// wide road, a post each side of a narrow one's middle), a viaduct as a stone arcade with a parapet high over the low bridges, a
+// strait as a line of buoys with its number on a plate, and on the water, slowly, seventeenth-century merchantmen sailing through
+// whatever water is free (bridges-model.js: they go round what the player builds, and under a viaduct's arches). It is the puzzle, played: a dashed guide lies on every link without a
 // bridge, a tap on a link calls the page's press(link, "tap") and a hold press(link, "hold") (the page builds, cycles and
 // clears, as on the chart), a drag turns the board, two fingers (or the wheel, or the + and − beside it) zoom in and pan, and a
 // hint's link glows gilt. Which link a finger means is worked out in
@@ -12,7 +13,7 @@
 // and nothing has paused it (the menu, a hidden tab), at most thirty frames a second: the ships go slowly.
 // Throws where there is no WebGL (the page then keeps the chart).
 import * as THREE from "./vendor/three.js";
-import { cellXZ, labelOf, routesOf, shipAt, buoysOf, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile } from "./bridges-model.js";
+import { cellXZ, labelOf, seaOf, createFleet, shipsFor, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile } from "./bridges-model.js";
 
 const DEG = Math.PI / 180;
 const DOUBLE_SIDE = 2;                           // THREE.DoubleSide (not in the bundle's exports)
@@ -27,8 +28,8 @@ const WAVE = (x, z, t) => 0.028 * Math.sin(x * 0.9 + t * 0.8) + 0.02 * Math.sin(
 
 // ---------- the skins ----------
 const MODES = {
-  day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], copper: 0xd9a27a, timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, rock: 0x6f6a62, guide: 0xffffff, guideA: 0.62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false, grass: 0x8fae62, tree: 0x4d7a45, shallow: 0xb9e6e3, shallowA: 0.42, rail: 0x6b4a2b },
-  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], copper: 0xc08a68, timber: 0x84603a, stone: 0xb4aea0, deck: 0x9a9380, rock: 0x625e58, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true, grass: 0x6f8a55, tree: 0x3e6339, shallow: 0x8fb8c4, shallowA: 0.34, rail: 0x5e4328 },
+  day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], copper: 0xd9a27a, timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, guide: 0xffffff, guideA: 0.62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false, grass: 0x8fae62, tree: 0x4d7a45, shallow: 0xb9e6e3, shallowA: 0.42, rail: 0x6b4a2b },
+  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], copper: 0xc08a68, timber: 0x84603a, stone: 0xb4aea0, deck: 0x9a9380, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true, grass: 0x6f8a55, tree: 0x3e6339, shallow: 0x8fb8c4, shallowA: 0.34, rail: 0x5e4328 },
 };
 function skinNow() {
   const root = document.documentElement, night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -64,7 +65,7 @@ function merged(list) {
 }
 
 /**
- * The model in `host`. Calls: set(puzzle) for a new puzzle (its layout `lay`, `grid`, `lanes`, `hills`), update(marks, br, hint)
+ * The model in `host`. Calls: set(puzzle) for a new puzzle (its layout `lay` and `size`), update(marks, br, hint)
  * when the bridges, the islands' state or the hint's link changed, show(on) to start or stop drawing, spin() after a win,
  * orbit(az, el) / angles for the camera, dispose(). `opts`: press(link, "tap" | "hold") is called for a finger on a link,
  * playable() says whether a finger may build now (not when it is won, paused, or only watching), blocked(link) whether no
@@ -98,10 +99,10 @@ export function createModel(host, opts = {}) {
 
   const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0, flatShading: true, ...extra });
   const M = {
-    sea: mat(0x3f8db4, { roughness: 0.55, metalness: 0.05 }), sand: mat(0xe6d6ab), copper: mat(0xd9a27a), rock: mat(0x6f6a62),
+    sea: mat(0x3f8db4, { roughness: 0.55, metalness: 0.05 }), sand: mat(0xe6d6ab), copper: mat(0xd9a27a),
     h0: mat(0xd8c28f), h1: mat(0xc4a870), h2: mat(0xa98b55), timber: mat(0x9a6a3b), stone: mat(0xd9d0bc), deck: mat(0xbfb394),
     hull: mat(0x6a4426), trim: mat(0xc9a23c, { metalness: 0.4, roughness: 0.4 }), sail: mat(0xf0e6cc, { side: DOUBLE_SIDE }), flag: mat(0xb5432f, { side: DOUBLE_SIDE }),
-    grass: mat(0x8fae62), tree: mat(0x4d7a45), rail: mat(0x6b4a2b), red: mat(0xb5432f), white: mat(0xf4efe2), lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }),
+    grass: mat(0x8fae62), tree: mat(0x4d7a45), rail: mat(0x6b4a2b), teal: mat(0x1e7f8c), white: mat(0xf4efe2), lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }),
     shallow: new THREE.MeshBasicMaterial({ color: 0xb9e6e3, transparent: true, opacity: 0.4, depthWrite: false }),
     guide: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, side: DOUBLE_SIDE }),
     halo: new THREE.MeshBasicMaterial({ color: 0xf2c14e, transparent: true, opacity: 0.5, depthWrite: false, side: DOUBLE_SIDE }),
@@ -164,11 +165,11 @@ export function createModel(host, opts = {}) {
 
   // ---------- the puzzle on show ----------
   let P = null, size = 0, lay = null;
-  let world = null, linkMeshes = [], lines = [], plates = [], ships = [], buoys = [], routes = [], marks = "";
+  let world = null, linkMeshes = [], lines = [], plates = [], ships = [], buoys = [], fleet = null, lastSail = 0, marks = "";
   let lit = new Set(), litIsland = -1, aim = -1, winUntil = 0;     // the hint's links and island, the link under a finger or the pointer, the end of the win's glow
   function disposeWorld() {
     if (world) { scene.remove(world); world.traverse(o => o.geometry?.dispose()); }
-    world = null; linkMeshes = []; lines = []; ships = []; buoys = [];
+    world = null; linkMeshes = []; lines = []; ships = []; buoys = []; fleet = null;
     labels.replaceChildren(); plates = [];
     lit = new Set(); litIsland = aim = -1; winUntil = 0;
   }
@@ -218,13 +219,14 @@ export function createModel(host, opts = {}) {
   /** A link's bridges, once: a single and a double of each, shown and hidden as the marks change. */
   function bridgesOf(l) {
     const link = lay.links[l], a = lay.isl[link.a], b = lay.isl[link.b], [x, z] = cellXZ(size, a.r, a.c), span = link.vertical ? b.r - a.r : b.c - a.c;
-    const ry = link.vertical ? -Math.PI / 2 : 0, one = new THREE.Group(), two = new THREE.Group(), deckM = a.realm ? M.copper : M.timber;
+    const ry = link.vertical ? -Math.PI / 2 : 0, one = new THREE.Group(), two = new THREE.Group(), three = new THREE.Group(), deckM = a.realm ? M.copper : M.timber;
+    const sets = [[one, [0]], [two, [-0.1, 0.1]], ...(link.cap === 3 ? [[three, [-0.17, 0, 0.17]]] : [])];      // a wide road has room for a third bridge
     if (link.high) {
       // a stone arcade with a kerb along each edge of the road
-      const ra = islandRadius(a.n), rb = islandRadius(b.n), piers = piersOf(lay, l, P.lanes || "");
+      const ra = islandRadius(a.n), rb = islandRadius(b.n), piers = piersOf(lay, l);
       const outline = wallOutline(span, piers, { top: VIADUCT - 0.04, rise: 0.7, reach: ra, reachEnd: rb }), xa = 0.55 * ra, xb = span - 0.55 * rb, mid = (xa + xb) / 2;
-      for (const [grp, lanes] of [[one, [0]], [two, [-0.1, 0.1]]]) for (const off of lanes) {
-        const w = lanes.length === 1 ? 0.24 : 0.12, m = new THREE.Mesh(wall(outline, lanes.length === 1 ? 0.17 : 0.08), M.stone), d = new THREE.Mesh(new THREE.BoxGeometry(xb - xa, 0.05, w), M.deck);
+      for (const [grp, lanes] of sets) for (const off of lanes) {
+        const w = [0.24, 0.12, 0.085][lanes.length - 1], m = new THREE.Mesh(wall(outline, [0.17, 0.08, 0.06][lanes.length - 1]), M.stone), d = new THREE.Mesh(new THREE.BoxGeometry(xb - xa, 0.05, w), M.deck);
         m.position.z = off;
         d.position.set(mid, VIADUCT - 0.02, off);
         const kerb = new THREE.Mesh(merged([box(xb - xa, 0.07, 0.022, mid, VIADUCT + 0.04, off - (w / 2 - 0.011)), box(xb - xa, 0.07, 0.022, mid, VIADUCT + 0.04, off + (w / 2 - 0.011))]), M.stone);
@@ -233,13 +235,13 @@ export function createModel(host, opts = {}) {
     } else {
       // an arched timber deck with railings, on trestles
       const { xa, xb, len, hump } = lowSpan(a, b, span), ytop = u => DECK + hump * Math.sin((Math.PI * (u - xa)) / len);
-      for (const [grp, lanes] of [[one, [0]], [two, [-0.1, 0.1]]]) for (const off of lanes) {
-        const w = lanes.length === 1 ? 0.15 : 0.085, top = deckProfile(len, hump, Math.max(6, Math.round(len * 5))).map(([u, dy]) => [xa + u, DECK + dy]);
+      for (const [grp, lanes] of sets) for (const off of lanes) {
+        const w = [0.15, 0.085, 0.065][lanes.length - 1], top = deckProfile(len, hump, Math.max(6, Math.round(len * 5))).map(([u, dy]) => [xa + u, DECK + dy]);
         const deck = wall([...top, ...top.map(([u, y]) => [u, y - 0.045]).reverse()], w);
         deck.translate(0, 0, off);
         grp.add(new THREE.Mesh(deck, deckM));
         const parts = [];
-        for (const side of lanes.length === 1 ? [-1, 1] : [off < 0 ? -1 : 1]) {      // posts and a rail along the edges (a double has its outer ones)
+        for (const side of lanes.length === 1 ? [-1, 1] : off === 0 ? [] : [off < 0 ? -1 : 1]) {      // posts and a rail along the edges (a double or a triple has its outer ones)
           const zz = off + side * (w / 2 - 0.011);
           for (let u = xa + 0.12; u <= xb - 0.1; u += 0.3) parts.push(box(0.02, 0.09, 0.02, u, ytop(u) + 0.045, zz));
           const rail = wall([...top.map(([u, y]) => [u, y + 0.1]), ...top.map(([u, y]) => [u, y + 0.082]).reverse()], 0.018);
@@ -255,17 +257,17 @@ export function createModel(host, opts = {}) {
       }
     }
     const out = new THREE.Group();
-    out.add(one, two);
+    out.add(one, two, three);
     place(out, x, 0, z, ry);
-    one.visible = two.visible = false;
+    one.visible = two.visible = three.visible = false;
     shadowed(out);
-    return { out, one, two };
+    return { out, one, two, three };
   }
 
   /** Flat strips along a link in its own frame (from its first island along +x, `y` up), each [from, to, half width]. */
-  function strips(list, y) {
+  function strips(list, y, zoff = 0) {
     const pos = [], idx = [];
-    for (const [x0, x1, hw] of list) { const n = pos.length / 3; pos.push(x0, y, -hw, x1, y, -hw, x0, y, hw, x1, y, hw); idx.push(n, n + 1, n + 2, n + 2, n + 1, n + 3); }
+    for (const [x0, x1, hw] of list) { const n = pos.length / 3; pos.push(x0, y, zoff - hw, x1, y, zoff - hw, x0, y, zoff + hw, x1, y, zoff + hw); idx.push(n, n + 1, n + 2, n + 2, n + 1, n + 3); }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
     g.setIndex(idx);
@@ -287,16 +289,23 @@ export function createModel(host, opts = {}) {
     const ry = link.vertical ? -Math.PI / 2 : 0, high = !!link.high, y = high ? GUIDE_HIGH : GUIDE, from = islandRadius(a.n) + 0.1, to = span - islandRadius(b.n) - 0.1;
     const n = Math.max(1, Math.round((to - from) / 0.3)), step = (to - from) / n, hw = 0.04 + 0.004 * Math.max(0, size - 7), list = [];
     for (let i = 0; i < n; i++) list.push([from + i * step + (step - 0.17) / 2, from + i * step + (step + 0.17) / 2, hw]);
-    const low = high ? null : lowSpan(a, b, span);
-    const dashes = new THREE.Mesh(strips(list, y), M.guide), halo = new THREE.Mesh(high ? strips([[from - 0.05, to + 0.05, 0.2]], 0) : arched(from - 0.05, to + 0.05, 0.2, low.hump, low.xa, low.len), M.halo);
+    const low = high ? null : lowSpan(a, b, span), wide = link.cap === 3, hh = wide ? 0.3 : 0.2;
+    const dashes = new THREE.Group();                                  // a wide road shows its three lanes
+    for (const zoff of wide ? [-0.17, 0, 0.17] : [0]) dashes.add(new THREE.Mesh(strips(list.map(([x0, x1, w]) => [x0, x1, wide ? w * 0.8 : w]), y, zoff), M.guide));
+    const halo = new THREE.Mesh(high ? strips([[from - 0.05, to + 0.05, hh]], 0) : arched(from - 0.05, to + 0.05, hh, low.hump, low.xa, low.len), M.halo);
     halo.visible = false;
     const out = new THREE.Group();
     out.add(dashes, halo);
+    if (link.cap === 1) {                                              // a narrow road: a bollard each side of its middle
+      const posts = [];
+      for (const side of [-1, 1]) posts.push([new THREE.CylinderGeometry(0.045, 0.055, 0.26, 7), new THREE.Matrix4().makeTranslation(span / 2, 0.1, side * 0.21)]);
+      out.add(shadowed(new THREE.Mesh(merged(posts), M.stone)));
+    }
     place(out, x, 0, z, ry);
     return { out, dashes, halo, haloY: high ? VIADUCT + 0.085 : DECK + 0.115, guideY: y + 0.012 };
   }
 
-  /** Shows a puzzle: `p` is { lay, grid, lanes, hills, realms } (the page's P and its run's strings). */
+  /** Shows a puzzle: `p` is { lay, size } (the page's P). */
   function set(p) {
     P = p; lay = p.lay; size = p.size;
     disposeWorld();
@@ -310,27 +319,27 @@ export function createModel(host, opts = {}) {
       labels.appendChild(el);
       plates.push({ el, i, cls: "" });
     });
-    for (let i = 0; i < p.grid.length; i++) {
-      if (p.grid[i] !== "#") continue;
-      const [x, z] = cellXZ(size, Math.floor(i / size), i % size), rock = new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 0), M.rock);
-      rock.scale.set(1, 0.7, 0.85);
-      rock.rotation.y = i * 1.7;
-      rock.position.set(x, 0.05, z);
-      world.add(shadowed(rock));
-    }
     isleReach = Math.max(0, ...lay.isl.map(o => Math.hypot(...cellXZ(size, o.r, o.c)))) + 1.0;
     lines = lay.links.map((_, l) => linkLine(lay, size, l, { deck: DECK, viaduct: VIADUCT, pad: o => islandRadius(o.n) + 0.05 }));
     linkMeshes = lay.links.map((_, l) => { const m = bridgesOf(l), g = guideOf(l); world.add(m.out, g.out); return { ...m, ...g }; });
-    // the sea's own: buoys round the fairways, merchantmen on them and round the board
-    for (const b of p.lanes ? buoysOf(size, p.lanes) : []) {
-      const buoy = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.12, 8), b.red ? M.red : M.white);
-      buoy.position.set(b.x, 0.03, b.z);
-      buoy.castShadow = true;
-      world.add(buoy);
-      buoys.push({ buoy, x: b.x, z: b.z });
-    }
-    routes = routesOf(size, p.lanes || "", p.lanes ? 1 : 2);
-    ships = routes.map(route => { const s = ship(); world.add(s); return { s, route }; });
+    // the sea's own: a line of buoys along each strait, its number on a plate at the edge; merchantmen in the free water
+    lay.groups.forEach((g, k) => {
+      const half = size / 2, line = g.gap + 1 - half, el = document.createElement("span");
+      for (let t = -half - 0.4, i = 0; t <= half + 0.4; t += 0.5, i++) {
+        const buoy = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.12, 8), i % 2 ? M.white : M.teal), x = g.across ? line : t, z = g.across ? t : line;
+        buoy.position.set(x, 0.03, z);
+        buoy.castShadow = true;
+        world.add(buoy);
+        buoys.push({ buoy, x, z });
+      }
+      el.className = "brg3-n strait";
+      el.textContent = String(g.mx);
+      labels.appendChild(el);
+      plates.push({ el, at: g.across ? [line, 0.35, -half - 0.95] : [-half - 0.95, 0.35, line], strait: k, cls: "" });
+    });
+    fleet = createFleet(shipsFor(size), 1 + size);
+    ships = fleet.ships.map(sh => ({ s: ship(), sh }));
+    for (const { s } of ships) world.add(s);
     scene.add(world);
     applySkin();
     fit();
@@ -343,17 +352,23 @@ export function createModel(host, opts = {}) {
     marks = m;
     lit = new Set(hint?.set || []);
     litIsland = hint?.island ?? -1;
-    linkMeshes.forEach(({ one, two, dashes, halo, haloY, guideY }, l) => {
-      one.visible = m[l] === "1"; two.visible = m[l] === "2";
+    linkMeshes.forEach(({ one, two, three, dashes, halo, haloY, guideY }, l) => {
+      one.visible = m[l] === "1"; two.visible = m[l] === "2"; three.visible = m[l] === "3";
       dashes.visible = m[l] === "0";
       halo.position.y = m[l] === "0" ? guideY : haloY;
       halo.scale.y = m[l] === "0" ? 0 : 1;                    // a link without a bridge glows flat; a bridge's glow follows its arch
     });
-    const over = new Set(br?.over), met = new Set(br?.met), cut = new Set(br?.cut);
+    const over = new Set(br?.over), met = new Set(br?.met), cut = new Set(br?.cut), loop = new Set((br?.ring || []).flatMap(l => [lay.links[l].a, lay.links[l].b]));
     for (const pl of plates) {
-      const isle = lay.isl[pl.i], cls = `brg3-n${isle.realm ? " r1" : ""}${isle.kind ? " rng" : ""}${over.has(pl.i) ? " over" : met.has(pl.i) ? " met" : ""}${cut.has(pl.i) ? " cut" : ""}${pl.i === litIsland ? " why" : ""}`;
+      let cls;
+      if (pl.strait != null) cls = `brg3-n strait${br?.straitsOver?.includes(pl.strait) ? " over" : br?.straitsMet?.includes(pl.strait) ? " met" : ""}${hint?.strait === pl.strait ? " why" : ""}`;
+      else {
+        const isle = lay.isl[pl.i];
+        cls = `brg3-n${isle.realm ? " r1" : ""}${isle.kind ? " rng" : ""}${over.has(pl.i) ? " over" : met.has(pl.i) ? " met" : ""}${cut.has(pl.i) ? " cut" : ""}${loop.has(pl.i) ? " loop" : ""}${pl.i === litIsland ? " why" : ""}`;
+      }
       if (cls !== pl.cls) { pl.cls = cls; pl.el.className = cls; }
     }
+    fleet?.setSea(seaOf(lay, m));
     glow();
     wake();
   }
@@ -366,7 +381,7 @@ export function createModel(host, opts = {}) {
   // ---------- the skin ----------
   function applySkin() {
     const k = skinNow();
-    M.sea.color.set(k.sea); M.sand.color.set(k.sand); M.copper.color.set(k.copper); M.rock.color.set(k.rock);
+    M.sea.color.set(k.sea); M.sand.color.set(k.sand); M.copper.color.set(k.copper);
     M.h0.color.set(k.hill[0]); M.h1.color.set(k.hill[1]); M.h2.color.set(k.hill[2]);
     M.timber.color.set(k.timber); M.stone.color.set(k.stone); M.deck.color.set(k.deck);
     M.grass.color.set(k.grass); M.tree.color.set(k.tree); M.rail.color.set(k.rail); M.shallow.color.set(k.shallow); M.shallow.opacity = k.shallowA;
@@ -420,8 +435,8 @@ export function createModel(host, opts = {}) {
   function placePlates() {
     const plateScale = Math.round((1 + 0.22 * Math.min(2, zoom - 1)) * 100) / 100;      // the plates grow a little with the islands
     for (const pl of plates) {
-      const isle = lay.isl[pl.i], [x, z] = cellXZ(size, isle.r, isle.c);
-      V.set(x, isle.hill ? 1.35 : 0.55, z).project(camera);
+      if (pl.at) V.set(...pl.at).project(camera);
+      else { const isle = lay.isl[pl.i], [x, z] = cellXZ(size, isle.r, isle.c); V.set(x, isle.hill ? 1.35 : 0.55, z).project(camera); }
       pl.el.style.transform = `translate(${((V.x + 1) / 2) * width}px, ${((1 - V.y) / 2) * height}px) translate(-50%, -50%)${plateScale === 1 ? "" : ` scale(${plateScale})`}`;
     }
   }
@@ -435,11 +450,14 @@ export function createModel(host, opts = {}) {
     M.halo.opacity = still ? 0.5 : 0.42 + 0.18 * Math.sin(t * 5);
     if (winUntil && now > winUntil) { winUntil = 0; glow(); }
     for (const { buoy, x, z } of buoys) buoy.position.y = 0.02 + WAVE(x, z, t);
-    for (const { s, route } of ships) {
-      const at = shipAt(route, t), bob = WAVE(at.x, at.z, t);
-      s.position.set(at.x, bob + 0.01, at.z);
-      s.rotation.set(0.05 * Math.sin(t * 0.9 + at.x), at.heading, 0.04 * Math.sin(t * 0.7 + at.z));
-      s.userData.flag.rotation.y = 0.35 * Math.sin(t * 3 + at.x * 4);
+    const dt = Math.min(0.1, Math.max(0, (now - lastSail) / 1000));       // seconds since the last frame, never a jump after a pause
+    lastSail = now;
+    if (!still) fleet?.advance(dt);
+    for (const { s, sh } of ships) {
+      const bob = WAVE(sh.x, sh.z, t);
+      s.position.set(sh.x, bob + 0.01, sh.z);
+      s.rotation.set(0.05 * Math.sin(t * 0.9 + sh.x), sh.heading, 0.04 * Math.sin(t * 0.7 + sh.z));
+      s.userData.flag.rotation.y = 0.35 * Math.sin(t * 3 + sh.x * 4);
     }
     renderer.render(scene, camera);
     placePlates();
@@ -631,7 +649,7 @@ export function createModel(host, opts = {}) {
     /** For tests: the link under the page's (clientX, clientY). */
     pick: pickAt,
     /** For tests: what is on show. */
-    get live() { return { ships: ships.length, buoys: buoys.length, bridges: linkMeshes.filter(m => m.one.visible || m.two.visible).length, guides: linkMeshes.filter(m => m.dashes.visible).length, glowing: linkMeshes.filter(m => m.halo.visible).length, lit: [...lit], aim, plates: plates.length, shown }; },
+    get live() { return { ships: ships.length, buoys: buoys.length, bridges: linkMeshes.filter(m => m.one.visible || m.two.visible || m.three.visible).length, guides: linkMeshes.filter(m => m.dashes.visible).length, glowing: linkMeshes.filter(m => m.halo.visible).length, lit: [...lit], aim, plates: plates.length, shown }; },
     dispose() { shown = false; if (frameId) cancelAnimationFrame(frameId); disposeWorld(); renderer.dispose(); },
   };
 }
