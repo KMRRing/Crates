@@ -1,5 +1,5 @@
 // Codeword (README, Codeword): the rules a page plays by (codeword-rules.js), the solvers (codeword-solve.js: the
-// exact count of answers, and the human-style cracker that grades a puzzle and plays the computer rival), the puzzle
+// exact count of answers, and the human-style cracker that grades a puzzle), the puzzle
 // maker (codeword-engine.js: every puzzle has exactly one answer, every letter, the level's skill), the mystery word
 // (codeword-themes.js), the split key at a table through the database's round trip (codeword-room.js), saved state
 // through JSON, and today's grid the same on every device.
@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { ALPHABET, SIZES, GIVENS, DAILY, HINT, CHECK, HALVES, holderOf, pack, unpack, entriesOf, layoutOf, mysteryNums, newRun,
   letterOf, isFixed, holding, place, erase, undo, filled, wrongOf, isFull, isSolved, rightOf, check as checkRun, show, score } from "../codeword-rules.js";
-import { SKILLS, LEVELS, RIVALS, makePuzzle, gradeOf, splits, hintFor, rivalPlan, wideList, knownList } from "../codeword-engine.js";
+import { SKILLS, LEVELS, makePuzzle, gradeOf, splits, hintFor, wideList, knownList } from "../codeword-engine.js";
 import { wordList, count, solutions, crack, patternOf } from "../codeword-solve.js";
 import { THEMES, themeOf } from "../codeword-themes.js";
 import { BRANCH, freshTable, isTable, marker, puzzleOf, letterAt, holdingAt, isFixedAt, suggestionFor, filledAt, wrongAt, solvedAt, isMarked,
@@ -130,23 +130,12 @@ const dealt = performance.now() - t0;
   check(L.cellsOf.slice(1).every(cs => cs.length > 0) && p.num.every((n, k) => !n || L.across[k] >= 0 || L.down[k] >= 0), "every number has its cells, and every white cell is in a word");
 }
 
-// ---------- hints and the computer rival ----------
+// ---------- hints ----------
 {
   const p = made[0].p, k0 = knownOf(p);
   const h = hintFor(p, k0);
   check(h && !p.givens.includes(h.n) && entriesOf(p.grid, p.num)[h.entry].nums.includes(h.n), "a hint is a letter not yet right, in the word it's found in");
   check(hintFor(p, Object.fromEntries(NUMBERS.map(n => [n, p.letters[n]]))) === null, "with everything right there's no hint");
-  const ends = {};
-  for (const kind of Object.keys(RIVALS)) {
-    const plan = rivalPlan(p, kind, 7), gave = plan.flatMap(x => x.gives);
-    ends[kind] = plan.at(-1).at;
-    check(plan.every((x, i) => i === 0 || x.at > plan[i - 1].at) && gave.every(([n, ch]) => p.letters[n] === ch)
-      && new Set(gave.map(([n]) => n)).size === gave.length && gave.length + p.givens.length === 26,
-      `${RIVALS[kind].label}'s solve writes in every letter but the givens, once each, right, in time (${Math.round(ends[kind] / 1000)} s)`);
-  }
-  check(ends.ace < ends.sharp && ends.sharp < ends.steady, "the stronger the rival, the sooner it's done");
-  check(ends.ace > 60000 && ends.ace < 6 * 60000 && ends.steady > 4 * 60000 && ends.steady < 25 * 60000, "and at a person's pace: Ace in a few minutes, Steady in ten or so");
-  check(JSON.stringify(rivalPlan(p, "sharp", 7)) === JSON.stringify(rivalPlan(p, "sharp", 7)), "a rival's solve is the same from the same seed (it goes on after a reload)");
 }
 
 // ---------- the mystery word ----------
@@ -209,4 +198,4 @@ const dealt = performance.now() - t0;
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("codeword: one answer and every letter in every puzzle, levels graded by the human-style cracker, the rival and hints, the mystery word, the split key at a table, saved state, today's grid everywhere");
+else console.log("codeword: one answer and every letter in every puzzle, levels graded by the human-style cracker, hints, the mystery word, the split key at a table, saved state, today's grid everywhere");

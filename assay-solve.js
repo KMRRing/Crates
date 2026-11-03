@@ -1,10 +1,9 @@
-// Assay's computer players (README, Assay: the rival), pure: each level a way of solving, not a dice roll on a
+// Assay's solvers (docs/assay.md), pure, used by the tests and to measure the levels' pars, never by the page: each level a way of solving, not a dice roll on a
 // result. Novice forgets what's elsewhere in the word (it plays on what's in place and what's out); Steady is the
 // human-style player that grades the words (assay-engine.js): it guesses only what could still be the word, the
 // commoner first; Sharp guesses the possible word that splits the rest best (the most information); Master may
 // guess any word that splits them best, a word that can't be the answer included, and closes on one when it can.
-// Each guess comes after a person's thinking time. A rival's whole game is worked out when the game starts (it
-// doesn't depend on yours), so it is kept with the game and shows the same after a reload and to a partner watching.
+// Each guess comes after a person's thinking time.
 import { packOf, codeAt, marksOf, marksOfCode, rng, hashOf, levelOf, guessesFor, unhide, dodgeStep, SPRINT_MS, HIT, GREY } from "./assay-engine.js";
 import { ENGLISH } from "./assay-words.js";
 

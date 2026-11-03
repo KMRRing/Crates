@@ -1,15 +1,15 @@
 // Acrostic (README, Classics: Acrostic): the text laid out as squares, the rules of filling either side, the hidden
 // texts from the knowledge base, the generator (answers holding exactly the text's letters, the spine down their first
 // or last letters, every answer a clued word, one way only to fill it, across levels, twists and seeds), the grading by
-// the skill a person needs, the computer player, the team's split (the halves make the whole and neither alone does),
+// the skill a person needs, the team's split (the halves make the whole and neither alone does),
 // the Half twist, today's puzzle the same on every phone, and a puzzle kept through JSON and the database.
 import {
   LEVELS, TWISTS, DAILY, SOURCES, EMPTY, fold, lettersOf, layOut, runsOf, owners, labelOf, blank, put, solved, filled, wrong, right, spelled,
-  spineCell, step, nextEmpty, rivalAt, rivalDone, holds, validEntry,
+  spineCell, step, nextEmpty, holds, validEntry,
 } from "../acrostic-engine.js";
 import { entries, tells } from "../acrostic-texts.js";
 import { makePuzzle, fillAnswers, dayOrder, rng, hash } from "../acrostic-make.js";
-import { fills, solve, grade, rivalPlan, splitFor, clueLevel } from "../acrostic-solve.js";
+import { fills, solve, grade, splitFor, clueLevel } from "../acrostic-solve.js";
 import { answers } from "../acrostic-words.js";
 import { cluesOf, hasClue } from "../clues.js";
 import { today } from "../days.js";
@@ -98,17 +98,6 @@ check(made.every(P => fills(P).count === 1), "every puzzle fills one way only (t
   check(P.answers.some((_, a) => clueLevel(P, a) === 3), "Hard has clues a person must know rarer words for");
 }
 
-// ---------- the computer player ----------
-{
-  const P = made.find(x => x.level === "medium" && x.twist === "classic");
-  const plans = [1, 2, 3].map(l => P.rival[l]);
-  check(plans.every(p => p.length && p.every((s, i) => !i || s[0] >= p[i - 1][0])), "the computer's run is a schedule of steps in time");
-  check(plans.every(p => new Set(p.flatMap(s => s[1])).size === P.cells.length), "every computer finishes: each square once");
-  check(rivalDone(P, 3) < rivalDone(P, 2) && rivalDone(P, 2) < rivalDone(P, 1), `the harder computer is quicker (${[1, 2, 3].map(l => `${Math.round(rivalDone(P, l) / 1000)} s`).join(", ")})`);
-  check(rivalAt(P, 2, 0) === blank(P) && rivalAt(P, 2, rivalDone(P, 2)) === P.cells && right(P, rivalAt(P, 2, rivalDone(P, 2) / 2)) > 0, "its letters come in as its clock runs");
-  check(JSON.stringify(rivalPlan(P, 2)) === JSON.stringify(P.rival[2]), "its schedule is worked out the same every time");
-}
-
 // ---------- the rules of filling ----------
 {
   const P = made[1], own = owners(P);
@@ -173,12 +162,12 @@ check(made.every(P => fills(P).count === 1), "every puzzle fills one way only (t
 // ---------- kept: JSON and the database ----------
 {
   const P = made.find(x => x.twist === "classic");
-  const run = { mode: "random", P, entry: put(blank(P), 0, P.cells[0]), ms: 61000, pen: 20, hints: 1, checks: 0, shown: [0], marked: [], done: false, rival: 2, at: 3, way: "clue" };
+  const run = { mode: "random", P, entry: put(blank(P), 0, P.cells[0]), ms: 61000, pen: 20, hints: 1, checks: 0, shown: [0], marked: [], done: false, at: 3, way: "clue" };
   const back = JSON.parse(JSON.stringify(run));
-  check(validEntry(back.P, back.entry) && JSON.stringify(owners(back.P)) === JSON.stringify(owners(P)) && rivalDone(back.P, 2) === rivalDone(P, 2), "a run kept as JSON plays on the same");
+  check(validEntry(back.P, back.entry) && JSON.stringify(owners(back.P)) === JSON.stringify(owners(P)), "a run kept as JSON plays on the same");
   const table = { v: 1, kind: "team", app: 1, created: 1, players: { u1: { name: "Korbi", slot: 0 } }, n: 1, P, entry: blank(P), by: blank(P), pen: 0, shown: [], begun: 5, done: null };
   const db = roundTrip(table);
-  check(db.P.answers.length === P.answers.length && rivalDone(db.P, 3) === rivalDone(P, 3) && validEntry(db.P, db.entry) && !db.shown && db.done == null, "a team's table survives the database (no empty lists, numbered keys read back as a list)");
+  check(db.P.answers.length === P.answers.length && validEntry(db.P, db.entry) && !db.shown && db.done == null, "a team's table survives the database (no empty lists, numbered keys read back as a list)");
   const match = roundTrip({ seed: 3, level: "medium", twist: "classic", P });
   check(fills(match.P).count === 1 && JSON.stringify(runsOf(match.P.layout)) === JSON.stringify(runsOf(P.layout)), "a race's match survives the database whole");
 }

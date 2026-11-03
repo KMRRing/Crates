@@ -5,7 +5,7 @@
 //   { v, seed, level, twist, source, id, text (as shown), cells (the solution, a letter a square, reading order),
 //     layout (the text's words: boxes that are squares or given characters, with the punctuation round them),
 //     answers ([{ word, clue, d, cells }]: clue A first; cells, the square each letter goes into), spine ({ text,
-//     label, at: "first" | "last" }), about ({ title, by, lines }: the reveal), grade, split, rival, unclued }
+//     label, at: "first" | "last" }), about ({ title, by, lines }: the reveal), grade, split, unclued }
 //
 // An entry is the player's letters, one character a square: a letter, or "." for an empty one.
 export const VERSION = 1;
@@ -106,7 +106,7 @@ export function wrong(P, entry) {
   for (let c = 0; c < entry.length; c++) if (entry[c] !== EMPTY && entry[c] !== P.cells[c]) out.push(c);
   return out;
 }
-/** Squares right so far: a duel's progress, a rival's. */
+/** Squares right so far: a duel's progress. */
 export function right(P, entry) { let n = 0; for (let c = 0; c < entry.length; c++) if (entry[c] === P.cells[c]) n++; return n; }
 /** An answer as the entry spells it, "." for its gaps. */
 export const spelled = (P, entry, a) => P.answers[a].cells.map(c => entry[c]).join("");
@@ -130,20 +130,6 @@ export function nextEmpty(P, own, entry, c, way) {
   for (let k = 1; k <= order.length; k++) { const x = order[(at + k) % order.length]; if (entry[x] === EMPTY) return x; }
   return null;
 }
-
-// ---------- the computer's run, as it stands at a moment ----------
-/**
- * The rival's entry `ms` into its run: its schedule is a list of [ms, cells] steps (acrostic-solve.js works it out
- * when the puzzle is made), every square in a step taking its letter once that moment is past.
- */
-export function rivalAt(P, level, ms) {
-  const plan = P.rival?.[level] || [];
-  let entry = blank(P);
-  for (const [at, cells] of plan) { if (at > ms) break; for (const c of cells) entry = put(entry, c, P.cells[c]); }
-  return entry;
-}
-/** When the rival finishes (ms), or null if it never does. */
-export const rivalDone = (P, level) => { const plan = P.rival?.[level]; return plan?.length ? plan.at(-1)[0] : null; };
 
 // ---------- playing together ----------
 /** Whether clue `a` is this seat's to read in a team match (each seat holds its half; with nobody else, all). */

@@ -22,19 +22,14 @@ html.as-contrast { --as-hit: var(--c2); --as-hit-ink: var(--on-c); }
 .as-mark { display: inline-block; }
 .as-mark svg { width: 100%; height: 100%; display: block; }
 
-/* the line over the board: what's being played, and how far; the rival (or your notes) between */
+/* the line over the board: what's being played, and how far; your notes between */
 .as-strip { display: flex; align-items: center; gap: .5rem; margin: .55rem 0 .4rem; min-height: 1.875rem; font-size: .88rem; color: var(--ink-soft); white-space: nowrap; }
 .as-what { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .as-what b, .as-count b { color: var(--ink); font-weight: 800; }
 .as-count { flex: none; font-variant-numeric: tabular-nums; }
-.as-rival, .as-notes { flex: none; display: inline-flex; align-items: center; gap: .3rem; min-height: 1.75rem; padding: 0 .45rem; border: 1px solid var(--as-edge); border-radius: 4px;
+.as-notes { flex: none; display: inline-flex; align-items: center; gap: .3rem; min-height: 1.75rem; padding: 0 .45rem; border: 1px solid var(--as-edge); border-radius: 4px;
   background: var(--sheet); color: var(--ink); font: inherit; font-size: .76rem; font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums; }
-.as-rival b { font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); font-size: .7rem; }
-.as-rival[hidden] { display: none; }
 .as-notes[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
-.as-mini { display: inline-flex; gap: 1px; }
-.as-mini i { width: .5rem; height: .5rem; border-radius: 1px; background: var(--as-out); }
-.as-mini i.h { background: var(--as-hit); } .as-mini i.n { background: var(--as-near); }
 .as-others { margin: .35rem 0 0; }
 .as-others[hidden] { display: none; }
 /* at a team's table: who's there, and the kind of mark each sees, in that mark's own colour */
@@ -150,7 +145,7 @@ dialog.as-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .as-toast.on { opacity: 1; }
 
 /* Kontor's square corners */
-html[data-theme="kontor"] .as-tile, html[data-theme="kontor"] .as-key, html[data-theme="kontor"] .as-rival, html[data-theme="kontor"] .as-notes { border-radius: 2px; }
+html[data-theme="kontor"] .as-tile, html[data-theme="kontor"] .as-key, html[data-theme="kontor"] .as-notes { border-radius: 2px; }
 
 /* held sideways (#app.beside): the boards take the left column, all its height; the strip and the line stand at the
    right, the keyboard low where a thumb is */

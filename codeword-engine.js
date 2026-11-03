@@ -1,4 +1,4 @@
-// Codeword's engine (README, Codeword): making puzzles, grading them, finding a hint and pacing a computer rival, pure
+// Codeword's engine (README, Codeword): making puzzles, grading them, and finding a hint, pure
 // (no page). It needs the word lists, so a page runs it in a worker (codeword-worker.js); the rules a page plays by are
 // codeword-rules.js.
 //
@@ -136,39 +136,4 @@ export function hintFor(p, right) {
   if (n) return { n, entry: step.entry };
   const m = missing.sort((a, b) => cellsOf[b].length - cellsOf[a].length || a - b)[0];
   return { n: m, entry: entries.findIndex(e => e.nums.includes(m)) };
-}
-
-// ---------- a computer rival ----------
-/**
- * The computer players, each a solver of a skill (a rung of SKILLS), paced as a person: before each step it thinks
- * (think, ms, and per ms for each doubling of the words that fitted what it knew), then writes each letter in (write
- * ms); stuck, it pauses (stuck ms) and thinks a rung harder.
- */
-export const RIVALS = {
-  steady: { label: "Steady", skill: 2, think: 18000, per: 8000, write: 2500, stuck: 45000 },   // a Medium grid in about 10 minutes
-  sharp: { label: "Sharp", skill: 4, think: 9000, per: 4500, write: 1500, stuck: 30000 },     // about 5
-  ace: { label: "Ace", skill: 6, think: 4000, per: 2200, write: 900, stuck: 15000 },          // under 3
-};
-/** A rival's solve: [{ at (ms from the start), gives ([[number, letter], …]) }], to the last letter. Seeded, so the same everywhere. */
-export function rivalPlan(p, rival, seed = 1) {
-  const R = RIVALS[rival] || RIVALS.sharp, rnd = seeded(mix(seed, 0x51D)), list = knownList();
-  let known = Object.fromEntries(p.givens.map(n => [n, p.letters[n]])), rung = R.skill, t = 0;
-  const plan = [];
-  for (let guard = 0; guard < 12 && Object.keys(known).length < 26; guard++) {
-    const r = crack(p, known, list, SKILLS[Math.min(rung, SKILLS.length - 1)]);
-    for (const s of r.steps) {
-      const hard = s.kind === "word" ? Math.log2(s.fits + 1) : s.kind === "cross" ? 5 : 0.5;
-      t += (R.think + R.per * hard) * (0.7 + 0.6 * rnd()) + R.write * s.gives.length;
-      plan.push({ at: Math.round(t), gives: s.gives });
-    }
-    known = r.known;
-    if (r.done) break;
-    if (rung >= SKILLS.length - 1) {                 // the hardest rung stuck too: it takes a letter (as a hint would)
-      const n = [...Array(26).keys()].map(i => i + 1).find(k => !known[k]);
-      t += R.stuck;
-      plan.push({ at: Math.round(t), gives: [[n, p.letters[n]]] });
-      known = { ...known, [n]: p.letters[n] };
-    } else { rung++; t += R.stuck; }
-  }
-  return plan;
 }

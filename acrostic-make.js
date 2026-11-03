@@ -7,7 +7,7 @@
 import { VERSION, LEVELS, layOut, lettersOf, owners, runsOf } from "./acrostic-engine.js";
 import { answers, bagKey, lexicon, code } from "./acrostic-words.js";
 import { entries } from "./acrostic-texts.js";
-import { fills, grade, rivalPlan, splitFor, uncluedFor } from "./acrostic-solve.js";
+import { fills, grade, splitFor, uncluedFor } from "./acrostic-solve.js";
 
 export { LEVELS, TWISTS, DAILY } from "./acrostic-engine.js";
 const MAX_LEN = 12, MIN_LEN = 3;
@@ -317,7 +317,7 @@ function build(entry, form, L, level, twist, at, seed, rand) {
   return null;
 }
 
-/** The clues, until a person needs the level's skill; then the grade, the twist, the team's split, the rivals. */
+/** The clues, until a person needs the level's skill; then the grade, the twist, the team's split. */
 function finish(P, L, twist, rand, ids) {
   const W = answers();
   const clueOf = (a, d) => { const cs = W.list[ids[a]].clues; return cs.find(c => c.d === d) || cs[0]; };
@@ -351,6 +351,5 @@ function finish(P, L, twist, rand, ids) {
   const { split, alone } = splitFor(P, rand);
   P.split = split;
   P.alone = alone;
-  P.rival = { 1: rivalPlan(P, 1), 2: rivalPlan(P, 2), 3: rivalPlan(P, 3) };
   return P;
 }

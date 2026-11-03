@@ -1,6 +1,6 @@
 // Codeword: a crossword grid with no clues, every cell a number, the same number always the same letter, all 26 letters
 // somewhere in it; a few are given and the rest you crack from the shapes of the words. Tap a cell, then a letter:
-// every cell of that number takes it. The rules are codeword-rules.js's; making a grid, a hint and a computer rival's
+// every cell of that number takes it. The rules are codeword-rules.js's; making a grid and a hint
 // pace need the word lists and run in a worker (codeword-worker.js, codeword-engine.js). Together: a race on the same
 // grid (duel.js), or the split key for a pair, each holding half the numbers (codeword-room.js, on together.js).
 import { SIZES, LEVEL_NAMES, GIVENS, DAILY, HINT, CHECK, holderOf, pack, unpack, layoutOf, mysteryNums, newRun, letterOf, isFixed, isGiven, holding, place, erase, undo, filled, isFull, isSolved, rightOf, check, show, score } from "./codeword-rules.js";
@@ -23,7 +23,6 @@ const $ = id => document.getElementById(id);
 const RUN = "codeword:run", TIMES = "codeword:times", OPTS = "codeword:opts";
 const SAVE_EVERY = 5000;                     // ms between saves of a grid in play (a partner watching sees it that often)
 const KINDS = { "": "Off", countries: "Country", commodities: "Commodity", cities: "City" };
-const RIVAL_NAMES = { "": "Off", steady: "Steady", sharp: "Sharp", ace: "Ace" };
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -35,16 +34,15 @@ const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s 
 const first = name => String(name || "Your partner").split(" ")[0];
 
 // the menu's choices for the next grid, and how a pair plays together
-let opts = { level: "medium", size: "medium", mystery: "", rival: "", pair: "split", ...read(OPTS, {}) };
+let opts = { level: "medium", size: "medium", mystery: "", pair: "split", ...read(OPTS, {}) };
 if (!LEVEL_NAMES[opts.level]) opts.level = "medium";
 if (!SIZES[opts.size]) opts.size = "medium";
 if (!(opts.mystery in KINDS)) opts.mystery = "";
-if (!(opts.rival in RIVAL_NAMES)) opts.rival = "";
 const keepOpts = () => write(OPTS, opts);
 $("level").value = opts.level;
 
-// ---------- the workers: grids, hints and rivals, off the page ----------
-// Two: one for what the player waits on (a grid, a hint, a rival's solve), one for the grid made ahead, so a hint
+// ---------- the workers: grids and hints, off the page ----------
+// Two: one for what the player waits on (a grid, a hint), one for the grid made ahead, so a hint
 // never waits behind it.
 const workers = { now: null, ahead: null }, jobs = new Map();
 let jobN = 0;
@@ -71,7 +69,6 @@ async function inPage(msg) {
     return { puzzle: p ? pack(p) : null };
   }
   if (msg.hint) return { hint: E.hintFor(unpack(msg.hint.puzzle), msg.hint.right) };
-  if (msg.rival) return { plan: E.rivalPlan(unpack(msg.rival.puzzle), msg.rival.rival, msg.rival.seed) };
   return {};
 }
 // a grid made ahead for the next random one with the same choices, so New grid is at once
@@ -98,7 +95,7 @@ const takeSpare = o => { const k = optKey(o), p = spare.get(k); if (p) { spare.d
 
 // ---------- what's on the board ----------
 // S: a solo grid or a race's: { mode ("random", "daily", "link" or "duel"), opts ({ level, size, mystery }), puzzle
-// (packed), run (codeword-rules.js), fresh (a new best), rival ({ kind, plan } or null), at (the cursor: { k, dir }) }.
+// (packed), run (codeword-rules.js), fresh (a new best), at (the cursor: { k, dir }) }.
 // T: the split key's table, when playing it (codeword-room.js). P: the puzzle unpacked; LAY its layout.
 let S = null, T = null, P = null, LAY = null;
 let at = { k: -1, dir: "across" };
@@ -136,7 +133,7 @@ function clockPause() {
   clockFrom = null;
   save();
 }
-onPause(() => { paused = true; clockPause(); }, () => { paused = false; clockRun(); });   // the menu stops the clock, and the rival with it
+onPause(() => { paused = true; clockPause(); }, () => { paused = false; clockRun(); });   // the menu stops the clock
 function elapsed() {
   if (T) return Math.max(0, (T.done || now()) - T.created);
   if (!S) return 0;
@@ -165,7 +162,8 @@ function recordBest(sc) {
 const hashFor = s => (s.mode === "daily" ? `#d=${unpack(s.puzzle).seed}` : `#s=${unpack(s.puzzle).seed}&l=${s.opts.level}&z=${s.opts.size}${s.opts.mystery ? `&m=${s.opts.mystery}` : ""}`);
 /** Puts a grid on the board: `s` is { mode, opts, puzzle, … }, `run` what's written in it so far. */
 function begin(s, run = newRun()) {
-  S = { at: null, rival: null, ...s, run };
+  S = { at: null, ...s, run };
+  delete S.rival;                                    // a grid saved when a computer could race you
   T = null;
   P = unpack(S.puzzle);
   LAY = layoutOf(P);
@@ -175,15 +173,11 @@ function begin(s, run = newRun()) {
   at = S.at && P.num[S.at.k] ? S.at : firstAt();
   $("level").value = S.mode === "daily" ? opts.level : S.opts.level;   // the menu offers the level a random grid will have
   if (!S.duel && !IN_FRAME) history.replaceState(null, "", hashFor(S));
-  // a rival's row is there from the start (its solve follows from the worker), so the grid doesn't shrink under you
-  const racer = !S.duel && !IN_FRAME && !S.run.done && S.mode !== "daily" && (S.rival?.kind || opts.rival);
-  if (racer && !S.rival?.plan) S.rival = { kind: racer, plan: null };
   build();
   save();
   clockRun();
   render();
   if (!S.duel && !IN_FRAME && S.mode !== "daily") makeSpare({ ...S.opts, split: false });
-  if (racer && !S.rival.plan) setRival(racer);
 }
 /** A new grid: a random one with the menu's choices (the level from the header), or today's, the same for everyone. */
 async function start(mode, level = opts.level) {
@@ -333,30 +327,6 @@ function celebrate() {
   navigator.vibrate?.([30, 40, 30]);
 }
 
-// ---------- the computer rival ----------
-// A solo grid can be raced against a computer player (the menu's Race the computer): its solve, worked out from the
-// givens by the solver at its skill and paced as a person would be (rivalPlan in codeword-engine.js), plays out on the
-// grid's own clock, so it stands still with the menu open and goes on from where it was after a reload.
-async function setRival(kind) {
-  if (!S || S.duel || T || IN_FRAME || !kind) { if (S && !kind) { S.rival = null; save(); render(); } return; }
-  const s = S;
-  if (s.rival?.kind !== kind) { s.rival = { kind, plan: null }; render(); }
-  try {
-    const { plan } = await work({ rival: { puzzle: s.puzzle, rival: kind, seed: P.seed } });
-    if (S !== s || s.rival?.kind !== kind) return;      // another grid, or another rival, since
-    s.rival = { kind, plan };
-    save();
-    render();
-  } catch (e) { console.error(e); }
-}
-/** Where the rival is on this grid's clock: { name, letters, done, end }; its letters are the givens till its solve is in. */
-function rivalNow() {
-  if (!S?.rival || !RIVAL_NAMES[S.rival.kind]) return null;
-  const plan = S.rival.plan || [], t = elapsed(), got = plan.filter(x => x.at <= t), letters = P.givens.length + got.reduce((n, x) => n + x.gives.length, 0);
-  const end = plan.at(-1)?.at ?? 0;
-  return { name: RIVAL_NAMES[S.rival.kind], letters: Math.min(26, letters), done: plan.length > 0 && t >= end, end };
-}
-
 // ---------- drawing ----------
 /** The board's cells, made once a grid. */
 function build() {
@@ -453,7 +423,7 @@ function drawKeys() {
 const shown = {};
 const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
 function drawStrip() {
-  if (!P) { put("clock", "0:00"); put("found", ""); for (const id of ["undoBtn", "hintBtn", "checkBtn"]) $(id).disabled = true; $("rival").hidden = true; return; }
+  if (!P) { put("clock", "0:00"); put("found", ""); for (const id of ["undoBtn", "hintBtn", "checkBtn"]) $(id).disabled = true; return; }
   const hints = T ? T.hints || 0 : S.run.hints, checks = T ? T.checks || 0 : S.run.checks;
   put("clock", fmt(elapsed() / 1000 + HINT * hints + CHECK * checks));   // the score as it stands: a hint and a check are on the clock
   put("found", `${B.filled()} of 26`);
@@ -461,14 +431,6 @@ function drawStrip() {
   $("undoBtn").disabled = off || (!T && !S.run.log.length);
   $("hintBtn").disabled = off;
   $("checkBtn").disabled = off;
-  drawRival();
-}
-function drawRival() {
-  const el = $("rival"), r = rivalNow();
-  if (!r || duel.on || T) { el.hidden = true; return; }
-  el.hidden = false;
-  const text = r.done ? `${r.name} cracked it in ${fmt(r.end / 1000)}` : `${r.name}: ${r.letters} of 26`;
-  if (el.textContent !== text) el.textContent = text;
 }
 function drawLine() {
   const l = $("line");
@@ -528,9 +490,8 @@ function drawResult() {
     const r = S.run, sc = score(r), bits = [];
     if (r.hints) bits.push(plural(r.hints, "hint"));
     if (r.checks) bits.push(plural(r.checks, "check"));
-    const best = read(TIMES, {})[bestKey(S.opts)], rv = S.rival?.plan ? rivalNow() : null, mine = sc * 1000;   // hints and checks count against you
-    const vs = rv ? (rv.end < mine ? ` ${rv.name} was ${fmt((mine - rv.end) / 1000)} quicker.` : ` You beat ${rv.name} by ${fmt((rv.end - mine) / 1000)}.`) : "";
-    v.textContent = `Cracked: ${fmt(sc)}${bits.length ? ` (${bits.join(", ")})` : ""}.${S.duel ? "" : S.fresh ? " A new best." : best != null ? ` Your best: ${fmt(best)}.` : ""}${vs}`;
+    const best = read(TIMES, {})[bestKey(S.opts)];
+    v.textContent = `Cracked: ${fmt(sc)}${bits.length ? ` (${bits.join(", ")})` : ""}.${S.duel ? "" : S.fresh ? " A new best." : best != null ? ` Your best: ${fmt(best)}.` : ""}`;
     $("nextBtn").textContent = S.duel ? "The result" : S.mode === "daily" ? "A random grid" : "Another grid";
   }
   v.className = "cw-verdict good";
@@ -705,7 +666,6 @@ function openMenu() {
   if (pick === "random") content.append(mirror("Level", $("level")), sizeChoice(), kindChoice());
   else content.append(line("Today's grid is Medium, 13 by 13: the same for everyone."));
   part(body, "together").append(choice("A pair plays", [["split", "Split key"], ["race", "Race"]], opts.pair, v => { opts.pair = v; keepOpts(); }));
-  part(body, "settings").append(choice("Race the computer", Object.entries(RIVAL_NAMES), opts.rival, v => { opts.rival = v; keepOpts(); if (S && !S.run.done && S.mode !== "daily") setRival(v); }));
   const best = S ? read(TIMES, {})[bestKey(S.opts)] : null;
   part(body, "about").append(
     line(S ? `${LEVEL_NAMES[S.opts.level]}, ${SIZES[S.opts.size].n} by ${SIZES[S.opts.size].n}: ${best != null ? `best ${fmt(best)}` : "not cracked yet"}. A hint adds ${HINT} s, a check ${CHECK} s.` : "A crossword with no clues."),
@@ -720,7 +680,7 @@ function showMenu(body) {
 
 // ---------- the rules ----------
 // The header's Rules and the menu's The rules: Codeword as it's played here, its numbers the rules' own, so the sheet
-// can't drift from the game. A solo clock and the computer rival stand still while it's open, as for the menu (menu.js).
+// can't drift from the game. A solo clock stands still while it's open, as for the menu (menu.js).
 function showRules() {
   const sizes = Object.values(SIZES).map(s => `${s.label} ${s.n} by ${s.n}`).join(", "), day = SIZES[DAILY.size].n;
   $("rulesBody").innerHTML = `
@@ -846,7 +806,7 @@ async function solo() {
   if (forToday && !IN_FRAME && !(S?.mode === "daily" && unpack(S.puzzle).seed === today())) {
     if (!started() || confirm("Today's grid is waiting. Leave the one you've started?")) { await start("daily"); return; }
   }
-  if (S) begin({ mode: S.mode, opts: S.opts, puzzle: S.puzzle, fresh: S.fresh, rival: S.rival, at: S.at }, S.run);
+  if (S) begin({ mode: S.mode, opts: S.opts, puzzle: S.puzzle, fresh: S.fresh, at: S.at }, S.run);
   else if (!IN_FRAME) await start("random");
   else render();
 }

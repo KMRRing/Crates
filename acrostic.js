@@ -3,10 +3,10 @@
 // side and the other fills too. The rules are acrostic-engine.js's; the puzzles are made in a worker (acrostic-worker.js,
 // acrostic-make.js), each proven to fill one way only and graded by the skill a person needs. This file keeps the run,
 // the clock, the keyboard and the grid, and the three ways to play with others: a team match for the pair (each holds
-// half the clues), a race on the same puzzle at a party (duel.js), and a computer rival paced like a person.
+// half the clues), and a race on the same puzzle at a party (duel.js).
 import {
   LEVELS, TWISTS, DAILY, SOURCES, EMPTY, blank, put, solved, filled, wrong, right, owners, labelOf, spineCell, step, nextEmpty,
-  rivalAt, rivalDone, holds, validEntry,
+  holds, validEntry,
 } from "./acrostic-engine.js";
 import { STAGES as LIT_STAGES } from "./kb/items/choice/lit.js";
 import { STAGES as SAYING_STAGES } from "./kb/items/choice/sayings.js";
@@ -22,12 +22,11 @@ import { createTogether } from "./together.js";
 import { joiningWords } from "./rooms.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "acrostic:run", PREFS = "acrostic:prefs", TIMES = "acrostic:times", SEEN = "acrostic:seen", RIVALS = "acrostic:rivals";
+const RUN = "acrostic:run", PREFS = "acrostic:prefs", TIMES = "acrostic:times", SEEN = "acrostic:seen";
 const APP = 1;                       // this code's version of a match and a team's table
 const HINT = 20, CHECK = 10;         // seconds added: a letter shown; each wrong letter a check finds
 const SAVE_EVERY = 5000;             // ms between saves of a puzzle in play (a partner watching sees it that often)
 const STAGES = { lit: LIT_STAGES, saying: SAYING_STAGES.filter(s => s.id !== "pop") };
-const PACE = ["", "Easy", "Medium", "Hard"];   // the computer rival's paces (acrostic-solve.js RIVALS)
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { if (IN_FRAME) return; try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -37,7 +36,7 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const first = name => String(name || "Player").split(" ")[0];
 
 // ---------- what you've chosen ----------
-const PREF0 = { level: "medium", twist: "classic", sources: SOURCES.map(([id]) => id), stages: {}, rival: 0 };
+const PREF0 = { level: "medium", twist: "classic", sources: SOURCES.map(([id]) => id), stages: {} };
 let prefs = { ...PREF0, ...read(PREFS, {}) };
 if (!LEVELS[prefs.level]) prefs.level = "medium";
 if (!TWISTS[prefs.twist]) prefs.twist = "classic";
@@ -86,7 +85,7 @@ async function nextRandom() {
 
 // ---------- the run ----------
 // S: { mode: "random" | "daily" | "duel" | "team", P (the puzzle), entry, ms (the clock), pen (seconds added), hints,
-// checks, shown (squares a hint filled), marked (squares a check found wrong), done, score, fresh (a new best), rival
+// checks, shown (squares a hint filled), marked (squares a check found wrong), done, score
 // (the computer's level, 0 for none), at (the square you're on), way ("text" or "clue": which way typing runs) }
 let S = null, P = null, own = null;
 let clockFrom = null, savedAt = 0, paused = false;
@@ -103,7 +102,7 @@ const started = () => !!S && (S.mode === "random" || S.mode === "daily") && !S.d
 
 /** Puts a puzzle on the table: `s` is the run (a fresh one, or one kept), drawn and its clock started. */
 function begin(s) {
-  S = { pen: 0, hints: 0, checks: 0, shown: [], marked: [], done: false, rival: 0, at: 0, way: "text", ms: 0, ...s };
+  S = { pen: 0, hints: 0, checks: 0, shown: [], marked: [], done: false, at: 0, way: "text", ms: 0, ...s };
   P = S.P;
   own = owners(P);
   if (!(S.at >= 0 && S.at < P.cells.length)) S.at = 0;
@@ -129,7 +128,7 @@ async function start(kind) {
     const P0 = kind === "daily" ? await makeIn(today(), { ...DAILY, daily: true }) : await nextRandom();
     if (!P0) { toast("Nothing could be set from those sources at this level: try more of them"); return; }
     if (kind !== "daily") seen(P0.id);
-    begin({ mode: kind, P: P0, entry: blank(P0), rival: kind === "daily" ? 0 : prefs.rival, day: kind === "daily" ? today() : null });
+    begin({ mode: kind, P: P0, entry: blank(P0), day: kind === "daily" ? today() : null });
   } catch (e) { console.error(e); toast("Couldn't set a puzzle: try again"); }
   finally { done(); }
   prefetch();
@@ -286,7 +285,6 @@ function finish() {
   if (S.mode === "duel") { save(); setTimeout(() => tell(true), 450); return; }
   S.fresh = recordBest(S);
   if (S.mode === "daily") noteDayTime("acrostic", S.score, S.day || today());   // today's: the first solve counts
-  if (S.rival) recordRival(S);
   save();
   showDone(true);
   roundOver("acrostic");
@@ -299,13 +297,6 @@ function recordBest(s) {
   if (fresh) { times[k] = s.score; write(TIMES, times); }
   return fresh;
 }
-function recordRival(s) {
-  const r = read(RIVALS, {}), at = rivalDone(s.P, s.rival), k = String(s.rival);
-  r[k] ||= { won: 0, lost: 0 };
-  if (at == null || s.score * 1000 < at) r[k].won++; else r[k].lost++;
-  write(RIVALS, r);
-}
-
 // ---------- drawing: the text ----------
 let boxes = [];        // per square: its element
 let wordOf = [];       // per square: which word of the text it's in (the word you type along is underlined)
@@ -493,12 +484,7 @@ function drawStrip() {
   show("pen", pen ? `+${pen} s` : "");
   show("count", `${filled(e)} of ${P.cells.length}`);
   const r = $("rival");
-  if (S.mode === "random" && S.rival) {
-    const at = rivalDone(P, S.rival), ms = S.done ? S.score * 1000 : elapsed(), got = right(P, rivalAt(P, S.rival, ms));
-    r.hidden = false;
-    const text = at != null && at <= ms ? `Computer done: ${fmt(at / 1000)}` : `Computer ${got} of ${P.cells.length}`;
-    if (r.textContent !== text) r.textContent = text;
-  } else if (S.mode === "team") {
+  if (S.mode === "team") {
     r.hidden = false;
     const p = team.others()[0], text = p ? `With ${first(p.name)}${p.here ? "" : " (away)"}` : "Waiting for your partner";
     if (r.textContent !== text) r.textContent = text;
@@ -508,7 +494,6 @@ function drawVerdict() {
   const g = S.mode === "team" ? team.room?.data : null;
   const secs = g ? Math.round(g.done.ms / 1000) + (g.pen || 0) : S.score;
   let text = `Solved: ${fmt(secs)}.`;
-  if (S.mode === "random" && S.rival) { const at = rivalDone(P, S.rival); text += at == null || S.score * 1000 < at ? " You beat the computer." : ` The computer took ${fmt(at / 1000)}.`; }
   if (S.mode === "daily") text += " Today's, done.";
   show("verdict", text);
   $("nextBtn").textContent = S.mode === "duel" ? "The result" : S.mode === "team" ? "Another together" : "New puzzle";
@@ -553,10 +538,6 @@ function showDone(fresh) {
   const how = pen ? ` (${fmt(clock)} on the clock, +${pen} s for hints and checks)` : "";
   const after = S.fresh ? ` A new best at ${LEVELS[P.level].label}.` : best != null ? ` Your best at ${LEVELS[P.level].label}: ${fmt(best)}.` : "";
   box.append(el("p", "ac-score", `${g ? "Solved together" : "Solved"} in ${fmt(secs)}${how}.${after}`));
-  if (S.mode === "random" && S.rival) {
-    const at = rivalDone(P, S.rival), who = `The computer (${PACE[S.rival]})`;
-    box.append(el("p", "ac-line", at == null || S.score * 1000 < at ? `You beat it: ${who.toLowerCase()} took ${fmt((at || 0) / 1000)}.` : `${who} finished first, in ${fmt(at / 1000)}.`));
-  }
   $("doneTitle").textContent = S.mode === "daily" ? "Today's, solved" : "Solved";
   $("doneNext").textContent = S.mode === "team" ? "Another together" : "New puzzle";
   // a moment to see the text whole first; and the tap that typed the last letter mustn't land on the reveal's backdrop
@@ -816,15 +797,9 @@ function openMenu() {
     pick ??= S?.mode === "daily" ? "daily" : "random";
     part(body, "play").append(action(pick === "daily" ? "Today's acrostic" : "New puzzle", () => confirmStart(pick), "primary"));
     contentPart(body);
-    const settings = part(body, "settings");
-    settings.append(toggle("Race the computer", !!prefs.rival, on => { prefs.rival = on ? prefs.pace || 2 : 0; keepPrefs(); openMenu(); }));
-    if (prefs.rival) settings.append(choice("Its pace", [[1, "Easy"], [2, "Medium"], [3, "Hard"]], prefs.rival, v => { prefs.rival = prefs.pace = v; keepPrefs(); }),
-      line("From your next puzzle: it solves the same one beside your clock, as fast as a person who knows that much."));
   }
   const times = read(TIMES, {}), bests = Object.keys(LEVELS).map(l => times[`${l}:classic`] != null ? `${LEVELS[l].label} ${fmt(times[`${l}:classic`])}` : null).filter(Boolean);
-  const r = read(RIVALS, {}), vs = Object.entries(r).filter(([k]) => PACE[k]).map(([k, v]) => `${PACE[k]}: ${v.won}–${v.lost}`);
   part(body, "about").append(line(bests.length ? `Your bests: ${bests.join(", ")}.` : "Your bests show here once you've solved one."),
-    ...(vs.length ? [line(`Against the computer: ${vs.join(", ")}.`)] : []),
     line(`A hint shows a letter, +${HINT} s; a check marks the wrong ones, +${CHECK} s each.`));
   part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -832,7 +807,7 @@ function openMenu() {
 
 // ---------- the rules ----------
 // The header's Rules and the menu's The rules: Acrostic as it's played here, its numbers the engine's own, so the sheet
-// can't drift from the game. A solo clock and the rival stand still while it's open, as for the menu (menu.js).
+// can't drift from the game. A solo clock stands still while it's open, as for the menu (menu.js).
 function showRules() {
   const listed = (xs, last) => xs.join(", ").replace(/, ([^,]+)$/, ` ${last} $1`);
   const size = id => `${LEVELS[id].label}, ${LEVELS[id].letters.join(" to ")} letters`;
@@ -844,7 +819,6 @@ function showRules() {
     <p><b>Undo, Check and Hint.</b> Undo takes your letters back one at a time. Check marks the wrong letters, adding ${CHECK} seconds for each it finds. Hint shows the letter under the cursor, or the next one missing if that one's right already, adding ${HINT} seconds.</p>
     <p><b>Score.</b> Your time plus those seconds, lower being better. Every puzzle fills one way only, and a digit in the text is shown for you, not a square. Playing alone, the clock stands still while the menu or these rules are open.</p>
     <p><b>Levels.</b> In the menu: ${size("easy")}, the commonest words and plain clues; ${size("medium")}, with harder clues where the plain ones alone wouldn't finish it; ${size("hard")}, rarer words and the harder clues. Twists: <b>${TWISTS.classic.label}</b>; <b>${TWISTS.telestich.label}</b>, the source running down the answers' last letters; <b>${TWISTS.half.label}</b>, half the clues blank, those answers coming from the text alone. Sources: ${listed(SOURCES.map(([, label]) => label), "and")}, ticked in or out.</p>
-    <p><b>Race the computer.</b> In Settings, from your next puzzle: the computer solves the same puzzle beside your clock, its pace ${listed(PACE.filter(Boolean), "or")}, as fast as a person who knows that much.</p>
     <p><b>Today's.</b> ${LEVELS[DAILY.level].label}, ${TWISTS[DAILY.twist].label}, from every source, the same for everyone, and a new one at midnight UTC. It counts the moment its last letter is right.</p>
     <p><b>Together.</b> With your partner, one puzzle with half the clues each, the other half showing as your partner's: read yours aloud, since neither half alone finishes it. Either of you types anywhere, your partner's letters in their colour. At a party, a race: the same puzzle for everyone, the fastest solve winning, hints and checks added.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();

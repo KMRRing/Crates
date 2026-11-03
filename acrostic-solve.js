@@ -216,18 +216,6 @@ export function grade(P, opts = {}) {
   return { level: 4, steps: 0, cold: 0, secs: 0 };
 }
 
-// ---------- the computer player ----------
-// Three computers, as fast as a person who knows that much: the easy one cracks easy clues and works slowly, the hard
-// one cracks anything and works quickly. Each always finishes: stuck, it works the nearest clue out the long way.
-export const RIVALS = { 1: { skill: 1, pace: 1.6 }, 2: { skill: 2, pace: 1 }, 3: { skill: 3, pace: 0.62 } };
-/** A rival's run as a schedule: [[ms from the start, [squares]]], each step's letters in at that moment. */
-export function rivalPlan(P, level) {
-  const { skill, pace } = RIVALS[level];
-  const r = solve(P, skill, { push: true });
-  let t = 0;
-  return r.steps.map(s => { t += s.secs * pace * 1000; return [Math.round(t), s.cells]; });
-}
-
 // ---------- playing together ----------
 /**
  * A team match's split: which seat holds each clue, so that the two halves together finish it and neither half alone

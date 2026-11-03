@@ -1,7 +1,7 @@
 // Assay: Wordle's genre (README, Assay). Guess the hidden word; each letter of a guess is marked in place, elsewhere
 // in the word, or out. One word, several boards at once, a word that dodges, or a three-minute sprint, at four
-// lengths and three levels, with Wordle's hard rule or a strict one, and a computer rival if you like. The rules,
-// the words, the levels and the daily are assay-engine.js's; the rivals assay-solve.js's; the team's table
+// lengths and three levels, with Wordle's hard rule or a strict one. The rules,
+// the words, the levels and the daily are assay-engine.js's; the team's table
 // assay-table.js's. Together: the pair as a team, each seeing one colour of the marks (together.js), or everyone
 // racing the same word (duel.js), from the partner sheet or a Party. Levels (assay-levels.js) are a ladder of recipes
 // beside free play, each kept as it was left (assay:lruns), its stars in assay:camp. Words are one of three games (the
@@ -9,7 +9,6 @@
 // and on the ladder, with every mode; the daily, the team and the race are words.
 import { LENGTHS, LEVELS, BOARDS, DAILY, HIT, NEAR, GREY, UNSEEN, SPRINT_MS, newGame, guessIn, rowsOf, solvedAt, limitOf, guessesFor, answersOf,
   scoreOf, sprintSolved, guessesUsed, timeUp, dailyWord, seenAs, unhide, packOf, levelOf, meanGuesses } from "./assay-engine.js";
-import { RIVALS, RIVAL_NAMES, rivalPlan, rivalSoFar, rivalMarks } from "./assay-solve.js";
 import { freshTeam, isTeam, tidy, guessAt, rowsOfTable, roleAt, resultOf as teamResult, dealAt, limitOfTable } from "./assay-table.js";
 import { ENGLISH } from "./assay-words.js";
 import { lexOf, unitOf, nounOf, ready, IDS } from "./assay-lexicons.js";
@@ -32,7 +31,7 @@ const LEX = ENGLISH;                      // the daily's, the team's and the rac
 /** The lexicon on the screen: the team's is English, a game's is its own, else what the menu has chosen. */
 const lexNow = () => (T ? ENGLISH : S ? lexOf(S.lang) : lexOf(prefs.lang));
 const RUN = "assay:run", PREFS = "assay:prefs", STATS = "assay:stats", DAILY_KEY = "assay:daily", BEST = "assay:best", STREAK = "assay:streak",
-  RIVAL_KEY = "assay:rivals", SEEN = "assay:seen", NOTES = "assay:notes", TRACK = "assay:track", CAMP = "assay:camp", LRUNS = "assay:lruns";
+  SEEN = "assay:seen", NOTES = "assay:notes", TRACK = "assay:track", CAMP = "assay:camp", LRUNS = "assay:lruns";
 const STAR = "★", HOLLOW = "☆";
 const APP = 1;                 // the tables' version (the team's and the race's)
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
@@ -50,7 +49,7 @@ const RULE_NAMES = { free: "Free", hard: "Hard", strict: "Strict" };
 const RULE_LINES = { free: "Any word may be guessed.", hard: "Hard: a letter found stays in place, and every letter shown is used.", strict: "Strict: every guess could be the word." };
 
 // ---------- what you've chosen ----------
-const DEFAULTS = { lang: "en", mode: "classic", len: 5, boards: 4, level: "medium", rules: "free", rival: "off", contrast: false };
+const DEFAULTS = { lang: "en", mode: "classic", len: 5, boards: 4, level: "medium", rules: "free", contrast: false };
 function cleanPrefs(p) {
   const x = { ...DEFAULTS, ...(p && typeof p === "object" ? p : {}) };
   if (!MODE_NAMES[x.mode]) x.mode = DEFAULTS.mode;
@@ -60,7 +59,6 @@ function cleanPrefs(p) {
   if (!BOARDS.includes(x.boards) || x.boards === 1) x.boards = DEFAULTS.boards;
   if (!LEVELS.includes(x.level)) x.level = DEFAULTS.level;
   if (!RULE_NAMES[x.rules]) x.rules = DEFAULTS.rules;
-  if (x.rival !== "off" && !RIVALS.includes(x.rival)) x.rival = "off";
   x.contrast = !!x.contrast;
   return x;
 }
@@ -83,7 +81,7 @@ let track = read(TRACK, null);
 if (track !== "levels" && track !== "free") track = read(RUN, null) ? "free" : "levels";
 
 // ---------- the game on the screen ----------
-// S: a game of yours (assay-engine.js's, with kind "daily" or "random", the draft being typed, the rival's plan), or
+// S: a game of yours (assay-engine.js's, with kind "daily" or "random", the draft being typed), or
 // the race's (S.duel, kept by duel.js apart from yours); T: the team's table as last seen. Everything the screen shows
 // is in S (kept in assay:run as it changes), so a partner watching sees it as it stands.
 let S = null, T = null;
@@ -106,7 +104,7 @@ const dueToday = () => read(DAILY_KEY, {})[today()] == null;
 
 /** Puts game g on the table as yours: `extra` is what makes it a daily's or a level's. */
 function begin(g, kind, extra = {}) {
-  S = { ...g, kind, ...extra, draft: "", rival: prefs.rival !== "off" ? rivalPlan(g, prefs.rival, lexOf(g.lang)) : null };
+  S = { ...g, kind, ...extra, draft: "" };
   if (kind !== "daily" && g.mode !== "dodge" && g.lang === "en") write(SEEN, [...answersOf(g).slice(0, 8), ...read(SEEN, [])].slice(0, 400));   // a sprint's first few
   fresh = true; reveal = null; shownDone = null;
   clockFrom = null;
@@ -163,7 +161,7 @@ async function setTrack(next) {
 }
 
 // ---------- the clock ----------
-// A game of yours counts the time it's on the screen (the rival thinks while you do, and the sprint runs out); the
+// A game of yours counts the time it's on the screen (the sprint runs out); the
 // menu, the rules and the games screen stop it. A race counts from the start everyone shares, and doesn't stop.
 let clockFrom = null;
 function clockRun() {
@@ -235,7 +233,7 @@ function finish() {
 }
 const revealMs = () => (matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : (S?.len || 5) * 110 + 250);
 const modeKey = s => (s.kind === "daily" ? "daily" : `${s.lang && s.lang !== "en" ? `${s.lang}-` : ""}${s.mode}-${s.len}${s.mode === "boards" ? `x${s.boards}` : ""}-${s.level}`);
-/** Counts a game of yours the moment it's over: its stats, today's (the daily), and the rival's record. */
+/** Counts a game of yours the moment it's over: its stats and today's (the daily). */
 function record() {
   if (IN_FRAME || S.counted) return;
   S.counted = true;
@@ -265,15 +263,6 @@ function record() {
       if (won) s.last = day;
       write(STREAK, s);
     }
-  }
-  if (S.rival) {
-    const r = read(RIVAL_KEY, {}), mine = { score: scoreOf(S), ms: S.ms }, theirs = { score: S.rival.score, ms: S.rival.done };
-    const k = mine.score - theirs.score || mine.ms - theirs.ms;
-    const x = r[S.rival.level] || { w: 0, l: 0, d: 0 };
-    if (k < 0) x.w++; else if (k > 0) x.l++; else x.d++;
-    r[S.rival.level] = x;
-    S.beat = k < 0 ? "won" : k > 0 ? "lost" : "drew";
-    write(RIVAL_KEY, r);
   }
 }
 
@@ -461,8 +450,7 @@ function drawKeys() {
 
 // ---------- the strip over the board, the line under it ----------
 function drawStrip() {
-  const what = $("what"), count = $("count"), rival = $("rival"), lb = $("levelBtn");
-  rival.hidden = true;
+  const what = $("what"), count = $("count"), lb = $("levelBtn");
   lb.hidden = !(S && !T && S.kind === "level" && !S.duel);
   if (!lb.hidden) lb.textContent = `Level ${S.lv + 1}`;
   if (T) {
@@ -484,25 +472,6 @@ function drawStrip() {
     count.replaceChildren(el("b", "", clock(left)), ` · ${plural(sprintSolved(S), "solved", "solved")}`);
   } else if (S.mode === "dodge") count.replaceChildren(el("b", "", plural(S.left, "word")), " left");
   else count.replaceChildren(S.over ? (S.over === "won" ? `Solved in ${S.guesses.length}` : "Not solved") : `Guess ${S.guesses.length + 1} of ${limitOf(S)}`);
-  if (S.rival) drawRival(rival);
-}
-/** The rival, as it goes: its latest row's marks (its letters are kept for the end), or how far it has got. */
-function drawRival(box) {
-  const plan = S.rival, ms = S.over ? Infinity : elapsed(), rows = rivalSoFar(plan, ms), name = RIVAL_NAMES[plan.level];
-  box.hidden = false;
-  box.replaceChildren(el("b", "", name));
-  if (S.mode === "sprint") { box.append(` ${rows.filter((r, k) => rivalMarks(S, r).every(m => m === HIT)).length} solved`); }
-  else if (S.mode === "boards") {
-    const solved = new Set();
-    rows.forEach(r => answersOf(S).forEach((w, b) => { if (r.guess === w) solved.add(b); }));
-    box.append(` ${solved.size}/${S.boards}`);
-  } else {
-    const last = rows.at(-1);
-    if (last) { const strip = el("span", "as-mini"); for (const m of rivalMarks(S, last)) strip.append(el("i", MARK[m])); box.append(strip); }
-    const done = ms >= plan.done;
-    box.append(done && plan.won ? ` ✓ ${plan.rows.length}` : ` ${rows.length || "…"}`);
-  }
-  box.setAttribute("aria-label", `${name}, the computer: ${rows.length} guesses so far`);
 }
 function drawSay() {
   const box = $("say");
@@ -560,11 +529,6 @@ function showDone() {
   });
   body.append(list);
   if (S.lang === "en" && (words.length === 1 || (S.mode === "boards" && S.boards <= 2))) defineInto(body, words);
-  if (S.rival) {
-    const p = S.rival, name = RIVAL_NAMES[p.level], theirs = S.mode === "sprint" ? `${plural(p.solved, "word")}` : p.won ? `in ${p.rows.length}` : "not at all";
-    body.append(el("p", `as-vs ${S.beat || ""}`, `${S.beat === "won" ? "You beat" : S.beat === "lost" ? "Beaten by" : "Level with"} ${name}, who solved it ${theirs}${S.mode === "sprint" ? " in three minutes" : ""}.`));
-    if (S.mode !== "sprint" && S.mode !== "boards") body.append(el("p", "as-their", p.rows.map(r => big(r.guess)).join(" · ")));
-  }
   const key = modeKey(S), st = lvl ? null : read(STATS, {})[key];
   if (lvl) body.append(el("p", `as-vs ${stars ? "won" : ""}`, `${stars ? `${plural(stars, "star")}${S.better ? ", your best yet" : ""}` : "Not cleared"}. ${LV.parText(S.lv)[0].toUpperCase()}${LV.parText(S.lv).slice(1)}.`));
   if (st) body.append(statsBlock(st, S));
@@ -859,8 +823,7 @@ function showRules() {
     <p><b>Playing.</b> Type on the keyboard under the board, Enter at its left and Delete at its right, or on a keyboard of your own. The keys take the colours your guesses have shown, so what's left is plain to see.</p>
     <p><b>Hard and Strict.</b> Settings' Rules: <b>Free</b> takes any word; <b>Hard</b> is the hard mode of word-guessing games, where a letter found in place stays there and every letter shown is used, as often as shown; <b>Strict</b> asks for a word that could still be the answer, so a letter shown elsewhere also moves and a grey one stays out. A guess they forbid is turned away with the reason. A change takes effect at once on a word not yet guessed at, otherwise from the next. Several boards always play free.</p>
     <p><b>Modes.</b> In the menu, with the letters (${inWords(LENGTHS[0])} to ${inWords(LENGTHS.at(-1))}) and the level: <b>One word</b>; <b>Boards</b>, two, four or eight words at once, every guess played on each, with ${guessesFor(5, 2)}, ${guessesFor(5, 4)} or ${guessesFor(5, 8)} guesses at five letters; <b>Dodge</b>, where no word is chosen: each guess is marked to keep as many words in play as it can, and you beat it by leaving it one word and guessing that, in as few guesses as you can; <b>Sprint</b>, as many words as you can in ${inWords(SPRINT_MS / 60000)} minutes, a word solved or spent moving on at once. The levels go by how many guesses a player needs, not by how rare the word is.</p>
-    <p><b>Numbers.</b> The menu's Game also has <b>Primes</b>, where the hidden number is a prime of four or five digits and every guess must be a prime too, and <b>Equations</b>, where the hidden sum balances, six to eight characters of digits, + − × ÷ and one =, with a whole number alone on the right (the sum is worked in the usual order: 6÷4×2 is 3), and every guess must balance too. The marks, the keys, the guesses, the rules, the modes and the rival are the same, a digit or a sign at a time. These are played alone, not as the daily or at a table.</p>
-    <p><b>The rival.</b> In Settings, the computer plays the same word beside you, at ${RIVALS.map(l => RIVAL_NAMES[l]).join(", ").replace(/, (\w+)$/, " or $1")}; its latest marks show over the board, its words at the end. Fewer guesses win, and equal guesses go to the quicker. It plays on your clock, which stands still while the menu or these rules are open.</p>
+    <p><b>Numbers.</b> The menu's Game also has <b>Primes</b>, where the hidden number is a prime of four or five digits and every guess must be a prime too, and <b>Equations</b>, where the hidden sum balances, six to eight characters of digits, + − × ÷ and one =, with a whole number alone on the right (the sum is worked in the usual order: 6÷4×2 is 3), and every guess must balance too. The marks, the keys, the guesses, the rules, the modes are the same, a digit or a sign at a time. These are played alone, not as the daily or at a table.</p>
     <p><b>Today's word.</b> The same for everyone: ${inWords(DAILY.len)} letters at ${LEVEL_NAMES[DAILY.level]}, ${inWords(guessesFor(DAILY.len))} guesses, and a new one at midnight UTC. It counts the moment your last guess lands, and your streak is the days solved in a row. Hard or Strict may be on for it; Copy the grid then marks your grid with an asterisk, as other word-guessing games do.</p>
     <p><b>Together.</b> With your partner, as a team: one word, guesses taken in turns, and the colours split, one of you seeing what's in place and the other what's elsewhere; a letter is out only when neither of you has it lit, so say what you see. Notes strikes letters out on your own keyboard. Or a race, at a party too: the same word on every phone, the fewest guesses winning, then the quicker.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
@@ -956,14 +919,8 @@ function settingsPart(body, solo) {
     if (S && !S.duel && !S.guesses.length && S.boards === 1) { S.rules = v; save(); render(); }
     openMenu();
   }), line(prefs.mode === "boards" ? "Several boards always play free." : RULE_LINES[prefs.rules]));
-  if (solo) settings.append(choice("Rival", [["off", "Off"], ...RIVALS.map(l => [l, RIVAL_NAMES[l]])], prefs.rival, v => {
-    setPref("rival", v);
-    if (S && !S.duel && !S.over && !S.guesses.length) { S.rival = v === "off" ? null : rivalPlan(S, v, lexOf(S.lang)); S.ms = 0; save(); render(); }
-    openMenu();
-  }), line(prefs.rival === "off" ? "The computer can play the same word beside you." : `${RIVAL_NAMES[prefs.rival]} plays the same word beside you, at a person's pace.${rivalRecord()}`));
   settings.append(toggle("High contrast", prefs.contrast, on => { setPref("contrast", on); applyContrast(); }));
 }
-const rivalRecord = () => { const r = read(RIVAL_KEY, {})[prefs.rival]; return r ? ` You ${r.w}, ${RIVAL_NAMES[prefs.rival]} ${r.l}${r.d ? `, ${plural(r.d, "draw")}` : ""}.` : ""; };
 const dayResult = () => { const v = read(DAILY_KEY, {})[today()]; return v > 6 ? "it to the end without it" : plural(v, "guess", "guesses"); };
 function aboutLine() {
   const st = read(STATS, {}).daily, s = read(STREAK, null), best = read(BEST, null);
@@ -1001,18 +958,16 @@ $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("doneDlg").addEventListener("click", e => { if (e.target === $("doneDlg")) $("doneDlg").close(); });
-$("rival").addEventListener("click", () => { if (S?.rival) toast(`${RIVAL_NAMES[S.rival.level]} plays the same word: its marks show as it goes, its words at the end`, 3200); });
 addEventListener("resize", () => { if (keyNodes) render(); });
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockStop(); else { clockRun(); team.resync(); duel.resync(); } });
 addEventListener("pageshow", e => { if (e.persisted) { team.resync(); duel.resync(); } });
 addEventListener("pagehide", () => clockStop());
-// the clock's tick: the rival's moves, the sprint's time, and a save every few seconds while one runs
-let savedAt = 0, lastRival = "";
+// the clock's tick: the sprint's time, and a save every few seconds while one runs
+let savedAt = 0;
 setInterval(() => {
   if (!S || T) return;
   if (S.mode === "sprint" && !S.over && elapsed() >= SPRINT_MS && (S.duel || clockFrom != null)) { timeUp(S); finish(); render(); return; }
   if (S.mode === "sprint" && !S.over) { drawStrip(); if (S.duel) tellSoon(); }
-  if (S.rival && !S.over) { const sig = String(rivalSoFar(S.rival, elapsed()).length); if (sig !== lastRival) { lastRival = sig; drawStrip(); } }
   if (clockFrom != null && performance.now() - savedAt > 5000) { savedAt = performance.now(); clockStop(); clockRun(); }
 }, 250);
 let tellTimer = 0;
