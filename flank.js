@@ -128,7 +128,7 @@ function drawStatus(v) {
   if (!v?.G) { el.textContent = ""; return; }
   const s = v.state;
   if (v.over) { el.textContent = resultText(v); el.classList.add("big"); return; }
-  const passed = s.last?.passed ? `${isTwo(v) ? COLOURS[s.last.passed] : nameOf(v, seatOf(s, s.last.passed))} had no move and passed. ` : "";
+  const passed = s.last?.passed ? `${isTwo(v) ? COLOURS[s.last.passed] : nameOf(v, seatOf(s, s.last.passed))} passed. ` : "";
   const who = v.toMove;
   let text;
   if (isTwo(v)) text = `${COLOURS[s.t]} to move`;
@@ -358,7 +358,6 @@ bindSwitcher($("appsBtn"), "flank");
 document.querySelector(".fk-mark").innerHTML = APPS.find(a => a.id === "flank")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 window.__flank = { page, get view() { return V; }, opts, course, board, prime, mind };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
