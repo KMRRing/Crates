@@ -79,6 +79,7 @@ export const ROUNDS = {
   trumps: "a hand",
   contract: "a deal",
   bones: "a hand",
+  solitaire: "a deal won",
   factor: "a game",
 };
 
@@ -99,7 +100,7 @@ export const LEFT_OUT = {
   timegrapher: "an instrument, not a game",
   columbiad: "no round yet (the first milestone is a proving ground of levels); its random mode and daily come in the fourth",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
-  stone: "not built yet", tarot: "not built yet", solitaire: "not built yet", silo: "not built yet", ingot: "not built yet", flank: "not built yet", crown: "not built yet", cargo: "not built yet",
+  stone: "not built yet", tarot: "not built yet", silo: "not built yet", ingot: "not built yet", flank: "not built yet", crown: "not built yet", cargo: "not built yet",
 };
 
 /** Every game random mode can deal, in the order above. */

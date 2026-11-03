@@ -24,16 +24,6 @@ export const SOON = {
       "On seats.js; the largest of the new games, so it comes last.",
     ],
   },
-  solitaire: {
-    name: "Solitaire", sec: "table",
-    line: "Patience for one: Klondike, FreeCell and Spider, each with a daily deal, the cards dealt from the day's seed so everyone plays the same game.",
-    todo: [
-      "Added 2 November 2026 (Korbi: \"solitaire, 2048, connect four: ok, add placeholders\"). The most conspicuous absence from a games library, and the cheapest of the board and card games to hold a player: no opponent, so no computer player to write.",
-      "The rules are small and well known: Klondike (draw one or three), FreeCell (all cards face up, four free cells; nearly every deal can be won, so a solver can certify a deal) and Spider (one, two or four suits).",
-      "The cost is the feel, not the rules: drag a card or tap it to send it where it goes, auto-move to the foundations, undo without limit, and a hint from the solver. A deal is kept only if the solver wins it, as Classics' puzzles are proven to have an answer.",
-      "A daily deal per variant, by `today()` from `suite.js`; the best is a win streak or a time, whichever the games screen reads best.",
-    ],
-  },
   silo: {
     name: "Silo", sec: "table",
     line: "Four in a row for two: discs dropped into a standing grid of seven columns, six high, and the first to line up four across, down or on a diagonal wins.",

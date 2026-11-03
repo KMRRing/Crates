@@ -157,23 +157,23 @@ export const COURSE = {
         {
           id: "f-cells", title: "Free cells", zh: "",
           steps: [
-            { table: { v: "freecell", cols: ["7h", "8c 5d", "Kd"] }, answer: "c1>k", say: "The 7 should go on the 8, but the 5 is on the 8. Put the 5 in a free cell: tap it, and with nowhere else to go it goes there, or drag it to a cell.", then: "The 5 waits in a cell, and the 8 is open." },
-            { table: { v: "freecell", cols: ["7h", "8c", "Kd"], cells: "5d - - -" }, answer: "c0>c1", say: "Now the 7 goes on the 8. That also empties a column.", then: "A cell filled for nothing is the commonest way to lose FreeCell: this one freed a card, and so it was worth it." },
+            { table: { v: "freecell", cols: ["7h", "8c 5d", "Kd", "Ks", "Kh", "Kc", "Qs", "Qh"] }, answer: "c1>k", say: "The 7 should go on the 8, but the 5 is on the 8. Put the 5 in a free cell: tap it, and with nowhere else to go it goes there, or drag it to a cell.", then: "The 5 waits in a cell, and the 8 is open." },
+            { table: { v: "freecell", cols: ["7h", "8c", "Kd", "Ks", "Kh", "Kc", "Qs", "Qh"], cells: "5d - - -" }, answer: "c0>c1", say: "Now the 7 goes on the 8. That also empties a column.", then: "A cell filled for nothing is the commonest way to lose FreeCell: this one freed a card, and so it was worth it." },
           ],
         },
         {
           id: "f-run", title: "Moving a run", zh: "",
           steps: [
-            { table: { v: "freecell", cols: ["9s 8h 7c", "Td"], cells: "- - Kd Qd" }, answer: "c0:3>c1", say: "You move one card at a time, but a run can be carried through the free cells: with two cells open, put two cards in them, take the third across, then bring the others after it. Move the three-card run onto the 10.", then: "Two open cells carry three cards: the third goes straight across." },
+            { table: { v: "freecell", cols: ["9s 8h 7c", "Td", "Ks", "Kh", "Kc", "Qs", "Qh", "Kd"], cells: "- - Jc Jd" }, answer: "c0:3>c1", say: "You move one card at a time, but a run can be carried through the free cells: with two cells open, put two cards in them, take the third across, then bring the others after it. Move the three-card run onto the 10.", then: "Two open cells carry three cards: the third goes straight across." },
             { quiz: ["4", "3", "6"], answer: 0, say: "How many cards can you carry with three free cells open and no empty column?", why: "(cells + 1) × 2 to the power of the empty columns: (3 + 1) × 1 = 4." },
             { quiz: ["6", "3", "4"], answer: 0, say: "Two free cells open and one empty column (not the one you are moving to). How many?", why: "(2 + 1) × 2 = 6: each empty column doubles it." },
-            { table: { v: "freecell", cols: ["9s 8h 7c", "Td"], cells: "Jc Kd Qd -" }, quiz: ["2", "1", "3"], answer: 0, say: "Three of the four cells hold cards. How many cards can you carry now?", why: "(1 + 1) × 1 = 2. The three-card run won't move yet: the game says so if you try, and how many it can carry." },
+            { table: { v: "freecell", cols: ["9s 8h 7c", "Td", "Ks", "Kh", "Kc", "Qs", "Qh", "Kd"], cells: "Jc Jd Jh -" }, quiz: ["2", "1", "3"], answer: 0, say: "Three of the four cells hold cards. How many cards can you carry now?", why: "(1 + 1) × 1 = 2. The three-card run won't move yet: the game says so if you try, and how many it can carry." },
           ],
         },
         {
           id: "f-empty", title: "Empty columns", zh: "",
           steps: [
-            { table: { v: "freecell", cols: ["9h 3c", "", "8s", "Qd"] }, answer: "c0>c1", say: "Any card may go into an empty column, not only a king. Use it to dig: move the 3 into the empty column, and the 9 is open for the 8.", then: "An empty column is worth more than a cell: it holds a whole run, and it doubles how many you can carry." },
+            { table: { v: "freecell", cols: ["9h 3c", "", "8s", "Qd", "Ks", "Kh", "Kc", "Qs"] }, answer: "c0>c1", say: "Any card may go into an empty column, not only a king. Use it to dig: move the 3 into the empty column, and the 9 is open for the 8.", then: "An empty column is worth more than a cell: it holds a whole run, and it doubles how many you can carry." },
           ],
         },
       ],
