@@ -1,0 +1,110 @@
+/* Crown: a draughts board as an instrument case: a walnut frame with a brass edge, a parchment field with the dark squares
+   in walnut, the men in ink and ivory, each with its mark (a diamond, a ring), the kings two discs high under a brass
+   crown. Upright: the other player, the board, you, and the buttons under it. Sideways: the board on the left, the
+   buttons beside it. */
+:root {
+  --cr-in: #8A4B1F;                                              /* the game's enamel: burnt sienna, the wood of the squares */
+  --cr-soft: color-mix(in srgb, var(--cr-in) 13%, var(--sheet));
+  --cr-frame: #4C3220; --cr-edge: #B8923F; --cr-light: #EFE3C6; --cr-dark: #86593A; --cr-lastc: #C9A24A;
+  --cr-ink: #222E38; --cr-ink-edge: #0A1016; --cr-ink-ring: #627380; --cr-ink-mark: #D2AE5A;
+  --cr-ivory: #F7F0DE; --cr-ivory-edge: #8A7852; --cr-ivory-ring: #BDAA78; --cr-ivory-mark: #2A3944;
+  --cr-crown: #D8B04C; --cr-crown-edge: #6E5416;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --cr-in: #E0A070; --cr-frame: #2A1D12; --cr-light: #A99B7C; --cr-dark: #4D3524; --cr-lastc: #A98B3E;
+    --cr-ink: #131B22; --cr-ink-edge: #7C8A94; --cr-ivory: #E9DFC6; }
+}
+html[data-mode="night"] { --cr-in: #E0A070; --cr-frame: #2A1D12; --cr-light: #A99B7C; --cr-dark: #4D3524; --cr-lastc: #A98B3E;
+  --cr-ink: #131B22; --cr-ink-edge: #7C8A94; --cr-ivory: #E9DFC6; }
+html[data-theme="kontor"] { --cr-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --cr-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --cr-in: #2EB36A; }
+html[data-theme="office"] { --cr-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --cr-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --cr-in: #479EF5; }
+
+.cr-mark-ico { display: inline-block; }
+.cr-mark-ico svg { width: 100%; height: 100%; display: block; }
+
+.cr-table { display: flex; flex-direction: column; justify-content: center; gap: .4rem; min-height: 0; padding-top: .5rem; container-type: size; }
+.cr-side { display: flex; flex-direction: column; gap: .4rem; }
+.cr-seat { display: flex; align-items: center; gap: .5rem; padding: .3rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); min-height: 2.3rem; }
+.cr-seat.turn { border-color: var(--cr-in); box-shadow: inset 0 0 0 1.5px var(--cr-in); }
+.cr-swatch { width: 1.35rem; height: 1.35rem; flex: none; }
+.cr-swatch svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.cr-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-count { margin-left: auto; font-size: .82rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cr-count b { color: var(--ink); }
+
+/* the board is the largest square the seats leave room for, between them */
+.cr-board { flex: none; width: min(100cqw, calc(100cqh - 6rem)); aspect-ratio: 1; align-self: center; }
+.cr-svg { display: block; width: 100%; height: 100%; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.cr-frame { fill: var(--cr-frame); }
+.cr-edge { fill: none; stroke: var(--cr-edge); stroke-width: .5; }
+.cr-light { fill: var(--cr-light); }
+.cr-dark { fill: var(--cr-dark); cursor: pointer; }
+.cr-dark.last { fill: color-mix(in srgb, var(--cr-lastc) 55%, var(--cr-dark)); }
+.cr-dark.hint { fill: color-mix(in srgb, var(--cr-in) 60%, var(--cr-dark)); stroke: var(--cr-crown); stroke-width: .5; stroke-dasharray: 1.4 .9; }
+.cr-pc { pointer-events: none; }
+.cr-shadow { fill: #000; opacity: .28; }
+.cr-disc { stroke-width: .5; }
+.cr-pc.ink .cr-disc { fill: var(--cr-ink); stroke: var(--cr-ink-edge); }
+.cr-pc.ivory .cr-disc { fill: var(--cr-ivory); stroke: var(--cr-ivory-edge); }
+.cr-ring { fill: none; stroke-width: .35; }
+.cr-pc.ink .cr-ring { stroke: var(--cr-ink-ring); }
+.cr-pc.ivory .cr-ring { stroke: var(--cr-ivory-ring); }
+.cr-pc.ink .cr-mark { fill: var(--cr-ink-mark); }
+.cr-pc.ivory .cr-mark { fill: none; stroke: var(--cr-ivory-mark); stroke-width: .6; }
+.cr-pc.ivory .cr-mark.hollow { fill: none; }
+.cr-crown { fill: var(--cr-crown); stroke: var(--cr-crown-edge); stroke-width: .3; stroke-linejoin: round; }
+.cr-pc.gone { opacity: .35; }
+.cr-pc.ghost { opacity: .75; }
+.cr-pc.lifted .cr-disc { stroke-width: .9; }
+.cr-must { fill: none; stroke: var(--cr-in); stroke-width: .55; stroke-dasharray: 1.5 1; pointer-events: none; }
+.cr-sel { fill: none; stroke: var(--cr-crown); stroke-width: .8; pointer-events: none; }
+.cr-hop { fill: color-mix(in srgb, var(--cr-crown) 70%, transparent); stroke: var(--cr-crown-edge); stroke-width: .3; pointer-events: none; }
+.cr-end { fill: none; stroke: var(--cr-crown); stroke-width: .5; stroke-dasharray: 1 .8; pointer-events: none; }
+
+/* who is ahead: a bar, Ink's share from the left */
+.cr-ahead { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .5rem; font-size: .74rem; color: var(--ink-soft); font-weight: 700; min-height: 1rem; }
+.cr-ahead[hidden] { display: none; }
+.cr-bar { height: .55rem; border-radius: 2px; border: 1px solid var(--tile-edge); background: var(--cr-ivory); overflow: hidden; }
+.cr-bar i { display: block; height: 100%; background: var(--cr-ink); transition: width .25s; }
+
+/* ---------- the course's stage (crown-course.js) ---------- */
+.ln-sheet.cr { --ln-in: var(--cr-in); }
+.lc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .45rem; height: 100cqh; min-height: 0; box-sizing: border-box; padding: .2rem 0; }
+.lc-board { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; justify-content: center; align-items: center; container-type: size; }
+.lc-board .cr-svg { width: min(100cqw, 100cqh); max-height: 100cqh; }
+.lc-note { margin: 0; font-size: .85rem; color: var(--ink-soft); text-align: center; }
+.lc-undo { min-height: 2.4rem; padding: 0 1.2rem; }
+
+.cr-controls { display: grid; gap: .4rem; }
+.cr-status { margin: 0; min-height: 1.3em; text-align: center; color: var(--ink-soft); font-size: .9rem; }
+.cr-status.big { font-size: 1.05rem; font-weight: 800; color: var(--ink); }
+.cr-status.must { color: var(--ink); font-weight: 700; }
+.cr-row { display: grid; gap: .4rem; }
+.cr-row.two { grid-template-columns: 1fr 1fr; }
+.cr-row.three { grid-template-columns: 1fr 1fr 1.4fr; }
+.cr-btn { min-height: 2.9rem; }
+.cr-go { width: 100%; min-height: 3rem; }
+
+.cr-rules p { line-height: 1.45; }
+.cr-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.cr-rules-note { font-size: .85rem; color: var(--ink-soft); }
+.cr-end-head { margin: .2rem 0 .6rem; }
+.cr-end-note { color: var(--ink-soft); font-size: .9rem; }
+.cr-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.cr-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.cr-toast.on { opacity: 1; transform: translate(-50%, 0); }
+html[data-theme="office"] :is(.cr-seat) { border-radius: 4px; }
+
+/* held sideways: the board on the left as large as the height allows, the buttons beside it, low */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.crown { --beside: 17rem; grid-template-rows: auto minmax(0, 1fr); }
+  #app.crown .cr-table { grid-column: 1; grid-row: 2; }
+  #app.crown .cr-side { grid-column: 2; grid-row: 2; padding-top: .5rem; min-height: 0; justify-content: flex-end; }
+}
+.cr-lab { fill: var(--cr-edge); font-weight: 700; text-anchor: middle; pointer-events: none; }
