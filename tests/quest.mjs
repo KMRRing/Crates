@@ -1,4 +1,5 @@
-// Quest (quest-rules.js) on seats.js: the roles dealt for each table (the traitors' count, the specials chosen, those
+// Company (id quest; quest-rules.js) on seats.js; here, as in the code, a voyage is a quest, a crew a party, the Alderman the
+// leader, a Vitalian a traitor: the roles dealt for each table (the traitors' count, the specials chosen, those
 // with no room dropped) and what each knows; the parties' sizes; a quest (the leader names a party, everyone votes
 // in turn round from the leader, unseen until all are in; approved, it sets out; the loyal can only succeed; one fail
 // fails it, two the fourth from seven players); refusals (the lead passes, the fifth hands it to the traitors); the
@@ -80,7 +81,7 @@ function voteAll(G, votes) {
   check(G.state.step === "shown" && G.state.show === "vote" && G.state.log[0].approved && G.state.log[0].votes.join() === "true,true,true,false,false" && rules.wakeAt(G.state) === T + SHOW_MS, "all in: three to two, approved, shown for a moment");
   G = wake(G, T + SHOW_MS);
   check(G.state.step === "quest" && rules.toMove(G.state) === 1, "then the party sets out");
-  check(applyMove(rules, G, 1, { t: "card", success: false }).error === "The loyal can only succeed", "the loyal can only succeed");
+  check(applyMove(rules, G, 1, { t: "card", success: false }).error === "Loyal hands can only deliver", "the loyal can only succeed");
   G = move(G, 1, { t: "card", success: true });
   G = move(G, 2, { t: "card", success: true });
   check(G.state.step === "shown" && G.state.quests[0].result === "success" && G.state.quests[0].fails === 0 && G.state.log[0].fails === 0, "two successes: the quest succeeds");
@@ -93,7 +94,7 @@ function voteAll(G, votes) {
   G = move(G, 2, { t: "card", success: true });
   G = move(G, 3, { t: "card", success: false });
   G = move(G, 4, { t: "card", success: true });
-  check(G.state.quests[1].result === "fail" && G.state.quests[1].fails === 1 && /fails: 1 fail/.test(G.say.text), "one fail fails it, and only the count is told");
+  check(G.state.quests[1].result === "fail" && G.state.quests[1].fails === 1 && /lost: one hand spoiled it/.test(G.say.text), "one fail fails it, and only the count is told");
   check(JSON.stringify(Object.keys(G.state.cards)) === JSON.stringify(["2", "3", "4"]), "the cards are kept by seat for the party only");
   // refusals: the lead passes; five in a row and the traitors win
   G = wake(G, T + 4 * SHOW_MS);
@@ -109,7 +110,7 @@ function voteAll(G, votes) {
   check(G.state.rejects === 4, "four refused in a row");
   G = move(G, G.state.leader, { t: "team", team: [0, 1, 2].slice(0, G.state.quests[G.state.q].size) });
   G = voteAll(G, [false, false, false, false, false]);
-  check(/Rejected/.test(G.say.text), "the fifth refused");
+  check(/Refused/.test(G.say.text), "the fifth refused");
   G = wake(G, t + SHOW_MS);
   check(G.state.step === "over" && G.state.side === "evil" && G.state.why === "rejects" && G.state.winners.join() === "3,4", "five refused in a row: the traitors win at once");
 }
@@ -131,10 +132,10 @@ function voteAll(G, votes) {
   check(G.state.quests.filter(q => q.result === "success").length === 2 && G.state.quests[2].result === "fail", "two won, one lost");
   quest([1, 2, 3, 4], { 4: false });
   check(G.state.quests[3].result === "success" && G.state.quests[3].fails === 1, "the fourth: one fail isn't enough");
-  check(G.state.step === "assassin" && rules.toMove(G.state) === 4 && /traitors may yet name the Lookout/.test(G.say.text), "three won: the traitors may yet name the Lookout, the Mutineer (played by a person) striking");
-  check(applyMove(rules, G, 4, { t: "kill", seat: 4 }).error && applyMove(rules, G, 4, { t: "kill", seat: 5 }).error === "Name one of the loyal" && applyMove(rules, G, 1, { t: "kill", seat: 0 }).error, "the strike is at one of the loyal (the traitors know each other now), and only the one who strikes makes it");
+  check(G.state.step === "assassin" && rules.toMove(G.state) === 4 && /Vitalians may yet name the Lookout/.test(G.say.text), "three won: the traitors may yet name the Lookout, the Mutineer (played by a person) striking");
+  check(applyMove(rules, G, 4, { t: "kill", seat: 4 }).error && applyMove(rules, G, 4, { t: "kill", seat: 5 }).error === "Name one of the loyal hands" && applyMove(rules, G, 1, { t: "kill", seat: 0 }).error, "the strike is at one of the loyal (the traitors know each other now), and only the one who strikes makes it");
   const miss = move(G, 4, { t: "kill", seat: 1 });
-  check(miss.state.step === "over" && miss.state.side === "good" && miss.state.why === "safe" && miss.state.winners.join() === "0,1,2,3" && miss.state.striker === 4 && /The traitors name \{s1\}, but the Lookout was \{s0\}/.test(miss.say.text), "named wrongly: the loyal win");
+  check(miss.state.step === "over" && miss.state.side === "good" && miss.state.why === "safe" && miss.state.winners.join() === "0,1,2,3" && miss.state.striker === 4 && /The Vitalians name \{s1\}, but the Lookout was \{s0\}/.test(miss.say.text), "named wrongly: the loyal win");
   const hit = move(G, 4, { t: "kill", seat: 0 });
   check(hit.state.side === "evil" && hit.state.why === "assassin" && hit.state.winners.join() === "4,5,6", "the Lookout named: the traitors win");
   const back = rules.restore(roundTrip(structuredClone(G.state)));
@@ -188,7 +189,7 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   s = said(s, 1, { t: "drop", seat: 3 });
   check(stances(s)[1][3] === undefined && s.talk.length === 3, "and taking it back leaves no word at all");
   for (const x of [2, 3, 4]) s = said(s, 0, { t: "accuse", seat: x });
-  check(/as many as there are traitors/.test(say(s, 0, { t: "accuse", seat: 5 })) && typeof say(s, 0, { t: "trust", seat: 5 }) !== "string", "no more accused than there are traitors (three at seven)");
+  check(/as many as there are Vitalians/.test(say(s, 0, { t: "accuse", seat: 5 })) && typeof say(s, 0, { t: "trust", seat: 5 }) !== "string", "no more accused than there are traitors (three at seven)");
   for (const x of [1, 2, 3]) s = said(s, 6, { t: "trust", seat: x });
   check(/all the others who can be loyal/.test(say(s, 6, { t: "trust", seat: 4 })), "and no more trusted than the others who can be loyal (three, beside yourself)");
   s = said(s, 3, { t: "deny", seat: 0, why: "back" });
@@ -222,7 +223,7 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   const away = structuredClone(a.state); away.people[2] = false;
   check(striker(away) === 4, "a seat the computer has played since is the computer's again");
   let s = a.state;
-  check(say(s, 1, { t: "name", seat: 3 }) === "The traitors are choosing whom to strike" && say(s, 6, { t: "name", seat: 4 }) === "Name one of the loyal" && say(s, 6, { t: "accuse", seat: 1 }) === "Name the one you think is the Lookout", "while they confer only the traitors speak, and only to name one of the loyal");
+  check(say(s, 1, { t: "name", seat: 3 }) === "The Vitalians are choosing whom to strike" && say(s, 6, { t: "name", seat: 4 }) === "Name one of the loyal hands" && say(s, 6, { t: "accuse", seat: 1 }) === "Name the one you think is the Lookout", "while they confer only the traitors speak, and only to name one of the loyal");
   s = said(s, 6, { t: "name", seat: 1 });
   check(named(s)[6] === 1 && say(s, 6, { t: "name", seat: 1 }) === "You've named them" && named(said(s, 6, { t: "name", seat: 3 }))[6] === 3, "a traitor names one, and may change their mind");
   // the computer's strike goes with the name most of them gave

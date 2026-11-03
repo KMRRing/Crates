@@ -1,12 +1,14 @@
-// Quest: the loyal and the traitors among them, five to ten at a round table, against the computer or with friends
-// each on their own phone. The rules are quest-rules.js's, the computer players quest-bot.js's, the running seats.js's
-// (solo, or a table through seats-ui.js). This page seats everyone round an oval, you at the foot and the lead passing
-// clockwise, the quests in the middle; your role and what it lets you know under it (beside it, held sideways), and
-// your part in the step: name a party (a tap on each player), approve or refuse one, succeed or fail a quest, or, when
-// the traitors confer at the end, name the Lookout. Votes and quest cards can be given before your turn comes: they're
-// sent when it does. A tap on a player at any other time is talk: accuse them, say you trust them, or take it back;
-// what's been said of each shows at their foot, the newest line under the table, and the computer players talk too
-// (questChat, from the device that runs the table).
+// Company (id quest): the Company's loyal hands and the Vitalians among them, five to ten at a round chart table, against
+// the computer or with friends each on their own phone. The rules are quest-rules.js's, the computer players
+// quest-bot.js's, the running seats.js's (solo, or a table through seats-ui.js). This page seats everyone round the
+// chart, you at the foot and the Alderman's seal passing clockwise, the five voyages in the middle as the legs of one
+// route; your role and what it lets you know under it (beside it, held sideways), and your part in the step: name a
+// crew (a tap on each player), approve or refuse one, deliver or spoil your share of a cargo, or, when the Vitalians
+// confer at the end, name the Lookout. Votes and cards can be given before your turn comes: they're sent when it does.
+// A tap on a player at any other time is talk: accuse them, say you trust them, or take it back; what's been said of
+// each shows at their foot, the newest line under the table, and the computer players talk too (questChat, from the
+// device that runs the table). Words shown are the Hanseatic ones; the code's ids, and its comments, keep the game's
+// first words (quest = voyage, party = crew, leader = Alderman, traitor = Vitalian: see quest-rules.js).
 import { rules, EVIL_COUNT, SIZES, SHOW_MS, isEvil, knowledge, talk, stances, named } from "./quest-rules.js";
 import { LEVEL_NAMES, questChat } from "./quest-bot.js";
 import { seatPage } from "./seats-ui.js";
@@ -21,7 +23,13 @@ const OPTS = "quest:opts", RECORD = "quest:record";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const NAMES = ["Alys", "Bertram", "Cecily", "Dunstan", "Edith", "Godric", "Hilda", "Osric", "Rowena", "Wulfric"];
+// Low German first names, as in a Lübeck merchant's ledger
+const NAMES = ["Hinrich", "Gesche", "Tideman", "Wibke", "Sivert", "Elsabe", "Godeke", "Taleke", "Marquard", "Lüder"];
+// the five voyages are the legs of one route, east to west as the League's goods went: furs from Novgorod's Peterhof,
+// tallow from the Baltic to Lübeck, salt out to Bergen, Bergen's stockfish (air-dried cod) to the Steelyard in
+// London, English wool to Bruges
+const LEGS = [["Novgorod", "Visby", "furs"], ["Visby", "Lübeck", "tallow"], ["Lübeck", "Bergen", "salt"], ["Bergen", "London", "stockfish"], ["London", "Bruges", "wool"]];
+const leg = i => `${LEGS[i][0]} → ${LEGS[i][1]}`;
 const ROLE_OPTIONS = [["seer", "Lookout, Mutineer"], ["guardian", "Pilot, Wrecker"], ["veiled", "Stowaway"], ["hermit", "Smuggler"]];
 const PLAYERS = [5, 6, 7, 8, 9, 10];
 
@@ -43,14 +51,16 @@ function toast(msg, ms = 2600) {
 const ICON = {
   seer: `<path d="M1.8 10Q10 2.6 18.2 10Q10 17.4 1.8 10Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="3" fill="currentColor"/>`,
   guardian: `<circle cx="10" cy="10" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/><path d="M10 1.6V18.4M1.6 10H18.4M4.06 4.06L15.94 15.94M15.94 4.06L4.06 15.94" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
-  loyal: `<path d="M10 2.2V13.2M6.2 13.2H13.8M10 13.2V16.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="17.6" r="1.2" fill="currentColor"/>`,
+  loyal: `<circle cx="10" cy="3.7" r="1.7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 5.4V16.4M6.6 8.2H13.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M3.4 11.4C3.8 15 6.6 16.8 10 16.8C13.4 16.8 16.2 15 16.6 11.4M3.4 11.4L2.2 13M16.6 11.4L17.8 13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>`,
   assassin: `<path d="M8.5 8.8L10 18.4L11.5 8.8Z" fill="currentColor"/><path d="M6.2 8.4H13.8M10 8.4V3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="2.7" r="1.2" fill="currentColor"/>`,
   impostor: `<path d="M7.2 6.2H12.8L13.8 15.2H6.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.8 4.2H12.2M10 1.8V4.2M5.6 15.2H14.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 8.4Q11.8 10.6 10 12.8Q8.2 10.6 10 8.4Z" fill="currentColor"/>`,
   veiled: `<path d="M3.8 17.8Q3.6 4.6 10 2.6Q16.4 4.6 16.2 17.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.8 17.8Q6.8 9.4 10 7.6Q13.2 9.4 13.2 17.8Z" fill="currentColor" opacity=".55"/>`,
   hermit: `<path d="M5.4 3.6H14.6C16 7 16 13 14.6 16.4H5.4C4 13 4 7 5.4 3.6Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4.7 7.2H15.3M4.7 12.8H15.3" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="10" r="1.1" fill="currentColor"/>`,
-  traitor: `<path d="M10 2.2V6.4M10 9V13.2M6.2 13.2H13.8M10 13.2V16.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="17.6" r="1.2" fill="currentColor"/><path d="M7.4 6.2L12.6 9.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>`,
-  crown: `<path d="M3 15.5L2 5.8L6.6 9.4L10 3.6L13.4 9.4L18 5.8L17 15.5Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>`,
-  flag: `<path d="M5 2.4V17.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M5.6 3.2H15.6L13 6.8L15.6 10.4H5.6Z" fill="currentColor"/>`,
+  traitor: `<path d="M16.8 2.6C17.2 9 13 13.2 8.4 13.6L7.4 12.4C11.2 11.6 15 8 16.8 2.6Z" fill="currentColor" stroke="currentColor" stroke-width=".8" stroke-linejoin="round"/><path d="M5.6 10.6L10.4 15.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 13L3.8 17.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>`,
+  // the Alderman's seal, a scalloped disc of wax with a merchant's house mark pressed in it (as on the tile's logo)
+  seal: `<path d="M10 2.6Q12.74 1.55 14.35 4.01Q17.18 4.78 17.04 7.71Q18.88 10 17.04 12.29Q17.18 15.22 14.35 15.99Q12.74 18.45 10 17.4Q7.26 18.45 5.65 15.99Q2.82 15.22 2.96 12.29Q1.12 10 2.96 7.71Q2.82 4.78 5.65 4.01Q7.26 1.55 10 2.6Z" fill="currentColor"/><path d="M10 14.4V5.8M10 9.4L7.8 7.2M10 9.4L12.2 7.2M8.2 12.1H11.8" fill="none" style="stroke: var(--sheet)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  // a cog's swallow-tailed pennant on its mast: this player is in the crew
+  pennant: `<path d="M4.6 2V18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M5.4 3.2H18L14.2 6.4L18 9.6H5.4Z" fill="currentColor"/>`,
   yes: `<path d="M4 10.4L8.2 14.4L16 5.6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`,
   no: `<path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>`,
   up: `<path d="M2.4 8.4H5.9V17.4H2.4Z" fill="currentColor"/><path d="M7.2 9L10.3 2.9C10.8 2 12.6 2.2 12.6 3.8L12.2 7.6H16.3C17.4 7.6 18.2 8.6 17.9 9.7L16.4 16C16.2 16.8 15.5 17.4 14.7 17.4H7.2Z" fill="currentColor"/>`,
@@ -58,22 +68,23 @@ const ICON = {
   speech: `<path d="M2.8 3.4H17.2V12.8H9.6L5.4 16.6V12.8H2.8Z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>`,
 };
 const icon = (name, cls = "") => `<svg class="qs-ico${cls ? ` ${cls}` : ""}" viewBox="0 0 20 20" aria-hidden="true">${ICON[name]}</svg>`;
-const SHORT = { seer: "Lookout", guardian: "Pilot", loyal: "Loyal", assassin: "Mutineer", impostor: "Wrecker", veiled: "Stowaway", hermit: "Smuggler", traitor: "Traitor" };
-const TITLE = { seer: "the Lookout", guardian: "the Pilot", loyal: "a loyal hand", assassin: "the Mutineer", impostor: "the Wrecker", veiled: "the Stowaway", hermit: "the Smuggler", traitor: "a traitor" };
+// every name at most eight letters, so a seat's tag fits (Vitalian is eight)
+const SHORT = { seer: "Lookout", guardian: "Pilot", loyal: "Loyal", assassin: "Mutineer", impostor: "Wrecker", veiled: "Stowaway", hermit: "Smuggler", traitor: "Vitalian" };
+const TITLE = { seer: "the Lookout", guardian: "the Pilot", loyal: "a loyal hand", assassin: "the Mutineer", impostor: "the Wrecker", veiled: "the Stowaway", hermit: "the Smuggler", traitor: "a Vitalian" };
 
 /** What your role means, in a line or two, given who's in the game. */
 function roleText(s, seat) {
   const r = s.roles[seat], has = role => s.roles.includes(role);
-  const others = has("hermit") && r !== "hermit" ? "You know the other traitors (marked), all but the Smuggler." : "You know the other traitors (marked).";
+  const others = has("hermit") && r !== "hermit" ? "You know the other Vitalians (marked), all but the Smuggler." : "You know the other Vitalians (marked).";
   switch (r) {
-    case "seer": return `Loyal. You know the traitors (marked)${has("veiled") ? ", all but the Stowaway" : ""}. Don't let it show: if the loyal win, the Mutineer names the Lookout.`;
+    case "seer": return `Loyal. You know the Vitalians (marked)${has("veiled") ? ", all but the Stowaway" : ""}. Don't let it show: if the Company delivers three cargoes, the Mutineer names the Lookout.`;
     case "guardian": return has("impostor") ? "Loyal. Of the two marked, one is the Lookout, the other the Wrecker." : "Loyal. The one marked is the Lookout: keep them safe.";
-    case "loyal": return "Loyal. You know only yourself: watch the votes and the quests.";
-    case "assassin": return `A traitor. ${others} If the loyal win three quests, the traitors name the Lookout: yours is the last word.`;
-    case "impostor": return `A traitor, and to the Pilot you look like the Lookout. ${others}`;
-    case "veiled": return `A traitor the Lookout can't see. ${others}`;
-    case "hermit": return "A traitor on your own: the others don't know you, nor you them.";
-    default: return `A traitor. ${others} Fail three quests.`;
+    case "loyal": return "Loyal. You know only yourself: watch the votes and the voyages.";
+    case "assassin": return `A Vitalian. ${others} If the Company delivers three cargoes, the Vitalians name the Lookout: yours is the last word.`;
+    case "impostor": return `A Vitalian, and to the Pilot you look like the Lookout. ${others}`;
+    case "veiled": return `A Vitalian the Lookout can't see. ${others}`;
+    case "hermit": return "A Vitalian on your own: the others don't know you, nor you them.";
+    default: return `A Vitalian. ${others} Lose three cargoes.`;
   }
 }
 
@@ -82,25 +93,25 @@ function roleText(s, seat) {
 // verb, so that "you" fits; a person's is told.
 const SAYS = {
   accuse: {
-    fail: ["I don't trust {x}: that quest failed with {x} on it.", "My money's on {x} for that fail."],
-    fails: ["Failed quest after failed quest, and {x} on them.", "I keep seeing {x} on the quests that fail."],
-    lead: ["The party that failed was chosen by {x}.", "I don't like the party chosen by {x}."],
-    votes: ["The party that failed was waved through by {x}.", "I'm watching {x}: an approval for the party that failed."],
+    fail: ["I don't trust {x}: that cargo was lost with {x} aboard.", "My money's on {x} for that spoiled cargo."],
+    fails: ["Cargo after cargo lost, and {x} aboard every time.", "I keep seeing {x} on the voyages that go wrong."],
+    lead: ["The crew that lost the cargo was chosen by {x}.", "I don't like the crew chosen by {x}."],
+    votes: ["The crew that lost the cargo was waved through by {x}.", "I'm watching {x}: an approval for the crew that lost it."],
     agree: ["I'm with the others on {x}.", "I have my doubts about {x} too."],
     back: ["Me? I'd look at {x} instead.", "Says {x}. Ask yourselves why."],
-    gut: ["I don't trust {x}.", "Something about {x} doesn't sit right."],
+    gut: ["I don't trust {x}.", "I wouldn't give {x} the keys to the chest."],
   },
   trust: {
-    clean: ["Only good quests for {x} so far. I trust {x}.", "I trust {x}: every quest with {x} on it succeeded."],
-    defend: ["Leave {x} alone.", "I believe {x}."],
-    votes: ["I trust {x}: a vote against the party that failed.", "Good votes from {x}."],
-    gut: ["I trust {x}.", "I'd go on a quest with {x}."],
+    clean: ["Every cargo with {x} aboard came in. I trust {x}.", "I trust {x}: every voyage with {x} aboard delivered."],
+    defend: ["Leave {x} alone.", "I'd vouch for {x}."],
+    votes: ["I trust {x}: a vote against the crew that lost the cargo.", "Good votes from {x}."],
+    gut: ["I trust {x}.", "I'd sail with {x}."],
   },
   dropAccuse: ["I may have been wrong about {x}.", "I'm not so sure about {x} now."],
   dropTrust: ["I'm less sure of {x} now.", "I'd think twice about {x} now."],
-  deny: ["Not me.", "I'm loyal. Look elsewhere.", "Wrong. I'm loyal.", "That isn't me."],
+  deny: ["Not me.", "I'm loyal. Look elsewhere.", "Wrong. I serve the Company.", "That isn't me."],
   name: {
-    votes: ["The Lookout is {x}: never a vote for a party with one of us on it.", "I say {x}: voted like someone who knew."],
+    votes: ["The Lookout is {x}: never a vote for a crew with one of us aboard.", "I say {x}: voted like someone who knew."],
     talk: ["Strike at {x}: named us too well.", "I say {x}. Too sure of us, too soon."],
     gut: ["My guess is {x}.", "I'd say {x}."],
     agree: ["Agreed: strike at {x}.", "I'm with that: strike at {x}."],
@@ -266,7 +277,7 @@ function drawRing(v) {
     // the tag under the name: your role, what you know of them, or (conferring, and at the end) the traitors' roles
     let tag = "";
     if (over || isMe(p) || (open && evil)) tag = `${icon(s.roles[p])}${SHORT[s.roles[p]]}`;
-    else if (known[p] === "evil") tag = `${icon("traitor")}traitor`;
+    else if (known[p] === "evil") tag = `${icon("traitor")}Vitalian`;
     else if (known[p] === "seer?") tag = `${icon("seer")}${s.roles.includes("impostor") ? "Lookout?" : "Lookout"}`;
     // the vote: given (unseen) while it goes on, then each one, until the next
     let vote = "";
@@ -279,11 +290,11 @@ function drawRing(v) {
     let said = "";
     if (open) said = nm ? `<i class="named" title="Named as the Lookout">${icon("assassin")}${nm}</i>` : "";
     else if (!over) said = `${acc ? `<i class="acc${myWord[p] === "accuse" ? " mine" : ""}" title="Accused">${icon("down")}${acc}</i>` : ""}${tru ? `<i class="tru${myWord[p] === "trust" ? " mine" : ""}" title="Trusted">${icon("up")}${tru}</i>` : ""}`;
-    const label = `${nameOf(p)}${isMe(p) ? " (you)" : ""}${s.leader === p && !over ? ", leading" : ""}${party.includes(p) ? ", in the party" : ""}${acc ? `, accused by ${acc}` : ""}${tru ? `, trusted by ${tru}` : ""}${nm ? `, named by ${nm}` : ""}`;
+    const label = `${nameOf(p)}${isMe(p) ? " (you)" : ""}${s.leader === p && !over ? ", Alderman" : ""}${party.includes(p) ? ", in the crew" : ""}${acc ? `, accused by ${acc}` : ""}${tru ? `, trusted by ${tru}` : ""}${nm ? `, named by ${nm}` : ""}`;
     // a tap: chooses, while you name a party or the Lookout; else opens what's said of them (to say your own)
     const tap = picking ? (picking === "team" || canStrike(s, p) ? `aria-pressed="${ui.pick.includes(p)}"` : "disabled") : over || open ? "disabled" : `aria-haspopup="dialog" aria-expanded="${popSeat === p}"`;
     html.push(`<button type="button" class="${cls.join(" ")}" data-seat="${p}" ${tap} aria-label="${esc(label)}">
-      ${s.leader === p && !over ? `<span class="qs-lead" title="Leads">${icon("crown")}</span>` : ""}${party.includes(p) && s.step !== "propose" ? `<span class="qs-flag" title="In the party">${icon("flag")}</span>` : ""}${talker === p ? `<span class="qs-speak" title="Speaking">${icon("speech")}</span>` : ""}
+      ${s.leader === p && !over ? `<span class="qs-lead" title="Alderman: holds the seal">${icon("seal")}</span>` : ""}${party.includes(p) && s.step !== "propose" ? `<span class="qs-flag" title="In the crew">${icon("pennant")}</span>` : ""}${talker === p ? `<span class="qs-speak" title="Speaking">${icon("speech")}</span>` : ""}
       <b class="qs-name">${esc(nameOf(p))}</b><span class="qs-tag">${tag}</span>${vote}${played}${said ? `<span class="qs-said">${said}</span>` : ""}</button>`);
   }
   ring.insertAdjacentHTML("beforeend", html.join(""));
@@ -306,46 +317,49 @@ const canStrike = (s, p) => !isEvil(s.roles[p]);
 /** The middle: the five quests, the refusals, and what's happening. */
 function drawCentre(v) {
   const box = $("centre");
-  if (!v?.G) { box.innerHTML = `<p class="qs-lead-in">Most at the table are loyal. A few are traitors. Find them before three quests fail.</p>`; return; }
+  if (!v?.G) { box.innerHTML = `<p class="qs-lead-in">Most at the table serve the Company. A few are Vitalians. Find them before three cargoes are lost.</p>`; return; }
   const s = v.state, n = s.seats;
+  // each voyage a leg of the route, a plate on it with the crew's size (a red 2 where two spoiled shares lose the cargo),
+  // then delivered or lost; a port between one leg and the next, made fast once the leg before it is sailed
   const discs = s.quests.map((q, i) => {
     const cls = q.result || (i === s.q && s.step !== "over" ? "now" : "");
     const inner = q.result === "success" ? icon("yes") : q.result === "fail" ? icon("no") : `<b>${q.size}</b>`;
-    const badge = q.result ? (q.fails ? `<i class="qs-fails">${q.fails}</i>` : "") : q.two ? `<i class="qs-two" title="Two fails to fail it">2</i>` : "";
-    const say = q.result ? `Quest ${i + 1}: ${q.result === "success" ? "succeeded" : "failed"}${q.fails ? `, ${q.fails} ${q.fails === 1 ? "fail" : "fails"}` : ""}` : `Quest ${i + 1}: a party of ${q.size}${q.two ? ", two fails to fail it" : ""}`;
-    return `<span class="qs-disc ${cls}" role="img" aria-label="${say}">${inner}${badge}</span>`;
+    const badge = q.result ? (q.fails ? `<i class="qs-fails" title="Spoiled shares">${q.fails}</i>` : "") : q.two ? `<i class="qs-two" title="Two spoiled shares lose it">2</i>` : "";
+    const say = `Voyage ${i + 1}, ${leg(i)}: ${q.result ? `${q.result === "success" ? "delivered" : "lost"}${q.fails ? `, ${q.fails} ${q.fails === 1 ? "share" : "shares"} spoiled` : ""}` : `a crew of ${q.size}${q.two ? ", two spoiled shares lose it" : ""}`}`;
+    return `${i ? `<i class="qs-port${s.quests[i - 1].result ? " sailed" : ""}" aria-hidden="true"></i>` : ""}<span class="qs-disc ${cls}" role="img" aria-label="${say}" title="${leg(i)}: ${LEGS[i][2]}">${inner}${badge}</span>`;
   }).join("");
   const refused = Array.from({ length: 5 }, (_, i) => `<i class="${i < s.rejects ? "on" : ""}${i === 4 ? " last" : ""}"></i>`).join("");
-  box.innerHTML = `<button type="button" class="qs-track" data-act="log" aria-label="The quests: tap for the parties so far">${discs}</button>
-    <div class="qs-refused" role="img" aria-label="${s.rejects} of 5 parties refused"><span>Refused</span>${refused}</div>
+  box.innerHTML = `<button type="button" class="qs-track" data-act="log" aria-label="The voyages: tap for the crews so far">${discs}</button>
+    <div class="qs-refused" role="img" aria-label="${s.rejects} of 5 crews refused"><span>Refused</span><span class="qs-knots">${refused}</span></div>
     <div class="qs-now">${nowHtml(v)}</div>`;
   runBar();
 }
 function nowHtml(v) {
   const s = v.state, q = s.quests[s.q], last = s.log.at(-1);
   if (s.step === "over") {
-    const why = { rejects: "five parties refused", quests: s.side === "evil" ? "three quests failed" : "three quests won", assassin: "the traitors named the Lookout", safe: "the Lookout was never found" }[s.why];
-    return `<b class="qs-big ${s.side}">${s.side === "evil" ? "The traitors win" : "The loyal win"}</b><small>${why}</small>`;
+    const why = { rejects: "five crews refused, the season closed", quests: s.side === "evil" ? "three cargoes lost" : "three cargoes delivered", assassin: "the Vitalians named the Lookout", safe: "the Lookout was never found" }[s.why];
+    return `<b class="qs-big ${s.side}">${s.side === "evil" ? "The Vitalians win" : "The Company wins"}</b><small>${why}</small>`;
   }
   if (s.step === "shown" && s.show === "vote") {
     const yes = last.votes.filter(Boolean).length;
-    return `<b class="qs-big ${last.approved ? "good" : "evil"}">${last.approved ? "Approved" : "Refused"} ${yes}–${s.seats - yes}</b><span class="qs-bar"><i data-until="${s.until}"></i></span>`;
+    return `<b class="qs-big ${last.approved ? "good" : "evil"}">${last.approved ? "Carried" : "Refused"} ${yes}–${s.seats - yes}</b><span class="qs-bar"><i data-until="${s.until}"></i></span>`;
   }
   if (s.step === "shown" && s.show === "quest") {
     const done = s.quests[s.q], cards = [...Array(done.team.length - done.fails).fill(true), ...Array(done.fails).fill(false)];
     return `<span class="qs-cards">${cards.map(ok => `<span class="qs-card ${ok ? "ok" : "bad"}">${icon(ok ? "yes" : "no")}</span>`).join("")}</span>
-      <b class="qs-big ${done.result === "success" ? "good" : "evil"}">${done.result === "success" ? "The quest succeeds" : "The quest fails"}</b><span class="qs-bar"><i data-until="${s.until}"></i></span>`;
+      <b class="qs-big ${done.result === "success" ? "good" : "evil"}">${done.result === "success" ? "The cargo is delivered" : "The cargo is lost"}</b><span class="qs-bar"><i data-until="${s.until}"></i></span>`;
   }
-  if (s.step === "propose") return `<small>Quest ${s.q + 1}${q.two ? " · two fails to fail it" : ""}</small><b>${esc(Who(s.leader))} ${isMe(s.leader) ? "lead" : "leads"}: a party of ${q.size}</b>`;
+  const voyage = `Voyage ${s.q + 1} · ${leg(s.q)}`;
+  if (s.step === "propose") return `<small>${voyage}</small><b>${isMe(s.leader) ? "You are" : `${esc(nameOf(s.leader))} is`} Alderman</b><small>Crew of ${q.size}${q.two ? " · two to spoil it" : ""}</small>`;
   if (s.step === "vote") {
     const left = s.votes.filter(x => x === null).length;
-    return `<small>Quest ${s.q + 1} · ${esc(Who(s.leader))} named</small><b>${esc(list(s.team.map(who)))}</b><small>${left ? `${left} still to vote` : "All in"}</small>`;
+    return `<small>${voyage}</small><b>${esc(list(s.team.map(who)))}</b><small>${esc(Who(s.leader))} named · ${left ? `${left} still to vote` : "all in"}</small>`;
   }
   if (s.step === "quest") {
     const left = s.team.filter(p => s.cards[p] === null).length;
-    return `<small>Quest ${s.q + 1}</small><b>The party sets out</b><small>${left ? `${left} of ${s.team.length} still to choose` : "All back"}</small>`;
+    return `<small>${voyage}</small><b>The crew sets sail</b><small>${left ? `${left} of ${s.team.length} still to choose` : "All back"}</small>`;
   }
-  if (s.step === "assassin") { const k = rules.toMove(s); return `<small>Three quests won, but</small><b>the traitors confer</b><small>${esc(Who(k))} ${isMe(k) ? "strike" : "strikes"} at the Lookout</small>`; }
+  if (s.step === "assassin") { const k = rules.toMove(s); return `<small>Three cargoes delivered, but</small><b>the Vitalians confer</b><small>${esc(Who(k))} ${isMe(k) ? "strike" : "strikes"} at the Lookout</small>`; }
   return "";
 }
 
@@ -489,35 +503,35 @@ function drawControls(v) {
   }
   const q = s.quests[s.q];
   if (s.step === "propose") {
-    if (s.leader !== me) { box.innerHTML = `<p class="qs-hint">${esc(nameOf(s.leader))} is choosing a party of ${q.size}</p>`; return; }
+    if (s.leader !== me) { box.innerHTML = `<p class="qs-hint">${esc(nameOf(s.leader))} is choosing a crew of ${q.size}</p>`; return; }
     const k = ui.pick.length;
     // leading, a tap chooses; Talk turns it to talk until you've said your word
-    box.innerHTML = `<p class="qs-hint">${ui.talking ? "Tap a player to accuse them or say you trust them" : `Choose ${q.size} for the party: tap them round the table (you may go yourself)`}</p>
+    box.innerHTML = `<p class="qs-hint">${ui.talking ? "Tap a player to accuse them or say you trust them" : `Choose ${q.size} for the crew: tap them round the table (you may sail yourself)`}</p>
       <div class="qs-lead-go"><button class="btn qs-talk-btn" type="button" data-act="talk" aria-pressed="${ui.talking}">${ui.talking ? "Choose" : "Talk"}</button>
-      <button class="btn primary qs-go" type="button" data-act="team" ${k === q.size ? "" : "disabled"}>${k === q.size ? "Send this party" : `${k} of ${q.size} chosen`}</button></div>`;
+      <button class="btn primary qs-go" type="button" data-act="team" ${k === q.size ? "" : "disabled"}>${k === q.size ? "Send this crew" : `${k} of ${q.size} chosen`}</button></div>`;
     return;
   }
   if (s.step === "vote") {
     const given = s.votes[me] ?? ui.queued?.yes ?? null, sent = s.votes[me] !== null;
     const left = s.votes.filter(x => x === null).length - (given !== null && !sent ? 1 : 0);
-    box.innerHTML = `<p class="qs-hint">${given === null ? "Approve this party, or refuse it?" : `You ${given ? "approve" : "refuse"}${left ? `: ${left} still to vote` : ""}`}</p>
+    box.innerHTML = `<p class="qs-hint">${given === null ? "Approve this crew, or refuse it?" : `You ${given ? "approve" : "refuse"}${left ? `: ${left} still to vote` : ""}`}</p>
       <div class="qs-pair"><button class="btn qs-vote-btn yes" type="button" data-vote="1" aria-pressed="${given === true}" ${sent ? "disabled" : ""}>${icon("yes")}Approve</button>
       <button class="btn qs-vote-btn no" type="button" data-vote="0" aria-pressed="${given === false}" ${sent ? "disabled" : ""}>${icon("no")}Refuse</button></div>`;
     return;
   }
   if (s.step === "quest") {
-    if (!s.team.includes(me)) { box.innerHTML = `<p class="qs-hint">You wait for the party to come back</p>`; return; }
+    if (!s.team.includes(me)) { box.innerHTML = `<p class="qs-hint">You wait for the crew to come back</p>`; return; }
     const given = s.cards[me] ?? ui.queued?.success ?? null, sent = s.cards[me] !== null, loyal = !isEvil(s.roles[me]);
-    box.innerHTML = `<p class="qs-hint">${given === null ? (loyal ? "On the quest: the loyal can only succeed" : "On the quest: succeed or fail it, unseen") : `You ${given ? "succeed" : "fail it"}: waiting for the rest`}</p>
-      <div class="qs-pair"><button class="btn primary qs-card-btn" type="button" data-card="1" aria-pressed="${given === true}" ${sent ? "disabled" : ""}>${icon("yes")}Succeed</button>
-      <button class="btn qs-card-btn fail" type="button" data-card="0" aria-pressed="${given === false}" ${sent || loyal ? "disabled" : ""}>${icon("no")}Fail</button></div>`;
+    box.innerHTML = `<p class="qs-hint">${given === null ? (loyal ? "On the voyage: loyal hands can only deliver" : "On the voyage: deliver or spoil your share, unseen") : `You ${given ? "deliver" : "spoil your share"}: waiting for the rest`}</p>
+      <div class="qs-pair"><button class="btn primary qs-card-btn" type="button" data-card="1" aria-pressed="${given === true}" ${sent ? "disabled" : ""}>${icon("yes")}Deliver</button>
+      <button class="btn qs-card-btn fail" type="button" data-card="0" aria-pressed="${given === false}" ${sent || loyal ? "disabled" : ""}>${icon("no")}Spoil</button></div>`;
     return;
   }
   if (s.step === "assassin") {
-    // the traitors confer: the one who strikes chooses, the others tell them whom they'd name, the loyal wait
+    // the Vitalians confer: the one who strikes chooses, the others tell them whom they'd name, the loyal wait
     const k = rules.toMove(s);
     if (k === me) {
-      // what the other traitors say, in short: who names whom
+      // what the other Vitalians say, in short: who names whom
       const by = new Map();
       for (const [a, x] of Object.entries(named(s))) if (Number(a) !== me) by.set(x, [...(by.get(x) || []), nameOf(Number(a))]);
       const advice = [...by].map(([x, l]) => `${list(l)} ${l.length > 1 ? "name" : "names"} ${nameOf(x)}`).join("; ");
@@ -527,7 +541,7 @@ function drawControls(v) {
     } else if (isEvil(s.roles[me])) {
       const mine = named(s)[me];
       box.innerHTML = `<p class="qs-hint">${mine == null ? `Tell ${esc(nameOf(k))}, who strikes, whom you think is the Lookout: tap them` : `You named ${esc(nameOf(mine))}: ${esc(nameOf(k))} strikes`}</p>`;
-    } else box.innerHTML = `<p class="qs-hint">The traitors are choosing whom to strike: ${esc(nameOf(k))} has the last word</p>`;
+    } else box.innerHTML = `<p class="qs-hint">The Vitalians are choosing whom to strike: ${esc(nameOf(k))} has the last word</p>`;
     return;
   }
   box.innerHTML = `<p class="qs-hint">&nbsp;</p>`;
@@ -588,18 +602,18 @@ function showLog() {
   // the words said after k parties had been voted on
   const words = k => s.talk.flatMap((l, i) => (l.k === k ? [`<li class="qs-log-talk">${lineHtml(s, i)}</li>`] : []));
   const rows = [...words(0), ...s.log.flatMap((l, k) => [party(l), ...words(k + 1)])];
-  $("logBody").innerHTML = rows.length ? `<ol class="qs-log-list">${rows.reverse().join("")}</ol>` : `<p class="qs-rules-note">No party named yet.</p>`;
+  $("logBody").innerHTML = rows.length ? `<ol class="qs-log-list">${rows.reverse().join("")}</ol>` : `<p class="qs-rules-note">No crew named yet.</p>`;
   $("logDlg").showModal();
 }
-/** A party in the sheet: who named whom, who voted how, how it went. */
+/** A crew in the sheet: who named whom, who voted how, how it went. */
 function party(l) {
   const yes = [], no = [], quest = V.state.quests[l.q], failed = l.fails >= (quest.two ? 2 : 1);
   l.votes.forEach((v, p) => (v ? yes : no).push(esc(Who(p))));
-  const out = !l.approved ? "refused" : l.fails === undefined ? "on the quest" : `the quest ${failed ? "failed" : "succeeded"}${l.fails ? ` (${l.fails} ${l.fails === 1 ? "fail" : "fails"})` : ""}`;
+  const out = !l.approved ? "refused" : l.fails === undefined ? "on the voyage" : `the cargo was ${failed ? "lost" : "delivered"}${l.fails ? ` (${l.fails} ${l.fails === 1 ? "share" : "shares"} spoiled)` : ""}`;
   const cls = !l.approved ? "refused" : l.fails === undefined ? "" : failed ? "fail" : "success";
-  return `<li class="${cls}"><div class="qs-log-head"><b>Quest ${l.q + 1}</b><span>${esc(Who(l.leader))} named ${esc(list(l.team.map(Who)))}</span></div>
+  return `<li class="${cls}"><div class="qs-log-head"><b>Voyage ${l.q + 1} · ${leg(l.q)}</b><span>${esc(Who(l.leader))} named ${esc(list(l.team.map(Who)))}</span></div>
     <div class="qs-log-votes"><span class="y">${icon("yes")}${yes.join(", ") || "nobody"}</span><span class="n">${icon("no")}${no.join(", ") || "nobody"}</span></div>
-    <div class="qs-log-out">${l.approved ? "Approved" : "Refused"} ${yes.length}–${no.length}${l.approved ? `: ${out}` : ""}</div></li>`;
+    <div class="qs-log-out">${l.approved ? "Carried" : "Refused"} ${yes.length}–${no.length}${l.approved ? `: ${out}` : ""}</div></li>`;
 }
 
 // ---------- a game's end ----------
@@ -615,9 +629,10 @@ function onOver(v) {
 }
 function showEnd(v) {
   const s = v.state, mine = v.seat != null && s.winners.includes(v.seat);
-  $("endHead").textContent = v.seat == null ? (s.side === "evil" ? "The traitors win" : "The loyal win") : mine ? `You win: ${s.side === "evil" ? "the traitors" : "the loyal"} carry it` : `You lose: ${s.side === "evil" ? "the traitors" : "the loyal"} carry it`;
-  const struck = s.striker != null && isMe(s.striker) ? "you" : "the traitors";
-  const why = { rejects: "Five parties were refused in a row.", quests: s.side === "evil" ? "Three quests failed." : "Three quests succeeded, and there was no Lookout to find.", assassin: `Three quests succeeded, but ${struck} named ${who(s.target)}: the Lookout.`, safe: `Three quests succeeded, and ${struck} named ${who(s.target)}, not the Lookout.` }[s.why];
+  const carried = s.side === "evil" ? "the Vitalians carry it" : "the Company carries it";
+  $("endHead").textContent = v.seat == null ? (s.side === "evil" ? "The Vitalians win" : "The Company wins") : mine ? `You win: ${carried}` : `You lose: ${carried}`;
+  const struck = s.striker != null && isMe(s.striker) ? "you" : "the Vitalians";
+  const why = { rejects: "Five crews were refused in a row: the council failed and the season closed.", quests: s.side === "evil" ? "Three cargoes were lost." : "Three cargoes were delivered, and there was no Lookout to find.", assassin: `Three cargoes were delivered, but ${struck} named ${who(s.target)}: the Lookout.`, safe: `Three cargoes were delivered, and ${struck} named ${who(s.target)}, not the Lookout.` }[s.why];
   const order = [...Array(s.seats).keys()].sort((a, b) => isEvil(s.roles[b]) - isEvil(s.roles[a]) || a - b);
   $("endBody").innerHTML = `<p class="qs-end-note">${esc(why)}</p><ol class="qs-standings">${order.map(p => `<li class="${s.winners.includes(p) ? "won" : ""}${isMe(p) ? " me" : ""} ${isEvil(s.roles[p]) ? "evil" : "good"}">${icon(s.roles[p])}<span class="nm">${esc(nameOf(p))}</span><b>${SHORT[s.roles[p]]}</b></li>`).join("")}</ol>`;
   $("endAgain").hidden = !page.host;
@@ -634,27 +649,27 @@ $("endTable").addEventListener("click", () => $("endDlg").close());
 function showRules() {
   const sizes = PLAYERS.map(n => `<tr><td class="n">${n}</td><td>${EVIL_COUNT[n]}</td>${SIZES[n].map((k, i) => `<td>${k}${i === 3 && n >= 7 ? "*" : ""}</td>`).join("")}</tr>`).join("");
   $("rulesBody").innerHTML = `
-    <p>A game of hidden loyalties for five to ten. Most at the table are loyal; a few are traitors, and nobody knows who but the traitors themselves. Five quests set out one after another: three succeeding win it for the loyal, three failing for the traitors.</p>
-    <h3>A quest</h3>
-    <p>The leader (the lead passes clockwise each time) names a party of the size the quest asks, and may go too. Everyone votes on it, openly: more approvals than refusals and it sets out; otherwise the lead passes on. Five parties refused in a row and the traitors win at once.</p>
-    <p>On the quest each member chooses, unseen, to succeed or to fail. The loyal can only succeed; a traitor may do either. One fail fails the quest, but the fourth from seven players up (*) needs two. You learn how many fails there were, never whose.</p>
-    <table class="qs-sizes"><thead><tr><th>Players</th><th>Traitors</th><th colspan="5">Party for each quest</th></tr></thead><tbody>${sizes}</tbody></table>
+    <p>A game of hidden loyalties for five to ten, among the merchants of a Hanseatic trading house, the Company. Most at the table are its loyal hands. A few are <b>Vitalians</b>: the Victual Brothers (Vitalienbrüder) were the Baltic privateers turned pirates who preyed on the League's cogs in the 1390s, and these are their men, hired into the crew. Nobody knows who they are but the Vitalians themselves. Five voyages sail one after another along the League's route, from Novgorod to Bruges: three cargoes delivered win it for the Company, three lost for the Vitalians.</p>
+    <h3>A voyage</h3>
+    <p>The Alderman (the elected head of a kontor, one of the League's foreign counting-houses; his seal passes clockwise each time) names a crew of the size the voyage asks, and may sail too. Everyone votes on it, openly: more approvals than refusals and it sets sail; otherwise the seal passes on. Five crews refused in a row and the council has failed: the season closes and the Vitalians win at once.</p>
+    <p>On the voyage each member chooses, unseen, to deliver or to spoil their share of the cargo. Loyal hands can only deliver; a Vitalian may do either. One spoiled share loses the cargo, but the fourth voyage from seven players up (*) needs two. You learn how many shares were spoiled, never whose.</p>
+    <table class="qs-sizes"><thead><tr><th>Players</th><th>Vitalians</th><th colspan="5">Crew for each voyage</th></tr></thead><tbody>${sizes}</tbody></table>
     <h3>The roles</h3>
-    <p class="qs-role-line">${icon("seer")}<span><b>The Lookout</b> (loyal) knows the traitors. If the loyal win three quests, the traitors name whom they think is the Lookout, and naming them wins it for the traitors. So the Lookout guides, but quietly.</span></p>
-    <p class="qs-role-line">${icon("assassin")}<span><b>The Mutineer</b> (a traitor) has the last word on whom the traitors name.</span></p>
-    <p class="qs-role-line">${icon("guardian")}<span><b>The Pilot</b> (loyal) knows the Lookout and the <b>Wrecker</b> ${icon("impostor")} (a traitor), but not which is which.</span></p>
-    <p class="qs-role-line">${icon("veiled")}<span><b>The Stowaway</b> (a traitor) is hidden from the Lookout.</span></p>
-    <p class="qs-role-line">${icon("hermit")}<span><b>The Smuggler</b> (a traitor) doesn't know the other traitors, nor they the Smuggler.</span></p>
-    <p class="qs-role-line">${icon("loyal")}<span><b>Loyal hands</b> know only themselves; the other <b>traitors</b> ${icon("traitor")} know each other.</span></p>
-    <p>Choose the roles in the menu: the Pilot and the Stowaway come only with the Lookout, and a table has room for as many traitors' roles as it has traitors (the last chosen go first).</p>
-    <h3>The strike</h3>
-    <p>When the loyal have won three quests, the traitors confer: they know each other now (and the table sees who they are), each may name whom they think is the Lookout, and then one strikes. The Mutineer, when a person plays them; if the computer does, a traitor a person plays; with no person among the traitors, the computer's Mutineer, going with the name most of them gave.</p>
+    <p class="qs-role-line">${icon("seer")}<span><b>The Lookout</b> (loyal) knows the Vitalians. If the Company delivers three cargoes, the Vitalians name whom they think is the Lookout, and naming them wins it for the Vitalians. So the Lookout guides, but quietly.</span></p>
+    <p class="qs-role-line">${icon("assassin")}<span><b>The Mutineer</b> (a Vitalian) has the last word on whom the Vitalians name.</span></p>
+    <p class="qs-role-line">${icon("guardian")}<span><b>The Pilot</b> (loyal) knows the Lookout and the <b>Wrecker</b> ${icon("impostor")} (a Vitalian), but not which is which.</span></p>
+    <p class="qs-role-line">${icon("veiled")}<span><b>The Stowaway</b> (a Vitalian) is hidden from the Lookout.</span></p>
+    <p class="qs-role-line">${icon("hermit")}<span><b>The Smuggler</b> (a Vitalian) doesn't know the other Vitalians, nor they the Smuggler.</span></p>
+    <p class="qs-role-line">${icon("loyal")}<span><b>Loyal hands</b> know only themselves; the other <b>Vitalians</b> ${icon("traitor")} know each other.</span></p>
+    <p>Choose the roles in the menu: the Pilot and the Stowaway come only with the Lookout, and a table has room for as many Vitalians' roles as it has Vitalians (the last chosen go first).</p>
+    <h3>The mutiny</h3>
+    <p>When the Company has delivered three cargoes, the Vitalians confer: they know each other now (and the table sees who they are), each may name whom they think is the Lookout, and then one strikes. The Mutineer, when a person plays them; if the computer does, a Vitalian a person plays; with no person among the Vitalians, the computer's Mutineer, going with the name most of them gave.</p>
     <h3>Talk</h3>
-    <p>Tap a player to accuse them of being a traitor, or to say you trust them; tap the same again to take it back. You can accuse no more players than there are traitors. What's been said of each player shows at their foot (${icon("down")} accused, ${icon("up")} trusted, yours ringed), the newest line under the table, and all of it in the parties so far. Leading, tap Talk to speak before you choose.</p>
-    <p>The computer players weigh what's said by who says it: a loyal player's accusation leans true, a traitor seldom accuses another, so an accusation from someone under suspicion counts for its target. They speak their minds too, answer when accused, and the traitors among them lie.</p>
+    <p>Tap a player to accuse them of being a Vitalian, or to say you trust them; tap the same again to take it back. You can accuse no more players than there are Vitalians. What's been said of each player shows at their foot (${icon("down")} accused, ${icon("up")} trusted, yours ringed), the newest line under the table, and all of it in the crews so far. As Alderman, tap Talk to speak before you choose.</p>
+    <p>The computer players weigh what's said by who says it: a loyal hand's accusation leans true, a Vitalian seldom accuses another, so an accusation from someone under suspicion counts for its target. They speak their minds too, answer when accused, and the Vitalians among them lie.</p>
     <h3>Playing</h3>
-    <p>The quests are in the middle (tap them for every party so far, who led it and who voted how, and what was said); round them the table, you at the foot. Votes and quest cards can be given before your turn: they're kept secret till all are in. At a table, each sees only their own role: tap yours to cover it. Accusing, defending and bluffing out loud is the game.</p>
-    <p class="qs-rules-note">The computer players reason from what their role lets them know and from the play: who led which party, who voted how, which quests failed with whom on them, who said what of whom. On Sharp a traitor votes much as a loyal player would and the Lookout hides what it knows; on Easy they're looser all round.</p>`;
+    <p>The voyages are in the middle, five legs of one route (tap them for every crew so far, who named it and who voted how, and what was said); round them the table, you at the foot. Votes and cards can be given before your turn: they're kept secret till all are in. At a table, each sees only their own role: tap yours to cover it. Accusing, defending and bluffing out loud is the game.</p>
+    <p class="qs-rules-note">The computer players reason from what their role lets them know and from the play: who named which crew, who voted how, which cargoes were lost with whom aboard, who said what of whom. On Sharp a Vitalian votes much as a loyal hand would and the Lookout hides what it knows; on Easy they're looser all round.</p>`;
   $("rulesDlg").showModal();
 }
 

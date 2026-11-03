@@ -1,13 +1,16 @@
-// Quest: the loyal and the traitors among them (the hidden-role mechanics of The Resistance and Avalon, with roles of
-// its own), five to ten players on seats.js, the computer playing any seat nobody has. Five quests: in each, the leader
-// (in turn round the table) names a party; everyone votes on it, openly; a majority sends it, else the lead passes, and
-// a fifth party refused in a row hands the game to the traitors. On a quest each member plays, unseen, success or fail:
-// the loyal must succeed, a traitor may fail it. Three quests succeeding win it for the loyal, three failing for the
-// traitors; but if the loyal win, the traitors name whom they think is the Lookout, and naming them wins it back.
+// Company (id quest): the loyal and the Vitalians among them (the hidden-role mechanics of The Resistance and Avalon,
+// with roles of its own), five to ten players on seats.js, the computer playing any seat nobody has. A Hanseatic trading
+// house sends five voyages: in each, the Alderman (the leader, in turn round the table) names a crew; everyone votes on
+// it, openly; a majority sends it, else the seal passes, and a fifth crew refused in a row hands the game to the
+// Vitalians. On a voyage each member plays, unseen, deliver or spoil: loyal hands must deliver, a Vitalian may spoil
+// the cargo. Three cargoes delivered win it for the Company, three lost for the Vitalians; but if the Company wins, the
+// Vitalians name whom they think is the Lookout, and naming them wins it back.
 //
-// The ids in the state, the database and the tests are the first names the roles had (seer, guardian, assassin,
-// impostor, veiled, hermit); only the words shown changed (2 November 2026), to Lookout, Pilot, Mutineer, Wrecker,
-// Stowaway and Smuggler, so saved games and rooms in flight still read.
+// Only the words shown changed, twice. The ids in the state, the database, the saved keys and the tests keep the first
+// words the game had: quest (voyage), party/team (crew), leader (Alderman), traitor and evil (Vitalian), success and
+// fail (deliver and spoil), and the roles' first names (seer, guardian, assassin, impostor, veiled, hermit; shown
+// since 2 November 2026 as Lookout, Pilot, Mutineer, Wrecker, Stowaway and Smuggler). So saved games and rooms in flight
+// still read. The comments below keep to those first words.
 //
 // The roles: the Lookout (loyal) knows the traitors, all but the Stowaway; the Pilot (loyal) knows who the Lookout and the
 // Wrecker are, but not which is which; the Wrecker (a traitor) looks like the Lookout to the Pilot; the Stowaway (a
@@ -28,7 +31,7 @@ export const EVIL_COUNT = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4 };
 /** Each quest's party size by players; the fourth quest needs two fails from seven players up. */
 export const SIZES = { 5: [2, 3, 2, 3, 3], 6: [2, 3, 4, 3, 4], 7: [2, 3, 3, 4, 4], 8: [3, 4, 4, 5, 5], 9: [3, 4, 4, 5, 5], 10: [3, 4, 4, 5, 5] };
 export const EVIL = new Set(["assassin", "impostor", "veiled", "hermit", "traitor"]);
-export const ROLE_NAMES = { seer: "the Lookout", guardian: "the Pilot", loyal: "a Loyal hand", assassin: "the Mutineer", impostor: "the Wrecker", veiled: "the Stowaway", hermit: "the Smuggler", traitor: "a Traitor" };
+export const ROLE_NAMES = { seer: "the Lookout", guardian: "the Pilot", loyal: "a loyal hand", assassin: "the Mutineer", impostor: "the Wrecker", veiled: "the Stowaway", hermit: "the Smuggler", traitor: "a Vitalian" };
 export const SHOW_MS = 2600;
 /** A game's talk is kept to this many lines (a table that says more has said enough). */
 export const TALK_MAX = 400;
@@ -104,9 +107,9 @@ export function talk(s, seat, m) {
   if (lines.length >= TALK_MAX) return "The table has said enough for one game";
   if (target !== null && !(Number.isInteger(target) && target >= 0 && target < s.seats && target !== seat)) return "Choose another player";
   if (s.step === "assassin") {
-    if (!isEvil(s.roles[seat])) return "The traitors are choosing whom to strike";
+    if (!isEvil(s.roles[seat])) return "The Vitalians are choosing whom to strike";
     if (t !== "name" || target === null) return "Name the one you think is the Lookout";
-    if (isEvil(s.roles[target])) return "Name one of the loyal";
+    if (isEvil(s.roles[target])) return "Name one of the loyal hands";
     if (named(s)[seat] === target) return "You've named them";
   } else if (t === "deny") {
     if (lines.at(-1)?.by === seat && lines.at(-1).t === "deny") return "You've said so";
@@ -116,7 +119,7 @@ export function talk(s, seat, m) {
     if (t === "drop" && !mine[target]) return "You've said nothing of them";
     if (t !== "drop" && mine[target] === t) return t === "accuse" ? "You accuse them already" : "You trust them already";
     const held = Object.entries(mine).filter(([p, v]) => v === t && Number(p) !== target).length;
-    if (t === "accuse" && held >= k) return `You accuse ${held} already, as many as there are traitors: take one back first`;
+    if (t === "accuse" && held >= k) return `You accuse ${held} already, as many as there are Vitalians: take one back first`;
     if (t === "trust" && held >= s.seats - k - 1) return `You trust ${held} already, all the others who can be loyal: take one back first`;
   }
   const line = { by: seat, t, k: s.log.length };
@@ -137,7 +140,7 @@ export const rules = {
     const s = { seats: n, roles: dealRoles(n, options, rng), opts: { seer: options.seer !== false, guardian: !!options.guardian, veiled: !!options.veiled, hermit: !!options.hermit },
       quests: SIZES[n].map((size, i) => ({ size, two: i === 3 && n >= 7 })), q: 0, leader: Math.floor(rng() * n), rejects: 0, step: "propose", team: [], log: [],
       talk: [], people: Array.from({ length: n }, () => false) };
-    s.say = `Quest: ${n} at the table, ${EVIL_COUNT[n]} of them traitors. Look at your role. The first quest: a party of ${s.quests[0].size}, led by {s${s.leader}}.`;
+    s.say = `Company: ${n} at the table, ${EVIL_COUNT[n]} of them Vitalians. Look at your role. The first voyage: a crew of ${s.quests[0].size}, with {s${s.leader}} as Alderman.`;
     return s;
   },
 
@@ -155,15 +158,15 @@ export const rules = {
     if (s.people) s.people[seat] = !m?.bot;
     if (s.step === "propose") {
       const team = [...new Set((m?.team || []).map(Number))];
-      if (m?.t !== "team" || team.length !== s.quests[s.q].size || team.some(p => !(p >= 0 && p < s.seats))) return `Name a party of ${s.quests[s.q].size}`;
+      if (m?.t !== "team" || team.length !== s.quests[s.q].size || team.some(p => !(p >= 0 && p < s.seats))) return `Name a crew of ${s.quests[s.q].size}`;
       s.team = team.sort((a, b) => a - b);
       s.votes = fresh(s.seats);
       s.step = "vote";
-      s.say = `The party: ${names(s.team)}. Vote.`;
+      s.say = `The crew: ${names(s.team)}. Vote.`;
       return s;
     }
     if (s.step === "vote") {
-      if (m?.t !== "vote" || typeof m.yes !== "boolean") return "Approve or reject";
+      if (m?.t !== "vote" || typeof m.yes !== "boolean") return "Approve or refuse";
       s.votes[seat] = m.yes;
       delete s.say;
       if (s.votes.some(v => v === null)) return s;
@@ -172,12 +175,12 @@ export const rules = {
       s.step = "shown";
       s.show = "vote";
       s.until = now + SHOW_MS;
-      s.say = approved ? `Approved, ${yes} to ${s.seats - yes}: the party sets out.` : `Rejected, ${yes} to ${s.seats - yes}.${s.rejects === 3 ? " One more refusal and the traitors win." : ""}`;
+      s.say = approved ? `Carried, ${yes} to ${s.seats - yes}: the crew sets sail.` : `Refused, ${yes} to ${s.seats - yes}.${s.rejects === 3 ? " One more refusal and the season closes: the Vitalians win." : ""}`;
       return s;
     }
     if (s.step === "quest") {
-      if (m?.t !== "card" || typeof m.success !== "boolean") return "Succeed or fail";
-      if (!m.success && !isEvil(s.roles[seat])) return "The loyal can only succeed";
+      if (m?.t !== "card" || typeof m.success !== "boolean") return "Deliver or spoil";
+      if (!m.success && !isEvil(s.roles[seat])) return "Loyal hands can only deliver";
       s.cards[seat] = m.success;
       delete s.say;
       if (s.team.some(p => s.cards[p] === null)) return s;
@@ -189,13 +192,13 @@ export const rules = {
       s.step = "shown";
       s.show = "quest";
       s.until = now + SHOW_MS;
-      s.say = quest.result === "success" ? `The quest succeeds${fails ? `, despite ${fails === 1 ? "a fail" : `${fails} fails`}` : ""}.` : `The quest fails: ${fails} ${fails === 1 ? "fail" : "fails"}.`;
+      s.say = quest.result === "success" ? `The cargo is delivered${fails ? ", though one hand spoiled their share" : ""}.` : `The cargo is lost: ${fails === 1 ? "one hand" : `${fails} hands`} spoiled it.`;
       return s;
     }
     if (s.step === "assassin") {
       const target = Number(m?.seat);
       if (m?.t !== "kill" || !(target >= 0 && target < s.seats) || target === seat) return "Name the one you think is the Lookout";
-      if (isEvil(s.roles[target])) return "Name one of the loyal";
+      if (isEvil(s.roles[target])) return "Name one of the loyal hands";
       s.target = target;
       s.striker = seat;
       const hit = s.roles[target] === "seer";
@@ -216,7 +219,7 @@ export const rules = {
       if (last.approved) {
         s.step = "quest";
         s.cards = Object.fromEntries(s.team.map(p => [p, null]));
-        s.say = `${names(s.team)}: choose, unseen.`;
+        s.say = `${names(s.team)}: deliver or spoil, unseen.`;
         return s;
       }
       s.rejects++;
@@ -224,7 +227,7 @@ export const rules = {
       s.leader = next(s, s.leader);
       s.step = "propose";
       s.team = [];
-      s.say = `The lead passes to {s${s.leader}}: a party of ${s.quests[s.q].size}.`;
+      s.say = `The seal passes to {s${s.leader}}, who names a crew of ${s.quests[s.q].size}.`;
       return s;
     }
     // a quest's end: three either way, or the next
@@ -233,7 +236,7 @@ export const rules = {
     if (won >= 3) {
       if (s.roles.includes("seer") && s.roles.includes("assassin")) {
         s.step = "assassin";
-        s.say = "Three quests won for the loyal. But the traitors may yet name the Lookout: they confer.";
+        s.say = "Three cargoes delivered for the Company. But the Vitalians may yet name the Lookout: they confer.";
         return s;
       }
       return end(s, "good", "quests");
@@ -243,7 +246,7 @@ export const rules = {
     s.leader = next(s, s.leader);
     s.step = "propose";
     s.team = [];
-    s.say = `Quest ${s.q + 1}: a party of ${s.quests[s.q].size}${s.quests[s.q].two ? " (two fails to fail it)" : ""}, led by {s${s.leader}}.`;
+    s.say = `Voyage ${s.q + 1}: a crew of ${s.quests[s.q].size}${s.quests[s.q].two ? " (two spoiled shares lose it)" : ""}, with {s${s.leader}} as Alderman.`;
     return s;
   },
 
@@ -270,10 +273,10 @@ function end(s, side, why) {
   s.why = why;
   s.winners = s.roles.map((r, i) => ((side === "evil") === isEvil(r) ? i : -1)).filter(i => i >= 0);
   const seer = s.roles.indexOf("seer");
-  s.say = why === "rejects" ? "Five parties refused: the traitors win."
-    : why === "quests" ? (side === "evil" ? "Three quests failed: the traitors win." : "Three quests won: the loyal win.")
-      : why === "assassin" ? `The traitors name {s${s.target}}: the Lookout. The traitors win.`
-        : `The traitors name {s${s.target}}, but the Lookout was {s${seer}}. The loyal win.`;
+  s.say = why === "rejects" ? "Five crews refused in a row: the council fails, the season closes and the Vitalians win."
+    : why === "quests" ? (side === "evil" ? "Three cargoes lost: the Vitalians win." : "Three cargoes delivered: the Company wins.")
+      : why === "assassin" ? `The Vitalians name {s${s.target}}: the Lookout. The Vitalians win.`
+        : `The Vitalians name {s${s.target}}, but the Lookout was {s${seer}}. The Company wins.`;
   delete s.until;
   return s;
 }
