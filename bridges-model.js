@@ -280,3 +280,31 @@ export function pickLink(segs, x, y, tol, isles = [], tie = 3) {
   for (let i = 0; i < segs.length; i++) if (segs[i].high && d[i] <= tol && d[i] <= d[best] + tie && (!segs[best].high || d[i] < d[best])) best = i;
   return segs[best].l;
 }
+
+// ---------- the camera: how far back the whole board is in view ----------
+/**
+ * The nearest the camera may stand (looking at `look` = [x, y, z] from the direction `az`, `el`) for every point of `pts` (a flat
+ * list x, y, z, ...) to be on the screen, a margin `mx`, `my` (a share of the half width and half height, 0 to 1) from its
+ * edges. `tx`, `ty` are the tangents of the half angles of view across and up. A point's place on the screen is its sideways
+ * (or upward) distance from the line of sight over its depth, and its depth is the camera's distance plus how far it lies beyond
+ * `look`: so each point says how far back the camera must be, and the farthest of them is exact.
+ */
+export function fitDistance(pts, az, el, look, tx, ty, mx = 0, my = 0) {
+  const cosE = Math.cos(el), sinE = Math.sin(el);
+  const rx = Math.cos(az), rz = -Math.sin(az);                                // sideways: the screen's x
+  const fx = -Math.sin(az) * cosE, fy = -sinE, fz = -Math.cos(az) * cosE;       // forward: from the camera to `look`
+  const ux = -rz * fy, uy = rz * fx - rx * fz, uz = rx * fy;                   // upward: right × forward
+  const kx = (1 - mx) * tx, ky = (1 - my) * ty;
+  let d = 0;
+  for (let i = 0; i < pts.length; i += 3) {
+    const vx = pts[i] - look[0], vy = pts[i + 1] - look[1], vz = pts[i + 2] - look[2];
+    const w = vx * fx + vy * fy + vz * fz;
+    d = Math.max(d, Math.abs(vx * rx + vz * rz) / kx - w, Math.abs(vx * ux + vy * uy + vz * uz) / ky - w);
+  }
+  return d;
+}
+/** The first view's elevation (radians) for a card `aspect` wide to tall: seen from over, the board looks `1 / sin(el)` times wider than tall, so the card's own shape picks the angle that fills it, between a low view and a high one (higher and the islands are hidden under their plates). */
+export const homeElevation = aspect => {
+  const lo = Math.sin((42 * Math.PI) / 180), hi = Math.sin((58 * Math.PI) / 180);
+  return Math.asin(Math.max(lo, Math.min(hi, 1 / Math.max(0.2, aspect))));
+};

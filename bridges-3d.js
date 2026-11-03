@@ -8,33 +8,42 @@
 // clears, as on the chart), a drag turns the board, two fingers (or the wheel, or the + and − beside it) zoom in and pan, and a
 // hint's link glows gilt. Which link a finger means is worked out in
 // bridges-model.js (the links as the screen shows them, the nearest wins), tested in Node.
-// The page calls set(layout, grid, …) for a new puzzle and update(marks, breaks, hint) after a change; this file builds every
-// link's bridges once (a single and a double), and a change only shows and hides them. It draws only while it is on screen
-// and nothing has paused it (the menu, a hidden tab), at most thirty frames a second: the ships go slowly.
+// The page calls set(layout, grid, …) for a new puzzle and update(marks, breaks, hint) after a change. The whole board is a
+// handful of draw calls (bridges-batch.js): every island, every bridge a link may have (a single, a double, a triple), every
+// link's dashes and glows are built once into a few meshes with a colour on each vertex, and a change of the marks only chooses
+// which of their vertices are drawn; the ships and buoys are instances of one piece each. The shadows are drawn again only when
+// something that casts one changes. It draws only while it is on screen and nothing has paused it (the menu, a hidden tab): thirty
+// frames a second while the player is doing something, fifteen when the sea and the ships are all that move.
 // Throws where there is no WebGL (the page then keeps the chart).
 import * as THREE from "./vendor/three.js";
-import { cellXZ, labelOf, seaOf, createFleet, shipsFor, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile } from "./bridges-model.js";
+import { createBatch } from "./bridges-batch.js";
+import { cellXZ, labelOf, seaOf, createFleet, shipsFor, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile, fitDistance, homeElevation } from "./bridges-model.js";
 
 const DEG = Math.PI / 180;
 const DOUBLE_SIDE = 2;                           // THREE.DoubleSide (not in the bundle's exports)
 const MIN_EL = 30 * DEG, MAX_EL = 80 * DEG, FOV = 30 * DEG;   // not lower: from the side the hills hide the links behind them
-const HOME_AZ = 32 * DEG, HOME_EL = 52 * DEG;
+const HOME_AZ = 32 * DEG;                       // the first view's turn; its elevation follows the card's shape (homeElevation)
 const MAX_ZOOM = 3.6;                           // how far in: the board's fit is 1
 const HOLD = 430, SLIP = 9;                     // ms a press takes to clear a link (as on the chart), and the pixels a finger may stray and still tap
-const FRAME_MS = 1000 / 30;
+const BUSY_MS = 1000 / 30, CALM_MS = 1000 / 15, BUSY_FOR = 1400;   // the time between frames while something is being done, and when nothing is, and how long a doing counts
 const DECK = 0.17, VIADUCT = 0.8;               // the heights of a low bridge's deck and of the top of a viaduct
 const GUIDE = 0.09, GUIDE_HIGH = VIADUCT + 0.02;  // the dashes on a link without a bridge lie a little over the swell (a viaduct's in the air where it would stand)
 const WAVE = (x, z, t) => 0.028 * Math.sin(x * 0.9 + t * 0.8) + 0.02 * Math.sin(z * 1.3 - t * 0.6) + 0.012 * Math.sin((x + z) * 2.1 + t * 1.7);
+const HOME_LOOK = [0, 0.15, 0];                 // what the camera looks at when the whole board is in view
 
 // ---------- the skins ----------
 const MODES = {
   day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], copper: 0xd9a27a, timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, guide: 0xffffff, guideA: 0.62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false, grass: 0x8fae62, tree: 0x4d7a45, shallow: 0xb9e6e3, shallowA: 0.42, rail: 0x6b4a2b },
-  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], copper: 0xc08a68, timber: 0x84603a, stone: 0xb4aea0, deck: 0x9a9380, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true, grass: 0x6f8a55, tree: 0x3e6339, shallow: 0x8fb8c4, shallowA: 0.34, rail: 0x5e4328 },
+  // by night the timber and stone are lighter than the day's, or they sink into the dark sea
+  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], copper: 0xc08a68, timber: 0xb5854d, stone: 0xcbc4b4, deck: 0xb0a995, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true, grass: 0x6f8a55, tree: 0x3e6339, shallow: 0x8fb8c4, shallowA: 0.34, rail: 0x8a6439 },
 };
 function skinNow() {
   const root = document.documentElement, night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
   return { night, ...MODES[night ? "night" : "day"] };
 }
+/** The colour of each role the batches name (bridges-batch.js) in a skin. */
+const palette = k => ({ sand: k.sand, copper: k.copper, h0: k.hill[0], h1: k.hill[1], h2: k.hill[2], timber: k.timber, stone: k.stone, deck: k.deck, grass: k.grass, tree: k.tree, rail: k.rail, trim: 0xc9a23c, teal: 0x1e7f8c });
+const SHIP_COLORS = { hull: 0x6a4426, trim: 0xc9a23c, sail: 0xf0e6cc, flag: 0xb5432f };
 
 /** An extruded outline: points [x, y] along and up, `depth` thick (centred on z = 0). */
 function wall(points, depth) {
@@ -45,23 +54,31 @@ function wall(points, depth) {
   g.translate(0, 0, -depth / 2);
   return g;
 }
+const at = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z);
 
-/** A box `w` × `h` × `d` with its middle at (x, y, z), as a piece for `merged`. */
-const box = (w, h, d, x, y, z) => [new THREE.BoxGeometry(w, h, d), new THREE.Matrix4().makeTranslation(x, y, z)];
-/** Many pieces [geometry, matrix] as one geometry, so a bridge with a hundred posts is one thing to draw and not a hundred. */
-function merged(list) {
-  const pos = [], nor = [];
-  for (const [geo, m] of list) {
-    const g = geo.index ? geo.toNonIndexed() : geo.clone();
-    if (m) g.applyMatrix4(m);
-    const p = g.attributes.position.array, n = g.attributes.normal.array;
-    for (let i = 0; i < p.length; i++) { pos.push(p[i]); nor.push(n[i]); }
-    g.dispose(); geo.dispose();
-  }
-  const out = new THREE.BufferGeometry();
-  out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  out.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
-  return out;
+/** Flat strips along a link in its own frame (from its first island along +x, `y` up), each [from, to, half width]. */
+function strips(list, y, zoff = 0) {
+  const pos = [], idx = [];
+  for (const [x0, x1, hw] of list) { const n = pos.length / 3; pos.push(x0, y, zoff - hw, x1, y, zoff - hw, x0, y, zoff + hw, x1, y, zoff + hw); idx.push(n, n + 1, n + 2, n + 2, n + 1, n + 3); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  return g;
+}
+/** One strip from x0 to x1 that follows a deck's arch (`hump` high over the deck that runs from `xa`, `len` long), `y0` above the water: the glow of a built bridge. */
+function arched(x0, x1, hw, hump, xa, len, y0) {
+  const n = Math.max(2, Math.round((x1 - x0) / 0.2)), pos = [], idx = [];
+  for (let i = 0; i <= n; i++) { const x = x0 + ((x1 - x0) * i) / n, y = y0 + hump * Math.sin(Math.PI * Math.max(0, Math.min(1, (x - xa) / len))); pos.push(x, y, -hw, x, y, hw); }
+  for (let i = 0; i < n; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 2, i * 2 + 1, i * 2 + 3);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  return g;
+}
+/** Where a low bridge's deck runs along its link (from the first island's middle): its ends tucked a little into the islands, and how high it arches. */
+function lowSpan(a, b, span) {
+  const xa = islandRadius(a.n) - 0.06, xb = span - islandRadius(b.n) + 0.06, len = xb - xa;
+  return { xa, xb, len, hump: Math.max(0.04, Math.min(0.15, 0.035 * len)) };
 }
 
 /**
@@ -76,6 +93,7 @@ export function createModel(host, opts = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
   renderer.shadowMap.enabled = true;
+  renderer.shadowMap.autoUpdate = false;             // the shadows are drawn again when the sun moves or a bridge changes (shadowDirty), not every frame
   renderer.shadowMap.type = 1;                       // the plain PCF map
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setClearColor(0x000000, 0);
@@ -98,17 +116,15 @@ export function createModel(host, opts = {}) {
   sun.shadow.normalBias = 0.02;
   scene.add(hemi, sun, sun.target);
 
-  const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0, flatShading: true, ...extra });
+  const solid = (extra = {}) => new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, flatShading: true, ...extra });
   const M = {
-    sea: mat(0x3f8db4, { roughness: 0.55, metalness: 0.05 }), sand: mat(0xe6d6ab), copper: mat(0xd9a27a),
-    h0: mat(0xd8c28f), h1: mat(0xc4a870), h2: mat(0xa98b55), timber: mat(0x9a6a3b), stone: mat(0xd9d0bc), deck: mat(0xbfb394),
-    hull: mat(0x6a4426), trim: mat(0xc9a23c, { metalness: 0.4, roughness: 0.4 }), sail: mat(0xf0e6cc, { side: DOUBLE_SIDE }), flag: mat(0xb5432f, { side: DOUBLE_SIDE }),
-    grass: mat(0x8fae62), tree: mat(0x4d7a45), rail: mat(0x6b4a2b), teal: mat(0x1e7f8c), white: mat(0xf4efe2), lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }),
+    sea: solid({ color: 0x3f8db4, roughness: 0.55, metalness: 0.05 }), land: solid({ vertexColors: true }), ship: solid({ vertexColors: true, side: DOUBLE_SIDE }),
+    buoyTeal: solid({ color: 0x1e7f8c }), buoyWhite: solid({ color: 0xf4efe2 }), lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }),
     shallow: new THREE.MeshBasicMaterial({ color: 0xb9e6e3, transparent: true, opacity: 0.4, depthWrite: false }),
     guide: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, side: DOUBLE_SIDE }),
     halo: new THREE.MeshBasicMaterial({ color: 0xf2c14e, transparent: true, opacity: 0.5, depthWrite: false, side: DOUBLE_SIDE }),
   };
-  const C = new THREE.Color();
+  const MA = new THREE.Matrix4(), MB = new THREE.Matrix4();       // scratch: a frame allocates nothing
 
   // ---------- the sea ----------
   let sea = null, seaTop = [], seaSize = 0;
@@ -121,6 +137,7 @@ export function createModel(host, opts = {}) {
     g.translate(0, -0.25, 0);
     sea = new THREE.Mesh(g, M.sea);
     sea.receiveShadow = true;
+    sea.frustumCulled = false;                       // its vertices move; it fills the view anyway
     scene.add(sea);
   }
   function stirSea(t) {
@@ -130,181 +147,132 @@ export function createModel(host, opts = {}) {
     pos.needsUpdate = true;
   }
 
-  // ---------- a ship: a hull from a side profile, three masts, square sails, a lateen on the mizzen, a flag and a lantern ----------
-  function ship() {
-    const g = new THREE.Group(), hullShape = new THREE.Shape();
+  // ---------- a ship: a hull from a side profile, three masts, square sails, a lateen on the mizzen, a flag; one geometry, drawn once for every ship ----------
+  function shipGeometry() {
+    const b = createBatch(), S = new THREE.Matrix4().makeScale(1.7, 1.7, 1.7), hullShape = new THREE.Shape();
+    const put = (geo, role, x = 0, y = 0, z = 0) => b.add("ship", geo, at(x, y, z).premultiply(S), role);
     [[-0.3, 0.17], [-0.31, 0.02], [-0.24, -0.05], [0.14, -0.05], [0.31, 0.07], [0.29, 0.09], [0.13, 0.075], [-0.12, 0.075], [-0.12, 0.11], [-0.2, 0.11], [-0.2, 0.17]]
       .forEach(([x, y], i) => (i ? hullShape.lineTo(x, y) : hullShape.moveTo(x, y)));
     hullShape.closePath();
     const hullGeo = new THREE.ExtrudeGeometry(hullShape, { depth: 0.15, bevelEnabled: false });
     hullGeo.translate(0, 0, -0.075);
-    const hull = new THREE.Mesh(hullGeo, M.hull);
-    hull.castShadow = true;
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.012, 0.158), M.trim);
-    stripe.position.set(0.02, 0.062, 0);
-    g.add(hull, stripe);
-    const mast = (x, h) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.012, h, 6), M.hull); m.position.set(x, 0.05 + h / 2, 0); m.castShadow = true; g.add(m); };
-    mast(0.04, 0.42); mast(0.2, 0.31); mast(-0.17, 0.28);
-    const sailBox = (x, y, w, h) => { const s = new THREE.Mesh(new THREE.BoxGeometry(0.008, h, w), M.sail); s.position.set(x, y, 0); s.castShadow = true; g.add(s); };
-    sailBox(0.055, 0.2, 0.25, 0.15); sailBox(0.055, 0.37, 0.18, 0.1);
-    sailBox(0.215, 0.17, 0.18, 0.12); sailBox(0.215, 0.29, 0.12, 0.07);
+    put(hullGeo, "hull");
+    put(new THREE.BoxGeometry(0.5, 0.012, 0.158), "trim", 0.02, 0.062, 0);
+    for (const [x, h] of [[0.04, 0.42], [0.2, 0.31], [-0.17, 0.28]]) put(new THREE.CylinderGeometry(0.009, 0.012, h, 6), "hull", x, 0.05 + h / 2, 0);
+    for (const [x, y, w, h] of [[0.055, 0.2, 0.25, 0.15], [0.055, 0.37, 0.18, 0.1], [0.215, 0.17, 0.18, 0.12], [0.215, 0.29, 0.12, 0.07]]) put(new THREE.BoxGeometry(0.008, h, w), "sail", x, y, 0);
     const lateen = new THREE.Shape();
     lateen.moveTo(-0.17, 0.12); lateen.lineTo(-0.17, 0.3); lateen.lineTo(-0.33, 0.14); lateen.closePath();
-    const lat = new THREE.Mesh(new THREE.ShapeGeometry(lateen), M.sail);
-    lat.castShadow = true;
-    g.add(lat);
-    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.045, 0.004), M.flag);
-    flag.position.set(-0.01, 0.45, 0);
-    g.add(flag);
-    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), M.lamp);
-    lamp.position.set(-0.3, 0.2, 0);
-    g.add(lamp);
-    g.userData = { flag, lamp };
-    g.scale.setScalar(1.7);
-    return g;
+    put(new THREE.ShapeGeometry(lateen), "sail");
+    put(new THREE.BoxGeometry(0.1, 0.045, 0.004), "flag", -0.01, 0.45, 0);
+    const mesh = b.build(M.ship, r => SHIP_COLORS[r]), geo = mesh.geometry;
+    return geo;
+  }
+  /** `out` as the matrix of a ship at (x, y, z) heading `ry`, rolled `rx` and pitched `rz` (a turn about x, then y, then z: three.js's own order). */
+  function shipMatrix(out, x, y, z, rx, ry, rz) {
+    out.makeRotationX(rx); MB.makeRotationY(ry); out.multiply(MB); MB.makeRotationZ(rz); out.multiply(MB);
+    return out.setPosition(x, y, z);
   }
 
   // ---------- the puzzle on show ----------
   let P = null, size = 0, lay = null;
-  let world = null, linkMeshes = [], lines = [], plates = [], ships = [], buoys = [], fleet = null, lastSail = 0, marks = "";
+  let world = null, lines = [], plates = [], fleet = null, lastSail = 0, marks = "";
+  let batches = null, hulls = null, lamps = null, buoyMeshes = [], buoys = [], fitPts = [];       // the meshes of the board, the ships and their lamps, the buoys, and the points the camera keeps in view
   let lit = new Set(), litIsland = -1, aim = -1, winUntil = 0;     // the hint's links and island, the link under a finger or the pointer, the end of the win's glow
+  let state = { bridges: 0, guides: 0, glowing: 0 };
+  let shadowDirty = true, camDirty = true, measure = true, builtKey = null;           // the shadows, the plates' places and their sizes need doing again; the bridges the shadows were drawn for
   function disposeWorld() {
     if (world) { scene.remove(world); world.traverse(o => o.geometry?.dispose()); }
-    world = null; linkMeshes = []; lines = []; ships = []; buoys = []; fleet = null;
+    world = null; lines = []; batches = hulls = lamps = null; buoys = []; buoyMeshes = []; fleet = null; fitPts = []; builtKey = null;
     labels.replaceChildren(); plates = [];
     lit = new Set(); litIsland = aim = -1; winUntil = 0;
   }
-  const place = (obj, x, y, z, ry = 0) => { obj.position.set(x, y, z); obj.rotation.y = ry; return obj; };
-  const shadowed = obj => { obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return obj; };
+  /** A batch's mesh into the world: lit and shadowed, or glass-like and not, and never culled (it is the whole board). */
+  function mount(batch, material, { shadows = false, order = 0 } = {}) {
+    const mesh = batch.build(material);
+    mesh.castShadow = mesh.receiveShadow = shadows;
+    mesh.frustumCulled = false;
+    mesh.renderOrder = order;
+    world.add(mesh);
+    return batch;
+  }
 
   /** An island as big as its number: on sand, a beach, a lawn and trees (more of them the bigger it is); a hill in terraces; and a pale ring of shallows round it. */
-  function island(i) {
-    const isle = lay.isl[i], [x, z] = cellXZ(size, isle.r, isle.c), R = islandRadius(isle.n), g = new THREE.Group(), top = isle.realm ? M.copper : M.sand;
+  function island(land, rings, i) {
+    const isle = lay.isl[i], [x, z] = cellXZ(size, isle.r, isle.c), R = islandRadius(isle.n), here = y => at(x, y, z);
     if (isle.hill) {
       // terraces: contour lines made solid
-      const k = R / 0.47, t = [[0.47, 0.44, 0.3, M.h0], [0.37, 0.36, 0.62, M.h1], [0.27, 0.26, 1.0, M.h2]];
-      for (const [rb, rt, h, m] of t) { const c = new THREE.Mesh(new THREE.CylinderGeometry(rt * k, rb * k, h + 0.1, 20), isle.realm ? M.copper : m); c.position.y = (h - 0.1) / 2; g.add(c); }
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * k, 0.26 * k, 0.05, 14), M.trim);
-      cap.position.y = 1.02;
-      g.add(cap);
+      const k = R / 0.47;
+      for (const [rb, rt, h, role] of [[0.47, 0.44, 0.3, "h0"], [0.37, 0.36, 0.62, "h1"], [0.27, 0.26, 1.0, "h2"]]) land.add("all", new THREE.CylinderGeometry(rt * k, rb * k, h + 0.1, 20), here((h - 0.1) / 2), isle.realm ? "copper" : role);
+      land.add("all", new THREE.CylinderGeometry(0.2 * k, 0.26 * k, 0.05, 14), here(1.02), "trim");
     } else {
-      const c = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.93, R, 0.34, 24), top);
-      c.position.y = 0.03;
-      g.add(c);
+      land.add("all", new THREE.CylinderGeometry(R * 0.93, R, 0.34, 24), here(0.03), isle.realm ? "copper" : "sand");
       if (!isle.realm && R > 0.3) {
-        const lawn = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.66, R * 0.74, 0.04, 20), M.grass);
-        lawn.position.y = 0.2;
-        g.add(lawn);
+        land.add("all", new THREE.CylinderGeometry(R * 0.66, R * 0.74, 0.04, 20), here(0.2), "grass");
         // trees on the diagonals, the bridges leaving by the four sides
-        const trunks = [], crowns = [], count = isle.n >= 7 ? 3 : isle.n >= 5 ? 2 : isle.n >= 3 ? 1 : 0;
+        const count = isle.n >= 7 ? 3 : isle.n >= 5 ? 2 : isle.n >= 3 ? 1 : 0;
         for (let q = 0; q < count; q++) {
-          const a = (((i + [0, 2, 1][q]) % 4) + 0.5) * (Math.PI / 2) + 0.1 * q, d = R * (0.42 + 0.07 * q), s = 0.8 + 0.12 * ((i * 7 + q * 3) % 4), px = Math.cos(a) * d, pz = Math.sin(a) * d;
-          trunks.push([new THREE.CylinderGeometry(0.014 * s, 0.02 * s, 0.1 * s, 5), new THREE.Matrix4().makeTranslation(px, 0.22 + 0.05 * s, pz)]);
-          crowns.push([new THREE.ConeGeometry(0.085 * s, 0.24 * s, 7), new THREE.Matrix4().makeTranslation(px, 0.22 + 0.2 * s, pz)]);
+          const a = (((i + [0, 2, 1][q]) % 4) + 0.5) * (Math.PI / 2) + 0.1 * q, d = R * (0.42 + 0.07 * q), s = 0.8 + 0.12 * ((i * 7 + q * 3) % 4), px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
+          land.add("all", new THREE.CylinderGeometry(0.014 * s, 0.02 * s, 0.1 * s, 5), at(px, 0.22 + 0.05 * s, pz), "rail");
+          land.add("all", new THREE.ConeGeometry(0.085 * s, 0.24 * s, 7), at(px, 0.22 + 0.2 * s, pz), "tree");
         }
-        if (count) g.add(new THREE.Mesh(merged(trunks), M.rail), new THREE.Mesh(merged(crowns), M.tree));
       }
     }
-    shadowed(g);
-    const out = new THREE.Group(), ring = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.2, R + 0.26, 0.012, 28), M.shallow);
-    ring.position.y = 0.07;                                      // over the swell's crests
-    out.add(g, ring);
-    out.position.set(x, 0, z);
-    return out;
+    rings.add("all", new THREE.CylinderGeometry(R + 0.2, R + 0.26, 0.012, 22), here(0.07), "shallow");      // over the swell's crests
+    // what the camera keeps in view: the shallows' corners, and the plate over the island
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) fitPts.push(x + sx * (R + 0.22), 0, z + sz * (R + 0.22));
+    fitPts.push(x, isle.hill ? 1.35 : 0.55, z);
   }
-  /** Where a low bridge's deck runs along its link (from the first island's middle): its ends tucked a little into the islands, and how high it arches. */
-  function lowSpan(a, b, span) {
-    const xa = islandRadius(a.n) - 0.06, xb = span - islandRadius(b.n) + 0.06, len = xb - xa;
-    return { xa, xb, len, hump: Math.max(0.04, Math.min(0.15, 0.035 * len)) };
-  }
-  /** A link's bridges, once: a single and a double of each, shown and hidden as the marks change. */
-  function bridgesOf(l) {
-    const link = lay.links[l], a = lay.isl[link.a], b = lay.isl[link.b], [x, z] = cellXZ(size, a.r, a.c), span = link.vertical ? b.r - a.r : b.c - a.c;
-    const ry = link.vertical ? -Math.PI / 2 : 0, one = new THREE.Group(), two = new THREE.Group(), three = new THREE.Group(), deckM = a.realm ? M.copper : M.timber;
-    const sets = [[one, [0]], [two, [-0.1, 0.1]], ...(link.cap === 3 ? [[three, [-0.17, 0, 0.17]]] : [])];      // a wide road has room for a third bridge
+  /** A link's bridges, once: a single, a double and (on a wide road) a triple, as groups `l.1`, `l.2`, `l.3` of the batch, shown and hidden as the marks change. */
+  function bridgesOf(b, l) {
+    const link = lay.links[l], a = lay.isl[link.a], bb = lay.isl[link.b], [x, z] = cellXZ(size, a.r, a.c), span = link.vertical ? bb.r - a.r : bb.c - a.c;
+    const linkM = new THREE.Matrix4().makeRotationY(link.vertical ? -Math.PI / 2 : 0).setPosition(x, 0, z), deckRole = a.realm ? "copper" : "timber";
+    const sets = [[1, [0]], [2, [-0.1, 0.1]], ...(link.cap === 3 ? [[3, [-0.17, 0, 0.17]]] : [])];      // a wide road has room for a third bridge
+    const put = (n, geo, local, role) => b.add(`${l}.${n}`, geo, local ? linkM.clone().multiply(local) : linkM, role);
     if (link.high) {
       // a stone arcade with a kerb along each edge of the road
-      const ra = islandRadius(a.n), rb = islandRadius(b.n), piers = piersOf(lay, l);
+      const ra = islandRadius(a.n), rb = islandRadius(bb.n), piers = piersOf(lay, l);
       const outline = wallOutline(span, piers, { top: VIADUCT - 0.04, rise: 0.7, reach: ra, reachEnd: rb }), xa = 0.55 * ra, xb = span - 0.55 * rb, mid = (xa + xb) / 2;
-      for (const [grp, lanes] of sets) for (const off of lanes) {
-        const w = [0.24, 0.12, 0.085][lanes.length - 1], m = new THREE.Mesh(wall(outline, [0.17, 0.08, 0.06][lanes.length - 1]), M.stone), d = new THREE.Mesh(new THREE.BoxGeometry(xb - xa, 0.05, w), M.deck);
-        m.position.z = off;
-        d.position.set(mid, VIADUCT - 0.02, off);
-        const kerb = new THREE.Mesh(merged([box(xb - xa, 0.07, 0.022, mid, VIADUCT + 0.04, off - (w / 2 - 0.011)), box(xb - xa, 0.07, 0.022, mid, VIADUCT + 0.04, off + (w / 2 - 0.011))]), M.stone);
-        grp.add(m, d, kerb);
+      for (const [n, lanes] of sets) for (const off of lanes) {
+        const w = [0.24, 0.12, 0.085][lanes.length - 1];
+        put(n, wall(outline, [0.17, 0.08, 0.06][lanes.length - 1]), at(0, 0, off), "stone");
+        put(n, new THREE.BoxGeometry(xb - xa, 0.05, w), at(mid, VIADUCT - 0.02, off), "deck");
+        for (const side of [-1, 1]) put(n, new THREE.BoxGeometry(xb - xa, 0.07, 0.022), at(mid, VIADUCT + 0.04, off + side * (w / 2 - 0.011)), "stone");
       }
     } else {
       // an arched timber deck with railings, on trestles
-      const { xa, xb, len, hump } = lowSpan(a, b, span), ytop = u => DECK + hump * Math.sin((Math.PI * (u - xa)) / len);
-      for (const [grp, lanes] of sets) for (const off of lanes) {
+      const { xa, xb, len, hump } = lowSpan(a, bb, span), ytop = u => DECK + hump * Math.sin((Math.PI * (u - xa)) / len);
+      for (const [n, lanes] of sets) for (const off of lanes) {
         const w = [0.15, 0.085, 0.065][lanes.length - 1], top = deckProfile(len, hump, Math.max(6, Math.round(len * 5))).map(([u, dy]) => [xa + u, DECK + dy]);
-        const deck = wall([...top, ...top.map(([u, y]) => [u, y - 0.045]).reverse()], w);
-        deck.translate(0, 0, off);
-        grp.add(new THREE.Mesh(deck, deckM));
-        const parts = [];
+        put(n, wall([...top, ...top.map(([u, y]) => [u, y - 0.045]).reverse()], w).translate(0, 0, off), null, deckRole);
         for (const side of lanes.length === 1 ? [-1, 1] : off === 0 ? [] : [off < 0 ? -1 : 1]) {      // posts and a rail along the edges (a double or a triple has its outer ones)
           const zz = off + side * (w / 2 - 0.011);
-          for (let u = xa + 0.12; u <= xb - 0.1; u += 0.3) parts.push(box(0.02, 0.09, 0.02, u, ytop(u) + 0.045, zz));
-          const rail = wall([...top.map(([u, y]) => [u, y + 0.1]), ...top.map(([u, y]) => [u, y + 0.082]).reverse()], 0.018);
-          rail.translate(0, 0, zz);
-          parts.push([rail, null]);
+          for (let u = xa + 0.12; u <= xb - 0.1; u += 0.3) put(n, new THREE.BoxGeometry(0.02, 0.09, 0.02), at(u, ytop(u) + 0.045, zz), "rail");
+          put(n, wall([...top.map(([u, y]) => [u, y + 0.1]), ...top.map(([u, y]) => [u, y + 0.082]).reverse()], 0.018).translate(0, 0, zz), null, "rail");
         }
         for (let u = xa + 0.35; u <= xb - 0.3; u += 0.75) {                             // trestles: a pair of piles and a beam under the deck
           const below = ytop(u) - 0.045, h = below + 0.12;
-          for (const side of [-1, 1]) parts.push([new THREE.CylinderGeometry(0.02, 0.024, h, 5), new THREE.Matrix4().makeTranslation(u, below - h / 2, off + side * (w / 2 - 0.02))]);
-          parts.push(box(0.04, 0.03, w + 0.01, u, below - 0.015, off));
+          for (const side of [-1, 1]) put(n, new THREE.CylinderGeometry(0.02, 0.024, h, 5), at(u, below - h / 2, off + side * (w / 2 - 0.02)), "rail");
+          put(n, new THREE.BoxGeometry(0.04, 0.03, w + 0.01), at(u, below - 0.015, off), "rail");
         }
-        grp.add(new THREE.Mesh(merged(parts), M.rail));
       }
     }
-    const out = new THREE.Group();
-    out.add(one, two, three);
-    place(out, x, 0, z, ry);
-    one.visible = two.visible = three.visible = false;
-    shadowed(out);
-    return { out, one, two, three };
   }
-
-  /** Flat strips along a link in its own frame (from its first island along +x, `y` up), each [from, to, half width]. */
-  function strips(list, y, zoff = 0) {
-    const pos = [], idx = [];
-    for (const [x0, x1, hw] of list) { const n = pos.length / 3; pos.push(x0, y, zoff - hw, x1, y, zoff - hw, x0, y, zoff + hw, x1, y, zoff + hw); idx.push(n, n + 1, n + 2, n + 2, n + 1, n + 3); }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-    g.setIndex(idx);
-    return g;
-  }
-  /** One strip from x0 to x1 that follows a deck's arch (`hump` high over the deck that runs from `xa`, `len` long), above y = 0: the glow of a built bridge. */
-  function arched(x0, x1, hw, hump, xa, len) {
-    const n = Math.max(2, Math.round((x1 - x0) / 0.2)), pos = [], idx = [];
-    for (let i = 0; i <= n; i++) { const x = x0 + ((x1 - x0) * i) / n, y = hump * Math.sin(Math.PI * Math.max(0, Math.min(1, (x - xa) / len))); pos.push(x, y, -hw, x, y, hw); }
-    for (let i = 0; i < n; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 2, i * 2 + 1, i * 2 + 3);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-    g.setIndex(idx);
-    return g;
-  }
-  /** What a link shows before it has a bridge: dashes along it (where a finger may tap), and the glow a hint or a finger gives it. */
-  function guideOf(l) {
+  /** What a link shows before it has a bridge: dashes along it (where a finger may tap), and the glow a hint or a finger gives it (flat, `f`, over a link without a bridge, and arched, `a`, along a built one's deck). */
+  function guideOf(land, dashes, halos, l) {
     const link = lay.links[l], a = lay.isl[link.a], b = lay.isl[link.b], [x, z] = cellXZ(size, a.r, a.c), span = link.vertical ? b.r - a.r : b.c - a.c;
-    const ry = link.vertical ? -Math.PI / 2 : 0, high = !!link.high, y = high ? GUIDE_HIGH : GUIDE, from = islandRadius(a.n) + 0.1, to = span - islandRadius(b.n) - 0.1;
-    const n = Math.max(1, Math.round((to - from) / 0.3)), step = (to - from) / n, hw = 0.04 + 0.004 * Math.max(0, size - 7), list = [];
+    const linkM = new THREE.Matrix4().makeRotationY(link.vertical ? -Math.PI / 2 : 0).setPosition(x, 0, z), high = !!link.high, y = high ? GUIDE_HIGH : GUIDE;
+    const from = islandRadius(a.n) + 0.1, to = span - islandRadius(b.n) - 0.1, n = Math.max(1, Math.round((to - from) / 0.3)), step = (to - from) / n, hw = 0.04 + 0.004 * Math.max(0, size - 7), list = [];
     for (let i = 0; i < n; i++) list.push([from + i * step + (step - 0.17) / 2, from + i * step + (step + 0.17) / 2, hw]);
-    const low = high ? null : lowSpan(a, b, span), wide = link.cap === 3, hh = wide ? 0.3 : 0.2;
-    const dashes = new THREE.Group();                                  // a wide road shows its three lanes
-    for (const zoff of wide ? [-0.17, 0, 0.17] : [0]) dashes.add(new THREE.Mesh(strips(list.map(([x0, x1, w]) => [x0, x1, wide ? w * 0.8 : w]), y, zoff), M.guide));
-    const halo = new THREE.Mesh(high ? strips([[from - 0.05, to + 0.05, hh]], 0) : arched(from - 0.05, to + 0.05, hh, low.hump, low.xa, low.len), M.halo);
-    halo.visible = false;
-    const out = new THREE.Group();
-    out.add(dashes, halo);
+    const wide = link.cap === 3, hh = wide ? 0.3 : 0.2;
+    for (const zoff of wide ? [-0.17, 0, 0.17] : [0]) dashes.add(`${l}`, strips(list.map(([x0, x1, w]) => [x0, x1, wide ? w * 0.8 : w]), y, zoff), linkM, "guide");      // a wide road shows its three lanes
+    halos.add(`f${l}`, strips([[from - 0.05, to + 0.05, hh]], y + 0.012), linkM, "halo");
+    if (high) halos.add(`a${l}`, strips([[from - 0.05, to + 0.05, hh]], VIADUCT + 0.085), linkM, "halo");
+    else { const low = lowSpan(a, b, span); halos.add(`a${l}`, arched(from - 0.05, to + 0.05, hh, low.hump, low.xa, low.len, DECK + 0.115), linkM, "halo"); }
     if (link.cap === 1) {                                              // a narrow road: a gate, a post each side of the road's middle cell and a bar across them
-      const gate = [], at = Math.floor(span / 2);
-      for (const side of [-1, 1]) gate.push([new THREE.CylinderGeometry(0.07, 0.085, 0.46, 8), new THREE.Matrix4().makeTranslation(at, 0.17, side * 0.27)]);
-      gate.push([new THREE.BoxGeometry(0.07, 0.06, 0.62), new THREE.Matrix4().makeTranslation(at, 0.42, 0)]);
-      out.add(shadowed(new THREE.Mesh(merged(gate), M.stone)));
+      const mid = Math.floor(span / 2);
+      for (const side of [-1, 1]) land.add("all", new THREE.CylinderGeometry(0.07, 0.085, 0.46, 8), linkM.clone().multiply(at(mid, 0.17, side * 0.27)), "stone");
+      land.add("all", new THREE.BoxGeometry(0.07, 0.06, 0.62), linkM.clone().multiply(at(mid, 0.42, 0)), "stone");
     }
-    place(out, x, 0, z, ry);
-    return { out, dashes, halo, haloY: high ? VIADUCT + 0.085 : DECK + 0.115, guideY: y + 0.012 };
   }
 
   /** Shows a puzzle: `p` is { lay, size } (the page's P). */
@@ -313,41 +281,56 @@ export function createModel(host, opts = {}) {
     disposeWorld();
     world = new THREE.Group();
     buildSea(size);
-    lay.isl.forEach((_, i) => {
-      world.add(island(i));
-      const el = document.createElement("span");
-      el.className = "brg3-n";
-      el.textContent = labelOf(lay.isl[i]);
-      labels.appendChild(el);
-      plates.push({ el, i, cls: "", text: el.firstChild, shown: el.textContent });
+    zoom = 1; pan.x = pan.z = 0; orbited = false; az = HOME_AZ; el = homeElevation(width / height);       // a new board is seen from the first view, all of it
+    const land = createBatch(), rings = createBatch(), bridges = createBatch(), dashes = createBatch(), halos = createBatch();
+    lay.isl.forEach((isle, i) => {
+      island(land, rings, i);
+      const plate = document.createElement("span"), [x, z] = cellXZ(size, isle.r, isle.c);
+      plate.className = "brg3-n";
+      plate.textContent = labelOf(isle);
+      labels.appendChild(plate);
+      plates.push({ el: plate, i, cls: "", text: plate.firstChild, shown: plate.textContent, p: new THREE.Vector3(x, isle.hill ? 1.35 : 0.55, z), w: 0, h: 0 });
     });
-    isleReach = Math.max(0, ...lay.isl.map(o => Math.hypot(...cellXZ(size, o.r, o.c)))) + 1.0;
     lines = lay.links.map((_, l) => linkLine(lay, size, l, { deck: DECK, viaduct: VIADUCT, pad: o => islandRadius(o.n) + 0.05 }));
-    linkMeshes = lay.links.map((_, l) => { const m = bridgesOf(l), g = guideOf(l); world.add(m.out, g.out); return { ...m, ...g }; });
+    lay.links.forEach((_, l) => { bridgesOf(bridges, l); guideOf(land, dashes, halos, l); });
     // the sea's own: a line of buoys along each strait, its number on a plate at the edge; merchantmen in the free water
+    const buoyList = [];
     lay.groups.forEach((g, k) => {
-      const half = size / 2, line = g.gap + 1 - half, el = document.createElement("span");
-      const rope = new THREE.Mesh(new THREE.BoxGeometry(g.across ? 0.03 : size + 0.8, 0.025, g.across ? size + 0.8 : 0.03), M.teal);
-      rope.position.set(g.across ? line : 0, 0.04, g.across ? 0 : line);
-      world.add(rope);
-      for (let t = -half - 0.4, i = 0; t <= half + 0.41; t += 0.5, i++) {
-        const buoy = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.09, 0.2, 10), i % 2 ? M.white : M.teal), x = g.across ? line : t, z = g.across ? t : line;
-        buoy.position.set(x, 0.06, z);
-        buoy.castShadow = true;
-        world.add(buoy);
-        buoys.push({ buoy, x, z });
-      }
-      el.className = "brg3-n strait";
-      el.textContent = String(g.mx);
-      labels.appendChild(el);
-      plates.push({ el, at: g.across ? [line, 0.35, -half - 0.95] : [-half - 0.95, 0.35, line], strait: k, cls: "" });
+      const half = size / 2, line = g.gap + 1 - half, plate = document.createElement("span"), end = size + 0.8;
+      land.add("all", new THREE.BoxGeometry(g.across ? 0.03 : end, 0.025, g.across ? end : 0.03), at(g.across ? line : 0, 0.04, g.across ? 0 : line), "teal");        // the rope
+      for (let t = -half - 0.4, i = 0; t <= half + 0.41; t += 0.5, i++) buoyList.push({ x: g.across ? line : t, z: g.across ? t : line, white: i % 2 === 1 });
+      plate.className = "brg3-n strait";
+      plate.textContent = String(g.mx);
+      labels.appendChild(plate);
+      const [px, py, pz] = g.across ? [line, 0.35, -half - 0.95] : [-half - 0.95, 0.35, line];
+      plates.push({ el: plate, p: new THREE.Vector3(px, py, pz), strait: k, cls: "", w: 0, h: 0 });
+      fitPts.push(px, py, pz);
     });
+    // the board's own square, so a sparse board is framed as a full one is
+    const sq = (size / 2 - 0.5) * 0.9 + 0.55;
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) fitPts.push(sx * sq, 0, sz * sq);
+    batches = { land: mount(land, M.land, { shadows: true }), bridges: mount(bridges, M.land, { shadows: true }), rings: mount(rings, M.shallow), dashes: mount(dashes, M.guide, { order: 1 }), halos: mount(halos, M.halo, { order: 2 }) };
+    batches.land.show(null); batches.rings.show(null);
+    // the buoys: two instanced meshes, a colour each; the ships: one, and a lamp for each at night
+    buoys = [];
+    for (const white of [false, true]) {
+      const list = buoyList.filter(q => q.white === white);
+      if (!list.length) continue;
+      const mesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.065, 0.09, 0.2, 10), white ? M.buoyWhite : M.buoyTeal, list.length);
+      mesh.frustumCulled = false;
+      list.forEach((q, i) => buoys.push({ mesh, i, x: q.x, z: q.z }));
+      buoyMeshes.push(mesh);
+      world.add(mesh);
+    }
     fleet = createFleet(shipsFor(size), 1 + size);
-    ships = fleet.ships.map(sh => ({ s: ship(), sh }));
-    for (const { s } of ships) world.add(s);
+    hulls = new THREE.InstancedMesh(shipGeometry(), M.ship, fleet.ships.length);
+    lamps = new THREE.InstancedMesh(new THREE.SphereGeometry(0.022 * 1.7, 8, 6), M.lamp, fleet.ships.length);
+    for (const m of [hulls, lamps]) { m.frustumCulled = false; world.add(m); }
     scene.add(world);
     applySkin();
+    sunKey = "";
     fit();
+    measure = true; shadowDirty = true;
     update(marks.length === lay.links.length ? marks : "0".repeat(lay.links.length), null);
     draw(performance.now());
   }
@@ -369,16 +352,17 @@ export function createModel(host, opts = {}) {
   }
   /** Shows the bridges the marks say (a dashed guide on each link without one), each island's state (met, over, cut) on its plate, and the hint's: `hint` is { set: [links], island } or null. */
   function update(m, br, hint) {
-    if (!lay) return;
+    if (!lay || !batches) return;
     marks = m;
     lit = new Set(hint?.set || []);
     litIsland = hint?.island ?? -1;
-    linkMeshes.forEach(({ one, two, three, dashes, halo, haloY, guideY }, l) => {
-      one.visible = m[l] === "1"; two.visible = m[l] === "2"; three.visible = m[l] === "3";
-      dashes.visible = m[l] === "0";
-      halo.position.y = m[l] === "0" ? guideY : haloY;
-      halo.scale.y = m[l] === "0" ? 0 : 1;                    // a link without a bridge glows flat; a bridge's glow follows its arch
-    });
+    const built = [], bare = [];
+    for (let l = 0; l < lay.links.length; l++) { if (m[l] === "0") bare.push(`${l}`); else built.push(`${l}.${m[l]}`); }
+    const key = built.join();
+    if (key !== builtKey) { builtKey = key; shadowDirty = true; }          // the bridges cast the shadows: a change of them draws the shadow map again
+    batches.bridges.show(built);
+    batches.dashes.show(bare);
+    state.bridges = built.length; state.guides = bare.length;
     const over = new Set(br?.over), met = new Set(br?.met), cut = new Set(br?.cut), loop = new Set((br?.ring || []).flatMap(l => [lay.links[l].a, lay.links[l].b]));
     for (const pl of plates) {
       let cls;
@@ -386,7 +370,7 @@ export function createModel(host, opts = {}) {
       else {
         const isle = lay.isl[pl.i];
         const word = unknown.has(pl.i) ? "?" : labelOf(isle);
-        if (word !== pl.shown) { pl.shown = word; pl.text.data = word; }
+        if (word !== pl.shown) { pl.shown = word; pl.text.data = word; measure = true; }
         cls = `brg3-n${isle.realm ? " r1" : ""}${isle.kind && !unknown.has(pl.i) ? " rng" : ""}${unknown.has(pl.i) ? " unk" : ""}${over.has(pl.i) ? " over" : met.has(pl.i) ? " met" : ""}${cut.has(pl.i) ? " cut" : ""}${loop.has(pl.i) ? " loop" : ""}${pl.i === litIsland ? " why" : ""}`;
       }
       if (cls !== pl.cls) { pl.cls = cls; pl.el.className = cls; }
@@ -397,31 +381,32 @@ export function createModel(host, opts = {}) {
   }
   /** Which links glow gilt: the hint's, the one under a finger, and after a win every bridge. */
   function glow() {
-    const win = performance.now() < winUntil, under = playable() ? aim : -1;      // a pointer left over a link after the win shows nothing
-    linkMeshes.forEach(({ halo }, l) => { halo.visible = l === under || lit.has(l) || (win && marks[l] !== "0"); });
+    if (!batches) return;
+    const win = performance.now() < winUntil, under = playable() ? aim : -1, on = [];      // a pointer left over a link after the win shows nothing
+    for (let l = 0; l < lay.links.length; l++) if (l === under || lit.has(l) || (win && marks[l] !== "0")) on.push(marks[l] === "0" ? `f${l}` : `a${l}`);
+    batches.halos.show(on);
+    state.glowing = on.length;
   }
 
   // ---------- the skin ----------
   function applySkin() {
-    const k = skinNow();
-    M.sea.color.set(k.sea); M.sand.color.set(k.sand); M.copper.color.set(k.copper);
-    M.h0.color.set(k.hill[0]); M.h1.color.set(k.hill[1]); M.h2.color.set(k.hill[2]);
-    M.timber.color.set(k.timber); M.stone.color.set(k.stone); M.deck.color.set(k.deck);
-    M.grass.color.set(k.grass); M.tree.color.set(k.tree); M.rail.color.set(k.rail); M.shallow.color.set(k.shallow); M.shallow.opacity = k.shallowA;
-    M.guide.color.set(k.guide); M.guide.opacity = k.guideA;
+    const k = skinNow(), pal = palette(k);
+    M.sea.color.set(k.sea); M.shallow.color.set(k.shallow); M.shallow.opacity = k.shallowA; M.guide.color.set(k.guide); M.guide.opacity = k.guideA;
+    batches?.land.recolor(r => pal[r]);
+    batches?.bridges.recolor(r => pal[r]);
     hemi.color.set(k.sky); hemi.groundColor.set(k.ground); hemi.intensity = k.hemi;
     sun.color.set(k.key); sun.intensity = k.keyI;
     renderer.toneMappingExposure = k.exposure;
-    for (const { s } of ships) s.userData.lamp.visible = k.lantern;
+    if (lamps) lamps.visible = k.lantern;
     wake();
   }
 
   // ---------- the camera: round the board under a finger ----------
-  let isleReach = 0;                                             // how far the farthest island is from the board's middle, and room for its plate
-  let width = 1, height = 1, az = HOME_AZ, el = HOME_EL, dist = 14, fitDist = 14, spinUntil = 0;
+  let width = 1, height = 1, rem = 16, az = HOME_AZ, el = homeElevation(1), dist = 14, fitDist = 14, spinUntil = 0, orbited = false;
   let zoom = 1;                                                  // 1 shows the whole board; in, the camera comes nearer to what it looks at
   const pan = { x: 0, z: 0 };                                    // where it looks, from the board's middle, once zoomed in
   const LOOK = new THREE.Vector3(0, 0.15, 0), V = new THREE.Vector3(), G = new THREE.Vector3();
+  let sunKey = "";
   function pose() {
     LOOK.set(pan.x, 0.15, pan.z);
     camera.position.set(Math.sin(az) * Math.cos(el) * dist, Math.sin(el) * dist, Math.cos(az) * Math.cos(el) * dist).add(LOOK);
@@ -430,69 +415,92 @@ export function createModel(host, opts = {}) {
     camera.updateMatrixWorld();
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
   }
+  /** The camera for the angle and the zoom: the whole board (and the plates over it) in view at the first zoom, from whichever side, to the pixel. */
   function fit() {
     if (!size) return;
-    const aspect = width / height, near = 0.5, far = 120, top = near * Math.tan(FOV / 2), right = top * aspect;
+    const aspect = width / height, ty = Math.tan(FOV / 2), tx = ty * aspect, near = 0.5, far = 120, top = near * ty, right = top * aspect, pad = 1.2 * rem;
     camera.projectionMatrix.makePerspective(-right, right, top, -top, near, far);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
-    // the islands (and the plates over them) in view from any side, the tighter of the two fields of view; a board whose islands
-    // keep off its corners comes nearer, but not so near that the sea round it, where the ships sail, is all out of sight
-    const edge = (size / 2 - 0.5) * Math.SQRT2 + 0.7, reach = Math.max(isleReach, 0.8 * edge), half = Math.min(FOV / 2, Math.atan(Math.tan(FOV / 2) * aspect));
-    fitDist = reach / Math.sin(half);
+    fitDist = Math.max(4, fitDistance(fitPts, az, el, HOME_LOOK, tx, ty, (2 * pad) / width, (2 * pad) / height));
     dist = fitDist / zoom;
     pose();
-    const D = size * 3 + 8, la = az - 0.6, le = Math.min(el + 0.5, 1.3);
+    camDirty = true;
+    const key = `${az.toFixed(3)}|${el.toFixed(3)}`;      // the sun follows the camera's turn: the shadows are drawn again when it moves
+    if (key === sunKey) return;
+    sunKey = key; shadowDirty = true;
+    const D = size * 3 + 8, la = az - 0.6, le = Math.min(el + 0.5, 1.3), s = size * 0.8 + 3;
     sun.position.set(Math.sin(la) * Math.cos(le) * D, Math.sin(le) * D, Math.cos(la) * Math.cos(le) * D);
     sun.target.position.set(0, 0, 0);
-    const s = size * 0.8 + 3;
     Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s, near: 1, far: D * 2 });
     sun.shadow.camera.updateProjectionMatrix();
   }
   function resize() {
     const r = host.getBoundingClientRect();
     width = Math.max(1, Math.round(r.width)); height = Math.max(1, Math.round(r.height));
+    rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     renderer.setSize(width, height, false);
+    if (!orbited) el = homeElevation(width / height);            // the first view follows the card's shape
     fit();
+    measure = true;
     wake();
   }
+  /** The plates' sizes follow the board's: a cell's pixels (about `ppu` across the board's middle) say how big a number may be before it covers its neighbour's. */
+  let plateK = 1;
   function placePlates() {
-    const plateScale = Math.round((1 + 0.22 * Math.min(2, zoom - 1)) * 100) / 100;      // the plates grow a little with the islands
+    const ppu = (height / 2) / (dist * Math.tan(FOV / 2)), k = Math.round(Math.max(0.92, Math.min(1.6, (0.85 * ppu) / (1.3 * rem))) * 20) / 20;
+    if (k !== plateK) { plateK = k; labels.style.setProperty("--k", String(k)); measure = true; }
+    if (measure) { for (const pl of plates) { pl.w = pl.el.offsetWidth; pl.h = pl.el.offsetHeight; } measure = false; }     // read all, then write all
     for (const pl of plates) {
-      if (pl.at) V.set(...pl.at).project(camera);
-      else { const isle = lay.isl[pl.i], [x, z] = cellXZ(size, isle.r, isle.c); V.set(x, isle.hill ? 1.35 : 0.55, z).project(camera); }
-      pl.el.style.transform = `translate(${((V.x + 1) / 2) * width}px, ${((1 - V.y) / 2) * height}px) translate(-50%, -50%)${plateScale === 1 ? "" : ` scale(${plateScale})`}`;
+      V.copy(pl.p).project(camera);
+      // whole pixels: a number between two pixels is a blur
+      pl.el.style.transform = `translate(${Math.round(((V.x + 1) / 2) * width - pl.w / 2)}px, ${Math.round(((1 - V.y) / 2) * height - pl.h / 2)}px)`;
     }
+    camDirty = false;
   }
 
-  // ---------- drawing: only while it is shown and not paused, at thirty frames a second ----------
-  let shown = false, held = false, frameId = 0, last = 0, t0 = performance.now(), still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // ---------- drawing: only while it is shown and not paused; thirty frames a second while something is being done, fifteen while only the sea moves ----------
+  let shown = false, held = false, frameId = 0, last = 0, busyUntil = 0, t0 = performance.now(), still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let drawn = 0, drawMs = 0, calls = 0, shadowCalls = 0;           // frames drawn, what one costs on average, and the draw calls of one without and with the shadows (for tuning: stats)
   function draw(now) {
-    const t = still ? 0 : (now - t0) / 1000;
-    if (spinUntil > now) { az += 0.35 * (FRAME_MS / 1000); fit(); }
+    if (!lay || !hulls) return;
+    const began = performance.now();
+    const t = still ? 0 : (now - t0) / 1000, dt = Math.min(0.1, Math.max(0, (now - lastSail) / 1000));       // seconds since the last frame, never a jump after a pause
+    lastSail = now;
+    if (spinUntil > now) { az += 0.35 * dt; fit(); }
     stirSea(t);
     M.halo.opacity = still ? 0.5 : 0.42 + 0.18 * Math.sin(t * 5);
     if (winUntil && now > winUntil) { winUntil = 0; glow(); }
-    for (const { buoy, x, z } of buoys) buoy.position.y = 0.05 + WAVE(x, z, t);
-    const dt = Math.min(0.1, Math.max(0, (now - lastSail) / 1000));       // seconds since the last frame, never a jump after a pause
-    lastSail = now;
+    for (const { mesh, i, x, z } of buoys) mesh.setMatrixAt(i, MA.makeTranslation(x, 0.05 + WAVE(x, z, t), z));
+    for (const m of buoyMeshes) m.instanceMatrix.needsUpdate = true;
     if (!still) fleet?.advance(dt);
-    for (const { s, sh } of ships) {
-      const bob = WAVE(sh.x, sh.z, t);
-      s.position.set(sh.x, bob + 0.01, sh.z);
-      s.rotation.set(0.05 * Math.sin(t * 0.9 + sh.x), sh.heading, 0.04 * Math.sin(t * 0.7 + sh.z));
-      s.userData.flag.rotation.y = 0.35 * Math.sin(t * 3 + sh.x * 4);
+    const ships = fleet?.ships || [];
+    for (let i = 0; i < ships.length; i++) {
+      const sh = ships[i];
+      shipMatrix(MA, sh.x, WAVE(sh.x, sh.z, t) + 0.01, sh.z, 0.05 * Math.sin(t * 0.9 + sh.x), sh.heading, 0.04 * Math.sin(t * 0.7 + sh.z));
+      hulls.setMatrixAt(i, MA);
+      if (lamps.visible) { V.set(-0.51, 0.34, 0).applyMatrix4(MA); lamps.setMatrixAt(i, MB.makeTranslation(V.x, V.y, V.z)); }
     }
+    hulls.instanceMatrix.needsUpdate = true;
+    if (lamps.visible) lamps.instanceMatrix.needsUpdate = true;
+    if (camDirty || measure) placePlates();
+    const casting = shadowDirty;
+    renderer.shadowMap.needsUpdate = shadowDirty;
+    shadowDirty = false;
     renderer.render(scene, camera);
-    placePlates();
+    if (casting) shadowCalls = renderer.info.render.calls; else calls = renderer.info.render.calls;
+    drawn++;
+    drawMs = drawn === 1 ? performance.now() - began : drawMs * 0.9 + (performance.now() - began) * 0.1;
   }
   function frame(now) {
     frameId = 0;
     if (!shown || held || document.hidden) return;
-    if (now - last >= FRAME_MS - 2) { last = now; draw(now); }
+    if (now - last >= (now < busyUntil ? BUSY_MS : CALM_MS) - 2) { last = now; draw(now); }
     if (!still || spinUntil > now) frameId = requestAnimationFrame(frame);
   }
+  /** Something happened (a touch, a change of the marks): draw at full rate for a moment, and again once if the player asked for less motion. */
   function wake() {
     if (!shown || held || !lay) return;
+    busyUntil = performance.now() + BUSY_FOR;
     if (still) draw(performance.now());
     if (!frameId) frameId = requestAnimationFrame(frame);
   }
@@ -556,7 +564,7 @@ export function createModel(host, opts = {}) {
     clampPan(); fit(); wake();
   }
   /** Back to where it began: turned to the first view, all of the board in sight. */
-  function reset() { zoom = 1; pan.x = pan.z = 0; orbit(HOME_AZ, HOME_EL); }
+  function reset() { zoom = 1; pan.x = pan.z = 0; orbited = false; orbit(HOME_AZ, homeElevation(width / height)); }
   canvas.addEventListener("wheel", e => {
     e.preventDefault();
     zoomAt(zoom * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 16 : 1) * (e.ctrlKey ? 0.01 : 0.0016)), e.clientX, e.clientY);       // ctrl is a trackpad's pinch
@@ -612,6 +620,7 @@ export function createModel(host, opts = {}) {
     }
     if (e.shiftKey && e.pointerType === "mouse") panBy(...canvasPoint(g.x, g.y), ...canvasPoint(e.clientX, e.clientY));      // shift and drag moves the board
     else {
+      orbited = true;
       az -= (e.clientX - g.x) * 0.008;
       el = Math.max(MIN_EL, Math.min(MAX_EL, el + (e.clientY - g.y) * 0.006));
       fit();
@@ -640,7 +649,7 @@ export function createModel(host, opts = {}) {
   canvas.addEventListener("contextmenu", e => e.preventDefault());
   canvas.style.touchAction = "none";
   function orbit(a, e) { az = a; el = Math.max(MIN_EL, Math.min(MAX_EL, e)); fit(); wake(); }
-  // the zoom buttons, for a mouse without a wheel and a hand that doesn't pinch
+  // the zoom buttons, for a mouse without a wheel and a hand that doesn't pinch (a touch screen has its fingers: the stylesheet hides them there)
   const zoomBox = document.createElement("div");
   zoomBox.className = "brg3-zoom";
   for (const [text, label, by] of [["+", "Zoom in", 1.4], ["−", "Zoom out", 1 / 1.4]]) {
@@ -650,13 +659,22 @@ export function createModel(host, opts = {}) {
     zoomBox.appendChild(b);
   }
   host.appendChild(zoomBox);
+  // the keys, as on the chart: + and − zoom, 0 puts the board back
+  addEventListener("keydown", ev => {
+    if (!shown || held || ev.ctrlKey || ev.metaKey || ev.altKey || document.querySelector("dialog[open]") || /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || "")) return;
+    if (ev.key === "+" || ev.key === "=") zoomAt(zoom * 1.4);
+    else if (ev.key === "-" || ev.key === "_") zoomAt(zoom / 1.4);
+    else if (ev.key === "0") reset();
+    else return;
+    ev.preventDefault();
+  });
 
   new ResizeObserver(resize).observe(host);
   new MutationObserver(applySkin).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", applySkin);
   document.addEventListener("visibilitychange", wake);
   canvas.addEventListener("webglcontextlost", e => e.preventDefault());
-  canvas.addEventListener("webglcontextrestored", () => { applySkin(); wake(); });
+  canvas.addEventListener("webglcontextrestored", () => { shadowDirty = true; applySkin(); wake(); });
   applySkin();
   resize();
 
@@ -681,8 +699,14 @@ export function createModel(host, opts = {}) {
     },
     /** For tests: the link under the page's (clientX, clientY). */
     pick: pickAt,
+    /** For tuning and tests: the draw calls of a frame (and of one that draws the shadows again), triangles, what is held (geometries), and the frames drawn and their average cost in ms. */
+    get stats() {
+      const i = renderer.info, parts = {};
+      for (const [k, b] of Object.entries(batches || {})) parts[k] = [b.drawn / 3, b.vertices / 3];      // triangles drawn, and held
+      return { calls, shadowCalls, triangles: i.render.triangles, geometries: i.memory.geometries, frames: drawn, ms: Math.round(drawMs * 100) / 100, parts };
+    },
     /** For tests: what is on show. */
-    get live() { return { ships: ships.length, buoys: buoys.length, bridges: linkMeshes.filter(m => m.one.visible || m.two.visible || m.three.visible).length, guides: linkMeshes.filter(m => m.dashes.visible).length, glowing: linkMeshes.filter(m => m.halo.visible).length, lit: [...lit], aim, plates: plates.length, shown }; },
+    get live() { return { ships: fleet?.ships.length || 0, buoys: buoys.length, bridges: state.bridges, guides: state.guides, glowing: state.glowing, lit: [...lit], aim, plates: plates.length, shown }; },
     dispose() { shown = false; if (frameId) cancelAnimationFrame(frameId); disposeWorld(); renderer.dispose(); },
   };
 }
