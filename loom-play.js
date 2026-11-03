@@ -9,7 +9,7 @@
 //
 // A plain cloth also has three modes, picked in a small control over the cloth: lay (what is above), and two that pencil
 // notes instead, a warp where a thread is thought to come up and the weft where it is known to stay. A note is only the
-// player's: no float, no clue, no slip, no star reads it (loom-thread.js, "notes").
+// player's: no float, no slip, no hint, no star reads it, and only a clue's darkening counts it as laid (loom-thread.js, "notes").
 //
 // Stars are for how clean the cloth was: a crossing set the wrong way is a slip (marked in the cloth if the options say
 // so, counted either way) and a hint is a help; none of either is three stars, up to three together two.
@@ -30,9 +30,9 @@ const CHAR = "012-";
 const SIDE = ["the warp lies over", "the weft lies over", "the gold lies over"];
 const HOW = "Paint each crossing with the yarn that shows. A clue lists, in order, how long a yarn shows along its line.";
 const HOW_THREADS = "The weft is laid. Tap where a thread comes up, then where it goes back under. Or drag.";
-const HOW_THREADS_LONG = "The weft is laid across the whole cloth. Lay a warp float like a thread: tap the crossing where it comes up, then the one in the same column where it goes back under, or drag down the column. Tap a float to pull it out, or drag along it to cut it shorter. Pencil a warp or the weft you know in the Mark modes: notes are yours alone and are never graded. A clue lists, in order, how long a yarn shows along its line.";
+const HOW_THREADS_LONG = "The weft is laid across the whole cloth. Lay a warp float like a thread: tap the crossing where it comes up, then the one in the same column where it goes back under, or drag down the column. Tap a float to pull it out, or drag along it to cut it shorter. Pencil a warp or the weft you know in the Mark modes (on a desktop, right click pencils weft): a note is never marked right or wrong, but a clue goes dark when your pencil, counted as laid, matches it. A clue lists, in order, how long a yarn shows along its line.";
 const MODES = ["lay", "warp", "weft"];
-const MARK_WORDS = { warp: "Pencil warp: touch or drag over crossings you think are warp; touch a mark to clear it. Never graded.", weft: "Pencil weft: touch or drag over crossings you know are weft; touch a mark to clear it. Never graded." };
+const MARK_WORDS = { warp: "Pencil warp: touch or drag over crossings you think are warp; touch a mark to clear it. Never marked wrong.", weft: "Pencil weft: touch or drag over crossings you know are weft; touch a mark to clear it. Never marked wrong." };
 const BRUSHES = [
   [WARP, "Warp", "a warp thread lies over the pick", '<rect x="1" y="5" width="14" height="6" opacity=".35"/><rect x="5" y="1" width="6" height="14"/>'],
   [WEFT, "Weft", "a pick of weft lies over the thread", '<rect x="5" y="1" width="6" height="14" opacity=".35"/><rect x="1" y="5" width="14" height="6"/>'],
@@ -261,7 +261,7 @@ export function createPlay(host) {
   // The same press-and-drag as a brush: a press pencils the crossing with the mode's mark (or, if it already has that mark,
   // takes it away), and the stroke carries on over the crossings it passes, in a straight line from one touch event to the
   // next so a quick finger leaves no gap. A float laid, or a pre-woven crossing, takes no note. A stroke is one Undo.
-  function noteDown(e, i) {
+  function noteDown(e, i, kind) {
     hand.release();
     clearTimeout(noteTimer);
     note = null;
@@ -271,7 +271,6 @@ export function createPlay(host) {
       changed();
       return false;
     }
-    const kind = run.mode === "warp" ? NOTE_WARP : NOTE_WEFT;
     drag = { id: e.pointerId, note: true, kind, erase: notes[i] === kind, batch: [], at: i, last: i };
     noteTo(i);
     SOUND.tap();
@@ -292,12 +291,13 @@ export function createPlay(host) {
   // ---------- the fingers ----------
   function onDown(e) {
     if (drag || press || IN_FRAME || run.done || weaving || $("doneDlg").open) return;
-    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const right = e.pointerType === "mouse" && e.button === 2;                    // a mouse's right button pencils the weft, whatever the mode
+    if (e.pointerType === "mouse" && e.button !== 0 && !(right && thr)) return;
     const i = cloth.hit(e);
     if (thr) {
       if (i < 0) { if (hand.release()) render(); return; }                       // a tap beside the cloth lets a waiting thread go
       e.preventDefault();
-      if (run.mode !== "lay" ? !noteDown(e, i) : !pressThread(e, i)) return;
+      if (right || run.mode !== "lay" ? !noteDown(e, i, right || run.mode === "weft" ? NOTE_WEFT : NOTE_WARP) : !pressThread(e, i)) return;
     } else {
       if (i < 0) return;
       drag = { id: e.pointerId, v: cells[i] === run.brush ? UNSET : run.brush, batch: [], at: i };

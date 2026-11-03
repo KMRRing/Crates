@@ -88,9 +88,9 @@ export function apply(cells, changes, back = false, notes = null) {
 // ---------- notes: what the player thinks, pencilled on the weft ----------
 // A crossing nobody has laid shows the weft, whether it has been worked out or not. A note says which: a warp pencilled
 // where a thread is thought to come up, or the weft marked as known. A note is the player's own and nothing else's: it is not
-// a float (no clue counts it, `met` and the slips never read it) and it never changes the answer or the grading. It is kept
+// a float (`met`, the slips, the hint and the stars never read it) and it never changes the answer or the grading. It is kept
 // apart from the cloth, in an array of its own, and drawn only where the weft shows. Laying a float over a note takes the note
-// away (in the same step, so Undo gives it back).
+// away (in the same step, so Undo gives it back). The one thing that does read notes is the clue's darkening (`asMarked`).
 export const NOTE_WARP = 1, NOTE_WEFT = 2;
 /** Whether a note can sit on crossing i: not on a float laid there, nor on a pre-woven crossing, which is known already. */
 export const markable = (p, cells, i) => !fixed(p, i) && cells[i] !== WARP;
@@ -101,6 +101,16 @@ export const markable = (p, cells, i) => !fixed(p, i) && cells[i] !== WARP;
 export function paintNote(p, cells, notes, i, kind, erase = false) {
   if (!markable(p, cells, i) || (erase ? notes[i] !== kind : notes[i] === kind)) return null;
   return { i, was: notes[i], now: erase ? 0 : kind, n: true };
+}
+/**
+ * The cloth as the player has it marked: a laid float or a pencilled warp is a warp, anything else the weft (the plain field
+ * starts weft, so an unmarked crossing and a pencilled weft are alike here). A clue goes dark when its line, so read, matches
+ * it, exactly as for floats laid: that is a display of the player's own marks and says nothing of whether they are right.
+ */
+export function asMarked(p, cells, notes) {
+  const seen = Uint8Array.from(cells);
+  for (let i = 0; i < p.n; i++) if (notes[i] === NOTE_WARP && cells[i] !== WARP && !fixed(p, i)) seen[i] = WARP;
+  return seen;
 }
 /** The notes as the characters a run keeps them in: "0" none, "1" a warp, "2" the weft known. */
 export const notesString = notes => Array.from(notes).join("");

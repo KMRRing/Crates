@@ -8,7 +8,7 @@
 // The other cloths draw each crossing alone, and an undecided one as the two yarns laid thin.
 import { YARNS, GOLD_YARN } from "./loom-levels.js";
 import { WARP, WEFT, GOLD, fixed, lineMet } from "./loom-float.js";
-import { threaded, NOTE_WARP, NOTE_WEFT } from "./loom-thread.js";
+import { threaded, asMarked, NOTE_WARP, NOTE_WEFT } from "./loom-thread.js";
 import { scale } from "./wide.js";
 
 export const UNSET = 255;
@@ -210,29 +210,42 @@ export function createCloth(host) {
     }
   }
   /**
-   * The player's notes on the weft where no float is laid: a warp pencilled as a ghost thread, dashed, the run of them one outline
-   * (it is not a float and must not look like one), and the weft known as a dot on its pick. Light on a dark yarn, dark on a light one.
+   * One pencil stroke from (x1, y1) to (x2, y2): a few passes a little out of true, the ends and the line itself wandering, and a
+   * scatter of grain beside it, so it reads as drawn by hand and slightly chalky. `seed` fixes the wobble, so a redraw never shimmers.
+   */
+  function chalk(x1, y1, x2, y2, light, s, seed) {
+    let a = seed >>> 0;
+    const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296 - .5; };
+    const ink = light ? "35,30,26" : "250,246,236", dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy), nx = -dy / len, ny = dx / len, w = Math.max(1.6, s * .085);
+    ctx.lineCap = "round";
+    for (let k = 0; k < 3; k++) {
+      const o = rnd() * s * .07, bow = rnd() * s * .08, j = () => rnd() * s * .06;
+      ctx.strokeStyle = `rgba(${ink},${k ? .42 : .62})`; ctx.lineWidth = w * (k ? .7 : 1);
+      ctx.beginPath();
+      ctx.moveTo(x1 + j() + nx * o, y1 + j() + ny * o);
+      ctx.quadraticCurveTo((x1 + x2) / 2 + nx * (o + bow), (y1 + y2) / 2 + ny * (o + bow), x2 + j() + nx * o, y2 + j() + ny * o);
+      ctx.stroke();
+    }
+    ctx.fillStyle = `rgba(${ink},.55)`;
+    for (let k = 0; k < 16; k++) {
+      const t = rnd() + .5, off = rnd() * w * 2.4, r = Math.max(.5, s * .018) * (1 + rnd());
+      ctx.fillRect(x1 + dx * t + nx * off, y1 + dy * t + ny * off, r, r);
+    }
+  }
+  /**
+   * The player's notes on the weft where no float is laid, as pencil strokes: a short horizontal one for the weft known, a vertical
+   * one for a warp thought to come up (not a float, and not drawn like one). Pale on a dark yarn, dark on a pale one.
    */
   function noted(cells, frontier) {
     const p = puzzle, { s, x0, y0 } = G, n = view.notes, rows = Math.min(p.h, frontier);
-    const has = (r, c, k) => r >= 0 && r < rows && cells[r * p.w + c] !== WARP && n[r * p.w + c] === k;
     ctx.save();
     ctx.beginPath(); ctx.rect(x0, y0, G.gw, G.gh); ctx.clip();
-    for (let c = 0; c < p.w; c++) for (let r = 0; r < rows; r++) {
-      if (has(r, c, NOTE_WARP)) {
-        let e = r;
-        while (has(e + 1, c, NOTE_WARP)) e++;
-        const light = luma(hexOf(p.weft[r])) > .5, a = x0 + c * s + s * .27, w = s * .46, y = y0 + r * s + s * .08, h = (e + 1 - r) * s - s * .16;
-        rounded(a, y, w, h, Math.max(2, s * .1));
-        ctx.globalAlpha = .62; ctx.fillStyle = hexOf(p.warp[c]); ctx.fill(); ctx.globalAlpha = 1;
-        ctx.setLineDash([s * .13, s * .09]); ctx.lineWidth = Math.max(1.5, s * .06); ctx.strokeStyle = light ? "rgba(20,20,20,.8)" : "rgba(255,255,255,.88)"; ctx.stroke();
-        ctx.setLineDash([]);
-        r = e;
-      } else if (has(r, c, NOTE_WEFT)) {
-        const light = luma(hexOf(p.weft[r])) > .5, cx = x0 + (c + .5) * s, cy = y0 + (r + .5) * s;
-        ctx.beginPath(); ctx.arc(cx, cy, Math.max(2.5, s * .13), 0, 7);
-        ctx.fillStyle = light ? "rgba(20,20,20,.75)" : "rgba(255,255,255,.85)"; ctx.fill();
-      }
+    for (let r = 0; r < rows; r++) for (let c = 0; c < p.w; c++) {
+      const i = r * p.w + c, k = n[i];
+      if (!k || cells[i] === WARP) continue;
+      const light = luma(hexOf(p.weft[r])) > .5, x = x0 + c * s, y = y0 + r * s;
+      if (k === NOTE_WARP) chalk(x + s * .5, y + s * .14, x + s * .5, y + s * .86, light, s, i * 7919 + 1);
+      else chalk(x + s * .2, y + s * .5, x + s * .8, y + s * .5, light, s, i * 7919 + 2);
     }
     ctx.restore();
   }
@@ -285,7 +298,9 @@ export function createCloth(host) {
     const { s, e, x0, y0, gw, gh, mark } = G, cells = view.cells;
     // the clues: a pick's across the left, in its weft's colour; a thread's down from the top, in its warp's
     // a line is dimmed once it is whole and right, not while crossings in it are still to set
-    const metNow = k => p.lines[k].cells.every(i => cells[i] !== UNSET) && lineMet(p, k, cells);
+    // (on a plain cloth the pencil counts as laid, so a line goes dark when it is marked to its clue: the player's own marks, right or wrong)
+    const marked = view.notes && threads ? asMarked(p, cells, view.notes) : cells;
+    const metNow = k => p.lines[k].cells.every(i => marked[i] !== UNSET) && lineMet(p, k, marked);
     for (let r = 0; r < p.h; r++) {
       const runs = p.clues[r], met = metNow(r);
       let x = x0 - mark - e * 0.15;

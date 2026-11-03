@@ -2,9 +2,9 @@
 // (a thread thought to come up there) or marked as weft known, over the weft that shows either way. A note is the player's
 // own: it is not a float, no clue counts it, and it never changes the answer, the slips, the hint or the cleared cloth.
 // Undo and Redo carry notes; laying a float over one takes it away, and Undo gives it back.
-import { met, lineMet, fixed, WARP, WEFT } from "../loom-float.js";
+import { met, lineMet, fixed, makePuzzle, WARP, WEFT } from "../loom-float.js";
 import { LEVELS, makeLevel, seedOf } from "../loom-levels.js";
-import { ground, createHand, apply, lay, wanted, laidCount, hintFor, NOTE_WARP, NOTE_WEFT, markable, paintNote, notesString, notesFrom } from "../loom-thread.js";
+import { ground, createHand, apply, lay, wanted, laidCount, hintFor, NOTE_WARP, NOTE_WEFT, markable, paintNote, notesString, notesFrom, asMarked } from "../loom-thread.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -53,6 +53,33 @@ const stroke = (p, cells, notes, h, is, kind, erase = false) => {
     if (met(p, cells) && cells.every((v, i) => v === p.sol[i])) woven++;
   }
   check(same === tried && woven === tried, `with every crossing pencilled, right or wrong, the clues, the count and the hint are as they were, and the answer's floats still weave each of ${tried} plain cloths`);
+}
+
+// ---------- a clue goes dark for the pencil as for laid floats: the line as marked, weft where unmarked, matches it ----------
+{
+  const strip = (sol, w = 2) => makePuzzle({ w, h: 8, warp: Array(w).fill(0), weft: Array(8).fill(1), cells: sol.flatMap(v => [v, ...Array(w - 1).fill(F)]) });
+  const p = strip([F, W, W, F, F, W, F, F]), cells = ground(p), notes = new Uint8Array(p.n), col = p.h;     // thread 1 reads 2 1
+  const dark = () => lineMet(p, col, asMarked(p, cells, notes));
+  check(!dark(), "a line with nothing marked is not dark when its clue asks for warp");
+  for (const r of [1, 2, 5]) notes[r * 2] = NOTE_WARP;
+  check(dark() && !lineMet(p, col, cells), "the warp pencilled where the clue says darkens it, though nothing is laid");
+  check(!met(p, cells) && cells.every(v => v === F) && JSON.stringify(hintFor(p, cells)) === JSON.stringify(hintFor(p, ground(p))), "and nothing is graded by it: the cloth is not met, the cells are the bare field and the hint is as it was");
+  notes[3 * 2] = NOTE_WEFT; notes[6 * 2] = NOTE_WEFT;
+  check(dark(), "the weft pencilled beside it makes no difference: unmarked is weft too");
+  notes[3 * 2] = NOTE_WARP;
+  check(!dark(), "one warp too many joins the floats and the line is no longer dark");
+  // a wrong set of notes that has the clue's shape goes dark all the same (it says nothing of correctness)
+  for (let r = 0; r < 8; r++) notes[r * 2] = 0;
+  for (const r of [0, 1, 4]) notes[r * 2] = NOTE_WARP;
+  check(dark() && p.sol[0] === F && p.sol[4 * 2] === F, "a wrong set of notes that matches the clue by shape goes dark as well: darkening is not a verdict");
+  const seen = asMarked(p, cells, notes);
+  check(seen !== cells && cells.every(v => v === F) && seen[0] === W && seen[2] === W, "asMarked reads the cloth and leaves it alone");
+  cells[2 * 2] = W; notes[2 * 2] = NOTE_WEFT;
+  check(asMarked(p, cells, notes)[4] === W, "a laid float is a warp whatever lies in the notes under it");
+  // a pre-woven crossing is as it is
+  const q = makePuzzle({ w: 2, h: 8, warp: [0, 0], weft: Array(8).fill(1), cells: [F, F, W, F, F, F, F, F, F, F, F, F, F, F, F, F], given: [2] }), qn = new Uint8Array(q.n);
+  qn[4] = NOTE_WARP;
+  check(asMarked(q, ground(q), qn)[2] === W && asMarked(q, ground(q), qn)[4] === W, "and a pre-woven warp stays warp beside a pencilled one");
 }
 
 // ---------- Undo and Redo carry notes ----------
