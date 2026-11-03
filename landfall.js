@@ -584,7 +584,7 @@ function renderText() {
   if (note) lines.push(note);
   $("task").innerHTML = lines.join(" ");
   // the window: which watch, the ship's time and the bell; the help in words
-  $("watchTxt").textContent = S.phase === "end" ? L.name : `${watchWords(S)} · ${dateWords(S).replace(/ 18\d\d$/, "")}`;
+  $("watchTxt").textContent = S.phase === "end" ? L.name : watchWords(S);
   $("clockTxt").textContent = `${shipClock(sceneJd(S), est.lon)}${bellShown.text && performance.now() < bellShown.until ? ` · ${bellShown.text}` : ""}`;
   const h = help();
   $("skyNote").textContent = h ? h.text : "";
