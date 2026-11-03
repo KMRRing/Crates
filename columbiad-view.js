@@ -6,7 +6,7 @@
 // and the Earth's slow turn, a few times a second); it stops when the menu is open or the page is away. Nothing here changes a
 // rule: the rules are columbiad-engine.js's, and this plays a finished flight back. The colours are the picture's own, the
 // same in every theme; the chrome over it is the page's.
-import { direction, targetAt, bodyAt, worldOf, T_MOON } from "./columbiad-engine.js";
+import { direction, targetAt, ringAt, bodyAt, worldOf } from "./columbiad-engine.js";
 import { createGlobe, loadEarth, warm, sunOf } from "./columbiad-globe.js";
 import { drawGun, gunSize, MUZZLE } from "./columbiad-gun.js";
 
@@ -117,11 +117,17 @@ export function createView(canvas, hooks = {}) {
     if (cam.k > 40) for (const r of [1.5, 2, 3, 4, 6, 8]) { ctx.beginPath(); ctx.arc(sx(0), sy(0), r * cam.k, 0, 6.2832); ctx.stroke(); }
     ctx.restore();
   }
+  /** The goal on the picture: the target ring, or each gate in order, with what is asked of the arrival drawn on the ring itself. */
   function ring() {
-    const T = lvl.target, p = targetAt(lvl, now()), R = Math.max(T.r * cam.k, 7 * u), x = sx(p[0]), y = sy(p[1]);
-    const col = won ? GOOD : BRASS;
+    const goal = lvl.goal || { type: "hit" }, list = lvl.gates || [lvl.target];
+    list.forEach((T, i) => oneRing(T, i, list.length, goal));
+  }
+  function oneRing(T, i, n, goal) {
+    const p = ringAt(lvl, T, now()), R = Math.max(T.r * cam.k, 7 * u), x = sx(p[0]), y = sy(p[1]);
+    if (x + R * 2 < 0 || x - R * 2 > W || y + R * 2 < 0 || y - R * 2 > H) return;
+    const last = i === n - 1, col = won && last ? GOOD : BRASS, lim = n > 1 ? T : goal.type === "soft" ? { soft: goal.speed } : goal.type === "fast" ? { fast: goal.speed } : {};
     const g = ctx.createRadialGradient(x, y, 0, x, y, R);
-    g.addColorStop(0, `rgba(${col},${won ? 0.4 : 0.1})`); g.addColorStop(1, `rgba(${col},${won ? 0.22 : 0.05})`);
+    g.addColorStop(0, `rgba(${col},${won && last ? 0.4 : 0.1})`); g.addColorStop(1, `rgba(${col},${won && last ? 0.22 : 0.05})`);
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.fill();
     ctx.lineWidth = 2 * u; ctx.strokeStyle = `rgba(${col},.95)`; ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.stroke();
     ctx.save();
@@ -129,13 +135,33 @@ export function createView(canvas, hooks = {}) {
     ctx.beginPath(); ctx.arc(x, y, R / 3, 0, 6.2832); ctx.stroke();
     ctx.restore();
     ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${col},.8)`; ctx.beginPath();
-    for (let i = 0; i < 12; i++) { const a = i * 0.5236, c = Math.cos(a), s = Math.sin(a), r0 = R + 2 * u, r1 = R + (i % 3 === 0 ? 7 : 4) * u; ctx.moveTo(x + c * r0, y + s * r0); ctx.lineTo(x + c * r1, y + s * r1); }
+    for (let k = 0; k < 12; k++) { const a = k * 0.5236, c = Math.cos(a), s = Math.sin(a), r0 = R + 2 * u, r1 = R + (k % 3 === 0 ? 7 : 4) * u; ctx.moveTo(x + c * r0, y + s * r0); ctx.lineTo(x + c * r1, y + s * r1); }
     ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x - 3 * u, y); ctx.lineTo(x + 3 * u, y); ctx.moveTo(x, y - 3 * u); ctx.lineTo(x, y + 3 * u); ctx.stroke();
-    if (flare > 0) {
+    // the speed band: a hatched green ring outside, and the limit in figures (the band is told by its pattern as well as its colour)
+    if (lim.soft !== undefined || lim.fast !== undefined) {
+      ctx.save();
+      ctx.setLineDash([2.5 * u, 2 * u]); ctx.lineWidth = 5 * u; ctx.strokeStyle = `rgba(${GOOD},.85)`;
+      ctx.beginPath(); ctx.arc(x, y, R + 10 * u, 0, 6.2832); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${GOOD},.9)`;
+      ctx.beginPath(); ctx.arc(x, y, R + 7 * u, 0, 6.2832); ctx.arc(x, y, R + 13 * u, 0, 6.2832); ctx.stroke();
+      ctx.restore();
+      label(`${lim.soft !== undefined ? "≤" : "≥"} ${(lim.soft ?? lim.fast).toFixed(lim.soft ?? lim.fast < 10 ? 1 : 0)}`, x, y - R - 18 * u, GOOD);
+    }
+    if (n > 1) label(String(i + 1), x, y - R - 8 * u, BRASS_HI, 13);
+    if (goal.type === "orbit" && last) label(`↻ ${goal.sweep}°`, x, y + R + 14 * u, BRASS_HI);
+    if (goal.type === "return" && last) label("down here", x, y - R - 8 * u, BRASS_HI);
+    if (flare > 0 && last) {
       ctx.lineWidth = 3 * u; ctx.strokeStyle = `rgba(${GOOD},${flare * 0.9})`;
       ctx.beginPath(); ctx.arc(x, y, R * (1 + (1 - flare) * 1.6), 0, 6.2832); ctx.stroke();
     }
+  }
+  function label(text, x, y, col, size = 11) {
+    ctx.save();
+    ctx.font = `700 ${size * u}px system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 3 * u; ctx.strokeStyle = "rgba(6,10,20,.85)"; ctx.strokeText(text, x, y);
+    ctx.fillStyle = `rgba(${col},1)`; ctx.fillText(text, x, y);
+    ctx.restore();
   }
   function polyline(pts, from = 0, to = pts.length / 2) {
     ctx.beginPath();
