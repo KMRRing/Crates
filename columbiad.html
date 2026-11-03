@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Codex">
+<title>Columbiad</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="columbiad.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="columbiad fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon cb-mark" aria-hidden="true"></span>Columbiad</button></h1>
+    <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+  </header>
+
+  <!-- the level, the shot about to be fired, and the stars a hit with it would earn -->
+  <div class="cb-head">
+    <div class="cb-strip">
+      <span class="cb-lv"><b id="lvId"></b><span id="lvName"></span></span>
+      <span class="cb-shot">Shot <b id="shot">1</b></span>
+      <span id="stars" class="cb-stars" role="img"></span>
+    </div>
+  </div>
+
+  <section id="table" class="cb-table fit-grow fit-box" aria-label="The gun and its target">
+    <div id="stage" class="cb-stage">
+      <canvas id="scene" class="cb-scene" aria-hidden="true"></canvas>
+      <p id="hint" class="cb-hint" hidden></p>
+      <p id="say" class="cb-say" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- under the scene (beside it, held sideways): the aim and its powder, the nudges and Fire; after a hit, how it went, in the same room -->
+  <section class="cb-side">
+    <div id="deck" class="cb-deck">
+      <div class="cb-read">
+        <span class="cb-r">Elevation <b id="elev">0.0°</b><i id="lean" aria-hidden="true"></i></span>
+        <span class="cb-r">Powder <b id="pow">0.0</b><small id="cap"></small></span>
+      </div>
+      <div id="gauge" class="cb-gauge" role="meter" aria-label="Powder in barrels" aria-valuemin="0"></div>
+      <div class="cb-pad">
+        <button class="cb-nudge" id="angL" type="button" aria-label="Turn the gun left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5L8 12l7 7"/></svg></button>
+        <button class="cb-nudge" id="angR" type="button" aria-label="Turn the gun right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        <button class="cb-fire" id="fire" type="button">Fire</button>
+        <button class="cb-nudge" id="powD" type="button" aria-label="Less powder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+        <button class="cb-nudge" id="powU" type="button" aria-label="More powder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
+      </div>
+    </div>
+    <div id="result" class="cb-result" hidden>
+      <p id="verdict" class="cb-verdict"></p>
+      <div class="cb-acts">
+        <button class="cb-go" type="button" id="nextBtn">Next level</button>
+        <button class="cb-go quiet" type="button" id="againBtn">Again</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<script type="module" src="columbiad.js"></script>
+</body>
+</html>

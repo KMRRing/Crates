@@ -346,7 +346,7 @@ export function cone(lvl, aim, t = 0, len = lvl.cone?.len ?? 4) {
   }
   // the band the shells' paths make round the central one: at each station of the central path, where the line across it is
   // crossed by every other shell's path (nearest crossing), the furthest each way
-  const left = new Float64Array(2 * (n + 1)), right = new Float64Array(2 * (n + 1)), W = 10;
+  const left = new Float64Array(2 * (n + 1)), right = new Float64Array(2 * (n + 1)), W = 10, last = new Float64Array(shells.length), HI = new Float64Array(n + 1), LO = new Float64Array(n + 1), NX = new Float64Array(n + 1), NY = new Float64Array(n + 1);
   for (let k = 0; k <= n; k++) {
     const k0 = k > 0 ? k - 1 : k, k1 = k < n ? k + 1 : k;
     let tx = c[2 * k1] - c[2 * k0], ty = c[2 * k1 + 1] - c[2 * k0 + 1];
@@ -354,7 +354,8 @@ export function cone(lvl, aim, t = 0, len = lvl.cone?.len ?? 4) {
     tx /= m; ty /= m;
     const nx = -ty, ny = tx, cx = c[2 * k], cy = c[2 * k + 1];
     let lo = 0, hi = 0;
-    for (const s of shells) {
+    for (let si = 0; si < shells.length; si++) {
+      const s = shells[si];
       let off = null;
       for (let j = Math.max(0, k - W); j < Math.min(n, k + W); j++) {
         const f0 = (s[2 * j] - cx) * tx + (s[2 * j + 1] - cy) * ty, f1 = (s[2 * j + 2] - cx) * tx + (s[2 * j + 3] - cy) * ty;
@@ -362,12 +363,21 @@ export function cone(lvl, aim, t = 0, len = lvl.cone?.len ?? 4) {
         const u = f0 / (f0 - f1), px = s[2 * j] + (s[2 * j + 2] - s[2 * j]) * u - cx, py = s[2 * j + 1] + (s[2 * j + 3] - s[2 * j + 1]) * u - cy, o = px * nx + py * ny;
         if (off === null || Math.abs(o) < Math.abs(off)) off = o;
       }
-      if (off === null) continue;
+      if (off === null) off = last[si];                    // a shell whose path does not cross here keeps its last offset, so the band does not step
+      else last[si] = off;
       if (off < lo) lo = off;
       if (off > hi) hi = off;
     }
-    left[2 * k] = cx + nx * hi; left[2 * k + 1] = cy + ny * hi;
-    right[2 * k] = cx + nx * lo; right[2 * k + 1] = cy + ny * lo;
+    HI[k] = hi; LO[k] = lo; NX[k] = nx; NY[k] = ny;
+  }
+  // the edges are a preview, drawn as lines: two passes of a 1-2-1 average take the steps out of them (the ends stay as they are)
+  for (let pass = 0; pass < 2; pass++) for (const E of [HI, LO]) {
+    let a = E[0];
+    for (let k = 1; k < n; k++) { const b = E[k]; E[k] = (a + 2 * b + E[k + 1]) / 4; a = b; }
+  }
+  for (let k = 0; k <= n; k++) {
+    left[2 * k] = c[2 * k] + NX[k] * HI[k]; left[2 * k + 1] = c[2 * k + 1] + NY[k] * HI[k];
+    right[2 * k] = c[2 * k] + NX[k] * LO[k]; right[2 * k + 1] = c[2 * k + 1] + NY[k] * LO[k];
   }
   return { centre: c, left, right, t1, end: mid.end, over: mid, shells };
 }
