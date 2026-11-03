@@ -8,7 +8,8 @@
 // view stretched by √1.5 (its sx = .866(x − z), its sy = .5(x + z) − y, against 1/√2 and 1/√6 for a unit camera), so a
 // box seen by the camera has the outline of the polygons cubeFaces gives.
 import { isoPoint, cubeFaces, drawOrder, boxFor } from "./manifest-engine.js";
-import { axisOf, isTimber, isLong, typeOf } from "./manifest-rules.js";
+import { axisOf, isTimber, typeOf } from "./manifest-rules.js";
+import { yawAlongY } from "./manifest-shapes.js";
 
 export const QUAY_DEPTH = 0.42;                    // how far the quay's edge goes down below the floor, in cell heights
 export const PX = 46;                              // the flat drawing's units per engine screen unit
@@ -20,7 +21,7 @@ export function boxOf(x, y, z, b) {
 }
 /** How a piece is turned about the vertical in the scene: timber (oak and birch) lies along x or along y by its tier (and the stack's
  *  turns), the rest stands as modelled. A tarpaulin (grey) hides what is under it, so it is never turned. */
-export const yawOf = (c, turns, grey = false) => (!grey && isTimber(c.c) && axisOf(c.z, turns) === "y" ? (isLong(c.c) ? -Math.PI / 2 : Math.PI / 2) : 0);   // a long log keeps its low half toward low y
+export const yawOf = (c, turns, grey = false) => (!grey && isTimber(c.c) && axisOf(c.z, turns) === "y" ? yawAlongY : 0);
 /** The box of a long log: the middle of its two cells' boxes (its mesh is two cells long, centred on both). */
 export const joinBox = (a, b) => ({ ...a, cx: (a.cx + b.cx) / 2, cz: (a.cz + b.cz) / 2 });
 /** The key a cell's piece goes by: a long log's low cell as the stack lies (both its cells), else the cell's own. */

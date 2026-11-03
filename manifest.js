@@ -7,7 +7,7 @@
 import { LIVES, ROUNDS, WARES, VIEWS, KINDS, legendRows, makeRound, priceOf, skillFactor, recordAfter, shipBonus, turn,
   LANDING, MODES, timeline, partCells, freshTable, isTable, stageOf, roundOf, partFor, livesOf, playing, repliesOf, firstOpen, waitingFor, sayReady, goOn, reply,
   ship as shipIn, settleIfDue, setNext, again, scoresOf, verdicts, resultOf, bonusAt } from "./manifest-engine.js";
-import { CARGO, CARRIES, UNDER, isLong } from "./manifest-rules.js";
+import { CARGO, CARRIES, UNDER, pieceWeight, pieceWorth, cellsOf } from "./manifest-rules.js";
 import { LEVELS, CHAPTERS, COUNT, seedOf, recipeAt, starsFor, mendCamp, isOpen } from "./manifest-levels.js";
 import { stage, wareIcon, playOut, ready } from "./manifest-art.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -23,10 +23,11 @@ import { busy, waitMark } from "./loading.js";
 import { sure } from "./sure.js";
 
 const $ = id => document.getElementById(id);
-// RUN: the run in hand, in any mode. Its predecessor, manifest:run2, held a run of the five wares from before the cargo: a
-// run is rebuilt from its seed, so one of those would deal other stacks under its answers; it is removed unread.
+// RUN: the run in hand, in any mode. Its predecessors are removed unread, because a run is rebuilt from its seed and one of those
+// would deal other stacks under its answers: manifest:run2 (the five wares from before the cargo) and manifest:run3 (from before
+// timber was always a long log, 4 November 2026).
 // CAMP: the ladder as kept (manifest-levels.js): { v, at (the level in hand), stars, played }. TRACK: the mode last chosen.
-const RUN = "manifest:run3", BEST = "manifest:best", DAILY = "manifest:daily", RECORD = "manifest:record", CAMP = "manifest:camp", TRACK = "manifest:track";
+const RUN = "manifest:run4", BEST = "manifest:best", DAILY = "manifest:daily", RECORD = "manifest:record", CAMP = "manifest:camp", TRACK = "manifest:track";
 
 // S: { v: 3, seed, mode: "random" | "daily" | "level", lv (a level's number), round, score, lives, right, wrong, passed,
 //      phase: "orders" | "show" | "ask" | "review" | "over", prices, answers: { [order]: { given, right, paid } },
@@ -43,7 +44,7 @@ const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); 
 const save = () => { if (!T) write(RUN, S); };           // a table's round lives in the room, never in your run
 const money = n => n.toLocaleString("en-GB");
 const node = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-try { localStorage.removeItem("manifest:duel"); localStorage.removeItem("manifest:run2"); } catch { /* private mode */ }   // the head-to-head's kept run, and the old cargo's run, read no more
+try { localStorage.removeItem("manifest:duel"); localStorage.removeItem("manifest:run2"); localStorage.removeItem("manifest:run3"); } catch { /* private mode */ }   // the head-to-head's kept run, and the old runs, read no more
 let camp = mendCamp(read(CAMP, null));
 const saveCamp = () => write(CAMP, camp);
 const STAR = "★", HOLLOW = "☆";
@@ -243,7 +244,7 @@ function keyOf(legend) {
   const key = node("div", "mf-key"), has = c => legend.cols.includes(c);
   key.append(node("p", "mf-key-cap", has("worth") ? "Each is worth, in marks" : has("bears") ? "Each weighs, and bears at most, in cwt" : "Each weighs, in cwt"));
   for (const r of legendRows(legend)) {
-    const item = node("span", `mf-key-item${isLong(r.id) ? " long" : ""}`), text = node("span", "mf-key-text"), icon = node("span", "mf-key-icon");
+    const item = node("span", `mf-key-item${r.long ? " long" : ""}`), text = node("span", "mf-key-text"), icon = node("span", "mf-key-icon");
     icon.appendChild(wareIcon(r.id));
     const figure = node("b", null, has("worth") ? r.worth : r.w);
     if (has("bears")) figure.appendChild(node("i", null, r.bears >= 99 ? "bears all" : r.bears ? `bears ${r.bears}` : "bears 0"));
@@ -1031,12 +1032,12 @@ function openMenu() {
 function showCargo() {
   const body = $("cargoBody"), nameOf = t => CARGO[t - 1].name.toLowerCase(), heavier = (a, b) => CARGO[b - 1].w - CARGO[a - 1].w;
   const byWeight = CARGO.filter(c => c.key !== "chest" && c.key !== "sack").sort((a, b) => b.w - a.w).map(c => ({ crate: "crates", barrel: "barrels", ingot: "ingots" })[c.key] || c.name.toLowerCase());
-  body.replaceChildren(node("p", "mf-cargo-intro", `A piece stands on the quay or on the piece below it. Heavy goes low: ${byWeight.join(", ")}, and a chest only on top. A column may carry only so much weight (cwt, hundredweight) above each piece. Oak and birch lie in layers that cross, and may come as one long log, two cells end to end, which weighs and is worth twice as much.`));
+  body.replaceChildren(node("p", "mf-cargo-intro", `A piece stands on the quay or on the piece below it. Heavy goes low: ${byWeight.join(", ")}, and a chest only on top. A column may carry only so much weight (cwt, hundredweight) above each piece. Oak and birch come only as logs, two cells end to end, in layers that cross: a log weighs and is worth twice a cell of its tree, and the order above goes by one cell.`));
   const list = node("div", "mf-cargo");
   for (const c of CARGO.slice().sort((a, b) => b.w - a.w)) {
     const row = node("div", "mf-cargo-row"), icon = node("div", "mf-cargo-icon"), text = node("div"), carries = CARRIES[c.id].slice().sort(heavier).map(nameOf), under = UNDER[c.id].filter(Boolean).sort(heavier).map(nameOf);
     icon.append(wareIcon(c.id));
-    text.append(node("b", null, c.name), node("span", null, `weighs ${c.w} cwt · worth ${c.worth} marks`),
+    text.append(node("b", null, c.name), node("span", null, cellsOf(c.id) > 1 ? `a log of two cells weighs ${pieceWeight(c.id)} cwt (${c.w} a cell) · worth ${pieceWorth(c.id)} marks` : `weighs ${c.w} cwt · worth ${c.worth} marks`),
       node("span", null, `carries ${carries.length ? carries.join(", ") : "nothing"} · bears ${c.bears >= 99 ? "any weight" : c.bears ? `${c.bears} cwt` : "nothing"}`),
       node("span", null, `stands on the quay${under.length ? `, or on ${under.join(", ")}` : ""}`));
     row.append(icon, text);

@@ -15,12 +15,12 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     `${L.COUNT} levels in ${L.CHAPTERS.length} chapters of four`);
   const known = new Set(), fresh = [];
   L.CHAPTERS.forEach((c, k) => {
-    const lv = L.LEVELS[k * 4 + 3], things = [...lv.recipe.types.map(t => `type ${t}`), ...lv.recipe.kinds, ...(L.LEVELS.slice(k * 4, k * 4 + 4).some(x => x.recipe.long) ? ["long logs"] : []), ...Object.values(L.LEVELS.slice(k * 4, k * 4 + 4).flatMap(x => Object.values(x.changes))).map(v => `change ${v}`)];
+    const lv = L.LEVELS[k * 4 + 3], things = [...lv.recipe.types.map(t => `type ${t}`), ...lv.recipe.kinds, ...(L.LEVELS.slice(k * 4, k * 4 + 4).some(x => x.recipe.logs) ? ["a yard of logs"] : []), ...Object.values(L.LEVELS.slice(k * 4, k * 4 + 4).flatMap(x => Object.values(x.changes))).map(v => `change ${v}`)];
     const added = things.filter(t => !known.has(t));
     fresh.push(added.length);
     things.forEach(t => known.add(t));
   });
-  check(fresh.every(n => n > 0), `each chapter brings something new (${fresh.join(", ")} new types, kinds, long logs or changes)`);
+  check(fresh.every(n => n > 0), `each chapter brings something new (${fresh.join(", ")} new types, kinds, logs or changes)`);
   const harder = L.CHAPTERS.every((c, k) => [1, 2, 3].every(s => {
     const a = L.LEVELS[k * 4 + s - 1], b = L.LEVELS[k * 4 + s], vol = lv => lv.recipe.x * lv.recipe.y * lv.recipe.z;
     return vol(b) >= vol(a) && b.recipe.exposure <= a.recipe.exposure && b.rounds >= a.rounds && b.lives <= a.lives && b.recipe.orders >= a.recipe.orders

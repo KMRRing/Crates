@@ -7,7 +7,8 @@ const M = await import("../manifest-engine.js");
 const { problems } = await import("./manifest-observer.js");
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const stack =(...ts) => [[[...ts.map(t => R.CARGO.findIndex(c => c.key === t) + 1), 0, 0, 0, 0].slice(0, 4)]];
+// a column of cargo by name from the quay up, in cell codes (a tree is its log: the rules below are per cell, so a column checks alone)
+const stack = (...ts) => [...ts.map(t => R.codeOf(R.CARGO.findIndex(c => c.key === t) + 1)), 0, 0, 0, 0].slice(0, 4);
 
 // the tables
 {
@@ -35,13 +36,13 @@ const stack =(...ts) => [[[...ts.map(t => R.CARGO.findIndex(c => c.key === t) + 
 
 // the validator
 {
-  const ok = (...ts) => R.validate(stack(...ts), 4);
+  const ok = (...ts) => R.columnProblems(stack(...ts), 4);
   check(!ok("crate", "crate", "sack").length && !ok("ingot", "chest").length && !ok("crate", "barrel", "barrel").length && !ok("timber", "timber").length && !ok("ingot", "timber", "crate", "barrel").length && !ok("timber", "crate", "chest").length, "stacks that follow the rules pass");
   const breaks = [["ingot", "gold"], ["birch", "timber"], ["crate", "birch"], ["chest", "crate"], ["chest", "chest"], ["crate", "ingot"], ["barrel", "ingot"], ["barrel", "crate"], ["barrel", "timber"], ["crate", "barrel", "crate"], ["sack", "crate"], ["chest", "sack"], ["timber", "ingot"], ["crate", "timber"]];
   check(breaks.every(b => ok(...b).length), `each of ${breaks.length} breaks of the carrying rule is found (${breaks.map(b => b.join("/")).join(", ")})`);
   check(ok("crate", "crate", "crate", "crate").length && ok("barrel", "barrel", "barrel", "barrel").length && ok("sack", "sack", "sack", "sack").length && !ok("ingot", "ingot", "ingot", "ingot").length && !ok("gold", "ingot", "timber", "birch").length && !ok("gold", "gold", "gold", "gold").length && ok("birch", "birch", "birch", "birch").length, "a column too heavy for its lowest piece is found (four crates, barrels, birch or sacks; four ingots or gold are fine)");
   check(R.validate([[[0, 1, 0]]], 4).length && R.validate([[[1, 0, 1]]], 4).length, "a floating piece is found, with the gap below it or at the quay");
-  check(R.validate(stack("crate", "crate", "crate"), 2).length && R.validate([[[R.CODES + 1]]], 4).length, "a piece above the quay's tier limit, and a type that doesn't exist, are found");
+  check(R.columnProblems(stack("crate", "crate", "crate"), 2).length && R.validate([[[R.CODES + 1]]], 4).length, "a piece above the quay's tier limit, and a type that doesn't exist, are found");
   check(R.room([], R.CRATE, 4) === 3 && R.room([], R.INGOT, 4) === 4 && R.room([], R.GOLD, 4) === 4 && R.room([R.GOLD], R.INGOT, 4) === 3 && R.room([R.INGOT], R.GOLD, 4) === 0 && R.room([], R.BARREL, 4) === 3 && R.room([], R.SACK, 4) === 3 && R.room([R.CHEST], R.CRATE, 4) === 0
     && R.room([R.INGOT], R.CHEST, 4) === 1 && R.room([R.INGOT, R.CRATE], R.SACK, 3) === 1 && R.room([R.CRATE, R.CRATE], R.CRATE, 4) === 1 && R.room([R.BARREL], R.CRATE, 4) === 0 && R.room([R.CRATE], R.BARREL, 4) === 3,
   "room: how many more of a type go on a column, by support, load and the tier limit");
@@ -68,16 +69,16 @@ const stack =(...ts) => [[[...ts.map(t => R.CARGO.findIndex(c => c.key === t) + 
   const run = R.pieces(four);
   check(run.list.length === 2 && run.at.get("3,0,0").key === "2,0,0" && run.at.get("1,0,0").key === "0,0,0" && !R.validate(four, 4).length,
     "a run of one long code is paired from its low end: two logs end to end");
-  const lone = [R.validate([[[9]], [[9]], [[9]]], 4), R.validate([[[9]], [[10]]], 4), R.validate([[[9], [9]]], 4)];
-  check(lone.every(v => v.some(w => /long log with no other half/.test(w))) && R.pieces([[[9]], [[9]], [[9]]]).broken.length === 1 && R.pieces([[[9]], [[10]]]).broken.length === 2,
-    "a long log with no other half is found (an odd run, two trees side by side, one standing across the tier's axis)");
+  const lone = [R.validate([[[9]], [[9]], [[9]]], 4), R.validate([[[9]], [[10]]], 4), R.validate([[[9], [9]]], 4), R.validate([[[3]]], 4), R.validate([[[8]], [[8]]], 4)];
+  check(lone.every(v => v.some(w => /a log with no other half/.test(w))) && R.pieces([[[9]], [[9]], [[9]]]).broken.length === 1 && R.pieces([[[9]], [[10]]]).broken.length === 2 && R.pieces([[[3]]]).broken.length === 1,
+    "a log with no other half is found (an odd run, two trees side by side, one standing across the tier's axis), and so is a tree alone in a cell, code 3 or 8: there is no one-cell log");
   const turned = M.turn(two, 1);
   check(turned.length === 1 && turned[0].length === 2 && !R.validate(turned, 4, 1).length && R.validate(turned, 4, 0).length && R.pieces(turned, 1).list[0].key === "0,0,0"
     && [0, 1, 2, 3].every(t => !R.validate(M.turn(four, t), 4, t).length && R.pieces(M.turn(four, t), t).list.length === 2),
   "turning a stack moves its codes and nothing else: a log keeps its two cells, read along the way the turned tier lies");
-  const crossed = [[[3, 9], [3, 9]]];
-  check(!R.validate(crossed, 4).length && R.validate([[[3, 9], [0, 9]]], 4).some(w => /floats/.test(w)) && R.validate([[[1, 9], [1, 9]]], 4).some(w => /timber on a crate/.test(w))
-    && R.validate([[[5, 9], [5, 9]]], 4).length && !R.validate([[[3, 9, 1], [3, 9, 1]]], 4).length,
+  const crossed = [[[4, 9], [4, 9]]];
+  check(!R.validate(crossed, 4).length && R.validate([[[4, 9], [0, 9]]], 4).some(w => /floats/.test(w)) && R.validate([[[1, 9], [1, 9]]], 4).some(w => /timber on a crate/.test(w))
+    && R.validate([[[5, 9], [5, 9]]], 4).length && !R.validate([[[4, 9, 1], [4, 9, 1]]], 4).length,
   "each half stands on what is under it, on the same tier as the other (no overhang): the support and carrying rules are per cell");
   check(!R.canPlace([R.CRATE], R.LONG_OAK, 4) && R.canPlace([R.INGOT], R.LONG_BIRCH, 4) && R.canPlace([R.LONG_OAK], R.CRATE, 4) && !R.canPlace([R.LONG_BIRCH], R.TIMBER, 4)
     && R.room([R.LONG_OAK], R.CRATE, 4) === R.room([R.TIMBER], R.CRATE, 4) && R.loadAbove([R.LONG_OAK, R.CRATE, R.SACK], 0) === 5,

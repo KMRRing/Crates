@@ -9,7 +9,7 @@
 // away) is ropes on grey, every piece a plain box.
 import { WARES, boxFor, isoPoint, cubeFaces, dropTimes, visibleSet } from "./manifest-engine.js";
 import { QUAY_DEPTH, frameOf, yawOf, layout, pieceKey, piecesNamed } from "./manifest-model.js";
-import { typeOf, isLong } from "./manifest-rules.js";
+import { typeOf, isTimber } from "./manifest-rules.js";
 import { barrelRadius, sackRadius, INGOT_SHRINK, GOLD_MARK, GOLD_BARS, crownOn, BIRCH_LOGS, hull } from "./manifest-shapes.js";
 import { ready, is3d, stage3d, icon3d, playOut as playOut3d } from "./manifest-pictures.js";
 
@@ -89,10 +89,10 @@ function ingotPile(B, A, hex, bright) {
 }
 
 // ---------- the cargo, simpler than the models ----------
-// Timber along its axis, by half (0 a long log's low half, 1 its high, 2 a short bundle): where the logs run in the cell (a low half runs on
-// to the join, a high half from it, a hair over each way) and where the ropes lie (a long log's four are evenly spaced, none on the join).
-const ALONG = [[0.03, 1.012], [-0.012, 0.97], [0.03, 0.97]];
-const ROPES = [[0.28, 0.76], [0.24, 0.72], [0.22, 0.78]];
+// Timber along its axis, by half (0 a log's low half, 1 its high): where the logs run in the cell (a low half runs on to the join, a
+// high half from it, a hair over each way) and where the ropes lie (a log's four are evenly spaced, none on the join).
+const ALONG = [[0.03, 1.012], [-0.012, 0.97]];
+const ROPES = [[0.28, 0.76], [0.24, 0.72]];
 // Each takes a brush, the cell's map, the cargo's colour and, for timber, whether it lies along y.
 const DRAW = {
   // a crate: pine boards in a frame of battens, a rope handle through a slot on each side, the house mark on the right
@@ -118,11 +118,11 @@ const DRAW = {
     B.line(disc(A, c, 0.085), chalk, 1.3, true);
     B.line([[c[0] - A.unit * 0.085, c[1]], [c[0] + A.unit * 0.085, c[1]]], chalk, 1.2); B.line([[c[0], c[1] - A.unit * 0.085], [c[0], c[1] + A.unit * 0.085]], chalk, 1.2);
   },
-  // timber: four logs tied with rope, lying along x or along y, the sawn ends showing rings. `half` is set for a long log (Korbi,
+  // timber: four logs tied with rope, lying along x or along y, the sawn ends showing rings. `half` is always set (Korbi,
   // 3 November 2026: "yea long logs is good"): each of its two cells is drawn as its half of one trunk, the logs running on through the
   // join (a hair over it, so no seam shows), the sawn ends only at the far end, the ropes spaced along the whole
   3(B, A, hex, alongY, half) {
-    const wood = "#D6B47A", [s0, s1] = ALONG[half ?? 2], P = (s, t, c) => (alongY ? A(t, s, c) : A(s, t, c));
+    const wood = "#D6B47A", [s0, s1] = ALONG[half], P = (s, t, c) => (alongY ? A(t, s, c) : A(s, t, c));
     const at = (a, c) => P(0.97, a, c);                                                                                 // a point on the end face
     const [longK, endK] = alongY ? [0.86, 0.72] : [0.72, 0.86];
     B.fill([P(s0, 0.97, 0), P(s1, 0.97, 0), P(s1, 0.97, 0.94), P(s0, 0.97, 0.94)], shade(hex, longK));
@@ -133,7 +133,7 @@ const DRAW = {
     B.line([P(s0, 0.5, 0.94), P(s1, 0.5, 0.94)], dark, 1);                                                              // and the two backs on top
     for (const c of [0.13, 0.3, 0.64, 0.82]) B.line([P(s0, 0.97, c), P(s1, 0.97, c)], bark, 0.8);                      // the furrows of the bark, along the logs
     for (const v of [0.14, 0.34, 0.66, 0.86]) B.line([P(s0, v, 0.94), P(s1, v, 0.94)], bark, 0.8);
-    for (const p of ROPES[half ?? 2]) {                                                                                 // ropes round the lot
+    for (const p of ROPES[half]) {                                                                                 // ropes round the lot
       B.line([P(p, 0.97, 0), P(p, 0.97, 0.94)], rope, 2);
       B.line([P(p, 0.03, 0.94), P(p, 0.97, 0.94)], rope, 2);
     }
@@ -174,7 +174,7 @@ const DRAW = {
   },
   // birch: six slender white logs in a pyramid, black dashes round the bark; seen from its end it is a triangle, not oak's square
   8(B, A, hex, alongY, half) {
-    const H = 0.83, ink = "rgba(18,14,10,.8)", [s0, s1] = ALONG[half ?? 2], P = (s, t, c) => (alongY ? A(t, s, c) : A(s, t, c));
+    const H = 0.83, ink = "rgba(18,14,10,.8)", [s0, s1] = ALONG[half], P = (s, t, c) => (alongY ? A(t, s, c) : A(s, t, c));
     const bottom = [P(s0, 0.97, 0), P(s1, 0.97, 0)], ridge = [P(s0, 0.5, H), P(s1, 0.5, H)];
     // a point on the slope: e along the log (0 to 1), f up the slope (0 the foot, 1 the ridge)
     const slope = (e, f) => [0, 1].map(i => { const lo = bottom[0][i] + e * (bottom[1][i] - bottom[0][i]), hi = ridge[0][i] + e * (ridge[1][i] - ridge[0][i]); return lo + f * (hi - lo); });
@@ -182,7 +182,7 @@ const DRAW = {
     for (const f of [0.34, 0.67]) B.line([slope(0, f), slope(1, f)], "rgba(70,58,40,.55)", 1);              // the three logs' backs
     const end = (a, c) => P(0.97, a, c);
     if (half !== 0) B.fill([end(0.03, 0), end(0.97, 0), end(0.5, H)], "#3A3226");
-    for (const rope of ROPES[half ?? 2]) B.line([slope((rope - s0) / (s1 - s0), 0), slope((rope - s0) / (s1 - s0), 1)], "#B99B64", 2);
+    for (const rope of ROPES[half]) B.line([slope((rope - s0) / (s1 - s0), 0), slope((rope - s0) / (s1 - s0), 1)], "#B99B64", 2);
     const dashes = [[0.1, 0.08], [0.34, 0.12], [0.56, 0.05], [0.8, 0.1], [0.2, 0.4], [0.46, 0.45], [0.68, 0.38], [0.9, 0.42], [0.12, 0.74], [0.4, 0.78], [0.62, 0.72], [0.86, 0.8]];
     for (const [e, f] of dashes) B.line([slope(e, f), slope(e + 0.01, f + 0.15)], ink, 1.6);
     if (half === 0) return;
@@ -311,7 +311,7 @@ export function wareIcon(ware) {
   return is3d() ? icon3d(ware) : wareIconFlat(ware);
 }
 function wareIconFlat(ware) {
-  const b = boxFor(0), long = isLong(ware), parts = long ? [0, 1] : [null], at = x => cubeFaces(x, 0, 0, b);       // a long log: two cells along x
+  const b = boxFor(0), long = isTimber(ware), parts = long ? [0, 1] : [null], at = x => cubeFaces(x, 0, 0, b);       // a tree is its log: two cells along x
   const all = parts.flatMap((_, x) => Object.values(at(x)).flat());
   const xs = all.map(p => p[0]), ys = all.map(p => p[1]), minX = Math.min(...xs), minY = Math.min(...ys), w = Math.max(...xs) - minX, h = Math.max(...ys) - minY, size = Math.max(w, h), k = 40 / size;
   const to = p => [(p[0] - minX + (size - w) / 2) * k + 2, (p[1] - minY + (size - h) / 2) * k + 2];
