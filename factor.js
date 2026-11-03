@@ -1,8 +1,8 @@
 // Factor, an island trading game against computer players, or at a table with friends each on their own phone. The rules
 // and words are factor-rules.js's (the island's geometry factor-board.js's), the computer players factor-bot.js's, the
 // running seats.js's (seats-ui.js), the island's picture factor-draw.js's. This page draws the players across the top, the
-// island, your hand and your buttons below it; a tap on a ringed corner, edge or hex is the move the step asks for, and the
-// build buttons ring where a road, post or factory may go.
+// island, your hand and your buttons below it; a tap on a ringed corner, edge or hex is the move the step asks for, and on your
+// turn every place you can pay for is ringed, so a tap builds (factor-tap.js; the build buttons only narrow the rings).
 import { rules, COSTS, TARGETS, DEFAULTS, CARD_NAMES, CARD_TEXT, cards, pointsOf, roadLength, playable, piecesLeft, postSpots, roadSpots, factorySpots, victims, bankOf } from "./factor-rules.js";
 import { LEVEL_NAMES, suggest, wants } from "./factor-bot.js";
 import { newTrade, stepTrade, toMode, resolve, composeHtml, answerHtml, offerCardHtml, pickCardHtml, pname } from "./factor-trade.js";
