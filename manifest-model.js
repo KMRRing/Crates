@@ -8,7 +8,7 @@
 // view stretched by √1.5 (its sx = .866(x − z), its sy = .5(x + z) − y, against 1/√2 and 1/√6 for a unit camera), so a
 // box seen by the camera has the outline of the polygons cubeFaces gives.
 import { isoPoint, cubeFaces, drawOrder, boxFor } from "./manifest-engine.js";
-import { axisOf, isTimber } from "./manifest-rules.js";
+import { axisOf, isTimber, isLong, typeOf } from "./manifest-rules.js";
 
 export const QUAY_DEPTH = 0.42;                    // how far the quay's edge goes down below the floor, in cell heights
 export const PX = 46;                              // the flat drawing's units per engine screen unit
@@ -20,7 +20,18 @@ export function boxOf(x, y, z, b) {
 }
 /** How a piece is turned about the vertical in the scene: timber (oak and birch) lies along x or along y by its tier (and the stack's
  *  turns), the rest stands as modelled. A tarpaulin (grey) hides what is under it, so it is never turned. */
-export const yawOf = (c, turns, grey = false) => (!grey && isTimber(c.c) && axisOf(c.z, turns) === "y" ? Math.PI / 2 : 0);
+export const yawOf = (c, turns, grey = false) => (!grey && isTimber(c.c) && axisOf(c.z, turns) === "y" ? (isLong(c.c) ? -Math.PI / 2 : Math.PI / 2) : 0);   // a long log keeps its low half toward low y
+/** The box of a long log: the middle of its two cells' boxes (its mesh is two cells long, centred on both). */
+export const joinBox = (a, b) => ({ ...a, cx: (a.cx + b.cx) / 2, cz: (a.cz + b.cz) / 2 });
+/** The key a cell's piece goes by: a long log's low cell as the stack lies (both its cells), else the cell's own. */
+export const pieceKey = c => c.piece ?? c.key;
+/** The set of piece keys that a list of cell or piece keys name (a tap or a mark may name either half of a long log), given the
+ *  layout's items: so a marked log is marked whole. */
+export function piecesNamed(items, keys) {
+  const named = new Set(keys), out = new Set();
+  for (const it of items) if (named.has(it.key) || named.has(pieceKey(it))) out.add(pieceKey(it));
+  return out;
+}
 /** A world point's place on the engine's screen. */
 export const screenOf = ([wx, wy, wz]) => [0.866 * (wx - wz), 0.5 * (wx + wz) - wy];
 /** The same, as the unit camera plane sees it (right, up), before the engine's stretch. */
@@ -40,8 +51,8 @@ export function frameOf(X, Y, Z, b, { blank = false, drop = false } = {}) {
   return { W, H, room, s, minX, minY, margin, aspect: W / (H + room), to: ([sx, sy]) => [(sx - minX) * s + margin, (sy - minY) * s + margin] };
 }
 /** A square frame round one package alone, for the small picture beside an answer (the view box is 44 units, the package 40). */
-export function iconFrame(b) {
-  const poly = Object.values(cubeFaces(0, 0, 0, b)).flat(), xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
+export function iconFrame(b, long = false) {
+  const poly = (long ? [0, 1] : [0]).flatMap(x => Object.values(cubeFaces(x, 0, 0, b)).flat()), xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
   const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys), size = Math.max(w, h), s = 40 / size, margin = 2;
   const minX = Math.min(...xs) - (size - w) / 2, minY = Math.min(...ys) - (size - h) / 2;
   return { W: 44, H: 44, room: 0, s, minX, minY, margin, aspect: 1, to: ([sx, sy]) => [(sx - minX) * s + margin, (sy - minY) * s + margin] };
@@ -63,7 +74,7 @@ export function cameraOf(frame, X, Y, Z, b) {
 /** The stack's packages in drawing order (far to near, low to high), each with its box and its faces as view box polygons. */
 export function layout(cells, turns, frame) {
   const b = boxFor(turns);
-  return drawOrder(cells).map(c => {
+  return drawOrder(cells, turns).map(c => {
     const faces = Object.fromEntries(Object.entries(cubeFaces(c.x, c.y, c.z, b)).map(([k, poly]) => [k, poly.map(frame.to)]));
     return { ...c, key: `${c.x},${c.y},${c.z}`, box: boxOf(c.x, c.y, c.z, b), faces };
   });

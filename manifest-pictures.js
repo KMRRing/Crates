@@ -10,7 +10,8 @@
 // turn could be played as the stack's yaw 0 to 90 degrees, ending on that layout; it isn't, because turning the stack in
 // front of the player shows what the all-at-once view hides and does the mental turn the turned question asks for.
 import { boxFor, isoPoint, dropTimes, visibleSet, LANDING } from "./manifest-engine.js";
-import { QUAY_DEPTH, frameOf, iconFrame, cameraOf, layout, packageAt, fall, yawOf } from "./manifest-model.js";
+import { QUAY_DEPTH, frameOf, iconFrame, cameraOf, layout, packageAt, fall, yawOf, pieceKey, piecesNamed, joinBox } from "./manifest-model.js";
+import { typeOf, isLong } from "./manifest-rules.js";
 import { hull } from "./manifest-shapes.js";
 import { onPause } from "./menu.js";
 
@@ -25,7 +26,7 @@ export const ready = Promise.race([loading, new Promise(r => { settleLoad = setT
 function warm() {
   const b = boxFor(0), frame = iconFrame(b);
   GL.draw({ X: 1, Y: 1, Z: 1, b, frame, cam: cameraOf(frame, 1, 1, 1, b), opts: {},
-    items: layout([[[1]]], 0, frame).map(c => ({ key: c.key, ware: c.c, box: c.box, faces: c.faces, dim: false, outline: 0 })) }, 32, 32, M.tokens());
+    items: itemsOf(layout([[[1]]], 0, frame), { turns: 0 }) }, 32, 32, M.tokens());
 }
 /** Whether pictures are 3D now: not before WebGL is up, not once its context is lost. */
 export const is3d = () => !!GL?.alive;
@@ -175,26 +176,37 @@ function begin(pic, kind) {
  *  the empty quay stays), "appear". */
 export const playOut = (panel, kind) => begin(panel._pic, kind);
 
+/** The scene's pieces for the layout's cells. A long log is one mesh over two cells: its low cell draws it, its high cell is only there
+ *  to be tapped and to land with it. `named`: the piece keys to outline; `ringPiece`: the one picked out under tarpaulin. */
+function itemsOf(cubes, o) {
+  return cubes.map(c => {
+    const piece = pieceKey(c), ringed = o.ringPiece != null && piece === o.ringPiece, long = !o.grey && c.half != null;
+    return { key: c.key, piece, ware: o.grey ? (ringed ? M.LIT_WARE : 0) : typeOf(c.c), long: long ? c.c : 0, skip: long && c.half === 1,
+      box: long && c.half === 0 ? joinBox(c.box, cubes.find(m => m.piece === c.piece && m.half === 1).box) : c.box,
+      faces: c.faces, yaw: yawOf(c, o.turns, !!o.grey),
+      dim: !!((o.highlight && typeOf(c.c) !== o.highlight) || (o.tier != null && c.z !== o.tier)),
+      outline: ringed || (o.named?.has(piece) && o.markHidden !== piece) ? 2 : 0 };   // framed: every face, so one seen only from the side is marked too
+  });
+}
+
 /** The picture for manifest-art.js's stage(cells, opts): { panel, drops }. */
 export function stage3d(cells, opts) {
   const turns = opts.turns || 0, b = boxFor(turns), X = cells.length, Y = cells[0].length, Z = cells[0][0].length;
   const frame = frameOf(X, Y, Z, b, opts), tk = tokensNow();
   const markKey = opts.mark ? `${opts.mark.x},${opts.mark.y},${opts.mark.z}` : null;
   const visible = opts.blank || markKey ? visibleSet(cells, b) : null;
-  const outlined = new Set([...(opts.marks || []), ...(opts.selected || [])]);
+  const cubes = layout(cells, turns, frame);
+  // a marked, selected or ringed piece is marked whole: a long log by either of its cells
+  const named = piecesNamed(cubes, [...(opts.marks || []), ...(opts.selected || []), ...(markKey ? [markKey] : [])]);
+  const ringPiece = opts.ring ? pieceKey(cubes.find(c => c.key === opts.ring) || {}) : null;
   const drops = opts.drop ? (opts.times ? { times: opts.times, last: 0 } : dropTimes(cells, opts.drop)) : { times: {}, last: 0 };
-  const items = opts.blank ? [] : layout(cells, turns, frame).map(c => {
-    const ringed = opts.ring === c.key;
-    return { key: c.key, ware: opts.grey ? (ringed ? M.LIT_WARE : 0) : c.c, box: c.box, faces: c.faces, yaw: yawOf(c, turns, !!opts.grey),
-      dim: !!((opts.highlight && c.c !== opts.highlight) || (opts.tier != null && c.z !== opts.tier)),
-      outline: ringed || (markKey === c.key && (!visible || visible.has(c.key))) || outlined.has(c.key) ? 2 : 0 };   // framed: every face, so one seen only from the side is marked too
-  });
+  const items = opts.blank ? [] : itemsOf(cubes, { ...opts, turns, named, ringPiece, markHidden: markKey && visible && !visible.has(markKey) ? markKey : null });
   // a marked place with nothing to see there: its tile on the floor, with the tier named on it
   const hidden = !!opts.mark && (opts.blank || !visible.has(markKey));
   const tile = hidden ? { x: opts.mark.x, y: opts.mark.y } : null;
   const label = hidden ? (() => { const p = isoPoint(tile.x + 0.5, tile.y + 0.5, 0, b), [x, y] = frame.to([p.sx, p.sy]); return { x, y, text: `tier ${opts.mark.z + 1}` }; })() : null;
-  const ringed = opts.ring ? items.find(it => it.key === opts.ring) : null;
-  const ring = ringed ? hull(Object.values(ringed.faces).flat()) : null;                // the piece's hexagon, drawn over the rest
+  const ringFaces = ringPiece != null ? items.filter(it => it.piece === ringPiece).flatMap(it => Object.values(it.faces).flat()) : [];
+  const ring = ringFaces.length ? hull(ringFaces) : null;                              // the piece's hexagon (a long log's, both cells'), drawn over the rest
   const spec = { X, Y, Z, b, frame, cam: cameraOf(frame, X, Y, Z, b), items, label, ring, opts: { markTile: tile } };
 
   const panel = node("div", `mf-panel${opts.small ? " small" : ""}`);
@@ -209,7 +221,7 @@ export function stage3d(cells, opts) {
   panel._pic = pic;
   if (opts.tap) canvas.addEventListener("click", e => {
     const r = canvas.getBoundingClientRect(), key = packageAt(items, (e.clientX - r.left) / r.width * frame.W, (e.clientY - r.top) / r.height * total - frame.room);
-    if (key) opts.tap(key);
+    if (key) opts.tap(items.find(it => it.key === key).piece);                     // a long log by its low cell, whichever half is tapped
   });
   // drawn at a guess of the size it'll have, and again once the page has given it one (if that's very different)
   if (typeof ResizeObserver !== "undefined") {
@@ -246,9 +258,9 @@ export function icon3d(ware) {
   const tk = tokensNow(), key = `${ware}|${tk.key}`;
   let src = ICONS.get(key);
   if (!src) {
-    const b = boxFor(0), frame = iconFrame(b), size = 96;
-    const spec = { X: 1, Y: 1, Z: 1, b, frame, cam: cameraOf(frame, 1, 1, 1, b), quay: false, opts: {},
-      items: layout([[[ware]]], 0, frame).map(c => ({ key: c.key, ware: c.c, box: c.box, faces: c.faces, yaw: yawOf(c, 0, false), dim: false, outline: 0 })) };
+    const long = isLong(ware), b = boxFor(0), frame = iconFrame(b, long), size = 96, cells = long ? [[[ware]], [[ware]]] : [[[ware]]];   // a long log: two cells along x
+    const spec = { X: cells.length, Y: 1, Z: 1, b, frame, cam: cameraOf(frame, cells.length, 1, 1, b), quay: false, opts: {},
+      items: itemsOf(layout(cells, 0, frame), { turns: 0 }) };
     src = document.createElement("canvas"); src.width = src.height = size;
     src.getContext("2d").drawImage(GL.draw(spec, size, size, tk), 0, 0);
     ICONS.set(key, src);

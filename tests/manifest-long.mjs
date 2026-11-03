@@ -68,7 +68,7 @@ const logWith = (fill, X = 3, Y = 2, Z = 3) => { const c = empty(X, Y, Z); c[0][
   let changes = 0, turnedChanges = 0, swaps = 0, longChanges = 0, longTurned = 0, longSwaps = 0, found = [];
   const base = { ...M.levelOf(12, false), x: 4, y: 3, z: 3, types: [1, 2, 3, 4, 8], views: ["all"], orders: 1, kinds: ["count"], want: [], long: { p: 1, min: 1, max: 3 } };
   // two logs of different trees to trade are rare, so the swap is dealt a stack of nothing but trees
-  const seeds = { ware: 30, turned: 30, swap: 60 }, recipes = { ware: base, turned: base, swap: { ...base, types: [3, 8] } };
+  const seeds = { ware: 40, turned: 90, swap: 60 }, recipes = { ware: base, turned: base, swap: { ...base, types: [3, 8] } };
   for (const variant of ["ware", "turned", "swap"]) for (let seed = 1; seed <= seeds[variant]; seed++) {
     const L = { ...recipes[variant], change: variant }, Rd = M.makeRound(seed, 4, 0, L), o = Rd.orders[0];
     if (!o) { found.push(`${variant} ${seed}: no change`); continue; }
@@ -89,7 +89,7 @@ const logWith = (fill, X = 3, Y = 2, Z = 3) => { const c = empty(X, Y, Z); c[0][
     } else if (diff.length !== 1) found.push(`${variant} ${seed}: ${diff.length} cells differ`);
   }
   if (found.length) console.log("  ", found.slice(0, 6).join("\n   "));
-  check(!found.length && longChanges > 0 && longTurned > 0 && longSwaps > 0 && changes + turnedChanges + swaps === 120,
+  check(!found.length && longChanges > 0 && longTurned > 0 && longSwaps > 0 && changes + turnedChanges + swaps === 190,
     `change rounds with long logs (${longChanges} of ${changes} plain, ${longTurned} of ${turnedChanges} turned, ${longSwaps} of ${swaps} swaps involve one): a log changes for the other tree's, in the same two cells, and the answer is the piece as the picture lays it, every one fair`);
 }
 
@@ -112,6 +112,45 @@ const logWith = (fill, X = 3, Y = 2, Z = 3) => { const c = empty(X, Y, Z); c[0][
   }
   if (found.length) console.log("  ", found.slice(0, 6).join("\n   "));
   check(!found.length && rows > 20 && kinds.count && kinds.weight && kinds.worth, `keys: weights and worths carry a row for each long log, twice its tree's (${rows} rows in ${kinds.weight + kinds.worth} questions); no other question has one`);
+}
+
+// the picture's model: a long log along y keeps its low half toward low y, and either cell of a log names the log
+{
+  const Mo = await import("../manifest-model.js");
+  const cells = empty(2, 2, 2);
+  cells[0][0][0] = cells[1][0][0] = R.LONG_OAK;                          // along x on tier 0
+  cells[0][0][1] = cells[0][1][1] = R.LONG_BIRCH;                        // along y on tier 1
+  cells[0][1][0] = R.TIMBER;
+  const items = Mo.layout(cells, 0, Mo.frameOf(2, 2, 2, M.boxFor(0))), at = k => items.find(c => c.key === k);
+  const toward = c => { const yaw = Mo.yawOf(c, 0); return [Math.round(Math.cos(yaw)), Math.round(-Math.sin(yaw))]; };    // where the mesh's high end (+x) points: [x, engine y]
+  check(same(toward(at("0,0,0")), [1, 0]) && same(toward(at("0,0,1")), [0, 1]) && at("0,1,0").half == null && Mo.yawOf(at("0,1,0"), 0) === 0,
+    "a long log lies along x on an even tier and along y on an odd one, its high end toward high x or y; a short bundle needs no half");
+  check(Mo.pieceKey(at("0,1,1")) === "0,0,1" && Mo.pieceKey(at("1,0,0")) === "0,0,0" && Mo.pieceKey(at("0,1,0")) === "0,1,0"
+    && same([...Mo.piecesNamed(items, ["0,1,1"])], ["0,0,1"]) && same([...Mo.piecesNamed(items, ["0,0,0", "0,1,0"])].sort(), ["0,0,0", "0,1,0"]),
+  "a mark, a tap or a ring on either cell of a log is on the log, by its low cell");
+  const box = Mo.joinBox(at("0,0,1").box, at("0,1,1").box);
+  check(box.cx === at("0,0,1").box.cx && box.cz === (at("0,0,1").box.cz + at("0,1,1").box.cz) / 2 && box.cy === at("0,0,1").box.cy, "a long log's mesh is centred on the middle of its two cells");
+  const turned = Mo.layout(M.turn(cells, 1), 1, Mo.frameOf(2, 2, 2, M.boxFor(1)));
+  check(turned.filter(c => c.half === 0).length === 2 && turned.filter(c => c.half === 1).length === 2 && turned.every(c => !R.isLong(c.c) || Mo.pieceKey(c) !== undefined),
+    "the layout of a turned stack still has two logs of two halves each (turning keeps a long log long)");
+}
+
+// where long logs are dealt: Random from round 10 (after the sacks, with oak alone at first), the last chapter's levels, never before
+{
+  const count = Rd => Rd.cells.flat(2).filter(R.isLong).length / 2;
+  const before = [], from = [];
+  for (let seed = 1; seed <= 12; seed++) for (let r = 1; r <= 12; r++) (r < M.LONG_FROM ? before : from).push([r, count(M.makeRound(seed, r))]);
+  check(M.LONG_FROM === 10 && before.every(([, n]) => n === 0) && from.every(([, n]) => n >= 1) && from.every(([, n]) => n <= M.levelOf(M.LONG_FROM).long.max),
+   `Random deals no long log before round ${M.LONG_FROM} and at least one in each round from it, never more than ${M.levelOf(M.LONG_FROM).long.max}`);
+  const last = Lv.LEVELS.map((lv, i) => [lv, i]).filter(([lv]) => lv.recipe.long);
+  let short = 0, total = 0;
+  for (const [lv, i] of last) for (let k = 1; k <= lv.rounds; k++) for (const seed of [Lv.seedOf(i), 5, 9]) {
+    const rc = Lv.recipeAt(i, k), n = count(M.makeRound(seed, k, 0, rc));
+    total++;
+    if (n < Math.min(rc.long.min, 1) || n > rc.long.max) short++;
+  }
+  check(last.length === 4 && last[0][1] === 40 && last.every(([lv]) => lv.recipe.types.includes(R.TIMBER) && lv.recipe.types.includes(R.BIRCH)) && !short,
+    `the chapter after Gold has the long logs, four levels, both trees in play (${total} rounds, each with a log and within its most)`);
 }
 
 // nothing saved or shared moves: a recipe without long logs deals the very stacks it always did

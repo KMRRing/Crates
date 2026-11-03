@@ -1,4 +1,4 @@
-// Manifest's ladder: 40 levels in 10 chapters, each chapter bringing something new and each level harder than the one before
+// Manifest's ladder: 44 levels in 11 chapters, each chapter bringing something new and each level harder than the one before
 // it in its chapter; every level's recipe deals fair rounds from any seed (stacks that obey the rules, the full number of
 // orders, the questions its chapter wants, each answerable by an observer shown only what the view showed); stars and
 // the saved campaign mend themselves.
@@ -11,16 +11,16 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 // the ladder's shape
 {
-  check(L.COUNT >= 24 && L.COUNT <= 44 && L.CHAPTERS.length === 10 && L.CHAPTERS.every((c, k) => c.from === k * 4) && L.LEVELS.every((lv, i) => L.chapterOf(i) === Math.floor(i / 4)),
+  check(L.COUNT >= 24 && L.COUNT <= 44 && L.CHAPTERS.length === 11 && L.CHAPTERS.every((c, k) => c.from === k * 4) && L.LEVELS.every((lv, i) => L.chapterOf(i) === Math.floor(i / 4)),
     `${L.COUNT} levels in ${L.CHAPTERS.length} chapters of four`);
   const known = new Set(), fresh = [];
   L.CHAPTERS.forEach((c, k) => {
-    const lv = L.LEVELS[k * 4 + 3], things = [...lv.recipe.types.map(t => `type ${t}`), ...lv.recipe.kinds, ...Object.values(L.LEVELS.slice(k * 4, k * 4 + 4).flatMap(x => Object.values(x.changes))).map(v => `change ${v}`)];
+    const lv = L.LEVELS[k * 4 + 3], things = [...lv.recipe.types.map(t => `type ${t}`), ...lv.recipe.kinds, ...(L.LEVELS.slice(k * 4, k * 4 + 4).some(x => x.recipe.long) ? ["long logs"] : []), ...Object.values(L.LEVELS.slice(k * 4, k * 4 + 4).flatMap(x => Object.values(x.changes))).map(v => `change ${v}`)];
     const added = things.filter(t => !known.has(t));
     fresh.push(added.length);
     things.forEach(t => known.add(t));
   });
-  check(fresh.every(n => n > 0), `each chapter brings something new (${fresh.join(", ")} new types, kinds or changes)`);
+  check(fresh.every(n => n > 0), `each chapter brings something new (${fresh.join(", ")} new types, kinds, long logs or changes)`);
   const harder = L.CHAPTERS.every((c, k) => [1, 2, 3].every(s => {
     const a = L.LEVELS[k * 4 + s - 1], b = L.LEVELS[k * 4 + s], vol = lv => lv.recipe.x * lv.recipe.y * lv.recipe.z;
     return vol(b) >= vol(a) && b.recipe.exposure <= a.recipe.exposure && b.rounds >= a.rounds && b.lives <= a.lives && b.recipe.orders >= a.recipe.orders

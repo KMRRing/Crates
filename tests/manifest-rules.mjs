@@ -93,7 +93,7 @@ const stack =(...ts) => [[[...ts.map(t => R.CARGO.findIndex(c => c.key === t) + 
     if (JSON.stringify(a.cells) !== JSON.stringify(b.cells) || JSON.stringify(a.orders) !== JSON.stringify(b.orders)) problemsFound.push(`${seed}/${r} isn't repeatable`);
     problemsFound.push(...problems(a, `${seed}/${r}`));
     if (a.cells.some(c => c.some(row => row.filter(Boolean).length >= 3))) tall++;
-    a.cells.flat(2).forEach(t => t && types.add(t));
+    a.cells.flat(2).forEach(t => t && types.add(R.typeOf(t)));
     for (const o of a.orders) kinds[o.type] = (kinds[o.type] || 0) + 1;
   }
   if (problemsFound.length) console.log("  ", problemsFound.slice(0, 6).join("\n   "));

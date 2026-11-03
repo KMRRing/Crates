@@ -78,9 +78,9 @@ export function levelOf(r, longs = true) {
     long: longs && r >= LONG_FROM ? LONGS : null,
   };
 }
-/** The round Random first deals long logs in (Infinity: none yet), and how many. */
-export const LONG_FROM = Infinity;
-const LONGS = { p: 0.6, min: 1, max: 3 };
+/** The round Random first deals long logs in (Korbi, 3 November 2026: late and gently: after the sacks, and oak alone has one until birch joins at 11), and how many. */
+export const LONG_FROM = 10;
+const LONGS = { p: 0.5, min: 1, max: 2 };
 /** The order the types come into Random: a type is dealt once the ladder reaches it. */
 export const LADDER = [1, 2, 3, 4, 5, 6, 8, 7];
 /**

@@ -10,6 +10,7 @@
 // (manifest-glsl.js), so nothing here is a picture.
 import * as THREE from "./vendor/three.js";
 import { WARES } from "./manifest-engine.js";
+import { typeOf } from "./manifest-rules.js";
 import { meshOf } from "./manifest-shapes.js";
 import { packageShader, QUAY } from "./manifest-glsl.js";
 import { cameraOf, QUAY_DEPTH } from "./manifest-model.js";
@@ -82,16 +83,17 @@ export function createGL() {
 
   // geometry: a mesh per cargo type, a plain box for the tarpaulin (the ware is an attribute, so every piece shares one program)
   const withWare = (g, ware) => { g.setAttribute("aWare", new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count).fill(ware), 1)); return g; };
-  const shapeGeo = type => {
+  const shapeGeo = (type, ware = type) => {
     const m = meshOf(type), g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(m.pos, 3));
     g.setAttribute("normal", new THREE.Float32BufferAttribute(m.nor, 3));
     g.setAttribute("aPart", new THREE.Float32BufferAttribute(m.part, 4));
     g.setIndex(Array.from(m.index));
-    return withWare(g, type);
+    return withWare(g, ware);
   };
   const boxGeo = ware => { const g = new THREE.BoxGeometry(1, 1, 1); g.setAttribute("aPart", new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 4), 4)); return withWare(g, ware); };
   const geos = HEX.map((_, i) => (i >= 1 && i <= WARES.length ? shapeGeo(i) : boxGeo(i)));
+  const longGeos = { 9: shapeGeo(9, typeOf(9)), 10: shapeGeo(10, typeOf(10)) };       // a long log: two cells long, the shader of its tree
   const plain = new THREE.BoxGeometry(1, 1, 1);
 
   // materials: one per package (its own dimming and fade-in), all one program
@@ -170,8 +172,8 @@ export function createGL() {
     let n = 0, hn = 0;
     for (const it of items) {
       const mesh = packageAt(n++), U = mesh.material.userData.U, lift = lifts?.get(it.key) || { lift: 0, squash: 1, fade: 1 };
-      mesh.visible = lift.fade > 0;
-      mesh.geometry = geos[it.ware];
+      mesh.visible = lift.fade > 0 && !it.skip;
+      mesh.geometry = it.long ? longGeos[it.long] : geos[it.ware];
       const sq = lift.squash, wide = 1 / Math.sqrt(sq), y = it.box.cy - it.box.sy * (1 - sq) / 2 + lift.lift * b.H;
       mesh.scale.set(b.X * wide, b.H * sq, b.Y * wide);
       mesh.rotation.set(0, it.yaw || 0, 0);                        // timber lies along x or along y by its tier
@@ -179,7 +181,7 @@ export function createGL() {
       U.uFade.value = lift.fade;
       U.uDim.value = it.dim ? 1 : 0;
       U.uDimTo.value.copy(to);
-      if (it.outline && lift.fade >= 1) {
+      if (it.outline && !it.skip && lift.fade >= 1) {
         const pair = hullAt(hn++);
         pair.forEach((h, k) => {
           const grow = k ? 1.045 : 1.09;

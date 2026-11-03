@@ -19,7 +19,7 @@ const ALL = ["layers", "all", "slices", "pair"];
 
 /**
  * The chapters: `types` the cargo in play, `kinds` the questions it may ask, `want` the ones it tries to carry in every round
- * the view allows, `views` the views that take turns, `z` the quay's tiers where the chapter changes them, `changes` the
+ * the view allows, `views` the views that take turns, `y` and `z` the floor's depth and the quay's tiers where the chapter changes them, `long` how each step deals long logs (a floor of six columns can't), `changes` the
  * change rounds of each step (round number: "ware" | "turned" | "swap"), `names` its four levels.
  */
 const CHAPTER_SPECS = [
@@ -48,6 +48,11 @@ const CHAPTER_SPECS = [
   { name: "Gold", about: "Gold ingots weigh the most and are worth the most: they stand only on the quay or on more gold. Same shape as the ingots, richer, with a crown stamped on top.",
     types: [1, 2, 3, 4, 5, 6, 7, 8], kinds: [...BASIC, "turned", "weight", "worth", "load", "fits", "column"], want: ["worth", "weight"], views: ["layers", "all", "slices", "pair"], z: [3, 3, 3, 4], names: ["A glint", "The strongroom", "Bullion", "The royal hoard"],
     changes: [{}, { 3: "ware" }, { 2: "turned", 4: "swap" }, { 2: "ware", 4: "turned", 5: "swap" }] },
+  // the chapter after the two above, again at the end so that the stars already won keep their levels: the long log, once both trees are known
+  { name: "Long timber", about: "Some logs lie two cells long, end to end along their layer: one piece, one price, twice what its tree weighs. Count it once; the key shows its weight.",
+    types: [1, 2, 3, 4, 5, 6, 8], kinds: [...BASIC, "turned", "weight", "worth", "load", "column"], want: ["weight"], views: ["layers", "all", "slices", "pair"], y: [3, 3, 3, 3], z: [2, 3, 3, 3],
+    long: [{ p: 1, min: 1, max: 1 }, { p: 0.8, min: 1, max: 2 }, { p: 0.6, min: 1, max: 2 }, { p: 0.5, min: 2, max: 3 }], names: ["A long log", "End to end", "The spar yard", "Masts and spars"],
+    changes: [{}, { 3: "ware" }, { 4: "turned" }, { 3: "ware", 5: "swap" }] },
 ];
 
 /** The chapters: where each begins in LEVELS, its name and what it brings. */
@@ -55,7 +60,7 @@ export const CHAPTERS = CHAPTER_SPECS.map((c, k) => ({ name: c.name, about: c.ab
 /** The levels: { name, chapter, step, rounds, lives, recipe (the base of every round), changes }. */
 export const LEVELS = CHAPTER_SPECS.flatMap((c, k) => STEPS.map((s, step) => ({
   name: c.names[step], chapter: k, step, rounds: s.rounds, lives: s.lives, changes: c.changes?.[step] || {},
-  recipe: { x: s.x, y: s.y, z: c.z?.[step] ?? s.z, types: c.types, kinds: c.kinds, want: c.want, views: c.views, orders: s.orders, exposure: s.exposure, change: null },
+  recipe: { x: s.x, y: c.y?.[step] ?? s.y, z: c.z?.[step] ?? s.z, types: c.types, kinds: c.kinds, want: c.want, views: c.views, orders: s.orders, exposure: s.exposure, change: null, ...(c.long?.[step] ? { long: c.long[step] } : {}) },
 })));
 export const COUNT = LEVELS.length;
 /** The chapter a level is in. */

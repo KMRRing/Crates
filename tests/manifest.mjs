@@ -31,9 +31,9 @@ function fair(a, b, seed, r, team = 0) {
   if (new Set(types).size !== types.length) fail("two orders of one kind", where, types);
   if (!L.change && a.orders.length < Math.min(L.orders, 3)) fail("too few orders", where, a.orders.length);
   const X = L.x, Y = L.y;
-  // what the view showed: every package, the bottom two tiers, or (all at once) what could be seen
-  const shown = [];
-  a.cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c && (a.view === "all" ? a.seen.has(key(x, y, z)) : a.view === "pair" ? z < 2 : true)) shown.push(c); })));
+  // what the view showed: every piece, the bottom two tiers, or (all at once) what could be seen (a long log is one piece, named by its low cell)
+  const shown = [], P = M.pieces(a.cells, 0), anchors = new Set(P.list.map(q => q.key));
+  a.cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c && anchors.has(key(x, y, z)) && (a.view === "all" ? a.seen.has(key(x, y, z)) : a.view === "pair" ? z < 2 : true)) shown.push(M.typeOf(c)); })));
   for (const o of a.orders) {
     orders++;
     byType[o.type] = (byType[o.type] || 0) + 1;
@@ -48,11 +48,11 @@ function fair(a, b, seed, r, team = 0) {
       if (!a.cells[x][y][z]) fail("a marked cell that's empty", where, o.type);
       if (a.view === "all" && !a.seen.has(k)) fail("all at once, asking about a package nobody could see", where, o.type);
       if (a.view === "pair" && z > 1) fail("two-tier view, asking above tier 2", where, o.type);
-      if (q.as === "ware" && a.cells[x][y][z] !== q.answer) fail("marked cell's ware isn't the answer", where, o.type);
+      if (q.as === "ware" && M.typeOf(a.cells[x][y][z]) !== q.answer) fail("marked cell's ware isn't the answer", where, o.type);
     }
     if (o.type === "turned") {
       const t = M.turn(a.cells, q.turns), [x, y, z] = q.at.split(",").map(Number);
-      if (t[x][y][z] !== q.answer) fail("turned spot doesn't carry the ware", where);
+      if (M.typeOf(t[x][y][z]) !== q.answer) fail("turned spot doesn't carry the ware", where);
       // the grey stack is plain boxes: the marked piece must show enough of itself there, and the true stack's real shapes too
       if (!M.clearSet(t, M.boxFor(q.turns), true).has(q.at)) fail("the turned question's marked piece isn't clearly in its picture (a grey stack of boxes)", where);
       if (!M.visibleSet(t, M.boxFor(q.turns)).has(q.at)) fail("turned spot can't be seen", where);
@@ -67,15 +67,17 @@ function fair(a, b, seed, r, team = 0) {
     }
     if (o.type === "change" || o.type === "changeTurned") {
       const back = M.turn(q.back, (4 - q.turns) % 4);        // undo the turn to compare with the stack you saw
-      let diffs = [];
-      a.cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c !== back[x][y][z]) diffs.push(key(x, y, z)); })));
+      let diffs = [];                                          // the pieces that differ (a long log changes in both its cells, and is one)
+      a.cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c !== back[x][y][z]) diffs.push(P.at.get(key(x, y, z)).key); })));
+      diffs = [...new Set(diffs)];
       if (diffs.length !== 1 || diffs[0] !== key(q.cell.x, q.cell.y, q.cell.z) || !a.seen.has(diffs[0])) fail("a change round should change one package you could see", where, diffs);
       if (M.turnKey(q.cell.x, q.cell.y, q.cell.z, X, Y, q.turns) !== q.answer) fail("change answer not where the package went", where);
       if (!M.clearSet(q.back, M.boxFor(q.turns)).has(q.answer)) fail("the changed package can't be clearly seen when it's back", where);
     }
     if (o.type === "swap") {
-      const diffs = [];
-      a.cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c !== q.back[x][y][z]) diffs.push(key(x, y, z)); })));
+      let diffs = [];
+      a.cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c !== q.back[x][y][z]) diffs.push(P.at.get(key(x, y, z)).key); })));
+      diffs = [...new Set(diffs)];
       const tally = s => JSON.stringify(s.flat(2).filter(Boolean).sort());
       if (!same(diffs.sort(), q.answer) || !diffs.every(k => a.seen.has(k) && a.visible.has(k)) || tally(a.cells) !== tally(q.back)) fail("a swap round should swap two packages you could see, and can again", where, diffs);
     }
@@ -138,6 +140,13 @@ check(M.shipBonus(1) === 1.5 && M.shipBonus(0) === 1 && M.shipBonus(0.4) === 1.2
       const stretch = columns.every(cols => { const at = cols.map(c => snake.indexOf(c)).sort((a, b) => a - b); return at.every((v, i) => !i || v === at[i - 1] + 1); });
       const order = columns.map(cols => Math.min(...cols.map(c => snake.indexOf(c))));
       const spread = Math.max(...sizes) - Math.min(...sizes);
+      if (cells.flat(2).some(M.isLong)) {                         // a log stands on two columns: the groups are shared, whole, one player each (tests/manifest-long.mjs has the rest)
+        const owner = new Map();
+        parts.forEach((part, i) => part.forEach(k => owner.set(k, i)));
+        const together = M.pieces(cells, 0).list.every(q => new Set(q.cells.map(c => owner.get(c.join(",")))).size === 1);
+        if (parts.length < 1 || parts.length > n || sizes.some(s => !s) || seen.length !== all.length || new Set(seen).size !== all.length || !whole || !together || !same(M.splitStack(cells, n), parts)) { problems++; if (problems < 4) console.log("  ", n, sizes, columns); }
+        continue;
+      }
       worst = Math.max(worst, spread);
       if (parts.length !== n || sizes.some(s => !s) || seen.length !== all.length || new Set(seen).size !== all.length || !all.every(k => seen.includes(k))
         || !whole || !stretch || order.some((v, i) => i && v < order[i - 1]) || spread > tallest || !same(M.splitStack(cells, n), parts)) {

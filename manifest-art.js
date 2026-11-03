@@ -7,8 +7,9 @@
 // of the same shape (manifest-shapes.js has the sizes), drawn on the cell's isometric frame. Outline first, then lightness
 // and hue, so no one rests on colour alone. A stack under tarpaulin (the turned question, which must not give the cargo
 // away) is ropes on grey, every piece a plain box.
-import { WARES, boxFor, isoPoint, cubeFaces, drawOrder, dropTimes, visibleSet } from "./manifest-engine.js";
-import { QUAY_DEPTH, frameOf, yawOf } from "./manifest-model.js";
+import { WARES, boxFor, isoPoint, cubeFaces, dropTimes, visibleSet } from "./manifest-engine.js";
+import { QUAY_DEPTH, frameOf, yawOf, layout, pieceKey, piecesNamed } from "./manifest-model.js";
+import { typeOf, isLong } from "./manifest-rules.js";
 import { barrelRadius, sackRadius, INGOT_SHRINK, GOLD_MARK, GOLD_BARS, crownOn, BIRCH_LOGS, hull } from "./manifest-shapes.js";
 import { ready, is3d, stage3d, icon3d, playOut as playOut3d } from "./manifest-pictures.js";
 
@@ -88,6 +89,10 @@ function ingotPile(B, A, hex, bright) {
 }
 
 // ---------- the cargo, simpler than the models ----------
+// Timber along its axis, by half (0 a long log's low half, 1 its high, 2 a short bundle): where the logs run in the cell (a low half runs on
+// to the join, a high half from it, a hair over each way) and where the ropes lie (a long log's four are evenly spaced, none on the join).
+const ALONG = [[0.03, 1.012], [-0.012, 0.97], [0.03, 0.97]];
+const ROPES = [[0.28, 0.76], [0.24, 0.72], [0.22, 0.78]];
 // Each takes a brush, the cell's map, the cargo's colour and, for timber, whether it lies along y.
 const DRAW = {
   // a crate: pine boards in a frame of battens, a rope handle through a slot on each side, the house mark on the right
@@ -113,23 +118,26 @@ const DRAW = {
     B.line(disc(A, c, 0.085), chalk, 1.3, true);
     B.line([[c[0] - A.unit * 0.085, c[1]], [c[0] + A.unit * 0.085, c[1]]], chalk, 1.2); B.line([[c[0], c[1] - A.unit * 0.085], [c[0], c[1] + A.unit * 0.085]], chalk, 1.2);
   },
-  // timber: four logs tied with rope, lying along x or along y, the sawn ends showing rings
-  3(B, A, hex, alongY) {
-    const wood = "#D6B47A", at = (a, c) => (alongY ? A(a, 0.97, c) : A(0.97, a, c));       // a point on the end face
+  // timber: four logs tied with rope, lying along x or along y, the sawn ends showing rings. `half` is set for a long log (Korbi,
+  // 3 November 2026: "yea long logs is good"): each of its two cells is drawn as its half of one trunk, the logs running on through the
+  // join (a hair over it, so no seam shows), the sawn ends only at the far end, the ropes spaced along the whole
+  3(B, A, hex, alongY, half) {
+    const wood = "#D6B47A", [s0, s1] = ALONG[half ?? 2], P = (s, t, c) => (alongY ? A(t, s, c) : A(s, t, c));
+    const at = (a, c) => P(0.97, a, c);                                                                                 // a point on the end face
     const [longK, endK] = alongY ? [0.86, 0.72] : [0.72, 0.86];
-    B.fill([A(0.03, 0.97, 0), A(0.97, 0.97, 0), A(0.97, 0.97, 0.94), A(0.03, 0.97, 0.94)], shade(alongY ? wood : hex, alongY ? endK : longK));
-    B.fill([A(0.97, 0.03, 0), A(0.97, 0.97, 0), A(0.97, 0.97, 0.94), A(0.97, 0.03, 0.94)], shade(alongY ? hex : wood, alongY ? longK : endK));
-    B.fill([A(0.03, 0.03, 0.94), A(0.97, 0.03, 0.94), A(0.97, 0.97, 0.94), A(0.03, 0.97, 0.94)], shade(hex, 1.05));
-    const dark = "rgba(30,20,8,.55)", rope = "#C9A66B";
-    B.line(alongY ? [A(0.97, 0.03, 0.47), A(0.97, 0.97, 0.47)] : [A(0.03, 0.97, 0.47), A(0.97, 0.97, 0.47)], dark, 1);   // the two rows of logs
-    B.line(alongY ? [A(0.5, 0.03, 0.94), A(0.5, 0.97, 0.94)] : [A(0.03, 0.5, 0.94), A(0.97, 0.5, 0.94)], dark, 1);       // and the two backs on top
-    const bark = "rgba(14,7,1,.5)";                                                                                     // the furrows of the bark, along the logs
-    for (const c of [0.13, 0.3, 0.64, 0.82]) B.line(alongY ? [A(0.97, 0.03, c), A(0.97, 0.97, c)] : [A(0.03, 0.97, c), A(0.97, 0.97, c)], bark, 0.8);
-    for (const v of [0.14, 0.34, 0.66, 0.86]) B.line(alongY ? [A(v, 0.03, 0.94), A(v, 0.97, 0.94)] : [A(0.03, v, 0.94), A(0.97, v, 0.94)], bark, 0.8);
-    for (const p of [0.22, 0.78]) {                                                                                     // ropes round the lot
-      B.line(alongY ? [A(0.97, p, 0), A(0.97, p, 0.94)] : [A(p, 0.97, 0), A(p, 0.97, 0.94)], rope, 2);
-      B.line(alongY ? [A(0.03, p, 0.94), A(0.97, p, 0.94)] : [A(p, 0.03, 0.94), A(p, 0.97, 0.94)], rope, 2);
+    B.fill([P(s0, 0.97, 0), P(s1, 0.97, 0), P(s1, 0.97, 0.94), P(s0, 0.97, 0.94)], shade(hex, longK));
+    if (half !== 0) B.fill([P(0.97, 0.03, 0), P(0.97, 0.97, 0), P(0.97, 0.97, 0.94), P(0.97, 0.03, 0.94)], shade(wood, endK));   // (a low half's is under the high one)
+    B.fill([P(s0, 0.03, 0.94), P(s1, 0.03, 0.94), P(s1, 0.97, 0.94), P(s0, 0.97, 0.94)], shade(hex, 1.05));
+    const dark = "rgba(30,20,8,.55)", rope = "#C9A66B", bark = "rgba(14,7,1,.5)";
+    B.line([P(s0, 0.97, 0.47), P(s1, 0.97, 0.47)], dark, 1);                                                            // the two rows of logs
+    B.line([P(s0, 0.5, 0.94), P(s1, 0.5, 0.94)], dark, 1);                                                              // and the two backs on top
+    for (const c of [0.13, 0.3, 0.64, 0.82]) B.line([P(s0, 0.97, c), P(s1, 0.97, c)], bark, 0.8);                      // the furrows of the bark, along the logs
+    for (const v of [0.14, 0.34, 0.66, 0.86]) B.line([P(s0, v, 0.94), P(s1, v, 0.94)], bark, 0.8);
+    for (const p of ROPES[half ?? 2]) {                                                                                 // ropes round the lot
+      B.line([P(p, 0.97, 0), P(p, 0.97, 0.94)], rope, 2);
+      B.line([P(p, 0.03, 0.94), P(p, 0.97, 0.94)], rope, 2);
     }
+    if (half === 0) return;
     for (const [a, c] of [[0.27, 0.235], [0.73, 0.235], [0.27, 0.705], [0.73, 0.705]]) {                               // the four sawn ends
       const ringAt = r => Array.from({ length: 12 }, (_, i) => at(a + Math.cos(i / 12 * TAU) * r, c + Math.sin(i / 12 * TAU) * r));
       B.patch(ringAt(0.225), "#D9B97F"); B.line(ringAt(0.225), "rgba(60,36,10,.6)", 1, true); B.line(ringAt(0.13), "rgba(120,80,30,.55)", 0.8, true); B.line(ringAt(0.05), "rgba(120,80,30,.55)", 0.8, true);
@@ -165,19 +173,19 @@ const DRAW = {
     for (const bar of GOLD_BARS) B.shape(GOLD_MARK.map(q => { const [x, z] = crownOn(bar, q); return A(0.5 + x, 0.5 + z, 0.995); }), "rgba(70,30,2,.85)");
   },
   // birch: six slender white logs in a pyramid, black dashes round the bark; seen from its end it is a triangle, not oak's square
-  8(B, A, hex, alongY) {
-    const H = 0.83, ink = "rgba(18,14,10,.8)";
-    const bottom = alongY ? [A(0.97, 0.03, 0), A(0.97, 0.97, 0)] : [A(0.03, 0.97, 0), A(0.97, 0.97, 0)];
-    const ridge = alongY ? [A(0.5, 0.03, H), A(0.5, 0.97, H)] : [A(0.03, 0.5, H), A(0.97, 0.5, H)];
+  8(B, A, hex, alongY, half) {
+    const H = 0.83, ink = "rgba(18,14,10,.8)", [s0, s1] = ALONG[half ?? 2], P = (s, t, c) => (alongY ? A(t, s, c) : A(s, t, c));
+    const bottom = [P(s0, 0.97, 0), P(s1, 0.97, 0)], ridge = [P(s0, 0.5, H), P(s1, 0.5, H)];
     // a point on the slope: e along the log (0 to 1), f up the slope (0 the foot, 1 the ridge)
     const slope = (e, f) => [0, 1].map(i => { const lo = bottom[0][i] + e * (bottom[1][i] - bottom[0][i]), hi = ridge[0][i] + e * (ridge[1][i] - ridge[0][i]); return lo + f * (hi - lo); });
     B.fill([bottom[0], bottom[1], ridge[1], ridge[0]], shade(hex, 0.97));
     for (const f of [0.34, 0.67]) B.line([slope(0, f), slope(1, f)], "rgba(70,58,40,.55)", 1);              // the three logs' backs
-    const end = (a, c) => (alongY ? A(a, 0.97, c) : A(0.97, a, c));
-    B.fill([end(0.03, 0), end(0.97, 0), end(0.5, H)], "#3A3226");
-    for (const rope of [0.22, 0.78]) B.line([slope(rope, 0), slope(rope, 1)], "#B99B64", 2);
+    const end = (a, c) => P(0.97, a, c);
+    if (half !== 0) B.fill([end(0.03, 0), end(0.97, 0), end(0.5, H)], "#3A3226");
+    for (const rope of ROPES[half ?? 2]) B.line([slope((rope - s0) / (s1 - s0), 0), slope((rope - s0) / (s1 - s0), 1)], "#B99B64", 2);
     const dashes = [[0.1, 0.08], [0.34, 0.12], [0.56, 0.05], [0.8, 0.1], [0.2, 0.4], [0.46, 0.45], [0.68, 0.38], [0.9, 0.42], [0.12, 0.74], [0.4, 0.78], [0.62, 0.72], [0.86, 0.8]];
     for (const [e, f] of dashes) B.line([slope(e, f), slope(e + 0.01, f + 0.15)], ink, 1.6);
+    if (half === 0) return;
     for (const L of BIRCH_LOGS) {
       const a = 0.5 + L.z, c = L.y + 0.5, ring = r => Array.from({ length: 12 }, (_, i) => end(a + Math.cos(i / 12 * TAU) * r, c + Math.sin(i / 12 * TAU) * r));
       B.shape(ring(L.r), shade(hex, 0.72)); B.shape(ring(L.r * 0.78), "#EAD6A6");
@@ -191,11 +199,11 @@ const DRAW = {
  * gives them): a cargo's number (1 to 8), or 0 for one under tarpaulin (`lit`: the piece picked out under it). `alongY`: a
  * bundle of timber lies along y. `detail` is the packing, left out where a whole stack is the size of a thumb.
  */
-function paintPiece(g, faces, ware, { lit = false, detail = true, alongY = false, tap = null } = {}) {
+function paintPiece(g, faces, ware, { lit = false, detail = true, alongY = false, half = null, tap = null } = {}) {
   if (tap) g.addEventListener("click", tap);
   const B = brush(g, detail);
   if (!ware) paintTarp(B, faces, lit);
-  else DRAW[ware](B, cellMap(faces), WARES[ware - 1].hex, alongY);
+  else DRAW[ware](B, cellMap(faces), WARES[ware - 1].hex, alongY, half);
 }
 /** A plain box under tarpaulin: grey on its faces, ropes across it. */
 function paintTarp(B, faces, lit) {
@@ -254,7 +262,6 @@ function stageFlat(cells, opts) {
   svg.style.setProperty("--aspect", frame.aspect.toFixed(3));
   const markKey = opts.mark ? `${opts.mark.x},${opts.mark.y},${opts.mark.z}` : null;
   const visible = opts.blank || markKey ? visibleSet(cells, b) : null;
-  const outlined = new Set([...(opts.marks || []), ...(opts.selected || [])]);
   if (!opts.small) ripples(svg, X, Y, b, to);
   quayEdge(svg, X, Y, b, to);
   for (let x = 0; x < X; x++) for (let y = 0; y < Y; y++) {        // the quay's floor
@@ -269,26 +276,30 @@ function stageFlat(cells, opts) {
       svg.appendChild(t);
     }
   }
+  const cubes = layout(cells, turns, frame);
+  const named = piecesNamed(cubes, [...(opts.marks || []), ...(opts.selected || []), ...(markKey ? [markKey] : [])]);
+  const ringPiece = opts.ring ? pieceKey(cubes.find(c => c.key === opts.ring) || {}) : null;
+  const markHidden = markKey && visible && !visible.has(markKey) ? markKey : null;
   const drops = opts.drop ? (opts.times ? { times: opts.times, last: 0 } : dropTimes(cells, opts.drop)) : { times: {}, last: 0 };
-  if (!opts.blank) for (const cube of drawOrder(cells)) {
-    const faces = Object.fromEntries(Object.entries(cubeFaces(cube.x, cube.y, cube.z, b)).map(([k, poly]) => [k, poly.map(to)])), key = `${cube.x},${cube.y},${cube.z}`;
-    const dim = (opts.highlight && cube.c !== opts.highlight) || (opts.tier != null && cube.z !== opts.tier);
-    const ringed = opts.ring === key;
+  if (!opts.blank) for (const cube of cubes) {
+    const key = cube.key, faces = cube.faces, piece = pieceKey(cube), long = !opts.grey && cube.half != null;
+    const dim = (opts.highlight && typeOf(cube.c) !== opts.highlight) || (opts.tier != null && cube.z !== opts.tier);
+    const ringed = ringPiece != null && piece === ringPiece;
     const g = el("g", { class: `cube${opts.drop ? " drop" : ""}`, "data-key": key });
     if (dim) g.setAttribute("opacity", 0.25);
     if (opts.drop) g.style.animationDelay = `${drops.times[key] - (opts.since || 0)}ms`;   // landed already, for a phone that comes in late
-    paintPiece(g, faces, opts.grey ? 0 : cube.c, { lit: ringed && opts.grey, detail: !opts.small, alongY: yawOf(cube, turns, !!opts.grey) !== 0, tap: opts.tap ? () => opts.tap(key) : null });
-    if ((markKey === key && (!visible || visible.has(key))) || outlined.has(key) || ringed) {
-      for (const name of ringed ? ["left", "right", "top"] : ["top"]) g.appendChild(el("polygon", { points: faces[name].map(q => q.map(n => n.toFixed(1)).join(",")).join(" "), fill: "none", stroke: "var(--ink)", "stroke-width": 3.5, "stroke-linejoin": "round", "pointer-events": "none" }));
+    paintPiece(g, faces, opts.grey ? 0 : typeOf(cube.c), { lit: ringed && opts.grey, detail: !opts.small, alongY: yawOf(cube, turns, !!opts.grey) !== 0, half: long ? cube.half : null, tap: opts.tap ? () => opts.tap(piece) : null });
+    if (!ringed && named.has(piece) && markHidden !== piece && (!long || cube.half === 1)) {          // a long log's outline is drawn once, round both its tops
+      const tops = cubes.filter(o => pieceKey(o) === piece).flatMap(o => o.faces.top);
+      g.appendChild(el("polygon", { points: pts(long ? hull(tops) : faces.top), fill: "none", stroke: "var(--ink)", "stroke-width": 3.5, "stroke-linejoin": "round", "pointer-events": "none" }));
+    } else if (ringed && cube.half == null) {                       // (a long log has the hexagon over the stack, below)
+      for (const name of ["left", "right", "top"]) g.appendChild(el("polygon", { points: pts(faces[name]), fill: "none", stroke: "var(--ink)", "stroke-width": 3.5, "stroke-linejoin": "round", "pointer-events": "none" }));
     }
     svg.appendChild(g);
   }
-  if (opts.ring) {                                                  // the marked piece's hexagon over the rest, through whatever stands in front
-    const at = drawOrder(cells).find(c => `${c.x},${c.y},${c.z}` === opts.ring);
-    if (at) {
-      const outline = hull(Object.values(cubeFaces(at.x, at.y, at.z, b)).flat().map(to)), d = `${pts(outline)}`;
-      for (const [stroke, width] of [["var(--yard)", 7], ["var(--ink)", 3.4]]) svg.appendChild(el("polygon", { points: d, fill: "none", stroke, "stroke-width": width, "stroke-linejoin": "round", "pointer-events": "none" }));
-    }
+  if (ringPiece != null) {                                          // the marked piece's hexagon over the rest, through whatever stands in front
+    const outline = hull(cubes.filter(c => pieceKey(c) === ringPiece).flatMap(c => Object.values(c.faces).flat()));
+    for (const [stroke, width] of [["var(--yard)", 7], ["var(--ink)", 3.4]]) svg.appendChild(el("polygon", { points: pts(outline), fill: "none", stroke, "stroke-width": width, "stroke-linejoin": "round", "pointer-events": "none" }));
   }
   panel.appendChild(svg);
   if (opts.appear) panel.classList.add("appear");
@@ -300,12 +311,13 @@ export function wareIcon(ware) {
   return is3d() ? icon3d(ware) : wareIconFlat(ware);
 }
 function wareIconFlat(ware) {
-  const b = boxFor(0), faces = cubeFaces(0, 0, 0, b), all = Object.values(faces).flat();
-  const xs = all.map(p => p[0]), ys = all.map(p => p[1]), minX = Math.min(...xs), minY = Math.min(...ys), k = 40 / Math.max(Math.max(...xs) - minX, Math.max(...ys) - minY);
-  const to = p => [(p[0] - minX) * k + 2, (p[1] - minY) * k + 2];
+  const b = boxFor(0), long = isLong(ware), parts = long ? [0, 1] : [null], at = x => cubeFaces(x, 0, 0, b);       // a long log: two cells along x
+  const all = parts.flatMap((_, x) => Object.values(at(x)).flat());
+  const xs = all.map(p => p[0]), ys = all.map(p => p[1]), minX = Math.min(...xs), minY = Math.min(...ys), w = Math.max(...xs) - minX, h = Math.max(...ys) - minY, size = Math.max(w, h), k = 40 / size;
+  const to = p => [(p[0] - minX + (size - w) / 2) * k + 2, (p[1] - minY + (size - h) / 2) * k + 2];
   const svg = el("svg", { viewBox: "0 0 44 44", class: "mf-icon", "aria-hidden": "true" });
   const g = el("g");
-  paintPiece(g, Object.fromEntries(Object.entries(faces).map(([n, poly]) => [n, poly.map(to)])), ware, { detail: true });
+  parts.forEach((half, x) => paintPiece(g, Object.fromEntries(Object.entries(at(x)).map(([n, poly]) => [n, poly.map(to)])), typeOf(ware), { detail: true, half }));
   svg.appendChild(g);
   return svg;
 }

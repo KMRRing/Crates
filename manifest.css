@@ -233,6 +233,7 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf
 .mf-key { display: grid; grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr)); gap: .25rem .4rem; padding: 0 .7rem .5rem; }
 .mf-key-cap { grid-column: 1 / -1; margin: 0; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); color: var(--mf-in); }
 .mf-key-item { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); align-items: center; gap: .3rem; min-width: 0; }
+.mf-key-item.long { grid-column: span 2; }                                  /* "Long oak": the name wants the room of two */
 .mf-key-icon :is(svg, canvas) { width: 1.6rem; height: 1.6rem; display: block; }
 .mf-key-text { display: grid; line-height: 1.1; min-width: 0; }
 .mf-key-text small { font-size: .6rem; font-weight: 700; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
