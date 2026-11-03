@@ -30,10 +30,10 @@ export default {
     return { fixed: fixedOf(run), layers: { marks: run.marks }, start: { ms: Math.round(run.ms), hints: run.hints || 0 } };
   },
 
-  /** The board to show, as a run: the page adds its own (undo, redo, the hint showing) and keeps the clock from `start`. */
+  /** The board to show, as a run: the page adds its own (undo, redo, the hint showing) and keeps the clock from `start`. Today's puzzle solved together stops being today's: it counts for nobody's daily, so the host run must not stand in for it. */
   run(board) {
     const f = board.fixed, done = onceOf(board, "done") || null;
-    return { v: 1, ...f, marks: board.layers.marks, hints: (board.start?.hints || 0) + tallyOf(board, "hints"), done: done ? { ms: done.ms, score: done.score } : null };
+    return { v: 1, ...f, mode: done && f.mode === "daily" ? "random" : f.mode, marks: board.layers.marks, hints: (board.start?.hints || 0) + tallyOf(board, "hints"), done: done ? { ms: done.ms, score: done.score } : null };
   },
 
   /** Once the shading is the answer, nothing else changes the marks. */

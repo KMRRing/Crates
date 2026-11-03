@@ -66,4 +66,6 @@ await commonSuite({ check, id: "hitori", adapter: coopOf, share: board, layer: "
   t.stop();
 }
 
+check(coopOf.run(coopOf.share({ [KEY]: JSON.stringify({ ...run, mode: "daily" }) })).mode === "daily" && coopOf.run({ ...coopOf.share({ [KEY]: JSON.stringify({ ...run, mode: "daily" }) }), once: { done: { ms: 5, score: 5 } } }).mode === "random", "today's puzzle solved together comes back as a plain puzzle: the host run must not use up their daily");
+
 done();
