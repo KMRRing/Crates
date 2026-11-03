@@ -11,6 +11,7 @@
 // front of the player shows what the all-at-once view hides and does the mental turn the turned question asks for.
 import { boxFor, isoPoint, dropTimes, visibleSet, LANDING } from "./manifest-engine.js";
 import { QUAY_DEPTH, frameOf, iconFrame, cameraOf, layout, packageAt, fall, yawOf } from "./manifest-model.js";
+import { hull } from "./manifest-shapes.js";
 import { onPause } from "./menu.js";
 
 // three.js is 580 KB: the game waits for it (the page asks `ready` before it draws a picture) but not for long, and a
@@ -95,6 +96,7 @@ function show(pic, now, img) {
   ctx.drawImage(img, 0, 0);
   ctx.globalAlpha = 1;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (spec.ring && !fx) ringOver(pic, k);
   const t = spec.label;
   if (t) {                                    // the tier a marked empty place is on, written on it
     const f = spec.frame;
@@ -102,6 +104,19 @@ function show(pic, now, img) {
     ctx.fillText(t.text, t.x * k, (t.y + f.room) * H / (f.H + f.room) + 6 * k);
   }
   pic.shownAt = now;
+}
+/** The marked piece's outline drawn over the picture, through whatever stands in front of it: a ring in the page's paper and ink
+ *  (3 November 2026: "I can't see the marked piece in this one"). */
+function ringOver(pic, k) {
+  const { ctx, spec, tk } = pic, f = spec.frame, sy = pic.canvas.height / (f.H + f.room), at = ([x, y]) => [x * k, (y + f.room) * sy];
+  ctx.save();
+  ctx.beginPath();
+  spec.ring.forEach((p, i) => { const [x, y] = at(p); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+  ctx.closePath();
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = `rgb(${tk.yard})`; ctx.lineWidth = 7 * k; ctx.stroke();
+  ctx.strokeStyle = `rgb(${tk.ink})`; ctx.lineWidth = 3.4 * k; ctx.stroke();
+  ctx.restore();
 }
 /** A few strokes of water lapping at the quay's foot, drifting and breathing. */
 function waves(pic, now, k) {
@@ -178,7 +193,9 @@ export function stage3d(cells, opts) {
   const hidden = !!opts.mark && (opts.blank || !visible.has(markKey));
   const tile = hidden ? { x: opts.mark.x, y: opts.mark.y } : null;
   const label = hidden ? (() => { const p = isoPoint(tile.x + 0.5, tile.y + 0.5, 0, b), [x, y] = frame.to([p.sx, p.sy]); return { x, y, text: `tier ${opts.mark.z + 1}` }; })() : null;
-  const spec = { X, Y, Z, b, frame, cam: cameraOf(frame, X, Y, Z, b), items, label, opts: { markTile: tile } };
+  const ringed = opts.ring ? items.find(it => it.key === opts.ring) : null;
+  const ring = ringed ? hull(Object.values(ringed.faces).flat()) : null;                // the piece's hexagon, drawn over the rest
+  const spec = { X, Y, Z, b, frame, cam: cameraOf(frame, X, Y, Z, b), items, label, ring, opts: { markTile: tile } };
 
   const panel = node("div", `mf-panel${opts.small ? " small" : ""}`);
   const canvas = node("canvas", opts.tap ? "tap" : "");

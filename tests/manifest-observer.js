@@ -2,7 +2,7 @@
 // showed, with every piece the view hid replaced by "unknown", and the rules, and must reach each question's answer. If it
 // can't, the question isn't answerable from what the player was shown, and the test fails. It shares nothing with the
 // engine's way of making the questions but the rules' tables.
-import { turn, turnKey, validate } from "../manifest-engine.js";
+import { turn, turnKey, validate, legendRows } from "../manifest-engine.js";
 import { room, deduceColumn, weightOf, worthOf } from "../manifest-rules.js";
 
 const key = (x, y, z) => `${x},${y},${z}`;
@@ -35,7 +35,7 @@ export function observe(R, o) {
     case "load": return M[q.cell.x][q.cell.y].slice(q.cell.z + 1).reduce((n, t) => n + (t ? weightOf(t) : 0), 0);
     case "fits": return room(M[q.cell.x][q.cell.y].filter(Boolean), q.put, limit);
     case "column": {
-      const col = M[q.cell.x][q.cell.y].slice(0, q.cell.z + 1), column = deduceColumn(col.map(t => t || null));
+      const col = M[q.cell.x][q.cell.y].slice(0, q.cell.z + 1), column = deduceColumn(col.map(t => t || null), R.level.types);
       return column ? column.reduce((n, t) => n + weightOf(t), 0) : null;
     }
     case "turned": return at(q.cell);
@@ -74,6 +74,26 @@ export function problems(R, label = "") {
     if (q.as === "ware" && (!q.options.includes(q.answer) || new Set(q.options).size !== q.options.length || q.options.length < 2)) say(o.type, "ware options");
     if (q.as === "stack" && (q.stacks.length !== 4 || new Set(q.stacks.map(s => JSON.stringify(s))).size !== 4 || q.stacks.some(s => validate(s, R.level.z).length))) say(o.type, "stack options");
     if (q.cell && !R.cells[q.cell.x][q.cell.y][q.cell.z]) say(o.type, "marks an empty place");
+    // a question about weights, worths or room carries its key on the prompt (Korbi, 3 November 2026), and the answer must be
+    // reachable from what is printed there alone: every piece of the stack is in it, and the sums come out of its numbers
+    if (["weight", "worth", "load", "column", "fits"].includes(o.type)) {
+      const rows = q.legend ? legendRows(q.legend) : null, col = o.type === "worth" ? "worth" : "w", M = masked(R);
+      if (!rows) say(o.type, "has no key on its prompt");
+      else {
+        const val = t => rows.find(r => r.id === t)?.[col];
+        if (!R.cells.flat(2).every(t => !t || val(t) != null)) say(o.type, "has a key missing a type that is in the stack");
+        if (o.type === "fits" && !(rows.find(r => r.id === q.put) && rows.every(r => r.bears != null && r.w != null))) say(o.type, "has a key without the weights and what each bears");
+        const sumOf = ts => ts.reduce((n, t) => n + val(t), 0);
+        const flat = [];
+        M.forEach((c, x) => c.forEach((row, y) => row.forEach((t, z) => { if (t) flat.push(t); })));
+        if (o.type === "weight" || o.type === "worth") { if (sumOf(flat) !== q.answer) say(o.type, "isn't the sum of the key's numbers over what was shown"); }
+        if (o.type === "load" && sumOf(M[q.cell.x][q.cell.y].slice(q.cell.z + 1).filter(Boolean)) !== q.answer) say(o.type, "isn't the sum of the key's numbers over what rests on the piece");
+        if (o.type === "column") {
+          const column = deduceColumn(M[q.cell.x][q.cell.y].slice(0, q.cell.z + 1).map(t => t || null), q.legend.types);
+          if (!column || sumOf(column) !== q.answer) say(o.type, "isn't the sum of the key's numbers over the deduced column");
+        }
+      }
+    }
     const got = observe(R, o);
     if (got === undefined) say(o.type, "has no observer");
     else if (!same(got, q.answer)) say(o.type, "isn't answerable from what the view showed: the observer reaches", JSON.stringify(got), "not", JSON.stringify(q.answer));

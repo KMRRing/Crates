@@ -15,7 +15,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 const fail = (...why) => { bad++; console.log("  ", ...why); };
 const key = (x, y, z) => `${x},${y},${z}`;
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-let orders = 0, rounds = 0;
+let orders = 0, rounds = 0, turnedAsked = 0;
 const byType = {}, byView = {};
 /** One round's fairness: as alone, or a team's (whose "you could see" is what any of them could see of their part). */
 function fair(a, b, seed, r, team = 0) {
@@ -52,7 +52,10 @@ function fair(a, b, seed, r, team = 0) {
     if (o.type === "turned") {
       const t = M.turn(a.cells, q.turns), [x, y, z] = q.at.split(",").map(Number);
       if (t[x][y][z] !== q.answer) fail("turned spot doesn't carry the ware", where);
+      // the grey stack is plain boxes: the marked piece must show enough of itself there, and the true stack's real shapes too
+      if (!M.clearSet(t, M.boxFor(q.turns), true).has(q.at)) fail("the turned question's marked piece isn't clearly in its picture (a grey stack of boxes)", where);
       if (!M.visibleSet(t, M.boxFor(q.turns)).has(q.at)) fail("turned spot can't be seen", where);
+      turnedAsked++;
     }
     if (o.type === "which") {
       const truth = M.turn(a.cells, q.turns);
@@ -67,7 +70,7 @@ function fair(a, b, seed, r, team = 0) {
       a.cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c !== back[x][y][z]) diffs.push(key(x, y, z)); })));
       if (diffs.length !== 1 || diffs[0] !== key(q.cell.x, q.cell.y, q.cell.z) || !a.seen.has(diffs[0])) fail("a change round should change one package you could see", where, diffs);
       if (M.turnKey(q.cell.x, q.cell.y, q.cell.z, X, Y, q.turns) !== q.answer) fail("change answer not where the package went", where);
-      if (!M.visibleSet(q.back, M.boxFor(q.turns)).has(q.answer)) fail("the changed package can't be seen when it's back", where);
+      if (!M.clearSet(q.back, M.boxFor(q.turns)).has(q.answer)) fail("the changed package can't be clearly seen when it's back", where);
     }
     if (o.type === "swap") {
       const diffs = [];
@@ -84,7 +87,7 @@ for (let seed = 1; seed <= 60; seed++) for (let r = 1; r <= M.ROUNDS; r++) {
   fair(a, M.makeRound(seed, r), seed, r);
   alone.set(`${seed}/${r}`, a);
 }
-check(bad === 0, `${rounds} rounds, ${orders} orders, all fair (${JSON.stringify(byType)}; views ${JSON.stringify(byView)})`);
+check(bad === 0 && turnedAsked > 40, `${rounds} rounds, ${orders} orders (${turnedAsked} of the stack seen from another side, each marked piece clearly in its own picture), all fair (${JSON.stringify(byType)}; views ${JSON.stringify(byView)})`);
 const L = [1, 4, 8, 12].map(M.levelOf);
 check(L.map(l => l.change).join() === ",ware,turned,swap", `change rounds 4, 8, 12: ${L.slice(1).map(l => l.change).join(", ")}`);
 // turning

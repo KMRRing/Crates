@@ -1,36 +1,36 @@
 // Manifest's cargo and the rules of stacking it, pure (no page): what each type weighs and is worth, what may stand on
 // what, and the checks and counts the engine's stacks, questions and tests are made of (docs/manifest.md).
 //
-// A cell holds a cargo type's number, 1 to 6, in the order the types enter the ladder; 0 is empty. Every piece fills its
-// cell, so what is hidden and what shows is the engine's business and the rules need only the columns: cells[x][y][z],
-// z from the quay up.
+// A cell holds a cargo type's number, in the order the types were made; 0 is empty. Every piece fills its cell, so what is
+// hidden and what shows is the engine's business and the rules need only the columns: cells[x][y][z], z from the quay up.
 //
 //   1. Support: a piece stands on the quay or on the piece below it. Nothing floats.
-//   2. What a top carries (CARRIES). The quay carries everything. Heavy goes low because of it, with no rule of its own.
+//   2. Heavy low, as a strict order (Korbi, 3 November 2026): ingots, then timber, crates, barrels, and a chest only as a
+//      top piece. A piece may stand on another only if that one weighs at least as much (CARRIES is made from the weights);
+//      a chest carries nothing, and a sack (soft, the lightest) is carried only by sacks. The quay carries everything.
 //   3. Load: the weight above a piece, up its whole column, may not pass what it bears.
 //   4. Logs cross: timber lies along x on an even tier and along y on an odd one (a turned stack swaps them), so timber
 //      on timber always crosses. A function of the tier: it needs no state and survives turning.
 
-/** The cargo, by type number minus one. `w` is weight in cwt (hundredweight), `worth` in marks, `top` the shape of its
- *  upper side, `bears` the most weight that may rest above it in its column, `stamp` what it is called on the tally. */
+/** The cargo, by type number minus one. `w` is weight in cwt (hundredweight; the weights are the stacking order), `worth`
+ *  in marks (not the order: a chest is worth the most of the six), `top` the shape of its upper side, `bears` the most
+ *  weight that may rest above it in its column. */
 export const CARGO = [
-  { id: 1, key: "crate", name: "Crate", plural: "crates", w: 2, worth: 4, top: "flat", bears: 4 },
-  { id: 2, key: "barrel", name: "Barrel", plural: "barrels", w: 3, worth: 6, top: "lid", bears: 6 },
-  { id: 3, key: "timber", name: "Timber", plural: "bundles of timber", w: 3, worth: 3, top: "round", bears: 9 },
-  { id: 4, key: "ingot", name: "Ingots", plural: "piles of ingots", w: 6, worth: 12, top: "flat", bears: 99 },
-  { id: 5, key: "chest", name: "Chest", plural: "chests", w: 4, worth: 20, top: "domed", bears: 0 },
+  { id: 1, key: "crate", name: "Crate", plural: "crates", w: 4, worth: 4, top: "flat", bears: 10 },
+  { id: 2, key: "barrel", name: "Barrel", plural: "barrels", w: 3, worth: 6, top: "lid", bears: 7 },
+  { id: 3, key: "timber", name: "Timber", plural: "bundles of timber", w: 6, worth: 3, top: "round", bears: 24 },
+  { id: 4, key: "ingot", name: "Ingots", plural: "piles of ingots", w: 8, worth: 12, top: "flat", bears: 99 },
+  { id: 5, key: "chest", name: "Chest", plural: "chests", w: 2, worth: 20, top: "domed", bears: 0 },
   { id: 6, key: "sack", name: "Sack", plural: "sacks", w: 1, worth: 2, top: "soft", bears: 2 },
 ];
 export const TYPES = CARGO.length;
 export const CRATE = 1, BARREL = 2, TIMBER = 3, INGOT = 4, CHEST = 5, SACK = 6;
+/** Whether a piece of type `u` may carry one of type `t`. */
+const carries = (u, t) => u !== CHEST && (u === SACK ? t === SACK : CARGO[u - 1].w >= CARGO[t - 1].w);
 /** What may stand directly on each type (the quay, 0, carries all). */
-export const CARRIES = { 1: [CRATE, SACK], 2: [BARREL, CRATE], 3: [TIMBER], 4: [CRATE, BARREL, TIMBER, INGOT, CHEST, SACK], 5: [], 6: [SACK] };
+export const CARRIES = Object.fromEntries(CARGO.map(u => [u.id, CARGO.filter(t => carries(u.id, t.id)).map(t => t.id)]));
 /** What may stand directly under each type: the quay (0) and the types that carry it. */
 export const UNDER = Object.fromEntries(CARGO.map(c => [c.id, [0, ...CARGO.filter(b => CARRIES[b.id].includes(c.id)).map(b => b.id)]]));
-
-/** The one type that can lie under a piece of type t above the first tier, or 0 where there's a choice: a chest or a
- *  pile of ingots can only stand on ingots, so what is under them is known without seeing it. */
-export const SOLE_UNDER = Object.fromEntries(CARGO.map(c => { const u = UNDER[c.id].filter(Boolean); return [c.id, u.length === 1 ? u[0] : 0]; }));
 
 export const weightOf = t => CARGO[t - 1].w;
 export const worthOf = t => CARGO[t - 1].worth;
@@ -60,19 +60,24 @@ export const loadAbove = (column, z) => sum(column.slice(z + 1), weightOf);
 
 /**
  * A column as the view showed it, from the quay up (a piece out of sight is null), with what the rules give away filled
- * in: a hidden piece under a piece that can only stand on one type is that type. Null when a hidden piece is left that
- * the rules can't name. The top (last) piece must be known.
+ * in: the hidden pieces are what the one way is that stands (support and load together) among `types`, the cargo in play;
+ * where two ways would, or none, the rules can't name them and it is null. The top (last) piece must be known.
  */
-export function deduceColumn(shown) {
-  const out = shown.slice();
-  if (!out.length || out[out.length - 1] == null) return null;
-  for (let z = out.length - 2; z >= 0; z--) {
-    if (out[z] != null) continue;
-    const sole = SOLE_UNDER[out[z + 1]];
-    if (!sole) return null;
-    out[z] = sole;
-  }
-  return out;
+export function deduceColumn(shown, types = CARGO.map(c => c.id)) {
+  if (!shown.length || shown[shown.length - 1] == null) return null;
+  const hidden = shown.flatMap((t, z) => (t == null ? [z] : []));
+  let found = null, count = 0;
+  const fill = (k, column) => {
+    if (count > 1) return;
+    if (k === hidden.length) {
+      if (column.every((t, z) => !z || CARRIES[column[z - 1]].includes(t)) && column.every((t, z) => loadAbove(column, z) <= CARGO[t - 1].bears)) { count++; found = column.slice(); }
+      return;
+    }
+    for (const t of types) { column[hidden[k]] = t; fill(k + 1, column); }
+    column[hidden[k]] = null;
+  };
+  fill(0, shown.slice());
+  return count === 1 ? found : null;
 }
 
 /** What is wrong with a stack, as a list of words (empty when every rule holds). `limit`: the tiers the quay allows. */

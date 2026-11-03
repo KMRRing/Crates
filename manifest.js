@@ -4,7 +4,7 @@
 // makes the rounds, manifest-art.js draws the packages and the quay; this file shows the rounds and takes the answers.
 // Together, a table of two to six plays the rounds in step, against each other or as one team (together.js carries
 // the room; the table's rules are the engine's last part).
-import { LIVES, ROUNDS, WARES, VIEWS, KINDS, makeRound, priceOf, skillFactor, recordAfter, shipBonus, turn,
+import { LIVES, ROUNDS, WARES, VIEWS, KINDS, legendRows, makeRound, priceOf, skillFactor, recordAfter, shipBonus, turn,
   LANDING, MODES, timeline, partCells, freshTable, isTable, stageOf, roundOf, partFor, livesOf, playing, repliesOf, firstOpen, waitingFor, sayReady, goOn, reply,
   ship as shipIn, settleIfDue, setNext, again, scoresOf, verdicts, resultOf, bonusAt } from "./manifest-engine.js";
 import { CARGO, CARRIES, UNDER } from "./manifest-rules.js";
@@ -237,6 +237,22 @@ function pictureFor(o) {
   if (q.cell && (q.as === "ware" || q.as === "number")) return stage(R.cells, { blank: true, mark: q.cell }).panel;     // a spot, or the piece or column a number asks about
   return null;
 }
+/** The key printed on a question about weights, worths or room: each cargo of the round, drawn as the question's own pictures
+ *  draw it, and the numbers its answer is made of (Korbi, 3 November 2026: "it doesn't tell you what weighs what"). */
+function keyOf(legend) {
+  const key = node("div", "mf-key"), has = c => legend.cols.includes(c);
+  key.append(node("p", "mf-key-cap", has("worth") ? "Each is worth, in marks" : has("bears") ? "Each weighs, and bears at most, in cwt" : "Each weighs, in cwt"));
+  for (const r of legendRows(legend)) {
+    const item = node("span", "mf-key-item"), text = node("span", "mf-key-text"), icon = node("span", "mf-key-icon");
+    icon.appendChild(wareIcon(r.id));
+    const figure = node("b", null, has("worth") ? r.worth : r.w);
+    if (has("bears")) figure.appendChild(node("i", null, r.bears >= 99 ? "bears all" : r.bears ? `bears ${r.bears}` : "bears 0"));
+    text.append(node("small", null, r.name), figure);
+    item.append(icon, text);
+    key.appendChild(item);
+  }
+  return key;
+}
 /** The question in hand, as a card with everything needed to answer it at a tap: the words and the price, its picture,
  *  its answers, and a way to pass it. */
 function askRow(o, i) {
@@ -244,9 +260,11 @@ function askRow(o, i) {
   const head = node("div", "mf-row-head");
   head.append(node("span", null, q.text), node("em", null, money(Math.round(S.prices[i] * S.bonus))));
   row.appendChild(head);
+  if (q.legend) row.appendChild(keyOf(q.legend));
   const body = node("div", "mf-row-body"), pic = pictureFor(o);
   if (pic) {
     body.classList.add("with-pic");
+    if (o.type === "turned") body.classList.add("big");          // the stack seen from another side gets the room: the marked piece must be found in it
     const frame = node("div", "mf-pic");
     frame.appendChild(pic);
     body.appendChild(frame);
@@ -1012,7 +1030,7 @@ function openMenu() {
 /** What each cargo weighs and is worth, what it carries and what it can stand on: the rules in a list, from the tables. */
 function showCargo() {
   const body = $("cargoBody"), nameOf = t => CARGO[t - 1].name.toLowerCase();
-  body.replaceChildren(node("p", "mf-cargo-intro", "A piece stands on the quay or on the piece below it. A column may carry only so much weight (cwt, hundredweight) above each piece. Timber lies in layers that cross."));
+  body.replaceChildren(node("p", "mf-cargo-intro", "A piece stands on the quay or on the piece below it. Heavy goes low: ingots, then timber, crates, barrels, and a chest only on top. A column may carry only so much weight (cwt, hundredweight) above each piece. Timber lies in layers that cross."));
   const list = node("div", "mf-cargo");
   for (const c of CARGO) {
     const row = node("div", "mf-cargo-row"), icon = node("div", "mf-cargo-icon"), text = node("div"), carries = CARRIES[c.id].map(nameOf), under = UNDER[c.id].filter(Boolean).map(nameOf);
