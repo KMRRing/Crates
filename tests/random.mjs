@@ -52,10 +52,11 @@ for (const id of ELIGIBLE) {
 check(!silent.length, `every game dealt calls roundOver when its round is over (${ELIGIBLE.length} games)${silent.length ? `: not ${silent.join(", ")}` : ""}`);
 check(!misnamed.length, `each names itself when it does${misnamed.length ? `: ${misnamed.join("; ")}` : ""}`);
 // a game left out says nothing: random mode never sends you there, so a call would do nothing (a game that says when its
-// round is over belongs in ROUNDS: Guilloché, once its rebuild calls it)
-const talking = Object.keys(LEFT_OUT).map(id => TILES.find(x => x.id === id)).filter(Boolean)
+// round is over belongs in ROUNDS). The Appendix's games are the exception: they were dealt until 3 November 2026 and keep
+// their calls, which do nothing while Random leaves them out, until each leaves for an app of its own
+const talking = Object.keys(LEFT_OUT).map(id => TILES.find(x => x.id === id)).filter(t => t && t.sec !== "appendix")
   .filter(t => ownFiles(t).some(f => /\b(?:roundOver|seatRounds)\(/.test(strip(fs.readFileSync(root + f, "utf8")))));
-check(!talking.length, `no game left out calls it${talking.length ? `: ${talking.map(t => t.id).join(", ")} (move each to ROUNDS in random-core.js, with what its round is)` : ""}`);
+check(!talking.length, `no game left out calls it (the Appendix's aside)${talking.length ? `: ${talking.map(t => t.id).join(", ")} (move each to ROUNDS in random-core.js, with what its round is)` : ""}`);
 
 // ---------- the pick ----------
 const seq = values => { let i = 0; return () => values[i++ % values.length]; };

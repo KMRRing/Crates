@@ -1,4 +1,4 @@
-// The hidden texts (README, Classics: Acrostic): the knowledge base's own words, read from kb/ as Origin and Arb read
+// The hidden texts (README, Classics: Acrostic): the knowledge base's own words, read from kb/ as Origin reads
 // it, never edited here. Each entry is a thing whose words can be hidden, in the forms they may take (a note in full or
 // cut where a reader pauses; a saying with or without its origin), each form with what its answers' first letters may
 // spell (the spine, most telling first), and what the reveal says once it's solved.

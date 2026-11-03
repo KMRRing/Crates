@@ -93,4 +93,14 @@ export const SOON = {
       "Needs: a number pad built into the page (a phone's own keyboard covers half the screen), a pause with the menu (README, The pause), a best per mode under `speedmaths:best`, and a daily set from `today()`.",
     ],
   },
+  speedfuels: {
+    name: "Fuel maths", sec: "appendix",
+    line: "Speed maths for the refining desk: the sums of a fuel price and a compliance ticket, typed against the clock, with the figures a trader would work out in his head.",
+    todo: [
+      "Added 3 November 2026 (Korbi, 2 November: Speed maths in two versions, a generic mercantile one in Puzzles and a fuel-pricing one for his refining work in the Appendix, with typed estimates accepted to one or two significant figures depending on the calculation). Its id is `speedfuels`; the name is a working name.",
+      "It is the second tile of one build: the engine, the number pad and the unit chains are Speed maths', and this version is a deck of fuel-pricing chains on top (barrels to tonnes by density, a carbon-intensity saving against a baseline in tonnes of CO2e, a ticket price into pounds a month), so it is built after Speed maths and not before.",
+      "What it needs of its own: the answer is accepted within a tolerance chosen per calculation (a barrel-to-tonne conversion to two significant figures, a margin to one), so each chain carries its tolerance and the page says when an answer is close enough; and a deck of chains written with the desk's own figures, reviewed by Korbi before they are dealt.",
+      "It lives in the Appendix, which Random and Start a game over leave out; when it is built it stays there until it leaves for an app of its own (README, The Appendix).",
+    ],
+  },
 };

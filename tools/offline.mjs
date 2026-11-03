@@ -1,5 +1,5 @@
 // What the app needs offline. Every page and everything it loads is kept on the device by sw.js (tools/build-sw.mjs
-// writes it with this list), so the whole app opens from the home screen with no connection. Origin, Arb, Lexicon
+// writes it with this list), so the whole app opens from the home screen with no connection. Origin, Almanac
 // and Order once read the knowledge base straight from kb/, which the list left out, so they never opened offline.
 //
 // The list is the pages and everything they reach, found by reading them (scripts, styles, imports, workers, fetches,

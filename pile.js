@@ -29,7 +29,8 @@ export function nextPile(game, pile) {
   const next = steps.find(s => s > pile);
   return next === undefined ? null : next;
 }
-export const GAMES = { punt: "Punt", quote: "Quote", chart: "Chart", crates: "Crates", rush: "Gambit", slate: "Slate", parley: "Parley", brut: "Brut",
+// brut: what Brut (retired, November 2026) put on the pile; its wine cards are Punt's Wine level now, and the key stays so those are still asked
+export const GAMES = { punt: "Punt", quote: "Quote", chart: "Chart", crates: "Crates", rush: "Gambit", slate: "Slate", parley: "Parley", brut: "Wine",
   nonogram: "Nonogram", isomer: "Isomer", lode: "Lode", crossword: "Crossword", nexus: "Nexus" };
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };

@@ -54,7 +54,8 @@ export const SIZE_IDS = Object.keys(SIZES).map(Number);
  * What a grid's entries are: ordinary words alone (Classic), the knowledge base's alone (Lexicon: every answer a thing
  * Lexicon knows, clued by one of its links), or a few of the knowledge base's among ordinary words (Both).
  */
-export const KINDS = { classic: "Classic", lexicon: "Lexicon", both: "Both" };
+// (the menu says Almanac since the Lexicon became one; the id stays lexicon, so a saved kind opens as it did)
+export const KINDS = { classic: "Classic", lexicon: "Almanac", both: "Both" };
 /** A kind as saved: "learning" was the kind before Lexicon (October 2026), as many knowledge entries as a grid took,
  *  apart, among ordinary words; Lexicon is what it was asked to be. */
 export const kindOf = k => (k === "learning" ? "lexicon" : KINDS[k] ? k : "both");

@@ -15,14 +15,10 @@ export const ROUNDS = {
   origin: "a run of five countries, its last one decided",
   order: "a run, its last card placed or its lives gone",
   chart: "a set, its last pin in",
-  arb: "a run of five routes, its last one decided",
   nexus: "a run of five rounds, its last one checked",
   crossword: "a grid, solved or revealed",
   // Courses
   calibre: "a level, its movement running",
-  blend: "an order certified, or a desk's tanks closed",
-  refinery: "a level, its plant run to more stars than it had",
-  brut: "a flight of six wines named, or a study session",
   parley: "a study session",
   // Puzzles
   glyph: "a board, solved or given up",
@@ -64,7 +60,6 @@ export const ROUNDS = {
   drift: "a game over",
   slipway: "a part carved to a star, or an assembly that holds",
   loom: "a cloth woven",
-  guilloche: "a plate, every zone cut true",
   reckoning: "a run over (the hearts gone)",
   // Board & card games: a hand where the game is dealt hand by hand, else a game
   cartel: "a game",
@@ -84,27 +79,25 @@ export const ROUNDS = {
   contract: "a deal",
   bones: "a hand",
   factor: "a game",
-  dandan: "a game",
-  // Casino
-  baccarat: "a coup",
-  blackjack: "a hand",
-  roulette: "a spin",
-  sicbo: "a roll",
-  craps: "a pass line decided: a come-out's natural or craps, the point made, or a seven out",
-  holdem: "a hand",
 };
+
+const APPENDIX = "in the Appendix: set aside until it leaves for an app of its own";
 
 /** The games random mode leaves out, and why. Party's own games (`party: true` in apps.js: they open Party) are out
  *  without a word here; every other game on the games screen is in ROUNDS or here (tests/random.mjs checks). */
 export const LEFT_OUT = {
-  lexicon: "the knowledge base to look things up in, not a game",
+  // the Appendix (Korbi, 3 November 2026: it stays out of Random and of Start a game over): set aside until each leaves for an
+  // app of its own, so Random never sends you there; the games keep their roundOver calls, which do nothing meanwhile
+  blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
+  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX,
+  lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   ledger: "the record of how well you learn, not a game",
   party: "a room for people round a table, each on their own phone",
   cue: "a word to act, draw or describe for the people round you",
   quest: "hidden loyalties, a game for people round a table (Party's section)",
   timegrapher: "an instrument, not a game",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
-  stone: "not built yet", tarot: "not built yet", solitaire: "not built yet", silo: "not built yet", ingot: "not built yet", flank: "not built yet", crown: "not built yet", cargo: "not built yet", speedmaths: "not built yet",
+  stone: "not built yet", tarot: "not built yet", solitaire: "not built yet", silo: "not built yet", ingot: "not built yet", flank: "not built yet", crown: "not built yet", cargo: "not built yet", speedmaths: "not built yet", speedfuels: "not built yet",
 };
 
 /** Every game random mode can deal, in the order above. */

@@ -1,5 +1,5 @@
 // Every page opens offline, from the home screen too. The service worker (sw.js, written by tools/build-sw.mjs) keeps
-// every file a page loads (tools/offline.mjs finds them); Origin, Arb, Lexicon and Order once imported the knowledge
+// every file a page loads (tools/offline.mjs finds them); Origin, Almanac and Order once imported the knowledge
 // base straight from kb/, which the list left out, so on a phone with no connection they never opened. Checked here:
 // nothing a page loads is missing or left out; a load whose path is built as the code runs is one accounted for
 // below; and the service worker itself, run against a stand-in for the browser's caches and the network: what an
@@ -39,8 +39,8 @@ check(!missing.length, missing.length ? `every file a page loads is there: missi
 const left = [...reached.keys()].filter(f => !listed.has(f));
 check(!left.length, left.length ? `everything a page reaches is kept offline: not ${left.join(", ")}` : `everything the pages reach is kept offline (${files.length} files)`);
 const kb = ["kb/entities.js", "kb/links.js", "kb/items/sequences.js"].filter(f => !listed.has(f));
-check(!kb.length && ["origin.js", "arb.js", "lexicon.js", "order.js"].every(f => reached.has(f)),
-  "Origin, Arb, Lexicon and Order open offline: the knowledge base they import (kb/entities.js, kb/links.js, kb/items/sequences.js) is kept");
+check(!kb.length && ["origin.js", "almanac.js", "order.js"].every(f => reached.has(f)),
+  "Origin, Almanac and Order open offline: the knowledge base they import (kb/entities.js, kb/links.js, kb/items/sequences.js) is kept");
 const banks = fs.readdirSync(ROOT).filter(f => f.endsWith("-bank.js") || f === "bank.js"), puzzles = fs.readdirSync(ROOT + "puzzles").map(f => `puzzles/${f}`);
 check([...banks, ...puzzles].every(f => listed.has(f)), `every knowledge bank (${banks.length}) and every puzzle band (${puzzles.length}) is kept, whichever a game asks for`);
 check(!files.some(f => /^(tests|tools)\//.test(f) || f === "sw.js") && !files.some(f => f.startsWith("kb/") && !reached.has(f)),

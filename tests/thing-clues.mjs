@@ -1,8 +1,8 @@
-// The clue ladder (thing-clues.js): what Nexus and Arb offer for a thing you don't know. From vague to specific, built from the
+// The clue ladder (thing-clues.js): what Nexus offers for a thing you don't know. From vague to specific, built from the
 // knowledge base's own words, never naming what the caller hides, and there for nearly every thing a round starts from.
 import { clueLines, whatIs, pictureOf, whatCard } from "../thing-clues.js";
 import { CENTRES, name } from "../nexus-engine.js";
-import { ENDS } from "../arb-engine.js";
+import { ABOUT } from "../kb-things.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -25,14 +25,11 @@ check(whatIs("equinor") === "company" && whatIs("mona-lisa") === "painting" && w
   check(clueLines("nothing-like-this").length === 0, "an unknown thing has no clues");
 }
 {
-  // coverage: the things Nexus starts from and Arb's routes end at
+  // coverage: the things Nexus starts from
   let some = 0, two = 0, leaks = 0;
   for (const c of CENTRES) { const l = clueLines(c, [name(c)]); if (l.length) some++; if (l.length >= 2) two++; if (name(c).length >= 3 && l.some(t => new RegExp(`(?<![\\p{L}\\p{N}])${name(c).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, "iu").test(t))) leaks++; }
   check(some === CENTRES.length && !leaks, `every Nexus centre has a clue, and none names itself when it is hidden (${CENTRES.length})`);
   check(two / CENTRES.length > 0.9, `${Math.round((100 * two) / CENTRES.length)}% of Nexus centres have two clues or more (the rest, mostly painters and plain commodities, say only what they are)`);
-  let ends = 0;
-  for (const id of ENDS) if (clueLines(id).length >= 2) ends++;
-  check(ends / ENDS.length > 0.9, `${Math.round((100 * ends) / ENDS.length)}% of the things a route can start or end at have two clues or more (${ENDS.length})`);
   const pics = CENTRES.filter(c => pictureOf(c));
   check(pics.length > 100 && pictureOf("burj-khalifa") === "Burj Khalifa", `${pics.length} centres have a picture`);
 }
@@ -44,7 +41,7 @@ check(whatIs("equinor") === "company" && whatIs("mona-lisa") === "painting" && w
 {
   // asking for a description is "not known" for Deck: one card per thing, answerable, and the right option never the odd one out
   let made = 0, bad1 = 0, bad2 = 0, bad3 = 0, bad4 = 0, again = 0;
-  for (const id of [...CENTRES, ...ENDS.slice(0, 600)]) {
+  for (const id of [...CENTRES, ...[...ABOUT.keys()].sort().filter((_, i) => i % 12 === 0).slice(0, 600)]) {
     const c = whatCard(id);
     if (!c) continue;
     made++;

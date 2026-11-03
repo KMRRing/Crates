@@ -10,6 +10,7 @@
 // the same for everyone at the table.
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
 import { GEO } from "./chart-geo.js";
+import { TOPIC_OF, mixFromSubjects } from "./topics.js";
 import { PLACES } from "./nonogram-regions.js";
 import { MATHS as FLAG_QUESTIONS } from "./flags-bank.js";
 import { FLAGS, COLOURS, COLOUR_NAMES, rasterFlag } from "./nonogram-flags.js";
@@ -122,6 +123,11 @@ export function puzzleFrom(cov0, w0, h0, { flips = 10, colours = 1, short = 1 } 
 
 // ---------- what there is to draw ----------
 export const TOPICS = { countries: "Countries", flags: "Flags", lakes: "Lakes", regions: "Regions" };
+/** The kinds as [id, label] pairs, and the mix the suite's subjects (Settings; topics-on.js) make of them: a kind in when its
+ *  subject is on (countries, flags and regions are Geography, lakes Nature). Only "All" follows it; a kind picked in the
+ *  menu is dealt whatever Settings says, and nothing on leaves every kind in. */
+export const TOPIC_LIST = Object.entries(TOPICS);
+export const topicsOf = on => mixFromSubjects(TOPIC_LIST, TOPIC_OF.nonogram, on);
 export const REGIONS = [["world", "Worldwide"], ["europe", "Europe"], ["middle-east", "Middle East"], ["asia", "Asia"], ["africa", "Africa"],
   ["north-america", "North America"], ["south-america", "South America"], ["oceania", "Oceania"]];
 const REGION_ID = Object.fromEntries(REGIONS.map(([id, label]) => [label, id]));
@@ -280,8 +286,11 @@ export function rng(seed) {
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 const shuffle = (rand, xs) => { const a = xs.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-/** The pictures of a topic ("all" for every kind) in a region ("world" for all of them); on hexes, no flags. */
-export const poolOf = (topic, region, grid = "square") => PICTURES.filter(p => (topic === "all" || p.topic === topic) && (region === "world" || p.regions.includes(region)) && !(grid === "hex" && p.topic === "flags"));
+/** The pictures of a topic ("all" for every kind, less those `mix` has out) in a region ("world" for all of them); on hexes, no flags. */
+export const poolOf = (topic, region, grid = "square", mix = null) => {
+  const kinds = mix && Object.values(mix).some(w => w > 0) ? p => mix[p.topic] > 0 : () => true;
+  return PICTURES.filter(p => (topic === "all" ? kinds(p) : p.topic === topic) && (region === "world" || p.regions.includes(region)) && !(grid === "hex" && p.topic === "flags"));
+};
 
 /**
  * How a due picture (learning mode's `prefer`) is dealt: a picture you couldn't name used to be put first at every deal
@@ -296,9 +305,10 @@ export const PREFER_SHARE = 0.5, HOLD_BACK = 6;
  * those due again or weak elsewhere (`prefer`, in order) first when this deal offers one, then those not dealt lately in
  * a random order (by `rand`), then the rest, longest ago first so the pool comes round in turn; the first that makes a
  * puzzle at this size (and grid) of the band asked ("any" for all), or failing that the nearest band (nearest: true).
+ * `mix` (topicsOf the subjects on) leaves out the kinds Settings has out when the topic is "all".
  */
-export function dealPicture({ topic = "countries", region = "world", size = "medium", band = "any", grid = "square", seen = [], prefer = [], share = PREFER_SHARE, rand = Math.random } = {}) {
-  const pool = poolOf(topic, region, grid);
+export function dealPicture({ topic = "countries", region = "world", size = "medium", band = "any", grid = "square", mix = null, seen = [], prefer = [], share = PREFER_SHARE, rand = Math.random } = {}) {
+  const pool = poolOf(topic, region, grid, mix);
   if (!pool.length) return null;
   const ids = new Set(pool.map(p => p.id)), lately = new Set(seen), held = new Set(seen.slice(0, HOLD_BACK));
   // the draw is only made when there is something due, so a deal without (a day's picture) is the same as ever

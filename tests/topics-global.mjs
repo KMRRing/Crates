@@ -11,6 +11,7 @@ const C = await import("../chart-engine.js");
 const L = await import("../lots-engine.js");
 const P = await import("../punt-gen.js");
 const K = await import("../core.js");
+const N = await import("../nonogram-pictures.js");
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -20,7 +21,7 @@ check(T.SUBJECTS.length === ids.size && T.SUBJECTS.length === 23, "23 subjects, 
 check(Object.values(T.TOPIC_OF).every(m => Object.values(m).every(id => ids.has(id))), "every subject a game names is one of the 23");
 
 const lists = {
-  kb: [...T.KB_TOPICS.country, ...T.KB_TOPICS.commodity], quote: Q.TOPICS, chart: C.TOPICS, lots: L.TOPICS, punt: P.TOPIC_LIST,
+  kb: [...T.KB_TOPICS.country, ...T.KB_TOPICS.commodity], quote: Q.TOPICS, chart: C.TOPICS, lots: L.TOPICS, punt: P.TOPIC_LIST, nonogram: N.TOPIC_LIST,
 };
 for (const [game, list] of Object.entries(lists)) {
   const map = T.TOPIC_OF[game], missing = list.filter(([id]) => !map[id]).map(([id]) => id), extra = Object.keys(map).filter(id => !list.some(([x]) => x === id));

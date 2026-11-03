@@ -2,8 +2,7 @@
 // each drawn as the yarn that lies over the other. A pick's clue sits at the left of its row in the colour of its weft, a
 // thread's above its column in the colour of its warp, and gold's floats in gilt among them. The page (loom.js) takes the
 // fingers; this file only draws and says which crossing a pointer is on.
-import { YARNS } from "./loom-engine.js";
-import { GOLD_YARN } from "./loom-levels.js";
+import { YARNS, GOLD_YARN } from "./loom-levels.js";
 import { WARP, WEFT, GOLD, fixed, lineMet } from "./loom-float.js";
 import { scale } from "./wide.js";
 

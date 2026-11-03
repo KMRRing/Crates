@@ -28,7 +28,7 @@ export const LEVELS = {
   cities: { label: "Cities", questions: 15, maths: true, bank: "./cities-bank.js", note: "Capitals, which country a city is in, and what a city is known for: ports, refineries, exchanges, companies, culture. 1–3 is common knowledge, 5 and up is for traders." },
   flags: { label: "Flags", questions: 15, maths: true, bank: "./flags-bank.js", note: "1–3 are flags everyone knows, 9 the Pacific micro-states. Distractors come from the same region." },
   patterns: { label: "Patterns", questions: 15, maths: true, bank: "./patterns-bank.js", note: "1–3 are counting and squares, 7 and up need two steps or a trick." },
-  wine: { label: "Wine", questions: 15, maths: true, bank: "./wine-bank.js", note: "Brut's cards: 1–3 is what any wine list assumes, 6 and up is for the trade." },
+  wine: { label: "Wine", questions: 15, maths: true, bank: "./wine-bank.js", note: "1–3 is what any wine list assumes, 6 and up is for the trade." },
   art: { label: "Art", questions: 15, maths: true, bank: "./art-bank.js", note: "Paintings shown as pictures: who, where, which movement; and the art world's stories." },
   economics: { label: "Economics", questions: 15, maths: true, bank: "./eco-bank.js", note: "Markets with their diagrams, macro and money, trade and finance, the ideas." },
   physics: { label: "Physics", questions: 15, maths: true, bank: "./phy-bank.js", note: "Motion and energy, electricity and waves, heat and nuclei, the modern picture." },

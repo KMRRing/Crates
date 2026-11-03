@@ -1,7 +1,8 @@
-// Lexicon: everything the games know, looked up. Search any entity in the knowledge base (a country, a company, a
+// Almanac: everything the games know, looked up. Search any entity in the knowledge base (a country, a company, a
 // painting, a river, a law…) and see what it is (its kinds and the topics its links touch), what's said about it (its
 // note, a painting's maker and home, the numbers Quote knows about it) and everything it's linked to, each with the
 // reason, one tap from its own entry. #e=<id> opens an entry, so the browser's back button walks back through them.
+// It was Lexicon until 2 November 2026: its id, `lexicon`, stays, so saved state and Random's lists are as they were.
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
 import { QUOTES } from "./quote-bank.js";
