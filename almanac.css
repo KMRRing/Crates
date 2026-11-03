@@ -55,6 +55,9 @@
 .sk-msg[hidden] { display: none; }
 .sk-msg b { font-size: 1rem; }
 .sk-msg .ld { width: 2rem; height: 2rem; }
+.sk-msg .btn { margin: .2rem 0 0; background: rgba(6, 12, 20, .72); color: #ece5d2; border-color: rgba(255, 255, 255, .28); }
+/* while the stage has words in place of a sky (laying out, no WebGL), there is nothing for the tools to do */
+.sk-stage:has(.sk-msg:not([hidden])) .sk-tools { visibility: hidden; }
 /* over the sky, from the bottom (the subjects) or the top (what a search found) */
 .sk-panel { position: absolute; left: 0; right: 0; z-index: 2; background: color-mix(in srgb, var(--sheet) 96%, transparent); color: var(--ink); border: 1.5px solid var(--brass);
   border-radius: 6px; padding: .6rem .7rem; box-shadow: 0 .6rem 1.6rem rgba(0, 0, 0, .35); overflow-y: auto; overscroll-behavior: contain; }
