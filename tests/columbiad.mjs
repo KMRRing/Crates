@@ -91,10 +91,10 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
   let mono = true, prev = -1;
   for (let b = 0; b <= E.BARRELS; b += 0.05) { const v = E.speedOf(b); if (v < prev) mono = false; prev = v; }
   const band = [];
-  for (let b = 0; b <= E.BARRELS; b += 0.01) { const f = E.speedOf(b) / E.V_ESC; if (f >= 0.985 && f <= 0.995) band.push(b); }
+  for (let b = 0; b <= E.BARRELS; b += 0.01) { const f = E.speedOf(b) / E.V_ESC; if (f >= 0.975 && f <= 0.987) band.push(b); }
   const mid = (E.speedOf(8.1) - E.speedOf(8)) / E.V_ESC * 100;
-  check(E.speedOf(0) === 0 && mono && near(E.speedOf(E.BARRELS) / E.V_ESC, 1.003, 0.001), "the dial runs from nothing to just over escape speed and never goes down");
-  check(band.length >= 80, `the Moon's band, 0.985 to 0.995 of escape speed, takes ${(band.length * 0.01).toFixed(2)} of the dial's ${E.BARRELS} barrels: the top is stretched`);
+  check(E.speedOf(0) === 0 && mono && near(E.speedOf(E.BARRELS) / E.V_ESC, 0.994, 0.001), "the dial runs from nothing to just over the speed a shell leaves the Earth at (0.990 of v_esc from 0.02 above the ground) and never goes down");
+  check(band.length >= 120, `the Moon's band, 0.975 to 0.987 of escape speed (far points 35 to 130 Earth radii), takes ${(band.length * 0.01).toFixed(2)} of the dial's ${E.BARRELS} barrels: the top is stretched`);
   check(near(E.speedOf(E.chargeFor(60)), 60, 1e-6) && mid > 0.5 && mid < 1.2, `…and the middle stays fine (a tenth of a barrel there is ${mid.toFixed(2)} per cent of escape speed)`);
   check(E.clampAim(base, { angle: 91.234, charge: 7.236 }).angle === 91.25 && E.clampAim(base, { angle: 91.234, charge: 7.236 }).charge === 7.24 && E.clampAim(base, { angle: -40, charge: 99 }).angle === 0 && E.clampAim(base, { angle: 250, charge: -3 }).charge === 0, "an aim is kept in its steps (0.05 degree, 0.01 barrel) and never points into the ground");
 }

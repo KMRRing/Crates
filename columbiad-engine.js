@@ -70,14 +70,17 @@ export function normal(seed, k) {
 export const DRAWS = 24;
 
 // ---------- the charge dial: barrels of powder to muzzle speed ----------
-// Monotone and stretched near the top, where a shell to the Moon needs 0.99 of escape speed: knots in barrels and in
-// escape speeds, joined by a monotone cubic (Fritsch-Carlson), evaluated by arithmetic alone.
+// Monotone, and stretched where the Moon is. The shell starts 0.02 above the ground, which is worth about a hundredth of the escape
+// speed, so a radial shot with its far point at the Moon's distance (60 R) leaves at 0.981 of v_esc and the shell escapes from
+// 0.990: the Moon's band is 0.975 to 0.987, and the dial gives it from 14.3 to 15.7 barrels (a hundredth of a barrel moves a far
+// point 0.5 to 1 R at 60 R). Knots in barrels and in escape speeds, joined by a monotone cubic (Fritsch-Carlson), evaluated by
+// arithmetic alone. Up to 13.5 barrels the dial is the first milestone's, to the bit, so the Earth-only levels' stored shots stand.
 export const BARRELS = 16;
-const KNOT_B = [0, 2, 4, 6, 8, 10, 12, 13.5, 14.5, 15.5, 16];
-const KNOT_S = [0, 0.14, 0.29, 0.43, 0.57, 0.71, 0.855, 0.955, 0.985, 0.997, 1.003];
-const KNOT_M = (() => {
-  const n = KNOT_B.length, d = [], m = new Array(n).fill(0);
-  for (let i = 0; i < n - 1; i++) d.push((KNOT_S[i + 1] - KNOT_S[i]) / (KNOT_B[i + 1] - KNOT_B[i]));
+const KNOT_B = [0, 2, 4, 6, 8, 10, 12, 13.5, 14, 14.5, 15, 15.5, 15.8, 16];
+const KNOT_S = [0, 0.14, 0.29, 0.43, 0.57, 0.71, 0.855, 0.955, 0.970, 0.9775, 0.9809, 0.9838, 0.9868, 0.994];
+const slopes = (B, S) => {
+  const n = B.length, d = [], m = new Array(n).fill(0);
+  for (let i = 0; i < n - 1; i++) d.push((S[i + 1] - S[i]) / (B[i + 1] - B[i]));
   m[0] = d[0]; m[n - 1] = d[n - 2];
   for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
   for (let i = 0; i < n - 1; i++) {
@@ -85,6 +88,13 @@ const KNOT_M = (() => {
     const a = m[i] / d[i], b = m[i + 1] / d[i], h = a * a + b * b;
     if (h > 9) { const t = 3 / Math.sqrt(h); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
   }
+  return m;
+};
+const KNOT_M = (() => {
+  const m = slopes(KNOT_B, KNOT_S);
+  // the first milestone's knots, for the slopes up to 13.5 barrels (they depend on the neighbours, so the new tail would change them)
+  const old = slopes([0, 2, 4, 6, 8, 10, 12, 13.5, 14.5, 15.5, 16], [0, 0.14, 0.29, 0.43, 0.57, 0.71, 0.855, 0.955, 0.985, 0.997, 1.003]);
+  for (let i = 0; i <= 7; i++) m[i] = old[i];
   return m;
 })();
 /** Muzzle speed (Earth radii a second) for a charge of b barrels. */
@@ -133,14 +143,25 @@ export function bodyAt(lvl, i, t) {
   unit(turnsOf(b, t));
   return [b.cx + b.a * UX, b.cy + b.a * UY];
 }
-/** Where the target is at time t: [x, y]. A target is { at: [x, y], r } or on a body: { body: id, off: [dx, dy], r }. */
-export function targetAt(lvl, t) {
-  const tg = lvl.target;
-  if (!tg) return null;
+/** Whether a ring moves: it is on a body or on a rail of its own. */
+const rides = tg => tg.body != null || !!tg.rail;
+/**
+ * Where a ring is at time t: [x, y]. A ring is { at: [x, y], r }, or on a body { body: id, off: [dx, dy], r }, or on a rail of
+ * its own { rail: { a, T, phase (turns), about: [x, y] }, r } (a beacon).
+ */
+export function ringAt(lvl, tg, t) {
+  if (tg.rail) {
+    const rl = tg.rail, T = rl.T ?? 1, k = t / T;
+    unit((rl.phase ?? 0) + (k - Math.floor(k)));
+    const c = rl.about || [0, 0];
+    return [c[0] + rl.a * UX, c[1] + rl.a * UY];
+  }
   if (tg.body == null) return tg.at;
   const w = worldOf(lvl), i = w.bodies.findIndex(b => b.id === tg.body), p = bodyAt(lvl, i, t), o = tg.off || [0, 0];
   return [p[0] + o[0], p[1] + o[1]];
 }
+/** Where the target is at time t: [x, y]. */
+export function targetAt(lvl, t) { return lvl.target ? ringAt(lvl, lvl.target, t) : null; }
 
 // ---------- the integrator ----------
 let AX = 0, AY = 0, SMIN = 0;
@@ -185,13 +206,17 @@ function nearest(p0x, p0y, dx, dy) {
  *   o.sample { out, n, t1 }: positions at n+1 equal times from the start to t1 into out (x, y pairs); after the flight ends it holds its last place.
  *   o.watch: keep flying after the target is entered, to the ring's far side (so the closest approach is known); default true.
  * Returns { end: "through" | "impact" | "lost" | "time", body (what it landed on), t, x, y, vx, vy, hit (the first entry into
- * the target ring: { t, x, y, vx, vy, speed (relative to the target) }, or null), won, near (the closest the shell came to the
+ * the target ring: { t, x, y, vx, vy, speed (relative to the target), ok (the arrival condition met) }, or null), won, gates (how many
+ * gates of a gated goal were passed in order), sweep (radians swept round the body of an orbit goal), near (the closest the shell came to the
  * target's centre, whole flight), core (the closest approach inside the ring, in rings: 0 the middle, 1 the edge), path
  * (Float64Array of t, x, y triples), length (travelled), steps }.
  */
 export function fly(lvl, ini, o = {}) {
   const w = worldOf(lvl), tg = lvl.target, goal = lvl.goal || { type: "hit" };
-  const tMax = o.tMax ?? lvl.tMax ?? 1.2, bound = o.bounds ?? lvl.bounds ?? 16, bound2 = bound * bound, ring = tg ? tg.r : 0;
+  const tMax = o.tMax ?? lvl.tMax ?? 1.2, bound = o.bounds ?? lvl.bounds ?? 16, bound2 = bound * bound, dtMax = o.dtMax ?? DT_MAX;
+  // the rings to pass: the target; or, for gates and a free return, the gates in order (the last is the target)
+  const gated = goal.type === "gates" || goal.type === "return", rings = gated ? lvl.gates : tg ? [tg] : [], orbit = goal.type === "orbit" ? { i: w.bodies.findIndex(b => b.id === goal.body), rmax: goal.rmax, need: goal.sweep * 0.017453292519943295 } : null;
+  let gi = 0, cur = rings[0] || tg || null, ring = cur ? cur.r : 0, swp = 0;
   let x = ini.x, y = ini.y, vx = ini.vx, vy = ini.vy, t = ini.t || 0;
   const t0 = t, tEnd = t0 + tMax;
   let hit = null, inside = false, core = Infinity, near = Infinity, end = "time", body = null, length = 0, steps = 0;
@@ -200,8 +225,8 @@ export function fly(lvl, ini, o = {}) {
   const smp = o.sample, sdt = smp ? smp.t1 / smp.n : 0;
   let sk = 0;
   if (smp) { smp.out[0] = x; smp.out[1] = y; sk = 1; }
-  let tgx = 0, tgy = 0;
-  if (tg) { const p = targetAt(lvl, t); tgx = p[0]; tgy = p[1]; }
+  let tgx = 0, tgy = 0, wasIn = false;
+  if (cur) { const p = ringAt(lvl, cur, t); tgx = p[0]; tgy = p[1]; wasIn = (x - tgx) * (x - tgx) + (y - tgy) * (y - tgy) < ring * ring; }
   const moving = w.moving, bx0 = new Float64Array(w.n * 2), bx1 = moving ? new Float64Array(w.n * 2) : bx0;
   const place = (arr, tt) => { for (let i = 0; i < w.n; i++) { const b = w.bodies[i]; if (b.rail) { unit(turnsOf(b, tt)); arr[2 * i] = b.cx + b.a * UX; arr[2 * i + 1] = b.cy + b.a * UY; } else { arr[2 * i] = b.x; arr[2 * i + 1] = b.y; } } };
   place(bx0, t);
@@ -209,7 +234,7 @@ export function fly(lvl, ini, o = {}) {
     accel(w, t, x, y);
     const k1x = vx, k1y = vy, k1vx = AX, k1vy = AY, v = Math.sqrt(vx * vx + vy * vy);
     let h = v > 1e-9 ? 0.02 * Math.sqrt(SMIN) / v : DT_MAX;
-    h = h < DT_MIN ? DT_MIN : h > DT_MAX ? DT_MAX : h;
+    h = h < DT_MIN ? DT_MIN : h > dtMax ? dtMax : h;
     const hh = h / 2;
     accel(w, t + hh, x + hh * k1x, y + hh * k1y);
     const k2x = vx + hh * k1vx, k2y = vy + hh * k1vy, k2vx = AX, k2vy = AY;
@@ -231,23 +256,36 @@ export function fly(lvl, ini, o = {}) {
       if (u < uBody) { uBody = u; which = i; }
     }
     let ntx = tgx, nty = tgy, uT = 2, dist = Infinity;
-    if (tg) {
-      if (tg.body != null) { const p = targetAt(lvl, nt); ntx = p[0]; nty = p[1]; }
+    if (cur) {
+      if (rides(cur)) { const p = ringAt(lvl, cur, nt); ntx = p[0]; nty = p[1]; }
       const p0x = x - tgx, p0y = y - tgy, d1x = dx - (ntx - tgx), d1y = dy - (nty - tgy);
       dist = nearest(p0x, p0y, d1x, d1y);
       if (dist < near) near = dist;
-      if (!hit) uT = enters(p0x, p0y, d1x, d1y, ring);
+      if (!hit && !wasIn && !orbit) uT = enters(p0x, p0y, d1x, d1y, ring);
     }
     const impact = uBody <= 1;
     if (uT <= 1 && !hit && !(impact && uBody < uT)) {     // a ring on the ground is entered before the shell lands in it
       const ux = x + dx * uT, uy = y + dy * uT, uvx = vx + (nvx - vx) * uT, uvy = vy + (nvy - vy) * uT, ut = t + h * uT;
       const tx = tgx + (ntx - tgx) * uT, ty = tgy + (nty - tgy) * uT;
       let rvx = uvx, rvy = uvy;
-      if (tg.body != null) { const e = 1e-3, p = targetAt(lvl, ut + e); rvx -= (p[0] - tx) / e; rvy -= (p[1] - ty) / e; }
+      if (rides(cur)) { const e = 1e-3, p = ringAt(lvl, cur, ut + e); rvx -= (p[0] - tx) / e; rvy -= (p[1] - ty) / e; }
       const speed = Math.sqrt(rvx * rvx + rvy * rvy);
-      const ok = goal.type === "soft" ? speed <= goal.speed : goal.type === "fast" ? speed >= goal.speed : true;
-      hit = { t: ut, x: ux, y: uy, vx: uvx, vy: uvy, speed, ok };
-      inside = true;
+      // the arrival speed asked of this ring: a gate's own, else the level's goal (soft: at or below, fast: at or above)
+      const lim = gated ? cur : goal.type === "soft" ? { soft: goal.speed } : goal.type === "fast" ? { fast: goal.speed } : {};
+      const ok = (lim.soft === undefined || speed <= lim.soft) && (lim.fast === undefined || speed >= lim.fast);
+      if (gated && gi < rings.length - 1) {
+        if (ok) {                                           // a gate passed in order: the next ring is the one to enter
+          gi++; cur = rings[gi]; ring = cur.r; near = Infinity; core = Infinity;
+          const p = ringAt(lvl, cur, nt); ntx = p[0]; nty = p[1];
+        }
+      } else { hit = { t: ut, x: ux, y: uy, vx: uvx, vy: uvy, speed, ok }; inside = true; }
+    }
+    if (orbit) {                                            // an orbit: the angle swept round the body while it is near (arithmetic only: the sine for the angle)
+      const i = orbit.i, ax = x - bx0[2 * i], ay = y - bx0[2 * i + 1], bx = nx - (moving ? bx1 : bx0)[2 * i], by = ny - (moving ? bx1 : bx0)[2 * i + 1];
+      const la = Math.sqrt(ax * ax + ay * ay), lb = Math.sqrt(bx * bx + by * by);
+      if (la < orbit.rmax && lb < orbit.rmax && !impact) swp += (ax * by - ay * bx) / (la * lb);
+      else if (la >= orbit.rmax && lb >= orbit.rmax) swp = 0;      // out of reach again: the lap starts afresh
+      if (!hit && !impact && (swp >= orbit.need || -swp >= orbit.need)) hit = { t: nt, x: nx, y: ny, vx: nvx, vy: nvy, speed: 0, ok: true };
     }
     if (inside) { const c = dist / ring; if (c < core) core = c; }
     if (smp) {
@@ -270,6 +308,8 @@ export function fly(lvl, ini, o = {}) {
     x = nx; y = ny; vx = nvx; vy = nvy; t = nt;
     if (moving) for (let i = 0; i < w.n * 2; i++) bx0[i] = bx1[i];
     tgx = ntx; tgy = nty;
+    wasIn = cur ? (x - tgx) * (x - tgx) + (y - tgy) * (y - tgy) < ring * ring : false;
+    if (orbit && hit) { end = "through"; break; }
     if (every) {
       acc += Math.sqrt((x - lastRx) * (x - lastRx) + (y - lastRy) * (y - lastRy));
       if (acc >= every) { rec.push(t, x, y); lastRx = x; lastRy = y; acc = 0; }
@@ -286,7 +326,7 @@ export function fly(lvl, ini, o = {}) {
   }
   if (rec) rec.push(t, x, y);
   const won = !!hit && hit.ok;
-  return { end, body, t, x, y, vx, vy, hit, won, near, core: hit ? core : Infinity, path: rec ? Float64Array.from(rec) : null, length, steps };
+  return { end, body, t, x, y, vx, vy, hit, won, near, core: hit ? core : Infinity, gates: gi, sweep: swp, path: rec ? Float64Array.from(rec) : null, length, steps };
 }
 
 // ---------- shots ----------
@@ -327,7 +367,7 @@ export const CONE_DRAWS = Array.from({ length: CONE_SHELLS }, (_, i) => [normal(
  * ("through", "impact"...), t1 (how long the band is), over (the central shell's end) }.
  */
 export function cone(lvl, aim, t = 0, len = lvl.cone?.len ?? 4) {
-  const a = clampAim(lvl, aim), mid = fly(lvl, muzzle(lvl, a, [0, 0], t), { record: 0.02 });
+  const a = clampAim(lvl, aim), mid = fly(lvl, muzzle(lvl, a, [0, 0], t), { record: lvl.cone?.rec ?? 0.02, dtMax: lvl.cone?.dt });
   // the time at which the central shell has travelled `len`
   let t1 = Math.max(mid.t - t, 1e-4), acc = 0;
   const p = mid.path;
@@ -338,10 +378,10 @@ export function cone(lvl, aim, t = 0, len = lvl.cone?.len ?? 4) {
   }
   const n = CONE_STEPS, shells = [];
   const c = new Float64Array(2 * (n + 1));
-  fly(lvl, muzzle(lvl, a, [0, 0], t), { sample: { out: c, n, t1 }, tMax: t1 });
+  fly(lvl, muzzle(lvl, a, [0, 0], t), { sample: { out: c, n, t1 }, tMax: t1, dtMax: lvl.cone?.dt });
   for (const g of CONE_DRAWS) {
     const out = new Float64Array(2 * (n + 1));
-    fly(lvl, muzzle(lvl, a, g, t), { sample: { out, n, t1 }, tMax: t1 });
+    fly(lvl, muzzle(lvl, a, g, t), { sample: { out, n, t1 }, tMax: t1, dtMax: lvl.cone?.dt });
     shells.push(out);
   }
   // the band the shells' paths make round the central one: at each station of the central path, where the line across it is
@@ -398,24 +438,33 @@ export const sound = s => !!s && s.v === VERSION && Number.isInteger(s.n) && Num
 export function validate(lvl) {
   const bad = [];
   if (!lvl.id || !lvl.name) bad.push("needs an id and a name");
-  const tg = lvl.target;
-  if (!tg || !(tg.r > 0)) bad.push("needs a target with a ring radius");
-  else if (tg.body == null && !(Array.isArray(tg.at) && tg.at.length === 2 && tg.at.every(Number.isFinite))) bad.push("a fixed target needs at: [x, y]");
-  const type = lvl.goal?.type ?? "hit";
-  if (!["hit", "soft", "fast"].includes(type)) bad.push(`goal ${type} is not in the engine yet`);
+  const tg = lvl.target, type = lvl.goal?.type ?? "hit", w = worldOf(lvl);
+  const ringBad = (r, what) => {
+    if (!r || !(r.r > 0)) bad.push(`${what} needs a ring radius`);
+    else if (r.body != null) { if (!w.bodies.some(b => b.id === r.body)) bad.push(`${what} is on a body the level does not have`); }
+    else if (r.rail) { if (!(r.rail.a > 0) || !(r.rail.T > 0)) bad.push(`${what}'s rail needs a and T`); }
+    else if (!(Array.isArray(r.at) && r.at.length === 2 && r.at.every(Number.isFinite))) bad.push(`${what} needs at: [x, y]`);
+  };
+  ringBad(tg, "the target");
+  if (!["hit", "soft", "fast", "gates", "return", "orbit"].includes(type)) bad.push(`goal ${type} is not in the engine`);
   if ((type === "soft" || type === "fast") && !(lvl.goal.speed > 0)) bad.push("soft and fast goals need a speed");
+  if (type === "gates" || type === "return") {
+    const g = lvl.gates;
+    if (!Array.isArray(g) || g.length < 2) bad.push("gates and a free return need two gates or more, in order");
+    else { g.forEach((r, i) => ringBad(r, `gate ${i + 1}`)); if (g[g.length - 1] !== tg) bad.push("the last gate is the target"); }
+  }
+  if (type === "orbit" && (!w.bodies.some(b => b.id === lvl.goal.body) || !(lvl.goal.rmax > 0) || !(lvl.goal.sweep > 0))) bad.push("an orbit needs a body, a radius (rmax) and a sweep in degrees");
   const sc = lvl.scatter;
   if (!sc || !(sc.v >= 0) || !(sc.deg >= 0)) bad.push("needs scatter { v, deg }");
   if (!((lvl.barrels ?? BARRELS) > 0 && (lvl.barrels ?? BARRELS) <= BARRELS)) bad.push(`barrels: 1 to ${BARRELS}`);
   if (!(lvl.par >= 1)) bad.push("par must be at least 1");
   if (!(lvl.cone?.len > 0)) bad.push("needs cone { len }");
   if (!Number.isFinite(lvl.site ?? 90)) bad.push("site is an angle in degrees");
-  const w = worldOf(lvl);
   if (!w.bodies.length || w.bodies.some(b => !(b.mu > 0))) bad.push("every body needs a mass");
-  if (tg && tg.body == null && Array.isArray(tg.at)) {
-    for (const b of w.bodies) if (!b.rail && Math.sqrt((tg.at[0] - b.x) ** 2 + (tg.at[1] - b.y) ** 2) < b.r + tg.r * 0.2) bad.push("the target's middle is inside a body");
+  if (tg && tg.body == null && !tg.rail && Array.isArray(tg.at)) {
+    for (const b of w.bodies) if (!b.rail && Math.sqrt((tg.at[0] - b.x) ** 2 + (tg.at[1] - b.y) ** 2) < b.r + tg.r * 0.2 && !(type === "return")) bad.push("the target's middle is inside a body");
     const site = lvl.site ?? 90, s = direction(site);
-    if (Math.sqrt((tg.at[0] - s[0]) ** 2 + (tg.at[1] - s[1]) ** 2) < tg.r + 0.1) bad.push("the target is on the cannon");
+    if (Math.sqrt((tg.at[0] - s[0]) ** 2 + (tg.at[1] - s[1]) ** 2) < tg.r + 0.1 && type !== "return") bad.push("the target is on the cannon");
   }
   return bad;
 }
