@@ -537,6 +537,7 @@ async function setView(v, remember = true) {
 // top of the card, 0 on a keyboard and the wheel are the rest of the zoom (bridges-zoom.js). The zoom is in the viewBox, so the
 // drawing, the hit tests (getScreenCTM) and the rings of a ping all follow it, and the text is drawn at the size it is shown.
 let pressing = null;   // { id, link, island, x, y, timer, held }: the finger that may still be a tap
+let chipTimer = 0, shownZ = 1;   // the zoom chip's fade, and the zoom it last said
 const fingers = new Map();   // the pointers down on the chart: id → { x, y } on the page
 let grip = null;       // the board being moved: { id, p } one finger's hold of a board point, or { z0, d0, p } a pinch's
 let lastTap = null;    // the last tap on the bare paper, for a double tap
@@ -551,9 +552,16 @@ function applyView() {
   view = clampView(box, px, view);
   const text = viewBoxOf(box, px, view);
   if (svg.getAttribute("viewBox") !== text) svg.setAttribute("viewBox", text);
-  const zoomed = view.z > MIN_ZOOM + 0.01;
-  $("zoomBtn").hidden = !zoomed;
-  if (zoomed) put("zoomNow", `${view.z.toFixed(1)}×`);
+  // the chip says how far in it is while the zoom is changing, then goes: it would cover a corner of the board, and a tap there would not build
+  const chip = $("zoomBtn");
+  if (view.z <= MIN_ZOOM + 0.01) { chip.hidden = true; clearTimeout(chipTimer); shownZ = 1; }
+  else if (Math.abs(view.z - shownZ) > 0.005) {
+    shownZ = view.z;
+    put("zoomNow", `${view.z.toFixed(1)}×`);
+    chip.hidden = false; chip.classList.remove("fade");
+    clearTimeout(chipTimer);
+    chipTimer = setTimeout(() => chip.classList.add("fade"), 1600);
+  }
 }
 function resetView() {
   if (!box) return;

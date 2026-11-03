@@ -38,11 +38,13 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-card { position: relative; border-radius: 6px; background: var(--sheet); padding: .5rem;
   box-shadow: inset 0 0 0 1px var(--brass), inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
 .brg-board { width: 100%; height: 100%; display: grid; place-items: center; min-height: 0; }
-/* zoomed in: how far, and the way back to the whole board (a double tap on the paper does it too) */
+/* zoomed in: how far, for a moment, with a tap to show the whole board again (a double tap on the paper does it too); it goes so it never covers the board */
 .brg-zoom { position: absolute; top: .85rem; right: .85rem; z-index: 2; display: flex; align-items: baseline; gap: .4rem; margin: 0; padding: .2rem .5rem; border: 1px solid var(--brass); border-radius: 4px;
   background: color-mix(in srgb, var(--sheet) 90%, transparent); color: var(--ink); font: inherit; cursor: pointer; }
 .brg-zoom b { font-size: .82rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .brg-zoom small { font-size: .66rem; font-weight: 700; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.brg-zoom { transition: opacity .3s; }
+.brg-zoom.fade { opacity: 0; pointer-events: none; }
 .brg-zoom[hidden], .brg-card.is-model .brg-zoom { display: none; }
 .brg-svg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }
 .brg-paper { fill: var(--brg-tile); stroke: var(--tile-edge); stroke-width: .03; }
