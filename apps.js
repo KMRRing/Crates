@@ -615,7 +615,6 @@ export const APPS = [
   { id: "reckoning", sec: "idle", name: "Courier", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO), players: [1, 1] },
   { id: "landfall", sec: "idle", name: "Landfall", href: "./landfall.html", logo: LOGO("landfall", LANDFALL_LOGO), players: [1, 1] },
   { id: "ingot", sec: "idle", name: "Ingot", href: "./soon.html?game=ingot", logo: LOGO("ingot", SOON_CODEX.ingot), players: [1, 1], soon: true },
-  { id: "cargo", sec: "idle", name: "Cargo", href: "./soon.html?game=cargo", logo: LOGO("cargo", SOON_CODEX.cargo), players: [1, 1], soon: true },
   // The Appendix: what is set aside until it leaves for an app of its own or goes (README, The Appendix). Random and Start a
   // game over leave it out (3 November 2026, Korbi).
   { id: "blend", sec: "appendix", name: "Blend", href: "./blend.html", logo: LOGO("blend", BLEND_LOGO), players: [1, 2] },

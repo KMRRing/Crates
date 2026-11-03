@@ -65,7 +65,7 @@ export const AKA = {
   trumps: "jass belote coinche schafkopf tricks", contract: "bridge", quest: "hidden roles traitors company hanse vitalian",
   bones: "dominoes", factor: "island trading settlement", rack: "word tiles board", pegs: "cribbage", meld: "gin rummy",
   stone: "go weiqi baduk", tarot: "french tarot", solitaire: "patience klondike freecell", silo: "connect four four in a row",
-  flank: "reversi", crown: "draughts checkers", ingot: "2048 sliding tiles", cargo: "falling blocks",
+  flank: "reversi", crown: "draughts checkers", ingot: "2048 sliding tiles",
   heliograph: "mirror", shunt: "rail wagons", polder: "dyke windmill", topple: "dominoes hex", orrery: "match three planets",
   netting: "obligations trading houses", settle: "tank farm parcels", slipway: "carving ship", loom: "weaving cloth",
   reckoning: "runner quay", landfall: "celestial navigation sextant stars constellations sailing", blend: "blender gasoline fuel specification", refinery: "refining crude distillation",

@@ -104,7 +104,7 @@ export const LEFT_OUT = {
   landfall: "no round yet (a voyage is several watches over many minutes; a short round, its random mode and daily come in milestone 5)",
   columbiad: "no round yet (the first milestone is a proving ground of levels); its random mode and daily come in the fourth",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
-  stone: "not built yet", tarot: "not built yet", ingot: "not built yet", cargo: "not built yet",
+  stone: "not built yet", tarot: "not built yet", ingot: "not built yet",
 };
 
 /** Every game random mode can deal, in the order above. */
