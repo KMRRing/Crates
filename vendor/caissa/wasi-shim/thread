@@ -1,0 +1,16 @@
+// A stand-in for <thread> in the WebAssembly build, which has no threads: the engine is built to search on the caller's own
+// thread (Threads = 1), so nothing here is ever started. A thread that is asked for stops the engine at once.
+#pragma once
+#include <cstdlib>
+namespace std {
+class thread {
+ public:
+  thread() noexcept = default;
+  template <class F, class... A> explicit thread(F&&, A&&...) { abort(); }
+  thread(thread&&) noexcept = default;
+  thread& operator=(thread&&) noexcept = default;
+  bool joinable() const noexcept { return false; }
+  void join() {}
+  static unsigned hardware_concurrency() noexcept { return 1; }
+};
+}
