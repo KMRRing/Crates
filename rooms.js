@@ -44,6 +44,7 @@ export const GAMES = {
   factor: { name: "Factor", page: "./factor.html" },
   banquet: { name: "Banquet", page: "./banquet.html" },
   gammon: { name: "Gammon", page: "./gammon.html" },
+  silo: { name: "Silo", page: "./silo.html" },
   trumps: { name: "Trumps", page: "./trumps.html" },
   quest: { name: "Company", page: "./quest.html" },
   bones: { name: "Bones", page: "./bones.html" },

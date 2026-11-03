@@ -188,6 +188,7 @@ export const ELSEWHERE = [
   { id: "factor", name: "Factor", kind: "table", page: "factor.html", max: 4, blurb: "Settle an island and trade for what it lacks: roads, posts and factories, first to ten points." },
   { id: "banquet", name: "Banquet", kind: "table", page: "banquet.html", max: 2, blurb: "划拳 and 十五二十, the hand games of a banquet table." },
   { id: "gammon", name: "Gammon", kind: "table", page: "gammon.html", max: 2, blurb: "Backgammon: a match, with the doubling cube." },
+  { id: "silo", name: "Silo", kind: "table", page: "silo.html", max: 2, blurb: "Four in a row: drop discs into seven columns, first to line up four." },
   { id: "trumps", name: "Trumps", kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote, Coinche or Schafkopf, at a table of four." },
   { id: "quest", name: "Company", kind: "table", page: "quest.html", max: 10, blurb: "Hidden loyalties: find the Vitalians before three cargoes are lost." },
   { id: "bones", name: "Bones", kind: "table", page: "bones.html", max: 4, blurb: "Dominoes: Partnership, Gaple, or Fives and Threes." },

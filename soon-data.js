@@ -34,16 +34,6 @@ export const SOON = {
       "A daily deal per variant, by `today()` from `suite.js`; the best is a win streak or a time, whichever the games screen reads best.",
     ],
   },
-  silo: {
-    name: "Silo", sec: "table",
-    line: "Four in a row for two: discs dropped into a standing grid of seven columns, six high, and the first to line up four across, down or on a diagonal wins.",
-    todo: [
-      "Added 2 November 2026 (Korbi: \"connect four\"). Connect Four is Hasbro's name for the game, so the tile is Silo; the rules of the game belong to no one, the name does.",
-      "A solved game: with perfect play the first player wins by starting in the middle column. So the computer's levels are about how often it misses a threat, not how deep it sees: a few plies of search with a count of open threes plays as well as anyone will beat, and the weaker levels make a chosen share of mistakes.",
-      "On seats.js, so two on one phone, a partner's match and a table of friends come with it; a drop that falls and the winning four lit are the only drawing.",
-      "Possible later: Gambit's and River's coach (why a move is a mistake), and a bigger grid with five to win.",
-    ],
-  },
   ingot: {
     name: "Ingot", sec: "idle",
     line: "2048's game: slide numbered tiles about a four-by-four board; two equal tiles that meet merge into their sum, and a new tile appears after every move. Tiles are bars of metal that double.",
