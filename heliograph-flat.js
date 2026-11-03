@@ -1,7 +1,7 @@
 // Heliograph drawn flat, for a device without WebGL: the same tube, crystals, mirrors and light as heliograph-3d.js, in
 // a canvas, by the same camera (heliograph-view.js), farthest first. It answers to the same calls, so the page plays the
 // same either way; a shot shows at once rather than played out.
-import { R, H, PR, CR, MR, PORT, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, LOSE_Y, pieces, crystalsAt } from "./heliograph-engine.js";
+import { R, H, PR, CR, MR, PORT, PRISM_R, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, pieces, crystalsAt, fixtures, closed, lineOf, beaconsOf, lightAt } from "./heliograph-engine.js";
 
 const TAU = Math.PI * 2;
 const SHAPES = [6, 4, 4, 6];                          // each colour's cut as a polygon's corners, turned as below
@@ -55,7 +55,7 @@ export function createFlat(host, view) {
       const [x0, y0] = P([Math.sin(a) * R, 0, Math.cos(a) * R]), [x1, y1] = P([Math.sin(a) * R, H, Math.cos(a) * R]);
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.strokeStyle = k.soft; ctx.globalAlpha = 0.25; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;
     }
-    ring(LOSE_Y, R, k.danger, 1, [5, 4]);
+    ring(lineOf(s), R, k.danger, 1, [5, 4]);
     ring(CROWN_Y, CROWN_R, k.brass, 2);
     const skirt = () => {             // the skirt round the crown, drawn over the top layers it hides
       ring(SKIRT_Y, SKIRT_R, k.brass, 2);
@@ -65,7 +65,18 @@ export function createFlat(host, view) {
     ctx.beginPath(); ctx.arc(px, py, 5, 0, TAU); ctx.fillStyle = k.brass; ctx.fill();
     // everything with a place, farthest first
     const items = [];
-    for (const p of pieces(s)) items.push({ z: P(p.p)[2], draw: () => poly(p.c, p.p, PR) });
+    const lanterns = new Set(beaconsOf(s));
+    for (const p of pieces(s)) {
+      items.push({ z: P(p.p)[2], draw: () => {
+        poly(p.c, p.p, PR);
+        if (lanterns.has(p.id)) { const [x, y, z] = P(p.p); ctx.beginPath(); ctx.arc(x, y, view.pixels(z) * PR * 1.35, 0, TAU); ctx.strokeStyle = k.brass; ctx.lineWidth = 2.2; ctx.stroke(); }     // a lantern's brass collar
+      } });
+    }
+    // a level's prism and shutters: a shut shutter is a brass disc, an open one only its edge
+    for (const f of fixtures(s)) {
+      if (f.k === "prism") items.push({ z: P(f.p)[2], draw: () => prism(f) });
+      else items.push({ z: P(f.p)[2], draw: () => shutter(f, closed(s, f)) });
+    }
     crystalsAt(s).forEach((c, j) => {
       const col = s.crystals[j].c;
       items.push({ z: P(c)[2], draw: () => { poly(col, c, CR); const [x, y, z] = P(c); ctx.beginPath(); ctx.arc(x, y, view.pixels(z) * CR * 1.6, 0, TAU); ctx.strokeStyle = k.enamel[col]; ctx.lineWidth = 1.5; ctx.stroke(); } });
@@ -73,7 +84,13 @@ export function createFlat(host, view) {
     for (const m of s.mirrors) items.push({ z: P(m.p)[2], draw: () => mirror(m, m.id === frame.sel) });
     items.sort((a, b) => b.z - a.z).forEach(i => i.draw());
     skirt();
-    // the light: of two colours, two lines side by side, one in each, each colour kept to its side from leg to leg
+    // the sun's ray, from the sky down to the port
+    if (s.x?.sun) {
+      const { o, d } = lightAt(s), [x0, y0] = P([o[0] - d[0] * 3, o[1] - d[1] * 3, o[2] - d[2] * 3]), [x1, y1] = P(o);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.strokeStyle = k.brass; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(x0, y0, 6, 0, TAU); ctx.fillStyle = k.enamel[3]; ctx.fill();
+    }
+    // the light: of several colours, lines side by side, one in each, each colour kept to its side from leg to leg
     let side = null;
     for (const leg of frame.path.legs) {
       const [x0, y0] = P(leg.a), [x1, y1] = P(leg.b), cs = leg.cs.length ? leg.cs : [null];
@@ -81,7 +98,7 @@ export function createFlat(host, view) {
       let nx = (y0 - y1) / l, ny = (x1 - x0) / l;
       if (cs.length > 1) { if (side && nx * side[0] + ny * side[1] < 0) { nx = -nx; ny = -ny; } side = [nx, ny]; }
       cs.forEach((c, j) => {
-        const o = cs.length > 1 ? (j ? 1.3 : -1.3) : 0;
+        const o = cs.length > 1 ? (j - (cs.length - 1) / 2) * 2.6 : 0;
         ctx.beginPath(); ctx.moveTo(x0 + nx * o, y0 + ny * o); ctx.lineTo(x1 + nx * o, y1 + ny * o);
         ctx.strokeStyle = c == null ? k.brass : k.enamel[c]; ctx.lineWidth = cs.length > 1 ? 2.2 : 2.5; ctx.stroke();
       });
@@ -99,20 +116,40 @@ export function createFlat(host, view) {
       ctx.beginPath(); ctx.arc(x1, y1, 6, 0, TAU); ctx.fillStyle = k.brass; ctx.fill();
     }
   }
-  /** A mirror: its disc as the camera sees it, and its stem to the floor. */
-  function mirror(m, chosen) {
-    const n = m.n, a = Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  /** A disc of radius r at p facing n, as the camera sees it: the path is begun, to fill or stroke. */
+  function discPath(p, n, r) {
+    const a = Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
     const u = norm(cross(n, a)), w = cross(n, u);
+    ctx.beginPath();
+    for (let i = 0; i <= 28; i++) {
+      const t = (i / 28) * TAU, q = [0, 1, 2].map(j => p[j] + (u[j] * Math.cos(t) + w[j] * Math.sin(t)) * r), [x, y] = P(q);
+      ctx[i ? "lineTo" : "moveTo"](x, y);
+    }
+  }
+  /** A mirror: its disc, and its stem to the floor. */
+  function mirror(m, chosen) {
     ctx.beginPath();
     const [sx0, sy0] = P([m.p[0], 0, m.p[2]]), [sx1, sy1] = P(m.p);
     ctx.moveTo(sx0, sy0); ctx.lineTo(sx1, sy1); ctx.strokeStyle = k.brass; ctx.lineWidth = 1; ctx.stroke();
-    ctx.beginPath();
-    for (let i = 0; i <= 20; i++) {
-      const t = (i / 20) * TAU, p = [0, 1, 2].map(j => m.p[j] + (u[j] * Math.cos(t) + w[j] * Math.sin(t)) * MR), [x, y] = P(p);
-      ctx[i ? "lineTo" : "moveTo"](x, y);
-    }
+    discPath(m.p, m.n, MR);
     ctx.fillStyle = k.sheet; ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
     ctx.strokeStyle = chosen ? k.ink : k.brass; ctx.lineWidth = chosen ? 2.5 : 1.5; ctx.stroke();
+  }
+  /** A shutter: shut, a brass disc; open, its dashed edge. */
+  function shutter(f, shut) {
+    discPath(f.p, f.n, f.r);
+    if (shut) { ctx.fillStyle = k.brass; ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = k.brass; ctx.lineWidth = 2; ctx.setLineDash(shut ? [] : [5, 4]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  /** A prism: a glass triangle on the page, its two colours side by side. */
+  function prism(f) {
+    const [x, y, z] = P(f.p), r = view.pixels(z) * PRISM_R * 1.2;
+    f.cs.forEach((c, i) => {
+      ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + (i ? r : -r) * 0.9, y + r * 0.75); ctx.lineTo(x, y + r * 0.75); ctx.closePath();
+      ctx.fillStyle = k.enamel[c]; ctx.fill();
+    });
+    ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x - r * 0.9, y + r * 0.75); ctx.lineTo(x + r * 0.9, y + r * 0.75); ctx.closePath();
+    ctx.strokeStyle = k.ink; ctx.lineWidth = 1; ctx.stroke();
   }
   new ResizeObserver(resize).observe(host);
   new MutationObserver(() => { k = skin(); paint(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });

@@ -6,7 +6,7 @@
 // what the page picks is what is drawn. The page calls draw() whenever anything changes and shot() to play a shot out;
 // heliograph-flat.js answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
-import { R, H, PR, CR, MR, PORT, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, CELLS, LOSE_Y, LY, CRYSTALS, pieces, crystalsAt } from "./heliograph-engine.js";
+import { R, H, PR, CR, MR, PORT, PRISM_R, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, CELLS, LY, CRYSTALS, pieces, crystalsAt, fixtures, closed, lineOf, beaconsOf, lightAt } from "./heliograph-engine.js";
 
 const TAU = Math.PI * 2, DOUBLE = 2, ADD = 2;                 // THREE.DoubleSide, AdditiveBlending (not in the bundle's exports)
 const UP = new THREE.Vector3(0, 1, 0);
@@ -104,6 +104,18 @@ const CRYSTAL = `{
   vec3 N = normalize(vNw), V = normalize(cameraPosition - vW), col = diffuseColor.rgb;
   float f = pow(1. - max(dot(N, V), 0.), 2.);
   outgoingLight = lit(col, N, 1.4, 90., 0.) + col * (.18 + uGlow) + mix(uSky, vec3(1.), .5) * f * .3;
+}`;
+/** A prism: glass with a half in each of its colours, the split turning with it. */
+const PRISM = `{
+  vec3 N = normalize(vNw), V = normalize(cameraPosition - vW);
+  float f = pow(1. - abs(dot(N, V)), 1.6);
+  vec3 col = mix(uA, uB, smoothstep(-.08, .08, vL.x));
+  outgoingLight = lit(col, N, 1.6, 80., 0.) * .85 + col * .22 + mix(uSky, vec3(1.), .6) * f * .45;
+}`;
+/** A shutter: brass louvres across a disc, solid when it is shut, a ghost of itself when it is open. */
+const LOUVRE = open => `{
+  float s = step(.5, fract(vL.x * 1.6));
+  outgoingLight = lit(uBrass * mix(.62, 1., s), normalize(vNw), .9, 40., .85);${open ? "\n  diffuseColor.a = .16;" : ""}
 }`;
 /** A mirror's glass: silvered, the sky and the room in it, a little of the light that strikes it. */
 const SILVER = `{
@@ -247,7 +259,7 @@ export function createScene(host, view) {
   }
   // the line the cluster must not cross, faint on the glass
   const danger = new THREE.Mesh(torus(R - 0.01, 0.025, 128, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false }));
-  danger.position.y = LOSE_Y;
+  danger.position.y = lineOf({});
   scene.add(danger);
 
   // ---- the cluster: an instanced mesh for each cut, strings, and the crystals falling ----
@@ -301,8 +313,27 @@ export function createScene(host, view) {
     m.visible = false; m.renderOrder = 8; scene.add(m);
     return m;
   };
-  const cores = Array.from({ length: MAX_LEGS * CRYSTALS }, () => beam(false)), glows = Array.from({ length: MAX_LEGS }, () => beam(true));
+  const cores = Array.from({ length: MAX_LEGS * 4 }, () => beam(false)), glows = Array.from({ length: MAX_LEGS }, () => beam(true));
   const sparks = Array.from({ length: 24 }, () => glow(2, 9));
+
+  // ---- a level's lanterns (a brass collar and a glow on the crystals that must come down), prism, shutters and sun ----
+  const collarGeo = torus(PR * 1.12, 0.06, 28, 6), MAX_FIX = 3;
+  const lanterns = Array.from({ length: 4 }, () => { const c = new THREE.Mesh(collarGeo, brass), g = glow(2.2, 6); c.visible = false; scene.add(c); return { collar: c, glow: g }; });
+  const prismOwn = { uA: { value: new THREE.Color() }, uB: { value: new THREE.Color() } };
+  const prismMesh = new THREE.Mesh(new THREE.CylinderGeometry(PRISM_R * 1.05, PRISM_R * 1.05, PRISM_R * 2.1, 3), surface({ main: PRISM, decl: "uniform vec3 uA; uniform vec3 uB;", own: prismOwn }));
+  prismMesh.visible = false;
+  scene.add(prismMesh);
+  const prismGlow = glow(2, 7);
+  const shutShut = surface({ main: LOUVRE(false) }), shutOpen = surface({ main: LOUVRE(true), transparent: true, depthWrite: false });
+  const discUnit = new THREE.CylinderGeometry(1, 1, 0.07, 56), rimUnit = torus(1, 0.03, 56, 6);
+  const shutters = Array.from({ length: MAX_FIX }, () => {
+    const g = new THREE.Group(), disc = new THREE.Mesh(discUnit, shutShut), rim = new THREE.Mesh(rimUnit, brass);
+    g.add(disc, rim);
+    g.visible = false;
+    scene.add(g);
+    return { g, disc };
+  });
+  const sunRod = beam(true), sunGlow = glow(2, 7);          // the sun's own light, from the sky down to the port
 
   // ---- motes: splinters of a shattered crystal ----
   const moteMesh = new THREE.InstancedMesh(faceted(new THREE.SphereGeometry(1, 4, 2)), new THREE.MeshBasicMaterial({ color: 0xffffff }), MAX_MOTES);
@@ -421,9 +452,9 @@ export function createScene(host, view) {
       if (run >= upto) break;
       const part = Math.min(1, (upto - run) / Math.max(l, 1e-6));
       const end = a.clone().lerp(b, part), cs = leg.cs;
-      // light of one colour is that colour; of two, two beams side by side, a hair apart, one in each, so both show
+      // light of one colour is that colour; of several, beams side by side, a hair apart, one in each, so all show
       // whichever way the beam is seen: they lie across it as the eye sees it, each colour kept to its side from leg to leg,
-      // a little thicker and under less glow than one, so neither is washed pale
+      // a little thicker and under less glow than one, so none is washed pale
       const two = cs.length > 1, cr = two ? r * 1.3 : r, off = two ? cr * 1.15 : 0;
       if (off) {
         toEye.copy(camera.position).sub(a).addScaledVector(b.clone().sub(a), -0.5);
@@ -435,7 +466,7 @@ export function createScene(host, view) {
       }
       mix.setRGB(0, 0, 0);
       (cs.length ? cs : [null]).forEach((c, j, all) => {
-        const m = cores[nCore++], col = c == null ? beamWhite : tint.copy(enamel[c]).lerp(white, 0.12), shift = off * (j ? 1 : -1);
+        const m = cores[nCore++], col = c == null ? beamWhite : tint.copy(enamel[c]).lerp(white, 0.12), shift = off * (2 * j - (all.length - 1));
         rodTo(m, a.clone().addScaledVector(across, shift), end.clone().addScaledVector(across, shift), cr);
         m.material.color.copy(col);
         m.material.opacity = two ? 1 : coreOp;
@@ -476,6 +507,56 @@ export function createScene(host, view) {
       g.material.color.copy(enamel[c]).lerp(white, 0.3);
       g.material.opacity = 0.55 + 0.15 * Math.sin(clock * 2.2 + k * 2);
     });
+    // a level can have fewer than the endless game's two
+    for (let k = s.crystals.length; k < CRYSTALS; k++) { bigCuts[k].forEach(m => { m.visible = false; }); crystalGlows[k].visible = false; }
+  }
+  /** The lanterns still hanging, in their collars and glow (those a shot in play has brought down are `gone`). */
+  function paintLanterns(s, yOff, gone) {
+    const by = new Map(pieces(s).map(p => [p.id, p]));
+    let n = 0;
+    for (const id of beaconsOf(s)) {
+      const p = by.get(id), l = lanterns[n];
+      if (!p || !l || gone?.has(id)) continue;
+      n++;
+      l.collar.visible = l.glow.visible = true;
+      l.collar.position.set(p.p[0], p.p[1] + yOff, p.p[2]);
+      l.glow.position.set(p.p[0], p.p[1] + yOff, p.p[2]); l.glow.quaternion.copy(face()); l.glow.scale.setScalar(PR * 3.4);
+      l.glow.material.color.copy(white).lerp(enamel[0], 0.4);
+      l.glow.material.opacity = 0.55 + 0.2 * Math.sin(clock * 3 + id);
+    }
+    for (let i = n; i < lanterns.length; i++) lanterns[i].collar.visible = lanterns[i].glow.visible = false;
+  }
+  /** A level's prism and shutters, and the sun's ray above the port. */
+  function paintFixtures(s) {
+    const fix = fixtures(s), prism = fix.find(f => f.k === "prism"), louvres = fix.filter(f => f.k === "shutter");
+    prismMesh.visible = prismGlow.visible = !!prism;
+    if (prism) {
+      prismMesh.position.set(...prism.p);
+      prismMesh.quaternion.setFromAxisAngle(UP, clock * 0.5);
+      prismOwn.uA.value.copy(enamel[prism.cs[0]]); prismOwn.uB.value.copy(enamel[prism.cs[1]]);
+      prismGlow.position.set(...prism.p); prismGlow.quaternion.copy(face()); prismGlow.scale.setScalar(PRISM_R * 3.4);
+      prismGlow.material.color.copy(enamel[prism.cs[0]]).lerp(enamel[prism.cs[1]], 0.5).lerp(white, 0.35);
+      prismGlow.material.opacity = 0.4;
+    }
+    shutters.forEach((o, i) => {
+      const f = louvres[i];
+      o.g.visible = !!f;
+      if (!f) return;
+      o.g.position.set(...f.p);
+      o.g.quaternion.setFromUnitVectors(UP, new THREE.Vector3(...f.n));
+      o.g.scale.set(f.r, 1, f.r);
+      o.disc.material = closed(s, f) ? shutShut : shutOpen;
+    });
+    const sunny = !!s.x?.sun, { o, d } = lightAt(s);
+    sunRod.visible = sunGlow.visible = sunny;
+    if (sunny) {
+      const from = new THREE.Vector3(...o).addScaledVector(v3.set(...d), -5);
+      rodTo(sunRod, from, v3.set(...o), 0.12);
+      sunRod.material.color.copy(beamWhite);
+      sunGlow.position.copy(from); sunGlow.quaternion.copy(face()); sunGlow.scale.setScalar(1.5);
+      sunGlow.material.color.copy(white).lerp(enamel[0], 0.4);
+      sunGlow.material.opacity = 0.7;
+    }
   }
   function paintRings(s, targets) {
     let n = 0;
@@ -532,10 +613,13 @@ export function createScene(host, view) {
     else paintCrystals(s, play ? play.spent : []);
     if (play) paintLegs(play.path, play.slide != null ? 0 : play.reach, true);
     else paintLegs(f.path, Infinity, false);
+    paintLanterns(play?.slide != null ? play.after : s, play?.slide != null ? yOff : 0, play && play.slide == null ? play.gone : null);
+    paintFixtures(play ? play.before : f.s);
     paintRings(s, play ? [] : f.targets);
     portGlow.visible = true; portGlow.position.set(PORT[0], H - 0.32, PORT[2]); portGlow.quaternion.copy(face()); portGlow.scale.setScalar(0.9); portGlow.material.opacity = 0.7;
-    const lowY = Math.min(...pieces(f.s).map(p => p.p[1]), Infinity);
-    danger.material.opacity = lowY - PR - LOSE_Y < LY * 1.5 ? 0.55 + 0.4 * Math.sin(clock * 4) : 0.3;
+    const lowY = Math.min(...pieces(f.s).map(p => p.p[1]), Infinity), line = lineOf(f.s);
+    danger.position.y = line;
+    danger.material.opacity = lowY - PR - line < LY * 1.5 ? 0.55 + 0.4 * Math.sin(clock * 4) : 0.3;
     renderer.render(scene, camera);
   }
 
@@ -570,7 +654,7 @@ export function createScene(host, view) {
       play.gone.add(h.id);
       burst(h.p, h.c, 10);
     }
-    for (const x of play.crossings) if (!play.spent.includes(x.k) && play.reach >= x.at) { play.spent.push(x.k); burst(x.p, x.c, 14); }
+    for (const x of play.crossings) if (!x.done && play.reach >= x.at) { x.done = true; if (x.k >= 0) play.spent.push(x.k); for (const c of x.cs) burst(x.p, c, 14 / x.cs.length); }
     if (play.reach >= play.total && !play.fell) {
       play.fell = true;
       play.hold = 0;
@@ -600,18 +684,18 @@ export function createScene(host, view) {
      *  them, what hung from them falling, the cluster coming down; resolves when it's done. */
     shot(before, r) {
       return new Promise(done => {
-        const along = [], crossings = [], places = crystalsAt(before);
-        let run = 0, colours = 0;
+        const along = [], places = crystalsAt(before), fix = fixtures(before);
+        let run = 0;
         const byId = new Map(pieces(before).map(p => [p.id, p]));
         for (const leg of r.path.legs) {
           const l = Math.hypot(leg.b[0] - leg.a[0], leg.b[1] - leg.a[1], leg.b[2] - leg.a[2]);
-          // where the light first carries one more colour, it has passed through the next crystal it crossed
-          if (leg.cs.length > colours) { const k = r.path.crossed[crossings.length]; if (k != null) crossings.push({ k, at: run, p: places[k], c: before.crystals[k].c }); colours = leg.cs.length; }
-          along.push({ leg, from: run });
+          along.push({ leg, from: run, l });
           run += l;
         }
-        // a crystal passed whose colour the light already carried shows as spent where the light reaches it
-        for (const k of r.path.crossed) if (!crossings.some(x => x.k === k)) crossings.push({ k, at: distToSegAll(places[k], along), p: places[k], c: before.crystals[k].c });
+        // what the light passed through (a colour crystal, spent; a prism, which only bursts), where the leg that reached it ends
+        const crossings = r.path.cross.map(x => (x.kind === "crystal"
+          ? { k: x.k, at: along[x.leg].from + along[x.leg].l, p: places[x.k], cs: [before.crystals[x.k].c] }
+          : { k: -1, at: along[x.leg].from + along[x.leg].l, p: fix[x.i].p, cs: fix[x.i].cs }));
         const hits = r.shattered.map(id => { const p = byId.get(id); return { id, p: p.p, c: p.c, at: distToSegAll(p.p, along) }; });
         play = { t: 0, reach: 0, total: run, path: r.path, before, after: r.state, hits, gone: new Set(), fall: r.fallen.map(id => byId.get(id)).filter(Boolean),
           dropped: r.dropped || r.cleared, slide: null, spent: [], crossings, done };

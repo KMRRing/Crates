@@ -38,16 +38,19 @@ export const MOVES = 2;                            // mirrors set, moved or take
 // the first shot has one more: the tube is empty, and the light wants a mirror under the port, one past a colour crystal
 // and often a third to reach into the chandelier
 export const FIRST_MOVES = 3;
+// `x` is a level's rules (below); without it, the endless game's
 export const movesFor = shots => (shots ? MOVES : FIRST_MOVES);
 export const LOSE_Y = 2.2;                         // a crystal's foot below this ends the game
 export const CLEAR_BONUS = 1000;
+export const BEACON_BONUS = 100;                   // for each beacon brought down
+export const PRISM_R = 0.55;                       // a prism's radius (a sphere, to the light)
 export const SKIRT_Y = TOP_Y - (SKIRT_LAYERS - 0.5) * LY;   // the skirt's foot
 /** A shot's points: ten times the square of the crystals the light shatters (a long run of a colour is worth most), and ten
  *  for each that falls: cutting a string high brings it down, which buys time, but the points are in the runs. */
 export const worth = (shattered, fallen) => 10 * shattered * shattered + 10 * fallen;
 // shots between the cluster's drops: unhurried at first, then closer together, so a long game ends
 export const PACE = [[30, 6], [70, 5], [120, 4], [180, 3], [Infinity, 2]];
-export const dropEvery = shots => PACE.find(([until]) => shots < until)[1];
+export const dropEvery = (shots, x = null) => x?.every ?? PACE.find(([until]) => shots < until)[1];
 const MAX_LEGS = 40, MAX_LENGTH = 400, EPS = 1e-6;
 
 // ---------- the cluster's layout: a hexagon of 19 places in each layer ----------
@@ -105,27 +108,49 @@ export const SHAPES = {
   star: c => (ringOf(c) < 2 ? 8 : c.q === 0 || c.r === 0 || c.q + c.r === 0 ? 6 : 0),
   slant: c => Math.max(4, Math.min(9, Math.round(6.5 + c.x / SPACING))),     // deeper to one side
   spiral: c => (ringOf(c) ? 4 + Math.round(((Math.atan2(c.z, c.x) + Math.PI) / (2 * Math.PI)) * 5) : 7),
+  sprig: c => (ringOf(c) < 2 ? 4 : 0),                                        // a small one, for a level that clears it (levels only)
 };
-const SHAPE_NAMES = Object.keys(SHAPES);
+const SHAPE_NAMES = Object.keys(SHAPES).filter(n => n !== "sprig");
 /** A layer for under the crown, a crystal on every string of the shape: each a colour, often the one of a neighbour
  *  already set or of the crystal above or below, so colours come in clumps a beam can run through. */
 function newLayer(s, near, here = i => s.depth[i] > 0) {
-  const c = new Array(N).fill(-1);
+  const c = new Array(N).fill(-1), wears = s.x?.colours;                 // a level's chandelier wears some of the colours only
   for (let i = 0; i < N; i++) {
     if (!here(i)) continue;
     const r = roll(s), set = CELLS[i].nb.filter(j => j < i && c[j] >= 0);
-    c[i] = near && near[i] >= 0 && r < 0.2 ? near[i] : set.length && r < 0.75 ? c[set[pick(s, set.length)]] : pick(s, COLOURS);
+    c[i] = near && near[i] >= 0 && r < 0.2 ? near[i] : set.length && r < 0.75 ? c[set[pick(s, set.length)]] : wears ? wears[pick(s, wears.length)] : pick(s, COLOURS);
   }
   return { s: s.serial++, c };
 }
-/** A new chandelier in a shape other than the last. */
+/** A new chandelier in a shape other than the last (a level hangs its own shape every time). */
 function fill(s) {
-  const names = SHAPE_NAMES.filter(n => n !== s.shape);
-  s.shape = names[pick(s, names.length)];
-  s.depth = CELLS.map(SHAPES[s.shape]);
+  if (s.x?.shape) s.shape = s.x.shape;
+  else { const names = SHAPE_NAMES.filter(n => n !== s.shape); s.shape = names[pick(s, names.length)]; }
+  const extra = s.x?.extra ?? 0;                                         // a level can hang it lower than the shape does
+  s.depth = CELLS.map(SHAPES[s.shape]).map(d => (d > 0 ? d + extra : 0));
   const deepest = Math.max(...s.depth);
   s.layers = [];
   for (let k = 0; k < deepest; k++) s.layers.push(newLayer(s, s.layers[k - 1]?.c, i => k < s.depth[i]));
+  if (s.x?.marks) dealBeacons(s);
+}
+/**
+ * Beacons: crystals wearing a brass collar that must come down, on `marks.n` strings of their own, `marks.at` saying how
+ * high: "bottom" (the lowest of a string, which any cut on the string brings down), "mid" (somewhere with two crystals above it
+ * and one below, so it takes a cut above it) or "high" (the third layer or just under, so the cut has to be near the top, and from below).
+ */
+function dealBeacons(s) {
+  const { n, at = "mid" } = s.x.marks, spots = [];
+  for (let i = 0; i < N; i++) {
+    const d = s.depth[i];
+    if (d < 1) continue;
+    const ks = at === "bottom" ? [d - 1] : at === "high" ? [2, 3].filter(k => k < d - 1) : Array.from({ length: Math.max(0, d - 3) }, (_, j) => 2 + j);
+    if (ks.length) spots.push({ i, ks });
+  }
+  s.x.beacons = [];
+  for (let m = 0; m < n && spots.length; m++) {
+    const w = spots.splice(pick(s, spots.length), 1)[0], k = w.ks[pick(s, w.ks.length)];
+    s.x.beacons.push(idOf(s.layers[k].s, w.i));
+  }
 }
 /** Every crystal of the cluster: { id, k (its layer, 0 the top), i (its place), c, p (where it is) }. */
 export function pieces(s) {
@@ -165,12 +190,13 @@ function removeIds(s, ids) {
 
 // ---------- the colour crystals ----------
 const radial = p => Math.hypot(p[0], p[2]);
-export const CRYSTALS = 2;             // colour crystals in the tube at once
-/** Where a new colour crystal may stand: low in the tube, clear of the wall, the cluster, the mirrors and the other crystal. */
+export const CRYSTALS = 2;             // colour crystals in the tube at once (a level can have fewer)
+/** Where a new colour crystal may stand: low in the tube, clear of the wall, the cluster, the mirrors, the fixtures and the other crystal. */
 function crystalFits(s, p, except = -1) {
   if (radial(p) > R - 0.8 || p[1] < 0.9) return false;
   if (s.mirrors.some(m => dist(m.p, p) < CR + MR + 0.5)) return false;
   if (s.crystals.some((c, k) => k !== except && c && dist(at(c), p) < 2 * CR + 1.2)) return false;
+  if (fixtures(s).some(f => gap(f, p) < CR + 0.5)) return false;
   return !pieces(s).some(q => dist(q.p, p) < PR + CR + 0.6);
 }
 const at = c => [c.x, c.y, c.z];
@@ -201,14 +227,49 @@ function pickColour(s, not) {
 export const crystalsAt = s => s.crystals.map(at);
 
 // ---------- a game ----------
-export function newGame(seed) {
-  const s = { v: 4, seed: seed >>> 0, n: 0, shape: null, depth: [], layers: [], serial: 0, crystals: [null, null], next: null, mirrors: [], mid: 0,
-    moves: movesFor(0), touched: [], placed: [], shots: 0, untilDrop: dropEvery(0), score: 0, over: false };
+/**
+ * A new game: the endless one, or (with `x`) a level's. `x` is the level's rules, kept in the game as it is saved so a
+ * game opened again plays by them: { lv (its number), shape, colours (the chandelier wears), extra (layers lower than the
+ * shape hangs), marks ({ n, at }: beacons), crystals (colour crystals in the tube, 0 to 2), moves, first, mirrors (to hand), every (shots
+ * between the chandelier's drops), line, shots (the level's length), goal ({ kind: "score", n } | { kind: "beacons" } |
+ * { kind: "clear" }), fix (fixtures: { k: "prism", p, cs } | { k: "shutter", p, n, r, cycle }), sun ({ from, to }: degrees
+ * off the vertical over the level's shots), port }. Once the goal is met the game keeps `met` and `metAt`; `won` says how it ended.
+ */
+export function newGame(seed, x = null) {
+  const n = x?.crystals ?? CRYSTALS;
+  const s = { v: 4, seed: seed >>> 0, n: 0, shape: null, depth: [], layers: [], serial: 0, crystals: new Array(n).fill(null), next: null, mirrors: [], mid: 0,
+    moves: movesFor(0), touched: [], placed: [], shots: 0, untilDrop: dropEvery(0, x), score: 0, over: false };
+  if (x) s.x = JSON.parse(JSON.stringify(x));
   fill(s);
-  for (let k = 0; k < CRYSTALS; k++) spawnCrystal(s, k);
+  for (let k = 0; k < n; k++) spawnCrystal(s, k);
   return s;
 }
 export const copy = s => JSON.parse(JSON.stringify(s));
+/** A level's fixtures (a prism, shutters), or none. */
+export const fixtures = s => s.x?.fix ?? [];
+/** How far a point is from a fixture's surface (a prism is a sphere, a shutter a disc). */
+function gap(f, p) {
+  if (f.k === "prism") return dist(f.p, p) - PRISM_R;
+  const v = sub(p, f.p), h = dot(v, f.n), inPlane = len(sub(v, mul(f.n, h)));
+  return inPlane <= f.r ? Math.abs(h) : Math.hypot(inPlane - f.r, h);
+}
+/** Whether a shutter is closed for the shot now: always, or by its cycle (1 closed, 0 open, by the shot's number). */
+export const closed = (s, f) => !f.cycle || f.cycle[s.shots % f.cycle.length] === 1;
+export const lineOf = s => s.x?.line ?? LOSE_Y;
+/** The beacons still hanging (ids), or none. */
+export const beaconsOf = s => s.x?.beacons ?? [];
+/** The sun's angle off the vertical, in degrees, for a shot (0 with no sun): it crosses from `from` to `to` over the level's shots. */
+export function sunAngle(s, shots = s.shots) {
+  const u = s.x?.sun;
+  if (!u) return 0;
+  const span = Math.max(1, (s.x.shots ?? 8) - 1);
+  return u.from + (u.to - u.from) * Math.min(1, shots / span);
+}
+/** The light as it comes in: where it enters (the port) and which way it goes, down, or aslant by the sun. */
+export function lightAt(s, shots = s.shots) {
+  const a = (sunAngle(s, shots) * Math.PI) / 180;
+  return { o: [...(s.x?.port ?? PORT)], d: [Math.sin(a), -Math.cos(a), 0] };
+}
 
 // ---------- mirrors ----------
 /** Why a mirror can't stand at p (null if it can): inside the tube, under the crown, clear of the cluster, the colour
@@ -218,6 +279,8 @@ export function cantPlace(s, p, except = null) {
   if (radial(p) < SKIRT_R + MR && p[1] > SKIRT_Y - MR - 0.1) return "clear of the crown";
   if (pieces(s).some(q => dist(q.p, p) < PR + MR * 0.9)) return "clear of the cluster";
   if (s.crystals.some(c => dist(at(c), p) < CR + MR + 0.1)) return "clear of the colour crystals";
+  const near = fixtures(s).find(f => gap(f, p) < MR + 0.1);
+  if (near) return `clear of the ${near.k}`;
   if (s.mirrors.some(m => m.id !== except && dist(m.p, p) < 2 * MR + 0.1)) return "clear of the other mirrors";
   return null;
 }
@@ -318,9 +381,9 @@ function leave(o, d) {
  * at, id? }), ins and outs ({ mirror id: the way the light reached it, and left it }), lit (the mirrors it met, in order) }.
  */
 export function trace(s) {
-  const legs = [], shattered = [], ins = {}, outs = {}, lit = [], crossed = [];
-  const cluster = pieces(s), gone = new Set();
-  let o = [...PORT], d = [0, -1, 0], cs = [], from = null, total = 0, stop = null;
+  const legs = [], shattered = [], ins = {}, outs = {}, lit = [], crossed = [], cross = [], through = [];
+  const cluster = pieces(s), gone = new Set(), fix = fixtures(s), light = lightAt(s);
+  let o = light.o, d = light.d, cs = [], from = null, total = 0, stop = null;
   while (legs.length < MAX_LEGS && total < MAX_LENGTH) {
     let best = leave(o, d), hit = { kind: best.what };
     // the crown, a disc under the ceiling
@@ -346,6 +409,17 @@ export function trace(s) {
       const t = hitSphere(o, d, at(c), CR);
       if (t < best.t) { best = { t }; hit = { kind: "crystal", k }; }
     });
+    fix.forEach((f, i) => {
+      if (f.k === "shutter") {                                // shut, it stops the light like a wall
+        const den = dot(d, f.n);
+        if (!closed(s, f) || Math.abs(den) < EPS) return;
+        const t = dot(sub(f.p, o), f.n) / den;
+        if (t > EPS && t < best.t && dist(add(o, mul(d, t)), f.p) <= f.r) { best = { t }; hit = { kind: "shutter" }; }
+      } else if (!through.includes(i)) {                      // a prism lets the light through, in its colours too
+        const t = hitSphere(o, d, f.p, PRISM_R);
+        if (t < best.t) { best = { t }; hit = { kind: "prism", i }; }
+      }
+    });
     for (const q of cluster) {
       if (gone.has(q.id)) continue;
       const t = hitSphere(o, d, q.p, PR);
@@ -363,8 +437,16 @@ export function trace(s) {
     }
     if (hit.kind === "crystal") {
       crossed.push(hit.k);
+      cross.push({ kind: "crystal", k: hit.k, leg: legs.length - 1 });
       const c = s.crystals[hit.k].c;
       if (!cs.includes(c)) cs = [...cs, c];
+      o = hitAt; from = null;
+      continue;
+    }
+    if (hit.kind === "prism") {
+      through.push(hit.i);
+      cross.push({ kind: "prism", i: hit.i, leg: legs.length - 1 });
+      for (const c of fix[hit.i].cs) if (!cs.includes(c)) cs = [...cs, c];
       o = hitAt; from = null;
       continue;
     }
@@ -376,101 +458,133 @@ export function trace(s) {
     stop = { what: hit.kind, at: hitAt };
     break;
   }
-  return { legs, shattered, crossed, stop: stop ?? { what: "limit", at: o }, ins, outs, lit };
+  return { legs, shattered, crossed, cross, stop: stop ?? { what: "limit", at: o }, ins, outs, lit };
 }
 
 // ---------- a shot ----------
 /**
  * Fires the light as things stand. Returns { state (the game after), path (trace's), shattered, fallen (ids), gain,
- * cleared (the cluster all gone), dropped (the cluster came down), crushed (ids of mirrors it came down on) }; the game
- * passed in is left as it was.
+ * cleared (the cluster all gone), dropped (the cluster came down), crushed (ids of mirrors it came down on), downed
+ * (beacons brought down) }; the game passed in is left as it was. In a level the shot may end it (`over`, and `won` if the goal was met).
  */
 export function fire(state) {
-  const s = copy(state), path = trace(s);
-  if (s.over) return { state: s, path, shattered: [], fallen: [], gain: 0, cleared: false, dropped: false, crushed: [] };
+  const s = copy(state), path = trace(s), x = s.x, g = x?.goal;
+  if (s.over) return { state: s, path, shattered: [], fallen: [], gain: 0, cleared: false, dropped: false, crushed: [], downed: 0 };
   removeIds(s, path.shattered);
   const fallen = unsupported(s);
   removeIds(s, fallen);
   let gain = worth(path.shattered.length, fallen.length);
+  const down = beaconsOf(s).filter(id => !pieceById(s, id));
+  if (down.length) { x.beacons = beaconsOf(s).filter(id => !down.includes(id)); gain += BEACON_BONUS * down.length; }
   s.shots++;
   s.moves = movesFor(s.shots); s.touched = []; s.placed = [];
   for (const k of path.crossed) spawnCrystal(s, k);
   const cleared = !pieces(s).length;
+  // a level of beacons or of clearing ends with the chandelier; any other hangs a new one
+  const ends = g && (g.kind === "clear" || g.kind === "beacons");
   if (cleared) {
     gain += CLEAR_BONUS;
-    fill(s);
-    s.untilDrop = dropEvery(s.shots);
+    if (!ends) { fill(s); s.untilDrop = dropEvery(s.shots, x); }
   }
   s.score += gain;
   let dropped = false;
   if (!cleared && --s.untilDrop <= 0) {
     s.layers.unshift(newLayer(s, s.layers[0]?.c));        // a crystal more on every string of the shape
-    s.untilDrop = dropEvery(s.shots);
+    s.untilDrop = dropEvery(s.shots, x);
     dropped = true;
   }
   // what the cluster now reaches: mirrors under it go back to hand, colour crystals move
   const cluster = pieces(s), crushed = s.mirrors.filter(m => cluster.some(q => dist(q.p, m.p) < PR + MR * 0.9)).map(m => m.id);
   s.mirrors = s.mirrors.filter(m => !crushed.includes(m.id));
   s.crystals.forEach((c, k) => { if (!crystalFits(s, at(c), k)) spawnCrystal(s, k); });
-  if (lowest(s) - PR < LOSE_Y) s.over = true;
-  return { state: s, path, shattered: path.shattered, fallen, gain, cleared, dropped, crushed };
+  if (g && !s.met && (g.kind === "score" ? s.score >= g.n : g.kind === "beacons" ? !beaconsOf(s).length : cleared)) { s.met = true; s.metAt = s.shots; }
+  if (s.met && g.kind !== "score") s.over = true;           // a score is gone on past, for the stars
+  if (lowest(s) - PR < lineOf(s)) s.over = true;
+  if (x?.shots && s.shots >= x.shots) s.over = true;
+  if (g && s.over) s.won = !!s.met;
+  return { state: s, path, shattered: path.shattered, fallen, gain, cleared, dropped, crushed, downed: down.length };
 }
 
 // ---------- players, for the tests and the tuning ----------
+/** What a simple player wants of a shot (fire()'s result): the level's own aim, then the points. */
+export function wanted(s, f) {
+  const g = s.x?.goal?.kind;
+  if (g === "beacons") return f.downed * 1e6 + f.gain;
+  if (g === "clear") return (f.shattered.length + f.fallen.length) * 1e3 + f.gain;
+  return f.gain;
+}
 /**
- * A shot set up as a simple player would, within the two moves a shot: the mirror under the port (set there, or moved
- * down it, if it must be) turned to a colour crystal past which the light has room to run on, and another mirror (set,
- * or the nearest moved) in the light beyond it, turned to a crystal of that colour in the cluster, chosen at random
- * ("random"), the best of four looked at ("glance") or for the most it brings down ("best"); "none" sets nothing. Mirrors
- * it doesn't use stay where they are. (A second colour is left to luck, and to people.) Returns the game so set, ready to fire.
+ * A shot set up as a simple player would, within the moves a shot has: the mirror in the light (set there, or moved
+ * down it, if it must be) turned to a gate (a colour crystal, or a prism) past which the light has room to run on, and
+ * another mirror (set, or the nearest moved) in the light beyond it, turned to a crystal of the colour the light then
+ * carries in the cluster, chosen at random ("random"), the best of four looked at ("glance"), of ten ("keen") or the one `wanted`
+ * most ("best", which looks at every one and tries every gate); "none" sets nothing. Mirrors it doesn't use stay where they are. (A second
+ * colour is left to luck, and to people.) Returns the game so set, ready to fire.
  */
 export function plan(state, how = "best", rnd = Math.random) {
   const s = copy(state);
   if (how === "none" || s.over) return s;
-  const underPort = m => Math.hypot(m.p[0] - PORT[0], m.p[2] - PORT[2]) < 1e-6;
-  const beyond = (t, c, from) => {
+  // the light at a height; high under a sun, where a mirror can stay put as the sun moves, on the line of the middle of the day
+  const along = (L, h) => add(L.o, mul(L.d, (h - L.o[1]) / L.d[1])), now = lightAt(s), noon = s.x?.sun ? lightAt(s, (s.x.shots - 1) / 2) : now;
+  const point = h => along(s.x?.sun && h >= 12.5 ? noon : now, h);
+  const a0 = s.mirrors.find(m => m.id === trace(s).lit[0]);
+  const gates = [
+    ...s.crystals.map((c, k) => ({ p: at(c), through: path => path.crossed.includes(k) })),
+    ...fixtures(s).flatMap((f, i) => (f.k === "prism" ? [{ p: f.p, through: path => path.cross.some(x => x.kind === "prism" && x.i === i) }] : [])),
+  ];
+  const beyond = (t, c, from, a) => {
     const dir = norm(sub(c, from));
-    for (const step of [1.2, 1.6, 2.2, 2.8]) { const b = add(c, mul(dir, step)); if (!cantPlace(t, b, t.mirrors.find(m => !underPort(m))?.id)) return b; }
+    for (const step of [1.2, 1.6, 2.2, 2.8]) { const b = add(c, mul(dir, step)); if (!cantPlace(t, b, t.mirrors.find(m => m.id !== a)?.id)) return b; }
     return null;
   };
-  // the mirror under the port: where it is if the light reaches it, else set or moved to each height in turn
-  let set = null;
-  const a0 = s.mirrors.find(m => underPort(m) && trace(s).lit[0] === m.id);
-  for (let k = 0; !set && k < CRYSTALS; k++) {
-    const c = at(s.crystals[k]);
-    const heights = (a0 ? [a0.p[1]] : []).concat([1.2, 2, 2.8, 3.6, 4.4, 5.2, 6]);
+  // under the sun the mirror in the light is best high, near the port, where the light stays on it as the sun moves
+  const heights = (a0 ? [a0.p[1]] : []).concat(s.x?.sun ? [12.9, 11.6, 10.4, 9, 7.5] : [], [1.2, 2, 2.8, 3.6, 4.4, 5.2, 6], !s.x?.sun && fixtures(s).length ? [7.5, 9, 10.5, 12] : []);
+  // the first mirror, in the light, turned to the gate: { t, a (its id), b (where the second goes) }, or null
+  const route = gate => {
     for (const y of heights) {
-      const p = [PORT[0], y, PORT[2]];
+      const p = point(y);
       let t = s, id;
       if (a0 && y === a0.p[1]) id = a0.id;
       else if (a0) { if (cantPlace(s, p, a0.id)) continue; t = moveMirror(s, a0.id, p); id = a0.id; }
       else { if (cantPlace(s, p)) continue; t = addMirror(s, p); id = t.mid - 1; }
       if (t === s && !(a0 && y === a0.p[1])) continue;
-      t = pointMirror(t, id, c);
-      if (!trace(t).crossed.includes(k)) continue;
-      const b = beyond(t, c, p);
-      if (b) set = { t, a: id, b, k };
-      if (set) break;
+      t = pointMirror(t, id, gate.p);
+      if (!gate.through(trace(t))) continue;
+      const b = beyond(t, gate.p, p, id);
+      if (b) return { t, a: id, b };
     }
+    return null;
+  };
+  // the second mirror, beyond the gate, and what it is turned to
+  const finish = set => {
+    let t = set.t;
+    const other = t.mirrors.filter(m => m.id !== set.a).sort((m, n) => dist(m.p, set.b) - dist(n.p, set.b))[0];
+    let bid;
+    if (other && canMove(t, other.id)) { t = moveMirror(t, other.id, set.b); bid = other.id; }
+    else if (canMove(t) && t.mirrors.length < MIRRORS) { t = addMirror(t, set.b); bid = t.mid - 1; }
+    else return { t, v: -Infinity };
+    const arriving = trace(t).legs.find(l => dist(l.b, set.b) < MR + 0.05), targets = pieces(t).filter(q => arriving?.cs.includes(q.c));
+    if (!targets.length) return { t, v: -Infinity };
+    const tryAim = q => pointMirror(t, bid, q.p);
+    if (how === "random") return { t: tryAim(targets[Math.floor(rnd() * targets.length)]), v: 0 };
+    // "glance": the best of a few, as someone looks over the crystals the light would ring and takes the best they've seen
+    // ("keen": of ten, as a patient person with the preview in front of them)
+    const looks = { glance: 4, keen: 10 }[how];
+    const look = looks ? Array.from({ length: looks }, () => targets[Math.floor(rnd() * targets.length)]) : targets;
+    let best = { t, v: -Infinity };
+    for (const q of look) {
+      const u = tryAim(q), v = wanted(u, fire(u));
+      if (v > best.v) best = { t: u, v };
+    }
+    return best;
+  };
+  let chosen = null;
+  for (const gate of gates) {
+    const set = route(gate);
+    if (!set) continue;
+    const done = finish(set);
+    if (!chosen || done.v > chosen.v) chosen = done;
+    if (how !== "best" && how !== "keen") break;
   }
-  if (!set) return s;
-  // the second mirror: another already standing, moved there, or a new one
-  let t = set.t;
-  const other = t.mirrors.filter(m => m.id !== set.a).sort((m, n) => dist(m.p, set.b) - dist(n.p, set.b))[0];
-  let bid;
-  if (other && canMove(t, other.id)) { t = moveMirror(t, other.id, set.b); bid = other.id; }
-  else if (canMove(t) && t.mirrors.length < MIRRORS) { t = addMirror(t, set.b); bid = t.mid - 1; }
-  else return t;
-  const colour = s.crystals[set.k].c, targets = pieces(t).filter(q => q.c === colour);
-  if (!targets.length) return t;
-  const tryAim = q => pointMirror(t, bid, q.p);
-  if (how === "random") return tryAim(targets[Math.floor(rnd() * targets.length)]);
-  // "glance": the best of a few, as someone looks over the crystals the light would ring and takes the best they've seen
-  const look = how === "glance" ? Array.from({ length: 4 }, () => targets[Math.floor(rnd() * targets.length)]) : targets;
-  let best = t, bestN = -1;
-  for (const q of look) {
-    const u = tryAim(q), f = fire(u), n = f.gain;
-    if (n > bestN) { best = u; bestN = n; }
-  }
-  return best;
+  return chosen ? chosen.t : s;
 }
