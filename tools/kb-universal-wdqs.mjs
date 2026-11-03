@@ -17,7 +17,7 @@ export function sparql(query, { tries = 4, timeout = 90 } = {}) {
     for (let t = 1; ; t++) {
       let out = "", code = "";
       try {
-        out = execFileSync("curl", ["-sS", "-m", String(timeout), "-A", UA, "-H", "Accept: application/sparql-results+json",
+        out = execFileSync("curl", ["-sS", "-m", String(timeout), "-A", UA, "-H", "Accept: application/sparql-results+json", "-D", join(dir, "h.txt"),
           "--data-urlencode", `query@${join(dir, "q.txt")}`, "-o", join(dir, "out.json"), "-w", "%{http_code}", ENDPOINT],
           { encoding: "utf8", maxBuffer: 1 << 20 });
         code = out.trim();
@@ -26,8 +26,14 @@ export function sparql(query, { tries = 4, timeout = 90 } = {}) {
         const rows = JSON.parse(readFileSync(join(dir, "out.json"), "utf8")).results.bindings;
         return rows.map(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v.value])));
       }
+      // A 429 says how long to stay away (it was 1,000 s on 3 November); every try inside that time only extends it
+      let wait = 3 * t;
+      if (code === "429") {
+        try { wait = Number(/retry-after:\s*(\d+)/i.exec(readFileSync(join(dir, "h.txt"), "utf8"))?.[1] ?? 60); } catch { wait = 60; }
+        if (wait > 120) throw new Error(`WDQS throttled: retry after ${wait} s`);
+      }
       if (t >= tries) throw new Error(`WDQS ${code} after ${t} tries: ${(() => { try { return readFileSync(join(dir, "out.json"), "utf8").slice(0, 300); } catch { return ""; } })()}`);
-      sleep(3000 * t);
+      sleep(Math.max(3, wait) * 1000);
     }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }

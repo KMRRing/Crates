@@ -59,11 +59,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // holds older layouts of level 4 (Science, Religion…), a Candidates page and a Removed page per list, which are not the list.
   const DOMAINS = "People|History|Geography|Arts|Philosophy and religion|Everyday life|Society and social sciences|Biology and health sciences|Physical sciences|Technology|Mathematics|Measurement";
   const IN_USE = new RegExp(`^Wikipedia:Vital articles/Level (3$|4/(${DOMAINS})(/|$)|5/)`);
-  const pages = rows.filter(r => IN_USE.test(r.title) && !/\/(Candidates|Removed|draft|Draft|Nav bar|header)\b/i.test(r.title))
+  // "Article alerts" is a log of nominations and deletions under level 5, not a list: it names articles that are on no level
+  const pages = rows.filter(r => IN_USE.test(r.title) && !/\/(Candidates|Removed|draft|Draft|Nav bar|header|Article alerts)\b/i.test(r.title))
     .map(r => ({ ...r, level: /^Wikipedia:Vital articles\/Level (\d)/.exec(r.title)[1] })).filter(r => Number(r.level) <= Number(maxLevel));
   console.error(pages.length, "list pages up to level", maxLevel);
   const seen = new Map(); // title → { level (lowest = most vital), domain, sub }
-  const lines = [];
+  // written after every page, so a long run (level 5 is ~120 pages of ~50 MB of text each to open) can be used while it is still going
+  const flush = () => writeFileSync(join(outDir, "vital.tsv"), [...seen].map(([t, v]) => [t, v.level, v.domain, v.sub, v.page, v.d4].join("\t")).join("\n") + "\n");
   for (const p of pages) {
     const text = pageText(p.offset, p.title, cache);
     if (!text) { console.error("no text:", p.title); continue; }
@@ -75,8 +77,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (!seen.has(key) || seen.get(key).level > lvl) seen.set(key, { level: lvl, domain: it.domain, sub: it.sub, page: p.title, d4: seen.get(key)?.d4 || "" });
       if (d4) seen.get(key).d4 = d4;
     }
+    flush();
   }
-  for (const [t, v] of seen) lines.push([t, v.level, v.domain, v.sub, v.page, v.d4].join("\t"));
-  writeFileSync(join(outDir, "vital.tsv"), lines.join("\n") + "\n");
-  console.log(lines.length, "distinct articles");
+  console.log(seen.size, "distinct articles");
 }

@@ -9,7 +9,7 @@ import { createInterface } from "node:readline";
 import { join, resolve as resolvePath } from "node:path";
 import { loadKb } from "./kb-universal-kb.mjs";
 import { variantsOf } from "./kb-universal-titles.mjs";
-import { score, tier, spearman } from "./kb-universal-score.mjs";
+import { score, tier, spearman, rankPoints, median } from "./kb-universal-score.mjs";
 import { TAUGHT_ROWS } from "./kb-universal-taught.mjs";
 
 export const EDITIONS = ["en", "de", "fr", "es", "pt", "ru", "zh", "ja", "ar", "hi", "ko", "id", "it"];
@@ -28,7 +28,7 @@ const VITAL_DOMAIN = d => {
   if (s.startsWith("geography")) return "Geography";
   if (s.startsWith("art")) return "Arts";
   if (s.startsWith("philosophy")) return "Philosophy and religion";
-  if (s.startsWith("everyday")) return "Everyday life";
+  if (s.startsWith("everyday") || s.startsWith("anthropology")) return "Everyday life";
   if (s.startsWith("society")) return "Society and social sciences";
   if (s.startsWith("biolog")) return "Biological and health sciences";
   if (s.startsWith("physical")) return "Physical sciences";
@@ -115,6 +115,7 @@ if (stage === "ids") {
     if (id === undefined) { metaMissing++; continue; }
     const e = entry({ id, title: titleOf.get(id), qid: q }, "meta");
     if (!e.meta || (m.level === "M1" && e.meta.level === "M2")) e.meta = m;
+    if (!e.domain) e.domain = VITAL_DOMAIN(m.domain || "") || null;
   }
   console.log("Meta-Wiki items without an English article:", metaMissing, "of", meta.size);
   const list = [...entries.values()].map(e => ({ ...e, from: [...e.from] }));
@@ -155,15 +156,24 @@ if (stage === "report") {
   const { LINKS } = await import(resolvePath(import.meta.dirname, "..", "kb/links.js"));
   const { editions, scored, kbStatus } = json("scored.json");
   const byId = new Map(scored.map(e => [e.id, e]));
-  const dSum = new Map();
-  for (const l of LINKS) if (l.rel === "clue" && typeof l.d === "number") { const a = dSum.get(l.from) || [0, 0]; a[0] += l.d; a[1]++; dSum.set(l.from, a); }
+  const dSum = new Map(), trade = new Map();
+  // a clue link whose main topic is the trader's (energy, metals, agriculture, money, finance, trade, companies, markets, logistics, regulation, production)
+  const TRADEISH = new Set(["nrg", "met", "agr", "mkt", "fin", "trade", "co", "mkts", "logi", "firm", "reg", "prod"]);
+  for (const l of LINKS) if (l.rel === "clue") {
+    if (typeof l.d === "number") { const a = dSum.get(l.from) || [0, 0]; a[0] += l.d; a[1]++; dSum.set(l.from, a); }
+    const t = trade.get(l.from) || [0, 0]; t[1]++; if (TRADEISH.has(l.aspects?.[0])) t[0]++; trade.set(l.from, t);
+  }
   const kbTier = r => { const s = kbStatus[r.i]; if (s.status !== "found") return s.status; return byId.get(s.id).tier; };
   const count = {}, byDomain = {};
   for (const r of rows) { const t = kbTier(r); count[t] = (count[t] || 0) + 1; (byDomain[r.domain] ||= {})[t] = ((byDomain[r.domain] || {})[t] || 0) + 1; }
   // calibration against the hand-written difficulty of clue words
   const xs = [], ys = [];
   for (const r of rows) { const d = dSum.get(r.id), s = kbStatus[r.i]; if (d && s.status === "found") { xs.push(byId.get(s.id).u); ys.push(d[0] / d[1]); } }
-  const shown = r => { const s = kbStatus[r.i], e = s.status === "found" ? byId.get(s.id) : null; return { id: r.id, name: r.name, set: r.set, degree: r.degree, status: s.status === "found" ? kbTier(r) : s.status, title: e?.title, qid: e?.qid, u: e ? +e.u.toFixed(3) : null, languages: e?.languages, editions: e?.editions, vital: e?.vital ?? null }; };
+  const shown = r => {
+    const s = kbStatus[r.i], e = s.status === "found" ? byId.get(s.id) : null, t = trade.get(r.id);
+    return { id: r.id, name: r.name, set: r.set, degree: r.degree, status: s.status === "found" ? kbTier(r) : s.status, title: e?.title, qid: e?.qid,
+      u: e ? +e.u.toFixed(3) : null, languages: e?.languages, editions: e?.editions, vital: e?.vital ?? null, trade: t ? +(t[0] / t[1]).toFixed(2) : null };
+  };
   const scoredKb = rows.filter(r => kbStatus[r.i].status === "found");
   const rnd = (list, n, seed) => { let s = seed; const a = [...list]; for (let i = a.length - 1; i > 0; i--) { s = (s * 1103515245 + 12345) & 0x7fffffff; const j = s % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
   const kept = scoredKb.filter(r => ["core", "wide"].includes(kbTier(r)));
@@ -185,7 +195,16 @@ if (stage === "report") {
     notVitalList: taught.filter(e => !e.vital).map(brief),
     historyL3: { n: histL3.length, named: histL3.filter(e => e.taught).length, unnamed: histL3.filter(e => !e.taught).map(e => e.title) },
   };
+  // West/English bias: how widely each list's items are read in each edition, and which items are read far more in English than elsewhere
+  const share = (list, i) => +(list.filter(e => e.ranks[i] != null).length / Math.max(1, list.length)).toFixed(3);
+  const lists = { "Vital level 3": scored.filter(e => e.vital && e.vital <= 3), "Meta base 1,000": scored.filter(e => e.meta?.level === "M1"), "Vital level 4": scored.filter(e => e.vital === 4), "Meta expanded 10,000": scored.filter(e => e.meta?.level === "M2"), "in kb/": scored.filter(e => e.kb.length) };
+  const coverage = Object.fromEntries(Object.entries(lists).map(([k, l]) => [k, { n: l.length, ...Object.fromEntries(editions.map((ed, i) => [ed, share(l, i)])) }]));
+  const skewed = scored.filter(e => (e.vital && e.vital <= 4 || e.meta) && e.ranks[0] != null).map(e => {
+    const others = median(e.ranks.slice(1).map(rankPoints));
+    return { title: e.title, domain: e.domain, skew: +(rankPoints(e.ranks[0]) - others).toFixed(2), editions: e.editions, languages: e.languages };
+  }).sort((a, b) => b.skew - a.skew);
   const report = {
+    westBias: { coverage, mostEnglish: skewed.slice(0, 25), leastEnglish: skewed.slice(-25).reverse() },
     taught: taughtReport,
     kbCounts: count, byDomain, calibration: { n: xs.length, spearman: +spearman(xs, ys).toFixed(3) },
     universe: scored.length, universeTiers: scored.reduce((m, e) => (m[e.tier] = (m[e.tier] || 0) + 1, m), {}),

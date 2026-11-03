@@ -303,7 +303,7 @@ Slavery|a
 Age of Enlightenment|a
 French Revolution|a
 Haitian Revolution|a
-Latin American wars of independence|a
+Spanish American wars of independence|a
 Nationalism|a
 Liberalism|a
 Conservatism|a
