@@ -14,6 +14,7 @@ const FSLOT = [3, 2, 1, 0];                        // the foundations left to ri
 const ASPECT = 1.4;                                // a card is 3.5em by 2.5em
 const TAB_REF = 3.9;                               // card heights the tableau is made for: a column longer than that fans in
 const DRAG = 7;                                    // px (a tablet's rem grows it) a finger moves before a press is a drag
+const SLOP = 14;                                   // a drag that lets go over no place, within this of where it began, was a tap
 const SUITS = ["♦", "♣", "♥", "♠"];
 const AT = /translate\(([-\d.]+)px, ([-\d.]+)px\)/;
 
@@ -118,7 +119,7 @@ export function createBoard(root, opts = {}) {
       stock(slotXY(place(STK)));
       const wp = slotXY(place(WST)), w = g.waste, shown = V.draw === 3 ? Math.min(3, w.length) : 1;
       w.forEach((uid, j) => {
-        const fromTop = w.length - 1 - j, x = fromTop < shown ? wp.x + (shown - 1 - fromTop) * Math.round(cw * 0.3) * (V.draw === 3 ? 1 : 0) : wp.x;
+        const fromTop = w.length - 1 - j, x = fromTop < shown ? wp.x + (shown - 1 - fromTop) * Math.round(cw * 0.5) * (V.draw === 3 ? 1 : 0) : wp.x;   // the third card's room is the column beside the waste, which is empty
         at(uid, x, wp.y, 1 + j, true);
         if (fromTop === 0) where.set(uid, { place: place(WST), idx: j });
       });
@@ -281,6 +282,8 @@ export function createBoard(root, opts = {}) {
     const { spot } = pressing;
     if (!dragging) { cancel(true); opts.onTap?.(spot); return; }
     const target = pickTarget(), r = leadRect();
+    // a thumb that slid a little and let go over nothing meant a tap, not a drag that missed
+    if (!target && Math.hypot(ev.clientX - pressing.x, ev.clientY - pressing.y) < SLOP * scale()) { cancel(true); opts.onTap?.(spot); return; }
     let reason = null;
     if (!target) {              // dropped on a column or slot that won't take it: say why
       const places = [];

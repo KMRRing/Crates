@@ -216,7 +216,7 @@ export const COURSE = {
         {
           id: "p-klondike", title: "Klondike: the order of play", zh: "",
           steps: [
-            { say: "In Klondike, look at the table before you touch the stock, and go through the same questions each time. First: can an ace or a two go up? Then: is there a move that turns a face-down card up? Then: a move that makes a column empty for a waiting king? Only when none of these is there, turn the stock." },
+            { table: { cols: KLONDIKE_DEAL, stock: 24 }, say: "In Klondike, look at the table before you touch the stock, and go through the same questions each time. First: can an ace or a two go up? Then: is there a move that turns a face-down card up? Then: a move that makes a column empty for a waiting king? Only when none of these is there, turn the stock." },
             { quiz: ["The one with five face down", "The one with one face down"], answer: 0, say: "Two moves would each turn a card up: one from a column with five cards face down, one from a column with one. Which first?", why: "The column with the most face down: that's where the hidden cards, and the aces, are buried. The short one will wait." },
             { quiz: ["When the 3 of clubs and 3 of spades are up as well", "Always", "Never"], answer: 0, say: "The 4 of diamonds can go up. When is it safe to send it?", why: "A black 3 may still want to stand on a red 4. Once both black 3s are up, nobody can need it on the table. The game's auto-move uses this rule, and aces and twos always go." },
             { say: "Do not hurry a king into an empty column unless there is one to put there, and don't move a card just because you can: every move is a card you can't un-see. Here you can undo as much as you like, so try things." },
@@ -225,7 +225,7 @@ export const COURSE = {
         {
           id: "p-freecell", title: "FreeCell: the arithmetic", zh: "",
           steps: [
-            { say: "FreeCell can be worked out, and nearly every deal can be won. Count before you move. With c free cells and e empty columns you can carry (c + 1) × 2 to the power of e cards at once, one fewer power if the column you're going to is the empty one." },
+            { table: { v: "freecell", cols: ["9s 8h 7c", "Td", "Ks", "Kh", "Kc", "Qs", "Qh", "Kd"], cells: "- Jc Jd -" }, say: "FreeCell can be worked out, and nearly every deal can be won. Count before you move. With c free cells and e empty columns you can carry (c + 1) × 2 to the power of e cards at once, one fewer power if the column you're going to is the empty one." },
             { quiz: ["8", "4", "6"], answer: 0, say: "One free cell open and two empty columns, moving to a column with cards: how many can you carry?", why: "(1 + 1) × 2 × 2 = 8." },
             { quiz: ["An empty column", "A free cell"], answer: 0, say: "Which is worth more to keep?", why: "An empty column: it doubles what you can carry, and holds a whole run. A free cell adds one." },
             { say: "So: don't put a card in a cell unless it frees something; clear a short column to make an empty one; free the aces and twos first; and when a move needs more than you can carry, it is a sign to look at the other columns first." },
@@ -234,7 +234,7 @@ export const COURSE = {
         {
           id: "p-spider", title: "Spider: keep the suits", zh: "",
           steps: [
-            { say: "In Spider, build in one suit wherever you can: a run of one suit moves whole, a mixed one has to be taken apart. Prefer the move that puts a card on the same suit over the one that only builds, and work towards an empty column: it is the most useful thing on the table." },
+            { table: { v: "spider2", cols: ["_Kh 7s", "_4s 6h", "Qs", "_9h Js", "_2s Th", "8h", "_5h 6s", "Ks 9s", "_3h Qh", "_Ah 4h"], stock: 30 }, say: "In Spider, build in one suit wherever you can: a run of one suit moves whole, a mixed one has to be taken apart. Prefer the move that puts a card on the same suit over the one that only builds, and work towards an empty column: it is the most useful thing on the table." },
             { quiz: ["On the same suit", "On the other suit"], answer: 0, say: "You can put a 6 of spades on a 7 of spades or on a 7 of hearts. Which?", why: "The same suit, so the two move together later. The game's tap does this for you." },
             { say: "Don't deal until you have to: a row buries every column. When you do, do it with no empty column and no better move, and use the hint when you are stuck: it searches for a way through." },
           ],

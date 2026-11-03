@@ -136,6 +136,7 @@ const read = f => fs.readFileSync(root + f, "utf8");
     l.steps.forEach((st, i) => {
       const where = `${l.id} ${i + 1}`;
       if (!st.say) problems.push(`${where}: no words`);
+      if (!st.table) problems.push(`${where}: no table to show`);
       let g = null;
       try { g = st.table ? positionOf(st.table) : null; } catch (e) { problems.push(`${where}: ${e.message}`); }
       if (st.quiz) { quizzes++; if (!(st.answer >= 0 && st.answer < st.quiz.length) || !st.why) problems.push(`${where}: a choice needs an answer in range and why`); }

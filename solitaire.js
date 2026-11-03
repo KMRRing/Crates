@@ -134,7 +134,7 @@ function begin(s) {
   savePrefs();
   $("variant").value = S.id;
   $("table").classList.remove("won");
-  say("");
+  say(!prefs.seen && !IN_FRAME && !S.log.length ? "Tap a card to send it where it goes, or drag it. Tap the stock for more cards." : "");
   draw(true);
   save();
   if (S.done) { $("verdict").textContent = verdict(); }
@@ -188,7 +188,10 @@ async function switchTo(id) {
 function commit(m, auto = false) {
   const why = E.whyNot(G, m);
   if (why) { say(why, "bad"); return false; }
-  if (!auto) { autoToken++; S.redo = []; say(""); }
+  if (!auto) {
+    autoToken++; S.redo = []; say("");
+    if (!prefs.seen) { prefs.seen = true; savePrefs(); }
+  }
   E.applyMut(G, m);
   S.log.push(E.pack(m, auto));
   rev++;
