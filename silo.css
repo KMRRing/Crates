@@ -56,7 +56,7 @@ html[data-theme="office"][data-mode="night"] { --si-in: #479EF5; }
 .si-cue.x { stroke: #A8382B; stroke-width: 10; stroke-linecap: round; fill: none; }
 .si-cue.spot { fill: var(--si-lit); opacity: .9; }
 .si-cue:not(.x):not(.spot) { fill: none; stroke: var(--si-lit); stroke-width: 6; stroke-dasharray: 14 9; }
-.si-num { fill: var(--ink-soft); font-size: 34px; font-weight: 700; }
+.si-num { fill: var(--ink-soft); font-weight: 700; }
 .si-hint { fill: #2F7D5B; stroke: var(--sheet); stroke-width: 4; stroke-linejoin: round; animation: si-bob 1s ease-in-out infinite alternate; }
 .si-tap { fill: transparent; cursor: pointer; outline: none; }
 .si-svg.off .si-tap { cursor: default; }

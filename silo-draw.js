@@ -66,7 +66,7 @@ export function boardSvg({ moves = "", first = 0, line = [], fall = null, hint =
     out.push(m.kind === "x" ? `<path class="si-cue x" d="M${x - 24} ${y - 24}L${x + 24} ${y + 24}M${x + 24} ${y - 24}L${x - 24} ${y + 24}"/>`
       : m.kind === "spot" ? `<circle class="si-cue spot" cx="${x}" cy="${y}" r="16"/>` : `<circle class="si-cue" cx="${x}" cy="${y}" r="47"/>`);
   }
-  if (numbers) for (let c = 0; c < W; c++) out.push(`<text class="si-num" x="${cx(c)}" y="${BY - 24}" text-anchor="middle">${c + 1}</text>`);
+  if (numbers) for (let c = 0; c < W; c++) out.push(`<text class="si-num" font-size="34" x="${cx(c)}" y="${BY - 24}" text-anchor="middle">${c + 1}</text>`);
   if (hint >= 0) out.push(`<path class="si-hint" d="M${cx(hint) - 22} ${BY - 44}L${cx(hint) + 22} ${BY - 44}L${cx(hint)} ${BY - 8}Z"/>`);
   if (enabled) for (let c = 0; c < W; c++) out.push(`<rect class="si-tap" data-col="${c}" x="${BX + c * P}" y="0" width="${P}" height="${VIEW.h}" tabindex="0" role="button" aria-label="Column ${c + 1}"/>`);
   out.push(`</svg>`);

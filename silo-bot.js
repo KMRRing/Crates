@@ -38,7 +38,7 @@ export const advised = moves => advice.get(moves);
 
 /** How much a level of Hard may spend on a move here (nodes), by the discs played: more late, where it solves. */
 export function hardBudget(n, big = false) {
-  return big ? { solve: n >= 12 ? 4_000_000 : 0, think: 1_500_000, depth: 16 } : { solve: n >= 16 ? 400_000 : 0, think: 40_000, depth: 10 };
+  return big ? { solve: n >= 10 ? 8_000_000 : 0, think: 1_500_000, depth: 16 } : { solve: n >= 16 ? 400_000 : 0, think: 40_000, depth: 10 };
 }
 
 /**
