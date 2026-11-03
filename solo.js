@@ -10,7 +10,9 @@ import { createRun, cleanCode, validCode } from "./run.js";
 import { busy } from "./loading.js";
 import { recognised, pairKey } from "./known.js";
 import * as view from "./view.js";
-import { part, action, line, mirror, isPaused, onPause } from "./menu.js";
+import { part, action, line, isPaused, onPause } from "./menu.js";
+import { sure } from "./sure.js";
+import { modeChoice } from "./crates-board.js";
 import { topicsPart } from "./topics-ui.js";
 import { subjectsOn } from "./topics-on.js";
 import { today, noteComparable, noteStreak } from "./suite.js";
@@ -185,7 +187,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     const pts = score(g), won = g.found.length === 4, time = formatTime(g.ms || 0);
     const rows = g.guesses.map(ls => ls.map(l => SQUARES[l]).join("")).join("\n");
     const names = g.found.map(f => f.named ? "✓" : "½").join("");
-    const used = `Lives used ${g.mistakes}/${MAX_MISTAKES} · Clues used ${g.revealed.length}/${CLUES}`;
+    const used = `Mistakes ${g.mistakes}/${MAX_MISTAKES} · Clues used ${g.revealed.length}/${CLUES}`;
     const link = `${location.origin}${location.pathname}?b=${g.code}`;
     const tags = g.done && g.tags;
     return {
@@ -197,10 +199,10 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       pending: pendingGroup !== null ? { g: pendingGroup, mine: true } : null,
       canSubmit: selected.size === 4 && !g.done && pendingGroup === null,
       done: g.done,
-      resultLine: `${won ? "" : "Out of lives · "}${pts} of 8 in ${time}`,
+      resultLine: `${won ? "" : "Out of mistakes · "}${pts} of 8 in ${time}`,
       subLine: used,
       shareGrid: rows + (names ? `\n${names}` : ""),
-      shareText: [`Crates · ${PLURAL[board.cat]}`, `${won ? "" : "Out of lives · "}${pts}/8 in ${time}`, used,
+      shareText: [`Crates · ${PLURAL[board.cat]}`, `${won ? "" : "Out of mistakes · "}${pts}/8 in ${time}`, used,
         rows, ...(names ? [`Named ${names}`] : []), link].join("\n"),
       canShare: true, canNext: true, nextLabel: "Next board",
     };
@@ -228,7 +230,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     if (!validCode(code)) { view.toast("That code doesn't look right: it's 8 letters", 2500); return; }
     if (code === run.code()) { view.toast("This device already follows that run", 2200); return; }
     const progress = store.history.length > 0 || (store.cur && store.cur.guesses.length > 0);
-    if (progress && !confirm("Switch this device to the synced run? Its own progress here will be replaced.")) return;
+    if (progress && !(await sure("Switch this device to the synced run? Its own progress here will be replaced.", { yes: "Switch" }))) return;
     const done = busy("Fetching your run");
     try {
       const ok = await run.join(code);
@@ -294,8 +296,8 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     settingsSheet();
   }
 
-  function resetMode(question, forget) {
-    if (!confirm(question)) return;
+  async function resetMode(question, forget) {
+    if (!(await sure(question, { yes: "Forget it" }))) return;
     forget();
     save();
     draw();
@@ -361,13 +363,12 @@ export function createSolo({ setPoolParam, setBoardParam }) {
         end();
         selected.clear();
         clueShown = null;
-        view.toast("Out of lives", 2500);
+        view.toast("Out of mistakes", 2500, "bad");
       } else {
-        view.toast(r.res === "one" ? "One away" : "Not a crate", 1800);
+        view.toast(r.res === "one" ? "One away" : "Not a crate", 1800, "bad");
       }
       save();
-      const grid = document.getElementById("grid");
-      grid.classList.remove("shake"); void grid.offsetWidth; grid.classList.add("shake");
+      view.shake();
       setTimeout(draw, g.done ? 0 : 380);
     },
     name(guess) {
@@ -391,10 +392,9 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     async share() {
       view.toast(await view.copyText(vm().shareText) ? "Result copied" : "Couldn't copy", 1600);
     },
-    // the header's links: Countries is this page; Classic is Lots, which is Crates' other half (README, Crates and Lots)
-    pool(value) {
-      if (value !== "classic") return;
-      if (!game().done && game().guesses.length && !confirm("Leave this board unfinished?")) { draw(); return; }
+    // the menu's Mode: Countries is this page; Classic is Lots, which is Crates' other half (README, Crates and Lots)
+    async classic() {
+      if (!game().done && game().guesses.length && !(await sure("Leave this board unfinished?", { yes: "Leave it" }))) { handlers.menu(); return; }
       location.href = "lots.html";
     },
     menu() {
@@ -402,16 +402,16 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       // learning, recent boards to replay). Your other devices follow this run through the solo code on the games screen.
       view.openMenu((body, close) => {
         const g = game();
-        part(body, "play").append(action(g.done ? "New board" : "Skip board", () => {
-          if (!g.done && g.guesses.length && !confirm("Leave this board unfinished?")) return;
+        part(body, "play").append(action(g.done ? "New board" : "Skip board", async () => {
+          if (!g.done && g.guesses.length && !(await sure("Leave this board unfinished?", { yes: "Leave it" }))) return;
           // clue learn: a tile whose clue you opened comes back even if you skip the board
           if (!g.done && g.mode === "clues" && store.mode === "clues") learnFromClues(store.deck, board, g);
           fresh();
-        }, "primary"), action("Today's board", () => {
-          if (!g.done && g.guesses.length && !confirm("Leave this board unfinished?")) return;
+        }, "primary"), action("Today's board", async () => {
+          if (!g.done && g.guesses.length && !(await sure("Leave this board unfinished?", { yes: "Leave it" }))) return;
           if (daily()) close();
         }));
-        part(body, "content").append(mirror("Links", document.getElementById("pool")), ...topicsPart(body), action("Difficulty and regions", settingsSheet));
+        part(body, "content").append(...modeChoice("country", handlers.classic), ...topicsPart(body), action("Difficulty and regions", settingsSheet));
         const about = part(body, "about"), done = store.history.length;
         if (done) {
           const total = store.history.reduce((t, r) => t + r.pts, 0), perfect = store.history.filter(r => r.pts === 8).length;

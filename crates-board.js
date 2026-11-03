@@ -111,27 +111,27 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 export function drawCount(el, { mistakes = null, clues = null, text = null } = {}) {
   if (text != null) { el.replaceChildren(text); return; }
   const out = [];
-  const dots = (label, left, max, cls) => {
+  const dots = (label, left, max, cls, bare = false) => {
     const box = document.createElement("span");
     box.className = `cb-dots ${cls}`;
     box.setAttribute("aria-label", `${plural(left, label.toLowerCase())} left`);
     for (let i = 0; i < max; i++) { const d = document.createElement("i"); if (i >= left) d.className = "gone"; if (cls === "clues") d.textContent = "?"; box.append(d); }
-    out.push(label, box);
+    out.push(...(bare ? [] : [label]), box);
   };
   if (mistakes) dots("Mistakes", mistakes.left, mistakes.max, "mistakes");
-  if (clues) dots("Clues", clues.left, clues.max, "clues");
+  if (clues) dots("Clues", clues.left, clues.max, "clues", true);       // the ? marks say what they are
   el.replaceChildren(...out);
 }
 
 /**
- * The line under the board: what to do, what a guess came to, a clue. prompt() is what it says when nothing has just
+ * The line under the board: what to do, what a guess came to, a clue. idle() is what it says when nothing has just
  * happened: a string, or { label, text, level } for a clue. Always the same height, so nothing moves.
  */
-export function createLine(el, prompt) {
+export function createLine(el, idle) {
   let message = null;
   const draw = () => {
     if (message && Date.now() > message.until) message = null;
-    const t = message?.text ?? prompt();
+    const t = message?.text ?? idle();
     el.className = `cb-line${message?.tone ? ` ${message.tone}` : ""}`;
     if (t && typeof t === "object") {
       el.classList.add("clue", ...(t.level != null ? [`lv${t.level}`] : []));

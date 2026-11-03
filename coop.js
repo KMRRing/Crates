@@ -197,7 +197,7 @@ export function createCoop({ onLeave, setRoomParam, mySettings }) {
         note: g.by === uid ? null : oddPick(g),
       })),
       done: b.done,
-      resultLine: b.won ? `Solved together · ${pts} of 8` : `Out of lives · ${pts} of 8`,
+      resultLine: b.won ? `Solved together · ${pts} of 8` : `Out of mistakes · ${pts} of 8`,
       subLine: `This session: ${room.tally.maps} board${room.tally.maps === 1 ? "" : "s"} · ${room.tally.points} points`,
       canShare: false, canNext: true, nextLabel: "Next board",
     };
@@ -209,8 +209,8 @@ export function createCoop({ onLeave, setRoomParam, mySettings }) {
     const { info } = current(), partner = partnerId();
     b.guesses.slice(seen.guesses).forEach(g => {
       if (g.res === "right") return;
-      if (g.by === uid) view.toast(partner ? `Wrong. ${nameOf(partner)} saw how close it was.` : "Wrong", 2600);
-      else view.toast([`${nameOf(g.by)}: ${RESULT_LABEL[g.res].toLowerCase()}`, oddPick(g)].filter(Boolean).join(", "), 2800);
+      if (g.by === uid) view.toast(partner ? `Wrong. ${nameOf(partner)} saw how close it was.` : "Wrong", 2600, "bad");
+      else view.toast([`${nameOf(g.by)}: ${RESULT_LABEL[g.res].toLowerCase()}`, oddPick(g)].filter(Boolean).join(", "), 2800, "bad");
     });
     b.found.slice(seen.found).forEach(f => {
       const ans = info[f.g].answer, who = f.namer === uid ? "You" : nameOf(f.namer);
@@ -224,7 +224,7 @@ export function createCoop({ onLeave, setRoomParam, mySettings }) {
         view.toast(`${nameOf(r.by)} used a clue on one of your tiles`, 2600);
       }
     });
-    if (b.done && !seen.done && !b.won) view.toast("Out of lives", 2500);
+    if (b.done && !seen.done && !b.won) view.toast("Out of mistakes", 2500, "bad");
   }
 
   const reportedBoards = new Set();
@@ -245,7 +245,7 @@ export function createCoop({ onLeave, setRoomParam, mySettings }) {
     const { board } = current();
     if (!board) { view.toast("This board doesn't exist in your version, reload the page", 4000); return; }
     if (!seen || b.n !== seen.n) {              // a new board
-      if (seen) view.toast(`New board · ${LIVES} lives, ${CLUES} clues`, 2200);
+      if (seen) view.toast(`New board · ${LIVES} mistakes, ${CLUES} clues`, 2200);
       else if (lobbyPrompted && b.n === 1) view.closeMenu();                // the lobby is over: deal
       if (b.fellBack) view.toast("Settings were too narrow for a board, so this one uses Balanced", 3500);
       mySel = new Set(me().sel);

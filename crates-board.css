@@ -12,12 +12,12 @@ html[data-mode="night"] { --cb-good: #7FC2A8; --cb-bad: #E8806F; }
 
 /* the strip: what's on the board, and what's left (mistakes, clues) */
 .cb-strip { display: flex; justify-content: space-between; align-items: center; gap: .75rem; margin: .65rem 0 .3rem; min-height: 1.6rem; }
-.cb-what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; font-weight: 800; font-stretch: var(--wide);
-  letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
-.cb-count { display: flex; align-items: center; gap: .45rem; flex: none; font-size: .78rem; color: var(--ink-soft); white-space: nowrap; }
-.cb-dots { display: flex; gap: .25rem; margin-right: .4rem; }
+.cb-what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 800; font-stretch: var(--wide);
+  letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.cb-count { display: flex; align-items: center; gap: .35rem; flex: none; font-size: .75rem; color: var(--ink-soft); white-space: nowrap; }
+.cb-dots { display: flex; gap: .22rem; margin-right: .35rem; }
 .cb-dots:last-child { margin-right: 0; }
-.cb-dots i { width: .75rem; height: .75rem; border-radius: 50%; background: var(--ink); box-sizing: border-box; }
+.cb-dots i { width: .7rem; height: .7rem; border-radius: 50%; background: var(--ink); box-sizing: border-box; }
 .cb-dots i.gone { background: none; box-shadow: inset 0 0 0 1.5px var(--ink-soft); opacity: .7; }
 .cb-dots.clues i { display: grid; place-items: center; font-style: normal; font-size: .5rem; font-weight: 800; line-height: 1; color: var(--yard); }
 .cb-dots.clues i.gone { color: var(--ink-soft); }

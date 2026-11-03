@@ -14,53 +14,37 @@
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="dropdown.css">
+<link rel="stylesheet" href="crates-board.css">
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="crates full beside">
+<div id="app" class="crates cboard full fit-screen beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon cr-mark" aria-hidden="true"></span>Crates</button>
     </h1>
     <div class="top-right">
-      <select id="pool" class="pool" aria-label="What links these" data-accent="cr">
-        <option value="country" data-note="A country behind every crate">Countries</option>
-        <option value="classic" data-note="Wordplay lots: sixteen words, four lots">Classic</option>
-      </select>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
   </header>
 
-  <div class="brief full-pull">
-    <p id="brief"></p>
-    <div id="players" class="players" aria-label="Lives and clues"></div>
+  <div class="cb-strip full-pull">
+    <span class="cb-what" id="what"></span>
+    <span class="cb-count" id="count"></span>
   </div>
+  <p class="cb-sub" id="sub" hidden></p>
 
-  <div class="cr-board">
-    <section id="solved" class="solved" aria-live="polite"></section>
-    <section id="grid" class="grid" aria-label="Words"></section>
-  </div>
-  <p id="status" class="status" aria-live="polite" hidden></p>
-  <p id="clue" class="clue" aria-live="polite" hidden></p>
-  <p id="toast" class="toast" role="status" aria-live="polite"></p>
-
-  <div id="controls" class="controls">
-    <button id="shuffleBtn" class="btn">Shuffle</button>
-    <button id="clearBtn" class="btn">Deselect</button>
-    <button id="submitBtn" class="btn primary" disabled>Submit</button>
-  </div>
-
-  <section id="result" class="result" hidden>
-    <p id="resultLine" class="result-line"></p>
-    <p id="subLine" class="sub-line" hidden></p>
-    <pre id="shareGrid" class="share-grid"></pre>
-    <div class="controls">
-      <button id="shareBtn" class="btn">Copy result</button>
-      <button id="nextBtn" class="btn primary">Next puzzle</button>
-    </div>
+  <section class="cb-stage fit-grow fit-box" aria-label="The board">
+    <div class="cb-board" id="board"></div>
   </section>
 
-  <ol id="feed" class="feed" aria-label="Guesses this puzzle" hidden></ol>
+  <ol class="cb-feed" id="feed" aria-label="Guesses this board"></ol>
+  <p class="cb-line" id="line" aria-live="polite"></p>
+  <div class="cb-controls" id="controls">
+    <button class="btn" type="button" id="shuffleBtn">Shuffle</button>
+    <button class="btn" type="button" id="clearBtn">Deselect</button>
+    <button class="btn primary" type="button" id="submitBtn" disabled>Submit</button>
+  </div>
 </div>
 
 <dialog id="nameDlg" class="sheet">
