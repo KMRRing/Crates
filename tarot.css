@@ -1,0 +1,153 @@
+/* Tarot (le tarot, French tarot): a card table in claret enamel under brass. Upright: the others across the top, each with
+   the card they have played under their name, the dog, the call and the count in the middle, your own card, then your cards
+   in two rows and the buttons for what you are asked. Sideways: the table on the left, your cards and buttons beside it. */
+:root {
+  --tr-in: #8E2F3E;                                                /* claret: the game's enamel */
+  --tr-soft: color-mix(in srgb, var(--tr-in) 13%, var(--sheet));
+  --tr-felt: color-mix(in srgb, var(--tr-in) 7%, var(--sheet));
+  /* the trumps in enamel by the fives: 1-5, 6-10, 11-15, 16-20, and the 21 and the Excuse in gilt */
+  --tr-t0: #2F6F8F; --tr-t1: #2F7D5B; --tr-t2: #A47528; --tr-t3: #8E2F3E; --tr-t4: #1C2A34;
+}
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --tr-in: #E08A96; --tr-felt: color-mix(in srgb, #8E2F3E 22%, var(--sheet));
+  --tr-t0: #7FB6D4; --tr-t1: #7FC2A8; --tr-t2: #E0B866; --tr-t3: #E8806F; --tr-t4: #D9C9A3; } }
+html[data-mode="night"] { --tr-in: #E08A96; --tr-felt: color-mix(in srgb, #8E2F3E 22%, var(--sheet));
+  --tr-t0: #7FB6D4; --tr-t1: #7FC2A8; --tr-t2: #E0B866; --tr-t3: #E8806F; --tr-t4: #D9C9A3; }
+html[data-theme="kontor"] { --tr-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --tr-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --tr-in: #2EB36A; }
+html[data-theme="office"] { --tr-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --tr-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --tr-in: #479EF5; }
+
+/* the course's sheet (course.css) in the game's enamel */
+.ln-sheet.tr { --ln-in: var(--tr-in); }
+
+.tr-mark { display: inline-block; }
+.tr-mark svg { width: 100%; height: 100%; display: block; }
+.tr-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tr-strip b { color: var(--ink); }
+
+/* ---------- the cards ---------- */
+/* a trump: its number in the corner, a small engraving in the middle and the Roman numeral at the foot; the Excuse the fool */
+.cd.tr { align-items: flex-start; }
+.cd.tr .cd-r { font-size: .95em; }
+.cd.tr .tr-art { position: absolute; left: 50%; top: 52%; width: 1.7em; height: 1.7em; transform: translate(-50%, -50%); display: block; }
+.cd.tr .tr-art svg { width: 100%; height: 100%; display: block; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.cd.tr .tr-rom { position: absolute; left: 0; right: 0; bottom: .1em; text-align: center; font-size: .5em; font-weight: 800; letter-spacing: .02em; line-height: 1; }
+.cd.tr { color: var(--tr-t0); background: color-mix(in srgb, var(--tr-t0) 9%, var(--cd-face)); border-color: color-mix(in srgb, var(--tr-t0) 55%, var(--cd-edge)); }
+.cd.tr.tg1 { color: var(--tr-t1); background: color-mix(in srgb, var(--tr-t1) 9%, var(--cd-face)); border-color: color-mix(in srgb, var(--tr-t1) 55%, var(--cd-edge)); }
+.cd.tr.tg2 { color: var(--tr-t2); background: color-mix(in srgb, var(--tr-t2) 11%, var(--cd-face)); border-color: color-mix(in srgb, var(--tr-t2) 60%, var(--cd-edge)); }
+.cd.tr.tg3 { color: var(--tr-t3); background: color-mix(in srgb, var(--tr-t3) 9%, var(--cd-face)); border-color: color-mix(in srgb, var(--tr-t3) 55%, var(--cd-edge)); }
+.cd.tr.tg4 { color: var(--tr-t4); background: color-mix(in srgb, var(--tr-t2) 22%, var(--cd-face)); border-color: var(--brass); box-shadow: inset 0 0 0 .1em color-mix(in srgb, var(--brass) 55%, transparent), 0 1px 2px rgba(28, 42, 52, .2); }
+.cd.tr.ex { color: var(--cd-black); background: color-mix(in srgb, var(--tr-t2) 22%, var(--cd-face)); border-color: var(--brass); box-shadow: inset 0 0 0 .1em color-mix(in srgb, var(--brass) 55%, transparent), 0 1px 2px rgba(28, 42, 52, .2); }
+/* the suits apart by colour when asked (the shapes differ already) */
+html.tr-colours .cd.ts1 { color: var(--cd-red); }
+html.tr-colours .cd.ts2 { color: #C2660E; }
+html.tr-colours .cd.ts3 { color: #2F7D5B; }
+@media (prefers-color-scheme: dark) { html.tr-colours:not([data-mode="day"]) .cd.ts2 { color: #F0A04B; } html.tr-colours:not([data-mode="day"]) .cd.ts3 { color: #7FC2A8; } }
+html.tr-colours[data-mode="night"] .cd.ts2 { color: #F0A04B; }
+html.tr-colours[data-mode="night"] .cd.ts3 { color: #7FC2A8; }
+
+/* ---------- the table ---------- */
+.tr-table { display: flex; flex-direction: column; gap: .3rem; padding: .5rem; min-height: 0; border-radius: 6px; background: var(--tr-felt);
+  border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--tr-felt), inset 0 0 0 5px var(--rule); overflow: hidden; container-type: size; }
+/* the plays drawn as large as the table allows: a tablet's table shows them larger */
+.tr-table > * { --cd-line: clamp(.62rem, min(calc((100cqh - 10rem) / 7), calc(30cqw / var(--cols, 3))), 1.45rem); }
+.tr-cols { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: .2rem; flex: none; }
+.tr-col { display: grid; gap: .25rem; justify-items: center; align-content: start; min-width: 0; }
+.tr-panel { display: grid; gap: .1rem; justify-items: center; width: 100%; padding: .2rem .15rem; border-radius: 5px; min-width: 0; text-align: center; }
+.tr-panel.turn, .tr-me.turn .tr-mewho { box-shadow: inset 0 0 0 1.5px var(--tr-in); }
+.tr-who { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .15rem .3rem; font-size: .84rem; max-width: 100%; min-width: 0; }
+.tr-who b { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.tr-role { flex: none; padding: .03rem .3rem; border-radius: 3px; font-size: .66rem; font-weight: 800; line-height: 1.25; letter-spacing: calc(.04em * var(--track)); text-transform: var(--caps); }
+.tr-role.taker { background: var(--tr-in); color: var(--sheet); }
+.tr-role.partner { box-shadow: inset 0 0 0 1px var(--tr-in); color: var(--tr-in); }
+.tr-meta { display: flex; align-items: center; justify-content: center; gap: .4rem; font-size: .76rem; }
+.tr-n { display: inline-flex; align-items: center; gap: .2rem; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.tr-n .cd.back { font-size: .3rem; }
+.tr-sc { padding: 0 .3rem; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); font-size: .72rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tr-slot { display: flex; align-items: center; justify-content: center; font-size: var(--cd-line); min-width: 0; }
+.tr-slot .cd.old { opacity: .45; }
+.tr-slot .cd.old.won { opacity: .75; box-shadow: 0 0 0 2px var(--tr-in); }
+.tr-word { font-size: .8rem; font-weight: 800; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.tr-word.yes { color: var(--tr-in); }
+.tr-thinking { font-size: .72rem; color: var(--ink-soft); }
+.tr-thinking::after { content: "…"; }
+.tr-mid { flex: 1 1 auto; min-height: 0; display: grid; align-content: center; justify-items: center; gap: .3rem; text-align: center; overflow: hidden; }
+.tr-note { margin: 0; max-width: 100%; font-size: .82rem; line-height: 1.35; color: var(--ink-soft); }
+.tr-note b { color: var(--ink); }
+.tr-line { max-width: 100%; }
+.tr-note .tr-line { --cd-line: .55rem; }
+.tr-line > .cd + .cd { margin-left: .2em; }
+.tr-line.many > .cd + .cd { margin-left: -1.3em; }
+.tr-line.small { font-size: calc(var(--cd-line) * .75); }
+.tr-calls { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem; font-size: calc(var(--cd-line) * .9); }
+.tr-playing .tr-slot { min-height: calc(var(--cd-line) * 3.5); }
+.tr-calls .cd { cursor: pointer; transition: transform .1s; }
+.tr-calls .cd.sel { transform: translateY(-.25rem); box-shadow: 0 0 0 2px var(--tr-in); }
+.tr-calls .cd.mine { opacity: .55; }
+.tr-me { flex: none; display: grid; gap: .2rem; justify-items: center; }
+.tr-mewho { display: flex; align-items: center; justify-content: center; gap: .4rem; padding: .1rem .5rem; border-radius: 5px; font-size: .84rem; }
+.tr-result { margin: 0; max-width: 30rem; font-size: .9rem; line-height: 1.4; }
+.tr-pays { display: flex; flex-wrap: wrap; justify-content: center; gap: .25rem .7rem; }
+.tr-pay { font-size: .84rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tr-pay.up { color: #2F7D5B; }
+.tr-pay.down { color: #A8382B; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .tr-pay.up { color: #7FC2A8; } html:not([data-mode="day"]) .tr-pay.down { color: #E8806F; } }
+html[data-mode="night"] .tr-pay.up { color: #7FC2A8; }
+html[data-mode="night"] .tr-pay.down { color: #E8806F; }
+.tr-next { display: block; width: min(9rem, 80%); height: .3rem; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.tr-next i { display: block; height: 100%; background: var(--tr-in); transform-origin: left; animation: tr-fuse linear forwards; }
+@keyframes tr-fuse { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .tr-next i { animation: none; } .tr-calls .cd, .tr-hand .cd { transition: none; } }
+
+/* ---------- your cards and your buttons ---------- */
+.tr-side { display: flex; flex-direction: column; gap: .3rem; padding-top: .4rem; }
+/* two lines kept, so a longer line doesn't push the cards down as it comes and goes */
+.tr-status { display: flex; align-items: center; justify-content: center; height: 2.5em; margin: 0; overflow: hidden; line-height: 1.25; text-align: center; font-size: .86rem; color: var(--ink-soft); }
+.tr-status b { color: var(--tr-in); }
+.tr-hand { display: grid; align-content: end; gap: 0; height: 10.4rem; box-sizing: border-box; padding-top: .4rem; }
+.tr-hand.two { grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.tr-hand.one { align-content: end; }
+.tr-row { justify-content: center; align-items: flex-end; min-height: 0; }
+.tr-hand .cd { cursor: pointer; transition: transform .1s; }
+.tr-hand .cd.sel { transform: translateY(-.4rem); border-color: var(--tr-in); box-shadow: 0 0 0 1.5px var(--tr-in); }
+.tr-hand .cd.fresh:not(.sel) { outline: 2px solid var(--tr-in); outline-offset: -3px; }
+.tr-hand .cd.hint { box-shadow: 0 0 0 2px var(--brass); }
+.tr-watch { margin: auto; color: var(--ink-soft); text-align: center; }
+.tr-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; align-content: start; min-height: 5.8rem; }
+.tr-go { min-width: 0; min-height: 2.7rem; padding: .3rem .3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .86rem; }
+.tr-go.on { box-shadow: 0 0 0 2px var(--tr-in); }
+.tr-go.quiet { opacity: .85; }
+.tr-bar > .tr-go[data-act="next"], .tr-bar > .tr-go[data-act="again"] { grid-column: 1 / -1; }
+.tr-bar > .tr-go[data-act="play"], .tr-bar > .tr-go[data-act="discard"], .tr-bar > .tr-go[data-act="call"] { grid-column: span 2; }
+
+/* a passed phone: the hands are hidden until its player taps */
+.tr-cover { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; padding: 1.5rem; background: var(--yard); }
+.tr-cover[hidden] { display: none; }
+.tr-cover-in { display: grid; gap: .8rem; max-width: 22rem; text-align: center; }
+.tr-cover-name { margin: 0; font-size: 1.6rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
+
+/* ---------- the sheets ---------- */
+.tr-rules p { line-height: 1.45; }
+.tr-end-head { margin: .2rem 0 .6rem; }
+.tr-standings { list-style: none; margin: 0; padding: 0; }
+.tr-standings li { display: flex; justify-content: space-between; padding: .45rem .3rem; border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; }
+.tr-standings li.me .nm { font-weight: 800; }
+.tr-standings li.won .nm::after { content: " ★"; color: var(--tr-in); }
+.tr-end-note { color: var(--ink-soft); font-size: .9rem; }
+.tr-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.tr-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 7; }
+.tr-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* held sideways: the table on the left, your cards and buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.tarot { --beside: 26rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.tarot .tr-strip { grid-column: 1 / -1; grid-row: 2; }
+  #app.tarot .tr-table { grid-column: 1; grid-row: 3; }
+  #app.tarot .tr-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
+  #app.tarot .tr-hand { height: auto; flex: 1 1 auto; min-height: 0; align-content: end; }
+}
+html[data-theme="office"] .tr-table { border-radius: 4px; }

@@ -191,6 +191,7 @@ export const ELSEWHERE = [
   { id: "flank", name: "Reversi", kind: "table", page: "flank.html", max: 2, blurb: "Reversi: close a line of discs and they all turn." },
   { id: "silo", name: "Four in a row", kind: "table", page: "silo.html", max: 2, blurb: "Four in a row: drop discs into seven columns, first to line up four." },
   { id: "crown", name: "Draughts", kind: "table", page: "crown.html", max: 2, blurb: "Draughts: step and jump on the dark squares, a jump is compulsory, a man that reaches the far row is crowned." },
+  { id: "tarot", name: "Tarot", kind: "table", page: "tarot.html", max: 5, blurb: "French tarot for three, four or five: bid, take the dog, call a king for a partner, win the points." },
   { id: "trumps", name: "Trumps", kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote, Coinche or Schafkopf, at a table of four." },
   { id: "quest", name: "Company", kind: "table", page: "quest.html", max: 10, blurb: "Hidden loyalties: find the Vitalians before three cargoes are lost." },
   { id: "bones", name: "Dominoes", kind: "table", page: "bones.html", max: 4, blurb: "Dominoes: Partnership, Gaple, or Fives and Threes." },
