@@ -204,8 +204,6 @@ export const COURSE = {
         { say: "With few squares left the rules of thumb give way to counting: every line can be played to the end, and the solver does. Dark to move, with only a few squares left. The corner a8 is on offer.", b: finish, tap: "e8", loses: "a8 a7 a2", proved: true,
           wrong: { a8: "The corner loses here: the solver plays it out and finds the count against you." }, miss: "That loses once played out. Count the discs at the end.", why: "Only e8 wins. Near the end, count." },
       ] },
-    ] },
-    { id: "play", title: "Now play", zh: "", lessons: [
       { id: "game", title: "A game", zh: "", steps: [
         { say: "That is the whole of it: corners, quiet moves, the other side's replies, and the count at the end. Play a game against the computer on Easy.", play: true, level: "easy" },
       ] },
