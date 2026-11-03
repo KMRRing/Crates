@@ -128,46 +128,79 @@ function inPlay(s) {
   return { me: m, op: o, next, need: legal[0].moves.length, done: ui.made.length === legal[0].moves.length };
 }
 
-const view = tableView("gammon", ["board", "Board"]);                // Menu, View: the flat board (the default) or the board tipped away from you (gammon-3d.css)
-const applyView = () => $("app").classList.toggle("gm3", view.get() === "3d");
+const view = tableView("gammon", ["board", "Board"]);                // Menu, View: the flat board (the default) or the 3D one (gammon-3d.js, loaded when asked for)
+// The 3D board is made once asked for and kept while it stays chosen; the flat one draws meanwhile and wherever the 3D one can't be
+// made (no WebGL, or a lost context: that is for this visit only, the choice stays). Its camera is the device's own (a `suite:` key;
+// a watching frame draws the flat board and never writes it).
+const CAM = "suite:gammon-cam";
+let board3d = null, making3d = false, lost3d = false;
+const keptCam = () => { try { return localStorage.getItem(CAM); } catch { return null; } };
+const keepCam = text => { if (IN_FRAME) return; try { if (text) localStorage.setItem(CAM, text); else localStorage.removeItem(CAM); } catch { /* private mode */ } };
+async function make3d() {
+  if (making3d) return;
+  making3d = true;
+  try {
+    const { createBoard } = await import("./gammon-3d.js");
+    if (view.get() === "3d" && !board3d) board3d = createBoard($("board"), { view: keptCam(), onView: keepCam, onTap: tapPt, onLost: () => { lost3d = true; toast("3D stopped working here: the flat board."); drawBoard(); } });
+  } catch (err) {
+    console.warn("Backgammon: no 3D here, so the board is drawn flat.", err);
+    lost3d = true;
+    toast("No 3D on this device: the flat board.");
+  }
+  making3d = false;
+  drawBoard();
+}
 
-function drawBoard() {
-  applyView();
-  const box = $("board"), v = V;
-  if (!v?.G) { box.innerHTML = boardSvg({ me: Array(26).fill(0), op: Array(26).fill(0) }); return; }
+/** What both drawings of the board are given. */
+function boardView() {
+  const v = V;
+  if (!v?.G) return { me: Array(26).fill(0), op: Array(26).fill(0) };
   const s = v.state, my = me();
-  let view = { me: shown.me || s.pos[my], op: shown.op || s.pos[1 - my], dice: [], myDice: true, cube: s.cubeOn ? s.cube : null, owner: s.owner, seat: my };
+  let vw = { me: shown.me || s.pos[my], op: shown.op || s.pos[1 - my], dice: [], myDice: true, cube: s.cubeOn ? s.cube : null, owner: s.owner, seat: my };
   const myTurn = !animating() && s.step === "move" && s.turn === my && v.seat != null;
-  if (animating() && s.last) view = { ...view, dice: s.last.dice, myDice: false, used: 0 };
-  else if (s.step === "move" || s.step === "blocked") view = { ...view, dice: s.dice, myDice: s.turn === my };
-  else if (s.last?.dice?.length && (s.step === "roll" || s.step === "take")) view = { ...view, dice: s.last.dice, myDice: s.last.seat === my, used: 4 };
+  if (animating() && s.last) vw = { ...vw, dice: s.last.dice, myDice: false, used: 0 };
+  else if (s.step === "move" || s.step === "blocked") vw = { ...vw, dice: s.dice, myDice: s.turn === my };
+  else if (s.last?.dice?.length && (s.step === "roll" || s.step === "take")) vw = { ...vw, dice: s.last.dice, myDice: s.last.seat === my, used: 4 };
   if (myTurn) {
     const p = inPlay(s);
     const targets = ui.sel != null ? [...new Set(p.next.filter(m => m[0] === ui.sel).map(m => m[1]))] : [];
-    view = { ...view, me: p.me, op: p.op, used: ui.made.length, sel: ui.sel, targets, from: [...new Set(p.next.map(m => m[0]))].filter(i => i !== 25) };
+    vw = { ...vw, me: p.me, op: p.op, used: ui.made.length, sel: ui.sel, targets, from: [...new Set(p.next.map(m => m[0]))].filter(i => i !== 25) };
   }
-  if (!myTurn && s.last && s.last.seat !== my && !animating()) view.from = s.last.moves.map(m => 25 - m[0]).filter(i => i >= 1 && i <= 24);
-  box.innerHTML = boardSvg(view);
+  if (!myTurn && s.last && s.last.seat !== my && !animating()) vw.from = s.last.moves.map(m => 25 - m[0]).filter(i => i >= 1 && i <= 24);
+  return vw;
+}
+function drawBoard() {
+  const want3d = view.get() === "3d" && !lost3d;
+  if (!want3d && board3d) { board3d.dispose(); board3d = null; }
+  if (want3d && !board3d) make3d();
+  $("app").classList.toggle("gm3", !!board3d);
+  if (board3d) board3d.set(boardView());
+  else $("board").innerHTML = boardSvg(boardView());
 }
 
-$("board").addEventListener("click", e => {
-  const hit = e.target.closest("[data-pt]");
+/** A tap on a point (1..24), the bar (25) or the tray (0): the flat board's click and the 3D board's tap both come here. True when it did something. */
+function tapPt(pt) {
   const s = V?.state;
-  if (!hit || !s || animating() || s.step !== "move" || s.turn !== V.seat) return;
-  const pt = Number(hit.dataset.pt), p = inPlay(s);
-  const go = mv => { ui.made.push([mv[0], mv[1]]); ui.sel = null; draw(); };
+  if (!s || animating() || s.step !== "move" || s.turn !== V.seat) return false;
+  const p = inPlay(s);
+  const go = mv => { ui.made.push([mv[0], mv[1]]); ui.sel = null; draw(); return true; };
   // a destination of the checker picked up
   if (ui.sel != null) {
     const mv = p.next.find(m => m[0] === ui.sel && m[1] === pt);
-    if (mv) { go(mv); return; }
+    if (mv) return go(mv);
   }
   // a checker of yours: moved at once if it can go only one way, else picked up to show where it may go
   const from = p.me[25] ? 25 : pt;
   const ways = [...new Map(p.next.filter(m => m[0] === from).map(m => [m[1], m])).values()];
-  if (!ways.length || (pt === 0)) { ui.sel = null; drawBoard(); return; }
-  if (ways.length === 1) { go(ways[0]); return; }
+  if (!ways.length || pt === 0) { ui.sel = null; drawBoard(); return false; }
+  if (ways.length === 1) return go(ways[0]);
   ui.sel = ui.sel === from ? null : from;
   drawBoard();
+  return true;
+}
+$("board").addEventListener("click", e => {
+  const hit = e.target.closest("[data-pt]");
+  if (hit) tapPt(Number(hit.dataset.pt));
 });
 
 // ---------- your turn ----------
@@ -303,6 +336,7 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(view.choice(() => drawBoard()));
+  if (board3d) set.append(action("Reset the 3D view", () => board3d?.resetView()));
   set.append(choice("A match to", MATCHES.map(n => [n, n === 1 ? "1 game" : `${n} points`]), opts.match, v => { opts.match = Number(v); saveOpts(); }));
   set.append(toggle("The doubling cube", opts.cube, on => { opts.cube = on; saveOpts(); }));
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
@@ -321,6 +355,6 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
-window.__gammon = { page, get view() { return V; }, opts, mayDouble, course, rush };
+window.__gammon = { page, get view() { return V; }, opts, mayDouble, course, rush, get board3d() { return board3d; }, get ui() { return ui; } };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newMatch();
 draw();

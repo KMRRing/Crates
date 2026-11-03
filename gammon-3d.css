@@ -1,9 +1,7 @@
-/* Backgammon's 3D view (Menu, View: 3D): the board a slab tipped away from you, its far side further and smaller, with the checkers
-   given edges. Only the picture changes: the drawing, the taps (each point's column) and the animation are the flat board's own, and
-   the compositor does the tilt (nothing is redrawn). */
-.gm3 .gm-board { perspective: 70rem; perspective-origin: 50% 100%; }
-.gm3 .gm-svg { transform-origin: 50% 100%; transform: rotateX(24deg); border-radius: .4rem;
-  box-shadow: 0 .5rem 0 -.1rem color-mix(in srgb, var(--gm-frame) 70%, #000), 0 1.4rem 1.4rem -.8rem rgba(0, 0, 0, .55); }
-/* a checker's rim: a darker ring under the face, so a stack reads as discs */
-.gm3 .gm-ck { stroke-width: 2.2; paint-order: stroke; }
-.gm3 .gm-ck.sel { stroke-width: 3.4; }
+/* Backgammon's 3D view (Menu, View: 3D): the board is a WebGL canvas (gammon-3d.js) filling the box the flat board has. The page behind
+   it is the theme's own (--yard), the table the board stands on is that colour too, so the board seems to lie on the page;
+   the wood is wood in every theme. A drag turns it, so the canvas takes every touch itself. */
+.gm3 .gm-board { position: relative; overflow: hidden; background: var(--yard); touch-action: none; }
+.gm3 .gm-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+
+.gm3 .gm-board.orbiting { cursor: grabbing; }
