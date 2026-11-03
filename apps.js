@@ -519,7 +519,7 @@ export const APPS = [
   { id: "calcudoku", sec: "classics", name: "Calcudoku", href: "./calcudoku.html", logo: LOGO("calcudoku", CALCUDOKU_LOGO), players: [1, 6], team: "time" },
   { id: "kakuro", sec: "classics", name: "Kakuro", href: "./kakuro.html", logo: LOGO("kakuro", KAKURO_LOGO), players: [1, 6], team: "time" },
   // Not built yet: each tile opens soon.html, which says what the game will be and what's left to do (soon-data.js)
-  { id: "bridges", sec: "classics", name: "Bridges", href: "./bridges.html", logo: LOGO("bridges", BRIDGES_LOGO), players: [1, 1] },
+  { id: "bridges", sec: "classics", name: "Bridges", href: "./bridges.html", logo: LOGO("bridges", BRIDGES_LOGO), players: [1, 6] },
   { id: "masyu", sec: "classics", name: "Masyu", href: "./masyu.html", logo: LOGO("masyu", MASYU_LOGO), players: [1, 1] },
   { id: "nurikabe", sec: "classics", name: "Nurikabe", href: "./nurikabe.html", logo: LOGO("nurikabe", NURIKABE_LOGO), players: [1, 1] },
   { id: "slitherlink", sec: "classics", name: "Slitherlink", href: "./slitherlink.html", logo: LOGO("slitherlink", SLITHERLINK_LOGO), players: [1, 2] },

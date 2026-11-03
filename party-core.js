@@ -228,6 +228,7 @@ export const ELSEWHERE = [
   { id: "acrostic", name: "Acrostic", kind: "duo", duo: "acrostic", page: "acrostic.html", max: 6, race: true, blurb: "The same hidden text for everyone: crack the clues, fill the squares, the fastest solve wins." },
   { id: "calcudoku", name: "Calcudoku", kind: "duo", duo: "calcudoku", page: "calcudoku.html", max: 6, race: true, blurb: "The same cages for everyone, the fastest solve wins; or Together, one grid and a share of the clues each." },
   { id: "kakuro", name: "Kakuro", kind: "duo", duo: "kakuro", page: "kakuro.html", max: 6, race: true, blurb: "The same grid of sums for everyone, the fastest solve wins; or Together, one grid and a share of the clues each." },
+  { id: "bridges", name: "Bridges", kind: "duo", duo: "bridges", page: "bridges.html", max: 6, race: true, blurb: "The same puzzle for everyone, any twist the ladder has: join the islands, the fastest solve wins." },
 ];
 /** Anything a party can play, by id: { id, name, kind ("party", "table", "duo"), min, max, blurb, … }, or null. */
 export function playable(id) {

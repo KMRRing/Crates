@@ -6,6 +6,9 @@
 // a difficulty and a twist, a random puzzle or today's).
 import { SIZES, LEVELS, DAILY, TWISTS, puzzleOf, generate, nextMark, withMark, solvedBy, crossed, breaks, whatBreaks, labelOf, hintFor, levelOn, twistOn, flagsOf } from "./bridges-engine.js";
 import { LEVELS as LADDER, CHAPTERS, COUNT, LADDER_VERSION, chapterOf, seedOf, kindOf, parOf, starsFor, migrate } from "./bridges-levels.js";
+import { playable as valid, fromPuzzle, scoreOf as scoreFor, HINT } from "./bridges-run.js";
+import { createDuel } from "./duel.js";
+import { raceLevel, matchOf, matchValid, nameOf, reportOf } from "./bridges-race.js";
 import { sure } from "./sure.js";
 import { miniature } from "./bridges-mini.js";
 import { scale } from "./wide.js";
@@ -22,7 +25,6 @@ const $ = id => document.getElementById(id);
 // each. LRUNS: the puzzle of each level as it was left (by level).
 const RUN = "bridges:run", TIMES = "bridges:times", PREFS = "bridges:prefs", SPARES = "bridges:spares", TRACK = "bridges:track", CAMP = "bridges:camp", LRUNS = "bridges:lruns";
 const STAR = "★", HOLLOW = "☆";
-const HINT = 30;                     // seconds a hint adds
 const SAVE_EVERY = 5000;             // ms between saves of a puzzle in play (a partner watching sees it that often)
 const HOLD = 430;                    // ms a press takes to clear a link instead of adding a bridge
 const REACH = 0.32;                  // how far from a link, in cells, a finger still means that link
@@ -106,17 +108,12 @@ async function nextPuzzle(k) {
 // (a twist's strings: kinds, realms, hills, straits a character a cell or a gap, roads a character a link)
 let S = null, P = null;
 let clockFrom = null, savedAt = 0, message = null, paused = false;
-const valid = s => !!s && s.v === 1 && SIZES.includes(s.size) && typeof s.grid === "string" && typeof s.marks === "string"
-  && typeof s.sol === "string" && s.sol.length === s.marks.length && s.grid.length === s.size * s.size && Number.isFinite(s.ms)
-  && (s.kinds == null || (typeof s.kinds === "string" && s.kinds.length === s.grid.length)) && (s.realms == null || (typeof s.realms === "string" && s.realms.length === s.grid.length))
-  && (s.hills == null || (typeof s.hills === "string" && s.hills.length === s.grid.length)) && (s.roads == null || (typeof s.roads === "string" && s.roads.length === s.sol.length))
-  && (s.straits == null || (typeof s.straits === "string" && s.straits.length === 2 * (s.size - 1)))
-  && !s.grid.includes("#") && s.lanes == null && /^[0-9a-c.]+$/.test(s.grid)                  // a puzzle with reefs or fairways (taken out in November 2026) is no longer one
-  && (s.mode !== "level" || (Number.isInteger(s.lv) && s.lv >= 0 && s.lv < COUNT));
 const isLevel = s => s?.mode === "level";
+const racing = () => S?.mode === "duel";                       // a race at a table (duel.js): the match's run, kept apart from your own
 
 function save() {
   if (IN_FRAME || !S) return;
+  if (racing()) { duel.keep(S); return; }                      // never in your own run, bests or today's
   if (isLevel(S)) write(LRUNS, { ...read(LRUNS, {}), [S.lv]: S }); else write(RUN, S);
   savedAt = performance.now();
 }
@@ -160,9 +157,11 @@ function begin(s) {
   P = puzzleOf(S.size, S.grid, S.sol, S.kinds || "", S.realms || "", S.hills || "", S.roads || "", { straits: S.straits || "", tree: flagsOf(S.twist).tree });
   message = isLevel(S) && !started() && !S.done ? introOf(S.lv) : null; clockFrom = null;
   $("level").value = levelOn(S.size, S.level);
-  track = isLevel(S) ? "levels" : "free";
-  if (isLevel(S)) camp.at = S.lv;                              // a link's level is the one in hand now
-  if (!IN_FRAME) { write(TRACK, track); if (isLevel(S)) write(CAMP, camp); history.replaceState(null, "", hashOf(S)); }
+  if (!racing()) {                                             // a race leaves your way of playing, your level and the address alone
+    track = isLevel(S) ? "levels" : "free";
+    if (isLevel(S)) camp.at = S.lv;                            // a link's level is the one in hand now
+    if (!IN_FRAME) { write(TRACK, track); if (isLevel(S)) write(CAMP, camp); history.replaceState(null, "", hashOf(S)); }
+  }
   drawBoard();
   save();
   clockRun();
@@ -181,11 +180,6 @@ async function start(mode, k = chosenKind()) {
   const { seed, puzzle } = await nextPuzzle(k);
   if (puzzle) begin(fromPuzzle("random", seed, k, puzzle));
 }
-const fromPuzzle = (mode, seed, k, puzzle, extra = {}) => ({
-  mode, seed, size: k.size, level: k.level, twist: puzzle.twist || "none", came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol,
-  ...(puzzle.kinds ? { kinds: puzzle.kinds } : {}), ...(puzzle.realms ? { realms: puzzle.realms } : {}),
-  ...(puzzle.hills ? { hills: puzzle.hills } : {}), ...(puzzle.roads ? { roads: puzzle.roads } : {}), ...(puzzle.straits ? { straits: puzzle.straits } : {}), marks: "0".repeat(puzzle.sol.length), ...extra,
-});
 /** A puzzle of level n (0 on): the level's own the first time it is played, a new one after that or when asked. */
 async function levelBlock(n, again = false) {
   if (IN_FRAME) return;
@@ -230,7 +224,7 @@ async function confirmStart(mode, k) {
 // ---------- the clock ----------
 // A puzzle counts the time it's on screen (S.ms); it stands while the menu, the rules or the games screen is open.
 function clockRun() {
-  if (IN_FRAME || !S || S.done || clockFrom != null || document.hidden || isPaused()) return;
+  if (racing() || IN_FRAME || !S || S.done || clockFrom != null || document.hidden || isPaused()) return;     // a race's clock is the table's, from the start everyone shares
   clockFrom = performance.now();
 }
 function clockPause() {
@@ -240,9 +234,9 @@ function clockPause() {
   save();
 }
 onPause(() => { paused = true; clockPause(); cancelPress(); model?.hold(true); }, () => { paused = false; clockRun(); model?.hold(false); });
-const elapsed = () => (!S ? 0 : S.done ? S.done.ms : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
+const elapsed = () => (!S ? 0 : S.done ? S.done.ms : racing() ? Math.max(0, duel.now() - S.begun) : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
 const penalty = () => HINT * (S?.hints || 0);
-const scoreOf = ms => Math.round(ms / 1000) + penalty();
+const scoreOf = ms => scoreFor(ms, S?.hints || 0);
 
 // ---------- bests ----------
 // Kept in bridges:times by size and level, lowest first, not bridges:best (the games screen reads a best as
@@ -297,7 +291,7 @@ function redo() {
 function changed(at = -1) {
   if (at >= 0) message = null;                                   // what the last tap said (a bridge refused) is spent
   if (!S.done && solvedBy(P, S.marks)) finish();
-  else save();
+  else { save(); tellSoon(); }
   paint();
   render();
 }
@@ -349,10 +343,17 @@ function useHint() {
 
 // ---------- the end ----------
 function finish() {
-  const ms = S.ms + (clockFrom != null ? performance.now() - clockFrom : 0);
+  const ms = racing() ? Math.max(0, duel.now() - S.begun) : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0);
   clockFrom = null;
   S.done = { ms, score: scoreOf(ms) };
   S.lit = null;
+  if (racing()) {                                                // the race's result goes to the table; nothing of your own changes
+    save();
+    tell(true);
+    wave();
+    if (prefs.view === "model") model?.spin();
+    return;
+  }
   S.fresh = isLevel(S) ? recordLevel(S.done.score) : recordBest(S.done.score);
   if (S.mode === "daily") noteDayTime("bridges", S.done.score, S.seed);       // today's puzzle: the first solve's time
   save();
@@ -533,7 +534,7 @@ function drawStrip() {
   if (!S) { put("time", "0:00"); put("penalty", ""); put("kind", ""); return; }
   put("time", fmt(elapsed() / 1000 + penalty()));
   put("penalty", penalty() ? `+${penalty()} s` : "");
-  put("kind", isLevel(S) ? `Par ${fmt(parOf(forStars()))} · ${LADDER[S.lv].name}` : `${S.mode === "daily" ? "Today · " : ""}${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}`);
+  put("kind", isLevel(S) ? `Par ${fmt(parOf(forStars()))} · ${LADDER[S.lv].name}` : `${S.mode === "daily" ? "Today · " : racing() ? "Race · " : ""}${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}`);
 }
 function drawLine() {
   const l = $("line");
@@ -577,12 +578,12 @@ function drawResult() {
   $("controls").hidden = done;
   $("result").hidden = !done;
   if (!done) return;
-  const d = S.done, bits = [`${fmt(d.ms / 1000)} on the clock`], best = isLevel(S) ? null : bestOf(S);
+  const d = S.done, bits = [`${fmt(d.ms / 1000)} on the clock`], best = isLevel(S) || racing() ? null : bestOf(S);
   if (S.hints) bits.push(`${plural(S.hints, "hint")} (+${penalty()} s)`);
   const stars = isLevel(S) ? starsFor(forStars(), d.score) : 0;
-  const tail = isLevel(S) ? ` ${STAR.repeat(stars)}${HOLLOW.repeat(3 - stars)} Par ${fmt(parOf(forStars()))}.` : S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
+  const tail = isLevel(S) ? ` ${STAR.repeat(stars)}${HOLLOW.repeat(3 - stars)} Par ${fmt(parOf(forStars()))}.` : racing() ? "" : S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
   $("verdict").textContent = `Solved: ${fmt(d.score)}. ${bits.join(", ")}.${tail}`;
-  $("nextBtn").textContent = isLevel(S) ? (S.lv + 1 < COUNT ? "Next level" : "Levels") : "Another puzzle";
+  $("nextBtn").textContent = racing() ? "The result" : isLevel(S) ? (S.lv + 1 < COUNT ? "Next level" : "Levels") : "Another puzzle";
 }
 /** The header: in a level the difficulty and the size are the level's own, so the difficulty dropdown gives way to the level. */
 function chrome() {
@@ -682,6 +683,16 @@ function levelList() {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  if (duel.on) {                                                // at a table: the match, the rules, the next match's difficulty
+    const play = part(body, "play"), m = duel.match;
+    play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
+    duel.menu(part(body, "together"));
+    const content = part(body, "content");
+    content.append(mirror("Next match: difficulty", $("level")));
+    if (m) content.append(line(`This match: ${nameOf(m)}, ${m.size}×${m.size}${hasTwist(m.twist) ? ` · ${twistName(m.twist)}` : ""}.`));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   const levels = track === "levels", content = part(body, "content"), play = part(body, "play");
   pick ??= S?.mode === "daily" ? "daily" : "random";
   play.append(action("New puzzle", () => (levels ? confirmLevelBlock() : confirmStart(pick)), "primary"));
@@ -751,6 +762,41 @@ async function openLinked(l) {
 }
 const sameBlock = (a, l) => !!a && a.seed === l.seed && a.mode === l.mode && (isLevel(l) ? a.lv === l.lv : a.size === l.k.size);
 
+// ---------- together: a race (duel.js) ----------
+// Everyone at the table gets the same puzzle and plays it on their own phone; the lowest score wins, which is the solo score
+// (seconds plus 30 a hint). The match is a recipe taken from a ladder level at the difficulty chosen, picked by the match's
+// seed (bridges-race.js), so every twist comes round; the phone that deals makes the puzzle and puts it in the match.
+const duel = createDuel({
+  game: "bridges", name: "Bridges", accent: "--brg-in", line: $("duelLine"), toast, lower: true,
+  deal: dealMatch,
+  describe: m => `A race on ${nameOf(m)}${hasTwist(m.twist) ? ` (${twistName(m.twist)})` : ""}, ${LEVELS[m.came] || LEVELS[m.level]}: the same puzzle for everyone, the fastest solve wins`,
+  play: (match, { begun, kept }) => { if (matchValid(match)) playRace(match, begun, kept); else toast("This match is from a newer Bridges: update the page."); },
+  onLobby: match => { S = null; P = null; svg = null; $("level").value = LEVELS[match.level] ? match.level : "easy"; render(); },
+  onLeave: () => { clearTimeout(tellTimer); tellTimer = 0; solo(); },
+});
+/** The match the table plays next: a level of the ladder at the chosen difficulty, its puzzle made here. */
+async function dealMatch() {
+  const pick = randomSeed(), lv = raceLevel(prefs.level, pick), { seed, puzzle } = await nextPuzzle(kindOf(lv));
+  if (!puzzle) throw new Error("bridges: no puzzle for the match");
+  return { pick, ...matchOf(seed, lv, puzzle) };
+}
+function playRace(match, begun, kept) {
+  const same = valid(kept) && kept.seed === match.seed && kept.grid === match.grid;
+  begin({ ...(same ? kept : fromPuzzle("duel", match.seed, match, { ...match, level: match.came })), mode: "duel", begun });
+  tell(!!S.done);
+}
+/** What the table sees of this run: how much of the answer is laid, and the score once it is solved. */
+function tell(done = false) {
+  if (!racing() || !duel.on) return;
+  if (done) duel.report({ score: S.done.score, text: fmt(S.done.score), done: true, ms: S.done.ms });
+  else duel.report(reportOf(S.sol, S.marks));
+}
+let tellTimer = 0;
+function tellSoon() {   // a report for every tap would be a write for every tap
+  if (!racing() || tellTimer) return;
+  tellTimer = setTimeout(() => { tellTimer = 0; if (racing() && !S.done) tell(); }, 1500);
+}
+
 // ---------- wiring ----------
 const levelDropdown = dropdown($("level"));   // the header dropdown in the suite's style (see dropdown.js)
 bindSwitcher($("appsBtn"), "bridges");
@@ -761,11 +807,17 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => {
-  if (isLevel(S)) { if (S.lv + 1 < COUNT && isOpen(S.lv + 1)) playLevel(S.lv + 1); else openMenu(); }
+  if (racing()) duel.open();
+  else if (isLevel(S)) { if (S.lv + 1 < COUNT && isOpen(S.lv + 1)) playLevel(S.lv + 1); else openMenu(); }
   else start("random");
 });
 $("level").addEventListener("change", async () => {
   const v = $("level").value;
+  if (duel.on) {                                                 // a new match at that difficulty, for everyone at the table
+    prefs.level = v; savePrefs();
+    if (!duel.newMatch()) $("level").value = duel.match?.level || v;
+    return;
+  }
   if (S && S.mode !== "daily" && v === S.level && S.size === prefs.size) return;
   const before = prefs.level;
   prefs.level = v; savePrefs();
@@ -775,9 +827,10 @@ $("viewBtn").addEventListener("click", () => setView(prefs.view === "model" ? "c
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
-document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else clockRun(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); duel.resync(); } });
+window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("pagehide", () => clockPause());
-window.addEventListener("hashchange", () => { const l = linked(); if (l && !(S && S.seed === l.seed && S.mode === l.mode && (!isLevel(l) || S.lv === l.lv))) openLinked(l); });
+window.addEventListener("hashchange", () => { if (duel.on) return; const l = linked(); if (l && !(S && S.seed === l.seed && S.mode === l.mode && (!isLevel(l) || S.lv === l.lv))) openLinked(l); });
 setInterval(() => {
   if (!S) return;
   drawStrip();
@@ -786,7 +839,7 @@ setInterval(() => {
 
 // for tests and debugging
 window.__bridges = {
-  get state() { return S; }, get model() { return model; }, setView, get puzzle() { return P; }, get camp() { return camp; }, get track() { return track; }, press, useHint, undo, redo, start, playLevel, setTrack, linkAt,
+  get duel() { return duel; }, get state() { return S; }, get model() { return model; }, setView, get puzzle() { return P; }, get camp() { return camp; }, get track() { return track; }, press, useHint, undo, redo, start, playLevel, setTrack, linkAt,
   /** Where a link's middle is on the screen, for tests that tap it as a finger would. */
   screenOf: l => {
     const m = svg.getScreenCTM(), { x1, y1, x2, y2 } = seg[l], x = (x1 + x2) / 2, y = (y1 + y2) / 2;
@@ -809,5 +862,6 @@ async function solo() {
   await resume();
 }
 $("level").value = chosenKind().level;
-solo();
+// a match in the address: its table, with no solo puzzle made under it
+if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); }); else solo();
 if (prefs.view === "model") setView("model", false);

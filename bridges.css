@@ -30,6 +30,9 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-time small { display: inline-block; min-width: 3.6rem; margin-left: .4rem; font-size: .78rem; font-weight: 700; color: var(--brg-bad); font-variant-numeric: tabular-nums; }
 .brg-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
   letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+/* a race's line (the others' scores) takes a row of the strip's own, and the strip wraps once for it before the board is drawn */
+.brg-duel { flex: 1 0 100%; display: flex; align-items: center; gap: .45rem; margin: 0; min-width: 0; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brg-duel[hidden] { display: none; }
 
 /* the board: the stage, framed in a double rule (a brass edge, a hairline four pixels inside it) */
 .brg-card { position: relative; border-radius: 6px; background: var(--sheet); padding: .5rem;
@@ -192,6 +195,7 @@ dialog.brg-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; oversc
 @media (orientation: landscape) and (min-width: 700px) {
   #app.bridges { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
   #app.bridges .brg-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; white-space: normal; }
+  #app.bridges .brg-duel { flex: none; width: 100%; }
   #app.bridges .brg-card { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
   #app.bridges .brg-side { grid-column: 2; grid-row: 3; align-content: end; margin-top: 0; min-height: 0; }
   #app.bridges .brg-controls { align-content: end; }
