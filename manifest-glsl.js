@@ -295,7 +295,7 @@ export function packageShader(wareColours) {
     vertexHead: `attribute float aWare; varying float vWare; varying vec3 vLoc; varying vec3 vObjN;`,
     vertexBody: `vWare = aWare; vLoc = position; vObjN = normal;`,
     fragmentHead: `varying float vWare; varying vec3 vLoc; varying vec3 vObjN;
-uniform float uDim; uniform float uFade; uniform vec3 uDimTo;
+uniform float uDim; uniform float uFade; uniform vec3 uDimTo; uniform float uMark; uniform vec3 uInk; uniform vec3 uPaper;
 ${COMMON}
 ${PACKAGE_SURFACE}
 const vec3 WC[7] = vec3[7](${wc});`,
@@ -322,6 +322,10 @@ const vec3 WC[7] = vec3[7](${wc});`,
     vec3 col = o.col * o.ao;
     float lum = dot(col, vec3(.3, .59, .11));
     col = mix(col, mix(vec3(lum), uDimTo, .55), uDim);                 // dimmed: the page's tone, grey of its own
+    if (uMark > .5 && (f == 0 || uMark > 1.5)) {                       // marked: a frame inside the face's edge, ink outside and paper in, so it shows on dark iron and pale salt alike
+      float e = edgeOf(s, t, FS, FT), fp = cov(e - .1, pw), fr = cov(e - .05, pw);
+      col = mix(mix(col, uPaper, fp), uInk, fr); o.h *= 1. - fp; o.rough = mix(o.rough, .9, fp); o.metal *= 1. - fp;
+    }
     diffuseColor.rgb = col;
     mfH = o.h; mfRough = o.rough; mfMetal = o.metal;
   }`,

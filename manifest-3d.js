@@ -12,7 +12,6 @@ import { WARES, BOX } from "./manifest-engine.js";
 import { packageShader, QUAY } from "./manifest-glsl.js";
 import { cameraOf, QUAY_DEPTH } from "./manifest-model.js";
 
-const BACK = 1;                                                    // THREE.BackSide (the bundle exports no constants for sides)
 const TARP = 0xAEA690, LIT = 0xFFF8E4;
 /** The ware numbers as the shader has them: 0 a tarpaulin, 1 to 5 the wares, 6 the tarpaulin's lit package. */
 const HEX = [TARP, ...WARES.map(w => parseInt(w.hex.slice(1), 16)), LIT];
@@ -87,7 +86,7 @@ export function createGL() {
   const wareColours = HEX.map(h => { const c = new THREE.Color(h); return [c.r, c.g, c.b]; });
   const PKG = packageShader(wareColours);
   const makePackageMaterial = () => {
-    const U = { uDim: { value: 0 }, uFade: { value: 1 }, uDimTo: { value: new THREE.Color(0x888888) } };
+    const U = { uDim: { value: 0 }, uFade: { value: 1 }, uDimTo: { value: new THREE.Color(0x888888) }, uMark: { value: 0 }, uInk: { value: new THREE.Color(0x000000) }, uPaper: { value: new THREE.Color(0xffffff) } };
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0 });
     m.customProgramCacheKey = () => "manifest-package";
     m.onBeforeCompile = shader => inject(shader, PKG, U);
@@ -104,9 +103,8 @@ export function createGL() {
   const tileMat = new THREE.MeshBasicMaterial({ color: 0x1f6e66 });
   const tile = new THREE.Mesh(plain, tileMat);
   scene.add(tile);
-  const hullMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: BACK });
 
-  const pool = [], hulls = [];
+  const pool = [];
   const packageAt = i => {
     if (!pool[i]) {
       const mesh = new THREE.Mesh(geos[0], makePackageMaterial());
@@ -115,10 +113,6 @@ export function createGL() {
       pool.push(mesh);
     }
     return pool[i];
-  };
-  const hullAt = i => {
-    if (!hulls[i]) { const h = new THREE.Mesh(plain, hullMat); scene.add(h); hulls.push(h); }
-    return hulls[i];
   };
 
   // the light: a low sun over the right shoulder (the right face brighter than the left, the top brightest), a sky that
@@ -149,7 +143,7 @@ export function createGL() {
     if (m) { tile.scale.set(b.X, 0.006, b.Y); tile.position.set((m.x + 0.5) * b.X, 0.003, (m.y + 0.5) * b.Y); tileMat.color.set(cssOf(tk.mark)); }
     // the packages
     const skin = tk.night ? LIGHT.night : LIGHT.day, to = new THREE.Color(cssOf(tk.yard));
-    let n = 0, h = 0;
+    let n = 0;
     for (const it of items) {
       const mesh = packageAt(n++), U = mesh.material.userData.U, lift = lifts?.get(it.key) || { lift: 0, squash: 1, fade: 1 };
       mesh.visible = lift.fade > 0;
@@ -161,16 +155,10 @@ export function createGL() {
       U.uFade.value = lift.fade;
       U.uDim.value = it.dim ? 1 : 0;
       U.uDimTo.value.copy(to);
-      if (it.outline) {                                            // an outline: the package's own box, a little larger, seen from inside
-        const hull = hullAt(h++), e = 0.075;
-        hull.visible = true;
-        hull.scale.set(it.box.sx + e * 2, it.box.sy * sq + e * 2, it.box.sz + e * 2);
-        hull.position.copy(mesh.position);
-      }
+      U.uMark.value = it.outline;                                  // a frame of ink round the top face, or every face (the shader draws it)
+      U.uInk.value.set(cssOf(tk.ink)); U.uPaper.value.set(cssOf(tk.yard));
     }
     for (; n < pool.length; n++) pool[n].visible = false;
-    for (; h < hulls.length; h++) hulls[h].visible = false;
-    hullMat.color.set(cssOf(tk.ink));
     // the light
     const at = spec.cam.at, reach = Math.hypot(sx / 2, sz / 2, sy / 2 + 1.7) + 0.6;
     const dist = 26, SL = Math.hypot(...SUN_AT);
@@ -212,16 +200,20 @@ export function createGL() {
     quay.visible = false; tile.visible = false;
     const saved = [];
     pool.forEach((m, i) => { if (!m.visible) return; saved.push([m, m.material]); m.material = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(((i + 1) & 255) / 255, (((i + 1) >> 8) & 255) / 255, 0, "srgb-linear") }); });
+    const space = renderer.outputColorSpace;
     renderer.shadowMap.enabled = false;
     renderer.toneMapping = 0;
+    renderer.outputColorSpace = "srgb-linear";                     // the ids come back as they were written
     renderer.setSize(w, h, false);
     renderer.render(scene, camera);
     const gl = renderer.getContext(), px = new Uint8Array(w * h * 4);
     gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
     saved.forEach(([m, mat]) => { m.material.dispose(); m.material = mat; });
     renderer.shadowMap.enabled = true;
+    renderer.outputColorSpace = space;
     const seen = new Map();
     for (let i = 0; i < px.length; i += 4) if (px[i + 3] === 255) { const id = px[i] + px[i + 1] * 256; if (id) seen.set(id - 1, (seen.get(id - 1) || 0) + 1); }
+    for (const [id, n] of seen) if (n < 3 || id >= spec.items.length) seen.delete(id);   // an antialiased edge blends two ids into a third
     return { seen, items: spec.items };
   };
   out.debug = { scene, pool, THREE, LIGHT };

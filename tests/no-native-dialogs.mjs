@@ -28,7 +28,6 @@ const STILL = {
   "ledger.js": 1,
   "lode.js": 4,
   "lots.js": 4,
-  "manifest.js": 2,
   "masyu.js": 3,
   "mines.js": 3,
   "nexus.js": 1,
