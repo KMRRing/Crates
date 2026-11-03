@@ -1,5 +1,5 @@
-/* Almanac: a search field, then either the results or an entry; an entry is its kinds, what's said about it, its
-   numbers and topics, and its links in groups, each a tap from its own entry */
+/* Almanac: the star chart (below) is what it opens on; the list view is a search field, then either the results or an entry; an
+   entry is its kinds, what's said about it, its numbers and topics, and its links in groups, each a tap from its own entry */
 .lx-search { flex: none; margin: .2rem 0 .6rem; }
 .lx-search input { width: 100%; box-sizing: border-box; font: inherit; font-size: 1rem; padding: .65rem .8rem; border: 1.5px solid var(--tile-edge); border-radius: 10px; background: var(--sheet); color: var(--ink); }
 .lx-results, .lx-entry { min-height: 0; overflow-y: auto; padding-bottom: 1rem; }
@@ -28,73 +28,114 @@
 .lx-mark { display: inline-block; }
 .lx-mark svg { width: 100%; height: 100%; display: block; }
 
-/* the way in: the list, or the star chart */
+/* the way between the two: the list, or the star chart */
 .lx-modes { flex: none; display: flex; margin: 0 0 .6rem; border: 1.5px solid var(--brass); border-radius: 5px; overflow: hidden; }
 .lx-mode { flex: 1; padding: .42rem .6rem; border: 0; background: var(--tile); color: var(--ink); font: inherit; font-size: .8rem; font-weight: 750; font-stretch: var(--wide);
   letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); cursor: pointer; }
 .lx-mode + .lx-mode { border-left: 1.5px solid var(--brass); }
 .lx-mode[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); }
 
-/* the star chart: a night sky in a brass frame, whichever theme and mode the page is in (a board's own colours); what lies
-   over it (the card, the subjects) is the page's own sheet */
-.lx-sky { position: relative; display: flex; flex-direction: column; min-height: 0; }
-.lx-sky[hidden] { display: none; }
-.sk-stage { --sk-mid: #2a4262; --sk-edge: #121f33; position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; border: 1.5px solid var(--brass); border-radius: 6px;
-  background: radial-gradient(ellipse at 50% 42%, var(--sk-mid), var(--sk-edge) 78%); outline-offset: 2px; touch-action: none; user-select: none; -webkit-user-select: none; }
+/* a link in an entry that has a place in the sky: the row, and a button that shows it there */
+.lx-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .3rem; align-items: stretch; }
+.lx-locate { width: 2.5rem; display: grid; place-items: center; padding: 0; border: 1px solid var(--tile-edge); border-radius: 8px; background: var(--tile); color: var(--ink); cursor: pointer; }
+.lx-locate svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+.lx-head .lx-sky-btn { margin-top: .5rem; }
+
+/* the star chart: what Almanac opens on. The whole screen, a night sky whichever theme and mode the page is in (a board's own
+   colours), with a search field and the menu on it; what lies over it (the entry, the subjects, what a search found) is the
+   page's own sheet. The list view's frame is out of sight while the chart is showing. */
+body.on-sky #app { display: none; }
+body:not(.on-sky) #sky { display: none; }
+.sk { --sk-mid: #2a4262; --sk-edge: #121f33; --sk-t: max(.6rem, env(safe-area-inset-top, 0px)); --sk-b: max(.6rem, env(safe-area-inset-bottom, 0px));
+  --sk-l: max(.6rem, env(safe-area-inset-left, 0px)); --sk-r: max(.6rem, env(safe-area-inset-right, 0px));
+  position: fixed; inset: 0; z-index: 1; overflow: hidden; overscroll-behavior: none; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  background: radial-gradient(ellipse at 50% 42%, var(--sk-mid), var(--sk-edge) 78%); color: var(--ink); }
 .sk-gl, .sk-ink { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.sk-ink { touch-action: none; cursor: grab; }
+.sk-ink { touch-action: none; cursor: grab; outline: none; }
 .sk-ink:active { cursor: grabbing; }
-.sk-hint { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: .5rem .7rem .55rem; pointer-events: none; font-size: .72rem; line-height: 1.35; color: #cfd8e6;
-  background: linear-gradient(transparent, rgba(4, 8, 14, .7)); }
+/* the two controls on the sky: a brass-framed sheet, with a shadow behind so neither is lost in a bright cluster */
+.sk-top { position: absolute; z-index: 4; top: var(--sk-t); left: var(--sk-l); right: var(--sk-r); display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; pointer-events: none; }
+.sk-top > * { pointer-events: auto; }
+.sk-search, .sk-menu { box-shadow: 0 .2rem .9rem rgba(0, 0, 0, .55); }
+.sk-search { flex: 0 1 11rem; min-width: 0; height: 2.5rem; box-sizing: border-box; display: flex; align-items: center; gap: .45rem; padding: 0 .7rem; margin: 0;
+  border: 1.5px solid var(--brass); border-radius: 6px; background: var(--sheet); color: var(--ink); }
+.sk-search:focus-within, .sk-search.has-text { flex: 0 1 30rem; }
+.sk-search:focus-within { box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 60%, transparent), 0 .2rem .9rem rgba(0, 0, 0, .55); }
+.sk-glass { flex: none; width: 1.15rem; height: 1.15rem; fill: none; stroke: var(--ink-soft); stroke-width: 2.2; stroke-linecap: round; }
+.sk-search input { flex: 1; min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; color: var(--ink); font: inherit; font-size: 1rem; outline: none; -webkit-appearance: none; appearance: none; user-select: text; -webkit-user-select: text; }
+.sk-search input::placeholder { color: var(--ink-soft); }
+.sk-menu svg { pointer-events: none; }
+/* under the sky: what the stars say about themselves, and the two small controls, on a soft dark foot */
+.sk-foot { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; padding: 1.6rem var(--sk-r) var(--sk-b) var(--sk-l); pointer-events: none; background: linear-gradient(transparent, rgba(4, 8, 14, .74) 62%); }
+.sk-foot[hidden] { display: none; }
+.sk-hint { margin: 0 0 .45rem; text-align: center; font-size: .72rem; line-height: 1.35; color: #d3dbe8; text-shadow: 0 1px 2px #000; }
 .sk-hint:empty { display: none; }
-.sk-tools { position: absolute; top: .5rem; right: .5rem; display: flex; gap: .35rem; }
-.sk-tool { padding: .32rem .6rem; border: 1px solid rgba(255, 255, 255, .28); border-radius: 4px; background: rgba(6, 12, 20, .72); color: #ece5d2; font: inherit; font-size: .72rem; font-weight: 750;
-  font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); cursor: pointer; }
-.sk-tool[aria-expanded="true"] { background: #ece5d2; color: #0b1520; }
-.sk-msg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem; padding: 1.5rem; text-align: center; color: #dfe6f1; font-size: .9rem; line-height: 1.4; }
+.sk-chips { display: flex; justify-content: space-between; gap: .5rem; }
+.sk-chip { pointer-events: auto; height: 2.1rem; padding: 0 .8rem; border: 1.5px solid var(--brass); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; font-size: .72rem; font-weight: 750;
+  font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); cursor: pointer; box-shadow: 0 .15rem .7rem rgba(0, 0, 0, .5); }
+.sk-chip[aria-expanded="true"] { background: var(--plate); color: var(--plate-ink); }
+.sk-msg { position: absolute; z-index: 3; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem; padding: 1.5rem; text-align: center; color: #dfe6f1; font-size: .9rem; line-height: 1.4; }
 .sk-msg[hidden] { display: none; }
 .sk-msg b { font-size: 1rem; }
 .sk-msg .ld { width: 2rem; height: 2rem; }
-.sk-msg .btn { margin: .2rem 0 0; background: rgba(6, 12, 20, .72); color: #ece5d2; border-color: rgba(255, 255, 255, .28); }
-/* while the stage has words in place of a sky (laying out, no WebGL), there is nothing for the tools to do */
-.sk-stage:has(.sk-msg:not([hidden])) .sk-tools { visibility: hidden; }
-/* over the sky, from the bottom (the subjects) or the top (what a search found) */
-.sk-panel { position: absolute; left: 0; right: 0; z-index: 2; background: color-mix(in srgb, var(--sheet) 96%, transparent); color: var(--ink); border: 1.5px solid var(--brass);
-  border-radius: 6px; padding: .6rem .7rem; box-shadow: 0 .6rem 1.6rem rgba(0, 0, 0, .35); overflow-y: auto; overscroll-behavior: contain; }
-.sk-panel[hidden] { display: none; }
-.sk-panel[data-mode="hits"] { top: 0; max-height: 52%; }
-.sk-panel[data-mode="legend"] { bottom: 0; max-height: 64%; }
-.sk-hits .lx-lead { margin: 0; }
-.sk-hits b { display: flex; align-items: center; gap: .45rem; }
-.sk-dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; flex: none; margin-right: .1rem; box-shadow: 0 0 0 1px rgba(0, 0, 0, .25); vertical-align: -.05rem; }
-.sk-legend-actions { display: flex; gap: 1.1rem; margin: 0 0 .5rem; font-size: .8rem; }
-.sk-legend-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem; }
-.sk-sub { display: flex; align-items: center; gap: .45rem; padding: .4rem .5rem; border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--tile); color: var(--ink);
-  font: inherit; font-size: .8rem; text-align: left; cursor: pointer; min-width: 0; }
-.sk-sub span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sk-sub small { color: var(--ink-soft); font-size: .68rem; font-variant-numeric: tabular-nums; }
-.sk-sub[aria-pressed="false"] { opacity: .45; }
-.sk-sub[aria-pressed="false"] .sk-dot { background: transparent !important; box-shadow: 0 0 0 1.5px var(--ink-soft); }
-/* the chosen star */
-.sk-card { position: absolute; left: .5rem; right: .5rem; bottom: .5rem; z-index: 2; padding: .6rem .8rem .7rem; background: var(--sheet); color: var(--ink); border: 1.5px solid var(--brass);
-  border-radius: 6px; box-shadow: 0 .6rem 1.6rem rgba(0, 0, 0, .35); }
-.sk-card[hidden] { display: none; }
-.sk-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; }
-.sk-card h3 { margin: 0; font-size: 1.1rem; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.sk-x { width: 1.8rem; height: 1.8rem; font-size: 1.1rem; line-height: 1; padding: 0; background: none; color: var(--ink); cursor: pointer; margin: -.2rem -.2rem 0 0; }
-.sk-card-meta { margin: .25rem 0 0; font-size: .8rem; line-height: 1.35; }
-.sk-card-meta.soft { color: var(--ink-soft); }
-.sk-card-foot { display: flex; align-items: center; justify-content: space-between; gap: .7rem; margin-top: .4rem; }
-.sk-card-foot .sk-card-meta { margin: 0; flex: 1; min-width: 0; font-size: .74rem; }
-.sk-open { flex: none; padding: .35rem .8rem; font-size: .74rem; }
-@media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) .sk-stage { --sk-mid: #0d1826; --sk-edge: #03060a; }
-}
-html[data-mode="night"] .sk-stage { --sk-mid: #0d1826; --sk-edge: #03060a; }
+.sk-msg .btn { margin: .2rem 0 0; background: var(--sheet); color: var(--ink); border: 1.5px solid var(--brass); }
+/* a partner's watching frame takes no taps: nothing to press on it */
+.sk.in-frame :is(.sk-top, .sk-chips) { display: none; }
+/* with words in place of a sky (laying out, or no WebGL) there is nothing to search or turn */
+.sk:has(.sk-msg:not([hidden])) :is(.sk-search, .sk-foot) { visibility: hidden; }
 
-/* held sideways (#app.beside): the search and what it found on the left, the entry beside it, wider, so you can open
-   one thing after another from the list without losing it; with no entry open the list takes the whole width. The star
-   chart takes the wide column, with the subjects and the chosen star's card down the left. */
+/* popups over the sky: a sheet from the bottom on a phone, a card at the left sideways. They are not modal: the sky stays alive
+   behind them, and a tap on empty sky closes them. Each scrolls inside itself. */
+.sk-pop { position: absolute; z-index: 5; box-sizing: border-box; left: var(--sk-l); right: var(--sk-r); bottom: var(--sk-b); max-width: 30rem; margin-inline: auto; display: flex; flex-direction: column;
+  padding: .55rem .7rem .65rem; background: var(--sheet); color: var(--ink); border: 1.5px solid var(--brass); border-radius: 6px; box-shadow: 0 .6rem 1.8rem rgba(0, 0, 0, .55);
+  user-select: text; -webkit-user-select: text; touch-action: pan-y; }
+.sk-pop[hidden] { display: none; }
+.sk-hits { bottom: auto; top: calc(var(--sk-t) + 2.5rem + .4rem); right: auto; width: min(30rem, calc(100% - var(--sk-l) - var(--sk-r))); margin-inline: 0; display: block; max-height: min(24rem, calc(100% - var(--sk-t) - var(--sk-b) - 3.5rem)); padding: .4rem; overflow-y: auto; overscroll-behavior: contain; }
+.sk-hits .lx-lead { margin: .2rem .3rem; }
+.sk-hits .lx-hit + .lx-hit { margin-top: .3rem; }
+.sk-hits b { display: flex; align-items: center; gap: .45rem; }
+.sk-hits .lx-hit.on { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 20%, var(--tile)); }
+.sk-dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; flex: none; margin-right: .1rem; box-shadow: 0 0 0 1px rgba(0, 0, 0, .25); vertical-align: -.05rem; }
+/* the entry's popup: a card (name, what it is, how well you know it), and open, the entry itself in a box of its own that scrolls */
+.sk-pop-head { display: flex; align-items: flex-start; gap: .4rem; }
+.sk-pop-head h3 { flex: 1; min-width: 0; margin: .1rem 0 0; font-size: 1.1rem; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sk-ib { flex: none; display: inline-grid; place-items: center; width: 2.1rem; height: 2.1rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--tile); color: var(--ink); cursor: pointer; }
+.sk-ib[hidden] { display: none; }
+.sk-ib svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.sk-pop-meta { margin: .3rem 0 0; font-size: .8rem; line-height: 1.35; }
+.sk-pop-foot { display: flex; align-items: center; justify-content: space-between; gap: .7rem; margin-top: .4rem; }
+.sk-pop-glow { margin: 0; flex: 1; min-width: 0; font-size: .74rem; color: var(--ink-soft); }
+.sk-more { flex: none; padding: .35rem .8rem; font-size: .74rem; }
+.sk-entry[data-pop="full"] { height: min(54%, 36rem); }
+.sk-pop-body { display: none; flex: 1 1 auto; min-height: 0; margin-top: .5rem; padding: .1rem .1rem .3rem 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; border-top: 1px solid var(--tile-edge); }
+.sk-entry[data-pop="full"] .sk-pop-body { display: block; }
+.sk-pop-body .lx-pic img { max-height: 22vh; }
+.sk-pop-body > .lx-more:first-child { display: block; margin: .15rem 0 0; font-size: .8rem; }
+/* the subjects: switch each on or off (its colour), or go to its region (its name) */
+.sk-subjects { height: min(62%, 36rem); }
+.sk-sub-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.sk-sub-head h3 { margin: 0; font-size: 1.05rem; }
+.sk-legend-actions { display: flex; gap: 1rem; margin: .5rem 0 .4rem; font-size: .8rem; }
+.sk-legend-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem; align-content: start; padding-bottom: .2rem; }
+.sk-sub { display: flex; align-items: stretch; border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--tile); color: var(--ink); min-width: 0; overflow: hidden; }
+.sk-sub-on, .sk-sub-name { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.sk-sub-on { flex: none; display: grid; place-items: center; width: 2.2rem; padding: 0; }
+.sk-sub-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: .3rem; padding: .45rem .5rem .45rem 0; font-size: .8rem; text-align: left; }
+.sk-sub-name span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-sub-name small { color: var(--ink-soft); font-size: .68rem; font-variant-numeric: tabular-nums; }
+.sk-sub.off { opacity: .5; }
+.sk-sub.off .sk-dot { background: transparent !important; box-shadow: 0 0 0 1.5px var(--ink-soft); }
+.sk-sub-on .sk-dot { width: .85rem; height: .85rem; margin: 0; }
+/* while a search is open the entry and the subjects give way to what it found */
+.sk.searching .sk-entry, .sk.searching .sk-subjects { visibility: hidden; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .sk { --sk-mid: #0d1826; --sk-edge: #03060a; }
+}
+html[data-mode="night"] .sk { --sk-mid: #0d1826; --sk-edge: #03060a; }
+
+/* held sideways (#app.beside): the list view puts the search and what it found on the left and the entry beside it, wider, so one
+   thing after another can be opened from the list without losing it; with no entry open the list takes the whole width. The
+   star chart keeps the whole screen: its popups are cards at the left. */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.almanac { --beside-cols: minmax(0, 1fr) minmax(0, 1.5fr); grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
   .lx-search { grid-column: 1; grid-row: 2; }
@@ -102,13 +143,8 @@ html[data-mode="night"] .sk-stage { --sk-mid: #0d1826; --sk-edge: #03060a; }
   #app.almanac .lx-results, #app.almanac .lx-results[hidden] { display: block !important; grid-column: 1; grid-row: 4; }
   .lx-entry { grid-column: 2; grid-row: 2 / -1; padding-top: .3rem; }
   #app.almanac:has(#entry[hidden]) .lx-search, #app.almanac:has(#entry[hidden]) .lx-modes, #app.almanac:has(#entry[hidden]) .lx-results { grid-column: 1 / -1; }
-  html #app.almanac.sky-on:has(#entry[hidden]) .lx-search, html #app.almanac.sky-on:has(#entry[hidden]) .lx-modes { grid-column: 1; }
-  html #app.almanac.sky-on .lx-results, html #app.almanac.sky-on .lx-results[hidden] { display: none !important; }
-  .lx-sky { display: contents; }
-  .lx-sky[hidden] { display: none; }
-  .sk-stage { grid-column: 2; grid-row: 2 / -1; }
-  .sk-panel { position: static; grid-column: 1; grid-row: 4; min-height: 0; box-shadow: none; }
-  .sk-panel[data-mode] { max-height: none; }
-  .sk-card { position: static; grid-column: 1; grid-row: 5; margin-top: .6rem; box-shadow: none; }
-  #skySubjects { display: none; }
+  .sk-pop { right: auto; width: min(28rem, 46%); margin-inline: 0; }
+  .sk-hits { width: min(28rem, 46%); }
+  .sk-search:focus-within, .sk-search.has-text { flex: 0 1 28rem; }
+  .sk-entry[data-pop="full"], .sk-subjects { height: min(calc(100% - var(--sk-t) - var(--sk-b) - 3.5rem), 40rem); }
 }

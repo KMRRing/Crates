@@ -1,14 +1,15 @@
-// The Almanac's star chart: the knowledge base as a night sky you turn with a finger. Every thing in kb/ is a star, coloured by
-// its subject (Settings' subjects), in regions by subject; faint lines join near neighbours that are linked; the things
-// you have learned (the pile, pile.js) burn brighter the better you know them, and what you missed and must go back to
-// twinkles. almanac.js loads this only when the sky is opened, so the list view carries none of it.
+// The Almanac's star chart: the knowledge base as a night sky you turn with a finger, and the whole of the screen. Every thing in
+// kb/ is a star, coloured by its subject (Settings' subjects), in regions by subject; faint lines join near neighbours that
+// are linked; the things you have learned (the pile, pile.js) burn brighter the better you know them, and what you missed
+// and must go back to twinkles. almanac.js loads this as the page starts, so the list view carries none of it until asked.
 //
 // What is where: almanac-sky-data.js builds the stars from kb/, -place.js their places (the stored layout), -camera.js the
-// orbiting camera (pure), -gl.js the drawing, -learn.js the glow from the pile; this file is the page's side of it:
-// touch, labels, the panel of subjects, the card of the chosen star, search, and what is kept.
+// orbiting camera (pure), -gl.js the drawing, -learn.js the glow from the pile, almanac-nav.js the trail through entries and
+// the arrow keys through search results (pure); this file is the page's side of it: touch, labels, the search field, the
+// popups (a star's entry, the subjects, what a search found), and what is kept.
 //
 // Kept under `lexicon:` (the game's id stays, the page is Almanac), so a partner watching sees the same sky:
-//   lexicon:sky      { open, yaw, pitch, dist, at, off: [subjects switched off], sel: the chosen star's id }
+//   lexicon:sky      { yaw, pitch, dist, at, off: [subjects switched off], sel: the chosen star's id, pop: "card" | "full" }
 //   lexicon:sky:lit  the glow, { id: percent } (negative: twinkling): the watcher's own pile is not yours
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
@@ -21,6 +22,7 @@ import { jitter } from "./almanac-sky-place.js";
 import * as C from "./almanac-sky-camera.js";
 import { createSkyGL, canDrawSky } from "./almanac-sky-gl.js";
 import { glowOf, encodeGlow, decodeGlow, summary } from "./almanac-sky-learn.js";
+import { createTrail, stepHit, hitFor } from "./almanac-nav.js";
 import * as pile from "./pile.js";
 import { onPause } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
@@ -38,31 +40,48 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const night = () => { const m = document.documentElement.dataset.mode; return m ? m === "night" : matchMedia("(prefers-color-scheme: dark)").matches; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  back: svg('<path d="M14.5 5.5L8 12l6.5 6.5"/>'),
+  close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
+  target: svg('<circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.6"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/>'),
+};
+/** A small square button with an icon. */
+function iconButton(label, icon, onClick) {
+  const b = el("button", "sk-ib");
+  b.type = "button"; b.title = label; b.setAttribute("aria-label", label); b.innerHTML = icon;
+  b.addEventListener("click", onClick);
+  return b;
+}
 
 /**
- * The sky in the elements of `R` ({ section, stage, gl, ink, hint, subjectsBtn, homeBtn, panel, card }); `api` is almanac.js's
- * own: search(text) → things, label(thing), kindsOf(thing), open(id) to open an entry, and lookUp(id).
+ * The sky in the elements of `R` (section, gl, ink, hint, foot, msg, form, query, menuBtn, subjectsBtn, homeBtn, hits, legend,
+ * card, listBtn); `api` is almanac.js's own: search(text) → things, label(thing), kindsOf(thing), shortName(thing), fill(box, id,
+ * nav) to write an entry into a box, toList(id) to read an entry in the list view, entryShown(id | null) when the popup's
+ * entry changes (the address follows it).
  */
 export function createSky(R, api) {
   const inkCtx = R.ink.getContext("2d");
   const saved = read(KEY) || {};
   let fresh = !Number.isFinite(saved.dist);
   const S = {
-    open: false,
     cam: C.cleanCamera(saved, HOME),
     off: new Set((Array.isArray(saved.off) ? saved.off : []).filter(id => SUBJECT_IDS.includes(id))),
     sel: typeof saved.sel === "string" ? saved.sel : null,
+    pop: saved.pop === "full" ? "full" : "card",          // the entry's popup: a card, or open on the entry itself
   };
+  const trail = createTrail();
   let sky = null, glx = null, glow = new Map(), size = { w: 1, h: 1, dpr: 1 };
   let drawn = null, col = null, misc = null, on = null, lit = null, tw = null, twinkles = false, order = [], middles = [], names = [];
   let raf = 0, timer = 0, last = 0, paused = false, shown = false, flightNow = null, vel = { x: 0, y: 0 }, dragging = false, saveTimer = 0;
-  let panelMode = "", legendOpen = false, hits = [], sel = -1, labelBox = [];
+  let legendOpen = false, hits = [], hitAt = -1, searching = false, sel = -1, labelBox = [], reserved = [], card = null, subRows = [];
+  if (IN_FRAME) R.section.classList.add("in-frame");
 
   // ---------- what is kept ----------
   function saveNow() {
     clearTimeout(saveTimer); saveTimer = 0;
     const c = S.cam, r = (v, k) => Math.round(v * k) / k;
-    write(KEY, { open: S.open, yaw: r(c.yaw, 1000), pitch: r(c.pitch, 1000), dist: r(c.dist, 10), at: c.at.map(v => r(v, 10)), off: [...S.off], sel: S.sel });
+    write(KEY, { yaw: r(c.yaw, 1000), pitch: r(c.pitch, 1000), dist: r(c.dist, 10), at: c.at.map(v => r(v, 10)), off: [...S.off], sel: S.sel, pop: S.pop });
   }
   // a moment after the last change: a watcher redraws on every change of these keys, so they are not written on every frame
   const save = () => { if (IN_FRAME) return; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 700); };
@@ -104,9 +123,10 @@ export function createSky(R, api) {
     R.gl.addEventListener("webglcontextlost", e => { e.preventDefault(); });
     R.gl.addEventListener("webglcontextrestored", () => { glx.restore(); fit(); paintStars(); drawFocus(); invalidate(); });
     sel = S.sel && sky.rowOf.has(S.sel) ? sky.rowOf.get(S.sel) : -1;
-    if (sel < 0) S.sel = null;
+    if (sel < 0) S.sel = null; else trail.start(S.sel);
     loadGlow();
     buildLegend();
+    buildCard();
     return true;
   }
   function loadGlow() {
@@ -174,11 +194,12 @@ export function createSky(R, api) {
   // ---------- the camera, the loop ----------
   const homeCam = () => ({ ...HOME, dist: C.fitDistance(size.w / size.h) });
   function fit() {
-    const w = R.stage.clientWidth, h = R.stage.clientHeight;
-    if (!w || !h) return;
+    const w = R.section.clientWidth, h = R.section.clientHeight;
+    if (!w || !h || !glx) return;
     const dpr = glx.resize(w, h);
     R.ink.width = Math.round(w * dpr); R.ink.height = Math.round(h * dpr);
     size = { w, h, dpr };
+    measure();
   }
   function invalidate() {
     if (!shown || paused || !sky || raf || timer || document.hidden) return;
@@ -209,6 +230,13 @@ export function createSky(R, api) {
     glx.draw(vp, { dist: S.cam.dist, time: t / 1000, dim: dark ? 0.62 : 0.7, boost: dark ? 1.6 : 2.2 });
     drawInk(vp);
   }
+  /** Where the controls and the popups stand over the sky, in its pixels, so no label is written under one. */
+  function measure() {
+    const s = R.section.getBoundingClientRect(), pad = 6;
+    reserved = [R.form, R.menuBtn, R.subjectsBtn, R.homeBtn, R.hint, R.card, R.legend, R.hits]
+      .filter(x => x && !x.hidden && x.offsetWidth && !x.closest("[hidden]"))
+      .map(x => { const b = x.getBoundingClientRect(); return [b.left - s.left - pad, b.top - s.top - pad, b.width + 2 * pad, b.height + 2 * pad]; });
+  }
 
   // ---------- the labels over the sky ----------
   const o3 = [0, 0, 0];
@@ -221,10 +249,7 @@ export function createSky(R, api) {
     const d = S.cam.dist, off = offIx();
     // far out, the regions are named, in wide capitals, the biggest first and none over another; they fade as the stars
     // come near enough to name themselves
-    // no label under the buttons in the corner, nor under the line at the foot
-    const tools = R.homeBtn.parentElement;
-    labelBox = [[w - tools.offsetWidth - 10 * k, 0, tools.offsetWidth + 10 * k, tools.offsetHeight + 12 * k]];
-    if (!R.hint.hidden && R.hint.textContent) labelBox.push([0, h - R.hint.offsetHeight, w, R.hint.offsetHeight]);
+    labelBox = reserved.slice();
     const far = clamp((d - 70) / 80, 0, 1);
     if (far > 0.02) {
       g.font = `700 ${11 * k}px ${family}`; g.textAlign = "center";
@@ -284,58 +309,118 @@ export function createSky(R, api) {
     }
   }
 
-  // ---------- choosing a star ----------
-  function subjectLine(r) {
-    return sky.subjects[r].map(s => SUBJECT_NAME[SUBJECT_IDS[s]]);
-  }
+  // ---------- choosing a star: its entry in a popup ----------
+  const idOf = r => ENTITIES[sky.stars[r]].id;
   function glowLine(r) {
     if (!(lit[r] > 0)) return "Not met in a game yet: dim";
     if (lit[r] >= 1) return "Learned: burning bright";
     return tw[r] ? "Missed, and due again: twinkling" : "Being learned: it burns brighter each time you get it right";
   }
+  /** The entry's popup is made once: a head (back, the name, show in the sky, close), what the star is, how well it is known, and the entry's own box. */
+  function buildCard() {
+    const back = iconButton("Back to the entry before", ICON.back, goBack), close = iconButton("Close", ICON.close, () => choose(-1));
+    const locate = iconButton("Show in the sky", ICON.target, () => { S.pop = "card"; select(sel, { fly: true, near: 22 }); });
+    const head = el("div", "sk-pop-head"), title = el("h3");
+    head.append(back, title, locate, close);
+    const meta = el("p", "sk-pop-meta"), glowText = el("p", "sk-pop-glow"), more = el("button", "btn sk-more");
+    more.type = "button";
+    more.addEventListener("click", () => {
+      S.pop = S.pop === "full" ? "card" : "full";
+      showCard(); updatePanels();
+      if (sel >= 0) goTo(aimPoint(sky.xyz.slice(3 * sel, 3 * sel + 3), S.cam.dist));        // the star stays in what the popup leaves of the sky
+      save();
+    });
+    const foot = el("div", "sk-pop-foot");
+    foot.append(glowText, more);
+    const body = el("div", "sk-pop-body");
+    R.card.replaceChildren(head, meta, foot, body);
+    card = { back, title, meta, glowText, more, body };
+  }
   function showCard() {
-    const card = R.card;
-    if (sel < 0 || !sky) { card.hidden = true; syncHint(); return; }
-    const e = ENTITIES[sky.stars[sel]];
-    card.replaceChildren();
-    const head = el("div", "sk-card-head"), title = el("h3", null, api.label(e)), close = el("button", "icon-btn sk-x", "×");
-    close.type = "button"; close.setAttribute("aria-label", "Close");
-    close.addEventListener("click", () => choose(-1));
-    head.append(title, close);
-    const meta = el("p", "sk-card-meta"), links = sky.around[sel].length;
-    sky.subjects[sel].forEach((s, i) => {
+    if (!sky || !card) return;
+    if (sel < 0) { card.body.replaceChildren(); delete card.body.dataset.id; return; }
+    const e = ENTITIES[sky.stars[sel]], full = S.pop === "full";
+    R.card.dataset.pop = S.pop;
+    card.title.textContent = api.label(e);
+    card.back.hidden = !trail.canBack;
+    card.meta.replaceChildren();
+    const subs = sky.subjects[sel], links = sky.around[sel].length;
+    subs.forEach((s, i) => {
       const dot = el("i", "sk-dot"); dot.style.background = COLOURS[SUBJECT_IDS[s]];
-      meta.append(dot, document.createTextNode(`${SUBJECT_NAME[SUBJECT_IDS[s]]}${i < sky.subjects[sel].length - 1 ? ", " : ""}`));
+      card.meta.append(dot, document.createTextNode(`${SUBJECT_NAME[SUBJECT_IDS[s]]}${i < subs.length - 1 ? ", " : ""}`));
     });
     const kinds = api.kindsOf(e).slice(0, 2).join(" · ");
-    meta.append(document.createTextNode(` · ${[kinds, `${links} link${links === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}`));
-    const foot = el("div", "sk-card-foot"), open = el("button", "btn primary sk-open", "Open entry");
-    open.type = "button";
-    open.addEventListener("click", () => api.open(e.id));
-    foot.append(el("p", "sk-card-meta soft", glowLine(sel)), open);
-    card.append(head, meta, foot);
-    card.hidden = false;
-    syncHint();
+    card.meta.append(document.createTextNode(` · ${[kinds, `${links} link${links === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}`));
+    card.glowText.textContent = glowLine(sel);
+    card.more.textContent = full ? "Less" : "The entry";
+    card.more.setAttribute("aria-expanded", String(full));
+    if (!full) { card.body.replaceChildren(); delete card.body.dataset.id; return; }
+    if (card.body.dataset.id !== e.id) {
+      card.body.dataset.id = e.id;
+      api.fill(card.body, e.id, { head: false, go: follow, locate: locateId });
+      const toList = el("button", "link lx-more", "Open in the list");
+      toList.type = "button";
+      toList.addEventListener("click", () => api.toList(e.id));
+      card.body.prepend(toList);
+      card.body.scrollTop = 0;
+    }
   }
-  /** Chooses a star (or none: -1); `fly` moves the camera to it, to within `near` units. */
-  function choose(r, { fly = false, near = 60 } = {}) {
-    sel = r; S.sel = r >= 0 ? ENTITIES[sky.stars[r]].id : null;
-    if (r >= 0) {
+  /**
+   * Chooses a star (or none: -1). `fly` moves the camera to it, to within `near` units; `pop` sets how the popup stands (card or
+   * full); `silent` leaves the address alone (it is what asked for this).
+   */
+  function select(r, { fly = false, near = 60, pop = null, silent = false } = {}) {
+    sel = r; S.sel = r >= 0 ? idOf(r) : null;
+    if (r < 0) { S.pop = "card"; trail.start(null); }
+    else {
+      if (pop) S.pop = pop;
       const subs = sky.subjects[r], off = offIx();
-      if (subs.every(s => off.has(s))) { S.off.delete(SUBJECT_IDS[subs[0]]); paintStars(); buildLegend(); }   // a star you ask for is not left switched off
-      if (fly) goTo(aimAt(r, Math.min(S.cam.dist, near)));
+      if (subs.every(s => off.has(s))) { S.off.delete(SUBJECT_IDS[subs[0]]); paintStars(); refreshLegend(); updateHint(); }   // a star you ask for is not left switched off
     }
-    drawFocus(); showCard(); updatePanel(); save(); invalidate();
+    if (r >= 0) legendOpen = false;
+    drawFocus(); showCard(); updatePanels();
+    if (r >= 0 && fly) goTo(aimPoint(sky.xyz.slice(3 * r, 3 * r + 3), Math.min(S.cam.dist, near)));
+    save(); invalidate();
+    if (!silent) api.entryShown(S.sel);
   }
-  /** A camera looking at star r from `dist` away, with the star a little above the middle where the card (over the sky's foot) would hide it. */
-  function aimAt(r, dist) {
-    const at = [...sky.xyz.slice(3 * r, 3 * r + 3)];
-    if (!sideways()) {
-      const m = C.viewMatrix(S.cam), up = [m[1], m[5], m[9]];
-      const shift = 70 * scale() * 2 * Math.tan(C.FOV / 2) * dist / Math.max(1, size.h);      // about half the card's height, in sky units at that distance
-      for (let i = 0; i < 3; i++) at[i] -= up[i] * shift;
-    }
-    return { ...S.cam, at, dist };
+  /** A fresh choice (a tap, a search): a new trail of entries begins at it. */
+  function choose(r, opts) {
+    if (r >= 0) trail.start(idOf(r));
+    select(r, opts);
+  }
+  /** A link in the popup: its entry is shown in the same popup, the trail going on. */
+  function follow(id) {
+    const r = sky.rowOf.get(id);
+    if (r == null) return;
+    trail.go(idOf(r));
+    select(r);
+  }
+  /** A link's own button, to see it in the sky: its entry stands in the popup, which shrinks to its card, and the camera flies there. */
+  function locateId(id) {
+    const r = sky.rowOf.get(id);
+    if (r == null) return;
+    trail.go(idOf(r));
+    select(r, { fly: true, near: 22, pop: "card" });
+  }
+  function goBack() {
+    const id = trail.back(), r = id ? sky.rowOf.get(id) : null;
+    if (r != null) select(r);
+  }
+
+  /** The part of the sky no popup covers, in its pixels: above a sheet on a phone, right of the card sideways. */
+  function freeBox() {
+    const { w, h } = size, pop = [R.card, R.legend].find(x => !x.hidden);
+    if (!pop) return { x: 0, y: 0, w, h };
+    const b = pop.getBoundingClientRect(), s = R.section.getBoundingClientRect();
+    if (sideways()) { const x = b.right - s.left + 8; return { x, y: 0, w: Math.max(60, w - x), h }; }
+    return { x: 0, y: 0, w, h: Math.max(60, b.top - s.top - 8) };
+  }
+  /** A camera looking at point p from `dist` away, with p in the middle of what no popup covers. */
+  function aimPoint(p, dist) {
+    const free = freeBox(), dx = free.x + free.w / 2 - size.w / 2, dy = free.y + free.h / 2 - size.h / 2;
+    const m = C.viewMatrix(S.cam), right = [m[0], m[4], m[8]], up = [m[1], m[5], m[9]];
+    const k = 2 * Math.tan(C.FOV / 2) * dist / Math.max(1, size.h);              // pixels to sky units at that distance
+    return { ...S.cam, at: [0, 1, 2].map(i => p[i] - right[i] * dx * k + up[i] * dy * k), dist };
   }
   function goTo(cam) {
     const to = C.cleanCamera(cam, S.cam);
@@ -343,81 +428,140 @@ export function createSky(R, api) {
     vel.x = vel.y = 0; save(); invalidate();
   }
 
-  // ---------- the panel: subjects, and what a search found ----------
+  // ---------- what is on show: the popups, the foot ----------
+  /** Which of the popups stand, and what stands under them: the subjects take the entry's place, a search takes both, the foot gives way. */
+  function updatePanels() {
+    if (!sky) return;
+    const entry = sel >= 0 && !legendOpen;
+    R.card.hidden = !entry;
+    R.legend.hidden = !legendOpen;
+    R.section.classList.toggle("searching", searching);
+    R.foot.hidden = entry || legendOpen;
+    R.subjectsBtn.setAttribute("aria-expanded", String(legendOpen));
+    measure();
+    invalidate();
+  }
+  function closeSearch() {
+    R.query.value = ""; R.form.classList.remove("has-text");
+    hits = []; hitAt = -1; R.hits.replaceChildren(); R.hits.hidden = true;
+    searching = false;
+    if (document.activeElement === R.query) R.query.blur();
+    updatePanels();
+  }
+  /** A tap on empty sky: whatever is open closes. */
+  function closeAll() {
+    if (searching) closeSearch();
+    legendOpen = false;
+    if (sel >= 0) select(-1); else updatePanels();
+  }
+
+  // ---------- the subjects: switch each on or off, or go to its region ----------
   function buildLegend() {
     if (!sky) return;
     const count = new Array(SUBJECT_IDS.length).fill(0);
     for (let r = 0; r < sky.n; r++) count[sky.subjects[r][0]]++;
-    const box = R.legend;
-    box.replaceChildren();
+    const head = el("div", "sk-sub-head");
+    head.append(el("h3", null, "Subjects"), iconButton("Close", ICON.close, () => { legendOpen = false; updatePanels(); }));
     const row = el("div", "sk-legend-actions");
     const mk = (text, fn) => { const b = el("button", "link", text); b.type = "button"; b.addEventListener("click", fn); return b; };
     row.append(
       mk("All", () => { S.off.clear(); changed(); }),
       mk("None", () => { S.off = new Set(SUBJECT_IDS); changed(); }),
       mk("My topics", () => { const mine = subjectsOn(); S.off = new Set(SUBJECT_IDS.filter(id => !mine[id])); changed(); }));
-    box.append(row);
     const list = el("div", "sk-legend-list");
+    subRows = [];
     SUBJECT_IDS.forEach((id, s) => {
       if (!count[s]) return;
-      const b = el("button", "sk-sub"), dot = el("i", "sk-dot");
+      const box = el("div", "sk-sub"), onBtn = el("button", "sk-sub-on"), dot = el("i", "sk-dot"), go = el("button", "sk-sub-name");
       dot.style.background = COLOURS[id];
-      b.type = "button"; b.setAttribute("aria-pressed", String(!S.off.has(id)));
-      b.append(dot, el("span", null, SUBJECT_NAME[id]), el("small", null, count[s].toLocaleString("en-GB")));
-      b.addEventListener("click", () => { if (S.off.has(id)) S.off.delete(id); else S.off.add(id); changed(); });
-      list.append(b);
+      onBtn.type = "button"; onBtn.setAttribute("aria-label", `Show ${SUBJECT_NAME[id]}`); onBtn.append(dot);
+      onBtn.addEventListener("click", () => { if (S.off.has(id)) S.off.delete(id); else S.off.add(id); changed(); });
+      go.type = "button"; go.title = "Go to this region of the sky";
+      go.append(el("span", null, SUBJECT_NAME[id]), el("small", null, count[s].toLocaleString("en-GB")));
+      go.addEventListener("click", () => toRegion(s));
+      box.append(onBtn, go);
+      list.append(box);
+      subRows.push({ id, box, onBtn });
     });
-    box.append(list);
-    function changed() {
-      if (sel >= 0 && sky.subjects[sel].every(s => S.off.has(SUBJECT_IDS[s]))) { sel = -1; S.sel = null; showCard(); }
-      paintStars(); buildLegend(); updateHint(); save(); invalidate();
-    }
+    R.legend.replaceChildren(head, row, list);
+    refreshLegend();
   }
-  function updatePanel() {
-    const side = sideways(), searching = hits.length > 0 || R.query().trim() !== "";
-    panelMode = searching ? "hits" : side || legendOpen ? "legend" : "";
-    R.panel.hidden = !panelMode || !shown;
-    R.panel.dataset.mode = panelMode;
-    R.hitsBox.hidden = panelMode !== "hits";
-    R.legend.hidden = panelMode !== "legend";
-    R.subjectsBtn.setAttribute("aria-expanded", String(panelMode === "legend"));
-    if (panelMode === "legend" && !side) R.card.hidden = true; else showCard();
-    syncHint();
+  function refreshLegend() {
+    for (const { id, box, onBtn } of subRows) { const on = !S.off.has(id); box.classList.toggle("off", !on); onBtn.setAttribute("aria-pressed", String(on)); }
   }
-  /** The line under the sky gives way to the card or the subjects where they cover it (held sideways they stand beside it). */
-  function syncHint() { R.hint.hidden = !sideways() && (!R.card.hidden || panelMode === "legend"); }
+  /** Something was switched: the stars, the legend, the line under the sky. */
+  function changed() {
+    if (sel >= 0 && sky.subjects[sel].every(s => S.off.has(SUBJECT_IDS[s]))) select(-1);
+    paintStars(); refreshLegend(); updateHint(); save(); invalidate();
+  }
+  function toRegion(s) {
+    const m = middles[s];
+    if (!m) return;
+    if (S.off.has(SUBJECT_IDS[s])) { S.off.delete(SUBJECT_IDS[s]); changed(); }
+    goTo(aimPoint([m[0], m[1], m[2]], Math.min(S.cam.dist, 78)));
+  }
   function updateHint() {
     if (!sky) return;
     const s = summary(glow);
     R.hint.textContent = !s.lit
-      ? "Stars light up as you learn: miss something in a game, get it right later, and its star burns brighter the longer you keep it."
+      ? "A star lights when you miss it in a game and brightens each time you get it right."
       : `${s.lit.toLocaleString("en-GB")} burning${s.learned ? `, ${s.learned.toLocaleString("en-GB")} learned` : ""}${s.twinkling ? `, ${s.twinkling.toLocaleString("en-GB")} twinkling to go back to` : ""}.`;
     if (S.off.size === SUBJECT_IDS.length) R.hint.textContent = "Every subject is switched off: open Subjects to bring some back.";
+    measure();
   }
-  /** What the search box finds, as stars you can fly to (the Almanac's own search, so the same things in the same order). */
+
+  // ---------- search: the Almanac's own, as stars you can fly to ----------
   function showHits(text) {
-    hits = [];
-    R.hitsBox.replaceChildren();
-    if (sky && text.trim()) {
+    hits = []; hitAt = -1;
+    R.hits.replaceChildren();
+    const t = text.trim();
+    R.form.classList.toggle("has-text", !!t);
+    if (sky && t) {
       for (const e of api.search(text)) {
         const r = sky.rowOf.get(e.id);
         if (r == null) continue;
         hits.push(r);
         if (hits.length >= 8) break;
       }
-      if (!hits.length) R.hitsBox.append(el("p", "lx-lead", "Nothing by that name."));
-      for (const r of hits) {
+      if (!hits.length) R.hits.append(el("p", "lx-lead", "Nothing by that name."));
+      hits.forEach((r, i) => {
         const e = ENTITIES[sky.stars[r]], b = el("button", "lx-hit"), dot = el("i", "sk-dot");
         dot.style.background = COLOURS[SUBJECT_IDS[sky.subjects[r][0]]];
-        b.type = "button";
+        b.type = "button"; b.setAttribute("role", "option");
         const name = el("b", null, api.label(e)); name.prepend(dot);
         b.append(name, el("small", null, api.kindsOf(e).slice(0, 2).join(" · ")));
-        b.addEventListener("click", () => { hits = []; R.hitsBox.replaceChildren(); choose(r, { fly: true, near: 22 }); R.clearQuery(); updatePanel(); });
-        R.hitsBox.append(b);
-      }
+        b.addEventListener("click", () => pick(i));
+        R.hits.append(b);
+      });
+      hitAt = hits.length ? 0 : -1;
+      lightHit();
     }
-    updatePanel();
+    R.hits.hidden = !t;
+    searching = !!t || document.activeElement === R.query;
+    legendOpen = false;
+    updatePanels();
   }
+  function lightHit() {
+    [...R.hits.querySelectorAll(".lx-hit")].forEach((b, i) => { b.classList.toggle("on", i === hitAt); b.setAttribute("aria-selected", String(i === hitAt)); if (i === hitAt) b.scrollIntoView({ block: "nearest" }); });
+  }
+  /** A result chosen: the search closes, the camera flies to the star and its card opens. */
+  function pick(i) {
+    const r = hits[i];
+    if (r == null) return;
+    closeSearch();
+    choose(r, { fly: true, near: 22 });
+  }
+  R.form.addEventListener("submit", e => { e.preventDefault(); pick(hitFor(hitAt, hits.length)); });
+  R.query.addEventListener("input", () => showHits(R.query.value));
+  R.query.addEventListener("focus", () => { searching = true; legendOpen = false; updatePanels(); });
+  R.query.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== R.query && searching) closeSearch(); }, 180));   // after a tap on a result has been taken
+  R.query.addEventListener("keydown", e => {
+    if (e.key === "Escape") { closeSearch(); return; }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    hitAt = stepHit(hitAt, e.key, hits.length); lightHit();
+  });
+  R.hits.addEventListener("mousedown", e => e.preventDefault());                  // a tap on a result does not take the focus (and the keyboard) from the field
 
   // ---------- touch, mouse, keys ----------
   const ptrs = new Map();
@@ -425,6 +569,7 @@ export function createSky(R, api) {
   const local = e => { const b = R.ink.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
   R.ink.addEventListener("pointerdown", e => {
     if (!sky || IN_FRAME) return;
+    if (searching) closeSearch();
     R.ink.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, local(e));
     flightNow = null; vel.x = vel.y = 0;
@@ -462,7 +607,7 @@ export function createSky(R, api) {
       if (tapAt && tapAt.moved <= 6 && performance.now() - tapAt.t < 500 && e.type === "pointerup") {
         const vp = C.viewProjection(S.cam, size.w / size.h);
         const r = C.pick(vp, sky.xyz, size.w, size.h, p[0], p[1], 22 * scale(), sky.weight, i => on[i] === 1);
-        choose(r, { fly: r >= 0, near: 60 });
+        if (r >= 0) choose(r, { fly: true, near: 60 }); else closeAll();        // a tap on empty sky closes what is open
         vel.x = vel.y = 0;
       } else if (reduced() || performance.now() - lastMove > 90) vel.x = vel.y = 0;       // held still before letting go: no flick
       tapAt = null;
@@ -478,58 +623,56 @@ export function createSky(R, api) {
     S.cam = C.zoom(S.cam, Math.exp(clamp(e.deltaY * k, -240, 240) * 0.0014));
     save(); invalidate();
   }, { passive: false });
-  R.stage.addEventListener("keydown", e => {
+  R.ink.addEventListener("keydown", e => {
     if (!sky || IN_FRAME) return;
     const step = { ArrowLeft: [-40, 0], ArrowRight: [40, 0], ArrowUp: [0, -40], ArrowDown: [0, 40] }[e.key];
     if (step) S.cam = C.orbit(S.cam, step[0], step[1], size.h);
     else if (e.key === "+" || e.key === "=") S.cam = C.zoom(S.cam, 0.8);
     else if (e.key === "-" || e.key === "_") S.cam = C.zoom(S.cam, 1.25);
-    else if (e.key === "Escape") choose(-1);
+    else if (e.key === "Escape") closeAll();
     else return;
     e.preventDefault(); save(); invalidate();
   });
-  R.homeBtn.addEventListener("click", () => { goTo(homeCam()); });
-  R.subjectsBtn.addEventListener("click", () => { legendOpen = !legendOpen; updatePanel(); });
+  R.homeBtn.addEventListener("click", () => goTo(homeCam()));
+  R.subjectsBtn.addEventListener("click", () => { legendOpen = !legendOpen; updatePanels(); });
 
   // ---------- coming and going ----------
-  new ResizeObserver(() => { if (glx && shown) { fit(); invalidate(); } }).observe(R.stage);
-  matchMedia("(orientation: landscape)").addEventListener?.("change", () => updatePanel());
+  new ResizeObserver(() => { if (glx && shown) { fit(); invalidate(); } }).observe(R.section);
+  matchMedia("(orientation: landscape)").addEventListener?.("change", () => { measure(); invalidate(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) invalidate(); });
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => invalidate());
   new MutationObserver(() => invalidate()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-mode", "data-theme"] });
   onPause(() => { paused = true; cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; last = 0; }, () => { paused = false; invalidate(); });
 
   return {
-    /** Opens the sky (from the list or an entry). */
-    async show() {
-      shown = true; S.open = true; save();
-      R.section.hidden = false;
+    /**
+     * The sky on screen. With `entry`, its popup is open on it and the camera goes there; with none, nothing is chosen (a page
+     * that opens, a return from the list, an address with no entry) - except in a watching frame, which shows what the partner has.
+     * Resolves whether there is a sky to see (false: no WebGL, and the words say so).
+     */
+    async show({ entry = null } = {}) {
+      shown = true;
       const ok = await ensure();
-      if (!ok || !shown) return;
+      if (!ok || !shown) return ok;
       fit();
       if (fresh) { fresh = false; S.cam = homeCam(); }                   // a first visit starts with the whole sky in view, whatever the screen's shape
-      paintStars(); showCard(); showHits(R.query()); invalidate();
-      R.stage.focus({ preventScroll: true });
+      paintStars();
+      const r = entry ? sky.rowOf.get(entry) : null;
+      if (r != null) choose(r, { fly: true, near: 22, pop: "full", silent: true });
+      else if (!IN_FRAME) select(-1, { silent: true });
+      else { showCard(); updatePanels(); }
+      updateHint(); measure(); invalidate();
+      R.ink.focus({ preventScroll: true });
+      return true;
     },
-    /** Leaves it, to the list or an entry. */
+    /** Leaves it, for the list. */
     hide() {
-      shown = false; S.open = false; cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; last = 0;
-      R.section.hidden = true; save();
+      shown = false; cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; last = 0;
+      if (searching) closeSearch();
     },
-    get open() { return shown; },
-    /** What was kept says the sky was open (a watching frame follows it). */
-    wasOpen: () => !!saved.open,
-    /** The search box changed: show what it found as stars to fly to. */
-    typed: showHits,
-    /** Enter in the search box: fly to the best match. */
-    submit(text) {
-      showHits(text);
-      if (hits.length) { const r = hits[0]; hits = []; R.hitsBox.replaceChildren(); choose(r, { fly: true, near: 22 }); R.clearQuery(); updatePanel(); }
-    },
-    /** Flies to a thing by its id, if it is a star. */
-    flyTo(id) { if (sky && sky.rowOf.has(id)) choose(sky.rowOf.get(id), { fly: true, near: 22 }); },
-    /** Where the pile stands now (call when the sky is opened again after games were played). */
-    refreshGlow() { if (sky) { loadGlow(); paintStars(); showCard(); invalidate(); } },
-    dispose() { glx?.destroy(); },
+    /** The subjects' popup (from the menu). */
+    openSubjects() { if (!sky) return; legendOpen = true; updatePanels(); },
+    /** The whole sky in view again (from the menu). */
+    home() { if (sky) goTo(homeCam()); },
   };
 }

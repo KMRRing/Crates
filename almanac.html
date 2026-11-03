@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="almanac.css">
 <link rel="stylesheet" href="themes.css">
 </head>
-<body>
+<body class="on-sky">
 <div id="app" class="almanac fit-screen beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
@@ -32,24 +32,31 @@
   </div>
   <section id="results" class="lx-results fit-scroll fit-grow" aria-label="Results"></section>
   <article id="entry" class="lx-entry fit-scroll fit-grow" hidden></article>
-  <section id="sky" class="lx-sky fit-grow" aria-label="Star chart" hidden>
-    <div id="skyStage" class="sk-stage" tabindex="0" aria-label="The star chart: drag to turn it, pinch or scroll to zoom, tap a star for its name">
-      <canvas id="skyGL" class="sk-gl" aria-hidden="true"></canvas>
-      <canvas id="skyInk" class="sk-ink" aria-hidden="true"></canvas>
-      <p id="skyHint" class="sk-hint"></p>
-      <div class="sk-tools">
-        <button id="skySubjects" class="sk-tool" type="button" aria-expanded="false">Subjects</button>
-        <button id="skyHome" class="sk-tool" type="button">Reset view</button>
-      </div>
-      <div id="skyMsg" class="sk-msg" role="status" hidden></div>
-    </div>
-    <div id="skyPanel" class="sk-panel fit-scroll" hidden>
-      <div id="skyHits" class="lx-list sk-hits" hidden></div>
-      <div id="skyLegend" class="sk-legend" hidden></div>
-    </div>
-    <div id="skyCard" class="sk-card" hidden></div>
-  </section>
 </div>
+
+<!-- the star chart is what Almanac opens on: the whole screen, with a search field and the menu on it, and its popups -->
+<section id="sky" class="sk" aria-label="Star chart">
+  <canvas id="skyGL" class="sk-gl" aria-hidden="true"></canvas>
+  <canvas id="skyInk" class="sk-ink" aria-label="The star chart: drag to turn it, pinch or scroll to zoom, tap a star for its entry" tabindex="0"></canvas>
+  <div class="sk-top">
+    <form id="skySearch" class="sk-search" role="search" autocomplete="off">
+      <svg class="sk-glass" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/></svg>
+      <input id="skyQ" type="search" placeholder="Search" aria-label="Search the star chart" spellcheck="false" autocapitalize="off" enterkeyhint="search">
+    </form>
+    <button id="skyMenu" class="icon-btn sk-menu" type="button" aria-haspopup="dialog" aria-label="Menu"></button>
+  </div>
+  <div id="skyHits" class="sk-pop sk-hits" role="listbox" aria-label="Search results" hidden></div>
+  <div id="skyFoot" class="sk-foot">
+    <p id="skyHint" class="sk-hint"></p>
+    <div class="sk-chips">
+      <button id="skySubjects" class="sk-chip" type="button" aria-expanded="false" aria-haspopup="dialog">Subjects</button>
+      <button id="skyHome" class="sk-chip" type="button">Reset view</button>
+    </div>
+  </div>
+  <div id="skyLegend" class="sk-pop sk-subjects" role="dialog" aria-label="Subjects" hidden></div>
+  <div id="skyCard" class="sk-pop sk-entry" role="dialog" aria-label="Entry" hidden></div>
+  <div id="skyMsg" class="sk-msg" role="status" hidden></div>
+</section>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>

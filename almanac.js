@@ -1,7 +1,8 @@
-// Almanac: everything the games know, looked up. Search any entity in the knowledge base (a country, a company, a
-// painting, a river, a law…) and see what it is (its kinds and the topics its links touch), what's said about it (its
-// note, a painting's maker and home, the numbers Quote knows about it) and everything it's linked to, each with the
-// reason, one tap from its own entry. #e=<id> opens an entry, so the browser's back button walks back through them.
+// Almanac: everything the games know, as a star chart you fly through. It opens on the sky (almanac-sky.js), every thing in the
+// knowledge base a star; tap one for its entry in a popup: what it is (its kinds and the topics its links touch), what's said
+// about it (its note, a painting's maker and home, the numbers Quote knows about it) and everything it's linked to, each with
+// the reason, one tap from its own entry. The list view (search, results, entries) is still here, from the menu; #e=<id> opens
+// an entry (in the sky's popup, or #list&e=<id> in the list), so the browser's back button walks back through them.
 // It was Lexicon until 2 November 2026: its id, `lexicon`, stays, so saved state and Random's lists are as they were.
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
@@ -9,8 +10,9 @@ import { QUOTES } from "./quote-bank.js";
 import { withUnit } from "./quote-engine.js";
 import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, line } from "./menu.js";
+import { part, line, action } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
+import { parseHash, formatHash } from "./almanac-nav.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -63,18 +65,24 @@ function search(text) {
   return [...starts.sort(byLinks), ...words.sort(byLinks), ...inside.sort(byLinks)].slice(0, 60);
 }
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-function entityButton(e, extra) {
+const TARGET = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="1.6"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></svg>';
+/**
+ * A thing as a button that goes to its entry: `go(id)` (the list's own entry, or the popup's next one). With `locate`, a
+ * second button beside it shows the thing in the sky.
+ */
+function entityButton(e, extra, { go = id => open(id), locate = null } = {}) {
   const b = el("button", "lx-hit");
   b.type = "button";
   b.append(el("b", null, label(e)), el("small", null, kindsOf(e).slice(0, 2).join(" · ")));
   if (extra) b.append(el("span", "lx-why", extra));
-  b.addEventListener("click", () => open(e.id));
-  return b;
-}
-function showResults() {
-  leaveSky();
-  $("entry").hidden = true; $("results").hidden = false;
-  listResults();
+  b.addEventListener("click", () => go(e.id));
+  if (!locate) return b;
+  const row = el("div", "lx-row"), at = el("button", "lx-locate");
+  at.type = "button"; at.title = "Show in the sky"; at.setAttribute("aria-label", `Show ${e.name} in the sky`);
+  at.innerHTML = TARGET;
+  at.addEventListener("click", () => locate(e.id));
+  row.append(b, at);
+  return row;
 }
 /** What the search finds, in the results box (shown or not: held sideways, the list stays beside an open entry). */
 function listResults() {
@@ -116,21 +124,23 @@ function groupsOf(id) {
   return out;
 }
 const SHOWN = 24;
-function open(id, push = true) {
-  id = CANON(id);
+/**
+ * An entry written into `box`: used by the list view and by the sky's popup. `nav.go(id)` is where a link leads (the list's
+ * entry, or the popup's next one), `nav.locate(id)` adds a button to each link that shows it in the sky, and `nav.head: false`
+ * leaves the name and kinds out (the popup carries them in its own head). Returns the head, if it wrote one.
+ */
+function fillEntry(box, id, nav = {}) {
   const e = ENT.get(id);
-  if (!e) return;
-  leaveSky();
-  if (push && location.hash !== `#e=${id}`) history.pushState(null, "", `#e=${id}`);
-  const box = $("entry");
-  $("results").hidden = true; box.hidden = false;
   box.replaceChildren();
-  const head = el("header", "lx-head");
-  head.append(el("h2", null, label(e)));
-  const chips = el("div", "lx-chips");
-  for (const k of kindsOf(e)) chips.append(el("span", "lx-chip", k));
-  head.append(chips);
-  box.append(head);
+  let head = null;
+  if (nav.head !== false) {
+    head = el("header", "lx-head");
+    head.append(el("h2", null, label(e)));
+    const chips = el("div", "lx-chips");
+    for (const k of kindsOf(e)) chips.append(el("span", "lx-chip", k));
+    head.append(chips);
+    box.append(head);
+  }
   if (e.pic) { const pic = el("div", "lx-pic"); box.append(pic); showPicture(pic, e.pic, { width: 500, alt: e.name }); }
   // what's said about it
   const said = [];
@@ -161,7 +171,7 @@ function open(id, push = true) {
     if (!links.length) continue;
     const sec = el("section", "lx-sec"), list = el("div", "lx-list");
     sec.append(el("h3", null, `${title} (${links.length})`));
-    const draw = n => list.replaceChildren(...links.slice(0, n).map(l => entityButton(ENT.get(other(l)), why(l))));
+    const draw = n => list.replaceChildren(...links.slice(0, n).map(l => entityButton(ENT.get(other(l)), why(l), nav)));
     draw(SHOWN);
     sec.append(list);
     if (links.length > SHOWN) {
@@ -172,45 +182,102 @@ function open(id, push = true) {
     }
     box.append(sec);
   }
+  return head;
+}
+
+// ---------- the list view ----------
+// An entry in the list view: its own page, the entry beside the list held sideways. Reached from the menu, from a popup's
+// "Open in the list", or by #list.
+function open(id, push = true) {
+  id = CANON(id);
+  if (!ENT.has(id)) return;
+  showList(false);
+  if (push && location.hash !== formatHash({ list: true, e: id })) history.pushState(null, "", formatHash({ list: true, e: id }));
+  const box = $("entry");
+  $("results").hidden = true; box.hidden = false;
+  const head = fillEntry(box, id, { go: next => open(next) });
+  const there = el("button", "btn lx-sky-btn", "Show in the star chart");
+  there.type = "button";
+  there.addEventListener("click", () => goSky(id));
+  head.append(there);
   box.scrollTop = 0;
+}
+/** The list view on screen (the star chart off it); `push` adds a step to the browser's history. */
+function showList(push = true) {
+  if (document.body.classList.contains("on-sky")) {
+    document.body.classList.remove("on-sky");
+    sky?.hide();
+    for (const m of document.querySelectorAll('meta[name="theme-color"]')) if (m.dataset.was) m.content = m.dataset.was;
+  }
+  setModes(false);
+  if (push && location.hash !== formatHash({ list: true })) history.pushState(null, "", formatHash({ list: true }));
+}
+const setModes = chart => { $("modeList").setAttribute("aria-pressed", String(!chart)); $("modeSky").setAttribute("aria-pressed", String(chart)); };
+function goList(e = null, push = true) {
+  e = e && ENT.has(CANON(e)) ? CANON(e) : null;
+  if (e) { listResults(); open(e, push); return; }
+  showList(push);
+  $("entry").hidden = true; $("results").hidden = false;
+  listResults();
 }
 
 // ---------- the star chart ----------
-// The sky is a second way in, loaded only when it is asked for (almanac-sky.js and what it draws with): the list stays the
-// default, and a device without WebGL keeps it, with a line saying why the chart is not there.
+// What Almanac opens on. almanac-sky.js is the page's side of it (and almanac-sky-*.js what it draws with): loaded as the page
+// starts, so the list view carries none of it until it is asked for. A device without WebGL says why the chart is not there and
+// offers the list.
 let sky = null, skyLoading = null;
-const setModes = chart => { $("modeList").setAttribute("aria-pressed", String(!chart)); $("modeSky").setAttribute("aria-pressed", String(chart)); };
 const shortName = e => (e.name.length > 26 ? `${e.name.slice(0, 25)}…` : e.name);
-async function showSky(push = true) {
-  if (push && location.hash !== "#sky") history.pushState(null, "", "#sky");
-  $("results").hidden = true; $("entry").hidden = true;
-  $("app").classList.add("sky-on");
-  setModes(true);
-  if (!sky) {
-    const back = el("button", "btn", "Show the list");
-    back.type = "button";
-    back.addEventListener("click", () => { history.pushState(null, "", location.pathname); showResults(); });
-    skyLoading ||= import("./almanac-sky.js").then(m => m.createSky({
-      section: $("sky"), stage: $("skyStage"), gl: $("skyGL"), ink: $("skyInk"), hint: $("skyHint"), msg: $("skyMsg"), listBtn: back,
-      subjectsBtn: $("skySubjects"), homeBtn: $("skyHome"), panel: $("skyPanel"), hitsBox: $("skyHits"), legend: $("skyLegend"), card: $("skyCard"),
-      query: () => $("q").value, clearQuery: () => { $("q").value = ""; },
-    }, { search, label, kindsOf, shortName, open: id => open(id) }));
-    sky = await skyLoading;
+/** The address follows the entry the sky's popup shows: one step in the history for opening it, none for the next entries it shows. */
+let popPushed = false;
+function popupUrl(id) {
+  if (IN_FRAME) return;
+  const open = !!parseHash(location.hash).e && !parseHash(location.hash).list;
+  if (id) {
+    if (open) history.replaceState(null, "", formatHash({ e: id }));
+    else { history.pushState(null, "", formatHash({ e: id })); popPushed = true; }
+  } else if (open) {
+    if (popPushed) { popPushed = false; history.back(); }
+    else history.replaceState(null, "", location.pathname + location.search);
   }
-  await sky.show();
 }
-/** Leaves the sky for the list or an entry (nothing, if it was not open). */
-function leaveSky() {
-  if (!$("app").classList.contains("sky-on")) return;
-  $("app").classList.remove("sky-on");
-  setModes(false);
-  sky?.hide();
+async function loadSky() {
+  if (sky) return sky;
+  const back = el("button", "btn", "Show the list");
+  back.type = "button";
+  back.addEventListener("click", () => goList());
+  skyLoading ||= import("./almanac-sky.js").then(m => m.createSky({
+    section: $("sky"), gl: $("skyGL"), ink: $("skyInk"), hint: $("skyHint"), foot: $("skyFoot"), msg: $("skyMsg"), listBtn: back,
+    form: $("skySearch"), query: $("skyQ"), menuBtn: $("skyMenu"), subjectsBtn: $("skySubjects"), homeBtn: $("skyHome"),
+    hits: $("skyHits"), legend: $("skyLegend"), card: $("skyCard"),
+  }, { search, label, kindsOf, shortName, fill: fillEntry, toList: id => goList(id), entryShown: popupUrl }));
+  sky = await skyLoading;
+  return sky;
+}
+/** The star chart on screen, with `e`'s popup open if one is asked for (an address, a link in the list), nothing chosen if not. */
+async function goSky(e = null, push = true) {
+  e = e && ENT.has(CANON(e)) ? CANON(e) : null;
+  document.body.classList.add("on-sky");
+  setModes(true);
+  for (const m of document.querySelectorAll('meta[name="theme-color"]')) { if (!m.dataset.was) m.dataset.was = m.content; m.content = "#060b12"; }
+  if (push) { const to = formatHash({ e }); if (location.hash !== to) history.pushState(null, "", to || location.pathname + location.search); popPushed = false; }
+  const s = await loadSky();
+  if (!document.body.classList.contains("on-sky")) return;                  // the list was asked for while it loaded
+  if (!(await s.show({ entry: e })) && e) goList(e, false);               // no sky to put an entry in: it is read in the list
 }
 
 // ---------- the menu ----------
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  const onSky = document.body.classList.contains("on-sky");
+  // the header's way out comes first: the games screen (its Settings, the update, the partner's code are on it)
+  const play = part(body, "play");
+  play.append(action("Games", () => $("appsBtn").click()));
+  play.append(onSky ? action("Browse as a list", () => goList()) : action("Star chart", () => goSky()));
+  if (onSky && sky) {
+    const content = part(body, "content");
+    content.append(action("Subjects", () => sky.openSubjects()), action("Reset view", () => sky.home()));
+  }
   const kinds = {};
   for (const e of ENTITIES) for (const k of kindsOf(e).slice(0, 1)) kinds[k] = (kinds[k] || 0) + 1;
   part(body, "about").append(line(`${ENTITIES.length.toLocaleString("en-GB")} things and ${LINKS.length.toLocaleString("en-GB")} links, the knowledge every game draws on`),
@@ -221,31 +288,29 @@ function openMenu() {
 // ---------- wiring ----------
 document.querySelector(".lx-mark").innerHTML = APPS.find(a => a.id === "lexicon").logo;
 bindSwitcher($("appsBtn"), "lexicon");
-const onSky = () => $("app").classList.contains("sky-on");
+// the menu's button on the sky is the games screen's Settings, drawn the same (a gear in Codex, sliders in the others)
+$("skyMenu").innerHTML = document.querySelector("dialog.apps [data-settings]")?.innerHTML || "Menu";
 $("q").addEventListener("input", () => {
-  if (onSky()) { sky?.typed($("q").value); return; }                  // in the chart, typing finds stars to fly to
-  if (location.hash) history.pushState(null, "", location.pathname);
-  showResults();
+  if (location.hash !== formatHash({ list: true })) history.pushState(null, "", formatHash({ list: true }));
+  $("entry").hidden = true; $("results").hidden = false;
+  listResults();
 });
 $("searchForm").addEventListener("submit", e => {
   e.preventDefault();
-  if (onSky()) { sky?.submit($("q").value); return; }
   const first = search($("q").value)[0];
   if (first) open(first.id);
 });
-$("modeList").addEventListener("click", () => { if (!onSky()) return; history.pushState(null, "", location.pathname); showResults(); });
-$("modeSky").addEventListener("click", () => { if (!onSky()) showSky(); });
+$("modeList").addEventListener("click", () => { if (document.body.classList.contains("on-sky")) goList(); });
+$("modeSky").addEventListener("click", () => { if (!document.body.classList.contains("on-sky")) goSky(); });
 addEventListener("popstate", () => {
-  const id = new URLSearchParams(location.hash.slice(1)).get("e");
-  if (id) open(id, false); else if (location.hash === "#sky") showSky(false); else showResults();
+  const v = parseHash(location.hash);
+  if (v.list) goList(v.e, false); else goSky(v.e, false);
 });
 $("menuBtn").addEventListener("click", openMenu);
+$("skyMenu").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-const start = new URLSearchParams(location.hash.slice(1)).get("e");
-// a partner watching sees the sky where the sky is open (its camera and what's chosen are in saved keys); otherwise the list opens
-const skyKept = (() => { try { return JSON.parse(localStorage.getItem("lexicon:sky"))?.open === true; } catch { return false; } })();
-if (start && ENT.has(start)) { listResults(); open(start, false); }
-else if (location.hash === "#sky" || (IN_FRAME && skyKept)) showSky(false);
-else showResults();
-// a visit that opens on the list says so in what is kept, so a partner who looks in does not find the sky still "open" from last time
-if (!IN_FRAME && !onSky() && skyKept) { try { localStorage.setItem("lexicon:sky", JSON.stringify({ ...JSON.parse(localStorage.getItem("lexicon:sky")), open: false })); } catch { /* private mode */ } }
+// it opens on the star chart, every time (nothing about the last way you looked is kept); an address can ask for the list
+{
+  const v = parseHash(location.hash);
+  if (v.list) goList(v.e, false); else goSky(v.e, false);
+}

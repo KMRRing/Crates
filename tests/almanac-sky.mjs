@@ -175,17 +175,22 @@ const sky = buildSky(ENTITIES, LINKS, LAYOUT);
   const need = (from, ref) => { if (!/^(https?:|data:|#|mailto:)/.test(ref)) { const p = ref.split(/[?#]/)[0]; if (p && !exists(path.posix.normalize(path.posix.join(path.posix.dirname(from), p)))) missing.push(`${from} → ${ref}`); } };
   const html = read("almanac.html");
   for (const m of html.matchAll(/(?:src|href)="([^"]+)"/g)) need("almanac.html", m[1]);
-  const mods = ["almanac.js", ...fs.readdirSync(root).filter(f => /^almanac-sky.*\.m?js$/.test(f))];
+  const mods = ["almanac.js", "almanac-nav.js", ...fs.readdirSync(root).filter(f => /^almanac-sky.*\.m?js$/.test(f))];
   for (const f of mods) {
     const src = read(f);
     for (const m of src.matchAll(/(?:from\s+|import\s*\(\s*|import\s+)["'](\.[^"']+)["']/g)) need(f, m[1]);
   }
   check(!missing.length, `every file the Almanac page and its star chart import is there${missing.length ? `: missing ${missing.join(", ")}` : ` (${mods.length} scripts, almanac.html)`}`);
   // the elements the sky is handed are in the page
-  const ids = ["sky", "skyStage", "skyGL", "skyInk", "skyHint", "skyMsg", "skySubjects", "skyHome", "skyPanel", "skyHits", "skyLegend", "skyCard", "modeList", "modeSky", "q", "results", "entry"];
+  const ids = ["sky", "skyGL", "skyInk", "skyHint", "skyFoot", "skyMsg", "skySearch", "skyQ", "skyMenu", "skySubjects", "skyHome", "skyHits", "skyLegend", "skyCard", "appsBtn", "menuBtn", "menuDlg", "modeList", "modeSky", "q", "results", "entry"];
   const gone = ids.filter(id => !new RegExp(`id="${id}"`).test(html));
   check(!gone.length, `the page has every element the chart is wired to${gone.length ? `: missing ${gone.join(", ")}` : ""}`);
-  check(read("almanac.js").includes('import("./almanac-sky.js")') && !/^import .*almanac-sky/m.test(read("almanac.js")), "the list opens without loading the chart (it is loaded when asked for)");
+  // Korbi, 3 November 2026: the star chart is what Almanac opens on, the whole screen. Nothing about the last way you looked is kept.
+  check(/<body class="on-sky">/.test(html) && /parseHash\(location\.hash\)[\s\S]*goSky\(/.test(read("almanac.js")) && !/localStorage/.test(read("almanac.js")),
+    "the page opens on the star chart, every time: it keeps nothing about the last way you looked");
+  check(read("almanac.js").includes('import("./almanac-sky.js")') && !/^import .*almanac-sky/m.test(read("almanac.js")), "the chart is loaded by the page as it starts, the list view alone carrying none of it");
+  check(/\.sk\s*\{[^}]*position:\s*fixed;\s*inset:\s*0/.test(read("almanac.css")), "the chart fills the whole screen (fixed, edge to edge)");
+  check(/safe-area-inset-top/.test(read("almanac.css")) && /safe-area-inset-bottom/.test(read("almanac.css")), "its controls keep clear of the notch and the home bar");
 
   // what the chart keeps is Almanac's own, and nothing in it is a browser pop-up or a filter
   const sk = read("almanac-sky.js"), keys = [...sk.matchAll(/["'`](lexicon:[\w:]+)["'`]/g)].map(m => m[1]);
