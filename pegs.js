@@ -8,6 +8,7 @@ import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import "./pwa.js";
@@ -99,7 +100,11 @@ function lane(s, seat) {
     <b class="pg-pts">${s.scores[seat]}</b></div>`;
 }
 
+const view = tableView("pegs");                                    // Menu, View: the flat table (the default) or the cloth tipped away from you (pegs-3d.css)
+const applyView = () => $("app").classList.toggle("pg3", view.get() === "3d");
+
 function drawTable(v) {
+  applyView();
   const s = v.state, me = mine(), foe = 1 - me, box = $("table");
   const board = `<div class="pg-board">${lane(s, foe)}${lane(s, me)}</div>`;
   const foeCards = s.step === "show" || s.step === "over" ? 0 : s.hands[foe].length;
@@ -238,6 +243,7 @@ function openMenu() {
   page.menu(play);
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
+  set.append(view.choice(() => draw()));
   set.append(choice("Computer player", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(choice("A game goes to", TO.map(n => [n, String(n)]), opts.to, v => { opts.to = Number(v); saveOpts(); }));
   set.append(line("The length applies from the next game."));
