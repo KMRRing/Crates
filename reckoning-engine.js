@@ -1,4 +1,4 @@
-// Reckoning's rules: an endless run along a quay, three lanes wide, the way Blades of Brim plays. Pure functions on one
+// Courier's rules (the game was Reckoning): an endless run along a quay, three lanes wide, the way Blades of Brim plays. Pure functions on one
 // plain object (no page, no clock, no three.js), so a run is the same from a seed in Node tests, a daily and a duel, and
 // the page (reckoning.js) only steps it, feeds it swipes and draws it (reckoning-3d.js).
 //
@@ -66,8 +66,9 @@ export const HERO_H = 1.1;
 export const WALL_X = 1.5 * LANE_W;        // a wall's face
 export const WALL_HERO_X = WALL_X - 0.5;   // where a wall runner's feet are
 export const WALL_Y = 2.0;
-export const LANE_T = 0.13;                // seconds to change lane
-export const FRONT_WIN = 0.28, ABOVE_WIN = 0.55, SIDE_MIN = 0.08, SIDE_WIN = 0.6, BUFFER = 0.14;
+export const LANE_OMEGA = 34;              // the spring of a lane change (critically damped, 1/s): 80% of the way in 0.09 s and 95% in 0.14, a quick start and a soft arrival
+export const LANE_T = 4.75 / LANE_OMEGA;   // so a lane change takes this long (0.14 s) to be 95% done; a swipe made on top of another carries on from the speed it had
+export const FRONT_WIN = 0.28, ABOVE_WIN = 0.55, SIDE_MIN = 0.08, SIDE_WIN = 0.6, BUFFER = 0.14, LAND_BUFFER = 0.32;   // BUFFER: how long a swipe with nothing yet to work on is kept; LAND_BUFFER: the most a jump swiped in the air is kept, to be taken on landing
 export const RETARGET_MIN = 0.03;          // a cut already in flight can be moved until this close to landing
 export const SIDE_MIN2 = 0.16;             // two lanes across is twice the way, so it needs twice the time to cross
 export const ROLL_T = 0.45;                // seconds a roll lasts (it was 0.32; Korbi, 2 November 2026: "rolls should last a bit longer"): 4.5 to 7 m of quay
@@ -107,12 +108,13 @@ const pick = (S, list) => list[Math.floor(rnd(S) * list.length)];
 const between = (S, a, b) => a + rnd(S) * (b - a);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
-export function newGame({ seed = 1, deal = null, hearts = 3 } = {}) {
+/** `launch`: the run sets off from a standstill (a third of the speed, up to full in 0.6 s) rather than at pace. */
+export function newGame({ seed = 1, deal = null, hearts = 3, launch = false } = {}) {
   const S = {
     v: 1, seed, rng: seed | 0, qrng: (seed ^ 0x9E3779B9) | 0,
     t: 0, over: false, hearts, maxHearts: hearts, score: 0, bonus: 0, kills: 0, chain: 0, bestChain: 0,
-    right: 0, wrong: 0, missed: 0, streak: 0, falls: 0, fwd: 1,
-    hero: { z: 0, x: 0, y: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0, roll: 0, rollQ: false, jumps: 0 },
+    right: 0, wrong: 0, missed: 0, streak: 0, falls: 0, fwd: launch ? 0.3 : 1,
+    hero: { z: 0, x: 0, y: 0, vx: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0, roll: 0, rollQ: false, jumps: 0 },
     world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], foes: [], gates: [], id: 1 },
     pending: [], answers: [], asked: [], ev: [],
   };
@@ -255,8 +257,17 @@ const grounded = h => h.mode === "run";
 /** A swipe: "up" | "down" | "left" | "right". It works now if it can, else waits a moment (BUFFER) for something to work on. */
 export function swipe(S, dir) {
   if (S.over) return S.ev;
-  if (!resolve(S, dir)) { S.pending.push({ dir, until: S.t + BUFFER }); S.ev.push({ type: "wait", dir }); }
+  if (!resolve(S, dir)) { const keep = keepFor(S, dir); S.pending.push({ dir, until: S.t + keep }); S.ev.push({ type: "wait", dir, keep }); }
   return S.ev;
+}
+
+/** How long a swipe with nothing to work on is kept: BUFFER, or for a jump swiped in the air with none in hand, until the planks
+ *  are under me (at most LAND_BUFFER), so a jump swiped early on the way down still jumps as I land. */
+function keepFor(S, dir) {
+  const h = S.hero;
+  if (dir !== "up" || h.mode !== "air" || h.lunge) return BUFFER;
+  const t = (h.vy + Math.sqrt(h.vy * h.vy + 2 * G * Math.max(0, h.y))) / G;             // y + vy t - G t²/2 = 0
+  return clamp(t + 0.03, BUFFER, LAND_BUFFER);
 }
 
 function resolve(S, dir) {
@@ -344,7 +355,7 @@ function retarget(S, dir) {
     (f.y <= 0.3 || sideReach(f, h)));
   if (!f) return false;
   h.lane = lane;
-  L.foe = f.id; L.left = Math.max(0.06, ttcOf(S, f)); L.how = "side"; L.dir = dir; L.air = L.air || f.y > 0.3;
+  L.foe = f.id; L.left = L.total = Math.max(0.06, ttcOf(S, f)); L.how = "side"; L.dir = dir; L.air = L.air || f.y > 0.3;
   S.ev.push({ type: "lane", lane, dir }, { type: "lunge", how: "side", kind: f.kind, gate: f.gate ? f.gate.id : 0, retarget: true });
   return true;
 }
@@ -390,7 +401,8 @@ function down(S) {
  *  swipe sideways went (-1, 1; 0 for the others), which a cut that goes on to the next foe carries on in. */
 function startLunge(S, f, dir, how, extra = {}) {
   const h = S.hero;
-  h.lunge = { foe: f.id, how, dir, left: Math.max(0.06, ttcOf(S, f)), air: h.y > 0.5 || f.y > 0.3 };       // air: it set off from the air, or is at a foe in it, so it counts as an attack in the air
+  const left = Math.max(0.06, ttcOf(S, f));
+  h.lunge = { foe: f.id, how, dir, left, total: left, air: h.y > 0.5 || f.y > 0.3 };       // air: it set off from the air, or is at a foe in it, so it counts as an attack in the air
   h.vy = 0; h.slam = false; h.roll = 0;
   S.ev.push({ type: "lunge", how, kind: f.kind, gate: f.gate ? f.gate.id : 0, ...extra });
 }
@@ -422,10 +434,15 @@ export function step(S, dt) {
   h.z += v * dt;
   const prevY = h.y;
 
-  // across
+  // across: a critically damped spring to the lane (its exact solution, so any dt is stable). A lane change is an arc, a
+  // quick start and a soft arrival, and a swipe made on top of another, or a cut that ends, carries on from the speed it had.
   const tx = h.mode === "wall" ? h.wall * WALL_HERO_X : laneX(h.lane);
-  const dx = tx - h.x, mx = LANE_W / LANE_T * dt;
-  h.x += Math.abs(dx) <= mx ? dx : Math.sign(dx) * mx;
+  {
+    const d = h.x - tx, v0 = h.vx || 0, e = Math.exp(-LANE_OMEGA * dt), c = v0 + LANE_OMEGA * d;
+    h.x = tx + (d + c * dt) * e;
+    h.vx = (v0 - LANE_OMEGA * c * dt) * e;
+    if (Math.abs(h.x - tx) < 5e-4 && Math.abs(h.vx) < 0.05) { h.x = tx; h.vx = 0; }
+  }
 
   // up and down
   if (h.lunge) lungeStep(S, dt);
@@ -489,12 +506,16 @@ function lungeStep(S, dt) {
   const h = S.hero, L = h.lunge, f = S.world.foes.find(x => x.id === L.foe);
   if (!f || !f.alive) { h.lunge = null; return; }
   const ty = L.how === "bonk" ? f.y + f.h : Math.max(0, f.y + f.h * 0.3 - 0.2);
-  const k = Math.min(1, dt / Math.max(L.left, dt));
-  h.y += (ty - h.y) * k;
-  h.x += (f.x - h.x) * k;
+  // the way up (or down) to it is eased, so a cut is a burst and not a crawl: at once and then softer, and a bonk falling in. Across, the
+  // lane's spring has taken me there already (a lane change is as quick with a cut as without).
+  const t0 = 1 - L.left / L.total, t1 = Math.min(1, t0 + dt / L.total), e0 = lungeEase(L.how, t0), e1 = lungeEase(L.how, t1);
+  h.y += (ty - h.y) * (e0 >= 1 ? 1 : (e1 - e0) / (1 - e0));
   L.left -= dt;
   if (L.left <= 1e-9) strike(S, f, L.how);
 }
+
+/** How far along its way a cut is `t` (0 to 1) of the time to the foe. */
+const lungeEase = (how, t) => (how === "bonk" ? t * t : 1 - (1 - t) * (1 - t));
 
 /** A lunge arrives. */
 function strike(S, f, how) {
@@ -642,11 +663,11 @@ function diveHits(S, prevY) {
 }
 
 function land(S) {
-  const h = S.hero, slam = h.slam;
+  const h = S.hero, slam = h.slam, impact = -h.vy;
   const dived = h.vy <= -SLAM_V + 1;                            // a down swipe in the air starts at SLAM_V; no fall of its own gets near it
   h.y = 0; h.vy = 0; h.mode = "run"; h.slam = false; h.jumps = 0;
   S.chain = 0;
-  S.ev.push({ type: "land", slam });
+  S.ev.push({ type: "land", slam, v: impact });
   if (dived && !slam) {                                         // down in a jump, with no foe to bonk and not high enough to slam, lands in a roll (2 November 2026, Korbi)
     h.roll = ROLL_T; h.rollQ = false;
     S.ev.push({ type: "roll", land: true });
@@ -679,7 +700,7 @@ function fall(S) {
   S.ev.push({ type: "fall", hearts: S.hearts });
   if (S.hearts <= 0) { end(S); return; }
   if (p) h.z = p.z1 + 1.5;
-  h.y = 0; h.vy = 0; h.mode = "run"; h.slam = false; h.lunge = null; h.hurt = HURT_T + 0.3; h.roll = 0; h.jumps = 0;
+  h.y = 0; h.vy = 0; h.mode = "run"; h.slam = false; h.lunge = null; h.hurt = HURT_T + 0.3; h.roll = 0; h.jumps = 0; h.vx = 0;
 }
 
 function end(S) {
