@@ -71,8 +71,8 @@ export const FEATURES = [
       "A beam in two colours shatters either, and stops only at a third: a run of alternate colours, which one colour stops at once, goes down whole.",
     ],
     scenes: [
-      { ...DIAG, strings: ALTERNATE, gate: { c: GOLD }, caption: "One colour: stops at the next", expect: { shattered: 1, fallen: 0, gain: worth(1, 0), stop: "piece" } },
       { ...DIAG, strings: ALTERNATE, gate: { cs: [GOLD, GREEN] }, caption: "The prism: two colours", expect: { shattered: 4, fallen: 5, gain: worth(4, 5), stop: "skirt" } },
+      { ...DIAG, strings: ALTERNATE, gate: { c: GOLD }, caption: "One colour: stops at the next", expect: { shattered: 1, fallen: 0, gain: worth(1, 0), stop: "piece" } },
     ],
   },
   {
