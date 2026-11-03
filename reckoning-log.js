@@ -1,11 +1,11 @@
-// Reckoning's log: every swipe and every event of a run as a numbered line, so a run can be copied out and a line
+// Courier's log: every swipe and every event of a run as a numbered line, so a run can be copied out and a line
 // pointed at ("#41: I wanted the left gull"). Pure (no page): the page hands it the run as each swipe and event happens,
 // and the numbers, the times and the words are made here, tested in Node (tests/reckoning.mjs).
 //
 // A swipe line says what the swipe met: where the hero was and what he was doing, and the foes about to reach him with
 // the seconds until each does (the windows are in seconds, so that is the number that explains what a swipe did). The
 // lines after it, with the next numbers, are what the rules did about it.
-import { speed } from "./reckoning-engine.js";
+import { speed, BUFFER } from "./reckoning-engine.js";
 
 const LANE = { "-1": "L", 0: "M", 1: "R" };
 const lane = n => LANE[n] ?? String(n);
@@ -79,7 +79,7 @@ export class RunLog {
 
   /** Everything, for copying: what the page is, the legend, then the lines. */
   text(head = "") {
-    return [`Reckoning log, run ${this.seed}${head ? `, ${head}` : ""}`, LEGEND, "", ...this.lines].join("\n");
+    return [`Courier log, run ${this.seed}${head ? `, ${head}` : ""}`, LEGEND, "", ...this.lines].join("\n");
   }
 
   toJSON() { return { seed: this.seed, n: this.n, lines: this.lines }; }
@@ -91,7 +91,7 @@ export function describe(S, ev) {
   const foe = id => S.world.foes.find(f => f.id === id);
   const named = id => { const f = foe(id); return f ? `${f.kind} ${lane(f.lane)}${f.gate ? ` gate${f.gate.id}` : ""}` : "a foe"; };
   switch (ev.type) {
-    case "wait": return `${ev.dir.toUpperCase()}: nothing to work on yet, kept for 0.14 s`;
+    case "wait": return `${ev.dir.toUpperCase()}: nothing to work on yet, kept for ${(ev.keep ?? BUFFER).toFixed(2)} s`;
     case "late": return `${ev.dir.toUpperCase()}: the kept swipe took effect`;
     case "drop": return `${ev.dir.toUpperCase()}: nothing came of it, dropped`;
     case "jump": return ev.air ? "jump again, in the air" : "jump";

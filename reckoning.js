@@ -1,6 +1,7 @@
-// Reckoning: an endless run along a Hanseatic quay, three lanes wide, in the way Blades of Brim plays (README,
-// Reckoning). Four swipes are the whole control; reckoning-engine.js has the rules (pure, tested in Node), reckoning-3d.js
-// draws them, reckoning-questions.js deals the questions from the knowledge banks. This file keeps the clock (a fixed
+// Courier (the game was Reckoning, and its files and saved keys still are): an endless run along a Hanseatic quay, three lanes
+// wide, in the way Blades of Brim plays (docs/courier.md). Four swipes are the whole control; reckoning-engine.js has the rules
+// (pure, tested in Node), reckoning-3d.js draws them, reckoning-move.js is how the camera and the hero's body move between the
+// rules' steps, reckoning-questions.js deals the questions from the knowledge banks. This file keeps the clock (a fixed
 // step, however fast the screen draws), takes the swipes, the page's words over the quay and under it, and the run
 // kept between visits. The clock starts at the first swipe and stops with the menu, the tab and the end of the run.
 import { newGame, valid, setDeal, swipe, step, take, speed, speedAt } from "./reckoning-engine.js";
@@ -30,6 +31,7 @@ let running = false;     // the clock going: from the first swipe
 let paused = false;      // the menu, the rules or the games screen open
 let logOpen = false;     // the log's own dialog: kept apart from `paused`, since the menu it was opened from resumes the game as it closes
 let frozen = false;      // for tests: the clock held while a picture is taken
+let held = false;        // for recordings: the page's own loop does nothing, and frames are played by hand (advance, frame)
 let best = 0, savedAt = 0, acc = 0, last = 0;
 let view = null, deal = null, pool = [];
 let shown = null;        // the gate whose answer is on the cards: { id, until }
@@ -47,7 +49,7 @@ function save() {
 }
 
 function newRun() {
-  S = setDeal(newGame({ seed: Math.floor(Math.random() * 2 ** 31), deal }), deal);
+  S = setDeal(newGame({ seed: Math.floor(Math.random() * 2 ** 31), deal, launch: true }), deal);
   if (log && log.n > 1) lastLog = log;                         // the run just left stays to be copied
   log = new RunLog(S);
   running = false; acc = 0; shown = null;
@@ -181,18 +183,28 @@ function drawPage(force) {
 
 // ---------- the clock ----------
 
+/** Runs the rules for `dt` seconds in their own steps and returns what is left over (less than a step), which the drawing carries the hero on by. */
+function simulate(dt) {
+  acc += dt;
+  while (acc >= STEP && !S.over) { step(S, STEP); acc -= STEP; handle(take(S)); }
+  return acc;
+}
+
 function tick(ts) {
   requestAnimationFrame(tick);
   const dt = Math.min(0.05, (ts - (tick.at || ts)) / 1000);
   tick.at = ts;
+  if (held) return;
   if (S && view) {
     const go = running && !paused && !logOpen && !frozen && !S.over && !IN_FRAME;
+    let lead = 0;
     if (go) {
-      acc += dt;
-      while (acc >= STEP && !S.over) { step(S, STEP); acc -= STEP; handle(take(S)); }
+      lead = simulate(dt);
       if (performance.now() - savedAt > SAVE_EVERY) save();
     }
-    view.frame(S, go || frozen ? dt : 0);
+    // the hero stands ready until the first swipe (and again when a run is picked up), breathing on the real clock
+    const idle = !running && !S.over && !paused && !logOpen;
+    view.frame(S, go || frozen ? dt : 0, { lead, idle, real: dt });
     drawPage(false);
   }
 }
@@ -317,9 +329,17 @@ async function boot() {
 window.__reckoning = {
   get state() { return S; }, set state(g) { S = g; if (deal) setDeal(S, deal); drawPage(true); },
   get view() { return view; }, get running() { return running; }, get log() { return log; }, newRun, start, send, speed: () => speed(S),
-  set frozen(v) { frozen = !!v; },
-  /** Plays `seconds` of the run at once, events and all (as the clock would), then draws. */
-  advance(seconds) { if (!running) start(); for (let t = 0; t < seconds - 1e-9 && !S.over; t += STEP) { step(S, STEP); handle(take(S)); } view.frame(S, 0); drawPage(false); },
+  set frozen(v) { frozen = !!v; }, set held(v) { held = !!v; },
+  /** Plays `seconds` of the run at once, events and all (as the clock would), then draws; with `frameDt`, frame by frame of that many
+   *  seconds, drawing each as the page would (the camera and the hero's body move between frames), for a recording. */
+  advance(seconds, frameDt = 0) {
+    if (!running) start();
+    if (frameDt > 0) { acc = 0; for (let t = 0; t < seconds - 1e-9 && !S.over; t += frameDt) view.frame(S, frameDt, { lead: simulate(frameDt), real: frameDt }); drawPage(false); return; }
+    for (let t = 0; t < seconds - 1e-9 && !S.over; t += STEP) { step(S, STEP); handle(take(S)); }
+    view.frame(S, 0); drawPage(false);
+  },
+  /** One frame of `dt` seconds, as the clock would run it (for a recording that swipes between frames). */
+  frame(dt, draw = true) { if (!running) start(); view.frame(S, dt, { lead: simulate(dt), real: dt, draw }); drawPage(false); },
 };
 
 boot();

@@ -1,9 +1,10 @@
-// Reckoning's rules (reckoning-engine.js): the jump, the five ways a swipe attacks (a foe in front, to the side, above,
+// Courier's rules (reckoning-engine.js) and its feel (reckoning-move.js): the jump, the five ways a swipe attacks (a foe in front, to the side, above,
 // the bonk and the slam), the wall run, the air chain over a pit, the question gate over the water, the quay from a seed
 // and a bot playing whole stretches of it (every kind of chunk is winnable with the swipes the rules give).
 import { RunLog, describe } from "../reckoning-log.js";
+import { Spring, Inertia, Streamer, CameraRig } from "../reckoning-move.js";
 import { MAX_QUESTION, MAX_ANSWER, load, dealer } from "../reckoning-questions.js";
-import { LANE_W, JUMP_H, AIR_T, WALL_Y, SLAM_MIN_Y, ROLL_T, SIDE_ABOVE, UP_ABOVE, DRIFT_V, KINDS, speed, speedAt, newGame, copy, setDeal, swipe, step, take, ensure } from "../reckoning-engine.js";
+import { LANE_W, LANE_T, JUMP_H, JUMP_V, AIR_T, WALL_Y, SLAM_MIN_Y, ROLL_T, SIDE_ABOVE, UP_ABOVE, DRIFT_V, BUFFER, LAND_BUFFER, KINDS, speed, speedAt, newGame, copy, setDeal, swipe, step, take, ensure } from "../reckoning-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -679,7 +680,7 @@ const events = S => take(S).map(e => e.type);
   check(/swipe LEFT \| me: lane R, flying y=\S+ at gull R/.test(text), "a swipe in flight says what I am flying at");
   check(/lane → M/.test(text) && /lane → L/.test(text) && /the cut moves to gull gate\d+ \(side\)/.test(text), "the lines after it say what the rules did: the lane, and the cut moving");
   check(/ANSWER gate\d+ wrong: "Which\?" picked one; right three/.test(text) && /FALL into the water/.test(text), "the answer is in it, with what was picked and what was right");
-  check(log.text("test").startsWith("Reckoning log, run 3, test\nL, M, R:") && log.text().includes("#1 "), "the whole log has a head and the legend before the lines");
+  check(log.text("test").startsWith("Courier log, run 3, test\nL, M, R:") && log.text().includes("#1 "), "the whole log has a head and the legend before the lines");
   const back = RunLog.from(JSON.parse(JSON.stringify(log)));
   check(back.text() === log.text() && (back.note(S, "x"), back.n === log.n + 1), "a log survives being saved and carries on numbering");
   const T = scene({ hero: { y: 0 } }); const L2 = new RunLog(T);
@@ -720,6 +721,96 @@ const events = S => take(S).map(e => e.type);
   check(kinds.has("crab") && kinds.has("gull") && s.world.pits.length > 0 && s.world.walls.length > 0, "crabs, gulls, pits and walls all come");
   const before = JSON.stringify(newGame({ seed: 11, deal: () => ({ id: "x", o: ["a", "b", "c"], a: 1 }) }).world.foes.slice(0, 3));
   check(before === JSON.stringify(newGame({ seed: 11, deal: () => ({ id: "y", o: ["a", "b", "c"], a: 0 }) }).world.foes.slice(0, 3)), "the questions dealt do not move the quay");
+}
+
+// ---------- movement: a lane change is an arc, a cut carries on, a jump swiped early is kept, a run sets off ----------
+{
+  const S = scene(); swipe(S, "right");
+  const xs = []; for (let i = 0; i < 60; i++) { step(S, DT); xs.push([S.hero.x, S.hero.vx]); }
+  const mono = xs.every(([x], i) => i === 0 || x >= xs[i - 1][0] - 1e-9), at = ms => xs[Math.round(ms / 1000 / DT) - 1][0];
+  check(mono && at(8) < LANE_W * 0.05 && at(90) > LANE_W * 0.78 && at(140) > LANE_W * 0.94, `a lane change is an arc: a soft start (${at(8).toFixed(3)} m after 8 ms), 80% in 0.09 s, 95% in ${(LANE_T).toFixed(2)} s`);
+  run(S, 0.4);
+  check(S.hero.x === LANE_W && S.hero.vx === 0, "and it arrives exactly, at rest");
+  // a swipe made on top of another carries on from the speed it had: no stop in the middle, no jump in x
+  const T = scene(); swipe(T, "right"); run(T, 0.04); const x0 = T.hero.x, v0 = T.hero.vx;
+  swipe(T, "left"); step(T, DT);
+  check(Math.abs(T.hero.x - x0) < 0.2 && T.hero.vx < v0 && T.hero.lane === 0, `a swipe back in the middle of one turns round from where I am (x ${x0.toFixed(2)} to ${T.hero.x.toFixed(2)}), with no jump`);
+  const U = scene(); swipe(U, "left"); run(U, 0.05); swipe(U, "left");
+  check(U.hero.lane === -1, "(the outer lane stops a second swipe the same way)");
+  const V = scene({ hero: { lane: -1, x: -LANE_W } }); swipe(V, "right"); run(V, 0.05); const vMid = V.hero.vx; swipe(V, "right"); run(V, 0.05);
+  check(V.hero.lane === 1 && V.hero.vx > 0 && vMid > 5, "and two the same way run on into the far lane without stopping in the middle one");
+  // a cut sideways: the lane's spring has taken me to the foe's lane early; the cut lands when the quay brings the foe
+  const W = scene(), c = foeAt(W, "crab", -1, 0.5);
+  run(W, 0.01); swipe(W, "left"); run(W, 0.2);
+  check(Math.abs(W.hero.x + LANE_W) < 0.12 && c.alive && W.hero.lunge, "a cut sideways is a lane change at the lane's speed, and the cut lands later, as the foe arrives");
+  run(W, 0.4);
+  check(!c.alive && !W.hero.lunge && W.hearts === 3 && Math.abs(W.hero.x + LANE_W) < 0.05, "and it does");
+  // a cut up: eased, so most of the way up is gone in the first half of the time
+  const Y = scene(), g = foeAt(Y, "gull", 0, 0.5);
+  run(Y, 0.01); swipe(Y, "up"); const y1 = Y.hero.lunge && (run(Y, 0.25), Y.hero.y);
+  check(y1 > 0.72 * (g.y + g.h * 0.3 - 0.2), `a cut up is a burst, not a crawl: ${(y1 / (g.y + g.h * 0.3 - 0.2) * 100).toFixed(0)}% of the way up after half the time`);
+  // a jump swiped well before landing is kept until I land
+  const L = scene(); swipe(L, "up"); run(L, 0.44); take(L); swipe(L, "up");
+  const kept = take(L).find(e => e.type === "wait");
+  let steps = 0; while (L.hero.mode === "air" && steps++ < 400) step(L, DT);
+  step(L, DT);
+  check(kept && kept.keep > BUFFER && kept.keep <= LAND_BUFFER && L.hero.mode === "air" && L.hero.y > 0, `a jump swiped 0.28 s before landing is kept ${kept ? kept.keep.toFixed(2) : "?"} s and jumps as I land`);
+  const M = scene(); swipe(M, "up"); run(M, 0.1); take(M); swipe(M, "down");
+  check(take(M).every(e => e.type !== "wait" || e.keep === BUFFER) , "(any other swipe is kept the plain BUFFER)");
+  // landing says how hard
+  const A = scene(); swipe(A, "up"); run(A, 1);
+  const land = take(A).find(e => e.type === "land");
+  check(land && Math.abs(land.v - JUMP_V) < 0.6, `a landing says how hard it was (${land ? land.v.toFixed(1) : "?"} m/s after a jump of ${JUMP_V.toFixed(1)})`);
+  const B = scene({ hero: { y: 3, mode: "air", vy: 0 } }); swipe(B, "down"); run(B, 0.5);
+  check(take(B).find(e => e.type === "land").v > 20, "and a dive's is much harder");
+  // a run that sets off from a standstill
+  const N = newGame({ seed: 2, launch: true });
+  check(speed(N) < 4 && speed(newGame({ seed: 2 })) === 10, "a run set off from a standstill starts at a third of the pace, one picked up at pace does not");
+  run(N, 0.7);
+  check(speed(N) > 0.99 * speedAt(N.hero.z), "and is at full pace in 0.7 s");
+}
+
+// ---------- the feel: springs, the pose carried over, the cloth, the camera ----------
+{
+  const sp = new Spring(0); for (let i = 0; i < 120; i++) sp.to(1, 1 / 60, 20, 1);
+  check(Math.abs(sp.x - 1) < 1e-3 && sp.v < 1e-2, "a critically damped spring arrives");
+  const ring = new Spring(0); let over = 0; for (let i = 0; i < 120; i++) over = Math.max(over, ring.to(1, 1 / 60, 20, 0.3));
+  check(over > 1.2, `and a loose one overshoots (${over.toFixed(2)})`);
+  const still = new Spring(0.4); still.v = 3; still.to(1, 0, 20, 1);
+  check(still.x === 0.4 && still.v === 3, "a frame of no time (the game paused) changes nothing");
+  const big = new Spring(0); big.to(1, 0.5, 60, 0.5);
+  check(Number.isFinite(big.x) && Math.abs(big.x) < 5, "and a long frame stays stable");
+
+  const I = new Inertia(3, 18, 0.8);
+  I.step("a", [1, 2, 3], 1 / 60);
+  const first = I.step("b", [0, 0, 0], 1 / 60).slice();
+  check(first.every((x, i) => Math.abs(x - [1, 2, 3][i]) < 0.5), "a pose that changes is carried over from the one before, not snapped");
+  let out = first; for (let i = 0; i < 60; i++) out = I.step("b", [0, 0, 0], 1 / 60);
+  check(out.every(x => Math.abs(x) < 0.02), "and arrives at the new one");
+
+  const cloth = (speed, vy, vx) => { const s = new Streamer(0.2, 20, 0.5); for (let i = 0; i < 90; i++) s.update(1 / 60, { speed, vy, vx }); return s; };
+  check(cloth(0, 0, 0).a.x < 0.01, "a scarf hangs when he is still");
+  const run10 = cloth(10, 0, 0).a.x, run16 = cloth(16, 0, 0).a.x;
+  check(run16 > run10 && run10 > 0.8, `and streams out as he runs (${run10.toFixed(2)} at 10 m/s, ${run16.toFixed(2)} at 16)`);
+  check(cloth(14, 9, 0).a.x < run16 && cloth(14, -9, 0).a.x > 1.5, "droops when he rises and flares when he falls");
+  check(cloth(14, 0, 12).b.x < -0.3 && cloth(14, 0, -12).b.x > 0.3, "and trails away from the way he moves sideways");
+
+  const cam = new CameraRig();
+  const settle = (s, secs) => { for (let i = 0; i < secs * 60; i++) cam.update(1 / 60, s); return cam.out; };
+  const slow = settle({ x: 0, y: 0, vx: 0, speed: 8, wall: 0 }, 3).fov, fast = settle({ x: 0, y: 0, vx: 0, speed: 16, wall: 0 }, 3);
+  const backFast = fast.back;
+  check(fast.fov > slow + 4 && backFast > 6, `the camera widens (${slow.toFixed(1)} to ${fast.fov.toFixed(1)} degrees) and draws back (${backFast.toFixed(2)} m) with speed`);
+  const x0 = fast.x; cam.update(1 / 60, { x: LANE_W, y: 0, vx: 15, speed: 16, wall: 0 });
+  const lag = cam.out.x - x0;
+  settle({ x: LANE_W, y: 0, vx: 0, speed: 16, wall: 0 }, 3);
+  check(lag > 0 && lag < LANE_W * 0.55 * 0.3 && Math.abs(cam.out.x - LANE_W * 0.55) < 0.01, "it follows a change of lane late, and gets there");
+  const r0 = cam.out.roll; for (let i = 0; i < 6; i++) cam.update(1 / 60, { x: LANE_W, y: 0, vx: 18, speed: 16, wall: 0 });
+  check(Math.abs(cam.out.roll - r0) > 0.01, "and leans into it");
+  const yRest = settle({ x: 0, y: 0, vx: 0, speed: 16, wall: 0 }, 3).y;
+  cam.land(10); let low = 0, high = 0; for (let i = 0; i < 90; i++) { const y = cam.update(1 / 60, { x: 0, y: 0, vx: 0, speed: 16, wall: 0 }).y; low = Math.min(low, y - yRest); high = Math.max(high, y - yRest); }
+  check(low < -0.1 && high > 0.005 && Math.abs(cam.out.y - yRest) < 0.01, `a landing dips it (${low.toFixed(2)} m), it springs back past (${high.toFixed(3)}) and settles`);
+  const cam2 = new CameraRig(), before = JSON.stringify(cam2.out); cam2.update(0, { x: 5, y: 3, vx: 9, speed: 16, wall: 1 });
+  check(Number.isFinite(cam2.out.x) && JSON.stringify(cam2.out) !== before.replace("NaN", ""), "a frame of no time leaves the camera finite");
 }
 
 // ---------- a bot plays the quay ----------

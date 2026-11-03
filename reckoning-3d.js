@@ -1,5 +1,5 @@
-// Reckoning in 3D, drawn with three.js (vendor/three-run.js): the quay as boxes, for now. Every shape here is a stand-in
-// for a model that will come (README, Reckoning: the asset list): the hero, a crab, a gull, a warehouse, a bollard, each
+// Courier in 3D, drawn with three.js (vendor/three-run.js): the quay as boxes, for now. Every shape here is a stand-in
+// for a model that will come (docs/courier.md: the asset list): the hero, a crab, a gull, a warehouse, a bollard, each
 // built in one place (`makeFoe`, the hero's block, the scenery's) so a glTF can take over one at a time. What stays when the models arrive is the look:
 //  - a world that curves away below the horizon (a vertex patch on every material: the further from the camera, the
 //    lower), which is what makes a straight run read as a run over the top of something;
@@ -7,10 +7,13 @@
 //    each get their quay: pale stone and brass in the day, navy and brass at night. Colour is held down; the Brim look
 //    is a candy one and this one is dusk in a Hanse port;
 //  - fog to the sky's colour, a hemisphere light and one sun, no shadows (a soft disc under each thing instead).
-// The page (reckoning.js) steps the rules and calls frame(S, dt) each time it draws; ping(ev) turns the rules' events
-// into what is seen (a burst, a ring, a shake).
+// The page (reckoning.js) steps the rules and calls frame(S, dt, opts) each time it draws; ping(ev) turns the rules' events
+// into what is seen (a burst, a ring, dust, spray, a kick to the camera or the hero's body). How the camera and the hero's
+// body move between the rules' steps (springs, a pose carried over from the one before, the scarf and coat tails dragged by the
+// air) is reckoning-move.js; here it is only drawn.
 import * as THREE from "./vendor/three-run.js";
-import { LANE_W, WALL_X, KINDS, ROLL_T, speed } from "./reckoning-engine.js";
+import { LANE_W, WALL_X, KINDS, ROLL_T, JUMP_V, speed } from "./reckoning-engine.js";
+import { Spring, Inertia, Streamer, CameraRig, clamp, lerp, ease } from "./reckoning-move.js";
 
 const BEND = 0.0013;                    // how fast the world drops away: metres of fall per metre-squared of distance
 const BEND_FROM = 9;                    // from this far in front of the camera (the hero is nearer, and stays level)
@@ -57,6 +60,7 @@ const col = (a, into = new THREE.Color()) => into.setRGB(a[0] / 255, a[1] / 255,
 const night = () => document.documentElement.dataset.mode === "night" || (document.documentElement.dataset.mode !== "day" && matchMedia("(prefers-color-scheme: dark)").matches);
 
 /** The quay's colours for the theme showing now. Enamels are muted by a third and pulled toward the page. */
+const sky_ = (yard, dark) => (dark ? mix(yard, [40, 62, 92], 0.6) : mix(yard, [236, 228, 208], 0.35));
 function palette() {
   const yard = token("--yard"), sheet = token("--sheet"), ink = token("--ink"), brass = token("--brass"), plate = token("--plate");
   const e = [0, 1, 2, 3].map(i => mix(grey(token(`--c${i}`), 0.45), yard, 0.25));
@@ -64,7 +68,7 @@ function palette() {
   const moon = c => (dark ? mix(c, [150, 172, 200], 0.3) : c);
   const glow = c => (dark ? mix(c, [235, 140, 105], 0.35) : c);        // the foes are lit more than the quay by night: they have to be seen       // by night things are lit by a moon: the same colours, lifted towards a cool grey
   return {
-    sky: dark ? mix(yard, [40, 62, 92], 0.6) : mix(yard, [236, 228, 208], 0.35),
+    sky: sky_(yard, dark),
     stone: moon(mix(sheet, yard, 0.35)),
     seam: mix(ink, yard, dark ? 0.75 : 0.8),
     plank: moon(mix(brass, yard, 0.62)),
@@ -94,6 +98,10 @@ function palette() {
     ink,
     good: mix(e[1], yard, 0.1),
     ring: mix(brass, sheet, 0.3),
+    plank2: moon(mix(mix(sheet, yard, 0.35), mix(ink, yard, 0.8), 0.1)),     // every other plank a shade darker, so the quay strobes under the eye as it goes by
+    dust: dark ? [178, 196, 224] : mix([255, 252, 244], brass, 0.12),     // what the planks give up: a pale warm dust, a cool one by night
+    spray: mix(mix(token("--c2"), [255, 255, 255], 0.7), yard, 0.1),
+    streak: dark ? mix(sky_(yard, dark), [215, 230, 255], 0.55) : mix(sky_(yard, dark), [255, 255, 255], 0.75),
   };
 }
 
@@ -132,6 +140,10 @@ export function createRunner(host) {
     banner: mat("banner"), skin: mat("skin"), good: mat("good"), claw: mat("claw"), belly: mat("belly"), eye: mat("eye"), pupil: mat("pupil"),
     markBg: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), markSees: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
     markWind: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
+    plank2: mat("plank2"), pole: mat("pole"),
+    dust: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, depthWrite: false })),
+    spray: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false })),
+    streak: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, fog: false })),
     scarf: mat("scarf"), boot: mat("boot"), steel: mat("steel"), hair: mat("hair"), shirt: mat("shirt"),
     shadow: curved(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })),
     ring: curved(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })),
@@ -144,6 +156,7 @@ export function createRunner(host) {
     set(M.banner, pal.banner); set(M.skin, pal.skin);
     set(M.scarf, pal.scarf); set(M.boot, pal.boot); set(M.steel, pal.steel); set(M.hair, pal.hair); set(M.shirt, pal.shirt); set(M.good, pal.good); set(M.ring, pal.ring);
     set(M.claw, pal.claw); set(M.belly, pal.belly); set(M.eye, pal.eye); set(M.pupil, pal.pupil);
+    set(M.plank2, pal.plank2); set(M.pole, pal.timber); set(M.dust, pal.dust); set(M.spray, pal.spray); set(M.streak, pal.streak);
     set(M.markBg, pal.mark); set(M.markSees, pal.gilt); set(M.markWind, pal.alert);
     scene.background = col(pal.sky);
     scene.fog.color = col(pal.sky);
@@ -165,6 +178,12 @@ export function createRunner(host) {
   const edge = new THREE.InstancedMesh(box, M.plank, 2 * SEAMS);                         // a rail of planking down each side
   edge.frustumCulled = false; world.add(edge);
 
+  // every other plank a shade darker, so the deck strobes under the eye as it goes by; and tall posts with lanterns standing in the
+  // water beside the quay: what sweeps past at the edges of the picture is what tells the eye how fast it is going
+  const darkPlanks = new THREE.InstancedMesh(box, M.plank2, Math.ceil(SEAMS / 2) + 2); darkPlanks.frustumCulled = false; world.add(darkPlanks);
+  const LAMPS = 9, LAMP_GAP = 13;
+  const poles = new THREE.InstancedMesh(cyl, M.pole, LAMPS * 2); poles.frustumCulled = false; world.add(poles);
+  const lanterns = new THREE.InstancedMesh(box, M.gilt, LAMPS * 2); lanterns.frustumCulled = false; world.add(lanterns);
   // scenery: warehouses (a body and two steps of gable) and bollards, placed from the distance alone, so they are the same every time
   const HOUSES = 15;                                                                     // each side, each a body and two steps
   const houses = new THREE.InstancedMesh(box, M.brick, HOUSES * 2 * 3); houses.frustumCulled = false; houses.userData.tint = true; world.add(houses);
@@ -331,9 +350,10 @@ export function createRunner(host) {
 
   // effects: rings on the planks, bursts
   const fx = [];
-  function ring(x, y, z, r, life) {
+  function ring(x, y, z, r, life, water = false) {
     const m = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28).rotateX(-Math.PI / 2), M.ring.clone());
     m.material = curved(M.ring.clone());
+    if (water) m.material.color.copy(M.spray.color);
     m.position.set(x, y, z); m.frustumCulled = false; world.add(m);
     fx.push({ m, born: now, life, r, kind: "ring" });
   }
@@ -345,9 +365,57 @@ export function createRunner(host) {
     }
   }
 
+  // dust off the planks and spray off the water: two pools of little solids, one instanced mesh each, moved by hand (gravity, drag, and
+  // a puff that swells and then shrinks away: a material has one opacity, so what fades is the size)
+  const ico = new THREE.SphereGeometry(0.5, 6, 4);
+  const pool = (m, n) => { const mesh = new THREE.InstancedMesh(ico, m, n); mesh.frustumCulled = false; world.add(mesh); return { mesh, at: 0, ps: Array.from({ length: n }, () => ({ t: 9, life: 1, x: 0, y: -9, z: 0, vx: 0, vy: 0, vz: 0, size: 0, g: 0, drag: 0, grow: 0 })) }; };
+  const dusts = pool(M.dust, 80), sprays = pool(M.spray, 72);
+  function emit(P, x, y, z, vx, vy, vz, size, life, o = {}) {
+    const p = P.ps[P.at]; P.at = (P.at + 1) % P.ps.length;
+    p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.size = size; p.life = life; p.t = 0; p.g = o.g || 0; p.drag = o.drag ?? 2.5; p.grow = o.grow ?? 0;
+  }
+  const mP = new THREE.Matrix4(), qP = new THREE.Quaternion(), vP = new THREE.Vector3(), sP = new THREE.Vector3();
+  function tickPool(P, dt, spray) {
+    for (let i = 0; i < P.ps.length; i++) {
+      const p = P.ps[i];
+      let sz = 0;
+      if (p.t < p.life) {
+        p.t += dt;
+        const u = Math.min(1, p.t / p.life), d = Math.exp(-p.drag * dt);
+        p.vy -= p.g * dt; p.vx *= d; p.vz *= d; if (!spray) p.vy *= d;
+        p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+        if (spray && p.y < -1.72 && p.vy < 0) p.t = p.life;                                   // back in the water
+        sz = p.size * (0.5 + p.grow * Math.min(1, u * 2.2)) * (1 - u * u);
+      }
+      mP.compose(vP.set(p.x, p.y, p.z), qP, sP.setScalar(Math.max(0, sz)));
+      P.mesh.setMatrixAt(i, mP);
+    }
+    P.mesh.instanceMatrix.needsUpdate = true;
+  }
+  /** `n` puffs of dust at a place on the planks, thrown out sideways by `spread` (m/s) and carried on by (vx, vz): a footfall, a landing, a push-off. */
+  function puff(x, z, n, spread, size = 0.28, vx = 0, vz = 0, up = 0.9, y = 0.06) {
+    for (let i = 0; i < n; i++) {
+      const a = hash(now * 31 + i * 7.3 + z) * Math.PI * 2, r = spread * (0.4 + hash(now * 17 + i * 3.1 + x));
+      emit(dusts, x + Math.cos(a) * 0.1, y, z + Math.sin(a) * 0.1, vx + Math.cos(a) * r, up * (0.5 + hash(i + now)), vz + Math.sin(a) * r, size * (0.7 + 0.6 * hash(i * 5 + now)), 0.5 + 0.25 * hash(i * 2 + now), { drag: 3.2, grow: 1.6 });
+    }
+  }
+  /** Spray thrown up from the water at a place: a splash. */
+  function splash(x, z, n = 14, power = 1) {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + hash(i + now) * 2, r = (1 + 2.6 * hash(i * 3 + now)) * power;
+      emit(sprays, x + Math.cos(a) * 0.15, -1.7, z + Math.sin(a) * 0.15, Math.cos(a) * r, (4.5 + 5 * hash(i * 7 + now)) * power, Math.sin(a) * r, 0.1 + 0.1 * hash(i * 11 + now), 0.9, { g: 15, drag: 0.6 });
+    }
+    ring(x, -1.68, z, 2.4 * power, 0.7, true);
+  }
+
+  // streaks: thin lines in the air that run by at the sides, set in the world and wrapped about the hero, longer and clearer the faster he goes
+  const STREAKS = 40, STREAK_R = 56;
+  const streaks = new THREE.InstancedMesh(box, M.streak, STREAKS); streaks.frustumCulled = false; world.add(streaks);
+  const streakAt = Array.from({ length: STREAKS }, (_, i) => ({ x: (i % 2 ? 1 : -1) * (2.2 + hash(i * 5.7 + 1) * 4.8), y: 0.4 + hash(i * 9.3 + 2) * 4.4, z: hash(i * 2.3 + 3) * STREAK_R, len: 0.6 + hash(i * 7.7 + 4) * 1.1 }));
+
   // ---------- drawing ----------
-  let now = 0, shake = 0, W = 1, H = 1, blink = 0;
-  let camX = 0, camY = 3.4;
+  let now = 0, shake = 0, W = 1, H = 1, blink = 0, baseFov = 70, idleT = 0;
+  const cam = new CameraRig();
   function resize() {
     const r = host.getBoundingClientRect();
     W = Math.max(1, Math.round(r.width)); H = Math.max(1, Math.round(r.height));
@@ -355,58 +423,124 @@ export function createRunner(host) {
     canvas.style.width = "100%"; canvas.style.height = "100%";
     camera.aspect = W / H;
     // wide enough for the lanes and a wall at the phone's width, and not stretched on a tablet
-    camera.fov = Math.max(50, Math.min(76, 2 * Math.atan(Math.tan(33 * Math.PI / 180) / camera.aspect) * 180 / Math.PI));
+    baseFov = Math.max(50, Math.min(76, 2 * Math.atan(Math.tan(33 * Math.PI / 180) / camera.aspect) * 180 / Math.PI));
+    camera.fov = baseFov;
     camera.updateProjectionMatrix();
   }
   new ResizeObserver(resize).observe(host);
 
   // ---------- the hero's poses ----------
-  /** The hero's joints for what the rules say he is doing: running (the stride follows the quay, a stride to each 3.3 m), up
-   *  in a jump (a knee drawn up, the arms high), coming down (arms out), at a foe (a lunge, the rapier out in front), in a
-   *  roll (tucked), a slam (rapier down), or on a wall. Coat tails and scarf stream the way the wind from the run takes them. */
-  function poseHero(h, dt) {
-    const phi = h.z * 1.9, sn = Math.sin(phi), cs = Math.cos(phi), tt = now;
+  // The pose is numbers on the named joints (J). What the rules say he is doing picks a target pose (a stride that follows the
+  // quay, a jump that is a rise, a hang at the top and a fall, a lunge that is drawn back and then thrust, a roll, a wall run,
+  // standing ready); `D.pose` carries the pose before over into it (Inertia), a crouch rings after a take-off and a landing, the
+  // whole body banks and turns into a lane change, and the scarf, the coat tails, the plume and the hair are dragged by the air he
+  // runs through (Streamer). The joints keep the names an animator will want, so a glTF with joints of these names can take over.
+  //            lh    lk    rh    rk    las   laz   lae   ras   raz   rae   lean  twist head  wall    (hip x, knee x; shoulder x, z, elbow x of each arm; the body's)
+  const RISE  = [-1.0, 1.35, 0.4, 0.55, -2.4, 0.3, -0.5, -2.2, -0.2, -0.3, -0.05, 0, 0, 0];
+  const APEX  = [-0.55, 0.15, 0.6, 0.25, -1.5, 1.25, -0.12, -1.4, 0.7, -0.12, -0.02, 0, -0.12, 0];     // the top of a jump: stretched out, the arms wide
+  const FALL  = [-0.5, 0.45, 0.45, 0.4, -0.2, 0.9, -0.3, -0.2, -0.5, -0.3, 0.1, 0, 0, 0];
+  const READY = [-0.75, 0.25, -0.3, 0.2, 0.3, 0.5, -0.3, 0.2, -0.3, -0.3, 0.12, 0, 0, 0];             // reaching for the planks
+  const ROLLP = [-1.55, 2.3, -1.55, 2.3, -1.2, 0.2, -1.7, -1.2, -0.2, -1.7, 0, 0, 0.5, 0];
+  const SLAMP = [0.1, 0.25, 0.2, 0.25, 0.7, 0.2, -0.4, 0.15, -0.2, 0, 0.4, 0, 0, 0];
+  const mixP = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
+  const idlePose = t => [-0.08 + 0.02 * Math.sin(t * 1.7), 0.12, 0.1 - 0.02 * Math.sin(t * 1.7), 0.14, 0.06, 0.15, -0.25, -0.45, 0, -1.15,
+    0.03 + 0.015 * Math.sin(t * 1.9), 0.06 * Math.sin(t * 0.6), 0.05 * Math.sin(t * 0.6 + 1), 0];
+
+  const D = {                                                       // the hero's body in motion (reckoning-move.js)
+    bank: new Spring(), yaw: new Spring(), crouch: new Spring(), crouchW: 20, stretch: new Spring(), recoil: new Spring(),
+    tails: [new Streamer(0.075, 15, 0.3), new Streamer(0.085, 14, 0.28)], scarf: [new Streamer(0.2, 20, 0.22), new Streamer(0.23, 18, 0.2)],
+    plume: new Streamer(0.11, 18, 0.25), pony: new Streamer(0.12, 17, 0.3),
+    pose: new Inertia(14, [22, 22, 22, 22, 18, 18, 18, 18, 18, 18, 16, 16, 16, 14], 0.75),
+    step: 0, rollAcc: 0, wallAcc: 0,
+  };
+  function resetHero() {
+    for (const k of ["bank", "yaw", "crouch", "stretch", "recoil"]) D[k].set(0);
+    for (const s of [...D.tails, ...D.scarf, D.plume, D.pony]) { s.a.set(0); s.b.set(0); }
+    D.pose.key = null; D.crouchW = 20; D.step = 0;
+  }
+
+  /** The pose the rules ask for now, as [a name for which pose it is, its numbers]: the name changing is what carries the old one over. */
+  function targetPose(h, c) {
+    const { sn, cs, k } = c, amp = 0.55 + 0.45 * k;
+    const stride = (m = 1) => [-sn * 0.9 * amp * m, 0.2 + 0.85 * amp * m * Math.max(0, cs), sn * 0.9 * amp * m, 0.2 + 0.85 * amp * m * Math.max(0, -cs),
+      sn * 0.8 * amp * m, 0, -1.0 + 0.3 * sn * amp, -0.55 + 0.15 * sn, 0, -1.25, 0.1 + 0.08 * k, sn * 0.12, 0, 0];
+    if (h.mode === "wall") { const v = stride(1.15); v[10] = 0.1; v[13] = h.wall * 1.2; return ["wall", v]; }       // feet on the wall, the body out from it (leaning into it put him inside the box)
+    if (h.lunge) return lungePose(h.lunge);
+    if (h.mode === "air") {
+      if (h.slam) return ["slam", SLAMP];
+      let v = c.u >= 0 ? mixP(APEX, RISE, ease(c.u)) : mixP(APEX, FALL, ease(-c.u));
+      if (c.u < 0) v = mixP(v, READY, c.near);
+      return ["air", v];
+    }
+    if (c.rolling) return ["roll", ROLLP];
+    if (c.idle) return ["idle", idlePose(c.t)];
+    return ["run", stride()];
+  }
+
+  /** A cut: the rapier arm is drawn back as it sets off and thrust out as the foe arrives (`left` of `total` seconds to go), so the blow
+   *  lands with the arm at full reach; a cut upward goes up with both arms, a bonk tucks and then stoops onto the foe. */
+  function lungePose(L) {
+    const tau = clamp(1 - L.left / L.total, 0, 1), th = ease((tau - 0.3) / 0.7), fwd = Math.sign(L.dir || 0);
+    if (L.how === "bonk") {
+      const e = ease(tau * 2);
+      return ["bonk", [lerp(-0.7, -1.05, e), lerp(1.3, 0.75, e), lerp(0.7, 0.8, e), lerp(1.0, 0.12, e), 0.9, 0, -0.6, lerp(-1.2, -0.2, e), 0, lerp(-1.0, 0, e), lerp(0.4, 0.9, e), 0, 0, 0]];
+    }
+    const up = L.how === "above";
+    return [up ? "cut-up" : "cut", [up ? -0.5 : -1.05, up ? 0.9 : 0.75, up ? 0.5 : 0.8, up ? 0.9 : 0.12, up ? -2.0 : 0.9, up ? 0.3 : 0, up ? -0.2 : -0.6,
+      lerp(0.8, up ? -2.5 : -1.45, th), 0, lerp(-1.3, -0.08, th), lerp(0.2, up ? 0.0 : 0.6, th), lerp(0.3, -0.3, th) * (fwd || 1) * (fwd ? 1 : 0.4), 0, 0]];
+  }
+
+  /** Puts the hero's joints, and his whole body, where this frame has them. `k` is the hero as drawn: where he is (extrapolated a
+   *  little past the last step, to the moment of the frame), his speed along the quay and up, and whether he is standing ready. */
+  function poseHero(h, k, dt) {
+    const phi = k.z * 1.9, sn = Math.sin(phi), cs = Math.cos(phi), tt = idleT + now;
     const rolling = h.roll > 0 && h.mode === "run" && !h.lunge;
-    // [hip x, knee x] of the left and the right leg; the shoulders' x and z, the elbows' x, of the left and the right arm
-    let legs = [[-sn * 0.9, 0.2 + 0.85 * Math.max(0, cs)], [sn * 0.9, 0.2 + 0.85 * Math.max(0, -cs)]];
-    let arms = [[sn * 0.8, 0, -1.0 + 0.3 * sn], [-0.55 + 0.15 * sn, 0, -1.25]];
-    let lean = 0.16, twist = sn * 0.12, bob = Math.abs(sn) * 0.05, tails = 0.3 + 0.3 * Math.abs(sn), scarf = 1.15, headDip = 0, roll = 0;
-    const fwd = h.lunge ? Math.sign(h.lunge.dir || 0) : 0;
-    if (h.mode === "wall") { roll = -h.wall * 1.15; lean = 0.1; }
-    else if (h.lunge) {
-      const bonk = h.lunge.how === "bonk";
-      lean = bonk ? 0.9 : 0.5; twist = -fwd * 0.3; bob = 0; tails = 0.7; scarf = 1.35;
-      legs = [[-1.05, 0.75], [0.8, 0.12]];
-      arms = [[0.9, 0, -0.6], [bonk ? -0.2 : -1.45, 0, bonk ? 0 : -0.08]];
-    } else if (h.mode === "air") {
-      bob = 0; twist = 0;
-      if (h.slam) { lean = 0.4; legs = [[0.1, 0.25], [0.2, 0.25]]; arms = [[0.7, 0.2, -0.4], [0.15, -0.2, 0]]; tails = 2.3; scarf = 2.4; }
-      else if (h.vy > 0) { lean = -0.05; legs = [[-1.0, 1.35], [0.4, 0.55]]; arms = [[-2.4, 0.3, -0.5], [-2.2, -0.2, -0.3]]; tails = 0.9; scarf = 0.7; }
-      else { lean = 0.1; legs = [[-0.5, 0.45], [0.45, 0.4]]; arms = [[-0.2, 0.9, -0.3], [-0.2, -0.9, -0.3]]; tails = 2.0; scarf = 2.1; }
-    }
+    const kk = clamp((k.speed - 4) / 12, 0, 1);                      // a stride is shorter and lower at the start of a run
+    const [key, tgt] = targetPose(h, { sn, cs, k: kk, u: clamp(k.vy / 9, -1, 1), near: ease(1 - k.y / 1.0) * ease(-k.vy / 4), idle: k.idle, rolling, t: tt });
+    const P = D.pose.step(key, tgt, dt);
+    let [lh, lk, rh, rk, las, laz, lae, ras, raz, rae, lean, twist, head, wallRoll] = P;
+    // a crouch (a landing's, a take-off's) bends both legs and the waist; below zero it is a stretch
+    const cr = D.crouch.to(0, dt, D.crouchW, 0.5);
+    lh -= 0.9 * cr; rh -= 0.9 * cr; lk = Math.max(0.03, lk + 1.5 * cr); rk = Math.max(0.03, rk + 1.5 * cr); lean += 0.3 * cr; las -= 0.5 * cr; ras -= 0.5 * cr;
+    // the blow's recoil: the rapier arm and the shoulders
+    const rc = D.recoil.to(0, dt, 14, 0.35);
+    ras += rc * 0.7; twist += rc * 0.3;
+    // the body leans into a lane change and turns to where he is heading (a spring, so it overshoots and settles)
+    const wall = h.mode === "wall";
+    D.bank.to(wall ? 0 : -clamp(k.vx * 0.02, -0.5, 0.5), dt, 18, 0.5);
+    D.yaw.to(wall ? 0 : Math.atan2(k.vx, Math.max(k.speed, 4)) * 0.55, dt, 22, 0.7);
+    D.stretch.to(0, dt, 20, 0.35);
+    hero.rotation.set(0, D.yaw.x, D.bank.x);
+    const sc = clamp(1 + D.stretch.x, 0.8, 1.18);
+    body.scale.set(1 / Math.sqrt(sc), sc, 1 / Math.sqrt(sc));
+    // his feet are on the planks while he runs: the pelvis goes as low as the legs' bend asks
+    const depth = (a, b) => 0.42 * Math.cos(a) + 0.445 * Math.cos(a + b);
+    const drop = h.mode === "run" && !h.lunge && !rolling ? clamp(0.865 - Math.max(depth(lh, lk), depth(rh, rk)), 0, 0.45) : 0;
     if (rolling) {
-      const a = (1 - h.roll / ROLL_T) * Math.PI * 2;
-      body.rotation.x = a;
-      body.position.set(0, 0.9 * (1 - Math.cos(a)) - 0.3, -0.9 * Math.sin(a));
-      legs = [[-1.55, 2.3], [-1.55, 2.3]]; arms = [[-1.2, 0.2, -1.7], [-1.2, -0.2, -1.7]];
-      lean = 0; twist = 0; bob = 0; headDip = 0.5; tails = 0.3; scarf = 0.9;
+      const p = 1 - h.roll / ROLL_T, a = p * Math.PI * 2;
+      body.rotation.set(a, 0, 0);
+      body.position.set(0, 0.9 * (1 - Math.cos(a)) - 0.3 * Math.sin(Math.PI * p), -0.9 * Math.sin(a));
     } else {
-      body.rotation.x = lean * 0.5;                                  // the rest of the lean is in the waist, so the legs do not lean with it
-      body.rotation.z = roll;
-      body.position.y = bob;
+      body.rotation.set(lean * 0.5, 0, wallRoll);                    // the rest of the lean is in the waist, so the legs do not lean with it
+      body.position.set(0, -drop, 0);
     }
-    J.hip.forEach((hip, i) => { hip.rotation.x = legs[i][0]; hip.userData.knee.rotation.x = legs[i][1]; });
-    J.arm.forEach((a, i) => { a.rotation.set(arms[i][0], 0, arms[i][1] * (i ? 1 : -1)); a.userData.elbow.rotation.x = arms[i][2]; });
+    const splay = clamp(k.vx * 0.012, -0.3, 0.3);
+    J.hip.forEach((hip, i) => { hip.rotation.set(i ? rh : lh, 0, splay); hip.userData.knee.rotation.x = i ? rk : lk; });
+    J.arm.forEach((a, i) => { a.rotation.set(i ? ras : las, 0, (i ? raz : laz) * (i ? 1 : -1)); a.userData.elbow.rotation.x = i ? rae : lae; });
     J.torso.rotation.set(rolling ? 0 : lean * 0.5, twist, 0);
-    J.head.rotation.set(headDip - (rolling ? 0 : lean * 0.35), -twist * 0.8, 0);
-    J.tails.forEach((t, i) => { t.rotation.set(tails + 0.12 * Math.sin(tt * 12 + i * 1.9), 0, (i ? 1 : -1) * 0.08 * Math.sin(tt * 9 + i)); });
-    J.scarf.forEach((t, i) => { t.rotation.set(scarf + 0.13 * Math.sin(tt * 11 + i * 1.7), 0, (i ? 1 : -1) * (0.12 + 0.1 * Math.sin(tt * 8 + i))); });
-    J.ponytail.rotation.x = 0.45 + 0.25 * Math.sin(phi * 2 + 1) + (h.mode === "air" ? 0.3 : 0);
-    J.plume.rotation.set(-0.5 + 0.12 * Math.sin(tt * 7), 0, -0.7 + 0.1 * Math.sin(tt * 5));
+    J.head.rotation.set(head - (rolling ? 0 : lean * 0.35), -twist * 0.8, 0);
+    // the cloth: dragged by the air he is moving through, with a flutter that grows with his speed
+    const fl = 0.04 + 0.09 * kk, wind = { speed: k.speed, vy: k.vy, vx: k.vx };
+    D.tails.forEach((s, i) => { s.update(dt, { ...wind, flutter: fl * Math.sin(tt * 12 + i * 1.9) }); J.tails[i].rotation.set(s.a.x, 0, s.b.x + (i ? 1 : -1) * 0.08 * Math.sin(tt * 9 + i)); });
+    D.scarf.forEach((s, i) => { s.update(dt, { ...wind, flutter: 1.4 * fl * Math.sin(tt * 11 + i * 1.7) }); J.scarf[i].rotation.set(s.a.x, 0, s.b.x + (i ? 1 : -1) * (0.12 + 0.1 * Math.sin(tt * 8 + i))); });
+    D.plume.update(dt, { ...wind, flutter: fl * Math.sin(tt * 7) });
+    J.plume.rotation.set(-0.3 - 0.45 * D.plume.a.x, 0, -0.7 + D.plume.b.x + 0.1 * Math.sin(tt * 5));
+    D.pony.update(dt, { ...wind, flutter: 0.7 * fl * Math.sin(phi * 2 + 1) });
+    J.ponytail.rotation.set(0.1 + 0.55 * D.pony.a.x, 0, D.pony.b.x);
+    return { drop, rolling, key };
   }
 
   // ---------- the foes' poses ----------
-  const ease = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
   const hideFoe = o => { o.group.visible = o.shadow.visible = o.mark.visible = false; };
 
   /** A foe at rest, or seeing me (f.ph 1: it turns to look, the claws go up and snap, the mark pops over its head), winding
@@ -486,13 +620,30 @@ export function createRunner(host) {
     o.shadow.visible = false;
   }
 
-  function frame(S, dt) {
+  // what the hero was, a frame ago: his height then, so his climb can be read off what is drawn (the rules hold no climb in a cut)
+  const vis = { y: 0, vy: 0, seed: null };
+
+  /** Draws the run as it is now. `dt` is the game's seconds since the last frame (0 while it is paused). `o.lead` is the time the rules
+   *  have not run yet (a frame is rarely a whole number of their steps), which the hero and the camera are carried on by, so the motion
+   *  is even at any rate of drawing; `o.idle` that the run has not begun, and `o.real` the real seconds, for him to stand ready by. */
+  function frame(S, dt, o = {}) {
     now += dt;
-    const h = S.hero, W_ = S.world;
+    const h = S.hero, W_ = S.world, spd = speed(S);
+    const idle = !!o.idle, pdt = idle ? (o.real || 0) : dt;           // the body's own clock: it breathes while the run waits, and stands still when paused
+    if (idle) idleT += pdt;
     shake = Math.max(0, shake - dt * 2.4);
 
+    // where the hero is drawn: where the rules have him, carried on by the time they have not yet run
+    const lead = Math.min(o.lead || 0, 1 / 60);
+    const hx = h.x + (h.vx || 0) * lead, hz = h.z + spd * lead;
+    let hy = h.y;
+    if (h.mode === "air" && !h.lunge) hy = Math.max(h.y + h.vy * lead, h.vy < 0 ? 0 : h.y);
+    if (S.seed !== vis.seed) { vis.seed = S.seed; vis.y = hy; vis.vy = 0; cam.reset(h.x); resetHero(); }
+    if (pdt > 1e-4) { vis.vy += (clamp((hy - vis.y) / pdt, -30, 30) - vis.vy) * Math.min(1, pdt * 40); vis.y = hy; }
+    const kin = { x: hx, y: hy, z: hz, vx: h.vx || 0, vy: vis.vy, speed: spd, idle: idle && h.mode === "run" };
+
     // the quay
-    const z0 = h.z - BEHIND, z1 = h.z + AHEAD;
+    const z0 = hz - BEHIND, z1 = hz + AHEAD;
     const pits = W_.pits.filter(p => p.z1 > z0 && p.z0 < z1).sort((a, b) => a.z0 - b.z0);
     const spans = [];
     let at = z0;
@@ -504,22 +655,28 @@ export function createRunner(host) {
       m.visible = !!s;
       if (s) { m.scale.set(QUAY_W, 1.4, s[1] - s[0]); m.position.set(0, -0.7, (s[0] + s[1]) / 2); }
     });
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1), nil = new THREE.Vector3(0, 0, 0);
     const inSpan = z => spans.some(s => z >= s[0] && z <= s[1]);
     const first = Math.floor(z0 / SEAM);
+    let dark = 0;
     for (let i = 0; i < SEAMS; i++) {
       const z = (first + i) * SEAM, on = inSpan(z);
-      m4.compose(v.set(0, 0.011, z), q, on ? v.clone().set(QUAY_W, 0.02, 0.05) : one.clone().multiplyScalar(0));
+      m4.compose(v.set(0, 0.017, z), q, on ? v.clone().set(QUAY_W, 0.02, 0.05) : nil);
       seams.setMatrixAt(i, m4);
+      if (((first + i) & 1) === 0 && dark < darkPlanks.count) {
+        m4.compose(v.set(0, 0.01, z + SEAM / 2), q, on ? v.clone().set(QUAY_W - 0.02, 0.02, SEAM - 0.03) : nil);
+        darkPlanks.setMatrixAt(dark++, m4);
+      }
       for (const s of [-1, 1]) {
-        m4.compose(v.set(s * (QUAY_W / 2 - 0.12), 0.05, z + SEAM / 2), q, on ? v.clone().set(0.24, 0.1, SEAM - 0.08) : one.clone().multiplyScalar(0));
+        m4.compose(v.set(s * (QUAY_W / 2 - 0.12), 0.05, z + SEAM / 2), q, on ? v.clone().set(0.24, 0.1, SEAM - 0.08) : nil);
         edge.setMatrixAt(2 * i + (s > 0 ? 1 : 0), m4);
       }
     }
-    seams.instanceMatrix.needsUpdate = edge.instanceMatrix.needsUpdate = true;
+    for (; dark < darkPlanks.count; dark++) { m4.compose(v.set(0, -9, 0), q, nil); darkPlanks.setMatrixAt(dark, m4); }
+    seams.instanceMatrix.needsUpdate = edge.instanceMatrix.needsUpdate = darkPlanks.instanceMatrix.needsUpdate = true;
 
     // scenery, by slot: slot k is the house k * 11 metres along, the same wherever the hero is
-    const SP = 11, base = Math.floor((h.z - BEHIND) / SP);
+    const SP = 11, base = Math.floor((hz - BEHIND) / SP);
     houses.userData.shade = houses.userData.shade || new Array(houses.count).fill(0.5);
     let hi = 0, ri = 0;
     for (const side of [-1, 1]) {
@@ -542,12 +699,22 @@ export function createRunner(host) {
     if (!houses.userData.tinted || houses.userData.tinted !== base) { recolour(houses); houses.userData.tinted = base; }
     for (let i = 0; i < BOLLARDS; i++) {
       for (const s of [-1, 1]) {
-        const z = (Math.floor((h.z - BEHIND) / 6) + i) * 6 + 3;
-        m4.compose(v.set(s * (QUAY_W / 2 - 0.2), 0.3, z), q, inSpan(z) ? new THREE.Vector3(0.28, 0.6, 0.28) : new THREE.Vector3(0, 0, 0));
+        const z = (Math.floor((hz - BEHIND) / 6) + i) * 6 + 3;
+        m4.compose(v.set(s * (QUAY_W / 2 - 0.2), 0.3, z), q, inSpan(z) ? new THREE.Vector3(0.28, 0.6, 0.28) : nil);
         posts.setMatrixAt(2 * i + (s > 0 ? 1 : 0), m4);
       }
     }
     posts.instanceMatrix.needsUpdate = true;
+    for (let i = 0; i < LAMPS; i++) {
+      for (const s of [-1, 1]) {
+        const j = 2 * i + (s > 0 ? 1 : 0), z = (Math.floor((hz - BEHIND) / LAMP_GAP) + i) * LAMP_GAP + 5;
+        m4.compose(v.set(s * (QUAY_W / 2 + 0.75), 1.3, z), q, new THREE.Vector3(0.22, 4.2, 0.22));
+        poles.setMatrixAt(j, m4);
+        m4.compose(v.set(s * (QUAY_W / 2 + 0.75), 3.55, z), q, new THREE.Vector3(0.42, 0.5, 0.42));
+        lanterns.setMatrixAt(j, m4);
+      }
+    }
+    poles.instanceMatrix.needsUpdate = lanterns.instanceMatrix.needsUpdate = true;
 
     // walls to run along
     const walls = W_.walls.filter(w => w.z1 > z0 && w.z0 < z1);
@@ -576,20 +743,43 @@ export function createRunner(host) {
     for (const [id, o] of foes) if (!seen.has(id)) { hideFoe(o); free.push(o); foes.delete(id); }
 
     // the hero
-    hero.position.set(h.x, h.y, h.z);
+    hero.position.set(hx, hy, hz);
     hero.rotation.set(0, 0, 0); body.rotation.set(0, 0, 0); body.position.set(0, 0, 0);
-    if (h.mode === "wall") hero.position.x = h.x + h.wall * 0.1;
-    poseHero(h, dt);
-    const lanesLean = (h.x - (h.lane * LANE_W)) * -0.25;
-    hero.rotation.z = h.mode === "wall" ? 0 : lanesLean;
+    if (h.mode === "wall") hero.position.x = hx + h.wall * 0.5;                         // his feet on the wall's face
+    const st = poseHero(h, kin, pdt);
     blink = h.hurt > 0 ? blink + dt : 0;
     hero.visible = h.hurt <= 0 || Math.floor(blink * 14) % 2 === 0;
-    const floor = !pits.some(p => h.z > p.z0 && h.z < p.z1);
-    heroShadow.visible = floor && h.y < 6;
-    heroShadow.position.set(h.x, 0.03, h.z);
-    heroShadow.scale.setScalar(Math.max(0.3, 1.1 - h.y * 0.12));
+    const floor = !pits.some(p => hz > p.z0 && hz < p.z1);
+    heroShadow.visible = floor && hy < 6;
+    heroShadow.position.set(hx, 0.03, hz);
+    heroShadow.scale.setScalar(Math.max(0.3, 1.1 - hy * 0.12) * (1 + D.stretch.x * -0.5));
 
-    // effects
+    // dust under his feet: a puff at each footfall, a trail behind a roll, a scrape along a wall
+    const grounded = h.mode === "run" && !h.lunge && hy < 0.05;
+    if (dt > 0) {
+      const stepN = Math.floor(hz * 1.9 / Math.PI);
+      if (grounded && !st.rolling && spd > 6 && stepN !== D.step && floor) puff(hx + (stepN & 1 ? 0.14 : -0.14), hz - 0.2, 1, 0.7, 0.13, 0, -spd * 0.12, 0.5);
+      D.step = stepN;
+      D.rollAcc = st.rolling ? D.rollAcc + dt : 0;
+      if (st.rolling && D.rollAcc > 0.05) { D.rollAcc = 0; puff(hx, hz - 0.3, 2, 1.2, 0.2, 0, -spd * 0.25, 0.7); }
+      D.wallAcc = h.mode === "wall" ? D.wallAcc + dt : 0;
+      if (h.mode === "wall" && D.wallAcc > 0.05) { D.wallAcc = 0; puff(hx + h.wall * 0.5, hz - 0.2, 2, 1, 0.16, 0, -spd * 0.2, 1.3, hy + 0.1); }
+    }
+
+    // streaks in the air at the sides, clearer and longer with speed, and a little more in a cut or a dive
+    const fast = clamp((spd - 9) / 7, 0, 1) + (h.lunge ? 0.35 : 0) + (h.mode === "air" && h.slam ? 0.5 : 0);
+    M.streak.opacity = 0.62 * ease(fast);
+    for (let i = 0; i < STREAKS; i++) {
+      const a = streakAt[i], rel = (((a.z - hz) % STREAK_R) + STREAK_R) % STREAK_R, u = rel / STREAK_R;
+      const fade = Math.min(1, u * 8, (1 - u) * 4);
+      m4.compose(v.set(a.x, a.y, hz - 6 + rel), q, fast > 0.01 ? v.clone().set(0.035, 0.035, Math.max(0.01, (a.len + spd * 0.06) * fade)) : nil);
+      streaks.setMatrixAt(i, m4);
+    }
+    streaks.instanceMatrix.needsUpdate = true;
+    streaks.visible = fast > 0.01;
+
+    // particles and effects
+    tickPool(dusts, dt, false); tickPool(sprays, dt, true);
     for (let i = fx.length - 1; i >= 0; i--) {
       const e = fx[i], t = (now - e.born) / e.life;
       if (t >= 1) { world.remove(e.m); if (e.kind === "ring") { e.m.geometry.dispose(); e.m.material.dispose(); } fx.splice(i, 1); continue; }
@@ -597,33 +787,62 @@ export function createRunner(host) {
       else { e.m.position.x += e.vx * dt; e.m.position.z += e.vz * dt; e.vy -= 9 * dt; e.m.position.y += e.vy * dt; e.m.scale.setScalar(0.12 * (1 - t)); }
     }
 
-    // the camera: behind and above, easing to the hero's lane, a little higher when he is
-    camX += (h.x * 0.55 - camX) * Math.min(1, dt * 6);
-    camY += ((3.2 + Math.min(h.y, 4) * 0.35) - camY) * Math.min(1, dt * 4);
+    // the camera (reckoning-move.js): it follows his lane late and leans the way he goes, draws back and widens with speed, and settles after a landing
+    const c = cam.update(pdt, { x: hx, y: hy, vx: kin.vx, speed: spd, wall: h.mode === "wall" ? h.wall : 0, rolling: st.rolling, lunging: !!h.lunge });
+    const fov = clamp(baseFov + c.fov, 40, 90);
+    if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
+    camera.up.set(Math.sin(c.roll), Math.cos(c.roll), 0);
     const sx = (Math.random() - 0.5) * shake * 0.3, sy = (Math.random() - 0.5) * shake * 0.3;
-    camera.position.set(-(camX + sx), camY + sy, h.z - 5.4);
-    camera.lookAt(-camX * 0.6, 1.2 + Math.min(h.y, 4) * 0.25, h.z + 10);
-    sun.position.set(h.x - 5, 10, h.z - 2); sun.target.position.set(h.x, 0, h.z + 8);
-    water.position.z = h.z;
-    renderer.render(scene, camera);
+    camera.position.set(-(c.x + sx), c.y + sy, hz - c.back);
+    camera.lookAt(-c.lookX, c.lookY, hz + c.ahead);
+    sun.position.set(hx - 5, 10, hz - 2); sun.target.position.set(hx, 0, hz + 8);
+    water.position.z = hz;
+    if (o.draw !== false) renderer.render(scene, camera);
   }
 
-  /** The rules' events, as something seen. */
+  /** The rules' events, as something seen: dust and spray, a kick to the camera, a push on the hero's body, and what was already there
+   *  (a burst, a ring, a shake). */
   function ping(ev, S) {
-    const h = S.hero;
+    const h = S.hero, spd = speed(S);
+    const flop = (a, b) => { D.tails.forEach(t => t.kick(a)); D.scarf.forEach(t => t.kick(b)); };    // the cloth is thrown by a change of pace
     switch (ev.type) {
-      case "jump": if (ev.air) ring(h.x, h.y + 0.1, h.z, 1.6, 0.35); break;
+      case "jump":
+        if (ev.air) { ring(h.x, h.y + 0.1, h.z, 1.6, 0.35); D.stretch.kick(1.6); flop(-2, -2.5); break; }
+        D.crouch.set(0.75); D.crouchW = 22; D.stretch.kick(2.4); flop(-3, -4);
+        puff(h.x, h.z - 0.2, 5, 2.2, 0.26, 0, -spd * 0.25, 0.8);
+        break;
+      case "land": {
+        const v = ev.v ?? 8;
+        D.crouch.set(clamp(v / 10, 0.25, ev.slam ? 1.5 : 1.15)); D.crouchW = ev.slam ? 12 : 15;
+        D.stretch.kick(-clamp(v * 0.3, 1.5, 6));
+        flop(-clamp(v * 0.7, 3, 14), -clamp(v * 0.9, 4, 16));
+        cam.land(v);
+        puff(h.x, h.z - 0.1, clamp(Math.round(v / 1.8), 3, 14), 1.4 + v * 0.2, 0.3, 0, -spd * 0.2, 0.8);
+        if (ev.slam) shake = Math.max(shake, 0.8);
+        break;
+      }
+      case "lane":
+        puff(h.x - ev.dir * 0.25, h.z - 0.3, 3, 1.4, 0.22, -ev.dir * 2.2, -spd * 0.2, 0.7);
+        cam.punch(0.8);
+        break;
+      case "lunge": cam.punch(2.2); D.stretch.kick(1.4); break;
+      case "roll": D.crouch.set(0.45); D.crouchW = 18; puff(h.x, h.z - 0.2, 4, 1.6, 0.24, 0, -spd * 0.2, 0.8); break;
+      case "dive": cam.punch(3); D.stretch.kick(2.2); break;
       case "kill": {
         const o = foes.get(ev.id); if (o) { o.how = ev.how; o.dir = ev.dir || 0; }
+        D.recoil.set(1);
         burst(h.x, h.y + 0.8, h.z + 0.5, ev.how === "slam" ? 4 : 7); shake = Math.max(shake, 0.4); break;
       }
       case "launch": shake = Math.max(shake, 0.12); break;
-      case "shockwave": ring(h.x, 0.06, h.z, 5.5, 0.5); shake = 1; break;
+      case "shockwave":
+        ring(h.x, 0.06, h.z, 5.5, 0.5); shake = 1;
+        puff(h.x, h.z + 0.4, 16, 5, 0.34, 0, 0, 1.2);
+        break;
       case "hurt": shake = 1.2; break;
-      case "fall": shake = 0.8; burst(h.x, -1.5, h.z, 8); break;
-      case "land": if (ev.slam) shake = Math.max(shake, 0.8); break;
+      case "fall": shake = 0.8; splash(h.x, h.z, 20, 1.15); break;
       case "clang": shake = 1; break;
-      case "wallrun": case "walljump": shake = Math.max(shake, 0.25); break;
+      case "wallrun": shake = Math.max(shake, 0.25); puff(h.x + ev.side * 0.4, h.z, 4, 1.6, 0.22, 0, -spd * 0.1, 1.2, 1.2); break;
+      case "walljump": shake = Math.max(shake, 0.25); D.crouch.set(0.6); D.crouchW = 20; D.stretch.kick(2); cam.punch(1.5); puff(h.x + ev.side * 0.4, h.z, 5, 2, 0.24, -ev.side * 1.5, 0, 1.4, h.y); break;
     }
   }
 
