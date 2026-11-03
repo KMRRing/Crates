@@ -7,6 +7,7 @@
 export const COOP_GAMES = {
   slitherlink: { id: "slitherlink", name: "Slitherlink", page: "slitherlink.html", keys: ["slitherlink:run"], load: () => import("./slitherlink-coop.js") },
   nurikabe: { id: "nurikabe", name: "Nurikabe", page: "nurikabe.html", keys: ["nurikabe:run"], load: () => import("./nurikabe-coop.js") },
+  hitori: { id: "hitori", name: "Hitori", page: "hitori.html", keys: ["hitori:run"], load: () => import("./hitori-coop.js") },
   masyu: { id: "masyu", name: "Masyu", page: "masyu.html", keys: ["masyu:run"], load: () => import("./masyu-coop.js") },
   bridges: { id: "bridges", name: "Bridges", page: "bridges.html", keys: ["bridges:run", "bridges:lruns", "bridges:track", "bridges:camp"], load: () => import("./bridges-coop.js") },
 };

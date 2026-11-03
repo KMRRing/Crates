@@ -19,7 +19,6 @@ const STILL = {
   "duel.js": 1,
   "gambit.js": 2,
   "harbour.js": 2,
-  "hitori.js": 5,
   "isomer.js": 3,
   "kakuro.js": 3,
   "ladder-room.js": 1,
