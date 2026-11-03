@@ -615,3 +615,14 @@ export function makeDeal(id, key, { tries = 80, onTry = null } = {}) {
   }
   return { order: shuffled(id, key, 0), tryNo: 0, certified: false, line: null, nodes };
 }
+
+/**
+ * What the worker (solitaire-worker.js) answers, and the page when it has no worker: { op: "deal", variant, key } → the
+ * deal's try number; { op: "hint", game } → the line that wins from a position (packed moves), or the moves towards the
+ * position the search liked best when it finds none.
+ */
+export function answer(msg, onTry = null) {
+  if (msg.op === "deal") { const d = makeDeal(msg.variant, msg.key, { onTry }); return { tryNo: d.tryNo, certified: d.certified }; }
+  const r = solve(msg.game, hintBudget(msg.game.v));
+  return { line: r.line, hint: r.hint || null, full: r.full };
+}

@@ -28,6 +28,8 @@ export const VARIANTS = {
   spider4: { game: "spider", suits: 4, name: "Spider", sub: "four suits", cards: 104, cols: 10 },
 };
 export const IDS = Object.keys(VARIANTS);
+/** Whether a game's deals are checked by the solver, so each can be won (solitaire-solver.js `certifies`; tests/solitaire.mjs keeps the two alike). Four-suit Spider's are the shuffle as it falls. */
+export const CHECKED = id => id !== "spider4";
 export const titleOf = id => `${VARIANTS[id].name}${VARIANTS[id].sub ? ` · ${VARIANTS[id].sub}` : ""}`;
 
 // ---------- cards ----------
@@ -305,6 +307,13 @@ export function bestMove(s, f, n) {
     return toTab.map(m => [rate(m), m]).sort((a, b) => { for (let i = 0; i < 5; i++) if (a[0][i] !== b[0][i]) return a[0][i] - b[0][i]; return 0; })[0][1];
   }
   return all.find(m => kindOf(m.t) === CEL) || null;
+}
+
+/** The move a tap on the stock makes: turn a card (or three) onto the waste, turn the waste over, or deal a row (Spider); null if there is none. */
+export function stockMove(s) {
+  const V = VARIANTS[s.v];
+  if (V.game === "klondike") return s.stock.length ? { f: place(STK), t: place(WST), n: Math.min(V.draw, s.stock.length) } : s.waste.length ? { f: place(WST), t: place(STK), n: s.waste.length } : null;
+  return V.game === "spider" ? { f: place(STK), t: place(STK), n: 10 } : null;
 }
 
 /** The move number x of a packed list, as { f, t, n }. */
