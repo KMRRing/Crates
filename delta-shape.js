@@ -6,6 +6,20 @@
 // hex over, slip an end hex in beside a neighbour, move a corner hex to an end, and absorb leftover hexes.
 import { neighbours, unkey, pick, shuffle } from "./delta-base.js";
 
+// What a layout is worth, in points: a wall between two chains and a covered hex are worth the same; a hex short of the
+// floor on length costs more than six covered hexes win, a hex short of the distance more than five. The temperature
+// (how much worse a layout may be and still be taken) falls from HOT to COLD in points.
+const WALL = 3, COVERED = 3, SHORT_LEN = 20, SHORT_DIST = 15, HOT = 5, COLD = 0.4;
+
+/** e to the power x (x at most 0) from plain arithmetic, (1 + x/16)^16: exp and pow may differ in the last bit between
+ *  browsers, and the same seed must give the same board on every phone (today's board, shared links). */
+function likely(x) {
+  if (x <= -16) return 0;
+  let y = 1 + x / 16;
+  y *= y; y *= y; y *= y; y *= y;
+  return y;
+}
+
 /**
  * Lays `count` chains over `cells` (hex keys). want: { minLen, minDist (apart, in hexes, between a chain's two ends),
  * steps (annealing moves per start), starts (how many starts, the best is kept; default 1) }. Returns
@@ -19,7 +33,6 @@ export function carve(rnd, cells, count, want) {
   const dist = (a, b) => { const dq = xy[a][0] - xy[b][0], dr = xy[a][1] - xy[b][1]; return Math.max(Math.abs(dq), Math.abs(dr), Math.abs(dq + dr)); };
   const owner = new Int8Array(n), adj = new Uint8Array(n * n);
   nb.forEach((list, a) => list.forEach(b => { adj[a * n + b] = 1; }));
-  const wallWeight = want.wallWeight ?? 3, T0 = want.hot ?? 5, T1 = want.cold ?? 0.4;
 
   /** What a layout is worth: covered cells and walls between chains, less what falls short of the floors (heavily: they are floors). */
   const worth = paths => {
@@ -32,10 +45,10 @@ export function carve(rnd, cells, count, want) {
       for (const m of nb[c]) if (m > c && owner[m] >= 0 && owner[m] !== owner[c]) walls++;
     }
     for (const p of paths) {
-      short += Math.max(0, want.minLen - p.length) * 20;
-      short += Math.max(0, want.minDist - dist(p[0], p[p.length - 1])) * 15;
+      short += Math.max(0, want.minLen - p.length) * SHORT_LEN;
+      short += Math.max(0, want.minDist - dist(p[0], p[p.length - 1])) * SHORT_DIST;
     }
-    return { value: walls * wallWeight + covered * 3 - short, walls, covered, short };
+    return { value: walls * WALL + covered * COVERED - short, walls, covered, short };
   };
 
   let best = null;
@@ -77,8 +90,9 @@ export function carve(rnd, cells, count, want) {
     for (let step = 0; step < want.steps; step++) {
       const next = propose(paths, n - now.covered);
       if (!next) continue;
-      const w = worth(next), t = T0 * Math.pow(T1 / T0, step / want.steps);
-      if (w.value >= now.value || rnd() < Math.exp((w.value - now.value) / t)) {
+      const left = 1 - step / want.steps, t = COLD + (HOT - COLD) * left * left;     // cooling, by plain arithmetic
+      const w = worth(next);
+      if (w.value >= now.value || rnd() < likely((w.value - now.value) / t)) {
         paths = next; now = w;
         if (now.value > top.value) top = { paths: paths.map(p => p.slice()), ...now };
       }

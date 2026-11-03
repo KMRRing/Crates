@@ -26,6 +26,22 @@ import { shapeOf, nearestPair } from "./delta-metrics.js";
 // many of the numbers they must touch. liveValue: the running value shows while drawing; verdicts: whether a
 // finished path is marked right or wrong straight away, or only once every number is joined. big: round steps
 // that make big numbers (×10, ×100, ×1,000, +300 on a round number…); fractions: ÷ may leave a fraction.
+//
+// shape: what the layout of the answer must meet (delta-shape.js lays it, delta-metrics.js measures it; 3 November 2026,
+// Korbi: paths too short and bundled, "lots of long chains", walls between different answers "quite high"). The floors
+// come from measuring the old generator and the annealing over hundreds of seeds per level:
+//   minLen: hexes in every chain. The old chains were 5 to 9. The field (29, 30 and 32 hexes) is shared by 2, 3 and 3
+//     chains, so the floor leaves each an even share and room for a longer one.
+//   minDist: hexes between a chain's two numbers (a field is 6 across). Numbers adjacent or one hex apart were
+//     the bundled pairs; 4 or more puts a number across the map from its partner.
+//   cover: the share of the field the chains cover; leftovers are blanks to wander in, so few.
+//   walls: borders between hexes of two different chains (Korbi's measure). The old generator's average was 2.4, 7.6 and
+//     10.3; the floors sit at the annealing's lower quartile, so only its weaker layouts are turned down.
+//   each: at least this many walls touch every chain, so none lies apart from the others (the walls of two chains of
+//     three count for both).
+//   steps, starts: annealing moves per start and how many starts (the best is kept); the cost of a layout, not a target.
+// The last phase of generate() may take a quarter off walls and each, 0.05 off cover and 1 off minDist; never before
+// lures, decoys and candidates have relaxed, and never the one-answer rule.
 export const LEVELS = {
   easy: { label: "Easy", radius: 3, gaps: 8, pairs: 2, ops: [3, 4], kinds: "+-", start: [2, 30], step: [1, 20], fits: 6,
     shape: { minLen: 11, minDist: 4, cover: 0.9, walls: 15, each: 15, steps: 2000, starts: 3 },
@@ -461,7 +477,7 @@ export function guessable(board) {
     given[who].push(op);
   }
   const works = (v, left, to) => (left.length ? left.some((op, i) => { const w = apply(v, op); return w && works(w, left.filter((_, j) => j !== i), to); }) : sameValue(v, to));
-  return board.sol.every((p, i) => works(valueOf(board.nums[p.from]), given[i], valueOf(board.nums[p.to])));
+  return board.sol.every((p, i) => [[p.from, p.to], [p.to, p.from]].some(([a, b]) => works(valueOf(board.nums[a]), given[i], valueOf(board.nums[b]))));
 }
 
 const pairing = s => s.map(x => [x.from, x.to].sort().join("~")).sort().join("|");
