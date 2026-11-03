@@ -10,6 +10,10 @@ Hashiwokakero ("build bridges"; 31 October 2026, Korbi's list of genres to add):
 - **Straits**: a dashed line across the sea with a number at its end; exactly that many bridges cross it, a double counting twice.
 - **No loops**: bridges may never close a ring; a double bridge is not a ring.
 
+## Together (3 November 2026)
+- **Race** (`duel.js`, up to six, from a pair or a Party): the same puzzle on each phone, lowest score wins, the solo score (seconds plus 30 a hint). The match is a ladder level at the chosen difficulty picked by the seed, so every twist comes round; the dealing phone makes the puzzle and carries it, answer included, in the match. No penalty for a wrong bridge: its repair already costs time, a counter would tell you which bridge is wrong, and the tap cycle (1, 2, back to none) would punish clearing one.
+- **Co-op** (a partner watches and asks to join; `bridges-coop.js`): one board, the host's puzzle as it is, both lay and clear bridges anywhere. Two changes to one link at once: the later stands. Crossing bridges laid at the same moment both stand and show in oxblood until one is cleared. A shared solve earns no stars, bests or daily; the host's own run keeps the progress.
+
 ## Rulings
 - 1 November 2026, on wrong islands: "highlight it more when the 1+ and ≤5 are wrong and stuff like that, not always super clear from the highlights what's off". A broken rule shows from the marks alone, every time, never from the answer, and the line under the board says which island and by how much.
 - 1 November 2026, on 3D: "Fun atmosphere, which is what the 3D model is really intended for"; "a scenic mode, or just called 3d, which can be applied at all times, and switches the 2d puzzle representation to a beautiful 3d one". The chart and the model are one run; either can be played.

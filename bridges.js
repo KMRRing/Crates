@@ -4,10 +4,12 @@
 // This file keeps the run, the clock and the taps, and draws the board. Two ways to play: Levels (bridges-levels.js: a ladder
 // of puzzles in chapters, each bringing a twist, with stars, each kept as it was left, as Topple's are) and Free play (a size,
 // a difficulty and a twist, a random puzzle or today's).
-import { SIZES, LEVELS, DAILY, TWISTS, puzzleOf, generate, nextMark, withMark, solvedBy, crossed, breaks, whatBreaks, labelOf, hintFor, levelOn, twistOn, flagsOf } from "./bridges-engine.js";
+import { SIZES, LEVELS, DAILY, TWISTS, puzzleOf, generate, nextMark, withMark, solvedBy, crossed, crossings, breaks, whatBreaks, labelOf, hintFor, levelOn, twistOn, flagsOf } from "./bridges-engine.js";
 import { LEVELS as LADDER, CHAPTERS, COUNT, LADDER_VERSION, chapterOf, seedOf, kindOf, parOf, starsFor, migrate } from "./bridges-levels.js";
 import { playable as valid, fromPuzzle, scoreOf as scoreFor, HINT } from "./bridges-run.js";
 import { createDuel } from "./duel.js";
+import { cellEdit, tallyEdit, onceEdit } from "./board-share.js";
+import coopOf, { shareRun } from "./bridges-coop.js";
 import { raceLevel, matchOf, matchValid, nameOf, reportOf } from "./bridges-race.js";
 import { sure } from "./sure.js";
 import { miniature } from "./bridges-mini.js";
@@ -111,8 +113,21 @@ let clockFrom = null, savedAt = 0, message = null, paused = false;
 const isLevel = s => s?.mode === "level";
 const racing = () => S?.mode === "duel";                       // a race at a table (duel.js): the match's run, kept apart from your own
 
+// A party of two opened this page (&coop=1, docs/coop.md): the board is the room's, one board for two phones, and what this file
+// does to the bridges goes through `coop.edit` as edits instead of a change to S.marks. S is built from the room's board each
+// time it moves (showBoard); undo, redo and a hint's gilt stay each player's own. The clock is the team's.
+const COOP = !IN_FRAME && /[?&]coop=1\b/.test(location.search) && /[?&]room=[A-Za-z]{4}\b/.test(location.search);
+let coop = null;                       // coop-page.js's controller once the room's board is on the screen
+let coopHost = false, team = null, sentDone = false;     // this phone is the host's; the board's start ({ at, ms, hints }); the solve is on its way
+const teamMs = () => (team ? (team.ms || 0) + Math.max(0, Date.now() - team.at) : 0);
+const hintId = () => `h${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
 function save() {
   if (IN_FRAME || !S) return;
+  if (COOP) {                      // the host's own run follows the shared board (it is theirs again when the co-op ends); the guest's is left alone
+    if (coopHost) { const kept = { ...S, undo: [], redo: [], lit: null, ms: Math.round(teamMs()) }; if (isLevel(S)) write(LRUNS, { ...read(LRUNS, {}), [S.lv]: kept }); else write(RUN, kept); }
+    return;
+  }
   if (racing()) { duel.keep(S); return; }                      // never in your own run, bests or today's
   if (isLevel(S)) write(LRUNS, { ...read(LRUNS, {}), [S.lv]: S }); else write(RUN, S);
   savedAt = performance.now();
@@ -151,10 +166,12 @@ function introOf(n) {
   return n === ch.from ? { text: `${ch.name}. ${ch.about}`, tone: "" } : null;
 }
 
+/** The engine's puzzle for a run. */
+const puzzleFor = s => puzzleOf(s.size, s.grid, s.sol, s.kinds || "", s.realms || "", s.hills || "", s.roads || "", { straits: s.straits || "", tree: flagsOf(s.twist).tree });
 /** Puts a puzzle on the board. */
 function begin(s) {
   S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
-  P = puzzleOf(S.size, S.grid, S.sol, S.kinds || "", S.realms || "", S.hills || "", S.roads || "", { straits: S.straits || "", tree: flagsOf(S.twist).tree });
+  P = puzzleFor(S);
   message = isLevel(S) && !started() && !S.done ? introOf(S.lv) : null; clockFrom = null;
   $("level").value = levelOn(S.size, S.level);
   if (!racing()) {                                             // a race leaves your way of playing, your level and the address alone
@@ -170,6 +187,7 @@ function begin(s) {
 /** A new solo puzzle: today's, or a random one of the kind chosen. */
 async function start(mode, k = chosenKind()) {
   if (IN_FRAME) return;
+  if (COOP) { coopAnother(); return; }
   if (mode === "daily") {
     const done = busy("Making today's puzzle", { delay: 250 });
     let puzzle;
@@ -224,7 +242,7 @@ async function confirmStart(mode, k) {
 // ---------- the clock ----------
 // A puzzle counts the time it's on screen (S.ms); it stands while the menu, the rules or the games screen is open.
 function clockRun() {
-  if (racing() || IN_FRAME || !S || S.done || clockFrom != null || document.hidden || isPaused()) return;     // a race's clock is the table's, from the start everyone shares
+  if (racing() || COOP || IN_FRAME || !S || S.done || clockFrom != null || document.hidden || isPaused()) return;     // a race's clock is the table's, from the start everyone shares; a co-op's is the team's
   clockFrom = performance.now();
 }
 function clockPause() {
@@ -234,7 +252,7 @@ function clockPause() {
   save();
 }
 onPause(() => { paused = true; clockPause(); cancelPress(); model?.hold(true); }, () => { paused = false; clockRun(); model?.hold(false); });
-const elapsed = () => (!S ? 0 : S.done ? S.done.ms : racing() ? Math.max(0, duel.now() - S.begun) : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
+const elapsed = () => (!S ? 0 : S.done ? S.done.ms : COOP ? teamMs() : racing() ? Math.max(0, duel.now() - S.begun) : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
 const penalty = () => HINT * (S?.hints || 0);
 const scoreOf = ms => scoreFor(ms, S?.hints || 0);
 
@@ -265,9 +283,10 @@ function press(l, how) {
   setLink(l, from, to);
   if (to !== "0") navigator.vibrate?.(8);
 }
-function setLink(l, from, to, undoable = true) {
+function setLink(l, from, to, undoable = true, weak = false, more = []) {
   if (from === to) return;
-  S.marks = withMark(S.marks, l, to);
+  if (coop) coop.edit([cellEdit("marks", l, from, to, weak), ...more]);     // shows at once (showBoard) and goes to the room
+  else S.marks = withMark(S.marks, l, to);
   if (undoable) { S.undo.push([l, from, to]); if (S.undo.length > 400) S.undo.shift(); S.redo = []; }
   S.lit = null;
   changed(l);
@@ -277,7 +296,7 @@ function undo() {
   if (!last || S.done) return;
   const [l, from, to] = last;
   S.redo.push(last);
-  setLink(l, to, from, false);
+  setLink(l, to, from, false, true);        // together, an undo only puts back what is still as you left it: a bridge your partner changed since stays theirs
 }
 function redo() {
   const next = S?.redo.pop();
@@ -319,7 +338,7 @@ function useHint() {
   if (!S || S.done || IN_FRAME || paused) return;
   const h = hintFor(P, S.marks);
   if (!h) return;
-  S.hints++;
+  if (!coop) S.hints++;                                          // together a hint is the room's (a tally, counted once for both of you)
   let link, to, island = null, strait = null, text;
   if (h.wrong != null) {
     ({ wrong: link, should: to } = h);
@@ -333,7 +352,7 @@ function useHint() {
     ({ reveal: link, should: to } = h);
     text = "Hint: this link has a bridge, or two.";
   }
-  setLink(link, S.marks[link], to);
+  setLink(link, S.marks[link], to, true, false, coop ? [tallyEdit("hints", hintId())] : []);
   S.lit = { set: [link], island, strait, text };
   message = null;
   save();
@@ -342,7 +361,15 @@ function useHint() {
 }
 
 // ---------- the end ----------
+/** The bridges are the answer: the time stands for both of you, whoever saw it first (a value that is set once, board-share.js). */
+function finishTogether() {
+  if (S.done || sentDone || !coop) return;
+  sentDone = true;
+  const ms = Math.round(teamMs());
+  coop.edit(onceEdit("done", { ms, score: scoreOf(ms), by: coop.together.room?.name || "" }));
+}
 function finish() {
+  if (coop) { finishTogether(); return; }
   const ms = racing() ? Math.max(0, duel.now() - S.begun) : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0);
   clockFrom = null;
   S.done = { ms, score: scoreOf(ms) };
@@ -421,13 +448,15 @@ function drawBoard() {
 }
 /** An island's classes: its realm, whether its number is only a bound and whether it is a hill, then (from the run) met, over, shut off, a hint's. */
 const islandClass = (i, extra = []) => ["brg-i", P.lay.isl[i].realm ? "r1" : "", P.lay.isl[i].kind ? "rng" : "", P.lay.isl[i].hill ? "hill" : "", ...extra].filter(Boolean).join(" ");
+const NO_LINKS = new Set();
 /** Each link's look from the run (its bridges, a hint's, the wave) and each island's (met, over, shut off, a hint's). */
 function paint() {
   if (!svg || !S) return;
   const br = breaks(P, S.marks), over = new Set(br.over), met = new Set(br.met), cut = new Set(br.cut), lit = new Set(S.lit?.set || []), ring = new Set(br.ring), looped = new Set(br.ring.flatMap(l => [P.lay.links[l].a, P.lay.links[l].b]));
-  trouble = whatBreaks(P, S.marks, br);
+  const cross = coop ? crossings(P, S.marks) : NO_LINKS;           // two partners can lay crossing bridges at once; alone a tap across is refused
+  trouble = cross.size ? "Two bridges cross each other: clear one of them." : whatBreaks(P, S.marks, br);
   linkEls.forEach(({ g }, l) => {
-    const { a, b } = P.lay.links[l], wrong = S.marks[l] !== "0" && (over.has(a) || over.has(b) || (cut.has(a) && cut.has(b)) || ring.has(l));   // a bridge on an island that has too many, inside a group shut off, or round a ring
+    const { a, b } = P.lay.links[l], wrong = S.marks[l] !== "0" && (over.has(a) || over.has(b) || (cut.has(a) && cut.has(b)) || ring.has(l) || cross.has(l));   // a bridge on an island that has too many, inside a group shut off, round a ring, or across another
     const cls = ["brg-l", P.lay.isl[a].realm ? "k1" : "", P.lay.links[l].high ? "hi" : "", S.marks[l] !== "0" ? `c${S.marks[l]}` : "", wrong ? "bad" : "", lit.has(l) ? "lit" : ""].filter(Boolean).join(" ");
     if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
   });
@@ -580,10 +609,12 @@ function drawResult() {
   if (!done) return;
   const d = S.done, bits = [`${fmt(d.ms / 1000)} on the clock`], best = isLevel(S) || racing() ? null : bestOf(S);
   if (S.hints) bits.push(`${plural(S.hints, "hint")} (+${penalty()} s)`);
-  const stars = isLevel(S) ? starsFor(forStars(), d.score) : 0;
-  const tail = isLevel(S) ? ` ${STAR.repeat(stars)}${HOLLOW.repeat(3 - stars)} Par ${fmt(parOf(forStars()))}.` : racing() ? "" : S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
-  $("verdict").textContent = `Solved: ${fmt(d.score)}. ${bits.join(", ")}.${tail}`;
-  $("nextBtn").textContent = racing() ? "The result" : isLevel(S) ? (S.lv + 1 < COUNT ? "Next level" : "Levels") : "Another puzzle";
+  const shared = !!coop || (isLevel(S) && camp.stars[S.lv] < 1);          // a solve for two (or left from one) earns no stars and no best: they are for one player alone
+  const stars = isLevel(S) && !shared ? starsFor(forStars(), d.score) : 0;
+  const tail = shared ? (isLevel(S) && !coop ? " Shared solves earn no stars: a new puzzle of this level is yours to play alone." : "")
+    : isLevel(S) ? ` ${STAR.repeat(stars)}${HOLLOW.repeat(3 - stars)} Par ${fmt(parOf(forStars()))}.` : racing() ? "" : S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
+  $("verdict").textContent = `${coop ? "Solved together" : "Solved"}: ${fmt(d.score)}. ${bits.join(", ")}.${tail}`;
+  $("nextBtn").textContent = racing() ? "The result" : coop || shared ? "Another puzzle" : isLevel(S) ? (S.lv + 1 < COUNT ? "Next level" : "Levels") : "Another puzzle";
 }
 /** The header: in a level the difficulty and the size are the level's own, so the difficulty dropdown gives way to the level. */
 function chrome() {
@@ -683,6 +714,16 @@ function levelList() {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  if (coop) {                                                  // in a party of two: one board, the way out
+    const play = part(body, "play");
+    play.append(action("Another puzzle", coopAnother, "primary"));
+    if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
+    play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
+    part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both. If you both change one link at once, the later change stands.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
+    part(body, "about").append(line(S ? `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: ${S.done ? "solved" : "not solved yet"}.` : "Join the islands."));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   if (duel.on) {                                                // at a table: the match, the rules, the next match's difficulty
     const play = part(body, "play"), m = duel.match;
     play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
@@ -734,7 +775,16 @@ function kindChanged() {
 }
 async function clearBoard() {
   if (!S || S.done) return;
-  if (!(await sure("Clear every bridge on the board?", { yes: "Clear" })) || !S || S.done) return;
+  if (!(await sure(coop ? "Clear every bridge on the board? It clears it for both of you." : "Clear every bridge on the board?", { yes: "Clear" })) || !S || S.done) return;
+  if (coop) {
+    const laid = Array.from(S.marks, (m, l) => [l, m]).filter(([, m]) => m !== "0");
+    for (const [l, m] of laid) S.undo.push([l, m, "0"]);
+    S.redo = [];
+    S.lit = null;
+    coop.edit(laid.map(([l, m]) => cellEdit("marks", l, m, "0")));
+    changed();
+    return;
+  }
   for (let l = 0; l < S.marks.length; l++) if (S.marks[l] !== "0") setLink(l, S.marks[l], "0");
 }
 async function copyLink() {
@@ -797,6 +847,45 @@ function tellSoon() {   // a report for every tap would be a write for every tap
   tellTimer = setTimeout(() => { tellTimer = 0; if (racing() && !S.done) tell(); }, 1500);
 }
 
+// ---------- together: one board for two (coop-page.js, docs/coop.md) ----------
+/** The shared board for a run: the host's puzzle as it is, or a new one. */
+const shareOf = run => shareRun({ v: 1, ms: 0, hints: 0, ...run });
+/** The board of a party of two: the room's, drawn each time it moves. */
+function showBoard(board, info) {
+  const run = coopOf.run(board), wasDone = !!S?.done;
+  team = board.start || team;
+  coopHost = info.host;
+  if (info.fresh || !S) {                                       // a board not drawn before: its puzzle on the screen
+    S = { undo: [], redo: [], ms: 0, lit: null, ...run };
+    P = puzzleFor(S);
+    message = null; sentDone = false;
+    $("level").value = levelOn(S.size, S.level);
+    drawBoard();
+  } else { S.marks = run.marks; S.hints = run.hints; S.done = run.done; }
+  if (S.done) S.lit = null;
+  else if (solvedBy(P, S.marks)) finishTogether();
+  if (S.done && !wasDone && !info.fresh) wave();
+  save();
+  paint();
+  render();
+}
+/** Another puzzle for both of you, of the same kind as this one (a level's recipe, or the free puzzle's size, difficulty and twist). */
+async function coopAnother() {
+  if (!coop || !S) return;
+  if (started() && !(await sure("Start a new puzzle for both of you? This one isn't solved.", { yes: "New puzzle" }))) return;
+  const k = { size: S.size, level: S.level, twist: S.twist }, { seed, puzzle } = await nextPuzzle(k);
+  if (puzzle) await coop.renew(shareOf(fromPuzzle(isLevel(S) ? "level" : "random", seed, k, puzzle, isLevel(S) ? { lv: S.lv } : {})));
+}
+async function joinPartner() {
+  const { startCoop } = await import("./coop-page.js");
+  coop = await startCoop("bridges", {
+    toast, show: showBoard,
+    fresh: async () => { const k = chosenKind(), { seed, puzzle } = await nextPuzzle(k); return shareOf(fromPuzzle("random", seed, k, puzzle)); },
+    bar: el => { $("kind").hidden = true; $("kind").after(el); },
+  });
+  if (!coop && !IN_FRAME) solo();
+}
+
 // ---------- wiring ----------
 const levelDropdown = dropdown($("level"));   // the header dropdown in the suite's style (see dropdown.js)
 bindSwitcher($("appsBtn"), "bridges");
@@ -808,6 +897,8 @@ $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => {
   if (racing()) duel.open();
+  else if (coop) coopAnother();
+  else if (isLevel(S) && camp.stars[S.lv] < 1) levelBlock(S.lv, true);      // a level solved with a partner: a new puzzle of it, to play alone for its stars
   else if (isLevel(S)) { if (S.lv + 1 < COUNT && isOpen(S.lv + 1)) playLevel(S.lv + 1); else openMenu(); }
   else start("random");
 });
@@ -827,10 +918,10 @@ $("viewBtn").addEventListener("click", () => setView(prefs.view === "model" ? "c
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
-document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); duel.resync(); } });
+document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); duel.resync(); coop?.together.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("pagehide", () => clockPause());
-window.addEventListener("hashchange", () => { if (duel.on) return; const l = linked(); if (l && !(S && S.seed === l.seed && S.mode === l.mode && (!isLevel(l) || S.lv === l.lv))) openLinked(l); });
+window.addEventListener("hashchange", () => { if (duel.on || COOP) return; const l = linked(); if (l && !(S && S.seed === l.seed && S.mode === l.mode && (!isLevel(l) || S.lv === l.lv))) openLinked(l); });
 setInterval(() => {
   if (!S) return;
   drawStrip();
@@ -839,7 +930,7 @@ setInterval(() => {
 
 // for tests and debugging
 window.__bridges = {
-  get duel() { return duel; }, get state() { return S; }, get model() { return model; }, setView, get puzzle() { return P; }, get camp() { return camp; }, get track() { return track; }, press, useHint, undo, redo, start, playLevel, setTrack, linkAt,
+  get duel() { return duel; }, get coop() { return coop; }, get state() { return S; }, get model() { return model; }, setView, get puzzle() { return P; }, get camp() { return camp; }, get track() { return track; }, press, useHint, undo, redo, start, playLevel, setTrack, linkAt,
   /** Where a link's middle is on the screen, for tests that tap it as a finger would. */
   screenOf: l => {
     const m = svg.getScreenCTM(), { x1, y1, x2, y2 } = seg[l], x = (x1 + x2) / 2, y = (y1 + y2) / 2;
@@ -863,5 +954,7 @@ async function solo() {
 }
 $("level").value = chosenKind().level;
 // a match in the address: its table, with no solo puzzle made under it
-if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); }); else solo();
+if (COOP) joinPartner().catch(e => { console.error(e); solo(); });
+else if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });
+else solo();
 if (prefs.view === "model") setView("model", false);

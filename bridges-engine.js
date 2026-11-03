@@ -516,6 +516,8 @@ export function solvedBy(P, marks) {
 }
 /** Whether drawing a bridge on a link would cross one already drawn. */
 export const crossed = (P, marks, l) => P.lay.cross[l].some(k => marks[k] !== "0");
+/** The links with a bridge on them that crosses another bridge. One player is never allowed it (`crossed`), two partners laying at once can make it. */
+export const crossings = (P, marks) => new Set(Array.from(marks, (m, l) => (m !== "0" && crossed(P, marks, l) ? l : -1)).filter(l => l >= 0));
 /**
  * What the marks break, from the rules alone (never the answer): the islands with more bridges than their number, the
  * islands met, and the islands in a group that has all its bridges while others are left out.

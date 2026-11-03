@@ -6,6 +6,7 @@
 // the shared board (coop-page.js).
 export const COOP_GAMES = {
   slitherlink: { id: "slitherlink", name: "Slitherlink", page: "slitherlink.html", keys: ["slitherlink:run"], load: () => import("./slitherlink-coop.js") },
+  bridges: { id: "bridges", name: "Bridges", page: "bridges.html", keys: ["bridges:run", "bridges:lruns", "bridges:track", "bridges:camp"], load: () => import("./bridges-coop.js") },
 };
 
 export const isCoop = id => Object.hasOwn(COOP_GAMES, id);

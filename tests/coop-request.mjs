@@ -176,8 +176,9 @@ async function land(dev, who) {
     check(entry.id === id && fs.existsSync(root + entry.page) && entry.keys.length > 0 && entry.keys.every(k => k.startsWith(`${id}:`)), `${id}: its page exists and its board is kept under its own keys`);
     check(["share", "run", "valid"].every(f => typeof adapter[f] === "function") && (!adapter.rules || ["merge", "frozen"].some(f => typeof adapter.rules[f] === "function")), `${id}: its adapter says how a run becomes a board and back`);
     check(/startCoop\(/.test(page) && /coop=1/.test(page) && /coop\.edit\(/.test(page) && !/\bconfirm\(/.test(page), `${id}: its page joins the party of two and sends edits`);
-    check(new RegExp(`id: "${id}",[^\\n]*players: \\[1, 2\\]`).test(apps), `${id}: apps.js says one or two can play it`);
-    check(!duo.has(id) && !ELSEWHERE.some(e => e.id === id), `${id}: not also a duo match or a party table (those are other ways to play together, with their own tests)`);
+    const race = ELSEWHERE.find(e => e.id === id);          // a game that is also raced on one deal (Bridges: duel.js) seats what the race seats
+    check(new RegExp(`id: "${id}",[^\\n]*players: \\[1, ${race ? race.max : 2}\\]`).test(apps), `${id}: apps.js says ${race ? `one to ${race.max}` : "one or two"} can play it`);
+    check(race ? duo.has(id) && race.race === true : !duo.has(id), `${id}: a duo match or party table only as a race on one deal (duel.js: its own tests), never as another way to share a board`);
   }
 }
 
