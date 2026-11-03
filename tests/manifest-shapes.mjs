@@ -8,20 +8,22 @@ const R = await import("../manifest-rules.js");
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const NAMES = R.CARGO.map(c => c.key);
+const NAME = t => (R.isLong(t) ? "long " : "") + NAMES[R.typeOf(t) - 1];
 
-// the meshes
+// the meshes: the eight types, each in its cell, and the two long logs (cell codes 9 and 10), each in two cells in a line along x
 {
   const problems = [];
-  for (let t = 1; t <= R.TYPES; t++) {
-    const m = Sh.meshOf(t), n = m.pos.length / 3;
-    if (!n || m.nor.length !== m.pos.length || m.part.length !== n * 4 || m.index.length % 3) problems.push(`${NAMES[t - 1]}: arrays disagree`);
-    if (m.index.some(i => i >= n)) problems.push(`${NAMES[t - 1]}: an index past the vertices`);
-    if (![...m.pos, ...m.nor, ...m.part].every(Number.isFinite)) problems.push(`${NAMES[t - 1]}: a number that isn't`);
-    // inside the cell (a hair over for the lumps), standing on its floor and reaching up toward its top
+  for (let t = 1; t <= R.CODES; t++) {
+    const m = Sh.meshOf(t), n = m.pos.length / 3, reach = R.isLong(t) ? 1 : 0.5;
+    if (!n || m.nor.length !== m.pos.length || m.part.length !== n * 4 || m.index.length % 3) problems.push(`${NAME(t)}: arrays disagree`);
+    if (m.index.some(i => i >= n)) problems.push(`${NAME(t)}: an index past the vertices`);
+    if (![...m.pos, ...m.nor, ...m.part].every(Number.isFinite)) problems.push(`${NAME(t)}: a number that isn't`);
+    // inside the cell (a hair over for the lumps; a long log, the two cells along x), standing on its floor and reaching up toward its top
     const lo = [1, 1, 1], hi = [-1, -1, -1];
     for (let i = 0; i < m.pos.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], m.pos[i + k]); hi[k] = Math.max(hi[k], m.pos[i + k]); }
-    if (lo.some(v => v < -0.5 - 0.005) || hi.some(v => v > 0.5 + 0.005)) problems.push(`${NAMES[t - 1]}: leaves its cell (${lo.map(v => v.toFixed(3))} to ${hi.map(v => v.toFixed(3))})`);
-    if (lo[1] > -0.49 || hi[1] < 0.4) problems.push(`${NAMES[t - 1]}: doesn't stand on the floor and reach up (${lo[1].toFixed(2)} to ${hi[1].toFixed(2)})`);
+    if (lo.some((v, k) => v < -(k ? 0.5 : reach) - 0.005) || hi.some((v, k) => v > (k ? 0.5 : reach) + 0.005)) problems.push(`${NAME(t)}: leaves its cell (${lo.map(v => v.toFixed(3))} to ${hi.map(v => v.toFixed(3))})`);
+    if (lo[1] > -0.49 || hi[1] < 0.4) problems.push(`${NAME(t)}: doesn't stand on the floor and reach up (${lo[1].toFixed(2)} to ${hi[1].toFixed(2)})`);
+    if (R.isLong(t) && (lo[0] > -1.9 / 2 || hi[0] < 1.9 / 2)) problems.push(`${NAME(t)}: isn't two cells long (${lo[0].toFixed(2)} to ${hi[0].toFixed(2)})`);
     // outward: the signed volume is positive, every normal unit length, and every triangle winds with its normals
     let vol = 0, off = 0;
     for (let k = 0; k < m.index.length; k += 3) {
@@ -31,14 +33,18 @@ const NAMES = R.CARGO.map(c => c.key);
       const i0 = m.index[k] * 3;
       if (g[0] * m.nor[i0] + g[1] * m.nor[i0 + 1] + g[2] * m.nor[i0 + 2] <= 0) off++;
     }
-    if (vol <= 0.2) problems.push(`${NAMES[t - 1]}: volume ${vol.toFixed(2)} (inside out, or nearly nothing)`);
-    if (off) problems.push(`${NAMES[t - 1]}: ${off} triangles wind against their normals`);
-    for (let i = 0; i < m.nor.length; i += 3) if (Math.abs(Math.hypot(m.nor[i], m.nor[i + 1], m.nor[i + 2]) - 1) > 1e-3) { problems.push(`${NAMES[t - 1]}: a normal that isn't a unit`); break; }
+    if (vol <= 0.2) problems.push(`${NAME(t)}: volume ${vol.toFixed(2)} (inside out, or nearly nothing)`);
+    if (off) problems.push(`${NAME(t)}: ${off} triangles wind against their normals`);
+    for (let i = 0; i < m.nor.length; i += 3) if (Math.abs(Math.hypot(m.nor[i], m.nor[i + 1], m.nor[i + 2]) - 1) > 1e-3) { problems.push(`${NAME(t)}: a normal that isn't a unit`); break; }
   }
-  check(!problems.length, `the eight meshes are closed solids inside their cell, standing on its floor, facing outward${problems.length ? ": " + problems.join("; ") : ""}`);
+  check(!problems.length, `the eight meshes and the two long logs are closed solids inside their cells, standing on the floor, facing outward${problems.length ? ": " + problems.join("; ") : ""}`);
   check(Sh.meshOf(2) === Sh.meshOf(2) && Sh.meshOf(3).index.length > 1000, "a mesh is built once and kept");
-  let threw = false; try { Sh.meshOf(R.TYPES + 1); } catch { threw = true; }
-  check(threw && Sh.MESH_TYPES === R.TYPES, "there is no ninth type");
+  let threw = false; try { Sh.meshOf(R.CODES + 1); } catch { threw = true; }
+  check(threw && Sh.MESH_TYPES === R.CODES, "there is no eleventh code");
+  // a long log is its tree's bundle twice over: the same cross-section, the same number of logs, the ropes spread along it
+  const section = m => { const lo = [9, 9], hi = [-9, -9]; for (let i = 0; i < m.pos.length; i += 3) for (let k = 0; k < 2; k++) { lo[k] = Math.min(lo[k], m.pos[i + 1 + k]); hi[k] = Math.max(hi[k], m.pos[i + 1 + k]); } return [...lo, ...hi].map(v => Math.round(v * 20)); };
+  check([[R.LONG_OAK, R.TIMBER], [R.LONG_BIRCH, R.BIRCH]].every(([l, s]) => JSON.stringify(section(Sh.meshOf(l))) === JSON.stringify(section(Sh.meshOf(s)))) && Sh.LONG_ROPES.length === 4 && Sh.LONG_ROPES.every(x => Math.abs(x) > 0.1 && Math.abs(x) < 0.9),
+    "a long log has its tree's cross-section (oak's four logs, birch's six), roped four times along its length, none on the join");
   const gold = Sh.meshOf(R.GOLD), tin = Sh.meshOf(R.INGOT);
   check(gold !== tin && gold.pos.length === tin.pos.length && gold.pos.every((v, i) => v === tin.pos[i]),
     "gold ingots are the ingots' shape exactly (the exception to 'no two types share an outline', which colour and the crown make up for)");
@@ -78,6 +84,27 @@ const NAMES = R.CARGO.map(c => c.key);
   const area = outlines.map(o => o[0].reduce((n, v) => n + v, 0));
   const cell = Sh.silhouette(1, 96).reduce((n, v) => n + v, 0);
   check(area.every(a => a / cell >= 0.45), `each type fills at least 45% of the cell's outline (${area.map((a, i) => `${NAMES[i]} ${(100 * a / cell).toFixed(0)}%`).join(", ")}): gaps are fine, but not hollows`);
+}
+
+// a long log's two halves: what the engine takes each cell of it to cover (outlineOf with `half`) must be inside the cell and, put
+// where the two cells are, must cover the whole log's silhouette (else the engine would call a piece hidden that is drawn)
+{
+  const inCell = o => o.length >= 6 && o.every(([x, y]) => Math.abs(x) <= 0.87 && Math.abs(y) <= 1.0);
+  const halves = [R.LONG_OAK, R.LONG_BIRCH].flatMap(c => [false, true].flatMap(along => [0, 1].map(h => Sh.outlineOf(c, along, h))));
+  check(halves.every(inCell) && Sh.outlineOf(R.LONG_OAK, false, 0) === Sh.outlineOf(R.LONG_OAK, false, 0) && Sh.outlineOf(R.LONG_OAK, false, 0) !== Sh.outlineOf(R.LONG_OAK, false, 1),
+    "each half of a long log covers no more than its cell (the engine counts a cell's pixels), a half apiece");
+  const inside = (poly, [px, py], tol) => {
+    const sides = poly.map(([ax, ay], i) => { const [bx, by] = poly[(i + 1) % poly.length]; return ((bx - ax) * (py - ay) - (by - ay) * (px - ax)) / Math.hypot(bx - ax, by - ay); });
+    return sides.every(s => s >= -tol) || sides.every(s => s <= tol);
+  };
+  let miss = 0, total = 0;
+  for (const c of [R.LONG_OAK, R.LONG_BIRCH]) for (const along of [false, true]) {
+    const yaw = along ? Sh.yawAlongY(c) : 0, n = 96, mask = Sh.silhouette(c, n, yaw);
+    // each half's cell is half a cell either side of the log's middle, along the way the log lies
+    const placed = [0, 1].map(h => { const at = Sh.screenOf([(h ? 0.5 : -0.5) * Math.cos(yaw), 0, -(h ? 0.5 : -0.5) * Math.sin(yaw)]); return Sh.outlineOf(c, along, h).map(([x, y]) => [x + at[0], y + at[1]]); });
+    for (let i = 0; i < mask.length; i++) if (mask[i]) { total++; const p = [((i % n) + 0.5) / n * 2 - 1, (Math.floor(i / n) + 0.5) / n * 2 - 1.25]; if (!placed.some(poly => inside(poly, p, 0.03))) miss++; }
+  }
+  check(total > 4000 && miss / total < 0.003, `the two halves' outlines, put in their cells, cover the whole long log either way it lies (${miss} of ${total} pixels outside)`);
 }
 
 console.log(bad ? `${bad} problems` : "all checks pass");

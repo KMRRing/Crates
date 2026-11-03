@@ -14,10 +14,12 @@
 //   sack   0 the bag, 1 the knot
 //   gold   the ingots' mesh again (same shape, told apart by colour and by the crown stamped on the top: GOLD_MARK)
 //   birch  0 bark, 1 sawn end, 2 rope            (seed: the log, 0..5)
+//   long oak, long birch (cell codes 9 and 10): the same parts and seeds as the short bundle, two cells long (x from -1 to 1), the
+//     join of its two halves at x = 0, where every log has a ring of vertices so that each half has an outline of its own
 // What a piece does not fill of its cell stays empty: a round thing leaves gaps, and what shows through a stack is still
 // decided by the cell (the engine's visibleSet).
-import { isTimber } from "./manifest-rules.js";
-export const MESH_TYPES = 8;
+import { isTimber, isLong } from "./manifest-rules.js";
+export const MESH_TYPES = 10;                                            // the eight types and the two long logs
 
 // ---------- a little geometry ----------
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -149,21 +151,26 @@ export const LOGS = [
   { y: 0.196, z: -0.232, r: 0.229, len: 0.95, at: -0.02 },
   { y: 0.196, z: 0.232, r: 0.232, len: 0.98, at: 0.0 },
 ];
-function timber() {
+/** A bundle of oak. `long`: the long log, the same bundle two cells long (each log a hair short of twice the short one's, so the ends
+ *  are ragged as before, a ring of vertices at x = 0 where the halves meet, four ropes). */
+function timber(long = false) {
   const m = fresh();
   LOGS.forEach((L, k) => {
-    const lumps = (u, v) => 1 + 0.045 * (noise(Math.cos(u * TAU) * 2.2 + k * 9, Math.sin(u * TAU) * 2.2 + v * 5) - 0.5);
-    surface(m, 18, 6, (u, v) => { const a = u * TAU, r = L.r * lumps(u, v); return [L.at + (v - 0.5) * L.len, L.y + Math.sin(a) * r, L.z + Math.cos(a) * r]; },
+    const len = long ? 2 * L.len - 0.03 : L.len, at = long ? 0 : L.at;
+    const lumps = (u, v) => 1 + 0.045 * (noise(Math.cos(u * TAU) * 2.2 + k * 9, Math.sin(u * TAU) * 2.2 + v * (long ? 10 : 5)) - 0.5);
+    surface(m, 18, long ? 12 : 6, (u, v) => { const a = u * TAU, r = L.r * lumps(u, v); return [at + (v - 0.5) * len, L.y + Math.sin(a) * r, L.z + Math.cos(a) * r]; },
       p => [0, p[1] - L.y, p[2] - L.z], 0, k, (u, v) => [u, v]);
     for (const sgn of [1, -1]) {
-      const x = L.at + sgn * L.len / 2, mid = vert(m, [x, L.y, L.z], [sgn, 0, 0], 1, k, 0, 0);
+      const x = at + sgn * len / 2, mid = vert(m, [x, L.y, L.z], [sgn, 0, 0], 1, k, 0, 0);
       const ring = Array.from({ length: 25 }, (_, q) => { const a = q / 24 * TAU; return vert(m, [x, L.y + Math.sin(a) * L.r * lumps(a / TAU, sgn > 0 ? 1 : 0), L.z + Math.cos(a) * L.r * lumps(a / TAU, sgn > 0 ? 1 : 0)], [sgn, 0, 0], 1, k, Math.sin(a), Math.cos(a)); });
       for (let q = 0; q < 24; q++) m.i.push(mid, ring[q], ring[q + 1]);
     }
   });
-  for (const x of [-0.29, 0.29]) loop(m, x, roundRect(-0.015, 0, 0.463, 0.478), 0.022, 2, 0);
+  for (const x of long ? LONG_ROPES : [-0.29, 0.29]) loop(m, x, roundRect(-0.015, 0, 0.463, 0.478), 0.022, 2, 0);
   return m;
 }
+/** Where the ropes of a long bundle lie along it: evenly, each well inside a half (none on the join). */
+export const LONG_ROPES = [-0.72, -0.24, 0.24, 0.72];
 
 /** The slender logs of a bundle of birch lying along x, six in a pyramid (three, two, one): the end is a triangle, where oak's is a
  *  square of four thick logs, so the two trees are told apart by outline before colour. */
@@ -181,19 +188,20 @@ function roundTri(logs, pad) {
   });
   return u => { const f = u * n, i = Math.floor(f) % n, k = f - Math.floor(f), a = pts[i], b = pts[(i + 1) % n]; return [0, lerp(a[1], b[1], k), lerp(a[2], b[2], k)]; };
 }
-function birch() {
+function birch(long = false) {
   const m = fresh();
   BIRCH_LOGS.forEach((L, k) => {
-    const lumps = (u, v) => 1 + 0.03 * (noise(Math.cos(u * TAU) * 2.2 + k * 9, Math.sin(u * TAU) * 2.2 + v * 5) - 0.5);
-    surface(m, 16, 6, (u, v) => { const a = u * TAU, r = L.r * lumps(u, v); return [L.at + (v - 0.5) * L.len, L.y + Math.sin(a) * r, L.z + Math.cos(a) * r]; },
+    const len = long ? 2 * L.len - 0.03 : L.len, at = long ? 0 : L.at;
+    const lumps = (u, v) => 1 + 0.03 * (noise(Math.cos(u * TAU) * 2.2 + k * 9, Math.sin(u * TAU) * 2.2 + v * (long ? 10 : 5)) - 0.5);
+    surface(m, 16, long ? 12 : 6, (u, v) => { const a = u * TAU, r = L.r * lumps(u, v); return [at + (v - 0.5) * len, L.y + Math.sin(a) * r, L.z + Math.cos(a) * r]; },
       p => [0, p[1] - L.y, p[2] - L.z], 0, k, (u, v) => [u, v]);
     for (const sgn of [1, -1]) {
-      const x = L.at + sgn * L.len / 2, mid = vert(m, [x, L.y, L.z], [sgn, 0, 0], 1, k, 0, 0);
+      const x = at + sgn * len / 2, mid = vert(m, [x, L.y, L.z], [sgn, 0, 0], 1, k, 0, 0);
       const ring = Array.from({ length: 21 }, (_, q) => { const a = q / 20 * TAU; return vert(m, [x, L.y + Math.sin(a) * L.r, L.z + Math.cos(a) * L.r], [sgn, 0, 0], 1, k, Math.sin(a), Math.cos(a)); });
       for (let q = 0; q < 20; q++) m.i.push(mid, ring[q], ring[q + 1]);
     }
   });
-  for (const x of [-0.29, 0.29]) loop(m, x, roundTri(BIRCH_LOGS, BIRCH_LOGS[0].r + 0.012), 0.012, 2, 0);
+  for (const x of long ? LONG_ROPES : [-0.29, 0.29]) loop(m, x, roundTri(BIRCH_LOGS, BIRCH_LOGS[0].r + 0.012), 0.012, 2, 0);
   return m;
 }
 
@@ -263,12 +271,12 @@ function sack() {
   return m;
 }
 
-const BUILD = [crate, barrel, timber, ingots, chest, sack, ingots, birch];
+const BUILD = [crate, barrel, () => timber(), ingots, chest, sack, ingots, () => birch(), () => timber(true), () => birch(true)];
 const cache = [];
-/** The mesh of cargo type 1..8: { pos, nor, part, index }. */
+/** The mesh of cargo type 1..8, or of cell code 9 or 10 (a long log, two cells long, centred on both): { pos, nor, part, index }. */
 export function meshOf(type) {
   const k = type - 1;
-  if (!BUILD[k]) throw new Error(`no cargo type ${type}`);
+  if (!BUILD[k]) throw new Error(`no cargo type or cell code ${type}`);
   return (cache[k] ??= finish(BUILD[k]()));
 }
 
@@ -285,16 +293,25 @@ export function hull(points) {
   return lo.slice(0, -1).concat(up.slice(0, -1));
 }
 const outlines = new Map();
+/** How a piece of timber is turned about the vertical to lie along y: a short bundle is the same either way round, so a quarter turn
+ *  will do; a long log must keep its low half toward low y, which is a quarter turn the other way (its x runs toward y). */
+export const yawAlongY = code => (isLong(code) ? -Math.PI / 2 : Math.PI / 2);
 /**
- * What a piece of type 1..8 covers of the screen, as a convex polygon in the engine's screen units around the middle of its
- * cell: the hull of its mesh seen by the isometric camera (`alongY`: a bundle of timber lying along y). The engine decides
- * what you could see by these, so a round piece that leaves a corner of its cell empty doesn't count as seen through it.
+ * What a piece covers of the screen, as a convex polygon in the engine's screen units around the middle of its cell: the hull of
+ * its mesh seen by the isometric camera (`alongY`: timber lying along y). The engine decides what you could see by these, so a round
+ * piece that leaves a corner of its cell empty doesn't count as seen through it. A long log is two cells, so `half` (0 the low cell
+ * along its axis, 1 the high) gives the hull of the half in that cell, about the middle of that cell.
  */
-export function outlineOf(type, alongY = false) {
-  const key = type * 2 + (alongY && isTimber(type) ? 1 : 0);
+export function outlineOf(code, alongY = false, half = null) {
+  const long = isLong(code) && half != null, turned = alongY && isTimber(code);
+  const key = (code * 2 + (turned ? 1 : 0)) * 3 + (long ? 1 + half : 0);
   if (!outlines.has(key)) {
-    const { pos } = meshOf(type), yaw = key & 1 ? Math.PI / 2 : 0, c = Math.cos(yaw), s = Math.sin(yaw), pts = [];
-    for (let i = 0; i < pos.length; i += 3) pts.push(screenOf([pos[i] * c + pos[i + 2] * s, pos[i + 1], -pos[i] * s + pos[i + 2] * c]));
+    const { pos } = meshOf(code), yaw = turned ? yawAlongY(code) : 0, c = Math.cos(yaw), s = Math.sin(yaw), shift = long ? (half ? -0.5 : 0.5) : 0, pts = [];
+    for (let i = 0; i < pos.length; i += 3) {
+      if (long && (half ? pos[i] < -1e-6 : pos[i] > 1e-6)) continue;           // the other half of the log
+      const x = pos[i] + shift;
+      pts.push(screenOf([x * c + pos[i + 2] * s, pos[i + 1], -x * s + pos[i + 2] * c]));
+    }
     outlines.set(key, hull(pts));
   }
   return outlines.get(key);
