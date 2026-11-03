@@ -9,7 +9,8 @@ import { LEVELS as LADDER, CHAPTERS, COUNT, LADDER_VERSION, chapterOf, seedOf, k
 import { playable as valid, fromPuzzle, scoreOf as scoreFor, HINT } from "./bridges-run.js";
 import { createDuel } from "./duel.js";
 import { cellEdit, tallyEdit, onceEdit } from "./board-share.js";
-import coopOf, { shareRun } from "./bridges-coop.js";
+import coopOf, { shareRun, halves, sees, splitOn, pingValue, newPings, PING_FOR } from "./bridges-coop.js";
+import { branchPath } from "./rooms.js";
 import { raceLevel, matchOf, matchValid, nameOf, reportOf } from "./bridges-race.js";
 import { sure } from "./sure.js";
 import { miniature } from "./bridges-mini.js";
@@ -17,7 +18,7 @@ import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, mirror, toggle, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
@@ -119,6 +120,7 @@ const racing = () => S?.mode === "duel";                       // a race at a ta
 const COOP = !IN_FRAME && /[?&]coop=1\b/.test(location.search) && /[?&]room=[A-Za-z]{4}\b/.test(location.search);
 let coop = null;                       // coop-page.js's controller once the room's board is on the screen
 let coopHost = false, team = null, sentDone = false;     // this phone is the host's; the board's start ({ at, ms, hints }); the solve is on its way
+let splitting = false, hidden = new Set();   // the numbers are split between the two of you (the board's setting); the islands whose number this phone doesn't show
 const teamMs = () => (team ? (team.ms || 0) + Math.max(0, Date.now() - team.at) : 0);
 const hintId = () => `h${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -326,7 +328,7 @@ function explain(x) {
     if (x.tech === "all") return `The strait marked ${n} needs every bridge the roads across it can carry: this link takes ${WORD[x.to]}.`;
     return `The other roads across the strait marked ${n} can't carry enough, so this link has at least ${bridges}.`;
   }
-  const n = labelOf(P.lay.isl[x.at]);
+  const n = hidden.has(x.at) ? "island" : labelOf(P.lay.isl[x.at]);        // a hint doesn't read out a number that is your partner's
   switch (x.tech) {
     case "all": return `The ${n} here needs every bridge its links can carry: this link takes ${WORD[x.to]}.`;
     case "need": return `The other links of this ${n} can't carry enough, so this link has at least ${bridges}.`;
@@ -437,22 +439,30 @@ function drawBoard() {
     if (isle.hill) for (const r of [DISC + 0.09, DISC + 0.17]) svgEl("circle", { cx: x, cy: y, r, class: "brg-hill" }, g);       // a hill: contour lines round it
     svgEl("circle", { cx: x, cy: y, r: DISC + (isle.hill ? 0.26 : 0.1), class: "brg-halo" }, g);        // drawn only round an island that breaks a rule
     svgEl("circle", { cx: x, cy: y, r: DISC, class: "brg-disc" }, g);
-    const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "brg-num", "font-size": (isle.kind || isle.n > 9 ? 0.4 : 0.5) * TEXT_SCALE, transform: `translate(${x} ${y}) scale(${1 / TEXT_SCALE})` }, g);
-    t.textContent = labelOf(isle);
+    const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "brg-num", "font-size": numberSize(i), transform: `translate(${x} ${y}) scale(${1 / TEXT_SCALE})` }, g);
+    t.textContent = numberOf(i);
     return g;
   });
+  for (const { timer } of rings.values()) clearTimeout(timer);
+  rings.clear();
   $("board").replaceChildren(svg);
   svg.addEventListener("pointerdown", down);
   svg.addEventListener("contextmenu", e => e.preventDefault());
   paint();
 }
 /** An island's classes: its realm, whether its number is only a bound and whether it is a hill, then (from the run) met, over, shut off, a hint's. */
-const islandClass = (i, extra = []) => ["brg-i", P.lay.isl[i].realm ? "r1" : "", P.lay.isl[i].kind ? "rng" : "", P.lay.isl[i].hill ? "hill" : "", ...extra].filter(Boolean).join(" ");
+const islandClass = (i, extra = []) => ["brg-i", P.lay.isl[i].realm ? "r1" : "", P.lay.isl[i].kind && !hidden.has(i) ? "rng" : "", P.lay.isl[i].hill ? "hill" : "", hidden.has(i) ? "unk" : "", ...extra].filter(Boolean).join(" ");
+/** An island's number as this phone shows it: a ? where it is your partner's to say. */
+const numberOf = i => (hidden.has(i) ? "?" : labelOf(P.lay.isl[i]));
+const numberSize = i => (hidden.has(i) ? 0.5 : (P.lay.isl[i].kind || P.lay.isl[i].n > 9 ? 0.4 : 0.5)) * TEXT_SCALE;
 const NO_LINKS = new Set();
 /** Each link's look from the run (its bridges, a hint's, the wave) and each island's (met, over, shut off, a hint's). */
 function paint() {
   if (!svg || !S) return;
-  const br = breaks(P, S.marks), over = new Set(br.over), met = new Set(br.met), cut = new Set(br.cut), lit = new Set(S.lit?.set || []), ring = new Set(br.ring), looped = new Set(br.ring.flatMap(l => [P.lay.links[l].a, P.lay.links[l].b]));
+  const whole = breaks(P, S.marks);
+  // an island whose number is your partner's to say shows no state of its own (met, over, shut off): a number you can't read must not be read off the colours
+  const br = hidden.size ? { ...whole, over: whole.over.filter(i => !hidden.has(i)), met: whole.met.filter(i => !hidden.has(i)), cut: whole.cut.filter(i => !hidden.has(i)) } : whole;
+  const over = new Set(br.over), met = new Set(br.met), cut = new Set(br.cut), lit = new Set(S.lit?.set || []), ring = new Set(br.ring), looped = new Set(br.ring.flatMap(l => [P.lay.links[l].a, P.lay.links[l].b]));
   const cross = coop ? crossings(P, S.marks) : NO_LINKS;           // two partners can lay crossing bridges at once; alone a tap across is refused
   trouble = cross.size ? "Two bridges cross each other: clear one of them." : whatBreaks(P, S.marks, br);
   linkEls.forEach(({ g }, l) => {
@@ -463,6 +473,8 @@ function paint() {
   islEls.forEach((g, i) => {
     const cls = islandClass(i, [over.has(i) ? "over" : met.has(i) ? "met" : "", cut.has(i) ? "cut" : "", looped.has(i) ? "loop" : "", S.lit?.island === i ? "why" : ""]);
     if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
+    const t = g.querySelector(".brg-num"), want = numberOf(i);
+    if (t.textContent !== want) { t.textContent = want; t.setAttribute("font-size", numberSize(i)); }
   });
   straitEls.forEach((g, k) => {
     const cls = `brg-strait${br.straitsOver.includes(k) ? " over" : br.straitsMet.includes(k) ? " met" : ""}${S.lit?.strait === k ? " why" : ""}`;
@@ -485,6 +497,7 @@ let model = null, modelFor = null;
 function feedModel(br) {
   if (!model || prefs.view !== "model" || !S || !P) return;
   if (modelFor !== P) { model.set({ lay: P.lay, size: P.size }); modelFor = P; }
+  model.names?.(hidden);
   model.update(S.marks, br || breaks(P, S.marks), S.lit);
 }
 /** Chart (2D) or model (3D; `prefs.view` keeps "chart" and "model"). The model's code (three.js) comes only when it is first wanted; where there is no WebGL the chart stays. */
@@ -492,7 +505,7 @@ async function setView(v, remember = true) {
   if (v === "model" && !model) {
     try {
       model = (await import("./bridges-3d.js")).createModel($("model"), {
-        press, playable: () => !!S && !S.done && !IN_FRAME && !paused, blocked: l => S.marks[l] === "0" && crossed(P, S.marks, l),
+        press, island: i => pointAt(i), playable: () => !!S && !S.done && !IN_FRAME && !paused, blocked: l => S.marks[l] === "0" && crossed(P, S.marks, l),
       });
     }
     catch (err) { console.warn("Bridges: no 3D here.", err); toast("This browser can't draw 3D."); v = "chart"; }
@@ -532,15 +545,24 @@ function linkAt(ev) {
   }
   return best;
 }
+/** The island under a finger, if the finger is on one (together, a tap on an island points it out to your partner). */
+function islandAt(ev) {
+  const pt = toCells(ev);
+  if (!pt) return -1;
+  let best = -1, d = DISC + 0.04;
+  P.lay.isl.forEach((o, i) => { const e = Math.hypot(pt.x - (o.c + 0.5), pt.y - (o.r + 0.5)); if (e < d) { d = e; best = i; } });
+  return best;
+}
 function down(ev) {
   if (ev.button > 0) { if (ev.button === 2) press(linkAt(ev), "hold"); return; }
   if (!S || S.done || IN_FRAME || paused) return;
   ev.preventDefault();
   cancelPress();
-  const link = linkAt(ev);
-  if (link < 0) return;
+  const link = linkAt(ev), island = link < 0 && coop ? islandAt(ev) : -1;
+  if (link < 0 && island < 0) return;
   try { svg.setPointerCapture(ev.pointerId); } catch { /* a synthetic event */ }
-  pressing = { id: ev.pointerId, link, x: ev.clientX, y: ev.clientY, held: false };
+  pressing = { id: ev.pointerId, link, island, x: ev.clientX, y: ev.clientY, held: false };
+  if (island >= 0) return;                                       // an island is pointed out when the finger lifts: there is nothing to hold
   pressing.timer = setTimeout(() => { if (!pressing) return; pressing.held = true; navigator.vibrate?.(14); press(pressing.link, "hold"); }, HOLD);
 }
 function cancelPress() { if (pressing) clearTimeout(pressing.timer); pressing = null; }
@@ -550,9 +572,10 @@ addEventListener("pointermove", ev => {
 });
 addEventListener("pointerup", ev => {
   if (!pressing || ev.pointerId !== pressing.id) return;
-  const { link, held } = pressing;
+  const { link, island, held } = pressing;
   cancelPress();
-  if (!held) press(link, "tap");
+  if (island >= 0) pointAt(island);
+  else if (!held) press(link, "tap");
 });
 addEventListener("pointercancel", cancelPress);
 
@@ -575,9 +598,10 @@ function drawLine() {
   else if (S.came && S.came !== S.level && !/[123]/.test(S.marks)) text = `No ${LEVELS[S.level]} puzzle came of this size this time: this one is ${LEVELS[S.came]}.`;
   else if (!/[123]/.test(S.marks)) {
     const twisted = hasTwist(S.twist);                    // a twist's sentence needs the room, so the first line is shorter with one
-    text = prefs.view === "model" ? "Tap a dashed line to build a bridge, again for another, again to clear it. Hold to clear. Drag to turn, pinch or scroll to zoom."
+    if (coop) text = `Tap a ${prefs.view === "model" ? "dashed" : "dotted"} line to build a bridge, again for another, again to clear it. Tap an island to point it out to ${coop.otherName.split(/\s+/)[0]}.${splitting && hidden.size ? " A ? is a number only they can see." : ""}`;
+    else text = prefs.view === "model" ? "Tap a dashed line to build a bridge, again for another, again to clear it. Hold to clear. Drag to turn, pinch or scroll to zoom."
       : twisted ? "Tap a dotted line to build a bridge, again for another, again to clear it. Hold to clear." : "Tap the dotted line between two islands to build a bridge, again for a second, again to clear it. Hold to clear.";
-    if (twisted && prefs.view !== "model") text += twistHint();
+    if (twisted && prefs.view !== "model" && !coop) text += twistHint();
   } else text = goalLine();
   if (l.textContent !== text) l.textContent = text;
   l.className = `brg-say${tone ? ` ${tone}` : ""}`;
@@ -719,7 +743,10 @@ function openMenu() {
     play.append(action("Another puzzle", coopAnother, "primary"));
     if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
     play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
-    part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both. If you both change one link at once, the later change stands.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
+    const together = part(body, "together");
+    together.append(line(`Co-op with ${coop.otherName}: one board for you both. If you both change one link at once, the later change stands.`));
+    if (coop.board?.layers?.split != null) together.append(toggle("Split numbers", splitting, setSplit));
+    together.append(action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
     part(body, "about").append(line(S ? `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: ${S.done ? "solved" : "not solved yet"}.` : "Join the islands."));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -849,10 +876,64 @@ function tellSoon() {   // a report for every tap would be a write for every tap
 
 // ---------- together: one board for two (coop-page.js, docs/coop.md) ----------
 /** The shared board for a run: the host's puzzle as it is, or a new one. */
-const shareOf = run => shareRun({ v: 1, ms: 0, hints: 0, ...run });
+const shareOf = (run, split = true) => shareRun({ v: 1, ms: 0, hints: 0, ...run }, split);
+let splitAsked = null;                                          // what this phone just set the split to, so its own change is not announced as a partner's
+let mask = "";                                                  // who sees each island's number (bridges-coop.js: halves), dealt from the puzzle's seed
+/** Which numbers this phone shows: all of them unless the board splits them, and all of them once it is solved. */
+function setHidden(board) {
+  splitting = splitOn(board);
+  const next = new Set();
+  if (splitting && !S.done) P.lay.isl.forEach((o, i) => { if (!sees(mask, o.r * S.size + o.c, coopHost, true)) next.add(i); });
+  const same = next.size === hidden.size && [...next].every(i => hidden.has(i));
+  hidden = next;
+  return !same;
+}
+
+// ---------- pings: a tap on an island rings it on your partner's screen too (3 November 2026, Korbi) ----------
+// The ring lives in the room as the pinger's own last ping ("island:time", at players/<uid>/ping, bridges-coop.js), never in the
+// board: a ping is not a move, and a reload shows none. A tap on a link builds; a tap on an island points. Your own is a softer echo.
+const seenPings = new Map();                                   // uid → the last ping value seen, so a ring shows once
+const rings = new Map();                                       // island → its ring on the chart, to take away when its time is up
+const mySlot = () => coop?.together.slot ?? (coopHost ? 0 : 1);
+function ringOn(i, slot, soft) {
+  const at = P?.lay.isl[i], host = islEls[i];
+  if (!at || !host) return;
+  const old = rings.get(i);
+  if (old) { clearTimeout(old.timer); old.g.remove(); }
+  const x = at.c + 0.5, y = at.r + 0.5, r = DISC + 0.16, g = svgEl("g", { class: `brg-ping${soft ? " soft" : ""}` }, host);
+  g.style.setProperty("--pinger", `var(--p${slot})`);
+  svgEl("circle", { cx: x, cy: y, r, class: "brg-ping-glow" }, g);
+  svgEl("circle", { cx: x, cy: y, r, class: "brg-ping-ring" }, g);
+  if (!soft) svgEl("circle", { cx: x, cy: y, r, class: "brg-ping-wave" }, g);
+  const timer = setTimeout(() => { g.remove(); if (rings.get(i)?.g === g) rings.delete(i); }, PING_FOR);
+  rings.set(i, { g, timer });
+  model?.ping?.(i, { slot, soft, ms: PING_FOR });
+}
+/** Your tap on an island: a soft ring here, a ring on your partner's screen. */
+function pointAt(i) {
+  if (!coop || !S || S.done || i == null || i < 0) return;
+  ringOn(i, mySlot(), true);
+  const room = coop.together.room;
+  if (!room?.data?.players?.[room.uid]) return;
+  const v = pingValue(i);
+  seenPings.set(room.uid, v);
+  Promise.resolve(room.sync.update(`${branchPath(room.code, "bridges")}/players/${room.uid}`, { ping: v })).catch(e => console.error(e));
+}
+/** Rings for the pings the room holds that this phone has not shown. `quiet`: take them as seen without showing (pings left from before you came). */
+function hearPings(quiet = false) {
+  const room = coop?.together.room;
+  if (!room?.data || !P) return;
+  for (const p of newPings(room.data.players, seenPings, quiet ? -Infinity : Date.now(), P.lay.isl.length)) if (p.uid !== room.uid) ringOn(p.isl, p.slot, false);
+}
+/** The split is a setting of the board (a layer of one character), so either of you can change it and both screens follow. */
+function setSplit(on) {
+  if (!coop || !S || S.done) return;
+  splitAsked = on;
+  coop.edit([cellEdit("split", 0, on ? "0" : "1", on ? "1" : "0")]);
+}
 /** The board of a party of two: the room's, drawn each time it moves. */
 function showBoard(board, info) {
-  const run = coopOf.run(board), wasDone = !!S?.done;
+  const run = coopOf.run(board), wasDone = !!S?.done, wasSplit = splitting;
   team = board.start || team;
   coopHost = info.host;
   if (info.fresh || !S) {                                       // a board not drawn before: its puzzle on the screen
@@ -860,21 +941,26 @@ function showBoard(board, info) {
     P = puzzleFor(S);
     message = null; sentDone = false;
     $("level").value = levelOn(S.size, S.level);
+    mask = halves(S);
+    setHidden(board);
     drawBoard();
-  } else { S.marks = run.marks; S.hints = run.hints; S.done = run.done; }
+  } else { S.marks = run.marks; S.hints = run.hints; S.done = run.done; setHidden(board); }
   if (S.done) S.lit = null;
   else if (solvedBy(P, S.marks)) finishTogether();
   if (S.done && !wasDone && !info.fresh) wave();
   save();
   paint();
   render();
+  hearPings(info.fresh);                                        // a new board's room still holds the pings of the old one
+  if (!info.fresh && splitting !== wasSplit && splitting !== splitAsked && !S.done) toast(splitting ? `${coop?.otherName || "Your partner"} split the numbers between you.` : `${coop?.otherName || "Your partner"} is showing all the numbers.`);
+  splitAsked = null;
 }
 /** Another puzzle for both of you, of the same kind as this one (a level's recipe, or the free puzzle's size, difficulty and twist). */
 async function coopAnother() {
   if (!coop || !S) return;
   if (started() && !(await sure("Start a new puzzle for both of you? This one isn't solved.", { yes: "New puzzle" }))) return;
   const k = { size: S.size, level: S.level, twist: S.twist }, { seed, puzzle } = await nextPuzzle(k);
-  if (puzzle) await coop.renew(shareOf(fromPuzzle(isLevel(S) ? "level" : "random", seed, k, puzzle, isLevel(S) ? { lv: S.lv } : {})));
+  if (puzzle) await coop.renew(shareOf(fromPuzzle(isLevel(S) ? "level" : "random", seed, k, puzzle, isLevel(S) ? { lv: S.lv } : {}), splitting));
 }
 async function joinPartner() {
   const { startCoop } = await import("./coop-page.js");
@@ -884,6 +970,7 @@ async function joinPartner() {
     bar: el => { $("kind").hidden = true; $("kind").after(el); },
   });
   if (!coop && !IN_FRAME) solo();
+  hearPings(true);                                              // pings left in the room from before you came are not shown
 }
 
 // ---------- wiring ----------

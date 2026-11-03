@@ -3,7 +3,7 @@
 // memory: bridges on different links both stand, the same change twice is one bridge, a later change to one link wins, a
 // hold that clears and a tap that adds settle to the later, crossing bridges laid at once both stand (and are found), a hint
 // counts once, the solve is the first writer's, and nothing changes the bridges after it.
-import coopOf, { shareRun, RUN, LRUNS, TRACK, CAMP } from "../bridges-coop.js";
+import coopOf, { shareRun, splitOn, halves, sees, pingValue, newPings, PING_FOR, RUN, LRUNS, TRACK, CAMP } from "../bridges-coop.js";
 import { generate, puzzleOf, crossings, crossed, solvedBy, flagsOf } from "../bridges-engine.js";
 import { LEVELS as LADDER, kindOf, seedOf } from "../bridges-levels.js";
 import { playable, fromPuzzle, fixedOf } from "../bridges-run.js";
@@ -25,7 +25,7 @@ const lvOf = twist => LADDER.findIndex(L => L.twist === twist && L.size === 7) >
 const free = runOf(lvOf("none"), "random");
 {
   const board = coopOf.share({ [RUN]: JSON.stringify(free), [TRACK]: '"free"' });
-  check(board && same(board.layers, { marks: free.marks }) && board.fixed.sol === free.sol && board.fixed.grid === free.grid && board.start.ms === 4000 && board.start.hints === 1, "a free puzzle in play becomes a board: its puzzle fixed, its bridges the one layer, the clock and hints where the host stood");
+  check(board && same(board.layers, { marks: free.marks, split: "1" }) && board.fixed.sol === free.sol && board.fixed.grid === free.grid && board.start.ms === 4000 && board.start.hints === 1, "a free puzzle in play becomes a board: its puzzle fixed, its bridges its bridges and the split the two layers, the clock and hints where the host stood");
   check(!("undo" in board.fixed) && !("marks" in board.fixed) && !("ms" in board.fixed) && !("done" in board.fixed), "what is the host's own (undo, the clock, marks) is not in the puzzle");
   check(coopOf.share({ [RUN]: JSON.stringify(free) })?.fixed.seed === free.seed, "with no way of playing saved, a free puzzle in play is the one shared");
   check(coopOf.share({ [RUN]: JSON.stringify({ ...free, done: { ms: 5, score: 5 } }), [TRACK]: '"free"' }) === null && coopOf.share({}) === null && coopOf.share({ [RUN]: "not json" }) === null && coopOf.share(null) === null,
@@ -158,6 +158,78 @@ const settle = async (db, ...ps) => { await Promise.all(ps.map(p => p.editor.idl
   await settle(db, B);
   check(db.read(PATH).board.layers.marks === Array.from(base.sol).join("") && coopOf.rules.frozen(db.read(PATH).board), "after the solve a tap still on its way changes nothing");
   A.stop(); B.stop();
+}
+
+// ---------- the split: half of the numbers to each of you (3 November 2026, Korbi) ----------
+{
+  // every ladder level's puzzle, as the table would have it: complementary, balanced, the same twice, nothing empty where there are two
+  let comp = 0, balanced = 0, same2 = 0, regionsOk = 0, total = 0, shapeOk = 0;
+  for (let lv = 0; lv < LADDER.length; lv++) {
+    const run = runOf(lv), f = fixedOf(run), a = halves(f), b = halves({ ...f }), isl = [...f.grid].map((ch, i) => (ch !== "." ? i : -1)).filter(i => i >= 0);
+    total++;
+    if (a.length === f.grid.length && [...a].every((ch, i) => (f.grid[i] === "." ? ch === "." : ch === "h" || ch === "g"))) shapeOk++;
+    const h = isl.filter(i => a[i] === "h").length, g = isl.filter(i => a[i] === "g").length;
+    if (h + g === isl.length && isl.every(i => sees(a, i, true, true) !== sees(a, i, false, true))) comp++;
+    if (Math.abs(h - g) <= 1) balanced++;
+    if (a === b) same2++;
+    const regions = new Map();
+    for (const i of isl) { const r = Math.floor((Math.floor(i / f.size) * 3) / f.size) * 3 + Math.floor(((i % f.size) * 3) / f.size); regions.set(r, [...(regions.get(r) || []), a[i]]); }
+    if ([...regions.values()].every(sides => sides.length < 2 || (sides.includes("h") && sides.includes("g")))) regionsOk++;
+  }
+  check(shapeOk === total, `every island of all ${total} ladder puzzles is the host's or the guest's, and the cells with no island are neither`);
+  check(comp === total, "each island's number is shown to exactly one of the two phones: the halves are complementary");
+  check(balanced === total, "each of you has half of the islands, to within one");
+  check(same2 === total, "the same puzzle gives the same halves every time (a reload, a late joiner)");
+  check(regionsOk === total, "in every ninth of the board with two islands or more, each of you has one: neither half is empty anywhere");
+  const f = fixedOf(runOf(lvOf("ranges"))), other = halves({ ...f, seed: f.seed + 1 });
+  check(other !== halves(f), "another puzzle deals another way");
+  const seen = new Set();
+  for (let seed = 1; seed <= 60; seed++) seen.add(halves({ ...f, seed })[[...f.grid].findIndex(c => c !== ".")]);
+  check(seen.has("h") && seen.has("g"), "the first island is the host's about as often as the guest's: the dealing does not favour the host");
+  check(sees("h?g", 0, true, true) && !sees("h?g", 2, true, true) && sees("h?g", 2, false, true) && sees("h?g", 2, true, false) && sees("h?g", 0, false, false), "an island shows its number to its own half; with the split off every number shows");
+  check(splitOn({ layers: { split: "1" } }) && !splitOn({ layers: { split: "0" } }) && !splitOn({ layers: { marks: "0" } }) && !splitOn(null), "the split is on only where the board says so (a board from before has none)");
+  check(shareRun(free).layers.split === "1" && shareRun(free, false).layers.split === "0" && coopOf.valid(shareRun(free, false)) && !coopOf.valid({ ...shareRun(free), layers: { marks: free.marks, split: "2" } }), "a new co-op has the split on; the setting is one character, 0 or 1");
+}
+{
+  // the split is a layer of the board: either of you can switch it, the later change wins, both screens change at once, and it survives the database
+  const db = fakeDb();
+  await table(db);
+  await db.device("host").update(PATH + "/board/layers", { split: "1" });
+  const A = phone(db, "a"), B = phone(db, "b");
+  await sleep(10);
+  A.editor.edit(cellEdit("split", 0, "1", "0"));
+  await settle(db, A);
+  check(db.read(PATH).board.layers.split === "0" && B.editor.view.layers.split === "0" && A.editor.view.layers.split === "0", "a switch of the split by one of you is on both screens and in the room");
+  B.editor.edit(cellEdit("split", 0, "0", "1"));
+  A.editor.edit(cellEdit("split", 0, "0", "1"));
+  await settle(db, A, B);
+  check(db.read(PATH).board.layers.split === "1" && splitOn(db.read(PATH).board) && coopOf.valid(db.read(PATH).board) && same(roundTrip(db.read(PATH).board), db.read(PATH).board), "both switching it on at once is on, and the board is still a good board");
+  A.stop(); B.stop();
+}
+
+// ---------- pings: a ring on an island, ephemeral, in the pinger's place in the room ----------
+{
+  const seen = new Map(), now = 1_000_000;
+  const players = { a: { slot: 0, ping: pingValue(5, now - 100) }, b: { slot: 1 } };
+  const first = newPings(players, seen, now, 30);
+  check(first.length === 1 && first[0].uid === "a" && first[0].isl === 5 && first[0].slot === 0, "a fresh ping is shown once, with who pinged and where");
+  check(newPings(players, seen, now + 500, 30).length === 0, "the same ping read again (the room changed for another reason) is not shown again");
+  players.a.ping = pingValue(9, now + 700);
+  players.b.ping = pingValue(2, now + 650);
+  const next = newPings(players, seen, now + 800, 30);
+  check(next.length === 2 && next.find(x => x.uid === "a").isl === 9 && next.find(x => x.uid === "b").slot === 1, "a second ping replaces the first (one place a player), and both players can ping at once");
+  const reload = newPings({ a: { slot: 0, ping: pingValue(4, now - 60_000) } }, new Map(), now, 30);
+  check(reload.length === 0, "a ping left in the room from a minute ago is not shown to a phone that has just loaded");
+  check(newPings({ a: { slot: 0, ping: pingValue(4, now + 5000) } }, new Map(), now, 30).length === 1 && newPings({ a: { slot: 0, ping: pingValue(4, now + 20_000) } }, new Map(), now, 30).length === 0, "a few seconds of difference between the two phones' clocks is allowed, a lot is not");
+  check(newPings({ a: { ping: "99:" + now } }, new Map(), now, 30).length === 0 && newPings({ a: { ping: "x" } }, new Map(), now, 30).length === 0 && newPings({ a: { ping: 5 } }, new Map(), now, 30).length === 0 && newPings(null, new Map(), now, 30).length === 0, "an island that isn't there, or a value that isn't a ping, shows nothing");
+  check(PING_FOR >= 1500 && PING_FOR <= 3000, "a ring stays about two seconds");
+  // the value goes through the database in the player's own place and comes back as written
+  const db = fakeDb(), dev = db.device("a");
+  await dev.update("crates/rooms/ABCD/bridges/players/a", { slot: 0, name: "Korbi" });
+  await dev.update("crates/rooms/ABCD/bridges/players/a", { ping: pingValue(7, now) });
+  await db.settle();
+  const got = db.read("crates/rooms/ABCD/bridges/players");
+  check(got.a.ping === `7:${now}` && got.a.name === "Korbi" && newPings(got, new Map(), now, 30)[0].isl === 7, "a ping written to your own place leaves your seat as it was and reads back");
 }
 
 process.exit(bad ? 1 : 0);

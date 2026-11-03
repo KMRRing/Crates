@@ -69,7 +69,8 @@ function merged(list) {
  * when the bridges, the islands' state or the hint's link changed, show(on) to start or stop drawing, spin() after a win,
  * orbit(az, el) / angles for the camera, dispose(). `opts`: press(link, "tap" | "hold") is called for a finger on a link,
  * playable() says whether a finger may build now (not when it is won, paused, or only watching), blocked(link) whether no
- * bridge can go on the link (another crosses it), which makes it lose a close call.
+ * bridge can go on the link (another crosses it), which makes it lose a close call. Together: island(i) is called for a tap on an
+ * island, names(set) makes the plates of those islands say "?", and ping(i, { slot, soft, ms }) rings an island's plate.
  */
 export function createModel(host, opts = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
@@ -318,7 +319,7 @@ export function createModel(host, opts = {}) {
       el.className = "brg3-n";
       el.textContent = labelOf(lay.isl[i]);
       labels.appendChild(el);
-      plates.push({ el, i, cls: "" });
+      plates.push({ el, i, cls: "", text: el.firstChild, shown: el.textContent });
     });
     isleReach = Math.max(0, ...lay.isl.map(o => Math.hypot(...cellXZ(size, o.r, o.c)))) + 1.0;
     lines = lay.links.map((_, l) => linkLine(lay, size, l, { deck: DECK, viaduct: VIADUCT, pad: o => islandRadius(o.n) + 0.05 }));
@@ -350,6 +351,22 @@ export function createModel(host, opts = {}) {
     update(marks.length === lay.links.length ? marks : "0".repeat(lay.links.length), null);
     draw(performance.now());
   }
+  /** The islands whose number this player is not shown (a set of island indexes): their plates say "?". Takes effect at the next update(). */
+  let unknown = new Set();
+  const names = set => { unknown = set || new Set(); };
+  /** A ring on an island's plate for `ms`, in a player's colour: `soft` is your own tap, a quiet echo of the one your partner sees. */
+  function ping(i, { slot = 0, soft = false, ms = 2200 } = {}) {
+    const pl = plates.find(q => q.i === i && q.strait == null);
+    if (!pl) return;
+    clearTimeout(pl.ring);
+    pl.el.querySelector(".brg3-ping")?.remove();
+    const ring = document.createElement("span");
+    ring.className = `brg3-ping${soft ? " soft" : ""}`;
+    ring.style.setProperty("--pinger", `var(--p${slot})`);
+    pl.el.appendChild(ring);
+    pl.el.style.zIndex = "3";
+    pl.ring = setTimeout(() => { ring.remove(); pl.el.style.zIndex = ""; }, ms);
+  }
   /** Shows the bridges the marks say (a dashed guide on each link without one), each island's state (met, over, cut) on its plate, and the hint's: `hint` is { set: [links], island } or null. */
   function update(m, br, hint) {
     if (!lay) return;
@@ -368,7 +385,9 @@ export function createModel(host, opts = {}) {
       if (pl.strait != null) cls = `brg3-n strait${br?.straitsOver?.includes(pl.strait) ? " over" : br?.straitsMet?.includes(pl.strait) ? " met" : ""}${hint?.strait === pl.strait ? " why" : ""}`;
       else {
         const isle = lay.isl[pl.i];
-        cls = `brg3-n${isle.realm ? " r1" : ""}${isle.kind ? " rng" : ""}${over.has(pl.i) ? " over" : met.has(pl.i) ? " met" : ""}${cut.has(pl.i) ? " cut" : ""}${loop.has(pl.i) ? " loop" : ""}${pl.i === litIsland ? " why" : ""}`;
+        const word = unknown.has(pl.i) ? "?" : labelOf(isle);
+        if (word !== pl.shown) { pl.shown = word; pl.text.data = word; }
+        cls = `brg3-n${isle.realm ? " r1" : ""}${isle.kind && !unknown.has(pl.i) ? " rng" : ""}${unknown.has(pl.i) ? " unk" : ""}${over.has(pl.i) ? " over" : met.has(pl.i) ? " met" : ""}${cut.has(pl.i) ? " cut" : ""}${loop.has(pl.i) ? " loop" : ""}${pl.i === litIsland ? " why" : ""}`;
       }
       if (cls !== pl.cls) { pl.cls = cls; pl.el.className = cls; }
     }
@@ -492,6 +511,14 @@ export function createModel(host, opts = {}) {
     const isles = lay.isl.map(o => { const [wx, wz] = cellXZ(size, o.r, o.c), [x, y] = scr(wx, o.hill ? 0.5 : 0.15, wz); return { x, y, r: (islandRadius(o.n) - 0.02) * ppu }; });
     return { r, kx, ky, segs, isles, tol: pickTolerance(ppu * Math.sin(el)) };
   }
+  /** The island under a finger at the page's (clientX, clientY), or -1: a thumb's width at least, so a small island is still found. */
+  function islandAt(cx, cy) {
+    if (!lay) return -1;
+    const { r, kx, ky, isles } = onScreen(), x = (cx - r.left) * kx, y = (cy - r.top) * ky;
+    let best = -1, near = Infinity;
+    isles.forEach((o, i) => { const d = Math.hypot(o.x - x, o.y - y); if (d < Math.max(o.r, 16 * kx) && d < near) { near = d; best = i; } });
+    return best;
+  }
   /** The link under a finger at the page's (clientX, clientY), or -1. */
   function pickAt(cx, cy) {
     if (!lay || !lines.length) return -1;
@@ -602,6 +629,8 @@ export function createModel(host, opts = {}) {
     if (e.pointerType !== "mouse") aimAt(-1);
     if (e.type === "pointercancel" || turning || held) return;
     if (link >= 0) { lastTap = null; opts.press?.(link, "tap"); return; }
+    const isle = opts.island && playable() ? islandAt(e.clientX, e.clientY) : -1;       // a tap on an island points it out (together), it doesn't turn the board back
+    if (isle >= 0) { lastTap = null; opts.island(isle); return; }
     // two taps on the water turn the board back to where it began
     if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { lastTap = null; reset(); } else lastTap = { t: now, x: e.clientX, y: e.clientY };
   };
@@ -632,7 +661,7 @@ export function createModel(host, opts = {}) {
   resize();
 
   return {
-    canvas, set, update,
+    canvas, set, update, names, ping,
     /** Draws (or stops drawing). */
     show(on) { shown = !!on; if (shown) { resize(); wake(); } else if (frameId) { cancelAnimationFrame(frameId); frameId = 0; } },
     /** Holds the drawing still while the menu is open, then lets it go on. */

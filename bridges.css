@@ -52,6 +52,19 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-disc { fill: var(--brg-tile); stroke: var(--ink); stroke-width: .06; }
 .brg-num { font-family: var(--font); font-weight: 750; fill: var(--ink); text-anchor: middle; pointer-events: none; font-variant-numeric: tabular-nums; }
 .brg-i.met .brg-disc { fill: color-mix(in srgb, var(--brg-in) 22%, var(--brg-tile)); stroke: var(--brg-in); }
+/* together, with the numbers split: an island whose number is your partner's to say is a quiet disc with a ? (still an island,
+   with its realm's ring and a hill's contours; it takes no state from the bridges on it, nor the warm fill of a bound) */
+.brg-i.unk .brg-disc { fill: color-mix(in srgb, var(--ink) 8%, var(--brg-tile)); stroke: var(--ink-soft); stroke-dasharray: none; }
+.brg-i.unk .brg-num { fill: var(--ink-soft); }
+/* a ping: your partner tapped this island. A tinted disc and a ring in their colour, and a wave going out three times; your own tap is the quiet echo */
+.brg-ping { pointer-events: none; }
+.brg-ping-glow { fill: var(--pinger); fill-opacity: .34; }
+.brg-ping-ring { fill: none; stroke: var(--pinger); stroke-width: .14; }
+.brg-ping-wave { fill: none; stroke: var(--pinger); stroke-width: .1; transform-box: fill-box; transform-origin: center; animation: brg-ping .73s ease-out 3 both; }
+.brg-ping.soft .brg-ping-glow { fill-opacity: .16; }
+.brg-ping.soft .brg-ping-ring { stroke-opacity: .6; stroke-width: .09; }
+@keyframes brg-ping { from { transform: scale(1); opacity: .9; } to { transform: scale(2.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .brg-ping-wave { animation: none; opacity: .5; } }
 /* the twists: a number that is only a bound sits on a warm disc; the second realm is copper, its bridges and its discs */
 .brg-i.rng .brg-disc { fill: color-mix(in srgb, var(--brass) 20%, var(--brg-tile)); }
 .brg-i.r1 .brg-disc { stroke: var(--brg-copper); }
@@ -124,6 +137,15 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg3-n.over { background: color-mix(in srgb, var(--brg-bad) 42%, var(--brg-tile)); border-color: var(--brg-bad); color: var(--brg-bad); box-shadow: 0 0 0 2px var(--brg-bad); }
 .brg3-n.cut, .brg3-n.loop { border-style: dashed; border-color: var(--brg-bad); outline: 2px dashed var(--brg-bad); outline-offset: 1px; }
 .brg3-n.why { border-color: var(--brg-gilt); box-shadow: 0 0 0 2px var(--brg-gilt); }
+.brg3-n.unk { background: color-mix(in srgb, var(--ink) 8%, var(--brg-tile)); border-color: var(--ink-soft); color: var(--ink-soft); }
+.brg3-n.unk.r1 { border-color: var(--brg-copper); }
+/* a ping on a plate (see .brg-ping): a ring and tint in the pinger's colour round it, and a wave going out three times */
+.brg3-ping { position: absolute; inset: -.7rem; border-radius: 50%; border: .2rem solid var(--pinger); background: color-mix(in srgb, var(--pinger) 34%, transparent); box-shadow: 0 0 0 .14rem var(--brg-tile), 0 0 .7rem var(--pinger); pointer-events: none; }
+.brg3-ping::after { content: ""; position: absolute; inset: -.18rem; border-radius: 50%; border: .12rem solid var(--pinger); animation: brg3-ping .73s ease-out 3 both; }
+.brg3-ping.soft { border-width: .1rem; border-color: color-mix(in srgb, var(--pinger) 60%, transparent); background: color-mix(in srgb, var(--pinger) 16%, transparent); box-shadow: none; }
+.brg3-ping.soft::after { display: none; }
+@keyframes brg3-ping { from { transform: scale(1); opacity: .9; } to { transform: scale(2.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .brg3-ping::after { animation: none; opacity: .5; } }
 
 /* under the board: a line of what to do or what happened, three tools; at the end, how it went and the way on, in the
    same room. The line keeps three lines' height, so a long hint never moves the board. */
