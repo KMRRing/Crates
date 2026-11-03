@@ -36,9 +36,9 @@ html[data-mode="night"] { --cb-good: #7FC2A8; --cb-bad: #E8806F; }
 .cb-cell { position: relative; min-width: 0; }
 .cb-tile { position: absolute; inset: 0; width: 100%; display: grid; place-items: center; min-width: 0; padding: 0 .2rem; border: 1.5px solid var(--tile-edge); border-radius: 5px;
   background: var(--tile); color: var(--ink); font: inherit; font-weight: 700; font-stretch: 87.5%; line-height: 1.05; letter-spacing: .01em;
-  font-size: min(var(--t) * .19, var(--t) * 1.42 / var(--len, 6)); text-transform: uppercase; cursor: pointer; overflow: hidden;
+  font-size: calc(var(--t) * .14); text-transform: uppercase; cursor: pointer; overflow: hidden;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background-color .12s, border-color .12s, transform .12s; }
-.cb-word { display: inline-block; white-space: nowrap; }
+.cb-word { display: block; max-width: 100%; white-space: normal; text-align: center; text-wrap: balance; hyphens: manual; overflow-wrap: normal; }
 .cb-tile[aria-pressed="true"] { border-color: var(--plate); background: var(--plate); color: var(--plate-ink); }
 .cb-tile:active:not(:disabled) { transform: scale(.96); }
 .cb-tile:disabled { cursor: default; }

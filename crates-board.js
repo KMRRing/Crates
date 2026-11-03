@@ -4,6 +4,7 @@
 // the buttons below. Styles are crates-board.css's; what a page keeps (its run, its clock, its taps) stays its own.
 
 import { choice, line } from "./menu.js";
+import { tileText } from "./crates-tile.js";
 
 const landedOf = new WeakMap();
 
@@ -42,9 +43,8 @@ export function drawBoard(box, { lots, tiles, on = {}, off = false, fresh = fals
       tile.className = `cb-tile${t.sealed ? " sealed" : ""}`;
       const word = document.createElement("span");
       word.className = "cb-word";
-      word.textContent = t.text;
+      word.textContent = tileText(t.text);
       tile.append(word);
-      tile.style.setProperty("--len", String(Math.max(5, t.text.length)));
       tile.setAttribute("aria-pressed", String(!!t.sel));
       if (t.sealed) tile.setAttribute("aria-label", t.theirs ? "Your partner's word, which they've picked" : "Your partner's word");
       tile.disabled = off || !!t.sealed;
@@ -79,15 +79,8 @@ export function drawBoard(box, { lots, tiles, on = {}, off = false, fresh = fals
 }
 export const MARK_NAMES = ["ochre", "verdigris", "cobalt", "oxblood"];
 
-/** Each tile's word on one line, shrunk where its letters are wider than the tile (KANGAROO, REMBRANDT on a phone); a
- *  lot's words on one line too, down to a floor, then an ellipsis. */
+/** A lot's words on one line, shrunk down to a floor, then an ellipsis. (A tile's word never shrinks: tileText breaks the long ones.) */
 export function fitWords(box) {
-  for (const w of box.querySelectorAll(".cb-word")) {
-    w.style.fontSize = "";
-    const tile = w.parentElement, cs = getComputedStyle(tile);
-    const room = tile.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    if (w.offsetWidth > room && room > 0) w.style.fontSize = `${(parseFloat(cs.fontSize) * room / w.offsetWidth) * 0.97}px`;
-  }
   for (const w of box.querySelectorAll(".cb-lot-words")) {
     w.style.fontSize = "";
     const size = parseFloat(getComputedStyle(w).fontSize);
