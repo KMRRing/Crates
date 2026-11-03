@@ -15,6 +15,7 @@ import { subjectsOn, markedIn, allowed } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, noteDayTime, soloHref, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -680,7 +681,7 @@ async function helpCheck(scope) {
 }
 async function helpReveal(scope) {
   const p = puzzle(), cellsTo = scopeCells(scope);
-  if (scope === "grid" && !confirm("Reveal the whole grid? It counts as given up.")) return;
+  if (scope === "grid" && !(await sure("Reveal the whole grid? It counts as given up."))) return;
   if (G?.mode === "split") {
     await flush();
     let n = 0;
@@ -776,7 +777,7 @@ let dealing = false;
 async function newGrid(daily, { ask = true } = {}) {
   if (dealing) return;
   const pl = S?.play;
-  if (ask && pl && !pl.done && pl.letters.replace(/[#.]/g, "").length > 0 && !confirm(daily ? "Start today's grid? This one isn't finished." : "Start a new grid? This one isn't finished.")) return;
+  if (ask && pl && !pl.done && pl.letters.replace(/[#.]/g, "").length > 0 && !(await sure(daily ? "Start today's grid? This one isn't finished." : "Start a new grid? This one isn't finished."))) return;
   dealing = true;
   const done = busy(daily ? "Setting today's grid" : "Setting a grid", { delay: 0 });
   try {
@@ -844,8 +845,8 @@ function openToday() {
   newGrid(true);
 }
 /** Today's grid from the start again: the same grid, every square empty; the first solve is the one that counted. */
-function restartToday() {
-  if (S?.play && !S.play.done && S.play.letters.replace(/[#.]/g, "").length && !confirm("Empty today's grid and start it again?")) return;
+async function restartToday() {
+  if (S?.play && !S.play.done && S.play.letters.replace(/[#.]/g, "").length && !(await sure("Empty today's grid and start it again?"))) return;
   S.play = freshPlay(S.puzzle);
   save();
   afterNewRun();
@@ -1042,7 +1043,7 @@ async function databaseNow() {
 async function dealAgain(mode = settings().tableMode) {
   if (!G) return;
   const going = G.mode === "split" ? !G.done && Object.keys(G.cells).length > 0 : R?.play && !R.play.done && R.play.letters.replace(/[#.]/g, "").length > 0;
-  if (going && !confirm("Deal a new grid for the table? This one isn't finished.")) return;
+  if (going && !(await sure("Deal a new grid for the table? This one isn't finished."))) return;
   const n = G.n, done = busy("Setting a grid", { delay: 0 });
   try {
     const p = await makePuzzleOff(randomOptions());

@@ -18,6 +18,7 @@ import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy, waitMark } from "./loading.js";
 import { createDuel } from "./duel.js";
+import { sure } from "./sure.js";
 import { createTogether } from "./together.js";
 import { joiningWords } from "./rooms.js";
 
@@ -133,8 +134,8 @@ async function start(kind) {
   finally { done(); }
   prefetch();
 }
-function confirmStart(kind) {
-  if (started() && !confirm(kind === "daily" ? "Start today's acrostic? This one isn't solved." : "Start a new acrostic? This one isn't solved.")) return false;
+async function confirmStart(kind) {
+  if (started() && !(await sure(kind === "daily" ? "Start today's acrostic? This one isn't solved." : "Start a new acrostic? This one isn't solved."))) return false;
   start(kind);
   return true;
 }
@@ -733,7 +734,7 @@ async function flushTeam() {
 async function teamAgain() {
   if (!team.room) return;
   const g = team.room.data;
-  if (g && !g.done && filled(entryNow()) && !confirm("Start another together? This one isn't solved.")) return;
+  if (g && !g.done && filled(entryNow()) && !(await sure("Start another together? This one isn't solved."))) return;
   const done = busy("Setting an acrostic for two"), n = g?.n || 1;
   try {
     const P0 = await tableMake(randomSeed(), prefs.twist === "half" ? "classic" : prefs.twist);
@@ -850,12 +851,12 @@ window.__acrostic = {
 };
 
 const forToday = arrivedForToday();   // from the games screen's tile: today's, still to play
-function solo() {
+async function solo() {
   if (IN_FRAME) { const s = read(RUN, null); if (valid(s)) begin(s); return; }
   const s = read(RUN, null);
   S = null;
   if (forToday && !(s?.mode === "daily" && s.day === today() && valid(s))) {
-    if (!valid(s) || s.done || filled(s.entry) === 0 || confirm("Today's acrostic is waiting. Leave the one you've started?")) { start("daily"); return; }
+    if (!valid(s) || s.done || filled(s.entry) === 0 || await sure("Today's acrostic is waiting. Leave the one you've started?")) { start("daily"); return; }
   }
   if (valid(s) && (s.mode === "random" || s.mode === "daily")) { begin(s); prefetch(); }
   else start("random");

@@ -23,6 +23,7 @@ import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
 import { onPause, isPaused } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -294,8 +295,8 @@ function renderHL() {
   }));
 }
 /** Today's run, still to play: asks before leaving one you've started. */
-function openTodayHL() {
-  if (H && !H.over && (H.at > 0 || H.picked) && !confirm("Start today's run? This one isn't finished.")) return;
+async function openTodayHL() {
+  if (H && !H.over && (H.at > 0 || H.picked) && !(await sure("Start today's run? This one isn't finished."))) return;
   newHL(H?.mode || "dates", true);
 }
 function soloHL() {
@@ -377,7 +378,7 @@ async function placeTogether(at) {
 async function dealAgain(mode) {
   if (!G) return;
   const n = G.n;
-  if (!G.run.over && G.run.line.length > 1 && !confirm("Deal a new game for the table? This one isn't finished.")) return;
+  if (!G.run.over && G.run.line.length > 1 && !(await sure("Deal a new game for the table? This one isn't finished."))) return;
   const seed = Math.floor(Math.random() * 2 ** 31), weights = mixFor(mode);      // the table's next game, from the dealer's topics
   await together.act(g => newGameAt(tidy(g), { n, mode, seed, weights }));
 }
@@ -497,8 +498,8 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 /** Today's run, still to play: asks before leaving a run you've started. */
-function openToday() {
-  if (S && !S.over && S.line.length > 1 && !confirm("Start today's run? This one isn't finished.")) return;
+async function openToday() {
+  if (S && !S.over && S.line.length > 1 && !(await sure("Start today's run? This one isn't finished."))) return;
   newRun(S?.mode || "dates", true);
 }
 // opening: from the tile, today's; a finished run gives way to today's while it's still to play, else a random one

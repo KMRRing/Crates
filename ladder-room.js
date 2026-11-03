@@ -7,6 +7,7 @@ import { createTogether } from "./together.js";
 import { joiningWords } from "./rooms.js";
 import { busy, waitMark } from "./loading.js";
 import { part, choice, action, line } from "./menu.js";
+import { sure } from "./sure.js";
 import { newRun, steps, LEVELS, RULES } from "./ladder-engine.js";
 import { MODES, RACE_LADDERS, dealFor, freshTable, isTable, defaultMode, teamMove, teamUndo, teamHint, teamOn, teamRun, startTable, raceReport, raceOrder, teamResult, raceOver } from "./ladder-table.js";
 import { seated, slotOf, runOf, presentSlots, allReady, sayReady, noteRun, rematch, standings, resultOf } from "./duel-core.js";
@@ -306,7 +307,7 @@ export function createLadderRoom({ onState, toast, askName, solo, begin, prefs, 
     const pres = present(), names = seated(cur).map(([uid, p]) => `${uid === me() ? "you" : first(p.name)}${pres.includes(p.slot) ? "" : " (away)"}`);
     table.append(line(`At the table: ${list(names)}. This game: ${MODES[cur.match.mode]}.`),
       choice("Next game", Object.entries(MODES), prefs.together || defaultMode(people()), v => { prefs.together = v; keepPrefs(); }),
-      action(over() ? "Another game" : "A new game", () => { if (over() || confirm("Start a new game? This one isn't over.")) again(); }, over() ? "primary" : ""),
+      action(over() ? "Another game" : "A new game", async () => { if (over() || await sure("Start a new game? This one isn't over.")) again(); }, over() ? "primary" : ""),
       action("The table", () => { closedFor = null; openSheet(runOf(cur, mySlot())?.begun ? "result" : "lobby"); }),
       action("Back to solo", () => together.leave(), "link"));
     const content = part(body, "content");

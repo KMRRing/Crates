@@ -18,6 +18,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, ticks, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a watching frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -359,8 +360,8 @@ function start(mode) {
     if (made.fell) toast("No theme left in the regions and sectors chosen: this board is from every theme", 3600);
   } finally { done(); }
 }
-function confirmStart(mode) {
-  if (started() && !confirm("Start a new board? This one isn't finished.")) return false;
+async function confirmStart(mode) {
+  if (started() && !(await sure("Start a new board? This one isn't finished."))) return false;
   start(mode);
   return true;
 }
@@ -401,10 +402,10 @@ function useHintNow() {
   if (ctx.race) { keepRace(); tellRace(); } else save();
   render();
 }
-function giveUpNow() {
+async function giveUpNow() {
   const ctx = context();
   if (!ctx || ctx.run.done) return;
-  if (!confirm(`Show the words still hidden? Each adds ${SHOW_COST} seconds.`)) return;
+  if (!(await sure(`Show the words still hidden? Each adds ${SHOW_COST} seconds.`))) return;
   if (ctx.team) { together.act(g => giveUpAt(tidy(g), { n: G.n, now: serverNow() })); return; }
   if (ctx.race) { ctx.run.ms = raceMs(); giveUp(ctx.board, ctx.run); finishRace(); return; }
   clockPause();
@@ -640,10 +641,10 @@ function shareTrace(cells, now = false) {
   };
   if (now) send(); else traceTimer = setTimeout(send, 90);
 }
-function dealForTable() {
+async function dealForTable() {
   if (!G) return;
   const under = !context()?.run.done && (G.team.found.length || Object.keys(G.runs || {}).length);
-  if (under && !confirm("Deal a new board for the table? This one isn't finished.")) return;
+  if (under && !(await sure("Deal a new board for the table? This one isn't finished."))) return;
   const { board, clues } = tableBoard(), n = G.n, mode = nextMode || G.mode;
   together.act(g => { const t = tidy(g); if (!newGameAt(t, { n, board, mode, now: serverNow() })) return false; t.clues = clues; return undefined; });
 }
@@ -750,14 +751,14 @@ window.__lode = {
 
 /** The solo board: a link's, today's (from the games screen's tile while it's still to play), the saved one, or a new one. */
 const forToday = arrivedForToday();
-function solo() {
+async function solo() {
   S = read(RUN, null);
   if (!validS(S)) S = null;
   else { S.run = tidyRun(S.run); tidyBoard(S.board); }
   const linked = hashDeal();
   if (linked && !sameDeal(S, linked)) { startLinked(linked); return; }
   if (forToday && !IN_FRAME && !(S?.mode === "daily" && S.day === today())) {
-    if (!started() || confirm("Today's board is waiting. Leave the one you've started?")) { start("daily"); return; }
+    if (!started() || await sure("Today's board is waiting. Leave the one you've started?")) { start("daily"); return; }
   }
   if (S) { history.replaceState(null, "", hashFor(S)); clockRun(); render(); setTimeout(dealSpare, 1500); }
   else if (IN_FRAME) render();

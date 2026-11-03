@@ -14,6 +14,7 @@ import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -247,9 +248,9 @@ function count() {
   roundOver("origin");
 }
 /** Today's run, still to play: asks before leaving a run you've started. */
-function openToday() {
+async function openToday() {
   const R = S?.rounds[S.index];
-  if (S && !S.over && (S.index > 0 || R?.guesses.length || R?.shown > 1 || R?.done) && !confirm("Start today's run? This one isn't finished.")) return;
+  if (S && !S.over && (S.index > 0 || R?.guesses.length || R?.shown > 1 || R?.done) && !(await sure("Start today's run? This one isn't finished."))) return;
   newRun(true);
 }
 function another() {
@@ -402,7 +403,7 @@ async function nextTogether() {
 async function dealAgain() {
   if (!G) return;
   const n = G.n, run = G.run, R = run.rounds[run.index];
-  if (!run.over && (run.index > 0 || R.guesses.length || R.shown > 1 || R.done) && !confirm("Deal a new game for the table? This one isn't finished.")) return;
+  if (!run.over && (run.index > 0 || R.guesses.length || R.shown > 1 || R.done) && !(await sure("Deal a new game for the table? This one isn't finished."))) return;
   const seed = Math.floor(Math.random() * 2 ** 31), weights = mix();      // the table's next game, from the dealer's topics
   await together.act(g => newGameAt(tidy(g), { n, seed, weights }));
 }
@@ -507,7 +508,7 @@ $("guessIn").addEventListener("keydown", e => {
 });
 $("guessForm").addEventListener("submit", e => { e.preventDefault(); hideSuggest(); guess($("guessIn").value); $("guessIn").value = ""; });
 $("clueBtn").addEventListener("click", another);
-$("giveBtn").addEventListener("click", () => { if (confirm("Give up on this one?")) giveUp(); });
+$("giveBtn").addEventListener("click", async () => { if (await sure("Give up on this one?", { yes: "Give up" })) giveUp(); });
 $("nextBtn").addEventListener("click", next);
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());

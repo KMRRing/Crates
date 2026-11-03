@@ -15,6 +15,7 @@ import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
@@ -65,8 +66,8 @@ function newRun(daily) {
 }
 const started = () => S && !S.over && (S.index > 0 || R()?.picked.length || R()?.done);
 /** Today's run, still to play: asks before leaving a run you've started. */
-function openToday() {
-  if (started() && !confirm("Start today's run? This one isn't finished.")) return;
+async function openToday() {
+  if (started() && !(await sure("Start today's run? This one isn't finished."))) return;
   newRun(true);
 }
 function pickOne(id) {

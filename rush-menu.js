@@ -2,6 +2,7 @@
 // Today's, a game's own kinds) and the clock (3 min, 5 min, Survival), on a menu or on the rush's own sheet; and, where
 // the rush takes the game's place on the page (Chess's, River's, Hong's, Tribute's), its whole menu.
 import { part, choice, action, line } from "./menu.js";
+import { sure } from "./sure.js";
 import { MODES, RUNS, modeOf, bestLines } from "./rush-core.js";
 
 /** The run to start: Random, Today's, or a game's own kinds (own: [[id, name]…]); taps change pick.kind. */
@@ -24,6 +25,6 @@ export function rushMenu(body, { pick, start, results = null, back, backText = "
   bests = {}, daily = {}, day, inFrame = false }) {
   if (!inFrame) part(body, "play").append(action("Start a run", start, "primary"), ...(results ? [action("The run's results", results, "link")] : []), action(backText, back, "link"));
   part(body, "content").append(runChoice(pick, own), modeChoice(pick), ...(ownNote ? [line(ownNote)] : []));
-  if (rating && resetRating && !inFrame) part(body, "settings").append(action("Reset my rating", () => { if (confirm("Reset your puzzle rating to 1,000?")) resetRating(); }, "link"));
+  if (rating && resetRating && !inFrame) part(body, "settings").append(action("Reset my rating", async () => { if (await sure("Reset your puzzle rating to 1,000?", { yes: "Reset" })) resetRating(); }, "link"));
   part(body, "about").append(...(rating ? [line(ratingText(rating))] : []), ...bestLines(bests, daily, day, Object.fromEntries(own)).map(t => line(t)));
 }

@@ -16,6 +16,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { dropdown } from "./dropdown.js";
 import { IN_FRAME } from "./suite.js";
+import { sure } from "./sure.js";
 import { busy } from "./loading.js";
 import "./pwa.js";
 
@@ -534,7 +535,7 @@ async function setPhoto(w, file) {
 }
 $("wUse").addEventListener("click", () => { if (shownW) { chooseWatch(shownW.id); $("watchDlg").close(); $("libDlg").close(); } });
 $("wHist").addEventListener("click", () => { if (shownW) openHistory(shownW); });
-$("wRemove").addEventListener("click", () => { if (shownW && removeWatch(shownW)) { $("watchDlg").close(); if ($("libDlg").open) openLibrary(); } });
+$("wRemove").addEventListener("click", async () => { if (shownW && await removeWatch(shownW)) { $("watchDlg").close(); if ($("libDlg").open) openLibrary(); } });
 $("thumbBtn").addEventListener("click", () => openWatch(W.current));
 
 // ---------- drawing ----------
@@ -685,12 +686,12 @@ function openHistory(w = watch()) {
   $("histList").innerHTML = rows.length ? rows.join("") : `<li class="tg-empty">Nothing kept for this watch yet.</li>`;
   if (!$("histDlg").open) $("histDlg").showModal();
 }
-$("histList").addEventListener("click", e => {
+$("histList").addEventListener("click", async e => {
   const w = histW || watch(), b = e.target.closest("button");
   if (!b || IN_FRAME) return;
   if (b.dataset.session != null) { showSession(w.sessions[+b.dataset.session], w); return; }
-  if (b.dataset.delSession != null && confirm("Delete this session?")) { w.sessions.splice(+b.dataset.delSession, 1); saveW(); openHistory(w); }
-  if (b.dataset.delReading != null && confirm("Delete this reading?")) { w.readings.splice(+b.dataset.delReading, 1); saveW(); openHistory(w); }
+  if (b.dataset.delSession != null && await sure("Delete this session?", { yes: "Delete" })) { w.sessions.splice(+b.dataset.delSession, 1); saveW(); openHistory(w); }
+  if (b.dataset.delReading != null && await sure("Delete this reading?", { yes: "Delete" })) { w.readings.splice(+b.dataset.delReading, 1); saveW(); openHistory(w); }
 });
 
 // the worn-rate log: the phone's clock to a tenth, a tap the moment the seconds hand reaches 12
@@ -733,9 +734,9 @@ $("tapBtn").addEventListener("pointerdown", e => {
 $("minusBtn").addEventListener("click", () => { const w = watch(), e = w.log[w.log.length - 1]; if (e) { e.off -= 60; saveW(); drawWorn(); } });
 $("plusBtn").addEventListener("click", () => { const w = watch(), e = w.log[w.log.length - 1]; if (e) { e.off += 60; saveW(); drawWorn(); } });
 $("setBtn").addEventListener("click", () => { setNext = !setNext; drawWorn(); });
-$("wornList").addEventListener("click", e => {
+$("wornList").addEventListener("click", async e => {
   const b = e.target.closest("[data-del-log]");
-  if (!b || IN_FRAME || !confirm("Delete this reading?")) return;
+  if (!b || IN_FRAME || !(await sure("Delete this reading?", { yes: "Delete" }))) return;
   watch().log.splice(+b.dataset.delLog, 1);
   saveW();
   drawWorn();
@@ -767,9 +768,9 @@ async function addWatch() {
   openWatch(id);
 }
 /** Removes a watch with all it has kept, its photo too; the last stays. True if it went. */
-function removeWatch(w = watch()) {
+async function removeWatch(w = watch()) {
   if (W.list.length < 2) { say("The last watch stays: rename it instead."); return false; }
-  if (!confirm(`Remove ${w.name}, with its photo, readings, sessions and worn-rate log?`)) return false;
+  if (!(await sure(`Remove ${w.name}, with its photo, readings, sessions and worn-rate log?`, { yes: "Remove" }))) return false;
   W.list = W.list.filter(x => x !== w);
   if (W.current === w.id) W.current = W.list[0].id;
   write(photoKey(w.id), null);
@@ -871,7 +872,7 @@ $("listenBtn").addEventListener("click", () => {
   if (listening) stop(); else listen();
 });
 $("skipBtn").addEventListener("click", stepSkip);
-$("endBtn").addEventListener("click", () => { if (S && (S.steps.length < 2 || confirm("End the session here?"))) endSession(); });
+$("endBtn").addEventListener("click", async () => { if (S && (S.steps.length < 2 || await sure("End the session here?", { yes: "End session" }))) endSession(); });
 $("openBtn").addEventListener("click", () => $("file").click());
 $("whichBtn").addEventListener("click", () => (ident ? stop() : whichWatch()));
 $("file").addEventListener("change", e => { const f = e.target.files?.[0]; e.target.value = ""; openFile(f); });

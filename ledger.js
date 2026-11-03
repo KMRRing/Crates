@@ -5,6 +5,7 @@ import { stats, reset, GAPS, STAKES, GRADES, weekOf, actualKnowledge } from "./l
 import * as pile from "./pile.js";
 import { PILES } from "./pile.js";
 import { part, action, line } from "./menu.js";
+import { sure } from "./sure.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 
@@ -169,8 +170,8 @@ function trend(card, points, label) {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  part(body, "settings").append(action("Start the record afresh", () => {
-    if (!confirm("Clear the Ledger's record and start again from today? Your piles stay as they are.")) return;
+  part(body, "settings").append(action("Start the record afresh", async () => {
+    if (!(await sure("Clear the Ledger's record and start again from today? Your piles stay as they are.", { yes: "Clear record" }))) return;
     reset(); draw(); $("menuDlg").close();
   }, "link"));
   part(body, "about").append(

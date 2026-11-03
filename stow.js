@@ -14,6 +14,7 @@ import { createTogether, seatsOf } from "./together.js";
 import { GAMES, roomInAddress, otherHere, joiningWords } from "./rooms.js";
 import "./pwa.js";
 import { part, action, line, choice } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, noteStars } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy, waitMark } from "./loading.js";
@@ -253,9 +254,9 @@ function openMenu() {
   body.replaceChildren();
   if (inRoom()) {
     // at a table, a new manifest is everyone's: asked first while this one is under way
-    const pick = lv => () => {
+    const pick = lv => async () => {
       const g = S();
-      if (g && Object.keys(g.placed || {}).length && !g.done && !confirm("Start a new manifest for everyone at the table? This one isn't stowed.")) return;
+      if (g && Object.keys(g.placed || {}).length && !g.done && !(await sure("Start a new manifest for everyone at the table? This one isn't stowed."))) return;
       together.act(t => restart(t, lv));
     };
     part(body, "together").append(action("Start this manifest again", pick(plan.level), "primary"), action("Back to solo", () => together.leave(), "link"));

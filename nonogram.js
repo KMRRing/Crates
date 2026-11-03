@@ -1023,7 +1023,7 @@ $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => { if (!duel.on) start("random"); else if (S?.play === "split") duel.again(); else duel.open(); });
 $("size").addEventListener("change", async () => {
-  if (duel.on) { if (!duel.newMatch()) $("size").value = duel.match?.size || "medium"; return; }
+  if (duel.on) { if (!(await duel.newMatch())) $("size").value = duel.match?.size || "medium"; return; }
   if (S && $("size").value === S.size && S.mode !== "daily") return;
   if (!(await confirmStart("random"))) $("size").value = S?.size || "medium";
 });

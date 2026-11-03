@@ -9,6 +9,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, reportDuo, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
@@ -447,9 +448,9 @@ function showRandom() {
   if (validRun(kept) && !kept.over) show(kept); else newRandom();
 }
 /** Asks before leaving a random puzzle under way for a new one. */
-function confirmNew(level) {
+async function confirmNew(level) {
   const kept = S?.kind === "run" ? S : read(RUN, null);
-  if (started(kept) && !confirm("Start a new puzzle? This one isn't finished.")) return false;
+  if (started(kept) && !(await sure("Start a new puzzle? This one isn't finished."))) return false;
   newRandom(level);
   return true;
 }
@@ -707,7 +708,7 @@ function openMenu() {
   if (duel.on) {
     const t = part(body, "together");
     duel.menu(t);
-    if (S?.kind === "team" && !isOver()) t.append(action("Call it a day", () => { if (confirm("End this puzzle for the whole team?")) endTeam(); }, "link"));
+    if (S?.kind === "team" && !isOver()) t.append(action("Call it a day", async () => { if (await sure("End this puzzle for the whole team?")) endTeam(); }, "link"));
     t.append(choice("Next match", [["team", "Team"], ["race", "Race"]], togetherMode(), v => { prefs.together = v; keepPrefs(); openMenu(); }));
     if (togetherMode() === "race") t.append(choice("Race clock", [[180, "3 min"], [300, "5 min"]], prefs.raceSecs, v => { prefs.raceSecs = v; keepPrefs(); }));
     part(body, "content").append(mirror("Level", $("pick")), choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); }));
@@ -716,7 +717,7 @@ function openMenu() {
   }
   const play = part(body, "play");
   play.append(action(prefs.secs ? `New ${prefs.secs / 60}-minute sprint` : "New puzzle", () => confirmNew(), "primary"));
-  if (S && !S.over && (S.kind === "day" || S.kind === "run")) play.append(action("Show the words", () => { if (confirm("Show every word? This puzzle ends here.")) finish("shown"); }, "link"));
+  if (S && !S.over && (S.kind === "day" || S.kind === "run")) play.append(action("Show the words", async () => { if (await sure("Show every word? This puzzle ends here.")) finish("shown"); }, "link"));
   part(body, "content").append(mirror("Puzzle", $("pick")),
     choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); $("menuDlg").close(); confirmNew(); }));
   part(body, "settings").append(choice("Clock", CLOCKS, prefs.secs, v => { prefs.secs = v; keepPrefs(); openMenu(); }));
@@ -811,12 +812,12 @@ document.addEventListener("keydown", e => {
   else if (e.key === " ") { shuffle(); e.preventDefault(); }
   else if (e.key === "Escape") clearWord();
 });
-$("pick").addEventListener("change", () => {
+$("pick").addEventListener("change", async () => {
   const v = $("pick").value;
   if (duel.on) {                                  // at a table: a new match at that level (today's isn't a match)
     const was = prefs.level;
     if (v !== "today") { prefs.level = v; keepPrefs(); }
-    if (v === "today" || !duel.newMatch()) { prefs.level = was; keepPrefs(); $("pick").value = S?.p.level || was; }
+    if (v === "today" || !(await duel.newMatch())) { prefs.level = was; keepPrefs(); $("pick").value = S?.p.level || was; }
     return;
   }
   if (v === "today") { showToday(); return; }
@@ -824,7 +825,7 @@ $("pick").addEventListener("change", () => {
   keepPrefs();
   const kept = S?.kind === "run" ? S : read(RUN, null);
   if (validRun(kept) && kept.p.level === v && !kept.over) { show(kept); return; }
-  if (!confirmNew(v)) $("pick").value = S?.kind === "day" ? "today" : S?.p.level || prefs.level;
+  if (!(await confirmNew(v))) $("pick").value = S?.kind === "day" ? "today" : S?.p.level || prefs.level;
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); duel.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });

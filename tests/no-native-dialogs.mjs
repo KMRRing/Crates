@@ -6,34 +6,6 @@ import fs from "fs";
 
 const root = new URL("..", import.meta.url).pathname;
 const STILL = {
-  "acrostic.js": 3,
-  "assay.js": 4,
-  "blend-parcels-ui.js": 1,
-  "blend.js": 1,
-  "bulls.js": 3,
-  "cartel.js": 1,
-  "chart.js": 3,
-  "codeword.js": 3,
-  "crossword.js": 4,
-  "duel.js": 1,
-  "harbour.js": 2,
-  "isomer.js": 3,
-  "ladder-room.js": 1,
-  "ladder.js": 2,
-  "ledger.js": 1,
-  "lode.js": 4,
-  "mines.js": 3,
-  "nexus.js": 1,
-  "order.js": 3,
-  "origin.js": 3,
-  "parley.js": 1,
-  "punt.js": 3,
-  "rush-menu.js": 1,
-  "slate.js": 3,
-  "stow.js": 1,
-  "survey.js": 3,
-  "timegrapher.js": 5,
-  "yield.js": 3,
 };
 
 let bad = 0;

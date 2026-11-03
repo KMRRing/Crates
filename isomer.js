@@ -14,6 +14,7 @@ import { busy, waitMark } from "./loading.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause, isPaused } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";   // the day, the same for everyone; a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
@@ -100,8 +101,8 @@ async function deal(kind = "random") {
   } catch (e) { console.error(e); toast("Couldn't deal a puzzle: try another level"); }
   finally { done(); }
 }
-function confirmDeal(kind) {
-  if (started() && !confirm("Start a new puzzle? This one isn't solved.")) return false;
+async function confirmDeal(kind) {
+  if (started() && !(await sure("Start a new puzzle? This one isn't solved."))) return false;
   deal(kind);
   return true;
 }
@@ -458,7 +459,7 @@ async function hintTogether(i) {
 /** A new puzzle for the two of you (asked first while this one is under way). */
 async function againTogether() {
   if (!G) return;
-  if (!G.done && Object.keys(G.solved).length && !confirm("Deal a new puzzle for the two of you? This one isn't solved.")) return;
+  if (!G.done && Object.keys(G.solved).length && !(await sure("Deal a new puzzle for the two of you? This one isn't solved."))) return;
   const n = G.n, puzzle = await pairPuzzle();
   await together.act(g => newGameAt(tidyTable(g), { n, puzzle }));
 }
@@ -672,11 +673,11 @@ window.__isomer = { get state() { return S; }, get table() { return G; }, deal, 
 
 // ---------- starting ----------
 const forToday = arrivedForToday();   // from the games screen's tile: today's puzzle, still to play
-function solo() {
+async function solo() {
   const kept = read(RUN, null);
   const ok = kept?.puzzle?.words && (kept.kind === "random" || kept.kind === "daily");
   if (forToday && !IN_FRAME && !(ok && kept.kind === "daily" && kept.day === today())) {
-    if (!(ok && kept.run && !kept.run.done && (kept.run.squares || []).some(sq => sq.some(k => k >= 0))) || confirm("Today's puzzle is waiting. Leave the one you've started?")) { deal("daily"); return; }
+    if (!(ok && kept.run && !kept.run.done && (kept.run.squares || []).some(sq => sq.some(k => k >= 0))) || await sure("Today's puzzle is waiting. Leave the one you've started?")) { deal("daily"); return; }
   }
   if (ok) show(kept);
   else if (!IN_FRAME) deal(dailyDue("isomer") ? "daily" : "random");

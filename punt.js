@@ -20,6 +20,7 @@ import * as known from "./known.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./question-flags.js";
 import { gameHref, GAMES, joiningWords } from "./rooms.js";
 import { part, choice, action, line, ticks } from "./menu.js";
+import { sure } from "./sure.js";
 import { subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, dealt, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
@@ -191,11 +192,11 @@ async function soloSession(seed, level, length = chosenLength(), picks = null, d
 /** Today's run: the date's seed on the Standard settings, nothing of yours dealt in; the same for everyone. Solo only. */
 async function newDaily() {
   if (together.room) { toast("Today's run is played alone"); return; }
-  if (S && !S.done && S.index > 0 && !confirm("Start today's run? This one isn't finished.")) { render(); return; }
+  if (S && !S.done && S.index > 0 && !(await sure("Start today's run? This one isn't finished."))) { render(); return; }
   soloSession(today(), "mix", "standard", null, true);
 }
 async function newSession(level = S.level, length = chosenLength(), picks = null) {
-  if (S && !S.done && S.index > 0 && !confirm("Start a new run? This one isn't finished.")) { render(); return; }
+  if (S && !S.done && S.index > 0 && !(await sure("Start a new run? This one isn't finished."))) { render(); return; }
   try { localStorage.setItem(LENGTH, length); } catch { /* private mode */ }
   if (!together.room) { soloSession(randomSeed(), level, length, picks); return; }
   dealTable({ level, length, picks });
@@ -954,10 +955,10 @@ const together = createTogether({
   },
 });
 /** Against or Together: the other kind of pot is a new run, asked first while this one's under way. */
-function switchMode(mode) {
+async function switchMode(mode) {
   if (modeOf(S) === mode) return;
   const started = !S.done && (S.index > 0 || S.log.length || Object.keys(S.bets || {}).length);
-  if (started && !confirm(`Start a new run ${mode === "against" ? "with a pot each" : "with one pot for the table"}? This one isn't finished.`)) { drawMenu(); return; }
+  if (started && !(await sure(`Start a new run ${mode === "against" ? "with a pot each" : "with one pot for the table"}? This one isn't finished.`))) { drawMenu(); return; }
   dealTable({ level: S.level, length: lengthOf(S), picks: S.mix || S.maths || null, mode });
 }
 

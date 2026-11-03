@@ -9,6 +9,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, action, mirror, choice } from "./menu.js";
 import { createDuel } from "./duel.js";
+import { sure } from "./sure.js";
 import { createParcels } from "./blend-parcels-ui.js";
 
 const levelDD = dropdown(document.getElementById("level"));   // the header dropdowns in the suite's style (see dropdown.js): the orders', and the parcels' desks
@@ -32,7 +33,7 @@ const limitText = (p, lim) => { const u = PROPS[p].unit; const f = v => (u === "
 
 // ---------- levels ----------
 function loadLevel(n) {
-  if (duel.on) { if (!duel.newMatch()) $("level").value = String(L.id); return; }   // a new match on that order, for everyone
+  if (duel.on) { duel.newMatch().then(ok => { if (!ok) $("level").value = String(L.id); }); return; }   // a new match on that order, for everyone
   L = LEVELS.find(l => l.id === n) || LEVELS[0];
   S.level = L.id;
   par = solve(L);
@@ -53,7 +54,7 @@ function adjust(i, delta) {
   keep();
   render();
 }
-function certify() {
+async function certify() {
   if (D?.done) return;
   const p = pct(), total = p.reduce((a, b) => a + b, 0);
   if (total !== 100) { toast("The blend has to add up to 100%"); return; }
@@ -61,7 +62,7 @@ function certify() {
   if (!verdict.every(x => x.ok)) { toast("Something's still off spec"); return; }
   const m = margin(L.product, L.components, p);
   if (D) {                                                  // a match: certifying is your answer, and final
-    if (!confirm(`Certify at ${euro(m)}/m³? It's your answer for the match: you can't change it after.`)) return;
+    if (!(await sure(`Certify at ${euro(m)}/m³? It's your answer for the match: you can't change it after.`, { yes: "Certify" }))) return;
     D.done = true; D.margin = m;
     tell(true);
     keep();

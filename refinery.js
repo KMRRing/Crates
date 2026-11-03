@@ -57,7 +57,7 @@ const targetOf = (lv, deck) => (lv.decks ? parOf(lv, lv.crude, deck).margin : Ma
 // ---------- levels ----------
 /** Opens a level: your routing on it where you left it (fresh: as the level starts). */
 function load(id, fresh = false) {
-  if (duel.on) { if (!duel.newMatch()) $("level").value = base?.id || id; return; }
+  if (duel.on) { duel.newMatch().then(ok => { if (!ok) $("level").value = base?.id || id; }); return; }
   base = LEVELS.find(l => l.id === id) || LEVELS[0];
   write(AT, base.id);
   const work = read(WORK, {}), w = fresh ? null : work[base.id];

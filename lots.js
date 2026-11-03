@@ -532,7 +532,7 @@ bindSwitcher($("appsBtn"), "crates");
 dropdown(el.level);
 el.level.addEventListener("change", async () => {
   const v = el.level.value;
-  if (mode === "race") { prefs.level = v; keepPrefs(); if (!duel.newMatch()) el.level.value = duel.match?.level || "medium"; return; }
+  if (mode === "race") { prefs.level = v; keepPrefs(); if (!(await duel.newMatch())) el.level.value = duel.match?.level || "medium"; return; }
   prefs.level = v; keepPrefs();
   if (mode === "duo") { toast(`${LEVEL_NAMES[v]} from the next board`); return; }
   if (S && S.kind === "random" && S.level === v && !S.done) return;

@@ -9,6 +9,7 @@ import { LOCK_LEVELS, makeLock, lockSteps, WRONG, HINT } from "./bulls-lock.js";
 import { PLAYS, KINDS, freshTable, isTable, tidy, teamGuess, teamTry, begin, setCode, ownGuess, ownTry, ownHint, keysShown, handOf, targetOf, setterOf, breakerOf,
   allSet, runOf, standings, isOver, resultOf, newGameAt, lockOf, lockReady } from "./bulls-table.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { sure } from "./sure.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";   // the day, the same for everyone (UTC); a watching frame writes nothing
@@ -92,8 +93,8 @@ function begun() {
   cpuSoon();
 }
 /** A game from the menu, the end panel or a link: asks before leaving one under way. */
-function startPicked(how = prefs.play, opts = {}) {
-  if (started() && !confirm("Start a new game? This one isn't finished.")) return false;
+async function startPicked(how = prefs.play, opts = {}) {
+  if (started() && !(await sure("Start a new game? This one isn't finished."))) return false;
   if (how === "daily") startBreak({ daily: true });
   else if (how === "duel") startDuel(opts);
   else if (how === "lock") startLock(opts);
@@ -816,7 +817,7 @@ async function hintTable() {
 async function dealAgain() {
   if (!G) return;
   const T = G.game, over = isOver(T, present()), mid = !over && (T.play === "team" ? (T.board.rows?.length || T.board.tries?.length) : Object.keys(T.seats || {}).length);
-  if (mid && !confirm("Deal a new game for the table? This one isn't finished.")) return;
+  if (mid && !(await sure("Deal a new game for the table? This one isn't finished."))) return;
   const n = G.n, slots = people().map(p => p.slot);
   await together.act(g => newGameAt(tidy(g), { n, deal: { ...prefs.table, seed: randomSeed() }, slots, now: now() }));
 }
@@ -1055,13 +1056,13 @@ setInterval(() => {
   if (clockFrom != null && performance.now() - savedAt > SAVE_EVERY) { clockStop(); clockRun(); savedAt = performance.now(); }
 }, 500);
 
-function solo() {
+async function solo() {
   run = read(RUN, null);
   if (!validRun(run)) run = null;
   const l = linked();
   if (l && !sameGame(run, l) && !IN_FRAME) { startLinked(l); return; }
   if (arrivedForToday() && !IN_FRAME && !(run?.daily && run.day === today())) {
-    if (!started() || confirm("Today's code is waiting. Leave the game you've started?")) { startBreak({ daily: true }); return; }
+    if (!started() || await sure("Today's code is waiting. Leave the game you've started?")) { startBreak({ daily: true }); return; }
   }
   if (run?.done && !dayDone() && !IN_FRAME) { startBreak({ daily: true }); return; }   // a game over gives way to today's code, while it's still to play
   if (run) {

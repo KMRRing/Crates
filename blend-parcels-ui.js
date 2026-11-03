@@ -6,6 +6,7 @@ import { COMPONENTS, PROPS, PRODUCTS } from "./blend-engine.js";
 import { busy } from "./loading.js";
 import { IN_FRAME } from "./suite.js";
 import { action } from "./menu.js";
+import { sure } from "./sure.js";
 
 const KEY = "blend2:parcels";
 const $ = id => document.getElementById(id);
@@ -184,10 +185,10 @@ export function createParcels({ explain, synced, starred }) {
     $("resultNext").textContent = deal.desk === DESKS.length ? "Back to desk 1" : `Desk ${deal.desk + 1}`;
     if (!$("resultDlg").open) $("resultDlg").showModal();
   }
-  function closeTanks() {
+  async function closeTanks() {
     if (run.closed) { result(); return; }
     if (!run.assign.some(a => a >= 0)) return;
-    if (!confirm("Close the tanks? The receiving lab tests what is in them, and the day is final.")) return;
+    if (!(await sure("Close the tanks? The receiving lab tests what is in them, and the day is final.", { yes: "Close tanks" }))) return;
     const c = close(deal, run);
     S.best[deal.desk] = Math.max(S.best[deal.desk] ?? -Infinity, c.profit);
     S.stars[deal.desk] = Math.max(S.stars[deal.desk] ?? 0, c.stars);

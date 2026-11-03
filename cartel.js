@@ -10,6 +10,7 @@ import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, ticks } from "./menu.js";
+import { sure } from "./sure.js";
 import { seatRounds } from "./random.js";
 import { noteStreak, IN_FRAME } from "./suite.js";
 import { scale } from "./wide.js";
@@ -769,9 +770,9 @@ function openMenu() {
   body.replaceChildren();
   let picked = chosenOpponents();
   const top = part(body, "play");
-  if (page.host) top.append(action("New game", () => {
+  if (page.host) top.append(action("New game", async () => {
     if (picked.length < 2) { toast("Pick at least two opponents"); return; }
-    if (g && !g.over && g.moves > 2 && !confirm("Start a new game? This one isn't finished.")) return;
+    if (g && !g.over && g.moves > 2 && !(await sure("Start a new game? This one isn't finished."))) return;
     startGame(picked);
   }, "primary"));
   page.menu(top);
