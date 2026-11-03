@@ -105,12 +105,13 @@ export async function commonSuite({ check, id, adapter, share, layer, cells: [c0
 
 /**
  * What every game on the digit grid (digits-coop.js: Sudoku, Calcudoku, Kakuro) has to do as a pair, from a grid of its own:
- * `kinds` are the games' kinds (the first is played), `gridOf(kind)` an encoded grid of one, `decode(grid)` its puzzle (`solution`, `n`,
- * and `givens` where the grid has some), `badGrid` a grid this version can't play. `coopOf` is the adapter's default export, `KEY` and
- * `playable` its other two; the game's own test adds what is particular to it.
+ * `kinds` are the game's kinds (the first is played), `gridOf(kind)` an encoded grid of one, `decode(grid)` its puzzle (`solution`, and
+ * `n` and `givens` where the grid is square), `shape(puzzle)` otherwise says `{ k: digits, cells, free(i): whether a player writes in
+ * cell i }`, `badGrid` a grid this version can't play. `coopOf` is the adapter's default export, `KEY` and `playable` its other two;
+ * the game's own test adds what is particular to it.
  */
-export async function digitsSuite({ check, id, name, coopOf, KEY, playable, kinds, gridOf, decode, badGrid }) {
-  const grid = gridOf(kinds[0]), P = decode(grid), cells = P.n * P.n, k = P.n, free = [...Array(cells).keys()].filter(i => !P.givens?.[i]);
+export async function digitsSuite({ check, id, name, coopOf, KEY, playable, kinds, gridOf, decode, badGrid, shape = P => ({ k: P.n, cells: P.n * P.n, free: i => !P.givens?.[i] }) }) {
+  const grid = gridOf(kinds[0]), P = decode(grid), { k, cells } = shape(P), free = [...Array(cells).keys()].filter(shape(P).free);
   const entries = freshEntries(cells);
   write(entries, free[1], 2); pencil(entries, free[2], 1); pencil(entries, free[2], k);
   const run = { v: 1, mode: "random", grid, entries, sel: 5, notes: true, ms: 4000, hints: 1, wrong: [free[1]], done: null, pace: "keen" };
@@ -136,7 +137,7 @@ export async function digitsSuite({ check, id, name, coopOf, KEY, playable, kind
 
   let ok = 0;
   for (const kind of kinds) {
-    const g = gridOf(kind), b = coopOf.share({ [KEY]: JSON.stringify({ ...run, grid: g, entries: freshEntries(decode(g).n ** 2) }) }), through = b && roundTrip(JSON.parse(JSON.stringify(b)));
+    const g = gridOf(kind), b = coopOf.share({ [KEY]: JSON.stringify({ ...run, grid: g, entries: freshEntries(shape(decode(g)).cells) }) }), through = b && roundTrip(JSON.parse(JSON.stringify(b)));
     if (b && coopOf.valid(b) && through && coopOf.valid(through) && decode(through.fixed.grid).solution.join() === decode(g).solution.join()) ok++;
   }
   check(ok === kinds.length, `${id}: a grid of each kind tried (${kinds.length}) is valid through the database and comes back the same grid`);
