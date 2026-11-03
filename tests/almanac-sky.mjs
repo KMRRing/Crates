@@ -182,7 +182,7 @@ const sky = buildSky(ENTITIES, LINKS, LAYOUT);
   }
   check(!missing.length, `every file the Almanac page and its star chart import is there${missing.length ? `: missing ${missing.join(", ")}` : ` (${mods.length} scripts, almanac.html)`}`);
   // the elements the sky is handed are in the page
-  const ids = ["sky", "skyGL", "skyInk", "skyHint", "skyFoot", "skyMsg", "skySearch", "skyQ", "skyMenu", "skySubjects", "skyHome", "skyHits", "skyLegend", "skyCard", "appsBtn", "menuBtn", "menuDlg", "modeList", "modeSky", "q", "results", "entry"];
+  const ids = ["sky", "skyGL", "skyInk", "skyHint", "skyFoot", "skyMsg", "skySearch", "skyQ", "skyMenu", "skySubjects", "skyHome", "skyHits", "skyLegend", "skyCard", "skyTag", "appsBtn", "menuBtn", "menuDlg", "modeList", "modeSky", "q", "results", "entry"];
   const gone = ids.filter(id => !new RegExp(`id="${id}"`).test(html));
   check(!gone.length, `the page has every element the chart is wired to${gone.length ? `: missing ${gone.join(", ")}` : ""}`);
   // Korbi, 3 November 2026: the star chart is what Almanac opens on, the whole screen. Nothing about the last way you looked is kept.

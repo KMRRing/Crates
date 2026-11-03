@@ -81,6 +81,14 @@ body:not(.on-sky) #sky { display: none; }
 .sk-msg b { font-size: 1rem; }
 .sk-msg .ld { width: 2rem; height: 2rem; }
 .sk-msg .btn { margin: .2rem 0 0; background: var(--sheet); color: var(--ink); border: 1.5px solid var(--brass); }
+/* the name of the link the camera follows from one star to the next: the aspect, and the reason if one is written, beside the line.
+   Quiet: the sheet's own look at the page's own tokens, a little see-through; it takes no touch, so a touch on it stops the move. */
+.sk-tag { position: absolute; z-index: 3; left: 0; top: 0; box-sizing: border-box; max-width: min(18rem, calc(100% - 1rem)); padding: .3rem .6rem .35rem; text-align: center; pointer-events: none;
+  background: color-mix(in srgb, var(--sheet) 90%, transparent); color: var(--ink); border: 1px solid var(--brass); border-radius: 5px; box-shadow: 0 .15rem .8rem rgba(0, 0, 0, .5); will-change: transform, opacity; }
+.sk-tag[hidden] { display: none; }
+.sk-tag b { display: block; font-size: .72rem; font-weight: 750; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); line-height: 1.3; }
+.sk-tag small { display: block; margin-top: .1rem; font-size: .68rem; line-height: 1.3; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-tag small:empty { display: none; }
 /* a partner's watching frame takes no taps: nothing to press on it */
 .sk.in-frame :is(.sk-top, .sk-chips) { display: none; }
 /* with words in place of a sky (laying out, or no WebGL) there is nothing to search or turn */

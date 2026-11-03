@@ -123,6 +123,18 @@ function groupsOf(id) {
   }
   return out;
 }
+/**
+ * What joins two things, in words, for the line the sky draws between them as the camera goes from one to the other: the topic
+ * the link belongs to (or, if it has none, how the first reads the relation) and the reason, if one is written. Null if
+ * they are not linked.
+ */
+function linkWords(a, b) {
+  const joins = [...(OUT.get(a) || []).filter(l => l.to === b), ...(IN.get(a) || []).filter(l => l.from === b)];
+  const l = joins.find(x => (x.aspects || []).some(t => TOPIC[t])) || joins[0];
+  if (!l) return null;
+  const topics = [...new Set((l.aspects || []).map(t => TOPIC[t]).filter(Boolean))].slice(0, 2), rel = REL[l.rel];
+  return { name: topics.length ? topics.join(" · ") : rel ? rel[l.from === a ? 0 : 1] : l.rel.replace(/-/g, " ").replace(/^./, c => c.toUpperCase()), because: l.hint || "" };
+}
 const SHOWN = 24;
 /**
  * An entry written into `box`: used by the list view and by the sky's popup. `nav.go(id)` is where a link leads (the list's
@@ -248,8 +260,8 @@ async function loadSky() {
   skyLoading ||= import("./almanac-sky.js").then(m => m.createSky({
     section: $("sky"), gl: $("skyGL"), ink: $("skyInk"), hint: $("skyHint"), foot: $("skyFoot"), msg: $("skyMsg"), listBtn: back,
     form: $("skySearch"), query: $("skyQ"), menuBtn: $("skyMenu"), subjectsBtn: $("skySubjects"), homeBtn: $("skyHome"),
-    hits: $("skyHits"), legend: $("skyLegend"), card: $("skyCard"),
-  }, { search, label, kindsOf, shortName, fill: fillEntry, toList: id => goList(id), entryShown: popupUrl }));
+    hits: $("skyHits"), legend: $("skyLegend"), card: $("skyCard"), tag: $("skyTag"),
+  }, { search, label, kindsOf, shortName, linkWords, fill: fillEntry, toList: id => goList(id), entryShown: popupUrl }));
   sky = await skyLoading;
   return sky;
 }

@@ -4,9 +4,10 @@
 // and must go back to twinkles. almanac.js loads this as the page starts, so the list view carries none of it until asked.
 //
 // What is where: almanac-sky-data.js builds the stars from kb/, -place.js their places (the stored layout), -camera.js the
-// orbiting camera (pure), -gl.js the drawing, -learn.js the glow from the pile, almanac-nav.js the trail through entries and
-// the arrow keys through search results (pure); this file is the page's side of it: touch, labels, the search field, the
-// popups (a star's entry, the subjects, what a search found), and what is kept.
+// orbiting camera and what a flick does after the finger leaves (pure), almanac-fly.js the scenic move from one star to the next
+// (pure), -gl.js the drawing, -learn.js the glow from the pile, almanac-nav.js the trail through entries and the arrow keys
+// through search results (pure); this file is the page's side of it: touch, labels, the search field, the popups (a star's
+// entry, the subjects, what a search found), the flight and the drift as they run, and what is kept.
 //
 // Kept under `lexicon:` (the game's id stays, the page is Almanac), so a partner watching sees the same sky:
 //   lexicon:sky      { yaw, pitch, dist, at, off: [subjects switched off], sel: the chosen star's id, pop: "card" | "full" }
@@ -20,6 +21,7 @@ import { LAYOUT } from "./almanac-sky-layout.js";
 import { buildSky, regionMiddles, MAX_LENGTH } from "./almanac-sky-data.js";
 import { jitter } from "./almanac-sky-place.js";
 import * as C from "./almanac-sky-camera.js";
+import * as FLY from "./almanac-fly.js";
 import { createSkyGL, canDrawSky } from "./almanac-sky-gl.js";
 import { glowOf, encodeGlow, decodeGlow, summary } from "./almanac-sky-learn.js";
 import { createTrail, stepHit, hitFor } from "./almanac-nav.js";
@@ -32,6 +34,8 @@ import { waitMark } from "./loading.js";
 const KEY = "lexicon:sky", LIT_KEY = "lexicon:sky:lit";
 const DUST = 520, DUST_AT = 430;                    // faint stars far behind the chart, for the feel of a night sky: they belong to no thing and cannot be chosen
 const HOME = { yaw: 0.6, pitch: 0.42, dist: 280, at: [0, 0, 0] };      // dist is only a start: the view that holds the whole sky depends on the screen's shape
+const ACTS = ["turn", "hold", "travel", "settle", "done"];
+const GOLD = "rgb(255, 226, 150)", PULSE = "rgb(255, 244, 205)";          // the link's line and the light that runs down it, over the dark sky
 const SUBJECT_NAME = Object.fromEntries(SUBJECTS.map(s => [s.id, s.label]));
 const RGB = SUBJECT_IDS.map(id => { const h = COLOURS[id]; return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255); });
 const read = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
@@ -56,9 +60,9 @@ function iconButton(label, icon, onClick) {
 
 /**
  * The sky in the elements of `R` (section, gl, ink, hint, foot, msg, form, query, menuBtn, subjectsBtn, homeBtn, hits, legend,
- * card, listBtn); `api` is almanac.js's own: search(text) → things, label(thing), kindsOf(thing), shortName(thing), fill(box, id,
- * nav) to write an entry into a box, toList(id) to read an entry in the list view, entryShown(id | null) when the popup's
- * entry changes (the address follows it).
+ * card, tag, listBtn); `api` is almanac.js's own: search(text) → things, label(thing), kindsOf(thing), shortName(thing),
+ * linkWords(id, id) → { name, because } for what joins two things (or null), fill(box, id, nav) to write an entry into a box,
+ * toList(id) to read an entry in the list view, entryShown(id | null) when the popup's entry changes (the address follows it).
  */
 export function createSky(R, api) {
   const inkCtx = R.ink.getContext("2d");
@@ -73,7 +77,13 @@ export function createSky(R, api) {
   const trail = createTrail();
   let sky = null, glx = null, glow = new Map(), size = { w: 1, h: 1, dpr: 1 };
   let drawn = null, col = null, misc = null, on = null, lit = null, tw = null, twinkles = false, order = [], middles = [], names = [];
-  let raf = 0, timer = 0, last = 0, paused = false, shown = false, flightNow = null, vel = { x: 0, y: 0 }, dragging = false, saveTimer = 0;
+  let raf = 0, timer = 0, last = 0, paused = false, shown = false, dragging = false, saveTimer = 0;
+  // motion: a flight (almanac-fly.js's plan, run by the clock), a coast (what a flick does once the finger has left, camera.js), and
+  // the finger's own speed as it moves. Everything a frame reads or writes is made here once: a frame makes no arrays.
+  let fly = null, family = "";
+  const coast = C.coastState(), swipe = { x: 0, y: 0 }, pose = FLY.newPose(), spot = { x: 0, y: 0 };
+  const VP = new Float32Array(16), SCRATCH = [new Float32Array(16), new Float32Array(16)], UNIFORMS = { dist: 0, time: 0, dim: 0, boost: 0 };
+  const oa = [0, 0, 0], ob = [0, 0, 0], op = [0, 0, 0];
   let legendOpen = false, hits = [], hitAt = -1, searching = false, sel = -1, labelBox = [], reserved = [], card = null, subRows = [];
   if (IN_FRAME) R.section.classList.add("in-frame");
 
@@ -83,8 +93,9 @@ export function createSky(R, api) {
     const c = S.cam, r = (v, k) => Math.round(v * k) / k;
     write(KEY, { yaw: r(c.yaw, 1000), pitch: r(c.pitch, 1000), dist: r(c.dist, 10), at: c.at.map(v => r(v, 10)), off: [...S.off], sel: S.sel, pop: S.pop });
   }
-  // a moment after the last change: a watcher redraws on every change of these keys, so they are not written on every frame
-  const save = () => { if (IN_FRAME) return; clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 700); };
+  // at most every 700 ms while it changes, and 700 ms after the last: a watcher redraws on every change of these keys, so they are not
+  // written on every frame (and a drift, which changes all the time, makes no timer a frame)
+  const save = () => { if (IN_FRAME || saveTimer) return; saveTimer = setTimeout(saveNow, 700); };
   addEventListener("pagehide", () => { if (saveTimer) saveNow(); });
 
   // ---------- building ----------
@@ -192,7 +203,7 @@ export function createSky(R, api) {
   }
 
   // ---------- the camera, the loop ----------
-  const homeCam = () => ({ ...HOME, dist: C.fitDistance(size.w / size.h) });
+  const homeCam = () => ({ ...HOME, at: [...HOME.at], dist: C.fitDistance(size.w / size.h) });
   function fit() {
     const w = R.section.clientWidth, h = R.section.clientHeight;
     if (!w || !h || !glx) return;
@@ -205,30 +216,44 @@ export function createSky(R, api) {
     if (!shown || paused || !sky || raf || timer || document.hidden) return;
     raf = requestAnimationFrame(frame);
   }
+  /** The camera set to a flight's pose, in place (the camera owns its arrays). */
+  function setCam(p) {
+    const c = S.cam;
+    c.yaw = p.yaw % (2 * Math.PI); c.pitch = p.pitch; c.dist = p.dist;
+    c.at[0] = p.at[0]; c.at[1] = p.at[1]; c.at[2] = p.at[2];
+  }
   function frame(t) {
     raf = 0;
     const real = last ? Math.min(250, t - last) : 16, dt = Math.min(64, real);        // a flight keeps to the clock however slow the frames; a flick's friction does not need to
     last = t;
     let moving = false;
-    if (flightNow) {
-      const r = C.step(flightNow, real);
-      S.cam = r.cam; moving = !r.done; if (r.done) flightNow = null;
+    if (fly) {
+      fly.t += real;
+      FLY.poseAt(fly.plan, fly.t, pose);
+      setCam(pose);
+      if (pose.act !== fly.act) { fly.act = pose.act; R.section.dataset.flight = ACTS[pose.act]; }     // which act, for styling and for tests: four writes a flight
+      if (fly.t >= fly.plan.total) cancelFly(); else moving = true;
       save();
     }
-    if (!dragging && (Math.abs(vel.x) > 0.002 || Math.abs(vel.y) > 0.002)) {             // a flick keeps turning, slowing
-      S.cam = C.orbit(S.cam, vel.x * dt, vel.y * dt, size.h);
-      const f = Math.exp(-dt / 320); vel.x *= f; vel.y *= f; moving = true; save();
+    if (!dragging && coast.live) {                                                  // a flick keeps turning, slowing: to a stop, or to a drift
+      C.coastStep(coast, dt, size.h, S.cam.pitch);
+      C.orbitBy(S.cam, coast.mx, coast.my, size.h);
+      moving = moving || coast.live; save();
     }
     draw(t);
-    if (moving) raf = requestAnimationFrame(frame);
-    else if (twinkles && !reduced()) { last = 0; timer = setTimeout(() => { timer = 0; invalidate(); }, 66); }   // twinkling alone is drawn about fifteen times a second
+    if (moving) {
+      if (!fly && !dragging && coast.cruising) timer = setTimeout(() => { timer = 0; invalidate(); }, 24);     // a drift is slow: drawn about thirty times a second, not sixty
+      else raf = requestAnimationFrame(frame);
+    } else if (twinkles && !reduced()) { last = 0; timer = setTimeout(() => { timer = 0; invalidate(); }, 66); }   // twinkling alone is drawn about fifteen times a second
     else last = 0;
   }
   function draw(t = performance.now()) {
     if (!sky || glx.lost() || !size.w) return;
-    const vp = C.viewProjection(S.cam, size.w / size.h), dark = night();
-    glx.draw(vp, { dist: S.cam.dist, time: t / 1000, dim: dark ? 0.62 : 0.7, boost: dark ? 1.6 : 2.2 });
-    drawInk(vp);
+    C.viewProjectionInto(VP, SCRATCH, S.cam, size.w / size.h);
+    const dark = night();
+    UNIFORMS.dist = S.cam.dist; UNIFORMS.time = t / 1000; UNIFORMS.dim = dark ? 0.62 : 0.7; UNIFORMS.boost = dark ? 1.6 : 2.2;
+    glx.draw(VP, UNIFORMS);
+    drawInk(VP);
   }
   /** Where the controls and the popups stand over the sky, in its pixels, so no label is written under one. */
   function measure() {
@@ -245,7 +270,7 @@ export function createSky(R, api) {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
     g.textBaseline = "middle";
-    const family = getComputedStyle(document.body).fontFamily;
+    family ||= getComputedStyle(document.body).fontFamily;                        // read again only when the theme changes
     const d = S.cam.dist, off = offIx();
     // far out, the regions are named, in wide capitals, the biggest first and none over another; they fade as the stars
     // come near enough to name themselves
@@ -293,6 +318,7 @@ export function createSky(R, api) {
       return true;
     };
     if (sel >= 0 && on[sel]) putLabel(sel, true);
+    if (fly && fly.from >= 0 && fly.from !== sel && on[fly.from]) putLabel(fly.from, true);       // the star the camera came from is named too while it is in view
     let placed = 0;
     for (let i = 0; i < order.length && placed < budget; i++) {
       const r = order[i];
@@ -307,6 +333,43 @@ export function createSky(R, api) {
         g.beginPath(); g.arc(o3[0], o3[1], (9 + sky.size[sel] * 1.2) * k, 0, 2 * Math.PI); g.stroke();
       }
     }
+    if (fly && fly.plan.linked) drawLink(vp);
+  }
+  /**
+   * The link the camera is following, drawn over the sky: the line from the star it came from to the one it goes to, a light
+   * running down it, and its name (the aspect, and the reason in a line if one is written) beside it. Nothing here makes an array.
+   */
+  function drawLink(vp) {
+    const { w, h } = size, k = scale(), g = inkCtx, p = fly.plan, tag = R.tag;
+    const da = C.projectInto(oa, vp, p.a[0], p.a[1], p.a[2], w, h), db = C.projectInto(ob, vp, p.b[0], p.b[1], p.b[2], w, h);
+    const seen = da > C.NEAR && db > C.NEAR, line = seen ? pose.line : 0;
+    if (line > 0.01) {
+      g.lineCap = "round"; g.strokeStyle = GOLD;
+      g.beginPath(); g.moveTo(oa[0], oa[1]); g.lineTo(ob[0], ob[1]);
+      g.globalAlpha = 0.18 * line; g.lineWidth = 7 * k; g.stroke();                   // a soft glow under it, so it holds against a bright cluster
+      g.globalAlpha = 0.92 * line; g.lineWidth = 1.7 * k; g.stroke();
+      g.globalAlpha = 0.6 * line; g.lineWidth = 1.4 * k;
+      g.beginPath(); g.arc(oa[0], oa[1], (7 + sky.size[fly.from] * 1.2) * k, 0, 2 * Math.PI); g.stroke();      // a ring on the star it came from, as on the one it goes to
+      if (pose.pulse >= 0) {                                                          // the light: where the camera's look-at is going, down the line
+        const e = pose.pulse;
+        C.projectInto(op, vp, p.a[0] + (p.b[0] - p.a[0]) * e, p.a[1] + (p.b[1] - p.a[1]) * e, p.a[2] + (p.b[2] - p.a[2]) * e, w, h);
+        const dx = ob[0] - oa[0], dy = ob[1] - oa[1], len = Math.hypot(dx, dy) || 1;
+        g.fillStyle = PULSE;
+        for (let i = 5; i >= 0; i--) {                                                // a short tail behind it, along the line on the screen
+          g.globalAlpha = (i ? 0.5 / (i + 1) : 1) * line;
+          g.beginPath(); g.arc(op[0] - dx / len * i * 7 * k, op[1] - dy / len * i * 7 * k, (i ? 3.2 - i * 0.4 : 4) * k, 0, 2 * Math.PI); g.fill();
+        }
+        g.globalAlpha = 0.22 * line; g.beginPath(); g.arc(op[0], op[1], 10 * k, 0, 2 * Math.PI); g.fill();
+      }
+      g.globalAlpha = 1;
+    }
+    // its name, beside the middle of the line, on its upper side and inside what the popup leaves free
+    if (fly.named && seen) {
+      FLY.tagSpot(spot, oa[0], oa[1], ob[0], ob[1], fly.free, fly.tagW, fly.tagH);
+      const x = Math.round(spot.x), y = Math.round(spot.y), o = Math.round(pose.tag * 50) / 50;
+      if (x !== fly.x || y !== fly.y) { tag.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`; fly.x = x; fly.y = y; }
+      if (o !== fly.o) { tag.style.opacity = o; fly.o = o; }
+    } else if (fly.named && fly.o !== 0) { tag.style.opacity = 0; fly.o = 0; }
   }
 
   // ---------- choosing a star: its entry in a popup ----------
@@ -327,7 +390,7 @@ export function createSky(R, api) {
     more.addEventListener("click", () => {
       S.pop = S.pop === "full" ? "card" : "full";
       showCard(); updatePanels();
-      if (sel >= 0) goTo(aimPoint(sky.xyz.slice(3 * sel, 3 * sel + 3), S.cam.dist));        // the star stays in what the popup leaves of the sky
+      if (sel >= 0) launch(starAt(sel), { near: S.cam.dist, to: sel });                     // the star stays in what the popup leaves of the sky
       save();
     });
     const foot = el("div", "sk-pop-foot");
@@ -366,10 +429,11 @@ export function createSky(R, api) {
     }
   }
   /**
-   * Chooses a star (or none: -1). `fly` moves the camera to it, to within `near` units; `pop` sets how the popup stands (card or
-   * full); `silent` leaves the address alone (it is what asked for this).
+   * Chooses a star (or none: -1). `fly` moves the camera to it, to within `near` units; `via` is the star it comes from, if the
+   * two are linked (the camera then follows the link, naming it); `pop` sets how the popup stands (card or full); `silent`
+   * leaves the address alone (it is what asked for this).
    */
-  function select(r, { fly = false, near = 60, pop = null, silent = false } = {}) {
+  function select(r, { fly: go = false, near = 60, via = -1, pop = null, silent = false } = {}) {
     sel = r; S.sel = r >= 0 ? idOf(r) : null;
     if (r < 0) { S.pop = "card"; trail.start(null); }
     else {
@@ -377,9 +441,9 @@ export function createSky(R, api) {
       const subs = sky.subjects[r], off = offIx();
       if (subs.every(s => off.has(s))) { S.off.delete(SUBJECT_IDS[subs[0]]); paintStars(); refreshLegend(); updateHint(); }   // a star you ask for is not left switched off
     }
-    if (r >= 0) legendOpen = false;
+    if (r >= 0) { legendOpen = false; C.halt(coast); }
     drawFocus(); showCard(); updatePanels();
-    if (r >= 0 && fly) goTo(aimPoint(sky.xyz.slice(3 * r, 3 * r + 3), Math.min(S.cam.dist, near)));
+    if (r >= 0 && go) launch(starAt(r), { near, via, to: r });
     save(); invalidate();
     if (!silent) api.entryShown(S.sel);
   }
@@ -388,44 +452,85 @@ export function createSky(R, api) {
     if (r >= 0) trail.start(idOf(r));
     select(r, opts);
   }
-  /** A link in the popup: its entry is shown in the same popup, the trail going on. */
+  /** A link in the popup: its entry is shown in the same popup, the trail going on, and the camera goes along the link to it. */
   function follow(id) {
-    const r = sky.rowOf.get(id);
+    const r = sky.rowOf.get(id), via = sel;
     if (r == null) return;
     trail.go(idOf(r));
-    select(r);
+    select(r, { fly: true, near: 22, via });
   }
-  /** A link's own button, to see it in the sky: its entry stands in the popup, which shrinks to its card, and the camera flies there. */
+  /** A link's own button, to see it in the sky: its entry stands in the popup, which shrinks to its card, and the camera goes along the link there. */
   function locateId(id) {
-    const r = sky.rowOf.get(id);
+    const r = sky.rowOf.get(id), via = sel;
     if (r == null) return;
     trail.go(idOf(r));
-    select(r, { fly: true, near: 22, pop: "card" });
+    select(r, { fly: true, near: 22, via, pop: "card" });
   }
+  /** Back along the trail: the camera goes back along the link it came by. */
   function goBack() {
-    const id = trail.back(), r = id ? sky.rowOf.get(id) : null;
-    if (r != null) select(r);
+    const via = sel, id = trail.back(), r = id ? sky.rowOf.get(id) : null;
+    if (r != null) select(r, { fly: true, near: 22, via });
   }
 
-  /** The part of the sky no popup covers, in its pixels: above a sheet on a phone, right of the card sideways. */
+  /** The part of the sky nothing covers, in its pixels: below the controls on top, and above a sheet on a phone or right of the card sideways. */
   function freeBox() {
-    const { w, h } = size, pop = [R.card, R.legend].find(x => !x.hidden);
-    if (!pop) return { x: 0, y: 0, w, h };
-    const b = pop.getBoundingClientRect(), s = R.section.getBoundingClientRect();
-    if (sideways()) { const x = b.right - s.left + 8; return { x, y: 0, w: Math.max(60, w - x), h }; }
-    return { x: 0, y: 0, w, h: Math.max(60, b.top - s.top - 8) };
+    const { w, h } = size, pop = [R.card, R.legend].find(x => !x.hidden), s = R.section.getBoundingClientRect();
+    const top = R.form.getBoundingClientRect(), y = R.form.offsetWidth ? Math.max(0, top.bottom - s.top + 8) : 0;
+    if (!pop) return { x: 0, y, w, h: h - y };
+    const b = pop.getBoundingClientRect();
+    if (sideways()) { const x = b.right - s.left + 8; return { x, y, w: Math.max(60, w - x), h: h - y }; }
+    return { x: 0, y, w, h: Math.max(60, b.top - s.top - 8 - y) };
   }
-  /** A camera looking at point p from `dist` away, with p in the middle of what no popup covers. */
-  function aimPoint(p, dist) {
-    const free = freeBox(), dx = free.x + free.w / 2 - size.w / 2, dy = free.y + free.h / 2 - size.h / 2;
-    const m = C.viewMatrix(S.cam), right = [m[0], m[4], m[8]], up = [m[1], m[5], m[9]];
-    const k = 2 * Math.tan(C.FOV / 2) * dist / Math.max(1, size.h);              // pixels to sky units at that distance
-    return { ...S.cam, at: [0, 1, 2].map(i => p[i] - right[i] * dx * k + up[i] * dy * k), dist };
+  const starAt = r => [sky.xyz[3 * r], sky.xyz[3 * r + 1], sky.xyz[3 * r + 2]];
+
+  // ---------- flights ----------
+  /** Whatever is moving the camera by itself stops where it is: a touch, a pinch, a wheel, a key, a popup, the menu. */
+  function cancelFly() {
+    if (!fly) return;
+    fly = null; clearNamed(); delete R.section.dataset.flight;
   }
-  function goTo(cam) {
-    const to = C.cleanCamera(cam, S.cam);
-    if (reduced()) { S.cam = to; flightNow = null; } else flightNow = C.flight(S.cam, to, 800);
-    vel.x = vel.y = 0; save(); invalidate();
+  function stopMotion() { cancelFly(); C.halt(coast); }
+  let namedTimer = 0;
+  function clearNamed() { clearTimeout(namedTimer); namedTimer = 0; R.tag.hidden = true; }
+  /** The link's name in the tag: the aspect in capitals and, if one is written, the reason in a line. Measured, to be kept in the free part. */
+  function wordTag(words) {
+    R.tag.firstChild.textContent = words.name;
+    R.tag.lastChild.textContent = words.because;
+    R.tag.style.opacity = 0; R.tag.style.transform = "translate(-50%, -50%)";
+    R.tag.hidden = false;
+  }
+  /**
+   * The camera goes to point `b`, at the most `near` units from it. From star `via` (a row) to star `to` along their link when they
+   * are linked: turn, travel, settle (almanac-fly.js); else one glide. Whatever was moving the camera gives way, and the move
+   * starts from the camera as it is.
+   */
+  function launch(b, { near = 22, via = -1, to = -1 } = {}) {
+    stopMotion();
+    const words = via >= 0 && to >= 0 && via !== to ? api.linkWords(idOf(via), idOf(to)) : null;
+    const view = { w: size.w, h: size.h, free: freeBox() };
+    const plan = FLY.planFly({ from: S.cam, a: words ? starAt(via) : null, b, view, near, reduced: reduced() });
+    run(plan, words, via, view.free);
+  }
+  /** A plan under way: the camera at the end of it at once (less motion), or by the clock. */
+  function run(plan, words, from = -1, free = null) {
+    if (words) wordTag(words);
+    if (!plan.total) {                                                  // a cut: the same last pose, and the aspect named for a moment
+      FLY.poseAt(plan, 0, pose); setCam(pose); fly = null;
+      if (words && free) {
+        R.tag.style.transform = `translate(${Math.round(free.x + free.w / 2)}px, ${Math.round(free.y + 28)}px) translate(-50%, -50%)`;
+        R.tag.style.opacity = 1;
+        clearTimeout(namedTimer); namedTimer = setTimeout(clearNamed, plan.named);
+      }
+      save(); invalidate();
+      return;
+    }
+    fly = { plan, t: 0, act: -1, from, named: !!words, free, tagW: words ? R.tag.offsetWidth : 0, tagH: words ? R.tag.offsetHeight : 0, x: NaN, y: NaN, o: NaN };
+    save(); invalidate();
+  }
+  /** The camera to a given camera (the home view): a plain glide. */
+  function goCam(cam) {
+    stopMotion();
+    run(FLY.planPose(S.cam, cam, 800, reduced()), null);
   }
 
   // ---------- what is on show: the popups, the foot ----------
@@ -498,7 +603,7 @@ export function createSky(R, api) {
     const m = middles[s];
     if (!m) return;
     if (S.off.has(SUBJECT_IDS[s])) { S.off.delete(SUBJECT_IDS[s]); changed(); }
-    goTo(aimPoint([m[0], m[1], m[2]], Math.min(S.cam.dist, 78)));
+    launch([m[0], m[1], m[2]], { near: Math.min(S.cam.dist, 78) });
   }
   function updateHint() {
     if (!sky) return;
@@ -553,7 +658,7 @@ export function createSky(R, api) {
   }
   R.form.addEventListener("submit", e => { e.preventDefault(); pick(hitFor(hitAt, hits.length)); });
   R.query.addEventListener("input", () => showHits(R.query.value));
-  R.query.addEventListener("focus", () => { searching = true; legendOpen = false; updatePanels(); });
+  R.query.addEventListener("focus", () => { searching = true; legendOpen = false; C.halt(coast); updatePanels(); });
   R.query.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== R.query && searching) closeSearch(); }, 180));   // after a tap on a result has been taken
   R.query.addEventListener("keydown", e => {
     if (e.key === "Escape") { closeSearch(); return; }
@@ -572,7 +677,7 @@ export function createSky(R, api) {
     if (searching) closeSearch();
     R.ink.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, local(e));
-    flightNow = null; vel.x = vel.y = 0;
+    stopMotion(); swipe.x = swipe.y = 0;                                              // a touch ends any flight or drift at once, and leaves the camera where it is
     if (ptrs.size === 1) { tapAt = { p: local(e), t: performance.now(), moved: 0 }; dragging = true; lastMove = performance.now(); }
     else { tapAt = null; const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] }; }
     invalidate();
@@ -591,7 +696,7 @@ export function createSky(R, api) {
       if (tapAt) { tapAt.moved = Math.max(tapAt.moved, Math.hypot(now[0] - tapAt.p[0], now[1] - tapAt.p[1])); }
       if (!tapAt || tapAt.moved > 6) {
         S.cam = C.orbit(S.cam, dx, dy, size.h);
-        vel.x = vel.x * 0.6 + (dx / dt) * 0.4; vel.y = vel.y * 0.6 + (dy / dt) * 0.4;     // pixels a millisecond, for the flick
+        swipe.x = swipe.x * 0.6 + (dx / dt) * 0.4; swipe.y = swipe.y * 0.6 + (dy / dt) * 0.4;     // pixels a millisecond, for the flick
       }
       lastMove = t;
     }
@@ -608,8 +713,8 @@ export function createSky(R, api) {
         const vp = C.viewProjection(S.cam, size.w / size.h);
         const r = C.pick(vp, sky.xyz, size.w, size.h, p[0], p[1], 22 * scale(), sky.weight, i => on[i] === 1);
         if (r >= 0) choose(r, { fly: true, near: 60 }); else closeAll();        // a tap on empty sky closes what is open
-        vel.x = vel.y = 0;
-      } else if (reduced() || performance.now() - lastMove > 90) vel.x = vel.y = 0;       // held still before letting go: no flick
+      } else if (reduced() || performance.now() - lastMove > 90) C.halt(coast);           // held still before letting go: no flick
+      else C.lift(coast, swipe.x, swipe.y, size.h);                                        // a flick goes on turning, and slows to a drift or a stop by how fast it left
       tapAt = null;
     }
     invalidate();
@@ -618,13 +723,14 @@ export function createSky(R, api) {
   R.ink.addEventListener("pointercancel", release);
   R.ink.addEventListener("wheel", e => {
     if (!sky || IN_FRAME) return;
-    e.preventDefault();
+    e.preventDefault(); stopMotion();
     const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 300 : 1;
     S.cam = C.zoom(S.cam, Math.exp(clamp(e.deltaY * k, -240, 240) * 0.0014));
     save(); invalidate();
   }, { passive: false });
   R.ink.addEventListener("keydown", e => {
     if (!sky || IN_FRAME) return;
+    stopMotion();
     const step = { ArrowLeft: [-40, 0], ArrowRight: [40, 0], ArrowUp: [0, -40], ArrowDown: [0, 40] }[e.key];
     if (step) S.cam = C.orbit(S.cam, step[0], step[1], size.h);
     else if (e.key === "+" || e.key === "=") S.cam = C.zoom(S.cam, 0.8);
@@ -633,16 +739,17 @@ export function createSky(R, api) {
     else return;
     e.preventDefault(); save(); invalidate();
   });
-  R.homeBtn.addEventListener("click", () => goTo(homeCam()));
-  R.subjectsBtn.addEventListener("click", () => { legendOpen = !legendOpen; updatePanels(); });
+  R.homeBtn.addEventListener("click", () => goCam(homeCam()));
+  R.subjectsBtn.addEventListener("click", () => { legendOpen = !legendOpen; C.halt(coast); updatePanels(); });
 
   // ---------- coming and going ----------
-  new ResizeObserver(() => { if (glx && shown) { fit(); invalidate(); } }).observe(R.section);
+  new ResizeObserver(() => { if (glx && shown) { cancelFly(); fit(); invalidate(); } }).observe(R.section);      // a flight was framed for the screen it began on
   matchMedia("(orientation: landscape)").addEventListener?.("change", () => { measure(); invalidate(); });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) invalidate(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) C.halt(coast); else invalidate(); });          // a drift does not go on behind a hidden page
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => invalidate());
-  new MutationObserver(() => invalidate()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-mode", "data-theme"] });
-  onPause(() => { paused = true; cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; last = 0; }, () => { paused = false; invalidate(); });
+  new MutationObserver(() => { family = ""; invalidate(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-mode", "data-theme"] });
+  // the menu or the games screen open: the sky stands still, a flight where it is (it goes on when they close) and a drift ended
+  onPause(() => { paused = true; cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; last = 0; C.halt(coast); }, () => { paused = false; invalidate(); });
 
   return {
     /**
@@ -667,12 +774,12 @@ export function createSky(R, api) {
     },
     /** Leaves it, for the list. */
     hide() {
-      shown = false; cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; last = 0;
+      shown = false; cancelAnimationFrame(raf); clearTimeout(timer); raf = timer = 0; last = 0; stopMotion();
       if (searching) closeSearch();
     },
     /** The subjects' popup (from the menu). */
-    openSubjects() { if (!sky) return; legendOpen = true; updatePanels(); },
+    openSubjects() { if (!sky) return; legendOpen = true; C.halt(coast); updatePanels(); },
     /** The whole sky in view again (from the menu). */
-    home() { if (sky) goTo(homeCam()); },
+    home() { if (sky) goCam(homeCam()); },
   };
 }
