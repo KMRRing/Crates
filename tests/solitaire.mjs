@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import * as E from "../solitaire-engine.js";
 import { makeDeal, solve, certifies, answer } from "../solitaire-solver.js";
+import { statsOf, addStats, totalWins, life } from "../solitaire-record.js";
 import { COURSE, positionOf, specOf, matches } from "../solitaire-course.js";
 
 let bad = 0;
@@ -126,6 +127,41 @@ const read = f => fs.readFileSync(root + f, "utf8");
   check(solve(positionOf({ cols: ["Ks", "Kh"] }), 2000).line === null, "a position with no win is answered without one");
 }
 
+// ---------- the count: a game given up is a loss ----------
+{
+  const run = (steps, practice = false) => {                       // one game's life: its first move, then what happens to it
+    const g = {}, l = life(g, practice);
+    let all = {};
+    const apply = d => { if (d) all = addStats(all, {}, "klondike1", d.played, d.wins); };
+    for (const st of steps) apply(st === "move" ? l.first() : l.won());
+    return statsOf(all, {}, "klondike1");
+  };
+  const eq = (a, b) => a.played === b.played && a.wins === b.wins;
+  check(eq(run([]), { played: 0, wins: 0 }), "a game never moved isn't counted");
+  check(eq(run(["move", "move", "move"]), { played: 1, wins: 0 }), "a game moved and left (or the app closed) is one played, none won");
+  check(eq(run(["move", "won", "won"]), { played: 1, wins: 1 }), "a game won is one played and one won, once");
+  check(eq(run(["move", "move", "won"]), { played: 1, wins: 1 }), "moves after the first don't count again");
+  check(eq(run(["move", "won"], true), { played: 0, wins: 0 }), "a day's deal already won is practice: counted neither way");
+  const g = {}; let all = {};
+  const a = life(g); all = addStats(all, {}, "freecell", 1, 0);
+  a.first();
+  const resumed = life(JSON.parse(JSON.stringify(g)));                    // the saved game picked up again
+  check(resumed.first() === null && statsOf(all, {}, "freecell").played === 1, "a saved game picked up again isn't played twice");
+  all = addStats(all, {}, "klondike3", 2, 1);
+  check(totalWins(all, {}, E.IDS) === 1 && statsOf({}, { spider1: { wins: 4 } }, "spider1").played === 4, "the tile's count is wins over every variant, and the old count stands");
+  const suite = read("suite.js"), apps = read("apps.js");
+  check(/kind === "wins"\) \{ const v = json\(`\$\{k\}:wins`/.test(suite) && /wins: "Wins"/.test(apps) && /WINS = "solitaire:wins"/.test(read("solitaire.js")), "the tile reads the win count the page keeps under solitaire:wins");
+}
+
+// ---------- the deals offered: certified, or called so ----------
+{
+  const two = [20261103, 5].map(k => makeDeal("spider2", k));
+  check(two.every(d => d.certified && d.line && E.won(E.replay("spider2", d.order, d.line).s)), "a two-suit Spider deal offered is won by a line the solver found, stepping to the next seed until it is");
+  const none = makeDeal("spider2", 20261103, { tries: 0 });
+  check(!none.certified && JSON.stringify(none.order) === JSON.stringify(E.shuffled("spider2", 20261103, 0)), "a two-suit deal the solver can't certify is dealt as it falls, uncertified");
+  check(/Uncertified: some deals cannot be won/.test(read("solitaire.js")), "four-suit Spider is labelled uncertified in the menu");
+}
+
 // ---------- the course ----------
 {
   const ids = new Set(), problems = [];
@@ -161,8 +197,8 @@ const read = f => fs.readFileSync(root + f, "utf8");
 {
   const html = read("solitaire.html"), page = read("solitaire.js"), css = read("solitaire.css"), suite = read("suite.js"), apps = read("apps.js"), rc = read("random-core.js");
   check(/solitaire\.css/.test(html) && /solitaire\.js/.test(html) && /cards\.css/.test(html) && /class="solitaire (full )?fit-screen beside"/.test(html), "the page links its styles and script and fits the screen");
-  check(/IN_FRAME/.test(page) && /roundOver\("solitaire"\)/.test(page) && /noteStreak\("solitaire"/.test(page), "it counts a streak, tells Random its round and leaves a watching frame alone");
-  check(/solitaire: "streak"/.test(suite) && /ROUNDS = \{[\s\S]*solitaire: "/.test(rc) && /id: "solitaire", sec: "table", name: "Solitaire", href: "\.\/solitaire\.html"/.test(apps), "the games screen shows its streak, Random deals it, and its tile opens the page");
+  check(/IN_FRAME/.test(page) && /roundOver\("solitaire"\)/.test(page) && /life\(S/.test(page) && !/noteStreak/.test(page), "it counts played and won, tells Random its round and leaves a watching frame alone");
+  check(/solitaire: "wins"/.test(suite) && /ROUNDS = \{[\s\S]*solitaire: "/.test(rc) && /id: "solitaire", sec: "table", name: "Solitaire", href: "\.\/solitaire\.html"/.test(apps), "the games screen shows its win count, Random deals it, and its tile opens the page");
   check(/orientation: landscape\) and \(min-width: 700px\)/.test(css) && /prefers-color-scheme: dark/.test(css) && /data-mode="night"/.test(css), "it has a sideways layout and a night one");
   check(!/\b(alert|confirm|prompt)\(/.test(page), "it asks with the suite's own pop-ups");
   check(/new Worker\(new URL\("\.\/solitaire-worker\.js", import\.meta\.url\)/.test(page), "the solver runs in a worker");

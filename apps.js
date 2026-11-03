@@ -770,7 +770,7 @@ function tileText(id, mine, theirs, P) {
   }
   const today_ = m => (kind === "time" || kind === "count" || kind === "guesses" ? m?.day === d : true) ? m : null;    // a day's figure is today's or nothing
   const show = m => (kind === "time" ? clock(m.v) : kind === "stars" ? `★ ${m.v}` : kind === "best" || kind === "guesses" ? scoreText(id, m.v) : String(m.v));
-  const lead = { streak: "Streak", time: "Today", count: "Today", guesses: "Today", stars: "", best: "Best" }[kind];
+  const lead = { streak: "Streak", time: "Today", count: "Today", guesses: "Today", wins: "Wins", stars: "", best: "Best" }[kind];
   const a = today_(mine), b = today_(theirs);
   return [a ? `${lead ? `${lead} ` : ""}${show(a)}` : "", b ? `${P} ${show(b)}` : ""].filter(Boolean).join(" · ");
 }

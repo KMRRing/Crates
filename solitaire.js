@@ -13,16 +13,18 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, toggle, action, line, mirror, onPause, isPaused } from "./menu.js";
-import { today, noteStreak, IN_FRAME } from "./suite.js";
+import { statsOf as statsIn, addStats as addIn, totalWins, life } from "./solitaire-record.js";
+import { today, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy, progress } from "./loading.js";
 import { sure } from "./sure.js";
 
 const $ = id => document.getElementById(id);
-const PREFS = "solitaire:prefs", TIMES = "solitaire:times", DAILIES = "solitaire:dailies", DEALS = "solitaire:deals", SPARES = "solitaire:spares", STREAK = "solitaire:streak";
+const PREFS = "solitaire:prefs", TIMES = "solitaire:times", DAILIES = "solitaire:dailies", DEALS = "solitaire:deals", SPARES = "solitaire:spares", STATS = "solitaire:stats", WINS = "solitaire:wins";
 const GAME = id => `solitaire:game:${id}`;
 const SAVE_EVERY = 5000;             // ms between saves of a clock running (a partner watching sees it that often)
-const STARTED = 10;                  // moves after which a game given up counts as a loss
+// A game counts as played with the player's first move (Korbi, 3 Nov 2026: an abandoned game is a loss): leaving it,
+// dealing again or closing the app leaves it a loss, and winning it makes it a win. solitaire-record.js has the rule.
 const KEEP_DEALS = 40, KEEP_DAYS = 10;
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -106,7 +108,7 @@ async function refill(id) {
 
 // ---------- the game in play ----------
 // S: { v, id, mode ("random" | "daily"), key, tryNo, certified, log (packed moves), redo (groups of them undone), ms, hints,
-//      done ({ ms, moves, hints } once won), counted (its result went to the streak) }
+//      done ({ ms, moves, hints } once won), counted (its first move went into played), scored (its win into wins) }
 let S = null, G = null, ORDER = null;
 let plan = null, planAt = 0, hintMove = null, rev = 0, thinking = false, autoToken = 0, flashing = null;
 let clockFrom = null, savedAt = 0, said = "";
@@ -114,7 +116,16 @@ let clockFrom = null, savedAt = 0, said = "";
 const V = () => E.VARIANTS[S.id];
 const validGame = s => !!s && s.v === 1 && !!E.VARIANTS[s.id] && Number.isInteger(s.key) && Number.isInteger(s.tryNo) && Array.isArray(s.log) && s.log.every(Number.isInteger) && Number.isFinite(s.ms);
 const movesOf = s => s.log.filter(x => !isAuto(x)).length;
-const started = () => !!S && !S.done && movesOf(S) >= STARTED;
+const started = () => !!S && !S.done && !!S.counted;
+const statsOf = id => statsIn(read(STATS, {}), read(TIMES, {}), id);
+function addStats(id, delta) {
+  if (!delta) return;
+  const all = addIn(read(STATS, {}), read(TIMES, {}), id, delta.played, delta.wins);
+  write(STATS, all);
+  write(WINS, totalWins(all, read(TIMES, {}), E.IDS));      // what the games screen's tile shows
+}
+/** A deal already won today is practice: it is not counted either way. */
+const practice = () => S.mode === "daily" && !!read(DAILIES, {})[S.key]?.[S.id];
 function save() {
   if (IN_FRAME || !S) return;
   write(GAME(S.id), S);
@@ -165,15 +176,13 @@ async function deal(mode, id = prefs.variant) {
 async function newDeal(mode) {
   if (S && !S.done && S.mode === "daily" && mode === "daily" && S.key === today() && S.id === prefs.variant) { restart(); return; }
   if (started()) {
-    const n = read(STREAK, { now: 0 }).now;
-    if (!(await sure(n ? `Leave this game? It ends your streak of ${plural(n, "win")}.` : "Leave this game? It counts as a loss.", { yes: "New deal", no: "Keep playing" }))) return;
-    if (started()) noteStreak("solitaire", false);
+    if (!(await sure("Leave this game? It counts as a loss.", { yes: "New deal", no: "Keep playing" }))) return;
   }
   await deal(mode);
 }
 async function restart() {
   if (!S) return;
-  if (started() && !(await sure("Start this deal again from the beginning?", { yes: "Start again", no: "Keep playing" }))) return;
+  if (started() && !(await sure("Start this deal again? The game so far counts as a loss.", { yes: "Start again", no: "Keep playing" }))) return;
   begin({ ...S, log: [], redo: [], ms: 0, hints: 0, done: null, counted: false });
 }
 async function switchTo(id) {
@@ -191,6 +200,7 @@ function commit(m, auto = false) {
   if (!auto) {
     autoToken++; S.redo = []; say("");
     if (!prefs.seen) { prefs.seen = true; savePrefs(); }
+    if (!IN_FRAME) addStats(S.id, life(S, practice()).first());      // a loss until it is won
   }
   E.applyMut(G, m);
   S.log.push(E.pack(m, auto));
@@ -244,11 +254,9 @@ function win() {
   clockPause();
   S.done = { ms: Math.round(S.ms), moves: movesOf(S), hints: S.hints };
   const days = read(DAILIES, {}), replay = S.mode === "daily" && !!days[S.key]?.[S.id];
-  if (!IN_FRAME && !replay && !S.counted) {
-    S.counted = true;
-    noteStreak("solitaire", true);
-    const times = read(TIMES, {}), t = times[S.id] || { wins: 0, best: null };
-    t.wins++;
+  if (!IN_FRAME && !replay && S.counted && !S.scored) {
+    addStats(S.id, life(S, false).won());
+    const times = read(TIMES, {}), t = times[S.id] || { best: null };
     if (!S.hints && (t.best == null || S.done.ms < t.best)) t.best = S.done.ms;
     times[S.id] = t;
     write(TIMES, times);
@@ -267,7 +275,7 @@ function win() {
 }
 function verdict(replay = false) {
   const d = S.done, t = read(TIMES, {})[S.id];
-  const best = !S.hints && t?.best === d.ms && t.wins > 1 ? " A best time." : "";
+  const best = !S.hints && t?.best === d.ms && statsOf(S.id).wins > 1 ? " A best time." : "";
   return `Won in ${fmt(d.ms)}, ${plural(d.moves, "move")}${d.hints ? `, ${plural(d.hints, "hint")}` : ""}.${best}${replay ? " Today's deal again: not counted." : ""}`;
 }
 
@@ -380,7 +388,7 @@ function draw(instant = false) {
   $("controls").hidden = done;
   $("result").hidden = !done;
   $("moves").textContent = movesOf(S);
-  $("kind").textContent = `${S.mode === "daily" ? "Today's deal" : "Random deal"}${S.certified ? "" : " · not checked"}`;
+  $("kind").textContent = `${S.mode === "daily" ? "Today's deal" : "Random deal"}${S.certified ? "" : " · uncertified"}`;
   $("undoBtn").disabled = !S.log.length || thinking;
   $("redoBtn").disabled = !S.redo.length || thinking;
   const fin = canFinish();
@@ -409,8 +417,8 @@ const RULES = {
 function showRules() {
   const g = prefs.variant.replace(/\d$/, "");
   $("rulesBody").innerHTML = `${RULES[g]}<h4>The deals</h4>
-    <p>The card is dealt from the day's number, the same for everyone. Every deal but four-suit Spider's has been searched by the game's solver and can be won. A hint is that solver's next move. Undo is unlimited; the clock starts with your first move.</p>
-    <h4>The streak</h4><p>A win adds to your streak; leaving a game after ${STARTED} moves or more breaks it. Hints don't count against it, but a best time needs none. A day's deal counts once.</p>`;
+    <p>The card is dealt from the day's number, the same for everyone. Every deal but four-suit Spider's has been searched by the game's solver and can be won (a two-suit deal the solver can't crack within its budget is dealt as it falls, and called uncertified). Four-suit Spider is uncertified: some deals cannot be won. A hint is that solver's next move. Undo is unlimited; the clock starts with your first move.</p>
+    <h4>The count</h4><p>A game is played from your first move and is a loss unless you win it: leaving it, dealing again or closing the app leaves it a loss, and a game you come back to and win is one win. Hints don't count against you, but a best time needs none. A day's deal counts once.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;
 }
@@ -429,10 +437,9 @@ function openMenu() {
   if (prefs.mode === "daily") content.append(line(E.IDS.filter(id => days[id] != null).length ? `Won today: ${E.IDS.filter(id => days[id] != null).map(id => `${E.titleOf(id)} ${fmt(days[id])}`).join(", ")}.` : "Today's deal is the same for everyone."));
   settings.append(toggle("Move cards up by themselves", prefs.auto, on => { prefs.auto = on; savePrefs(); }));
   settings.append(toggle("Four-colour suits", prefs.four, on => { prefs.four = on; savePrefs(); board.setFourColour(on); }));
-  const st = read(STREAK, { now: 0, best: 0 }), t = read(TIMES, {})[prefs.variant];
-  about.append(line(`Streak ${st.now}, best ${st.best}.`));
-  about.append(line(t?.wins ? `${E.titleOf(prefs.variant)}: ${plural(t.wins, "win")}${t.best != null ? `, best ${fmt(t.best)}` : ""}.` : `${E.titleOf(prefs.variant)}: no wins yet.`));
-  if (!E.CHECKED(prefs.variant)) about.append(line("Four-suit deals are not checked by the solver: some can't be won."));
+  const st = statsOf(prefs.variant), t = read(TIMES, {})[prefs.variant];
+  about.append(line(st.played ? `${E.titleOf(prefs.variant)}: ${st.wins} won of ${st.played} played${t?.best != null ? `, best ${fmt(t.best)}` : ""}.` : `${E.titleOf(prefs.variant)}: nothing played yet.`));
+  if (!E.CHECKED(prefs.variant)) about.append(line("Uncertified: some deals cannot be won."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
