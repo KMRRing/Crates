@@ -1,9 +1,14 @@
-// Columbiad's scene, on a canvas: a night sky and the Earth drawn as a line engraving, the cannon in brass with the weight to
-// kick back, the preview cone, the ghosts of earlier shots, the ring, and a flight that the camera follows with a glowing
-// trail and slows for the last stretch. The page draws only while something moves (a drag, a flight, smoke hanging, the
-// camera easing); it never draws on a timer of its own. Nothing here changes a rule: the rules are columbiad-engine.js's, and
-// this plays a finished flight back. The colours are the picture's own, the same in every theme; the chrome round it is the page's.
-import { direction, targetAt } from "./columbiad-engine.js";
+// Columbiad's scene, on a canvas that fills the whole screen: a night sky, the Earth and the moons as lit globes
+// (columbiad-globe.js), the cannon (columbiad-gun.js), the preview cone, the ghosts of earlier shots, the ring, and a flight
+// that the camera follows with a glowing trail and slows for the last stretch. The page's controls are drawn over the picture,
+// not beside it, so the camera fits the world into what they leave free (`setInsets`) while the sky and the Earth run edge
+// to edge. The page draws only while something moves (a drag, a flight, smoke hanging, the camera easing, a moon on its rail,
+// and the Earth's slow turn, a few times a second); it stops when the menu is open or the page is away. Nothing here changes a
+// rule: the rules are columbiad-engine.js's, and this plays a finished flight back. The colours are the picture's own, the
+// same in every theme; the chrome over it is the page's.
+import { direction, targetAt, bodyAt, worldOf, T_MOON } from "./columbiad-engine.js";
+import { createGlobe, loadEarth, warm, sunOf } from "./columbiad-globe.js";
+import { drawGun, gunSize, MUZZLE } from "./columbiad-gun.js";
 
 const INK = "233,223,198", BRASS = "217,164,65", BRASS_HI = "240,213,138", GOOD = "127,194,168", BAD = "232,128,111";
 const SKY_TOP = "#080d19", SKY_BOT = "#16213a";
@@ -11,6 +16,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 /** The world box a level's aim view shows: the sky above the cannon, a little of the ground under it, and the ring; the Earth is as much of it as that holds. { x0, y0, x1, y1 }. */
 export function frameOf(lvl) {
+  if (lvl.frame) return { x0: lvl.frame[0], y0: lvl.frame[1], x1: lvl.frame[2], y1: lvl.frame[3] };
   const site = lvl.site ?? 90, [ox, oy] = direction(site), tx = -oy, ty = ox;
   const pts = [];
   for (const a of [-1, 1]) for (const o of [-0.5, 1.25]) pts.push([ox + tx * a + ox * o, oy + ty * a + oy * o]);
@@ -29,6 +35,9 @@ export function createView(canvas, hooks = {}) {
   const cam = { x: 0, y: 0, k: 100 }, goal = { x: 0, y: 0, k: 100 };
   let lvl = null, aim = { angle: 90, charge: 0 }, cone = null, coneAlpha = 1, ghosts = [], rope = null, won = false, hitAt = null, flare = 0;
   let frame = null, coneBox = null, fresh = false;
+  const ins = { t: 0, r: 0, b: 0, l: 0 };                             // what the page's controls cover, in css pixels: the world is fitted into the rest
+  let clock = 0, bodies = [], sun = sunOf(135, 0.5), spin = 0;        // the game's time now; the bodies to draw; the Earth's turn (turns)
+  let earthG = null, spinTimer = 0;
   // the aim view: the level's own frame, grown to hold the whole cone, so the preview is never out of sight
   const base = () => (coneBox ? { x0: Math.min(frame.x0, coneBox.x0), y0: Math.min(frame.y0, coneBox.y0), x1: Math.max(frame.x1, coneBox.x1), y1: Math.max(frame.y1, coneBox.y1) } : frame);
   let flight = null, live = null;                                     // the flight playing; the trail it leaves until the next shot
@@ -42,10 +51,11 @@ export function createView(canvas, hooks = {}) {
   const sx = x => W / 2 + (x - cam.x) * cam.k, sy = y => H / 2 - (y - cam.y) * cam.k;
 
   function fitTo(box, into) {
-    const bw = (box.x1 - box.x0) * 1.04, bh = (box.y1 - box.y0) * 1.04;
-    into.k = Math.min(W / bw, H / bh);
-    into.x = (box.x0 + box.x1) / 2;
-    into.y = (box.y0 + box.y1) / 2;
+    const bw = (box.x1 - box.x0) * 1.04, bh = (box.y1 - box.y0) * 1.04, aw = Math.max(40, W - ins.l - ins.r), ah = Math.max(40, H - ins.t - ins.b);
+    into.k = Math.min(aw / bw, ah / bh);
+    // the box's middle lands in the middle of what the controls leave free
+    into.x = (box.x0 + box.x1) / 2 - (ins.l - ins.r) / 2 / into.k;
+    into.y = (box.y0 + box.y1) / 2 + (ins.t - ins.b) / 2 / into.k;
   }
   function resize() {
     const r = canvas.getBoundingClientRect();
@@ -58,31 +68,37 @@ export function createView(canvas, hooks = {}) {
   }
 
   // ---------- the world ----------
+  /** A globe's picture at a display size: three sizes of the same render, so a camera zoom never makes a new one. */
+  function globeAt(g, R, pad, sizes) {
+    const want = 2 * R * pad * dpr;
+    let S = sizes[sizes.length - 1];
+    for (const z of sizes) if (want <= z * 1.15) { S = z; break; }
+    return g.picture(g.spin ?? spin, sun, S);
+  }
+  function planet(g, x, y, R, spinTurns, sizes, q) {
+    if (R < 0.6 || x + R * 1.2 < 0 || x - R * 1.2 > W || y + R * 1.2 < 0 || y - R * 1.2 > H) return;
+    g.spin = Math.round(spinTurns * q) / q;          // a new render for each step of the turn (0.4 degree for the Earth, 1 for a moon), not for each frame
+    const pic = globeAt(g, R, g.pad, sizes), d = 2 * R * g.pad;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(pic, x - d / 2, y - d / 2, d, d);
+  }
   function earth(ex, ey, R) {
-    const g = ctx.createRadialGradient(ex - R * 0.4, ey - R * 0.45, R * 0.1, ex, ey, R * 1.02);
-    g.addColorStop(0, "#6a93ba"); g.addColorStop(0.55, "#33527a"); g.addColorStop(1, "#16263f");
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(ex, ey, R, 0, 6.2832); ctx.fill();
-    ctx.save();
-    ctx.beginPath(); ctx.arc(ex, ey, R, 0, 6.2832); ctx.clip();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = `rgba(${INK},.30)`;
-    for (let i = 1; i <= 5; i++) { ctx.beginPath(); ctx.arc(ex, ey, R * i / 5.4, 0, 6.2832); ctx.stroke(); }     // the parallels of a view from the pole
-    ctx.strokeStyle = `rgba(${INK},.18)`;
-    ctx.beginPath();
-    for (let i = 0; i < 18; i++) { const a = i * 0.349066; ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(a) * R, ey + Math.sin(a) * R); }
-    ctx.stroke();
-    ctx.strokeStyle = `rgba(${INK},.1)`;                                    // fine hatching toward the dark limb, as an engraver shades
-    ctx.beginPath();
-    for (let i = 1; i <= 16; i++) { const o = R * (0.5 + i * 0.075); ctx.moveTo(ex + R - o, ey + R); ctx.lineTo(ex + R, ey + R - o); }
-    ctx.stroke();
-    const sh = ctx.createRadialGradient(ex - R * 0.45, ey - R * 0.5, R * 0.5, ex, ey, R * 1.05);
-    sh.addColorStop(0, "rgba(4,7,14,0)"); sh.addColorStop(1, "rgba(4,7,14,.5)");
-    ctx.fillStyle = sh; ctx.fillRect(ex - R, ey - R, R * 2, R * 2);
-    ctx.restore();
-    for (const [w, a] of [[1.2, 0.8], [5 * u, 0.1], [10 * u, 0.05], [18 * u, 0.025]]) {
-      ctx.lineWidth = w; ctx.strokeStyle = `rgba(${a > 0.5 ? INK : "150,190,230"},${a})`;
-      ctx.beginPath(); ctx.arc(ex, ey, R + w / 2, 0, 6.2832); ctx.stroke();
+    if (!earthG) { earthG = createGlobe("earth", { tilt: 24, roll: -12 }); loadEarth(() => { draw(); wake(); }); warm(() => { draw(); wake(); }); }
+    planet(earthG, ex, ey, R, spin, [96, 192, 320, 448], 900);
+    // a fine brass edge, as an engraver closes a plate's circle
+    if (R > 14 * u) { ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${INK},.16)`; ctx.beginPath(); ctx.arc(ex, ey, R + 0.5, 0, 6.2832); ctx.stroke(); }
+  }
+  /** The bodies other than the Earth, each a lit sphere at its place at game time t (drawn no smaller than a few pixels, so the far Moon is seen). */
+  function moons(t) {
+    for (const b of bodies) {
+      const p = bodyAt(lvl, b.i, t), x = sx(p[0]), y = sy(p[1]), R = Math.max(b.r * cam.k, b.min * u);
+      if (b.rail) {                                                    // its rail, a dotted circle, so the sweep of it can be read
+        ctx.save(); ctx.setLineDash([1, 7 * u]); ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${INK},.2)`;
+        ctx.beginPath(); ctx.arc(sx(b.cx), sy(b.cy), b.a * cam.k, 0, 6.2832); ctx.stroke(); ctx.restore();
+      }
+      // a moon keeps one face to what it circles: its turn is its way round
+      const turn = b.rail ? Math.atan2(p[1] - b.cy, p[0] - b.cx) / 6.2832 * (b.retro ? -1 : 1) : b.spin;
+      planet(b.globe, x, y, R, turn + b.offset, [64, 128, 256], 360);
     }
   }
   function sky() {
@@ -97,12 +113,12 @@ export function createView(canvas, hooks = {}) {
     }
     // altitude circles, dotted, as on a gunnery chart
     ctx.save();
-    ctx.setLineDash([1, 6 * u]); ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${INK},.16)`;
-    for (const r of [1.5, 2, 3, 4, 6, 8]) { ctx.beginPath(); ctx.arc(sx(0), sy(0), r * cam.k, 0, 6.2832); ctx.stroke(); }
+    ctx.setLineDash([1, 6 * u]); ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${INK},.14)`;
+    if (cam.k > 40) for (const r of [1.5, 2, 3, 4, 6, 8]) { ctx.beginPath(); ctx.arc(sx(0), sy(0), r * cam.k, 0, 6.2832); ctx.stroke(); }
     ctx.restore();
   }
   function ring() {
-    const T = lvl.target, p = targetAt(lvl, 0), R = Math.max(T.r * cam.k, 7 * u), x = sx(p[0]), y = sy(p[1]);
+    const T = lvl.target, p = targetAt(lvl, now()), R = Math.max(T.r * cam.k, 7 * u), x = sx(p[0]), y = sy(p[1]);
     const col = won ? GOOD : BRASS;
     const g = ctx.createRadialGradient(x, y, 0, x, y, R);
     g.addColorStop(0, `rgba(${col},${won ? 0.4 : 0.1})`); g.addColorStop(1, `rgba(${col},${won ? 0.22 : 0.05})`);
@@ -138,57 +154,32 @@ export function createView(canvas, hooks = {}) {
   }
   function coneBand() {
     if (!cone || coneAlpha <= 0.01) return;
-    const n = cone.centre.length / 2, a = coneAlpha;
+    const c = leadCone(cone), n = c.centre.length / 2, a = coneAlpha;
     ctx.beginPath();
-    for (let k = 0; k < n; k++) { const X = sx(cone.left[2 * k]), Y = sy(cone.left[2 * k + 1]); if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); }
-    for (let k = n - 1; k >= 0; k--) ctx.lineTo(sx(cone.right[2 * k]), sy(cone.right[2 * k + 1]));
+    for (let k = 0; k < n; k++) { const X = sx(c.left[2 * k]), Y = sy(c.left[2 * k + 1]); if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); }
+    for (let k = n - 1; k >= 0; k--) ctx.lineTo(sx(c.right[2 * k]), sy(c.right[2 * k + 1]));
     ctx.closePath();
     ctx.fillStyle = `rgba(${BRASS},${0.2 * a})`; ctx.fill();
     ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${BRASS},${0.6 * a})`; ctx.stroke();
     ctx.save();
     ctx.setLineDash([4 * u, 4 * u]); ctx.lineWidth = 1.4 * u; ctx.strokeStyle = `rgba(${BRASS_HI},${0.9 * a})`;
-    polyline(cone.centre); ctx.stroke();
+    polyline(c.centre); ctx.stroke();
     ctx.restore();
     // the far end is closed with a rule, so it is seen where the preview stops and the maths takes over
-    const e = n - 1, lx = sx(cone.left[2 * e]), ly = sy(cone.left[2 * e + 1]), rx = sx(cone.right[2 * e]), ry = sy(cone.right[2 * e + 1]);
-    const cx = sx(cone.centre[2 * e]), cy = sy(cone.centre[2 * e + 1]), mx = (lx - rx) / 2, my = (ly - ry) / 2, m = Math.max(1, Math.hypot(mx, my)), pad = Math.max(0, 5 * u - m) / m;
+    const e = n - 1, lx = sx(c.left[2 * e]), ly = sy(c.left[2 * e + 1]), rx = sx(c.right[2 * e]), ry = sy(c.right[2 * e + 1]);
+    const cx = sx(c.centre[2 * e]), cy = sy(c.centre[2 * e + 1]), mx = (lx - rx) / 2, my = (ly - ry) / 2, m = Math.max(1, Math.hypot(mx, my)), pad = Math.max(0, 5 * u - m) / m;
     ctx.lineWidth = 2 * u; ctx.strokeStyle = `rgba(${BRASS_HI},${0.9 * a})`;
     ctx.beginPath(); ctx.moveTo(cx - mx * (1 + pad), cy - my * (1 + pad)); ctx.lineTo(cx + mx * (1 + pad), cy + my * (1 + pad)); ctx.stroke();
   }
-  function cannon() {
-    const site = lvl.site ?? 90, [ox, oy] = direction(site), bx = sx(ox), by = sy(oy), k = cam.k;
-    const L = Math.max(0.34 * k, 22 * u), Th = Math.max(0.105 * k, 8 * u), th = aim.angle * Math.PI / 180;
-    const kick = reduced() ? 0 : recoil * 0.1 * k;
-    ctx.save();
-    ctx.translate(bx, by);
-    // the mount: a block on the ground and a wheel, turned with the Earth's surface under it
-    ctx.rotate(-(site - 90) * Math.PI / 180);
-    ctx.fillStyle = "#3b2a18"; ctx.strokeStyle = "#140d06"; ctx.lineWidth = 1.2;
-    const mw = Th * 2.2, mh = Th * 1.15;
-    ctx.beginPath(); ctx.moveTo(-mw / 2, 0); ctx.lineTo(-mw / 2 + Th * 0.25, -mh); ctx.lineTo(mw / 2 - Th * 0.25, -mh); ctx.lineTo(mw / 2, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.restore();
-    ctx.save();
-    ctx.translate(bx, by - Th * 0.7);
-    ctx.rotate(-th);
-    // the barrel slides back along its axis when it fires
-    ctx.translate(-kick, 0);
-    const g = ctx.createLinearGradient(0, -Th / 2, 0, Th / 2);
-    g.addColorStop(0, "#f0d58a"); g.addColorStop(0.35, "#c79a3c"); g.addColorStop(1, "#6b4a14");
-    ctx.fillStyle = g; ctx.strokeStyle = "#241705"; ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.moveTo(-L * 0.18, -Th * 0.62); ctx.lineTo(L * 0.82, -Th * 0.46); ctx.lineTo(L * 0.82, Th * 0.46); ctx.lineTo(-L * 0.18, Th * 0.62); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "#e5c06a";
-    ctx.fillRect(L * 0.22, -Th * 0.55, Th * 0.22, Th * 1.1); ctx.fillRect(L * 0.5, -Th * 0.5, Th * 0.2, Th);
-    ctx.strokeRect(L * 0.22, -Th * 0.55, Th * 0.22, Th * 1.1); ctx.strokeRect(L * 0.5, -Th * 0.5, Th * 0.2, Th);
-    ctx.fillStyle = "#e9c777"; ctx.beginPath(); ctx.rect(L * 0.8, -Th * 0.62, Th * 0.32, Th * 1.24); ctx.fill(); ctx.stroke();          // the muzzle ring
-    ctx.fillStyle = "#0a0703"; ctx.beginPath(); ctx.rect(L * 0.8 + Th * 0.3, -Th * 0.3, 1.2, Th * 0.6); ctx.fill();
-    ctx.restore();
-    ctx.fillStyle = "#c79a3c"; ctx.strokeStyle = "#241705"; ctx.lineWidth = 1.4;                                                              // the trunnion where it pivots
-    ctx.beginPath(); ctx.arc(bx, by - Th * 0.7, Th * 0.42, 0, 6.2832); ctx.fill(); ctx.stroke();
-    return { x: bx + Math.cos(th) * (L * 1.12 - kick), y: by - Th * 0.7 - Math.sin(th) * (L * 1.12 - kick), th };
+  /** Where the muzzle is in the world: the pivot (the gun's height above the ground along the surface's normal) and the barrel's reach along the aim. */
+  function muzzleWorld(kick = 0) {
+    const site = lvl.site ?? 90, [ox, oy] = direction(site), [dx, dy] = direction(aim.angle), g = gunSize(cam.k, u), px = ox + ox * g.PH / cam.k, py = oy + oy * g.PH / cam.k, m = (MUZZLE * g.L - kick) / cam.k;
+    return [px + dx * m, py + dy * m];
   }
-  function muzzleWorld() {
-    const site = lvl.site ?? 90, [ox, oy] = direction(site), [dx, dy] = direction(aim.angle), s = Math.max(0.34, 22 * u / cam.k) * 1.12;
-    return [ox + dx * s, oy + dy * s - Math.max(0.105, 8 * u / cam.k) * 0.7];
+  function cannon() {
+    const site = lvl.site ?? 90, [ox, oy] = direction(site), g = gunSize(cam.k, u);
+    const kick = reduced() ? 0 : recoil * 0.1 * cam.k * (g.L / Math.max(0.34 * cam.k, 22 * u));
+    drawGun(ctx, sx(ox), sy(oy), cam.k, u, site, aim.angle * Math.PI / 180, kick);
   }
   function trail() {
     if (!live) return;
@@ -256,14 +247,10 @@ export function createView(canvas, hooks = {}) {
     ctx.beginPath(); ctx.arc(fx, fy, 13 * u, 0, 6.2832); ctx.fill(); ctx.stroke();
     ctx.restore();
   }
-  function plate() {
-    // the engraved plate's edge: two rules and a rivet in each corner
-    ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${BRASS},.75)`;
-    const a = 3 * u, b = 6.5 * u;
-    ctx.strokeRect(a + 0.5, a + 0.5, W - 2 * a - 1, H - 2 * a - 1);
-    ctx.strokeStyle = `rgba(${BRASS},.35)`; ctx.strokeRect(b + 0.5, b + 0.5, W - 2 * b - 1, H - 2 * b - 1);
-    ctx.fillStyle = `rgba(${BRASS},.9)`;
-    for (const [x, y] of [[a, a], [W - a, a], [a, H - a], [W - a, H - a]]) { ctx.beginPath(); ctx.arc(x, y, 2.2 * u, 0, 6.2832); ctx.fill(); }
+  function vignette() {
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) * 0.62);
+    g.addColorStop(0, "rgba(3,6,12,0)"); g.addColorStop(1, "rgba(3,6,12,.5)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
 
   function draw() {
@@ -272,7 +259,9 @@ export function createView(canvas, hooks = {}) {
     ctx.save();
     if (shake > 0.2) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
     sky();
+    const t = now();
     earth(sx(0), sy(0), cam.k);
+    moons(t);
     ghostLines();
     ring();
     coneBand();
@@ -280,8 +269,41 @@ export function createView(canvas, hooks = {}) {
     cannon();
     puffs();
     ctx.restore();
+    vignette();
     ropeWidget();
-    plate();
+  }
+
+  // ---------- time ----------
+  /** The world's time as the picture shows it: the flight's own while a shell is out, else the clock. */
+  function now() { return flight ? flight.t0 + flight.gt : clock; }
+  const rails = () => !!lvl && worldOf(lvl).moving;
+  /**
+   * The first stretch of a path, drawn from the muzzle: the shell's true path starts at the ground under the gun, and the gun
+   * is a character much larger than that, so a display copy is led out of the muzzle and joins the true path within `fade`
+   * Earth radii of travel (a picture only: the rules never see it).
+   */
+  function lead(pts, mx, my, fade = 1.1) {
+    const n = pts.length / 2, out = Float64Array.from(pts), ox = mx - pts[0], oy = my - pts[1];
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      if (i) acc += Math.hypot(pts[2 * i] - pts[2 * i - 2], pts[2 * i + 1] - pts[2 * i - 1]);
+      const f = acc >= fade ? 0 : (1 - acc / fade) * (1 - acc / fade);
+      if (f <= 0) break;
+      out[2 * i] += ox * f; out[2 * i + 1] += oy * f;
+    }
+    return out;
+  }
+
+  /** A cone led out of the muzzle the way a flight is (the same shift on the central path and on both edges). */
+  function leadCone(c) {
+    const [mx, my] = muzzleWorld(), n = c.centre.length / 2, ox = mx - c.centre[0], oy = my - c.centre[1], fade = 1.1, f = new Float64Array(n);
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      if (i) acc += Math.hypot(c.centre[2 * i] - c.centre[2 * i - 2], c.centre[2 * i + 1] - c.centre[2 * i - 1]);
+      f[i] = acc >= fade ? 0 : (1 - acc / fade) * (1 - acc / fade);
+    }
+    const sh = a => { const o = Float64Array.from(a); for (let i = 0; i < n; i++) { o[2 * i] += ox * f[i]; o[2 * i + 1] += oy * f[i]; } return o; };
+    return { ...c, centre: sh(c.centre), left: sh(c.left), right: sh(c.right) };
   }
 
   // ---------- motion ----------
@@ -293,8 +315,10 @@ export function createView(canvas, hooks = {}) {
     return clamp(0.9 + 0.38 * len, 1.3, 4.2);
   }
   function startFlight(res, over) {
-    const p = res.path, n = p.length / 3, pts = new Float64Array(n * 2);
+    const p = res.path, n = p.length / 3;
+    let pts = new Float64Array(n * 2);
     for (let i = 0; i < n; i++) { pts[2 * i] = p[3 * i + 1]; pts[2 * i + 1] = p[3 * i + 2]; }
+    { const [mx, my] = muzzleWorld(); pts = lead(pts, mx, my); }
     const t0 = p[0], T = p[3 * (n - 1)] - t0, wall = over.wall ?? pace(p);
     flight = { res, p, n, t0, T, rate: T / wall, gt: 0, i: 0, slow: 1, prevD: Infinity, hit: false, wall, elapsed: 0 };
     live = { pts, upto: 1, head: [pts[0], pts[1]] };
@@ -308,6 +332,7 @@ export function createView(canvas, hooks = {}) {
     if (!flight) return;
     const f = flight;
     flight = null; coneAlpha = 1;
+    if (rails()) clock = f.t0 + f.T;                                  // the world goes on from the moment the shell's flight ended
     live.upto = f.n; live.head = null;
     if (f.res.hit && f.res.hit.ok && !f.hit) { f.hit = true; hit(f.res.hit); }
     if (f.res.end === "impact") {
@@ -326,6 +351,8 @@ export function createView(canvas, hooks = {}) {
   }
   function step(dt) {
     since += dt;
+    if (!reduced()) spin += dt * 0.0035;
+    if (!flight && rails()) clock += dt;
     recoil = since < 0.05 ? since / 0.05 : Math.exp(-(since - 0.05) * 5.5);
     if (flash > 0) flash = Math.max(0, flash - dt / 0.14);
     if (shake > 0) shake = Math.max(0, shake - dt * 60 * u);
@@ -337,7 +364,7 @@ export function createView(canvas, hooks = {}) {
     if (flight) {
       const f = flight, quick = reduced();
       f.elapsed += dt;
-      const T = lvl.target, tp = targetAt(lvl, 0), hx = live.head ? live.head[0] : 0, hy = live.head ? live.head[1] : 0, d = Math.hypot(hx - tp[0], hy - tp[1]);
+      const T = lvl.target, tp = targetAt(lvl, now()), hx = live.head ? live.head[0] : 0, hy = live.head ? live.head[1] : 0, d = Math.hypot(hx - tp[0], hy - tp[1]);
       // the last stretch: slower, and the camera leans in, while the shell is closing on the ring
       const zone = Math.max(0.7, T.r * 3.5);
       let want = 1, lean = 0;
@@ -368,17 +395,21 @@ export function createView(canvas, hooks = {}) {
     const e = 1 - Math.exp(-dt * 5.5);
     cam.x += (goal.x - cam.x) * e; cam.y += (goal.y - cam.y) * e; cam.k *= Math.pow(goal.k / cam.k, e);
   }
-  const moving = () => !!flight || settleAt > 0 || smoke.length > 0 || sparks.length > 0 || flash > 0 || flare > 0 || shake > 0.2 || recoil > 0.004 || Math.abs(goal.k - cam.k) > 0.05 || Math.abs(goal.x - cam.x) * cam.k > 0.3 || Math.abs(goal.y - cam.y) * cam.k > 0.3;
-  function tick(now) {
+  const moving = () => !!flight || rails() || settleAt > 0 || smoke.length > 0 || sparks.length > 0 || flash > 0 || flare > 0 || shake > 0.2 || recoil > 0.004 || Math.abs(goal.k - cam.k) > 0.05 || Math.abs(goal.x - cam.x) * cam.k > 0.3 || Math.abs(goal.y - cam.y) * cam.k > 0.3;
+  function tick(ts) {
     raf = 0;
     if (held) return;
-    const dt = clamp((now - last) / 1000, 0, 0.05);
-    last = now;
+    const dt = clamp((ts - last) / 1000, 0, 0.05);
+    last = ts;
     hooks.before?.();
     step(dt);
     draw();
     if (moving()) raf = requestAnimationFrame(tick);
-    else { recoil = 0; hooks.onIdle?.(); }
+    else {
+      recoil = 0; hooks.onIdle?.();
+      // at rest the Earth still turns, slowly: one new picture of it every third of a second (the page draws on no clock but this one)
+      if (!spinTimer && !reduced() && lvl) spinTimer = setTimeout(() => { spinTimer = 0; if (!held) { spin += 0.0011; wake(); } }, 330);
+    }
   }
   function wake() { if (!raf && !held) { last = performance.now(); raf = requestAnimationFrame(tick); } }
 
@@ -386,18 +417,40 @@ export function createView(canvas, hooks = {}) {
     resize, draw,
     redraw() { draw(); wake(); },
     setLevel(l) {
-      lvl = l; frame = frameOf(l); coneBox = null; fresh = true; fitTo(frame, goal); Object.assign(cam, goal);
+      lvl = l; frame = frameOf(l); coneBox = null; fresh = true; clock = 0; fitTo(frame, goal); Object.assign(cam, goal);
+      sun = sunOf(l.sun ?? 135, 0.5);
+      bodies = [];
+      const w = worldOf(l);
+      w.bodies.forEach((b, i) => {
+        if (b.id === "earth") return;
+        const v = l.look?.[b.id] || {};
+        bodies.push({ i, id: b.id, r: b.r, rail: b.rail, a: b.a, cx: b.cx, cy: b.cy, retro: b.T < 0 || v.retro, min: v.min ?? 5, offset: v.offset ?? 0, spin: v.spin ?? 0,
+          globe: createGlobe("moon", { tilt: v.tilt ?? 8, tint: v.tint || [1, 1, 1] }) });
+      });
+      if (bodies.length) warm(() => { draw(); wake(); });
       flight = null; live = null; cone = null; ghosts = []; rope = null; won = false; flare = 0; smoke.length = 0; sparks.length = 0; recoil = 0; flash = 0; shake = 0; settleAt = 0; coneAlpha = 1;
       draw();
     },
     // these only note the change and ask for a frame; the page's hooks.before runs in that frame, ahead of the drawing
     setAim(a) { aim = a; wake(); },
+    /** What the page's controls cover, in css pixels { t, r, b, l }: the world is fitted into the rest, and the picture runs under them. */
+    setInsets(i) {
+      const same = ins.t === i.t && ins.r === i.r && ins.b === i.b && ins.l === i.l;
+      Object.assign(ins, i);
+      if (same || !frame) return;
+      fitTo(base(), goal);
+      if (!flight) Object.assign(cam, goal);
+      draw();
+    },
+    /** The world's time now (what a shot fired this instant is fired at), and setting it (a saved game's). */
+    get clock() { return now(); },
+    setClock(t) { clock = t; wake(); },
     setCone(c) {
       cone = c;
       coneBox = null;
       if (c) {
         let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-        for (const a of [c.left, c.right]) for (let i = 0; i < a.length; i += 2) { if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i + 1] < y0) y0 = a[i + 1]; if (a[i + 1] > y1) y1 = a[i + 1]; }
+        for (const a of [cone.left, cone.right]) for (let i = 0; i < a.length; i += 2) { if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i + 1] < y0) y0 = a[i + 1]; if (a[i + 1] > y1) y1 = a[i + 1]; }
         coneBox = { x0: x0 - 0.12, y0: y0 - 0.12, x1: x1 + 0.12, y1: y1 + 0.12 };
       }
       if (fresh && frame) { fitTo(base(), goal); Object.assign(cam, goal); }          // a level's first view is where it will rest, not a zoom from the bare frame
@@ -414,7 +467,7 @@ export function createView(canvas, hooks = {}) {
     ff(on) { ff = on; },
     get flying() { return !!flight; },
     get fast() { return ff; },
-    hold() { held = true; if (raf) { cancelAnimationFrame(raf); raf = 0; } },
+    hold() { held = true; if (raf) { cancelAnimationFrame(raf); raf = 0; } clearTimeout(spinTimer); spinTimer = 0; },
     release() { held = false; hooks.before?.(); draw(); if (moving()) wake(); },
     get wallOf() { return flight ? flight.wall : 0; },
     /** The point on the page, in css pixels from the canvas's corner, where a world point is. */

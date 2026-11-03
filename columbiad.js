@@ -10,7 +10,7 @@ import { newGame, apply, stars as starsOf, cone as coneOf, clampAim, sound as va
 import { PULL_REM, DEAD_REM, begin as pullBegin, move as pullMove, nudge, crossed } from "./columbiad-aim.js";
 import { createView } from "./columbiad-view.js";
 import { sound } from "./columbiad-sound.js";
-import { bindSwitcher, APPS } from "./apps.js";
+import { bindSwitcher } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, onPause, isPaused } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
@@ -154,6 +154,7 @@ function render() {
     $("verdict").innerHTML = `<span class="cb-big">Hit</span><span class="cb-stars-big">${starsWords(earn)}</span><small>${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}${last ? " · that is all six" : ""}</small>`;
     $("nextBtn").hidden = last;
   }
+  if (typeof measure === "function") measure();
   const seen = read(SEEN, false);
   $("hint").hidden = !!seen || IN_FRAME || phase !== "aim";
   if (!$("hint").hidden) $("hint").textContent = "Pull back like a slingshot: the shell flies the other way, and a longer pull loads more powder. Press Fire; the arrows fine-tune.";
@@ -241,9 +242,9 @@ function ropeNow(e) {
   const [fx, fy] = sceneAt(e), p = touch.drag.p;
   view.setRope({ cx: fx - p[0], cy: fy - p[1], fx, fy, len: Math.hypot(p[0], p[1]), full: full(), cap: lvl.barrels ?? BARRELS, charge: aim.charge });
 }
-$("stage").addEventListener("pointerdown", e => {
+scene.addEventListener("pointerdown", e => {
   if (IN_FRAME || touch || isPaused() || (e.pointerType === "mouse" && e.button > 0)) return;
-  try { $("stage").setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
+  try { scene.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
   if (phase === "fly") {
     const t = touch = { id: e.pointerId, kind: "press", ff: false, timer: 0 };
     t.timer = setTimeout(() => { t.ff = true; view.ff(true); }, 220);
@@ -254,7 +255,7 @@ $("stage").addEventListener("pointerdown", e => {
   touch = { id: e.pointerId, kind: "aim", x: e.clientX, y: e.clientY, drag: pullBegin(lvl, aim, full()) };
   ropeNow(e);
 });
-$("stage").addEventListener("pointermove", e => {
+scene.addEventListener("pointermove", e => {
   if (!touch || touch.id !== e.pointerId || touch.kind !== "aim") return;
   const dx = e.clientX - touch.x, dy = e.clientY - touch.y;
   touch.x = e.clientX; touch.y = e.clientY;
@@ -357,7 +358,8 @@ function levelList() {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  part(body, "play").append(action(`Replay ${lvl.name}`, restart, "primary"));
+  const play = part(body, "play");
+  play.append(action("Back to menu", () => $("appsBtn").click()), action(`Replay ${lvl.name}`, restart, "primary"));
   part(body, "content").append(levelList());
   part(body, "settings").append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); }));
   const total = camp.stars.reduce((a, b) => a + b, 0), beaten = camp.stars.filter(Boolean).length;
@@ -366,9 +368,7 @@ function openMenu() {
 }
 
 // ---------- wiring ----------
-bindSwitcher($("appsBtn"), "columbiad");
-const mark = APPS.find(a => a.id === "columbiad");
-if (mark) document.querySelector(".cb-mark").innerHTML = mark.logo;
+bindSwitcher($("appsBtn"), "columbiad");                // hidden: the menu's "Back to menu" opens the games screen through it
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 
@@ -382,8 +382,18 @@ function settleAway() {
 }
 onPause(settleAway, settleAway);
 document.addEventListener("visibilitychange", settleAway);
-new ResizeObserver(() => view.resize()).observe($("stage"));
-addEventListener("resize", () => view.resize());
+/** What the controls cover of the picture, told to the view so it fits the world into the rest (the picture itself runs under them). */
+function measure() {
+  const st = $("stage").getBoundingClientRect(), top = $("top").getBoundingClientRect(), bot = $("bottom").getBoundingClientRect(), gap = rootPx() * 0.5;
+  const side = bot.width < st.width * 0.7;                // held sideways the controls stand down the right side
+  const ins = { t: Math.max(0, top.bottom - st.top + gap), l: 0, r: side ? Math.max(0, st.right - bot.left + gap) : 0, b: side ? 0 : Math.max(0, st.bottom - bot.top + gap) };
+  const root = document.documentElement.style;
+  root.setProperty("--ins-b", `${Math.round(Math.max(0, st.bottom - bot.top))}px`);
+  root.setProperty("--ins-r", `${side ? Math.round(st.right - bot.left) : 0}px`);
+  view.setInsets({ t: Math.round(ins.t), l: 0, r: Math.round(ins.r), b: Math.round(ins.b) });
+}
+new ResizeObserver(() => { view.resize(); measure(); }).observe($("stage"));
+addEventListener("resize", () => { view.resize(); measure(); });
 addEventListener("pageshow", () => view.redraw());
 
 // for tests and debugging
@@ -395,5 +405,6 @@ window.__columbiad = {
   pointOf(x, y) { const r = scene.getBoundingClientRect(), [px, py] = view.screenOf(x, y); return [r.left + px, r.top + py]; },
 };
 
+measure();
 setupLevel();
 settleAway();

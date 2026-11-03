@@ -1,39 +1,54 @@
-/* Columbiad: the scene is a canvas (columbiad-view.js) in the same night colours in every theme, the way a game's board is; round
-   it the page is the suite's: the strip (which level, which shot, the stars a hit would earn), under the scene the aim's readouts, the
-   barrels of powder as a row of cells, the four nudges and the Fire plate, and after a hit, in the same room, how it went. The
-   accent is ochre, the brass of the gun. */
+/* Columbiad fills the whole screen: the scene is a canvas (columbiad-view.js) in the same night colours in every theme, the way a
+   game's board is, and every control is drawn over it, not beside it: the level and the stars a hit would earn at the top left, the
+   menu's button at the top right, the aim's readouts, the barrels of powder, the four nudges and the Fire plate along the bottom
+   (down the right side held sideways), and after a hit, in the same box, how it went. The accent is ochre, the brass of the gun. */
 :root {
   --cb-in: var(--c0);
   --cb-soft: color-mix(in srgb, var(--cb-in) 15%, var(--sheet));
+  --cb-t: max(.6rem, env(safe-area-inset-top, 0px));
+  --cb-b: max(.6rem, env(safe-area-inset-bottom, 0px));
+  --cb-l: max(.6rem, env(safe-area-inset-left, 0px));
+  --cb-r: max(.6rem, env(safe-area-inset-right, 0px));
+  --cb-glass: color-mix(in srgb, var(--sheet) 90%, transparent);
 }
 
-.cb-mark { display: inline-block; }
-.cb-mark svg { width: 100%; height: 100%; display: block; }
-
-.cb-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .55rem 0 .45rem; font-size: .9rem; color: var(--ink-soft); }
-.cb-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
-.cb-lv { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps);
-  letter-spacing: calc(.08em * var(--track)); font-size: .78rem; }
-.cb-lv b { margin-right: .5em; color: var(--brass-lo, var(--brass)); }
-.cb-shot { flex: none; font-variant-numeric: tabular-nums; }
-.cb-stars { flex: none; color: var(--brass); letter-spacing: .12em; font-size: .95rem; }
-.cb-stars.bull::after { content: " ◎"; letter-spacing: 0; color: var(--cb-in); }
-
-/* the scene: as large as the room allows; the canvas draws all of it, so it takes the touches, and the page never scrolls under a thumb */
-.cb-table { position: relative; }
-.cb-stage { position: absolute; inset: 0; overflow: hidden; border-radius: 4px; background: #0b1020; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* the page is the screen: fixed, edge to edge, nothing scrolls (the shared frame's padding and width are undone) */
+#app.columbiad { position: fixed; inset: 0; max-width: none; max-height: none; margin: 0; padding: 0; overflow: hidden; background: #080d19; }
+.cb-table, .cb-stage { position: absolute; inset: 0; }
+.cb-stage { overflow: hidden; background: #0b1020; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 .cb-scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-.cb-hint, .cb-say { position: absolute; margin: 0; pointer-events: none; font-weight: 650; }
-.cb-hint { left: 1rem; right: 1rem; bottom: 1rem; padding: .5rem .7rem; border: 1px solid var(--brass); border-radius: 4px; background: color-mix(in srgb, var(--sheet) 92%, transparent); color: var(--ink); font-size: .84rem; line-height: 1.35; }
+
+/* the top: what level this is and the stars a hit with this shot would earn; the menu's button */
+.cb-top { position: absolute; z-index: 3; top: var(--cb-t); left: var(--cb-l); right: var(--cb-r); display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; pointer-events: none; }
+.cb-top > * { pointer-events: auto; }
+.cb-chip { min-width: 0; max-width: calc(100% - 3.5rem); box-sizing: border-box; display: grid; gap: .1rem; padding: .32rem .7rem .38rem; border: 1.5px solid var(--brass); border-radius: 6px; background: var(--cb-glass); color: var(--ink);
+  box-shadow: 0 .2rem .9rem rgba(0, 0, 0, .5); pointer-events: none; }
+.cb-lv { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps);
+  letter-spacing: calc(.08em * var(--track)); font-size: .76rem; }
+.cb-lv b { margin-right: .5em; color: var(--brass-lo, var(--brass)); }
+.cb-sub { display: flex; align-items: baseline; gap: .7rem; font-size: .82rem; color: var(--ink-soft); }
+.cb-sub b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.cb-stars { color: var(--brass); letter-spacing: .12em; font-size: .9rem; }
+.cb-stars.bull::after { content: " ◎"; letter-spacing: 0; color: var(--cb-in); }
+/* the menu's button: the Codex mark (menu.js turns the page's button into it); Modern keeps its word, on a sheet like the chip */
+.cb-menu { flex: none; box-shadow: 0 .2rem .9rem rgba(0, 0, 0, .5); }
+.cb-menu:not(.cx-btn) { height: 2.5rem; padding: 0 .9rem; border: 1.5px solid var(--brass); border-radius: 6px; background: var(--cb-glass); color: var(--ink); font: inherit; font-size: .9rem; font-weight: 650; cursor: pointer; }
+.cb-menu.cx-btn { border-radius: 50% !important; background: color-mix(in srgb, #080d19 70%, transparent) !important; color: #ece2cb; }
+/* Kontor and Office draw three rules, not the mark: a ring round them, so the button is seen on the sky in day and night */
+html:is([data-theme="kontor"], [data-theme="office"]) .cb-menu.cx-btn { border: 1.5px solid var(--brass) !important; }
+
+.cb-hint, .cb-say { position: absolute; z-index: 2; margin: 0; pointer-events: none; font-weight: 650; }
+.cb-hint { left: var(--cb-l); right: var(--cb-r); top: calc(var(--cb-t) + 3.6rem); padding: .5rem .7rem; border: 1px solid var(--brass); border-radius: 4px; background: var(--cb-glass); color: var(--ink); font-size: .84rem; line-height: 1.35; }
 .cb-hint[hidden] { display: none; }
-/* how a shot ended, a line low in the scene; max-content: a box at left 50% is otherwise shrunk to the half of the scene right of it */
-.cb-say { left: 50%; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100% - 2rem); padding: .3rem .7rem; border-radius: 4px; background: color-mix(in srgb, var(--sheet) 92%, transparent);
+/* how a shot ended, a line over the picture just above the controls; max-content: a box at left 50% is otherwise shrunk to the half of the scene right of it */
+.cb-say { left: calc(50% - var(--ins-r, 0px) / 2); bottom: calc(var(--ins-b, 8rem) + .6rem); transform: translateX(-50%); width: max-content; max-width: calc(100% - var(--ins-r, 0px) - 2rem); padding: .3rem .7rem; border-radius: 4px; background: var(--cb-glass);
   border: 1px solid var(--rule); color: var(--ink); font-size: .85rem; text-align: center; opacity: 0; transition: opacity .18s; }
 .cb-say.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .cb-say { transition: none; } }
 
-/* under the scene: the aim in numbers, the powder as barrels, the nudges and Fire. Its room is fixed, so a hit's words take the same box */
-.cb-side { display: grid; margin-top: .55rem; height: 7.6rem; }
+/* the bottom: the aim in numbers, the powder as barrels, the nudges and Fire, on a glass panel. Its box is fixed, so a hit's words take the same one */
+.cb-bottom { position: absolute; z-index: 3; left: var(--cb-l); right: var(--cb-r); bottom: var(--cb-b); display: grid; box-sizing: border-box; padding: .5rem .6rem .6rem; border: 1.5px solid var(--brass); border-radius: 6px; background: var(--cb-glass);
+  box-shadow: 0 .3rem 1.2rem rgba(0, 0, 0, .55); min-height: 7.3rem; }
 .cb-deck, .cb-result { grid-area: 1 / 1; min-height: 0; }
 .cb-deck { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: .4rem; }
 .cb-deck.away { visibility: hidden; }
@@ -52,13 +67,13 @@
 @keyframes cb-tick { from { transform: scaleY(1.7); box-shadow: 0 0 .5rem var(--cb-in); } to { transform: scaleY(1); box-shadow: none; } }
 @media (prefers-reduced-motion: reduce) { .cb-gauge i.tick { animation: none; } }
 
-.cb-pad { display: grid; grid-template-columns: 2.9rem 2.9rem minmax(0, 1fr) 2.9rem 2.9rem; gap: .4rem; min-height: 0; }
+.cb-pad { display: grid; grid-template-columns: 2.9rem 2.9rem minmax(0, 1fr) 2.9rem 2.9rem; gap: .4rem; min-height: 0; height: 3.1rem; }
 .cb-nudge { display: grid; place-items: center; min-width: 0; min-height: 0; padding: 0; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
 .cb-nudge svg { width: 1.5rem; height: 1.5rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .cb-nudge:active { background: var(--cb-soft); }
 .cb-nudge:disabled { opacity: .4; cursor: default; }
 .cb-fire, .cb-go { border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps);
-  outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -.3rem; cursor: pointer; }
+  outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -.3rem; cursor: pointer; touch-action: manipulation; }
 .cb-fire { min-height: 0; font-size: 1.15rem; box-shadow: 0 0 0 1.5px var(--brass); }
 .cb-fire:active, .cb-go:active { filter: brightness(1.12); }
 .cb-fire:disabled { opacity: .4; cursor: default; box-shadow: none; }
@@ -74,19 +89,15 @@
 .cb-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; min-height: 2.5rem; }
 .cb-go[hidden] { display: none; }
 
-/* held sideways: the scene on the left with all the height; the strip, the aim and Fire beside it, the nudges and Fire low where a thumb is */
+/* held sideways: the picture has all of it, the controls stand down the right side, the nudges and Fire low where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.columbiad { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
-  #app.columbiad .cb-head { grid-column: 2; grid-row: 2; }
-  #app.columbiad .cb-strip { flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
-  #app.columbiad .cb-lv { white-space: normal; }
-  #app.columbiad .cb-table { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
-  #app.columbiad .cb-side { grid-column: 2; grid-row: 3; height: auto; align-content: end; margin-top: 0; }
-  #app.columbiad .cb-deck { grid-template-rows: auto auto auto; align-content: end; gap: .6rem; }
-  #app.columbiad .cb-read { flex-direction: column; align-items: flex-start; gap: .3rem; }
-  #app.columbiad .cb-pad { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: 3rem 4rem; }
-  #app.columbiad .cb-fire { grid-column: 1 / -1; grid-row: 2; }
-  #app.columbiad .cb-result { grid-template-columns: minmax(0, 1fr); align-content: end; gap: .8rem; }
+  .cb-bottom { left: auto; width: 16.5rem; top: auto; }
+  .cb-deck { gap: .6rem; }
+  .cb-read { flex-direction: column; align-items: flex-start; gap: .3rem; }
+  .cb-pad { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: 3rem 4rem; height: auto; }
+  .cb-fire { grid-column: 1 / -1; grid-row: 2; }
+  .cb-result { grid-template-columns: minmax(0, 1fr); gap: .8rem; }
+  .cb-hint { right: auto; width: min(24rem, calc(100% - 22rem)); }
 }
 
 /* the menu's levels: three to a row, each its place in miniature (the Earth, the gun, the ring), its number and name, and its stars */
