@@ -1,0 +1,149 @@
+/* Flank: a board of lapis enamel in a brass frame, its squares ruled in brass, and discs of two faces: dark, an ink
+   enamel with a solid brass pip, and light, ivory with an engraved ring. The pip and the ring tell them apart without
+   colour. Upright: the other side's bar, the board, your bar, and the buttons under it. Sideways: the board on the left,
+   the buttons beside it. */
+:root {
+  --fk-in: #2C5B8A;                                              /* the game's enamel: cobalt */
+  --fk-soft: color-mix(in srgb, var(--fk-in) 14%, var(--sheet));
+  --fk-frame: #8B6620; --fk-frame-hi: #C99A45; --fk-field: #4E7396; --fk-line: rgba(226, 184, 101, .55);
+  --fk-dark: #1C2A34; --fk-dark-hi: #3B5266; --fk-dark-edge: #0A1116; --fk-pip: #E2B865;
+  --fk-light: #F3E6C4; --fk-light-hi: #FFF8E6; --fk-light-edge: #6B5A33; --fk-ring: #1C2A34;
+  --fk-mark: rgba(255, 248, 230, .62); --fk-hint: #FFE08A; --fk-flag: #E2B865;
+  --fk-good: #2F7D5B; --fk-bad: #A8382B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --fk-in: #7FA6D6; --fk-frame: #5C4519; --fk-frame-hi: #C99A45; --fk-field: #2E4760; --fk-line: rgba(201, 154, 69, .5);
+    --fk-dark: #0B1116; --fk-dark-hi: #26394A; --fk-dark-edge: #C99A45; --fk-light: #EDE3CC; --fk-light-hi: #FBF4E4; --fk-light-edge: #8C7A55;
+    --fk-good: #7FC2A8; --fk-bad: #E8806F; }
+}
+html[data-mode="night"] { --fk-in: #7FA6D6; --fk-frame: #5C4519; --fk-frame-hi: #C99A45; --fk-field: #2E4760; --fk-line: rgba(201, 154, 69, .5);
+  --fk-dark: #0B1116; --fk-dark-hi: #26394A; --fk-dark-edge: #C99A45; --fk-light: #EDE3CC; --fk-light-hi: #FBF4E4; --fk-light-edge: #8C7A55;
+  --fk-good: #7FC2A8; --fk-bad: #E8806F; }
+html[data-theme="kontor"] { --fk-in: #1E5FA8; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --fk-in: #5FA3F0; } }
+html[data-theme="kontor"][data-mode="night"] { --fk-in: #5FA3F0; }
+html[data-theme="office"] { --fk-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --fk-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --fk-in: #479EF5; }
+
+.fk-mark { display: inline-block; }
+.fk-mark svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- the table: the other side, the board, you ---------- */
+.fk-table { display: flex; flex-direction: column; gap: .4rem; min-height: 0; padding-top: .5rem; }
+.fk-seat { display: flex; align-items: center; gap: .5rem; padding: .3rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); min-height: 2.3rem; box-sizing: border-box; }
+.fk-seat.turn { border-color: var(--fk-in); box-shadow: inset 0 0 0 1.5px var(--fk-in); }
+.fk-seat .fk-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fk-seat small { color: var(--ink-soft); font-size: .78rem; white-space: nowrap; }
+.fk-count { margin-left: auto; font-weight: 800; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+/* a disc as a swatch, with the same pip and ring */
+.fk-swatch { position: relative; flex: none; width: 1.15rem; height: 1.15rem; border-radius: 50%; }
+.fk-swatch::after { content: ""; position: absolute; border-radius: 50%; }
+.fk-swatch.d { background: var(--fk-dark); border: 1.5px solid var(--fk-dark-edge); }
+.fk-swatch.d::after { inset: 31%; background: var(--fk-pip); }
+.fk-swatch.l { background: var(--fk-light); border: 1.5px solid var(--fk-light-edge); }
+.fk-swatch.l::after { inset: 24%; border: 1.5px solid var(--fk-ring); }
+
+/* the board fills the room the bars leave, never more than a square */
+.fk-stage { flex: 1 1 auto; min-height: 0; display: grid; place-items: center; container-type: size; }
+.fk-board { width: min(100cqw, 100cqh); aspect-ratio: 1; }
+.fk-frame { display: grid; grid-template-columns: .85rem minmax(0, 1fr); grid-template-rows: .85rem minmax(0, 1fr); box-sizing: border-box;
+  padding: .3rem; border-radius: 6px; background: var(--fk-frame); box-shadow: inset 0 0 0 1.5px var(--fk-frame-hi), 0 1px 0 rgba(0, 0, 0, .25); user-select: none; -webkit-user-select: none; }
+.fk-frame.bare { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.fk-files, .fk-ranks { display: grid; color: var(--fk-frame-hi); font-size: .62rem; font-weight: 800; line-height: 1; }
+.fk-files { grid-template-columns: repeat(8, 1fr); }
+.fk-ranks { grid-template-rows: repeat(8, 1fr); }
+.fk-files i, .fk-ranks i { font-style: normal; display: grid; place-items: center; }
+.fk-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); background: var(--fk-field);
+  border: 1.5px solid var(--fk-frame-hi); min-width: 0; min-height: 0; }
+.fk-cell { position: relative; display: block; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; font: inherit; color: inherit;
+  box-shadow: inset 0 0 0 .5px var(--fk-line); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.fk-grid.shut .fk-cell { cursor: default; }
+.fk-cell:focus-visible { outline: 2px solid var(--fk-hint); outline-offset: -3px; z-index: 1; }
+
+/* a disc: it grows when placed; its coin turns over when it is flanked (nothing here decides anything) */
+.fk-disc { position: absolute; inset: 8%; perspective: 30rem; -webkit-perspective: 30rem; transform: scale(0); transition: transform .2s cubic-bezier(.2, .9, .3, 1.25); pointer-events: none; }
+.fk-disc[data-on="1"] { transform: scale(1); }
+.fk-coin { position: absolute; inset: 0; transform-style: preserve-3d; -webkit-transform-style: preserve-3d; transition: transform .36s ease; }
+.fk-coin[data-s="l"] { transform: rotateY(180deg); }
+.fk-disc.nt, .fk-coin.nt { transition: none; }
+.fk-face { position: absolute; inset: 0; border-radius: 50%; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-sizing: border-box; }
+.fk-face::after { content: ""; position: absolute; border-radius: 50%; }
+.fk-face.d { background: radial-gradient(circle at 34% 30%, var(--fk-dark-hi), var(--fk-dark) 62%); border: 2px solid var(--fk-dark-edge); box-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+.fk-face.d::after { inset: 33%; background: var(--fk-pip); }
+.fk-face.l { background: radial-gradient(circle at 34% 30%, var(--fk-light-hi), var(--fk-light) 66%); border: 2px solid var(--fk-light-edge); transform: rotateY(180deg); -webkit-transform: rotateY(180deg); box-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+.fk-face.l::after { inset: 24%; border: 2px solid var(--fk-ring); }
+@media (prefers-reduced-motion: reduce) { .fk-disc, .fk-coin { transition: none !important; } }
+
+/* marks: the squares you may play (quiet), the move just made, the coach's choice, and a lesson's verdicts */
+.fk-dot { position: absolute; left: 36%; top: 36%; width: 28%; height: 28%; border-radius: 50%; border: 2px solid var(--fk-mark); box-sizing: border-box; display: none; pointer-events: none; }
+.fk-cell.legal .fk-dot { display: block; }
+.flank.nomarks .fk-cell.legal .fk-dot { display: none; }
+.fk-cell.last::before { content: ""; position: absolute; left: 0; top: 0; z-index: 2; border-style: solid; border-width: .5rem .5rem 0 0; border-color: var(--fk-flag) transparent transparent transparent; pointer-events: none; }
+.fk-cell.fk-tip { box-shadow: inset 0 0 0 3px var(--fk-hint); background: color-mix(in srgb, var(--fk-hint) 22%, transparent); }
+.fk-cell.fk-tip .fk-dot { display: block; border-color: var(--fk-hint); background: var(--fk-hint); }
+.fk-cell[data-mark="good"] { box-shadow: inset 0 0 0 3px var(--fk-good); }
+.fk-cell[data-mark="bad"] { box-shadow: inset 0 0 0 3px var(--fk-bad); }
+.fk-cell[data-mark="pick"] { box-shadow: inset 0 0 0 3px var(--fk-hint); background: color-mix(in srgb, var(--fk-hint) 18%, transparent); }
+/* a verdict is also a sign in the corner of its square, so colour alone never carries it */
+.fk-cell[data-mark]:not([data-mark=""])::after { position: absolute; right: 0; top: 0; z-index: 3; min-width: .8rem; height: .8rem; line-height: .8rem; text-align: center; font-size: .62rem; font-weight: 900; pointer-events: none; color: #fff; }
+.fk-cell[data-mark="good"]::after { content: "\2713"; background: var(--fk-good); }
+.fk-cell[data-mark="bad"]::after { content: "\2715"; background: var(--fk-bad); }
+.fk-cell[data-mark="pick"]::after { content: "\2605"; background: var(--fk-frame); color: var(--fk-hint); }
+
+/* ---------- under the board ---------- */
+.fk-side { display: flex; flex-direction: column; gap: .4rem; padding-top: .4rem; }
+.fk-status { margin: 0; min-height: 2.6em; text-align: center; color: var(--ink-soft); font-size: .9rem; line-height: 1.3; display: grid; align-items: center; }
+.fk-status.big { color: var(--ink); font-weight: 800; font-size: 1.02rem; }
+.fk-ahead { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .6rem; min-height: 1.5rem; }
+.fk-ahead[hidden] { display: none; }
+.fk-meter { position: relative; height: .7rem; border-radius: 4px; overflow: hidden; background: var(--fk-light); border: 1.5px solid var(--fk-light-edge); box-sizing: border-box; }
+.fk-meter b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--fk-dark); transition: width .3s ease; }
+.fk-meter i { position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: var(--fk-pip); }
+.fk-ahead span { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fk-ahead.wait .fk-meter b { transition: none; opacity: .35; }
+.fk-controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .4rem; }
+.fk-btn { min-height: 2.9rem; }
+
+.fk-rules p { line-height: 1.45; }
+.fk-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.fk-rules-note { font-size: .85rem; color: var(--ink-soft); }
+.fk-end-head { margin: .2rem 0 .6rem; }
+.fk-tally { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.fk-tally li { display: grid; grid-template-columns: 1.3rem minmax(0, 1fr) 2.2rem; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.fk-tally li .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fk-tally li.won .nm::after { content: " ★"; color: var(--fk-in); }
+.fk-tally li b { text-align: right; font-variant-numeric: tabular-nums; }
+.fk-end-note { color: var(--ink-soft); font-size: .9rem; }
+.fk-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.fk-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.fk-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* other themes: their corners */
+html[data-theme="office"] :is(.fk-seat, .fk-frame) { border-radius: 4px; }
+html[data-theme="modern"] :is(.fk-seat) { border-radius: 12px; }
+html[data-theme="modern"] .fk-frame { border-radius: 14px; }
+html[data-theme="kontor"] :is(.fk-seat, .fk-frame, .fk-meter) { border-radius: 2px; }
+
+/* ---------- the course's stage (flank-course.js): the board as large as the stage allows ---------- */
+.ln-sheet.fk { --ln-in: var(--fk-in); }
+.lk { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .45rem; height: 100cqh; min-height: 0; box-sizing: border-box; padding: .2rem 0; }
+.lk-board { flex: 0 1 auto; aspect-ratio: 1; min-height: 0; width: 100%; display: grid; place-items: center; container-type: size; }
+.lk-board .fk-board { width: min(100cqw, 100cqh); }
+.lk-row { display: flex; gap: 1.2rem; align-items: center; justify-content: center; font-size: .9rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.lk-row span { display: inline-flex; align-items: center; gap: .4rem; }
+.lk-row b { color: var(--ink); }
+.lk-row .fk-swatch { width: 1rem; height: 1rem; }
+.lk-pair { display: flex; gap: .8rem; width: 100%; justify-content: center; align-items: stretch; flex: 1 1 auto; min-height: 0; }
+.lk-pair > div { flex: 1 1 0; min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .3rem; justify-items: center; }
+.lk-pair small { font-size: .72rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }
+.lk-pair .lk-board { width: 100%; aspect-ratio: auto; }
+
+/* held sideways: the board on the left as large as the height allows, the buttons beside it, low */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.flank { --beside: 17rem; grid-template-rows: auto minmax(0, 1fr); }
+  #app.flank .fk-table { grid-column: 1; grid-row: 2; }
+  #app.flank .fk-side { grid-column: 2; grid-row: 2; padding-top: .5rem; min-height: 0; justify-content: flex-end; }
+}
