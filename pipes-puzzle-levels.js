@@ -1,9 +1,9 @@
 // Pipes, the puzzle: the levels (November 2026). A level is its map (. open ground, # rock, S the wellhead, T the terminal,
 // ─ │ └ ┘ ┌ ┐ ┼ old pipe, 1-9 stakes), the side the wellhead's oil leaves by (out) and the side of the terminal its inlet
 // is on, the hand of pieces to lay (h v ne nw se sw x, a count each), and the routes that solve it: the side the oil
-// leaves each square by, from the wellhead on. Made by pipes-puzzle-make.js, which keeps rock only where the level
-// needs it to have one answer (and old pipe and stakes only where they are needed too), and checked by
-// tests/pipes-puzzle.mjs, which solves every level again and wants those routes and no others.
+// leaves each square by, from the wellhead on. Made by pipes-puzzle-pick.mjs from pipes-puzzle-make.js, which keeps rock
+// only where the level needs it to have one answer (and old pipe and stakes only where they are needed too), and checked
+// by tests/pipes-puzzle.mjs, which solves every level again and wants those routes and no others.
 // A level's id is its identity (stars are kept by it): new levels go at the end of a chapter with a new id.
 
 export const CHAPTERS = [
