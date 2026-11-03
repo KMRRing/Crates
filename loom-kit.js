@@ -1,6 +1,4 @@
-// What Loom's two games share on its one page: reading and keeping what's saved, the sounds, the options and the dialog a
-// finished cloth opens. The cloths (loom-play.js) and the draft (loom-draft.js) each fill the same strip, bench, line and
-// buttons; loom.js says which one is showing.
+// What Loom's page keeps: reading and writing what's saved, the sounds, the options and the dialog a finished cloth opens.
 import { IN_FRAME } from "./suite.js";
 
 export const $ = id => document.getElementById(id);
@@ -13,10 +11,10 @@ export const OPTS = "loom:opts", BEST = "loom:best";
 export const opts = { sound: true, marks: true, ...read(OPTS, {}) };
 export const saveOpts = () => write(OPTS, opts);
 
-export const CAMP = "loom:camp", JOBS_KEY = "loom:jobs";
+export const CAMP = "loom:camp";
 const sum = o => Object.values(o).reduce((n, v) => n + (Number.isFinite(v) ? v : 0), 0);
-/** The games screen's number: every star won, in the cloths and in the draft. */
-export const keepBest = () => write(BEST, sum(read(CAMP, {})) + sum(read(JOBS_KEY, {})));
+/** The games screen's number: every star won in the cloths (the draft's, `loom:jobs`, are kept but no longer counted). */
+export const keepBest = () => write(BEST, sum(read(CAMP, {})));
 
 // ---------- the sounds, made as they play (no files) ----------
 let audio = null;

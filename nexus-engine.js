@@ -10,11 +10,11 @@
 // kind of the true links is the kind most of them are. What the Codex holds loosely (a clue that "also fits" another
 // answer, `alt` in the links) is neither a true link nor a decoy: it could fairly be called either. Everything here is
 // "in this Codex": a decoy may be linked in life, and the reveal says where it goes instead.
-import { ENT, name, kind, ABOUT, TOPIC_LIST, topicsOf, drawEnd } from "./arb-engine.js";
+import { ENT, name, kind, ABOUT, TOPIC_LIST, topicsOf, drawEnd } from "./kb-things.js";
 import { LINKS } from "./kb/links.js";
 import { KB_TOPICS, drawWeighted } from "./topics.js";
 
-// the topics are Arb's (a thing is about the topics of its links), and so is the mix the suite's subjects make of them
+// the topics (a thing is about the topics of its links) and the mix the suite's subjects make of them are the shared ones, kb-things.js
 export { TOPIC_LIST, topicsOf, name, kind, ABOUT };
 export const PER_RUN = 5;
 export const SIZES = [8, 10, 12];
@@ -155,7 +155,7 @@ const POOL = { orbit: CENTRES, aspect: ASPECT_CENTRES, intruder: INTRUDER_CENTRE
 /**
  * The five rounds of a seed. `mode` is a type or "mixed"; `size` how many candidates an Orbit or Aspect round rings
  * the nexus with; `weights` a mix of the knowledge base's topics (`topicsOf` the subjects that are on; the nexus is
- * drawn by the weight of its likeliest topic, as Arb draws its ends); `forced` nexuses to deal first, with `must[id] = { trues, falses }` to put in them
+ * drawn by the weight of its likeliest topic, as kb-things.js's drawEnd does); `forced` nexuses to deal first, with `must[id] = { trues, falses }` to put in them
  * (what the learning mode asks again); `avoid` a Set of nexuses dealt lately, left out unless that leaves too few.
  */
 export function dealRun(seed, { mode = "mixed", size = 10, weights = null, forced = [], must = {}, avoid = null } = {}) {

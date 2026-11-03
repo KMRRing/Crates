@@ -1,4 +1,6 @@
-# Lexicon
+# Almanac
+
+Called Lexicon until 2 November 2026. Its id, its saved keys (`lexicon:`) and its crossword kind are still `lexicon`, so what is saved opens as it did; `lexicon.html` forwards to `almanac.html`, `#e=` and all, so a link to an entry made before still works.
 
 Everything the games know, looked up. Search any of the knowledge base's 4,396 things, a country, a company, a painting, a river, a law, by its name or another of its names, accents ignored, names that start with what you typed first and the best-connected first among them. An entry shows what the thing is (its kinds, and its region or commodity family), its picture where it has one, what's said about it (its note, its country and region, a painting's year), the numbers Quote knows about it, the topics its links touch (energy, metals, history…), and every link in groups (clues to it, a clue to, painted by, paintings, hangs in, on its walls, movement, in, within it), each with the reason and a tap through to its own entry. `#e=<id>` opens an entry, so links can be shared and the back button walks back through what you've opened.
 

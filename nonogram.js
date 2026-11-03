@@ -5,7 +5,7 @@
 // and the strokes, names the picture, plays the computer (a partner with half the clues, or a rival on its own copy)
 // and plays together on duel.js: a race on the same picture, or the clues split between you on one grid.
 import { cellAt, withCell, emptyGrid, EMPTY, CROSS, agrees, drawn, wrongCells, knownFrom, nextStep, scoreOf, creditFor, ownerOf, MISTAKE, HINT, WRONG_NAME, CREDIT } from "./nonogram-engine.js";
-import { PICTURES, TOPICS, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, siblingsOf, poolOf, madeAlready, remember } from "./nonogram-pictures.js";
+import { PICTURES, TOPICS, topicsOf, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, siblingsOf, poolOf, madeAlready, remember } from "./nonogram-pictures.js";
 import { hexGrid, hexOwner, lineName } from "./nonogram-hex.js";
 import { PACES, createMind, botMove } from "./nonogram-bot.js";
 import { createBoard, HOLD_SECOND } from "./nonogram-board.js";
@@ -17,6 +17,9 @@ import { part, choice, toggle, action, line, mirror, onPause, isPaused } from ".
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
+import { subjectsOn } from "./topics-on.js";
+import { topicsPart } from "./topics-ui.js";
+import { sure } from "./sure.js";
 import { busy } from "./loading.js";
 import { branchPath } from "./rooms.js";
 import { check as checkTyped, normalize } from "./typing.js";
@@ -178,10 +181,12 @@ async function start(mode = "random", size = $("size").value) {
 // The next random picture is dealt (and its puzzle made) while you play this one, so Next is instant; it's dealt
 // again if the choices it was dealt for have changed by then.
 let upcoming = null;                                              // { key, got }
-const dealKey = size => JSON.stringify([topicNow(), settings.region, settings.band, settings.grid, size, pile.mode()]);
+// Settings' subjects (topics-on.js) are read when a picture is dealt, never once at start-up; they leave kinds out of "All"
+const mixNow = () => topicsOf(subjectsOn());
+const dealKey = size => JSON.stringify([topicNow(), settings.region, settings.band, settings.grid, size, pile.mode(), mixNow()]);
 function dealNow(size) {
   const seen = read(SEEN, []), prefer = pile.learning() ? learningPicks() : [];
-  return dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, seen, prefer });
+  return dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, mix: mixNow(), seen, prefer });
 }
 async function nextPick(size) {
   const key = dealKey(size);
@@ -195,7 +200,7 @@ function prepare() {
   if (IN_FRAME || duel.on) return;
   const size = $("size").value, key = dealKey(size);
   if (upcoming?.key === key) return;
-  const args = { topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, seen: [S?.id, ...read(SEEN, [])].filter(Boolean), prefer: pile.learning() ? learningPicks() : [] };
+  const args = { topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, mix: mixNow(), seen: [S?.id, ...read(SEEN, [])].filter(Boolean), prefer: pile.learning() ? learningPicks() : [] };
   try {
     maker ??= new Worker(new URL("./nonogram-worker.js", import.meta.url), { type: "module" });
     const n = ++asked;
@@ -914,10 +919,11 @@ function openMenu() {
   c.append(choice("Picture", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") {
     c.append(choice("Grid", GRIDS, settings.grid, v => { settings.grid = v; saveSettings(); openMenu(); }),
-      choice("Pictures", topicChoices(), topicNow(), v => { settings.topic = v; saveSettings(); }),
+      choice("Pictures", topicChoices(), topicNow(), v => { settings.topic = v; saveSettings(); openMenu(); }),
       choice("Region", REGIONS, settings.region, v => { settings.region = v; saveSettings(); }),
       mirror("Size", $("size")),
       choice("Difficulty", [["any", "Any"], ...Object.entries(BANDS)], settings.band, v => { settings.band = v; saveSettings(); }));
+    if (topicNow() === "all") c.append(...topicsPart(c, "Only for All pictures: a kind picked above is dealt as it is"));
   } else c.append(line("Today's is a country's outline, medium: the same for everyone, named for the score."));
   const st = part(body, "settings");
   st.append(toggle("Name it", settings.nameIt, v => { settings.nameIt = v; saveSettings(); }),
@@ -933,13 +939,13 @@ function openMenu() {
     action("Copy a link to this picture", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-function confirmStart(mode) {
-  if (started() && !confirm("Start a new picture? This one isn't finished.")) return false;
+async function confirmStart(mode) {
+  if (started() && !(await sure("Start a new picture? This one isn't finished.", { yes: "Start a new one" }))) return false;
   start(mode);
   return true;
 }
-function restart() {
-  if (!S || S.done || !confirm("Clear the grid and start this picture again? The clock carries on.")) return;
+async function restart() {
+  if (!S || S.done || !(await sure("Clear the grid and start this picture again? The clock carries on.", { yes: "Start again" }))) return;
   for (let i = 0; i < P.answer.length; i++) if (cellAt(S.grid, i) !== EMPTY) setCell(i, EMPTY);
   S.undo = []; S.redo = [];
   if (S.rival) S.rival = { grid: emptyGrid(P), done: false, ms: 0 };
@@ -960,10 +966,10 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => { if (!duel.on) start("random"); else if (S?.play === "split") duel.again(); else duel.open(); });
-$("size").addEventListener("change", () => {
+$("size").addEventListener("change", async () => {
   if (duel.on) { if (!duel.newMatch()) $("size").value = duel.match?.size || "medium"; return; }
   if (S && $("size").value === S.size && S.mode !== "daily") return;
-  if (!confirmStart("random")) $("size").value = S?.size || "medium";
+  if (!(await confirmStart("random"))) $("size").value = S?.size || "medium";
 });
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
@@ -1020,13 +1026,13 @@ window.__nonogram = {
 };
 
 const forToday = arrivedForToday();                                // from the games screen's tile: today's, still to play
-function solo() {
+async function solo() {
   S = read(RUN, null);
   if (!valid(S) || S.mode === "duel") S = null;
   const h = hashPicture();
   if (h && !isShown(h)) { linked(h); return; }
   if (forToday && !IN_FRAME && !(S?.mode === "daily" && S.day === today())) {
-    if (!started() || confirm("Today's picture is waiting. Leave the one you've started?")) { start("daily"); return; }
+    if (!started() || await sure("Today's picture is waiting. Leave the one you've started?", { yes: "Today's picture" })) { start("daily"); return; }
   }
   if (S) begin({ id: S.id, size: S.size, hex: S.hex, mode: S.mode, day: S.day, play: S.play }, S);
   else start("random", $("size").value || "medium");

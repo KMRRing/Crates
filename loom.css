@@ -1,5 +1,5 @@
-/* Loom: a weaver's draft on a canvas that fills its box (loom-draw.js): the target, the threading, your cloth and its
-   lifting plan; under it what to do next, and two buttons. Verdigris, the green of a wool dyed with woad and weld, is the
+/* Loom: a cloth on a canvas that fills its box (loom-cloth.js): the clues round the crossings; under it what to do next, and
+   the buttons. Verdigris, the green of a wool dyed with woad and weld, is the
    house colour. */
 :root {
   --lm-in: var(--c1);

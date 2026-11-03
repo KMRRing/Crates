@@ -4,8 +4,7 @@
 // exactly one answer, the same from the same seed. The page's ids are checked against loom.html.
 import { readFileSync } from "node:fs";
 import { makePuzzle, makeUnique, count, grade, start, propagate, done, nextStep, met, lineMet, fixed, isKnown, stateOf, WARP, WEFT, GOLD } from "../loom-float.js";
-import { LEVELS, CHAPTERS, WEAVES, levelOf, chapterOf, makeLevel, starsFor, seedOf, GOLD_YARN } from "../loom-levels.js";
-import { YARNS } from "../loom-engine.js";
+import { LEVELS, CHAPTERS, WEAVES, levelOf, chapterOf, makeLevel, starsFor, seedOf, GOLD_YARN, YARNS } from "../loom-levels.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -145,15 +144,14 @@ check(starsFor(0, 0) === 3 && starsFor(1, 0) === 2 && starsFor(0, 1) === 2 && st
   const html = readFileSync(new URL("../loom.html", import.meta.url), "utf8");
   const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
   const used = new Set();
-  for (const f of ["loom.js", "loom-play.js", "loom-draft.js", "loom-kit.js"]) {
+  for (const f of ["loom.js", "loom-play.js", "loom-kit.js"]) {
     const src = readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
     for (const m of src.matchAll(/\$\("([A-Za-z]+)"\)/g)) used.add(m[1]);
   }
   const missing = [...used].filter(id => !ids.has(id));
   check(used.size > 10 && !missing.length, `every id the scripts look up is in loom.html (${used.size}; missing: ${missing.join(", ") || "none"})`);
-  const js = readFileSync(new URL("../loom.js", import.meta.url), "utf8");
-  check(/roundOver\("loom"\)/.test(readFileSync(new URL("../loom-play.js", import.meta.url), "utf8")) && /roundOver\("loom"\)/.test(readFileSync(new URL("../loom-draft.js", import.meta.url), "utf8")), "both games end a round for Random mode");
-  check(/loom:track/.test(js) && /loom:run2/.test(readFileSync(new URL("../loom-play.js", import.meta.url), "utf8")) && /loom:camp/.test(readFileSync(new URL("../loom-kit.js", import.meta.url), "utf8")), "what the page shows is kept under loom: keys (track, run, stars)");
+  check(/roundOver\("loom"\)/.test(readFileSync(new URL("../loom-play.js", import.meta.url), "utf8")), "the cloths end a round for Random mode");
+  check(/loom:run2/.test(readFileSync(new URL("../loom-play.js", import.meta.url), "utf8")) && /loom:camp/.test(readFileSync(new URL("../loom-kit.js", import.meta.url), "utf8")), "what the page shows is kept under loom: keys (run, stars)");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

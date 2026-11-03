@@ -1,6 +1,7 @@
 // Nonogram's dealer (nonogram-pictures.js): a picture you couldn't name comes back, but not every game (Korbi,
 // 31 October 2026: "always giving me the same one, Switzerland"), and the rest come round the whole pool in turn.
-import { poolOf, puzzleOf, dealPicture, dailyPicture, rng, HOLD_BACK } from "../nonogram-pictures.js";
+import { poolOf, puzzleOf, dealPicture, dailyPicture, rng, HOLD_BACK, TOPICS, TOPIC_LIST, topicsOf } from "../nonogram-pictures.js";
+import { TOPIC_OF, cleanSubjects, SUBJECT_PRESETS } from "../topics.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -46,6 +47,20 @@ const due = poolOf("countries", "europe").find(p => p.name === "Switzerland").id
 {
   const days = [20261020, 20261021, 20261022, 20261101, 20270101, 20271231];
   check(days.every(d => dailyPicture(d) === dailyPicture(d)) && new Set(days.map(dailyPicture)).size >= 5, "a day's picture is the same on every deal and differs between days");
+}
+{
+  // Settings' subjects reach Nonogram: its kinds belong to subjects, "All" leaves out the kinds whose subject is off, a kind
+  // picked in the menu is dealt whatever Settings says, and nothing on leaves every kind in (as in every knowledge game)
+  const none = cleanSubjects(SUBJECT_PRESETS.none.topics), only = id => cleanSubjects({ ...SUBJECT_PRESETS.none.topics, [id]: 1 });
+  check(TOPIC_LIST.length === Object.keys(TOPICS).length && TOPIC_LIST.every(([id]) => TOPIC_OF.nonogram[id]), "every kind of picture belongs to a subject");
+  check(Object.keys(poolOf("all", "world", "square", topicsOf(cleanSubjects(null))).reduce((o, p) => (o[p.topic] = 1, o), {})).length === TOPIC_LIST.length, "all subjects on, All deals every kind");
+  const nat = poolOf("all", "world", "square", topicsOf(only("nat"))), geo = poolOf("all", "world", "square", topicsOf(only("geo")));
+  check(nat.length > 0 && nat.every(p => p.topic === "lakes"), "only Nature on, All deals lakes alone");
+  check(geo.length > 0 && geo.every(p => p.topic !== "lakes") && new Set(geo.map(p => p.topic)).size === 3, "only Geography on, All deals countries, flags and regions but no lakes");
+  check(poolOf("all", "world", "square", topicsOf(none)).length === poolOf("all", "world").length, "nothing on, All deals every kind");
+  check(poolOf("flags", "world", "square", topicsOf(only("nat"))).length === poolOf("flags", "world").length, "a kind picked in the menu is dealt whatever the subjects say");
+  const got = dealPicture({ topic: "all", size: "small", mix: topicsOf(only("nat")), rand: rng(5) });
+  check(got && got.id.startsWith("l-"), "a deal of All with only Nature on is a lake");
 }
 console.log(bad ? `${bad} FAILED` : "all passed");
 process.exit(bad ? 1 : 0);

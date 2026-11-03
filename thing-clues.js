@@ -1,4 +1,4 @@
-// Clues for a thing, pure (tests/thing-clues.mjs checks them): what Nexus and Arb offer when you don't know what the thing in the
+// Clues for a thing, pure (tests/thing-clues.mjs checks them): what Nexus offers when you don't know what the thing in the
 // middle (or at either end of a route) is. A ladder of lines from vague to specific, built only from what the knowledge
 // base already says of the thing itself: what it is, where or when, the hints written for it as a clue (the "because" of
 // its clue links, which Crates writes without the answer's geography), and its note. A line that names anything the caller

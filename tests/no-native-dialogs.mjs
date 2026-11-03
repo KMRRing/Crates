@@ -7,7 +7,6 @@ import fs from "fs";
 const root = new URL("..", import.meta.url).pathname;
 const STILL = {
   "acrostic.js": 3,
-  "arb.js": 1,
   "assay.js": 4,
   "blend-parcels-ui.js": 1,
   "blend.js": 1,
@@ -18,7 +17,6 @@ const STILL = {
   "chart.js": 3,
   "codeword.js": 3,
   "crossword.js": 4,
-  "dandan.js": 3,
   "delta.js": 3,
   "duel.js": 1,
   "gambit.js": 2,
@@ -35,7 +33,6 @@ const STILL = {
   "masyu.js": 3,
   "mines.js": 3,
   "nexus.js": 1,
-  "nonogram.js": 3,
   "nurikabe.js": 3,
   "order.js": 3,
   "origin.js": 3,

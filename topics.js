@@ -39,7 +39,7 @@ export const mixFromParam = (list, text) => cleanMix(list, Object.fromEntries([
 // ---------- the knowledge base's topics ----------
 /** A clue link's aspects (kb/links.js), which belong to the link, not the thing: a country clue's and a commodity clue's
  *  ask different things. Crates weights them in its settings (core.js takes them from here), Origin deals its clues by
- *  the country ones, Arb its routes by both. */
+ *  the country ones. */
 export const KB_TOPICS = {
   country: [
     ["geo", "Geography"], ["nat", "Nature"], ["nrg", "Energy"], ["met", "Metals & mining"],
@@ -113,7 +113,7 @@ export function subjectsSay(on) {
 }
 
 /** Which subject each game's own topics belong to. A game's topic list is [id, label] pairs; every id must be here
- *  (tests/topics.mjs). kb: the clue links' aspects (Crates, Origin, Arb, Nexus, Crossword, Isomer, Lode), country ones
+ *  (tests/topics-global.mjs). kb: the clue links' aspects (Crates, Origin, Nexus, Crossword, Isomer, Lode), country ones
  *  then commodity ones. */
 export const TOPIC_OF = {
   kb: {
@@ -124,6 +124,7 @@ export const TOPIC_OF = {
   quote: { trade: "trade", cities: "cities", wine: "food", art: "art", people: "ppl", geo: "geo", markets: "fin", refining: "nrg", scale: "sci" },
   chart: { cities: "cities", countries: "geo", trade: "trade", geo: "geo", physical: "nat", art: "art", museums: "art", architecture: "art", myth: "cult",
     history: "hist", people: "ppl", wine: "food", local: "geo" },
+  nonogram: { countries: "geo", flags: "geo", lakes: "nat", regions: "geo" },
   lots: { wp: "lang", ph: "lang", mn: "lang", th: "lang", mk: "fin", sc: "sci", pl: "geo", cu: "cult", sp: "sport", fd: "food" },
   punt: { countries: "geo", commodities: "trade", maths: "math", refining: "nrg", reasoning: "math", words: "lang", cities: "cities", flags: "geo", patterns: "math",
     wine: "food", art: "art", economics: "mkt", physics: "sci", chemistry: "sci", code: "sci", philosophy: "rel", religion: "rel", watches: "style", skiing: "sport",

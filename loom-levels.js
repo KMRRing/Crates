@@ -6,7 +6,11 @@
 // two where they have two) and the logic needed is what the level asks for; the same seed is always the same cloth.
 import { makePuzzle, makeUnique, grade, WARP, WEFT, GOLD } from "./loom-float.js";
 
-/** The yarns (loom-engine.js has the same six: ecru, ochre, moss, madder, indigo, charcoal) and the gold laid over them. */
+/** The six yarns of a cloth, by number, and the gold laid over them as a seventh. */
+export const YARNS = [
+  { name: "ecru", hex: "#E9DFC4" }, { name: "ochre", hex: "#D49A22" }, { name: "moss", hex: "#587A4A" },
+  { name: "madder", hex: "#A8382B" }, { name: "indigo", hex: "#2F4B7A" }, { name: "charcoal", hex: "#2B3036" },
+];
 export const GOLD_YARN = 6;
 /** A light yarn and a dark one, so a pattern reads by lightness as well as colour (warp first). */
 const PAIRS = [[0, 4], [0, 3], [0, 2], [0, 5], [1, 4], [1, 5], [1, 2]];

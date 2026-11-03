@@ -1,4 +1,4 @@
-/* Lexicon: a search field, then either the results or an entry; an entry is its kinds, what's said about it, its
+/* Almanac: a search field, then either the results or an entry; an entry is its kinds, what's said about it, its
    numbers and topics, and its links in groups, each a tap from its own entry */
 .lx-search { flex: none; margin: .2rem 0 .6rem; }
 .lx-search input { width: 100%; box-sizing: border-box; font: inherit; font-size: 1rem; padding: .65rem .8rem; border: 1.5px solid var(--tile-edge); border-radius: 10px; background: var(--sheet); color: var(--ink); }
@@ -30,9 +30,9 @@
 /* held sideways (#app.beside): the search and what it found on the left, the entry beside it, wider, so you can open
    one thing after another from the list without losing it; with no entry open the list takes the whole width */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.lexicon { --beside-cols: minmax(0, 1fr) minmax(0, 1.5fr); grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.almanac { --beside-cols: minmax(0, 1fr) minmax(0, 1.5fr); grid-template-rows: auto auto minmax(0, 1fr); }
   .lx-search { grid-column: 1; grid-row: 2; }
-  #app.lexicon .lx-results, #app.lexicon .lx-results[hidden] { display: block !important; grid-column: 1; grid-row: 3; }
+  #app.almanac .lx-results, #app.almanac .lx-results[hidden] { display: block !important; grid-column: 1; grid-row: 3; }
   .lx-entry { grid-column: 2; grid-row: 2 / -1; padding-top: .3rem; }
-  #app.lexicon:has(#entry[hidden]) .lx-search, #app.lexicon:has(#entry[hidden]) .lx-results { grid-column: 1 / -1; }
+  #app.almanac:has(#entry[hidden]) .lx-search, #app.almanac:has(#entry[hidden]) .lx-results { grid-column: 1 / -1; }
 }

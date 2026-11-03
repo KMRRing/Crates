@@ -1,7 +1,7 @@
 # Working on Crates
 
 Codex: a suite of web games, opening on the screen of games (`index.html`, `home.js`; Crates is at `crates.html`) (Crates, Slate, Delta, Punt, Cartel, Spot, Quote, Manifest, Chart, Survey, Pipes, Rush, Deck,
-Parley, Blend, Refinery, Brut, Stow, Hong, Tribute, Cue, Party, River, Gambit, Boast, Big Two, Landlord, Banquet, Gammon,
+Parley, Blend, Refinery, Stow, Hong, Tribute, Cue, Party, River, Gambit, Boast, Big Two, Landlord, Banquet, Gammon,
 Trumps, Quest, Bones), plain HTML, CSS and JavaScript modules with no build step for the games themselves.
 Every push to `main` is tested by `.github/workflows/pages.yml`, but only for what it changed (below); GitHub Pages serves `main` at
 https://kmrring.github.io/Crates/, and installed copies (his phone) move to it only when the workflow publishes
@@ -35,7 +35,7 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
    own selection too: the quick tests that read every page; the tests of what changed (a game's own, and for a shared
    file, a bank or a `kb/` file the tests that load it, found from the files each test names); and a twentieth of the
    rest, a different one each push (`--slot N`), so every test gets its turn. 53 of 149 tests take five seconds or
-   more (Factor, Dandan, Manifest, Refinery, Cartel, Punt, Topple's, `offline`...; 60% of the suite's time): they run
+   more (Factor, Manifest, Refinery, Cartel, Punt, Topple's, `offline`...; 60% of the suite's time): they run
    only when he says so (`--slow` adds the ones named for or loading your change; `--all` is everything) and in the
    nightly run. Their times are in `tools/test-times.json`; `node tools/pick-tests.mjs --measure` writes it again (do it
    after adding a test that's slow, or when the nightly shows one over five seconds). The whole suite runs every night
@@ -129,7 +129,7 @@ anywhere else, and don't end or restart a run on `visibilitychange` there.
 
 Every page must open with no connection, from the home screen too. `sw.js` keeps whatever the pages load:
 `tools/offline.mjs` finds it by reading them (scripts, styles, imports, workers, fetches, any string naming one of
-the app's files), wherever it lives, `kb/` included (Origin, Arb, Lexicon and Order once imported `kb/` files the list
+the app's files), wherever it lives, `kb/` included (Origin, Almanac and Order once imported `kb/` files the list
 left out, and never opened offline). A load whose path is built as the code runs (a template with `${}`, a variable)
 can't be followed: make sure what it loads is kept (`offlineFiles` in `tools/offline.mjs`), then add it to `RUNTIME`
 in `tests/offline.mjs`, which fails until you do. The service worker's logic is `tools/service-worker.js`.
@@ -137,7 +137,7 @@ in `tests/offline.mjs`, which fails until you do. The service worker's logic is 
 ## Dailies
 
 - **One day for every game:** `today()` from `suite.js` (the UTC date, YYYYMMDD, `days.js`). Never count days yourself:
-  Origin, Order and Arb once used the phone's own clock and their dailies never reached the games screen
+  Origin and Order once used the phone's own clock and their dailies never reached the games screen
   (`tests/days.mjs` fails on a day of a game's own).
 - **Count a daily the moment its result is final** (the solve, the last answer settling), not when its summary opens:
   leaving after the last answer must not lose the day. Record it where the games screen reads it (`markOf` in
@@ -175,13 +175,13 @@ An offline party (`lan.html`, README "Offline party") plays every page in a fram
 through `net.js`: reach the database only through `getSync()`'s calls, keep a page's state in the party's room, and
 never navigate `window.top` (the links live on the page round the frame). `lan` from `net.js` says a page is in one.
 
-A game otherwise played alone gets its head-to-head from `duel.js` (README, Head to head; Gambit's puzzle rush, Brut,
-Blend, Arb, Survey, Pipes, Refinery): everyone gets the same deal and plays it on their own phone.
+A game otherwise played alone gets its head-to-head from `duel.js` (README, Head to head; Gambit's puzzle rush,
+Blend, Survey, Pipes, Refinery): everyone gets the same deal and plays it on their own phone.
 `createDuel({ game, name, deal, play, describe, compare, extra, line, accent, onLobby, onLeave })` does the lobby,
 the countdown, the others' scores and the result; the game deals from the match's seed in `play`, sends
 `report({ score, text, done })` as it goes (done the moment the result is final), keeps the match's run with `keep()`,
 never in its solo run, bests or today's, joins with `duel.join()` instead of starting solo, and is listed in
-`DUO_GAMES` and, unless it's too long and quiet for a table of friends (Brut, Blend, Refinery), in Party's `ELSEWHERE`
+`DUO_GAMES` and, unless it's too long and quiet for a table of friends (Blend, Refinery), in Party's `ELSEWHERE`
 (`race: true`, up to six). A match's clock doesn't stop for the menu.
 
 ## Tables
