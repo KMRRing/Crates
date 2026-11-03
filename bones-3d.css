@@ -1,7 +1,18 @@
-/* Dominoes' 3D view (Menu, View: 3D): the table a cloth tipped away from you, its far side further and smaller, with the codex's brass
-   rim. Only the picture changes: the layout, the sizes and every tap are the flat table's own,
-   and the compositor does the tilt (nothing is redrawn). */
-.bn3 .bn-table { transform-origin: 50% 100%; transform: perspective(60rem) rotateX(12deg);
-  border: 2px solid var(--brass); border-radius: .5rem;
-  box-shadow: inset 0 0 0 .28rem var(--bn-felt), inset 0 0 0 calc(.28rem + 1px) var(--brass), 0 1.1rem 1.2rem -.9rem rgba(0, 0, 0, .55);
-  background: radial-gradient(ellipse 70% 55% at 50% 55%, color-mix(in srgb, var(--bn-felt) 70%, #FFF), transparent 75%), radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(6, 14, 24, .3)), var(--bn-felt); }
+/* Dominoes' 3D view (Menu, View: 3D): bones-3d.js draws the whole table, felt, frame and tiles, on a canvas under the page's own parts.
+   Only the picture changes: the other players' plates, your tiles, the buttons and a hand's result stay the page's, in the
+   theme's colours, and a tap on the line means what it means on the flat table. */
+.bn3 .bn-table { position: relative; background: none; padding: .4rem .25rem; overflow: hidden; }
+.bn-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+/* the plates sit on the table's far frame; touches go through them to the canvas */
+.bn3 .bn-others, .bn3 .bn-board { position: relative; z-index: 1; pointer-events: none; }
+.bn3 .bn-result { pointer-events: auto; }
+.bn3 .bn-seat { background: color-mix(in srgb, var(--sheet) 90%, transparent); box-shadow: inset 0 0 0 1px var(--tile-edge), 0 .15rem .4rem -.1rem rgba(0, 0, 0, .35); }
+.bn3 .bn-seat.turn { box-shadow: inset 0 0 0 2px var(--bn-in), 0 .15rem .4rem -.1rem rgba(0, 0, 0, .35); background: color-mix(in srgb, var(--bn-in) 14%, var(--sheet)); }
+
+/* your tiles stand in a rack of the table's wood, so the page's own hand and the 3D line read as one thing */
+.bn3 .bn-hand { position: relative; isolation: isolate; padding-bottom: .15rem; }
+.bn3 .bn-hand::before, .bn3 .bn-hand::after { content: ""; position: absolute; left: 0; right: 0; pointer-events: none; border-radius: .25rem; }
+.bn3 .bn-hand::before { bottom: .1rem; height: 1.7rem; z-index: -1; background: linear-gradient(#2e1609, #4a2610); box-shadow: 0 .2rem .5rem -.1rem rgba(0, 0, 0, .45); }
+.bn3 .bn-hand::after { bottom: .1rem; height: .85rem; z-index: 2; background: linear-gradient(#85502a, #5e3217 55%, #3d1d0b); box-shadow: inset 0 1px 0 rgba(255, 220, 170, .35), 0 .15rem .3rem rgba(0, 0, 0, .35); }
+.bn3 .bn-mine { position: relative; z-index: 1; border-radius: .3rem; }
+.bn3 .bn-mine svg { border-radius: .3rem; box-shadow: 0 0 .3rem -.05rem rgba(0, 0, 0, .35); }

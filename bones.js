@@ -5,9 +5,10 @@
 import { rules, GAMES, NAMES, TILES, TARGETS, DEALS, legalPlays, endsOf, otherEnd, teamsOf, teamOf, fivesPoints } from "./bones-rules.js";
 import { LEVEL_NAMES } from "./bones-bot.js";
 import { layout, rowLenFor, tileSvg } from "./bones-layout.js";
+import { outOfPlay } from "./bones-3d-geo.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
@@ -45,6 +46,33 @@ let V = null;
 // the tile you've picked when it would go on either end; cleared whenever the table moves on
 let ui = { key: "", sel: null };
 let page = null;
+const view = tableView("bones");                                   // Menu, View: the flat table (the default) or the felt table in 3D (bones-3d.js, loaded when first asked for)
+let table3 = null, loading3 = false, laidAt = { key: "", n: -1 };    // the 3D table when it is up; and the line's length it last drew, to know which tile was just laid
+const applyView = () => $("app").classList.toggle("bn3", !!table3);
+onPause(() => table3?.hold(), () => table3?.release());
+/** Back to the flat table (the choice, or the 3D one failing): the scene is taken down and the picture drawn again. */
+function drop3d(why) {
+  if (why) { view.set("table"); toast(why); }
+  if (!table3) return;
+  table3.dispose();
+  table3 = null;
+  laidAt = { key: "", n: -1 };
+  draw();
+}
+function raise3d() {
+  if (table3 || loading3) return;
+  loading3 = true;
+  import("./bones-3d.js").then(m => {
+    if (view.get() !== "3d") return;
+    table3 = m.createTable($("table"), {
+      covered: () => $("others").getBoundingClientRect().bottom - $("table").getBoundingClientRect().top + 4,
+      onGhost: end => { if (ui.sel != null) play({ t: "play", tile: ui.sel, end }); },
+      onLost: () => drop3d("The 3D table stopped (the graphics were reset): back to the flat one"),
+    });
+  }).catch(err => { console.warn("Dominoes: no 3D here, so the table is drawn flat.", err); view.set("table"); toast("This device can't draw the 3D table: it stays flat"); })
+    .finally(() => { loading3 = false; draw(); });
+}
+
 const randomRounds = seatRounds("bones", ["scored"]);   // random mode's round: a hand
 page = seatPage({
   rules, id: "bones", app: 1, pace: 850, botName: s => (NAMES[V?.state?.game || opts.game] || NAMES.partnership)[(s + 2) % 3],
@@ -63,9 +91,6 @@ function placeOf(s, seat) {
   if (n === 2 || (n === 4 && d === 2)) return "top";
   return (d === 1) === GAMES[s.game].ccw ? "right" : "left";
 }
-
-const view = tableView("bones");                                   // Menu, View: the flat table (the default) or the cloth tipped away from you (bones-3d.css)
-const applyView = () => $("app").classList.toggle("bn3", view.get() === "3d");
 
 function draw() {
   applyView();
@@ -131,7 +156,10 @@ function bubbleOf(s, seat) {
 /** The board's tile size: as large as a full line allows, never larger than this. */
 const MAX_UNIT = 2.4;          // rem: a tile's short side at most
 function drawBoard(s) {
-  const box = $("board"), W = box.clientWidth, H = box.clientHeight;
+  const box = $("board");
+  if (view.get() === "3d") { raise3d(); if (table3) { drawTable3(s, box); return; } }
+  else if (table3) { drop3d(); return; }
+  const W = box.clientWidth, H = box.clientHeight;
   if (!W || !H) return;
   // room for a long hand's arms; a longer one widens the view as it comes
   const len = rowLenFor(W / H, s.game === "fives" ? 16 : 22, Math.ceil(W / (MAX_UNIT * 16 * scale())) - 1);
@@ -157,6 +185,26 @@ function drawBoard(s) {
   const ghostSvg = ghosts.map(({ g, end }) => `<g class="bn-ghost" data-end="${end}" role="button" tabindex="0" aria-label="Play it on the ${end === "L" ? endsOf(s).L : endsOf(s).R} (${end === "L" ? "this" : "that"} end)">${tileSvg(g)}</g>`).join("");
   const result = s.step === "scored" || s.step === "over" ? resultHtml(s) : "";
   box.innerHTML = `<svg class="bn-line" viewBox="${(-hw).toFixed(3)} ${(-hh).toFixed(3)} ${(2 * hw).toFixed(3)} ${(2 * hh).toFixed(3)}" role="img" aria-label="${lineLabel(s)}">${tiles.join("")}${ghostSvg}</svg>${result}`;
+}
+/** The 3D table's picture of the state: the line, the places a picked tile could go, the tile just laid and from whom, the tiles lying face down. */
+function drawTable3(s, box) {
+  const lastPlay = [...s.log].reverse().find(l => l.tile != null), last = s.log.at(-1);
+  const key = `${V.G.seq}:${s.handNo}`, fresh = laidAt.key === key && s.log.length > laidAt.n && last?.tile != null && !last.pass;
+  const pending = [];
+  if (ui.sel != null && s.first != null) {
+    for (const p of distinctPlays(s, legalPlays(s, V.seat).filter(x => x.tile === ui.sel))) {
+      const e = endsOf(s);
+      pending.push({ end: p.end, t: p.tile, v: otherEnd(p.tile, p.end === "L" ? e.L : e.R) });
+    }
+  }
+  table3.set({
+    first: s.first, firstSides: s.firstSides, left: s.left, right: s.right, units: s.game === "fives" ? 16 : 22, pending,
+    last: s.step === "play" && lastPlay ? lastPlay.tile : null,
+    pile: [...outOfPlay(s), ...s.dead.flat()], knock: s.log.filter(l => l.pass).length,
+    laid: fresh ? { tile: last.tile, place: placeOf(s, last.seat) } : null,
+  });
+  laidAt = { key, n: s.log.length };
+  box.innerHTML = s.step === "scored" || s.step === "over" ? resultHtml(s) : "";
 }
 function lineLabel(s) {
   if (s.first == null) return "No tile laid yet";
@@ -383,7 +431,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", draw);
-window.__bones = { page, get view() { return V; }, opts, course, rush };
+window.__bones = { page, get table3() { return table3; }, get view() { return V; }, opts, course, rush };
 // the first time, a game is dealt at once: the table is the menu
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
