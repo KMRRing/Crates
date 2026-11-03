@@ -8,6 +8,7 @@
 //   block   ... exactly the columns that do not lose at once, and there is only one
 //   safe    ... exactly the columns that do not lose at once (the others hand over a win)
 //   best    ... exactly the columns with the best exact score
+//   told    the words name the column (an instruction, not a question)
 // A step: { say, moves, answer: [columns 1..7], proof, wrong: { column: words }, then, why, show: [cells "c.r" a solved
 // step marks as the cells that win] }, or { say, moves, quiz: [options], answer: index, why }, or { say, moves } alone.
 import { drop, outcome, replay, H, W } from "./silo-board.js";
@@ -72,7 +73,7 @@ export const COURSE = {
           steps: [
             { moves: "", say: "Silo is four in a row, for two. The grid stands upright: seven columns, six rows. On your turn you drop one disc into a column of your choice, and it falls to the lowest empty cell there. You are ochre with a ring; the other player is blue with a diamond, so you can tell them apart without the colour." },
             { moves: "333", quiz: ["Row 1", "Row 4", "Row 6"], answer: 1, say: "Columns are numbered 1 to 7 from the left. The middle column, 4, already holds three discs. A disc dropped into it lands on which row, counting from the bottom?", why: "Row 4: a disc stops on the one below it." },
-            { moves: "3", answer: [6], say: "Tap column 6 to drop your disc.", then: "It falls to the bottom row, since the column is empty.", why: "Tap column 6." },
+            { moves: "3", answer: [6], proof: "told", say: "Tap column 6 to drop your disc.", then: "It falls to the bottom row, since the column is empty.", why: "Tap column 6." },
           ],
         },
         {

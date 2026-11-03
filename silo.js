@@ -130,9 +130,9 @@ function coachLine() {
     return `Solved: ${who(winner)} ${winner === viewer ? "win" : "wins"} by force, in at most ${left} more ${left === 1 ? "move" : "moves"}.`;
   }
   const v = res.value * sign;
-  if (Math.abs(res.value) > 9000) return `Searched ${res.depth} moves ahead: ${v > 0 ? "you have" : `${nameOf(1 - viewer)} has`} a forced win.`;
+  if (Math.abs(res.value) > 9000) return `Looked ${res.depth} moves ahead: ${v > 0 ? "you have" : `${nameOf(1 - viewer)} has`} a forced win.`;
   const lean = Math.abs(v) < 80 ? "about even" : `${v > 0 ? "you" : nameOf(1 - viewer)} ${Math.abs(v) < 250 ? "a little ahead" : "ahead"}`;
-  return `Searched ${res.depth} moves ahead: ${lean}. Not solved yet.`;
+  return `Looked ${res.depth} moves ahead: ${lean}. Not solved yet.`;
 }
 
 // ---------- drawing ----------
@@ -318,4 +318,5 @@ $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 window.__silo = { page, get view() { return V; }, opts, course, tap, get analysis() { return analysis; } };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame(true);
+if (V) { think(V); ask(V); }     // a view that came before the page was ready
 draw();

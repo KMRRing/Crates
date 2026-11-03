@@ -1,0 +1,10 @@
+# Silo
+Four in a row for two (2 November 2026, Korbi: "connect four: ok, add placeholders"). The tile is Silo because Connect Four is Hasbro's name: the name is in no page of the game (games-find.js keeps it as a search word, so a search for it finds Silo). On seats.js: `silo-board.js` the board, `silo-rules.js` the rules, `silo-solver.js` and `silo-bot.js` the computer, `silo-think.js` and `silo-worker.js` its worker, `silo.js` the page, `silo-course.js` Learn.
+
+Seven columns, six high; four or more in a line wins, a full board is a draw. A game is the string of columns played (`moves`); the disc of move k is seat `(first + k) % 2`, and discs are coloured by seat (seat 0 ochre with a ring, seat 1 blue with a diamond), not by who moved first. Two on one phone ("A friend here") is the page's: it makes seat 1's moves from this phone with `table.act`, and seats.js knows nothing of it.
+
+- **Hard is perfect only from about a dozen discs on.** The opening cannot be solved on a phone (the first five discs alone are 21 million positions), so before that Hard searches ten to sixteen plies with a judgement of odd and even threats, and from the first mover's side it can draw or lose against another Hard. It does not lose to Medium or Easy. Don't claim a solved opening.
+- **Easy and Medium are not shallower, they miss things.** The exact search finds the forced wins and losses a few plies off; each is noticed with the level's chance (`SIGHT`), drawn from the move's seed, so a move worked out twice is the same move.
+- **Hard's move comes from a worker** and is handed to the runner through `advise`; `pace` and `hold` wait for it. A page with no worker thinks in small, on the page's thread.
+- **Learn's answers are proved** by `tests/silo-course.mjs` (a win at once, a win in three plies, the one cover, the best exact score): a new exercise names its `proof` or the test fails.
+- The solver is written afresh after the method of Pons's connect-four tutorial (bitboards, non-losing moves, a mirror-folded table); no code is carried (docs/licences-images-and-engines.md).
