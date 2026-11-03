@@ -1,7 +1,8 @@
 // Heliograph's levels, pure (no page): six stations on the coast, each four short levels, each station bringing one new
 // thing that changes how the light is aimed. A level is the rules the engine plays by (heliograph-engine.js's `x`: its
 // chandelier, its goal, its shots, its fixtures) and stands on its own: it is dealt from a seed and the deal is only
-// kept if the engine's simple player can win it (`dealLevel`), so no deal is out of reach.
+// kept if the engine's simple player can win it (`dealt`; the ones that do are listed in heliograph-seeds.js), so no deal is
+// out of reach.
 //
 //   Heligoland  a quota: so many points in so many shots (the station on its rock, the first heliograph)
 //   Visby       beacons: crystals in a brass collar that must come down, the cut that gets them being the puzzle
@@ -10,6 +11,7 @@
 //   Danzig      the sun: it crosses the sky over the level, the light slanting a little more each shot
 //   Lübeck      nothing new: the ways of aiming met so far, two and three at a time; the last level clears the chandelier
 import { newGame, fire, plan, beaconsOf } from "./heliograph-engine.js";
+import { SEEDS } from "./heliograph-seeds.js";
 
 const unit = v => { const l = Math.hypot(...v); return v.map(c => c / l); };
 const lvl = spec => ({ colours: [0, 1, 2], crystals: 2, every: 4, extra: 0, ...spec });
@@ -159,14 +161,26 @@ export function played(s, how = "best", rnd = Math.random) {
 }
 /** Whether a deal can be won: the simple player wins it. */
 const winnable = s => played(s).won === true;
-/** A game of level n from a seed, the next seeds tried if the first deal is one the simple player cannot win (so every deal is possible). */
-export function dealLevel(n, seed) {
+/**
+ * A game of level n from a seed, the next seeds tried if the first deal is one the simple player cannot win (so every
+ * deal is possible): the game, the deals tried, and whether the last was won (false only if all of them were lost).
+ */
+export function dealt(n, seed) {
   const x = rulesOf(n);
   let s = null;
   for (let k = 0; k < TRIES; k++) {
     s = newGame((seed + k * 7919) >>> 0, x);
-    if (winnable(s)) return s;
+    if (winnable(s)) return { s, tries: k + 1, ok: true };
   }
-  return s;
+  return { s, tries: TRIES, ok: false };
+}
+/**
+ * A game of level n from a seed: one of the level's known deals (heliograph-seeds.js, found with `dealt` by
+ * tests/heliograph-deals.mjs, which checks them all), so the level starts at once and the check, which plays the level
+ * out a few times (a second or more on a phone), is not made while someone waits.
+ */
+export function dealLevel(n, seed) {
+  const bank = SEEDS[n];
+  return bank?.length ? newGame(bank[(seed >>> 0) % bank.length], rulesOf(n)) : dealt(n, seed).s;
 }
 export { beaconsOf };
