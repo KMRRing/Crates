@@ -240,7 +240,7 @@ const made = [];
   check(!/^ {2}nurikabe: \{/m.test(soon) && !/^ {2}nurikabe: `/m.test(logos), "the placeholder's entry and logos are gone");
   check(/roundOver\("nurikabe"\)/.test(page) && /noteDayTime\("nurikabe"/.test(page) && /arrivedForToday\(\)/.test(page) && /onPause\(/.test(page) && /bindSwitcher\(\$\("appsBtn"\), "nurikabe"\)/.test(page),
     "the page counts a solve for Random and for today, opens today's from the tile, stops its clock with the menu");
-  check(/nurikabe\.css/.test(html) && /nurikabe\.js/.test(html) && /class="nurikabe (full )?fit-screen beside"/.test(html), "the page links its styles and script");
+  check(/nurikabe\.css/.test(html) && /nurikabe\.js/.test(html) && /class="nurikabe (full (titled )?)?fit-screen beside"/.test(html), "the page links its styles and script");
   check(/nk-num/.test(css) && /nk-c\.sea/.test(css) && /IN_FRAME/.test(page), "numbers and sea are styled, and a watching frame draws the partner's board without writing");
 }
 

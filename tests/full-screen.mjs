@@ -25,8 +25,6 @@ const FULL = new Set(`contract trumps tribute landlord bigtwo meld pegs hong bon
   avalanche columbiad reckoning drift heliograph landfall loom netting orrery polder settle shunt slipway topple harbour
   almanac manifest guilloche timegrapher`.split(/\s+/).map(n => n + ".html"));
 
-// step one of the sweep: these are listed as titled but not yet marked (the next commit marks them and drops this set)
-const LATER = new Set("origin order chart ledger nexus isomer lode acrostic crossword nonogram slate delta spot speedmaths pipes survey stow sudoku calcudoku kakuro hitori masyu nurikabe slitherlink mines ladder bridges bulls codeword assay yield calibre parley speedfuels blend refinery rack cartel deck rush party quest cue".split(" ").map(n => n + ".html"));
 const pages = fs.readdirSync(root).filter(f => f.endsWith(".html")).sort();
 const withHeader = [], notFull = [], broken = [], unlisted = [], wrong = [], noTitle = [], stale = [];
 for (const p of pages) {
@@ -38,7 +36,7 @@ for (const p of pages) {
   if (!/id="appsBtn"/.test(html) || !/id="menuBtn"/.test(html)) broken.push(p);
   const titled = cls.includes("titled");
   if (!TITLED.has(p) && !FULL.has(p)) unlisted.push(p);
-  else if (TITLED.has(p) !== titled && !(LATER.has(p) && !titled)) wrong.push(`${p} (${TITLED.has(p) ? "should be full titled" : "should be full alone"})`);
+  else if (TITLED.has(p) !== titled) wrong.push(`${p} (${TITLED.has(p) ? "should be full titled" : "should be full alone"})`);
   if (titled) {
     // the name is the page's own title element, h1.mark with the logo and the word; `titled` shows the word
     const name = (html.match(/<h1 class="mark"[^>]*>([\s\S]*?)<\/h1>/) || [])[1]?.replace(/<[^>]*>/g, "").trim();
