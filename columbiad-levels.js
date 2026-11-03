@@ -90,3 +90,5 @@ export const SECTIONS = [
 export const LEVELS = SECTIONS.flatMap(s => s.levels);
 /** The section a level (its index) belongs to. */
 export const sectionOf = n => SECTIONS.find(s => s.levels.includes(LEVELS[n]));
+/** The level of a day (YYYYMMDD): the same for everyone, from the fourth level on (the first three are lessons), by integer arithmetic only so every device agrees. */
+export const dailyLevel = day => { const pool = LEVELS.slice(3); return pool[(Math.imul(day, 2654435761) >>> 0) % pool.length]; };

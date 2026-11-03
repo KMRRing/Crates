@@ -27,6 +27,7 @@ export const ROUNDS = {
   speedmaths: "a run, its clock run out",
   manifest: "a run, its twelve rounds played or its lives gone",
   harbour: "a level's plan run to delivery, or a week of a region's season",
+  columbiad: "a level struck (the ring hit, the speed asked, the gate passed or the loop flown)",
   pipes: "a level solved",
   survey: "a block cleared",
   stow: "a manifest stowed, or a level of loose cargo won or stuck",
@@ -104,7 +105,6 @@ export const LEFT_OUT = {
   quest: "hidden loyalties, a game for people round a table (Party's section)",
   timegrapher: "an instrument, not a game",
   landfall: "no round yet (a voyage is several watches over many minutes; a short round, its random mode and daily come in milestone 5)",
-  columbiad: "no round yet (the first milestone is a proving ground of levels); its random mode and daily come in the fourth",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
   tarot: "not built yet",
 };
