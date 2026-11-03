@@ -415,7 +415,7 @@ export function step(S, dt) {
   if (S.over) return ev;
   const h = S.hero;
   S.t += dt;
-  S.fwd = Math.min(1, S.fwd + dt / 0.9);
+  S.fwd = Math.min(1, S.fwd + (1 - S.fwd) * (1 - Math.exp(-dt * 6)) + dt * 0.4);          // pace comes back briskly and then eases (it was a straight 0.9 s)
   if (h.hurt > 0) h.hurt = Math.max(0, h.hurt - dt);
   const v = speed(S);
 
