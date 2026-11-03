@@ -14,3 +14,4 @@ Traps:
 - The course's numbers (discs, replies) are counted as the stage draws, never written in a lesson; `tests/flank-course.mjs` has the solver play out every puzzle, and `tools/flank-puzzles.mjs` finds them.
 
 Not built: a daily puzzle, a 3D mode (the soon-data entry asked for both).
+- 3 November 2026, Korbi: "you decide, 3D mode: yes". Decided: no daily puzzle; the 3D mode goes to the 3D-modes agent.

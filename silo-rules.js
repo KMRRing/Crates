@@ -9,8 +9,8 @@ import { N, drop, outcome } from "./silo-board.js";
 import { chooseMove } from "./silo-bot.js";
 
 export { LEVEL_NAMES } from "./silo-bot.js";
-/** Who starts: "take turns" (the default; the first game is seat 0's), or always one seat. */
-export const STARTS = [["alternate", "Take turns"], ["you", "You"], ["other", "The other"]];
+/** Who starts: "alternate" (the default; the first game is seat 0's), or always one seat. */
+export const STARTS = [["alternate", "Alternate"], ["you", "You"], ["other", "Opponent"]];
 
 const seatOfMove = (s, k) => (s.first + k) % 2;
 
