@@ -160,21 +160,35 @@ export function createView(canvas, hooks = {}) {
   function coneBand() {
     if (!cone || coneAlpha <= 0.01) return;
     const c = leadCone(cone), n = c.centre.length / 2, a = coneAlpha;
-    ctx.beginPath();
-    for (let k = 0; k < n; k++) { const X = sx(c.left[2 * k]), Y = sy(c.left[2 * k + 1]); if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); }
-    for (let k = n - 1; k >= 0; k--) ctx.lineTo(sx(c.right[2 * k]), sy(c.right[2 * k + 1]));
-    ctx.closePath();
-    ctx.fillStyle = `rgba(${BRASS},${0.2 * a})`; ctx.fill();
-    ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${BRASS},${0.6 * a})`; ctx.stroke();
+    if (n < 2) return;
+    const X0 = sx(c.centre[0]), Y0 = sy(c.centre[1]), X1 = sx(c.centre[2 * n - 2]), Y1 = sy(c.centre[2 * n - 1]);
+    // one gradient along the shot, from a faint tint at the muzzle to nothing at the far end (no closing rule, no hard edge)
+    const along = (alpha, hi) => {
+      const g = ctx.createLinearGradient(X0, Y0, X1, Y1), col = hi ? BRASS_HI : BRASS;
+      g.addColorStop(0, `rgba(${col},${alpha * a})`); g.addColorStop(0.45, `rgba(${col},${alpha * 0.55 * a})`); g.addColorStop(1, `rgba(${col},0)`);
+      return g;
+    };
+    // the fan's sides are feathered by stacking narrower and narrower copies, so the middle is the strongest and the edge dies away
+    const LAYERS = 7;
+    for (let w = 1; w > 0.1; w -= 1 / LAYERS) {
+      ctx.beginPath();
+      for (let k = 0; k < n; k++) {
+        const cx = c.centre[2 * k], cy = c.centre[2 * k + 1];
+        const X = sx(cx + (c.left[2 * k] - cx) * w), Y = sy(cy + (c.left[2 * k + 1] - cy) * w);
+        if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+      }
+      for (let k = n - 1; k >= 0; k--) {
+        const cx = c.centre[2 * k], cy = c.centre[2 * k + 1];
+        ctx.lineTo(sx(cx + (c.right[2 * k] - cx) * w), sy(cy + (c.right[2 * k + 1] - cy) * w));
+      }
+      ctx.closePath();
+      ctx.fillStyle = along(0.12, false); ctx.fill();
+    }
+    // the dotted centre line is the one crisp thing, and it fades out with the fan
     ctx.save();
-    ctx.setLineDash([4 * u, 4 * u]); ctx.lineWidth = 1.4 * u; ctx.strokeStyle = `rgba(${BRASS_HI},${0.9 * a})`;
+    ctx.setLineDash([3 * u, 5 * u]); ctx.lineCap = "round"; ctx.lineWidth = 1.7 * u; ctx.strokeStyle = along(0.95, true);
     polyline(c.centre); ctx.stroke();
     ctx.restore();
-    // the far end is closed with a rule, so it is seen where the preview stops and the maths takes over
-    const e = n - 1, lx = sx(c.left[2 * e]), ly = sy(c.left[2 * e + 1]), rx = sx(c.right[2 * e]), ry = sy(c.right[2 * e + 1]);
-    const cx = sx(c.centre[2 * e]), cy = sy(c.centre[2 * e + 1]), mx = (lx - rx) / 2, my = (ly - ry) / 2, m = Math.max(1, Math.hypot(mx, my)), pad = Math.max(0, 5 * u - m) / m;
-    ctx.lineWidth = 2 * u; ctx.strokeStyle = `rgba(${BRASS_HI},${0.9 * a})`;
-    ctx.beginPath(); ctx.moveTo(cx - mx * (1 + pad), cy - my * (1 + pad)); ctx.lineTo(cx + mx * (1 + pad), cy + my * (1 + pad)); ctx.stroke();
   }
   /** Where the muzzle is in the world: the pivot (the gun's height above the ground along the surface's normal) and the barrel's reach along the aim. */
   function muzzleWorld(kick = 0) {
