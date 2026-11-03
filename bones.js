@@ -8,6 +8,7 @@ import { layout, rowLenFor, tileSvg } from "./bones-layout.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { scale } from "./wide.js";
@@ -63,7 +64,11 @@ function placeOf(s, seat) {
   return (d === 1) === GAMES[s.game].ccw ? "right" : "left";
 }
 
+const view = tableView("bones");                                   // Menu, View: the flat table (the default) or the cloth tipped away from you (bones-3d.css)
+const applyView = () => $("app").classList.toggle("bn3", view.get() === "3d");
+
 function draw() {
+  applyView();
   if (!page) return;
   const v = V;
   if (!v?.G) {
@@ -346,6 +351,7 @@ function openMenu() {
   if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
+  set.append(view.choice(() => draw()));
   set.append(choice("Game", Object.values(GAMES).map(g => [g.id, g.name]), opts.game, v => { opts.game = v; saveOpts(); openMenu(); }));
   const o = opts[opts.game], put = (k, v) => { o[k] = v; saveOpts(); };
   if (opts.game === "partnership") {

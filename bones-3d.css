@@ -1,0 +1,7 @@
+/* Dominoes' 3D view (Menu, View: 3D): the table a cloth tipped away from you, its far side further and smaller, with the codex's brass
+   rim. Only the picture changes: the layout, the sizes and every tap are the flat table's own,
+   and the compositor does the tilt (nothing is redrawn). */
+.bn3 .bn-table { transform-origin: 50% 100%; transform: perspective(60rem) rotateX(12deg);
+  border: 2px solid var(--brass); border-radius: .5rem;
+  box-shadow: inset 0 0 0 .28rem var(--bn-felt), inset 0 0 0 calc(.28rem + 1px) var(--brass), 0 1.1rem 1.2rem -.9rem rgba(0, 0, 0, .55);
+  background: radial-gradient(ellipse 70% 55% at 50% 55%, color-mix(in srgb, var(--bn-felt) 70%, #FFF), transparent 75%), radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(6, 14, 24, .3)), var(--bn-felt); }
