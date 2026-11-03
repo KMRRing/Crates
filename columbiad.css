@@ -1,0 +1,105 @@
+/* Columbiad: the scene is a canvas (columbiad-view.js) in the same night colours in every theme, the way a game's board is; round
+   it the page is the suite's: the strip (which level, which shot, the stars a hit would earn), under the scene the aim's readouts, the
+   barrels of powder as a row of cells, the four nudges and the Fire plate, and after a hit, in the same room, how it went. The
+   accent is ochre, the brass of the gun. */
+:root {
+  --cb-in: var(--c0);
+  --cb-soft: color-mix(in srgb, var(--cb-in) 15%, var(--sheet));
+}
+
+.cb-mark { display: inline-block; }
+.cb-mark svg { width: 100%; height: 100%; display: block; }
+
+.cb-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .55rem 0 .45rem; font-size: .9rem; color: var(--ink-soft); }
+.cb-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.cb-lv { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps);
+  letter-spacing: calc(.08em * var(--track)); font-size: .78rem; }
+.cb-lv b { margin-right: .5em; color: var(--brass-lo, var(--brass)); }
+.cb-shot { flex: none; font-variant-numeric: tabular-nums; }
+.cb-stars { flex: none; color: var(--brass); letter-spacing: .12em; font-size: .95rem; }
+.cb-stars.bull::after { content: " ◎"; letter-spacing: 0; color: var(--cb-in); }
+
+/* the scene: as large as the room allows; the canvas draws all of it, so it takes the touches, and the page never scrolls under a thumb */
+.cb-table { position: relative; }
+.cb-stage { position: absolute; inset: 0; overflow: hidden; border-radius: 4px; background: #0b1020; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.cb-scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.cb-hint, .cb-say { position: absolute; margin: 0; pointer-events: none; font-weight: 650; }
+.cb-hint { left: 1rem; right: 1rem; bottom: 1rem; padding: .5rem .7rem; border: 1px solid var(--brass); border-radius: 4px; background: color-mix(in srgb, var(--sheet) 92%, transparent); color: var(--ink); font-size: .84rem; line-height: 1.35; }
+.cb-hint[hidden] { display: none; }
+/* how a shot ended, a line low in the scene; max-content: a box at left 50% is otherwise shrunk to the half of the scene right of it */
+.cb-say { left: 50%; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100% - 2rem); padding: .3rem .7rem; border-radius: 4px; background: color-mix(in srgb, var(--sheet) 92%, transparent);
+  border: 1px solid var(--rule); color: var(--ink); font-size: .85rem; text-align: center; opacity: 0; transition: opacity .18s; }
+.cb-say.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .cb-say { transition: none; } }
+
+/* under the scene: the aim in numbers, the powder as barrels, the nudges and Fire. Its room is fixed, so a hit's words take the same box */
+.cb-side { display: grid; margin-top: .55rem; height: 7.6rem; }
+.cb-deck, .cb-result { grid-area: 1 / 1; min-height: 0; }
+.cb-deck { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: .4rem; }
+.cb-deck.away { visibility: hidden; }
+.cb-read { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; font-size: .72rem; color: var(--ink-soft); font-weight: 800; font-stretch: var(--wide);
+  text-transform: var(--caps); letter-spacing: calc(.09em * var(--track)); }
+.cb-read b { margin-left: .4em; color: var(--ink); font-size: 1.05rem; font-stretch: 100%; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.cb-read i { font-style: normal; margin-left: .3em; color: var(--brass-lo, var(--brass)); }
+.cb-read small { margin-left: .25em; font-size: .72rem; font-weight: 700; letter-spacing: 0; color: var(--ink-soft); }
+.cb-r { white-space: nowrap; }
+
+/* the barrels of powder: a cell for each, filled as the pull loads it (hatched, so the fill is told from the empty by its pattern as well as its colour) */
+.cb-gauge { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .18rem; height: 1.05rem; }
+.cb-gauge i { position: relative; border: 1px solid var(--brass); border-radius: 2px; background: var(--yard); overflow: hidden; }
+.cb-gauge i::before { content: ""; position: absolute; inset: 0 auto 0 0; width: calc(var(--f, 0) * 100%); background: repeating-linear-gradient(135deg, var(--cb-in) 0 .24rem, color-mix(in srgb, var(--cb-in) 62%, var(--ink)) .24rem .36rem); }
+.cb-gauge i.tick { animation: cb-tick .22s ease-out; }
+@keyframes cb-tick { from { transform: scaleY(1.7); box-shadow: 0 0 .5rem var(--cb-in); } to { transform: scaleY(1); box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .cb-gauge i.tick { animation: none; } }
+
+.cb-pad { display: grid; grid-template-columns: 2.9rem 2.9rem minmax(0, 1fr) 2.9rem 2.9rem; gap: .4rem; min-height: 0; }
+.cb-nudge { display: grid; place-items: center; min-width: 0; min-height: 0; padding: 0; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.cb-nudge svg { width: 1.5rem; height: 1.5rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.cb-nudge:active { background: var(--cb-soft); }
+.cb-nudge:disabled { opacity: .4; cursor: default; }
+.cb-fire, .cb-go { border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps);
+  outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -.3rem; cursor: pointer; }
+.cb-fire { min-height: 0; font-size: 1.15rem; box-shadow: 0 0 0 1.5px var(--brass); }
+.cb-fire:active, .cb-go:active { filter: brightness(1.12); }
+.cb-fire:disabled { opacity: .4; cursor: default; box-shadow: none; }
+
+.cb-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; }
+.cb-result[hidden] { display: none; }
+.cb-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
+.cb-verdict .cb-big { display: block; font-size: 1.15rem; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
+.cb-verdict .cb-stars-big { display: block; margin-top: .15rem; color: var(--brass); font-size: 1.3rem; letter-spacing: .15em; }
+.cb-verdict small { display: block; margin-top: .1rem; font-weight: 600; color: var(--ink-soft); font-size: .8rem; }
+.cb-acts { display: grid; gap: .4rem; }
+.cb-go { min-height: 3.2rem; padding: 0 1.3rem; font-size: .86rem; }
+.cb-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; min-height: 2.5rem; }
+.cb-go[hidden] { display: none; }
+
+/* held sideways: the scene on the left with all the height; the strip, the aim and Fire beside it, the nudges and Fire low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.columbiad { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.columbiad .cb-head { grid-column: 2; grid-row: 2; }
+  #app.columbiad .cb-strip { flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.columbiad .cb-lv { white-space: normal; }
+  #app.columbiad .cb-table { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.columbiad .cb-side { grid-column: 2; grid-row: 3; height: auto; align-content: end; margin-top: 0; }
+  #app.columbiad .cb-deck { grid-template-rows: auto auto auto; align-content: end; gap: .6rem; }
+  #app.columbiad .cb-read { flex-direction: column; align-items: flex-start; gap: .3rem; }
+  #app.columbiad .cb-pad { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: 3rem 4rem; }
+  #app.columbiad .cb-fire { grid-column: 1 / -1; grid-row: 2; }
+  #app.columbiad .cb-result { grid-template-columns: minmax(0, 1fr); align-content: end; gap: .8rem; }
+}
+
+/* the menu's levels: three to a row, each its place in miniature (the Earth, the gun, the ring), its number and name, and its stars */
+.cb-levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .5rem 0; }
+.cb-levels button { display: grid; grid-template-rows: auto auto 1fr; gap: .2rem; padding: .35rem .4rem .4rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.cb-levels button.done { background: var(--cb-soft); }
+.cb-levels button[aria-current] { border-color: var(--cb-in); box-shadow: inset 0 0 0 1.5px var(--cb-in); }
+.cb-lmap { aspect-ratio: 1 / 1; width: 100%; border-radius: 3px; background: #0b1020; }
+.cb-lmap svg { width: 100%; height: 100%; display: block; }
+.cb-lrow { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; min-width: 0; }
+.cb-lrow b { font-size: .9rem; font-variant-numeric: tabular-nums; }
+.cb-lrow span { color: var(--brass); font-size: .66rem; letter-spacing: .1em; white-space: nowrap; }
+.cb-lnamed { font-size: .62rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.05em * var(--track)); line-height: 1.2; color: var(--ink-soft); overflow-wrap: anywhere; }
+.cb-map-earth { vector-effect: non-scaling-stroke; fill: #2c4768; stroke: #e9dfc6; stroke-width: 1; }
+.cb-map-ring { vector-effect: non-scaling-stroke; fill: rgba(217, 164, 65, .25); stroke: #d9a441; stroke-width: 2; }
+.cb-map-gun { fill: #f0d58a; }
