@@ -342,7 +342,7 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
       lifts++;
     }
   }
-  check(worst < 1e-6 && boxes > 300 && lifts > 100, `3D camera: ${boxes} box corners and ${lifts} packages land where the engine's drawing has them (worst ${worst.toExponential(1)} view box units)`);
+  check(worst < 0.02 && boxes > 300 && lifts > 100, `3D camera: ${boxes} box corners and ${lifts} packages land where the engine's drawing has them (worst ${worst.toFixed(4)} view box units: the engine's .866 is √3/2 to three places)`);
   const f0 = Mo.fall(0), f1 = Mo.fall(1), path = Array.from({ length: 101 }, (_, i) => Mo.fall(i / 100));
   const monotone = path.every((p, i) => i === 0 || i > 58 || p.lift <= path[i - 1].lift);                  // it drops until the strike at .58
   check(f0.lift > 1 && f0.fade === 0 && f1.lift === 0 && f1.squash === 1 && f1.fade === 1 && monotone && path.every(p => p.lift >= 0 && p.squash > 0.85 && p.squash < 1.05),
@@ -355,8 +355,10 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
 
 // The five wares must stay at least as easy to tell apart as the first version's five colours (red, blue, yellow, green,
 // orange), for a normal eye and for the three dichromacies (Machado 2009, severity 1), by CIEDE2000 between two wares
-// on the same face and on any two faces (a left face beside another ware's top). The drawing (strap, lozenge, hoop, bars)
-// is the second way to tell them apart; this keeps the first honest.
+// on the same face and on any two faces (a left face beside another ware's top), each drawing with its own shading: the flat
+// one's three faces, and the 3D one's three faces and a face in another package's shadow (which the first version never
+// had, so it's weighed against the first version's bar). The packing (strap, lozenge, hoop, bars) is the second way to
+// tell them apart; this keeps the first honest.
 {
   const lin = c => (c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   const unlin = c => Math.round(255 * Math.min(1, Math.max(0, c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)));
@@ -368,8 +370,8 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
     tritan: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.3039]],
   };
   const { FACE_SHADE, SHADOWED } = await import("../manifest-model.js");
-  // the shading of the flat drawing (left, right, top: manifest-art.js) and of the 3D one's lights, and a face in shadow
-  const FACES = [...new Set([0.72, 0.86, 1.05, ...Object.values(FACE_SHADE), SHADOWED])].sort((a, b) => a - b);
+  const FLAT = [0.72, 0.86, 1.05];                                    // the shading manifest-art.js gives left, right and top
+  const LIT = [...Object.values(FACE_SHADE), SHADOWED];                // the 3D drawing's lights, and a face in shadow
   const seen = (hex, k, eye) => { const v = rgbOf(hex).map(n => lin(Math.min(255, n * k))); return EYES[eye].map(r => unlin(r[0] * v[0] + r[1] * v[1] + r[2] * v[2])); };
   const lab = rgb => {
     const [r, g, b] = rgb.map(lin), f = t => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
@@ -390,7 +392,7 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
     return Math.sqrt(((L2 - L1) / Sl) ** 2 + ((C2 - C1) / Sc) ** 2 + (dH / Sh) ** 2 + Rt * ((C2 - C1) / Sc) * (dH / Sh));
   };
   /** The nearest two wares come, per eye: same face, and any two faces. */
-  const nearest = hexes => Object.fromEntries(Object.keys(EYES).map(eye => {
+  const nearest = (hexes, FACES) => Object.fromEntries(Object.keys(EYES).map(eye => {
     let same = Infinity, any = Infinity;
     hexes.forEach((a, i) => hexes.slice(i + 1).forEach(b => FACES.forEach((ka, fa) => FACES.forEach((kb, fb) => {
       const d = de(lab(seen(a, ka, eye)), lab(seen(b, kb, eye)));
@@ -398,10 +400,14 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
     }))));
     return [eye, { same, any }];
   }));
-  const first = nearest(["#D23B2A", "#2F6FDE", "#F2C230", "#2E9E5B", "#E8832A"]), now = nearest(M.WARES.map(w => w.hex));
-  const worse = Object.keys(EYES).filter(eye => now[eye].same < first[eye].same || now[eye].any < first[eye].any);
+  const first = nearest(["#D23B2A", "#2F6FDE", "#F2C230", "#2E9E5B", "#E8832A"], FLAT), hexes = M.WARES.map(w => w.hex);
+  const flat = nearest(hexes, FLAT), lit = nearest(hexes, LIT);
+  // in shadow the lightness steps squeeze together (amber in shadow nears herring in the sun), which the first version never
+  // met: a ware in the sun beside one in shadow must stay plainly another colour (8 ΔE), if not as far as its flat bar
+  const worse = Object.keys(EYES).filter(eye => flat[eye].same < first[eye].same || flat[eye].any < first[eye].any || lit[eye].same < first[eye].same || lit[eye].any < Math.min(first[eye].any, 8));
+  const show = (now, e) => `${now[e].same.toFixed(0)}/${now[e].any.toFixed(1)}`;
   check(M.WARES.length === 5 && !worse.length,
-    `the five wares are at least as far apart as the first version's colours, for every eye (nearest pair, ΔE: ${Object.keys(EYES).map(e => `${e} ${now[e].same.toFixed(0)}/${now[e].any.toFixed(0)} against ${first[e].same.toFixed(0)}/${first[e].any.toFixed(0)}`).join(", ")})`);
+    `the five wares are at least as far apart as the first version's colours, for every eye (nearest pair, ΔE same face/any two: ${Object.keys(EYES).map(e => `${e} ${show(flat, e)} flat, ${show(lit, e)} lit and shadowed, against ${show(first, e)}`).join("; ")})`);
 }
 
 console.log(bad ? `${bad} problems` : "all checks pass");

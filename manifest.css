@@ -72,6 +72,7 @@ html[data-theme="modern"][data-mode="night"] { --mf-town: color-mix(in srgb, var
 .mf-timer { height: .375rem; border-radius: 3px; background: var(--yard); overflow: hidden; }
 .mf-timer i { display: block; height: 100%; width: 100%; background: var(--mf-in); transform-origin: left; }
 .mf-timer.run i { animation: drain var(--mf-ms, 5s) linear forwards; }
+.mf-timer.held i { animation-play-state: paused; }
 @keyframes drain { to { transform: scaleX(0); } }
 .mf-timer[hidden] { display: none; }
 
