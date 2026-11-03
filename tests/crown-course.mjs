@@ -1,10 +1,11 @@
+import fs from "node:fs";
 // Draughts's course (crown-course.js) and its shots (crown-puzzles.js): every position of every step parses onto dark squares;
 // every move a lesson asks for or accepts is legal in its position, every wrong one with words is legal too; a quiz's
 // answer is one of its options; the claims the lessons make hold on the board (a jump compulsory, a run that must go on,
 // a man crowned in a jump stopping, the majority rule, the exchange, the opposition) and each shot is the search's own
 // clear first choice; and the stage is tapped through on plain objects as a person taps it.
 import { SETS, toArray, movesOf, play, toText } from "../crown-board.js";
-import { COURSE, boardOf, moveName, legalOf, positionOf, answersOf, judge, setOf, sideOfStep, boardStage, squaresOf } from "../crown-course.js";
+import { COURSE, dayStreak, streakNow, boardOf, moveName, legalOf, positionOf, answersOf, judge, setOf, sideOfStep, boardStage, squaresOf } from "../crown-course.js";
 import { SHOTS } from "../crown-puzzles.js";
 import { engineFor } from "../crown-search.js";
 import { squareOf } from "../crown-draw.js";
@@ -103,6 +104,20 @@ check(shots.length >= 2 && shots.every(s => s.shot && s.answer), `the shot lesso
   const stuck = run(step("compulsory", 0), ["c3"]);
   check(stuck === null && /compulsory/.test(box.innerHTML), "tapped: a piece that cannot move while a jump is compulsory says so");
   check(run(shot, ["d4", "f6"])?.ok === true && typeof stage.hint === "function", "the stage's hint is there");
+}
+
+// ---------- the shot's streak (the games screen's tile) ----------
+{
+  let st = dayStreak(null, 20261030);
+  check(st.now === 1 && st.best === 1, "a first shot solved is a streak of one");
+  check(dayStreak(st, 20261030) === st, "a second solve the same day changes nothing");
+  st = dayStreak(st, 20261031); st = dayStreak(st, 20261101);
+  check(st.now === 3 && st.best === 3, "the next days add on, over a month's end");
+  check(streakNow(st, 20261102) === 3 && streakNow(st, 20261103) === 0, "a day missed ends it for the menu");
+  const after = dayStreak(st, 20261104);
+  check(after.now === 1 && after.best === 3, "starting again keeps the best");
+  check(dayStreak({ now: 4, best: 4, last: 20261231 }, 20270101).now === 5, "and over a year's end");
+  check(/crown: "streak"/.test(fs.readFileSync(new URL("../suite.js", import.meta.url), "utf8")), "the tile shows the streak");
 }
 
 console.log(bad ? `crown-course: ${bad} failed` : "crown-course: every check passed");

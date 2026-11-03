@@ -11,10 +11,10 @@ import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { seatRounds } from "./random.js";
-import { IN_FRAME, noteStreak, noteDayTime, arrivedForToday, today } from "./suite.js";
+import { IN_FRAME, noteDayTime, arrivedForToday, today } from "./suite.js";
 import { sure } from "./sure.js";
 import { createCourse, progressOf } from "./course.js";
-import { COURSE, boardStage, dayCourse } from "./crown-course.js";
+import { COURSE, boardStage, dayCourse, dayStreak, streakNow } from "./crown-course.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -342,7 +342,12 @@ function onOver(v) {
     if (won) rec.won++;
     if (r.winner == null) rec.drawn = (rec.drawn || 0) + 1;
     write(RECORD, rec);
-    if (r.winner != null) noteStreak("crown", won);
+    if (r.winner != null) {                                // the run of wins, kept apart from the tile's daily streak
+      const run = read("crown:run", { now: 0, best: 0 });
+      run.now = won ? run.now + 1 : 0;
+      run.best = Math.max(run.best, run.now);
+      write("crown:run", run);
+    }
   }
   setTimeout(() => { if (V?.over) showEnd(V); }, 1000);
 }
@@ -410,7 +415,7 @@ const course = createCourse({
 const DAY = dayCourse(today(), opts.set);
 const dayShot = DAY && createCourse({
   id: "crown-day", course: DAY, cls: "cr", inFrame: IN_FRAME,
-  stage: boardStage({ onSolved: (step, st) => { if (step.daily && !IN_FRAME) noteDayTime("crown", (Date.now() - (st.started || Date.now())) / 1000); } }),
+  stage: boardStage({ onSolved: (step, st) => { if (step.daily && !IN_FRAME && !shotDone()) write("crown:streak", dayStreak(read("crown:streak", null), today())); if (step.daily && !IN_FRAME) noteDayTime("crown", (Date.now() - (st.started || Date.now())) / 1000); } }),
 });
 const shotDone = () => read("crown:today", null)?.key === today();
 
@@ -438,8 +443,9 @@ function openMenu() {
   set.append(toggle("Show who is ahead", opts.ahead, on => { opts.ahead = on; saveOpts(); aheadFor = { key: "", score: null }; if (V) work(V); draw(); }));
   set.append(toggle("Label the files and ranks", opts.labels, on => { opts.labels = on; saveOpts(); draw(); }));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
-  const r = read(RECORD, { played: 0, won: 0, drawn: 0 }), st = read("crown:streak", { now: 0, best: 0 });
+  const r = read(RECORD, { played: 0, won: 0, drawn: 0 }), st = read("crown:run", { now: 0, best: 0 }), days = read("crown:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${r.drawn ? `, ${r.drawn} drawn` : ""}${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
+  if (days.best) part(body, "about").append(line(`Shot of the day: ${streakNow(days, today())} ${streakNow(days, today()) === 1 ? "day" : "days"} running, best ${days.best}.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
