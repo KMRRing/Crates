@@ -296,10 +296,11 @@ export function createModel(host, opts = {}) {
     halo.visible = false;
     const out = new THREE.Group();
     out.add(dashes, halo);
-    if (link.cap === 1) {                                              // a narrow road: a bollard each side of its middle
-      const posts = [];
-      for (const side of [-1, 1]) posts.push([new THREE.CylinderGeometry(0.045, 0.055, 0.26, 7), new THREE.Matrix4().makeTranslation(span / 2, 0.1, side * 0.21)]);
-      out.add(shadowed(new THREE.Mesh(merged(posts), M.stone)));
+    if (link.cap === 1) {                                              // a narrow road: a gate, a post each side of the road's middle cell and a bar across them
+      const gate = [], at = Math.floor(span / 2);
+      for (const side of [-1, 1]) gate.push([new THREE.CylinderGeometry(0.07, 0.085, 0.46, 8), new THREE.Matrix4().makeTranslation(at, 0.17, side * 0.27)]);
+      gate.push([new THREE.BoxGeometry(0.07, 0.06, 0.62), new THREE.Matrix4().makeTranslation(at, 0.42, 0)]);
+      out.add(shadowed(new THREE.Mesh(merged(gate), M.stone)));
     }
     place(out, x, 0, z, ry);
     return { out, dashes, halo, haloY: high ? VIADUCT + 0.085 : DECK + 0.115, guideY: y + 0.012 };
@@ -325,9 +326,12 @@ export function createModel(host, opts = {}) {
     // the sea's own: a line of buoys along each strait, its number on a plate at the edge; merchantmen in the free water
     lay.groups.forEach((g, k) => {
       const half = size / 2, line = g.gap + 1 - half, el = document.createElement("span");
-      for (let t = -half - 0.4, i = 0; t <= half + 0.4; t += 0.5, i++) {
-        const buoy = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.12, 8), i % 2 ? M.white : M.teal), x = g.across ? line : t, z = g.across ? t : line;
-        buoy.position.set(x, 0.03, z);
+      const rope = new THREE.Mesh(new THREE.BoxGeometry(g.across ? 0.03 : size + 0.8, 0.025, g.across ? size + 0.8 : 0.03), M.teal);
+      rope.position.set(g.across ? line : 0, 0.04, g.across ? 0 : line);
+      world.add(rope);
+      for (let t = -half - 0.4, i = 0; t <= half + 0.41; t += 0.5, i++) {
+        const buoy = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.09, 0.2, 10), i % 2 ? M.white : M.teal), x = g.across ? line : t, z = g.across ? t : line;
+        buoy.position.set(x, 0.06, z);
         buoy.castShadow = true;
         world.add(buoy);
         buoys.push({ buoy, x, z });
@@ -449,7 +453,7 @@ export function createModel(host, opts = {}) {
     stirSea(t);
     M.halo.opacity = still ? 0.5 : 0.42 + 0.18 * Math.sin(t * 5);
     if (winUntil && now > winUntil) { winUntil = 0; glow(); }
-    for (const { buoy, x, z } of buoys) buoy.position.y = 0.02 + WAVE(x, z, t);
+    for (const { buoy, x, z } of buoys) buoy.position.y = 0.05 + WAVE(x, z, t);
     const dt = Math.min(0.1, Math.max(0, (now - lastSail) / 1000));       // seconds since the last frame, never a jump after a pause
     lastSail = now;
     if (!still) fleet?.advance(dt);
