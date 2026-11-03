@@ -76,6 +76,49 @@ index 856889f..9742b7e 100644
  #ifdef _WIN32
      BOOL bSuccess;
      DWORD dwRead;
+diff --git a/src/nnue/layers/sparselinear.h b/src/nnue/layers/sparselinear.h
+index 49dcc8a..571ebb4 100644
+--- a/src/nnue/layers/sparselinear.h
++++ b/src/nnue/layers/sparselinear.h
+@@ -54,15 +54,29 @@ public:
+     virtual inline void forward(size_t bucket, const InputType *input,
+                                 OutputType *output) const noexcept {
+ 
+-        // compute array of index groups for which at least one input is non-zero
+-        NnzData nnzContext;
+-        calcNnzData(input, nnzContext);
+-
+-        // perform SIMD-optimized sparse dot product
+-        simd::sparseDotProduct<InputType, WeightType, BiasType, OutputType, inputSize, outputSize,
+-                               inputDequantifyShift, outputDequantifyShift>(
+-            input, _optimizedWeights[bucket], this->_biases[bucket], nnzContext.nzIndices.data(),
+-            nnzContext.nzCount, output);
++        // The sparse dot product, in plain integers over the groups of four inputs that are not all zero. (The
++        // SIMD version of it gave other numbers than the generic layer's on the same input and weights, in every
++        // x86 variant; this is the generic layer's arithmetic, and it is cheap: most groups are zero.)
++        OutputType acc[outputSize] = {};
++        for (size_t g = 0; g < inputSize / 4; ++g) {
++            const InputType *in = input + 4 * g;
++            if (!(in[0] | in[1] | in[2] | in[3]))
++                continue;
++            for (size_t j = 0; j < outputSize; ++j) {
++                const WeightType *w = _optimizedWeights[bucket][g][j];
++                acc[j] += static_cast<OutputType>(in[0]) * w[0] + static_cast<OutputType>(in[1]) * w[1] +
++                          static_cast<OutputType>(in[2]) * w[2] + static_cast<OutputType>(in[3]) * w[3];
++            }
++        }
++        for (size_t j = 0; j < outputSize; ++j) {
++            OutputType out = acc[j];
++            if constexpr (inputDequantifyShift > 0)
++                out >>= inputDequantifyShift;
++            out += static_cast<OutputType>(this->_biases[bucket][j]);
++            if constexpr (outputDequantifyShift > 0)
++                out >>= outputDequantifyShift;
++            output[j] = out;
++        }
+ 
+ #ifdef NNUE_TRACE
+         this->trace(output);
 diff --git a/src/nnue/util.h b/src/nnue/util.h
 index 0d43a99..8b16db2 100644
 --- a/src/nnue/util.h
