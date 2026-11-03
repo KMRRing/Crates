@@ -1,5 +1,7 @@
-// Quest's computer players: each reasons from what its role lets it know and what the table has shown (who led which
-// party, who voted how, how each quest went, what's been said), never from the roles it can't see.
+// Company's computer players (id quest; the words here are the code's first ones: quest is a voyage, party a crew,
+// leader the Alderman, traitor a Vitalian, see quest-rules.js): each reasons from what its role lets it know and what the
+// table has shown (who led which party, who voted how, how each quest went, what's been said), never from the roles it
+// can't see.
 //
 // They weigh every way the traitors could be seated (at most 210 ways at ten players) by how well it explains the
 // play: a quest's fails need that many traitors in its party (a traitor fails a quest more often than not, two seldom
