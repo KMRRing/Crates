@@ -1,16 +1,16 @@
 // Slipway's workbench in 3D, drawn with three.js (vendor/three.js, kept on the device, so it plays offline): the block of
 // timber held over the bench, its wood worked out in the shader from where each point lies in the log (long grain on
 // the sides, rings on the end grain and wherever a cut opens them, knots as dark whorls), and the part's ghost seen
-// through it. The surface is remade from the block's cells after each stroke (slipway-carve.js's surface nets), and
-// marked where the part itself has been cut into. A saw's offcut drops away. Nothing is modelled and nothing is a
-// picture. It draws only while something moves. slipway.js drives it: setBlock, refresh, ray, orbit, view, cursor,
-// offcut, ghost.
+// through it. The surface is remade from the block's cells after each use of a tool (slipway-carve.js's surface nets).
+// A saw's offcut drops away, and the cut about to be made is shown as a flat sheet through the block. Nothing is
+// modelled and nothing is a picture. It draws only while something moves. slipway.js drives it: setBlock, refresh, ray,
+// eye, forward, orbit, view, cursor, guide, offcut, ghost.
 import * as THREE from "./vendor/three.js";
-import { mesh, ghostGrid, targetAt, SOLID } from "./slipway-carve.js";
+import { mesh, ghostGrid, targetAt, woodBox, CELL, EYE, VIEWS } from "./slipway-carve.js";
 
 const DEG = Math.PI / 180, PCF = 1, DOUBLE = 2;               // THREE.PCFShadowMap, THREE.DoubleSide (not in the bundle's exports)
-const S = 0.06;                                               // a cell's size in the scene
-const DIST = 14;                                              // the camera's distance: far enough for little perspective
+const S = CELL;                                               // a cell's size in the scene
+const DIST = EYE;                                             // the camera's distance: far enough for little perspective, so a cut seen edge-on is a line
 
 // ---------- the skins: the bench and the light, by theme, day and night (the timber is timber in every theme) ----------
 const SKINS = {
@@ -135,6 +135,13 @@ export function createBench(host) {
   cursor.renderOrder = 6;
   cursor.visible = false;
   work.add(cursor);
+  // the cut about to be made: a flat sheet through the block (green: it will cut, red: it goes into the part, grey: it takes nothing) and its edge
+  const sheetMat = new THREE.MeshBasicMaterial({ color: 0x2f7d5b, transparent: true, opacity: 0.3, depthTest: false, depthWrite: false, side: DOUBLE });
+  const sheet = new THREE.Mesh(new THREE.BufferGeometry(), sheetMat), edgeLine = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthTest: false }));
+  sheet.renderOrder = 7; edgeLine.renderOrder = 8;
+  sheet.visible = edgeLine.visible = false;
+  work.add(sheet, edgeLine);
+  const GUIDE = { ok: 0x2f7d5b, into: 0xa8382b, nothing: 0x8a8a8a };
 
   let b = null, ghostOn = true;
   let skin = skinNow();
@@ -179,9 +186,9 @@ export function createBench(host) {
     ghost.geometry = geometryOf(mesh(b, ghostGrid(b)), false);
     refresh();
     work.updateMatrixWorld(true);
-    box = woodBox();
+    box = woodBox(b);
     look = boxCentre(box);
-    view("start", false);
+    view("corner", false);
   }
   /** The block's surface again, from its cells (after a stroke). */
   function refresh() {
@@ -202,15 +209,6 @@ export function createBench(host) {
   let width = 1, height = 1, az = -30 * DEG, el = 26 * DEG, half = 2;   // half: half the height of the view at the block, in scene units
   // what the camera frames: the wood that's left (in cells), so a part sawn out of a big block fills the view as it did
   let box = [0, 0, 0, 1, 1, 1], look = new THREE.Vector3();
-  function woodBox() {
-    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-    for (let k = 0; k < b.nz; k++) for (let j = 0; j < b.ny; j++) for (let i = 0; i < b.nx; i++) {
-      if (b.d[i + b.nx * (j + b.ny * k)] < SOLID) continue;
-      if (i < lo[0]) lo[0] = i; if (j < lo[1]) lo[1] = j; if (k < lo[2]) lo[2] = k;
-      if (i + 1 > hi[0]) hi[0] = i + 1; if (j + 1 > hi[1]) hi[1] = j + 1; if (k + 1 > hi[2]) hi[2] = k + 1;
-    }
-    return lo[0] === Infinity ? [0, 0, 0, b.nx, b.ny, b.nz] : [...lo, ...hi];
-  }
   const boxCentre = bx => new THREE.Vector3((bx[0] + bx[3]) / 2, (bx[1] + bx[4]) / 2, (bx[2] + bx[5]) / 2).applyMatrix4(work.matrixWorld);
   const centre = () => look;
   function pose() {
@@ -239,9 +237,8 @@ export function createBench(host) {
     }
     return m * DIST * 1.07;
   }
-  const VIEWS = { start: [-30, 26], side: [0, 9], top: [0, 88], end: [90, 9] };
   let viewAnim = null;
-  /** A named view (start, side, top, end), eased to over a third of a second. */
+  /** A named view (corner, side, top, end: slipway-carve.js's VIEWS), eased to over a third of a second. */
   function view(name, animate = true) {
     const [a, e] = VIEWS[name];
     ease(a * DEG, e * DEG, animate);
@@ -250,7 +247,7 @@ export function createBench(host) {
   function ease(toAz, toEl, animate = true) {
     const from = { az, el, half, look: look.clone() }, t0 = performance.now();
     work.updateMatrixWorld(true);
-    box = woodBox();
+    box = woodBox(b);
     const keep = [az, el, look];
     az = toAz; el = toEl; look = boxCentre(box);
     const to = { az, el, half: framing(), look: look.clone() };
@@ -272,9 +269,10 @@ export function createBench(host) {
   /** Turns the camera round the block by a drag (pixels), and nearer or further by a pinch (a factor). */
   function orbit(dx, dy, zoom = 1) {
     az -= dx * 0.008;
-    el = Math.max(-35 * DEG, Math.min(89 * DEG, el + dy * 0.008));
-    // a view straight along an axis is held a moment, so a drill can be set square
-    for (const snap of [0, 90, 180, -90]) if (Math.abs(Math.atan2(Math.sin(az - snap * DEG), Math.cos(az - snap * DEG))) < 3 * DEG) az = snap * DEG;
+    el = Math.max(0, Math.min(VIEWS.top[1] * DEG, el + dy * 0.008));      // never under the bench, never past straight down
+    // a view along an axis, or along a diagonal level with the block, is held a moment, so a cut seen edge-on is exact
+    for (const snap of [0, 45, 90, 135, 180, -45, -90, -135]) if (Math.abs(Math.atan2(Math.sin(az - snap * DEG), Math.cos(az - snap * DEG))) < 3 * DEG) az = snap * DEG;
+    for (const snap of [0, VIEWS.top[1]]) if (Math.abs(el - snap * DEG) < 3 * DEG) el = snap * DEG;
     half = Math.max(0.3, Math.min(8, half / zoom));
     pose();
     invalidate();
@@ -283,7 +281,7 @@ export function createBench(host) {
     const r = host.getBoundingClientRect();
     width = Math.max(1, Math.round(r.width)); height = Math.max(1, Math.round(r.height));
     renderer.setSize(width, height, false);
-    if (b) { work.updateMatrixWorld(true); box = woodBox(); look = boxCentre(box); half = framing(); }
+    if (b) { work.updateMatrixWorld(true); box = woodBox(b); look = boxCentre(box); half = framing(); }
     pose();
     invalidate();
   }
@@ -313,6 +311,26 @@ export function createBench(host) {
     cursor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(...n));
     cursor.scale.set(r, 1, r);
     invalidate();
+  }
+
+  /** The sheet for a cut: its outline (points in cells, in order round it) and how it stands (ok, into, nothing), or none. */
+  function setGuide(poly, kind = "ok") {
+    if (!poly || poly.length < 3) { if (sheet.visible) { sheet.visible = edgeLine.visible = false; invalidate(); } return; }
+    const pos = [];
+    for (let i = 1; i < poly.length - 1; i++) pos.push(...poly[0], ...poly[i], ...poly[i + 1]);
+    sheet.geometry.dispose(); edgeLine.geometry.dispose();
+    sheet.geometry = new THREE.BufferGeometry(); sheet.geometry.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    edgeLine.geometry = new THREE.BufferGeometry(); edgeLine.geometry.setAttribute("position", new THREE.Float32BufferAttribute(poly.flatMap((p, i) => [...p, ...poly[(i + 1) % poly.length]]), 3));
+    sheetMat.color.set(GUIDE[kind] ?? GUIDE.ok);
+    sheet.visible = edgeLine.visible = true;
+    invalidate();
+  }
+  /** The way the camera looks, in cells (unit), and where it is. */
+  function forward() {
+    const e = eye(), c = centre();
+    const inv = new THREE.Matrix4().copy(work.matrixWorld).invert(), t = c.clone().applyMatrix4(inv);
+    const d = [t.x - e[0], t.y - e[1], t.z - e[2]], l = Math.hypot(...d);
+    return d.map(v => v / l);
   }
 
   // ---------- drawing, only while something moves ----------
@@ -358,8 +376,10 @@ export function createBench(host) {
   resize();
 
   return {
-    canvas, setBlock, refresh, replaced, ray, eye, orbit, view, offcut, reframe, redraw: invalidate,
-    cursor: setCursor,
+    canvas, setBlock, refresh, replaced, ray, eye, forward, orbit, view, offcut, reframe, redraw: invalidate,
+    cursor: setCursor, guide: setGuide,
+    /** Where the camera is, as degrees of azimuth and elevation (for marking which named view it is in). */
+    angles: () => [az / DEG, el / DEG],
     set ghost(on) { ghostOn = on; ghost.visible = on; invalidate(); },
     get busy() { return anims.length > 0; },
     /** Where a point of the block (in cells) is on the screen, in pixels from the canvas's top left. */
