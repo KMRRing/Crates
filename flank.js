@@ -108,7 +108,7 @@ function drawSeats(v) {
   const s = v.state, me = isTwo(v) ? 0 : v.seat ?? 0, n = tally(s.b);
   for (const [box, seat] of [[far, 1 - me], [near, me]]) {
     const c = colourOf(s, seat), turn = !v.over && v.toMove === seat;
-    const sub = !isTwo(v) && v.mode === "solo" && seat === 1 ? `${levelOf(opts.level).name} · ${COLOURS[c]}` : COLOURS[c];
+    const sub = isTwo(v) ? "" : v.mode === "solo" && seat === 1 ? `${levelOf(opts.level).name} · ${COLOURS[c]}` : COLOURS[c];   // two on one phone: the name is the colour already
     box.className = `fk-seat ${box.id}${turn ? " turn" : ""}`;
     box.innerHTML = `<i class="fk-swatch ${c}"></i><b class="fk-name">${esc(nameOf(v, seat))}</b><small>${esc(sub)}</small><span class="fk-count" aria-label="${n[c]} discs">${n[c]}</span>`;
   }
