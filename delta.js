@@ -4,11 +4,12 @@
 import { today, noteDayTime, arrivedForToday } from "./suite.js";
 import { roundOver } from "./random.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
-import { generate, LEVELS, CLUES, evaluate, isSolved, showOp, showValue, valueAlong, unkey, key, adjacent } from "./delta-gen.js";
+import { generate, GEN, LEVELS, CLUES, evaluate, isSolved, showOp, showValue, valueAlong, unkey, key, adjacent } from "./delta-gen.js";
 import { pathList, withPath, freshTable, presentSlots, drawingsOf, drawnBy } from "./delta-room.js";
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { busy, waitMark } from "./loading.js";
+import { sure } from "./sure.js";
 import "./pwa.js";
 import { gameHref, GAMES, branchPath, otherHere, joiningWords } from "./rooms.js";
 import { dropdown } from "./dropdown.js";
@@ -17,7 +18,7 @@ import { part, action, mirror, isPaused, onPause } from "./menu.js";
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
-const STORE = "delta:solo", SPARES = "delta:spares";
+const STORE = "delta:solo", SPARES = `delta:spares${GEN}`;      // a spare is a board of the generator that dealt it: a new generator takes a new key
 const APP = 2;                                       // together games: bumped when their shape changes (2: up to six, paths by player)
 const COLOURS = 6;                                   // path colours (--d-p0…)
 const SQ3 = Math.sqrt(3);
@@ -55,6 +56,8 @@ function deal(seed, level) {
 
 // A spare board per level is dealt in the background and kept, so New board is instant even on Hard.
 function spares() { try { return JSON.parse(localStorage.getItem(SPARES)) || {}; } catch { return {}; } }
+// spares kept by an older generator (its key had no number, then 2, 3…) are dropped quietly
+try { for (let g = 1; g < GEN; g++) localStorage.removeItem(g === 1 ? "delta:spares" : `delta:spares${g}`); } catch { /* private mode */ }
 function takeSpare(level) {
   const all = spares(), spare = all[level];
   if (!spare?.board) return null;
@@ -114,8 +117,8 @@ async function soloBoard(seed, level) {
 }
 
 /** Deals a new board (a hard one can take a moment, so the screen says so first). */
-function newBoard(level = S.level) {
-  if (S && !S.done && pathList(S.paths).length && !confirm("Start a new board? This one isn't finished.")) { render(); return; }
+async function newBoard(level = S.level) {
+  if (S && !S.done && pathList(S.paths).length && !(await sure("Start a new board? This one isn't finished."))) { render(); return; }
   if (level === "today") {                                     // today's puzzle: solo, timed for the games screen
     if (together.room) { render(); return; }
     soloBoard(today(), DAILY_LEVEL).then(() => { if (S) { S.daily = today(); saveSolo(); render(); } }); return;
@@ -190,17 +193,18 @@ function clue() {
   change(g => { if (g.done || g.clues.length >= CLUES || g.clues.includes(next)) return false; g.clues.push(next); });
 }
 
-function clearAll() {
+async function clearAll() {
   if (S.done || !pathList(S.paths).length) return;
   // at a table, Clear takes everyone's paths: asked first when some are someone else's
   const me = together.room?.uid;
-  if (me && pathList(S.paths).some(p => p.by && p.by !== me) && !confirm("Clear every path on the board, the others' too?")) return;
+  if (me && pathList(S.paths).some(p => p.by && p.by !== me) && !(await sure("Clear every path on the board, the others' too?"))) return;
+  if (S.done) return;
   change(g => { if (g.done) return false; g.paths = {}; });
 }
 
-function giveUp() {
+async function giveUp() {
   if (S.done) { showDone(); return; }
-  if (!confirm("Show the solution and end this board?")) return;
+  if (!(await sure("Show the solution and end this board?")) || S.done) return;
   clockPause();
   const paths = Object.fromEntries(S.board.sol.map((p, i) => [`s${i}`, { c: i, k: p.cells.join(";") }]));
   change(g => { if (g.done) return false; g.paths = paths; g.done = { won: false, at: Date.now() }; });
