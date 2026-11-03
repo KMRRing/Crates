@@ -26,7 +26,7 @@ const MATS = {
   iron: [[0, 12, 15, 28], [0.45, 62, 72, 92], [0.8, 140, 156, 180], [1, 205, 217, 234]],
   timber: [[0, 17, 13, 22], [0.45, 84, 58, 34], [0.8, 140, 102, 60], [1, 192, 150, 96]],
   brick: [[0, 24, 14, 24], [0.45, 112, 64, 46], [0.8, 168, 104, 72], [1, 214, 150, 110]],
-  earth: [[0, 14, 17, 28], [0.45, 70, 64, 44], [0.8, 128, 108, 66], [1, 178, 150, 94]],      // the Earth's own olive and ochre
+  earth: [[0, 12, 15, 26], [0.45, 56, 54, 40], [0.8, 100, 90, 60], [1, 150, 128, 84]],      // the Earth's own olive and ochre
 };
 /** The colour of material m at light I (0..1) on a surface turned `nz` toward the viewer; the Earth's haze bounces off the rim. */
 function tone(m, I, nz) {
@@ -76,7 +76,7 @@ export function drawGun(ctx, bx, by, k, u, site, th, kick, sun = [-0.612, 0.612,
   ctx.fillStyle = across(ctx, MATS.earth, 0, -mh, 0, Th * 0.2, byg, lz, 0.45);
   ctx.beginPath(); ctx.moveTo(-mw / 2 - Th * 0.7, Th * 0.25); ctx.quadraticCurveTo(-mw / 2, -mh * 0.2, -mw * 0.32, -mh); ctx.lineTo(mw * 0.32, -mh); ctx.quadraticCurveTo(mw / 2, -mh * 0.2, mw / 2 + Th * 0.7, Th * 0.25); ctx.closePath(); ctx.fill();
   ctx.save(); ctx.clip();
-  ctx.strokeStyle = "rgba(9,12,22,.3)"; ctx.lineWidth = Math.max(0.8, 0.8 * u);
+  ctx.strokeStyle = "rgba(9,12,22,.17)"; ctx.lineWidth = Math.max(0.8, 0.8 * u);
   ctx.beginPath(); for (let i = 1; i < 6; i++) { const y = -mh + i * mh / 5.5; ctx.moveTo(-mw, y); ctx.lineTo(mw, y + Th * 0.05); } ctx.stroke();
   ctx.restore();
   // the pedestal: brick, courses and joints, one face lit across its width
