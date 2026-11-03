@@ -122,7 +122,7 @@ export function loadEarth(then) {
       } catch { /* a map that will not read leaves the plain sphere */ }
     };
     img.onerror = () => { earthAsked = false; };
-    img.src = EARTH_MAP;
+    img.src = "columbiad-earth.jpg";
   } catch { /* no Image: nothing to load */ }
 }
 
