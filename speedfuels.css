@@ -1,0 +1,12 @@
+/* Fuel maths: speedmaths.css with its own enamel, the colour of a barrel's ochre stripe. Everything else is shared. */
+:root {
+  --sf-in: #9A6A10;                      /* lines and words in the game's colour, dark enough to read on the page */
+  --sf-logo-tint: #F1DDAE; --sf-logo-edge: var(--logo-edge);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --sf-in: #E2B24E; --sf-logo-tint: #574115; }
+}
+html[data-mode="night"] { --sf-in: #E2B24E; --sf-logo-tint: #574115; }
+html[data-theme="modern"] { --sf-logo-tint: #F6E6C2; --sf-logo-edge: #A2690F; }
+#app.speedfuels { --speed-in: var(--sf-in); }
+html:is([data-theme="modern"], [data-theme="kontor"]) #app.speedfuels .sm-key.k-go { color: #2A2005; }
