@@ -12,6 +12,7 @@ import { cardHtml } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, choice } from "./menu.js";
+import { tableView } from "./table3d-view.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE } from "./blackjack-course.js";
 import { blackjackStage } from "./blackjack-stage.js";
@@ -29,6 +30,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const animate = (node, frames, o) => (node?.animate ? node.animate(frames, { fill: "both", ...o }).finished.catch(() => {}) : Promise.resolve());
 
 let S = null;                       // the game (blackjack-engine.js's), as saved
+const view = tableView("blackjack");     // Menu, View: the flat felt (the default) or the felt tipped away from you (blackjack.css, .bj3)
+const applyView = () => $("app").classList.toggle("bj3", view.get() === "3d");
 const opts = { chip: 500, coach: "on", fast: false, ...read(OPTS, {}) };
 // the coach was once on or off: on was the chart's play marked, which is what Always still does
 if (opts.coach === true) opts.coach = "on"; else if (opts.coach === false) opts.coach = "off"; else if (!isCoach(opts.coach)) opts.coach = "on";
@@ -281,6 +284,7 @@ function openMenu() {
   const cp = progressOf("blackjack", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn the floor: the plays, the chart, the table", () => course.open()), action("Blackjack on one page", showRules, "link"));
   const st = part(body, "settings");
+  st.append(view.choice(() => { applyView(); fitCards(); }));
   st.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; hinted = null; last = null; saveOpts(); render(); }));
   st.append(toggle("Quick dealing", opts.fast, on => { opts.fast = on; saveOpts(); }));
   part(body, "about").append(line(`${S.rounds} round${S.rounds === 1 ? "" : "s"}; you hold ${hk(S.balance)}${S.toppedUp ? `, topped up ${S.toppedUp} time${S.toppedUp === 1 ? "" : "s"}` : ""}. Playing the chart, the table keeps ${(strategyFor(S.rules).edge * 100).toFixed(2)}% of what you bet. Play money: nothing real is staked.`));
@@ -327,5 +331,6 @@ if (!valid(S)) S = newGame(Math.floor(Math.random() * 2 ** 31));
 cleared = !S.round || S.round.phase === "over";
 save();
 [$("arcText1").textContent, $("arcText2").textContent] = feltWords(S.rules);
+applyView();
 render();
 document.fonts?.ready.then(fitArc);

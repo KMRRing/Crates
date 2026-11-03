@@ -139,3 +139,11 @@ dialog.ln-sheet.bj { --ln-in: var(--c0); }
 .bjs-icon { width: 2.4rem; height: 2.4rem; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .bjs-icon .f { fill: var(--brass); stroke: var(--ink); }
 .bjs-signals small { font-size: .74rem; color: var(--ink-soft); }
+
+/* ---------- View: 3D (Menu): the felt a plane tipped away from you, its far side further and smaller; taps and the dealing are the
+   flat view's own, so nothing but the picture changes (the compositor does it; nothing is redrawn) ---------- */
+.bj3 #felt { transform-origin: 50% 100%; transform: perspective(60rem) rotateX(14deg);
+  border: 2px solid var(--brass); box-shadow: inset 0 0 0 .28rem var(--bj-felt), inset 0 0 0 calc(.28rem + 1px) var(--bj-felt-line), 0 1.1rem 1.2rem -.9rem rgba(0, 0, 0, .55);
+  background: radial-gradient(ellipse 70% 55% at 50% 55%, color-mix(in srgb, var(--bj-felt) 65%, #FFF), transparent 75%), radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(6, 14, 24, .3)), var(--bj-felt); }
+.bj3 #felt .cd { box-shadow: 0 .12em .3em rgba(0, 0, 0, .42); }
+.bj3 #felt .bj-hand.active { transform: translateZ(0) scale(1.04); }
