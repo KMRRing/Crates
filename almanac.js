@@ -10,6 +10,7 @@ import { withUnit } from "./quote-engine.js";
 import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, line } from "./menu.js";
+import { IN_FRAME } from "./suite.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -71,6 +72,7 @@ function entityButton(e, extra) {
   return b;
 }
 function showResults() {
+  leaveSky();
   $("entry").hidden = true; $("results").hidden = false;
   listResults();
 }
@@ -118,6 +120,7 @@ function open(id, push = true) {
   id = CANON(id);
   const e = ENT.get(id);
   if (!e) return;
+  leaveSky();
   if (push && location.hash !== `#e=${id}`) history.pushState(null, "", `#e=${id}`);
   const box = $("entry");
   $("results").hidden = true; box.hidden = false;
@@ -172,6 +175,38 @@ function open(id, push = true) {
   box.scrollTop = 0;
 }
 
+// ---------- the star chart ----------
+// The sky is a second way in, loaded only when it is asked for (almanac-sky.js and what it draws with): the list stays the
+// default, and a device without WebGL keeps it, with a line saying why the chart is not there.
+let sky = null, skyLoading = null;
+const setModes = chart => { $("modeList").setAttribute("aria-pressed", String(!chart)); $("modeSky").setAttribute("aria-pressed", String(chart)); };
+const shortName = e => (e.name.length > 26 ? `${e.name.slice(0, 25)}…` : e.name);
+async function showSky(push = true) {
+  if (push && location.hash !== "#sky") history.pushState(null, "", "#sky");
+  $("results").hidden = true; $("entry").hidden = true;
+  $("app").classList.add("sky-on");
+  setModes(true);
+  if (!sky) {
+    const back = el("button", "btn", "Show the list");
+    back.type = "button";
+    back.addEventListener("click", () => { history.pushState(null, "", location.pathname); showResults(); });
+    skyLoading ||= import("./almanac-sky.js").then(m => m.createSky({
+      section: $("sky"), stage: $("skyStage"), gl: $("skyGL"), ink: $("skyInk"), hint: $("skyHint"), msg: $("skyMsg"), listBtn: back,
+      subjectsBtn: $("skySubjects"), homeBtn: $("skyHome"), panel: $("skyPanel"), hitsBox: $("skyHits"), legend: $("skyLegend"), card: $("skyCard"),
+      query: () => $("q").value, clearQuery: () => { $("q").value = ""; },
+    }, { search, label, kindsOf, shortName, open: id => open(id) }));
+    sky = await skyLoading;
+  }
+  await sky.show();
+}
+/** Leaves the sky for the list or an entry (nothing, if it was not open). */
+function leaveSky() {
+  if (!$("app").classList.contains("sky-on")) return;
+  $("app").classList.remove("sky-on");
+  setModes(false);
+  sky?.hide();
+}
+
 // ---------- the menu ----------
 function openMenu() {
   const body = $("menuBody");
@@ -186,10 +221,31 @@ function openMenu() {
 // ---------- wiring ----------
 document.querySelector(".lx-mark").innerHTML = APPS.find(a => a.id === "lexicon").logo;
 bindSwitcher($("appsBtn"), "lexicon");
-$("q").addEventListener("input", () => { if (location.hash) history.pushState(null, "", location.pathname); showResults(); });
-$("searchForm").addEventListener("submit", e => { e.preventDefault(); const first = search($("q").value)[0]; if (first) open(first.id); });
-addEventListener("popstate", () => { const id = new URLSearchParams(location.hash.slice(1)).get("e"); if (id) open(id, false); else showResults(); });
+const onSky = () => $("app").classList.contains("sky-on");
+$("q").addEventListener("input", () => {
+  if (onSky()) { sky?.typed($("q").value); return; }                  // in the chart, typing finds stars to fly to
+  if (location.hash) history.pushState(null, "", location.pathname);
+  showResults();
+});
+$("searchForm").addEventListener("submit", e => {
+  e.preventDefault();
+  if (onSky()) { sky?.submit($("q").value); return; }
+  const first = search($("q").value)[0];
+  if (first) open(first.id);
+});
+$("modeList").addEventListener("click", () => { if (!onSky()) return; history.pushState(null, "", location.pathname); showResults(); });
+$("modeSky").addEventListener("click", () => { if (!onSky()) showSky(); });
+addEventListener("popstate", () => {
+  const id = new URLSearchParams(location.hash.slice(1)).get("e");
+  if (id) open(id, false); else if (location.hash === "#sky") showSky(false); else showResults();
+});
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 const start = new URLSearchParams(location.hash.slice(1)).get("e");
-if (start && ENT.has(start)) { listResults(); open(start, false); } else showResults();
+// a partner watching sees the sky where the sky is open (its camera and what's chosen are in saved keys); otherwise the list opens
+const skyKept = (() => { try { return JSON.parse(localStorage.getItem("lexicon:sky"))?.open === true; } catch { return false; } })();
+if (start && ENT.has(start)) { listResults(); open(start, false); }
+else if (location.hash === "#sky" || (IN_FRAME && skyKept)) showSky(false);
+else showResults();
+// a visit that opens on the list says so in what is kept, so a partner who looks in does not find the sky still "open" from last time
+if (!IN_FRAME && !onSky() && skyKept) { try { localStorage.setItem("lexicon:sky", JSON.stringify({ ...JSON.parse(localStorage.getItem("lexicon:sky")), open: false })); } catch { /* private mode */ } }
