@@ -384,7 +384,7 @@ function boards() {
 }
 /** A boulder: a rough icosphere, each stone's own (by the hexagon it stands on), squat, its corners knocked about. */
 function boulder(seed, size) {
-  const g = new THREE.IcosahedronGeometry(size, 1).toNonIndexed(), pos = g.attributes.position, seen = new Map();
+  const ico = new THREE.IcosahedronGeometry(size, 1), g = ico.index ? ico.toNonIndexed() : ico, pos = g.attributes.position, seen = new Map();   // the bundle's is flat already, and says so loudly if asked again
   const rnd = k => { const x = Math.sin(seed * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
   for (let i = 0; i < pos.count; i++) {
     const key = `${pos.getX(i).toFixed(3)},${pos.getY(i).toFixed(3)},${pos.getZ(i).toFixed(3)}`;
