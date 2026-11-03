@@ -88,7 +88,7 @@ void sack(int f, float s, float t, float FS, float FT, float pw, inout Surf o) {
   // pillowy: fat at the middle, the folds of cloth across it
   float pil = smoothstep(0., .24, ed);
   float fold = (fbm(vec2(s * 3.4 + float(f) * 5., t * 3.4)) - .45) * .05;
-  o.h = .1 * pil + fold * pil;
+  o.h = .15 * pil + fold * pil * 1.4;
   float wv = .5 + .5 * sin(s * 105.) * sin(t * 105.);                // burlap
   vec3 c = o.col * (1. - .075 * lod * wv) * (.94 + .1 * fbm(vec2(s, t) * 5. + 3.));
   c *= 1. - .1 * smoothstep(0., .5, -fold * 12.) ;
@@ -112,7 +112,7 @@ void sack(int f, float s, float t, float FS, float FT, float pw, inout Surf o) {
   }
   o.col = c;
   o.rough = .96;
-  o.ao = mix(.66, 1., smoothstep(0., .04, ed));
+  o.ao = mix(.6, 1., smoothstep(0., .08, ed));
 }
 
 // ---- amber: an iron-strapped chest of planks, a hasp's plate, a lozenge of polished amber, ring handles at the ends

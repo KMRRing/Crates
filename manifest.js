@@ -10,7 +10,7 @@ import { LIVES, ROUNDS, WARES, VIEWS, KINDS, makeRound, priceOf, skillFactor, re
 import { stage, wareIcon, playOut, ready } from "./manifest-art.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, action, line, onPause } from "./menu.js";
 import { today } from "./suite.js";          // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -28,7 +28,7 @@ const RUN = "manifest:run2", BEST = "manifest:best", DAILY = "manifest:daily", R
 // At a table, S is the round in hand in the same shape, made from the room (tableS), for the same drawing.
 let S = null;
 let R = null;                 // the current round from the engine
-let showTimer = null, holdStart = 0;
+let showTimer = null, holdStart = 0, due = null, held = null;   // the show's timer, when it's due, and what was left of it while the menu is open
 let picked = [];              // a swap round: the packages tapped so far
 
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
@@ -101,8 +101,7 @@ function showStack() {
   viewOn(true);
   $("view").replaceChildren(panel);
   const timer = $("timer");
-  clearTimeout(showTimer);
-  showTimer = setTimeout(() => {                      // the last one has landed: the clock runs
+  after(drops.last + LANDING, () => {                 // the last one has landed: the clock runs
     timer.hidden = false;
     timer.style.setProperty("--mf-ms", `${R.level.exposure}ms`);
     timer.classList.remove("run"); void timer.offsetWidth; timer.classList.add("run");
@@ -110,24 +109,46 @@ function showStack() {
     const ship = $("shipBtn");
     ship.hidden = false;
     ship.onclick = () => endShow(1 - (performance.now() - holdStart) / R.level.exposure);
-    showTimer = setTimeout(() => endShow(0), R.level.exposure);
-  }, drops.last + LANDING);
+    after(R.level.exposure, () => endShow(0));
+  });
 }
+/** The show's one timer (the drop, the hold, the shipping), so the menu can stop it where the pictures stop: alone, the
+ *  stack stands still while the menu, the rules or the games screen is open, and the hold's clock with it. */
+function after(ms, fn) {
+  clearTimeout(showTimer);
+  held = null;
+  due = { fn, at: performance.now() + ms };
+  showTimer = setTimeout(() => { due = null; fn(); }, ms);
+}
+onPause(() => {
+  if (T || !due) return;
+  clearTimeout(showTimer);
+  held = { fn: due.fn, left: Math.max(0, due.at - performance.now()) };
+  due = null;
+  $("timer").classList.add("held");
+}, ms => {
+  $("timer").classList.remove("held");
+  if (!held) return;
+  const { fn, left } = held;
+  holdStart += ms;
+  after(left, fn);
+});
 /** The hold is over: the stack is shipped (or, in a change round, fades to an empty quay and comes back changed). */
 function endShow(left) {
   if (S.phase !== "show") return;
   clearTimeout(showTimer);
+  due = held = null;
   S.bonus = Math.round(shipBonus(left) * 100) / 100;
   $("timer").hidden = true;
   $("shipBtn").hidden = true;
   const panel = $("view").firstChild;
   if (R.level.change) {                               // the stack fades and the empty quay stays a second before it comes back
     playOut(panel, "fade");
-    showTimer = setTimeout(() => { S.phase = "ask"; save(); askPhase(true); }, 1500);
+    after(1500, () => { S.phase = "ask"; save(); askPhase(true); });
     return;
   }
   playOut(panel, "away");
-  showTimer = setTimeout(() => { S.phase = "ask"; save(); askPhase(); }, 380);
+  after(380, () => { S.phase = "ask"; save(); askPhase(); });
 }
 
 // ---------- the questions ----------
