@@ -319,6 +319,40 @@ const PASS = { p: 1 };
 }
 check(trips > 60 && !lost, `${trips} changes to a table read back from the database just as they were written`);
 
+// The 3D picture is the engine's picture: the camera (manifest-model.js) puts every corner of every package where the
+// engine's isoPoint does, so what shows through a stack is what the engine says shows. No WebGL here: the numbers only.
+{
+  const Mo = await import("../manifest-model.js");
+  let worst = 0, boxes = 0, lifts = 0;
+  for (const [X, Y, Z, turns] of [[1, 1, 1, 0], [3, 2, 2, 0], [4, 4, 3, 0], [4, 3, 3, 1], [3, 4, 2, 2], [2, 4, 3, 3]]) {
+    const b = M.boxFor(turns), frame = Mo.frameOf(X, Y, Z, b, { drop: true }), cam = Mo.cameraOf(frame, X, Y, Z, b);
+    const [ax, ay] = Mo.planeOf(cam.at), total = frame.H + frame.room;
+    for (let x = 0; x <= X; x++) for (let y = 0; y <= Y; y++) for (let z = 0; z <= Z; z++) {
+      const [px, py] = Mo.planeOf([x * b.X, z * b.H, y * b.Y]);                       // the corner in the camera's plane, from the stack's centre
+      const at = [(px - ax - cam.left) / (cam.right - cam.left) * frame.W, (cam.top - (py - ay)) / (cam.top - cam.bottom) * total - frame.room];
+      const [ex, ey] = frame.to([(x * b.X - y * b.Y) * 0.866, (x * b.X + y * b.Y) * 0.5 - z * b.H]);    // where the engine's drawing has it
+      worst = Math.max(worst, Math.abs(at[0] - ex), Math.abs(at[1] - ey));
+      boxes++;
+    }
+    const cells = Array.from({ length: X }, () => Array.from({ length: Y }, () => Array.from({ length: Z }, () => 1)));
+    for (const it of Mo.layout(cells, turns, frame)) {
+      const f = M.cubeFaces(it.x, it.y, it.z, b);
+      if (!same(it.faces.top, f.top.map(frame.to)) || !same(it.faces.left, f.left.map(frame.to)) || !same(it.faces.right, f.right.map(frame.to))) fail("layout differs from the engine's faces", X, Y, Z);
+      if (Math.abs(it.box.sx - b.X) + Math.abs(it.box.sy - b.H) + Math.abs(it.box.sz - b.Y) > 1e-9) fail("a package isn't its cell's box", X, Y, Z);
+      lifts++;
+    }
+  }
+  check(worst < 1e-6 && boxes > 300 && lifts > 100, `3D camera: ${boxes} box corners and ${lifts} packages land where the engine's drawing has them (worst ${worst.toExponential(1)} view box units)`);
+  const f0 = Mo.fall(0), f1 = Mo.fall(1), path = Array.from({ length: 101 }, (_, i) => Mo.fall(i / 100));
+  const monotone = path.every((p, i) => i === 0 || i > 58 || p.lift <= path[i - 1].lift);                  // it drops until the strike at .58
+  check(f0.lift > 1 && f0.fade === 0 && f1.lift === 0 && f1.squash === 1 && f1.fade === 1 && monotone && path.every(p => p.lift >= 0 && p.squash > 0.85 && p.squash < 1.05),
+    "a falling package starts high and unseen, drops, flattens a little, rebounds a little and is still at the end of LANDING");
+  const cells2 = [[[1], [1]], [[1], [0]]], b2 = M.boxFor(0), fr2 = Mo.frameOf(2, 2, 1, b2, {}), items2 = Mo.layout(cells2, 0, fr2);
+  const c = it => { const t = it.faces.top; return [(t[0][0] + t[2][0]) / 2, (t[0][1] + t[2][1]) / 2]; };
+  check(items2.every(it => Mo.packageAt(items2, ...c(it)) === it.key) && Mo.packageAt(items2, -50, -50) === null,
+    "a tap on a package's top finds that package (the nearest of those under it), a tap on nothing finds none");
+}
+
 // The five wares must stay at least as easy to tell apart as the first version's five colours (red, blue, yellow, green,
 // orange), for a normal eye and for the three dichromacies (Machado 2009, severity 1), by CIEDE2000 between two wares
 // on the same face and on any two faces (a left face beside another ware's top). The drawing (strap, lozenge, hoop, bars)
@@ -333,7 +367,9 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
     deutan: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]],
     tritan: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.3039]],
   };
-  const FACES = [0.72, 0.86, 1.05];                                   // the shading manifest-art.js gives left, right and top
+  const { FACE_SHADE, SHADOWED } = await import("../manifest-model.js");
+  // the shading of the flat drawing (left, right, top: manifest-art.js) and of the 3D one's lights, and a face in shadow
+  const FACES = [...new Set([0.72, 0.86, 1.05, ...Object.values(FACE_SHADE), SHADOWED])].sort((a, b) => a - b);
   const seen = (hex, k, eye) => { const v = rgbOf(hex).map(n => lin(Math.min(255, n * k))); return EYES[eye].map(r => unlin(r[0] * v[0] + r[1] * v[1] + r[2] * v[2])); };
   const lab = rgb => {
     const [r, g, b] = rgb.map(lin), f = t => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
