@@ -199,7 +199,7 @@ export function createPuzzle(deps) {
     const spec = LEVELS[index], left = res.left;
     if (run.solved) return `${spec.name} solved · ${STAR.repeat(run.solved)}${HOLLOW.repeat(3 - run.solved)}`;
     if (hint?.wrong?.length) return "The red pieces aren't in an answer: lift them";
-    if (hint) return hint.over ? `Hint: ${hint.over}` : "Hint: this piece goes in the dashed square";
+    if (hint) return hint.done ? "Hint: nothing is left to lay" : "Hint: this piece goes in the dashed square";
     if (!res.placed) {
       // a chapter's first level says what's new in it; the rest say what to do
       const ch = CHAPTERS.find(c => c.key === spec.chapter);
@@ -310,24 +310,13 @@ export function createPuzzle(deps) {
     oilTimer = setTimeout(tick, OIL_STEP);
   }
   /** The hint: if the pieces laid can still be part of an answer, where the next piece goes along the oil's way; if not,
-   *  the pieces that are in the way. It costs the level its third star. */
+   *  the pieces that are in the way. It caps the level at one star (starsFor). */
   async function giveHint() {
     if (frame || run.solved || oilTimer) return;
-    if (!run.hints && !(await sure("A hint costs the level a star: the most you can win is two. Show one?", { yes: "Hint" }))) return;
-    const answers = L.sols.map(r => Z.layRoute(L, r)).filter(Boolean);
-    if (!answers.length) return;
-    let best = null;
-    for (const sol of answers) {
-      const wrong = [], agree = [];
-      laid.forEach((p, c) => { if (p) (sol[c] === p ? agree : wrong).push(c); });
-      if (!best || wrong.length < best.wrong.length || (wrong.length === best.wrong.length && agree.length > best.agree.length)) best = { sol, wrong, agree };
-    }
+    if (!run.hints && !(await sure("A hint caps this level at one star. Show one?", { yes: "Hint" }))) return;
+    hint = Z.hintFor(L, laid);
+    if (!hint) return;
     run.hints++;
-    if (best.wrong.length) hint = { wrong: best.wrong };
-    else {
-      const route = Z.trace(L, best.sol).passes.find(s => !L.cells[s.c] && !laid[s.c]);
-      hint = route ? { c: route.c, piece: best.sol[route.c] } : { over: "nothing is left to lay" };
-    }
     persist();
     drawBoard();
   }

@@ -211,6 +211,25 @@ export function layRoute(L, route) {
   }
   return c === L.terminal.c && a === L.terminal.d ? laid : null;
 }
+/**
+ * What a hint says: the answer (of the level's few) that agrees best with the pieces laid. If some piece laid is not in it,
+ * those squares: { wrong: [c…] }; otherwise the first square along the oil's way still to be laid, and the piece: { c, piece }.
+ * Following hints always ends in a solution, whatever the pieces laid, since each one lifts the pieces in the way first.
+ */
+export function hintFor(L, laid) {
+  let best = null;
+  for (const route of L.sols) {
+    const sol = layRoute(L, route);
+    if (!sol) continue;
+    const wrong = [], agree = [];
+    laid.forEach((p, c) => { if (p) (sol[c] === p ? agree : wrong).push(c); });
+    if (!best || wrong.length < best.wrong.length || (wrong.length === best.wrong.length && agree.length > best.agree.length)) best = { sol, wrong, agree };
+  }
+  if (!best) return null;
+  if (best.wrong.length) return { wrong: best.wrong };
+  const next = trace(L, best.sol).passes.find(s => !L.cells[s.c] && !laid[s.c]);
+  return next ? { c: next.c, piece: best.sol[next.c] } : { done: true };
+}
 /** The stars a finished level earns: 1 for solving it, 2 for solving it without a hint, 3 for that and no more than
  *  STAR_LIFTS (and one more per six pieces) pieces taken back up. */
 export function starsFor(L, { hints = 0, lifts = 0 }) {

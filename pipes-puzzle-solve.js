@@ -7,9 +7,10 @@ import { KINDS, SIDE, beyond, back, channelOf } from "./pipes-puzzle.js";
 /**
  * Every route that solves the level L, up to `cap` of them: { routes: ["EESSW…"], nodes, capped }, a route being the
  * side the oil leaves each square by (layRoute turns it into the pieces). `capped` is true when it stopped at the cap,
- * or at `limit` squares tried (then `aborted` too: the count is only a lower bound).
+ * or at `limit` squares tried (then `aborted` too: the count is only a lower bound). `order(kinds)` puts the pieces to try
+ * at a square in another order (a player who tries them as they come to mind: the harness measures how long that takes).
  */
-export function solve(L, cap = 2, limit = 4e6) {
+export function solve(L, cap = 2, limit = 4e6, order = null) {
   const n = L.cols * L.rows, kinds = KINDS.filter(k => L.hand[k]), hand = { ...L.hand };
   const filled = new Uint8Array(n), placed = Array(n).fill(null), dirs = [], routes = [];
   const t = beyond(L, L.terminal.c, L.terminal.d);
@@ -49,7 +50,7 @@ export function solve(L, cap = 2, limit = 4e6) {
       if (!(filled[c] & (1 << ch.i))) step("x", ch, false);
       return;
     }
-    for (const k of kinds) {
+    for (const k of order ? order(kinds) : kinds) {
       if (!hand[k]) continue;
       const ch = channelOf(k, a);
       if (!ch) continue;
