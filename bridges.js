@@ -400,6 +400,7 @@ const svgEl = (tag, attrs, parent) => { const n = document.createElementNS(NS, t
  *  under a unit tall badly (as Hitori's and Delta's are). */
 const TEXT_SCALE = 100;
 let svg = null, linkEls = [], islEls = [], straitEls = [], seg = [];
+let realmed = false;                // the puzzle has two realms: blue and orange islands (docs/bridges.md, "The two realms' language")
 let box = null, view = { z: 1, cx: 0, cy: 0 };     // the chart's zoom (bridges-zoom.js): the whole board's viewBox, and the part of it in view
 /** What the marks break now, in words (bridges-engine.js's whatBreaks), for the line under the board. */
 let trouble = "";
@@ -407,6 +408,7 @@ const MARGIN = 0.78;                // room a strait's badge takes at the board'
 const BADGE = 0.31;                 // its radius
 function drawBoard() {
   const { size, lay } = P, pad = 0.3, at = i => [lay.isl[i].c + 0.5, lay.isl[i].r + 0.5];
+  realmed = lay.isl.some(o => o.realm);
   const x0 = lay.groups.some(g => !g.across) ? -(pad / 2 + MARGIN) : -pad, y0 = lay.groups.some(g => g.across) ? -(pad / 2 + MARGIN) : -pad;      // a strait's number sits in the margin, so the margin grows only for one that has it
   box = { x: x0, y: y0, w: size + pad - x0, h: size + pad - y0 };
   view = { z: 1, cx: box.x + box.w / 2, cy: box.y + box.h / 2 };       // a new puzzle is shown whole
@@ -444,7 +446,8 @@ function drawBoard() {
     const [x, y] = at(i), g = svgEl("g", { class: islandClass(i) }, svg);
     if (isle.hill) for (const r of [DISC + 0.09, DISC + 0.17]) svgEl("circle", { cx: x, cy: y, r, class: "brg-hill" }, g);       // a hill: contour lines round it
     svgEl("circle", { cx: x, cy: y, r: DISC + (isle.hill ? 0.26 : 0.1), class: "brg-halo" }, g);        // drawn only round an island that breaks a rule
-    svgEl("circle", { cx: x, cy: y, r: DISC, class: "brg-disc" }, g);
+    if (realmed && isle.realm) svgEl("rect", { x: x - DISC * 0.92, y: y - DISC * 0.92, width: DISC * 1.84, height: DISC * 1.84, rx: 0.1, class: "brg-disc" }, g);      // orange islands are square, blue ones round: the realm without its colour
+    else svgEl("circle", { cx: x, cy: y, r: DISC, class: "brg-disc" }, g);
     const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "brg-num", "font-size": numberSize(i), transform: `translate(${x} ${y}) scale(${1 / TEXT_SCALE})` }, g);
     t.textContent = numberOf(i);
     return g;
@@ -459,7 +462,7 @@ function drawBoard() {
   paint();
 }
 /** An island's classes: its realm, whether its number is only a bound and whether it is a hill, then (from the run) met, over, shut off, a hint's. */
-const islandClass = (i, extra = []) => ["brg-i", P.lay.isl[i].realm ? "r1" : "", P.lay.isl[i].kind && !hidden.has(i) ? "rng" : "", P.lay.isl[i].hill ? "hill" : "", hidden.has(i) ? "unk" : "", ...extra].filter(Boolean).join(" ");
+const islandClass = (i, extra = []) => ["brg-i", realmed ? (P.lay.isl[i].realm ? "r1" : "r0") : "", P.lay.isl[i].kind && !hidden.has(i) ? "rng" : "", P.lay.isl[i].hill ? "hill" : "", hidden.has(i) ? "unk" : "", ...extra].filter(Boolean).join(" ");
 /** An island's number as this phone shows it: a ? where it is your partner's to say. */
 const numberOf = i => (hidden.has(i) ? "?" : labelOf(P.lay.isl[i]));
 const numberSize = i => (hidden.has(i) ? 0.5 : (P.lay.isl[i].kind || P.lay.isl[i].n > 9 ? 0.4 : 0.5)) * TEXT_SCALE;
@@ -475,7 +478,7 @@ function paint() {
   trouble = cross.size ? "Two bridges cross each other: clear one of them." : whatBreaks(P, S.marks, br);
   linkEls.forEach(({ g }, l) => {
     const { a, b } = P.lay.links[l], wrong = S.marks[l] !== "0" && (over.has(a) || over.has(b) || (cut.has(a) && cut.has(b)) || ring.has(l) || cross.has(l));   // a bridge on an island that has too many, inside a group shut off, round a ring, or across another
-    const cls = ["brg-l", P.lay.isl[a].realm ? "k1" : "", P.lay.links[l].high ? "hi" : "", S.marks[l] !== "0" ? `c${S.marks[l]}` : "", wrong ? "bad" : "", lit.has(l) ? "lit" : ""].filter(Boolean).join(" ");
+    const cls = ["brg-l", realmed ? (P.lay.isl[a].realm ? "k1" : "k0") : "", P.lay.links[l].high ? "hi" : "", S.marks[l] !== "0" ? `c${S.marks[l]}` : "", wrong ? "bad" : "", lit.has(l) ? "lit" : ""].filter(Boolean).join(" ");
     if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
   });
   islEls.forEach((g, i) => {
@@ -488,7 +491,31 @@ function paint() {
     const cls = `brg-strait${br.straitsOver.includes(k) ? " over" : br.straitsMet.includes(k) ? " met" : ""}${S.lit?.strait === k ? " why" : ""}`;
     if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
   });
+  paintLegend(met);
   feedModel(br);
+}
+/** Two realms: the legend of the colours, in the page's own words and tokens, with how many islands of each are done (an island whose number is your partner's is never counted done: `met` has none of those). */
+const REALM_NAMES = [["Blue", "round"], ["Orange", "square"]];
+function paintLegend(met) {
+  const box = $("legend");
+  box.hidden = !realmed;
+  $("strip").classList.toggle("realms", realmed);
+  if (!realmed) return;
+  const total = [0, 0], done = [0, 0];
+  P.lay.isl.forEach((o, i) => { const r = o.realm ? 1 : 0; total[r]++; if (met.has(i)) done[r]++; });
+  if (!box.firstChild) for (const [r, [name]] of REALM_NAMES.entries()) {
+    const chip = document.createElement("span"), mark = document.createElement("i"), word = document.createElement("b"), count = document.createElement("small");
+    chip.className = `brg-chip r${r}`;
+    word.textContent = name;
+    chip.append(mark, word, count);
+    box.append(chip);
+  }
+  REALM_NAMES.forEach(([name, shape], r) => {
+    const chip = box.children[r], count = chip.querySelector("small"), text = `${done[r]}/${total[r]}`;
+    if (count.textContent !== text) count.textContent = text;
+    const words = `${name} islands (${shape}): ${done[r]} of ${total[r]} have their bridges. A bridge joins islands of one colour.`;
+    if (chip.title !== words) { chip.title = words; chip.setAttribute("aria-label", words); }
+  });
 }
 /** The solve, shown: the bridges turn gilt from the top left. */
 function wave() {
@@ -504,7 +531,7 @@ let model = null, modelFor = null;
 /** The model follows the run: a new puzzle is built into it, a change of marks shows and hides bridges, a hint's link glows. */
 function feedModel(br) {
   if (!model || prefs.view !== "model" || !S || !P) return;
-  if (modelFor !== P) { model.set({ lay: P.lay, size: P.size }); modelFor = P; }
+  if (modelFor !== P) { model.set({ lay: P.lay, size: P.size, seed: S.seed }); modelFor = P; }     // the seed gives the shore: both phones of a race or a co-op see the same bay
   model.names?.(hidden);
   model.update(S.marks, br || breaks(P, S.marks), S.lit);
 }
