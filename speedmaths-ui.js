@@ -178,6 +178,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
     drawVerdict();
     $("pad").classList.toggle("off", phase !== "running" || watching);
     $("app").classList.toggle("sm-live", phase === "running" && !watching);       // the caret blinks where the answer goes
+    $("app").classList.toggle("sm-over", phase === "over");                       // the pad gives its room to the result
   }
   function drawHud() {
     $("score").textContent = String(run?.score ?? 0);
@@ -196,7 +197,8 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
     const live = phase === "running" && !!run;
     $("typed").textContent = live ? fmtTyped(run.typed) : "";
     const p = live ? problemAt(run) : null;
-    $("unit").textContent = p && p.kind === "sum" ? p.unit : "";
+    // what the answer is in, and for an estimate or a chain to how many figures: beside the figure being typed, where the eye is
+    $("unit").textContent = !p ? "" : p.kind === "sum" ? p.unit : `${p.unit}, to ${p.sf} s.f.`;
   }
   /** The line under the answer: how the last one went, and for a long one a way to its working. */
   function drawVerdict() {
@@ -267,7 +269,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
       li.append(el("span", "sm-do", stepText(s)), el("span", "sm-to", ` → ${s.to}`));
       steps.append(li);
     }
-    box.append(steps, el("p", "sm-ask", `Answer in ${p.unit}, ${askText(p)}`));
+    box.append(steps);
     return box;
   }
   function startCard() {
