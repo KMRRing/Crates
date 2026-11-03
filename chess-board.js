@@ -3,13 +3,75 @@
 // Any move that gives checkmate is accepted where the solution's move does (Lichess's rule). Pieces can be
 // dragged as well as tapped. A move made while it's the opponent's turn is a premove: it plays the instant the
 // reply lands, if it's legal then, and counts like any other move. Uses chess.js for the rules and the cburnett
-// pieces.
+// pieces. Both boards can be drawn a second time in 3D (gambit-3d.js, when the page asks for it with opts.view "3d"): the
+// rules of touch below are the same for both drawings, which differ only in where a finger is read to be (the scene's `local`).
 import { Chess } from "./vendor/chess.js";
 import { PIECES } from "./chess-pieces.js";
+import { waitMark } from "./loading.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const FILES = "abcdefgh";
 const el = (tag, attrs = {}) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
+
+// ---------- the 3D drawing (gambit-3d.js): loaded the first time it's wanted, kept for the page, let go when the flat board is chosen ----------
+const three = { load: null, scene: null, host: null, active: null, failed: false };    // active: the touch rules of the mount drawing in it now
+const loadScene = () => (three.load ||= import("./gambit-3d.js").catch(err => { three.load = null; throw err; }));
+function dropScene() { three.scene?.dispose(); three.scene = three.host = null; }
+/** Holds the 3D scene still (the menu is open) or lets it go on. */
+export const holdScene = on => three.scene?.hold(on);
+/** The 3D scene drawing now, or null (for tests and the look). */
+export const sceneNow = () => three.scene;
+/**
+ * Where a mount draws: its flat SVG, or the 3D scene when the page asks for "3d" and the device can draw it. The scene is one for the
+ * page (a puzzle rush mounts a board for each puzzle, and a graphics context for each would be slow, and a phone has only a few), so a
+ * new mount in the same box takes it over. `touch` is the mount's rules of touch ({ grab, accept, down, move, up, cancel }), `redraw()` draws its
+ * position again, `notice(text)` says in words that 3D isn't there and `unavailable()` that it won't be (no WebGL: the page forgets the
+ * choice). While the scene loads the box shows the mark; a scene lost for good falls back to the flat board.
+ */
+function createSurface(container, svg, { view, touch, redraw, notice, unavailable }) {
+  let want = false, token = 0, dead = false;
+  const flat = () => { want = false; if (three.host === container) dropScene(); container.classList.remove("ch-3d"); container.replaceChildren(svg); };
+  const surface = {
+    /** The scene drawing for this mount, once it's ready. */
+    get scene() { return want && three.host === container ? three.scene : null; },
+    /** Wanted in 3D and not here yet. */
+    get loading() { return want && !surface.scene; },
+    /** Draws in the 3D scene ("3d") or flat (anything else). */
+    use(next, quiet = false) {
+      const on = next === "3d" && !three.failed && !dead && typeof WebGLRenderingContext !== "undefined";
+      const mine = ++token;
+      if (!on) { if (want || three.host === container || !svg.isConnected) { flat(); if (!quiet) redraw(); } return; }
+      want = true;
+      three.active = { ...touch, owner: surface, lost: () => { flat(); notice?.("3D stopped, so the flat board is back"); redraw(); } };
+      container.classList.add("ch-3d");
+      if (three.scene && three.host === container) { if (!quiet) redraw(); return; }       // the page scene, left by the last mount in this box
+      dropScene();
+      const wait = document.createElement("div");
+      wait.className = "ch3-wait";
+      wait.append(waitMark());
+      container.replaceChildren(wait);
+      loadScene().then(mod => {
+        if (mine !== token || dead) return;
+        const to = name => (...args) => three.active?.[name]?.(...args);
+        three.scene = mod.createScene(container, { grab: e => three.active?.grab(e) ?? null, accept: sq => !!three.active?.accept?.(sq), down: to("down"), move: to("move"), up: to("up"), cancel: to("cancel"), lost: to("lost") });
+        three.host = container;
+        redraw();
+      }).catch(err => {
+        if (mine !== token) return;
+        console.warn("Gambit: no 3D here, so the board is drawn flat.", err);
+        three.failed = true;
+        flat();
+        notice?.("This device can't draw the board in 3D, so it stays flat");
+        unavailable?.();
+        redraw();
+      });
+    },
+    /** This mount is done: the scene is left for the next one in the box. */
+    destroy() { dead = true; token++; if (three.active?.owner === surface) three.active = null; },
+  };
+  surface.use(view, true);
+  return surface;
+}
 
 /** The solution's moves in SAN, for notes: played out from the puzzle's start. */
 export function solutionSan(puzzle) {
@@ -19,25 +81,38 @@ export function solutionSan(puzzle) {
 
 /**
  * Mounts a puzzle board in `container`. opts: { onDone(solved), interactive, revealSolution, startStep (the moves
- * already made, to pick a puzzle up part-way), onStep(step) (after every move, either side's) }. Returns
- * { destroy(), stop() }. The board plays the opponent's first move after a beat, then waits for taps.
+ * already made, to pick a puzzle up part-way), onStep(step) (after every move, either side's), view ("3d" to draw in
+ * gambit-3d.js; anything else is the flat board), onNotice(text) and onUnavailable() (3D can't be had) }. Returns
+ * { destroy(), stop(), setView(view) }. The board plays the opponent's first move after a beat, then waits for taps.
  */
 export function mountPuzzle(container, puzzle, opts = {}) {
   const chess = new Chess(puzzle.fen);
   const solver = chess.turn() === "w" ? "b" : "w";                 // the opponent moves first
   let step = 0;                                                      // index into puzzle.moves
   let selected = null, done = false, last = null, want = null, premove = null, drag = null;   // want: the square the wanted move goes to, after a miss
+  let wanted = null, surf = null;                                    // wanted: that move, which the 3D board plays out; surf: where this draws
   const timers = [];
   const later = (fn, ms) => timers.push(setTimeout(fn, ms));
   const svg = el("svg", { viewBox: "0 0 8 8", class: "ch-board" });
-  container.replaceChildren(svg);
 
   const uci = m => m.from + m.to + (m.promotion || "");
   const squareAt = (file, rank) => FILES[file] + (rank + 1);
   // screen coordinates: the solver's side at the bottom
   const xy = sq => { const f = FILES.indexOf(sq[0]), r = Number(sq[1]) - 1; return solver === "w" ? [f, 7 - r] : [7 - f, r]; };
 
+  /** What the 3D scene is told: the same position and marks the flat drawing makes; after a miss, the move that was wanted is played out. */
+  function model() {
+    const shown = wanted ? new Chess(chess.fen()) : chess;
+    if (wanted) shown.move({ from: wanted.slice(0, 2), to: wanted.slice(2, 4), promotion: wanted[4] });
+    const pieces = {};
+    for (const row of shown.board()) for (const p of row) if (p) pieces[p.square] = p.color + p.type.toUpperCase();
+    const legal = selected ? chess.moves({ square: selected, verbose: true }) : [];
+    return { white: solver === "w", pieces, last, selected, targets: legal.map(m => ({ to: m.to, capture: !!chess.get(m.to) })), check: !wanted && chess.inCheck() ? kingSquare(chess.turn()) : null,
+      arrows: [], pre: premove, want, held: drag?.moved ? { from: drag.from, x: drag.x, y: drag.y } : null, promo: null };
+  }
   function draw() {
+    if (surf?.scene) { surf.scene.draw(model()); return; }
+    if (surf?.loading) return;
     svg.replaceChildren();
     const legal = selected ? chess.moves({ square: selected, verbose: true }) : [];
     // the squares, then translucent highlights over them (last move, selection, premove, the wanted move), then
@@ -125,46 +200,48 @@ export function mountPuzzle(container, puzzle, opts = {}) {
   function solutionMates() { const t = new Chess(chess.fen()); const m = puzzle.moves[step]; t.move({ from: m.slice(0, 2), to: m.slice(2, 4), promotion: m[4] }); return t.isCheckmate(); }
   function fail(mv) {
     // show the wrong move, then the move that was wanted
-    const wanted = puzzle.moves[step];
+    const right = puzzle.moves[step];
     last = { from: mv.from, to: mv.to };
     want = null;
     draw();
-    later(() => { want = wanted.slice(2, 4); last = { from: wanted.slice(0, 2), to: wanted.slice(2, 4) }; draw(); }, 500);
+    later(() => { want = right.slice(2, 4); last = { from: right.slice(0, 2), to: right.slice(2, 4) }; wanted = right; draw(); }, 500);
     finish(false);
   }
   function finish(solved) { if (done) return; done = true; selected = null; premove = null; draw(); opts.onDone?.(solved); }
 
-  // taps and drags, from the board's own pointer events: squares from the pointer's position
-  const squareOf = e => {
-    const r = svg.getBoundingClientRect();
-    const bx = (e.clientX - r.left) / r.width * 8, by = (e.clientY - r.top) / r.height * 8;
+  // taps and drags, from the board's own pointer events (or the 3D scene's, which calls the same rules): squares from the pointer's position.
+  // `reach` is a man in hand (in 3D it hangs above the board, so the square under it is where it is over, not where the finger's ray lands)
+  const squareOf = (e, reach = false) => {
+    let bx, by;
+    if (surf?.scene) [bx, by] = surf.scene.local(e, reach);
+    else { const r = svg.getBoundingClientRect(); bx = (e.clientX - r.left) / r.width * 8; by = (e.clientY - r.top) / r.height * 8; }
     if (bx < 0 || by < 0 || bx >= 8 || by >= 8) return { sq: null, bx, by };
     const col = Math.floor(bx), row = Math.floor(by);
     const f = solver === "w" ? col : 7 - col, rank = solver === "w" ? 7 - row : row;
     return { sq: squareAt(f, rank), bx, by };
   };
   let press = null;
-  svg.addEventListener("pointerdown", e => {
+  function down(e) {
     if (done || !opts.interactive) return;
     const { sq, bx, by } = squareOf(e);
     if (!sq) return;
-    press = { sq, x: e.clientX, y: e.clientY, id: e.pointerId };
-    try { svg.setPointerCapture(e.pointerId); } catch { /* synthetic */ }
+    press = { sq, x: e.clientX, y: e.clientY, id: e.pointerId, was: selected };
+    if (!surf?.scene) { try { svg.setPointerCapture(e.pointerId); } catch { /* synthetic */ } }
     const piece = chess.get(sq);
     if (piece && piece.color === solver) { drag = { from: sq, x: bx, y: by, moved: false }; selected = sq; draw(); }
-    e.preventDefault();
-  });
-  svg.addEventListener("pointermove", e => {
+    e.preventDefault?.();
+  }
+  function move(e) {
     if (!drag || !press || e.pointerId !== press.id) return;
-    const { bx, by } = squareOf(e);
+    const { bx, by } = squareOf(e, true);
     drag.x = Math.max(0, Math.min(8, bx)); drag.y = Math.max(0, Math.min(8, by));
     if (Math.hypot(e.clientX - press.x, e.clientY - press.y) > 6) drag.moved = true;
     draw();
-  });
-  const release = e => {
+  }
+  function release(e) {
     if (!press || e.pointerId !== press.id) return;
-    const { sq } = squareOf(e);
-    const from = drag?.from, moved = drag?.moved;
+    const { sq } = squareOf(e, !!drag?.moved);
+    const from = drag?.from, moved = drag?.moved, pressed = press;
     drag = null;
     press = null;
     if (from && moved) {                                              // a drag: drop on a square
@@ -172,11 +249,24 @@ export function mountPuzzle(container, puzzle, opts = {}) {
       else draw();
       return;
     }
-    if (sq) tapAt(sq);                                                // a tap
-    else draw();
-  };
+    if (sq) {                                                         // a tap; in 3D the picked man hides the square behind it, which may be where it goes
+      const behind = surf?.scene && sq === selected && pressed.was === sq ? squareOf(e, "plane").sq : null;
+      tapAt(behind && behind !== sq && chess.moves({ square: selected, verbose: true }).some(m => m.to === behind) ? behind : sq);
+    } else draw();
+  }
+  function cancel() { drag = null; press = null; draw(); }
+  svg.addEventListener("pointerdown", down);
+  svg.addEventListener("pointermove", move);
   svg.addEventListener("pointerup", release);
-  svg.addEventListener("pointercancel", () => { drag = null; press = null; draw(); });
+  svg.addEventListener("pointercancel", cancel);
+  /** What a press means before any move: a man of the solver's to carry ("piece"), a tap that'd move or premove what's picked, or nothing (3D lets a finger turn the camera then). */
+  const grab = e => {
+    if (done || !opts.interactive) return null;
+    const { sq } = squareOf(e), piece = sq && chess.get(sq);
+    return piece && piece.color === solver ? "piece" : selected || premove ? "tap" : null;
+  };
+  /** A man a finger touching several would want: one of the solver's, or one the picked man may go to (a man in front hides the one behind it). */
+  const accept = sq => chess.get(sq)?.color === solver || (!!selected && chess.moves({ square: selected, verbose: true }).some(m => m.to === sq));
   /** A tap on a square: the second tap of a pair moves; a press on an own piece (already selected on the way down) stays selected. */
   function tapAt(sq) {
     const piece = chess.get(sq);
@@ -185,6 +275,7 @@ export function mountPuzzle(container, puzzle, opts = {}) {
     selected = null; draw();
   }
 
+  surf = createSurface(container, svg, { view: opts.view, touch: { grab, accept, down, move, up: release, cancel }, redraw: draw, notice: opts.onNotice, unavailable: opts.onUnavailable });
   draw();
   // the opponent's move comes after a beat so the position registers first; a revealed board shows the whole line; a
   // puzzle picked up part-way (opts.startStep: a run after a reload, or as a partner watching sees it) replays the moves
@@ -199,9 +290,11 @@ export function mountPuzzle(container, puzzle, opts = {}) {
     if (step % 2 === 0) later(reply, opts.replyMs ?? 350);           // the opponent's moves are the even ones
   } else later(reply, opts.firstMs ?? 500);
   return {
-    destroy() { timers.forEach(clearTimeout); },
+    destroy() { timers.forEach(clearTimeout); surf.destroy(); },
     /** No more moves (the run's time ran out): the board stays as it stands. */
     stop() { timers.forEach(clearTimeout); done = true; selected = null; premove = null; drag = null; draw(); },
+    /** Draws flat ("board") or in 3D ("3d") from now on. */
+    setView(next) { surf.use(next); },
     get solver() { return solver; },
   };
 }
@@ -212,20 +305,33 @@ export function mountPuzzle(container, puzzle, opts = {}) {
  * knight, in a column over the square). onMove(uci) gets a move made by hand ("e2e4", "e7e8n"). Returns { draw(view) }:
  * view is { fen, white (White at the bottom), moves (the legal moves the hand may make now, chess.js's verbose moves; none
  * when it isn't the hand's turn), last ({ from, to }), arrows ([{ from, to, bad }]: moves to show, the coach's in its
- * green, a move it faults in oxblood), check (the square of a king in check), slide (the last move slides in) }.
- * Puzzles keep mountPuzzle above.
+ * green, a move it faults in oxblood), check (the square of a king in check), slide (the last move slides in) }, and
+ * setView("3d" | "board") to draw in 3D or flat (opts view, onNotice and onUnavailable are mountPuzzle's). Puzzles keep mountPuzzle above.
  */
-export function mountBoard(container, { onMove }) {
+export function mountBoard(container, { onMove, view: wantedView, onNotice, onUnavailable }) {
   const svg = el("svg", { viewBox: "0 0 8 8", class: "ch-board ch-game" });
-  container.replaceChildren(svg);
-  let view = null, selected = null, drag = null, press = null, promo = null;
+  let view = null, selected = null, drag = null, press = null, promo = null, surf = null;
   const xy = sq => { const f = FILES.indexOf(sq[0]), r = Number(sq[1]) - 1; return view.white ? [f, 7 - r] : [7 - f, r]; };
   const squareAt = (bx, by) => {
     if (bx < 0 || by < 0 || bx >= 8 || by >= 8) return null;
     const col = Math.floor(bx), row = Math.floor(by);
     return view.white ? FILES[col] + (8 - row) : FILES[7 - col] + (row + 1);
   };
-  const local = e => { const r = svg.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * 8, (e.clientY - r.top) / r.height * 8]; };
+  // the board's coordinates (0..8 across and down) under a pointer; in 3D the scene reads them off its camera (`reach`: a man in hand)
+  const local = (e, reach = false) => {
+    if (surf?.scene) return surf.scene.local(e, reach);
+    const r = svg.getBoundingClientRect();
+    return [(e.clientX - r.left) / r.width * 8, (e.clientY - r.top) / r.height * 8];
+  };
+  /**
+   * The four squares the choices stand on. Flat: a column from the pawn's own square inward. In 3D, where a man in front hides the one
+   * behind it, a row across the middle of the board, side by side and as near as the board's middle (the same for either side).
+   */
+  const promoSquares = () => {
+    if (surf.scene) return [2, 3, 4, 5].map(col => squareAt(col + 0.5, 4.5));
+    const rank = Number(promo.to[1]), inward = rank === 8 ? -1 : 1;
+    return [0, 1, 2, 3].map(i => promo.to[0] + (rank + i * inward));
+  };
   const boardOf = fen => {
     const out = {}, rows = fen.split(" ")[0].split("/");
     rows.forEach((row, k) => { let f = 0; for (const ch of row) { if (/\d/.test(ch)) { f += Number(ch); continue; } out[FILES[f++] + (8 - k)] = (ch === ch.toUpperCase() ? "w" : "b") + ch.toUpperCase(); } });
@@ -239,9 +345,18 @@ export function mountBoard(container, { onMove }) {
     return g;
   };
 
+  /** What the 3D scene is told: the position and the marks the flat drawing makes. */
+  function model() {
+    const pieces = boardOf(view.fen), seen = new Set(), targets = [];
+    for (const m of selected ? targetsOf(selected) : []) if (!seen.has(m.to)) { seen.add(m.to); targets.push({ to: m.to, capture: !!pieces[m.to] }); }
+    return { white: view.white, pieces, last: view.last, selected, targets, check: view.check, arrows: view.arrows || [], pre: null, want: null,
+      held: drag?.moved ? { from: drag.from, x: drag.x, y: drag.y } : null, promo: promo ? { colour: promo.colour, squares: promoSquares(), choices: ["q", "r", "b", "n"] } : null };
+  }
   function draw(next) {
     if (next) view = next;
     if (!view) return;
+    if (surf.scene) { surf.scene.draw(model()); return; }
+    if (surf.loading) return;
     const board = boardOf(view.fen), last = view.last, legal = selected ? targetsOf(selected) : [];
     svg.replaceChildren();
     for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
@@ -305,46 +420,68 @@ export function mountBoard(container, { onMove }) {
     selected = sq && targetsOf(sq).length && selected !== sq ? sq : null;
     draw();
   }
-  svg.addEventListener("pointerdown", e => {
+  // taps and drags: the board's own pointer events, or the 3D scene's, which calls the same rules
+  function down(e) {
     if (!view || e.button > 0) return;
     const [bx, by] = local(e);
     if (promo) {                                                  // a piece chosen for the pawn, or the choice put away
-      const [x, y] = xy(promo.to), col = Math.floor(bx), row = Math.floor(by), down = y === 0 ? 1 : -1, i = (row - y) * down;
-      const p = col === x && i >= 0 && i < 4 ? ["q", "r", "b", "n"][i] : null, chosen = promo;
+      const sq = squareAt(bx, by), i = sq ? promoSquares().indexOf(sq) : -1, chosen = promo;
       promo = null;
-      if (p) onMove(chosen.from + chosen.to + p); else draw();
-      e.preventDefault();
+      if (i >= 0) onMove(chosen.from + chosen.to + ["q", "r", "b", "n"][i]); else draw();
+      e.preventDefault?.();
       return;
     }
     const sq = squareAt(bx, by);
     if (!sq) return;
     press = { id: e.pointerId, x: e.clientX, y: e.clientY, sq, was: selected };
-    try { svg.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
+    if (!surf.scene) { try { svg.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ } }
     if (targetsOf(sq).length) { drag = { from: sq, x: bx, y: by, moved: false }; if (selected !== sq) { selected = sq; draw(); } }
-    e.preventDefault();
-  });
-  svg.addEventListener("pointermove", e => {
+    e.preventDefault?.();
+  }
+  function move(e) {
     if (!drag || !press || e.pointerId !== press.id) return;
-    const [bx, by] = local(e);
+    const [bx, by] = local(e, true);
     drag.x = Math.max(0, Math.min(8, bx)); drag.y = Math.max(0, Math.min(8, by));
     if (!drag.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 6) drag.moved = true;
     if (drag.moved) draw();
-  });
-  const release = e => {
+  }
+  function release(e) {
     if (!press || e.pointerId !== press.id) return;
     const was = drag, start = press;
     drag = null; press = null;
-    const sq = squareAt(...local(e));
+    const sq = squareAt(...local(e, !!was?.moved));
     if (was?.moved) { if (!(sq && sq !== was.from && attempt(was.from, sq))) draw(); return; }
     if (!sq) { draw(); return; }
-    if (was && sq === start.sq) { if (start.was === sq) selected = null; draw(); return; }   // a second tap on a picked piece puts it down
+    if (was && sq === start.sq) {                                  // a second tap on a picked piece puts it down
+      if (start.was === sq) {
+        const behind = surf.scene ? squareAt(...local(e, "plane")) : null;       // 3D: the man hides the square behind it, which may be where it goes
+        if (behind && behind !== sq && attempt(sq, behind)) return;
+        selected = null;
+      }
+      draw();
+      return;
+    }
     tapAt(sq);
-  };
+  }
+  function cancel() { drag = null; press = null; draw(); }
+  svg.addEventListener("pointerdown", down);
+  svg.addEventListener("pointermove", move);
   svg.addEventListener("pointerup", release);
-  svg.addEventListener("pointercancel", () => { drag = null; press = null; draw(); });
+  svg.addEventListener("pointercancel", cancel);
+  /** What a press means before any move: a piece to carry, the promotion's choice, a tap that would move what's picked, or nothing (3D lets a finger turn the camera then). */
+  const grab = e => {
+    if (!view) return null;
+    if (promo) return "promo";
+    const sq = squareAt(...local(e));
+    return sq && targetsOf(sq).length ? "piece" : sq && selected && targetsOf(selected).some(m => m.to === sq) ? "tap" : null;
+  };
 
+  const accept = sq => !promo && (targetsOf(sq).length > 0 || (!!selected && targetsOf(selected).some(m => m.to === sq)));      // see mountPuzzle's
+  surf = createSurface(container, svg, { view: wantedView, touch: { grab, accept, down, move, up: release, cancel }, redraw: draw, notice: onNotice, unavailable: onUnavailable });
   return {
     draw(next) { if (!next.moves?.length || next.fen !== view?.fen) { selected = null; promo = null; } draw(next); },
+    /** Draws flat ("board") or in 3D ("3d") from now on. */
+    setView(next) { surf.use(next); },
   };
 }
 const uciOf = m => m.from + m.to + (m.promotion || "");

@@ -5,7 +5,9 @@
 // them and kept on the device; the board is chess-board.js. Together, a puzzle battle (duel.js). It's a page of its own
 // under Gambit's header, not a part of gambit.html, so it keeps the identity it had as a game (rush): its keys (rush:),
 // what your partner sees you playing, and the battle's requests and Party's.
-import { mountPuzzle, solutionSan } from "./chess-board.js";
+import { mountPuzzle, solutionSan, holdScene } from "./chess-board.js";
+import { getView, setView, viewChoice } from "./gambit-view.js";
+import { sure } from "./sure.js";
 import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -119,7 +121,8 @@ function mount(p, step = 0) {
   say(S.warming ? `${sideOf(p)} to move. Solve this one to start the clock.` : `${sideOf(p)} to move`);
   $("meta").textContent = "";
   board?.destroy();
-  board = mountPuzzle($("board"), p, { interactive: !IN_FRAME && !S.over, replyMs: 300, firstMs: 450, startStep: step, onStep: keepRun, onDone: solved => settle(p, solved) });
+  board = mountPuzzle($("board"), p, { interactive: !IN_FRAME && !S.over, replyMs: 300, firstMs: 450, startStep: step, onStep: keepRun, onDone: solved => settle(p, solved),
+    view: getView(), onNotice: msg => toast(msg), onUnavailable: () => setView("board") });
   keepRun(step);
 }
 const metaOf = p => `Rated ${n0(p.rating)}${p.themes.length ? ` · ${p.themes.join(", ")}` : ""}`;
@@ -286,9 +289,9 @@ function drawBar() {
   if (!S || S.over) button(S ? "Again" : "Start", () => start());
 }
 /** Back to Gambit's game: a timed run under way ends (you're asked first); one without a clock waits for next time. */
-function backToGame() {
+async function backToGame() {
   if (S && !S.over && S.started != null && MODES[S.mode].ms) {
-    if (!confirm("End this run and go back to the game?")) return;
+    if (!(await sure("End this run and go back to the game?", { yes: "End run" }))) return;
     finish("time", true);
   }
   location.href = "gambit.html";
@@ -296,6 +299,7 @@ function backToGame() {
 // Gambit's Coordinates on the board: one setting for its game and its rush
 const coordsOn = () => read(GAMBIT_OPTS, {})?.coords !== false;
 const applyCoords = () => $("board").classList.toggle("ch-plain", !coordsOn());
+const viewSetting = () => viewChoice(v => board?.setView(v));
 const coordsToggle = () => toggle("Coordinates on the board", coordsOn(), on => { write(GAMBIT_OPTS, { ...read(GAMBIT_OPTS, {}), coords: on }); applyCoords(); });
 
 // ---------- a puzzle battle: the same puzzles for everyone at the table (duel.js) ----------
@@ -397,7 +401,7 @@ function openMenu() {
       battleMode = v;
       if (!duel.newMatch()) battleMode = was;
     }));
-    part(body, "settings").append(coordsToggle());
+    part(body, "settings").append(...(IN_FRAME ? [] : [viewSetting()]), coordsToggle());
     part(body, "about").append(line(ratingText(rating)));
   } else {
     pick ??= { ...next };
@@ -406,7 +410,7 @@ function openMenu() {
       rating, resetRating: () => { rating.r = 1000; rating.n = 0; write(RATING, rating); drawHud(); },
       bests: read(BEST, {}), daily: read(DAILY, {}), day: today(), inFrame: IN_FRAME,
     });
-    part(body, "settings").append(coordsToggle());
+    part(body, "settings").append(...(IN_FRAME ? [] : [viewSetting()]), coordsToggle());
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -419,8 +423,8 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 // the menu stops a run's clock: its start moves on by however long the menu was open
 let held = false;
-onPause(() => { if (S && !S.over && S.started != null && !S.duel) { clearInterval(tick); held = true; } },
-  ms => { if (!held) return; held = false; if (S && !S.over && S.started != null) { S.started += ms; if (S.puzzleAt != null) S.puzzleAt += ms; tick = setInterval(clock, 250); clock(); } });
+onPause(() => { holdScene(true); if (S && !S.over && S.started != null && !S.duel) { clearInterval(tick); held = true; } },
+  ms => { holdScene(false); if (!held) return; held = false; if (S && !S.over && S.started != null) { S.started += ms; if (S.puzzleAt != null) S.puzzleAt += ms; tick = setInterval(clock, 250); clock(); } });
 // a timed run can't be paused; a battle's clock runs on while the phone is put down, and the table is fetched afresh
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && !IN_FRAME && S && !S.over && S.started != null && MODES[S.mode].ms && !S.duel) finish("time");
