@@ -18,6 +18,31 @@ export function borderline(t) {
   return false;
 }
 
+// ---- the marks on kb/'s entities and items (kb/audit/marks.js, kb/audit/levels.js) ----
+import { ENTITY } from "../kb/audit/marks.js";
+import { LEVEL, QUOTE_CAT, AUDIENCE_MARK, WHOAMI_LIVING } from "../kb/audit/levels.js";
+const LIVING_OWN = new Set(WHOAMI_LIVING);
+/** A living person off the short list of the globally famous (an entity marked l, or one of Who am I?'s own). */
+export const isLiving = id => ENTITY[id] === "l" || LIVING_OWN.has(id);
+const RANK = { u: 0, r: 1, s: 2, p: 3, l: 3 };
+/** The worst of some marks (a missing one puts no limit): an item is as universal as its least universal part. */
+export const worst = (...ms) => ms.reduce((a, b) => (b && RANK[b] > RANK[a] ? b : a), "u");
+/** What each build deals: the public one (CI, the published app) only the universal; `regional` adds the regional; `personal`
+ *  everything kb/ holds (the build `node tools/build-kb.mjs --personal`). */
+export const LEVELS = { public: new Set(["u"]), regional: new Set(["u", "r"]), personal: new Set(["u", "r", "s", "p", "l"]) };
+export const entityMark = id => ENTITY[id];
+/** A Punt question: its level's mark and the mark of the first entity it is about (its subject). */
+export function choiceMark(bank, q) {
+  const lv = LEVEL[bank]; const level = lv?.[q.lv] ?? lv?.["*"];
+  // a quotation is asked as famous as its work and its author (about = [the line, the work, the author]); other items by their subject, the first
+  const ids = bank === "lit" ? q.about?.slice(1) : q.about?.slice(0, 1);
+  return worst(level, ...(ids?.length ? ids : [null]).map(id => (id ? ENTITY[id] ?? "s" : "u")));
+}
+/** A Quote estimate: its audience, its category, and the entity it is about. */
+export const estimateMark = q => worst(AUDIENCE_MARK[q.audience] ?? "s", QUOTE_CAT[q.cat], q.about ? ENTITY[q.about] ?? "s" : "u");
+/** A Chart pin or feature: the entity it is about. */
+export const pinMark = p => ENTITY[p.about] ?? "s";
+
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { TOPICS } = await import("../kb/audit/curriculum.js");
   const by = {};

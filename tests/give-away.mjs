@@ -2,7 +2,10 @@
 // "if the answer is a word that is in the question … just skip these questions"): "Where does the Hannover Messe take
 // place?" → Hannover. The matcher, and every bank built from kb/ clear of such questions.
 import { givesAway, mentions } from "../give-away.js";
-import { CHOICE_BANKS } from "../tools/build-kb.mjs";
+import { CHOICE_BANKS, build } from "../tools/build-kb.mjs";
+// judged on everything kb/ holds (the personal build): the published banks deal only the universal part of it
+const full = await build({ level: "personal" });
+const load = async f => ({ MATHS: full.choice[f.replace("-bank.js", "")].MATHS });
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -24,7 +27,7 @@ check(!givesAway({}) && !givesAway(null) && !givesAway(item("q", ["a", "b"], [])
 // the banks as built
 let left = 0, total = 0;
 for (const b of CHOICE_BANKS) {
-  const { MATHS } = await import(`../${b}-bank.js`);
+  const { MATHS } = await load(`${b}-bank.js`);
   total += MATHS.length;
   for (const q of MATHS) if (givesAway(q)) { left++; console.log(`  ${b}: ${q.q.slice(0, 90)} → ${q.a.map(i => q.o[i]).join(" / ")}`); }
 }

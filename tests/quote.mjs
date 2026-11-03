@@ -1,8 +1,10 @@
 // Quote: the bank is sound, sets are deterministic and spread across categories, and settling a market behaves.
 const E = await import("../quote-engine.js");
-const { QUOTES, CATS } = await import("../quote-bank.js");
+const { QUOTES: DEALT_QUOTES, CATS } = await import("../quote-bank.js");
+const QUOTES = (await (await import("../tools/build-kb.mjs")).build({ level: "personal" })).quote.QUOTES;   // the engine is tried on everything kb/ holds; the published bank is its universal part
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
+check(DEALT_QUOTES.length >= 300 && new Set(DEALT_QUOTES.map(q => q.cat)).size >= 4, `the published bank deals ${DEALT_QUOTES.length} questions in ${new Set(DEALT_QUOTES.map(q => q.cat)).size} categories (the universal ones: docs/the-knowledge-base.md)`);
 
 // the bank
 const ids = new Set(QUOTES.map(q => q.id));

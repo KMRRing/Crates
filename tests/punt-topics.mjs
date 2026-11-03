@@ -45,7 +45,7 @@ const stem = P.topicsOf(subjects("stem")), stemIds = P.TOPIC_LIST.map(([id]) => 
 check(["maths", "physics", "chemistry", "code", "refining", "reasoning", "patterns"].every(id => stem[id] === 2) && !stemIds.some(id => ["art", "wine", "skiing", "watches", "words"].includes(id)),
   `STEM on: ${stemIds.join(", ")}; no art, wine, words…`);
 const stemRun = dealt(stem, 31, 100);
-check(stemRun.length === 100 && stemRun.every(q => stemIds.includes(q.src)) && new Set(stemRun.map(q => q.src)).size === stemIds.length, "a STEM run deals only those topics, and every one of them");
+check(stemRun.length === 100 && stemRun.every(q => stemIds.includes(q.src)) && new Set(stemRun.map(q => q.src)).size === stemIds.filter(id => id !== "refining").length, "a STEM run deals only those topics, and every one of them (refining has no universal questions: it is the personal build's)");
 const culture = P.topicsOf(subjects("culture"));
 check(culture.art === 2 && culture.wine === 2 && culture.skiing === 1 && culture.watches === 1 && culture.maths === 0 && culture.physics === 0 && culture.commodities === 0,
   "Culture on: art, wine, the specialist banks at their own weight (skiing, watches once); no maths, physics or commodities");

@@ -12,7 +12,8 @@ import { partyTable } from "./party-harness.js";
 import { gameById, mergeShown, shownOf, recall } from "../party-core.js";
 import whoami, { cribOf, needed, poolOf, WRITE, MIXED } from "../party-whoami.js";
 import { DECKS, WHO } from "../party-whoami-bank.js";
-import { PEOPLE } from "../kb/items/whoami.js";
+import { PEOPLE as EVERYONE } from "../kb/items/whoami.js";
+import { isLiving } from "../tools/audit-lib.mjs";
 import { ENTITIES } from "../kb/entities.js";
 
 let bad = 0;
@@ -27,7 +28,7 @@ check(all.every(id => WHO[id]) && new Set(rest).size === rest.length && rest.eve
   `${all.length} identities, each in one deck but the people marked for both`);
 
 // ---------- the people ----------
-const idOf = p => [p.kb ?? p.id].flat()[0], mark = new Map(PEOPLE.map(p => [idOf(p), p.for]));
+const idOf = p => [p.kb ?? p.id].flat()[0], PEOPLE = EVERYONE.filter(p => !isLiving(idOf(p))), mark = new Map(PEOPLE.map(p => [idOf(p), p.for]));
 check(famous === DECKS[0] && [...mark].every(([id, m]) => famous.ids.includes(id) === (m !== "learning") && learn.ids.includes(id) === (m !== "party"))
   && famous.ids.length + learn.ids.length === [...mark.values()].reduce((n, m) => n + (m === "both" ? 2 : 1), 0),
   `the people dealt by their mark: Famous people (${famous.ids.length}) those for the party, People worth knowing (${learn.ids.length}) those for learning, both in both`);
@@ -189,7 +190,7 @@ check(mergeShown(["a", "b", "c"], ["b", "d"]).join() === "a,c,b,d" && mergeShown
   check(shownOf(t.branch, "whoami").join() === seen.join(), "the party keeps what it was shown, oldest first, rerolled cards with the rest");
   // a phone that was at other parties brings what it was shown there, as party.js does: none of that is dealt either,
   // and it takes home what this party showed
-  const before = shownOf(t.branch, "whoami"), mine = { whoami: famous.ids.filter(id => !before.includes(id)).slice(0, 150) };
+  const before = shownOf(t.branch, "whoami"), mine = { whoami: famous.ids.filter(id => !before.includes(id)).slice(0, famous.ids.length - 25 - 10) };   // the deck has fewer famous people since the living were left out
   const { missing } = recall(mine, t.branch);
   check(missing.join() === "whoami" && recall({ whoami: before.slice(0, 5) }, t.branch).missing.length === 0, "a phone knows what it remembers that the party doesn't");
   await t.seats[2].act(b => { b.shown ||= {}; for (const id of missing) b.shown[id] = mergeShown(mine[id], shownOf(b, id)); });
@@ -197,7 +198,7 @@ check(mergeShown(["a", "b", "c"], ["b", "d"]).join() === "a,c,b,d" && mergeShown
   await t.start("whoami", { deck: "people" });
   const fresh = famous.ids.filter(id => !before.includes(id) && !mine.whoami.includes(id)), { home } = recall(mine, t.branch);
   check(used(t).every(id => fresh.includes(id)), `what a phone brought from other parties isn't dealt either: the four from the ${fresh.length} nobody there has seen`);
-  check(home.whoami.length === 150 + 25 + 4 && used(t).every(id => home.whoami.slice(-4).includes(id)), "and the phone takes home all the party showed, the newest last");
+  check(home.whoami.length === mine.whoami.length + 25 + 4 && used(t).every(id => home.whoami.slice(-4).includes(id)), "and the phone takes home all the party showed, the newest last");
   await t.end();
 }
 {

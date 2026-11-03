@@ -13,7 +13,7 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 
 // ---------- the questions ----------
-check(SAYINGS.length >= 300 && NUMBERS.length >= 500 && FACTS.length >= 60, `${SAYINGS.length} sayings, ${NUMBERS.length} numbers, ${FACTS.length} odd facts`);
+check(SAYINGS.length >= 300 && NUMBERS.length >= 200 && FACTS.length >= 60, `${SAYINGS.length} sayings, ${NUMBERS.length} numbers, ${FACTS.length} odd facts`);
 for (const [kind, deck] of Object.entries(DECKS)) {
   const ids = new Set(deck.map(x => x.id));
   check(ids.size === deck.length, `${kind}: every question once`);

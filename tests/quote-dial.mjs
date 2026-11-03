@@ -3,7 +3,7 @@
 // one ruler), that a place on it and a value are the same thing both ways, and that the page has it wired in.
 // Run: node tests/quote-dial.mjs
 import fs from "node:fs";
-const { QUOTES } = await import("../quote-bank.js");
+const QUOTES = (await (await import("../tools/build-kb.mjs")).build({ level: "personal" })).quote.QUOTES;   // the engine is tried on everything kb/ holds; the published bank is its universal part
 const { axisOf, posOf, offOf, valueAt, labelOf, TAP_WIDTH, DECADES } = await import("../quote-dial.js");
 const { fault, floorOf, settle, widthOf } = await import("../quote-engine.js");
 let bad = 0;

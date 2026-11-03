@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { givesAway } from "../give-away.js";
+import { LEVELS, choiceMark, estimateMark, pinMark, isLiving } from "./audit-lib.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings", "law"];
@@ -14,16 +15,17 @@ export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs"
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   pics: "pics-list.js", whoami: "party-whoami-bank.js", decoy: "party-decoy-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
 
-/** The audiences Quote deals to (kb/items/estimates.js, "who may be asked"): 1 general, 2 domain (a player who chose the
- *  subject). A 3 is too niche for a general audience and stays in kb/ and in RETIRED (so a saved run or a table can still
- *  show it) but is never dealt: [1] alone is the strict rule. */
-export const DEALT = new Set([1, 2]);
+/** What the build deals (tools/audit-lib.mjs, docs/the-knowledge-base.md "Who the games ask about"): `public`, the default CI and the
+ *  published app use, deals only what is marked universal; kb/ keeps everything, so `--personal` (or `--regional`) builds the
+ *  larger banks. A thing not dealt is in the bank's RETIRED list where it has one (Quote's, so a saved run still shows it). */
+export const DEALT = LEVELS.public;
 const load = f => import(`${pathToFileURL(path.join(root, "kb", f)).href}?t=${Date.now()}`);
 /** An object without its undefined fields. */
 const defined = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
 
 /** The banks as kb/ makes them, in memory: { crates (base64), chart, geo, quote, choice: { bank: { STAGES, MATHS } } }. */
-export async function build() {
+export async function build({ level = "public" } = {}) {
+  const dealt = LEVELS[level];
   const [{ ENTITIES }, { LINKS }, { GEOMETRY }, pins, estimates] = await Promise.all(
     ["entities.js", "links.js", "geometry.js", "items/pins.js", "items/estimates.js"].map(load));
   const E = new Map(ENTITIES.map(e => [e.id, e]));
@@ -42,11 +44,11 @@ export async function build() {
   const gen = written(ENTITIES, LINKS, E, await load("items/choice/art.js").then(m => m.ITEMS), estimates.ESTIMATES, pins.PINS,
     await load("items/choice/law.js").then(m => m.STAGES), await load("measures.js").then(m => m.MEASURES));
   // Chart: each pin shows its entity, with the pin's own overrides
-  const PLACES = [...pins.PINS, ...gen.pins].map(({ id, cat, about, ...over }) => {
+  const PLACES = [...pins.PINS, ...gen.pins].filter(p => dealt.has(pinMark(p))).map(({ id, cat, about, ...over }) => {
     const { name, lat, lon, note, country, region, pic, state, marks } = of(about);
     return defined({ id, cat, name, lat, lon, note, country, region, state, marks, pic, ...over, about });
   });
-  const GEO = pins.FEATURES.map(({ id, about, ...over }) => {
+  const GEO = pins.FEATURES.filter(p => dealt.has(pinMark(p))).map(({ id, about, ...over }) => {
     const { name, kind, region, country, note, lat, lon } = of(about);
     return defined({ id, name, kind, region, country, note, lat, lon, ...over, about, ...GEOMETRY[about] });
   });
@@ -63,7 +65,7 @@ export async function build() {
     return defined({ ...q, truth: q.truth ?? e[fact], pic, title: pic && pic === e.pic ? titleOf(e) : undefined });
   });
   // what Quote deals, and what it keeps only to show a run or a table that already has it
-  const QUOTES = ALL.filter(q => DEALT.has(q.audience)), RETIRED = ALL.filter(q => !DEALT.has(q.audience));
+  const QUOTES = ALL.filter(q => dealt.has(estimateMark(q))), RETIRED = ALL.filter(q => !dealt.has(estimateMark(q)));
 
   // Punt: the questions as written, with what they're about, and the name of a picture that's one of theirs
   const choice = {};
@@ -75,13 +77,18 @@ export async function build() {
   for (const b of CHOICE_BANKS) {
     const m = await load(`items/choice/${b}.js`);
     // a question whose right answer is a word of it is left out of the bank, not out of kb/ (give-away.js)
-    const all = [...m.ITEMS, ...(gen[b] || [])], asked = all.filter(q => !givesAway(q));
-    leaking += all.length - asked.length;
+    const all = [...m.ITEMS, ...(gen[b] || [])], asked = all.filter(q => !givesAway(q) && dealt.has(choiceMark(b, q)));
+    leaking += all.filter(q => givesAway(q)).length;
     choice[b] = { STAGES: m.STAGES, MATHS: asked.map(q => { const title = named(q); return title ? { ...q, title } : q; }) };
   }
   console.log(`${leaking} questions left out: the right answer is a word of the question`);
   const cards = await load("items/whoami.js"), decoyFacts = (await load("items/decoy.js")).FACTS;
   const who = whoami(ENTITIES, LINKS, E, cards.DECKS, cards.PEOPLE);
+  // Who am I? is party play, not curriculum: only the living off the short list of the globally famous are left out
+  if (!dealt.has("l")) {
+    for (const id of Object.keys(who.WHO)) if (isLiving(id)) delete who.WHO[id];
+    for (const d of who.DECKS) d.ids = d.ids.filter(id => who.WHO[id]);
+  }
   // every picture a game shows (Settings' "Keep pictures offline" downloads them all): the entities' own (Lexicon) and
   // every bank's (Chart's places, Quote's and Order's paintings, Punt's art, buildings and watches, Deck's reviews of
   // them, Who am I's people)
@@ -754,7 +761,8 @@ export const SUBJECT = ${JSON.stringify(out.index.SUBJECT)};\n`;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const files = await render(await build());
+  const level = process.argv.includes("--personal") ? "personal" : process.argv.includes("--regional") ? "regional" : "public";
+  const files = await render(await build({ level }));
   let changed = 0;
   for (const [f, text] of Object.entries(files)) {
     const p = path.join(root, f);

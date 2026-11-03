@@ -79,3 +79,59 @@ export const TOPICS = [
   { id: "geo.tourism", area: "geo", name: "Tourism", cells: "KKKK?KKFKK?KKFK", ib: "F" },
   { id: "geo.sustain", area: "geo", name: "Sustainability, conservation, the environment", cells: "KKKKKKKFKKKKFKK", ib: "F" },
 ];
+
+// ---- the other subject areas -----------------------------------------------------------------------------------------
+// Only geography was read system by system (above). These rows are the standing parts of the same frameworks as recalled
+// on 3 November 2026, none fetched: `not` lists the systems that do not teach the topic as far as recalled, `unsure` the
+// ones that could not be said (a `?`, no vote); every other system is a K. kb/audit/borderline.md and the report say so.
+const ALLSYS = SYSTEMS.join(" ");
+const row = (id, area, name, not = "", unsure = "", ib = "K", ex = "") => ({
+  id, area, name, ex, ib,
+  cells: SYSTEMS.map(s => (not.split(" ").includes(s) ? "-" : unsure.split(" ").includes(s) ? "?" : "K")).join(""),
+});
+export const OTHER_TOPICS = [
+  row("hist.ancient", "hist", "Ancient civilisations: Egypt, Greece, Rome, Mesopotamia, the Indus", "", "ng", "K", "pharaohs, Greek city-states, the Roman Republic and Empire"),
+  row("hist.classical", "hist", "Alexander, Caesar, Hannibal: the classical Mediterranean", "cn", "in id jp ng", "K", "Alexander the Great, Julius Caesar"),
+  row("hist.china", "hist", "Imperial China: dynasties, the Silk Road, the great inventions", "", "br ng ch eg", "K", "Qin Shi Huang, the four inventions"),
+  row("hist.exploration", "hist", "Age of Exploration: Columbus, da Gama, Magellan", "", "", "K", "Columbus, Magellan, Vasco da Gama, Cook"),
+  row("hist.revolutions", "hist", "Revolutions: French, American, Industrial", "", "ng eg", "K", "1789, 1776, steam and factories"),
+  row("hist.world-wars", "hist", "The two world wars and the Cold War", "", "", "K", "1914, 1939, 1945, 1962"),
+  row("hist.empire", "hist", "Colonialism and independence movements", "", "", "K", "the Raj, the scramble for Africa, decolonisation"),
+  row("hist.medieval", "hist", "Medieval Europe and the Islamic world", "", "ng id", "K", "feudalism, the Crusades, the Mongols"),
+  row("hist.modernstate", "hist", "20th-century leaders and movements", "", "", "K", "Gandhi, Mandela, Mao, Lenin, Hitler, Churchill"),
+  row("hist.regional-wars", "hist", "National wars and treaties of one region (Thirty Years' War, Opium Wars, Westphalia)", "", "us ng id eg au sg br ru", "K", "regional history"),
+  row("art.renaissance", "art", "Renaissance art: Leonardo, Michelangelo, Raphael", "ng", "id eg", "K", "Mona Lisa, Sistine ceiling"),
+  row("art.modern", "art", "Impressionism to modern art: Monet, Van Gogh, Picasso, Warhol", "ng", "id eg ru", "K", "named movements and masters"),
+  row("art.painters-other", "art", "Other named painters and paintings", "ng", "us cn in fr jp de br id ru eg au sg ch", "K", "the long tail"),
+  row("art.architecture", "art", "Architecture: pyramids, temples, cathedrals, the great buildings", "", "ng id", "K", "Parthenon, Colosseum, Taj Mahal"),
+  row("art.museums", "art", "Famous museums and collections", "ng id", "us cn in jp de br ru eg au sg ch", "-", "Louvre, British Museum"),
+  row("cult.literature-world", "cult", "World literature: Homer, Shakespeare, Dante, Cervantes, Tolstoy", "ng", "id eg sg au", "K", "the canon"),
+  row("cult.literature-own", "cult", "Authors and works of one language only", "", ALLSYS, "-", "regional literature"),
+  row("cult.music", "cult", "Classical composers: Bach, Mozart, Beethoven", "ng id eg", "in cn jp br ru au sg ch", "K", "the great composers"),
+  row("cult.myth-greek", "cult", "Greek and Roman myth", "ng id", "in cn jp br eg sg", "K", "Zeus, Heracles, Odysseus"),
+  row("cult.myth-other", "cult", "Norse, Egyptian and other mythologies", "cn jp ng", "us in de uk ru au sg ch br id eg", "-", "regional"),
+  row("cult.sayings", "cult", "Proverbs, sayings and quotations", "", ALLSYS, "-", "language courses"),
+  row("rel.world", "rel", "World religions: Christianity, Islam, Judaism, Hinduism, Buddhism", "cn", "fr jp ru ch sg", "K", "founders, books, practices"),
+  row("rel.philosophy", "rel", "Philosophy: Socrates, Plato, Aristotle, Kant, Confucius", "ng id", "us in jp br eg au sg", "K", "the ancients and moderns"),
+  row("sci.physics", "sci", "Physics: forces, motion, energy, electricity, waves, atoms", "", "", "K", "Newton, Faraday, Einstein"),
+  row("sci.chemistry", "sci", "Chemistry: atoms, the periodic table, reactions, organic", "", "", "K", "Mendeleev"),
+  row("sci.biology", "sci", "Biology: cells, evolution, the body, ecology", "", "", "K", "Darwin"),
+  row("sci.scientists", "sci", "Famous scientists and discoverers", "", "ng eg id", "K", "Einstein, Curie, Newton, Galileo"),
+  row("sci.cs", "sci", "Computing: algorithms, programming, networks", "", "ng eg id", "K", "binary, sorting, the web"),
+  row("math.core", "math", "Number, algebra, geometry, statistics and probability", "", "", "K", "Euclid, Pythagoras"),
+  row("math.famous", "math", "Famous mathematicians", "", ALLSYS, "-", "Euler, Gauss, Fibonacci"),
+  row("mkt.economics", "mkt", "Economics: supply and demand, markets, inflation, money, trade", "", "ng eg", "K", "Adam Smith, Keynes"),
+  row("mkt.money", "mkt", "Money: major currencies and banks", "", "ng eg id ch", "K", "dollar, euro, central banks"),
+  row("pol.government", "pol", "Government, constitutions, law and human rights", "", "", "K", "democracy, the UN"),
+  row("pol.trade-law", "pol", "Trade law, shipping and commercial contracts (Incoterms, bills of lading, arbitration)", ALLSYS, "", "-", "personal: the trader's own"),
+  row("lang.words", "lang", "Languages and words: etymology, other languages' phrases", "", ALLSYS, "-", "foreign language classes"),
+  row("sport.major", "sport", "Major sports and the Olympic Games", "", "", "K", "football, athletics, the Olympics"),
+  row("sport.rest", "sport", "Other sports, leagues, clubs and races", "", ALLSYS, "-", "the long tail"),
+  row("food.world", "food", "Food and drink of the world (staples, famous dishes)", "ng cn", "us in fr jp de uk br id ru eg au sg ch", "-", "geography of food, home economics"),
+  row("people.living", "ppl", "Living people", ALLSYS, "", "-", "never taught; the short list of the globally famous is by hand"),
+  row("people.trade", "trade", "Commodity traders, bankers, market figures", ALLSYS, "", "-", "personal"),
+  row("trade.commodities", "trade", "Commodity markets: grades, prices, exchanges, derivatives", ALLSYS, "", "-", "personal"),
+  row("nrg.biofuels", "nrg", "Biofuels, e-fuels, refining, carbon schemes and customs codes", ALLSYS, "", "-", "personal"),
+  row("co.firms", "co", "Companies and brands", "", ALLSYS, "-", "business studies examples"),
+];
+TOPICS.push(...OTHER_TOPICS);

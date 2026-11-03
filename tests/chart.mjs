@@ -1,5 +1,7 @@
 const E = await import("../chart-engine.js");
-const { PLACES, CATS } = await import("../chart-bank.js");
+const { PLACES: DEALT_PLACES, CATS } = await import("../chart-bank.js");
+// the engine is tried on everything kb/ holds (the personal build): the published bank is only its universal part
+const { build } = await import("../tools/build-kb.mjs"), PLACES = (await build({ level: "personal" })).chart.PLACES;
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const ids = new Set(PLACES.map(p => p.id));
@@ -8,6 +10,7 @@ const geneva = { lat: 46.20, lon: 6.14 }, zurich = { lat: 47.38, lon: 8.54 }, to
 const d1 = E.distance(geneva, zurich), d2 = E.distance(geneva, tokyo);
 check(d1 > 220 && d1 < 230 && d2 > 9600 && d2 < 9800, `distances: Geneva–Zurich ${d1.toFixed(0)} km, Geneva–Tokyo ${d2.toFixed(0)} km`);
 check(E.score(0) === 1100 && E.score(50) > E.score(150) && E.score(1000) > 550 && E.score(1000) < 650 && E.score(8000) < 30, `scores: spot on ${E.score(0)}, 1,000 km off ${E.score(1000)}, 8,000 km off ${E.score(8000)}`);
+check(DEALT_PLACES.length >= 100 && new Set(DEALT_PLACES.map(p => p.cat)).size >= 5, `the published bank deals ${DEALT_PLACES.length} places in ${new Set(DEALT_PLACES.map(p => p.cat)).size} topics (the universal ones: docs/the-knowledge-base.md)`);
 const a = E.pickSet(5, PLACES), b = E.pickSet(5, PLACES);
 const perCat = s => Math.max(...Object.values(s.reduce((m, q) => ({ ...m, [q.cat]: (m[q.cat] || 0) + 1 }), {})));
 check(a.length === 10 && JSON.stringify(a) === JSON.stringify(b) && perCat(a) <= 2, "sets: ten places, repeatable, at most two from a category");
@@ -64,7 +67,8 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
   const fr = { cat: "countries" }, city = { cat: "cities" };
   check(E.pointsFor(fr, 0) === E.score(0) && E.pointsFor(fr, 3) === 0 && E.pointsFor(city, 3) === E.score(3), "a country scores in full inside its outline and nothing outside; other places by distance");
   // regions: a place goes by its country, Russia and Turkey by their side of the Urals and the Bosphorus
-  const R = q => E.regionsOfPlace(PLACES.find(p => p.name.startsWith(q)), REGION_OF).join("+");
+  const EVERY = PLACES;
+  const R = q => E.regionsOfPlace(EVERY.find(p => p.name.startsWith(q)), REGION_OF).join("+");
   check(R("Ras Tanura") === "middle-east" && R("Norilsk") === "asia" && R("The Ceyhan terminal") === "middle-east" && R("The port of Rotterdam") === "europe" && R("The port of Santos") === "south-america",
     `regions: Ras Tanura ${R("Ras Tanura")}, Norilsk ${R("Norilsk")}, Ceyhan ${R("The Ceyhan terminal")}, Rotterdam ${R("The port of Rotterdam")}, Santos ${R("The port of Santos")}`);
   // topics, a mix of them (each out, in or more): Balanced and the dropdown's old topics deal exactly as they did, one

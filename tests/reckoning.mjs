@@ -703,8 +703,8 @@ const events = S => take(S).map(e => e.type);
 // ---------- the questions are capped ----------
 {
   const pool = await load("quay");
-  check(pool.length > 400 && pool.every(p => p.q.q.length <= MAX_QUESTION && p.q.o.every(o => o.length <= MAX_ANSWER)), `every question is at most ${MAX_QUESTION} characters and every answer ${MAX_ANSWER} (${pool.length} of them)`);
-  check(new Set(pool.map(p => p.bank)).size >= 4, "and the banks are all still in it");
+  check(pool.length > 250 && pool.every(p => p.q.q.length <= MAX_QUESTION && p.q.o.every(o => o.length <= MAX_ANSWER)), `every question is at most ${MAX_QUESTION} characters and every answer ${MAX_ANSWER} (${pool.length} of them)`);
+  check(new Set(pool.map(p => p.bank)).size >= 2, "and the banks are all still in it");
   const deal = dealer(pool); let r = 0.37; const d = deal(() => (r = (r * 9301 + 49297) % 233280 / 233280), 0, []);
   check(d.q.length <= MAX_QUESTION && d.o.length === 3 && d.o[d.a] !== undefined, "a dealt question carries three answers");
 }

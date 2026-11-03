@@ -3,10 +3,14 @@
 // Every choice bank is held to it: their wrong options have been rewritten as real alternatives of matching length.
 const FAIR = ["phil-bank.js", "reasoning-bank.js", "refining-bank.js", "phy-bank.js", "chm-bank.js", "eco-bank.js", "cs-bank.js", "rel-bank.js",
   "wine-bank.js", "art-bank.js", "words-bank.js", "maths-bank.js", "cities-bank.js", "flags-bank.js", "patterns-bank.js", "swiss-bank.js", "arch-bank.js", "myth-bank.js", "merchants-bank.js", "titles-bank.js", "artmarket-bank.js", "bavaria-bank.js", "britain-bank.js", "china-bank.js", "skiing-bank.js", "watches-bank.js", "law-bank.js"];   // every choice bank, since October 2026
+// the writing is judged on everything kb/ holds (the personal build): the published banks deal only the universal part of it
+import { build } from "../tools/build-kb.mjs";
+const full = await build({ level: "personal" });
+const load = async f => { const b = f.replace("-bank.js", ""); return full.choice[b] ? { MATHS: full.choice[b].MATHS } : import(`../${f}`); };
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 for (const f of FAIR) {
-  const { MATHS } = await import(`../${f}`);
+  const { MATHS } = await load(f);
   const qs = MATHS.filter(q => q.o?.length >= 3 && q.a?.length === 1);
   let longest = 0, ratio = 0;
   for (const q of qs) {
@@ -23,14 +27,14 @@ for (const f of FAIR) {
 // a question about a movement never names its answer, even by a stem ("…the sincerity of art before Raphael" for the
 // Pre-Raphaelites, "…through symbols" for Symbolism)
 {
-  const { MATHS } = await import("../art-bank.js");
+  const { MATHS } = await load("art-bank.js");
   const stems = name => name.toLowerCase().split(/[\s-]+/).filter(w => w.length >= 5 && !["early", "american", "abstract", "northern"].includes(w)).map(w => w.slice(0, 5));
   const echo = MATHS.filter(q => q.lv === "ideas" && /^Which movement/.test(q.q)).filter(q => stems(q.o[q.a[0]]).some(st => q.q.toLowerCase().includes(st)));
   check(!echo.length, `art: no "which movement" question echoes its answer${echo.length ? `: ${echo.map(q => q.id).join(", ")}` : ""}`);
 }
 // the same for architecture: a style question never names its style, and a part's definition never says the part's name
 {
-  const { MATHS } = await import("../arch-bank.js");
+  const { MATHS } = await load("arch-bank.js");
   const stems = name => name.toLowerCase().split(/[\s-]+/).filter(w => w.length >= 5 && !["classical", "revival"].includes(w)).map(w => w.slice(0, 5));
   const styleEcho = MATHS.filter(q => q.lv === "styles" && /^Which style/.test(q.q)).filter(q => stems(q.o[q.a[0]]).some(st => q.q.toLowerCase().includes(st)));
   const partEcho = MATHS.filter(q => q.lv === "parts").filter(q => {
@@ -41,63 +45,63 @@ for (const f of FAIR) {
 }
 // mythology: no question about a god says the god's name
 {
-  const { MATHS } = await import("../myth-bank.js");
+  const { MATHS } = await load("myth-bank.js");
   const said = MATHS.filter(q => q.id.startsWith("MY-G-") && !q.id.endsWith("-roman") && q.q.toLowerCase().includes(q.o[q.a[0]].toLowerCase()));
   check(!said.length, `mythology: no god's question names the god${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
 }
 // merchants: no question about a power names the power it answers with
 {
-  const { MATHS } = await import("../merchants-bank.js"), core = t => t.replace(/^The /, "").replace(/ \(.*\)$/, "").toLowerCase();
+  const { MATHS } = await load("merchants-bank.js"), core = t => t.replace(/^The /, "").replace(/ \(.*\)$/, "").toLowerCase();
   const said = MATHS.filter(q => /-(traded|dark)$/.test(q.id) && q.q.toLowerCase().includes(core(q.o[q.a[0]])));
   check(!said.length, `merchants: no power's question names the power${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
 }
 // titles: no question about an order or a dress code names its answer
 {
-  const { MATHS } = await import("../titles-bank.js"), core = t => t.replace(/^The /, "").toLowerCase();
+  const { MATHS } = await load("titles-bank.js"), core = t => t.replace(/^The /, "").toLowerCase();
   const said = MATHS.filter(q => /^TE-G-.*-(founder|motto|means)$/.test(q.id) && q.q.toLowerCase().includes(core(q.o[q.a[0]])));
   check(!said.length, `titles: no order's or dress code's question names its answer${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
 }
 // art market: no question about a house, a dealer or a forger names its answer
 {
-  const { MATHS } = await import("../artmarket-bank.js"), core = t => t.replace(/^The /, "").replace(/'s$/, "").toLowerCase();
+  const { MATHS } = await load("artmarket-bank.js"), core = t => t.replace(/^The /, "").replace(/'s$/, "").toLowerCase();
   const said = MATHS.filter(q => /^AM-G-/.test(q.id) && !q.id.endsWith("-caught") && q.q.toLowerCase().includes(core(q.o[q.a[0]])));
   check(!said.length, `art market: no house's, dealer's or forger's question names its answer${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
 }
 // Bavaria: no company's question names its town, and no word's question holds its meaning
 {
-  const { MATHS } = await import("../bavaria-bank.js");
+  const { MATHS } = await load("bavaria-bank.js");
   const said = MATHS.filter(q => /^BY-G-/.test(q.id) && q.q.toLowerCase().includes(q.o[q.a[0]].toLowerCase()));
   check(!said.length, `Bavaria: no generated question names its answer${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
 }
 // Britain: no generated question names its answer
 {
-  const { MATHS } = await import("../britain-bank.js");
+  const { MATHS } = await load("britain-bank.js");
   const said = MATHS.filter(q => /^GB-G-/.test(q.id) && q.q.toLowerCase().includes(q.o[q.a[0]].toLowerCase()));
   check(!said.length, `Britain: no generated question names its answer${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
 }
 // China: no generated question names its answer, and no tea is offered two kinds that are both right
 {
-  const { MATHS } = await import("../china-bank.js");
+  const { MATHS } = await load("china-bank.js");
   const said = MATHS.filter(q => /^CN-G-/.test(q.id) && q.q.toLowerCase().includes(q.o[q.a[0]].toLowerCase()));
   const kinds = MATHS.filter(q => /-kind$/.test(q.id) && new Set(q.o.map(o => o.split(",")[0])).size < q.o.length);
   check(!said.length && !kinds.length, `China: no generated question names its answer, no tea has two right kinds${said.length + kinds.length ? `: ${[...said, ...kinds].map(q => q.id).join(", ")}` : ""}`);
 }
 // skiing: no generated question names its answer
 {
-  const { MATHS } = await import("../skiing-bank.js");
+  const { MATHS } = await load("skiing-bank.js");
   const said = MATHS.filter(q => /^SK-G-/.test(q.id) && q.q.toLowerCase().includes(q.o[q.a[0]].toLowerCase()));
   check(!said.length, `skiing: no generated question names its answer${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
 }
 // watches: no generated question names its answer
 {
-  const { MATHS } = await import("../watches-bank.js"), core = t => t.replace(/^The /, "").toLowerCase();
+  const { MATHS } = await load("watches-bank.js"), core = t => t.replace(/^The /, "").toLowerCase();
   const said = MATHS.filter(q => /^WT-G-/.test(q.id) && q.q.toLowerCase().includes(core(q.o[q.a[0]])));
   check(!said.length, `watches: no generated question names its answer${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
 }
 // law: a question about a term never says the term, and a term's meaning never says the term's name (5-letter stems, but
 // not the words every legal term shares)
 {
-  const { MATHS } = await import("../law-bank.js");
+  const { MATHS } = await load("law-bank.js");
   const stems = name => name.toLowerCase().replace(/[()“”]/g, "").split(/[\s\-\/,']+/).filter(w => w.length >= 5 && !["which", "legal", "title", "goods", "court", "party", "trade"].includes(w)).map(w => w.slice(0, 5));
   const generated = MATHS.filter(q => /^LW-(?!H)/.test(q.id)), ans = q => q.o[q.a[0]];
   const named = generated.filter(q => q.id.endsWith("-name")).filter(q => stems(ans(q)).some(st => q.q.toLowerCase().includes(st)) || q.q.toLowerCase().includes(ans(q).toLowerCase()));

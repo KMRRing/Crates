@@ -1,0 +1,289 @@
+# The borderline pile
+
+For Korbi's spot check (3 November 2026, the audit): 330 of 527 calls closest to the line between universal and not, by subject. To reverse one, change its letter in `kb/audit/marks.js` (u universal, r regional, s specialist, p personal, l living) and run `node tools/build-kb.mjs`. Written by `node tools/audit-report.mjs --write`.
+
+## Geography (66 of 107)
+- Norway (norway): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Chile (chile): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Netherlands (netherlands): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Morocco (morocco): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Peru (peru): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Malaysia (malaysia): r. 35.6 m people, 330,803 km²: the next after the universal countries
+- Switzerland (switzerland): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Venezuela (venezuela): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Ghana (ghana): r. 34.4 m people, 238,533 km²: the next after the universal countries
+- Zambia (zambia): r. 21.3 m people, 752,612 km²: the next after the universal countries
+- Angola (angola): r. 37.9 m people, 1,246,700 km²: the next after the universal countries
+- Singapore (singapore): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Denmark (denmark): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Finland (finland): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Greece (greece): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Portugal (portugal): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Ireland (ireland): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Sweden (sweden): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Belgium (belgium): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Austria (austria): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Hungary (hungary): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Poland (poland): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Ukraine (ukraine): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Cuba (cuba): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- New Zealand (new-zealand): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Ivory Coast (ivory-coast): r. 31.9 m people, 322,463 km²: the next after the universal countries
+- Pyrenees (pyrenees): r. a large named feature, regional only because no syllabus is known to name it
+- Uzbekistan (uzbekistan): r. 36.4 m people, 448,978 km²: the next after the universal countries
+- Mozambique (mozambique): r. 34.6 m people, 801,590 km²: the next after the universal countries
+- Sri Lanka (sri-lanka): r. 23.1 m people, 65,610 km²: the next after the universal countries
+- Madagascar (madagascar): r. 31.9 m people, 587,041 km²: the next after the universal countries
+- Ardennes (ardennes): r. a large named feature, regional only because no syllabus is known to name it
+- Southern Alps (southern-alps): r. a large named feature, regional only because no syllabus is known to name it
+- Paraná (parana): r. a large named feature, regional only because no syllabus is known to name it
+- Czech Republic (czech-republic): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Romania (romania): r. 19 m people, 238,397 km²: the next after the universal countries
+- Nepal (nepal): r. 29.7 m people, 147,181 km²: the next after the universal countries
+- North Korea (north-korea): r. 26.4 m people, 120,538 km²: the next after the universal countries
+- Taiwan (taiwan): r. 23.4 m people, 36,193 km²: the next after the universal countries
+- Cambodia (cambodia): r. 17 m people, 181,035 km²: the next after the universal countries
+- Syria (syria): r. 24.7 m people, 185,180 km²: the next after the universal countries
+- Israel (israel): u. universal by hand (a regional power or a country every region study names), small by the numbers
+- Mali (mali): r. 24.5 m people, 1,240,192 km²: the next after the universal countries
+- Niger (niger): r. 27.2 m people, 1,267,000 km²: the next after the universal countries
+- Chad (chad): r. 20.3 m people, 1,284,000 km²: the next after the universal countries
+- Somalia (somalia): r. 19 m people, 637,657 km²: the next after the universal countries
+- Senegal (senegal): r. 18.3 m people, 196,722 km²: the next after the universal countries
+- Burkina Faso (burkina-faso): r. 23.5 m people, 272,967 km²: the next after the universal countries
+- Cameroon (cameroon): r. 28.6 m people, 475,440 km²: the next after the universal countries
+- Zimbabwe (zimbabwe): r. 16.6 m people, 390,757 km²: the next after the universal countries
+- Malawi (malawi): r. 21.7 m people, 118,484 km²: the next after the universal countries
+- Guatemala (guatemala): r. 18.4 m people, 108,889 km²: the next after the universal countries
+- Ecuador (ecuador): r. 18.1 m people, 283,561 km²: the next after the universal countries
+- The Alps (the-alps): r. a large named feature, regional only because no syllabus is known to name it
+- The Andes (the-andes): r. a large named feature, regional only because no syllabus is known to name it
+- The Himalaya (the-himalaya): r. a large named feature, regional only because no syllabus is known to name it
+- The Rocky Mountains (the-rocky-mountains): r. a large named feature, regional only because no syllabus is known to name it
+- The Ural Mountains (the-ural-mountains): r. a large named feature, regional only because no syllabus is known to name it
+- The Atlas Mountains (the-atlas-mountains): r. a large named feature, regional only because no syllabus is known to name it
+- The Caucasus (the-caucasus): r. a large named feature, regional only because no syllabus is known to name it
+- The Carpathians (the-carpathians): r. a large named feature, regional only because no syllabus is known to name it
+- The Appalachians (the-appalachians): r. a large named feature, regional only because no syllabus is known to name it
+- The Great Dividing Range (the-great-dividing-range): r. a large named feature, regional only because no syllabus is known to name it
+- The Hindu Kush (the-hindu-kush): r. a large named feature, regional only because no syllabus is known to name it
+- The Zagros (the-zagros): r. a large named feature, regional only because no syllabus is known to name it
+- The Tian Shan (the-tian-shan): r. a large named feature, regional only because no syllabus is known to name it
+
+## Trade (21 of 21)
+- Lithium (lithium): r. a commodity some geography syllabuses name among minerals and crops
+- Nickel (nickel): r. a commodity some geography syllabuses name among minerals and crops
+- Cobalt (cobalt): r. a commodity some geography syllabuses name among minerals and crops
+- Platinum (platinum): r. a commodity some geography syllabuses name among minerals and crops
+- Tin (tin): r. a commodity some geography syllabuses name among minerals and crops
+- Hydrogen (hydrogen): r. a commodity some geography syllabuses name among minerals and crops
+- Sulphur (sulphur): r. a commodity some geography syllabuses name among minerals and crops
+- Ammonia (ammonia): r. a commodity some geography syllabuses name among minerals and crops
+- Urea (urea): r. a commodity some geography syllabuses name among minerals and crops
+- Vanilla (vanilla): r. a commodity some geography syllabuses name among minerals and crops
+- Zinc (zinc): r. a commodity some geography syllabuses name among minerals and crops
+- Rare earths (rare-earths): r. a commodity some geography syllabuses name among minerals and crops
+- Graphite (graphite): r. a commodity some geography syllabuses name among minerals and crops
+- Palladium (palladium): r. a commodity some geography syllabuses name among minerals and crops
+- Rapeseed (rapeseed): r. a commodity some geography syllabuses name among minerals and crops
+- Sunflower oil (sunflower-oil): r. a commodity some geography syllabuses name among minerals and crops
+- Potash (potash): r. a commodity some geography syllabuses name among minerals and crops
+- Phosphate (phosphate): r. a commodity some geography syllabuses name among minerals and crops
+- Linen (linen): r. a commodity some geography syllabuses name among minerals and crops
+- Eggs (eggs): r. a commodity some geography syllabuses name among minerals and crops
+- Soybean oil (soybean-oil): r. a commodity some geography syllabuses name among minerals and crops
+
+## Literature, music & myth (57 of 57)
+- Max Havelaar (max-havelaar): r. a connected author or work, kept regional
+- Lord Byron (lord-byron): r. a connected author or work, kept regional
+- Oscar Wilde (oscar-wilde): r. a connected author or work, kept regional
+- Juno (juno): r. a god of a tradition taught in a few systems
+- Neptune (neptune): r. a god of a tradition taught in a few systems
+- Ceres (ceres): r. a god of a tradition taught in a few systems
+- Minerva (minerva-god): r. a god of a tradition taught in a few systems
+- Diana (diana): r. a god of a tradition taught in a few systems
+- Vulcan (vulcan): r. a god of a tradition taught in a few systems
+- Mercury (mercury-god): r. a god of a tradition taught in a few systems
+- Bacchus (bacchus): r. a god of a tradition taught in a few systems
+- Pluto (pluto-god): r. a god of a tradition taught in a few systems
+- Vesta (vesta): r. a god of a tradition taught in a few systems
+- Proserpina (proserpina): r. a god of a tradition taught in a few systems
+- Saturn (saturn-god): r. a god of a tradition taught in a few systems
+- Cupid (cupid): r. a god of a tradition taught in a few systems
+- Loki (loki): r. a god of a tradition taught in a few systems
+- Frigg (frigg): r. a god of a tradition taught in a few systems
+- Freyja (freyja): r. a god of a tradition taught in a few systems
+- Freyr (freyr): r. a god of a tradition taught in a few systems
+- Baldr (baldr): r. a god of a tradition taught in a few systems
+- Tyr (tyr): r. a god of a tradition taught in a few systems
+- Heimdall (heimdall): r. a god of a tradition taught in a few systems
+- Hel (hel): r. a god of a tradition taught in a few systems
+- Set (set): r. a god of a tradition taught in a few systems
+- Thoth (thoth): r. a god of a tradition taught in a few systems
+- Bastet (bastet): r. a god of a tradition taught in a few systems
+- Sekhmet (sekhmet): r. a god of a tradition taught in a few systems
+- Hathor (hathor): r. a god of a tradition taught in a few systems
+- Ma'at (maat): r. a god of a tradition taught in a few systems
+- Amun (amun): r. a god of a tradition taught in a few systems
+- Ptah (ptah): r. a god of a tradition taught in a few systems
+- Sobek (sobek): r. a god of a tradition taught in a few systems
+- Franz Kafka (franz-kafka): r. a connected author or work, kept regional
+- Robert Burns (robert-burns): r. a connected author or work, kept regional
+- Richard III (richard-iii): r. a connected author or work, kept regional
+- The Merchant of Venice (the-merchant-of-venice): r. a connected author or work, kept regional
+- Rudyard Kipling (rudyard-kipling): r. a connected author or work, kept regional
+- Friedrich Schiller (friedrich-schiller): r. a connected author or work, kept regional
+- Wilhelm Tell (wilhelm-tell): r. a connected author or work, kept regional
+- Heinrich Heine (heinrich-heine): r. a connected author or work, kept regional
+- Rainer Maria Rilke (rainer-maria-rilke): r. a connected author or work, kept regional
+- Molière (moliere): r. a connected author or work, kept regional
+- Pensées (pensees): r. a connected author or work, kept regional
+- Fables (fables): r. a connected author or work, kept regional
+- Les Fleurs du mal (les-fleurs-du-mal): r. a connected author or work, kept regional
+- Alexander Pushkin (alexander-pushkin): r. a connected author or work, kept regional
+- Virgil (virgil): r. a connected author or work, kept regional
+- Horace (horace): r. a connected author or work, kept regional
+- The Analects (the-analects): r. a connected author or work, kept regional
+- The Art of War (the-art-of-war): r. a connected author or work, kept regional
+- The Bible (the-bible): r. a connected author or work, kept regional
+- Ecclesiastes (ecclesiastes): r. a connected author or work, kept regional
+- The Gospel of Matthew (the-gospel-of-matthew): r. a connected author or work, kept regional
+- Le Cid (le-cid): r. a connected author or work, kept regional
+- Arthur Rimbaud (arthur-rimbaud): r. a connected author or work, kept regional
+- Montesquieu (montesquieu): r. a connected author or work, kept regional
+
+## People (66 of 127)
+- Tamim (tamim): l. alive, not on the short list of the globally famous
+- Terence Tao (terence-tao): l. alive, not on the short list of the globally famous
+- Kylie (kylie): l. alive, not on the short list of the globally famous
+- Hugh Jackman (hugh-jackman): l. alive, not on the short list of the globally famous
+- Nazarbayev (nazarbayev): l. alive, not on the short list of the globally famous
+- Drake (drake): l. alive, not on the short list of the globally famous
+- Hinton (hinton): l. alive, not on the short list of the globally famous
+- Denis Villeneuve (denis-villeneuve): l. alive, not on the short list of the globally famous
+- MBS (mbs): l. alive, not on the short list of the globally famous
+- Mahathir (mahathir): l. alive, not on the short list of the globally famous
+- Dangote (dangote): l. alive, not on the short list of the globally famous
+- Burna Boy (burna-boy): l. alive, not on the short list of the globally famous
+- Marie Kondo (marie-kondo): l. alive, not on the short list of the globally famous
+- Tyla (tyla): l. alive, not on the short list of the globally famous
+- Maduro (maduro): l. alive, not on the short list of the globally famous
+- Faker (faker): l. alive, not on the short list of the globally famous
+- Pacquiao (pacquiao): l. alive, not on the short list of the globally famous
+- Lea Salonga (lea-salonga): l. alive, not on the short list of the globally famous
+- Stormzy (stormzy): l. alive, not on the short list of the globally famous
+- Charli XCX (charli-xcx): l. alive, not on the short list of the globally famous
+- Adele (adele): l. alive, not on the short list of the globally famous
+- Soros (soros): l. alive, not on the short list of the globally famous
+- Christopher Nolan (christopher-nolan): l. alive, not on the short list of the globally famous
+- Lloyd Webber (lloyd-webber): l. alive, not on the short list of the globally famous
+- Jacquemus (jacquemus): l. alive, not on the short list of the globally famous
+- Björk (bjork): l. alive, not on the short list of the globally famous
+- Räikkönen (raikkonen): l. alive, not on the short list of the globally famous
+- Kaurismäki (kaurismaki): l. alive, not on the short list of the globally famous
+- Arvo Pärt (arvo-part): l. alive, not on the short list of the globally famous
+- Wong Kar-wai (wong-kar-wai): l. alive, not on the short list of the globally famous
+- Zhang Yimou (zhang-yimou): l. alive, not on the short list of the globally famous
+- Shah Rukh Khan (shah-rukh-khan): l. alive, not on the short list of the globally famous
+- Tendulkar (tendulkar): l. alive, not on the short list of the globally famous
+- Ambani (ambani): l. alive, not on the short list of the globally famous
+- Varoufakis (varoufakis): l. alive, not on the short list of the globally famous
+- Giannis (giannis): l. alive, not on the short list of the globally famous
+- Lanthimos (lanthimos): l. alive, not on the short list of the globally famous
+- Juan Carlos (juan-carlos): l. alive, not on the short list of the globally famous
+- Felipe VI (felipe-vi): l. alive, not on the short list of the globally famous
+- Almodóvar (almodovar): l. alive, not on the short list of the globally famous
+- Mourinho (mourinho): l. alive, not on the short list of the globally famous
+- Paul Mescal (paul-mescal): l. alive, not on the short list of the globally famous
+- Saoirse Ronan (saoirse-ronan): l. alive, not on the short list of the globally famous
+- Conor McGregor (conor-mcgregor): l. alive, not on the short list of the globally famous
+- Zlatan (zlatan): l. alive, not on the short list of the globally famous
+- Björn Borg (bjorn-borg): l. alive, not on the short list of the globally famous
+- Stromae (stromae): l. alive, not on the short list of the globally famous
+- King Philippe (king-philippe): l. alive, not on the short list of the globally famous
+- Kevin De Bruyne (kevin-de-bruyne): l. alive, not on the short list of the globally famous
+- Dardenne brothers (dardenne-brothers): l. alive, not on the short list of the globally famous
+- Conchita Wurst (conchita-wurst): l. alive, not on the short list of the globally famous
+- Orbán (orban): l. alive, not on the short list of the globally famous
+- Tusk (tusk): l. alive, not on the short list of the globally famous
+- Lewandowski (lewandowski): l. alive, not on the short list of the globally famous
+- Iga Świątek (iga-swiatek): l. alive, not on the short list of the globally famous
+- Klitschko (klitschko): l. alive, not on the short list of the globally famous
+- Bubka (bubka): l. alive, not on the short list of the globally famous
+- Porziņģis (porzingis): l. alive, not on the short list of the globally famous
+- Baryshnikov (baryshnikov): l. alive, not on the short list of the globally famous
+- Sabonis (sabonis): l. alive, not on the short list of the globally famous
+- Raúl (raul): l. alive, not on the short list of the globally famous
+- Jacinda Ardern (jacinda-ardern): l. alive, not on the short list of the globally famous
+- Peter Jackson (peter-jackson): l. alive, not on the short list of the globally famous
+- Lorde (lorde): l. alive, not on the short list of the globally famous
+- Sultan Haitham (sultan-haitham): l. alive, not on the short list of the globally famous
+- Imran Khan (imran-khan): l. alive, not on the short list of the globally famous
+
+## Art & architecture (66 of 215)
+- Tate Modern (tate-modern): r. a famous collection, kept regional
+- The Musée d'Orsay (the-musee-d-orsay): r. a famous collection, kept regional
+- The Reina Sofía, where Guernica hangs (the-reina-sofia-where-guernica-hangs): r. a famous collection, kept regional
+- The Accademia, where Michelangelo's David stands (the-accademia-where-michelangelo-s-david-stands): r. a famous collection, kept regional
+- The Van Gogh Museum (the-van-gogh-museum): r. a famous collection, kept regional
+- The Mauritshuis, home of Girl with a Pearl Earring (the-mauritshuis-home-of-girl-with-a-pearl-earring): r. a famous collection, kept regional
+- The National Gallery, on Trafalgar Square (the-national-gallery-london): r. a famous collection, kept regional
+- MoMA (moma): r. a famous collection, kept regional
+- The Guggenheim Bilbao (the-guggenheim-bilbao): r. a famous collection, kept regional
+- The Getty Center (the-getty-center): r. a famous collection, kept regional
+- The Art Institute of Chicago (the-art-institute-of-chicago): r. a famous collection, kept regional
+- The Pergamon Museum (the-pergamon-museum): r. a famous collection, kept regional
+- The Kunsthistorisches Museum (the-kunsthistorisches-museum-vienna): r. a famous collection, kept regional
+- The Belvedere, home of Klimt's The Kiss (the-belvedere-home-of-klimt-s-the-kiss): r. a famous collection, kept regional
+- The Last Supper (the-last-supper): r. well documented in kb/ (three or more links), kept regional
+- Lady with an Ermine (lady-with-an-ermine): r. well documented in kb/ (three or more links), kept regional
+- Salvator Mundi (salvator-mundi): r. well documented in kb/ (three or more links), kept regional
+- The Starry Night (the-starry-night): r. well documented in kb/ (three or more links), kept regional
+- Self-Portrait with Bandaged Ear (self-portrait-with-bandaged-ear): r. well documented in kb/ (three or more links), kept regional
+- Café Terrace at Night (cafe-terrace-at-night): r. well documented in kb/ (three or more links), kept regional
+- The Milkmaid (the-milkmaid): r. well documented in kb/ (three or more links), kept regional
+- View of Delft (view-of-delft): r. well documented in kb/ (three or more links), kept regional
+- The Night Watch (the-night-watch): r. well documented in kb/ (three or more links), kept regional
+- The Anatomy Lesson of Dr Nicolaes Tulp (the-anatomy-lesson-of-dr-nicolaes-tulp): r. well documented in kb/ (three or more links), kept regional
+- The Weeping Woman (the-weeping-woman): r. well documented in kb/ (three or more links), kept regional
+- The Scream (the-scream): r. well documented in kb/ (three or more links), kept regional
+- The Persistence of Memory (the-persistence-of-memory): r. well documented in kb/ (three or more links), kept regional
+- The Birth of Venus (the-birth-of-venus): r. well documented in kb/ (three or more links), kept regional
+- Primavera (primavera): r. well documented in kb/ (three or more links), kept regional
+- The Garden of Earthly Delights (the-garden-of-earthly-delights): r. well documented in kb/ (three or more links), kept regional
+- The Kiss (the-kiss): r. well documented in kb/ (three or more links), kept regional
+- Portrait of Adele Bloch-Bauer I (portrait-of-adele-bloch-bauer-i): r. well documented in kb/ (three or more links), kept regional
+- Nighthawks (nighthawks): r. well documented in kb/ (three or more links), kept regional
+- The Raft of the Medusa (the-raft-of-the-medusa): r. well documented in kb/ (three or more links), kept regional
+- A Sunday Afternoon on the Island of La Grande Jatte (a-sunday-afternoon-on-the-island-of-la-grande-jatte): r. well documented in kb/ (three or more links), kept regional
+- The Hay Wain (the-hay-wain): r. well documented in kb/ (three or more links), kept regional
+- The Fighting Temeraire (the-fighting-temeraire): r. well documented in kb/ (three or more links), kept regional
+- Rain (rain): r. well documented in kb/ (three or more links), kept regional
+- Wanderer above the Sea of Fog (wanderer-above-the-sea-of-fog): r. well documented in kb/ (three or more links), kept regional
+- The Arnolfini Portrait (the-arnolfini-portrait): r. well documented in kb/ (three or more links), kept regional
+- The School of Athens (the-school-of-athens): r. well documented in kb/ (three or more links), kept regional
+- The Creation of Adam (the-creation-of-adam): r. well documented in kb/ (three or more links), kept regional
+- Bal du moulin de la Galette (bal-du-moulin-de-la-galette): r. well documented in kb/ (three or more links), kept regional
+- Luncheon of the Boating Party (luncheon-of-the-boating-party): r. well documented in kb/ (three or more links), kept regional
+- The Gleaners (the-gleaners): r. well documented in kb/ (three or more links), kept regional
+- Olympia (olympia-2): r. well documented in kb/ (three or more links), kept regional
+- Le Déjeuner sur l'herbe (le-dejeuner-sur-l-herbe): r. well documented in kb/ (three or more links), kept regional
+- The Third of May 1808 (the-third-of-may-1808): r. well documented in kb/ (three or more links), kept regional
+- Saturn Devouring His Son (saturn-devouring-his-son): r. well documented in kb/ (three or more links), kept regional
+- The Hunters in the Snow (the-hunters-in-the-snow): r. well documented in kb/ (three or more links), kept regional
+- The Tower of Babel (the-tower-of-babel): r. well documented in kb/ (three or more links), kept regional
+- The Ambassadors (the-ambassadors): r. well documented in kb/ (three or more links), kept regional
+- Ophelia (ophelia): r. well documented in kb/ (three or more links), kept regional
+- Christina's World (christina-s-world): r. well documented in kb/ (three or more links), kept regional
+- The Treachery of Images (the-treachery-of-images): r. well documented in kb/ (three or more links), kept regional
+- Nude Descending a Staircase (nude-descending-a-staircase): r. well documented in kb/ (three or more links), kept regional
+- Broadway Boogie-Woogie (broadway-boogie-woogie): r. well documented in kb/ (three or more links), kept regional
+- The Two Fridas (the-two-fridas): r. well documented in kb/ (three or more links), kept regional
+- The Swing (the-swing): r. well documented in kb/ (three or more links), kept regional
+- The Death of Marat (the-death-of-marat): r. well documented in kb/ (three or more links), kept regional
+- Oath of the Horatii (oath-of-the-horatii): r. well documented in kb/ (three or more links), kept regional
+- Dance (dance): r. well documented in kb/ (three or more links), kept regional
+- Composition VIII (composition-viii): r. well documented in kb/ (three or more links), kept regional
+- Black Square (black-square): r. well documented in kb/ (three or more links), kept regional
+- Isle of the Dead (isle-of-the-dead): r. well documented in kb/ (three or more links), kept regional
+- Vatican's Apostolic Palace (vatican-s-apostolic-palace): r. a famous collection, kept regional
