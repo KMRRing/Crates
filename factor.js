@@ -3,19 +3,22 @@
 // running seats.js's (seats-ui.js), the island's picture factor-draw.js's. This page draws the players across the top, the
 // island, your hand and your buttons below it; a tap on a ringed corner, edge or hex is the move the step asks for, and the
 // build buttons ring where a road, post or factory may go.
-import { rules, COSTS, TARGETS, DEFAULTS, CARD_NAMES, CARD_TEXT, cards, pointsOf, roadLength, playable, piecesLeft, postSpots, roadSpots, factorySpots, victims } from "./factor-rules.js";
+import { rules, COSTS, TARGETS, DEFAULTS, CARD_NAMES, CARD_TEXT, cards, pointsOf, roadLength, playable, piecesLeft, postSpots, roadSpots, factorySpots, victims, bankOf } from "./factor-rules.js";
 import { LEVEL_NAMES, suggest, wants } from "./factor-bot.js";
-import { newTrade, stepTrade, toMode, resolve, composeHtml, answerHtml, offerCardHtml, pickCardHtml } from "./factor-trade.js";
+import { newTrade, stepTrade, toMode, resolve, composeHtml, answerHtml, offerCardHtml, pickCardHtml, pname } from "./factor-trade.js";
+import { buildSpots, tapMove } from "./factor-tap.js";
+import { cuesBetween, readOn, keepOn } from "./factor-cues.js";
+import { sound } from "./factor-sound.js";
 import { declines, asked } from "./factor-skip.js";
 import { HEXES, RES } from "./factor-board.js";
 import { boardSvg, resIcon, ASPECT } from "./factor-draw.js";
 import { rulesHtml } from "./factor-sheet.js";
-import { handIcon, devIcon, roadIcon, fleetCard, cardBack } from "./factor-icons.js";
+import { handIcon, devIcon, roadIcon, fleetCard, cardBack, resFace } from "./factor-icons.js";
 import { flightsBetween, markOf, worth } from "./factor-flights.js";
 import { createFlights } from "./factor-fly.js";
-import { seatPage, fillNames } from "./seats-ui.js";
+import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import "./pwa.js";
@@ -41,6 +44,7 @@ const keepView = text => {
   try { if (text) localStorage.setItem(VIEW, text); else localStorage.removeItem(VIEW); } catch { /* private mode */ }
 };
 
+try { sound.on = readOn({ getItem: k => localStorage.getItem(k) }); } catch { /* private mode: on */ }
 let toastTimer = 0;
 function toast(msg, ms = 2800) {
   const t = $("toast");
@@ -66,7 +70,9 @@ const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1
 const isMe = seat => V?.seat != null && seat === V.seat;
 const who = seat => (isMe(seat) ? "You" : nameOf(seat));
 const turnNow = () => !!(V?.G && !V.over && V.seat != null && V.toMove === V.seat);
-const sayOf = v => esc(fillNames(v.G?.say?.text, v.seats));
+const nameTag = seat => pname(seat, who(seat));                                  // a name in its seat's colour
+/** The last thing that happened, each {sN} in it a name in that seat's colour (the narrator's text, with its names filled, is seats-ui.js's). */
+const sayOf = v => esc(v.G?.say?.text || "").replace(/\{s(\d+)\}/g, (_, i) => pname(Number(i), v.seats?.[Number(i)]?.name ?? `Seat ${Number(i) + 1}`));
 const pl = (n, w, many = `${w}s`) => `${n} ${n === 1 ? w : many}`;
 const costWords = c => c.map((n, i) => (n ? `${n} ${RES[i]}` : "")).filter(Boolean).join(", ");
 const cardWords = (c, any = 0) => [...c.map((n, i) => (n ? `${n}${resIcon(i, "in")}` : "")), any ? `${any} any` : ""].filter(Boolean).join(" ");
@@ -100,18 +106,37 @@ function seatEl(pt, f) {
 function placeOf(pt, f) {
   const box = $("board").getBoundingClientRect(), at = x => (box.width ? { x: box.left + box.width * x, y: box.top + box.height * .5 } : null);
   switch (pt.at) {
-    case "bank": case "devs": return centreOf($("deck").querySelector(`.${pt.at}`)) || at(pt.at === "bank" ? .32 : .68);
+    case "bank": case "devs": return centreOf($("deck").querySelector(`[data-pile="${pt.at === "devs" ? "devs" : f.kind}"]`)) || at(pt.at === "bank" ? .32 : .68);
     case "table": return at(.5);
     default: return centreOf(seatEl(pt, f));
   }
 }
 function landed(f) {
   if (f.to.at === "seat" || f.to.at === "fleet") seatEl(f.to, f)?.animate([{ scale: 1.22 }, { scale: 1 }], { duration: 240, easing: "ease-out" });
+  else if (f.to.at === "bank") $("deck").querySelector(`[data-pile="${f.kind}"]`)?.animate([{ scale: 1.18 }, { scale: 1 }], { duration: 240, easing: "ease-out" });
+  if (!IN_FRAME) sound.play("land");
+}
+/**
+ * The bank face up, a pile for each kind with the number left on it, and the development deck, the one pile face down (what is
+ * in it is secret) with its number. Always on the map's top left; the flights start from and land on these.
+ */
+function drawDeck(v) {
+  const s = v.state, box = $("deck"), left = [0, 1, 2, 3, 4].map(r => bankOf(s, r)), key = `${left.join()}:${s.deck.length}`;
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
+  box.innerHTML = left.map((n, r) => `<span class="fc-pile" data-pile="${r}" role="img" aria-label="${n} ${RES[r]} in the bank">${resFace(r)}<b>${n}</b></span>`).join("") +
+    `<span class="fc-pile devs" data-pile="devs" role="img" aria-label="${pl(s.deck.length, "development card")} in the deck, face down">${cardBack()}<b>${s.deck.length}</b></span>`;
+}
+/** The sounds of the move just seen (factor-cues.js): nothing in a watching frame, none for an offer you are ignoring, a rival's softer than yours. */
+function playCues(a, b, seat) {
+  if (IN_FRAME || !sound.on) return;
+  const ignoring = declines(opts, b, seat);
+  cuesBetween(a, b, seat).filter(c => !(c.ask && ignoring)).forEach((c, i) => setTimeout(() => sound.play(c.name, { soft: !c.mine, total: c.total }), i * 140));
 }
 function showFlights(v) {
   const G = v.G;
   if (!G) { flown = null; return; }
-  if (worth(flown, G)) { const list = flightsBetween(flown.state, v.state, v.seat); if (list.length) flights?.run(list); }
+  if (worth(flown, G)) { const list = flightsBetween(flown.state, v.state, v.seat); if (list.length) flights?.run(list); playCues(flown.state, v.state, v.seat); }
   if (!flown || flown.seq !== G.seq || flown.n !== G.n) flown = { ...markOf(G), state: v.state };
 }
 
@@ -123,11 +148,7 @@ function spots() {
     case "setup": return s.part === "post" ? { v: new Set(postSpots(s, seat, { setup: true })) } : { e: new Set(roadSpots(s, seat, s.last)) };
     case "blockade": return { h: new Set(HEXES.map((_, i) => i).filter(i => i !== s.robber)) };
     case "causeway": return { e: new Set(roadSpots(s, seat)) };
-    case "main":
-      if (ui.mode === "road") return { e: new Set(roadSpots(s, seat)) };
-      if (ui.mode === "post") return { v: new Set(postSpots(s, seat)) };
-      if (ui.mode === "factory") return { v: new Set(factorySpots(s, seat)) };
-      return {};
+    case "main": return buildSpots(s, seat, ui.mode);                  // every legal place you can pay for; a tap builds it (factor-tap.js)
     default: return {};
   }
 }
@@ -144,7 +165,7 @@ $("board").addEventListener("click", async e => {
   if (t.dataset.h != null) move = { t: "blockade", hex: at };
   else if (s.step === "setup") move = { t: "build", what: s.part, at };
   else if (s.step === "causeway") move = { t: "build", what: "road", at };
-  else if (ui.mode) move = { t: "build", what: ui.mode, at };
+  else if (s.step === "main") move = tapMove(s, V.seat, t.dataset.v != null ? "v" : "e", at, ui.mode);
   if (move) { ui.mode = null; await play(move); }
 });
 
@@ -152,7 +173,8 @@ $("board").addEventListener("click", async e => {
 function draw() {
   if (!page) return;
   const v = V;
-  if (!v?.G) { for (const id of ["seats", "strip", "board", "hand", "bar"]) $(id).innerHTML = ""; $("pop").hidden = true; return; }
+  if (!v?.G) { for (const id of ["seats", "strip", "board", "hand", "bar", "deck"]) $(id).innerHTML = ""; $("deck").dataset.key = ""; $("pop").hidden = true; return; }
+  drawDeck(v);
   drawSeats(v);
   drawStrip(v);
   drawBoard(v);
@@ -174,7 +196,7 @@ function drawSeats(v) {
     const fleetWords = `${pl(fleet, "Privateer")} played${holdsFleet ? ", the largest fleet" : ""}`;
     const fleetShown = fleet > 3 ? `${fleetCard()}<b>${fleet}</b>` : fleetCard().repeat(fleet);
     return `<div class="fc-seat${turn ? " turn" : ""}${ask ? " ask" : ""}${mine ? " me" : ""}" data-seat="${i}">
-      <div class="fc-who"><i class="fc-sw p${i}"></i><b class="fc-name">${esc(who(i))}</b><span class="fc-pts" title="Points" aria-label="${pl(pts, "point")}">${pts}</span></div>
+      <div class="fc-who"><i class="fc-sw p${i}"></i><b class="fc-name pn pn${i}">${esc(who(i))}</b><span class="fc-pts" title="Points" aria-label="${pl(pts, "point")}">${pts}</span></div>
       <div class="fc-tally"><span class="fc-n fc-n-hand" role="img" aria-label="${pl(hand, "card")} in hand">${handIcon()}<b>${hand}</b></span><span class="fc-n fc-n-dev" role="img" aria-label="${pl(devs, "development card")}">${devIcon()}<b>${devs}</b></span></div>
       <div class="fc-tally"><span class="fc-n fc-n-road${holdsRoad ? " hold" : ""}" role="img" aria-label="Road of ${pl(road, "piece")}${holdsRoad ? ", the longest road" : ""}">${roadIcon()}<b>${road}</b></span>${fleet ? `<span class="fc-fleet${holdsFleet ? " hold" : ""}" role="img" aria-label="${fleetWords}" title="${fleetWords}">${fleetShown}</span>` : ""}</div>
     </div>`;
@@ -184,7 +206,7 @@ function drawSeats(v) {
 /** What the strip says: your move's prompt, or the last thing that happened. */
 function prompt(v) {
   const s = v.state;
-  if (v.over) return `The game goes to <b>${esc(who(s.winner))}</b>, with ${pointsOf(s, s.winner)} points.`;
+  if (v.over) return `The game goes to ${nameTag(s.winner)}, with ${pointsOf(s, s.winner)} points.`;
   if (v.seat == null) return sayOf(v);
   if (turnNow()) {
     switch (s.step) {
@@ -195,13 +217,17 @@ function prompt(v) {
       case "steal": return "<b>Take a card</b> from…";
       case "causeway": return `<b>A free road</b> (${s.free} to go): tap a ringed edge`;
       case "pick": return "<b>Answers are in</b>: take one, or turn them all down";
-      case "offer": return `${esc(who(s.offer.from))} gives ${cardWords(s.offer.give, s.offer.ag)} for ${cardWords(s.offer.get, s.offer.aw)}`;
-      case "main": return ui.mode ? `<b>${{ road: "A road", post: "A post", factory: "A factory" }[ui.mode]}</b>: tap a ringed ${ui.mode === "road" ? "edge" : "corner"}` : sayOf(v) || "<b>Your move</b>";
+      case "offer": return `${nameTag(s.offer.from)} gives ${cardWords(s.offer.give, s.offer.ag)} for ${cardWords(s.offer.get, s.offer.aw)}`;
+      case "main": {
+        if (ui.mode) return `<b>${{ road: "A road", post: "A post", factory: "A factory" }[ui.mode]}</b>: tap a ringed ${ui.mode === "road" ? "edge" : "corner"}`;
+        const ring = buildSpots(s, v.seat);
+        return `${sayOf(v) || "<b>Your move</b>"}${ring.v.size + ring.e.size ? " <b>Tap a ringed spot to build.</b>" : ""}`;
+      }
       default: return sayOf(v);
     }
   }
-  if (s.step === "offer" && v.toMove != null && v.toMove !== v.seat && s.offer.from === v.seat) return `<b>Waiting for ${esc(who(v.toMove))}</b>: ${cardWords(s.offer.give, s.offer.ag)} for ${cardWords(s.offer.get, s.offer.aw)}`;
-  if (s.step === "offer" && v.toMove != null && v.toMove !== v.seat) return `${esc(who(s.offer.from))} offers ${cardWords(s.offer.give, s.offer.ag)} for ${cardWords(s.offer.get, s.offer.aw)}`;
+  if (s.step === "offer" && v.toMove != null && v.toMove !== v.seat && s.offer.from === v.seat) return `<b>Waiting for</b> ${nameTag(v.toMove)}: ${cardWords(s.offer.give, s.offer.ag)} for ${cardWords(s.offer.get, s.offer.aw)}`;
+  if (s.step === "offer" && v.toMove != null && v.toMove !== v.seat) return `${nameTag(s.offer.from)} offers ${cardWords(s.offer.give, s.offer.ag)} for ${cardWords(s.offer.get, s.offer.aw)}`;
   return sayOf(v);
 }
 function drawStrip(v) {
@@ -277,7 +303,7 @@ function drawBar(v) {
   const s = v.state, me = v.seat, mine = turnNow();
   if (!mine) {
     const mainShown = s.turn === me && s.step === "main";
-    bar.innerHTML = s.step === "discard" && s.owe[me] === 0 ? promptBox(`${esc(who(v.toMove))} is giving up cards…`) : promptBox(v.toMove != null ? `${esc(who(v.toMove))} ${mainShown ? "is answering" : "is thinking"}…` : "…");
+    bar.innerHTML = s.step === "discard" && s.owe[me] === 0 ? promptBox(`${nameTag(v.toMove)} is giving up cards…`) : promptBox(v.toMove != null ? `${nameTag(v.toMove)} ${mainShown ? "is answering" : "is thinking"}…` : "…");
     return;
   }
   switch (s.step) {
@@ -293,7 +319,7 @@ function drawBar(v) {
       return;
     }
     case "blockade": bar.innerHTML = promptBox(sayOf(v)); return;
-    case "steal": bar.innerHTML = victims(s, s.robber, me).map(o => btn(`Take from ${esc(who(o))}`, "steal", { data: `data-from="${o}"` })).join(""); return;
+    case "steal": bar.innerHTML = victims(s, s.robber, me).map(o => btn(`Take from ${nameTag(o)}`, "steal", { data: `data-from="${o}"` })).join(""); return;
     case "causeway": bar.innerHTML = btn("Skip the rest", "skip"); return;
     case "offer": {
       bar.innerHTML = promptBox("An offer for you: top right of the map");      // the card there has the buttons
@@ -521,14 +547,14 @@ function onOver(v) {
 }
 function showEnd(v) {
   const s = v.state, order = Array.from({ length: s.seats }, (_, i) => i).sort((a, b) => pointsOf(s, b) - pointsOf(s, a) || (a === s.winner ? -1 : 0));
-  $("endHead").textContent = s.winner === v.seat ? "You win" : `${nameOf(s.winner)} wins`;
+  $("endHead").innerHTML = s.winner === v.seat ? "You win" : `${pname(s.winner, nameOf(s.winner))} wins`;
   const parts = i => {
     let posts = 0, works = 0;
     for (let k = 0; k < s.vo.length; k++) if (s.vo[k] === i + 1) { if (s.vl[k] === 2) works++; else posts++; }
     const patents = s.devs[i].filter(c => c === "patent").length;
     return [posts && pl(posts, "post"), works && pl(works, "factory", "factories"), s.longest === i && "longest road", s.army === i && "largest fleet", patents && pl(patents, "patent")].filter(Boolean).join(", ") || "nothing yet";
   };
-  $("endBody").innerHTML = `<ol class="fc-standings">${order.map(i => `<li class="${i === s.winner ? "won" : ""}${isMe(i) ? " me" : ""}"><span class="nm"><i class="fc-sw p${i}"></i>${esc(who(i))}</span><span class="fc-small">${parts(i)}</span><b>${pointsOf(s, i)}</b></li>`).join("")}</ol>
+  $("endBody").innerHTML = `<ol class="fc-standings">${order.map(i => `<li class="${i === s.winner ? "won" : ""}${isMe(i) ? " me" : ""}"><span class="nm"><i class="fc-sw p${i}"></i>${nameTag(i)}</span><span class="fc-small">${parts(i)}</span><b>${pointsOf(s, i)}</b></li>`).join("")}</ol>
     <p class="fc-end-note">${pl(s.turnNo, "turn")}; first to ${s.opts.vp} points.</p>`;
   $("endAgain").hidden = !page.host;
   if (!$("endDlg").open) $("endDlg").showModal();
@@ -560,6 +586,7 @@ function openMenu() {
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
   set.append(line("The points and players apply from the next game."));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; keep(); }));
+  set.append(toggle("Sound", sound.on, on => { sound.on = on; keepOn({ setItem: (k, v) => localStorage.setItem(k, v) }, on); }));
   set.append(toggle("Flat island, to save battery", opts.flat, on => { opts.flat = on; keep(); useView(); }));
   if (island) {
     set.append(line("Drag the island to turn it, pinch to zoom, two fingers to move it, double-tap to reset."));
@@ -571,10 +598,16 @@ function openMenu() {
 }
 
 // ---------- wiring ----------
-// the decks: two small stacks of card backs, drawn once; flights start from and end at them
-$("deck").innerHTML = ["bank", "devs"].map(k => `<span class="fc-dk ${k}">${cardBack()}${cardBack()}${cardBack()}</span>`).join("");
 flights = createFlights({ where: placeOf, land: landed });
-onPause(() => flights.hold(true), () => flights.hold(false));
+// the pause rule: cards in the air and sounds stand still while the menu is open or the page is away
+function settleAway() {
+  if (document.hidden || isPaused()) { flights.hold(true); sound.suspend(); }
+  else { flights.hold(false); sound.resume(); }
+}
+onPause(settleAway, settleAway);
+document.addEventListener("visibilitychange", settleAway);
+// browsers (an iPhone above all) start sound only from a touch
+addEventListener("pointerup", () => { if (!IN_FRAME) sound.unlock(); }, true);
 bindSwitcher($("appsBtn"), "factor");
 document.querySelector(".fc-mark").innerHTML = APPS.find(a => a.id === "factor")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);

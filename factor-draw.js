@@ -99,13 +99,15 @@ export function boardSvg(s, show = {}, label = "The island") {
 
   // where a tap may go: a ring, and a larger target over it
   for (const i of show.h || []) out.push(`<polygon class="fc-spot h" data-h="${i}" points="${hexPoints(i)}"/>`);
+  // roads and corners ringed together (tap to build): the corner's target shrinks and the road's stops short of it, so no two targets overlap
+  const count = x => x?.size ?? x?.length ?? 0, mixed = count(show.e) > 0 && count(show.v) > 0, cut = mixed ? .3 : 0;
   for (const i of show.e || []) {
-    const e = EDGES[i], A = VERTS[e.a], B = VERTS[e.b];
-    out.push(`<g class="fc-spot e" data-e="${i}"><line class="ring" x1="${f(A.x)}" y1="${f(A.y)}" x2="${f(B.x)}" y2="${f(B.y)}"/><line class="hit" x1="${f(A.x)}" y1="${f(A.y)}" x2="${f(B.x)}" y2="${f(B.y)}"/></g>`);
+    const e = EDGES[i], A = VERTS[e.a], B = VERTS[e.b], dx = B.x - A.x, dy = B.y - A.y;
+    out.push(`<g class="fc-spot e" data-e="${i}"><line class="ring" x1="${f(A.x)}" y1="${f(A.y)}" x2="${f(B.x)}" y2="${f(B.y)}"/><line class="hit" ${mixed ? 'style="stroke-linecap:butt" ' : ""}x1="${f(A.x + dx * cut)}" y1="${f(A.y + dy * cut)}" x2="${f(B.x - dx * cut)}" y2="${f(B.y - dy * cut)}"/></g>`);
   }
   for (const i of show.v || []) {
     const v = VERTS[i];
-    out.push(`<g class="fc-spot v" data-v="${i}"><circle class="ring" cx="${f(v.x)}" cy="${f(v.y)}" r=".23"/><circle class="hit" cx="${f(v.x)}" cy="${f(v.y)}" r=".5"/></g>`);
+    out.push(`<g class="fc-spot v" data-v="${i}"><circle class="ring" cx="${f(v.x)}" cy="${f(v.y)}" r=".23"/><circle class="hit" cx="${f(v.x)}" cy="${f(v.y)}" r="${mixed ? .3 : .5}"/></g>`);
   }
   return `<svg class="fc-svg" viewBox="${f(BOUNDS.x)} ${f(BOUNDS.y)} ${f(BOUNDS.w)} ${f(BOUNDS.h)}" role="img" aria-label="${label}" preserveAspectRatio="xMidYMid meet">${out.join("")}</svg>`;
 }

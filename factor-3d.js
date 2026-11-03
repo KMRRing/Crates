@@ -784,15 +784,17 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
       out.push(`<polygon class="fc-last" points="${poly(ring(p.x, p.y, kind === "h" ? 0.62 : 0.32))}" style="stroke-width:${f(scaleAt(p.x, TOP, p.y) * 0.05)}px;stroke-dasharray:${f(scaleAt(p.x, TOP, p.y) * 0.1)}px"/>`);
     }
     for (const i of show.h || []) out.push(`<polygon class="fc-spot h" data-h="${i}" points="${poly(hexAt(i))}" style="stroke-width:${f(scaleAt(HEXES[i].x, TOP, HEXES[i].y) * 0.07)}px"/>`);
+    // roads and corners ringed together (tap to build): the corner's target shrinks and the road's strip stops short of it, so no two targets overlap
+    const count = x => x?.size ?? x?.length ?? 0, mixed = count(show.e) > 0 && count(show.v) > 0, cut = mixed ? 0.3 : 0;
     for (const i of show.e || []) {
       // the target is a strip of the table along the edge, as the camera sees it, so at a low angle a road's neighbours are still its own
       const e = EDGES[i], a = VERTS[e.a], b = VERTS[e.b], A = project(a.x, TOP + 0.04, a.y), B = project(b.x, TOP + 0.04, b.y), k = scaleAt(e.x, TOP, e.y);
-      const nx = (b.y - a.y) * 0.24, nz = -(b.x - a.x) * 0.24, at = (v, m) => project(v.x + nx * m, TOP + 0.04, v.y + nz * m);
-      out.push(`<g class="fc-spot e" data-e="${i}"><line class="ring" x1="${f(A[0])}" y1="${f(A[1])}" x2="${f(B[0])}" y2="${f(B[1])}" style="stroke-width:${f(k * 0.15)}px"/><polygon class="hit pad" points="${poly([at(a, 1), at(b, 1), at(b, -1), at(a, -1)])}"/></g>`);
+      const nx = (b.y - a.y) * 0.24, nz = -(b.x - a.x) * 0.24, at = (t, m) => project(a.x + (b.x - a.x) * t + nx * m, TOP + 0.04, a.y + (b.y - a.y) * t + nz * m);
+      out.push(`<g class="fc-spot e" data-e="${i}"><line class="ring" x1="${f(A[0])}" y1="${f(A[1])}" x2="${f(B[0])}" y2="${f(B[1])}" style="stroke-width:${f(k * 0.15)}px"/><polygon class="hit pad" points="${poly([at(cut, 1), at(1 - cut, 1), at(1 - cut, -1), at(cut, -1)])}"/></g>`);
     }
     for (const i of show.v || []) {
       const v = VERTS[i], [x, y] = project(v.x, TOP + 0.04, v.y), k = scaleAt(v.x, TOP, v.y);
-      out.push(`<g class="fc-spot v" data-v="${i}"><circle class="ring" cx="${f(x)}" cy="${f(y)}" r="${f(k * 0.2)}" style="stroke-width:${f(k * 0.04)}px"/><polygon class="hit" points="${poly(ring(v.x, v.y, 0.47, 14, TOP + 0.04))}"/></g>`);
+      out.push(`<g class="fc-spot v" data-v="${i}"><circle class="ring" cx="${f(x)}" cy="${f(y)}" r="${f(k * 0.2)}" style="stroke-width:${f(k * 0.04)}px"/><polygon class="hit" points="${poly(ring(v.x, v.y, mixed ? 0.3 : 0.47, 14, TOP + 0.04))}"/></g>`);
     }
     over.innerHTML = out.join("");
   }

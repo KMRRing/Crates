@@ -13,6 +13,9 @@ const sum = a => a.reduce((t, x) => t + x, 0);
 const ZERO = () => [0, 0, 0, 0, 0];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
+/** A player's name lettered in the seat's colour (a swatch beside it is the plate's; the name stays text, so colour is never all it says). */
+export const pname = (seat, name) => `<b class="pn pn${seat}">${esc(name)}</b>`;
+
 /** A fresh compose state: nothing chosen; `mode` "players" or "bank" (the toggle). */
 export const newTrade = (mode = "bank") => ({ mode, give: ZERO(), ag: 0, get: ZERO(), aw: 0 });
 /** The compose state with a side's counts changed, as the tiles allow. side "g" (give) or "w" (get), k 0..4 or 5 for "?", dir ±1. */
@@ -112,7 +115,7 @@ export function answerHtml(s, me, a, { name }) {
     down: k < 5 && a.give[k] > (fixed ? o.give[k] : 0),
   }), "Get", false);
   const why = counterWhy(s, me, a), exact = !fixed && isExact(o, a);
-  const head = `<p class="fc-asks"><b>${esc(name)}</b> offers ${tradeChips(o.give, o.ag)} for ${tradeChips(o.get, o.aw)}</p>`;
+  const head = `<p class="fc-asks">${pname(o.from, name)} offers ${tradeChips(o.give, o.ag)} for ${tradeChips(o.get, o.aw)}</p>`;
   const hint = fixed ? `<p class="fc-tnote">Name the cards for each ?: ${[o.ag ? `${o.ag} of theirs` : "", o.aw ? `${o.aw} of yours` : ""].filter(Boolean).join(" and ")}.</p>` : "";
   return `${head}<h3>You give</h3>${yourSide}<h3>You get</h3>${theirSide}${hint}
     <div class="fc-answer"><button type="button" class="btn" data-answer="no">No</button><button type="button" class="btn primary" data-answer="${exact ? "yes" : "counter"}" ${why ? "disabled" : ""}>${exact ? "Yes" : "Counter"}</button></div>
@@ -124,10 +127,10 @@ function answerRows(s, who) {
   const o = s.offer;
   return o.resp.map((r, i) => {
     if (i === o.from) return "";
-    const a = answerOf(o, i), name = esc(who(i));
-    if (!a) return `<li class="no"><span class="nm"><i class="fc-sw p${i}"></i>${name}</span><span class="fc-tnote">no</span></li>`;
+    const a = answerOf(o, i);
+    if (!a) return `<li class="no"><span class="nm"><i class="fc-sw p${i}"></i>${pname(i, who(i))}</span><span class="fc-tnote">no</span></li>`;
     const exact = isExact(o, a);
-    return `<li><span class="nm"><i class="fc-sw p${i}"></i>${name}</span><span class="fc-sum" aria-label="${esc(`${who(i)}: you give ${tradeText(a.give)}, you get ${tradeText(a.get)}`)}">${tradeChips(a.give)}<i class="fc-arrow" aria-hidden="true">→</i>${tradeChips(a.get)}</span>
+    return `<li><span class="nm"><i class="fc-sw p${i}"></i>${pname(i, who(i))}</span><span class="fc-sum" aria-label="${esc(`${who(i)}: you give ${tradeText(a.give)}, you get ${tradeText(a.get)}`)}">${tradeChips(a.give)}<i class="fc-arrow" aria-hidden="true">→</i>${tradeChips(a.get)}</span>
       <button type="button" class="btn primary" data-take="${i}">${exact ? "Yes" : "Accept"}</button></li>`;
   }).join("");
 }
@@ -138,7 +141,7 @@ function answerRows(s, who) {
 /** An offer to you: who, what for what, and No / Yes (or Counter, when it needs naming or you lack the cards). */
 export function offerCardHtml(s, me, { name }) {
   const o = s.offer, fixed = o.ag > 0 || o.aw > 0, yes = !fixed && has(s.hand[me], o.get);
-  return `<p class="fc-pop-h"><i class="fc-sw p${o.from}"></i><b>${esc(name)}</b> offers</p>
+  return `<p class="fc-pop-h"><i class="fc-sw p${o.from}"></i>${pname(o.from, name)} offers</p>
     <div class="fc-sum" aria-label="${esc(`${name} gives ${tradeText(o.give, o.ag)} for ${tradeText(o.get, o.aw)}`)}"><span>${tradeChips(o.give, o.ag)}</span><i class="fc-arrow" aria-hidden="true">→</i><span>${tradeChips(o.get, o.aw)}</span></div>
     <div class="fc-pop-go"><button type="button" class="btn" data-pop="no">No</button>${yes ? `<button type="button" class="btn primary" data-pop="yes">Yes</button>` : ""}<button type="button" class="btn${yes ? "" : " primary"}" data-pop="counter">${fixed ? "Answer" : "Counter"}</button></div>`;
 }

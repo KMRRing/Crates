@@ -44,6 +44,8 @@ html[data-theme="office"][data-mode="night"] { --fc-in: #479EF5; }
 .fc-seat.turn { border-color: var(--fc-in); box-shadow: 0 0 0 1.5px var(--fc-in); }
 .fc-seat.ask:not(.turn) { border-style: dashed; border-color: var(--fc-in); }
 .fc-who { display: flex; align-items: center; gap: .22rem; min-width: 0; color: var(--ink); }
+.pn.pn0 { color: color-mix(in srgb, var(--p0) 82%, var(--ink)); } .pn.pn1 { color: color-mix(in srgb, var(--p1) 82%, var(--ink)); }
+.pn.pn2 { color: color-mix(in srgb, var(--p2) 82%, var(--ink)); } .pn.pn3 { color: color-mix(in srgb, var(--p3) 82%, var(--ink)); }
 .fc-sw { flex: none; width: .55rem; height: .55rem; border-radius: 2px; background: var(--ink-soft); }
 .fc-sw.p0 { background: var(--p0); } .fc-sw.p1 { background: var(--p1); } .fc-sw.p2 { background: var(--p2); } .fc-sw.p3 { background: var(--p3); }
 .fc-name { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .7rem; font-weight: 800; }
@@ -75,7 +77,7 @@ html[data-theme="office"][data-mode="night"] { --fc-in: #479EF5; }
 .fc-card.dev .fc-pi { width: 66%; height: auto; aspect-ratio: 1; color: var(--fc-in); }
 .fc-card.back { background: var(--fc-in); border-color: var(--brass);
   background-image: repeating-linear-gradient(45deg, transparent 0 .3rem, color-mix(in srgb, var(--sheet) 28%, transparent) .3rem .36rem), repeating-linear-gradient(-45deg, transparent 0 .3rem, color-mix(in srgb, var(--sheet) 28%, transparent) .3rem .36rem); }
-.fc-dk.devs .fc-card.back { background-color: var(--brass-lo, var(--brass)); }
+.fc-pile.devs .fc-card.back { background-color: var(--brass-lo, var(--brass)); }
 
 /* ---------- what's asked, or what just happened ---------- */
 .fc-strip { display: flex; align-items: center; justify-content: space-between; gap: .5rem; height: 2.5rem; margin: .35rem 0 .25rem; font-size: .84rem; line-height: 1.25; color: var(--ink-soft); }
@@ -90,10 +92,12 @@ html[data-theme="office"][data-mode="night"] { --fc-in: #479EF5; }
 /* the stage is the island's box: the island fills it, and the decks (top left) and a trade's card (top right) stand over its corners without moving it */
 .fc-stage { position: relative; min-height: 0; }
 .fc-board { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; container-type: size; }
-.fc-deck { position: absolute; top: .4rem; left: .4rem; z-index: 2; display: flex; gap: .55rem; pointer-events: none; }
-.fc-dk { position: relative; display: block; width: 1.25rem; height: 1.75rem; margin: 0 .2rem .2rem 0; }
-.fc-dk .fc-card { position: absolute; inset: 0; width: auto; height: auto; box-shadow: 0 1px 2px color-mix(in srgb, var(--fc-mix) 28%, transparent); }
-.fc-dk .fc-card:nth-child(1) { transform: translate(.2rem, .2rem); } .fc-dk .fc-card:nth-child(2) { transform: translate(.1rem, .1rem); }
+.fc-deck { position: absolute; top: .4rem; left: .4rem; z-index: 2; display: flex; align-items: flex-start; gap: .4rem; pointer-events: none; }
+/* the bank face up: a small open card for each kind with the number left on a plate across its foot, stacked like a pile; the development deck is the one face-down pile */
+.fc-pile { position: relative; display: block; flex: none; width: 1.4rem; height: 1.95rem; margin: 0 .15rem .15rem 0; }
+.fc-pile .fc-card { position: absolute; inset: 0; width: auto; height: auto; align-content: start; padding-top: .18rem; box-shadow: .1rem .1rem 0 var(--sheet), .1rem .1rem 0 1px var(--brass), .2rem .2rem 0 var(--sheet), .2rem .2rem 0 1px var(--brass); }
+.fc-pile .fc-card.res .fc-ic { width: 62%; }
+.fc-pile b { position: absolute; left: 50%; bottom: .12rem; transform: translateX(-50%); min-width: 1.05rem; box-sizing: border-box; padding: 0 .12rem; border-radius: 3px; background: var(--sheet); border: 1px solid var(--brass); color: var(--ink); font-size: .68rem; font-weight: 800; line-height: 1.15; text-align: center; font-variant-numeric: tabular-nums; }
 .fc-ign { position: absolute; top: .4rem; right: .4rem; z-index: 3; box-sizing: border-box; display: flex; align-items: center; gap: .35rem; height: 1.6rem; padding: 0 .4rem; border-radius: 6px; background: color-mix(in srgb, var(--sheet) 94%, transparent); border: 1px solid var(--brass); color: var(--ink-soft); font: inherit; font-size: .62rem; cursor: pointer; }
 .fc-ign[hidden] { display: none; }
 .fc-ign i { position: relative; width: 1.5rem; height: .85rem; border-radius: 1rem; background: var(--tile); border: 1px solid var(--brass); flex: none; }
