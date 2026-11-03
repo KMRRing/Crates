@@ -7,7 +7,9 @@ import { botMove, LEVEL_NAMES } from "./landlord-bot.js";
 import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { tableView } from "./table3d-view.js";
+import { createLandlord3d, plateOf } from "./landlord-3d.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
@@ -112,26 +114,32 @@ function bidWord(s, b) {
   if (b.phase === "call") return b.yes ? w.call : w.nobid;
   return b.yes ? w.rob : w.norob;
 }
+/** What a seat has put on the table, as the flat and the 3D table both show it: cards in `rows`, or a word (a bid, a pass), or that it's thinking. */
+function playOf(seat, per) {
+  const s = V.state, w = words(s), res = s.step === "shown" || s.step === "over" ? s.result : null, turn = (s.step === "play" || s.step === "bid") && s.turn === seat;
+  if (res) return { rows: res.hands[seat].length ? rows(res.hands[seat], per) : "" };
+  if (s.step === "bid" || s.step === "thrown") {
+    const b = bidOf(s, seat);
+    if (b) return { word: bidWord(s, b), yes: !!(s.opts.bidding === "points" ? b.n : b.yes) };
+    return turn && !isMe(seat) ? { think: "bidding" } : {};
+  }
+  const a = actOf(s, seat);
+  if (a?.pass) return { word: a.cant ? w.cant : w.pass };
+  if (a?.cards) return { rows: rows(a.cards, per) };
+  return turn && !isMe(seat) ? { think: "thinking" } : {};
+}
+const view = tableView("landlord");                                // Menu, View: the flat table (the default) or the 3D one (landlord-3d.js)
+let three = null;
+
 function drawTable(v) {
   const s = v.state, w = words(s), res = s.step === "shown" || s.step === "over" ? s.result : null;
   const seatHtml = seat => {
     const place = placeOf(seat), turn = (s.step === "play" || s.step === "bid") && s.turn === seat, per = place === "at-me" ? 14 : 8;
     const lead = !res && s.step === "play" && s.trick.by === seat && s.trick.last;
     const count = s.hands[seat].length, sc = s.scores[seat], role = s.landlord == null ? "" : seat === s.landlord ? "landlord" : "peasant";
-    let play = "";
-    if (res) {
-      const left = res.hands[seat], d = res.deltas[seat];
-      play = `${left.length ? rows(left, per) : `<span class="ll-out">Out</span>`}<span class="ll-pay ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>`;
-    } else if (s.step === "bid" || s.step === "thrown") {
-      const b = bidOf(s, seat);
-      if (b) play = `<span class="ll-word${(s.opts.bidding === "points" ? b.n : b.yes) ? " yes" : ""}">${esc(bidWord(s, b))}</span>`;
-      else if (turn && !isMe(seat)) play = `<span class="ll-thinking">bidding</span>`;
-    } else {
-      const a = actOf(s, seat);
-      if (a?.pass) play = `<span class="ll-word">${esc(a.cant ? w.cant : w.pass)}</span>`;
-      else if (a?.cards) play = rows(a.cards, per);
-      else if (turn && !isMe(seat)) play = `<span class="ll-thinking">thinking</span>`;
-    }
+    const p = playOf(seat, per), d = res ? res.deltas[seat] : 0;
+    const play = res ? `${p.rows || `<span class="ll-out">Out</span>`}<span class="ll-pay ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>`
+      : p.word ? `<span class="ll-word${p.yes ? " yes" : ""}">${esc(p.word)}</span>` : p.rows ? p.rows : p.think ? `<span class="ll-thinking">${p.think}</span>` : "";
     const back = place === "at-me" ? "" : `<span class="ll-n${count <= 2 && !res ? " low" : ""}" title="Cards left">${backHtml()}<b>${count}</b></span>`;
     const chip = role ? `<span class="ll-role ${role}">${esc(w[role])}</span>` : "";
     const score = `<span class="ll-sc" title="Points">${sc > 0 ? "+" : ""}${sc}</span>`;
@@ -151,6 +159,23 @@ function drawTable(v) {
     mid = `<p class="ll-beat">${lead}</p>`;
   } else if (s.trick.last) mid = `<p class="ll-beat">To beat: <b>${esc(isMe(s.trick.by) ? "your" : `${nameOf(s.trick.by)}'s`)}</b> ${esc(typeName(s.trick.last))}</p>`;
   else mid = `<p class="ll-beat">${isMe(s.turn) ? "Your lead" : `<b>${esc(nameOf(s.turn))}</b> leads`}</p>`;
+  if (view.get() === "3d") {
+    $("table").classList.add("ll3");
+    three ||= createLandlord3d($("table"), { quiet: () => IN_FRAME });
+    const me = v.seat ?? 0, plates = [0, 1, 2].map(seat => {
+      const p = playOf(seat, 8), role = s.landlord == null ? "" : seat === s.landlord ? "landlord" : "peasant";
+      return plateOf({
+        name: isMe(seat) ? "You" : nameOf(seat), seat, mine: isMe(seat), turn: (s.step === "play" || s.step === "bid") && s.turn === seat, count: s.hands[seat].length,
+        role, roleWord: role ? w[role] : "", score: s.scores[seat], word: p.word || "", think: p.think || "", lead: !res && s.step === "play" && s.trick.by === seat && !!s.trick.last,
+        pay: res ? res.deltas[seat] : 0, out: !!res && !p.rows, over: !!res,
+      });
+    });
+    const lanes = [0, 1, 2].map(seat => playOf(seat, seat === me ? 12 : 8).rows || "");
+    three.draw({ me, plates, lanes, top: `<span class="ll3-kitty">${kitty}</span>${mid}` });
+    runBar();
+    return;
+  }
+  if (three) { three.dispose(); three = null; $("table").classList.remove("ll3"); }
   $("table").innerHTML = [0, 1, 2].map(seatHtml).join("") +
     `<div class="ll-kitty" title="The kitty (底牌)"><span class="ll-kitty-name">${esc(w.kitty)}</span>${kitty}</div>` +
     `<div class="ll-centre"><p class="ll-said">${esc(v.said || "")}</p>${mid}</div>`;
@@ -355,6 +380,7 @@ function openMenu() {
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Dou Dizhu, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
+  set.append(view.choice(() => draw()));
   set.append(choice("A game is", DEALS.map(n => [n, `${n} deals`]), opts.deals, v => { opts.deals = Number(v); keep(); }));
   set.append(choice("Bidding", [["points", "For points 叫分"], ["rob", "Call and rob 抢地主"]], opts.bidding, v => { opts.bidding = v; keep(); }));
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
@@ -376,6 +402,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
+onPause(() => three?.pause(true), () => three?.pause(false));
 window.__landlord = { page, get view() { return V; }, opts, get sel() { return sel; }, course };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
