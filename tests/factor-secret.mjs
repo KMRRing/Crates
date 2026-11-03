@@ -30,8 +30,8 @@ for (const offer of OFFERS) {
   const a = open(LEAN, offer), b = open(RICH, offer);
   const ans = { give: [...a.offer.give], get: [...a.offer.get] };
   const views = s => [
-    answerHtml(s, 1, ans, { name: "Seat0", skipping: false }),
-    answerHtml(s, 1, { give: v(1, 1), get: v(0, 0, 0, 1) }, { name: "Seat0", skipping: true }),
+    answerHtml(s, 1, ans, { name: "Seat0" }),
+    answerHtml(s, 1, { give: v(1, 1), get: v(0, 0, 0, 1) }, { name: "Seat0" }),
     offerCardHtml(s, 1, { name: "Seat0" }),
     s.say,
   ];

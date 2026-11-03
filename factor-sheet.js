@@ -30,7 +30,7 @@ export function rulesHtml(opts = {}) {
 <li>A post goes at the end of one of your roads, and never beside another building: the corner between must stay empty.</li></ul>
 <h3>Trading</h3>
 <ul><li><b>The bank</b> (the toggle at the top of the trade sheet) takes 4 of one resource for 1 of another. A post or factory at a harbour does better: 3 for 1 at a 3:1 harbour, 2 for 1 at the 2:1 harbour of that resource.</li>
-<li><b>The table</b> trades by offer, on your turn only: say what you give and what you want, as cards or as a <b>?</b> (any kind), and each of the others answers once: no, yes, or a counter-proposal naming the cards. You take one answer or turn them all down. ${MAX_OFFERS} offers a turn. A <b>Skip trades</b> button (or the menu) turns offers to you down unseen.</li>
+<li><b>The table</b> trades by offer, on your turn only: say what you give and what you want, as cards or as a <b>?</b> (any kind), and each of the others answers once: no, yes, or a counter-proposal naming the cards. You take one answer or turn them all down. ${MAX_OFFERS} offers a turn. The <b>Ignore trades</b> switch, top right of the map (or the menu), turns every offer to you down unseen until you switch it off.</li>
 <li>The bank holds 19 of each resource. If it can't pay everyone what a roll owes, a lone player gets what is left and several get nothing.</li></ul>
 <h3>Cards</h3>
 <p>One card a turn, never the turn you bought it (a Privateer may be played before you roll).</p>

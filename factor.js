@@ -6,7 +6,7 @@
 import { rules, COSTS, TARGETS, DEFAULTS, CARD_NAMES, CARD_TEXT, cards, pointsOf, roadLength, playable, piecesLeft, postSpots, roadSpots, factorySpots, victims } from "./factor-rules.js";
 import { LEVEL_NAMES, suggest, wants } from "./factor-bot.js";
 import { newTrade, stepTrade, toMode, resolve, composeHtml, answerHtml, offerCardHtml, pickCardHtml } from "./factor-trade.js";
-import { startSkip, settle, declines, asked } from "./factor-skip.js";
+import { declines, asked } from "./factor-skip.js";
 import { HEXES, RES } from "./factor-board.js";
 import { boardSvg, resIcon, ASPECT } from "./factor-draw.js";
 import { rulesHtml } from "./factor-sheet.js";
@@ -56,7 +56,7 @@ let seen = { seq: -1, h: null }, pulse = { until: 0, d: [0, 0, 0, 0, 0] }, pulse
 let island = null, viewReady = false;                                                         // the 3D island, once it's made
 let flights = null, flown = null;                                                             // cards in the air, and the move they were last worked out from
 // what the page holds between moves: the build mode, the cards picked to give up on a 7, the trade sheet's choices
-const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], pick: [], t: newTrade("bank"), ans: null, tview: null, skip: null, auto: "" };
+const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], pick: [], t: newTrade("bank"), ans: null, tview: null, auto: "" };
 const randomRounds = seatRounds("factor");   // random mode's round: a game
 page = seatPage({
   rules, id: "factor", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
@@ -75,7 +75,6 @@ const cardWords = (c, any = 0) => [...c.map((n, i) => (n ? `${n}${resIcon(i, "in
 function follow(v) {
   if (!v?.G || v.seat == null) return;
   const key = `${v.G.seq}:${v.G.n}`;
-  ui.skip = settle(ui.skip, v.G, v.state, v.seat);                 // Skip trades ends when the turn comes round to this seat
   if (key !== ui.key) { ui.key = key; ui.mode = null; ui.discard = [0, 0, 0, 0, 0]; ui.pick = []; }
   const h = v.state.hand[v.seat];
   if (seen.seq === v.G.seq && seen.h) {
@@ -366,7 +365,7 @@ function drawTrade() {
   if (view === "pick") { body.innerHTML = ""; return; }
   if (view === "answer") {
     if (!ui.ans || ui.ans.key !== offerKey()) ui.ans = { key: offerKey(), ...firstAnswer() };
-    body.innerHTML = answerHtml(s, me, ui.ans, { name: who(s.offer.from), skipping: declines(opts, ui.skip, v.G, s, me) });
+    body.innerHTML = answerHtml(s, me, ui.ans, { name: who(s.offer.from) });
     return;
   }
   const on = turnNow() && s.step === "main";
@@ -376,11 +375,11 @@ function drawTrade() {
 /**
  * The offer to you, or the answers to yours, as a small card in the map's top right: it opens nothing and holds nothing up,
  * and the sheet (for naming a counter) is only what its Counter button opens. Hidden while the sheet is open, in a watching
- * frame, and when you are skipping trades (those offers are turned down unseen).
+ * frame, and when you are ignoring trades (those offers are turned down unseen).
  */
 function drawPop(v) {
   const box = $("pop"), view = IN_FRAME || $("tradeDlg").open ? null : tradeView(), s = v.state;
-  const html = view === "answer" && !declines(opts, ui.skip, v.G, s, v.seat) ? offerCardHtml(s, v.seat, { name: who(s.offer.from) }) : view === "pick" ? pickCardHtml(s, who) : "";
+  const html = view === "answer" && !declines(opts, s, v.seat) ? offerCardHtml(s, v.seat, { name: who(s.offer.from) }) : view === "pick" ? pickCardHtml(s, who) : "";
   if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }
   box.hidden = !html;
 }
@@ -393,19 +392,32 @@ $("pop").addEventListener("click", async e => {
     case "no": await play({ t: "answer", yes: false }); break;
     case "yes": await play({ t: "answer", yes: true }); break;
     case "counter": openTrade(); break;
-    case "skip": ui.skip = startSkip(V.G); toast("Skipping trades until your turn comes round"); await play({ t: "answer", yes: false }); break;
     default: break;
   }
 });
-/** Skip trades: an offer to a seat that is skipping is turned down unseen, once. */
+/** Ignore trades: an offer to a seat that is ignoring is turned down unseen, once. */
 function autoAnswer(v) {
   if (IN_FRAME || !v?.G || v.over) return;
-  if (!asked(v.state, v.toMove, v.seat) || !declines(opts, ui.skip, v.G, v.state, v.seat)) return;
+  if (!asked(v.state, v.toMove, v.seat) || !declines(opts, v.state, v.seat)) return;
   const key = offerKey();
   if (ui.auto === key) return;
   ui.auto = key;
   setTimeout(() => { if (V?.G && offerKey() === key && asked(V.state, V.toMove, V.seat)) play({ t: "answer", yes: false }); }, 0);
 }
+/** The one setting behind the corner switch and the menu's toggle. */
+function setIgnore(on) {
+  opts.autoDecline = !!on;
+  saveOpts();
+  drawIgnore();
+  if (V?.G) { drawPop(V); autoAnswer(V); }
+}
+function drawIgnore() {
+  const b = $("ign");
+  b.hidden = IN_FRAME;
+  b.setAttribute("aria-checked", String(!!opts.autoDecline));
+}
+$("ign").addEventListener("click", () => setIgnore(!opts.autoDecline));
+drawIgnore();
 $("tradeBody").addEventListener("click", async e => {
   const b = e.target.closest("button");
   if (!b || b.disabled || !V?.G) return;
@@ -420,11 +432,6 @@ $("tradeBody").addEventListener("click", async e => {
     } else if (d.answer) {
       const move = d.answer === "no" ? { t: "answer", yes: false } : d.answer === "yes" ? { t: "answer", yes: true } : { t: "answer", counter: { give: [...a.give], get: [...a.get] } };
       if (await play(move)) $("tradeDlg").close();
-      return drawTrade();
-    } else if (d.skip) {
-      ui.skip = startSkip(V.G);
-      toast("Skipping trades until your turn comes round");
-      if (await play({ t: "answer", yes: false })) $("tradeDlg").close();
       return drawTrade();
     }
     return drawTrade();
@@ -544,7 +551,7 @@ function openMenu() {
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
-  play.append(toggle("Decline trades automatically", !!opts.autoDecline, on => { opts.autoDecline = on; saveOpts(); if (V?.G) autoAnswer(V); }));
+  play.append(toggle("Decline trades automatically", !!opts.autoDecline, setIgnore));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
