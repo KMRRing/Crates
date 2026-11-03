@@ -8,3 +8,5 @@ Seven columns, six high; four or more in a line wins, a full board is a draw. A 
 - **Hard's move comes from a worker** and is handed to the runner through `advise`; `pace` and `hold` wait for it. A page with no worker thinks in small, on the page's thread.
 - **Learn's answers are proved** by `tests/silo-course.mjs` (a win at once, a win in three plies, the one cover, the best exact score): a new exercise names its `proof` or the test fails.
 - The solver is written afresh after the method of Pons's connect-four tutorial (bitboards, non-losing moves, a mirror-folded table); no code is carried (docs/licences-images-and-engines.md).
+- **The first player wins with perfect play** (the game is solved: the first mover wins by playing the middle column). Who starts is a setting, Alternate by default (the player starts the first game; the seat that moves first changes every game, kept with the tally), or always You, or always the opponent. Hard is not perfect in the opening (above), so as first mover it can still be beaten; Alternate keeps the match fair.
+- 3 November 2026, Korbi: "you decide, 3D mode: yes" (Flank and Silo get a 3D mode; the 3D modes' agent builds it).
