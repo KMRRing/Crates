@@ -31,7 +31,7 @@
   <div class="pi-hud">
     <div class="pi-numbers">
       <span class="pi-stat"><small id="stat1Label">Level</small><b id="stat1">1</b></span>
-      <span class="pi-stat main"><small>Score</small><b id="score">0</b></span>
+      <span class="pi-stat main"><small id="scoreLabel">Score</small><b id="score">0</b></span>
       <span class="pi-stat"><small id="stat3Label">To go</small><b id="stat3">0</b></span>
     </div>
     <small id="rival" class="pi-rival" hidden></small>
@@ -50,6 +50,13 @@
     <div id="flatControls" class="pi-controls flat">
       <button class="pi-go quiet" type="button" id="undoBtn" hidden>Undo</button>
       <button class="pi-go" type="button" id="goBtn">Oil now</button>
+    </div>
+    <div id="puzzleControls" class="pi-controls puzzle" hidden>
+      <button class="pi-go quiet" type="button" id="pzUndo">Undo</button>
+      <button class="pi-go quiet" type="button" id="pzClear">Clear</button>
+      <button class="pi-go quiet" type="button" id="pzHint">Hint</button>
+      <button class="pi-go quiet" type="button" id="pzAgain" hidden>Again</button>
+      <button class="pi-go" type="button" id="pzNext" hidden>Next level</button>
     </div>
     <div id="deepControls" class="pi-controls deep" hidden>
       <button class="pi-key" type="button" id="holdBtn"><b>Hold</b><small id="holdNote">set aside</small></button>
