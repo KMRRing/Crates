@@ -4,6 +4,7 @@ A cannon idler in the Idle section: Verne's Baltimore Gun Club, a cannon on a 2D
 
 - 3 November 2026, Korbi: "Columbiad: a cannon idler, design doc, is complete now. read it, understand it, add it to the todo".
 - 3 November 2026, Korbi: "on columbiad: the earth is jittery during its turn. if there's no globe you can find that's not so jittery, then we'll need to use a hand drawn one with gradients. and the cannon looks odd, not the same style as the earth."
+- 3 November 2026, Korbi: "Columbiad Moon levels restart ... game is good as it is, quite fun"; then "yea we do levels - random - daily as usual". So Random deals the level struck as its round and the daily is a level of the day, not a new kind of game.
 - The design doc: https://claude.ai/artifact/1tPNSJZHWYwwdaNLfUksLY (units, the dial, the scatter, the levels and the maths are there).
 
 ## Traps
@@ -13,6 +14,8 @@ A cannon idler in the Idle section: Verne's Baltimore Gun Club, a cannon on a 2D
 - **A hit is the first entry into the ring on the continuous path** (segment against circle at every step, in the target's own frame so a ring on the Moon works), not a sample that lands inside.
 - **The Earth's turn is never rounded.** It was drawn at a spin rounded to 0.4 degree and one new picture every third of a second, so it hopped 3 px at a time: the spin is `SPIN` times the time that has run, the map is read at that exact angle (`columbiad-sphere.js`, bilinear, a mip pyramid and several reads along a pixel's patch near the limb), and the page draws every second frame (30 a second) while it turns. `tests/columbiad-globe.mjs` fails on a hop, a seam or limb flicker.
 - **One Sun for everything drawn.** The gun takes the Earth's Sun (`sunOf`) and its Lambert rule with the soft terminator, so its highlight slides as the barrel turns; no black outlines (that was the "different drawing pasted on"), and a coast is an anti-aliased ramp, never a threshold, or it stair-steps when the picture is stretched to a tablet.
+- **A Moon goes on while the page is shut.** A run is kept with the wall time (`at`), and a moving world's clock comes back as the saved clock plus the time since: a reload, or an iPhone dropping the page, once put the Moon back where the last shot was fired, which read as the level restarting. A replay keeps the Moon's place too. The shots themselves carry their own `t`, so none of this is physics.
+- **The daily is the day's level** (`dailyLevel(day)`, from the fourth level on, integer arithmetic only), its scatter seeded by the day, its run in `columbiad:drun` and its stars by the day in `columbiad:daily`, so the camp's level, stars and aims are never touched by it.
 - **A flight lasts a tenth of a game second** (a surface orbit is 0.085 s), so `columbiad-view.js` shows it stretched, with its own pace and slow motion near the ring; that is display, not physics, and the engine never sees it.
 - **The cone costs 26 flights** (about 8 ms): it is computed when the aim changes, never per frame. The aim view's camera holds the cone's whole box, or a flat shot goes out of sight.
 
@@ -21,5 +24,5 @@ A cannon idler in the Idle section: Verne's Baltimore Gun Club, a cannon on a 2D
 1. **Proving ground**: Earth-only ballistics, the drag-aim control, the scatter cone, ghost trails, six levels. Gate: a single shot feels good in play.
 2. **The Moon moves**: the Moon on its rail, a live-updating cone, fire when ready. Gate: players use the cone's sweep to time shots.
 3. **Gentle landing and the free return**: arrival speed bands, gates in order, a loop round the Moon. Gate: the free return reads as the wow level.
-4. **Random and daily**: seeded setups, the real Moon for the daily (from the mean elongation formula), streaks, a share line. Gate: a day's puzzle is solvable and shareable.
+4. **Random and daily**: done as the level struck (Random) and a level of the day with a share line; still to come: the real Moon for the daily (from the mean elongation formula) and streaks. Gate: a day's puzzle is solvable and shareable.
 5. **Polish**: audio, slow motion, crew log lines, the engraving look, reduced-motion paths. (Section 5, Beyond the Moon, is a stretch goal.)
