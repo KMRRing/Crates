@@ -7,11 +7,15 @@
 // one to cut it. The weaves, the colour cloths and the gold cloths are painted with a brush, since a shaft ties crossings
 // together and gold hides both yarns, so a single float can't be laid there.
 //
+// A plain cloth also has three modes, picked in a small control over the cloth: lay (what is above), and two that pencil
+// notes instead, a warp where a thread is thought to come up and the weft where it is known to stay. A note is only the
+// player's: no float, no clue, no slip, no star reads it (loom-thread.js, "notes").
+//
 // Stars are for how clean the cloth was: a crossing set the wrong way is a slip (marked in the cloth if the options say
 // so, counted either way) and a hint is a help; none of either is three stars, up to three together two.
 import { LEVELS, CHAPTERS, levelOf, chapterOf, makeLevel, starsFor, seedOf, FEW } from "./loom-levels.js";
 import { fixed, start, nextStep, propagate, stateOf, met, WARP, WEFT, GOLD } from "./loom-float.js";
-import { threaded, ground, createHand, apply, slipsIn, wanted, laidCount, hintFor, hintWords, clueString, lineName } from "./loom-thread.js";
+import { threaded, ground, createHand, apply, slipsIn, wanted, laidCount, hintFor, hintWords, clueString, lineName, NOTE_WARP, NOTE_WEFT, markable, paintNote, notesString, notesFrom } from "./loom-thread.js";
 import { createCloth, UNSET } from "./loom-cloth.js";
 import { part, action, line, isPaused } from "./menu.js";
 import { roundOver } from "./random.js";
@@ -26,7 +30,9 @@ const CHAR = "012-";
 const SIDE = ["the warp lies over", "the weft lies over", "the gold lies over"];
 const HOW = "Paint each crossing with the yarn that shows. A clue lists, in order, how long a yarn shows along its line.";
 const HOW_THREADS = "The weft is laid. Tap where a thread comes up, then where it goes back under. Or drag.";
-const HOW_THREADS_LONG = "The weft is laid across the whole cloth. Lay a warp float like a thread: tap the crossing where it comes up, then the one in the same column where it goes back under, or drag down the column. Tap a float to pull it out, or drag along it to cut it shorter. A clue lists, in order, how long a yarn shows along its line.";
+const HOW_THREADS_LONG = "The weft is laid across the whole cloth. Lay a warp float like a thread: tap the crossing where it comes up, then the one in the same column where it goes back under, or drag down the column. Tap a float to pull it out, or drag along it to cut it shorter. Pencil a warp or the weft you know in the Mark modes: notes are yours alone and are never graded. A clue lists, in order, how long a yarn shows along its line.";
+const MODES = ["lay", "warp", "weft"];
+const MARK_WORDS = { warp: "Pencil warp: touch or drag over crossings you think are warp; touch a mark to clear it. Never graded.", weft: "Pencil weft: touch or drag over crossings you know are weft; touch a mark to clear it. Never graded." };
 const BRUSHES = [
   [WARP, "Warp", "a warp thread lies over the pick", '<rect x="1" y="5" width="14" height="6" opacity=".35"/><rect x="5" y="1" width="6" height="14"/>'],
   [WEFT, "Weft", "a pick of weft lies over the thread", '<rect x="5" y="1" width="6" height="14" opacity=".35"/><rect x="1" y="5" width="14" height="6"/>'],
@@ -35,11 +41,11 @@ const BRUSHES = [
 
 export function createPlay(host) {
   const cloth = createCloth(host);
-  let lv = null, made = null, p = null, cells = null, members = null, run = null, thr = false, hand = null;
+  let lv = null, made = null, p = null, cells = null, notes = null, members = null, run = null, thr = false, hand = null;
   let drag = null, press = null, weaving = 0, doneTimer = 0, weaveTimer = 0, stopped = false, note = null, noteTimer = 0, hintTimer = 0;
 
   // ---------- a cloth in hand ----------
-  const save = () => write(RUN, { v: 1, run: { ...run, cells: Array.from(cells, c => CHAR[c === UNSET ? 3 : c]).join("") } });
+  const save = () => write(RUN, { v: 1, run: { ...run, cells: Array.from(cells, c => CHAR[c === UNSET ? 3 : c]).join(""), ...(notes && { notes: notesString(notes) }) } });
   /** The level's cloth for its seed, and the crossings every cloth begins with set (the ones with one colour, and the pre-woven). */
   function open(level, seed, saved = null) {
     cancelAnimationFrame(weaving);
@@ -59,8 +65,9 @@ export function createPlay(host) {
       const kept = i => (saved && /[01]/.test(saved.cells[i]) || saved?.cells[i] === "2" && p.gold >= 0 ? +saved.cells[i] : UNSET);
       for (let i = 0; i < p.n; i++) cells[i] = fixed(p, i) ? p.sol[i] : kept(i);
     }
-    hand = createHand(p, cells);
-    run = { id: level.id, seed, miss: saved?.miss ?? 0, hints: saved?.hints ?? 0, brush: saved?.brush ?? WARP, done: saved?.done ?? null };
+    notes = thr ? notesFrom(p, saved?.notes) : null;
+    hand = createHand(p, cells, notes);
+    run = { id: level.id, seed, miss: saved?.miss ?? 0, hints: saved?.hints ?? 0, brush: saved?.brush ?? WARP, mode: thr && MODES.includes(saved?.mode) ? saved.mode : "lay", done: saved?.done ?? null };
     cloth.set(p);
     paintAll();
     save();
@@ -81,7 +88,7 @@ export function createPlay(host) {
   /** Floats the player has laid (warp over, not counting the pre-woven). */
   const laidByHand = () => { let n = 0; for (let i = 0; i < p.n; i++) if (cells[i] === WARP && !fixed(p, i)) n++; return n; };
 
-  const aimNow = () => (!thr || run.done ? null : hand.aim());
+  const aimNow = () => (!thr || run.done || run.mode !== "lay" ? null : hand.aim());
 
   // ---------- drawing the page ----------
   const clueOf = k => clueString(p, k);
@@ -103,6 +110,7 @@ export function createPlay(host) {
     if (thr && hand.gest) { const a = hand.aim(); if (a) return { text: aimWords(a) }; }
     if (note) return note;
     if (run.done) return { text: `${lv.name}: woven. ${run.miss} slip${run.miss === 1 ? "" : "s"}, ${run.hints} hint${run.hints === 1 ? "" : "s"}.` };
+    if (thr && run.mode !== "lay") return { text: MARK_WORDS[run.mode] };
     if (thr) return threadWords();
     const set = total() - (p.n - free());
     if (!set && !run.miss && !run.hints) return { text: lv.id === "plain-1" ? HOW : chapterOf(lv).blurb };
@@ -114,7 +122,7 @@ export function createPlay(host) {
     let look = null;
     if (a) { look = Uint8Array.from(cells); apply(look, a.changes); }
     cloth.show({
-      cells, look, marks: opts.marks && !run.done, press: press ? press.at : drag ? drag.at : -1,
+      cells, look, notes: run.done ? null : notes, marks: opts.marks && !run.done, press: press ? press.at : drag ? drag.at : -1,
       thread: a && { c: a.c, lo: a.lo, hi: a.hi, kind: a.kind, anchor: a.anchor },
     });
   }
@@ -134,7 +142,25 @@ export function createPlay(host) {
       : `<div class="lm-brushes" role="radiogroup" aria-label="What a tap paints">${BRUSHES.filter(([s]) => s !== GOLD || p.gold >= 0).map(([s, label, title, art]) =>
         `<button type="button" class="btn lm-brush" role="radio" aria-checked="${run.brush === s}" data-brush="${s}" title="${title}" aria-label="${label}: ${title}"><svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">${art}</svg><span>${label}</span></button>`).join("")}</div>`
         + `<div class="lm-moves">${moves}</div>`;
+    renderMarker();
     paintAll();
+  }
+  /** The control over the cloth that says what a touch does: lay, pencil warp or pencil weft. Its room is kept when the cloth is woven, so the cloth doesn't grow. */
+  function renderMarker() {
+    const m = $("marker");
+    m.hidden = !thr;
+    m.classList.toggle("off", !!run.done);
+    for (const b of m.querySelectorAll("[data-mode]")) b.setAttribute("aria-checked", String(b.dataset.mode === run.mode));
+    cloth.room(thr ? m.offsetHeight + .8 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) : 0);
+  }
+  function setMode(m) {
+    if (!thr || run.done || run.mode === m) return;
+    hand.release();                                                 // a thread waiting is let go
+    clearTimeout(noteTimer);
+    note = null;
+    run.mode = m;
+    save();
+    render();
   }
   function say(text, bad = false, ms = 0) {
     clearTimeout(noteTimer);
@@ -231,6 +257,38 @@ export function createPlay(host) {
     save();
   }
 
+  // ---------- the fingers: a note ----------
+  // The same press-and-drag as a brush: a press pencils the crossing with the mode's mark (or, if it already has that mark,
+  // takes it away), and the stroke carries on over the crossings it passes, in a straight line from one touch event to the
+  // next so a quick finger leaves no gap. A float laid, or a pre-woven crossing, takes no note. A stroke is one Undo.
+  function noteDown(e, i) {
+    hand.release();
+    clearTimeout(noteTimer);
+    note = null;
+    if (!markable(p, cells, i)) {
+      const r = Math.floor(i / p.w) + 1, c = (i % p.w) + 1;
+      say(cells[i] === WARP && !fixed(p, i) ? `Pick ${r}, thread ${c} is a laid float: pull it out to pencil a note there.` : `Pick ${r}, thread ${c} is pre-woven: it is known already.`, false, 2400);
+      changed();
+      return false;
+    }
+    const kind = run.mode === "warp" ? NOTE_WARP : NOTE_WEFT;
+    drag = { id: e.pointerId, note: true, kind, erase: notes[i] === kind, batch: [], at: i, last: i };
+    noteTo(i);
+    SOUND.tap();
+    return true;
+  }
+  function noteTo(i) {
+    const ch = paintNote(p, cells, notes, i, drag.kind, drag.erase);
+    if (!ch) return;
+    notes[i] = ch.now;
+    drag.batch.push(ch);
+  }
+  function noteThrough(i) {
+    const a = drag.last, ar = Math.floor(a / p.w), ac = a % p.w, br = Math.floor(i / p.w), bc = i % p.w, n = Math.max(Math.abs(br - ar), Math.abs(bc - ac));
+    for (let k = 1; k <= n; k++) noteTo(Math.round(ar + (br - ar) * k / n) * p.w + Math.round(ac + (bc - ac) * k / n));
+    drag.last = i;
+  }
+
   // ---------- the fingers ----------
   function onDown(e) {
     if (drag || press || IN_FRAME || run.done || weaving || $("doneDlg").open) return;
@@ -239,7 +297,7 @@ export function createPlay(host) {
     if (thr) {
       if (i < 0) { if (hand.release()) render(); return; }                       // a tap beside the cloth lets a waiting thread go
       e.preventDefault();
-      if (!pressThread(e, i)) return;
+      if (run.mode !== "lay" ? !noteDown(e, i) : !pressThread(e, i)) return;
     } else {
       if (i < 0) return;
       drag = { id: e.pointerId, v: cells[i] === run.brush ? UNSET : run.brush, batch: [], at: i };
@@ -255,7 +313,8 @@ export function createPlay(host) {
     const i = cloth.hit(e);
     if (i === drag.at) return;
     drag.at = i;
-    paint(i);
+    if (!drag.note) paint(i);
+    else if (i >= 0) noteThrough(i);
     changed();
   }
   function onUp(e) {
@@ -266,11 +325,15 @@ export function createPlay(host) {
     hand.record(d.batch);
     save();
     render();
-    if (e.type !== "pointercancel" && !run.done && met(p, cells)) conclude();
+    if (!d.note && e.type !== "pointercancel" && !run.done && met(p, cells)) conclude();
   }
   const changed = () => { paintAll(); $("line").textContent = words().text; $("line").classList.toggle("bad", !!note?.bad && !press); };
   for (const [type, fn] of [["pointerdown", onDown], ["pointermove", onMove], ["pointerup", onUp], ["pointercancel", onUp]]) cloth.canvas.addEventListener(type, fn);
   cloth.canvas.addEventListener("contextmenu", e => e.preventDefault());
+  $("marker").addEventListener("click", e => {
+    const b = e.target.closest("[data-mode]");
+    if (b && !IN_FRAME && !weaving && !$("doneDlg").open) setMode(b.dataset.mode);
+  });
   addEventListener("keydown", e => {                                           // Escape lets a waiting thread go
     if (e.key === "Escape" && !press && !document.querySelector("dialog[open]") && hand?.release()) render();
   });
@@ -408,6 +471,6 @@ export function createPlay(host) {
     },
     pause() { if (weaving) { cancelAnimationFrame(weaving); weaving = 0; stopped = true; } },
     resume() { if (stopped) { stopped = false; woven(); } },
-    debug: { cloth, get lv() { return lv; }, get p() { return p; }, get cells() { return cells; }, get run() { return run; }, get pending() { return hand.pending; }, get thr() { return thr; }, begin, fresh, showDone, render, hint, conclude, click, save, undo, redo, solve() { for (let i = 0; i < p.n; i++) cells[i] = p.sol[i]; paintAll(); } },
+    debug: { cloth, get lv() { return lv; }, get p() { return p; }, get cells() { return cells; }, get notes() { return notes; }, setMode, get run() { return run; }, get pending() { return hand.pending; }, get thr() { return thr; }, begin, fresh, showDone, render, hint, conclude, click, save, undo, redo, solve() { for (let i = 0; i < p.n; i++) cells[i] = p.sol[i]; paintAll(); } },
   };
 }
