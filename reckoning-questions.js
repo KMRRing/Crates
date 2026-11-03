@@ -4,6 +4,8 @@
 // that list them are the ones tools/offline.mjs keeps for offline play). What a question is about (`about`, the
 // kb/ entities) rides along, so a miss can go into the pile with them.
 
+import { dealt } from "./topics-on.js";
+
 /** The worlds. The Hanseatic quay is the first: trade, merchants, the cities they sailed to, money, a refinery's words. */
 export const WORLDS = {
   quay: {
@@ -27,12 +29,12 @@ export function fitting(q) {
 }
 
 /** Banks as the engine wants them: [{ bank, q }…] with a difficulty. */
-export async function load(world = "quay") {
+export async function load(world = "quay", daily = false) {
   const out = [];
   for (const [name, get] of Object.entries(WORLDS[world].banks)) {
     const m = await get();
     const list = m.MATHS || Object.values(m).find(Array.isArray) || [];
-    for (const q of list) if (fitting(q)) out.push({ bank: name, q });
+    for (const q of dealt(list, daily)) if (fitting(q)) out.push({ bank: name, q });   // (what is marked for removal is out unless Settings includes it)
   }
   return out;
 }

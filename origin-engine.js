@@ -6,6 +6,8 @@
 // as the database gives it back (tidy).
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
+import { allowed } from "./topics-on.js";
+import { mkOfEntity } from "./marked.js";
 import { COUNTRIES } from "./chart-countries.js";
 import { KB_TOPICS, KB_PRESETS, TOPIC_OF, mixFromSubjects, anyIn } from "./topics.js";
 
@@ -32,9 +34,13 @@ for (const l of LINKS) {
   const names = [...ALIASES.get(l.to), ...(INSIDE.get(l.to) || [])], said = `${NAME.get(l.from)} ${l.hint || ""}`.toLowerCase();
   if (names.some(n => n.length > 3 && said.includes(n))) continue;
   if (!CLUES.has(l.to)) CLUES.set(l.to, []);
-  CLUES.get(l.to).push({ name: NAME.get(l.from), hint: l.hint || "", d: l.d || 2, trade: (l.aspects || []).some(a => TRADE.has(a)), aspects: l.aspects || [] });
+  CLUES.get(l.to).push({ name: NAME.get(l.from), hint: l.hint || "", d: l.d || 2, trade: (l.aspects || []).some(a => TRADE.has(a)), aspects: l.aspects || [], ...(mkOfEntity(l.from) ? { mk: mkOfEntity(l.from) } : {}) });
 }
 export const ANSWERS = [...CLUES.keys()].filter(id => CLUES.get(id).length >= 6).sort();
+// What is marked for removal (topics.js) is out of a deal unless Settings includes it: a clue about a marked thing, a country that is
+// marked itself, and a country left with fewer than six clues. A daily never includes it (the same for everyone).
+const cluesAllowed = (id, daily) => CLUES.get(id).filter(c => allowed(c.mk, daily));
+const answerAllowed = (id, daily) => allowed(mkOfEntity(id), daily) && cluesAllowed(id, daily).length >= 6;
 
 // ---------- topics ----------
 // A clue is about its link's aspects, Crates' country topics, and a run's clues come from a mix of them, made from the
@@ -50,9 +56,9 @@ export const FEWEST_CLUES = 6;
  * A country's clues for this deal: the most obscure first (difficulty 3 before 2 before 1), and within each, a clue
  * of a topic more ahead of the rest (a clue counts as its likeliest topic), trade ahead among equals.
  */
-function cluesFor(id, r, weights = null) {
+function cluesFor(id, r, weights = null, daily = false) {
   const weightOf = c => (weights && c.aspects.length ? Math.max(...c.aspects.map(a => weights[a] ?? 1)) : 1);
-  const all = shuffle(r, CLUES.get(id)).map(c => ({ c, w: weightOf(c) }));
+  const all = shuffle(r, cluesAllowed(id, daily)).map(c => ({ c, w: weightOf(c) }));
   const order = (a, b) => b.c.d - a.c.d || b.w - a.w || Number(b.c.trade) - Number(a.c.trade);
   const ins = all.filter(x => x.w > 0).sort(order), outs = all.filter(x => x.w === 0).sort(order);
   return (ins.length >= FEWEST_CLUES ? ins : [...ins, ...outs]).slice(0, MAX_CLUES).map(({ c: { aspects, ...clue } }) => clue);
@@ -64,9 +70,9 @@ for (const c of COUNTRIES) for (const n of [c.name, ...(ALIASES.get(c.about || c
 // ---------- a run ----------
 /** The five countries of a seed, each with its clues for this deal, from a mix of topics (none, or a mix with no topic in
  *  at all, which is every subject off: every topic in). */
-export function dealRun(seed, weights = null) {
-  const r = rng(seed), picks = shuffle(r, ANSWERS).slice(0, PER_RUN), mix = anyIn(TOPIC_LIST, weights) ? weights : null;
-  return { seed, index: 0, total: 0, rounds: picks.map(id => ({ id, clues: cluesFor(id, r, mix), shown: 1, guesses: [], done: null, points: 0 })) };
+export function dealRun(seed, weights = null, daily = false) {
+  const r = rng(seed), picks = shuffle(r, ANSWERS.filter(id => answerAllowed(id, daily))).slice(0, PER_RUN), mix = anyIn(TOPIC_LIST, weights) ? weights : null;
+  return { seed, index: 0, total: 0, rounds: picks.map(id => ({ id, ...(mkOfEntity(id) ? { mk: mkOfEntity(id) } : {}), clues: cluesFor(id, r, mix, daily), shown: 1, guesses: [], done: null, points: 0 })) };
 }
 /** What the country scores if found now: 100, less 10 a clue after the first and 5 a wrong guess, at least 5. */
 export const pointsNow = R => Math.max(LEAST, FULL - PER_CLUE * (R.shown - 1) - PER_GUESS * R.guesses.length);

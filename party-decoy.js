@@ -4,6 +4,7 @@
 // believe. Find the truth and score; fool someone with your lie and score for each one fooled. The house adds lies of
 // its own when there are too few. The last question counts double.
 import { SAYINGS, NUMBERS, FACTS } from "./party-decoy-bank.js";
+import { dealt } from "./topics-on.js";
 import { h, button, countdown, waitingFor, scoreList, names } from "./party-kit.js";
 import { shuffle } from "./party-core.js";
 
@@ -131,9 +132,11 @@ export default {
   start({ players, options, rng, now }) {
     const n = LENGTHS.includes(Number(options.length)) ? Number(options.length) : 8, deck = DECKS[options.deck] ? options.deck : "mixed";
     const kinds = deck === "mixed" ? Object.keys(DECKS) : [deck];
+    // (what is marked for removal is out unless Settings includes it: the host's)
+    const numbers = dealt(NUMBERS);
     const pools = Object.fromEntries(kinds.map(k => [k, k === "numbers"
-      ? interleave(shuffle(NUMBERS.filter(x => x.u !== "year"), rng), shuffle(NUMBERS.filter(x => x.u === "year"), rng))
-      : shuffle(DECKS[k], rng)]));
+      ? interleave(shuffle(numbers.filter(x => x.u !== "year"), rng), shuffle(numbers.filter(x => x.u === "year"), rng))
+      : shuffle(dealt(DECKS[k]), rng)]));
     // a mix takes the decks in turn, so a game of eight has each kind more than once, then shuffles the questions
     const qs = Array.from({ length: n }, (_, i) => { const k = kinds[i % kinds.length]; return question(k, pools[k][Math.floor(i / kinds.length) % pools[k].length]); });
     const s = { deck, clock: Number(options.clock) || 0, qs: shuffle(qs, rng), at: 0, order: players.map(p => p.uid),

@@ -13,6 +13,8 @@ const { SPAN } = await import("../lode-themes.js");
 const { BANK } = await import("../core.js");
 const { today } = await import("../days.js");
 const { roundTrip, same } = await import("./rtdb.js");
+const { setMarkedIn } = await import("../topics-on.js");
+setMarkedIn(true);   // the engine is checked whole; what Exclude leaves out is checked at the end
 const { CELLS, COLS, ROWS, THEMES, LEVELS, SHAPES, BANDS, SLACK, MAX_TWICE, PER_HINT, HINT_COST, SHOW_COST, makeBoard, boardFor, countCovers, tracings, geometry, themesFor, dailyDeal,
   pickTheme, newRun, tidyRun, submit, useHint, giveUp, scoreOf, missesOf, lockedCells, shares, rivalPlan, rivalAt, RIVALS, letters, wordsOf, outside } = E;
 
@@ -76,7 +78,8 @@ const boards = [], timings = [];
     }
   }
   const say = (k, what) => check(!problems[k].length, `${what}${problems[k].length ? `: ${problems[k].slice(0, 6).join(", ")}` : ""}`);
-  say("made", `a board for every theme, level and shape tried (${tried}: Square and Hex, Easy, Medium and Hard)`);
+  // (a few themes cannot make a board for some seeds now that living people's words are never dealt; boardFor takes the next theme)
+  check(problems.made.length <= Math.ceil(tried * 0.02), `a board for the themes, levels and shapes tried (${tried - problems.made.length} of ${tried}: Square and Hex, Easy, Medium and Hard)${problems.made.length ? `; none for ${problems.made.join(", ")}` : ""}`);
   say("cover", "the words between them use every letter exactly once");
   say("letters", "each word is written along its own path");
   say("span", "the spanning word is the theme's, and touches two opposite sides");
@@ -304,9 +307,29 @@ const boards = [], timings = [];
 // ---------- the daily on every device ----------
 {
   const b1 = boardFor(dailyDeal(20261031)), b2 = boardFor(JSON.parse(JSON.stringify(dailyDeal(20261031))));
-  const replay = boardFor({ ...b1.deal });
+  const replay = boardFor({ ...b1.deal, daily: true });   // (a daily link carries its flag: lode.js startLinked)
   check(same(b1, b2) && same(replay.board, b1.board), "a day's board, dealt twice from scratch, is the same board, and its deal (theme and all) deals it again");
 }
+
+// Exclude (the default): a board holds no word marked for removal, every level still deals, and a daily is the same under either
+{
+  setMarkedIn(false);
+  const counts = LEVELS_OF().map(l => `${l} ${themesFor({ level: l }).length}`);
+  const marked = (b, id) => b.words.some(w => BANK[E.themeById(id).i].words.some(x => x.w === w.shown && x.mk));
+  let made = 0, dirty = 0, none = [];
+  for (const level of Object.keys(LEVELS)) for (const shape of Object.keys(SHAPES)) for (let s = 1; s <= 4; s++) {
+    const m = boardFor({ seed: s * 104729, level, shape });
+    if (!m) { none.push(`${level}/${shape}`); continue; }
+    made++; if (marked(m.board, m.deal.theme)) dirty++;
+  }
+  check(made > 0 && none.length === 0, `Exclude: every level and shape deals a board (${made}; themes at each level: ${counts.join(", ")})`);
+  check(dirty === 0, "Exclude: no board holds a word marked for removal");
+  const day = today(), under = JSON.stringify(boardFor(E.dailyDeal(day)));
+  setMarkedIn(true);
+  check(JSON.stringify(boardFor(E.dailyDeal(day))) === under, "today's board is the same whether Settings includes marked content or not");
+  setMarkedIn(false);
+}
+function LEVELS_OF() { return Object.keys(LEVELS); }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("lode: themes, the generator (one cover, spanning word, no crossings), grading, the solver, a run, hints, the rival, saved state, the team's shares, a table through the database, the daily");

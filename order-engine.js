@@ -6,6 +6,7 @@
 import { QUOTES } from "./quote-bank.js";
 import { TOPICS } from "./quote-engine.js";
 import { drawWeighted } from "./topics.js";
+import { allowed } from "./topics-on.js";
 import { SEQUENCES } from "./kb/items/sequences.js";
 import { DIMENSIONS, dimensionOf, sizeOf } from "./kb/units.js";
 
@@ -31,6 +32,9 @@ export const FAMILIES = Object.values(QUOTES.filter(q => q.unit !== "year").redu
 export const familyOf = unit => FAMILIES.find(f => f.unit === unit || f.units.includes(unit)) || { unit, ids: [], units: [unit], mixed: false, label: unit };
 /** Your best in a family: the keys it was kept under before the units were put together count too. */
 export const bestIn = (best, fam) => Math.max(0, best[`q:${fam.unit}`] ?? 0, ...fam.units.map(u => best[`q:${u}`] ?? 0));
+// Content marked for removal (topics.js) is out of a deal unless Settings includes it; a daily never does.
+const datesFor = daily => DATES.filter(id => allowed(BY_ID.get(id).mk, daily));
+const familiesFor = (daily, least = 6) => FAMILIES.map(f => ({ ...f, ids: f.ids.filter(id => allowed(BY_ID.get(id).mk, daily)) })).filter(f => f.ids.length >= least);
 // stories: each event a card whose truth is its place in the story
 export const STORIES = new Map(SEQUENCES.map(s => [s.id, s]));
 for (const s of SEQUENCES) s.steps.forEach((text, i) => BY_ID.set(`st:${s.id}:${i + 1}`, { id: `st:${s.id}:${i + 1}`, q: text, truth: i + 1, unit: s.unit, story: s.id }));
@@ -60,26 +64,27 @@ const even = (mode, weights) => !weights || topicsIn(mode).every(([id]) => (weig
  * same few don't come round while hundreds wait. A deal that has to reach back into the seen ones says `recycled`, and the
  * page lets them go (cards are forgotten when too few are left to deal from, not on a clock).
  */
-export function dealRun(mode, seed, weights = null, seen = null) {
+export function dealRun(mode, seed, weights = null, seen = null, daily = false) {
+  const DATES_ = datesFor(daily), FAMILIES_ = familiesFor(daily);
   const r = rng(seed), w = id => weights?.[topicOf(id)] ?? 1;
   const isNew = id => !seen?.has(id), newFirst = xs => (seen ? [...xs.filter(isNew), ...xs.filter(id => !isNew(id))] : xs);
   let ids, unit = "year", story = null, wide = false, recycled = false;
   if (mode === "dates") {
-    const pool = even(mode, weights) ? [] : DATES.filter(id => w(id) > 0), want = Math.min(DATES_PER_RUN, pool.length);
+    const pool = even(mode, weights) ? [] : DATES_.filter(id => w(id) > 0), want = Math.min(DATES_PER_RUN, pool.length);
     if (pool.length >= FEWEST) {
       ids = drawWeighted(r, pool.filter(isNew), w, DATES_PER_RUN);
       if (seen && ids.length < want) { recycled = true; ids.push(...drawWeighted(r, pool.filter(id => !isNew(id)), w, DATES_PER_RUN - ids.length)); }
-    } else { wide = !even(mode, weights); ids = newFirst(shuffle(r, DATES)).slice(0, DATES_PER_RUN); recycled = ids.some(id => !isNew(id)); }
+    } else { wide = !even(mode, weights); ids = newFirst(shuffle(r, DATES_)).slice(0, DATES_PER_RUN); recycled = ids.some(id => !isNew(id)); }
   } else if (mode === "stories") { const s = SEQUENCES[Math.floor(r() * SEQUENCES.length)]; story = s.id; unit = s.unit; ids = shuffle(r, s.steps.map((_, i) => `st:${s.id}:${i + 1}`)); }
   else {
-    const mixed = even(mode, weights) ? [] : FAMILIES.map(f => ({ ...f, ids: f.ids.filter(id => w(id) > 0) })).filter(f => f.ids.length >= 6);
+    const mixed = even(mode, weights) ? [] : FAMILIES_.map(f => ({ ...f, ids: f.ids.filter(id => w(id) > 0) })).filter(f => f.ids.length >= 6);
     // a family is as likely as the share of its cards you haven't seen (times its topics' weight); with none unseen anywhere
     // the share doesn't count
     const fresh = f => f.ids.filter(isNew).length;
     const share = (f, among) => (seen && among.some(g => fresh(g) > 0) ? fresh(f) / f.ids.length : 1);
     const mean = f => f.ids.reduce((a, id) => a + w(id), 0) / f.ids.length * share(f, mixed);
     const fam = mixed.length ? drawWeighted(r, mixed, mean, 1)[0]
-      : seen ? drawWeighted(r, FAMILIES, f => share(f, FAMILIES), 1)[0] : FAMILIES[Math.floor(r() * FAMILIES.length)];
+      : seen ? drawWeighted(r, FAMILIES_, f => share(f, FAMILIES_), 1)[0] : FAMILIES_[Math.floor(r() * FAMILIES_.length)];
     wide = !mixed.length && !even(mode, weights);
     unit = fam.unit; ids = newFirst(shuffle(r, fam.ids));
     recycled = fresh(fam) < Math.min(fam.ids.length, DATES_PER_RUN);      // a run is rarely longer than that
@@ -145,13 +150,14 @@ export const wasRight = run => (run.picked ? run.picked === higherOf(...pairOf(r
  * often, not always). A mix that leaves too few cards deals from every topic instead and says so (`wide`); a deal short of
  * unseen cards says `recycled`.
  */
-export function dealHigherLower(mode, seed, weights = null, seen = null) {
+export function dealHigherLower(mode, seed, weights = null, seen = null, daily = false) {
+  const DATES_ = datesFor(daily), HL_ = familiesFor(daily, HL_LEAST);
   if (!HL_MODES[mode]) mode = "dates";
   const r = rng(seed), w = id => weights?.[topicOf(id)] ?? 1, isNew = id => !seen?.has(id), plain = even(mode, weights);
   let pool, unit = "year", wide = false;
   if (mode === "quantities") {
-    const inTopics = plain ? HL_FAMILIES : HL_FAMILIES.map(f => ({ ...f, ids: f.ids.filter(id => w(id) > 0) })).filter(f => f.ids.length >= HL_LEAST);
-    const among = inTopics.length ? inTopics : HL_FAMILIES;
+    const inTopics = plain ? HL_ : HL_.map(f => ({ ...f, ids: f.ids.filter(id => w(id) > 0) })).filter(f => f.ids.length >= HL_LEAST);
+    const among = inTopics.length ? inTopics : HL_;
     wide = !plain && !inTopics.length;
     // as likely as the square root of the weight of its cards you haven't seen (a big family more often than a small one,
     // but not three runs in four); with none unseen anywhere the seen ones count
@@ -160,9 +166,9 @@ export function dealHigherLower(mode, seed, weights = null, seen = null) {
     const fam = drawWeighted(r, among, f => Math.sqrt(weight(f, onlyNew)), 1)[0];
     pool = fam.ids; unit = fam.unit;
   } else {
-    const inTopics = plain ? DATES : DATES.filter(id => w(id) > 0);
+    const inTopics = plain ? DATES_ : DATES_.filter(id => w(id) > 0);
     wide = !plain && inTopics.length < FEWEST;
-    pool = wide ? DATES : inTopics;
+    pool = wide ? DATES_ : inTopics;
   }
   const weigh = wide ? () => 1 : w, fresh = pool.filter(isNew);
   const order = [...drawWeighted(r, fresh, weigh), ...drawWeighted(r, pool.filter(id => !isNew(id)), weigh)];

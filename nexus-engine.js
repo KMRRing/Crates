@@ -13,6 +13,7 @@
 import { ENT, name, kind, ABOUT, TOPIC_LIST, topicsOf, drawEnd } from "./kb-things.js";
 import { LINKS } from "./kb/links.js";
 import { KB_TOPICS, drawWeighted } from "./topics.js";
+import { entityFilter } from "./marked.js";
 
 // the topics (a thing is about the topics of its links) and the mix the suite's subjects make of them are the shared ones, kb-things.js
 export { TOPIC_LIST, topicsOf, name, kind, ABOUT };
@@ -55,7 +56,10 @@ const BY_SET = new Map();
 for (const id of LINKED.keys()) { const s = primary(id); if (!BY_SET.has(s)) BY_SET.set(s, []); BY_SET.get(s).push(id); }
 
 const MAX_NAME = 38;                                          // a chip holds a name, not a quotation
-const usable = id => ENT.has(id) && name(id).length <= MAX_NAME;
+// What is marked for removal (topics.js) is out of a deal unless Settings includes it: while a run is dealt, FILTER says whether a
+// thing may be dealt, and a thing it refuses is neither a nexus, a true link nor a decoy. The lists built at start-up hold everything.
+let FILTER = null;
+const usable = id => ENT.has(id) && name(id).length <= MAX_NAME && (!FILTER || FILTER(id));
 /** What the link between two things says, as the Codex wrote it: a clue ("Troll → Norway: One of the largest offshore gas fields"), or a sentence ("Heracles strangled The Nemean lion"). */
 export function say(a, b) {
   const info = LINKED.get(a)?.get(b);
@@ -150,7 +154,6 @@ function intruder(r, c, size, must = {}) {
   return odd && ring(r, c, "intruder", [...trues.map(id => ({ id, linked: true })), ...odd]);
 }
 const BUILD = { orbit, aspect, intruder };
-const POOL = { orbit: CENTRES, aspect: ASPECT_CENTRES, intruder: INTRUDER_CENTRES };
 
 /**
  * The five rounds of a seed. `mode` is a type or "mixed"; `size` how many candidates an Orbit or Aspect round rings
@@ -158,8 +161,14 @@ const POOL = { orbit: CENTRES, aspect: ASPECT_CENTRES, intruder: INTRUDER_CENTRE
  * drawn by the weight of its likeliest topic, as kb-things.js's drawEnd does); `forced` nexuses to deal first, with `must[id] = { trues, falses }` to put in them
  * (what the learning mode asks again); `avoid` a Set of nexuses dealt lately, left out unless that leaves too few.
  */
-export function dealRun(seed, { mode = "mixed", size = 10, weights = null, forced = [], must = {}, avoid = null } = {}) {
+export function dealRun(seed, { mode = "mixed", size = 10, weights = null, forced = [], must = {}, avoid = null, daily = false } = {}) {
+  FILTER = entityFilter(daily);
+  try { return deal(seed, { mode, size, weights, forced, must, avoid }); } finally { FILTER = null; }
+}
+function deal(seed, { mode, size, weights, forced, must, avoid }) {
   const r = rng(seed), rounds = [], used = new Set();
+  const POOL = { orbit: CENTRES.filter(c => FILTER(c) && truthsOf(c).length >= 3), aspect: ASPECT_CENTRES.filter(c => FILTER(c) && [...aspectsOf(c).values()].some(xs => xs.length >= 3)),
+    intruder: INTRUDER_CENTRES.filter(c => FILTER(c) && truthsOf(c).length >= 4) };
   for (let i = 0; i < PER_RUN; i++) {
     let made = null;
     for (let tries = 0; tries < 80 && !made; tries++) {

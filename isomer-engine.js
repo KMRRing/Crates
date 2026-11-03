@@ -8,6 +8,7 @@ import { finalsAll, themesAll, weightOf, clueOf, halvesOf, partnerOf, pairedClue
 import { isWord } from "./wordlist.js";
 import { BANK } from "./core.js";
 import { KB_TOPICS, TOPIC_OF, mixFromSubjects } from "./topics.js";
+import { allowed } from "./topics-on.js";
 
 export const PER_HINT = 15;                 // seconds a hinted letter adds to the score
 export const MOST_PEOPLE = 6;
@@ -129,9 +130,12 @@ export const TOPIC_LIST = [...KB_TOPICS.country, ...KB_TOPICS.commodity];
 export const topicsOf = on => mixFromSubjects(TOPIC_LIST, TOPIC_OF.kb, on);
 
 /** The finals a deal can draw from: their category in the pool, their letters in range, their topics in the mix. */
+// What is marked for removal (topics.js) is out of a deal unless Settings includes it; a daily never does (the same for everyone).
+let DAILY_DEAL = false;
+const dealtOk = f => allowed(f.mk, DAILY_DEAL);
 function finalsFor({ cats, range, L, mix, double = false }) {
   const [lo, hi] = range;
-  return finalsAll().filter(f => cats.includes(f.cat) && weightOf(f.topics, mix) > 0 && L.d[f.d - 1] > 0 && (double
+  return finalsAll().filter(f => dealtOk(f) && (!double || dealtOk(partnerOf(f))) && cats.includes(f.cat) && weightOf(f.topics, mix) > 0 && L.d[f.d - 1] > 0 && (double
     ? pairable(f) && f.letters.length + partnerOf(f).letters.length >= lo && f.letters.length + partnerOf(f).letters.length <= hi
     : f.letters.length >= lo && f.letters.length <= hi));
 }
@@ -160,12 +164,13 @@ function finalOf(f, r, clue = clueOf(f), halves = halvesOf(f)) {
  * halves, … }], tray: [[word, square]…] (the circled letters in the order they stand), secs (what the solver takes) }.
  * opts: { mode, level, cat ("country", "commodity", "mixed"), mix (topic weights) }.
  */
-export function makePuzzle(seed, { mode = "classic", level = "medium", cat = "mixed", mix = null } = {}) {
+export function makePuzzle(seed, { mode = "classic", level = "medium", cat = "mixed", mix = null, daily = false } = {}) {
+  DAILY_DEAL = daily;
   const M = MODES[mode] || MODES.classic, L = LEVELS[level] || LEVELS.medium, r = rng(seed);
-  for (let round = 0; round < 3; round++) {
+  for (let round = 0; round < 4; round++) {
     // a mix too narrow, or a pool too small, falls back to every topic (README, Isomer: it says so)
     const m = round === 0 ? mix : null;
-    const pick = POOLS[cat] ? cat : "mixed", cats = pick === "mixed" ? [r() < 0.5 ? "country" : "commodity"] : POOLS[pick];
+    const pick = POOLS[cat] ? cat : "mixed", cats = round === 3 ? ["country", "commodity"] : pick === "mixed" ? [r() < 0.5 ? "country" : "commodity"] : POOLS[pick];   // (the last try takes both, for what marked-for-removal content leaves thin)
     const p = mode === "theme" ? themePuzzle(r, M, L, level, cats, m) : wordPuzzle(r, M, L, level, cats, m, mode);
     if (p) return { v: 1, mode: M === MODES[mode] ? mode : "classic", level: LEVELS[level] ? level : "medium", seed, cat: cats[0], ...p, wide: round > 0 && !!mix, secs: Math.round(solveTime(p, RIVALS.sharp) / 1000) };
   }
@@ -198,11 +203,11 @@ function wordPuzzle(r, M, L, level, cats, mix, mode) {
  *  hint; best when no other answer in the bank carries all four (Crates' rule for a crate). */
 function themePuzzle(r, M, L, level, cats, mix) {
   const [lo, hi] = M.letters[level];
-  const all = themesAll().filter(t => cats.includes(t.cat) && t.letters.length >= lo && t.letters.length <= hi);
+  const all = themesAll().filter(t => dealtOk(t) && cats.includes(t.cat) && t.letters.length >= lo && t.letters.length <= hi);
   for (let tries = 0; tries < 40; tries++) {
     const t = all[Math.floor(r() * all.length)];
     if (!t) return null;
-    const clues = t.clues.filter(c => weightOf(c.topics, mix) > 0 && L.themeD[c.d - 1] > 0 && canHide(c.letters));
+    const clues = t.clues.filter(c => dealtOk(c) && weightOf(c.topics, mix) > 0 && L.themeD[c.d - 1] > 0 && canHide(c.letters));
     if (clues.length < 4) continue;
     let best = null;
     for (let pick = 0; pick < 30 && !(best?.only); pick++) {

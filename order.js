@@ -16,7 +16,7 @@ import { LIVES, MODES, BY_ID, DATES, FAMILIES, STORIES, familyOf, bestIn, dealRu
 import { HL_MODES, HL_FAMILIES, dealHigherLower, answerHigherLower, advanceHigherLower, pairOf, higherOf, wasRight } from "./order-engine.js";
 import { withUnit, topicsDealt } from "./quote-engine.js";
 import { subjectPreset } from "./topics.js";
-import { subjectsOn } from "./topics-on.js";
+import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { showPicture, pictureName, nameIn } from "./pics.js";
 import { sideways } from "./wide.js";
@@ -48,7 +48,7 @@ const valueOf = q => (q.story ? ordinal(q.truth) : withUnit(q.truth, q));
 const mixFor = mode => { const w = topicsDealt(subjectsOn()); return topicsIn(mode).some(([id]) => w[id] > 0) ? w : null; };
 /** A run counts for your best if it's today's, or dealt on a preset of the subjects (All on, Culture, STEM, Trade), not on
  *  a mix of your own; the stories have no topics. */
-const ranked = (mode, daily) => daily || mode === "stories" || subjectPreset(subjectsOn()) !== "custom";
+const ranked = (mode, daily) => daily || mode === "stories" || (!markedIn() && subjectPreset(subjectsOn()) !== "custom");
 
 // ---------- your own run ----------
 let S = read(RUN, null);
@@ -61,7 +61,7 @@ const markSeen = ids => { const had = new Set(seenIds()); if (ids.some(id => !ha
 const forget = ids => { const out = new Set(ids); write(SEEN, seenIds().filter(id => !out.has(id))); };
 function newRun(mode, daily) {
   const seed = daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31);
-  S = { ...dealRun(mode, seed, daily ? null : mixFor(mode), daily || mode === "stories" ? null : new Set(seenIds())), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
+  S = { ...dealRun(mode, seed, daily ? null : mixFor(mode), daily || mode === "stories" ? null : new Set(seenIds()), daily), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
   if (S.recycled) { forget(mode === "dates" ? DATES : familyOf(S.unit).ids); delete S.recycled; }
   if (tracked(S)) markSeen([S.line[0].id]);
   save(); render();
@@ -200,7 +200,7 @@ function newHL(mode, daily) {
   cancelStep();
   const m = HL_MODES[mode] ? mode : "dates";
   const seed = daily ? today() * 7919 + (m === "dates" ? 17 : 19) : Math.floor(Math.random() * 2 ** 31);
-  H = { ...dealHigherLower(m, seed, daily ? null : mixFor(m), daily ? null : new Set(seenIds())), daily, day: daily ? today() : null, ranked: ranked(m, daily) };
+  H = { ...dealHigherLower(m, seed, daily ? null : mixFor(m), daily ? null : new Set(seenIds()), daily), daily, day: daily ? today() : null, ranked: ranked(m, daily) };
   if (H.recycled) { forget(m === "dates" ? DATES : familyOf(H.unit).ids); delete H.recycled; }
   if (!daily) markSeen([H.cards[0]]);
   write(HL, H); render();

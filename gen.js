@@ -17,7 +17,12 @@ const MATE_DAMPING = 0.05;
 const LEARN_WEIGHT = { n: 0.5, k: 0.04 };
 const NOT_YET = 0, DUE = 2;
 
+/** Content marked for removal (topics.js `dealable`) is out unless the deal's settings include it (`marked`: topics-on.js `markedIn()`;
+ *  not there, as in a daily or a room, it is out); the living never. */
+const allowed = (mk, settings) => !mk || (settings.marked === true && mk !== "l");
+
 export function wordWeight(word, settings) {
+  if (!allowed(word.mk, settings)) return 0;
   const topic = Math.max(...word.topics.map(t => settings.topics[t] ?? 1));
   return topic > 0 ? topic * DIFF_WEIGHT[settings.difficulty][word.d - 1] : 0;
 }
@@ -35,7 +40,7 @@ const wordKey = (a, i) => `${a}.${i}`;
 function eligibleAnswers(cat, settings) {
   return BANK.map((a, i) => i).filter(i => {
     const a = BANK[i];
-    return a.cat === cat && !settings.off.includes(a.group)
+    return a.cat === cat && !settings.off.includes(a.group) && allowed(a.mk, settings)
       && a.words.filter(w => wordWeight(w, settings) > 0).length >= 4;
   });
 }
@@ -93,7 +98,7 @@ function reviewPlan(pool, settings, learn, review, rng) {
     const pair = PAIRS.get(key);
     if (!pair) continue;
     const [a, i] = pair;
-    if ((pool !== "mixed" && BANK[a].cat !== pool) || settings.off.includes(BANK[a].group)
+    if ((pool !== "mixed" && BANK[a].cat !== pool) || settings.off.includes(BANK[a].group) || !allowed(BANK[a].mk, settings)
       || !(wordWeight(BANK[a].words[i], settings) > 0)) continue;
     if (!due.has(a)) due.set(a, []);
     due.get(a).push({ i, d: c.d, key });
@@ -262,7 +267,7 @@ export function generateSplit({ pool, sides, off = [], recentA = [], rng = Math.
   const cats = pool === "mixed" ? shuffled(["country", "commodity"], rng) : [pool];
   for (const cat of cats) {
     const answers = BANK.map((a, i) => i).filter(i => BANK[i].cat === cat && !off.includes(BANK[i].group)
-      && settings.every(s => BANK[i].words.filter(w => wordWeight(w, s) > 0).length >= 3));
+      && settings.every(s => allowed(BANK[i].mk, s)) && settings.every(s => BANK[i].words.filter(w => wordWeight(w, s) > 0).length >= 3));
     if (answers.length < 4) continue;
     for (let attempt = 0; attempt < 400; attempt++) {
       const chosen = [], rest = answers.slice(), weights = rest.map(a => (recentAs.has(a) ? RECENT_DAMPING : 1));

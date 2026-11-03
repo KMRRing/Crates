@@ -13,6 +13,9 @@ const E = await import("../isomer-engine.js");
 const T = await import("../isomer-table.js");
 const { roundTrip } = await import("./rtdb.js");
 const { today } = await import("../days.js");
+const { setMarkedIn } = await import("../topics-on.js");
+const { BANK } = await import("../core.js");
+setMarkedIn(true);   // the engine is checked whole; what Exclude leaves out is checked at the end
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -251,6 +254,23 @@ const made = {};
   const next = E.makePuzzle(today(new Date(Date.UTC(2026, 9, 21, 1))), E.DAILY);
   check(day === 20261020 && JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a) !== JSON.stringify(next), "today's puzzle is dealt from the day alone: the same everywhere, another tomorrow");
   check(a.mode === "classic" && a.level === "medium" && a.words.length === 4, "today's is a Classic, Medium");
+}
+
+// Exclude (the default): nothing marked for removal in a puzzle, a mode and level always deals one, and a daily is the same under either
+{
+  const marked = w => w.a != null && (BANK[w.a].mk || BANK[w.a].words[w.i]?.mk);
+  const own = p => p.finals.filter(w => w.a != null);
+  setMarkedIn(false);
+  let made = 0, dirty = 0, short = [];
+  for (const mode of MODES) for (const level of LEVELS) for (const cat of ["country", "commodity", "mixed"]) for (let s = 1; s <= 3; s++) {
+    try { const p = E.makePuzzle(s * 7919, { mode, level, cat }); made++; if (own(p).some(marked)) dirty++; } catch { short.push(`${mode}/${level}/${cat}`); }
+  }
+  check(made > 0 && short.length === 0, `Exclude: every mode, level and answer set deals a puzzle (${made}${short.length ? `, none for ${short.join(" ")}` : ""})`);
+  check(dirty === 0, "Exclude: no puzzle holds an entry marked for removal");
+  const day = today(), under = JSON.stringify(E.makePuzzle(day, { ...E.DAILY, daily: true }));
+  setMarkedIn(true);
+  check(JSON.stringify(E.makePuzzle(day, { ...E.DAILY, daily: true })) === under, "today's puzzle is the same whether Settings includes marked content or not");
+  setMarkedIn(false);
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

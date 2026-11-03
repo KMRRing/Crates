@@ -51,6 +51,9 @@ const CLUE = () => (clueLetters ||= BANK.map(a => a.words.map(w => lettersOf(w.w
  * thing's name), context (what the clue is shown with) }. Made the first time a puzzle is dealt, not when the page
  * opens: a puzzle kept from before draws without it.
  */
+// the worse of two marks for removal (topics.js): living is out always, then personal, then specialist; none is kept
+const worst = (x, y) => (x === "l" || y === "l" ? "l" : x === "p" || y === "p" ? "p" : x || y);
+
 export function finalsAll() {
   if (finals) return finals;
   finals = [];
@@ -61,7 +64,7 @@ export function finalsAll() {
     const mine = ANSWER[ai];
     a.words.forEach((w, wi) => {
       if (names(w.w, ai) || says(w.hint, w.w)) return;         // nothing to find if the clue gives itself away
-      const base = { a: ai, i: wi, cat: a.cat, d: w.d || 2, topics: topicsOf(w), hint: w.hint, clue: w.w };
+      const base = { a: ai, i: wi, cat: a.cat, d: w.d || 2, topics: topicsOf(w), hint: w.hint, clue: w.w, mk: worst(a.mk, w.mk) };
       const thing = CLUE()[ai][wi];
       if (thing && thing.letters.length >= 4 && spelled.get(sorted(thing.letters)) === 1) finals.push({ ...base, kind: "name", text: w.w, ...thing, context: a.name });
       // its country or commodity, from the clue: not if the hint names it, nor if another answer the clue fits spells the same
@@ -119,9 +122,9 @@ export function themesAll() {
     a.words.forEach((w, wi) => {
       if (names(w.w, ai) || says(w.hint, w.w)) return;
       const letters = jumbleable(CLUE()[ai][wi]);
-      if (letters && !clues.some(c => c.letters === letters)) clues.push({ i: wi, letters, text: w.w, hint: w.hint, d: w.d || 2, topics: topicsOf(w), alt: w.alt || [] });
+      if (letters && !clues.some(c => c.letters === letters)) clues.push({ i: wi, letters, text: w.w, hint: w.hint, d: w.d || 2, topics: topicsOf(w), alt: w.alt || [], mk: worst(a.mk, w.mk) });
     });
-    if (clues.length >= 4) themes.push({ a: ai, cat: a.cat, text: a.name, ...ANSWER[ai], clues });
+    if (clues.length >= 4) themes.push({ a: ai, cat: a.cat, mk: a.mk, text: a.name, ...ANSWER[ai], clues });
   });
   return themes;
 }

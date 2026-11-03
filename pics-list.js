@@ -326,6 +326,7 @@ export const PICTURES = [
 "Marie Curie",
 "Marilyn Diptych",
 "Marilyn Monroe",
+"Marine chronometer",
 "Mark Twain",
 "Mark Zuckerberg",
 "Martin Luther King Jr.",

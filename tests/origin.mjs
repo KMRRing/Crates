@@ -12,6 +12,7 @@ const { PER_RUN, FULL, PER_CLUE, PER_GUESS, MOST, PLACE, ALIASES, ANSWERS, GUESS
 const { LINKS } = await import("../kb/links.js");
 const { cleanMix, cleanSubjects, subjectsIn, subjectsSay, mixParam, mixFromParam, SUBJECT_PRESETS, TOPIC_OF } = await import("../topics.js");
 const { roundTrip, same } = await import("./rtdb.js");
+const { setMarkedIn } = await import("../topics-on.js");
 let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } };
 
@@ -72,8 +73,13 @@ check(COUNTRIES.every(c => GUESSABLE.get(c.name.toLowerCase()) === (c.about || c
   // one subject on: only its topics in (Energy is nrg alone among the country topics), so a country's clues are about it where it has six
   const nrg = topicsOf(only("nrg"));
   check(mixIn(nrg).join() === "nrg", "only Energy on is the energy topic alone");
+  // (Exclude, the default, leaves out what is marked for removal, and every clue about energy is: it is dealt as the rest are)
+  const kept = [11, 12, 13].flatMap(seed => dealRun(seed, nrg).rounds);
+  check(kept.every(R => R.clues.length >= FEWEST_CLUES && !R.mk && R.clues.every(c => !c.mk)), "Exclude: a country keeps six clues, none marked for removal, though every clue about energy is");
+  setMarkedIn(true);
   const energy = [11, 12, 13].flatMap(seed => dealRun(seed, nrg).rounds);
-  check(energy.every(R => R.clues.length >= FEWEST_CLUES) && energy.some(R => R.clues.filter(c => of(R, c).includes("nrg")).length >= FEWEST_CLUES), "with only Energy on, countries keep six clues, those about energy among them");
+  check(energy.every(R => R.clues.length >= FEWEST_CLUES) && energy.some(R => R.clues.filter(c => of(R, c).includes("nrg")).length >= FEWEST_CLUES), "with only Energy on (Include), countries keep six clues, those about energy among them");
+  setMarkedIn(false);
   // nothing on: every topic is dealt (as all on does, a country never left with fewer than six), and the menu line says so
   const nothing = topicsOf(none);
   check(!mixIn(nothing).length && !subjectsIn(none).length, "all subjects off is nothing in");

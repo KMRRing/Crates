@@ -138,3 +138,16 @@ export function mixFromSubjects(list, map, on, base = {}) {
   for (const [id] of list) out[id] = (on?.[map[id]] ?? 1) > 0 ? (base[id] ?? 1) : 0;
   return out;
 }
+
+// ---- content marked for removal (docs/the-knowledge-base.md, "Who the games ask about") ----------------------------------
+// Every item the banks hold carries its mark when it is marked for removal: `mk` "s" (specialist) or "p" (personal), or "l"
+// (a living person, in the one list that must keep it: Crates'). Unmarked is kept (universal, regional, theme). Settings has one
+// choice, Exclude (the default) or Include (topics-on.js); a game forms its pool with `dealable`, next to where it applies the
+// subjects. Living is never dealt.
+/** Whether an item (or a bare mark letter) is marked for removal. */
+export const isMarked = x => { const m = typeof x === "string" ? x : x?.mk; return m === "s" || m === "p"; };
+/** What a game may deal from `list` (items with `mk`): without what is marked for removal unless `include`; the living never. */
+export const dealable = (list, include = false) => list.filter(x => !x.mk || (include && x.mk !== "l"));
+/** The star a marked item carries wherever its prompt is drawn (style.css `.marked-star`), as markup. */
+export const STAR = '<span class="marked-star" role="img" aria-label="Marked for removal" title="Marked for removal">★</span>';
+export const starOf = x => (isMarked(x) ? STAR : "");

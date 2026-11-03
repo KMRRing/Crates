@@ -14,7 +14,7 @@ import { part, action, line, isPaused, onPause } from "./menu.js";
 import { sure } from "./sure.js";
 import { modeChoice } from "./crates-board.js";
 import { topicsPart } from "./topics-ui.js";
-import { subjectsOn } from "./topics-on.js";
+import { subjectsOn, markedIn } from "./topics-on.js";
 import { today, noteComparable, noteStreak } from "./suite.js";
 import { roundOver } from "./random.js";
 
@@ -131,7 +131,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       view.toast(d.pts != null ? `Today's board: ${d.pts}/8 in ${formatTime(d.ms)}. A new one tomorrow` : "You've had today's board. A new one tomorrow", 3500);
       return false;
     }
-    const b = generate({ pool: "country", settings: defaultSettings(), rng: seeded(day) });
+    const b = generate({ pool: "country", settings: { ...defaultSettings(), marked: false }, rng: seeded(day) });   // today's board is dealt as Exclude: the same for everyone
     if (!b) { view.toast("Today's board couldn't be dealt", 3000); return false; }
     begin(b, null, day);
     return true;
@@ -141,7 +141,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     const mode = store.mode;
     const learn = mode === "learn" || mode === "clues" ? store.deck : null;
     if (learn) learn.t += 1;
-    const opts = { pool: store.pool, settings: { ...store.settings, topics: dealTopics(subjectsOn()) }, recentA: store.recentA, recentW: store.recentW,
+    const opts = { pool: store.pool, settings: { ...store.settings, topics: dealTopics(subjectsOn()), marked: markedIn() }, recentA: store.recentA, recentW: store.recentW,
       learn, review: mode === "clues" ? "clues" : "all" };
     const deal = () => generate(mode === "norepeat" ? { ...opts, seen: seenTexts(store.seen) } : opts);
     let b = deal();

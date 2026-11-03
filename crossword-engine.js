@@ -139,9 +139,10 @@ const FRESH = 0.02;
  * aspects, as Crates weighs a clue) times its difficulty's at the level, times more for one the review pile has due
  * (`due`, keys) or one about something another game found you weak on (`weak`, entity ids).
  */
-function candidates(L, { pool = "mixed", asks = "both", topics = null, due = [], weak = null, avoid = [] }) {
+// (what is marked for removal, topics.js, is out unless `marked`: Settings' choice, passed in because the worker has no storage)
+function candidates(L, { pool = "mixed", asks = "both", topics = null, due = [], weak = null, avoid = [], marked = false }) {
   const dueSet = new Set(due), avoided = new Set(avoid);
-  return kbEntries().filter(e => (pool === "mixed" || e.cat === pool) && (asks === "both" || e.dir === asks) && e.letters.length <= L.longest)
+  return kbEntries().filter(e => (!e.mk || (marked === true && e.mk !== "l")) && (pool === "mixed" || e.cat === pool) && (asks === "both" || e.dir === asks) && e.letters.length <= L.longest)
     .map(e => {
       const topic = topics ? Math.max(0, ...e.topics.map(t => topics[t] ?? 1)) : 1;
       const learn = dueSet.has(e.key) ? 8 : weak && e.about.some(id => weak.has(id)) ? 3 : 1;
@@ -291,14 +292,14 @@ function spec(level, size, kind) {
  * revised first, and entities other games found you weak on), upto (the clue bank's tier it draws on: WHOLE_BANK, or
  * today's DAILY_BANK).
  */
-export function makePuzzle({ seed = 1, level = "medium", size = null, kind = "both", pool = "mixed", asks = "both", mode = "classic", topics = null, due = [], weak = null, avoid = [], upto = WHOLE_BANK } = {}) {
+export function makePuzzle({ seed = 1, level = "medium", size = null, kind = "both", pool = "mixed", asks = "both", mode = "classic", topics = null, due = [], weak = null, avoid = [], upto = WHOLE_BANK, marked = false } = {}) {
   const L = spec(level, size, kind), rnd = seeded(mix(seed, 0xC205)), bank = bankTo(upto);
   // a Lexicon grid of country and commodity names alone can't be filled (there are too few of them): it names both ways
   if (L.lexicon && asks === "fwd") asks = "both";
   if (L.kb < THEMED) mode = "classic";
   // a mixed grid's theme draws on the reverse entries alone (its starred clues); a Lexicon grid fills the rest of the
   // grid from the same entries, so it takes them as asked (the starred clues still only reverse ones: themesOf)
-  const all = L.kb ? candidates(L, { pool, asks: mode === "theme" && !L.lexicon ? "rev" : asks, topics, due, weak, avoid }) : [];
+  const all = L.kb ? candidates(L, { pool, asks: mode === "theme" && !L.lexicon ? "rev" : asks, topics, due, weak, avoid, marked }) : [];
   // learning mode: what the review pile has due goes in first, up to half the grid's knowledge entries (half of all its
   // entries in a Lexicon grid), the pile's order kept (the most revised first), none giving another away
   const inPool = new Map(all.map(c => [c.e.key, c.e]));
