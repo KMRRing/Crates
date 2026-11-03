@@ -86,6 +86,9 @@ export async function openCoopParty(sync, { host, guest, game, board = null, now
   return { code, at: now, playing };
 }
 
+/** Takes a whole room down. A transaction on the room's own path, where the database's rules grant the write (a cold cache's first try gives null, and answering null makes it ask the server). */
+const removeRoom = (sync, code) => sync.tx(`crates/rooms/${code}`, () => null);
+
 /**
  * The host accepts a request: claims it, opens the party, then tells the asker yes. Resolves { ok: true, code, at } or
  * { ok: false, why } ("taken": another device or an answer got there first; "lapsed": it ran out while the party opened,
@@ -98,7 +101,7 @@ export async function acceptJoin(sync, pair, req, host, { game, board = null }) 
   try { party = await openCoopParty(sync, { host, guest: { uid: req.device, pid: req.from, name: req.name || "Your partner" }, game, board }); }
   catch (e) { console.error(e); await transact(sync, pair, { type: "late", at: req.at }).catch(() => {}); return { ok: false, why: "error" }; }
   const said = await transact(sync, pair, { type: "yes", at: req.at, uid: host.uid, party: party.code, playAt: party.at });
-  if (!said.mine) { await sync.update("crates/rooms", { [party.code]: null }).catch(() => {}); return { ok: false, why: "lapsed" }; }
+  if (!said.mine) { await removeRoom(sync, party.code).catch(() => {}); return { ok: false, why: "lapsed" }; }
   return { ok: true, code: party.code, at: party.at };
 }
 
@@ -117,7 +120,7 @@ export const shouldFollow = (a, { uid, pid, followed, now = Date.now() }) =>
  * so on the game's branch first (the host's page is watching it, and names who left), then frees the party seat.
  */
 export async function leaveCoop(sync, { code, game, host, uid, pid, name }) {
-  if (host) { await sync.update("crates/rooms", { [code]: null }); return; }
+  if (host) { await removeRoom(sync, code); return; }
   await sync.tx(branchPath(code, game), cur => {
     if (cur === null) return null;
     if (cur.left) return undefined;
