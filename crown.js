@@ -353,7 +353,7 @@ const WHY = {
 function showEnd(v) {
   const s = v.state, r = s.result;
   $("endHead").textContent = resultWords(v);
-  $("endBody").innerHTML = `<p class="cr-end-note">${r.winner == null ? "Drawn" : "Won"} by ${WHY[r.why] || r.why}, after ${Math.ceil(s.ply / 2)} moves each, ${SETS[s.set].name} draughts.</p>`;
+  $("endBody").innerHTML = `<p class="cr-end-note">${r.winner == null ? "Drawn" : "Won"} by ${WHY[r.why] || r.why}, after ${Math.ceil(s.ply / 2)} ${Math.ceil(s.ply / 2) === 1 ? "move" : "moves"} each,${SETS[s.set].name} draughts.</p>`;
   $("endAgain").hidden = !page.host;
   if (!$("endDlg").open) $("endDlg").showModal();
 }

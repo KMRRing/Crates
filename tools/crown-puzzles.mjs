@@ -1,4 +1,4 @@
-// Crown's shots found by the search: positions from the computer's own games where the winning move is a sacrifice (a
+// Crown's shots found by the search: random legal positions where the winning move is a sacrifice (a
 // man given up so that a compulsory jump drags a piece out of place and the reply takes more). A position is kept when
 // every move is a quiet one, the best is clear of the next by more than a man, the best wins material the position
 // doesn't already have, and it gives a piece for the opponent to take. Rated by how deep the search has to look to find it.
@@ -97,7 +97,7 @@ if (cmd === "sample") {
   for (const f of args) for (const l of fs.readFileSync(f, "utf8").split("\n").filter(Boolean)) all.push(JSON.parse(l));
   const uniq = new Map(all.map(p => [`${p.set}:${p.pieces}:${p.side}`, p]));
   const list = [...uniq.values()].sort((a, b) => a.set.localeCompare(b.set) || a.needs - b.needs || a.men - b.men);
-  const head = `// Crown's shots, found by tools/crown-puzzles.mjs (don't edit: run it again). Each is a position from the computer's own games where\n// the best move is a sacrifice that wins material, written as the course writes a step (crown-course.js: set, pieces, side), with\n// the move, the line the search plays on from it, how deep the search must look (needs) and what it gains, in men.\n`;
+  const head = `// Crown's shots, found by tools/crown-puzzles.mjs (don't edit: run it again). Each is a small random position where\n// the best move is a sacrifice that wins material, written as the course writes a step (crown-course.js: set, pieces, side), with\n// the move, the line the search plays on from it, how deep the search must look (needs) and what it gains, in men.\n`;
   fs.writeFileSync(new URL("../crown-puzzles.js", import.meta.url), `${head}export const SHOTS = [\n${list.map(p => JSON.stringify(p)).join(",\n")},\n];\n`);
   console.log(`${list.length} shots written`);
 }

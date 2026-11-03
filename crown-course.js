@@ -141,8 +141,10 @@ const shotStep = (p, say) => ({
 });
 
 /** The shots a lesson teaches with, easiest first (the search's own rating: how deep it has to look). */
+/** The shots of a rule set the bank has, easiest first. */
+export const shotsOf = set => SHOTS.filter(p => p.set === set && p.gain >= 0.9 && p.needs >= 2).sort((a, b) => a.needs - b.needs || a.men - b.men);
 const pickShots = (set, n) => {
-  const list = SHOTS.filter(p => p.set === set && p.gain >= 0.9 && p.needs >= 2).sort((a, b) => a.needs - b.needs || a.men - b.men);
+  const list = shotsOf(set);
   return [0, 0.5, 1].slice(0, n).map(f => list[Math.min(list.length - 1, Math.floor(f * (list.length - 1)))]).filter(Boolean);
 };
 
@@ -246,7 +248,7 @@ export const COURSE = {
           id: "sets", title: "Other rule sets", zh: "",
           steps: [
             { set: "international", pieces: "O@c1 x@f4", answer: "c1xg5", accept: ["c1xh6", "c1xi7", "c1xj8"], say: "Crown is also played by International rules (the Menu's Rules choice): a bigger board, ten by ten, with twenty men a side, men that jump backward, and flying kings. A flying king moves any distance along a diagonal and jumps a piece from a distance, landing on any free square beyond it. Take the man on f4.", then: "Any of the four landings was allowed. Brazilian draughts is the same rules on eight by eight; Russian lets a king fly too, but any route may be chosen.", why: "Along the diagonal over f4: land on g5, h6, i7 or j8." },
-            { set: "international", pieces: "o@c3 x@d4 x@f6 o@a5 x@b6", answer: "c3xe5xg7", say: "In International draughts the jump that takes the most pieces is compulsory, even when another jump is tempting. Two jumps could be made here: the single one with a5 is not on offer. Take your two.", then: "The majority rule: only c3's run of two is allowed. (A king counts as one piece, like a man.)", why: "Over d4 to e5, over f6 to g7." },
+            { set: "international", pieces: "o@c3 x@d4 x@f6 o@a5 x@b6", answer: "c3xe5xg7", say: "In International draughts the jump that takes the most pieces is compulsory, even when another jump is tempting. Here a5 could take one man and c3 could take two, so only c3 may move. Take your two.", then: "The majority rule: only c3's run of two is allowed. (A king counts as one piece, like a man.)", why: "Over d4 to e5, over f6 to g7." },
           ],
         },
         {
@@ -261,8 +263,6 @@ export const COURSE = {
 };
 
 // ---------- the shot of the day ----------
-/** The shots of a rule set the bank has, easiest first. */
-export const shotsOf = set => SHOTS.filter(p => p.set === set && p.gain >= 0.9 && p.needs >= 2).sort((a, b) => a.needs - b.needs || a.men - b.men);
 /** Today's shot (the suite's day, YYYYMMDD): one a day from the bank, the same for everyone, round and round. */
 export function dayShot(day, set = "english") {
   const list = shotsOf(shotsOf(set).length >= 7 ? set : "english");
