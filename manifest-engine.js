@@ -22,14 +22,13 @@ import { CARGO, TYPES, canPlace, room, loadAbove, validate, weightOf, worthOf, c
 
 export const LIVES = 3, ROUNDS = 12;
 /**
- * The six types as the art draws them, numbered as a cell holds them (the order they come in on the ladder). `pack` is
- * which of the present drawings stands in for the type's own until its model is made, `hex` the colour of its top (a
- * left face is drawn at .72 of it, a right at .86, a top at 1.05). They differ in hue and in lightness, not only for a
- * normal eye but for one that can't tell red from green or blue from yellow (tests/manifest.mjs measures it, for a
- * normal eye and the three dichromacies, and fails if any pair is nearer than the first version's colours were).
+ * The six types as the art draws them, numbered as a cell holds them (the order they come in on the ladder). `hex` is the
+ * cargo's own colour (pine, oak, bark, pewter, dark oak, burlap); the flat drawing shades it .72 on a left face, .86 on a
+ * right one and 1.05 on a top. Outline comes first in telling them apart (manifest-shapes.js), then lightness and hue;
+ * tests/manifest.mjs measures both: the silhouettes against each other, the colours for a normal eye and the three dichromacies.
  */
-const LOOK = { crate: ["chest", "#E8D41D"], barrel: ["cask", "#3C310A"], timber: ["bale", "#0FA177"], ingot: ["bundle", "#1B235D"], chest: ["chest", "#CE5240"], sack: ["sack", "#D2C9DC"] };
-export const WARES = CARGO.map(c => ({ id: c.key, name: c.name, pack: LOOK[c.key][0], hex: LOOK[c.key][1] }));
+const LOOK = { crate: "#C9A267", barrel: "#7C4E2A", timber: "#7A6B4A", ingot: "#8E9CAB", chest: "#4B2A21", sack: "#CDBB90" };
+export const WARES = CARGO.map(c => ({ id: c.key, name: c.name, hex: LOOK[c.key] }));
 export { CARGO, TYPES, validate, weightOf, worthOf };
 export const VIEWS = { all: "All at once", layers: "Tier by tier", slices: "Slice by slice", pair: "Two tiers, then the rest" };
 
@@ -133,10 +132,11 @@ export const mirror = cells => cells.map(col => [...col].reverse());
 // The whole-stack view hides inner packages. Which ones show is settled the way the screen settles it: the cubes
 // are drawn back to front onto a small raster of ids, and a cube is visible if any of its pixels survive.
 const ISO = { w: 0.866, h: 0.5 };
-/** A package's proportions: length, width and height, in cell units. */
-export const BOX = { L: 1.9, W: 1, H: 0.95 };
-/** The cell's extent along x and y: a package lies along x, or along y once the stack is turned a quarter. */
-export const boxFor = (turns = 0) => (turns % 2 ? { X: BOX.W, Y: BOX.L, H: BOX.H } : { X: BOX.L, Y: BOX.W, H: BOX.H });
+/** A cell's proportions: length, width and height. A cube (the first version's cells were the 1.9-long container shape). */
+export const BOX = { L: 1, W: 1, H: 1 };
+/** The cell's extent along x and y and its height. A cube turns into itself, so the quarter turns change nothing here; the
+ *  argument stays for the callers that name it. */
+export const boxFor = () => ({ X: BOX.L, Y: BOX.W, H: BOX.H });
 /** Screen position of the corner of cell (x, y, z) as the page draws it. */
 export const isoPoint = (x, y, z, b = boxFor(0)) => ({ sx: (x * b.X - y * b.Y) * ISO.w, sy: (x * b.X + y * b.Y) * ISO.h - z * b.H });
 /** The three faces of a cube as polygons in screen units: top, left (the +y face), right (the +x face). */

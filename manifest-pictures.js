@@ -10,7 +10,7 @@
 // turn could be played as the stack's yaw 0 to 90 degrees, ending on that layout; it isn't, because turning the stack in
 // front of the player shows what the all-at-once view hides and does the mental turn the turned question asks for.
 import { boxFor, isoPoint, dropTimes, visibleSet, LANDING } from "./manifest-engine.js";
-import { QUAY_DEPTH, frameOf, iconFrame, cameraOf, layout, packageAt, fall } from "./manifest-model.js";
+import { QUAY_DEPTH, frameOf, iconFrame, cameraOf, layout, packageAt, fall, yawOf } from "./manifest-model.js";
 import { onPause } from "./menu.js";
 
 // three.js is 580 KB: the game waits for it (the page asks `ready` before it draws a picture) but not for long, and a
@@ -170,7 +170,7 @@ export function stage3d(cells, opts) {
   const drops = opts.drop ? (opts.times ? { times: opts.times, last: 0 } : dropTimes(cells, opts.drop)) : { times: {}, last: 0 };
   const items = opts.blank ? [] : layout(cells, turns, frame).map(c => {
     const ringed = opts.ring === c.key;
-    return { key: c.key, ware: opts.grey ? (ringed ? 7 : 0) : c.c, box: c.box, faces: c.faces,
+    return { key: c.key, ware: opts.grey ? (ringed ? 7 : 0) : c.c, box: c.box, faces: c.faces, yaw: yawOf(c, turns, !!opts.grey),
       dim: !!((opts.highlight && c.c !== opts.highlight) || (opts.tier != null && c.z !== opts.tier)),
       outline: ringed || (markKey === c.key && (!visible || visible.has(c.key))) || outlined.has(c.key) ? 2 : 0 };   // framed: every face, so one seen only from the side is marked too
   });
@@ -231,7 +231,7 @@ export function icon3d(ware) {
   if (!src) {
     const b = boxFor(0), frame = iconFrame(b), size = 96;
     const spec = { X: 1, Y: 1, Z: 1, b, frame, cam: cameraOf(frame, 1, 1, 1, b), quay: false, opts: {},
-      items: layout([[[ware]]], 0, frame).map(c => ({ key: c.key, ware: c.c, box: c.box, faces: c.faces, dim: false, outline: 0 })) };
+      items: layout([[[ware]]], 0, frame).map(c => ({ key: c.key, ware: c.c, box: c.box, faces: c.faces, yaw: yawOf(c, 0, false), dim: false, outline: 0 })) };
     src = document.createElement("canvas"); src.width = src.height = size;
     src.getContext("2d").drawImage(GL.draw(spec, size, size, tk), 0, 0);
     ICONS.set(key, src);

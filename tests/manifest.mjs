@@ -353,13 +353,27 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
     "a tap on a package's top finds that package (the nearest of those under it), a tap on nothing finds none");
 }
 
-// The five wares must stay at least as easy to tell apart as the first version's five colours (red, blue, yellow, green,
-// orange), for a normal eye and for the three dichromacies (Machado 2009, severity 1), by CIEDE2000 between two wares
-// on the same face and on any two faces (a left face beside another ware's top), each drawing with its own shading: the flat
-// one's three faces, and the 3D one's three faces and a face in another package's shadow (which the first version never
-// had, so it's weighed against the first version's bar). The packing (strap, lozenge, hoop, bars) is the second way to
-// tell them apart; this keeps the first honest.
+// The six cargo types must be told apart by outline first and by colour second (the owner, 3 November 2026: "Each with their
+// own 3d model"; a piece that is only another colour of the same shape is the first version's mistake). So the types are
+// measured two ways, for every pair:
+//  - the outline: the silhouettes of the models (manifest-shapes.js, seen by the isometric camera, a bundle of timber lying
+//    either way) by overlap, shared area over total area; no pair may overlap more than SHAPE;
+//  - the colour: CIEDE2000 between the two on the same face, for a normal eye and the three dichromacies (Machado 2009,
+//    severity 1), under both drawings' shading and in another piece's shadow.
+// A pair whose outlines are close (over ALIKE) must also be far apart in colour, even for a colour-blind eye, so that no
+// two types are alike in both; the rest are told apart by their outline and their colour is only kept honest by FLOOR.
 {
+  const SHAPE = 0.9, ALIKE = 0.78, FAR = 9, FLOOR = 4;
+  const Sh = await import("../manifest-shapes.js");
+  const outlines = [1, 2, 3, 4, 5, 6].map(t => (t === 3 ? [Sh.silhouette(t, 96, 0), Sh.silhouette(t, 96, Math.PI / 2)] : [Sh.silhouette(t, 96, 0)]));
+  const overlapOf = (i, j) => Math.max(...outlines[i].flatMap(a => outlines[j].map(b => Sh.overlap(a, b))));
+  const NAMES = M.WARES.map(w => w.name.toLowerCase());
+  const pairs = [];
+  for (let i = 0; i < 6; i++) for (let j = i + 1; j < 6; j++) pairs.push({ i, j, shape: overlapOf(i, j) });
+  const fills = outlines.map(o => o[0].reduce((n, v) => n + v, 0) / (96 * 96));
+  const widest = pairs.reduce((a, p) => (p.shape > a.shape ? p : a));
+  check(pairs.every(p => p.shape <= SHAPE) && fills.every(f => f > 0.1),
+    `no two cargo types share an outline: the largest overlap is ${widest.shape.toFixed(2)} (${NAMES[widest.i]} and ${NAMES[widest.j]}), under ${SHAPE}`);
   const lin = c => (c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   const unlin = c => Math.round(255 * Math.min(1, Math.max(0, c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)));
   const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
@@ -391,23 +405,15 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
     const Rt = -Math.sin(rad(60 * Math.exp(-(((hb - 275) / 25) ** 2)))) * 2 * Math.sqrt(p7(Cp));
     return Math.sqrt(((L2 - L1) / Sl) ** 2 + ((C2 - C1) / Sc) ** 2 + (dH / Sh) ** 2 + Rt * ((C2 - C1) / Sc) * (dH / Sh));
   };
-  /** The nearest two wares come, per eye: same face, and any two faces. */
-  const nearest = (hexes, FACES) => Object.fromEntries(Object.keys(EYES).map(eye => {
-    let same = Infinity, any = Infinity;
-    hexes.forEach((a, i) => hexes.slice(i + 1).forEach(b => FACES.forEach((ka, fa) => FACES.forEach((kb, fb) => {
-      const d = de(lab(seen(a, ka, eye)), lab(seen(b, kb, eye)));
-      any = Math.min(any, d); if (fa === fb) same = Math.min(same, d);
-    }))));
-    return [eye, { same, any }];
-  }));
-  const first = nearest(["#D23B2A", "#2F6FDE", "#F2C230", "#2E9E5B", "#E8832A"], FLAT), hexes = M.WARES.map(w => w.hex);
-  const flat = nearest(hexes, FLAT), lit = nearest(hexes, LIT);
-  // in shadow the lightness steps squeeze together (amber in shadow nears herring in the sun), which the first version never
-  // met: a ware in the sun beside one in shadow must stay plainly another colour (8 ΔE), if not as far as its flat bar
-  const worse = Object.keys(EYES).filter(eye => flat[eye].same < first[eye].same || flat[eye].any < first[eye].any || lit[eye].same < first[eye].same || lit[eye].any < Math.min(first[eye].any, 8));
-  const show = (now, e) => `${now[e].same.toFixed(0)}/${now[e].any.toFixed(1)}`;
-  check(M.WARES.length === 6 && !worse.length,
-    `the six cargo types are at least as far apart as the first version's five colours, for every eye (nearest pair, ΔE same face/any two: ${Object.keys(EYES).map(e => `${e} ${show(flat, e)} flat, ${show(lit, e)} lit and shadowed, against ${show(first, e)}`).join("; ")})`);
+  const hexes = M.WARES.map(w => w.hex);
+  const apart = (FACES, eye, i, j) => Math.min(...FACES.map(k => de(lab(seen(hexes[i], k, eye)), lab(seen(hexes[j], k, eye)))));
+  const eyes = Object.keys(EYES);
+  const range = (i, j, eye) => Math.min(apart(FLAT, eye, i, j), apart(LIT, eye, i, j));
+  const table = pairs.map(p => { const by = eyes.map(e => range(p.i, p.j, e)), low = Math.min(...by); return { ...p, colour: low, eye: eyes[by.indexOf(low)] }; });
+  const alike = table.filter(p => p.shape > ALIKE && p.colour < FAR), dull = table.filter(p => p.colour < FLOOR);
+  const nearest = table.reduce((a, p) => (p.colour < a.colour ? p : a));
+  check(!alike.length && !dull.length,
+    `no two types are alike in both outline and colour (outlines over ${ALIKE} overlap are ${FAR} ΔE apart or more for every eye): ${alike.map(p => `${NAMES[p.i]}/${NAMES[p.j]} overlap ${p.shape.toFixed(2)}, ${p.colour.toFixed(1)} ΔE for ${p.eye}`).join("; ") || "none"}; nearest pair in colour ${NAMES[nearest.i]}/${NAMES[nearest.j]}, ${nearest.colour.toFixed(1)} ΔE for ${nearest.eye} (floor ${FLOOR})`);
 }
 
 console.log(bad ? `${bad} problems` : "all checks pass");

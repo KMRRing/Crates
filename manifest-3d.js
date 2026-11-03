@@ -1,14 +1,16 @@
-// Manifest in 3D: the quay and the League's packages drawn with three.js (vendor/three.js, kept on the device, so it plays
+// Manifest in 3D: the quay and the League's cargo drawn with three.js (vendor/three.js, kept on the device, so it plays
 // offline). One renderer and one WebGL context serve every picture on the page (the stack coming in, the four stacks of a
 // question, a small package beside an answer): each is drawn into the renderer's canvas and copied at once into a plain
 // 2D canvas, so the page never holds more than one context (iPhones give a page only a few) and a picture, once drawn, costs
 // nothing. manifest-art.js owns the pictures and when they move; this file only draws a scene on request.
 //
 // The camera is orthographic and true isometric, framed exactly as the flat drawing frames it (manifest-model.js), and a
-// package is the box of its cell, nothing larger: what shows through a stack is what the engine says shows. The packing
-// is worked out in the shader (manifest-glsl.js), so nothing here is a picture and nothing changes a silhouette.
+// piece stands inside the box of its cell, nothing larger: what shows through a stack is decided by the cells, as the
+// engine says. The shapes are meshes (manifest-shapes.js) and what is drawn on them is worked out in the shader
+// (manifest-glsl.js), so nothing here is a picture.
 import * as THREE from "./vendor/three.js";
-import { WARES, BOX } from "./manifest-engine.js";
+import { WARES } from "./manifest-engine.js";
+import { meshOf } from "./manifest-shapes.js";
 import { packageShader, QUAY } from "./manifest-glsl.js";
 import { cameraOf, QUAY_DEPTH } from "./manifest-model.js";
 
@@ -77,23 +79,32 @@ export function createGL() {
   sun.shadow.radius = 2.5;
   scene.add(sun, sun.target, hemi, fill, fill.target);
 
-  // geometry: a unit box per ware (the ware is an attribute, so every package shares one program)
-  const boxGeo = ware => { const g = new THREE.BoxGeometry(1, 1, 1); g.setAttribute("aWare", new THREE.Float32BufferAttribute(new Float32Array(24).fill(ware), 1)); return g; };
-  const geos = HEX.map((_, i) => boxGeo(i));
+  // geometry: a mesh per cargo type, a plain box for the tarpaulin (the ware is an attribute, so every piece shares one program)
+  const withWare = (g, ware) => { g.setAttribute("aWare", new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count).fill(ware), 1)); return g; };
+  const shapeGeo = type => {
+    const m = meshOf(type), g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(m.pos, 3));
+    g.setAttribute("normal", new THREE.Float32BufferAttribute(m.nor, 3));
+    g.setAttribute("aPart", new THREE.Float32BufferAttribute(m.part, 4));
+    g.setIndex(Array.from(m.index));
+    return withWare(g, type);
+  };
+  const boxGeo = ware => { const g = new THREE.BoxGeometry(1, 1, 1); g.setAttribute("aPart", new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 4), 4)); return withWare(g, ware); };
+  const geos = HEX.map((_, i) => (i >= 1 && i <= WARES.length ? shapeGeo(i) : boxGeo(i)));
   const plain = new THREE.BoxGeometry(1, 1, 1);
 
   // materials: one per package (its own dimming and fade-in), all one program
   const wareColours = HEX.map(h => { const c = new THREE.Color(h); return [c.r, c.g, c.b]; });
   const PKG = packageShader(wareColours);
   const makePackageMaterial = () => {
-    const U = { uDim: { value: 0 }, uFade: { value: 1 }, uDimTo: { value: new THREE.Color(0x888888) }, uMark: { value: 0 }, uInk: { value: new THREE.Color(0x000000) }, uPaper: { value: new THREE.Color(0xffffff) } };
+    const U = { uDim: { value: 0 }, uFade: { value: 1 }, uDimTo: { value: new THREE.Color(0x888888) } };
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0 });
     m.customProgramCacheKey = () => "manifest-package";
     m.onBeforeCompile = shader => inject(shader, PKG, U);
     m.userData.U = U;
     return m;
   };
-  const QU = { uTimber: { value: new THREE.Color() }, uCell: { value: new THREE.Vector2(1.9, 1) }, uAlong: { value: 0 }, uDepth: { value: 0.4 } };
+  const QU = { uTimber: { value: new THREE.Color() }, uCell: { value: new THREE.Vector2(1, 1) }, uAlong: { value: 0 }, uDepth: { value: 0.4 } };
   const quayMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0 });
   quayMat.customProgramCacheKey = () => "manifest-quay";
   quayMat.onBeforeCompile = shader => inject(shader, QUAY, QU);
@@ -114,6 +125,18 @@ export function createGL() {
     }
     return pool[i];
   };
+  // a marked piece is outlined by its own shape drawn a little larger behind it, in ink with a band of paper inside: the
+  // same for a crate and a barrel, and hidden where something stands in front (back faces only: BackSide is 1)
+  const hullInk = new THREE.MeshBasicMaterial({ color: 0x000000, side: 1 }), hullPaper = new THREE.MeshBasicMaterial({ color: 0xffffff, side: 1 });
+  const hulls = [];
+  const hullAt = i => {
+    if (!hulls[i]) {
+      const pair = [new THREE.Mesh(geos[0], hullInk), new THREE.Mesh(geos[0], hullPaper)];
+      for (const h of pair) { h.visible = false; scene.add(h); }
+      hulls.push(pair);
+    }
+    return hulls[i];
+  };
 
   // the light: a low sun over the right shoulder (the right face brighter than the left, the top brightest), a sky that
   // fills the shadows, and a little from the left to keep that face readable. Night is moonlight: cooler, a little dimmer.
@@ -128,14 +151,13 @@ export function createGL() {
   function arrange(spec, tk, lifts) {
     const { X, Y, Z, b, items, opts } = spec;
     const sx = X * b.X, sz = Y * b.Y, sy = Z * b.H, depth = QUAY_DEPTH * b.H;
-    const turned = b.X < b.Y;
     // the quay: a slab under the floor
     quay.visible = spec.quay !== false;                            // not for a package alone, beside an answer
     quay.scale.set(sx, depth, sz);
     quay.position.set(sx / 2, -depth / 2, sz / 2);
     QU.uTimber.value.set(cssOf(tk.floor));
     QU.uCell.value.set(b.X, b.Y);
-    QU.uAlong.value = turned ? 1 : 0;
+    QU.uAlong.value = 0;
     QU.uDepth.value = depth;
     // a marked place on the floor, where the question asks about a spot with nothing standing on it
     const m = opts.markTile;
@@ -143,22 +165,31 @@ export function createGL() {
     if (m) { tile.scale.set(b.X, 0.006, b.Y); tile.position.set((m.x + 0.5) * b.X, 0.003, (m.y + 0.5) * b.Y); tileMat.color.set(cssOf(tk.mark)); }
     // the packages
     const skin = tk.night ? LIGHT.night : LIGHT.day, to = new THREE.Color(cssOf(tk.yard));
-    let n = 0;
+    hullInk.color.set(cssOf(tk.ink)); hullPaper.color.set(cssOf(tk.yard));
+    let n = 0, hn = 0;
     for (const it of items) {
       const mesh = packageAt(n++), U = mesh.material.userData.U, lift = lifts?.get(it.key) || { lift: 0, squash: 1, fade: 1 };
       mesh.visible = lift.fade > 0;
       mesh.geometry = geos[it.ware];
-      const sq = lift.squash, wide = 1 / Math.sqrt(sq);
-      mesh.scale.set(BOX.L * wide, BOX.H * sq, BOX.W * wide);
-      mesh.rotation.set(0, turned ? Math.PI / 2 : 0, 0);
-      mesh.position.set(it.box.cx, it.box.cy - it.box.sy * (1 - sq) / 2 + lift.lift * b.H, it.box.cz);
+      const sq = lift.squash, wide = 1 / Math.sqrt(sq), y = it.box.cy - it.box.sy * (1 - sq) / 2 + lift.lift * b.H;
+      mesh.scale.set(b.X * wide, b.H * sq, b.Y * wide);
+      mesh.rotation.set(0, it.yaw || 0, 0);                        // timber lies along x or along y by its tier
+      mesh.position.set(it.box.cx, y, it.box.cz);
       U.uFade.value = lift.fade;
       U.uDim.value = it.dim ? 1 : 0;
       U.uDimTo.value.copy(to);
-      U.uMark.value = it.outline;                                  // a frame of ink round the top face, or every face (the shader draws it)
-      U.uInk.value.set(cssOf(tk.ink)); U.uPaper.value.set(cssOf(tk.yard));
+      if (it.outline && lift.fade >= 1) {
+        const pair = hullAt(hn++);
+        pair.forEach((h, k) => {
+          const grow = k ? 1.045 : 1.09;
+          h.visible = true; h.geometry = mesh.geometry;
+          h.scale.set(b.X * wide * grow, b.H * sq * grow, b.Y * wide * grow);
+          h.rotation.copy(mesh.rotation); h.position.copy(mesh.position);
+        });
+      }
     }
     for (; n < pool.length; n++) pool[n].visible = false;
+    for (let k = 0; k < hulls.length; k++) if (k >= hn) hulls[k].forEach(h => { h.visible = false; });
     // the light
     const at = spec.cam.at, reach = Math.hypot(sx / 2, sz / 2, sy / 2 + 1.7) + 0.6;
     const dist = 26, SL = Math.hypot(...SUN_AT);
