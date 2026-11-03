@@ -264,21 +264,34 @@ export function lift(L, laid, c) {
  * Where a piece of kind k laid on tile c would best be turned: to take the oil as it stands (the way in from the wellhead's
  * end, or from the terminal's), else as it is in hand. Returns the piece, "a2".
  */
-export function fitted(L, laid, c, k, near) {
+export function fitted(L, laid, c, k, near, way = null) {
   const n = tileN(L, c), t = trace(L, laid), f = feed(L, laid);
+  // a bend can take the oil on either way: the one that leads nearer to where the oil is going (way.toTerminal, way.toSource), else nearest the last turn
+  const best = (o, a, dist) => {
+    if (!dist) return o[0];
+    const far = p => { const d = dist[across(L, c, channelOf(n, p, a).out)[0]]; return d < 0 ? 1e9 : d; };
+    return o.slice().sort((p, q) => far(p) - far(q))[0];
+  };
   if (t.end.why === "open" && t.end.c === c) {
     const last = t.passes[t.passes.length - 1];
     const a = last ? across(L, last.c, last.b)[1] : across(L, L.source.c, L.source.d)[1];
     const o = turnsFor(n, k, a, near);
-    if (o.length) return o[0];
+    if (o.length) return best(o, a, way?.toTerminal);
   }
   if (f.end.why === "open" && f.end.c === c) {
     const last = f.passes[f.passes.length - 1];
     const b = last ? across(L, last.c, last.a)[1] : across(L, L.terminal.c, L.terminal.d)[1];
     const o = turnsFor(n, k, b, near);
-    if (o.length) return o[0];
+    if (o.length) return best(o, b, way?.toSource);
   }
   return canon(n, k, near);
+}
+/** How many tiles each tile is from tile `from`, going over open ground (not rock); -1 where it can't be reached. */
+export function distFrom(L, from) {
+  const dist = new Int16Array(L.S.count).fill(-1), q = [from];
+  dist[from] = 0;
+  for (let i = 0; i < q.length; i++) for (const [t] of L.S.tiles[q[i]].nb) if (dist[t] < 0 && L.cells[t]?.k !== "rock") { dist[t] = dist[q[i]] + 1; q.push(t); }
+  return dist;
 }
 
 // ---------- a solution, as the route the oil takes ----------

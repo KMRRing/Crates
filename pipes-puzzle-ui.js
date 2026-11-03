@@ -364,12 +364,7 @@ export function createPuzzle(deps) {
     return all;
   }
 
-  // ---------- wiring and showing ----------
-  $("pzUndo").addEventListener("click", undo);
-  $("pzClear").addEventListener("click", clearAll);
-  $("pzHint").addEventListener("click", giveHint);
-  $("pzAgain").addEventListener("click", again);
-  $("pzNext").addEventListener("click", next);
+  // ---------- showing (the page's buttons are wired in pipes.js, to whichever board is showing) ----------
   load();
   return {
     /** Shows the level in hand. */
@@ -377,7 +372,7 @@ export function createPuzzle(deps) {
     hide() { $("queue").hidden = true; $("board").hidden = true; },
     pause() { clearTimeout(oilTimer); oilTimer = 0; },
     resume() { if (run?.solved && oilTo !== Infinity) { oilTo = Infinity; drawBoard(); } },
-    levelList, go, again, next, undo,
+    levelList, go, again, next, undo, clear: clearAll, hint: giveHint,
     get id() { return saved.id; },
     get level() { return LEVELS[index]; },
     get index() { return index; },
