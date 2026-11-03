@@ -137,8 +137,9 @@ const alongBefore = (cells, x, y, z) => (axisOf(z) === "x" ? cells[x - 1]?.[y]?.
 /**
  * The logs: pairs of one tree end to end on a tier, in the line its timber lies along (a run is paired from its low end, as `pieces`
  * pairs it), become logs, as many as the recipe allows. The rules are per cell, so both halves stand where they stood. Every other
- * cell of a tree (a leftover of an odd run, or past the most) is another cargo type that stands there, or, where none does, the
- * column ends there; what that leaves lone (a half whose other half went) goes the same way, until no one-cell log is left.
+ * cell of a tree (a leftover of an odd run, or past the most) is another cargo type that stands there, or, where none does, one
+ * that does once what stood above it is gone (a column is never left empty: every player of a table has a column); what that leaves
+ * lone (a half whose other half went) goes the same way, until no one-cell log is left.
  */
 function joinLogs(r, cells, L) {
   const X = cells.length, Y = cells[0].length, pairs = [];
@@ -159,6 +160,8 @@ function joinLogs(r, cells, L) {
   const others = L.types.filter(t => !isTimber(t));
   for (let lone = pieces(cells, 0).broken; lone.length; lone = pieces(cells, 0).broken) for (const k of lone) {
     const [x, y, z] = unkey(k), row = cells[x][y];
+    if (standsAs(r, row, z, others, L.z)) continue;
+    row.fill(0, z + 1);                                                   // what stood above it was in the way: without it, one of the others will do
     if (!standsAs(r, row, z, others, L.z)) row.fill(0, z);
   }
 }
@@ -209,7 +212,7 @@ export function replaceHidden(cells, types) {
   }
 }
 
-// A quarter turn (clockwise, seen from above): cell (x, y) goes to (Y−1−y, x), so a bundle of timber lying along x ends
+// A quarter turn (clockwise, seen from above): cell (x, y) goes to (Y−1−y, x), so a log lying along x ends
 // up along y. Turned stacks are drawn with their timber that way round (axisOf in manifest-rules.js).
 /** The stack turned by this many quarter turns. */
 export function turn(cells, turns) {
@@ -237,7 +240,7 @@ export const anchorKey = (cells, turns, k) => pieces(cells, turns).at.get(k)?.ke
 const ISO = { w: 0.866, h: 0.5 };
 /** A cell's proportions: length, width and height. A cube (the first version's cells were the 1.9-long container shape). */
 export const BOX = { L: 1, W: 1, H: 1 };
-/** The cell's extent along x and y and its height, and the stack's quarter turns (a cube turns into itself, but a bundle of
+/** The cell's extent along x and y and its height, and the stack's quarter turns (a cube turns into itself, but a log of
  *  timber lies along the other axis: what the pieces cover of the screen, in visibleSet, depends on it). */
 export const boxFor = (turns = 0) => ({ X: BOX.L, Y: BOX.W, H: BOX.H, turns });
 /** Screen position of the corner of cell (x, y, z) as the page draws it. */

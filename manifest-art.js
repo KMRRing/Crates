@@ -197,7 +197,7 @@ const DRAW = {
 /**
  * One piece drawn into `g` from its three faces as screen polygons ({ top, left, right }, each four points as cubeFaces
  * gives them): a cargo's number (1 to 8), or 0 for one under tarpaulin (`lit`: the piece picked out under it). `alongY`: a
- * bundle of timber lies along y. `detail` is the packing, left out where a whole stack is the size of a thumb.
+ * log lies along y. `detail` is the packing, left out where a whole stack is the size of a thumb.
  */
 function paintPiece(g, faces, ware, { lit = false, detail = true, alongY = false, half = null, tap = null } = {}) {
   if (tap) g.addEventListener("click", tap);
