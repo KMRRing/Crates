@@ -8,13 +8,13 @@ const R = await import("../manifest-rules.js");
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const NAMES = R.CARGO.map(c => c.key);
-const NAME = t => (R.isLong(t) ? "long " : "") + NAMES[R.typeOf(t) - 1];
+const NAME = t => NAMES[R.typeOf(t) - 1] + (R.isLong(t) ? " (cell code)" : "");
 
-// the meshes: the eight types, each in its cell, and the two long logs (cell codes 9 and 10), each in two cells in a line along x
+// the meshes: the eight types, each in its cell, the two trees as the log they only ever are (types 3 and 8, and cell codes 9 and 10), each in two cells in a line along x
 {
   const problems = [];
   for (let t = 1; t <= R.CODES; t++) {
-    const m = Sh.meshOf(t), n = m.pos.length / 3, reach = R.isLong(t) ? 1 : 0.5;
+    const m = Sh.meshOf(t), n = m.pos.length / 3, reach = R.isTimber(t) ? 1 : 0.5;
     if (!n || m.nor.length !== m.pos.length || m.part.length !== n * 4 || m.index.length % 3) problems.push(`${NAME(t)}: arrays disagree`);
     if (m.index.some(i => i >= n)) problems.push(`${NAME(t)}: an index past the vertices`);
     if (![...m.pos, ...m.nor, ...m.part].every(Number.isFinite)) problems.push(`${NAME(t)}: a number that isn't`);
@@ -23,7 +23,7 @@ const NAME = t => (R.isLong(t) ? "long " : "") + NAMES[R.typeOf(t) - 1];
     for (let i = 0; i < m.pos.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], m.pos[i + k]); hi[k] = Math.max(hi[k], m.pos[i + k]); }
     if (lo.some((v, k) => v < -(k ? 0.5 : reach) - 0.005) || hi.some((v, k) => v > (k ? 0.5 : reach) + 0.005)) problems.push(`${NAME(t)}: leaves its cell (${lo.map(v => v.toFixed(3))} to ${hi.map(v => v.toFixed(3))})`);
     if (lo[1] > -0.49 || hi[1] < 0.4) problems.push(`${NAME(t)}: doesn't stand on the floor and reach up (${lo[1].toFixed(2)} to ${hi[1].toFixed(2)})`);
-    if (R.isLong(t) && (lo[0] > -1.9 / 2 || hi[0] < 1.9 / 2)) problems.push(`${NAME(t)}: isn't two cells long (${lo[0].toFixed(2)} to ${hi[0].toFixed(2)})`);
+    if (R.isTimber(t) && (lo[0] > -1.9 / 2 || hi[0] < 1.9 / 2)) problems.push(`${NAME(t)}: isn't two cells long (${lo[0].toFixed(2)} to ${hi[0].toFixed(2)})`);
     // outward: the signed volume is positive, every normal unit length, and every triangle winds with its normals
     let vol = 0, off = 0;
     for (let k = 0; k < m.index.length; k += 3) {
@@ -37,14 +37,13 @@ const NAME = t => (R.isLong(t) ? "long " : "") + NAMES[R.typeOf(t) - 1];
     if (off) problems.push(`${NAME(t)}: ${off} triangles wind against their normals`);
     for (let i = 0; i < m.nor.length; i += 3) if (Math.abs(Math.hypot(m.nor[i], m.nor[i + 1], m.nor[i + 2]) - 1) > 1e-3) { problems.push(`${NAME(t)}: a normal that isn't a unit`); break; }
   }
-  check(!problems.length, `the eight meshes and the two long logs are closed solids inside their cells, standing on the floor, facing outward${problems.length ? ": " + problems.join("; ") : ""}`);
-  check(Sh.meshOf(2) === Sh.meshOf(2) && Sh.meshOf(3).index.length > 1000, "a mesh is built once and kept");
+  check(!problems.length, `the eight meshes (a tree's is its log) are closed solids inside their cells, standing on the floor, facing outward${problems.length ? ": " + problems.join("; ") : ""}`);
+  check(Sh.meshOf(2) === Sh.meshOf(2) && Sh.meshOf(3).index.length > 1000 && Sh.meshOf(3) === Sh.meshOf(R.LONG_OAK) && Sh.meshOf(8) === Sh.meshOf(R.LONG_BIRCH), "a mesh is built once and kept; a tree has one mesh, its log, by type or by cell code");
   let threw = false; try { Sh.meshOf(R.CODES + 1); } catch { threw = true; }
   check(threw && Sh.MESH_TYPES === R.CODES, "there is no eleventh code");
   // a long log is its tree's bundle twice over: the same cross-section, the same number of logs, the ropes spread along it
-  const section = m => { const lo = [9, 9], hi = [-9, -9]; for (let i = 0; i < m.pos.length; i += 3) for (let k = 0; k < 2; k++) { lo[k] = Math.min(lo[k], m.pos[i + 1 + k]); hi[k] = Math.max(hi[k], m.pos[i + 1 + k]); } return [...lo, ...hi].map(v => Math.round(v * 20)); };
-  check([[R.LONG_OAK, R.TIMBER], [R.LONG_BIRCH, R.BIRCH]].every(([l, s]) => JSON.stringify(section(Sh.meshOf(l))) === JSON.stringify(section(Sh.meshOf(s)))) && Sh.LONG_ROPES.length === 4 && Sh.LONG_ROPES.every(x => Math.abs(x) > 0.1 && Math.abs(x) < 0.9),
-    "a long log has its tree's cross-section (oak's four logs, birch's six), roped four times along its length, none on the join");
+  check(Sh.LONG_ROPES.length === 4 && Sh.LONG_ROPES.every(x => Math.abs(x) > 0.1 && Math.abs(x) < 0.9),
+    "a log is roped four times along its length, none on the join");
   const gold = Sh.meshOf(R.GOLD), tin = Sh.meshOf(R.INGOT);
   check(gold !== tin && gold.pos.length === tin.pos.length && gold.pos.every((v, i) => v === tin.pos[i]),
     "gold ingots are the ingots' shape exactly (the exception to 'no two types share an outline', which colour and the crown make up for)");
@@ -60,7 +59,7 @@ const NAME = t => (R.isLong(t) ? "long " : "") + NAMES[R.typeOf(t) - 1];
   const b0 = M.boxFor(0), b1 = M.boxFor(1);
   check(b0.X === 1 && b0.Y === 1 && b0.H === 1 && b1.X === 1 && b1.Y === 1, "the cell is a cube: the first version's 1.9-long container is gone");
   const yaw = (c, z, turns, grey) => Mo.yawOf({ c, z }, turns, grey);
-  check(yaw(R.TIMBER, 0, 0) === 0 && yaw(R.TIMBER, 1, 0) === Math.PI / 2 && yaw(R.TIMBER, 0, 1) === Math.PI / 2 && yaw(R.TIMBER, 1, 1) === 0 && yaw(R.TIMBER, 2, 0) === 0,
+  check(yaw(R.TIMBER, 0, 0) === 0 && yaw(R.TIMBER, 1, 0) === Sh.yawAlongY && yaw(R.TIMBER, 0, 1) === Sh.yawAlongY && yaw(R.TIMBER, 1, 1) === 0 && yaw(R.TIMBER, 2, 0) === 0,
     "timber is drawn along x on an even tier and along y on an odd one, the other way round in a stack turned a quarter (the rule's axisOf)");
   check([R.CRATE, R.BARREL, R.INGOT, R.CHEST, R.SACK, R.GOLD].every(t => yaw(t, 1, 1) === 0) && yaw(R.TIMBER, 1, 0, true) === 0 && yaw(R.BIRCH, 1, 0, true) === 0, "nothing else is turned, and timber under a tarpaulin isn't");
   check([0, 1, 2, 3].every(z => [0, 1, 2, 3].every(turns => yaw(R.BIRCH, z, turns) === yaw(R.TIMBER, z, turns))), "birch lies the way oak does on every tier and turn, so either tree on either crosses");
@@ -99,7 +98,7 @@ const NAME = t => (R.isLong(t) ? "long " : "") + NAMES[R.typeOf(t) - 1];
   };
   let miss = 0, total = 0;
   for (const c of [R.LONG_OAK, R.LONG_BIRCH]) for (const along of [false, true]) {
-    const yaw = along ? Sh.yawAlongY(c) : 0, n = 96, mask = Sh.silhouette(c, n, yaw);
+    const yaw = along ? Sh.yawAlongY : 0, n = 96, mask = Sh.silhouette(c, n, yaw);
     // each half's cell is half a cell either side of the log's middle, along the way the log lies
     const placed = [0, 1].map(h => { const at = Sh.screenOf([(h ? 0.5 : -0.5) * Math.cos(yaw), 0, -(h ? 0.5 : -0.5) * Math.sin(yaw)]); return Sh.outlineOf(c, along, h).map(([x, y]) => [x + at[0], y + at[1]]); });
     for (let i = 0; i < mask.length; i++) if (mask[i]) { total++; const p = [((i % n) + 0.5) / n * 2 - 1, (Math.floor(i / n) + 0.5) / n * 2 - 1.25]; if (!placed.some(poly => inside(poly, p, 0.03))) miss++; }

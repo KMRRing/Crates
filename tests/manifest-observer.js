@@ -7,7 +7,7 @@ import { room, deduceColumn, weightOf, worthOf, pieces, typeOf, isLong } from ".
 
 const key = (x, y, z) => `${x},${y},${z}`;
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-/** Enough of a half of a long log has to show to read the log as long (the engine's CLEAR_SEEN: a piece must show as much to be pointed at). */
+/** Enough of each half of a log has to show to count it, weigh it and name it (the engine's CLEAR_SEEN: a piece must show as much to be pointed at). */
 const HALF = 90;
 
 /** The stack as the view showed it: a cell code, 0 for a place shown empty, null for a place not shown. */
@@ -76,10 +76,10 @@ export function problems(R, label = "") {
   const rules = validate(R.cells, R.level.z);
   if (rules.length) say("breaks the stacking rules:", rules[0]);
   if (!R.orders.length) say("no orders");
-  // seen all at once, a long log is dealt long only if both its halves show (else a trunk behind a crate would be read as a short one)
+  // seen all at once, a log is dealt only if both its halves show (else its length, count and weight would be a guess)
   if (R.view === "all") {
     const px = pixelsOf(R.cells);
-    for (const p of pieces(R.cells, 0).list) if (p.long && p.cells.some(([x, y, z]) => px.get(key(x, y, z)) < HALF)) say("a long log at", p.key, "has a half that hardly shows");
+    for (const p of pieces(R.cells, 0).list) if (p.long && p.cells.some(([x, y, z]) => px.get(key(x, y, z)) < HALF)) say("a log at", p.key, "has a half that hardly shows");
   }
   for (const o of R.orders) {
     const q = o.question;
@@ -93,14 +93,16 @@ export function problems(R, label = "") {
       const rows = q.legend ? legendRows(q.legend) : null, col = o.type === "worth" ? "worth" : "w", M = masked(R);
       if (!rows) say(o.type, "has no key on its prompt");
       else {
-        const val = t => rows.find(r => r.id === t)?.[col];
-        // weights and worths sum pieces, a long log among them (its own row in the key); the others are about columns, which a
-        // long log's cells are left out of (it rests half on each of two columns, and the key gives a piece one weight)
+        const val = t => rows.find(r => r.id === typeOf(t))?.[col];
+        // weights and worths sum pieces, a log among them (its row in the key is the whole piece); the others are about columns, which a
+        // log's cells are left out of (it rests half on each of two columns, and the key gives a piece one weight)
         const sums = o.type === "weight" || o.type === "worth";
-        if (!R.cells.flat(2).every(t => !t || val(sums ? t : typeOf(t)) != null)) say(o.type, "has a key missing a type that is in the stack");
+        const asked = sums ? R.cells.flat(2) : M[q.cell.x][q.cell.y].slice(o.type === "load" ? q.cell.z : 0);   // a load is the weight above a piece: what is under it is no part of the key
+        if (!asked.every(t => !t || val(t) != null)) say(o.type, "has a key missing a type that is in the stack");
+        if (!sums && rows.some(r => r.long)) say(o.type, "has a log in a key to columns");
         if (o.type === "fits" && !(rows.find(r => r.id === q.put) && rows.every(r => r.bears != null && r.w != null))) say(o.type, "has a key without the weights and what each bears");
         const cellsOf = { load: () => M[q.cell.x][q.cell.y].slice(q.cell.z), fits: () => M[q.cell.x][q.cell.y], column: () => M[q.cell.x][q.cell.y] }[o.type];
-        if (cellsOf && cellsOf().some(t => t && isLong(t))) say(o.type, "asks about a column with a long log in it");
+        if (cellsOf && cellsOf().some(t => t && isLong(t))) say(o.type, "asks about a column with a log in it");
         const sumOf = ts => ts.reduce((n, t) => n + val(t), 0);
         if (sums && sumOf(shownPieces(M).map(p => p.code)) !== q.answer) say(o.type, "isn't the sum of the key's numbers over what was shown");
         if (o.type === "load" && sumOf(M[q.cell.x][q.cell.y].slice(q.cell.z + 1).filter(Boolean)) !== q.answer) say(o.type, "isn't the sum of the key's numbers over what rests on the piece");

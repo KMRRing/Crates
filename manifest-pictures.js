@@ -11,7 +11,7 @@
 // front of the player shows what the all-at-once view hides and does the mental turn the turned question asks for.
 import { boxFor, isoPoint, dropTimes, visibleSet, LANDING } from "./manifest-engine.js";
 import { QUAY_DEPTH, frameOf, iconFrame, cameraOf, layout, packageAt, fall, yawOf, pieceKey, piecesNamed, joinBox } from "./manifest-model.js";
-import { typeOf, isLong } from "./manifest-rules.js";
+import { typeOf, codeOf } from "./manifest-rules.js";
 import { hull } from "./manifest-shapes.js";
 import { onPause } from "./menu.js";
 
@@ -176,12 +176,12 @@ function begin(pic, kind) {
  *  the empty quay stays), "appear". */
 export const playOut = (panel, kind) => begin(panel._pic, kind);
 
-/** The scene's pieces for the layout's cells. A long log is one mesh over two cells: its low cell draws it, its high cell is only there
+/** The scene's pieces for the layout's cells. A log is one mesh over two cells (a tree's type has no other): its low cell draws it, its high cell is only there
  *  to be tapped and to land with it. `named`: the piece keys to outline; `ringPiece`: the one picked out under tarpaulin. */
 function itemsOf(cubes, o) {
   return cubes.map(c => {
     const piece = pieceKey(c), ringed = o.ringPiece != null && piece === o.ringPiece, long = !o.grey && c.half != null;
-    return { key: c.key, piece, ware: o.grey ? (ringed ? M.LIT_WARE : 0) : typeOf(c.c), long: long ? c.c : 0, skip: long && c.half === 1,
+    return { key: c.key, piece, ware: o.grey ? (ringed ? M.LIT_WARE : 0) : typeOf(c.c), skip: long && c.half === 1,
       box: long && c.half === 0 ? joinBox(c.box, cubes.find(m => m.piece === c.piece && m.half === 1).box) : c.box,
       faces: c.faces, yaw: yawOf(c, o.turns, !!o.grey),
       dim: !!((o.highlight && typeOf(c.c) !== o.highlight) || (o.tier != null && c.z !== o.tier)),
@@ -258,7 +258,7 @@ export function icon3d(ware) {
   const tk = tokensNow(), key = `${ware}|${tk.key}`;
   let src = ICONS.get(key);
   if (!src) {
-    const long = isLong(ware), b = boxFor(0), frame = iconFrame(b, long), size = 96, cells = long ? [[[ware]], [[ware]]] : [[[ware]]];   // a long log: two cells along x
+    const code = codeOf(ware), long = code !== ware, b = boxFor(0), frame = iconFrame(b, long), size = 96, cells = long ? [[[code]], [[code]]] : [[[code]]];   // a tree is its log: two cells along x
     const spec = { X: cells.length, Y: 1, Z: 1, b, frame, cam: cameraOf(frame, cells.length, 1, 1, b), quay: false, opts: {},
       items: itemsOf(layout(cells, 0, frame), { turns: 0 }) };
     src = document.createElement("canvas"); src.width = src.height = size;
