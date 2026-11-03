@@ -62,7 +62,7 @@ export const AKA = {
   forger: "forgery drawing bluff", gallery: "art drawing", hilo: "higher lower cards", coup: "bluff secret roles influence",
   cue: "charades word forehead acting", river: "xiangqi chinese chess", gambit: "chess", boast: "liar's dice perudo bluff",
   bigtwo: "deuces climbing cards", landlord: "dou dizhu", banquet: "finger game huaquan morra", gammon: "backgammon",
-  trumps: "jass belote coinche schafkopf tricks", contract: "bridge", quest: "hidden roles traitors",
+  trumps: "jass belote coinche schafkopf tricks", contract: "bridge", quest: "hidden roles traitors company hanse vitalian",
   bones: "dominoes", factor: "island trading settlement", rack: "word tiles board", pegs: "cribbage", meld: "gin rummy",
   stone: "go weiqi baduk", tarot: "french tarot", solitaire: "patience klondike freecell", silo: "connect four four in a row",
   flank: "reversi", crown: "draughts checkers", ingot: "2048 sliding tiles", cargo: "falling blocks",

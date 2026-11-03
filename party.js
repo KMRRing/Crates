@@ -198,7 +198,7 @@ function drawHere(stage) {
   stage.firstElementChild?.setAttribute("data-here", here.id);
 }
 
-// the games screen's sections, Party's first (Quest is there too)
+// the games screen's sections, Party's first (Company is there too)
 const SHELVES = [["party", "Party games"], ["table", "Board & card games"], ["learn", "Learning"], ["puzzle", "Puzzles"]];
 /** Everything a party can play, by the games screen's sections: [[title, entries]], only what fits n people when n is given. */
 function catalog(n = null) {

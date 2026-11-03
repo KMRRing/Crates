@@ -189,7 +189,7 @@ export const ELSEWHERE = [
   { id: "banquet", name: "Banquet", kind: "table", page: "banquet.html", max: 2, blurb: "划拳 and 十五二十, the hand games of a banquet table." },
   { id: "gammon", name: "Gammon", kind: "table", page: "gammon.html", max: 2, blurb: "Backgammon: a match, with the doubling cube." },
   { id: "trumps", name: "Trumps", kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote, Coinche or Schafkopf, at a table of four." },
-  { id: "quest", name: "Quest", kind: "table", page: "quest.html", max: 10, blurb: "Hidden loyalties: find the traitors before three quests fail." },
+  { id: "quest", name: "Company", kind: "table", page: "quest.html", max: 10, blurb: "Hidden loyalties: find the Vitalians before three cargoes are lost." },
   { id: "bones", name: "Bones", kind: "table", page: "bones.html", max: 4, blurb: "Dominoes: Partnership, Gaple, or Fives and Threes." },
   { id: "cartel", name: "Cartel", kind: "table", page: "cartel.html", max: 4, blurb: "Secret roles and Liar's Dice in dice: claim roles you may not hold, bid on dice you can't see." },
   { id: "contract", name: "Contract", kind: "table", page: "contract.html", max: 4, across: true, blurb: "Bridge: the auction in SAYC, then the play, a Chicago match of four deals." },

@@ -140,7 +140,7 @@ export const rules = {
     const s = { seats: n, roles: dealRoles(n, options, rng), opts: { seer: options.seer !== false, guardian: !!options.guardian, veiled: !!options.veiled, hermit: !!options.hermit },
       quests: SIZES[n].map((size, i) => ({ size, two: i === 3 && n >= 7 })), q: 0, leader: Math.floor(rng() * n), rejects: 0, step: "propose", team: [], log: [],
       talk: [], people: Array.from({ length: n }, () => false) };
-    s.say = `Company: ${n} at the table, ${EVIL_COUNT[n]} of them Vitalians. Look at your role. The first voyage: a crew of ${s.quests[0].size}, with {s${s.leader}} as Alderman.`;
+    s.say = `Company: ${n} at the table, ${EVIL_COUNT[n]} of them Vitalians. Look at your role. The first voyage: a crew of ${s.quests[0].size}. Alderman: {s${s.leader}}.`;
     return s;
   },
 
@@ -227,7 +227,7 @@ export const rules = {
       s.leader = next(s, s.leader);
       s.step = "propose";
       s.team = [];
-      s.say = `The seal passes to {s${s.leader}}, who names a crew of ${s.quests[s.q].size}.`;
+      s.say = `The seal passes to {s${s.leader}}: a crew of ${s.quests[s.q].size}.`;
       return s;
     }
     // a quest's end: three either way, or the next
@@ -246,7 +246,7 @@ export const rules = {
     s.leader = next(s, s.leader);
     s.step = "propose";
     s.team = [];
-    s.say = `Voyage ${s.q + 1}: a crew of ${s.quests[s.q].size}${s.quests[s.q].two ? " (two spoiled shares lose it)" : ""}, with {s${s.leader}} as Alderman.`;
+    s.say = `Voyage ${s.q + 1}: a crew of ${s.quests[s.q].size}${s.quests[s.q].two ? " (two spoiled shares lose it)" : ""}. Alderman: {s${s.leader}}.`;
     return s;
   },
 

@@ -45,7 +45,7 @@ export const GAMES = {
   banquet: { name: "Banquet", page: "./banquet.html" },
   gammon: { name: "Gammon", page: "./gammon.html" },
   trumps: { name: "Trumps", page: "./trumps.html" },
-  quest: { name: "Quest", page: "./quest.html" },
+  quest: { name: "Company", page: "./quest.html" },
   bones: { name: "Bones", page: "./bones.html" },
   sudoku: { name: "Sudoku", page: "./sudoku.html" },
   mines: { name: "Mines", page: "./mines.html" },
