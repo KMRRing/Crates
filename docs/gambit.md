@@ -3,6 +3,7 @@ Chess against Caissa (MIT, `vendor/caissa/NOTE.txt`) at one of eight strengths, 
 
 ## Rulings
 - 2 November 2026 (Korbi, licences): prefer a permissive engine, and in the worst case no engine at all, only puzzles. Stockfish (GPL v3) is gone from Gambit for that reason; `tests/gambit-licences.mjs` fails if a GPL engine file comes back.
+- 3 November 2026 (Korbi, 3D): "add a 3d mode (both for puzzle and real)… a highly optimized interface". Menu, View: Board (the default) or 3D, for the game and the rush alike; the flat board stays.
 
 ## Traps
 - **Every search needs a limit.** The engine is single-threaded (GitHub Pages can't send the headers `SharedArrayBuffer` needs) and a `go` runs to its end inside the worker's call, so `go infinite` or a bare `go` wedges it. The levels, the hint and the review all search a set number of positions, never a time, so a slow phone plays as strongly as a fast one.
@@ -14,3 +15,6 @@ Chess against Caissa (MIT, `vendor/caissa/NOTE.txt`) at one of eight strengths, 
 - A Lichess puzzle's first move is the opponent's; the solution starts at the second.
 - The rush's wanted-move square was once classed `hint`, which picked up the suite's clue-button style and grew far past the board; it is `want`.
 - The rush keeps its own identity (keys `rush:`, what a partner sees, the battle's requests): they go by a page's name, so it isn't a part of `gambit.html`.
+- **3D (`gambit-3d.js`, geometry in `gambit-3d-geo.js`) is a second drawing of the same board**, never a second board: `chess-board.js` keeps the rules of touch and the marks, and hands the scene a model to draw. The choice is `suite:gambit-view` (this device only; a watching frame draws flat and never writes it). The vendored three.js has no `PerspectiveCamera` or `LatheGeometry`, so the camera is an orthographic one given a perspective matrix and the men are lathed by hand; `tests/gambit-3d.mjs` fails on a three.js name the bundle lacks.
+- **Marks (squares, dots, arrows, shadows) must face up**: their material is one-sided, and a disc written the other way round simply isn't drawn (`createMarks.tri` turns each one up).
+- **A finger picks a man by a stick from his foot to his head, not by his mesh**; a man in front hides the one behind, so a press on several takes the one that can move (`accept`), and a second tap on a picked man means the square behind it (it hides it). Promotion's four choices stand in a row across the middle of the board, since a column hides the far ones.

@@ -4,7 +4,9 @@
 // game against it needs it; the coach's judgement is uci-coach.js's). The game in play is kept as it changes (gambit:game) and picked up on
 // reload. Its puzzle rush is a page of its own under its header (Menu, Puzzle rush: rush.html, rush.js).
 import * as G from "./gambit-rules.js";
-import { mountBoard } from "./chess-board.js";
+import { mountBoard, holdScene } from "./chess-board.js";
+import { getView, setView, viewChoice } from "./gambit-view.js";
+import { sure } from "./sure.js";
 import { PIECES } from "./chess-pieces.js";
 import { LEVELS, levelById, HINT, REVIEW } from "./gambit-levels.js";
 import { openingOf } from "./gambit-openings.js";
@@ -147,7 +149,7 @@ async function think() {
     render();
   }
 }
-onPause(() => render(), () => { render(); kick(); advise(); });
+onPause(() => { holdScene(true); render(); }, () => { holdScene(false); render(); kick(); advise(); });
 
 // ---------- the coach ----------
 // Menu, Coach: off, silent (no Hint); hints, the strongest moves when you ask; check, Hint too, and after each move of
@@ -242,11 +244,11 @@ function takeBack() {
   thinking = false;
   afterMove(false);
 }
-function resign() {
+async function resign() {
   const g = cur();
   if (g.result) return;
   if (inRoom()) { together.act(d => { const n = G.act(G.fromRoom(d), mySeat(), { resign: true }); if (!n) return false; Object.assign(d, n); }); return; }
-  if (!confirm("Resign this game?")) return;
+  if (!(await sure("Resign this game?", { yes: "Resign" })) || cur().result) return;     // it may have ended while the question stood
   S = { ...G.act(S, S.mode === "two" ? G.waitingOn(S) : 0, { resign: true }), hint: null };
   afterMove(false);
 }
@@ -375,7 +377,7 @@ function showEnd() {
 }
 
 // ---------- drawing ----------
-const board = mountBoard($("board"), { onMove });
+const board = mountBoard($("board"), { onMove, view: getView(), onNotice: msg => toast(msg), onUnavailable: () => setView("board") });
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 function seatLabel(white) {
   const g = cur(), you = yourColour(), mine = you ? (you === "white") === white : null;
@@ -546,8 +548,8 @@ function openMenu() {
       ...(cur().result ? [] : [action("Resign", resign, "")]), action("Back to solo", () => together.leave(), "link"));
   } else {
     const g = cur();
-    part(body, "play").append(action("New game", () => {
-      if (!S.result && G.movesOf(S).length > 1 && !confirm("Start a new game? This one isn't finished.")) return;
+    part(body, "play").append(action("New game", async () => {
+      if (!S.result && G.movesOf(S).length > 1 && !(await sure("Start a new game? This one isn't finished.", { yes: "New game" }))) return;
       Object.assign(opts, pick); saveOpts(); newGame();
     }, "primary"), ...(IN_FRAME ? [] : [action("Puzzle rush", () => { location.href = "rush.html"; })]),
     ...(!g.result && G.movesOf(g).length ? [action("Resign", resign, "link")] : []));
@@ -558,6 +560,7 @@ function openMenu() {
   }
   const set = part(body, "settings");
   if (!inRoom()) set.append(choice("Coach", COACH, opts.coach, setCoach));
+  if (!IN_FRAME) set.append(viewChoice(v => board.setView(v)));
   set.append(toggle("Coordinates on the board", opts.coords, on => { opts.coords = on; saveOpts(); render(); }));
   const best = read(BEST, 0), rec = read(RECORD, {});
   const record = LEVELS.filter(l => rec[l.id]).map(l => `${l.name} ${rec[l.id].w}–${rec[l.id].d}–${rec[l.id].l}`).join(", ");

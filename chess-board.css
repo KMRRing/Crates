@@ -35,3 +35,12 @@ html[data-mode="night"] .ch-board .sq.light { fill: #CDBF9E; }
 html[data-mode="night"] .ch-board .sq.dark { fill: #8C744B; }
 html[data-mode="night"] .ch-board .coord.on-light { fill: #6E5A38; }
 html[data-mode="night"] .ch-board .coord.on-dark { fill: #E6DAC0; }
+
+/* ---------- the 3D drawing (gambit-3d.js): the box is the whole stage, and the scene fits the board to it ---------- */
+.gb-board.ch-3d, .ru-board.ch-3d { position: relative; width: 100cqw; height: 100cqh; aspect-ratio: auto; }
+.ch3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; outline: none; }
+.ch3-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.ch3-co { position: absolute; left: 0; top: 0; display: block; font-family: var(--font); font-size: .6875rem; font-weight: 800; line-height: 1; color: var(--co, #EFE3C8); text-align: center; transition: opacity .15s; will-change: transform; }
+.ch-plain .ch3-labels { display: none; }                               /* Coordinates on the board, off */
+.ch-board.ch3-probe { display: none; }                                  /* only read, for the board's colours in this theme */
+.ch3-wait { position: absolute; inset: 0; display: grid; place-items: center; }
