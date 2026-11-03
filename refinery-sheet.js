@@ -120,8 +120,8 @@ export const smallBelow = level => SMALL * (level.feed ?? 100);
  */
 export const HIDES = [
   { id: "waste", name: () => "Waste & not bought", has: lv => sheetPools(lv).some(p => WASTE_POOLS.includes(p)), of: (lv, l) => WASTE_POOLS.includes(l.to) },
-  { id: "gas", name: () => "Fuel gas & off-gas", has: lv => streamsOf(lv).includes("gas"), of: (lv, l) => l.stream === "gas" },
-  { id: "lpg", name: () => "LPG & butane", has: lv => streamsOf(lv).some(s => LPG_STREAMS.includes(s)), of: (lv, l) => LPG_STREAMS.includes(l.stream) },
+  { id: "gas", name: () => "Fuel gas", has: lv => streamsOf(lv).includes("gas"), of: (lv, l) => l.stream === "gas" },
+  { id: "lpg", name: () => "LPG & butane", has: lv => streamsOf(lv).some(s => LPG_STREAMS.includes(s)), of: (lv, l) => l.to === "lpg" || LPG_STREAMS.includes(l.stream) },
   { id: "bought", name: () => "Bought in", has: lv => Object.keys(lv.bought || {}).length > 0, of: (lv, l) => l.from === "bought" },
   { id: "small", name: lv => `Under ${+smallBelow(lv).toFixed(2)} kb/d`, has: () => true, of: (lv, l) => !STREAMS[l.stream].per && l.vol < smallBelow(lv) },
 ];

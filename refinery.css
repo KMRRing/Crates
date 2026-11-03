@@ -67,12 +67,11 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-lines .menu-grid button.rf-fam::before { content: ""; flex: none; width: .7rem; height: .7rem; border-radius: 2px; background: var(--c); }
 .rf-issue { position: absolute; left: .4rem; right: 2.9rem; bottom: .4rem; margin: 0; padding: .3rem .5rem; border-radius: 6px; background: color-mix(in srgb, var(--rf-bad) 12%, var(--sheet)); color: var(--ink); font-size: .76rem; line-height: 1.3; }
 .rf-issue[hidden] { display: none; }
-/* what the player did to the sheet: how many lines are hidden (red, with what for, where one puts a product off spec), and Reset layout */
-.rf-note { position: absolute; top: .4rem; left: .4rem; right: 3rem; z-index: 1; display: flex; flex-wrap: wrap; gap: .25rem; align-items: flex-start; pointer-events: none; }
-.rf-note[hidden], .rf-nb[hidden] { display: none; }
-.rf-nb { pointer-events: auto; display: block; max-width: 100%; box-sizing: border-box; min-height: 1.9rem; padding: .2rem .55rem; border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--sheet); color: var(--ink); font: inherit; font-size: .74rem; font-weight: 750; line-height: 1.25; text-align: left; cursor: pointer; }
-.rf-nb small { display: block; font-size: .7rem; font-weight: 650; color: var(--rf-bad); }
-.rf-nb.bad { border-color: var(--rf-bad); }
+/* how many lines are hidden: a count on the lines button (red where a hidden stream puts a product off spec) */
+.rf-zoom button { position: relative; }
+.rf-badge { position: absolute; top: -.4rem; right: -.4rem; min-width: 1.05rem; height: 1.05rem; box-sizing: border-box; padding: 0 .22rem; border: 1.5px solid var(--sheet); border-radius: 4px; background: var(--rf-in); color: #fff; font-size: .62rem; font-weight: 800; line-height: .9rem; font-variant-numeric: tabular-nums; pointer-events: none; }
+.rf-badge[hidden] { display: none; }
+.rf-badge.bad { background: var(--rf-bad); }
 .rf-lines .menu-line { font-size: .8rem; margin: .3rem 0; }
 .rf-lines .rf-place { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin: .3rem 0; }
 .rf-lines .rf-place .menu-line { margin: 0; }

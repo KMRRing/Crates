@@ -299,22 +299,20 @@ function hiddenWhy(bad = hiddenCulprits(L, R, hidden)) {
   for (const x of bad) by.set(x.pool, [...(by.get(x.pool) || []), STREAMS[x.s].short]);
   return [...by].map(([p, ss]) => `${listOf(ss)} ${ss.length > 1 ? "put" : "puts"} ${POOLS[p].short} off spec`).join("; ");
 }
-/** The note over the flowsheet: how many lines are hidden (red, and what for, where one puts a product off spec), and Reset layout where a box has moved. */
-function paintNote(lay) {
-  const n = lay.filter.hidden.length, why = hiddenWhy(), btn = $("hiddenBtn");
-  btn.hidden = !n && !why;
-  btn.classList.toggle("bad", !!why);
-  btn.replaceChildren(`${n} line${n === 1 ? "" : "s"} hidden`);
-  if (why) { const s = document.createElement("small"); s.textContent = why; btn.append(s); }
-  $("resetBtn").hidden = !Object.keys(arranged).length;
-  $("sheetNote").hidden = btn.hidden && $("resetBtn").hidden;
+/** The count of lines hidden, on the lines button: red where one of them puts a product off spec. */
+function paintCount(lay) {
+  const n = lay.filter.hidden.length, why = hiddenWhy(), badge = $("hiddenCount");
+  badge.hidden = !n;
+  badge.textContent = n;
+  badge.classList.toggle("bad", !!why);
+  $("linesBtn").setAttribute("aria-label", `Which lines to show${n ? `: ${n} hidden${why ? `, and ${why}` : ""}` : ""}`);
 }
 function drawPlant() {
   syncSheet();
   const flow = read(FLOW, true) && !matchMedia("(prefers-reduced-motion: reduce)").matches && !moving, fade = fadeOf();
   const lay = sheetLay = drawSheet(svg, L, R, { select: picked, flow, fade, culprits: culpritLinks(), hide: hidden, arrange: arranged, lift: moving?.id });
   $("linesBtn").classList.toggle("on", !!fade || hidden.size > 0);
-  paintNote(lay);
+  paintCount(lay);
   // room on the right for the zoom buttons, so they never sit on a product
   full = { x: -4, y: -4, w: lay.width + 8 + 40, h: lay.height + 8 };
   if (!view) view = { ...full };
@@ -401,8 +399,6 @@ svg.addEventListener("contextmenu", e => { if (gesture?.box) e.preventDefault();
 $("zoomIn").addEventListener("click", () => zoomAt(1 / 1.5));
 $("zoomOut").addEventListener("click", () => zoomAt(1.5));
 $("zoomFit").addEventListener("click", () => { view = { ...full }; applyView(); });
-$("resetBtn").addEventListener("click", resetArranged);
-$("hiddenBtn").addEventListener("click", () => showLines(true));
 
 // ---------- which lines the flowsheet shows ----------
 // A whole refinery draws a hundred lines, and most of a cracker's products have only one place to go. The lines panel
@@ -448,7 +444,7 @@ function showLines(open) {
 }
 $("linesBtn").addEventListener("click", () => showLines($("linesPanel").hidden));
 // a tap anywhere else, or Escape, puts it away
-document.addEventListener("pointerdown", e => { if (!$("linesPanel").hidden && !e.target.closest?.("#linesPanel, #linesBtn, #hiddenBtn")) showLines(false); });
+document.addEventListener("pointerdown", e => { if (!$("linesPanel").hidden && !e.target.closest?.("#linesPanel, #linesBtn")) showLines(false); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("linesPanel").hidden) showLines(false); });
 
 // ---------- a stream: where it goes, in shares ----------
@@ -1141,6 +1137,7 @@ function openMenu() {
     action("Lesson", () => { $("menuDlg").close(); openLesson(); }), action("Glossary", () => { $("menuDlg").close(); openGlossary(); }));
   if (progress()[base.id]?.stars) part(body, "play").append(action("Exam", () => { $("menuDlg").close(); openTest(); }));
   part(body, "settings").append(toggle("Flowing arrows", read(FLOW, true), on => { write(FLOW, on); drawPlant(); }));
+  if (Object.keys(arranged).length) part(body, "settings").append(action("Reset the flowsheet's layout", resetArranged, "link"));
   part(body, "about").append(action("Show par's plan", () => { $("menuDlg").close(); showPar(); }, "link"),
     line(`${LEVELS.filter(l => progress()[l.id]?.stars).length} of ${LEVELS.length} levels done. Yields, properties and prices are textbook-typical, at a North-West Europe deck with Brent at $75.`));
   $("menuDlg").showModal();
