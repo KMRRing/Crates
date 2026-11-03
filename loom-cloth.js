@@ -172,7 +172,7 @@ export function createCloth(host) {
     const p = puzzle, { s, x0, y0, gw, gh } = G, ext = s * .36, rows = Math.min(p.h, frontier);
     ctx.save();
     ctx.beginPath(); ctx.rect(x0, y0, gw, gh); ctx.clip();                      // a yarn's shadow stays in the cloth
-    const warpAt = (r, c) => r >= 0 && r < rows && cells[r * p.w + c] === WARP;
+    const warpAt = (r, c) => r >= 0 && r < rows && c >= 0 && c < p.w && cells[r * p.w + c] === WARP;
     const weftAt = (r, c) => r >= 0 && r < rows && c >= 0 && c < p.w && cells[r * p.w + c] === WEFT;
     for (let r = 0; r < p.h; r++) for (let c = 0; c < p.w; c++) {                // the bed: each crossing's other yarn, lying under
       const x = x0 + c * s, y = y0 + r * s;
@@ -353,7 +353,8 @@ export function createCloth(host) {
       draw();
       cancelAnimationFrame(pulsing); pulsing = 0;
       if (view.thread?.kind === "peg" && !calm()) {                              // the peg's ring breathes while a thread waits to be ended
-        const beat = () => { draw(); pulsing = view.thread?.kind === "peg" ? requestAnimationFrame(beat) : 0; };
+        let last = 0;                                                            // the ring is slow: a redraw of the whole cloth every other frame is plenty
+        const beat = now => { if (now - last > 40) { last = now; draw(); } pulsing = view.thread?.kind === "peg" ? requestAnimationFrame(beat) : 0; };
         pulsing = requestAnimationFrame(beat);
       }
     },
