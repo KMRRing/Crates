@@ -26,8 +26,29 @@
   <form id="searchForm" class="lx-search" role="search" autocomplete="off">
     <input id="q" type="search" placeholder="Search anything: a country, a company, a painting…" aria-label="Search the Almanac" spellcheck="false" autocapitalize="off">
   </form>
+  <div class="lx-modes" role="group" aria-label="How to look">
+    <button id="modeList" class="lx-mode" type="button" aria-pressed="true">List</button>
+    <button id="modeSky" class="lx-mode" type="button" aria-pressed="false">Star chart</button>
+  </div>
   <section id="results" class="lx-results fit-scroll fit-grow" aria-label="Results"></section>
   <article id="entry" class="lx-entry fit-scroll fit-grow" hidden></article>
+  <section id="sky" class="lx-sky fit-grow" aria-label="Star chart" hidden>
+    <div id="skyStage" class="sk-stage" tabindex="0" aria-label="The star chart: drag to turn it, pinch or scroll to zoom, tap a star for its name">
+      <canvas id="skyGL" class="sk-gl" aria-hidden="true"></canvas>
+      <canvas id="skyInk" class="sk-ink" aria-hidden="true"></canvas>
+      <p id="skyHint" class="sk-hint"></p>
+      <div class="sk-tools">
+        <button id="skySubjects" class="sk-tool" type="button" aria-expanded="false">Subjects</button>
+        <button id="skyHome" class="sk-tool" type="button">Reset view</button>
+      </div>
+      <div id="skyMsg" class="sk-msg" role="status" hidden></div>
+    </div>
+    <div id="skyPanel" class="sk-panel fit-scroll" hidden>
+      <div id="skyHits" class="lx-list sk-hits" hidden></div>
+      <div id="skyLegend" class="sk-legend" hidden></div>
+    </div>
+    <div id="skyCard" class="sk-card" hidden></div>
+  </section>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
