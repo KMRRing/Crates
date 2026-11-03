@@ -1,6 +1,6 @@
 // The puzzle rush's choices, the same controls in every game (rush-core.js has the rules of it): the run (Random,
 // Today's, a game's own kinds) and the clock (3 min, 5 min, Survival), on a menu or on the rush's own sheet; and, where
-// the rush takes the game's place on the page (Gambit's, River's, Hong's, Tribute's), its whole menu.
+// the rush takes the game's place on the page (Chess's, River's, Hong's, Tribute's), its whole menu.
 import { part, choice, action, line } from "./menu.js";
 import { MODES, RUNS, modeOf, bestLines } from "./rush-core.js";
 

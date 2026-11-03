@@ -64,7 +64,7 @@ export const BASE_RULES = [
   single("mirrorLR", 3, "Letters that look the same in a mirror (A H I M O T U V W X Y)", inSet(SET.mirrorLR)),
   single("mirrorTB", 3, "Letters that look the same upside down in a mirror (B C D E H I K O X)", inSet(SET.mirrorTB)),
   single("odd", 3, "Letters in odd positions of the alphabet (A, C, E, G…)", inSet(SET.odd)),
-  single("rare", 3, "Less common letters (worth 2 or more in Scrabble)", inSet(SET.rare)),
+  single("rare", 3, "Less common letters (worth 2 or more in word-tile games)", inSet(SET.rare)),
 
   pair("asc", 1, "Each letter comes later in the alphabet than the one before it", (a, b) => b > a),
   pair("desc", 1, "Each letter comes earlier in the alphabet than the one before it", (a, b) => b < a),

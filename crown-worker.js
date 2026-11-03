@@ -1,4 +1,4 @@
-// Crown's search off the page (crown.js), so the board stays responsive while the computer thinks. The move it finds is
+// Draughts's search off the page (crown.js), so the board stays responsive while the computer thinks. The move it finds is
 // the very one rules.bot would find on the page (same budget, same seeded randomness), so the page may use either.
 import { think, judge } from "./crown-search.js";
 import { seenOf } from "./crown-rules.js";

@@ -1,4 +1,4 @@
-// Gambit's 3D board and pieces as plain arrays, with no scene and no page (gambit-3d.js draws them; tests/gambit-3d.mjs
+// Chess's 3D board and pieces as plain arrays, with no scene and no page (gambit-3d.js draws them; tests/gambit-3d.mjs
 // runs this in Node): the six chessmen turned on a lathe (a knight's head is a bevelled silhouette on a lathed base),
 // the board with its frame, the marks lying on it (last move, check, targets, arrows) and a soft shadow under each piece,
 // where a tap lands, how far back the camera stands, and which piece a finger means.

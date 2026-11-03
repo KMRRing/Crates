@@ -1,4 +1,4 @@
-// Flank's board on the page, one component for the game and the course: 64 squares made once and changed in place, so a
+// Reversi's board on the page, one component for the game and the course: 64 squares made once and changed in place, so a
 // disc that turns is the same element turning (a transition in flank.css; the move is already in the game, this is only
 // drawing). Squares are buttons: a tap is onTap(square). A disc has a dark face with a solid pip and a light face with a
 // ring, so which is which never depends on colour alone.

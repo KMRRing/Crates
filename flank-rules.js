@@ -1,4 +1,4 @@
-// Flank for two, on seats.js: against the computer, two on one phone, a partner's match, or a table (flank-board.js
+// Reversi for two, on seats.js: against the computer, two on one phone, a partner's match, or a table (flank-board.js
 // has the rules of a move, flank-bot.js the computer). A game is plain JSON:
 //   { seats: 2, b (the board, 64 characters), t ("d" or "l": whose turn it is), over, dark (the seat playing dark, who
 //     moves first), moves [the squares played], start (the board it began on), t0 (and whose turn), last: { sq, flips,

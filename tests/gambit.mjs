@@ -1,4 +1,4 @@
-// Gambit: the game's state through act() (moves, castling, en passant, promotion and underpromotion, take back,
+// Chess: the game's state through act() (moves, castling, en passant, promotion and underpromotion, take back,
 // resignation) and every way a game ends (checkmate, stalemate, threefold repetition, the fifty-move rule, too little
 // material), the state as the room keeps it, and the opening table (every line legal, no position named twice, a
 // transposition named as its usual order is).

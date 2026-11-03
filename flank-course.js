@@ -1,4 +1,4 @@
-// Flank's course (Learn, in the header): the rules, then what makes a position good, on the course's sheet (course.js)
+// Reversi's course (Learn, in the header): the rules, then what makes a position good, on the course's sheet (course.js)
 // with a stage of its own, the board as the game draws it (flank-board-ui.js). Every claim about a position is the
 // engine's: a puzzle's best move is the solver's (tests/flank-course.mjs plays each one out to the end), and the
 // numbers a lesson shows (discs, replies) are counted as it draws, never written here.
@@ -148,11 +148,11 @@ const light = "llllll.. llddll.. llllddll lllldddd .llddldd .l.ldldd .lllddld ..
 const over = ".llllll. dllddddd dlllldld dllldldd dlldlddd dldldldd ddllllld ddddddd.";
 
 export const COURSE = {
-  title: "Learn Flank", zh: "",
+  title: "Learn Reversi", zh: "",
   chapters: [
     { id: "rules", title: "The rules", zh: "", lessons: [
       { id: "start", title: "The first move", zh: "", steps: [
-        { say: "Flank is played on eight by eight squares, with discs that have a dark side and a light side. Each side starts with two discs in the middle, and dark moves first." },
+        { say: "Reversi is played on eight by eight squares, with discs that have a dark side and a light side. Each side starts with two discs in the middle, and dark moves first." },
         { say: "A dark disc carries a gilt dot and a light disc a ring, so the two are never told apart by colour alone." },
         { say: "On its move a side places one disc where it turns something over. How many squares can dark choose from on the first move?", quiz: ["2", "3", "4", "5"], answer: 2, calc: "moves", reveal: true, why: "Four: they are marked now." },
         { say: "Tap one of the marked squares to make the first move.", free: true, why: "Your disc closed a run of the other side's discs, and the run turned over to your colour." },

@@ -1,4 +1,4 @@
-// Silo: four in a row for two, on seats.js (solo against the computer, two on one phone is the same table with both
+// Four in a row for two, on seats.js (solo against the computer, two on one phone is the same table with both
 // seats yours, a partner's match, or a table of friends each on their own phone). The board and its rules are
 // silo-board.js's, the computer silo-bot.js's. A game is the columns played, in order, as a string ("33442"), so the
 // state is small, plain and always replayable; a running tally of games won is carried from one game to the next.

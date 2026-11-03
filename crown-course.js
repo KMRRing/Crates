@@ -1,4 +1,4 @@
-// Crown's course (Learn, in the header): draughts taught from nothing on the course's sheet (course.js) with a stage of its
+// Draughts's course (Learn, in the header): draughts taught from nothing on the course's sheet (course.js) with a stage of its
 // own, the board drawn as the table draws it with its files and ranks lettered, and a move made as at the table (crown-tap.js:
 // tap the piece, then where it lands, a run of jumps landing by landing or by its last square). Every rule it states is the
 // board's (crown-board.js); every move a lesson asks for is judged by the legal moves of its position, and a puzzle's by the
@@ -149,7 +149,7 @@ const pickShots = (set, n) => {
 };
 
 export const COURSE = {
-  title: "Learn Crown", zh: "",
+  title: "Learn draughts", zh: "",
   chapters: [
     {
       id: "rules", title: "The rules", zh: "",
@@ -247,7 +247,7 @@ export const COURSE = {
         {
           id: "sets", title: "Other rule sets", zh: "",
           steps: [
-            { set: "international", pieces: "O@c1 x@f4", answer: "c1xg5", accept: ["c1xh6", "c1xi7", "c1xj8"], say: "Crown is also played by International rules (the Menu's Rules choice): a bigger board, ten by ten, with twenty men a side, men that jump backward, and flying kings. A flying king moves any distance along a diagonal and jumps a piece from a distance, landing on any free square beyond it. Take the man on f4.", then: "Any of the four landings was allowed. Brazilian draughts is the same rules on eight by eight; Russian lets a king fly too, but any route may be chosen.", why: "Along the diagonal over f4: land on g5, h6, i7 or j8." },
+            { set: "international", pieces: "O@c1 x@f4", answer: "c1xg5", accept: ["c1xh6", "c1xi7", "c1xj8"], say: "Draughts is also played by International rules (the Menu's Rules choice): a bigger board, ten by ten, with twenty men a side, men that jump backward, and flying kings. A flying king moves any distance along a diagonal and jumps a piece from a distance, landing on any free square beyond it. Take the man on f4.", then: "Any of the four landings was allowed. Brazilian draughts is the same rules on eight by eight; Russian lets a king fly too, but any route may be chosen.", why: "Along the diagonal over f4: land on g5, h6, i7 or j8." },
             { set: "international", pieces: "o@c3 x@d4 x@f6 o@a5 x@b6", answer: "c3xe5xg7", say: "In International draughts the jump that takes the most pieces is compulsory, even when another jump is tempting. Here a5 could take one man and c3 could take two, so only c3 may move. Take your two.", then: "The majority rule: only c3's run of two is allowed. (A king counts as one piece, like a man.)", why: "Over d4 to e5, over f6 to g7." },
           ],
         },

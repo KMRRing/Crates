@@ -1,4 +1,4 @@
-// Gambit: chess against Caissa at a strength you choose, two players on one phone, or a match with your partner. The
+// Chess (the page is gambit.html): chess against Caissa at a strength you choose, two players on one phone, or a match with your partner. The
 // rules are chess.js's (gambit-rules.js keeps the game as plain JSON), the board chess-board.js's; the computer's moves,
 // the coach and the review at the end are Caissa's (uci.js, in the worker gambit-engine-worker.js, loaded only when a
 // game against it needs it; the coach's judgement is uci-coach.js's). The game in play is kept as it changes (gambit:game) and picked up on

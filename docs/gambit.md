@@ -1,8 +1,8 @@
 # Chess
-Chess against Caissa (MIT, `vendor/caissa/NOTE.txt`) at one of eight strengths, two players on one phone, or a match with your partner. The same engine is the coach (hints, a word after a mistake) and reviews the finished game. The rules are chess.js's (`vendor/chess.js`); `gambit-rules.js` keeps a game as plain JSON, changed only by `act()`. The puzzle rush (Menu, Puzzle rush) is a page of its own, `rush.html`, under Gambit's header, on 20,000 Lichess puzzles (CC0) in `puzzles/`.
+Chess against Caissa (MIT, `vendor/caissa/NOTE.txt`) at one of eight strengths, two players on one phone, or a match with your partner. The same engine is the coach (hints, a word after a mistake) and reviews the finished game. The rules are chess.js's (`vendor/chess.js`); `gambit-rules.js` keeps a game as plain JSON, changed only by `act()`. The puzzle rush (Menu, Puzzle rush) is a page of its own, `rush.html`, under Chess's header, on 20,000 Lichess puzzles (CC0) in `puzzles/`.
 
 ## Rulings
-- 2 November 2026 (Korbi, licences): prefer a permissive engine, and in the worst case no engine at all, only puzzles. Stockfish (GPL v3) is gone from Gambit for that reason; `tests/gambit-licences.mjs` fails if a GPL engine file comes back.
+- 2 November 2026 (Korbi, licences): prefer a permissive engine, and in the worst case no engine at all, only puzzles. Stockfish (GPL v3) is gone from Chess for that reason; `tests/gambit-licences.mjs` fails if a GPL engine file comes back.
 - 3 November 2026 (Korbi, 3D): "add a 3d mode (both for puzzle and real)… a highly optimized interface". Menu, View: Board (the default) or 3D, for the game and the rush alike; the flat board stays.
 
 ## Traps

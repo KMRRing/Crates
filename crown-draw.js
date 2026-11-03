@@ -1,4 +1,4 @@
-// Crown's board drawn (an SVG on a viewBox of ten units a square), for the page and the course alike: the engraved
+// Draughts's board drawn (an SVG on a viewBox of ten units a square), for the page and the course alike: the engraved
 // frame, the dark squares as the tap areas (data-sq), the men (a disc with a ring, and a mark on its face: a diamond
 // for Ink, a hollow circle for Ivory, so the side is never told by colour alone) and the kings (two discs stacked, the
 // upper carrying a brass crown), and what the player is shown: the piece picked up, where it may go, the pieces that must

@@ -1,4 +1,4 @@
-// Flank's computer and coach think here, off the page's thread: a position in, the scores of its moves out
+// Reversi's computer and coach think here, off the page's thread: a position in, the scores of its moves out
 // (flank-bot.js's scoresFor for the computer's level, flank-engine.js's rootScores for the coach). The positions looked at
 // are set by the level or the request, never by a time, so a position gets the same answer on any phone.
 import { scoresFor, sidesOf } from "./flank-bot.js";

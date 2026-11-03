@@ -1,4 +1,4 @@
-// Crown: draughts (checkers) against the computer, two on one phone, or at a table with a friend each on their own phone.
+// Draughts (checkers) against the computer, two on one phone, or at a table with a friend each on their own phone.
 // The rules are crown-board.js's (the sets as data), the game's crown-rules.js on seats.js, the computer crown-search.js
 // (worked out in crown-worker.js, off the page). This page draws the board as the one playing it sees it, their men at the
 // top, and takes a move by taps: a piece picked up shows where it may land; a multi-jump is one move, tapped landing by
@@ -421,7 +421,7 @@ function openMenu() {
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
   const cp = progressOf("crown", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Crown, from the rules", () => course.open()));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn draughts, from the rules", () => course.open()));
   if (dayShot) play.append(action(shotDone() ? "The shot of the day: solved" : "The shot of the day", () => dayShot.open(DAY.chapters[0].lessons[0].id)));
   play.append(action("The rules on one page", showRules, "link"));
   const content = part(body, "content");

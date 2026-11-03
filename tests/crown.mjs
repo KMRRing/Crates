@@ -1,4 +1,4 @@
-// Crown's rules (crown-board.js, crown-rules.js on seats.js): perft counts of the four rule sets from the opening position
+// Draughts's rules (crown-board.js, crown-rules.js on seats.js): perft counts of the four rule sets from the opening position
 // (the numbers published for English, International, Brazilian and Russian draughts), the rules one at a time on small
 // positions (the compulsory jump, a run that must go on, the free choice of English and Russian against the majority rule,
 // men jumping backwards, the flying king and its landings, crowning in the middle of a jump in each set), a game on seats.js

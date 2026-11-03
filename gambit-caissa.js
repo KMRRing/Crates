@@ -1,6 +1,6 @@
-// Caissa (vendor/caissa/NOTE.txt) started for Gambit, in the page's worker (gambit-engine-worker.js) and in Node (the
+// Caissa (vendor/caissa/NOTE.txt) started for Chess, in the page's worker (gambit-engine-worker.js) and in Node (the
 // tests and tools, through tests/gambit-uci-node.js): the engine's WebAssembly, its network unpacked straight into the
-// room the engine gives it, and the few Stockfish options Gambit's levels set, which Caissa doesn't have, dropped.
+// room the engine gives it, and the few Stockfish options Chess's levels set, which Caissa doesn't have, dropped.
 import { startWasi } from "./gambit-wasi.js";
 
 /** The transposition table, in megabytes: a phone's tab has the network's 76 MB to hold besides. */

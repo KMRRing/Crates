@@ -1,4 +1,4 @@
-// Flank: Reversi for two, against the computer, two on one phone, a partner's match or a table of friends. The rules are
+// Reversi for two, against the computer, two on one phone, a partner's match or a table of friends. The rules are
 // flank-board.js's (the squares as bitboards) and flank-rules.js's (the game on seats.js), the computer flank-bot.js's
 // on flank-engine.js's search, which runs in a worker (flank-think.js) while the board stays alive. This page draws the
 // board (flank-board-ui.js), the discs turning as the only movement, marks the squares you may play quietly, and takes
@@ -299,7 +299,7 @@ $("endBoard").addEventListener("click", () => $("endDlg").close());
 // ---------- rules, menu ----------
 function showRules() {
   $("rulesBody").innerHTML = `
-    <p>Flank is the old game of Reversi, for two. Each disc has a dark side and a light side; on the board you are the colour showing. Dark moves first, from the usual start of two discs each in the middle.</p>
+    <p>Reversi is an old game, for two. Each disc has a dark side and a light side; on the board you are the colour showing. Dark moves first, from the usual start of two discs each in the middle.</p>
     <h3>A move</h3>
     <p>Place a disc on an empty square so that, in a straight line (across, down or diagonally), it brackets one or more of the other side's discs between the new disc and one of your own. Every disc so bracketed turns over to your colour, in every direction at once. A move must turn at least one disc; the squares you may play are marked.</p>
     <h3>Passing and the end</h3>
@@ -329,7 +329,7 @@ function openMenu() {
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
   const cp = progressOf("flank", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Flank, from the rules", () => course.open()));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Reversi, from the rules", () => course.open()));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(choice("Opponent", [["computer", "Computer"], ["two", "Two on this phone"]], opts.mode, v => { opts.mode = v; saveOpts(); }));

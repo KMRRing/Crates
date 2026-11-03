@@ -1,4 +1,4 @@
-// Crown's computer player (crown-search.js): a position gives the same move for the same randomness (so the page's worker and
+// Draughts's computer player (crown-search.js): a position gives the same move for the same randomness (so the page's worker and
 // the table's own search agree), a forced win is found at every level but the weaker levels miss it now and then, Hard
 // finds a shot and never misses, the search sees a repetition coming, a single legal move costs nothing, and the coach's
 // judgement says who is ahead. How strong each level is against the others is measured by tools/crown-bench.mjs (CI doesn't run it).

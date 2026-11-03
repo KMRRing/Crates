@@ -1,4 +1,4 @@
-// Silo's computer player. Four in a row is a solved game (the first mover wins by starting in the middle), so the levels
+// Four in a row's computer player. Four in a row is a solved game (the first mover wins by starting in the middle), so the levels
 // are not how deep a player sees but how often it misses what is there to see: a win it could take, a loss it could stop.
 //   Hard    never misses. From about a dozen discs on it solves the position exactly and plays a move of the best score;
 //           before that, which no phone can solve, it searches twelve plies or so with a judgement of threats at the end.

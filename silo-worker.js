@@ -1,4 +1,4 @@
-// Silo's thinking, off the page's thread: Hard's move and the coach's reading of a position. A position (the moves so
+// Four in a row's thinking, off the page's thread: Hard's move and the coach's reading of a position. A position (the moves so
 // far) in, the answer out; the tables live as long as the worker, so each move of a game is cheaper than the last.
 import { createSolver } from "./silo-solver.js";
 import { hardMove } from "./silo-bot.js";

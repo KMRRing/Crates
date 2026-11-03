@@ -1,4 +1,4 @@
-// The page's side of Silo's thinking: a worker (silo-worker.js) that works out Hard's move or the coach's reading while
+// The page's side of Four in a row's thinking: a worker (silo-worker.js) that works out Hard's move or the coach's reading while
 // the page stays awake, and the same work done here, in small, where a browser has no worker. One thinker is one worker;
 // the page keeps two, so the coach never holds up the computer's move. A request made while the worker is busy waits,
 // and a newer request replaces a waiting one (a position that has been played past is not worth the answer).

@@ -1,4 +1,4 @@
-// Crown's computer player: our own search, no one else's code. Alpha-beta (negamax) with iterative deepening, a
+// Draughts's computer player: our own search, no one else's code. Alpha-beta (negamax) with iterative deepening, a
 // transposition table, captures searched to their end (a capture is compulsory, so a position where one is on offer is
 // never "quiet" and is not judged: it is searched on), and an evaluation of men, kings, advancement, the back rank,
 // the centre and, in an ending, how close the stronger side's kings are to the weaker's pieces.

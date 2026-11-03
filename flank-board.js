@@ -1,4 +1,4 @@
-// Flank's board: the squares as bitboards and the rules of a move. A board is two 64-bit sets of squares, one for each
+// Reversi's board: the squares as bitboards and the rules of a move. A board is two 64-bit sets of squares, one for each
 // colour, each kept as two 32-bit halves (rows 1 to 4 in the low half, 5 to 8 in the high), because JavaScript's
 // bitwise operators work on 32 bits and BigInt is far too slow for a search. Square 0 is a1 (top left), 7 is h1, 56 is
 // a8; sq = row * 8 + column. Every function here takes the side to move first (pl, ph) and the other side (ol, oh),

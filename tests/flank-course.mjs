@@ -1,4 +1,4 @@
-// Flank's course (flank-course.js): every claim a lesson makes about a position is checked against the engine. A puzzle
+// Reversi's course (flank-course.js): every claim a lesson makes about a position is checked against the engine. A puzzle
 // marked proved has its answer played out to the end by the exact solver (it is the best move, the squares it lists as
 // good enough win, the squares it lists as losing lose); the counts a quiz asks for are counted here; a pass, an
 // ended game, the discs that "can never be turned" and the sizes of the regions of empty squares are all worked out
@@ -152,4 +152,4 @@ check(proved >= 5, `at least five proved puzzles (${proved})`);
 check(judged >= 8, `the exercises are played (${judged})`);
 
 if (bad) { console.log(`\n${bad} failed`); process.exit(1); }
-console.log(`Flank course: ${lessons.length} lessons, ${proved} puzzles proved by the solver, ${judged} exercises played through. All good.`);
+console.log(`Reversi course: ${lessons.length} lessons, ${proved} puzzles proved by the solver, ${judged} exercises played through. All good.`);

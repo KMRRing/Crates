@@ -1,4 +1,4 @@
-// Crown's course (crown-course.js) and its shots (crown-puzzles.js): every position of every step parses onto dark squares;
+// Draughts's course (crown-course.js) and its shots (crown-puzzles.js): every position of every step parses onto dark squares;
 // every move a lesson asks for or accepts is legal in its position, every wrong one with words is legal too; a quiz's
 // answer is one of its options; the claims the lessons make hold on the board (a jump compulsory, a run that must go on,
 // a man crowned in a jump stopping, the majority rule, the exchange, the opposition) and each shot is the search's own

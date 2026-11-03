@@ -1,4 +1,4 @@
-// Silo's course (Learn, in the header): four in a row taught from nothing, on the course's sheet (course.js) with a stage
+// Four in a row's course (Learn, in the header): four in a row taught from nothing, on the course's sheet (course.js) with a stage
 // of its own, the board as the table draws it (silo-draw.js) with its columns numbered. A step's board is the columns
 // played so far (`moves`, silo-board.js's string: the first mover's disc, the second's, and so on; the first mover is
 // ochre with a ring, whoever's turn it is is "you"). The exercises tap a column; every answer is proved by the solver in
@@ -63,7 +63,7 @@ export function boardStage() {
 
 // ---------- the lessons ----------
 export const COURSE = {
-  title: "Learn Silo", zh: "",
+  title: "Learn four in a row", zh: "",
   chapters: [
     {
       id: "game", title: "The game", zh: "",
@@ -71,7 +71,7 @@ export const COURSE = {
         {
           id: "drop", title: "Dropping discs", zh: "",
           steps: [
-            { moves: "", say: "Silo is four in a row, for two. The grid stands upright: seven columns, six rows. On your turn you drop one disc into a column of your choice, and it falls to the lowest empty cell there. You are ochre with a ring; the other player is blue with a diamond, so you can tell them apart without the colour." },
+            { moves: "", say: "Four in a row is a game for two. The grid stands upright: seven columns, six rows. On your turn you drop one disc into a column of your choice, and it falls to the lowest empty cell there. You are ochre with a ring; the other player is blue with a diamond, so you can tell them apart without the colour." },
             { moves: "333", quiz: ["Row 1", "Row 4", "Row 6"], answer: 1, say: "Columns are numbered 1 to 7 from the left. The middle column, 4, already holds three discs. A disc dropped into it lands on which row, counting from the bottom?", why: "Row 4: a disc stops on the one below it." },
             { moves: "3", answer: [6], proof: "told", say: "Tap column 6 to drop your disc.", then: "It falls to the bottom row, since the column is empty.", why: "Tap column 6." },
           ],

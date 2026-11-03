@@ -1,4 +1,4 @@
-// Crown: draughts for two on seats.js (solo against the computer, two on one phone, a partner's match, a table).
+// Draughts for two on seats.js (solo against the computer, two on one phone, a partner's match, a table).
 // The board and its rule sets are crown-board.js's, the computer crown-search.js's. A game is one state:
 //   { set, board, ply, sides: [side of seat 0, side of seat 1], turn (the seat to move), hist: [every position],
 //     mv: [every move, "from.landing…" 0-based], quiet (plies since a capture or a man's move), last, result }

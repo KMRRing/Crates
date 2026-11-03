@@ -1,4 +1,4 @@
-// The worker that runs Caissa for Gambit: the engine's WebAssembly and its network, fetched (from the app's offline
+// The worker that runs Caissa for Chess: the engine's WebAssembly and its network, fetched (from the app's offline
 // copy once it has one), the network unpacked as it arrives into the engine's own memory (gambit-caissa.js), then
 // started with the WASI it needs (gambit-wasi.js). The page posts UCI commands and gets back the engine's lines; commands
 // that come while the engine starts wait for it. A command runs to its end before the next is read, a search

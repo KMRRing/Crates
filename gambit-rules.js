@@ -1,4 +1,4 @@
-// Gambit's game: chess by chess.js (vendor/chess.js, the rules as FIDE's Laws of Chess have them), kept as one plain
+// Chess's game: chess by chess.js (vendor/chess.js, the rules as FIDE's Laws of Chess have them), kept as one plain
 // JSON state changed only by act(), as River's is, so the page, the room and the tests share it. A game ends by
 // checkmate or stalemate, by threefold repetition, by the fifty-move rule or with too little material to mate, all
 // drawn at once (as online play does, without a claim), or by resignation.

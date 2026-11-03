@@ -1,4 +1,4 @@
-// Silo: four in a row against the computer, with a friend on the same phone, or at a table with a friend each on their
+// Four in a row against the computer, with a friend on the same phone, or at a table with a friend each on their
 // own phone. The rules are silo-rules.js's (the board's silo-board.js's), the computer silo-bot.js's, the running
 // seats.js's. This page draws the board as bitmaps of nothing (an SVG, silo-draw.js), takes a tap on a column as a
 // move, lets a disc fall, and shows the four that won. Hard thinks in a worker (silo-think.js) while the page stays
@@ -292,7 +292,7 @@ function openMenu() {
   if (page.host) play.append(action("New game", () => newGame(false), "primary"));
   page.menu(play);
   const cp = progressOf("silo", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Silo, from the rules", () => course.open()));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn four in a row, from the rules", () => course.open()));
   play.append(action("The rules on one page", showRules, "link"));
   if (!page.atTable && page.host) {
     const content = part(body, "content");

@@ -1,4 +1,4 @@
-// Gambit's engine, Caissa (vendor/caissa/NOTE.txt), behind uci.js's Engine: the shipped files are the ones the note
+// Chess's engine, Caissa (vendor/caissa/NOTE.txt), behind uci.js's Engine: the shipped files are the ones the note
 // names and the app keeps them offline; a position in gives a legal best move and lines; a limit is kept; the same input
 // gives the same answer whatever was searched before; the levels play legal moves, whole games of them survive the
 // room's round trip, and a stronger search beats a weaker level; the coach judges the Scholar's-mate trap. Quick on

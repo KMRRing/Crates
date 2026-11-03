@@ -1,4 +1,4 @@
-// Flank's computer player: our own search, written for the Codex, nothing of anyone's in it (the strong free
+// Reversi's computer player: our own search, written for the Codex, nothing of anyone's in it (the strong free
 // engines, Edax and others, are GPL). Pure: no page, so the worker, the tests and the bench share it.
 //
 //  - evaluate(): what a position is worth to the side to move, in hundredths of a disc, from the things a player of this

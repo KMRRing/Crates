@@ -1,4 +1,4 @@
-// Gambit's board in 3D, drawn with three.js (vendor/three.js, kept on the device, so it plays offline): a wooden board in a
+// Chess's board in 3D, drawn with three.js (vendor/three.js, kept on the device, so it plays offline): a wooden board in a
 // brass-lined frame, six turned men in two sets, a soft light and a soft shadow under each man, and on the board what the flat
 // board shows on its squares (the last move, the picked piece, the places it may go, check, the coach's arrows). It is the same
 // game drawn a second time: chess-board.js keeps the rules of touch (what a tap or a drag means), this file only draws what it is

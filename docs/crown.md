@@ -1,5 +1,5 @@
 # Draughts
-Draughts (checkers), 3 November 2026: against the computer, two on one phone, or a partner's match and a table of friends (seats.js). Added 2 November 2026 (Korbi: "draughts"); Crown is the move that decides it.
+Draughts (checkers), 3 November 2026: against the computer, two on one phone, or a partner's match and a table of friends (seats.js). Added 2 November 2026 (Korbi: "draughts").
 
 **Rule sets** are data (`SETS` in `crown-board.js`): English (8x8, men step and capture forward only, kings one square, any capture will do, a man reaching the far row is crowned and stops), International (10x10, men capture backwards, kings fly, the longest capture is compulsory), Brazilian (International's rules on 8x8) and Russian (8x8, flying kings, any capture will do, a man crowned in mid-jump goes on as a king). Sources: the WCDF's English rules, the FMJD's International rules; Russian and Brazilian are the federations' published rules. Rules belong to no one; the engine, tables and puzzles are our own, nothing is vendored and no other engine (Scan is GPL) was read or run.
 

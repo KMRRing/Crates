@@ -1,5 +1,5 @@
-/* Gambit's puzzle rush (rush.html): the count, the clock and the strikes over the board, what to do above it, what the
-   puzzle was under it, the buttons low, as River's rush stands on River's page. Gambit's enamel and buttons (gambit.css)
+/* Chess's puzzle rush (rush.html): the count, the clock and the strikes over the board, what to do above it, what the
+   puzzle was under it, the buttons low, as River's rush stands on River's page. Chess's enamel and buttons (gambit.css)
    and its board (chess-board.css); verdigris and oxblood for a solve and a miss. */
 :root { --ru-good: #2F7D5B; --ru-bad: #A8382B; }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --ru-good: #7FC2A8; --ru-bad: #E8806F; } }

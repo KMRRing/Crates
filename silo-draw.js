@@ -1,4 +1,4 @@
-// Silo's board drawn (a 736 × 706 drawing), for the page and the course alike: a brass frame round a face of enamel
+// Four in a row's board drawn (a 736 × 706 drawing), for the page and the course alike: a brass frame round a face of enamel
 // with the holes cut through it, the discs behind the face (so a falling one is seen only through the holes), the
 // four that won lit, the column a hint names, and the tap areas (one a column, as data-col).
 //

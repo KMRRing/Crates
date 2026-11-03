@@ -1,9 +1,9 @@
-// Gambit's puzzle rush (Gambit, Menu, Puzzle rush): chess puzzles, as many as you can, with the settings every game's
+// Chess's puzzle rush (Chess, Menu, Puzzle rush): chess puzzles, as many as you can, with the settings every game's
 // rush shares (rush-core.js, rush-menu.js): Random or Today's; 3 min with five seconds' grace a puzzle, 5 min, or
 // Survival; three misses end the run. An easy warm-up starts the clock; the puzzles climb from below your rating, kept
 // across runs. The bank is 20,000 Lichess puzzles in ten files by rating band (puzzles/), fetched as a run climbs into
 // them and kept on the device; the board is chess-board.js. Together, a puzzle battle (duel.js). It's a page of its own
-// under Gambit's header, not a part of gambit.html, so it keeps the identity it had as a game (rush): its keys (rush:),
+// under Chess's header, not a part of gambit.html, so it keeps the identity it had as a game (rush): its keys (rush:),
 // what your partner sees you playing, and the battle's requests and Party's.
 import { mountPuzzle, solutionSan, holdScene } from "./chess-board.js";
 import { getView, setView, viewChoice } from "./gambit-view.js";
@@ -288,7 +288,7 @@ function drawBar() {
   button("The game", backToGame, "quiet");
   if (!S || S.over) button(S ? "Again" : "Start", () => start());
 }
-/** Back to Gambit's game: a timed run under way ends (you're asked first); one without a clock waits for next time. */
+/** Back to Chess's game: a timed run under way ends (you're asked first); one without a clock waits for next time. */
 async function backToGame() {
   if (S && !S.over && S.started != null && MODES[S.mode].ms) {
     if (!(await sure("End this run and go back to the game?", { yes: "End run" }))) return;
@@ -296,7 +296,7 @@ async function backToGame() {
   }
   location.href = "gambit.html";
 }
-// Gambit's Coordinates on the board: one setting for its game and its rush
+// Chess's Coordinates on the board: one setting for its game and its rush
 const coordsOn = () => read(GAMBIT_OPTS, {})?.coords !== false;
 const applyCoords = () => $("board").classList.toggle("ch-plain", !coordsOn());
 const viewSetting = () => viewChoice(v => board?.setView(v));
@@ -388,7 +388,7 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
-/** The menu: the rush's, as every game's rush has it (rush-menu.js), with Gambit's Coordinates; at a battle, the table's
+/** The menu: the rush's, as every game's rush has it (rush-menu.js), with Chess's Coordinates; at a battle, the table's
  *  own (a new match, the match, Back to solo) and its clock, which starts a new match in it for everyone. */
 function openMenu() {
   const body = $("menuBody");

@@ -1,4 +1,4 @@
-// Flank (flank-board.js, flank-engine.js, flank-bot.js, flank-rules.js): the rules against the published perft counts
+// Reversi (flank-board.js, flank-engine.js, flank-bot.js, flank-rules.js): the rules against the published perft counts
 // (4, 12, 56, 244, 1396, 8200, 55092, 390216, 3005288 games of 1 to 9 plies from the start, a pass counting as a ply),
 // an independent slow referee on every position of 120 random games, and known positions (a move turning in all eight
 // directions, no wrapping round the board's edge, a side with no move passing, a wipe-out, a game ending with empty

@@ -35,5 +35,5 @@ export function rulesHtml(opts = {}) {
 <h3>Cards</h3>
 <p>One card a turn, never the turn you bought it (a Privateer may be played before you roll).</p>
 <ul>${Object.keys(CARD_NAMES).map(c => `<li><b>${CARD_NAMES[c]}.</b> ${CARD_TEXT[c]}</li>`).join("")}</ul>
-<p class="fc-note">Factor plays by the rules of the island-trading game Catan made well known, which Colonist also plays in a browser. The names, the pictures and the code here are Factor's own. A game can be played to ${TARGETS.join(", ")} points, set in the menu.</p>`;
+<p class="fc-note">Factor plays by the rules of the genre of island-trading games. The names, the pictures and the code here are Factor's own. A game can be played to ${TARGETS.join(", ")} points, set in the menu.</p>`;
 }

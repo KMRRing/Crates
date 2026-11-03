@@ -1,4 +1,4 @@
-// Which board Gambit and its puzzle rush draw: the flat one (always there, and the default) or the 3D one (gambit-3d.js). The choice is
+// Which board Chess and its puzzle rush draw: the flat one (always there, and the default) or the 3D one (gambit-3d.js). The choice is
 // the device's own (a `suite:` key stays off the other devices; a phone that can do 3D says nothing of a laptop that can't), and a
 // partner's watching frame never reads or writes it: it draws flat.
 import { choice } from "./menu.js";

@@ -1,4 +1,4 @@
-// Silo's engine: bitboards, a negamax with alpha-beta, a transposition table, and moves tried in the order that finds
+// Four in a row's engine: bitboards, a negamax with alpha-beta, a transposition table, and moves tried in the order that finds
 // a cut soonest. Two searches share the board code:
 //   solve   the exact result of a position, to the last disc: who wins, and how soon (the score below). It is the
 //           engine of Pons's published method (the tutorial "Solving Connect Four: how to build a perfect AI", Apache

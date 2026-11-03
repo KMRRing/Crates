@@ -1,4 +1,4 @@
-// Silo's board: seven columns, six high, discs dropped into a column to rest on the one below. A game is the columns
+// Four in a row's board: seven columns, six high, discs dropped into a column to rest on the one below. A game is the columns
 // played, in order, as a string of digits ("33442"): the first mover's disc, the second's, and so on, so the position
 // is always the move list and nothing else, and a reader can replay it. Pure and plain, no DOM; the solver
 // (silo-solver.js) works on bitboards made from the same string.

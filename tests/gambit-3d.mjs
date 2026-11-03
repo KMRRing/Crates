@@ -1,4 +1,4 @@
-// Gambit's 3D board (gambit-3d-geo.js, the pure part of gambit-3d.js): the six men turned and facing outward, standing as tall and as
+// Chess's 3D board (gambit-3d-geo.js, the pure part of gambit-3d.js): the six men turned and facing outward, standing as tall and as
 // wide as the tables say, squares and where a tap lands on them, the camera's fit to the pixel, which piece a finger means, and the
 // classes the scene asks of the vendored three.js. Plain geometry, so it runs in Node in a moment.
 import { readFileSync } from "node:fs";

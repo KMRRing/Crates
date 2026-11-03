@@ -1,4 +1,4 @@
-// Flank's computer player at its three levels, on flank-engine.js's search: a level is how far it looks and how often
+// Reversi's computer player at its three levels, on flank-engine.js's search: a level is how far it looks and how often
 // it misses, never how long it thinks (a slow phone plays as a fast one).
 //   Easy    looks one move ahead; half its moves are at random, and seven times in ten a corner on offer goes unseen.
 //   Medium  looks three moves ahead and plays the last eight squares out exactly; one move in ten is a slip.

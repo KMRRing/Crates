@@ -1,4 +1,4 @@
-// Silo (silo-board.js, silo-rules.js, silo-solver.js, silo-bot.js) on seats.js: the board (replay, a disc resting on the
+// Four in a row (silo-board.js, silo-rules.js, silo-solver.js, silo-bot.js) on seats.js: the board (replay, a disc resting on the
 // one below, four across, up, along both diagonals, five counting, a full board a draw, a position drawn as text); the
 // rules (who moves, what is refused, the tally and who starts the next game); the state through the database; the
 // solver against a plain negamax on positions near the end, and on the forced wins it is asked to find; the computer's

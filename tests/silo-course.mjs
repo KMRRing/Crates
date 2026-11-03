@@ -1,4 +1,4 @@
-// Silo's course (silo-course.js): every exercise's answer is proved, not trusted. An answer is the set of columns the
+// Four in a row's course (silo-course.js): every exercise's answer is proved, not trusted. An answer is the set of columns the
 // solver (or plain play) says it is, exactly: a win at once; a win in three plies (a double threat); the one column that
 // doesn't lose at once; every column that doesn't; the columns of the best exact score. ("told": the words name the column.) The wrong answers named are
 // legal and not answers, the cells a step marks are cells where a disc would make four, and the side to move is the

@@ -260,7 +260,7 @@ function showRules() {
     <p>A word game for two to four. Seven tiles on your rack; lay a word across or down so that it joins the tiles on the board, and every other word your tiles make is a word too. The first word covers the star.</p>
     <p><b>Scoring.</b> A word scores its tiles' values. A new tile on <b>2L</b> or <b>3L</b> counts double or triple; one on <b>2W</b> or <b>3W</b> doubles or triples the whole word. Squares count the turn the tile is laid and never again. A blank (it stands as any letter you choose) scores nothing. Laying all seven tiles in one turn adds 50.</p>
     <p><b>Your turn.</b> Tap a tile, then a square; tap a laid tile to take it back. The line under the board gives the word and what it is worth, or why it is refused. <b>Swap</b> puts tiles back in the bag for others (only while the bag holds seven or more) and <b>Pass</b> gives up the turn; both are in the Swap button.</p>
-    <p><b>Words.</b> There is no challenge: a word that isn't in the word list is refused before your turn is used. The list is a large English one (no proper names); a few rare words a Scrabble player knows may be missing.</p>
+    <p><b>Words.</b> There is no challenge: a word that isn't in the word list is refused before your turn is used. The list is a large English one (no proper names); a few rare words a word-tile player knows may be missing.</p>
     <p><b>The end.</b> When the bag is empty and a player has used the last tile, that player adds the others' remaining tiles to their score and each of the others loses theirs. Six turns running without a word end the game too, and everyone loses their own remaining tiles.</p>`;
   $("rulesDlg").showModal();
 }

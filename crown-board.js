@@ -1,4 +1,4 @@
-// Crown's board: draughts (checkers) as pure functions, no DOM. The rule sets are data (SETS): the board's size, how many
+// Draughts's board: draughts (checkers) as pure functions, no DOM. The rule sets are data (SETS): the board's size, how many
 // rows of men, whether a man may capture backwards, whether a king flies, whether the most pieces must be taken, and
 // what a man does when it reaches the far row in the middle of a capture. Everything else (a capture is compulsory,
 // a multi-jump must be played to its end, the captured pieces come off only when the move is complete and none is

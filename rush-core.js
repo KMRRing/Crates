@@ -1,4 +1,4 @@
-// The puzzle rush, the same in every game that has one (README, "Puzzle rush"): Gambit's chess puzzles (rush.html), and
+// The puzzle rush, the same in every game that has one (README, "Puzzle rush"): Chess's chess puzzles (rush.html), and
 // River's, Hong's and Tribute's on the game's own page; Schafkopf's, Gammon's, Banquet's and Bones' on a sheet over it
 // (rush-sheet.js). The kinds of run, the clocks, the three misses, your bests and the words for them are here once, so
 // they read and work alike everywhere; how a game deals its puzzles and judges a move stays its own. No page in it: the

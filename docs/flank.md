@@ -1,7 +1,7 @@
 # Reversi
 Reversi on 8×8 (3 November 2026), against the computer (Easy, Medium, Hard), two on one phone, a partner's match or a table of friends (seats.js runs it), with a coach (Hint: the best move and who is ahead; the exact result once the last fourteen squares are in reach) and a Learn course.
 
-Korbi, 2 November 2026, on the games screen's list: "othello". Othello is a trademark; Reversi, the 1880s game it came from, is a name anyone may use, and the tile is Flank (for what a move does). Never "Othello" in the game, its text or its code, and no green board (the board is lapis enamel in a brass frame).
+Korbi, 2 November 2026, on the games screen's list: "othello". Othello is a trademark; Reversi, the 1880s game it came from, is a name anyone may use, and the tile is Reversi (3 November 2026, Korbi: official names unless trademarked; it was Flank). Never "Othello" in the game, its text or its code, and no green board (the board is lapis enamel in a brass frame).
 
 Rules: the usual start (light on d4 and e5, dark on e4 and d5, dark first), a move must close at least one run, a side with no move passes (automatically: the move list is the whole game), the game ends when neither can move, and the winner has more discs as they stand: empty squares are not awarded to anyone. Rules belong to no one; nothing is vendored, no engine, book or table (`flank-board.js`, `flank-engine.js`, `flank-bot.js` are ours).
 
