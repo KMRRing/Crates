@@ -23,15 +23,15 @@ const ALL = ["layers", "all", "slices", "pair"];
  * change rounds of each step (round number: "ware" | "turned" | "swap"), `names` its four levels.
  */
 const CHAPTER_SPECS = [
-  { name: "Crates and barrels", about: "A barrel can carry a barrel or a crate; a crate carries only crates. Count, and say what stood where.",
+  { name: "Crates and barrels", about: "Heavy goes low: a crate can carry crates and barrels, a barrel carries only barrels. Count, and say what stood where.",
     types: [1, 2], kinds: BASIC, want: [], views: ["layers", "all", "layers", "all"], names: ["First load", "Two tiers", "Behind the stack", "The wharf"] },
-  { name: "Timber", about: "Bundles of timber lie in layers that cross, and carry only timber. Now the stack may be shown turned.",
+  { name: "Timber", about: "Bundles of timber lie in layers that cross, and carry crates and barrels too. Now the stack may be shown turned.",
     types: [1, 2, 3], kinds: [...BASIC, "turned"], want: [], views: ["layers", "all", "slices", "all"], names: ["Logs ashore", "Crossed layers", "The raft", "Timber yard"] },
-  { name: "Ingots", about: "Piles of ingots weigh six hundredweight and can carry anything. Weigh what you saw.",
+  { name: "Ingots", about: "Piles of ingots weigh eight hundredweight, the most, and carry anything. Weigh what you saw: the question tells you what each weighs.",
     types: [1, 2, 3, 4], kinds: [...BASIC, "turned", "weight"], want: ["weight"], views: ["layers", "all", "slices", "pair"], names: ["Ballast", "Bar iron", "Heavy goods", "The foundry"] },
-  { name: "Chests", about: "A chest's lid is domed: nothing stands on it, and it stands only on the quay or on ingots. So what is under a chest is no secret.",
+  { name: "Chests", about: "A chest goes last: its lid is domed and nothing stands on it. Between two of one kind, what you cannot see is that kind.",
     types: [1, 2, 3, 4, 5], kinds: [...BASIC, "turned", "weight", "column"], want: ["column"], views: ["all", "layers", "all", "slices"], z: [3, 3, 3, 3], names: ["The strongbox", "Under lock", "Hidden below", "The treasury"] },
-  { name: "Sacks", about: "Sacks are light and carry only sacks. Put a price on the stack: what it was worth.",
+  { name: "Sacks", about: "Sacks are the lightest: they stand on anything but a chest and carry only sacks. Put a price on the stack: what it was worth.",
     types: [1, 2, 3, 4, 5, 6], kinds: [...BASIC, "turned", "weight", "worth", "column"], want: ["worth"], views: ["layers", "all", "pair", "slices"], names: ["Salt sacks", "Light cargo", "A cheap hold", "The market"] },
   { name: "Changes", about: "The stack goes aboard and comes back with something different: one piece changed, turned round, or two swapped.",
     types: [1, 2, 3, 4, 5, 6], kinds: [...BASIC, "turned", "weight", "worth"], want: [], views: ["layers", "all", "slices", "all"], names: ["Something's different", "A new angle", "Swapped about", "The night watch"],

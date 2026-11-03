@@ -112,6 +112,9 @@ const DRAW = {
     const dark = "rgba(30,20,8,.55)", rope = "#C9A66B";
     B.line(alongY ? [A(0.97, 0.03, 0.47), A(0.97, 0.97, 0.47)] : [A(0.03, 0.97, 0.47), A(0.97, 0.97, 0.47)], dark, 1);   // the two rows of logs
     B.line(alongY ? [A(0.5, 0.03, 0.94), A(0.5, 0.97, 0.94)] : [A(0.03, 0.5, 0.94), A(0.97, 0.5, 0.94)], dark, 1);       // and the two backs on top
+    const bark = "rgba(14,7,1,.5)";                                                                                     // the furrows of the bark, along the logs
+    for (const c of [0.13, 0.3, 0.64, 0.82]) B.line(alongY ? [A(0.97, 0.03, c), A(0.97, 0.97, c)] : [A(0.03, 0.97, c), A(0.97, 0.97, c)], bark, 0.8);
+    for (const v of [0.14, 0.34, 0.66, 0.86]) B.line(alongY ? [A(v, 0.03, 0.94), A(v, 0.97, 0.94)] : [A(0.03, v, 0.94), A(0.97, v, 0.94)], bark, 0.8);
     for (const p of [0.22, 0.78]) {                                                                                     // ropes round the lot
       B.line(alongY ? [A(0.97, p, 0), A(0.97, p, 0.94)] : [A(p, 0.97, 0), A(p, 0.97, 0.94)], rope, 2);
       B.line(alongY ? [A(0.03, p, 0.94), A(0.97, p, 0.94)] : [A(p, 0.03, 0.94), A(p, 0.97, 0.94)], rope, 2);
@@ -251,6 +254,13 @@ function stageFlat(cells, opts) {
       for (const name of ringed ? ["left", "right", "top"] : ["top"]) g.appendChild(el("polygon", { points: faces[name].map(q => q.map(n => n.toFixed(1)).join(",")).join(" "), fill: "none", stroke: "var(--ink)", "stroke-width": 3.5, "stroke-linejoin": "round", "pointer-events": "none" }));
     }
     svg.appendChild(g);
+  }
+  if (opts.ring) {                                                  // the marked piece's hexagon over the rest, through whatever stands in front
+    const at = drawOrder(cells).find(c => `${c.x},${c.y},${c.z}` === opts.ring);
+    if (at) {
+      const outline = hull(Object.values(cubeFaces(at.x, at.y, at.z, b)).flat().map(to)), d = `${pts(outline)}`;
+      for (const [stroke, width] of [["var(--yard)", 7], ["var(--ink)", 3.4]]) svg.appendChild(el("polygon", { points: d, fill: "none", stroke, "stroke-width": width, "stroke-linejoin": "round", "pointer-events": "none" }));
+    }
   }
   panel.appendChild(svg);
   if (opts.appear) panel.classList.add("appear");

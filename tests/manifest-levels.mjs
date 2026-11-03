@@ -48,8 +48,22 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   });
   if (problemsFound.length) console.log("  ", problemsFound.join("\n   "));
   check(!problemsFound.length, "every recipe names real kinds, views and types, wants only what its views can ask, and puts change rounds inside the level");
-  check(M.levelOf(1).types.length === 3 && M.levelOf(12).types.length === 6 && [1, 5, 9, 11].every((r, k, a) => !k || M.levelOf(r).types.length > M.levelOf(a[k - 1]).types.length),
-    "Random widens: three types in round 1, six by round 11");
+  check(M.levelOf(1).types.length === 3 && M.levelOf(12).types.length === M.LADDER.length && [1, 5, 7, 9].every((r, k, a) => !k || M.levelOf(r).types.length > M.levelOf(a[k - 1]).types.length),
+    "Random widens: three types in round 1, six by round 9");
+}
+
+// Random's and Today's ramp (Korbi, 3 November 2026: "slow down the increase in difficulty. it really ramps up massively in
+// round 10"): by the engine's own measure no round is more than STEP harder than the one before, none is easier, round 10
+// is about what round 8 was, and the old round 10 is not reached before round 13
+{
+  const ds = Array.from({ length: 16 }, (_, i) => M.difficulty(M.levelOf(i + 1)));
+  const steps = ds.map((d, i) => (i ? d / ds[i - 1] : 1));
+  // the old recipe (x from 6 rounds, y from 4, z from 6; types, kinds and orders as they widened), under the same measure
+  const old = r => M.difficulty({ x: Math.min(4, 3 + Math.floor((r - 1) / 6)), y: Math.min(4, 2 + Math.floor((r - 1) / 4)), z: Math.min(3, 2 + Math.floor((r - 1) / 6)),
+    types: { length: r < 5 ? 3 : r < 9 ? 4 : r < 11 ? 5 : 6 }, kinds: { length: 6 + (r >= 3) + 2 * (r >= 5) + 2 * (r >= 7) + 2 * (r >= 9) }, orders: r < 6 ? 3 : 4, exposure: Math.max(5000, 9000 - 300 * (r - 1)) });
+  const bigOld = Math.max(...Array.from({ length: 11 }, (_, i) => old(i + 2) / old(i + 1)));
+  check(steps.every(s => s >= 1 && s <= M.STEP) && bigOld > 1.3 && Math.abs(ds[9] / old(8) - 1) < 0.12 && ds[11] < old(10) && ds.findIndex(d => d >= old(10)) >= 12,
+    `the ramp is gentle: no round more than ${Math.round((M.STEP - 1) * 100)}% harder than the one before (the largest step is ${Math.max(...steps).toFixed(2)}; it was ${bigOld.toFixed(2)}), round 10 is ${ds[9].toFixed(2)} where the old round 8 was ${old(8).toFixed(2)}, round 12 is ${ds[11].toFixed(2)}, the old round 10's ${old(10).toFixed(2)} comes at round ${ds.findIndex(d => d >= old(10)) + 1}`);
 }
 
 // every level deals fair rounds from any seed: its own first, and others

@@ -172,11 +172,11 @@ void timber(vec3 Q, vec3 N, int part, float seed, vec2 uv, float pw, inout Surf 
   float along = P.x;
   float rid = n2(vec2(a * 4.5 + seed * 4., along * 3.5));
   float fur = .5 + .5 * sin(a * 16. + rid * 5. + seed * 2.);
-  vec3 c = o.col * .8 * (.55 + .6 * rid) * (.7 + .4 * fur);
+  vec3 c = o.col * (.66 + .7 * rid) * (.74 + .34 * fur);                                  // dark, warm bark with deep furrows
   float bare = smoothstep(.7, .8, n2(vec2(a * 2. + seed * 7., along * 2.2 + 3.)));        // a patch where the bark is gone
-  c = mix(c, vec3(.5, .36, .2) * (.85 + .15 * fur), bare * .8);
+  c = mix(c, vec3(.42, .28, .15) * (.85 + .15 * fur), bare * .6);
   float moss = smoothstep(.62, .8, fbm(vec2(a * 3. + seed, along * 5.))) * (1. - bare);
-  c = mix(c, vec3(.2, .26, .12), moss * .5);
+  c = mix(c, vec3(.2, .22, .1), moss * .16);
   o.col = c; o.rough = .95; o.h = .02 * fur * rid * (1. - bare);
   // inward-facing parts lie in the cleft between the logs
   vec3 toMid = normalize(vec3(0., P.y + .047, P.z) + vec3(0., 1e-4, 0.));
