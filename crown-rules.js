@@ -3,7 +3,7 @@
 //   { set, board, ply, sides: [side of seat 0, side of seat 1], turn (the seat to move), hist: [every position],
 //     mv: [every move, "from.landing…" 0-based], quiet (plies since a capture or a man's move), last, result }
 // Side 0 (Ink) always moves first; which seat is Ink is the deal's choice (you: "ink" | "ivory" | "swap").
-import { SETS, SET_IDS, startText, toArray, toText, movesOf, play, findMove, moveText, counts, sideOf } from "./crown-board.js";
+import { SETS, SET_IDS, startText, toArray, toText, movesOf, play, findMove, moveText, counts } from "./crown-board.js";
 import { think, engineFor } from "./crown-search.js";
 
 export { SETS, SET_IDS, movesOf, findMove, moveText, counts, toArray, toText, play, startText };
@@ -55,7 +55,6 @@ function verdict(s) {
 }
 
 const SIDE_NAMES = ["Ink", "Ivory"];
-const nameLine = (s, seat) => `{s${seat}} (${SIDE_NAMES[s.sides[seat]]})`;
 function ending(s) {
   const v = verdict(s);
   if (!v) return s;
@@ -160,7 +159,5 @@ export function seenOf(s) {
   return seen;
 }
 
-/** Ink's lead, in men, by the search (the coach's "who is ahead"); { lead, best (a move's path), depth }. */
-export { sideOf };
+/** What the two sides are called. */
 export const SIDE_LABEL = SIDE_NAMES;
-export { nameLine };

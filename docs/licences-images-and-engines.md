@@ -18,3 +18,5 @@ Decided on 2 November 2026 (Korbi, after the library review; not legal advice; o
 - Fairy-Stockfish: GPL v3 (Fabian Fichter and contributors). River used it until now; it is out of the tree (git history only). The sandbox kept a copy to measure the new engine against, and to label positions for its evaluation: the weights were fitted to the scores it gave (numbers, no code and no tables), and they are River's own set.
 - Pikafish: GPL v3 (a Stockfish derivative, its network trained for Xiangqi). Not used, not run.
 - kishi (Shogi, MIT, in Rust for WebAssembly, as the plan has it): not adopted. River has no shogi, and its licence and strength were not checked (the sandbox could not reach its repository).
+
+**Draughts (Crown)**, 3 November 2026: Crown plays its own engine (`crown-search.js`: alpha-beta search, a transposition table, a hand-made evaluation), written for the Codex in plain JavaScript; nothing of anyone's is in it and nothing is carried. No other engine (Scan is GPL) was run or read. The rules are the federations' published rules, which belong to no one.
