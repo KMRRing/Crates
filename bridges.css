@@ -6,13 +6,13 @@
   --brg-good: #2F7D5B; --brg-bad: #A8382B; --brg-gilt: #C8923A;
   --brg-tile: var(--tile); --brg-guide: color-mix(in srgb, var(--ink) 22%, var(--brg-tile));
   --brg-logo-tint: #D6E6F1; --brg-logo-edge: var(--logo-edge);
-  --brg-copper: #B5582B;
+  --brg-copper: #B5582B; --brg-strait: #1E7F8C;
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865; --brg-copper: #E39560;
+  html:not([data-mode="day"]) { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865; --brg-copper: #E39560; --brg-strait: #6CC7D3;
     --brg-tile: color-mix(in srgb, var(--tile) 90%, var(--ink)); --brg-logo-tint: #1E3547; }
 }
-html[data-mode="night"] { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865; --brg-copper: #E39560;
+html[data-mode="night"] { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865; --brg-copper: #E39560; --brg-strait: #6CC7D3;
   --brg-tile: color-mix(in srgb, var(--tile) 90%, var(--ink)); --brg-logo-tint: #1E3547; }
 /* Kontor's enamel is its green; Modern's logo tint and edge, as its theme gives every game's */
 html[data-theme="kontor"] { --brg-in: #1E7A45; --brg-gilt: #C8901A; }
@@ -39,8 +39,8 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 /* a link a bridge could go on: a faint dashed guide; its bridges over it, one line or two */
 .brg-guide { stroke: var(--brg-guide); stroke-width: .035; stroke-dasharray: .09 .13; stroke-linecap: round; }
 .brg-b { stroke: var(--brg-in); stroke-width: .075; stroke-linecap: round; visibility: hidden; }
-.brg-l.c1 .brg-one, .brg-l.c2 .brg-two { visibility: visible; }
-.brg-l.c1 .brg-guide, .brg-l.c2 .brg-guide { visibility: hidden; }
+.brg-l.c1 .brg-one, .brg-l.c2 .brg-two, .brg-l.c3 .brg-three { visibility: visible; }
+.brg-l.c1 .brg-guide, .brg-l.c2 .brg-guide, .brg-l.c3 .brg-guide { visibility: hidden; }
 .brg-l.lit .brg-b { stroke: var(--brg-gilt); }
 .brg-l.lit .brg-guide { stroke: var(--brg-gilt); stroke-width: .07; }
 /* the islands: a disc with its number; pale once it has all its bridges, oxblood when it has too many, ringed when its
@@ -48,8 +48,7 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-disc { fill: var(--brg-tile); stroke: var(--ink); stroke-width: .06; }
 .brg-num { font-family: var(--font); font-weight: 750; fill: var(--ink); text-anchor: middle; pointer-events: none; font-variant-numeric: tabular-nums; }
 .brg-i.met .brg-disc { fill: color-mix(in srgb, var(--brg-in) 22%, var(--brg-tile)); stroke: var(--brg-in); }
-/* the twists: a reef is rock; a number that is only a bound sits on a warm disc; the second realm is copper, its bridges and its discs */
-.brg-reef { fill: color-mix(in srgb, var(--ink) 34%, var(--brg-tile)); stroke: var(--ink); stroke-width: .03; stroke-linejoin: round; pointer-events: none; }
+/* the twists: a number that is only a bound sits on a warm disc; the second realm is copper, its bridges and its discs */
 .brg-i.rng .brg-disc { fill: color-mix(in srgb, var(--brass) 20%, var(--brg-tile)); }
 .brg-i.r1 .brg-disc { stroke: var(--brg-copper); }
 .brg-i.r1.met .brg-disc { fill: color-mix(in srgb, var(--brg-copper) 22%, var(--brg-tile)); stroke: var(--brg-copper); }
@@ -60,29 +59,41 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
    (the disc and a halo outside it), with the bridges on it oxblood too; a group shut off from the rest is ringed in dashes,
    its bridges oxblood. The line under the board says which, in words. */
 .brg-halo { fill: none; stroke: var(--brg-bad); stroke-width: .06; visibility: hidden; pointer-events: none; }
-.brg-i.over .brg-halo, .brg-i.cut .brg-halo { visibility: visible; }
-.brg-i.cut .brg-halo { stroke-dasharray: .16 .1; }
+.brg-i.over .brg-halo, .brg-i.cut .brg-halo, .brg-i.loop .brg-halo { visibility: visible; }
+.brg-i.cut .brg-halo, .brg-i.loop .brg-halo { stroke-dasharray: .16 .1; }
 .brg-i.over .brg-disc, .brg-i.rng.over .brg-disc, .brg-i.r1.over .brg-disc { fill: color-mix(in srgb, var(--brg-bad) 42%, var(--brg-tile)); stroke: var(--brg-bad); stroke-width: .12; }
-.brg-i.cut .brg-disc, .brg-i.r1.cut .brg-disc { stroke: var(--brg-bad); stroke-dasharray: .14 .08; stroke-width: .11; }
+.brg-i.cut .brg-disc, .brg-i.r1.cut .brg-disc, .brg-i.loop .brg-disc, .brg-i.r1.loop .brg-disc { stroke: var(--brg-bad); stroke-dasharray: .14 .08; stroke-width: .11; }
 .brg-i.over .brg-num { fill: var(--brg-bad); }
 /* a hint's island is ringed in gilt over anything else */
-.brg-i.why .brg-disc, .brg-i.over.why .brg-disc, .brg-i.cut.why .brg-disc, .brg-i.r1.why .brg-disc, .brg-i.rng.over.why .brg-disc { stroke: var(--brg-gilt); stroke-width: .11; stroke-dasharray: none; }
+.brg-i.why .brg-disc, .brg-i.over.why .brg-disc, .brg-i.cut.why .brg-disc, .brg-i.loop.why .brg-disc, .brg-i.r1.why .brg-disc, .brg-i.rng.over.why .brg-disc { stroke: var(--brg-gilt); stroke-width: .11; stroke-dasharray: none; }
 .brg-l.bad .brg-b, .brg-l.bad .brg-piers, .brg-l.hi.k1.bad .brg-piers { stroke: var(--brg-bad); }
 .brg-l.bad.lit .brg-b, .brg-l.hi.bad.lit .brg-piers { stroke: var(--brg-gilt); }
-/* viaducts: a high bridge is cased in the paper's colour (a low bridge under it seems to pass beneath) and ribbed with piers; a hill has contour lines round it;
-   a fairway is water for ships, tinted and waved */
+/* viaducts: a high bridge is cased in the paper's colour (a low bridge under it seems to pass beneath) and ribbed with piers; a hill has contour lines round it */
 .brg-hill { fill: none; stroke: var(--brass); stroke-width: .03; pointer-events: none; }
 .brg-i.hill.met .brg-hill { stroke: var(--brg-in); }
 .brg-i.hill.r1 .brg-hill { stroke: var(--brg-copper); }
-.brg-i.hill.over .brg-hill, .brg-i.hill.cut .brg-hill { stroke: var(--brg-bad); stroke-width: .05; }
+.brg-i.hill.over .brg-hill, .brg-i.hill.cut .brg-hill, .brg-i.hill.loop .brg-hill { stroke: var(--brg-bad); stroke-width: .05; }
 .brg-case { stroke: var(--brg-tile); stroke-width: .3; stroke-linecap: butt; visibility: hidden; }
 .brg-piers { stroke: var(--brg-in); stroke-width: .3; stroke-dasharray: .035 .2; stroke-linecap: butt; visibility: hidden; }
-.brg-l.hi.c1 .brg-case, .brg-l.hi.c2 .brg-case, .brg-l.hi.c1 .brg-piers, .brg-l.hi.c2 .brg-piers { visibility: visible; }
+.brg-l.hi.c1 .brg-case, .brg-l.hi.c2 .brg-case, .brg-l.hi.c3 .brg-case, .brg-l.hi.c1 .brg-piers, .brg-l.hi.c2 .brg-piers, .brg-l.hi.c3 .brg-piers { visibility: visible; }
 .brg-l.hi .brg-guide { stroke: var(--brg-in); stroke-opacity: .6; stroke-width: .05; }
 .brg-l.hi.k1 .brg-piers { stroke: var(--brg-copper); }
 .brg-l.hi.lit .brg-piers { stroke: var(--brg-gilt); }
-.brg-lane { fill: var(--brg-in); fill-opacity: .17; pointer-events: none; }
-.brg-wave { fill: none; stroke: var(--brg-in); stroke-opacity: .5; stroke-width: .04; stroke-linecap: round; pointer-events: none; }
+/* roads: a wide one lies on a bed with three lanes (and holds three bridges), a narrow one has a post each side of its middle (and holds one) */
+.brg-bed { stroke: var(--brg-in); stroke-opacity: .14; stroke-width: .44; stroke-linecap: butt; pointer-events: none; }
+.brg-l.hi .brg-bed { stroke-opacity: .2; }
+.brg-b.brg-three { stroke-width: .065; }
+.brg-post { fill: var(--ink); fill-opacity: .72; pointer-events: none; }
+.brg-l.bad .brg-bed { stroke: var(--brg-bad); }
+/* straits: a dashed line across the sea with its number in the margin; blue-green so it is not taken for a bridge, a hint or a realm */
+.brg-sline { stroke: var(--brg-strait); stroke-width: .055; stroke-dasharray: .3 .14; stroke-linecap: round; pointer-events: none; }
+.brg-sbadge { fill: var(--brg-tile); stroke: var(--brg-strait); stroke-width: .06; pointer-events: none; }
+.brg-snum { font-family: var(--font); font-weight: 750; fill: var(--brg-strait); text-anchor: middle; pointer-events: none; font-variant-numeric: tabular-nums; }
+.brg-strait.met .brg-sbadge { fill: color-mix(in srgb, var(--brg-strait) 26%, var(--brg-tile)); }
+.brg-strait.over .brg-sbadge { fill: color-mix(in srgb, var(--brg-bad) 42%, var(--brg-tile)); stroke: var(--brg-bad); stroke-width: .11; }
+.brg-strait.over .brg-snum { fill: var(--brg-bad); }
+.brg-strait.over .brg-sline { stroke: var(--brg-bad); }
+.brg-strait.why .brg-sbadge { stroke: var(--brg-gilt); stroke-width: .11; }
 /* the solve: the bridges turn gilt from the top left */
 .brg-svg.solved .brg-l .brg-b, .brg-svg.solved .brg-l .brg-piers { animation: brg-wave .8s ease-out var(--d, 0ms) both; }
 /* every keyframe written out: an implicit one took SVG's default stroke while a bridge waited for its turn */
@@ -107,7 +118,7 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg3-n.r1 { border-color: var(--brg-copper); }
 .brg3-n.met { background: color-mix(in srgb, var(--brg-in) 26%, var(--brg-tile)); border-color: var(--brg-in); }
 .brg3-n.over { background: color-mix(in srgb, var(--brg-bad) 42%, var(--brg-tile)); border-color: var(--brg-bad); color: var(--brg-bad); box-shadow: 0 0 0 2px var(--brg-bad); }
-.brg3-n.cut { border-style: dashed; border-color: var(--brg-bad); outline: 2px dashed var(--brg-bad); outline-offset: 1px; }
+.brg3-n.cut, .brg3-n.loop { border-style: dashed; border-color: var(--brg-bad); outline: 2px dashed var(--brg-bad); outline-offset: 1px; }
 .brg3-n.why { border-color: var(--brg-gilt); box-shadow: 0 0 0 2px var(--brg-gilt); }
 
 /* under the board: a line of what to do or what happened, three tools; at the end, how it went and the way on, in the
@@ -160,9 +171,11 @@ dialog.brg-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; oversc
 .brg-lmap .i { fill: var(--sheet); stroke: var(--ink); stroke-width: .13; }
 .brg-lmap .i.r1 { stroke: var(--brg-copper); }
 .brg-lmap .i.range { fill: color-mix(in srgb, var(--brass) 30%, var(--sheet)); }
-.brg-lmap .reef { fill: color-mix(in srgb, var(--ink) 34%, var(--brg-tile)); stroke: var(--ink); stroke-width: .06; stroke-linejoin: round; }
 .brg-lmap .hill { fill: none; stroke: var(--brass); stroke-width: .09; }
-.brg-lmap .lane { fill: color-mix(in srgb, var(--brg-in) 26%, var(--brg-tile)); }
+.brg-lmap .bed { stroke: var(--brg-in); stroke-opacity: .2; stroke-width: .55; }
+.brg-lmap .post { fill: var(--ink); fill-opacity: .7; }
+.brg-lmap .sline { stroke: var(--brg-strait); stroke-width: .12; stroke-dasharray: .5 .25; }
+.brg-lmap .sdot { fill: var(--brg-strait); }
 .brg-lrow { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; min-width: 0; }
 .brg-lrow b { font-size: .9rem; font-variant-numeric: tabular-nums; }
 .brg-lrow span { color: var(--brass); font-size: .66rem; letter-spacing: .1em; white-space: nowrap; }
