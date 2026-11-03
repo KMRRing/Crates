@@ -1,19 +1,15 @@
-// Manifest's drawing: the League's packages in their packing, the quay they stand on, and the little package beside an
-// answer. The geometry (where a package is, what hides what) is the engine's (manifest-engine.js); this file only
-// dresses it. A package is the box the engine draws and no smaller, so what shows through the stack is what the
-// engine says shows; the packing is a drawing on its faces and never changes a silhouette.
+// Manifest's drawing: the League's cargo, the quay it stands on, and the little piece beside an answer. The geometry (where
+// a piece is, what hides what) is the engine's (manifest-engine.js); this file only dresses it.
 //
-// Two drawings of the same pictures. The first is 3D (manifest-pictures.js and manifest-3d.js, three.js): lit boxes with
-// the packing worked out in the shader, shadows, a bounce as they land. Where WebGL won't start (an old phone, a lost
-// context) the second drawing, the flat one below (SVG, a package's three faces as polygons), takes over, and plays as
-// it always did.
-//
-// Each ware has its hue, its lightness (they stand five steps apart) and its packing, three ways to tell it from the
-// others, so that no one rests on colour alone: cloth is a bale lashed with crossed cord, salt a stitched sack, amber an
-// iron-strapped chest with a lozenge on it, iron a bundle of bars with straps, herring a hooped cask with a fish
-// chalked on it. A stack under tarpaulin (the turned question, which must not give the ware away) is ropes on grey.
+// Two drawings of the same pictures. The first is 3D (manifest-pictures.js and manifest-3d.js, three.js): modelled cargo
+// lit by a sun with shadows, the packing worked out in the shader, a bounce as it lands. Where WebGL won't start (an old
+// phone, a lost context) the second drawing, the flat one below (SVG, no filters), takes over: each type a simpler picture
+// of the same shape (manifest-shapes.js has the sizes), drawn on the cell's isometric frame. Outline first, then lightness
+// and hue, so no one rests on colour alone. A stack under tarpaulin (the turned question, which must not give the cargo
+// away) is ropes on grey, every piece a plain box.
 import { WARES, boxFor, isoPoint, cubeFaces, drawOrder, dropTimes, visibleSet } from "./manifest-engine.js";
-import { QUAY_DEPTH, frameOf } from "./manifest-model.js";
+import { QUAY_DEPTH, frameOf, yawOf } from "./manifest-model.js";
+import { barrelRadius, sackRadius, INGOT_SHRINK } from "./manifest-shapes.js";
 import { ready, is3d, stage3d, icon3d, playOut as playOut3d } from "./manifest-pictures.js";
 
 export { QUAY_DEPTH, ready, is3d };
@@ -22,126 +18,179 @@ const SVG = "http://www.w3.org/2000/svg";
 const el = (tag, attrs = {}) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
 const node = (tag, cls) => { const n = document.createElement(tag); if (cls) n.className = cls; return n; };
 const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const ch = sh => Math.round(Math.min(255, Math.max(0, ((n >> sh) & 255) * k))); return `rgb(${ch(16)},${ch(8)},${ch(0)})`; };
+const num = n => n.toFixed(1);
+const pts = a => a.map(q => `${num(q[0])},${num(q[1])}`).join(" ");
+const dpath = (a, close = false) => `M${a.map(q => `${num(q[0])} ${num(q[1])}`).join("L")}${close ? "Z" : ""}`;
+const TAU = Math.PI * 2;
 
-// the tarpaulin over a stack whose wares are hidden, and the one package lit under it
+// the tarpaulin over a stack whose cargo is hidden, and the one piece lit under it
 const TARP = "#AEA690", LIT = "#FFF8E4";
 
-// ---------- a face as a unit square ----------
-/** A face's pen: draws in the face's own unit square (u along its length, v up it, or across a top), and gives back path
- *  data on the screen. `w` and `h` are the face's real proportions, so a circle drawn on it is round. */
-function pen(poly, w, h) {
-  const [A, B, , D] = poly;
-  const at = (u, v) => `${(A[0] + u * (B[0] - A[0]) + v * (D[0] - A[0])).toFixed(1)} ${(A[1] + u * (B[1] - A[1]) + v * (D[1] - A[1])).toFixed(1)}`;
-  const poly2 = pts => `M${pts.map(([u, v]) => at(u, v)).join("L")}Z`;
+// ---------- a cell as a frame ----------
+/** The cell's map from (u along x, v along y, w up), each 0 to 1, to the screen, from its three faces as cubeFaces gives them. */
+function cellMap(faces) {
+  const t = faces.top, r = faces.right;
+  const ex = [t[1][0] - t[0][0], t[1][1] - t[0][1]], ey = [t[3][0] - t[0][0], t[3][1] - t[0][1]], ez = [r[3][0] - r[0][0], r[3][1] - r[0][1]];
+  const O = [t[0][0] - ez[0], t[0][1] - ez[1]];
+  const A = (u, v, w) => [O[0] + u * ex[0] + v * ey[0] + w * ez[0], O[1] + u * ex[1] + v * ey[1] + w * ez[1]];
+  A.unit = Math.hypot(ez[0], ez[1]);                                // a cell's height on the screen
+  return A;
+}
+/** A pen for one piece: fills (the main shapes, outlined by the page's class) and strokes (the packing, left out when `detail` is off). */
+function brush(g, detail) {
+  const add = (tag, attrs) => g.appendChild(el(tag, attrs));
   return {
-    line: (u1, v1, u2, v2) => `M${at(u1, v1)}L${at(u2, v2)}`,
-    lines: (...ls) => ls.map(([u1, v1, u2, v2]) => `M${at(u1, v1)}L${at(u2, v2)}`).join(""),
-    poly: poly2,
-    rect: (u1, v1, u2, v2) => poly2([[u1, v1], [u2, v1], [u2, v2], [u1, v2]]),
-    /** a round thing of real radius r (the face's width being 1 along u and 1 along v) */
-    disc: (cu, cv, r, n = 14) => poly2(Array.from({ length: n }, (_, i) => [cu + Math.cos(i / n * 2 * Math.PI) * r / w, cv + Math.sin(i / n * 2 * Math.PI) * r / h])),
-    /** a lozenge of real half-width r */
-    lozenge: (cu, cv, r) => poly2([[cu, cv + r / h], [cu + r / w, cv], [cu, cv - r / h], [cu - r / w, cv]]),
-    /** a fish of real length len, nose along +u */
-    fish: (cu, cv, len) => {
-      const a = len / 2, n = 12, body = Array.from({ length: n }, (_, i) => { const t = i / n * 2 * Math.PI; return [cu + Math.cos(t) * a * 0.62 / w - a * 0.18 / w, cv + Math.sin(t) * a * 0.3 / h]; });
-      return poly2(body) + poly2([[cu - a * 0.74 / w, cv], [cu - a / w, cv + a * 0.34 / h], [cu - a / w, cv - a * 0.34 / h]]);
-    },
+    fill: (points, fill, cls = "mf-cell") => add("polygon", { points: pts(points), fill, class: cls }),
+    shape: (points, fill) => add("polygon", { points: pts(points), fill, "pointer-events": "none" }),
+    line: (points, stroke, width = 1, close = false) => { if (detail) add("path", { d: dpath(points, close), fill: "none", stroke, "stroke-width": width, "stroke-linecap": "round", "stroke-linejoin": "round", "pointer-events": "none" }); },
+    dot: (c, r, fill) => { if (detail) add("circle", { cx: num(c[0]), cy: num(c[1]), r: num(r), fill, "pointer-events": "none" }); },
+    patch: (points, fill) => { if (detail) add("polygon", { points: pts(points), fill, "pointer-events": "none" }); },
   };
 }
-// a face's real proportions (the box is 1.9 long, 1 wide, .95 high)
-const LONG = [1.9, 0.95], END = [1, 0.95], TOP = [1.9, 1];
+/** A box in the cell's frame, drawn as its left (+y), right (+x) and top faces. */
+function slab(B, A, [u0, u1], [v0, v1], [w0, w1], hex, k = 1) {
+  B.fill([A(u0, v1, w0), A(u1, v1, w0), A(u1, v1, w1), A(u0, v1, w1)], shade(hex, 0.72 * k));
+  B.fill([A(u1, v0, w0), A(u1, v1, w0), A(u1, v1, w1), A(u1, v0, w1)], shade(hex, 0.86 * k));
+  B.fill([A(u0, v0, w1), A(u1, v0, w1), A(u1, v1, w1), A(u0, v1, w1)], shade(hex, 1.05 * k));
+}
+/** A circle of radius r about the cell's vertical axis at height w. */
+const circle = (A, w, r, n = 24) => Array.from({ length: n }, (_, i) => A(0.5 + Math.cos(i / n * TAU) * r, 0.5 + Math.sin(i / n * TAU) * r, w));
+/** The front half of that circle (toward the viewer), left to right. */
+const front = (A, w, r) => circle(A, w, r).filter(q => q[1] >= A(0.5, 0.5, w)[1]).sort((a, b) => a[0] - b[0]);
+/** A circle on the screen, round: centre c, radius in cell heights. */
+const disc = (A, c, r, n = 14) => Array.from({ length: n }, (_, i) => [c[0] + Math.cos(i / n * TAU) * A.unit * r, c[1] + Math.sin(i / n * TAU) * A.unit * r]);
+const hull = points => {                                            // the convex hull (monotone chain)
+  const p = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]), cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const q of p) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of p.reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+};
+/** A body of revolution about the cell's vertical axis, radius rOf(w) from the foot (w = 0) to the top (w = 1): its side, a
+ *  shaded left edge, its top. */
+function lathe(B, A, rOf, side, top, steps = 10) {
+  const left = [], right = [], mid = [];
+  for (let k = 0; k <= steps; k++) {
+    const w = k / steps, rp = circle(A, w, rOf(w));
+    left.push(rp.reduce((a, q) => (q[0] < a[0] ? q : a)));
+    right.push(rp.reduce((a, q) => (q[0] > a[0] ? q : a)));
+    mid.push(A(0.5, 0.5, w));
+  }
+  const foot = circle(A, 0, rOf(0)).filter(q => q[1] >= A(0.5, 0.5, 0)[1]).sort((a, b) => b[0] - a[0]);   // the front half of the foot, right to left
+  B.fill([...left, ...right.slice().reverse(), ...foot], side);
+  B.shape([...left, ...mid.slice().reverse()], "rgba(0,0,0,.14)");
+  B.shape([...mid, ...right.slice().reverse()], "rgba(255,255,255,.08)");
+  if (top) B.fill(circle(A, 1, rOf(1)), top);
+}
 
-// ---------- the packings ----------
-// Each draws on the long side (L), the end (E) and the top (T) with `ink` (a darker line), `lite` (a lighter one), and
-// the ware's own `acc` (stroke) and `fill`.
-const PACK = {
-  // a bale: canvas lashed with cord, a lead seal where the cords cross
-  cloth: (L, E, T, add) => {
-    add("acc", L.lines([0.27, 0, 0.27, 1], [0.73, 0, 0.73, 1], [0, 0.5, 1, 0.5]) + E.lines([0.5, 0, 0.5, 1], [0, 0.5, 1, 0.5]) + T.lines([0.27, 0, 0.27, 1], [0.73, 0, 0.73, 1], [0, 0.5, 1, 0.5]));
-    add("fill", L.disc(0.27, 0.5, 0.075) + L.disc(0.73, 0.5, 0.075) + T.disc(0.27, 0.5, 0.07));
-    add("ink", L.lines([0.09, 0.2, 0.2, 0.2], [0.8, 0.8, 0.91, 0.8]));
+// ---------- the cargo, simpler than the models ----------
+// Each takes a brush, the cell's map, the cargo's colour and, for timber, whether it lies along y.
+const DRAW = {
+  // a crate: pine boards in a frame of battens, a rope handle through a slot on each side, the house mark on the right
+  1(B, A, hex) {
+    slab(B, A, [0.03, 0.97], [0.03, 0.97], [0, 1], hex);
+    const ink = "rgba(40,24,6,.5)", mark = "rgba(20,12,4,.8)";
+    for (const w of [0.25, 0.5, 0.75]) { B.line([A(0.03, 0.97, w), A(0.97, 0.97, w)], ink, 0.8); B.line([A(0.97, 0.03, w), A(0.97, 0.97, w)], ink, 0.8); }
+    for (const v of [0.28, 0.5, 0.72]) B.line([A(0.03, v, 1), A(0.97, v, 1)], ink, 0.8);
+    for (const u of [0.14, 0.86]) { B.line([A(u, 0.97, 0), A(u, 0.97, 1)], ink, 1); B.line([A(0.97, u, 0), A(0.97, u, 1)], ink, 1); }
+    B.line([A(0.14, 0.97, 0.03), A(0.86, 0.97, 0.97)], ink, 1.4);
+    B.patch([A(0.33, 0.97, 0.74), A(0.67, 0.97, 0.74), A(0.67, 0.97, 0.82), A(0.33, 0.97, 0.82)], "rgba(30,18,6,.8)");
+    B.patch([A(0.97, 0.33, 0.74), A(0.97, 0.67, 0.74), A(0.97, 0.67, 0.82), A(0.97, 0.33, 0.82)], "rgba(30,18,6,.8)");
+    B.line([A(0.36, 0.97, 0.78), A(0.5, 0.97, 0.72), A(0.64, 0.97, 0.78)], "#E3C58A", 1.6);
+    B.line(Array.from({ length: 14 }, (_, i) => A(0.97, 0.5 + Math.cos(i / 14 * TAU) * 0.17, 0.36 + Math.sin(i / 14 * TAU) * 0.17)), mark, 1.2, true);
+    B.line([A(0.97, 0.5, 0.22), A(0.97, 0.5, 0.5)], mark, 1.2); B.line([A(0.97, 0.36, 0.36), A(0.97, 0.64, 0.36)], mark, 1.2);
   },
-  // a sack: the mouth stitched across the top with its ears, folds down the belly, the merchant's mark stencilled
-  salt: (L, E, T, add) => {
-    add("seam", L.line(0.06, 0.84, 0.94, 0.84) + E.line(0.06, 0.84, 0.94, 0.84) + T.line(0.06, 0.5, 0.94, 0.5));
-    add("ink", L.lines([0.04, 0.84, 0.0, 0.97], [0.96, 0.84, 1.0, 0.97], [0.33, 0.12, 0.31, 0.7], [0.68, 0.12, 0.7, 0.7]) + E.lines([0.5, 0.12, 0.5, 0.7]) + T.lines([0.04, 0.5, 0.0, 0.62], [0.96, 0.5, 1.0, 0.38]));
-    add("fill", L.poly([[0.5, 0.6], [0.5 + 0.1 / 1.9 * 1.6, 0.2], [0.5 - 0.1 / 1.9 * 1.6, 0.2]]));
+  // a barrel: staves, four iron hoops, a round head with its bung, the house mark chalked on the belly
+  2(B, A, hex) {
+    lathe(B, A, w => barrelRadius(w - 0.5), shade(hex, 0.9), shade(hex, 1.12));
+    for (const w of [0.08, 0.25, 0.75, 0.92]) B.line(front(A, w, barrelRadius(w - 0.5) + 0.004), "#26221F", 2.2);
+    B.dot(A(0.62, 0.55, 1), 1.7, "rgba(10,6,2,.85)");
+    const c = A(0.83, 0.83, 0.5), chalk = "rgba(255,244,214,.85)";
+    B.line(disc(A, c, 0.085), chalk, 1.3, true);
+    B.line([[c[0] - A.unit * 0.085, c[1]], [c[0] + A.unit * 0.085, c[1]]], chalk, 1.2); B.line([[c[0], c[1] - A.unit * 0.085], [c[0], c[1] + A.unit * 0.085]], chalk, 1.2);
   },
-  // a chest: iron straps at the ends and a lid line, rivets, and a lozenge of amber on its front
-  amber: (L, E, T, add) => {
-    add("dark", L.lines([0.1, 0, 0.1, 1], [0.9, 0, 0.9, 1]) + E.line(0.5, 0, 0.5, 1) + T.lines([0.1, 0, 0.1, 1], [0.9, 0, 0.9, 1]));
-    add("ink", L.line(0, 0.74, 1, 0.74) + E.line(0, 0.74, 1, 0.74) + T.rect(0.1, 0.1, 0.9, 0.9));
-    add("fill", L.lozenge(0.5, 0.4, 0.2) + T.lozenge(0.5, 0.5, 0.2) + L.disc(0.1, 0.1, 0.035, 8) + L.disc(0.9, 0.1, 0.035, 8) + L.disc(0.1, 0.62, 0.035, 8) + L.disc(0.9, 0.62, 0.035, 8));
+  // timber: four logs tied with rope, lying along x or along y, the sawn ends showing rings
+  3(B, A, hex, alongY) {
+    const wood = "#D6B47A", at = (a, c) => (alongY ? A(a, 0.97, c) : A(0.97, a, c));       // a point on the end face
+    const [longK, endK] = alongY ? [0.86, 0.72] : [0.72, 0.86];
+    B.fill([A(0.03, 0.97, 0), A(0.97, 0.97, 0), A(0.97, 0.97, 0.94), A(0.03, 0.97, 0.94)], shade(alongY ? wood : hex, alongY ? endK : longK));
+    B.fill([A(0.97, 0.03, 0), A(0.97, 0.97, 0), A(0.97, 0.97, 0.94), A(0.97, 0.03, 0.94)], shade(alongY ? hex : wood, alongY ? longK : endK));
+    B.fill([A(0.03, 0.03, 0.94), A(0.97, 0.03, 0.94), A(0.97, 0.97, 0.94), A(0.03, 0.97, 0.94)], shade(hex, 1.05));
+    const dark = "rgba(30,20,8,.55)", rope = "#C9A66B";
+    B.line(alongY ? [A(0.97, 0.03, 0.47), A(0.97, 0.97, 0.47)] : [A(0.03, 0.97, 0.47), A(0.97, 0.97, 0.47)], dark, 1);   // the two rows of logs
+    B.line(alongY ? [A(0.5, 0.03, 0.94), A(0.5, 0.97, 0.94)] : [A(0.03, 0.5, 0.94), A(0.97, 0.5, 0.94)], dark, 1);       // and the two backs on top
+    for (const p of [0.22, 0.78]) {                                                                                     // ropes round the lot
+      B.line(alongY ? [A(0.97, p, 0), A(0.97, p, 0.94)] : [A(p, 0.97, 0), A(p, 0.97, 0.94)], rope, 2);
+      B.line(alongY ? [A(0.03, p, 0.94), A(0.97, p, 0.94)] : [A(p, 0.03, 0.94), A(p, 0.97, 0.94)], rope, 2);
+    }
+    for (const [a, c] of [[0.27, 0.235], [0.73, 0.235], [0.27, 0.705], [0.73, 0.705]]) {                               // the four sawn ends
+      const ringAt = r => Array.from({ length: 12 }, (_, i) => at(a + Math.cos(i / 12 * TAU) * r, c + Math.sin(i / 12 * TAU) * r));
+      B.patch(ringAt(0.225), "#D9B97F"); B.line(ringAt(0.225), "rgba(60,36,10,.6)", 1, true); B.line(ringAt(0.13), "rgba(120,80,30,.55)", 0.8, true); B.line(ringAt(0.05), "rgba(120,80,30,.55)", 0.8, true);
+    }
   },
-  // a bundle of Swedish iron: bars side by side, two straps round them; at the end, the bars' square sections
-  iron: (L, E, T, add) => {
-    add("lite", L.lines([0.03, 0.2, 0.97, 0.2], [0.03, 0.4, 0.97, 0.4], [0.03, 0.6, 0.97, 0.6], [0.03, 0.8, 0.97, 0.8]) + T.lines([0.03, 0.25, 0.97, 0.25], [0.03, 0.5, 0.97, 0.5], [0.03, 0.75, 0.97, 0.75]));
-    add("acc", L.lines([0.2, 0, 0.2, 1], [0.8, 0, 0.8, 1]) + T.lines([0.2, 0, 0.2, 1], [0.8, 0, 0.8, 1]) + E.rect(0.1, 0.09, 0.46, 0.45) + E.rect(0.54, 0.09, 0.9, 0.45) + E.rect(0.1, 0.55, 0.46, 0.91) + E.rect(0.54, 0.55, 0.9, 0.91));
+  // a pile of ingots: four layers of bars, each across the one below and a little smaller
+  4(B, A, hex) {
+    for (let k = 0; k < 4; k++) {
+      const half = 0.47 * (1 - INGOT_SHRINK * k), w0 = k / 4, w1 = (k + 1) / 4 - 0.006, d = half * 2 / 3;
+      slab(B, A, [0.5 - half, 0.5 + half], [0.5 - half, 0.5 + half], [w0, w1], hex, k % 2 ? 0.94 : 1.04);
+      for (const j of [1, 2]) B.line(k % 2 ? [A(0.5 - half + d * j, 0.5 - half, w1), A(0.5 - half + d * j, 0.5 + half, w1)] : [A(0.5 - half, 0.5 - half + d * j, w1), A(0.5 + half, 0.5 - half + d * j, w1)], "rgba(20,26,36,.55)", 1);
+      B.line([A(0.5 - half, 0.5 + half, w1), A(0.5 + half, 0.5 + half, w1)], "rgba(255,255,255,.35)", 1);
+    }
+    B.patch([A(0.4, 0.46, 0.99), A(0.6, 0.46, 0.99), A(0.6, 0.54, 0.99), A(0.4, 0.54, 0.99)], "rgba(20,26,36,.5)");
   },
-  // a cask: staves, two hoops of willow, the fish chalked on, and its round head on top with the bung
-  herring: (L, E, T, add) => {
-    add("ink", L.lines(...[1, 2, 3, 4, 5, 6, 7, 8].map(k => [k / 9, 0, k / 9, 1])) + E.lines([0.25, 0, 0.25, 1], [0.5, 0, 0.5, 1], [0.75, 0, 0.75, 1]) + T.disc(0.5, 0.5, 0.4, 18) + T.line(0.5 - 0.4 / 1.9, 0.5, 0.5 + 0.4 / 1.9, 0.5));
-    add("fill", L.rect(0, 0.1, 1, 0.21) + L.rect(0, 0.79, 1, 0.9) + E.rect(0, 0.1, 1, 0.21) + E.rect(0, 0.79, 1, 0.9));
-    add("fish", L.fish(0.5, 0.5, 0.74));
-    add("ink", T.disc(0.66, 0.5, 0.05, 8));
+  // a chest: a plank box with a lid like half a barrel laid down, black iron straps, a brass lock plate and ring
+  5(B, A, hex) {
+    slab(B, A, [0.03, 0.97], [0.13, 0.87], [0, 0.52], hex);
+    const arc = u => Array.from({ length: 17 }, (_, i) => A(u, 0.5 + 0.37 * Math.cos(i / 16 * Math.PI), 0.52 + 0.48 * Math.sin(i / 16 * Math.PI)));
+    B.fill(hull([...arc(0.03), ...arc(0.97)]), shade(hex, 1.0));
+    B.fill(arc(0.97), shade(hex, 0.8));
+    const iron = "#16161A", brass = "#D9AE4C";
+    for (const u of [0.2, 0.8]) { B.line(arc(u), iron, 2.6); B.line([A(u, 0.87, 0), A(u, 0.87, 0.52)], iron, 2.6); }
+    B.line([A(0.97, 0.5, 0), A(0.97, 0.5, 0.52)], iron, 2.6); B.line(arc(0.97), iron, 1.4);
+    B.patch([A(0.44, 0.87, 0.2), A(0.56, 0.87, 0.2), A(0.56, 0.87, 0.4), A(0.44, 0.87, 0.4)], brass);
+    B.line([A(0.5, 0.87, 0.4), A(0.5, 0.87, 0.58)], brass, 2);
+    for (const u of [0.2, 0.8]) for (const w of [0.1, 0.3]) B.dot(A(u, 0.87, w), 1.4, brass);
+    B.line(disc(A, A(0.97, 0.5, 0.26), 0.07, 12), brass, 1.4, true);
   },
-  // under the tarpaulin: ropes, and nothing that says what's under it
-  tarp: (L, E, T, add) => {
-    add("ink", L.lines([0.33, 0, 0.33, 1], [0.66, 0, 0.66, 1], [0, 0.5, 1, 0.5]) + E.line(0, 0.5, 1, 0.5));
+  // a sack: slumped burlap drawn in at the neck, tied with a cord, the merchant's mark on the belly
+  6(B, A, hex) {
+    lathe(B, A, w => sackRadius(w - 0.5), shade(hex, 0.92), shade(hex, 1.0), 12);
+    B.line(front(A, 0.95, sackRadius(0.45) + 0.004), "#7B5E34", 2.2);
+    B.dot(A(0.5, 0.5, 1), A.unit * 0.05, "#7B5E34");
+    const c = A(0.8, 0.8, 0.32), u = A.unit * 0.1;
+    B.line([[c[0], c[1] - u], [c[0] + u * 0.86, c[1] + u * 0.5], [c[0] - u * 0.86, c[1] + u * 0.5]], "rgba(80,50,28,.8)", 1.4, true);
   },
-};
-// the strokes and fills a packing asks for, by name; a ware's own colours are in `accent`
-const LOOK = {
-  ink: { fill: "none", stroke: "rgba(0,0,0,.36)", "stroke-width": 1 },
-  lite: { fill: "none", stroke: "rgba(255,255,255,.42)", "stroke-width": 1 },
-  dark: { fill: "none", stroke: "rgba(34,20,6,.62)", "stroke-width": 2.2 },
-  seam: { fill: "none", stroke: "rgba(70,56,36,.7)", "stroke-width": 1, "stroke-dasharray": "3 2.4" },
-};
-const ACCENT = {
-  cloth: { acc: { fill: "none", stroke: "#EADFC2", "stroke-width": 1.7 }, fill: { fill: "#CFD3D6", stroke: "rgba(0,0,0,.4)", "stroke-width": 0.8 } },
-  salt: { fill: { fill: "#6B5640", stroke: "none" } },
-  amber: { fill: { fill: "#FFF1C8", stroke: "rgba(60,36,6,.55)", "stroke-width": 0.8 } },
-  iron: { acc: { fill: "none", stroke: "#B9C3CD", "stroke-width": 1.5 } },
-  herring: { fill: { fill: "#D9C08F", stroke: "rgba(0,0,0,.35)", "stroke-width": 0.8 }, fish: { fill: "#F4E8C6", stroke: "none" } },
 };
 
 /**
- * One package drawn into `g`, from its three faces as screen polygons ({ top, left, right }, each four points as
- * cubeFaces gives them): a ware's number (1 to 5) or 0 for one under tarpaulin, whether its long side lies along x (a
- * quarter turn puts it along y), and options: `lit` (the package picked out under the tarpaulin), `detail` (the packing:
- * left out where a whole stack is the size of a thumb), `tap`.
+ * One piece drawn into `g` from its three faces as screen polygons ({ top, left, right }, each four points as cubeFaces
+ * gives them): a cargo's number (1 to 6), or 0 for one under tarpaulin (`lit`: the piece picked out under it). `alongY`: a
+ * bundle of timber lies along y. `detail` is the packing, left out where a whole stack is the size of a thumb.
  */
-function paintPackage(g, faces, ware, lengthwise, { lit = false, detail = true, tap = null } = {}) {
-  const base = ware ? WARES[ware - 1].hex : lit ? LIT : TARP;
-  for (const [name, k] of [["left", 0.72], ["right", 0.86], ["top", 1.05]]) {
-    const poly = el("polygon", { points: faces[name].map(q => q.map(n => n.toFixed(1)).join(",")).join(" "), fill: shade(base, k), class: "mf-cell" });
-    if (tap) poly.addEventListener("click", tap);
-    g.appendChild(poly);
-  }
-  if (!detail) return;
-  // the long side is the left face when the package lies along x, else the right; the end is the other
-  const long = lengthwise ? faces.left : faces.right, end = lengthwise ? faces.right : faces.left;
-  // the top as a unit square with u along the package, whichever way it lies
-  const top = lengthwise ? faces.top : [faces.top[1], faces.top[2], faces.top[3], faces.top[0]];
-  const L = pen(long, ...LONG), E = pen(end, ...END), T = pen(top, ...TOP), rim = pen(faces.top, ...TOP);
-  const id = ware ? WARES[ware - 1].id : "tarp", bag = {};
-  const add = (style, d) => { bag[style] = (bag[style] || "") + d; };
-  PACK[id](L, E, T, add);
-  // a lit edge along the top's two near sides (the +x and +y edges, whichever way the package lies): it gives a dark
-  // package its outline against a dark page
-  add("lite", rim.lines([0.02, 0.97, 0.98, 0.97], [0.98, 0.97, 0.98, 0.03]));
-  for (const [style, d] of Object.entries(bag)) {
-    g.appendChild(el("path", { d, ...(ACCENT[id]?.[style] || LOOK[style]), "stroke-linejoin": "round", "pointer-events": "none" }));
+function paintPiece(g, faces, ware, { lit = false, detail = true, alongY = false, tap = null } = {}) {
+  if (tap) g.addEventListener("click", tap);
+  const B = brush(g, detail);
+  if (!ware) paintTarp(B, faces, lit);
+  else DRAW[ware](B, cellMap(faces), WARES[ware - 1].hex, alongY);
+}
+/** A plain box under tarpaulin: grey on its faces, ropes across it. */
+function paintTarp(B, faces, lit) {
+  const base = lit ? LIT : TARP, rope = "rgba(0,0,0,.36)";
+  for (const [name, k] of [["left", 0.72], ["right", 0.86], ["top", 1.05]]) B.fill(faces[name], shade(base, k));
+  const at = (poly, u, v) => [poly[0][0] + u * (poly[1][0] - poly[0][0]) + v * (poly[3][0] - poly[0][0]), poly[0][1] + u * (poly[1][1] - poly[0][1]) + v * (poly[3][1] - poly[0][1])];
+  for (const name of ["left", "right", "top"]) {
+    const f = faces[name];
+    B.line([at(f, 0.33, 0), at(f, 0.33, 1)], rope, 1); B.line([at(f, 0.66, 0), at(f, 0.66, 1)], rope, 1); B.line([at(f, 0, 0.5), at(f, 1, 0.5)], rope, 1);
   }
 }
 
 // ---------- the quay ----------
-/** The planks of one floor tile, laid along the package's length, their joints staggered by where the tile lies. */
-function planks(tile, lengthwise, x, y) {
-  const top = lengthwise ? tile : [tile[1], tile[2], tile[3], tile[0]], T = pen(top, ...TOP);
-  let d = T.lines([0, 0.25, 1, 0.25], [0, 0.5, 1, 0.5], [0, 0.75, 1, 0.75]);
-  for (let j = 0; j < 4; j++) { const u = 0.28 + ((x * 3 + y * 5 + j * 2) % 5) * 0.11; d += T.line(u, j / 4, u, (j + 1) / 4); }
+/** The planks of one floor tile, laid along x, their joints staggered by where the tile lies. */
+function planks(tile, x, y) {
+  const at = (u, v) => [tile[0][0] + u * (tile[1][0] - tile[0][0]) + v * (tile[3][0] - tile[0][0]), tile[0][1] + u * (tile[1][1] - tile[0][1]) + v * (tile[3][1] - tile[0][1])];
+  const line = (u1, v1, u2, v2) => `M${num(at(u1, v1)[0])} ${num(at(u1, v1)[1])}L${num(at(u2, v2)[0])} ${num(at(u2, v2)[1])}`;
+  let d = line(0, 0.25, 1, 0.25) + line(0, 0.5, 1, 0.5) + line(0, 0.75, 1, 0.75);
+  for (let j = 0; j < 4; j++) { const u = 0.28 + ((x * 3 + y * 5 + j * 2) % 5) * 0.11; d += line(u, j / 4, u, (j + 1) / 4); }
   return d;
 }
 /** The quay's body under the floor's two near edges: timber facing, a pile at every cell's edge and a waling across them. */
@@ -163,34 +212,32 @@ function ripples(svg, X, Y, b, to) {
 
 // ---------- the flat drawing: one stack on the quay ----------
 /**
- * The stack as one isometric panel on the quay: { panel, drops }. opts: drop (an arrival order: the packages fall in; at
+ * The stack as one isometric panel on the quay: { panel, drops }. opts: drop (an arrival order: the pieces fall in; at
  * a table, times gives each one's landing on the round's clock and since how far into the drop it is), blank (the quay
- * only, for a marked position), mark {x,y,z} (outline a package, or its place on the quay with the tier named when it's
- * hidden), marks [keys] (outline these), highlight (dim every ware but this), tier (dim every tier but this), tap(key),
- * selected [keys], turns (a turned stack: packages lie along y after a quarter turn), grey (every package under
- * tarpaulin), ring (a key: that package uncovered and outlined), small (no room for drops or packing), appear (it comes
- * back on the quay: fades in).
+ * only, for a marked position), mark {x,y,z} (outline a piece, or its place on the quay with the tier named when it's
+ * hidden), marks [keys] (outline these), highlight (dim every cargo but this), tier (dim every tier but this), tap(key),
+ * selected [keys], turns (a turned stack: its timber lies the other way), grey (every piece under tarpaulin), ring (a
+ * key: that piece uncovered and outlined), small (no room for drops or packing), appear (it comes back on the quay: fades in).
  */
 export function stage(cells, opts = {}) {
   return is3d() ? stage3d(cells, opts) : stageFlat(cells, opts);
 }
 function stageFlat(cells, opts) {
   const panel = node("div", `mf-panel${opts.small ? " small" : ""}`);
-  const b = boxFor(opts.turns || 0), X = cells.length, Y = cells[0].length, Z = cells[0][0].length;
+  const turns = opts.turns || 0, b = boxFor(turns), X = cells.length, Y = cells[0].length, Z = cells[0][0].length;
   const frame = frameOf(X, Y, Z, b, opts), { W, H, room, to } = frame;
   const svg = el("svg", { viewBox: `0 ${-room} ${W} ${H + room}`, class: opts.tap ? "tap" : "" });
   svg.style.setProperty("--aspect", frame.aspect.toFixed(3));
   const markKey = opts.mark ? `${opts.mark.x},${opts.mark.y},${opts.mark.z}` : null;
   const visible = opts.blank || markKey ? visibleSet(cells, b) : null;
   const outlined = new Set([...(opts.marks || []), ...(opts.selected || [])]);
-  const lengthwise = b.X >= b.Y;                                  // the packages' long side runs along x
   if (!opts.small) ripples(svg, X, Y, b, to);
   quayEdge(svg, X, Y, b, to);
   for (let x = 0; x < X; x++) for (let y = 0; y < Y; y++) {        // the quay's floor
     const f = cubeFaces(x, y, -1, b).top.map(to);
     const marked = opts.mark && opts.mark.x === x && opts.mark.y === y && (opts.blank || !visible.has(markKey));
     svg.appendChild(el("polygon", { points: f.map(q => q.map(n => n.toFixed(1)).join(",")).join(" "), class: marked ? "mf-floor marked" : "mf-floor" }));
-    if (!opts.small && !marked) svg.appendChild(el("path", { d: planks(f, lengthwise, x, y), class: "mf-plank" }));
+    if (!opts.small && !marked) svg.appendChild(el("path", { d: planks(f, x, y), class: "mf-plank" }));
     if (marked) {
       const c = f.reduce((a, q) => [a[0] + q[0] / 4, a[1] + q[1] / 4], [0, 0]);
       const t = el("text", { x: c[0].toFixed(1), y: (c[1] + 6).toFixed(1), "text-anchor": "middle", "font-size": 17, "font-weight": 800, fill: "#fff" });   // read in a question's card too
@@ -206,7 +253,7 @@ function stageFlat(cells, opts) {
     const g = el("g", { class: `cube${opts.drop ? " drop" : ""}`, "data-key": key });
     if (dim) g.setAttribute("opacity", 0.25);
     if (opts.drop) g.style.animationDelay = `${drops.times[key] - (opts.since || 0)}ms`;   // landed already, for a phone that comes in late
-    paintPackage(g, faces, opts.grey ? 0 : cube.c, lengthwise, { lit: ringed && opts.grey, detail: !opts.small, tap: opts.tap ? () => opts.tap(key) : null });
+    paintPiece(g, faces, opts.grey ? 0 : cube.c, { lit: ringed && opts.grey, detail: !opts.small, alongY: yawOf(cube, turns, !!opts.grey) !== 0, tap: opts.tap ? () => opts.tap(key) : null });
     if ((markKey === key && (!visible || visible.has(key))) || outlined.has(key) || ringed) {
       for (const name of ringed ? ["left", "right", "top"] : ["top"]) g.appendChild(el("polygon", { points: faces[name].map(q => q.map(n => n.toFixed(1)).join(",")).join(" "), fill: "none", stroke: "var(--ink)", "stroke-width": 3.5, "stroke-linejoin": "round", "pointer-events": "none" }));
     }
@@ -217,7 +264,7 @@ function stageFlat(cells, opts) {
   return { panel, drops };
 }
 
-/** One package of a ware, small: beside an answer, so the answer names the ware and shows its packing. */
+/** One piece of a cargo type, small: beside an answer, so the answer names the cargo and shows its shape. */
 export function wareIcon(ware) {
   return is3d() ? icon3d(ware) : wareIconFlat(ware);
 }
@@ -227,7 +274,7 @@ function wareIconFlat(ware) {
   const to = p => [(p[0] - minX) * k + 2, (p[1] - minY) * k + 2];
   const svg = el("svg", { viewBox: "0 0 44 44", class: "mf-icon", "aria-hidden": "true" });
   const g = el("g");
-  paintPackage(g, Object.fromEntries(Object.entries(faces).map(([n, poly]) => [n, poly.map(to)])), ware, true, { detail: true });
+  paintPiece(g, Object.fromEntries(Object.entries(faces).map(([n, poly]) => [n, poly.map(to)])), ware, { detail: true });
   svg.appendChild(g);
   return svg;
 }
