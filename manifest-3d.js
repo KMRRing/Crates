@@ -198,7 +198,7 @@ export function createGL() {
     sun.target.position.set(at[0], at[1], at[2]);
     Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: dist - reach - 2, far: dist + reach + 2 });
     sun.shadow.camera.updateProjectionMatrix();
-    hemi.color.set(skin.sky[0]); hemi.groundColor.set(skin.ground[0]); hemi.intensity = skin.sky[1];
+    hemi.color.set(skin.sky[0]); hemi.groundColor.set(skin.ground[0]); hemi.intensity = skin.sky[1] * (spec.quay === false && tk.night ? 1.35 : 1);   // a lone piece beside an answer, brightened a little by night: it sits on a dark chip
     fill.color.set(skin.fill[0]); fill.intensity = skin.fill[1];
     fill.position.set(at[0] + FILL_AT[0], at[1] + FILL_AT[1], at[2] + FILL_AT[2]);
     fill.target.position.set(at[0], at[1], at[2]);

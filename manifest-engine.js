@@ -18,7 +18,8 @@
 //
 // Together (the end of this file): a table of two to six plays the rounds in step, against each other or as one team
 // that sees the stack in parts.
-import { CARGO, TYPES, canPlace, room, loadAbove, validate, weightOf, worthOf, columnOf, deduceColumn, totals } from "./manifest-rules.js";
+import { CARGO, TYPES, TIMBER, axisOf, canPlace, room, loadAbove, validate, weightOf, worthOf, columnOf, deduceColumn, totals } from "./manifest-rules.js";
+import { outlineOf } from "./manifest-shapes.js";
 
 export const LIVES = 3, ROUNDS = 12;
 /**
@@ -109,8 +110,8 @@ function swaps(cells, [x, y, z], types, limit) {
 }
 
 // ---------- turning ----------
-// A quarter turn (clockwise, seen from above): cell (x, y) goes to (Y−1−y, x), so a package's long side, along x,
-// ends up along y. Turned stacks are drawn with their packages that way round (boxFor).
+// A quarter turn (clockwise, seen from above): cell (x, y) goes to (Y−1−y, x), so a bundle of timber lying along x ends
+// up along y. Turned stacks are drawn with their timber that way round (axisOf in manifest-rules.js).
 /** The stack turned by this many quarter turns. */
 export function turn(cells, turns) {
   let out = cells;
@@ -134,9 +135,9 @@ export const mirror = cells => cells.map(col => [...col].reverse());
 const ISO = { w: 0.866, h: 0.5 };
 /** A cell's proportions: length, width and height. A cube (the first version's cells were the 1.9-long container shape). */
 export const BOX = { L: 1, W: 1, H: 1 };
-/** The cell's extent along x and y and its height. A cube turns into itself, so the quarter turns change nothing here; the
- *  argument stays for the callers that name it. */
-export const boxFor = () => ({ X: BOX.L, Y: BOX.W, H: BOX.H });
+/** The cell's extent along x and y and its height, and the stack's quarter turns (a cube turns into itself, but a bundle of
+ *  timber lies along the other axis: what the pieces cover of the screen, in visibleSet, depends on it). */
+export const boxFor = (turns = 0) => ({ X: BOX.L, Y: BOX.W, H: BOX.H, turns });
 /** Screen position of the corner of cell (x, y, z) as the page draws it. */
 export const isoPoint = (x, y, z, b = boxFor(0)) => ({ sx: (x * b.X - y * b.Y) * ISO.w, sy: (x * b.X + y * b.Y) * ISO.h - z * b.H });
 /** The three faces of a cube as polygons in screen units: top, left (the +y face), right (the +x face). */
@@ -173,12 +174,20 @@ export function dropTimes(cells, view) {
   }
   return { times, last };
 }
-/** The set of "x,y,z" keys of cubes you can see in the isometric view. Each face is a convex quadrilateral, filled a row of
- *  pixels at a time: a pixel is in it when its centre lies from the left crossing of the row up to the right one. */
+/** What a piece covers of the screen, as convex polygons: the outline of its model (a barrel leaves the corners of its cell
+ *  empty, and a corner of the cell that shows through is not the piece), or the cell's three faces for a cell that holds no cargo. */
+function coverOf(cube, b) {
+  if (!(cube.c >= 1 && cube.c <= TYPES)) return Object.values(cubeFaces(cube.x, cube.y, cube.z, b));
+  const mid = isoPoint(cube.x + 0.5, cube.y + 0.5, cube.z + 0.5, b);
+  return [outlineOf(cube.c, cube.c === TIMBER && axisOf(cube.z, b.turns || 0) === "y").map(([sx, sy]) => [mid.sx + sx * b.X, mid.sy + sy * b.H])];
+}
+/** The set of "x,y,z" keys of pieces you can see in the isometric view: the cells are drawn back to front, each as the outline
+ *  of its piece (convex, so filled a row of pixels at a time: a pixel is in it when its centre lies from the left crossing of
+ *  the row up to the right one), and a piece is seen if enough of it survives (MIN_SEEN pixels: a hair of it is not a piece). */
 export function visibleSet(cells, b = boxFor(0)) {
   const order = drawOrder(cells);
   if (!order.length) return new Set();
-  const polys = order.map(cube => ({ key: keyOf(cube.x, cube.y, cube.z), faces: Object.values(cubeFaces(cube.x, cube.y, cube.z, b)) }));
+  const polys = order.map(cube => ({ key: keyOf(cube.x, cube.y, cube.z), faces: coverOf(cube, b) }));
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of polys) for (const f of p.faces) for (const [qx, qy] of f) { minX = Math.min(minX, qx); maxX = Math.max(maxX, qx); minY = Math.min(minY, qy); maxY = Math.max(maxY, qy); }
   const res = 14;                                                     // pixels per cube unit: plenty to catch a sliver
@@ -201,10 +210,13 @@ export function visibleSet(cells, b = boxFor(0)) {
       }
     }
   });
+  const count = new Int32Array(polys.length + 1);
+  for (let i = 0; i < buf.length; i++) count[buf[i]]++;
   const out = new Set();
-  for (let i = 0; i < buf.length; i++) if (buf[i]) out.add(polys[buf[i] - 1].key);
+  polys.forEach((p, id) => { if (count[id + 1] >= MIN_SEEN) out.add(p.key); });
   return out;
 }
+const MIN_SEEN = 6;                                                   // of 14 pixels to the cell's edge: about 1.5% of a piece's outline
 
 // ---------- orders ----------
 // Each kind: its base price (before the round's growth and your record), and what the tally says about it.
@@ -337,11 +349,13 @@ function makeOrder(r, type, cells, L, view, visible) {
       const turns = int(r, 1, 3), b = boxFor(turns), turned = turn(cells, turns), shows = visibleSet(turned, b);
       const both = seenCells.filter(([x, y, z]) => shows.has(turnKey(x, y, z, X, Y, turns)));
       if (!both.length) return null;
-      // a decoy is a stack that could stand: one that breaks a stacking rule would give itself away
+      // a decoy is a stack that could stand (one that breaks a stacking rule would give itself away), and what it changed shows
+      // in it (a smaller piece in the place of a larger one could hide itself, and the decoy would look like yours)
+      const showing = (d, spots) => { const v = visibleSet(d, b); return spots.every(([x, y, z]) => v.has(turnKey(x, y, z, X, Y, turns))) ? d : null; };
       const changeWare = () => {
         const [x, y, z] = pick(r, both), c = cells[x][y][z], other = swaps(cells, [x, y, z], used, L.z);
         if (!other.length) return null;
-        const m = copy(cells); m[x][y][z] = pick(r, other); return turn(m, turns);
+        const m = copy(cells); m[x][y][z] = pick(r, other); return showing(turn(m, turns), [[x, y, z]]);
       };
       const swapTwo = () => {
         const pairs = [];
@@ -349,7 +363,7 @@ function makeOrder(r, type, cells, L, view, visible) {
         if (!pairs.length) return null;
         const [[x1, y1, z1], [x2, y2, z2]] = pick(r, pairs), m = copy(cells);
         [m[x1][y1][z1], m[x2][y2][z2]] = [m[x2][y2][z2], m[x1][y1][z1]];
-        return validate(m, L.z).length ? null : turn(m, turns);
+        return validate(m, L.z).length ? null : showing(turn(m, turns), [[x1, y1, z1], [x2, y2, z2]]);
       };
       const mirrored = mirror(cells), mirrorIsTurn = [0, 1, 2, 3].some(t => same(turn(cells, t), mirrored));
       const decoys = [];
@@ -394,20 +408,32 @@ function makeChange(r, cells, L, seen, visible, variant) {
       if (!validate(m, L.z).length) pairs.push([a, b]);
     }));
   }
-  if (variant === "swap" && pairs.length) {
-    const [[x1, y1, z1], [x2, y2, z2]] = pick(r, pairs), back = copy(cells);
-    [back[x1][y1][z1], back[x2][y2][z2]] = [back[x2][y2][z2], back[x1][y1][z1]];
-    return { type: "swap", posted: "Two pieces swap places", question: { as: "pair", text: "Two pieces swapped places. Tap both.", turns: 0, back, answer: [keyOf(x1, y1, z1), keyOf(x2, y2, z2)].sort() } };
+  // a piece looks different from what it replaces (its outline covers other pixels), so what comes back is checked too: both
+  // pieces of a swap, or the changed one, must show in the stack that returns
+  if (variant === "swap") {
+    for (const [[x1, y1, z1], [x2, y2, z2]] of shuffle(r, pairs)) {
+      const back = copy(cells);
+      [back[x1][y1][z1], back[x2][y2][z2]] = [back[x2][y2][z2], back[x1][y1][z1]];
+      const shows = visibleSet(back);
+      if (shows.has(keyOf(x1, y1, z1)) && shows.has(keyOf(x2, y2, z2)))
+        return { type: "swap", posted: "Two pieces swap places", question: { as: "pair", text: "Two pieces swapped places. Tap both.", turns: 0, back, answer: [keyOf(x1, y1, z1), keyOf(x2, y2, z2)].sort() } };
+    }
   }
-  let turns = variant === "turned" ? pick(r, [1, 3]) : 0;
-  const shows = turns ? visibleSet(turn(cells, turns), boxFor(turns)) : visible;
-  const changeable = spots.filter(s => alts(s).length);
-  let fair = changeable.filter(([a, b, c]) => shows.has(turnKey(a, b, c, X, Y, turns)));
-  if (!fair.length) { turns = 0; fair = changeable; }              // nothing seen both ways: plain change
-  if (!fair.length) return null;
-  const [x, y, z] = pick(r, fair);
-  const changed = copy(cells);
-  changed[x][y][z] = pick(r, alts([x, y, z]));
+  const attempt = t => {
+    const shows = t ? visibleSet(turn(cells, t), boxFor(t)) : visible;
+    for (const spot of shuffle(r, spots.filter(([a, b, c]) => shows.has(turnKey(a, b, c, X, Y, t))))) {
+      for (const alt of shuffle(r, alts(spot))) {
+        const changed = copy(cells);
+        changed[spot[0]][spot[1]][spot[2]] = alt;
+        if (visibleSet(t ? turn(changed, t) : changed, boxFor(t)).has(turnKey(...spot, X, Y, t))) return { spot, changed, turns: t };
+      }
+    }
+    return null;
+  };
+  const turns0 = variant === "turned" ? pick(r, [1, 3]) : 0;
+  const hit = attempt(turns0) || (turns0 ? attempt(0) : null);                 // nothing seen both ways: plain change
+  if (!hit) return null;
+  const { spot: [x, y, z], changed, turns } = hit;
   return turns
     ? { type: "changeTurned", posted: "Spot the change, the stack turned", question: { as: "cell", text: `The stack's come back seen ${turnWords(turns)}, and one piece is now another cargo. Tap it.`, turns, back: turn(changed, turns), answer: turnKey(x, y, z, X, Y, turns), cell: { x, y, z } } }
     : { type: "change", posted: "Spot the change", question: { as: "cell", text: "One piece is now another cargo. Tap it.", turns: 0, back: changed, answer: keyOf(x, y, z), cell: { x, y, z } } };

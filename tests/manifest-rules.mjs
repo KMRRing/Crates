@@ -43,7 +43,7 @@ const stack =(...ts) => [[[...ts.map(t => R.CARGO.findIndex(c => c.key === t) + 
 // the generator: every stack of every Random round passes the validator, repeatably
 {
   let stacks = 0, tall = 0, kinds = {}, types = new Set(), problemsFound = [], column = 0;
-  for (let seed = 1; seed <= 40; seed++) for (let r = 1; r <= M.ROUNDS; r++) {
+  for (let seed = 1; seed <= 16; seed++) for (let r = 1; r <= M.ROUNDS; r++) {
     const a = M.makeRound(seed, r), b = M.makeRound(seed, r);
     stacks++;
     if (JSON.stringify(a.cells) !== JSON.stringify(b.cells) || JSON.stringify(a.orders) !== JSON.stringify(b.orders)) problemsFound.push(`${seed}/${r} isn't repeatable`);

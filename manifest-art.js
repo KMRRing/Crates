@@ -9,7 +9,7 @@
 // away) is ropes on grey, every piece a plain box.
 import { WARES, boxFor, isoPoint, cubeFaces, drawOrder, dropTimes, visibleSet } from "./manifest-engine.js";
 import { QUAY_DEPTH, frameOf, yawOf } from "./manifest-model.js";
-import { barrelRadius, sackRadius, INGOT_SHRINK } from "./manifest-shapes.js";
+import { barrelRadius, sackRadius, INGOT_SHRINK, hull } from "./manifest-shapes.js";
 import { ready, is3d, stage3d, icon3d, playOut as playOut3d } from "./manifest-pictures.js";
 
 export { QUAY_DEPTH, ready, is3d };
@@ -59,13 +59,6 @@ const circle = (A, w, r, n = 24) => Array.from({ length: n }, (_, i) => A(0.5 + 
 const front = (A, w, r) => circle(A, w, r).filter(q => q[1] >= A(0.5, 0.5, w)[1]).sort((a, b) => a[0] - b[0]);
 /** A circle on the screen, round: centre c, radius in cell heights. */
 const disc = (A, c, r, n = 14) => Array.from({ length: n }, (_, i) => [c[0] + Math.cos(i / n * TAU) * A.unit * r, c[1] + Math.sin(i / n * TAU) * A.unit * r]);
-const hull = points => {                                            // the convex hull (monotone chain)
-  const p = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]), cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const lo = [], up = [];
-  for (const q of p) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
-  for (const q of p.reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
-  return lo.slice(0, -1).concat(up.slice(0, -1));
-};
 /** A body of revolution about the cell's vertical axis, radius rOf(w) from the foot (w = 0) to the top (w = 1): its side, a
  *  shaded left edge, its top. */
 function lathe(B, A, rOf, side, top, steps = 10) {

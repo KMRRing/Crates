@@ -85,7 +85,7 @@ function frustum(m, cx, cz, y0, y1, [bx, bz], [tx, tz], part, seed) {
 /** Which way is out on a body of revolution with radius rOf(y), at height y and angle u (a turn): sideways and tilted by the profile's slope. */
 const radialOut = (rOf, y, u) => { const e = 0.01, slope = (rOf(y + e) - rOf(y - e)) / (2 * e), a = u * TAU; return [Math.cos(a), -slope, Math.sin(a)]; };
 /** A tube along a closed path in the y-z plane at x = x0 (a cord drawn round a bundle). */
-function loop(m, x0, path, r, part, seed, nu = 56, nv = 6) {
+function loop(m, x0, path, r, part, seed, nu = 44, nv = 5) {
   const at = u => path(((u % 1) + 1) % 1);
   surface(m, nu, nv, (u, v) => {
     const c = at(u), t = unit(sub(at(u + 1e-3), at(u - 1e-3))), nrm = [0, -t[2], t[1]], a = v * TAU;
@@ -131,7 +131,7 @@ function crate() {
 export const barrelRadius = y => 0.365 + 0.105 * (1 - (2 * y) ** 2) + 0.012 * Math.max(0, Math.abs(2 * y) - 0.88) * 8;
 function barrel() {
   const m = fresh();
-  surface(m, 30, 18, (u, v) => { const y = v - 0.5, r = barrelRadius(y), a = u * TAU; return [Math.cos(a) * r, y, Math.sin(a) * r]; },
+  surface(m, 26, 14, (u, v) => { const y = v - 0.5, r = barrelRadius(y), a = u * TAU; return [Math.cos(a) * r, y, Math.sin(a) * r]; },
     (p, u) => radialOut(barrelRadius, p[1], u), 0, 0, (u, v) => [u, v]);
   disc(m, 0, 0.5, 0, barrelRadius(0.5), 1, 1);
   disc(m, 0, -0.5, 0, barrelRadius(-0.5), -1, 1);
@@ -150,7 +150,7 @@ function timber() {
   const m = fresh();
   LOGS.forEach((L, k) => {
     const lumps = (u, v) => 1 + 0.045 * (noise(Math.cos(u * TAU) * 2.2 + k * 9, Math.sin(u * TAU) * 2.2 + v * 5) - 0.5);
-    surface(m, 20, 10, (u, v) => { const a = u * TAU, r = L.r * lumps(u, v); return [L.at + (v - 0.5) * L.len, L.y + Math.sin(a) * r, L.z + Math.cos(a) * r]; },
+    surface(m, 18, 6, (u, v) => { const a = u * TAU, r = L.r * lumps(u, v); return [L.at + (v - 0.5) * L.len, L.y + Math.sin(a) * r, L.z + Math.cos(a) * r]; },
       p => [0, p[1] - L.y, p[2] - L.z], 0, k, (u, v) => [u, v]);
     for (const sgn of [1, -1]) {
       const x = L.at + sgn * L.len / 2, mid = vert(m, [x, L.y, L.z], [sgn, 0, 0], 1, k, 0, 0);
@@ -158,7 +158,7 @@ function timber() {
       for (let q = 0; q < 24; q++) m.i.push(mid, ring[q], ring[q + 1]);
     }
   });
-  for (const x of [-0.29, 0.29]) loop(m, x, roundRect(-0.015, 0, 0.463, 0.484), 0.022, 2, 0);
+  for (const x of [-0.29, 0.29]) loop(m, x, roundRect(-0.015, 0, 0.463, 0.478), 0.022, 2, 0);
   return m;
 }
 
@@ -207,7 +207,7 @@ export const sackRadius = y => {
 };
 function sack() {
   const m = fresh();
-  surface(m, 28, 22, (u, v) => {
+  surface(m, 24, 18, (u, v) => {
     const y = -0.5 + v, a = u * TAU, belly = Math.max(0, 1 - Math.abs(v - 0.45) * 2.2);
     const lump = 1 + 0.07 * belly * (noise(Math.cos(a) * 1.8 + 4, Math.sin(a) * 1.8 + y * 5) - 0.5) * 2;
     const lean = 0.05 * Math.max(0, v - 0.35) ** 2 * 3;                // the top slumps a little toward the viewer
@@ -230,6 +230,30 @@ export function meshOf(type) {
 // ---------- silhouettes ----------
 /** The scene's isometric view of a point of a cell (x right, y up, z toward the viewer's left), as the engine's isoPoint has it. */
 export const screenOf = ([x, y, z]) => [0.866 * (x - z), 0.5 * (x + z) - y];
+
+/** The convex hull of 2D points (monotone chain), counter-clockwise in screen terms. */
+export function hull(points) {
+  const p = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]), cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const q of p) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of p.reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+const outlines = new Map();
+/**
+ * What a piece of type 1..6 covers of the screen, as a convex polygon in the engine's screen units around the middle of its
+ * cell: the hull of its mesh seen by the isometric camera (`alongY`: a bundle of timber lying along y). The engine decides
+ * what you could see by these, so a round piece that leaves a corner of its cell empty doesn't count as seen through it.
+ */
+export function outlineOf(type, alongY = false) {
+  const key = type * 2 + (alongY && type === 3 ? 1 : 0);
+  if (!outlines.has(key)) {
+    const { pos } = meshOf(type), yaw = key & 1 ? Math.PI / 2 : 0, c = Math.cos(yaw), s = Math.sin(yaw), pts = [];
+    for (let i = 0; i < pos.length; i += 3) pts.push(screenOf([pos[i] * c + pos[i + 2] * s, pos[i + 1], -pos[i] * s + pos[i + 2] * c]));
+    outlines.set(key, hull(pts));
+  }
+  return outlines.get(key);
+}
 
 /**
  * The shape's silhouette on an n by n grid, as seen by the isometric camera: a Uint8Array mask over the screen square that

@@ -30,7 +30,7 @@ const CHAPTER_SPECS = [
   { name: "Ingots", about: "Piles of ingots weigh six hundredweight and can carry anything. Weigh what you saw.",
     types: [1, 2, 3, 4], kinds: [...BASIC, "turned", "weight"], want: ["weight"], views: ["layers", "all", "slices", "pair"], names: ["Ballast", "Bar iron", "Heavy goods", "The foundry"] },
   { name: "Chests", about: "A chest's lid is domed: nothing stands on it, and it stands only on the quay or on ingots. So what is under a chest is no secret.",
-    types: [1, 2, 3, 4, 5], kinds: [...BASIC, "turned", "weight", "column"], want: ["column"], views: ["all", "layers", "all", "slices"], names: ["The strongbox", "Under lock", "Hidden below", "The treasury"] },
+    types: [1, 2, 3, 4, 5], kinds: [...BASIC, "turned", "weight", "column"], want: ["column"], views: ["all", "layers", "all", "slices"], z: [3, 3, 3, 3], names: ["The strongbox", "Under lock", "Hidden below", "The treasury"] },
   { name: "Sacks", about: "Sacks are light and carry only sacks. Put a price on the stack: what it was worth.",
     types: [1, 2, 3, 4, 5, 6], kinds: [...BASIC, "turned", "weight", "worth", "column"], want: ["worth"], views: ["layers", "all", "pair", "slices"], names: ["Salt sacks", "Light cargo", "A cheap hold", "The market"] },
   { name: "Changes", about: "The stack goes aboard and comes back with something different: one piece changed, turned round, or two swapped.",
