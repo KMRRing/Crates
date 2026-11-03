@@ -49,8 +49,36 @@ html[data-theme="office"][data-mode="night"] { --fc-in: #479EF5; }
 .fc-name { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .7rem; font-weight: 800; }
 .fc-seat.me .fc-name { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
 .fc-pts { flex: none; min-width: 1.1rem; padding: 0 .2rem; border-radius: 3px; background: var(--plate); color: var(--plate-ink); font-size: .72rem; font-weight: 800; text-align: center; }
-.fc-sub { display: flex; justify-content: space-between; gap: .2rem; white-space: nowrap; overflow: hidden; }
-.fc-sub .hold { color: var(--fc-in); font-weight: 800; }
+/* a plate's tallies are pictures with numbers: the cards in a hand, development cards, the road, each Privateer played */
+.fc-tally { display: flex; align-items: center; justify-content: space-between; gap: .2rem; white-space: nowrap; overflow: hidden; }
+.fc-n { display: inline-flex; align-items: center; gap: .18rem; color: var(--ink); }
+.fc-n b { font-size: .74rem; font-weight: 800; line-height: 1; }
+.fc-pi { display: block; flex: none; width: .92rem; height: .92rem; color: var(--ink-soft); }
+.fc-n.hold .fc-pi, .fc-fleet.hold .fc-pi { color: var(--fc-in); }
+.fc-n.hold b, .fc-fleet.hold b { color: var(--fc-in); }
+.fc-fleet { display: inline-flex; align-items: center; gap: .12rem; margin-left: auto; }
+.fc-fleet b { font-size: .74rem; font-weight: 800; line-height: 1; }
+.fc-mc { display: grid; place-items: center; width: .66rem; height: .92rem; border-radius: 2px; background: var(--tile); border: 1px solid var(--brass); color: var(--ink); }
+.fc-mc .fc-pi { width: .5rem; height: .5rem; color: inherit; }
+.fc-fleet.hold .fc-mc { border-color: var(--fc-in); background: var(--fc-soft); }
+
+/* cards in the air: a fixed layer over the page that takes no tap; the decks that stand where a card comes from or goes to */
+.fc-fx { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
+.fc-ghost, .fc-pile { position: fixed; left: 0; top: 0; --cw: 1.7rem; width: var(--cw); height: calc(var(--cw) * 1.4); will-change: transform, opacity; }
+.fc-gin, .fc-gf, .fc-gb { position: absolute; inset: 0; }
+.fc-gb { }
+.fc-card { box-sizing: border-box; display: block; width: 100%; height: 100%; border-radius: 4px; border: 1.5px solid var(--brass); box-shadow: 0 2px 5px color-mix(in srgb, var(--fc-mix) 28%, transparent); }
+.fc-card.res { display: grid; place-items: center; background: var(--r5); }
+.fc-card.res.r0 { background: var(--r0); } .fc-card.res.r1 { background: var(--r1); } .fc-card.res.r2 { background: var(--r2); }
+.fc-card.res.r3 { background: var(--r3); } .fc-card.res.r4 { background: var(--r4); }
+.fc-card.res .fc-ic { width: 72%; height: auto; aspect-ratio: 1; padding: 0; background: none; }
+.fc-card.dev { display: grid; place-items: center; background: var(--sheet); color: var(--fc-in); border-color: var(--fc-in); }
+.fc-card.dev .fc-pi { width: 66%; height: auto; aspect-ratio: 1; color: var(--fc-in); }
+.fc-card.back { background: var(--fc-in); border-color: var(--brass);
+  background-image: repeating-linear-gradient(45deg, transparent 0 .3rem, color-mix(in srgb, var(--sheet) 28%, transparent) .3rem .36rem), repeating-linear-gradient(-45deg, transparent 0 .3rem, color-mix(in srgb, var(--sheet) 28%, transparent) .3rem .36rem); }
+.fc-pile .fc-card { position: absolute; inset: 0; }
+.fc-pile .fc-card:nth-child(1) { transform: translate(-.2rem, .2rem); } .fc-pile .fc-card:nth-child(2) { transform: translate(-.1rem, .1rem); }
+.fc-pile.devs .fc-card.back { background-color: var(--brass-lo, var(--brass)); }
 
 /* ---------- what's asked, or what just happened ---------- */
 .fc-strip { display: flex; align-items: center; justify-content: space-between; gap: .5rem; height: 2.5rem; margin: .35rem 0 .25rem; font-size: .84rem; line-height: 1.25; color: var(--ink-soft); }
@@ -194,13 +222,6 @@ html #bar .fc-go.primary { flex: 1.4 1 0; }
   transition: opacity .2s, transform .2s; z-index: 5; }
 .fc-toast.on { opacity: 1; transform: translate(-50%, 0); }
 
-/* what things cost: in the room a tall phone leaves under the island, and beside it when held sideways; a short phone has none to spare
-   (the build buttons say what's lacking) */
-.fc-ref { display: none; grid-template-columns: 1fr 1fr; gap: .25rem .8rem; padding: .4rem .6rem; border-radius: 6px; border: 1px solid var(--rule); background: var(--sheet); font-size: .8rem; }
-.fc-ref-row { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
-.fc-ref-row > span { display: inline-flex; align-items: center; }
-.fc-ref .fc-ic.in { width: 1.2em; height: 1.2em; }
-@media (orientation: portrait) and (min-height: 760px) { .fc-ref { display: grid; } }
 /* held sideways: the island on the left; the players, your cards and your buttons beside it */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.factor { --beside: 24rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
@@ -209,7 +230,6 @@ html #bar .fc-go.primary { flex: 1.4 1 0; }
   #app.factor .fc-seats { grid-column: 2; grid-row: 3; grid-template-columns: repeat(2, minmax(0, 1fr)); height: auto; margin-top: 0; }
   #app.factor .fc-seat { gap: .15rem; padding: .3rem .4rem; }
   #app.factor .fc-side { grid-column: 2; grid-row: 4; justify-content: flex-end; min-height: 0; }
-  #app.factor .fc-ref { display: grid; margin-bottom: auto; }
   #app.factor .fc-hand { height: 4.6rem; }
   #app.factor .fc-bar { flex-wrap: wrap; height: auto; }
   #app.factor .fc-go { flex: 1 1 30%; min-height: 2.8rem; font-size: .8rem; }

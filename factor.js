@@ -8,9 +8,12 @@ import { LEVEL_NAMES } from "./factor-bot.js";
 import { HEXES, RES } from "./factor-board.js";
 import { boardSvg, resIcon, ASPECT } from "./factor-draw.js";
 import { rulesHtml } from "./factor-sheet.js";
+import { handIcon, devIcon, roadIcon, fleetCard } from "./factor-icons.js";
+import { flightsBetween, markOf, worth } from "./factor-flights.js";
+import { createFlights } from "./factor-fly.js";
 import { seatPage, fillNames } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import "./pwa.js";
@@ -49,12 +52,13 @@ function toast(msg, ms = 2800) {
 let V = null, page = null;
 let seen = { seq: -1, h: null }, pulse = { until: 0, d: [0, 0, 0, 0, 0] }, pulseTimer = 0;   // your hand's last change, shown a moment
 let island = null, viewReady = false;                                                         // the 3D island, once it's made
+let flights = null, flown = null;                                                             // cards in the air, and the move they were last worked out from
 // what the page holds between moves: the build mode, the cards picked to give up on a 7, the trade sheet's choices
 const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], tab: "bank", give: -1, og: [0, 0, 0, 0, 0], ow: [0, 0, 0, 0, 0], pick: [] };
 const randomRounds = seatRounds("factor");   // random mode's round: a game
 page = seatPage({
   rules, id: "factor", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; follow(v); draw(); randomRounds(v); }, onOver, toast, newGame,
+  onView: v => { V = v; follow(v); draw(); showFlights(v); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
 const isMe = seat => V?.seat != null && seat === V.seat;
@@ -76,6 +80,38 @@ function follow(v) {
     if (d.some(Boolean)) { pulse = { until: Date.now() + 1900, d }; clearTimeout(pulseTimer); pulseTimer = setTimeout(draw, 1950); }
   }
   seen = { seq: v.G.seq, h: [...h] };
+}
+
+// ---------- cards in the air ----------
+// Worked out from the difference between the game before a move and after it (factor-flights.js), never from anything the
+// engine drew at random, so a page opened mid-turn has nothing to replay. The decks stand over the island: the bank's left
+// of its middle, the development deck's right; a seat is its plate's icon (your own hand: the tile of the kind).
+const centreOf = el => { const r = el?.getBoundingClientRect(); return r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null; };
+const plateOf = seat => document.querySelector(`#seats [data-seat="${seat}"]`);
+/** The element a flight starts from or lands at, for a point on a seat or its fleet. */
+function seatEl(pt, f) {
+  if (pt.at === "fleet") return plateOf(pt.seat)?.querySelector(".fc-fleet") || plateOf(pt.seat);
+  if (isMe(pt.seat)) return f.what === "dev" ? $("hand").querySelector(".dev") : $("hand").querySelector(`[data-r="${f.kind}"]`);
+  const plate = plateOf(pt.seat);
+  return plate?.querySelector(f.what === "dev" ? ".fc-n-dev" : ".fc-n-hand") || plate;
+}
+function placeOf(pt, f) {
+  const box = $("board").getBoundingClientRect(), at = x => (box.width ? { x: box.left + box.width * x, y: box.top + box.height * .5 } : null);
+  switch (pt.at) {
+    case "bank": return at(.32);
+    case "devs": return at(.68);
+    case "table": return at(.5);
+    default: return centreOf(seatEl(pt, f));
+  }
+}
+function landed(f) {
+  if (f.to.at === "seat" || f.to.at === "fleet") seatEl(f.to, f)?.animate([{ scale: 1.22 }, { scale: 1 }], { duration: 240, easing: "ease-out" });
+}
+function showFlights(v) {
+  const G = v.G;
+  if (!G) { flown = null; return; }
+  if (worth(flown, G)) { const list = flightsBetween(flown.state, v.state, v.seat); if (list.length) flights?.run(list); }
+  if (!flown || flown.seq !== G.seq || flown.n !== G.n) flown = { ...markOf(G), state: v.state };
 }
 
 // ---------- what the tap on the island does ----------
@@ -125,16 +161,20 @@ function draw() {
   if ($("cardsDlg").open) drawCards();
 }
 
+/** A seat's plate: its colour, name and points; then the cards in its hand and its development cards, its road, and each Privateer it has played. */
 function drawSeats(v) {
   const s = v.state;
   $("seats").style.setProperty("--n", s.seats);
   $("seats").innerHTML = Array.from({ length: s.seats }, (_, i) => {
     const mine = isMe(i), turn = s.turn === i && !v.over, ask = v.toMove === i && v.toMove !== s.turn && !v.over;
-    const pts = pointsOf(s, i, mine || v.over), road = roadLength(s, i), fleet = s.played[i];
-    return `<div class="fc-seat${turn ? " turn" : ""}${ask ? " ask" : ""}${mine ? " me" : ""}">
-      <div class="fc-who"><i class="fc-sw p${i}"></i><b class="fc-name">${esc(who(i))}</b><span class="fc-pts" title="Points">${pts}</span></div>
-      <div class="fc-sub"><span>${pl(cards(s, i), "card")}</span><span>${s.devs[i].length} dev</span></div>
-      <div class="fc-sub"><span class="${s.longest === i ? "hold" : ""}" title="Longest road">road ${road}</span><span class="${s.army === i ? "hold" : ""}" title="Privateers played">fleet ${fleet}</span></div>
+    const pts = pointsOf(s, i, mine || v.over), road = roadLength(s, i), fleet = s.played[i], hand = cards(s, i), devs = s.devs[i].length;
+    const holdsRoad = s.longest === i, holdsFleet = s.army === i;
+    const fleetWords = `${pl(fleet, "Privateer")} played${holdsFleet ? ", the largest fleet" : ""}`;
+    const fleetShown = fleet > 3 ? `${fleetCard()}<b>${fleet}</b>` : fleetCard().repeat(fleet);
+    return `<div class="fc-seat${turn ? " turn" : ""}${ask ? " ask" : ""}${mine ? " me" : ""}" data-seat="${i}">
+      <div class="fc-who"><i class="fc-sw p${i}"></i><b class="fc-name">${esc(who(i))}</b><span class="fc-pts" title="Points" aria-label="${pl(pts, "point")}">${pts}</span></div>
+      <div class="fc-tally"><span class="fc-n fc-n-hand" role="img" aria-label="${pl(hand, "card")} in hand">${handIcon()}<b>${hand}</b></span><span class="fc-n fc-n-dev" role="img" aria-label="${pl(devs, "development card")}">${devIcon()}<b>${devs}</b></span></div>
+      <div class="fc-tally"><span class="fc-n fc-n-road${holdsRoad ? " hold" : ""}" role="img" aria-label="Road of ${pl(road, "piece")}${holdsRoad ? ", the longest road" : ""}">${roadIcon()}<b>${road}</b></span>${fleet ? `<span class="fc-fleet${holdsFleet ? " hold" : ""}" role="img" aria-label="${fleetWords}" title="${fleetWords}">${fleetShown}</span>` : ""}</div>
     </div>`;
   }).join("");
 }
@@ -462,9 +502,8 @@ function openMenu() {
 }
 
 // ---------- wiring ----------
-// what things cost, always in view where the screen has room for it (sideways); on a phone the build buttons say what's lacking
-$("costs").innerHTML = [["Road", COSTS.road], ["Post", COSTS.post], ["Factory", COSTS.factory], ["Card", COSTS.dev]]
-  .map(([n, c]) => `<span class="fc-ref-row"><b>${n}</b><span>${c.map((k, i) => (k ? `${k > 1 ? k : ""}${resIcon(i, "in")}` : "")).join("")}</span></span>`).join("");
+flights = createFlights({ where: placeOf, land: landed });
+onPause(() => flights.hold(true), () => flights.hold(false));
 bindSwitcher($("appsBtn"), "factor");
 document.querySelector(".fc-mark").innerHTML = APPS.find(a => a.id === "factor")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
