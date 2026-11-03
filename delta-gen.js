@@ -7,11 +7,18 @@
 // the player to work out. Values can become fractions (5 ÷ 4 = 1¼). Every operation is used exactly once;
 // blank hexes are optional.
 //
-// Generation lays random paths, puts operations on them, and computes the numbers. A board is kept only if
-// exactly one way of pairing the numbers and sharing out the operations can actually be drawn, while the
-// arithmetic alone allows others, and only if it is full of tempting single paths: ones that add up and could be
-// drawn on their own but belong to no answer, because they block another pair or use an operation another pair
-// needs. Those are the "this works, but it cuts off that" moments, and they should be all over the board.
+// Generation lays the answer's shape first: a few LONG chains, one per pair, covering nearly the whole field and
+// weaving between each other (delta-shape.js; delta-metrics.js measures it), so which operation belongs to which
+// pair has to be worked out and the chains have to be fitted together across the map. Then it puts operations along
+// the chains and computes the numbers. A board is kept only if exactly one way of pairing the numbers and sharing
+// out the operations can actually be drawn, while the arithmetic alone allows others, and only if it is full of
+// tempting single paths: ones that add up and could be drawn on their own but belong to no answer, because they
+// block another pair or use an operation another pair needs. Those are the "this works, but it cuts off that"
+// moments, and they should be all over the board.
+
+import { key, neighbours, inside, rng, pick, between, shuffle } from "./delta-base.js";
+import { carve } from "./delta-shape.js";
+import { shapeOf, nearestPair } from "./delta-metrics.js";
 
 // ---------- levels ----------
 // decoys: whole solutions the arithmetic allows that the space rules out; candidates: the most whole solutions
@@ -20,22 +27,23 @@
 // finished path is marked right or wrong straight away, or only once every number is joined. big: round steps
 // that make big numbers (×10, ×100, ×1,000, +300 on a round number…); fractions: ÷ may leave a fraction.
 export const LEVELS = {
-  easy: { label: "Easy", radius: 3, gaps: 8, pairs: 2, len: [5, 8], ops: [2, 3], kinds: "+-", start: [2, 30], step: [1, 20],
+  easy: { label: "Easy", radius: 3, gaps: 8, pairs: 2, ops: [3, 4], kinds: "+-", start: [2, 30], step: [1, 20], fits: 6,
+    shape: { minLen: 11, minDist: 4, cover: 0.9, walls: 15, each: 15, steps: 2000, starts: 3 },
     decoys: 1, candidates: 6, lures: 2, spread: 2, pairsShown: true, liveValue: true, verdicts: "now" },
-  medium: { label: "Medium", radius: 3, gaps: 7, pairs: 3, len: [5, 8], ops: [2, 3], kinds: "+-×", start: [2, 15], step: [1, 20],
+  medium: { label: "Medium", radius: 3, gaps: 7, pairs: 3, ops: [2, 3], kinds: "+-×", start: [2, 15], step: [1, 20], fits: 6,
+    shape: { minLen: 9, minDist: 4, cover: 0.9, walls: 20, each: 9, steps: 2000, starts: 3 },
     decoys: 2, candidates: 12, lures: 6, spread: 5, liveValue: true, verdicts: "now", big: true },
-  hard: { label: "Hard", radius: 3, gaps: 5, pairs: 3, len: [6, 9], ops: [3, 4], kinds: "+-×÷", start: [3, 24], step: [2, 30],
+  hard: { label: "Hard", radius: 3, gaps: 5, pairs: 3, ops: [3, 4], kinds: "+-×÷", start: [3, 24], step: [2, 30], fits: 6,
+    shape: { minLen: 10, minDist: 4, cover: 0.9, walls: 24, each: 11, steps: 2000, starts: 3 },
     decoys: 3, candidates: 32, lures: 8, spread: 6, liveValue: false, verdicts: "end", big: true, fractions: true },
 };
+/** Which generator dealt a board: a browser keeps spare boards between visits, and a spare of an older generator is dropped (delta.js). Bump it when boards change. */
+export const GEN = 2;               // 1: random short paths; 2: long chains laid first (delta-shape.js)
+const LURE_TRIES = 80;             // single paths tried per board when counting lures (a bound on the time, not on the targets)
 export const CLUES = 2;            // clues per board outside Easy (Easy shows the pairs from the start)
 
 // ---------- hexes (axial coordinates, pointy-top) ----------
-export const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
-export const key = (q, r) => `${q},${r}`;
-export const unkey = k => k.split(",").map(Number);
-export const neighbours = k => { const [q, r] = unkey(k); return DIRS.map(([dq, dr]) => key(q + dq, r + dr)); };
-export const adjacent = (a, b) => neighbours(a).includes(b);
-const inside = (q, r, R) => Math.abs(q) <= R && Math.abs(r) <= R && Math.abs(q + r) <= R;
+export { DIRS, key, unkey, neighbours, adjacent } from "./delta-base.js";
 
 // ---------- arithmetic ----------
 // Values are exact fractions [numerator, denominator] in lowest terms (denominator > 0). Boards store whole
@@ -93,21 +101,6 @@ export function evaluate(board, cells) {
   return { done, ok: done && sameValue(value, valueOf(board.nums[last])), from: first, to: last, value };
 }
 
-// ---------- random numbers ----------
-function rng(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6D2B79F5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-const pick = (rnd, xs) => xs[Math.floor(rnd() * xs.length)];
-const between = (rnd, lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
-const shuffle = (rnd, xs) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
-
 // ---------- the field ----------
 function field(rnd, R, gaps) {
   const all = [];
@@ -127,27 +120,6 @@ function field(rnd, R, gaps) {
     if (!connected() || all.length - cells.size > gaps + 1) clump.forEach(k => cells.add(k));
   }
   return [...cells];
-}
-
-/** A random self-avoiding walk of `len` hexes through free hexes, or null. */
-function walk(rnd, free, len) {
-  const starts = shuffle(rnd, [...free]);
-  for (const s of starts.slice(0, 12)) {
-    const path = [s], used = new Set([s]);
-    let steps = 0;
-    const grow = () => {
-      if (path.length === len) return true;
-      if (++steps > 400) return false;
-      for (const n of shuffle(rnd, neighbours(path[path.length - 1]).filter(n => free.has(n) && !used.has(n)))) {
-        path.push(n); used.add(n);
-        if (grow()) return true;
-        path.pop(); used.delete(n);
-      }
-      return false;
-    };
-    if (grow()) return path;
-  }
-  return null;
 }
 
 /**
@@ -213,13 +185,15 @@ const showable = ([n, d]) => n > 0 && n / d <= 100000 && [1, 2, 3, 4, 5, 6, 8].i
 /** Operations for a path and the value it ends on, starting from a whole number; null if it can't stay showable. */
 function arithmetic(rnd, start, count, L, onBoard) {
   let v = [start, 1];
-  const ops = [];
+  const ops = [], seen = new Set([String(stored(v))]);
   for (let i = 0; i < count; i++) {
     const op = nextOp(rnd, v, L, onBoard);
     if (!op) return null;
     ops.push(op);
     v = apply(v, op);
-    if (!v) return null;
+    // every operation must change the value to one it hasn't been: a +5 then −5 would be work that undoes itself
+    if (!v || seen.has(String(stored(v)))) return null;
+    seen.add(String(stored(v)));
   }
   return showable(v) ? { ops, end: v } : null;
 }
@@ -253,31 +227,30 @@ export function arithmeticSolutions(board, cap = 60) {
     return Math.abs(w) <= LIMIT * SCALE ? w : null;
   };
   const scaled = x => { const [n, d] = valueOf(x); return n * (SCALE / d); };
-  // reach[e][mask]: values reachable from number e using exactly the operations in mask, in some order
-  const reach = {};
+  // table[from>to]: the masks (operations used together, in some order) that take number `from` exactly to number `to`.
+  // Built as the values reachable from each number with each mask are found, one reusable Set deduplicating each mask's values.
+  const table = {};
+  for (const a of ends) for (const b of ends) if (a !== b) table[`${a}>${b}`] = [];
+  const target = Object.fromEntries(ends.map(e => [e, scaled(board.nums[e])]));
+  const seen = new Set();
   for (const e of ends) {
     const R = new Array(ALL + 1);
-    R[0] = [scaled(board.nums[e])];
+    R[0] = [target[e]];
     for (const mask of masks) {
-      const out = new Set();
+      seen.clear();
+      const out = [];
       for (let i = 0; i < m; i++) {
         if (!(mask >> i & 1)) continue;
         const before = R[mask ^ (1 << i)];
         if (!before) continue;
-        for (const v of before) { const w = step(v, i); if (w !== null) out.add(w); }
+        for (const v of before) { const w = step(v, i); if (w !== null && !seen.has(w)) { seen.add(w); out.push(w); } }
       }
-      if (out.size) R[mask] = [...out];
+      if (!out.length) continue;
+      R[mask] = out;
+      for (const b of ends) if (b !== e && seen.has(target[b])) table[`${e}>${b}`].push(mask);
     }
-    reach[e] = R.map(list => list && new Set(list));
   }
-  const valid = (from, to) => {
-    const out = [];
-    const target = scaled(board.nums[to]);
-    for (let mask = 1; mask <= ALL; mask++) if (reach[from][mask]?.has(target)) out.push(mask);
-    return out;
-  };
-  const table = {};
-  for (const a of ends) for (const b of ends) if (a !== b) table[`${a}>${b}`] = valid(a, b);
+  for (const list of Object.values(table)) list.sort((x, y) => x - y);         // the order the answers are searched in doesn't depend on how the table was built
   const found = [];
   const go = (left, used, chosen) => {
     if (found.length >= cap) return;
@@ -400,19 +373,24 @@ export function routeAll(board, opKeys, assignment, budget = 25000) {
 // ---------- generation ----------
 /**
  * A board for this seed and level. The same seed always gives the same board (tries are counted, not timed).
- * It starts strict about how much the space must decide; if nothing turns up, it relaxes that step by step,
- * but never the rule that exactly one answer can be drawn. stats, if given, counts why tries failed.
+ * The shape of the answer comes first: long chains that cover the field and run side by side (delta-shape.js), held to
+ * the level's floors (LEVELS, shape); then numbers and operations go on it. It starts strict about how much the space must
+ * decide; if nothing turns up, it relaxes that step by step, but never the rule that exactly one answer can be drawn. The
+ * floors on the shape come last: a last resort that takes a quarter off the walls and a little off the cover and distance.
+ * stats, if given, counts why tries failed.
  */
 export function generate(seed, levelId, stats = null) {
-  const L = LEVELS[levelId], rnd = rng(seed);
+  const L = LEVELS[levelId], rnd = rng(seed), tight = L.shape;
+  const loose = { ...tight, walls: Math.floor(tight.walls * 0.75), each: Math.floor(tight.each * 0.75), cover: tight.cover - 0.05, minDist: tight.minDist - 1 };
   const phases = [
-    { tries: 200, decoys: L.decoys, candidates: L.candidates, repaired: L.pairs > 2, lures: L.lures, spread: L.spread },
-    { tries: 200, decoys: Math.max(1, L.decoys - 1), candidates: L.candidates * 2, repaired: false, lures: Math.ceil(L.lures / 2), spread: L.spread - 1 },
-    { tries: 600, decoys: 0, candidates: L.candidates * 4, repaired: false, lures: 0, spread: 0 },
+    { tries: 60, decoys: L.decoys, candidates: L.candidates, repaired: L.pairs > 2, lures: L.lures, spread: L.spread, shape: tight },
+    { tries: 60, decoys: Math.max(1, L.decoys - 1), candidates: L.candidates * 2, repaired: false, lures: Math.ceil(L.lures / 2), spread: L.spread - 1, shape: tight },
+    { tries: 120, decoys: 0, candidates: L.candidates * 4, repaired: false, lures: 0, spread: 0, shape: tight },
+    { tries: 300, decoys: 0, candidates: L.candidates * 4, repaired: false, lures: 0, spread: 0, shape: loose },
   ];
-  for (const phase of phases) {
+  for (const [i, phase] of phases.entries()) {
     const board = attempt(rnd, L, levelId, phase, stats);
-    if (board) return board;
+    if (board) { if (stats) stats[`dealt in phase ${i + 1}`] = (stats[`dealt in phase ${i + 1}`] || 0) + 1; return board; }
   }
   return null;
 }
@@ -421,48 +399,69 @@ function attempt(rnd, L, levelId, phase, stats) {
   const note = why => { if (stats) stats[why] = (stats[why] || 0) + 1; };
   for (let t = 0; t < phase.tries; t++) {
     const cells = field(rnd, L.radius, L.gaps);
-    const free = new Set(cells), plan = [];
-    for (let p = 0; p < L.pairs; p++) {
-      const path = walk(rnd, free, between(rnd, L.len[0], L.len[1]));
-      if (!path) break;
-      path.forEach(k => free.delete(k));
-      plan.push(path);
+    const chains = layout(rnd, cells, L.pairs, phase.shape);
+    if (!chains) { note("no layout"); continue; }
+    // several numberings of the same layout: the layout is the costly part
+    for (let fit = 0; fit < L.fits; fit++) {
+      const board = numbered(rnd, L, levelId, cells, chains);
+      if (!board) { note("numbers clash"); continue; }
+      if (guessable(board)) { note("position gives it away"); continue; }
+      const verdict = assess(board, phase.candidates, stats, phase);
+      if (!verdict) continue;
+      if (verdict.decoys < phase.decoys || (phase.repaired && !verdict.repaired)) { note("arithmetic gives it away"); continue; }
+      board.decoys = verdict.decoys;
+      board.lures = verdict.lures;
+      return board;
     }
-    if (plan.length < L.pairs) { note("no room for the paths"); continue; }
-    const nums = {}, ops = {}, sol = [];
-    let ok = true;
-    for (const path of plan) {
-      const inner = path.slice(1, -1);
-      const count = Math.min(inner.length, between(rnd, L.ops[0], L.ops[1]));
-      const at = new Set(shuffle(rnd, [...inner.keys()]).slice(0, count));
-      // a few goes at numbers that aren't on the board yet
-      const taken = new Set(Object.values(nums).map(String));
-      let math = null, start = 0;
-      for (let go = 0; go < 6 && !math; go++) {
-        start = between(rnd, L.start[0], L.start[1]);
-        if (taken.has(String(start))) continue;
-        const m = arithmetic(rnd, start, count, L, Object.values(ops));
-        if (m && !taken.has(String(stored(m.end))) && !sameValue(m.end, [start, 1])) math = m;
-      }
-      if (!math) { ok = false; break; }
-      // the operations sit on the path in the order they're applied
-      const slots = inner.filter((_, i) => at.has(i));
-      slots.forEach((k, i) => { ops[k] = math.ops[i]; });
-      nums[path[0]] = start;
-      nums[path[path.length - 1]] = stored(math.end);
-      sol.push({ from: path[0], to: path[path.length - 1], cells: path });
-    }
-    const values = Object.values(nums).map(String);
-    if (!ok || new Set(values).size !== values.length) { note("numbers clash"); continue; }
-    const board = { level: levelId, radius: L.radius, cells, nums, ops, sol };
-    const verdict = assess(board, phase.candidates, stats, phase);
-    if (!verdict) continue;
-    if (verdict.decoys < phase.decoys || (phase.repaired && !verdict.repaired)) { note("arithmetic gives it away"); continue; }
-    board.decoys = verdict.decoys;
-    board.lures = verdict.lures;
-    return board;
   }
   return null;
+}
+
+/** Chains over the cells that meet the floors, or null (see LEVELS, shape). */
+function layout(rnd, cells, count, want) {
+  const made = carve(rnd, cells, count, want);
+  if (!made) return null;
+  const shape = shapeOf({ cells, ops: {}, sol: made.paths.map(p => ({ from: p[0], to: p[p.length - 1], cells: p })) });
+  return shape.coverage >= want.cover && shape.walls.cross >= want.walls && Math.min(...shape.walls.perPath) >= want.each && !shape.bundled ? made.paths : null;
+}
+
+/** A board on these chains: operations spread right along each, numbers at the ends; null if the numbers can't be made. */
+function numbered(rnd, L, levelId, cells, chains) {
+  const nums = {}, ops = {}, sol = [];
+  for (const chain of shuffle(rnd, chains.slice())) {
+    const path = rnd() < 0.5 ? chain : chain.slice().reverse();
+    const inner = path.length - 2, count = Math.min(inner, between(rnd, L.ops[0], L.ops[1]));
+    // one operation in each stretch of the chain, so its work is spread along the whole of it
+    const at = Array.from({ length: count }, (_, i) => between(rnd, 1 + Math.floor(i * inner / count), Math.floor((i + 1) * inner / count)));
+    // a few goes at numbers that aren't on the board yet
+    const taken = new Set(Object.values(nums).map(String));
+    let math = null, start = 0;
+    for (let go = 0; go < 6 && !math; go++) {
+      start = between(rnd, L.start[0], L.start[1]);
+      if (taken.has(String(start))) continue;
+      const m = arithmetic(rnd, start, count, L, Object.values(ops));
+      if (m && !taken.has(String(stored(m.end))) && !sameValue(m.end, [start, 1])) math = m;
+    }
+    if (!math) return null;
+    at.forEach((i, n) => { ops[path[i]] = math.ops[n]; });      // in the order they're applied
+    nums[path[0]] = start;
+    nums[path[path.length - 1]] = stored(math.end);
+    sol.push({ from: path[0], to: path[path.length - 1], cells: path });
+  }
+  const values = Object.values(nums).map(String);
+  return new Set(values).size === values.length ? { level: levelId, radius: L.radius, cells, nums, ops, sol } : null;
+}
+
+/** Whether giving every operation to the pair whose number is nearest it already solves the arithmetic: then nothing needs working out. */
+export function guessable(board) {
+  const given = board.sol.map(() => []);
+  for (const [k, op] of Object.entries(board.ops)) {
+    const who = nearestPair(board, k);
+    if (who < 0) return false;
+    given[who].push(op);
+  }
+  const works = (v, left, to) => (left.length ? left.some((op, i) => { const w = apply(v, op); return w && works(w, left.filter((_, j) => j !== i), to); }) : sameValue(v, to));
+  return board.sol.every((p, i) => works(valueOf(board.nums[p.from]), given[i], valueOf(board.nums[p.to])));
 }
 
 const pairing = s => s.map(x => [x.from, x.to].sort().join("~")).sort().join("|");
@@ -502,19 +501,26 @@ export function assess(board, cap = 40, stats = null, want = { lures: 0, spread:
  */
 function luresOf(board, opKeys, table, answer, want) {
   const inAnswer = new Set(answer.map(a => `${a.from}>${a.to}>${a.mask}`));
-  let count = 0;
-  const touched = new Set();
+  const pop = x => { let c = 0; while (x) { x &= x - 1; c++; } return c; };
+  // every single path the arithmetic allows that isn't the answer's, the ones with fewest operations first (cheapest to try, likeliest to be drawable)
+  const options = [];
   for (const [pair, masks] of Object.entries(table)) {
     const [from, to] = pair.split(">");
-    for (const mask of masks) {
-      if (count >= want.lures && touched.size >= want.spread) return { count, spread: touched.size };
-      if (inAnswer.has(`${from}>${to}>${mask}`)) continue;
-      if (count >= want.lures && touched.has(from) && touched.has(to)) continue;   // adds nothing now
-      const r = routeAll(board, opKeys, [{ from, to, mask }], 1500);
-      if (!r || r === "unknown") continue;
-      count++;
-      touched.add(from); touched.add(to);
-    }
+    for (const mask of masks) if (!inAnswer.has(`${from}>${to}>${mask}`)) options.push({ from, to, mask, size: pop(mask) });
+  }
+  // too few, or touching too few numbers, before a single one is tried
+  if (options.length < want.lures || new Set(options.flatMap(o => [o.from, o.to])).size < want.spread) return { count: 0, spread: 0 };
+  options.sort((x, y) => x.size - y.size);
+  let count = 0, tried = 0;
+  const touched = new Set();
+  for (const { from, to, mask } of options) {
+    if (count >= want.lures && touched.size >= want.spread) break;
+    if (count >= want.lures && touched.has(from) && touched.has(to)) continue;   // adds nothing now
+    if (++tried > LURE_TRIES) break;
+    const r = routeAll(board, opKeys, [{ from, to, mask }], 1500);
+    if (!r || r === "unknown") continue;
+    count++;
+    touched.add(from); touched.add(to);
   }
   return { count, spread: touched.size };
 }

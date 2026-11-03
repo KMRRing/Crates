@@ -16,7 +16,6 @@ const STILL = {
   "chart.js": 3,
   "codeword.js": 3,
   "crossword.js": 4,
-  "delta.js": 3,
   "duel.js": 1,
   "gambit.js": 2,
   "harbour.js": 2,
