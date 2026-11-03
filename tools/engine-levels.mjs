@@ -9,7 +9,7 @@
 // LADDER=file.json measures a ladder of candidate levels (a list like the game's LEVELS) in place of the game's own.
 // The games the levels were named by are kept beside this file, and give the README's ratings:
 //   node tools/engine-levels.mjs fit tools/engine-levels-gambit.jsonl "elo1320 n60000=1320"
-//   node tools/engine-levels.mjs fit tools/engine-levels-river.jsonl "T300 m12 n800=700" "full n500000=2700" --scale
+//   node tools/engine-levels.mjs fit tools/engine-levels-river.jsonl "fsf T300 m12 n800=700" "fsf full n500000=2700" --scale
 import fs from "fs";
 
 /** A level as the records name it: its way of playing and its search. */
@@ -116,7 +116,7 @@ async function measure([game = "river", perPair = "12", firstArg, lastArg, outFi
       const x = R.score(s, hiSeat);
       score += x; sq += x * x;
       why[R.why(s)] = (why[R.why(s)] || 0) + 1;
-      out?.write(JSON.stringify({ game, hi: keyOf(hi), lo: keyOf(lo), score: x, plies: R.moves(s).length, why: R.why(s) }) + "\n");
+      out?.write(JSON.stringify({ game, hi: R.tag + keyOf(hi), lo: R.tag + keyOf(lo), score: x, plies: R.moves(s).length, why: R.why(s) }) + "\n");
     }
     const mean = score / n, sd = Math.sqrt(Math.max(0, sq / n - mean * mean) / n);
     const d = elo(mean), lowD = elo(mean - sd), highD = elo(mean + sd);
@@ -133,6 +133,7 @@ async function rulesOf(name, { Engine, localWorker, stockfishWorker }) {
     const firsts = ["h3e3", "b3e3", "c1e3", "g1e3", "g4g5", "c4c5", "b1c3", "h1g3", "h3f3", "b3d3"];
     const replies = ["h10g8", "b10c8", "h8e8", "b8e8", "c7c6", "g7g6", "c10e8", "g10e8", "b8d8", "h8f8"];
     return {
+      tag: "own ",                                                  // River's own engine; the records of Fairy-Stockfish's levels, which it replaced, are "fsf …"
       levels: L.LEVELS, worker: () => new Engine(localWorker),
       fresh: red => X.newGame({ red }),
       open: (s, r) => { s = X.act(s, s.red, { move: firsts[Math.floor(r() * firsts.length)] }); return X.act(s, 1 - s.red, { move: replies[Math.floor(r() * replies.length)] }); },
@@ -145,6 +146,7 @@ async function rulesOf(name, { Engine, localWorker, stockfishWorker }) {
   const firsts = ["e2e4", "d2d4", "c2c4", "g1f3", "e2e4", "d2d4", "b1c3", "g2g3"];
   const replies = ["e7e5", "c7c5", "e7e6", "c7c6", "d7d5", "g8f6", "d7d6", "g7g6"];
   return {
+    tag: "",
     levels: L.LEVELS, worker: () => new Engine(stockfishWorker),
     fresh: white => G.newGame({ white }),
     open: (s, r) => {
