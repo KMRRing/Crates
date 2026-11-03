@@ -19,6 +19,7 @@ import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
+import { sure } from "./sure.js";
 import { isDuel } from "./duel-core.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords, openBranch, branchPath } from "./rooms.js";
@@ -127,8 +128,8 @@ async function start(kind) {
     ? newGame({ lex, ...DAILY, rules: prefs.rules, words: [dailyWord(day, lex)], day, seed: day })
     : newGame({ lex, mode: prefs.mode, len: prefs.len, boards: prefs.boards, level: prefs.level, rules: prefs.rules, seed: randomSeed(), avoid: read(SEEN, []) }), kind);
 }
-function confirmStart(kind) {
-  if (started() && !confirm(kind === "daily" ? "Leave this word for today's?" : "Start a new word? This one isn't finished.")) return;
+async function confirmStart(kind) {
+  if (started() && !(await sure(kind === "daily" ? "Leave this word for today's?" : "Start a new word? This one isn't finished."))) return;
   start(kind);
 }
 /** A word of level n (0 on): the level's own the first time, until it is cleared; another from the same recipe after that or when asked. */
@@ -138,8 +139,8 @@ async function startLevel(n, again = false) {
   await prepare(LV.lexOfLevel(n));
   begin(LV.levelGame(n, !again && camp.stars[n] < 1 ? LV.seedOf(n) : randomSeed(), read(SEEN, [])), "level", { lv: n });
 }
-function confirmLevelWord() {
-  if (started() && !confirm("Start a new word of this level? This one isn't finished.")) return;
+async function confirmLevelWord() {
+  if (started() && !(await sure("Start a new word of this level? This one isn't finished."))) return;
   startLevel(camp.at, true);
 }
 /** Plays level n (0 on) as it was left, or with a new word if it was not begun. */
@@ -691,7 +692,7 @@ async function teamGuess() {
 /** The next word for the table, at the length and level of whoever deals it: asks first while this one is under way. */
 async function teamNext() {
   if (!T) return;
-  if (!T.over && T.guesses.length && !confirm("Deal a new word for the table? This one isn't finished.")) return;
+  if (!T.over && T.guesses.length && !(await sure("Deal a new word for the table? This one isn't finished."))) return;
   const n = T.n, seed = randomSeed(), { len, level } = prefs;
   await team.act(t => (t.n === n ? (dealAt(tidy(t), { len, level, seed }), true) : false));
 }
@@ -993,7 +994,7 @@ async function solo() {
     if (track !== "free") { track = "free"; write(TRACK, track); }
     if (!(valid(run) && run.kind === "daily" && run.day === today() && !run.duel)) {
       S = valid(run) && !run.duel ? run : null;
-      if (!started() || confirm("Today's word is waiting. Leave the one you've started?")) { T = null; built = null; await start("daily"); return; }
+      if (!started() || await sure("Today's word is waiting. Leave the one you've started?")) { T = null; built = null; await start("daily"); return; }
     }
   }
   await resume();

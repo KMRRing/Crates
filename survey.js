@@ -15,6 +15,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
@@ -411,14 +412,14 @@ function openMenu() {
   about.append(action("Copy a link to this one", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-function confirmStart(mode) {
-  if (started() && !confirm("Start a new block? This one isn't cleared.")) return false;
+async function confirmStart(mode) {
+  if (started() && !(await sure("Start a new block? This one isn't cleared."))) return false;
   start(mode);
   return true;
 }
 /** Another block of the level being played. */
-function confirmLevelBlock() {
-  if (started() && !confirm("Start a new block of this level? This one isn't cleared.")) return false;
+async function confirmLevelBlock() {
+  if (started() && !(await sure("Start a new block of this level? This one isn't cleared."))) return false;
   levelBlock(camp.at, true);
   return true;
 }
@@ -470,10 +471,10 @@ $("nextBtn").addEventListener("click", () => {
   else if (isLevel(S)) { if (S.level + 1 < COUNT && isOpen(S.level + 1)) playLevel(S.level + 1); else openMenu(); }
   else start("random");
 });
-$("size").addEventListener("change", () => {
-  if (duel.on) { if (!duel.newMatch()) $("size").value = duel.match?.size || "small"; return; }   // a new match at that size, for everyone
+$("size").addEventListener("change", async () => {
+  if (duel.on) { if (!(await duel.newMatch())) $("size").value = duel.match?.size || "small"; return; }   // a new match at that size, for everyone
   if (S && $("size").value === S.size && S.mode !== "daily") return;
-  if (!confirmStart("random")) $("size").value = S?.size || "small";
+  if (!(await confirmStart("random"))) $("size").value = S?.size || "small";
 });
 for (const b of $("tools").querySelectorAll("[data-tool]")) b.addEventListener("click", () => { tool = b.dataset.tool; message = null; render(); });
 $("hintBtn").addEventListener("click", useHint);
@@ -512,14 +513,14 @@ window.__survey = {
 };
 
 const forToday = arrivedForToday();   // from the games screen's tile: today's block, still to play
-function solo() {
+async function solo() {
   S = savedGame();
   const b = hashBlock();
   if (b && !same(S, b)) { begin(b); return; }                // a link's block, unless it is the saved one
   if (forToday && !IN_FRAME) {                               // today's is a free block: the one in hand, if it is today's, else a new one after asking about the one begun
     const free = read(RUN, null), mine = valid(free) && !free.duel && !isLevel(free) ? free : null;
     if (mine?.mode === "daily" && mine.seed === today()) { track = "free"; write(TRACK, track); S = mine; load(); return; }
-    if (!startedRun(mine) || confirm("Today's block is waiting. Leave the one you've started?")) { start("daily"); return; }
+    if (!startedRun(mine) || await sure("Today's block is waiting. Leave the one you've started?")) { start("daily"); return; }
   }
   resume();
 }

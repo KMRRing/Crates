@@ -6,6 +6,7 @@
 // deal a match and how to play one, reports its score as it goes, and keeps its solo run out of it; the rest is here.
 import { createTogether } from "./together.js";
 import { joiningWords } from "./rooms.js";
+import { sure } from "./sure.js";
 import { busy, waitMark, progress } from "./loading.js";
 import { COUNTDOWN, freshDuel, isDuel, seated, slotOf, runOf, presentSlots, allReady, startAll, sayReady, noteRun, rematch, byScore, standings, isOver, resultOf } from "./duel-core.js";
 
@@ -152,9 +153,9 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
   /** Whether someone else at the table is in the middle of this match (a new one would cut their run short). */
   const othersPlaying = () => !!cur && seated(cur).some(([id, p]) => id !== me() && runOf(cur, p.slot)?.begun && !runOf(cur, p.slot).done && present().includes(p.slot));
   const mineOn = () => { const r = runOf(cur, mySlot()); return !!r?.begun && !r.done; };
-  /** A new match, asked first while this one's under way; false if not. */
-  function newMatch() {
-    if ((othersPlaying() || mineOn()) && !confirm("Start a new match? This one isn't over.")) return false;
+  /** A new match, asked first while this one's under way; resolves false if not. */
+  async function newMatch() {
+    if ((othersPlaying() || mineOn()) && !(await sure("Start a new match? This one isn't over."))) return false;
     again();
     return true;
   }

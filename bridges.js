@@ -1132,7 +1132,7 @@ $("level").addEventListener("change", async () => {
   const v = $("level").value;
   if (duel.on) {                                                 // a new match at that difficulty, for everyone at the table
     prefs.level = v; savePrefs();
-    if (!duel.newMatch()) $("level").value = duel.match?.level || v;
+    if (!(await duel.newMatch())) $("level").value = duel.match?.level || v;
     return;
   }
   if (S && S.mode !== "daily" && v === S.level && S.size === prefs.size) return;

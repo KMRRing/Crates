@@ -9,6 +9,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
@@ -698,12 +699,12 @@ function showRules() {
 }
 async function tableNewGrid() {
   if (!T) return;
-  if (!T.done && filledAt(T, P) > P.givens.length && !confirm("Start a new grid? This one isn't cracked.")) return;
+  if (!T.done && filledAt(T, P) > P.givens.length && !(await sure("Start a new grid? This one isn't cracked."))) return;
   const puzzle = await makeGrid({ level: $("level").value, size: opts.size, mystery: opts.mystery, split: true }, null, "Setting the grid for you both");
   if (puzzle) together.act(g => newGrid(g, puzzle, now()));
 }
-function confirmStart(mode) {
-  if (started() && !confirm("Start a new grid? This one isn't cracked.")) return false;
+async function confirmStart(mode) {
+  if (started() && !(await sure("Start a new grid? This one isn't cracked."))) return false;
   start(mode);
   return true;
 }
@@ -759,13 +760,13 @@ $("undoBtn").addEventListener("click", back);
 $("hintBtn").addEventListener("click", useHint);
 $("checkBtn").addEventListener("click", useCheck);
 $("nextBtn").addEventListener("click", () => { if (T) tableNewGrid(); else if (duel.on) duel.open(); else start("random"); });
-$("level").addEventListener("change", () => {
+$("level").addEventListener("change", async () => {
   opts.level = $("level").value;
   keepOpts();
   if (T) { tableNewGrid(); return; }
-  if (duel.on) { if (!duel.newMatch()) $("level").value = duel.match?.level || "medium"; return; }
+  if (duel.on) { if (!(await duel.newMatch())) $("level").value = duel.match?.level || "medium"; return; }
   if (S && $("level").value === S.opts.level && S.mode !== "daily") return;
-  if (!confirmStart("random")) $("level").value = S?.opts.level || "medium";
+  if (!(await confirmStart("random"))) $("level").value = S?.opts.level || "medium";
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); duel.resync(); together.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) { duel.resync(); together.resync(); } });
@@ -804,7 +805,7 @@ async function solo() {
   const h = hashGrid();
   if (h && !same(h) && !IN_FRAME) { await openHash(h); return; }
   if (forToday && !IN_FRAME && !(S?.mode === "daily" && unpack(S.puzzle).seed === today())) {
-    if (!started() || confirm("Today's grid is waiting. Leave the one you've started?")) { await start("daily"); return; }
+    if (!started() || await sure("Today's grid is waiting. Leave the one you've started?")) { await start("daily"); return; }
   }
   if (S) begin({ mode: S.mode, opts: S.opts, puzzle: S.puzzle, fresh: S.fresh, at: S.at }, S.run);
   else if (!IN_FRAME) await start("random");

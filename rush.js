@@ -395,11 +395,11 @@ function openMenu() {
   body.replaceChildren();
   if (duel.on) {
     duel.menu(part(body, "together"));
-    part(body, "content").append(choice("Mode", Object.entries(MODES).map(([id, m]) => [id, m.label]), battleMode, v => {
+    part(body, "content").append(choice("Mode", Object.entries(MODES).map(([id, m]) => [id, m.label]), battleMode, async v => {
       $("menuDlg").close();
       const was = battleMode;
       battleMode = v;
-      if (!duel.newMatch()) battleMode = was;
+      if (!(await duel.newMatch())) battleMode = was;
     }));
     part(body, "settings").append(...(IN_FRAME ? [] : [viewSetting()]), coordsToggle());
     part(body, "about").append(line(ratingText(rating)));

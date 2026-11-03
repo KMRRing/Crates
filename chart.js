@@ -57,6 +57,7 @@ function picture(p) {
 import "./pwa.js";
 import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked run for your best
 import { roundOver } from "./random.js";
+import { sure } from "./sure.js";
 
 const $ = id => document.getElementById(id);
 const APP = 2;       // this code's version of the table (2: up to six seats, everything kept by seat)
@@ -744,8 +745,8 @@ function freshRoom(players, ask = null) {
   return { ...freshTable(players, { people: peopleFor(ask), seed, region: "world", set: tableSet(seed, "world") }), app: APP };
 }
 /** A fresh set for the table, in a region, asking first while this one's under way. */
-function startRoomSet(region = $("region").value || "world") {
-  if (S && !S.done && (S.index > 0 || S.phase === "reveal" || S.pins) && !confirm("Deal a fresh set for the table? This one isn't finished.")) { showSelection(); return; }
+async function startRoomSet(region = $("region").value || "world") {
+  if (S && !S.done && (S.index > 0 || S.phase === "reveal" || S.pins) && !(await sure("Deal a fresh set for the table? This one isn't finished."))) { showSelection(); return; }
   const seed = randomSeed(), set = tableSet(seed, region);
   together.act(g => newSet(g, { seed, region, set }));
 }
@@ -929,8 +930,8 @@ function openMenu() {
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-function confirmStart(mode) {
-  if (S && !S.done && S.index > 0 && !confirm("Start a new set? This one isn't finished.")) return;
+async function confirmStart(mode) {
+  if (S && !S.done && S.index > 0 && !(await sure("Start a new set? This one isn't finished."))) return;
   start(mode);
 }
 
@@ -959,10 +960,10 @@ function showSelection() {
 /** A new region deals a new set in it, after asking if this one's under way: a random one (today's is always
  *  worldwide, so a region chosen there once restarted today's set and kept nothing of it); at a table, a fresh set for
  *  everyone. */
-function choose() {
+async function choose() {
   const sel = chosen();
   if (inRoom()) { startRoomSet(sel.region); return; }
-  if (S && !S.done && S.index > 0 && !confirm("Start a new set with this? This one isn't finished.")) { showSelection(); return; }
+  if (S && !S.done && S.index > 0 && !(await sure("Start a new set with this? This one isn't finished."))) { showSelection(); return; }
   if (pick) pick.mode = "random";
   start("random", sel);
 }

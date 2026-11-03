@@ -14,6 +14,7 @@ import { roundOver } from "./random.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { dropdown } from "./dropdown.js";
 import { part, action, mirror, isPaused, onPause } from "./menu.js";
+import { sure } from "./sure.js";
 import { sideways, scale } from "./wide.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
@@ -303,7 +304,7 @@ async function suggestWord() {
 }
 
 /** Clear: first press empties letters that aren't in a real word, the next also words breaking a rule you can see, the next everything. */
-function clear() {
+async function clear() {
   if (S.done) return;
   const letters = lettersFrom(S.board, S.log);
   if (!Object.keys(letters).length) { toast("The board is already empty"); clearLevel = 0; return; }
@@ -321,7 +322,7 @@ function clear() {
   // at a table, emptying the board takes everyone's letters: asked first when some are someone else's
   if (level === 3 && room) {
     const placer = ownersFrom(S.board, S.log);
-    if (cells.some(k => placer[k] && placer[k] !== room.uid) && !confirm("Empty the whole board, the others' letters too?")) { render(); return; }
+    if (cells.some(k => placer[k] && placer[k] !== room.uid) && !(await sure("Empty the whole board, the others' letters too?"))) { render(); return; }
   }
   act(g => { if (g.done) return false; g.log.push({ clear: cells, ...(room && { by: room.uid }) }); });
   toast(level === 1 ? `Cleared ${words(cells.length)} that weren't part of a real word. Press again to clear rule-breakers too.`
@@ -340,16 +341,16 @@ function reveal(i) {
   });
 }
 
-function giveUp() {
+async function giveUp() {
   if (S.done) { showDone(); return; }
-  if (!confirm("Show our fill and end this board?")) return;
+  if (!(await sure("Show our fill and end this board?"))) return;
   clockPause();
   act(g => { if (g.done) return false; g.done = { gaveUp: true, at: Date.now() }; });
   roundOver(GAME);
 }
 
-function newBoard(level = S.level) {
-  if (!S.done && placements() && !confirm("Leave this board unfinished?")) { $("level").value = S.daily ? "today" : S.level; return; }
+async function newBoard(level = S.level) {
+  if (!S.done && placements() && !(await sure("Leave this board unfinished?"))) { $("level").value = S.daily ? "today" : S.level; return; }
   $("menuDlg").close();
   if (level === "today") {                                     // today's puzzle: solo, timed for the games screen
     if (room) { $("level").value = S.daily ? "today" : S.level; return; }

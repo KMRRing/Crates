@@ -11,6 +11,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, ticks, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";   // a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
@@ -163,7 +164,7 @@ function begin({ kind, P }, run = newRun(P), extra = {}) {
   render(true);
   partnerSoon();
 }
-const confirmLeave = () => !started() || confirm("Start a new ladder? This one isn't finished.");
+const confirmLeave = async () => !started() || await sure("Start a new ladder? This one isn't finished.");
 
 // ---------- links: #s=SEED&l=LEVEL&n=45&r=RULES (random), #d=DAY (today's), #p=A-B&r=RULES (a pair) ----------
 function hashFor(g) {
@@ -610,7 +611,7 @@ function openMenu() {
   if (room.on || room.joining) { room.menu(body); showMenu(body); return; }
   pick ??= dailyDue("ladder") ? "daily" : G?.kind && G.kind !== "daily" ? G.kind : prefs.kind;
   const startLabel = pick === "book" ? "Play the chapter" : "New ladder";
-  part(body, "play").append(action(startLabel, () => { if (confirmLeave()) { if (pick !== "daily") { prefs.kind = pick; keepPrefs(); } deal(pick); } }, "primary"));
+  part(body, "play").append(action(startLabel, async () => { if (await confirmLeave()) { if (pick !== "daily") { prefs.kind = pick; keepPrefs(); } deal(pick); } }, "primary"));
   const content = part(body, "content");
   content.append(choice("Ladders", Object.entries(KINDS), pick, v => { pick = v; openMenu(); }));
   if (pick === "daily") content.append(line(`Today's ladder is Medium, four or five letters, Classic: the same for everyone.${dailyDue("ladder") ? "" : " You've climbed it."}`));
@@ -669,7 +670,7 @@ function bookList() {
     if (r || i === at) {
       li.setAttribute("role", "button");
       li.tabIndex = 0;
-      li.addEventListener("click", () => { $("menuDlg").close(); if (confirmLeave()) deal("book", { chapter: i }); });
+      li.addEventListener("click", async () => { $("menuDlg").close(); if (await confirmLeave()) deal("book", { chapter: i }); });
     }
     ol.append(li);
   });
@@ -721,12 +722,12 @@ $("nextBtn").addEventListener("click", () => {
   if (G.kind === "book" && G.P.chapter < BOOK.length - 1) deal("book", { chapter: G.P.chapter + 1 });
   else deal(G.kind === "daily" ? "random" : G.kind);
 });
-$("level").addEventListener("change", () => {
+$("level").addEventListener("change", async () => {
   const level = $("level").value;
   if (room.on) { room.setLevel(level); return; }
   prefs.level = level; keepPrefs();
   if (!G || (G.kind !== "daily" && G.kind !== "book" && level === (G.P.level || levelOf(G.P)))) return;
-  if (confirmLeave()) deal(G.kind === "linked" ? "linked" : "random", { level });
+  if (await confirmLeave()) deal(G.kind === "linked" ? "linked" : "random", { level });
   else $("level").value = G.P.level || levelOf(G.P);
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) { clockPause(); clearTimeout(partnerTimer); } else { clockRun(); partnerSoon(); room.resync(); } });
@@ -743,12 +744,12 @@ setInterval(() => {
 window.__ladder = { get game() { return G; }, get cursor() { return cursor; }, get prefs() { return prefs; }, deal, key, back, enter, tapLetter, tapRung, useUndo, useHint, flip, room };
 
 const forToday = arrivedForToday();   // from the games screen's tile: today's ladder, still to play
-function solo() {
+async function solo() {
   G = loadSolo();
   const linked = fromHash();
   if (linked && !sameLadder(G, linked)) { begin(linked); return; }
   if (forToday && !IN_FRAME && !(G?.kind === "daily" && G.P.day === today())) {
-    if (!started() || confirm("Today's ladder is waiting. Leave the one you've started?")) { deal("daily"); return; }
+    if (!started() || await sure("Today's ladder is waiting. Leave the one you've started?")) { deal("daily"); return; }
   }
   if (G) { history.replaceState(null, "", hashFor(G)); clockRun(); render(); partnerSoon(); }
   else deal(dailyDue("ladder") && !IN_FRAME ? "daily" : prefs.kind);

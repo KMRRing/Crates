@@ -799,7 +799,7 @@ $("level").addEventListener("change", async () => {
   const v = $("level").value;
   if (duel.on) {                                                // a new match at that level, for everyone at the table
     prefs.level = v; savePrefs();
-    const ok = S?.mode === "pair" ? (S.done || (await sure("Start a new board at that level? This one isn't solved.", { yes: "New board" }))) && (duel.again(), true) : duel.newMatch();
+    const ok = S?.mode === "pair" ? (S.done || (await sure("Start a new board at that level? This one isn't solved.", { yes: "New board" }))) && (duel.again(), true) : await duel.newMatch();
     if (!ok) $("level").value = duel.match?.level || v;
     return;
   }

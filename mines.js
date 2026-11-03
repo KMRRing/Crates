@@ -15,6 +15,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, toggle, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
@@ -619,7 +620,7 @@ function openMenu() {
     if (G?.kind === "team") {
       const over = teamOver();
       together.append(
-        action(over ? "Play again" : "A new field", () => { if (over || confirm("Start a new field? This one isn't cleared.")) duel.again(); }, over ? "primary" : ""),
+        action(over ? "Play again" : "A new field", async () => { if (over || await sure("Start a new field? This one isn't cleared.")) duel.again(); }, over ? "primary" : ""),
         action("The table", () => duel.open()), action("Back to solo", () => duel.leave(), "link"));
     } else duel.menu(together);
     together.append(choice("Next", Object.entries(MODES), prefs.together, v => { prefs.together = v; savePrefs(); }),
@@ -646,8 +647,8 @@ function openMenu() {
     action("Copy a link to this field", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-function confirmStart(mode) {
-  if (begunHere() && !confirm("Start a new field? This one isn't cleared.")) return false;
+async function confirmStart(mode) {
+  if (begunHere() && !(await sure("Start a new field? This one isn't cleared."))) return false;
   start(mode);
   return true;
 }
@@ -786,11 +787,11 @@ $("nextBtn").addEventListener("click", () => {
   else start(G?.mode === "daily" ? "random" : G?.mode || "random");
 });
 $("retryBtn").addEventListener("click", retry);
-$("size").addEventListener("change", () => {
+$("size").addEventListener("change", async () => {
   prefs.size = $("size").value; savePrefs();
-  if (duel.on) { if (!duel.newMatch()) $("size").value = duel.match?.size || "small"; return; }   // a new match at that size, for everyone
+  if (duel.on) { if (!(await duel.newMatch())) $("size").value = duel.match?.size || "small"; return; }   // a new match at that size, for everyone
   if (G && $("size").value === G.size && G.mode !== "daily") return;
-  if (!confirmStart("random")) $("size").value = G?.size || "small";
+  if (!(await confirmStart("random"))) $("size").value = G?.size || "small";
 });
 for (const b of $("tools").querySelectorAll("[data-tool]")) b.addEventListener("click", () => { prefs.tool = b.dataset.tool; savePrefs(); message = null; render(); });
 $("hintBtn").addEventListener("click", useHint);
@@ -830,7 +831,7 @@ async function soloStart() {
   if (b && !same(kept, b)) { await begin(b); return; }                   // a link's field, unless it's the saved one
   if (forToday && !IN_FRAME && !(kept?.mode === "daily" && kept.seed === today())) {
     const going = kept && !kept.run.done && kept.run.cells.includes(OPEN);
-    if (!going || confirm("Today's field is waiting. Leave the one you've started?")) { await start("daily"); return; }
+    if (!going || await sure("Today's field is waiting. Leave the one you've started?")) { await start("daily"); return; }
   }
   if (kept) await begin(kept, kept); else await start("random");
 }
