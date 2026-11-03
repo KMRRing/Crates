@@ -10,29 +10,27 @@
 // back with one package different; in later ones it comes back turned round, or with two packages swapped.
 // A run is twelve rounds, or until the lives run out.
 //
-// A package is one of five wares of the Hanseatic League, each in its own packing (README, Manifest): the packing, the
-// hue and the lightness all tell them apart, so no one of them rests on colour alone. The code says "ware" for what the
-// first version called a colour; the saved runs hold only a ware's number (1 to 5), so they load as they were.
+// A package is one of six kinds of cargo of a Hanseatic quay (manifest-rules.js: crates, barrels, timber, ingots, chests,
+// sacks), each its own shape: the outline, the hue and the lightness tell them apart, so no one rests on colour alone.
+// The code says "ware" for a cargo type (what the first version called a colour); a cell holds its number, 1 to 6.
+// The stacks obey the rules of manifest-rules.js, the rounds are made from a recipe (how big, which cargo, which
+// questions), and the levels of manifest-levels.js are recipes in a ladder (docs/manifest.md).
 //
 // Together (the end of this file): a table of two to six plays the rounds in step, against each other or as one team
 // that sees the stack in parts.
+import { CARGO, TYPES, canPlace, room, loadAbove, validate, weightOf, worthOf, columnOf, deduceColumn, totals } from "./manifest-rules.js";
 
 export const LIVES = 3, ROUNDS = 12;
 /**
- * The five wares, numbered 1 to 5 as a package's cell holds them (the order they come in: three in the first rounds, a
- * fourth from round 5, a fifth from round 9). `pack` is what each travels in, `hex` the colour of its top (a left face
- * is drawn at .72 of it, a right at .86, a top at 1.05). Chosen so five stay apart for an eye that can't tell red from
- * green or blue from yellow, not only for a normal one: they differ in hue and in lightness, and the packings differ
- * too (tests/manifest.mjs measures it, for a normal eye and the three dichromacies, against the first version's five
- * colours, and fails if any pair is nearer than they were).
+ * The six types as the art draws them, numbered as a cell holds them (the order they come in on the ladder). `pack` is
+ * which of the present drawings stands in for the type's own until its model is made, `hex` the colour of its top (a
+ * left face is drawn at .72 of it, a right at .86, a top at 1.05). They differ in hue and in lightness, not only for a
+ * normal eye but for one that can't tell red from green or blue from yellow (tests/manifest.mjs measures it, for a
+ * normal eye and the three dichromacies, and fails if any pair is nearer than the first version's colours were).
  */
-export const WARES = [
-  { id: "cloth", name: "Cloth", pack: "bale", hex: "#3A6FD0" },       // Flemish and English cloth, woad-blue, lashed with cord
-  { id: "salt", name: "Salt", pack: "sack", hex: "#F0EBDC" },         // Lüneburg salt, in stitched sacks
-  { id: "amber", name: "Amber", pack: "chest", hex: "#EDA02A" },      // Prussian amber, in iron-strapped chests
-  { id: "iron", name: "Iron", pack: "bundle", hex: "#2A313B" },       // Swedish iron, bars in strapped bundles
-  { id: "herring", name: "Herring", pack: "cask", hex: "#7C4527" },   // Scania herring, in hooped casks
-];
+const LOOK = { crate: ["chest", "#E8D41D"], barrel: ["cask", "#3C310A"], timber: ["bale", "#0FA177"], ingot: ["bundle", "#1B235D"], chest: ["chest", "#CE5240"], sack: ["sack", "#D2C9DC"] };
+export const WARES = CARGO.map(c => ({ id: c.key, name: c.name, pack: LOOK[c.key][0], hex: LOOK[c.key][1] }));
+export { CARGO, TYPES, validate, weightOf, worthOf };
 export const VIEWS = { all: "All at once", layers: "Tier by tier", slices: "Slice by slice", pair: "Two tiers, then the rest" };
 
 function rng(seed) {
@@ -47,30 +45,50 @@ const keyOf = (x, y, z) => `${x},${y},${z}`;
 const unkey = k => k.split(",").map(Number);
 
 /**
- * How round r goes: the stack's size (growing to 4×4×3), wares (to five), the hold once the last package has
- * landed, how many orders are posted, and whether it's a change round (every fourth: a ware, then turned, then
- * swapped).
+ * A recipe is how a round is made: `x`, `y` the floor, `z` the tiers the quay allows, `types` the cargo in play (numbers),
+ * `kinds` the questions it may ask, `want` the kinds it tries to carry (the stack is dealt again, from the same seed's
+ * stream, until they can all be asked), `orders` how many are posted, `exposure` the hold in ms once the last piece has
+ * landed, `change` null or the kind of change round ("ware", "turned", "swap"), and `views` the views that take turns
+ * (none: the rotation Random has always had).
+ *
+ * Random's recipe for round r: the stack grows to 4×4×3, the cargo from three types to six, the questions widen, and
+ * every fourth round is a change round (a ware, then turned, then swapped).
  */
 export function levelOf(r) {
+  const kinds = ["count", "total", "tier", "spot", "top", "most"];
+  if (r >= 3) kinds.push("turned");
+  if (r >= 5) kinds.push("which", "weight");
+  if (r >= 7) kinds.push("load", "fits");
+  if (r >= 9) kinds.push("worth", "column");
   return {
     x: Math.min(4, 3 + Math.floor((r - 1) / 6)),
     y: Math.min(4, 2 + Math.floor((r - 1) / 4)),
     z: Math.min(3, 2 + Math.floor((r - 1) / 6)),
-    wares: Math.min(5, 3 + Math.floor((r - 1) / 4)),
+    types: Array.from({ length: r < 5 ? 3 : r < 9 ? 4 : r < 11 ? 5 : 6 }, (_, i) => i + 1),
+    kinds, want: [], views: null,
     exposure: Math.max(5000, 9000 - 300 * (r - 1)),
     orders: r < 6 ? 3 : 4,
     change: r % 4 === 0 ? ["ware", "turned", "swap"][(r / 4 - 1) % 3] : null,
   };
 }
 
-/** The stack for a round: cells[x][y][z] holds a ware's number (1-based) or 0 for empty; columns stack from the floor. */
+/**
+ * The stack for a round: cells[x][y][z] holds a cargo type's number (1 to 6) or 0 for empty; columns stand on the quay.
+ * Only what the rules allow is put down (canPlace), so a column ends early when nothing may go on, and cargo likes to
+ * stand with its own kind, as it is stowed.
+ */
 function makeStack(r, L) {
   const cells = [];
   for (let x = 0; x < L.x; x++) {
     cells.push([]);
     for (let y = 0; y < L.y; y++) {
-      const h = int(r, 1, L.z);
-      cells[x].push(Array.from({ length: L.z }, (_, z) => (z < h ? int(r, 1, L.wares) : 0)));
+      const h = int(r, 1, L.z), col = [];
+      while (col.length < h) {
+        const ok = L.types.filter(t => canPlace(col, t, L.z)), below = col[col.length - 1];
+        if (!ok.length) break;
+        col.push(below && ok.includes(below) && r() < 0.35 ? below : pick(r, ok));
+      }
+      cells[x].push(Array.from({ length: L.z }, (_, z) => col[z] || 0));
     }
   }
   return cells;
@@ -79,6 +97,17 @@ const each = (cells, fn) => cells.forEach((col, x) => col.forEach((row, y) => ro
 const count = (cells, pred) => { let n = 0; each(cells, (x, y, z, c) => { if (pred(x, y, z, c)) n++; }); return n; };
 const copy = cells => cells.map(col => col.map(row => [...row]));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+/** The types (of `types`) a piece could be exchanged for with the stack still standing. */
+function swaps(cells, [x, y, z], types, limit) {
+  const c = cells[x][y][z];
+  return types.filter(n => {
+    if (n === c) return false;
+    cells[x][y][z] = n;
+    const ok = !validate(cells, limit).length;
+    cells[x][y][z] = c;
+    return ok;
+  });
+}
 
 // ---------- turning ----------
 // A quarter turn (clockwise, seen from above): cell (x, y) goes to (Y−1−y, x), so a package's long side, along x,
@@ -144,34 +173,37 @@ export function dropTimes(cells, view) {
   }
   return { times, last };
 }
-function inside(poly, px, py) {
-  let on = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [xi, yi] = poly[i], [xj, yj] = poly[j];
-    if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) on = !on;
-  }
-  return on;
-}
-/** The set of "x,y,z" keys of cubes you can see in the isometric view. */
+/** The set of "x,y,z" keys of cubes you can see in the isometric view. Each face is a convex quadrilateral, filled a row of
+ *  pixels at a time: a pixel is in it when its centre lies from the left crossing of the row up to the right one. */
 export function visibleSet(cells, b = boxFor(0)) {
   const order = drawOrder(cells);
   if (!order.length) return new Set();
   const polys = order.map(cube => ({ key: keyOf(cube.x, cube.y, cube.z), faces: Object.values(cubeFaces(cube.x, cube.y, cube.z, b)) }));
-  const xs = polys.flatMap(p => p.faces.flat().map(q => q[0])), ys = polys.flatMap(p => p.faces.flat().map(q => q[1]));
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of polys) for (const f of p.faces) for (const [qx, qy] of f) { minX = Math.min(minX, qx); maxX = Math.max(maxX, qx); minY = Math.min(minY, qy); maxY = Math.max(maxY, qy); }
   const res = 14;                                                     // pixels per cube unit: plenty to catch a sliver
   const W = Math.ceil((maxX - minX) * res) + 1, H = Math.ceil((maxY - minY) * res) + 1;
-  const buf = new Array(W * H).fill(null);
-  for (const p of polys) {
+  const buf = new Int32Array(W * H);
+  polys.forEach((p, id) => {
     for (const face of p.faces) {
-      const fx = face.map(q => (q[0] - minX) * res), fy = face.map(q => (q[1] - minY) * res);
-      const x0 = Math.max(0, Math.floor(Math.min(...fx))), x1 = Math.min(W - 1, Math.ceil(Math.max(...fx)));
-      const y0 = Math.max(0, Math.floor(Math.min(...fy))), y1 = Math.min(H - 1, Math.ceil(Math.max(...fy)));
-      const poly = face.map((q, i) => [fx[i], fy[i]]);
-      for (let py = y0; py <= y1; py++) for (let px = x0; px <= x1; px++) if (inside(poly, px + 0.5, py + 0.5)) buf[py * W + px] = p.key;
+      const poly = face.map(q => [(q[0] - minX) * res, (q[1] - minY) * res]), n = poly.length;
+      let top = Infinity, bottom = -Infinity;
+      for (const [, qy] of poly) { top = Math.min(top, qy); bottom = Math.max(bottom, qy); }
+      for (let py = Math.max(0, Math.floor(top)); py <= Math.min(H - 1, Math.ceil(bottom)); py++) {
+        const cy = py + 0.5;
+        let left = Infinity, right = -Infinity;
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+          const [xi, yi] = poly[i], [xj, yj] = poly[j];
+          if ((yi > cy) !== (yj > cy)) { const x = (xj - xi) * (cy - yi) / (yj - yi) + xi; if (x < left) left = x; if (x > right) right = x; }
+        }
+        if (left > right) continue;
+        for (let px = Math.max(0, Math.ceil(left - 0.5)); px < right - 0.5 && px < W; px++) buf[py * W + px] = id + 1;
+      }
     }
-  }
-  return new Set(buf.filter(Boolean));
+  });
+  const out = new Set();
+  for (let i = 0; i < buf.length; i++) if (buf[i]) out.add(polys[buf[i] - 1].key);
+  return out;
 }
 
 // ---------- orders ----------
@@ -185,6 +217,11 @@ export const KINDS = {
   most: { name: "Most", base: 50 },
   turned: { name: "Turned", base: 140 },
   which: { name: "Which stack", base: 150 },
+  weight: { name: "Weight", base: 70 },
+  worth: { name: "Worth", base: 70 },
+  load: { name: "Load", base: 90 },
+  fits: { name: "Room", base: 110 },
+  column: { name: "Column", base: 130 },
   change: { name: "Change", base: 150 },
   changeTurned: { name: "Change, turned", base: 220 },
   swap: { name: "Swap", base: 220 },
@@ -194,12 +231,13 @@ export const KINDS = {
  * that fit. Scattered at random round the truth, the truth would sit in the middle more often than not, and picking
  * the middle option would pay without looking.
  */
-function numberOptions(r, truth) {
-  const step = truth >= 8 ? int(r, 1, 2) : 1, places = [0, 1, 2, 3, 4].filter(k => truth - k * step >= 0);
+function numberOptions(r, truth, steps = null) {
+  const step = steps ? pick(r, steps) : truth >= 8 ? int(r, 1, 2) : 1, places = [0, 1, 2, 3, 4].filter(k => truth - k * step >= 0);
   const at = pick(r, places);
   return [0, 1, 2, 3, 4].map(k => truth + (k - at) * step);
 }
-const wareName = c => WARES[c - 1].name.toLowerCase();
+/** The gaps between options for a sum of weights or worths: wider the bigger it is, so that adding up is the way to it. */
+const stepsFor = n => (n < 8 ? [1] : n < 20 ? [1, 2] : n < 60 ? [2, 3, 5] : [5, 10]);
 /** A how-many question in the tense its view allows (what you could see, what lies on the bottom two tiers, what there was). */
 const howMany = (what, view, all = "") => (view === "all" ? `How many ${what} could you see${all}?` : view === "pair" ? `How many ${what} are there on the bottom two tiers?` : `How many ${what} were there${all}?`);
 const turnWords = t => (t === 2 ? "from behind" : "from the side");
@@ -217,35 +255,74 @@ function makeOrder(r, type, cells, L, view, visible) {
   const used = [...new Set(seenCells.map(([x, y, z]) => cells[x][y][z]))].sort((a, b) => a - b);
   const where = view === "all" ? " you could see" : view === "pair" ? " on the bottom two tiers" : "";
   const X = cells.length, Y = cells[0].length;
+  if (used.length < 2 && ["spot", "top", "turned"].includes(type)) return null;     // one cargo seen: nothing to choose between
   switch (type) {
     case "count": {
       const c = pick(r, used), n = seenCells.filter(([x, y, z]) => cells[x][y][z] === c).length;
-      return { type, posted: `How many of one ware${where}`, question: { as: "number", text: howMany(`${WARES[c - 1].pack}s of ${wareName(c)}`, view), ware: c, answer: n, options: numberOptions(r, n) } };
+      return { type, posted: `How many of one kind of cargo${where}`, question: { as: "number", text: howMany(CARGO[c - 1].plural, view), ware: c, answer: n, options: numberOptions(r, n) } };
     }
     case "total": {
       const n = seenCells.length;
-      return { type, posted: `How many packages${where} in all`, question: { as: "number", text: howMany("packages", view, " in all"), answer: n, options: numberOptions(r, n) } };
+      return { type, posted: `How many pieces${where} in all`, question: { as: "number", text: howMany("pieces", view, " in all"), answer: n, options: numberOptions(r, n) } };
     }
     case "tier": {
       const tiers = [...new Set(seenCells.map(([, , z]) => z))].filter(z => view !== "pair" || z < 2);
       const z = pick(r, tiers), n = count(cells, (x, y, zz) => zz === z);
-      return { type, posted: `How many on tier ${z + 1}`, question: { as: "number", text: `How many packages on tier ${z + 1}?`, tier: z, answer: n, options: numberOptions(r, n) } };
+      return { type, posted: `How many on tier ${z + 1}`, question: { as: "number", text: `How many pieces on tier ${z + 1}?`, tier: z, answer: n, options: numberOptions(r, n) } };
+    }
+    case "weight": case "worth": {
+      const sums = totals(cells, seen), n = type === "weight" ? sums.w : sums.v;
+      const what = view === "all" ? "the pieces you could see" : view === "pair" ? "the bottom two tiers" : "the whole stack";
+      const text = type === "weight" ? `How much did ${what} weigh, in cwt (hundredweight)?` : `What ${what === "the whole stack" ? "was" : "were"} ${what} worth, in marks?`;
+      return { type, posted: type === "weight" ? `The weight of ${what}` : `The worth of ${what}`, question: { as: "number", text, answer: n, options: numberOptions(r, n, stepsFor(n)) } };
+    }
+    case "load": {
+      // a piece with something on it: the tier-by-tier views show every piece, so the whole column has been seen
+      const spots = seenCells.filter(([x, y, z]) => cells[x][y][z + 1]);
+      if (!spots.length) return null;
+      const [x, y, z] = pick(r, spots), n = loadAbove(columnOf(cells, x, y), z);
+      return { type, posted: "The weight on a piece", question: { as: "number", text: "How much weight rests on the marked piece, in cwt?", cell: { x, y, z }, answer: n, options: numberOptions(r, n, stepsFor(n)) } };
+    }
+    case "fits": {
+      // a column, a cargo to put on it, and how many the rules let you stack there (support, load and the quay's tiers)
+      const combos = [];
+      cells.forEach((col, x) => col.forEach((row, y) => {
+        const column = row.filter(Boolean);
+        if (column.length && column.every((_, z) => seen.has(keyOf(x, y, z)))) for (const t of L.types) combos.push([x, y, column, t, room(column, t, L.z)]);
+      }));
+      if (!combos.length) return null;
+      const some = combos.filter(c => c[4] > 0), [x, y, column, t, n] = pick(r, some.length && r() < 0.75 ? some : combos);
+      return { type, posted: "Room on a column", question: { as: "number", text: `The quay stacks ${L.z} tiers high. How many more ${CARGO[t - 1].plural} could go on the marked column, one on another?`, cell: { x, y, z: column.length - 1 }, put: t, answer: n, options: numberOptions(r, n) } };
+    }
+    case "column": {
+      // the top of a column is in sight and what is under it is not, but the rules say what it is (deduceColumn)
+      if (view !== "all") return null;
+      const spots = [];
+      cells.forEach((col, x) => col.forEach((row, y) => {
+        const h = row.filter(Boolean).length;
+        if (h < 2 || !visible.has(keyOf(x, y, h - 1))) return;
+        const shown = row.slice(0, h).map((t, z) => (visible.has(keyOf(x, y, z)) ? t : null));
+        if (shown.includes(null) && deduceColumn(shown)) spots.push([x, y, h - 1]);
+      }));
+      if (!spots.length) return null;
+      const [x, y, z] = pick(r, spots), n = columnOf(cells, x, y).reduce((s, t) => s + weightOf(t), 0);
+      return { type, posted: "The weight of a column", question: { as: "number", text: "The marked piece tops its column. How much does the whole column weigh, in cwt?", cell: { x, y, z }, answer: n, options: numberOptions(r, n, stepsFor(n)) } };
     }
     case "spot": {
       const z = pick(r, [...new Set(seenCells.map(([, , zz]) => zz))]);
       const [x, y] = pick(r, seenCells.filter(([, , zz]) => zz === z));
-      return { type, posted: `A ware at a spot on tier ${z + 1}`, question: { as: "ware", text: `Which ware is the marked package on tier ${z + 1}?`, cell: { x, y, z }, answer: cells[x][y][z], options: used } };
+      return { type, posted: `A cargo at a spot on tier ${z + 1}`, question: { as: "ware", text: `Which cargo is the marked piece on tier ${z + 1}?`, cell: { x, y, z }, answer: cells[x][y][z], options: used } };
     }
     case "top": {
       const tops = [];
       cells.forEach((col, x) => col.forEach((row, y) => { const h = row.filter(Boolean).length; if (h && visible.has(keyOf(x, y, h - 1))) tops.push([x, y, h - 1]); }));
       const [x, y, z] = pick(r, tops);
-      return { type, posted: "The top of a column", question: { as: "ware", text: "Which ware is on top of the marked column?", cell: { x, y, z }, answer: cells[x][y][z], options: used } };
+      return { type, posted: "The top of a column", question: { as: "ware", text: "Which cargo is on top of the marked column?", cell: { x, y, z }, answer: cells[x][y][z], options: used } };
     }
     case "most": {
       const tally = used.map(c => [c, seenCells.filter(([x, y, z]) => cells[x][y][z] === c).length]).sort((a, b) => b[1] - a[1]);
       if (tally.length < 2 || tally[0][1] === tally[1][1]) return null;
-      return { type, posted: `The most common ware${where}`, question: { as: "ware", text: view === "all" ? "Which ware could you see most of?" : view === "pair" ? "Which ware is most common on the bottom two tiers?" : "Which ware is most common?", answer: tally[0][0], options: used } };
+      return { type, posted: `The most common cargo${where}`, question: { as: "ware", text: view === "all" ? "Which cargo could you see most of?" : view === "pair" ? "Which cargo is most common on the bottom two tiers?" : "Which cargo is most common?", answer: tally[0][0], options: used } };
     }
     case "turned": {
       // a package you saw, marked on the stack turned round and drawn in grey: which ware is it?
@@ -253,15 +330,16 @@ function makeOrder(r, type, cells, L, view, visible) {
       const spots = seenCells.filter(([x, y, z]) => shows.has(turnKey(x, y, z, X, Y, turns)));
       if (!spots.length) return null;
       const [x, y, z] = pick(r, spots);
-      return { type, posted: `A spot, the stack seen ${turnWords(turns)}`, question: { as: "ware", text: `The stack seen ${turnWords(turns)}: which ware is the marked package?`, turns, cell: { x, y, z }, at: turnKey(x, y, z, X, Y, turns), answer: cells[x][y][z], options: used } };
+      return { type, posted: `A spot, the stack seen ${turnWords(turns)}`, question: { as: "ware", text: `The stack seen ${turnWords(turns)}: which cargo is the marked piece?`, turns, cell: { x, y, z }, at: turnKey(x, y, z, X, Y, turns), answer: cells[x][y][z], options: used } };
     }
     case "which": {
       // four stacks turned the same way: yours, its mirror image, and yours with a package or two changed
       const turns = int(r, 1, 3), b = boxFor(turns), turned = turn(cells, turns), shows = visibleSet(turned, b);
       const both = seenCells.filter(([x, y, z]) => shows.has(turnKey(x, y, z, X, Y, turns)));
       if (!both.length) return null;
+      // a decoy is a stack that could stand: one that breaks a stacking rule would give itself away
       const changeWare = () => {
-        const [x, y, z] = pick(r, both), c = cells[x][y][z], other = used.filter(u => u !== c);
+        const [x, y, z] = pick(r, both), c = cells[x][y][z], other = swaps(cells, [x, y, z], used, L.z);
         if (!other.length) return null;
         const m = copy(cells); m[x][y][z] = pick(r, other); return turn(m, turns);
       };
@@ -271,7 +349,7 @@ function makeOrder(r, type, cells, L, view, visible) {
         if (!pairs.length) return null;
         const [[x1, y1, z1], [x2, y2, z2]] = pick(r, pairs), m = copy(cells);
         [m[x1][y1][z1], m[x2][y2][z2]] = [m[x2][y2][z2], m[x1][y1][z1]];
-        return turn(m, turns);
+        return validate(m, L.z).length ? null : turn(m, turns);
       };
       const mirrored = mirror(cells), mirrorIsTurn = [0, 1, 2, 3].some(t => same(turn(cells, t), mirrored));
       const decoys = [];
@@ -286,12 +364,16 @@ function makeOrder(r, type, cells, L, view, visible) {
   return null;
 }
 
-/** The kinds a view can carry: the turning ones come in from round 3 and 5, and never with the two-tier view. */
-function kindsFor(view, r) {
-  const kinds = { layers: ["count", "total", "tier", "spot", "most", "turned", "which"], slices: ["count", "total", "tier", "spot", "most", "turned", "which"],
-    all: ["count", "total", "top", "most", "turned", "which"], pair: ["count", "total", "tier", "spot", "most"] }[view];
-  return kinds.filter(k => (k !== "turned" || r >= 3) && (k !== "which" || r >= 5));
-}
+/** The views each kind can be asked after: what is asked about a piece nobody saw (the turning ones never with the two-tier
+ *  view; load and room need every piece of a column, so they follow the views that show them all; a column's hidden
+ *  pieces exist only where the view hides some). */
+const ALL_VIEWS = ["layers", "all", "slices", "pair"], WHOLE = ["layers", "slices"];
+export const KIND_VIEWS = { count: ALL_VIEWS, total: ALL_VIEWS, most: ALL_VIEWS, weight: ALL_VIEWS, worth: ALL_VIEWS, tier: ["layers", "slices", "pair"], spot: ["layers", "slices", "pair"],
+  top: ["all"], turned: ["layers", "slices", "all"], which: ["layers", "slices", "all"], load: WHOLE, fits: WHOLE, column: ["all"] };
+/** The recipe's kinds that its view can carry. */
+const kindsFor = (view, kinds) => kinds.filter(k => KIND_VIEWS[k]?.includes(view));
+/** The view of round r: a recipe's own take turns, else the rotation Random has always had; a change round is all at once. */
+const viewFor = (r, L) => (L.change ? "all" : L.views ? L.views[(r - 1) % L.views.length] : ["layers", "all", "slices", "pair"][(r - 1 - Math.floor((r - 1) / 4)) % 4]);
 
 /**
  * A change round: the stack comes back with one package a different ware; turned a quarter round as well; or with two
@@ -300,24 +382,35 @@ function kindsFor(view, r) {
  */
 function makeChange(r, cells, L, seen, visible, variant) {
   const spots = [...seen].filter(k => visible.has(k)).map(unkey), X = cells.length, Y = cells[0].length;
-  const changeWare = (m, [x, y, z]) => { const c = m[x][y][z]; let n = c; while (n === c) n = int(r, 1, L.wares); m[x][y][z] = n; };
+  // what comes back is a stack that could stand: a piece is changed for a type the stack still bears, two are swapped only
+  // where both stand in the other's place
+  const alts = s => swaps(cells, s, L.types, L.z);
   const pairs = [];
-  if (variant === "swap") spots.forEach((a, i) => spots.slice(i + 1).forEach(b => { if (cells[a[0]][a[1]][a[2]] !== cells[b[0]][b[1]][b[2]]) pairs.push([a, b]); }));
+  if (variant === "swap") {
+    spots.forEach((a, i) => spots.slice(i + 1).forEach(b => {
+      if (cells[a[0]][a[1]][a[2]] === cells[b[0]][b[1]][b[2]]) return;
+      const m = copy(cells);
+      [m[a[0]][a[1]][a[2]], m[b[0]][b[1]][b[2]]] = [m[b[0]][b[1]][b[2]], m[a[0]][a[1]][a[2]]];
+      if (!validate(m, L.z).length) pairs.push([a, b]);
+    }));
+  }
   if (variant === "swap" && pairs.length) {
     const [[x1, y1, z1], [x2, y2, z2]] = pick(r, pairs), back = copy(cells);
     [back[x1][y1][z1], back[x2][y2][z2]] = [back[x2][y2][z2], back[x1][y1][z1]];
-    return { type: "swap", posted: "Two packages swap places", question: { as: "pair", text: "Two packages swapped places. Tap both.", turns: 0, back, answer: [keyOf(x1, y1, z1), keyOf(x2, y2, z2)].sort() } };
+    return { type: "swap", posted: "Two pieces swap places", question: { as: "pair", text: "Two pieces swapped places. Tap both.", turns: 0, back, answer: [keyOf(x1, y1, z1), keyOf(x2, y2, z2)].sort() } };
   }
   let turns = variant === "turned" ? pick(r, [1, 3]) : 0;
   const shows = turns ? visibleSet(turn(cells, turns), boxFor(turns)) : visible;
-  let fair = spots.filter(([a, b, c]) => shows.has(turnKey(a, b, c, X, Y, turns)));
-  if (!fair.length) { turns = 0; fair = spots; }                  // nothing seen both ways: plain change
+  const changeable = spots.filter(s => alts(s).length);
+  let fair = changeable.filter(([a, b, c]) => shows.has(turnKey(a, b, c, X, Y, turns)));
+  if (!fair.length) { turns = 0; fair = changeable; }              // nothing seen both ways: plain change
+  if (!fair.length) return null;
   const [x, y, z] = pick(r, fair);
   const changed = copy(cells);
-  changeWare(changed, [x, y, z]);
+  changed[x][y][z] = pick(r, alts([x, y, z]));
   return turns
-    ? { type: "changeTurned", posted: "Spot the change, the stack turned", question: { as: "cell", text: `The stack's come back seen ${turnWords(turns)}, and one package is now another ware. Tap it.`, turns, back: turn(changed, turns), answer: turnKey(x, y, z, X, Y, turns), cell: { x, y, z } } }
-    : { type: "change", posted: "Spot the change", question: { as: "cell", text: "One package is now another ware. Tap it.", turns: 0, back: changed, answer: keyOf(x, y, z), cell: { x, y, z } } };
+    ? { type: "changeTurned", posted: "Spot the change, the stack turned", question: { as: "cell", text: `The stack's come back seen ${turnWords(turns)}, and one piece is now another cargo. Tap it.`, turns, back: turn(changed, turns), answer: turnKey(x, y, z, X, Y, turns), cell: { x, y, z } } }
+    : { type: "change", posted: "Spot the change", question: { as: "cell", text: "One piece is now another cargo. Tap it.", turns: 0, back: changed, answer: keyOf(x, y, z), cell: { x, y, z } } };
 }
 
 /**
@@ -325,7 +418,9 @@ function makeChange(r, cells, L, seen, visible, variant) {
  * stack shows the shape, so it comes after the counts; the four stacks of which-stack show nearly everything, so it
  * comes last. Questions come one at a time, so nothing later is seen before what comes earlier is answered or passed.
  */
-export const ASK_ORDER = ["count", "total", "tier", "most", "spot", "top", "turned", "which"];
+export const ASK_ORDER = ["count", "total", "weight", "worth", "tier", "most", "load", "fits", "spot", "top", "column", "turned", "which"];
+/** How many stacks a round may deal, from the same stream, to carry the questions its recipe wants. */
+const TRIES = 40;
 
 /**
  * Round r of a run: { r, level, cells, view, visible, seen, parts, orders }. Orders are fixed by the seed; prices are
@@ -335,23 +430,35 @@ export const ASK_ORDER = ["count", "total", "tier", "most", "spot", "top", "turn
  * orders are made of that. (The whole stack's own are in it too: one it shows by a sliver shows at least as much with
  * fewer in front, though the raster that finds it may miss a sliver drawn to another frame.)
  */
-export function makeRound(seed, r, team = 0) {
-  const L = levelOf(r), rand = rng(mix(seed, r));
-  const cells = makeStack(rand, L);
-  // the views take turns over the rounds that aren't change rounds
-  const view = L.change ? "all" : ["layers", "all", "slices", "pair"][(r - 1 - Math.floor((r - 1) / 4)) % 4];
-  const visible = visibleSet(cells);
-  const parts = team > 1 ? splitStack(cells, team) : null;
-  const seen = parts && view === "all" ? new Set([...visible, ...parts.flatMap(part => [...visibleSet(partCells(cells, part))])]) : visible;
-  if (L.change) return { r, level: L, cells, view, visible, seen, parts, orders: [makeChange(rand, cells, L, seen, visible, L.change)] };
-  const orders = [];
-  for (const type of shuffle(rand, kindsFor(view, r))) {
-    if (orders.length >= L.orders) break;
-    const o = makeOrder(rand, type, cells, L, view, seen);
-    if (o) orders.push(o);
+export function makeRound(seed, r, team = 0, recipe = null) {
+  const L = recipe || levelOf(r), rand = rng(mix(seed, r));
+  const view = viewFor(r, L);
+  const wanted = L.change ? [] : L.want.filter(k => KIND_VIEWS[k]?.includes(view));
+  // the stack is dealt again (from the same stream, so on every device the same) until it can carry every wanted question
+  // and the full number of orders, or the tries run out and the best of them stands
+  let best = null;
+  for (let attempt = 0, tries = wanted.length || L.change ? TRIES : 6; attempt < tries; attempt++) {
+    const cells = makeStack(rand, L), visible = visibleSet(cells), parts = team > 1 ? splitStack(cells, team) : null;
+    const seen = parts && view === "all" ? new Set([...visible, ...parts.flatMap(part => [...visibleSet(partCells(cells, part))])]) : visible;
+    const orders = [];
+    if (L.change) {
+      const o = makeChange(rand, cells, L, seen, visible, L.change);
+      if (o) orders.push(o);
+    } else {
+      const kinds = kindsFor(view, L.kinds), first = wanted.filter(k => kinds.includes(k));
+      for (const type of [...first, ...shuffle(rand, kinds.filter(k => !first.includes(k)))]) {
+        if (orders.length >= L.orders) break;
+        const o = makeOrder(rand, type, cells, L, view, seen);
+        if (o) orders.push(o);
+      }
+      orders.sort((a, b) => ASK_ORDER.indexOf(a.type) - ASK_ORDER.indexOf(b.type));
+    }
+    const got = wanted.filter(k => orders.some(o => o.type === k)).length;
+    const R = { r, level: L, cells, view, visible, seen, parts, orders };
+    if (!best || got > best.got || (got === best.got && orders.length > best.R.orders.length)) best = { got, R };
+    if (got === wanted.length && orders.length >= (L.change ? 1 : L.orders)) break;
   }
-  orders.sort((a, b) => ASK_ORDER.indexOf(a.type) - ASK_ORDER.indexOf(b.type));
-  return { r, level: L, cells, view, visible, seen, parts, orders };
+  return best.R;
 }
 
 // ---------- a stack in parts, for a team ----------

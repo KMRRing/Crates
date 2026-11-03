@@ -22,7 +22,7 @@ function fair(a, b, seed, r, team = 0) {
   const L = a.level, where = `${seed}/${r}${team ? ` (a team of ${team})` : ""}`;
   rounds++;
   if (!same(a.cells, b.cells) || !same(a.orders, b.orders)) fail("not repeatable", where);
-  if (a.cells.length !== L.x || a.cells[0].length !== L.y || a.cells[0][0].length !== L.z || L.x > 4 || L.y > 4 || L.z > 3 || L.wares > 5) fail("size", where);
+  if (a.cells.length !== L.x || a.cells[0].length !== L.y || a.cells[0][0].length !== L.z || L.x > 4 || L.y > 4 || L.z > 3 || L.types.length > 6) fail("size", where);
   a.cells.forEach(col => col.forEach(row => { for (let z = 1; z < row.length; z++) if (row[z] && !row[z - 1]) fail("floating package", where); }));
   if (Boolean(L.change) !== (r % 4 === 0)) fail("change round in the wrong place", where);
   byView[a.view] = (byView[a.view] || 0) + 1;
@@ -406,8 +406,8 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
   // met: a ware in the sun beside one in shadow must stay plainly another colour (8 ΔE), if not as far as its flat bar
   const worse = Object.keys(EYES).filter(eye => flat[eye].same < first[eye].same || flat[eye].any < first[eye].any || lit[eye].same < first[eye].same || lit[eye].any < Math.min(first[eye].any, 8));
   const show = (now, e) => `${now[e].same.toFixed(0)}/${now[e].any.toFixed(1)}`;
-  check(M.WARES.length === 5 && !worse.length,
-    `the five wares are at least as far apart as the first version's colours, for every eye (nearest pair, ΔE same face/any two: ${Object.keys(EYES).map(e => `${e} ${show(flat, e)} flat, ${show(lit, e)} lit and shadowed, against ${show(first, e)}`).join("; ")})`);
+  check(M.WARES.length === 6 && !worse.length,
+    `the six cargo types are at least as far apart as the first version's five colours, for every eye (nearest pair, ΔE same face/any two: ${Object.keys(EYES).map(e => `${e} ${show(flat, e)} flat, ${show(lit, e)} lit and shadowed, against ${show(first, e)}`).join("; ")})`);
 }
 
 console.log(bad ? `${bad} problems` : "all checks pass");

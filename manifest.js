@@ -7,11 +7,13 @@
 import { LIVES, ROUNDS, WARES, VIEWS, KINDS, makeRound, priceOf, skillFactor, recordAfter, shipBonus, turn,
   LANDING, MODES, timeline, partCells, freshTable, isTable, stageOf, roundOf, partFor, livesOf, playing, repliesOf, firstOpen, waitingFor, sayReady, goOn, reply,
   ship as shipIn, settleIfDue, setNext, again, scoresOf, verdicts, resultOf, bonusAt } from "./manifest-engine.js";
+import { CARGO, CARRIES, UNDER } from "./manifest-rules.js";
+import { LEVELS, CHAPTERS, COUNT, seedOf, recipeAt, starsFor, mendCamp, isOpen } from "./manifest-levels.js";
 import { stage, wareIcon, playOut, ready } from "./manifest-art.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause } from "./menu.js";
-import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { today, arrivedForToday } from "./suite.js";          // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
@@ -21,10 +23,14 @@ import { busy, waitMark } from "./loading.js";
 import { sure } from "./sure.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "manifest:run2", BEST = "manifest:best", DAILY = "manifest:daily", RECORD = "manifest:record";
+// RUN: the run in hand, in any mode. Its predecessor, manifest:run2, held a run of the five wares from before the cargo: a
+// run is rebuilt from its seed, so one of those would deal other stacks under its answers; it is removed unread.
+// CAMP: the ladder as kept (manifest-levels.js): { v, at (the level in hand), stars, played }. TRACK: the mode last chosen.
+const RUN = "manifest:run3", BEST = "manifest:best", DAILY = "manifest:daily", RECORD = "manifest:record", CAMP = "manifest:camp", TRACK = "manifest:track";
 
-// S: { seed, mode, round, score, lives, right, wrong, passed, phase: "orders" | "show" | "ask" | "review" | "over",
-//      prices, answers: { [order]: { given, right, paid } }, skipped: [order], judged, bonus }
+// S: { v: 3, seed, mode: "random" | "daily" | "level", lv (a level's number), round, score, lives, right, wrong, passed,
+//      phase: "orders" | "show" | "ask" | "review" | "over", prices, answers: { [order]: { given, right, paid } },
+//      skipped: [order], judged, bonus, counted (the run's result is in your bests or stars), stars (a level run's) }
 // At a table, S is the round in hand in the same shape, made from the room (tableS), for the same drawing.
 let S = null;
 let R = null;                 // the current round from the engine
@@ -37,17 +43,33 @@ const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); 
 const save = () => { if (!T) write(RUN, S); };           // a table's round lives in the room, never in your run
 const money = n => n.toLocaleString("en-GB");
 const node = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-try { localStorage.removeItem("manifest:duel"); } catch { /* private mode */ }   // the head-to-head's kept run, read no more
+try { localStorage.removeItem("manifest:duel"); localStorage.removeItem("manifest:run2"); } catch { /* private mode */ }   // the head-to-head's kept run, and the old cargo's run, read no more
+let camp = mendCamp(read(CAMP, null));
+const saveCamp = () => write(CAMP, camp);
+const STAR = "★", HOLLOW = "☆";
+const stars = n => STAR.repeat(n) + HOLLOW.repeat(3 - n);
 
 // ---------- the run ----------
-function start(mode) {
-  S = { seed: mode === "daily" ? today() : randomSeed(), mode, round: 1, score: 0, lives: LIVES, right: 0, wrong: 0, passed: 0 };
-  history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`);
+/** The rounds a run has: twelve, or a level's own. */
+const total = () => (S?.mode === "level" ? LEVELS[S.lv].rounds : ROUNDS);
+/** The lives a run starts with, as coins in the corner. */
+const pips = () => (S?.mode === "level" ? LEVELS[S.lv].lives : LIVES);
+/** Round S.round of the run in hand, from its seed (and a level's recipe). */
+const roundFor = () => makeRound(S.seed, S.round, 0, S.mode === "level" ? recipeAt(S.lv, S.round) : null);
+/** A run of a mode: Random and Today's are twelve rounds (Today's from the day's seed), a level its few rounds (its own seed
+ *  the first time it is tried, so the first run is everyone's, then a fresh one each time). */
+function start(mode, lv = null, seed = null) {
+  const level = mode === "level";
+  if (level) { camp.at = lv; camp.played[lv]++; saveCamp(); }
+  S = { v: 3, seed: seed ?? (mode === "daily" ? today() : level && camp.played[lv] === 1 ? seedOf(lv) : randomSeed()), mode, ...(level ? { lv } : {}),
+    round: 1, score: 0, lives: level ? LEVELS[lv].lives : LIVES, right: 0, wrong: 0, passed: 0 };
+  write(TRACK, mode === "level" ? "levels" : mode);
+  history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : level ? `#lv=${lv}&s=${S.seed}` : `#s=${S.seed}`);
   openRound();
 }
 /** A new round: its tally, priced by the round and your record, before the stack comes in. */
 function openRound() {
-  R = makeRound(S.seed, S.round);
+  R = roundFor();
   const record = read(RECORD, {});
   Object.assign(S, { phase: "orders", answers: {}, skipped: [], judged: false, bonus: 1,
     prices: R.orders.map(o => priceOf(o.type, S.round, record[o.type])),
@@ -62,9 +84,11 @@ function drawOrders() {
   title();
   clear();
   viewOn(false);
+  const chapter = S.mode === "level" ? CHAPTERS[LEVELS[S.lv].chapter] : null;
   fillBook(R.level.change
     ? "Watch the stack: it will go aboard and come back with something different."
-    : "The tally: the questions to come. Answer any, pass any; a wrong answer costs a life.");
+    : chapter && S.round === 1 ? chapter.about
+      : "The tally: the questions to come. Answer any, pass any; a wrong answer costs a life.");
   go("Land the cargo", showStack);
 }
 /** The tally: a line of what's coming, then each entry's kind, what it asks about and its price, ruled like a ledger's
@@ -210,7 +234,7 @@ const turnedOf = q => turn(R.cells, q.turns);
 function pictureFor(o) {
   const q = o.question;
   if (o.type === "turned") return stage(turnedOf(q), { turns: q.turns, grey: true, ring: q.at }).panel;
-  if (q.cell && q.as === "ware") return stage(R.cells, { blank: true, mark: q.cell }).panel;
+  if (q.cell && (q.as === "ware" || q.as === "number")) return stage(R.cells, { blank: true, mark: q.cell }).panel;     // a spot, or the piece or column a number asks about
   return null;
 }
 /** The question in hand, as a card with everything needed to answer it at a tap: the words and the price, its picture,
@@ -291,11 +315,12 @@ function judge() {
   });
   if (Object.values(S.answers).some(a => !a.right)) navigator.vibrate?.(70);
   write(RECORD, record);
+  S.passed += R.orders.length - answered();             // counted with the round (passed one by one or all at once)
   S.judged = true;
   drawHud();
-  // the run's last round judged (or its lives gone): its score is final, for your best and today's at once (the
-  // summary counts it again, changing nothing), and random mode goes on from here
-  if (S.lives <= 0 || S.round >= ROUNDS) { countRun(); roundOver("manifest"); }
+  // the run's last round judged (or its lives gone): its result is final, for your best, today's or the level's stars at
+  // once (the summary counts it again, changing nothing), and random mode goes on from here
+  if (S.lives <= 0 || S.round >= total()) { countRun(); if (S.mode !== "level") roundOver("manifest"); }
 }
 
 // ---------- the review ----------
@@ -313,9 +338,8 @@ function reviewPhase(focus = null) {
   $("asks").replaceChildren(...R.orders.map((o, i) => reviewRow(o, i, focus, () => reviewPhase(focus === i ? null : i))));
   viewOn(true);
   $("view").replaceChildren(reviewPanel(focus));
-  const last = S.lives <= 0 || S.round >= ROUNDS;
+  const last = S.lives <= 0 || S.round >= total();
   go(last ? "See how it went" : `Round ${S.round + 1}`, () => {
-    S.passed += R.orders.length - answered();             // counted once, as the round is left (passed one by one or all at once)
     if (last) { over(); return; }
     S.round++;
     openRound();
@@ -343,25 +367,45 @@ function reviewPanel(focus) {
   if (q && o.type === "turned") return stage(turnedOf(q), { turns: q.turns, ring: q.at }).panel;
   return stage(R.cells, { mark: q?.cell || null, highlight: q?.ware || (o?.type === "most" ? q.answer : null), tier: q?.tier ?? null }).panel;
 }
-/** The run's score, for your best (or today's), which it returns. */
-function countRun() { return S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score); }
+/** The run's result, counted once: your best (Random's or Today's) or the level's stars. It returns the best, or the stars. */
+function countRun() {
+  if (S.mode === "level") {
+    if (S.counted == null) {
+      S.counted = starsFor(S.lv, { right: S.right, wrong: S.wrong, passed: S.passed });
+      if (S.counted > camp.stars[S.lv]) camp.stars[S.lv] = S.counted;
+      if (S.counted) camp.at = Math.min(S.lv + 1, COUNT - 1);          // the next level is the one in hand, once this one is passed
+      saveCamp();
+    }
+    return S.counted;
+  }
+  return S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score);
+}
 function over() {
   S.phase = "over";
-  save();
   const best = countRun();
+  save();
   const body = $("menuBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = node(tag, cls, text); body.appendChild(n); return n; };
-  add("p", "mf-big", money(S.score));
+  const level = S.mode === "level", rounds = S.lives > 0 ? total() : S.round;
+  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); };
+  if (level) add("p", "mf-big mf-stars", stars(best));
+  else add("p", "mf-big", money(S.score));
   const stats = add("div", "mf-stats");
-  for (const [v, label] of [[S.lives > 0 ? `${ROUNDS}` : `${S.round}`, S.lives > 0 ? "rounds" : "rounds, out of lives"], [`${S.right}/${S.right + S.wrong}`, `right (${S.passed} passed)`], [money(best), S.mode === "daily" ? "today's best" : "your best"]]) {
-    const box = node("div"); box.append(node("b", null, v), node("span", null, label)); stats.appendChild(box);
+  const figures = [[`${rounds}`, S.lives > 0 ? "rounds" : "rounds, out of lives"], [`${S.right}/${S.right + S.wrong}`, `right (${S.passed} passed)`],
+    level ? [money(S.score), `${LEVELS[S.lv].name}`] : [money(best), S.mode === "daily" ? "today's best" : "your best"]];
+  for (const [v, label] of figures) { const box = node("div"); box.append(node("b", null, v), node("span", null, label)); stats.appendChild(box); }
+  if (level) {
+    const next = S.lv + 1 < COUNT && isOpen(camp, S.lv + 1);
+    if (best && next) button(`Level ${S.lv + 2}: ${LEVELS[S.lv + 1].name}`, () => start("level", S.lv + 1), "btn primary wide");
+    button(best && next ? "Play it again" : best ? "Play again" : "Try again", () => start("level", S.lv), best && next ? "btn wide" : "btn primary wide");
+    button("The levels", () => { write(TRACK, "levels"); openMenu(); });
+    $("menuDlg").querySelector("h2").textContent = best ? (best === 3 ? "A clean manifest" : "Level passed") : "Out of lives";
+  } else {
+    button("Again", () => start("random"), "btn primary wide");
+    button(S.mode === "daily" ? "A random run" : "Today's run", () => start(S.mode === "daily" ? "random" : "daily"));
+    $("menuDlg").querySelector("h2").textContent = S.lives > 0 ? "The run's done" : "Out of lives";
   }
-  const again = add("button", "btn primary wide", "Again");
-  again.type = "button"; again.addEventListener("click", () => { $("menuDlg").close(); start("random"); });
-  const daily = add("button", "btn wide", S.mode === "daily" ? "A random run" : "Today's run");
-  daily.type = "button"; daily.addEventListener("click", () => { $("menuDlg").close(); start(S.mode === "daily" ? "random" : "daily"); });
-  $("menuDlg").querySelector("h2").textContent = S.lives > 0 ? "The run's done" : "Out of lives";
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function bestEver(score) { const b = Math.max(read(BEST, 0), score); write(BEST, b); return b; }
@@ -369,9 +413,9 @@ function bestDaily(score) { const d = read(DAILY, {}); d[today()] = Math.max(d[t
 
 // ---------- the frame ----------
 function drawHud() {
-  $("round").textContent = `Round ${S.round} of ${ROUNDS}`;
+  $("round").textContent = S.mode === "level" ? `Level ${S.lv + 1} · round ${S.round} of ${total()}` : `Round ${S.round} of ${ROUNDS}`;
   $("score").textContent = money(S.score);
-  $("lives").replaceChildren(...Array.from({ length: LIVES }, (_, k) => node("i", `mf-life${k >= S.lives ? " gone" : ""}`)));
+  $("lives").replaceChildren(...Array.from({ length: pips() }, (_, k) => node("i", `mf-life${k >= S.lives ? " gone" : ""}`)));
 }
 function title() {
   $("title").textContent = `Round ${S.round} · ${R.level.change ? "spot the change" : VIEWS[R.view]}`;
@@ -923,23 +967,68 @@ function toast(msg, ms = 2600) {
 }
 
 // ---------- menu and messages ----------
-// the menu: Play (start the run you've chosen), Content (random or today's), About (your bests); at a table, its own
-let pick = null;                                              // the run the menu will start: "random" or "daily"
+// the menu: Play (start what you've chosen, the cargo list), Content (Random, Levels or Today's; in Levels the ladder),
+// About (your bests, or the stars); at a table, its own
+let track = read(TRACK, "random");                            // what the menu will start: "random", "levels" or "daily"
+if (!["random", "levels", "daily"].includes(track)) track = "random";
+/** The levels, three to a row under their chapter: its number, the stars won and its name. A level not open yet is dimmed;
+ *  any open one can be played at any time. */
+function levelList() {
+  const all = node("div", "mf-levels");
+  CHAPTERS.forEach((ch, c) => {
+    const grid = node("div", "mf-lgrid"), to = CHAPTERS[c + 1]?.from ?? COUNT;
+    all.append(node("h3", "mf-chap", ch.name), node("p", "mf-chap-about", ch.about), grid);
+    for (let n = ch.from; n < to; n++) {
+      const won = camp.stars[n], open = isOpen(camp, n), b = node("button", won ? "done" : ""), row = node("div", "mf-lrow");
+      b.type = "button";
+      b.disabled = !open;
+      if (n === camp.at) b.setAttribute("aria-current", "true");
+      b.setAttribute("aria-label", `Level ${n + 1}, ${LEVELS[n].name}${won ? `, ${won} ${won === 1 ? "star" : "stars"}` : ""}${open ? "" : ", not open yet"}`);
+      row.append(node("b", null, n + 1), node("span", null, open ? stars(won) : ""));
+      b.append(row, node("div", "mf-lname", LEVELS[n].name), node("div", "mf-lsize", `${LEVELS[n].rounds} rounds`));
+      b.addEventListener("click", () => { $("menuDlg").close(); confirmStart("level", n); });
+      grid.append(b);
+    }
+  });
+  return all;
+}
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   $("menuDlg").querySelector("h2").textContent = "Menu";
   if (T) { tableMenu(body); if (!$("menuDlg").open) $("menuDlg").showModal(); return; }
-  pick ??= S?.mode === "daily" ? "daily" : "random";
-  part(body, "play").append(action("Start a run", () => confirmStart(pick), "primary"));
-  part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
+  const play = part(body, "play"), content = part(body, "content"), about = part(body, "about");
+  if (track === "levels") play.append(action(`Level ${camp.at + 1}: ${LEVELS[camp.at].name}`, () => confirmStart("level", camp.at), "primary"));
+  else play.append(action(track === "daily" ? "Today's manifest" : "Start a run", () => confirmStart(track === "daily" ? "daily" : "random"), "primary"));
+  play.append(action("The cargo list", showCargo, "link"));
+  content.append(choice("Play", [["random", "Random"], ["levels", "Levels"], ["daily", "Today's"]], track, v => { track = v; write(TRACK, v); openMenu(); }));
+  if (track === "levels") content.append(levelList());
+  else content.append(line(track === "daily" ? "Twelve rounds, the same stacks for everyone today." : "Twelve rounds and three lives; the cargo widens as the rounds go."));
   const best = read(BEST, 0), daily = read(DAILY, {})[today()];
-  part(body, "about").append(line(`${best ? `Best ${money(best)}` : "No finished run yet"}${daily != null ? `, today ${money(daily)}` : ""}`));
+  if (track === "levels") about.append(line(`${camp.stars.filter(Boolean).length} of ${COUNT} levels passed, ${camp.stars.reduce((a, b) => a + b, 0)} stars. Three stars for every question right.`));
+  else about.append(line(`${best ? `Best ${money(best)}` : "No finished run yet"}${daily != null ? `, today ${money(daily)}` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-async function confirmStart(mode) {
+/** What each cargo weighs and is worth, what it carries and what it can stand on: the rules in a list, from the tables. */
+function showCargo() {
+  const body = $("cargoBody"), nameOf = t => CARGO[t - 1].name.toLowerCase();
+  body.replaceChildren(node("p", "mf-cargo-intro", "A piece stands on the quay or on the piece below it. A column may carry only so much weight (cwt, hundredweight) above each piece. Timber lies in layers that cross."));
+  const list = node("div", "mf-cargo");
+  for (const c of CARGO) {
+    const row = node("div", "mf-cargo-row"), icon = node("div", "mf-cargo-icon"), text = node("div"), carries = CARRIES[c.id].map(nameOf), under = UNDER[c.id].filter(Boolean).map(nameOf);
+    icon.append(wareIcon(c.id));
+    text.append(node("b", null, c.name), node("span", null, `weighs ${c.w} cwt · worth ${c.worth} marks`),
+      node("span", null, `carries ${carries.length ? carries.join(", ") : "nothing"} · bears ${c.bears >= 99 ? "any weight" : c.bears ? `${c.bears} cwt` : "nothing"}`),
+      node("span", null, `stands on the quay${under.length ? `, or on ${under.join(", ")}` : ""}`));
+    row.append(icon, text);
+    list.append(row);
+  }
+  body.append(list);
+  if (!$("cargoDlg").open) $("cargoDlg").showModal();
+}
+async function confirmStart(mode, lv = null) {
   if (S && S.phase !== "over" && (S.round > 1 || answered()) && !(await sure("Start a new run? This one isn't finished."))) return;
-  start(mode);
+  start(mode, lv);
 }
 
 // ---------- wiring ----------
@@ -947,6 +1036,7 @@ bindSwitcher($("appsBtn"), "manifest");
 document.querySelector(".mf-mark").innerHTML = APPS.find(a => a.id === "manifest").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("cargoClose").addEventListener("click", () => $("cargoDlg").close());
 document.addEventListener("visibilitychange", () => {
   if (T) { if (!document.hidden) { together.resync(); awake(true); } return; }    // a table's clock never stops
   if (document.hidden && S?.phase === "show") { clearTimeout(showTimer); showStack(); }   // alone, a hidden stack is shown again from the start
@@ -955,16 +1045,31 @@ window.addEventListener("pageshow", e => { if (e.persisted && T) together.resync
 
 // for tests and debugging (skew: moves this device's idea of the database's clock on, as if that much time had passed)
 window.__manifest = { get state() { return S; }, get round() { return R; }, get table() { return T; }, get together() { return together; }, get now() { return now(); }, get shown() { return shown; },
-  answer, pass, start, ship: () => (T ? shipNow() : endShow(1)), over, refresh, skew: ms => { offset += ms; refresh(); } };
+  answer, pass, start, ship: () => (T ? shipNow() : endShow(1)), over, refresh, skew: ms => { offset += ms; refresh(); }, get camp() { return camp; } };
 
-function solo() {
+/** Whether a saved run can be picked up: the shape this version keeps, a mode it knows, a round it has. */
+function usable(run) {
+  if (!run || run.v !== 3 || !["random", "daily", "level"].includes(run.mode) || !Number.isInteger(run.round) || run.round < 1 || !run.phase) return false;
+  if (run.mode === "level" && !(Number.isInteger(run.lv) && run.lv >= 0 && run.lv < COUNT)) return false;
+  return run.round <= (run.mode === "level" ? LEVELS[run.lv].rounds : ROUNDS) && Number.isFinite(run.seed);
+}
+/** A run begun and not over (a first round untouched is nothing to lose). */
+const begun = run => run && run.phase !== "over" && (run.round > 1 || Object.keys(run.answers || {}).length > 0);
+async function solo() {
   S = read(RUN, null);
+  if (!usable(S)) S = null;
   const hash = new URLSearchParams(location.hash.slice(1));
-  const linked = Number(hash.get("d") || hash.get("s")), mode = hash.get("d") ? "daily" : "random";
-  if (linked && !(S && S.seed === linked && S.mode === mode)) { S = { seed: linked, mode, round: 1, score: 0, lives: LIVES, right: 0, wrong: 0, passed: 0 }; openRound(); }
-  else if (!S || S.phase === "over" || !S.phase) start("random");
+  const seed = Number(hash.get("d") || hash.get("s")), lv = hash.has("lv") ? Number(hash.get("lv")) : null;
+  const mode = hash.get("d") ? "daily" : lv != null ? "level" : "random";
+  const linked = seed > 0 && (lv == null || (Number.isInteger(lv) && lv >= 0 && lv < COUNT && isOpen(camp, lv)));
+  if (arrivedForToday()) {                             // the games screen's tile, with today's still to play
+    const mine = S && S.mode === "daily" && S.seed === today() && S.phase !== "over";
+    if (!mine && (!begun(S) || await sure("Leave your run for today's manifest?", { yes: "Today's" }))) { start("daily"); return; }
+  }
+  if (linked && !(S && S.seed === seed && S.mode === mode && (mode !== "level" || S.lv === lv))) start(mode, mode === "level" ? lv : null, seed);
+  else if (!S || S.phase === "over") start(track === "levels" ? "level" : track, track === "levels" ? camp.at : null);
   else {                                               // a saved run picks up where it was; a showing starts again
-    R = makeRound(S.seed, S.round);
+    R = roundFor();
     drawHud();
     if (S.phase === "orders") drawOrders();
     else if (S.phase === "show") showStack();

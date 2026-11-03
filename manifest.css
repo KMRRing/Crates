@@ -197,3 +197,27 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-order .mf-price { border-left: 1px solid var(--rule); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-pass { border-radius: 999px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-view { border-radius: 14px; }
+
+/* the ladder in the menu: levels three to a row under their chapter, each its number, the stars won and its name */
+#menuBody .mf-chap { margin: .9rem 0 .15rem; font-size: .66rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass); }
+#menuBody .mf-chap:first-child { margin-top: .4rem; }
+.mf-chap-about { margin: 0 0 .4rem; font-size: .78rem; line-height: 1.3; color: var(--ink-soft); }
+.mf-lgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+.mf-lgrid button { display: grid; gap: .2rem; padding: .4rem .5rem .45rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.mf-lgrid button.done { background: var(--mf-in-soft); }
+.mf-lgrid button[aria-current] { border-color: var(--mf-in); box-shadow: inset 0 0 0 1.5px var(--mf-in); }
+.mf-lgrid button:disabled { opacity: .4; cursor: default; }
+.mf-lrow { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; min-width: 0; }
+.mf-lrow b { font-size: .9rem; font-variant-numeric: tabular-nums; }
+.mf-lrow span { color: var(--brass); font-size: .72rem; letter-spacing: .1em; white-space: nowrap; }
+.mf-lname { font-size: .66rem; line-height: 1.2; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--ink-soft); overflow: hidden; overflow-wrap: anywhere; }
+.mf-lsize { font-size: .66rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mf-stars { letter-spacing: .15em; color: var(--brass); }
+
+/* the cargo list: each type's picture, what it weighs and is worth, what it carries and stands on */
+.mf-cargo-intro { margin: 0 0 .6rem; font-size: .86rem; line-height: 1.35; color: var(--ink-soft); }
+.mf-cargo { display: grid; gap: .4rem; }
+.mf-cargo-row { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); gap: .6rem; align-items: center; padding: .4rem .5rem; border-radius: 5px; background: var(--yard); }
+.mf-cargo-icon :is(svg, canvas) { width: 2.75rem; height: 2.75rem; display: block; }
+.mf-cargo-row b { display: block; font-size: .78rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--mf-in); }
+.mf-cargo-row span { display: block; font-size: .8rem; line-height: 1.3; }

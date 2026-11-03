@@ -298,7 +298,7 @@ export function packageShader(wareColours) {
 uniform float uDim; uniform float uFade; uniform vec3 uDimTo; uniform float uMark; uniform vec3 uInk; uniform vec3 uPaper;
 ${COMMON}
 ${PACKAGE_SURFACE}
-const vec3 WC[7] = vec3[7](${wc});`,
+const vec3 WC[${wareColours.length}] = vec3[${wareColours.length}](${wc});`,
     color: `
   float mfH, mfRough, mfMetal;
   {
@@ -313,12 +313,15 @@ const vec3 WC[7] = vec3[7](${wc});`,
     float pw = max((fwidth(s) + fwidth(t)) * .6, 1e-4);
     float w = vWare;
     Surf o; o.col = WC[int(w + .5)]; o.rough = .8; o.metal = 0.; o.h = 0.; o.ao = 1.;
-    if (w < .5 || w > 5.5) tarp(f, s, t, FS, FT, pw, o);
-    else if (w < 1.5) bale(f, s, t, FS, FT, pw, o);
-    else if (w < 2.5) sack(f, s, t, FS, FT, pw, o);
-    else if (w < 3.5) chest(f, s, t, FS, FT, pw, o);
+    // 1 crate, 2 barrel, 3 timber, 4 ingot, 5 chest, 6 sack (0 and 7 are the tarpaulin and the lit one); each in the drawing
+    // that stands in for its own until its model is made
+    if (w < .5 || w > 6.5) tarp(f, s, t, FS, FT, pw, o);
+    else if (w < 1.5) chest(f, s, t, FS, FT, pw, o);
+    else if (w < 2.5) cask(f, s, t, FS, FT, pw, o);
+    else if (w < 3.5) bale(f, s, t, FS, FT, pw, o);
     else if (w < 4.5) bundle(f, s, t, FS, FT, pw, o);
-    else cask(f, s, t, FS, FT, pw, o);
+    else if (w < 5.5) chest(f, s, t, FS, FT, pw, o);
+    else sack(f, s, t, FS, FT, pw, o);
     vec3 col = o.col * o.ao;
     float lum = dot(col, vec3(.3, .59, .11));
     col = mix(col, mix(vec3(lum), uDimTo, .55), uDim);                 // dimmed: the page's tone, grey of its own
