@@ -17,6 +17,7 @@ import "./pwa.js";
 
 const $ = id => document.getElementById(id);
 const OPTS = "factor:opts", RECORD = "factor:record";
+const VIEW = "suite:factor-view";             // the camera the player arranged: suite: keys stay on the device (its screen is its own)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -28,6 +29,12 @@ if (!TARGETS.includes(opts.vp)) opts.vp = DEFAULTS.vp;
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";      // Easy is gone (October 2026)
 if (![3, 4].includes(opts.seats)) opts.seats = DEFAULTS.seats;
 const saveOpts = () => write(OPTS, opts);
+/** The camera kept on this device, as the 3D island wrote it. A watching frame reads it but never writes: its game is the partner's. */
+const keptView = () => { try { return localStorage.getItem(VIEW); } catch { return null; } };
+const keepView = text => {
+  if (IN_FRAME) return;
+  try { if (text) localStorage.setItem(VIEW, text); else localStorage.removeItem(VIEW); } catch { /* private mode */ }
+};
 
 let toastTimer = 0;
 function toast(msg, ms = 2800) {
@@ -174,7 +181,7 @@ function drawBoard(v) {
 async function useView() {
   if (island && opts.flat) { island.dispose(); island = null; }
   if (!island && !opts.flat) {
-    try { island = (await import("./factor-3d.js")).createIsland($("board")); }
+    try { island = (await import("./factor-3d.js")).createIsland($("board"), { view: keptView(), onView: keepView }); }
     catch (err) { console.warn("Factor: no 3D here, so the island is drawn flat.", err); island = null; }
   }
   $("app").classList.toggle("three", !!island);
@@ -445,6 +452,10 @@ function openMenu() {
   set.append(line("The points and players apply from the next game."));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; keep(); }));
   set.append(toggle("Flat island, to save battery", opts.flat, on => { opts.flat = on; keep(); useView(); }));
+  if (island) {
+    set.append(line("Drag the island to turn it, pinch to zoom, two fingers to move it, double-tap to reset."));
+    set.append(action("Reset view", () => island?.resetView()));
+  }
   const r = read(RECORD, { played: 0, won: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
