@@ -62,9 +62,9 @@ html[data-theme="office"][data-mode="night"] { --fc-in: #479EF5; }
 .fc-mc .fc-pi { width: .5rem; height: .5rem; color: inherit; }
 .fc-fleet.hold .fc-mc { border-color: var(--fc-in); background: var(--fc-soft); }
 
-/* cards in the air: a fixed layer over the page that takes no tap; the decks that stand where a card comes from or goes to */
+/* cards in the air: a fixed layer over the page that takes no tap */
 .fc-fx { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
-.fc-ghost, .fc-pile { position: fixed; left: 0; top: 0; --cw: 1.7rem; width: var(--cw); height: calc(var(--cw) * 1.4); will-change: transform, opacity; }
+.fc-ghost { position: fixed; left: 0; top: 0; --cw: 1.7rem; width: var(--cw); height: calc(var(--cw) * 1.4); will-change: transform, opacity; }
 .fc-gin, .fc-gf, .fc-gb { position: absolute; inset: 0; }
 .fc-card { box-sizing: border-box; display: block; width: 100%; height: 100%; border-radius: 4px; border: 1.5px solid var(--brass); box-shadow: 0 2px 5px color-mix(in srgb, var(--fc-mix) 28%, transparent); }
 .fc-card.res { display: grid; place-items: center; background: var(--r5); }
@@ -75,9 +75,7 @@ html[data-theme="office"][data-mode="night"] { --fc-in: #479EF5; }
 .fc-card.dev .fc-pi { width: 66%; height: auto; aspect-ratio: 1; color: var(--fc-in); }
 .fc-card.back { background: var(--fc-in); border-color: var(--brass);
   background-image: repeating-linear-gradient(45deg, transparent 0 .3rem, color-mix(in srgb, var(--sheet) 28%, transparent) .3rem .36rem), repeating-linear-gradient(-45deg, transparent 0 .3rem, color-mix(in srgb, var(--sheet) 28%, transparent) .3rem .36rem); }
-.fc-pile .fc-card { position: absolute; inset: 0; }
-.fc-pile .fc-card:nth-child(1) { transform: translate(-.2rem, .2rem); } .fc-pile .fc-card:nth-child(2) { transform: translate(-.1rem, .1rem); }
-.fc-pile.devs .fc-card.back { background-color: var(--brass-lo, var(--brass)); }
+.fc-dk.devs .fc-card.back { background-color: var(--brass-lo, var(--brass)); }
 
 /* ---------- what's asked, or what just happened ---------- */
 .fc-strip { display: flex; align-items: center; justify-content: space-between; gap: .5rem; height: 2.5rem; margin: .35rem 0 .25rem; font-size: .84rem; line-height: 1.25; color: var(--ink-soft); }
@@ -89,7 +87,27 @@ html[data-theme="office"][data-mode="night"] { --fc-in: #479EF5; }
 
 /* ---------- the island ---------- */
 /* the picture is as large as the box allows, whichever way the box is short (its shape, --aspect, is set by the page) */
-.fc-board { display: grid; place-items: center; min-height: 0; overflow: hidden; container-type: size; }
+/* the stage is the island's box: the island fills it, and the decks (top left) and a trade's card (top right) stand over its corners without moving it */
+.fc-stage { position: relative; min-height: 0; }
+.fc-board { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; container-type: size; }
+.fc-deck { position: absolute; top: .4rem; left: .4rem; z-index: 2; display: flex; gap: .55rem; pointer-events: none; }
+.fc-dk { position: relative; display: block; width: 1.25rem; height: 1.75rem; margin: 0 .2rem .2rem 0; }
+.fc-dk .fc-card { position: absolute; inset: 0; width: auto; height: auto; box-shadow: 0 1px 2px color-mix(in srgb, var(--fc-mix) 28%, transparent); }
+.fc-dk .fc-card:nth-child(1) { transform: translate(.2rem, .2rem); } .fc-dk .fc-card:nth-child(2) { transform: translate(.1rem, .1rem); }
+.fc-pop { position: absolute; top: .4rem; right: .4rem; z-index: 2; box-sizing: border-box; width: min(9.6rem, 52%); max-height: calc(100% - .8rem); overflow-y: auto; padding: .35rem .4rem .3rem; border-radius: 6px; background: color-mix(in srgb, var(--sheet) 94%, transparent); border: 1px solid var(--brass); box-shadow: 0 2px 8px color-mix(in srgb, var(--fc-mix) 22%, transparent); font-size: .68rem; }
+.fc-pop[hidden] { display: none; }
+.fc-pop-h { display: flex; align-items: center; gap: .25rem; margin: 0 0 .22rem; color: var(--ink-soft); line-height: 1.2; }
+.fc-pop-h b { color: var(--ink); }
+.fc-pop .fc-sum { margin: 0; padding: .2rem .2rem; gap: .15rem .25rem; }
+.fc-pop .fc-tc { font-size: .78rem; }
+.fc-pop .fc-tc .fc-ic.in { width: .95rem; height: .95rem; }
+.fc-pop-go { display: flex; gap: .25rem; margin-top: .3rem; }
+.fc-pop-go .btn { flex: 1 1 0; min-width: 0; min-height: 1.9rem; padding: .1rem 0; font-size: .66rem; font-stretch: normal; letter-spacing: 0; text-transform: none; }
+.fc-pop-skip { display: block; width: 100%; margin-top: .15rem; padding: .3rem 0 .05rem; border: 0; background: none; color: var(--ink-soft); font-size: .62rem; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.fc-pop .fc-answers li { padding: .35rem 0; gap: .15rem .4rem; }
+.fc-pop .fc-answers .btn { min-height: 1.9rem; padding: .1rem .5rem; font-size: .66rem; font-stretch: normal; letter-spacing: 0; text-transform: none; }
+.fc-pop .fc-answers .nm { font-size: .68rem; }
+.fc-pop .fc-answers li.no { padding: .15rem 0; }
 .fc-svg { display: block; width: min(100cqw, 100cqh * var(--aspect, 1)); height: min(100cqh, 100cqw / var(--aspect, 1)); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .fc-sea { fill: var(--sea); stroke: var(--brass); stroke-width: .05; }
 .fc-jetty { fill: none; stroke: var(--brass); stroke-width: .07; stroke-linejoin: round; stroke-linecap: round; }
@@ -117,7 +135,7 @@ text.fc-rate { fill: var(--ink); font-weight: 800; font-family: inherit; }
 .fc-ship .sail { fill: var(--disc); stroke: #3B2B1D; stroke-width: .03; stroke-linejoin: round; }
 .fc-last { fill: none; stroke: var(--sheet); stroke-width: .06; stroke-dasharray: .12 .1; opacity: .9; }
 /* the island in 3D (factor-3d.js): the canvas fills the box, and over it the numbers, the rates and the places a tap may go */
-.fc-board.three { display: block; position: relative; touch-action: none; cursor: grab; }      /* the island takes the drag and the pinch, not the page */
+.fc-board.three { display: block; touch-action: none; cursor: grab; }      /* the island takes the drag and the pinch, not the page */
 .fc-board.three.orbiting { cursor: grabbing; }
 .fc-board.three { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }      /* a drag across the numbers selects nothing */
 .fc-gl, .fc-over { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -252,7 +270,7 @@ html #bar .fc-go.primary { flex: 1.4 1 0; }
 @media (orientation: landscape) and (min-width: 700px) {
   #app.factor { --beside: 24rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
   #app.factor .fc-strip { grid-column: 1 / -1; grid-row: 2; }
-  #app.factor .fc-board { grid-column: 1; grid-row: 3 / 5; }
+  #app.factor .fc-stage { grid-column: 1; grid-row: 3 / 5; }
   #app.factor .fc-seats { grid-column: 2; grid-row: 3; grid-template-columns: repeat(2, minmax(0, 1fr)); height: auto; margin-top: 0; }
   #app.factor .fc-seat { gap: .15rem; padding: .3rem .4rem; }
   #app.factor .fc-side { grid-column: 2; grid-row: 4; justify-content: flex-end; min-height: 0; }

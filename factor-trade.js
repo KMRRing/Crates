@@ -1,12 +1,14 @@
 // Factor's one trade sheet. You pick what you give and what you ask for as tiles (the five resources and a "?" for any kind) with
 // a toggle at the top, Players | Bank, and the sheet is the same in both: the bank fixes the other side to itself at your
 // rates (shown on the tiles) and trades at once; Players sends the offer to the table, whose answers are counter-proposals
-// naming the specific cards, which you take one of or turn all down. The same tiles answer an offer that comes to you.
+// naming the specific cards, which you take one of or turn all down (on the corner card, below). The same tiles name a
+// counter to an offer that comes to you.
 // This file is the sheet's arithmetic and markup (pure strings, tested in Node); factor.js keeps its state and the taps.
-import { MAX_ANY, MAX_OFFERS, cards, rates, bankOf, bankFit, bankWhy, counterWhy, answerOf, isExact } from "./factor-rules.js";
+import { MAX_ANY, MAX_OFFERS, has, cards, rates, bankOf, bankFit, bankWhy, counterWhy, answerOf, isExact } from "./factor-rules.js";
 import { RES } from "./factor-board.js";
 import { resIcon } from "./factor-draw.js";
 
+const MAX_ASK = 9;                                                 // the most of one kind a counter asks of the proposer (the compose sheet's own cap)
 const sum = a => a.reduce((t, x) => t + x, 0);
 const ZERO = () => [0, 0, 0, 0, 0];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -96,7 +98,7 @@ export function composeHtml(s, me, t, r, { on }) {
 
 /** The answer sheet for an offer to you: the same tiles, filled in with a first guess; yes if it is the offer as it stands, else a counter. */
 export function answerHtml(s, me, a, { name, skipping }) {
-  const o = s.offer, hand = s.hand[me], proposer = s.hand[o.from], fixed = o.ag > 0 || o.aw > 0;
+  const o = s.offer, hand = s.hand[me], fixed = o.ag > 0 || o.aw > 0;
   // `a.give` is what the proposer gives (you get), `a.get` what you give
   const needGet = sum(o.get) + o.aw, needGive = sum(o.give) + o.ag;
   const yourSide = tiles("g", a.get, 0, k => ({
@@ -105,8 +107,8 @@ export function answerHtml(s, me, a, { name, skipping }) {
     down: k < 5 && a.get[k] > (fixed ? o.get[k] : 0),
   }), "Give", false);
   const theirSide = tiles("w", a.give, 0, k => ({
-    sub: `has ${proposer[k]}`,
-    up: k < 5 && a.get[k] === 0 && a.give[k] < proposer[k] && (!fixed || sum(a.give) < needGive),
+    sub: "",                                          // what the proposer holds is secret: no count, and no cap by it
+    up: k < 5 && a.get[k] === 0 && a.give[k] < MAX_ASK && (!fixed || sum(a.give) < needGive),
     down: k < 5 && a.give[k] > (fixed ? o.give[k] : 0),
   }), "Get", false);
   const why = counterWhy(s, me, a), exact = !fixed && isExact(o, a);
@@ -117,10 +119,10 @@ export function answerHtml(s, me, a, { name, skipping }) {
     <button type="button" class="btn fc-skip${skipping ? " on" : ""}" data-skip="1">Skip trades</button><p class="fc-tnote">${why && !exact && fixed ? esc(why.replace(/\{s\d+\}/g, "They")) : "Skip trades turns down every offer until your own turn comes round."}</p>`;
 }
 
-/** The answers to your offer: each seat's counter in pictures, to take one of or turn them all down. */
-export function pickHtml(s, who) {
+/** The rows of the answers to your offer: each seat's counter in pictures, with the button that takes it. */
+function answerRows(s, who) {
   const o = s.offer;
-  const rows = o.resp.map((r, i) => {
+  return o.resp.map((r, i) => {
     if (i === o.from) return "";
     const a = answerOf(o, i), name = esc(who(i));
     if (!a) return `<li class="no"><span class="nm"><i class="fc-sw p${i}"></i>${name}</span><span class="fc-tnote">no</span></li>`;
@@ -128,5 +130,18 @@ export function pickHtml(s, who) {
     return `<li><span class="nm"><i class="fc-sw p${i}"></i>${name}</span><span class="fc-sum" aria-label="${esc(`${who(i)}: you give ${tradeText(a.give)}, you get ${tradeText(a.get)}`)}">${tradeChips(a.give)}<i class="fc-arrow" aria-hidden="true">→</i>${tradeChips(a.get)}</span>
       <button type="button" class="btn primary" data-take="${i}">${exact ? "Yes" : "Accept"}</button></li>`;
   }).join("");
-  return `<p class="fc-asks">You offered ${tradeChips(o.give, o.ag)} for ${tradeChips(o.get, o.aw)}</p><ul class="fc-answers">${rows}</ul><button type="button" class="btn fc-offer" data-take="-1">Decline all</button>`;
 }
+
+// ---------- the small card in the corner of the map ----------
+// An offer to you, or the answers to yours, as a card that sits over the map's top right and takes nothing else's place: it
+// shows only what is offered and asked (never what the proposer holds), and answering is optional until the game needs it.
+/** An offer to you: who, what for what, and No / Yes (or Counter, when it needs naming or you lack the cards) with Skip trades under it. */
+export function offerCardHtml(s, me, { name }) {
+  const o = s.offer, fixed = o.ag > 0 || o.aw > 0, yes = !fixed && has(s.hand[me], o.get);
+  return `<p class="fc-pop-h"><i class="fc-sw p${o.from}"></i><b>${esc(name)}</b> offers</p>
+    <div class="fc-sum" aria-label="${esc(`${name} gives ${tradeText(o.give, o.ag)} for ${tradeText(o.get, o.aw)}`)}"><span>${tradeChips(o.give, o.ag)}</span><i class="fc-arrow" aria-hidden="true">→</i><span>${tradeChips(o.get, o.aw)}</span></div>
+    <div class="fc-pop-go"><button type="button" class="btn" data-pop="no">No</button>${yes ? `<button type="button" class="btn primary" data-pop="yes">Yes</button>` : ""}<button type="button" class="btn${yes ? "" : " primary"}" data-pop="counter">${fixed ? "Answer" : "Counter"}</button></div>
+    <button type="button" class="fc-pop-skip" data-pop="skip">Skip trades</button>`;
+}
+/** The answers to your offer, small: one row each, to take or to turn all down. */
+export const pickCardHtml = (s, who) => `<p class="fc-pop-h"><b>Answers</b> to your offer</p><ul class="fc-answers">${answerRows(s, who)}</ul><button type="button" class="fc-pop-skip" data-take="-1">Decline all</button>`;

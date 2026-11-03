@@ -454,7 +454,8 @@ export function counterWhy(s, seat, c) {
   if (!c || !isCount5(c.give) || !isCount5(c.get)) return "A counter-proposal is cards for cards";
   if (sum(c.give) < 1 || sum(c.get) < 1) return "A counter-proposal gives something and asks for something";
   if (c.give.some((n, i) => n > 0 && c.get[i] > 0)) return "Don't ask for the kind you give";
-  if (c.give.some((n, i) => n > s.hand[o.from][i])) return "The one who offered doesn't hold that";
+  // Not checked against the proposer's hand: the refusal would tell the asker what the proposer holds (secret), so a counter
+  // the proposer can't cover is dropped without a word when the answers are counted (`resolveOffer`).
   if (c.get.some((n, i) => n > s.hand[seat][i])) return "You don't hold that";
   if (o.ag || o.aw) {
     if (c.give.some((n, i) => n < o.give[i]) || sum(c.give) !== sum(o.give) + o.ag) return `Name what was offered and ${o.ag} more of your choosing`;
@@ -471,6 +472,7 @@ export const isExact = (o, a) => a.give.every((n, i) => n === o.give[i]) && a.ge
 function resolveOffer(s) {
   const o = s.offer;
   if (o.resp.some(r => r === -1)) return s;
+  o.resp.forEach((r, i) => { if (r === 1 && answerOf(o, i).give.some((n, k) => n > s.hand[o.from][k])) { o.resp[i] = 0; o.ans[i] = Array(10).fill(0); } });     // a counter asking more than the proposer holds is a no
   const yes = o.resp.map((r, i) => (r === 1 ? i : -1)).filter(i => i >= 0);
   if (yes.length === 0) { s.say = "Nobody takes it."; s.nobody = true; goMain(s); return s; }
   if (yes.length === 1 && isExact(o, answerOf(o, yes[0]))) return settle(s, yes[0]);

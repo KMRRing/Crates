@@ -29,7 +29,11 @@
 
   <section id="seats" class="fc-seats" aria-label="The players"></section>
   <p id="strip" class="fc-strip" role="status" aria-live="polite"></p>
-  <section id="board" class="fc-board fit-grow" aria-label="The island"></section>
+  <div id="stage" class="fc-stage fit-grow">
+    <section id="board" class="fc-board" aria-label="The island"></section>
+    <div id="deck" class="fc-deck" aria-label="The bank's deck and the development deck"></div>
+    <aside id="pop" class="fc-pop" aria-label="A trade" hidden></aside>
+  </div>
   <section id="side" class="fc-side" aria-label="Your hand">
     <div id="hand" class="fc-hand"></div>
     <div id="bar" class="fc-bar"></div>

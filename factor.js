@@ -3,14 +3,14 @@
 // running seats.js's (seats-ui.js), the island's picture factor-draw.js's. This page draws the players across the top, the
 // island, your hand and your buttons below it; a tap on a ringed corner, edge or hex is the move the step asks for, and the
 // build buttons ring where a road, post or factory may go.
-import { rules, COSTS, TARGETS, DEFAULTS, CARD_NAMES, CARD_TEXT, cards, pointsOf, roadLength, playable, piecesLeft, postSpots, roadSpots, factorySpots, victims, has } from "./factor-rules.js";
+import { rules, COSTS, TARGETS, DEFAULTS, CARD_NAMES, CARD_TEXT, cards, pointsOf, roadLength, playable, piecesLeft, postSpots, roadSpots, factorySpots, victims } from "./factor-rules.js";
 import { LEVEL_NAMES, suggest, wants } from "./factor-bot.js";
-import { newTrade, stepTrade, toMode, resolve, composeHtml, answerHtml, pickHtml } from "./factor-trade.js";
+import { newTrade, stepTrade, toMode, resolve, composeHtml, answerHtml, offerCardHtml, pickCardHtml } from "./factor-trade.js";
 import { startSkip, settle, declines, asked } from "./factor-skip.js";
 import { HEXES, RES } from "./factor-board.js";
 import { boardSvg, resIcon, ASPECT } from "./factor-draw.js";
 import { rulesHtml } from "./factor-sheet.js";
-import { handIcon, devIcon, roadIcon, fleetCard } from "./factor-icons.js";
+import { handIcon, devIcon, roadIcon, fleetCard, cardBack } from "./factor-icons.js";
 import { flightsBetween, markOf, worth } from "./factor-flights.js";
 import { createFlights } from "./factor-fly.js";
 import { seatPage, fillNames } from "./seats-ui.js";
@@ -56,11 +56,11 @@ let seen = { seq: -1, h: null }, pulse = { until: 0, d: [0, 0, 0, 0, 0] }, pulse
 let island = null, viewReady = false;                                                         // the 3D island, once it's made
 let flights = null, flown = null;                                                             // cards in the air, and the move they were last worked out from
 // what the page holds between moves: the build mode, the cards picked to give up on a 7, the trade sheet's choices
-const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], pick: [], t: newTrade("bank"), ans: null, tview: null, dismissed: "", skip: null, auto: "" };
+const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], pick: [], t: newTrade("bank"), ans: null, tview: null, skip: null, auto: "" };
 const randomRounds = seatRounds("factor");   // random mode's round: a game
 page = seatPage({
   rules, id: "factor", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; follow(v); draw(); showFlights(v); setTimeout(() => { autoOpen(v); autoAnswer(v); }, 0); randomRounds(v); }, onOver, toast, newGame,
+  onView: v => { V = v; follow(v); draw(); showFlights(v); setTimeout(() => autoAnswer(v), 0); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
 const isMe = seat => V?.seat != null && seat === V.seat;
@@ -87,8 +87,8 @@ function follow(v) {
 
 // ---------- cards in the air ----------
 // Worked out from the difference between the game before a move and after it (factor-flights.js), never from anything the
-// engine drew at random, so a page opened mid-turn has nothing to replay. The decks stand over the island: the bank's left
-// of its middle, the development deck's right; a seat is its plate's icon (your own hand: the tile of the kind).
+// engine drew at random, so a page opened mid-turn has nothing to replay. The decks stand in the map's top left, always (the
+// bank's, then the development deck); a seat is its plate's icon (your own hand: the tile of the kind).
 const centreOf = el => { const r = el?.getBoundingClientRect(); return r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null; };
 const plateOf = seat => document.querySelector(`#seats [data-seat="${seat}"]`);
 /** The element a flight starts from or lands at, for a point on a seat or its fleet. */
@@ -101,8 +101,7 @@ function seatEl(pt, f) {
 function placeOf(pt, f) {
   const box = $("board").getBoundingClientRect(), at = x => (box.width ? { x: box.left + box.width * x, y: box.top + box.height * .5 } : null);
   switch (pt.at) {
-    case "bank": return at(.32);
-    case "devs": return at(.68);
+    case "bank": case "devs": return centreOf($("deck").querySelector(`.${pt.at}`)) || at(pt.at === "bank" ? .32 : .68);
     case "table": return at(.5);
     default: return centreOf(seatEl(pt, f));
   }
@@ -154,12 +153,13 @@ $("board").addEventListener("click", async e => {
 function draw() {
   if (!page) return;
   const v = V;
-  if (!v?.G) { for (const id of ["seats", "strip", "board", "hand", "bar"]) $(id).innerHTML = ""; return; }
+  if (!v?.G) { for (const id of ["seats", "strip", "board", "hand", "bar"]) $(id).innerHTML = ""; $("pop").hidden = true; return; }
   drawSeats(v);
   drawStrip(v);
   drawBoard(v);
   drawHand(v);
   drawBar(v);
+  drawPop(v);
   if ($("tradeDlg").open) drawTrade();
   if ($("cardsDlg").open) drawCards();
 }
@@ -297,11 +297,10 @@ function drawBar(v) {
     case "steal": bar.innerHTML = victims(s, s.robber, me).map(o => btn(`Take from ${esc(who(o))}`, "steal", { data: `data-from="${o}"` })).join(""); return;
     case "causeway": bar.innerHTML = btn("Skip the rest", "skip"); return;
     case "offer": {
-      const o = s.offer, exact = !o.ag && !o.aw && has(s.hand[me], o.get);
-      bar.innerHTML = btn("No", "decline") + (exact ? btn("Yes", "accept", { cls: "primary" }) : "") + btn(exact ? "Counter" : "Answer", "answer", exact ? {} : { cls: "primary" }) + btn("Skip trades", "skiptrades", { cls: "side" });
+      bar.innerHTML = promptBox("An offer for you: top right of the map");      // the card there has the buttons
       return;
     }
-    case "pick": bar.innerHTML = btn("Answers", "answers", { cls: "primary" }) + btn("Decline all", "pick", { data: `data-with="-1"`, cls: "side" }); return;
+    case "pick": bar.innerHTML = promptBox("Answers to your offer: top right of the map"); return;
     case "main": {
       const m = x => ({ off: whyNot(x), cls: ui.mode === x ? "on" : "" });
       bar.innerHTML = btn("Road", "road", m("road")) + btn("Post", "post", m("post")) + btn("Factory", "factory", m("factory")) +
@@ -328,11 +327,6 @@ $("bar").addEventListener("click", async e => {
     case "discard": await play({ t: "discard", n: [...ui.discard] }); break;
     case "steal": await play({ t: "steal", from: Number(b.dataset.from) }); break;
     case "skip": await play({ t: "skip" }); break;
-    case "accept": await play({ t: "answer", yes: true }); break;
-    case "decline": await play({ t: "answer", yes: false }); break;
-    case "pick": await play({ t: "pick", with: Number(b.dataset.with) }); break;
-    case "answers": case "answer": ui.dismissed = ""; openTrade(); break;
-    case "skiptrades": ui.skip = startSkip(V.G); toast("Skipping trades until your turn comes round"); await play({ t: "answer", yes: false }); break;
     default: break;
   }
 });
@@ -352,7 +346,9 @@ function offerKey() { return `${V.G.seq}:${V.G.n}`; }
 function firstAnswer() {
   const s = V.state, o = s.offer;
   if (!o.ag && !o.aw) return { give: [...o.give], get: [...o.get] };
-  const guess = suggest(s, V.seat);
+  // the guess is made as if the proposer held anything beyond what it offered: its real hand is secret and must not steer the first answer
+  const blind = { ...s, hand: s.hand.map((h, i) => (i === o.from ? o.give.map(n => n + o.ag) : h)) };
+  const guess = suggest(blind, V.seat);
   return guess ? { give: guess.give, get: guess.get } : { give: [...o.give], get: [...o.get] };
 }
 function openTrade() {
@@ -364,10 +360,10 @@ function drawTrade() {
   const v = V, body = $("tradeBody"), view = tradeView();
   if (!view) { body.innerHTML = ""; return; }
   const s = v.state, me = v.seat;
-  $("tradeDlg").querySelector("h2").textContent = view === "answer" ? "An offer" : view === "pick" ? "The answers" : "Trade";
+  $("tradeDlg").querySelector("h2").textContent = view === "answer" ? "An offer" : "Trade";
   if (ui.tview && ui.tview !== view && $("tradeDlg").open && ui.tview !== "compose") $("tradeDlg").close();     // that offer is settled
   ui.tview = view;
-  if (view === "pick") { body.innerHTML = pickHtml(s, who); return; }
+  if (view === "pick") { body.innerHTML = ""; return; }
   if (view === "answer") {
     if (!ui.ans || ui.ans.key !== offerKey()) ui.ans = { key: offerKey(), ...firstAnswer() };
     body.innerHTML = answerHtml(s, me, ui.ans, { name: who(s.offer.from), skipping: declines(opts, ui.skip, v.G, s, me) });
@@ -377,14 +373,30 @@ function drawTrade() {
   const r = resolve(s, me, ui.t, { on, order: wants(s, me) });
   body.innerHTML = composeHtml(s, me, ui.t, r, { on });
 }
-/** Opens the sheet by itself when an answer or a choice waits for you (and nothing else is open, and you haven't put it away). */
-function autoOpen(v) {
-  if (IN_FRAME || !v?.G || v.seat == null || v.over || $("tradeDlg").open) return;
-  const view = tradeView();
-  if (view !== "answer" && view !== "pick") return;
-  if (document.querySelector("dialog[open]") || ui.dismissed === offerKey() || declines(opts, ui.skip, v.G, v.state, v.seat)) return;
-  openTrade();
+/**
+ * The offer to you, or the answers to yours, as a small card in the map's top right: it opens nothing and holds nothing up,
+ * and the sheet (for naming a counter) is only what its Counter button opens. Hidden while the sheet is open, in a watching
+ * frame, and when you are skipping trades (those offers are turned down unseen).
+ */
+function drawPop(v) {
+  const box = $("pop"), view = IN_FRAME || $("tradeDlg").open ? null : tradeView(), s = v.state;
+  const html = view === "answer" && !declines(opts, ui.skip, v.G, s, v.seat) ? offerCardHtml(s, v.seat, { name: who(s.offer.from) }) : view === "pick" ? pickCardHtml(s, who) : "";
+  if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }
+  box.hidden = !html;
 }
+$("pop").addEventListener("click", async e => {
+  const b = e.target.closest("button");
+  if (!b || !V?.G) return;
+  const d = b.dataset;
+  if (d.take != null) { await play({ t: "pick", with: Number(d.take) }); return; }
+  switch (d.pop) {
+    case "no": await play({ t: "answer", yes: false }); break;
+    case "yes": await play({ t: "answer", yes: true }); break;
+    case "counter": openTrade(); break;
+    case "skip": ui.skip = startSkip(V.G); toast("Skipping trades until your turn comes round"); await play({ t: "answer", yes: false }); break;
+    default: break;
+  }
+});
 /** Skip trades: an offer to a seat that is skipping is turned down unseen, once. */
 function autoAnswer(v) {
   if (IN_FRAME || !v?.G || v.over) return;
@@ -398,10 +410,7 @@ $("tradeBody").addEventListener("click", async e => {
   const b = e.target.closest("button");
   if (!b || b.disabled || !V?.G) return;
   const d = b.dataset, view = tradeView(), s = V.state, me = V.seat;
-  if (view === "pick") {
-    if (d.take != null) { await play({ t: "pick", with: Number(d.take) }); $("tradeDlg").close(); }
-    return;
-  }
+  if (view === "pick") return;
   if (view === "answer") {
     const a = ui.ans;
     if (d.add || d.sub) {
@@ -433,9 +442,8 @@ $("tradeBody").addEventListener("click", async e => {
   }
   drawTrade();
 });
-function putAway() { if (V?.G && tradeView() !== "compose") ui.dismissed = offerKey(); $("tradeDlg").close(); }
-$("tradeClose").addEventListener("click", putAway);
-$("tradeDlg").addEventListener("cancel", () => { if (V?.G && tradeView() !== "compose") ui.dismissed = offerKey(); });
+$("tradeClose").addEventListener("click", () => $("tradeDlg").close());
+$("tradeDlg").addEventListener("close", () => { if (V?.G) drawPop(V); });          // the card comes back if the offer is still open
 
 // ---------- your cards ----------
 function openCards() {
@@ -556,6 +564,8 @@ function openMenu() {
 }
 
 // ---------- wiring ----------
+// the decks: two small stacks of card backs, drawn once; flights start from and end at them
+$("deck").innerHTML = ["bank", "devs"].map(k => `<span class="fc-dk ${k}">${cardBack()}${cardBack()}${cardBack()}</span>`).join("");
 flights = createFlights({ where: placeOf, land: landed });
 onPause(() => flights.hold(true), () => flights.hold(false));
 bindSwitcher($("appsBtn"), "factor");

@@ -70,6 +70,3 @@ export function flightsBetween(a, b, viewer = null) {
   }
   return out.slice(0, MOST_FLIGHTS);
 }
-
-/** The point's place for a test or a page to key a pile by: the decks are the only places that stand on the table. */
-export const pileOf = p => (p.at === "bank" || p.at === "devs" ? p.at : null);
