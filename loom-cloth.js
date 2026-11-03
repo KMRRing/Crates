@@ -155,6 +155,10 @@ export function createCloth(host) {
     ctx.shadowColor = "rgba(0,0,0,.45)"; ctx.shadowBlur = s * .12; ctx.shadowOffsetX = s * .04; ctx.shadowOffsetY = s * .03;
     ctx.fillStyle = g; ctx.fillRect(a, y, w, len);
     ctx.restore();
+    if (luma(hex) < .3) {                                                        // a dark yarn on a dark bench (night) would read as a hole: a light edge on each side holds it up
+      ctx.strokeStyle = "rgba(255,255,255,.22)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(a + .5, y); ctx.lineTo(a + .5, y + len); ctx.moveTo(a + w - .5, y); ctx.lineTo(a + w - .5, y + len); ctx.stroke();
+    }
     ply(a, y, w, len, false, s);
     if (rise) {
       const L = rise + s * .34, k = ctx.createLinearGradient(0, y, 0, y + L);
