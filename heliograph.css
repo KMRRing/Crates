@@ -5,11 +5,12 @@
   --hg-in: var(--c0);
   --hg-soft: color-mix(in srgb, var(--hg-in) 15%, var(--sheet));
   --hg-danger: #A8382B;
+  --hg-good: #2F7D5B;
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --hg-danger: #E8806F; }
+  html:not([data-mode="day"]) { --hg-danger: #E8806F; --hg-good: #7FC2A8; }
 }
-html[data-mode="night"] { --hg-danger: #E8806F; }
+html[data-mode="night"] { --hg-danger: #E8806F; --hg-good: #7FC2A8; }
 
 .hg-mark { display: inline-block; }
 .hg-mark svg { width: 100%; height: 100%; display: block; }
@@ -50,6 +51,11 @@ html[data-mode="night"] { --hg-danger: #E8806F; }
 .hg-gem.c1 > :first-child { fill: var(--c1); }
 .hg-gem.c2 > :first-child { fill: var(--c2); }
 .hg-gem.c3 > :first-child { fill: var(--c3); }
+.hg-half.c0 { fill: var(--c0); }
+.hg-half.c1 { fill: var(--c1); }
+.hg-half.c2 { fill: var(--c2); }
+.hg-half.c3 { fill: var(--c3); }
+.hg-edge { fill: none; stroke: color-mix(in srgb, var(--ink) 55%, transparent); stroke-width: .5; stroke-linejoin: round; }
 .hg-glint { fill: none; stroke: #FFFFFF; stroke-opacity: .55; stroke-width: .7; stroke-linecap: round; }
 .hg-piece { position: relative; display: grid; place-items: center; min-width: 0; padding: .2rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet);
   touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; color: var(--ink); }
@@ -63,7 +69,9 @@ html[data-mode="night"] { --hg-danger: #E8806F; }
 .hg-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .9rem; font-weight: 800;
   font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .hg-go:disabled { opacity: .5; cursor: default; }
-.hg-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 4rem; }
+.hg-result { display: grid; grid-auto-flow: column; grid-template-columns: minmax(0, 1fr); grid-auto-columns: auto; align-items: center; gap: .8rem; height: 4rem; }
+.hg-result .btn { padding-inline: 1rem; }
+.hg-result [hidden] { display: none; }
 .hg-result .hg-go { padding: 0 1.3rem; }
 .hg-result[hidden] { display: none; }
 .hg-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
@@ -76,15 +84,132 @@ html[data-mode="night"] { --hg-danger: #E8806F; }
 /* held sideways: the tube on the left with all the height; the score, the line and the tray beside it, the buttons low
    where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.heliograph { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.heliograph { --beside: 17rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
   #app.heliograph .hg-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
-  #app.heliograph .hg-field { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
-  #app.heliograph .hg-side { grid-column: 2; grid-row: 3; align-content: end; }
+  #app.heliograph .hg-goal { grid-column: 2; grid-row: 3; flex-wrap: wrap; }
+  #app.heliograph .hg-goaltext { flex: 1 1 100%; white-space: normal; }
+  #app.heliograph .hg-meter { flex: 1 1 100%; order: 3; }
+  #app.heliograph .hg-field { grid-column: 1; grid-row: 2 / span 3; margin-top: .8rem; }
+  #app.heliograph .hg-side { grid-column: 2; grid-row: 4; align-content: end; }
   #app.heliograph .hg-say { height: auto; white-space: normal; text-align: left; min-height: 2.6rem; }
   #app.heliograph .hg-tray { grid-template-columns: 1fr 1fr; grid-template-rows: 4.2rem 4.6rem 3.4rem; height: auto; }
   #app.heliograph .hg-colour { grid-column: 1 / -1; grid-row: 1; }
   #app.heliograph .hg-colour svg.now { width: 3rem; height: 3rem; }
   #app.heliograph .hg-piece, #app.heliograph .hg-take { grid-row: 2; }
   #app.heliograph #fireBtn { grid-column: 1 / -1; grid-row: 3; }
-  #app.heliograph .hg-result { grid-template-columns: 1fr; height: auto; }
+  #app.heliograph .hg-result { grid-auto-flow: row; grid-template-columns: 1fr; height: auto; }
 }
+
+/* Levels: under the strip the goal, the stars it has earned (and those still within reach), and a meter with a tick where each
+   star is won; none of it in Classic, which is as it was */
+.hg-goal { display: flex; align-items: center; gap: .6rem; min-height: 1.4rem; margin: 0 0 .4rem; }
+.hg-goal.classic { display: none; }
+.hg-goaltext { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
+  text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.hg-goal.met .hg-goaltext { color: var(--hg-good); }
+.hg-stars { flex: none; display: inline-flex; gap: .1rem; font-size: 1.05rem; line-height: 1; }
+.hg-stars i { font-style: normal; color: color-mix(in srgb, var(--ink) 28%, transparent); }
+.hg-stars i.reach { color: color-mix(in srgb, var(--brass) 55%, transparent); }
+.hg-stars i.on { color: var(--brass); }
+.hg-meter { position: relative; flex: 1 1 0; min-width: 2rem; height: .5rem; border: 1px solid var(--rule); border-radius: 2px; background: var(--yard); }
+.hg-meter i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--hg-in); transition: width .3s; }
+.hg-meter b { position: absolute; inset: 0; }
+.hg-meter u { position: absolute; top: -1px; bottom: -1px; width: 1px; background: var(--brass); }
+.hg-tolevels { white-space: nowrap; }
+
+/* over the tube: the sun's course (a small arc, a place for each shot), the shutters' state, and the level's plaque until the first mirror is set */
+.hg-dial { position: absolute; top: .45rem; right: .5rem; width: 4.4rem; pointer-events: none; }
+.hg-dial[hidden], .hg-chip[hidden], .hg-plaque[hidden] { display: none; }
+.hg-dial-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.hg-dial-svg .arc { stroke: var(--brass); stroke-width: 1; stroke-dasharray: 2 2.5; }
+.hg-dial-svg .tick { fill: var(--sheet); stroke: var(--brass); stroke-width: 1; }
+.hg-dial-svg .tick.past { fill: var(--brass); }
+.hg-dial-svg .sun { fill: var(--c0); stroke: var(--ink); stroke-width: .8; }
+.hg-dial-svg .rays { stroke: var(--c0); stroke-width: 1.3; stroke-linecap: round; fill: none; }
+.hg-chip { position: absolute; top: .45rem; left: .5rem; margin: 0; max-width: calc(100% - 6.4rem); padding: .15rem .45rem; border: 1px solid var(--brass); border-radius: 4px;
+  background: color-mix(in srgb, var(--sheet) 88%, transparent); font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps);
+  letter-spacing: calc(.06em * var(--track)); color: var(--ink-soft); pointer-events: none; }
+.hg-chip.shut { border-color: var(--hg-danger); color: var(--ink); }
+.hg-plaque { position: absolute; left: 50%; top: .5rem; transform: translateX(-50%); display: grid; gap: .1rem; width: max-content; max-width: calc(100% - 1.4rem); padding: .4rem .7rem;
+  border: 1px solid var(--brass); border-radius: 4px; background: color-mix(in srgb, var(--sheet) 90%, transparent); text-align: center; pointer-events: none; }
+.hg-plaque b { font-size: .7rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); }
+.hg-plaque span { font-size: .95rem; font-weight: 800; }
+.hg-plaque i { font-style: normal; font-size: .78rem; color: var(--ink-soft); line-height: 1.25; }
+.hg-field:has(.hg-dial:not([hidden])) .hg-chip { max-width: calc(100% - 6.4rem); }
+
+/* the menu's levels, by station: each a picture of its chandelier from above and what it adds, its name and goal */
+.hg-camp { display: grid; gap: 1rem; margin-top: .6rem; }
+.hg-camp h3 { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: 0 0 .15rem; font-size: .76rem; font-weight: 800; font-stretch: var(--wide);
+  text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.hg-camp h3 i { font-style: normal; color: var(--brass); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.hg-chapter { margin: 0 0 .5rem; font-size: .8rem; line-height: 1.3; color: var(--ink-soft); }
+.hg-levels { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; }
+.hg-levels button { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); gap: .5rem; align-items: center; min-height: 4rem; padding: .35rem .45rem; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--tile); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.hg-levels button:disabled { opacity: .45; cursor: default; }
+.hg-levels button.done { background: var(--hg-soft); }
+.hg-levels button[aria-current] { border-color: var(--hg-in); box-shadow: inset 0 0 0 1px var(--hg-in); }
+.hg-lmap svg { width: 100%; height: auto; display: block; }
+.hg-ltop { display: flex; justify-content: space-between; gap: .3rem; font-size: .7rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.hg-ltop span { color: var(--brass); letter-spacing: .08em; }
+.hg-lname { font-size: .86rem; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.hg-lgoal { font-size: .72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.hg-map-cell { fill: var(--hg-in); }
+.hg-map-lantern { fill: var(--brass); stroke: var(--ink); stroke-width: .1; }
+.hg-map-prism { fill: color-mix(in srgb, var(--c1) 60%, var(--c0)); stroke: var(--ink); stroke-width: .1; stroke-linejoin: round; }
+.hg-map-shutter { fill: none; stroke: var(--ink); stroke-width: .3; }
+.hg-map-shutter.blink { stroke-dasharray: .4 .3; }
+.hg-map-sun circle { fill: var(--brass); }
+.hg-map-sun path { fill: none; stroke: var(--brass); stroke-width: .16; stroke-linecap: round; }
+.hg-map-flag { fill: var(--hg-in); stroke: var(--ink); stroke-width: .1; stroke-linejoin: round; }
+
+/* the help dialog: a scene of the engine's own shot on a dark glass, the light and the crystals it brings down */
+:root { --hg-glass: #14202A; --hg-glass-ink: #D9E3EA; }
+dialog.hg-help { max-height: 92vh; max-height: 92svh; overflow-y: auto; overscroll-behavior: contain; }
+.hg-hstage { position: relative; aspect-ratio: 10 / 9.2; max-height: 17.5rem; margin: .1rem auto .8rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--hg-glass); overflow: hidden; }
+.hg-hframe { position: absolute; inset: 0; }
+.hg-hframe[hidden] { display: none; }
+.hg-hstage.still { aspect-ratio: auto; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1px; height: 14rem; max-height: none; }
+.hg-hstage.still .hg-hframe { position: relative; min-height: 0; }
+.hg-hsvg { width: 100%; height: 100%; display: block; }
+.hg-hsvg path, .hg-hsvg line { fill: none; }
+.hg-hwall { stroke: color-mix(in srgb, var(--brass) 70%, transparent); stroke-width: .05; }
+.hg-hceil { stroke: var(--brass); stroke-width: .2; }
+.hg-hcrown { stroke: var(--brass); stroke-width: .2; }
+.hg-hskirt { fill: color-mix(in srgb, var(--brass) 42%, transparent); stroke: var(--brass); stroke-width: .05; }
+.hg-hthread { stroke: color-mix(in srgb, white 45%, transparent); stroke-width: .035; }
+.hg-hsvg .hg-gem > :first-child { stroke: color-mix(in srgb, white 70%, transparent); stroke-width: .6; }
+.hg-hsvg .hg-edge { stroke: color-mix(in srgb, white 70%, transparent); stroke-width: .6; }
+.hg-hmirror { stroke: #E4EDF3; stroke-width: .15; stroke-linecap: round; }
+.hg-hmirror.rim { stroke: var(--brass); stroke-width: .26; }
+.hg-hshutter { stroke-width: .24; }
+.hg-hshutter.shut { stroke: var(--brass); }
+.hg-hshutter.open { stroke: color-mix(in srgb, var(--brass) 75%, transparent); stroke-dasharray: .22 .28; }
+.hg-hglow { fill: var(--c0); opacity: .28; }
+.hg-hcollar { fill: none; stroke: var(--brass); stroke-width: .1; }
+.hg-hbeam { stroke-width: .1; stroke-linecap: round; stroke-dasharray: 1 2; stroke-dashoffset: 0; }
+.hg-hbeam.white { stroke: #FFF6D8; }
+.hg-hbeam.c0 { stroke: color-mix(in srgb, var(--c0) 70%, white); }
+.hg-hbeam.c1 { stroke: color-mix(in srgb, var(--c1) 70%, white); }
+.hg-hbeam.c2 { stroke: color-mix(in srgb, var(--c2) 70%, white); }
+.hg-hbeam.c3 { stroke: color-mix(in srgb, var(--c3) 70%, white); }
+.hg-hspark { fill: none; stroke: #FFF6D8; stroke-width: .1; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.hg-hspark.on { opacity: 1; }
+.hg-hsun circle { fill: var(--c0); }
+.hg-hsun path { stroke: var(--c0); stroke-width: .07; stroke-linecap: round; }
+.hg-hsunline { stroke: color-mix(in srgb, var(--c0) 55%, transparent); stroke-width: .04; stroke-dasharray: .12 .12; }
+.hg-hpop { transform-box: fill-box; transform-origin: center; }
+.hg-hp.shattered { opacity: .28; }
+.hg-hp.fell { opacity: .3; transform: translate(0, -1px); }
+.hg-hcap, .hg-hmarks { position: absolute; font-size: .7rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-variant-numeric: tabular-nums; }
+.hg-hcap { left: .4rem; bottom: .3rem; padding: .05rem .25rem; border-radius: 3px; background: color-mix(in srgb, var(--hg-glass) 80%, transparent); color: var(--hg-glass-ink); }
+.hg-hmarks { right: .5rem; top: .35rem; color: var(--brass); text-align: right; }
+.hg-hmarks.late { opacity: 0; transition: opacity .25s; }
+.hg-hmarks.late.on { opacity: 1; }
+.hg-htext p { margin: 0 0 .5rem; line-height: 1.38; font-size: .92rem; }
+.hg-hnav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .6rem; margin-top: .7rem; }
+.hg-hnav .btn { padding-inline: 1rem; }
+.hg-hnav #hgHelpBack { justify-self: start; }
+.hg-hnav #hgHelpNext { justify-self: end; min-width: 6rem; }
+.hg-hnav #hgHelpBack:disabled { visibility: hidden; }
+.hg-hat { font-size: .75rem; font-weight: 750; color: var(--ink-soft); font-variant-numeric: tabular-nums; }

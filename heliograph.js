@@ -5,16 +5,27 @@
 // are heliograph-engine.js's; this file handles the hand (turning round the tube, choosing, setting, moving and turning
 // mirrors, the light's way drawn as they move) and keeps the game. The tube is drawn by heliograph-3d.js, or
 // heliograph-flat.js without WebGL, both through the camera in heliograph-view.js.
-import { MIRRORS, MR, FIRST_MOVES, movesFor, canMove, newGame, trace, fire, pieces, addMirror, moveMirror, turnMirror, takeMirror, cantPlace, clampInside, facing, dropEvery } from "./heliograph-engine.js";
+// Two modes (the menu's Mode) that don't touch each other: Classic, the endless game with its own run and best, and Levels
+// (heliograph-levels.js), six stations of four short levels each, every level a goal in so many shots, with stars.
+import { MIRRORS, MR, FIRST_MOVES, movesFor, canMove, newGame, trace, fire, pieces, addMirror, moveMirror, turnMirror, takeMirror, cantPlace, clampInside, facing, dropEvery, fixtures, closed, beaconsOf, sunAngle } from "./heliograph-engine.js";
+import { LEVELS, CHAPTERS, rulesOf, dealLevel, starsOf, starsInReach, featuresOf, goalSentence, goalWords, goalShort, meterOf } from "./heliograph-levels.js";
+import { mapSvg } from "./heliograph-map.js";
+import { svgEl as el, gem, prismGem } from "./heliograph-gem.js";
+import { createHelp } from "./heliograph-help-ui.js";
+import { ORDER } from "./heliograph-help.js";
 import { createView, onPlane, nearestOnSegment } from "./heliograph-view.js";
 import { createFlat } from "./heliograph-flat.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line } from "./menu.js";
+import { part, choice, action, line } from "./menu.js";
 import { roundOver } from "./random.js";
+import { IN_FRAME } from "./suite.js";
 
 const $ = id => document.getElementById(id);
+// RUN: the endless game; BEST: its best, which the games screen shows. MODE: "classic" or "levels"; CAMP: the level in hand
+// (`at`, 0 on) and the most stars won in each; RUNS: the game of each level begun, by its number (1 on); HELP: the features explained.
 const RUN = "heliograph:run2", BEST = "heliograph:best", SEEN = "heliograph:seen2", MOVED = "heliograph:v2";
+const MODE = "heliograph:mode", CAMP = "heliograph:camp", RUNS = "heliograph:lruns", HELP = "heliograph:help";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
@@ -32,13 +43,67 @@ let S = null;            // the game (heliograph-engine.js's), as saved
 let sel = null;          // the id of the mirror chosen: its handle shows, to turn it by
 let hand = null;         // what a finger is doing: { kind, id, x0, y0, x, y, moved, draft, why, … }
 let playing = false;     // a shot being played out
-const valid = g => g && g.v === 4 && Array.isArray(g.layers) && Array.isArray(g.mirrors) && Array.isArray(g.crystals);
-function save() { write(RUN, S); }
+const levelOk = g => g.x === undefined || (Number.isInteger(g.x.lv) && g.x.lv >= 0 && g.x.lv < LEVELS.length && !!g.x.goal && Array.isArray(g.crystals) && g.crystals.length <= 2);
+const valid = g => g && g.v === 4 && Array.isArray(g.layers) && Array.isArray(g.mirrors) && Array.isArray(g.crystals) && levelOk(g);
+
+// ---------- the modes ----------
+/** The campaign as kept: the level in hand and the most stars won in each, mended if it is not what it should be (levels are open to the first not beaten). */
+function readCamp() {
+  const c = read(CAMP, null), stars = LEVELS.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
+  const open = stars.findIndex(s => s < 1);
+  return { at: Number.isInteger(c?.at) ? Math.max(0, Math.min(c.at, open < 0 ? LEVELS.length - 1 : open)) : 0, stars };
+}
+// a first visit plays Levels, but a game of Classic begun before them is the game still in hand
+const keptMode = read(MODE, null);
+let mode = keptMode === "levels" || keptMode === "classic" ? keptMode : (g => (valid(g) && g.x === undefined && g.shots > 0 && !g.over ? "classic" : "levels"))(read(RUN, null));
+let camp = readCamp();
+const isOpen = n => n === 0 || camp.stars[n - 1] >= 1;
+const inLevels = () => mode === "levels";
+const level = () => LEVELS[camp.at];
+/** The game saved for the mode being played (and its level), or null. */
+function savedGame() {
+  const g = inLevels() ? read(RUNS, {})[camp.at + 1] : read(RUN, null);
+  return valid(g) && (inLevels() ? g.x?.lv === camp.at : g.x === undefined) ? g : null;
+}
+function save() {
+  if (inLevels()) write(RUNS, { ...read(RUNS, {}), [camp.at + 1]: S });
+  else write(RUN, S);
+}
+/** A game begun anew: of the level in hand (a deal the engine's simple player can win), or Classic's. */
 function newRun() {
-  S = newGame(randomSeed());
+  S = inLevels() ? dealLevel(camp.at, randomSeed()) : newGame(randomSeed());
   sel = null;
   save();
   render();
+  checkHelp();
+}
+/** The game of the mode and level now chosen, as it was left (else a new one). */
+function resume() {
+  hand = null;
+  sel = null;
+  S = savedGame();
+  if (!S) { newRun(); return; }
+  // a Classic game kept on its first shot from before that shot had three moves gets the third (every mirror then is new
+  // this shot, so the moves spent are the mirrors touched)
+  if (S.x === undefined && !S.shots) S.moves = FIRST_MOVES - S.touched.length;
+  save();
+  render();
+  checkHelp();
+}
+function setMode(next) {
+  if (next === mode) return;
+  mode = next;
+  write(MODE, mode);
+  resume();
+}
+/** Plays level n (0 on) as it was left, or new if it was not begun. */
+function playLevel(n) {
+  if (!isOpen(n)) return;
+  camp.at = n;
+  write(CAMP, camp);
+  mode = "levels";
+  write(MODE, mode);
+  resume();
 }
 
 // ---------- the tube ----------
@@ -65,26 +130,93 @@ function render(s = hand?.draft || S) {
   scene.draw({ s, path, sel, knob: shown.knob, targets: path.shattered });
   drawStrip();
   drawTray();
+  drawPlaque();
+  drawDial();
+  drawChip();
   say(s, path);
 }
+const STAR = "★", HOLLOW = "☆";
+const starsWords = n => STAR.repeat(n) + HOLLOW.repeat(3 - n);
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 function drawStrip() {
+  const levels = inLevels();
   $("score").textContent = fmt(S.score);
-  $("best").textContent = fmt(Math.max(read(BEST, 0), S.score));
-  const drop = $("drop"), of = dropEvery(S.shots);
-  drop.replaceChildren(...Array.from({ length: of }, (_, i) => { const p = document.createElement("i"); if (i < S.untilDrop) p.className = "on"; return p; }));
-  drop.setAttribute("aria-label", `The cluster comes down in ${S.untilDrop} shot${S.untilDrop === 1 ? "" : "s"}`);
+  $("bestLabel").textContent = levels ? "Shot" : "Best";
+  $("best").textContent = levels ? `${Math.min(S.shots + (S.over ? 0 : 1), S.x.shots)} of ${S.x.shots}` : fmt(Math.max(read(BEST, 0), S.score));
+  // the chandelier's drop, in pips; a level that never drops it (a long way off) shows none
+  const drop = $("drop"), of = dropEvery(S.shots, S.x);
+  drop.replaceChildren(...(of > 12 ? [] : Array.from({ length: of }, (_, i) => { const p = document.createElement("i"); if (i < S.untilDrop) p.className = "on"; return p; })));
+  drop.setAttribute("aria-label", of > 12 ? "" : `The cluster comes down in ${S.untilDrop} shot${S.untilDrop === 1 ? "" : "s"}`);
+  drawGoal();
 }
-// each colour its own cut too, so the colours can be told apart without their colour
-const SVG = "http://www.w3.org/2000/svg";
-const el = (tag, attrs = {}, ...kids) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); n.append(...kids); return n; };
-const hexPath = r => Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 6 + (i * Math.PI) / 3; return `${(r * Math.cos(a)).toFixed(2)} ${(r * Math.sin(a)).toFixed(2)}`; }).join("L");
-const CUTS = [() => el("circle", { r: 3.9 }), () => el("path", { d: "M0-4.6L3.6 0L0 4.6L-3.6 0Z" }), () => el("rect", { x: -3.5, y: -3.5, width: 7, height: 7, rx: 0.8 }), () => el("path", { d: `M${hexPath(4.2)}Z` })];
-const gem = (c, cls) => el("svg", { viewBox: "-5.5 -5.5 11 11", class: cls, "aria-hidden": "true" }, el("g", { class: `hg-gem c${c}` }, CUTS[c](), el("path", { class: "hg-glint", d: "M-2.3-2.2Q-1.1-3.3.6-3.2" })));
+/** The goal row under the strip: the level's goal and how far it has come, its stars, a meter; in Classic, just the shot. */
+function drawGoal() {
+  const levels = inLevels(), row = $("goalRow");
+  row.classList.toggle("classic", !levels);
+  if (!levels) {
+    $("goalText").textContent = `Endless game · shot ${S.shots + 1}`;
+    $("goalStars").replaceChildren();
+    return;
+  }
+  const x = S.x, earned = starsOf(x, S), reach = starsInReach(x, S), { fill, marks } = meterOf(x, S);
+  row.classList.toggle("met", !!S.met);
+  $("goalText").textContent = goalWords(x, S);
+  $("goalStars").replaceChildren(...[0, 1, 2].map(k => Object.assign(document.createElement("i"), { textContent: k < earned ? STAR : HOLLOW, className: k < earned ? "on" : k < reach ? "reach" : "" })));
+  $("goalStars").setAttribute("aria-label", `${plural(earned, "star")}${earned < reach ? `, ${plural(reach, "star")} within reach` : ""}`);
+  $("meterFill").style.width = `${(fill * 100).toFixed(1)}%`;
+  $("meterMarks").replaceChildren(...marks.map(m => Object.assign(document.createElement("u"), { style: `left:${(m * 100).toFixed(1)}%` })));
+}
+/** The level's plaque over the tube, until the first mirror is set. */
+function drawPlaque() {
+  const show = inLevels() && !S.over && !S.shots && !S.mirrors.length && !hand;
+  $("plaque").hidden = !show;
+  if (!show) return;
+  const L = level();
+  $("plaqueName").textContent = `${CHAPTERS[L.chapter].name} ${L.k + 1} · ${L.name}`;
+  $("plaqueGoal").textContent = goalSentence(S.x);
+  $("plaqueAbout").textContent = L.about;
+}
+/** The sun's course, for a level with one: a small arc with a place for each shot and the sun at the shot now. */
+const dialFor = new Map();
+function drawDial() {
+  const box = $("dial"), x = S.x, on = inLevels() && !!x?.sun;
+  box.hidden = !on;
+  if (!on) { box.replaceChildren(); return; }
+  const shots = x.shots, now = Math.min(S.shots, shots - 1);
+  if (box.dataset.lv !== String(x.lv)) {
+    box.dataset.lv = String(x.lv);
+    const svg = el("svg", { viewBox: "0 0 64 34", class: "hg-dial-svg" }), arc = el("path", { d: "M6 31Q32 -14 58 31", class: "arc", fill: "none" });
+    svg.append(arc);
+    for (let i = 0; i < shots; i++) {
+      const t = shots > 1 ? i / (shots - 1) : 0.5, u = 1 - t, px = u * u * 6 + 2 * u * t * 32 + t * t * 58, py = u * u * 31 + 2 * u * t * -14 + t * t * 31;
+      svg.append(el("circle", { cx: px.toFixed(1), cy: py.toFixed(1), r: 1.9, class: "tick", "data-i": i }));
+    }
+    svg.append(el("circle", { r: 4.2, class: "sun" }), el("path", { class: "rays", d: "M0-7.2V-9.6M0 7.2V9.6M-7.2 0H-9.6M7.2 0H9.6M-5.1-5.1l-1.7-1.7M5.1 5.1l1.7 1.7M-5.1 5.1l-1.7 1.7M5.1-5.1l1.7-1.7" }));
+    box.replaceChildren(svg);
+    box.setAttribute("aria-label", "The sun's course over the level");
+  }
+  const ticks = [...box.querySelectorAll(".tick")], sun = box.querySelector(".sun"), rays = box.querySelector(".rays");
+  ticks.forEach((t, i) => { t.classList.toggle("past", i < now); });
+  const at = ticks[now];
+  for (const n of [sun, rays]) n.setAttribute("transform", `translate(${at.getAttribute("cx")} ${at.getAttribute("cy")})`);
+  box.title = `Shot ${now + 1} of ${shots}: the sun ${sunAngle(S) < -1 ? "in the east" : sunAngle(S) > 1 ? "in the west" : "overhead"}`;
+}
+/** A line over the tube for shutters that open and shut by the shot. */
+function drawChip() {
+  const chip = $("chip"), cycling = inLevels() ? fixtures(S).filter(f => f.k === "shutter" && f.cycle) : [];
+  chip.hidden = !cycling.length || S.over;
+  if (chip.hidden) return;
+  const shut = cycling.filter(f => closed(S, f)).length, next = cycling.filter(f => closed({ ...S, shots: S.shots + 1 }, f)).length;
+  chip.textContent = cycling.length === 1 ? `Shutter ${shut ? "shut" : "open"} · ${next ? "shut" : "open"} next` : `${shut} shut, ${cycling.length - shut} open · next ${next} shut`;
+  chip.classList.toggle("shut", shut > 0);
+}
 const MIRROR_ICON = () => el("svg", { viewBox: "-10 -12 20 24", "aria-hidden": "true" },
   el("path", { class: "hg-stem", d: "M0 2V10M-4 10.5H4" }), el("ellipse", { class: "hg-disc", cx: 0, cy: -3, rx: 7.5, ry: 4.6, transform: "rotate(-24 0 -3)" }));
 function drawTray() {
-  const left = MIRRORS - S.mirrors.length;
-  $("colour").replaceChildren(gem(S.crystals[0].c, "now"), gem(S.crystals[1].c, "now"), gem(S.next, "next"));
+  const left = MIRRORS - S.mirrors.length, prisms = fixtures(S).filter(f => f.k === "prism");
+  const now = [...S.crystals.map(c => gem(c.c, "now")), ...prisms.map(f => prismGem(f.cs))];
+  $("colour").replaceChildren(...now, ...(S.crystals.length ? [gem(S.next, "next")] : []));
+  $("colour").style.gridTemplateColumns = `repeat(${Math.max(1, now.length)}, 1fr)${S.crystals.length ? " auto" : ""}`;     // two and the next, as ever, in Classic
   const b = $("mirrorBtn");
   if (!b.firstChild) b.append(MIRROR_ICON(), Object.assign(document.createElement("b"), { className: "hg-count" }));
   b.querySelector(".hg-count").textContent = `×${left}`;
@@ -98,10 +230,24 @@ function drawTray() {
   $("fireBtn").disabled = S.over || playing;
   $("tray").hidden = S.over;
   $("result").hidden = !S.over;
-  if (S.over) {
+  $("levelsBtn").hidden = !inLevels();
+  $("againBtn").textContent = inLevels() ? "Replay" : "New game";
+  if (S.over) $("verdict").textContent = verdict();
+}
+/** How a game ended, in words. */
+function verdict() {
+  if (!inLevels()) {
     const best = read(BEST, 0);
-    $("verdict").textContent = `The chandelier reached the line: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
+    return `The chandelier reached the line: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
   }
+  const x = S.x, g = x.goal, stars = starsOf(x, S), out = S.shots >= x.shots;
+  if (S.won) {
+    const how = g.kind === "score" ? `Quota met: ${fmt(S.score)} of ${fmt(g.n)}` : g.kind === "beacons" ? `Every lantern down in ${plural(S.metAt, "shot")}` : `Chandelier cleared in ${plural(S.metAt, "shot")}`;
+    return `${how}. ${starsWords(stars)}`;
+  }
+  if (g.kind === "score") return `${out ? "Out of shots" : "The chandelier reached the line"}: ${fmt(S.score)}, ${fmt(g.n - S.score)} short of ${fmt(g.n)}`;
+  if (g.kind === "beacons") return `${out ? "Out of shots" : "The chandelier reached the line"} with ${plural(beaconsOf(S).length, "lantern")} still up`;
+  return `${out ? "Out of shots" : "The chandelier reached the line"} with the chandelier still hanging`;
 }
 /** The line under the tube: what a finger is doing, a first game's next step, or what Fire would do now. */
 function say(s, path) {
@@ -111,20 +257,22 @@ function say(s, path) {
   else if (!read(SEEN, false) && S.shots < 4) text = firstSteps(s, path);
   else if (path.shattered.length) {
     const f = fire(s), n = f.shattered.length + f.fallen.length;
-    text = `Fire brings down ${n}${f.fallen.length ? ` (${f.fallen.length} falling)` : ""}: +${fmt(f.gain)}`;
+    text = `Fire brings down ${n}${f.fallen.length ? ` (${f.fallen.length} falling)` : ""}: +${fmt(f.gain)}${f.downed ? `, ${plural(f.downed, "lantern")} down` : ""}`;
   } else if (!S.moves && hand?.kind !== "turn") text = "No moves left this shot: turn the mirrors, then fire";
-  else if (path.crossed.length) text = "The light is coloured: turn a mirror to send it into the cluster";
+  else if (path.stop.what === "shutter") text = "The light stops at a shut shutter";
+  else if (path.cross.length) text = "The light is coloured: turn a mirror to send it into the cluster";
   else if (sel != null) text = "Drag the mirror to move it, its handle to turn it";
   else if (s.mirrors.length) text = "Tap a mirror to choose it, then drag it or its handle";
-  else text = "Set mirrors to carry the light through a colour crystal";
+  else text = S.crystals.length || fixtures(s).some(f => f.k === "prism") ? "Set mirrors to carry the light through a colour crystal" : "Set mirrors to carry the light into the cluster";
   $("say").textContent = text;
 }
 function firstSteps(s, path) {
-  if (!s.mirrors.length) return "Drag a mirror into the light under the port";
-  if (!path.crossed.length) return "Turn it by its handle: light a colour crystal";
+  if (!s.mirrors.length) return "Drag a mirror into the light";
+  if (!path.cross.length) return "Turn it by its handle: light a colour crystal";
   if (!path.shattered.length) return "Set a mirror in the coloured light; turn it into the cluster";
   return "Fire";
 }
+
 
 // ---------- picking ----------
 const local = e => { const r = $("stage").getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
@@ -286,15 +434,26 @@ async function shoot() {
   await scene.shot(before, r);
   S = r.state;
   save();
-  if (S.score > read(BEST, 0)) write(BEST, S.score);           // the games screen shows it at once
+  if (!inLevels() && S.score > read(BEST, 0)) write(BEST, S.score);           // the games screen shows it at once
   if (S.shots >= 4) write(SEEN, true);
   playing = false;
+  noteStars();
   render();
   if (S.over) roundOver("heliograph");
   if (r.gain) pop(r, before);
-  if (r.cleared) toast(`The chandelier is cleared: ${fmt(1000)} more`);
+  if (r.cleared && !S.over) toast(`The chandelier is cleared: ${fmt(1000)} more`);
+  else if (r.downed && !S.over) toast(r.downed === 1 ? "A lantern is down" : `${r.downed} lanterns are down`);
   else if (r.crushed.length) toast(r.crushed.length === 1 ? "The cluster came down on a mirror: it's back in hand" : `The cluster came down on ${r.crushed.length} mirrors: they're back in hand`);
-  else if (!r.path.crossed.length && !r.gain) toast("The light never reached a colour crystal");
+  else if (!r.path.cross.length && !r.gain) toast(r.path.stop.what === "shutter" ? "The light stopped at a shut shutter" : "The light never reached a colour crystal");
+}
+/** The stars a level has won, kept the moment they are (so leaving a level loses none); the first one opens the next level. */
+function noteStars() {
+  if (!inLevels() || IN_FRAME) return;
+  const n = camp.at, had = camp.stars[n], now = starsOf(S.x, S);
+  if (now <= had) return;
+  camp.stars[n] = now;
+  write(CAMP, camp);
+  if (had < 1) toast(LEVELS[n + 1] ? `${LEVELS[n + 1].name} is open` : "Every level is beaten");
 }
 /** What the shot brought in, rising from where it did most. */
 function pop(r, before) {
@@ -317,13 +476,64 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
 }
+/** The levels by station, two to a row: each a picture of the chandelier's shape and what the level adds, its name, goal and stars. A level is open once the one before it is beaten, and stays open. */
+function levelList() {
+  const wrap = document.createElement("div");
+  wrap.className = "hg-camp";
+  CHAPTERS.forEach((C, ci) => {
+    const sec = document.createElement("section"), head = document.createElement("h3"), won = LEVELS.filter(L => L.chapter === ci).reduce((a, L) => a + camp.stars[L.n], 0), grid = document.createElement("div");
+    head.append(Object.assign(document.createElement("span"), { textContent: C.name }), Object.assign(document.createElement("i"), { textContent: `${STAR} ${won} of ${C.levels.length * 3}` }));
+    sec.append(head, Object.assign(document.createElement("p"), { textContent: C.about, className: "hg-chapter" }));
+    grid.className = "hg-levels";
+    for (const L of LEVELS.filter(L => L.chapter === ci)) {
+      const b = document.createElement("button"), stars = camp.stars[L.n];
+      b.type = "button";
+      b.disabled = !isOpen(L.n);
+      b.className = stars ? "done" : "";
+      if (L.n === camp.at && inLevels()) b.setAttribute("aria-current", "true");
+      b.setAttribute("aria-label", `${C.name} ${L.k + 1}, ${L.name}, ${goalShort(rulesOf(L.n))}${stars ? `, ${plural(stars, "star")}` : ""}${b.disabled ? ", not open yet" : ""}`);
+      const map = Object.assign(document.createElement("div"), { className: "hg-lmap" }), body = document.createElement("div"), top = document.createElement("div");
+      map.append(mapSvg(L));
+      top.className = "hg-ltop";
+      top.append(Object.assign(document.createElement("b"), { textContent: `${ci + 1}·${L.k + 1}` }), Object.assign(document.createElement("span"), { textContent: isOpen(L.n) ? starsWords(stars) : "" }));
+      body.append(top, Object.assign(document.createElement("div"), { className: "hg-lname", textContent: L.name }), Object.assign(document.createElement("div"), { className: "hg-lgoal", textContent: goalShort(rulesOf(L.n)) }));
+      b.append(map, body);
+      b.addEventListener("click", () => { $("menuDlg").close(); playLevel(L.n); });
+      grid.append(b);
+    }
+    sec.append(grid);
+    wrap.append(sec);
+  });
+  return wrap;
+}
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  part(body, "play").append(action("New game", newRun, "primary"));
-  const best = read(BEST, 0), about = part(body, "about");
-  about.append(line(`This game: ${fmt(S.score)} in ${S.shots} shot${S.shots === 1 ? "" : "s"}${best ? `; your best ${fmt(best)}` : ""}`));
+  part(body, "play").append(inLevels() ? action(`Replay ${level().name}`, newRun, "primary") : action("New game", newRun, "primary"));
+  const content = part(body, "content");
+  content.append(choice("Mode", [["classic", "Classic"], ["levels", "Levels"]], mode, m => { setMode(m); openMenu(); }));
+  if (inLevels()) content.append(levelList());
+  const best = read(BEST, 0), beaten = camp.stars.filter(Boolean).length, about = part(body, "about");
+  about.append(line(inLevels()
+    ? `This game: ${fmt(S.score)} in ${plural(S.shots, "shot")}; ${beaten} of ${LEVELS.length} levels beaten, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}`
+    : `This game: ${fmt(S.score)} in ${plural(S.shots, "shot")}${best ? `; your best ${fmt(best)}` : ""}`));
+  // what this level has, to read again; a plain one offers them all
+  if (inLevels() && !IN_FRAME) about.append(action("How things work", () => { const own = featuresOf(S.x); help.open(own.length ? own : ORDER); }, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+// ---------- feature help ----------
+const help = createHelp({
+  dialog: $("hgHelp"),
+  seen: () => read(HELP, []),
+  mark: ids => write(HELP, [...new Set([...read(HELP, []), ...ids])]),
+  allowed: () => inLevels() && !IN_FRAME,
+});
+/** The features this level has and the person hasn't met open their dialog once, at the level's start. */
+function checkHelp() {
+  if (!S || S.over || playing || !inLevels() || IN_FRAME || help.isOpen() || $("menuDlg").open) return;
+  const fresh = featuresOf(S.x).filter(id => !read(HELP, []).includes(id));
+  if (fresh.length) help.open(fresh);
 }
 
 // ---------- wiring ----------
@@ -342,15 +552,10 @@ $("mirrorBtn").addEventListener("pointercancel", cancel);
 $("takeBtn").addEventListener("click", () => { if (sel == null) return; S = takeMirror(S, sel); sel = null; save(); render(); });
 $("fireBtn").addEventListener("click", shoot);
 $("againBtn").addEventListener("click", newRun);
+$("levelsBtn").addEventListener("click", openMenu);
 
 // for tests and debugging
-window.__heliograph = { get state() { return S; }, set state(s) { S = s; sel = null; render(); }, get sel() { return sel; }, set sel(id) { sel = id; render(); }, view, shoot, newRun, project: p => view.project(p), get shown() { return shown; } };
+window.__heliograph = { get state() { return S; }, set state(s) { S = s; sel = null; render(); }, get sel() { return sel; }, set sel(id) { sel = id; render(); }, view, shoot, newRun, project: p => view.project(p), get shown() { return shown; },
+  playLevel, setMode, help, checkHelp, get mode() { return mode; }, get camp() { return camp; }, openMenu };
 
-S = read(RUN, null);
-if (!valid(S)) newRun();
-else {
-  // a game kept on its first shot from before that shot had three moves gets the third (every mirror then is new this
-  // shot, so the moves spent are the mirrors touched)
-  if (!S.shots) S.moves = FIRST_MOVES - S.touched.length;
-  render();
-}
+resume();
