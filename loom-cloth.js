@@ -8,7 +8,7 @@
 // The other cloths draw each crossing alone, and an undecided one as the two yarns laid thin.
 import { YARNS, GOLD_YARN } from "./loom-levels.js";
 import { WARP, WEFT, GOLD, fixed, lineMet } from "./loom-float.js";
-import { threaded } from "./loom-thread.js";
+import { threaded, NOTE_WARP, NOTE_WEFT } from "./loom-thread.js";
 import { scale } from "./wide.js";
 
 export const UNSET = 255;
@@ -31,7 +31,8 @@ export function createCloth(host) {
   let W = 0, H = 0, dpr = 1, G = null, puzzle = null, colours = null, threads = false, pulsing = 0, pulling = 0;
   // `look` is what the crossings are drawn from if not `cells` (a float being laid under a finger); marks and the dimmed
   // clues are always of `cells`, the cloth as it stands, so a finger sliding about can't read the answer off them.
-  const view = { cells: null, look: null, marks: true, flash: null, hint: null, press: -1, reveal: 1, shuttle: 0, thread: null, anim: null };
+  const view = { cells: null, look: null, notes: null, marks: true, flash: null, hint: null, press: -1, reveal: 1, shuttle: 0, thread: null, anim: null };
+  let reserve = 0;                                                                // room kept clear at the bottom, for the page's own controls over the picture
   const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // The page's own colours, resolved to something a canvas reads.
@@ -56,10 +57,10 @@ export function createCloth(host) {
       bandW = 0; bandH = 0;
       for (let r = 0; r < p.h; r++) bandW = Math.max(bandW, p.clues[r].reduce((a, [n]) => a + chipW(n, e) + e * 0.12, 0));
       for (let c = 0; c < p.w; c++) bandH = Math.max(bandH, p.clues[p.h + c].length * (e * 1.12));
-      s = Math.min(60 * sc, (W - 2 * pad - bandW - mark) / p.w, (H - 2 * pad - bandH - mark) / p.h);
+      s = Math.min(60 * sc, (W - 2 * pad - bandW - mark) / p.w, (H - reserve - 2 * pad - bandH - mark) / p.h);
     }
     s = Math.max(6, s);
-    const gw = s * p.w, gh = s * p.h, x0 = (W - (bandW + mark + gw)) / 2 + bandW + mark, y0 = (H - (bandH + mark + gh)) / 2 + bandH + mark;
+    const gw = s * p.w, gh = s * p.h, x0 = (W - (bandW + mark + gw)) / 2 + bandW + mark, y0 = (H - reserve - (bandH + mark + gh)) / 2 + bandH + mark;
     G = { s, e, x0, y0, gw, gh, mark, pad };
   }
   function resize() {
@@ -208,6 +209,33 @@ export function createCloth(host) {
       ctx.beginPath(); ctx.arc(x0 + c * s + s * .82, y0 + r * s + s * .18, Math.max(2, s * .075), 0, 7); ctx.fill(); ctx.stroke();
     }
   }
+  /**
+   * The player's notes on the weft where no float is laid: a warp pencilled as a ghost thread, dashed, the run of them one outline
+   * (it is not a float and must not look like one), and the weft known as a dot on its pick. Light on a dark yarn, dark on a light one.
+   */
+  function noted(cells, frontier) {
+    const p = puzzle, { s, x0, y0 } = G, n = view.notes, rows = Math.min(p.h, frontier);
+    const has = (r, c, k) => r >= 0 && r < rows && cells[r * p.w + c] !== WARP && n[r * p.w + c] === k;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x0, y0, G.gw, G.gh); ctx.clip();
+    for (let c = 0; c < p.w; c++) for (let r = 0; r < rows; r++) {
+      if (has(r, c, NOTE_WARP)) {
+        let e = r;
+        while (has(e + 1, c, NOTE_WARP)) e++;
+        const light = luma(hexOf(p.weft[r])) > .5, a = x0 + c * s + s * .27, w = s * .46, y = y0 + r * s + s * .08, h = (e + 1 - r) * s - s * .16;
+        rounded(a, y, w, h, Math.max(2, s * .1));
+        ctx.globalAlpha = .62; ctx.fillStyle = hexOf(p.warp[c]); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.setLineDash([s * .13, s * .09]); ctx.lineWidth = Math.max(1.5, s * .06); ctx.strokeStyle = light ? "rgba(20,20,20,.8)" : "rgba(255,255,255,.88)"; ctx.stroke();
+        ctx.setLineDash([]);
+        r = e;
+      } else if (has(r, c, NOTE_WEFT)) {
+        const light = luma(hexOf(p.weft[r])) > .5, cx = x0 + (c + .5) * s, cy = y0 + (r + .5) * s;
+        ctx.beginPath(); ctx.arc(cx, cy, Math.max(2, s * .1), 0, 7);
+        ctx.fillStyle = light ? "rgba(20,20,20,.75)" : "rgba(255,255,255,.85)"; ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
   /** A float being laid or taken out: the cloth as it was everywhere, and the new one drawn over it as far as the yarn has been pulled. */
   function pulled(frontier) {
     const a = view.anim, p = puzzle, { s, x0, y0, gw, gh } = G, t = a.t, span = (a.hi - a.lo + 1) * s;
@@ -286,6 +314,7 @@ export function createCloth(host) {
     // the crossings
     const frontier = view.reveal < 1 ? view.reveal * p.h : p.h;
     if (view.anim) pulled(frontier); else crossings(view.look || cells, frontier);
+    if (view.notes && threads) noted(cells, frontier);
     // a line of faint hairlines every five, so a count by eye doesn't go astray
     ctx.strokeStyle = colours.rule; ctx.lineWidth = 1; ctx.beginPath();
     for (let c = 5; c < p.w; c += 5) { ctx.moveTo(x0 + c * s, y0); ctx.lineTo(x0 + c * s, y0 + gh); }
@@ -347,11 +376,11 @@ export function createCloth(host) {
     set(p) {
       puzzle = p; threads = threaded(p);
       cancelAnimationFrame(pulling); cancelAnimationFrame(pulsing); pulling = pulsing = 0;
-      Object.assign(view, { look: null, hint: null, flash: null, press: -1, reveal: 1, thread: null, anim: null });
+      Object.assign(view, { look: null, notes: null, hint: null, flash: null, press: -1, reveal: 1, thread: null, anim: null });
       canvas.setAttribute("aria-label", `A cloth of ${p.w} threads by ${p.h} picks, with the clues of its floats round it`);
       layout(); draw();
     },
-    /** Draws with what the page says changed: { cells, look, marks, flash, hint, press, reveal, shuttle, thread: { c, lo, hi, kind: "peg" | "lay" | "cut", anchor } }. */
+    /** Draws with what the page says changed: { cells, look, notes, marks, flash, hint, press, reveal, shuttle, thread: { c, lo, hi, kind: "peg" | "lay" | "cut", anchor } }. */
     show(v) {
       Object.assign(view, v);
       draw();
@@ -384,6 +413,8 @@ export function createCloth(host) {
     },
     /** Whether a float is being pulled through (the page waits for it before weaving the finished cloth out). */
     busy: () => !!view.anim,
+    /** Keeps `px` clear at the bottom of the picture, for controls the page lays over it. */
+    room(px) { if (px === reserve) return; reserve = px; layout(); draw(); },
     resize,
     /** The crossing a pointer event is on, or -1. */
     hit(e) {

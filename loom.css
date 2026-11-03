@@ -23,6 +23,18 @@ html[data-mode="night"] { --lm-bad: #E8806F; }
 .lm-bench { position: relative; min-height: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--tile-edge); background: var(--tile); }
 .lm-canvas { position: absolute; inset: 0; display: block; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; cursor: pointer; }
 
+/* what a touch does on a plain cloth (lay, pencil warp, pencil weft): a segmented control over the foot of the cloth, where the
+   thumb is; the cloth keeps its room (loom-cloth.js `room`) so the control never covers a crossing */
+.lm-marker { position: absolute; left: 50%; bottom: .4rem; transform: translateX(-50%); z-index: 2; display: flex; max-width: calc(100% - 1rem);
+  border: 1px solid var(--brass); border-radius: 6px; overflow: hidden; background: var(--sheet); }
+.lm-marker[hidden] { display: none; }
+.lm-marker.off { visibility: hidden; }
+.lm-mode { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-width: 0; height: 2.5rem; padding: 0 .75rem; border: 0; border-radius: 0; background: none; color: var(--ink);
+  font: inherit; font-size: .78rem; font-weight: 700; white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.lm-mode + .lm-mode { border-left: 1px solid var(--rule); }
+.lm-mode svg { width: 1rem; height: 1rem; flex: none; }
+.lm-mode[aria-checked="true"] { background: color-mix(in srgb, var(--lm-in) 22%, var(--sheet)); box-shadow: inset 0 0 0 2px var(--lm-in); }
+
 /* two lines, always, so nothing moves when the words change */
 .lm-line { margin: .35rem 0 .3rem; height: 2.5rem; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
   font-size: .86rem; line-height: 1.25rem; text-align: center; color: var(--ink-soft); }

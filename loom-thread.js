@@ -77,9 +77,38 @@ export function takeUp(p, cells, c, r) {
   return f && cut(p, cells, c, f.lo, f.hi);
 }
 
-/** Puts changes into the cloth (or, with `back`, takes them out again): Undo and Redo are this, one way and the other. */
-export function apply(cells, changes, back = false) {
-  for (const { i, was, now } of changes) cells[i] = back ? was : now;
+/**
+ * Puts changes into the cloth (or, with `back`, takes them out again): Undo and Redo are this, one way and the other. A change
+ * with `n` set is to the player's notes (`notes`, below), not to the cloth, and is skipped where there are none.
+ */
+export function apply(cells, changes, back = false, notes = null) {
+  for (const { i, was, now, n } of changes) { const to = n ? notes : cells; if (to) to[i] = back ? was : now; }
+}
+
+// ---------- notes: what the player thinks, pencilled on the weft ----------
+// A crossing nobody has laid shows the weft, whether it has been worked out or not. A note says which: a warp pencilled
+// where a thread is thought to come up, or the weft marked as known. A note is the player's own and nothing else's: it is not
+// a float (no clue counts it, `met` and the slips never read it) and it never changes the answer or the grading. It is kept
+// apart from the cloth, in an array of its own, and drawn only where the weft shows. Laying a float over a note takes the note
+// away (in the same step, so Undo gives it back).
+export const NOTE_WARP = 1, NOTE_WEFT = 2;
+/** Whether a note can sit on crossing i: not on a float laid there, nor on a pre-woven crossing, which is known already. */
+export const markable = (p, cells, i) => !fixed(p, i) && cells[i] !== WARP;
+/**
+ * The change painting crossing i with `kind` (or, with `erase`, taking a note of that kind away), or null where it would change
+ * nothing: the stroke of a finger is these, one Undo. Painting over the other kind replaces it.
+ */
+export function paintNote(p, cells, notes, i, kind, erase = false) {
+  if (!markable(p, cells, i) || (erase ? notes[i] !== kind : notes[i] === kind)) return null;
+  return { i, was: notes[i], now: erase ? 0 : kind, n: true };
+}
+/** The notes as the characters a run keeps them in: "0" none, "1" a warp, "2" the weft known. */
+export const notesString = notes => Array.from(notes).join("");
+/** Notes from what was kept: none where it is unreadable, and none on a pre-woven crossing. */
+export function notesFrom(p, kept) {
+  const notes = new Uint8Array(p.n);
+  if (typeof kept === "string" && kept.length === p.n && /^[012]+$/.test(kept)) for (let i = 0; i < p.n; i++) if (!fixed(p, i)) notes[i] = +kept[i];
+  return notes;
 }
 
 // ---------- the hand at the loom: what a finger does, a thread waiting, Undo and Redo ----------
@@ -93,8 +122,9 @@ export function apply(cells, changes, back = false) {
  * the float follows the finger, laid when it lifts. With a thread waiting, a press in its column is where it goes back
  * under (a float, both ends in; the same crossing again is a float of one), in another column it moves the start there. A
  * press on a float pulls it out whole; dragging along it cuts the stretch the finger covered, the weft coming back over.
+ * `notes`, if given, are the player's notes: they take part in Undo and Redo as steps of their own.
  */
-export function createHand(p, cells) {
+export function createHand(p, cells, notes = null) {
   let gest = null;
   const me = {
     history: [], future: [], pending: null,
@@ -134,8 +164,14 @@ export function createHand(p, cells) {
       if (a.changes.length) { a.was = Uint8Array.from(cells); me.step(a.changes); }
       return a;
     },
-    /** Puts a step into the cloth and keeps it for Undo (a redo is no longer there). */
-    step(changes) { apply(cells, changes); me.record(changes); me.pending = null; },
+    /** Puts a step into the cloth and keeps it for Undo (a redo is no longer there). A float laid over a note takes the note away with it. */
+    step(changes) {
+      const redeemed = notes ? changes.filter(ch => !ch.n && ch.now === WARP && notes[ch.i]).map(ch => ({ i: ch.i, was: notes[ch.i], now: 0, n: true })) : [];
+      const all = redeemed.length ? changes.concat(redeemed) : changes;
+      apply(cells, all, false, notes);
+      me.record(all);
+      me.pending = null;
+    },
     /** Keeps a step already in the cloth (a brush stroke). */
     record(changes) { if (changes.length) { me.history.push(changes); me.future = []; } },
     /** Lets go of a thread that is waiting: true if there was one. */
@@ -145,7 +181,7 @@ export function createHand(p, cells) {
       if (me.pending) { me.pending = null; return "wait"; }
       const last = me.history.pop();
       if (!last) return null;
-      apply(cells, last, true);
+      apply(cells, last, true, notes);
       me.future.push(last);
       return last;
     },
@@ -153,7 +189,7 @@ export function createHand(p, cells) {
       const next = me.future.pop();
       if (!next) return null;
       me.pending = null;
-      apply(cells, next);
+      apply(cells, next, false, notes);
       me.history.push(next);
       return next;
     },
