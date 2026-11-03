@@ -1,4 +1,4 @@
-// Hong: the referee and the computer players. The fan of the spec's test hands (and the limits), the deal, the head
+// Mahjong: the referee and the computer players. The fan of the spec's test hands (and the limits), the deal, the head
 // bump, the pass block, robbing a kong, liability, the seven flowers; then hundreds of hands played through by
 // computer players without a refused move, every tile accounted for and every payment balanced; then the computer
 // players: their reading of a hand, the calls and defence a good player makes, whole hands among themselves, and the

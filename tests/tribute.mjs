@@ -1,4 +1,4 @@
-// Tribute: the cards, every kind of play and how they compare (the wilds, the ace low and high, the bomb ladder), the
+// Guandan: the cards, every kind of play and how they compare (the wilds, the ace low and high, the bomb ladder), the
 // trick and the partner's lead after going out, tribute, its return and resistance, the levels and passing the ace;
 // then how the computer players organise a hand and judge a position, at both strengths, whole matches of them (every
 // card accounted for), against greedy players, and hard against medium; a match together through the shared room (as

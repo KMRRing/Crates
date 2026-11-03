@@ -1,4 +1,4 @@
-// Tribute's computer players think here, off the page's thread: a hand's state and a seat in, the decision and its
+// Guandan's computer players think here, off the page's thread: a hand's state and a seat in, the decision and its
 // reasons out ("hints": the plays weighed for your seat, the computer's choice first, each with what speaks for and
 // against it). Hard looks ahead in up to 32 sampled deals, in under half a second (the hint, which waits on a tap,
 // gets a little longer); medium doesn't look ahead. "check": a move of yours set against the coach's choice, the two

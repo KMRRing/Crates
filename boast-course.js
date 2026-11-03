@@ -42,7 +42,7 @@ export function judge(step, bid) {
 // ---------- the lessons ----------
 const YOURS = "2 5 5 1 6";
 export const COURSE = {
-  title: "Learn Boast", zh: "大話骰",
+  title: "Learn liar's dice", zh: "大話骰",
   chapters: [
     {
       id: "game", title: "The game", zh: "玩法",
@@ -50,7 +50,7 @@ export const COURSE = {
         {
           id: "cups", title: "Five dice under a cup", zh: "骰盅",
           steps: [
-            { rows: [{ label: "Your cup, lifted for you alone", dice: "2 3 5 5 6" }, { label: "The others' cups", cups: 3 }], say: "Boast is liar's dice as it's played round a table in Hong Kong, Macau and Guangdong (大話骰, daai6 waa6 sik1, \"big-talk dice\") and on the mainland (吹牛, chuīniú, \"to brag\"). Everyone shakes five dice under a cup (骰盅, tóuzhōng) and looks only at their own." },
+            { rows: [{ label: "Your cup, lifted for you alone", dice: "2 3 5 5 6" }, { label: "The others' cups", cups: 3 }], say: "This is liar's dice as it's played round a table in Hong Kong, Macau and Guangdong (大話骰, daai6 waa6 sik1, \"big-talk dice\") and on the mainland (吹牛, chuīniú, \"to brag\"). Everyone shakes five dice under a cup (骰盅, tóuzhōng) and looks only at their own." },
             { rows: [{ label: "A bid", bid: "5 5" }], say: "In turn, each bids how many dice of one face lie under all the cups together: \"five fives\" (五个五, wǔ gè wǔ; Cantonese 五粒五, ng5 nap1 ng5) means at least five 5s on the whole table, yours included." },
             { rows: [{ label: "Your cup", dice: "2 3 5 5 6" }, { label: "The others' cups", cups: 3 }], quiz: ["Five", "Twenty", "Fifteen"], answer: 1, say: "Four players: how many dice are the bids about?", why: "Twenty: five under each of the four cups. You see five of them; the bids count all twenty." },
           ],

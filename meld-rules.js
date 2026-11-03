@@ -1,4 +1,4 @@
-// Meld: gin rummy for two (README, Meld). The rules as a pure module for seats.js, which moves it solo against the
+// Gin rummy for two (README, Gin rummy). The rules as a pure module for seats.js, which moves it solo against the
 // computer or at a table with a friend; the computer player is meld-bot.js's, the page meld.js.
 //
 // A hand: ten cards each, the next card turned up as the first discard, the rest the stock. The player who didn't deal

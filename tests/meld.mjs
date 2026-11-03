@@ -1,4 +1,4 @@
-// Meld (meld-rules.js, meld-bot.js): gin rummy for two. What melds and deadwood are (sets of three or four, runs of three
+// Gin rummy (meld-rules.js, meld-bot.js): for two. What melds and deadwood are (sets of three or four, runs of three
 // or more in a suit with the ace low, a card in one meld at a time, the fewest points left over, checked against a
 // plain search over hundreds of hands); laying off (the fourth of a set, either end of a run, one card making room for the
 // next); the deal, the first offer of the upcard, the pile's card not thrown back, knocking only with ten or less; the

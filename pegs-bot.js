@@ -1,4 +1,4 @@
-// The computer player of Pegs (pegs-rules.js). Two decisions:
+// The computer player of Cribbage (pegs-rules.js). Two decisions:
 //  - which two cards to put in the crib: the four kept are worth what they average over every starter that could turn up;
 //    Hard also reckons what the two sent are worth to the crib, which is its own if it deals and the other's if not;
 //  - which card to play: what it scores now, less what it gives the other to score (a count of 5 or 21 lets a ten make

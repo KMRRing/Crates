@@ -1,4 +1,4 @@
-# Flank
+# Reversi
 Reversi on 8×8 (3 November 2026), against the computer (Easy, Medium, Hard), two on one phone, a partner's match or a table of friends (seats.js runs it), with a coach (Hint: the best move and who is ahead; the exact result once the last fourteen squares are in reach) and a Learn course.
 
 Korbi, 2 November 2026, on the games screen's list: "othello". Othello is a trademark; Reversi, the 1880s game it came from, is a name anyone may use, and the tile is Flank (for what a move does). Never "Othello" in the game, its text or its code, and no green board (the board is lapis enamel in a brass frame).

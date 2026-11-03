@@ -1,4 +1,4 @@
-// Gammon: backgammon against the computer, or at a table with a friend each on their own phone. The rules are
+// Backgammon: backgammon against the computer, or at a table with a friend each on their own phone. The rules are
 // gammon-rules.js's (the board's gammon-board.js's), the computer gammon-bot.js's, the running seats.js's. This page
 // draws the board as the one playing it sees it, their home board at the bottom right, and takes a play a move at a
 // time: a tap on a checker moves it, or shows where it may go when it may go more than one way; Undo takes moves back
@@ -293,7 +293,7 @@ function openMenu() {
   if (page.host) play.append(action("New match", newMatch, "primary"));
   page.menu(play);
   const cp = progressOf("gammon", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Gammon, from the rules", () => course.open()));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn backgammon, from the rules", () => course.open()));
   if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");

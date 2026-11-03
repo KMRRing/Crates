@@ -1,4 +1,4 @@
-// River's course on a sheet over the game: the map of its lessons, and a lesson's steps on a board of its own (the
+// Xiangqi's course on a sheet over the game: the map of its lessons, and a lesson's steps on a board of its own (the
 // game's board and pieces, river-board.js), the words beside it and the buttons under them. The lessons are
 // river-course.js's; this draws them and takes the answers: points tapped, moves made, an opening's moves played in
 // turn with the other side's answered for you, a choice. Where you've got to is kept (river:course), so the course

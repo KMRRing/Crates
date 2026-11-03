@@ -1,4 +1,4 @@
-// Gammon's course (gammon-course.js: Learn Gammon, on course.js): every exercise worked through the board's rules
+// Backgammon's course (gammon-course.js: Learn backgammon, on course.js): every exercise worked through the board's rules
 // (gammon-board.js). Every position written has fifteen checkers a side and no point held by both; every play asked
 // for can be made with its roll and is judged right, every play it accepts too, every wrong play it has words for is
 // judged wrong with them, and of every play the roll allows only the meant ones are right; the figures the lessons

@@ -1,4 +1,4 @@
-// Gammon's board, its moves and its plays, with nothing of the game round it (the match, the cube, the turns are
+// Backgammon's board, its moves and its plays, with nothing of the game round it (the match, the cube, the turns are
 // gammon-rules.js's; the computer's judgement gammon-bot.js's), so both can use it.
 //
 // Each side's checkers are counted in its own numbering: pos[i] for i 1..24 is how many of its checkers stand on its

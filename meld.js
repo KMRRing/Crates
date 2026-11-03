@@ -1,4 +1,4 @@
-// Meld (gin rummy for two) against the computer, or at a table with a friend on their own phone. The rules are
+// Gin rummy (for two) against the computer, or at a table with a friend on their own phone. The rules are
 // meld-rules.js's, the computer player meld-bot.js's, the running seats.js's (seats-ui.js). This page draws the table:
 // the other hand as backs, the stock and the pile between, what the other has picked up from the pile, and your cards
 // along the foot, melds together if you like; and a hand's end with every card shown.
@@ -282,7 +282,7 @@ function showRules() {
     <p>Gin rummy for two. Ten cards each; be first to knock with less deadwood than the other, or to go gin.</p>
     <p><b>Melds.</b> Three or four cards of a rank, or three or more of a suit in a row (ace low: A-2-3 is a run, Q-K-A is not). Cards in no meld are <b>deadwood</b>: an ace counts 1, the face cards 10, the rest their number.</p>
     <p><b>A turn.</b> Draw the top of the stock or the top of the pile, then throw one card on the pile. You can't throw back the card you took from the pile. To begin, the player who didn't deal may take the turned-up card or pass; then the dealer may; if both pass, the first draws from the stock.</p>
-    <p><b>Knocking.</b> With 10 or less in deadwood after your throw, you may knock instead of throwing: the hands are shown. The other player lays off, putting cards on your melds (the fourth of a set of three, the card above or below a run) to cut their deadwood; Meld does it for them, as well as it can be done.</p>
+    <p><b>Knocking.</b> With 10 or less in deadwood after your throw, you may knock instead of throwing: the hands are shown. The other player lays off, putting cards on your melds (the fourth of a set of three, the card above or below a run) to cut their deadwood; Gin rummy does it for them, as well as it can be done.</p>
     <p><b>Scoring.</b> Knock with less than the other has left and you score the difference. If the other has as much or less, it is an <b>undercut</b>: they score the difference and ${BONUS.undercut} more. <b>Gin</b> (no deadwood, the other can't lay off) scores their deadwood and ${BONUS.gin}. <b>Big gin</b> (all eleven cards in melds, no throw) scores their deadwood and ${BONUS.big}.</p>
     <p><b>The stock.</b> When only two cards are left and the player who drew doesn't knock, the hand is a draw: nobody scores.</p>
     <p><b>The game</b> goes to ${TO.join(", ")} points (the menu). The winner then adds ${BONUS.game} for the game (${BONUS.game * 2} if the other has nothing), and each side ${BONUS.box} for every hand won.</p>`;

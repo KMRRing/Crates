@@ -1,4 +1,4 @@
-// River: Xiangqi's rules move by move on hand-built positions (the palace, the river, the elephant's eye, the horse's
+// Xiangqi: its rules move by move on hand-built positions (the palace, the river, the elephant's eye, the horse's
 // leg, the cannon's screen, the flying general, the soldier across the river), the move generator by perft from the
 // start and against the engine's own (written separately) in positions from random games, the notations (Chinese and WXF), the end of a
 // game (checkmate, no move left, perpetual check, repetition, sixty moves, no attackers), the state as the room keeps
@@ -103,7 +103,7 @@ const core = new Core({ hashMb: 4 });
       core.play(pick);
     }
   }
-  check(!differ.length, `River's legal moves are the engine's in ${positions} positions from 40 random games${differ.length ? `: ${differ.join("; ")}` : ""}`);
+  check(!differ.length, `Xiangqi's legal moves are the engine's in ${positions} positions from 40 random games${differ.length ? `: ${differ.join("; ")}` : ""}`);
   core.setFen(X.START);
   const counts = [1, 2, 3, 4].map(d => core.perft(d));
   check(same(counts, [44, 1920, 79666, 3290240]), `and the engine's own perft from the start: ${counts.join(", ")}`);
@@ -190,7 +190,7 @@ check(parseInfo("info depth 3 seldepth 4 multipv 2 score cp -35 nodes 900 nps 1 
 check(choose([{ cp: 50, pv: ["a"] }, { cp: -900, pv: ["b"] }], 60, () => 0.99) === "a" && choose([{ cp: 50, pv: ["a"] }, { cp: 40, pv: ["b"] }], 60, () => 0.99) === "b",
   "a weak level's draw: a move giving up a chariot almost never, one as good as the best about as often");
 {
-  // whole games between levels: every move legal by River's own rules, through the database's round trip
+  // whole games between levels: every move legal by Xiangqi's own rules, through the database's round trip
   const r = rng(3);
   let plies = 0, games = 0, illegal = 0, roundTrips = 0, ends = new Set();
   for (const [a, b] of [["1", "4"], ["2", "3"], ["5", "1"]]) {

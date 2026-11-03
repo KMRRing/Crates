@@ -1,4 +1,4 @@
-// River's course: Xiangqi taught from nothing, in three chapters: the rules (the board and each piece, then check,
+// Xiangqi's course: Xiangqi taught from nothing, in three chapters: the rules (the board and each piece, then check,
 // mate and the end), ideas (what the pieces are worth, the fork, the pin, the discovered check, the generals' face-off,
 // the named mates, how to open) and the openings (each played through move by move, its ideas told as it goes). A
 // lesson is a list of steps on a board:
@@ -320,7 +320,7 @@ export const COURSE = [
       {
         id: "first-game", title: "Your first game", zh: "{對局|对局}",
         steps: [
-          { from: "start", play: true, say: "You know the rules, the ideas and the openings. Play a game against Beginner: try the central cannon, bring your chariots out, watch for forks and the cannon behind the horse. Hint shows a good move when you're stuck; at the end, River shows where you lost most." },
+          { from: "start", play: true, say: "You know the rules, the ideas and the openings. Play a game against Beginner: try the central cannon, bring your chariots out, watch for forks and the cannon behind the horse. Hint shows a good move when you're stuck; at the end, Xiangqi shows where you lost most." },
         ],
       },
     ],

@@ -1,4 +1,4 @@
-// Bones' computer players. Every one plays by a rule of thumb: in the block games, shed the heaviest tiles and the
+// Dominoes' computer players. Every one plays by a rule of thumb: in the block games, shed the heaviest tiles and the
 // doubles (which only fit their own number) early and keep tiles that fit the ends left; in Fives and Threes, score
 // what the ends allow, the most first. Medium and Hard look further: they deal the tiles they can't see among the
 // others as they could lie (each hand's size, and nothing a player has knocked on: a knock on a five and a two means

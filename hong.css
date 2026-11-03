@@ -1,4 +1,4 @@
-/* Hong: a jade table under brass, ivory tiles with green backs. The table is one SVG drawn to its box (hong.js picks
+/* Mahjong: a jade table under brass, ivory tiles with green backs. The table is one SVG drawn to its box (hong.js picks
    its proportions); your tiles are buttons below it, sized to the row; the tiles themselves are symbols from
    hong-tiles.js, coloured from the variables here so they follow the theme. */
 :root {

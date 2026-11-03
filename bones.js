@@ -1,4 +1,4 @@
-// Bones: dominoes for two to four, against the computer or with friends each on their own phone: Partnership, Gaple
+// Dominoes for two to four, against the computer or with friends each on their own phone: Partnership, Gaple
 // and Fives and Threes (bones-rules.js), on seats.js. This page lays the line out as it snakes across the table
 // (bones-layout.js), the other players along the top with their tiles face down, your tiles along the foot: a tap on
 // one that fits plays it, and where it would go on either end, the two places are shown on the line, to tap.
@@ -342,7 +342,7 @@ function openMenu() {
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
   const cp = progressOf("bones", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Bones, from the rules", () => course.open()));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn dominoes, from the rules", () => course.open()));
   if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");

@@ -1,4 +1,4 @@
-# Contract
+# Contract bridge
 Contract bridge (October 2026), four at a table in two partnerships, North–South against East–West, against the computer or with friends each on their own phone (Invite players: seats.js runs it, the computer taking the seats nobody has). You sit South with your partner North across the table. Two people brought by a party sit across from each other as partners (Party's `across`); anyone else sits down in the lowest seat free.
 
 A match is Chicago, the four-deal match clubs play when four sit down for an evening: the dealer moves clockwise, and the vulnerability (which raises both what a side's games and slams score and what its contracts cost going down) follows the deals, nobody on the first, the dealer's side on the second and third, both on the fourth. Each deal is scored as duplicate bridge scores it, its game or part-score bonus on the deal itself, and the running score adds them; the side ahead after four deals wins the match, and a run of matches won shows on the games screen. A deal all four pass is dealt again by the same dealer. The rules, the whole scoring table among them, are on the Rules sheet (the menu).

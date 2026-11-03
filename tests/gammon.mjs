@@ -1,4 +1,4 @@
-// Gammon (gammon-board.js, gammon-rules.js, gammon-bot.js) on seats.js: the board (the start, pips, moves blocked by a
+// Backgammon (gammon-board.js, gammon-rules.js, gammon-bot.js) on seats.js: the board (the start, pips, moves blocked by a
 // made point, a blot hit, entering from the bar first, bearing off exactly, from the highest point with a bigger die,
 // not with a checker outside); the plays of a roll (both dice when they can be, the larger when only one, four of a
 // double, each position once); a game won single, gammon or backgammon; the match (the opening roll, a play made, an

@@ -1,5 +1,5 @@
-// River's puzzle rush on the page (Menu, Puzzle rush): Xiangqi tactics, as many as you can, with the settings every
-// game's rush shares (rush-core.js, rush-menu.js): Random, Today's (the same for everyone) or River's own Patterns; 3 min
+// Xiangqi's puzzle rush on the page (Menu, Puzzle rush): Xiangqi tactics, as many as you can, with the settings every
+// game's rush shares (rush-core.js, rush-menu.js): Random, Today's (the same for everyone) or Xiangqi's own Patterns; 3 min
 // with five seconds' grace a puzzle, 5 min, or Survival; three misses end the run. As Gambit's chess puzzles do, it opens
 // on an easy warm-up that starts the clock and counts for nothing, and the puzzles climb from below your rating as you
 // solve them, against a running rating kept across runs. The bank is river-puzzles.txt, loaded with the first run; the
@@ -114,7 +114,7 @@ export function playPuzzle(host, p, opts) {
 
 // ---------- the run ----------
 /**
- * The rush on River's page: its board, its line, its count, clock and strikes take the game's places while it's open
+ * The rush on Xiangqi's page: its board, its line, its count, clock and strikes take the game's places while it's open
  * (#app.rushing). onOpen and onClose tell the page; script() is the characters the menu has set.
  */
 export function createRush({ onOpen = () => {}, onClose = () => {}, script = () => "traditional" }) {
@@ -381,7 +381,7 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
     else start();
     return true;
   }
-  /** The menu while the rush is open, as every game's rush has it (rush-menu.js): a run (Random, Today's, or River's own
+  /** The menu while the rush is open, as every game's rush has it (rush-menu.js): a run (Random, Today's, or Xiangqi's own
    *  Patterns) and its clock, your rating, your bests. */
   function menu(body) {
     pick ??= { ...next };

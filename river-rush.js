@@ -1,4 +1,4 @@
-// River's puzzle rush without its page (river-rush-ui.js): the bank's lines, what a puzzle comes to in words and whether a
+// Xiangqi's puzzle rush without its page (river-rush-ui.js): the bank's lines, what a puzzle comes to in words and whether a
 // move answers it. The settings, the clocks, how a run chooses its puzzles and moves your rating are every game's rush's
 // (rush-core.js), re-exported here for the page and the tests. The bank, river-puzzles.txt, is found by
 // tools/river-puzzles.mjs; tests/river.mjs checks it and these.

@@ -1,4 +1,4 @@
-// River's own Xiangqi engine: no dependency, no licence to carry. A position with its legal moves (every rule of
+// Xiangqi's own Xiangqi engine: no dependency, no licence to carry. A position with its legal moves (every rule of
 // river-rules.js: palace, river, elephant's eye, horse's leg, cannon screen, the generals never facing), a search
 // (iterative deepening, alpha-beta with a transposition table, null move, late-move reductions, quiescence) and a
 // hand-tuned evaluation (material, piece-square tables, mobility, the generals' safety). uci.js speaks to it through
@@ -79,7 +79,7 @@ const SIDE_LO = rand32(), SIDE_HI = rand32();
 // each for the middlegame and the endgame. A soldier is worth 100 at home and more and more once across the river; a
 // horse likes the centre and the enemy's palace, a cannon the central file, a chariot the open ranks; the general stays
 // home (a general stepping up into the cannons' range costs). Set by hand, then fitted in the sandbox to the scores the
-// engine River played before gave quiet positions (numbers only: no table of anyone's is in these).
+// engine Xiangqi played before gave quiet positions (numbers only: no table of anyone's is in these).
 export const W = {
   mg: [0, 0, 125, 135, 410, 950, 450, 60], eg: [0, 0, 60, 45, 370, 780, 280, 40],        // material by type
   rankMg: [

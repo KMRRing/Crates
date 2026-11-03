@@ -1,4 +1,4 @@
-// Landlord's course (Learn, in the header): 斗地主 taught from nothing, for a newcomer who means to sit down at a real
+// Dou Dizhu's course (Learn, in the header): 斗地主 taught from nothing, for a newcomer who means to sit down at a real
 // table in China, in three chapters: the game (the sides, the deal, the cards' order, the simplest plays, the trick,
 // the bidding), the plays (threes with kickers, straights, pairs in a row and airplanes, fours with two, bombs and the
 // rocket) and playing well (counting a hand's plays, following without breaking it, leading, the last card, playing
@@ -89,7 +89,7 @@ export function judge(step, ids) {
 // ---------- the lessons ----------
 const SIDES = [{ label: "The landlord", zh: "地主", backs: 20 }, { label: "A peasant", zh: "农民", backs: 17 }, { label: "A peasant", zh: "农民", backs: 17 }];
 export const COURSE = {
-  title: "Learn Landlord", zh: "斗地主",
+  title: "Learn Dou Dizhu", zh: "斗地主",
   chapters: [
     {
       id: "game", title: "The game", zh: "玩法",
@@ -97,7 +97,7 @@ export const COURSE = {
         {
           id: "sides", title: "One against two", zh: "地主 · 农民",
           steps: [
-            { rows: SIDES, say: "Landlord (斗地主, dòu dìzhǔ, \"fight the landlord\") is China's most played card game. Three play, one against two: the landlord (地主, dìzhǔ) alone against the two peasants (农民, nóngmín), who play as a side. The first to play out every card wins, and a peasant going out wins for both." },
+            { rows: SIDES, say: "Dou Dizhu (斗地主, dòu dìzhǔ, \"fight the landlord\") is China's most played card game. Three play, one against two: the landlord (地主, dìzhǔ) alone against the two peasants (农民, nóngmín), who play as a side. The first to play out every card wins, and a peasant going out wins for both." },
             { rows: [{ label: "Each player", backs: 17 }, { label: "The kitty", zh: "底牌", backs: 3 }], say: "All 54 cards are dealt, both jokers in: seventeen to each player and three face down, the kitty (底牌, dǐpái). One card is turned face up as they're dealt, and whoever gets it bids first." },
             { rows: [{ label: "The kitty, shown to all", cards: "BJ 9 4" }, { label: "Into the landlord's hand", backs: 20 }], say: "Whoever bids highest is the landlord: the kitty is shown to everyone, goes into the landlord's hand, and the landlord leads. Three cards more is the landlord's edge; seeing them is everyone's, for you know three of the landlord's cards from the start." },
             { rows: [{ label: "The landlord", zh: "地主", backs: 20 }], quiz: ["Seventeen", "Twenty", "Eighteen"], answer: 1, say: "How many cards does the landlord start with?", why: "Twenty: seventeen and the kitty's three. Each peasant has seventeen, and there are two of them." },

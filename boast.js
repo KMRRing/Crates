@@ -1,4 +1,4 @@
-// Boast: Liar's dice with Chinese rules (吹牛, 大話骰) against computer players, or at a table with friends each on
+// Liar's dice (boast.html): Liar's dice with Chinese rules (吹牛, 大話骰) against computer players, or at a table with friends each on
 // their own phone. The rules and the words are boast-rules.js's, the computer players boast-bot.js's, the running
 // seats.js's (solo, or a table through seats-ui.js). This page draws the table: the others' cups round the top, the bid
 // in the middle as it's called, your five dice and the bid you're making at the bottom.
@@ -367,7 +367,7 @@ function openMenu() {
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
   const cp = progressOf("boast", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Boast, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn liar's dice, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const next = () => { saveOpts(); };
   set.append(choice("Players", [[2, "2"], [3, "3"], [4, "4"], [5, "5"], [6, "6"]], opts.seats, v => { opts.seats = Number(v); next(); }));

@@ -1,4 +1,4 @@
-// Bones' line, laid out: the first tile in the middle, each arm along the middle row toward its edge, then turning (the
+// Dominoes' line, laid out: the first tile in the middle, each arm along the middle row toward its edge, then turning (the
 // right arm down, the left arm up) under the last tile's end and running back along the next row, as a line of
 // dominoes snakes on a table. Units: a tile is 1 across and 2 along; a double lies across the line (in a turn, along
 // it). Pure, so tests/bones.mjs can check no two tiles ever overlap.

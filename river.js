@@ -1,4 +1,4 @@
-// River: Xiangqi (象棋, Chinese chess) against the computer at a strength you choose, two players on one phone, or
+// Xiangqi (象棋, Chinese chess; the page is river.html, the tile was River until 3 Nov 2026) against the computer at a strength you choose, two players on one phone, or
 // a match with your partner. The rules are river-rules.js's (the board's own referee), the board river-board.js's, the
 // computer's moves and the coach the engine's (river-engine.js, our own, spoken to by uci.js in a worker, loaded only
 // when a game against it needs it; the coach's judgement is uci-coach.js's). The game in play is kept as it changes
@@ -576,7 +576,7 @@ ${piece(X.SOLDIER, "兵 / 卒", "bīng / zú", "Soldier", "One point forward. On
 <p>The names a club player gives the first moves, shown as you play them (each counts mirrored too: 炮八平五 is as central as 炮二平五):</p>
 <ul class="rv-openings">${OPENINGS.map(o => `<li><b>${s === "simplified" ? o.sc : o.tc}</b> <i>${o.py}</i> · ${o.en}: ${openingMoves(o.line)}</li>`).join("")}</ul>
 <h4>The computer</h4>
-<p>The computer player is River's own engine, written for the Codex (no one else's code in it), playing at the strength you choose in the menu. It's also the coach (Menu, Coach): Hints shows its strongest moves when you ask, as arrows, with what it makes of the position; Check adds a word after a move of yours that gave a good deal away, a mistake (?) or a blunder (??), with the better move, and Show puts the board back to see it; Always shows the strongest moves at each of yours without asking.</p>`;
+<p>The computer player is Xiangqi's own engine, written for the Codex (no one else's code in it), playing at the strength you choose in the menu. It's also the coach (Menu, Coach): Hints shows its strongest moves when you ask, as arrows, with what it makes of the position; Check adds a word after a move of yours that gave a good deal away, a mistake (?) or a blunder (??), with the better move, and Show puts the board back to see it; Always shows the strongest moves at each of yours without asking.</p>`;
 }
 
 /** An opening's moves in Chinese notation, from the start. */

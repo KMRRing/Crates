@@ -1,4 +1,4 @@
-// Hong's computer players, and the coach that explains them. A player sees what a seat at the table sees (its own
+// Mahjong's computer players, and the coach that explains them. A player sees what a seat at the table sees (its own
 // tiles, everything shown, the discards, the wall's count) and nothing else, and decides by value:
 //  - routes: a hand has to reach the minimum fan, so it is read against the routes that get there (any hand, a half
 //    or full flush in each suit, all pungs, thirteen orphans), each with its shanten (tiles from ready) and its live

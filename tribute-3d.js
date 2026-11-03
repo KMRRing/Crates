@@ -1,4 +1,4 @@
-// Tribute's second view (Menu, View: Table or 3D; 23 October 2026, Korbi asking for "a mahjong and Guandan view that are
+// Guandan's second view (Menu, View: Table or 3D; 23 October 2026, Korbi asking for "a mahjong and Guandan view that are
 // similarly stylish, 3d design like, as the mtg one. Very clean. Full screen modes included."): the same game drawn as
 // a table seen at an angle. The cloth is a plane tipped away from you (CSS perspective, as Dandan's battlefield is);
 // the four seats stand round it, each a plate with a medallion, a fan of card backs and how many are left; the play to

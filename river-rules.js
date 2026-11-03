@@ -1,4 +1,4 @@
-// River's rules: Xiangqi (象棋) as the Asian Xiangqi Federation's laws have it and Chinese clubs play it, with its move
+// The rules of Xiangqi (象棋) as the Asian Xiangqi Federation's laws have it and Chinese clubs play it, with its move
 // generator (the board's referee; the engine only proposes moves and hints), the game's end, and its notations:
 // Chinese (炮二平五) and WXF (C2=5). Pure and plain: a game is a JSON state, changed only by act().
 //

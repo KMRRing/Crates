@@ -1,4 +1,4 @@
-// Hong's scorer against a second one written independently: the fan table of
+// Mahjong's scorer against a second one written independently: the fan table of
 // https://en.wikipedia.org/wiki/Hong_Kong_mahjong_scoring_rules (read 25 October 2026), applied by a separate program
 // that reads a finished hand (its melds, its concealed tiles, the winning tile, the flowers, the winds and how the tile
 // came) and never looks at the engine's state. Random winning hands, built to land on every pattern (flushes, honours,

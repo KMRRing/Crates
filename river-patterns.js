@@ -1,4 +1,4 @@
-// The patterns River's puzzles teach by name: the mates a Xiangqi player learns (杀法) and the tricks, found in a
+// The patterns Xiangqi's puzzles teach by name: the mates a Xiangqi player learns (杀法) and the tricks, found in a
 // puzzle's line and the position it ends on by the board's own rules (river-rules.js). A puzzle can be several at once
 // (a 马后炮 that is also a double check). The rush names them after each puzzle and has a run of them alone.
 import * as X from "./river-rules.js";

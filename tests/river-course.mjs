@@ -1,4 +1,4 @@
-// River's course (river-course.js): every exercise played through the move generator, so none asks for what isn't
+// Xiangqi's course (river-course.js): every exercise played through the move generator, so none asks for what isn't
 // there. Every position is legal (the side not to move isn't in check, the generals don't face); every "tap every point"
 // has as many points as its words promise; every move asked for can be made, its hint does it, and a mate in one has
 // one mating move; every opening line is legal move by move, with a note for each move, and ends where the openings

@@ -1,4 +1,4 @@
-// Hong's tiles, drawn once as SVG symbols and used everywhere by reference (<use href="#hk-12">): characters as their
+// Mahjong's tiles, drawn once as SVG symbols and used everywhere by reference (<use href="#hk-12">): characters as their
 // numeral over 萬, dots and bamboo as the patterns on a real set (the one of bamboo a bird), the winds and dragons in
 // their characters, the flowers and seasons with their number. Colours are CSS variables (hong.css), so a tile follows
 // the theme; each suited tile and wind also carries a small corner index (1–9, E S W N) for players who don't read the

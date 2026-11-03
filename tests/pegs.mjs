@@ -1,4 +1,4 @@
-// Pegs (pegs-rules.js, pegs-bot.js): cribbage for two. What a hand counts (fifteens, pairs, runs and double runs, flushes
+// Cribbage (pegs-rules.js, pegs-bot.js): for two. What a hand counts (fifteens, pairs, runs and double runs, flushes
 // and the crib's stricter one, his nobs, against known hands: the 29, the double double run, the nineteen); what a card
 // scores in the play (15, 31, pairs and their royals, runs in any order, run and fifteen together); the deal and the
 // crib, his heels, the go said by the engine and one for it, one for the last card, 31, the show in its order, and the

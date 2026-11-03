@@ -1,4 +1,4 @@
-// Bones' course (bones-course.js on course.js): every exercise worked through the rules (bones-rules.js). Every line
+// Dominoes' course (bones-course.js on course.js): every exercise worked through the rules (bones-rules.js). Every line
 // written is a real line, its tiles touching, and no step shows a tile twice; every fits exercise has as many tiles to
 // find as its words promise; every tile asked for can be laid, its answer is judged right, every wrong play it has
 // words for is judged wrong with them, and of every play the hand could make only those the lesson means are right;

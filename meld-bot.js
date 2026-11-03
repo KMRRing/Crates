@@ -1,4 +1,4 @@
-// The computer player of Meld (meld-rules.js). Three strengths, on the same few ideas that decide gin rummy:
+// The computer player of Gin rummy (meld-rules.js). Three strengths, on the same few ideas that decide gin rummy:
 //  - the upcard or the pile's top is worth taking when it cuts the deadwood once the worst card is thrown, or sits in a meld;
 //  - throw the card that leaves the least deadwood, and among those the one that leaves the most cards to draw into a meld;
 //  - knock early, while the other's deadwood is still likely to be higher, and not into an undercut.

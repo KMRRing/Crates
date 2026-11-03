@@ -1,4 +1,4 @@
-// Tribute: Guan Dan (掼蛋), four players in two partnerships, two decks, by the official competition rules
+// Guandan (掼蛋), four players in two partnerships, two decks, by the official competition rules
 // (《竞技掼蛋竞赛规则（试行）》, 2022): 27 cards each, play passes to the right, the level cards rank above the ace and
 // the two hearts of the level are wild; singles, pairs, triples, full houses, straights of five, three pairs in a row,
 // two triples in a row, and bombs (four or more alike, a straight flush between five and six alike, the four jokers on

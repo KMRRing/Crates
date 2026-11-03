@@ -1,4 +1,4 @@
-// Landlord (斗地主, dòu dìzhǔ, "fight the landlord"), China's most played card game, by the rules pagat and the Chinese
+// Dou Dizhu (斗地主, dòu dìzhǔ, "fight the landlord"), China's most played card game, by the rules pagat and the Chinese
 // sources set down: three players, a pack of fifty-four with both jokers, seventeen cards each and three left face down
 // (底牌, the kitty). A card turned face up as the cards are dealt picks who bids first. Bidding is either for points
 // (叫分: one round, each player bidding 1, 2 or 3 above the last or passing, a 3 ending it) or, as the apps play it,

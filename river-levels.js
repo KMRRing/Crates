@@ -1,4 +1,4 @@
-// River's computer players: River's own engine (river-engine.js) at eight strengths, named by rough rating
+// Xiangqi's computer players: Xiangqi's own engine (river-engine.js) at eight strengths, named by rough rating
 // (tools/engine-levels.mjs plays them against each other, and the records of Fairy-Stockfish's levels, which these
 // replaced, give the scale). The weakest four draw among the engine's best few moves after a small search, likelier the
 // less a move gives up (choose() in uci.js), so they blunder as people do; the rest are the engine on a set number of

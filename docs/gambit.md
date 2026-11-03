@@ -1,4 +1,4 @@
-# Gambit
+# Chess
 Chess against Caissa (MIT, `vendor/caissa/NOTE.txt`) at one of eight strengths, two players on one phone, or a match with your partner. The same engine is the coach (hints, a word after a mistake) and reviews the finished game. The rules are chess.js's (`vendor/chess.js`); `gambit-rules.js` keeps a game as plain JSON, changed only by `act()`. The puzzle rush (Menu, Puzzle rush) is a page of its own, `rush.html`, under Gambit's header, on 20,000 Lichess puzzles (CC0) in `puzzles/`.
 
 ## Rulings

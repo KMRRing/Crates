@@ -1,4 +1,4 @@
-// Pegs: cribbage for two (README, Pegs). The rules as a pure module for seats.js, which moves it solo against the computer
+// Cribbage for two (README, Cribbage). The rules as a pure module for seats.js, which moves it solo against the computer
 // or at a table with a friend; the computer player is pegs-bot.js's, the page pegs.js.
 //
 // A deal: six cards each; each puts two in the crib, which is the dealer's; the starter is turned from the pack (a jack,

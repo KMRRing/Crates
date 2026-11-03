@@ -1,4 +1,4 @@
-// Hong's second view (Menu, View: Table or 3D; 23 October 2026, Korbi asking for "a mahjong and Guandan view that are
+// Mahjong's second view (Menu, View: Table or 3D; 23 October 2026, Korbi asking for "a mahjong and Guandan view that are
 // similarly stylish, 3d design like, as the mtg one. Very clean. Full screen modes included."): the same game drawn as
 // a table seen at an angle. The cloth is a plane tipped away from you (CSS perspective, so the player across is
 // further off and a little smaller); the four walls stand round it as stacks of two tiles, eaten from one end by the

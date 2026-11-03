@@ -5,13 +5,13 @@
 // here and its tile points at its own page; tests/soon.mjs fails while a tile and its entry disagree.
 export const SOON = {
   stone: {
-    name: "Stone", sec: "table",
+    name: "Go", sec: "table",
     line: "Go (Weiqi, 围棋): black and white stones on a board, territory taken and held, stones captured when they lose their last liberty.",
     todo: [
       "Checked 1 November 2026: the one ready-made GNU Go in WebAssembly (npm `gnugo.js`, GNU Go 3.8 through Emscripten, a wrapper under the engine's GPL) is 8.9 MB with the engine inline, and exports only start, play a stone, ask the engine for a move and read the board. It has no pass, no resign, no level and no scoring, so a person's pass can't be told to the engine and it can't count a finished game. Using GNU Go therefore means building it ourselves with Emscripten and a wrapper that adds pass, level and score (that package's gnugowrapper.c is the starting point), and the size is one more thing to weigh against the offline cache. The alternative is our own Monte-Carlo search: passable on 9×9, weak on 19×19.",
       "Rules are small: capture, ko (no repeating a position), no suicide. Chinese area scoring (stones plus territory) so a finished game needs no dispute over dead stones.",
       "Boards of 9, 13 and 19; two on one phone and a partner's match are cheap, the opponent is the cost.",
-      "Beside Gambit (chess) and River (xiangqi); the same reason: a real board when meeting Chinese counterparties.",
+      "Beside Chess and Xiangqi; the same reason: a real board when meeting Chinese counterparties.",
     ],
   },
   tarot: {
