@@ -13,7 +13,10 @@ import { seatPage, fillNames } from "./seats-ui.js";
 import { seeded, mix } from "./seats.js";
 import { cardHtml, backHtml } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { tableView } from "./table3d-view.js";
+import { card as tkCard } from "./table3d.js";
+import { createHoldem3d, plateOf, boardRow } from "./holdem-3d.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { rulesHtml } from "./holdem-sheet.js";
@@ -223,6 +226,9 @@ function runoutOdds(v) {
   return out;
 }
 
+const view = tableView("holdem");                                   // Menu, View: the flat table (the default) or the 3D one (holdem-3d.js)
+let three = null;
+
 function drawTable(v) {
   const s = v.state, n = s.seats, me = v.seat ?? 0, { sb, bb } = blindsOf(s);
   const res = s.step === "shown" || s.step === "over" ? s.result : null;
@@ -234,6 +240,33 @@ function drawTable(v) {
   const lit = new Set();
   if (res && !res.uncontested) for (const w of res.pots[0].winners) for (const c of shown.get(w)?.five || []) lit.add(c);
   const dim = id => (res && !res.uncontested && !lit.has(id) ? "dim" : lit.has(id) ? "lit" : "");
+
+  if (view.get() === "3d") {
+    $("table").classList.add("hd3");
+    three ||= createHoldem3d($("table"), { quiet: () => IN_FRAME });
+    const tk = id => tkCard(face(id), { cls: dim(id), label: cardName(id) });
+    const plates = Array.from({ length: n }, (_, seat) => {
+      const out = s.out[seat], mine = isMe(seat), showHand = (s.open && !out) || (res && shown.has(seat));
+      const thinking = turnSeat === seat && !mine;
+      const act = res && shown.has(seat) ? shown.get(seat).name : odds && !out ? `${odds[seat]}% to win` : thinking ? "" : actWord(s.last[seat]);
+      return plateOf({
+        name: who(seat), seat, mine, out, turn: turnSeat === seat, win: winners.has(seat), button: seat === s.button,
+        tags: [seat === sb ? "SB" : "", seat === bb ? "BB" : "", s.rebought.includes(seat) ? "REBUY" : ""].filter(Boolean),
+        stack: s.stacks[seat], bet: s.bets[seat], held: showHand && !mine && !out ? s.hole[seat].map(tk).join("") : "", hidden: true,
+        act, thinking, delta: res ? res.deltas[seat] || 0 : 0,
+      });
+    });
+    const potNow = res ? contested(res) : potOf(s);
+    three.draw({
+      seats: n, me, hand: s.hand, seen: s.seen, plates,
+      board: boardRow(s.board, s.seen, tk), pot: `Pot HK$${fmt(potNow)}${res?.rake ? ` <small>(house ${fmt(res.rake)})</small>` : ""}`,
+      said: fillNames(v.G.say?.text, v.seats) || "",
+      next: s.step === "shown" ? `<span class="hd-next"><i data-until="${s.until}" data-ms="${res?.uncontested ? FOLDED_MS : SHOW_MS}"></i></span>` : `<span class="hd-next idle"></span>`,
+    });
+    runBar();
+    return;
+  }
+  if (three) { three.dispose(); three = null; $("table").classList.remove("hd3"); }
 
   const plate = seat => {
     const out = s.out[seat], mine = isMe(seat), turn = turnSeat === seat, slot = slotOf(seat, n, me);
@@ -497,6 +530,7 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
+  set.append(view.choice(() => draw()));
   set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; keep(); word = null; hinted = null; draw(); }));
   set.append(choice("A game is", HANDS.map(n => [n, `${n} hands`]), opts.hands, v => { opts.hands = Number(v); keep(); }));
   set.append(choice("House commission", RAKES.map(n => [n, n ? `${n}%` : "None"]), opts.rake, v => { opts.rake = Number(v); keep(); }));
@@ -518,6 +552,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
+onPause(() => three?.pause(true), () => three?.pause(false));
 window.__holdem = { page, get view() { return V; }, opts, course };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();

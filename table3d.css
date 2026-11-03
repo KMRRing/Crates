@@ -23,7 +23,7 @@
 .tk-inlay:empty { display: none; }
 .tk-inlay.quiet { opacity: .32; }
 /* the middle: what lies on the table. The side plates keep it clear, so a table with none lets it use the width. */
-.tk-centre { --tk-side: 5.2rem; position: absolute; left: var(--tk-side); right: var(--tk-side); top: 22%; bottom: 20%; display: grid; place-items: center; pointer-events: none;
+.tk-centre { --tk-side: 6.2rem; position: absolute; left: var(--tk-side); right: var(--tk-side); top: 22%; bottom: 20%; display: grid; place-items: center; pointer-events: none;
   --cw: 2.6rem; }
 :is(.tk-n2, .tk-n3) .tk-centre { --tk-side: .8rem; top: 30%; bottom: 20%; }
 :is(.tk-n3, .tk-n5) .tk-centre { top: 40%; }
@@ -129,9 +129,19 @@ html[data-mode="night"] .tk-mat { --tk-c: color-mix(in srgb, var(--tk-felt, #295
   .tk-inlay { width: 7rem; font-size: 3rem; }
 }
 
+/* ---------- a short field (a phone's table with its hand and buttons below): the cloth no taller than its room, the columns of
+   plates compact, a fan beside the count rather than over it ---------- */
+@container (max-height: 420px) {
+  .tk-mat { height: 104%; }
+  .tk-plate:is(.at-l, .at-r) { gap: .1rem; padding-top: .6rem; margin-top: -.6rem; }
+  .tk-plate:is(.at-l, .at-r) .tk-tally { flex-direction: row; justify-content: center; gap: .2rem; }
+  .tk-plate:is(.at-l, .at-r) .tk-med { width: 1.9rem; height: 1.9rem; font-size: .92rem; }
+  .tk-plate:is(.at-l, .at-r) .tk-fan { width: 1.3rem; }
+}
+
 /* ---------- held sideways: the plane the cloth's width, the plates larger on a tablet ---------- */
 @media (orientation: landscape) and (min-width: 700px) {
-  .tk-centre { --tk-side: 6.4rem; top: 20%; bottom: 18%; }
+  .tk-centre { --tk-side: 7rem; top: 20%; bottom: 18%; }
   :is(.tk-n2, .tk-n3) .tk-centre { --tk-side: 1rem; }
   .tk-plate:is(.at-l, .at-r) { width: 5.2rem; }
   .tk-inlay { width: 10rem; font-size: 4.2rem; }
@@ -140,6 +150,6 @@ html[data-mode="night"] .tk-mat { --tk-c: color-mix(in srgb, var(--tk-felt, #295
 @media (orientation: landscape) and (min-width: 700px) and (max-height: 500px) {
   .tk-med { width: 2.1rem; height: 2.1rem; font-size: 1rem; }
   .tk-plate:is(.at-l, .at-r) { width: 4.4rem; }
-  .tk-centre { --tk-side: 5.4rem; top: 20%; bottom: 16%; }
+  .tk-centre { --tk-side: 6.2rem; top: 20%; bottom: 16%; }
   .tk-inlay { width: 6.4rem; font-size: 2.6rem; }
 }
