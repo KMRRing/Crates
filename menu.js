@@ -6,9 +6,13 @@
 //    Together, Settings, About, whatever order it added them in, each under the same small heading
 //  - the clutter: a long explanation (more than a sentence or two) goes into one closed "How it works" at the
 //    bottom, so the menu shows choices and buttons, and the reading is there for whoever opens it
+//  - full screen (#app.full, CLAUDE.md "Full screen"): the page has no header, only the mark in the top right, and this
+//    menu's first entry is "Back to menu" (the games screen), then the header's other buttons (Rules, Learn…) and the
+//    partner's line, everything the header used to carry
 // Loaded by every page through pwa.js.
 
 import { MARK } from "./mark.js";
+import { IN_FRAME } from "./suite.js";
 
 export const PARTS = ["play", "content", "together", "settings", "about"];
 const LABEL = { play: "", content: "Content", together: "Together", settings: "Settings", about: "About" };
@@ -138,7 +142,8 @@ export function markButton(btn, dlg) {
 // then: it connects to the party to follow the host). Not a party of two sharing a board (&coop=1, docs/coop.md): its
 // game has no host choosing games, and carries the way out in its own menu.
 let partyPart = null;
-if (/[?&]party=[A-Za-z]{4}\b/.test(location.search) && !/[?&]coop=1\b/.test(location.search)) import("./party-link.js").then(m => { partyPart = m.menuPart; }).catch(e => console.error(e));
+const IN_PARTY = /[?&]party=[A-Za-z]{4}\b/.test(location.search) && !/[?&]coop=1\b/.test(location.search);
+if (IN_PARTY) import("./party-link.js").then(m => { partyPart = m.menuPart; }).catch(e => console.error(e));
 // parts that head every game's menu while something of the suite's is under way (random mode's Next and Stop:
 // random.js), by name, each made afresh when the game fills its menu
 const heads = new Map();
@@ -155,6 +160,31 @@ export function dropMenuHead(name) {
   document.querySelector(`#menuBody > [data-head="${name}"]`)?.remove();
 }
 
+/**
+ * A full-screen page's way round: Back to menu first (the games screen, which the hidden title button opens; not in a
+ * party's game, whose own part has the way out, nor in a frame that only watches), then the buttons the header carried
+ * (Rules, Learn, Help…) unless the game's menu has one of that name, then your partner's line (the hidden pill's
+ * words). Made afresh at every opening, so a button hidden or disabled since leaves out.
+ */
+function fullHead(body) {
+  const app = document.querySelector("#app.full");
+  if (!app) return null;
+  const box = el("div", "menu-full"), games = document.getElementById("appsBtn");
+  box.dataset.full = "1";
+  if (games && !IN_PARTY && !IN_FRAME) box.append(action("Back to menu", () => games.click()));
+  const have = new Set([...body.querySelectorAll("button")].map(b => b.textContent.trim().toLowerCase()));
+  const row = el("div", "menu-full-row");
+  for (const b of app.querySelectorAll(":scope > .top .top-right > button:not(#menuBtn, .dd)")) {   // .dd: a header dropdown, which the menu has as its own choice
+    const text = (b.textContent || b.getAttribute("aria-label") || "").trim();
+    if (!text || b.hidden || b.disabled || have.has(text.toLowerCase())) continue;
+    row.append(action(text, () => b.click()));
+  }
+  if (row.children.length) box.append(row);
+  const pill = app.querySelector(".partner-pill")?.textContent.trim();
+  if (pill) box.append(line(pill));
+  return box.children.length ? box : null;
+}
+
 let shaping = false;
 /** Lays out what the game just put in the menu: parts in order, under their headings; long explanations folded away. */
 function shape(body) {
@@ -167,6 +197,7 @@ function shape(body) {
       if (part) { part.dataset.head = name; body.prepend(part); }
     }
     if (partyPart && !body.querySelector(":scope > [data-party]")) body.prepend(partyPart());
+    if (!body.querySelector(":scope > [data-full]")) { const head = fullHead(body); if (head) body.prepend(head); }   // first of all
     // parts in the standard order, each with its heading (Play needs none: it's the top), after anything unmarked
     for (const box of body.querySelectorAll(":scope > [data-part]")) {
       const name = box.dataset.part;
@@ -225,5 +256,12 @@ function upgrade() {
   markButton(document.getElementById("menuBtn"), dlg);
   const body = document.getElementById("menuBody") || dlg;
   new MutationObserver(() => queueMicrotask(() => shape(body))).observe(body, { childList: true });
+  if (IN_FRAME) document.documentElement.classList.add("watching-frame");   // a frame that only shows a partner's game: no button
+  if (document.querySelector("#app.full")) {
+    if (body.children.length) shape(body);
+    // each opening makes the head afresh, after the game has filled the menu (its own click listener runs first)
+    new MutationObserver(() => { if (!dlg.open) return; body.querySelector(":scope > [data-full]")?.remove(); queueMicrotask(() => shape(body)); })
+      .observe(dlg, { attributes: true, attributeFilter: ["open"] });
+  }
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", upgrade); else upgrade();

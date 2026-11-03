@@ -207,6 +207,7 @@ button, input { font: inherit; color: inherit; }
     padding-left: max(1rem, env(safe-area-inset-left, 0px)); padding-right: max(1rem, env(safe-area-inset-right, 0px));
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + .8rem); }
   html #app.beside > .top { grid-column: 1 / -1; }
+  html #app.full > .full-pull { margin-top: 0; min-height: 0; padding: 0; }      /* the band is a row of its own across the top */
   html #app.beside > * { min-width: 0; }
   /* #app.wide: the whole width as one column, for a game whose card divides itself (Quote's question and market) */
   html #app.wide { max-width: 84rem; padding-left: max(1rem, env(safe-area-inset-left, 0px)); padding-right: max(1rem, env(safe-area-inset-right, 0px)); }
@@ -350,6 +351,26 @@ dialog.apps-pop { width: min(92vw, 28rem); max-height: 80vh; box-sizing: border-
 dialog.apps-pop::backdrop { background: rgba(10, 14, 18, .45); }
 dialog.apps-pop .pick-head h2 { font-size: 1.05rem; }
 .top-right { display: flex; align-items: center; gap: .45rem; flex: none; }
+/* Full screen (CLAUDE.md, "Full screen"; menu.js): #app.full has no title bar. The header is only a quiet band that keeps
+   the picture clear of the one button on the screen, the menu's, fixed at the top right inside the safe area; the title,
+   the partner's pill, the Rules/Learn buttons and the dropdowns are out of sight, and their work is in the menu (Back to
+   menu first). A thin row of live status (score, time, lives) sits in that band beside the button: .full-pull. A picture
+   that wants the whole screen leaves the band out too: .full.over. */
+#app.full { --full-btn: 2.5rem; --full-edge: .5rem; --full-band: 2.75rem; --full-slot: 3.25rem; padding-top: .5rem; }   /* --full-slot: what a row beside the button leaves for it */
+html[data-theme="modern"] #app.full { --full-slot: 4.5rem; }                                 /* Modern's button is the word Menu */
+#app.full > .top { height: var(--full-band); padding: 0; margin: 0; background: none !important; border: 0 !important; }
+#app.full > .top > .mark, #app.full > .top .top-right > :not(#menuBtn) { display: none !important; }
+#app.full.over > .top { height: 0; }
+#app.full #menuBtn { position: fixed; z-index: 20; top: calc(env(safe-area-inset-top, 0px) + var(--full-edge)); right: calc(env(safe-area-inset-right, 0px) + var(--full-edge));
+  width: var(--full-btn); height: var(--full-btn); min-height: 0; padding: 0; margin: 0; }
+#app.full #menuBtn.pick:not(.cx-btn) { width: auto; padding: 0 .7rem; background: var(--sheet); }       /* Modern's plain word */
+#app.full #menuBtn.cx-btn .cx { width: 2.25rem; height: 2.25rem; }
+html.watching-frame #app.full > .top { display: none; }                                    /* a partner's game in a frame: the picture alone */
+#app.full > .full-pull { margin-top: calc(-1 * var(--full-band)); min-height: var(--full-band); box-sizing: border-box;
+  padding: .6rem var(--full-slot) 0 0; }      /* .6rem: a line of text centred on the button (a row of its own, not a flex box: that drops the spaces between its words and figures) */
+.menu-full-row { display: flex; gap: .5rem; }
+.menu-full-row .btn.wide { flex: 1 1 0; width: auto; margin-top: .45rem; }
+.menu-full .menu-line { margin-top: .5rem; }
 /* A game that fits the screen: the page is exactly the screen's height and never scrolls; its parts share the
    height (the part marked .fit-grow takes what's left, in the page or in a .fit-col inside it), and anything long
    scrolls inside its own box. */

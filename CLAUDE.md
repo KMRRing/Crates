@@ -203,6 +203,29 @@ the game a module of pure functions (`deal`, `toMove`, `act`, `bot`, `over`), th
 `party-core.js` (`start` and `advance` pure, `view` draws); test one with `tests/party-harness.js`, which plays a table
 in Node with the host's phone moving it on.
 
+## Full screen
+
+Korbi, 3 November 2026: "all games should be full screen by default ... too much "stuff" on all of these screens ... no
+title etc, settings icon in the top right is used to navigate back to menu always ... buttons exist inside the full
+screen, not outside." So every game page is full screen (`docs/full-screen.md`; `tests/full-screen.mjs` fails for a page
+with a header that isn't):
+- **`#app` has the class `full`** (with `fit-screen` / `beside` as before). The header stays in the markup (`.top`:
+  `#appsBtn`, `#menuBtn`, its other buttons, even a hidden `<select class="pool">`) but is a quiet empty band: the title,
+  logo, partner pill and every header button but `#menuBtn` are `display: none`; `#menuBtn` is the Codex mark (three
+  rules in Kontor/Office, the word Menu in Modern), fixed top right inside the safe area. `style.css`, "Full screen".
+- **menu.js does the rest**: the menu's first entry is **Back to menu** (it clicks the hidden `#appsBtn`: no party, no
+  watching frame), then the header's own buttons (Rules, Learn, Help… named as they were; not one the menu already has),
+  then your partner's line. A game's menu code needs no change; a header `<select>` has its choice in the menu already
+  (`mirror`), and the 3D modes' `View` choice goes in the game's own menu part.
+- **Claim the freed height.** A thin row of live status (score, time, lives, the round) goes beside the button: give that
+  first element `full-pull` (it sits in the band, `padding-right` keeps clear of the button; held sideways it's an ordinary
+  row again) and keep it one line of text, not a flex box (a flex box drops the spaces in "Deal <b>1</b> of 6"). A game
+  with no such row leaves the band empty. A picture that wants the very top, a 3D scene say, adds `over` (no band; keep
+  its own corner clear of the button, 2.5rem square at `--full-edge`). Controls are drawn inside the picture; nothing
+  essential is lost: a clock stays visible, a header choice is in the menu.
+- Check a new page at 390×664, 390×844 and sideways in the three themes, day and night; Modern's button is wider
+  (`--full-slot`).
+
 ## Header dropdowns
 
 A game's header `<select class="pool">` is shown as the suite's dropdown: link `dropdown.css`, give the select
