@@ -220,18 +220,43 @@ function drawRow({ row, current }) {
 /** The games Random may deal, by the games screen's sections, each ticked or not (all at first), with All and None:
  *  the nodes for the banner's Choose sheet (banner.js). */
 export function randomPane() {
-  const on = new Set(chosenNow()), say = line("");
+  const on = new Set(chosenNow()), say = line(""), root = document.createElement("div");
+  root.className = "rd-random-pane";
   const tell = () => { say.textContent = on.size ? `${on.size} of ${ELIGIBLE.length} games: one of them at random, and the next when its round is over.` : "Tick a game or more for Random to deal."; };
-  const parts = sections.map(([sec, title]) => {
-    const list = ELIGIBLE.map(appOf).filter(a => a?.sec === sec);
-    if (!list.length) return null;
-    return ticks(title, list.map(a => [a.id, a.name]), list.filter(a => on.has(a.id)).map(a => a.id), ticked => {
-      for (const a of list) on.delete(a.id);
-      for (const id of ticked) on.add(id);
-      keepChoice([...on]);
-      tell();
-    }, Infinity, { all: true });
-  }).filter(Boolean);
-  tell();
-  return [say, ...parts];
+  // All and None for every game at the very top: None, then one section's All, leaves just that section
+  const everyone = () => {
+    const head = document.createElement("div"), both = document.createElement("span"), name = document.createElement("span");
+    head.className = "menu-ticks-head";
+    both.className = "menu-allnone";
+    name.className = "menu-label";
+    name.textContent = "All games";
+    for (const [text, keep] of [["All", true], ["None", false]]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "link";
+      b.textContent = text;
+      b.setAttribute("aria-label", `${text}: every game`);
+      b.addEventListener("click", () => { on.clear(); if (keep) for (const id of ELIGIBLE) on.add(id); keepChoice([...on]); draw(); });
+      if (!keep) both.append(document.createTextNode(" · "));
+      both.append(b);
+    }
+    head.append(name, both);
+    return head;
+  };
+  const draw = () => {                     // drawn again after the top All or None, so each section's ticks follow
+    const parts = sections.map(([sec, title]) => {
+      const list = ELIGIBLE.map(appOf).filter(a => a?.sec === sec);
+      if (!list.length) return null;
+      return ticks(title, list.map(a => [a.id, a.name]), list.filter(a => on.has(a.id)).map(a => a.id), ticked => {
+        for (const a of list) on.delete(a.id);
+        for (const id of ticked) on.add(id);
+        keepChoice([...on]);
+        tell();
+      }, Infinity, { all: true });
+    }).filter(Boolean);
+    tell();
+    root.replaceChildren(everyone(), say, ...parts);
+  };
+  draw();
+  return [root];
 }
