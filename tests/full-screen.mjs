@@ -13,7 +13,7 @@ const STILL = new Set([
   "acrostic.html", "almanac.html", "assay.html", "avalanche.html", "baccarat.html", "banquet.html",
   "bigtwo.html", "blackjack.html", "blend.html", "boast.html", "bones.html", "bridges.html",
   "bulls.html", "calcudoku.html", "calibre.html", "cartel.html", "chart.html", "codeword.html",
-  "columbiad.html", "contract.html", "craps.html", "crossword.html", "cue.html", "deck.html",
+  "contract.html", "craps.html", "crossword.html", "cue.html", "deck.html",
   "delta.html", "drift.html", "factor.html", "gambit.html", "gammon.html", "guilloche.html",
   "harbour.html", "heliograph.html", "holdem.html", "hong.html", "isomer.html", "kakuro.html",
   "ladder.html", "landfall.html", "ledger.html", "lode.html", "loom.html", "lots.html",

@@ -358,8 +358,7 @@ function levelList() {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const play = part(body, "play");
-  play.append(action("Back to menu", () => $("appsBtn").click()), action(`Replay ${lvl.name}`, restart, "primary"));
+  part(body, "play").append(action(`Replay ${lvl.name}`, restart, "primary"));
   part(body, "content").append(levelList());
   part(body, "settings").append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); }));
   const total = camp.stars.reduce((a, b) => a + b, 0), beaten = camp.stars.filter(Boolean).length;
@@ -368,7 +367,7 @@ function openMenu() {
 }
 
 // ---------- wiring ----------
-bindSwitcher($("appsBtn"), "columbiad");                // hidden: the menu's "Back to menu" opens the games screen through it
+bindSwitcher($("appsBtn"), "columbiad");                // hidden by the full-screen frame: the menu's "Back to menu" clicks it
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 

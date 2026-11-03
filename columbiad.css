@@ -21,7 +21,7 @@
 /* the top: what level this is and the stars a hit with this shot would earn; the menu's button */
 .cb-top { position: absolute; z-index: 3; top: var(--cb-t); left: var(--cb-l); right: var(--cb-r); display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; pointer-events: none; }
 .cb-top > * { pointer-events: auto; }
-.cb-chip { min-width: 0; max-width: calc(100% - 3.5rem); box-sizing: border-box; display: grid; gap: .1rem; padding: .32rem .7rem .38rem; border: 1.5px solid var(--brass); border-radius: 6px; background: var(--cb-glass); color: var(--ink);
+.cb-chip { min-width: 0; max-width: calc(100% - var(--full-slot, 3.25rem) - .5rem); box-sizing: border-box; display: grid; gap: .1rem; padding: .32rem .7rem .38rem; border: 1.5px solid var(--brass); border-radius: 6px; background: var(--cb-glass); color: var(--ink);
   box-shadow: 0 .2rem .9rem rgba(0, 0, 0, .5); pointer-events: none; }
 .cb-lv { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps);
   letter-spacing: calc(.08em * var(--track)); font-size: .76rem; }
@@ -30,12 +30,6 @@
 .cb-sub b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
 .cb-stars { color: var(--brass); letter-spacing: .12em; font-size: .9rem; }
 .cb-stars.bull::after { content: " ◎"; letter-spacing: 0; color: var(--cb-in); }
-/* the menu's button: the Codex mark (menu.js turns the page's button into it); Modern keeps its word, on a sheet like the chip */
-.cb-menu { flex: none; box-shadow: 0 .2rem .9rem rgba(0, 0, 0, .5); }
-.cb-menu:not(.cx-btn) { height: 2.5rem; padding: 0 .9rem; border: 1.5px solid var(--brass); border-radius: 6px; background: var(--cb-glass); color: var(--ink); font: inherit; font-size: .9rem; font-weight: 650; cursor: pointer; }
-.cb-menu.cx-btn { border-radius: 50% !important; background: color-mix(in srgb, #080d19 70%, transparent) !important; color: #ece2cb; }
-/* Kontor and Office draw three rules, not the mark: a ring round them, so the button is seen on the sky in day and night */
-html:is([data-theme="kontor"], [data-theme="office"]) .cb-menu.cx-btn { border: 1.5px solid var(--brass) !important; }
 
 .cb-hint, .cb-say { position: absolute; z-index: 2; margin: 0; pointer-events: none; font-weight: 650; }
 .cb-hint { left: var(--cb-l); right: var(--cb-r); top: calc(var(--cb-t) + 3.6rem); padding: .5rem .7rem; border: 1px solid var(--brass); border-radius: 4px; background: var(--cb-glass); color: var(--ink); font-size: .84rem; line-height: 1.35; }

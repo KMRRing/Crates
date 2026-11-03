@@ -183,9 +183,9 @@ export function createGlobe(kind, { tilt = 22, roll = 0, size = 448, tint = [1, 
         if (earth) {
           if (map) { texel(map, u, v, o); R = o[0]; G = o[1]; B = o[2]; } else { R = 22; G = 52; B = 96; }
           let lit = clamp01((ndl + 0.1) / 0.62); lit = lit * lit * (3 - 2 * lit);
-          // the deep sea in the map is nearly black: lifted, by how blue a texel is, so an ocean in half-light still reads as water
+          // the deep sea in the map is nearly black, with hard steps where its depth changes: its contrast is flattened and lifted (by how blue a texel is), so an ocean in half-light still reads as water
           const sw = map ? clamp01((B - 1.2 * R - 4) / 40) : 1, sea = sw > 0.5 ? 1 : 0;
-          R += sw * (R * 0.25 + 8); G += sw * (G * 0.45 + 20); B += sw * (B * 0.6 + 38);
+          R += sw * ((14 + R * 0.45) - R); G += sw * ((38 + G * 0.5) - G); B += sw * ((84 + B * 0.42) - B);
           // a cloud layer, drifting a little faster than the ground
           let ca = 0;
           if (clouds) { let cu = (lon - spinA + cloudA) / TAU + 0.5; cu -= Math.floor(cu); ca = flat(clouds, cu, v) * 0.62; }
