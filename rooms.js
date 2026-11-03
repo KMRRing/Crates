@@ -58,6 +58,7 @@ export const GAMES = {
   bulls: { name: "Bulls", page: "./bulls.html" },
   assay: { name: "Assay", page: "./assay.html" },
   yield: { name: "Yield", page: "./yield.html" },
+  speedmaths: { name: "Speed maths", page: "./speedmaths.html" },
   isomer: { name: "Isomer", page: "./isomer.html" },
   ladder: { name: "Ladder", page: "./ladder.html" },
   lode: { name: "Lode", page: "./lode.html" },

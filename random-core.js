@@ -24,6 +24,7 @@ export const ROUNDS = {
   glyph: "a board, solved or given up",
   delta: "a board, solved or given up",
   spot: "a run, its lives gone",
+  speedmaths: "a run, its clock run out",
   manifest: "a run, its twelve rounds played or its lives gone",
   harbour: "a level's plan run to delivery, or a week of a region's season",
   pipes: "a level, cleared or spilled, or a descent",
@@ -89,7 +90,7 @@ export const LEFT_OUT = {
   // the Appendix (Korbi, 3 November 2026: it stays out of Random and of Start a game over): set aside until each leaves for an
   // app of its own, so Random never sends you there; the games keep their roundOver calls, which do nothing meanwhile
   blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
-  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX,
+  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX,
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   ledger: "the record of how well you learn, not a game",
   party: "a room for people round a table, each on their own phone",
@@ -97,7 +98,7 @@ export const LEFT_OUT = {
   quest: "hidden loyalties, a game for people round a table (Party's section)",
   timegrapher: "an instrument, not a game",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
-  stone: "not built yet", tarot: "not built yet", solitaire: "not built yet", silo: "not built yet", ingot: "not built yet", flank: "not built yet", crown: "not built yet", cargo: "not built yet", speedmaths: "not built yet", speedfuels: "not built yet",
+  stone: "not built yet", tarot: "not built yet", solitaire: "not built yet", silo: "not built yet", ingot: "not built yet", flank: "not built yet", crown: "not built yet", cargo: "not built yet",
 };
 
 /** Every game random mode can deal, in the order above. */

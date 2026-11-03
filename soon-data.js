@@ -83,24 +83,4 @@ export const SOON = {
       "Touch: drag to slide, tap to turn, swipe down to drop; the page never scrolls, which a swipe has to be built around.",
     ],
   },
-  speedmaths: {
-    name: "Speed maths", sec: "puzzle",
-    line: "Arithmetic against the clock: a sum appears, you type the answer, the next comes at once. Scored by how many you clear in a minute and how steady you are, with the sums growing harder as you go.",
-    todo: [
-      "Added 2 November 2026 (Korbi: \"add a speed maths placeholder in puzzle\"). The name is a working name: a tile's name is a string in apps.js and here, its id (`speedmaths`) is what saves and Random's lists use, so a rename later costs nothing.",
-      "Spot is the other fast-arithmetic game and stays what it is (tap the right answers among fakes, with modifiers, together). This one is typed answers, one sum at a time, alone first: Zetamac's genre, with the operations and ranges chosen in the menu, and a pair's race on duel.js (everyone gets the same sums).",
-      "Its second mode is the unit chains recorded in README (Coming soon): a start figure and a chain of operations, each unit followed by the next step, a trader's order of working (a flow in thousand barrels a day, tonnes a month, 5% of that, a saving against a baseline, pounds a month, dollars a year).",
-      "Needs: a number pad built into the page (a phone's own keyboard covers half the screen), a pause with the menu (README, The pause), a best per mode under `speedmaths:best`, and a daily set from `today()`.",
-    ],
-  },
-  speedfuels: {
-    name: "Fuel maths", sec: "appendix",
-    line: "Speed maths for the refining desk: the sums of a fuel price and a compliance ticket, typed against the clock, with the figures a trader would work out in his head.",
-    todo: [
-      "Added 3 November 2026 (Korbi, 2 November: Speed maths in two versions, a generic mercantile one in Puzzles and a fuel-pricing one for his refining work in the Appendix, with typed estimates accepted to one or two significant figures depending on the calculation). Its id is `speedfuels`; the name is a working name.",
-      "It is the second tile of one build: the engine, the number pad and the unit chains are Speed maths', and this version is a deck of fuel-pricing chains on top (barrels to tonnes by density, a carbon-intensity saving against a baseline in tonnes of CO2e, a ticket price into pounds a month), so it is built after Speed maths and not before.",
-      "What it needs of its own: the answer is accepted within a tolerance chosen per calculation (a barrel-to-tonne conversion to two significant figures, a margin to one), so each chain carries its tolerance and the page says when an answer is close enough; and a deck of chains written with the desk's own figures, reviewed by Korbi before they are dealt.",
-      "It lives in the Appendix, which Random and Start a game over leave out; when it is built it stays there until it leaves for an app of its own (README, The Appendix).",
-    ],
-  },
 };
