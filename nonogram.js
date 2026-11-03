@@ -2,7 +2,7 @@
 // base's (a country's outline, a flag in colour, a lake), each a puzzle with exactly one answer that reasoning reaches
 // (nonogram-pictures.js, nonogram-engine.js), on squares or on a hexagon of hexes (nonogram-hex.js), where every cell
 // has three lines; nonogram-board.js draws the one, nonogram-hexboard.js the other. This file keeps the run, the clock
-// and the strokes, names the picture, plays the computer (a partner with half the clues, or a rival on its own copy)
+// and the strokes, names the picture, plays the computer (a partner with half the clues)
 // and plays together on duel.js: a race on the same picture, or the clues split between you on one grid.
 import { cellAt, withCell, emptyGrid, EMPTY, CROSS, agrees, drawn, wrongCells, knownFrom, nextStep, scoreOf, creditFor, ownerOf, MISTAKE, HINT, WRONG_NAME, CREDIT } from "./nonogram-engine.js";
 import { PICTURES, TOPICS, topicsOf, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, siblingsOf, poolOf, madeAlready, remember } from "./nonogram-pictures.js";
@@ -49,6 +49,7 @@ if (!REGIONS.some(([id]) => id === settings.region)) settings.region = DEFAULTS.
 if (!BANDS[settings.band] && settings.band !== "any") settings.band = "any";
 if (settings.grid !== "hex") settings.grid = "square";
 if (!PACES[settings.pace]) settings.pace = "medium";
+if (settings.computer !== "partner") settings.computer = "off";          // "rival" (racing you) was dropped
 const saveSettings = () => { if (!IN_FRAME) write(SETTINGS, settings); };
 const GRIDS = [["square", "Squares"], ["hex", "Hexes"]];
 // a flag is a rectangle and stays on squares: on hexes the menu's flags are countries, and back on squares flags again
@@ -71,7 +72,7 @@ const tallyId = () => `h${Date.now().toString(36)}${Math.random().toString(36).s
 // S: { v, id (the picture), size, hex (on hexes), mode ("random" | "daily" | "duel"), day, play ("solo" | "split" |
 // "race"), grid, undo, redo (strokes: [[cell, before, after]…]), ms, mistakes, hints, name ({ typed, right, early,
 // credit, hidden } once named), done, score, fresh (a new best), rules ({ mistakes, nameIt, computer, pace }: as it was
-// dealt), rival ({ grid, done, ms }: the computer's own copy) }
+// dealt) }
 let S = null, P = null, pic = null;
 let tool = 1;                             // the colour that fills (1… for a flag's colours), or CROSS
 let clockFrom = null, savedAt = 0, message = null, paused = false, hintCells = [], hintLine = null;
@@ -159,9 +160,10 @@ async function begin(s, run = null, at = {}) {
   P = pz; pic = pictureOf(s.id);
   const r = rules();
   S = run || { v: 1, id: s.id, size: s.size, hex: !!s.hex, mode: s.mode, day: s.day ?? null, play: s.play || "solo", grid: emptyGrid(P), undo: [], redo: [], ms: 0, mistakes: 0, hints: 0,
-    name: null, done: false, rules: s.rules || { ...r }, rival: null };
+    name: null, done: false, rules: s.rules || { ...r } };
   Object.assign(S, at);
-  if (S.rules.computer === "rival" && !S.rival && S.mode !== "duel") S.rival = { grid: emptyGrid(P), done: false, ms: 0 };
+  delete S.rival;                                                 // a run saved when the computer could race you
+  if (S.rules.computer === "rival") S.rules = { ...S.rules, computer: "off" };
   tool = P.colours > 1 ? Math.min(tool > 0 ? tool : 1, P.colours) : tool === CROSS ? CROSS : 1;
   message = null; hintCells = []; hintLine = null; stroke = null; clockFrom = null;
   $("size").value = S.size;
@@ -594,16 +596,13 @@ function drawPicture(canvas, final) {
 
 // ---------- the computer ----------
 // As a partner (split with the computer): you have the rows, it has the columns (on hexes, every other line of each
-// direction each), and it works from the grid you share. As a rival: it solves its own copy alongside you, at its
-// pace, and the strip says how far it has got.
-let bot = null;                                                   // { mind, queue, timer, stuck, rival }
+// direction each), and it works from the grid you share.
+let bot = null;                                                   // { mind, queue, timer, stuck }
 function botStart() {
   botSleep();
   bot = null;
   if (!S || S.done || IN_FRAME || S.mode === "duel") return;
-  const who = S.rules.computer;
-  if (who === "partner") bot = { mind: createMind(P, computerReads), queue: null, timer: 0, rival: false };
-  else if (who === "rival" && S.rival && !S.rival.done) bot = { mind: createMind(P), queue: null, timer: 0, rival: true };
+  if (S.rules.computer === "partner") bot = { mind: createMind(P, computerReads), queue: null, timer: 0 };
   botWake(900);
 }
 function botSleep() { if (bot) { clearTimeout(bot.timer); bot.timer = 0; } }
@@ -614,18 +613,14 @@ function botWake(delay = 500) {
 function botTick() {
   bot.timer = 0;
   if (!S || S.done || paused || document.hidden) return;
-  const grid = () => (bot.rival ? S.rival.grid : S.grid);
   if (bot.queue?.cells.length) {                                  // drawing what it saw, a cell at a time
     const [i, c] = bot.queue.cells.shift(), ms = bot.queue.each.shift(), v = c || CROSS;
-    if (cellAt(grid(), i) !== v) {
-      if (bot.rival) { S.rival.grid = withCell(S.rival.grid, i, v); if (drawn(S.rival.grid, P.answer) === 1) { S.rival.done = true; S.rival.ms = elapsed(); note(`The computer has finished: ${fmt(S.rival.ms / 1000)}.`); save(); render(); return; } }
-      else { setCell(i, v); board.update(S.grid, boardExtras()); if (complete()) { finish(); return; } }
-    }
+    if (cellAt(S.grid, i) !== v) { setCell(i, v); board.update(S.grid, boardExtras()); if (complete()) { finish(); return; } }
     save(); render();
     bot.timer = setTimeout(botTick, ms);
     return;
   }
-  const mv = botMove(bot.mind, grid(), PACES[S.rules.pace] || PACES.medium);
+  const mv = botMove(bot.mind, S.grid, PACES[S.rules.pace] || PACES.medium);
   bot.stuck = !mv;
   bot.queue = mv;
   render();
@@ -650,10 +645,9 @@ function drawStrip() {
   put("drawn", `${Math.floor(drawn(S.grid, P.answer) * 100)}%`);
   const what = S.mode === "daily" ? "Today's" : S.mode === "duel" ? (S.play === "split" ? "Split" : "Race") : TOPIC_ONE[pic.topic];
   put("what", `${what} · ${P.hex ? `${P.n} hexes` : `${P.w} × ${P.h}`} · ${BANDS[P.band]}`);
-  if (S.mode !== "duel" && !COOP) {                                // the computer, as rival or partner, in the line under the strip
+  if (S.mode !== "duel" && !COOP) {                                // the computer partner, in the line under the strip
     const r = $("rival");
-    if (S.rules.computer === "rival" && S.rival) { r.hidden = false; r.textContent = S.rival.done ? `Computer: finished in ${fmt(S.rival.ms / 1000)}` : `Computer (${PACES[S.rules.pace].label.toLowerCase()}): ${Math.floor(drawn(S.rival.grid, P.answer) * 100)}%`; }
-    else if (S.rules.computer === "partner") { r.hidden = false; r.textContent = `Partner: the computer (${PACES[S.rules.pace].label.toLowerCase()}), reading ${P.hex ? "the shaded lines" : "the columns"}${bot?.stuck ? ", waiting on you" : ""}`; }
+    if (S.rules.computer === "partner") { r.hidden = false; r.textContent = `Partner: the computer (${PACES[S.rules.pace].label.toLowerCase()}), reading ${P.hex ? "the shaded lines" : "the columns"}${bot?.stuck ? ", waiting on you" : ""}`; }
     else r.hidden = true;
   }
 }
@@ -694,12 +688,6 @@ function drawResult() {
   if (n?.early) bits.push(n.right ? `named with ${Math.round(n.hidden * 100)}% to draw (−${n.credit} s)` : `named wrong (+${WRONG_NAME} s)`);
   const best = COOP ? null : read(TIMES, {})[bestKey()];
   v.append(`${COOP ? "Drawn together in " : ""}${fmt(S.score)}: ${bits.join(", ")}.`);
-  if (S.rules.computer === "rival" && S.rival) {
-    const s2 = document.createElement("span"), won = !S.rival.done || S.rival.ms > S.ms;
-    s2.className = won ? "good" : "bad";
-    s2.textContent = won ? " You beat the computer." : ` The computer was quicker: ${fmt(S.rival.ms / 1000)}.`;
-    v.append(s2);
-  }
   if (n && !n.early) { const s3 = document.createElement("span"); s3.className = n.right ? "good" : "bad"; s3.textContent = n.right ? " Named." : " Not named: it'll come back."; v.append(s3); }
   if (S.rules.computer !== "partner" && !COOP) v.append(S.fresh ? " A new best." : best != null ? ` Best ${fmt(best)}.` : "");
   $("nextBtn").textContent = COOP ? "Another picture" : S.mode === "daily" ? "A random picture" : "Next picture";
@@ -996,7 +984,7 @@ function openMenu() {
   const st = part(body, "settings");
   if (!COOP) st.append(toggle("Name it", settings.nameIt, v => { settings.nameIt = v; saveSettings(); }));
   st.append(choice("Mistakes", [["shown", "Shown"], ["hidden", "Hidden"]], settings.mistakes, v => { settings.mistakes = v; saveSettings(); }));
-  if (!COOP) st.append(choice("The computer", [["off", "Off"], ["partner", "Partner"], ["rival", "Rival"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
+  if (!COOP) st.append(choice("The computer", [["off", "Off"], ["partner", "Partner"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
   if (!COOP && settings.computer !== "off") st.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }));
   st.append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one grid for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
@@ -1017,7 +1005,6 @@ async function restart() {
   const marked = [...P.answer.keys()].filter(i => cellAt(S.grid, i) !== EMPTY);
   if (coop) { if (marked.length) coop.edit(marked.map(i => gridEdit(i, cellAt(S.grid, i), EMPTY))); } else for (const i of marked) setCell(i, EMPTY);
   S.undo = []; S.redo = [];
-  if (S.rival) S.rival = { grid: emptyGrid(P), done: false, ms: 0 };
   botStart();
   changed();
 }

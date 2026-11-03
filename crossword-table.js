@@ -6,12 +6,12 @@
 //    finish alone: the crossings are how the clues you can't see get solved. A seat nobody is in has its clues shown
 //    to everyone, so the table can go on without them.
 //  - race, the same grid for everyone, each solving their own on their own phone, the others' progress showing; the
-//    lowest time wins (the clock, and the penalties for help). A computer player may race too (crossword-solve.js).
+//    lowest time wins (the clock, and the penalties for help).
 //
 //   { v: 1, app, created, people, players: { uid: { name, pid, slot, online, at? } }, asked?, n (the game's number),
 //     mode, puzzle, begun (the database's time the game began), cells: { c<k>: { ch, by } }, revealed: { c<k>: 1 },
 //     wrong: { c<k>: 1 }, checks, reveals, done: { at, secs } (split), runs: { s<slot>: { begun, solved, filled,
-//     checks, reveals, secs, done } } (race), rival: { level, seed } | absent }
+//     checks, reveals, secs, done } } (race) }
 // Cells and runs are keyed c<k> and s<slot>, never by number, which the database would read back as a list with holes.
 import { REVEAL_COST, CHECK_COST, solutionAt, isBlack } from "./crossword-engine.js";
 
@@ -23,15 +23,15 @@ export const peopleOf = ask => Math.min(MOST, Math.max(2, Number(ask?.people) ||
 export const isTable = g => g?.v === 1 && !!g.puzzle?.rows && !!g.mode;
 
 /** A new table with its first game. */
-export function freshTable(players, { app = 1, puzzle, mode = "split", people = 2, now = Date.now(), rival = null }) {
-  return tidy({ v: 1, app, created: now, people: Math.min(MOST, Math.max(2, Number(people) || 2)), players, n: 1, ...game(puzzle, mode, now, rival) });
+export function freshTable(players, { app = 1, puzzle, mode = "split", people = 2, now = Date.now() }) {
+  return tidy({ v: 1, app, created: now, people: Math.min(MOST, Math.max(2, Number(people) || 2)), players, n: 1, ...game(puzzle, mode, now) });
 }
-const game = (puzzle, mode, now, rival) => ({ mode, puzzle, begun: now, cells: {}, revealed: {}, wrong: {}, checks: 0, reveals: 0, done: null, runs: {}, ...(rival ? { rival } : {}) });
+const game = (puzzle, mode, now) => ({ mode, puzzle, begun: now, cells: {}, revealed: {}, wrong: {}, checks: 0, reveals: 0, done: null, runs: {} });
 /** The table as the database gives it back, made whole (it keeps no nulls, empty lists or empty objects). */
 export function tidy(g) {
   g.cells ||= {}; g.revealed ||= {}; g.wrong ||= {}; g.runs ||= {};
   g.checks ||= 0; g.reveals ||= 0; g.done ||= null;
-  if (!g.rival) delete g.rival;
+  delete g.rival;                              // a table dealt when a computer player could race
   const p = g.puzzle;
   if (p) {
     p.rows = values(p.rows);
@@ -41,10 +41,9 @@ export function tidy(g) {
   return g;
 }
 /** A new game at the table, unless one was dealt since game n. */
-export function newGameAt(g, { n, puzzle, mode, now, rival = null }) {
+export function newGameAt(g, { n, puzzle, mode, now }) {
   if (g.n !== n) return false;
-  Object.assign(g, { n: n + 1, ...game(puzzle, mode, now, rival) });
-  if (!rival) delete g.rival;
+  Object.assign(g, { n: n + 1, ...game(puzzle, mode, now) });
   return true;
 }
 
@@ -147,14 +146,12 @@ export function reportAt(g, { n, slot, run }) {
 /** A race run's time: its clock and its penalties. */
 export const runTotal = r => (r?.secs ?? 0) + (r?.reveals || 0) * REVEAL_COST + (r?.checks || 0) * CHECK_COST;
 /**
- * The race's standings: [{ slot, name, run, total, rank, rival }], the finished by their totals (equal totals share a
- * rank), then those still going by how much they've solved. `rival`, the computer player's run so far ({ solved,
- * done, total }) if it races.
+ * The race's standings: [{ slot, name, run, total, rank }], the finished by their totals (equal totals share a
+ * rank), then those still going by how much they've solved. 
  */
-export function standings(g, rival = null) {
+export function standings(g) {
   const rows = Object.values(g.players || {}).filter(p => p?.slot != null).map(p => ({ slot: p.slot, name: p.name, run: runOf(g, p.slot) }))
     .map(x => ({ ...x, total: x.run?.done ? runTotal(x.run) : null }));
-  if (rival) rows.push({ slot: null, name: rival.name, rival: true, run: { solved: rival.solved, done: rival.done }, total: rival.done ? rival.total : null });
   rows.sort((a, b) => {
     if ((a.total != null) !== (b.total != null)) return a.total != null ? -1 : 1;
     return a.total != null ? a.total - b.total : (b.run?.solved || 0) - (a.run?.solved || 0);

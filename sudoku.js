@@ -1,11 +1,11 @@
 // Sudoku (October 2026): fill the grid so every row, column and region holds each digit once. The rules, the grids
 // and the solvers are sudoku-engine.js and its pieces (every grid is generated, has one solution, and is graded by the
 // hardest technique a person needs); the board is the digit grid (digits.js), which Calcudoku and Kakuro share. This
-// file keeps the run (your entries, the clock, hints), the computer (a rival racing you, or a partner holding half the
+// file keeps the run (your entries, the clock, hints), the computer (a partner holding half the
 // givens), and the table: a race on one grid, or Together, the givens shared out so nobody can finish alone.
 import { RULES, SIZES, LEVELS, DAILY, levelsOf, levelFor, decode, validGrid, shapeFor, viewOf } from "./sudoku-engine.js";
 import { stateOf, nextStep, say } from "./sudoku-logic.js";
-import { racePlan, placedBy, partnerMove, PACES } from "./sudoku-bot.js";
+import { partnerMove, PACES } from "./sudoku-bot.js";
 import { boxRegions, rng, mix, bit } from "./sudoku-grid.js";
 import { createBoard } from "./digits.js";
 import { freshEntries, validEntries, write as writeDigit, pencil, rub, fill, set, undo, redo, repeats } from "./digits-edit.js";
@@ -57,6 +57,7 @@ if (!RULES[settings.rules]) settings.rules = "classic";
 if (!SIZES[settings.size]) settings.size = 9;
 settings.level = levelFor(settings.rules, settings.size, LEVELS[settings.level] ? settings.level : "medium");
 if (!PACES[settings.pace]) settings.pace = "keen";
+if (settings.computer !== "partner") settings.computer = "off";          // "rival" (racing you) was dropped
 const saveSettings = () => write(SETTINGS, settings);
 const kindKey = k => `${k.rules}:${k.size}:${k.level}`;
 const kindName = k => `${RULES[k.rules].label}${Number(k.size) === 6 ? " 6×6" : ""} · ${LEVELS[k.level].label}`;
@@ -105,23 +106,22 @@ async function dealGrid(kind, words = "Setting the grid") {
 }
 
 // ---------- the run (solo) ----------
-// S: { v, mode ("random", "daily", "rival", "pair"), grid (encoded), entries (digits-edit.js), sel, notes (the Notes
+// S: { v, mode ("random", "daily", "pair"), grid (encoded), entries (digits-edit.js), sel, notes (the Notes
 // switch), ms (time on screen), hints, wrong (cells a hint marked wrong), done ({ ms, score, at, fresh }), pace (the
 // computer's), split (pair: the givens shared with the computer), by (pair: who placed each digit, "0" you, "1" it),
 // bot (pair: { cell, digit, due } its next digit, due on your clock) }
 let S = null, P = null, SH = null, board = null, boardFor = "";
-let clockFrom = null, savedAt = 0, message = null, hintShown = null, highlight = 0, flash = null, plan = null;
+let clockFrom = null, savedAt = 0, message = null, hintShown = null, highlight = 0, flash = null;
 const solo = () => !M;
 
 function setGrid(grid) {
   P = decode(grid);
   SH = shapeFor(P);
-  plan = null;
 }
 function begin(s) {
   S = s;
+  if (S.mode === "rival") S.mode = "random";         // a run saved when the computer could race you
   setGrid(S.grid);
-  if (S.mode === "rival") plan = racePlan(SH, P.givens, S.pace, P.seed);
   message = null; hintShown = null; highlight = 0; flash = null;
   clockFrom = null;
   if (!IN_FRAME) history.replaceState(null, "", `${location.search}${hashFor(S)}`);
@@ -149,7 +149,7 @@ async function start(mode = "random") {
   catch (e) { console.error(e); toast("Couldn't make a grid, try again"); return; }
   if (M) return;                                     // sat down at a table meanwhile
   const computer = daily ? "off" : settings.computer;
-  const s = fresh(grid, daily ? "daily" : computer === "rival" ? "rival" : computer === "partner" ? "pair" : "random", computer !== "off" && !daily ? { pace: settings.pace } : {});
+  const s = fresh(grid, daily ? "daily" : computer === "partner" ? "pair" : "random", computer !== "off" && !daily ? { pace: settings.pace } : {});
   if (s.mode === "pair") {
     const done = busy("Sharing out the givens", { delay: 300 });
     try { s.split = (await ask({ kind: "split", grid, k: 2, seed: grid.seed })).split; } finally { done(); }
@@ -414,7 +414,6 @@ function botTick() {
   save();
   render();
 }
-const rivalLeft = () => (plan ? plan.length - placedBy(plan, soloMs()) : 0);
 
 // ---------- drawing ----------
 const shown = {};
@@ -450,10 +449,7 @@ function drawStrip() {
   put("kind", S.mode === "daily" ? `Today's · ${kindName({ rules: P.rules, size: P.n, level: P.level })}` : kindName({ rules: P.rules, size: P.n, level: P.level }));
   const r = $("rival"), pace = PACES[S.pace]?.label.toLowerCase();
   let text = "";
-  if (S.mode === "rival" && plan) {
-    const left = rivalLeft(), end = plan.at(-1)?.at ?? 0;
-    text = left > 0 ? `Codex (${pace}): ${plural(left, "digit")} to go` : `Codex (${pace}) finished in ${fmt(end / 1000)}`;
-  } else if (S.mode === "pair") {
+  if (S.mode === "pair") {
     const its = [...S.by].filter(ch => ch === "1").length;
     text = `With Codex (${pace}): ${plural(its, "digit")} of its${S.bot || S.done ? "" : ", waiting on you"}`;
   }
@@ -479,10 +475,7 @@ function drawResult() {
   const bits = [`${fmt(S.done.ms / 1000)} on the clock`];
   if (S.hints) bits.push(`${plural(S.hints, "hint")} (+${HINT * S.hints} s)`);
   let tail = "";
-  if (S.mode === "rival" && plan) {
-    const its = Math.round((plan.at(-1)?.at ?? 0) / 1000), gap = Math.abs(its - S.done.score);
-    tail = S.done.score < its ? `You beat Codex by ${fmt(gap)}.` : S.done.score > its ? `Codex was ${fmt(gap)} quicker.` : "A dead heat with Codex.";
-  } else if (S.mode === "pair") tail = `Codex placed ${[...S.by].filter(ch => ch === "1").length}, you ${[...S.by].filter(ch => ch === "0").length}.`;
+  if (S.mode === "pair") tail = `Codex placed ${[...S.by].filter(ch => ch === "1").length}, you ${[...S.by].filter(ch => ch === "0").length}.`;
   else if (COOP) tail = "";                    // a shared solve is nobody's best
   else {
     const best = read(TIMES, {})[kindKey({ rules: P.rules, size: P.n, level: P.level })];
@@ -853,9 +846,9 @@ function levelNote() {
 function settingsPart(body, atTable) {
   const s = part(body, "settings");
   if (!atTable) {
-    s.append(choice("Computer", [["off", "Off"], ["rival", "Race it"], ["partner", "With it"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
+    s.append(choice("Computer", [["off", "Off"], ["partner", "With it"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
     if (settings.computer !== "off") s.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }),
-      line(settings.computer === "rival" ? "Codex solves the same grid alongside you, step by step at a person's pace." : "You and Codex each see part of the givens; its digits show as it finds them. From the next grid."));
+      line("You and Codex each see part of the givens; its digits show as it finds them. From the next grid."));
   }
   s.append(toggle("Mark repeats", settings.repeats, v => { settings.repeats = v; saveSettings(); render(); }),
     toggle("Clear pencil marks as you write", settings.tidy, v => { settings.tidy = v; saveSettings(); }));

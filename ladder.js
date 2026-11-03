@@ -3,8 +3,8 @@
 // from either end, as on paper. The rules, the ladders and the computer players are ladder-engine.js's; the pairs with
 // a link between them, Carroll's own among them, ladder-pairs.js's; this file keeps the run, the clock and the taps.
 // Together, a team's ladder or a race (ladder-room.js).
-import { RULES, LENGTHS, LEVELS, OVER, HINT, RIVALS, analyse, generate, levelOf, newRun, place, undoLast, working,
-  words, steps, hintFor, score, rivalPlan, rivalAt, partnerMove } from "./ladder-engine.js";
+import { RULES, LENGTHS, LEVELS, OVER, HINT, PARTNERS, analyse, generate, levelOf, newRun, place, undoLast, working,
+  words, steps, hintFor, score, partnerMove } from "./ladder-engine.js";
 import { BOOK, THEMES, linkedFor } from "./ladder-pairs.js";
 import { lettersFor, RACE_LADDERS } from "./ladder-table.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -34,22 +34,20 @@ const CAPS = w => String(w).toUpperCase();
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
 // ---------- what you've chosen ----------
-const prefs = { level: "easy", lengths: [4, 5], themes: Object.keys(THEMES), rules: "classic", rival: "off", kind: "random", ...read(PREFS, {}) };
+const prefs = { level: "easy", lengths: [4, 5], themes: Object.keys(THEMES), rules: "classic", kind: "random", ...read(PREFS, {}) };
 if (!LEVELS[prefs.level]) prefs.level = "easy";
 if (!RULES[prefs.rules]) prefs.rules = "classic";
-// the computer: a rival racing you, or a partner holding half the letters (until October 2026's partner, rival alone)
-if (RIVALS[prefs.rival] && !prefs.computer) { prefs.computer = "rival"; prefs.cpu = prefs.rival; }
+// the computer: a partner holding half the letters (a rival that raced you was dropped: both old settings are off)
 delete prefs.rival;
-if (!["off", "rival", "partner"].includes(prefs.computer)) prefs.computer = "off";
-if (!RIVALS[prefs.cpu]) prefs.cpu = "club";
+if (prefs.computer !== "partner") prefs.computer = "off";
+if (!PARTNERS[prefs.cpu]) prefs.cpu = "club";
 if (!KINDS[prefs.kind] || prefs.kind === "daily") prefs.kind = "random";
 prefs.lengths = (prefs.lengths || []).filter(n => LENGTHS.includes(n));
 if (!prefs.lengths.length) prefs.lengths = [4, 5];
 const keepPrefs = () => write(PREFS, prefs);
 
 // ---------- the ladder on screen ----------
-// G: { kind, P (the ladder: its ends, par, routes, and a pair's line), run (the engine's), rival ({ level, plan }) or
-// null, side (the end you're working at), fresh (a new best), mode: "solo", "race" or "team" }
+// G: { kind, P (the ladder: its ends, par, routes, and a pair's line), run (the engine's), partner, side (the end you're working at), fresh (a new best), mode: "solo", "race" or "team" }
 let G = null;
 let cursor = null;          // { pos, gap }: the letter of the working rung you tapped (gap: the place before it, to add one)
 let typed = "";             // a whole word typed instead, waiting for Enter
@@ -151,9 +149,8 @@ async function deal(kind = prefs.kind, { chapter = null, seed = null, level = pr
 /** Puts a ladder on the table, solo: a fresh run, the computer player's climb if you race one. */
 function begin({ kind, P }, run = newRun(P), extra = {}) {
   clockPause();
-  G = { kind, P, run, mode: "solo", side: "top", rival: null, ...extra };
-  // a rival races any ladder but the book's; a partner shares a random or linked one, its letters keeping their places
-  if (prefs.computer === "rival" && !extra.rival && kind !== "book") G.rival = { level: prefs.cpu, plan: rivalPlan(P, prefs.cpu, randomSeed()) };
+  G = { kind, P, run, mode: "solo", side: "top", ...extra };
+  // a partner shares a random or linked ladder, its letters keeping their places
   if (prefs.computer === "partner" && !extra.partner && (kind === "random" || kind === "linked") && P.rules === "classic" && P.start.length === P.end.length) {
     G.partner = { level: prefs.cpu, owners: lettersFor(P, [0, 1], 1 + Math.floor(Math.random() * 2)) };
     G.by = [-1];
@@ -464,12 +461,9 @@ function drawRival() {
   if (G.mode !== "solo") { room.drawLine(box, G); return; }
   let text, who = "var(--brass)";
   if (G.partner) {
-    const name = RIVALS[G.partner.level].label, its = G.by.filter(b => b === 1).length;
+    const name = PARTNERS[G.partner.level].label, its = G.by.filter(b => b === 1).length;
     text = G.run.done ? `${name}, your partner: ${plural(its, "rung")} of the ladder` : `${name}, your partner: ${G.partner.thinking ? "thinking" : "waiting for you"}`;
     who = "var(--p1)";
-  } else if (G.rival) {
-    const { plan, level } = G.rival, at = rivalAt(plan, elapsed()), all = plan.route.length - 1, name = RIVALS[level].label;
-    text = at >= all ? `${name}: done in ${all}${all === G.P.par ? ", par" : `, ${all - G.P.par} over`}, ${fmt(plan.at.at(-1) / 1000)}` : `${name}: ${plural(at, "rung")}`;
   } else { box.hidden = true; return; }
   box.hidden = false;
   if (box.dataset.t !== text) {
@@ -527,7 +521,7 @@ function drawResult() {
   const v = $("verdict");
   v.className = `ld-verdict${over === 0 ? " good" : ""}`;
   // a partner's: who made the steps (the makers run one a step, the last one the step onto the last word)
-  const rival = G.rival ? rivalLine() : G.partner ? `You made ${plural(G.by.filter(b => b === 0).length, "step")}, ${RIVALS[G.partner.level].label} ${G.by.filter(b => b === 1).length}.` : "";
+  const rival = G.partner ? `You made ${plural(G.by.filter(b => b === 0).length, "step")}, ${PARTNERS[G.partner.level].label} ${G.by.filter(b => b === 1).length}.` : "";
   v.replaceChildren(`${head} Score ${fmt(sc)}.`, el("small", "", `${bits.join(", ")}.${G.fresh ? " A new best." : best != null ? ` Best ${fmt(best)}.` : ""}${rival ? ` ${rival}` : ""}`));
   $("more").textContent = routesLine();
   $("nextBtn").textContent = G.kind === "book" && G.P.chapter < BOOK.length - 1 ? "Next chapter" : G.kind === "daily" ? "A random ladder" : "Another ladder";
@@ -540,11 +534,6 @@ function routesLine() {
     : atPar ? `You found one of ${many} routes at par${mine ? ", the commonest" : ""}.` : `There are ${many} routes at par; the commonest goes through ${via}.`;
   const next = G.kind === "book" && P.chapter < BOOK.length - 1 ? ` Next in the book: ${BOOK[P.chapter + 1].say}.` : "";
   return `${told}${next}`;
-}
-function rivalLine() {
-  const { plan, level } = G.rival, name = RIVALS[level].label, n = plan.route.length - 1;
-  const theirs = Math.round(plan.at.at(-1) / 1000) + OVER * Math.max(0, n - G.P.par), mine = score(G.P, G.run);
-  return mine < theirs ? `You beat ${name} (${fmt(theirs)}).` : mine === theirs ? `Level with ${name}.` : `${name} won, ${fmt(theirs)}.`;
 }
 function render(scroll = false) {
   if (!G) return;
@@ -573,7 +562,6 @@ function openRoutes() {
   if (r.done) sec(G.mode === "team" ? "The team's ladder" : "Your ladder", route(words(r)), el("p", "ld-note", `${steps(r)} steps; par ${P.par}.`));
   const ways = P.routes === 1 ? "one route at par, and only one" : P.routes >= 1e6 ? "a million routes at par or more" : `${P.routes.toLocaleString("en-GB")} routes at par`;
   sec("At par", route(P.route), el("p", "ld-note", `There ${P.routes === 1 ? "is" : "are"} ${ways}${P.common < P.routes ? `, ${P.common.toLocaleString("en-GB")} of them in everyday words` : ""}. ${P.detours ? `Par needs ${plural(P.detours, "detour")}: a letter changed to one that's neither its first nor its last.` : "No detours: every letter goes straight to its last."}`));
-  if (G.rival) sec(RIVALS[G.rival.level].label, route(G.rival.plan.route), el("p", "ld-note", `${G.rival.plan.route.length - 1} steps in ${fmt(G.rival.plan.at.at(-1) / 1000)}.`));
   if (P.by === "Kinbote, Pale Fire" && P.start === "live") sec("Kinbote's five", el("p", "ld-note", "It can't be done in five through any word of the widest list there is: six is par, through LEND as he says."));
   $("doneTitle").textContent = r.done ? "The routes" : "Par";
   if (!$("doneDlg").open) $("doneDlg").showModal();
@@ -632,9 +620,9 @@ function openMenu() {
   if (pick === "book") content.append(bookList());
   const settings = part(body, "settings");
   if (pick !== "book" && pick !== "daily") settings.append(choice("Rules", Object.entries(RULES), prefs.rules, v => { prefs.rules = v; keepPrefs(); }));
-  settings.append(choice("The computer", [["off", "Off"], ["rival", "Rival"], ["partner", "Partner"]], prefs.computer, v => { prefs.computer = v; keepPrefs(); openMenu(); }));
+  settings.append(choice("The computer", [["off", "Off"], ["partner", "Partner"]], prefs.computer, v => { prefs.computer = v; keepPrefs(); openMenu(); }));
   if (prefs.computer !== "off") {
-    settings.append(choice("Its level", Object.entries(RIVALS).map(([k, r]) => [k, r.label]), prefs.cpu, v => { prefs.cpu = v; keepPrefs(); }));
+    settings.append(choice("Its level", Object.entries(PARTNERS).map(([k, r]) => [k, r.label]), prefs.cpu, v => { prefs.cpu = v; keepPrefs(); }));
     if (prefs.computer === "partner") settings.append(line("It holds every other letter of a random or linked Classic ladder, from the next one."));
   }
   const pars = read(PARS, { now: 0, best: 0 }), best = G ? read(BESTS, {})[bestKey(G)] : null;
@@ -654,7 +642,7 @@ function showMenu(body) {
 // The header's Rules and the menu's The rules: Ladder as it's played here, its numbers the engine's own, so the sheet
 // can't drift from the game. A solo clock and the computer stand still while it's open, as for the menu (menu.js).
 function showRules() {
-  const players = Object.values(RIVALS).map(r => r.label).join(", ").replace(/, (\w+)$/, " or $1");
+  const players = Object.values(PARTNERS).map(r => r.label).join(", ").replace(/, (\w+)$/, " or $1");
   $("rulesBody").innerHTML = `
     <p>Lewis Carroll's Doublets: climb from the first word to the last, changing one letter at a time. Each letter keeps its place, and every rung must be a word.</p>
     <p><b>For example.</b> Carroll's own, HEAD to TAIL: HEAD, HEAL, TEAL, TELL, TALL, TAIL. Five steps, which is par; the third letter changes twice (A to L, then L to I), a detour, the kind of step that makes a ladder hard to see.</p>
@@ -665,7 +653,7 @@ function showRules() {
     <p><b>Score.</b> Your time, plus ${OVER} seconds for every step over par and ${HINT} a hint, lower being better: a step costs more than speed, since par is the point. Playing alone, the clock stands still while the menu or these rules are open.</p>
     <p><b>Ladders.</b> In the menu: <b>Today's</b>; <b>Random</b>, at a level, from the word lengths you tick; <b>Linked</b>, pairs with a link between them (COLD to WARM, LEAD to GOLD, BULL to BEAR), from the themes you tick; and <b>The book</b>, Carroll's own doublets in his order, each opening once the one before is climbed. Easy has at most one detour at par; Hard has two or more, and exactly one route at par.</p>
     <p><b>Grow and shrink.</b> The genre's own variant, in Settings' Rules, for random and linked ladders: a step may also add or take away a letter, which opens pairs of different lengths (HOT to COLD in three: HOT, COT, COD, COLD). Tap a gap between letters to add one there; ⌫ on a chosen letter takes it away.</p>
-    <p><b>The computer.</b> In Settings: off, a rival or a partner, at ${players}. A rival climbs the same ladder beside you, the lower score winning; a partner holds every other letter of a random or linked Classic ladder, and you may change only yours, ringed in your colour.</p>
+    <p><b>The computer.</b> In Settings: off or a partner, at ${players}. A partner holds every other letter of a random or linked Classic ladder, and you may change only yours, ringed in your colour.</p>
     <p><b>Today's ladder.</b> ${LEVELS[DAILY.level].label}, ${DAILY.lengths.map(inWords).join(" or ")} letters, ${RULES[DAILY.rules]}, the same for everyone, and a new one at midnight UTC. It counts the moment it's whole.</p>
     <p><b>Together.</b> As a team, one ladder for the table: each of you holds letters that must change, may change only those, and sees only your own letters of the last word, so you have to talk. Or a race: the same ${inWords(RACE_LADDERS)} ladders for everyone, the lowest score winning.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();

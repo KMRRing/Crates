@@ -8,9 +8,7 @@
 //    difficulty, and the crossings then make others certain (one word of the language fits the letters) or likelier
 //    (a pattern jogs the memory), round after round, until nothing more comes. A grid's difficulty is how such
 //    solvers fare on it: how many finish, how much of it they get, how many rounds of crossings it takes.
-//  - rivalRun: the computer player, the same model paced like a person: it reads the clues in order, writes what it
-//    knows, goes round again with the crossings, and when it's stuck takes a letter, as a person would, at the same
-//    cost (README, Crossword: scoring). The same puzzle and seed always play out the same way, on every phone.
+//  - partnerMove: the computer as a partner on a split grid, the same model paced like a person.
 import { wordsOf } from "./wordlist.js";
 import { answerNames } from "./crossword-kb.js";
 
@@ -171,60 +169,13 @@ export function grade(puzzle, { runs = 24, seed = 1, model = TYPICAL } = {}) {
  * The computer players, by how well they know things and how quickly they read: each a typical solver's chances,
  * raised or lowered, and a pace (seconds to read a clue, and a letter's typing).
  */
-export const RIVALS = {
+export const PACES = {
   steady: { name: "Steady", lift: -0.12, read: 7, letter: 0.5 },
   quick: { name: "Quick", lift: 0, read: 5, letter: 0.4 },
   sharp: { name: "Sharp", lift: 0.15, read: 3.6, letter: 0.3 },
 };
 const lifted = lift => Object.fromEntries(Object.entries(TYPICAL).map(([k, row]) => [k, row.map(p => Math.min(0.98, Math.max(0, p + lift * (k === "key" ? 0 : 1))))]));
 export const REVEAL_COST = 30, CHECK_COST = 15;             // seconds: a letter revealed, a wrong letter a check finds
-const STUCK = 20;                                         // seconds a stuck player thinks before taking a letter
-/**
- * The computer player's solve, seeded: { events: [{ t (seconds in), n (the entry it completed) or reveal (a cell) }],
- * done (the seconds it took), penalty (seconds added for letters taken) }. It reads the clues in order (across, then
- * down), writes each it knows, goes round again with what the crossings give, and when a round brings nothing it
- * takes a letter of the entry it has most of.
- */
-export function rivalRun(puzzle, level = "quick", seed = 1) {
-  const R = RIVALS[level] || RIVALS.quick, model = lifted(R.lift), rnd = seeded(seed ^ 0xC0FFEE);
-  const E = puzzle.entries, known = new Array(puzzle.rows.length * puzzle.rows[0].length).fill(null);
-  const solved = new Array(E.length).fill(false), events = [];
-  const pattern = e => e.cells.map(k => known[k] || ".").join("");
-  const themeKnown = () => E.filter((e, j) => e.kind === "star" && solved[j]).length >= 2 || E.some((e, j) => e.kind === "key" && solved[j]);
-  const complete = j => !E[j].cells.some(k => known[k] === null);
-  let t = 0, penalty = 0, guard = 0;
-  // a pace of its own each time: a person reads one clue faster than another
-  const pace = s => s * (0.7 + 0.6 * rnd());
-  const mark = () => E.forEach((e, j) => { if (!solved[j] && complete(j)) { solved[j] = true; events.push({ t: Math.round(t * 10) / 10, n: j }); } });
-  while (solved.some(x => !x) && guard++ < 400) {
-    let progress = false;
-    for (let j = 0; j < E.length; j++) {
-      if (solved[j]) continue;
-      const e = E[j], pat = pattern(e), k = pat.replace(/\./g, "").length;
-      t += pace(R.read * (0.6 + Math.min(1.2, (e.text || "").length / 60)));
-      let p = chanceOf(model, e, themeKnown());
-      if (e.kind === "key" && themeKnown()) p = 0.75;
-      if (certain(e, pat) || rnd() < (k ? withLetters(p, e, k / e.len) : p)) {
-        t += pace(R.letter * (e.len - k));
-        e.cells.forEach((c, i) => { known[c] = e.letters[i]; });
-        progress = true;
-        mark();
-      }
-    }
-    if (!progress) {                                       // stuck: think, then take a letter of the fullest entry
-      const open = E.map((e, j) => [j, e]).filter(([j]) => !solved[j]);
-      const [, e] = open.sort((a, b) => pattern(b[1]).replace(/\./g, "").length / b[1].len - pattern(a[1]).replace(/\./g, "").length / a[1].len)[0];
-      const blanks = e.cells.filter(c => known[c] === null);
-      const cell = blanks[Math.floor(rnd() * blanks.length)];
-      t += pace(STUCK);
-      known[cell] = e.letters[e.cells.indexOf(cell)];
-      penalty += REVEAL_COST;
-      events.push({ t: Math.round(t * 10) / 10, reveal: cell });
-      mark();
-    }
-  }
-  return { events, done: Math.round(t), penalty };
-}
 /**
  * The computer as a partner on a split grid (README, Crossword): its next answer among the entries it holds
  * (`holds[n]`), the first in clue order it gets now, from its clue or the letters in the grid, as the grading solver
@@ -233,7 +184,7 @@ export function rivalRun(puzzle, level = "quick", seed = 1) {
  * pattern it last tried). Returns { n, at } (the entry, and the seconds it took to read and write it).
  */
 export function partnerMove(puzzle, letters, holds, level, rnd, tried) {
-  const R = RIVALS[level] || RIVALS.quick, model = lifted(R.lift);
+  const R = PACES[level] || PACES.quick, model = lifted(R.lift);
   for (let n = 0; n < puzzle.entries.length; n++) {
     const e = puzzle.entries[n];
     if (!holds[n]) continue;
@@ -246,13 +197,4 @@ export function partnerMove(puzzle, letters, holds, level, rnd, tried) {
     }
   }
   return null;
-}
-/** How far the computer player has got by `secs`: { solved (entries), revealed (letters), done }. */
-export function rivalAt(run, secs) {
-  let solved = 0, revealed = 0;
-  for (const ev of run.events) {
-    if (ev.t > secs) break;
-    if (ev.reveal != null) revealed++; else solved++;
-  }
-  return { solved, revealed, done: secs >= run.done };
 }

@@ -1,8 +1,7 @@
 // Kakuro's computer player, pure: the human-style solver (kakuro-logic.js) worked through at a person's pace. Each
 // step takes the time a person needs for its technique (a crossing is seen in seconds, the ways a long run can fit
 // take a minute, a chain longer), less when there are many cells to place at a glance and more with one, with a
-// little luck either way, all at one of three paces. As a rival it solves the grid on its own, and its plan says when
-// it places each digit; as a partner (Together) it sees only its share of the clues, works out its next digit from
+// little luck either way, all at one of three paces. As a partner (Together) it sees only its share of the clues, works out its next digit from
 // them and everything placed (yours included), and places it when its time is up, or waits for you when it's stuck.
 import { stateOf, nextStep, apply, solved } from "./kakuro-logic.js";
 import { POP } from "./kakuro-grid.js";
@@ -38,27 +37,6 @@ export function thinkMs(step, view, pace, r, choices = 1) {
   if (GLANCE.has(step.tech)) s *= 0.45 + 2.2 / (1 + choices);
   return Math.round(s * (PACES[pace]?.factor ?? 1) * (0.7 + 0.6 * r()) * 1000);
 }
-
-/**
- * A rival's race: when, solving the grid alone, it places each digit: [{ at, cell, digit }] (at: ms from the start).
- * Pencilling in is part of a grid that needs more than a glance: the first such step costs half a second a cell
- * still empty.
- */
-export function racePlan(view, pace, r) {
-  const st = stateOf(view, new Uint8Array(view.shape.cells)), out = [], factor = PACES[pace]?.factor ?? 1;
-  let at = 0, pencilled = false;
-  for (let k = 0; k < 3000 && !solved(view, st); k++) {
-    const step = nextStep(view, st);
-    if (!step) break;
-    if (!pencilled && step.rank > 1) { pencilled = true; at += view.shape.white.filter(c => !st.val[c]).length * 500 * factor; }
-    at += thinkMs(step, view, pace, r, GLANCE.has(step.tech) ? openCells(view, st) : 1);
-    apply(view, st, step);
-    if (step.place) out.push({ at: Math.round(at), cell: step.place[0], digit: step.place[1] });
-  }
-  return out;
-}
-/** How many of a race plan's digits are in by this time. */
-export const placedBy = (plan, ms) => { let k = 0; while (k < plan.length && plan[k].at <= ms) k++; return k; };
 
 /**
  * A partner's next digit, from what it sees (its view of the clues, and everything placed, by cell): { cell, digit,

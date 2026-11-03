@@ -2,13 +2,13 @@
 // by its solver (mines-solve.js) to clear from its marked start by reasoning alone, at the level asked; squares,
 // hexes and triangles (mines-grid.js), flat or wrapped round a solid (mines-solid.js: a cube, a sphere, a geodesic
 // sphere); drawn on a canvas by mines-draw.js, or turned in 3D by mines-3d.js. This file keeps the run, the clock, the
-// fingers and the company: a computer partner or rival (mines-bot.js), and at a table (duel.js) a race on one field
+// fingers and the company: a computer partner (mines-bot.js), and at a table (duel.js) a race on one field
 // or one field for a team whose numbers are shared out among its players (mines-team.js).
 import { SHAPES, TILINGS, SIZES, LEVELS, STRIKE, HINT, settingsOf, describe, deal, daily, weekdayOf, WEEK, WEEKDAYS, newRun, dig, flag,
   chord, score, minesLeft, safeLeft, started, hint, readerOf, isFlag, isSolid, shapeOf, OPEN, STRUCK } from "./mines-engine.js";
 import { createView } from "./mines-draw.js";
 import { createSolidView } from "./mines-3d.js";
-import { PACES, paceOf, rivalPlan, rivalAt, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "./mines-bot.js";
+import { PACES, paceOf, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "./mines-bot.js";
 import { teamMove, teamField, teamScore, readers, PING_MS } from "./mines-team.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -24,7 +24,7 @@ import { busy } from "./loading.js";
 dropdown(document.getElementById("size"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
-const RUN = "mines:run", PREFS = "mines:prefs", TIMES = "mines:times", VIEW = "mines:view", RIVALS = "mines:rivals";
+const RUN = "mines:run", PREFS = "mines:prefs", TIMES = "mines:times", VIEW = "mines:view";
 const SAVE_EVERY = 5000;            // ms between saves of a field in play (a partner watching sees it that often)
 const HOLD = 420;                   // ms a finger stays down for the other tool (or, on a number, to light its neighbours)
 const TELL_MS = 1200;               // the computer partner's moment before it shows a number you asked for
@@ -37,7 +37,7 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`; };
 
 // ---------- what the player chose ----------
-const COMPUTER = { off: "Off", partner: "Partner", rival: "Rival" };
+const COMPUTER = { off: "Off", partner: "Partner" };         // "rival" (racing you) was dropped: old saves read as off
 const RULES = { strike: "Costs 60 s", sudden: "Ends the field" };
 const MODES = { race: "Race", team: "One team" };
 // shape is the tiling (squares, hexes, triangles) and solid the 3D switch: each is chosen on its own, and together
@@ -58,7 +58,7 @@ $("size").value = prefs.size;
 // ---------- the game on screen ----------
 // G: { kind ("solo", "race" or "team"), f (the field), run ({ cells, strikes, hints, ms, done, won, lost }), seed,
 // mode ("random" or "daily", solo), shape, size, level, rule, computer, pace, told (string), pings ([{ cell, at,
-// seat }]), asked ([…] the partner's), fresh (a new best), plan (the rival's), begun (a match's start), n (its number) }
+// seat }]), asked ([…] the partner's), fresh (a new best), begun (a match's start), n (its number) }
 let G = null;
 let message = null;                 // { text, tone } until the next tap; else the line says how to play
 let shownHint = null;               // the hint on the field, until the next move
@@ -146,13 +146,12 @@ async function begin(s, kept = null, { kind = "solo", begun = null, n = null } =
   clockFrom = null;
   G = {
     kind, f, seed: s.seed, mode: s.mode || "random", shape: s.shape, size: s.size, level: s.level, rule: RULES[s.rule] ? s.rule : "strike",
-    computer: kind === "solo" && s.mode !== "daily" ? s.computer || "off" : s.mode === "daily" && s.computer === "rival" ? "rival" : "off",
+    computer: kind === "solo" && s.mode !== "daily" && s.computer === "partner" ? "partner" : "off",
     pace: paceOf(s.pace), run: kept?.run && kept.run.cells?.length === f.n ? kept.run : newRun(f),
     told: typeof kept?.told === "string" && kept.told.length === f.n ? kept.told : ".".repeat(f.n),
     pings: Array.isArray(kept?.pings) ? kept.pings : [], asked: Array.isArray(kept?.asked) ? kept.asked : [], fresh: !!kept?.fresh,
     begun, n, table: null,
   };
-  G.plan = G.computer === "rival" ? rivalPlan(f, G.pace) : null;
   message = null; shownHint = null; focus = -1;
   $("size").value = G.size;
   const saved = read(VIEW, null);
@@ -321,7 +320,6 @@ function finish() {
     const sc = score(r);
     G.fresh = recordBest(sc);
     if (G.mode === "daily") noteDayTime("mines", sc, G.seed);       // today's field: the first clear's score
-    if (G.plan) { const rv = read(RIVALS, {}), k = G.pace, beat = sc < G.plan.score; rv[k] = { won: (rv[k]?.won || 0) + (beat ? 1 : 0), lost: (rv[k]?.lost || 0) + (beat ? 0 : 1) }; write(RIVALS, rv); }
   }
   save();
   roundOver("mines");
@@ -481,10 +479,6 @@ function drawStrip() {
   put("what", whatLine());
 }
 function whatLine() {
-  if (G.plan) {
-    const at = rivalAt(G.plan, elapsed());
-    return at.done ? `Computer cleared it: ${fmt(G.plan.score)}` : `Computer ${Math.round(at.share * 100)}%`;
-  }
   if (partnered()) return `With the computer (${PACES[G.pace].label.toLowerCase()})`;
   if (G.mode === "daily" && solo()) return `Today's: ${weekdayOf(G.seed)}'s`;
   return describe(G);
@@ -551,9 +545,8 @@ function drawResult() {
       if (r.hints) bits.push(`${plural(r.hints, "hint")} (+${HINT * r.hints} s)`);
       const secs = r.ms / 1000;
       if (secs > 0) bits.push(`3BV ${G.f.bbbv}, ${(G.f.bbbv / secs).toFixed(2)} a second`);
-      if (G.plan) bits.push(sc < G.plan.score ? `the computer took ${fmt(G.plan.score)}: you win` : sc === G.plan.score ? "the computer tied" : `the computer cleared it in ${fmt(G.plan.score)}`);
       bits.push(G.fresh ? "a new best" : best != null ? `your best ${fmt(best)}` : "");
-    } else bits.push(G.plan ? `the computer cleared it in ${fmt(G.plan.score)}` : "", "Every field can be cleared without a guess: try it again?");
+    } else bits.push("Every field can be cleared without a guess: try it again?");
     more = bits.filter(Boolean).join(" · ");
     $("nextBtn").textContent = "Another field";
   }
@@ -648,10 +641,8 @@ function openMenu() {
   if (prefs.computer !== "off") settings.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), prefs.pace, v => setting("pace", v)));
   settings.append(ruleChoice(), settingsNote);
   const best = G ? read(TIMES, {})[keyOf(G)] : null;
-  const rv = read(RIVALS, {})[prefs.pace];
   part(body, "about").append(
     line(G ? `${describe(G)}${G.computer === "partner" ? ", with the computer" : ""}: ${best != null ? `best ${fmt(best)}` : "not cleared yet"}. A mine costs ${STRIKE} s, a hint ${HINT} s.` : ""),
-    ...(rv ? [line(`Against the ${PACES[prefs.pace].label.toLowerCase()} computer: ${rv.won} won, ${rv.lost} lost.`)] : []),
     action("Copy a link to this field", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -691,7 +682,7 @@ function showRules() {
     <h4>Score</h4>
     <p>Your time, plus ${STRIKE} seconds for every mine dug and ${HINT} for every hint; lower is better. The clock starts with your first dig and stops while the menu, these rules or the games screen is open. Every kind of field keeps its own best, flat or 3D.</p>
     <h4>Today's field</h4>
-    <p>One field a day, the same for everyone, always flat and always played alone (the computer may race it), harder as the week goes on: ${week}. Its score counts the moment the last safe cell opens, and is Mines' figure on the games screen.</p>`;
+    <p>One field a day, the same for everyone, always flat and always played alone harder as the week goes on: ${week}. Its score counts the moment the last safe cell opens, and is Mines' figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
 }
@@ -820,7 +811,7 @@ setInterval(() => {
 /** The field a link names (#s=SEED&f=SHAPE.SIZE.LEVEL, or #d=DAY for a day's), or null. */
 function hashField() {
   const h = new URLSearchParams(location.hash.slice(1)), dayLink = Number(h.get("d")), seed = Number(h.get("s"));
-  if (dayLink) return { ...daily(dayLink), seed: dayLink, mode: "daily", rule: prefs.rule, computer: prefs.computer === "rival" ? "rival" : "off", pace: prefs.pace };
+  if (dayLink) return { ...daily(dayLink), seed: dayLink, mode: "daily", rule: prefs.rule, computer: "off", pace: prefs.pace };
   if (!seed) return null;
   const [shape, size, level] = String(h.get("f") || "").split(".");
   return { ...settingsOf({ shape, size, level }), seed, mode: "random", rule: prefs.rule, computer: prefs.computer, pace: prefs.pace };

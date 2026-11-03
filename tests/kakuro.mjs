@@ -9,7 +9,7 @@ import { RULES, SIZES, LEVELS, DAILY, MOST, levelsOf, levelFor, levelOf, generat
 import { shapeOf, patternOk, combosOf, combosLeft, total, bit, rng, mix } from "../kakuro-grid.js";
 import { solver, fitRun } from "../kakuro-solve.js";
 import { TECHNIQUES, BEYOND, stateOf, nextStep, apply, grade, say, runName } from "../kakuro-logic.js";
-import { racePlan, placedBy, partnerMove, PACES, thinkMs } from "../kakuro-bot.js";
+import { partnerMove, PACES, thinkMs } from "../kakuro-bot.js";
 import { coopOf, placeCoop, hintCoop, coopValues, shareOf, orphanShares, placedBy as placedBySeat } from "../kakuro-room.js";
 import { freshDuel, sayReady, runOf } from "../duel-core.js";
 import { roundTrip } from "./rtdb.js";
@@ -138,13 +138,6 @@ const made = [];
 // ---------- the computer ----------
 {
   const p = made.find(x => x.rules === "sums" && x.rows === 10 && x.level === "medium"), view = { shape: p.shape, clues: p.clues, op: p.op };
-  const plans = Object.keys(PACES).map(pace => racePlan(view, pace, rng(mix(p.seed, "race", pace))));
-  check(plans.every(pl => pl.length === p.shape.white.length && pl.every(m => p.solution[m.cell] === m.digit) && pl.every((m, k) => !k || m.at >= pl[k - 1].at)),
-    "a rival places every white cell, each right, in order of time");
-  const ends = plans.map(pl => pl.at(-1).at);
-  check(ends[0] > ends[1] && ends[1] > ends[2] && ends[1] > 3 * 60e3 && ends[1] < 25 * 60e3, `steady, keen and sharp take ${ends.map(ms => `${Math.round(ms / 60e3)} min`).join(", ")} over a 10×10 Medium`);
-  check(placedBy(plans[1], 0) === 0 && placedBy(plans[1], ends[1]) === p.shape.white.length && racePlan(view, "keen", rng(mix(p.seed, "race", "keen"))).map(m => m.at).join() === plans[1].map(m => m.at).join(),
-    "a race plan is the same every time for the grid (so a watching partner sees the same race)");
   check(thinkMs({ tech: "single", runs: [0] }, view, "keen", rng(1), 10) < thinkMs({ tech: "single", runs: [0] }, view, "keen", rng(1), 1) && thinkMs({ tech: "chain", length: 6, runs: [] }, view, "keen", rng(2)) > thinkMs({ tech: "last", runs: [0] }, view, "keen", rng(2)),
     "a crossing is quicker to spot with many on offer; a chain takes longer than a run's last cell");
   const split = splitFor(p, 2, p.seed), mine = viewOf(p, split, 1);

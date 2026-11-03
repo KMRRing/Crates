@@ -238,15 +238,6 @@ const tiny = { rows: ["CAT", "A#O", "BOW"], entries: [
 check(S.countSolutions(tiny, [["CAT"], ["BOW"], ["CAB"], ["TOW"]]) === 1, "a grid whose clues each allow one word has one fill");
 check(S.countSolutions(tiny, [["CAT", "BAT"], ["BOW"], ["CAB"], ["TOW"]]) === 1, "a second word the crossings rule out (BAT: its B isn't CAB's C) changes nothing");
 check(S.countSolutions(tiny, [["CAT", "CUT"], ["BOW"], ["CAB"], ["TOW"]]) === 2, "two words that differ only where nothing crosses make two fills (CAT and CUT)");
-const p0 = ok[6].p, r1 = S.rivalRun(p0, "quick", 9), r2 = S.rivalRun(p0, "quick", 9);
-check(same(r1, r2), "the computer player plays the same puzzle the same way for the same seed, on every phone");
-check(r1.events.filter(e => e.n != null).length === p0.entries.length && r1.done > 0, "the computer player finishes, every entry in its record");
-const pace = lv => [1, 2, 3, 4, 5, 6].map(s => { const r = S.rivalRun(p0, lv, s); return r.done + r.penalty; }).reduce((a, b) => a + b) / 6;
-const [ps, pq, pk] = ["steady", "quick", "sharp"].map(pace);
-check(ps > pq && pq > pk, `a sharper computer player is quicker (steady ${Math.round(ps)} s, quick ${Math.round(pq)} s, sharp ${Math.round(pk)} s)`);
-check(pq > 90 && pq < 1500, "and paced like a person: minutes, not seconds or hours");
-const mid = S.rivalAt(r1, r1.done / 2), end = S.rivalAt(r1, r1.done + 1);
-check(mid.solved > 0 && mid.solved < p0.entries.length && end.done && end.solved === p0.entries.length, "how far it has got, at any moment");
 // the computer as a partner on a split grid alone: it holds the Down clues
 {
   const pp = ok[7].p, holds = pp.entries.map(e => e.dir === "down"), downs = holds.filter(Boolean).length;
@@ -393,8 +384,8 @@ const rec = T.resultOf(g, 0, [0, 1]);
 check(rec && rec.coop && rec.lower && rec.score === g.done.total && rec.match === `${g.created}-1`, "the pair's record: a team result, their time");
 const before = JSON.stringify(g);
 check(JSON.stringify(tx(g, x => T.writeAt(x, { n: 2, slot: 0, letters: { [across[0].cells[0]]: "Q" }, now: 1 }))) === before, "a letter for a game the table has moved on from does nothing");
-g = tx(g, x => T.newGameAt(x, { n: 1, puzzle: p1, mode: "race", now: 80000, rival: { level: "quick", seed: 3 } }));
-check(g.n === 2 && g.mode === "race" && !Object.keys(g.cells).length && !g.done && g.rival?.level === "quick", "a new game at the table, in the other mode");
+g = tx(g, x => T.newGameAt(x, { n: 1, puzzle: p1, mode: "race", now: 80000 }));
+check(g.n === 2 && g.mode === "race" && !Object.keys(g.cells).length && !g.done, "a new game at the table, in the other mode");
 check(JSON.stringify(tx(g, x => T.newGameAt(x, { n: 1, puzzle: p2, mode: "split", now: 1 }))) === JSON.stringify(g), "a second new game dealt from the same screen deals nothing");
 g = tx(g, x => T.reportAt(x, { n: 2, slot: 0, run: { begun: 80000, solved: 3, filled: 20 } }));
 g = tx(g, x => T.reportAt(x, { n: 2, slot: 1, run: { begun: 81000, solved: 5, filled: 25 } }));
@@ -409,8 +400,6 @@ check(tx(g, x => T.reportAt(x, { n: 2, slot: 1, run: { secs: 10 } })).runs.s1.se
 const r0 = T.resultOf(g, 0, [0, 1]), r1b = T.resultOf(g, 1, [0, 1]);
 check(r0 && !r0.won && r1b.won && !r0.coop && r0.lower, "the pair's record: head to head, won by the sole fastest");
 check(T.raceOver(g, [0]) && T.raceOver({ ...g, runs: { s0: g.runs.s0 } }, [0]), "nobody away holds the race up");
-const withRival = T.standings(g, { name: "Quick", solved: p1.entries.length, done: true, total: 200 });
-check(withRival[0].rival && withRival[0].rank === 1, "a computer player races in the standings too");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("crossword: every check passed");

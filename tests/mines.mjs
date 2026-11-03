@@ -11,7 +11,7 @@ import { solve, createSolver, placements } from "../mines-solve.js";
 import { FIELDS, MINES, TARGET, SIZES, LEVELS, STRIKE, HINT, dims, deal, fieldOf, bbbv, newRun, dig, flag, chord, score, minesLeft, safeLeft,
   started, hint, needsBoth, readerOf, daily, WEEK, weekdayOf, describe, settingsOf, rng, graphOf, isSolid, tilingOf, shapeOf,
   SHAPES as EVERY } from "../mines-engine.js";
-import { PACES, rivalPlan, rivalAt, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "../mines-bot.js";
+import { PACES, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "../mines-bot.js";
 import { teamMove, teamField, teamScore, readers, freshField } from "../mines-team.js";
 import { freshDuel, sayReady, startAll, rematch } from "../duel-core.js";
 import { roundTrip } from "./rtdb.js";
@@ -346,31 +346,6 @@ function sure(ways, c, mine) {
     else for (const c of h.cells) { if (h.mine) { if (r2.cells[c] === ".") flag(g, r2, c); } else if (r2.cells[c] === ".") dig(g, r2, c); }
   }
   check(named, "a hint never trusts a flag: it can name a flagged cell safe");
-}
-
-// ---------- the computer rival ----------
-{
-  const ends = { steady: 0, quick: 0, sharp: 0 };
-  let whole = true, rising = true;
-  for (let k = 1; k <= 4; k++) {
-    const f = deal({ seed: k * 31, shape: "square", size: "medium", level: "medium" });
-    for (const pace of Object.keys(PACES)) {
-      const p = rivalPlan(f, pace);
-      ends[pace] += p.end;
-      whole &&= p.open.at(-1) === f.n - f.count && rivalAt(p, p.end).done && rivalAt(p, p.end).share === 1;
-      rising &&= p.times.every((t, i) => !i || t >= p.times[i - 1]) && p.open.every((o, i) => !i || o >= p.open[i - 1]);
-      const again = rivalPlan(f, pace);
-      whole &&= again.end === p.end;
-    }
-  }
-  check(whole && rising, "the rival clears its copy of the field, a cell at a time, the same way each time for a field");
-  check(ends.sharp < ends.quick && ends.quick < ends.steady, `sharp is quicker than quick, quick than steady (${Object.values(ends).map(e => Math.round(e / 4000)).join(" / ")} s a medium field)`);
-  let round = true;
-  for (const shape of solids) {
-    const f = deal({ seed: 64, shape, size: "medium", level: "medium" }), p = rivalPlan(f, "quick");
-    round &&= p.open.at(-1) === f.n - f.count && rivalAt(p, p.end).done && rivalPlan(f, "quick").end === p.end;
-  }
-  check(round, "the rival clears a solid field too, the same way each time");
 }
 
 // ---------- the split, and the computer partner ----------

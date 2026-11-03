@@ -468,31 +468,11 @@ export const score = (P, run) => Math.round(run.ms / 1000) + OVER * Math.max(0, 
 // A computer player searches as a person does (search() above), at a level: a novice knows fewer words and rushes for
 // the end, so it often takes a step or two more than par; a club player rushes less; a master searches exactly and
 // finds par. Each thinks before every rung, longer the more words it tried, and the timing has a person's unevenness.
-export const RIVALS = {
+export const PARTNERS = {
   novice: { label: "Novice", vocab: 1, weight: 3, think: 7000, per: 420 },
   club: { label: "Club", vocab: 2, weight: 1.5, think: 4800, per: 260 },
   master: { label: "Master", vocab: 2, weight: 1, think: 3200, per: 140 },
 };
-/**
- * How a computer player at `level` climbs ladder P: { level, route, at } where at[k] is the moment, in ms from the
- * start, that it places route[k + 1]. The same seed gives the same climb on every phone.
- */
-export function rivalPlan(P, level = "club", seed = 1) {
-  const R = RIVALS[level] || RIVALS.club, r = rng(seed);
-  // a novice whose words don't reach the end learns the commoner ones it lacked, as a person looks harder
-  const found = search(P, { vocab: R.vocab, weight: R.weight, rng: r }) || search(P, { vocab: COMMON, weight: R.weight, rng: r })
-    || { route: analyse(P.start, P.end, P.rules)?.route || [P.start, P.end], tries: 0 };
-  const rungs = found.route.length - 1, at = [];
-  const work = R.think * rungs + R.per * found.tries;
-  // shares of the work by rung, uneven as a person's: some rungs come at once, some take a while
-  const shares = Array.from({ length: rungs }, () => 0.45 + r() * 1.1), total = shares.reduce((a, b) => a + b, 0);
-  let t = 0;
-  for (const s of shares) { t += (work * s) / total; at.push(Math.round(t)); }
-  return { level, route: found.route, at };
-}
-/** The rungs a computer player has placed by `ms` into its climb. */
-export const rivalAt = (plan, ms) => plan.at.filter(t => t <= ms).length;
-
 /**
  * A computer partner's move in a shared ladder, where it may change only the letters it holds (`mine(p)`): the next
  * rung it would make from the last of `words`, and how long it thinks first; or null when the way on it sees starts
@@ -501,7 +481,7 @@ export const rivalAt = (plan, ms) => plan.at.filter(t => t <= ms).length;
  * which may be longer, and acts only when that route's next letter is its own.
  */
 export function partnerMove(P, words, mine, level = "club", seed = 1) {
-  const R = RIVALS[level] || RIVALS.club, r = rng(seed), g = graphOf(P), from = words.at(-1);
+  const R = PARTNERS[level] || PARTNERS.club, r = rng(seed), g = graphOf(P), from = words.at(-1);
   const changedAt = (a, b) => [...a].findIndex((c, i) => c !== b[i]);
   const think = Math.round(R.think * (0.6 + r() * 0.8));
   if (level === "master") {

@@ -1,8 +1,8 @@
 // Ladder (ladder-engine.js, ladder-pairs.js): Carroll's rules, par and the routes to it counted exactly, the generator
 // at each level across many seeds, the grading, hints, the computer players, a run through JSON, the daily, and every
 // one of the book's and the linked pairs played.
-import { ACCEPT, COMMON, LENGTHS, LEVELS, LEVEL_ORDER, OVER, HINT, RIVALS, graphFor, isStep, isRung, rarity, analyse, distance, routeFrom, search, effort, fits, levelOf, generate, isEnd, inflected, apart,
-  newRun, place, undo, working, words, steps, hintFor, score, rivalPlan, rivalAt, partnerMove, rng } from "../ladder-engine.js";
+import { ACCEPT, COMMON, LENGTHS, LEVELS, LEVEL_ORDER, OVER, HINT, PARTNERS, graphFor, isStep, isRung, rarity, analyse, distance, routeFrom, search, effort, fits, levelOf, generate, isEnd, inflected, apart,
+  newRun, place, undo, working, words, steps, hintFor, score, partnerMove, rng } from "../ladder-engine.js";
 import { BOOK, CARROLL, KINBOTE, LINKED, THEMES, linkedFor } from "../ladder-pairs.js";
 import { dealFor, freshTable, isTable, defaultMode, startTable, teamMove, teamUndo, teamHint, teamOn, mustChange, lettersFor, raceReport, raceOrder, raceOver, teamResult } from "../ladder-table.js";
 import { sayReady, noteRun, runOf, standings, resultOf, rematch } from "../duel-core.js";
@@ -146,23 +146,6 @@ function countByHand(P, cap = 50) {
   check(place(P, back, "top", "card") === "placed" && place(P, back, "top", "ward") === "done" && steps(back) === 4, "a run read back from JSON carries on");
 }
 
-// ---------- the computer players ----------
-{
-  const pool = Array.from({ length: 10 }, (_, k) => generate(500 + k, { level: k % 2 ? "medium" : "hard", lengths: [4] }));
-  const plans = level => pool.map((P, k) => ({ P, plan: rivalPlan(P, level, 9 + k) }));
-  const all = Object.keys(RIVALS).map(level => [level, plans(level)]);
-  check(all.every(([, xs]) => xs.every(({ P, plan }) => isLadder(P, plan.route) && plan.at.length === plan.route.length - 1 && plan.at.every((t, i) => i === 0 || t >= plan.at[i - 1]))),
-    "every computer player climbs a real ladder, rung by rung, in time order");
-  const over = level => all.find(([l]) => l === level)[1].reduce((a, { P, plan }) => a + plan.route.length - 1 - P.par, 0) / pool.length;
-  const time = level => all.find(([l]) => l === level)[1].reduce((a, { plan }) => a + plan.at.at(-1), 0) / pool.length;
-  check(over("master") === 0, "a master finds par");
-  check(over("novice") >= over("club") && over("club") >= over("master") && time("novice") > time("club") && time("club") > time("master"),
-    `the levels: steps over par ${over("novice").toFixed(1)}, ${over("club").toFixed(1)}, ${over("master").toFixed(1)}; seconds ${(time("novice") / 1000).toFixed(0)}, ${(time("club") / 1000).toFixed(0)}, ${(time("master") / 1000).toFixed(0)}`);
-  const P = pool[0], a = rivalPlan(P, "club", 3), b = rivalPlan(P, "club", 3);
-  check(JSON.stringify(a) === JSON.stringify(b) && rivalAt(a, 0) === 0 && rivalAt(a, a.at.at(-1)) === a.route.length - 1, "the same seed, the same climb; its rungs appear as their moments pass");
-  check(time("master") / 1000 >= 10, "even a master takes a person's time");
-}
-
 // ---------- the computer as a partner, holding half the letters ----------
 {
   const climb = (P, owners, level, me = null) => {
@@ -196,7 +179,7 @@ function countByHand(P, cap = 50) {
   check(atPar === n, `with a master partner and a careful player the team finds par (${atPar} of ${n})`);
   check(waits > 0 && waits < n, `when the next step is yours, the computer waits for you (${waits} of ${n} first steps)`);
   const P = analyse("cold", "warm"), m = partnerMove(P, ["cold"], () => true, "novice", 3);
-  check(m && isStep("cold", m.word) && m.think >= RIVALS.novice.think * 0.6, "a novice partner moves too, after a novice's thinking");
+  check(m && isStep("cold", m.word) && m.think >= PARTNERS.novice.think * 0.6, "a novice partner moves too, after a novice's thinking");
 }
 
 // ---------- the daily ----------

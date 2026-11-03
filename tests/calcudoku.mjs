@@ -10,7 +10,7 @@ import { shapeOf, rng, bit, nearOf, connected } from "../calcudoku-grid.js";
 import { waysOf, holds, targetOf, labelOf, opsFor, cagesFor, readCage } from "../calcudoku-cage.js";
 import { solver, latinSquare } from "../calcudoku-solve.js";
 import { TECHNIQUES, viewFor, stateOf, nextStep, apply, grade, say, BEYOND } from "../calcudoku-logic.js";
-import { racePlan, placedBy, partnerMove, PACES, thinkMs } from "../calcudoku-bot.js";
+import { partnerMove, PACES, thinkMs } from "../calcudoku-bot.js";
 import { coopOf, placeCoop, hintCoop, coopValues, shareOf, orphanShares, placedBy as placedBySeat } from "../calcudoku-room.js";
 import { freshDuel, sayReady, runOf } from "../duel-core.js";
 import { roundTrip } from "./rtdb.js";
@@ -117,13 +117,6 @@ const made = [];
 // ---------- the computer ----------
 {
   const p = made.find(x => x.rules === "classic" && x.n === 6 && x.level === "medium"), view = viewOf(p, null, null).view;
-  const plans = Object.keys(PACES).map(pace => racePlan(view, pace, p.seed));
-  check(plans.every(pl => pl.length === 36 && pl.every(m => p.solution[m.cell] === m.digit) && pl.every((m, k) => !k || m.at >= pl[k - 1].at)),
-    "a rival places every cell, each right, in order of time");
-  const ends = plans.map(pl => pl.at(-1).at);
-  check(ends[0] > ends[1] && ends[1] > ends[2] && ends[1] > 2 * 60e3 && ends[1] < 12 * 60e3, `steady, keen and sharp take ${ends.map(ms => `${(ms / 60e3).toFixed(1)} min`).join(", ")} on a 6×6 Medium`);
-  check(placedBy(plans[1], 0) === 0 && placedBy(plans[1], ends[1]) === 36 && racePlan(view, "keen", p.seed).map(m => m.at).join() === plans[1].map(m => m.at).join(),
-    "a race plan is the same every time for the grid (so a watching partner sees the same race)");
   check(thinkMs({ tech: "hidden" }, "keen", rng(1), 10) < thinkMs({ tech: "hidden" }, "keen", rng(1), 1) && thinkMs({ tech: "cage", alive: 60 }, "keen", rng(1)) > thinkMs({ tech: "cage", alive: 1 }, "keen", rng(1))
     && thinkMs({ tech: "forcing", cells: [1, 2, 3] }, "keen", rng(1)) > thinkMs({ tech: "naked" }, "keen", rng(1)),
     "a single is quicker with many on offer, a cage slower the more ways it has, a contradiction slowest");

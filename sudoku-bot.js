@@ -1,11 +1,11 @@
 // Sudoku's computer player, pure: the human-style solver (sudoku-logic.js) worked through at a person's pace. Each
 // step takes the time a person would need for its technique (a single takes seconds to spot, a chain minutes), longer
 // when there's only one to find and shorter when there are many, with a little luck either way, all at one of three
-// paces. As a rival it solves the grid on its own, and its plan says when it places each digit; as a partner in
+// paces. As a partner in
 // Together it holds its share of the givens, works out its next digit from what it can see (yours included), and
 // places it when the time's up, or waits for you when it's stuck.
 import { stateOf, nextStep, apply, solved } from "./sudoku-logic.js";
-import { rng, mix, POP, bit } from "./sudoku-grid.js";
+import { POP, bit } from "./sudoku-grid.js";
 
 export const PACES = {
   steady: { label: "Steady", note: "a newspaper solver", factor: 1.6 },
@@ -43,26 +43,6 @@ export function thinkMs(step, pace, r, choices = 1) {
   if (SINGLES.has(step.tech)) s *= 0.45 + 2.2 / (1 + choices);
   return Math.round(s * (PACES[pace]?.factor ?? 1) * (0.7 + 0.6 * r()) * 1000);
 }
-
-/**
- * A rival's race: when, solving this grid alone, it places each digit: [{ at, cell, digit }] (at: ms from the start).
- * Pencilling in candidates is part of a hard grid: the first step beyond singles costs a second a cell still empty.
- */
-export function racePlan(shape, givens, pace, seed) {
-  const r = rng(mix(seed, "race", pace)), st = stateOf(shape, givens), ctx = { memo: new Map() }, out = [];
-  let at = 0, pencilled = false;
-  for (let k = 0; k < 2000 && !solved(st); k++) {
-    const step = nextStep(shape, st, { ctx });
-    if (!step) break;
-    if (!pencilled && step.rank > 1) { pencilled = true; at += [...st.val].filter(v => !v).length * 1000 * (PACES[pace]?.factor ?? 1); }
-    at += thinkMs(step, pace, r, SINGLES.has(step.tech) ? singlesOpen(shape, st) : 1);
-    apply(shape, st, step);
-    if (step.place) out.push({ at: Math.round(at), cell: step.place[0], digit: step.place[1] });
-  }
-  return out;
-}
-/** How many of a race plan's digits are in by this time. */
-export const placedBy = (plan, ms) => { let k = 0; while (k < plan.length && plan[k].at <= ms) k++; return k; };
 
 /**
  * A partner's next digit, from what it sees (its own givens and everything placed, as a grid of digits): { cell,

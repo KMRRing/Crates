@@ -8,7 +8,7 @@ import { RULES, SIZES, LEVELS, DAILY, levelsOf, levelFor, generate, encode, deco
 import { shapeOf, boxRegions, rng, bit, POP } from "../sudoku-grid.js";
 import { solver, combosOf } from "../sudoku-solve.js";
 import { TECHNIQUES, stateOf, nextStep, apply, grade, say, BEYOND } from "../sudoku-logic.js";
-import { racePlan, placedBy, partnerMove, PACES, thinkMs } from "../sudoku-bot.js";
+import { partnerMove, PACES, thinkMs } from "../sudoku-bot.js";
 import { coopOf, placeCoop, hintCoop, coopValues, shareOf, orphanShares, placedBy as placedBySeat } from "../sudoku-room.js";
 import { freshDuel, sayReady, startAll, runOf } from "../duel-core.js";
 import { roundTrip } from "./rtdb.js";
@@ -131,13 +131,7 @@ const made = [];
 // ---------- the computer ----------
 {
   const p = made.find(x => x.rules === "classic" && x.n === 9 && x.level === "medium"), sh = shapeFor(p), empty = p.givens.filter(d => !d).length;
-  const plans = Object.keys(PACES).map(pace => racePlan(sh, p.givens, pace, p.seed));
-  check(plans.every(pl => pl.length === empty && pl.every(m => p.solution[m.cell] === m.digit) && pl.every((m, k) => !k || m.at >= pl[k - 1].at)),
-    "a rival places every empty cell, each right, in order of time");
-  const ends = plans.map(pl => pl.at(-1).at);
-  check(ends[0] > ends[1] && ends[1] > ends[2] && ends[1] > 3 * 60e3 && ends[1] < 20 * 60e3, `steady, keen and sharp take ${ends.map(ms => `${Math.round(ms / 60e3)} min`).join(", ")} on a Medium`);
-  check(placedBy(plans[1], 0) === 0 && placedBy(plans[1], ends[1]) === empty && racePlan(sh, p.givens, "keen", p.seed).map(m => m.at).join() === plans[1].map(m => m.at).join(),
-    "a race plan is the same every time for the grid (so a watching partner sees the same race)");
+  check(thinkMs({ tech: "xwing" }, "steady", rng(3)) > thinkMs({ tech: "xwing" }, "keen", rng(3)) && thinkMs({ tech: "xwing" }, "keen", rng(3)) > thinkMs({ tech: "xwing" }, "sharp", rng(3)), "steady, keen and sharp take longer, then less, on the same step");
   const r = rng(1);
   check(thinkMs({ tech: "hidden" }, "keen", rng(1), 10) < thinkMs({ tech: "hidden" }, "keen", rng(1), 1) && thinkMs({ tech: "xychain" }, "keen", r) > thinkMs({ tech: "full" }, "keen", r),
     "a single is quicker to find with many on offer; a chain takes longer than a last cell");
