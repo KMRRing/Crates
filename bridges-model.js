@@ -187,10 +187,10 @@ export function createFleet(count, seed = 1) {
 // ---------- the viaducts ----------
 /**
  * Where a viaduct stands on piers: the offsets along it, in cells from its first island (the islands are 0 and its span), of
- * a pier every other cell where the water under it is free: not a lane (a ship must pass), not where a low link crosses
- * (its bridge may be built). `lay` is the layout; `l` the link's number.
+ * a pier every other cell where the water under it is free: not where a low link crosses (its bridge may be built).
+ * `lay` is the layout; `l` the link's number.
  */
-export function piersOf(lay, l, lanes = "") {
+export function piersOf(lay, l) {
   const { size, isl, links } = lay, k = links[l], a = isl[k.a], b = isl[k.b], span = k.vertical ? b.r - a.r : b.c - a.c;
   const cell = i => (k.vertical ? (a.r + i) * size + a.c : a.r * size + a.c + i);
   const under = new Set();

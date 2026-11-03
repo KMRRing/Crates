@@ -1,118 +1,76 @@
-// Bridges' levels (bridges-levels.js, with the twists made by bridges-engine.js): the puzzles with viaducts and fairways
-// made, the ladder of puzzles in chapters, every level's puzzle (one answer by reasoning, its twist really in it, the
-// answer's networks and bridges right); the stars; the miniature the menu draws; and that the plain puzzles Bridges made
-// before the twists came are the puzzles their seeds name (today's, links). The rules of the twists, and the solver against a
-// plain search of every way to build bridges, are in tests/bridges-search.mjs.
+// Bridges' levels (bridges-levels.js, with the twists made by bridges-engine.js): the puzzles with viaducts made, the ladder of
+// puzzles in chapters, the ladder's move on 3 November 2026 (reefs and fairways out) and how a player's stars and unfinished runs
+// follow it, the stars, the miniature the menu draws, and that the plain puzzles Bridges made before the twists came are the
+// puzzles their seeds name (today's, links). Every level's puzzle is looked at in tests/bridges-puzzles*.mjs; the rules of
+// the twists, and the solver against a plain search of every way to build bridges, are in tests/bridges-search.mjs.
 import { createHash } from "node:crypto";
-import { LEVELS as DIFFICULTIES, TWISTS, layoutOf, count, answerOf, gradeOf, solveAs, generate, flagsOf, twistOn, breaks, puzzleOf } from "../bridges-engine.js";
-import { CHAPTERS, LEVELS, COUNT, chapterOf, seedOf, levelPuzzle, kindOf, parOf, starsFor, PAR_PER_ISLAND } from "../bridges-levels.js";
+import { LEVELS as DIFFICULTIES, TWISTS, layoutOf, count, answerOf, generate, flagsOf, twistOn } from "../bridges-engine.js";
+import { CHAPTERS, LEVELS, COUNT, OLD_COUNT, NOW, LADDER_VERSION, migrate, chapterOf, seedOf, levelPuzzle, kindOf, parOf, starsFor, PAR_PER_ISLAND } from "../bridges-levels.js";
 import { miniature } from "../bridges-mini.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 
-// ---------- viaducts and fairways, made ----------
+// ---------- viaducts, made ----------
 {
-  // the generator: a viaduct really goes over a low bridge of the answer, and a lane really lies under a viaduct of it
+  // the generator: a viaduct really goes over a low bridge of the answer
   let ok = true, why = "";
-  const fail = (m) => { if (ok) why = m; ok = false; };
-  for (const twist of ["hills", "lanes", "reefs+hills", "ranges+lanes", "realms+hills"]) for (const size of [7, 9]) for (let i = 0; i < 2; i++) {
-    const seed = 600 + i * 17 + size, p = generate(seed, size, ["easy", "medium", "hard"][i % 3], twist), tag = `${twist} ${size} #${seed}`;
-    if (!p || !p.hills || p.twist !== twistOn(twist) || (flagsOf(twist).lanes !== !!p.lanes)) { fail(`${tag}: twist strings missing`); continue; }
-    const lay = layoutOf(size, p.grid, p.kinds || "", p.realms || "", p.hills, p.lanes || "");
-    if (count(lay, 2) !== 1 || answerOf(size, p.grid, p.kinds || "", p.realms || "", p.hills, p.lanes || "") !== p.sol) fail(`${tag}: not one answer, or another answer`);
+  const fail = m => { if (ok) why = m; ok = false; };
+  for (const twist of ["hills", "ranges+hills", "realms+hills", "hills+wide"]) for (const size of [7, 9]) for (let i = 0; i < 2; i++) {
+    const level = ["easy", "medium", "hard"][i % 3], seed = 600 + i * 17 + size, p = generate(seed, size, level, twist), tag = `${twist} ${size} #${seed}`;
+    if (!p || !p.hills || p.twist !== twistOn(twist)) { fail(`${tag}: twist strings missing`); continue; }
+    const lay = layoutOf(size, p.grid, p.kinds || "", p.realms || "", p.hills, p.roads || "");
+    if (count(lay, 2) !== 1 || answerOf(size, p.grid, p.kinds || "", p.realms || "", p.hills, p.roads || "") !== p.sol) fail(`${tag}: not one answer, or another answer`);
     const cells = l => { const a = lay.isl[lay.links[l].a], b = lay.isl[lay.links[l].b], out = []; for (let r = a.r, c = a.c; r !== b.r || c !== b.c; r += Math.sign(b.r - a.r), c += Math.sign(b.c - a.c)) if (r !== a.r || c !== a.c) out.push(r * size + c); return out; };
     const built = [...p.sol].map((m, l) => (m === "0" ? null : { l, high: lay.links[l].high, cells: cells(l) })).filter(Boolean);
-    const over = built.some(x => x.high && built.some(y => !y.high && y.cells.some(k => x.cells.includes(k))));
-    if (!over) fail(`${tag}: no viaduct over a low bridge`);
-    if (p.lanes && !built.some(x => x.high && x.cells.some(k => p.lanes[k] === "~"))) fail(`${tag}: no viaduct over a lane`);
-    if (p.lanes && built.some(x => !x.high && x.cells.some(k => p.lanes[k] === "~"))) fail(`${tag}: a low bridge over a lane`);
-    if ([...p.hills].some((h, k) => h === "1" && /[.#]/.test(p.grid[k]))) fail(`${tag}: a hill that isn't an island`);
-    if (JSON.stringify(generate(seed, size, ["easy", "medium", "hard"][i % 3], twist)) !== JSON.stringify(p)) fail(`${tag}: not the same twice`);
+    if (!built.some(x => x.high && built.some(y => !y.high && y.cells.some(k => x.cells.includes(k))))) fail(`${tag}: no viaduct over a low bridge`);
+    if ([...p.hills].some((h, k) => h === "1" && p.grid[k] === ".")) fail(`${tag}: a hill that isn't an island`);
+    if (JSON.stringify(generate(seed, size, level, twist)) !== JSON.stringify(p)) fail(`${tag}: not the same twice`);
   }
-  check(ok, `puzzles with viaducts and fairways have one answer, a viaduct over a low bridge, a lane under a viaduct, hills only on islands, and are the same twice${why ? ` (${why})` : ""}`);
+  check(ok, `puzzles with viaducts have one answer, a viaduct over a low bridge, hills only on islands, and are the same twice${why ? ` (${why})` : ""}`);
 }
 
 // ---------- the ladder ----------
 {
-  check(COUNT === LEVELS.length && COUNT >= 20, `${COUNT} levels`);
+  check(COUNT === LEVELS.length && COUNT === 50, `${COUNT} levels`);
   check(new Set(LEVELS.map(L => L.name)).size === COUNT && LEVELS.every(L => L.name && [7, 9, 11].includes(L.size) && DIFFICULTIES[L.level]), "each level has a name of its own, a size and a difficulty");
   check(LEVELS.every(L => twistOn(L.twist) === L.twist), "each level's twist is written the way the engine writes it");
   check(CHAPTERS[0].from === 0 && CHAPTERS.every((c, k) => c.name && c.about && (k === 0 || c.from > CHAPTERS[k - 1].from) && c.from < COUNT), "chapters begin at the first level and follow in order");
   check(LEVELS.every((_, i) => chapterOf(i) === CHAPTERS.map((c, k) => (i >= c.from ? k : -1)).filter(k => k >= 0).pop()), "a level's chapter is the last one begun by then");
   check(new Set(LEVELS.map((_, i) => seedOf(i))).size === COUNT, "each level has a seed of its own");
   const first = name => LEVELS[CHAPTERS.find(c => c.name === name).from];
-  check(first("Harbour charts").twist === "none" && first("Reefs").twist === "reefs" && first("Ranges").twist === "ranges" && first("Two realms").twist === "realms" && first("Viaducts").twist === "hills" && first("Fairways").twist === "lanes", "each chapter's first level brings its twist");
-  const chap = c => LEVELS.slice(CHAPTERS[c].from, CHAPTERS[c + 1]?.from ?? COUNT);
-  check(chap(0).every(L => L.twist === "none") && chap(4).every(L => L.twist.includes("+")), "the first chapter is plain and the admiralty puts twists together");
-  const last = chap(CHAPTERS.length - 1);
-  check(last.every(L => L.twist.includes("+") && /hills|lanes/.test(L.twist)) && chap(5).every(L => L.twist === "hills") && chap(6).every(L => L.twist === "lanes"), "the viaduct and fairway chapters keep to their twist, and the grand charts put them with the others");
-  check(CHAPTERS.slice(0, 5).map(c => c.from).join() === "0,6,11,16,21" && LEVELS[24].name === "Admiralty chart" && LEVELS[6].name === "Shallows", "the levels there were before keep their numbers (the stars, the runs and the seeds are kept by number)");
+  check(first("Harbour charts").twist === "none" && first("Ranges").twist === "ranges" && first("Two realms").twist === "realms" && first("Viaducts").twist === "hills" && first("Narrow roads").twist === "narrow" && first("Wide roads").twist === "wide" && first("Straits").twist === "straits" && first("No loops").twist === "tree", "each chapter's first level brings its twist");
+  const chap = name => { const c = CHAPTERS.findIndex(x => x.name === name); return LEVELS.slice(CHAPTERS[c].from, CHAPTERS[c + 1]?.from ?? COUNT); };
+  check(chap("Harbour charts").every(L => L.twist === "none") && chap("The admiralty").every(L => L.twist === "ranges+realms"), "the first chapter is plain and the admiralty puts ranges and realms together");
+  check(["Ranges", "Two realms", "Viaducts", "Narrow roads", "Wide roads", "Straits", "No loops"].every(name => chap(name).length >= 5 && chap(name).every(L => L.twist === first(name).twist)), "each chapter of a twist keeps to it, for five levels at least");
+  check(chap("The grand charts").every(L => L.twist.includes("+")) && Object.keys(TWISTS).every(t => t === "none" || chap("The grand charts").some(L => flagsOf(L.twist)[t])), "the grand charts put the twists together, and every twist meets another there");
   check(Object.keys(TWISTS).every(t => t === "none" || LEVELS.some(L => flagsOf(L.twist)[t])), "every twist is on some level");
+  const sizeOf = L => [7, 9, 11].indexOf(L.size), grows = c => c.every((L, k) => k === 0 || sizeOf(L) >= sizeOf(c[k - 1]));
+  check(["Ranges", "Two realms", "Viaducts", "Narrow roads", "Wide roads", "Straits", "No loops", "The grand charts"].every(name => grows(chap(name))), "within a chapter the charts never get smaller");
+  check(!LEVELS.some(L => /reef|lane/.test(L.twist)) && !CHAPTERS.some(c => /reef|fairway/i.test(c.name)), "no level or chapter is built on reefs or fairways");
+  const rungs = { 7: 0, 9: 1, 11: 2 };
+  check(chap("Narrow roads").map(L => L.level).join() === "easy,easy,medium,medium,hard" && chap("Wide roads").map(L => rungs[L.size]).join() === "0,1,1,2,2", "a twist chapter climbs from a small easy chart to a big hard one");
 }
 
-// ---------- a puzzle of every level, for several seeds ----------
+// ---------- the ladder before 3 November 2026: stars and unfinished runs follow ----------
 {
-  let ok = true, why = "", total = 0, hit = 0, worst = 0;
-  const fail = (i, seed, what) => { if (ok) why = `level ${i + 1}, seed ${seed}: ${what}`; ok = false; };
-  const t0 = performance.now();
-  LEVELS.forEach((L, i) => {
-    for (const seed of [seedOf(i), 4001 + i, 77001 + 31 * i]) {
-      const t = performance.now(), p = levelPuzzle(i, seed), took = performance.now() - t;
-      worst = Math.max(worst, took); total++;
-      if (!p) { fail(i, seed, "no puzzle"); continue; }
-      if (p.level === L.level) hit++;
-      const T = flagsOf(L.twist), lay = layoutOf(p.size, p.grid, p.kinds || "", p.realms || "", p.hills || "", p.lanes || "");
-      if (p.size !== L.size || p.sol.length !== lay.links.length) fail(i, seed, "wrong size or answer");
-      if (count(lay, 2) !== 1) fail(i, seed, "not one answer");
-      if (answerOf(p.size, p.grid, p.kinds || "", p.realms || "", p.hills || "", p.lanes || "") !== p.sol) fail(i, seed, "another answer than its own");
-      if (gradeOf(lay) !== ["easy", "medium", "hard"].indexOf(p.level)) fail(i, seed, "graded differently than it says");
-      if (T.reefs !== p.grid.includes("#")) fail(i, seed, T.reefs ? "no reefs" : "reefs it shouldn't have");
-      if (T.ranges !== /[+-]/.test(p.kinds || "")) fail(i, seed, T.ranges ? "no bounds" : "bounds it shouldn't have");
-      if (T.realms !== (lay.realmSize[0] > 0 && lay.realmSize[1] > 0)) fail(i, seed, T.realms ? "one realm only" : "realms it shouldn't have");
-      if (T.realms && (lay.realmSize[0] < 3 || lay.realmSize[1] < 3)) fail(i, seed, "a realm too small");
-      if (T.hills !== !!p.hills || T.lanes !== !!p.lanes) fail(i, seed, "hills or lanes missing, or there when they shouldn't be");
-      // the answer is a valid building: bridges within an island's bound, none across another, each realm joined (the solver's complete() already says so; this walks it)
-      const sums = lay.isl.map(() => 0);
-      lay.links.forEach((l, k) => { sums[l.a] += +p.sol[k]; sums[l.b] += +p.sol[k]; });
-      lay.isl.forEach((x, k) => { if (sums[k] < Math.max(x.mn, 1) || sums[k] > x.mx) fail(i, seed, "an island with a number the bridges don't make"); });
-      const cells = new Set();
-      lay.links.forEach((l, k) => {
-        if (!+p.sol[k]) return;
-        const a = lay.isl[l.a], b = lay.isl[l.b];
-        for (let r = a.r, c = a.c; r !== b.r || c !== b.c; r += Math.sign(b.r - a.r), c += Math.sign(b.c - a.c)) {
-          const at = r * p.size + c;
-          if (at === a.r * p.size + a.c) continue;
-          const key = `${at}${l.high ? "h" : "l"}`;                  // a viaduct and a low bridge may share a cell, nothing else
-          if (cells.has(key)) fail(i, seed, "bridges cross"); cells.add(key);
-          if (p.lanes?.[at] === "~" && !l.high) fail(i, seed, "a low bridge over a lane");
-          if (p.grid[at] === "#") fail(i, seed, "a bridge over a reef");
-        }
-      });
-      const comps = new Set(), par = lay.isl.map((_, k) => k), find = x => { while (par[x] !== x) x = par[x] = par[par[x]]; return x; };
-      lay.links.forEach((l, k) => { if (+p.sol[k]) par[find(l.a)] = find(l.b); });
-      lay.isl.forEach((x, k) => comps.add(`${x.realm}:${find(k)}`));
-      if (comps.size !== (T.realms ? 2 : 1)) fail(i, seed, "the islands of a realm are not one network");
-      if (seed === seedOf(i) && JSON.stringify(levelPuzzle(i, seed)) !== JSON.stringify(p)) fail(i, seed, "not the same twice");
-    }
-  });
-  check(ok, `every level makes a puzzle with one answer, its twist in it, the answer a true building, the same twice${why ? ` (${why})` : ""}`);
-  check(hit >= total * 0.9, `nearly every puzzle comes out at the difficulty its level asks (${hit} of ${total})`);
-  console.log(`     ${total} puzzles in ${Math.round(performance.now() - t0)} ms, the slowest ${Math.round(worst)} ms`);
-  check(worst < 1500, "no puzzle takes long to make");
-}
-
-// ---------- the hint and the rules the marks break, with the twists ----------
-{
-  let ok = true;
-  for (const i of [6, 12, 17, 24, 27, 33, 38]) {
-    const p = levelPuzzle(i, seedOf(i)), P = puzzleOf(p.size, p.grid, p.sol, p.kinds || "", p.realms || "", p.hills || "", p.lanes || "");
-    const none = "0".repeat(p.sol.length), all = breaks(P, p.sol);
-    if (breaks(P, none).over.length || all.over.length || all.cut.length) ok = false;          // the answer breaks no rule
-    const r = solveAs(P.lay, 2);
-    if (!r.ok) ok = false;
-  }
-  check(ok, "the answer breaks no rule the page shows, and the solver's finish is the answer");
+  const was = LEVELS.map(L => L.was).filter(w => w != null);
+  check(new Set(was).size === was.length && was.every(w => Number.isInteger(w) && w >= 0 && w < OLD_COUNT) && OLD_COUNT === 39 && LADDER_VERSION === 2, "each level that was there before names the number it had, once");
+  check(NOW.length === OLD_COUNT && NOW.every((n, old) => n === -1 || LEVELS[n].was === old) && NOW.filter(n => n >= 0).length === was.length, "every old number leads to the level that has it now, or to none");
+  check(NOW.slice(0, 6).join() === "0,1,2,3,4,5" && NOW[6] === -1 && NOW[10] === -1 && NOW[11] === 6 && NOW[16] === 11, "the plain levels keep their numbers; the reef levels are gone; the later ones moved up");
+  const old = { at: 12, stars: Array.from({ length: OLD_COUNT }, (_, i) => i % 4) };
+  const runs = { 3: { lv: 3, marks: "01", ms: 5 }, 7: { lv: 7, marks: "11" }, 12: { lv: 12, marks: "21", ms: 9 }, 33: { lv: 33 } };
+  const { camp, runs: moved } = migrate(old, runs);
+  check(camp.v === LADDER_VERSION && camp.stars.length === COUNT && LEVELS.every((L, i) => camp.stars[i] === (L.was == null ? 0 : old.stars[L.was])), "stars follow their level to its new number; a new level has none");
+  check(camp.at === NOW[12] && NOW[12] === 7, "the level a player was on is the same level");
+  check(Object.keys(moved).join() === `3,${NOW[12]}` && moved[3].marks === "01" && moved[NOW[12]].lv === NOW[12] && moved[NOW[12]].marks === "21" && moved[NOW[12]].ms === 9, "an unfinished run goes to its level's new number (and says so), one of a level taken out is dropped");
+  const through = { at: 8, stars: Array.from({ length: OLD_COUNT }, (_, i) => (i < 25 ? 3 : 0)) };      // everything up to the viaducts solved, the player standing on a reef level
+  check(migrate(through, {}).camp.at === LEVELS.findIndex(L => L.was == null) && migrate({ ...through, at: 38 }, {}).camp.at === migrate(through, {}).camp.at, "a player on a level that is gone is put on the first level not yet solved");
+  check(migrate({ at: 99, stars: [] }, {}).camp.at === 0, "…and a place off the old ladder is the first level, for a player who has solved none");
+  check(migrate(camp, moved).camp === camp && migrate(camp, moved).runs === moved, "a ladder that has moved already is left as it is, the second time");
+  const none = migrate(null), junk = migrate({ at: "x", stars: [9, -1, 2.5, "3"] }, null);
+  check(none.camp.v === LADDER_VERSION && none.camp.at === 0 && none.camp.stars.length === COUNT && none.camp.stars.every(s => s === 0) && Object.keys(none.runs).length === 0, "no save at all is a fresh ladder");
+  check(junk.camp.stars.slice(0, 3).join() === "3,0,0" && junk.camp.at === 0, "stars that are not whole numbers from 0 to 3 are made so, an unreadable place is the first level");
 }
 
 // ---------- the stars ----------
@@ -120,9 +78,10 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   const p = levelPuzzle(2, seedOf(2)), par = parOf(p);
   check(Number.isInteger(par) && par > 0, "the par is a whole number of seconds");
   check(starsFor(p, par) === 3 && starsFor(p, par + 1) === 2 && starsFor(p, 2 * par) === 2 && starsFor(p, 2 * par + 1) === 1 && starsFor(p, 0) === 3 && starsFor(p, 100000) === 1, "three stars within the par, two within twice it, one for solving it");
-  const pars = LEVELS.map((_, i) => parOf(levelPuzzle(i, seedOf(i))));
+  const pars = [0, 5, 12, 23, 28, 33, 38, 43, 49].map(i => parOf(levelPuzzle(i, seedOf(i))));
   check(pars.every(x => x >= 15 && x <= 1200), `every par is between fifteen seconds and twenty minutes (${Math.min(...pars)} to ${Math.max(...pars)} s)`);
   check(parOf({ ...p, level: "hard" }) > parOf({ ...p, level: "easy" }) && parOf({ ...p, grid: p.grid.replace(/\./, "3") }) > par && PAR_PER_ISLAND > 0, "a harder puzzle, or one with more islands, has a longer par");
+  check(kindOf(31).twist === "wide" && kindOf(31).size === LEVELS[31].size && kindOf(0).twist === "none", "a level asks the generator for its size, difficulty and twist");
 }
 
 // ---------- puzzles from before the twists ----------
@@ -151,19 +110,26 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   const wrong = Object.entries(GOLD).filter(([k, v]) => { const [seed, size, level] = k.split("/"); return h(generate(+seed, +size, level)) !== v; }).map(([k]) => k);
   check(!wrong.length, `puzzles made before the twists came are the same puzzles (${Object.keys(GOLD).length} seeds, sizes and levels)${wrong.length ? `: ${wrong.join(", ")}` : ""}`);
   const plain = generate(99, 9, "medium");
-  check(!("twist" in plain) && !("kinds" in plain) && !("realms" in plain), "a plain puzzle carries nothing of the twists");
-  check(JSON.stringify(generate(5, 9, "easy", "reefs+ranges")) === JSON.stringify(generate(5, 9, "easy", "ranges+reefs")), "twists named in either order are the same puzzle");
+  check(!("twist" in plain) && !("kinds" in plain) && !("realms" in plain) && !("roads" in plain) && !("straits" in plain), "a plain puzzle carries nothing of the twists");
+  check(JSON.stringify(generate(5, 9, "easy", "ranges+realms")) === JSON.stringify(generate(5, 9, "easy", "realms+ranges")), "twists named in either order are the same puzzle");
+  // a link made when reefs and fairways were twists (t=reefs, t=lanes) opens a plain puzzle now, not an error
+  check(JSON.stringify(generate(5, 9, "easy", "reefs")) === JSON.stringify(generate(5, 9, "easy")) && JSON.stringify(generate(5, 9, "easy", "lanes")) === JSON.stringify(generate(5, 9, "easy")), "a shared link to a puzzle with reefs or fairways opens a plain puzzle of its seed");
 }
 
 // ---------- the miniature ----------
 {
-  const plain = miniature(7, "none", 5), all = miniature(11, "reefs+ranges+realms", 5);
+  const plain = miniature(7, "none", 5), all = miniature(11, "ranges+realms", 5);
   check(plain === miniature(7, "none", 5) && plain.startsWith("<svg") && plain.includes("<circle") && plain.includes("<line"), "a chart in miniature is the same for the same level, with islands and bridges");
-  check(!plain.includes('class="reef"') && !plain.includes("r1") && all.includes('class="reef"') && all.includes("r1") && all.includes("range"), "a chart shows its twists: reefs, a second colour, rings for bounds");
-  const hilly = miniature(9, "hills", 5), lane = miniature(9, "lanes", 5), grand = miniature(11, "reefs+ranges+realms+lanes", 5);
-  check(hilly.includes('class="hill"') && !plain.includes('class="hill"') && lane.includes('class="lane"') && grand.includes('class="lane"') && !plain.includes('class="lane"') && hilly === miniature(9, "hills", 5), "a chart shows hills as contour rings and a fairway as a run of tinted water");
+  check(!plain.includes("r1") && all.includes("r1") && all.includes("range"), "a chart shows its twists: a second colour, rings for bounds");
+  const hilly = miniature(9, "hills", 5), wide = miniature(9, "wide", 5), narrow = miniature(9, "narrow", 5), straits = miniature(9, "straits", 5), tree = miniature(11, "tree", 5);
+  check(hilly.includes('class="hill"') && !plain.includes('class="hill"') && hilly === miniature(9, "hills", 5), "a chart shows hills as contour rings");
+  check(wide.includes('class="bed"') && !wide.includes('class="post"') && !plain.includes('class="bed"') && wide.split('class="b"').length > plain.split('class="b"').length - 1, "a wide road is a bed with three lanes on it");
+  check(narrow.includes('class="post"') && !narrow.includes('class="bed"') && !plain.includes('class="post"'), "a narrow road has a post each side");
+  check(straits.includes('class="sline"') && straits.includes('class="sdot"') && !plain.includes('class="sline"'), "a strait is a dashed line with a dot at its end");
+  check(tree.startsWith("<svg") && tree !== miniature(11, "none", 5) && !tree.includes('class="bed"') && miniature(9, "ranges+straits+tree", 5).includes('class="sline"'), "a chart with no loops draws no extra bridges, and the twists add up");
+  check(!/reef|lane/.test(all + hilly + wide + tree) && miniature(7, "reefs", 5) === plain, "nothing of reefs or fairways is drawn, and a level with them (an old name) is drawn plain");
   check(miniature(7, "none", 5) !== miniature(7, "none", 6), "another level, another chart");
 }
 
-console.log(bad ? `\n${bad} FAILED` : "\nbridges levels: viaduct and fairway puzzles, the ladder, every level's puzzle, the stars, plain puzzles unchanged, the miniature");
+console.log(bad ? `\n${bad} FAILED` : "\nbridges levels: viaduct puzzles, the ladder and its move, the stars, plain puzzles unchanged, the miniature");
 process.exit(bad ? 1 : 0);

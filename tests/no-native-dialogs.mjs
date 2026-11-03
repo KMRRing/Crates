@@ -10,7 +10,6 @@ const STILL = {
   "assay.js": 4,
   "blend-parcels-ui.js": 1,
   "blend.js": 1,
-  "bridges.js": 4,
   "bulls.js": 3,
   "calcudoku.js": 3,
   "cartel.js": 1,

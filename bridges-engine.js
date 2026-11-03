@@ -263,9 +263,9 @@ export function count(lay, limit = 2, st = freshState(lay)) {
   }
   return n;
 }
-/** The answer of a board that has one, as bridges a link. */
-export function answerOf(size, grid, kinds = "", realms = "", hills = "", roads = "") {
-  const lay = layoutOf(size, grid, kinds, realms, hills, roads), r = solveAs(lay, 2);
+/** The answer of a board that has one, as bridges a link (the arguments are layoutOf's). */
+export function answerOf(size, grid, kinds = "", realms = "", hills = "", roads = "", more = {}) {
+  const lay = layoutOf(size, grid, kinds, realms, hills, roads, more), r = solveAs(lay, 2);
   if (r.ok) return Array.from(r.st.lo, String).join("");
   const go = (st = freshState(lay)) => {
     if (propagate(lay, st) < 0) return null;
@@ -485,7 +485,9 @@ export function generate(seed, size, level, twist = "none") {
       const first = gradeOf(layOfBoard(size, board));
       if (first < 0 || first > want) continue;
       for (const field of ["roads", "straits"]) if (board[field]) board = { ...board, [field]: pare(size, board, rng, want, field) };
-      if ((board.roads ? Array.from(board.roads).filter(c => c !== "2").length < 2 : T.narrow || T.wide) || (board.straits ? Array.from(board.straits).filter(c => c !== ".").length < 2 : T.straits)) continue;       // a twist asked for with fewer than two clues left is no twist
+      // a twist asked for with fewer than two clues left is no twist (with narrow and wide roads both asked for, one of each at least)
+      const narrow = Array.from(board.roads || "").filter(c => c === "1").length, wide = Array.from(board.roads || "").filter(c => c === "3").length, few = T.narrow && T.wide ? 1 : 2;
+      if ((T.narrow && narrow < few) || (T.wide && wide < few) || (board.straits ? Array.from(board.straits).filter(c => c !== ".").length < 2 : T.straits)) continue;
     }
     const { grid, sol } = board, lay = layOfBoard(size, board);
     if (lay.isl.length < 4) continue;
