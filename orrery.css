@@ -76,10 +76,14 @@
 
 /* the beat: − and + either side of the tempo and its metronome, across the width */
 .or-beat { display: grid; grid-template-columns: minmax(0, 1fr); height: 2.75rem; }
-.or-tempo { display: grid; grid-template-columns: minmax(2.4rem, 1fr) auto minmax(2.4rem, 1fr); border: 1px solid var(--tile-edge); border-radius: 4px; overflow: hidden; background: var(--tile); }
+.or-tempo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(6rem, 1.15fr) minmax(0, 1fr); border: 1px solid var(--tile-edge); border-radius: 4px; overflow: hidden; background: var(--tile); }
 .or-nudge { border: 0; padding: 0; background: var(--tile); color: var(--ink); font: inherit; font-size: 1.3rem; font-weight: 700; line-height: 1; cursor: pointer; touch-action: manipulation; }
 .or-nudge:disabled { color: color-mix(in srgb, var(--ink-soft) 45%, transparent); cursor: default; }
-.or-metro { display: flex; align-items: center; justify-content: center; gap: .3rem; min-width: 3.6rem; padding: 0 .4rem; border-inline: 1px solid var(--tile-edge); background: var(--sheet); }
+/* the metronome is a button of its own: tapped, it strikes the next beat now (the whole middle of the row, 44px high and over 6rem wide) */
+.or-metro { display: flex; align-items: center; justify-content: center; gap: .4rem; min-width: 0; margin: 0; padding: 0 .4rem; border: 0; border-inline: 1px solid var(--tile-edge); border-radius: 0; background: var(--sheet); color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.or-metro:active:not(:disabled) { background: color-mix(in srgb, var(--brass) 28%, var(--sheet)); }
+.or-metro:focus-visible { outline: 2px solid var(--brass); outline-offset: -3px; }
+.or-metro:disabled { cursor: default; }
 .or-metro svg { width: .95rem; height: 1.2rem; flex: none; overflow: visible; }
 .or-metro-case { fill: color-mix(in srgb, var(--brass) 18%, transparent); stroke: var(--brass); stroke-width: 1.3; stroke-linejoin: round; }
 .or-metro-scale { stroke: var(--brass); stroke-width: .8; stroke-dasharray: 1 1.2; }
@@ -87,7 +91,7 @@
 .or-metro-arm { transform-box: view-box; transform-origin: 10px 19.6px; transition: transform .3s cubic-bezier(.45, 0, .55, 1); }
 .or-metro-arm path { stroke: var(--ink); stroke-width: 1.4; stroke-linecap: round; }
 .or-metro-arm rect { fill: var(--ink); }
-.or-metro b { min-width: 1.35rem; font-size: 1.08rem; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.or-metro b { min-width: 2.4rem; font-size: 1.08rem; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
 
 .or-controls.gone { visibility: hidden; }                            /* gone at the end, but keeping its room, so the orrery doesn't grow */
 .or-result[hidden] { display: none; }

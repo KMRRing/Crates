@@ -85,10 +85,11 @@ const VOICES = {
     click(c, t + 0.05, { freq: 800 - ring * 60, gain: 0.06 * power, dur: 0.025 });
     ping(c, t + 0.02, { freq: up > 0 ? 300 : 360, gain: 0.07 * power, dur: 0.32, drop: up > 0 ? 1.22 : 0.82, type: "triangle", attack: 0.02 });
   },
-  /** The tempo changed: a small turn of a key, up or down. */
-  tempo(c, t, { up = 1, power = 0.5 }) {
-    click(c, t, { freq: 2600, gain: 0.12 * power, dur: 0.012 });
-    ping(c, t, { freq: up > 0 ? 660 : 440, gain: 0.07 * power, dur: 0.08, drop: up > 0 ? 1.08 : 0.92 });
+  /** The tempo changed: a small turn of a key, up or down, pitched by where the tempo now stands between the slowest and the quickest (`rank`, 0 to 1: an octave and a half up the scale). */
+  tempo(c, t, { up = 1, power = 0.5, rank = 0.5 }) {
+    const f = 330 * semitone(18 * rank);
+    click(c, t, { freq: 2200 + 1200 * rank, gain: 0.12 * power, dur: 0.012 });
+    ping(c, t, { freq: f, gain: 0.07 * power, dur: 0.08, drop: up > 0 ? 1.08 : 0.92 });
   },
   /** A planet landing: a tink, higher on the outer hoops (a pentatonic scale), with a breath of the table under it. */
   land(c, t, { ring = 0, power = 0.5, pan = 0 }) {

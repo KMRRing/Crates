@@ -4,7 +4,7 @@
 // in 3D (a ring, bands, a crescent, a cap) so they're told apart without their colour, and the steps ticking and the
 // tips turning as in 3D. It answers to the same calls as the 3D one (orrery-3d.js), so the page doesn't know which it
 // has: frame, event, select, pick, angleAt, at, orbit (which does nothing without a third dimension).
-import { RINGS, PLACES, STEP, TAU, FORETELL, dirOf, turnOf, tiltOf, planeOf } from "./orrery-engine.js";
+import { RINGS, PLACES, STEP, TAU, FORETELL, dirOf, turnOf, tiltOf, dueIn, planeOf } from "./orrery-engine.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const el = (tag, attrs = {}, ...kids) => {
@@ -84,7 +84,7 @@ export function createFlat(host) {
       chair.planet.setAttribute("transform", `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
       chair.planet.setAttribute("visibility", "visible");
     }
-    const nx = state.next, due = nx.due - state.t;
+    const nx = state.next, due = dueIn(state);
     if (!state.over && nx.ring >= 0 && due < FORETELL && state.rings[nx.ring].places[nx.place] < 0) {
       const [x, y] = seat(state, nx.ring, nx.place);
       ghost.setAttribute("class", `or-foretold k${nx.colour}`);
