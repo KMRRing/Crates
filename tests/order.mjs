@@ -198,7 +198,7 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
 
   // topics: the cards drawn by their topics' weights, as the line's are
   const trader = cleanTopics({ trade: 2, markets: 2, art: 0, people: 0, wine: 0 }), t1 = dealHigherLower("dates", 11, trader);
-  check(cards(t1).every(id => cat(id) !== "art" && cat(id) !== "people" && cat(id) !== "wine") && !t1.wide && cards(t1).length > 40, "a topic out: none of its cards, the rest all dealt");
+  check(cards(t1).every(id => cat(id) !== "art" && cat(id) !== "people" && cat(id) !== "wine") && !t1.wide && cards(t1).length > 30, "a topic out: none of its cards, the rest all dealt");
   const w1 = dealHigherLower("dates", 9, { ...none, wine: 1 });
   check(w1.wide && new Set(cards(w1).map(cat)).size > 1 && cards(w1).length >= dates.length * 0.9, "a mix that leaves too few cards deals from every topic, and says so");
   const head = (r, n) => cards(r).slice(0, n).filter(id => cat(id) === "markets").length;

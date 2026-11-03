@@ -41,7 +41,7 @@ check(QUOTES.every(q => same(axisOf(q), axisOf({ ...q }))), "a question's ruler 
   check(logCounts.length >= 3, `the bank has counts on a log scale (${logCounts.length})`);
   check(counts.every(q => Number.isInteger(q.truth) && q.truth >= 1), "a count's truth is a whole number, 1 or more");
   // a log question whose unit is a thing counted is flagged: a new one can't slip in with a 0.1 ruler
-  const THINGS = /^(members|people|employees|bottles|works|refineries|countries|lines|châteaux|vineyards|paintings|prizes|children|symphonies|plays|companies)$/;
+  const THINGS = /^(members|seats|people|employees|bottles|works|refineries|countries|lines|châteaux|vineyards|paintings|prizes|children|symphonies|plays|companies)$/;
   const unflagged = QUOTES.filter(q => q.scale === "log" && THINGS.test(q.unit) && !q.whole);
   check(!unflagged.length, `every log question counting things is flagged whole${unflagged.length ? `: ${unflagged.slice(0, 4).map(q => q.id)}` : ""}`);
   for (const q of logCounts) {

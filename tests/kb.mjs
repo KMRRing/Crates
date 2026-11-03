@@ -3,7 +3,7 @@
 // unbroken append-only order, every pin on a place with a position, every painting with its painter. The counts are
 // the floor set by the move into kb/: knowledge only grows, so a smaller number means something was lost.
 import fs from "node:fs";
-import { build, render } from "../tools/build-kb.mjs";
+import { build, render, DEALT } from "../tools/build-kb.mjs";
 const { ENTITIES } = await import("../kb/entities.js");
 const { LINKS } = await import("../kb/links.js");
 const { GEOMETRY } = await import("../kb/geometry.js");
@@ -44,7 +44,7 @@ check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted
 // by hand or by the build (where it hangs, when it hangs anywhere); every museum Chart can place has its pin
 {
   const { MATHS: ART } = await import("../art-bank.js");
-  const { QUOTES } = await import("../quote-bank.js");
+  const QUOTES = await import("../quote-bank.js").then(m => [...m.QUOTES, ...m.RETIRED]);   // asked: dealt or kept as too niche to deal
   const { PLACES } = await import("../chart-bank.js");
   const asked = new Set(ART.flatMap(q => (q.about || []).map(id => `${id}:${q.lv}`)));
   const dated = new Set(QUOTES.filter(q => q.unit === "year" && q.about).map(q => q.about));
@@ -62,7 +62,7 @@ check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted
 {
   const { MEASURES } = await import("../kb/measures.js");
   const { UNITS } = await import("../kb/units.js");
-  const { QUOTES } = await import("../quote-bank.js");
+  const QUOTES = await import("../quote-bank.js").then(m => [...m.QUOTES, ...m.RETIRED]);
   const strays = ENTITIES.flatMap(e => Object.keys(e).filter(k => ["area", "population", "depth", "length", "top"].includes(k) && !MEASURES.some(m => m.key === k && e.sets.includes(m.set))).map(k => `${e.id}.${k}`));
   check(!strays.length, `a figure only on a thing its measure is for${strays.length ? `: ${strays.slice(0, 4)}` : ""}`);
   const carried = MEASURES.flatMap(m => ENTITIES.filter(e => e.sets.includes(m.set) && e[m.key] !== undefined).map(e => ({ m, e })));
@@ -82,6 +82,22 @@ check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted
   const count = (set, key) => ENTITIES.filter(e => e.sets.includes(set) && e[key] !== undefined).length;
   check(count("country", "area") === ENTITIES.filter(e => e.sets.includes("country")).length && count("country", "population") >= 160 && count("feature:river", "length") >= 55 && count("feature:lake", "area") >= 28 && count("feature:desert", "area") >= 20 && count("feature:range", "top") >= 25,
     `every country has its area; ${count("country", "population")} their population, ${count("feature:river", "length")} rivers their length, ${count("feature:lake", "area")} lakes their area, ${count("feature:desert", "area")} deserts, ${count("feature:range", "top")} ranges their highest summit`);
+}
+// who Quote may ask (3 November 2026, Korbi on the Garter question: "WAY too specific for a general audience"): every estimate
+// carries the mark of its review (1 anyone, 2 a player who chose the subject, 3 too niche), a niche one is in kb/ and in the
+// bank's RETIRED but never dealt, and the build's own questions are marked by the entity they are about
+{
+  const { AUDIENCE } = await import("../kb/items/estimates.js");
+  const { QUOTES, RETIRED } = await import("../quote-bank.js");
+  const unmarked = ESTIMATES.filter(q => ![1, 2, 3].includes(q.audience));
+  check(!unmarked.length, `every one of ${ESTIMATES.length} estimates has its review mark (audience 1, 2 or 3)${unmarked.length ? `: not ${unmarked.slice(0, 5).map(q => q.id)}` : ""}`);
+  const dealt = new Set(QUOTES.map(q => q.id)), kept = new Set(RETIRED.map(q => q.id));
+  const wrong = ESTIMATES.filter(q => (DEALT.has(q.audience) ? !dealt.has(q.id) : dealt.has(q.id) || !kept.has(q.id)));
+  check(!wrong.length, `${ESTIMATES.filter(q => q.audience === 3).length} niche estimates stay in kb/ and in RETIRED, none dealt${wrong.length ? `: wrong ${wrong.slice(0, 5).map(q => q.id)}` : ""}`);
+  check(QUOTES.every(q => DEALT.has(q.audience)) && RETIRED.every(q => !DEALT.has(q.audience)) && !QUOTES.some(q => kept.has(q.id)) && new Set([...dealt, ...kept]).size === dealt.size + kept.size,
+    `Quote deals ${QUOTES.length} questions and keeps ${RETIRED.length} retired ones, each in one list only, every one marked`);
+  const strays = Object.keys(AUDIENCE).filter(id => !E.has(id) || ![2, 3].includes(AUDIENCE[id]));
+  check(!strays.length, `the review of the questions the build writes names entities that exist${strays.length ? `: ${strays.slice(0, 5)}` : ""}`);
 }
 const floor = { entities: 4396, clue: 5526, pins: 415, features: 172, estimates: 355 };
 const now = { entities: ENTITIES.length, clue: LINKS.filter(l => l.rel === "clue").length, pins: PINS.length, features: FEATURES.length, estimates: ESTIMATES.length };

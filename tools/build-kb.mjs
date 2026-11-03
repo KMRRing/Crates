@@ -14,6 +14,10 @@ export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs"
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   pics: "pics-list.js", whoami: "party-whoami-bank.js", decoy: "party-decoy-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
 
+/** The audiences Quote deals to (kb/items/estimates.js, "who may be asked"): 1 general, 2 domain (a player who chose the
+ *  subject). A 3 is too niche for a general audience and stays in kb/ and in RETIRED (so a saved run or a table can still
+ *  show it) but is never dealt: [1] alone is the strict rule. */
+export const DEALT = new Set([1, 2]);
 const load = f => import(`${pathToFileURL(path.join(root, "kb", f)).href}?t=${Date.now()}`);
 /** An object without its undefined fields. */
 const defined = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
@@ -53,11 +57,13 @@ export async function build() {
   // painted The Night Watch?"), a building takes a small "the" ("When was the Parthenon completed?")
   const titleOf = e => (e.sets.includes("building") && !e.sets.includes("painting") ? e.name.replace(/^The /, "the ") : e.name);
   // Quote: a number that's an entity's fact comes from the entity
-  const QUOTES = [...estimates.ESTIMATES, ...gen.quotes].map(({ fact, ...q }) => {
+  const ALL = [...estimates.ESTIMATES, ...gen.quotes.map(q => ({ ...q, audience: estimates.AUDIENCE[q.about] ?? 1 }))].map(({ fact, ...q }) => {
     if (!fact) return q;
     const e = of(q.about), pic = q.pic ?? (fact === "year" ? e.pic : undefined);
     return defined({ ...q, truth: q.truth ?? e[fact], pic, title: pic && pic === e.pic ? titleOf(e) : undefined });
   });
+  // what Quote deals, and what it keeps only to show a run or a table that already has it
+  const QUOTES = ALL.filter(q => DEALT.has(q.audience)), RETIRED = ALL.filter(q => !DEALT.has(q.audience));
 
   // Punt: the questions as written, with what they're about, and the name of a picture that's one of theirs
   const choice = {};
@@ -79,9 +85,9 @@ export async function build() {
   // every picture a game shows (Settings' "Keep pictures offline" downloads them all): the entities' own (Lexicon) and
   // every bank's (Chart's places, Quote's and Order's paintings, Punt's art, buildings and watches, Deck's reviews of
   // them, Who am I's people)
-  const pictures = [...new Set([...[...ENTITIES, ...PLACES, ...QUOTES, ...Object.values(choice).flatMap(c => c.MATHS)].map(x => x.pic),
+  const pictures = [...new Set([...[...ENTITIES, ...PLACES, ...ALL, ...Object.values(choice).flatMap(c => c.MATHS)].map(x => x.pic),
     ...Object.values(who.WHO).map(w => w.p)].filter(Boolean))].sort();
-  return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice, pictures, index: await subjects(ENTITIES, LINKS),
+  return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES, RETIRED }, choice, pictures, index: await subjects(ENTITIES, LINKS),
     whoami: who, decoy: decoy(ENTITIES, QUOTES, decoyFacts) };
 }
 
@@ -733,7 +739,7 @@ export async function render(out) {
     [OUTPUTS.crates]: `${head(OUTPUTS.crates)}window.CRATES_BANK = "${out.crates}";\n`,
     [OUTPUTS.chart]: `${head(OUTPUTS.chart)}export const CATS = ${JSON.stringify(out.chart.CATS)};\nexport const PLACES = ${lines(out.chart.PLACES)};\n`,
     [OUTPUTS.geo]: `${head(OUTPUTS.geo)}export const GEO = ${lines(out.geo.GEO)};\n`,
-    [OUTPUTS.quote]: `${head(OUTPUTS.quote)}export const CATS = ${JSON.stringify(out.quote.CATS)};\nexport const QUOTES = ${lines(out.quote.QUOTES)};\n`,
+    [OUTPUTS.quote]: `${head(OUTPUTS.quote)}export const CATS = ${JSON.stringify(out.quote.CATS)};\nexport const QUOTES = ${lines(out.quote.QUOTES)};\nexport const RETIRED = ${lines(out.quote.RETIRED)};\n`,
   };
   files[OUTPUTS.index] = `// The knowledge base's subjects, for Deck's coverage by subject: SUBJECTS[i] = { label, total entities }; SUBJECT[entity]
 // = i. A thing with a set (country, city, painting…) is in its set's subject; a clue thing in its links' commonest aspect.

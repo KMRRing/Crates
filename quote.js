@@ -7,7 +7,7 @@ import { START, PER_SET, settle, fault, floorOf, pickMixed, withUnit, fmt, adequ
 import { mixParam as linkMix, mixFromParam, anyIn, even, subjectPreset } from "./topics.js";
 import { subjectsOn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
-import { QUOTES, CATS } from "./quote-bank.js";
+import { QUOTES, RETIRED, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether } from "./together.js";
 import { gameHref, GAMES, roomInAddress, joiningWords } from "./rooms.js";
@@ -15,6 +15,7 @@ import { isTable, peopleFor, freshTable, newSet, keyOf, waitingFor, graceAt, quo
 import { presentSlots, seated } from "./duel-core.js";
 import { leaderboard, rank } from "./standings.js";
 import { busy, waitMark } from "./loading.js";
+import { sure } from "./sure.js";
 import * as pile from "./pile.js";
 import { noteMarket } from "./ledger-log.js";
 import { mountDial } from "./quote-dial.js";
@@ -44,7 +45,9 @@ import { roundOver } from "./random.js";
 const $ = id => document.getElementById(id);
 const APP = 2;                       // this code's version of the table (2: up to six seats, everything kept by seat)
 const RUN = "quote:run", BEST = "quote:best", DAILY = "quote:daily";
-const byId = new Map(QUOTES.map(q => [q.id, q]));
+// every question there is, the retired ones too (too niche to deal, see kb/items/estimates.js): a saved run or a table that was
+// dealt one before the review still shows it. Sets are dealt from QUOTES alone.
+const byId = new Map([...QUOTES, ...RETIRED].map(q => [q.id, q]));
 
 let S = null;      // alone: { seed, mode: "random" | "daily", set: [ids], index, book, log: [{ id, bid, ask, delta, inside, width }], phase: "quote" | "reveal", done }
                    // at a table: the table's state (quote-table.js)
@@ -527,8 +530,8 @@ function freshRoom(players, ask = null) {
   return { ...freshTable(players, { people: peopleFor(ask), seed, set: pickMixed(seed, QUOTES, mix()).map(q => q.id) }), app: APP };
 }
 /** A fresh set for the table (in the way to play chosen), asking first while this one's under way. */
-function startRoomSet(mode = S?.mode) {
-  if (S && !S.done && (S.index > 0 || S.log || S.quotes || S.market) && !confirm("Deal a fresh set for the table? This one isn't finished.")) return;
+async function startRoomSet(mode = S?.mode) {
+  if (S && !S.done && (S.index > 0 || S.log || S.quotes || S.market) && !(await sure("Deal a fresh set for the table? This one isn't finished.", { yes: "Deal" }))) return;
   const seed = randomSeed(), set = pickMixed(seed, QUOTES, mix()).map(q => q.id);
   together.act(g => newSet(g, { seed, set, mode }));
 }
@@ -741,8 +744,8 @@ function openMenu() {
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-function confirmStart(mode) {
-  if (S && !S.done && S.index > 0 && !confirm("Start a new set? This one isn't finished.")) return;
+async function confirmStart(mode) {
+  if (S && !S.done && S.index > 0 && !(await sure("Start a new set? This one isn't finished.", { yes: "Start" }))) return;
   start(mode);
 }
 
