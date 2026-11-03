@@ -1,0 +1,9 @@
+/* Backgammon's 3D view (Menu, View: 3D): the board a slab tipped away from you, its far side further and smaller, with the checkers
+   given edges. Only the picture changes: the drawing, the taps (each point's column) and the animation are the flat board's own, and
+   the compositor does the tilt (nothing is redrawn). */
+.gm3 .gm-board { perspective: 70rem; perspective-origin: 50% 100%; }
+.gm3 .gm-svg { transform-origin: 50% 100%; transform: rotateX(24deg); border-radius: .4rem;
+  box-shadow: 0 .5rem 0 -.1rem color-mix(in srgb, var(--gm-frame) 70%, #000), 0 1.4rem 1.4rem -.8rem rgba(0, 0, 0, .55); }
+/* a checker's rim: a darker ring under the face, so a stack reads as discs */
+.gm3 .gm-ck { stroke-width: 2.2; paint-order: stroke; }
+.gm3 .gm-ck.sel { stroke-width: 3.4; }

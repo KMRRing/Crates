@@ -10,6 +10,7 @@ import { boardSvg } from "./gammon-draw.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
@@ -127,7 +128,11 @@ function inPlay(s) {
   return { me: m, op: o, next, need: legal[0].moves.length, done: ui.made.length === legal[0].moves.length };
 }
 
+const view = tableView("gammon", ["board", "Board"]);                // Menu, View: the flat board (the default) or the board tipped away from you (gammon-3d.css)
+const applyView = () => $("app").classList.toggle("gm3", view.get() === "3d");
+
 function drawBoard() {
+  applyView();
   const box = $("board"), v = V;
   if (!v?.G) { box.innerHTML = boardSvg({ me: Array(26).fill(0), op: Array(26).fill(0) }); return; }
   const s = v.state, my = me();
@@ -297,6 +302,7 @@ function openMenu() {
   if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
+  set.append(view.choice(() => drawBoard()));
   set.append(choice("A match to", MATCHES.map(n => [n, n === 1 ? "1 game" : `${n} points`]), opts.match, v => { opts.match = Number(v); saveOpts(); }));
   set.append(toggle("The doubling cube", opts.cube, on => { opts.cube = on; saveOpts(); }));
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
