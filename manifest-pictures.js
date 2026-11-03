@@ -13,12 +13,19 @@ import { boxFor, isoPoint, dropTimes, visibleSet, LANDING } from "./manifest-eng
 import { QUAY_DEPTH, frameOf, iconFrame, cameraOf, layout, packageAt, fall } from "./manifest-model.js";
 import { onPause } from "./menu.js";
 
-// three.js is 580 KB: the game doesn't wait for it longer than a moment (pictures are flat until it's there)
+// three.js is 580 KB: the game waits for it (the page asks `ready` before it draws a picture) but not for long, and a
+// device that can't run it plays the flat drawing from the start, never one that turns 3D halfway through
 let GL = null, M = null;
 let settleLoad = null;
-const loading = import("./manifest-3d.js").then(m => { M = m; GL = m.createGL(); }).catch(() => { GL = null; });
+const loading = import("./manifest-3d.js").then(m => { M = m; GL = m.createGL(); if (GL) warm(); }).catch(() => { GL = null; });
 /** Resolves when the 3D drawing is up or has been given up on. */
 export const ready = Promise.race([loading, new Promise(r => { settleLoad = setTimeout(r, 4000); })]).then(() => clearTimeout(settleLoad));
+/** One package drawn small, so the shaders are compiled now, while the page waits, and not as the first stack falls. */
+function warm() {
+  const b = boxFor(0), frame = iconFrame(b);
+  GL.draw({ X: 1, Y: 1, Z: 1, b, frame, cam: cameraOf(frame, 1, 1, 1, b), opts: {},
+    items: layout([[[1]]], 0, frame).map(c => ({ key: c.key, ware: c.c, box: c.box, faces: c.faces, dim: false, outline: 0 })) }, 32, 32, M.tokens());
+}
 /** Whether pictures are 3D now: not before WebGL is up, not once its context is lost. */
 export const is3d = () => !!GL?.alive;
 
@@ -158,7 +165,7 @@ export function stage3d(cells, opts) {
     const ringed = opts.ring === c.key;
     return { key: c.key, ware: opts.grey ? (ringed ? 6 : 0) : c.c, box: c.box, faces: c.faces,
       dim: !!((opts.highlight && c.c !== opts.highlight) || (opts.tier != null && c.z !== opts.tier)),
-      outline: (markKey === c.key && (!visible || visible.has(c.key))) || outlined.has(c.key) || ringed };
+      outline: ringed || (markKey === c.key && (!visible || visible.has(c.key))) || outlined.has(c.key) ? 2 : 0 };   // framed: every face, so one seen only from the side is marked too
   });
   // a marked place with nothing to see there: its tile on the floor, with the tier named on it
   const hidden = !!opts.mark && (opts.blank || !visible.has(markKey));
@@ -217,7 +224,7 @@ export function icon3d(ware) {
   if (!src) {
     const b = boxFor(0), frame = iconFrame(b), size = 96;
     const spec = { X: 1, Y: 1, Z: 1, b, frame, cam: cameraOf(frame, 1, 1, 1, b), quay: false, opts: {},
-      items: layout([[[ware]]], 0, frame).map(c => ({ key: c.key, ware: c.c, box: c.box, faces: c.faces, dim: false, outline: false })) };
+      items: layout([[[ware]]], 0, frame).map(c => ({ key: c.key, ware: c.c, box: c.box, faces: c.faces, dim: false, outline: 0 })) };
     src = document.createElement("canvas"); src.width = src.height = size;
     src.getContext("2d").drawImage(GL.draw(spec, size, size, tk), 0, 0);
     ICONS.set(key, src);

@@ -95,6 +95,8 @@ export function fall(u, from = 1.5) {
   return { lift: bounce, squash: hitSquash, fade: 1 };
 }
 
-/** The shading the 3D drawing's lights give a plain surface on the left, right and top faces, as the flat one's .72, .86, 1.05
- *  (measured on a render, tests/manifest.mjs weighs the wares' colours by them). */
+/** The shading the 3D drawing's lights give a plain surface on the left, right and top faces, as the flat one's .72, .86, 1.05,
+ *  and what a face keeps where another package's shadow falls on it (measured on renders; tests/manifest.mjs weighs the
+ *  wares' colours by them, so a ware in shadow is still told from one in the sun). */
 export const FACE_SHADE = { left: 0.72, right: 0.83, top: 0.99 };
+export const SHADOWED = 0.5;

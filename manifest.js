@@ -7,7 +7,7 @@
 import { LIVES, ROUNDS, WARES, VIEWS, KINDS, makeRound, priceOf, skillFactor, recordAfter, shipBonus, turn,
   LANDING, MODES, timeline, partCells, freshTable, isTable, stageOf, roundOf, partFor, livesOf, playing, repliesOf, firstOpen, waitingFor, sayReady, goOn, reply,
   ship as shipIn, settleIfDue, setNext, again, scoresOf, verdicts, resultOf, bonusAt } from "./manifest-engine.js";
-import { stage, wareIcon, playOut } from "./manifest-art.js";
+import { stage, wareIcon, playOut, ready } from "./manifest-art.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line } from "./menu.js";
@@ -953,5 +953,7 @@ function solo() {
 }
 // a table in the address: its game, with no solo run dealt under it while it's joined
 const code = roomInAddress();
-if (code) joinTable(code);
-else solo();
+{                                                      // the pictures are 3D or flat for the whole visit: settled before the first is drawn
+  const done = busy("Setting up the quay");
+  ready.then(() => { done(); if (code) joinTable(code); else solo(); });
+}
