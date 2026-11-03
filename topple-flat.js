@@ -131,8 +131,10 @@ export function createFlat(host) {
     layers.forEach((l, n) => { l.g.style.opacity = n === active || n >= (rules.layers || 1) ? "" : String(knocking ? SEEN : FAINT); l.g.style.pointerEvents = "none"; });
   }
   /** A level's terrain (topple-levels.js; FREE for none), drawn flat: pools, stones, steps, gilding, no table, and the pieces the floors add; back to front, floor by floor. */
+  let furnished = false;                       // the first call builds the floors even for FREE (Classic's), which is what the view starts as: without it Classic's table was never drawn
   function terrain(next) {
-    if (next === rules) return;
+    if (next === rules && furnished) return;
+    furnished = true;
     rules = next;
     lv = rules.palette === "levels";
     svg.dataset.scene = rules.scene;
