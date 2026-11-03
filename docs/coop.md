@@ -34,3 +34,6 @@ What a game shares is a `board` in its room branch (`board-share.js`): `fixed` (
 - Leaving a co-op page by another route than Leave (the apps menu, the browser's back) leaves the co-op open: the partner sees "(away)" and can Leave or wait; the address brings you back.
 - A party of two opened this way is a party room like any: it is not shown as one in Party.
 - The team clock counts the wall time since the board was shared, menus open or not (duo clocks never stop).
+- Today's puzzle solved together must come back from `run(board)` as a plain `random` one: the host's run key follows the board, and a run left `daily` and done would use up the host's day with a time nobody earned alone (a line in each adapter's test).
+- Anything a page draws before it sends (Nonogram's drag, sent when the finger lifts) must be laid over the room's board in `show`, or a partner's edit arriving mid-gesture replaces it.
+- A rule that spans cells (Codeword's one letter on one number) can't be written as `rules.merge(layer, base, mine, theirs, weak)`, which sees one cell, so two edits at once can break it; `run(board)` would have to settle it the same way on both phones.
