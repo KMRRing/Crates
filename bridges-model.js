@@ -1,6 +1,6 @@
 // What Bridges' model view (bridges-3d.js, drawn with three.js) works out that has no picture in it, kept apart so it is
-// tested in Node: where the fairways' ships sail, where a viaduct stands on piers, the curve of its arches, the plates of
-// numbers on the islands. The model's world has a cell for a unit, the board's middle at the origin, x along a row, z down
+// tested in Node: where the ships sail (through whatever water is free), where a viaduct stands on piers, the curve of its
+// arches, the plates of numbers on the islands. The model's world has a cell for a unit, the board's middle at the origin, x along a row, z down
 // a column (towards the camera at the start) and y up, the water at 0.
 
 /** The world's x and z of the middle of a cell. */
@@ -12,95 +12,176 @@ export const islandRadius = n => 0.28 + 0.032 * (Math.max(1, Math.min(8, n || 1)
 /** The heading, a turn about y, that points a ship (whose bow is its +x) along (dx, dz). */
 export const headingOf = (dx, dz) => Math.atan2(-dz, dx);
 
-// ---------- the fairways' ships ----------
+// ---------- the ships: they sail through whatever water is free ----------
+// A ship may go where nothing stands: not on an island, not under a built low bridge, not under a viaduct's pier; and under a
+// viaduct only across it, through one of its arches (a ship's masts clear them), never along its length. The sea is the board
+// and `SEA_MARGIN` cells of open water round it, so there is always a way round the board. Bridges change as the player
+// builds, so the sea is worked out again from the marks and a ship whose way is blocked plans another.
+export const SEA_MARGIN = 2;
+const SHIP_DIRS = [[0, 1], [0, -1], [1, 0], [-1, 0]];       // [row, column] steps; a step along a column (0, ±1) is a move along x
+
 /**
- * The straight runs of lane at least `min` cells long, in rows and columns: { r, c, len, vertical } from the run's first cell.
- * (A lane where two runs meet is a bend: both are found.)
+ * The sea for the marks: { size, margin, w, blocked, axis } on a grid `w` cells across (the board and its margin).
+ * `blocked` is 1 where no ship goes; `axis` is 1 or 2 under a viaduct that runs along x or along z, where a ship may cross but not go along.
  */
-export function laneRuns(size, lanes, min = 2) {
-  const runs = [], at = (r, c) => lanes[r * size + c] === "~";
-  for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
-    if (!at(r, c)) continue;
-    if (!(c > 0 && at(r, c - 1))) { let len = 1; while (c + len < size && at(r, c + len)) len++; if (len >= min) runs.push({ r, c, len, vertical: false }); }
-    if (!(r > 0 && at(r - 1, c))) { let len = 1; while (r + len < size && at(r + len, c)) len++; if (len >= min) runs.push({ r, c, len, vertical: true }); }
-  }
-  return runs;
-}
-/** Which of the cells of a lane belong together (joined edge to edge): an array, a component number for each lane cell and -1 for water. */
-export function laneParts(size, lanes) {
-  const part = new Int16Array(size * size).fill(-1);
-  let n = 0;
-  for (let i = 0; i < size * size; i++) {
-    if (lanes[i] !== "~" || part[i] >= 0) continue;
-    const todo = [i];
-    part[i] = n;
-    while (todo.length) {
-      const k = todo.pop(), r = Math.floor(k / size), c = k % size;
-      for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
-        const rr = r + dr, cc = c + dc, j = rr * size + cc;
-        if (rr >= 0 && rr < size && cc >= 0 && cc < size && lanes[j] === "~" && part[j] < 0) { part[j] = n; todo.push(j); }
-      }
+export function seaOf(lay, marks, margin = SEA_MARGIN) {
+  const { size, isl, links } = lay, w = size + 2 * margin, blocked = new Uint8Array(w * w), axis = new Uint8Array(w * w), at = (r, c) => (r + margin) * w + (c + margin);
+  for (const o of isl) blocked[at(o.r, o.c)] = 1;
+  links.forEach((k, l) => {
+    if (!+marks[l]) return;
+    const a = isl[k.a], b = isl[k.b], span = k.vertical ? b.r - a.r : b.c - a.c, piers = k.high ? piersOf(lay, l) : [];
+    for (let i = 1; i < span; i++) {
+      const j = k.vertical ? at(a.r + i, a.c) : at(a.r, a.c + i);
+      if (!k.high || piers.includes(i)) blocked[j] = 1; else axis[j] = k.vertical ? 2 : 1;
     }
-    n++;
-  }
-  return part;
+  });
+  return { size, margin, w, blocked, axis };
 }
-const LANE_INSET = 0.5;                     // cells a ship keeps from the end of its run (it is about a cell long)
-/**
- * The ships' routes. A lane gets a ship on the longest straight run of each of its parts (at most `max`), to and fro along it, in
- * the middle of the lane; and the sea round the board gets `loops` ships sailing right round it. A route is
- * { kind: "line", x0, z0, x1, z1, speed, turn, phase } or { kind: "loop", radius, speed, dir, phase }: speed in cells a second,
- * turn the seconds a ship takes to come about at the end of a line, phase the seconds into its route it begins.
- */
-export function routesOf(size, lanes = "", loops = 1, max = 4) {
-  const routes = [];
-  if (lanes) {
-    const part = laneParts(size, lanes), best = new Map();
-    for (const run of laneRuns(size, lanes)) {
-      const p = part[run.r * size + run.c], was = best.get(p);
-      if (!was || run.len > was.len) best.set(p, run);
-    }
-    [...best.values()].sort((a, b) => b.len - a.len || a.r - b.r || a.c - b.c).slice(0, max).forEach((run, k) => {
-      const [x, z] = cellXZ(size, run.r, run.c), a = -0.5 + LANE_INSET, b = run.len - 0.5 - LANE_INSET;
-      routes.push(run.vertical
-        ? { kind: "line", x0: x, z0: z + a, x1: x, z1: z + b, speed: 0.2 + 0.03 * (k % 3), turn: 6, phase: 9 * k }
-        : { kind: "line", x0: x + a, z0: z, x1: x + b, z1: z, speed: 0.2 + 0.03 * (k % 3), turn: 6, phase: 9 * k });
-    });
-  }
-  const radius = size * Math.SQRT1_2 + 1.5;
-  for (let k = 0; k < loops; k++) routes.push({ kind: "loop", radius: radius + 0.9 * k, speed: 0.26 - 0.04 * k, dir: k % 2 ? -1 : 1, phase: (k * 47) % 100 });
-  return routes;
+/** The world x and z of the middle of a sea cell. */
+export const seaXZ = (sea, j) => cellXZ(sea.size, Math.floor(j / sea.w) - sea.margin, (j % sea.w) - sea.margin);
+/** The sea cell that world point (x, z) is in, or -1 outside the sea. */
+export function seaCell(sea, x, z) {
+  const c = Math.floor(x + sea.size / 2) + sea.margin, r = Math.floor(z + sea.size / 2) + sea.margin;
+  return r < 0 || r >= sea.w || c < 0 || c >= sea.w ? -1 : r * sea.w + c;
 }
-/** Where a ship is `t` seconds along its route: { x, z, heading }. A line is sailed to the end, come about slowly, sailed back, and so on. */
-export function shipAt(route, t) {
-  t += route.phase;
-  if (route.kind === "loop") {
-    const a = route.dir * (route.speed / route.radius) * t, x = Math.cos(a) * route.radius, z = Math.sin(a) * route.radius;
-    return { x, z, heading: headingOf(-route.dir * Math.sin(a), route.dir * Math.cos(a)) };
-  }
-  const dx = route.x1 - route.x0, dz = route.z1 - route.z0, len = Math.hypot(dx, dz), run = len / route.speed, cycle = 2 * (run + route.turn), u = ((t % cycle) + cycle) % cycle;
-  const ux = dx / len, uz = dz / len, forward = headingOf(ux, uz);
-  const along = f => ({ x: route.x0 + dx * f, z: route.z0 + dz * f });
-  if (u < run) return { ...along(u / run), heading: forward };
-  if (u < run + route.turn) { const k = (u - run) / route.turn, s = k * k * (3 - 2 * k); return { ...along(1), heading: forward + Math.PI * s }; }
-  if (u < 2 * run + route.turn) return { ...along(1 - (u - run - route.turn) / run), heading: forward + Math.PI };
-  const k = (u - 2 * run - route.turn) / route.turn, s = k * k * (3 - 2 * k);
-  return { ...along(0), heading: forward + Math.PI + Math.PI * s };
-}
-/** The buoys that mark a lane: one on each side of each cell along its straight runs, but not where the lane goes on (at a bend, across the way), { x, z, red }. */
-export function buoysOf(size, lanes) {
-  const out = [], seen = new Set(), at = (r, c) => r >= 0 && r < size && c >= 0 && c < size && lanes[r * size + c] === "~";
-  for (const { r, c, len, vertical } of laneRuns(size, lanes, 1)) {
-    for (let i = 0; i < len; i++) for (const side of [-1, 1]) {
-      const rr = vertical ? r + i : r, cc = vertical ? c : c + i;
-      if (at(vertical ? rr : rr + side, vertical ? cc + side : cc)) continue;
-      const [x, z] = cellXZ(size, rr, cc), px = vertical ? x + side * 0.46 : x, pz = vertical ? z : z + side * 0.46, key = `${px.toFixed(2)}:${pz.toFixed(2)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ x: px, z: pz, red: (i + (side > 0 ? 1 : 0)) % 2 === 0 });
-    }
+/** The cells a ship can move to from cell j in one step. */
+function seaSteps(sea, j) {
+  const { w, blocked, axis } = sea, r = Math.floor(j / w), c = j % w, out = [];
+  if (blocked[j]) return out;
+  for (const [dr, dc] of SHIP_DIRS) {
+    const rr = r + dr, cc = c + dc;
+    if (rr < 0 || rr >= w || cc < 0 || cc >= w) continue;
+    const k = rr * w + cc, along = dr === 0 ? 1 : 2;           // moving along x (a column step) is axis 1, along z axis 2
+    if (!blocked[k] && axis[j] !== along && axis[k] !== along) out.push(k);
   }
   return out;
+}
+/** Steps from cell `from` to every cell a ship can reach (an Int16Array, -1 where it can't). */
+export function openWater(sea, from) {
+  const dist = new Int16Array(sea.w * sea.w).fill(-1), todo = [from];
+  if (from < 0 || sea.blocked[from]) return dist;
+  dist[from] = 0;
+  for (let q = 0; q < todo.length; q++) for (const k of seaSteps(sea, todo[q])) if (dist[k] < 0) { dist[k] = dist[todo[q]] + 1; todo.push(k); }
+  return dist;
+}
+/** The shortest way from cell `from` to cell `to` as the cells in between, both ends included, or null. */
+export function sailFrom(sea, from, to) {
+  if (from < 0 || to < 0 || sea.blocked[from] || sea.blocked[to]) return null;
+  const back = new Int32Array(sea.w * sea.w).fill(-2), todo = [from];
+  back[from] = -1;
+  for (let q = 0; q < todo.length && back[to] === -2; q++) for (const k of seaSteps(sea, todo[q])) if (back[k] === -2) { back[k] = todo[q]; todo.push(k); }
+  if (back[to] === -2) return null;
+  const cells = [];
+  for (let j = to; j >= 0; j = back[j]) cells.push(j);
+  return cells.reverse();
+}
+const CORNER = 0.4;                                          // cells a ship starts to turn before the middle of a corner cell
+/**
+ * A route through cells `cells` with its corners rounded: { pts, len } where pts are [x, z, heading, distance from the start] about a tenth of a cell apart.
+ */
+export function smoothRoute(sea, cells) {
+  const P = cells.map(j => seaXZ(sea, j)), pts = [], head = (a, b) => headingOf(b[0] - a[0], b[1] - a[1]);
+  const push = (x, z, h) => { const last = pts.at(-1), d = last ? last[3] + Math.hypot(x - last[0], z - last[1]) : 0; pts.push([x, z, h, d]); };
+  if (P.length < 2) { push(...(P[0] || [0, 0]), 0); return { pts, len: 0 }; }
+  push(P[0][0], P[0][1], head(P[0], P[1]));
+  for (let i = 1; i < P.length; i++) {
+    const u = [P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]], v = i + 1 < P.length ? [P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]] : null;
+    if (!v || (u[0] === v[0] && u[1] === v[1])) { push(P[i][0], P[i][1], head(P[i - 1], P[i])); continue; }
+    const a = [P[i][0] - u[0] * CORNER, P[i][1] - u[1] * CORNER], b = [P[i][0] + v[0] * CORNER, P[i][1] + v[1] * CORNER];
+    push(a[0], a[1], head(P[i - 1], P[i]));
+    for (let t = 1; t <= 6; t++) {                          // a quarter turn as a curve, the corner cell's middle its control point
+      const k = t / 6, x = (1 - k) * (1 - k) * a[0] + 2 * (1 - k) * k * P[i][0] + k * k * b[0], z = (1 - k) * (1 - k) * a[1] + 2 * (1 - k) * k * P[i][1] + k * k * b[1];
+      const dx = 2 * (1 - k) * (P[i][0] - a[0]) + 2 * k * (b[0] - P[i][0]), dz = 2 * (1 - k) * (P[i][1] - a[1]) + 2 * k * (b[1] - P[i][1]);
+      push(x, z, headingOf(dx, dz));
+    }
+  }
+  return { pts, len: pts.at(-1)[3] };
+}
+/** Where a ship is `s` cells along a route: { x, z, heading }. */
+export function routeAt(route, s) {
+  const { pts } = route;
+  if (s <= 0 || pts.length === 1) return { x: pts[0][0], z: pts[0][1], heading: pts[0][2] };
+  let lo = 0, hi = pts.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (pts[m][3] <= s) lo = m; else hi = m; }
+  const a = pts[lo], b = pts[hi], k = b[3] > a[3] ? Math.min(1, (s - a[3]) / (b[3] - a[3])) : 0;
+  return { x: a[0] + (b[0] - a[0]) * k, z: a[1] + (b[1] - a[1]) * k, heading: b[2] };
+}
+const noise = (a, b) => { let t = (Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 1, 0xc2b2ae35)) >>> 0; t = Math.imul(t ^ (t >>> 15), 0x2c1b3c6d) >>> 0; t ^= t >>> 12; return (t >>> 0) / 4294967296; };
+/** How many ships a board of this size has. */
+export const shipsFor = size => (size <= 7 ? 2 : size <= 9 ? 3 : 4);
+/**
+ * The ships: `count` of them, each sailing from where it is to another place in the free water, and on to another when it
+ * gets there, the same every time for the same `seed` and the same sea. { ships, setSea(sea), advance(seconds) }; a ship is
+ * { x, z, heading, speed (cells a second), route, s }. When the sea changes, a ship whose way ahead is blocked plans
+ * another, and one that sits where a bridge now stands is moved to the nearest water.
+ */
+export function createFleet(count, seed = 1) {
+  const ships = Array.from({ length: count }, (_, k) => ({ k, x: 0, z: 0, heading: 0, speed: 0.2 + 0.035 * (k % 3), route: null, s: 0, wait: 0, draws: 0, placed: false }));
+  let sea = null;
+  const draw = sh => noise(seed * 131 + sh.k, sh.draws++);
+  const put = (sh, j) => { [sh.x, sh.z] = seaXZ(sea, j); sh.route = null; sh.s = 0; };
+  /** The nearest cell of free water to a point, by walking out over the grid (blocked cells too) until one is free. */
+  function nearestFree(x, z) {
+    const { w, blocked } = sea, lim = sea.size / 2 + sea.margin - 0.5, from = seaCell(sea, Math.max(-lim, Math.min(lim, x)), Math.max(-lim, Math.min(lim, z)));
+    const seen = new Uint8Array(w * w), todo = [from];
+    seen[from] = 1;
+    for (let q = 0; q < todo.length; q++) {
+      if (!blocked[todo[q]]) return todo[q];
+      const r = Math.floor(todo[q] / w), c = todo[q] % w;
+      for (const [dr, dc] of SHIP_DIRS) { const rr = r + dr, cc = c + dc; if (rr >= 0 && rr < w && cc >= 0 && cc < w && !seen[rr * w + cc]) { seen[rr * w + cc] = 1; todo.push(rr * w + cc); } }
+    }
+    return 0;
+  }
+  function plan(sh) {
+    const here = seaCell(sea, sh.x, sh.z), dist = openWater(sea, here), far = [], near = [];
+    dist.forEach((d, j) => { if (d >= 4) far.push(j); else if (d >= 1) near.push(j); });
+    const pool = far.length ? far : near;
+    if (!pool.length) { sh.route = null; sh.wait = 2; return; }
+    const cells = sailFrom(sea, here, pool[Math.floor(draw(sh) * pool.length)]);
+    sh.route = { ...smoothRoute(sea, cells), cells };
+    sh.s = 0;
+  }
+  /** Whether the cells of a ship's way, from the one it is in, are all still open. */
+  function wayOpen(sh) {
+    const here = seaCell(sea, sh.x, sh.z), { cells } = sh.route, i = cells.indexOf(here);
+    if (i < 0) return false;
+    for (let q = i; q + 1 < cells.length; q++) if (!seaSteps(sea, cells[q]).includes(cells[q + 1])) return false;
+    return !sea.blocked[cells[i]];
+  }
+  return {
+    ships,
+    /** A new sea (a new puzzle, or the marks changed). */
+    setSea(next) {
+      const first = !sea || sea.size !== next.size;
+      sea = next;
+      const corner = openWater(sea, 0);                      // the margin's corner is always water, and it is joined to all the margin
+      const home = []; corner.forEach((d, j) => { if (d >= 0) home.push(j); });
+      for (const sh of ships) {
+        if (first || !sh.placed) { put(sh, home[Math.floor(draw(sh) * home.length)]); sh.placed = true; sh.heading = draw(sh) * Math.PI * 2; continue; }
+        const here = seaCell(sea, sh.x, sh.z);
+        if (here < 0 || sea.blocked[here]) { put(sh, nearestFree(sh.x, sh.z)); continue; }
+        if (sh.route && !wayOpen(sh)) { sh.route = null; sh.s = 0; }
+      }
+    },
+    /** Sails every ship on for `dt` seconds. */
+    advance(dt) {
+      if (!sea) return;
+      for (const sh of ships) {
+        if (!sh.route) {
+          sh.wait -= dt;
+          if (sh.wait > 0) continue;
+          plan(sh);
+          if (!sh.route) continue;
+        }
+        sh.s += sh.speed * dt;
+        const at = routeAt(sh.route, sh.s);
+        sh.x = at.x; sh.z = at.z;
+        const turn = ((at.heading - sh.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI;     // the bow comes round gently, the short way
+        sh.heading += turn * Math.min(1, dt * 4);
+        if (sh.s >= sh.route.len) { sh.route = null; sh.wait = 1 + 3 * draw(sh); }
+      }
+    },
+  };
 }
 
 // ---------- the viaducts ----------
@@ -121,7 +202,7 @@ export function piersOf(lay, l, lanes = "") {
   const piers = [];
   let last = 0;
   for (let i = 1; i < span; i++) {
-    if (i - last < 2 || lanes[cell(i)] === "~" || under.has(cell(i))) continue;
+    if (i - last < 2 || under.has(cell(i))) continue;
     piers.push(i);
     last = i;
   }
