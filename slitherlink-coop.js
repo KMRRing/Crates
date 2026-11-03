@@ -1,6 +1,6 @@
 // Slitherlink played as a pair (docs/coop.md): how the game's saved run becomes a shared board and a shared board becomes
 // a run again. Pure, so tests can check it without a page, and loaded by the host's phone on any page when a partner is
-// let in (coop-games.js), not only by Slitherlink's own.
+// let in (coop-games.js lists it), not only by Slitherlink's own.
 //
 // The shared board: the puzzle (`fixed`: it never changes) and one layer, `marks`, a character an edge as in a run
 // ("0" nothing, "1" a line, "2" crossed). Hints are a tally (`hints`), the solve a once-value (`done`: { ms, score, by }).
@@ -19,11 +19,6 @@ export const playable = s => !!s && s.v === 1 && SIZES.includes(s.size) && typeo
 export const fixedOf = s => ({ mode: s.mode || "random", seed: s.seed, size: s.size, level: s.level, twist: s.twist === "shade" ? "shade" : "none", came: s.came || s.level, grid: s.grid, sol: s.sol });
 
 export default {
-  id: "slitherlink",
-  name: "Slitherlink",
-  page: "slitherlink.html",
-  keys: [KEY],                                       // what the game saves a board in play under: the host's run is where the co-op starts
-
   /** The shared board out of what the game has saved ({ key: the saved text }); null when there is no board in play to share (none, or solved). */
   share(saved) {
     let run;
@@ -37,6 +32,9 @@ export default {
     const f = board.fixed, done = onceOf(board, "done") || null;
     return { v: 1, ...f, marks: board.layers.marks, hints: (board.start?.hints || 0) + tallyOf(board, "hints"), done: done ? { ms: done.ms, score: done.score } : null };
   },
+
+  /** Once the loop is solved, nothing else changes the marks. */
+  rules: { frozen: board => !!board.once?.done },
 
   /** The board is worth keeping: a puzzle of a size this version knows, with its marks the length of its answer. */
   valid: board => !!board?.fixed && SIZES.includes(board.fixed.size) && typeof board.fixed.sol === "string" && board.layers?.marks?.length === board.fixed.sol.length,

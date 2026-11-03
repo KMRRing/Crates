@@ -444,23 +444,42 @@ async function listen() {
     banner(bar);
     lapse = setTimeout(() => banner(null), left);   // the request lapses for them at two minutes: its banner goes with it
   });
+  // Your partner asking to join your board (a prompt wherever you are), or your own such request answered yes (this
+  // device goes to the party of two): coop-ui.js, loaded when there is something to show, since it brings the game's
+  // engine with it.
+  let ui = null, latest = null;
+  const ctx = {
+    sync, pair: code, me, banner,
+    name: () => raw.get("crates:name") || "Your partner",
+    saved: keys => Object.fromEntries(keys.map(k => [k, raw.get(k)])),
+    followed: () => raw.get(FOLLOWED),
+    go: (href, at) => { put(FOLLOWED, String(at)); location.href = href; },
+  };
+  sync.watch(`crates/rooms/${code}/join`, a => {
+    latest = a;
+    if (ui) { ui.onJoinNode(a, ctx); return; }
+    const theirs = a && a.from !== me && !a.answer, mine = a && a.from === me && a.answer === "yes" && a.device === sync.uid && raw.get(FOLLOWED) !== String(a.at);
+    if (theirs || mine) import("./coop-ui.js").then(m => { ui = m; ui.onJoinNode(latest, ctx); }).catch(e => console.error(e));
+  });
 }
 /**
- * Puts up the request's banner (null takes it down). It lives in the topmost open modal dialog when there is one
+ * Puts up a request's banner (null takes it down); `slot` is which kind: "ask" (to play together), "join" (to join your
+ * board: coop-ui.js), each with its own. It lives in the topmost open modal dialog when there is one
  * (the games screen, a menu, a sheet), since a modal dialog leaves everything outside it out of sight and out of
  * reach: on the games screen, where you'd often be when asked, a banner on the page could be neither seen nor tapped.
  * It moves as dialogs open and close.
  */
-let shown = null, moves = null;
-function banner(bar) {
-  if (shown && shown !== bar) shown.remove();
-  shown = bar;
-  if (!bar) { moves?.disconnect(); moves = null; return; }
+const shown = new Map();
+let moves = null;
+function banner(bar, slot = "ask") {
+  const old = shown.get(slot);
+  if (old && old !== bar) old.remove();
+  if (bar) shown.set(slot, bar); else shown.delete(slot);
+  if (!shown.size) { moves?.disconnect(); moves = null; return; }
   const place = () => {
-    if (!shown) return;
     const modal = [...document.querySelectorAll("dialog[open]")].filter(d => { try { return d.matches(":modal"); } catch { return true; } }).pop();
     const home = modal || document.body;
-    if (shown.parentNode !== home) home.appendChild(shown);
+    for (const b of shown.values()) if (b.parentNode !== home) home.appendChild(b);
   };
   place();
   if (!moves) {
@@ -526,11 +545,21 @@ async function watchInFrames() {
   shell.className = "watch-shell";
   shell.innerHTML = `<div class="watch-frames"></div><div class="watch-bar"><span>Watching <b></b></span><button class="btn" type="button">Stop</button></div>`;
   shell.querySelector("button").addEventListener("click", () => { const u = new URL(location.href); u.searchParams.delete("watch"); location.href = u.toString(); });
-  const place = () => document.body.appendChild(shell);
+  // this page is drawn once the shell is in: pwa.js, which says so (html.ready) and takes the loading mark down, waits behind
+  // this module, which never finishes loading here, so the mark would stay over the watching view
+  const place = () => { document.body.appendChild(shell); document.documentElement.classList.add("ready"); };
   if (document.body) place(); else document.addEventListener("DOMContentLoaded", place);
   const frames = shell.querySelector(".watch-frames"), who = shell.querySelector("b");
   if (!code) { who.textContent = "nobody: link with a partner first"; return new Promise(() => {}); }
   const sync = await getSync(), me = playerId();
+  let theirName = "";
+  if ((await import("./coop-games.js")).isCoop(pageGame())) {      // a game two can share: Request to join, in the bar
+    import("./coop-ui.js").then(m => {
+      const join = m.watchJoin({ bar: shell.querySelector(".watch-bar"), sync, pair: code, me, game: pageGame(), name: () => raw.get("crates:name") || "Your partner", who: () => theirName,
+        go: (href, at) => { put(FOLLOWED, String(at)); location.href = href; } });
+      watchPartner(p => join.partner(p));
+    }).catch(e => console.error(e));
+  }
   let shownAt = null, busy = false, pending = false, last = 0;
   const swap = () => {
     if (busy) { pending = true; return; }
@@ -555,7 +584,7 @@ async function watchInFrames() {
     const theirs = Object.entries(all || {}).filter(([id, w]) => id !== me && w?.game === pageGame()).sort((a, b) => (b[1].at || 0) - (a[1].at || 0))[0];
     if (!theirs) { who.textContent = "your partner (not in this game now)"; return; }
     const [, w] = theirs;
-    who.textContent = w.name || "your partner";
+    who.textContent = theirName = w.name || "your partner";
     if (w.at === shownAt) return;
     shownAt = w.at;
     window.__watchCopy = { name: w.name, game: w.game, at: w.at, keys: new Map(Object.entries(w.keys || {}).map(([k, v]) => [decodeURIComponent(k), v])) };

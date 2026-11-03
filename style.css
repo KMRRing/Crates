@@ -700,6 +700,27 @@ dialog.sure .sure-row .btn { flex: 1; padding-inline: .8rem; }
   padding: .5rem .75rem; border-radius: 14px; background: var(--sheet); color: var(--ink); border: 1.5px solid var(--tile-edge); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); font-size: .9rem; }
 .watch-bar span { flex: 1; }
 .watch-bar .btn { min-height: 2.25rem; }
+.watch-bar { flex-wrap: wrap; }
+/* Request to join, while you watch a game two can share (coop-ui.js): a row of its own under the name and Stop, and under it
+   what the request is doing */
+.watch-bar [data-join] { order: 8; flex: 1 1 100%; }
+.coop-say { order: 9; flex: 1 1 100%; margin: 0; font-size: .8rem; line-height: 1.3; color: var(--ink-soft); }
+.coop-say[hidden] { display: none; }
+.watch-bar.asking .coop-say { color: var(--ink); }
+/* two requests at once (play together, join my board): the second under the first */
+.pair-ask ~ .pair-ask { top: calc(env(safe-area-inset-top, 0px) + 5.6rem); }
+
+/* playing one board with your partner (coop-page.js): who you are with, whether they are here, and the way out */
+.coop-bar { display: flex; align-items: center; gap: .45rem; min-width: 0; font-size: .82rem; color: var(--ink-soft); }
+.coop-bar[hidden] { display: none; }
+.coop-dot { flex: none; width: .6rem; height: .6rem; border-radius: 50%; background: var(--learn); }
+.coop-bar.away .coop-dot { background: none; box-shadow: inset 0 0 0 1.5px var(--ink-soft); }
+.coop-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coop-who b { color: var(--ink); font-weight: 800; }
+.coop-leave { flex: none; min-height: 2.125rem; padding: 0 .75rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--yard); color: var(--ink);
+  font: inherit; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); cursor: pointer; touch-action: manipulation; }
+html:is([data-theme="modern"], [data-theme="office"]) .coop-leave { border-radius: 12px; font-stretch: 100%; text-transform: none; letter-spacing: normal; }
+html[data-theme="kontor"] .coop-leave { border-radius: 2px; border-width: 1px; font-stretch: 100%; }
 
 .code-chip svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex: none; }
 .partner-line { min-width: 0; flex: 1 1 auto; border: 0; background: none; padding: .3rem .1rem; font: inherit; font-size: .78rem; font-weight: 700;

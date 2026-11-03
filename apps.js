@@ -522,7 +522,7 @@ export const APPS = [
   { id: "bridges", sec: "classics", name: "Bridges", href: "./bridges.html", logo: LOGO("bridges", BRIDGES_LOGO), players: [1, 1] },
   { id: "masyu", sec: "classics", name: "Masyu", href: "./masyu.html", logo: LOGO("masyu", MASYU_LOGO), players: [1, 1] },
   { id: "nurikabe", sec: "classics", name: "Nurikabe", href: "./nurikabe.html", logo: LOGO("nurikabe", NURIKABE_LOGO), players: [1, 1] },
-  { id: "slitherlink", sec: "classics", name: "Slitherlink", href: "./slitherlink.html", logo: LOGO("slitherlink", SLITHERLINK_LOGO), players: [1, 1] },
+  { id: "slitherlink", sec: "classics", name: "Slitherlink", href: "./slitherlink.html", logo: LOGO("slitherlink", SLITHERLINK_LOGO), players: [1, 2] },
   { id: "party", sec: "party", name: "Party", href: "./party.html", logo: LOGO("party", PARTY_LOGO), players: [2, 24] },
   // Party's games, each with a tile of its own: it opens Party on that game (the room's made there)
   { id: "undercover", sec: "party", name: "Undercover", href: "./party.html?game=undercover", logo: LOGO("undercover", UNDERCOVER_LOGO), players: [3, 12], party: true },

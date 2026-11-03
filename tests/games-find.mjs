@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import { favourites, setFavourite, listing, FAVOURITES, FAV, takes, PLAYERS, AKA, fold, searchable, answers, shows, nothing, pulls } from "../games-find.js";
 import { GAMES, ELSEWHERE } from "../party-core.js";
+import { COOP_GAMES } from "../coop-games.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -26,14 +27,15 @@ check(!noPlayers.length, `every entry has players: [fewest, most]${noPlayers.len
 check(APPS.every(a => a.players && Number.isInteger(a.players[0]) && Number.isInteger(a.players[1]) && a.players[0] >= 1 && a.players[0] <= a.players[1]), "…each a whole range, the fewest at least one");
 // what each game offers, from the places that decide it: Party's own games (their min and max, one phone too where they have a solo()),
 // a table or duo match in party-core's ELSEWHERE (one person plays too: the computer fills the seats; the most the table seats), a
-// duo match without a party table (the pair's two), else one person alone
+// duo match without a party table (the pair's two), a board two share through a party of two (coop-games.js: they take the
+// pair's two, and are in neither DUO_GAMES nor ELSEWHERE, whose games are matches dealt in the pair's room or a table's), else one person alone
 const duo = Object.fromEntries([...fs.readFileSync(root + "suite.js", "utf8").match(/DUO_GAMES = \{([^}]*)\}/)[1].matchAll(/(\w+): "/g)].map(m => [m[1], 1]));
 const BY_HAND = new Set(["party", "cue"]);       // Party's lobby for 2 to 24; Cue, one phone passed round
 const off = [];
 for (const a of APPS) {
   if (!a.players || a.soon || BY_HAND.has(a.id)) continue;
   const party = GAMES.find(g => g.id === a.id), e = ELSEWHERE.find(x => x.id === a.id);
-  const want = party ? [typeof party.solo === "function" ? 1 : party.min, party.max] : e ? [1, e.max] : duo[a.id] || a.id === "glyph" ? [1, 2] : [1, 1];
+  const want = party ? [typeof party.solo === "function" ? 1 : party.min, party.max] : e ? [1, e.max] : duo[a.id] || COOP_GAMES[a.id] || a.id === "glyph" ? [1, 2] : [1, 1];
   if (!same(a.players, want)) off.push(`${a.id} ${JSON.stringify(a.players)} not ${JSON.stringify(want)}`);
 }
 check(!off.length, `players agree with party-core.js, DUO_GAMES and what each game seats${off.length ? `: ${off.join("; ")}` : ""} (a game that gets a table or a party changes its entry)`);

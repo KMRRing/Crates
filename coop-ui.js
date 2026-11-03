@@ -3,11 +3,11 @@
 // while the two of you share it. Loaded by suite.js only when it is wanted, so it takes what it needs from there as
 // arguments rather than importing it (suite.js does not finish loading on a watching page, and a module waiting on it
 // would never run).
-import { COOP_GAMES } from "./coop-games.js";
+import { coopGame, coopAdapter } from "./coop-games.js";
 import { requestJoin, cancelJoin, lapseJoin, declineJoin, acceptJoin, coopHref, shouldFollow, open, JOIN_FOR } from "./coop-request.js";
 
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-const first = name => String(name || "your partner").trim().split(/\s+/)[0] || "your partner";
+export const firstName = name => String(name || "your partner").trim().split(/\s+/)[0] || "your partner";
 
 // ---------- the joiner: the watching bar ----------
 /**
@@ -17,24 +17,25 @@ const first = name => String(name || "your partner").trim().split(/\s+/)[0] || "
  * game, who() (the partner's name), go(href, at) }.
  */
 export function watchJoin(ctx) {
-  const entry = COOP_GAMES[ctx.game];
+  const entry = coopGame(ctx.game);
   if (!entry) return { partner() {} };
-  const note = ctx.bar.querySelector("span"), stop = ctx.bar.querySelector("button");
+  const stop = ctx.bar.querySelector("button"), say = el("small", "coop-say");
+  ctx.bar.append(say);
   const ask = el("button", "btn primary", "Request to join");
   ask.type = "button";
   ask.dataset.join = "1";
   ctx.bar.insertBefore(ask, stop);
-  const base = note.textContent;
   let here = null, mine = null, timer = null, said = "", clear = null;       // mine: { at } while a request of this page's is out
-  const who = () => first(ctx.who() || here?.name);
+  const who = () => firstName(ctx.who() || here?.name);
   const words = text => { said = text; draw(); };
   function draw() {
     const live = !!here && here.game === ctx.game && here.mode === "solo" && here.online !== false;
-    note.hidden = false;
     ask.disabled = !!mine?.answered || (!mine && !live);
     ask.className = mine ? "btn" : "btn primary";
     ask.textContent = mine ? (mine.answered ? "Opening…" : "Cancel request") : "Request to join";
-    note.textContent = said || (mine ? `Asking ${who()}…` : !live ? `${base} (${who()} isn't in ${entry.name} now)` : base);
+    const text = said || (mine ? `Asking ${who()}…` : !live ? `${who()} isn't playing ${entry.name} on their own now` : "");
+    say.textContent = text;
+    say.hidden = !text;
     ctx.bar.classList.toggle("asking", !!mine);
   }
   function finish(text, ms = 4000) {
@@ -88,16 +89,17 @@ let hosting = null;      // { at, busy } while a request's prompt is up on this 
  */
 export function onJoinNode(a, ctx) {
   if (a && a.from === ctx.me) {
-    if (shouldFollow(a, { uid: ctx.sync.uid, pid: ctx.me, followed: ctx.followed() })) ctx.go(coopHref(COOP_GAMES[a.game], a.party, a.playAt), a.at);
+    const game = coopGame(a.game);
+    if (game && shouldFollow(a, { uid: ctx.sync.uid, pid: ctx.me, followed: ctx.followed() })) ctx.go(coopHref(game, a.party, a.playAt), a.at);
     return;
   }
-  const entry = a && COOP_GAMES[a.game];
+  const entry = a && coopGame(a.game);
   if (hosting?.busy && a?.at === hosting.at) return;                 // opening the party: the prompt says so until it is done
   if (!entry || a.answer || !open(a)) { hosting = null; ctx.banner(null, "join"); return; }
   const bar = el("div", "pair-ask");
   bar.setAttribute("role", "alertdialog");
   bar.innerHTML = '<span><b></b> wants to join your <i></i></span><button class="btn primary" type="button" data-yes>Accept</button><button class="btn" type="button" data-no>Not now</button>';
-  bar.querySelector("b").textContent = first(a.name);
+  bar.querySelector("b").textContent = firstName(a.name);
   bar.querySelector("i").textContent = entry.name;
   const say = text => { bar.querySelector("span").textContent = text; for (const b of bar.querySelectorAll("button")) b.remove(); ctx.banner(bar, "join"); };
   bar.querySelector("[data-yes]").addEventListener("click", async () => {
@@ -105,7 +107,10 @@ export function onJoinNode(a, ctx) {
     hosting = { at: a.at, busy: true };
     bar.querySelector("span").textContent = "Opening the co-op…";
     let r;
-    try { r = await acceptJoin(ctx.sync, ctx.pair, a, { uid: ctx.sync.uid, pid: ctx.me, name: ctx.name() }, { game: entry, board: entry.share(ctx.saved(entry.keys)) }); }
+    try {
+      const adapter = await coopAdapter(entry.id);                  // the game's engine comes in now, not before anyone asked
+      r = await acceptJoin(ctx.sync, ctx.pair, a, { uid: ctx.sync.uid, pid: ctx.me, name: ctx.name() }, { game: entry, board: adapter.share(ctx.saved(entry.keys)) });
+    }
     catch (e) { console.error(e); r = { ok: false, why: "error" }; }
     hosting = null;
     if (r.ok) { say("Opening the co-op…"); ctx.go(coopHref(entry, r.code, r.at), a.at); return; }
@@ -128,13 +133,14 @@ export function onJoinNode(a, ctx) {
 export function createCoopBar({ onLeave }) {
   const bar = el("div", "coop-bar");
   bar.setAttribute("role", "status");
+  bar.hidden = true;                                       // until set() says who it is with
   bar.innerHTML = '<i class="coop-dot" aria-hidden="true"></i><span class="coop-who"></span><button class="coop-leave" type="button"></button>';
   const who = bar.querySelector(".coop-who"), leave = bar.querySelector(".coop-leave");
   leave.addEventListener("click", () => onLeave());
   return {
     el: bar,
     set({ name, here = true, host = false }) {
-      who.replaceChildren("Co-op with ", Object.assign(el("b"), { textContent: first(name) }), here ? "" : " (away)");
+      who.replaceChildren("Co-op with ", Object.assign(el("b"), { textContent: firstName(name) }), here ? "" : " (away)");
       leave.textContent = host ? "End" : "Leave";
       leave.setAttribute("aria-label", host ? "End the co-op" : "Leave the co-op");
       bar.classList.toggle("away", !here);

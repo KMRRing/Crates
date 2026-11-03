@@ -199,4 +199,13 @@ const marks = p => p.editor.view.layers.marks;
   A.stop(); B.stop();
 }
 
+// ---------- a game's own rules ----------
+{
+  const board = { fixed: {}, layers: { marks: "0000" }, rev: 0 }, rules = { frozen: b => !!b.once?.done };
+  apply(board, [cellEdit("marks", 0, "0", "1"), onceEdit("done", { ms: 1 }), cellEdit("marks", 1, "0", "1")], rules);
+  check(board.layers.marks === "1000" && board.once.done.ms === 1, "a rule can freeze the cells once the board is solved: a tap on its way after the solve changes nothing");
+  apply(board, [cellEdit("marks", 2, "0", "2")]);
+  check(board.layers.marks === "1020", "and without that rule the same edit goes in");
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; } else console.log("board-share: the cell rule, edits and two editors on one board hold");
