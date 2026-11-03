@@ -260,7 +260,7 @@ $("stage").addEventListener("pointermove", e => {
   touch.x = e.clientX; touch.y = e.clientY;
   const before = aim.charge, r = pullMove(lvl, touch.drag, dx, dy, full(), DEAD_REM * rootPx());
   aim = r.aim;
-  if (r.ticks) { sound.play("tick", { n: Math.floor(aim.charge) }); flashCell(before, aim.charge); }
+  if (r.ticks) { sound.play("tick", { n: Math.floor(aim.charge) }); flashCell(before, aim.charge); navigator.vibrate?.(6); }
   ropeNow(e);
   changed();
   keepSoon();
@@ -359,7 +359,7 @@ function openMenu() {
   body.replaceChildren();
   part(body, "play").append(action(`Replay ${lvl.name}`, restart, "primary"));
   part(body, "content").append(levelList());
-  part(body, "settings").append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("tick", { n: 6 }); }));
+  part(body, "settings").append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); }));
   const total = camp.stars.reduce((a, b) => a + b, 0), beaten = camp.stars.filter(Boolean).length;
   part(body, "about").append(line(`${plural(beaten, "level")} of ${LEVELS.length} struck, ${plural(total, "star")} of ${LEVELS.length * 3}. The Earth alone for now; the Moon comes later.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -374,7 +374,10 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 
 // the pause rule: the scene, the sound and the shot in the air stand still while a menu is open or the page is away
 function settleAway() {
-  if (document.hidden || isPaused()) { view.hold(); sound.suspend(); }
+  if (document.hidden || isPaused()) {
+    if (touch) { clearTimeout(touch.timer); touch = null; view.ff(false); view.setRope(null); }      // a finger the page lost sight of is let go
+    view.hold(); sound.suspend();
+  }
   else { view.release(); sound.resume(); }
 }
 onPause(settleAway, settleAway);
