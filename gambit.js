@@ -1,14 +1,14 @@
-// Gambit: chess against Stockfish at a strength you choose, two players on one phone, or a match with your partner. The
+// Gambit: chess against Caissa at a strength you choose, two players on one phone, or a match with your partner. The
 // rules are chess.js's (gambit-rules.js keeps the game as plain JSON), the board chess-board.js's; the computer's moves,
-// the coach and the review at the end are Stockfish's (uci.js, in a worker, loaded only when a game against it needs
-// it; the coach's judgement is uci-coach.js's). The game in play is kept as it changes (gambit:game) and picked up on
+// the coach and the review at the end are Caissa's (uci.js, in the worker gambit-engine-worker.js, loaded only when a
+// game against it needs it; the coach's judgement is uci-coach.js's). The game in play is kept as it changes (gambit:game) and picked up on
 // reload. Its puzzle rush is a page of its own under its header (Menu, Puzzle rush: rush.html, rush.js).
 import * as G from "./gambit-rules.js";
 import { mountBoard } from "./chess-board.js";
 import { PIECES } from "./chess-pieces.js";
 import { LEVELS, levelById, HINT, REVIEW } from "./gambit-levels.js";
 import { openingOf } from "./gambit-openings.js";
-import { Engine, WORKERS, levelMove } from "./uci.js";
+import { Engine, levelMove } from "./uci.js";
 import { COACH, isCoach, createCoach } from "./uci-coach.js";
 import { Chess } from "./vendor/chess.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -77,8 +77,8 @@ const played = () => {
 };
 
 // ---------- the engine ----------
-const engine = new Engine(WORKERS.stockfish);
-const FULL = { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false };     // the engine unlimited: the review
+const engine = new Engine(() => new Worker(new URL("./gambit-engine-worker.js", import.meta.url), { type: "module" }));
+const FULL = { MultiPV: 1 };                                      // the best line only: the review
 const coach = createCoach(engine, { limit: HINT.limit, alone: HINT.alone });
 let engineUp = false;
 async function ensureEngine() {
@@ -531,7 +531,7 @@ ${row("P", "Pawn", "One square forward, two on its first move; it captures one s
 <h4>Reading the moves</h4>
 <p>Moves are in standard algebraic notation: the piece's letter (K, Q, R, B, N; none for a pawn) and the square it goes to, x for a capture, + for check and # for mate, O-O and O-O-O for castling, =Q for a promotion: <b>Nf3</b>, <b>exd5</b>, <b>Qxf7#</b>. The opening's name, with its ECO code (the Encyclopaedia of Chess Openings' index), shows as you play.</p>
 <h4>The computer</h4>
-<p>The computer player is Stockfish (GPL v3: <a href="vendor/stockfish/Copying.txt" target="_blank" rel="noopener">licence</a>, <a href="https://github.com/nmrugg/stockfish.js" target="_blank" rel="noopener">source</a>), playing at the strength you choose in the menu. It's also the coach (Menu, Coach): Hints shows its strongest moves when you ask, as arrows, with what it makes of the position; Check adds a word after a move of yours that gave a good deal away, a mistake (?) or a blunder (??), with the better move, and Show puts the board back to see it; Always shows the strongest moves at each of yours without asking. At the end, it shows where you lost most.</p>`;
+<p>The computer player is Caissa by Michał Witanowski (MIT: <a href="vendor/caissa/LICENSE-Caissa.txt" target="_blank" rel="noopener">licence</a>, <a href="https://github.com/Witek902/Caissa" target="_blank" rel="noopener">source</a>), playing at the strength you choose in the menu. It's also the coach (Menu, Coach): Hints shows its strongest moves when you ask, as arrows, with what it makes of the position; Check adds a word after a move of yours that gave a good deal away, a mistake (?) or a blunder (??), with the better move, and Show puts the board back to see it; Always shows the strongest moves at each of yours without asking. At the end, it shows where you lost most.</p>`;
 }
 
 // ---------- the menu ----------

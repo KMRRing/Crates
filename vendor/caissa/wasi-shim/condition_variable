@@ -1,0 +1,17 @@
+// A stand-in for <condition_variable> in the WebAssembly build, which has one thread: nobody else can ever make a
+// condition true, so waiting for one that isn't already true can only stop the engine.
+#pragma once
+#include <cstdlib>
+#include <mutex>
+namespace std {
+class condition_variable {
+ public:
+  void notify_one() noexcept {}
+  void notify_all() noexcept {}
+  void wait(unique_lock<mutex>&) { abort(); }
+  template <class P>
+  void wait(unique_lock<mutex>&, P pred) { if (!pred()) abort(); }
+  template <class D, class P>
+  bool wait_for(unique_lock<mutex>&, const D&, P pred) { return pred(); }
+};
+}

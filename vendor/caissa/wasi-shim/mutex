@@ -1,0 +1,37 @@
+// A stand-in for <mutex> in the WebAssembly build, which has one thread: a lock is always free and holding it
+// does nothing. (The C++ library for WebAssembly is built without threads and leaves <mutex> out.)
+#pragma once
+namespace std {
+class mutex {
+ public:
+  mutex() = default;
+  mutex(const mutex&) = delete;
+  mutex& operator=(const mutex&) = delete;
+  void lock() {}
+  bool try_lock() { return true; }
+  void unlock() {}
+};
+
+template <class M>
+class lock_guard {
+ public:
+  explicit lock_guard(M&) {}
+  lock_guard(const lock_guard&) = delete;
+  lock_guard& operator=(const lock_guard&) = delete;
+};
+
+template <class M>
+class unique_lock {
+ public:
+  using mutex_type = M;
+  unique_lock() noexcept : m_(nullptr) {}
+  explicit unique_lock(M& m) : m_(&m) {}
+  unique_lock(const unique_lock&) = delete;
+  unique_lock& operator=(const unique_lock&) = delete;
+  void lock() {}
+  void unlock() {}
+  M* mutex() const noexcept { return m_; }
+ private:
+  M* m_;
+};
+}
