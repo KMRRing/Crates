@@ -1,48 +1,56 @@
-// Slipway: a ship's parts carved by hand, one block of timber at a time. Each part's ghost lies in the block; slide it
-// along the block (or turn it end for end) to keep the knots out of it, then work the wood away: the saw cuts straight
-// through along the line you draw, the plane shaves where you stroke it, the chisel takes chips, the drill bores
-// straight in along your line of sight, the sandpaper smooths. Two fingers (or the Turn tool) turn the block round.
-// Finish grades it: how little waste is left, how little of the part you cut into, and whether a knot is in it. The
-// cutting and the grade are slipway-carve.js's, the bench slipway-3d.js's; this file takes the strokes and keeps it.
-import { PARTS, SLACK, newBlock, place, saw, plane, chisel, drill, sand, hit, grade, pack, unpack, normalAt, steady, exposed, planeCut } from "./slipway-carve.js";
+// Slipway: a puzzle of a ship's parts, each freed from its block with a few tools used from the right side and in the
+// right order. A saw cuts the plane through your eye and the line you draw (so look at a face edge-on to cut it), the plane
+// takes the top layers of the waste under its sole, the drill goes straight along your line of sight. Every tool has a
+// few uses; the stars are for how few you needed. The rules are slipway-puzzle.js's and the levels slipway-levels.js's
+// (both tested in Node); the bench is slipway-3d.js's; this file takes the strokes and keeps the game.
+import { LEVELS } from "./slipway-levels.js";
+import { newBlock, place, hit, pack, unpack, VIEWS } from "./slipway-carve.js";
+import { planSaw, doSaw, outline, strokeFacing, doPlane, planDrill, doDrill, status, starsFor, left, newUsed, hint, blockFor } from "./slipway-puzzle.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, action, line, toggle } from "./menu.js";
+import { sure } from "./sure.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
-import { createFit } from "./slipway-fit.js";
-import { starsTotal, ASSEMBLIES } from "./slipway-yard.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const CARVE = "slipway:carve", MADE = "slipway:parts", BEST = "slipway:best", OPTS = "slipway:opts", FITTED = "slipway:fitted";
+const CARVE = "slipway:carve", MADE = "slipway:parts", BEST = "slipway:best", OPTS = "slipway:opts";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+const forget = k => { if (!IN_FRAME) try { localStorage.removeItem(k); } catch { /* private mode */ } };
 const pct = x => `${Math.round(x * 100)}%`;
-const starsOf = score => (score >= 90 ? 3 : score >= 75 ? 2 : score >= 55 ? 1 : 0);
 const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
-
-// Slipway was a merge game until 19 October 2026: its best was a score in the tens of thousands, which isn't a count of
-// stars, so it's kept apart where the games screen doesn't read it.
-{
-  const old = read(BEST, null);
-  if (!read(CARVE, null) && typeof old === "number" && old > PARTS.length * 3) { write("slipway:yard-best", old); write(BEST, 0); }
-}
+const TOOL_NAMES = { saw: "Saw", plane: "Plane", drill: "Drill" };
 
 let opts = { sound: true, ghost: true, ...read(OPTS, {}) };
 const saveOpts = () => write(OPTS, opts);
+
+// ---------- what an older Slipway left ----------
+// The carving game kept its block in slipway:carve (version 1), each part's score in slipway:parts (a number) and the
+// stars in slipway:best; the yard its fittings in slipway:fit and slipway:fitted. The puzzle keeps its own under the same
+// names, and reads only what it wrote: a number where it wants a result, or a version-1 block, is ignored and replaced.
+forget("slipway:fit");
+forget("slipway:fitted");
+/** The results kept: { level id: { s: stars, u: tools used } }. */
+function results() {
+  const all = read(MADE, {}), out = {};
+  if (all && typeof all === "object") for (const l of LEVELS) { const r = all[l.id]; if (r && typeof r === "object" && r.s >= 1 && r.s <= 3 && r.u > 0) out[l.id] = { s: r.s | 0, u: r.u | 0 }; }
+  return out;
+}
+const starsOf = id => results()[id]?.s ?? 0;
+const totalStars = () => Object.values(results()).reduce((n, r) => n + r.s, 0);
+const unlocked = i => i === 0 || starsOf(LEVELS[i - 1].id) > 0 || (i > 1 && starsOf(LEVELS[i - 2].id) > 0);
+write(BEST, totalStars());                                            // the games screen shows the puzzle's stars, not the old game's
 
 // ---------- the tools ----------
 const ICON = {
   turn: `<path d="M5 12a7 7 0 0 1 12-5l2-2v6h-6l2.2-2.2A4.6 4.6 0 0 0 7.4 12"/><path d="M19 12a7 7 0 0 1-12 5l-2 2v-6h6l-2.2 2.2A4.6 4.6 0 0 0 16.6 12"/>`,
   saw: `<path d="M3 15l12-12 3 3-12 12z"/><path d="M5 17l-1.5 1.5M8 14l-1.5 1.5M11 11l-1.5 1.5M14 8l-1.5 1.5"/><path d="M15 3l6 6-2 2"/>`,
   plane: `<path d="M3 16h18v3H3z"/><path d="M6 16l3-6h7l2 6"/><path d="M12 10V6l3-2"/>`,
-  chisel: `<path d="M4 20l5-5"/><path d="M8 13l3 3 9-9-3-3z"/><path d="M17 4l3 3"/>`,
   drill: `<path d="M4 8h9v6H4z"/><path d="M13 10h4l3 1-3 1h-4"/><path d="M6 14v6h4v-6"/>`,
-  sand: `<path d="M4 9h16v8H4z"/><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 14.5h.01M12 14.5h.01M16 14.5h.01"/>`,
 };
-const TOOLS = [["turn", "Turn"], ["saw", "Saw"], ["plane", "Plane"], ["chisel", "Chisel"], ["drill", "Drill"], ["sand", "Sand"]];
-const REACH = { plane: 3.4, chisel: 1.25, drill: 1.5, sand: 2.4 };      // the cursor's radius, in cells, as the tool cuts
-let tool = "saw";
+const REACH = { plane: 3.5, drill: 1.5 };                             // the cursor's radius, in cells, as the tool works
+let tool = "turn";
 
 // ---------- the sounds, made as they play (no files) ----------
 let audio = null;
@@ -66,122 +74,131 @@ function noise(ms, { lo = 200, hi = 4000, gain = 0.25, decay = 0.6, rate = 0 } =
 }
 const SOUND = {
   saw: () => noise(520, { lo: 900, hi: 5200, gain: 0.32, decay: 0.3, rate: 7 }),
-  plane: () => noise(110, { lo: 1800, hi: 9000, gain: 0.16, decay: 1.4 }),
-  chisel: () => noise(45, { lo: 600, hi: 3000, gain: 0.3, decay: 3 }),
+  plane: () => noise(220, { lo: 1800, hi: 9000, gain: 0.18, decay: 1.2 }),
   drill: () => noise(420, { lo: 300, hi: 1600, gain: 0.22, decay: 0.4, rate: 30 }),
-  sand: () => noise(90, { lo: 3000, hi: 11000, gain: 0.1, decay: 1 }),
-  gale: () => noise(2400, { lo: 150, hi: 900, gain: 0.3, decay: 0.25, rate: 5 }),
+  done: () => noise(380, { lo: 500, hi: 2400, gain: 0.2, decay: 0.8, rate: 3 }),
 };
-let lastSound = 0;
-const sound = kind => { const t = performance.now(); if (t - lastSound > (kind === "plane" || kind === "sand" ? 90 : 30)) { lastSound = t; SOUND[kind](); } };
+const sound = kind => SOUND[kind]?.();
 
 // ---------- the block and its keeping ----------
-let B = null;              // the block (slipway-carve.js's)
-let run = null;            // { part, seed, started }
-let undo = [];             // the block's wood before each stroke, the last ten
+let at = 0;                // the level in hand
+let B = null;              // its block (slipway-carve.js's)
+let used = newUsed();      // tool uses so far
+let done = false;          // solved (and the result kept)
+let undo = [];             // the block and the uses before each tool use
 let bench = null;
-let fit = null;            // the yard (slipway-fit.js)
-const made = () => read(MADE, {});
-const unlocked = i => i === 0 || (made()[PARTS[i - 1].id] ?? 0) >= 55;
+let hintText = "", hintStep = 0;
+const L = () => LEVELS[at];
+const uses = () => used.saw + used.plane + used.drill;
 
 let saveTimer = 0;
-function save(now = false) {
+function save() {
   clearTimeout(saveTimer);
-  const go = () => write(CARVE, { v: 1, part: run.part, seed: run.seed, off: B.off, flip: B.flip, started: run.started, d: pack(B.d) });
-  if (now) go(); else saveTimer = setTimeout(go, 350);
+  write(CARVE, { v: 2, level: at, off: B.off, flip: B.flip, used, done, d: pack(B.d) });
 }
-function start(i, seed = (Math.random() * 2 ** 31) >>> 0) {
-  run = { part: i, seed, started: false };
-  B = newBlock(i, seed);
+function start(i) {
+  at = i;
+  B = blockFor(LEVELS[i]);
+  used = newUsed();
   undo = [];
+  done = false;
+  hintText = ""; hintStep = 0;
+  tool = "turn";
   bench?.setBlock(B);
-  save(true);
+  markViews(0);
+  save();
   render();
 }
 function load() {
   const s = read(CARVE, null);
-  if (!s || s.v !== 1 || !PARTS[s.part]) { start(0); return; }
-  run = { part: s.part, seed: s.seed, started: !!s.started };
-  B = newBlock(s.part, s.seed);
-  place(B, s.off, s.flip);
+  const level = s?.v === 2 ? LEVELS[s.level] : null;
+  if (!level) { start(Math.max(0, LEVELS.findIndex((l, i) => unlocked(i) && !starsOf(l.id)))); return; }
+  at = s.level;
+  B = newBlock(level, { off: +s.off || 0, flip: !!s.flip });
   if (typeof s.d === "string") B.d = unpack(s.d, B.d.length);
+  used = newUsed();
+  for (const t of Object.keys(used)) used[t] = Math.max(0, Math.min(level.budget[t] || 0, s.used?.[t] | 0));
+  done = !!s.done && status(B).solved;
+  undo = [];
   bench?.setBlock(B);
   render();
 }
-function snapshot() { undo.push(B.d.slice()); if (undo.length > 10) undo.shift(); }
-function touched() {
-  if (!run.started) { run.started = true; render(); }
-}
+/** Remembers the block as it was (`d`, the wood before the use) and the uses so far, for Undo. */
+function snapshot(d = B.d.slice()) { undo.push({ d, used: { ...used }, done }); if (undo.length > 40) undo.shift(); }
 
 // ---------- drawing the page ----------
 function render() {
-  if (fit?.open) { fit.render(); return; }
-  const p = PARTS[run.part], best = made()[p.id];
-  $("partName").textContent = p.name;
-  $("partNo").textContent = `${run.part + 1} of ${PARTS.length} · the cog`;
-  $("partStars").textContent = best != null ? starText(starsOf(best)) : "";
-  $("tools").innerHTML = TOOLS.map(([id, name]) => `<button type="button" class="sw-tool${tool === id ? " on" : ""}" data-tool="${id}" aria-pressed="${tool === id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[id]}</svg><span>${name}</span></button>`).join("");
-  const nextView = VIEW_NAMES[(viewAt + 1) % VIEW_NAMES.length];
-  $("acts").innerHTML = run.started
-    ? `<button type="button" class="btn sw-act" data-act="undo" ${undo.length ? "" : "disabled"}>Undo</button><button type="button" class="btn sw-act" data-act="view">${nextView[1]}</button><button type="button" class="btn primary sw-act" data-act="finish">Finish</button>`
-    : `<button type="button" class="btn sw-act" data-act="left" aria-label="Slide the part left" ${B.off > 0 ? "" : "disabled"}>◀</button><button type="button" class="btn sw-act" data-act="flip">End for end</button><button type="button" class="btn sw-act" data-act="right" aria-label="Slide the part right" ${B.off < SLACK ? "" : "disabled"}>▶</button><button type="button" class="btn sw-act" data-act="view">${nextView[1]}</button>`;
-  sayGrade();
+  const lv = L(), best = results()[lv.id];
+  $("partName").textContent = lv.name;
+  $("partNo").textContent = `${at + 1} of ${LEVELS.length} · par ${lv.par} · used ${uses()}`;
+  $("partStars").textContent = best ? starText(best.s) : "";
+  const tools = ["turn", ...Object.keys(lv.budget)];
+  $("tools").style.setProperty("--n", String(tools.length));
+  $("tools").innerHTML = tools.map(id => {
+    const n = id === "turn" ? "" : left(lv, used, id), off = id !== "turn" && (n <= 0 || done);
+    return `<button type="button" class="sw-tool${tool === id ? " on" : ""}" data-tool="${id}" aria-pressed="${tool === id}" ${off ? "disabled" : ""}><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[id]}</svg><span>${id === "turn" ? "Turn" : TOOL_NAMES[id]}</span>${id === "turn" ? "" : `<i class="sw-n" aria-label="${n} left">${n}</i>`}</button>`;
+  }).join("");
+  const started = uses() > 0;
+  $("setup").hidden = !lv.slack;
+  $("setup").innerHTML = lv.slack ? `<button type="button" class="btn sw-act" data-act="left" aria-label="Slide the part left" ${started || B.off <= 0 ? "disabled" : ""}>◀</button><button type="button" class="btn sw-act" data-act="flip" ${started ? "disabled" : ""}>Turn end for end</button><button type="button" class="btn sw-act" data-act="right" aria-label="Slide the part right" ${started || B.off >= B.nx - B.px ? "disabled" : ""}>▶</button>` : "";
+  $("acts").innerHTML = `<button type="button" class="btn sw-act" data-act="undo" ${undo.length ? "" : "disabled"}>Undo</button><button type="button" class="btn sw-act" data-act="hint" ${done ? "disabled" : ""}>Hint</button><button type="button" class="btn sw-act" data-act="again" ${started ? "" : "disabled"}>Start over</button>`;
+  $("views").innerHTML = Object.keys(VIEWS).map(v => `<button type="button" data-view="${v}" aria-pressed="${viewNow === v}">${v[0].toUpperCase() + v.slice(1)}</button>`).join("");
+  sayState();
 }
-function sayGrade() {
-  const p = PARTS[run.part];
-  if (!run.started) {
-    const g = grade(B);
-    const tools = p.tools.split(", "), list = tools.length > 1 ? `${tools.slice(0, -1).join(", ")} and ${tools.at(-1)}` : tools[0];
-    $("line").innerHTML = `${p.line}${g.knots ? ` <b>A knot is in the outline: slide it clear.</b>` : ` <b>With the ${list}.</b>`}`;
-    return;
-  }
-  const g = grade(B);
-  // the waste as a share of the block while there's lots of it, then as a share of the part, which is what's graded
-  const waste = g.over < 1 ? `Waste on it <b>${pct(g.over)}</b>` : `Waste left <b>${pct(g.waste)}</b>`;
-  $("line").innerHTML = `${waste} · into the part <b class="${g.into > 0.005 ? "bad" : ""}">${pct(g.into)}</b>${g.knots ? ` · <b class="bad">${g.knots === 1 ? "a knot" : `${g.knots} knots`} in it</b>` : ""} · <b>${starText(g.stars)}</b>`;
+function sayState() {
+  const lv = L();
+  $("line").innerHTML = hintText ? `<b>Hint:</b> ${hintText}` : lv.line;
+  const st = status(B);
+  const chip = $("waste");
+  chip.textContent = done ? "Done" : `${pct(Math.min(1, st.waste))} waste`;
+  chip.classList.toggle("ok", done);
+  chip.classList.toggle("bad", !done && (st.into > 0.004 || st.knots > 0));
+}
+let viewNow = "corner";
+/** Which named view the camera is in, if any (marked on the buttons). */
+function markViews(delay = 0) {
+  setTimeout(() => {
+    if (!bench) return;
+    const [az, el] = bench.angles();
+    const was = viewNow;
+    viewNow = Object.entries(VIEWS).find(([, [a, e]]) => Math.abs(az - a) < 1.5 && Math.abs(el - e) < 1.5)?.[0] ?? "";
+    if (viewNow !== was) document.querySelectorAll("#views button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === viewNow)));
+  }, delay);
 }
 
 // ---------- pointing at the bench ----------
 const pointers = new Map();
-let mode = null, last = null, sawFrom = null, pinch = 0, moved = 0, refreshQueued = false;
-function queueRefresh() {
-  if (refreshQueued) return;
-  refreshQueued = true;
-  requestAnimationFrame(() => { refreshQueued = false; bench.refresh(); sayGrade(); save(); });
+let mode = null, last = null, sawFrom = null, pinch = 0, moved = 0, stroke = null;
+const local = e => { const r = bench.canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+/** The saw along a line drawn on the screen (canvas pixels): the plane through the eye and that line, laid by the rules. */
+function sawPlanFor(a, b) {
+  const r = bench.canvas.getBoundingClientRect(), ra = bench.ray(a[0] + r.left, a[1] + r.top), rb = bench.ray(b[0] + r.left, b[1] + r.top);
+  const n = [ra.d[1] * rb.d[2] - ra.d[2] * rb.d[1], ra.d[2] * rb.d[0] - ra.d[0] * rb.d[2], ra.d[0] * rb.d[1] - ra.d[1] * rb.d[0]], len = Math.hypot(...n);
+  if (len < 1e-6) return null;
+  const u = n.map(v => v / len);
+  return planSaw(B, u, dot(u, bench.eye()));
 }
-/**
- * The tool at a point of the screen: true if it took wood. A stroke takes only what was open to the air when it began
- * (the block's mask, slipway-carve.js's exposed), so it can't run away into the wood; the plane's sole keeps the facing
- * it had where the stroke began.
- */
-let ref = null;                                                          // the plane's facing and height for this stroke
-function cutAt(x, y) {
-  const r = bench.ray(x, y), h = hit(B, r.o, r.d);
-  if (!h) return false;
-  const p = h.p;
-  let n = h.n;
-  // the sole rests on the highest wood it has passed over this stroke, so it never sinks into a hollow and digs
-  if (tool === "plane") { if (!ref) { const f = steady(normalAt(B, ...p, 1.8)); ref = { n: f, cut: -Infinity }; } n = ref.n; ref.cut = Math.max(ref.cut, planeCut(p, n)); }
-  const took = tool === "plane" ? plane(B, p, n, ref.cut) : tool === "chisel" ? chisel(B, p, n) : sand(B, p);
-  if (took > 0.02) { touched(); sound(tool); return true; }
-  return false;
+function sawLine(a, b) {
+  $("over").innerHTML = a ? `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sw-cut"/><circle cx="${a[0]}" cy="${a[1]}" r="4" class="sw-cut-end"/><circle cx="${b[0]}" cy="${b[1]}" r="4" class="sw-cut-end"/>` : "";
+}
+function showGuide(a, b) {
+  const plan = Math.hypot(b[0] - a[0], b[1] - a[1]) >= 12 ? sawPlanFor(a, b) : null;
+  if (!plan) { bench.guide(null); return; }
+  bench.guide(outline(B, plan.u, plan.s), plan.ok ? "ok" : plan.reason === "into" ? "into" : "nothing");
 }
 function showCursor(x, y) {
   if (!REACH[tool]) { bench.cursor(null); return; }
   const r = bench.ray(x, y), h = hit(B, r.o, r.d);
   bench.cursor(h ? h.p : null, h ? h.n : null, REACH[tool]);
 }
-function sawLine(a, b) {
-  $("over").innerHTML = a ? `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sw-cut"/><circle cx="${a[0]}" cy="${a[1]}" r="4" class="sw-cut-end"/><circle cx="${b[0]}" cy="${b[1]}" r="4" class="sw-cut-end"/>` : "";
-}
-const local = e => { const r = bench.canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
 function onDown(e) {
   if (IN_FRAME || !bench) return;
   e.preventDefault();
   bench.canvas.setPointerCapture?.(e.pointerId);
   pointers.set(e.pointerId, [e.clientX, e.clientY]);
   if (pointers.size === 2) {
-    if (mode === "saw") sawLine(null);
+    if (mode === "saw") { sawLine(null); bench.guide(null); }
     mode = "orbit2";
     const [a, b] = [...pointers.values()];
     pinch = Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -191,14 +208,19 @@ function onDown(e) {
   if (pointers.size > 2) return;
   last = [e.clientX, e.clientY];
   moved = 0;
-  if (tool === "turn" || e.button === 2 || e.button === 1) mode = "orbit1";      // a mouse turns the block with its right or middle button
+  if (tool === "turn" || e.button === 2 || e.button === 1 || done) mode = "orbit1";      // a mouse turns the block with its right or middle button
   else if (tool === "saw") { mode = "saw"; sawFrom = local(e); sawLine(sawFrom, sawFrom); }
   else if (tool === "drill") mode = "drill";
-  else { mode = "stroke"; ref = null; snapshot(); B.mask = tool === "chisel" ? exposed(B) : null; if (cutAt(e.clientX, e.clientY)) queueRefresh(); }
+  else {
+    mode = "stroke";
+    const r = bench.ray(e.clientX, e.clientY), h = hit(B, r.o, r.d);
+    stroke = h ? { ns: [h.n], pts: [h.p] } : null;
+    showCursor(e.clientX, e.clientY);
+  }
 }
 function onMove(e) {
   if (!bench) return;
-  if (!pointers.has(e.pointerId)) { if (e.pointerType === "mouse" && !IN_FRAME) showCursor(e.clientX, e.clientY); return; }
+  if (!pointers.has(e.pointerId)) { if (e.pointerType === "mouse" && !IN_FRAME && !done) showCursor(e.clientX, e.clientY); return; }
   const prev = pointers.get(e.pointerId);
   pointers.set(e.pointerId, [e.clientX, e.clientY]);
   moved += Math.hypot(e.clientX - prev[0], e.clientY - prev[1]);
@@ -209,161 +231,203 @@ function onMove(e) {
   } else if (mode === "orbit1") {
     bench.orbit(e.clientX - last[0], e.clientY - last[1]);
     last = [e.clientX, e.clientY];
-  } else if (mode === "saw") sawLine(sawFrom, local(e));
+  } else if (mode === "saw") { const to = local(e); sawLine(sawFrom, to); showGuide(sawFrom, to); }
   else if (mode === "stroke") {
-    // the stroke laid down every few pixels, so a quick swipe cuts as evenly as a slow one
-    const dist = Math.hypot(e.clientX - last[0], e.clientY - last[1]), step = tool === "chisel" ? 3 : 4;
-    let any = false;
-    for (let s = step; s <= dist; s += step) any = cutAt(last[0] + (e.clientX - last[0]) * s / dist, last[1] + (e.clientY - last[1]) * s / dist) || any;
-    if (dist >= step) last = [e.clientX, e.clientY];
-    if (any) queueRefresh();
+    // the stroke follows the surface under the finger: a point every couple of cells along it
+    if (stroke) {
+      const r = bench.ray(e.clientX, e.clientY), h = hit(B, r.o, r.d);
+      if (h) {
+        const q = stroke.pts[stroke.pts.length - 1];
+        if (Math.hypot(h.p[0] - q[0], h.p[1] - q[1], h.p[2] - q[2]) > 1.2) { stroke.pts.push(h.p); stroke.ns.push(h.n); }
+      }
+    }
     showCursor(e.clientX, e.clientY);
   } else if (mode === "drill") showCursor(e.clientX, e.clientY);
 }
 function onUp(e) {
   if (!pointers.has(e.pointerId)) return;
   pointers.delete(e.pointerId);
-  if (mode === "orbit2") { if (!pointers.size) mode = null; else { mode = "done"; } return; }
+  if (mode === "orbit2") { if (!pointers.size) mode = null; else mode = "done"; markViews(450); return; }
   if (pointers.size) return;
   if (mode === "saw") {
     const end = local(e);
     sawLine(null);
+    bench.guide(null);
     if (Math.hypot(end[0] - sawFrom[0], end[1] - sawFrom[1]) >= 24) cutSaw(sawFrom, end);
   } else if (mode === "drill" && moved < 10) bore(e.clientX, e.clientY);
-  else if (mode === "stroke" && undo.length && undo[undo.length - 1].every((v, i) => v === B.d[i])) undo.pop();   // a stroke that took nothing isn't one to undo
+  else if (mode === "stroke" && stroke) { planeStroke({ n: strokeFacing(B, stroke.ns), pts: stroke.pts }); stroke = null; }
+  else if (mode === "orbit1") markViews(450);
   mode = null;
-  B.mask = null;
   if (e.pointerType !== "mouse") bench.cursor(null);
-  render();
-}
-/** The saw along a line drawn on the screen: the cut is the plane through your eye and that line. */
-function cutSaw(a, b) {
-  const r = bench.canvas.getBoundingClientRect(), ra = bench.ray(a[0] + r.left, a[1] + r.top), rb = bench.ray(b[0] + r.left, b[1] + r.top);
-  const n = [ra.d[1] * rb.d[2] - ra.d[2] * rb.d[1], ra.d[2] * rb.d[0] - ra.d[0] * rb.d[2], ra.d[0] * rb.d[1] - ra.d[1] * rb.d[0]];
-  const len = Math.hypot(...n);
-  if (len < 1e-6) return;
-  const u = n.map(v => v / len), o = bench.eye(), c = -(u[0] * o[0] + u[1] * o[1] + u[2] * o[2]);
-  snapshot();
-  const before = B.d.slice(), res = saw(B, u, c);
-  if (res.took < 0.5) { undo.pop(); toast("The cut missed the wood"); return; }
-  const gone = new Uint8Array(before.length);
-  for (let i = 0; i < gone.length; i++) gone[i] = before[i] - B.d[i];
-  bench.offcut(gone, u.map(v => v * res.side));
-  touched();
-  sound("saw");
-  if (res.into) toast("That cut went into the part");
-  queueRefresh();
-  setTimeout(() => bench.reframe(), 380);                                   // once the offcut is away, close in on what's left
-}
-/** The drill, straight in along the line of sight from where you tap. */
-function bore(x, y) {
-  const r = bench.ray(x, y), h = hit(B, r.o, r.d);
-  if (!h) return;
-  snapshot();
-  if (drill(B, h.p, r.d) < 0.3) { undo.pop(); return; }
-  touched();
-  sound("drill");
-  queueRefresh();
 }
 
-// ---------- the buttons ----------
-const VIEW_NAMES = [["start", "Corner"], ["side", "Side"], ["top", "Top"], ["end", "End"]];
-let viewAt = 0;
-$("tools").addEventListener("click", e => {
-  const b = e.target.closest("[data-tool]");
-  if (!b) return;
-  tool = b.dataset.tool;
-  bench?.cursor(null);
-  render();
-});
-$("acts").addEventListener("click", e => {
-  const b = e.target.closest("[data-act]");
-  if (!b || b.disabled) return;
-  const act = b.dataset.act;
-  if (act === "view") { viewAt = (viewAt + 1) % VIEW_NAMES.length; bench?.view(VIEW_NAMES[viewAt][0]); render(); return; }
-  if (act === "left" || act === "right" || act === "flip") {
-    place(B, B.off + (act === "left" ? -2 : act === "right" ? 2 : 0), act === "flip" ? !B.flip : B.flip);
-    bench?.replaced();
-    save();
-    render();
-    return;
-  }
-  if (act === "undo" && undo.length) {
-    B.d = undo.pop();
-    run.started = B.d.some(v => v < 255);
-    bench.refresh();
-    bench.reframe();
-    save();
-    render();
-    return;
-  }
-  if (act === "finish") finish();
-});
-
-// ---------- a part finished ----------
-function finish() {
-  const p = PARTS[run.part], g = grade(B), all = made(), before = all[p.id];
-  $("doneHead").textContent = g.stars ? `${p.name}: ${["", "it'll serve", "well made", "a shipwright's work"][g.stars]}` : `${p.name}: not good enough yet`;
-  $("doneStars").textContent = starText(g.stars);
-  $("doneBody").innerHTML = `<div><dt>Waste on it</dt><dd>${pct(Math.min(9.99, g.over))}</dd></div><div><dt>Cut into the part</dt><dd>${pct(g.into)}</dd></div><div><dt>Knots in it</dt><dd>${g.knots}</dd></div><div><dt>Score</dt><dd>${g.score}</dd></div>`;
-  $("doneNote").textContent = g.stars
-    ? (before != null && before >= g.score ? `Your best for it is ${before}.` : before != null ? `Better than your ${before} before.` : "")
-    : "A star needs 55: take off more of the waste, and keep the tools out of the part.";
-  if (g.stars && (before == null || g.score > before)) {
-    all[p.id] = g.score;
-    write(MADE, all);
-    write(BEST, starsTotal(all, read(FITTED, {})));
-    fit?.parts();
-  }
-  const last = run.part === PARTS.length - 1;
-  $("nextBtn").textContent = !g.stars ? "Keep carving" : last ? "Back to the first" : "Next part";
-  $("nextBtn").dataset.next = !g.stars ? "stay" : last ? "0" : String(run.part + 1);
-  $("againBtn").textContent = g.stars ? "Carve it again" : "A fresh block";
-  if (!$("doneDlg").open) $("doneDlg").showModal();
-  if (g.stars) roundOver("slipway");                       // a part made (not yet good enough, it's carved on)
-}
-$("nextBtn").addEventListener("click", () => {
-  $("doneDlg").close();
-  const n = $("nextBtn").dataset.next;
-  if (n !== "stay") start(Number(n));
-});
-$("againBtn").addEventListener("click", () => { $("doneDlg").close(); start(run.part); });
-
-// ---------- messages, the menu ----------
-let toastTimer = 0;
+// ---------- a tool used ----------
 function toast(msg) {
   const t = $("toast");
   t.textContent = msg;
   t.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove("show"), 2600);
 }
+const WHY = {
+  into: "That cut would go into the part.",
+  nothing: "That takes nothing.",
+  knot: "The iron skips on the knot: saw that corner, or saw it away first.",
+  skates: "The bit skates off a slope. Look square at a flat face to bore.",
+};
+/** After a tool is used: draw it, keep it, and see whether the part is free. */
+function afterUse(tool) {
+  hintText = ""; hintStep = 0;
+  sound(tool);
+  bench.refresh();
+  save();
+  const st = status(B);
+  if (st.solved) { finish(); return; }
+  render();
+  const lv = L();
+  if (Object.keys(lv.budget).every(t => left(lv, used, t) <= 0)) toast("Out of tools. Undo a use, or start over.");
+}
+function cutSaw(a, b) {
+  if (left(L(), used, "saw") <= 0) { toast("No saws left."); return; }
+  const plan = sawPlanFor(a, b);
+  if (!plan) return;
+  if (!plan.ok) { toast(WHY[plan.reason] || "That cut doesn't work."); return; }
+  const before = B.d.slice();
+  snapshot(before);
+  doSaw(B, plan);
+  const gone = new Uint8Array(before.length);
+  for (let i = 0; i < gone.length; i++) gone[i] = before[i] - B.d[i];
+  bench.offcut(gone, plan.u);
+  used.saw++;
+  afterUse("saw");
+  setTimeout(() => bench.reframe(), 380);                                   // once the offcut is away, close in on what's left
+}
+function planeStroke(s) {
+  if (left(L(), used, "plane") <= 0) { toast("No planes left."); return; }
+  const keep = B.d.slice(), r = doPlane(B, s.n, s.pts);
+  if (!r.ok) { B.d = keep; toast(WHY[r.reason] || "Nothing to plane there."); return; }
+  snapshot(keep);
+  used.plane++;
+  afterUse("plane");
+}
+/** The drill, straight in along the line of sight from where you tap. */
+function bore(x, y) {
+  if (left(L(), used, "drill") <= 0) { toast("No drills left."); return; }
+  const r = bench.ray(x, y), h = hit(B, r.o, r.d);
+  if (!h) return;
+  const plan = planDrill(B, h.p, h.n, bench.forward());
+  if (!plan.ok) { toast(WHY[plan.reason]); return; }
+  const keep = B.d.slice(), res = doDrill(B, plan);
+  if (!res.ok) { B.d = keep; toast("The bit finds nothing to bore."); return; }
+  snapshot(keep);
+  used.drill++;
+  afterUse("drill");
+}
+
+// ---------- the buttons ----------
+$("tools").addEventListener("click", e => {
+  const b = e.target.closest("[data-tool]");
+  if (!b || b.disabled) return;
+  tool = b.dataset.tool;
+  bench?.cursor(null);
+  render();
+});
+$("views").addEventListener("click", e => {
+  const b = e.target.closest("[data-view]");
+  if (!b || !bench) return;
+  bench.view(b.dataset.view);
+  viewNow = "";
+  markViews(420);
+});
+function act(name) {
+  if (name === "left" || name === "right" || name === "flip") {
+    if (uses()) return;
+    place(B, B.off + (name === "left" ? -2 : name === "right" ? 2 : 0), name === "flip" ? !B.flip : B.flip);
+    bench?.replaced();
+    hintText = "";
+    save();
+    render();
+  } else if (name === "undo" && undo.length) {
+    const u = undo.pop();
+    B.d = u.d; used = u.used; done = false;
+    hintText = ""; hintStep = 0;
+    bench.refresh();
+    bench.reframe();
+    save();
+    render();
+  } else if (name === "hint") giveHint();
+  else if (name === "again") restart();
+}
+$("acts").addEventListener("click", e => { const b = e.target.closest("[data-act]"); if (b && !b.disabled) act(b.dataset.act); });
+$("setup").addEventListener("click", e => { const b = e.target.closest("[data-act]"); if (b && !b.disabled) act(b.dataset.act); });
+async function restart() {
+  if (uses() && !done && !(await sure("Start this part again? Your uses so far are lost."))) return;
+  start(at);
+}
+const VIEW_WORDS = { side: "from the Side view", top: "from the Top view", end: "from the End view", corner: "from the Corner view", diag: "from level with the block, turned 45°, looking along a diagonal" };
+/** The first time names the tool, the second where to look from. */
+function giveHint() {
+  const h = hint(L(), B);
+  if (!h) { hintText = "Nothing more is needed here."; sayState(); return; }
+  hintStep++;
+  if (h.place) hintText = "First slide the part, or turn it end for end, so the knot ends up outside it.";
+  else {
+    const name = TOOL_NAMES[h.op.tool].toLowerCase();
+    hintText = hintStep === 1 ? `Use the ${name} next.` : `Use the ${name} next, ${VIEW_WORDS[h.op.view]}.`;
+  }
+  sayState();
+}
+
+// ---------- a part freed ----------
+function finish() {
+  const lv = L(), n = uses(), stars = starsFor(lv, n), all = results();
+  done = true;
+  const old = all[lv.id];
+  if (!old || stars > old.s || (stars === old.s && n < old.u)) {
+    all[lv.id] = { s: stars, u: n };
+    write(MADE, all);
+    write(BEST, totalStars());
+  }
+  save();
+  render();
+  $("doneHead").textContent = `${lv.name}: ${["", "freed", "well done", "at par or better"][stars]}`;
+  $("doneStars").textContent = starText(stars);
+  const st = status(B);
+  $("doneBody").innerHTML = `<div><dt>Tools used</dt><dd>${n}</dd></div><div><dt>Par</dt><dd>${lv.par}</dd></div><div><dt>Saws</dt><dd>${used.saw}</dd></div><div><dt>Planes</dt><dd>${used.plane}</dd></div><div><dt>Drills</dt><dd>${used.drill}</dd></div><div><dt>Waste left</dt><dd>${pct(Math.min(1, st.waste))}</dd></div>`;
+  $("doneNote").textContent = stars === 3 ? (n < lv.par ? "Under par." : "") : `Par is ${lv.par}: ${lv.par === 1 ? "one use" : `${lv.par} uses`} will do it.`;
+  const last = at === LEVELS.length - 1;
+  $("nextBtn").textContent = last ? "Back to the first" : "Next part";
+  $("nextBtn").dataset.next = String(last ? 0 : at + 1);
+  if (!$("doneDlg").open) $("doneDlg").showModal();
+  sound("done");
+  roundOver("slipway");
+}
+$("nextBtn").addEventListener("click", () => { $("doneDlg").close(); start(Number($("nextBtn").dataset.next)); });
+$("againBtn").addEventListener("click", () => { $("doneDlg").close(); start(at); });
+
+// ---------- the menu ----------
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const set = (...rows) => part(body, "settings").append(...rows);
-  if (fit.open) fit.menu(body);
-  else {
-    part(body, "play").append(action("A fresh block for this part", () => start(run.part), "primary"), action("To the yard: fit the parts together", () => setMode("yard")));
-    // the cog's parts in order: done with their stars, the one you're on, and those still locked
-    const list = document.createElement("ol"), all = made();
-    list.className = "sw-parts";
-    PARTS.forEach((p, i) => {
-      const li = document.createElement("li"), b = document.createElement("button"), open = unlocked(i), score = all[p.id];
-      b.type = "button";
-      b.disabled = !open;
-      b.className = i === run.part ? "cur" : "";
-      b.innerHTML = `<span>${i + 1}. ${p.name}</span><small>${score != null ? starText(starsOf(score)) : open ? (i === run.part ? "carving" : "") : "locked"}</small>`;
-      b.addEventListener("click", () => { $("menuDlg").close(); if (i !== run.part) start(i); });
-      li.append(b);
-      list.append(li);
-    });
-    part(body, "content").append(list);
-    set(toggle("The part's ghost", opts.ghost, on => { opts.ghost = on; saveOpts(); if (bench) bench.ghost = on; }));
-  }
-  set(toggle("Sound", opts.sound, on => { opts.sound = on; saveOpts(); }));
-  const stars = read(BEST, 0);
-  part(body, "about").append(line(stars ? `${stars} of ${PARTS.length * 3 + ASSEMBLIES.length * 3} stars: the cog's parts carved and the assemblies fitted.` : "Nothing finished yet."));
+  part(body, "play").append(action("Start this part again", () => restart(), "primary"));
+  // the cog's parts in order: done with their stars, the one you're on, and those still locked
+  const list = document.createElement("ol");
+  list.className = "sw-parts";
+  LEVELS.forEach((lv, i) => {
+    const li = document.createElement("li"), b = document.createElement("button"), open = unlocked(i), stars = starsOf(lv.id);
+    b.type = "button";
+    b.disabled = !open;
+    b.className = i === at ? "cur" : "";
+    b.innerHTML = `<span>${i + 1}. ${lv.name}</span><small>${stars ? starText(stars) : open ? (i === at ? "in hand" : "") : "locked"}</small>`;
+    b.addEventListener("click", () => { $("menuDlg").close(); if (i !== at) start(i); });
+    li.append(b);
+    list.append(li);
+  });
+  part(body, "content").append(list);
+  part(body, "settings").append(
+    toggle("The part's ghost", opts.ghost, on => { opts.ghost = on; saveOpts(); if (bench) bench.ghost = on; }),
+    toggle("Sound", opts.sound, on => { opts.sound = on; saveOpts(); }));
+  part(body, "about").append(line(`${totalStars()} of ${LEVELS.length * 3} stars. Three for the par, two for one tool over, one for freeing it at all.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -387,16 +451,5 @@ try {
   console.warn("Slipway: no WebGL here.", err);
   $("nogl").hidden = false;
 }
-/** The bench or the yard on the screen. */
-function setMode(m) {
-  document.querySelectorAll(".sw-modes button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.mode === m)));
-  if (m === "yard") fit.show(); else { fit.hide(); render(); }
-}
-document.querySelector(".sw-modes").addEventListener("click", e => {
-  const b = e.target.closest("[data-mode]");
-  if (b && !IN_FRAME && (b.dataset.mode === "yard") !== fit.open) setMode(b.dataset.mode);
-});
-fit = createFit({ $, read, write, scores: made, toast, sound, setMode, sayBest: n => { write(BEST, n); roundOver("slipway"); }, IN_FRAME });   // told once an assembly holds
 load();
-document.querySelectorAll(".sw-modes button").forEach(b => b.setAttribute("aria-selected", String((b.dataset.mode === "yard") === fit.open)));
-window.__slipway = { fit, get block() { return B; }, get run() { return run; }, bench: () => bench, start, finish, cutSaw, bore, cutAt, setTool: t => { tool = t; render(); } };
+window.__slipway = { get block() { return B; }, get used() { return used; }, get done() { return done; }, get level() { return L(); }, bench: () => bench, start, finish, cutSaw, bore, planeStroke, giveHint, status: () => status(B), setTool: t => { tool = t; render(); } };
