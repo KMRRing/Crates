@@ -77,7 +77,8 @@ const played = () => {
 };
 
 // ---------- the engine ----------
-const engine = new Engine(() => new Worker(new URL("./gambit-engine-worker.js", import.meta.url), { type: "module" }));
+// (a minute and a half to start: a first visit may still be downloading the 38 MB network, which the app keeps offline)
+const engine = new Engine(() => new Worker(new URL("./gambit-engine-worker.js", import.meta.url), { type: "module" }), { timeout: 90000 });
 const FULL = { MultiPV: 1 };                                      // the best line only: the review
 const coach = createCoach(engine, { limit: HINT.limit, alone: HINT.alone });
 let engineUp = false;
