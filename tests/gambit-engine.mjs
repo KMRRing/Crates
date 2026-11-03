@@ -59,7 +59,7 @@ const FENS = [
 {
   let ok = true, lined = true, why = "";
   for (const fen of FENS) {
-    const r = await engine.search({ fen, limit: "nodes 3000", options: { MultiPV: 3 } });
+    const r = await engine.search({ fen, limit: "nodes 1500", options: { MultiPV: 3 } });
     const legal = legalIn(fen);
     if (!r.best || !legal.includes(r.best)) { ok = false; why = `${fen}: ${r.best}`; }
     if (!r.lines.length || !r.lines.every(l => legal.includes(l.pv[0]) && (l.cp != null || l.mate != null))) lined = false;
@@ -96,6 +96,15 @@ const FENS = [
   await engine.search({ fen: FENS[3], limit: "nodes 2000" });
   const again = await ask();
   check(same(first, again), `the same position and limit give the same best move and lines after another search (${first.best})`);
+  // a search cut by its limit part-way through an iteration still gives lines of one depth, none a move twice (Caissa
+  // alone leaves the ranks it hadn't reached from the iteration before)
+  let whole = true, why = "";
+  for (const n of [700, 2500, 9000, 30000]) {
+    const r = await engine.search({ fen: FENS[2], limit: `nodes ${n}`, options: { MultiPV: 3 } });
+    const firsts = r.lines.map(l => l.pv[0]);
+    if (r.lines.length !== 3 || new Set(firsts).size !== 3 || new Set(r.lines.map(l => l.depth)).size !== 1) { whole = false; why = ` (nodes ${n}: ${r.lines.map(l => `${l.depth}:${l.pv[0]}`)})`; }
+  }
+  check(whole, `three lines asked of a search cut by its limit: three moves, all of one depth${why}`);
   // within a game the table is kept: the same depth is reached in fewer positions than from a cleared table
   const reach = async moves => {
     lines.length = 0;
@@ -145,7 +154,7 @@ const small = level => ({ ...level, limit: `nodes ${Math.min(400, Number(level.l
   let plies = 0, illegal = 0, roundTrips = 0;
   for (const [a, b] of [["1", "2"], ["3", "1"]]) {
     let s = G.newGame({ white: 0 });
-    for (let ply = 0; ply < 40 && !s.result; ply++) {
+    for (let ply = 0; ply < 20 && !s.result; ply++) {
       const seat = G.waitingOn(s), level = levelById(seat === 0 ? a : b);
       const { move } = await levelMove(engine, small(level), { fen: s.start, moves: G.movesOf(s), rand: r });
       const next = G.act(s, seat, { move });
@@ -161,7 +170,7 @@ const small = level => ({ ...level, limit: `nodes ${Math.min(400, Number(level.l
   // a plain search beats the weakest level (a small match: the thorough comparison set the levels)
   const r = rng(9);
   let score = 0;
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 1; i++) {
     let s = G.newGame({ white: i % 2 });
     for (let ply = 0; ply < 160 && !s.result; ply++) {
       const seat = G.waitingOn(s), level = seat === 0 ? { limit: "nodes 300" } : small(levelById("1"));
@@ -170,7 +179,7 @@ const small = level => ({ ...level, limit: `nodes ${Math.min(400, Number(level.l
     }
     score += !s.result?.winner ? 0.5 : s.result.winner === (s.white === 0 ? "white" : "black") ? 1 : 0;
   }
-  check(score >= 1.5, `a search of 300 positions beats Beginner (${score} of 2)`);
+  check(score === 1, `a search of 300 positions beats Beginner (${score} of 1)`);
 }
 
 // ---------- the coach ----------

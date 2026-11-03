@@ -1,6 +1,6 @@
 # Licences: images and engines
 
-Decided on 2 November 2026 (Korbi, after the library review; not legal advice, and nothing built yet).
+Decided on 2 November 2026 (Korbi, after the library review; not legal advice; of what follows only Gambit's engine is changed so far).
 
 **Paintings** (Punt's art bank, 201 of them): public-domain works only. A faithful photograph of a public-domain painting gets no new copyright in the EU (Article 14 of the 2019 copyright directive) or the UK (the IPO's 2014 guidance), and the Met and the Art Institute of Chicago publish their images as CC0. A painting by an artist who died after 1955 (or first published after 1930, for the United States) is still in copyright, and paying a picture library for the photograph does not pay the painter's estate. Those are to be swapped for a pre-1931 painting of the same movement (`kb/` already says which movement). Not yet counted: how many of the 201 fail.
 

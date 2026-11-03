@@ -7,8 +7,10 @@
 //   nice -n 10 node tools/engine-levels.mjs <river | gambit> [games per pair] [first level] [last level] [out.jsonl]
 //   node tools/engine-levels.mjs fit <records.jsonl> <level=rating>… [--scale]
 // LADDER=file.json measures a ladder of candidate levels (a list like the game's LEVELS) in place of the game's own.
-// The games the levels were named by are kept beside this file, and give the README's ratings:
-//   node tools/engine-levels.mjs fit tools/engine-levels-gambit.jsonl "elo1320 n60000=1320"
+// The games the levels were named by are kept beside this file, and give the README's ratings. Gambit's: the old
+// Stockfish levels' games (engine-levels-gambit.jsonl), and Caissa's against them and each other ("C T40 m6 n3000"
+// is Caissa drawing among 6 moves at temper 40 after 3,000 positions), fitted together on the old scale:
+//   node tools/engine-levels.mjs fit tools/engine-levels-gambit.jsonl tools/engine-levels-gambit-caissa.jsonl "elo1320 n60000=1320"
 //   node tools/engine-levels.mjs fit tools/engine-levels-river.jsonl "fsf T300 m12 n800=700" "fsf full n500000=2700" --scale
 import fs from "fs";
 
