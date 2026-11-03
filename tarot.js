@@ -150,6 +150,8 @@ const attPoints = s => {
   const pts = s.piles[0].reduce((t, c) => t + PTS[c], 0) / 2;
   return { pts, bouts: hasBouts, need: TARGETS[hasBouts] };
 };
+/** A verb for a seat: "you hold", "Marie holds". */
+const vb = (seat, you, they) => (who(seat) === "You" ? you : they);
 const theCard = c => (c === EXCUSE ? cardName(c) : `the ${cardName(c)}`);
 const fmt = n => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 const sign = n => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "0");
@@ -159,7 +161,7 @@ function stripLine(v) {
   if (s.step === "thrown") return `${head} · thrown in`;
   if (s.step === "bid") return `${head} · bidding`;
   if (s.taker == null) return head;
-  const bits = [bidName(s.bid), `${esc(who(s.taker))} takes`];
+  const bits = [bidName(s.bid), `${esc(who(s.taker))} take${who(s.taker) === "You" ? "" : "s"}`];
   if (s.step === "play" && opts.counting) {
     const a = attPoints(s);
     bits.push(`<b>${fmt(a.pts)}</b> of ${a.need}`);
@@ -248,9 +250,9 @@ function midHtml(v) {
   const s = v.state, me = footSeat(v);
   const cardsRow = (ids, cls = "") => `<span class="cd-line tr-line ${ids.length > 6 ? "many " : ""}${cls}">${ids.map(c => tarotCard(c)).join("")}</span>`;
   if (s.step === "shown" || s.step === "over") return resultHtml(v);
-  if (s.step === "thrown") return `<p class="tr-note">${s.why?.sec != null ? `<b>${esc(who(s.why.sec))}</b> holds the 1 of trumps and no other trump: a petit sec. The deal is void.` : "Nobody bid: the hands are thrown in."}</p>`;
+  if (s.step === "thrown") return `<p class="tr-note">${s.why?.sec != null ? `<b>${esc(who(s.why.sec))}</b> ${vb(s.why.sec, "hold", "holds")} the 1 of trumps and no other trump: a petit sec. The deal is void.` : "Nobody bid: the hands are thrown in."}</p>`;
   if (s.step === "bid") {
-    return `<p class="tr-note">The dog: ${s.dog.length} cards, ${s.n === 5 ? "to the taker, after a king is called" : "to the taker"}. ${s.bids.length ? "" : `<b>${esc(who(s.first))}</b> bids first.`}</p>`;
+    return `<p class="tr-note">The dog: ${s.dog.length} cards, ${s.n === 5 ? "to the taker, after a king is called" : "to the taker"}. ${s.bids.length ? "" : `<b>${esc(who(s.first))}</b> ${vb(s.first, "bid", "bids")} first.`}</p>`;
   }
   if (s.step === "call") {
     if (v.toMove === viewer(v)) return `<p class="tr-note">Call a king: its holder is your partner.</p><div class="tr-calls">${callable(s.hands[s.taker]).map(c => tarotCard(c, { cls: sel.has(c) ? "sel" : s.hands[s.taker].includes(c) ? "mine" : "", data: { call: c } })).join("")}</div>`;
@@ -264,7 +266,7 @@ function midHtml(v) {
   // the play: what was called, the handfuls shown, the trick
   const bits = [];
   if (s.call != null) bits.push(`Called ${cardsRow([s.call])}${s.revealed ? (s.alone ? " (alone)" : ` · partner <b>${esc(who(s.partner))}</b>`) : ""}`);
-  for (const p of s.poignees) bits.push(`<b>${esc(who(p.seat))}</b> shows a ${POIGNEE_NAMES[p.level]} handful ${cardsRow(p.cards, "small")}`);
+  for (const p of s.poignees) bits.push(`<b>${esc(who(p.seat))}</b> ${vb(p.seat, "show", "shows")} a ${POIGNEE_NAMES[p.level]} handful ${cardsRow(p.cards, "small")}`);
   const no = s.tricks.length + (s.trick.plays.length ? 1 : 0) || 1;
   const head = `<p class="tr-note">Trick <b>${Math.min(no, SIZES[s.n].hand)}</b> of ${SIZES[s.n].hand}${s.ecartShown.length ? ` · discarded trumps ${s.ecartShown.map(c => short(c)).join(" ")}` : ""}</p>`;
   return head + bits.map(b => `<p class="tr-note">${b}</p>`).join("");
@@ -275,7 +277,7 @@ function resultHtml(v) {
   if (s.step === "over") return `<p class="tr-result">${esc(finalLine(s))}</p>`;
   const taker = who(r.taker), partner = r.partner != null ? who(r.partner) : null;
   const lines = [];
-  lines.push(`<p class="tr-result"><b>${esc(taker)}</b> ${r.made ? "makes" : "fails"} ${esc(bidName(r.bid))}${partner ? ` with ${esc(partner)}` : r.alone && s.n === 5 ? " alone" : ""}: ${fmt(r.ptsH / 2)} points and ${r.bouts} bout${r.bouts === 1 ? "" : "s"} against ${r.target}, ${r.made ? "over" : "short"} by ${r.margin}.</p>`);
+  lines.push(`<p class="tr-result"><b>${esc(taker)}</b> ${r.made ? "make" : "fail"}${taker === "You" ? "" : "s"} ${esc(bidName(r.bid))}${partner ? ` with ${esc(partner)}` : r.alone && s.n === 5 ? " alone" : ""}: ${fmt(r.ptsH / 2)} points and ${r.bouts} bout${r.bouts === 1 ? "" : "s"} against ${r.target}, ${r.made ? "over" : "short"} by ${r.margin}.</p>`);
   const extra = [];
   if (r.petit) extra.push(`petit au bout ${r.petit > 0 ? "to the taker's side" : "to the defence"} (${Math.abs(r.petit)} × ${r.mult})`);
   if (r.poignee) extra.push(`handfuls ${r.poignee}`);
