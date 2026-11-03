@@ -521,7 +521,7 @@ export const APPS = [
   { id: "calibre", sec: "courses", name: "Calibre", href: "./calibre.html", logo: LOGO("calibre", CALIBRE_LOGO), players: [1, 1] },
   { id: "manifest", sec: "puzzle", name: "Manifest", href: "./manifest.html", logo: LOGO("manifest", MANIFEST_LOGO), players: [1, 6] },
   { id: "chart", sec: "knowledge", name: "Chart", href: "./chart.html", logo: LOGO("chart", CHART_LOGO), players: [1, 6] },
-  { id: "harbour", sec: "puzzle", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO), players: [1, 1] },
+  { id: "harbour", sec: "idle", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO), players: [1, 1] },
   { id: "pipes", sec: "puzzle", name: "Pipes", href: "./pipes.html", logo: LOGO("pipes", PIPES_LOGO), players: [1, 6] },
   { id: "hong", sec: "table", name: "Mahjong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO), players: [1, 4] },
   // Deck: no tile (31 October 2026, Korbi): the banner under the head opens it, as a third choice beside Random and Choose, and

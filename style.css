@@ -356,7 +356,7 @@ dialog.apps-pop .pick-head h2 { font-size: 1.05rem; }
    the partner's pill, the Rules/Learn buttons and the dropdowns are out of sight, and their work is in the menu (Back to
    menu first). A thin row of live status (score, time, lives) sits in that band beside the button: .full-pull. A picture
    that wants the whole screen leaves the band out too: .full.over. */
-#app.full { --full-btn: 2.5rem; --full-edge: .5rem; --full-band: 2.75rem; --full-slot: 3.25rem; padding-top: .5rem; }   /* --full-slot: what a row beside the button leaves for it */
+#app.full { --full-btn: 2.5rem; --full-edge: .5rem; --full-band: 2.75rem; --full-slot: 3.25rem; padding-top: calc(env(safe-area-inset-top, 0px) + .5rem); }   /* --full-slot: what a row beside the button leaves for it */
 html[data-theme="modern"] #app.full { --full-slot: 4.5rem; }                                 /* Modern's button is the word Menu */
 #app.full > .top { height: var(--full-band); padding: 0; margin: 0; background: none !important; border: 0 !important; }
 /* what the header showed besides buttons (a clock, lives) stays, in a row with the mark; buttons and dropdowns go to the menu */
@@ -378,6 +378,17 @@ html[data-theme="modern"] #app.full { --full-slot: 4.5rem; }                    
 html.watching-frame #app.full > .top { display: none; }                                    /* a partner's game in a frame: the picture alone */
 #app.full > .full-pull { margin-top: calc(-1 * var(--full-band)); min-height: var(--full-band); box-sizing: border-box;
   padding: .6rem var(--full-slot) 0 0; }      /* .6rem: a line of text centred on the button (a row of its own, not a flex box: that drops the spaces between its words and figures) */
+/* Titled (Korbi, 3 November 2026: "a lot of the games look better with the title there ... the puzzles however, should
+   probably keep the title layout"): #app.full.titled is the same quiet band with the game's name in it, set in the suite's
+   name lettering, one line, kept clear of the button. The logo, the partner's pill and the Random tag stay out of
+   sight (the menu has them); the name is a label, not a button (Back to menu is in the menu). A status row (.full-pull)
+   is an ordinary line under the band, not laid over it. */
+#app.full.titled > .top { justify-content: flex-start; align-items: center; }
+#app.full.titled > .top > .mark { display: block !important; flex: 0 1 auto; min-width: 0; max-width: calc(100% - var(--full-slot)); margin: 0; padding-bottom: .25rem;
+  font-size: 1.05rem; font-weight: 800; letter-spacing: calc(.12em * var(--track)); line-height: 1.2; color: var(--ink); }   /* .25rem: its line centred on the button's */
+#app.full.titled > .top .mark-btn { display: block; max-width: 100%; pointer-events: none; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#app.full.titled > .top :is(.mark-icon, .partner-pill, .rd-tag) { display: none !important; }
+#app.full.titled > .full-pull { margin-top: 0; min-height: 0; padding: 0; }
 .menu-full-row { display: flex; gap: .5rem; }
 .menu-full-row .btn.wide { flex: 1 1 0; width: auto; margin-top: .45rem; }
 .menu-full .menu-line { margin-top: .5rem; }

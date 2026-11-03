@@ -207,8 +207,17 @@ in Node with the host's phone moving it on.
 
 Korbi, 3 November 2026: "all games should be full screen by default ... too much "stuff" on all of these screens ... no
 title etc, settings icon in the top right is used to navigate back to menu always ... buttons exist inside the full
-screen, not outside." So every game page is full screen (`docs/full-screen.md`; `tests/full-screen.mjs` fails for a page
-with a header that isn't):
+screen, not outside." And later that evening: "I may have gone too far asking every game to be full screen without the
+title. in reality, a lot of the games look better with the title there - just maybe not some of the card and idle games
+that should be a bit more ambient. the puzzles however, should probably keep the title layout." So every game page is full
+screen (`docs/full-screen.md`; `tests/full-screen.mjs` fails for a page with a header that isn't), in one of two states:
+- **`full`** is ambient, no title: card and dice games, board games, idle games, pictures. **`full titled`** is the same
+  band with the game's name in it (the page's own title element, in the suite's name lettering): puzzles, quizzes, text and
+  form pages, courses, tools, party. A page opts in by adding `titled` to its `#app`; a new game takes its family's state
+  (a puzzle or quiz page `full titled`, a card table, board or picture `full`; a brief that says only `full` means the
+  ambient one), and goes in the `TITLED` or `FULL` list of `tests/full-screen.mjs`. A titled page's status row
+  (`full-pull`) is an ordinary line under the band, not beside the button.
+Everything below holds for both:
 - **`#app` has the class `full`** (with `fit-screen` / `beside` as before). The header stays in the markup (`.top`:
   `#appsBtn`, `#menuBtn`, its other buttons, even a hidden `<select class="pool">`) but is a quiet empty band: the title,
   logo, partner pill and every header button but `#menuBtn` are `display: none`; `#menuBtn` is the Codex mark (three
