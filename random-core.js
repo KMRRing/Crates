@@ -98,6 +98,7 @@ export const LEFT_OUT = {
   cue: "a word to act, draw or describe for the people round you",
   quest: "hidden loyalties, a game for people round a table (Party's section)",
   timegrapher: "an instrument, not a game",
+  landfall: "no round yet (a voyage is several watches over many minutes; a short round, its random mode and daily come in milestone 5)",
   columbiad: "no round yet (the first milestone is a proving ground of levels); its random mode and daily come in the fourth",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
   stone: "not built yet", tarot: "not built yet", solitaire: "not built yet", ingot: "not built yet", flank: "not built yet", crown: "not built yet", cargo: "not built yet",
