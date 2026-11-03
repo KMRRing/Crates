@@ -34,6 +34,7 @@ const REDUCED = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const FX_MS = { away: 380, fade: 500, appear: 350 };
 const live = new Set();                       // the pictures that are moving: drawn each frame while they are
 let raf = 0, paused = false, tkMemo = null, tkAt = 0;
+let lastTick = 0, frameMs = 16, quality = 1;     // quality: how big, of its final size, a falling stack is drawn (a slow phone draws smaller)
 const tokensNow = () => { const t = performance.now(); if (!tkMemo || t - tkAt > 300) { tkMemo = M.tokens(); tkAt = t; } return tkMemo; };
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 /** A canvas's pixels for a width on the page, at most 2 to a CSS pixel. */
@@ -46,6 +47,11 @@ function wake() { if (!raf && live.size && !paused && !document.hidden) raf = re
 document.addEventListener("visibilitychange", wake);
 function tick(now) {
   raf = 0;
+  if (lastTick && now - lastTick < 250) {         // not after a pause: while packages fall, a phone that can't keep up draws them smaller
+    frameMs = frameMs * 0.85 + (now - lastTick) * 0.15;
+    if (frameMs > 28 && quality > 0.55 && [...live].some(p => p.drop)) { quality = Math.max(0.55, quality - 0.15); frameMs = 20; }
+  }
+  lastTick = now;
   for (const pic of live) {
     if (pic.canvas.isConnected) pic.seen = true;
     else if (pic.seen || now - pic.born > 4000) { retire(pic); continue; }      // taken off the page, or never put on it
@@ -57,12 +63,13 @@ function retire(pic) { live.delete(pic); pic.ro?.disconnect(); pic.full = pic.qu
 
 const copyOf = canvas => { const c = document.createElement("canvas"); c.width = canvas.width; c.height = canvas.height; return c; };
 /** The scene drawn at the picture's size and copied now (the renderer's canvas holds it only until the next draw) into `into`. */
-function drawInto(pic, into, spec = pic.spec, lifts = null) {
-  const src = GL.draw(spec, pic.canvas.width, pic.canvas.height, pic.tk, lifts);
-  if (into.width !== src.width || into.height !== src.height) { into.width = src.width; into.height = src.height; }
+function drawInto(pic, into, spec = pic.spec, lifts = null, q = 1) {
+  const { width, height } = pic.canvas, w = Math.max(120, Math.round(width * q));
+  const src = GL.draw(spec, w, Math.round(height * w / width), pic.tk, lifts);
+  if (into.width !== width || into.height !== height) { into.width = width; into.height = height; }
   const x = into.getContext("2d");
-  x.clearRect(0, 0, into.width, into.height);
-  x.drawImage(src, 0, 0);
+  x.clearRect(0, 0, width, height);
+  x.drawImage(src, 0, 0, width, height);
   return into;
 }
 const settled = pic => drawInto(pic, pic.full ??= copyOf(pic.canvas));
@@ -125,7 +132,7 @@ function step(pic, now) {
       lifts.set(it.key, fall(u));
     }
     if (moving || (done && !pic.landed)) {
-      show(pic, now, drawInto(pic, pic.full ??= copyOf(pic.canvas), pic.spec, done ? null : lifts));
+      show(pic, now, drawInto(pic, pic.full ??= copyOf(pic.canvas), pic.spec, done ? null : lifts, done ? 1 : quality));
       if (done) { pic.landed = true; pic.drop = false; }
     } else if (pic.waves && now - pic.shownAt > 45) show(pic, now, pic.full);
     return;
@@ -201,7 +208,7 @@ export function stage3d(cells, opts) {
   }
   if (opts.drop && items.length && !REDUCED()) {  // packages fall in, each from its own moment, the quay there before them
     pic.drop = true; pic.landed = false;
-    for (const it of items) pic.start[it.key] = drops.times[it.key] - (opts.since || 0);
+    for (const it of items) pic.start[it.key] = (drops.times[it.key] ?? 0) - (opts.since || 0);
     pic.t0 = performance.now();
     show(pic, pic.t0, drawInto(pic, pic.full = copyOf(canvas), spec, new Map(items.map(it => [it.key, fall(0)]))));
     live.add(pic);
