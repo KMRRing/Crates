@@ -16,7 +16,7 @@
 // frames a second while the player is doing something, fifteen when the sea and the ships are all that move.
 // Throws where there is no WebGL (the page then keeps the chart).
 import * as THREE from "./vendor/three.js";
-import { createBatch } from "./bridges-batch.js";
+import { createBatch, prep } from "./bridges-batch.js";
 import { cellXZ, labelOf, seaOf, createFleet, shipsFor, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile, fitDistance, homeElevation } from "./bridges-model.js";
 
 const DEG = Math.PI / 180;
@@ -55,6 +55,7 @@ function wall(points, depth) {
   return g;
 }
 const at = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z);
+const POST = prep(new THREE.BoxGeometry(0.02, 0.09, 0.02)), PILE = prep(new THREE.CylinderGeometry(0.02, 0.024, 1, 5)), BEAMS = {};     // a bridge's pieces, made once: a rail post, a trestle's pile (one unit high, stretched to fit) and its beam by the lane's width
 
 /** Flat strips along a link in its own frame (from its first island along +x, `y` up), each [from, to, half width]. */
 function strips(list, y, zoff = 0) {
@@ -178,7 +179,7 @@ export function createModel(host, opts = {}) {
   let world = null, lines = [], plates = [], fleet = null, lastSail = 0, marks = "";
   let batches = null, hulls = null, lamps = null, buoyMeshes = [], buoys = [], fitPts = [];       // the meshes of the board, the ships and their lamps, the buoys, and the points the camera keeps in view
   let lit = new Set(), litIsland = -1, aim = -1, winUntil = 0;     // the hint's links and island, the link under a finger or the pointer, the end of the win's glow
-  let state = { bridges: 0, guides: 0, glowing: 0 };
+  let state = { bridges: 0, guides: 0, glowing: 0 }, buildMs = 0;       // what is on show; how long the last board took to build
   let shadowDirty = true, camDirty = true, measure = true, builtKey = null;           // the shadows, the plates' places and their sizes need doing again; the bridges the shadows were drawn for
   function disposeWorld() {
     if (world) { scene.remove(world); world.traverse(o => o.geometry?.dispose()); }
@@ -220,7 +221,7 @@ export function createModel(host, opts = {}) {
     rings.add("all", new THREE.CylinderGeometry(R + 0.2, R + 0.26, 0.012, 22), here(0.07), "shallow");      // over the swell's crests
     // what the camera keeps in view: the shallows' corners, and the plate over the island
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) fitPts.push(x + sx * (R + 0.22), 0, z + sz * (R + 0.22));
-    fitPts.push(x, isle.hill ? 1.35 : 0.55, z);
+    fitPts.push(x, isle.hill ? 1.35 : 0.68, z);
   }
   /** A link's bridges, once: a single, a double and (on a wide road) a triple, as groups `l.1`, `l.2`, `l.3` of the batch, shown and hidden as the marks change. */
   function bridgesOf(b, l) {
@@ -239,20 +240,25 @@ export function createModel(host, opts = {}) {
         for (const side of [-1, 1]) put(n, new THREE.BoxGeometry(xb - xa, 0.07, 0.022), at(mid, VIADUCT + 0.04, off + side * (w / 2 - 0.011)), "stone");
       }
     } else {
-      // an arched timber deck with railings, on trestles
+      // an arched timber deck with railings, on trestles: the posts, piles and beams are the same few pieces placed again and again (prep, put), and the
+      // deck and rail of a link are one outline that each lane only moves sideways
       const { xa, xb, len, hump } = lowSpan(a, bb, span), ytop = u => DECK + hump * Math.sin((Math.PI * (u - xa)) / len);
+      const top = deckProfile(len, hump, Math.max(6, Math.round(len * 5))).map(([u, dy]) => [xa + u, DECK + dy]), decks = {};
+      const rail = prep(wall([...top.map(([u, y]) => [u, y + 0.1]), ...top.map(([u, y]) => [u, y + 0.082]).reverse()], 0.018));
       for (const [n, lanes] of sets) for (const off of lanes) {
-        const w = [0.15, 0.085, 0.065][lanes.length - 1], top = deckProfile(len, hump, Math.max(6, Math.round(len * 5))).map(([u, dy]) => [xa + u, DECK + dy]);
-        put(n, wall([...top, ...top.map(([u, y]) => [u, y - 0.045]).reverse()], w).translate(0, 0, off), null, deckRole);
+        const w = [0.15, 0.085, 0.065][lanes.length - 1], g = `${l}.${n}`;
+        decks[w] ||= prep(wall([...top, ...top.map(([u, y]) => [u, y - 0.045]).reverse()], w));
+        b.put(g, decks[w], linkM, deckRole, 0, 0, off);
         for (const side of lanes.length === 1 ? [-1, 1] : off === 0 ? [] : [off < 0 ? -1 : 1]) {      // posts and a rail along the edges (a double or a triple has its outer ones)
           const zz = off + side * (w / 2 - 0.011);
-          for (let u = xa + 0.12; u <= xb - 0.1; u += 0.3) put(n, new THREE.BoxGeometry(0.02, 0.09, 0.02), at(u, ytop(u) + 0.045, zz), "rail");
-          put(n, wall([...top.map(([u, y]) => [u, y + 0.1]), ...top.map(([u, y]) => [u, y + 0.082]).reverse()], 0.018).translate(0, 0, zz), null, "rail");
+          for (let u = xa + 0.12; u <= xb - 0.1; u += 0.3) b.put(g, POST, linkM, "rail", u, ytop(u) + 0.045, zz);
+          b.put(g, rail, linkM, "rail", 0, 0, zz);
         }
+        BEAMS[w] ||= prep(new THREE.BoxGeometry(0.04, 0.03, w + 0.01));
         for (let u = xa + 0.35; u <= xb - 0.3; u += 0.75) {                             // trestles: a pair of piles and a beam under the deck
           const below = ytop(u) - 0.045, h = below + 0.12;
-          for (const side of [-1, 1]) put(n, new THREE.CylinderGeometry(0.02, 0.024, h, 5), at(u, below - h / 2, off + side * (w / 2 - 0.02)), "rail");
-          put(n, new THREE.BoxGeometry(0.04, 0.03, w + 0.01), at(u, below - 0.015, off), "rail");
+          for (const side of [-1, 1]) b.put(g, PILE, linkM, "rail", u, below - h / 2, off + side * (w / 2 - 0.02), h);
+          b.put(g, BEAMS[w], linkM, "rail", u, below - 0.015, off);
         }
       }
     }
@@ -277,6 +283,7 @@ export function createModel(host, opts = {}) {
 
   /** Shows a puzzle: `p` is { lay, size } (the page's P). */
   function set(p) {
+    const began = performance.now();
     P = p; lay = p.lay; size = p.size;
     disposeWorld();
     world = new THREE.Group();
@@ -289,7 +296,7 @@ export function createModel(host, opts = {}) {
       plate.className = "brg3-n";
       plate.textContent = labelOf(isle);
       labels.appendChild(plate);
-      plates.push({ el: plate, i, cls: "", text: plate.firstChild, shown: plate.textContent, p: new THREE.Vector3(x, isle.hill ? 1.35 : 0.55, z), w: 0, h: 0 });
+      plates.push({ el: plate, i, cls: "", text: plate.firstChild, shown: plate.textContent, p: new THREE.Vector3(x, isle.hill ? 1.35 : 0.68, z), w: 0, h: 0 });
     });
     lines = lay.links.map((_, l) => linkLine(lay, size, l, { deck: DECK, viaduct: VIADUCT, pad: o => islandRadius(o.n) + 0.05 }));
     lay.links.forEach((_, l) => { bridgesOf(bridges, l); guideOf(land, dashes, halos, l); });
@@ -332,6 +339,7 @@ export function createModel(host, opts = {}) {
     fit();
     measure = true; shadowDirty = true;
     update(marks.length === lay.links.length ? marks : "0".repeat(lay.links.length), null);
+    buildMs = Math.round(performance.now() - began);
     draw(performance.now());
   }
   /** The islands whose number this player is not shown (a set of island indexes): their plates say "?". Takes effect at the next update(). */
@@ -347,8 +355,9 @@ export function createModel(host, opts = {}) {
     ring.className = `brg3-ping${soft ? " soft" : ""}`;
     ring.style.setProperty("--pinger", `var(--p${slot})`);
     pl.el.appendChild(ring);
-    pl.el.style.zIndex = "3";
-    pl.ring = setTimeout(() => { ring.remove(); pl.el.style.zIndex = ""; }, ms);
+    pl.top = true;                                               // a pinged plate is over every other
+    pl.el.style.zIndex = "5000";
+    pl.ring = setTimeout(() => { ring.remove(); pl.top = false; camDirty = true; }, ms);
   }
   /** Shows the bridges the marks say (a dashed guide on each link without one), each island's state (met, over, cut) on its plate, and the hint's: `hint` is { set: [links], island } or null. */
   function update(m, br, hint) {
@@ -447,13 +456,14 @@ export function createModel(host, opts = {}) {
   /** The plates' sizes follow the board's: a cell's pixels (about `ppu` across the board's middle) say how big a number may be before it covers its neighbour's. */
   let plateK = 1;
   function placePlates() {
-    const ppu = (height / 2) / (dist * Math.tan(FOV / 2)), k = Math.round(Math.max(0.92, Math.min(1.6, (0.85 * ppu) / (1.3 * rem))) * 20) / 20;
+    const ppu = (height / 2) / (dist * Math.tan(FOV / 2)), k = Math.round(Math.max(0.92, Math.min(1.3, (0.6 * ppu) / (1.3 * rem))) * 20) / 20;
     if (k !== plateK) { plateK = k; labels.style.setProperty("--k", String(k)); measure = true; }
     if (measure) { for (const pl of plates) { pl.w = pl.el.offsetWidth; pl.h = pl.el.offsetHeight; } measure = false; }     // read all, then write all
     for (const pl of plates) {
       V.copy(pl.p).project(camera);
       // whole pixels: a number between two pixels is a blur
       pl.el.style.transform = `translate(${Math.round(((V.x + 1) / 2) * width - pl.w / 2)}px, ${Math.round(((1 - V.y) / 2) * height - pl.h / 2)}px)`;
+      if (!pl.top) pl.el.style.zIndex = String(2000 - Math.round(camera.position.distanceTo(pl.p) * 20));      // the nearer plate over the farther
     }
     camDirty = false;
   }
@@ -516,15 +526,23 @@ export function createModel(host, opts = {}) {
       const [ax, ay] = scr(q.x0, q.y, q.z0), [bx, by] = scr(q.x1, q.y, q.z1);
       return { l, ax, ay, bx, by, high: q.high, bias: opts.blocked?.(l) ? 3 : 0 };
     });
-    const isles = lay.isl.map(o => { const [wx, wz] = cellXZ(size, o.r, o.c), [x, y] = scr(wx, o.hill ? 0.5 : 0.15, wz); return { x, y, r: (islandRadius(o.n) - 0.02) * ppu }; });
-    return { r, kx, ky, segs, isles, tol: pickTolerance(ppu * Math.sin(el)) };
+    // an island is two discs on the screen: the island itself and its plate (the number is what a finger goes for)
+    const isles = [], spots = [];
+    lay.isl.forEach((o, i) => {
+      const [wx, wz] = cellXZ(size, o.r, o.c), [x, y] = scr(wx, o.hill ? 0.5 : 0.15, wz), pl = plates[i], disc = { x, y, r: (islandRadius(o.n) - 0.02) * ppu };
+      isles.push(disc); spots.push({ i, ...disc });
+      if (!pl) return;
+      const [px, py] = scr(pl.p.x, pl.p.y, pl.p.z), plate = { x: px, y: py, r: (Math.max(pl.w, pl.h) / 2 || 10) * kx };
+      isles.push(plate); spots.push({ i, ...plate });
+    });
+    return { r, kx, ky, segs, isles, spots, tol: pickTolerance(ppu * Math.sin(el)) };
   }
   /** The island under a finger at the page's (clientX, clientY), or -1: a thumb's width at least, so a small island is still found. */
   function islandAt(cx, cy) {
     if (!lay) return -1;
-    const { r, kx, ky, isles } = onScreen(), x = (cx - r.left) * kx, y = (cy - r.top) * ky;
+    const { r, kx, ky, spots } = onScreen(), x = (cx - r.left) * kx, y = (cy - r.top) * ky;
     let best = -1, near = Infinity;
-    isles.forEach((o, i) => { const d = Math.hypot(o.x - x, o.y - y); if (d < Math.max(o.r, 16 * kx) && d < near) { near = d; best = i; } });
+    for (const o of spots) { const d = Math.hypot(o.x - x, o.y - y); if (d < Math.max(o.r, 16 * kx) && d < near) { near = d; best = o.i; } }
     return best;
   }
   /** The link under a finger at the page's (clientX, clientY), or -1. */
@@ -703,7 +721,7 @@ export function createModel(host, opts = {}) {
     get stats() {
       const i = renderer.info, parts = {};
       for (const [k, b] of Object.entries(batches || {})) parts[k] = [b.drawn / 3, b.vertices / 3];      // triangles drawn, and held
-      return { calls, shadowCalls, triangles: i.render.triangles, geometries: i.memory.geometries, frames: drawn, ms: Math.round(drawMs * 100) / 100, parts };
+      return { calls, shadowCalls, triangles: i.render.triangles, geometries: i.memory.geometries, frames: drawn, ms: Math.round(drawMs * 100) / 100, buildMs, parts };
     },
     /** For tests: what is on show. */
     get live() { return { ships: fleet?.ships.length || 0, buoys: buoys.length, bridges: state.bridges, guides: state.guides, glowing: state.glowing, lit: [...lit], aim, plates: plates.length, shown }; },

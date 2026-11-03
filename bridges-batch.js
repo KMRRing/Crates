@@ -17,23 +17,48 @@ function flat(geo, matrix) {
   return out;
 }
 
+/**
+ * A geometry made ready to be placed many times (`put` in a batch): its triangles as flat arrays. The geometry is let go. A board
+ * has thousands of posts and piles, all alike: making each its own three.js geometry took most of the time it took to build a board.
+ */
+export function prep(geo) {
+  const { p, n } = flat(geo, null);
+  geo.dispose();
+  return { p, n };
+}
+
 export function createBatch() {
   const pos = [], nor = [], pieces = [], names = [], at = new Map();   // chunks of positions and of normals, each piece's [first vertex, vertices, role number], the role names, group → [[from, count]…]
   let mesh = null, shown, count = 0, total = 0;          // `shown`: the key of the groups on show, undefined until the first choice
   const roleNo = name => { let i = names.indexOf(name); if (i < 0) { i = names.length; names.push(name); } return i; };
   const join = chunks => { const all = new Float32Array(total * 3); let o = 0; for (const c of chunks) { all.set(c, o); o += c.length; } return all; };
+  /** Takes in a piece's arrays under a group. Pieces of one group that follow each other count as one range, so a group costs a few numbers however many pieces it has. */
+  const take = (group, p, n, role) => {
+    const from = total, vs = p.length / 3;
+    pos.push(p); nor.push(n); pieces.push([from, vs, roleNo(role)]); total += vs;
+    const list = at.get(group) || [], last = list.at(-1);
+    if (last && last[0] + last[1] === from) last[1] += vs; else list.push([from, vs]);
+    at.set(group, list);
+  };
   return {
-    /**
-     * Adds a piece to a group. `geo` is a three.js geometry (disposed here), `matrix` where it goes (or null), `role` its colour's name.
-     * Pieces of one group that follow each other count as one range, so a group costs a few numbers however many pieces it has.
-     */
+    /** Adds a piece to a group. `geo` is a three.js geometry (disposed here), `matrix` where it goes (or null), `role` its colour's name. */
     add(group, geo, matrix, role) {
-      const { p, n } = flat(geo, matrix), from = total, vs = p.length / 3;
-      pos.push(p); nor.push(n); pieces.push([from, vs, roleNo(role)]); total += vs;
-      const list = at.get(group) || [], last = list.at(-1);
-      if (last && last[0] + last[1] === from) last[1] += vs; else list.push([from, vs]);
-      at.set(group, list);
+      const { p, n } = flat(geo, matrix);
+      take(group, p, n, role);
       geo.dispose();
+    },
+    /**
+     * Adds a copy of a `prep`ared piece: stretched up by `sy`, moved by (lx, ly, lz), then put by the matrix `m`, which may turn and move
+     * it but not scale it (the link's frame is a turn about y and a move).
+     */
+    put(group, tpl, m, role, lx = 0, ly = 0, lz = 0, sy = 1) {
+      const e = m.elements, k = tpl.p.length, p = new Float32Array(k), n = new Float32Array(k), tp = tpl.p, tn = tpl.n;
+      for (let i = 0; i < k; i += 3) {
+        const x = tp[i] + lx, y = tp[i + 1] * sy + ly, z = tp[i + 2] + lz, a = tn[i], b = tn[i + 1], c = tn[i + 2];
+        p[i] = e[0] * x + e[4] * y + e[8] * z + e[12]; p[i + 1] = e[1] * x + e[5] * y + e[9] * z + e[13]; p[i + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
+        n[i] = e[0] * a + e[4] * b + e[8] * c; n[i + 1] = e[1] * a + e[5] * b + e[9] * c; n[i + 2] = e[2] * a + e[6] * b + e[10] * c;
+      }
+      take(group, p, n, role);
     },
     get vertices() { return total; },
     /** The vertices on show now (all of them before the first choice). */

@@ -1,7 +1,7 @@
 // Bridges' 3D in a few draw calls (bridges-batch.js): pieces gathered under groups into one mesh with a colour on every vertex, a
 // mesh that shows only the groups it is told to, and colours that change with the theme. Plain geometry, so it runs in Node.
 import * as THREE from "../vendor/three.js";
-import { createBatch } from "../bridges-batch.js";
+import { createBatch, prep } from "../bridges-batch.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -22,6 +22,25 @@ const pos = mesh.geometry.attributes.position, col = mesh.geometry.attributes.co
 check(pos.count === b.vertices && col.count === b.vertices && mesh.geometry.attributes.normal.count === b.vertices, "one mesh holds every piece, with a position, a normal and a colour on each vertex");
 check(col.array[0] === 1 && col.array[1] === 0 && col.array[2] === 0 && col.array[BOX * 3] === 0 && col.array[BOX * 3 + 1] === 1, "each piece has the colour of its role (the first sand red, the next grass green)");
 check(Math.abs(pos.getX(BOX) - 2) <= 0.51 && Math.abs(pos.getX(2 * BOX) - 4) <= 0.51, "a piece is where its matrix put it");
+
+// a prepared piece, placed many times: the same triangles as making the geometry and moving it each time
+{
+  const link = new THREE.Matrix4().makeRotationY(-Math.PI / 2).setPosition(3, 0, -2), local = new THREE.Matrix4().makeTranslation(0.7, 0.2, -0.3);
+  const viaAdd = createBatch(), viaPut = createBatch();
+  viaAdd.add("g", new THREE.CylinderGeometry(0.02, 0.024, 0.4, 5), link.clone().multiply(local).multiply(new THREE.Matrix4().makeScale(1, 1, 1)), "pile");
+  const tpl = prep(new THREE.CylinderGeometry(0.02, 0.024, 1, 5));
+  viaPut.put("g", tpl, link, "pile", 0.7, 0.2, -0.3, 0.4);
+  const ma = viaAdd.build(new THREE.MeshStandardMaterial({ vertexColors: true })), mp = viaPut.build(new THREE.MeshStandardMaterial({ vertexColors: true }));
+  let worst = 0, worstN = 0;
+  const pa = ma.geometry.attributes.position.array, pp = mp.geometry.attributes.position.array, na = ma.geometry.attributes.normal.array, np = mp.geometry.attributes.normal.array;
+  for (let i = 0; i < pa.length; i++) { worst = Math.max(worst, Math.abs(pa[i] - pp[i])); }
+  // the side normals of a pile stretched in height differ a little (the taper); the caps' and the turn are exact
+  for (let i = 0; i < na.length; i += 3) worstN = Math.max(worstN, Math.hypot(na[i] - np[i], na[i + 1] - np[i + 1], na[i + 2] - np[i + 2]));
+  check(pa.length === pp.length && worst < 1e-5, `a placed copy is where the moved geometry is (the farthest vertex ${worst.toExponential(1)} off)`);
+  check(worstN < 0.06, `and faces the same way (a stretched pile's slanted sides differ by at most ${worstN.toFixed(3)})`);
+  check(viaPut.vertices === viaAdd.vertices && viaPut.count(["g"]) === viaAdd.count(["g"]), "and is in its group the same");
+  viaAdd.dispose(); viaPut.dispose();
+}
 
 // a piece's vertices are the same ones whichever group they are shown as
 check(b.show(null) === b.vertices && mesh.geometry.index === null && mesh.visible, "no choice shows everything, without an index");
