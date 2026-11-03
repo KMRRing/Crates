@@ -1,7 +1,6 @@
-// Fairy-Stockfish and Caissa, built as WebAssembly reactors for WASI (vendor/fairy-stockfish/NOTE.txt, vendor/caissa/
-// NOTE.txt), started with the little of WASI they ask for: their standard output, read back line by line, and the
-// clocks. They have no files, no arguments and no environment. The pages' workers (uci-fairy.js, gambit-engine-worker.js)
-// run them, and so do the tests, in Node.
+// Fairy-Stockfish, built as a WebAssembly reactor for WASI (vendor/fairy-stockfish/NOTE.txt), started with the little
+// of WASI it asks for: its standard output, read back line by line, and the clocks. It has no files, no arguments and
+// no environment. The page's worker (uci-fairy.js) runs it, and so do the tests, in Node.
 //
 // The engine is single-threaded: uci_command() runs a command to its end before it returns, a "go" its whole search,
 // so a search must be given a limit (nodes, depth or a time), never "infinite".
@@ -33,7 +32,6 @@ export async function startWasi(bytes, onLine) {
       v.setUint8(at, 2); v.setUint16(at + 2, 0, true); v.setBigUint64(at + 8, 0n, true); v.setBigUint64(at + 16, 0n, true);
       return 0;
     },
-    fd_fdstat_set_flags: () => 0,                                 // stdio asks for non-blocking output on some builds
     fd_filestat_get: () => EBADF,
     fd_pread: () => EBADF,
     fd_prestat_get: () => EBADF,                                  // no directory is open to it
@@ -62,8 +60,6 @@ export async function startWasi(bytes, onLine) {
   x.uci_init();
   const size = x.uci_size();
   return {
-    exports: x,                                                   // for an engine that takes more than UCI (Caissa's network is handed over in memory)
-    get memory() { return memory; },
     command(line) {
       const b = encoder.encode(String(line));
       if (b.length > size) throw new Error("a command too long for the engine");

@@ -1,17 +1,15 @@
 // The engines Gambit and River play, each in a worker of its own, spoken to in UCI (the Universal Chess Interface:
 // lines of text such as "position fen …" and "go nodes 100000", answered by "info …" lines and a "bestmove"). Gambit
-// plays Stockfish (vendor/stockfish), River Fairy-Stockfish (vendor/fairy-stockfish, through uci-fairy.js): both are
-// GPL, shipped unchanged or with the patch that built them, and loaded only when a game against one starts.
+// plays Caissa (vendor/caissa, MIT, through gambit-engine-worker.js), River Fairy-Stockfish (vendor/fairy-stockfish,
+// GPL, shipped with the patch that built it, through uci-fairy.js): each loaded only when a game against it starts.
 //
 // An Engine starts its worker on first use and runs one search at a time. A level's strength comes from how far it
-// searches, from the engine's own limiter (UCI_LimitStrength with UCI_Elo, or Skill Level: Gambit's middle levels)
-// and, for the weakest, from choose(): one of the engine's MultiPV moves (its best few, each with its score) drawn
-// with a weight that falls with how much the move gives up, so a weak level misses what a weak player misses rather
-// than playing at random.
+// searches and, below the engine's own strength, from choose(): one of the engine's MultiPV moves (its best few, each
+// with its score) drawn with a weight that falls with how much the move gives up, so a weak level misses what a weak
+// player misses rather than playing at random.
 
 /** The workers, by engine. Paths are literal so the app's offline list finds them (tools/offline.mjs). */
 export const WORKERS = {
-  stockfish: () => new Worker(new URL("./vendor/stockfish/stockfish-19-lite-single.js", import.meta.url)),
   fairy: () => new Worker(new URL("./uci-fairy.js", import.meta.url), { type: "module" }),
 };
 
@@ -45,7 +43,7 @@ export function choose(lines, temper, rand = Math.random) {
 }
 
 /**
- * An engine in a worker. spawn() makes the worker (WORKERS.stockfish, or a stand-in with postMessage, onmessage,
+ * An engine in a worker. spawn() makes the worker (one of WORKERS, or a stand-in with postMessage, onmessage,
  * onerror and terminate in the tests); `setup` are commands sent once it has said "uciok" (the variant, say).
  */
 export class Engine {

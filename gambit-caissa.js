@@ -1,7 +1,7 @@
 // Caissa (vendor/caissa/NOTE.txt) started for Gambit, in the page's worker (gambit-engine-worker.js) and in Node (the
 // tests and tools, through tests/gambit-uci-node.js): the engine's WebAssembly, its network unpacked straight into the
 // room the engine gives it, and the few Stockfish options Gambit's levels set, which Caissa doesn't have, dropped.
-import { startWasi } from "./uci-wasi.js";
+import { startWasi } from "./gambit-wasi.js";
 
 /** The transposition table, in megabytes: a phone's tab has the network's 76 MB to hold besides. */
 const HASH_MB = 16;
@@ -57,12 +57,28 @@ export async function startCaissa(wasm, net, onLine) {
   const placed = await fillNet(net, room);
   if (placed !== size || !e.exports.net_ready()) throw new Error("the network isn't one Caissa can read");
   e.command(`setoption name Hash value ${HASH_MB}`);
+  let lines = 1;                                                    // the MultiPV last set
+  let set = null, searched = null;                                  // the position last given; the one last searched
   return {
     command(line) {
       if (NOT_CAISSAS.test(line)) return;
-      // a search starts from a clean table: the same position and limit give the same move, whatever came before
-      if (line.startsWith("go")) e.command("ucinewgame");
+      const multipv = /^setoption name MultiPV value (\d+)/i.exec(line);
+      if (multipv) lines = Number(multipv[1]);
+      const position = /^position (.+?)(?: moves (.*))?$/.exec(line);
+      if (position) set = { base: position[1], moves: position[2] ? position[2].split(" ") : [] };
+      if (!line.startsWith("go")) { e.command(line); return; }
+      // The table is worth a lot between the moves of one game (a search from scratch lost to Stockfish's at twice the
+      // nodes), so it stays while a search is a later position of the last one's game, and is cleared for anything
+      // else: a puzzle, a review's position or a new game then gets the same answer whatever came before it.
+      const later = set && searched && set.base === searched.base && set.moves.length > searched.moves.length
+        && searched.moves.every((m, i) => set.moves[i] === m);
+      if (!later) e.command("ucinewgame");
+      searched = set;
+      // a search that asks for more lines than the moves it may search never ends (Caissa waits for lines that can't come)
+      const only = /\bsearchmoves ((?:[a-h][1-8][a-h][1-8][qrbn]? ?)+)/.exec(line)?.[1].trim().split(" ").length ?? Infinity;
+      if (only < lines) e.command(`setoption name MultiPV value ${only}`);
       e.command(line);
+      if (only < lines) e.command(`setoption name MultiPV value ${lines}`);
     },
   };
 }
