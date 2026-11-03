@@ -15,19 +15,16 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="dropdown.css">
 <link rel="stylesheet" href="duel.css">
+<link rel="stylesheet" href="crates-board.css">
 <link rel="stylesheet" href="lots.css">
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="lots full fit-screen beside">
+<div id="app" class="lots cboard full fit-screen beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon cr-mark" aria-hidden="true"></span>Crates</button></h1>
     <div class="top-right">
-      <select id="links" class="pool" data-accent="cr" aria-label="What links these">
-        <option value="country" data-note="A country behind every crate">Countries</option>
-        <option value="classic" data-note="Wordplay lots: sixteen words, four lots">Classic</option>
-      </select>
       <select id="level" class="pool" data-accent="cr" aria-label="Level">
         <option value="easy" data-note="Plain links, no red herrings">Easy</option>
         <option value="medium" data-note="Plain to devious, sometimes a red herring">Medium</option>
@@ -37,19 +34,19 @@
     </div>
   </header>
 
-  <div class="lt-strip full-pull">
-    <span class="lt-what" id="what"></span>
-    <span class="lt-count" id="count"></span>
+  <div class="cb-strip full-pull">
+    <span class="cb-what" id="what"></span>
+    <span class="cb-count" id="count"></span>
   </div>
-  <p class="lt-rival" id="rival" hidden></p>
+  <p class="cb-sub" id="sub" hidden></p>
 
-  <section class="lt-stage fit-grow fit-box" aria-label="The board">
-    <div class="lt-board" id="board"></div>
+  <section class="cb-stage fit-grow fit-box" aria-label="The board">
+    <div class="cb-board" id="board"></div>
   </section>
 
-  <ol class="lt-feed" id="feed" aria-label="Your guesses so far"></ol>
-  <p class="lt-line" id="line" aria-live="polite"></p>
-  <div class="lt-controls" id="controls">
+  <ol class="cb-feed" id="feed" aria-label="Your guesses so far"></ol>
+  <p class="cb-line" id="line" aria-live="polite"></p>
+  <div class="cb-controls" id="controls">
     <button class="btn" type="button" id="shuffleBtn">Shuffle</button>
     <button class="btn" type="button" id="clearBtn">Deselect</button>
     <button class="btn primary" type="button" id="submitBtn">Submit</button>

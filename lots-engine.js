@@ -8,9 +8,6 @@ import { CATEGORIES, SETS } from "./lots-bank.js";
 
 export const SIZE = 4;                         // four lots of four words
 export const MISTAKES = 4;                     // a classic board ends at the fourth wrong guess
-/** Only Connect's wall: two and a half minutes, guesses free until two lots are found, then three lives; a point for
- *  each lot and each link named, and two more for all eight. */
-export const WALL = { ms: 150000, lives: 3, free: 2, bonus: 2 };
 export const LEVELS = ["easy", "medium", "hard"];
 export const LEVEL_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard" };
 
@@ -393,12 +390,10 @@ export function classify(board, words) {
 export const comboKey = words => words.slice().sort().join("|");
 /** A classic board's points: a point a lot found, and once all four are, a point for each mistake left (8 is perfect). */
 export const points = (found, mistakes, won) => found + (won ? Math.max(0, MISTAKES - mistakes) : 0);
-/** The wall's: a point a lot, a point a link named, two more for all eight (10 is perfect). */
-export const wallPoints = (found, named) => found + named + (found === SIZE && named === SIZE ? WALL.bonus : 0);
 /** Lots found in the order oxblood, cobalt, verdigris, ochre: the hardest first (the players' "reverse rainbow"). */
 export const reverseRainbow = order => order.length === SIZE && order.every((g, i) => g === SIZE - 1 - i);
 
-// ---------- naming a lot's link (the wall, and the partner's turn in Crossed) ----------
+// ---------- naming a lot's link (the partner's turn in Crossed) ----------
 /**
  * Four links to choose from for lot k: its own and three others from the bank that don't fit all four of its words.
  * The most tempting come first: links that some of its words do fit (MAMMOTH has a trunk, but HUGE doesn't), then

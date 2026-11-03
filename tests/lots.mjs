@@ -1,10 +1,8 @@
 // Lots (README, Lots): the bank of categories, the wordplay rules, the generator (exactly one way to sort every board,
-// decoys counted), the difficulty it measures and the levels it deals, the computer player, a solo board through
-// classic and the wall and through JSON, the pair's table through the database's round trip, the hidden split, the
-// crossed one, and the daily.
-import { CATS, BY_ID, SET, TOPICS, BALANCED, LEVELS, LEVEL, SIZE, MISTAKES, WALL, fits, fitsOf, reason, deal, daily, analyse,
-  solutions, sortings, classify, points, wallPoints, reverseRainbow, namingOptions, split, SPLITS, cleanMix } from "../lots-engine.js";
-import { plan, at, RIVALS } from "../lots-bot.js";
+// decoys counted), the difficulty it measures and the levels it deals, a solo board through JSON, the pair's table
+// through the database's round trip, the hidden split, the crossed one, and the daily.
+import { CATS, BY_ID, SET, TOPICS, BALANCED, LEVELS, LEVEL, SIZE, MISTAKES, fits, fitsOf, reason, deal, daily, analyse,
+  solutions, sortings, classify, points, reverseRainbow, namingOptions, split, SPLITS, cleanMix } from "../lots-engine.js";
 import * as run from "../lots-run.js";
 import * as room from "../lots-room.js";
 import { tierOf } from "../wordlist.js";
@@ -122,31 +120,11 @@ const dealt = Object.fromEntries(LEVELS.map(level => [level, []]));
   check(again < 8, `categories dealt lately come back rarely (${again} in 30 boards)`);
 }
 
-// ---------- the computer player ----------
-{
-  const stats = (level, boards) => {
-    let mistakes = 0, won = 0, time = 0;
-    boards.forEach((b, i) => { const p = plan(b, level, i + 1), r = at(p, Infinity); mistakes += r.mistakes; if (r.won) { won++; time += p.end; } });
-    return { mistakes: mistakes / boards.length, won: won / boards.length, time: time / Math.max(1, won) };
-  };
-  const easy = dealt.easy.slice(0, 50), hard = dealt.hard.slice(0, 50);
-  const [ne, ce, ee] = Object.keys(RIVALS).map(r => stats(r, easy)), [nh, ch, eh] = Object.keys(RIVALS).map(r => stats(r, hard));
-  check(nh.mistakes > ch.mistakes && ch.mistakes > eh.mistakes && nh.time > ch.time && ch.time > eh.time,
-    `the better player makes fewer mistakes and finishes sooner (Hard: Novice ${nh.mistakes.toFixed(2)} mistakes in ${Math.round(nh.time / 1000)} s, Club ${ch.mistakes.toFixed(2)}, Expert ${eh.mistakes.toFixed(2)} in ${Math.round(eh.time / 1000)} s)`);
-  check(ce.mistakes < ch.mistakes && ce.time < ch.time && ne.won >= nh.won && ee.won >= eh.won, "every player makes more mistakes and takes longer on Hard than on Easy: the grading agrees with play");
-  const b = dealt.medium[0], p = plan(b, "club", 3);
-  check(same(p, plan(b, "club", 3)) && p.events.every((e, i) => !i || e.t >= p.events[i - 1].t) && at(p, 0).found.length === 0 && at(p, Infinity).done,
-    "a rival's game is fixed by its seed, its moves in time, nothing done at the start and over in the end");
-  const first = p.events.find(e => e.kind === "found");
-  check(first && BY_ID.get(b.g[first.g].c).d <= Math.max(...b.g.map(g => BY_ID.get(g.c).d)) && p.events.filter(e => e.kind === "found").every(e => e.words.every(w => b.g[e.g].w.includes(w))),
-    "it puts in only lots it has right when it's sure, the plainer ones as they come to it");
-}
-
-// ---------- a solo board, classic and the wall, through JSON ----------
+// ---------- a solo board through JSON ----------
 {
   const b = dealt.medium[1], J = r => JSON.parse(JSON.stringify(r));
-  let r = run.newRun({ board: b, rival: "club" });
-  check(run.isRun(r) && r.order.length === 16 && new Set(r.order).size === 16 && r.rival.plan.events.length > 0 && same(run.newRun({ board: b }).order, r.order), "a new run: the sixteen in an order of its own, the rival's game with it");
+  let r = run.newRun({ board: b });
+  check(run.isRun(r) && r.order.length === 16 && new Set(r.order).size === 16 && same(run.newRun({ board: b }).order, r.order), "a new run: the sixteen in an order of its own");
   const lotWords = k => b.g[k].w;
   // a wrong guess, one away, then the same again, then right
   const odd = lotWords(1)[0];
@@ -163,28 +141,12 @@ const dealt = Object.fromEntries(LEVELS.map(level => [level, []]));
   for (const k of [2, 1]) { for (const w of lotWords(k)) run.pick(r, w); run.submit(r); }
   check(r.done && r.won && r.found.length === 4 && same(r.found.slice(0, 3), [0, 2, 1]) && run.scoreOf(r) === points(4, 1, true) && run.scoreOf(r) === 7,
     "three found, the fourth falls into place: solved with one mistake, 7 of 8");
-  check(run.dayScore(r) === 7 * 100000 + 99999 && run.versus(r) && [1, -1, 0].includes(run.versus(r).result), "the day's figure is points then time; you against the computer has a result");
+  check(run.dayScore(r) === 7 * 100000 + 99999, "the day's figure is points then time");
   let lost = run.newRun({ board: b });
   for (let i = 0; i < MISTAKES; i++) { run.clearPicks(lost); for (let k = 0; k < 4; k++) run.pick(lost, b.g[k].w[i]); run.submit(lost); }
   check(lost.done && !lost.won && lost.mistakes === MISTAKES && run.scoreOf(lost) === 0, "the fourth mistake ends a classic board");
-  check(reverseRainbow([3, 2, 1, 0]) && !reverseRainbow([0, 1, 2, 3]) && wallPoints(4, 4) === 10 && wallPoints(3, 2) === 5, "the reverse rainbow; the wall's points, ten for everything");
-  // the wall
-  let w = run.newRun({ board: b, mode: "wall" });
-  check(!w.rival && w.lives === null && run.phaseOf(w) === "play", "a wall: no rival, lives only later");
-  for (const x of [...lotWords(0).slice(0, 3), lotWords(1)[0]]) res = run.pick(w, x);
-  check(res.res === "wrong" && w.sel.length === 0 && w.lives === null, "on the wall the fourth pick is the guess; wrong says no more than wrong, and costs nothing yet");
-  for (const k of [0, 1]) for (const x of lotWords(k)) run.pick(w, x);
-  check(w.found.length === 2 && w.lives === WALL.lives, "two lots found: three lives from now on");
-  for (let i = 0; i < WALL.lives; i++) { const ws = [lotWords(2)[0], lotWords(2)[1], lotWords(3)[i], lotWords(3)[i + 1]]; for (const x of ws) run.pick(w, x); }
-  check(run.phaseOf(w) === "name" && w.out === "lives" && !w.done, "out of lives: the wall freezes, the links to name");
-  w = J(w);
-  const offered = [];
-  for (let k = 0; k < SIZE; k++) { const opts = run.namingFor(w, k); offered.push(opts.length === 4 && opts.includes(b.g[k].c)); run.nameLot(w, k < 3 ? b.g[k].c : opts.find(o => o !== b.g[k].c)); }
-  check(offered.every(Boolean), "four links offered for every lot, its own among them");
-  check(w.done && run.scoreOf(w) === 2 + 3 && run.maxScore(w) === 10, "every lot named, found or not: 2 lots and 3 links make 5 of 10");
-  const t = run.newRun({ board: b, mode: "wall" });
-  check(!run.tick(t, WALL.ms - 1) && run.tick(t, 5000) && t.out === "time" && t.ms === WALL.ms && run.wallLeft(t) === 0, "two and a half minutes, then the wall freezes");
-  check(!run.isRun({ ...r, v: 0 }) && !run.isRun({ ...r, order: r.order.slice(1) }), "a stored run this code can't play is refused");
+  check(reverseRainbow([3, 2, 1, 0]) && !reverseRainbow([0, 1, 2, 3]), "the reverse rainbow");
+  check(!run.isRun({ ...r, v: 0 }) && !run.isRun({ ...r, order: r.order.slice(1) }) && !run.isRun({ ...r, mode: "wall" }), "a stored run this code can't play is refused, a board begun on the wall (gone) too");
 }
 
 // ---------- naming ----------
@@ -283,5 +245,5 @@ const dealt = Object.fromEntries(LEVELS.map(level => [level, []]));
   check(same(d, daily(20261020)) && !same(d, daily(20261021)) && d.level === "medium" && d.seed === 20261020, "today's board: Medium, the day its seed, the same on every device, another tomorrow");
 }
 
-console.log(bad ? `lots: ${bad} problems` : `lots: ${CATS.length} categories; every board one way to sort; the levels, the rival, a run, the wall, the pair's table and the daily all hold`);
+console.log(bad ? `lots: ${bad} problems` : `lots: ${CATS.length} categories; every board one way to sort; the levels, a run, the pair's table and the daily all hold`);
 if (bad) process.exitCode = 1;

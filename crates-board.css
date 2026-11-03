@@ -1,0 +1,139 @@
+/* The board of both pages of Crates, Countries (crates.html) and Classic (lots.html), so that they look the same and sit
+   centred (README, Crates; Korbi, 3 November 2026). Sixteen tiles of paper in a four by four, each lot found taking a row
+   as a bar in its enamel (ochre, verdigris, cobalt, oxblood: plain to devious). The board is as large as its box allows
+   (container units: --t is a tile's width, --r a row's height, squarer on a tall phone) and the box centres it, so
+   nothing on it changes size as lots are found. A page puts #app.cboard on its frame; crates.js's drawBoard draws it. */
+:root { --cb-good: #2F7D5B; --cb-bad: #A8382B; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --cb-good: #7FC2A8; --cb-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --cb-good: #7FC2A8; --cb-bad: #E8806F; }
+
+/* the strip: what's on the board, and what's left (mistakes, clues) */
+.cb-strip { display: flex; justify-content: space-between; align-items: center; gap: .75rem; margin: .65rem 0 .3rem; min-height: 1.6rem; }
+.cb-what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; font-weight: 800; font-stretch: var(--wide);
+  letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.cb-count { display: flex; align-items: center; gap: .45rem; flex: none; font-size: .78rem; color: var(--ink-soft); white-space: nowrap; }
+.cb-dots { display: flex; gap: .25rem; margin-right: .4rem; }
+.cb-dots:last-child { margin-right: 0; }
+.cb-dots i { width: .75rem; height: .75rem; border-radius: 50%; background: var(--ink); box-sizing: border-box; }
+.cb-dots i.gone { background: none; box-shadow: inset 0 0 0 1.5px var(--ink-soft); opacity: .7; }
+.cb-dots.clues i { display: grid; place-items: center; font-style: normal; font-size: .5rem; font-weight: 800; line-height: 1; color: var(--yard); }
+.cb-dots.clues i.gone { color: var(--ink-soft); }
+/* the second line: your partner, the others in a race */
+.cb-sub { margin: 0 0 .25rem; min-height: 1.35rem; font-size: .82rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-sub[hidden] { display: none; }
+.cb-sub b { color: var(--ink); font-weight: 750; }
+.cb-sub .pl-name { display: inline-flex; margin-right: .8rem; font-size: .82rem; }
+
+/* the board */
+.cb-stage { margin: .25rem 0; }
+.cb-board { --g: .375rem; --t: min((100cqw - 3 * var(--g)) / 4, (100cqh - 3 * var(--g)) / 3.2);
+  --r: clamp(var(--t) * .8, (100cqh - 3 * var(--g)) / 4, var(--t) * 1.25);
+  display: grid; grid-template-columns: repeat(4, var(--t)); grid-template-rows: repeat(4, var(--r)); gap: var(--g);
+  -webkit-user-select: none; user-select: none; }
+.cb-cell { position: relative; min-width: 0; }
+.cb-tile { position: absolute; inset: 0; width: 100%; display: grid; place-items: center; min-width: 0; padding: 0 .2rem; border: 1.5px solid var(--tile-edge); border-radius: 5px;
+  background: var(--tile); color: var(--ink); font: inherit; font-weight: 700; font-stretch: 87.5%; line-height: 1.05; letter-spacing: .01em;
+  font-size: min(var(--t) * .19, var(--t) * 1.42 / var(--len, 6)); text-transform: uppercase; cursor: pointer; overflow: hidden;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background-color .12s, border-color .12s, transform .12s; }
+.cb-word { display: inline-block; white-space: nowrap; }
+.cb-tile[aria-pressed="true"] { border-color: var(--plate); background: var(--plate); color: var(--plate-ink); }
+.cb-tile:active:not(:disabled) { transform: scale(.96); }
+.cb-tile:disabled { cursor: default; }
+.cb-tile.sealed { background: repeating-linear-gradient(135deg, var(--tile) 0 8px, var(--tile-edge) 8px 9px); cursor: default; }
+/* your partner's pick: the tile ringed in ink, their initial in its corner (a player's colour would read as a lot's) */
+.cb-cell.theirs .cb-tile { box-shadow: inset 0 0 0 2.5px var(--ink); }
+.cb-who { position: absolute; left: .25rem; bottom: .25rem; width: 1rem; height: 1rem; border-radius: 50%; display: grid; place-items: center;
+  font-size: .6rem; font-weight: 800; background: var(--ink); color: var(--sheet); pointer-events: none; }
+/* Hidden: the sealed tile you tapped, with a clue on offer */
+.cb-cell.peek .cb-tile { outline: 2.5px solid var(--ink); outline-offset: -2.5px; }
+/* a wrong guess shakes the picks it was made of, once: the class goes when the shake is over, since every tap redraws the tiles */
+.cb-board.shake .cb-tile[aria-pressed="true"] { animation: cb-shake .35s; }
+@keyframes cb-shake { 25% { transform: translateX(-.3125rem); } 75% { transform: translateX(.3125rem); } }
+
+/* Crates' marks: your note of which crate a tile goes in, in its bottom-left corner; on a picked tile the swatch is a
+   button that marks it and moves the mark on through the colours to none */
+.cb-mark { position: absolute; left: .375rem; bottom: .375rem; width: .6875rem; height: .6875rem; border-radius: 3px; pointer-events: none; box-shadow: 0 0 0 1.5px var(--yard); }
+.cb-mark.pick { pointer-events: auto; left: .3125rem; bottom: .3125rem; width: .875rem; height: .875rem; min-width: 0; min-height: 0; padding: 0; margin: 0;
+  border-radius: 4px; cursor: pointer; z-index: 1; background: none; box-shadow: none; line-height: 0;
+  border: 1.5px dashed color-mix(in srgb, var(--plate-ink) 70%, transparent); -webkit-tap-highlight-color: transparent; }
+.cb-mark.pick::before { content: ""; position: absolute; inset: -.5625rem; }     /* a finger-sized target around a small swatch */
+.cb-mark.pick[class*=" m"] { border: 1.5px solid var(--yard); box-shadow: 0 0 0 1.5px var(--ink); }
+.cb-mark.m0 { background: var(--c0); }
+.cb-mark.m1 { background: var(--c1); }
+.cb-mark.m2 { background: var(--c2); }
+.cb-mark.m3 { background: var(--c3); }
+.cb-cell.theirs .cb-mark { left: 1.625rem; }                 /* your partner's initial has the corner: the mark sits beside it */
+/* the clue badge: a ? in the corner, in its crate's colour once opened; "used": opened and only your partner can read it */
+.cb-hint { position: absolute; top: 0; right: 0; width: 1.875rem; height: 1.875rem; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; z-index: 1;
+  -webkit-tap-highlight-color: transparent; }
+.cb-hint span { width: 1.125rem; height: 1.125rem; border-radius: 50%; display: grid; place-items: center; font-size: .7rem; font-weight: 800; line-height: 1;
+  background: var(--ink); color: var(--yard); box-shadow: 0 0 0 1.5px var(--yard); }
+.cb-hint.spent span { opacity: .35; }
+.cb-hint.lv0 span { background: var(--c0); color: var(--on-c0); }
+.cb-hint.lv1 span { background: var(--c1); color: var(--on-c); }
+.cb-hint.lv2 span { background: var(--c2); color: var(--on-c); }
+.cb-hint.lv3 span { background: var(--c3); color: var(--on-c); }
+.cb-hint.used span { background: var(--yard); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+
+/* a lot: a row's bar in its enamel, its link in wide capitals and its words under it; a tap says why */
+.cb-lot { grid-column: 1 / -1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .15rem; min-width: 0;
+  padding: .2rem .7rem; border: 2px solid; border-radius: 5px; color: var(--ink); text-align: center; font: inherit; cursor: pointer; overflow: hidden; }
+.cb-lot.l0 { background: color-mix(in srgb, var(--c0) 30%, var(--sheet)); border-color: var(--c0); }
+.cb-lot.l1 { background: color-mix(in srgb, var(--c1) 24%, var(--sheet)); border-color: var(--c1); }
+.cb-lot.l2 { background: color-mix(in srgb, var(--c2) 24%, var(--sheet)); border-color: var(--c2); }
+.cb-lot.l3 { background: color-mix(in srgb, var(--c3) 22%, var(--sheet)); border-color: var(--c3); }
+.cb-lot.missed { border-style: dashed; opacity: .82; }
+.cb-lot.land { animation: cb-land .3s ease-out; }
+@keyframes cb-land { from { transform: scaleY(.7); opacity: .4; } }
+/* a long link takes two lines rather than an ellipsis (Countries without their first letter) */
+.cb-lot-name { max-width: 100%; font-size: clamp(.85rem, var(--t) * .16, 2rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track));
+  text-transform: var(--caps); line-height: 1.12; text-wrap: balance; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.cb-lot-words { max-width: 100%; font-size: clamp(.78rem, var(--t) * .14, 1.5rem); font-weight: 600; font-stretch: 87.5%; letter-spacing: .02em; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.cb-lot-by { font-size: clamp(.68rem, var(--t) * .1, 1.1rem); color: var(--ink-soft); font-weight: 650; }
+
+/* the guesses so far: only held sideways, in the side column's room */
+.cb-feed { display: none; }
+
+/* the line: what to do, what a guess came to, a clue; three lines at most, always the same height */
+.cb-line { margin: .45rem 0 .5rem; min-height: 3.75em; display: grid; place-items: center; text-align: center; font-size: .92rem; font-weight: 650; line-height: 1.25; color: var(--ink-soft); }
+.cb-line.good { color: var(--cb-good); }
+.cb-line.bad { color: var(--cb-bad); }
+.cb-line.note { font-size: .8rem; font-weight: 550; }
+.cb-line.clue { display: block; align-self: stretch; padding: .35rem .7rem; border-left: .375rem solid var(--ink); border-radius: 4px; background: var(--sheet); color: var(--ink);
+  text-align: left; font-size: .85rem; font-weight: 550; overflow: hidden; }
+.cb-line.clue b { font-weight: 750; }
+.cb-line.clue.lv0 { border-left-color: var(--c0); }
+.cb-line.clue.lv1 { border-left-color: var(--c1); }
+.cb-line.clue.lv2 { border-left-color: var(--c2); }
+.cb-line.clue.lv3 { border-left-color: var(--c3); }
+.cb-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+.cb-controls .btn { min-height: 3rem; padding-inline: .4rem; }
+.cb-controls.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cb-controls.one { grid-template-columns: minmax(0, 1fr); }
+
+/* a lot's story: the reasons its words belong, the red herrings */
+dialog.cb-sheet { padding-top: 0; max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; }
+.cb-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.cb-sheet .pick-head h2 { font-size: 1rem; }
+.cb-sheet-body p { margin: .45rem 0; line-height: 1.4; }
+
+/* held sideways: the board on the left with all the height, centred in it; what it is, your partner, the guesses so far,
+   the line and the buttons beside it, the buttons low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.cboard { --beside: 19rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; }
+  #app.cboard .cb-stage { grid-column: 1; grid-row: 2 / -1; margin: .8rem 0 0; }
+  #app.cboard .cb-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .5rem; margin-top: 1rem; }
+  #app.cboard .cb-what { white-space: normal; font-size: .85rem; }
+  #app.cboard .cb-sub { grid-column: 2; grid-row: 3; white-space: normal; margin-top: .6rem; }
+  #app.cboard .cb-feed { grid-column: 2; grid-row: 4; display: grid; align-content: start; gap: .3rem; margin: .8rem 0 0; padding: 0; list-style: none;
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: .8rem; color: var(--ink-soft); }
+  #app.cboard .cb-feed li { padding: .35rem .5rem; border-radius: 4px; background: var(--sheet); line-height: 1.3; }
+  #app.cboard .cb-feed b { color: var(--ink); font-weight: 750; }
+  #app.cboard .cb-line { grid-column: 2; grid-row: 5; text-align: left; place-items: center start; min-height: 3.8em; }
+  #app.cboard .cb-controls { grid-column: 2; grid-row: 6; grid-template-columns: minmax(0, 1fr); }
+  #app.cboard .cb-controls .btn { min-height: 2.9rem; }
+}
