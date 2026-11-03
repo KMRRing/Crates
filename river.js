@@ -1,11 +1,11 @@
-// River: Xiangqi (象棋, Chinese chess) against Fairy-Stockfish at a strength you choose, two players on one phone, or
+// River: Xiangqi (象棋, Chinese chess) against the computer at a strength you choose, two players on one phone, or
 // a match with your partner. The rules are river-rules.js's (the board's own referee), the board river-board.js's, the
-// computer's moves and the coach the engine's (uci.js, in a worker, loaded only when a game against it needs it; the
-// coach's judgement is uci-coach.js's). The game in play is kept as it changes (river:game) and picked up on reload; a
-// partner watching draws it from there.
+// computer's moves and the coach the engine's (river-engine.js, our own, spoken to by uci.js in a worker, loaded only
+// when a game against it needs it; the coach's judgement is uci-coach.js's). The game in play is kept as it changes
+// (river:game) and picked up on reload; a partner watching draws it from there.
 import * as X from "./river-rules.js";
 import { mountBoard, discSvg, diagramSvg, setPictures, pieceMark } from "./river-board.js";
-import { LEVELS, levelById, HINT, REVIEW, SETUP } from "./river-levels.js";
+import { LEVELS, levelById, HINT, REVIEW } from "./river-levels.js";
 import { OPENINGS, openingOf } from "./river-openings.js";
 import { Engine, WORKERS, levelMove } from "./uci.js";
 import { COACH, isCoach, createCoach } from "./uci-coach.js";
@@ -74,9 +74,9 @@ const handSeats = () => (inRoom() ? [mySeat()] : G.mode === "two" ? [0, 1] : [0]
 const bottomRed = () => (inRoom() ? D.red === mySeat() : G.mode === "two" ? true : G.red === 0);
 
 // ---------- the engine ----------
-const engine = new Engine(WORKERS.fairy, { setup: SETUP });
+const engine = new Engine(WORKERS.river);
 const FULL = { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false };     // the engine unlimited: the review
-// Xiangqi's engine scores a soldier at about 1.25 of a chess pawn: the coach's judgement is scaled to match (uci-coach.js)
+// the engine's scores run larger than a chess engine's (a soldier at home is worth more than a pawn): the coach's judgement is scaled to match (uci-coach.js)
 const coach = createCoach(engine, { limit: HINT.limit, alone: HINT.alone, scale: 1.25 });
 let engineUp = false;
 /** The engine, started if it isn't: the mark shows while it loads (a moment, or the first download). */
@@ -575,7 +575,7 @@ ${piece(X.SOLDIER, "兵 / 卒", "bīng / zú", "Soldier", "One point forward. On
 <p>The names a club player gives the first moves, shown as you play them (each counts mirrored too: 炮八平五 is as central as 炮二平五):</p>
 <ul class="rv-openings">${OPENINGS.map(o => `<li><b>${s === "simplified" ? o.sc : o.tc}</b> <i>${o.py}</i> · ${o.en}: ${openingMoves(o.line)}</li>`).join("")}</ul>
 <h4>The computer</h4>
-<p>The computer player is Fairy-Stockfish (GPL v3: <a href="vendor/fairy-stockfish/Copying.txt" target="_blank" rel="noopener">licence</a>, <a href="https://github.com/fairy-stockfish/Fairy-Stockfish" target="_blank" rel="noopener">source</a>), playing at the strength you choose in the menu. It's also the coach (Menu, Coach): Hints shows its strongest moves when you ask, as arrows, with what it makes of the position; Check adds a word after a move of yours that gave a good deal away, a mistake (?) or a blunder (??), with the better move, and Show puts the board back to see it; Always shows the strongest moves at each of yours without asking.</p>`;
+<p>The computer player is River's own engine, written for the Codex (no one else's code in it), playing at the strength you choose in the menu. It's also the coach (Menu, Coach): Hints shows its strongest moves when you ask, as arrows, with what it makes of the position; Check adds a word after a move of yours that gave a good deal away, a mistake (?) or a blunder (??), with the better move, and Show puts the board back to see it; Always shows the strongest moves at each of yours without asking.</p>`;
 }
 
 /** An opening's moves in Chinese notation, from the start. */

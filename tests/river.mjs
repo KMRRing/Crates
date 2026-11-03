@@ -1,19 +1,19 @@
 // River: Xiangqi's rules move by move on hand-built positions (the palace, the river, the elephant's eye, the horse's
 // leg, the cannon's screen, the flying general, the soldier across the river), the move generator by perft from the
-// start and against Fairy-Stockfish's own in positions from random games, the notations (Chinese and WXF), the end of a
+// start and against the engine's own (written separately) in positions from random games, the notations (Chinese and WXF), the end of a
 // game (checkmate, no move left, perpetual check, repetition, sixty moves, no attackers), the state as the room keeps
 // it, whole games between computer levels legal move by move through the database's round trip, and the stronger
 // levels beating the weaker.
 import fs from "fs";
 import * as X from "../river-rules.js";
-import { LEVELS, SETUP, levelById } from "../river-levels.js";
+import { LEVELS, levelById } from "../river-levels.js";
 import { OPENINGS, openingOf } from "../river-openings.js";
 import { Engine, levelMove, parseInfo, choose, valueOf } from "../uci.js";
 import { createCoach } from "../uci-coach.js";
 import { MODES, STRIKES, rng as seeded, parsePuzzle, puzzleLine, themeWords, patternWords, patternSay, lineOf, solverOf, answers, targetOf, nearest, rated } from "../river-rush.js";
 import { PATTERNS, patternsOf } from "../river-patterns.js";
-import { fairyWorker } from "../tools/uci-node.mjs";
-import { startWasi } from "../uci-wasi.js";
+import { Engine as Core } from "../river-engine.js";
+import { localWorker } from "../river-uci.js";
 import { roundTrip, same } from "./rtdb.js";
 
 let bad = 0;
@@ -83,37 +83,30 @@ check(same(counts, [44, 1920, 79666, 3290240]), `perft from the start: ${counts.
 check(X.toFen(X.parseFen()) === X.START, "the start's FEN reads back as written");
 
 // ---------- against the engine's own move generator ----------
-const wasm = fs.readFileSync(new URL("../vendor/fairy-stockfish/fairy-stockfish.wasm", import.meta.url));
-const out = [];
-const fsf = await startWasi(wasm, l => out.push(l));
-for (const c of SETUP) fsf.command(c);
-const engineMoves = (fen, moves = []) => {
-  out.length = 0;
-  fsf.command(`position fen ${fen}${moves.length ? ` moves ${moves.join(" ")}` : ""}`);
-  fsf.command("go perft 1");
-  return out.filter(l => /^[a-i]\d+[a-i]\d+: /.test(l)).map(l => l.split(":")[0]).sort();
-};
+// river-engine.js has a generator of its own, written separately: where the two agree on every legal move, check and board
+// of forty random games, and on the published perft numbers, neither has a rule wrong
+const core = new Core({ hashMb: 4 });
 {
   const r = rng(11);
   let positions = 0, differ = [];
   for (let gameNo = 0; gameNo < 40 && differ.length < 3; gameNo++) {
     let pos = X.parseFen();
-    const moves = [];
+    core.setFen(X.START);
     for (let ply = 0; ply < 120; ply++) {
-      const mine = X.legalMoves(pos).map(m => X.uciOf(m.from, m.to)).sort(), theirs = engineMoves(X.START, moves);
+      const mine = X.legalMoves(pos).map(m => X.uciOf(m.from, m.to)).sort(), theirs = core.legalMoves().sort();
       positions++;
-      if (mine.join() !== theirs.join()) { differ.push(`${X.toFen(pos)}: river ${mine.length}, engine ${theirs.length}`); break; }
+      if (mine.join() !== theirs.join() || X.inCheck(pos) !== core.inCheck()) { differ.push(`${X.toFen(pos)}: river-rules ${mine.length}, engine ${theirs.length}`); break; }
       if (!mine.length) break;
-      // captures and checks are likelier, so the games get to the sharp positions
       const pick = mine[Math.floor(r() * mine.length)];
       const m = X.parseUci(pick);
-      moves.push(pick);
       pos = X.after(pos, m.from, m.to);
+      core.play(pick);
     }
   }
   check(!differ.length, `River's legal moves are the engine's in ${positions} positions from 40 random games${differ.length ? `: ${differ.join("; ")}` : ""}`);
-  const perft3 = (() => { out.length = 0; fsf.command("position startpos"); fsf.command("go perft 3"); return Number(out.find(l => l.startsWith("Nodes searched"))?.split(":")[1]); })();
-  check(perft3 === 79666, `and the engine's own perft 3 from the start (${perft3})`);
+  core.setFen(X.START);
+  const counts = [1, 2, 3, 4].map(d => core.perft(d));
+  check(same(counts, [44, 1920, 79666, 3290240]), `and the engine's own perft from the start: ${counts.join(", ")}`);
 }
 
 // ---------- notation ----------
@@ -191,7 +184,7 @@ const engineMoves = (fen, moves = []) => {
 }
 
 // ---------- the computer players ----------
-const engine = new Engine(fairyWorker, { setup: SETUP });
+const engine = new Engine(localWorker);
 check(parseInfo("info depth 3 seldepth 4 multipv 2 score cp -35 nodes 900 nps 1 tbhits 0 time 3 pv h3e3 h10g8")?.cp === -35 && parseInfo("info depth 9 score mate 3 pv a1a2")?.mate === 3 && parseInfo("info string x") === null,
   "an engine's info line reads as its score and moves");
 check(choose([{ cp: 50, pv: ["a"] }, { cp: -900, pv: ["b"] }], 60, () => 0.99) === "a" && choose([{ cp: 50, pv: ["a"] }, { cp: 40, pv: ["b"] }], 60, () => 0.99) === "b",
@@ -225,7 +218,7 @@ check(choose([{ cp: 50, pv: ["a"] }, { cp: -900, pv: ["b"] }], 60, () => 0.99) =
   const match = async (strong, weak, n) => {
     let score = 0;
     for (let i = 0; i < n; i++) {
-      const engine = new Engine(fairyWorker, { setup: SETUP });
+      const engine = new Engine(localWorker);
       let s = X.newGame({ red: i % 2 });
       for (let ply = 0; ply < 300 && !s.result; ply++) {
         const seat = X.waitingOn(s), level = levelById(seat === 0 ? strong : weak);
