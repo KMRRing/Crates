@@ -26,7 +26,8 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-strip { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .1rem .6rem; margin: .6rem 0 .5rem;
   font-size: .92rem; color: var(--ink-soft); white-space: nowrap; }
 .brg-time b { color: var(--ink); font-weight: 800; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
-.brg-time small { margin-left: .4rem; font-size: .78rem; font-weight: 700; color: var(--brg-bad); font-variant-numeric: tabular-nums; }
+/* the penalty's room is kept from the start, so the strip wraps (or not) the same way before and after a hint and the board never changes size */
+.brg-time small { display: inline-block; min-width: 3.6rem; margin-left: .4rem; font-size: .78rem; font-weight: 700; color: var(--brg-bad); font-variant-numeric: tabular-nums; }
 .brg-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
   letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 

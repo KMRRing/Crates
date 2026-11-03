@@ -13,7 +13,7 @@ export const islandRadius = n => 0.28 + 0.032 * (Math.max(1, Math.min(8, n || 1)
 export const headingOf = (dx, dz) => Math.atan2(-dz, dx);
 
 // ---------- the ships: they sail through whatever water is free ----------
-// A ship may go where nothing stands: not on an island, not under a built low bridge, not under a viaduct's pier; and under a
+// A ship may go where nothing stands: not on an island, not in a narrow road's gate, not under a built low bridge, not under a viaduct's pier; and under a
 // viaduct only across it, through one of its arches (a ship's masts clear them), never along its length. The sea is the board
 // and `SEA_MARGIN` cells of open water round it, so there is always a way round the board. Bridges change as the player
 // builds, so the sea is worked out again from the marks and a ship whose way is blocked plans another.
@@ -28,8 +28,10 @@ export function seaOf(lay, marks, margin = SEA_MARGIN) {
   const { size, isl, links } = lay, w = size + 2 * margin, blocked = new Uint8Array(w * w), axis = new Uint8Array(w * w), at = (r, c) => (r + margin) * w + (c + margin);
   for (const o of isl) blocked[at(o.r, o.c)] = 1;
   links.forEach((k, l) => {
+    const a = isl[k.a], b = isl[k.b], span = k.vertical ? b.r - a.r : b.c - a.c;
+    if (k.cap === 1) blocked[k.vertical ? at(a.r + Math.floor(span / 2), a.c) : at(a.r, a.c + Math.floor(span / 2))] = 1;     // a narrow road's gate stands in its middle cell, built or not
     if (!+marks[l]) return;
-    const a = isl[k.a], b = isl[k.b], span = k.vertical ? b.r - a.r : b.c - a.c, piers = k.high ? piersOf(lay, l) : [];
+    const piers = k.high ? piersOf(lay, l) : [];
     for (let i = 1; i < span; i++) {
       const j = k.vertical ? at(a.r + i, a.c) : at(a.r, a.c + i);
       if (!k.high || piers.includes(i)) blocked[j] = 1; else axis[j] = k.vertical ? 2 : 1;
@@ -153,11 +155,19 @@ export function createFleet(count, seed = 1) {
     /** A new sea (a new puzzle, or the marks changed). */
     setSea(next) {
       const first = !sea || sea.size !== next.size;
+      if (first) for (const sh of ships) sh.placed = false;
       sea = next;
       const corner = openWater(sea, 0);                      // the margin's corner is always water, and it is joined to all the margin
       const home = []; corner.forEach((d, j) => { if (d >= 0) home.push(j); });
       for (const sh of ships) {
-        if (first || !sh.placed) { put(sh, home[Math.floor(draw(sh) * home.length)]); sh.placed = true; sh.heading = draw(sh) * Math.PI * 2; continue; }
+        if (!sh.placed) {
+          // set down apart from the ships already out, so two don't start on top of each other (a few tries; a small sea may have no room)
+          for (let tries = 0; tries < 8; tries++) {
+            put(sh, home[Math.floor(draw(sh) * home.length)]);
+            if (ships.every(o => o === sh || !o.placed || Math.hypot(o.x - sh.x, o.z - sh.z) >= 3)) break;
+          }
+          sh.placed = true; sh.heading = draw(sh) * Math.PI * 2; continue;
+        }
         const here = seaCell(sea, sh.x, sh.z);
         if (here < 0 || sea.blocked[here]) { put(sh, nearestFree(sh.x, sh.z)); continue; }
         if (sh.route && !wayOpen(sh)) { sh.route = null; sh.s = 0; }

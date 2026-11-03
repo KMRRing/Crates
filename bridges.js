@@ -370,7 +370,8 @@ const TEXT_SCALE = 100;
 let svg = null, linkEls = [], islEls = [], straitEls = [], seg = [];
 /** What the marks break now, in words (bridges-engine.js's whatBreaks), for the line under the board. */
 let trouble = "";
-const MARGIN = 0.56;                // room a strait's badge takes at the board's left or top edge, in cells
+const MARGIN = 0.78;                // room a strait's badge takes at the board's left or top edge, in cells
+const BADGE = 0.31;                 // its radius
 function drawBoard() {
   const { size, lay } = P, pad = 0.3, at = i => [lay.isl[i].c + 0.5, lay.isl[i].r + 0.5];
   const x0 = lay.groups.some(g => !g.across) ? -(pad / 2 + MARGIN) : -pad, y0 = lay.groups.some(g => g.across) ? -(pad / 2 + MARGIN) : -pad;      // a strait's number sits in the margin, so the margin grows only for one that has it
@@ -379,9 +380,9 @@ function drawBoard() {
   straitEls = lay.groups.map(g => {                                              // straits: a dashed line across the sea, its number in the margin
     const k = g.gap + 1, e = svgEl("g", { class: "brg-strait" }, svg), mid = (g.across ? y0 : x0) + pad / 2 + MARGIN / 2;
     const [bx, by] = g.across ? [k, mid] : [mid, k], end = size + pad / 2 - 0.04;
-    svgEl("line", g.across ? { x1: k, y1: mid + 0.22, x2: k, y2: end, class: "brg-sline" } : { x1: mid + 0.22, y1: k, x2: end, y2: k, class: "brg-sline" }, e);
-    svgEl("circle", { cx: bx, cy: by, r: 0.22, class: "brg-sbadge" }, e);
-    const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "brg-snum", "font-size": 0.3 * TEXT_SCALE, transform: `translate(${bx} ${by}) scale(${1 / TEXT_SCALE})` }, e);
+    svgEl("line", g.across ? { x1: k, y1: mid + BADGE, x2: k, y2: end, class: "brg-sline" } : { x1: mid + BADGE, y1: k, x2: end, y2: k, class: "brg-sline" }, e);
+    svgEl("circle", { cx: bx, cy: by, r: BADGE, class: "brg-sbadge" }, e);
+    const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "brg-snum", "font-size": 0.42 * TEXT_SCALE, transform: `translate(${bx} ${by}) scale(${1 / TEXT_SCALE})` }, e);
     t.textContent = String(g.mx);
     return e;
   });
@@ -391,13 +392,16 @@ function drawBoard() {
   [...lay.links.keys()].sort((a, b) => lay.links[a].high - lay.links[b].high).forEach(i => {
     const l = lay.links[i], { x1, y1, x2, y2 } = seg[i], g = svgEl("g", { class: "brg-l" }, svg), off = d => (l.vertical ? { dx: d, dy: 0 } : { dx: 0, dy: d });
     const line = (d, cls) => { const { dx, dy } = off(d); svgEl("line", { x1: x1 + dx, y1: y1 + dy, x2: x2 + dx, y2: y2 + dy, class: cls }, g); };
-    // a road's width is drawn in the road: a wide one is a bed with three lanes, a narrow one has a post each side of its middle, an ordinary one is a single line as ever
+    // a road's width is drawn in the road: a wide one is a bed with three lanes, a narrow one is pinched by a wedge each side of its middle, an ordinary one is a single line as ever
     if (l.cap === 3) { line(0, "brg-bed"); for (const d of [-0.14, 0, 0.14]) line(d, "brg-guide"); } else line(0, "brg-guide");
     if (l.high) { line(0, "brg-case"); line(0, "brg-piers"); }
     line(0, "brg-b brg-one");
     for (const s of [-1, 1]) line(s * 0.09, "brg-b brg-two");
     if (l.cap === 3) for (const d of [-0.14, 0, 0.14]) line(d, "brg-b brg-three");
-    if (l.cap === 1) for (const s of [-1, 1]) { const { dx, dy } = off(s * 0.15); svgEl("rect", { x: (x1 + x2) / 2 + dx - 0.05, y: (y1 + y2) / 2 + dy - 0.05, width: 0.1, height: 0.1, rx: 0.02, class: "brg-post" }, g); }
+    if (l.cap === 1) {                                              // a narrow road is pinched: a wedge from each side points at the middle of it
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, pt = (u, v) => (l.vertical ? `${mx + v},${my + u}` : `${mx + u},${my + v}`);
+      for (const s of [-1, 1]) svgEl("polygon", { points: [pt(-0.2, s * 0.38), pt(0.2, s * 0.38), pt(0, s * 0.1)].join(" "), class: "brg-post" }, g);
+    }
     linkEls[i] = { g, d: Math.round((x1 + y1) * 40) };
   });
   islEls = lay.isl.map((isle, i) => {
@@ -563,7 +567,7 @@ function twistHint() {
   return f.straits ? " A number on a dashed line counts the bridges that cross it."
     : f.tree ? " No ring: the bridges never come back round to where they started."
     : f.wide ? " A road with three lanes holds up to three bridges."
-    : f.narrow ? " A road between two posts holds one bridge only."
+    : f.narrow ? " A road pinched by two wedges holds one bridge only."
     : f.hills ? " A bridge between two ringed hills goes over the bridges below it."
     : f.realms ? " Islands of one colour join only each other."
     : f.ranges ? " 4+ is at least four, ≤3 at most three." : "";
@@ -621,7 +625,7 @@ function showRules() {
     <p><b>Ranges.</b> Some numbers are only a bound: <b>4+</b> is at least four bridges, <b>≤3</b> at most three. The rest of the rules hold, and the puzzle still has one answer.</p>
     <p><b>Two realms.</b> Two colours of island. A bridge joins two islands of one colour; an island of the other colour in the way stops a link as any island does. Each colour must be one network of its own.</p>
     <p><b>Viaducts.</b> Some islands are hills, ringed like a map's contour lines. A bridge between two hills is a viaduct, drawn cased and ribbed with piers: it goes over any low bridge it meets, which seems to pass under it. Two viaducts, or two low bridges, still can't cross. A hill and an island below it are joined by an ordinary low bridge.</p>
-    <p><b>Narrow roads.</b> A road with a post each side of its middle holds one bridge, never two.</p>
+    <p><b>Narrow roads.</b> A road pinched by a wedge each side of its middle holds one bridge, never two.</p>
     <p><b>Wide roads.</b> A road drawn with three lanes holds up to three bridges, so an island may have more than eight.</p>
     <p><b>Straits.</b> A dashed line across the sea with a number at its end: exactly that many bridges cross it, a double bridge counting twice.</p>
     <p><b>No loops.</b> The bridges never close a ring: walking over them you can't come back to an island without turning round. A double bridge is not a ring.</p>

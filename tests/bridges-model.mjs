@@ -36,6 +36,8 @@ const cell = (sea, r, c) => (r + sea.margin) * sea.w + (c + sea.margin);
   check(open.w === size + 2 * SEA_MARGIN && open.margin === SEA_MARGIN && open.blocked.length === open.w * open.w, `the sea is the board and ${SEA_MARGIN} cells of open water all round it`);
   const stood = s => { const out = []; s.blocked.forEach((b, j) => { if (b) out.push(j); }); return out; };
   check(stood(open).length === 4 && [[3, 0], [3, 6], [1, 2], [5, 2]].every(([r, c]) => open.blocked[cell(open, r, c)]), "with nothing built only the islands are in the way");
+  const gate = seaOf({ size, isl: [{ r: 3, c: 0, n: 1 }, { r: 3, c: 6, n: 1 }, { r: 0, c: 2, n: 1 }, { r: 0, c: 5, n: 1 }], links: [{ a: 0, b: 1, vertical: false, high: false, cap: 1 }, { a: 2, b: 3, vertical: false, high: false, cap: 1 }] }, "00");
+  check(gate.blocked[cell(gate, 3, 3)] && gate.blocked[cell(gate, 0, 3)] && !gate.blocked[cell(gate, 3, 2)] && !gate.blocked[cell(gate, 3, 4)] && !gate.blocked[cell(gate, 0, 4)], "a narrow road's gate stands in its middle cell (the one before the middle on an odd span), built or not, and shuts it to the ships");
   // the viaduct: 6 apart, so cells 1 to 5; the cell under the low link's crossing (column 2) takes no pier, then piers fall at columns 3 and 5
   check([3, 5].every(c => viaduct.blocked[cell(viaduct, 3, c)]) && [1, 2, 4].every(c => !viaduct.blocked[cell(viaduct, 3, c)] && viaduct.axis[cell(viaduct, 3, c)] === 1), "a built viaduct stands on its piers, and the water between them is a way across, not along (axis 1: it runs along x)");
   const low = hand("01");
@@ -104,6 +106,14 @@ const cell = (sea, r, c) => (r + sea.margin) * sea.w + (c + sea.margin);
   }
   check(steps > 20000 && !wet && !drift, `ships sail 10 minutes on five real boards and are never on an island, a pier or a built bridge, nor along a viaduct (${steps} positions)${why ? `: ${why}` : ""}`);
   check(shared === pairs.length && !/same/.test(why), "the same seed and the same sea sail the same way (no chance in it), another seed another way");
+  // ships are set down apart from one another
+  let close = 0;
+  for (let seed = 1; seed <= 30; seed++) {
+    const f = createFleet(4, seed);
+    f.setSea(seaOf(layOf(generate(7000 + seed, 11, "easy")), "0".repeat(60)));
+    for (const a of f.ships) for (const b of f.ships) if (a.k < b.k && Math.hypot(a.x - b.x, a.z - b.z) < 3) close++;
+  }
+  check(close === 0, "ships are set down at least three cells from one another, so none starts on top of another");
   // a ship moves (it is not stuck) and its bow follows where it sails
   const sea = hand("00"), f = createFleet(2, 3);
   f.setSea(sea);

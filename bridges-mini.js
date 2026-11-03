@@ -2,7 +2,7 @@
 // is played, and takes a moment) but a board of its size and twists made the way puzzles start, islands grown and joined,
 // from the level's own number, so each level always shows the same chart. A loosened number is a ring instead of a disc,
 // the second realm is the second colour, a hill has contour rings, a wide road lies on a bed with three lanes, a narrow one
-// has a post each side, a strait is a dashed line with a dot at its end, and a chart with no loops has no extra bridges (a
+// is pinched by a wedge each side, a strait is a dashed line with a dot at its end, and a chart with no loops has no extra bridges (a
 // cartoon of each: none is the level's puzzle). SVG only: the colours are the stylesheet's.
 import { randomBoard, rngOf, flagsOf } from "./bridges-engine.js";
 
@@ -21,7 +21,10 @@ export function miniature(size, twist, seed) {
     if (wide) { under.push(`<line class="bed" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`); for (const d of [-0.22, 0, 0.22]) line(d, cls); }
     else if (k === 2) for (const s of [-1, 1]) line(s * 0.17, cls);
     else line(0, cls);
-    if (narrow) for (const s of [-1, 1]) out.push(`<rect class="post" x="${(x1 + x2) / 2 + (horizontal ? 0 : s * 0.3) - 0.1}" y="${(y1 + y2) / 2 + (horizontal ? s * 0.3 : 0) - 0.1}" width="0.2" height="0.2"/>`);
+    if (narrow) {                                                           // a wedge from each side points at the middle of the road
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, pt = (u, v) => (horizontal ? `${mx + u},${my + v}` : `${mx + v},${my + u}`);
+      for (const s of [-1, 1]) out.push(`<polygon class="post" points="${[pt(-0.32, s * 0.6), pt(0.32, s * 0.6), pt(0, s * 0.12)].join(" ")}"/>`);
+    }
   });
   if (T.straits) {                                                          // two straits, one each way
     const g1 = 1 + Math.floor(rng() * (size - 2)), g2 = 1 + Math.floor(rng() * (size - 2));
