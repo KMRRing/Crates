@@ -5,7 +5,8 @@
 import { Engine, START, MATE } from "./river-engine.js";
 
 /** The centipawns reported to the page per internal centipawn: the page's thresholds (the coach, the hint's words, the
- *  review) were set for a score of Fairy-Stockfish's, in which a soldier at home is worth about 1.25 of chess's pawn. */
+ *  review) were set for the scores of Fairy-Stockfish, which River played before, and the evaluation's weights were fitted
+ *  to them, so the factor is 1. */
 export const REPORT = 1;
 
 /** A UCI session on a fresh engine: `command(line)` takes one line, `out(line)` gets each line the engine writes. */

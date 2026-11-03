@@ -78,20 +78,33 @@ const SIDE_LO = rand32(), SIDE_HI = rand32();
 // plus what its square is worth: a rank profile (how far up the board) and a file profile (how far from the centre file),
 // each for the middlegame and the endgame. A soldier is worth 100 at home and more and more once across the river; a
 // horse likes the centre and the enemy's palace, a cannon the central file, a chariot the open ranks; the general stays
-// home (a general stepping up into the cannons' range costs). The numbers were fitted in the sandbox (README, River).
+// home (a general stepping up into the cannons' range costs). Set by hand, then fitted in the sandbox to the scores the
+// engine River played before gave quiet positions (numbers only: no table of anyone's is in these).
 export const W = {
-  mg: [0, 0, 205, 205, 420, 930, 460, 100], eg: [0, 0, 190, 185, 460, 1010, 400, 120],        // material by type
+  mg: [0, 0, 125, 135, 410, 950, 450, 60], eg: [0, 0, 60, 45, 370, 780, 280, 40],        // material by type
   rankMg: [
-    [], [-4, -14, -30, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 6, 0, 0, 0, 0, 0],
-    [-14, -2, 6, 10, 14, 20, 24, 22, 12, -10], [-6, 2, 2, 2, 6, 10, 14, 18, 16, 6], [-6, 0, 8, 6, 6, 4, 2, 0, -4, -8], [0, 0, 0, 0, 8, 62, 86, 100, 92, 34]],
+    [],
+    [65, -77, -66, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [-47, -17, 24, -5, 11, 14, 39, 4, 51, -7],
+    [-21, -16, -7, -22, 6, 4, 26, -3, 28, 21],
+    [-6, 15, 8, -12, 12, -17, 8, 3, 5, 28],
+    [0, 0, 0, -4, 12, 74, 74, 88, 128, 38]],
   rankEg: [
-    [], [0, 6, -4, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 6, 0, 0, 0, 0, 0],
-    [-10, -1, 4, 7, 10, 14, 17, 15, 8, -7], [-4, 1, 1, 1, 4, 6, 8, 11, 10, 4], [-3, 0, 4, 3, 3, 2, 1, 0, -2, -4], [0, 0, 0, 0, 12, 95, 135, 160, 150, 70]],
-  fileMg: [[], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, -6], [12, 9, 6, 3, -10], [3, 0, 0, 0, 0], [2, 0, 0, 0, -6], [0, 0, 0, 0, 0]],   // by distance from the centre file
-  fileEg: [[], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, -6], [8, 6, 4, 2, -7], [2, 0, 0, 0, 0], [1, 0, 0, 0, -3], [0, 0, 0, 0, 0]],
-  centreAdvisor: 14, centreElephant: 12, centreCannon: 12, crossedFile: [12, 12, 0, -6, -22],
-  rookMob: 3, rookBase: 6, horseMob: 6, horseBase: 3, cannonMob: 1, cannonBase: 7,
-  pin: 14, aim1: 22, aim2: 6, adv: 22, advPair: 10, ele: 13, norm: 9, tempo: 12, zoneR: 0, zoneN: 0, zoneC: 0, zoneP: 0,
+    [],
+    [12, 0, 5, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 6, 0, 0, 0, 0, 0],
+    [-16, 8, -23, -11, 7, 17, -7, 6, 38, -10],
+    [8, -41, 7, -26, -17, -24, -1, -10, -11, -23],
+    [-12, -30, -20, -27, -9, 8, 1, -27, -2, 20],
+    [0, 0, 0, 16, 16, 83, 115, 116, 94, 18]],
+  fileMg: [[], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, -6], [-3, 30, -3, -3, -34], [9, 12, 12, -18, -30], [32, -9, 21, 3, -30], [0, 0, 0, 0, 0]],   // by distance from the centre file
+  fileEg: [[], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, -6], [20, -21, -11, -13, -22], [-10, -27, -21, -36, -24], [-5, -9, -48, -15, 6], [0, 0, 0, 0, 0]],
+  centreAdvisor: 65, centreElephant: 51, centreCannon: 45, crossedFile: [3, 0, -9, -24, -40],
+  rookMob: 6, rookBase: 45, horseMob: 11, horseBase: 15, cannonMob: 2, cannonBase: 16,
+  pin: 29, aim1: 22, aim2: 36, adv: 46, advPair: 25, ele: 25, norm: 8, tempo: 66, zoneR: 6, zoneN: 3, zoneC: -9, zoneP: 36,
 };
 const PSQ_MG = new Int32Array(16 * 90), PSQ_EG = new Int32Array(16 * 90);   // by piece (type | side << 3) and point: Red's positive, Black's negative, so the sums are Red minus Black
 function pst(t, f, r, eg) {
