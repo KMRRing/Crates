@@ -3,8 +3,8 @@
 // daily the same everywhere and never a letter set twice in its walk, the computer player at its three levels, the
 // chart, a team's split (the parts make the whole, neither alone does) through the database's round trip, and a run
 // kept through JSON.
-import { BOARDS, LEVELS, DAILY, RANKS, MASTER, TOP, RIVALS, FULL_BONUS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge,
-  chartOf, planFor, rivalAt, outerOf, statsOf, depthOf, centreFor, centresIn, teamFound, onlyMine, counts, zipfOf, hiveSets, makesDaily,
+import { BOARDS, LEVELS, DAILY, RANKS, MASTER, TOP, FULL_BONUS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge,
+  chartOf, outerOf, statsOf, depthOf, centreFor, centresIn, teamFound, onlyMine, counts, zipfOf, hiveSets, makesDaily,
   maskOf, FIRST_DAY } from "../yield-engine.js";
 import { WORDS, DAYS, BLOCKED } from "../yield-words.js";
 import { isWord, isVariant, tierOf } from "../wordlist.js";
@@ -84,10 +84,10 @@ check(RANKS.length === 10 && RANKS[0][1] === "Crude" && RANKS[MASTER][1] === "Ma
 {
   const a = deal({ seed: 4242, level: "heavy", board: "hive" }), b = deal({ seed: 4242, level: "heavy", board: "hive" });
   check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a) !== JSON.stringify(deal({ seed: 4243, level: "heavy", board: "hive" })), "a seed deals the same puzzle every time, another seed another");
-  const dep = {}, size = {}, slow = {};
+  const dep = {}, size = {};
   let suited = 0, total = 0, quick = true;
   for (const board of Object.keys(BOARDS)) for (const level of Object.keys(LEVELS)) {
-    const ds = [], ws = [], times = [];
+    const ds = [], ws = [];
     for (let s = 1; s <= 40; s++) {
       const t0 = performance.now(), p = deal({ seed: s * 104729 + 7, level, board });
       if (performance.now() - t0 > 250) quick = false;
@@ -96,23 +96,13 @@ check(RANKS.length === 10 && RANKS[0][1] === "Crude" && RANKS[MASTER][1] === "Ma
       const band = { light: [2.75, 9], medium: [2.35, 2.75], heavy: [0, 2.35] }[level];
       if (st.depth >= band[0] && st.depth < band[1]) suited++;
       total++;
-      if (board === "hive") {
-        // a Steady player's minutes to Master refiner: the computer player's own model of how people play
-        const plan = planFor(p, words, "steady", s), need = needed(totalOf(p, words))[8];
-        let acc = 0, at = 999;
-        for (const x of plan) { acc += pointsOf(p, x.w); if (acc >= need) { at = x.t / 60; break; } }
-        times.push(at);
-      }
     }
     dep[`${board} ${level}`] = median(ds); size[`${board} ${level}`] = median(ws);
-    if (board === "hive") slow[level] = median(times);
   }
   check(quick, "each deal takes a moment, never a wait");
   check(suited / total >= 0.95, `the deals are at their level's depth (${suited} of ${total})`);
   check(["hive", "wheel"].every(b => dep[`${b} light`] > dep[`${b} medium`] && dep[`${b} medium`] > dep[`${b} heavy`]),
     `Light's yields go least deep, Heavy's deepest (median depth ${Object.entries(dep).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(", ")})`);
-  check(slow.light < slow.medium && slow.medium <= slow.heavy,
-    `and a Steady player takes longer to reach Master refiner the heavier the crude (median minutes ${Object.entries(slow).map(([k, v]) => `${k} ${v >= 999 ? "never" : v.toFixed(0)}`).join(", ")})`);
   check(size["hive light"] >= 20 && size["hive heavy"] <= 75 && size["wheel light"] >= 16, `sizes in their ranges (median words ${Object.entries(size).map(([k, v]) => `${k} ${v}`).join(", ")})`);
 }
 {
@@ -137,22 +127,6 @@ check(RANKS.length === 10 && RANKS[0][1] === "Crude" && RANKS[MASTER][1] === "Ma
 }
 
 // ---------- the computer player ----------
-{
-  const p = deal({ seed: 777, level: "medium", board: "hive" }), words = yieldOf(p), set = new Set(words);
-  const plan = planFor(p, words, "steady", 777);
-  check(JSON.stringify(plan) === JSON.stringify(planFor(p, words, "steady", 777)), "the rival plays the same game from the same seed (a reload, another phone)");
-  check(plan.every(x => set.has(x.w)) && new Set(plan.map(x => x.w)).size === plan.length && plan.every((x, i) => !i || x.t >= plan[i - 1].t), "it finds only the puzzle's words, each once, in time order");
-  check(rivalAt(p, plan, 0).points === 0 && rivalAt(p, plan, 1e9).points === totalOf(p, plan.map(x => x.w)), "it starts at nothing and ends with all it knows");
-  const sprint = {};
-  for (const level of Object.keys(RIVALS)) {
-    const pts = [];
-    for (let s = 1; s <= 60; s++) { const q = deal({ seed: s * 31 + 5, level: "medium", board: "hive" }), ws = yieldOf(q); pts.push(rivalAt(q, planFor(q, ws, level, s), 180).points); }
-    sprint[level] = median(pts);
-  }
-  check(sprint.novice < sprint.steady && sprint.steady < sprint.sharp && sprint.sharp < sprint.master && sprint.novice >= 15 && sprint.master <= 110,
-    `in a three-minute sprint, Novice < Steady < Sharp < Master, at a person's pace (median points ${Object.entries(sprint).map(([k, v]) => `${k} ${v}`).join(", ")})`);
-}
-
 // ---------- the chart ----------
 {
   const p = deal({ seed: 5, level: "light", board: "hive" }), words = yieldOf(p), found = new Set(words.slice(0, 5)), c = chartOf(words, found);

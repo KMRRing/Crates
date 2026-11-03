@@ -687,39 +687,6 @@ export const scoreOf = run => Math.round((run.ms || 0) / 1000) + HINT_COST * (ru
 /** The words a run needed help with, which go to the pile: those a hint showed and those shown at the end. */
 export const missesOf = (board, run) => board.words.map((_, i) => i).filter(i => i > 0 && (run.hinted.includes(i) || run.revealed.includes(i)));
 
-// ---------- the computer: a rival that finds words at a person's pace ----------
-// It takes the words in the order a person would: the best-known and easiest to find first, the spanning word once a
-// few are in (the theme is clear by then), the last two quicker, as the board left narrows them down. Each word takes
-// the level's pace, longer for a specialist link and a path that's hard to follow, give or take a fifth. Its plan is
-// made from the board's seed, so every phone at a table sees the same rival.
-export const RIVALS = {
-  steady: { label: "Steady", per: 48000 },
-  sharp: { label: "Sharp", per: 31000 },
-  ace: { label: "Ace", per: 18000 },
-};
-/** When the rival finds each word: [{ w, at }] (ms from the start), in the order it finds them. */
-export function rivalPlan(board, level) {
-  const R = RIVALS[level];
-  if (!R) return [];
-  const r = seeded(board.seed ^ hashOf(`rival/${level}`)), g = board.grade.words;
-  const ease = i => board.words[i].d * 4 + g[i].find;
-  const rest = board.words.map((_, i) => i).filter(i => i > 0).sort((a, b) => ease(a) - ease(b) || a - b);
-  const order = [...rest];
-  order.splice(Math.min(2, order.length), 0, 0);              // the spanning word, once the theme is plain
-  let at = 0;
-  return order.map((i, k) => {
-    const left = order.length - k;
-    const know = i === 0 ? 0.8 : 0.55 + 0.2 * board.words[i].d, follow = 0.8 + g[i].find / (g[i].find + 10) * 0.6;
-    at += Math.round(R.per * know * follow * (0.8 + 0.4 * r()) * (left <= 2 ? 0.6 : 1));
-    return { w: i, at };
-  });
-}
-/** How many words the rival has by `ms` into the board, and whether it has them all. */
-export function rivalAt(plan, ms) {
-  const n = plan.filter(p => p.at <= ms).length;
-  return { found: n, done: plan.length > 0 && n === plan.length, at: plan.length ? plan[plan.length - 1].at : 0 };
-}
-
 // ---------- together: the letters shared out ----------
 /**
  * Who holds each letter when a table plays one board as a team, k of them: the t-th letter of the j-th word goes to

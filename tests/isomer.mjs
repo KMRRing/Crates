@@ -140,16 +140,10 @@ const made = {};
   check(deep("easy") <= 2 && deep("medium") < deep("hard"), `the words' median depth rises with the level (${deep("easy")}, ${deep("medium")}, ${deep("hard")})`);
 }
 
-// ---------- the solver and the computer ----------
+// ---------- the solver ----------
 {
-  const p = made["classic/medium"][0];
-  const plans = Object.keys(E.RIVALS).map(level => E.rivalPlan(p, level, 7));
-  check(JSON.stringify(E.rivalPlan(p, "sharp", 7)) === JSON.stringify(plans[1]), "the computer plays the same way for the same seed (everyone at a table sees one rival)");
-  check(plans.every(pl => pl.at.length === p.words.length + p.finals.length && pl.at.every(t => t > 0 && t <= pl.end)
-    && Math.max(...pl.at.slice(0, p.words.length)) < Math.min(...pl.at.slice(p.words.length))), "it solves every jumble, then the final once the letters are in");
-  const avg = level => made["classic/medium"].reduce((t, q, i) => t + E.rivalPlan(q, level, i).end, 0) / made["classic/medium"].length;
-  check(avg("ace") < avg("sharp") && avg("sharp") < avg("steady"), `its levels are paced apart: Ace ${E.clock(avg("ace") / 1000)}, Sharp ${E.clock(avg("sharp") / 1000)}, Steady ${E.clock(avg("steady") / 1000)} on Medium`);
-  check(E.rivalSolved(plans[1], 0) === 0 && E.rivalSolved(plans[1], plans[1].end) === p.words.length + p.finals.length, "how far it has got, as the clock runs");
+  const avg = pace => made["classic/medium"].reduce((t, q) => t + E.solveTime(q, E.PACES[pace]), 0) / made["classic/medium"].length;
+  check(avg("ace") < avg("sharp") && avg("sharp") < avg("steady"), `its paces are apart: Ace ${E.clock(avg("ace") / 1000)}, Sharp ${E.clock(avg("sharp") / 1000)}, Steady ${E.clock(avg("steady") / 1000)} on Medium`);
 }
 
 // ---------- the rules: placing letters, the checks, hints, the tray ----------

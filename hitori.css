@@ -40,7 +40,6 @@ html[data-theme="modern"] { --hi-logo-tint: #F1DDEC; --hi-logo-edge: #7A3B73; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hi-rival[hidden], .hi-duel[hidden] { display: none; }
 #app.pairing .hi-duel { display: none !important; }              /* a split board shows its own line, not the race's */
-.hi-bar { flex: none; width: 3.5rem; height: .375rem; border-radius: 2px; background: linear-gradient(90deg, var(--hi-in) calc(var(--to, 0) * 100%), var(--rule) 0); }
 .hi-seat { display: inline-flex; align-items: center; gap: .3rem; color: var(--ink); font-weight: 750; }
 .hi-seat::before { content: ""; width: .5625rem; height: .5625rem; border-radius: 50%; background: var(--seat); flex: none; }
 .hi-seat.away { opacity: .55; font-weight: 600; }

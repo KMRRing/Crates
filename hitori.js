@@ -4,7 +4,7 @@
 // made in hitori-worker.js. This file keeps the run, the clock and the taps, draws the board, and plays it together on
 // one table (duel.js): a race, everyone the same puzzle on their own phone, or the split board, two players on one
 // board, each seeing half of its numbers.
-import { SHAPES, SIZES, LEVELS, levelsFor, levelOn, DAILY, puzzleOf, solutions, generate, nextMark, withMark, solvedBy, breaks, hintFor, ownerOf, aloneSettles, rivalPlan, rivalAt, RIVALS, NONE, SHADE, KEEP, B, U } from "./hitori-engine.js";
+import { SHAPES, SIZES, LEVELS, levelsFor, levelOn, DAILY, puzzleOf, solutions, generate, nextMark, withMark, solvedBy, breaks, hintFor, ownerOf, aloneSettles, NONE, SHADE, KEEP, B, U } from "./hitori-engine.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -51,13 +51,12 @@ const kindText = k => `${k.shape === "hex" ? `Hex ${k.size}` : `${k.size}${SEP}$
 const kindKey = k => `${k.shape}:${k.size}:${k.level}`;
 
 // ---------- what you chose ----------
-// prefs: the board, the size for each board, the level, the computer rival ("off" or one of RIVALS), and how a match
+// prefs: the board, the size for each board, the level, and how a match
 // for two is played (the split board or a race)
-const prefs = { shape: "square", size: { square: 6, hex: 7 }, level: "easy", rival: "off", together: "pair", ...read(PREFS, {}) };
+const prefs = { shape: "square", size: { square: 6, hex: 7 }, level: "easy", together: "pair", ...read(PREFS, {}) };
 if (!SHAPES[prefs.shape]) prefs.shape = "square";
 for (const sh of Object.keys(SHAPES)) if (!SIZES[sh].includes(prefs.size?.[sh])) prefs.size = { ...prefs.size, [sh]: SIZES[sh][Math.min(1, SIZES[sh].length - 1)] };
 if (!LEVELS[prefs.level]) prefs.level = "easy";
-if (prefs.rival !== "off" && !RIVALS[prefs.rival]) prefs.rival = "off";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
 const chosenKind = () => ({ shape: prefs.shape, size: prefs.size[prefs.shape], level: levelOn(prefs.shape, prefs.size[prefs.shape], prefs.level) });
 
@@ -115,8 +114,8 @@ async function nextPuzzle(k) {
 // ---------- the run ----------
 // S: { v, mode ("random", "daily", "duel" or "pair"), seed, shape, size, level (asked), came (what it graded), grid, sol,
 //      marks, by (on a split board, who made each mark), undo, redo, ms, hints, done ({ ms, score } once solved), lit (a
-//      hint's cells, its reasons and its words), rival, fresh (a new best) }
-let S = null, P = null, plan = null;
+//      hint's cells, its reasons and its words), fresh (a new best) }
+let S = null, P = null;
 let clockFrom = null, savedAt = 0, message = null, paused = false, pointing = false;
 const valid = s => !!s && s.v === 1 && SHAPES[s.shape] && SIZES[s.shape].includes(s.size) && typeof s.grid === "string" && typeof s.marks === "string"
   && typeof s.sol === "string" && s.marks.length === s.grid.length && s.sol.length === s.grid.length && Number.isFinite(s.ms);
@@ -136,9 +135,9 @@ const together = () => S?.mode === "duel" || S?.mode === "pair";
 
 /** Puts a puzzle on the board. */
 function begin(s) {
-  S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, rival: null, ...s };
+  S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
+  delete S.rival;                                    // a run saved when a computer could race you
   P = puzzleOf(S.shape, S.size, S.grid, S.sol);
-  plan = S.rival && RIVALS[S.rival] && !together() ? rivalPlan(P, S.rival, S.seed) : null;
   message = null; pointing = false; clockFrom = null;
   $("level").value = levelOn(S.shape, S.size, S.level);
   offerLevels(S.shape, S.size);
@@ -168,7 +167,7 @@ async function start(mode, k = chosenKind()) {
   if (puzzle) begin(fromPuzzle("random", seed, k, puzzle));
 }
 const fromPuzzle = (mode, seed, k, puzzle) => ({ mode, seed, shape: k.shape, size: k.size, level: k.level, came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol,
-  marks: NONE.repeat(puzzle.grid.length), rival: mode === "duel" || mode === "pair" || prefs.rival === "off" ? null : prefs.rival });
+  marks: NONE.repeat(puzzle.grid.length) });
 /** The shared board for a puzzle (what the host's run becomes when a partner joins). */
 const shareOf = run => hitoriCoop.share({ [RUN]: JSON.stringify({ v: 1, ms: 0, hints: 0, ...run }) });
 async function confirmStart(mode, k) {
@@ -190,7 +189,7 @@ function clockPause() {
   clockFrom = null;
   save();
 }
-onPause(() => { paused = true; clockPause(); cancelPress(); }, () => { paused = false; clockRun(); });   // the menu stops the clock, and the rival with it
+onPause(() => { paused = true; clockPause(); cancelPress(); }, () => { paused = false; clockRun(); });   // the menu stops the clock
 function elapsed() {
   if (!S) return 0;
   if (S.done) return S.done.ms;
@@ -344,26 +343,6 @@ function finish() {
   wave();
 }
 
-// ---------- the computer rival ----------
-// It plays the same puzzle on a timetable worked out from the engine's own solve (rivalPlan), on your clock: it stands
-// while the menu is open and while the page is away, as you do.
-function rivalNow() {
-  if (!plan || !S) return null;
-  return rivalAt(plan, S.done ? S.done.ms : elapsed(), cellsOf());
-}
-function drawRival() {
-  const el = $("rival");
-  if (S?.mode === "pair") { drawPair(); return; }
-  const r = rivalNow();
-  el.hidden = !r;
-  if (!r) return;
-  const name = `${RIVALS[S.rival].label} computer`;
-  const text = r.finished ? `${name}: solved in ${fmt(r.at / 1000)}` : `${name}: ${Math.round((100 * r.done) / r.of)}%`;
-  if (el.dataset.text === text) return;
-  el.dataset.text = text;
-  el.replaceChildren(Object.assign(document.createElement("span"), { className: "hi-bar", style: `--to: ${r.finished ? 1 : r.done / r.of}` }), text);
-}
-
 // ---------- the board ----------
 const NS = "http://www.w3.org/2000/svg";
 const svgEl = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const [a, v] of Object.entries(attrs)) n.setAttribute(a, v); parent?.appendChild(n); return n; };
@@ -472,7 +451,7 @@ function drawStrip() {
   put("time", fmt(elapsed() / 1000 + penalty()));
   put("penalty", penalty() ? `+${penalty()} s` : "");
   put("kind", `${S.mode === "daily" ? "Today · " : ""}${kindText({ shape: S.shape, size: S.size, level: S.came || S.level })}`);
-  drawRival();
+  drawPair();
 }
 function drawLine() {
   const l = $("line");
@@ -498,8 +477,7 @@ function drawResult() {
   let tail = "";
   if (S.mode === "pair") tail = " Solved together.";
   else if (!COOP && S.mode !== "duel") {
-    const r = rivalNow(), best = bestOf(S);
-    if (r) tail = r.finished && r.at / 1000 < d.score ? ` The computer was ${fmt(d.score - r.at / 1000)} quicker.` : ` You beat the ${RIVALS[S.rival].label.toLowerCase()} computer${r.finished ? ` by ${fmt(r.at / 1000 - d.score)}` : ""}.`;
+    const best = bestOf(S);
     tail += S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
   }
   $("verdict").textContent = `Solved${COOP ? " together" : ""}: ${fmt(d.score)}. ${bits.join(", ")}.${tail}`;
@@ -562,7 +540,7 @@ const tableNow = () => duel.together.room?.data || null;
 
 function playRace(match, begun, kept) {
   const same = valid(kept) && kept.seed === match.seed && kept.grid === match.grid;
-  const s = same ? kept : { ...fromPuzzle("duel", match.seed, match, { grid: match.grid, sol: answerOf(match), level: match.came }), rival: null };
+  const s = same ? kept : { ...fromPuzzle("duel", match.seed, match, { grid: match.grid, sol: answerOf(match), level: match.came }) };
   begin({ ...s, mode: "duel", begun });
   tell(!!S.done);
 }
@@ -598,7 +576,7 @@ function overlaid(k, b) {
 function playPair(match) {
   pending.clear();
   const g = tableNow(), p = pairOf(g), slot = mySlot();
-  begin({ ...fromPuzzle("pair", match.seed, match, { grid: match.grid, sol: answerOf(match), level: match.came }), rival: null, mode: "pair", slot,
+  begin({ ...fromPuzzle("pair", match.seed, match, { grid: match.grid, sol: answerOf(match), level: match.came }), mode: "pair", slot,
     marks: p?.k || NONE.repeat(match.grid.length), by: p?.b || NOBODY.repeat(match.grid.length), hints: p?.h || 0, begun: g?.start || duel.now(), n: g?.n });
   tableSeen = g;
   if (p?.done) pairSeen(p);
@@ -679,7 +657,7 @@ function pingsNow() {
 }
 /** The split board's line: who sees which half, in their colours, and who's pointing. */
 function drawPair() {
-  const el = $("rival"), g = tableNow();
+  const el = $("rival"), g = S?.mode === "pair" ? tableNow() : null;
   el.hidden = !g;
   if (!g) return;
   const others = duel.together.others(), mine = mySlot();
@@ -721,7 +699,7 @@ function showRules() {
 }
 
 // the menu: Play (a new puzzle, clearing the board, the rules), Content (random or today's, the board, its size, the
-// level), Together (in a match: the next match's way of playing), Settings (the computer rival), About (your best)
+// level), Together (in a match: the next match's way of playing), About (your best)
 let pick = null;                                              // what New puzzle starts: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
@@ -754,8 +732,6 @@ function openMenu() {
   if (!COOP) content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") boardChoices();
   else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
-  if (!COOP) part(body, "settings").append(choice("Computer rival", [["off", "Off"], ...Object.entries(RIVALS).map(([id, r]) => [id, r.label])], prefs.rival, v => { prefs.rival = v; savePrefs(); }),
-    line(prefs.rival === "off" ? "From the next puzzle, a computer can solve it beside you, at a person's pace." : "It plays from the next puzzle, on your clock."));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const best = S && !COOP ? bestOf(S) : null;
   const about = part(body, "about");
@@ -849,7 +825,7 @@ setInterval(() => {
 
 // for tests and debugging
 window.__hitori = {
-  get state() { return S; }, get puzzle() { return P; }, get duel() { return duel; }, get plan() { return plan; }, get coop() { return coop; },
+  get state() { return S; }, get puzzle() { return P; }, get duel() { return duel; }, get coop() { return coop; },
   press, useHint, undo, redo, start, cellAt,
   /** Where a cell is on the screen, for tests that tap it as a finger would. */
   screenOf: i => { const m = svg.getScreenCTM(); return { x: cellEls[i].x * m.a + m.e, y: cellEls[i].y * m.d + m.f }; },
@@ -875,9 +851,8 @@ function showBoard(board, info) {
   team = board.start || team;
   coopHost = info.host;
   if (info.fresh || !S) {
-    S = { undo: [], redo: [], ms: 0, lit: null, rival: null, ...run };
+    S = { undo: [], redo: [], ms: 0, lit: null, ...run };
     P = puzzleOf(S.shape, S.size, S.grid, S.sol);
-    plan = null;
     message = null; sentDone = false; pointing = false;
     cancelPress();                                          // a finger holding a cell on the board that has just been replaced
     $("level").value = levelOn(S.shape, S.size, S.level);

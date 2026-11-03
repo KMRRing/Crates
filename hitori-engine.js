@@ -679,31 +679,3 @@ export function aloneSettles(P, sees, { trials = true } = {}) {
   }
   return st;
 }
-
-// ---------- the computer rival ----------
-// It solves the same puzzle as you, step by step as grade() does, each step taking the time a person would: a glance for
-// what a mark next to it forces, longer for a pattern, longer still for the connection rule, and for a trial a time
-// that grows with its depth and with how hard it was to find (how few of the suppositions there were to try break).
-export const RIVALS = { steady: { label: "Steady", pace: 3 }, quick: { label: "Quick", pace: 1.8 }, sharp: { label: "Sharp", pace: 1.05 } };
-const THINK = { beside: 0.8, rival: 1, pair: 2.2, sandwich: 2.4, lone: 1.6, cut: 4.5, walled: 5 };
-/** The rival's solve as a timetable: [{ at (ms from the start), done (cells settled by then) }], the last at its finish. */
-export function rivalPlan(P, rival = "quick", seed = 1) {
-  const g = grade(P, { ways: true }), rand = rng(mix(seed, 0x51A1)), pace = (RIVALS[rival] || RIVALS.quick).pace, out = [];
-  let t = 1500, done = 0;
-  for (const x of g.steps) {
-    const cells = x.set.length;
-    let secs = x.tech === "trial" ? 4 + 5 * x.depth + 3 * Math.log2(1 + (x.tried || 1) / Math.max(1, x.ways || 1)) : THINK[x.tech];
-    secs = (secs + 0.55 * cells) * pace * (0.75 + rand() * 0.5);
-    t += secs * 1000;
-    done += cells;
-    out.push({ at: Math.round(t), done });
-  }
-  return out;
-}
-/** How far the rival has got at `ms` on the clock: { done, of, finished, at (its finishing time) }. */
-export function rivalAt(plan, ms, of) {
-  let done = 0;
-  for (const p of plan) { if (p.at > ms) break; done = p.done; }
-  const last = plan[plan.length - 1];
-  return { done, of, finished: !!last && ms >= last.at, at: last ? last.at : 0 };
-}

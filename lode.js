@@ -1,14 +1,14 @@
 // Lode: Strands' genre on the knowledge base. A board of 48 letters hides a country's or a commodity's words, each a
 // path of touching letters, every letter used once; the word that spans the board names the theme, the mother lode.
 // Trace a word by dragging through its letters, or tap them and tap the last again. Other English words of four letters
-// or more earn hints, three a hint. Your time plus 30 seconds a hint is your score. The boards, rules and rival are
+// or more earn hints, three a hint. Your time plus 30 seconds a hint is your score. The boards and rules are
 // lode-engine.js's, the table lode-table.js's, the drawing and the finger lode-board.js's; this file keeps the run, the
 // clock, the menu and the table. Together (together.js): one board for the table, as a team with the letters shared out
 // (each sees only theirs) or as a race, everyone on their own phone.
-import { CELLS, MIN_WORD, LEVELS, SHAPES, RIVALS, PER_HINT, HINT_COST, SHOW_COST, POOLS, GROUPS, THEMES, TOPIC_LIST, topicsOf, dealMix, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
-  scoreOf, missesOf, lockedCells, rivalPlan, rivalAt } from "./lode-engine.js";
+import { CELLS, MIN_WORD, LEVELS, SHAPES, PER_HINT, HINT_COST, SHOW_COST, POOLS, GROUPS, THEMES, TOPIC_LIST, topicsOf, dealMix, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
+  scoreOf, missesOf, lockedCells } from "./lode-engine.js";
 import { MODES, isTable, tidy, tidyBoard, freshTable, readable, presentSlots, traceText, tracesOf, submitAt, hintAt, giveUpAt, runOf, beginAt, reportAt,
-  botAt, standingsOf, raceOver, newGameAt, resultOf } from "./lode-table.js";
+  standingsOf, raceOver, newGameAt, resultOf } from "./lode-table.js";
 import { createBoardView } from "./lode-board.js";
 import { BANK } from "./core.js";
 import { subjectPreset, even, mixParam, mixFromParam } from "./topics.js";
@@ -49,7 +49,6 @@ function cleanSettings(s) {
     level: LEVELS[s?.level] ? s.level : "medium",
     shape: SHAPES[s?.shape] ? s.shape : "square",
     clues: CLUES[s?.clues] ? s.clues : "title",
-    rival: RIVALS[s?.rival] ? s.rival : "off",
     pool: POOLS[s?.pool] ? s.pool : "mixed",
     off: Array.isArray(s?.off) ? s.off.filter(k => ALL_GROUPS.includes(k)) : [],
   };
@@ -67,9 +66,9 @@ const onPreset = () => subjectPreset(subjectsOn()) !== "custom";
 
 // ---------- the solo board ----------
 // S: { deal ({ seed, theme, level, shape, mix }), mode ("random", "daily" or "link"), day (a daily's), board (the board
-// itself, kept so a reload or a new version never re-deals it), run (the engine's), clues, rival (a level, or null),
+// itself, kept so a reload or a new version never re-deals it), run (the engine's), clues,
 // ranked (counts for your best; absent in a run kept before topics were Settings', which did), fresh (a new best),
-// told (the rival's finish was said) }
+// }
 let S = null;
 let clockFrom = null, savedAt = 0, paused = false;
 let message = null;                  // { text, tone }: what the line under the board says until the next trace
@@ -104,7 +103,7 @@ const serverNow = () => Date.now() + offset;
 
 // ---------- what's on screen: the solo board, or the table's ----------
 // at a table in Team: the table's run; in Race: this phone's own run of the table's board
-let G = null, myRace = null, joining = null, offset = 0, stopOffset = null, nextMode = null, nextBot = "off";
+let G = null, myRace = null, joining = null, offset = 0, stopOffset = null, nextMode = null;
 function context() {
   if (G) {
     const team = G.mode === "team";
@@ -231,17 +230,12 @@ function drawStrip(ctx) {
   $("penalty").textContent = pen ? `+${pen} s` : "";
   drawOthers(ctx);
 }
-/** The line beside the count: the rival's progress solo, the others' at a table. */
+/** The line beside the count: the others at a table. */
 function drawOthers(ctx) {
   const box = $("others");
   const bits = [];
-  if (!ctx.table && S?.rival) {
-    const plan = planFor(S), at = rivalAt(plan, soloMs());
-    bits.push([RIVALS[S.rival].label, at.done ? `done ${fmt(at.at / 1000)}` : `${at.found} of ${plan.length}`, null]);
-  } else if (ctx.race) {
+  if (ctx.race) {
     for (const p of others()) { const r = runOf(G, p.slot); bits.push([first(p.name), r?.done ? `done ${fmt(r.score)}` : r?.begun ? `${r.found || 0} of ${ctx.board.words.length}` : p.here ? "ready" : "away", p.slot, p.here]); }
-    const b = botAt(G, Math.max(0, serverNow() - G.start));
-    if (b) bits.push([b.label, b.done ? `done ${fmt(b.score)}` : `${b.found} of ${b.of}`, null]);
   } else if (ctx.team) {
     for (const p of others()) bits.push([first(p.name), p.here ? "here" : "away", p.slot, p.here]);
   }
@@ -307,10 +301,6 @@ function drawResult(ctx) {
     const best = read(TIMES, {})[bestKey(S)];
     head = took(r.ms);
     if (!r.gaveUp && S.ranked !== false) head += S.fresh ? " A new best." : best != null ? ` Your best here: ${fmt(best)}.` : "";
-    if (S.rival) {
-      const end = Math.round(rivalAt(planFor(S), Infinity).at / 1000);
-      head += sc < end ? ` ${RIVALS[S.rival].label} took ${fmt(end)}: you win by ${fmt(end - sc)}.` : sc > end ? ` ${RIVALS[S.rival].label} was ${fmt(sc - end)} quicker.` : ` ${RIVALS[S.rival].label} tied.`;
-    }
   }
   $("verdict").textContent = head;
   $("verdict").className = `lo-verdict${r.gaveUp ? "" : " good"}`;
@@ -333,10 +323,10 @@ function recordBest(sc) {
 }
 /** Puts a board on the table: made = { deal, board }. */
 function begin(made, mode, day = null) {
-  // today's board is the same for everyone, shown by its title too (a rival changes nothing of its score)
+  // today's board is the same for everyone, shown by its title too 
   // a best is today's board, a linked one that deals every topic, or a random one dealt on a preset of the topics
   const ranked = mode === "daily" || (!markedIn() && (mode === "link" ? !made.deal.mix : onPreset()));
-  S = { deal: made.deal, mode, day, board: made.board, run: newRun(), clues: mode === "daily" ? "title" : settings.clues, rival: settings.rival !== "off" ? settings.rival : null, ranked, fresh: false, told: false };
+  S = { deal: made.deal, mode, day, board: made.board, run: newRun(), clues: mode === "daily" ? "title" : settings.clues, ranked, fresh: false };
   lastFound = null; clueAt = 0; message = null; clockFrom = null;
   view.clear();
   if (mode !== "daily") write(SEEN, [...read(SEEN, []).filter(id => id !== made.deal.theme), made.deal.theme].slice(-30));
@@ -421,15 +411,6 @@ function giveUpNow() {
   giveUp(S.board, S.run);
   finishSolo();
 }
-const plans = new Map();
-const planFor = s => { const k = `${s.board.seed}/${s.board.theme}/${s.rival}`; if (!plans.has(k)) plans.set(k, rivalPlan(s.board, s.rival)); return plans.get(k); };
-/** The solo rival's finish, said once. */
-function watchRival() {
-  if (!S?.rival || S.told || S.run.done || G) return;
-  const at = rivalAt(planFor(S), soloMs());
-  if (at.done) { S.told = true; toast(`${RIVALS[S.rival].label} has every word, in ${fmt(at.at / 1000)}. Carry on: your own time counts.`, 4200); save(); }
-}
-
 // ---------- links ----------
 function hashFor(s) {
   const d = s.deal, m = d.mix ? `&m=${mixParam(TOPIC_LIST, d.mix)}` : "";
@@ -539,8 +520,7 @@ function contentChoices(box) {
 function settingsPart(box) {
   box.append(choice("Board", Object.entries(SHAPES), settings.shape, v => { settings.shape = v; saveSettings(); }));
   box.append(choice("Clues", Object.entries(CLUES), settings.clues, v => { settings.clues = v; saveSettings(); }));
-  if (!G) box.append(choice("Rival", [["off", "None"], ...Object.entries(RIVALS).map(([k, r]) => [k, r.label])], settings.rival, v => { settings.rival = v; saveSettings(); }));
-  box.append(line("The board, clues and rival apply from the next board."));
+  box.append(line("The board and clues apply from the next board."));
 }
 function menuTable(body) {
   const table = part(body, "together");
@@ -549,7 +529,6 @@ function menuTable(body) {
   table.append(line(`${MODES[G.mode]}: ${here.join(", ")}${G.mode === "team" ? ". Each sees only their own letters." : ", each on their own board."}`));
   nextMode ??= G.mode;
   table.append(choice("Next board", Object.entries(MODES), nextMode, v => { nextMode = v; openMenu(); }));
-  if (nextMode === "race") table.append(choice("Rival", [["off", "None"], ...Object.entries(RIVALS).map(([k, r]) => [k, r.label])], nextBot, v => { nextBot = v; }));
   table.append(action("A new board", dealForTable, "primary"));
   const content = part(body, "content");
   content.append(mirror("Themes", $("pool")));
@@ -562,9 +541,8 @@ function menuTable(body) {
 
 // ---------- the rules ----------
 // The header's Rules and the menu's The rules: Lode as it's played here, its numbers the engine's own, so the sheet
-// can't drift from the game. A solo clock and the rival stand still while it's open, as for the menu (menu.js).
+// can't drift from the game. A solo clock stands still while it's open, as for the menu (menu.js).
 function showRules() {
-  const paces = Object.values(RIVALS).map(r => r.label).join(", ").replace(/, (\w+)$/, " or $1");
   $("rulesBody").innerHTML = `
     <p>A board of ${CELLS} letters hides a theme's words. Each word is a path of touching letters (sideways, up and down, or diagonally), no letter used twice, and between them the words use every letter on the board exactly once. One of them, the mother lode, names the theme and spans the board, touching two opposite sides.</p>
     <p><b>The theme.</b> A country or a commodity from the knowledge base, and its words are its own clues: a city, a dish, a person, a firm. The title over the board is a clue to the theme; Easy and Medium say whether it's a country or a commodity.</p>
@@ -572,7 +550,7 @@ function showRules() {
     <p><b>Hints.</b> Any other English word of ${inWords(MIN_WORD)} letters or more counts towards a hint, ${inWords(PER_HINT)} words to a hint, as in Strands: the dots on the Hint button fill as they come. A hint rings the letters of the hardest word still hidden; a second while they're ringed numbers them in order. Each hint adds ${HINT_COST} seconds.</p>
     <p><b>Score.</b> Your time plus the hints' seconds, lower being better. Show the words still hidden, in the menu, ends the board at ${SHOW_COST} seconds a word, more than a hint ever costs. Playing alone, the clock stands still while the menu or these rules are open.</p>
     <p><b>Levels.</b> Easy deals well-known links whose paths run straight and read rightwards or down; Hard leans on specialists' links, turns its paths and runs them backwards, and doesn't say if the theme is a country or a commodity. The menu also chooses the themes (countries, commodities or both) and the regions and sectors they come from; which topics the words are of is set once for every game, in Settings.</p>
-    <p><b>Settings.</b> Board: ${SHAPES.square}, or ${SHAPES.hex}, a honeycomb where each letter touches six. Clues: ${CLUES.title}, or ${CLUES.every}, each word's clue with its length in place of the title, one at a time with the arrows, the mother lode's last. Rival: ${paces} finds the words beside you at a person's pace. They apply from the next board.</p>
+    <p><b>Settings.</b> Board: ${SHAPES.square}, or ${SHAPES.hex}, a honeycomb where each letter touches six. Clues: ${CLUES.title}, or ${CLUES.every}, each word's clue with its length in place of the title, one at a time with the arrows, the mother lode's last. They apply from the next board.</p>
     <p><b>Today's board.</b> Medium and square, from every theme, the same for everyone, and a new one at midnight UTC. It counts the moment its last word is found.</p>
     <p><b>Together.</b> As a team, one board with its letters shared out: you see only yours, and a sealed letter is a team mate's, marked with where it is (C4, the third column's fourth letter) so you can ask for it. Anyone traces through any letters, and what you trace shows on the others' boards as it grows. Or a race: the same board on every phone from the same moment, the lowest score winning.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
@@ -581,8 +559,8 @@ function showRules() {
 // ---------- together: one board for the table (together.js) ----------
 // The pair's duo match, or a party's table of up to six. Team (a pair's first board): one run for the table, the
 // letters shared out, each phone showing its own and sealing the rest; a word anyone finds opens for all, in its finder's
-// colour. Race (a party's first board): the same board on every phone from the same moment, the lowest score winning,
-// with a computer rival if the dealer asks. The menu chooses the next board's mode. Your solo board, bests and today's
+// colour. Race (a party's first board): the same board on every phone from the same moment, the lowest score winning.
+// The menu chooses the next board's mode. Your solo board, bests and today's
 // stay as they were.
 const seated = () => { joining?.(); joining = null; };
 function people() {
@@ -620,7 +598,7 @@ const together = createTogether({
   onState,
   onPresence: () => { if (G) render(); },
   onLeave: () => { seated(); G = null; myRace = null; stopOffset?.(); stopOffset = null; closeRace(); solo(); },
-  result: g => { try { const t = tidy(structuredClone(g)); return resultOf(t, together.slot, presentSlots(t, together.room?.here, together.room?.uid), serverNow()); } catch { return null; } },
+  result: g => { try { const t = tidy(structuredClone(g)); return resultOf(t, together.slot, presentSlots(t, together.room?.here, together.room?.uid)); } catch { return null; } },
 });
 function onState(val) {
   seated();
@@ -666,8 +644,8 @@ function dealForTable() {
   if (!G) return;
   const under = !context()?.run.done && (G.team.found.length || Object.keys(G.runs || {}).length);
   if (under && !confirm("Deal a new board for the table? This one isn't finished.")) return;
-  const { board, clues } = tableBoard(), n = G.n, mode = nextMode || G.mode, bot = nextBot;
-  together.act(g => { const t = tidy(g); if (!newGameAt(t, { n, board, mode, now: serverNow(), bot: bot === "off" ? null : bot })) return false; t.clues = clues; return undefined; });
+  const { board, clues } = tableBoard(), n = G.n, mode = nextMode || G.mode;
+  together.act(g => { const t = tidy(g); if (!newGameAt(t, { n, board, mode, now: serverNow() })) return false; t.clues = clues; return undefined; });
 }
 // ---------- the race: this phone's run of the table's board ----------
 const raceKey = () => `${together.room?.code}/${G.created}/${G.n}`;
@@ -695,10 +673,10 @@ function finishRace() {
 }
 function openRace() {
   if (!G || G.mode !== "race") return;
-  const over = raceOver(G, present()), rows = standingsOf(G, serverNow(), over), names = Object.fromEntries(people().map(p => [p.slot, p]));
-  $("raceHead").textContent = over ? (rows[0]?.slot === together.slot && rows.filter(r => r.rank === 1).length === 1 ? "You win" : rows[0]?.slot == null ? `${rows[0]?.label} wins` : `${first(names[rows[0]?.slot]?.name)} wins`) : "The race so far";
+  const over = raceOver(G, present()), rows = standingsOf(G), names = Object.fromEntries(people().map(p => [p.slot, p]));
+  $("raceHead").textContent = over ? (rows[0]?.slot === together.slot && rows.filter(r => r.rank === 1).length === 1 ? "You win" : `${first(names[rows[0]?.slot]?.name)} wins`) : "The race so far";
   const list = leaderboard(rows.map(r => ({
-    name: r.slot == null ? r.label : names[r.slot]?.me ? "You" : first(names[r.slot]?.name), seat: r.slot, me: r.slot === together.slot,
+    name: names[r.slot]?.me ? "You" : first(names[r.slot]?.name), seat: r.slot, me: r.slot === together.slot,
     value: r.done ? r.score : 1e9 - r.found, shown: r.done ? fmt(r.score) : `${r.found} found, playing`, note: r.gave ? "gave up" : null,
   })), { lower: true });
   const body = $("raceBody");
@@ -762,7 +740,6 @@ setInterval(() => {
   wasCounting = now;
   drawStrip(ctx);
   if (!G && clockFrom != null && performance.now() - savedAt > SAVE_EVERY) { clockPause(); clockRun(); }
-  watchRival();
 }, 250);
 
 // for tests and debugging

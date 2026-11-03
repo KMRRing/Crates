@@ -7,10 +7,9 @@
 //    found opens its letters to all. A seat nobody has, or whose player is away, has its letters open to everyone at
 //    the table, so a sleeping phone never holds the others up. Hints and the meter are the table's.
 //  - Race: everyone the same board on their own phone from the same moment, a run each, kept on the phone and reported
-//    here as it goes; the lowest score (time plus hints) wins. The dealer may add a computer rival, whose run every
-//    phone works out the same from the board (rivalPlan).
+//    here as it goes; the lowest score (time plus hints) wins.
 // Everything is kept by key (w3, s1, a word itself), never in a list by number, which the database reads back with holes.
-import { newRun, tidyRun, submit, useHint, giveUp, scoreOf, shares, rivalPlan, rivalAt, RIVALS, CELLS } from "./lode-engine.js";
+import { newRun, tidyRun, submit, useHint, giveUp, scoreOf, shares, CELLS } from "./lode-engine.js";
 
 export const MOST = 6;                 // the most at one table (a party's)
 export const COUNTDOWN = 3000;         // ms from a board's deal to its start, so everyone starts together
@@ -29,10 +28,10 @@ export function tidyBoard(b) {
 }
 export const isTable = g => g?.v === 1 && typeof g.board?.letters === "string" && g.board.letters.length === CELLS && Number.isInteger(g.n);
 
-/** A new table with its first board. mode: "team" or "race"; bot: a rival's level in a race, or null. */
-export function freshTable(players, { board, mode = "team", people: n = 2, app = 1, now = Date.now(), bot = null }) {
+/** A new table with its first board. mode: "team" or "race". */
+export function freshTable(players, { board, mode = "team", people: n = 2, app = 1, now = Date.now() }) {
   return { v: 1, app, created: now, people: people(n), players, n: 1, mode: MODES[mode] ? mode : "team", board, start: now + COUNTDOWN,
-    team: newRun(), by: {}, ...(mode === "race" && RIVALS[bot] ? { bot } : {}) };
+    team: newRun(), by: {} };
 }
 /** The table as the database gives it back, made whole; changes it, and returns it. */
 export function tidy(g) {
@@ -41,7 +40,7 @@ export function tidy(g) {
   g.team = tidyRun(g.team || {});
   g.by ||= {};
   g.runs ||= {};
-  if (!RIVALS[g.bot]) delete g.bot;
+  delete g.bot;                                  // a table dealt when a computer could race
   return g;
 }
 
@@ -119,26 +118,17 @@ export function reportAt(g, { n, slot, run }) {
   g.runs[`s${slot}`] = next;
   return true;
 }
-/** The rival in a race: its run as every phone works it out, ms after the start. */
-export function botAt(g, ms) {
-  if (!g.bot) return null;
-  const plan = rivalPlan(g.board, g.bot), now = rivalAt(plan, ms);
-  return { ...now, of: plan.length, score: Math.round(now.at / 1000), label: RIVALS[g.bot].label };
-}
 /**
- * The race's standings: every seat whose run began, and the rival, best first (the lowest score; a run still going
- * after one that's done). [{ slot (null: the rival), score, done, found, rank }]. final: the race is over, and the
- * rival, whose whole run the board decides, stands where it would finish.
+ * The race's standings: every seat whose run began, best first (the lowest score; a run still going
+ * after one that's done). [{ slot, score, done, found, rank }].
  */
-export function standingsOf(g, now, final = false) {
+export function standingsOf(g) {
   const rows = Object.entries(g.runs || {}).filter(([, r]) => r?.begun).map(([k, r]) => ({ slot: Number(k.slice(1)), score: r.done ? r.score : null, done: !!r.done, found: r.found || 0, ms: r.ms ?? null, gave: !!r.gave }));
-  const b = botAt(g, final ? Infinity : Math.max(0, now - g.start));
-  if (b) rows.push({ slot: null, score: b.done ? b.score : null, done: b.done, found: b.found, ms: b.done ? b.at : null, gave: false, label: b.label });
   rows.sort((x, y) => (x.done === y.done ? (x.done ? x.score - y.score : y.found - x.found) : x.done ? -1 : 1));
   rows.forEach(r => { r.rank = r.done ? 1 + rows.filter(o => o.done && o.score < r.score).length : null; });
   return rows;
 }
-/** Whether the race is over: every run that began is done, and everyone here has begun. The rival never holds it up. */
+/** Whether the race is over: every run that began is done, and everyone here has begun. */
 export function raceOver(g, present) {
   const runs = Object.entries(g.runs || {}).filter(([, r]) => r?.begun);
   return runs.length > 0 && runs.every(([, r]) => r.done) && !present.some(s => !runOf(g, s)?.begun);
@@ -146,7 +136,7 @@ export function raceOver(g, present) {
 
 // ---------- a new board for the table ----------
 /** Deals the next board (the dealer's), in a mode, unless one was dealt since board n. */
-export function newGameAt(g, { n, board, mode, now, bot = null }) {
+export function newGameAt(g, { n, board, mode, now }) {
   if (g.n !== n) return false;
   g.n = n + 1;
   g.board = board;
@@ -155,17 +145,17 @@ export function newGameAt(g, { n, board, mode, now, bot = null }) {
   g.team = newRun();
   g.by = {};
   g.runs = {};
-  if (g.mode === "race" && RIVALS[bot]) g.bot = bot; else delete g.bot;
+  delete g.bot;
   return true;
 }
 
 /** A finished board as the pair's record keeps it, as this player saw it, else null. Team: the table's score (won:
- *  every word found without giving up). Race: this player's score, won when first alone (the rival counts). */
-export function resultOf(g, slot, present, now) {
+ *  every word found without giving up). Race: this player's score, won when first alone. */
+export function resultOf(g, slot, present) {
   const match = `${g.created}-${g.n}`;
   if (g.mode === "team") return g.team.done ? { match, score: scoreOf(g.team), won: !g.team.gaveUp, coop: true, lower: true } : null;
   const mine = runOf(g, slot);
   if (!mine?.done || !raceOver(g, present)) return null;
-  const rows = standingsOf(g, now, true), me = rows.find(r => r.slot === slot);
+  const rows = standingsOf(g), me = rows.find(r => r.slot === slot);
   return { match, score: mine.score, won: me?.rank === 1 && rows.filter(r => r.rank === 1).length === 1, lower: true };
 }

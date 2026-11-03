@@ -2,7 +2,7 @@
 // circled letters, put in order, are the final answer, a thing from the knowledge base clued by its hint. This module
 // is the puzzle and the run, pure (isomer.js draws them; tests/isomer.mjs runs them): the modes and levels, the
 // generator and its proof that every puzzle has one answer, a run's moves (placing letters, hints, the checks), the
-// score, and the solver that grades every puzzle and plays as the computer rival.
+// score, and the solver that sets every puzzle's par.
 import { pool, depthOf, holds, jumble, jumbleLong, spellings, canHide } from "./isomer-words.js";
 import { finalsAll, themesAll, weightOf, clueOf, halvesOf, partnerOf, pairedClue, pairable, cardOf, pairOf, pileKey, lettersOf, TOPIC, NOUN } from "./isomer-kb.js";
 import { isWord } from "./wordlist.js";
@@ -172,7 +172,7 @@ export function makePuzzle(seed, { mode = "classic", level = "medium", cat = "mi
     const m = round === 0 ? mix : null;
     const pick = POOLS[cat] ? cat : "mixed", cats = round === 3 ? ["country", "commodity"] : pick === "mixed" ? [r() < 0.5 ? "country" : "commodity"] : POOLS[pick];   // (the last try takes both, for what marked-for-removal content leaves thin)
     const p = mode === "theme" ? themePuzzle(r, M, L, level, cats, m) : wordPuzzle(r, M, L, level, cats, m, mode);
-    if (p) return { v: 1, mode: M === MODES[mode] ? mode : "classic", level: LEVELS[level] ? level : "medium", seed, cat: cats[0], ...p, wide: round > 0 && !!mix, secs: Math.round(solveTime(p, RIVALS.sharp) / 1000) };
+    if (p) return { v: 1, mode: M === MODES[mode] ? mode : "classic", level: LEVELS[level] ? level : "medium", seed, cat: cats[0], ...p, wide: round > 0 && !!mix, secs: Math.round(solveTime(p, PACES.sharp) / 1000) };
   }
   throw new Error(`no puzzle for ${seed} ${mode} ${level} ${cat}`);
 }
@@ -300,14 +300,14 @@ export function countSolutions(p) {
   return { words, finals, tray: whole === tray ? 1 : 0, one: words.every(n => n === 1) && finals.every(n => n === 1) && whole === tray };
 }
 
-// ---------- the solver: a person's pace, at levels ----------
+// ---------- the solver: a person's pace, at three paces (par is the sharp one's time) ----------
 /**
- * How a person unjumbles, at three paces (README, Isomer, The computer): down the arrangements that look most like
+ * How a person unjumbles, at three paces (docs/isomer.md): down the arrangements that look most like
  * English, a try at a time (try, in ms, longer for a longer word), recognising the word when it comes up with a
  * chance that falls with its rarity (recog, by tier: a reader can pass a rare word by and come round to it again), then
  * the final: known from its clue with a chance by its difficulty (know), else worked out from the letters.
  */
-export const RIVALS = {
+export const PACES = {
   steady: { label: "Steady", read: 3000, try: 2200, tap: 450, recog: [0.9, 0.78, 0.62], know: [0.75, 0.45, 0.25] },
   sharp: { label: "Sharp", read: 2000, try: 1100, tap: 320, recog: [0.97, 0.9, 0.78], know: [0.9, 0.65, 0.4] },
   ace: { label: "Ace", read: 1200, try: 550, tap: 230, recog: [0.99, 0.96, 0.9], know: [0.97, 0.85, 0.6] },
@@ -330,7 +330,7 @@ function finalMs(f, R, known) {
 }
 const knows = (R, d) => R.know[Math.min(3, Math.max(1, d || 1)) - 1];
 /** What a puzzle takes the solver at a pace: the expected ms (each miss and each clue known by its chance). */
-export function solveTime(p, R = RIVALS.sharp) {
+export function solveTime(p, R = PACES.sharp) {
   const words = p.words.reduce((t, w) => {
     if (w.hint) { const q = knows(R, w.d); return t + q * wordMs(w, R, 0, true) + (1 - q) * wordMs(w, R, 0, false); }
     const q = R.recog[Math.min(2, w.tier || 0)];
@@ -339,28 +339,6 @@ export function solveTime(p, R = RIVALS.sharp) {
   const finals = p.finals.reduce((t, f) => { const q = knows(R, f.d); return t + q * finalMs(f, R, true) + (1 - q) * finalMs(f, R, false); }, 0);
   return words + finals;
 }
-/**
- * The computer playing a puzzle at a pace: when it solves each item, in ms from its start ({ at: [ms for each word,
- * then each final], end }). It takes the jumbles quickest first, as a person skims for the easy ones, then the finals
- * once their letters are in. The same seed plays the same way on every device, so everyone at a table sees one rival.
- */
-export function rivalPlan(p, level, seed) {
-  const R = RIVALS[level] || RIVALS.sharp, r = rng(seed ^ 0x51ED), at = [];
-  const times = p.words.map(w => {
-    if (w.hint) return wordMs(w, R, 0, r() < knows(R, w.d)) * (0.8 + 0.4 * r());
-    const q = R.recog[Math.min(2, w.tier || 0)];
-    let misses = 0;
-    while (r() > q && misses < 6) misses++;
-    return wordMs(w, R, misses) * (0.8 + 0.4 * r());
-  });
-  let clock = 0;
-  for (const i of times.map((_, i) => i).sort((a, b) => times[a] - times[b])) { clock += times[i]; at[i] = Math.round(clock); }
-  p.finals.forEach((f, fi) => { clock += finalMs(f, R, r() < knows(R, f.d)) * (0.85 + 0.3 * r()); at[p.words.length + fi] = Math.round(clock); });
-  return { at, end: Math.round(clock) };
-}
-/** How far the rival has got by `ms`: the items it has solved. */
-export const rivalSolved = (plan, ms) => plan.at.filter(t => t <= ms).length;
-
 // ---------- the run: placing letters ----------
 /**
  * A puzzle's items, the jumbles then the finals: { kind, n (its squares), answer, letters (its rack: a jumble's letters

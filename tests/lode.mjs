@@ -1,6 +1,6 @@
 // Lode (README, Lode): the themes and their words, the generator (every board's words fill it in exactly one way, the
 // spanning word crossing it, no two paths crossing), grading (each level inside its band, the levels apart), the
-// rules of a run (theme words, other words towards hints, hints, giving up, the score), the rival, saved state, the
+// rules of a run (theme words, other words towards hints, hints, giving up, the score), saved state, the
 // team's letters shared out so the parts make the whole and none alone does, a table of three through the database's
 // own round trip, and the daily the same everywhere for a day.
 import fs from "fs";
@@ -16,7 +16,7 @@ const { roundTrip, same } = await import("./rtdb.js");
 const { setMarkedIn } = await import("../topics-on.js");
 setMarkedIn(true);   // the engine is checked whole; what Exclude leaves out is checked at the end
 const { CELLS, COLS, ROWS, THEMES, LEVELS, SHAPES, BANDS, SLACK, MAX_TWICE, PER_HINT, HINT_COST, SHOW_COST, makeBoard, boardFor, countCovers, tracings, geometry, themesFor, dailyDeal,
-  pickTheme, newRun, tidyRun, submit, useHint, giveUp, scoreOf, missesOf, lockedCells, shares, rivalPlan, rivalAt, RIVALS, letters, wordsOf, outside } = E;
+  pickTheme, newRun, tidyRun, submit, useHint, giveUp, scoreOf, missesOf, lockedCells, shares, letters, wordsOf, outside } = E;
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -225,19 +225,6 @@ const boards = [], timings = [];
   check(o2.w === wi && o2.moved && lockedCells(tw, r2).reduce((n, x) => n + x, 0) === tw.words[wi].text.length && tw.words[wi].cells.every(c => lockedCells(tw, r2)[c]), "a word traced through its twin letters is found, and locks its own cells");
 }
 
-// ---------- the rival ----------
-{
-  const b = boards.find(x => x.level === "medium" && x.shape === "square");
-  const plans = Object.keys(RIVALS).map(lv => rivalPlan(b, lv));
-  check(plans.every(p => p.length === b.words.length && new Set(p.map(x => x.w)).size === b.words.length && p.every((x, i) => !i || x.at > p[i - 1].at)), "a rival finds every word, one after another");
-  const ends = plans.map(p => p[p.length - 1].at);
-  check(ends[0] > ends[1] && ends[1] > ends[2] && ends[2] > 60_000 && ends[0] < 20 * 60_000, `Steady is slower than Sharp, Sharp than Ace, each at a person's pace (${ends.map(x => Math.round(x / 1000)).join(", ")} s)`);
-  const p = plans[1];
-  check(rivalAt(p, 0).found === 0 && rivalAt(p, p[2].at).found === 3 && rivalAt(p, Infinity).done && same(rivalPlan(b, "sharp"), p), "its progress at any moment, the same on every phone");
-  const pos = p.findIndex(x => x.w === 0);
-  check(pos >= 1 && pos <= 3, "it finds the spanning word once a few words are in");
-}
-
 // ---------- together: the letters shared out ----------
 {
   let fine = true, even = true, alone = true;
@@ -284,8 +271,8 @@ const boards = [], timings = [];
   for (const [i, w] of b.words.entries()) if (i !== 2) act(x => T.submitAt(x, { n: 1, slot: i % 3, cells: w.cells, now: now0 + 60_000 + i }));
   const res = T.resultOf(g, 0, all, now0 + 70_000);
   check(g.team.done && res?.coop && res.won && res.lower && res.score === Math.round((g.team.ms) / 1000) && Object.keys(g.by).length === b.words.length, "every word found ends the board: one result for the team, its time on the table's clock");
-  // a race at the same table, with a rival
-  check(act(x => T.newGameAt(x, { n: 1, board: makeBoard({ seed: 5, theme: "copper", level: "easy", shape: "hex" }), mode: "race", now: now0 + 100_000, bot: "ace" })) && g.n === 2 && g.mode === "race" && g.bot === "ace" && !g.team.found.length,
+  // a race at the same table
+  check(act(x => T.newGameAt(x, { n: 1, board: makeBoard({ seed: 5, theme: "copper", level: "easy", shape: "hex" }), mode: "race", now: now0 + 100_000 })) && g.n === 2 && g.mode === "race" && !g.team.found.length,
     "a new board for the table, in the other mode");
   const start = g.start;
   act(x => T.beginAt(x, { n: 2, slot: 0, now: start - 500 }));
@@ -297,11 +284,10 @@ const boards = [], timings = [];
   act(x => T.reportAt(x, { n: 2, slot: 1, run: { found: 7, hints: 0, done: true, ms: 150_000, score: 150 } }));
   check(!act(x => T.reportAt(x, { n: 2, slot: 1, run: { found: 7, done: true, ms: 1, score: 1 } })) && T.runOf(g, 1).score === 150, "a finished run stands");
   check(T.raceOver(g, [0, 1]) && !T.raceOver(g, [0, 1, 2]), "the race is over when every run that began is done and nobody here is still to begin");
-  const rows = T.standingsOf(g, start + 400_000, true), bot = T.botAt(g, Infinity);
-  check(rows.every((r, i) => !i || rows[i - 1].score <= r.score) && rows.find(r => r.slot === 1).rank < rows.find(r => r.slot === 0).rank
-    && rows.some(r => r.slot === null && r.label === RIVALS.ace.label && r.score === bot.score), "the standings rank the lowest score first, the rival among them where it finishes");
-  const r1 = T.resultOf(g, 1, [0, 1], start + 400_000), r0 = T.resultOf(g, 0, [0, 1], start + 400_000);
-  check(r1.won === (bot.score > 150) && !r0.won && r0.score === 230 && !r1.coop, "the pair's record: the winner first alone, the rival counted");
+  const rows = T.standingsOf(g);
+  check(rows.every((r, i) => !i || rows[i - 1].score <= r.score) && rows.find(r => r.slot === 1).rank < rows.find(r => r.slot === 0).rank, "the standings rank the lowest score first");
+  const r1 = T.resultOf(g, 1, [0, 1]), r0 = T.resultOf(g, 0, [0, 1]);
+  check(r1.won && !r0.won && r0.score === 230 && !r1.coop, "the pair's record: the winner first alone");
 }
 
 // ---------- the daily on every device ----------
@@ -332,4 +318,4 @@ const boards = [], timings = [];
 function LEVELS_OF() { return Object.keys(LEVELS); }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("lode: themes, the generator (one cover, spanning word, no crossings), grading, the solver, a run, hints, the rival, saved state, the team's shares, a table through the database, the daily");
+else console.log("lode: themes, the generator (one cover, spanning word, no crossings), grading, the solver, a run, hints, saved state, the team's shares, a table through the database, the daily");

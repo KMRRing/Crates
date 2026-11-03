@@ -6,7 +6,7 @@
 // database's round trip.
 import { SHAPES, SIZES, LEVELS, LEVEL_LIST, levelsFor, levelOn, DAILY, U, B, W, boardOf, puzzleOf, encode, decode, solutions, obeys, maximal,
   freshState, stateOf, nextStep, apply, grade, levelOf, EXPERT_DEPTH, generate, emptyMarks, nextMark, withMark, solvedBy, breaks, hintFor,
-  NONE, SHADE, KEEP, ownerOf, aloneSettles, rivalPlan, rivalAt, RIVALS } from "../hitori-engine.js";
+  NONE, SHADE, KEEP, ownerOf, aloneSettles } from "../hitori-engine.js";
 import { roundTrip } from "./rtdb.js";
 
 let bad = 0;
@@ -187,18 +187,6 @@ function everyShading(P, limit = 3) {
   check(whole === made, `${whole} of ${made}: both halves together settle it all, as the answer has it`);
 }
 
-// ---------- the computer rival ----------
-{
-  const p = generate(5150, "square", 8, "medium"), P = puzzleOf("square", 8, p.grid, p.sol);
-  const plans = Object.fromEntries(Object.keys(RIVALS).map(r => [r, rivalPlan(P, r, 5150)]));
-  const rising = Object.values(plans).every(pl => pl.every((x, i) => i === 0 || (x.at > pl[i - 1].at && x.done >= pl[i - 1].done)) && pl.at(-1).done === 64);
-  check(rising, "the rival's timetable rises step by step to every cell settled");
-  check(plans.steady.at(-1).at > plans.quick.at(-1).at && plans.quick.at(-1).at > plans.sharp.at(-1).at, `Steady, Quick, Sharp: ${Object.entries(plans).map(([r, pl]) => `${r} ${Math.round(pl.at(-1).at / 1000)} s`).join(", ")} on 8×8 Medium`);
-  check(same(rivalPlan(P, "quick", 5150), plans.quick), "the same puzzle and seed give the same timetable (a partner watching sees the same rival)");
-  const mid = rivalAt(plans.quick, plans.quick[10].at, 64), end = rivalAt(plans.quick, plans.quick.at(-1).at + 1, 64);
-  check(mid.done === plans.quick[10].done && !mid.finished && end.finished && end.done === 64, "where the rival is at a time on the clock, and when it has finished");
-}
-
 // ---------- kept through JSON and the database ----------
 {
   const p = generate(321, "hex", 9, "hard"), P = puzzleOf("hex", 9, p.grid, p.sol);
@@ -218,4 +206,4 @@ function everyShading(P, limit = 3) {
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("hitori: the rules, the generator, the grading, the split and the rival hold");
+else console.log("hitori: the rules, the generator, the grading, the split hold");

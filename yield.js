@@ -3,8 +3,8 @@
 // puzzles and the computer player are yield-engine.js's; this file keeps the runs, draws the board and takes the taps.
 // Today's puzzle and a random one are kept apart, so switching between them loses neither. Together (duel.js): a race,
 // the same letters for everyone against the clock, or a team, the same letters with a centre letter each.
-import { BOARDS, LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, RIVALS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
-  planFor, rivalAt, outerOf, centreFor, centresIn, teamFound, onlyMine } from "./yield-engine.js";
+import { BOARDS, LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
+  outerOf, centreFor, centresIn, teamFound, onlyMine } from "./yield-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
@@ -36,7 +36,7 @@ const up = w => w.toUpperCase();
 const DAY = "yield:day", RUN = "yield:run", ON = "yield:on", PREFS = "yield:prefs", STATS = "yield:stats", DAILY_KEY = "yield:daily", LAST = "yield:last";
 const SAVE_EVERY = 5000;                          // ms between saves of the clock while it runs
 const CLOCKS = [[0, "Untimed"], [180, "3 min"], [300, "5 min"]];
-const prefs = { level: "medium", board: "hive", secs: 0, rival: "off", together: null, raceSecs: 180, ...read(PREFS, {}) };
+const prefs = { level: "medium", board: "hive", secs: 0, together: null, raceSecs: 180, ...read(PREFS, {}) };
 // what a match you deal will be, until you choose: a pair plays as a team (a centre each, each needing the other); a
 // party, a table of friends, races
 const togetherMode = () => prefs.together || (new URLSearchParams(location.search).has("party") ? "race" : "team");
@@ -54,10 +54,10 @@ function loadDict() {
 // ---------- the run on the screen ----------
 // S: { kind ("day", "run", "race" or "team"), p (the puzzle), found (in the order found), extra (words typed that
 // don't count), typed, picks (a wheel's tile for each typed letter, -1 for none free), outer (the letters round the
-// centre, as shown), used (ms on the clock), secs (a sprint's length, 0 untimed), rival, top (the best rank reached),
+// centre, as shown), used (ms on the clock), secs (a sprint's length, 0 untimed), top (the best rank reached),
 // over, shown (the words were revealed) } and, in a match, begun and n.
 let S = null;
-let P = null;          // what the run's puzzle gives: { words (a team's: everyone's), set, total, need, mine (this player's words), centre, plan (a rival's) }
+let P = null;          // what the run's puzzle gives: { words (a team's: everyone's), set, total, need, mine (this player's words), centre }
 let team = null;       // a team match as the table has it: { found: Map(word -> slot), people (seats), over }
 let raceTable = null;  // a race as the table has it: the others' points, for the gauge
 let message = null;    // { text, tone, pts } on the line until the next change
@@ -71,8 +71,7 @@ function derive() {
   const p = boardP(), mine = yieldOf(p);
   const union = S.kind === "team" ? yieldOf(S.p, centresIn(S.p, team?.people || 2)) : mine;
   const total = totalOf(p, union);
-  const plan = S.rival && RIVALS[S.rival] && S.kind !== "race" && S.kind !== "team" ? planFor(p, mine, S.rival, p.seed) : [];
-  P = { words: union, set: new Set(union), mine: new Set(mine), total, need: needed(total), centre: p.centre, plan };
+  P = { words: union, set: new Set(union), mine: new Set(mine), total, need: needed(total), centre: p.centre };
 }
 /** The words found that count here: a team's, every player's; else this player's. */
 const foundMap = () => {
@@ -261,7 +260,7 @@ function noteRank(from, to) {
   write(STATS, st);
 }
 
-// ---------- the clock: a sprint's, and the time on screen a rival plays to ----------
+// ---------- the clock: a sprint's ----------
 const clocked = () => !!S && (S.kind === "day" || S.kind === "run") && !S.over;
 function clockRun() {
   if (IN_FRAME || !clocked() || clockFrom != null || document.hidden || isPaused() || paused) return;
@@ -283,7 +282,6 @@ function tick() {
     if (raceLeft() <= 0 && !S.over) { S.over = true; tell(true); save(); render(); return; }   // duel.js shows the result
   } else if (clocked() && S.secs && sprintLeft() <= 0) { clockPause(); S.used = S.secs * 1000; finish("time"); return; }
   drawClock();
-  drawRival();
   if (clockFrom != null && performance.now() - savedAt > SAVE_EVERY) { clockPause(); clockRun(); }
 }
 
@@ -330,9 +328,9 @@ function drawGauge() {
   drawTheirIndexes();
   $("gauge").setAttribute("aria-label", `${RANKS[rank][1]}: ${pts} of ${total} points. The ranks`);
 }
-/** The rival's index, or the others' in a race, under the scale in their colours. */
+/** The others' indexes in a race, under the scale in their colours. */
 function drawTheirIndexes() {
-  const them = rivalsOnGauge();
+  const them = othersOnGauge();
   while (theirIndexes.childElementCount > them.length) theirIndexes.lastElementChild.remove();
   while (theirIndexes.childElementCount < them.length) theirIndexes.append(el("i", "yd-index them"));
   them.forEach((o, i) => { const x = theirIndexes.children[i]; x.style.left = `${placeOf(o.points) * 100}%`; x.style.setProperty("--who", o.colour); x.title = o.name; });
@@ -347,9 +345,8 @@ function placeOf(pts) {
   const span = need[i + 1] - need[i];
   return (i + (span > 0 ? (pts - need[i]) / span : 0)) / top;
 }
-function rivalsOnGauge() {
+function othersOnGauge() {
   if (!S || !P) return [];
-  if (P.plan.length) return [{ name: RIVALS[S.rival].label, points: rivalAt(boardP(), P.plan, usedMs() / 1000).points, colour: "var(--p1)" }];
   if (S.kind === "race" && raceTable) return raceTable.map(o => ({ name: o.name, points: o.points, colour: `var(--p${o.slot % 6})` }));
   return [];
 }
@@ -374,23 +371,11 @@ function drawFound() {
     return i && !wide ? [" ", s] : [s];
   }));
 }
-/** The line under the words: a rival as it plays (solo), the table's own line in a match (duel.js draws that). */
-function drawRival() {
-  const v = $("vs"), show = !!S && P?.plan.length > 0 && !duel.on;
-  v.hidden = !show;
-  if (!show) return;
-  const now = rivalAt(boardP(), P.plan, usedMs() / 1000), rank = rankOf(now.points, P.total);
-  const sig = `${now.points}/${rank}`;
-  if (v.dataset.sig === sig) return;
-  v.dataset.sig = sig;
-  v.replaceChildren(el("b", "", RIVALS[S.rival].label), ` ${plural(now.words.length, "word")}, ${plural(now.points, "point")} · ${RANKS[rank][1]}`);
-  drawTheirIndexes();                                // its index moves with it
-}
 function render() {
   const p = boardP();
   $("pick").options[0].disabled = duel.on;          // at a table the header deals a match at a level; today's isn't one
   if (S && P) $("pick").value = S.kind === "day" ? "today" : LEVELS[S.p.level] ? S.p.level : "medium";
-  drawBoard(); markTeam(); drawWord(); drawLine(); drawGauge(); drawFound(); drawClock(); drawRival();
+  drawBoard(); markTeam(); drawWord(); drawLine(); drawGauge(); drawFound(); drawClock();
   const off = !canType();
   setBoardOff(off);
   for (const id of ["delBtn", "enterBtn"]) $(id).disabled = off;
@@ -408,7 +393,7 @@ function save() {
 }
 const validRun = s => !!s && !!s.p && BOARDS[s.p.board] && typeof s.p.letters === "string" && typeof s.p.centre === "string" && Array.isArray(s.found);
 /** A run made whole: what an older save or the database's round trip leaves out. */
-const tidy = s => ({ typed: "", picks: [], extra: [], used: 0, secs: 0, rival: null, top: 0, over: false, shown: false, ...s, found: [...(s.found || [])] });
+const tidy = s => ({ typed: "", picks: [], extra: [], used: 0, secs: 0, top: 0, over: false, shown: false, ...s, found: [...(s.found || [])] });
 const started = s => !!s && !s.over && (s.found.length > 0 || s.used > 20000);
 
 // ---------- starting ----------
@@ -455,7 +440,7 @@ function newRandom(level = prefs.level) {
   const p = deal({ seed: randomSeed(), level, board: prefs.board });
   const st = read(STATS, {}) || {};
   write(STATS, { ...st, puzzles: (st.puzzles || 0) + 1 });
-  show({ kind: "run", p, found: [], secs: prefs.secs, rival: prefs.rival !== "off" ? prefs.rival : null });
+  show({ kind: "run", p, found: [], secs: prefs.secs });
 }
 function showRandom() {
   const kept = read(RUN, null);
@@ -493,12 +478,6 @@ function openDone() {
   if (S.kind === "run" && S.secs) {
     const best = read(STATS, {})?.sprints?.[`${S.secs}:${S.p.board}:${S.p.level}`];
     body.append(el("p", "yd-sum", S.fresh ? "A new best for this sprint." : best != null ? `Your best at ${S.secs / 60} minutes, ${BOARDS[S.p.board].toLowerCase()} ${LEVELS[S.p.level].toLowerCase()}: ${best}.` : ""));
-  }
-  if (P.plan.length) {
-    const them = rivalAt(boardP(), P.plan, usedMs() / 1000), name = RIVALS[S.rival].label, mine = new Set(S.found);
-    body.append(el("p", "yd-sum", `${name} made ${them.points} points with ${plural(them.words.length, "word")}: ${pts > them.points ? "you win" : pts === them.points ? "a draw" : `${name} wins`}.`));
-    // its words, those you didn't find first: what a player of its level saw that you didn't
-    if (them.words.length) body.append(el("p", "yd-note", `${name}'s words: ${[...them.words].sort((a, b) => mine.has(a) - mine.has(b) || (a < b ? -1 : 1)).map(w => (mine.has(w) ? up(w) : `${up(w)}*`)).join(", ")}. * you didn't find it.`));
   }
   // the way on before the words, which can run long
   if (S.kind === "day" || S.kind === "run") {
@@ -647,7 +626,7 @@ function playMatch(m, { begun, kept, done, run, n }) {
   const same = kept && kept.p?.letters === p.letters && kept.n === n, words = run?.words || {};
   S = null;
   show({ ...(same ? kept : {}), kind: m.mode === "team" ? "team" : "race", p, found: same ? kept.found : Object.keys(words), times: same ? kept.times : { ...words },
-    secs: m.mode === "team" ? 0 : m.secs || 180, begun, n, over: !!done && m.mode !== "team", rival: null });
+    secs: m.mode === "team" ? 0 : m.secs || 180, begun, n, over: !!done && m.mode !== "team" });
   watchTable();
   if (S.kind === "race" && raceLeft() <= 0 && !S.over) { S.over = true; tell(true); }
 }
@@ -721,8 +700,7 @@ function teamKey() {
 
 // ---------- the menu ----------
 // Play: a new puzzle, the words shown. Content: which puzzle (the header's choice: today's or a level) and the board.
-// Settings: a sprint's clock (for the next puzzle: a clock on a puzzle already under way would be no sprint) and a
-// rival (on the puzzle in front of you, as far as it would have got by now). Together: what a match you deal will be.
+// Settings: a sprint's clock (for the next puzzle: a clock on a puzzle already under way would be no sprint). Together: what a match you deal will be.
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -741,11 +719,7 @@ function openMenu() {
   if (S && !S.over && (S.kind === "day" || S.kind === "run")) play.append(action("Show the words", () => { if (confirm("Show every word? This puzzle ends here.")) finish("shown"); }, "link"));
   part(body, "content").append(mirror("Puzzle", $("pick")),
     choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); $("menuDlg").close(); confirmNew(); }));
-  part(body, "settings").append(choice("Clock", CLOCKS, prefs.secs, v => { prefs.secs = v; keepPrefs(); openMenu(); }),
-    choice("Rival", [["off", "Off"], ...Object.entries(RIVALS).map(([k, r]) => [k, r.label])], prefs.rival, v => {
-      prefs.rival = v; keepPrefs();
-      if (S && (S.kind === "day" || S.kind === "run") && !S.over) { S.rival = v === "off" ? null : v; derive(); save(); render(); }
-    }));
+  part(body, "settings").append(choice("Clock", CLOCKS, prefs.secs, v => { prefs.secs = v; keepPrefs(); openMenu(); }));
   part(body, "together").append(choice("A match you deal", [["team", "Team"], ["race", "Race"]], togetherMode(), v => { prefs.together = v; keepPrefs(); }));
   const st = read(STATS, {}) || {}, sprints = Object.entries(st.sprints || {}), last = read(LAST, null);
   if (last?.p) part(body, "about").append(action(dayName(last.p.day), openLast, "link"));
@@ -761,7 +735,7 @@ function showMenu(body) {
 
 // ---------- the rules ----------
 // The header's Rules and the menu's The rules: Yield as it's played here, its numbers the engine's own, so the sheet
-// can't drift from the game. A sprint's clock and the rival stand still while it's open, as for the menu (menu.js).
+// can't drift from the game. A sprint's clock stands still while it's open, as for the menu (menu.js).
 function showRules() {
   const ranks = RANKS.map(([share, name], i) => (i === 0 ? name : i === TOP ? `${name} (every word)` : `${name} (${Math.round(share * 100)}%)`));
   const sprints = CLOCKS.filter(([secs]) => secs).map(([secs]) => inWords(secs / 60)).join(" or ");
@@ -773,7 +747,7 @@ function showRules() {
     <p><b>Playing.</b> Tap the letters (each goes in as your finger lands) and Enter. Delete takes a letter off, or the whole word if you hold it, and Shuffle turns the outer letters round. On a keyboard: type, Enter, Backspace, Space to shuffle, Escape to clear. Your words run under the gauge, the newest first; tap them for every one, and a word for what it means. The Chart is the hints grid: what's left by first letter and length, and by the first two letters.</p>
     <p><b>The Wheel.</b> The menu's Board: nine tiles from one nine-letter word in place of the hive. Every word uses the centre tile and each tile once at most (a letter on two tiles may be used twice), and the nine-letter word scores as a pangram.</p>
     <p><b>Levels.</b> Light, Medium and Heavy, the menu's Puzzle: how far down the vocabulary ${RANKS[MASTER][1]} takes you. Light gets there on everyday words; Heavy needs words people rarely use.</p>
-    <p><b>Clock and rival.</b> In Settings: untimed, or a sprint of ${sprints} minutes on the next random puzzle, the most points before time is up. The rival plays the same puzzle beside you, at Novice, Steady, Sharp or Master, its index under the gauge. Both stand still while the menu or these rules are open.</p>
+    <p><b>Clock.</b> In Settings: untimed, or a sprint of ${sprints} minutes on the next random puzzle, the most points before time is up. It stands still while the menu or these rules are open.</p>
     <p><b>Today's puzzle.</b> A ${LEVELS[DAILY.level]} ${BOARDS[DAILY.board].toLowerCase()}, the same seven letters for everyone, and a new one at midnight UTC. Your points count for the day as each word is found, so you can leave and come back, and today's and a random puzzle are kept apart, so switching loses neither. Show the words, in the menu, ends a puzzle and lists them all; the daily before today's keeps its words in the menu too.</p>
     <p><b>Together.</b> A race: the same letters for everyone and a clock of ${sprints} minutes, the most points winning. Or a team: the same letters but a centre letter each, so each of you has words only you can enter; the chart on your phone is your partner's, what's left that they can enter, for you to tell them.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();

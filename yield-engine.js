@@ -45,7 +45,6 @@ export function rng(seed) {
   };
 }
 const shuffled = (xs, r) => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const hashText = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 
 // ---------- the words ----------
 export const maskOf = w => { let m = 0; for (let i = 0; i < w.length; i++) m |= 1 << (w.charCodeAt(i) - A); return m; };
@@ -314,45 +313,6 @@ export function chartOf(words, found = new Set()) {
   }
   return { rows: [...rows.values()].sort((a, b) => (a.letter < b.letter ? -1 : 1)), lengths: [...lengths].sort((a, b) => a - b), left: left.length,
     starts: [...starts.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)) };
-}
-
-// ---------- the computer player ----------
-// It plays as a person does: it knows a word with a chance that falls with the word's ease below its vocabulary, and
-// finds what it knows the commonest and shortest first, with some luck in the order; each word takes a while to think
-// of, longer for rarer words and longer as the easy ones run out, and a moment to tap in. Its whole game is planned
-// from the seed at the start, a time for every word it will find, so it plays the same on a reload and every phone.
-// Fitted to how people play (tests/yield.mjs holds them to it): on a Medium hive, Novice finds about half the points
-// in half an hour and never reaches Master refiner; Steady reaches it in thirty-odd minutes, Sharp in about fifteen,
-// Master in ten; in a three-minute sprint they make about 35, 45, 60 and 70 points.
-export const RIVALS = {
-  novice: { label: "Novice", vocab: 3.05, think: 19, luck: 0.6 },
-  steady: { label: "Steady", vocab: 2.5, think: 13, luck: 0.5 },
-  sharp: { label: "Sharp", vocab: 2.05, think: 7.5, luck: 0.4 },
-  master: { label: "Master", vocab: 1.7, think: 5.5, luck: 0.35 },
-};
-/** The rival's game on a puzzle: [{ w, t }], t its seconds from the start, in the order it finds them. */
-export function planFor(p, words, level, seed = p.seed) {
-  const R = RIVALS[level];
-  if (!R) return [];
-  const r = rng((seed ^ hashText(level) ^ hashText(p.letters + p.centre)) >>> 0);
-  const normal = () => { const u = Math.max(1e-9, r()), v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
-  const known = [];
-  for (const w of words) {
-    const e = ease(w) + (isFull(p, w) ? 0.6 : 0);          // a pangram is what a good player looks for
-    if (r() < 1 / (1 + Math.exp(-(e - R.vocab) / 0.25))) known.push({ w, sal: e + R.luck * normal() });
-  }
-  known.sort((a, b) => b.sal - a.sal || (a.w < b.w ? -1 : 1));
-  let t = 0;
-  return known.map((k, i) => {
-    const late = 1 + 9 * (i / known.length) ** 2.5;          // the last words it knows come ten times slower than the first
-    t += Math.max(2.5, R.think * Math.exp(0.6 * (3.6 - k.sal)) * late * (0.6 + 0.8 * r())) + 0.8 + 0.2 * k.w.length;
-    return { w: k.w, t: Math.round(t * 10) / 10 };
-  });
-}
-/** What the rival has found by `secs` into the game: { words, points }. */
-export function rivalAt(p, plan, secs) {
-  const got = plan.filter(x => x.t <= secs).map(x => x.w);
-  return { words: got, points: totalOf(p, got) };
 }
 
 // ---------- the hive's outer letters, shuffled ----------

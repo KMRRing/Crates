@@ -1,9 +1,9 @@
 // Isomer (README, Isomer): Jumble's genre, its final answer a thing from the knowledge base clued by its hint. This file
 // draws the puzzle and keeps the run: the rows and their squares, the rack of letters under the thumb, the clue, the
-// clock, the menu; solo (random or today's, with a computer rival if you like), with your partner (two jumbles each,
+// clock, the menu; solo (random or today's), with your partner (two jumbles each,
 // the final together: isomer-table.js) or a race at a table of up to six (duel.js). The puzzle and the rules are
 // isomer-engine.js's.
-import { MODES, LEVELS, DAILY, PER_HINT, RIVALS, topicsOf, makePuzzle, newRun, tidyRun, itemsOf, rackOf, place, placeLetter, unplace, back, clear, reshuffle, hint, solveFrom, hintsOf, scoreOf, nextOpen, clock, rivalPlan, rivalSolved, rng, revealTo } from "./isomer-engine.js";
+import { MODES, LEVELS, DAILY, PER_HINT, topicsOf, makePuzzle, newRun, tidyRun, itemsOf, rackOf, place, placeLetter, unplace, back, clear, reshuffle, hint, solveFrom, hintsOf, scoreOf, nextOpen, clock, rng, revealTo } from "./isomer-engine.js";
 import { isPair, freshPair, tidy as tidyTable, beginAt, solveAt, hintAt, newGameAt, resultOf as pairResult, halfFor, teamScore, itemKey, APP as PAIR_APP } from "./isomer-table.js";
 import { subjectPreset } from "./topics.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
@@ -25,16 +25,15 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { if (IN_FRAME) return; try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
-const RUN = "isomer:run", OPTS = "isomer:opts", TIMES = "isomer:times", RIVAL_RECORD = "isomer:rivals", PAIR = "isomer:pair";
+const RUN = "isomer:run", OPTS = "isomer:opts", TIMES = "isomer:times", PAIR = "isomer:pair";
 const SAVE_EVERY = 5000;                 // ms between saves of the clock while a puzzle is in play (a partner watching sees it that often)
 const first = name => String(name || "Player").trim().split(/\s+/)[0];
 
 // ---------- what to deal: the menu's choices ----------
 const CATS = { mixed: "Mixed", country: "Countries", commodity: "Commodities" };
-const RIVAL_NAMES = { off: "Off", ...Object.fromEntries(Object.entries(RIVALS).map(([k, v]) => [k, v.label])) };
 function opts() {
   const o = read(OPTS, {}) || {};
-  return { mode: MODES[o.mode] ? o.mode : "classic", level: LEVELS[o.level] ? o.level : "medium", cat: CATS[o.cat] ? o.cat : "mixed", rival: RIVAL_NAMES[o.rival] ? o.rival : "off" };
+  return { mode: MODES[o.mode] ? o.mode : "classic", level: LEVELS[o.level] ? o.level : "medium", cat: CATS[o.cat] ? o.cat : "mixed" };
 }
 const setOpt = (k, v) => write(OPTS, { ...opts(), [k]: v });
 // The topics are the suite's one set (Settings; topics-on.js), read when a puzzle is dealt, never once at start-up: a
@@ -44,7 +43,7 @@ const onPreset = () => subjectPreset(subjectsOn()) !== "custom";
 
 // ---------- the puzzle on the screen ----------
 // S: { kind ("random", "daily", "race" or "pair"), puzzle, run (the engine's), day, ranked (a preset or today's: it
-// counts for your best), rival (a computer's pace, or "off"), begun (a race's start, server time), fresh (a new best) }
+// counts for your best), begun (a race's start, server time), fresh (a new best) }
 let S = null, P = null, items = [];
 let clockFrom = null, savedAt = 0;
 let message = null;                       // { text, tone } the clue panel says until the next move
@@ -81,8 +80,6 @@ function show(next) {
   P = S.puzzle;
   items = itemsOf(P);
   S.run = tidyRun(P, S.run) || newRun(P);
-  if (S.rival && S.rival !== "off") S.plan = rivalPlan(P, S.rival, P.seed);
-  else S.plan = null;
   clockFrom = null;
   message = null;
   build();
@@ -98,7 +95,7 @@ async function deal(kind = "random") {
   try {
     const seed = daily ? today() : randomSeed();
     const puzzle = makePuzzle(seed, daily ? { ...DAILY, daily: true } : { mode: o.mode, level: o.level, cat: o.cat, mix: mix() });
-    show({ kind, puzzle, run: null, day: daily ? seed : null, ranked: daily || (!markedIn() && onPreset()), rival: o.rival });
+    show({ kind, puzzle, run: null, day: daily ? seed : null, ranked: daily || (!markedIn() && onPreset()) });
     if (puzzle.wide) toast("Too few clues in your topics for that: dealt from every topic");
   } catch (e) { console.error(e); toast("Couldn't deal a puzzle: try another level"); }
   finally { done(); }
@@ -189,12 +186,6 @@ function finish() {
       if (S.fresh) { times[k] = sc; write(TIMES, times); }
     }
     if (S.kind === "daily") noteDayTime("isomer", sc, S.day);
-    if (S.plan) {                                               // against the computer: who was quicker
-      const rec = read(RIVAL_RECORD, {}), mine = rec[S.rival] || { won: 0, lost: 0 };
-      if (sc * 1000 <= S.plan.end) mine.won++; else mine.lost++;
-      rec[S.rival] = mine;
-      write(RIVAL_RECORD, rec);
-    }
     roundOver("isomer");
   }
   save();
@@ -364,12 +355,6 @@ function drawStrip() {
   put("penalty", pen ? `+${pen} s` : "");
   const o = `${MODES[P.mode].label} · ${LEVELS[P.level].label}`;
   put("where", S.kind === "daily" ? `Today's · ${o}` : S.kind === "pair" ? `With ${partnerName()} · ${o}` : S.kind === "race" ? `Race · ${o}` : o);
-  const g = $("ghost");
-  if (S.plan) {
-    const k = rivalSolved(S.plan, S.run.done ? S.run.ms : ms), all = items.length;
-    g.hidden = false;
-    put("ghost", k >= all ? `${RIVALS[S.rival].label} done ${clock(S.plan.end / 1000)}` : `${RIVALS[S.rival].label} ${k}/${all}`);
-  } else g.hidden = true;
 }
 const shownText = {};
 const put = (id, v) => { if (shownText[id] !== v) { shownText[id] = v; $(id).textContent = v; } };
@@ -383,7 +368,6 @@ function drawEnd() {
   if (S.kind === "random" || S.kind === "daily") {
     const best = read(TIMES, {})[`${P.mode}/${P.level}`];
     if (S.fresh) bits.push("a new best"); else if (best != null && S.ranked) bits.push(`best ${clock(best)}`);
-    if (S.plan) bits.push(sc * 1000 <= S.plan.end ? `${RIVALS[S.rival].label} beaten (${clock(S.plan.end / 1000)})` : `${RIVALS[S.rival].label} quicker (${clock(S.plan.end / 1000)})`);
     bits.push(`par ${clock(P.secs)}`);
   }
   const v = $("verdict");
@@ -435,7 +419,7 @@ function onTable(val) {
   const kept = read(PAIR, null);
   if (!S || S.kind !== "pair" || was?.n !== G.n || was?.created !== G.created) {
     const mine = kept && kept.code === together.room?.code && kept.uid === together.room?.uid && kept.created === G.created && kept.n === G.n ? kept.run : null;
-    show({ kind: "pair", puzzle: G.puzzle, run: mine, rival: "off" });
+    show({ kind: "pair", puzzle: G.puzzle, run: mine });
     if (was && was.n !== G.n) toast("A new puzzle for the two of you");
   }
   // what the table has that this phone hasn't drawn: your partner's solves, the final's letters shown to both
@@ -485,21 +469,16 @@ const duel = createDuel({
   game: "isomer:race", name: "Isomer", accent: "--is-in", line: $("rival"), toast, lower: true,
   deal: () => {
     const o = opts();
-    return { seed: randomSeed(), rival: o.rival, puzzle: makePuzzle(randomSeed(), { mode: o.mode, level: o.level, cat: o.cat, mix: mix() }) };
+    return { seed: randomSeed(), puzzle: makePuzzle(randomSeed(), { mode: o.mode, level: o.level, cat: o.cat, mix: mix() }) };
   },
   describe: m => `${MODES[m.puzzle?.mode]?.label || "Classic"}, ${(LEVELS[m.puzzle?.level]?.label || "Medium").toLowerCase()}: the same jumbles for everyone, the quickest wins`,
   play: (match, { begun, kept }) => {
     switching = false;
     atTable("race");
     const same = kept?.puzzle?.seed === match.puzzle.seed;
-    show({ kind: "race", puzzle: match.puzzle, run: same ? kept.run : null, begun, rival: match.rival || "off" });
+    show({ kind: "race", puzzle: match.puzzle, run: same ? kept.run : null, begun });
     tell();
   },
-  extra: () => {
-    if (!S?.plan) return null;
-    return el("p", "duel-note", `The computer (${RIVALS[S.rival].label}) took ${clock(S.plan.end / 1000)}.`);
-  },
-  extraTitle: "The computer",
   onLobby: () => { S = null; P = null; atTable("race"); lobby(); },
   onLeave: () => { raceSeatedAt = Infinity; if (!switching) solo(); },
 });
@@ -517,7 +496,6 @@ function lobby() {
   $("work").hidden = false; $("result").hidden = true;
   for (const id of ["shuffleBtn", "clearBtn", "backBtn", "hintBtn"]) $(id).disabled = true;
   put("time", "0:00"); put("penalty", ""); put("where", "Race");
-  $("ghost").hidden = true;
 }
 /** From the pair's table to a race on the same puzzle kind: both phones go (the partner follows the table's word). */
 async function raceInstead() {
@@ -576,11 +554,9 @@ function openMenu() {
   content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") contentPart(body, true);
   else content.append(line("Today's is a Classic at Medium, every topic in: the same for everyone."));
-  part(body, "settings").append(choice("Computer rival", Object.entries(RIVAL_NAMES), opts().rival, v => setOpt("rival", v)));
-  const times = read(TIMES, {}), rec = read(RIVAL_RECORD, {});
+  const times = read(TIMES, {});
   const best = S ? times[`${S.puzzle.mode}/${S.puzzle.level}`] : null;
-  const vs = Object.entries(rec).filter(([k, v]) => RIVALS[k] && v.won + v.lost).map(([k, v]) => `${RIVALS[k].label} ${v.won}–${v.lost}`);
-  part(body, "about").append(line(`${S ? `${MODES[S.puzzle.mode].label}, ${LEVELS[S.puzzle.level].label.toLowerCase()}: ${best != null ? `best ${clock(best)}` : "not solved yet"}. ` : ""}A hinted letter is ${PER_HINT} s.${vs.length ? ` Against the computer: ${vs.join(", ")}.` : ""}`));
+  part(body, "about").append(line(`${S ? `${MODES[S.puzzle.mode].label}, ${LEVELS[S.puzzle.level].label.toLowerCase()}: ${best != null ? `best ${clock(best)}` : "not solved yet"}. ` : ""}A hinted letter is ${PER_HINT} s.`));
   showMenu(body);
 }
 /** Opens the menu as built, the rules at the foot of its play part. */
@@ -591,9 +567,8 @@ function showMenu(body) {
 
 // ---------- the rules ----------
 // The header's Rules and the menu's The rules: Isomer as it's played here, its numbers the engine's own, so the sheet
-// can't drift from the game. A solo clock and the rival stand still while it's open, as for the menu (menu.js).
+// can't drift from the game. A solo clock stands still while it's open, as for the menu (menu.js).
 function showRules() {
-  const paces = Object.values(RIVALS).map(r => r.label).join(", ").replace(/, (\w+)$/, " or $1");
   $("rulesBody").innerHTML = `
     <p>Put the jumbled words right, one letter to a square. Some squares are circled; the circled letters, put in order, spell the final answer, clued under the jumbles.</p>
     <p><b>The final.</b> A thing from the knowledge base, asked one of two ways: the thing from its clue, with its country or commodity and topic (“Peru · Food &amp; drink: a grape brandy it claims as its own” is PISCO), or a country or commodity from one of its clues (“A country · History: Pharaohs: ancient god-kings” is EGYPT). Its squares show the answer's words and their lengths.</p>
@@ -602,7 +577,6 @@ function showRules() {
     <p><b>Hint.</b> Puts the right letter in the first square that lacks it, locked there and marked with a dot, for ${PER_HINT} seconds. On the final it can lend a letter whose jumble isn't solved yet.</p>
     <p><b>Score.</b> Your time plus ${PER_HINT} seconds a hinted letter, lower being better; the end shows par too, the standard solver's time. Playing alone, the clock stands still while the menu or these rules are open.</p>
     <p><b>Modes.</b> In the menu: <b>Classic</b>, two words of five letters and two of six; <b>Theme</b>, the four jumbles a country's or a commodity's own clues, each with its hint, the circled letters naming what all four point to; <b>Double</b>, two finals from one tray, a thing and its country or commodity, the tray's letters yours to split between them; <b>Jumbo</b>, six words of five to seven letters and a longer final. The levels, Easy to Hard, go by how deep each jumble hides its word: how many likelier-looking arrangements of its letters come before it. Answers: Countries, Commodities or Mixed. Which topics the finals come from is set once for every game, in Settings.</p>
-    <p><b>The rival.</b> In Settings: ${paces} plays the same puzzle beside you, its progress in the strip; Sharp is par.</p>
     <p><b>Today's puzzle.</b> A ${MODES[DAILY.mode].label} at ${LEVELS[DAILY.level].label}, every topic in, the same for everyone, and a new one at midnight UTC. It counts the moment its last answer goes in.</p>
     <p><b>Together.</b> Two jumbles each (three in Jumbo): your partner's are sealed on your screen and yours on theirs, and each of you holds half the final's clue, so you read them out. The final needs every circled letter, so neither of you can finish alone. Or a race: the same puzzle for everyone, the quickest winning.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();

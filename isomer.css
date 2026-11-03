@@ -20,9 +20,8 @@ html[data-mode="night"] { --is-in: #6FA0D2; --is-good: #7FC2A8; --is-bad: #E8806
 .is-time small { margin-left: .35rem; font-size: .78rem; font-weight: 700; color: var(--is-bad); font-variant-numeric: tabular-nums; }
 .is-where { flex: 1 1 0; order: 2; min-width: 0; text-align: right; font-size: .7rem; font-weight: 700; font-stretch: var(--wide); letter-spacing: calc(.05em * var(--track)); text-transform: var(--caps); overflow: hidden; text-overflow: ellipsis; }
 /* the computer rival, on the clock's line */
-.is-ghost { flex: none; order: 1; font-size: .8rem; font-weight: 700; color: var(--is-in); font-variant-numeric: tabular-nums; }
 .is-rival { flex: 1 0 100%; order: 4; min-width: 0; font-size: .8rem; overflow: hidden; text-overflow: ellipsis; }
-.is-rival[hidden], .is-ghost[hidden] { display: none; }
+.is-rival[hidden] { display: none; }
 
 /* the stage: a panel in a double rule, its rows sharing its height */
 .is-board { container-type: size; position: relative; display: flex; flex-direction: column; justify-content: center; gap: .55rem; padding: .7rem .6rem;
