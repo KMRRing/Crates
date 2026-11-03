@@ -165,6 +165,7 @@ function restoreTyped(before, fresh) {
 }
 
 const appOf = id => APPS.find(a => a.id === id) || null;
+const PICTURE_GAMES = new Set(["snap", "sketch"]);
 /** The header: the game being played (or, before a party's open, the one this page was opened for), else Party. */
 let branded = "";
 function brand() {
@@ -177,6 +178,7 @@ function brand() {
   if (name && app) name.textContent = app.name;
   $("appsBtn").classList.toggle("long", (app?.name || "").length >= 13);   // Higher or Lower: two lines, no taller than its logo
   if (app) document.title = app.name;
+  $("app").classList.toggle("titled", !PICTURE_GAMES.has(id));   // Snap and Sketch are pictures: full screen, no name in the band (docs/full-screen.md)
 }
 
 function draw() {

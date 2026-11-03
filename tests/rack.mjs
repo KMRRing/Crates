@@ -244,7 +244,7 @@ const total = s => [...s.board].filter(c => c !== ".").length + s.bag.length + s
 {
   const apps = fs.readFileSync(root + "apps.js", "utf8"), html = fs.readFileSync(root + "rack.html", "utf8"), page = fs.readFileSync(root + "rack.js", "utf8"), css = fs.readFileSync(root + "rack.css", "utf8");
   check(/id: "rack",[^\n]*href: "\.\/rack\.html"[^\n]*logo: LOGO\("rack", RACK_LOGO\)/.test(apps) && !/id: "rack"[^\n]*soon: true/.test(apps), "the tile opens the game, not the placeholder");
-  check(/rack\.css/.test(html) && /rack\.js/.test(html) && /class="rack (full )?fit-screen beside"/.test(html) && /id="board"/.test(html) && /id="rack"/.test(html) && /id="bar"/.test(html), "the page links its styles and script and has its board, rack and buttons");
+  check(/rack\.css/.test(html) && /rack\.js/.test(html) && /class="rack (full (titled )?)?fit-screen beside"/.test(html) && /id="board"/.test(html) && /id="rack"/.test(html) && /id="bar"/.test(html), "the page links its styles and script and has its board, rack and buttons");
   check(/seatPage\(/.test(page) && /seatRounds\("rack"/.test(page) && /noteStreak\("rack"/.test(page), "the page runs on seats-ui.js, tells Random its rounds and keeps its streak");
   check(/\.rk-board/.test(css) && /orientation: landscape\) and \(min-width: 700px/.test(css), "the stylesheet draws the board and has its sideways layout");
   const read = f => fs.readFileSync(root + f, "utf8");
