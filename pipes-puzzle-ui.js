@@ -4,37 +4,42 @@
 // level in hand and the stars under pipes:puzzle and pipes:stars, so a partner watching sees the same board.
 import { el, T, MID, channel, drawPipe, drawGround, drawSource, drawTerminal, pieceTile, PIECE_NAMES } from "./pipes-draw.js";
 import * as Z from "./pipes-puzzle.js";
-import { LEVELS, CHAPTERS } from "./pipes-puzzle-levels.js";
+import { LEVELS as FLAT_LEVELS, CHAPTERS as FLAT_CHAPTERS } from "./pipes-puzzle-levels.js";
+import { camera, pick, clampView, HOME } from "./pipes-map-view.js";
 import { sure } from "./sure.js";
 
-export const KEY = { run: "pipes:puzzle", stars: "pipes:stars" };
 const STAR = "★", HOLLOW = "☆";
 const OIL_STEP = 60;                      // ms between squares as the oil runs through a solved level
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
-
-/** The level's index in the ladder for an id, or -1. */
-export const indexOf = id => LEVELS.findIndex(l => l.id === id);
+const CHIPS = 46;                         // px kept clear at the map's left for the floor chips
 
 /**
  * The puzzle's view. deps: { $ (element by id), read, write (localStorage with a fallback), toast, frame (a partner's
- * watching frame: no taps), openMenu, onSolved (a level finished: roundOver for random mode), reduced () }.
+ * watching frame: no taps), openMenu, onSolved (a level finished: roundOver for random mode), reduced () }. cfg: the board
+ * it is: { levels, chapters, run, stars (the saved keys), map (true for the 3D map: layers drawn as a stack you turn) }.
  */
-export function createPuzzle(deps) {
+export function createPuzzle(deps, cfg = {}) {
   const { $, read, write, toast, frame, openMenu, onSolved, reduced } = deps;
+  const LEVELS = cfg.levels || FLAT_LEVELS, CHAPTERS = cfg.chapters || FLAT_CHAPTERS, map = !!cfg.map;
+  const KEY = { run: cfg.run || "pipes:puzzle", stars: cfg.stars || "pipes:stars" };
+  const indexOf = id => LEVELS.findIndex(l => l.id === id);
   // saved: { v, id (the level in hand), runs: { id: { sig (what the level was when this was kept), laid: { square: piece },
-  // sel (the kind in hand), lifts, hints, solved (the stars of the finish, 0 while it's open) } } }
-  let saved = { v: 1, id: LEVELS[0].id, runs: {} };
+  // sel (the kind in hand), lifts, hints, solved (the stars of the finish, 0 while it's open) } }, view and layer (the map:
+  // how the stack is turned, and the floor in front) }
+  let saved = { v: 1, id: LEVELS[0].id, runs: {}, view: { ...HOME }, layer: 0 };
   let stars = {};                          // id -> the best stars won
   let L = null, laid = [], run = null, index = 0;
   let undoStack = [], hint = null, cellG = [], svg = null;
   let oilTo = 0, oilTimer = 0, passes = [];            // the oil running through a level just solved: how many squares it has filled
   let shownFor = "";
+  // the map's stack: each floor's plate (a group the camera turns), the pipes between floors, each floor's overlay, the chips
+  let plateG = [], linkG = [], overlayG = [], chipsEl = null, cam = null, gesture = null, lastBlank = 0, follow = false, observer = null;
 
   // ---------- keeping ----------
   const sigOf = spec => `${spec.map.join("/")}|${spec.hand}|${spec.out}${spec.inlet}`;
   function load() {
     const s = read(KEY.run, null);
-    if (s?.v === 1 && typeof s.id === "string") saved = { v: 1, id: s.id, runs: s.runs || {} };
+    if (s?.v === 1 && typeof s.id === "string") saved = { v: 1, id: s.id, runs: s.runs || {}, view: clampView(s.view), layer: Number.isInteger(s.layer) ? s.layer : 0 };
     const st = read(KEY.stars, {});
     stars = st && typeof st === "object" ? st : {};
     if (indexOf(saved.id) < 0) saved.id = firstOpen();
@@ -59,6 +64,8 @@ export function createPuzzle(deps) {
     undoStack = []; hint = null;
     oilTo = run.solved ? Infinity : 0;
     passes = run.solved ? Z.check(L, laid).passes : [];
+    saved.layer = Math.min(Math.max(0, saved.layer), L.layers - 1);
+    follow = "start";                                      // the map shows the floor where the oil needs a piece
     persist();
   }
   function store() {
@@ -72,6 +79,7 @@ export function createPuzzle(deps) {
   // ---------- drawing ----------
   /** The middle of a channel's pipe, where an old pipe's stud goes. */
   function midOf(a, b) {
+    if (a >= 4 || b >= 4) return a >= 4 && b >= 4 ? [MID + 17, MID + 17] : [MID + 18, MID + 18];      // beside the riser
     if (a === Z.back(b)) return [MID, MID];
     const cx = MID + (Z.DIRS[a][0] + Z.DIRS[b][0]) * MID, cy = MID + (Z.DIRS[a][1] + Z.DIRS[b][1]) * MID, k = MID / Math.hypot(MID - cx, MID - cy);
     return [cx + (MID - cx) * k, cy + (MID - cy) * k];
@@ -86,6 +94,7 @@ export function createPuzzle(deps) {
       passes.forEach((s, i) => {
         if (s.c !== c || i >= oilTo || !test(s)) return;
         el("path", { d: channel(s.a, s.b).d, class: "oil", "stroke-width": 9 }, g);
+        if (s.a >= 4 || s.b >= 4) el("circle", { cx: MID, cy: MID, r: 5.5, class: "oil-dot" }, g);
       });
     };
     const stub = d => () => { if (oilTo > 0) el("path", { d: channel(-1, d).d, class: "oil", "stroke-width": 9 }, g); };
@@ -122,14 +131,15 @@ export function createPuzzle(deps) {
     res.feed = Z.feed(L, laid);
     return res;
   }
+  /** The group a square's overlay (the oil's dashed way, the ring, a cross) is drawn in: its floor's. */
+  const overlayOf = c => (map ? overlayG[Z.layerOf(L, c)] : svg.querySelector(".overlay"));
   function drawOverlay(res) {
-    const layer = svg.querySelector(".overlay");
-    layer.replaceChildren();
+    (map ? overlayG : [svg.querySelector(".overlay")]).forEach(g => g.replaceChildren());
     if (run.solved) return;
-    const at = (s, cls) => { const [x, y] = Z.xy(L, s.c); el("path", { d: channel(s.a, s.b).d, class: cls, transform: `translate(${x * T} ${y * T})` }, layer); };
+    const at = (s, cls) => { const [x, y] = Z.xy(L, s.c); el("path", { d: channel(s.a, s.b).d, class: cls, transform: `translate(${x * T} ${y * T})` }, overlayOf(s.c)); };
     for (const s of res.passes) at(s, "route");
     for (const s of res.feed.passes) at(s, "route feed");
-    const ring = (c, cls) => { const [x, y] = Z.xy(L, c); el("rect", { x: x * T + 4, y: y * T + 4, width: T - 8, height: T - 8, rx: 8, class: `next ${cls}` }, layer); };
+    const ring = (c, cls) => { const [x, y] = Z.xy(L, c); el("rect", { x: x * T + 4, y: y * T + 4, width: T - 8, height: T - 8, rx: 8, class: `next ${cls}` }, overlayOf(c)); };
     const { end } = res, fend = res.feed.end;
     if (end.why === "open") ring(end.c, "");
     else if (end.why !== "terminal") {
@@ -137,19 +147,159 @@ export function createPuzzle(deps) {
       const [x, y] = Z.xy(L, end.c);
       let cx = x * T + MID, cy = y * T + MID;
       if (end.why === "edge") { const last = res.passes[res.passes.length - 1] || { b: L.source.d }; cx += Z.DIRS[last.b][0] * (MID - 6); cy += Z.DIRS[last.b][1] * (MID - 6); }
-      el("path", { d: `M${cx - 8} ${cy - 8}L${cx + 8} ${cy + 8}M${cx + 8} ${cy - 8}L${cx - 8} ${cy + 8}`, class: "spill-x" }, layer);
+      el("path", { d: `M${cx - 8} ${cy - 8}L${cx + 8} ${cy + 8}M${cx + 8} ${cy - 8}L${cx - 8} ${cy + 8}`, class: "spill-x" }, overlayOf(end.c));
     }
     if (fend.why === "open" && !(end.why === "open" && end.c === fend.c)) ring(fend.c, "out");
   }
-  function drawBoard() {
+  /** Draws the level. `follow` ("start" for a level just opened, true after a move) brings the floor where the oil needs
+   *  its next piece, or a hint points, to the front; the player can look at another floor afterwards. */
+  function drawBoard(follows = false) {
     const key = `${L.id}`;
-    if (shownFor !== key || !svg) build();
+    if (shownFor !== key || !svg) (map ? buildMap : build)();
     const res = resOf();
+    const mode = follow || follows;
+    follow = false;
+    if (map && mode) {
+      const at = hint ? (hint.c ?? hint.wrong?.[0]) : res.end.why === "open" ? res.end.c : mode === "start" ? (res.feed.end.why === "open" ? res.feed.end.c : L.source.c) : null;
+      if (at != null && at !== undefined) { saved.layer = Z.layerOf(L, at); persist(); }
+    }
     for (let c = 0; c < cellG.length; c++) drawCell(c, res);
     drawOverlay(res);
+    if (map) { styleLayers(); drawLinks(); }
     drawHand();
     drawText(res);
     return res;
+  }
+
+  // ---------- the map: a stack of floors, turned by a finger ----------
+  const FLOOR = "Floor";
+  function buildMap() {
+    const board = $("board");
+    svg = el("svg", { role: "img", "aria-label": `${LEVELS[index].name}: the map, ${L.layers} floors` });
+    cellG = []; plateG = []; linkG = []; overlayG = [];
+    for (let z = 0; z < L.layers; z++) {
+      const plate = el("g", { class: "plate" }, svg);
+      el("rect", { x: -3, y: -3, width: L.cols * T + 6, height: L.rows * T + 6, rx: 9, class: "plate-bg" }, plate);
+      for (let i = 0; i < L.cols * L.rows; i++) { const [x, y] = Z.xy(L, i); cellG.push(el("g", {}, el("g", { transform: `translate(${x * T} ${y * T})` }, plate))); }
+      overlayG.push(el("g", { class: "overlay" }, plate));
+      plateG.push(plate);
+      if (z < L.layers - 1) linkG.push(el("g", { class: "links" }, svg));
+    }
+    svg.addEventListener("contextmenu", e => e.preventDefault());
+    svg.addEventListener("pointerdown", e => {
+      if (frame || e.button === 2 || gesture) return;
+      gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: saved.view.yaw, pitch: saved.view.pitch, turned: false };
+      try { svg.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+    });
+    svg.addEventListener("pointermove", e => {
+      if (!gesture || e.pointerId !== gesture.id) return;
+      const dx = e.clientX - gesture.x, dy = e.clientY - gesture.y;
+      if (!gesture.turned && Math.hypot(dx, dy) < 8) return;
+      gesture.turned = true;
+      saved.view = clampView({ yaw: gesture.yaw + dx * 0.012, pitch: gesture.pitch + dy * 0.008 });
+      fit();
+    });
+    const end = e => {
+      if (!gesture || e.pointerId !== gesture.id) return;
+      const g = gesture;
+      gesture = null;
+      if (g.turned) return void persist();
+      if (e.type === "pointerup") tapMap(e);
+    };
+    svg.addEventListener("pointerup", end);
+    svg.addEventListener("pointercancel", end);
+    chipsEl = document.createElement("div");
+    chipsEl.className = "pi-layers";
+    const head = document.createElement("small");
+    head.textContent = FLOOR;
+    chipsEl.append(head);
+    for (let z = L.layers - 1; z >= 0; z--) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "pi-layer";
+      b.textContent = String(z + 1);
+      b.dataset.z = z;
+      b.setAttribute("aria-label", `${FLOOR} ${z + 1}`);
+      b.addEventListener("click", () => setLayer(z));
+      chipsEl.append(b);
+    }
+    const home = document.createElement("button");
+    home.type = "button";
+    home.className = "pi-layer home";
+    home.textContent = "⟲";
+    home.setAttribute("aria-label", "Reset the view");
+    home.addEventListener("click", resetView);
+    chipsEl.append(home);
+    board.replaceChildren(svg, chipsEl);
+    observer?.disconnect();
+    if (typeof ResizeObserver !== "undefined") { observer = new ResizeObserver(() => fit()); observer.observe(board); }
+    shownFor = `${L.id}`;
+    fit();
+  }
+  /** Places the stack for the board's size and the turn: every floor's plate is the flat board's picture under a matrix. */
+  function fit() {
+    if (!map || !svg || !L) return;
+    const board = $("board"), W = board.clientWidth, H = board.clientHeight;
+    if (W < 20 || H < 20) return;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    cam = camera(L, W, H, saved.view, { l: CHIPS, r: 4, t: 4, b: 4 });
+    plateG.forEach((p, z) => p.setAttribute("transform", `matrix(${cam.plate(z).join(" ")})`));
+    drawLinks();
+  }
+  function styleLayers() {
+    plateG.forEach((p, z) => p.setAttribute("class", `plate ${z === saved.layer ? "on" : z > saved.layer ? "over" : "under"}`));
+    chipsEl?.querySelectorAll(".pi-layer[data-z]").forEach(b => b.classList.toggle("now", Number(b.dataset.z) === saved.layer));
+  }
+  function setLayer(z) {
+    if (z === saved.layer) return;
+    saved.layer = z;
+    persist();
+    styleLayers();
+  }
+  function resetView() {
+    saved.view = { ...HOME };
+    persist();
+    fit();
+  }
+  /** A tap on the map: a square of the floor in front lays a piece; another floor's plate brings that floor forward; empty
+   *  space twice in a row puts the view back. */
+  function tapMap(e) {
+    if (!cam) return;
+    const r = svg.getBoundingClientRect();
+    const hit = pick(L, cam, saved.layer, (e.clientX - r.left) * (svg.viewBox.baseVal.width / r.width), (e.clientY - r.top) * (svg.viewBox.baseVal.height / r.height));
+    if (!hit) { const now = Date.now(); if (now - lastBlank < 400) { lastBlank = 0; resetView(); } else lastBlank = now; return; }
+    if (hit.c < 0) return setLayer(hit.z);
+    tap(hit.c);
+  }
+  /** The pipes between floors, drawn on the screen (not on a plate): from a square's middle up to the one above. A pipe
+   *  that one side has and the other lacks stops half way. */
+  function drawLinks() {
+    if (!map || !cam) return;
+    const size = L.cols * L.rows, wet = new Set();
+    passes.forEach((s, i) => { if (i < oilTo) { if (s.b === 4) wet.add(s.c); else if (s.b === 5) wet.add(Z.beyond(L, s.c, 5)); } });
+    if (oilTo > 0) { if (L.source.d === 4) wet.add(L.source.c); else if (L.source.d === 5) wet.add(Z.beyond(L, L.source.c, 5)); }
+    if (oilTo > passes.length) { const t = L.terminal; if (t.d === 4) wet.add(t.c); else if (t.d === 5) wet.add(Z.beyond(L, t.c, 5)); }
+    const opens = (c, d) => {
+      const f = L.cells[c];
+      if (f?.k === "source" || f?.k === "terminal") return f.d === d;
+      const piece = Z.pieceOn(L, laid, c);
+      return !!piece && !!Z.channelOf(piece, d);
+    };
+    linkG.forEach((g, z) => {
+      g.replaceChildren();
+      for (let i = 0; i < size; i++) {
+        const lo = z * size + i, hi = lo + size, up = opens(lo, 4), down = opens(hi, 5);
+        if (!up && !down) continue;
+        const [x, y] = Z.xy(L, lo), u = x * T + MID, v = y * T + MID;
+        const a = cam.at(z, u, v), b = cam.at(z + 1, u, v), m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        const [p, q] = up && down ? [a, b] : up ? [a, m] : [m, b];
+        const d = `M${p[0]} ${p[1]}L${q[0]} ${q[1]}`, w = cam.k;
+        el("path", { d, class: "shaft-edge", "stroke-width": 20 * w }, g);
+        el("path", { d, class: "shaft", "stroke-width": 14 * w }, g);
+        if (wet.has(lo) && up && down) el("path", { d, class: "shaft-oil", "stroke-width": 8 * w }, g);
+        if (!(up && down)) el("path", { d, class: "shaft-open", "stroke-width": 3 }, g);
+      }
+    });
   }
   function build() {
     const board = $("board");
@@ -170,7 +320,7 @@ export function createPuzzle(deps) {
   }
   function drawHand() {
     const q = $("queue"), left = handNow(), cur = sel();
-    q.className = "pi-queue pi-hand";
+    q.className = `pi-queue pi-hand${Z.KINDS.filter(k => L.hand[k]).length > 9 ? " many wrap" : Z.KINDS.filter(k => L.hand[k]).length > 7 ? " many" : ""}`;
     const label = document.createElement("span");
     label.className = "pi-q-label";
     label.textContent = "Hand";
@@ -218,6 +368,7 @@ export function createPuzzle(deps) {
     const cur = sel(), reach = res.passes.length;
     if (res.end.why === "terminal") return `The oil is in the terminal with ${plural(left, "piece")} left: it must run through them all`;
     if (res.end.why !== "open" && res.end.why !== "terminal" && reach) return `${WHY[res.end.why]} · ${plural(left, "piece")} left`;
+    if (map && res.end.why === "open" && Z.layerOf(L, res.end.c) !== saved.layer) return `The oil waits on floor ${Z.layerOf(L, res.end.c) + 1} · tap Look · ${plural(left, "piece")} left`;
     return `${cur ? `Tap a square for the ${PIECE_NAMES[cur]}` : "Pick a piece from the hand"} · the oil runs ${plural(reach, "piece")}`;
   }
   function drawText(res) {
@@ -232,6 +383,8 @@ export function createPuzzle(deps) {
     $("puzzleControls").classList.toggle("done", solved);
     $("pzUndo").hidden = solved; $("pzClear").hidden = solved; $("pzHint").hidden = solved;
     $("pzAgain").hidden = !solved; $("pzNext").hidden = !solved;
+    $("puzzleControls").classList.toggle("map", map);
+    $("pzLook").hidden = !map || solved;
     $("pzUndo").disabled = !undoStack.length;
     $("pzClear").disabled = !res.placed;
     $("pzNext").textContent = index + 1 < LEVELS.length ? "Next level" : "The levels";
@@ -273,7 +426,7 @@ export function createPuzzle(deps) {
       return drawBoard();
     }
     store();
-    const res = drawBoard();
+    const res = drawBoard(true);
     if (res.solved) solved(res);
   }
   function undo() {
@@ -281,7 +434,7 @@ export function createPuzzle(deps) {
     const s = undoStack.pop();
     laid = s.laid; run.lifts = s.lifts; run.sel = s.sel; hint = null;
     store();
-    drawBoard();
+    drawBoard(true);
   }
   function clearAll() {
     if (frame || run.solved || !laid.some(Boolean)) return;
@@ -317,7 +470,7 @@ export function createPuzzle(deps) {
     if (!hint) return;
     run.hints++;
     persist();
-    drawBoard();
+    drawBoard(true);
   }
   function again() {
     if (frame) return;
@@ -368,10 +521,22 @@ export function createPuzzle(deps) {
   load();
   return {
     /** Shows the level in hand. */
-    show() { $("queue").hidden = false; $("board").hidden = false; shownFor = ""; svg = null; go(saved.id); },
-    hide() { $("queue").hidden = true; $("board").hidden = true; },
+    show() { $("queue").hidden = false; $("board").hidden = false; $("board").className = `pi-board${map ? " map" : ""}`; shownFor = ""; svg = null; go(saved.id); },
+    hide() {
+      $("queue").hidden = true; $("board").hidden = true;
+      $("puzzleControls").classList.remove("map"); $("pzLook").hidden = true;
+      observer?.disconnect(); observer = null;
+    },
     pause() { clearTimeout(oilTimer); oilTimer = 0; },
     resume() { if (run?.solved && oilTo !== Infinity) { oilTo = Infinity; drawBoard(); } },
+    resize() { fit(); },
+    /** The map: brings forward the floor where the oil needs its next piece. */
+    look() {
+      if (frame || !map || run.solved) return;
+      const res = resOf(), at = res.end.why === "open" ? res.end.c : res.feed.end.why === "open" ? res.feed.end.c : null;
+      if (at != null) setLayer(Z.layerOf(L, at));
+      drawBoard();
+    },
     levelList, go, again, next, undo, clear: clearAll, hint: giveHint,
     get id() { return saved.id; },
     get level() { return LEVELS[index]; },

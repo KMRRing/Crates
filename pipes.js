@@ -1,12 +1,10 @@
 // Pipes: a fitting puzzle. A hand of pieces must all fit one route for the oil from the wellhead to the terminal, with
-// stars. The menu's Board chooses where it is played: flat (pipes-puzzle-ui.js) or on the faces of a cube you turn
-// (pipes-solid-ui.js). This file is the page round it: the menu,
-// the rules, the old saves cleared, and the games screen's Random round.
+// stars. The menu's Board chooses where it is played: flat, or the 3D map (a stack of floors you turn with a finger); both
+// are pipes-puzzle-ui.js with different levels. This file is the page round it: the menu, the rules, the old saves
+// cleared, and the games screen's Random round.
 import { createPuzzle } from "./pipes-puzzle-ui.js";
-import { createSolid } from "./pipes-solid-ui.js";
 import { STAR_LIFTS } from "./pipes-puzzle.js";
-import { LEVELS as CUBE_LEVELS, CHAPTERS as CUBE_CHAPTERS } from "./pipes-cube-levels.js";
-import { LEVELS as DODECA_LEVELS, CHAPTERS as DODECA_CHAPTERS } from "./pipes-dodeca-levels.js";
+import { LEVELS as MAP_LEVELS, CHAPTERS as MAP_CHAPTERS } from "./pipes-map-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause } from "./menu.js";
@@ -20,15 +18,13 @@ const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ---------- the boards ----------
-const MODES = [["flat", "Flat"], ["cube", "Cube"], ["dodeca", "Dodecahedron"]];
+const MODES = [["flat", "Flat (square)"], ["map", "Cube (3D map)"]];
 let prefs = { mode: "flat", ...read(KEY.prefs, {}) };
 let mode = "flat";
-const flat = createPuzzle({ $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced });
-const cube = createSolid({ $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced,
-  solid: "cube", key: "cube", levels: CUBE_LEVELS, chapters: CUBE_CHAPTERS });
-const dodeca = createSolid({ $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced,
-  solid: "dodeca", key: "dodeca", levels: DODECA_LEVELS, chapters: DODECA_CHAPTERS });
-const boards = { flat, cube, dodeca };
+const deps = { $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced };
+const flat = createPuzzle(deps);
+const map = createPuzzle(deps, { map: true, levels: MAP_LEVELS, chapters: MAP_CHAPTERS, run: "pipes:map", stars: "pipes:mapstars" });
+const boards = { flat, map };
 const cur = () => boards[mode];
 
 /** The games screen shows `pipes:best`: here, the stars won across the boards. */
@@ -56,10 +52,8 @@ function showRules() {
     </ul>
     <h4>Flat</h4>
     <p>Pieces are never turned: a bend comes as it is, so the bends in your hand decide which ways the route can turn.</p>
-    <h4>Cube</h4>
-    <p>The same puzzle on the faces of a cube: the oil runs over an edge into the next face. <b>Drag</b> to turn the cube, pinch to zoom, and <b>tap a tile</b> to lay the piece in hand: it is turned to take the oil as it stands. <b>Tap a piece you've laid</b> to turn it a step; <b>Lift</b>, then a piece, takes it back up. <b>Look</b> turns the cube to where the oil needs a piece. A piece here turns, so a hand is only how many bends, straights and crossings: the route decides their turns. The menu's View shows the cube cut open flat, with matching letters where its edges meet.</p>
-    <h4>Dodecahedron</h4>
-    <p>The same on twelve pentagons: five sides to a tile, so there is no straight and no crossing. A <b>tight bend</b> joins two sides next to each other, an <b>easy bend</b> skips one.</p>`;
+    <h4>Cube (3D map)</h4>
+    <p>The same puzzle in a cube of squares: a stack of <b>floors</b>, drawn lifted one above the next. Pieces still never turn, but now a piece can open <b>up</b> or <b>down</b> as well: a <b>riser</b> (a ring with arrows) carries the pipe through to the floor above or below, where the next piece must open the other way. <b>Tap a floor</b> (or its number on the left) to bring it forward and play on it; the floors above it fade so you can see through. <b>Drag</b> to turn the stack, <b>double-tap</b> empty space or tap the ⟲ to put it back, and <b>Look</b> brings forward the floor where the oil needs its next piece.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;
 }
@@ -73,7 +67,6 @@ function openMenu() {
   const solved = b.run?.solved;
   part(body, "play").append(action(solved ? "Next level" : "Level again", () => (solved ? b.next() : b.again()), "primary"), action("The rules", showRules, "link"));
   part(body, "content").append(MODES.length > 1 ? game : "", b.levelList(id => { $("menuDlg").close(); b.go(id); }));
-  if (b.setView) part(body, "settings").append(choice("View", b.viewOptions, b.view, v => { $("menuDlg").close(); b.setView(v); }), action("Clear the board", b.clear, "link"));
   part(body, "about").append(line(`${b.solvedCount()} of ${b.count} levels solved, ${b.totalStars()} of ${b.count * 3} stars. Three stars: no hint, and hardly a piece taken back up.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -101,8 +94,8 @@ onPause(() => cur().pause(), () => cur().resume());
 window.addEventListener("resize", () => cur().resize?.());
 window.__pipes = { get mode() { return mode; }, boards, setMode };
 
-// the board and bests of the modes Pipes had before the puzzle (a queue, a clock, a shaft) are no more
-if (!IN_FRAME) for (const k of ["pipes:plan", "pipes:flat", "pipes:deep", "pipes:daily", "pipes:run", "pipes:acts"]) { try { localStorage.removeItem(k); } catch { /* private mode */ } }
+// the board and bests of the modes Pipes had before the puzzle (a queue, a clock, a shaft) and of the face-of-a-solid cube and dodecahedron are no more
+if (!IN_FRAME) for (const k of ["pipes:plan", "pipes:flat", "pipes:deep", "pipes:daily", "pipes:run", "pipes:acts", "pipes:cube", "pipes:cubestars", "pipes:dodeca", "pipes:dodecastars"]) { try { localStorage.removeItem(k); } catch { /* private mode */ } }
 {
   const best = read(KEY.best, null);
   if (!IN_FRAME && best && typeof best.score !== "number") try { localStorage.removeItem(KEY.best); } catch { /* private mode */ }

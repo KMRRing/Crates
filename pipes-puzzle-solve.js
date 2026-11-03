@@ -2,7 +2,7 @@
 // at every empty square, tries each piece of the hand that takes the oil in, so every route it finds uses the hand
 // exactly, passes all the old pipe and the stakes in order, and ends in the terminal's inlet. Used by the generator
 // (pipes-puzzle-make.js) and tests/pipes-puzzle.mjs; no page loads it, the levels carry their answers.
-import { KINDS, SIDE, beyond, back, channelOf } from "./pipes-puzzle.js";
+import { KINDS, SIDE, beyond, back, channelOf, isCrossing, xy, layerOf } from "./pipes-puzzle.js";
 
 /**
  * Every route that solves the level L, up to `cap` of them: { routes: ["EESSW…"], nodes, capped }, a route being the
@@ -11,13 +11,13 @@ import { KINDS, SIDE, beyond, back, channelOf } from "./pipes-puzzle.js";
  * at a square in another order (a player who tries them as they come to mind: the harness measures how long that takes).
  */
 export function solve(L, cap = 2, limit = 4e6, order = null) {
-  const n = L.cols * L.rows, kinds = KINDS.filter(k => L.hand[k]), hand = { ...L.hand };
+  const n = L.size, kinds = KINDS.filter(k => L.hand[k]), hand = { ...L.hand };
   const filled = new Uint8Array(n), placed = Array(n).fill(null), dirs = [], routes = [];
   const t = beyond(L, L.terminal.c, L.terminal.d);
-  const [tx, ty] = [t % L.cols, Math.floor(t / L.cols)];
-  const dist = Array.from({ length: n }, (_, c) => Math.abs(c % L.cols - tx) + Math.abs(Math.floor(c / L.cols) - ty));
+  const [tx, ty] = xy(L, t), tz = layerOf(L, t);
+  const dist = Array.from({ length: n }, (_, c) => { const [x, y] = xy(L, c); return Math.abs(x - tx) + Math.abs(y - ty) + Math.abs(layerOf(L, c) - tz); });
   // a crossing can be passed twice: the passes left to make are the pieces left, the old pipe left, and one more for each crossing
-  const doubles = (L.hand.x || 0) + L.cells.filter(f => f?.k === "old" && f.piece === "x").length;
+  const doubles = Object.entries(L.hand).reduce((m, [k, v]) => m + (isCrossing(k) ? v : 0), 0) + L.cells.filter(f => f?.k === "old" && isCrossing(f.piece)).length;
   let nodes = 0, left = L.total, oldsLeft = L.olds, nextStake = 1, aborted = false;
 
   function go(c, a) {
@@ -45,9 +45,9 @@ export function solve(L, cap = 2, limit = 4e6, order = null) {
     };
     if (f) { const ch = channelOf(f.piece, a); if (ch && !(filled[c] & (1 << ch.i))) step(f.piece, ch, true); return; }
     if (placed[c]) {                                           // a crossing laid on the way in, passed the other way
-      if (placed[c] !== "x") return;
-      const ch = channelOf("x", a);
-      if (!(filled[c] & (1 << ch.i))) step("x", ch, false);
+      if (!isCrossing(placed[c])) return;
+      const ch = channelOf(placed[c], a);
+      if (ch && !(filled[c] & (1 << ch.i))) step(placed[c], ch, false);
       return;
     }
     for (const k of order ? order(kinds) : kinds) {
