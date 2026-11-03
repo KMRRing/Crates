@@ -260,7 +260,7 @@ function everyBridgeFree(P, marks) {
   check(!/^ {2}bridges: \{/m.test(soon) && !/^ {2}bridges: `/m.test(logos), "the placeholder's entry and logos are gone");
   check(/roundOver\("bridges"\)/.test(page) && /noteDayTime\("bridges"/.test(page) && /arrivedForToday\(\)/.test(page) && /onPause\(/.test(page) && /bindSwitcher\(\$\("appsBtn"\), "bridges"\)/.test(page),
     "the page counts a solve for Random and for today, opens today's from the tile, stops its clock with the menu");
-  check(/bridges\.css/.test(html) && /bridges\.js/.test(html) && /class="bridges fit-screen beside"/.test(html), "the page links its styles and script");
+  check(/bridges\.css/.test(html) && /bridges\.js/.test(html) && /class="bridges (full )?fit-screen beside"/.test(html), "the page links its styles and script");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; } else console.log("bridges: the rules, the generator, the grading, hints and the database hold");

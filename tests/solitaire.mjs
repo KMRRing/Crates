@@ -160,7 +160,7 @@ const read = f => fs.readFileSync(root + f, "utf8");
 // ---------- the page ----------
 {
   const html = read("solitaire.html"), page = read("solitaire.js"), css = read("solitaire.css"), suite = read("suite.js"), apps = read("apps.js"), rc = read("random-core.js");
-  check(/solitaire\.css/.test(html) && /solitaire\.js/.test(html) && /cards\.css/.test(html) && /class="solitaire fit-screen beside"/.test(html), "the page links its styles and script and fits the screen");
+  check(/solitaire\.css/.test(html) && /solitaire\.js/.test(html) && /cards\.css/.test(html) && /class="solitaire (full )?fit-screen beside"/.test(html), "the page links its styles and script and fits the screen");
   check(/IN_FRAME/.test(page) && /roundOver\("solitaire"\)/.test(page) && /noteStreak\("solitaire"/.test(page), "it counts a streak, tells Random its round and leaves a watching frame alone");
   check(/solitaire: "streak"/.test(suite) && /ROUNDS = \{[\s\S]*solitaire: "/.test(rc) && /id: "solitaire", sec: "table", name: "Solitaire", href: "\.\/solitaire\.html"/.test(apps), "the games screen shows its streak, Random deals it, and its tile opens the page");
   check(/orientation: landscape\) and \(min-width: 700px\)/.test(css) && /prefers-color-scheme: dark/.test(css) && /data-mode="night"/.test(css), "it has a sideways layout and a night one");

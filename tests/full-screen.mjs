@@ -11,20 +11,15 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 const root = new URL("..", import.meta.url).pathname;
 const STILL = new Set([
   "acrostic.html", "almanac.html", "assay.html", "avalanche.html", "baccarat.html", "banquet.html",
-  "bigtwo.html", "blackjack.html", "blend.html", "boast.html", "bones.html", "bridges.html",
-  "bulls.html", "calcudoku.html", "calibre.html", "cartel.html", "chart.html", "codeword.html",
-  "contract.html", "craps.html", "crossword.html", "cue.html", "deck.html",
-  "delta.html", "drift.html", "factor.html", "gambit.html", "gammon.html", "guilloche.html",
-  "harbour.html", "heliograph.html", "holdem.html", "hong.html", "isomer.html", "kakuro.html",
-  "ladder.html", "landfall.html", "ledger.html", "lode.html", "loom.html", "lots.html",
-  "manifest.html", "masyu.html", "meld.html", "mines.html", "netting.html", "nexus.html",
-  "nonogram.html", "nurikabe.html", "order.html", "origin.html", "orrery.html", "parley.html",
-  "party.html", "pegs.html", "pipes.html", "polder.html", "punt.html", "quest.html",
-  "quote.html", "rack.html", "reckoning.html", "refinery.html", "river.html", "roulette.html",
-  "rush.html", "settle.html", "shunt.html", "sicbo.html", "silo.html", "slate.html",
-  "slipway.html", "slitherlink.html", "soon.html", "speedfuels.html", "speedmaths.html", "spot.html",
-  "stow.html", "sudoku.html", "survey.html", "timegrapher.html", "tribute.html", "trumps.html",
-  "yield.html",
+  "bigtwo.html", "blackjack.html", "boast.html", "bones.html", "bridges.html", "bulls.html",
+  "calcudoku.html", "calibre.html", "codeword.html", "contract.html", "craps.html", "crossword.html",
+  "cue.html", "drift.html", "factor.html", "gambit.html", "gammon.html", "guilloche.html",
+  "holdem.html", "hong.html", "isomer.html", "kakuro.html", "landfall.html", "loom.html",
+  "masyu.html", "meld.html", "mines.html", "netting.html", "nexus.html", "nonogram.html",
+  "nurikabe.html", "party.html", "pegs.html", "pipes.html", "polder.html", "quest.html",
+  "river.html", "roulette.html", "settle.html", "shunt.html", "sicbo.html", "silo.html",
+  "slipway.html", "slitherlink.html", "solitaire.html", "soon.html", "sudoku.html", "timegrapher.html",
+  "tribute.html", "trumps.html",
 ]);
 const pages = fs.readdirSync(root).filter(f => f.endsWith(".html")).sort();
 const withHeader = [], full = [], unlisted = [], stale = [], broken = [];

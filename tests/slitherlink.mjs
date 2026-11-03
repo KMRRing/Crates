@@ -206,7 +206,7 @@ const made = [];
   check(!/^ {2}slitherlink: \{/m.test(soon) && !/^ {2}slitherlink: `/m.test(logos), "the placeholder's entry and logos are gone");
   check(/roundOver\("slitherlink"\)/.test(page) && /noteDayTime\("slitherlink"/.test(page) && /arrivedForToday\(\)/.test(page) && /onPause\(/.test(page) && /bindSwitcher\(\$\("appsBtn"\), "slitherlink"\)/.test(page),
     "the page counts a solve for Random and for today, opens today's from the tile, stops its clock with the menu");
-  check(/slitherlink\.css/.test(html) && /slitherlink\.js/.test(html) && /class="slitherlink fit-screen beside"/.test(html), "the page links its styles and script");
+  check(/slitherlink\.css/.test(html) && /slitherlink\.js/.test(html) && /class="slitherlink (full )?fit-screen beside"/.test(html), "the page links its styles and script");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; } else console.log("slitherlink: the rules, the generator, the grading, hints and the database hold");

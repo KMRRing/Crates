@@ -256,7 +256,7 @@ const made = [];
   check(!/^ {2}masyu: \{/m.test(soon) && !/^ {2}masyu: `/m.test(logos), "the placeholder's entry and logos are gone");
   check(/roundOver\("masyu"\)/.test(page) && /noteDayTime\("masyu"/.test(page) && /arrivedForToday\(\)/.test(page) && /onPause\(/.test(page) && /bindSwitcher\(\$\("appsBtn"\), "masyu"\)/.test(page),
     "the page counts a solve for Random and for today, opens today's from the tile, stops its clock with the menu");
-  check(/masyu\.css/.test(html) && /masyu\.js/.test(html) && /class="masyu fit-screen beside"/.test(html), "the page links its styles and script");
+  check(/masyu\.css/.test(html) && /masyu\.js/.test(html) && /class="masyu (full )?fit-screen beside"/.test(html), "the page links its styles and script");
   check(/msy-white/.test(css) && /msy-black/.test(css) && /IN_FRAME/.test(page), "pearls are styled, and a watching frame draws the partner's board without writing");
 }
 
