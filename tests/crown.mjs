@@ -167,6 +167,7 @@ const mv = (G, seat, path) => { const r = applyMove(rules, G, seat, { path }, T)
   H = { ...H, state: { ...H.state, board: b2, hist: [b2], mv: [], ply: 0, turn: 0, quiet: SETS.english.quiet - 1 } };
   H = mv(H, 0, legalMoves(H.state).find(m => moveName("english", m) === "a1-b2").path);
   check(H.state.result?.why === "quiet", "too many moves with no capture or man moved is a draw");
+check(["english", "international", "brazilian", "russian"].map(id => SETS[id].quiet / 2).join() === "40,25,20,15", "the draw rule is each federation's: 40 moves each (English), 25 (International), 20 (Brazilian), 15 (Russian) without a capture or a man moving");
 }
 
 // ---------- the computer: whole games, legal, in every set ----------

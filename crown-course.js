@@ -278,3 +278,15 @@ export function dayCourse(day, set = "english") {
   const step = { ...shotStep(p, "Today's shot: a sacrifice that wins material. Find it: tap a piece, then where it goes."), daily: true };
   return { title: "Today's shot", zh: "", chapters: [{ id: "day", title: "Find the win", zh: "", lessons: [{ id: `day${day}`, title: `The shot of ${dateWords(day)}`, zh: "", steps: [step] }] }] };
 }
+
+/** The day before a day (YYYYMMDD), the UTC calendar's. */
+const dayBefore = day => { const d = new Date(Date.UTC(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100) - 864e5); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); };
+/** The streak of days the shot of the day was solved, after solving it on `day`: { now, best, last }. A second solve the same day changes nothing. */
+export function dayStreak(prev, day) {
+  const p = prev || { now: 0, best: 0, last: 0 };
+  if (p.last === day) return p;
+  const now = p.last === dayBefore(day) ? p.now + 1 : 1;
+  return { now, best: Math.max(p.best || 0, now), last: day };
+}
+/** The streak as it stands on `day`: broken when yesterday's shot was missed. */
+export const streakNow = (s, day) => (s && (s.last === day || s.last === dayBefore(day)) ? s.now : 0);
