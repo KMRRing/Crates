@@ -13,6 +13,7 @@ import { seatPage } from "./seats-ui.js";
 import { applyMove } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sure } from "./sure.js";
@@ -76,7 +77,11 @@ const coachCache = new Map();                   // position → the coach's scor
 let coachBusy = "";
 let shown = 0;
 
+const view = tableView("flank", ["board", "Board"]);                  // Menu, View: the flat board (the default) or the board tipped away from you (flank-3d.css)
+const applyView = () => $("app").classList.toggle("fk3", view.get() === "3d");
+
 function draw() {
+  applyView();
   if (!page) return;
   const v = V, s = v?.G ? v.state : null;
   const id = v?.G ? `${v.G.seq}:${v.G.started}:${v.mode}` : "";
@@ -332,6 +337,7 @@ function openMenu() {
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Reversi, from the rules", () => course.open()));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
+  set.append(view.choice(() => draw()));
   set.append(choice("Opponent", [["computer", "Computer"], ["two", "Two on this phone"]], opts.mode, v => { opts.mode = v; saveOpts(); }));
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); botKey = ""; botWork(V); }));
   set.append(choice("You play", [["dark", "Dark (first)"], ["light", "Light"], ["either", "Either"]], opts.colour, v => { opts.colour = v; saveOpts(); }));

@@ -1,0 +1,8 @@
+/* Reversi's 3D view (Menu, View: 3D): the board a slab tipped away from you, its far side further and smaller, the discs given an edge
+   so they read as thick coins. Only the picture changes: the board, its taps and the discs' turning are the flat board's own, and the
+   compositor does the tilt (nothing is redrawn). */
+.fk3 .fk-stage { perspective: 60rem; perspective-origin: 50% 100%; }
+.fk3 .fk-board { transform-origin: 50% 100%; transform: rotateX(26deg); border-radius: .4rem;
+  box-shadow: 0 .45rem 0 -.1rem color-mix(in srgb, var(--fk-frame) 70%, #000), 0 1.4rem 1.4rem -.8rem rgba(0, 0, 0, .55); }
+.fk3 .fk-face.d { box-shadow: 0 .14rem 0 var(--fk-dark-edge), 0 .3rem .3rem rgba(0, 0, 0, .45); }
+.fk3 .fk-face.l { box-shadow: 0 .14rem 0 var(--fk-light-edge), 0 .3rem .3rem rgba(0, 0, 0, .4); }
