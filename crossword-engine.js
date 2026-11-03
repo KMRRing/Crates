@@ -318,11 +318,13 @@ export function makePuzzle({ seed = 1, level = "medium", size = null, kind = "bo
       grid = gridFor(L, mix(seed, attempt), (theme ? [theme.key] : L.lexicon ? [] : early.slice(0, 2)).map(e => e.letters.length));
     }
     if (!grid) continue;
-    let fill, placed;
+    let fill, placed, LL = L;
     if (lexicon) {
-      const made = lexiconFill(grid, { theme, early, words: lexicon, rnd, seed, attempt, L });
+      const made = lexiconFill(grid, { theme, early, words: lexicon, rnd, seed, attempt, L, bank });
       if (!made) continue;
       ({ fill, placed } = made);
+      // the ordinary words a thin pool needed are clued as a Classic grid's are, the harder clues being all that holds the level up
+      if (made.filler) LL = { ...L, hardClue: L.hardClassic };
     } else {
       let drawFrom = all, keystone = null;
       if (theme) ({ key: keystone, stars: drawFrom } = theme);
@@ -330,17 +332,21 @@ export function makePuzzle({ seed = 1, level = "medium", size = null, kind = "bo
       const rev = L.kb && !themes && asks === "both" ? Math.round(L.kb * L.rev + rnd() - 0.5) : null;
       placed = L.kb ? placeKnowledge(grid, slotsOf(grid), drawFrom, L.kb - (keystone ? 1 : 0), rnd, { first: keystone, early, maxLen: L.longest, rev, bank }) : [];
       if (!placed || placed.length < (keystone ? Math.max(5, L.least) : L.least)) continue;
+      // (across and down both, which a thin pool, the marked content out, no longer gives for free)
+      if (placed.length > 1 && new Set(placed.map(p => p.slot.dir)).size < 2) continue;
       // an ordinary word a knowledge clue says is kept out of the grid, or the clue would give it away
       const said = saidBy(placed.map(p => p.e));
       const words = len => bank.bands(len).map(b => b.filter(w => !said.has(w)));
       fill = fillGrid(grid, { words, fixed: placed.map(p => ({ word: p.e.letters.toLowerCase(), slot: p.slot.id })), seed: mix(seed, 0xF111 + attempt), budget: L.budget, starts: 8 });
       if (!fill) continue;
     }
-    const puzzle = assemble(fill, placed, { seed, level, kind, mode, pool, rnd, L, bank });
+    const puzzle = assemble(fill, placed, { seed, level, kind, mode, pool, rnd, L: LL, bank });
     if (!puzzle) continue;
     puzzle.grade = grade(puzzle, { seed: mix(seed, attempt) });
     // a theme's starred clues are recall without their country, so a theme is held to the share alone, set lower
-    const off = themes ? outside(puzzle.grade.share, [L.share[0] - 0.08, L.share[1]]) : outside(puzzle.grade.finish, L.finish) + outside(puzzle.grade.share, L.share);
+    const kbShare = puzzle.entries.filter(e => e.kind !== "word").length / puzzle.entries.length;
+    const band = shareBand(level, L.lexicon ? kbShare : 1, L.lexicon);
+    const off = themes ? outside(puzzle.grade.share, [band[0] - 0.08, band[1]]) : outside(puzzle.grade.finish, L.finish) + outside(puzzle.grade.share, band);
     // in its level's band first, then as much of what's due as will go in: one missing some of it is taken once a
     // grid's three attempts have tried (what's left may never fit, a length no slot here has, and all forty would be
     // spent: measured, letting the next grid's three try as well brought a fourteenth more of it in, for two thirds as
@@ -410,6 +416,9 @@ const LEXICON_ROOM = 6;
 // a mixed grid's 24,000 (a theme's grid took a third longer so); a quick fill, to see whether the grid can still be
 // filled round what's due, has fewer, over three starts (measured, 4,000 over eight put no more in, half as long again)
 const FILL_BUDGET = 4000, TRY_BUDGET = 1500;
+// attempts at a pure knowledge fill before ordinary words may help: one grid's three in a 13 or 15 (where the marked
+// content out leaves too few words to fill one but now and then), four grids' in a 9 or 11
+const PURE_TRIES = 3;
 /**
  * The words a Lexicon grid's fill leaves out round these entries: any a clue of theirs says, and any whose every entry
  * would give one of them away, a clue of a placed country or commodity (a theme's keystone among them), bold with its
@@ -434,34 +443,57 @@ function keptOut(entries, words) {
  * word is then given one of its entries, by weight, the word with fewest first, none clashing with another (the same
  * answer, or a clue saying another's answer). { fill, placed: [{ slot, e }] for every slot }, or null.
  */
-function lexiconFill(grid, { theme, early, words, rnd, seed, attempt, L }) {
+function lexiconFill(grid, { theme, early, words, rnd, seed, attempt, L, bank }) {
   const slots = slotsOf(grid);
-  const placed = theme ? placeKnowledge(grid, slots, theme.stars, L.kb - 1, rnd, { first: theme.key, maxLen: L.longest, bank: words, room: LEXICON_ROOM, cross: true }) : [];
+  const themed = bank => placeKnowledge(grid, slots, theme.stars, L.kb - 1, rnd, { first: theme.key, maxLen: L.longest, bank, room: LEXICON_ROOM, cross: true });
+  let placed = theme ? themed(words) : [], filler = false;
+  // (a theme's clues leave the slots they cross too few knowledge words in a thin pool: room is then asked of the clue bank's, and the fill takes its words)
+  if (theme && (!placed || placed.length < THEMED) && attempt >= PURE_TRIES) { placed = themed(bank); filler = true; }
   if (!placed || (theme && placed.length < THEMED)) return null;
-  const fillRound = (list, budget) => {
+  // `filler`: the clue bank's ordinary words, offered after every band of the knowledge base's own (see below)
+  const fillRound = (list, budget, filler = false) => {
     const out = keptOut(list.map(p => p.e), words);
-    return fillGrid(grid, { words: len => words.bands(len, out), fixed: list.map(p => ({ word: p.e.letters.toLowerCase(), slot: p.slot.id })), seed: mix(seed, 0xF111 + attempt), budget, starts: budget === TRY_BUDGET ? 3 : 8 });
+    const wordsOf = len => (filler ? [...words.bands(len, out), ...bank.bands(len).map(b => b.filter(w => !out.has(w) && !words.byWord.has(w)))] : words.bands(len, out));
+    return fillGrid(grid, { words: wordsOf, fixed: list.map(p => ({ word: p.e.letters.toLowerCase(), slot: p.slot.id })), seed: mix(seed, 0xF111 + attempt), budget, starts: budget === TRY_BUDGET ? 3 : 8 });
   };
-  let fill = fillRound(placed, FILL_BUDGET);
+  // With the marked content out (the default) the knowledge base's words alone fill a 9 or 11 grid but seldom a 13 or 15:
+  // when they can't, the fill goes on with ordinary words after them, so the grid has as many knowledge entries as it
+  // can and the rest are plain words (docs/crossword.md, Lexicon).
+  let fill = fillRound(placed, FILL_BUDGET, filler);
+  if (!fill && !filler && attempt >= (L.size <= 11 ? PURE_TRIES * 4 : PURE_TRIES)) { filler = true; fill = fillRound(placed, FILL_BUDGET, true); }
   if (!fill) return null;
   for (const e of early) {
     if (placed.some(p => clash(p.e, e))) continue;
     const at = new Map(placed.flatMap(p => p.slot.cells.map((k, i) => [k, p.e.letters[i]])));
     const open = shuffled(slots.filter(s => s.len === e.letters.length && !placed.some(p => p.slot.id === s.id) && s.cells.every((k, i) => !at.has(k) || at.get(k) === e.letters[i])), rnd);
     for (const s of open.slice(0, 2)) {
-      const f = fillRound([...placed, { slot: s, e }], TRY_BUDGET);
+      const list = [...placed, { slot: s, e }];
+      // (what's due is worth ordinary words round it: the thin pool alone seldom leaves room for more than a word or two)
+      let f = filler ? fillRound(list, TRY_BUDGET, true) : fillRound(list, TRY_BUDGET);
+      if (!f && !filler) { f = fillRound(list, TRY_BUDGET, true); if (f) filler = true; }
       if (f) { placed.push({ slot: s, e }); fill = f; break; }
     }
   }
   const at = new Map(placed.map(p => [p.slot.id, p.e])), chosen = placed.map(p => p.e);
-  const rest = shuffled(fill.slots.filter(s => !at.has(s.id)), rnd).sort((a, b) => words.byWord.get(a.word).length - words.byWord.get(b.word).length);
+  const rest = shuffled(fill.slots.filter(s => !at.has(s.id) && words.byWord.has(s.word)), rnd).sort((a, b) => words.byWord.get(a.word).length - words.byWord.get(b.word).length);
   for (const s of rest) {
     const c = pick(words.byWord.get(s.word).filter(x => !chosen.some(y => clash(y, x.e))), rnd);
     if (!c) return null;
     at.set(s.id, c.e);
     chosen.push(c.e);
   }
-  return { fill, placed: fill.slots.map(s => ({ slot: s, e: at.get(s.id) })) };
+  // (a filler word has no entry: it keeps an ordinary clue)
+  return { fill, filler, placed: fill.slots.filter(s => at.has(s.id)).map(s => ({ slot: s, e: at.get(s.id) })) };
+}
+/**
+ * The share of a grid the average solver fills that a level asks for, for a grid of which `kb` is the fraction of
+ * entries the knowledge base's: a Lexicon grid's own band when all are (1), a Both grid's when none are, between them
+ * in proportion for a Lexicon grid the thin pool filled with ordinary words (docs/crossword.md, Lexicon).
+ */
+export function shareBand(level, kb, lexicon = true) {
+  const lv = LEVELS[level] || LEVELS.medium;
+  if (!lexicon) return lv.share;
+  return lv.lexShare.map((x, i) => x + (1 - kb) * (lv.share[i] - x));
 }
 /** How far a figure is outside a band (0 inside it). */
 const outside = (x, [lo, hi]) => (x < lo ? lo - x : x > hi ? x - hi : 0);
