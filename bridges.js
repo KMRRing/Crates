@@ -11,6 +11,7 @@ import { createDuel } from "./duel.js";
 import { cellEdit, tallyEdit, onceEdit } from "./board-share.js";
 import coopOf, { shareRun, halves, sees, splitOn, pingValue, newPings, PING_FOR } from "./bridges-coop.js";
 import { branchPath } from "./rooms.js";
+import { MIN_ZOOM, clampView, region, toBoard, place, zoomAbout, viewBoxOf, pinchZoom, wheelFactor } from "./bridges-zoom.js";
 import { raceLevel, matchOf, matchValid, nameOf, reportOf } from "./bridges-race.js";
 import { sure } from "./sure.js";
 import { miniature } from "./bridges-mini.js";
@@ -356,6 +357,7 @@ function useHint() {
   }
   setLink(link, S.marks[link], to, true, false, coop ? [tallyEdit("hints", hintId())] : []);
   S.lit = { set: [link], island, strait, text };
+  revealLink(link);                                              // a hint is of no use off the screen
   message = null;
   save();
   paint();
@@ -398,6 +400,7 @@ const svgEl = (tag, attrs, parent) => { const n = document.createElementNS(NS, t
  *  under a unit tall badly (as Hitori's and Delta's are). */
 const TEXT_SCALE = 100;
 let svg = null, linkEls = [], islEls = [], straitEls = [], seg = [];
+let box = null, view = { z: 1, cx: 0, cy: 0 };     // the chart's zoom (bridges-zoom.js): the whole board's viewBox, and the part of it in view
 /** What the marks break now, in words (bridges-engine.js's whatBreaks), for the line under the board. */
 let trouble = "";
 const MARGIN = 0.78;                // room a strait's badge takes at the board's left or top edge, in cells
@@ -405,7 +408,10 @@ const BADGE = 0.31;                 // its radius
 function drawBoard() {
   const { size, lay } = P, pad = 0.3, at = i => [lay.isl[i].c + 0.5, lay.isl[i].r + 0.5];
   const x0 = lay.groups.some(g => !g.across) ? -(pad / 2 + MARGIN) : -pad, y0 = lay.groups.some(g => g.across) ? -(pad / 2 + MARGIN) : -pad;      // a strait's number sits in the margin, so the margin grows only for one that has it
-  svg = svgEl("svg", { viewBox: `${x0} ${y0} ${size + pad - x0} ${size + pad - y0}`, role: "img", "aria-label": `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: the board. Tap a link between two islands to build a bridge.`, class: "brg-svg" });
+  box = { x: x0, y: y0, w: size + pad - x0, h: size + pad - y0 };
+  view = { z: 1, cx: box.x + box.w / 2, cy: box.y + box.h / 2 };       // a new puzzle is shown whole
+  fingers.clear(); grip = null; lastTap = null; cancelPress();
+  svg = svgEl("svg", { viewBox: `${box.x} ${box.y} ${box.w} ${box.h}`, role: "img", "aria-label": `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: the board. Tap a link between two islands to build a bridge. Pinch to zoom.`, class: "brg-svg" });
   svgEl("rect", { x: x0 + pad / 2, y: y0 + pad / 2, width: size + pad / 2 - (x0 + pad / 2), height: size + pad / 2 - (y0 + pad / 2), rx: 0.12, class: "brg-paper" }, svg);
   straitEls = lay.groups.map(g => {                                              // straits: a dashed line across the sea, its number in the margin
     const k = g.gap + 1, e = svgEl("g", { class: "brg-strait" }, svg), mid = (g.across ? y0 : x0) + pad / 2 + MARGIN / 2;
@@ -447,7 +453,9 @@ function drawBoard() {
   rings.clear();
   $("board").replaceChildren(svg);
   svg.addEventListener("pointerdown", down);
+  svg.addEventListener("wheel", wheel, { passive: false });
   svg.addEventListener("contextmenu", e => e.preventDefault());
+  applyView();
   paint();
 }
 /** An island's classes: its realm, whether its number is only a bound and whether it is a hill, then (from the run) met, over, shut off, a hint's. */
@@ -522,8 +530,58 @@ async function setView(v, remember = true) {
   drawLine();
 }
 
-// ---------- the board under a finger: a tap adds a bridge, a hold clears the link ----------
-let pressing = null;   // { id, link, x, y, timer, held }
+// ---------- the board under a finger ----------
+// A finger that stays down is a tap (it builds a bridge; together, on an island, it points the island out to your partner) or a
+// hold (it clears the link). A finger that moves further than a slop is a drag: it moves the zoomed board, and at 1 it does
+// nothing, as a slip never built anything. Two fingers pinch and move the board. A double tap on the bare paper, the chip at the
+// top of the card, 0 on a keyboard and the wheel are the rest of the zoom (bridges-zoom.js). The zoom is in the viewBox, so the
+// drawing, the hit tests (getScreenCTM) and the rings of a ping all follow it, and the text is drawn at the size it is shown.
+let pressing = null;   // { id, link, island, x, y, timer, held }: the finger that may still be a tap
+const fingers = new Map();   // the pointers down on the chart: id → { x, y } on the page
+let grip = null;       // the board being moved: { id, p } one finger's hold of a board point, or { z0, d0, p } a pinch's
+let lastTap = null;    // the last tap on the bare paper, for a double tap
+const canBuild = () => !!S && !S.done && !IN_FRAME && !paused;
+/** The chart's place on the page, and its size in pixels. */
+const plane = () => { const r = svg.getBoundingClientRect(); return { r, px: { w: r.width, h: r.height } }; };
+/** Draws the view: the viewBox follows it, and the chip says how far in it is. */
+function applyView() {
+  if (!svg || !box) return;
+  const { px } = plane();
+  if (!px.w || !px.h) return;
+  view = clampView(box, px, view);
+  const text = viewBoxOf(box, px, view);
+  if (svg.getAttribute("viewBox") !== text) svg.setAttribute("viewBox", text);
+  const zoomed = view.z > MIN_ZOOM + 0.01;
+  $("zoomBtn").hidden = !zoomed;
+  if (zoomed) put("zoomNow", `${view.z.toFixed(1)}×`);
+}
+function resetView() {
+  if (!box) return;
+  view = { z: 1, cx: box.x + box.w / 2, cy: box.y + box.h / 2 };
+  applyView();
+}
+/** Zooms by `by` about the middle of the chart (a key, not a finger). */
+function zoomBy(by) {
+  if (!svg) return;
+  const { px } = plane();
+  view = zoomAbout(box, px, view, view.z * by, px.w / 2, px.h / 2);
+  applyView();
+}
+/** Brings a board point into view when it is off the screen (a hint's link, a partner's ping), keeping the zoom; never under a finger. */
+function reveal(x, y) {
+  if (!svg || view.z <= MIN_ZOOM || fingers.size) return;
+  const { px } = plane(), r = region(box, px, view), m = 0.6;
+  if (x > r.x + m && x < r.x + r.w - m && y > r.y + m && y < r.y + r.h - m) return;
+  view = clampView(box, px, { ...view, cx: x, cy: y });
+  applyView();
+}
+const revealLink = l => { const q = seg[l]; if (q) reveal((q.x1 + q.x2) / 2, (q.y1 + q.y2) / 2); };
+function wheel(ev) {
+  ev.preventDefault();
+  const { r, px } = plane();
+  view = zoomAbout(box, px, view, view.z * wheelFactor(ev.deltaY, ev.deltaMode), ev.clientX - r.left, ev.clientY - r.top);
+  applyView();
+}
 const toCells = ev => {
   const m = svg?.getScreenCTM();
   return m ? new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse()) : null;
@@ -555,29 +613,74 @@ function islandAt(ev) {
 }
 function down(ev) {
   if (ev.button > 0) { if (ev.button === 2) press(linkAt(ev), "hold"); return; }
-  if (!S || S.done || IN_FRAME || paused) return;
   ev.preventDefault();
-  cancelPress();
-  const link = linkAt(ev), island = link < 0 && coop ? islandAt(ev) : -1;
-  if (link < 0 && island < 0) return;
   try { svg.setPointerCapture(ev.pointerId); } catch { /* a synthetic event */ }
+  fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  cancelPress();
+  if (fingers.size === 2) {                                      // a second finger: no tap or hold now, the two zoom and move the board
+    const [a, b] = [...fingers.values()], { r, px } = plane();
+    grip = { z0: view.z, d0: Math.hypot(a.x - b.x, a.y - b.y), p: toBoard(box, px, view, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top) };
+    return;
+  }
+  if (fingers.size > 2) return;
+  const link = canBuild() ? linkAt(ev) : -1, island = link < 0 && coop && canBuild() ? islandAt(ev) : -1;
   pressing = { id: ev.pointerId, link, island, x: ev.clientX, y: ev.clientY, held: false };
-  if (island >= 0) return;                                       // an island is pointed out when the finger lifts: there is nothing to hold
+  if (link < 0) return;                                          // paper or an island: a tap, nothing to hold (an island is pointed out when the finger lifts)
   pressing.timer = setTimeout(() => { if (!pressing) return; pressing.held = true; navigator.vibrate?.(14); press(pressing.link, "hold"); }, HOLD);
 }
 function cancelPress() { if (pressing) clearTimeout(pressing.timer); pressing = null; }
 addEventListener("pointermove", ev => {
-  if (!pressing || ev.pointerId !== pressing.id) return;
-  if (Math.hypot(ev.clientX - pressing.x, ev.clientY - pressing.y) > 12 * scale()) cancelPress();   // a slip off the link is no tap
+  const f = fingers.get(ev.pointerId);
+  if (!f || !svg) return;
+  f.x = ev.clientX; f.y = ev.clientY;
+  const { r, px } = plane();
+  if (grip?.d0 && fingers.size === 2) {                          // a pinch: the board point between the fingers stays between them
+    const [a, b] = [...fingers.values()];
+    view = place(box, px, pinchZoom(grip.z0, grip.d0, Math.hypot(a.x - b.x, a.y - b.y)), grip.p, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+    applyView();
+  } else if (grip?.id === ev.pointerId) {                        // one finger moving the board: the point it took hold of stays under it
+    view = place(box, px, view.z, grip.p, ev.clientX - r.left, ev.clientY - r.top);
+    applyView();
+  } else if (pressing && ev.pointerId === pressing.id && Math.hypot(ev.clientX - pressing.x, ev.clientY - pressing.y) > 12 * scale()) {
+    grip = { id: ev.pointerId, p: toBoard(box, px, view, pressing.x - r.left, pressing.y - r.top) };     // a slip is no tap: the finger takes hold of the board where it went down
+    cancelPress();
+    view = place(box, px, view.z, grip.p, ev.clientX - r.left, ev.clientY - r.top);
+    applyView();
+  }
 });
 addEventListener("pointerup", ev => {
+  if (!fingers.delete(ev.pointerId)) return;
+  if (grip?.d0) {                                                // a pinch ends with the first finger up; the other carries on moving the board, and its lift is no tap
+    grip = null;
+    const [rest] = [...fingers.entries()];
+    if (rest && svg) { const { r, px } = plane(); grip = { id: rest[0], p: toBoard(box, px, view, rest[1].x - r.left, rest[1].y - r.top) }; }
+    return;
+  }
+  if (grip?.id === ev.pointerId) { grip = null; return; }
   if (!pressing || ev.pointerId !== pressing.id) return;
   const { link, island, held } = pressing;
   cancelPress();
   if (island >= 0) pointAt(island);
-  else if (!held) press(link, "tap");
+  else if (link >= 0) { if (!held) press(link, "tap"); }
+  else paperTap(ev);
 });
-addEventListener("pointercancel", cancelPress);
+addEventListener("pointercancel", ev => { fingers.delete(ev.pointerId); grip = null; cancelPress(); });
+/** A tap on the bare paper: two of them in quick succession show the whole board again. */
+function paperTap(ev) {
+  const now = performance.now();
+  if (lastTap && now - lastTap.t < 350 && Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) < 30 * scale()) { lastTap = null; resetView(); }
+  else lastTap = { t: now, x: ev.clientX, y: ev.clientY };
+}
+$("zoomBtn").addEventListener("click", resetView);
+addEventListener("keydown", ev => {
+  if (!svg || ev.ctrlKey || ev.metaKey || ev.altKey || prefs.view === "model" || document.querySelector("dialog[open]") || /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || "")) return;
+  if (ev.key === "+" || ev.key === "=") zoomBy(1.4);
+  else if (ev.key === "-" || ev.key === "_") zoomBy(1 / 1.4);
+  else if (ev.key === "0") resetView();
+  else return;
+  ev.preventDefault();
+});
+new ResizeObserver(() => applyView()).observe($("board"));          // the screen turned, or the board's box changed: the same view, clamped onto the board again
 
 // ---------- drawing the rest ----------
 const shown = {};
@@ -907,6 +1010,7 @@ function ringOn(i, slot, soft) {
   if (!soft) svgEl("circle", { cx: x, cy: y, r, class: "brg-ping-wave" }, g);
   const timer = setTimeout(() => { g.remove(); if (rings.get(i)?.g === g) rings.delete(i); }, PING_FOR);
   rings.set(i, { g, timer });
+  if (!soft) reveal(x, y);
   model?.ping?.(i, { slot, soft, ms: PING_FOR });
 }
 /** Your tap on an island: a soft ring here, a ring on your partner's screen. */
@@ -1017,7 +1121,7 @@ setInterval(() => {
 
 // for tests and debugging
 window.__bridges = {
-  get duel() { return duel; }, get coop() { return coop; }, get state() { return S; }, get model() { return model; }, setView, get puzzle() { return P; }, get camp() { return camp; }, get track() { return track; }, press, useHint, undo, redo, start, playLevel, setTrack, linkAt,
+  get duel() { return duel; }, get coop() { return coop; }, get state() { return S; }, get model() { return model; }, get view() { return view; }, get box() { return box; }, resetView, setView, get puzzle() { return P; }, get camp() { return camp; }, get track() { return track; }, press, useHint, undo, redo, start, playLevel, setTrack, linkAt,
   /** Where a link's middle is on the screen, for tests that tap it as a finger would. */
   screenOf: l => {
     const m = svg.getScreenCTM(), { x1, y1, x2, y2 } = seg[l], x = (x1 + x2) / 2, y = (y1 + y2) / 2;
