@@ -14,8 +14,10 @@ export function axisOf(q) {
   if (q.unit === "year") return { kind: "linear", lo: 1000, hi: 2050, ticks: [1000, 1250, 1500, 1750, 2000] };
   if (q.unit === "%" && q.scale !== "log" && q.truth >= 0 && q.truth <= 100) return { kind: "linear", lo: 0, hi: 100, ticks: [0, 25, 50, 75, 100] };
   if (q.scale === "log" && q.truth > 0) {
-    const lo = 10 ** (Math.floor(Math.log10(q.truth)) - (1 + hash(q.id) % 3));
-    return { kind: "log", lo: Number(lo.toPrecision(1)), hi: Number((lo * 10 ** DECADES).toPrecision(1)), ticks: Array.from({ length: DECADES + 1 }, (_, i) => Number((lo * 10 ** i).toPrecision(1))) };
+    let lo = 10 ** (Math.floor(Math.log10(q.truth)) - (1 + hash(q.id) % 3));
+    // a count starts at 1 (nothing is 0.1 of a member): a small one always does, a big one keeps its round start above 1
+    if (q.whole) lo = q.truth < 1000 ? 1 : Math.max(1, lo);
+    return { kind: "log", whole: !!q.whole, lo: Number(lo.toPrecision(1)), hi: Number((lo * 10 ** DECADES).toPrecision(1)), ticks: Array.from({ length: DECADES + 1 }, (_, i) => Number((lo * 10 ** i).toPrecision(1))) };
   }
   return null;
 }
@@ -27,7 +29,10 @@ export const offOf = (a, v) => !(along(a, v) >= -1e-9 && along(a, v) <= 1 + 1e-9
 /** The value at a place on the ruler, rounded as someone typing would: two figures of a magnitude, a whole year or per cent. */
 export function valueAt(a, p) {
   const t = Math.min(1, Math.max(0, p));
-  if (a.kind === "log") return Number((a.lo * (a.hi / a.lo) ** t).toPrecision(2));
+  if (a.kind === "log") {
+    const v = Number((a.lo * (a.hi / a.lo) ** t).toPrecision(2));
+    return a.whole ? Math.max(1, Math.round(v)) : v;                  // a count is a whole number, 1 at the least
+  }
   return Math.round(a.lo + t * (a.hi - a.lo));
 }
 /** A tick's label: 100, 1k, 10k, 1M, 1bn, 0.01. */
@@ -121,6 +126,10 @@ export function mountDial(host, { onChange }) {
     // two figures can't tell a hundredth apart low on a log ruler's decade: a key always moves
     const moved = side === "bid" ? bid : ask;
     if (moved === v && step !== undefined) set(side, p + step * 2);
+    if ((side === "bid" ? bid : ask) === v && step !== undefined && axis.whole) {   // low on a count's ruler a hundredth is under one: a key moves one
+      const n = Math.min(axis.hi, Math.max(axis.lo, v + Math.sign(step)));
+      if (side === "bid") bid = ask != null && n > ask ? ask : n; else ask = bid != null && n < bid ? bid : n;
+    }
     draw(); emit();
   });
 

@@ -3,7 +3,7 @@
 // everyone makes their own market on the same question and the reveal shows them all against the truth, with the
 // standings; a pair may trade instead, one making the market and the other hitting it, lifting it or passing
 // (quote-table.js is the table's rules).
-import { START, PER_SET, settle, fault, pickMixed, withUnit, fmt, adequate, TOPICS, TOPIC_PRESETS, topicsOf, topicsDealt, presetIdOf, focusOf } from "./quote-engine.js";
+import { START, PER_SET, settle, fault, floorOf, pickMixed, withUnit, fmt, adequate, TOPICS, TOPIC_PRESETS, topicsOf, topicsDealt, presetIdOf, focusOf } from "./quote-engine.js";
 import { mixParam as linkMix, mixFromParam, anyIn, even, subjectPreset } from "./topics.js";
 import { subjectsOn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
@@ -227,16 +227,24 @@ function drawTape(q, e) {
   const f = log ? Math.log2 : x => x;
   const lo = Math.min(e.bid, q.truth), hi = Math.max(e.ask, q.truth);
   const pad = log ? 0.6 : q.scale * 0.6;
-  const left = log ? f(lo) - pad : lo - pad, right = log ? f(hi) + pad : hi + pad;
+  const left = scaleStart(q, f, lo, pad), right = log ? f(hi) + pad : hi + pad;
   const x = v => `${((f(v) - left) / (right - left) * 100).toFixed(1)}%`;
+  // a label at an end of the tape leans inwards rather than off the card (a count's tape ends at 1, so a bid of 1 is at the end)
+  const edge = v => { const at = (f(v) - left) / (right - left); return at < 0.08 ? " lo" : at > 0.92 ? " hi" : ""; };
   const add = (cls, style, text) => { const d = document.createElement("div"); d.className = cls; Object.assign(d.style, style); if (text != null) d.textContent = text; tape.appendChild(d); return d; };
   add("rail", {});
   const point = e.ask === e.bid;                       // a market on one figure: a dot, labelled once
   add(point ? "span point" : "span", point ? { left: x(e.bid) } : { left: x(e.bid), width: `calc(${x(e.ask)} - ${x(e.bid)})` });
-  add("lbl", { left: x(e.bid) }, fmt(e.bid, q));
-  if (!point) add("lbl", { left: x(e.ask) }, fmt(e.ask, q));
+  add(`lbl${edge(e.bid)}`, { left: x(e.bid) }, fmt(e.bid, q));
+  if (!point) add(`lbl${edge(e.ask)}`, { left: x(e.ask) }, fmt(e.ask, q));
   add(`truth ${e.inside ? "good" : "bad"}`, { left: x(q.truth) });
-  add("lbl t", { left: x(q.truth) }, fmt(q.truth, q));
+  add(`lbl t${edge(q.truth)}`, { left: x(q.truth) }, fmt(q.truth, q));
+}
+/** Where a tape's left end lies, on the scale's own axis: the lowest figure less a margin, but never below a count's 1
+ *  (the margin would show 0.66 of a member). */
+function scaleStart(q, f, lo, pad) {
+  const left = q.scale === "log" ? f(lo) - pad : lo - pad;
+  return floorOf(q) ? Math.max(left, f(floorOf(q))) : left;
 }
 
 // ---------- at a table: a pair's duo match, or a party's of up to six ----------
@@ -398,7 +406,7 @@ function drawTable(g, q, entry) {
   const box = $("table"), me = mySlot(), tag = labels(), rows = placeRows(g, g.index);
   const quoted = rows.filter(r => !r.none), log = q.scale === "log", f = log ? Math.log2 : x => x;
   const lo = Math.min(q.truth, ...quoted.map(r => r.bid)), hi = Math.max(q.truth, ...quoted.map(r => r.ask));
-  const pad = log ? 0.6 : q.scale * 0.6, left = f(lo) - pad, right = f(hi) + pad;
+  const pad = log ? 0.6 : q.scale * 0.6, left = scaleStart(q, f, lo, pad), right = f(hi) + pad;
   const x = v => `${((f(v) - left) / (right - left) * 100).toFixed(1)}%`;
   const el = (tag2, cls, text) => { const n = document.createElement(tag2); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
   const tapes = el("div", "qt-tapes");

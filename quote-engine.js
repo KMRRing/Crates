@@ -100,10 +100,14 @@ function inRange(q, r) {
 }
 /** Whether a grade shows adequate knowledge: A or better. B and below bank the question. */
 export const adequate = grade => ["SS", "S", "A"].includes(grade);
+/** The lowest figure a log scale offers a question: 1 for a count (`whole`: members, bottles… nothing is 0.5 of one), else
+ *  none. The ruler, the tape's ends and the bid's floor all read it, so a count never shows 0.1 or 0.5. */
+export const floorOf = q => (q.scale === "log" && q.whole ? 1 : 0);
 /** Why a market can't be quoted, or null. */
 export function fault(q, bid, ask) {
   if (!Number.isFinite(bid) || !Number.isFinite(ask)) return "Give a bid and an ask.";
   if (q.scale === "log" && bid <= 0) return "The bid has to be above zero.";
+  if (bid < floorOf(q)) return "A count starts at 1: the bid can't be lower.";
   // a bid equal to the ask is a market on one figure: you know it exactly (an SS where the question can be known exactly)
   if (ask < bid) return "The ask can't be below the bid.";
   return null;

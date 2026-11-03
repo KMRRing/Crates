@@ -86,6 +86,8 @@ html[data-mode="night"] { --qt-in: #8E9BE0; --qt-good: #7FC2A8; --qt-fair: #B2DC
 .qt-tape .truth.bad { background: var(--qt-bad); }
 .qt-tape .lbl { position: absolute; top: 2.5rem; font-size: .72rem; font-weight: 750; color: var(--ink-soft); white-space: nowrap; transform: translateX(-50%); }
 .qt-tape .lbl.t { top: -2px; color: var(--ink); }
+.qt-tape .lbl.lo { transform: translateX(-.3rem); }              /* at an end of the tape (a count's starts at 1): the label leans inwards */
+.qt-tape .lbl.hi { transform: translateX(calc(-100% + .3rem)); }
 .qt-note { margin: 0; color: var(--ink-soft); line-height: 1.4; max-height: 7em; }
 
 .qt-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
