@@ -1,12 +1,14 @@
 /* Bulls: a Mastermind board as an instrument. The code hides under a brass shutter at the head of the board; the rows
    below take every guess, each with its key pegs (a bull filled in ink, a cow a ring); the entry row, the pegs to pick
    from and the buttons stand under the board, where a thumb is. Oxblood, the bull's colour, is the house enamel. */
-:root { --bu-in: #8F3328; --bu-good: #2F7D5B; --bu-bad: #A8382B; --bu-rowh: 1.9rem; --bu-peg-rim: rgba(28, 42, 52, .55); }
+:root { --bu-in: #8F3328; --bu-good: #2F7D5B; --bu-bad: #A8382B; --bu-rowh: 1.9rem; --bu-peg-rim: rgba(28, 42, 52, .55);
+  --bu-sky: color-mix(in srgb, var(--brass) 9%, var(--sheet)); --bu-star: color-mix(in srgb, var(--ink) 62%, transparent); --bu-gold: #C58A08; }   /* by day a pale star chart */
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806F; --bu-peg-rim: rgba(236, 226, 203, .5); }
+  html:not([data-mode="day"]) { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806F; --bu-peg-rim: rgba(236, 226, 203, .5); --bu-sky: #0B1625; --bu-star: #F4EBD2; --bu-gold: #F2C85B; }
 }
-/* night, set in Settings */
-html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806F; --bu-peg-rim: rgba(236, 226, 203, .5); }
+/* night, set in Settings: deep navy */
+html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806F; --bu-peg-rim: rgba(236, 226, 203, .5); --bu-sky: #0B1625; --bu-star: #F4EBD2; --bu-gold: #F2C85B; }
+#app.classic { --bu-sky: var(--sheet); }
 
 .bu-mark { display: inline-block; }
 .bu-mark svg { width: 100%; height: 100%; display: block; }
@@ -25,6 +27,11 @@ html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806
 .bu-peg[data-c="5"] { --peg: #26323D; --mark: #F2D58C; }   /* black, a star */
 .bu-peg[data-c="6"] { --peg: #7A3F86; --mark: #F7F1E3; }   /* purple, a ring */
 .bu-peg[data-c="7"] { --peg: #D06A28; --mark: #1C2A34; }   /* orange, a bar */
+/* Planets (the default pieces): the body is its own picture, drawn once in bulls-bodies.js; Classic keeps the domes above */
+.bu-peg.body { background: none; box-shadow: none; }
+.bu-peg.body svg { width: 100%; height: 100%; fill: none; overflow: visible; }
+.bu-peg.settle svg { animation: bu-settle .22s cubic-bezier(.3, 1.5, .5, 1) both; }
+@keyframes bu-settle { from { transform: scale(.55); opacity: .4; } }
 /* Bulls and Cows: digits on paper tiles instead of colours */
 .bu-peg.digit { border-radius: 4px; background: var(--tile); color: var(--ink); box-shadow: inset 0 0 0 1px var(--tile-edge);
   font-weight: 800; font-size: calc(var(--size, 1.5rem) * .62); line-height: 1; font-variant-numeric: tabular-nums; }
@@ -51,8 +58,15 @@ html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806
 .bu-rival[hidden] { display: none; }
 
 /* ---------- the board: a stage framed in a double rule ---------- */
-.bu-board { display: flex; flex-direction: column; min-height: 0; padding: .5rem .6rem .45rem; border-radius: 6px; background: var(--sheet);
-  border: 1px solid var(--brass); box-shadow: inset 0 0 0 3px var(--sheet), inset 0 0 0 4px var(--rule); }
+.bu-board { position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 0; padding: .5rem .6rem .45rem; border-radius: 6px; background: var(--bu-sky);
+  border: 1px solid var(--brass); box-shadow: inset 0 0 0 3px var(--bu-sky), inset 0 0 0 4px var(--rule); }
+/* the sky behind the rows: fixed stars and three fine orbits, nothing that moves */
+.bu-board > :not(.bu-sky) { position: relative; z-index: 1; }
+.bu-sky { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.bu-sky .st { fill: var(--bu-star); }
+.bu-sky .orb { fill: none; stroke: var(--brass); stroke-opacity: .28; stroke-width: .8; vector-effect: non-scaling-stroke; }
+.bu-sky .orb.dash { stroke-dasharray: 1.5 5; stroke-opacity: .4; }
+#app.classic .bu-sky { display: none; }
 /* the board's contents keep a phone's width, centred, so on a wide board a row's keys stay beside its pegs */
 .bu-tabs, .bu-shield, .bu-rows { width: 100%; max-width: 24rem; margin-left: auto; margin-right: auto; box-sizing: border-box; }
 .bu-tabs { display: flex; gap: .3rem; margin-top: 0; margin-bottom: .4rem; flex: none; }
@@ -61,19 +75,32 @@ html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806
   font: inherit; font-size: .74rem; font-weight: 750; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .bu-tabs button[aria-selected="true"] { background: color-mix(in srgb, var(--bu-in) 15%, var(--sheet)); border-color: var(--bu-in); color: var(--ink); }
 /* the code under its shutter: brass hatching with a hole for each peg; open, the code itself */
-.bu-shield { flex: none; display: flex; align-items: center; gap: .55rem; padding: .3rem .5rem; margin-top: 0; margin-bottom: .45rem; border-radius: 4px; min-height: 2.25rem;
-  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--brass) 26%, var(--sheet)) 0 6px, color-mix(in srgb, var(--brass) 14%, var(--sheet)) 6px 12px);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 60%, transparent); }
+.bu-shield { --bu-plate: linear-gradient(180deg, color-mix(in srgb, var(--brass) 52%, var(--bu-sky)), color-mix(in srgb, var(--brass) 30%, var(--bu-sky)));
+  position: relative; overflow: hidden; flex: none; display: flex; align-items: center; gap: .5rem; padding: .3rem .5rem; margin-top: 0; margin-bottom: .45rem; border-radius: 4px; min-height: 2.25rem;
+  background: var(--bu-plate); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 85%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22); }
+#app.classic .bu-shield { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--brass) 26%, var(--sheet)) 0 6px, color-mix(in srgb, var(--brass) 14%, var(--sheet)) 6px 12px); }
+#app.classic .bu-shield .rosette { display: none; }
+/* the cover's sockets: dark, a gilt query in each */
+#app:not(.classic) .bu-shield .hole { background: rgba(8, 14, 22, .58); color: #F2D58C; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .6), 0 1px 0 rgba(255, 255, 255, .18); }
+/* the small astrolabe on the cover */
+.bu-shield .rosette { flex: none; width: 1.45rem; height: 1.45rem; color: var(--ink); opacity: .78; }
+.bu-shield .rosette svg { width: 100%; height: 100%; display: block; }
 .bu-shield .lab { flex: none; font-size: .64rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .bu-shield .code { display: flex; gap: .35rem; --size: 1.55rem; }
 .bu-shield .hole { display: inline-grid; place-items: center; width: var(--size); height: var(--size); border-radius: 50%; background: color-mix(in srgb, var(--ink) 70%, var(--sheet));
   color: var(--sheet); font-weight: 800; font-size: .8rem; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .5); }
 .bu-shield .note { margin-left: auto; font-size: .75rem; color: var(--ink-soft); text-align: right; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.bu-shield.open { background: color-mix(in srgb, var(--bu-in) 10%, var(--sheet)); box-shadow: inset 0 0 0 1px var(--bu-in); }
+.bu-shield.open { background: color-mix(in srgb, var(--bu-in) 12%, var(--bu-sky)); box-shadow: inset 0 0 0 1px var(--bu-in); }
+.bu-shield.open .rosette { opacity: .35; }
+.bu-shield.open .lab { color: var(--ink-soft); }
+.bu-shield.opening::after { content: ""; position: absolute; inset: 0; background: var(--bu-plate); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 85%, transparent);
+  pointer-events: none; animation: bu-lift .5s ease-in .05s both; }
+@keyframes bu-lift { to { transform: translateY(-105%); opacity: 0; } }
 .bu-shield.opening .code .bu-peg { animation: bu-reveal .35s ease-out both; }
 .bu-shield.opening .code .bu-peg:nth-child(2) { animation-delay: .06s; } .bu-shield.opening .code .bu-peg:nth-child(3) { animation-delay: .12s; }
 .bu-shield.opening .code .bu-peg:nth-child(4) { animation-delay: .18s; } .bu-shield.opening .code .bu-peg:nth-child(5) { animation-delay: .24s; }
-@keyframes bu-reveal { from { transform: scale(.4) rotateY(80deg); opacity: 0; } }
+@keyframes bu-reveal { from { transform: scale(.5); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .bu-shield.opening::after { display: none; } .bu-shield.opening .code .bu-peg, .bu-peg.settle svg { animation: none; } }
 
 /* the rows: as many as the board has, sized to the room (bulls.js sets --bu-rowh), scrolling only where the room is short */
 .bu-rows { list-style: none; margin-top: 0; margin-bottom: 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
@@ -97,10 +124,12 @@ html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806
 /* the key pegs: a bull is a peg of ink, a cow a ring; a square of them as the board has them */
 .bu-keys { display: grid; grid-template-columns: repeat(var(--kc, 2), auto); gap: 2px; justify-self: end; place-items: center; }
 /* an empty hole is a small dimple, so it never reads as a cow's ring */
-.bu-key { width: calc(var(--bu-rowh) * .27); height: calc(var(--bu-rowh) * .27); border-radius: 50%; display: grid; place-items: center; }
+.bu-key { width: calc(var(--bu-rowh) * .29); height: calc(var(--bu-rowh) * .29); border-radius: 50%; display: grid; place-items: center; }
 .bu-key::before { content: ""; width: 34%; height: 34%; border-radius: 50%; background: color-mix(in srgb, var(--ink) 22%, transparent); }
-.bu-key.bull { background: var(--ink); }
-.bu-key.cow { background: var(--sheet); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.bu-key.bull { background: var(--bu-gold); border-radius: 0; clip-path: polygon(50% 0, 62% 36%, 98% 38%, 69% 60%, 79% 96%, 50% 74%, 21% 96%, 31% 60%, 2% 38%, 38% 36%); }   /* a gilt star: right body, right place */
+.bu-key.cow { background: none; box-shadow: inset 0 0 0 1.5px var(--ink); }   /* an open orbit: right body, elsewhere */
+#app.classic .bu-key.bull { background: var(--ink); border-radius: 50%; clip-path: none; }
+#app.classic .bu-key.cow { background: var(--sheet); }
 .bu-key.bull::before, .bu-key.cow::before { content: none; }
 /* a key you're not shown (Team: your own guess's, which the others see) */
 .bu-sealed { display: inline-grid; place-items: center; height: calc(var(--bu-rowh) * .62); padding: 0 .4rem; border-radius: 3px; font-size: .62rem; font-weight: 800; color: var(--ink-soft);
@@ -201,7 +230,7 @@ dialog.bu-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   #app.bulls .bu-board { grid-column: 1; grid-row: 2 / -1; margin-top: .8rem; }
   #app.bulls .bu-side { grid-column: 2; grid-row: 4; grid-template-rows: minmax(0, 1fr) auto auto; grid-template-columns: minmax(0, 1fr); margin-top: 0; min-height: 0; }
   #app.bulls .bu-other:not([hidden]) { display: flex; flex-direction: column; grid-area: 1 / 1; min-height: 0; min-width: 0; margin: .4rem 0 .7rem; padding: .45rem .55rem;
-    border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--sheet); }
+    border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--bu-sky); }
   #app.bulls .bu-line { grid-area: 2 / 1; }
   #app.bulls .bu-side > .bu-play, #app.bulls .bu-side > .bu-result { grid-area: 3 / 1; }
   #app.bulls .bu-entry { --size: 3rem; }
@@ -209,12 +238,13 @@ dialog.bu-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 
 /* ---------- the themes: Codex's ornaments (the double rule, the brass hatching, the domed enamel) are its own ---------- */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-board { box-shadow: none; border-color: var(--tile-edge); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-shield { background: color-mix(in srgb, var(--ink) 8%, var(--sheet)); box-shadow: inset 0 0 0 1px var(--tile-edge); }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-shield { --bu-plate: color-mix(in srgb, var(--brass) 38%, var(--bu-sky)); box-shadow: inset 0 0 0 1px var(--tile-edge); }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) #app.classic .bu-shield { background: color-mix(in srgb, var(--ink) 8%, var(--sheet)); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-go { outline: 0; }
 html[data-theme="modern"] .bu-board { border-radius: 16px; }
 html[data-theme="modern"] :is(.bu-go, .bu-act, .bu-pick) { border-radius: 12px; }
 html[data-theme="modern"] .bu-go { letter-spacing: normal; text-transform: none; font-stretch: 100%; font-size: 1rem; }
-html:is([data-theme="kontor"], [data-theme="office"]) .bu-peg:not(.digit):not(.empty) { background: var(--peg); }
+html:is([data-theme="kontor"], [data-theme="office"]) .bu-peg:not(.digit):not(.empty):not(.body) { background: var(--peg); }
 html[data-theme="kontor"] :is(.bu-board, .bu-shield, .bu-go, .bu-act, .bu-pick, .bu-tabs button) { border-radius: 2px; }
 html[data-theme="kontor"] .bu-pick { border-width: 1px; }
 html[data-theme="office"] :is(.bu-board, .bu-shield, .bu-go, .bu-act, .bu-pick, .bu-tabs button) { border-radius: 4px; }

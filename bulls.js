@@ -19,13 +19,14 @@ import { roomInAddress, joiningWords } from "./rooms.js";
 import { busy, waitMark } from "./loading.js";
 import { scale, sideways } from "./wide.js";
 import { leaderboard } from "./standings.js";
+import { BODIES, bodySheet, skyMarkup } from "./bulls-bodies.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "bulls:run", PREFS = "bulls:prefs", STATS = "bulls:stats", LOCKS = "bulls:locks", DUELS = "bulls:duels", TODAY = "bulls:count", TABLE = "bulls:table";
 const APP = 1;                                 // the table's version
 const THINK = { easy: 1600, medium: 1300, hard: 1000 };   // ms the computer takes over a guess, so its turn reads as a turn
 const SAVE_EVERY = 5000;                       // ms between saves of a lock's clock while it runs
-const NAMES = ["red", "yellow", "green", "blue", "white", "black", "purple", "orange"];
+const COLOURS = ["red", "yellow", "green", "blue", "white", "black", "purple", "orange"];
 const PLACES = ["first", "second", "third", "fourth", "fifth"];
 
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
@@ -38,7 +39,7 @@ const first = name => String(name || "Player").trim().split(/\s+/)[0];
 const list = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
 // ---------- what the player has chosen ----------
-const DEFAULTS = { play: "break", variant: "classic", maker: "fair", cpu: "medium", lock: "medium", aid: "off", table: { kind: "break", play: "team", variant: "classic", level: "medium" } };
+const DEFAULTS = { play: "break", variant: "classic", maker: "fair", cpu: "medium", lock: "medium", aid: "off", pieces: "planets", table: { kind: "break", play: "team", variant: "classic", level: "medium" } };
 let prefs = (() => {
   const p = { ...DEFAULTS, ...read(PREFS, {}) }, t = { ...DEFAULTS.table, ...(p.table || {}) };
   if (!["break", "duel", "lock"].includes(p.play)) p.play = "break";
@@ -47,6 +48,7 @@ let prefs = (() => {
   if (!LEVELS[p.cpu]) p.cpu = "medium";
   if (!LOCK_LEVELS[p.lock]) p.lock = "medium";
   if (!["off", "count", "marks"].includes(p.aid)) p.aid = "off";
+  if (!["planets", "classic"].includes(p.pieces)) p.pieces = "planets";
   if (!KINDS[t.kind]) t.kind = "break";
   if (!PLAYS[t.play] || (t.kind === "lock" && t.play === "versus")) t.play = "team";
   if (!VARIANTS[t.variant]) t.variant = "classic";
@@ -54,6 +56,8 @@ let prefs = (() => {
   return { ...p, table: t };
 })();
 const keepPrefs = () => write(PREFS, prefs);
+document.body.insertAdjacentHTML("afterbegin", bodySheet());   // the bodies, drawn once; every peg re-uses them
+$("board").insertAdjacentHTML("afterbegin", skyMarkup());
 
 // ---------- the solo game ----------
 // run: a game of Break (bulls-engine's, with the day for today's), a duel, or a lock { kind: "lock", level, seed, tries,
@@ -278,14 +282,16 @@ function lockModel() {
 let hotClues = [];                              // the clues the last hint read, lit
 
 // ---------- drawing ----------
+const planets = () => prefs.pieces !== "classic";
 function pegEl(sym, digits, cls = "") {
   const s = el("span", `bu-peg${digits ? " digit" : ""}${cls ? ` ${cls}` : ""}`);
   if (sym == null || sym < 0) { s.classList.add("empty"); return s; }
   if (digits) s.textContent = String(sym);
+  else if (planets()) { s.dataset.c = String(sym); s.classList.add("body"); s.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#bu-b${sym}"/></svg>`; }
   else { s.dataset.c = String(sym); s.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true"><use href="#bu-m${sym}"/></svg>`; }
   return s;
 }
-const symName = (sym, digits) => (digits ? String(sym) : NAMES[sym]);
+const symName = (sym, digits) => (digits ? String(sym) : planets() ? BODIES[sym].name : COLOURS[sym]);
 function keysEl(b, c, p) {
   const box = el("span", "bu-keys");
   box.style.setProperty("--kc", String(Math.ceil(p / 2)));
@@ -311,6 +317,7 @@ function render() {
   if (!m) return;
   const auto = autoMarks(m);
   $("app").classList.toggle("locking", m.kind === "lock");
+  $("app").classList.toggle("classic", !planets());
   drawStrip(m); drawRival(m); drawBoard(m, auto); drawOther(m); drawEntry(m); drawPad(m, auto); drawActs(m); drawLine(m); drawResult(m);
   requestAnimationFrame(fitRows);
 }
@@ -357,14 +364,16 @@ function drawBoard(m, auto) {
 /** The code under its shutter, drawn again only when it changes; the shutter opening on a game's end turns its pegs over. */
 let shieldWas = null;
 function drawShield(m) {
-  const s = m.shield, code = s.open && s.code ? s.code : null, sig = JSON.stringify([s.label, code, s.note, m.p, m.digits]);
+  const s = m.shield, code = s.open && s.code ? s.code : null, sig = JSON.stringify([s.label, code, s.note, m.p, m.digits, prefs.pieces]);
   if (shieldWas?.sig === sig) return;
   const opening = !!code && shieldWas && !shieldWas.code && shieldWas.game === gameKey();
   shieldWas = { sig, code, game: gameKey() };
   const sh = $("shield"), row = el("span", "code");
   sh.className = `bu-shield${s.open ? " open" : ""}${opening ? " opening" : ""}`;
   for (let k = 0; k < m.p; k++) row.append(code ? pegEl(code[k], m.digits) : el("span", "hole", "?"));
-  sh.replaceChildren(el("span", "lab", s.label), row, el("span", "note", s.note || ""));
+  const rosette = el("span", "rosette");
+  rosette.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#bu-rosette"/></svg>`;
+  sh.replaceChildren(rosette, el("span", "lab", s.label), row, el("span", "note", s.note || ""));
   sh.setAttribute("aria-label", code ? `${s.label}: ${code.map(x => symName(x, m.digits)).join(", ")}` : `${s.label}: hidden`);
 }
 /** Which game is on the board (the shutter turns its pegs over only when that game's code comes out). */
@@ -424,16 +433,17 @@ function drawEntry(m) {
     b.dataset.slot = String(k);
     b.setAttribute("aria-pressed", String(w.sel === k));
     b.setAttribute("aria-label", `${PLACES[k]} peg: ${sym >= 0 ? symName(sym, m.digits) : "empty"}`);
-    b.append(pegEl(sym, m.digits));
+    b.append(pegEl(sym, m.digits, k === settled && sym >= 0 ? "settle" : ""));
     return b;
   }));
+  settled = -1;
 }
 function drawPad(m, auto) {
   const pad = $("pad"), w = work(), C = m.digits ? 10 : m.C;
   pad.className = `bu-pad${m.digits ? " digits" : C > 6 ? " eight" : ""}${noting ? " noting" : ""}`;
   pad.style.setProperty("--cols", String(m.digits ? 5 : C));
   pad.style.visibility = m.entry ? "" : "hidden";
-  pad.setAttribute("aria-label", m.digits ? "Digits" : "Colours");
+  pad.setAttribute("aria-label", m.digits ? "Digits" : planets() ? "Bodies" : "Colours");
   const order = m.digits ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 0] : [...Array(C).keys()];
   pad.replaceChildren(...order.map(sym => {
     const b = el("button", "bu-pick");
@@ -464,12 +474,12 @@ function drawLine(m) {
   l.textContent = message ? message.text : m.result ? "" : m.say ?? howTo(m);
 }
 function howTo(m) {
-  if (m.go?.setting) return m.duel ? "Set a code for the computer to break: pick pegs, or Random." : "Set a code for the next player to break: pick pegs, or Random.";
+  if (m.go?.setting) return m.duel ? "Set a code for the computer to break: pick bodies, or Random." : "Set a code for the next player to break: pick bodies, or Random.";
   if (m.kind === "lock") return "One code fits every clue: find it. Tap a clue's digit to rule it out, again to mark it in.";
   const w = work();
   if (prefs.aid === "marks" && w.input.every(x => x >= 0) && !fits(m.variant, m.visible || [], w.input)) return "That one can't be the code: it doesn't fit every row.";
-  return noting ? `Notes: tap a ${m.digits ? "digit" : "colour"} to rule it out, again to mark it in, again to clear it.`
-    : `Pick ${m.p} ${m.digits ? "different digits" : "pegs"}, then Guess. A bull ● is right and in place, a cow ○ right but elsewhere.`;
+  return noting ? `Notes: tap a ${m.digits ? "digit" : planets() ? "body" : "colour"} to rule it out, again to mark it in, again to clear it.`
+    : `Pick ${m.p} ${m.digits ? "different digits" : planets() ? "bodies" : "pegs"}, then Guess. A bull ★ is right and in place, a cow ○ right but elsewhere.`;
 }
 function drawResult(m) {
   const done = !!m.result;
@@ -485,6 +495,7 @@ function drawResult(m) {
 }
 
 // ---------- taps ----------
+let settled = -1;                               // the hole just filled, whose body settles into it
 let noting = false;                             // the Notes button: pad taps mark symbols instead of entering them
 function tapPick(sym) {
   const m = model();
@@ -495,6 +506,7 @@ function tapPick(sym) {
   if (at < 0) { say("The row is full: tap a peg in it to change that one, or Guess."); navigator.vibrate?.(10); return; }
   if (!m.repeats) { const was = w.input.indexOf(sym); if (was >= 0 && was !== at) w.input[was] = -1; }   // a digit moves rather than repeats
   w.input[at] = sym;
+  settled = at;
   const after = w.input.findIndex((x, i) => i > at && x < 0);       // on to the next empty peg, else the first, else none
   w.sel = after >= 0 ? after : w.input.indexOf(-1) >= 0 ? w.input.indexOf(-1) : null;
   message = null;
@@ -896,18 +908,19 @@ const backToSolo = () => { if (together.room) together.leave(); else location.re
 
 // ---------- the rules: a sheet of their own, from the header's Rules and the menu ----------
 function showRules() {
+  const P = planets(), piece = P ? "body" : "peg", kind = P ? "body" : "colour";
   $("rulesBody").innerHTML = `
     <p>Break a hidden code from the score each guess earns, in as few guesses as you can.</p>
     <h4>The rules</h4>
-    <p>Each guess earns a bull ● for every peg of the right colour in the right place, and a cow ○ for every other peg of a colour the code holds elsewhere, counted only as often as both hold it. The key pegs say how many of each, not which.</p>
-    <p><b>An example.</b> Against the code red, yellow, green, blue, the guess red, red, blue, white earns one bull (the first red) and one cow (the blue); the second red earns nothing, as the code holds only one.</p>
-    <p>Four boards (Board, in the menu): <b>Classic</b>, four pegs of six colours, repeats allowed, in ten rows (the classic code-breaking board); <b>Super</b>, five pegs of eight colours in twelve rows; <b>Bulls and Cows</b>, four different digits in ten rows, every guess four different digits too; <b>Small</b>, three pegs of six colours in eight rows. Each colour carries a mark of its own, so it reads by its shape too.</p>
+    <p>Each guess earns a bull ${P ? "★" : "●"} for every ${piece} of the right ${kind} in the right place, and a cow ○ for every other ${piece} of a ${kind} the code holds elsewhere, counted only as often as both hold it. The key marks say how many of each, not which.</p>
+    <p><b>An example.</b> ${P ? "Against the code Mars, Sun, Uranus, Earth, the guess Mars, Mars, Earth, Moon earns one bull (the first Mars) and one cow (Earth); the second Mars earns nothing, as the code holds only one." : "Against the code red, yellow, green, blue, the guess red, red, blue, white earns one bull (the first red) and one cow (the blue); the second red earns nothing, as the code holds only one."}</p>
+    <p>Four boards (Board, in the menu): <b>Classic</b>, four ${piece}s of six ${kind}s, repeats allowed, in ten rows (the classic code-breaking board); <b>Super</b>, five ${piece}s of eight ${kind}s in twelve rows; <b>Bulls and Cows</b>, four different digits in ten rows, every guess four different digits too; <b>Small</b>, three ${piece}s of six ${kind}s in eight rows. ${P ? "Each body has a marking of its own (Mars its white cap, the Sun its rays, Uranus a thin ring, Earth its land, the Moon craters, Mercury a basin of rings, Saturn a broad ring, Jupiter bands), so it reads by its shape too. Pieces, in the menu, brings back the plain coloured pegs." : "Each colour carries a mark of its own, so it reads by its shape too."}</p>
     <h4>Three ways to play</h4>
     <p><b>Break</b>: the computer hides a code and you break it. A fair codemaker hides one from the start; a devious one (Codemaker, in the menu) hides none and answers each guess so that as many codes as possible still fit, so only a strategy that wins in the worst case beats it, and the code it shows at the end fits every answer.</p>
     <p><b>Duel</b>: you set a code for the computer (or Random), it hides one for you, and you take turns, your guess then its. Fewer guesses win; the same number, or neither code broken, is a draw. At Easy the computer loses track of older rows, at Medium it guesses any code that fits every row, and at Hard it plays Knuth's minimax, breaking every Classic code within five.</p>
     <p><b>Lock</b>: nothing to guess. A code of three or four different digits and a few clue rows, each a guess and its score (say, one digit right and in place, one right but misplaced), and exactly one code fits them all: work it out and try it. A wrong code costs ${WRONG} seconds.</p>
     <h4>Playing</h4>
-    <p>Tap a colour to fill the next empty hole; tap a peg in the row to change it, twice to take it out; tap a played row to have it back; then Guess. On the digit boards a digit already in the row moves rather than repeats. On a computer, 1 to 8 pick the colours (or the digits), Enter guesses and Backspace takes a peg out.</p>
+    <p>Tap a ${kind} to fill the next empty hole; tap a ${piece} in the row to change it, twice to take it out; tap a played row to have it back; then Guess. On the digit boards a digit already in the row moves rather than repeats. On a computer, 1 to 8 pick the ${kind}s (or the digits), Enter guesses and Backspace takes a ${piece} out.</p>
     <p>Notes are your own: tap Notes, then a colour or digit to rule it out, again to mark it in, again to clear it; in a lock, tap a digit where it stands in a clue. Help (in the menu, off at first): Count shows how many codes still fit what you've seen; Marks also marks colours as out or in where every fitting code agrees, and says when the row you've entered can't be the code. At the end, the codes left after each row show. In a lock, Hint (+${HINT}&nbsp;s) gives the next step, the clue that says most first, and marks its digits in your notes.</p>
     <h4>Levels</h4>
     <p>A board is as hard as its codes are many: on Classic a perfect breaker needs five guesses at most, of the ten rows. Locks are graded by the reasoning they need: <b>Easy</b>, three digits, each clue saying something by itself; <b>Medium</b>, three digits, clues read in turn over three rounds or more, or two together; <b>Hard</b>, four digits, two clues read together; <b>Expert</b>, four digits, three together.</p>
@@ -938,11 +951,12 @@ function openMenu() {
   } else {
     content.append(choice("Level", Object.entries(LOCK_LEVELS).map(([k, x]) => [k, x.label]), prefs.lock, v => { prefs.lock = v; keepPrefs(); openMenu(); }), line(LOCK_LEVELS[prefs.lock].about));
   }
-  part(body, "settings").append(choice("Help", [["off", "Off"], ["count", "Count"], ["marks", "Marks"]], prefs.aid, v => { prefs.aid = v; keepPrefs(); render(); }));
+  part(body, "settings").append(choice("Help", [["off", "Off"], ["count", "Count"], ["marks", "Marks"]], prefs.aid, v => { prefs.aid = v; keepPrefs(); render(); }), piecesChoice());
   part(body, "about").append(line(aboutLine()), action("Copy a link to this game", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 let pickDaily = null;                           // the menu's Code choice for Break: today's or a random one
+const piecesChoice = () => choice("Pieces", [["planets", "Planets"], ["classic", "Classic"]], prefs.pieces, v => { prefs.pieces = v; keepPrefs(); shieldWas = null; render(); });
 const boardChoice = () => choice("Board", Object.entries(VARIANTS).map(([k, v]) => [k, v.label]), prefs.variant, v => { prefs.variant = v; keepPrefs(); });
 function todayWords() { const t = read(TODAY, null); return t?.key === today() ? (t.v ? `you broke it in ${t.v}` : "you didn't break it") : ""; }
 function aboutLine() {
@@ -963,7 +977,7 @@ function tableMenu(body) {
       : choice("Level", Object.entries(LOCK_LEVELS).map(([k, x]) => [k, x.label]), t.level, v => set("level", v)));
   const all = people().map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`);
   table.append(line(`At the table: ${list(all)}. The choices are for the next game.`), action("Back to solo", backToSolo, "link"));
-  part(body, "settings").append(choice("Help", [["off", "Off"], ["count", "Count"], ["marks", "Marks"]], prefs.aid, v => { prefs.aid = v; keepPrefs(); render(); }));
+  part(body, "settings").append(choice("Help", [["off", "Off"], ["count", "Count"], ["marks", "Marks"]], prefs.aid, v => { prefs.aid = v; keepPrefs(); render(); }), piecesChoice());
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
