@@ -81,7 +81,10 @@ export function createSolid(deps) {
     const N = L.S.tiles[c].N;
     return { yaw: Math.atan2(N[0], N[2]) + .5, pitch: clamp(Math.asin(clamp(N[1], -1, 1)) + .38, -Z.MAX_PITCH, Z.MAX_PITCH) };
   }
-  const camera = () => ({ yaw: view().yaw, pitch: view().pitch, zoom: view().zoom, aspect: W / H });
+  // the engine's camera fits the solid's whole corner-to-corner circle with a margin; a cube is rarely seen so wide, so it is drawn a
+  // tenth larger (a corner can touch the edge); a dodecahedron's corners are all on the circle and it keeps the margin
+  const FIT = solid === "cube" ? 1.12 : 1;
+  const camera = () => ({ yaw: view().yaw, pitch: view().pitch, zoom: view().zoom * FIT, aspect: W / H });
   /** Turns the solid to show tile c: eased, or at once if the player asked for less motion. */
   function flyTo(c) {
     if (view().net) return;

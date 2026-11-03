@@ -7,7 +7,10 @@
 import * as Z from "../pipes-solid.js";
 import { solve } from "../pipes-solid-solve.js";
 import { artMid, artFrame, chanD, solidMatrix, apply, netLayout, netPick, C } from "../pipes-solid-3d.js";
-import { LEVELS, CHAPTERS } from "../pipes-cube-levels.js";
+import { LEVELS as CUBE, CHAPTERS as CUBE_CHAPTERS } from "../pipes-cube-levels.js";
+import { LEVELS as DODECA, CHAPTERS as DODECA_CHAPTERS } from "../pipes-dodeca-levels.js";
+const LEVELS = [...CUBE, ...DODECA], CHAPTERS = [...CUBE_CHAPTERS.map(c => ({ ...c, key: `cube-${c.key}` })), ...DODECA_CHAPTERS.map(c => ({ ...c, key: `dodeca-${c.key}` }))];
+const chapterOf = spec => `${spec.solid}-${spec.chapter}`;
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -116,7 +119,7 @@ for (const { spec, L } of parsed) {
   if (s.routes.length === 1) unique++;
   const ok = !s.aborted && s.routes.length === spec.sols.length && spec.sols.every(r => s.routes.includes(r));
   if (!ok) check(false, `${spec.id} ${spec.name}: the solver found ${s.routes.length} routes${s.aborted ? " (gave up)" : ""}, the level lists ${spec.sols.length}`);
-  hardest[spec.chapter] = Math.max(hardest[spec.chapter] || 0, s.nodes);
+  hardest[chapterOf(spec)] = Math.max(hardest[chapterOf(spec)] || 0, s.nodes);
   for (const route of spec.sols) {
     const laid = Z.layRoute(L, route), r = laid && Z.check(L, laid);
     if (!r?.solved || Z.laidCount(laid) !== L.total) check(false, `${spec.id}: its listed route doesn't solve it with exactly its hand`);
@@ -124,12 +127,13 @@ for (const { spec, L } of parsed) {
     if (!back || back.end.why !== "source" || back.passes.length !== r.passes.length) check(false, `${spec.id}: the way back from the terminal doesn't reach the wellhead along the same pieces`);
   }
 }
-check(LEVELS.length === 20 && new Set(LEVELS.map(l => l.id)).size === 20 && LEVELS.every(l => CHAPTERS.some(c => c.key === l.chapter)), "twenty levels, each with its own id and a chapter");
+check(CUBE.length === 20 && DODECA.length === 12 && new Set(LEVELS.map(l => l.id)).size === 32 && LEVELS.every(l => CHAPTERS.some(c => c.key === chapterOf(l))), "twenty cube levels and twelve of the dodecahedron, each with its own id and a chapter");
 check(unique === LEVELS.length, `all ${LEVELS.length} levels solve exactly as listed, each with one answer, ${totalNodes.toLocaleString("en-GB")} tiles tried in ${Date.now() - t0} ms`);
 console.log(`    hardest by chapter (tiles tried): ${CHAPTERS.map(c => `${c.name} ${hardest[c.key].toLocaleString("en-GB")}`).join(", ")}`);
 {
-  const needs = { b: L => (L.hand.x || 0) > 0, c: L => L.olds > 0, d: L => L.stakes.length > 0 };
-  const lacking = parsed.filter(({ spec, L }) => needs[spec.chapter] && !needs[spec.chapter](L)).map(({ spec }) => spec.id);
+  const needs = { Crossings: L => (L.hand.x || 0) > 0, "Old pipe": L => L.olds > 0, Stakes: L => L.stakes.length > 0 };
+  const nameOf = spec => CHAPTERS.find(c => c.key === chapterOf(spec)).name;
+  const lacking = parsed.filter(({ spec, L }) => needs[nameOf(spec)] && !needs[nameOf(spec)](L)).map(({ spec }) => spec.id);
   check(!lacking.length, `every level of Crossings, Old pipe and Stakes has its feature${lacking.length ? ` (not ${lacking})` : ""}`);
   const crossing = parsed.filter(({ L }) => (L.hand.x || 0) > 0).every(({ spec, L }) => {
     const laid = Z.layRoute(L, spec.sols[0]), counts = {};

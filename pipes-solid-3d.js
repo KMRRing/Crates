@@ -149,7 +149,8 @@ export function pipePiece(ctx, n, piece, P, old = false) {
 }
 
 let icons = null;                                    // Path2D is the browser's: made when first drawn, so Node can load this file
-const iconPaths = () => icons || (icons = { derrick: new Path2D("M18 46 L30 12 L42 46 M22 35 H38 M25 24 H35"), flag: new Path2D("M40 18 V6 L50 9 L40 12"), roof: new Path2D("M13 26 Q30 15 47 26") });
+const iconPaths = () => icons || (icons = { derrick: new Path2D("M18 46 L30 12 L42 46 M22 35 H38 M25 24 H35"), flag: new Path2D("M40 18 V6 L50 9 L40 12"), roof: new Path2D("M13 26 Q30 15 47 26"),
+  tank: new Path2D("M17 22H43A4 4 0 0 1 47 26V44A4 4 0 0 1 43 48H17A4 4 0 0 1 13 44V26A4 4 0 0 1 17 22Z") });
 
 /**
  * Draws one tile. t: { n, m (the matrix), dpr, shade (0..1 darkening), cell (the level's cell or null), piece, oil: [{a, b}…] (the
@@ -198,8 +199,8 @@ export function paintTile(ctx, t, P) {
   } else if (t.cell?.k === "terminal") {
     upright(cx, cy);
     ctx.fillStyle = P.good; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.setLineDash([]); ctx.lineJoin = "round";
-    ctx.beginPath(); ctx.roundRect(13, 22, 34, 26, 4); ctx.fill(); ctx.stroke();
-    const { roof, flag } = iconPaths();
+    const { roof, flag, tank } = iconPaths();
+    ctx.fill(tank); ctx.stroke(tank);
     ctx.fill(roof); ctx.stroke(roof);
     ctx.fillStyle = "#fff"; ctx.fill(flag); ctx.lineWidth = 1.5; ctx.stroke(flag);
   } else if (t.cell?.k === "old" && t.piece) {
@@ -210,8 +211,8 @@ export function paintTile(ctx, t, P) {
     }
   }
   if (t.stake) {
-    const [x, y] = at([14, 14]);
-    upright(x, y);
+    const [x, y] = at([15, 15]);
+    upright(x, y, 1.25);                                      // a stake must be found on a tile turned away: larger than the flat Puzzle's
     ctx.beginPath(); ctx.arc(C, C, 10, 0, 7);
     ctx.fillStyle = t.stake.state === "ok" ? P.good : t.stake.state === "bad" ? P.bad : P.accent; ctx.fill();
     ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.stroke();

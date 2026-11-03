@@ -6,6 +6,7 @@ import { createPuzzle } from "./pipes-puzzle-ui.js";
 import { createSolid } from "./pipes-solid-ui.js";
 import { STAR_LIFTS } from "./pipes-puzzle.js";
 import { LEVELS as CUBE_LEVELS, CHAPTERS as CUBE_CHAPTERS } from "./pipes-cube-levels.js";
+import { LEVELS as DODECA_LEVELS, CHAPTERS as DODECA_CHAPTERS } from "./pipes-dodeca-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause } from "./menu.js";
@@ -19,13 +20,15 @@ const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ---------- the boards ----------
-const MODES = [["flat", "Flat"], ["cube", "Cube"]];
+const MODES = [["flat", "Flat"], ["cube", "Cube"], ["dodeca", "Dodecahedron"]];
 let prefs = { mode: "flat", ...read(KEY.prefs, {}) };
 let mode = "flat";
 const flat = createPuzzle({ $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced });
 const cube = createSolid({ $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced,
   solid: "cube", key: "cube", levels: CUBE_LEVELS, chapters: CUBE_CHAPTERS });
-const boards = { flat, cube };
+const dodeca = createSolid({ $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { noteBest(); roundOver("pipes"); }, reduced,
+  solid: "dodeca", key: "dodeca", levels: DODECA_LEVELS, chapters: DODECA_CHAPTERS });
+const boards = { flat, cube, dodeca };
 const cur = () => boards[mode];
 
 /** The games screen shows `pipes:best`: here, the stars won across the boards. */
@@ -54,7 +57,9 @@ function showRules() {
     <h4>Flat</h4>
     <p>Pieces are never turned: a bend comes as it is, so the bends in your hand decide which ways the route can turn.</p>
     <h4>Cube</h4>
-    <p>The same puzzle on the faces of a cube: the oil runs over an edge into the next face. <b>Drag</b> to turn the cube, pinch to zoom, and <b>tap a tile</b> to lay the piece in hand: it is turned to take the oil as it stands. <b>Tap a piece you've laid</b> to turn it a step; <b>Lift</b>, then a piece, takes it back up. <b>Look</b> turns the cube to where the oil needs a piece. A piece here turns, so a hand is only how many bends, straights and crossings: the route decides their turns. The menu's View shows the cube cut open flat, with matching letters where its edges meet.</p>`;
+    <p>The same puzzle on the faces of a cube: the oil runs over an edge into the next face. <b>Drag</b> to turn the cube, pinch to zoom, and <b>tap a tile</b> to lay the piece in hand: it is turned to take the oil as it stands. <b>Tap a piece you've laid</b> to turn it a step; <b>Lift</b>, then a piece, takes it back up. <b>Look</b> turns the cube to where the oil needs a piece. A piece here turns, so a hand is only how many bends, straights and crossings: the route decides their turns. The menu's View shows the cube cut open flat, with matching letters where its edges meet.</p>
+    <h4>Dodecahedron</h4>
+    <p>The same on twelve pentagons: five sides to a tile, so there is no straight and no crossing. A <b>tight bend</b> joins two sides next to each other, an <b>easy bend</b> skips one.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;
 }
