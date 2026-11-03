@@ -18,7 +18,7 @@ html[data-theme="office"][data-mode="night"] { --pi-stone: #5C5C5C; --pi-wall: #
 .pi-mark { display: inline-block; }
 .pi-mark svg { width: 100%; height: 100%; display: block; }
 
-/* ---------- the numbers: the level (or the depth), the score, and what's left of the quota (or the charges) ---------- */
+/* ---------- the numbers: the level, the stars won, and the pieces still to lay ---------- */
 .pi-hud { margin: .55rem 0 .35rem; }
 .pi-numbers { display: grid; grid-template-columns: 1fr 1.3fr 1fr; align-items: end; gap: .4rem; }
 .pi-stat { display: grid; justify-items: center; gap: .05rem; min-width: 0; }
@@ -26,9 +26,8 @@ html[data-theme="office"][data-mode="night"] { --pi-stone: #5C5C5C; --pi-wall: #
 .pi-stat b { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; }
 .pi-stat.main b { font-size: 1.6rem; letter-spacing: -.02em; }
 .pi-stat b.met { color: var(--pi-good); }
-/* together, the others' scores under yours (duel.js fills it; a tap opens the match) */
 
-/* ---------- the queue: what comes next, the first one large (and in 3D, the piece in hand and the one set aside) ---------- */
+/* ---------- the hand of pieces ---------- */
 .pi-queue { display: flex; align-items: center; gap: .4rem; min-height: 3.4rem; margin-bottom: .45rem; }
 .pi-q-label { font-size: .64rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); writing-mode: vertical-rl; transform: rotate(180deg); }
 .pi-q { flex: none; width: 2.2rem; height: 2.2rem; border-radius: 5px; background: var(--pi-ground); box-shadow: inset 0 0 0 1px var(--pi-tile-edge); display: grid; place-items: center; overflow: hidden; }
@@ -38,7 +37,7 @@ html[data-theme="office"][data-mode="night"] { --pi-stone: #5C5C5C; --pi-wall: #
 /* ---------- the stage: the board as large as the room allows, keeping its shape ---------- */
 .pi-stage { position: relative; container-type: size; display: grid; place-items: center; min-height: 0; border-radius: 8px; background: var(--sheet);
   border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); padding: .5rem; overflow: hidden; }
-/* the board keeps its shape: seven by nine, or the puzzle level's own (pipes-puzzle-ui.js sets --cols and --rows) */
+/* the board keeps its shape: the level's own (pipes-puzzle-ui.js sets --cols and --rows) */
 .pi-board { width: min(100cqw - 1rem, calc((100cqh - 1rem) * var(--cols, 7) / var(--rows, 9))); border-radius: 6px; overflow: hidden; background: var(--pi-ground); }
 .pi-board, .pi-board svg { display: block; touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .pi-board svg { width: 100%; height: auto; cursor: pointer; }
@@ -58,17 +57,11 @@ html[data-theme="office"][data-mode="night"] { --pi-stone: #5C5C5C; --pi-wall: #
 @keyframes pi-pulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .pi-board .next { animation: none; } }
 
-/* ---------- the card over the stage: how a level went, or the run ---------- */
-  box-sizing: border-box; padding: 1rem 1rem .9rem; border-radius: 6px; background: var(--sheet); border: 1px solid var(--brass);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .35), inset 0 0 0 3px var(--sheet), inset 0 0 0 4px var(--rule); }
-
 /* ---------- under the stage: the line saying what's happening, and the buttons ---------- */
 .pi-bar { display: grid; gap: .45rem; margin-top: .5rem; }
 .pi-status { margin: 0; display: flex; align-items: baseline; gap: .5rem; min-height: 1.35em; font-size: .92rem; font-weight: 700; }
 #status { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (prefers-reduced-motion: reduce) { .pi-ahead.low i { animation: none; } }
 .pi-controls[hidden] { display: none; }
-/* Plan: Undo beside Run the oil, which is the wider */
 .pi-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%;
   letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
   cursor: pointer; touch-action: manipulation; }
@@ -78,8 +71,15 @@ html[data-theme="office"][data-mode="night"] { --pi-stone: #5C5C5C; --pi-wall: #
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) #app .pi-go.quiet { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--tile-edge); }
 .pi-go:disabled { opacity: .5; cursor: default; }
 .pi-go[hidden] { display: none; }
-/* 3D's five keys: hold, scrap, turn, lay (the plate) and hurry */
-  color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* ---------- the solids: the board is a canvas the cube is drawn on, as large as the stage allows ---------- */
+.pi-board.solid { width: calc(100cqw - 1rem); height: calc(100cqh - 1rem); border-radius: 0; overflow: visible; background: transparent; }
+.pi-board.solid canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.pi-controls.puzzle.solid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pi-controls.puzzle.solid.net { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pi-controls.puzzle.solid.done { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+.pi-go.on { background: var(--pi-in); color: #fff; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) #app .pi-go.quiet.on { background: var(--pi-in); color: #fff; box-shadow: none; }
 
 /* ---------- the puzzle: the hand of pieces to lay, old pipe, stakes, and the levels in the menu ---------- */
 .pi-hand { gap: .35rem; }
