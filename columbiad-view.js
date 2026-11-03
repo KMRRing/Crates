@@ -13,6 +13,8 @@ import { drawGun, gunSize, MUZZLE } from "./columbiad-gun.js";
 const INK = "233,223,198", BRASS = "217,164,65", BRASS_HI = "240,213,138", GOOD = "127,194,168", BAD = "232,128,111";
 const SKY_TOP = "#080d19", SKY_BOT = "#16213a";
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+/** The Earth's turn, in turns a second (1.26 degrees: a day in four and a half minutes). */
+const SPIN = 0.0035;
 
 /** The world box a level's aim view shows: the sky above the cannon, a little of the ground under it, and the ring; the Earth is as much of it as that holds. { x0, y0, x1, y1 }. */
 export function frameOf(lvl) {
@@ -37,7 +39,7 @@ export function createView(canvas, hooks = {}) {
   let frame = null, coneBox = null, fresh = false;
   const ins = { t: 0, r: 0, b: 0, l: 0 };                             // what the page's controls cover, in css pixels: the world is fitted into the rest
   let clock = 0, bodies = [], sun = sunOf(135, 0.5), spin = 0;        // the game's time now; the bodies to draw; the Earth's turn (turns)
-  let earthG = null, spinTimer = 0;
+  let earthG = null, lastDraw = 0, idled = false;
   // the aim view: the level's own frame, grown to hold the whole cone, so the preview is never out of sight
   const base = () => (coneBox ? { x0: Math.min(frame.x0, coneBox.x0), y0: Math.min(frame.y0, coneBox.y0), x1: Math.max(frame.x1, coneBox.x1), y1: Math.max(frame.y1, coneBox.y1) } : frame);
   let flight = null, live = null;                                     // the flight playing; the trail it leaves until the next shot
@@ -69,22 +71,25 @@ export function createView(canvas, hooks = {}) {
 
   // ---------- the world ----------
   /** A globe's picture at a display size: three sizes of the same render, so a camera zoom never makes a new one. */
-  function globeAt(g, R, pad, sizes) {
-    const want = 2 * R * pad * dpr;
+  function globeAt(g, R, pad, sizes, turn) {
+    const want = 2 * R * pad * dpr * 0.55;          // about half the screen's own pixels: the map is 1024 wide, so more is not more picture, and the page's smoothing does the rest
     let S = sizes[sizes.length - 1];
     for (const z of sizes) if (want <= z * 1.15) { S = z; break; }
-    return g.picture(g.spin ?? spin, sun, S);
+    return g.picture(turn, sun, S);
   }
-  function planet(g, x, y, R, spinTurns, sizes, q) {
+  function planet(g, x, y, R, spinTurns, sizes) {
     if (R < 0.6 || x + R * 1.2 < 0 || x - R * 1.2 > W || y + R * 1.2 < 0 || y - R * 1.2 > H) return;
-    g.spin = Math.round(spinTurns * q) / q;          // a new render for each step of the turn (0.4 degree for the Earth, 1 for a moon), not for each frame
-    const pic = globeAt(g, R, g.pad, sizes), d = 2 * R * g.pad;
+    const pic = globeAt(g, R, g.pad, sizes, spinTurns), d = 2 * R * g.pad;
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    const air = g.air(pic.width);
+    if (air) ctx.drawImage(air, x - d / 2, y - d / 2, d, d);        // the Earth's air, then its disc through an exact circle (a clean limb at any size)
+    ctx.save(); ctx.beginPath(); ctx.arc(x, y, R * 1.002, 0, 6.2832); ctx.clip();
     ctx.drawImage(pic, x - d / 2, y - d / 2, d, d);
+    ctx.restore();
   }
   function earth(ex, ey, R) {
-    if (!earthG) { earthG = createGlobe("earth", { tilt: 24, roll: -12 }); loadEarth(() => { draw(); wake(); }); warm(() => { draw(); wake(); }); }
-    planet(earthG, ex, ey, R, spin, [96, 192, 320, 448], 900);
+    if (!earthG) { earthG = createGlobe("earth", { tilt: 24, roll: -12, gap: 30 }); loadEarth(() => { draw(); wake(); }); warm(() => { draw(); wake(); }); }
+    planet(earthG, ex, ey, R, spin, [96, 192, 288, 384, 512, 640]);
     // a fine brass edge, as an engraver closes a plate's circle
     if (R > 14 * u) { ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${INK},.16)`; ctx.beginPath(); ctx.arc(ex, ey, R + 0.5, 0, 6.2832); ctx.stroke(); }
   }
@@ -98,7 +103,7 @@ export function createView(canvas, hooks = {}) {
       }
       // a moon keeps one face to what it circles: its turn is its way round
       const turn = b.rail ? Math.atan2(p[1] - b.cy, p[0] - b.cx) / 6.2832 * (b.retro ? -1 : 1) : b.spin;
-      planet(b.globe, x, y, R, turn + b.offset, [64, 128, 256], 360);
+      planet(b.globe, x, y, R, turn + b.offset, [48, 96, 192, 320]);
     }
   }
   function sky() {
@@ -179,7 +184,7 @@ export function createView(canvas, hooks = {}) {
   function cannon() {
     const site = lvl.site ?? 90, [ox, oy] = direction(site), g = gunSize(cam.k, u);
     const kick = reduced() ? 0 : recoil * 0.1 * cam.k * (g.L / Math.max(0.34 * cam.k, 22 * u));
-    drawGun(ctx, sx(ox), sy(oy), cam.k, u, site, aim.angle * Math.PI / 180, kick);
+    drawGun(ctx, sx(ox), sy(oy), cam.k, u, site, aim.angle * Math.PI / 180, kick, sun);
   }
   function trail() {
     if (!live) return;
@@ -351,7 +356,6 @@ export function createView(canvas, hooks = {}) {
   }
   function step(dt) {
     since += dt;
-    if (!reduced()) spin += dt * 0.0035;
     if (!flight && rails()) clock += dt;
     recoil = since < 0.05 ? since / 0.05 : Math.exp(-(since - 0.05) * 5.5);
     if (flash > 0) flash = Math.max(0, flash - dt / 0.14);
@@ -399,19 +403,24 @@ export function createView(canvas, hooks = {}) {
   function tick(ts) {
     raf = 0;
     if (held) return;
-    const dt = clamp((ts - last) / 1000, 0, 0.05);
-    last = ts;
+    const still = !moving();
+    // at rest only the Earth moves, and slowly: it is drawn at half the screen's rate, on every second frame (a steady 30 a second
+    // on a 60 Hz screen), the turn being the time that has passed, whenever it is drawn
+    if (still && lastDraw && ts - lastDraw < 28) { raf = requestAnimationFrame(tick); return; }
+    const raw = (ts - last) / 1000, dt = clamp(raw, 0, 0.05);
+    last = ts; lastDraw = ts;
+    if (!reduced()) spin += Math.min(raw, 0.25) * SPIN;          // a pure function of the time that has run (a long gap, a sleeping tab, is not owed)
     hooks.before?.();
     step(dt);
     draw();
-    if (moving()) raf = requestAnimationFrame(tick);
+    if (moving()) { raf = requestAnimationFrame(tick); idled = false; }
     else {
-      recoil = 0; hooks.onIdle?.();
-      // at rest the Earth still turns, slowly: one new picture of it every third of a second (the page draws on no clock but this one)
-      if (!spinTimer && !reduced() && lvl) spinTimer = setTimeout(() => { spinTimer = 0; if (!held) { spin += 0.0011; wake(); } }, 330);
+      recoil = 0;
+      if (!idled) { idled = true; hooks.onIdle?.(); }
+      if (!reduced() && lvl) raf = requestAnimationFrame(tick);   // the Earth's slow turn
     }
   }
-  function wake() { if (!raf && !held) { last = performance.now(); raf = requestAnimationFrame(tick); } }
+  function wake() { if (!raf && !held) { last = performance.now(); lastDraw = 0; idled = false; raf = requestAnimationFrame(tick); } }
 
   return {
     resize, draw,
@@ -467,7 +476,7 @@ export function createView(canvas, hooks = {}) {
     ff(on) { ff = on; },
     get flying() { return !!flight; },
     get fast() { return ff; },
-    hold() { held = true; if (raf) { cancelAnimationFrame(raf); raf = 0; } clearTimeout(spinTimer); spinTimer = 0; },
+    hold() { held = true; if (raf) { cancelAnimationFrame(raf); raf = 0; } },
     release() { held = false; hooks.before?.(); draw(); if (moving()) wake(); },
     get wallOf() { return flight ? flight.wall : 0; },
     /** The point on the page, in css pixels from the canvas's corner, where a world point is. */
