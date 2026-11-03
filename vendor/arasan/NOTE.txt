@@ -8,7 +8,7 @@ Changes:  arasan-wasi.patch, applied to that commit: no thread is started (the s
           a time from the page's worker instead of standard input (new file src/wasm.cpp, which replaces arasanx.cpp's
           main()), the network is not read from a file: the worker asks the engine for room (net_alloc), copies the
           .nnue file's bytes in and calls net_ready, which reads it and gives the room back; no book, no ECO file, no
-          tablebases (the Fathom code is a submodule that is not fetched), the five `throw` statements of the sources
+          tablebases (the Fathom code is a submodule that is not fetched), the two `throw` statements of the sources
           the build uses stop the engine instead (the build has no exceptions; none is ever thrown), "go nodes N" is new
           (the search ends at the first count of positions past N, once its first iteration is whole: Gambit's levels
           are set by positions, not time), MultiPV allows up to 16 lines (10 before), bitboards use WebAssembly's native

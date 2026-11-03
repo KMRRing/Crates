@@ -30,7 +30,7 @@ cp -r /usr/lib/llvm-18/lib/clang/18/include "$WORK/resource/"
 cp "$WORK"/sysroot/usr/lib/llvm-18/lib/clang/18/lib/wasi/libclang_rt.builtins-wasm32.a "$WORK/resource/lib/wasi/"
 CXX="clang++ --target=wasm32-wasi --sysroot=$SYSROOT -resource-dir $WORK/resource"
 
-# no exception is thrown (the one `throw` of each kind is replaced by abort()), so the C++ runtime's two entry points just stop
+# no exception is thrown (its two `throw` statements are replaced by abort()), so the C++ runtime's two entry points just stop
 cat > "$WORK/stubs.c" <<'EOF'
 #include <stdlib.h>
 #include <stddef.h>
