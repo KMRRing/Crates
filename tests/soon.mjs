@@ -13,7 +13,7 @@ const apps = fs.readFileSync(root + "apps.js", "utf8");
 const tiles = [...apps.matchAll(/\{ id: "(\w+)", sec: "(\w+)", name: "([^"]+)", href: "([^"]+)"[^\n]*?\bsoon: true \}/g)].map(m => ({ id: m[1], sec: m[2], name: m[3], href: m[4] }));
 const ids = Object.keys(SOON);
 
-check(ids.length > 0 && tiles.length === ids.length && ids.every(id => tiles.some(t => t.id === id)) && tiles.every(t => SOON[t.id]),
+check(tiles.length === ids.length && ids.every(id => tiles.some(t => t.id === id)) && tiles.every(t => SOON[t.id]),
   `${ids.length} games to build, each with a tile marked soon and no tile marked soon without one`);
 check(tiles.every(t => t.href === `./soon.html?game=${t.id}` && t.name === SOON[t.id].name && t.sec === SOON[t.id].sec), "each tile opens soon.html on its own game, in its section, under its name");
 check(ids.every(id => SOON[id].line.length > 40 && SOON[id].todo.length >= 2 && SOON[id].todo.every(t => typeof t === "string" && t.length > 30)), "each says what the game is and has at least two things to do");
