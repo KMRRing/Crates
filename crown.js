@@ -11,10 +11,10 @@ import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { seatRounds } from "./random.js";
-import { IN_FRAME, noteStreak } from "./suite.js";
+import { IN_FRAME, noteStreak, noteDayTime, arrivedForToday, today } from "./suite.js";
 import { sure } from "./sure.js";
 import { createCourse, progressOf } from "./course.js";
-import { COURSE, boardStage } from "./crown-course.js";
+import { COURSE, boardStage, dayCourse } from "./crown-course.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -209,17 +209,15 @@ function drawControls() {
     box.innerHTML = `<p class="cr-status big">${resultWords(v)}</p><button class="btn primary cr-go" type="button" data-act="${page.host ? "new" : "result"}">${page.host ? "New game" : "The result"}</button>`;
     return;
   }
-  const mine = canAct() || (animating() && false);
   const list = legalNow();
   let status;
   if (animating()) status = `${nameOf(1 - me)} moves`;
-  else if (!canAct()) status = `${esc(nameOf(s.turn))} ${V.seats[s.turn]?.bot ? "is thinking…" : "to move"}`;
+  else if (!canAct()) status = `${nameOf(s.turn)} ${V.seats[s.turn]?.bot ? "is thinking…" : "to move"}`;
   else if (ui.sel != null && ui.partial.length) status = "Tap the next landing, or the piece to stop";
   else if (ui.sel != null) status = "Tap where it goes";
   else status = list[0]?.caps.length ? "You must jump: tap a ringed piece" : hot() ? `${SIDE_LABEL[sideAt(s.turn)]} to move` : "Your move";
   const back = backPlies();
-  box.innerHTML = `<p class="cr-status${list[0]?.caps.length && canAct() ? " must" : ""}">${esc(status)}</p><div class="cr-row three"><button class="btn cr-btn" type="button" data-act="back" ${back && !animating() ? "" : "disabled"}>Undo</button><button class="btn cr-btn" type="button" data-act="hint" ${mine ? "" : "disabled"}>Hint</button><button class="btn cr-btn" type="button" data-act="resign" ${me == null || animating() ? "disabled" : ""}>${hot() ? "Draw?" : "Resign"}</button></div>`;
-  void mine;
+  box.innerHTML = `<p class="cr-status${list[0]?.caps.length && canAct() ? " must" : ""}">${esc(status)}</p><div class="cr-row three"><button class="btn cr-btn" type="button" data-act="back" ${back && !animating() ? "" : "disabled"}>Undo</button><button class="btn cr-btn" type="button" data-act="hint" ${canAct() ? "" : "disabled"}>Hint</button><button class="btn cr-btn" type="button" data-act="resign" ${me == null || animating() ? "disabled" : ""}>${hot() ? "Draw?" : "Resign"}</button></div>`;
 }
 
 function resultWords(v) {
@@ -407,6 +405,15 @@ const course = createCourse({
   },
 });
 
+// The shot of the day (the menu, or the games screen's tile): one puzzle a day from the bank, a sacrifice that wins, on the
+// course sheet as a lesson of one step; the first solve's time is what the games screen shows (noteDayTime).
+const DAY = dayCourse(today(), opts.set);
+const dayShot = DAY && createCourse({
+  id: "crown-day", course: DAY, cls: "cr", inFrame: IN_FRAME,
+  stage: boardStage({ onSolved: (step, st) => { if (step.daily && !IN_FRAME) noteDayTime("crown", (Date.now() - (st.started || Date.now())) / 1000); } }),
+});
+const shotDone = () => read("crown:today", null)?.key === today();
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -415,6 +422,7 @@ function openMenu() {
   page.menu(play);
   const cp = progressOf("crown", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Crown, from the rules", () => course.open()));
+  if (dayShot) play.append(action(shotDone() ? "The shot of the day: solved" : "The shot of the day", () => dayShot.open(DAY.chapters[0].lessons[0].id)));
   play.append(action("The rules on one page", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Rules", SET_IDS.map(id => [id, SETS[id].name]), opts.set, v => { opts.set = v; saveOpts(); }));
@@ -444,5 +452,7 @@ $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => { if (V) drawBoard(); });
 window.__crown = { page, get view() { return V; }, opts, course, ready, get ui() { return ui; } };
+const forToday = arrivedForToday();      // from the games screen's tile: today's shot is still to play
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
+if (forToday && dayShot && !page.atTable) dayShot.open(DAY.chapters[0].lessons[0].id);
 draw();

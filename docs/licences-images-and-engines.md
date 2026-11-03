@@ -20,3 +20,5 @@ Decided on 2 November 2026 (Korbi, after the library review; not legal advice; o
 - kishi (Shogi, MIT, in Rust for WebAssembly, as the plan has it): not adopted. River has no shogi, and its licence and strength were not checked (the sandbox could not reach its repository).
 
 **Four in a row (Silo)**, 3 November 2026: Silo's solver (`silo-solver.js`) is written for the Codex in plain JavaScript after the method of Pierre Pons's tutorial on solving the game (bitboards, a filter for non-losing moves, a transposition table folded by the mirror, columns tried from the middle out); no code of his is in it, and a method is not protected by copyright. The weights of its judgement are its own. Nothing was run or measured against another program except a plain negamax written for the test.
+
+**Draughts (Crown)**, 3 November 2026: Crown plays its own engine (`crown-search.js`: alpha-beta search, a transposition table, a hand-made evaluation), written for the Codex in plain JavaScript; nothing of anyone's is in it and nothing is carried. No other engine (Scan is GPL) was run or read. The rules are the federations' published rules, which belong to no one.
