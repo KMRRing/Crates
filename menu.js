@@ -125,9 +125,10 @@ export const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l
 const KONTOR_MENU = '<svg class="k-menu" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg>';
 // the menu button: the Codex mark standing still (mark.js; style.css turns its movement while the menu is open)
 // a game played by a party (?party=CODE in its address): the party's part heads its menu (party-link.js, loaded only
-// then: it connects to the party to follow the host)
+// then: it connects to the party to follow the host). Not a party of two sharing a board (&coop=1, docs/coop.md): its
+// game has no host choosing games, and carries the way out in its own menu.
 let partyPart = null;
-if (/[?&]party=[A-Za-z]{4}\b/.test(location.search)) import("./party-link.js").then(m => { partyPart = m.menuPart; }).catch(e => console.error(e));
+if (/[?&]party=[A-Za-z]{4}\b/.test(location.search) && !/[?&]coop=1\b/.test(location.search)) import("./party-link.js").then(m => { partyPart = m.menuPart; }).catch(e => console.error(e));
 // parts that head every game's menu while something of the suite's is under way (random mode's Next and Stop:
 // random.js), by name, each made afresh when the game fills its menu
 const heads = new Map();

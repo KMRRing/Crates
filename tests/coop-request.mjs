@@ -14,7 +14,7 @@ import { same } from "./rtdb.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const game = COOP_GAMES.slitherlink;
+const game = { ...COOP_GAMES.slitherlink, ...(await COOP_GAMES.slitherlink.load()).default };      // the registry's entry and the adapter, as one
 
 // a run of Slitherlink in play, as the game saves it
 const puzzle = generate(11, 5, "easy");
@@ -23,7 +23,7 @@ const run = { v: 1, mode: "random", seed: 11, size: 5, level: "easy", twist: "no
 
 // ---------- the registry and the adapter ----------
 {
-  check(coopGame("slitherlink") === game && coopGame("nope") === null && game.page === "slitherlink.html" && game.keys.join() === "slitherlink:run", "the registry has the game, its page and the key its board is saved under");
+  check(coopGame("slitherlink") === COOP_GAMES.slitherlink && coopGame("nope") === null && game.page === "slitherlink.html" && game.keys.join() === "slitherlink:run", "the registry has the game, its page and the key its board is saved under");
   const b = game.share({ "slitherlink:run": JSON.stringify(run) });
   check(b && b.layers.marks === run.marks && b.fixed.seed === 11 && b.fixed.sol === run.sol && b.start.ms === 41251 && b.start.hints === 1 && !("undo" in b) && !("lit" in b), "the host's run becomes a board: the puzzle, the marks, the clock and hints so far; undo and the hint showing stay behind");
   check(game.share({}) === null && game.share({ "slitherlink:run": "not json" }) === null && game.share({ "slitherlink:run": JSON.stringify({ ...run, done: { ms: 1, score: 1 } }) }) === null, "nothing in play, or a solved board, is nothing to share (a new puzzle is dealt instead)");

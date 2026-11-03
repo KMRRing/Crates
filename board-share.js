@@ -19,6 +19,10 @@
 // and the cell rule is `merge`, a three-way merge of one character: nobody else changed the cell, take the edit; the
 // editor's change is already there, nothing to do; both changed it differently, the later edit wins (it is the one being
 // applied) unless it is `weak`, an undo, which only puts back what it finds as it left it.
+//
+// A game may add rules (the `rules` argument everywhere): merge(layer, base, mine, theirs, weak) for a cell rule of its
+// own, and frozen(board), true once cell edits no longer count (a solved board: a tap that was already on its way
+// must not undo the solve).
 
 /** One cell's three-way merge: `base` is what the editor saw, `mine` what they made it, `theirs` what is there now. */
 export function merge(base, mine, theirs, prefer = "mine") {
@@ -64,6 +68,7 @@ export function apply(board, edits, rules = null) {
   for (const e of [].concat(edits)) {
     if (e.layer != null) {
       const s = board.layers?.[e.layer];
+      if (rules?.frozen?.(board)) continue;
       if (typeof s !== "string" || !Number.isInteger(e.i) || e.i < 0 || e.i >= s.length) continue;
       const next = rule(e.layer, e.from, e.to, s[e.i], !!e.weak);
       if (next !== s[e.i]) { board.layers[e.layer] = at(s, e.i, next); changed = true; }
@@ -102,13 +107,16 @@ export function commit(g, edits, rules = null) {
 export const validBoard = g => !!g && g.v === 1 && !!g.board && typeof g.board === "object" && !!g.board.layers
   && Object.values(g.board.layers).every(s => typeof s === "string" && s.length > 0);
 
+/** A shared board from the host's (`share`: { fixed, layers, start? }), its revision at nothing and its start marked with the time. */
+export const boardOf = (share, now = Date.now()) => ({ fixed: share.fixed, layers: { ...share.layers }, start: { at: now, ...(share.start || {}) }, rev: 0 });
+
 /**
- * A new room around a board: the host's board to start from (`share`: { fixed, layers, start? }), the players seated
- * (together.js deals this when the first of them arrives), the host's player id (who keeps the board afterwards).
+ * A new room around a board: the host's board to start from, the players seated (together.js deals this when the first
+ * of them arrives), the host's player id (who keeps the board afterwards), and whatever else the room should carry
+ * (`extra`: the two names, for the bar before the second phone has sat down).
  */
-export function newRoom(share, { players, host, app = 1, people = 2, now = Date.now() }) {
-  const { fixed, layers, start = {} } = share;
-  return { v: 1, app, created: now, host, people, players, board: { fixed, layers: { ...layers }, start: { at: now, ...start }, rev: 0 } };
+export function newRoom(share, { players, host, app = 1, people = 2, now = Date.now(), extra = {} }) {
+  return { v: 1, app, created: now, host, people, players, ...extra, board: boardOf(share, now) };
 }
 
 /**

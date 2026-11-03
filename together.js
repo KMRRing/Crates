@@ -17,9 +17,10 @@ export { seatsOf, seatOfSlot, peopleSeats, runsElsewhere };
  * valid(state): whether a state is this game's; onState(state): draw it; onPresence(): redraw who's where; onLeave():
  * back to solo; toast(msg); askName(): the player's name; result(state): once a match is over, { match, score, won,
  * coop, lower } as this player saw it (else null), recorded for the pair's duo record; slots: the seats people have,
- * two, or a function of the state (sitDown in rooms.js).
+ * two, or a function of the state (sitDown in rooms.js); onGone(lastState): the room is gone while you were in it (a
+ * party of two whose host ended it: coop-page.js says so and goes on) instead of the toast and onLeave.
  */
-export function createTogether({ game, app, fresh, valid, onState, onPresence, onLeave, toast, askName, result, slots = 2 }) {
+export function createTogether({ game, app, fresh, valid, onState, onPresence, onLeave, onGone, toast, askName, result, slots = 2 }) {
   const cap = state => (typeof slots === "function" ? slots(state) : slots);
   const reported = new Set();
   let room = null;   // { code, sync, uid, name, data, here, online, stop: [] }
@@ -146,7 +147,10 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
   function onRoom(val) {
     if (!room) return;
     if ((val?.app || 0) > app) { updateApp(); return; }
-    if (!valid(val)) { toast("That game has ended"); leave(); return; }
+    if (!valid(val)) {
+      if (onGone && !val && room.data) { const last = room.data; leave(true); onGone(last); return; }
+      toast("That game has ended"); leave(); return;
+    }
     if (!seatsOf(val).some(([id]) => id === room.uid)) {
       // your seat went to another device, or a new table was dealt for a new request (the device that asked is on its way)
       const moved = val.asked === room.data?.asked || seatsOf(val).some(([, p]) => room.pid && p.pid === room.pid);
@@ -205,15 +209,15 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     await reloadFresh();
   }
 
-  /** Leaves the room for good (every game). */
-  function leave() {
+  /** Leaves the room for good (every game); quietly, it is already gone (onGone) and the game says so itself. */
+  function leave(gone = false) {
     if (!room) return;
     room.unwatch?.();
     room.stop.forEach(stop => stop?.());
     leaveRoom(room.sync, room.code);
     room = null;
     setRoomParam(null);
-    onLeave();
+    if (!gone) onLeave();
   }
 
   /**
@@ -242,6 +246,6 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     get online() { return room ? room.online : true; },
     /** This device's seat at the table (0 for the first to sit down), or null when not at one. */
     get slot() { return room?.data?.players?.[room.uid]?.slot ?? null; },
-    start, join, act, leave, resync, partner, others,
+    start, join, act, leave: () => leave(), resync, partner, others,
   };
 }

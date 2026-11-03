@@ -45,7 +45,6 @@ const STILL = {
   "rush-menu.js": 1,
   "rush.js": 1,
   "slate.js": 3,
-  "slitherlink.js": 3,
   "solo.js": 5,
   "stow.js": 1,
   "sudoku.js": 3,
