@@ -35,7 +35,6 @@ const STILL = {
   "order.js": 3,
   "origin.js": 3,
   "parley.js": 1,
-  "pipes.js": 1,
   "punt.js": 3,
   "quote.js": 2,
   "river-rush-ui.js": 1,

@@ -5,6 +5,10 @@
 import * as B from "./pipes-engine.js";
 import * as G from "./pipes-deep.js";
 import { createShaftView } from "./pipes-3d.js";
+import { el, T, MID, channel, drawPipe, drawGround, drawSource, drawTerminal, pieceTile } from "./pipes-draw.js";
+import { createPuzzle } from "./pipes-puzzle-ui.js";
+import { STAR_LIFTS } from "./pipes-puzzle.js";
+import { sure } from "./sure.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
@@ -13,7 +17,6 @@ import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 
 const $ = id => document.getElementById(id);
-const SVG = "http://www.w3.org/2000/svg";
 const KEY = { flat: "pipes:flat", plan: "pipes:plan", deep: "pipes:deep", prefs: "pipes:prefs", best: "pipes:best", daily: "pipes:daily" };
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -37,7 +40,9 @@ const PACES = [[1, "Normal"], [1.5, "Slower"], [2, "Slowest"]];
 const paceName = p => (PACES.find(([v]) => v === p) || PACES[0])[1];
 /** The pace a new game plays at: a match's own, else yours. */
 const paceNow = () => (match ? match.pace || 1 : PACES.some(([v]) => v === prefs.pace) ? prefs.pace : 1);
-let mode = prefs.mode === "deep" ? "deep" : "flat";
+const MODES = [["puzzle", "Puzzle"], ["flat", "Board"], ["deep", "3D"]];
+const modeOf = v => (v === "deep" || v === "puzzle" ? v : "flat");
+let mode = modeOf(prefs.mode);          // "puzzle" (levels to fit, pipes-puzzle-ui.js), "flat" (the board) or "deep" (the shaft)
 // the board's run: { v, kind: "random" | "daily" | "duel", seed, flow ("plan"; a run with none is Rush's), pace (as it's played now) and slowest (the slowest it
 // was played at, which its score counts under), n (the level), total (the levels' points before this one's, or with it
 // once it's over), phase: "play" | "done" (a level cleared, its card up) | "over", P (the level: pipes-engine.js; kept
@@ -171,7 +176,7 @@ function step(dt, now = performance.now()) {
       drawFlatHud();
       if (P.over) { levelOver(); showFlat(false); }
     }
-  } else if (R && S) {
+  } else if (mode === "deep" && R && S) {                      // the puzzle has no clock
     if (R.phase === "play" && !R.D.over) {
       const D = R.D, i = D.oil.i, was = G.depthOf(D);
       G.advance(S, D, dt);
@@ -203,37 +208,6 @@ function catchUp(ms) {
 }
 
 // ---------- the board, drawn ----------
-const T = 60, MID = 30;
-const el = (tag, attrs = {}, parent = null) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (parent) parent.appendChild(n); return n; };
-const edge = d => [MID + B.DIRS[d][0] * MID, MID + B.DIRS[d][1] * MID];
-/** A channel's line through a square, from side a to side b (a < 0: from the middle): straight, or a quarter circle
- *  round the corner the two sides share. Its length too, for the oil running along it. */
-function channel(a, b) {
-  const [bx, by] = edge(b);
-  if (a < 0) return { d: `M${MID} ${MID}L${bx} ${by}`, len: MID };
-  const [ax, ay] = edge(a);
-  if (a === B.back(b)) return { d: `M${ax} ${ay}L${bx} ${by}`, len: T };
-  const cx = MID + (B.DIRS[a][0] + B.DIRS[b][0]) * MID, cy = MID + (B.DIRS[a][1] + B.DIRS[b][1]) * MID;
-  const sweep = (ax - cx) * (by - cy) - (ay - cy) * (bx - cx) > 0 ? 1 : 0;
-  return { d: `M${ax} ${ay}A${MID} ${MID} 0 0 ${sweep} ${bx} ${by}`, len: Math.PI * MID / 2 };
-}
-/** A channel's pipe along a line: its dark edge, the brass and a shine; a crossing's upright channel first lays a strip
- *  of ground, so it bridges the other. */
-function pipeAlong(g, d, bridge = false) {
-  if (bridge) el("path", { d, class: "pipe-edge", "stroke-width": 26, stroke: "var(--pi-ground)" }, g);
-  el("path", { d, class: "pipe-edge", "stroke-width": 22 }, g);
-  el("path", { d, class: "pipe", "stroke-width": 16 }, g);
-  el("path", { d, class: "pipe-shine", "stroke-width": 4 }, g);
-}
-/** A piece's pipe in a square (and the queue's tiles), channel by channel; oil(i) draws the oil in channel i straight
- *  after its pipe, so whatever lies over a channel (a crossing's bridge) lies over its oil too. */
-function drawPipe(g, piece, oil = () => {}) {
-  const chs = B.PIECES[piece], order = piece === "x" ? [1, 0] : chs.map((_, i) => i);
-  for (const i of order) {
-    pipeAlong(g, channel(chs[i][0], chs[i][1]).d, piece === "x" && i === 0);
-    oil(i);
-  }
-}
 /** A square of the board drawn afresh: its ground, what's fixed there or laid, the oil in it (each channel it has
  *  passed full, the one it's in now as far as it has come), and over them what stands on the square. */
 function drawCell(c) {
@@ -250,21 +224,11 @@ function drawCell(c) {
     }
   };
   const inChannel = piece => i => oil(s => B.channelOf(piece, s.a)?.i === i)();
-  el("rect", { x: 2, y: 2, width: T - 4, height: T - 4, rx: 8, fill: fixed?.k === "rock" ? "var(--pi-rock)" : "var(--pi-tile)", stroke: "var(--pi-tile-edge)", "stroke-width": 1 }, g);
-  if (fixed?.k === "rock") { for (const [cx, cy, r] of [[20, 24, 9], [38, 36, 11], [24, 42, 6]]) el("circle", { cx, cy, r, fill: "var(--pi-tile-edge)" }, g); return; }
-  if (fixed?.k === "source") {
-    pipeAlong(g, channel(-1, fixed.d).d);
-    oil(s => s.a < 0)();
-    // the wellhead: a derrick over it
-    el("path", { d: "M18 46 L30 12 L42 46 M22 35 H38 M25 24 H35", fill: "none", stroke: "var(--pi-in)", "stroke-width": 3.5, "stroke-linejoin": "round", "stroke-linecap": "round" }, g);
-    el("rect", { x: 13, y: 44, width: 34, height: 5, rx: 2, fill: "var(--pi-in)" }, g);
-  } else if (fixed?.k === "terminal") {
-    pipeAlong(g, channel(-1, fixed.d).d);
-    // the terminal: a tank with its roof, flying a flag
-    el("rect", { x: 13, y: 22, width: 34, height: 26, rx: 4, fill: "var(--pi-good)", stroke: "#fff", "stroke-width": 2 }, g);
-    el("path", { d: "M13 26 Q30 15 47 26", fill: "var(--pi-good)", stroke: "#fff", "stroke-width": 2 }, g);
-    el("path", { d: "M40 18 V6 L50 9 L40 12", fill: "#fff", stroke: "#fff", "stroke-width": 1.5, "stroke-linejoin": "round" }, g);
-  } else if (fixed?.k === "pump" || fixed?.k === "tank") {
+  drawGround(g, fixed?.k === "rock");
+  if (fixed?.k === "rock") return;
+  if (fixed?.k === "source") drawSource(g, fixed.d, oil(s => s.a < 0));
+  else if (fixed?.k === "terminal") drawTerminal(g, fixed.d);
+  else if (fixed?.k === "pump" || fixed?.k === "tank") {
     drawPipe(g, fixed.piece, inChannel(fixed.piece));
     if (fixed.k === "pump") {
       el("circle", { cx: MID, cy: MID, r: 13, class: "fixed-mark" }, g);
@@ -455,16 +419,6 @@ function runOn(dt) {
 }
 
 // ---------- the queue ----------
-/** A board piece as a small tile, for the queue. */
-function pieceTile(piece, first) {
-  const box = document.createElement("span");
-  box.className = `pi-q${first ? " first" : ""}`;
-  const svg = el("svg", { viewBox: "0 0 60 60", "aria-hidden": "true" });
-  drawPipe(svg, piece);
-  box.append(svg);
-  box.setAttribute("aria-label", { h: "straight across", v: "straight up and down", ne: "bend up and right", nw: "bend up and left", se: "bend down and right", sw: "bend down and left", x: "crossing" }[piece]);
-  return box;
-}
 // a 3D piece in the queue: its shape as it would go down the shaft
 const SHAPES3 = { straight: "M20 3V37", long: "M20 1V39M14 20H26", elbow: "M20 3V16Q20 26 30 26H38", jog: "M13 2V13Q13 20 20 20Q27 20 27 27V38" };
 function piece3Tile(kind, first, label) {
@@ -562,6 +516,7 @@ function drawFlatStatus() {
 let flatKey = "";
 /** The board's run on show: the board, the queue, the numbers, and a level's card when it's over. */
 function showFlat(fresh) {
+  leavePuzzle();
   $("board").hidden = false; $("shaft").hidden = true;
   $("flatControls").hidden = false; $("deepControls").hidden = true;
   $("flatControls").classList.toggle("plan", planned()); $("undoBtn").hidden = !planned();
@@ -631,6 +586,7 @@ function drawDeepStatus() {
   $("hurryNote").textContent = D.hurry ? "on" : `×${G.HURRY3}`;
 }
 function showDeep(fresh) {
+  leavePuzzle();
   $("board").hidden = true; $("shaft").hidden = false;
   $("flatControls").hidden = true; $("deepControls").hidden = false;
   if (!view) view = createShaftView($("shaft"), { onTap: () => act("turn") });
@@ -735,14 +691,35 @@ function drawDeepCard() {
   card([h, why, lines(rows), big, stats], ["Again", () => startDeep("random")], [R.kind === "daily" ? "A random shaft" : "Today's shaft", () => startDeep(R.kind === "daily" ? "random" : "daily"), true]);
 }
 
-// ---------- switching between the board and the shaft ----------
-/** Shows a mode: its run where it was left (or a fresh one), the other kept as it is. */
+// ---------- the puzzle ----------
+// Levels to fit (pipes-puzzle-ui.js): it keeps its own level and stars under pipes:puzzle and pipes:stars and draws into
+// the board, queue, line and buttons; a solved level is a round for the games screen's Random.
+const Z = createPuzzle({ $, read, write, toast, frame: IN_FRAME, openMenu: () => openMenu(), onSolved: () => { if (!match) roundOver("pipes"); }, reduced });
+function showPuzzle() {
+  $("flatControls").hidden = true; $("deepControls").hidden = true; $("puzzleControls").hidden = false;
+  $("app").classList.add("puzzle");
+  queueKey = ""; flatKey = ""; statusKey = "";
+  Z.show();
+}
+/** The board or the shaft takes the stage back from the puzzle: its hand, its board's shape and its buttons go. */
+function leavePuzzle() {
+  $("puzzleControls").hidden = true;
+  $("app").classList.remove("puzzle");
+  $("scoreLabel").textContent = "Score";
+  const q = $("queue"), b = $("board");
+  if (q.classList.contains("pi-hand")) { q.className = "pi-queue"; q.replaceChildren(); }
+  if (b.style.getPropertyValue("--cols")) { b.style.removeProperty("--cols"); b.style.removeProperty("--rows"); b.dataset.for = ""; b.replaceChildren(); }
+}
+
+// ---------- switching between the puzzle, the board and the shaft ----------
+/** Shows a mode: its run where it was left (or a fresh one), the others kept as they are. */
 function setMode(m) {
-  if (m !== "flat" && m !== "deep") m = "flat";
+  m = modeOf(m);
   if (mode !== m && !match) save();
   mode = m;
   if (!match) { prefs.mode = m; write(KEY.prefs, prefs); }
   $("app").classList.toggle("deep", m === "deep");
+  if (m === "puzzle") return showPuzzle();
   if (m === "flat") {
     if (!F) { F = loadRun(keyOf(flow), flow); if (F) L = B.deal(F.seed, F.n, F.pace || 1); }
     if (!F) return startFlat("random");
@@ -783,7 +760,15 @@ function showRules() {
   let low = 1;                                          // and the level from which the oil leaves after the fewest pieces
   while (low < 60 && B.levelOf(low).lead !== B.levelOf(low + 1).lead) low++;
   $("rulesBody").innerHTML = `
-    <p>Lay pipe ahead of the oil. On the board, the pieces come off a queue and go wherever you tap; in 3D, the oil comes down a shaft and you lay its pipe at the open end, a segment at a time.</p>
+    <p>Lay pipe for the oil. In the puzzle, a hand of pieces fits a board; on the board, the pieces come off a queue and go wherever you tap, ahead of the oil; in 3D, the oil comes down a shaft and you lay its pipe at the open end, a segment at a time. The menu's Game chooses.</p>
+    <h4>The puzzle</h4>
+    <p>No clock, no queue. Every level is a board and a hand of pieces, and every piece must go down: the oil leaves the wellhead, runs through all of them, and into the terminal. Pieces can't be turned, so the bends in your hand decide which ways the route can turn.</p>
+    <ul>
+      <li><b>Tap a piece in the hand</b>, then a square, to lay it. <b>Tap a piece you've laid</b> to take it back up (it's in your hand again: tap another square). The dashed line is the oil's way from the wellhead, and back from the terminal; the ringed square is where it needs a piece next, and a red cross is where it's stopped.</li>
+      <li><b>Rock</b> can't be built on. <b>Old pipe</b> (dark, studded) is already in the ground, and the oil must run through it. <b>Stakes</b> are numbered: the oil passes them in order. A <b>crossing</b> carries the oil across itself, and the oil may pass it twice.</li>
+      <li><b>Undo</b> is free, as many times as you like. <b>Hint</b> shows where the next piece goes, or which of yours is in the way; it costs a star.</li>
+      <li><b>Stars</b>: one for solving a level, two for solving it without a hint, three for that and hardly any piece taken back up (${STAR_LIFTS} at most, and one more for every six pieces in the hand).</li>
+    </ul>
     <h4>The board</h4>
     <p>The next piece is the large one at the left of the queue. Pieces can't be turned: straights, bends and crossings come as they are, in bags of thirteen, so no shape stays away long. The oil leaves the wellhead and runs from piece to piece, and it must pass through the level's quota of pipe (${lv.quota} on level 1) before it spills: off the edge, into rock, into an empty square or a piece that doesn't take it in. Short of the quota, the spill ends the run; past it, the level is cleared. The menu's Board switch chooses how the oil is paced.</p>
     <h4>Plan</h4>
@@ -842,20 +827,28 @@ function openMenu() {
     settings.append(toggle("3D (the next match)", prefs.mode === "deep", on => { prefs.mode = on ? "deep" : "flat"; write(KEY.prefs, prefs); openMenu(); }));
     if (prefs.mode !== "deep") settings.append(choice("Board (the next match)", FLOWS, flowOf(prefs.flow), v => { prefs.flow = v; write(KEY.prefs, prefs); openMenu(); }));
     if (prefs.mode === "deep" || flowOf(prefs.flow) === "rush") settings.append(choice("Pace (the next match)", PACES, PACES.some(([v]) => v === prefs.pace) ? prefs.pace : 1, v => { prefs.pace = v; write(KEY.prefs, prefs); }));
-    if (prefs.mode === "flat") settings.append(matchLength());
+    if (prefs.mode !== "deep") settings.append(matchLength());
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
+  // the three ways to play, each keeping its own run
+  const game = choice("Game", MODES, mode, v => { $("menuDlg").close(); setMode(v); });
+  if (mode === "puzzle") {
+    const solved = Z.run?.solved;
+    part(body, "play").append(action(solved ? "Next level" : "Level again", () => (solved ? Z.next() : Z.again()), "primary"), action("The rules", showRules, "link"));
+    part(body, "content").append(game, Z.levelList(id => { $("menuDlg").close(); Z.go(id); }));
+    part(body, "about").append(line(`${Z.solvedCount()} of ${Z.count} levels solved, ${Z.totalStars()} of ${Z.count * 3} stars. Three stars: no hint, and hardly a piece taken back up.`));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
   const run = mode === "flat" ? F : R;
   pick ??= run?.kind === "daily" ? "daily" : "random";
   part(body, "play").append(action("New game", () => confirmStart(pick), "primary"), action("The rules", showRules, "link"));
-  const content = [choice(mode === "flat" ? "Run" : "Shaft", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; })];
+  const content = [game, choice(mode === "flat" ? "Run" : "Shaft", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; })];
   // the board plays two ways, each keeping its own run
   if (mode === "flat") content.push(choice("Board", FLOWS, flow, v => { $("menuDlg").close(); pick = null; setFlow(v); }));
   part(body, "content").append(...content);
-  const settings = [toggle("3D", mode === "deep", on => { $("menuDlg").close(); setMode(on ? "deep" : "flat"); })];
-  if (mode === "deep" || flow === "rush") settings.push(choice("Pace", PACES, paceNow(), v => { setPace(v); openMenu(); }));     // Plan has no clock to slow
-  part(body, "settings").append(...settings);
+  if (mode === "deep" || flow === "rush") part(body, "settings").append(choice("Pace", PACES, paceNow(), v => { setPace(v); openMenu(); }));     // Plan has no clock to slow
   part(body, "together").append(matchLength());
   // the bests at the pace you're playing at (a slower game keeps its own; Plan has no pace)
   const pace = paceNow(), at = pace > 1 ? `, ${paceName(pace).toLowerCase()}` : "";
@@ -867,10 +860,10 @@ function openMenu() {
     bestLine(`3D${at}`, db, dt, b => `${num(b.depth)} m`, "no descent yet"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-function confirmStart(kind) {
+async function confirmStart(kind) {
   const run = mode === "flat" ? F : R;
   const begun = run && run.phase !== "over" && (mode === "flat" ? run.n > 1 || run.P?.next > 0 : run.D.pipe.length > 1);
-  if (begun && !confirm("Start a new game? This one isn't finished.")) return;
+  if (begun && !(await sure("Start a new game? This one isn't finished.", { yes: "New game" }))) return;
   pick = null;
   if (mode === "flat") startFlat(kind); else startDeep(kind);
 }
@@ -940,6 +933,7 @@ function tell(done = false) {
 /** The board before a match: nothing in play. */
 function lobby() {
   F = R = null;
+  leavePuzzle();
   $("board").replaceChildren(); cellG = [];
   $("board").hidden = false; $("shaft").hidden = true;
   $("flatControls").hidden = false; $("deepControls").hidden = true;
@@ -980,12 +974,12 @@ document.addEventListener("keydown", e => {
 /** Your game standing still (the menu or the rules open, the app out of sight), marked in its save: a partner's
  *  watching frame, which knows only what was last kept, then holds the oil where it is instead of running it on. */
 function standStill(on) {
-  const kept = mode === "flat" ? F : R;
+  const kept = mode === "flat" ? F : mode === "deep" ? R : null;       // the puzzle has no clock to hold
   if (!kept || match || IN_FRAME || !!kept.still === on) return;
   if (on) kept.still = true; else delete kept.still;
   save();
 }
-onPause(() => { if (!match) { cancelAnimationFrame(raf); held = true; standStill(true); } }, () => { if (held) { held = false; standStill(false); run(); } });
+onPause(() => { if (!match) { cancelAnimationFrame(raf); held = true; Z.pause(); standStill(true); } }, () => { if (held) { held = false; Z.resume(); standStill(false); run(); } });
 // a match's clock runs on while the app is out of sight; your own game waits
 let hiddenAt = 0;
 document.addEventListener("visibilitychange", () => {
@@ -999,7 +993,7 @@ window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("resize", () => { if (mode === "deep") view?.resize(); });
 
 // for tests and debugging
-window.__pipes = { get F() { return F; }, get L() { return L; }, get R() { return R; }, get S() { return S; }, get mode() { return mode; }, B, G, step, tapSquare, undo, runTheOil, act, setMode, setFlow, startFlat, startDeep, duel };
+window.__pipes = { get F() { return F; }, get L() { return L; }, get R() { return R; }, get S() { return S; }, get mode() { return mode; }, Z, B, G, step, tapSquare, undo, runTheOil, act, setMode, setFlow, startFlat, startDeep, duel };
 
 /** Your own game: the old Pipes' saves cleared away (its runs and bests were another game's), then the mode you were
  *  in, where you left it. A watching frame picks it up and runs it on by the time since it was kept. */
@@ -1014,8 +1008,10 @@ function solo() {
   F = R = null;
   const kept = read(KEY.prefs, {});                         // your own mode and way of playing the board, whatever a match just played
   flow = flowOf(kept?.flow);
-  setMode(kept?.mode === "deep" ? "deep" : "flat");
-  const shownRun = mode === "flat" ? F : R;
+  // the puzzle opens once, the first time Pipes does after it came (November 2026: it is there to be test-played); the menu's Game goes back
+  if (!IN_FRAME && !kept?.puzzleSeen) { prefs.puzzleSeen = true; prefs.mode = kept.mode = "puzzle"; write(KEY.prefs, prefs); }
+  setMode(modeOf(kept?.mode));
+  const shownRun = mode === "flat" ? F : mode === "deep" ? R : null;
   if (IN_FRAME && shownRun?.at && !shownRun.still) catchUp(Date.now() - shownRun.at);
   run();
 }
