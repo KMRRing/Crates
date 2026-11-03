@@ -461,7 +461,7 @@ export function createSky(R, api) {
     const count = new Array(SUBJECT_IDS.length).fill(0);
     for (let r = 0; r < sky.n; r++) count[sky.subjects[r][0]]++;
     const head = el("div", "sk-sub-head");
-    head.append(el("h3", null, "Subjects"), iconButton("Close", ICON.close, () => { legendOpen = false; updatePanels(); }));
+    head.append(el("h3", null, "Constellations"), iconButton("Close", ICON.close, () => { legendOpen = false; updatePanels(); }));
     const row = el("div", "sk-legend-actions");
     const mk = (text, fn) => { const b = el("button", "link", text); b.type = "button"; b.addEventListener("click", fn); return b; };
     row.append(
@@ -474,9 +474,9 @@ export function createSky(R, api) {
       if (!count[s]) return;
       const box = el("div", "sk-sub"), onBtn = el("button", "sk-sub-on"), dot = el("i", "sk-dot"), go = el("button", "sk-sub-name");
       dot.style.background = COLOURS[id];
-      onBtn.type = "button"; onBtn.setAttribute("aria-label", `Show ${SUBJECT_NAME[id]}`); onBtn.append(dot);
+      onBtn.type = "button"; onBtn.setAttribute("aria-label", `Show the ${SUBJECT_NAME[id]} constellation`); onBtn.append(dot);
       onBtn.addEventListener("click", () => { if (S.off.has(id)) S.off.delete(id); else S.off.add(id); changed(); });
-      go.type = "button"; go.title = "Go to this region of the sky";
+      go.type = "button"; go.title = "Go to this constellation";
       go.append(el("span", null, SUBJECT_NAME[id]), el("small", null, count[s].toLocaleString("en-GB")));
       go.addEventListener("click", () => toRegion(s));
       box.append(onBtn, go);
@@ -506,7 +506,7 @@ export function createSky(R, api) {
     R.hint.textContent = !s.lit
       ? "A star lights when you miss it in a game and brightens each time you get it right."
       : `${s.lit.toLocaleString("en-GB")} burning${s.learned ? `, ${s.learned.toLocaleString("en-GB")} learned` : ""}${s.twinkling ? `, ${s.twinkling.toLocaleString("en-GB")} twinkling to go back to` : ""}.`;
-    if (S.off.size === SUBJECT_IDS.length) R.hint.textContent = "Every subject is switched off: open Subjects to bring some back.";
+    if (S.off.size === SUBJECT_IDS.length) R.hint.textContent = "Every constellation is switched off: open Constellations to bring some back.";
     measure();
   }
 

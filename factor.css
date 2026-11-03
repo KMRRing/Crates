@@ -90,7 +90,9 @@ text.fc-rate { fill: var(--ink); font-weight: 800; font-family: inherit; }
 .fc-ship .sail { fill: var(--disc); stroke: #3B2B1D; stroke-width: .03; stroke-linejoin: round; }
 .fc-last { fill: none; stroke: var(--sheet); stroke-width: .06; stroke-dasharray: .12 .1; opacity: .9; }
 /* the island in 3D (factor-3d.js): the canvas fills the box, and over it the numbers, the rates and the places a tap may go */
-.fc-board.three { display: block; position: relative; touch-action: none; }      /* the island takes the pinch, not the page */
+.fc-board.three { display: block; position: relative; touch-action: none; cursor: grab; }      /* the island takes the drag and the pinch, not the page */
+.fc-board.three.orbiting { cursor: grabbing; }
+.fc-board.three { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }      /* a drag across the numbers selects nothing */
 .fc-gl, .fc-over { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .fc-gl { touch-action: manipulation; }
 .fc-over { overflow: visible; -webkit-tap-highlight-color: transparent; }
@@ -109,6 +111,7 @@ text.fc-prate { fill: var(--disc-ink); font-weight: 800; font-family: var(--font
 /* a corner's target is its fill alone (a stroke, even none, counts for "all" and would reach the neighbours: corners are one unit apart) */
 .fc-spot.v .hit { fill: transparent; stroke: none; pointer-events: fill; }
 .fc-spot.e .hit { stroke: transparent; stroke-width: .46; stroke-linecap: round; pointer-events: stroke; }
+.fc-spot.e .hit.pad { fill: transparent; stroke: none; pointer-events: fill; }      /* in 3D the strip is a shape of its own */
 polygon.fc-spot.h { fill: color-mix(in srgb, var(--sheet) 22%, transparent); stroke: var(--sheet); stroke-width: .09; stroke-linejoin: round; pointer-events: all; }
 @media (prefers-reduced-motion: no-preference) {
   .fc-spot.v .ring, .fc-spot.e .ring, polygon.fc-spot.h { animation: fc-beat 1.5s ease-in-out infinite; }

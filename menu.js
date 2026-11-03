@@ -124,6 +124,16 @@ export const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l
 // Kontor's menu button: three rules, technical
 const KONTOR_MENU = '<svg class="k-menu" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg>';
 // the menu button: the Codex mark standing still (mark.js; style.css turns its movement while the menu is open)
+/** Draws `btn` as the games' menu button (the mark; three rules in Kontor and Office), turning while `dlg` is open. Modern keeps
+ *  its plain "Menu" button. A page with a second menu button (Almanac's, over the star chart) calls this for it too. */
+export function markButton(btn, dlg) {
+  const look = document.documentElement.dataset.theme;
+  if (!btn || !dlg || look === "modern") return;
+  btn.classList.add("cx-btn");
+  btn.setAttribute("aria-label", "Menu");
+  btn.innerHTML = look === "kontor" || look === "office" ? KONTOR_MENU : MARK;   // Office: the same three rules, rounded in themes.css
+  new MutationObserver(() => btn.classList.toggle("turning", dlg.open)).observe(dlg, { attributes: true, attributeFilter: ["open"] });
+}
 // a game played by a party (?party=CODE in its address): the party's part heads its menu (party-link.js, loaded only
 // then: it connects to the party to follow the host). Not a party of two sharing a board (&coop=1, docs/coop.md): its
 // game has no host choosing games, and carries the way out in its own menu.
@@ -212,14 +222,7 @@ function upgrade() {
     close.innerHTML = CLOSE;
   }
   dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });   // the backdrop: outside the sheet
-  const btn = document.getElementById("menuBtn");
-  const look = document.documentElement.dataset.theme;           // Modern keeps its plain "Menu" button
-  if (btn && look !== "modern") {                                                     // the mark stands still, and turns while the menu is open
-    btn.classList.add("cx-btn");
-    btn.setAttribute("aria-label", "Menu");
-    btn.innerHTML = look === "kontor" || look === "office" ? KONTOR_MENU : MARK;   // Office: the same three rules, rounded in themes.css
-    new MutationObserver(() => btn.classList.toggle("turning", dlg.open)).observe(dlg, { attributes: true, attributeFilter: ["open"] });
-  }
+  markButton(document.getElementById("menuBtn"), dlg);
   const body = document.getElementById("menuBody") || dlg;
   new MutationObserver(() => queueMicrotask(() => shape(body))).observe(body, { childList: true });
 }

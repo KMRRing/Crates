@@ -10,7 +10,7 @@ import { QUOTES } from "./quote-bank.js";
 import { withUnit } from "./quote-engine.js";
 import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, line, action } from "./menu.js";
+import { part, line, action, markButton } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
 import { parseHash, formatHash } from "./almanac-nav.js";
 import "./pwa.js";
@@ -270,13 +270,13 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const onSky = document.body.classList.contains("on-sky");
-  // the header's way out comes first: the games screen (its Settings, the update, the partner's code are on it)
+  // the way out comes first: the games screen (its Settings, the update, the partner's code are on it)
   const play = part(body, "play");
-  play.append(action("Games", () => $("appsBtn").click()));
+  play.append(action("Back to menu", () => $("appsBtn").click()));
   play.append(onSky ? action("Browse as a list", () => goList()) : action("Star chart", () => goSky()));
   if (onSky && sky) {
     const content = part(body, "content");
-    content.append(action("Subjects", () => sky.openSubjects()), action("Reset view", () => sky.home()));
+    content.append(action("Constellations", () => sky.openSubjects()), action("Reset view", () => sky.home()));
   }
   const kinds = {};
   for (const e of ENTITIES) for (const k of kindsOf(e).slice(0, 1)) kinds[k] = (kinds[k] || 0) + 1;
@@ -288,8 +288,7 @@ function openMenu() {
 // ---------- wiring ----------
 document.querySelector(".lx-mark").innerHTML = APPS.find(a => a.id === "lexicon").logo;
 bindSwitcher($("appsBtn"), "lexicon");
-// the menu's button on the sky is the games screen's Settings, drawn the same (a gear in Codex, sliders in the others)
-$("skyMenu").innerHTML = document.querySelector("dialog.apps [data-settings]")?.innerHTML || "Menu";
+markButton($("skyMenu"), $("menuDlg"));                      // the menu's button on the sky is the games' menu button: the Codex mark
 $("q").addEventListener("input", () => {
   if (location.hash !== formatHash({ list: true })) history.pushState(null, "", formatHash({ list: true }));
   $("entry").hidden = true; $("results").hidden = false;
