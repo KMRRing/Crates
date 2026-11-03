@@ -9,10 +9,10 @@
 
 ## What could be reached
 
-The container's shell reaches package registries, GitHub and a few Wikimedia hosts. Tested at the start and again just before this was written (3 November 2026, 14:50 UTC):
+The container's shell reaches package registries, GitHub and a few Wikimedia hosts. Tested at the start and again just before this was written (3 November 2026, 15:01 UTC):
 
 - **Reachable, and used:** `dumps.wikimedia.org` (the bulk files, and any byte range of them: this is the workable path), `query.wikidata.org` (Wikidata's SPARQL query service; works, but the shared address is throttled, HTTP 429 with a wait of 1,000 seconds, after a few hundred queries).
-- **Reachable but throttled, so not relied on:** `wikimedia.org/api/rest_v1` (the pageviews API; one call in three is refused) and `api.wikimedia.org`.
+- **Reachable but throttled, so not relied on:** `wikimedia.org/api/rest_v1` (the pageviews API; answered once in several tries, otherwise HTTP 429) and `api.wikimedia.org`.
 - **Not reachable (no connection at all):** every `*.wikipedia.org` edition (`wikipedia.org` itself only redirects), `www.wikidata.org`, `meta.wikimedia.org`, `commons`, `mediawiki.org`, `data.`, `analytics.` and `doc.wikimedia.org`, the `wmcloud` tools (pageviews, xtools, wikistats), DBpedia (all four hosts), Hugging Face, Zenodo and the Internet Archive.
 
 So the pilot ran on real data: the Vital Articles lists, Meta-Wiki's list, English Wikipedia's page tables and the September 2026 clickstream of 13 editions, all from `dumps.wikimedia.org`. Wikidata's statements came through the query service only in windows between throttles, so the gameability and durability tests are a sample of 480 things and the typed-link query was written and tested but not run on the whole set. Not run for real: the education systems (three syllabus slices read by hand, history only), pageviews over many months (one month), Wikipedias in languages beyond the 13, and every other-language "vital" list.
