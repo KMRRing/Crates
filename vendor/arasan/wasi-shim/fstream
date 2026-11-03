@@ -1,0 +1,31 @@
+// A stand-in for <fstream> in the WebAssembly build, whose C++ library has no files: a file stream that can never be
+// opened (it reads nothing and writes nowhere), so the engine's book, learning file and game file stay off and every
+// "open" fails, as it does for a file that isn't there.
+#pragma once
+#include <istream>
+#include <ostream>
+#include <string>
+_LIBCPP_BEGIN_NAMESPACE_STD
+template <class C, class T>
+class basic_ifstream : public basic_istream<C, T> {
+ public:
+  basic_ifstream() : basic_istream<C, T>(nullptr) {}
+  explicit basic_ifstream(const char*, ios_base::openmode = ios_base::in) : basic_istream<C, T>(nullptr) { this->setstate(ios_base::failbit); }
+  explicit basic_ifstream(const string&, ios_base::openmode = ios_base::in) : basic_istream<C, T>(nullptr) { this->setstate(ios_base::failbit); }
+  void open(const char*, ios_base::openmode = ios_base::in) { this->setstate(ios_base::failbit); }
+  void open(const string&, ios_base::openmode = ios_base::in) { this->setstate(ios_base::failbit); }
+  bool is_open() const { return false; }
+  void close() {}
+};
+template <class C, class T>
+class basic_ofstream : public basic_ostream<C, T> {
+ public:
+  basic_ofstream() : basic_ostream<C, T>(nullptr) {}
+  explicit basic_ofstream(const char*, ios_base::openmode = ios_base::out) : basic_ostream<C, T>(nullptr) { this->setstate(ios_base::failbit); }
+  explicit basic_ofstream(const string&, ios_base::openmode = ios_base::out) : basic_ostream<C, T>(nullptr) { this->setstate(ios_base::failbit); }
+  void open(const char*, ios_base::openmode = ios_base::out) { this->setstate(ios_base::failbit); }
+  void open(const string&, ios_base::openmode = ios_base::out) { this->setstate(ios_base::failbit); }
+  bool is_open() const { return false; }
+  void close() {}
+};
+_LIBCPP_END_NAMESPACE_STD

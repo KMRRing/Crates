@@ -2,6 +2,7 @@
 // thread (Threads = 1), so nothing here is ever started. A thread that is asked for stops the engine at once.
 #pragma once
 #include <cstdlib>
+#include <chrono>
 namespace std {
 class thread {
  public:
@@ -13,4 +14,8 @@ class thread {
   void join() {}
   static unsigned hardware_concurrency() noexcept { return 1; }
 };
+namespace this_thread {
+// nothing else runs meanwhile, so there is nothing to wait for
+template <class R, class P> inline void sleep_for(const chrono::duration<R, P>&) {}
+}
 }

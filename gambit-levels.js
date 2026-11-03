@@ -1,4 +1,4 @@
-// Chess's computer players: Caissa at eight strengths, named by rough rating (tools/engine-levels.mjs plays them
+// Chess's computer players: Arasan at eight strengths, named by rough rating (tools/engine-levels.mjs plays them
 // against each other; docs/gambit.md has what each was set against). The first six draw among the engine's best few
 // moves after a small search, likelier the less a move gives up (choose() in uci.js), so they blunder as people do;
 // the draw gets narrower and the search deeper up the ladder. The last two are the engine itself, at a set number of

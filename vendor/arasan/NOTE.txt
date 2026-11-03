@@ -1,0 +1,62 @@
+Arasan, the chess engine Gambit plays (its computer players, its coach and the review of a finished game), built from
+source as a single-threaded WebAssembly module, with its neural network.
+
+Source:   https://github.com/jdart1/arasan-chess, commit 84a67879b4b6c03fe5e2773ff22b9ceab1982375 (1 November 2026,
+          version 26.1), by Jon Dart
+Changes:  arasan-wasi.patch, applied to that commit: no thread is started (the search runs on the caller's own, so a
+          "go" runs to its end inside the call and every search needs a limit), the UCI loop takes its commands one at
+          a time from the page's worker instead of standard input (new file src/wasm.cpp, which replaces arasanx.cpp's
+          main()), the network is not read from a file: the worker asks the engine for room (net_alloc), copies the
+          .nnue file's bytes in and calls net_ready, which reads it and gives the room back; no book, no ECO file, no
+          tablebases (the Fathom code is a submodule that is not fetched), the five `throw` statements of the sources
+          the build uses stop the engine instead (the build has no exceptions; none is ever thrown), "go nodes N" is new
+          (the search ends at the first count of positions past N, once its first iteration is whole: Gambit's levels
+          are set by positions, not time), MultiPV allows up to 16 lines (10 before), bitboards use WebAssembly's native
+          64-bit integers. No rule, search or evaluation is changed. wasi-shim/ stands in for what a WebAssembly C++
+          library leaves out: <thread>, <mutex>, <condition_variable> and <pthread.h> (nothing is ever started),
+          <fstream> (a file that can't be opened), and <immintrin.h>, the ~50 x86 SSE instructions the network code uses,
+          written over WebAssembly SIMD with the same arithmetic. WebAssembly SIMD needs Safari 16.4 / iOS 16.4 or later.
+Build:    build.sh (clang 18 for wasm32-wasi, with the WASI C library and libc++ from Ubuntu's wasi-libc and
+          libc++-18-dev-wasm32 packages; the C++ library and the C library are linked into the .wasm, under the
+          Apache 2.0 licence with the LLVM exception and the MIT and public-domain terms of wasi-libc, none of which
+          asks for more than they already get from being named here). The script writes arasan.wasm and arasan.nnue.z.
+          arasan.wasm: SHA-256 da4cfbf4aa0d3853b52d70d8220539483e0ef656d6a283a3c197dd4ae8ec02c6, 840,050 bytes.
+Network:  arasanv9-20261023.nnue, from network/ in the same commit, 28,456,512 bytes, SHA-256
+          95d981f4e03598a3110484c69f145455c278a525c62acd2a30c26f953382078c: 9 king buckets x 768 features into 1,536
+          int16 neurons per side, then a sparse 1536 -> 16 -> 32 -> 1 head in int8 and int32, 8 variants by piece count.
+          Trained by the author with his fork of the bullet trainer (his README); what positions this version was trained
+          on is not stated (an earlier network's change log says "6B+ lc0 + selfplay games"). arasan.nnue.z is that file
+          deflated raw by pack-net.mjs (13.3 MB; SHA-256 43f55bca0cc895a8319b7162f5e3fbac98e008ff661fdc0ee17c4f734bb85b3b),
+          and unpacked by fillNet() in gambit-arasan.js into the engine's memory byte for byte (tests/gambit-engine.mjs
+          checks the search it then plays, which any changed byte would move).
+Licence:  Arasan: MIT, Copyright 1994-2026 by Jon Dart, and its LICENSE grants the same terms to "the contents of the src,
+          book, doc, prj, tests, and network directories", so the network is under it too (the engine's own repository
+          carries it, with no separate licence for it). Its text is LICENSE-Arasan.txt, and is here:
+
+ Permission is hereby granted, free of charge, to any person obtaining
+ a copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to
+ permit persons to whom the Software is furnished to do so, subject to
+ the following conditions:
+
+ The above copyright notice and this permission notice shall be
+ included in all copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+
+          Not taken from the repository: its opening book (book/, 33 MB), the Windows GUI (and the piece pictures and
+          lunasvg it uses), the opening names (chess-openings, CC0), the Fathom tablebase code and the utilities.
+
+Why not the Caissa this replaced: its network (Caissa-Nets) carries no licence file, though the engine is MIT
+(docs/licences-images-and-engines.md). Why not the Stockfish before it: GPL v3. Arasan is the weaker of the engines that are
+clean (Korbi, 3 November 2026: "yea we go for the weaker one"): about 2.5 times the time per position of Caissa's in
+WebAssembly, and weaker at the same count of positions (tools/engine-levels-gambit-arasan.jsonl).

@@ -32,13 +32,18 @@ const byHeader = files.filter(f => (LICENCE_FILE.test(path.basename(f)) || (f.st
 check(!byHeader.length, `no licence file or source file under vendor/ says GNU General Public License${byHeader.length ? `: ${byHeader.slice(0, 6).join(", ")}` : ""}`);
 
 // the other way round: every engine's WebAssembly sits beside a licence file that names the licence it is under
-const engines = files.filter(f => f.startsWith("vendor/") && /\.wasm$/.test(f) && /caissa|stockfish|engine/i.test(f));
+const engines = files.filter(f => f.startsWith("vendor/") && /\.wasm$/.test(f) && /arasan|stockfish|engine/i.test(f));
 const unlicensed = engines.filter(f => !fs.readdirSync(path.join(ROOT, path.dirname(f))).some(n => LICENCE_FILE.test(n) || /^LICEN[CS]E/i.test(n)));
 check(engines.length > 0 && !unlicensed.length, `every engine's WebAssembly has its licence text beside it (${engines.join(", ") || "none found"})`);
 
-// Gambit loads no engine file but Caissa's
+// the network is licensed too, not just the engine: Arasan's licence text names its network directory among what it grants
+const arasanLicence = fs.readFileSync(path.join(ROOT, "vendor/arasan/LICENSE-Arasan.txt"), "utf8");
+check(/Permission is hereby granted, free of charge/.test(arasanLicence) && /network directories/.test(arasanLicence),
+  "Arasan's MIT licence text is kept, and names the network directory among what it grants");
+
+// Gambit loads no engine file but Arasan's
 const gambit = fs.readFileSync(path.join(ROOT, "gambit.js"), "utf8");
-check(!GPL_NAMES.test(gambit.replace(/\/\/.*$/gm, "")) && /gambit-engine-worker\.js/.test(gambit), "gambit.js starts Caissa's worker and names no GPL engine in its code");
+check(!GPL_NAMES.test(gambit.replace(/\/\/.*$/gm, "")) && /gambit-engine-worker\.js/.test(gambit), "gambit.js starts Arasan's worker and names no GPL engine in its code");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("gambit-licences: every check passed");
