@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Codex">
+<title>Landfall</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="landfall.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="landfall fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon lf-mark" aria-hidden="true"></span>Landfall</button></h1>
+    <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+  </header>
+
+  <section id="windowBox" class="lf-window" aria-label="The window onto the sky">
+    <canvas id="skyCv" class="lf-sky"></canvas>
+    <div class="lf-hud"><span id="watchTxt"></span><span id="clockTxt"></span></div>
+    <p id="skyNote" class="lf-note" aria-live="polite"></p>
+    <div id="skyBar" class="lf-skybar">
+      <button type="button" id="zoomOut" class="lf-round" aria-label="Wider">−</button>
+      <button type="button" id="zoomIn" class="lf-round" aria-label="Closer">+</button>
+      <button type="button" id="northBtn" class="lf-round" aria-label="Turn to the north">N</button>
+    </div>
+    <button type="button" id="pull" class="lf-pull" aria-label="Open the whole sky"><i aria-hidden="true"></i></button>
+  </section>
+
+  <section id="desk" class="lf-desk fit-col fit-grow" aria-label="The chart table">
+    <div id="chartBox" class="lf-chart fit-grow">
+      <canvas id="chartCv" class="lf-chartcv"></canvas>
+      <div id="slate" class="lf-slate" hidden></div>
+      <div id="veil" class="lf-veil"></div>
+    </div>
+    <p id="task" class="lf-task" aria-live="polite"></p>
+    <div id="acts" class="lf-acts"></div>
+    <div id="aux" class="lf-aux"></div>
+  </section>
+
+  <section id="scope" class="lf-scope" aria-label="The sextant" hidden>
+    <div class="lf-scope-view"><canvas id="scopeCv" class="lf-scopecv"></canvas></div>
+    <div class="lf-scope-side">
+      <p id="readTxt" class="lf-read">00° 00.0′</p>
+      <p id="scopeNote" class="lf-scope-note"></p>
+      <ol id="marks" class="lf-marks"></ol>
+      <button type="button" id="markBtn" class="lf-btn go lf-mark-btn">Mark</button>
+      <div class="lf-scope-row">
+        <button type="button" id="nudgeDown" class="lf-btn" aria-label="Reading down a tenth">−0.1′</button>
+        <button type="button" id="nudgeUp" class="lf-btn" aria-label="Reading up a tenth">+0.1′</button>
+        <button type="button" id="clearBtn" class="lf-btn">Clear</button>
+      </div>
+      <div class="lf-scope-row">
+        <button type="button" id="lowerBtn" class="lf-btn">Lower</button>
+        <button type="button" id="readBtn" class="lf-btn go">Read it</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="pass" class="lf-pass" aria-live="polite"><p id="passTxt"></p></div>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="bookDlg" class="sheet pauses lf-sheet" aria-label="The sight book">
+  <div class="pick-head"><h2>Sight book</h2><button class="btn" type="button" id="bookClose">Close</button></div>
+  <dl id="bookLines" class="lf-book"></dl>
+  <p id="bookMsg" class="lf-bookmsg" aria-live="polite"></p>
+  <div class="lf-sheet-acts">
+    <button class="btn" type="button" id="retakeBtn">Take it again</button>
+    <button class="btn" type="button" id="discardBtn">Throw it away</button>
+    <button class="btn primary" type="button" id="plotBtn">Plot it</button>
+  </div>
+</dialog>
+
+<dialog id="almanacDlg" class="sheet pauses lf-sheet" aria-label="The almanac">
+  <div class="pick-head"><h2>Almanac</h2><button class="btn" type="button" id="almanacClose">Close</button></div>
+  <div id="almanacBody"></div>
+</dialog>
+
+<dialog id="logDlg" class="sheet pauses lf-sheet" aria-label="The log">
+  <div class="pick-head"><h2>Log</h2><button class="btn" type="button" id="logClose">Close</button></div>
+  <div id="logBody"></div>
+</dialog>
+
+<dialog id="codexDlg" class="sheet pauses lf-sheet" aria-label="The codex">
+  <div class="pick-head"><h2>Codex</h2><button class="btn" type="button" id="codexClose">Close</button></div>
+  <div id="codexBody" class="lf-codex"></div>
+</dialog>
+
+<dialog id="helpDlg" class="sheet lf-sheet" aria-label="How a sight works">
+  <div class="pick-head"><h2>How a sight works</h2><button class="btn" type="button" id="helpClose">Close</button></div>
+  <ol id="helpBody" class="lf-how"></ol>
+  <div class="lf-sheet-acts"><button class="btn primary" type="button" id="helpOk">To the chart table</button></div>
+</dialog>
+
+<dialog id="endDlg" class="sheet pauses lf-sheet" aria-label="The end of the voyage">
+  <div class="pick-head"><h2 id="endTitle">Landfall</h2><button class="btn" type="button" id="endClose">Chart</button></div>
+  <p id="endStars" class="lf-stars" role="img"></p>
+  <div id="endBody"></div>
+  <div class="lf-sheet-acts">
+    <button class="btn" type="button" id="endMenu">Another voyage</button>
+    <button class="btn primary" type="button" id="endAgain">Sail again</button>
+  </div>
+</dialog>
+
+<script type="module" src="landfall.js"></script>
+</body>
+</html>

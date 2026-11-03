@@ -92,7 +92,7 @@ export function drawSky(ctx, v, sc) {
     ctx.fillStyle = rg; ctx.fillRect(0, 0, w, h);
   }
   // the stars
-  const lim = sc.limMag - (sc.lamp ? 1.3 : 0);
+  const lim = sc.limMag - (sc.lamp ? 0.8 : 0);               // the lamp costs the eye its dark adaptation
   const byHr = new Map();
   ctx.save();
   for (const s of sc.stars) {

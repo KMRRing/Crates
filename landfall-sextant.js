@@ -52,7 +52,7 @@ export function clearMarks(st) { st.marks = []; }
 /** The layout of the sextant on a canvas w by h: the eyepiece's circle, and the drum's strip. */
 export function layout(w, h) {
   const dw = Math.max(38, w * 0.095), zone = dw + 14, room = w - zone - 16;      // the drum's strip, and what is left for the eyepiece
-  const rho = Math.min(room / 2, h * 0.34), cx = 8 + room / 2, cy = Math.max(rho + h * 0.12, h * 0.4);
+  const rho = Math.min(room / 2, h * 0.43), cx = 8 + room / 2, cy = h / 2 - 4;               // as large as the room allows, with the drum's label under it
   const drum = { x: w - dw - 6, y: cy - rho, w: dw, h: 2 * rho };
   return { cx, cy, rho, drum };
 }
