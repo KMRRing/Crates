@@ -1,6 +1,6 @@
 // The engines Gambit and River play, each in a worker of its own, spoken to in UCI (the Universal Chess Interface:
 // lines of text such as "position fen …" and "go nodes 100000", answered by "info …" lines and a "bestmove"). Gambit
-// plays Caissa (vendor/caissa, MIT, through gambit-engine-worker.js); River its own engine (river-engine-worker.js,
+// plays Arasan (vendor/arasan, MIT, through gambit-engine-worker.js); River its own engine (river-engine-worker.js,
 // written for the Codex: no one else's code, no licence to carry). Each is loaded only when a game against it starts.
 //
 // An Engine starts its worker on first use and runs one search at a time. A level's strength comes from how far it

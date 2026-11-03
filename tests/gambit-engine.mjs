@@ -1,4 +1,4 @@
-// Chess's engine, Caissa (vendor/caissa/NOTE.txt), behind uci.js's Engine: the shipped files are the ones the note
+// Chess's engine, Arasan (vendor/arasan/NOTE.txt), behind uci.js's Engine: the shipped files are the ones the note
 // names and the app keeps them offline; a position in gives a legal best move and lines; a limit is kept; the same input
 // gives the same answer whatever was searched before; the levels play legal moves, whole games of them survive the
 // room's round trip, and a stronger search beats a weaker level; the coach judges the Scholar's-mate trap. Quick on
@@ -9,14 +9,14 @@ import * as G from "../gambit-rules.js";
 import { LEVELS, levelById, HINT, REVIEW } from "../gambit-levels.js";
 import { Engine, levelMove, valueOf } from "../uci.js";
 import { COACH, isCoach, createCoach, judge, strongest } from "../uci-coach.js";
-import { caissaWorker } from "./gambit-uci-node.js";
-import { startCaissa } from "../gambit-caissa.js";
+import { arasanWorker } from "./gambit-uci-node.js";
+import { startArasan } from "../gambit-arasan.js";
 import { Chess } from "../vendor/chess.js";
 import { roundTrip, same } from "./rtdb.js";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 // the search that fingerprints the network (see "the unpacked network"): found by running it once on the checked-in files
-const PROBE = { best: "d2d4", cp: 41 };
+const PROBE = { best: "e2e4", cp: 51 };
 let bad = 0;
 let lap = performance.now();
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}${process.env.LAPS ? ` [${Math.round(performance.now() - lap)} ms]` : ""}`); lap = performance.now(); if (!ok) bad++; };
@@ -29,17 +29,17 @@ const legalIn = (fen, moves = []) => {
 };
 
 // ---------- the files ----------
-// (the hashes are the ones in vendor/caissa/NOTE.txt: a changed build or network is a deliberate act, noted there)
-check(sha("vendor/caissa/caissa.wasm") === "9c877c0fa77967c7eb34c6af982bc303fbfdd2a04978ba9fd3994ae73f3f1e15"
-  && sha("vendor/caissa/caissa.pnn.z") === "1fae1122eceec2460157138317e56c069e680182056102e2c6d3e70791d0954e", "the engine's WebAssembly and its packed network are the ones vendor/caissa/NOTE.txt names");
+// (the hashes are the ones in vendor/arasan/NOTE.txt: a changed build or network is a deliberate act, noted there)
+check(sha("vendor/arasan/arasan.wasm") === "da4cfbf4aa0d3853b52d70d8220539483e0ef656d6a283a3c197dd4ae8ec02c6"
+  && sha("vendor/arasan/arasan.nnue.z") === "43f55bca0cc895a8319b7162f5e3fbac98e008ff661fdc0ee17c4f734bb85b3b", "the engine's WebAssembly and its packed network are the ones vendor/arasan/NOTE.txt names");
 // The app keeps offline whatever its pages load, found by reading them (tools/offline.mjs, tests/offline.mjs): the page
 // starts the worker by a literal path, and the worker fetches the engine and its network by literal paths too.
 const reaches = (file, target) => new RegExp(`new URL\\("\\./${target.replace(/[.]/g, "\\.")}", import\\.meta\\.url\\)`).test(fs.readFileSync(ROOT + file, "utf8")) && fs.existsSync(ROOT + target);
-check(reaches("gambit.js", "gambit-engine-worker.js") && reaches("gambit-engine-worker.js", "vendor/caissa/caissa.wasm") && reaches("gambit-engine-worker.js", "vendor/caissa/caissa.pnn.z"),
+check(reaches("gambit.js", "gambit-engine-worker.js") && reaches("gambit-engine-worker.js", "vendor/arasan/arasan.wasm") && reaches("gambit-engine-worker.js", "vendor/arasan/arasan.nnue.z"),
   "the page names its worker, and the worker the engine and its network, by paths the offline list finds");
 
 // ---------- the interface ----------
-// One engine for the whole test (starting it unpacks 76 MB): its lines are also kept, for the counts of positions.
+// One engine for the whole test (starting it unpacks 28 MB): its lines are also kept, for the counts of positions.
 const lines = [];
 const tapped = w => ({
   postMessage: c => w.postMessage(c),
@@ -47,7 +47,7 @@ const tapped = w => ({
   set onmessage(f) { w.onmessage = e => { lines.push(String(e.data)); f(e); }; },
   set onerror(f) { w.onerror = f; },
 });
-const engine = new Engine(() => tapped(caissaWorker()));
+const engine = new Engine(() => tapped(arasanWorker()));
 const FENS = [
   G.START,
   "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",                 // Qxf7# is there
@@ -96,8 +96,8 @@ const FENS = [
   await engine.search({ fen: FENS[3], limit: "nodes 2000" });
   const again = await ask();
   check(same(first, again), `the same position and limit give the same best move and lines after another search (${first.best})`);
-  // a search cut by its limit part-way through an iteration still gives lines of one depth, none a move twice (Caissa
-  // alone leaves the ranks it hadn't reached from the iteration before)
+  // a search cut by its limit part-way through an iteration still gives lines of one depth, none a move twice (Arasan
+  // prints a depth's lines together or not at all)
   let whole = true, why = "";
   for (const n of [700, 2500, 9000, 30000]) {
     const r = await engine.search({ fen: FENS[2], limit: `nodes ${n}`, options: { MultiPV: 3 } });
@@ -122,12 +122,12 @@ const FENS = [
 }
 {
   const alone = await engine.search({ fen: G.START, moves: ["e2e4", "e7e5", "d1h5", "b8c6", "f1c4"], limit: "nodes 3000 searchmoves g8f6", options: { MultiPV: 3 } });
-  check(alone.lines[0]?.pv[0] === "g8f6" && alone.lines[0].mate < 0, "searchmoves: a move searched alone is scored as it stands (...Nf6 allows mate), even when more lines were asked for than moves (Caissa alone never ends that search)");
+  check(alone.lines[0]?.pv[0] === "g8f6" && alone.lines[0].mate < 0, "searchmoves: a move searched alone is scored as it stands (...Nf6 allows mate), even when more lines were asked for than moves (a search for more lines than moves must still end)");
 }
 {
-  // a network that isn't Caissa's is refused, not played with
+  // a network that isn't Arasan's is refused, not played with
   let refused = false;
-  try { await startCaissa(fs.readFileSync(ROOT + "vendor/caissa/caissa.wasm"), [new Uint8Array(1000)], () => {}); } catch { refused = true; }
+  try { await startArasan(fs.readFileSync(ROOT + "vendor/arasan/arasan.wasm"), [new Uint8Array(1000)], () => {}); } catch { refused = true; }
   check(refused, "a network of the wrong size is refused");
 }
 

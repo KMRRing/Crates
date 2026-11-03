@@ -1,6 +1,6 @@
-// Chess (the page is gambit.html): chess against Caissa at a strength you choose, two players on one phone, or a match with your partner. The
+// Chess (the page is gambit.html): chess against Arasan at a strength you choose, two players on one phone, or a match with your partner. The
 // rules are chess.js's (gambit-rules.js keeps the game as plain JSON), the board chess-board.js's; the computer's moves,
-// the coach and the review at the end are Caissa's (uci.js, in the worker gambit-engine-worker.js, loaded only when a
+// the coach and the review at the end are Arasan's (uci.js, in the worker gambit-engine-worker.js, loaded only when a
 // game against it needs it; the coach's judgement is uci-coach.js's). The game in play is kept as it changes (gambit:game) and picked up on
 // reload. Its puzzle rush is a page of its own under its header (Menu, Puzzle rush: rush.html, rush.js).
 import * as G from "./gambit-rules.js";
@@ -534,7 +534,7 @@ ${row("P", "Pawn", "One square forward, two on its first move; it captures one s
 <h4>Reading the moves</h4>
 <p>Moves are in standard algebraic notation: the piece's letter (K, Q, R, B, N; none for a pawn) and the square it goes to, x for a capture, + for check and # for mate, O-O and O-O-O for castling, =Q for a promotion: <b>Nf3</b>, <b>exd5</b>, <b>Qxf7#</b>. The opening's name, with its ECO code (the Encyclopaedia of Chess Openings' index), shows as you play.</p>
 <h4>The computer</h4>
-<p>The computer player is Caissa by Michał Witanowski (MIT: <a href="vendor/caissa/LICENSE-Caissa.txt" target="_blank" rel="noopener">licence</a>, <a href="https://github.com/Witek902/Caissa" target="_blank" rel="noopener">source</a>) with its network from <a href="https://github.com/Witek902/Caissa-Nets" target="_blank" rel="noopener">Caissa-Nets</a>, playing at the strength you choose in the menu. It's also the coach (Menu, Coach): Hints shows its strongest moves when you ask, as arrows, with what it makes of the position; Check adds a word after a move of yours that gave a good deal away, a mistake (?) or a blunder (??), with the better move, and Show puts the board back to see it; Always shows the strongest moves at each of yours without asking. At the end, it shows where you lost most.</p>`;
+<p>The computer player is Arasan by Jon Dart (MIT: <a href="vendor/arasan/LICENSE-Arasan.txt" target="_blank" rel="noopener">licence</a>, <a href="https://github.com/jdart1/arasan-chess" target="_blank" rel="noopener">source</a>) with the neural network that comes with it (MIT as well), playing at the strength you choose in the menu. It's also the coach (Menu, Coach): Hints shows its strongest moves when you ask, as arrows, with what it makes of the position; Check adds a word after a move of yours that gave a good deal away, a mistake (?) or a blunder (??), with the better move, and Show puts the board back to see it; Always shows the strongest moves at each of yours without asking. At the end, it shows where you lost most.</p>`;
 }
 
 // ---------- the menu ----------

@@ -1,4 +1,4 @@
-// Caissa, built as a WebAssembly reactor for WASI (vendor/caissa/NOTE.txt), started with the little of WASI it asks for:
+// Arasan, built as a WebAssembly reactor for WASI (vendor/arasan/NOTE.txt), started with the little of WASI it asks for:
 // its standard output, read back line by line, and the clocks. It has no files, no arguments and no environment. The
 // page's worker (gambit-engine-worker.js) runs it, and so do the tests, in Node.
 //
@@ -52,6 +52,7 @@ export async function startWasi(bytes, onLine) {
       return 0;
     },
     path_open: () => ENOENT,
+    path_readlink: () => ENOENT,                                  // Arasan looks for its own file's folder
     proc_exit: code => { throw new Error(`the engine stopped (${code})`); },
   };
   const { instance } = await WebAssembly.instantiate(bytes, { wasi_snapshot_preview1: wasi });

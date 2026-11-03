@@ -1,0 +1,359 @@
+diff --git a/src/bitutil.h b/src/bitutil.h
+index da62fd6..3091bde 100644
+--- a/src/bitutil.h
++++ b/src/bitutil.h
+@@ -115,7 +115,7 @@ public:
+         return genericPopcnt(data);
+ #endif
+ #endif
+-#elif defined(__GNUC__) && defined(_64BIT) && defined(__SSE4_2__)
++#elif defined(__GNUC__) && defined(_64BIT) && (defined(__SSE4_2__) || defined(__wasi__))
+         return __builtin_popcountll(data);
+ #else
+         return genericPopcnt(data);
+diff --git a/src/bookwrit.cpp b/src/bookwrit.cpp
+index 5d3e0f5..3262436 100644
+--- a/src/bookwrit.cpp
++++ b/src/bookwrit.cpp
+@@ -66,7 +66,11 @@ void BookWriter::add(const hash_t hashCode, uint8_t moveIndex, uint8_t weight,
+           idx->index[idx->next_free++] = book::IndexEntry(hashCode,static_cast<uint16_t>(dataPage),
+                                                           static_cast<uint16_t>(dataIndex));
+       } else {
++#ifdef __wasi__
++         abort();   // (no exceptions in the WebAssembly build; the book is never written)
++#else
+          throw BookFullException();
++#endif
+       }
+    } else {
+       // at least one move exists in book with the current hash
+diff --git a/src/globals.cpp b/src/globals.cpp
+index 373bb27..eade313 100644
+--- a/src/globals.cpp
++++ b/src/globals.cpp
+@@ -143,7 +143,7 @@ std::string globals::appendPath(const std::string &base, const std::string &file
+ }
+ 
+ bool globals::initGlobals() {
+-#ifndef _WIN32
++#if !defined(_WIN32) && !defined(__wasi__)
+     struct rlimit rl;
+     const rlim_t STACK_MAX = static_cast<rlim_t>(LINUX_STACK_SIZE);
+     auto result = getrlimit(RLIMIT_STACK, &rl);
+diff --git a/src/input.cpp b/src/input.cpp
+index 856889f..9742b7e 100644
+--- a/src/input.cpp
++++ b/src/input.cpp
+@@ -13,7 +13,7 @@ extern "C" {
+ #else
+ #include <unistd.h>
+ #include <sys/resource.h>
+-#include <sys/select.h>
++#include <sys/select.h>   // (WASI has it, unused)
+ #endif
+ };
+ 
+@@ -52,7 +52,10 @@ Input::Input()
+ }
+ 
+ bool Input::checkInput(std::vector<std::string> &cmds, std::mutex &mtx) {
+-#ifdef _WIN32
++#if defined(__wasi__)
++    (void)cmds; (void)mtx;
++    return false;
++#elif defined(_WIN32)
+     DWORD nchar;
+     if (PeekNamedPipe(GetStdHandle(STD_INPUT_HANDLE), NULL, 0,
+                       NULL, &nchar, NULL)) {
+@@ -104,6 +107,10 @@ bool Input::checkInput(std::vector<std::string> &cmds, std::mutex &mtx) {
+ 
+ bool Input::readInput(std::vector<std::string> &cmds, std::mutex &mtx)
+ {
++#if defined(__wasi__)
++    (void)cmds; (void)mtx;
++    return false;
++#endif
+ #ifdef _WIN32
+     BOOL bSuccess;
+     DWORD dwRead;
+diff --git a/src/nnue/util.h b/src/nnue/util.h
+index 0d43a99..8b16db2 100644
+--- a/src/nnue/util.h
++++ b/src/nnue/util.h
+@@ -48,7 +48,11 @@ template <typename T> T read_little_endian(std::istream &s) {
+     case 8:
+         return static_cast<T>(to_little_endian64(input));
+     default:
++#ifdef __wasi__
++        abort();   // (no exceptions in the WebAssembly build; a weight is 1, 2, 4 or 8 bytes)
++#else
+         throw std::invalid_argument("unsupported size");
++#endif
+     }
+ }
+ 
+diff --git a/src/options.cpp b/src/options.cpp
+index bb85efe..9d09e2a 100644
+--- a/src/options.cpp
++++ b/src/options.cpp
+@@ -33,8 +33,13 @@ Options::SearchOptions::SearchOptions()
+       wideWindow(10 * Scoring::PAWN_VALUE) {
+ }
+ 
++#ifdef __wasi__
++Options::BookOptions::BookOptions() : variety(50), book_enabled(false),
++                                      eco_enabled(false), book_path("") {
++#else
+ Options::BookOptions::BookOptions() : variety(50), book_enabled(true),
+                                       eco_enabled(true), book_path("") {
++#endif
+     globals::openingBook.setVariety(50);
+ }
+ 
+diff --git a/src/protocol.cpp b/src/protocol.cpp
+index d9e852f..c4b36e0 100644
+--- a/src/protocol.cpp
++++ b/src/protocol.cpp
+@@ -1536,12 +1536,16 @@ void Protocol::processWinboardOptions(const std::string &args) {
+     if (doTrace) {
+         std::cout << debugPrefix << "setting option " << name << "=" << value << std::endl;
+     }
+-    if (name == "SyzygyUse50MoveRule") {
++    if (false) {
++    }
++#ifdef SYZYGY_TBS
++    else if (name == "SyzygyUse50MoveRule") {
+         Options::setOption<bool>(value,globals::options.search.syzygy_50_move_rule);
+     }
+     else if (name == "SyzygyProbeDepth") {
+         Options::setOption<int>(value,globals::options.search.syzygy_probe_depth);
+     }
++#endif
+     else if (name == "OwnBook") {
+         Options::setOption<bool>(value,globals::options.book.book_enabled);
+     } else if (name == "BookPath") {
+@@ -2220,6 +2224,17 @@ bool Protocol::do_command(const std::string &cmd, Board &board) {
+                     srctype = FixedDepth;
+                 }
+             }
++            else if (option == "nodes") {
++                if (it == eos) break;
++                std::stringstream s(*it++);
++                uint64_t n = 0;
++                s >> n;
++                if (!s.fail() && n > 0) {
++                    srctype = FixedDepth;
++                    ply_limit = Constants::MaxPly;
++                    searcher->nodeLimit = n;
++                }
++            }
+             else if (option == "movetime") {
+                 if (it == eos) break;
+                 std::stringstream s(*it++);
+@@ -2334,6 +2349,7 @@ bool Protocol::do_command(const std::string &cmd, Board &board) {
+         }
+         // reset stopped flag after search
+         searcher->setStop(false);
++        searcher->nodeLimit = 0;
+     }
+     else if (uci && cmd == "ponderhit") {
+         ponderhit = true;
+@@ -2388,9 +2404,11 @@ bool Protocol::do_command(const std::string &cmd, Board &board) {
+ #ifdef SYZYGY_TBS
+         std::cout << " egt=\"syzygy\"";
+ #endif
++#ifdef SYZYGY_TBS
+         std::cout << " option=\"SyzygyUse50MoveRule -check " << globals::options.search.syzygy_50_move_rule << "\"";
+         std::cout << " option=\"SyzygyProbeDepth -spin " <<
+             globals::options.search.syzygy_probe_depth << " 0 64" << "\"";
++#endif
+         std::cout << " option=\"OwnBook -check " <<
+             globals::options.book.book_enabled << "\"";
+         std::cout << " option=\"BookPath -path " <<
+diff --git a/src/protocol.h b/src/protocol.h
+index 8bc016b..edcaa72 100644
+--- a/src/protocol.h
++++ b/src/protocol.h
+@@ -24,6 +24,11 @@ public:
+     // read input from stdin and dispatch commands
+     void poll(bool &terminated);
+ 
++#ifdef __wasi__
++    // WebAssembly build: one command, run to its end (a "go" its whole search); false after "quit"
++    bool runCommand(const std::string &cmd) { return do_command(cmd, *main_board); }
++#endif
++
+     void save_game();
+ 
+     bool traceOn() const noexcept {
+diff --git a/src/search.cpp b/src/search.cpp
+index e642358..04d7339 100644
+--- a/src/search.cpp
++++ b/src/search.cpp
+@@ -1995,6 +1995,7 @@ score_t Search::quiesce(int ply,int depth)
+    if (++nodeAccumulator > NODE_ACCUM_THRESHOLD) {
+       stats.num_nodes += nodeAccumulator;
+       nodeAccumulator = 0;
++      if (controller->nodeLimit && stats.num_nodes >= controller->nodeLimit && iterationDepth > 1) controller->terminateNow();
+ #ifdef SMP_STATS
+       --controller->sample_counter;
+ #endif
+@@ -2587,6 +2588,7 @@ score_t Search::search()
+     if (++nodeAccumulator > NODE_ACCUM_THRESHOLD) {
+         stats.num_nodes += nodeAccumulator;
+         nodeAccumulator = 0;
++        if (controller->nodeLimit && stats.num_nodes >= controller->nodeLimit && iterationDepth > 1) controller->terminateNow();
+ #if defined(SMP_STATS)
+         // sample thread usage
+         if (--controller->sample_counter <=0) {
+diff --git a/src/search.h b/src/search.h
+index 937be65..e09b8f1 100644
+--- a/src/search.h
++++ b/src/search.h
+@@ -387,6 +387,10 @@ public:
+ 
+     ~SearchController();
+ 
++    // "go nodes N" ends the search at the first node count past N, once its first iteration is whole; 0 = no limit.
++    // (A WebAssembly page's levels are set by nodes, not time, so a slow phone plays as strongly as a fast one.)
++    uint64_t nodeLimit = 0;
++
+     typedef std::function<void (const Statistics &)> PostFunction;
+     typedef std::function<bool (SearchController *,const Statistics &)> MonitorFunction;
+ 
+diff --git a/src/stats.h b/src/stats.h
+index 5b2f89d..60f7e3e 100644
+--- a/src/stats.h
++++ b/src/stats.h
+@@ -15,7 +15,7 @@ enum StateType { NormalState, Terminated, Check, Checkmate, Stalemate, Draw, Res
+ // This structure holds information about a search
+ // during and after completion.
+ struct Statistics {
+-    static const unsigned MAX_PV = 10;
++    static const unsigned MAX_PV = 16;   // (Gambit's weakest levels draw among 12)
+ 
+     StateType state;
+ 
+diff --git a/src/stdendian.h b/src/stdendian.h
+index 9f598b5..c56340f 100644
+--- a/src/stdendian.h
++++ b/src/stdendian.h
+@@ -148,6 +148,14 @@
+ #define __BSWAP_DEFINED         1
+ #endif
+ 
++/* WebAssembly is little-endian */
++#if defined(__wasi__) && !__ENDIAN_DEFINED
++#define _LITTLE_ENDIAN          1234
++#define _BIG_ENDIAN             4321
++#define _BYTE_ORDER             _LITTLE_ENDIAN
++#define __ENDIAN_DEFINED        1
++#endif
++
+ /* Unknown */
+ #if !__ENDIAN_DEFINED
+ #error Could not determine CPU byte order
+diff --git a/src/types.h b/src/types.h
+index d90f90d..e96a115 100644
+--- a/src/types.h
++++ b/src/types.h
+@@ -41,7 +41,7 @@ typedef int Square;
+ 
+ enum {InvalidSquare = 127};
+ 
+-#if defined(_WIN64) || defined(__LP64__)
++#if defined(_WIN64) || defined(__LP64__) || defined(__wasi__)   // WebAssembly has native 64-bit integers
+ #define _64BIT 1
+ #else
+ #undef _64BIT
+diff --git a/src/wasm.cpp b/src/wasm.cpp
+new file mode 100644
+index 0000000..e776faa
+--- /dev/null
++++ b/src/wasm.cpp
+@@ -0,0 +1,85 @@
++// Arasan as a WebAssembly reactor for a page's worker (vendor/arasan/NOTE.txt), in place of arasanx.cpp's main():
++// the page writes a UCI command into uci_buffer() and calls uci_command(length); the engine answers on stdout, which
++// the worker's WASI shim hands back line by line. A "go" runs its whole search before uci_command() returns, so it
++// needs a limit. The network is not read from a file: the worker asks for room (net_alloc), unpacks the .nnue file's
++// bytes into it and calls net_ready, which reads it and gives the room back.
++#include "types.h"
++#include "attacks.h"
++#include "bitutil.h"
++#include "board.h"
++#include "globals.h"
++#include "options.h"
++#include "protocol.h"
++#include "search.h"
++
++#include <cstdio>
++#include <cstdlib>
++#include <iostream>
++#include <istream>
++#include <streambuf>
++#include <string>
++
++#ifndef NETWORK_BYTES
++#error NETWORK_BYTES: the size of the .nnue file
++#endif
++
++static char s_buffer[4096];
++static Board *s_board = nullptr;
++static Protocol *s_protocol = nullptr;
++static char *s_net = nullptr;
++
++namespace {
++// an input stream over bytes that are already in memory
++struct MemoryBuf : std::streambuf {
++    MemoryBuf(char *begin, size_t size) { setg(begin, begin, begin + size); }
++};
++} // namespace
++
++extern "C" {
++
++__attribute__((export_name("uci_buffer"))) char *uci_buffer() { return s_buffer; }
++__attribute__((export_name("uci_size"))) int uci_size() { return int(sizeof(s_buffer)) - 1; }
++
++__attribute__((export_name("uci_init"))) void uci_init() {
++    setenv("HOME", "/", 1);   // (options and the learning file look for it)
++    setbuf(stdout, nullptr);
++    std::cout.rdbuf()->pubsetbuf(nullptr, 0);
++    BitUtils::init();
++    Board::init();
++    globals::initOptions(false, nullptr, false, true);
++    Attacks::init();
++    Search::init();
++    globals::initGlobals();
++    s_board = new Board();
++    // (cpusSet: the Threads option is ignored, the search always runs on the caller's own thread)
++    s_protocol = new Protocol(*s_board, false, false, true, false);
++}
++
++__attribute__((export_name("uci_command"))) void uci_command(int length) {
++    if (!s_protocol || length < 0 || length >= int(sizeof(s_buffer))) return;
++    s_buffer[length] = 0;
++    s_protocol->runCommand(std::string(s_buffer, size_t(length)));
++}
++
++__attribute__((export_name("net_size"))) int net_size() { return NETWORK_BYTES; }
++
++// room for the network file's bytes, to be filled by the page
++__attribute__((export_name("net_alloc"))) void *net_alloc() {
++    if (!s_net) s_net = static_cast<char *>(std::malloc(NETWORK_BYTES));
++    return s_net;
++}
++
++// 1 if what was copied into net_alloc()'s room is a network of this engine's format, and now the engine's
++__attribute__((export_name("net_ready"))) int net_ready() {
++    if (!s_net) return 0;
++    MemoryBuf buf(s_net, NETWORK_BYTES);
++    std::istream in(&buf);
++    in >> globals::network;
++    const bool ok = !in.fail();
++    std::free(s_net);
++    s_net = nullptr;
++    globals::nnueInitDone = ok;
++    return ok ? 1 : 0;
++}
++
++} // extern "C"

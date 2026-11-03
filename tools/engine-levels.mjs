@@ -8,9 +8,11 @@
 //   node tools/engine-levels.mjs fit <records.jsonl> <level=rating>… [--scale]
 // LADDER=file.json measures a ladder of candidate levels (a list like the game's LEVELS) in place of the game's own.
 // The games the levels were named by are kept beside this file, and give the README's ratings. Gambit's: the old
-// Stockfish levels' games (engine-levels-gambit.jsonl), and Caissa's against them and each other ("C T40 m6 n3000"
-// is Caissa drawing among 6 moves at temper 40 after 3,000 positions), fitted together on the old scale:
-//   node tools/engine-levels.mjs fit tools/engine-levels-gambit.jsonl tools/engine-levels-gambit-caissa.jsonl "elo1320 n60000=1320"
+// Stockfish levels' games (engine-levels-gambit.jsonl), Caissa's against them and each other (engine-levels-gambit-caissa.jsonl;
+// "C T40 m6 n3000" is Caissa drawing among 6 moves at temper 40 after 3,000 positions), and Arasan's, which replaced
+// Caissa ("A T40 m6 n3000", engine-levels-gambit-arasan.jsonl: its own ladders and, between the two engines, matches that
+// tie its scale to the old one). Fitted together on the old scale:
+//   node tools/engine-levels.mjs fit tools/engine-levels-gambit.jsonl tools/engine-levels-gambit-caissa.jsonl tools/engine-levels-gambit-arasan.jsonl "elo1320 n60000=1320"
 //   node tools/engine-levels.mjs fit tools/engine-levels-river.jsonl "fsf T300 m12 n800=700" "fsf full n500000=2700" --scale
 import fs from "fs";
 
@@ -88,9 +90,9 @@ function fit(args) {
 /** Plays the matches. */
 async function measure([game = "river", perPair = "12", firstArg, lastArg, outFile]) {
   const { Engine, levelMove } = await import("../uci.js");
-  const { caissaWorker } = await import("../tests/gambit-uci-node.js");
+  const { arasanWorker } = await import("../tests/gambit-uci-node.js");
   const { localWorker } = await import("../river-uci.js");
-  const R = await rulesOf(game, { Engine, localWorker, caissaWorker });
+  const R = await rulesOf(game, { Engine, localWorker, arasanWorker });
   if (process.env.LADDER) R.levels = JSON.parse(fs.readFileSync(process.env.LADDER, "utf8")).map((l, i) => ({ id: String(i + 1), name: l.name || `L${i + 1}`, ...l }));
   const first = Number(firstArg || 1), last = Number(lastArg || R.levels.length), n = Number(perPair);
   const engines = [R.worker(), R.worker()];
@@ -129,7 +131,7 @@ async function measure([game = "river", perPair = "12", firstArg, lastArg, outFi
 }
 
 /** A game's rules, levels and engine, as the matches need them. */
-async function rulesOf(name, { Engine, localWorker, caissaWorker }) {
+async function rulesOf(name, { Engine, localWorker, arasanWorker }) {
   if (name === "river") {
     const X = await import("../river-rules.js"), L = await import("../river-levels.js");
     const firsts = ["h3e3", "b3e3", "c1e3", "g1e3", "g4g5", "c4c5", "b1c3", "h1g3", "h3f3", "b3d3"];
@@ -148,8 +150,8 @@ async function rulesOf(name, { Engine, localWorker, caissaWorker }) {
   const firsts = ["e2e4", "d2d4", "c2c4", "g1f3", "e2e4", "d2d4", "b1c3", "g2g3"];
   const replies = ["e7e5", "c7c5", "e7e6", "c7c6", "d7d5", "g8f6", "d7d6", "g7g6"];
   return {
-    tag: "C ",                                                      // Caissa's levels; the records of the Stockfish levels it replaced have no tag
-    levels: L.LEVELS, worker: () => new Engine(caissaWorker),
+    tag: "A ",                                                      // Arasan's levels; the records of the Stockfish levels have no tag, Caissa's (the engine between) "C "
+    levels: L.LEVELS, worker: () => new Engine(arasanWorker),
     fresh: white => G.newGame({ white }),
     open: (s, r) => {
       for (const list of [firsts, replies]) {

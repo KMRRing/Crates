@@ -77,7 +77,7 @@ function play(moves, { start = G.START, white = 0 } = {}) {
     "the latest named position names a game; a game off the table has no name");
 }
 
-// The computer players (Caissa, the levels, the coach) are tests/gambit-engine.mjs's; no GPL engine is tests/gambit-licences.mjs's.
+// The computer players (Arasan, the levels, the coach) are tests/gambit-engine.mjs's; no GPL engine is tests/gambit-licences.mjs's.
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("gambit: every check passed");
