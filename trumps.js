@@ -16,6 +16,7 @@ import { cardHtml, backHtml } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
@@ -234,7 +235,10 @@ function playProbe(s) {
  * rows are one and the cards have the other's room (Learn is in the menu too). Where the browser can, the page goes
  * full screen as well (an app on the home screen already is); the setting stays when the browser leaves it.
  */
+const view = tableView("trumps");                                  // Menu, View: the flat table (the default) or the cloth tipped away from you (trumps-3d.css)
+const applyView = () => $("app").classList.toggle("tr3", view.get() === "3d");
 function placeFull() {
+  applyView();
   const app = $("app"), top = document.querySelector("header.top"), info = $("info"), on = !!opts.full;
   app.classList.toggle("ontable", on);   // the table-filling mode, the Full screen choice in the menu (not the shared frame, #app.full)
   if (on && info.parentElement !== top) top.querySelector(".top-right").before(info);
@@ -633,6 +637,7 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Game", [["jass", "Jass"], ["belote", "Belote"], ["coinche", "Coinche"], ["schafkopf", "Schafkopf"]], opts.game, v => { opts.game = v; saveOpts(); openMenu(); }));
   const set = part(body, "settings"), o = opts[opts.game];
+  set.append(view.choice(() => draw()));
   if (opts.game === "jass") {
     set.append(choice("Cards", [["swiss", "Swiss"], ["french", "French"]], o.pack, v => { o.pack = v; saveOpts(); }));
     set.append(choice("Count", [["simple", "All single"], ["swiss", "×1 to ×4"]], o.count, v => { o.count = v; saveOpts(); }));
