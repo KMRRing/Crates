@@ -418,7 +418,7 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
   // The island is what turns (the world group); the camera and the sun stay put on the screen, so every angle is lit from
   // the same side and the ship, turned to face the camera, always shows her sails.
   const lookAt = new THREE.Vector3(...LOOK);
-  const LAND = [...VERTS.map(v => [v.x, v.y]), ...PORT_AT.map((_, i) => portPos(i))];   // what the dice must keep clear of
+  const LAND = [...VERTS.map(v => [v.x, v.y, 0]), ...PORT_AT.map((_, i) => [...portPos(i), 0.33])];   // what the dice must keep clear of: [x, z, radius]
   let width = 1, height = 1;
   let arranged = decode(saved);                                          // what the player has set: their turn, zoom and move
   let yaw = 0, elev = 55 * DEG, zoom = 1, panU = 0, panV = 0;           // the pose in force
@@ -459,15 +459,15 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
   /** The dice's place: the view's bottom right corner, unless the land is there (then the corner with the most room), and the
    *  corner they're in keeps them while the island turns, so they never jump about; they follow the screen, not the island,
    *  since in 3D they are the only place the roll is shown. */
-  const CORNERS = [[0.9, 0.9], [0.1, 0.9], [0.9, 0.1], [0.1, 0.1]];
+  const CORNERS = [[0.92, 0.92], [0.08, 0.92], [0.92, 0.08], [0.08, 0.08]];
   let corner = 0;
   function placeDice() {
-    const c = Math.cos(yaw), n = Math.sin(yaw), land = LAND.map(([x, z]) => [x * c + z * n, -x * n + z * c]);
-    const clear = ([x, z]) => Math.min(...land.map(([a, b]) => Math.hypot(a - x, b - z)));
+    const c = Math.cos(yaw), n = Math.sin(yaw), land = LAND.map(([x, z, r]) => [x * c + z * n, -x * n + z * c, r]);
+    const clear = ([x, z]) => Math.min(...land.map(([a, b, r]) => Math.hypot(a - x, b - z) - r));
     const room = CORNERS.map(([fx, fy], i) => clear(groundAt(fx * width, fy * height)) + (i === 0 ? 0.25 : 0) + (i === corner ? 0.5 : 0));
     corner = room.indexOf(Math.max(...room));
     const [fx, fy] = CORNERS[corner], ix = fx > 0.5 ? -1 : 1, iy = fy > 0.5 ? -1 : 1;
-    DICE_AT = [[fx + ix * 0.1, fy], [fx, fy + iy * 0.12]].map(([a, b]) => groundAt(a * width, b * height));
+    DICE_AT = [[fx + ix * 0.09, fy], [fx, fy + iy * 0.1]].map(([a, b]) => groundAt(a * width, b * height));
     dice.forEach((d, k) => { if (d.visible && !d.userData.rolling) d.position.set(DICE_AT[k][0], DICE_AT[k][2], DICE_AT[k][1]); });
   }
   /** Sets the zoom and the move (in tangents), kept as shares of what the zoom allows so a turned phone keeps its place. */
