@@ -1,0 +1,30 @@
+/* Big Two's 3D table (bigtwo-3d.js) on the shared cloth (table3d.css). */
+#app.bigtwo { --tk-felt: color-mix(in srgb, var(--b2-in) 80%, #0B1E2A); }
+.b2-table.b23 { display: flex; padding: 0; background: none; border: 0; box-shadow: none; overflow: visible; }
+.b2-table.b23 .tk-field { flex: 1 1 0; }
+/* the lanes: the play of each seat on the cloth in front of it, the middle's words under them */
+.b23 .tk-centre { --cd-line: clamp(.55rem, min(2.6cqh, 2.2cqw), 1.2rem); display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, auto) 1fr; align-content: center; gap: .15rem .3rem; place-items: stretch; --tk-side: 6.2rem; }
+.b23 .tk-centre[data-n="3"] { --tk-side: .6rem; top: 40%; grid-template-rows: auto auto 1fr; }
+.b23-lane { display: flex; justify-content: center; align-items: center; min-width: 0; min-height: calc(var(--cd-line) * 3.5); }
+.b23-lane .cd-line { gap: 0; }
+.b23-lane .cd-line > .cd + .cd { margin-left: -1.15em; }
+.b23-lane .cd { box-shadow: 0 .05em .14em rgba(0, 0, 0, .4); }
+.b23-lane .b2-left { opacity: .9; }
+.tk-centre[data-n="4"] .b23-lane.s2 { grid-column: 1 / -1; grid-row: 1; }
+.tk-centre[data-n="4"] .b23-lane.s3 { grid-column: 1; grid-row: 2; }
+.tk-centre[data-n="4"] .b23-lane.s1 { grid-column: 2; grid-row: 2; }
+.tk-centre[data-n="4"] .b23-lane.s0 { grid-column: 1 / -1; grid-row: 3; }
+.tk-centre[data-n="3"] .b23-lane.s2 { grid-column: 1; grid-row: 1; }
+.tk-centre[data-n="3"] .b23-lane.s1 { grid-column: 2; grid-row: 1; }
+.tk-centre[data-n="3"] .b23-lane.s0 { grid-column: 1 / -1; grid-row: 2; }
+.b23-top { grid-column: 1 / -1; grid-row: -2 / -1; display: grid; justify-items: center; align-content: center; gap: .15rem; text-align: center; min-width: 0; }
+.b23 .b2-beat { margin: 0; font-size: .78rem; color: var(--tk-text); }
+.b23 .b2-said { margin: 0; font-size: .74rem; color: var(--tk-soft); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.b23 .b2-next { background: color-mix(in srgb, var(--tk-text) 30%, transparent); }
+.b23 .b2-next i { background: var(--tk-gilt); }
+.b23-sc { margin-right: .25rem; font-style: normal; }
+.b23-pay { font-style: normal; font-weight: 800; }
+.b23-pay.up { color: var(--tk-go); }
+.b23-pay.down { color: #F0A596; }
+.tk-count.low { color: #A8382B; }
+@container (max-height: 420px) { .b23 .b2-said { display: none; } }

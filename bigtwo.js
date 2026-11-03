@@ -11,7 +11,9 @@ import { one, playsWords, moveSaid, moveNames, adviceLine, after, pts, verdict }
 import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { tableView } from "./table3d-view.js";
+import { createBigTwo3d, plateOf } from "./bigtwo-3d.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
@@ -165,6 +167,9 @@ function actOf(s, seat) {
   for (let i = s.trick.plays.length - 1; i >= 0; i--) if (s.trick.plays[i].seat === seat) return s.trick.plays[i];
   return null;
 }
+const view = tableView("bigtwo");                                  // Menu, View: the flat table (the default) or the 3D one (bigtwo-3d.js)
+let three = null;
+
 function drawTable(v) {
   const s = v.state, shown = s.step === "shown" || s.step === "over", res = shown ? s.result : null;
   const seatHtml = seat => {
@@ -185,6 +190,22 @@ function drawTable(v) {
   };
   const centre = res ? `<div class="b2-centre"><p class="b2-said">${esc(v.said || "")}</p>${s.step === "shown" ? `<span class="b2-next"><i data-until="${s.until}"></i></span>` : ""}</div>`
     : `<div class="b2-centre"><p class="b2-said">${esc(v.said || "")}</p>${s.trick.last ? `<p class="b2-beat">To beat: <b>${esc(nameOf(s.trick.by))}</b>'s ${esc(playName(s.trick.last))}</p>` : `<p class="b2-beat">${isMe(s.turn) ? "Your lead" : `${esc(nameOf(s.turn))} leads`}</p>`}</div>`;
+  if (view.get() === "3d") {
+    $("table").classList.add("b23");
+    three ||= createBigTwo3d($("table"), { quiet: () => IN_FRAME });
+    const me = v.seat ?? 0, passWord = PLAY_TALK.pass[s.opts.talk === "en" ? "en" : s.opts.talk];
+    const acts = Array.from({ length: s.seats }, (_, i) => actOf(s, i));
+    const plates = acts.map((a, seat) => plateOf({
+      name: isMe(seat) ? "You" : nameOf(seat), seat, mine: isMe(seat), turn: s.step === "play" && s.turn === seat, count: s.hands[seat].length, score: s.scores[seat],
+      word: !res && a?.pass ? passWord : "", think: s.step === "play" && s.turn === seat && !isMe(seat), lead: !shown && s.trick.by === seat && !!s.trick.last,
+      pay: res && res.winner !== seat ? res.paid[seat] : 0, won: res && res.winner === seat ? res.paid.reduce((x, y) => x + y, 0) : 0, over: !!res,
+    }));
+    const lanes = acts.map((a, seat) => (res ? (res.winner === seat ? "" : `<span class="cd-line b2-left">${cards(res.hands[seat])}</span>`) : a?.cards ? `<span class="cd-line">${cards(a.cards)}</span>` : ""));
+    three.draw({ seats: s.seats, me, plates, lanes, top: `<p class="b2-said">${esc(v.said || "")}</p>${res ? (s.step === "shown" ? `<span class="b2-next"><i data-until="${s.until}"></i></span>` : "") : s.trick.last ? `<p class="b2-beat">To beat: <b>${esc(nameOf(s.trick.by))}</b>'s ${esc(playName(s.trick.last))}</p>` : `<p class="b2-beat">${isMe(s.turn) ? "Your lead" : `${esc(nameOf(s.turn))} leads`}</p>`}` });
+    runBar();
+    return;
+  }
+  if (three) { three.dispose(); three = null; $("table").classList.remove("b23"); }
   $("table").dataset.n = s.seats;
   $("table").innerHTML = Array.from({ length: s.seats }, (_, i) => seatHtml(i)).join("") + centre;
   runBar();
@@ -429,6 +450,7 @@ function openMenu() {
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Big Two, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
+  set.append(view.choice(() => draw()));
   set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; keep(); word = null; draw(); }));
   set.append(choice("Players", [[3, "3"], [4, "4"]], opts.seats, v => { opts.seats = Number(v); keep(); }));
   set.append(choice("A game is", DEALS.map(n => [n, `${n} deals`]), opts.deals, v => { opts.deals = Number(v); keep(); }));
@@ -453,6 +475,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
+onPause(() => three?.pause(true), () => three?.pause(false));
 window.__bigtwo = { page, get view() { return V; }, opts, get sel() { return sel; }, course };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
