@@ -16,14 +16,16 @@ html[data-mode="night"] { --tp-yellow: #E2B544; --tp-red: #D06A58; --tp-blue: #4
 .tp-mark svg { width: 100%; height: 100%; display: block; }
 .tp-strip { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
 .tp-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
-.tp-score b { font-size: 1.05rem; }
+.tp-score b { display: inline-block; font-size: 1.05rem; }          /* a block of its own, so it can swell as the points land */
 /* when the knock comes; when it's due, lettered on the knock's ochre */
 .tp-knock { display: inline-flex; align-items: center; padding: .1rem .45rem; border-radius: 4px; font-size: .8rem; font-weight: 700; white-space: nowrap; min-width: 0; }
 .tp-knock.now { background: var(--tp-in); color: var(--on-c0); font-weight: 800; }
 /* the knock's chip with what goes with it */
 .tp-kn { display: inline-flex; align-items: center; gap: .3rem; min-width: 0; }
 /* skipping a due knock: a small button after the knock's chip, or while its hundred per cent stands a badge in its place (the strip never grows: one or the other) */
-.tp-skip { flex: none; padding: .1rem .5rem; border-radius: 4px; border: 1px solid var(--tp-in); background: transparent; color: var(--ink); font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+/* small to look at and, with its invisible margin, 44 pixels to press: the strip can't grow, so the finger's room is the button's own */
+.tp-skip { position: relative; flex: none; padding: .1rem .5rem; border-radius: 4px; border: 1px solid var(--tp-in); background: transparent; color: var(--ink); font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.tp-skip::after { content: ""; position: absolute; inset: -.85rem -.6rem; }
 .tp-skip:disabled { opacity: .45; cursor: default; }
 .tp-skip[hidden], .tp-boost[hidden] { display: none; }
 .tp-boost { flex: none; padding: .1rem .4rem; border-radius: 4px; border: 1px solid var(--tp-in); color: var(--tp-in); font-size: .8rem; font-weight: 800; white-space: nowrap; }
@@ -35,7 +37,8 @@ html[data-mode="night"] { --tp-yellow: #E2B544; --tp-red: #D06A58; --tp-blue: #4
 .tp-lname { flex: 0 1 auto; min-width: 0; max-width: 52%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-stretch: var(--wide);
   text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); }
 .tp-bar { position: relative; flex: 1 1 0; height: .5rem; border: 1px solid var(--rule); border-radius: 2px; background: var(--yard); }
-.tp-bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--tp-in); }
+.tp-bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--tp-in); transition: width .45s ease-out; }
+@media (prefers-reduced-motion: reduce) { .tp-bar i { transition: none; } }
 .tp-bar u { position: absolute; top: -1px; bottom: -1px; width: 1px; background: var(--brass); }
 .tp-bar u:nth-of-type(1) { left: 33.33%; }
 .tp-bar u:nth-of-type(2) { left: 66.67%; }
@@ -44,9 +47,11 @@ html[data-mode="night"] { --tp-yellow: #E2B544; --tp-red: #D06A58; --tp-blue: #4
 /* a table of several floors: buttons for the one in play, over the table's corner, the highest floor at the top */
 .tp-floors { position: absolute; top: .4rem; right: .4rem; z-index: 5; display: grid; gap: .3rem; }
 .tp-floors[hidden] { display: none; }
-.tp-floors button { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; min-width: 5.2rem; min-height: 2.25rem; align-items: center; padding: .2rem .55rem;
+.tp-floors button { position: relative; display: flex; justify-content: space-between; gap: .6rem; min-width: 5.2rem; min-height: 2.25rem; align-items: center; padding: .2rem .55rem;
   border: 1px solid var(--rule); border-radius: 4px; background: color-mix(in srgb, var(--sheet) 88%, transparent); color: var(--ink-soft); font: inherit; font-size: .68rem; font-weight: 800;
   font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); cursor: pointer; }
+/* 36 to look at, 44 to press: the margin is the finger's, and the buttons' neighbours share it */
+.tp-floors button::after { content: ""; position: absolute; inset: -.25rem -.2rem; }
 .tp-floors button[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
 .tp-floors b { font-variant-numeric: tabular-nums; }
 .tp-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
@@ -128,8 +133,9 @@ html[data-mode="night"] { --tp-yellow: #E2B544; --tp-red: #D06A58; --tp-blue: #4
 .tp-float { position: fixed; z-index: 30; pointer-events: none; filter: drop-shadow(0 6px 8px rgba(28, 42, 52, .3)); }
 .tp-float svg { width: 100%; height: 100%; display: block; overflow: visible; }
 
+/* max-content: a fixed box at left 50% is otherwise shrunk to the half of the screen right of it, and a line of words wrapped to four */
 .tp-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  width: max-content; max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .tp-toast.show { opacity: 1; }
 
@@ -176,7 +182,7 @@ html[data-mode="night"] .tp-flat-ball .body { fill: #e8806f; stroke: #8a3a2e; }
 
 /* the menu's levels: three to a row, each its table in miniature, its number and name, and its stars */
 .tp-levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .5rem 0; }
-.tp-levels button { display: grid; gap: .2rem; padding: .35rem .4rem .4rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.tp-levels button { display: grid; grid-template-rows: auto auto 1fr auto; gap: .2rem; padding: .35rem .4rem .4rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
 .tp-levels button.done { background: var(--tp-soft); }
 .tp-levels button[aria-current] { border-color: var(--tp-in); box-shadow: inset 0 0 0 1.5px var(--tp-in); }
 .tp-levels button:disabled { opacity: .4; cursor: default; }
@@ -185,7 +191,9 @@ html[data-mode="night"] .tp-flat-ball .body { fill: #e8806f; stroke: #8a3a2e; }
 .tp-lrow { display: flex; justify-content: space-between; align-items: baseline; gap: .3rem; min-width: 0; }
 .tp-lrow b { font-size: .9rem; font-variant-numeric: tabular-nums; }
 .tp-lrow span { color: var(--brass); font-size: .66rem; letter-spacing: .1em; white-space: nowrap; }
-.tp-lnamed { font-size: .62rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-lrow span.lock { color: var(--ink-soft); font-size: .56rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
+/* a name is read whole (Archipelago, Gilded cross): two lines of the plain width where it must, never cut short with dots */
+.tp-lnamed { font-size: .62rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.05em * var(--track)); line-height: 1.2; color: var(--ink-soft); overflow-wrap: anywhere; }
 .tp-map-cell { fill: color-mix(in srgb, var(--brass) 20%, var(--sheet)); stroke: color-mix(in srgb, var(--ink) 18%, transparent); stroke-width: .05; }
 .tp-map-cell.h1 { fill: color-mix(in srgb, var(--brass) 40%, var(--sheet)); }
 .tp-map-cell.h2 { fill: color-mix(in srgb, var(--brass) 62%, var(--sheet)); }

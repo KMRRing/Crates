@@ -21,7 +21,7 @@ import { sound } from "./topple-sound.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, choice, onPause } from "./menu.js";
+import { part, action, line, toggle, choice, onPause, isPaused } from "./menu.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { ORDER, featuresOfRules, featuresOfHand, featuresAtCell } from "./topple-help.js";
@@ -36,6 +36,8 @@ const SVG = "http://www.w3.org/2000/svg";
 const RUN = "topple:run", BEST = "topple:best", SEEN = "topple:seen", SOUND = "topple:sound", HELP = "topple:help", SEL = "topple:sel", MODE = "topple:mode", CAMP = "topple:camp2", RUNS = "topple:lruns2", FLOOR = "topple:floor";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+// KNOCKED: set by the first knock ever made. Until then the knock is offered plain, without Skip, and what turning is comes after it.
+const KNOCKED = "topple:knocked";
 for (const old of ["topple:camp", "topple:lruns"]) try { localStorage.removeItem(old); } catch { /* private mode */ }
 const fmt = n => n.toLocaleString("en-GB");
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -44,6 +46,7 @@ let S = null;            // the game (topple-engine.js's), as saved
 let mode = read(MODE, "classic") === "levels" ? "levels" : "classic";
 let camp = readCamp();   // Levels: { at, stars }, as kept
 let playing = false;     // a move being played out
+let epoch = 0;           // which game is on the table: a new one or another level's makes what a fall left to do (its points, its score) void
 let drag = null;         // a piece in hand: { slot, piece, colour (colours, bridge), id, x0, y0, moved, lift, at (where it would go), float }
 let sel = -1;            // the domino chosen, to turn: its hexagon (kept as topple:sel, so a partner watching sees it)
 let knob = -1;           // the way the chosen domino's handle points: one of the two ways along its axis
@@ -76,6 +79,8 @@ function readCamp() {
 }
 /** Whether level n (0 on) is open: the first, and any whose one before is beaten. */
 const isOpen = n => n === 0 || camp.stars[n - 1] >= 1;
+/** Whether this player has never made a knock: none noted, no best, no level beaten (anyone from before KNOCKED was kept has one of those). */
+const newcomer = () => !read(KNOCKED, false) && !read(BEST, 0) && !camp.stars.some(Boolean);
 const inLevels = () => mode === "levels";
 /** The game saved for the mode being played (and its level), or null. */
 function savedGame() {
@@ -88,6 +93,7 @@ function save() {
 }
 /** A game begun anew: of the level being played, or Classic's. */
 function newRun() {
+  epoch++;
   drag?.float.remove();
   drag = null;
   setSel(-1);
@@ -99,6 +105,7 @@ function newRun() {
 }
 /** The game of the mode and level now chosen, as it was left (else a new one). */
 function resume() {
+  epoch++;
   drag?.float.remove();
   drag = null;
   S = savedGame();
@@ -190,9 +197,17 @@ function tagEl(words, i, around) {
   const ys = around.map(p => Math.max(0, Math.min(h, p[1]))), half = Math.max(70, words.length * 3.4 * s);       // only what's in view counts
   let y = Math.min(top, ...ys) - 9 * s;
   if (y < 16 * s) y = Math.min(h - 6 * s, Math.max(top, ...ys) + 18 * s);
-  return text("tp-tag", words, Math.min(w - half, Math.max(half, x)), y, 13);
+  let at = Math.min(w - half, Math.max(half, x));
+  // the buttons for the floors lie over the table's top right: keep the words clear of them, as far as the left edge allows
+  if (!floorsBox.hidden) {
+    const f = floorsBox.getBoundingClientRect(), o = over.getBoundingClientRect();
+    if (y > f.top - o.top - 14 * s && y < f.bottom - o.top + 4 * s && at + half > f.left - o.left - 4 * s) at = Math.max(half, f.left - o.left - 4 * s - half);
+  }
+  return text("tp-tag", words, at, y, 13);
 }
-const HINT = ["Drag a piece onto the table.", "Tap a domino, drag its handle to turn it.", "When a knock is due, press a domino", "and slide it the way it should fall.", "Past the bell, it scores 500 more."];
+// What a first game's empty table says, and nothing more once a piece is down: the plaque sits over the middle, where a first
+// piece goes, so it comes back over nothing. The rest (the knock, turning) is said when it is due, as a line at the foot.
+const HINT = ["Drag a piece onto the table.", "Dominoes of one colour that touch", "fall together when one is knocked.", "Lay them side by side, then knock.", "Past the bell, a fall scores 500 more."];
 /** Words broken into lines of at most `width` characters. */
 function wrapped(words, width) {
   const out = [];
@@ -205,10 +220,10 @@ function plaqueEl(lines, w, h) {
   return [el("rect", { class: "tp-plaque", x: (w / 2 - 128 * s).toFixed(1), y: top.toFixed(1), width: (256 * s).toFixed(1), height: height.toFixed(1), rx: 5 }),
     ...lines.map(([cls, words], k) => text(cls, words, w / 2, top + 20 * s + k * gap, 11))];
 }
-/** What a new level says on its empty table: its number and name, what it adds, and its goal. Gone when the first piece is down. */
-function levelPlaque(w, h) {
+/** What a new level says on its empty table: its number and name, what it adds, and its goal (and, to someone who has never played, how to begin). Gone when the first piece is down. */
+function levelPlaque(w, h, first) {
   const L = LEVELS[S.level];
-  return plaqueEl([["tp-ltitle", `${S.level + 1}  ${L.name}`], ...wrapped(L.about, 36).map(t => ["tp-hint", t]), ["tp-ltitle", `Goal ${fmt(L.goal)}`]], w, h);
+  return plaqueEl([["tp-ltitle", `${S.level + 1}  ${L.name}`], ...wrapped(L.about, 36).map(t => ["tp-hint", t]), ...(first ? HINT.slice(0, 3).map(t => ["tp-hint", t]) : []), ["tp-ltitle", `Goal ${fmt(L.goal)}`]], w, h);
 }
 function drawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
@@ -221,11 +236,12 @@ function drawOver() {
   if (compass) add(compassEl(...compass));
   if (handle) add(handleEl(...handle));
   if (tag) kids.push(tagEl(...tag, pts));
-  const quiet = !ghost && !ring.length && !compass && !handle && !S.over;
-  if (quiet && !read(SEEN, false) && S.laid < 3) {
+  const bare = !ghost && !ring.length && !compass && !handle && !S.over && S.laid === 0;       // nothing laid yet, nothing held
+  if (bare && S.level >= 0) kids.push(...levelPlaque(w, h, !read(SEEN, false)));
+  else if (bare && !read(SEEN, false)) {
     const lines = HINT.map((t, k) => text("tp-hint", t, w / 2, h / 2 + (k - 2) * 15 * scale() + 4 * scale(), 11));
-    kids.push(el("rect", { class: "tp-plaque", x: (w / 2 - 124 * scale()).toFixed(1), y: (h / 2 - 48 * scale()).toFixed(1), width: (248 * scale()).toFixed(1), height: (92 * scale()).toFixed(1), rx: 5 }), ...lines);
-  } else if (quiet && S.level >= 0 && S.laid === 0) kids.push(...levelPlaque(w, h));
+    kids.push(el("rect", { class: "tp-plaque", x: (w / 2 - 128 * scale()).toFixed(1), y: (h / 2 - 48 * scale()).toFixed(1), width: (256 * scale()).toFixed(1), height: (92 * scale()).toFixed(1), rx: 5 }), ...lines);
+  }
   marksG.replaceChildren(...kids);
 }
 let turned = view.spin;
@@ -265,27 +281,34 @@ function meterAt(stars, score) {
   for (let k = 1; k < cuts.length; k++) if (score < cuts[k]) return (k - 1 + (score - cuts[k - 1]) / (cuts[k] - cuts[k - 1])) / 3;
   return 1;
 }
-function drawStrip() {
+let counting = 0;            // the frame of a score being counted up
+/**
+ * The strip. `shown` is what its numbers say ({ score, stars, best }): the game's own, but while a fall plays the figures
+ * of the game before it, which `landScore` brings up to date as the points rise from the table, so the number moves when
+ * the dominoes have fallen and not when the finger lifted.
+ */
+function drawStrip(shown = { score: S.score, stars: S.stars || 0, best: Math.max(read(BEST, 0), S.score) }) {
   const levels = inLevels(), L = levels ? levelRules(S.level) : null;
-  $("score").textContent = fmt(S.score);
-  $("best").textContent = fmt(Math.max(read(BEST, 0), S.score));
+  if (shown.score === S.score) cancelAnimationFrame(counting);
+  $("score").textContent = fmt(shown.score);
+  $("best").textContent = fmt(shown.best);
   $("bestBox").hidden = levels;
   $("goalBox").hidden = !levels;
   $("meter").hidden = !levels;
   if (levels) {
     $("goal").textContent = fmt(L.goal);
-    $("goalBox").classList.toggle("met", S.stars >= 1);
+    $("goalBox").classList.toggle("met", shown.stars >= 1);
     $("lname").textContent = `${S.level + 1}  ${L.name}`;
-    $("fill").style.width = `${(meterAt(L.stars, S.score) * 100).toFixed(1)}%`;
-    $("lstars").textContent = starsWords(S.stars);
-    $("lstars").setAttribute("aria-label", plural(S.stars, "star"));
+    $("fill").style.width = `${(meterAt(L.stars, shown.score) * 100).toFixed(1)}%`;
+    $("lstars").textContent = starsWords(shown.stars);
+    $("lstars").setAttribute("aria-label", plural(shown.stars, "star"));
   }
   const k = $("knock");
   k.className = `tp-knock${S.due && !S.over ? " now" : ""}`;
   k.textContent = S.over ? "" : knockWords();
   k.title = S.over ? "" : "A knock: press a domino and slide it along its axis, the way it should fall";
   // a due knock may be skipped, for a hundred per cent more on the next; while that stands, the badge says so (and no second skip)
-  $("skipBtn").hidden = S.over || !S.due || !!S.boost;
+  $("skipBtn").hidden = S.over || !S.due || !!S.boost || newcomer();            // a first knock is for pushing: Skip comes with the second
   $("skipBtn").disabled = !canSkip(S);
   $("skipBtn").title = canSkip(S) ? "Skip this knock: the next one scores 100% more" : "No piece in hand would fit without the knock";
   $("boost").hidden = S.over || !S.boost;
@@ -435,7 +458,7 @@ function turnTo(h, e) {
 // ---------- pushing ----------
 // A slide counts once it's gone this far along the axis from where the finger pressed (in hexagons, and no less than a
 // fingertip's few pixels), and not if the finger is further than REACH from the domino: let go there and nothing happens.
-const DEAD = 0.42, REACH = 2.6, NUDGE = 14;
+const DEAD = 0.55, REACH = 2.6, NUDGE = 18;
 /** The way along the pressed domino's axis the finger has slid it, or -1. */
 function slidWay(h, e) {
   const p = view.pointAt(e.clientX, e.clientY);
@@ -460,8 +483,31 @@ function showPress(h) {
 }
 
 // ---------- a piece laid, a knock ----------
+// What runs by the page's own clock stands still with the game, as the table does: the menu or a help sheet open, the
+// animations (the points rising, the score swelling) are held and the timers (`later`) stop counting, and they go on after.
+const running = new Set(), timers = new Set();
+const animate = (node, frames, opts) => {
+  if (!node?.animate) return Promise.resolve();
+  const a = node.animate(frames, { fill: "both", ...opts });
+  running.add(a);
+  if (isPaused()) a.pause();
+  return a.finished.catch(() => {}).finally(() => running.delete(a));
+};
+function startTimer(t) { t.from = performance.now(); t.id = setTimeout(() => { timers.delete(t); t.fn(); }, t.left); }
+/** `fn` after `ms` of the game's time (not counting while it stands still). */
+function later(ms, fn) {
+  const t = { fn, left: ms, id: 0, from: 0 };
+  timers.add(t);
+  if (!isPaused()) startTimer(t);
+}
+onPause(() => {
+  for (const a of running) a.pause();
+  for (const t of timers) if (t.id) { clearTimeout(t.id); t.id = 0; t.left = Math.max(0, t.left - (performance.now() - t.from)); }
+}, () => {
+  for (const a of running) a.play();
+  for (const t of timers) if (!t.id) startTimer(t);
+});
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const animate = (node, frames, opts) => (node?.animate ? node.animate(frames, { fill: "both", ...opts }).finished.catch(() => {}) : Promise.resolve());
 function settle() {
   if (!inLevels() && S.score > read(BEST, 0)) write(BEST, S.score);          // Classic's best is Classic's: a level's scores are another measure
   if (S.laid >= 3) write(SEEN, true);
@@ -484,7 +530,7 @@ async function commitLay(slot, q, r, onFloor = floor) {
   if (done.dealt && !S.over) for (const b of document.querySelectorAll(".tp-piece svg")) animate(b, [{ transform: "scale(.6)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: 220, easing: "ease-out" });
   if (done.due) {
     animate($("knock"), [{ transform: "scale(1.15)" }, { transform: "scale(1)" }], { duration: 360, easing: "ease-out" });
-    if (S.sets <= 3 || !read(SEEN, false)) toast("Knock: press a domino and slide it along its axis, or Skip it for +100% on the next knock");
+    if (S.sets <= 3) toast(`Knock now: press a domino and slide it along its axis${newcomer() ? "" : ", or Skip it for +100% on the next knock"}`);
   }
   await wait(260);
   playing = false;
@@ -504,22 +550,38 @@ async function commitKnock(i, way) {
   if (playing || S.over || !S.due) return;
   playing = true;
   setSel(-1);
-  const before = S, first = inLevels() && camp.stars[S.level] < 1, done = knock(S, i, way);
+  const before = S, first = inLevels() && camp.stars[S.level] < 1, firstEver = newcomer(), shown = { score: S.score, stars: S.stars || 0, best: Math.max(read(BEST, 0), S.score) }, done = knock(S, i, way);
   S = done.state;
   settle();
+  if (firstEver) write(KNOCKED, true);
   // the table as it stood, then the dominoes fall one after another, each along its own axis; the bell leaves where it
-  // hung when they've passed it
+  // hung when they've passed it; the score stays what it was until they have fallen and the points rise
   drawBoard({ cells: before.cells, ax: before.ax, bell: before.bell });
-  drawStrip();
+  drawStrip(shown);
   const falling = view.fall({ fell: done.fell, rolls: done.rolls, bell: { rang: done.rang, to: done.rang ? S.bell : -1 } });
   const times = (1 + (done.boosted ? 1 : 0)) * (done.gilded || done.crossed ? 2 : 1), level = S.level;
-  setTimeout(() => popup([...done.fell.map(f => f[0]), ...done.rolls.map(r => r.from)], done.gain, times, done.bell), 100 + done.steps * 90);
+  const mine = epoch;
+  later(100 + done.steps * 90, () => { if (mine !== epoch) return; popup([...done.fell.map(f => f[0]), ...done.rolls.map(r => r.from)], done.gain, times, done.bell); landScore(shown.score); });
   await falling;
   render();
   playing = false;
   if (first && S.stars >= 1 && S.level === level) toast(beatenWords());
+  else if (firstEver) toast("A domino turns: tap one to choose it, then drag its brass handle round.");
   checkHelp();
   if (S.over) roundOver("topple");
+}
+/** The strip's score, brought up to the game's as a fall's points rise: counted up, the number swelling, the meter and stars following. */
+function landScore(from) {
+  drawStrip();
+  if (from === S.score || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const to = S.score, t0 = performance.now(), D = 480;
+  const tick = now => {
+    const u = Math.min(1, (now - t0) / D);
+    $("score").textContent = fmt(Math.round(from + (to - from) * (1 - (1 - u) ** 3)));
+    if (u < 1) counting = requestAnimationFrame(tick);
+  };
+  tick(t0);
+  animate($("score"), [{ transform: "scale(1.22)" }, { transform: "scale(1)" }], { duration: 420, easing: "ease-out" });
 }
 /** The points of a knock rising from where it fell: with a skip's or the gilding's multiplier (`times`), as the points before it and the times, and the bell's flat sum after them. */
 function popup(cells, gain, times, bell = 0) {
@@ -589,11 +651,11 @@ function moveDrag(e) {
 }
 function endDrag(e) {
   if (!drag || e.pointerId !== drag.id) return;
-  const { slot, at: spot } = drag;
+  const { slot, at: spot, moved } = drag;
   drag.float.remove();
   drag = null;
   if (spot) commitLay(slot, spot.q, spot.r, spot.floor);
-  else render();
+  else { render(); if (!moved) toast("Drag a piece onto the table to lay it"); }       // a tap on a piece is a try, not a move
 }
 
 // ---------- fingers on the table ----------
@@ -602,6 +664,7 @@ function endDrag(e) {
 // one go, a double tap zooms in there (or back out), and a drag moves the table when it's zoomed, else tilts it. A second
 // finger makes it a pinch, and whatever the first was doing comes to nothing: a pinch never pushes or turns.
 const SLOP = 10, HOLD = 220;                      // a tap may wander this many pixels
+const DOUBLE_MS = 420;                            // from the lift of one tap to the lift of the next: a thumb is slower than a mouse
 let lastTap = null;
 stage.addEventListener("pointerdown", e => {
   sound.unlock();
@@ -676,7 +739,7 @@ function lift(e, cancelled = false) {
 }
 function tapTable(e) {
   // timed by when the touches happened, not when they're handled, which a busy frame can put off
-  const now = e.timeStamp, twice = lastTap && now - lastTap.t < 330 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30 * scale();
+  const now = e.timeStamp, twice = lastTap && now - lastTap.t < DOUBLE_MS && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40 * scale();
   lastTap = twice ? null : { t: now, x: e.clientX, y: e.clientY };
   letGo();
   view.level();
@@ -712,6 +775,9 @@ let toastTimer = 0;
 function toast(msg) {
   const t = $("toast");
   t.textContent = msg;
+  // held upright the pieces lie along the foot, and the words are read just before reaching for one: so above them, not over
+  const side = document.querySelector(".tp-side").getBoundingClientRect();
+  t.style.bottom = side.width > innerWidth * 0.6 ? `${Math.round(innerHeight - side.top + 8)}px` : "";
   t.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
@@ -779,7 +845,8 @@ function levelList() {
     map.append(mapSvg(levelRules(n)));
     row.className = "tp-lrow";
     num.textContent = n + 1;
-    stars.textContent = isOpen(n) ? starsWords(won) : "";
+    stars.textContent = isOpen(n) ? starsWords(won) : "Locked";
+    stars.classList.toggle("lock", !isOpen(n));
     row.append(num, stars);
     name.className = "tp-lnamed";
     name.textContent = L.name;
@@ -818,7 +885,7 @@ for (const b of document.querySelectorAll(".tp-piece")) {
   b.addEventListener("pointerdown", e => { startDrag(e, slot); if (e.button <= 0) armHelp(e, () => featuresOfHand(S.hand[slot])); });
 }
 addEventListener("pointermove", e => { strayHelp(e); moveDrag(e); moveFinger(e); });
-addEventListener("pointerup", e => { endHold(e); endDrag(e); lift(e); });
+addEventListener("pointerup", e => { sound.unlock(); endHold(e); endDrag(e); lift(e); });         // an iPhone opens its sound at the end of a touch
 addEventListener("pointercancel", e => {
   endHold(e);
   if (drag?.id === e.pointerId) { drag.float.remove(); drag = null; render(); }
@@ -831,10 +898,13 @@ $("againBtn").addEventListener("click", newRun);
 $("skipBtn").addEventListener("click", commitSkip);
 $("levelsBtn").addEventListener("click", openMenu);
 onPause(() => view.hold(), () => view.release());
+// a page that was away (the phone locked, another app) may come back with its canvas blank: paint once more. Nothing else: the game is where it was.
+document.addEventListener("visibilitychange", () => { if (!document.hidden) view.redraw?.(); });
+addEventListener("pageshow", () => view.redraw?.());
 
 // for tests and debugging
 window.__topple = {
-  get state() { return S; }, set state(s) { S = s; setSel(-1); render(); }, get sel() { return sel; }, get knob() { return knob; },
+  get state() { return S; }, set state(s) { S = s; setSel(-1); render(); }, get sel() { return sel; }, get knob() { return knob; }, get drag() { return drag; },
   commitLay, commitKnock, spotAt, newRun, choose, view, playLevel, setMode, setFloor, help, checkHelp, get floor() { return floor; }, get mode() { return mode; }, get camp() { return camp; },
   cellAt: (px, py) => view.cellAt(px, py),
   screenOf: i => { const [x, z] = view.centre(i); return onPage(x, view.baseOf(i) + SH * 0.45, z); },
