@@ -1,7 +1,7 @@
 // The audit's marks for items that aren't about one entity (docs/the-knowledge-base.md, "Who the games ask about"): a Punt
 // level's questions (a bank's physics, chemistry, religion are curriculum topics; Bavaria's beer is not), and Quote's
 // categories. An item about an entity takes the worse of its level's mark and its entity's (kb/audit/marks.js).
-// u universal, r regional, s specialist, p personal. A bank or level not listed puts no limit (u).
+// u universal, r regional, t theme, s specialist, p personal. A bank or level not listed puts no limit (u).
 export const LEVEL = {
   flags: { ea: "u", mi: "r", ha: "s" },
   eco: { micro: "u", macro: "u", trade: "r", ideas: "r" },
@@ -10,21 +10,23 @@ export const LEVEL = {
   cs: { data: "u", code: "u", design: "r", systems: "r" },
   phil: { ancient: "u", modern: "r", ethics: "u", knowledge: "r" },
   rel: { islam: "u", judchr: "u", east: "u", table: "r" },
-  refining: { "*": "p" },
+  refining: { "*": "p", oil: "t" },
   law: { "*": "p" },
   artmarket: { "*": "p" },
-  swiss: { "*": "s" },
-  bavaria: { "*": "s" },
-  skiing: { "*": "s" },
+  swiss: { "*": "t" },
+  bavaria: { "*": "t" },
+  skiing: { "*": "t" },
   watches: { "*": "s" },
   arch: { styles: "u", buildings: "u", parts: "r" },
   myth: { gods: "u", heroes: "u", norse: "r", egypt: "u", words: "r" },
-  merchants: { ideas: "s", "*": "r" },
-  titles: { peerage: "r", "*": "s" },
-  britain: { history: "s", places: "s", whisky: "s", customs: "s", words: "s", wales: "s", money: "p", city: "p", science: "r", constitution: "r", england: "r" },
+  merchants: { ideas: "t", "*": "r" },
+  titles: { peerage: "r", "*": "t" },
+  britain: { history: "t", places: "t", whisky: "t", customs: "t", words: "t", wales: "s", money: "t", city: "p", science: "r", constitution: "r", england: "r" },
   china: { inventions: "u", history: "r", geography: "r", thought: "r", culture: "r", food: "s", tea: "s", trade: "p" },
-  sayings: { latin: "r", german: "s", english: "r", french: "s", chinese: "s", world: "s", trading: "p", pop: "s" },
+  sayings: { latin: "r", german: "t", english: "r", french: "s", chinese: "s", world: "s", trading: "p", pop: "s" },
 };
+/** Single Punt questions marked by hand: "a bit of oil" (crude, how a refinery works), kept from the refining bank, which is otherwise personal. */
+export const ITEM_MARK = Object.fromEntries(["RF-01", "RF-02", "RF-03", "RF-04", "RF-05", "RF-06", "RF-07", "RF-08", "RF-09", "RF-10", "RF-24", "RF-25", "RF-38", "RF-39"].map(id => [id, "t"]));
 /** Quote's categories (kb/items/estimates.js CATS): the trade and market ones are personal. */
 export const QUOTE_CAT = { trade: "p", markets: "p", refining: "p", wine: "r" };
 /** Quote's old audience marks 1, 2, 3 are universal, regional (domain), specialist. */

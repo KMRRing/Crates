@@ -1,10 +1,13 @@
 // Fills kb/audit/marks.js: a mark for every entity (u universal, r regional, s specialist, p personal, l living), by the rules
 // in tools/audit-rules.mjs. Only entities the file doesn't have yet are added, so a mark changed by hand stays; --redo
-// starts again from the rules. node tools/audit-marks.mjs [--redo] [--list u]   (--list prints the entities with that mark)
+// starts again from the rules; --theme promotes the specialist and personal entities that kb/audit/theme.js names to t (the
+// theme tier) and a new entity is checked against it too. node tools/audit-marks.mjs [--redo] [--theme] [--list u]
+// (--list prints the entities with that mark)
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as R from "./audit-rules.mjs";
+import { upgraded } from "./audit-theme.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 const file = path.join(root, "kb/audit/marks.js");
@@ -45,7 +48,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const aspects = new Map();
   for (const l of LINKS) if (l.rel === "clue") for (const a of l.aspects) { const m = aspects.get(l.from) || aspects.set(l.from, new Map()).get(l.from); m.set(a, (m.get(a) || 0) + 1); }
   const out = {};
-  for (const e of ENTITIES) out[e.id] = have[e.id] ?? markOf(e, aspects);
+  const promote = process.argv.includes("--theme");
+  const dealtMark = upgraded;
+  for (const e of ENTITIES) out[e.id] = have[e.id] === undefined ? dealtMark(e, markOf(e, aspects)) : promote ? dealtMark(e, have[e.id]) : have[e.id];
   const list = process.argv.indexOf("--list");
   if (list > 0) { const m = process.argv[list + 1]; console.log(ENTITIES.filter(e => out[e.id] === m).map(e => e.name).join("; ")); process.exit(0); }
   const body = Object.entries(out).map(([id, m]) => `${JSON.stringify(id)}: "${m}"`);
