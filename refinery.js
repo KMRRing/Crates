@@ -8,7 +8,7 @@ import { FEED, evaluate, runs, destinations, streamsOf, sharesOf, defaultRouting
 import { CHAPTERS, LEVELS } from "./refinery-levels.js";
 import { differences, nextHint, rowCommonness, mainOf, bucketOf, EPS, AT_PAR } from "./refinery-practice.js";
 import { PAR } from "./refinery-par.js";
-import { drawSheet, hitTest, GROUP_COLOUR, amount } from "./refinery-sheet.js";
+import { drawSheet, hitTest, GROUP_COLOUR, amount, HIDES, PUSH, filtered, hiddenCulprits, movable, layoutSig, arrangedFor } from "./refinery-sheet.js";
 import { lessonFor, TEACHES, GLOSSARY } from "./refinery-lessons.js";
 import { playScene } from "./refinery-scenes.js";
 import { buildTest, isRight, rightAnswer, passMark, missedTap } from "./refinery-exam.js";
@@ -17,7 +17,8 @@ import { roundOver } from "./random.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, action, mirror, line, toggle, choice } from "./menu.js";
+import { part, action, mirror, line, toggle, choice, ticks } from "./menu.js";
+import { sure } from "./sure.js";
 import { createDuel } from "./duel.js";
 
 const $ = id => document.getElementById(id);
@@ -118,6 +119,7 @@ function undo() {
 
 // ---------- the brief, the margin and the plant ----------
 function render() {
+  syncSheet();
   R = evaluate(L, routing);
   renderBrief();
   renderMargin();
@@ -182,8 +184,9 @@ function renderMargin() {
   v.className = `rf-verdict${stars === 3 ? " good" : ""}`;
   const worst = off.length ? culprits(L, R, off[0][0])[0] : null, from = worst?.by.filter(c => c.share >= 0.25).slice(0, 2) || [];
   // short names, as the flowsheet labels them: two lines hold the products, the worst miss and where it comes from (a
-  // short name ending in its own full stop, "Isom.", ends the sentence)
-  v.textContent = hard ? hard.text : off.length ? `${listOf(off.map(([id]) => POOLS[id].short))} off spec: ${failText(worst)}${from.length ? `, from the ${from.map(c => STREAMS[c.s].short).join(" and the ")}` : ""}.`.replace(/\.\.$/, ".")
+  // short name ending in its own full stop, "Isom.", ends the sentence); a culprit whose lines are hidden is named all the same, and says so
+  const out = hidden.size && off.length ? filtered(L, R, hidden).pairs : new Set(), named = c => `${STREAMS[c.s].short}${out.has(`${c.s}>${off[0][0]}`) ? " (hidden)" : ""}`;
+  v.textContent = hard ? hard.text : off.length ? `${listOf(off.map(([id]) => POOLS[id].short))} off spec: ${failText(worst)}${from.length ? `, from the ${from.map(named).join(" and the ")}` : ""}.`.replace(/\.\.$/, ".")
     : gap <= AT_PAR ? "At par, every pool in spec." : `${money(gap)}/bbl short of par${base.crudes && L.crude !== bestCrude() ? " (another crude does better)" : ""}.`;
   // stars won are kept; a first finish, or more stars, says so
   if (won > (was.stars || 0) || deckBetter || m > (was.best ?? -Infinity) + 1e-9) {
@@ -225,7 +228,6 @@ function finished(stars) {
 // Off spec, a product says which of the streams in it push it over each limit it fails (culprits in the engine), how
 // hard each pushes, and how much of one taken out would bring it back: the flowsheet draws them red, the product's card
 // lists them, the margin's line names the worst, and each one's own sheet says what it's doing there.
-const PUSH = 0.1;   // a stream with less of a limit's push than this isn't named for it
 /** Each off-spec product's culprits, for the plan as it runs: [[pool, [{ k, dir, lim, v, by }]]]. */
 const offSpec = () => Object.entries(R.pools).filter(([, p]) => !p.inSpec && p.vol > 1e-4).map(([p]) => [p, culprits(L, R, p)]);
 /** The streams the flowsheet draws red: "stream>pool" for each with a real share of a failing limit's push. */
@@ -248,11 +250,71 @@ function fixWords(f, vol) {
 }
 
 const svg = $("sheet"), pointers = new Map();
-let gesture = null, lastTap = 0;
+let gesture = null, lastTap = 0, sheetLay = null;
+// ---------- what the player did to the flowsheet ----------
+// Lines hidden (a class of line not drawn at all: refinery-sheet.js, HIDES) and boxes moved by hand (the units and the
+// products, as offsets from where the process puts them) are kept for each level, written as they change and read when
+// the level opens, so a partner watching sees the same sheet. A level's offsets are for its units as they were: if
+// they change, the old places are wiped.
+const HIDE = "refinery:hide", LAYOUT = "refinery:layout";
+let hidden = new Set(), arranged = {}, sheetOf = null, moving = null;   // the level's hidden classes, its offsets, which level they are for, the box being dragged
+function syncSheet() {
+  if (sheetOf === L.id) return;
+  sheetOf = L.id;
+  const h = read(HIDE, {})[L.id], saved = read(LAYOUT, {})[L.id];
+  hidden = new Set(Array.isArray(h) ? h.filter(c => HIDES.some(x => x.id === c)) : []);
+  arranged = { ...arrangedFor(L, saved) };
+  if (saved && !Object.keys(arranged).length) saveArranged();
+}
+function saveArranged() {
+  const all = read(LAYOUT, {});
+  if (Object.keys(arranged).length) all[L.id] = { sig: layoutSig(L), at: arranged }; else delete all[L.id];
+  write(LAYOUT, all);
+}
+function setHidden(ids) {
+  hidden = new Set(ids);
+  const all = read(HIDE, {});
+  if (hidden.size) all[L.id] = HIDES.map(c => c.id).filter(c => hidden.has(c)); else delete all[L.id];
+  write(HIDE, all);
+  drawPlant();
+  if (!$("linesPanel").hidden) fillLines();
+}
+function resetArranged() {
+  arranged = {};
+  saveArranged();
+  view = null;
+  drawPlant();
+  if (!$("linesPanel").hidden) fillLines();
+}
+/** The streams of the plan whose every line is hidden: what the flowsheet no longer shows of it. */
+const hiddenStream = s => { const f = filtered(L, R, hidden); return f.hidden.some(l => l.stream === s) && !f.shown.some(l => l.stream === s); };
+/** Unticks the classes that hide a stream's lines, so the flowsheet draws it. */
+function showStream(s) {
+  const f = filtered(L, R, hidden), drop = HIDES.filter(c => hidden.has(c.id) && f.hidden.some(l => l.stream === s && c.of(L, l))).map(c => c.id);
+  setHidden([...hidden].filter(id => !drop.includes(id)));
+}
+/** What is hidden that puts a product off spec, in words ("Butane puts Gasoline off spec"), or "". */
+function hiddenWhy(bad = hiddenCulprits(L, R, hidden)) {
+  const by = new Map();
+  for (const x of bad) by.set(x.pool, [...(by.get(x.pool) || []), STREAMS[x.s].short]);
+  return [...by].map(([p, ss]) => `${listOf(ss)} ${ss.length > 1 ? "put" : "puts"} ${POOLS[p].short} off spec`).join("; ");
+}
+/** The note over the flowsheet: how many lines are hidden (red, and what for, where one puts a product off spec), and Reset layout where a box has moved. */
+function paintNote(lay) {
+  const n = lay.filter.hidden.length, why = hiddenWhy(), btn = $("hiddenBtn");
+  btn.hidden = !n && !why;
+  btn.classList.toggle("bad", !!why);
+  btn.replaceChildren(`${n} line${n === 1 ? "" : "s"} hidden`);
+  if (why) { const s = document.createElement("small"); s.textContent = why; btn.append(s); }
+  $("resetBtn").hidden = !Object.keys(arranged).length;
+  $("sheetNote").hidden = btn.hidden && $("resetBtn").hidden;
+}
 function drawPlant() {
-  const flow = read(FLOW, true) && !matchMedia("(prefers-reduced-motion: reduce)").matches, fade = fadeOf();
-  const lay = drawSheet(svg, L, R, { select: picked, flow, fade, culprits: culpritLinks() });
-  $("linesBtn").classList.toggle("on", !!fade);
+  syncSheet();
+  const flow = read(FLOW, true) && !matchMedia("(prefers-reduced-motion: reduce)").matches && !moving, fade = fadeOf();
+  const lay = sheetLay = drawSheet(svg, L, R, { select: picked, flow, fade, culprits: culpritLinks(), hide: hidden, arrange: arranged, lift: moving?.id });
+  $("linesBtn").classList.toggle("on", !!fade || hidden.size > 0);
+  paintNote(lay);
   // room on the right for the zoom buttons, so they never sit on a product
   full = { x: -4, y: -4, w: lay.width + 8 + 40, h: lay.height + 8 };
   if (!view) view = { ...full };
@@ -266,11 +328,35 @@ function zoomAt(f, cx, cy) {
   view = { x: px - (px - view.x) * k, y: py - (py - view.y) * k, w, h: view.h * k };
   applyView();
 }
+// A box (a unit or a product) is a handle: a finger or the mouse dragging one moves it, its lines following. Anywhere
+// else, a drag moves the sheet and two fingers zoom it, as before. A tap that doesn't move opens the box's card.
+const SLOP = 6, SLOP_BOX = { mouse: 4, touch: 9, pen: 9 };
+const boxAt = target => { const g = target?.closest?.("[data-node]"); return g && movable(sheetLay?.nodes[g.dataset.node]) ? g.dataset.node : null; };
+let paintAt = 0;
+/** Moves the dragged box to where the pointer is, redrawing the sheet once a frame. */
+function dragTo(pt) {
+  const b = svg.getBoundingClientRect(), k = Math.max(view.w / b.width, view.h / b.height), g = gesture;
+  arranged = { ...arranged, [g.box]: [+(g.at[0] + (pt.x - g.from.x) * k).toFixed(1), +(g.at[1] + (pt.y - g.from.y) * k).toFixed(1)] };
+  if (!paintAt) paintAt = requestAnimationFrame(() => { paintAt = 0; drawPlant(); });
+}
+/** The dragged box is put down: where it landed is kept. */
+function dropBox() {
+  cancelAnimationFrame(paintAt); paintAt = 0;
+  arranged = { ...arranged };
+  drawPlant();   // as the sheet has it: a box is kept inside its room
+  const n = sheetLay.nodes[moving.id];
+  if (n && Math.abs(n.dx) + Math.abs(n.dy) > 0.05) arranged[n.id] = [+n.dx.toFixed(1), +n.dy.toFixed(1)]; else delete arranged[moving.id];
+  moving = null;
+  saveArranged();
+  drawPlant();
+}
 svg.addEventListener("pointerdown", e => {
   svg.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   const pts = [...pointers.values()];
-  gesture = pts.length > 1 ? { kind: "pinch", d: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), w: view.w } : { kind: "pan", from: pts[0], view: { ...view }, moved: false, target: e.target };
+  if (pts.length > 1 && moving) dropBox();   // a second finger: zooming, not moving the box
+  const box = pts.length > 1 ? null : boxAt(e.target), n = box && sheetLay.nodes[box];
+  gesture = pts.length > 1 ? { kind: "pinch", d: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), w: view.w } : { kind: "pan", from: pts[0], view: { ...view }, moved: false, target: e.target, box, at: [n?.dx || 0, n?.dy || 0], slop: box ? SLOP_BOX[e.pointerType] ?? SLOP_BOX.touch : SLOP };
 });
 svg.addEventListener("pointermove", e => {
   if (!pointers.has(e.pointerId) || !gesture) return;
@@ -281,8 +367,13 @@ svg.addEventListener("pointermove", e => {
     zoomAt((gesture.w * gesture.d) / Math.max(1, d) / view.w, (pts[0].x + pts[1].x) / 2, (pts[0].y + pts[1].y) / 2);
     return;
   }
-  if (Math.hypot(pts[0].x - gesture.from.x, pts[0].y - gesture.from.y) > 6) gesture.moved = true;
+  if (Math.hypot(pts[0].x - gesture.from.x, pts[0].y - gesture.from.y) > gesture.slop) gesture.moved = true;
   if (!gesture.moved) return;
+  if (gesture.box) {
+    if (!moving) { moving = { id: gesture.box }; navigator.vibrate?.(8); }
+    dragTo(pts[0]);
+    return;
+  }
   const b = svg.getBoundingClientRect(), k = Math.max(view.w / b.width, view.h / b.height);
   view = { ...gesture.view, x: gesture.view.x - (pts[0].x - gesture.from.x) * k, y: gesture.view.y - (pts[0].y - gesture.from.y) * k };
   applyView();
@@ -290,7 +381,8 @@ svg.addEventListener("pointermove", e => {
 const lift = e => {
   if (!pointers.has(e.pointerId)) return;
   pointers.delete(e.pointerId);
-  if (gesture && gesture.kind === "pan" && !gesture.moved && e.type === "pointerup") {
+  if (moving) dropBox();
+  else if (gesture && gesture.kind === "pan" && !gesture.moved && e.type === "pointerup") {
     const hit = hitTest(document.elementFromPoint(e.clientX, e.clientY) || gesture.target);
     if (hit?.stream) openSplit(hit.stream);
     else if (hit?.node) openCard(hit.node);
@@ -305,14 +397,19 @@ const lift = e => {
 svg.addEventListener("pointerup", lift);
 svg.addEventListener("pointercancel", lift);
 svg.addEventListener("wheel", e => { e.preventDefault(); zoomAt(Math.exp(e.deltaY * 0.0015), e.clientX, e.clientY); }, { passive: false });
+svg.addEventListener("contextmenu", e => { if (gesture?.box) e.preventDefault(); });   // a finger held on a box is not a menu
 $("zoomIn").addEventListener("click", () => zoomAt(1 / 1.5));
 $("zoomOut").addEventListener("click", () => zoomAt(1.5));
 $("zoomFit").addEventListener("click", () => { view = { ...full }; applyView(); });
+$("resetBtn").addEventListener("click", resetArranged);
+$("hiddenBtn").addEventListener("click", () => showLines(true));
 
 // ---------- which lines the flowsheet shows ----------
 // A whole refinery draws a hundred lines, and most of a cracker's products have only one place to go. The lines panel
 // lets the rest recede: the streams with no other destination, and the families not chosen. What recedes stays faint,
-// so the plant still reads, and can't be tapped, so the lines left are easy to hit.
+// so the plant still reads, and can't be tapped, so the lines left are easy to hit. Or whole classes of line can be
+// hidden (waste, fuel gas, LPG, what is bought in, the small flows): not drawn at all, with a count on the sheet, and
+// the boxes moved apart; Reset layout puts them back where the process has them.
 const LINES = "refinery:lines";
 const FAMILIES = [["gas", "Gas & LPG"], ["naphtha", "Naphtha"], ["middle", "Distillates"], ["heavy", "Heavy oils"], ["resid", "Residue"], ["renewable", "Renewables"], ["other", "Other"]];
 let lines = { choices: false, family: "all", ...read(LINES, {}) };
@@ -327,10 +424,22 @@ function fadeOf() {
 function setLines(next) { lines = { ...lines, ...next }; write(LINES, lines); drawPlant(); fillLines(); }
 function fillLines() {
   const present = familiesOf(L), families = [["all", "All"], ...FAMILIES.filter(([g]) => present.has(g))];
-  const fam = choice("Family", families, present.has(lines.family) ? lines.family : "all", v => setLines({ family: v }));
+  const fam = choice("Fade other families", families, present.has(lines.family) ? lines.family : "all", v => setLines({ family: v }));
   // each family's button in the colour its lines are drawn in
   fam.querySelectorAll("button").forEach((b, i) => { if (i) { b.classList.add("rf-fam"); b.style.setProperty("--c", GROUP_COLOUR[families[i][0]]); } });
-  $("linesPanel").replaceChildren(choice("Streams", [[false, "All"], [true, "With a choice"]], lines.choices, v => setLines({ choices: v })), fam);
+  // the classes of line this level has, each with how many lines it has now
+  const classes = HIDES.filter(c => c.has(L)), counts = sheetLay?.filter.counts || {};
+  const hide = ticks("Hide lines", classes.map(c => [c.id, c.name(L)]), classes.filter(c => hidden.has(c.id)).map(c => c.id), setHidden);
+  hide.querySelectorAll("button").forEach((b, i) => { const n = document.createElement("small"); n.textContent = counts[classes[i].id] || 0; b.append(n); });
+  const reset = action("Reset layout", resetArranged, "");
+  reset.classList.add("rf-reset");
+  reset.disabled = !Object.keys(arranged).length;
+  const place = document.createElement("div");
+  place.className = "rf-place";
+  place.append(line("Drag a box to move it."), reset);
+  const why = hiddenWhy();
+  $("linesPanel").replaceChildren(hide, ...(why ? [line(`Hidden and off spec: ${why}.`)] : []), place,
+    choice("Fade streams", [[false, "All"], [true, "With a choice"]], lines.choices, v => setLines({ choices: v })), fam);
 }
 function showLines(open) {
   $("linesPanel").hidden = !open;
@@ -339,7 +448,7 @@ function showLines(open) {
 }
 $("linesBtn").addEventListener("click", () => showLines($("linesPanel").hidden));
 // a tap anywhere else, or Escape, puts it away
-document.addEventListener("pointerdown", e => { if (!$("linesPanel").hidden && !e.target.closest?.("#linesPanel, #linesBtn")) showLines(false); });
+document.addEventListener("pointerdown", e => { if (!$("linesPanel").hidden && !e.target.closest?.("#linesPanel, #linesBtn, #hiddenBtn")) showLines(false); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("linesPanel").hidden) showLines(false); });
 
 // ---------- a stream: where it goes, in shares ----------
@@ -757,6 +866,7 @@ function hint() {
   else if (!x) box.textContent = "You're on par's plan, or as near it as matters.";
   else {
     box.append(`${practiceWords(x)} `);
+    if (hiddenStream(x.s)) box.append("Its lines are hidden on the flowsheet. ", link("Show them", () => showStream(x.s)), " ");
     // what taking par's whole row for the stream comes to here, the rest of your plan as it is
     const row = par.routing[x.s], after = evaluate(L, { ...routing, [x.s]: row }), gain = after.margin - R.margin;
     const worth = Math.abs(gain) < 0.005 ? "" : gain > 0 ? `earns ${money(gain)}/bbl` : `costs ${money(-gain)}/bbl`;
@@ -1068,9 +1178,9 @@ function duelVerdict(off, gap) {
   $("nextBtn").onclick = submit;
   $("issue").hidden = true;
 }
-function submit() {
+async function submit() {
   if (!D || D.done) return;
-  if (!confirm(`Submit at ${money(R.margin)}/bbl? It's your answer for the match: you can't change it after.`)) return;
+  if (!(await sure(`Submit at ${money(R.margin)}/bbl? It's your answer for the match: you can't change it after.`, { yes: "Submit" })) || !D || D.done) return;
   D.done = true; D.margin = R.margin;
   keep(); tell(); render();
 }
@@ -1125,7 +1235,7 @@ document.addEventListener("keydown", e => {
 window.addEventListener("resize", () => { if (L) { view = null; drawPlant(); } for (const d of splitRows.keys()) paintBreaks(d); });
 
 // for tests and debugging
-window.__refinery = { get level() { return L; }, get routing() { return routing; }, get result() { return R; }, get par() { return par; }, get target() { return target; },
+window.__refinery = { get hidden() { return hidden; }, get arranged() { return arranged; }, get sheet() { return sheetLay; }, setHidden, resetArranged, get level() { return L; }, get routing() { return routing; }, get result() { return R; }, get par() { return par; }, get target() { return target; },
   load, setShares, chooseCrude, openSplit, openCard, openLesson, openTest, openCourse, duel, submit, get test() { return test; }, get lesson() { return lesson; }, get sliders() { return [...splitRows.keys()]; }, get breaks() { return breaks; } };
 
 if (duel.inAddress) duel.join().then(ok => { if (!ok) load(read(AT, null) || (LEVELS.find(l => !progress()[l.id]?.stars) || LEVELS[0]).id); });

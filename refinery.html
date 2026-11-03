@@ -39,8 +39,9 @@
     <div class="rf-buttons"><p id="verdict" class="rf-verdict"></p><button class="rf-go" type="button" id="nextBtn" hidden>Next</button></div>
   </section>
   <div id="stage" class="rf-stage fit-grow">
-    <svg id="sheet" class="rf-sheet" role="img" aria-label="The refinery's flowsheet: tap an arrow to send a stream elsewhere, a unit or a product for its card; drag to move, pinch to zoom"></svg>
+    <svg id="sheet" class="rf-sheet" role="img" aria-label="The refinery's flowsheet: tap an arrow to send a stream elsewhere, a unit or a product for its card; drag a unit or a product to move it, the rest of the sheet to pan, pinch to zoom"></svg>
     <div class="rf-zoom"><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomOut" aria-label="Zoom out">−</button><button type="button" id="zoomFit" aria-label="The whole plant">⤢</button><button type="button" id="linesBtn" aria-label="Which lines to show" aria-expanded="false" aria-controls="linesPanel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.2 3.2h11.6L9.3 8.6v4.3l-2.6 1.4V8.6Z"/></svg></button></div>
+    <div id="sheetNote" class="rf-note" hidden><button type="button" id="hiddenBtn" class="rf-nb" aria-label="Lines hidden: which lines to show" aria-controls="linesPanel" hidden></button><button type="button" id="resetBtn" class="rf-nb" hidden>Reset layout</button></div>
     <div id="linesPanel" class="rf-lines" hidden></div>
     <p id="issue" class="rf-issue" hidden></p>
   </div>

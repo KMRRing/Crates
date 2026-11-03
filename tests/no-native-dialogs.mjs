@@ -43,7 +43,6 @@ const STILL = {
   "pipes.js": 1,
   "punt.js": 3,
   "quote.js": 2,
-  "refinery.js": 1,
   "river-rush-ui.js": 1,
   "river.js": 2,
   "rush-menu.js": 1,

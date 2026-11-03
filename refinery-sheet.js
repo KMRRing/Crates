@@ -2,9 +2,10 @@
 // stands in its column of the process (distillation, residue, cracking, treating, octane) at the height of what it
 // handles (light at the top, heavy at the bottom, as on the crude column itself, whose cuts leave it at their own
 // heights), and each stream is an arrow as wide as its flow. The play screen, the lessons and the tests all draw with
-// it; it lays out from the level alone, so nothing moves as the routing changes.
+// it; it lays out from the level alone, so nothing moves as the routing changes, but for what the player moved by hand
+// (arrange) and the lines they hid (hide: a class of line is not drawn at all).
 import { STREAMS, UNITS, POOLS, CRUDES, PROPS } from "./refinery-data.js";
-import { streamsOf, poolsOf, specsOf, limitOf, fmtProp, destinations } from "./refinery-engine.js";
+import { streamsOf, poolsOf, specsOf, limitOf, fmtProp, destinations, culprits } from "./refinery-engine.js";
 
 const NS = "http://www.w3.org/2000/svg";
 /** How light a stream is: 0 the gases, 13 the coke. Units and pools sit at the height of what they take. */
@@ -19,10 +20,12 @@ export const GROUP_COLOUR = { gas: "var(--rf-gas)", naphtha: "var(--rf-naphtha)"
 const NODE_W = 44, NODE_H = 22, COL = 60, TOP = 18, ROW = 25, POOL_W = 78, POOL_H = 29, TWIN = 28;
 
 /**
- * The layout of a level's plant: { nodes: { id: { id, kind (crude | bought | unit | pool), x, y, w, h, col } },
+ * The layout of a level's plant: { nodes: { id: { id, kind (crude | bought | unit | pool), x, y, w, h, col, dx, dy } },
  * width, height }. A level can place a unit itself (layout: { unit: [column, rank] }), as the whole refineries' chapters do.
+ * `arrange` is the player's own: { id: [dx, dy] } moves a unit or a product that far from where the process puts it
+ * (movable), kept inside the sheet and its room to grow, with the sheet growing to hold what is moved out.
  */
-export function layout(level) {
+export function layout(level, arrange = null) {
   const units = level.units.filter(u => UNITS[u]), pools = sheetPools(level);
   const stages = [...new Set(units.map(u => colOf(level, u)))].sort((a, b) => a - b);
   // a second crude unit stands to the left of the first, and the rest of the plant moves over to make room
@@ -50,9 +53,29 @@ export function layout(level) {
     nodes[p.p] = { id: p.p, kind: "pool", x: poolX, y: top, w: POOL_W, h: POOL_H, col: 99 };
     last = top + POOL_H;
   }
-  const height = Math.max(y(13) + NODE_H, last + 6), width = poolX + POOL_W + 4;
+  let height = Math.max(y(13) + NODE_H, last + 6), width = poolX + POOL_W + 4;
+  const room = { w: width * ROOM, h: height * ROOM };
+  for (const [id, off] of Object.entries(arrange || {})) {
+    const n = nodes[id];
+    if (!movable(n) || !Array.isArray(off) || !off.every(Number.isFinite)) continue;
+    const x = Math.min(Math.max(n.x + off[0], 0), room.w - n.w), y0 = Math.min(Math.max(n.y + off[1], 0), room.h - n.h);
+    n.dx = x - n.x; n.dy = y0 - n.y; n.x = x; n.y = y0;
+    width = Math.max(width, x + n.w + 4); height = Math.max(height, y0 + n.h + 6);
+  }
   return { nodes, width, height };
 }
+/** Units and products can be moved; the crude, the bought-in box and the crude columns stay where the process starts. */
+export const movable = n => !!n && ((n.kind === "unit" && !n.column) || n.kind === "pool");
+/** How far past its own size the sheet lets a moved box go. */
+const ROOM = 1.5;
+/** What a saved arrangement was made for: a level's units and where it places them; another sheet has none of it. */
+export const layoutSig = level => {
+  let h = 2166136261;   // FNV-1a, a few characters to keep rather than the whole of it
+  for (const c of `${level.units.join(",")}|${JSON.stringify(level.layout || {})}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return (h >>> 0).toString(36);
+};
+/** A level's saved arrangement ({ sig, at: { id: [dx, dy] } }) as the offsets to use now: none if its units are not the ones it was made for. */
+export const arrangedFor = (level, saved) => (saved?.sig === layoutSig(level) && saved.at ? saved.at : {});
 const colOf = (level, u) => level.layout?.[u]?.[0] ?? (u === "cdu" || u === "cdu2" ? 1 : UNITS[u].stage);
 /** The pools drawn: the level's, less those nothing in it can reach. */
 export function sheetPools(level) {
@@ -82,6 +105,70 @@ export function linksOf(level, result) {
   return links;
 }
 
+// ---------- the lines a player can hide ----------
+// Hiding is not fading: a hidden line is not drawn at all, so a busy plant can be read (Korbi's brief: waste, off-gas
+// and fuel gas first, then what else clutters the whole refineries). Nothing is left dangling: a product whose every line
+// is hidden goes with them (a refinery fuel box with nothing running into it), so does the bought-in box, and a cut's
+// label at the crude column; a unit whose every line is hidden stays (it is running) and says how many are.
+const LPG_STREAMS = ["lpg", "butane"], WASTE_POOLS = ["slops", "notBought"];
+/** A line is a small flow under this share of the crude run: half a per cent. */
+const SMALL = 0.005;
+export const smallBelow = level => SMALL * (level.feed ?? 100);
+/**
+ * The classes of line: { id, name(level), has(level) (whether the level has any), of(level, link) (whether a link is in it) }.
+ * A line can be in several; it is hidden when any class ticked has it.
+ */
+export const HIDES = [
+  { id: "waste", name: () => "Waste & not bought", has: lv => sheetPools(lv).some(p => WASTE_POOLS.includes(p)), of: (lv, l) => WASTE_POOLS.includes(l.to) },
+  { id: "gas", name: () => "Fuel gas & off-gas", has: lv => streamsOf(lv).includes("gas"), of: (lv, l) => l.stream === "gas" },
+  { id: "lpg", name: () => "LPG & butane", has: lv => streamsOf(lv).some(s => LPG_STREAMS.includes(s)), of: (lv, l) => LPG_STREAMS.includes(l.stream) },
+  { id: "bought", name: () => "Bought in", has: lv => Object.keys(lv.bought || {}).length > 0, of: (lv, l) => l.from === "bought" },
+  { id: "small", name: lv => `Under ${+smallBelow(lv).toFixed(2)} kb/d`, has: () => true, of: (lv, l) => !STREAMS[l.stream].per && l.vol < smallBelow(lv) },
+];
+/** A stream with less than this share of a limit's push isn't named as putting a product off spec. */
+export const PUSH = 0.1;
+/**
+ * What the hide filter leaves of a run's lines: { shown, hidden (links), counts ({ class: how many of the lines it has,
+ * ticked or not }), gone (ids of nodes not drawn), bare ({ id: lines hidden } of nodes drawn with nothing running to
+ * them), cuts (streams whose cut label at the crude column goes), pairs ("stream>destination" no line of which is shown) }.
+ * `hide` is a Set of class ids. `keep` ({ stream, node }) is what the player has open: never hidden. An off-spec product
+ * stays, so that what is wrong stays in sight.
+ */
+export function filtered(level, result, hide, keep = {}, links = linksOf(level, result)) {
+  const classes = HIDES.filter(c => hide?.has(c.id)), shown = [], hidden = [], counts = {}, touch = {};
+  for (const c of HIDES) counts[c.id] = 0;
+  const hit = l => keep.stream !== l.stream && classes.some(c => c.of(level, l));
+  for (const l of links) {
+    for (const c of HIDES) if (c.of(level, l)) counts[c.id]++;
+    const out = hit(l);
+    (out ? hidden : shown).push(l);
+    for (const n of [l.from, l.to]) { const t = touch[n] || (touch[n] = { all: 0, shown: 0 }); t.all++; if (!out) t.shown++; }
+  }
+  const gone = new Set(), bare = {};
+  for (const [id, t] of Object.entries(touch)) {
+    if (t.shown || id === "cdu" || id === "cdu2" || id === "crude") continue;
+    const off = result.pools[id] && result.pools[id].vol > 1e-4 && !result.pools[id].inSpec;
+    if (keep.node !== id && !off && (id === "bought" || POOLS[id])) gone.add(id); else bare[id] = t.all;
+  }
+  // a cut's label at the column goes when every line it has is hidden; and a pair is hidden when none of its lines show
+  const pairs = new Set(), seen = new Set(), cutLines = {};
+  for (const l of shown) seen.add(`${l.stream}>${l.to}`);
+  for (const l of hidden) if (!seen.has(`${l.stream}>${l.to}`)) pairs.add(`${l.stream}>${l.to}`);
+  for (const l of links) if (l.from === "cdu" || l.from === "cdu2") { const c = cutLines[l.stream] || (cutLines[l.stream] = { all: 0, shown: 0 }); c.all++; if (!hit(l)) c.shown++; }
+  const cuts = new Set(Object.entries(cutLines).filter(([, c]) => c.all && !c.shown).map(([s]) => s));
+  return { shown, hidden, counts, gone, bare, cuts, pairs };
+}
+/** The streams a hidden line keeps out of sight that put a product off spec: [{ pool, s, k }], the product's misses furthest first. */
+export function hiddenCulprits(level, result, hide, links = linksOf(level, result)) {
+  if (!hide?.size) return [];
+  const f = filtered(level, result, hide, {}, links), out = [];
+  for (const [p, pool] of Object.entries(result.pools)) {
+    if (pool.inSpec || pool.vol <= 1e-4) continue;
+    for (const miss of culprits(level, result, p)) for (const c of miss.by) if (c.share >= PUSH && f.pairs.has(`${c.s}>${p}`) && !out.some(x => x.pool === p && x.s === c.s)) out.push({ pool: p, s: c.s, k: miss.k });
+  }
+  return out;
+}
+
 const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const width = vol => Math.max(1.1, Math.min(14, 0.9 + vol * 0.32));
 /** The key specs to show on a pool: the level's, value and whether it passes. */
@@ -98,12 +185,14 @@ export function poolSpecs(level, p, pool) {
  * the pools with their volumes and key specs. opts: { select: { stream } | { node }, only (node ids to draw full; the
  * rest faint), fade (a stream → whether its links recede: faint, under the rest and not to be tapped, unless it's the
  * one selected), culprits (a Set of "stream>pool": the streams putting a pool off spec, drawn red and never faded),
- * labels ({ node id: text }), flow (animate the flow), mini (a lesson's small picture: no figures) }.
- * Returns the layout, so taps can be told apart (hitTest).
+ * labels ({ node id: text }), flow (animate the flow), mini (a lesson's small picture: no figures), hide (a Set of
+ * HIDES' ids: those lines are not drawn), arrange (the player's offsets, see layout), lift (the id of a box being
+ * dragged) }.
+ * Returns the layout with what the hide filter left of the lines (`filter`, see filtered), so taps can be told apart (hitTest).
  */
 export function drawSheet(svg, level, result, opts = {}) {
-  const lay = layout(level), N = lay.nodes, links = linksOf(level, result);
   const sel = opts.select || {}, only = opts.only ? new Set(opts.only) : null;
+  const lay = layout(level, opts.arrange), N = lay.nodes, filter = filtered(level, result, opts.hide, { stream: sel.stream, node: sel.node }), links = filter.shown;
   const culprit = l => !!opts.culprits?.has(`${l.stream}>${l.to}`), recede = l => sel.stream !== l.stream && !culprit(l) && !!opts.fade?.(l.stream);
   const parts = [];
   // ports: where each link leaves its source (stacked by the stream's lightness) and enters its destination
@@ -144,12 +233,15 @@ export function drawSheet(svg, level, result, opts = {}) {
   // the crude column's cut labels, beside their outlets
   const cdu = N.cdu;
   if (cdu) {
-    const cuts = Object.keys(CRUDES[level.crude].cuts);
+    const cuts = Object.keys(CRUDES[level.crude].cuts).filter(s => !filter.cuts.has(s));
     parts.push(`<g class="rf-cuts${only && !only.has("cdu") ? " dim" : ""}">${cuts.map(s => `<text x="${cdu.x + cdu.w + 2}" y="${(TOP + (RANK[s] ?? 6) * ROW - 2.5).toFixed(1)}" class="rf-cut-label">${esc(STREAMS[s].short)}</text>`).join("")}</g>`);
   }
   // the nodes
   for (const n of Object.values(N)) {
+    if (filter.gone.has(n.id)) continue;
     const dim = only ? !only.has(n.id) : false, picked = sel.node === n.id;
+    // a box being dragged is lifted: a halo of the brass round it
+    if (opts.lift === n.id) parts.push(`<rect class="rf-halo" x="${n.x - 2.5}" y="${n.y - 2.5}" width="${n.w + 5}" height="${n.h + 5}" rx="5"/>`);
     if (n.kind === "crude") {
       const c = CRUDES[level.crude];
       parts.push(`<g class="rf-node rf-src${dim ? " dim" : ""}" data-node="crude"><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="3"/><text x="${n.x + n.w / 2}" y="${n.y + 9}" class="rf-n1">CRUDE</text><text x="${n.x + n.w / 2}" y="${n.y + 17.5}" class="rf-n2">${esc(c.name.split(" ")[0])}</text></g>`);
@@ -196,9 +288,16 @@ export function drawSheet(svg, level, result, opts = {}) {
     parts.push(`<g class="rf-node rf-pool${off ? " off" : ""}${!pool ? " empty" : ""}${picked ? " sel" : ""}${dim ? " dim" : ""}" data-node="${n.id}"><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="3"/>` +
       `<text x="${n.x + 4}" y="${n.y + 9.5}" class="rf-p1">${esc(def.short)}${off ? ` → ${esc(POOLS[pool.soldAs].short)}` : ""}</text>${line2 ? `<text x="${n.x + 4}" y="${n.y + 17.5}" class="rf-p2">${esc(line2)}</text>` : ""}${line3 ? `<text x="${n.x + 4}" y="${n.y + 25}" class="rf-p3">${line3}</text>` : ""}</g>`);
   }
+  // a box drawn with every line to it hidden says how many: a stub and the count, so it never looks unconnected
+  for (const [id, count] of Object.entries(filter.bare)) {
+    const n = N[id];
+    if (!n || filter.gone.has(id)) continue;
+    const left = n.kind === "pool", x = left ? n.x : n.x + n.w, y = n.y + n.h / 2;
+    parts.push(`<g class="rf-bare"><title>${count} line${count > 1 ? "s" : ""} hidden</title><path d="M${x} ${y}h${left ? -6 : 6}"/><text x="${left ? x - 7 : x + 7}" y="${y + 1.7}" text-anchor="${left ? "end" : "start"}" class="rf-bare-n">+${count}</text></g>`);
+  }
   svg.setAttribute("viewBox", `-4 -4 ${lay.width + 8} ${lay.height + 8}`);
   svg.innerHTML = parts.join("");
-  return lay;
+  return { ...lay, filter };
 }
 
 /**
