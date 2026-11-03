@@ -126,7 +126,7 @@ export function worldOf(lvl) {
   if (w) return w;
   const list = lvl.bodies || [{ id: "earth" }], bodies = list.map(b => {
     const id = b.id, mu = b.mu ?? (id === "moon" ? MU_M : MU_E), r = b.r ?? (id === "moon" ? R_MOON : R);
-    if (b.rail || id === "moon") {
+    if (b.rail || (id === "moon" && !b.at)) {                    // the Moon is on its rail unless the level puts it somewhere (`at`)
       const rl = b.rail || {};
       return { id, mu, r, rail: true, a: rl.a ?? A_MOON, T: rl.T ?? T_MOON, phase: rl.phase ?? 0, cx: (rl.about || [0, 0])[0], cy: (rl.about || [0, 0])[1], x: 0, y: 0 };
     }
@@ -206,7 +206,7 @@ function nearest(p0x, p0y, dx, dy) {
  *   o.sample { out, n, t1 }: positions at n+1 equal times from the start to t1 into out (x, y pairs); after the flight ends it holds its last place.
  *   o.watch: keep flying after the target is entered, to the ring's far side (so the closest approach is known); default true.
  * Returns { end: "through" | "impact" | "lost" | "time", body (what it landed on), t, x, y, vx, vy, hit (the first entry into
- * the target ring: { t, x, y, vx, vy, speed (relative to the target), ok (the arrival condition met) }, or null), won, gates (how many
+ * the target ring: { t, x, y, vx, vy, speed (relative to the target), ok (the arrival condition met) }, or null), won, tNear (when it came closest), gates (how many
  * gates of a gated goal were passed in order), sweep (radians swept round the body of an orbit goal), near (the closest the shell came to the
  * target's centre, whole flight), core (the closest approach inside the ring, in rings: 0 the middle, 1 the edge), path
  * (Float64Array of t, x, y triples), length (travelled), steps }.
@@ -219,7 +219,7 @@ export function fly(lvl, ini, o = {}) {
   let gi = 0, cur = rings[0] || tg || null, ring = cur ? cur.r : 0, swp = 0;
   let x = ini.x, y = ini.y, vx = ini.vx, vy = ini.vy, t = ini.t || 0;
   const t0 = t, tEnd = t0 + tMax;
-  let hit = null, inside = false, core = Infinity, near = Infinity, end = "time", body = null, length = 0, steps = 0;
+  let hit = null, inside = false, core = Infinity, near = Infinity, tNear = t, end = "time", body = null, length = 0, steps = 0;
   const every = o.record || 0, rec = every ? [t, x, y] : null;
   let lastRx = x, lastRy = y, acc = 0;
   const smp = o.sample, sdt = smp ? smp.t1 / smp.n : 0;
@@ -260,7 +260,7 @@ export function fly(lvl, ini, o = {}) {
       if (rides(cur)) { const p = ringAt(lvl, cur, nt); ntx = p[0]; nty = p[1]; }
       const p0x = x - tgx, p0y = y - tgy, d1x = dx - (ntx - tgx), d1y = dy - (nty - tgy);
       dist = nearest(p0x, p0y, d1x, d1y);
-      if (dist < near) near = dist;
+      if (dist < near) { near = dist; tNear = nt; }
       if (!hit && !wasIn && !orbit) uT = enters(p0x, p0y, d1x, d1y, ring);
     }
     const impact = uBody <= 1;
@@ -275,7 +275,7 @@ export function fly(lvl, ini, o = {}) {
       const ok = (lim.soft === undefined || speed <= lim.soft) && (lim.fast === undefined || speed >= lim.fast);
       if (gated && gi < rings.length - 1) {
         if (ok) {                                           // a gate passed in order: the next ring is the one to enter
-          gi++; cur = rings[gi]; ring = cur.r; near = Infinity; core = Infinity;
+          gi++; cur = rings[gi]; ring = cur.r; near = Infinity; core = Infinity; tNear = nt;
           const p = ringAt(lvl, cur, nt); ntx = p[0]; nty = p[1];
         }
       } else { hit = { t: ut, x: ux, y: uy, vx: uvx, vy: uvy, speed, ok }; inside = true; }
@@ -326,7 +326,7 @@ export function fly(lvl, ini, o = {}) {
   }
   if (rec) rec.push(t, x, y);
   const won = !!hit && hit.ok;
-  return { end, body, t, x, y, vx, vy, hit, won, near, core: hit ? core : Infinity, gates: gi, sweep: swp, path: rec ? Float64Array.from(rec) : null, length, steps };
+  return { end, body, t, x, y, vx, vy, hit, won, near, tNear, core: hit ? (orbit ? 0.5 : core) : Infinity, gates: gi, sweep: swp, path: rec ? Float64Array.from(rec) : null, length, steps };
 }
 
 // ---------- shots ----------
@@ -419,7 +419,7 @@ export function cone(lvl, aim, t = 0, len = lvl.cone?.len ?? 4) {
     left[2 * k] = c[2 * k] + NX[k] * HI[k]; left[2 * k + 1] = c[2 * k + 1] + NY[k] * HI[k];
     right[2 * k] = c[2 * k] + NX[k] * LO[k]; right[2 * k + 1] = c[2 * k + 1] + NY[k] * LO[k];
   }
-  return { centre: c, left, right, t1, end: mid.end, over: mid, shells };
+  return { centre: c, left, right, t1, end: mid.end, over: mid, shells, tNear: mid.tNear };
 }
 
 // ---------- the game, in the Game Bench's contract ----------
