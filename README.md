@@ -14,7 +14,7 @@ What each game does, and the decisions behind it, is in `docs/`: one file per ga
 
 **Classics** ([overview](docs/classics.md)): [Sudoku](docs/sudoku.md) · [Calcudoku](docs/calcudoku.md) · [Kakuro](docs/kakuro.md) · [Hitori](docs/hitori.md) · [Slitherlink](docs/slitherlink.md) · [Masyu](docs/masyu.md) · [Nurikabe](docs/nurikabe.md) · [Bridges](docs/bridges.md) · [Nonogram](docs/nonogram.md) · [Mines](docs/mines.md) · [Bulls](docs/bulls.md) · [Assay](docs/assay.md) · [Yield](docs/yield.md) · [Codeword](docs/codeword.md) · [Ladder](docs/ladder.md) · [Isomer](docs/isomer.md) · [Lode](docs/lode.md) · [Lots](docs/lots.md) · [Acrostic](docs/acrostic.md)
 
-**Idle** ([overview](docs/idle.md)): [Heliograph](docs/heliograph.md) · [Shunt](docs/shunt.md) · [Polder](docs/polder.md) · [Topple](docs/topple.md) · [Orrery](docs/orrery.md) · [Avalanche](docs/avalanche.md) · [Netting](docs/netting.md) · [Settle](docs/settle.md) · [Drift](docs/drift.md) · [Guilloché](docs/guilloche.md) · [Slipway](docs/slipway.md) · [Loom](docs/loom.md) · [Reckoning](docs/reckoning.md)
+**Idle** ([overview](docs/idle.md)): [Heliograph](docs/heliograph.md) · [Shunt](docs/shunt.md) · [Polder](docs/polder.md) · [Topple](docs/topple.md) · [Orrery](docs/orrery.md) · [Avalanche](docs/avalanche.md) · [Netting](docs/netting.md) · [Settle](docs/settle.md) · [Drift](docs/drift.md) · [Guilloché](docs/guilloche.md) · [Slipway](docs/slipway.md) · [Loom](docs/loom.md) · [Courier](docs/courier.md)
 
 **Casino** ([overview](docs/casino.md)): [Baccarat](docs/baccarat.md) · [Roulette](docs/roulette.md) · [Blackjack](docs/blackjack.md) · [Sic Bo](docs/sic-bo.md) · [Craps](docs/craps.md) · [Texas Hold'em](docs/texas-holdem.md)
 
