@@ -3,7 +3,7 @@
 // the clouds, the helps and the saved voyage.
 import {
   newVoyage, apply, moves, validate, save, restore, nextCrossing, bellsAt, bellsBetween, shipClock, conditions, look, sextantTruth, swellAt,
-  sightNoise, filterSigma, reduce, levelOf, truePlace, estPlace, sceneJd, hintFor, routeOf, masteryAfter, regionWords, cloudsNow,
+  sightNoise, filterSigma, reduce, forecast, levelOf, truePlace, estPlace, sceneJd, hintFor, routeOf, masteryAfter, regionWords, cloudsNow,
   POLARIS, POLARIS_HR, BY_HR, DUSK_ALT, DAWN_ALT, MAX_WAIT, EYE,
 } from "../landfall-engine.js";
 import { LEVELS } from "../landfall-levels.js";
@@ -225,6 +225,23 @@ const toSky = (S, hr = POLARIS_HR) => { apply(S, { t: "skip" }); apply(S, { t: "
   check(save(x) === save(y), "a restored voyage goes on exactly as the original (one seed, one draw counter)");
   check(restore("nonsense") === null && restore(JSON.stringify({ v: 2 })) === null && restore(null) === null, "a bad save is not a voyage");
   check(validate(x).length === 0, "a played voyage keeps its invariants");
+}
+
+// ---------- the forecast of a course ----------
+{
+  const S = newVoyage("first-watch", 5);
+  apply(S, { t: "skip" }); apply(S, { t: "pick", hr: POLARIS_HR });
+  const f = forecast(S, 90), g = forecast(S, 90), tr = P => P[0][0] + P[1][1];
+  check(f.hours > 4 && f.hours < 20 && Math.abs(f.run - f.hours * levelOf(S).speed) < 1e-9, `a forecast says how long to the next twilight (${f.hours.toFixed(1)} h, ${f.run.toFixed(0)} nm)`);
+  check(Math.abs(f.E[1] - S.E[1]) < 1e-6 && f.E[0] > S.E[0] + 10 && JSON.stringify(f) === JSON.stringify(g), "...due east it keeps the northing, adds the run to the easting, and gives the same answer twice");
+  check(tr(f.P) > tr(S.P), "...and the fog it forecasts is bigger than the fog now");
+  const before = save(S);
+  forecast(S, 200);
+  check(save(S) === before, "...and asking changes nothing");
+  waitFor(S, s => look(s, POLARIS).visible); apply(S, { t: "raise" }); apply(S, { t: "read", marks: [sextantTruth(S)] }); apply(S, { t: "plot" });
+  const h = forecast(S, 90);
+  apply(S, { t: "sail", course: 90 });
+  check(Math.hypot(h.E[0] - S.pre.E[0], h.E[1] - S.pre.E[1]) < 3 && Math.abs(h.hours - S.leg.hours) < 0.4, "the forecast lands within a few miles of the reckoning the leg gives (the sun is judged from the estimate, not the truth)");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
