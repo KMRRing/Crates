@@ -166,7 +166,7 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg3-n.r0, .brg3-n.r1 { border-width: 2.5px; }
 .brg3-n.r0 { --realm: var(--brg-r0); border-color: var(--realm); }
 .brg3-n.r1 { --realm: var(--brg-r1); border-color: var(--realm); border-radius: 30%; }
-.brg3-n.r0.met, .brg3-n.r1.met { background: color-mix(in srgb, var(--realm) 30%, var(--brg-tile)); border-color: var(--realm); }
+.brg3-n.r0.met, .brg3-n.r1.met { background: color-mix(in srgb, var(--realm) 30%, var(--brg-tile)); }
 .brg3-n.r0.met::after, .brg3-n.r1.met::after { content: "\2713\FE0E"; position: absolute; top: -.32rem; right: -.32rem; width: .66rem; height: .66rem; border-radius: 50%; background: var(--realm); color: var(--brg-tile);
   font-size: .46rem; font-weight: 900; line-height: .66rem; text-align: center; box-shadow: 0 0 0 1.5px var(--brg-tile); }
 .brg3-n.over { background: color-mix(in srgb, var(--brg-bad) 42%, var(--brg-tile)); border-color: var(--brg-bad); color: var(--brg-bad); box-shadow: 0 0 0 2px var(--brg-bad); }
