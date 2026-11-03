@@ -1,5 +1,4 @@
-/* Pipes: brass pipe on a navy board, the oil dark inside it; copper is the house colour. The solids (pipes-solid-3d.js) read
-   these tokens too. */
+/* Pipes: brass pipe on a navy board, the oil dark inside it; copper is the house colour. */
 :root { --pi-in: #A9542B; --pi-in-soft: color-mix(in srgb, var(--pi-in) 15%, var(--sheet)); --pi-ground: #16212A; --pi-tile: #22303B; --pi-tile-edge: #3A3424;
   --pi-pipe: #C99A45; --pi-pipe-dark: #8A6424; --pi-rock: #0F171D; --pi-good: #2F7D5B; --pi-bad: #A8382B; --pi-edge: var(--tile-edge);
   --pi-oil: #15110D; --pi-stone: #6E5E4A; --pi-wall: #2B2620; --pi-label: #C9B892; }
@@ -72,14 +71,26 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) #ap
 .pi-go:disabled { opacity: .5; cursor: default; }
 .pi-go[hidden] { display: none; }
 
-/* ---------- the solids: the board is a canvas the cube is drawn on, as large as the stage allows ---------- */
-.pi-board.solid { width: calc(100cqw - 1rem); height: calc(100cqh - 1rem); border-radius: 0; overflow: visible; background: transparent; }
-.pi-board.solid canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.pi-controls.puzzle.solid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.pi-controls.puzzle.solid.net { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.pi-controls.puzzle.solid.done { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
-.pi-go.on { background: var(--pi-in); color: #fff; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) #app .pi-go.quiet.on { background: var(--pi-in); color: #fff; box-shadow: none; }
+/* ---------- the 3D map: a stack of floors drawn in an SVG the size of the stage; the floors' chips at its left ---------- */
+.pi-board.map { position: relative; width: calc(100cqw - 1rem); height: calc(100cqh - 1rem); border-radius: 0; overflow: visible; background: transparent; }
+.pi-board.map svg { width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.pi-board .plate { transition: opacity .15s; }
+.pi-board .plate.under { opacity: .55; }
+.pi-board .plate.over { opacity: .16; }
+.pi-board .plate-bg { fill: var(--pi-ground); stroke: var(--brass); stroke-width: 1.5; }
+.pi-board .plate.on .plate-bg { stroke-width: 3; }
+.pi-board .shaft-edge { fill: none; stroke: var(--pi-pipe-dark); stroke-linecap: round; }
+.pi-board .shaft { fill: none; stroke: var(--pi-pipe); stroke-linecap: round; }
+.pi-board .shaft-oil { fill: none; stroke: var(--pi-oil); stroke-linecap: round; }
+.pi-board .shaft-open { fill: none; stroke: var(--pi-bad); stroke-linecap: round; stroke-dasharray: 2 5; }
+.pi-board .oil-dot { fill: var(--pi-oil); }
+.pi-layers { position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: grid; gap: .3rem; justify-items: center; width: 2.4rem; }
+.pi-layers small { font-size: .56rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); }
+.pi-layer { width: 2.4rem; height: 2.4rem; border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--tile); color: var(--ink); font: inherit; font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; cursor: pointer; touch-action: manipulation; padding: 0; }
+.pi-layer.now { background: var(--pi-in); border-color: var(--pi-in); color: #fff; }
+.pi-layer.home { font-size: 1.1rem; font-weight: 600; color: var(--ink-soft); }
+.pi-controls.puzzle.map { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pi-controls.puzzle.map.done { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
 
 /* ---------- the puzzle: the hand of pieces to lay, old pipe, stakes, and the levels in the menu ---------- */
 .pi-hand { gap: .35rem; }
@@ -138,3 +149,10 @@ dialog.pi-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   #app.pipes .pi-bar { grid-column: 2; grid-row: 5; align-content: end; }
   #app.pipes .pi-status { white-space: normal; }
 }
+/* a hand of many kinds (the 3D map's) keeps to one row: smaller tiles */
+.pi-hand.many { gap: .22rem; }
+.pi-hand.many .pi-q.pi-h { flex-basis: 2.6rem; min-width: 1.7rem; height: 2.7rem; }
+.pi-hand.many .pi-n { min-width: .9rem; font-size: .64rem; padding: 0 .15rem; }
+.pi-hand.wrap { flex-wrap: wrap; }
+.pi-hand.wrap .pi-q-label { display: none; }
+.pi-hand.wrap .pi-q.pi-h { flex: 0 0 2.3rem; height: 2.3rem; }

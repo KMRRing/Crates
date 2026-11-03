@@ -5,42 +5,54 @@
 // comes as it is, so the hand fixes which ways the route can turn. Pure: pipes-puzzle-solve.js proves every level has
 // its answer, pipes-puzzle-ui.js draws it, tests/pipes-puzzle.mjs plays it.
 //
-// Squares are numbered c = y * cols + x; sides 0 N, 1 E, 2 S, 3 W, and pieces and their channels are pipes-pieces.js's.
-import { PIECES, KINDS, DIRS, back, channelOf } from "./pipes-pieces.js";
+// Squares are numbered c = z * cols * rows + y * cols + x (z is the layer: a flat board has one); sides 0 N, 1 E, 2 S, 3 W,
+// 4 U, 5 D, and pieces and their channels are pipes-pieces.js's.
+import { PIECES, KINDS, DIRS, back, axisOf, STRAIGHT, CROSSING, isCrossing, channelOf } from "./pipes-pieces.js";
 
-export { PIECES, KINDS, DIRS, back, channelOf };
-export const SIDE = "NESW";
-/** A level's map is drawn with the pieces themselves: ne is └ (north and east), nw ┘, se ┌, sw ┐. */
-export const GLYPH = { h: "─", v: "│", ne: "└", nw: "┘", se: "┌", sw: "┐", x: "┼" };
+export { PIECES, KINDS, DIRS, back, axisOf, isCrossing, channelOf };
+export const SIDE = "NESWUD";
+/** A level's map is drawn with the pieces themselves: ne is └ (north and east), nw ┘, se ┌, sw ┐. The 3D map's old pipe
+ *  has letters for the pieces that go up and down. */
+export const GLYPH = { h: "─", v: "│", ne: "└", nw: "┘", se: "┌", sw: "┐", x: "┼", z: "Z", nu: "A", eu: "B", su: "C", wu: "E", nd: "F", ed: "G", sd: "H", wd: "I", xn: "J", xe: "K" };
 const OF_GLYPH = Object.fromEntries(Object.entries(GLYPH).map(([k, g]) => [g, k]));
 export const STAR_LIFTS = 2;      // lifts a level allows for the third star (and one more for every six pieces)
 
 /** The square beyond c on side d, or -1 off the board. */
 export function beyond(L, c, d) {
-  const x = c % L.cols + DIRS[d][0], y = Math.floor(c / L.cols) + DIRS[d][1];
-  return x >= 0 && y >= 0 && x < L.cols && y < L.rows ? y * L.cols + x : -1;
+  const layer = L.cols * L.rows, z = Math.floor(c / layer), x = c % L.cols + DIRS[d][0], y = Math.floor((c % layer) / L.cols) + DIRS[d][1], zz = z + DIRS[d][2];
+  return x >= 0 && y >= 0 && zz >= 0 && x < L.cols && y < L.rows && zz < L.layers ? zz * layer + y * L.cols + x : -1;
 }
-export const xy = (L, c) => [c % L.cols, Math.floor(c / L.cols)];
+export const xy = (L, c) => [c % L.cols, Math.floor((c % (L.cols * L.rows)) / L.cols)];
+export const layerOf = (L, c) => Math.floor(c / (L.cols * L.rows));
 /** The piece whose channel joins sides a and b (a straight or a bend), or null. */
 export function pieceJoining(a, b) {
-  return KINDS.find(k => k !== "x" && PIECES[k].some(([p, q]) => (p === a && q === b) || (p === b && q === a))) || null;
+  return KINDS.find(k => !isCrossing(k) && PIECES[k].some(([p, q]) => (p === a && q === b) || (p === b && q === a))) || null;
 }
+/** The crossing of two straights along different axes (the first passed along side a, the next along side b), or null. */
+export function crossingOf(a, b) {
+  const p = axisOf(a), q = axisOf(b);
+  return p === q ? null : CROSSING[[p, q].sort().join("")];
+}
+/** Whether a piece is a straight (it is passed in by one side and out by the opposite). */
+export const isStraight = k => STRAIGHT.includes(k);
 
 /**
  * A level from its text. spec: { id, map, out, inlet, hand }; map is rows of squares: . open ground, # rock, S the wellhead
  * (its outlet on side `out`), T the terminal (its inlet on side `inlet`), ─ │ └ ┘ ┌ ┐ ┼ old pipe, already in the
  * ground (the oil must run through it), 1-9 a stake on open ground (the route passes the stakes in order); hand is
- * "h3 v2 ne1 …", the pieces to lay, each used exactly once. Returns { id, cols, rows, cells, stakeAt, stakes, hand,
- * total, olds, source, terminal } with cells[c] null for open ground or { k: "rock" | "source" | "terminal" | "old" … }.
+ * "h3 v2 ne1 …", the pieces to lay, each used exactly once. A 3D map's `map` is a list of layers (bottom first), each a
+ * list of rows. Returns { id, cols, rows, layers, size, cells, stakeAt, stakes, hand, total, olds, source, terminal } with
+ * cells[c] null for open ground or { k: "rock" | "source" | "terminal" | "old" … }.
  */
 export function parseLevel(spec) {
-  const rows = spec.map.length, cols = spec.map[0].length;
-  const L = { id: spec.id, name: spec.name, cols, rows, cells: Array(cols * rows).fill(null), stakeAt: Array(cols * rows).fill(0), stakes: [],
+  const stack = Array.isArray(spec.map[0]) ? spec.map : [spec.map], layers = stack.length;
+  const rows = stack[0].length, cols = stack[0][0].length, size = cols * rows * layers;
+  const L = { id: spec.id, name: spec.name, cols, rows, layers, size, cells: Array(size).fill(null), stakeAt: Array(size).fill(0), stakes: [],
     hand: {}, total: 0, olds: 0, source: null, terminal: null, sols: spec.sols || [] };
-  spec.map.forEach((row, y) => {
-    if (row.length !== cols) throw new Error(`level ${spec.id}: row ${y} is ${row.length} wide, not ${cols}`);
+  stack.forEach((layer, z) => layer.forEach((row, y) => {
+    if (layer.length !== rows || row.length !== cols) throw new Error(`level ${spec.id}: row ${y} of layer ${z} is ${row.length} wide, not ${cols}`);
     [...row].forEach((ch, x) => {
-      const c = y * cols + x;
+      const c = z * cols * rows + y * cols + x;
       if (ch === "#") L.cells[c] = { k: "rock" };
       else if (ch === "S") { L.source = { c, d: SIDE.indexOf(spec.out) }; L.cells[c] = { k: "source", d: L.source.d }; }
       else if (ch === "T") { L.terminal = { c, d: SIDE.indexOf(spec.inlet) }; L.cells[c] = { k: "terminal", d: L.terminal.d }; }
@@ -48,7 +60,7 @@ export function parseLevel(spec) {
       else if (/[1-9]/.test(ch)) L.stakeAt[c] = Number(ch);
       else if (ch !== ".") throw new Error(`level ${spec.id}: unknown square ${ch}`);
     });
-  });
+  }));
   if (!L.source || !L.terminal) throw new Error(`level ${spec.id}: needs a wellhead and a terminal`);
   for (const n of spec.hand.split(/\s+/).filter(Boolean)) {
     const m = /^([a-z]+)(\d+)$/.exec(n);
@@ -61,21 +73,26 @@ export function parseLevel(spec) {
 }
 /** A level back as text: parseLevel's inverse, for the generator. */
 export function specOf(L) {
-  const map = [];
-  for (let y = 0; y < L.rows; y++) {
-    let row = "";
-    for (let x = 0; x < L.cols; x++) {
-      const c = y * L.cols + x, f = L.cells[c];
-      row += !f ? (L.stakeAt[c] ? String(L.stakeAt[c]) : ".") : f.k === "rock" ? "#" : f.k === "source" ? "S" : f.k === "terminal" ? "T" : GLYPH[f.piece];
+  const stack = [];
+  for (let z = 0; z < L.layers; z++) {
+    const map = [];
+    for (let y = 0; y < L.rows; y++) {
+      let row = "";
+      for (let x = 0; x < L.cols; x++) {
+        const c = z * L.cols * L.rows + y * L.cols + x, f = L.cells[c];
+        row += !f ? (L.stakeAt[c] ? String(L.stakeAt[c]) : ".") : f.k === "rock" ? "#" : f.k === "source" ? "S" : f.k === "terminal" ? "T" : GLYPH[f.piece];
+      }
+      map.push(row);
     }
-    map.push(row);
+    stack.push(map);
   }
+  const map = L.layers > 1 ? stack : stack[0];
   const hand = KINDS.filter(k => L.hand[k]).map(k => `${k}${L.hand[k]}`).join(" ");
   return { id: L.id, map, out: SIDE[L.source.d], inlet: SIDE[L.terminal.d], hand };
 }
 
 /** The pieces laid so far: an array by square, null where nothing is. */
-export const emptyLaid = L => Array(L.cols * L.rows).fill(null);
+export const emptyLaid = L => Array(L.size).fill(null);
 export const pieceOn = (L, laid, c) => (L.cells[c]?.k === "old" ? L.cells[c].piece : laid[c]);
 /** What's left of the hand: counts by kind, after the pieces laid. */
 export function handLeft(L, laid) {
@@ -96,7 +113,7 @@ export function trace(L, laid) {
   const passes = [], filled = {};
   let c = beyond(L, L.source.c, L.source.d), a = back(L.source.d), last = L.source.c;
   if (c < 0) return { passes, end: { c: last, why: "edge" } };
-  for (let guard = 0; guard < 4 * L.cols * L.rows; guard++) {
+  for (let guard = 0; guard < 4 * L.size; guard++) {
     const f = L.cells[c];
     if (f?.k === "terminal") return { passes, end: { c, why: f.d === a ? "terminal" : "shape" } };
     if (f?.k === "rock") return { passes, end: { c, why: "rock" } };
@@ -126,7 +143,7 @@ export function feed(L, laid) {
   const t = beyond(L, L.terminal.c, L.terminal.d);
   if (t < 0) return { passes, end: { c: L.terminal.c, why: "edge" } };
   let c = t, exit = back(L.terminal.d);
-  for (let guard = 0; guard < 4 * L.cols * L.rows; guard++) {
+  for (let guard = 0; guard < 4 * L.size; guard++) {
     const f = L.cells[c];
     if (f?.k === "rock") return { passes, end: { c, why: "rock" } };
     if (f?.k === "source") return { passes, end: { c, why: f.d === exit ? "source" : "shape" } };
@@ -205,7 +222,7 @@ export function layRoute(L, route) {
       const piece = pieceJoining(a, b);
       if (!piece) return null;
       laid[c] = piece;
-    } else if ((laid[c] === "h" || laid[c] === "v") && b === back(a) && (a % 2) !== (PIECES[laid[c]][0][0] % 2)) laid[c] = "x";
+    } else if (isStraight(laid[c]) && b === back(a) && crossingOf(a, PIECES[laid[c]][0][0])) laid[c] = crossingOf(a, PIECES[laid[c]][0][0]);
     else return null;
     c = beyond(L, c, b); a = back(b);
   }
