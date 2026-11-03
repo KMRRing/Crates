@@ -1,0 +1,87 @@
+/* Go: a board of brass-toned boxwood ruled in ink, stones of ink enamel and ivory. Upright: the board as large as the
+   width allows, the buttons under it. Sideways: the board on the left, the buttons beside it. */
+:root {
+  --go-in: #8B6620;                                              /* the game's enamel: old brass */
+  --go-soft: color-mix(in srgb, var(--go-in) 15%, var(--sheet));
+  --go-wood: #D9B66B; --go-edge: #8B6620; --go-line: #3A2B0F; --go-coord: #6B5120;
+  --go-black: #14181C; --go-black-hi: #4A545C; --go-white: #E9E1CB; --go-white-hi: #FFFDF5; --go-white-edge: #8C7A55;
+  --go-good: #2F7D5B; --go-bad: #A8382B; --go-mark: #E2B865;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --go-in: #C99A45; --go-wood: #8E6E2E; --go-edge: #C99A45; --go-line: #17110A; --go-coord: #E2B865;
+    --go-black: #0A0D10; --go-black-hi: #3A444C; --go-white: #DDD4BC; --go-white-hi: #F6F0DE; --go-white-edge: #6B5A33; --go-good: #7FC2A8; --go-bad: #E8806F; }
+}
+html[data-mode="night"] { --go-in: #C99A45; --go-wood: #8E6E2E; --go-edge: #C99A45; --go-line: #17110A; --go-coord: #E2B865;
+  --go-black: #0A0D10; --go-black-hi: #3A444C; --go-white: #DDD4BC; --go-white-hi: #F6F0DE; --go-white-edge: #6B5A33; --go-good: #7FC2A8; --go-bad: #E8806F; }
+
+.go-mark { display: inline-block; }
+.go-mark svg { width: 100%; height: 100%; display: block; }
+
+.go-table { display: flex; flex-direction: column; justify-content: center; min-height: 0; padding-top: .5rem; }
+.go-stage { flex: 0 1 auto; aspect-ratio: 1; width: 100%; min-height: 0; display: grid; place-items: center; container-type: size; }
+.go-board { width: min(100cqw, 100cqh); aspect-ratio: 1; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+.go-board svg { width: 100%; height: 100%; display: block; touch-action: manipulation; }
+
+.go-wood { fill: var(--go-wood); stroke: var(--go-edge); stroke-width: .06; }
+.go-lines { fill: none; stroke: var(--go-line); stroke-width: .045; stroke-linecap: square; }
+.go-star { fill: var(--go-line); }
+.go-coord { fill: var(--go-coord); font-weight: 800; font-family: inherit; }
+.go-stone .gb, .go-ghost.gb { fill: url(#go-gb); stroke: var(--go-black); stroke-width: .03; }
+.go-stone .gw, .go-ghost.gw { fill: url(#go-gw); stroke: var(--go-white-edge); stroke-width: .03; }
+.go-ghost { opacity: .55; pointer-events: none; }
+.go-stone.dead circle { opacity: .45; }
+.go-x { fill: none; stroke-width: .09; stroke-linecap: round; }
+.go-x.on-b { stroke: var(--go-white-hi); }
+.go-x.on-w { stroke: var(--go-black); }
+.go-last { fill: none; stroke-width: .08; }
+.go-last.on-b { stroke: var(--go-white-hi); }
+.go-last.on-w { stroke: var(--go-black); }
+.go-ko { fill: none; stroke: var(--go-bad); stroke-width: .08; }
+.go-est.b, .go-terr.b { fill: var(--go-black); }
+.go-est.w, .go-terr.w { fill: var(--go-white-hi); stroke: var(--go-white-edge); stroke-width: .03; }
+.go-terr { opacity: .92; }
+
+.go-side { display: flex; flex-direction: column; gap: .4rem; padding-top: .4rem; }
+.go-status { margin: 0; color: var(--ink-soft); font-size: .9rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.go-ahead { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .6rem; min-height: 1.5rem; }
+.go-ahead[hidden] { display: none; }
+.go-meter { position: relative; height: .7rem; border-radius: 4px; overflow: hidden; background: var(--go-white); border: 1.5px solid var(--go-white-edge); box-sizing: border-box; }
+.go-meter b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--go-black); transition: width .3s ease; }
+.go-meter i { position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: var(--go-mark); }
+.go-ahead span { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.go-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.go-controls .btn { min-height: 2.9rem; }
+.go-controls .btn[hidden] { display: none; }
+
+.go-rules p { line-height: 1.45; }
+.go-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.go-rules pre { white-space: pre-wrap; font-size: .72rem; line-height: 1.4; color: var(--ink-soft); }
+.go-rules-note { font-size: .85rem; color: var(--ink-soft); }
+.go-end-head { margin: .2rem 0 .6rem; }
+.go-tally { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.go-tally li { display: grid; grid-template-columns: 1.3rem minmax(0, 1fr) 3.2rem; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.go-tally li b { text-align: right; font-variant-numeric: tabular-nums; }
+.go-tally li.won .nm::after { content: " \2605"; color: var(--go-in); }
+.go-swatch { width: 1.15rem; height: 1.15rem; border-radius: 50%; box-sizing: border-box; }
+.go-swatch.b { background: var(--go-black); border: 1.5px solid var(--go-black-hi); }
+.go-swatch.w { background: var(--go-white); border: 1.5px solid var(--go-white-edge); }
+.go-end-note { color: var(--ink-soft); font-size: .9rem; }
+.go-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.go-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.go-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+html[data-theme="office"] .go-wood { rx: .15px; }
+html[data-theme="modern"] .go-wood { rx: .5px; }
+html[data-theme="kontor"] .go-wood { rx: .05px; }
+
+/* held sideways: the board alone on the left as large as the height allows; who is ahead and the buttons beside it, low */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.go { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
+  #app.go .go-status { grid-column: 1 / -1; grid-row: 2; padding: .1rem 0 .2rem; }
+  #app.go :is(.go-table, .go-side) { display: contents; }
+  #app.go .go-stage { grid-column: 1; grid-row: 3 / 6; width: auto; aspect-ratio: auto; }
+  #app.go .go-ahead { grid-column: 2; grid-row: 4; margin-bottom: .4rem; }
+  #app.go .go-controls { grid-column: 2; grid-row: 5; }
+}

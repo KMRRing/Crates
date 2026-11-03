@@ -51,7 +51,7 @@ function node(pos, made) {
  * Returns { move, winrate (for the side to move), score (its lead, in points), own (the net's ownership, +1 = the side
  * to move), visits: [[move, visits, prior]...] }.
  */
-export function search(net, root, { visits = 1, komi = 7.5, temperature = 0, rng = Math.random, cache = new Map() } = {}) {
+export function search(net, root, { visits = 1, komi = 7.5, temperature = 0, rng = Math.random, cache = new Map(), noPass = false } = {}) {
   const lookAt = (nd) => {
     const key = `${nd.pos.key}|${nd.pos.toMove}|${nd.pos.passes}|${nd.pos.ko}`;
     let ev = cache.get(key);
@@ -110,17 +110,17 @@ export function search(net, root, { visits = 1, komi = 7.5, temperature = 0, rng
   }
 
   const stats = Array.from(rootEv.moves, (mv, i) => [mv, top.kids[i]?.n || 0, rootEv.prior[i]]);
-  return { move: choose(stats, visits, temperature, rng), winrate: top.wr / top.n, score: rootEv.score, own: rootEv.own, visits: stats };
+  return { move: choose(stats, visits, temperature, rng, noPass), winrate: top.wr / top.n, score: rootEv.score, own: rootEv.own, visits: stats };
 }
 
 /** The move to play: the most visited, or drawn from the visits (the prior, when there is one look) raised to 1/temperature. */
-function choose(stats, visits, temperature, rng) {
+function choose(stats, visits, temperature, rng, noPass = false) {
   const weight = s => (visits <= 1 ? s[2] : s[1]);
-  if (temperature <= 0) {
-    let best = stats[0];
-    for (const s of stats) if (weight(s) > weight(best) || (weight(s) === weight(best) && s[2] > best[2])) best = s;
-    return best[0];
-  }
+  let best = stats[0];
+  for (const s of stats) if (weight(s) > weight(best) || (weight(s) === weight(best) && s[2] > best[2])) best = s;
+  if (temperature <= 0) return best[0];
+  // a loose draw may not end the game on a whim: a pass is played only if it is the best move, or the other side passed
+  if (noPass && best[0] !== PASS) stats = stats.filter(s => s[0] !== PASS);
   const ws = stats.map(s => Math.pow(Math.max(weight(s), 1e-9), 1 / temperature));
   let r = rng() * ws.reduce((a, b) => a + b, 0);
   for (let i = 0; i < ws.length; i++) { r -= ws[i]; if (r <= 0) return stats[i][0]; }
