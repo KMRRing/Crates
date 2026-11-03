@@ -5,8 +5,8 @@
 // comes as it is, so the hand fixes which ways the route can turn. Pure: pipes-puzzle-solve.js proves every level has
 // its answer, pipes-puzzle-ui.js draws it, tests/pipes-puzzle.mjs plays it.
 //
-// Squares are numbered c = y * cols + x; sides 0 N, 1 E, 2 S, 3 W, and pieces and their channels are pipes-engine.js's.
-import { PIECES, KINDS, DIRS, back, channelOf } from "./pipes-engine.js";
+// Squares are numbered c = y * cols + x; sides 0 N, 1 E, 2 S, 3 W, and pieces and their channels are pipes-pieces.js's.
+import { PIECES, KINDS, DIRS, back, channelOf } from "./pipes-pieces.js";
 
 export { PIECES, KINDS, DIRS, back, channelOf };
 export const SIDE = "NESW";

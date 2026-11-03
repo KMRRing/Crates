@@ -23,7 +23,6 @@ export const GAMES = {
   chart: { name: "Chart", page: "./chart.html" },
   survey: { name: "Survey", page: "./survey.html" },
   blend: { name: "Blend", page: "./blend.html" },
-  pipes: { name: "Pipes", page: "./pipes.html" },
   refinery: { name: "Refinery", page: "./refinery.html" },
   rush: { name: "Puzzle rush", page: "./rush.html" },     // Gambit's, on a page of its own (no tile: Gambit's menu opens it)
   deck: { name: "Deck", page: "./deck.html" },

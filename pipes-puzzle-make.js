@@ -2,7 +2,7 @@
 // crossing is allowed), takes the hand from the pieces the route is made of, and then adds rock until the solver finds one
 // answer and no other, and takes away whatever rock, old pipe or stake the answer doesn't need. Used to write
 // pipes-puzzle-levels.js; no page loads it.
-import { rng, mix, PIECES, KINDS } from "./pipes-engine.js";
+import { rng, mix, PIECES, KINDS } from "./pipes-pieces.js";
 import { beyond, back, pieceJoining, parseLevel, specOf, layRoute, SIDE } from "./pipes-puzzle.js";
 import { solve } from "./pipes-puzzle-solve.js";
 

@@ -223,7 +223,6 @@ export function createPuzzle(deps) {
   function drawText(res) {
     const text = textOf(res);
     $("status").textContent = text;
-    $("ahead").hidden = true;
     $("stat1Label").textContent = "Level"; $("stat1").textContent = String(index + 1);
     $("stat3Label").textContent = "To lay"; $("stat3").textContent = run.solved ? "✓" : String(res.left);
     $("stat3").className = run.solved ? "met" : "";
@@ -374,7 +373,8 @@ export function createPuzzle(deps) {
   load();
   return {
     /** Shows the level in hand. */
-    show() { $("board").hidden = false; $("shaft").hidden = true; $("card").hidden = true; shownFor = ""; svg = null; go(saved.id); },
+    show() { $("queue").hidden = false; $("board").hidden = false; shownFor = ""; svg = null; go(saved.id); },
+    hide() { $("queue").hidden = true; $("board").hidden = true; },
     pause() { clearTimeout(oilTimer); oilTimer = 0; },
     resume() { if (run?.solved && oilTo !== Infinity) { oilTo = Infinity; drawBoard(); } },
     levelList, go, again, next, undo,

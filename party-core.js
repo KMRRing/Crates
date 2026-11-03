@@ -214,7 +214,6 @@ export const ELSEWHERE = [
   { id: "nexus", name: "Nexus", kind: "duo", duo: "nexus", page: "nexus.html", max: 6, race: true, blurb: "The same five rings of candidates for everyone: find what the Codex links to the thing in the middle." },
   { id: "survey", name: "Survey", kind: "duo", duo: "survey", page: "survey.html", max: 6, race: true, blurb: "The same block of rock for everyone: chip away the waste, the fastest clear wins." },
   { id: "manifest", name: "Manifest", kind: "duo", duo: "manifest", page: "manifest.html", max: 6, blurb: "The same stack at the same moment: against each other, or one team pooling what each saw." },
-  { id: "pipes", name: "Pipes", kind: "duo", duo: "pipes", page: "pipes.html", max: 6, race: true, blurb: "The same boards, or the same shaft in 3D, for everyone: the highest score wins." },
   { id: "sudoku", name: "Sudoku", kind: "duo", duo: "sudoku", page: "sudoku.html", max: 6, race: true, blurb: "The same grid for everyone, the fastest solve wins; or Together, one grid and a share of the givens each." },
   { id: "mines", name: "Mines", kind: "duo", duo: "mines", page: "mines.html", max: 6, race: true, blurb: "Mine-clearing on a field that needs no guess: race it, or play it as one team, each reading part of its numbers." },
   { id: "nonogram", name: "Nonogram", kind: "duo", duo: "nonogram", page: "nonogram.html", max: 6, race: true, blurb: "A picture in a grid, a clue on every line: race to draw the same one, or split the clues and draw it together." },

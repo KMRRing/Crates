@@ -1,7 +1,7 @@
 // How Pipes draws its squares, shared by the board (pipes.js) and the puzzle (pipes-puzzle-ui.js): a square is 60 units in
 // an SVG whose viewBox is the board in squares, a pipe is brass with a dark edge and a shine, the oil dark inside it. Colours
 // are the page's (--pi-*: pipes.css, and themes.css for the other themes).
-import { DIRS, PIECES, back } from "./pipes-engine.js";
+import { DIRS, PIECES, back } from "./pipes-pieces.js";
 
 export const SVG = "http://www.w3.org/2000/svg";
 export const T = 60, MID = 30;

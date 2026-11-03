@@ -27,7 +27,7 @@ export const ROUNDS = {
   speedmaths: "a run, its clock run out",
   manifest: "a run, its twelve rounds played or its lives gone",
   harbour: "a level's plan run to delivery, or a week of a region's season",
-  pipes: "a level, cleared or spilled, or a descent",
+  pipes: "a level solved",
   survey: "a block cleared",
   stow: "a manifest stowed, or a level of loose cargo won or stuck",
   // Classics
