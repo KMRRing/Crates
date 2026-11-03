@@ -82,7 +82,7 @@ export async function openCoopParty(sync, { host, guest, game, board = null, now
   const party = { v: 1, app: 0, created: now, host: host.uid, rev: 0, coop: true, players: { [host.uid]: seat(host, 0, true), [guest.uid]: seat(guest, 1, false) }, playing };
   const code = await createRoom(sync, "party", party);
   if (!code) throw new Error("no room for the party");
-  await sync.update(`crates/rooms/${code}`, { ask: { game: game.id, at: now, answer: "yes", from: host.pid, device: host.uid, people: 2, ...(board ? { board } : {}) } });
+  await sync.update(`crates/rooms/${code}`, { ask: { game: game.id, at: now, answer: "yes", from: host.pid, device: host.uid, people: 2, names: { host: host.name, guest: guest.name }, ...(board ? { board } : {}) } });
   return { code, at: now, playing };
 }
 
