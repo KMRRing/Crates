@@ -5,7 +5,7 @@
 // and the grading are loom-float.js's, tested in loom-float.mjs, and are not touched.
 import { makePuzzle, met, lineMet, fixed, WARP, WEFT } from "../loom-float.js";
 import { LEVELS, makeLevel, seedOf } from "../loom-levels.js";
-import { threaded, ground, floatAt, floatsIn, reach, lay, cut, takeUp, apply, slipsIn, wanted, laidCount, hintFor, deed, hintWords, clueString, lineName } from "../loom-thread.js";
+import { threaded, ground, createHand, floatAt, floatsIn, reach, lay, cut, takeUp, apply, slipsIn, wanted, laidCount, hintFor, deed, hintWords, clueString, lineName } from "../loom-thread.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -114,6 +114,130 @@ function strip(sol, given = []) {
   check(met(p, cells) === false && lineMet(p, 2, cells) === false, "weft left over where the warp belongs is unfinished: the clue isn't met, but nothing is marked wrong");
   apply(cells, right.changes);
   check(met(p, cells) && lineMet(p, 2, cells), "and the float laid right meets the clues");
+}
+
+// ---------- the hand: taps, drags, the thread waiting, Undo and Redo (what the fingers do, with no page) ----------
+{
+  const tap = (h, c, r) => { const ok = h.press(c, r); return ok ? h.lift() : null; };
+  const slide = (h, c, from, to) => { if (!h.press(c, from)) return null; h.drag(to); return h.lift(); };
+  const fresh = (sol = [F, F, F, F, F, F, F, F], given = []) => { const p = strip(sol, given), cells = ground(p); return { p, cells, h: createHand(p, cells) }; };
+
+  // tap where the warp comes up, tap where it goes back under
+  let { p, cells, h } = fresh();
+  const peg = tap(h, 0, 2);
+  check(peg.kind === "peg" && h.pending.c === 0 && h.pending.r === 2 && col(p, cells, 0) === "--------" && !h.history.length, "a tap where the warp comes up lays nothing: it waits for its end");
+  check(h.aim().kind === "peg" && h.aim().anchor === 2, "and says where it came up (the peg the cloth draws)");
+  const done = tap(h, 0, 5);
+  check(done.kind === "lay" && col(p, cells, 0) === "--WWWW--" && h.pending === null && h.history.length === 1, "a second tap in its column lays the float, ends included, as one step");
+  check(done.was && done.was[2 * 2] === F && done.changes.length === 4, "and hands back the cloth as it was, for the yarn to be pulled through");
+  check(h.undo() && col(p, cells, 0) === "--------" && h.future.length === 1, "Undo takes the whole float back");
+  check(h.redo() && col(p, cells, 0) === "--WWWW--" && h.future.length === 0 && h.history.length === 1, "and Redo lays it again");
+
+  // the same crossing twice is a float of one; a float can be ended above where it came up
+  tap(h, 1, 3); tap(h, 1, 3);
+  check(col(p, cells, 1) === "---W----", "the same crossing twice is a float of one");
+  tap(h, 1, 6); tap(h, 1, 5);
+  check(col(p, cells, 1) === "---W-WW-", "a float can be ended above where it came up");
+
+  // a tap in another column moves the start there; a tap beside the cloth (release) or Undo lets it go
+  ({ p, cells, h } = fresh());
+  tap(h, 0, 1); tap(h, 1, 4);
+  check(h.pending.c === 1 && h.pending.r === 4 && col(p, cells, 0) === "--------", "a tap in another column moves the waiting thread there");
+  check(h.release() === true && h.pending === null && h.release() === false, "letting it go (a tap beside the cloth, Escape) says whether there was one");
+  tap(h, 0, 1); tap(h, 0, 2);
+  tap(h, 0, 6);
+  check(h.undo() === "wait" && h.pending === null && h.history.length === 1, "Undo lets go of a waiting thread before it takes anything back");
+  check(Array.isArray(h.undo()) && h.history.length === 0 && h.undo() === null, "and then takes the float back, and then there is nothing");
+  check(h.redo() && h.redo() === null, "Redo has the float once");
+  tap(h, 0, 6);
+  check(h.redo() === null && h.pending?.r === 6, "Redo with nothing to redo leaves a waiting thread alone");
+  h.release();
+
+  // a drag lays the float where the finger went, from either end; one that comes back to its row is a tap
+  ({ p, cells, h } = fresh());
+  h.press(0, 1); h.drag(4);
+  check(h.aim().kind === "lay" && h.aim().lo === 1 && h.aim().hi === 4 && col(p, cells, 0) === "--------", "a drag shows the float following the finger, and lays nothing until it lifts");
+  h.drag(3);
+  check(h.aim().hi === 3, "it follows the finger back too");
+  const dl = h.lift();
+  check(dl.kind === "lay" && col(p, cells, 0) === "-WWW----" && h.history.length === 1 && h.pending === null, "and the float is laid when the finger lifts, as one step");
+  check(slide(h, 1, 6, 2) && col(p, cells, 1) === "--WWWWW-", "dragging up the column lays a float from where the finger began");
+  const back = slide(h, 0, 6, 6);
+  check(back.kind === "peg" && h.pending.r === 6, "a drag that ends in the row it began in is a tap: the thread waits there");
+  h.release();
+  h.press(0, 7); h.drag(3);
+  check(h.lift(true) === null && col(p, cells, 0) === "-WWW----" && h.gest === null, "a touch that is cancelled does nothing");
+
+  // with a thread waiting, a drag in its column ends it where the finger lifts
+  ({ p, cells, h } = fresh());
+  tap(h, 0, 1);
+  h.press(0, 3); h.drag(6);
+  check(h.aim().lo === 1 && h.aim().hi === 6, "a drag in the waiting thread's column runs the float from where the thread came up to the finger");
+  h.lift();
+  check(col(p, cells, 0) === "-WWWWWW-", "and lays it");
+
+  // pressing on a float: a tap pulls the whole float out, a drag cuts the stretch the finger covered
+  ({ p, cells, h } = fresh());
+  tap(h, 0, 1); tap(h, 0, 6);
+  check(h.press(0, 3) && h.gest.mode === "cut", "a press on a float is the start of taking it out, not of a new one");
+  const out = h.lift();
+  check(out.kind === "cut" && col(p, cells, 0) === "--------" && out.changes.length === 6, "tapping a float pulls out the whole float");
+  h.undo();
+  check(col(p, cells, 0) === "-WWWWWW-", "and Undo puts it back");
+  const cutIt = slide(h, 0, 2, 4);
+  check(cutIt.kind === "cut" && col(p, cells, 0) === "-W---WW-" && floatsIn(p, cells, 0).length === 2, "dragging along it cuts the stretch the finger covered: one float is two");
+  check(h.history.length === 2 && h.undo() && col(p, cells, 0) === "-WWWWWW-", "as one step");
+  check(slide(h, 0, 1, 6).changes.length === 6 && col(p, cells, 0) === "--------", "a drag from end to end takes the float out too");
+
+  // pre-woven crossings (pick 3 is weft, pick 6 warp)
+  ({ p, cells, h } = fresh([F, F, F, F, F, W, F, F], [2, 5]));
+  check(h.press(0, 2) === false && h.gest === null, "a pre-woven weft crossing can't be pressed: nothing comes up there");
+  check(h.press(0, 5) === false, "nor can a pre-woven warp one be taken out");
+  tap(h, 0, 4);
+  check(h.press(0, 5) === true && h.gest.mode === "end", "but with a thread waiting in its column a pre-woven crossing is where the float goes over");
+  const over = h.lift();
+  check(col(p, cells, 0) === "----WW--" && over.changes.length === 1, "and a float runs over a pre-woven warp one, laying only what is new");
+  tap(h, 0, 0); const stop = tap(h, 0, 4);
+  check(stop.stopped && col(p, cells, 0) === "WW--WW--", "a float stops short of a pre-woven weft crossing in its way, and says so (`stopped`)");
+  h.press(0, 3); h.drag(0);
+  check(h.aim().kind === "lay" && h.aim().lo === 3 && h.aim().hi === 3 && h.aim().stopped, "a drag towards a pre-woven weft crossing is stopped short of it");
+  h.lift(true);
+
+  // a hint is a step like any other: Undo takes it back, and it clears what Redo had
+  ({ p, cells, h } = fresh());
+  tap(h, 0, 0); tap(h, 0, 1);
+  h.undo();
+  check(h.future.length === 1, "Undo keeps the float for Redo");
+  h.step([{ i: 3 * 2, was: F, now: W }]);
+  check(col(p, cells, 0) === "---W----" && h.future.length === 0 && h.history.length === 1, "a hint (or a new float) puts a step in and the old Redo is gone");
+  h.record([]);
+  check(h.history.length === 1, "an empty stroke is no step");
+
+  // every plain cloth, laid by taps and drags thread by thread and then taken back to the bare field and woven again by Redo
+  let all = 0, tried = 0, taps = 0;
+  for (const lv of LEVELS.filter(l => l.chapter === "plain")) for (const seed of [seedOf(lv), 8]) {
+    const p = makeLevel(lv, seed).puzzle, cells = ground(p), h = createHand(p, cells), bare = Uint8Array.from(cells);
+    tried++;
+    let k = 0;
+    for (let c = 0; c < p.w; c++) for (let r = 0; r < p.h; r++) {
+      if (p.sol[r * p.w + c] !== W) continue;
+      let e = r;
+      while (e + 1 < p.h && p.sol[(e + 1) * p.w + c] === W) e++;
+      let s = r;
+      while (s <= e && fixed(p, s * p.w + c)) s++;                                // a thread can't come up on a pre-woven crossing; the one beside it will do
+      if (s <= e) {
+        if (k++ % 2) { tap(h, c, s); tap(h, c, e); taps += 2; }                  // a pair of taps, or a drag along the thread
+        else { h.press(c, s); if (e > s) h.drag(e); h.lift(); taps++; if (e === s) { tap(h, c, s); taps++; } }
+      }
+      r = e;
+    }
+    const woven = met(p, cells) && cells.every((v, i) => v === p.sol[i]);
+    while (h.undo()) { /* all the way back */ }
+    const back = cells.every((v, i) => v === bare[i]);
+    while (h.redo()) { /* and forward */ }
+    if (woven && back && met(p, cells) && h.history.length === k) all++;
+  }
+  check(all === tried, `${tried} plain cloths laid thread by thread, by taps and by drags: each is woven, Undo takes it back to the bare field step by step and Redo weaves it again (${taps} gestures)`);
 }
 
 // ---------- every plain cloth is laid by its answer's floats, and by nothing less ----------

@@ -81,6 +81,85 @@ export function takeUp(p, cells, c, r) {
 export function apply(cells, changes, back = false) {
   for (const { i, was, now } of changes) cells[i] = back ? was : now;
 }
+
+// ---------- the hand at the loom: what a finger does, a thread waiting, Undo and Redo ----------
+/**
+ * Someone laying threads on `cells` (changed in place), with no page: loom-play.js gives it the fingers' events and draws
+ * what it says, tests/loom-thread.mjs plays it in Node. It holds the steps for Undo and Redo (a step is a list of changes:
+ * a stroke, a float, a hint) for every cloth, and for a plain cloth the thread waiting for its end (`pending`, { c, r }: a
+ * peg where the warp has come up) and the gesture under a finger.
+ *
+ * A press on the weft is where a thread comes up: let go there and it waits for its end, or drag down or up the column and
+ * the float follows the finger, laid when it lifts. With a thread waiting, a press in its column is where it goes back
+ * under (a float, both ends in; the same crossing again is a float of one), in another column it moves the start there. A
+ * press on a float pulls it out whole; dragging along it cuts the stretch the finger covered, the weft coming back over.
+ */
+export function createHand(p, cells) {
+  let gest = null;
+  const me = {
+    history: [], future: [], pending: null,
+    /** The gesture under a finger, { c, mode: "begin" | "end" | "cut", anchor, from, r, moved }, or null. */
+    get gest() { return gest; },
+    /** A press on crossing (c, r); false where nothing can be done (a pre-woven crossing stays as it is, unless a float ends there). */
+    press(c, r) {
+      const pending = me.pending, mode = pending ? (pending.c === c ? "end" : "begin") : cells[at(p, c, r)] === WARP ? "cut" : "begin";
+      if (fixed(p, at(p, c, r)) && mode !== "end") return false;
+      gest = { c, mode, anchor: r, from: mode === "end" ? pending.r : r, r, moved: false };
+      return true;
+    },
+    /** The finger, past the shake of a tap, is level with pick r (kept to the cloth by the caller). */
+    drag(r) { gest.moved = true; gest.r = r; },
+    /** What the gesture would do to the cloth now, or else what the thread waiting would: { c, lo, hi, kind: "peg" | "lay" | "cut", anchor, changes, stopped }, or null. */
+    aim() {
+      const g = gest;
+      if (!g) { const w = me.pending, l = w && lay(p, cells, w.c, w.r, w.r); return l && { ...l, c: w.c, kind: "peg", anchor: w.r }; }
+      const moved = g.moved && g.r !== g.anchor;
+      if (g.mode === "cut") {
+        const t = moved ? cut(p, cells, g.c, g.anchor, g.r) : takeUp(p, cells, g.c, g.anchor);
+        return t && { ...t, c: g.c, kind: "cut", anchor: g.anchor };
+      }
+      const l = lay(p, cells, g.c, g.from, g.mode === "end" || moved ? g.r : g.from);
+      return l && { ...l, c: g.c, kind: g.mode === "begin" && !moved ? "peg" : "lay", anchor: g.from };
+    },
+    /**
+     * The finger lifts (or the touch is cancelled, which does nothing). A tap that begins leaves a thread waiting; anything
+     * else lays or takes out a float as one step. Returns what was done, with `was` (the cloth before) where it changed it.
+     */
+    lift(cancelled = false) {
+      const a = cancelled ? null : me.aim();
+      gest = null;
+      if (!a) return null;
+      if (a.kind === "peg") { me.pending = { c: a.c, r: a.anchor }; return a; }
+      me.pending = null;
+      if (a.changes.length) { a.was = Uint8Array.from(cells); me.step(a.changes); }
+      return a;
+    },
+    /** Puts a step into the cloth and keeps it for Undo (a redo is no longer there). */
+    step(changes) { apply(cells, changes); me.record(changes); me.pending = null; },
+    /** Keeps a step already in the cloth (a brush stroke). */
+    record(changes) { if (changes.length) { me.history.push(changes); me.future = []; } },
+    /** Lets go of a thread that is waiting: true if there was one. */
+    release() { const had = !!me.pending; me.pending = null; gest = null; return had; },
+    /** Lets go of a waiting thread first, then takes back the last step; the step, or "wait", or null where there is nothing. */
+    undo() {
+      if (me.pending) { me.pending = null; return "wait"; }
+      const last = me.history.pop();
+      if (!last) return null;
+      apply(cells, last, true);
+      me.future.push(last);
+      return last;
+    },
+    redo() {
+      const next = me.future.pop();
+      if (!next) return null;
+      me.pending = null;
+      apply(cells, next);
+      me.history.push(next);
+      return next;
+    },
+  };
+  return me;
+}
 /** The crossings among changes that a warp now lies over where the cloth has the weft over: each is a slip. Weft left uncovered never is. */
 export const slipsIn = (p, changes) => changes.filter(({ i, now }) => now === WARP && p.sol[i] === WEFT).map(({ i }) => i);
 
