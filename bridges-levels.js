@@ -116,10 +116,11 @@ export const NOW = Array.from({ length: OLD_COUNT }, (_, old) => LEVELS.findInde
 export function migrate(camp, runs = {}) {
   if (camp?.v === LADDER_VERSION) return { camp, runs };
   const stars = LEVELS.map(L => (L.was != null && Number.isInteger(camp?.stars?.[L.was]) ? Math.max(0, Math.min(3, camp.stars[L.was])) : 0));
-  const to = Number.isInteger(camp?.at) ? camp.at : 0, at = NOW[to] >= 0 ? NOW[to] : Math.max(0, LEVELS.findIndex(L => L.was > to));
+  // the level in hand is the same level; if it is gone, the first one not yet solved (the last one, if all are)
+  const to = Number.isInteger(camp?.at) ? camp.at : 0, unsolved = stars.findIndex(s => s < 1), at = NOW[to] >= 0 ? NOW[to] : unsolved >= 0 ? unsolved : COUNT - 1;
   const moved = {};
   for (const [old, run] of Object.entries(runs || {})) { const n = NOW[+old]; if (n >= 0 && run && typeof run === "object") moved[n] = { ...run, lv: n }; }
-  return { camp: { v: LADDER_VERSION, at: Math.max(0, at), stars }, runs: moved };
+  return { camp: { v: LADDER_VERSION, at, stars }, runs: moved };
 }
 
 // ---------- the stars ----------

@@ -188,6 +188,26 @@ function everyBridgeFree(P, marks) {
   check(lines.every(t => t.length <= 110), `every line is short enough for the line under the board (longest ${Math.max(...lines.map(t => t.length))} characters)`);
 }
 
+// ---------- roads, straits and rings: what the marks break, in words ----------
+{
+  const water = n => ".".repeat(n), say = (P, marks) => whatBreaks(P, marks);
+  check(nextMark("0", 3) === "1" && nextMark("2", 3) === "3" && nextMark("3", 3) === "0" && nextMark("0", 1) === "1" && nextMark("1", 1) === "0" && nextMark("2") === "0", "a tap cycles a link up to what its road holds: one on a narrow road, three on a wide one, two as ever");
+  const strait = puzzleOf(5, "2.2.." + water(20), null, "", "", "", "", { straits: "....1..." });
+  const one = say(strait, "2");
+  check(breaks(strait, "2").straitsOver.length === 1 && !breaks(strait, "2").over.length && one === "The strait marked 1 has 2 bridges across it, one too many." && say(strait, "1") === "" && breaks(strait, "1").straitsMet.length === 1, "a strait with more bridges across it than its number is named by its number; one with exactly its number is met");
+  const two = puzzleOf(5, "2.2.." + water(20), null, "", "", "", "", { straits: "....11.." }), twoSays = say(two, "2");
+  check(breaks(two, "2").straitsOver.length === 2 && /^2 straits have more bridges/.test(twoSays), "several straits over are counted");
+  const ring = puzzleOf(5, "2.2.." + water(5) + "2.2.." + water(10), null, "", "", "", "", { tree: true }), all = "1111";
+  check(breaks(ring, all).ring.length === 4 && breaks(ring, all).over.length === 0 && breaks(ring, "1000").ring.length === 0 && /close a ring/.test(say(ring, all)) && breaks(ring, "2002").ring.length === 0, "four bridges round a square close a ring, and a bridge or a double never does");
+  const plain = puzzleOf(5, "2.2.." + water(5) + "2.2.." + water(10)), none = breaks(plain, all);
+  check(!none.ring.length && !none.straitsOver.length, "a puzzle without the rule never marks a ring, nor a strait");
+  const lines = [one, twoSays, say(ring, all)];
+  check(lines.every(t => t.length <= 110), `these lines fit the three lines under the board too (longest ${Math.max(...lines.map(t => t.length))} characters)`);
+  // a wide road: a link with three bridges is a mark of its own, and the island sum counts all three
+  const wide = puzzleOf(5, "3.3.." + water(20), null, "", "", "", "3");
+  check(solvedBy({ ...wide, sol: Uint8Array.from([3]) }, "3") && !breaks(wide, "3").over.length && breaks(wide, "3").met.length === 2, "three bridges on a wide road make two 3s");
+}
+
 // ---------- hints ----------
 {
   let trueSteps = 0, steps = 0, solvedAlone = 0, ran = 0;
