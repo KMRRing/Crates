@@ -10,7 +10,8 @@
 // seeing. A mark and a digit are in different layers, so a mark can never overwrite a digit; a cell with a digit shows no
 // marks (digits.js), and rubbing the digit out brings them back, as they do solo. Undo and redo are each player's own history
 // (digits-edit.js's moves) sent as edits: an undo is weak, so it only puts back what it finds as it left it.
-import { cellEdit } from "./board-share.js";
+import { cellEdit, tallyOf, onceOf } from "./board-share.js";
+import { validEntries } from "./digits-edit.js";
 
 const B36 = "0123456789abcdefghijklmnopqrstuvwxyz";
 export const noteLayer = d => `n${d}`;
@@ -67,4 +68,50 @@ export function cursorsOf(players, me, hereIds, cells) {
     out[p.at] = { seat: p.slot ?? 1, initial: String(p.name || "?").trim().slice(0, 1).toUpperCase() };
   }
   return out;
+}
+
+// ---------- the adapter of a game on the digit grid ----------
+/**
+ * The adapter (coop-games.js) of a game that keeps its run as `{ v, mode, grid, entries, ms, hints, done }` (Sudoku, Calcudoku,
+ * Kakuro): the grid fixed, the entries as layers, hints a tally, the solve a once-value. `validGrid` is the game's own check of an
+ * encoded grid; `shape(grid)` says how many digits it has (`k`) and cells (`cells`), a square grid of n digits by default.
+ * Selection, undo, redo, the Notes switch and a hint's gilt are each player's own, so none is in the board. A run with the computer as
+ * partner (`pair`) is never shared: its digits and its share of the clues are not a person's.
+ */
+export function digitsAdapter({ key, validGrid, shape = g => ({ k: g.n, cells: g.n * g.n }) }) {
+  const playable = s => !!s && s.v === 1 && s.mode !== "pair" && validGrid(s.grid) && validEntries(s.entries, shape(s.grid).cells) && Number.isFinite(s.ms);
+  let lastGood = null;                               // a grid that has been checked: the room calls valid() at every change, and decoding is not free
+  const gridOk = grid => { const was = JSON.stringify(grid); if (was === lastGood) return true; if (!validGrid(grid)) return false; lastGood = was; return true; };
+  return {
+    KEY: key,
+    playable,
+    adapter: {
+      /** The shared board out of what the game has saved ({ key: the saved text }); null when there is no grid in play to share (none, solved, or with the computer as partner). */
+      share(saved) {
+        let run;
+        try { run = JSON.parse(saved?.[key]); } catch { return null; }
+        if (!playable(run) || run.done) return null;
+        return { fixed: { mode: run.mode === "daily" ? "daily" : "random", grid: run.grid }, layers: layersOf(run.entries, shape(run.grid).k), start: { ms: Math.round(run.ms), hints: run.hints || 0 } };
+      },
+
+      /**
+       * The board to show, as a run: the page adds its own (selection, undo, redo, the hint showing) and keeps the clock from `start`.
+       * Today's grid solved together stops being today's: it counts for nobody's daily, so the host's run must not stand in for it.
+       */
+      run(board) {
+        const { mode, grid } = board.fixed, { k, cells } = shape(grid), done = onceOf(board, "done") || null;
+        return { v: 1, mode: done && mode === "daily" ? "random" : mode, grid, entries: { ...entriesOf(board.layers, k, cells), past: [], future: [] }, hints: (board.start?.hints || 0) + tallyOf(board, "hints"), done: done ? { ms: done.ms, score: done.score } : null };
+      },
+
+      /** Once the grid is solved, nothing else changes it. */
+      rules: { frozen: board => !!board.once?.done },
+
+      /** The board is worth keeping: a grid that is one of this version's, with every cell's digit and pencil marks. */
+      valid: board => {
+        if (!board?.fixed || !gridOk(board.fixed.grid)) return false;
+        const { k, cells } = shape(board.fixed.grid);
+        return validLayers(board.layers, k, cells);
+      },
+    },
+  };
 }

@@ -11,7 +11,6 @@ const STILL = {
   "blend-parcels-ui.js": 1,
   "blend.js": 1,
   "bulls.js": 3,
-  "calcudoku.js": 3,
   "cartel.js": 1,
   "chart.js": 3,
   "codeword.js": 3,
