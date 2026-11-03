@@ -223,6 +223,12 @@ with a header that isn't):
   with no such row leaves the band empty. A picture that wants the very top, a 3D scene say, adds `over` (no band; keep
   its own corner clear of the button, 2.5rem square at `--full-edge`). Controls are drawn inside the picture; nothing
   essential is lost: a clock stays visible, a header choice is in the menu.
+- **Over a dark picture** (a night sky, the Earth from space, any canvas with its own night picture) the button sits on
+  a plate (a see-through sheet disc with a brass hairline): add `plate` to `#app` (Columbiad, Landfall and Almanac are
+  named in `style.css`), or Kontor's and Office's ink rules vanish by day. A header's clock or lives (a `span` or `p` in
+  `.top-right`) stay beside the mark; widen `--full-slot` for the row that keeps clear of them (Crossword).
+- `full` is the shared frame's class: a game's own switch must not use it (Hong, Tribute and Trumps' "Full screen"
+  choice, the cloth filling the screen with the header's buttons on it, is `ontable`).
 - Check a new page at 390×664, 390×844 and sideways in the three themes, day and night; Modern's button is wider
   (`--full-slot`).
 

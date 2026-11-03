@@ -4,4 +4,4 @@
 
 Every game page has `full` on its `#app`: no title, logo or header buttons; the Codex mark (menu.js's `markButton`) alone at the top right, which opens the menu; the menu's first entry is Back to menu (the games screen). How to adopt it is in CLAUDE.md, "Full screen". Not a rule for the page's content: its own status and buttons stay, inside the picture.
 
-Traps: a hidden header is still in the page (the hidden title button is what Back to menu clicks, and the pill in it is where the menu reads your partner's line); a party's game has no Back to menu (its party part has the way out); a frame that only watches a partner has no button at all.
+Traps: Hong, Tribute and Trumps have their own optional "Full screen" (the cloth the whole screen, the header's buttons on it): its class is `ontable`, because `full` is the frame's; a hidden header is still in the page (the hidden title button is what Back to menu clicks, and the pill in it is where the menu reads your partner's line); a party's game has no Back to menu (its party part has the way out); a frame that only watches a partner has no button at all.
