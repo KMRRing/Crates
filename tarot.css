@@ -52,13 +52,14 @@ html.tr-colours[data-mode="night"] .cd.ts3 { color: #7FC2A8; }
 .tr-table { display: flex; flex-direction: column; gap: .3rem; padding: .5rem; min-height: 0; border-radius: 6px; background: var(--tr-felt);
   border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--tr-felt), inset 0 0 0 5px var(--rule); overflow: hidden; container-type: size; }
 /* the plays drawn as large as the table allows: a tablet's table shows them larger */
-.tr-table > * { --cd-line: clamp(.62rem, min(calc((100cqh - 10rem) / 7), calc(30cqw / var(--cols, 3))), 1.45rem); }
+.tr-table > * { --cd-line: clamp(.62rem, min(calc((100cqh - 10rem) / 7), calc(30cqw / var(--cols, 3))), 2.4rem); }
 .tr-cols { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: .2rem; flex: none; }
 .tr-col { display: grid; gap: .25rem; justify-items: center; align-content: start; min-width: 0; }
 .tr-panel { display: grid; gap: .1rem; justify-items: center; width: 100%; padding: .2rem .15rem; border-radius: 5px; min-width: 0; text-align: center; }
 .tr-panel.turn, .tr-me.turn .tr-mewho { box-shadow: inset 0 0 0 1.5px var(--tr-in); }
 .tr-who { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .15rem .3rem; font-size: .84rem; max-width: 100%; min-width: 0; }
 .tr-who b { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.tr-five .tr-who { min-height: 2.6em; align-content: flex-start; }
 .tr-role { flex: none; padding: .03rem .3rem; border-radius: 3px; font-size: .66rem; font-weight: 800; line-height: 1.25; letter-spacing: calc(.04em * var(--track)); text-transform: var(--caps); }
 .tr-role.taker { background: var(--tr-in); color: var(--sheet); }
 .tr-role.partner { box-shadow: inset 0 0 0 1px var(--tr-in); color: var(--tr-in); }
@@ -77,6 +78,7 @@ html.tr-colours[data-mode="night"] .cd.ts3 { color: #7FC2A8; }
 .tr-note { margin: 0; max-width: 100%; font-size: .82rem; line-height: 1.35; color: var(--ink-soft); }
 .tr-note b { color: var(--ink); }
 .tr-line { max-width: 100%; }
+.tr-mid > .tr-line { font-size: min(var(--cd-line), 1.25rem, calc(80cqw / 17)); }
 .tr-note .tr-line { --cd-line: .55rem; }
 .tr-line > .cd + .cd { margin-left: .2em; }
 .tr-line.many > .cd + .cd { margin-left: -1.3em; }
@@ -106,10 +108,10 @@ html[data-mode="night"] .tr-pay.down { color: #E8806F; }
 /* two lines kept, so a longer line doesn't push the cards down as it comes and goes */
 .tr-status { display: flex; align-items: center; justify-content: center; height: 2.5em; margin: 0; overflow: hidden; line-height: 1.25; text-align: center; font-size: .86rem; color: var(--ink-soft); }
 .tr-status b { color: var(--tr-in); }
-.tr-hand { display: grid; align-content: end; gap: 0; height: 10.4rem; box-sizing: border-box; padding-top: .4rem; }
+.tr-hand { display: grid; grid-template-columns: minmax(0, 1fr); align-content: end; gap: 0; height: 10.4rem; box-sizing: border-box; padding-top: .4rem; }
 .tr-hand.two { grid-template-rows: repeat(2, minmax(0, 1fr)); }
 .tr-hand.one { align-content: end; }
-.tr-row { justify-content: center; align-items: flex-end; min-height: 0; }
+.tr-row { min-width: 0; justify-content: center; align-items: flex-end; min-height: 0; }
 .tr-hand .cd { cursor: pointer; transition: transform .1s; }
 .tr-hand .cd.sel { transform: translateY(-.4rem); border-color: var(--tr-in); box-shadow: 0 0 0 1.5px var(--tr-in); }
 .tr-hand .cd.fresh:not(.sel) { outline: 2px solid var(--tr-in); outline-offset: -3px; }
@@ -148,6 +150,6 @@ html[data-mode="night"] .tr-pay.down { color: #E8806F; }
   #app.tarot .tr-strip { grid-column: 1 / -1; grid-row: 2; }
   #app.tarot .tr-table { grid-column: 1; grid-row: 3; }
   #app.tarot .tr-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
-  #app.tarot .tr-hand { height: auto; flex: 1 1 auto; min-height: 0; align-content: end; }
+  #app.tarot .tr-hand { height: 15.5rem; }
 }
 html[data-theme="office"] .tr-table { border-radius: 4px; }

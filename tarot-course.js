@@ -1,4 +1,4 @@
-// Tarot's course (Learn, in the header), on the card stage (tarot-stage.js): the pack and its points, the deal, the bids
+// Tarot's course (Learn, in the Menu), on the card stage (tarot-stage.js): the pack and its points, the deal, the bids
 // and the dog, the play, the score, then how to bid, what to put in the dog, and the last tricks. What a lesson asks of the
 // cards is judged by the rules themselves (which cards are lawful, which the dog refuses), a trick's winner and a deal's
 // pay are worked out by them as the lesson loads, a bid by the computer players' own strength rule, and a puzzle's

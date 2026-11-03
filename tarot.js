@@ -15,6 +15,7 @@ import { seatPage } from "./seats-ui.js";
 import { applyMove } from "./seats.js";
 import { tarotCard, backHtml } from "./tarot-faces.js";
 import { fitRow } from "./cards.js";
+import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { seatRounds } from "./random.js";
@@ -213,7 +214,7 @@ function draw() {
   drawCover(v);
   drawTable(v);
   drawHand(v);
-  $("status").innerHTML = statusLine(v);
+  $("status").innerHTML = `<span>${statusLine(v)}</span>`;           // one box, so a flex line keeps the spaces round the coach's bold
   drawBar(v);
 }
 
@@ -238,6 +239,7 @@ function drawTable(v) {
   const mine = `<div class="tr-me${v.toMove === me && !v.over && ["bid", "call", "discard", "announce", "play"].includes(s.step) ? " turn" : ""}"><div class="tr-slot">${slotHtml(v, me)}</div><div class="tr-mewho"><b>${esc(who(me))}</b>${roleChip(v, me)}<span class="tr-sc">${sign(s.scores[me])}</span></div></div>`;
   box.style.setProperty("--cols", n - 1);
   box.classList.toggle("tr-playing", s.step === "play");
+  box.classList.toggle("tr-five", n === 5);                          // four narrow columns: a role chip wraps under the name, so room is kept for it
   box.innerHTML = `<div class="tr-cols">${cols}</div><div class="tr-mid">${midHtml(v)}</div>${mine}`;
 }
 
@@ -324,7 +326,7 @@ function drawHand(v) {
   box.className = `tr-hand ${rows.length === 2 ? "two" : "one"}`;
   box.innerHTML = rows.map(r => `<div class="tr-row cd-row">${r.map(html).join("")}</div>`).join("");
   const longest = Math.max(...rows.map(r => r.length));
-  for (const el of box.querySelectorAll(".tr-row")) fitRow(el, Math.max(el.children.length, Math.min(longest, 9)), { max: rows.length === 2 ? 1.3 : 1.6 });
+  for (const el of box.querySelectorAll(".tr-row")) fitRow(el, Math.max(el.children.length, Math.min(longest, 9)), { max: (rows.length === 2 ? 1.3 : 1.6) * (sideways() ? 1.35 : 1) });
 }
 $("hand").addEventListener("click", e => {
   const c = e.target.closest(".cd[data-id]");
@@ -535,7 +537,6 @@ function openMenu() {
 bindSwitcher($("appsBtn"), "tarot");
 document.querySelector(".tr-mark").innerHTML = APPS.find(a => a.id === "tarot")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
-$("learnBtn").addEventListener("click", () => course.open());
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
