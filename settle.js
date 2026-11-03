@@ -10,12 +10,14 @@ import { TANKS, LEVELS, LIVES, NAMES, DENSITY, WATER, FAME, SLOP, SOUR, newGame,
 import { LEVELS as COURSE, levelOf, starsFor, isOpen } from "./settle-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, choice } from "./menu.js";
+import { part, action, line, choice, onPause } from "./menu.js";
 import { roundOver } from "./random.js";
-import { noteStars } from "./suite.js";
+import { noteStars, IN_FRAME } from "./suite.js";
+import { busy } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
+const VIEW = "suite:settle-view";   // flat or 3D: this device's own, so it stays out of what syncs (and a watching frame never writes it)
 const RUN = "settle:run", LRUN = "settle:lrun", DONE = "settle:levels", MODE = "settle:mode", BEST = "settle:best", SEEN = "settle:seen", DREW = "settle:drew", JETTY = "settle:jetty";   // pumps made with the tanker explained
 const TW = 10, GAP = 2, LH = 7.4, BASE = 60;   // a tank's width, the gap between, a level's height, the floor
 const LETTER = ["W", "F", "D", "N", "S"];
@@ -29,6 +31,7 @@ let S = null;            // the game (settle-engine.js's), as saved
 let playing = false;     // a pump being played out
 let drag = null;         // a parcel offered (or the draw-off), held: { slot, id, x0, y0, moved, t }
 let picked = -1;         // a parcel (or the draw-off) tapped, to use with a tap on a tank
+let V3 = null;            // the 3D farm (settle-3d.js), when it is the one shown; else the flat farm in the page
 let berth = null;        // the tanker drawn while a pump plays out ({ want, next, untilTanker }), else the game's
 
 const valid = g => g && g.v === 1 && Array.isArray(g.tanks) && g.tanks.length === TANKS && Array.isArray(g.hand) && g.hand.length === 2;
@@ -95,6 +98,7 @@ const contact = tank => { const w = tank.lastIndexOf(WATER); return w >= 0 && ta
  * left) }; the tanker over it is the one in play.
  */
 function drawBoard(tanks, extra = {}) {
+  if (V3) { V3.draw(tanks, extra, rule(S, "tanker") ? { want: (berth ?? S).want, next: (berth ?? S).next, untilTanker: (berth ?? S).untilTanker } : null); return; }
   const shells = el("g", {});
   for (let t = 0; t < TANKS; t++) {
     const x = tx(t);
@@ -224,6 +228,7 @@ const animate = (node, frames, opts) => (node?.animate ? node.animate(frames, { 
 const node = (t, level) => $("board").querySelector(`[data-key="${t}:${level}"] > g`);
 /** Moves drawn parcels from where they stood: [t, level now, level before] (before LEVELS + 1: in from the pipe). */
 function slide(moves, ms = 220) {
+  if (V3) return V3.slide(moves, ms);
   return Promise.all(moves.map(([t, now, was]) => animate(node(t, now), [{ transform: `translateY(${((now - was) * LH).toFixed(2)}px)` }, { transform: "translateY(0)" }], { duration: ms, easing: "ease-out" })));
 }
 /** A parcel settling into a tank: it comes down the pipe, the lighter ones above it rise a level. */
@@ -239,7 +244,8 @@ async function settleIn(tanks, t, g) {
 async function drain(tanks, t, k) {
   drawBoard(tanks, { aim: t });
   const out = [];
-  for (let level = 0; level < k; level++) out.push(animate(node(t, level), [{ transform: "translateY(0)", opacity: 1 }, { transform: `translateY(${(LH * 1.2).toFixed(2)}px)`, opacity: 0 }], { duration: 320, easing: "ease-in" }));
+  if (V3) out.push(V3.drain(t, k));
+  else for (let level = 0; level < k; level++) out.push(animate(node(t, level), [{ transform: "translateY(0)", opacity: 1 }, { transform: `translateY(${(LH * 1.2).toFixed(2)}px)`, opacity: 0 }], { duration: 320, easing: "ease-in" }));
   await Promise.all(out);
   const after = tanks.map((x, i) => (i === t ? x.slice(k) : x.slice()));
   drawBoard(after);
@@ -251,8 +257,11 @@ async function shipOut(tanks, waves) {
   for (const wave of waves) {
     drawBoard(tanks, { ring: wave.map(([a, b]) => [a, b]) });
     await wait(260);
-    const fx = $("board").querySelector("#fx");
-    for (const [a, b, g] of wave) { const p = parcelEl(g, a, b); fx.append(p); animate(p.firstChild, [{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(-6px)", opacity: 0 }], { duration: 300, easing: "ease-in" }).then(() => p.remove()); }
+    if (V3) V3.shipFx(wave);
+    else {
+      const fx = $("board").querySelector("#fx");
+      for (const [a, b, g] of wave) { const p = parcelEl(g, a, b); fx.append(p); animate(p.firstChild, [{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(-6px)", opacity: 0 }], { duration: 300, easing: "ease-in" }).then(() => p.remove()); }
+    }
     const next = tanks.map(x => x.slice()), drops = [];
     for (const [a, b] of [...wave].sort((p, q) => q[1] - p[1])) next[a].splice(b, 1);
     next.forEach((tank, a) => {
@@ -284,6 +293,7 @@ async function commit(slot, t) {
     if (drawing) write(DREW, true);
   }
   drawSide(" ");
+  if (V3 && r.delivered.length) V3.truckCall(r.delivered[0].g);   // the delivery's truck drives in while the pump plays out
   let tanks = drawing ? await drain(before.tanks, t, r.drained.length) : await settleIn(before.tanks, t, r.grade);
   tanks = await shipOut(tanks, r.waves);
   if (r.gain) popup(r.waves.flat(), r.gain);
@@ -291,9 +301,12 @@ async function commit(slot, t) {
     // the parcel over the top runs off
     tanks[t] = tanks[t].slice(0, LEVELS);
     drawBoard(tanks);
-    const p = parcelEl(r.spilled, t, LEVELS, "spill");
-    $("board").querySelector("#fx").append(p);
-    animate(p.firstChild, [{ transform: "translate(0, 0)", opacity: 1 }, { transform: "translate(6px, 10px) rotate(25deg)", opacity: 0 }], { duration: 500, easing: "ease-in" });
+    if (V3) V3.spill(t, r.spilled);
+    else {
+      const p = parcelEl(r.spilled, t, LEVELS, "spill");
+      $("board").querySelector("#fx").append(p);
+      animate(p.firstChild, [{ transform: "translate(0, 0)", opacity: 1 }, { transform: "translate(6px, 10px) rotate(25deg)", opacity: 0 }], { duration: 500, easing: "ease-in" });
+    }
     toast(S.over ? "A third spill" : `Tank ${t + 1} spills its ${named(r.spilled)}: ${S.lives} ${S.lives === 1 ? "life" : "lives"} left`);
     await wait(450);
   }
@@ -301,25 +314,29 @@ async function commit(slot, t) {
   if (r.tanker) {
     berth = S;
     drawBoard(tanks);
-    animate($("board").querySelector(".st-ship"), [{ transform: "translateX(-18px)", opacity: 0 }, { transform: "translateX(0)", opacity: 1 }], { duration: 520, easing: "ease-out" });
-    await wait(560);
+    if (V3) V3.tankerIn();
+    else animate($("board").querySelector(".st-ship"), [{ transform: "translateX(-18px)", opacity: 0 }, { transform: "translateX(0)", opacity: 1 }], { duration: 520, easing: "ease-out" });
+    await wait(V3 ? 920 : 560);
     const n = r.tanker.waves.reduce((a, w) => a + w.length, 0);
     tanks = await shipOut(tanks, r.tanker.waves);
     if (n) { popup(r.tanker.waves.flat(), r.tanker.gain); toast(`${upper(vessel(r.tanker.want))} is in: ${n} parcels ship, +${fmt(r.tanker.gain)}`); }
   }
   berth = null;
   drawStrip();
-  for (const d of r.delivered) tanks = await settleIn(tanks, d.t, d.g);
+  for (const d of r.delivered) { if (V3) await V3.truckTo(d.t, d.g); tanks = await settleIn(tanks, d.t, d.g); }
+  V3?.truckGo();
   render();
   // FAME left on water too long: slops where it stood
   if (r.soured.length) {
-    for (const [a, b] of r.soured) animate(node(a, b), [{ transform: "scale(1)" }, { transform: "scale(1.25)" }, { transform: "scale(1)" }], { duration: 520, easing: "ease-in-out" });
+    if (V3) V3.souredFx(r.soured);
+    else for (const [a, b] of r.soured) animate(node(a, b), [{ transform: "scale(1)" }, { transform: "scale(1.25)" }, { transform: "scale(1)" }], { duration: 520, easing: "ease-in-out" });
     toast(`${r.soured.map(([a]) => `Tank ${a + 1}'s`).join(" and ")} FAME has soured on the water: slops`);
   }
   playing = false;
   if (S.over) roundOver("settle");
 }
 function popup(cells, gain) {
+  if (V3) { V3.pop(cells, gain, cells.length >= 6); return; }
   const fx = $("board").querySelector("#fx");
   const x = cells.reduce((a, c) => a + tx(c[0]) + TW / 2, 0) / cells.length, y = cells.reduce((a, c) => a + ly(c[1]) + LH / 2, 0) / cells.length;
   const t = el("text", { class: `st-pop${cells.length >= 6 ? " big" : ""}`, x: x.toFixed(1), y: y.toFixed(1) });
@@ -331,6 +348,7 @@ function popup(cells, gain) {
 // ---------- holding a parcel over the farm ----------
 /** The tank under a point on the screen (anywhere over its column), or -1. */
 function tankAt(px, py) {
+  if (V3) return V3.tankAt(px, py);
   const m = $("board").getScreenCTM();
   if (!m) return -1;
   const p = new DOMPoint(px, py).matrixTransform(m.inverse()), t = Math.floor((p.x + GAP / 2) / (TW + GAP));
@@ -421,6 +439,7 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Game", [["levels", "Levels"], ["endless", "Endless"]], L ? "levels" : "endless", switchMode));
   if (L) content.append(levelGrid());
+  if (!IN_FRAME) part(body, "settings").append(choice("View", [["flat", "Flat"], ["3d", "3D"]], wide() ? "3d" : "flat", v => { write(VIEW, v); showFarm(v === "3d"); }));
   const best = read(BEST, 0);
   part(body, "about").append(line(L ? `Level ${L.id}, ${L.name}: ship ${L.goal} in ${L.limit} pumps; par ${L.par}. ${starsAll()} of ${COURSE.length * 3} stars`
     : `This game: ${fmt(S.score)} in ${S.pumps} pump${S.pumps === 1 ? "" : "s"}${best ? `; your best ${fmt(best)}` : ""}`));
@@ -441,8 +460,29 @@ $("board").addEventListener("pointermove", hoverBoard);
 $("againBtn").addEventListener("click", () => (isLevel() ? openLevel(levelOf(S.lv)) : newRun()));
 $("nextBtn").addEventListener("click", () => openLevel(levelOf(S.lv + 1)));
 
+// ---------- the 3D farm, when asked for: the flat one stays the default (it spares the battery) ----------
+const wide = () => read(VIEW, "flat") === "3d";
+/** Shows the farm in 3D (settle-3d.js) or flat; where there's no WebGL the flat farm stays and says why. */
+async function showFarm(want3d) {
+  if (want3d === !!V3) return;
+  if (!want3d) { V3?.dispose(); V3 = null; $("board").style.display = ""; render(); return; }
+  const done = busy("Building the tank farm");
+  try {
+    const mod = await import("./settle-3d.js");
+    V3 = mod.create3D($("farm"), { tap: tapBoard, hover: hoverBoard, lost: () => { toast("The 3D farm lost its graphics: drawing the flat farm"); showFarm(false); } });
+    $("board").style.display = "none";
+    render();
+  } catch (err) {
+    console.warn("Settle: no 3D here, so the farm is drawn flat.", err);
+    V3 = null;
+    $("board").style.display = "";
+    if (!IN_FRAME) toast("3D isn't available on this device: the farm stays flat");
+  } finally { done(); }
+}
+onPause(() => V3?.pause(), ms => V3?.resume(ms));
+
 // for tests and debugging
-window.__settle = { get state() { return S; }, commit, tankAt, newRun, openLevel };
+window.__settle = { get state() { return S; }, commit, tankAt, newRun, openLevel, showFarm, get view() { return V3; } };
 
 // opens on the mode last played: the levels for a newcomer, the endless game for one who has a game saved
 const mode = read(MODE, null) ?? (valid(read(RUN, null)) ? "endless" : "levels");
@@ -451,3 +491,4 @@ if (mode === "levels") {
   if (valid(S) && S.goal != null && levelOf(S.lv)) render(); else openLevel(nextUp());
 } else if (!valid(S)) newRun();
 else { S = upgrade(S); render(); }
+if (wide()) { $("board").style.display = "none"; showFarm(true); }   // no flash of the flat farm first

@@ -15,6 +15,7 @@ html[data-mode="night"] { --st-danger: #E8806F; }
 .st-mark { display: inline-block; }
 .st-mark svg { width: 100%; height: 100%; display: block; }
 .st-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+.st-strip span { white-space: nowrap; }
 .st-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
 .st-score b { font-size: 1.05rem; }
 .st-lives { display: inline-flex; align-items: center; gap: .3rem; }
@@ -134,3 +135,22 @@ html[data-mode="night"] { --st-danger: #E8806F; }
 @media (orientation: landscape) and (min-width: 700px) {
   #app.settle .st-tray.nodraw { grid-template-rows: repeat(2, 4.4rem); }
 }
+
+/* the 3D farm: the canvas fills the farm's box; the words over it (the tanker's grade, souring counts, points) are the page's own */
+.st3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; -webkit-user-select: none; user-select: none; }
+.st3-over { position: absolute; inset: 0; pointer-events: none; overflow: hidden; font-size: .78rem; }
+.st3-chip { position: absolute; left: 0; top: 0; white-space: nowrap; color: var(--ink); font-weight: 650; }
+.st3-chip[hidden] { display: none; }
+.st3-jetty { left: .4rem; top: auto; bottom: .35rem; display: flex; align-items: center; gap: .3rem; padding: .22rem .5rem; border: 1px solid var(--rule); border-radius: 4px;
+  background: color-mix(in srgb, var(--sheet) 88%, transparent); color: var(--ink-soft); }
+.st3-gap { display: inline-block; width: .5rem; }
+.st3-sw { display: inline-grid; place-items: center; width: 1.15rem; height: 1.15rem; border-radius: 3px; font-size: .68rem; font-weight: 800; color: var(--on-c); }
+.st3-sw.k0 { background: var(--c2); }
+.st3-sw.k1 { background: var(--c0); color: var(--on-c0); }
+.st3-sw.k2 { background: var(--c3); }
+.st3-sw.k3 { background: var(--c1); }
+.st3-sour { display: grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--sheet); border: 1.5px solid var(--brass); font-size: .72rem; font-weight: 800; }
+.st3-sour.due { border-color: var(--st-danger); color: var(--st-danger); }
+.st3-tag, .st3-pop { font-size: 1.05rem; font-weight: 800; paint-order: stroke; -webkit-text-stroke: .18rem var(--sheet); }
+.st3-pop { position: absolute; transform: translate(-50%, -50%); font-size: 1.25rem; font-weight: 800; color: var(--ink); paint-order: stroke; -webkit-text-stroke: .18rem var(--sheet); }
+.st3-pop.big { font-size: 1.7rem; }
