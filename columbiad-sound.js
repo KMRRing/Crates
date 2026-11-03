@@ -3,7 +3,7 @@
 // when it arrives, a hollow thud when it does not. Off, and nothing is made at all. The audio context is made only from a
 // touch (browsers, and an iPhone above all, start sound only from one) and is stopped while the menu is open or the page is
 // hidden, which is the pause rule. An iPhone has no vibration for a web page, so the tick is a sound and a flash of the gauge.
-let ctx = null, master = null, on = true, hiss = null, hush = null, quiet = false;
+let ctx = null, master = null, on = true, hiss = null, hush = null, quiet = false, lastClick = -1;
 
 function audio() {
   if (!on) return null;
@@ -67,13 +67,15 @@ const VOICES = {
     tone(c, t, { freq: 130, to: 34, gain: 0.95, dur: 0.7 });
     tone(c, t, { freq: 62, to: 28, gain: 0.7, dur: 1.0 });
   },
-  /** One barrel of powder passing under the thumb: a short, dry tick, higher the more is loaded. */
+  /** One barrel of powder passing under the thumb: a soft wooden-brass ratchet click (a few milliseconds of band-passed noise) over a quiet low sine, a touch higher the more is loaded. */
   tick(c, t, { n = 4 }) {
-    tone(c, t, { freq: 1500 + n * 55, to: 900 + n * 40, gain: 0.16, dur: 0.028, type: "triangle", attack: 0.001 });
+    burst(c, t, { freq: 1300 + n * 40, to: 700, q: 2.2, gain: 0.07, dur: 0.035, type: "bandpass" });
+    tone(c, t, { freq: 210 + n * 9, to: 170 + n * 7, gain: 0.05, dur: 0.06, attack: 0.004 });
   },
-  /** A nudge: softer and lower than a tick. */
+  /** A nudge: the same click, softer and lower. */
   nudge(c, t) {
-    tone(c, t, { freq: 760, to: 520, gain: 0.1, dur: 0.03, type: "triangle", attack: 0.001 });
+    burst(c, t, { freq: 900, to: 520, q: 2, gain: 0.045, dur: 0.03, type: "bandpass" });
+    tone(c, t, { freq: 170, to: 140, gain: 0.03, dur: 0.05, attack: 0.004 });
   },
   /** On arriving: a clean chime, three bell tones stepping up. */
   chime(c, t) {
@@ -97,6 +99,10 @@ export const sound = {
   play(name, opts = {}) {
     const c = audio();
     if (!c) return;
+    if (name === "tick" || name === "nudge") {                // a drag or a held nudge never floods: one click in 55 ms at most
+      if (c.currentTime - lastClick < 0.055) return;
+      lastClick = c.currentTime;
+    }
     VOICES[name]?.(c, c.currentTime + 0.005, opts);
   },
   /** The shell out in the air: a hush of air that rises and falls over `dur` seconds. */
