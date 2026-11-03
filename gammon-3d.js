@@ -191,7 +191,7 @@ export function createBoard(host, { view: saved = null, onView = () => {}, onTap
   camera.updateProjectionMatrix = () => {};
   const sun = new THREE.DirectionalLight(0xfff0d8, 2.6), hemi = new THREE.HemisphereLight(0xfff4e4, 0x4a3a2c, 1.0);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1536, 1536);
+  sun.shadow.mapSize.set(1024, 1024);
   Object.assign(sun.shadow.camera, { left: -11.5, right: 11.5, top: 11.5, bottom: -11.5, near: 4, far: 50 });
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.025;
