@@ -17,6 +17,7 @@
 // Throws where there is no WebGL (the page then keeps the chart).
 import * as THREE from "./vendor/three.js";
 import { createBatch, prep } from "./bridges-batch.js";
+import { coastOf, TAU } from "./bridges-coast.js";
 import { cellXZ, labelOf, seaOf, createFleet, shipsFor, piersOf, wallOutline, linkLine, pickLink, pickTolerance, islandRadius, deckProfile, fitDistance, homeElevation } from "./bridges-model.js";
 
 const DEG = Math.PI / 180;
@@ -32,17 +33,29 @@ const WAVE = (x, z, t) => 0.028 * Math.sin(x * 0.9 + t * 0.8) + 0.02 * Math.sin(
 const HOME_LOOK = [0, 0.15, 0];                 // what the camera looks at when the whole board is in view
 
 // ---------- the skins ----------
-const MODES = {
-  day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], copper: 0xd9a27a, timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, guide: 0xffffff, guideA: 0.62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false, grass: 0x8fae62, tree: 0x4d7a45, shallow: 0xb9e6e3, shallowA: 0.42, rail: 0x6b4a2b },
+// Two realms (docs/bridges.md, "The two realms' language"): blue islands are round and have white decks with blue rails, orange islands are
+// square-cut clay with orange decks and a double dark rail; each has a collar of its colour round its foot, gilded once its number is met.
+// The colours are chosen for the sea and the timber they stand on and for colour-blind eyes (tests/bridges-look.mjs measures them): never
+// retune one by eye. A gilt rim round the collar says an island's number is met.
+export const REALMS = {
+  day: { collar0: 0x17408c, collar1: 0xf07a14, deck0: 0xeaf1f8, deck1: 0xe8691a, rail0: 0x174a94, rail1: 0x4a1f06, rim: 0xe6b93a, clay: 0xd0601c, clay0: 0xe27a32, clay1: 0xc9622a, clay2: 0xa84c1e },
+  night: { collar0: 0x6aaeee, collar1: 0xffa14a, deck0: 0xd6e3f0, deck1: 0xde6c16, rail0: 0x2c68bc, rail1: 0x5e2c0e, rim: 0xf4cf6a, clay: 0xe08848, clay0: 0xee9a58, clay1: 0xd98446, clay2: 0xb86b34 },
+};
+export const SHORE = {
+  day: { cSand: 0xe2d2a4, cliff: 0x8c8068, cliffHi: 0x9c8f76, grass: 0x7d9c5a, grassHi: 0x6e8d52, hill: 0x587a48, rock: 0x7b756a, pine: 0x3c6a3e, white: 0xf1ece0, red: 0xb5432f },
+  night: { cSand: 0xb4a98a, cliff: 0x7a7060, cliffHi: 0x877c69, grass: 0x5f7a4a, grassHi: 0x546d42, hill: 0x45603f, rock: 0x6c675f, pine: 0x34583a, white: 0xd9d5c8, red: 0xa04230 },
+};
+export const MODES = {
+  day: { sea: 0x3f8db4, sand: 0xe6d6ab, hill: [0xd8c28f, 0xc4a870, 0xa98b55], timber: 0x9a6a3b, stone: 0xd9d0bc, deck: 0xbfb394, guide: 0xffffff, guideA: 0.62, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.5, exposure: 1.0, lantern: false, grass: 0x8fae62, tree: 0x4d7a45, shallow: 0xb9e6e3, shallowA: 0.42, rail: 0x6b4a2b, realm: REALMS.day, shore: SHORE.day },
   // by night the timber and stone are lighter than the day's, or they sink into the dark sea
-  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], copper: 0xc08a68, timber: 0xb5854d, stone: 0xcbc4b4, deck: 0xb0a995, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true, grass: 0x6f8a55, tree: 0x3e6339, shallow: 0x8fb8c4, shallowA: 0.34, rail: 0x8a6439 },
+  night: { sea: 0x3a6684, sand: 0xbdb292, hill: [0xb3a47c, 0x9d8e68, 0x857852], timber: 0xb5854d, stone: 0xcbc4b4, deck: 0xb0a995, guide: 0xdfeaf5, guideA: 0.5, hemi: 1.3, sky: 0xa5b4d2, ground: 0x1c2a38, key: 0xcfdcf6, keyI: 2.1, exposure: 1.1, lantern: true, grass: 0x6f8a55, tree: 0x3e6339, shallow: 0x8fb8c4, shallowA: 0.34, rail: 0x8a6439, realm: REALMS.night, shore: SHORE.night },
 };
 function skinNow() {
   const root = document.documentElement, night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
   return { night, ...MODES[night ? "night" : "day"] };
 }
 /** The colour of each role the batches name (bridges-batch.js) in a skin. */
-const palette = k => ({ sand: k.sand, copper: k.copper, h0: k.hill[0], h1: k.hill[1], h2: k.hill[2], timber: k.timber, stone: k.stone, deck: k.deck, grass: k.grass, tree: k.tree, rail: k.rail, trim: 0xc9a23c, teal: 0x1e7f8c });
+export const palette = k => ({ sand: k.sand, h0: k.hill[0], h1: k.hill[1], h2: k.hill[2], timber: k.timber, stone: k.stone, deck: k.deck, grass: k.grass, tree: k.tree, rail: k.rail, trim: 0xc9a23c, teal: 0x1e7f8c, ...k.realm, ...k.shore });
 const SHIP_COLORS = { hull: 0x6a4426, trim: 0xc9a23c, sail: 0xf0e6cc, flag: 0xb5432f };
 
 /** An extruded outline: points [x, y] along and up, `depth` thick (centred on z = 0). */
@@ -55,12 +68,22 @@ function wall(points, depth) {
   return g;
 }
 const at = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z);
+const PINE_TRUNK = prep(new THREE.CylinderGeometry(0.022, 0.03, 0.14, 5)), PINE_LOW = prep(new THREE.ConeGeometry(0.15, 0.34, 7)), PINE_HIGH = prep(new THREE.ConeGeometry(0.1, 0.28, 7));
 const POST = prep(new THREE.BoxGeometry(0.02, 0.09, 0.02)), PILE = prep(new THREE.CylinderGeometry(0.02, 0.024, 1, 5)), BEAMS = {};     // a bridge's pieces, made once: a rail post, a trestle's pile (one unit high, stretched to fit) and its beam by the lane's width
 
 /** Flat strips along a link in its own frame (from its first island along +x, `y` up), each [from, to, half width]. */
 function strips(list, y, zoff = 0) {
   const pos = [], idx = [];
   for (const [x0, x1, hw] of list) { const n = pos.length / 3; pos.push(x0, y, zoff - hw, x1, y, zoff - hw, x0, y, zoff + hw, x1, y, zoff + hw); idx.push(n, n + 1, n + 2, n + 2, n + 1, n + 3); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  return g;
+}
+/** A flat annulus in the y = 0 plane, facing up (the bundle has no RingGeometry). */
+function flatRing(r0, r1, n) {
+  const pos = [], idx = [];
+  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a), j = (i + 1) % n; pos.push(c * r0, 0, s * r0, c * r1, 0, s * r1); idx.push(i * 2, j * 2, i * 2 + 1, i * 2 + 1, j * 2, j * 2 + 1); }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setIndex(idx);
@@ -129,10 +152,11 @@ export function createModel(host, opts = {}) {
 
   // ---------- the sea ----------
   let sea = null, seaTop = [], seaSize = 0;
-  function buildSea(size) {
+  function buildSea(half) {
     if (sea) { scene.remove(sea); sea.geometry.dispose(); }
-    seaSize = size + 40;                             // the camera sees a long way over it from a low angle
-    const g = new THREE.BoxGeometry(seaSize, 0.5, seaSize, 64, 1, 64), pos = g.attributes.position;
+    seaSize = 2 * half;                              // the coast's bay and a little over: the land hides the rest of the box, wherever the camera is
+    const cuts = Math.max(24, Math.min(56, Math.ceil(seaSize / 0.6)));      // a swell is seven cells long at least: a cell of 0.6 draws it
+    const g = new THREE.BoxGeometry(seaSize, 0.5, seaSize, cuts, 1, cuts), pos = g.attributes.position;
     seaTop = [];
     for (let i = 0; i < pos.count; i++) if (pos.getY(i) > 0) seaTop.push(i);
     g.translate(0, -0.25, 0);
@@ -175,7 +199,7 @@ export function createModel(host, opts = {}) {
   }
 
   // ---------- the puzzle on show ----------
-  let P = null, size = 0, lay = null;
+  let P = null, size = 0, lay = null, realmed = false, coast = null;      // the puzzle on show, whether it has two realms, and its shore
   let world = null, lines = [], plates = [], fleet = null, lastSail = 0, marks = "";
   let batches = null, hulls = null, lamps = null, buoyMeshes = [], buoys = [], fitPts = [];       // the meshes of the board, the ships and their lamps, the buoys, and the points the camera keeps in view
   let lit = new Set(), litIsland = -1, aim = -1, winUntil = 0;     // the hint's links and island, the link under a finger or the pointer, the end of the win's glow
@@ -200,14 +224,18 @@ export function createModel(host, opts = {}) {
   /** An island as big as its number: on sand, a beach, a lawn and trees (more of them the bigger it is); a hill in terraces; and a pale ring of shallows round it. */
   function island(land, rings, i) {
     const isle = lay.isl[i], [x, z] = cellXZ(size, isle.r, isle.c), R = islandRadius(isle.n), here = y => at(x, y, z);
+    const clay = !!isle.realm;                                          // an orange realm's island: square-cut clay, no lawn or trees; a blue one is round and green as an island always was
+    // a hill or islet is round or square; a square one's four-sided cylinder is turned to the axes (its corners are `r` from the middle, its sides 0.7 r)
+    const body = (rt, rb, h, segs) => (clay ? new THREE.CylinderGeometry(rt * 1.25, rb * 1.25, h, 4).rotateY(Math.PI / 4) : new THREE.CylinderGeometry(rt, rb, h, segs));
+    if (realmed) land.add("all", clay ? new THREE.BoxGeometry(2 * R * 0.9 + 0.3, 0.03, 2 * R * 0.9 + 0.3) : new THREE.CylinderGeometry(R + 0.15, R + 0.15, 0.03, 28), here(0.095), `collar${isle.realm ? 1 : 0}`);     // the realm's colour round the foot, over the swell's crests
     if (isle.hill) {
       // terraces: contour lines made solid
       const k = R / 0.47;
-      for (const [rb, rt, h, role] of [[0.47, 0.44, 0.3, "h0"], [0.37, 0.36, 0.62, "h1"], [0.27, 0.26, 1.0, "h2"]]) land.add("all", new THREE.CylinderGeometry(rt * k, rb * k, h + 0.1, 20), here((h - 0.1) / 2), isle.realm ? "copper" : role);
-      land.add("all", new THREE.CylinderGeometry(0.2 * k, 0.26 * k, 0.05, 14), here(1.02), "trim");
+      for (const [rb, rt, h, role] of [[0.47, 0.44, 0.3, "h0"], [0.37, 0.36, 0.62, "h1"], [0.27, 0.26, 1.0, "h2"]]) land.add("all", body(rt * k, rb * k, h + 0.1, 20), here((h - 0.1) / 2), clay ? `clay${role[1]}` : role);
+      land.add("all", body(0.2 * k, 0.26 * k, 0.05, 14), here(1.02), "trim");
     } else {
-      land.add("all", new THREE.CylinderGeometry(R * 0.93, R, 0.34, 24), here(0.03), isle.realm ? "copper" : "sand");
-      if (!isle.realm && R > 0.3) {
+      land.add("all", body(R * 0.93, R, 0.34, 24), here(0.03), clay ? "clay" : "sand");
+      if (!clay && R > 0.3) {
         land.add("all", new THREE.CylinderGeometry(R * 0.66, R * 0.74, 0.04, 20), here(0.2), "grass");
         // trees on the diagonals, the bridges leaving by the four sides
         const count = isle.n >= 7 ? 3 : isle.n >= 5 ? 2 : isle.n >= 3 ? 1 : 0;
@@ -219,6 +247,12 @@ export function createModel(host, opts = {}) {
       }
     }
     rings.add("all", new THREE.CylinderGeometry(R + 0.2, R + 0.26, 0.012, 22), here(0.07), "shallow");      // over the swell's crests
+    if (realmed) {
+      // a gilt rim round the collar of an island whose number is met (shown by update, a group of the land: no mesh of its own): "done" and, by its shape, whose
+      const q = (clay ? 2 * R * 0.9 + 0.3 : 2 * R + 0.3) / 2, g = `m${i}`;
+      if (clay) for (const [w, l, ox, oz] of [[2 * q + 0.12, 0.06, 0, -q - 0.03], [2 * q + 0.12, 0.06, 0, q + 0.03], [0.06, 2 * q, -q - 0.03, 0], [0.06, 2 * q, q + 0.03, 0]]) land.add(g, new THREE.BoxGeometry(w, 0.034, l), here(0.108).multiply(at(ox, 0, oz)), "rim");
+      else land.add(g, flatRing(q, q + 0.07, 32), here(0.114), "rim");
+    }
     // what the camera keeps in view: the shallows' corners, and the plate over the island
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) fitPts.push(x + sx * (R + 0.22), 0, z + sz * (R + 0.22));
     fitPts.push(x, isle.hill ? 1.35 : 0.68, z);
@@ -226,7 +260,7 @@ export function createModel(host, opts = {}) {
   /** A link's bridges, once: a single, a double and (on a wide road) a triple, as groups `l.1`, `l.2`, `l.3` of the batch, shown and hidden as the marks change. */
   function bridgesOf(b, l) {
     const link = lay.links[l], a = lay.isl[link.a], bb = lay.isl[link.b], [x, z] = cellXZ(size, a.r, a.c), span = link.vertical ? bb.r - a.r : bb.c - a.c;
-    const linkM = new THREE.Matrix4().makeRotationY(link.vertical ? -Math.PI / 2 : 0).setPosition(x, 0, z), deckRole = a.realm ? "copper" : "timber";
+    const linkM = new THREE.Matrix4().makeRotationY(link.vertical ? -Math.PI / 2 : 0).setPosition(x, 0, z), r = realmed ? (a.realm ? 1 : 0) : -1, deckRole = r >= 0 ? `deck${r}` : "timber", railRole = r >= 0 ? `rail${r}` : "rail";
     const sets = [[1, [0]], [2, [-0.1, 0.1]], ...(link.cap === 3 ? [[3, [-0.17, 0, 0.17]]] : [])];      // a wide road has room for a third bridge
     const put = (n, geo, local, role) => b.add(`${l}.${n}`, geo, local ? linkM.clone().multiply(local) : linkM, role);
     if (link.high) {
@@ -236,8 +270,8 @@ export function createModel(host, opts = {}) {
       for (const [n, lanes] of sets) for (const off of lanes) {
         const w = [0.24, 0.12, 0.085][lanes.length - 1];
         put(n, wall(outline, [0.17, 0.08, 0.06][lanes.length - 1]), at(0, 0, off), "stone");
-        put(n, new THREE.BoxGeometry(xb - xa, 0.05, w), at(mid, VIADUCT - 0.02, off), "deck");
-        for (const side of [-1, 1]) put(n, new THREE.BoxGeometry(xb - xa, 0.07, 0.022), at(mid, VIADUCT + 0.04, off + side * (w / 2 - 0.011)), "stone");
+        put(n, new THREE.BoxGeometry(xb - xa, 0.05, w), at(mid, VIADUCT - 0.02, off), r >= 0 ? deckRole : "deck");
+        for (const side of [-1, 1]) put(n, new THREE.BoxGeometry(xb - xa, 0.07, 0.022), at(mid, VIADUCT + 0.04, off + side * (w / 2 - 0.011)), r >= 0 ? railRole : "stone");
       }
     } else {
       // an arched timber deck with railings, on trestles: the posts, piles and beams are the same few pieces placed again and again (prep, put), and the
@@ -245,14 +279,16 @@ export function createModel(host, opts = {}) {
       const { xa, xb, len, hump } = lowSpan(a, bb, span), ytop = u => DECK + hump * Math.sin((Math.PI * (u - xa)) / len);
       const top = deckProfile(len, hump, Math.max(6, Math.round(len * 5))).map(([u, dy]) => [xa + u, DECK + dy]), decks = {};
       const rail = prep(wall([...top.map(([u, y]) => [u, y + 0.1]), ...top.map(([u, y]) => [u, y + 0.082]).reverse()], 0.018));
+      const rail2 = r === 1 ? prep(wall([...top.map(([u, y]) => [u, y + 0.058]), ...top.map(([u, y]) => [u, y + 0.04]).reverse()], 0.018)) : null;      // an orange bridge has a second, lower rail: the same fact the colours give, for eyes that can't tell them
       for (const [n, lanes] of sets) for (const off of lanes) {
         const w = [0.15, 0.085, 0.065][lanes.length - 1], g = `${l}.${n}`;
         decks[w] ||= prep(wall([...top, ...top.map(([u, y]) => [u, y - 0.045]).reverse()], w));
         b.put(g, decks[w], linkM, deckRole, 0, 0, off);
         for (const side of lanes.length === 1 ? [-1, 1] : off === 0 ? [] : [off < 0 ? -1 : 1]) {      // posts and a rail along the edges (a double or a triple has its outer ones)
           const zz = off + side * (w / 2 - 0.011);
-          for (let u = xa + 0.12; u <= xb - 0.1; u += 0.3) b.put(g, POST, linkM, "rail", u, ytop(u) + 0.045, zz);
-          b.put(g, rail, linkM, "rail", 0, 0, zz);
+          for (let u = xa + 0.12; u <= xb - 0.1; u += 0.3) b.put(g, POST, linkM, railRole, u, ytop(u) + 0.045, zz);
+          b.put(g, rail, linkM, railRole, 0, 0, zz);
+          if (rail2) b.put(g, rail2, linkM, railRole, 0, 0, zz);
         }
         BEAMS[w] ||= prep(new THREE.BoxGeometry(0.04, 0.03, w + 0.01));
         for (let u = xa + 0.35; u <= xb - 0.3; u += 0.75) {                             // trestles: a pair of piles and a beam under the deck
@@ -281,15 +317,60 @@ export function createModel(host, opts = {}) {
     }
   }
 
-  /** Shows a puzzle: `p` is { lay, size } (the page's P). */
+  /**
+   * The shore round the sea (bridges-coast.js): its land in the colours of its slopes (sand, cliff, grass, hill), rocks, clumps of pines and a lighthouse, all
+   * one mesh with the board's land colours, and a pale ribbon of shallows along the waterline in the translucent batch. Built once with the puzzle.
+   */
+  function shoreOf(batch, shallows) {
+    const roles = new Map();
+    for (const t of coast.tris) { const list = roles.get(t.role) || roles.set(t.role, []).get(t.role); for (let q = 0; q < 9; q++) list.push(t.p[q]); }
+    for (const [role, list] of roles) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(list, 3));
+      g.computeVertexNormals();
+      batch.add("all", g, null, role);
+    }
+    for (const r of coast.rocks) batch.add("all", new THREE.IcosahedronGeometry(1, 0), at(r.x, r.y, r.z).multiply(new THREE.Matrix4().makeRotationY(r.ry)).multiply(new THREE.Matrix4().makeScale(r.s, r.s * 0.7, r.s)), "rock");
+    for (const q of coast.pines) {
+      const m = at(q.x, q.y, q.z);
+      batch.put("all", PINE_TRUNK, m, "rail", 0, 0.06, 0);
+      batch.put("all", PINE_LOW, m, "pine", 0, 0.1 + 0.17 * q.s, 0, q.s);
+      batch.put("all", PINE_HIGH, m, "pine", 0, 0.1 + 0.34 * q.s, 0, q.s);
+    }
+    const lh = coast.lighthouse;
+    if (lh) {
+      const m = at(lh.x, lh.y, lh.z);
+      batch.add("all", new THREE.CylinderGeometry(0.11, 0.17, 1.1, 10), m.clone().multiply(at(0, 0.55, 0)), "white");
+      batch.add("all", new THREE.CylinderGeometry(0.128, 0.138, 0.2, 10), m.clone().multiply(at(0, 0.6, 0)), "red");
+      batch.add("all", new THREE.CylinderGeometry(0.2, 0.2, 0.04, 10), m.clone().multiply(at(0, 1.12, 0)), "white");
+      batch.add("all", new THREE.CylinderGeometry(0.085, 0.085, 0.15, 8), m.clone().multiply(at(0, 1.21, 0)), "trim");
+      batch.add("all", new THREE.ConeGeometry(0.14, 0.15, 8), m.clone().multiply(at(0, 1.36, 0)), "red");
+      batch.add("all", new THREE.CylinderGeometry(0.22, 0.26, 0.1, 8), m.clone().multiply(at(0, -0.02, 0)), "cliff");
+    }
+    // shallows: a ribbon of pale water along the waterline, outside it, over the swell's crests
+    const pos = [], idx = [], n = coast.n;
+    for (let i = 0; i < n; i++) {
+      const t = (i / n) * TAU, r = coast.water[i], c = Math.cos(t), s = Math.sin(t);
+      pos.push(c * (r - 0.55), 0.075, s * (r - 0.55), c * (r + 0.04), 0.075, s * (r + 0.04));
+      const j = (i + 1) % n;
+      idx.push(i * 2, j * 2, i * 2 + 1, i * 2 + 1, j * 2, j * 2 + 1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    shallows.add("all", g, null, "shallow");
+  }
+
+  /** Shows a puzzle: `p` is { lay, size, seed } (the page's P and the run's seed, which gives the shore). */
   function set(p) {
     const began = performance.now();
-    P = p; lay = p.lay; size = p.size;
+    P = p; lay = p.lay; size = p.size; realmed = lay.isl.some(o => o.realm);
     disposeWorld();
     world = new THREE.Group();
-    buildSea(size);
+    coast = coastOf(p.seed ?? lay.isl.map(o => `${o.r}${o.c}${o.n}`).join(""), size);       // every puzzle has a bay of its own
+    buildSea(coast.seaHalf);
     zoom = 1; pan.x = pan.z = 0; orbited = false; az = HOME_AZ; el = homeElevation(width / height);       // a new board is seen from the first view, all of it
-    const land = createBatch(), rings = createBatch(), bridges = createBatch(), dashes = createBatch(), halos = createBatch();
+    const land = createBatch(), rings = createBatch(), bridges = createBatch(), dashes = createBatch(), halos = createBatch(), shore = createBatch();
     lay.isl.forEach((isle, i) => {
       island(land, rings, i);
       const plate = document.createElement("span"), [x, z] = cellXZ(size, isle.r, isle.c);
@@ -316,8 +397,9 @@ export function createModel(host, opts = {}) {
     // the board's own square, so a sparse board is framed as a full one is
     const sq = (size / 2 - 0.5) * 0.9 + 0.55;
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) fitPts.push(sx * sq, 0, sz * sq);
-    batches = { land: mount(land, M.land, { shadows: true }), bridges: mount(bridges, M.land, { shadows: true }), rings: mount(rings, M.shallow), dashes: mount(dashes, M.guide, { order: 1 }), halos: mount(halos, M.halo, { order: 2 }) };
-    batches.land.show(null); batches.rings.show(null);
+    shoreOf(shore, rings);
+    batches = { land: mount(land, M.land, { shadows: true }), bridges: mount(bridges, M.land, { shadows: true }), shore: mount(shore, M.land), rings: mount(rings, M.shallow), dashes: mount(dashes, M.guide, { order: 1 }), halos: mount(halos, M.halo, { order: 2 }) };
+    batches.land.show(null); batches.rings.show(null); batches.shore.show(null);
     // the buoys: two instanced meshes, a colour each; the ships: one, and a lamp for each at night
     buoys = [];
     for (const white of [false, true]) {
@@ -372,7 +454,7 @@ export function createModel(host, opts = {}) {
     batches.bridges.show(built);
     batches.dashes.show(bare);
     state.bridges = built.length; state.guides = bare.length;
-    const over = new Set(br?.over), met = new Set(br?.met), cut = new Set(br?.cut), loop = new Set((br?.ring || []).flatMap(l => [lay.links[l].a, lay.links[l].b]));
+    const over = new Set(br?.over), met = new Set(br?.met), cut = new Set(br?.cut), loop = new Set((br?.ring || []).flatMap(l => [lay.links[l].a, lay.links[l].b])), done = [];
     for (const pl of plates) {
       let cls;
       if (pl.strait != null) cls = `brg3-n strait${br?.straitsOver?.includes(pl.strait) ? " over" : br?.straitsMet?.includes(pl.strait) ? " met" : ""}${hint?.strait === pl.strait ? " why" : ""}`;
@@ -380,10 +462,12 @@ export function createModel(host, opts = {}) {
         const isle = lay.isl[pl.i];
         const word = unknown.has(pl.i) ? "?" : labelOf(isle);
         if (word !== pl.shown) { pl.shown = word; pl.text.data = word; measure = true; }
-        cls = `brg3-n${isle.realm ? " r1" : ""}${isle.kind && !unknown.has(pl.i) ? " rng" : ""}${unknown.has(pl.i) ? " unk" : ""}${over.has(pl.i) ? " over" : met.has(pl.i) ? " met" : ""}${cut.has(pl.i) ? " cut" : ""}${loop.has(pl.i) ? " loop" : ""}${pl.i === litIsland ? " why" : ""}`;
+        if (realmed && !unknown.has(pl.i) && !over.has(pl.i) && met.has(pl.i)) done.push(`m${pl.i}`);       // a gilt rim on an island that has its bridges (and a number this player knows)
+        cls = `brg3-n${realmed ? (isle.realm ? " r1" : " r0") : ""}${isle.kind && !unknown.has(pl.i) ? " rng" : ""}${unknown.has(pl.i) ? " unk" : ""}${over.has(pl.i) ? " over" : met.has(pl.i) ? " met" : ""}${cut.has(pl.i) ? " cut" : ""}${loop.has(pl.i) ? " loop" : ""}${pl.i === litIsland ? " why" : ""}`;
       }
       if (cls !== pl.cls) { pl.cls = cls; pl.el.className = cls; }
     }
+    batches.land.show(done.length ? ["all", ...done] : null);
     fleet?.setSea(seaOf(lay, m));
     glow();
     wake();
@@ -403,6 +487,7 @@ export function createModel(host, opts = {}) {
     M.sea.color.set(k.sea); M.shallow.color.set(k.shallow); M.shallow.opacity = k.shallowA; M.guide.color.set(k.guide); M.guide.opacity = k.guideA;
     batches?.land.recolor(r => pal[r]);
     batches?.bridges.recolor(r => pal[r]);
+    batches?.shore.recolor(r => pal[r]);
     hemi.color.set(k.sky); hemi.groundColor.set(k.ground); hemi.intensity = k.hemi;
     sun.color.set(k.key); sun.intensity = k.keyI;
     renderer.toneMappingExposure = k.exposure;
@@ -427,10 +512,11 @@ export function createModel(host, opts = {}) {
   /** The camera for the angle and the zoom: the whole board (and the plates over it) in view at the first zoom, from whichever side, to the pixel. */
   function fit() {
     if (!size) return;
-    const aspect = width / height, ty = Math.tan(FOV / 2), tx = ty * aspect, near = 0.5, far = 120, top = near * ty, right = top * aspect, pad = 1.2 * rem;
+    const aspect = width / height, ty = Math.tan(FOV / 2), tx = ty * aspect, near = 0.5, top = near * ty, right = top * aspect, pad = 1.2 * rem;
+    fitDist = Math.max(4, fitDistance(fitPts, az, el, HOME_LOOK, tx, ty, (2 * pad) / width, (2 * pad) / height));
+    const far = Math.max(120, fitDist + (coast ? coast.far : 0) + 30);       // the land is seen to its far edge from the farthest the camera stands
     camera.projectionMatrix.makePerspective(-right, right, top, -top, near, far);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
-    fitDist = Math.max(4, fitDistance(fitPts, az, el, HOME_LOOK, tx, ty, (2 * pad) / width, (2 * pad) / height));
     dist = fitDist / zoom;
     pose();
     camDirty = true;

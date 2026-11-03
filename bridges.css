@@ -6,13 +6,13 @@
   --brg-good: #2F7D5B; --brg-bad: #A8382B; --brg-gilt: #C8923A;
   --brg-tile: var(--tile); --brg-guide: color-mix(in srgb, var(--ink) 22%, var(--brg-tile));
   --brg-logo-tint: #D6E6F1; --brg-logo-edge: var(--logo-edge);
-  --brg-copper: #B5582B; --brg-strait: #1E7F8C;
+  --brg-r0: #1F5BAA; --brg-r1: #C2540C; --brg-copper: var(--brg-r1); --brg-strait: #1E7F8C;      /* the two realms: blue (round) and orange (square), chosen for contrast on the paper and for colour-blind eyes (tests/bridges-look.mjs) */
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865; --brg-copper: #E39560; --brg-strait: #6CC7D3;
+  html:not([data-mode="day"]) { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865; --brg-r0: #7DB6F0; --brg-r1: #F2A35E; --brg-strait: #6CC7D3;
     --brg-tile: color-mix(in srgb, var(--tile) 90%, var(--ink)); --brg-logo-tint: #1E3547; }
 }
-html[data-mode="night"] { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865; --brg-copper: #E39560; --brg-strait: #6CC7D3;
+html[data-mode="night"] { --brg-in: #7DB7DD; --brg-good: #7FC2A8; --brg-bad: #E8806F; --brg-gilt: #E2B865; --brg-r0: #7DB6F0; --brg-r1: #F2A35E; --brg-strait: #6CC7D3;
   --brg-tile: color-mix(in srgb, var(--tile) 90%, var(--ink)); --brg-logo-tint: #1E3547; }
 /* Kontor's enamel is its green; Modern's logo tint and edge, as its theme gives every game's */
 html[data-theme="kontor"] { --brg-in: #1E7A45; --brg-gilt: #C8901A; }
@@ -33,6 +33,17 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 /* a race's line (the others' scores) takes a row of the strip's own, and the strip wraps once for it before the board is drawn */
 .brg-duel { flex: 1 0 100%; display: flex; align-items: center; gap: .45rem; margin: 0; min-width: 0; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brg-duel[hidden] { display: none; }
+/* two realms: the legend, a chip a realm with its shape (blue round, orange square, as on the board), its colour and how many of its islands are done */
+.brg-legend { flex: 1 0 100%; display: flex; align-items: center; gap: .45rem; margin: 0; }
+.brg-legend[hidden] { display: none; }
+#app.bridges .brg-strip.realms { flex-wrap: wrap; }      /* over a level's one-line strip (#app.lv .brg-strip, below) */
+.brg-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .1rem .5rem .1rem .35rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); color: var(--ink); font-size: .74rem; white-space: nowrap; }
+.brg-chip.r0 { --realm: var(--brg-r0); }
+.brg-chip.r1 { --realm: var(--brg-r1); }
+.brg-chip i { width: .8rem; height: .8rem; box-sizing: border-box; border: 2.5px solid var(--realm); border-radius: 50%; }
+.brg-chip.r1 i { border-radius: 28%; }
+.brg-chip b { font-weight: 800; }
+.brg-chip small { min-width: 1.6rem; font-size: .72rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
 /* the board: the stage, framed in a double rule (a brass edge, a hairline four pixels inside it) */
 .brg-card { position: relative; border-radius: 6px; background: var(--sheet); padding: .5rem;
@@ -75,10 +86,13 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 @media (prefers-reduced-motion: reduce) { .brg-ping-wave { animation: none; opacity: .5; } }
 /* the twists: a number that is only a bound sits on a warm disc; the second realm is copper, its bridges and its discs */
 .brg-i.rng .brg-disc { fill: color-mix(in srgb, var(--brass) 20%, var(--brg-tile)); }
-.brg-i.r1 .brg-disc { stroke: var(--brg-copper); }
-.brg-i.r1.met .brg-disc { fill: color-mix(in srgb, var(--brg-copper) 22%, var(--brg-tile)); stroke: var(--brg-copper); }
-.brg-l.k1 .brg-b { stroke: var(--brg-copper); }
-.brg-l.k1.lit .brg-b { stroke: var(--brg-gilt); }
+.brg-i.r0 .brg-disc { stroke: var(--brg-r0); stroke-width: .09; }
+.brg-i.r1 .brg-disc { stroke: var(--brg-r1); stroke-width: .09; }
+.brg-i.r0.met .brg-disc { fill: color-mix(in srgb, var(--brg-r0) 28%, var(--brg-tile)); stroke: var(--brg-r0); }
+.brg-i.r1.met .brg-disc { fill: color-mix(in srgb, var(--brg-r1) 28%, var(--brg-tile)); stroke: var(--brg-r1); }
+.brg-l.k0 .brg-b { stroke: var(--brg-r0); }
+.brg-l.k1 .brg-b { stroke: var(--brg-r1); }
+.brg-l.k0.lit .brg-b, .brg-l.k1.lit .brg-b { stroke: var(--brg-gilt); }
 /* what breaks a rule, loud and the same on every kind of island (the warm fill of a 4+ or a ≤3 and a realm's copper ring come
    first above, so neither hides it): an island with too many bridges is filled oxblood, numbered in oxblood and ringed twice
    (the disc and a halo outside it), with the bridges on it oxblood too; a group shut off from the rest is ringed in dashes,
@@ -86,23 +100,25 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg-halo { fill: none; stroke: var(--brg-bad); stroke-width: .06; visibility: hidden; pointer-events: none; }
 .brg-i.over .brg-halo, .brg-i.cut .brg-halo, .brg-i.loop .brg-halo { visibility: visible; }
 .brg-i.cut .brg-halo, .brg-i.loop .brg-halo { stroke-dasharray: .16 .1; }
-.brg-i.over .brg-disc, .brg-i.rng.over .brg-disc, .brg-i.r1.over .brg-disc { fill: color-mix(in srgb, var(--brg-bad) 42%, var(--brg-tile)); stroke: var(--brg-bad); stroke-width: .12; }
-.brg-i.cut .brg-disc, .brg-i.r1.cut .brg-disc, .brg-i.loop .brg-disc, .brg-i.r1.loop .brg-disc { stroke: var(--brg-bad); stroke-dasharray: .14 .08; stroke-width: .11; }
+.brg-i.over .brg-disc, .brg-i.rng.over .brg-disc, .brg-i.r0.over .brg-disc, .brg-i.r1.over .brg-disc { fill: color-mix(in srgb, var(--brg-bad) 42%, var(--brg-tile)); stroke: var(--brg-bad); stroke-width: .12; }
+.brg-i.cut .brg-disc, .brg-i.r0.cut .brg-disc, .brg-i.r1.cut .brg-disc, .brg-i.loop .brg-disc, .brg-i.r0.loop .brg-disc, .brg-i.r1.loop .brg-disc { stroke: var(--brg-bad); stroke-dasharray: .14 .08; stroke-width: .11; }
 .brg-i.over .brg-num { fill: var(--brg-bad); }
 /* a hint's island is ringed in gilt over anything else */
-.brg-i.why .brg-disc, .brg-i.over.why .brg-disc, .brg-i.cut.why .brg-disc, .brg-i.loop.why .brg-disc, .brg-i.r1.why .brg-disc, .brg-i.rng.over.why .brg-disc { stroke: var(--brg-gilt); stroke-width: .11; stroke-dasharray: none; }
-.brg-l.bad .brg-b, .brg-l.bad .brg-piers, .brg-l.hi.k1.bad .brg-piers { stroke: var(--brg-bad); }
+.brg-i.why .brg-disc, .brg-i.over.why .brg-disc, .brg-i.cut.why .brg-disc, .brg-i.loop.why .brg-disc, .brg-i.r0.why .brg-disc, .brg-i.r1.why .brg-disc, .brg-i.rng.over.why .brg-disc { stroke: var(--brg-gilt); stroke-width: .11; stroke-dasharray: none; }
+.brg-l.bad .brg-b, .brg-l.bad .brg-piers, .brg-l.hi.k0.bad .brg-piers, .brg-l.hi.k1.bad .brg-piers { stroke: var(--brg-bad); }
 .brg-l.bad.lit .brg-b, .brg-l.hi.bad.lit .brg-piers { stroke: var(--brg-gilt); }
 /* viaducts: a high bridge is cased in the paper's colour (a low bridge under it seems to pass beneath) and ribbed with piers; a hill has contour lines round it */
 .brg-hill { fill: none; stroke: var(--brass); stroke-width: .03; pointer-events: none; }
 .brg-i.hill.met .brg-hill { stroke: var(--brg-in); }
-.brg-i.hill.r1 .brg-hill { stroke: var(--brg-copper); }
+.brg-i.hill.r0 .brg-hill { stroke: var(--brg-r0); }
+.brg-i.hill.r1 .brg-hill { stroke: var(--brg-r1); }
 .brg-i.hill.over .brg-hill, .brg-i.hill.cut .brg-hill, .brg-i.hill.loop .brg-hill { stroke: var(--brg-bad); stroke-width: .05; }
 .brg-case { stroke: var(--brg-tile); stroke-width: .3; stroke-linecap: butt; visibility: hidden; }
 .brg-piers { stroke: var(--brg-in); stroke-width: .3; stroke-dasharray: .035 .2; stroke-linecap: butt; visibility: hidden; }
 .brg-l.hi.c1 .brg-case, .brg-l.hi.c2 .brg-case, .brg-l.hi.c3 .brg-case, .brg-l.hi.c1 .brg-piers, .brg-l.hi.c2 .brg-piers, .brg-l.hi.c3 .brg-piers { visibility: visible; }
 .brg-l.hi .brg-guide { stroke: var(--brg-in); stroke-opacity: .6; stroke-width: .05; }
-.brg-l.hi.k1 .brg-piers { stroke: var(--brg-copper); }
+.brg-l.hi.k0 .brg-piers { stroke: var(--brg-r0); }
+.brg-l.hi.k1 .brg-piers { stroke: var(--brg-r1); }
 .brg-l.hi.lit .brg-piers { stroke: var(--brg-gilt); }
 /* roads: a wide one lies on a bed with three lanes (and holds three bridges), a narrow one has a post each side of its middle (and holds one) */
 .brg-bed { stroke: var(--brg-in); stroke-opacity: .14; stroke-width: .44; stroke-linecap: butt; pointer-events: none; }
@@ -144,13 +160,21 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
   border: 1.5px solid var(--ink); background: var(--brg-tile); color: var(--ink); font-weight: 800; font-size: calc(.8rem * var(--k)); font-variant-numeric: tabular-nums; line-height: 1;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 35%, transparent); will-change: transform; }
 .brg3-n.rng { background: color-mix(in srgb, var(--brass) 28%, var(--brg-tile)); }
-.brg3-n.r1 { border-color: var(--brg-copper); }
 .brg3-n.met { background: color-mix(in srgb, var(--brg-in) 26%, var(--brg-tile)); border-color: var(--brg-in); }
+/* two realms (docs/bridges.md): a blue island's plate is round with a blue rim, an orange island's is a rounded square with an orange rim; once its number is met a plate fills with its own colour and takes a tick, so "done" and "whose" read together, and
+   a met orange plate is never blue (a plate's `.met` is the plain game's blue only where there are no realms) */
+.brg3-n.r0, .brg3-n.r1 { border-width: 2.5px; }
+.brg3-n.r0 { --realm: var(--brg-r0); border-color: var(--realm); }
+.brg3-n.r1 { --realm: var(--brg-r1); border-color: var(--realm); border-radius: 30%; }
+.brg3-n.r0.met, .brg3-n.r1.met { background: color-mix(in srgb, var(--realm) 30%, var(--brg-tile)); border-color: var(--realm); }
+.brg3-n.r0.met::after, .brg3-n.r1.met::after { content: "\2713\FE0E"; position: absolute; top: -.32rem; right: -.32rem; width: .66rem; height: .66rem; border-radius: 50%; background: var(--realm); color: var(--brg-tile);
+  font-size: .46rem; font-weight: 900; line-height: .66rem; text-align: center; box-shadow: 0 0 0 1.5px var(--brg-tile); }
 .brg3-n.over { background: color-mix(in srgb, var(--brg-bad) 42%, var(--brg-tile)); border-color: var(--brg-bad); color: var(--brg-bad); box-shadow: 0 0 0 2px var(--brg-bad); }
 .brg3-n.cut, .brg3-n.loop { border-style: dashed; border-color: var(--brg-bad); outline: 2px dashed var(--brg-bad); outline-offset: 1px; }
 .brg3-n.why { border-color: var(--brg-gilt); box-shadow: 0 0 0 2px var(--brg-gilt); }
 .brg3-n.unk { background: color-mix(in srgb, var(--ink) 8%, var(--brg-tile)); border-color: var(--ink-soft); color: var(--ink-soft); }
-.brg3-n.unk.r1 { border-color: var(--brg-copper); }
+.brg3-n.unk.r0 { border-color: var(--brg-r0); }
+.brg3-n.unk.r1 { border-color: var(--brg-r1); }
 /* a ping on a plate (see .brg-ping): a ring and tint in the pinger's colour round it, and a wave going out three times */
 .brg3-ping { position: absolute; inset: -.7rem; border-radius: 50%; border: .2rem solid var(--pinger); background: color-mix(in srgb, var(--pinger) 34%, transparent); box-shadow: 0 0 0 .14rem var(--brg-tile), 0 0 .7rem var(--pinger); pointer-events: none; }
 .brg3-ping::after { content: ""; position: absolute; inset: -.18rem; border-radius: 50%; border: .12rem solid var(--pinger); animation: brg3-ping .73s ease-out 3 both; }
@@ -229,7 +253,7 @@ dialog.brg-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; oversc
 @media (orientation: landscape) and (min-width: 700px) {
   #app.bridges { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
   #app.bridges .brg-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; white-space: normal; }
-  #app.bridges .brg-duel { flex: none; width: 100%; }
+  #app.bridges .brg-duel, #app.bridges .brg-legend { flex: none; width: 100%; }
   #app.bridges .brg-card { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
   #app.bridges .brg-side { grid-column: 2; grid-row: 3; align-content: end; margin-top: 0; min-height: 0; }
   #app.bridges .brg-controls { align-content: end; }
@@ -247,6 +271,7 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .br
   letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .brg-toast { border-radius: 10px; }
 html[data-theme="kontor"] .brg-card { border-radius: 2px; }
+html[data-theme="kontor"] .brg-chip { border-radius: 2px; }
 html[data-theme="kontor"] .brg-tool { border-radius: 2px; border-width: 1px; }
 html[data-theme="kontor"] .brg-go { border-radius: 2px; text-transform: uppercase; letter-spacing: .06em; font-size: .8rem; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .brg-kind { font-stretch: 100%; }
