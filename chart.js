@@ -7,7 +7,7 @@
 // one's distance and points and the standings (chart-table.js is the table's rules).
 import { PER_SET, regionSpan, pickMixed, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, featureBox, pointsFor, TOPICS, TOPIC_PRESETS, topicsOf, topicsDealt, bestTopicOf, comparableMix, focusOf, OLD_TOPICS, OLD_NAMES, oldTopicOf, topicOf, LOCAL, REGIONS, regionView, regionsOfPlace, askFor, homeOf, HOME_KM, fingers } from "./chart-engine.js";
 import { part, choice, action, line as menuLine, mirror } from "./menu.js";
-import { cleanMix, anyIn, mixParam, mixFromParam, subjectPreset, SUBJECT_PRESETS } from "./topics.js";
+import { cleanMix, anyIn, mixParam, mixFromParam, subjectPreset, SUBJECT_PRESETS, showStar } from "./topics.js";
 import { subjectsOn, allowed, markedIn } from "./topics-on.js";
 import { mkOfEntity } from "./marked.js";
 import { topicsPart } from "./topics-ui.js";
@@ -421,6 +421,7 @@ function render() {
     const b = document.createElement("b"); b.id = "score"; b.textContent = S.score.toLocaleString("en-GB"); scores.appendChild(b);
   }
   $("cat").textContent = p.cat === "countries" ? "Country" : p.geo ? `Physical · a ${p.kind}` : CATS[p.cat];
+  showStar($("cat").closest(".ch-card"), p);
   picture(p);
   // the task in words while you pin ("Pin the Hermitage", then what the name carried and what counts); its name at the reveal
   const ask = askFor(p), told = [ask.about, ask.rule].filter(Boolean).join(" ");

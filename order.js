@@ -15,7 +15,7 @@
 import { LIVES, MODES, BY_ID, DATES, FAMILIES, STORIES, familyOf, bestIn, dealRun, topicsIn, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } from "./order-engine.js";
 import { HL_MODES, HL_FAMILIES, dealHigherLower, answerHigherLower, advanceHigherLower, pairOf, higherOf, wasRight } from "./order-engine.js";
 import { withUnit, topicsDealt } from "./quote-engine.js";
-import { subjectPreset } from "./topics.js";
+import { subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { showPicture, pictureName, nameIn } from "./pics.js";
@@ -114,6 +114,7 @@ function render() {
     $("ask").textContent = R.mode === "dates" ? `When? Tap where it goes in ${G ? "the" : "your"} line` : R.mode === "stories" ? STORIES.get(R.story).ask : familyOf(R.unit).mixed ? "How much? Tap where it goes" : `How much, in ${R.unit}? Tap where it goes`;
     // a family of several units (metres and kilometres) says which one this card is in
     $("card").textContent = cardText(q) + (R.mode === "quantities" && familyOf(R.unit).mixed ? ` (in ${q.unit})` : "");
+    showStar($("deal"), q);
     // a painting's card shows the painting (fetched once per card, like Quote's: not again on every redraw)
     const pic = $("cardPic");
     if (!q.pic) { showPicture(pic, null); delete pic.dataset.title; }
@@ -272,6 +273,7 @@ function renderHL() {
   $("lives").setAttribute("aria-label", `${H.score} right, one life`);
   $("deal").hidden = false;
   $("ask").textContent = !shown ? `Which is ${H.mode === "dates" ? "later" : "higher"}? Tap it` : wasRight(H) ? "Right" : "Not quite";
+  showStar($("deal"), BY_ID.get(a)?.mk || BY_ID.get(b)?.mk);
   $("duel").replaceChildren(...[a, b].map(id => {
     const q = BY_ID.get(id), f = face(id), open = shown || id === a;
     f.classList.toggle("hid", !open);

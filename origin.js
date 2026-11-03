@@ -9,7 +9,7 @@
 import { COUNTRIES } from "./chart-countries.js";
 import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, topicsOf, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
   freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } from "./origin-engine.js";
-import { subjectPreset } from "./topics.js";
+import { subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -281,6 +281,7 @@ function render() {
     li.append(el("b", "", c.name), el("span", "", c.hint));
     return li;
   }));
+  showStar($("card"), R.mk || R.clues.slice(0, R.shown).find(c => c.mk)?.mk);
   $("clues").lastElementChild?.scrollIntoView({ block: "nearest" });
   $("guesses").replaceChildren(...R.guesses.map((g, i) => {
     const t = heat(away(g, R.id).km), li = el("li", "og-g"), by = G ? R.guessedBy[i] : null;

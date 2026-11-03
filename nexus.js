@@ -9,7 +9,8 @@
 import { clueLines, pictureOf, whatCard } from "./thing-clues.js";
 import { showPicture, credit } from "./pics.js";
 import { PER_RUN, SIZES, MODES, CENTRES, dealRun, judge, reasonOf, askOf, cardsFor, settles, name, kind, TOPIC_LIST, topicsOf } from "./nexus-engine.js";
-import { subjectPreset, even, mixParam, mixFromParam } from "./topics.js";
+import { subjectPreset, even, mixParam, mixFromParam, showStar } from "./topics.js";
+import { mkOfEntity } from "./marked.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -209,6 +210,7 @@ function render() {
   $("score").innerHTML = `Score <b>${S.total}</b>`;
   $("centreName").textContent = name(r.centre);
   $("centreKind").textContent = kindLabel(r.centre);
+  showStar($("centre"), [r.centre, ...r.cands.map(x => x.id)].map(mkOfEntity).find(m => m === "s" || m === "p"));
   $("ask").textContent = askOf(r);
   $("clueBtn").textContent = r.looked?.[r.centre] ? `Clues · ${r.looked[r.centre]}` : "Clue";
   drawThumb(r);

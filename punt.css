@@ -37,7 +37,7 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
 .pt-pot b.down { color: var(--pt-loss); }
 
 /* the ticket: a torn top edge, the question, the selections */
-.pt-slip { position: relative; background: var(--pt-ticket); border: 1px solid var(--pt-ticket-edge); border-radius: 0 0 14px 14px;
+.pt-slip { --star-top: .3rem; --star-right: .5rem; --star-bg: transparent; position: relative; background: var(--pt-ticket); border: 1px solid var(--pt-ticket-edge); border-radius: 0 0 14px 14px;
   padding: 0; margin-top: .4rem; display: flex; flex-direction: column; }
 /* the ticket's torn edge sits outside the slip, so the scrolling happens on a body inside it */
 .pt-slip-body { flex: 1 1 auto; min-height: 0; padding: 1.1rem 1rem 1rem; border-radius: 0 0 14px 14px; }

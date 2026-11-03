@@ -4,7 +4,7 @@
 // the floor set by the move into kb/: knowledge only grows, so a smaller number means something was lost.
 import fs from "node:fs";
 import { build, render, DEALT } from "../tools/build-kb.mjs";
-import { choiceMark, estimateMark, pinMark, isLiving } from "../tools/audit-lib.mjs";
+import { choiceMark, estimateMark, pinMark, isLiving, KEPT, mkOf, entityMark } from "../tools/audit-lib.mjs";
 import { ENTITY } from "../kb/audit/marks.js";
 const { ENTITIES } = await import("../kb/entities.js");
 const { LINKS } = await import("../kb/links.js");
@@ -104,12 +104,33 @@ check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted
   check(!badEst.length, `every one of ${ESTIMATES.length} estimates has its review audience (1, 2 or 3)${badEst.length ? `: not ${badEst.slice(0, 5).map(q => q.id)}` : ""}`);
   const dealt = new Set(QUOTES.map(q => q.id)), kept = new Set(RETIRED.map(q => q.id));
   const all = [...full.quote.QUOTES, ...full.quote.RETIRED];
-  check(all.every(q => dealt.has(q.id) !== kept.has(q.id)) && all.every(q => DEALT.has(estimateMark(q)) === dealt.has(q.id)) && QUOTES.length + RETIRED.length === all.length,
-    `Quote deals ${QUOTES.length} questions and keeps ${RETIRED.length} retired ones, each in one list only, the dealt ones all universal, regional or theme`);
-  check(PLACES.every(p => DEALT.has(pinMark(p))) && GEO.every(p => DEALT.has(pinMark(p))), `Chart deals ${PLACES.length} places and ${GEO.length} features, all universal`);
-  const stray = [];
-  for (const b of CHOICE) for (const q of (await import(`../${b}-bank.js`)).MATHS) if (!DEALT.has(choiceMark(b, q))) stray.push(`${b}/${q.id}`);
-  check(!stray.length, `Punt's banks deal only universal, regional or theme questions${stray.length ? `: ${stray.slice(0, 5)}` : ""}`);
+  // nothing is removed (Korbi, 3 November 2026): every item is carried and says by `mk` whether it is marked for removal (specialist,
+  // personal) or, in Crates alone, living; an item without `mk` is kept (universal, regional, theme). Settings' Exclude deals the kept.
+  check(all.every(q => dealt.has(q.id) !== kept.has(q.id)) && QUOTES.length + RETIRED.length === all.length && RETIRED.every(q => isLiving(q.about?.[0] ?? q.about)),
+    `Quote carries ${QUOTES.length} questions, and ${RETIRED.length} retired (living only), each in one list only`);
+  const wrong = [];
+  for (const q of QUOTES) if (q.mk !== mkOf(estimateMark(q))) wrong.push(`quote/${q.id}`);
+  for (const p of PLACES) if (p.mk !== mkOf(pinMark(p))) wrong.push(`chart/${p.id}`);
+  for (const p of GEO) if (p.mk !== mkOf(pinMark(p))) wrong.push(`geo/${p.id}`);
+  for (const b of CHOICE) for (const q of (await import(`../${b}-bank.js`)).MATHS) if (q.mk !== mkOf(choiceMark(b, q))) wrong.push(`${b}/${q.id}`);
+  check(!wrong.length, `every item of Quote, Chart and Punt's banks carries the mark it has in kb/ (none for kept)${wrong.length ? `: ${wrong.slice(0, 5)}` : ""}`);
+  check(QUOTES.some(q => q.mk) && QUOTES.some(q => !q.mk) && PLACES.some(p => p.mk) && PLACES.some(p => !p.mk), "both marked and kept items are in the banks");
+  check(QUOTES.concat(PLACES, GEO).every(x => x.mk === undefined || x.mk === "s" || x.mk === "p"), "a marked item is specialist or personal (living is never in a dealt bank)");
+  // the entities for the games that read kb/ itself (marked.js, built into kb-marks.js)
+  const { markedEntity, mkOfEntity } = await import("../marked.js");
+  const badEnt = ENTITIES.filter(e => (markedEntity(e.id) !== ["s", "p"].includes(entityMark(e.id))) || (mkOfEntity(e.id) !== (entityMark(e.id) === "l" ? "l" : KEPT.has(entityMark(e.id)) ? undefined : "s")));
+  check(!badEnt.length, `kb-marks.js agrees with the mark of every entity${badEnt.length ? `: ${badEnt.slice(0, 5).map(e => e.id)}` : ""}`);
+  // Exclude never deals a marked item, Include does, the living never, a daily never includes
+  const { dealable, isMarked, starOf, STAR } = await import("../topics.js");
+  const { setMarkedIn, dealt: dealtNow, allowed } = await import("../topics-on.js");
+  setMarkedIn(false);
+  const ex = dealtNow(QUOTES);
+  setMarkedIn(true);
+  const inc = dealtNow(QUOTES), day = dealtNow(QUOTES, true);
+  setMarkedIn(false);
+  check(ex.length > 0 && ex.every(q => !q.mk) && inc.length === QUOTES.length && inc.some(q => q.mk) && day.length === ex.length, `Exclude deals ${ex.length} of Quote's ${QUOTES.length}, none marked; Include deals all; a daily deals as Exclude`);
+  check(!allowed("l") && dealable([{ mk: "l" }, { mk: "s" }, {}], true).length === 2 && dealable([{ mk: "s" }, {}]).length === 1, "the living are never dealt, even when marked content is included");
+  check(isMarked("s") && isMarked({ mk: "p" }) && !isMarked({}) && !isMarked("l") && starOf({ mk: "s" }) === STAR && starOf({}) === "" && /aria-label="Marked for removal"/.test(STAR) && STAR.includes("★"), "the star: markup with its accessible label for a marked item, nothing for a kept one");
   check(Object.keys(WHO).every(id => !isLiving(id)), "Who am I? deals no living person off the short list of the globally famous");
   check(full.quote.QUOTES.length === all.length && full.chart.PLACES.length >= PLACES.length,
     "the personal build holds the dealt ones and more");

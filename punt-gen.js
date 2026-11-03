@@ -104,6 +104,8 @@ const PAIRS = BANK.flatMap((a, i) => a.words.map(w => ({ a: i, w: w.w, hint: w.h
 // (today's run deals as Exclude: `include: false`)
 let INCL = null;
 const allowed = mk => !mk || ((INCL ?? markedIn()) && mk !== "l");
+// `mk` for a dealt question that holds something marked for removal (the star on its slip, topics.js); nothing, kept whole in the run
+const marked = (...ms) => (ms.includes("p") ? { mk: "p" } : ms.includes("s") ? { mk: "s" } : {});
 const CARRIERS = new Map();
 for (const p of PAIRS) { if (!CARRIERS.has(p.w)) CARRIERS.set(p.w, new Set()); CARRIERS.get(p.w).add(p.a); }
 const pairOf = (a, w) => PAIRS.find(p => p.a === a && p.w === w);
@@ -228,7 +230,7 @@ function clueQuestion(rnd, L, used, d) {
     ask: right.length > 1 ? `Which ${PLURAL_NOUN[BANK[p.a].cat]} is this about?` : `Which ${NOUN[BANK[p.a].cat]} is this about?`,
     options: options.map(x => ({ label: BANK[x].name, right: right.includes(x) })), need: right.length,
     notes: right.map(x => ({ label: BANK[x].name, text: pairOf(x, p.w)?.hint || p.hint })),
-    d: Math.min(...ds), key: p.w,
+    d: Math.min(...ds), key: p.w, ...marked(p.mk, ...right.map(x => BANK[x].mk)),
     about: entitiesOf([[p.a, p.w], ...right.map(x => [x, null])]),     // the clue's entity and the right answers', for the pile
     pairs: keysOf(right.map(x => [x, p.w])),                           // recognised, if picked right
   };
@@ -252,6 +254,7 @@ function answerQuestion(rnd, L, used, d) {
     kind: "answer", cat: BANK[a].cat, prompt: BANK[a].name, ask: right.length > 1 ? "Which clues go with" : "Which clue goes with",
     options: options.map(w => ({ label: w, right: right.includes(w) })), need: right.length,
     notes: right.map(w => ({ label: w, text: pairOf(a, w).hint })),
+    ...marked(BANK[a].mk, ...right.map(w => BANK[a].words.find(x => x.w === w)?.mk)),
     d: Math.min(...ds), key: p.w,
     about: entitiesOf([[a, null], ...right.map(w => [a, w])]),
     pairs: keysOf(right.map(w => [a, w])),
@@ -276,7 +279,7 @@ function nameQuestion(rnd, L, used, d, known) {
     kind: "name", cat: BANK[a].cat, prompt: p.hint, ask: `Name it · ${BANK[a].name}${topics.length ? ` · ${topics.join(", ")}` : ""}`,
     options: options.map(w => ({ label: w, right: w === p.w })), need: 1, answer: p.w,
     notes: [{ label: p.w, text: `${BANK[a].name}: ${p.hint}` }],
-    d: p.d, key: p.w, pair: p.k,
+    d: p.d, key: p.w, pair: p.k, ...marked(p.mk),
     about: entitiesOf([[a, p.w], [a, null]]),
   };
 }
@@ -334,7 +337,7 @@ function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys
     out.push({
       kind: "maths", cat: "maths", prompt: q.q, ask: "",           // no stage-and-level marker over the question: the slip is for the question
       options: right, need: q.s, notes: [{ label: right.filter(o => o.right).map(o => o.label).join(" and "), text: q.x }],
-      ...(q.svg && { svg: q.svg }), ...(q.pic && { pic: q.pic }), ...(q.title && { title: q.title }), ...(q.code && { code: q.code }), ...(q.about && { about: q.about }), d: q.d, key: q.id,
+      ...(q.svg && { svg: q.svg }), ...(q.pic && { pic: q.pic }), ...(q.title && { title: q.title }), ...(q.code && { code: q.code }), ...(q.about && { about: q.about }), d: q.d, key: q.id, ...marked(q.mk),
     });
   }
   return out;

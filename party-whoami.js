@@ -10,6 +10,7 @@ import { DECKS, WHO } from "./party-whoami-bank.js";
 import { allowed } from "./topics-on.js";
 import { h, button, countdown, waitingFor, names } from "./party-kit.js";
 import { shuffle } from "./party-core.js";
+import { isMarked } from "./topics.js";
 import { showPicture } from "./pics.js";
 
 export const WRITE = "write", MIXED = "mixed";
@@ -288,13 +289,15 @@ function card(s, u, ctx, nameOfU, cur, { open = false, action = null } = {}) {
   more?.addEventListener("toggle", () => { if (more.open) opened.add(key); else opened.delete(key); });
   const pic = w?.p ? h("span", { class: "wa-pic" }) : null;
   if (pic) showPicture(pic, w.p, { width: 120, alt: w.n }).catch(() => pic.remove());
-  return h("li", { class: `wa-card${u === cur ? " now" : ""}` },
+  // the star of what is marked for removal (style.css .marked-star), in the card's corner
+  const star = isMarked(w) ? h("span", { class: "marked-star", role: "img", "aria-label": "Marked for removal", title: "Marked for removal" }, "★") : null;
+  return h("li", { class: `wa-card has-star${u === cur ? " now" : ""}` },
     h("div", { class: "wa-card-head" }, h("span", { class: "wa-name" }, nameOfU(u)), u === cur ? h("span", { class: "wa-status" }, "asking") : action),
     h("div", { class: "wa-card-body" }, pic,
       h("div", { class: "wa-card-text" },
         h("span", { class: "wa-who" }, who.n),
         who.by ? h("span", { class: "wa-by" }, `picked by ${nameOfU(who.by)}`) : s.deck === MIXED && who.id ? h("span", { class: "wa-by" }, homeDeck(who.id)?.name || "") : null,
-        crib.length ? h("ul", { class: "wa-crib" }, ...crib.slice(0, shown).map(c => h("li", {}, c))) : null, more)));
+        crib.length ? h("ul", { class: "wa-crib" }, ...crib.slice(0, shown).map(c => h("li", {}, c))) : null, more)), star);
 }
 
 /** The end: everyone, and who they were. */

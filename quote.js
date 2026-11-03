@@ -4,7 +4,7 @@
 // standings; a pair may trade instead, one making the market and the other hitting it, lifting it or passing
 // (quote-table.js is the table's rules).
 import { START, PER_SET, settle, fault, floorOf, pickMixed, withUnit, fmt, adequate, TOPICS, TOPIC_PRESETS, topicsOf, topicsDealt, presetIdOf, focusOf } from "./quote-engine.js";
-import { mixParam as linkMix, mixFromParam, anyIn, even, subjectPreset } from "./topics.js";
+import { mixParam as linkMix, mixFromParam, anyIn, even, subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, allowed, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { QUOTES, RETIRED, CATS } from "./quote-bank.js";
@@ -183,6 +183,7 @@ function render() {
   $("market").hidden = false;
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = questionOf(q);
+  showStar($("card"), q);
   picture(q);
   $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
   const entry = S.log[S.index];
@@ -353,6 +354,7 @@ function renderRoom() {
   drawBooks();
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = questionOf(q);
+  showStar($("card"), q);
   picture(q);
   $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
   if (g.mode === "trade") renderTrade(g, q); else renderRanges(g, q);

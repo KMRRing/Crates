@@ -1,7 +1,6 @@
 const E = await import("../chart-engine.js");
-const { PLACES: DEALT_PLACES, CATS } = await import("../chart-bank.js");
-// the engine is tried on everything kb/ holds (the personal build): the published bank is only its universal part
-const { build } = await import("../tools/build-kb.mjs"), PLACES = (await build({ level: "personal" })).chart.PLACES;
+const { PLACES, CATS } = await import("../chart-bank.js");
+const DEALT_PLACES = PLACES.filter(p => !p.mk);   // Exclude (the default) deals these; the engine is tried on all of them
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const ids = new Set(PLACES.map(p => p.id));

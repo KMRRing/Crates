@@ -151,3 +151,10 @@ export const dealable = (list, include = false) => list.filter(x => !x.mk || (in
 /** The star a marked item carries wherever its prompt is drawn (style.css `.marked-star`), as markup. */
 export const STAR = '<span class="marked-star" role="img" aria-label="Marked for removal" title="Marked for removal">★</span>';
 export const starOf = x => (isMarked(x) ? STAR : "");
+/** Puts the star in a card's corner for `x` (an item or a mark), or takes it away: call it after the card is drawn. */
+export function showStar(el, x) {
+  if (!el) return;
+  el.classList.add("has-star");
+  for (const s of el.querySelectorAll(":scope > .marked-star")) s.remove();
+  if (isMarked(x)) el.insertAdjacentHTML("beforeend", STAR);
+}

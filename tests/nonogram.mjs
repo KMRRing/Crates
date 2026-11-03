@@ -8,12 +8,14 @@ import { execFileSync } from "node:child_process";
 import { runsOf, cluesOf, cluesFor, linesOf, settle, overlap, pushes, grade, depthOf, countSolutions, propagate, unknownState, solved, fullMask, isKnown, colourOf,
   nextStep, knownFrom, emptyGrid, withCell, cellAt, CROSS, EMPTY, agrees, drawn, wrongCells, lineDone, scoreOf, creditFor, ownerOf,
   MISTAKE, HINT, WRONG_NAME, CREDIT, PROBES } from "../nonogram-engine.js";
-import { PICTURES, SIZES, TOPICS, REGIONS, puzzleOf, makePuzzle, pictureOf, dealPicture, dailyPicture, namesOf, poolOf, gridFor, bandOf, rng, DAILY } from "../nonogram-pictures.js";
+import { PICTURES, SIZES, TOPICS, REGIONS, puzzleOf, makePuzzle, pictureOf, dealPicture, dailyPicture, namesOf, poolOf as poolOfSetting, gridFor, bandOf, rng, DAILY } from "../nonogram-pictures.js";
 import { HEX_SIZES, DIRS, hexGrid, centreOf, cellAtPoint, outlineOf, lineName, hexOwner } from "../nonogram-hex.js";
 import { FLAGS, COLOURS, rasterFlag } from "../nonogram-flags.js";
 import { PACES, createMind, botMove } from "../nonogram-bot.js";
 import { check as typed } from "../typing.js";
 
+// the pictures are checked whole (Include); what Exclude leaves out is checked at the end
+const poolOf = (topic, region, grid, mix) => poolOfSetting(topic, region, grid, mix, true);
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -83,10 +85,10 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
 {
   const topics = Object.keys(TOPICS);
   const count = t => PICTURES.filter(p => p.topic === t).length;
-  check(count("countries") === 168 && count("flags") >= 40 && count("lakes") >= 12, `the pictures: ${count("countries")} country outlines (Chart's), ${count("flags")} flags, ${count("lakes")} lakes`);
+  check(count("countries") === 168 && count("flags") >= 190 && count("lakes") === 34, `the pictures: ${count("countries")} country outlines (Chart's), ${count("flags")} flags, ${count("lakes")} lakes`);
   check(PICTURES.every(p => (p.about || p.topic === "regions") && p.name && p.regions.length && REGIONS.some(([id]) => p.regions.includes(id))), "every picture names its knowledge-base entity (a region of a country has none yet) and a region");
   check(new Set(PICTURES.map(p => p.id)).size === PICTURES.length && PICTURES.every(p => pictureOf(p.id) === p), "every picture's id is its own");
-  check(PICTURES.filter(p => p.id.startsWith("f-")).every(p => FLAGS[p.id.slice(2)]), "every flag drawn is a flag the app knows (only the universal countries are drawn)");
+  check(Object.keys(FLAGS).every(id => PICTURES.some(p => p.id === `f-${id}`)), "every flag drawn is a country the flags bank knows");
   const letters = new Set(Object.values(FLAGS).flatMap(f => rasterFlag(f, 15, 10).letters));
   check([...letters].every(c => c === "_" || COLOURS[c]), "every flag paints in the palette's colours");
   check(same(gridFor(1, "medium"), { w: 15, h: 15 }) && gridFor(1.5, "small").w > gridFor(1.5, "small").h && gridFor(0.17, "medium") === null, "the grid takes the picture's shape at about the size's cells; one too thin for it (Chile) has none");
@@ -107,12 +109,12 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
     if (Math.min(z.w, z.h) < SIZES[size].short || Math.max(z.w, z.h) > SIZES[size].long) problems.push(`${p.id}@${size} size`);
   }
   check(!problems.length, `${sample.length} puzzles (every picture at Small, half at Medium, a quarter at Large) each have exactly one answer, the one drawn, reached by reasoning within ${PROBES} contradictions${problems.length ? `: not ${problems.slice(0, 6).join(", ")}` : ""} (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
-  check(made["countries:small"] >= 160 && made["flags:small"] >= 40 && made["lakes:small"] >= 10, `nearly every picture makes a puzzle at Small (countries ${made["countries:small"]}, flags ${made["flags:small"]}, lakes ${made["lakes:small"]})`);
+  check(made["countries:small"] >= 160 && made["flags:small"] >= 185 && made["lakes:small"] >= 25, `nearly every picture makes a puzzle at Small (countries ${made["countries:small"]}, flags ${made["flags:small"]}, lakes ${made["lakes:small"]})`);
   const a = makePuzzle("c-italy", "medium"), b = makePuzzle("c-italy", "medium"), f1 = makePuzzle("f-south-africa", "large"), f2 = makePuzzle("f-south-africa", "large");
   check(same(a.answer, b.answer) && same(a.clues, b.clues) && same(f1.answer, f2.answer) && same(f1.palette, f2.palette), "a picture always makes the same puzzle at a size (made twice afresh)");
   check(f1.colours >= 4 && f1.palette.length === f1.colours + 1 && f1.palette.every(c => !c || /^#[0-9A-F]{6}$/i.test(c)), "a flag is a colour puzzle: its colours, and the blank's for the finished flag");
   const nepal = makePuzzle("f-nepal", "medium");
-  check(!nepal || nepal.palette[0] === null, "Nepal's pennants stand on no flag at all: its blank has no colour");
+  check(nepal && nepal.palette[0] === null, "Nepal's pennants stand on no flag at all: its blank has no colour");
 }
 
 // ---------- difficulty ----------
@@ -214,9 +216,9 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
 // ---------- names ----------
 {
   const name = (id, t) => typed(t, namesOf(pictureOf(id))).right;
-  check(name("c-czech-republic", "Czechia") && name("c-uk", "UK") && name("c-myanmar", "Burma"), "a place answers to what else it goes by (Czechia, the UK, Burma)");
+  check(name("c-czech-republic", "Czechia") && name("c-uk", "UK") && name("f-ivory-coast", "Ivory Coast") && name("c-myanmar", "Burma"), "a place answers to what else it goes by (Czechia, the UK, Ivory Coast, Burma)");
   check(name("l-lake-geneva", "Léman") && name("l-lake-baikal", "baikal") && name("l-dead-sea", "dead sea"), "a lake answers without its Lake and its the, and Lake Geneva to Léman");
-  check(!pictureOf("f-chad") || (name("f-chad", "Romania") && name("f-romania", "Chad") && !name("c-chad", "Romania")), "flags no one could tell apart answer to either name; their outlines don't (when both are drawn: Chad is not a universal flag)");
+  check(name("f-chad", "Romania") && name("f-romania", "Chad") && !name("c-chad", "Romania"), "flags no one could tell apart answer to either name; their outlines don't");
   check(name("c-france", "frnace") && !name("c-france", "Germany"), "a slip of a letter is forgiven, another country isn't");
 }
 
@@ -328,6 +330,15 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
   const run = { v: 1, id: "c-japan", size: "small", mode: "random", play: "solo", grid, undo: [[[3, 0, 1]]], redo: [], ms: 41200, mistakes: 1, hints: 0, name: null, done: false, rules: { mistakes: "shown", nameIt: true, computer: "off", pace: "medium" }, rival: null };
   const back = JSON.parse(JSON.stringify(run)), again = makePuzzle(back.id, back.size);
   check(same(back, run) && drawn(back.grid, again.answer) === drawn(run.grid, z.answer) && same(again.clues, z.clues), "a run kept as JSON opens again as it was, its puzzle made from the picture's id and size");
+}
+
+// Exclude (the default): no picture marked for removal is dealt, and enough are left to play on; a daily is the same under either
+{
+  const all = PICTURES.filter(p => p.mk !== "l"), kept = poolOfSetting("all", "world");
+  check(kept.length > 0 && kept.every(p => !p.mk) && kept.length < all.length, `Exclude: ${kept.length} of ${all.length} pictures, none marked for removal`);
+  for (const topic of ["countries", "flags", "lakes"]) check(poolOfSetting(topic, "world").length >= 10, `Exclude: ${poolOfSetting(topic, "world").length} ${topic} left to deal`);
+  const a = dailyPicture(20261104);
+  check(a && !a.mk, "Exclude: today's picture holds nothing marked for removal");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

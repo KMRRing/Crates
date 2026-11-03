@@ -20,7 +20,7 @@ import * as known from "./known.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./question-flags.js";
 import { gameHref, GAMES, joiningWords } from "./rooms.js";
 import { part, choice, action, line, ticks } from "./menu.js";
-import { subjectPreset } from "./topics.js";
+import { subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, dealt, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { today, noteComparable, arrivedForToday } from "./suite.js";   // the day, the same for everyone; comparable results
@@ -359,6 +359,7 @@ function render() {
 
   $("ask").textContent = q.ask;
   drawPrompt(q);
+  showStar($("slip"), q);
   $("figure").hidden = !q.svg;
   if (q.svg) $("figure").innerHTML = q.svg;                       // a drawing from the bank, for patterns
   $("code").hidden = !q.code;
