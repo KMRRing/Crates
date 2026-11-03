@@ -450,7 +450,7 @@ let model = null, modelFor = null;
 /** The model follows the run: a new puzzle is built into it, a change of marks shows and hides bridges, a hint's link glows. */
 function feedModel(br) {
   if (!model || prefs.view !== "model" || !S || !P) return;
-  if (modelFor !== P) { model.set({ lay: P.lay, size: P.size, grid: P.grid, lanes: S.lanes || "" }); modelFor = P; }
+  if (modelFor !== P) { model.set({ lay: P.lay, size: P.size }); modelFor = P; }
   model.update(S.marks, br || breaks(P, S.marks), S.lit);
 }
 /** Chart (2D) or model (3D; `prefs.view` keeps "chart" and "model"). The model's code (three.js) comes only when it is first wanted; where there is no WebGL the chart stays. */
@@ -727,7 +727,7 @@ async function copyLink() {
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
 
-// ---------- links: #s=SEED&n=9&l=medium&t=reefs (#d= for a day's; t only with a twist), #lv=LEVEL&s=SEED for a level's ----------
+// ---------- links: #s=SEED&n=9&l=medium&t=ranges (#d= for a day's; t only with a twist), #lv=LEVEL&s=SEED for a level's ----------
 const hashOf = s => (isLevel(s) ? `#lv=${s.lv}&s=${s.seed}` : `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&l=${s.level}${hasTwist(s.twist) ? `&t=${twistOn(s.twist)}` : ""}`);
 function linked() {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("d") || h.get("s"));
