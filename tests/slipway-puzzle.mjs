@@ -109,9 +109,9 @@ for (const L of LEVELS) {
   check(solved(M, [dr, flat, tl, tr, pl1, pl2]).solved && solved(M, [dr, tr, flat, pl1, pl2, tl]).solved && !solved(M, [dr, tl, tr, pl1, pl2, flat]).solved, "masthead: drill first, the top level before the planes, the rest in any order");
 
   const P = level("pin");
-  const fits = [{ off: 0, flip: false }, { off: 0, flip: true }].every(at => search(P, at)?.best === 3);
-  const stuck = [{ off: 5, flip: false }, { off: 10, flip: false }, { off: 10, flip: true }, { off: 5, flip: true }].every(at => !search(P, at));
-  check(fits && stuck, "belaying pin: slid flush against the left end, turned or not, it comes out in three; anywhere else it is out of tools or has the knot in it");
+  const fits = [{ off: 0, flip: false }, { off: 0, flip: true }, { off: 10, flip: true }].every(at => search(P, at)?.best === 3);
+  const stuck = [{ off: 5, flip: false }, { off: 10, flip: false }, { off: 5, flip: true }, { off: 2, flip: false }].every(at => !search(P, at));
+  check(fits && stuck, "belaying pin: slid flush against the left end, or turned and slid flush right, it comes out in three; anywhere else it is out of tools or has the knot in it");
 }
 
 // ---------- knots ----------

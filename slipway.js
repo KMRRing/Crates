@@ -91,9 +91,7 @@ let hintText = "", hintStep = 0;
 const L = () => LEVELS[at];
 const uses = () => used.saw + used.plane + used.drill;
 
-let saveTimer = 0;
 function save() {
-  clearTimeout(saveTimer);
   write(CARVE, { v: 2, level: at, off: B.off, flip: B.flip, used, done, d: pack(B.d) });
 }
 function start(i) {
@@ -156,9 +154,10 @@ function sayState() {
 }
 let viewNow = "corner";
 /** Which named view the camera is in, if any (marked on the buttons). */
-function markViews(delay = 0) {
+function markViews(delay = 0, tries = 15) {
   setTimeout(() => {
     if (!bench) return;
+    if (bench.busy && tries) { markViews(120, tries - 1); return; }                // still turning to the view
     const [az, el] = bench.angles();
     const was = viewNow;
     viewNow = Object.entries(VIEWS).find(([, [a, e]]) => Math.abs(az - a) < 1.5 && Math.abs(el - e) < 1.5)?.[0] ?? "";
@@ -336,8 +335,9 @@ $("views").addEventListener("click", e => {
   const b = e.target.closest("[data-view]");
   if (!b || !bench) return;
   bench.view(b.dataset.view);
-  viewNow = "";
-  markViews(420);
+  viewNow = b.dataset.view;
+  document.querySelectorAll("#views button").forEach(c => c.setAttribute("aria-pressed", String(c === b)));
+  markViews(60);                                                                     // and again once it has turned: it may be a view the camera clamps
 });
 function act(name) {
   if (name === "left" || name === "right" || name === "flip") {

@@ -56,7 +56,7 @@ export const LEVELS = [
 
   { id: "pin", name: "Belaying pin",
     line: "Ropes are made fast round it. One saw only, and a knot at the far end of the block: slide the part, or turn it end for end, before you start.",
-    size: [30, 10, 7], slack: 10, place: { off: 5, flip: false }, knots: [[33, 8, 3.5, 1.5]],
+    size: [30, 10, 7], slack: 10, place: { off: 5, flip: false }, knots: [[33, 10, 3.5, 1.5]],
     shape: { planes: PIN.planes, sdf: (x, y, z) => Math.min(box(x, y, z, 6, 5, 3.5, 6, 5, 3.5), box(x, y, z, 15, 2, 3.5, 15, 2, 3.5)) },
     budget: { saw: 1, plane: 3 }, par: 3,
     strokes: [{ n: [0, 1, 0], aim: [[14, 10, 3.5], [28, 10, 3.5]] }],

@@ -48,7 +48,7 @@ const WOOD_MAIN = `
     vec3 d = p - ks[i];
     float dk = length(d);
     r += kr * 2.2 * exp(-dk * dk / (kr * kr * 3.));
-    knot = max(knot, 1. - smoothstep(kr * .55, kr * 1.05, length(d.yz) + abs(d.x) * .25));
+    knot = max(knot, 1. - smoothstep(kr * .75, kr * 1.05, dk));     // the sphere the iron stops on (slipway-carve.js inKnot), so what is dark is what is hard
   }
   float ring = fract(r / 1.6);
   float late = smoothstep(.5, .92, ring) * (1. - smoothstep(.92, 1., ring));
@@ -118,7 +118,7 @@ export function createBench(host) {
   scene.add(sun, sun.target, hemi, rim);
 
   const WU = { uPith: { value: new THREE.Vector3() }, uK0: { value: new THREE.Vector3() }, uK1: { value: new THREE.Vector3() }, uK2: { value: new THREE.Vector3() }, uKr: { value: [0, 0, 0] },
-    uEarly: { value: new THREE.Color(0xd9b07a) }, uLate: { value: new THREE.Color(0x9c6a3c) }, uKnot: { value: new THREE.Color(0x4a2c18) }, uGouge: { value: new THREE.Color(0xa8382b) } };
+    uEarly: { value: new THREE.Color(0xd9b07a) }, uLate: { value: new THREE.Color(0x9c6a3c) }, uKnot: { value: new THREE.Color(0x35190a) }, uGouge: { value: new THREE.Color(0xa8382b) } };
   const wood = woodMaterial(WU);
   const BU = { uLight: { value: new THREE.Color() }, uDark: { value: new THREE.Color() }, uGrain: { value: 1 } };
   const bench = new THREE.Mesh(new THREE.BoxGeometry(400, 0.2, 400), benchMaterial(BU));
