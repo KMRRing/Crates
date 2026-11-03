@@ -10,7 +10,7 @@ import { clueLines, pictureOf, whatCard } from "./thing-clues.js";
 import { showPicture, credit } from "./pics.js";
 import { PER_RUN, SIZES, MODES, CENTRES, dealRun, judge, reasonOf, askOf, cardsFor, settles, name, kind, TOPIC_LIST, topicsOf } from "./nexus-engine.js";
 import { subjectPreset, even, mixParam, mixFromParam } from "./topics.js";
-import { subjectsOn } from "./topics-on.js";
+import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
@@ -54,11 +54,11 @@ function wishes() {
 function newRun(daily) {
   const learn = !daily && pile.learning() ? wishes() : null;
   const seed = daily ? today() * 7919 + 41 : Math.floor(Math.random() * 2 ** 31);
-  const opts = daily ? {} : { mode: prefs.mode, size: prefs.size, weights: mix(), forced: learn?.forced || [], must: learn?.must || {}, avoid: pile.recent("nexus") };
+  const opts = daily ? { daily: true } : { mode: prefs.mode, size: prefs.size, weights: mix(), forced: learn?.forced || [], must: learn?.must || {}, avoid: pile.recent("nexus") };
   const run = dealRun(seed, opts);
   // your own mix, a kind of round or a size of ring doesn't count for your best: today's run and the presets' standard run do
   S = { ...fresh(run), daily, day: daily ? today() : null, due: learn?.items || [],
-    ranked: daily || (onPreset() && prefs.mode === DEFAULT.mode && prefs.size === DEFAULT.size) };
+    ranked: daily || (!markedIn() && onPreset() && prefs.mode === DEFAULT.mode && prefs.size === DEFAULT.size) };
   if (!daily) pile.dealt("nexus", run.rounds.map(x => x.centre), 600);
   save(); render();
 }
@@ -257,7 +257,7 @@ const duel = createDuel({
   describe: () => `The same ${PER_RUN} rounds for everyone: find the links`,
   play: (match, { kept }) => {
     S = kept?.seed === match.seed && kept.rounds ? kept
-      : { ...fresh(dealRun(match.seed, { mode: match.mode, size: match.size, weights: match.t ? mixFromParam(TOPIC_LIST, match.t) : null })), duel: true };
+      : { ...fresh(dealRun(match.seed, { mode: match.mode, size: match.size, weights: match.t ? mixFromParam(TOPIC_LIST, match.t) : null, daily: true })), duel: true };
     save(); render();
   },
   onLobby: () => { S = null; render(); },

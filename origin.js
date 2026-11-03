@@ -10,7 +10,7 @@ import { COUNTRIES } from "./chart-countries.js";
 import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, topicsOf, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
   freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } from "./origin-engine.js";
 import { subjectPreset } from "./topics.js";
-import { subjectsOn } from "./topics-on.js";
+import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
@@ -221,7 +221,7 @@ const onPreset = () => subjectPreset(subjectsOn()) !== "custom";
 let S = read(RUN, null);
 const save = () => write(RUN, S);
 function newRun(daily) {
-  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily ? null : mix()), daily, day: daily ? today() : null, ranked: daily || onPreset() };
+  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily ? null : mix(), daily), daily, day: daily ? today() : null, ranked: daily || (!markedIn() && onPreset()) };
   save(); render();
 }
 const current = () => G?.run || S;                              // the run on the screen: the table's while at one

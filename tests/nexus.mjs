@@ -8,7 +8,10 @@
 // subjects off take their topics out, and nothing on deals every topic.
 // Run: node tests/nexus.mjs
 import { LINKED, CENTRES, SIZES, PER_RUN, dealRun, judge, cardsFor, settles, reasonOf, askOf, barred, name, kind, ABOUT, TOPIC_LIST, topicsOf, ASPECT } from "../nexus-engine.js";
+import { setMarkedIn } from "../topics-on.js";
+import { markedEntity, mkOfEntity } from "../marked.js";
 import { cleanMix, cleanSubjects, subjectsIn, subjectsSay, mixParam, mixFromParam, SUBJECT_PRESETS, TOPIC_OF } from "../topics.js";
+setMarkedIn(true);   // the pile's wishes and the cards are checked whole; what Exclude leaves out is checked at the end
 let bad = 0;
 const fail = (...why) => { bad++; if (bad < 40) console.log(...why); };
 const t0 = performance.now();
@@ -159,6 +162,20 @@ if (cards < 100) fail("too few cards tried", cards);
   if (json(mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, custom))) !== json(custom)) fail("a mix made from subjects changed on its way through the link");
   const more = { ...all, hist: 2, past: 2 }, twice = dealRun(8, { mode: "mixed", weights: mixFromParam(TOPIC_LIST, mixParam(TOPIC_LIST, more)) });
   if (twice.rounds.length !== PER_RUN || json(twice) === json(dealRun(8, { mode: "mixed", weights: all }))) fail("a linked mix with weights of 2 does not deal as one");
+}
+// what is marked for removal: out of a deal under Exclude (the default) and of a daily, in under Include
+{
+  const rounds = (seeds, opts) => seeds.flatMap(s => dealRun(s, opts).rounds);
+  const ids = R => [R.centre, ...R.cands.map(x => x.id)];
+  const seeds = Array.from({ length: 12 }, (_, i) => i + 100);
+  setMarkedIn(false);
+  const kept = rounds(seeds, { mode: "mixed" });
+  if (!kept.length || kept.some(R => ids(R).some(markedEntity))) fail("Exclude: a nexus or candidate marked for removal was dealt");
+  setMarkedIn(true);
+  if (!rounds(seeds, { mode: "mixed" }).some(R => ids(R).some(markedEntity))) fail("Include: nothing marked for removal was dealt");
+  if (rounds(seeds, { mode: "mixed", daily: true }).some(R => ids(R).some(markedEntity))) fail("a daily dealt something marked for removal");
+  if (mkOfEntity("anzac") !== "s") fail("mkOfEntity", mkOfEntity("anzac"));
+  setMarkedIn(false);
 }
 if (performance.now() - t0 > 8000) fail("too slow", Math.round(performance.now() - t0), "ms");
 console.log(bad ? `${bad} failed` : `Nexus ok (${Math.round(performance.now() - t0)} ms)`);

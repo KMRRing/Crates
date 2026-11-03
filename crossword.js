@@ -11,7 +11,7 @@ import { rivalRun, rivalAt, partnerMove, seeded, RIVALS } from "./crossword-solv
 import { TABLE_MODES, peopleOf, isTable, freshTable, tidy, newGameAt, readable, holders, lettersOf, writers, writeAt, checkAt, revealAt, runOf, reportAt, runTotal, standings, raceOver, resultOf } from "./crossword-table.js";
 import { kbEntry, entriesAbout, reviewCard, BANK } from "./crossword-kb.js";
 import { subjectPreset } from "./topics.js";
-import { subjectsOn } from "./topics-on.js";
+import { subjectsOn, markedIn, allowed } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
@@ -71,7 +71,7 @@ function randomOptions(seed = Math.floor(Math.random() * 2 ** 31)) {
   return { seed, level: s.level, size: sizeOf(s), kind: s.kind, pool: s.pool, asks: s.asks, mode: s.mode, topics: w,
     due: learning ? dueEntries(s, w) : [], weak: learning ? pile.weakElsewhere("crossword") : null,
     // whatever the mode, a random grid keeps off the entries dealt lately (the mode puts what to revise back in)
-    avoid: [...pile.recent("crossword")] };
+    avoid: [...pile.recent("crossword")], marked: markedIn() };
 }
 // more than any grid takes (the engine takes up to half its knowledge entries: eighteen in a Lexicon 15 by 15)
 const DUE_MAX = 30;
@@ -85,7 +85,7 @@ const DUE_MAX = 30;
  */
 function dueEntries(s, w) {
   const asks = s.kind === "lexicon" && s.asks === "fwd" ? "both" : s.asks, longest = SIZES[sizeOf(s)].longest;
-  const takes = e => !!e && e.topics.some(t => (w[t] ?? 1) > 0) && (s.pool === "mixed" || e.cat === s.pool) && (asks === "both" || e.dir === asks) && e.letters.length <= longest;
+  const takes = e => !!e && allowed(e.mk) && e.topics.some(t => (w[t] ?? 1) > 0) && (s.pool === "mixed" || e.cat === s.pool) && (asks === "both" || e.dir === asks) && e.letters.length <= longest;
   const out = pile.picks("crossword").map(it => it.key).filter(k => takes(kbEntry(k))).slice(0, DUE_MAX), taken = new Set(out);
   for (const it of pile.picks()) {
     if (out.length >= DUE_MAX) break;
@@ -800,7 +800,7 @@ async function newGrid(daily, { ask = true } = {}) {
     S = { v: 1, puzzle: p, play: freshPlay(p), daily: daily ? day : null, opts: daily ? null : { level: opts.level, size: opts.size, kind: opts.kind, pool: opts.pool, asks: opts.asks, mode: opts.mode },
       // a best is a grid you played alone, today's or one like it: the level's own size, both kinds of entry, on a
       // preset, both ways, mixed answers, no twist
-      ranked: comp?.kind !== "partner" && (daily || (!narrow && preset && opts.size === LEVELS[opts.level]?.size && opts.kind === "both"
+      ranked: comp?.kind !== "partner" && (daily || (!markedIn() && !narrow && preset && opts.size === LEVELS[opts.level]?.size && opts.kind === "both"
         && opts.mode === "classic" && opts.asks === "both" && opts.pool === "mixed")),
       rival: comp?.kind === "rival" ? { level: comp.level, seed: p.seed } : null,
       partner: comp?.kind === "partner" ? { level: comp.level, seed: p.seed } : null };

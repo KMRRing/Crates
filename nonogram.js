@@ -17,7 +17,7 @@ import { part, choice, toggle, action, line, mirror, onPause, isPaused } from ".
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
-import { subjectsOn } from "./topics-on.js";
+import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { sure } from "./sure.js";
 import { busy } from "./loading.js";
@@ -219,7 +219,7 @@ const mixNow = () => topicsOf(subjectsOn());
 const dealKey = size => JSON.stringify([topicNow(), settings.region, settings.band, settings.grid, size, pile.mode(), mixNow()]);
 function dealNow(size) {
   const seen = read(SEEN, []), prefer = pile.learning() ? learningPicks() : [];
-  return dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, mix: mixNow(), seen, prefer });
+  return dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, mix: mixNow(), seen, prefer, marked: markedIn() });
 }
 async function nextPick(size) {
   const key = dealKey(size);
@@ -791,7 +791,7 @@ const inParty = /[?&]party=[A-Za-z]{4}\b/.test(location.search);
 let chosen = false;                                               // Split or Race picked in the menu this time
 function matchDeal() {
   const size = SIZES[$("size").value] ? $("size").value : "medium", grid = settings.grid;
-  const got = dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid, seen: read(SEEN, []) })
+  const got = dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid, seen: read(SEEN, []), marked: markedIn() })
     || dealPicture({ topic: "countries", region: "world", size: "medium", grid });
   // a party's first match is a race (a table of friends each with a phone); a pair's is split, and the menu's choice
   // is the next match's

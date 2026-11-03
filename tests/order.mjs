@@ -10,6 +10,8 @@ const { QUOTES } = await import("../quote-bank.js");
 const { LIVES, MOST, BY_ID, FEWEST, FAMILIES, familyOf, bestIn, size, dealRun, topicsIn, fits, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } = await import("../order-engine.js");
 const { TOPICS, TOPIC_PRESETS, presetOf, cleanTopics } = await import("../quote-engine.js");
 const { roundTrip, same } = await import("./rtdb.js");
+const { setMarkedIn } = await import("../topics-on.js");
+setMarkedIn(true);   // the pool is checked whole; what Exclude leaves out is checked at the end
 import fs from "node:fs";
 let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } };
@@ -90,7 +92,7 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   check(q3.deck.length >= 5 && q3.recycled, "every card seen: a deal still comes, and says it went back over them");
   check(!dealRun("stories", 2, null, allSeen).recycled && dealRun("stories", 2, null, allSeen).story === dealRun("stories", 2).story, "a story is dealt whole, as it was, and has nothing to forget");
   const page = fs.readFileSync(new URL("../order.js", import.meta.url), "utf8");
-  check(/dealRun\(mode, seed, daily \? null : mixFor\(mode\), daily \|\| mode === "stories" \? null : new Set\(seenIds\(\)\)\)/.test(page) && /if \(tracked\(S\)\) markSeen\(\[id\]\)/.test(page), "the page deals a run of your own from what you've seen, and notes each card you place; a daily doesn't");
+  check(/dealRun\(mode, seed, daily \? null : mixFor\(mode\), daily \|\| mode === "stories" \? null : new Set\(seenIds\(\)\), daily\)/.test(page) && /if \(tracked\(S\)\) markSeen\(\[id\]\)/.test(page), "the page deals a run of your own from what you've seen, and notes each card you place; a daily doesn't");
   check(!/dealRun\([^)]*new Set/.test(fs.readFileSync(new URL("../order-engine.js", import.meta.url), "utf8").split("export function freshTable")[1] || ""), "a table's deal is never from one phone's memory");
 }
 
@@ -226,7 +228,7 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   // the page: its own run, bests and daily, the seen memory, the round's end
   const page = fs.readFileSync(new URL("../order.js", import.meta.url), "utf8");
   check(/HL = "order:hl", HL_BEST = "order:hlbest", PLAY = "order:play"/.test(page) && /BEST = "order:best"/.test(page) && !/write\(BEST, [^)]*hl/i.test(page), "higher or lower keeps its run, its bests and the way you play under order:, apart from the line's best");
-  check(/dealHigherLower\(m, seed, daily \? null : mixFor\(m\), daily \? null : new Set\(seenIds\(\)\)\)/.test(page) && /if \(!H\.daily\) markSeen\(/.test(page), "the page deals a run of your own from what you've seen and notes each card as it shows; a daily doesn't");
+  check(/dealHigherLower\(m, seed, daily \? null : mixFor\(m\), daily \? null : new Set\(seenIds\(\)\), daily\)/.test(page) && /if \(!H\.daily\) markSeen\(/.test(page), "the page deals a run of your own from what you've seen and notes each card as it shows; a daily doesn't");
   check(/\$\{H\.day \?\? today\(\)\}\/hl-\$\{H\.mode\}/.test(page) && bestOfDay({ "20261102/hl-dates": 9, "20261102/dates": 4, "20261101/hl-dates": 30 }, 20261102) === 9, "today's run is kept in the daily map by the day and its mode, where the games screen reads it");
   check((page.match(/roundOver\("order"\)/g) || []).length >= 2 && /onPause\(/.test(page), "both ways of playing end a round for Random mode, and the moment before the next pair stands still while the menu is open");
   check(/Object\.entries\(hlOn\(\) \? HL_MODES : MODES\)/.test(page), "the menu offers higher or lower no History");
@@ -293,6 +295,20 @@ const seat = (name, slot) => ({ name, slot, pid: `p${slot}`, online: true });
   check(story.over && story.deck.length === 0 && story.lives === LIVES && sorted(story.line), "the whole deck placed: over, every life left");
   check(won.match === "1000-2" && won.won && won.score === story.line.length - 1 && Object.values(tallies(story)).reduce((n, x) => n + x.right, 0) === won.score,
     "the record counts the cards placed, each player's share adding up to it");
+}
+
+// Exclude (the default): a run is dealt without what is marked for removal; Include deals it too; a daily never does
+{
+  const marked = id => !!BY_ID.get(id)?.mk;
+  const deals = (daily, seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) => seeds.flatMap(s => ["dates", "quantities"].flatMap(m => dealRun(m, s, null, null, daily).deck));
+  setMarkedIn(false);
+  const out = deals(false);
+  check(out.length > 100 && out.every(id => !marked(id)), `Exclude: no card marked for removal in ${out.length} dealt`);
+  setMarkedIn(true);
+  check(deals(false, Array.from({ length: 40 }, (_, i) => i + 1)).some(marked), "Include: cards marked for removal are dealt");
+  check(deals(true).every(id => !marked(id)), "Include: a daily still deals none");
+  setMarkedIn(false);
+  check(dealRun("dates", 11, null, null, true).deck.join() === dealRun("dates", 11, null, null, false).deck.join(), "Exclude: a daily's cards are those of a run of your own, seed for seed");
 }
 
 console.log(bad ? `order: ${bad} problems` : `order: ${dates.length} dated cards, ${FAMILIES.length} quantity families (${FAMILIES.map(f => `${f.unit} ${f.ids.length}`).join(", ")}); a run, its topics, higher or lower and a table of three played through`);

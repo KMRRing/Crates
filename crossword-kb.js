@@ -77,7 +77,7 @@ function build() {
     const own = fwdForm[ai];
     a.words.forEach((w, i) => {
       const about = [a.entity, w.entity].filter(Boolean), pair = `${a.entity}>${w.entity}`;
-      const base = { hint: w.hint, d: w.d, topics: w.topics, cat: a.cat, a: ai, i, about, pair };
+      const base = { hint: w.hint, d: w.d, topics: w.topics, cat: a.cat, a: ai, i, about, pair, mk: a.mk === "l" || w.mk === "l" ? "l" : a.mk === "p" || w.mk === "p" ? "p" : a.mk || w.mk };
       // forward: the clue and its reason, naming the answer; not when they say it (Brazilian real, Swiss franc)
       if (own && !namesOf(a).some(n => says(`${w.w} ${w.hint}`, n))) {
         const alts = [...new Set((w.alt || []).map(j => fwdForm[j]).filter(f => f && f.letters.length === own.letters.length && f.letters !== own.letters).map(f => f.letters))];

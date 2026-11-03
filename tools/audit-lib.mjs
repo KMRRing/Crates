@@ -27,9 +27,14 @@ export const isLiving = id => ENTITY[id] === "l" || LIVING_OWN.has(id);
 const RANK = { u: 0, r: 1, t: 1, s: 2, p: 3, l: 3 };
 /** The worst of some marks (a missing one puts no limit): an item is as universal as its least universal part. */
 export const worst = (...ms) => ms.reduce((a, b) => (b && RANK[b] > RANK[a] ? b : a), "u");
-/** What each build deals: the public one (CI, the published app) only the universal; `regional` adds the regional; `personal`
- *  everything kb/ holds (the build `node tools/build-kb.mjs --personal`). */
-export const LEVELS = { public: new Set(["u", "r", "t"]), regional: new Set(["u", "r"]), personal: new Set(["u", "r", "t", "s", "p", "l"]) };
+/** What each build writes: `public`, the build CI, the published app and the tests use, holds everything but the living, each item
+ *  carrying its mark if it is marked for removal (`mk`: s or p); `personal` holds the living too (for the tests of the writing).
+ *  Which the games deal is decided at run time by Settings' choice, Exclude (the kept: u, r, t) or Include. */
+export const LEVELS = { public: new Set(["u", "r", "t", "s", "p"]), personal: new Set(["u", "r", "t", "s", "p", "l"]) };
+/** The kept tiers: universal, regional and theme. Marked for removal: specialist and personal. */
+export const KEPT = new Set(["u", "r", "t"]);
+/** The compact mark an item carries when it is marked for removal (or living, in the one place a living thing stays: Crates). */
+export const mkOf = m => (m === "s" || m === "p" || m === "l" ? m : undefined);
 export const entityMark = id => ENTITY[id];
 /** A Punt question: its level's mark and the mark of the first entity it is about (its subject). */
 export function choiceMark(bank, q) {

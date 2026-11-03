@@ -7,6 +7,8 @@
 import { MATHS as FLAGS } from "./flags-bank.js";
 import { SUBJECTS, SUBJECT } from "./kb-index.js";
 import { isWord } from "./wordlist.js";
+import { markedIn } from "./topics-on.js";
+import { entityDealt } from "./marked.js";
 
 export const THEMES = {
   countries: { label: "Country", one: "country" },
@@ -15,16 +17,18 @@ export const THEMES = {
 };
 const fit = w => /^[a-z]{4,12}$/.test(w);
 const ofSubject = label => { const i = SUBJECTS.findIndex(s => s.label === label); return Object.entries(SUBJECT).filter(([, s]) => s === i).map(([id]) => id); };
-let made = null;
+// (what is marked for removal is out unless Settings includes it: the lists are made once for each choice)
+const made = {};
 function lists() {
-  if (made) return made;
-  const countries = FLAGS.map(q => ({ w: String(q.o[q.a[0]]).toLowerCase(), known: q.lv })).filter(c => fit(c.w));
-  made = {
+  const inc = markedIn();
+  if (made[inc]) return made[inc];
+  const countries = FLAGS.filter(q => !q.mk || (inc && q.mk !== "l")).map(q => ({ w: String(q.o[q.a[0]]).toLowerCase(), known: q.lv })).filter(c => fit(c.w));
+  made[inc] = {
     countries: { all: countries.map(c => c.w), well: countries.filter(c => c.known === "ea").map(c => c.w), fair: countries.filter(c => c.known !== "ha").map(c => c.w) },
-    commodities: (() => { const w = ofSubject("Commodities").filter(id => fit(id) && isWord(id)); return { all: w, well: w, fair: w }; })(),
-    cities: (() => { const w = ofSubject("Cities").filter(fit); return { all: w, well: w, fair: w }; })(),
+    commodities: (() => { const w = ofSubject("Commodities").filter(id => fit(id) && isWord(id) && entityDealt(id)); return { all: w, well: w, fair: w }; })(),
+    cities: (() => { const w = ofSubject("Cities").filter(id => fit(id) && entityDealt(id)); return { all: w, well: w, fair: w }; })(),
   };
-  return made;
+  return made[inc];
 }
 /**
  * A kind's words: { id, all (every one there is), pool (the ones a mystery may be at this level: the well-known

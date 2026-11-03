@@ -12,6 +12,9 @@ import { partyTable } from "./party-harness.js";
 import { gameById, mergeShown, shownOf, recall } from "../party-core.js";
 import whoami, { cribOf, needed, poolOf, WRITE, MIXED } from "../party-whoami.js";
 import { DECKS, WHO } from "../party-whoami-bank.js";
+import { setMarkedIn } from "../topics-on.js";
+
+setMarkedIn(true);   // the decks are checked whole; the Exclude default is checked at the end
 import { PEOPLE as EVERYONE } from "../kb/items/whoami.js";
 import { isLiving } from "../tools/audit-lib.mjs";
 import { ENTITIES } from "../kb/entities.js";
@@ -211,6 +214,22 @@ check(mergeShown(["a", "b", "c"], ["b", "d"]).join() === "a,c,b,d" && mergeShown
   const dealt = used(t), oldest = shown.slice(0, 12 - left.length);
   check(brands.length === 63 && left.length === 3 && new Set(dealt).size === 12 && left.every(id => dealt.includes(id)) && oldest.every(id => dealt.includes(id)),
     "brands dealt out to twelve, five times: the sixth game deals the three left, then the nine shown longest ago");
+}
+
+// Exclude (the default): what is marked for removal is not dealt, a deck it leaves too few for a table is not offered, and a game
+// that asks for one is topped up from the mix
+{
+  setMarkedIn(false);
+  const dealtIds = poolOf(MIXED);
+  check(dealtIds.length > 0 && dealtIds.every(id => !WHO[id].mk), "Exclude: the mix holds nothing marked for removal");
+  check(poolOf("brands").length < 12 && poolOf("people").length >= 12, "Exclude: Brands is thinned to a few, People is not");
+  const deckChoices = whoami.options.find(o => o.id === "deck").choices.map(c => c[0]);
+  check(!deckChoices.includes("brands") && deckChoices.includes("people") && deckChoices.includes(MIXED), "Exclude: a deck too thin for a table is not offered");
+  const t = await partyTable(Array.from({ length: 12 }, (_, i) => `P${i}`));
+  await t.start("whoami", { deck: "brands" });
+  const ids = used(t);
+  check(new Set(ids).size === 12 && ids.every(id => !WHO[id].mk), "Exclude: Brands asked for at a table of twelve is dealt twelve, none marked");
+  setMarkedIn(true);
 }
 
 console.log(bad ? `party-whoami: ${bad} failed` : "party-whoami: every check passed");

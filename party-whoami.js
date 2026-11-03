@@ -7,6 +7,7 @@
 // every card at the end. The crib on each card, what kb/ says of that identity (a person's written by hand), helps the
 // others answer.
 import { DECKS, WHO } from "./party-whoami-bank.js";
+import { allowed } from "./topics-on.js";
 import { h, button, countdown, waitingFor, names } from "./party-kit.js";
 import { shuffle } from "./party-core.js";
 import { showPicture } from "./pics.js";
@@ -19,7 +20,8 @@ const SHOWN = 3;                      // crib lines shown before "More"
 // for the party and for learning is in two decks)
 const MIX = [...new Set(DECKS.filter(d => d.mix !== false).flatMap(d => d.ids))];
 /** The identities a game deals from: its deck's, or the mix's. */
-export const poolOf = deck => (deck === MIXED ? MIX : (deckOf(deck) || DECKS[0]).ids);
+// (what is marked for removal is out unless Settings includes it: the host's)
+export const poolOf = deck => (deck === MIXED ? MIX : (deckOf(deck) || DECKS[0]).ids).filter(id => allowed(WHO[id]?.mk));
 
 /** What a player's identity is, as the table says it: "a famous person" (as the deck being played calls it, for
  *  someone in two decks), or "someone Mei picked". */
@@ -50,7 +52,10 @@ function freshest(pool, shown, rng) {
   return [...shuffle(pool.filter(id => !when.has(id)), rng), ...pool.filter(id => when.has(id)).sort((a, b) => when.get(a) - when.get(b))];
 }
 function deal(s, uids, rng, shown) {
-  const picked = freshest(poolOf(s.deck), shown, rng).slice(0, uids.length);
+  // a deck thinned below the table by what is marked for removal (Food, Brands) is topped up from the mix
+  let from = freshest(poolOf(s.deck), shown, rng);
+  if (from.length < uids.length) from = [...from, ...freshest(poolOf(MIXED).filter(id => !from.includes(id)), shown, rng)];
+  const picked = from.slice(0, uids.length);
   uids.forEach((u, i) => { s.who[u] = { id: picked[i], n: WHO[picked[i]].n }; });
   s.used = [...picked];
   return picked;
@@ -102,7 +107,8 @@ export default {
     "Nobody types anything: the table says whether a guess is right. When you're done, the host shows every card, and the phones say who everyone was.",
   ],
   options: [
-    { id: "deck", label: "Who you are", value: "people", choices: [...DECKS.map(d => [d.id, d.name]), [MIXED, "A mix"], [WRITE, "You write them"]] },
+    // a deck the setting leaves too few for a table of twelve is not offered (Exclude: Food and Brands, nearly all marked)
+    { id: "deck", label: "Who you are", value: "people", get choices() { return [...DECKS.filter(d => poolOf(d.id).length >= 12).map(d => [d.id, d.name]), [MIXED, "A mix"], [WRITE, "You write them"]]; } },
     { id: "timer", label: "A turn's clock", value: "0", choices: [["0", "None"], ["60", "1 minute"], ["120", "2 minutes"]] },
   ],
 
@@ -127,7 +133,7 @@ export default {
     if (s.step === "write") {
       const writers = Object.keys(s.writes).filter(u => here.has(u));
       if (!writers.length || !writers.every(u => clean(inputs[u]?.write))) return null;
-      const spare = freshest(DECKS[0].ids, shown, rng), show = [];
+      const spare = freshest(poolOf(DECKS[0].id), shown, rng), show = [];
       for (const [w, t] of Object.entries(s.writes)) {
         const text = here.has(w) && clean(inputs[w]?.write);
         if (text) s.who[t] = { n: text, by: w };

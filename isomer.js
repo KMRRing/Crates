@@ -6,7 +6,7 @@
 import { MODES, LEVELS, DAILY, PER_HINT, RIVALS, topicsOf, makePuzzle, newRun, tidyRun, itemsOf, rackOf, place, placeLetter, unplace, back, clear, reshuffle, hint, solveFrom, hintsOf, scoreOf, nextOpen, clock, rivalPlan, rivalSolved, rng, revealTo } from "./isomer-engine.js";
 import { isPair, freshPair, tidy as tidyTable, beginAt, solveAt, hintAt, newGameAt, resultOf as pairResult, halfFor, teamScore, itemKey, APP as PAIR_APP } from "./isomer-table.js";
 import { subjectPreset } from "./topics.js";
-import { subjectsOn } from "./topics-on.js";
+import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { createTogether } from "./together.js";
 import { createDuel } from "./duel.js";
@@ -97,8 +97,8 @@ async function deal(kind = "random") {
   await new Promise(res => setTimeout(res, 30));               // let the mark show before the first deal's work
   try {
     const seed = daily ? today() : randomSeed();
-    const puzzle = makePuzzle(seed, daily ? DAILY : { mode: o.mode, level: o.level, cat: o.cat, mix: mix() });
-    show({ kind, puzzle, run: null, day: daily ? seed : null, ranked: daily || onPreset(), rival: o.rival });
+    const puzzle = makePuzzle(seed, daily ? { ...DAILY, daily: true } : { mode: o.mode, level: o.level, cat: o.cat, mix: mix() });
+    show({ kind, puzzle, run: null, day: daily ? seed : null, ranked: daily || (!markedIn() && onPreset()), rival: o.rival });
     if (puzzle.wide) toast("Too few clues in your topics for that: dealt from every topic");
   } catch (e) { console.error(e); toast("Couldn't deal a puzzle: try another level"); }
   finally { done(); }

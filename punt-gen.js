@@ -9,6 +9,7 @@ import { normalize } from "./typing.js";
 import { mentions } from "./give-away.js";
 import { pairKey } from "./known.js";
 import { SUBJECT_PRESETS, TOPIC_OF, mixFromSubjects, subjectsIn } from "./topics.js";
+import { markedIn } from "./topics-on.js";
 
 // questions: a standard run's length; diff: clue difficulties, dealt in these proportions; multi: how often a clue
 // that fits several answers shows more than one of them. Every question has four options, filling the 2×2 grid.
@@ -98,7 +99,11 @@ const mix = (seed, start) => (seed ^ Math.imul(start + 1, 0x9E3779B1)) >>> 0;
 
 // ---------- the bank, indexed ----------
 // every clue-answer pair (k: its key in known.js, by the entities), and for each clue text, which answers carry it
-const PAIRS = BANK.flatMap((a, i) => a.words.map(w => ({ a: i, w: w.w, hint: w.hint, d: w.d, k: w.entity ? pairKey(a.entity, w.entity) : null })));
+const PAIRS = BANK.flatMap((a, i) => a.words.map(w => ({ a: i, w: w.w, hint: w.hint, d: w.d, k: w.entity ? pairKey(a.entity, w.entity) : null, mk: w.mk === "l" || a.mk === "l" ? "l" : w.mk || a.mk })));
+// content marked for removal (topics.js `dealable`): Settings' Exclude or Include, read as a batch is dealt; a source can fix it
+// (today's run deals as Exclude: `include: false`)
+let INCL = null;
+const allowed = mk => !mk || ((INCL ?? markedIn()) && mk !== "l");
 const CARRIERS = new Map();
 for (const p of PAIRS) { if (!CARRIERS.has(p.w)) CARRIERS.set(p.w, new Set()); CARRIERS.get(p.w).add(p.a); }
 const pairOf = (a, w) => PAIRS.find(p => p.a === a && p.w === w);
@@ -182,7 +187,7 @@ export function mixQuestions(seed, sources, count, dealt = [], name = { mode: "k
     if (!counts[i]) return;
     const before = dealt.filter(q => q.src === t.id).length, tseed = mix(seed, hashOf(t.id));
     let qs;
-    if (t.cat) { ONLY = t.cat; try { qs = makeQuestions(tseed, null, counts[i], before, used, name, clueLevel(t.diffs)); } finally { ONLY = null; } }
+    if (t.cat) { ONLY = t.cat; INCL = t.include ?? null; try { qs = makeQuestions(tseed, null, counts[i], before, used, name, clueLevel(t.diffs)); } finally { ONLY = null; INCL = null; } }
     else qs = mathsQuestions(tseed, t.pool, t.stages, counts[i], before, t.dueKeys, t.seenKeys);
     for (const q of qs) out.push({ ...q, src: t.id, topic: t.label });
   });
@@ -191,7 +196,7 @@ export function mixQuestions(seed, sources, count, dealt = [], name = { mode: "k
 
 /** A clue-answer pair of this difficulty not used yet in the run (once a difficulty runs dry, its pairs come round again). */
 function freshPair(rnd, used, d) {
-  const mine = x => x.d === d && (!ONLY || BANK[x.a].cat === ONLY);
+  const mine = x => x.d === d && allowed(x.mk) && (!ONLY || BANK[x.a].cat === ONLY);
   let pool = PAIRS.filter(x => mine(x) && !used.has(x.w));
   if (!pool.length) { PAIRS.filter(mine).forEach(x => used.delete(x.w)); pool = PAIRS.filter(mine); }
   return pick(rnd, pool);
@@ -199,7 +204,7 @@ function freshPair(rnd, used, d) {
 
 /** Wrong options: same kind of answer, mostly from the same region or sector (so they're plausible). */
 function decoys(rnd, a, avoid, count) {
-  const kin = (x, sameGroup) => BANK[x].cat === BANK[a].cat && !avoid.has(x) && (!sameGroup || BANK[x].group === BANK[a].group);
+  const kin = (x, sameGroup) => BANK[x].cat === BANK[a].cat && allowed(BANK[x].mk) && !avoid.has(x) && (!sameGroup || BANK[x].group === BANK[a].group);
   const near = shuffle(rnd, BANK.map((_, x) => x).filter(x => kin(x, true)));
   const far = shuffle(rnd, BANK.map((_, x) => x).filter(x => kin(x, false) && !near.includes(x)));
   return [...near, ...far].slice(0, count);
@@ -209,7 +214,7 @@ function decoys(rnd, a, avoid, count) {
 function clueQuestion(rnd, L, used, d) {
   const n = OPTIONS;
   const p = freshPair(rnd, used, d), carriers = CARRIERS.get(p.w);
-  const others = shuffle(rnd, [...carriers].filter(x => x !== p.a && BANK[x].cat === BANK[p.a].cat));
+  const others = shuffle(rnd, [...carriers].filter(x => x !== p.a && allowed(BANK[x].mk) && BANK[x].cat === BANK[p.a].cat));
   // sometimes more than one of the answers carrying the clue is offered; at least one option is always wrong
   const extra = others.length && rnd() < L.multi ? (rnd() < 0.5 ? 1 : 2) : 0;
   const right = [p.a, ...others.slice(0, Math.min(extra, n - 2))];
@@ -235,10 +240,10 @@ function answerQuestion(rnd, L, used, d) {
   const p = freshPair(rnd, used, d);
   const a = p.a, mine = new Set(BANK[a].words.map(w => w.w));
   const extra = rnd() < L.multi ? 1 : 0;
-  const second = extra && n > 2 ? pick(rnd, BANK[a].words.filter(w => w.w !== p.w && L.diff.includes(w.d) && !names(w.w, a))) : null;
+  const second = extra && n > 2 ? pick(rnd, BANK[a].words.filter(w => w.w !== p.w && allowed(w.mk) && L.diff.includes(w.d) && !names(w.w, a))) : null;
   const right = [p.w, ...(second ? [second.w] : [])];
   // wrong clues: from answers of the same kind, mostly nearby, that this answer doesn't carry
-  const pool = decoys(rnd, a, new Set([a]), 12).flatMap(x => BANK[x].words.filter(w => !mine.has(w.w) && L.diff.includes(w.d)).map(w => w.w));
+  const pool = decoys(rnd, a, new Set([a]), 12).flatMap(x => BANK[x].words.filter(w => allowed(w.mk) && !mine.has(w.w) && L.diff.includes(w.d)).map(w => w.w));
   const wrong = shuffle(rnd, [...new Set(pool)]).slice(0, n - right.length);
   if (wrong.length < n - right.length || right.some(w => names(w, a)) || wrong.some(w => names(w, a))) return null;
   const options = shuffle(rnd, [...right, ...wrong]);
@@ -263,7 +268,7 @@ function nameQuestion(rnd, L, used, d, known) {
   if (!p) return null;
   const a = p.a, word = BANK[a].words.find(w => w.w === p.w);
   if (names(p.w, a) || normalize(p.hint).includes(normalize(p.w))) return null;   // nothing to recall if it's given away
-  const others = BANK[a].words.filter(w => w.w !== p.w && !names(w.w, a));
+  const others = BANK[a].words.filter(w => w.w !== p.w && allowed(w.mk) && !names(w.w, a));
   if (others.length < n - 1) return null;
   const options = shuffle(rnd, [p.w, ...shuffle(rnd, others).slice(0, n - 1).map(w => w.w)]);
   const topics = (word.topics || []).map(t => TOPIC[t]).filter(Boolean);
@@ -278,7 +283,7 @@ function nameQuestion(rnd, L, used, d, known) {
 
 /** A clue recognised before (known: known.js's record) and not in the run yet: one not named yet if there is one. */
 function knownPair(rnd, used, known) {
-  const pool = PAIRS.filter(p => p.k && known[p.k] && !used.has(p.w) && (!ONLY || BANK[p.a].cat === ONLY)), unnamed = pool.filter(p => !known[p.k].named);
+  const pool = PAIRS.filter(p => p.k && known[p.k] && allowed(p.mk) && !used.has(p.w) && (!ONLY || BANK[p.a].cat === ONLY)), unnamed = pool.filter(p => !known[p.k].named);
   return unnamed.length ? pick(rnd, unnamed) : pool.length ? pick(rnd, pool) : null;
 }
 

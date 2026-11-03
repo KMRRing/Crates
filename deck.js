@@ -21,6 +21,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { setRich } from "./rich.js";
 import { showPicture, askedWith } from "./pics.js";
 import { SUBJECTS, SUBJECT } from "./kb-index.js";
+import { markedIn } from "./topics-on.js";
 import { scopeNow, labelOf, openScope } from "./deck-row.js";
 import { inScope, sayScope, revised } from "./deck-scope.js";
 import { speak } from "./voice.js";
@@ -97,11 +98,13 @@ function drawSubjects() {
   $("subjects").replaceChildren(...rows.map(([s, r]) => {
     const d = document.createElement("div"), b = document.createElement("b"), span = document.createElement("span"), bar = document.createElement("i"), fill = document.createElement("em");
     b.textContent = SUBJECTS[s].label;
-    span.textContent = `${r.working.size ? `${r.working.size} to learn${r.due.size ? ` (${r.due.size} due)` : ""}` : ""}${r.working.size && r.learned.size ? " · " : ""}${r.learned.size ? `${r.learned.size} learned` : ""} of ${SUBJECTS[s].total}`;
+    // what a subject holds: the kept things, or all of them when Settings includes what is marked for removal
+    const total = markedIn() ? SUBJECTS[s].total : Math.max(SUBJECTS[s].kept ?? SUBJECTS[s].total, r.learned.size, 1);
+    span.textContent = `${r.working.size ? `${r.working.size} to learn${r.due.size ? ` (${r.due.size} due)` : ""}` : ""}${r.working.size && r.learned.size ? " · " : ""}${r.learned.size ? `${r.learned.size} learned` : ""} of ${total}`;
     if (r.due.size) span.className = "due";
-    fill.style.width = `${Math.min(100, (r.learned.size / SUBJECTS[s].total) * 100).toFixed(1)}%`;
+    fill.style.width = `${Math.min(100, (r.learned.size / total) * 100).toFixed(1)}%`;
     bar.appendChild(fill);
-    bar.title = `${r.learned.size} of ${SUBJECTS[s].total} learned`;
+    bar.title = `${r.learned.size} of ${total} learned`;
     d.append(b, span, bar);
     return d;
   }));

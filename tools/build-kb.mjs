@@ -7,17 +7,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { givesAway } from "../give-away.js";
-import { LEVELS, choiceMark, estimateMark, pinMark, isLiving } from "./audit-lib.mjs";
+import { LEVELS, KEPT, mkOf, entityMark, choiceMark, estimateMark, pinMark, isLiving } from "./audit-lib.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings", "law"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
-  pics: "pics-list.js", whoami: "party-whoami-bank.js", decoy: "party-decoy-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
+  pics: "pics-list.js", marks: "kb-marks.js", whoami: "party-whoami-bank.js", decoy: "party-decoy-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
 
-/** What the build deals (tools/audit-lib.mjs, docs/the-knowledge-base.md "Who the games ask about"): `public`, the default CI and the
- *  published app use, deals only what is marked universal; kb/ keeps everything, so `--personal` (or `--regional`) builds the
- *  larger banks. A thing not dealt is in the bank's RETIRED list where it has one (Quote's, so a saved run still shows it). */
+/** What the build writes (tools/audit-lib.mjs, docs/the-knowledge-base.md "Who the games ask about"): `public`, the default, holds
+ *  every item but the living, each marked for removal carrying `mk` (s specialist, p personal); the games decide at run time which
+ *  they deal (Settings, Topics: Content marked for removal, Exclude or Include). `personal` adds the living, for tests of the writing. */
 export const DEALT = LEVELS.public;
 const load = f => import(`${pathToFileURL(path.join(root, "kb", f)).href}?t=${Date.now()}`);
 /** An object without its undefined fields. */
@@ -37,20 +37,21 @@ export async function build({ level = "public" } = {}) {
   // each answer and each clue carries its entity (e, and a clue's seventh place), so the pile knows what was missed
   const raw = ENTITIES.filter(e => e.crates !== undefined).sort((a, b) => a.crates - b.crates).map(e => ({
     n: e.name, c: e.sets.includes("country") ? "country" : "commodity", g: e.sets.find(s => s.startsWith("group:")).slice(6), a: e.aliases, e: e.id,
-    w: (clues.get(e.id) || []).sort((x, y) => x.pos - y.pos).map(l => [l.w ?? of(l.from).name, l.hint, l.aspects, l.d, l.alt.map(id => of(id).crates), l.since ?? 0, l.from]),
-  }));
+    w: (clues.get(e.id) || []).sort((x, y) => x.pos - y.pos).map(l => [l.w ?? of(l.from).name, l.hint, l.aspects, l.d, l.alt.map(id => of(id).crates), l.since ?? 0, l.from, ...(mkOf(entityMark(l.from)) ? [mkOf(entityMark(l.from))] : [])]),
+    mk: mkOf(entityMark(e.id)),
+  })).map(defined);
   const crates = Buffer.from(JSON.stringify(raw), "utf8").toString("base64");
 
   const gen = written(ENTITIES, LINKS, E, await load("items/choice/art.js").then(m => m.ITEMS), estimates.ESTIMATES, pins.PINS,
     await load("items/choice/law.js").then(m => m.STAGES), await load("measures.js").then(m => m.MEASURES));
   // Chart: each pin shows its entity, with the pin's own overrides
-  const PLACES = [...pins.PINS, ...gen.pins].filter(p => dealt.has(pinMark(p))).map(({ id, cat, about, ...over }) => {
+  const PLACES = [...pins.PINS, ...gen.pins].filter(p => dealt.has(pinMark(p))).map(({ id, cat, about, ...over }, i, all) => {
     const { name, lat, lon, note, country, region, pic, state, marks } = of(about);
-    return defined({ id, cat, name, lat, lon, note, country, region, state, marks, pic, ...over, about });
+    return defined({ id, cat, name, lat, lon, note, country, region, state, marks, pic, ...over, about, mk: mkOf(pinMark({ about })) });
   });
   const GEO = pins.FEATURES.filter(p => dealt.has(pinMark(p))).map(({ id, about, ...over }) => {
     const { name, kind, region, country, note, lat, lon } = of(about);
-    return defined({ id, name, kind, region, country, note, lat, lon, ...over, about, ...GEOMETRY[about] });
+    return defined({ id, name, kind, region, country, note, lat, lon, ...over, about, ...GEOMETRY[about], mk: mkOf(pinMark({ about })) });
   });
 
   // a picture's own name goes with its questions (Order asks "When was … painted?", and a game whose picture can't be
@@ -65,7 +66,8 @@ export async function build({ level = "public" } = {}) {
     return defined({ ...q, truth: q.truth ?? e[fact], pic, title: pic && pic === e.pic ? titleOf(e) : undefined });
   });
   // what Quote deals, and what it keeps only to show a run or a table that already has it
-  const QUOTES = ALL.filter(q => dealt.has(estimateMark(q))), RETIRED = ALL.filter(q => !dealt.has(estimateMark(q)));
+  // (every question is kept with its mark; only a living person's is retired, so a saved run still shows it)
+  const QUOTES = ALL.filter(q => dealt.has(estimateMark(q))).map(q => defined({ ...q, mk: mkOf(estimateMark(q)) })), RETIRED = ALL.filter(q => !dealt.has(estimateMark(q)));
 
   // Punt: the questions as written, with what they're about, and the name of a picture that's one of theirs
   const choice = {};
@@ -79,7 +81,7 @@ export async function build({ level = "public" } = {}) {
     // a question whose right answer is a word of it is left out of the bank, not out of kb/ (give-away.js)
     const all = [...m.ITEMS, ...(gen[b] || [])], asked = all.filter(q => !givesAway(q) && dealt.has(choiceMark(b, q)));
     leaking += all.filter(q => givesAway(q)).length;
-    choice[b] = { STAGES: m.STAGES, MATHS: asked.map(q => { const title = named(q); return title ? { ...q, title } : q; }) };
+    choice[b] = { STAGES: m.STAGES, MATHS: asked.map(q => { const title = named(q), mk = mkOf(choiceMark(b, q)); return { ...q, ...(title ? { title } : {}), ...(mk ? { mk } : {}) }; }) };
   }
   console.log(`${leaking} questions left out: the right answer is a word of the question`);
   const cards = await load("items/whoami.js"), decoyFacts = (await load("items/decoy.js")).FACTS;
@@ -89,12 +91,13 @@ export async function build({ level = "public" } = {}) {
     for (const id of Object.keys(who.WHO)) if (isLiving(id)) delete who.WHO[id];
     for (const d of who.DECKS) d.ids = d.ids.filter(id => who.WHO[id]);
   }
+  for (const [id, w] of Object.entries(who.WHO)) { const mk = mkOf(isLiving(id) ? "l" : entityMark(id)); if (mk) w.mk = mk; }
   // every picture a game shows (Settings' "Keep pictures offline" downloads them all): the entities' own (Lexicon) and
   // every bank's (Chart's places, Quote's and Order's paintings, Punt's art, buildings and watches, Deck's reviews of
   // them, Who am I's people)
   const pictures = [...new Set([...[...ENTITIES, ...PLACES, ...ALL, ...Object.values(choice).flatMap(c => c.MATHS)].map(x => x.pic),
     ...Object.values(who.WHO).map(w => w.p)].filter(Boolean))].sort();
-  return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES, RETIRED }, choice, pictures, index: await subjects(ENTITIES, LINKS),
+  return { crates, marks: marksOf(ENTITIES), chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES, RETIRED }, choice, pictures, index: await subjects(ENTITIES, LINKS),
     whoami: who, decoy: decoy(ENTITIES, QUOTES, decoyFacts) };
 }
 
@@ -664,7 +667,7 @@ function decoy(ENTITIES, QUOTES, FACTS) {
   const sayings = ENTITIES.filter(e => e.sets.includes("saying") && e.meaning && (e.wrong || []).length >= 3).map(e => {
     // a Chinese saying's pinyin starts its origin ("huà shé tiān zú: a man who drew legs…")
     const say = e.lang === "zh" && e.origin ? e.origin.split(":")[0].trim() : undefined;
-    return defined({ id: e.id, w: e.text, l: LANG_NAMES[e.lang] || undefined, say, lit: e.literal || e.rendering || undefined, t: e.meaning, x: e.wrong.slice(0, 3) });
+    return defined({ id: e.id, w: e.text, l: LANG_NAMES[e.lang] || undefined, say, lit: e.literal || e.rendering || undefined, t: e.meaning, x: e.wrong.slice(0, 3), mk: mkOf(entityMark(e.id)) });
   });
   const fmt = (n, unit) => (unit === "year" ? String(Math.round(n)) : Number(n.toPrecision(n >= 100 ? 4 : 3)).toLocaleString("en-GB", { maximumFractionDigits: 2 }));
   const hash = str => { let h = 2166136261; for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -689,10 +692,17 @@ function decoy(ENTITIES, QUOTES, FACTS) {
     for (const v of [...above.slice(up), ...below.slice(3 - up)]) if (lies.length < 3) lies.push(v);   // a side too short
     const shown = [...new Set(lies.map(v => fmt(v, q.unit)))];
     if (shown.length < 3) continue;
-    numbers.push({ id: q.id, q: text, u: q.unit, t: fmt(t, q.unit), x: shown.slice(0, 3) });
+    numbers.push(defined({ id: q.id, q: text, u: q.unit, t: fmt(t, q.unit), x: shown.slice(0, 3), mk: q.mk }));
   }
   const facts = FACTS.map(f => ({ id: f.id, q: f.text, t: f.truth, x: f.lies.slice(0, 3) }));
   return { sayings, numbers, facts };
+}
+
+/** Which entities a game reading kb/ itself (Origin, Nexus, Isomer…) may deal under Exclude: the kept ones' ids (universal, regional
+ *  and theme), and the living, never dealt. Anything else is marked for removal (specialist or personal). */
+function marksOf(ENTITIES) {
+  const kept = ENTITIES.filter(e => KEPT.has(entityMark(e.id))).map(e => e.id), living = ENTITIES.filter(e => isLiving(e.id)).map(e => e.id);
+  return { kept, living };
 }
 
 // What each entity is a matter of, for coverage by subject across the games. A thing with a set the knowledge base
@@ -723,7 +733,7 @@ async function subjects(ENTITIES, LINKS) {
     m.set(topic[a], (m.get(topic[a]) || 0) + 1);
   }
   const labels = [], at = new Map(), of = {};
-  const index = label => { if (!at.has(label)) { at.set(label, labels.length); labels.push({ label, total: 0 }); } return at.get(label); };
+  const index = label => { if (!at.has(label)) { at.set(label, labels.length); labels.push({ label, total: 0, kept: 0 }); } return at.get(label); };
   for (const [, label] of SET_SUBJECT) index(label);
   for (const e of ENTITIES) {
     const set = SET_SUBJECT.find(([s]) => e.sets.includes(s) || e.sets.some(x => x.startsWith(`${s}:`)));
@@ -733,6 +743,7 @@ async function subjects(ENTITIES, LINKS) {
     if (!label) continue;
     of[e.id] = index(label);
     labels[of[e.id]].total++;
+    if (KEPT.has(entityMark(e.id))) labels[of[e.id]].kept++;
   }
   return { SUBJECTS: labels.filter(s => s.total), SUBJECT: Object.fromEntries(Object.entries(of).map(([id, i]) => [id, labels.filter(s => s.total).indexOf(labels[i])])) };
 }
@@ -753,6 +764,10 @@ export async function render(out) {
 // Written by tools/build-kb.mjs from kb/: edit kb/, not this file.
 export const SUBJECTS = ${JSON.stringify(out.index.SUBJECTS)};
 export const SUBJECT = ${JSON.stringify(out.index.SUBJECT)};\n`;
+  files[OUTPUTS.marks] = `// Which of kb/'s entities are kept (universal, regional, theme) and which are living, for the games that read kb/ itself: anything
+// else is marked for removal (docs/the-knowledge-base.md, "Who the games ask about"); marked.js reads it. Written by tools/build-kb.mjs from kb/audit/: edit the marks there.
+export const KEPT = ${JSON.stringify(out.marks.kept.join(" "))};
+export const LIVING = ${JSON.stringify(out.marks.living.join(" "))};\n`;
   files[OUTPUTS.pics] = `${head(OUTPUTS.pics)}export const PICTURES = ${lines(out.pictures)};\n`;
   files[OUTPUTS.decoy] = `${head(OUTPUTS.decoy)}export const SAYINGS = ${lines(out.decoy.sayings)};\nexport const NUMBERS = ${lines(out.decoy.numbers)};\nexport const FACTS = ${lines(out.decoy.facts)};\n`;
   files[OUTPUTS.whoami] = `${head(OUTPUTS.whoami)}export const DECKS = ${lines(out.whoami.DECKS)};\nexport const WHO = {\n${Object.entries(out.whoami.WHO).map(([id, w]) => `${JSON.stringify(id)}: ${JSON.stringify(w)}`).join(",\n")}\n};\n`;
@@ -761,8 +776,7 @@ export const SUBJECT = ${JSON.stringify(out.index.SUBJECT)};\n`;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const level = process.argv.includes("--personal") ? "personal" : process.argv.includes("--regional") ? "regional" : "public";
-  const files = await render(await build({ level }));
+  const files = await render(await build());
   let changed = 0;
   for (const [f, text] of Object.entries(files)) {
     const p = path.join(root, f);
