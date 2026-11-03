@@ -704,6 +704,7 @@ dialog.sure .sure-row .btn { flex: 1; padding-inline: .8rem; }
 /* Request to join, while you watch a game two can share (coop-ui.js): a row of its own under the name and Stop, and under it
    what the request is doing */
 .watch-bar [data-join] { order: 8; flex: 1 1 100%; }
+@media (min-width: 700px) { .watch-bar.joinable { left: 50%; right: auto; width: 26rem; max-width: calc(100% - 1rem); transform: translateX(-50%); } }   /* a tablet: a card, not the width of the screen */
 .coop-say { order: 9; flex: 1 1 100%; margin: 0; font-size: .8rem; line-height: 1.3; color: var(--ink-soft); }
 .coop-say[hidden] { display: none; }
 .watch-bar.asking .coop-say { color: var(--ink); }

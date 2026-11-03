@@ -21,6 +21,7 @@ export function watchJoin(ctx) {
   if (!entry) return { partner() {} };
   const stop = ctx.bar.querySelector("button"), say = el("small", "coop-say");
   ctx.bar.append(say);
+  ctx.bar.classList.add("joinable");
   const ask = el("button", "btn primary", "Request to join");
   ask.type = "button";
   ask.dataset.join = "1";
