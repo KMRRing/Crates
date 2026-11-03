@@ -3,12 +3,12 @@
 // Chinese (炮二平五) and WXF (C2=5). Pure and plain: a game is a JSON state, changed only by act().
 //
 // The board is 9 files by 10 ranks of points. A point is rank * 9 + file, rank 0 being Red's back rank and file 0 the
-// a-file (Red's left, as Red sits), so "a1".."i10" name points as the engine does (Fairy-Stockfish's UCI). A piece is
+// a-file (Red's left, as Red sits), so "a1".."i10" name points as Xiangqi engines' UCI does. A piece is
 // a number: 1 general, 2 advisor, 3 elephant, 4 horse, 5 chariot, 6 cannon, 7 soldier; Red's positive, Black's negative.
 
 export const START = "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1";
 export const GENERAL = 1, ADVISOR = 2, ELEPHANT = 3, HORSE = 4, CHARIOT = 5, CANNON = 6, SOLDIER = 7;
-const LETTER = ".kabnrcp";                                       // FEN's letters (Fairy-Stockfish's: b elephant, n horse)
+const LETTER = ".kabnrcp";                                       // FEN's letters (as Xiangqi engines write them: b elephant, n horse)
 const FROM_LETTER = { k: 1, a: 2, b: 3, e: 3, n: 4, h: 4, r: 5, c: 6, p: 7 };
 const FILES = "abcdefghi";
 

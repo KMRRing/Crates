@@ -14,6 +14,7 @@ import { rushMenu } from "./rush-menu.js";
 import { onPause } from "./menu.js";
 import { today, IN_FRAME } from "./suite.js";
 import { busy } from "./loading.js";
+import { sure } from "./sure.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "river:rush", BEST = "river:rushBest", DAILY = "river:rushDaily", RATING = "river:rushRating";
@@ -355,9 +356,9 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
     if (resumable(r)) { pickUp(r); keepRun(); } else start();
   }
   /** Back to the game: a timed run under way ends (you're asked first); one without a clock waits for next time. */
-  function close() {
+  async function close() {
     if (S && !S.over && S.started != null && MODES[S.mode].ms) {
-      if (!confirm("End this run and go back to the game?")) return;
+      if (!(await sure("End this run and go back to the game?", { yes: "End run" }))) return;
       finish("time", true);
     }
     clearInterval(tick);

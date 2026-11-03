@@ -17,6 +17,7 @@ import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { busy, waitMark } from "./loading.js";
+import { sure } from "./sure.js";
 import { createCourse, progress } from "./river-learn.js";
 import { createRush } from "./river-rush-ui.js";
 import { bestsLine } from "./rush-core.js";
@@ -251,11 +252,11 @@ function takeBack() {
   thinking = false;
   afterMove(false);
 }
-function resign() {
+async function resign() {
   const g = cur();
   if (g.result) return;
   if (inRoom()) { together.act(d => { const n = X.act(X.fromRoom(d), mySeat(), { resign: true }); if (!n) return false; Object.assign(d, n); }); return; }
-  if (!confirm("Resign this game?")) return;
+  if (!(await sure("Resign this game?", { yes: "Resign" }))) return;
   G = { ...X.act(G, G.mode === "two" ? X.waitingOn(G) : 0, { resign: true }), hint: null };
   afterMove(false);
 }
@@ -623,8 +624,8 @@ function openMenu() {
       ...(cur().result ? [] : [action("Resign", resign, "")]), action("Back to solo", () => together.leave(), "link"));
   } else {
     const g = cur();
-    part(body, "play").append(action("New game", () => {
-      if (!G.result && X.movesOf(G).length > 1 && !confirm("Start a new game? This one isn't finished.")) return;
+    part(body, "play").append(action("New game", async () => {
+      if (!G.result && X.movesOf(G).length > 1 && !(await sure("Start a new game? This one isn't finished.", { yes: "New game" }))) return;
       Object.assign(opts, pick); saveOpts(); newGame();
     }, "primary"), ...(!g.result && X.movesOf(g).length ? [action("Resign", resign, "link")] : []));
     const cp = progress();

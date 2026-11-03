@@ -33,8 +33,6 @@ const STILL = {
   "parley.js": 1,
   "punt.js": 3,
   "quote.js": 2,
-  "river-rush-ui.js": 1,
-  "river.js": 2,
   "rush-menu.js": 1,
   "rush.js": 1,
   "slate.js": 3,

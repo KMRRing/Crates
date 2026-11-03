@@ -6,12 +6,12 @@
 
 export const LEVELS = [
   { id: "1", name: "Beginner", rating: 700, limit: "nodes 3000", multipv: 12, temper: 300 },
-  { id: "2", name: "Novice", rating: 950, limit: "nodes 3000", multipv: 10, temper: 140 },
+  { id: "2", name: "Novice", rating: 900, limit: "nodes 3000", multipv: 10, temper: 140 },
   { id: "3", name: "Casual", rating: 1150, limit: "nodes 4500", multipv: 8, temper: 70 },
   { id: "4", name: "Club", rating: 1450, limit: "nodes 7500", multipv: 6, temper: 35 },
   { id: "5", name: "Strong club", rating: 1700, limit: "nodes 4000" },
-  { id: "6", name: "Expert", rating: 1900, limit: "nodes 20000" },
-  { id: "7", name: "Master", rating: 2150, limit: "nodes 100000" },
+  { id: "6", name: "Expert", rating: 1950, limit: "nodes 20000" },
+  { id: "7", name: "Master", rating: 2200, limit: "nodes 100000" },
   { id: "8", name: "Full strength", rating: 2300, limit: "nodes 500000" },
 ];
 export const levelById = id => LEVELS.find(l => l.id === String(id)) || LEVELS[2];

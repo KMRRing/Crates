@@ -2,8 +2,8 @@
 // river-rules.js (the referee) in positions from random games and in tricky ones, the search's answers (a legal best move,
 // mates found, a general left without a move counted as lost, a perpetual check ruled, a drawn board scored level), its
 // limits (nodes, depth, time), MultiPV and searchmoves, and the UCI layer through uci.js's Engine in-process. Quick: the
-// slower checks (perft four deep, whole games between the levels, the match against Fairy-Stockfish) are tests/river.mjs
-// and tools/river-engine-match.mjs.
+// slower checks (perft four deep, whole games between the levels) are tests/river.mjs; the matches against Fairy-Stockfish
+// that measured the engine were played in a sandbox, never in the tree.
 import fs from "fs";
 import * as X from "../river-rules.js";
 import { Engine as Core, RULE_WIN } from "../river-engine.js";
