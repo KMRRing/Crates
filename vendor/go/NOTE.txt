@@ -1,0 +1,13 @@
+Go's computer player: a KataGo-format neural network, run by our own WebAssembly kernel and searched by our own tree search.
+
+Network:  g170-b6c96-s175395328-d26788732.bin.gz (3,827,339 bytes; 4,124,446 unzipped): KataGo's first public training run
+          (g170), 6 residual blocks of 96 channels, model version 8, 22 input planes. Taken from the KataGo repository's
+          cpp/tests/models/ (MIT, LICENSE-KataGo.txt). The g170 run's networks are published by katagotraining.org as public
+          domain (CC0), per its Neural Network License as Korbi supplied it on 3 November 2026. No kata1 network and no network
+          of another contributor is used, so no further notice has to travel with it.
+Kernel:   go-nn.c, our own code (freestanding C: a convolution, batch norm and pooling over WebAssembly SIMD), built by build.sh
+          with clang 18 and wasm-ld, no libraries; go-nn.wasm is 3.7 KB. Written from KataGo's published model format
+          (cpp/neuralnet/desc.cpp and nninputs.cpp, read for the layout, nothing copied). WebAssembly SIMD needs Safari / iOS 16.4.
+Reader:   ../../go-net.js parses the file and orders the layers; ../../go-features.js builds the inputs; ../../go-search.js is a
+          plain PUCT tree search. The ladder and pass-alive-area input planes are left at zero.
+Nothing else is fetched at run time; every file here is in the offline list.
