@@ -1,0 +1,140 @@
+/* Landfall: a chart table below a window onto the sky, in the dark of a ship's cabin at dusk. The scene has a palette of its own
+   (lamplight on deep teal: the --lf-* variables below, the same in every theme and by day or night, because the cabin is lit by its
+   lamp and the sky, not by the room the phone is in); what is the page's (the header, the menu, the sheets) follows the theme.
+   Held upright the window takes the top third and the desk the rest; drag the window down and the whole sky opens. Held sideways
+   the sky stands beside the desk. The sextant is a full-screen eyepiece that covers both while it is in the hand. Sizes in rem. */
+:root {
+  --lf-in: var(--c1);
+  --lf-soft: color-mix(in srgb, var(--lf-in) 15%, var(--sheet));
+}
+
+.landfall {
+  --lf-teal: #0d2a2d; --lf-teal-hi: #1b4b4d; --lf-wood: #2b1d12; --lf-gilt: #c9a24a; --lf-gilt-hi: #f0d98e; --lf-cream: #f0e2be;
+  --lf-paper: #e7d9b7; --lf-ink: #2f2519; --lf-pencil: #66563f; --lf-land: #d3bf8a; --lf-fog: #1f6f6a; --lf-brass: #a07a2c; --lf-blood: #a8382b; --lf-glow: 255, 196, 120;
+  --lf-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; --lf-serif: Georgia, "Times New Roman", serif;
+  position: relative; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.lf-mark { display: inline-block; }
+.lf-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the window onto the sky */
+#app.landfall > .lf-window { flex: 0 0 31%; min-height: 0; position: relative; margin: .5rem 0 0; border: 3px solid var(--lf-wood); border-radius: 6px; overflow: hidden;
+  background: #08121a; box-shadow: inset 0 0 1.3rem 2px rgba(0, 0, 0, .55); touch-action: none; }
+.lf-window::after { content: ""; position: absolute; inset: 0; border: 1px solid rgba(201, 162, 74, .65); border-radius: 3px; pointer-events: none; }
+.lf-sky { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.lf-hud { position: absolute; left: .55rem; right: .55rem; top: .35rem; display: flex; justify-content: space-between; gap: .5rem; pointer-events: none;
+  font: 600 .7rem/1.2 var(--lf-mono); letter-spacing: .04em; color: rgba(240, 226, 190, .9); text-shadow: 0 1px 2px rgba(0, 0, 0, .85); }
+.lf-note { position: absolute; left: .55rem; right: 4.2rem; bottom: .3rem; margin: 0; pointer-events: none;
+  font: italic .78rem/1.25 var(--lf-serif); color: rgba(248, 232, 192, .96); text-shadow: 0 1px 3px #000, 0 0 .5rem #000; }
+.lf-pull { position: absolute; right: .4rem; bottom: .3rem; width: 3.2rem; height: 1.7rem; padding: 0; display: grid; place-items: center; cursor: pointer; touch-action: none;
+  border: 1px solid rgba(201, 162, 74, .75); border-radius: 4px; background: rgba(8, 18, 26, .65); color: var(--lf-cream); }
+.lf-pull i { width: .6rem; height: .6rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-.15rem) rotate(45deg); }
+.lf-skybar { display: none; position: absolute; right: .5rem; top: 1.7rem; flex-direction: column; gap: .4rem; align-items: flex-end; }
+.lf-round { min-width: 2.5rem; height: 2.5rem; padding: 0 .4rem; border: 1px solid rgba(201, 162, 74, .75); border-radius: 4px; background: rgba(8, 18, 26, .7);
+  color: var(--lf-cream); font: 700 1rem var(--lf-mono); cursor: pointer; }
+#app.lf-full .lf-skybar { display: flex; }
+#app.lf-full .lf-pull i { transform: translateY(.15rem) rotate(-135deg); }
+#app.lf-full > .lf-window { flex: 1 1 auto; }
+#app.lf-full > .lf-desk { flex: 0 0 auto; }
+#app.lf-full .lf-chart { display: none; }
+
+/* the chart table */
+#app.landfall > .lf-desk { margin: .5rem 0 0; padding: .5rem; min-height: 0; border: 1px solid rgba(201, 162, 74, .7); border-radius: 6px; color: var(--lf-cream);
+  background: radial-gradient(ellipse at 50% 15%, var(--lf-teal-hi), var(--lf-teal) 78%); box-shadow: inset 0 0 1.2rem rgba(0, 0, 0, .45); }
+.lf-chart { position: relative; min-height: 0; border: 1px solid var(--lf-gilt); border-radius: 3px; overflow: hidden; background: var(--lf-paper); touch-action: none; }
+.lf-chartcv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+/* the lamp is out: the chart is a dim thing in the dark, and the sky is clear */
+.lf-veil { position: absolute; inset: 0; background: rgba(3, 9, 11, .72); opacity: 0; pointer-events: none; transition: opacity .4s; }
+.lf-desk.dark .lf-veil { opacity: 1; }
+.lf-slate { position: absolute; left: 2.8rem; top: .4rem; max-width: 15rem; padding: .35rem .5rem; pointer-events: none;
+  border: 1px solid var(--lf-gilt); border-radius: 3px; background: rgba(24, 16, 8, .84); color: var(--lf-cream); font: .68rem/1.35 var(--lf-serif); }
+.lf-slate p { margin: 0; }
+.lf-slate p + p { margin-top: .15rem; }
+.lf-slate[hidden] { display: none; }
+.lf-task { margin: .45rem .1rem .3rem; height: 3.5rem; overflow: hidden; font-size: .84rem; line-height: 1.3; color: var(--lf-cream); }
+.lf-task b { color: var(--lf-gilt-hi); font-weight: 700; }
+.lf-acts { display: flex; gap: .4rem; }
+.lf-btn { flex: 1 1 0; min-width: 0; min-height: 2.75rem; padding: .3rem .5rem; border: 1.5px solid var(--lf-gilt); border-radius: 4px; background: rgba(0, 0, 0, .28); color: var(--lf-cream);
+  font: 750 .8rem var(--font); font-stretch: var(--stretch-btn); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); cursor: pointer; }
+.lf-btn.go { background: var(--lf-gilt); border-color: var(--lf-gilt); color: #1d1608; }
+.lf-btn:disabled { opacity: .35; cursor: default; }
+.lf-aux { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; margin-top: .35rem; }
+.lf-mini { min-width: 0; min-height: 2.3rem; padding: .2rem .1rem; border: 1px solid rgba(201, 162, 74, .6); border-radius: 4px; background: rgba(0, 0, 0, .22); color: var(--lf-cream);
+  font: 700 .66rem var(--font); text-transform: var(--caps); letter-spacing: .05em; cursor: pointer; }
+.lf-mini[aria-pressed="true"] { background: rgba(255, 196, 120, .24); border-color: var(--lf-gilt-hi); }
+.lf-mini:disabled { opacity: .35; cursor: default; }
+.lf-mini.read { font: 700 .78rem var(--lf-mono); text-transform: none; letter-spacing: 0; cursor: default; border-style: dashed; }
+
+/* the sextant: the whole screen below the header */
+.lf-scope { position: absolute; left: 0; right: 0; bottom: 0; top: var(--lf-top, 4rem); z-index: 6; display: grid; grid-template-rows: minmax(0, 1fr) auto;
+  background: #05090d; color: var(--lf-cream); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + .5rem); }
+.lf-scope[hidden] { display: none; }
+.lf-scope-view { position: relative; min-height: 0; }
+.lf-scopecv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.lf-scope-side { display: grid; gap: .4rem; padding: .2rem .9rem 0; }
+.lf-read { margin: 0; text-align: center; font: 700 1.55rem/1.1 var(--lf-mono); letter-spacing: .02em; }
+.lf-scope-note { margin: 0; min-height: 1.1rem; text-align: center; font-size: .74rem; color: rgba(240, 226, 190, .78); }
+.lf-marks { list-style: none; margin: 0; padding: 0; display: flex; justify-content: center; gap: .4rem; min-height: 1.7rem; }
+.lf-marks li { padding: .2rem .5rem; border: 1px solid var(--lf-gilt); border-radius: 4px; font: .74rem var(--lf-mono); background: rgba(201, 162, 74, .12); }
+.lf-mark-btn { flex: none; width: 100%; min-height: 3.4rem; font-size: 1.05rem; }
+.lf-scope-row { display: flex; gap: .4rem; }
+
+/* a leg sailed: a pause in the dark */
+.lf-pass { position: absolute; left: 0; right: 0; bottom: 0; top: var(--lf-top, 4rem); z-index: 7; display: grid; place-items: center; background: rgba(5, 9, 13, .94);
+  opacity: 0; pointer-events: none; transition: opacity .5s; color: var(--lf-cream); text-align: center; }
+.lf-pass.on { opacity: 1; pointer-events: auto; }
+.lf-pass p { margin: 0; padding: 0 2rem; font: italic 1.15rem/1.45 var(--lf-serif); }
+
+/* the sheets: the page's own, in the theme */
+.lf-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; }
+.lf-book { margin: .6rem 0 0; display: grid; }
+.lf-book > div { display: flex; justify-content: space-between; gap: 1rem; padding: .32rem .2rem; border-bottom: 1px solid var(--rule); font-size: .92rem;
+  opacity: 0; transform: translateY(.3rem); transition: opacity .28s, transform .28s; }
+.lf-book > div.on { opacity: 1; transform: none; }
+.lf-book dt { color: var(--ink-soft); }
+.lf-book dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.lf-book > div.key { border-bottom: 2px solid var(--brass); background: var(--lf-soft); font-size: 1.02rem; }
+.lf-book > div.key dt { color: var(--ink); font-weight: 800; }
+.lf-bookmsg { margin: .7rem 0 0; min-height: 3.6rem; font-size: .9rem; line-height: 1.35; }
+.lf-bookmsg.off { color: color-mix(in srgb, #A8382B 85%, var(--ink)); font-weight: 600; }
+.lf-sheet-acts { display: flex; gap: .5rem; margin-top: .8rem; }
+.lf-sheet-acts .btn { flex: 1 1 0; min-width: 0; padding-inline: .4rem; }
+.lf-sheet-acts .btn.primary { flex: 1.3 1 0; }
+.lf-how { margin: .6rem 0 0; padding: 0; list-style: none; display: grid; gap: .7rem; counter-reset: how; }
+.lf-how li { counter-increment: how; display: grid; grid-template-columns: 2rem 1fr; gap: .1rem .5rem; }
+.lf-how li::before { content: counter(how); grid-row: 1 / 3; align-self: start; width: 1.8rem; height: 1.8rem; display: grid; place-items: center;
+  border: 1.5px solid var(--brass); border-radius: 50%; font-weight: 800; }
+.lf-how b { font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-size: .86rem; }
+.lf-how span { color: var(--ink-soft); font-size: .92rem; line-height: 1.35; }
+.lf-stars { margin: .1rem 0 .2rem; text-align: center; font-size: 2rem; letter-spacing: .3em; color: var(--c0); }
+.lf-endline { margin: .35rem 0; line-height: 1.4; }
+.lf-alm { width: 100%; margin-top: .6rem; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.lf-alm th, .lf-alm td { padding: .3rem .4rem; border-bottom: 1px solid var(--rule); text-align: right; font-size: .9rem; }
+.lf-alm th:first-child, .lf-alm td:first-child { text-align: left; }
+.lf-alm tr.now { background: var(--lf-soft); font-weight: 800; }
+.lf-note-p { margin: .5rem 0 0; color: var(--ink-soft); font-size: .88rem; line-height: 1.35; }
+.lf-logrows { margin: .6rem 0 0; padding: 0; list-style: none; display: grid; }
+.lf-logrows li { padding: .3rem .1rem; border-bottom: 1px solid var(--rule); font: .84rem var(--lf-mono); }
+.lf-logrows li.fix { font-weight: 800; }
+.lf-card { margin-top: .7rem; padding: .7rem .8rem; border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--tile); overflow: hidden; }
+.lf-card h3 { margin: 0; font-size: .98rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
+.lf-card .sub { margin: .1rem 0 .4rem; color: var(--ink-soft); font-size: .84rem; }
+.lf-card p { margin: .35rem 0 0; font-size: .9rem; line-height: 1.38; }
+.lf-card .mastery { display: inline-block; margin-top: .4rem; padding: .1rem .5rem; border: 1px solid var(--brass); border-radius: 4px; font-size: .76rem; font-weight: 700; }
+.lf-card .mastery.m3 { background: var(--lf-soft); border-color: var(--lf-in); }
+.lf-fig { float: right; width: 6rem; height: 6rem; margin: 0 0 .3rem .6rem; }
+.lf-fig line { stroke: var(--brass-lo); stroke-width: 1.2; stroke-linecap: round; }
+.lf-fig circle { fill: var(--ink); }
+.lf-fig circle.pole { fill: none; stroke: var(--c3); stroke-width: 1.4; }
+
+/* held sideways: the sky beside the desk */
+@media (orientation: landscape) and (min-width: 700px) {
+  html #app.landfall { --beside-cols: minmax(0, 1.25fr) minmax(0, 1fr); --beside-gap: .9rem; grid-template-rows: auto minmax(0, 1fr); }
+  #app.landfall > .lf-window { grid-column: 1; grid-row: 2; }
+  #app.landfall > .lf-desk { grid-column: 2; grid-row: 2; }
+  .lf-pull { display: none; }
+  .lf-skybar { display: flex; flex-direction: row; top: auto; bottom: .4rem; right: .5rem; }
+  .lf-note { right: 12rem; }
+  .lf-scope { grid-template-rows: none; grid-template-columns: minmax(0, 1fr) 17rem; padding-bottom: .8rem; }
+  .lf-scope-side { align-content: end; padding: .6rem 1rem 0 .4rem; }
+}

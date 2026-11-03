@@ -1,0 +1,768 @@
+// Landfall: the page. A window onto the sky above a chart table; the sextant when it is in the hand. The voyage itself is
+// landfall-engine.js (pure, seeded, saved whole under `landfall:run`); this file puts it on the screen, runs the twilight's clock while the
+// navigator looks about, and keeps what the player has learned (`landfall:mastery`, `landfall:best`). Everything the screen shows is
+// in the voyage or in `landfall:` keys, so a partner watching in a frame draws the same page from them.
+import {
+  newVoyage, apply, moves, restore, save, forecast, conditions, sextantTruth, swellAt, sightNoise, levelOf, truePlace, estPlace, sceneJd, hintFor, routeOf,
+  masteryAfter, cloudsNow, bellsBetween, shipClock, CLOCK, MAX_WAIT, POLARIS_HR, BY_HR, EYE,
+} from "./landfall-engine.js";
+import { LEVELS } from "./landfall-levels.js";
+import { STARS } from "./landfall-stars.js";
+import { FIGURES } from "./landfall-figures.js";
+import { starAltAz, sunAltAz, sextantReading } from "./landfall-sky.js";
+import { bearing, vec, norm180 } from "./landfall-model.js";
+import { makeView, project, unproject, degPx, pick, drawSky } from "./landfall-skyview.js";
+import * as sx from "./landfall-sextant.js";
+import { fitCamera, ellipsePoints, toWorld, palette, drawChart } from "./landfall-chart.js";
+import { sound } from "./landfall-sound.js";
+import { MASTERY, LORE, HOW, monthsText } from "./landfall-lore.js";
+import {
+  fmtLat, fmtCourse, fmtHours, fmtNm, starLabel, dateWords, watchWords, slateLines, bookLines, revealWords, refusedWords, logRows, almanacPage, endWords,
+} from "./landfall-words.js";
+import { scale, sideways } from "./wide.js";
+import { bindSwitcher, APPS } from "./apps.js";
+import "./pwa.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { sure } from "./sure.js";
+import { IN_FRAME } from "./suite.js";             // a partner watching's frame: it draws a copy, runs no clock and writes nothing
+
+const $ = id => document.getElementById(id);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+// ---------- what is kept ----------
+const KEY = { run: "landfall:run", level: "landfall:level", best: "landfall:best", mastery: "landfall:mastery", sound: "landfall:sound", help: "landfall:help", seen: "landfall:seen" };
+const read = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
+const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+
+let S = null;                                    // the voyage, with `S.ui` (what the page keeps about it)
+let paused = false;
+let note = "";                                   // a line the last move earned, shown in the task line until the next
+let reveal = null;                               // the latitude reveal under way
+let ff = 0;                                      // game minutes still to run fast (the Wait button)
+const freshUi = () => ({ tier: 4, lamp: false, d: 0, course: 0, credited: false, bell: null });
+
+const seed = () => (Math.random() * 4294967296) >>> 0;
+const helpShift = () => clamp(Number(read(KEY.help, 0)) || 0, -1, 1);
+/** The help a level starts a watch with, moved by the Help setting (tier 0 names Polaris, 4 says only "find the pole star"). */
+const tierFor = L => clamp(L.hint + helpShift(), 0, 4);
+
+function persist() {
+  if (IN_FRAME || !S) return;
+  try { localStorage.setItem(KEY.run, save(S)); } catch { /* private mode */ }
+}
+
+function begin(levelId) {
+  S = newVoyage(levelId, seed());
+  S.ui = freshUi();
+  write(KEY.level, levelId);
+  arrive(null);
+  persist();
+}
+
+// ---------- the sizes of the canvases ----------
+const box = new Map();                           // canvas -> { w, h, dpr, ctx }
+const dirty = { sky: true, chart: true };
+function fit(cv) {
+  const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+  let b = box.get(cv);
+  if (!b || b.w !== w || b.h !== h || b.dpr !== dpr) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    b = { w, h, dpr, ctx: cv.getContext("2d") };
+    box.set(cv, b);
+    if (cv === chartCv) retarget();
+    dirty.sky = dirty.chart = true;
+  }
+  b.ctx.setTransform(b.dpr, 0, 0, b.dpr, 0, 0);
+  return b;
+}
+const skyCv = $("skyCv"), chartCv = $("chartCv"), scopeCv = $("scopeCv");
+
+// ---------- the sky ----------
+const view = { az: 0, alt: 40, fov: 80 };        // the window held upright: the north, from the horizon to near the zenith
+const free = { az: 0, alt: 40, fov: 100 };       // the whole sky, or the sky beside the desk
+let full = false;
+const freeMode = () => full || sideways();
+const curView = (w, h) => { const v = freeMode() ? free : view; return makeView(v.az, v.alt, v.fov, w, h); };
+
+const hrOf = new Map(STARS.map(s => [s[2], s[0]]));
+const figureOf = key => {
+  const F = FIGURES[key];
+  return { lines: F.lines.map(l => l.map(d => hrOf.get(d))), keys: F.key.map(d => hrOf.get(d)), label: F.asterism[0].toUpperCase() + F.asterism.slice(1) };
+};
+const FIGS = { UMa: figureOf("UMa"), UMi: figureOf("UMi"), Cas: figureOf("Cas") };
+
+let skyCache = { key: "", stars: [], sun: null, lim: 0 };
+/** The sky now, from the true ship: every star above the horizon, and which of them can be seen. Remade every quarter minute of game time. */
+function skyData() {
+  const key = `${S.seed}|${S.w}|${Math.round(S.watch.min * 4)}`;
+  if (key === skyCache.key) return skyCache;
+  const jd = sceneJd(S), p = truePlace(S), c = conditions(S), clouds = cloudsNow(S), stars = [];
+  for (const s of STARS) {
+    const a = starAltAz(s, jd, p.lat, p.lon);
+    if (a.alt < -1) continue;
+    const hidden = a.alt > 0 && clouds.some(cl => {
+      const r = Math.PI / 180, x = Math.sin(a.alt * r) * Math.sin(cl.alt * r) + Math.cos(a.alt * r) * Math.cos(cl.alt * r) * Math.cos((a.az - cl.az) * r);
+      return Math.acos(clamp(x, -1, 1)) / r < cl.r;
+    });
+    stars.push({ hr: s[0], az: a.az, alt: a.alt, mag: s[5], vis: a.alt > 0.5 && s[5] <= c.limMag && !hidden });
+  }
+  skyCache = { key, stars, sun: sunAltAz(jd, p.lat, p.lon), lim: c.limMag, clouds };
+  return skyCache;
+}
+const help = () => (S.phase === "find" && S.ui.tier < 4 ? hintFor(S, S.ui.tier) : null);
+
+function drawSkyNow(now) {
+  const b = fit(skyCv);
+  if (!S) return;
+  const d = skyData(), h = help(), W = S.watch;
+  drawSky(b.ctx, curView(b.w, b.h), {
+    sunAlt: d.sun.alt, sunAz: d.sun.az, stars: d.stars, limMag: d.lim, lamp: S.ui.lamp, clouds: d.clouds,
+    figure: h?.figure ? FIGS[h.figure] : null, ring: h?.ring ?? null, picked: W.picked, t: now / 1000, k: scale(),
+  });
+  dirty.sky = false;
+}
+
+// gestures on the window: tap a star to choose it; drag to turn; pull down to open the whole sky; pinch to look closer
+const ptrs = new Map();
+let gesture = null;
+skyCv.addEventListener("pointerdown", e => {
+  sound.unlock();
+  if (IN_FRAME || !S) return;
+  skyCv.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  gesture = ptrs.size === 1 ? { x0: e.clientX, y0: e.clientY, moved: 0, used: false } : { ...(gesture || {}), pinch: spread(), fov0: free.fov, used: true };
+});
+skyCv.addEventListener("pointermove", e => {
+  const p = ptrs.get(e.pointerId);
+  if (!p || !gesture) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  const b = box.get(skyCv), r = skyCv.getBoundingClientRect();
+  if (ptrs.size >= 2) {
+    if (gesture.pinch > 10) { free.fov = clamp(gesture.fov0 * gesture.pinch / Math.max(10, spread()), 24, 140); dirty.sky = true; wake(); }
+    return;
+  }
+  gesture.moved += Math.hypot(dx, dy);
+  if (gesture.moved < 6) return;
+  const cv = curView(b.w, b.h), px = e.clientX - r.left, py = e.clientY - r.top, ppd = Math.max(0.5, degPx(cv, px, py));
+  const v = freeMode() ? free : view;
+  // a degree of azimuth is shorter by the cosine of the altitude, so the same drag turns the view further high up
+  v.az = (v.az - dx / ppd / Math.max(0.3, Math.cos(unproject(cv, px, py).alt * Math.PI / 180)) + 360) % 360;
+  if (freeMode()) v.alt = clamp(v.alt + dy / ppd, -4, 88);
+  else if (e.clientY - gesture.y0 > 34 * scale() && Math.abs(e.clientY - gesture.y0) > Math.abs(e.clientX - gesture.x0) * 1.2) { setFull(true); gesture.used = true; }
+  gesture.used = gesture.used || gesture.moved > 10;
+  dirty.sky = true; wake();
+});
+const endPointer = e => {
+  const had = ptrs.delete(e.pointerId);
+  if (!had || !gesture) return;
+  if (e.type === "pointerup" && ptrs.size === 0 && !gesture.used && gesture.moved < 8) tapSky(e.clientX, e.clientY);
+  if (ptrs.size === 0) gesture = null;
+};
+skyCv.addEventListener("pointerup", endPointer);
+skyCv.addEventListener("pointercancel", endPointer);
+skyCv.addEventListener("wheel", e => { if (!freeMode()) return; e.preventDefault(); free.fov = clamp(free.fov * Math.exp(e.deltaY * 0.001), 24, 140); dirty.sky = true; wake(); }, { passive: false });
+function spread() { const [a, b] = [...ptrs.values()]; return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0; }
+
+function tapSky(cx, cy) {
+  if (!S || S.phase !== "find" || paused) return;
+  const r = skyCv.getBoundingClientRect(), v = curView(r.width, r.height), s = pick(v, skyData().stars.filter(t => t.vis), cx - r.left, cy - r.top, 18 * scale());
+  if (s) choose(s.hr);
+  else { note = ""; renderText(); }
+}
+function choose(hr) {
+  const r = go({ t: "pick", hr });
+  if (!r.ok) return;
+  sound.tick();
+  // finding Polaris earns the constellations that led to it, by how little help it took
+  if (hr === POLARIS_HR && !S.ui.credited) {
+    S.ui.credited = true;
+    const M = read(KEY.mastery, {}), fig = routeOf(S) === "plough" ? "UMa" : "Cas";
+    for (const k of ["UMi", fig]) M[k] = masteryAfter(M[k], S.ui.tier, true);
+    write(KEY.mastery, M);
+  }
+  renderAll();
+}
+function setFull(on) {
+  if (sideways()) on = false;
+  if (on === full) return;
+  full = on;
+  if (on) free.az = view.az;
+  $("app").classList.toggle("lf-full", full);
+  dirty.sky = true; dirty.chart = true; wake();
+  requestAnimationFrame(() => { dirty.sky = true; wake(); });
+}
+$("zoomIn").addEventListener("click", () => { free.fov = clamp(free.fov / 1.35, 24, 140); dirty.sky = true; wake(); });
+$("zoomOut").addEventListener("click", () => { free.fov = clamp(free.fov * 1.35, 24, 140); dirty.sky = true; wake(); });
+$("northBtn").addEventListener("click", () => { free.az = 0; free.alt = 40; free.fov = 100; dirty.sky = true; wake(); });
+// the pull handle: a tap opens or closes the whole sky, and so does a drag on it
+{
+  let y0 = null, dragged = false;
+  $("pull").addEventListener("pointerdown", e => { y0 = e.clientY; dragged = false; $("pull").setPointerCapture(e.pointerId); });
+  $("pull").addEventListener("pointerup", e => { if (y0 !== null && Math.abs(e.clientY - y0) > 20 * scale()) { setFull(e.clientY > y0); dragged = true; } y0 = null; });
+  $("pull").addEventListener("click", () => { if (dragged) { dragged = false; return; } setFull(!full); });
+}
+
+// ---------- the chart ----------
+const pal = palette($("app"));
+let cam = null, camTo = null;
+const harbourOf = () => { const H = levelOf(S).harbour; return [H.x, H.y]; };
+/** The points the chart should hold in this phase: the ritual's course, the fog while a sight is taken, the way to the harbour while steering. */
+function camPoints() {
+  const L = levelOf(S), pts = [];
+  if (S.phase === "end") return [...S.truth, ...S.trail.map(t => t.p), harbourOf()];
+  if (reveal) return [...ellipsePoints(reveal.before.E, reveal.before.P), ...ellipsePoints(reveal.after.E, reveal.after.P)];
+  if (S.phase === "ritual") {
+    const v = vec(S.leg.course), run = S.leg.run * 1.12;
+    return [...ellipsePoints(S.E, S.P), [S.E[0] + v[0] * run, S.E[1] + v[1] * run]];
+  }
+  if (S.phase === "steer") {
+    const f = forecast(S, S.ui.course), r = f.run * 1.05;
+    return [S.E, [S.E[0] + r, S.E[1] + r], [S.E[0] - r, S.E[1] - r], harbourOf(), ...(L.shoals || []).filter(s => Math.hypot(s.x - S.E[0], s.y - S.E[1]) < r * 1.3).map(s => [s.x, s.y])];
+  }
+  return ellipsePoints(S.E, S.P);
+}
+function retarget() {
+  const b = box.get(chartCv);
+  if (!S || !b) return;
+  camTo = fitCamera(camPoints(), b.w, b.h, 36 * scale(), 0.6, 70);
+  if (!cam) cam = { ...camTo };
+  dirty.chart = true; wake();
+}
+function stepCam(dt) {
+  if (!cam || !camTo) return false;
+  const f = 1 - Math.exp(-dt * 5.5), ls = Math.log(cam.s), lt = Math.log(camTo.s);
+  const moving = Math.abs(lt - ls) > 0.002 || Math.hypot(camTo.cx - cam.cx, camTo.cy - cam.cy) * cam.s > 0.4;
+  if (!moving) { cam = { ...camTo }; return false; }
+  cam.s = Math.exp(ls + (lt - ls) * f); cam.cx += (camTo.cx - cam.cx) * f; cam.cy += (camTo.cy - cam.cy) * f;
+  return true;
+}
+const mixP = (A, B, t) => A.map((r, i) => r.map((x, j) => x + (B[i][j] - x) * t));
+const smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+
+function drawChartNow(now) {
+  const b = fit(chartCv);
+  if (!S || !cam) return;
+  const L = levelOf(S), sc = { L, cam, pal, k: scale(), trail: S.trail, E: S.E, P: S.P, ghost: null, lop: null, dividers: null, steer: null, end: null };
+  if (S.phase === "ritual") sc.dividers = { from: S.E, course: S.leg.course, d: S.ui.d };
+  if (S.phase === "steer" || (reveal && S.phase !== "end")) {
+    const p = S.watch.plot;
+    if (p?.accepted) sc.lop = { y: (p.lat - L.origin.lat) * 60, t: 1 };
+  }
+  if (S.phase === "steer" && !reveal) sc.steer = { course: S.ui.course, forecast: forecast(S, S.ui.course) };
+  if (S.phase === "end") sc.end = { truth: S.truth, T: S.T };
+  if (reveal) {
+    const u = reveal.hold ?? (now - reveal.t0) / 1000, s = smooth((u - 0.55) / 1.3);
+    sc.lop = { y: (reveal.lat - L.origin.lat) * 60, t: smooth(u / 0.8) };
+    sc.E = [reveal.before.E[0] + (reveal.after.E[0] - reveal.before.E[0]) * s, reveal.before.E[1] + (reveal.after.E[1] - reveal.before.E[1]) * s];
+    sc.P = mixP(reveal.before.P, reveal.after.P, s);
+    sc.ghost = s < 0.98 ? reveal.before : null;
+    sc.trail = S.trail.slice(0, -1);
+  }
+  drawChart(b.ctx, b.w, b.h, sc);
+  dirty.chart = false;
+}
+
+// the chart answers a finger in two phases: the dividers are set along the course, the course to steer is pointed at
+const worldAt = e => { const r = chartCv.getBoundingClientRect(), b = box.get(chartCv); return toWorld(cam, b.w, b.h, e.clientX - r.left, e.clientY - r.top); };
+let chartDrag = false;
+chartCv.addEventListener("pointerdown", e => {
+  sound.unlock();
+  if (IN_FRAME || !S || !cam || paused || reveal) return;
+  if (S.phase !== "ritual" && S.phase !== "steer") return;
+  chartDrag = true; chartCv.setPointerCapture(e.pointerId); chartPoint(e);
+});
+chartCv.addEventListener("pointermove", e => { if (chartDrag) chartPoint(e); });
+chartCv.addEventListener("pointerup", () => { chartDrag = false; });
+chartCv.addEventListener("pointercancel", () => { chartDrag = false; });
+function chartPoint(e) {
+  const p = worldAt(e);
+  if (S.phase === "ritual") {
+    const v = vec(S.leg.course);
+    setDividers((p[0] - S.E[0]) * v[0] + (p[1] - S.E[1]) * v[1]);
+  } else if (S.phase === "steer") {
+    const dx = p[0] - S.E[0], dy = p[1] - S.E[1];
+    if (Math.hypot(dx, dy) * cam.s > 10) setCourse(bearing([dx, dy]));
+  }
+}
+const tolOf = () => 0.012 * S.leg.run + 0.25;
+function setDividers(d) {
+  const was = Math.abs(S.ui.d - S.leg.run) <= tolOf();
+  S.ui.d = Math.round(clamp(d, 0, S.leg.run * 1.6) * 10) / 10;
+  if (!was && Math.abs(S.ui.d - S.leg.run) <= tolOf()) sound.tick();
+  dirty.chart = true; renderTools(); wake();
+}
+function setCourse(c) {
+  S.ui.course = Math.round(((c % 360) + 360) % 360) % 360;
+  dirty.chart = true; renderTools(); renderText(); wake();
+}
+
+// ---------- the moves ----------
+/** One move of the voyage, with what the page does about it. */
+function go(m) {
+  const prev = S.phase, r = apply(S, m);
+  if (!r.ok) { note = r.why[0].toUpperCase() + r.why.slice(1) + "."; renderText(); return r; }
+  note = "";
+  after(m, prev, r);
+  persist();
+  return r;
+}
+function after(m, prev, r) {
+  switch (m.t) {
+    case "step": case "skip": {
+      const W = S.watch.ritual;
+      note = W.skipped ? "The dividers are skipped: the reckoning keeps a little more doubt." : Math.abs(W.err) <= W.tol ? "The dividers agree with the log." : `The dividers are ${fmtNm(Math.abs(W.err))} out. The reckoning takes it.`;
+      break;
+    }
+    case "bearing": {
+      const b = S.watch.bearing;
+      note = b.wrong ? `Compass bearing ${fmtCourse(b.observed)}, but Polaris should stand at ${fmtCourse(b.expected)}: this is not the pole star.`
+        : `Compass ${fmtCourse(b.observed)} against ${fmtCourse(b.expected)} expected: the compass reads ${b.diff > 0 ? "high" : "low"} by ${Math.abs(b.diff).toFixed(1)}°. Steering is corrected.`;
+      break;
+    }
+    case "plot": if (r.accepted) { startReveal(); } break;
+    case "sail": case "heave": passing(m, r); break;
+    default: break;
+  }
+  if (S.phase !== prev) arrive(prev);
+  renderAll();
+}
+/** What happens when a phase begins. */
+function arrive(prev) {
+  const L = levelOf(S), ui = S.ui;
+  switch (S.phase) {
+    case "ritual": ui.d = 0; ui.lamp = true; ui.credited = false; ui.tier = 4; break;
+    case "find":
+      ui.lamp = false;
+      if (prev === "ritual") {
+        ui.tier = tierFor(L); ui.credited = false;
+        const M = read(KEY.mastery, {}), fig = routeOf(S) === "plough" ? "UMa" : "Cas";
+        if (ui.tier <= 1) { for (const k of ["UMi", fig]) M[k] = Math.max(M[k] || 0, 1); write(KEY.mastery, M); }
+      }
+      break;
+    case "sight": ui.lamp = false; openScope(); break;
+    case "book": ui.lamp = true; closeScope(); openBook(); break;
+    case "steer": ui.lamp = true; if (prev !== "steer") ui.course = Math.round(bearing([levelOf(S).harbour.x - S.E[0], levelOf(S).harbour.y - S.E[1]])); break;
+    case "end": finishVoyage(); break;
+    default: break;
+  }
+  if (S.phase !== "sight") closeScope();
+  if (!reveal) retarget();
+  dirty.sky = dirty.chart = true;
+}
+function startReveal() {
+  const p = S.watch.plot;
+  reveal = { t0: performance.now(), before: p.before, after: p.after, lat: p.lat, chimed: false };
+  retarget();
+}
+
+/** The dark between one watch and the next. */
+let passTimer = 0;
+function passing(m, r) {
+  const g = S.leg, ended = S.phase === "end";
+  $("passTxt").textContent = m.t === "heave" ? "Hove to, and waiting for the light to change." : `Sailing ${fmtHours(g.hours)} on ${fmtCourse(g.course)}${ended ? "" : "."}`;
+  $("pass").classList.add("on");
+  clearTimeout(passTimer);
+  passTimer = setTimeout(() => { $("pass").classList.remove("on"); dirty.chart = dirty.sky = true; wake(); if (S.phase === "end") showEnd(); }, ended ? 1500 : 1400);
+}
+
+// ---------- the clock of the twilight ----------
+const strikes = ["", "One bell", "Two bells", "Three bells", "Four bells", "Five bells", "Six bells", "Seven bells", "Eight bells"];
+let bellShown = { text: "", until: 0 };
+function tickClock(dt, now) {
+  if (!S || S.phase !== "find" || paused || document.hidden || IN_FRAME || S.watch.min >= MAX_WAIT + 30) return false;
+  let dm = dt * CLOCK / 60;
+  if (ff > 0) { const take = Math.min(ff, dt * 30); ff -= take; dm += take; }
+  const jdA = sceneJd(S), lon = estPlace(S).lon;
+  apply(S, { t: "wait", min: dm });
+  const bells = bellsBetween(jdA, sceneJd(S), lon);
+  if (bells.length) { const n = bells.at(-1).bells; sound.bell(n); bellShown = { text: strikes[n], until: now + 5000 }; }
+  return true;
+}
+
+// ---------- the sextant ----------
+let sxs = null;                                  // { st, exact, truth, t0, pid, lastY, fine, A }
+function openScope() {
+  const star = BY_HR.get(S.watch.picked), est = estPlace(S), a = starAltAz(star, sceneJd(S), est.lat, est.lon);
+  const r0 = sx.quantise(a.alt > 0 ? sextantReading(a.alt, EYE) * 60 : 0), truth = sextantTruth(S);
+  const st = sx.newSextant(r0);
+  st.lens = sx.lensFor(truth - r0, 0);
+  sxs = { st, exact: r0, truth, t0: performance.now(), pid: null, lastY: 0, fine: false, A: sightNoise(S, star).swell };
+  $("scope").hidden = false;
+  $("readTxt").textContent = sx.formatReading(st.reading);
+  sound.hush(true);
+  refreshScope();
+  requestAnimationFrame(() => wake());
+}
+function closeScope() {
+  if (!sxs && $("scope").hidden) return;
+  sxs = null; $("scope").hidden = true; sound.hush(false);
+}
+function refreshScope() {
+  if (!sxs) return;
+  const { st } = sxs, ol = $("marks");
+  $("readTxt").textContent = sx.formatReading(st.reading);
+  ol.replaceChildren(...st.marks.map(m => { const li = document.createElement("li"); li.textContent = sx.formatReading(m); return li; }));
+  $("markBtn").disabled = st.marks.length >= sx.MAX_MARKS;
+  $("markBtn").textContent = st.marks.length >= sx.MAX_MARKS ? "Three marks" : `Mark${st.marks.length ? ` (${st.marks.length + 1})` : ""}`;
+  $("readBtn").disabled = !st.marks.length;
+  $("clearBtn").disabled = !st.marks.length;
+  $("scopeNote").textContent = st.marks.length ? "Three marks, averaged, beat one." : `Lens ${sx.MAGNIFY[st.lens]}. Bring the star to the horizon and let it swing evenly about it.`;
+}
+function settleReading() {
+  const { st } = sxs;
+  sxs.exact = Math.max(0, sxs.exact);
+  st.reading = sx.quantise(sxs.exact);
+  st.lens = sx.lensFor(sxs.truth - sxs.exact, st.lens);
+  refreshScope(); wake();
+}
+scopeCv.addEventListener("pointerdown", e => {
+  sound.unlock();
+  if (!sxs || sxs.pid !== null || IN_FRAME) return;
+  const r = scopeCv.getBoundingClientRect(), L = sx.layout(r.width, r.height);
+  sxs.pid = e.pointerId; sxs.lastY = e.clientY; sxs.fine = sx.inDrum(L, e.clientX - r.left, e.clientY - r.top);
+  scopeCv.setPointerCapture(e.pointerId); e.preventDefault();
+});
+scopeCv.addEventListener("pointermove", e => {
+  if (!sxs || e.pointerId !== sxs.pid) return;
+  const r = scopeCv.getBoundingClientRect(), L = sx.layout(r.width, r.height), dy = e.clientY - sxs.lastY;
+  sxs.lastY = e.clientY;
+  sxs.exact += dy / sx.pxPerArcmin(sxs.st.lens, L.rho) * (sxs.fine ? sx.FINE : 1);
+  settleReading();
+});
+const scopeUp = e => { if (sxs && e.pointerId === sxs.pid) sxs.pid = null; };
+scopeCv.addEventListener("pointerup", scopeUp);
+scopeCv.addEventListener("pointercancel", scopeUp);
+const nudge = d => { if (!sxs) return; sxs.exact = sx.quantise(sxs.exact + d); settleReading(); };
+$("nudgeDown").addEventListener("click", () => nudge(-0.1));
+$("nudgeUp").addEventListener("click", () => nudge(0.1));
+$("markBtn").addEventListener("click", () => { if (sxs && sx.mark(sxs.st)) { sound.mark(); refreshScope(); wake(); } });
+$("clearBtn").addEventListener("click", () => { if (sxs) { sx.clearMarks(sxs.st); refreshScope(); } });
+$("lowerBtn").addEventListener("click", () => { go({ t: "lower" }); });
+$("readBtn").addEventListener("click", () => { if (sxs?.st.marks.length) go({ t: "read", marks: sxs.st.marks.slice() }); });
+
+function drawScopeNow(now) {
+  const b = fit(scopeCv);
+  if (!sxs) return;
+  const sec = (now - sxs.t0) / 1000, sw = swellAt(S, sec), st = sxs.st;
+  st.flash = Math.max(0, st.flash - 0.07);
+  sx.drawSextant(b.ctx, b.w, b.h, st, { offset: sx.offsetOf(sxs.truth, sxs.exact, sw), swellPhase: clamp(sw / Math.max(0.05, sxs.A), -1, 1), sunAlt: conditions(S).sun, t: sec, k: scale(), mono: pal.mono });
+}
+
+// ---------- the sight book and the reveal ----------
+function openBook() {
+  const dl = $("bookLines"), rows = bookLines(S);
+  dl.replaceChildren(...rows.map(r => { const d = document.createElement("div"), t = document.createElement("dt"), v = document.createElement("dd"); t.textContent = r.label; v.textContent = r.value; if (r.key) d.className = "key"; d.append(t, v); return d; }));
+  $("bookMsg").textContent = ""; $("bookMsg").className = "lf-bookmsg";
+  $("plotBtn").disabled = false;
+  [...dl.children].forEach((d, i) => setTimeout(() => d.classList.add("on"), 120 + i * 230));
+  setTimeout(() => { if ($("bookDlg").open && !S.watch.plot) $("bookMsg").textContent = "The almanac has turned the reading into a latitude. Plot it to see what it does to the fog."; }, 120 + rows.length * 230);
+  if (!$("bookDlg").open) $("bookDlg").showModal();
+}
+$("bookClose").addEventListener("click", () => $("bookDlg").close());
+$("plotBtn").addEventListener("click", () => {
+  const r = go({ t: "plot" });
+  if (r.ok && r.accepted) $("bookDlg").close();
+  else if (r.ok) { $("bookMsg").textContent = refusedWords(S); $("bookMsg").className = "lf-bookmsg off"; $("plotBtn").disabled = true; sound.off(); }
+});
+$("retakeBtn").addEventListener("click", () => { $("bookDlg").close(); go({ t: "retake" }); note = "You take it again, four minutes on."; renderText(); });
+$("discardBtn").addEventListener("click", () => { $("bookDlg").close(); go({ t: "discard" }); });
+
+// ---------- the end ----------
+function finishVoyage() {
+  const e = S.end, L = levelOf(S);
+  if (e.kind === "arrived") {
+    const best = read(KEY.best, {});
+    if ((best[L.id] || 0) < e.stars) { best[L.id] = e.stars; write(KEY.best, best); }
+    sound.good();
+  } else sound.hollow();
+  closeScope();
+}
+function showEnd() {
+  const w = endWords(S);
+  if (!w) return;
+  $("endTitle").textContent = w.title;
+  $("endStars").textContent = w.kind === "arrived" ? "★".repeat(w.stars) + "☆".repeat(3 - w.stars) : "";
+  $("endStars").setAttribute("aria-label", w.kind === "arrived" ? `${w.stars} of 3 stars` : "");
+  $("endStars").hidden = w.kind !== "arrived";
+  $("endBody").replaceChildren(...w.lines.map(t => { const p = document.createElement("p"); p.className = "lf-endline"; p.textContent = t; return p; }), (() => { const p = document.createElement("p"); p.className = "lf-note-p"; p.textContent = `${levelOf(S).name}, ${dateWords(S)}. The red track on the chart is where the ship really went.`; return p; })());
+  if (!$("endDlg").open) $("endDlg").showModal();
+}
+$("endClose").addEventListener("click", () => $("endDlg").close());
+$("endAgain").addEventListener("click", () => { $("endDlg").close(); begin(S.level); renderAll(); });
+$("endMenu").addEventListener("click", () => { $("endDlg").close(); openMenu(); });
+
+// ---------- the words and the buttons ----------
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+function button(text, fn, cls = "lf-btn", { disabled = false, label } = {}) {
+  const b = el("button", cls, text);
+  b.type = "button"; b.disabled = disabled || IN_FRAME;
+  if (label) b.setAttribute("aria-label", label);
+  b.addEventListener("click", () => { sound.unlock(); fn(); });
+  return b;
+}
+function renderTools() {
+  if (!S) return;
+  const acts = $("acts"), aux = $("aux"), M = new Set(moves(S)), W = S.watch, can = m => M.has(m) && !reveal;
+  acts.replaceChildren(); aux.replaceChildren();
+  const stepper = (labels, fn, readout) => {
+    for (const [txt, d, lab] of labels) aux.append(button(txt, () => fn(d), "lf-mini", { label: lab }));
+    const r = el("button", "lf-mini read", readout); r.type = "button"; r.disabled = true;
+    aux.insertBefore(r, aux.children[2]);
+  };
+  switch (S.phase) {
+    case "ritual":
+      acts.append(button("Skip", () => go({ t: "skip" })), button("Step off", () => go({ t: "step", d: S.ui.d }), "lf-btn go", { disabled: S.ui.d <= 0 }));
+      stepper([["−1", -1, "One mile less"], ["−0.1", -0.1, "A tenth less"], ["+0.1", 0.1, "A tenth more"], ["+1", 1, "One mile more"]], d => setDividers(S.ui.d + d), `${S.ui.d.toFixed(1)} nm`);
+      break;
+    case "find":
+      acts.append(
+        button("Wait", () => { ff += 5; wake(); }, "lf-btn", { disabled: W.min >= MAX_WAIT + 30 }),
+        button(W.bearing ? "Compass ✓" : "Compass", () => go({ t: "bearing" }), "lf-btn", { disabled: !can("bearing") }),
+        button("Sextant", () => go({ t: "raise" }), "lf-btn go", { disabled: !can("raise") }),
+      );
+      auxFixed();
+      break;
+    case "sight":
+      acts.append(button("Lower the sextant", () => go({ t: "lower" }), "lf-btn go"));
+      auxFixed();
+      break;
+    case "book":
+      acts.append(button("Open the sight book", openBook, "lf-btn go"));
+      auxFixed();
+      break;
+    case "steer":
+      acts.append(
+        button("Heave to", () => go({ t: "heave", course: S.ui.course }), "lf-btn", { disabled: !can("heave") }),
+        button("Sail", () => go({ t: "sail", course: S.ui.course }), "lf-btn go", { disabled: !can("sail") }),
+      );
+      stepper([["−5°", -5, "Five degrees to port"], ["−1°", -1, "One degree to port"], ["+1°", 1, "One degree to starboard"], ["+5°", 5, "Five degrees to starboard"]], d => setCourse(S.ui.course + d), fmtCourse(S.ui.course));
+      break;
+    case "end":
+      acts.append(button("Sail again", () => { begin(S.level); renderAll(); }, "lf-btn go"), button("The result", showEnd));
+      auxFixed();
+      break;
+    default: break;
+  }
+  function auxFixed() {
+    aux.append(
+      button("Almanac", openAlmanac, "lf-mini"), button("Log", openLog, "lf-mini"), button("Codex", openCodex, "lf-mini"),
+    );
+    const lamp = button("Lamp", () => { S.ui.lamp = !S.ui.lamp; renderAll(); dirty.sky = true; }, "lf-mini");
+    lamp.setAttribute("aria-pressed", String(!!S.ui.lamp));
+    aux.append(lamp, button("Hint", () => { S.ui.tier = clamp(S.ui.tier - 1, 0, 4); persist(); renderAll(); dirty.sky = true; }, "lf-mini", { disabled: S.phase !== "find" || S.ui.tier <= 0 }));
+  }
+}
+function renderText() {
+  if (!S) return;
+  const W = S.watch, L = levelOf(S), est = estPlace(S);
+  const lines = [];
+  switch (S.phase) {
+    case "ritual": lines.push(`<b>${L.name}.</b> Set the dividers to the log's distance, then step them off.`); break;
+    case "find": {
+      const c = conditions(S);
+      if (W.min >= MAX_WAIT && !c.horizon) lines.push("The horizon has gone with the light. No sight is possible: sail on by the reckoning.");
+      else if (W.picked === null) lines.push("Look north for the pole star, and tap a star to choose it.");
+      else {
+        const s = BY_HR.get(W.picked), p = skyData().stars.find(t => t.hr === s[0]);
+        lines.push(`<b>${starLabel(s)}</b>${p ? `, ${Math.round(p.alt)}° up, bearing ${fmtCourse(p.az)}` : ""}${p && !p.vis ? (p.alt <= 0.5 ? " (below the horizon)" : " (not yet visible)") : ""}.`);
+      }
+      break;
+    }
+    case "sight": lines.push("The sextant is raised."); break;
+    case "book": lines.push("The reading is in the sight book."); break;
+    case "steer": {
+      const f = forecast(S, S.ui.course);
+      const head = S.watch.plot?.accepted ? `<b>Latitude ${fmtLat(S.watch.plot.lat)}.</b> ` : S.watch.plot?.discarded ? "The sight is thrown away. " : "No sight this watch. ";
+      lines.push(`${head}Steer <b>${fmtCourse(S.ui.course)}</b>: ${fmtHours(f.hours)} to the next twilight, ${fmtNm(f.run)} on.`);
+      break;
+    }
+    case "end": lines.push(`<b>${endWords(S)?.title ?? "The voyage is over"}.</b>`); break;
+    default: break;
+  }
+  if (reveal) { lines.length = 0; lines.push(revealWords(S)); }
+  if (note) lines.push(note);
+  $("task").innerHTML = lines.join(" ");
+  // the window: which watch, the ship's time and the bell; the help in words
+  $("watchTxt").textContent = S.phase === "end" ? L.name : `${watchWords(S)} · ${dateWords(S).replace(/ 18\d\d$/, "")}`;
+  $("clockTxt").textContent = `${shipClock(sceneJd(S), est.lon)}${bellShown.text && performance.now() < bellShown.until ? ` · ${bellShown.text}` : ""}`;
+  const h = help();
+  $("skyNote").textContent = h ? h.text : "";
+  $("desk").classList.toggle("dark", !S.ui.lamp);
+  const sl = $("slate");
+  sl.hidden = S.phase !== "ritual";
+  if (!sl.hidden) sl.replaceChildren(...slateLines(S).map(t => el("p", null, t)));
+}
+function renderAll() { renderTools(); renderText(); dirty.sky = dirty.chart = true; wake(); }
+
+// ---------- the sheets ----------
+function openAlmanac() {
+  const A = almanacPage(S), body = $("almanacBody");
+  const head = el("p", "lf-note-p", `Polaris, ${A.date}. It stands ${A.pd.toFixed(2)}° (${Math.round(A.pd * 60)}′) from the pole and circles it once a day. The correction below is added to the true altitude to give the latitude. The pole star stands as high as you are far north, less or more by that much.`);
+  const t = el("table", "lf-alm");
+  t.innerHTML = "<thead><tr><th>Hour angle</th><th>Add</th></tr></thead>";
+  const tb = el("tbody");
+  const nowRow = A.rows.reduce((b, r) => (Math.abs(norm180(r.lha - A.lha)) < Math.abs(norm180(b.lha - A.lha)) ? r : b));
+  for (const r of A.rows) {
+    const tr = el("tr"); if (r === nowRow) tr.className = "now";
+    tr.append(el("td", null, `${r.lha}°`), el("td", null, `${r.corr >= 0 ? "+" : "−"}${Math.abs(r.corr).toFixed(1)}′`));
+    tb.append(tr);
+  }
+  t.append(tb);
+  body.replaceChildren(head, t, el("p", "lf-note-p", `Now (ship's time ${A.ship}) Polaris is at ${Math.round(A.lha)}° by the reckoned longitude: ${A.corr >= 0 ? "+" : "−"}${Math.abs(A.corr).toFixed(1)}′. The page gives latitude only: Polaris says nothing about how far east or west you are.`));
+  $("almanacDlg").showModal();
+}
+function openLog() {
+  const body = $("logBody"), rows = logRows(S), ul = el("ul", "lf-logrows");
+  for (const r of rows) ul.append(el("li", r.kind === "fix" ? "fix" : "", `${r.watch ? `W${r.watch}  ` : ""}${r.text}`));
+  const intro = el("p", "lf-note-p", `${levelOf(S).name}, ${dateWords(S)}. Where the ship has been reckoned to be at each watch, and where a sight fixed her latitude.`);
+  body.replaceChildren(intro, ul);
+  $("logDlg").showModal();
+}
+/** A constellation's line figure as a small drawing, from the catalogue's own positions (east to the left, as the sky is seen). */
+function figureSvg(key) {
+  const F = FIGURES[key], rows = new Map([...new Set(F.lines.flat())].map(d => [d, STARS.find(s => s[2] === d)]));
+  const R = Math.PI / 180, all = [...rows.values()];
+  const centre = { UMi: [215, 80] }[key] || [all.reduce((t, s) => t + s[3], 0) / all.length, all.reduce((t, s) => t + s[4], 0) / all.length];
+  const pt = s => {
+    const da = (s[3] - centre[0]) * R, d = s[4] * R, d0 = centre[1] * R;
+    return [-Math.cos(d) * Math.sin(da), -(Math.cos(d0) * Math.sin(d) - Math.sin(d0) * Math.cos(d) * Math.cos(da))];
+  };
+  const P = new Map([...rows].map(([d, s]) => [d, pt(s)])), xs = [...P.values()].map(p => p[0]), ys = [...P.values()].map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), k = 76 / Math.max(x1 - x0, y1 - y0, 1e-6);
+  const X = p => 12 + (p[0] - x0) * k + (76 - (x1 - x0) * k) / 2, Y = p => 12 + (p[1] - y0) * k + (76 - (y1 - y0) * k) / 2;
+  const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 100 100"); svg.setAttribute("class", "lf-fig"); svg.setAttribute("aria-hidden", "true");
+  for (const l of F.lines) for (let i = 1; i < l.length; i++) {
+    const a = P.get(l[i - 1]), b = P.get(l[i]), n = document.createElementNS(NS, "line");
+    n.setAttribute("x1", X(a)); n.setAttribute("y1", Y(a)); n.setAttribute("x2", X(b)); n.setAttribute("y2", Y(b)); svg.append(n);
+  }
+  for (const [d, p] of P) {
+    const c = document.createElementNS(NS, "circle");
+    c.setAttribute("cx", X(p)); c.setAttribute("cy", Y(p)); c.setAttribute("r", d === "α UMi" ? 3.4 : 2.4); svg.append(c);
+    if (d === "α UMi") { const ring = document.createElementNS(NS, "circle"); ring.setAttribute("cx", X(p)); ring.setAttribute("cy", Y(p)); ring.setAttribute("r", 7); ring.setAttribute("class", "pole"); svg.append(ring); }
+  }
+  return svg;
+}
+function openCodex() {
+  const M = read(KEY.mastery, {}), body = $("codexBody");
+  body.replaceChildren(...["UMa", "UMi", "Cas"].map(k => {
+    const F = FIGURES[k], T = LORE[k], card = el("article", "lf-card");
+    card.append(figureSvg(k), el("h3", null, F.name), el("p", "sub", `${F.asterism[0].toUpperCase()}${F.asterism.slice(1)}, ${F.english}. ${monthsText(k)[0].toUpperCase()}${monthsText(k).slice(1)}.`));
+    card.append(el("p", null, T.rule), el("p", null, T.story), el("p", null, T.fact), el("p", null, T.german));
+    const m = M[k] || 0;
+    card.append(el("span", `mastery m${m}`, MASTERY[m]));
+    return card;
+  }));
+  $("codexDlg").showModal();
+}
+function openHelp() {
+  $("helpBody").replaceChildren(...HOW.map(([h, t]) => { const li = el("li"); li.append(el("b", null, h), el("span", null, t)); return li; }));
+  write(KEY.seen, 1);
+  $("helpDlg").showModal();
+}
+for (const [btn, dlg] of [["almanacClose", "almanacDlg"], ["logClose", "logDlg"], ["codexClose", "codexDlg"], ["helpClose", "helpDlg"], ["helpOk", "helpDlg"]]) $(btn).addEventListener("click", () => $(dlg).close());
+
+// ---------- the menu ----------
+function inProgress() { return S && S.phase !== "end" && (S.w > 1 || S.phase !== "ritual" || S.watch.min > 0); }
+async function startLevel(id) {
+  if (inProgress() && !(await sure("Leave this voyage and start another?", { yes: "New voyage" }))) return;
+  begin(id); renderAll();
+}
+function openMenu() {
+  const body = $("menuBody"), L = levelOf(S), best = read(KEY.best, {});
+  body.replaceChildren();
+  part(body, "play").append(action(S.phase === "end" ? "Sail again" : "A new voyage", () => startLevel(S.level), "primary"));
+  part(body, "content").append(choice("Voyage", LEVELS.map(l => [l.id, `${l.n} ${l.name}${best[l.id] ? ` ${"★".repeat(best[l.id])}` : ""}`]), S.level, v => { $("menuDlg").close(); startLevel(v); }));
+  const set = part(body, "settings");
+  set.append(toggle("Sound", !sound.muted, on => { sound.setMuted(!on); write(KEY.sound, on); if (on) { sound.unlock(); sound.bed(!!S && S.phase !== "end"); } }));
+  set.append(choice("Help", [["-1", "Fuller"], ["0", "As set"], ["1", "Thinner"]], String(helpShift()), v => { write(KEY.help, Number(v)); renderAll(); }));
+  const about = part(body, "about");
+  about.append(action("Codex", openCodex, "link"), action("Almanac", openAlmanac, "link"), action("How a sight works", openHelp, "link"));
+  about.append(line(`${L.name}: ${L.lesson}`));
+  about.append(line("The stars are the Yale Bright Star Catalogue (NASA data), checked against Hipparcos (ESA). The sun and the sky are our own arithmetic, checked against an independent library. The sea, its coasts and its harbours are invented."));
+  if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+$("menuBtn").addEventListener("click", openMenu);
+$("menuClose").addEventListener("click", () => $("menuDlg").close());
+
+// ---------- the frame loop: draws only while something moves ----------
+let raf = 0, lastT = 0, lastPersist = 0, lastSky = 0, lastText = 0;
+function wake() { if (!raf && !document.hidden && !paused) { lastT = performance.now(); raf = requestAnimationFrame(frame); } }
+function frame(now) {
+  raf = 0;
+  if (!S || paused || document.hidden) return;
+  const dt = Math.min(0.25, Math.max(0, (now - lastT) / 1000));
+  lastT = now;
+  let more = false;
+  if (tickClock(dt, now)) { more = true; dirty.sky = true; }
+  if (stepCam(dt)) { more = true; dirty.chart = true; }
+  if (reveal) {
+    more = true; dirty.chart = true;
+    const u = reveal.hold ?? (now - reveal.t0) / 1000;
+    if (!reveal.chimed && u > 0.75) { reveal.chimed = true; sound.good(); }
+    if (u > 2.4) { reveal = null; retarget(); renderAll(); }
+  }
+  if (sxs) { more = true; drawScopeNow(now); }
+  const skyLive = S.phase === "find" || full || (sideways() && S.phase === "find");
+  if (dirty.sky || (skyLive && now - lastSky > 45)) { drawSkyNow(now); lastSky = now; }
+  if (skyLive) more = true;
+  if (dirty.chart) drawChartNow(now);
+  if (S.phase === "find" && now - lastText > 500) { lastText = now; renderText(); }          // the ship's time, the bell and the star's height
+  if (S.phase === "find" && now - lastPersist > 3000) { lastPersist = now; persist(); }
+  if (more) raf = requestAnimationFrame(frame);
+}
+
+// ---------- start up ----------
+function fitTop() {
+  const app = $("app"), head = app.querySelector(".top");
+  app.style.setProperty("--lf-top", `${head.getBoundingClientRect().bottom - app.getBoundingClientRect().top}px`);
+}
+function resized() {
+  fitTop();
+  if (sideways() && full) setFull(false);
+  box.delete(skyCv); box.delete(chartCv); box.delete(scopeCv);
+  dirty.sky = dirty.chart = true;
+  wake();
+}
+new ResizeObserver(() => { fitTop(); dirty.sky = dirty.chart = true; wake(); }).observe($("app"));
+for (const c of [skyCv, chartCv, scopeCv]) new ResizeObserver(() => { dirty.sky = dirty.chart = true; wake(); }).observe(c);
+addEventListener("resize", resized);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { sound.pause(); persist(); } else { if (!paused) sound.resume(); wake(); }
+});
+addEventListener("pagehide", persist);
+onPause(() => { paused = true; sound.pause(); persist(); }, () => { paused = false; sound.resume(); wake(); });
+document.addEventListener("pointerdown", () => sound.unlock(), { capture: true });
+
+bindSwitcher($("appsBtn"), "landfall");
+document.querySelector(".lf-mark").innerHTML = APPS.find(a => a.id === "landfall")?.logo ?? "";
+
+sound.setMuted(!read(KEY.sound, true));
+{
+  const raw = (() => { try { return localStorage.getItem(KEY.run); } catch { return null; } })();
+  S = raw ? restore(raw) : null;
+  if (S) S.ui = { ...freshUi(), ...(S.ui || {}) };
+  else begin(LEVELS.some(l => l.id === read(KEY.level, "")) ? read(KEY.level, "") : LEVELS[0].id);
+}
+fitTop();
+renderAll();
+if (S.phase === "sight") openScope();
+else if (S.phase === "book") openBook();
+else if (S.phase === "end") showEnd();
+if (!IN_FRAME) { sound.bed(S.phase !== "end"); if (!read(KEY.seen, 0)) openHelp(); }
+wake();
+
+// for tests and debugging
+window.__landfall = {
+  get S() { return S; }, set S(v) { S = v; S.ui = { ...freshUi(), ...(S.ui || {}) }; retarget(); renderAll(); },
+  get sxs() { return sxs; }, get view() { return full ? free : view; }, get cam() { return cam; }, get reveal() { return reveal; },
+  go, begin, choose, setFull, openScope, closeScope, openMenu, openCodex, openAlmanac, openLog, openHelp, openBook, showEnd, renderAll, setDividers, setCourse,
+  advance(seconds) { for (let t = 0; t < seconds; t += 0.25) tickClock(0.25, performance.now()); dirty.sky = true; renderAll(); },
+  skyData, layout: () => { const b = fit(scopeCv); return sx.layout(b.w, b.h); },
+  starAt(hr) { const s = skyData().stars.find(t => t.hr === hr), r = skyCv.getBoundingClientRect(); const p = project(curView(r.width, r.height), s.az, s.alt); return p && [p.x + r.left, p.y + r.top]; },
+  frame: () => { lastT = performance.now() - 16; frame(performance.now()); },
+  tickClock,
+  /** Stands the reveal still at `u` seconds (a look at it), or lets it run again with no argument. */
+  holdReveal(u) { if (reveal) { reveal.hold = u ?? undefined; dirty.chart = true; wake(); } },
+};

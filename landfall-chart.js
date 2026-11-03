@@ -170,6 +170,9 @@ export function drawChart(ctx, w, h, sc) {
   // the dividers of the ritual: a line along the course, open to the distance
   if (sc.dividers) {
     const D = sc.dividers, v = vec(D.course), q = [D.from[0] + v[0] * D.d, D.from[1] + v[1] * D.d], a = S(D.from), b = S(q);
+    // the course, ruled across the chart (so the distance has a line to be measured along)
+    const far = S([D.from[0] + v[0] * Math.hypot(w, h) / cam.s, D.from[1] + v[1] * Math.hypot(w, h) / cam.s]);
+    ctx.save(); ctx.strokeStyle = pal.ink; ctx.globalAlpha = 0.4; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(far[0], far[1]); ctx.stroke(); ctx.restore();
     ctx.save(); ctx.strokeStyle = pal.ink; ctx.lineWidth = 1.4 * k; ctx.setLineDash([3 * k, 3 * k]);
     ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]);
     ctx.fillStyle = pal.paper; ctx.lineWidth = 2 * k; for (const p of [a, b]) { ctx.beginPath(); ctx.arc(p[0], p[1], 5 * k, 0, 6.283); ctx.fill(); ctx.stroke(); }
