@@ -420,7 +420,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
     if (!D) content.append(mirror("Mode", $("mode")));
     if (P.ranges) content.append(ticks("Sprint operations", P.kinds, prefs.kinds, v => setKinds(v), Infinity, { all: true }),
       choice("Sprint range", P.ranges, prefs.range, v => { prefs.range = v; keepPrefs(); refresh(); }));
-    else content.append(ticks("Sprint topics", P.kinds, prefs.kinds, v => setKinds(v), Infinity, { all: true }));
+    else content.append(ticks("Topics", P.kinds, prefs.kinds, v => setKinds(v), Infinity, { all: true }));
     const bests = read(KEY.bests, {}) || {}, about = part(body, "about");
     const top = [["sprint", "Sprint"], ["estimate", "Estimate"], ["chains", "Chains"]].map(([k, t]) => [t, k === "sprint" ? bests[`sprint:${P.range ?? ""}:${ALL.join(",")}`] : bests[k]]).filter(([, v]) => v != null);
     const days = read(KEY.daily, {}) || {};
