@@ -7,7 +7,9 @@ import { LEVEL_NAMES } from "./meld-bot.js";
 import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { tableView } from "./table3d-view.js";
+import { createMeld3d, plateOf, myPlate } from "./meld-3d.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import "./pwa.js";
@@ -90,6 +92,9 @@ function draw() {
   drawBar(v);
 }
 
+const view = tableView("meld");                                    // Menu, View: the flat table (the default) or the 3D one (meld-3d.js)
+let three = null;
+
 function drawTable(v) {
   const s = v.state, me = mine(), foe = 1 - me, box = $("table");
   const shown = s.step === "shown" || s.step === "over";
@@ -112,6 +117,17 @@ function drawTable(v) {
       <button type="button" class="ml-pile${draws && !s.mustStock || offer ? " live" : ""}" data-pick="pile" aria-label="The pile, top card ${top == null ? "none" : cardName(top)}"${(draws && !s.mustStock) || offer ? "" : " disabled"}>${top == null ? '<span class="ml-empty"></span>' : card(top)}<span class="ml-count">${s.discard.length}</span></button>
     </div><p class="ml-last">${esc(lastLine(s))}</p></div>`;
   }
+  if (view.get() === "3d") {
+    box.classList.add("ml3");
+    three ||= createMeld3d(box, { quiet: () => IN_FRAME });
+    const mineTurn = myTurn(v);
+    three.draw({
+      me: myPlate({ seat: 0, score: s.scores[me], turn: mineTurn }), foe: plateOf({ name: nameOf(foe), seat: 1, count: s.hands[foe].length, score: s.scores[foe], turn, over: shown }),
+      centre: shown ? `${reveal}${mid}` : `${mid}${took}`, key: s.hand, thrown: s.discard.length, mineThrown: v.toMove === foe,
+    });
+    return;
+  }
+  if (three) { three.dispose(); three = null; box.classList.remove("ml3"); }
   box.innerHTML = foeBlock + mid;
 }
 
@@ -298,6 +314,7 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
+  set.append(view.choice(() => draw()));
   set.append(choice("Computer player", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
   set.append(choice("A game goes to", TO.map(n => [n, String(n)]), opts.to, v => { opts.to = Number(v); keep(); }));
   set.append(line("The length applies from the next game."));
@@ -315,6 +332,7 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
+onPause(() => three?.pause(true), () => three?.pause(false));
 window.__meld = { page, get view() { return V; }, opts };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();

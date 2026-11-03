@@ -1,0 +1,18 @@
+/* Gin rummy's 3D table (meld-3d.js) on the shared cloth (table3d.css). */
+#app.meld { --tk-felt: color-mix(in srgb, var(--ml-in) 80%, #0B1E2A); }
+.ml-table.ml3 { display: flex; padding: 0; background: none; border: 0; box-shadow: none; overflow: visible; }
+.ml-table.ml3 .tk-field { flex: 1 1 0; }
+.ml3 .tk-centre { --tk-side: .8rem; top: 32%; bottom: 14%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; text-align: center; pointer-events: none; --cd-line: clamp(.55rem, min(2.4cqh, 2cqw), 1.1rem); }
+.ml3 .ml-piles { pointer-events: auto; font-size: clamp(.9rem, min(5.5cqh, 6cqw), 2.2rem); }
+.ml3 .ml-last, .ml3 .ml-grabs, .ml3 .ml-result { color: var(--tk-soft); margin: 0; font-size: .8rem; }
+.ml3 .ml-result { color: var(--tk-text); font-size: .9rem; }
+.ml3 .ml-dead { color: var(--tk-soft); }
+.ml3 .ml-next { background: color-mix(in srgb, var(--tk-text) 30%, transparent); }
+.ml3 .ml-next i { background: var(--tk-gilt); }
+.ml3 .ml-stock.live, .ml3 .ml-pile.live { box-shadow: 0 0 0 .14rem var(--tk-gilt), 0 0 .8rem color-mix(in srgb, var(--tk-gilt) 60%, transparent); }
+.ml3 .ml-empty { border-color: color-mix(in srgb, var(--tk-text) 40%, transparent); }
+.ml3 .ml-count { background: var(--sheet); color: var(--ink); border: 1px solid var(--brass); }
+.ml3 .cd { box-shadow: 0 .05em .14em rgba(0, 0, 0, .4); }
+.ml3 .ml-reveal { max-width: 100%; }
+.ml3-sc { font-style: normal; font-weight: 800; }
+@container (max-height: 460px) { .ml3 .ml-grabs { display: none; } }
