@@ -184,9 +184,9 @@ html[data-mode="night"] .hk-opt.missed { border-color: #E8806F; }
 /* Full screen (Menu; hong.js's placeFull puts the header inside the table): the cloth is the whole section, the
    drawing on it, and the header's buttons lie over its top right, where the drawing keeps the player across clear of
    them (drawTable), so the header's whole row goes to the table */
-#app.hong.full .hk-table { position: relative; margin-top: 0; padding: .3rem; border-radius: 6px; border: 1px solid var(--tile-edge);
+#app.hong.ontable .hk-table { position: relative; margin-top: 0; padding: .3rem; border-radius: 6px; border: 1px solid var(--tile-edge);
   background: var(--hk-felt); box-shadow: inset 0 0 0 4px var(--hk-felt), inset 0 0 0 5px var(--rule); }
-#app.hong.full .hk-board { background: none; border: 0; border-radius: 0; box-shadow: none; }
+#app.hong.ontable .hk-board { background: none; border: 0; border-radius: 0; box-shadow: none; }
 #app .hk-table > .top { position: absolute; top: .4rem; right: .45rem; z-index: 2; padding: 0; background: none; border: 0; gap: .3rem; }   /* over every theme's rule under a header */
 .hk-table > .top .mark-btn { font-size: 0; gap: 0; }
 .hk-table > .top .partner-pill { display: none; }
@@ -248,11 +248,11 @@ html[data-mode="night"] .hk-opt.missed { border-color: #E8806F; }
 
   /* full screen: the cloth the whole screen, the console lying on it at the right with the header's buttons at its top,
      and your tiles under both, the whole width */
-  html #app.hong.full { grid-template-rows: auto minmax(0, 1fr) auto; }
-  #app.hong.full .hk-table { grid-column: 1 / -1; grid-row: 1 / -1; padding: .5rem calc(11.5rem + 1.25rem) .5rem .55rem;
+  html #app.hong.ontable { grid-template-rows: auto minmax(0, 1fr) auto; }
+  #app.hong.ontable .hk-table { grid-column: 1 / -1; grid-row: 1 / -1; padding: .5rem calc(11.5rem + 1.25rem) .5rem .55rem;
     background: radial-gradient(ellipse 70% 65% at 40% 45%, color-mix(in srgb, var(--hk-felt) 55%, var(--sheet)), var(--hk-felt)); }
-  #app.hong.full .hk-table > .top { top: .45rem; right: .6rem; }
-  #app.hong.full .hk-mine { grid-column: 2; grid-row: 1; z-index: 1; margin-top: 3.05rem; padding-right: .6rem; }
-  #app.hong.full .hk-bar { grid-column: 2; grid-row: 2; z-index: 1; padding: 0 .6rem .45rem 0; }
-  #app.hong.full .hk-hand { grid-column: 1 / -1; grid-row: 3; }
+  #app.hong.ontable .hk-table > .top { top: .45rem; right: .6rem; }
+  #app.hong.ontable .hk-mine { grid-column: 2; grid-row: 1; z-index: 1; margin-top: 3.05rem; padding-right: .6rem; }
+  #app.hong.ontable .hk-bar { grid-column: 2; grid-row: 2; z-index: 1; padding: 0 .6rem .45rem 0; }
+  #app.hong.ontable .hk-hand { grid-column: 1 / -1; grid-row: 3; }
 }

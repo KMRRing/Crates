@@ -236,7 +236,7 @@ function playProbe(s) {
  */
 function placeFull() {
   const app = $("app"), top = document.querySelector("header.top"), info = $("info"), on = !!opts.full;
-  app.classList.toggle("full", on);
+  app.classList.toggle("ontable", on);   // the table-filling mode, the Full screen choice in the menu (not the shared frame, #app.full)
   if (on && info.parentElement !== top) top.querySelector(".top-right").before(info);
   if (!on && info.parentElement === top) top.after(info);
 }

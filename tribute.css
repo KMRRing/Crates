@@ -213,7 +213,7 @@ html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
 /* Full screen (Menu; tribute.js's placeFull puts the header, and but on a phone held sideways the levels, inside the
    table): the header's buttons at the cloth's top right and the levels at its top left, in a band along its top, so
    the header's row and the levels' row go to the table */
-#app.tribute.full .tb-table { position: relative; padding-top: 2.95rem; }
+#app.tribute.ontable .tb-table { position: relative; padding-top: 2.95rem; }
 #app .tb-table > .top { position: absolute; top: .4rem; right: .45rem; z-index: 2; padding: 0; background: none; border: 0; gap: .3rem; }   /* over every theme's rule under a header */
 .tb-table > .top .mark-btn { font-size: 0; gap: 0; }
 .tb-table > .top .partner-pill { display: none; }
@@ -284,14 +284,14 @@ html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
 
   /* full screen: the cloth the whole screen, the console lying on it at the right with the header's buttons at its top,
      and your cards under both, the whole width */
-  html #app.tribute.full { grid-template-rows: auto auto minmax(0, 1fr) auto; }
-  #app.tribute.full .tb-table { grid-column: 1 / -1; padding: .4rem calc(10.75rem + 1.3rem) calc(var(--tb-hh, 3.2rem) + 1.05rem) .6rem; }
-  #app.tribute.full .tb-table > .top { top: .45rem; right: .6rem; }
-  #app.tribute.full .tb-strip { grid-column: 2; grid-row: 1; z-index: 1; margin-top: 3.05rem; padding-right: .6rem; }
-  #app.tribute.full .tb-counter { grid-column: 2; grid-row: 2; z-index: 1; margin-right: .6rem; }
-  #app.tribute.full .tb-bar { grid-column: 2; grid-row: 3; z-index: 1; padding: 0 .6rem .7rem 0; }
-  #app.tribute.full .tb-hand { grid-column: 1 / -1; grid-row: 4; }
+  html #app.tribute.ontable { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  #app.tribute.ontable .tb-table { grid-column: 1 / -1; padding: .4rem calc(10.75rem + 1.3rem) calc(var(--tb-hh, 3.2rem) + 1.05rem) .6rem; }
+  #app.tribute.ontable .tb-table > .top { top: .45rem; right: .6rem; }
+  #app.tribute.ontable .tb-strip { grid-column: 2; grid-row: 1; z-index: 1; margin-top: 3.05rem; padding-right: .6rem; }
+  #app.tribute.ontable .tb-counter { grid-column: 2; grid-row: 2; z-index: 1; margin-right: .6rem; }
+  #app.tribute.ontable .tb-bar { grid-column: 2; grid-row: 3; z-index: 1; padding: 0 .6rem .7rem 0; }
+  #app.tribute.ontable .tb-hand { grid-column: 1 / -1; grid-row: 4; }
   /* your cards stacked (Menu): in the cloth's column as they are without full screen, the console down to the foot */
-  #app.tribute.full:not(.fanned) .tb-hand { grid-column: 1; }
-  #app.tribute.full:not(.fanned) .tb-bar { grid-row: 3 / span 2; padding-bottom: .3rem; }
+  #app.tribute.ontable:not(.fanned) .tb-hand { grid-column: 1; }
+  #app.tribute.ontable:not(.fanned) .tb-bar { grid-row: 3 / span 2; padding-bottom: .3rem; }
 }

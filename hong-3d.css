@@ -136,7 +136,7 @@ html #app.hong.hk3 .hk-go { min-height: 2.9rem; }
 
 /* ---------- full screen: the header's buttons lie over the board's top right (hong.css puts the header in the table); the
    plates keep left of them, and the plane starts under them ---------- */
-html #app.hong.hk3.full .hk-table { padding: .3rem; }
+html #app.hong.hk3.ontable .hk-table { padding: .3rem; }
 
 /* ---------- held sideways ---------- */
 @media (orientation: landscape) and (min-width: 700px) {
@@ -152,7 +152,7 @@ html #app.hong.hk3.full .hk-table { padding: .3rem; }
   .hk3-sc { grid-column: auto; }
   .hk3-ct { position: static; }
   html #app.hong.hk3 .hk-hand { z-index: 1; }
-  html #app.hong.hk3.full .hk-table { padding: 0 calc(11.5rem + 1.25rem) 0 0; }
+  html #app.hong.hk3.ontable .hk-table { padding: 0 calc(11.5rem + 1.25rem) 0 0; }
 }
 
 /* ---------- the themes: Codex's frame is its own ---------- */

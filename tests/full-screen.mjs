@@ -10,18 +10,14 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const root = new URL("..", import.meta.url).pathname;
 const STILL = new Set([
-  "almanac.html", "avalanche.html", "baccarat.html", "banquet.html", "bigtwo.html", "blackjack.html",
-  "boast.html", "bones.html", "bulls.html", "contract.html", "craps.html", "cue.html",
-  "drift.html", "factor.html", "gambit.html", "gammon.html", "holdem.html", "hong.html",
-  "landfall.html", "meld.html", "netting.html", "party.html", "pegs.html", "polder.html",
-  "quest.html", "river.html", "roulette.html", "shunt.html", "sicbo.html", "silo.html",
-  "solitaire.html", "soon.html", "tribute.html", "trumps.html",
+  "gambit.html",
 ]);
+const EXEMPT = new Set(["soon.html"]);   // the placeholder for a game to come: a card with a name, no game and no menu
 const pages = fs.readdirSync(root).filter(f => f.endsWith(".html")).sort();
 const withHeader = [], full = [], unlisted = [], stale = [], broken = [];
 for (const p of pages) {
   const html = fs.readFileSync(root + p, "utf8");
-  if (!/<header class="top"/.test(html)) continue;
+  if (!/<header class="top"/.test(html) || EXEMPT.has(p)) continue;
   withHeader.push(p);
   const isFull = /<div id="app"[^>]*class="[^"]*\bfull\b/.test(html);
   if (isFull) {

@@ -804,7 +804,7 @@ function review() {
  */
 function placeFull() {
   const app = $("app"), table = $("table"), top = document.querySelector("header.top"), on = !!opts.full;
-  app.classList.toggle("full", on);
+  app.classList.toggle("ontable", on);   // the table-filling mode, the Full screen choice in the menu (not the shared frame, #app.full)
   if (on && top.parentElement !== table) table.append(top);
   else if (!on && top.parentElement !== app) app.prepend(top);
 }

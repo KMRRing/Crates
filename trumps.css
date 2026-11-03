@@ -145,8 +145,8 @@ html[data-theme="office"] :is(.tr-seat, .tr-bid, .tr-result) { border-radius: 4p
   #app.trumps .tr-table { grid-column: 1; grid-row: 3; grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr) minmax(0, 1fr); grid-template-areas: "left top right" "left centre right"; }
   #app.trumps .tr-seat.at-left, #app.trumps .tr-seat.at-right { align-self: center; }
   #app.trumps .tr-side { grid-column: 2; grid-row: 3; min-height: 0; justify-content: flex-end; }
-  #app.trumps.full { grid-template-rows: auto minmax(0, 1fr); }
-  #app.trumps.full .tr-table, #app.trumps.full .tr-side { grid-row: 2; }
+  #app.trumps.ontable { grid-template-rows: auto minmax(0, 1fr); }
+  #app.trumps.ontable .tr-table, #app.trumps.ontable .tr-side { grid-row: 2; }
 }
 /* a phone on its side: a narrower side column, the table the width */
 @media (orientation: landscape) and (min-width: 700px) and (max-height: 500px) {
@@ -155,13 +155,13 @@ html[data-theme="office"] :is(.tr-seat, .tr-bid, .tr-result) { border-radius: 4p
 
 /* Full screen (Menu; trumps.js's placeFull puts the line across the top into the header): one row for both, the
    game's mark alone at its left, the menu at its right */
-#app.trumps.full > .top { padding-bottom: .35rem; gap: .5rem; }
-#app.trumps.full > .top .mark { flex: none; }
-#app.trumps.full > .top .mark-btn { font-size: 0; gap: 0; flex: none; }
-#app.trumps.full > .top .mark-icon { width: 2.1rem; height: 2.1rem; }
-#app.trumps.full > .top #learnBtn { display: none; }
-#app.trumps.full > .top .tr-info { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0; border: 0; gap: .5rem; }
-#app.trumps.full :is(.tr-game, .tr-target) { display: none; }
+#app.trumps.ontable > .top { padding-bottom: .35rem; gap: .5rem; }
+#app.trumps.ontable > .top .mark { flex: none; }
+#app.trumps.ontable > .top .mark-btn { font-size: 0; gap: 0; flex: none; }
+#app.trumps.ontable > .top .mark-icon { width: 2.1rem; height: 2.1rem; }
+#app.trumps.ontable > .top #learnBtn { display: none; }
+#app.trumps.ontable > .top .tr-info { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0; border: 0; gap: .5rem; }
+#app.trumps.ontable :is(.tr-game, .tr-target) { display: none; }
 
 /* the coach (Schafkopf): its line under your cards, kept while it's on so the table doesn't change size as it speaks;
    its card ringed in your hand and its game's button in the bidding; its reasons in a sheet */
