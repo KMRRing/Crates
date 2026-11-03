@@ -3,8 +3,10 @@
 // running seats.js's (seats-ui.js), the island's picture factor-draw.js's. This page draws the players across the top, the
 // island, your hand and your buttons below it; a tap on a ringed corner, edge or hex is the move the step asks for, and the
 // build buttons ring where a road, post or factory may go.
-import { rules, COSTS, TARGETS, DEFAULTS, CARD_NAMES, CARD_TEXT, MAX_OFFERS, cards, pointsOf, roadLength, playable, rates, piecesLeft, postSpots, roadSpots, factorySpots, victims, bankOf, has } from "./factor-rules.js";
-import { LEVEL_NAMES } from "./factor-bot.js";
+import { rules, COSTS, TARGETS, DEFAULTS, CARD_NAMES, CARD_TEXT, cards, pointsOf, roadLength, playable, piecesLeft, postSpots, roadSpots, factorySpots, victims, has } from "./factor-rules.js";
+import { LEVEL_NAMES, suggest, wants } from "./factor-bot.js";
+import { newTrade, stepTrade, toMode, resolve, composeHtml, answerHtml, pickHtml } from "./factor-trade.js";
+import { startSkip, settle, declines, asked } from "./factor-skip.js";
 import { HEXES, RES } from "./factor-board.js";
 import { boardSvg, resIcon, ASPECT } from "./factor-draw.js";
 import { rulesHtml } from "./factor-sheet.js";
@@ -27,7 +29,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const sum = a => a.reduce((t, x) => t + x, 0);
 const NAMES = ["Hinrich", "Gesa", "Claus", "Wiebke"];                  // the computer players, by seat: Hanseatic first names
 
-let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, voice: true, flat: false, ...read(OPTS, {}) };
+let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, voice: true, flat: false, autoDecline: false, ...read(OPTS, {}) };
 if (!TARGETS.includes(opts.vp)) opts.vp = DEFAULTS.vp;
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";      // Easy is gone (October 2026)
 if (![3, 4].includes(opts.seats)) opts.seats = DEFAULTS.seats;
@@ -54,11 +56,11 @@ let seen = { seq: -1, h: null }, pulse = { until: 0, d: [0, 0, 0, 0, 0] }, pulse
 let island = null, viewReady = false;                                                         // the 3D island, once it's made
 let flights = null, flown = null;                                                             // cards in the air, and the move they were last worked out from
 // what the page holds between moves: the build mode, the cards picked to give up on a 7, the trade sheet's choices
-const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], tab: "bank", give: -1, og: [0, 0, 0, 0, 0], ow: [0, 0, 0, 0, 0], pick: [] };
+const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], pick: [], t: newTrade("bank"), ans: null, tview: null, dismissed: "", skip: null, auto: "" };
 const randomRounds = seatRounds("factor");   // random mode's round: a game
 page = seatPage({
   rules, id: "factor", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; follow(v); draw(); showFlights(v); randomRounds(v); }, onOver, toast, newGame,
+  onView: v => { V = v; follow(v); draw(); showFlights(v); setTimeout(() => { autoOpen(v); autoAnswer(v); }, 0); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
 const isMe = seat => V?.seat != null && seat === V.seat;
@@ -67,12 +69,13 @@ const turnNow = () => !!(V?.G && !V.over && V.seat != null && V.toMove === V.sea
 const sayOf = v => esc(fillNames(v.G?.say?.text, v.seats));
 const pl = (n, w, many = `${w}s`) => `${n} ${n === 1 ? w : many}`;
 const costWords = c => c.map((n, i) => (n ? `${n} ${RES[i]}` : "")).filter(Boolean).join(", ");
-const cardWords = c => c.map((n, i) => (n ? `${n}${resIcon(i, "in")}` : "")).filter(Boolean).join(" ");
+const cardWords = (c, any = 0) => [...c.map((n, i) => (n ? `${n}${resIcon(i, "in")}` : "")), any ? `${any} any` : ""].filter(Boolean).join(" ");
 
 // ---------- what changed in your hand, shown for a moment ----------
 function follow(v) {
   if (!v?.G || v.seat == null) return;
   const key = `${v.G.seq}:${v.G.n}`;
+  ui.skip = settle(ui.skip, v.G, v.state, v.seat);                 // Skip trades ends when the turn comes round to this seat
   if (key !== ui.key) { ui.key = key; ui.mode = null; ui.discard = [0, 0, 0, 0, 0]; ui.pick = []; }
   const h = v.state.hand[v.seat];
   if (seen.seq === v.G.seq && seen.h) {
@@ -192,14 +195,14 @@ function prompt(v) {
       case "blockade": return "<b>Move the blockade</b>: tap a hex";
       case "steal": return "<b>Take a card</b> from…";
       case "causeway": return `<b>A free road</b> (${s.free} to go): tap a ringed edge`;
-      case "pick": return "<b>Several said yes</b>: choose who you trade with";
-      case "offer": return `${esc(who(s.offer.from))} gives ${cardWords(s.offer.give)} for ${cardWords(s.offer.get)}`;
+      case "pick": return "<b>Answers are in</b>: take one, or turn them all down";
+      case "offer": return `${esc(who(s.offer.from))} gives ${cardWords(s.offer.give, s.offer.ag)} for ${cardWords(s.offer.get, s.offer.aw)}`;
       case "main": return ui.mode ? `<b>${{ road: "A road", post: "A post", factory: "A factory" }[ui.mode]}</b>: tap a ringed ${ui.mode === "road" ? "edge" : "corner"}` : sayOf(v) || "<b>Your move</b>";
       default: return sayOf(v);
     }
   }
-  if (s.step === "offer" && v.toMove != null && v.toMove !== v.seat && s.offer.from === v.seat) return `<b>Waiting for ${esc(who(v.toMove))}</b>: ${cardWords(s.offer.give)} for ${cardWords(s.offer.get)}`;
-  if (s.step === "offer" && v.toMove != null && v.toMove !== v.seat) return `${esc(who(s.offer.from))} offers ${cardWords(s.offer.give)} for ${cardWords(s.offer.get)}`;
+  if (s.step === "offer" && v.toMove != null && v.toMove !== v.seat && s.offer.from === v.seat) return `<b>Waiting for ${esc(who(v.toMove))}</b>: ${cardWords(s.offer.give, s.offer.ag)} for ${cardWords(s.offer.get, s.offer.aw)}`;
+  if (s.step === "offer" && v.toMove != null && v.toMove !== v.seat) return `${esc(who(s.offer.from))} offers ${cardWords(s.offer.give, s.offer.ag)} for ${cardWords(s.offer.get, s.offer.aw)}`;
   return sayOf(v);
 }
 function drawStrip(v) {
@@ -293,12 +296,12 @@ function drawBar(v) {
     case "blockade": bar.innerHTML = promptBox(sayOf(v)); return;
     case "steal": bar.innerHTML = victims(s, s.robber, me).map(o => btn(`Take from ${esc(who(o))}`, "steal", { data: `data-from="${o}"` })).join(""); return;
     case "causeway": bar.innerHTML = btn("Skip the rest", "skip"); return;
-    case "offer": bar.innerHTML = btn("No", "decline") + btn("Yes", "accept", { cls: "primary", off: has(s.hand[me], s.offer.get) ? "" : "You don't hold that" }); return;
-    case "pick": {
-      const yes = s.offer.resp.map((r, i) => (r === 1 ? i : -1)).filter(i => i >= 0);
-      bar.innerHTML = yes.map(o => btn(esc(who(o)), "pick", { cls: "primary", data: `data-with="${o}"` })).join("") + btn("None", "pick", { data: `data-with="-1"`, cls: "side" });
+    case "offer": {
+      const o = s.offer, exact = !o.ag && !o.aw && has(s.hand[me], o.get);
+      bar.innerHTML = btn("No", "decline") + (exact ? btn("Yes", "accept", { cls: "primary" }) : "") + btn(exact ? "Counter" : "Answer", "answer", exact ? {} : { cls: "primary" }) + btn("Skip trades", "skiptrades", { cls: "side" });
       return;
     }
+    case "pick": bar.innerHTML = btn("Answers", "answers", { cls: "primary" }) + btn("Decline all", "pick", { data: `data-with="-1"`, cls: "side" }); return;
     case "main": {
       const m = x => ({ off: whyNot(x), cls: ui.mode === x ? "on" : "" });
       bar.innerHTML = btn("Road", "road", m("road")) + btn("Post", "post", m("post")) + btn("Factory", "factory", m("factory")) +
@@ -328,61 +331,111 @@ $("bar").addEventListener("click", async e => {
     case "accept": await play({ t: "answer", yes: true }); break;
     case "decline": await play({ t: "answer", yes: false }); break;
     case "pick": await play({ t: "pick", with: Number(b.dataset.with) }); break;
+    case "answers": case "answer": ui.dismissed = ""; openTrade(); break;
+    case "skiptrades": ui.skip = startSkip(V.G); toast("Skipping trades until your turn comes round"); await play({ t: "answer", yes: false }); break;
     default: break;
   }
 });
 
 // ---------- the trade sheet ----------
+// One sheet for three moments: composing your own offer or bank trade (Players | Bank), answering an offer that has come to
+// you (the same tiles, pre-filled), and choosing among the answers to yours. factor-trade.js draws it; the taps are here.
+function tradeView() {
+  if (!V?.G || V.seat == null || V.over) return null;
+  const s = V.state;
+  if (s.step === "offer" && V.toMove === V.seat) return "answer";
+  if (s.step === "pick" && V.toMove === V.seat) return "pick";
+  return "compose";
+}
+function offerKey() { return `${V.G.seq}:${V.G.n}`; }
+/** The counter-proposal the answer sheet starts from: the offer itself when it has no ?, else the computer's best guess at filling it. */
+function firstAnswer() {
+  const s = V.state, o = s.offer;
+  if (!o.ag && !o.aw) return { give: [...o.give], get: [...o.get] };
+  const guess = suggest(s, V.seat);
+  return guess ? { give: guess.give, get: guess.get } : { give: [...o.give], get: [...o.get] };
+}
 function openTrade() {
-  ui.give = -1; ui.og = [0, 0, 0, 0, 0]; ui.ow = [0, 0, 0, 0, 0];
+  if (!ui.t) ui.t = newTrade("bank");
   drawTrade();
   if (!$("tradeDlg").open) $("tradeDlg").showModal();
 }
 function drawTrade() {
-  const v = V, body = $("tradeBody");
-  if (!v?.G || v.seat == null) { body.innerHTML = ""; return; }
-  const s = v.state, me = v.seat, h = s.hand[me], rt = rates(s, me), on = turnNow() && s.step === "main";
-  const chip = (r, attrs, inner, cls = "") => `<button type="button" class="fc-chip r${r}${cls}" ${attrs}>${resIcon(r)}<b>${inner}</b></button>`;
-  let html = `<div class="fc-seg" role="tablist"><button type="button" role="tab" data-tab="bank" class="${ui.tab === "bank" ? "on" : ""}">Bank</button><button type="button" role="tab" data-tab="table" class="${ui.tab === "table" ? "on" : ""}">Players</button></div>`;
-  if (!on) html += `<p class="fc-tnote">Trade on your own turn, after the roll.</p>`;
-  if (ui.tab === "bank") {
-    html += `<h3>Give</h3><div class="fc-chips">${[0, 1, 2, 3, 4].map(r => chip(r, `data-give="${r}" ${on && h[r] >= rt[r] ? "" : "disabled"}`, `${h[r]} <small>${rt[r]}:1</small>`, ui.give === r ? " on" : "")).join("")}</div>
-      <h3>Get one</h3><div class="fc-chips">${[0, 1, 2, 3, 4].map(r => chip(r, `data-get="${r}" ${on && ui.give >= 0 && r !== ui.give && bankOf(s, r) > 0 ? "" : "disabled"}`, `${bankOf(s, r)} <small>in bank</small>`)).join("")}</div>
-      <p class="fc-tnote">${ui.give >= 0 ? `${rt[ui.give]} ${RES[ui.give]} buy one of anything the bank holds.` : "Tap what to give, then what you want. A post or factory at a harbour improves the rate: 3:1, or 2:1 for its own resource."}</p>`;
-  } else {
-    const step = (kind, r) => {
-      const arr = kind === "g" ? ui.og : ui.ow, cap = kind === "g" ? h[r] : 9, lock = kind === "g" ? ui.ow[r] > 0 : ui.og[r] > 0;
-      return `<div class="fc-step r${r}">${resIcon(r)}<button type="button" data-step="${kind},${r},1" ${arr[r] < cap && !lock && on ? "" : "disabled"} aria-label="More ${RES[r]}">+</button><b>${arr[r]}</b><button type="button" data-step="${kind},${r},-1" ${arr[r] > 0 && on ? "" : "disabled"} aria-label="Fewer ${RES[r]}">−</button></div>`;
-    };
-    const ok = on && sum(ui.og) > 0 && sum(ui.ow) > 0 && s.offers < MAX_OFFERS;
-    html += `<h3>You give</h3><div class="fc-steps">${[0, 1, 2, 3, 4].map(r => step("g", r)).join("")}</div>
-      <h3>You want</h3><div class="fc-steps">${[0, 1, 2, 3, 4].map(r => step("w", r)).join("")}</div>
-      <button type="button" class="btn primary fc-offer" data-offer="1" ${ok ? "" : "disabled"}>Offer to the table</button>
-      <p class="fc-tnote">Each player says yes or no, and you choose among the yeses. ${MAX_OFFERS - s.offers > 0 ? `${pl(MAX_OFFERS - s.offers, "offer")} left this turn.` : "No offers left this turn."}</p>`;
+  const v = V, body = $("tradeBody"), view = tradeView();
+  if (!view) { body.innerHTML = ""; return; }
+  const s = v.state, me = v.seat;
+  $("tradeDlg").querySelector("h2").textContent = view === "answer" ? "An offer" : view === "pick" ? "The answers" : "Trade";
+  if (ui.tview && ui.tview !== view && $("tradeDlg").open && ui.tview !== "compose") $("tradeDlg").close();     // that offer is settled
+  ui.tview = view;
+  if (view === "pick") { body.innerHTML = pickHtml(s, who); return; }
+  if (view === "answer") {
+    if (!ui.ans || ui.ans.key !== offerKey()) ui.ans = { key: offerKey(), ...firstAnswer() };
+    body.innerHTML = answerHtml(s, me, ui.ans, { name: who(s.offer.from), skipping: declines(opts, ui.skip, v.G, s, me) });
+    return;
   }
-  body.innerHTML = html;
+  const on = turnNow() && s.step === "main";
+  const r = resolve(s, me, ui.t, { on, order: wants(s, me) });
+  body.innerHTML = composeHtml(s, me, ui.t, r, { on });
+}
+/** Opens the sheet by itself when an answer or a choice waits for you (and nothing else is open, and you haven't put it away). */
+function autoOpen(v) {
+  if (IN_FRAME || !v?.G || v.seat == null || v.over || $("tradeDlg").open) return;
+  const view = tradeView();
+  if (view !== "answer" && view !== "pick") return;
+  if (document.querySelector("dialog[open]") || ui.dismissed === offerKey() || declines(opts, ui.skip, v.G, v.state, v.seat)) return;
+  openTrade();
+}
+/** Skip trades: an offer to a seat that is skipping is turned down unseen, once. */
+function autoAnswer(v) {
+  if (IN_FRAME || !v?.G || v.over) return;
+  if (!asked(v.state, v.toMove, v.seat) || !declines(opts, ui.skip, v.G, v.state, v.seat)) return;
+  const key = offerKey();
+  if (ui.auto === key) return;
+  ui.auto = key;
+  setTimeout(() => { if (V?.G && offerKey() === key && asked(V.state, V.toMove, V.seat)) play({ t: "answer", yes: false }); }, 0);
 }
 $("tradeBody").addEventListener("click", async e => {
   const b = e.target.closest("button");
   if (!b || b.disabled || !V?.G) return;
-  const d = b.dataset;
-  if (d.tab) { ui.tab = d.tab; drawTrade(); return; }
-  if (d.give != null) { ui.give = ui.give === Number(d.give) ? -1 : Number(d.give); drawTrade(); return; }
-  if (d.get != null) { const give = ui.give; ui.give = -1; await play({ t: "bank", give, get: Number(d.get) }); drawTrade(); return; }
-  if (d.step) {
-    const [kind, r, by] = d.step.split(",");
-    const arr = kind === "g" ? ui.og : ui.ow;
-    arr[Number(r)] = Math.max(0, arr[Number(r)] + Number(by));
-    drawTrade();
+  const d = b.dataset, view = tradeView(), s = V.state, me = V.seat;
+  if (view === "pick") {
+    if (d.take != null) { await play({ t: "pick", with: Number(d.take) }); $("tradeDlg").close(); }
     return;
   }
-  if (d.offer) {
-    const move = { t: "offer", give: [...ui.og], get: [...ui.ow] };
-    ui.og = [0, 0, 0, 0, 0]; ui.ow = [0, 0, 0, 0, 0];
-    if (await play(move)) $("tradeDlg").close(); else drawTrade();
+  if (view === "answer") {
+    const a = ui.ans;
+    if (d.add || d.sub) {
+      const [side, k] = (d.add || d.sub).split(","), by = d.add ? 1 : -1;
+      const arr = side === "g" ? a.get : a.give;                // the sheet's "you give" row is what the proposer gets
+      arr[Number(k)] = Math.max(0, arr[Number(k)] + by);
+    } else if (d.answer) {
+      const move = d.answer === "no" ? { t: "answer", yes: false } : d.answer === "yes" ? { t: "answer", yes: true } : { t: "answer", counter: { give: [...a.give], get: [...a.get] } };
+      if (await play(move)) $("tradeDlg").close();
+      return drawTrade();
+    } else if (d.skip) {
+      ui.skip = startSkip(V.G);
+      toast("Skipping trades until your turn comes round");
+      if (await play({ t: "answer", yes: false })) $("tradeDlg").close();
+      return drawTrade();
+    }
+    return drawTrade();
   }
+  const on = turnNow() && s.step === "main";
+  if (d.mode) toMode(ui.t, s, me, d.mode);
+  else if (d.add || d.sub) { const [side, k] = (d.add || d.sub).split(","); stepTrade(ui.t, s, me, side, Number(k), d.add ? 1 : -1); }
+  else if (d.send) {
+    const r = resolve(s, me, ui.t, { on, order: wants(s, me) });
+    if (r.move) {
+      const mode = ui.t.mode;
+      ui.t = newTrade(mode);
+      if (await play(r.move)) { if (r.move.t === "offer") $("tradeDlg").close(); }
+    }
+  }
+  drawTrade();
 });
-$("tradeClose").addEventListener("click", () => $("tradeDlg").close());
+function putAway() { if (V?.G && tradeView() !== "compose") ui.dismissed = offerKey(); $("tradeDlg").close(); }
+$("tradeClose").addEventListener("click", putAway);
+$("tradeDlg").addEventListener("cancel", () => { if (V?.G && tradeView() !== "compose") ui.dismissed = offerKey(); });
 
 // ---------- your cards ----------
 function openCards() {
@@ -483,6 +536,7 @@ function openMenu() {
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
+  play.append(toggle("Decline trades automatically", !!opts.autoDecline, on => { opts.autoDecline = on; saveOpts(); if (V?.G) autoAnswer(V); }));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();

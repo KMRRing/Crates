@@ -11,8 +11,8 @@
 //
 // Steps: setup (the snake: each seat in turn a post and a road, then back the other way, the second post paying out
 // the land round it), roll, main (build, buy, trade, play a card, end), discard (after a 7, each who holds eight or more
-// gives up half), blockade (move it) and steal (from whom), causeway (two free roads), offer (the others answer one by one)
-// and pick (the proposer chooses among those who said yes), over.
+// gives up half), blockade (move it) and steal (from whom), causeway (two free roads), offer (the others answer one by one: no, yes or a counter-proposal)
+// and pick (the proposer chooses among the answers), over.
 import { RES, HEXES, VERTS, EDGES, PORT_AT, makeBoard, otherEnd, portVerts } from "./factor-board.js";
 import { shuffle } from "./seats.js";
 import { botMove } from "./factor-bot.js";
@@ -33,6 +33,7 @@ export const CARD_TEXT = {
   corner: "Name a resource: every other player gives you all they hold of it.",
 };
 export const MAX_OFFERS = 4;                                      // a turn's offers to the table: enough to haggle, not to stall
+export const MAX_ANY = 3;                                         // the most cards a "?" (any kind) tile stands for, on either side
 const sum = a => a.reduce((t, x) => t + x, 0);
 const clone = v => JSON.parse(JSON.stringify(v));
 const names = n => ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"][n] || String(n);
@@ -293,8 +294,17 @@ function act(s, seat, m, { rng }) {
     return s;
   }
   if (s.step === "offer") {
-    if (m.t !== "answer") return "Say yes or no to the offer";
-    s.offer.resp[seat] = m.yes ? 1 : 0;
+    if (m.t !== "answer") return "Say yes, counter or no to the offer";
+    const o = s.offer;
+    if (m.counter) {
+      const why = counterWhy(s, seat, m.counter);
+      if (why) return why;
+      o.ans[seat] = [...m.counter.give, ...m.counter.get]; o.resp[seat] = 1;
+    } else if (m.yes) {
+      if (o.ag || o.aw) return "Name the cards: a ? offer is answered with a counter-proposal";
+      if (!has(me, o.get)) return "You don't hold that";
+      o.ans[seat] = [...o.give, ...o.get]; o.resp[seat] = 1;
+    } else { o.ans[seat] = Array(10).fill(0); o.resp[seat] = 0; }
     return resolveOffer(s);
   }
 
@@ -351,8 +361,8 @@ function act(s, seat, m, { rng }) {
 
   if (s.step === "pick") {
     if (m.t !== "pick") return "Choose who you trade with";
-    if (m.with === -1) { s.say = "{s" + seat + "} turned the offers down."; goMain(s); return s; }
-    if (!s.offer.resp.some((r, i) => r === 1 && i === m.with)) return "Choose one of those who said yes";
+    if (m.with === -1) { s.say = "{s" + seat + "} turned the answers down."; goMain(s); return s; }
+    if (!s.offer.resp.some((r, i) => r === 1 && i === m.with)) return "Choose one of the answers";
     return settle(s, m.with);
   }
 
@@ -381,6 +391,14 @@ function act(s, seat, m, { rng }) {
       return s;
     }
     case "bank": {
+      if (Array.isArray(m.give)) {                // kinds for kinds: each given kind in multiples of its rate, one card asked for each such lot
+        const why = bankWhy(s, seat, m.give, m.get);
+        if (why) return why;
+        m.give.forEach((n, i) => { me[i] -= n; });
+        m.get.forEach((n, i) => { me[i] += n; });
+        s.say = `{s${seat}} traded ${tradeWords(m.give)} for ${tradeWords(m.get)} at the bank.`;
+        return s;
+      }
       if (!Number.isInteger(m.give) || !Number.isInteger(m.get) || m.give < 0 || m.give > 4 || m.get < 0 || m.get > 4 || m.give === m.get) return "Trade one resource for another";
       const rate = rates(s, seat)[m.give];
       if (me[m.give] < rate) return `${rate} ${resName(m.give)} buy one at the bank`;
@@ -392,14 +410,18 @@ function act(s, seat, m, { rng }) {
     case "offer": {
       if (s.offers >= MAX_OFFERS) return `${MAX_OFFERS} offers a turn is enough`;
       if (!isCount5(m.give) || !isCount5(m.get)) return "An offer is cards for cards";
-      if (sum(m.give) < 1 || sum(m.get) < 1) return "An offer gives something and asks for something";
+      const ag = m.ag ?? 0, aw = m.aw ?? 0;                      // the ? tiles: that many cards of kinds the answer names
+      if (![ag, aw].every(n => Number.isInteger(n) && n >= 0 && n <= MAX_ANY)) return `A ? stands for at most ${MAX_ANY} cards`;
+      if (sum(m.give) + ag < 1 || sum(m.get) + aw < 1) return "An offer gives something and asks for something";
       if (m.give.some((n, i) => n > 0 && m.get[i] > 0)) return "Don't ask for the kind you give";
       if (m.give.some((n, i) => n > me[i])) return "You don't hold what you offer";
+      if (room(me, m.give, m.get) < ag) return "You don't hold that many cards to offer";
       s.offers++;
-      const resp = Array.from({ length: s.seats }, (_, i) => (i === seat ? 2 : s.hand[i].every((h, r) => h >= m.get[r]) ? -1 : 0));
-      s.offer = { from: seat, give: m.give, get: m.get, resp };
+      const offer = { from: seat, give: m.give, get: m.get, ag, aw };
+      const resp = Array.from({ length: s.seats }, (_, i) => (i === seat ? 2 : canAnswer(s, i, offer) ? -1 : 0));
+      s.offer = { ...offer, resp, ans: Array.from({ length: s.seats }, () => Array(10).fill(0)) };
       s.step = "offer";
-      s.say = `{s${seat}} offered ${tradeWords(m.give)} for ${tradeWords(m.get)}.`;
+      s.say = `{s${seat}} offered ${tradeWords(m.give, ag)} for ${tradeWords(m.get, aw)}.`;
       return resolveOffer(s);
     }
     case "play": return playCard(s, seat, m, rng);
@@ -411,26 +433,108 @@ function act(s, seat, m, { rng }) {
   }
 }
 
-const tradeWords = c => c.map((n, i) => (n ? `${n} ${RES[i]}` : "")).filter(Boolean).join(" and ");
+const tradeWords = (c, any = 0) => [...c.map((n, i) => (n ? `${n} ${RES[i]}` : "")).filter(Boolean), ...(any ? [`${any === 1 ? "a card" : `${any} cards`} of any kind`] : [])].join(" and ");
 
-/** Once every seat has answered (those who can't give it have): nobody, one (it is done), or several (the proposer picks). */
+// ---------- the table's trades: offers with "?" tiles, answered by counter-proposals ----------
+// An offer says what the proposer gives and asks, kind by kind, and may add a "?" to either side: `ag` cards of kinds the
+// answer chooses from the proposer's hand, `aw` cards of kinds it chooses from its own. Each seat answers once: no, yes (an
+// offer with no "?" taken as it stands), or a counter-proposal naming the specific cards. The engine only ever moves
+// specific cards: a counter is checked against the offer's "?" and against both hands, and the proposer takes one answer
+// or turns them all down.
+/** Cards of a hand beyond `spec` in kinds not in `ban` (the room a "?" has to be filled from). */
+export const room = (hand, spec, ban) => hand.reduce((t, h, k) => t + (ban[k] > 0 ? 0 : Math.max(0, h - spec[k])), 0);
+/** Whether a seat could answer an offer at all: it holds what is asked by name and enough besides for a "?". */
+export function canAnswer(s, seat, o) {
+  const h = s.hand[seat];
+  return has(h, o.get) && room(h, o.get, o.give) >= o.aw;
+}
+/** Why a counter-proposal can't be made to the open offer, or null: both hands must cover it, and a "?" offer's counter must fill each "?". */
+export function counterWhy(s, seat, c) {
+  const o = s.offer;
+  if (!c || !isCount5(c.give) || !isCount5(c.get)) return "A counter-proposal is cards for cards";
+  if (sum(c.give) < 1 || sum(c.get) < 1) return "A counter-proposal gives something and asks for something";
+  if (c.give.some((n, i) => n > 0 && c.get[i] > 0)) return "Don't ask for the kind you give";
+  if (c.give.some((n, i) => n > s.hand[o.from][i])) return "The one who offered doesn't hold that";
+  if (c.get.some((n, i) => n > s.hand[seat][i])) return "You don't hold that";
+  if (o.ag || o.aw) {
+    if (c.give.some((n, i) => n < o.give[i]) || sum(c.give) !== sum(o.give) + o.ag) return `Name what was offered and ${o.ag} more of your choosing`;
+    if (c.get.some((n, i) => n < o.get[i]) || sum(c.get) !== sum(o.get) + o.aw) return `Name what was asked and ${o.aw} more of your choosing`;
+  }
+  return null;
+}
+/** The specific trade a seat answered with, as the proposer sees it ({ give, get }), or null if it said no or hasn't answered. */
+export const answerOf = (o, seat) => (o.resp[seat] === 1 ? { give: o.ans[seat].slice(0, 5), get: o.ans[seat].slice(5) } : null);
+/** Whether an answer is the offer as it stood. */
+export const isExact = (o, a) => a.give.every((n, i) => n === o.give[i]) && a.get.every((n, i) => n === o.get[i]);
+
+/** Once every seat has answered (those who can't give it have): nobody, one who took it as offered (it is done), or answers the proposer chooses among. */
 function resolveOffer(s) {
   const o = s.offer;
   if (o.resp.some(r => r === -1)) return s;
   const yes = o.resp.map((r, i) => (r === 1 ? i : -1)).filter(i => i >= 0);
   if (yes.length === 0) { s.say = "Nobody takes it."; s.nobody = true; goMain(s); return s; }
-  if (yes.length === 1) return settle(s, yes[0]);
-  s.step = "pick"; s.say = `{s${o.from}} to choose among those who said yes.`;
+  if (yes.length === 1 && isExact(o, answerOf(o, yes[0]))) return settle(s, yes[0]);
+  s.step = "pick"; s.say = `{s${o.from}} to choose among the answers.`;
   return s;
 }
 function settle(s, other) {
-  const o = s.offer, a = s.hand[o.from], b = s.hand[other];
-  o.give.forEach((n, i) => { a[i] -= n; b[i] += n; });
-  o.get.forEach((n, i) => { b[i] -= n; a[i] += n; });
-  s.say = `{s${o.from}} traded ${tradeWords(o.give)} to {s${other}} for ${tradeWords(o.get)}.`;
+  const o = s.offer, t = answerOf(o, other), a = s.hand[o.from], b = s.hand[other];
+  t.give.forEach((n, i) => { a[i] -= n; b[i] += n; });
+  t.get.forEach((n, i) => { b[i] -= n; a[i] += n; });
+  s.say = `{s${o.from}} traded ${tradeWords(t.give)} to {s${other}} for ${tradeWords(t.get)}.`;
   s.dealt = [o.from, other];
   goMain(s);
   return s;
+}
+
+// ---------- the bank, kinds for kinds ----------
+/** Why a bank trade of kinds for kinds can't be made, or null: each kind given in lots of its rate, one card asked for per lot. */
+export function bankWhy(s, seat, give, get) {
+  if (!isCount5(give) || !isCount5(get)) return "Trade cards for cards";
+  const rt = rates(s, seat), hand = s.hand[seat];
+  if (sum(give) < 1 || sum(get) < 1) return "Give something and ask for something";
+  if (give.some((n, i) => n > 0 && get[i] > 0)) return "Trade one resource for another";
+  const odd = give.findIndex((n, i) => n % rt[i] !== 0);
+  if (odd >= 0) return `The bank takes ${rt[odd]} ${RES[odd]} for one card, so lots of ${rt[odd]}`;
+  if (give.some((n, i) => n > hand[i])) return "You don't hold those";
+  if (give.reduce((t, n, i) => t + n / rt[i], 0) !== sum(get)) return "The cards given and asked for don't match the bank's rates";
+  const short = get.findIndex((n, i) => bankOf(s, i) < n);
+  return short >= 0 ? `The bank has no ${RES[short]} to spare` : null;
+}
+/**
+ * The bank trade that fits a "?" on either side, or null: `ag` cards of any kind to give (lots of each kind's rate, from the
+ * piles you can best spare: the hand left most even) and `aw` of any kind to ask (the kinds `order` puts first, the ones the
+ * hand holds least of when it ties). G and W are the kinds already chosen; a trade with no "?" comes back as it is.
+ */
+export function bankFit(s, seat, G, ag, W, aw, order = [0, 1, 2, 3, 4]) {
+  const hand = s.hand[seat], rt = rates(s, seat), asked = sum(W) + aw;
+  if (G.some((n, i) => n % rt[i] !== 0)) return null;
+  let best = null, top = Infinity;
+  const give = [...G];
+  const walk = (k, rest) => {
+    if (k === 5) {
+      if (rest !== 0 || give.reduce((t, n, i) => t + n / rt[i], 0) !== asked) return;
+      const left = hand.reduce((t, h, i) => t + (h - give[i]) ** 2, 0);
+      if (left < top) { top = left; best = [...give]; }
+      return;
+    }
+    if (W[k] > 0) { walk(k + 1, rest); return; }
+    for (let j = 0; G[k] + j * rt[k] <= hand[k] && j * rt[k] <= rest; j++) { give[k] = G[k] + j * rt[k]; walk(k + 1, rest - j * rt[k]); }
+    give[k] = G[k];
+  };
+  walk(0, ag);
+  if (!best) return null;
+  const get = [...W];
+  for (let c = 0; c < aw; c++) {
+    let pick = -1;
+    for (const k of order) {
+      if (best[k] > 0 || bankOf(s, k) < get[k] + 1) continue;
+      if (pick < 0 || hand[k] + get[k] < hand[pick] + get[pick]) pick = k;
+    }
+    if (pick < 0) return null;
+    get[pick]++;
+  }
+  return bankWhy(s, seat, best, get) ? null : { give: best, get };
 }
 
 function playCard(s, seat, m, rng) {
@@ -486,6 +590,11 @@ function restore(s) {
   s.devs = Array.from({ length: s.seats }, (_, i) => (Array.isArray(s.devs?.[i]) ? s.devs[i] : s.devs?.[i] ? Object.values(s.devs[i]) : []));
   s.fresh ||= []; s.deck ||= []; s.mark ||= [];
   s.offer ||= null;
+  if (s.offer) {                                  // an offer saved before the "?" tiles: no "?", and a yes was the offer itself
+    const o = s.offer;
+    o.ag ||= 0; o.aw ||= 0;
+    o.ans = Array.from({ length: s.seats }, (_, i) => (Array.isArray(o.ans?.[i]) && o.ans[i].length === 10 ? o.ans[i] : o.resp[i] === 1 ? [...o.give, ...o.get] : Array(10).fill(0)));
+  }
   s.stole ||= null; s.dealt ||= null; s.bought ||= null; s.nobody ||= false;
   return s;
 }

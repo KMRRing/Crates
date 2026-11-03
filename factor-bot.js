@@ -6,7 +6,7 @@
 // move is tried against the rules before it is given, and a refused one is replaced by a plain legal move, so a computer
 // player never stops the table.
 import { RES, HEXES, VERTS, EDGES, PORT_AT, pips, otherEnd, portVerts } from "./factor-board.js";
-import { rules, COSTS, MAX_OFFERS, bankOf, cards, has, piecesLeft, postSpots, factorySpots, roadSpots, roadLength, pointsOf, playable, rates, victims, setupOrder } from "./factor-rules.js";
+import { rules, COSTS, MAX_OFFERS, answerOf, isExact, bankOf, cards, has, piecesLeft, postSpots, factorySpots, roadSpots, roadLength, pointsOf, playable, rates, victims, setupOrder } from "./factor-rules.js";
 
 export const LEVEL_NAMES = [["medium", "Medium"], ["hard", "Hard"]];
 const sum = a => a.reduce((t, x) => t + x, 0);
@@ -170,19 +170,102 @@ function discard(s, seat, rng) {
   return { t: "discard", n: out };
 }
 
-/** Whether to take an offer: it must bring something the seat's plans need and cost it only what it can spare. */
-function answer(s, seat) {
-  const o = s.offer, hand = s.hand[seat];
-  const mustGive = o.get, gets = o.give;                          // what this seat would give, and receive
-  if (!has(hand, mustGive)) return { t: "answer", yes: false };
+// ---------- answering the table's offers ----------
+// An offer is answered with no, yes (as it stands) or a counter-proposal naming the specific cards (a "?" in the offer must
+// be filled: the computer player picks the specific trade best for itself that it would accept). A trade is judged the same
+// way whether it is an answer to be given or one to be taken: what this seat would give up and what it would receive, and
+// who is on the other side. Medium by its plans (it must bring something the best plan lacks, cost nothing it needs and
+// not be a loss in cards); Hard by the position it leaves against the other side's.
+const multisets = (n, caps) => {
+  const out = [], cur = ZERO();
+  const go = (k, rest) => {
+    if (k === 5) { if (rest === 0) out.push([...cur]); return; }
+    for (let j = 0; j <= Math.min(rest, caps[k]); j++) { cur[k] = j; go(k + 1, rest - j); }
+    cur[k] = 0;
+  };
+  go(0, n);
+  return out;
+};
+/** The specific trades ({ give, get }, the proposer's side as in the offer) a seat could answer an open offer with: a "?" filled every way it can be, or the offer and its one-card variants. */
+export function candidates(s, seat, o) {
+  const hp = s.hand[o.from], hr = s.hand[seat], out = [];
+  if (o.ag || o.aw) {
+    const Xs = multisets(o.ag, hp.map((h, k) => (o.get[k] > 0 ? 0 : Math.max(0, h - o.give[k]))));
+    const Ys = multisets(o.aw, hr.map((h, k) => (o.give[k] > 0 ? 0 : Math.max(0, h - o.get[k]))));
+    for (const X of Xs) for (const Y of Ys) {
+      if (X.some((n, k) => n > 0 && Y[k] > 0)) continue;
+      out.push({ give: o.give.map((n, k) => n + X[k]), get: o.get.map((n, k) => n + Y[k]) });
+    }
+    return out;
+  }
+  out.push({ give: [...o.give], get: [...o.get] });
+  for (let k = 0; k < 5; k++) {
+    if (o.get[k] === 0 && hp[k] > o.give[k]) out.push({ give: o.give.map((n, i) => n + (i === k ? 1 : 0)), get: [...o.get] });      // a card more from the proposer
+    if (o.get[k] > 0 && sum(o.get) > 1) out.push({ give: [...o.give], get: o.get.map((n, i) => n - (i === k ? 1 : 0)) });         // a card less from us
+  }
+  return out;
+}
+/** How a trade scores for Medium, whatever it would accept: the cards it brings that the best plan lacks, and its balance in cards; -Infinity if it can't be paid. */
+function rawMedium(s, seat, gives, gets) {
+  const hand = s.hand[seat];
+  if (!has(hand, gives)) return { score: -Infinity, ok: false };
   const goal = plans(s, seat).find(p => bankReach(s, seat, p.cost) || has(hand, p.cost) || sum(lack(hand, p.cost)) <= 2) || plans(s, seat)[0];
-  const cost = goal?.cost || ZERO();
-  const spares = spare(hand, cost), lacks = lack(hand, cost);
-  const costsNeeded = mustGive.some((n, i) => n > spares[i]);
-  const helps = gets.some((n, i) => n > 0 && lacks[i] > 0);
-  const lead = pointsOf(s, o.from, false);
-  if (lead >= s.opts.vp - 3) return { t: "answer", yes: false };
-  return { t: "answer", yes: helps && !costsNeeded && sum(gets) >= sum(mustGive) };
+  const cost = goal?.cost || ZERO(), spares = spare(hand, cost), lacks = lack(hand, cost);
+  const helped = gets.reduce((t, n, i) => t + Math.min(n, lacks[i]), 0), needed = gives.filter((n, i) => n > spares[i]).length;
+  return { score: helped * 3 + sum(gets) - sum(gives) - needed * 4, ok: helped > 0 && needed === 0 && sum(gets) >= sum(gives) };
+}
+/** What a trade is worth to a seat that gives `gives` and gets `gets`, with seat `other`, or -Infinity if it would refuse it. */
+export function valueOf(s, seat, gives, gets, other, hard) {
+  if (pointsOf(s, other, false) >= s.opts.vp - (hard ? 2 : 3)) return -Infinity;
+  if (!hard) { const r = rawMedium(s, seat, gives, gets); return r.ok ? r.score : -Infinity; }
+  if (!has(s.hand[seat], gives)) return -Infinity;
+  const sc = scarcity(s), c = clone(s);
+  gives.forEach((n, i) => { c.hand[seat][i] -= n; c.hand[other][i] += n; });
+  gets.forEach((n, i) => { c.hand[seat][i] += n; c.hand[other][i] -= n; });
+  const mine = worth(c, seat, sc) - worth(s, seat, sc), theirs = worth(c, other, sc) - worth(s, other, sc);
+  return mine > TRADE.take && mine > theirs * TRADE.edge ? mine : -Infinity;
+}
+/**
+ * A computer player's answer to the open offer: yes if it takes the offer as it stands; else a counter-proposal (a "?" filled
+ * in, or a card more asked or a card less given: the best of those it would accept for itself) or no. `exactOnly`: only
+ * whether it would say yes (a proposer asking itself who would take an offer).
+ */
+export function respond(s, seat, hard, exactOnly = false) {
+  const o = s.offer, no = { t: "answer", yes: false };
+  const val = c => valueOf(s, seat, c.get, c.give, o.from, hard);        // the responder gives what the proposer gets
+  const structured = o.ag > 0 || o.aw > 0;
+  if (!structured) {
+    if (has(s.hand[seat], o.get) && val({ give: o.give, get: o.get }) > -Infinity) return { t: "answer", yes: true };
+    if (exactOnly) return no;
+  } else if (exactOnly) return no;
+  let list = candidates(s, seat, o).filter(c => !(!structured && c.give.every((n, i) => n === o.give[i]) && c.get.every((n, i) => n === o.get[i])));
+  if (hard && list.length > 40) list = list.map(c => ({ c, r: rawMedium(s, seat, c.get, c.give).score })).sort((a, b) => b.r - a.r).slice(0, 40).map(x => x.c);
+  let best = null, top = -Infinity;
+  for (const c of list) { const v = val(c); if (v > top) { top = v; best = c; } }
+  return best ? { t: "answer", counter: best } : no;
+}
+/** The kinds this seat most wants, first: those the best plan lacks most, then the ones it holds least of (for a "?" at the bank to ask for). */
+export function wants(s, seat) {
+  const goal = plans(s, seat)[0], hand = s.hand[seat], lacks = goal ? lack(hand, goal.cost) : ZERO();
+  return [0, 1, 2, 3, 4].sort((a, b) => lacks[b] - lacks[a] || hand[a] - hand[b] || a - b);
+}
+/** The counter-proposal a person's sheet opens with: the best trade by Medium's plans that fills the offer's "?", or the offer itself; null if none can be made. */
+export function suggest(s, seat) {
+  const o = s.offer, list = candidates(s, seat, o).filter(c => has(s.hand[seat], c.get));
+  let best = null, top = -Infinity;
+  for (const c of list) { const v = rawMedium(s, seat, c.get, c.give).score; if (best === null || v > top) { top = v; best = c; } }
+  return best;
+}
+/** Which answer the proposer takes: one as offered (the one from the lowest-scoring seat), or the counter it likes best, or none. */
+function pickAnswer(s, seat, hard) {
+  const o = s.offer;
+  let best = -1, top = -Infinity;
+  o.resp.forEach((r, i) => {
+    if (r !== 1) return;
+    const a = answerOf(o, i), v = isExact(o, a) ? 1000 - pointsOf(s, i, false) : valueOf(s, seat, a.give, a.get, i, hard);
+    if (v > top) { top = v; best = i; }
+  });
+  return { t: "pick", with: top > -Infinity ? best : -1 };
 }
 
 /** A card worth playing now, or null. */
@@ -263,11 +346,8 @@ function decide(s, seat, rng) {
       const road = plans(s, seat).find(p => p.what === "road");
       return road ? { t: "build", what: "road", at: road.at } : { t: "skip" };
     }
-    case "offer": return answer(s, seat);
-    case "pick": {
-      const yes = s.offer.resp.map((r, i) => (r === 1 ? i : -1)).filter(i => i >= 0);
-      return { t: "pick", with: pickTop(yes, i => -pointsOf(s, i, false), rng) };
-    }
+    case "offer": return respond(s, seat, false);
+    case "pick": return pickAnswer(s, seat, false);
     default: return mainMove(s, seat);
   }
 }
@@ -456,11 +536,8 @@ function think(s, seat, rng) {
     }
     case "steal": return { t: "steal", from: victims(s, s.robber, seat).sort((a, b) => robWorth(s, b) - robWorth(s, a))[0] };
     case "causeway": return bestOf(s, seat, sc, roadSpots(s, seat).map(e => ({ t: "build", what: "road", at: e })), { t: "skip" });
-    case "offer": return weighOffer(s, seat, sc);
-    case "pick": {
-      const yes = s.offer.resp.map((r, i) => (r === 1 ? i : -1)).filter(i => i >= 0);
-      return { t: "pick", with: yes.sort((a, b) => pointsOf(s, a, false) - pointsOf(s, b, false))[0] };
-    }
+    case "offer": return respond(s, seat, true);
+    case "pick": return pickAnswer(s, seat, true);
     default: return turnMove(s, seat, sc, rng);
   }
 }
@@ -531,8 +608,8 @@ function tableOffer(s, seat, sc, base) {
       for (let o = 0; o < s.seats; o++) {
         if (o === seat || s.hand[o][w] < 1) continue;
         const c = clone(s);
-        c.step = "offer"; c.offer = { from: seat, give, get, resp: [] };
-        if (answer(c, o).yes) yes.push(o);
+        c.step = "offer"; c.offer = { from: seat, give, get, ag: 0, aw: 0, resp: [] };
+        if (respond(c, o, false, true).yes) yes.push(o);
       }
       if (!yes.length || yes.every(o => pointsOf(s, o, false) >= s.opts.vp - 2)) continue;
       const c = clone(s);
@@ -542,18 +619,6 @@ function tableOffer(s, seat, sc, base) {
     }
   }
   return best;
-}
-/** Answering an offer: yes when it leaves this seat better off and the one offering isn't near winning. */
-function weighOffer(s, seat, sc) {
-  const o = s.offer;
-  if (!has(s.hand[seat], o.get) || pointsOf(s, o.from, false) >= s.opts.vp - 2) return { t: "answer", yes: false };
-  const c = clone(s);
-  o.get.forEach((n, i) => { c.hand[seat][i] -= n; c.hand[o.from][i] += n; });
-  o.give.forEach((n, i) => { c.hand[seat][i] += n; c.hand[o.from][i] -= n; });
-  const mine = worth(c, seat, sc) - worth(s, seat, sc);
-  // and it must do us more good than it does them
-  const theirs = worth(c, o.from, sc) - worth(s, o.from, sc);
-  return { t: "answer", yes: mine > TRADE.take && mine > theirs * TRADE.edge };
 }
 /** Giving up half on a 7: one card at a time, each the one whose loss costs the position least. */
 function shedCards(s, seat, sc) {
