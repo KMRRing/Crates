@@ -40,7 +40,6 @@ const STILL = {
   "slate.js": 3,
   "solo.js": 5,
   "stow.js": 1,
-  "sudoku.js": 3,
   "survey.js": 3,
   "timegrapher.js": 5,
   "yield.js": 3,
