@@ -9,8 +9,10 @@ import { newRoom, commit, cellEdit, validBoard, tallyEdit, onceEdit, tallyOf } f
 import { sitDown, seatsOf, openBranch, branchPath } from "../rooms.js";
 import { seated } from "../table.js";
 import { generate, NONE, withMark, LINE } from "../slitherlink-engine.js";
+import { ELSEWHERE } from "../party-core.js";
 import { fakeDb } from "./fake-db.js";
 import { same } from "./rtdb.js";
+import fs from "node:fs";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -162,6 +164,21 @@ async function land(dev, who) {
   // the guest's page, coming back to a room that has gone, finds no board
   const gone = await openBranch(guest, code, GAME);
   check(gone === null, "a phone coming back to a party that has ended finds nothing to sit down at");
+}
+
+// ---------- every co-op game is plugged in ----------
+{
+  const root = new URL("../", import.meta.url).pathname, suite = fs.readFileSync(root + "suite.js", "utf8");
+  const duo = new Set([...suite.match(/DUO_GAMES = \{([^}]*)\}/)[1].matchAll(/(\w+): "/g)].map(m => m[1]));
+  const apps = fs.readFileSync(root + "apps.js", "utf8");
+  for (const [id, entry] of Object.entries(COOP_GAMES)) {
+    const page = fs.readFileSync(root + entry.page.replace(/\.html$/, ".js"), "utf8"), adapter = (await entry.load()).default;
+    check(entry.id === id && fs.existsSync(root + entry.page) && entry.keys.length > 0 && entry.keys.every(k => k.startsWith(`${id}:`)), `${id}: its page exists and its board is kept under its own keys`);
+    check(["share", "run", "valid"].every(f => typeof adapter[f] === "function") && (!adapter.rules || ["merge", "frozen"].some(f => typeof adapter.rules[f] === "function")), `${id}: its adapter says how a run becomes a board and back`);
+    check(/startCoop\(/.test(page) && /coop=1/.test(page) && /coop\.edit\(/.test(page) && !/\bconfirm\(/.test(page), `${id}: its page joins the party of two and sends edits`);
+    check(new RegExp(`id: "${id}",[^\\n]*players: \\[1, 2\\]`).test(apps), `${id}: apps.js says one or two can play it`);
+    check(!duo.has(id) && !ELSEWHERE.some(e => e.id === id), `${id}: not also a duo match or a party table (those are other ways to play together, with their own tests)`);
+  }
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; } else console.log("coop-request: request, answers, party of two, both phones on the board, leaving hold");

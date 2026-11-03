@@ -707,6 +707,9 @@ dialog.sure .sure-row .btn { flex: 1; padding-inline: .8rem; }
 .coop-say { order: 9; flex: 1 1 100%; margin: 0; font-size: .8rem; line-height: 1.3; color: var(--ink-soft); }
 .coop-say[hidden] { display: none; }
 .watch-bar.asking .coop-say { color: var(--ink); }
+/* a request to join your board: the words, then both answers side by side */
+.pair-ask.join span { flex: 1 1 100%; }
+.pair-ask.join .btn { flex: 1 1 0; }
 /* two requests at once (play together, join my board): the second under the first */
 .pair-ask ~ .pair-ask { top: calc(env(safe-area-inset-top, 0px) + 5.6rem); }
 

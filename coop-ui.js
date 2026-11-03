@@ -96,7 +96,7 @@ export function onJoinNode(a, ctx) {
   const entry = a && coopGame(a.game);
   if (hosting?.busy && a?.at === hosting.at) return;                 // opening the party: the prompt says so until it is done
   if (!entry || a.answer || !open(a)) { hosting = null; ctx.banner(null, "join"); return; }
-  const bar = el("div", "pair-ask");
+  const bar = el("div", "pair-ask join");
   bar.setAttribute("role", "alertdialog");
   bar.innerHTML = '<span><b></b> wants to join your <i></i></span><button class="btn primary" type="button" data-yes>Accept</button><button class="btn" type="button" data-no>Not now</button>';
   bar.querySelector("b").textContent = firstName(a.name);
