@@ -1,4 +1,4 @@
-// Gammon's puzzle rush on the page (Menu, Puzzle rush): the rush's sheet (rush-sheet.js) with the course's board
+// Backgammon's puzzle rush on the page (Menu, Puzzle rush): the rush's sheet (rush-sheet.js) with the course's board
 // (gammon-course.js: tap a checker, its point if it may go more than one way, Undo, Play), the bank gammon-puzzles.js,
 // and the verdict in GNU Backgammon's terms (gammon-rush.js): what the best and yours are worth, the best played, and
 // what it does.

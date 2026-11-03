@@ -1,4 +1,4 @@
-// Gammon's course (Learn, in the header): backgammon taught from nothing, on the course's sheet (course.js) with a
+// Backgammon's course (Learn, in the header): backgammon taught from nothing, on the course's sheet (course.js) with a
 // stage of its own, the board drawn as the table draws it (gammon-draw.js) with its points numbered, and a play made as
 // at the table: a tap on a checker moves it, or shows where it may go when it may go more than one way. Every rule it
 // states is the board's (gammon-board.js): what may be played with a roll, entering, bearing off.
@@ -176,7 +176,7 @@ export function boardStage() {
 
 // ---------- the lessons ----------
 export const COURSE = {
-  title: "Learn Gammon", zh: "",
+  title: "Learn backgammon", zh: "",
   chapters: [
     {
       id: "game", title: "The game", zh: "",

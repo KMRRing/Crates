@@ -1,4 +1,4 @@
-// Bones' puzzle rush without its page (bones-rush-ui.js, on rush-sheet.js): the bank's puzzles (bones-puzzles.js, found
+// Dominoes' puzzle rush without its page (bones-rush-ui.js, on rush-sheet.js): the bank's puzzles (bones-puzzles.js, found
 // by tools/bones-puzzles.mjs), the verdict on a play, and what a puzzle comes to in words. A
 // puzzle is a position as its player saw it, written as the course writes its steps (bones-course.js), so the course's
 // stage draws it and its rules judge it; with it come the plays weighed and what each was worth over hundreds of deals

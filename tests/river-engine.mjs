@@ -1,4 +1,4 @@
-// River's own engine (river-engine.js, river-uci.js): its move generator against the published perft numbers and against
+// Xiangqi's own engine (river-engine.js, river-uci.js): its move generator against the published perft numbers and against
 // river-rules.js (the referee) in positions from random games and in tricky ones, the search's answers (a legal best move,
 // mates found, a general left without a move counted as lost, a perpetual check ruled, a drawn board scored level), its
 // limits (nodes, depth, time), MultiPV and searchmoves, and the UCI layer through uci.js's Engine in-process. Quick: the

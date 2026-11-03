@@ -1,4 +1,4 @@
-// Gammon: backgammon for two, on seats.js (solo against the computer, or at a table with a friend). A match to 1, 3, 5
+// Backgammon: backgammon for two, on seats.js (solo against the computer, or at a table with a friend). A match to 1, 3, 5
 // or 7 points, with the doubling cube if you like (the Crawford rule in the game after someone reaches a point short).
 // The board and its moves are gammon-board.js's (each side's checkers counted in its own numbering).
 import { start, plays, kindOf, won } from "./gammon-board.js";

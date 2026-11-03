@@ -1,4 +1,4 @@
-// Tribute: Guan Dan (掼蛋) at a table of four, you and a computer partner across the table against two computer
+// Guandan (掼蛋) at a table of four, you and a computer partner across the table against two computer
 // players, or you and your partner together against them. The rules are tribute-engine.js's, the players
 // tribute-bot.js's (they think in tribute-worker.js, off this thread); this file deals, shows the table and your
 // cards in their columns, takes your plays, runs the others at a pace you can follow, keeps the levels over a match,

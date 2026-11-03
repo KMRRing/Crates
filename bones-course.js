@@ -1,4 +1,4 @@
-// Bones' course (Learn, in the header): dominoes taught from nothing, on the course's sheet (course.js) with a stage of
+// Dominoes' course (Learn, in the header): dominoes taught from nothing, on the course's sheet (course.js) with a stage of
 // its own, the tiles drawn as the table draws them (bones-layout.js). The game: the tiles, laying them, doubles,
 // knocking, and the three games, Partnership, Gaple and Fives and Threes, then a first game.
 //
@@ -372,7 +372,7 @@ const AHEAD = { game: "fives", seats: 2, total: true, line: "5-4 [4-4] 4-2 2-1 1
 const EXACT = { game: "fives", seats: 2, total: true, line: "3-3 3-6 [6-6] 6-2 2-0", hand: "0-0 0-3 3-5 5-5", others: [{ n: 5, knocked: [0, 6] }], scores: [59, 56] };
 
 export const COURSE = {
-  title: "Learn Bones", zh: "",
+  title: "Learn dominoes", zh: "",
   chapters: [
     {
       id: "game", title: "The game", zh: "",
@@ -380,7 +380,7 @@ export const COURSE = {
         {
           id: "tiles", title: "Twenty-eight tiles", zh: "",
           steps: [
-            { rows: [{ label: "The seven doubles", tiles: "0-0 1-1 2-2 3-3 4-4 5-5 6-6" }, { label: "And every other pair once", tiles: "0-1 2-5 3-6 4-6" }], say: "Bones is played with the double-six set: 28 tiles, every pair of numbers from blank (0) to six once, the seven doubles among them. A tile's pips (its spots) are its count: 6–4 counts 10." },
+            { rows: [{ label: "The seven doubles", tiles: "0-0 1-1 2-2 3-3 4-4 5-5 6-6" }, { label: "And every other pair once", tiles: "0-1 2-5 3-6 4-6" }], say: "Dominoes is played with the double-six set: 28 tiles, every pair of numbers from blank (0) to six once, the seven doubles among them. A tile's pips (its spots) are its count: 6–4 counts 10." },
             { rows: [{ label: "A hand", tiles: "6-5 3-1 0-0" }], quiz: ["Six", "Seven", "Eight"], answer: 1, say: "How many tiles carry a five?", why: "Seven: 5–0 to 5–6, the double among them. Every number is on seven tiles, and on eight halves, its double having two." },
             { rows: [{ label: "Every five", tiles: "5-0 5-1 5-2 5-3 5-4 5-5 5-6" }], say: "Every number is on seven tiles. Remember it: counting what's been laid of a number tells you what's still to come." },
             { rows: [{ label: "", tiles: "6-5" }], quiz: ["Eleven", "Six", "Thirty"], answer: 0, say: "What does 6–5 count?", why: "Eleven: six pips and five. A hand's pips decide a blocked hand, and what a hand scores." },

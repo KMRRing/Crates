@@ -1,4 +1,4 @@
-// Gammon's board drawn (a 360 × 300 drawing), for the page and the course alike: the points, the checkers (yours
+// Backgammon's board drawn (a 360 × 300 drawing), for the page and the course alike: the points, the checkers (yours
 // ivory, theirs ink, five to a stack and the count beyond), the bar, the tray of those borne off, the dice, the cube,
 // where a picked-up checker may go, and the tap areas (each point's column, the bar, the tray, as data-pt).
 const W = 24, R = 11, TOP = 8, BOT_Y = 292, LEFT = 8, RIGHT = 172, BAR_X = 162, TRAY_X = 335;

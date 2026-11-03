@@ -1,4 +1,4 @@
-// Tribute's puzzle rush: positions from the computer players' own hands where one play is clearly best, the bank in
+// Guandan's puzzle rush: positions from the computer players' own hands where one play is clearly best, the bank in
 // tribute-puzzles.js (tools/tribute-puzzles.mjs finds them). A puzzle is the deal and the moves that led to it, so it
 // replays through the engine to exactly the table the player saw; with it come the plays weighed and what each was
 // worth when the rest of the hand was played out in hundreds of deals of the cards the player couldn't see. Pure: the

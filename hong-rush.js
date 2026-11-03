@@ -1,4 +1,4 @@
-// Hong's puzzle rush: positions from the computer players' own hands where one discard (or one call) is clearly best,
+// Mahjong's puzzle rush: positions from the computer players' own hands where one discard (or one call) is clearly best,
 // the bank in hong-puzzles.js (tools/hong-puzzles.mjs finds them). A puzzle is the deal and the moves that led to it,
 // so it replays through the engine to exactly the table the player saw; the verdict comes from the coach's own
 // reckoning at that table, the same as Why? in a game. Pure: the page, the tests and the generator share it.

@@ -1,4 +1,4 @@
-// River's board: the Xiangqi board drawn in SVG (nine files by ten ranks of points, the river 楚河 漢界 across the
+// Xiangqi's board: the Xiangqi board drawn in SVG (nine files by ten ranks of points, the river 楚河 漢界 across the
 // middle, the palaces' diagonals, the marks where the cannons and soldiers start, each side's file numbers at its own
 // edge), the pieces as discs with their characters, and the hand: tap a piece and then a point, or drag it, its legal
 // points shown. Drawn afresh from what it's given each time; the last move slides into place. The pieces carry their

@@ -1,4 +1,4 @@
-// Bones (bones-rules.js) on seats.js: the double-six set; Fives and Threes' count of the ends (a double at an end both
+// Dominoes (bones-rules.js) on seats.js: the double-six set; Fives and Threes' count of the ends (a double at an end both
 // halves, the first tile all its pips) and its points; Partnership (the double six leads the first hand, play passes
 // on, a tile must fit, a knock only when nothing fits, going out or the block deciding the hand, the losers' pips or
 // every hand's, the target); Gaple (the double blank opening, the winner leading a double after, the lowest count

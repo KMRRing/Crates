@@ -56,7 +56,7 @@ function overview() {
   board?.destroy(); board = null;
   const c = pile.counts(), due = dueNow().length;
   $("lead").textContent = c.total ? `What you missed, passed on or barely staked on, brought back until you know it. Right moves an item up a pile; wrong drops it to the first. ${due ? `${due} due now.` : c.due ? "Nothing due in what Deck covers." : "Nothing due yet."}`
-    : "Nothing banked yet. Play Punt, Quote, Chart, Crates or Gambit's puzzle rush: what you miss, pass on or stake 20% or less on lands here, and comes back until you know it.";
+    : "Nothing banked yet. Play Punt, Quote, Chart, Crates or Chess puzzle rush: what you miss, pass on or stake 20% or less on lands here, and comes back until you know it.";
   $("piles").replaceChildren(...PILES.map((p, i) => {
     const d = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span"), small = document.createElement("small");
     b.textContent = String(c.piles[i]); s.textContent = p.name; small.textContent = p.gap ? gapText(p.gap) : "at once";
@@ -245,7 +245,7 @@ function ask() {
   } else if (it.game === "rush") {
     const p = it.payload;
     const side = p.fen.split(" ")[1] === "w" ? "Black" : "White";
-    $("ask").textContent = `Gambit · puzzle rated ${Number(p.rating).toLocaleString("en-GB")}${p.themes?.length ? ` · ${p.themes.join(", ")}` : ""}`;
+    $("ask").textContent = `Chess · puzzle rated ${Number(p.rating).toLocaleString("en-GB")}${p.themes?.length ? ` · ${p.themes.join(", ")}` : ""}`;
     $("prompt").textContent = `${side} to move`;
     const holder = document.createElement("div");
     box.appendChild(holder);

@@ -1,4 +1,4 @@
-// Gammon's puzzle rush (gammon-rush.js, its bank gammon-puzzles.js): every puzzle a board the game allows (fifteen a
+// Backgammon's puzzle rush (gammon-rush.js, its bank gammon-puzzles.js): every puzzle a board the game allows (fifteen a
 // side, no point held by both) and a roll; every play the roll allows listed once, by the board it leaves, with GNU
 // Backgammon's equity, best first; the best clear of the next by the margin and those as good within half of it; what
 // the best does found again; ratings 1 to 10, every one stocked; a play made on the board named as the bank names it;

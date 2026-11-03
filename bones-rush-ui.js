@@ -1,6 +1,6 @@
-// Bones' puzzle rush on the page (Menu, Puzzle rush): the rush's sheet (rush-sheet.js) with the course's stage
+// Dominoes' puzzle rush on the page (Menu, Puzzle rush): the rush's sheet (rush-sheet.js) with the course's stage
 // (bones-course.js: the others with their tiles and knocks, the line, your tiles; tap a tile, its place, Lay), the bank
-// bones-puzzles.js, and the verdict in Bones' terms (bones-rush.js): what the best and yours were worth over the
+// bones-puzzles.js, and the verdict in Dominoes' terms (bones-rush.js): what the best and yours were worth over the
 // puzzle's deals, the best laid on the line, and what it does.
 import { tileStage, tableOf, playName } from "./bones-course.js";
 import { stepOf, judge, playWords, worthText, doesText, whyText, askText } from "./bones-rush.js";

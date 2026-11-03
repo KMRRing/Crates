@@ -1,4 +1,4 @@
-// Boast: Liar's dice as it's played round a table in Hong Kong, Macau and Guangdong (大話骰, daai6 waa6 sik1, "big-talk
+// Liar's dice (boast.html): Liar's dice as it's played round a table in Hong Kong, Macau and Guangdong (大話骰, daai6 waa6 sik1, "big-talk
 // dice") and across the mainland (吹牛, chuīniú, "to brag"): five dice each under a cup, bids on how many of a face lie
 // under all the cups together, ones wild until someone bids without them (斋, zhāi, "plain"), and 开 (kāi, "open") to
 // call the last bid a lie and lift every cup. The loser drinks; here, a cup is a point against you, and the game ends

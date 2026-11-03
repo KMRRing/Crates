@@ -1,4 +1,4 @@
-// Gammon's computer player: a judgement of a position (my chances of winning it, with the other side to roll), and the
+// Backgammon's computer player: a judgement of a position (my chances of winning it, with the other side to roll), and the
 // play chosen by it. Easy picks among the better plays with a wobble; Medium plays the best by the judgement; Hard
 // looks a roll further, the other side's best answer to each of its 21 rolls, for the plays that judged best.
 //

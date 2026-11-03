@@ -1,4 +1,4 @@
-// Bones: dominoes on seats.js, three games of the double-six set (pagat.com's rules). Partnership, the block game of
+// Dominoes on seats.js, three games of the double-six set (pagat.com's rules). Partnership, the block game of
 // Latin America and the Caribbean: four in two partnerships, seven tiles each, the side that goes out (or holds fewer
 // pips when the line is blocked) scoring the other side's pips, to 100. Gaple, Indonesia's: four each for themselves,
 // seven each, the hand won by the lowest count of pips left, every player paying every other the difference. Fives and

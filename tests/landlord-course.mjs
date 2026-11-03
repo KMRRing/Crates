@@ -1,4 +1,4 @@
-// Landlord's course (landlord-course.js on course.js and course-cards.js): every exercise worked through the rules, so
+// Dou Dizhu's course (landlord-course.js on course.js and course-cards.js): every exercise worked through the rules, so
 // none asks for what the hand can't do. Every step's cards are real (no card twice in a pack) and it shows something;
 // every play to beat is a play; every exercise's answer is in the hand and judged right, every wrong pick it has words
 // for is judged wrong with those words, and of all the picks the hand allows, only those the lesson means are right;

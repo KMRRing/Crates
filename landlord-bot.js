@@ -1,4 +1,4 @@
-// Landlord's computer players. A hand is organised into the plays that shed it in the fewest leads (拆牌): the rocket
+// Dou Dizhu's computer players. A hand is organised into the plays that shed it in the fewest leads (拆牌): the rocket
 // and bombs kept whole, then whichever chains (straights, pairs in a row, airplanes) leave the rest cheapest, the rest
 // grouped into threes, pairs and singles, the weakest singles and pairs riding on the threes and airplanes as kickers;
 // each play weighed by how likely it is to need a lead of its own (a low single nearly always does; a two, a joker, a

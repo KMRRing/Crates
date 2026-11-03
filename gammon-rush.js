@@ -1,4 +1,4 @@
-// Gammon's puzzle rush without its page (gammon-rush-ui.js, on rush-sheet.js): the bank's puzzles (gammon-puzzles.js,
+// Backgammon's puzzle rush without its page (gammon-rush-ui.js, on rush-sheet.js): the bank's puzzles (gammon-puzzles.js,
 // found by tools/gammon-puzzles.mjs), the verdict on a play, and what a puzzle comes to in words. A puzzle is a
 // position from the computer players' own games, written as the course writes its steps (gammon-course.js), so the
 // course's board draws it and the board's rules judge it; with it comes every play its roll allows and GNU

@@ -1,4 +1,4 @@
-// Hong: Hong Kong mahjong at a table of four, you and three computer players (or you, your partner and two of them).
+// Mahjong: Hong Kong mahjong at a table of four, you and three computer players (or you, your partner and two of them).
 // The rules are hong-engine.js's, the players hong-bot.js's (they think in hong-worker.js, off this thread); this file
 // lays the table, takes your tiles and calls, runs the players at a pace you can follow, keeps the score over a game of
 // one, two or four rounds of wind, and coaches: what the computer would do in your seat and why, or only where your move

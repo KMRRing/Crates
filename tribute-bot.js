@@ -1,4 +1,4 @@
-// Tribute's computer players, and the hint that explains them. A player sees its own cards, every play and pass, the
+// Guandan's computer players, and the hint that explains them. A player sees its own cards, every play and pass, the
 // counts and the tribute; it remembers every card played and reads the others by what they've done. Two strengths:
 // hard (the default) plays every idea below and looks ahead; medium leaves the finer ones out and errs now and then.
 //  - The hand is organised (split) into the plays that cost it fewest leads. Each play is worth the chance it's played

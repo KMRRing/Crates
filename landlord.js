@@ -1,4 +1,4 @@
-// Landlord (斗地主) against computer players, or at a table with friends each on their own phone. The rules and words
+// Dou Dizhu (斗地主) against computer players, or at a table with friends each on their own phone. The rules and words
 // are landlord-rules.js's, the computer players landlord-bot.js's, the running seats.js's (seats-ui.js). This page draws
 // the table: the two others at its top corners with what each did this trick, the kitty between them, your cards
 // along the foot, picked by a tap; the bidding's buttons while it's on.
@@ -302,7 +302,7 @@ $("endTable").addEventListener("click", () => $("endDlg").close());
 function showRules() {
   const row = (k, en, ex) => `<tr><td>${en}${ex ? `<br><small>${ex}</small>` : ""}</td><td><b>${PLAY_TALK[k].zh}</b><br><small>${PLAY_TALK[k].py}</small></td><td><b>${PLAY_TALK[k].yue}</b><br><small>${PLAY_TALK[k].jp}</small></td></tr>`;
   $("rulesBody").innerHTML = `
-    <p>Landlord (斗地主, dòu dìzhǔ, "fight the landlord") is China's most played card game: one player, the landlord (地主), against the other two, the peasants (农民), who play as a side. Be first to play out all your cards; a peasant going out wins for both.</p>
+    <p>Dou Dizhu (斗地主, dòu dìzhǔ, "fight the landlord") is China's most played card game: one player, the landlord (地主), against the other two, the peasants (农民), who play as a side. Be first to play out all your cards; a peasant going out wins for both.</p>
     <p><b>The deal.</b> All 54 cards, both jokers in: seventeen each and three face down, the kitty (底牌, dǐpái). A card is turned face up as they're dealt: whoever gets it bids first.</p>
     <p><b>Bidding</b>, as the menu has it. <i>For points</i> (叫分): once round, each bids 1, 2 or 3 points, more than the last bid, or passes (不叫); a 3 ends it at once, and the highest bidder is landlord at that stake. <i>Call and rob</i> (叫地主, 抢地主, as the apps play): the first to call is landlord unless robbed; each player after the caller may rob once, each rob doubling the stake; if anyone robbed, the caller has the last word. Nobody bids: the cards are dealt again.</p>
     <p><b>The landlord</b> takes the kitty, shown to everyone first, and leads. Play goes round to the right.</p>
@@ -352,7 +352,7 @@ function openMenu() {
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
   const cp = progressOf("landlord", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Landlord, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Dou Dizhu, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
   set.append(choice("A game is", DEALS.map(n => [n, `${n} deals`]), opts.deals, v => { opts.deals = Number(v); keep(); }));

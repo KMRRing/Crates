@@ -14,8 +14,8 @@ Traps:
 
 What counts as a round is each game's own, the natural unit you'd stop at (`ROUNDS` has each): a puzzle solved or given up, a hand or a deal settled, a run's last answer, an idle game's game over after its last move has played out. The exceptions:
 - Nonogram's round waits for the picture's name when naming is on; Yield, whose puzzles have no end of their own, ends at Master refiner (Spelling Bee's Genius) or when the puzzle is over.
-- A deal thrown in or passed out and dealt again isn't a round (Big Two, Landlord, Pegs, Contract); Avalanche's lesson day isn't one; Topple in Levels is the level; Slipway is a part carved to a star; Courier is a run over (the hearts gone).
-- A puzzle rush (Gambit's page of its own, or a rush in Hong, Tribute, River or on a sheet) is a mode of its game and ends no round.
+- A deal thrown in or passed out and dealt again isn't a round (Big Two, Dou Dizhu, Cribbage, Contract bridge); Avalanche's lesson day isn't one; Topple in Levels is the level; Slipway is a part carved to a star; Courier is a run over (the hearts gone).
+- A puzzle rush (Chess's page of its own, or a rush in Mahjong, Guandan, Xiangqi or on a sheet) is a mode of its game and ends no round.
 - A game left mid-match is there as it was when random mode comes back to it.
 
 Left out: Party and its games, Cue and Company, made for people round a table; Almanac and Ledger, the knowledge base and the record of how you learn, not games; and the whole Appendix (3 November 2026, Korbi: it stays out of Random and of Start a game over): the casino games, Blend, Refinery, Guilloché and Timegrapher; those that called `roundOver` still do, and it does nothing. Deck, the review of every game's misses, has no tile and so isn't in the list: it deals only what's due, and often has nothing to play.

@@ -1,4 +1,4 @@
-# River
+# Xiangqi
 Xiangqi (象棋, Chinese chess) against the computer at a strength you choose, two players on one phone, or a match with your partner; with a course for a beginner (Learn), a coach (Hint, Check, Always) and a puzzle rush. Red moves first; the board turns so your side is at the bottom. The rules are `river-rules.js` (the referee, with the engine's move generator checked against it), the board `river-board.js`, the computer's own engine `river-engine.js` (spoken to by `uci.js` in a worker, `river-engine-worker.js`).
 
 ## Rulings
@@ -7,10 +7,10 @@ Xiangqi (象棋, Chinese chess) against the computer at a strength you choose, t
 - Menu, Pieces: Pictures (October 2026: a player still learning the characters found them hard to tell apart). The knight, tower and pawn are the cburnett chess pieces' shapes (CC BY-SA 3.0), as Gambit's.
 - The coach (October 2026, as Hong's and Tribute's): Hints, Check, Always, Off. How bad a move is goes by winning chances (Lichess's curve), not soldiers; a fall of 0.2 is a mistake, 0.3 a blunder.
 - The puzzle rush (October 2026, as Gambit's) and its Patterns (October 2026, asked for: the bank's puzzles were good practice but taught no names).
-- 3 November 2026: Fairy-Stockfish (GPL v3) is out of the tree; the computer is River's own engine. Shogi is not offered, so nothing of it was needed.
+- 3 November 2026: Fairy-Stockfish (GPL v3) is out of the tree; the computer is Xiangqi's own engine. Shogi is not offered, so nothing of it was needed.
 
 ## Traps
-- The referee is `river-rules.js`, never the engine. The engine ends a search the way River's rules end a game (a perpetual check lost by the checker, a draw by repetition, 120 quiet plies, no attacker left, no move left a loss), and `tests/river-engine.mjs` and `tests/river.mjs` hold it to River's generator and the published perft numbers (44, 1,920, 79,666, 3,290,240).
+- The referee is `river-rules.js`, never the engine. The engine ends a search the way Xiangqi's rules end a game (a perpetual check lost by the checker, a draw by repetition, 120 quiet plies, no attacker left, no move left a loss), and `tests/river-engine.mjs` and `tests/river.mjs` hold it to Xiangqi's generator and the published perft numbers (44, 1,920, 79,666, 3,290,240).
 - The engine's scores are in the scale Fairy-Stockfish used (a soldier before the river 100, a chariot about 900), because the coach reads them at four fifths (`scale: 1.25` in `river.js`, which is what makes a soldier a chess pawn's worth), and `HINT` and `REVIEW` were set for it. Change the evaluation's material and the coach's wording shifts with it.
 - A level is a number of positions, never a time, so a slow phone plays as a fast one. The engine's levels are rated on the old scale (Fairy-Stockfish's levels were the anchors, `tools/engine-levels-river.jsonl`: "fsf …" are its games, "own …" the engine's); the puzzle bank's ratings (`river-puzzles.txt`) were computed with the old levels and are not computed again.
 - The bank was found with Fairy-Stockfish as judge (`tools/river-puzzles.mjs`; `FAIRY=` names an outside native build for a second opinion, never in the tree). Run again with the own engine it finds other puzzles, with the position counts set for the old engine.

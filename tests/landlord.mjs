@@ -1,4 +1,4 @@
-// Landlord (landlord-rules.js, landlord-bot.js): what a play is (every kind, and what isn't one: a two in a straight,
+// Dou Dizhu (landlord-rules.js, landlord-bot.js): what a play is (every kind, and what isn't one: a two in a straight,
 // a joker pairing with a two, a four with a pair as its two cards, both jokers as kickers, a kicker of the threes' own
 // rank) and what beats what (the same kind and size higher, kickers not counting, bombs, the rocket), the plays a hand
 // can make, the deal, both biddings (points: rising bids, a 3 ending it, nobody bidding and the cards dealt again; call

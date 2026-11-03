@@ -1,4 +1,4 @@
-// Bones' puzzle rush (bones-rush.js, its bank bones-puzzles.js): every puzzle a position a deal could reach, as its
+// Dominoes' puzzle rush (bones-rush.js, its bank bones-puzzles.js): every puzzle a position a deal could reach, as its
 // player saw it (the line, the hands and the tiles out of play make 28; some deal honours every knock), with at least
 // two plays that differ; every play the hand allows weighed, by its name, and nothing else; the best the one worth most,
 // those as good within the margin, and none of the others; what the best play does (its motifs) found again; ratings

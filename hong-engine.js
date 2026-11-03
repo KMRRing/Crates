@@ -1,4 +1,4 @@
-// Hong: Hong Kong mahjong (香港麻雀), four players, the rules as played in Hong Kong homes and clubs (新派清章): 144
+// Mahjong: Hong Kong mahjong (香港麻雀), four players, the rules as played in Hong Kong homes and clubs (新派清章): 144
 // tiles with flowers or 136 without, three fan to win (or one, or none: a chicken hand), ten fan the cap, half-spicy
 // payouts, the discarder paying the whole of a win off his discard (全銃), a self-drawn win paid by all three, the head
 // bump (only the first claimant after the discarder wins), play to the last tile. Or no fan (opts.scoring "nofan", the

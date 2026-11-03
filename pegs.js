@@ -1,4 +1,4 @@
-// Pegs (cribbage for two) against the computer, or at a table with a friend on their own phone. The rules are
+// Cribbage (for two) against the computer, or at a table with a friend on their own phone. The rules are
 // pegs-rules.js's, the computer player pegs-bot.js's, the running seats.js's (seats-ui.js). This page draws the table:
 // the board with each side's two pegs, the other hand as backs, the crib and the starter, the cards played this round
 // with the count, and each count of the show itemised; your cards along the foot.
@@ -225,7 +225,7 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>Cribbage for two: be first to peg round the board to 121 (or 61, the short game). Six cards each; each puts two in the <b>crib</b>, which is the dealer's. The starter is turned up (a jack, <b>his heels</b>, is two for the dealer).</p>
     <p><b>The play.</b> The one who didn't deal leads. Each plays a card in turn, calling the count, which may not pass 31. Scoring as you go: 15 or 31 two; a pair two, three alike six, four alike twelve; a run of three or more (the last cards played, in any order) as many as its length. When you can't play, you say go; the other plays on if they can, and the last to play scores one for go (two for exactly 31); the count starts again. One for the last card.</p>
-    <p><b>The show.</b> The one who didn't deal counts four cards and the starter, then the dealer, then the dealer counts the crib. Fifteens two each, pairs two each, runs by their length, four cards of a suit four (five with the starter; the crib needs all five), and the jack of the starter's suit in your hand one (his nobs). Pegs counts for you, and says how.</p>
+    <p><b>The show.</b> The one who didn't deal counts four cards and the starter, then the dealer, then the dealer counts the crib. Fifteens two each, pairs two each, runs by their length, four cards of a suit four (five with the starter; the crib needs all five), and the jack of the starter's suit in your hand one (his nobs). Cribbage counts for you, and says how.</p>
     <p><b>The board.</b> Two pegs a side: the front peg is your score and the back peg where it was before. First to 121 wins at once, in the middle of the play or of a count. A loser left under 91 is skunked; under 61, double skunked.</p>`;
   $("rulesDlg").showModal();
 }
