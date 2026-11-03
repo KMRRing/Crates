@@ -138,7 +138,7 @@ function render() {
   }).join("");
   const started = uses() > 0;
   $("setup").hidden = !lv.slack;
-  $("setup").innerHTML = lv.slack ? `<button type="button" class="btn sw-act" data-act="left" aria-label="Slide the part left" ${started || B.off <= 0 ? "disabled" : ""}>◀</button><button type="button" class="btn sw-act" data-act="flip" ${started ? "disabled" : ""}>Turn end for end</button><button type="button" class="btn sw-act" data-act="right" aria-label="Slide the part right" ${started || B.off >= B.nx - B.px ? "disabled" : ""}>▶</button>` : "";
+  $("setup").innerHTML = lv.slack ? `<button type="button" class="btn sw-act" data-act="left" aria-label="Slide the part left" ${started || B.off <= 0 ? "disabled" : ""}>◀</button><button type="button" class="btn sw-act" data-act="flip" aria-label="Turn the part end for end" ${started ? "disabled" : ""}>Reverse</button><button type="button" class="btn sw-act" data-act="right" aria-label="Slide the part right" ${started || B.off >= B.nx - B.px ? "disabled" : ""}>▶</button>` : "";
   $("acts").innerHTML = `<button type="button" class="btn sw-act" data-act="undo" ${undo.length ? "" : "disabled"}>Undo</button><button type="button" class="btn sw-act" data-act="hint" ${done ? "disabled" : ""}>Hint</button><button type="button" class="btn sw-act" data-act="again" ${started ? "" : "disabled"}>Start over</button>`;
   $("views").innerHTML = Object.keys(VIEWS).map(v => `<button type="button" data-view="${v}" aria-pressed="${viewNow === v}">${v[0].toUpperCase() + v.slice(1)}</button>`).join("");
   sayState();
@@ -370,7 +370,7 @@ function giveHint() {
   const h = hint(L(), B);
   if (!h) { hintText = "Nothing more is needed here."; sayState(); return; }
   hintStep++;
-  if (h.place) hintText = "First slide the part, or turn it end for end, so the knot ends up outside it.";
+  if (h.place) hintText = "First slide the part, or reverse it end for end, so the knot ends up outside it.";
   else {
     const name = TOOL_NAMES[h.op.tool].toLowerCase();
     hintText = hintStep === 1 ? `Use the ${name} next.` : `Use the ${name} next, ${VIEW_WORDS[h.op.view]}.`;
