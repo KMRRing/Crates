@@ -65,6 +65,8 @@ body:not(.on-sky) #sky { display: none; }
 .sk-search input { flex: 1; min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; color: var(--ink); font: inherit; font-size: 1rem; outline: none; -webkit-appearance: none; appearance: none; user-select: text; -webkit-user-select: text; }
 .sk-search input::placeholder { color: var(--ink-soft); }
 .sk-menu svg { pointer-events: none; }
+/* Modern keeps the plain word (menu.js's markButton leaves it): on a sheet like the search field, or it vanishes into the sky */
+.sk-menu:not(.cx-btn) { flex: none; height: 2.5rem; padding: 0 .9rem; border: 1.5px solid var(--brass); border-radius: 6px; background: var(--sheet); color: var(--ink); font: inherit; font-size: .9rem; font-weight: 650; cursor: pointer; }
 /* under the sky: what the stars say about themselves, and the two small controls, on a soft dark foot */
 .sk-foot { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; padding: 1.6rem var(--sk-r) var(--sk-b) var(--sk-l); pointer-events: none; background: linear-gradient(transparent, rgba(4, 8, 14, .74) 62%); }
 .sk-foot[hidden] { display: none; }
