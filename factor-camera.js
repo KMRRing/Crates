@@ -8,10 +8,10 @@
 export const DEG = Math.PI / 180;
 export const DIST = 30;
 export const LOOK = [0, 0, 0.15];
-/** The lowest and highest the player can bring the camera: below 25° the near tiles' pieces hide the far ones and a ringed
- *  place on the far side is a sliver to tap; above 88° the camera has no "up" (straight down it can't tell yaw from roll)
- *  and the pieces lose the side faces and shadows that make it 3D. */
-export const MIN_ELEV = 25 * DEG, MAX_ELEV = 88 * DEG;
+/** The lowest and highest the player can bring the camera. Below 30° the nearest ringed corners are under 17 px apart up and
+ *  down on a phone, too close to tap, and the near row's pieces hide the far; above 88° the camera has no "up" (straight
+ *  down it can't tell a turn from a roll) and the pieces lose the side faces and shadows that make it 3D. */
+export const MIN_ELEV = 30 * DEG, MAX_ELEV = 88 * DEG;
 /** The height the island opens at when the box lets it: Korbi found 54° "slightly too shallow" (3 November 2026). */
 export const PREFER = 63 * DEG;
 /** The fitted view may give up this much of the largest island the box allows for a steeper angle. */
@@ -77,6 +77,24 @@ export function clampPan(base, zoom, panU, panV) {
   return [Math.max(-mu, Math.min(mu, panU)), Math.max(-mv, Math.min(mv, panV))];
 }
 
+// ---------- a flick: the little inertia after a drag ----------
+/** Speeds are in pixels a millisecond. A flick slower than `least` just stops; a hard one is held to `most`, so it carries on
+ *  for about `most` × `tau` pixels (a hundred degrees or so of turn) and no further; it has stopped below `rest`. */
+export const FLICK = { least: 0.15, most: 1, tau: 200, rest: 0.02 };
+/** The coast a finger's speed (vx, vy) leaves, or null when it was too slow to leave one. */
+export function flick(vx, vy) {
+  const speed = Math.hypot(vx, vy);
+  if (!(speed >= FLICK.least)) return null;
+  const k = Math.min(1, FLICK.most / speed);
+  return { vx: vx * k, vy: vy * k };
+}
+/** A coast `dt` ms on (at most 50 at once, for a slow frame): the pixels it travels and its slower speed; `done` once it's still. */
+export function coasted(c, dt) {
+  dt = Math.max(0, Math.min(50, dt));
+  const k = Math.exp(-dt / FLICK.tau);
+  return { dx: c.vx * dt, dy: c.vy * dt, vx: c.vx * k, vy: c.vy * k, done: Math.hypot(c.vx * k, c.vy * k) <= FLICK.rest };
+}
+
 // ---------- what the player arranged, and what is kept of it ----------
 /**
  * The view a player has arranged: `turn` is null while the camera is the fitted one (it refits whenever the box changes
@@ -94,9 +112,8 @@ export function poseOf(view, outline, w, h) {
 /** A view's frame in a box: the frustum at its pose, zoomed and moved (the pose is refitted to the box, the player's turn kept). */
 export function viewIn(view, outline, w, h) {
   const { yaw, elev } = poseOf(view, outline, w, h), base = frame(outline, yaw, elev, w, h), zoom = clampZoom(view.zoom);
-  const mu = base.hu - base.hu / zoom, mv = base.hv - base.hv / zoom;
-  const panU = (view.px || 0) * mu, panV = (view.py || 0) * mv;
-  return { yaw, elev, base, zoom, panU, panV };
+  const mu = base.hu - base.hu / zoom, mv = base.hv - base.hv / zoom, share = v => Math.max(-1, Math.min(1, Number.isFinite(v) ? v : 0));
+  return { yaw, elev, base, zoom, panU: share(view.px) * mu, panV: share(view.py) * mv };
 }
 
 /** True when a view is the fitted one, unzoomed and unmoved. */
