@@ -230,7 +230,7 @@ export function createCloth(host) {
         r = e;
       } else if (has(r, c, NOTE_WEFT)) {
         const light = luma(hexOf(p.weft[r])) > .5, cx = x0 + (c + .5) * s, cy = y0 + (r + .5) * s;
-        ctx.beginPath(); ctx.arc(cx, cy, Math.max(2, s * .1), 0, 7);
+        ctx.beginPath(); ctx.arc(cx, cy, Math.max(2.5, s * .13), 0, 7);
         ctx.fillStyle = light ? "rgba(20,20,20,.75)" : "rgba(255,255,255,.85)"; ctx.fill();
       }
     }
