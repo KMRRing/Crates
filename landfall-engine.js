@@ -14,7 +14,10 @@
 import { STARS } from "./landfall-stars.js";
 import { levelById } from "./landfall-levels.js";
 import { draw, gaussAt, rng, vec, dist, fogOf, copyP, addP, legNoise, fold, firstEvent, enters, nearest, norm180 } from "./landfall-model.js";
-import { julianDate, starAltAz, sunAltAz, dip, refraction, sextantReading, toLatLon, polarisAlmanac } from "./landfall-sky.js";
+import {
+  julianDate, starAltAz, sunAltAz, dip, refraction, sextantReading, toLatLon, fromLatLon, polarisAlmanac, sunPlace, sunReading, sunObservedAltitude,
+  sunSemidiameter, sunParallax, sunAtHourAngle, noonJd, sunHourAngle, equalAltitudeLongitude, latitudeFromMeridian,
+} from "./landfall-sky.js";
 
 export const POLARIS_HR = 424;
 export const BY_HR = new Map(STARS.map(s => [s[0], s]));
@@ -23,6 +26,11 @@ export const EYE = 3.5;                       // metres: the navigator's eye abo
 export const DUSK_ALT = -4.5, DAWN_ALT = -11;  // the sun's altitude at which a watch begins
 export const CLOCK = 12;                       // game seconds per real second while the navigator looks about
 export const MAX_WAIT = 75;                    // game minutes into a watch after which the twilight is over
+export const SUN = -1;                         // what a noon watch picks: the sun is not in the catalogue
+export const NOON_LEAD = -10;                  // a noon watch begins at this hour angle of the sun, degrees: 40 minutes before apparent noon
+export const MORNING_END = -1.5;               // a morning sight needs the sun still climbing: at the latest six minutes before noon
+export const NOON_MAX = 200;                   // game minutes into a noon watch after which the day is spent
+export const maxWait = S => (S.watch.kind === "noon" ? NOON_MAX : MAX_WAIT + 30);
 const SIGMA_PLAYER = 0.35;                     // arcminutes: what a decent observer centres a star to, which the filter assumes
 const MARKS = 3;
 
@@ -46,6 +54,10 @@ export function nextCrossing(jd, kind, lat, lon, skip = 0) {
     a = b; fa = fb;
   }
   return null;
+}
+/** The next watch of a kind: a twilight (the sun's altitude) or, for "noon", the sun forty minutes short of its transit. `skip` days on, as for nextCrossing. */
+export function nextEvent(kind, jd, lat, lon, skip = 0) {
+  return kind === "noon" ? sunAtHourAngle(jd + skip, lon, NOON_LEAD) : nextCrossing(jd, kind, lat, lon, skip);
 }
 /** The ship's bell at a ship's-time minute of the day (a multiple of 30): the strokes, by the watch system with its two dog watches. */
 export function bellsAt(minuteOfDay) {
@@ -98,9 +110,8 @@ export function newVoyage(levelId, seed) {
   S.fixes = [];
   S.end = null;
   // departs so that the first dusk comes `leg0` hours later, by local mean time at the origin
-  const noon = julianDate(S.date[0], S.date[1], S.date[2], 12) - L.origin.lon / 360;
-  const dusk0 = nextCrossing(noon, "dusk", L.origin.lat, L.origin.lon);
-  S.jd = dusk0 - L.leg0 / 24;
+  const k0 = S.kinds[0], base = julianDate(S.date[0], S.date[1], S.date[2], k0 === "dusk" ? 12 : 0) - L.origin.lon / 360;
+  S.jd = nextEvent(k0, base, L.origin.lat, L.origin.lon) - L.leg0 / 24;
   S.t0 = S.jd;
   S.watch = { min: 0 };
   runLeg(S, L.course0, 1);
@@ -118,7 +129,7 @@ function runLeg(S, course, speedFactor) {
   const tAt = hours => [T0[0] + hours * (vt * h[0] + cur[0]), T0[1] + hours * (vt * h[1] + cur[1])];
   let t1 = null, T1 = T0;
   for (let i = 0; i < 3; i++) {
-    const p = toLatLon(L.origin, T1), c = nextCrossing(jd0, kind, p.lat, p.lon, 4 / 24);
+    const p = toLatLon(L.origin, T1), c = nextEvent(kind, jd0, p.lat, p.lon, 4 / 24);
     if (c === null) { t1 = jd0 + 0.5; T1 = tAt(12); break; }
     t1 = c; T1 = tAt((t1 - jd0) * 24);
   }
@@ -137,9 +148,11 @@ function runLeg(S, course, speedFactor) {
   if (S.w >= S.watches) return finish(S, "missed", { miss: through });
   S.w += 1; S.jd = S.t0 = t1;
   const wx = S.weathers[S.w - 1];
+  const day = kind === "noon";
   S.watch = {
-    min: 0, picked: null, marks: [], retakes: 0, bearing: null, book: null, plot: null, ritual: null, weather: wx,
-    hUnit: r.g(), swell: [r.u() * 6.28, r.u() * 6.28], clouds: wx === "cloud" ? makeClouds(r) : [],
+    min: 0, picked: day ? SUN : null, marks: [], retakes: 0, bearing: null, book: null, plot: null, ritual: null, weather: wx, kind,
+    hUnit: r.g(), swell: [r.u() * 6.28, r.u() * 6.28], clouds: wx === "cloud" ? (day ? makeSunClouds(r) : makeClouds(r)) : [],
+    ...(day ? { sun: { m1: null, noon: null, aft: null }, stage: null } : {}),
   };
   S.phase = "ritual";
   return { ok: true };
@@ -158,7 +171,7 @@ export function forecast(S, course) {
   const jd0 = sceneJd(S), v = vec(course);
   let E1 = S.E, t1 = jd0 + 0.4;
   for (let i = 0; i < 3; i++) {
-    const p = toLatLon(L.origin, E1), c = nextCrossing(jd0, kind, p.lat, p.lon, 4 / 24);
+    const p = toLatLon(L.origin, E1), c = nextEvent(kind, jd0, p.lat, p.lon, 4 / 24);
     if (c === null) break;
     t1 = c; const run = (t1 - jd0) * 24 * L.speed; E1 = [S.E[0] + v[0] * run, S.E[1] + v[1] * run];
   }
@@ -183,21 +196,30 @@ function makeClouds(r) {
   return [{ x0: r0 - v * m0, y: 0, r: r0, v }, { x0: -r1 - v * m1, y: 0, r: r1, v }, { x0: -40, y: 22, r: 12, v: 1.4 }, { x0: 30 + r.u() * 20, y: -26, r: 15, v: -1.1 }];
 }
 
+/** Clouds that cross the sun: discs that pass over it at a time of their own, so that a gap is there and then is not (the hazard of the day). */
+function makeSunClouds(r) {
+  const out = [];
+  for (let i = 0; i < 3; i++) { const v = 0.3 + r.u() * 0.25, m = 6 + r.u() * 150, rr = 4 + r.u() * 3.5; out.push({ x0: -v * m, y: (r.u() - 0.5) * 3, r: rr, v }); }
+  out.push({ x0: -50 + r.u() * 20, y: 14, r: 9, v: 0.4 });          // and one that never reaches it, for the picture
+  return out;
+}
+
 // ---------- what the sky is like now ----------
 
 /** The sun, the horizon and the stars at this moment of the watch, and the noise they give a sight. */
 export function conditions(S) {
-  const jd = sceneJd(S), p = truePlace(S), sun = sunAltAz(jd, p.lat, p.lon).alt, wx = S.watch.weather;
+  const jd = sceneJd(S), p = truePlace(S), sun = sunAltAz(jd, p.lat, p.lon).alt, wx = S.watch.weather, day = S.watch.kind === "noon";
   const haze = wx === "haze" ? 1 : 0;
   const hf = sun >= -9 ? 1 : sun >= -12 ? 1 + (-9 - sun) / 3 : sun >= -16 ? 2 + (-12 - sun) : 6;
-  const limMag = Math.max(-2, Math.min(6.2, 2.0 + (-5.5 - sun) * 0.45)) - 0.7 * haze;
-  return { jd, sun, limMag, horizon: sun >= -16 && sun <= 6, horizonFactor: hf * (1 + 0.8 * haze), swell: levelOf(S).swell * (wx === "swell" ? 2 : 1) * (1 + 0.25 * haze), weather: wx };
+  const limMag = day ? -2 : Math.max(-2, Math.min(6.2, 2.0 + (-5.5 - sun) * 0.45)) - 0.7 * haze;
+  return { jd, sun, limMag, horizon: sun >= -16 && (day || sun <= 6), horizonFactor: hf * (1 + 0.8 * haze), swell: levelOf(S).swell * (wx === "swell" ? 2 : 1) * (1 + 0.25 * haze), weather: wx };
 }
-/** The clouds now, as discs on the sky: [{ az, alt, r }] (degrees), placed about where Polaris stands. */
+/** The clouds now, as discs on the sky: [{ az, alt, r }] (degrees), placed about where Polaris stands, or by day about the sun. */
 export function cloudsNow(S) {
   if (!S.watch.clouds.length) return [];
-  const p = truePlace(S), pol = starAltAz(POLARIS, sceneJd(S), p.lat, p.lon), c = Math.max(0.3, Math.cos(pol.alt * Math.PI / 180));
-  return S.watch.clouds.map(d => ({ az: (pol.az + (d.x0 + d.v * S.watch.min) / c + 360) % 360, alt: Math.max(2, pol.alt + d.y), r: d.r }));
+  const p = truePlace(S), jd = sceneJd(S), anchor = S.watch.kind === "noon" ? sunAltAz(jd, p.lat, p.lon) : starAltAz(POLARIS, jd, p.lat, p.lon);
+  const c = Math.max(0.3, Math.cos(anchor.alt * Math.PI / 180));
+  return S.watch.clouds.map(d => ({ az: (anchor.az + (d.x0 + d.v * S.watch.min) / c + 360) % 360, alt: Math.max(2, anchor.alt + d.y), r: d.r }));
 }
 const angle = (az1, alt1, az2, alt2) => {
   const a = Math.PI / 180, x = Math.sin(alt1 * a) * Math.sin(alt2 * a) + Math.cos(alt1 * a) * Math.cos(alt2 * a) * Math.cos((az1 - az2) * a);
@@ -213,23 +235,40 @@ export function look(S, star) {
 
 // ---------- the sextant ----------
 
-/** The sd (arcminutes) of the horizon's own error at this moment, and the swell's amplitude in the eyepiece. */
+/** A sun's look from the true ship now: where it stands, and whether it can be seen (not under cloud, above the horizon). */
+export function lookSun(S) {
+  const p = truePlace(S), a = sunAltAz(sceneJd(S), p.lat, p.lon), cloud = a.alt > 0 && hiddenByCloud(S, a.az, a.alt);
+  return { ...a, visible: a.alt > 0.5 && !cloud, cloud, faint: false };
+}
+/** The sd (arcminutes) of the horizon's own error at this moment, and the swell's amplitude in the eyepiece. The sun's horizon is crisp by day. */
 export function sightNoise(S, star = POLARIS) {
-  const c = conditions(S), l = look(S, star), low = 1 + 3 / Math.max(5, l.alt);
+  const c = conditions(S);
+  if (star === SUN) { const l = lookSun(S); return { horizon: 0.3 * c.horizonFactor, swell: c.swell * (1 + 3 / Math.max(5, l.alt)), ok: c.horizon }; }
+  const l = look(S, star), low = 1 + 3 / Math.max(5, l.alt);
   const faint = 1 + Math.max(0, 1 - (c.limMag - star[5])) * 0.8;
   return { horizon: 0.45 * c.horizonFactor * faint, swell: c.swell * low, ok: c.horizon };
 }
-/** What the sextant would read exactly (arcminutes) for the star the navigator has picked: the instrument's truth, and the horizon's error. */
-export function sextantTruth(S) {
-  const star = BY_HR.get(S.watch.picked);
-  if (!star) return null;
-  const p = truePlace(S), a = starAltAz(star, sceneJd(S), p.lat, p.lon);
+/** The body the navigator has picked: a catalogue row, or SUN. */
+export const bodyOf = S => (S.watch.picked === SUN ? SUN : BY_HR.get(S.watch.picked));
+/**
+ * What the sextant would read exactly (arcminutes) for the body the navigator has picked, `min` minutes into the watch (now by default):
+ * the instrument's truth, and the horizon's error. For the sun it is the lower limb that is brought to the horizon.
+ */
+export function sextantTruth(S, min = S.watch.min) {
+  const body = bodyOf(S);
+  if (!body) return null;
+  const p = truePlace(S), jd = S.t0 + min / 1440;
+  if (body === SUN) {
+    const a = sunAltAz(jd, p.lat, p.lon);
+    return a.alt <= 0 ? null : sunReading(a.alt, jd, EYE) * 60 + S.watch.hUnit * sightNoise(S, SUN).horizon;
+  }
+  const a = starAltAz(body, jd, p.lat, p.lon);
   if (a.alt <= 0) return null;
-  return sextantReading(a.alt, EYE) * 60 + S.watch.hUnit * sightNoise(S, star).horizon;
+  return sextantReading(a.alt, EYE) * 60 + S.watch.hUnit * sightNoise(S, body).horizon;
 }
 /** The swell's motion of the star's image in the eyepiece (arcminutes) at `sec` seconds: two slow waves, never beyond the amplitude. */
 export function swellAt(S, sec) {
-  const A = sightNoise(S, BY_HR.get(S.watch.picked) || POLARIS).swell, [f1, f2] = S.watch.swell;
+  const A = sightNoise(S, bodyOf(S) || POLARIS).swell, [f1, f2] = S.watch.swell;
   return A * (0.58 * Math.sin(sec * 2 * Math.PI / 5.3 + f1) + 0.42 * Math.sin(sec * 2 * Math.PI / 3.1 + f2));
 }
 /** The sd the filter is told for a sight of n marks (arcminutes = nautical miles of latitude). */
@@ -244,14 +283,116 @@ export function reduce(S, marks) {
   return { hs, dip: dp, app, refr: rf, ho: ho * 60, lha: al.lha, pd: al.pd, corr: al.corr, lat: ho + al.corr / 60, n: marks.length };
 }
 
+// ---------- the sun: a morning altitude, the noon altitude, and the catch ----------
+//
+// A noon watch has three sights, in this order, each of which may be skipped or lost to cloud:
+//   morning    the sun's lower limb brought to the horizon while it is still climbing; the altitude and the chronometer's time are kept
+//   noon       the greatest altitude, while the sun hangs: its declination from the almanac gives the LATITUDE
+//   afternoon  the drum is left where the morning sight set it; the navigator calls the moment the falling sun comes back to it. The
+//              middle of the two times is apparent noon, and the chronometer's time of noon gives the LONGITUDE (equal altitudes)
+// The ship is taken to lie still through the watch: the legs are sailed between watches.
+const SIGMA_PLAYER_SUN = 0.35, SIGMA_REACT = 0.07;      // arcminutes of centring; game minutes of thumb (a fifth of a second at the clock's pace)
+
+/** Which sight of the sun the watch is waiting for: "morning", "noon", "afternoon" or "done". A skipped or lost one is false. */
+export function sunStage(S) {
+  const s = S.watch.sun;
+  return s.m1 === null ? "morning" : s.noon === null ? "noon" : s.aft === null ? "afternoon" : "done";
+}
+/** What the sun's place has made impossible: a morning sight once the sun has all but stopped climbing, and a catch with no morning sight to catch against. */
+function settleSun(S) {
+  const s = S.watch.sun;
+  if (s.m1 === null && sunHourAngle(sceneJd(S), truePlace(S).lon) > MORNING_END) s.m1 = false;
+  if (s.aft === null && s.m1 === false) s.aft = false;
+}
+/** When the navigator's reckoning puts apparent noon: the transit at the estimate's longitude (the almanac's equation of time is in it). */
+export const reckonedNoonJd = S => noonJd(S.t0 + 40 / 1440, estPlace(S).lon);
+/** When, by the reckoning, the falling sun comes back to the morning's altitude: as long after noon as the morning sight was before it. */
+export const expectedCatchJd = S => (S.watch.sun.m1 ? 2 * reckonedNoonJd(S) - S.watch.sun.m1.jd : null);
+
+function readSun(S, marks) {
+  const W = S.watch, stage = W.stage, jd = sceneJd(S);
+  if (lookSun(S).cloud) return no("the sun is behind cloud");
+  if (stage === "afternoon") {
+    W.sun.aft = { min: W.min, jd };
+  } else {
+    if (!marks.length) return no("no marks");
+    const rec = { hs: marks.reduce((t, x) => t + x, 0) / marks.length, n: marks.length, min: W.min, jd };
+    if (stage === "morning") W.sun.m1 = rec; else if (stage === "noon") W.sun.noon = rec; else return no("no sight is taken now");
+  }
+  W.marks = marks; settleSun(S);
+  if (sunStage(S) === "done") { finishSun(S); return { ok: true, book: W.book, stage }; }
+  S.phase = "find";
+  return { ok: true, stage };
+}
+/** All the sights are in (or given up): the almanac reduces them, or the watch goes on to steering with nothing. */
+function finishSun(S) {
+  const W = S.watch, B = reduceSun(S);
+  if (!B.noon && !B.lon) { W.book = null; S.phase = "steer"; W.plot = null; return; }
+  W.book = B; S.phase = "book";
+}
+/** The almanac's reduction of the sun's sights: the latitude from the noon altitude, the longitude from the equal altitudes. Null parts were not taken. */
+export function reduceSun(S) {
+  const W = S.watch, s = W.sun, est = estPlace(S), out = { kind: "sun", noon: null, lon: null, sigmaLat: null, sigmaLon: null };
+  if (s.noon) {
+    const N = s.noon, dp = dip(EYE), app = N.hs - dp, appDeg = app / 60, rf = refraction(appDeg), sd = sunSemidiameter(N.jd);
+    const topo = appDeg - rf / 60 + sd / 60, par = sunParallax(topo), ho = topo + par / 60;
+    const sun = sunPlace(N.jd), south = est.lat > sun.dec, lat = latitudeFromMeridian(ho, sun.dec, south);
+    out.noon = { hs: N.hs, n: N.n, dip: dp, app, refr: rf, sd, par, ho: ho * 60, dec: sun.dec, south, lat, jd: N.jd };
+    const k = sightNoise(S, SUN), A = k.swell;
+    out.sigmaLat = Math.sqrt(k.horizon ** 2 + (SIGMA_PLAYER_SUN ** 2 + (A / 2) ** 2) / N.n + 0.1 ** 2 + 0.35 ** 2);        // 0.35: the noon is judged by the clock, not seen
+  }
+  if (s.m1 && s.aft) {
+    const lat0 = out.noon ? out.noon.lat : est.lat, lon = equalAltitudeLongitude(s.m1.jd, s.aft.jd, lat0, est.lon);
+    if (lon !== null) {
+      const mid = (s.m1.jd + s.aft.jd) / 2, tn = noonJd(mid, lon), sunN = sunPlace(tn);
+      out.lon = { t1: s.m1.jd, t2: s.aft.jd, mid, tn, corr: (tn - mid) * 86400, eot: sunN.eot * 3600, lon, lat: lat0 };
+      // the error of a time: the centring of the star and the swell, over how fast the image moves, at each of the two sights
+      const A = sightNoise(S, SUN).swell, slope = m => Math.max(0.15, Math.abs((sextantTruth(S, m + 0.5) ?? 0) - (sextantTruth(S, m - 0.5) ?? 0)));
+      const t1 = Math.sqrt(SIGMA_PLAYER_SUN ** 2 + (A / 2) ** 2 / s.m1.n) / slope(s.m1.min), t2 = Math.sqrt(SIGMA_PLAYER_SUN ** 2 + (A / 2) ** 2) / slope(s.aft.min);
+      const tmid = 0.5 * Math.sqrt(t1 ** 2 + t2 ** 2 + SIGMA_REACT ** 2);         // minutes of time in the middle of the two
+      out.sigmaLon = Math.max(0.3, 15 * tmid * Math.cos(lat0 * Math.PI / 180));    // a minute of time is 15′ of longitude, and a minute of longitude is cos(latitude) of a mile
+    }
+  }
+  return out;
+}
+/** Folds the sun's latitude and longitude into the estimate, each through its own gate. Either may be refused and the other taken. */
+function plotSun(S) {
+  const W = S.watch, B = W.book, L = levelOf(S), before = { E: [...S.E], P: copyP(S.P) };
+  let E = S.E, P = S.P;
+  const res = { accepted: false, sun: true, latOk: false, lonOk: false };
+  if (B.noon) {
+    const z = (B.noon.lat - L.origin.lat) * 60 - E[1], gate = 3.5 * Math.sqrt(P[1][1] + B.sigmaLat ** 2) + 1.5;
+    res.zLat = z; res.gateLat = gate;
+    if (Math.abs(z) <= gate) { const f = fold(E, 0, P, [0, 1], 0, B.sigmaLat, z); E = f.E; P = f.P; res.latOk = true; res.lat = B.noon.lat; }
+  }
+  if (B.lon) {
+    const ep = toLatLon(L.origin, E), z = fromLatLon(L.origin, ep.lat, B.lon.lon)[0] - E[0], gate = 3.5 * Math.sqrt(P[0][0] + B.sigmaLon ** 2) + 1.5;
+    res.zLon = z; res.gateLon = gate;
+    if (Math.abs(z) <= gate) { const f = fold(E, 0, P, [1, 0], 0, B.sigmaLon, z); E = f.E; P = f.P; res.lonOk = true; res.lon = B.lon.lon; }
+  }
+  res.accepted = res.latOk || res.lonOk;
+  res.z = res.zLat ?? res.zLon; res.gate = res.gateLat ?? res.gateLon;
+  if (!res.accepted) { res.off = true; W.plot = res; return { ok: true, accepted: false, z: res.z, gate: res.gate }; }
+  S.E = E; S.P = P;
+  res.before = before; res.after = { E: [...E], P: copyP(P) }; res.errorNm = dist(E, S.T);
+  S.fixes.push({ w: S.w, E: [...E], lat: res.latOk ? res.lat : null, z: res.latOk ? res.zLat : 0, zLon: res.lonOk ? res.zLon : 0, hours: S.leg.hours, sun: true });
+  S.trail.push({ k: "fix", p: [...E], w: S.w });
+  W.plot = res;
+  S.phase = "steer";
+  return { ok: true, accepted: true, z: res.z };
+}
+
 // ---------- the moves ----------
 
 /** What a phase allows. */
 export function moves(S) {
+  const day = S.watch.kind === "noon";
   switch (S.phase) {
     case "ritual": return ["step", "skip"];
-    case "find": return ["wait", "pick", ...(S.watch.picked !== null && !S.watch.bearing ? ["bearing"] : []), ...(S.watch.picked !== null ? ["raise"] : []), "skipsight"];
-    case "sight": return ["read", "lower"];
+    case "find":
+      if (day) return ["wait", "raise", "skipstage", "skipsight"];
+      return ["wait", "pick", ...(S.watch.picked !== null && !S.watch.bearing ? ["bearing"] : []), ...(S.watch.picked !== null ? ["raise"] : []), "skipsight"];
+    case "sight": return ["read", "lower", ...(day ? ["wait"] : [])];       // the sun moves while it is watched: the clock runs in the eyepiece
     case "book": return ["plot", "retake", "discard"];
     case "steer": return ["sail", "heave"];
     default: return [];
@@ -276,7 +417,16 @@ export function apply(S, m) {
       S.phase = "find";
       return { ok: true, err, tol };
     }
-    case "wait": W.min = Math.min(MAX_WAIT + 30, W.min + Math.max(0, m.min)); return { ok: true };
+    case "wait": W.min = Math.min(maxWait(S), W.min + Math.max(0, m.min)); if (W.kind === "noon") settleSun(S); return { ok: true };
+    case "skipstage": {
+      settleSun(S);
+      const st = sunStage(S);
+      if (st === "done") return no("there is no sight of the sun left to skip");
+      W.sun[{ morning: "m1", noon: "noon", afternoon: "aft" }[st]] = false;
+      settleSun(S);
+      if (sunStage(S) === "done") finishSun(S);
+      return { ok: true, stage: st };
+    }
     case "pick": if (!BY_HR.has(m.hr)) return no("no such star"); W.picked = m.hr; return { ok: true };
     case "bearing": {
       const star = BY_HR.get(W.picked), l = look(S, star);
@@ -291,6 +441,14 @@ export function apply(S, m) {
     }
     case "raise": {
       if (!conditions(S).horizon) return no("there is no horizon to take a sight from");
+      if (W.kind === "noon") {
+        settleSun(S);
+        const st = sunStage(S);
+        if (st === "done") return no("there is no sight of the sun left to take");
+        const ls = lookSun(S);
+        if (!ls.visible) return no(ls.cloud ? "the sun is behind cloud" : "the sun cannot be seen");
+        W.stage = st; S.phase = "sight"; W.marks = []; return { ok: true, stage: st };
+      }
       const l = look(S, BY_HR.get(W.picked));
       if (!l.visible) return no(l.cloud ? "the star is behind cloud" : "the star cannot be seen yet");
       S.phase = "sight"; W.marks = []; return { ok: true };
@@ -299,13 +457,20 @@ export function apply(S, m) {
     case "skipsight": S.phase = "steer"; W.plot = null; return { ok: true };
     case "read": {
       const marks = (m.marks || []).filter(Number.isFinite).slice(0, MARKS);
+      if (W.kind === "noon") return readSun(S, marks);
       if (!marks.length) return no("no marks");
       W.marks = marks; W.book = reduce(S, marks); W.book.sigma = filterSigma(S, marks.length);
       S.phase = "book"; return { ok: true, book: W.book };
     }
-    case "retake": W.min += 4; W.retakes += 1; W.book = null; W.marks = []; W.plot = null; S.phase = "find"; return { ok: true };
+    case "retake":
+      if (W.kind === "noon") {                          // only the noon altitude can be taken again: the morning and the catch have passed
+        if (!W.sun.noon) return no("only the noon altitude can be taken again");
+        W.sun.noon = null; W.book = null; W.marks = []; W.plot = null; W.retakes += 1; S.phase = "find"; return { ok: true };
+      }
+      W.min += 4; W.retakes += 1; W.book = null; W.marks = []; W.plot = null; S.phase = "find"; return { ok: true };
     case "discard": W.plot = { accepted: false, discarded: true }; S.phase = "steer"; return { ok: true };
     case "plot": {
+      if (W.book.kind === "sun") return plotSun(S);
       const B = W.book, z = (B.lat - estPlace(S).lat) * 60, gate = 3.5 * Math.sqrt(S.P[1][1] + B.sigma ** 2) + 1.5;
       if (Math.abs(z) > gate) { W.plot = { accepted: false, z, gate, off: true }; return { ok: true, accepted: false, z, gate }; }
       const before = { E: [...S.E], P: copyP(S.P) }, f = fold(S.E, 0, S.P, [0, 1], 0, B.sigma, z);

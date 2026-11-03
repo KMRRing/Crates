@@ -85,6 +85,32 @@ export function sunPlace(jd) {
 }
 export const sunAltAz = (jd, lat, lon) => { const s = sunPlace(jd); return { ...altAz(s.ra, s.dec, lat, lst(jd, lon)), ra: s.ra, dec: s.dec }; };
 
+// ---------- the sun's disc, and noon ----------
+
+/** The sun's distance in astronomical units (low precision, good to 0.0002). */
+export const sunDistance = jd => { const g = 357.528 + 0.9856003 * (jd - J2000); return 1.00014 - 0.01671 * cos(g) - 0.00014 * cos(2 * g); };
+/** The sun's semi-diameter in arcminutes, as the almanac prints it: 16.3′ in January, 15.7′ in July. */
+export const sunSemidiameter = jd => 15.994 / sunDistance(jd);
+/** The sun's parallax in altitude, arcminutes: from the sea it stands a shade lower than from the earth's centre (8.8″ at the horizon). */
+export const sunParallax = alt => 0.1466 * cos(alt);
+/** The sun's hour angle at an east longitude, degrees from -180 to 180: negative before apparent noon. */
+export const sunHourAngle = (jd, lon) => norm180(lst(jd, lon) - sunPlace(jd).ra);
+/**
+ * The time of the sun's transit (apparent noon) at a longitude, the one nearest `jd`. The sun's own motion in right ascension is
+ * allowed for by iterating, so this is exact for the sun model above.
+ */
+export function noonJd(jd, lon) {
+  let t = jd;
+  for (let i = 0; i < 5; i++) t -= sunHourAngle(t, lon) / 360.9856;
+  return t;
+}
+/** The first time after `jd` at which the sun's hour angle is `ha` degrees at a longitude. */
+export function sunAtHourAngle(jd, lon, ha) {
+  let t = jd + (((ha - sunHourAngle(jd, lon)) % 360 + 360) % 360) / 360.9856;
+  for (let i = 0; i < 4; i++) t += norm180(ha - sunHourAngle(t, lon)) / 360.9856;
+  return t;
+}
+
 // ---------- the sextant's corrections ----------
 
 /** Dip of the horizon, arcminutes, for an eye `h` metres above the sea. */
@@ -101,6 +127,36 @@ export const sextantReading = (hTrue, eyeM) => apparentAltitude(hTrue) + dip(eye
 export function observedAltitude(hs, eyeM) {
   const app = hs - dip(eyeM) / 60;
   return app - refraction(app) / 60;
+}
+
+/** What a sextant reads (degrees) for the sun's LOWER LIMB on the horizon, for the true altitude of its centre seen from the earth's centre. */
+export function sunReading(altGeo, jd, eyeM) {
+  const topo = altGeo - sunParallax(altGeo) / 60;
+  return apparentAltitude(topo) - sunSemidiameter(jd) / 60 + dip(eyeM) / 60;
+}
+/** From a sextant reading of the lower limb (degrees) to the true altitude of the sun's centre (degrees): dip, refraction, semi-diameter, parallax. */
+export function sunObservedAltitude(hs, jd, eyeM) {
+  const app = hs - dip(eyeM) / 60, topo = app - refraction(app) / 60 + sunSemidiameter(jd) / 60;
+  return topo + sunParallax(topo) / 60;
+}
+/**
+ * The east longitude at which the sun stood as high at `jd2` as at `jd1` (the equal altitudes of a morning and an afternoon sight) for a
+ * latitude: found by bisection on the sun's own motion, so the little change in its declination between the sights (the equation of
+ * equal altitudes) is allowed for. Null when no longitude within 5 degrees of `lon0` fits.
+ */
+export function equalAltitudeLongitude(jd1, jd2, lat, lon0) {
+  const g = lon => sunAltAz(jd2, lat, lon).alt - sunAltAz(jd1, lat, lon).alt;      // falls as the longitude goes east
+  let lo = lon0 - 5, hi = lon0 + 5;
+  if (!(g(lo) > 0 && g(hi) < 0)) return null;
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; (g(mid) > 0 ? lo = mid : hi = mid); }
+  return (lo + hi) / 2;
+}
+/** The latitude from the sun's greatest altitude (true, of the centre) and its declination; `south` when it bears south of the observer. */
+export const latitudeFromMeridian = (ho, dec, south) => (south ? dec + (90 - ho) : dec - (90 - ho));
+/** The east longitude from the time of apparent noon (a Julian date) and the equation of time at it: 15° (12 h − EoT − T), the doc's formula. */
+export function longitudeFromNoon(jdNoon, eotHours) {
+  const t = (((jdNoon + 0.5) % 1) + 1) % 1 * 24;
+  return norm180(15 * (12 - eotHours - t));
 }
 
 // ---------- the intercept method ----------

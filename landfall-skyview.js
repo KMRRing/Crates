@@ -52,7 +52,8 @@ export function pick(v, stars, x, y, radius) {
 
 // ---------- colour ----------
 
-const KEYS = [   // [sun altitude, zenith, horizon] in rgb: dusk and dawn alike
+const KEYS = [   // [sun altitude, zenith, horizon] in rgb: dusk and dawn alike, and the day above them
+  [45, [52, 106, 192], [166, 200, 230]], [22, [66, 116, 192], [184, 206, 228]], [10, [82, 126, 188], [214, 208, 190]],
   [4, [92, 128, 178], [236, 178, 120]], [0, [70, 104, 156], [232, 150, 98]], [-3, [40, 64, 108], [206, 124, 90]], [-6, [24, 40, 76], [128, 86, 104]],
   [-9, [14, 26, 54], [64, 58, 86]], [-12, [8, 17, 32], [30, 38, 58]], [-16, [5, 9, 15], [14, 20, 30]], [-22, [3, 6, 10], [8, 13, 20]],
 ];
@@ -90,6 +91,17 @@ export function drawSky(ctx, v, sc) {
     const r = Math.max(w, h) * 0.9, a = clamp((sc.sunAlt + 16) / 14, 0, 1) * 0.55, rg = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, r);
     rg.addColorStop(0, rgb(col.hor.map(x => Math.min(255, x * 1.15)), a)); rg.addColorStop(1, rgb(col.hor, 0));
     ctx.fillStyle = rg; ctx.fillRect(0, 0, w, h);
+  }
+  // the sun, by day: a glare and a disc (the real one is half a degree across; this one is drawn larger so that a thumb can find it)
+  if (sc.sunAlt > -2) {
+    const sp2 = project(v, sc.sunAz, sc.sunAlt);
+    if (sp2 && sp2.x > -80 && sp2.x < w + 80 && sp2.y > -80 && sp2.y < h + 80 && !sc.sunHidden) {
+      const dp = degPx(v, sp2.x, sp2.y), rd = Math.max(5.5 * k, 0.27 * dp), gl = rd * 9;
+      const sg2 = ctx.createRadialGradient(sp2.x, sp2.y, rd * 0.6, sp2.x, sp2.y, gl);
+      sg2.addColorStop(0, "rgba(255,246,214,.75)"); sg2.addColorStop(0.2, "rgba(255,236,170,.28)"); sg2.addColorStop(1, "rgba(255,236,170,0)");
+      ctx.fillStyle = sg2; ctx.fillRect(sp2.x - gl, sp2.y - gl, 2 * gl, 2 * gl);
+      ctx.fillStyle = "#fffbe8"; ctx.beginPath(); ctx.arc(sp2.x, sp2.y, rd, 0, 6.283); ctx.fill();
+    }
   }
   // the stars
   const lim = sc.limMag - (sc.lamp ? 0.8 : 0);               // the lamp costs the eye its dark adaptation
@@ -153,7 +165,8 @@ export function drawSky(ctx, v, sc) {
     if (!p) continue;
     const r = c.r * degPx(v, p.x, p.y);
     const cg = ctx.createRadialGradient(p.x, p.y, r * 0.15, p.x, p.y, r);
-    cg.addColorStop(0, rgb(col.top.map(x => x * 0.55 + 14), 0.97)); cg.addColorStop(0.7, rgb(col.top.map(x => x * 0.55 + 14), 0.85)); cg.addColorStop(1, rgb(col.top, 0));
+    const body = sc.sunAlt > 2 ? [226, 230, 238] : col.top.map(x => x * 0.55 + 14);       // by day a cloud is pale, at night a hole in the stars
+    cg.addColorStop(0, rgb(body, 0.97)); cg.addColorStop(0.7, rgb(body, 0.85)); cg.addColorStop(1, rgb(sc.sunAlt > 2 ? body : col.top, 0));
     ctx.fillStyle = cg; ctx.fillRect(p.x - r, p.y - r, 2 * r, 2 * r);
   }
   // the ring a hint puts round a star, and the one the navigator has chosen
@@ -164,7 +177,11 @@ export function drawSky(ctx, v, sc) {
     ctx.beginPath(); ctx.arc(p.x, p.y, r * k, 0, 6.283); ctx.stroke(); ctx.restore();
   };
   if (sc.ring) ring(sc.ring, "rgba(236,208,150,.9)", 15, [3, 4]);
-  if (sc.picked) ring(sc.picked, "rgba(255,255,255,.95)", 11);
+  if (sc.picked && sc.picked > 0) ring(sc.picked, "rgba(255,255,255,.95)", 11);
+  if (sc.picked === -1 && sc.sunAlt > 0) {                 // the sun is the body of a noon watch: it is ringed once, thinly
+    const p = project(v, sc.sunAz, sc.sunAlt);
+    if (p) { ctx.save(); ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 1.2 * k; ctx.beginPath(); ctx.arc(p.x, p.y, 15 * k, 0, 6.283); ctx.stroke(); ctx.restore(); }
+  }
   // the lamp: a warm veil over everything while it burns
   if (sc.lamp) { ctx.fillStyle = "rgba(255,170,90,.11)"; ctx.fillRect(0, 0, w, h); }
 }
