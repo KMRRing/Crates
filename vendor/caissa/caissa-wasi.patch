@@ -1,0 +1,139 @@
+diff -ruN a/src/backend/Common.hpp b/src/backend/Common.hpp
+--- a/src/backend/Common.hpp	2026-11-03 11:15:03.913701515 +0000
++++ b/src/backend/Common.hpp	2026-11-03 11:18:30.206939485 +0000
+@@ -32,7 +32,9 @@
+ 
+ #define CACHELINE_SIZE 64u
+ 
++#ifndef __wasi__ // no tablebase files on a web page
+ #define USE_SYZYGY_TABLEBASES
++#endif
+ // #define USE_GAVIOTA_TABLEBASES
+ 
+ #if defined(_MSC_VER) && !defined(__clang__)
+diff -ruN a/src/backend/Evaluate.cpp b/src/backend/Evaluate.cpp
+--- a/src/backend/Evaluate.cpp	2026-11-03 11:15:03.915998183 +0000
++++ b/src/backend/Evaluate.cpp	2026-11-03 11:18:53.002938964 +0000
+@@ -181,7 +181,7 @@
+         GetModuleFileNameA(hModule, path, (sizeof(path)));
+         ret = path;
+     }
+-#elif defined(PLATFORM_LINUX)
++#elif defined(PLATFORM_LINUX) && !defined(__wasi__)
+     if (char* execPath = realpath("/proc/self/exe", nullptr))
+     {
+         ret = execPath;
+diff -ruN a/src/frontend/UCI.cpp b/src/frontend/UCI.cpp
+--- a/src/frontend/UCI.cpp	2026-11-03 11:15:04.039313095 +0000
++++ b/src/frontend/UCI.cpp	2026-11-03 11:18:51.466938999 +0000
+@@ -55,7 +55,9 @@
+ static const char* c_Author = "Michal Witanowski";
+ 
+ // TODO set TT size based on current memory usage / total memory size
+-#ifndef _DEBUG
++#if defined(__wasi__)
++static const uint32_t c_DefaultTTSizeInMB = 16; // a phone's tab, not a desktop
++#elif !defined(_DEBUG)
+ static const uint32_t c_DefaultTTSizeInMB = 64;
+ #else
+ static const uint32_t c_DefaultTTSizeInMB = 16;
+@@ -99,7 +101,9 @@
+ UniversalChessInterface::UniversalChessInterface()
+ {
+     mSearchThread = new SearchThread;
++#if !defined(__wasi__)
+     mSearchThread->thread = std::thread(&UniversalChessInterface::SearchThreadEntryFunc, this);
++#endif
+ 
+     mGame.Reset(Position(Position::InitPositionFEN));
+     mTranspositionTable.Resize(c_DefaultTTSize);
+@@ -697,6 +701,10 @@
+     mSearchCtx->searchParam.colorConsoleOutput = mOptions.colorConsoleOutput;
+     mSearchCtx->searchParam.showWDL = mOptions.showWDL;
+ 
++#if defined(__wasi__)
++    // no threads: the search runs here, to its end, before the command returns
++    DoSearch();
++#else
+     {
+         std::unique_lock<std::mutex> lock(mSearchThread->mutex);
+         mNewSearchContext = mSearchCtx;
+@@ -706,6 +714,7 @@
+     // make sure search thread actually started running before exiting from this function
+     while (!mSearchCtx->searchStarted.load(std::memory_order_acquire))
+         ;
++#endif
+ 
+     if (waitForSearch)
+     {
+@@ -1669,6 +1678,64 @@
+     return true;
+ }
+ 
++#if defined(__wasi__)
++
++// Caissa as a WebAssembly reactor (WASI), for a web page's worker: no main(), no threads, no files. The worker writes
++// a command into uci_buffer() and calls uci_command(length); the engine answers on stdout, which the worker's WASI
++// shim hands back line by line. A "go" runs its whole search before uci_command() returns, so it needs a limit.
++// The network is not read from a file: the worker asks for room (net_alloc), copies the .pnn's bytes into it and
++// calls net_ready, so the 76 MB are held once.
++#include "../backend/PackedNeuralNetwork.hpp"
++
++static char s_buffer[1 << 16];
++static UniversalChessInterface* s_uci = nullptr;
++static nn::PackedNeuralNetwork* s_pendingNet = nullptr;
++
++extern "C" {
++
++__attribute__((export_name("uci_buffer"))) char* uci_buffer() { return s_buffer; }
++
++__attribute__((export_name("uci_size"))) int uci_size() { return int(sizeof(s_buffer) - 1); }
++
++__attribute__((export_name("uci_init"))) void uci_init()
++{
++    printf("%s by %s\n", c_EngineName, c_Author);
++    InitEngine();
++    s_uci = new UniversalChessInterface();
++    fflush(stdout);
++}
++
++__attribute__((export_name("uci_command"))) void uci_command(int length)
++{
++    s_buffer[length] = 0;
++    s_uci->ExecuteCommand(s_buffer);
++    fflush(stdout);
++}
++
++/** Room for a network (a .pnn file's bytes, nn_size() of them); null if it can't be had. */
++__attribute__((export_name("net_size"))) int net_size() { return int(sizeof(nn::PackedNeuralNetwork)); }
++
++__attribute__((export_name("net_alloc"))) void* net_alloc()
++{
++    delete s_pendingNet;
++    s_pendingNet = new nn::PackedNeuralNetwork();
++    return s_pendingNet;
++}
++
++/** 1 if what was copied into net_alloc()'s room is a network of this engine's format, and now the engine's. */
++__attribute__((export_name("net_ready"))) int net_ready()
++{
++    if (!s_pendingNet || s_pendingNet->header.magic != nn::MagicNumber || s_pendingNet->header.version != nn::CurrentVersion)
++        return 0;
++    g_mainNeuralNetwork = s_pendingNet;
++    s_pendingNet = nullptr;
++    return 1;
++}
++
++}
++
++#else
++
+ int main(int argc, const char* argv[])
+ {
+     printf("%s by %s\n", c_EngineName, c_Author);
+@@ -1680,3 +1747,5 @@
+ 
+     return 0;
+ }
++
++#endif
