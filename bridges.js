@@ -4,8 +4,9 @@
 // This file keeps the run, the clock and the taps, and draws the board. Two ways to play: Levels (bridges-levels.js: a ladder
 // of puzzles in chapters, each bringing a twist, with stars, each kept as it was left, as Topple's are) and Free play (a size,
 // a difficulty and a twist, a random puzzle or today's).
-import { SIZES, LEVELS, DAILY, TWISTS, puzzleOf, generate, nextMark, withMark, solvedBy, crossed, breaks, whatBreaks, labelOf, hintFor, levelOn, twistOn } from "./bridges-engine.js";
-import { LEVELS as LADDER, CHAPTERS, COUNT, chapterOf, seedOf, kindOf, parOf, starsFor } from "./bridges-levels.js";
+import { SIZES, LEVELS, DAILY, TWISTS, puzzleOf, generate, nextMark, withMark, solvedBy, crossed, breaks, whatBreaks, labelOf, hintFor, levelOn, twistOn, flagsOf } from "./bridges-engine.js";
+import { LEVELS as LADDER, CHAPTERS, COUNT, LADDER_VERSION, chapterOf, seedOf, kindOf, parOf, starsFor, migrate } from "./bridges-levels.js";
+import { sure } from "./sure.js";
 import { miniature } from "./bridges-mini.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -100,14 +101,17 @@ async function nextPuzzle(k) {
 
 // ---------- the run ----------
 // S: { v, mode ("random", "daily" or "level"), seed, lv (the level, 0 on, in a level), size, level (the difficulty asked),
-//      came (what it graded), twist, grid, kinds, realms, hills and lanes (a twist's strings, when it has them), sol, marks, undo, redo, ms,
+//      came (what it graded), twist, grid, kinds, realms, hills, roads and straits (a twist's strings, when it has them), sol, marks, undo, redo, ms,
 //      hints, done ({ ms, score } once solved), lit (a hint's links, its island and its words), fresh (a new best) }
+// (a twist's strings: kinds, realms, hills, straits a character a cell or a gap, roads a character a link)
 let S = null, P = null;
 let clockFrom = null, savedAt = 0, message = null, paused = false;
 const valid = s => !!s && s.v === 1 && SIZES.includes(s.size) && typeof s.grid === "string" && typeof s.marks === "string"
   && typeof s.sol === "string" && s.sol.length === s.marks.length && s.grid.length === s.size * s.size && Number.isFinite(s.ms)
   && (s.kinds == null || (typeof s.kinds === "string" && s.kinds.length === s.grid.length)) && (s.realms == null || (typeof s.realms === "string" && s.realms.length === s.grid.length))
-  && (s.hills == null || (typeof s.hills === "string" && s.hills.length === s.grid.length)) && (s.lanes == null || (typeof s.lanes === "string" && s.lanes.length === s.grid.length))
+  && (s.hills == null || (typeof s.hills === "string" && s.hills.length === s.grid.length)) && (s.roads == null || (typeof s.roads === "string" && s.roads.length === s.sol.length))
+  && (s.straits == null || (typeof s.straits === "string" && s.straits.length === 2 * (s.size - 1)))
+  && !s.grid.includes("#") && s.lanes == null && /^[0-9a-c.]+$/.test(s.grid)                  // a puzzle with reefs or fairways (taken out in November 2026) is no longer one
   && (s.mode !== "level" || (Number.isInteger(s.lv) && s.lv >= 0 && s.lv < COUNT));
 const isLevel = s => s?.mode === "level";
 
@@ -116,15 +120,22 @@ function save() {
   if (isLevel(S)) write(LRUNS, { ...read(LRUNS, {}), [S.lv]: S }); else write(RUN, S);
   savedAt = performance.now();
 }
-const startedRun = r => !!r && !r.done && (/[12]/.test(r.marks) || r.hints > 0);
+const startedRun = r => !!r && !r.done && (/[123]/.test(r.marks) || r.hints > 0);
 const started = () => startedRun(S);
 
 // ---------- the levels ----------
-/** The campaign as kept: the level being played and the stars won in each, mended if it is not what it should be. */
+/** The campaign as kept: the level being played and the stars won in each, mended if it is not what it should be. A save from before
+ *  the ladder was reordered (reefs and fairways went on 3 November 2026) is carried over to the new numbers first, stars and puzzles left half done. */
 function readCamp() {
-  const c = read(CAMP, null), stars = LADDER.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
+  let c = read(CAMP, null);
+  if (c?.v !== LADDER_VERSION) {
+    const m = migrate(c, read(LRUNS, {}));
+    c = m.camp;
+    if (!IN_FRAME) { write(CAMP, c); write(LRUNS, m.runs); }
+  }
+  const stars = LADDER.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
   const open = stars.findIndex(x => x < 1);                          // the first level not solved is the last one open
-  return { at: Number.isInteger(c?.at) ? Math.max(0, Math.min(c.at, open < 0 ? COUNT - 1 : open)) : 0, stars };
+  return { v: LADDER_VERSION, at: Number.isInteger(c?.at) ? Math.max(0, Math.min(c.at, open < 0 ? COUNT - 1 : open)) : 0, stars };
 }
 let camp = readCamp();
 /** Whether level n (0 on) is open: the first, and any whose one before is solved. */
@@ -146,7 +157,7 @@ function introOf(n) {
 /** Puts a puzzle on the board. */
 function begin(s) {
   S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
-  P = puzzleOf(S.size, S.grid, S.sol, S.kinds || "", S.realms || "", S.hills || "", S.lanes || "");
+  P = puzzleOf(S.size, S.grid, S.sol, S.kinds || "", S.realms || "", S.hills || "", S.roads || "", { straits: S.straits || "", tree: flagsOf(S.twist).tree });
   message = isLevel(S) && !started() && !S.done ? introOf(S.lv) : null; clockFrom = null;
   $("level").value = levelOn(S.size, S.level);
   track = isLevel(S) ? "levels" : "free";
@@ -173,7 +184,7 @@ async function start(mode, k = chosenKind()) {
 const fromPuzzle = (mode, seed, k, puzzle, extra = {}) => ({
   mode, seed, size: k.size, level: k.level, twist: puzzle.twist || "none", came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol,
   ...(puzzle.kinds ? { kinds: puzzle.kinds } : {}), ...(puzzle.realms ? { realms: puzzle.realms } : {}),
-  ...(puzzle.hills ? { hills: puzzle.hills } : {}), ...(puzzle.lanes ? { lanes: puzzle.lanes } : {}), marks: "0".repeat(puzzle.sol.length), ...extra,
+  ...(puzzle.hills ? { hills: puzzle.hills } : {}), ...(puzzle.roads ? { roads: puzzle.roads } : {}), ...(puzzle.straits ? { straits: puzzle.straits } : {}), marks: "0".repeat(puzzle.sol.length), ...extra,
 });
 /** A puzzle of level n (0 on): the level's own the first time it is played, a new one after that or when asked. */
 async function levelBlock(n, again = false) {
@@ -210,8 +221,8 @@ async function setTrack(next) {
   write(TRACK, track);
   await resume();
 }
-function confirmStart(mode, k) {
-  if (started() && !confirm("Start a new puzzle? This one isn't solved.")) return false;
+async function confirmStart(mode, k) {
+  if (started() && !(await sure("Start a new puzzle? This one isn't solved.", { yes: "New puzzle" }))) return false;
   start(mode, k);
   return true;
 }
@@ -255,7 +266,7 @@ function recordLevel(sc) {
 /** A tap adds a bridge to the link (none, one, two, none); a hold clears it. */
 function press(l, how) {
   if (!S || S.done || IN_FRAME || paused || l < 0) return;
-  const from = S.marks[l], to = how === "hold" ? "0" : nextMark(from);
+  const from = S.marks[l], to = how === "hold" ? "0" : nextMark(from, P.lay.links[l].cap);
   if (to !== "0" && from === "0" && crossed(P, S.marks, l)) { note("A bridge there would cross another.", "bad"); render(); return; }
   setLink(l, from, to);
   if (to !== "0") navigator.vibrate?.(8);
@@ -294,10 +305,17 @@ function note(text, tone = "") { message = text ? { text, tone } : null; }
 
 // ---------- hints ----------
 /** A step of reasoning in words, as a hint says it. */
+const WORD = ["no", "one", "two", "three"];
 function explain(x) {
-  const n = labelOf(P.lay.isl[x.at]), bridges = plural(x.to, "bridge");
+  const bridges = plural(x.to, "bridge");
+  if (x.strait != null) {                                         // a strait is a sum like an island's, over the roads that cross it
+    const n = P.lay.groups[x.strait].mx;
+    if (x.tech === "all") return `The strait marked ${n} needs every bridge the roads across it can carry: this link takes ${WORD[x.to]}.`;
+    return `The other roads across the strait marked ${n} can't carry enough, so this link has at least ${bridges}.`;
+  }
+  const n = labelOf(P.lay.isl[x.at]);
   switch (x.tech) {
-    case "all": return `The ${n} here needs every bridge its links can carry: this link takes ${x.to === 2 ? "two" : "one"}.`;
+    case "all": return `The ${n} here needs every bridge its links can carry: this link takes ${WORD[x.to]}.`;
     case "need": return `The other links of this ${n} can't carry enough, so this link has at least ${bridges}.`;
     case "trial": return `Suppose this link had ${x.supposed === 0 ? "no bridge" : plural(x.supposed, "bridge")} at most: the rules break. So it has at least ${bridges}.`;
   }
@@ -308,12 +326,12 @@ function useHint() {
   const h = hintFor(P, S.marks);
   if (!h) return;
   S.hints++;
-  let link, to, island = null, text;
+  let link, to, island = null, strait = null, text;
   if (h.wrong != null) {
     ({ wrong: link, should: to } = h);
     text = to === "0" ? "Hint: there is no bridge here. It is cleared now." : "Hint: this link has fewer bridges than that. It is put right now.";
   } else if (h.step) {
-    ({ link, at: island } = h.step);
+    link = h.step.link; island = h.step.at ?? null; strait = h.step.strait ?? null;
     to = String(h.step.to);
     const said = explain(h.step);
     text = `Hint: ${said[0].toLowerCase()}${said.slice(1)}`;
@@ -322,7 +340,7 @@ function useHint() {
     text = "Hint: this link has a bridge, or two.";
   }
   setLink(link, S.marks[link], to);
-  S.lit = { set: [link], island, text };
+  S.lit = { set: [link], island, strait, text };
   message = null;
   save();
   paint();
@@ -349,41 +367,45 @@ const svgEl = (tag, attrs, parent) => { const n = document.createElementNS(NS, t
 /** The numbers are set a hundred times larger and scaled back down, centred by an explicit offset: Safari lays out text
  *  under a unit tall badly (as Hitori's and Delta's are). */
 const TEXT_SCALE = 100;
-let svg = null, linkEls = [], islEls = [], seg = [];
+let svg = null, linkEls = [], islEls = [], straitEls = [], seg = [];
 /** What the marks break now, in words (bridges-engine.js's whatBreaks), for the line under the board. */
 let trouble = "";
+const MARGIN = 0.56;                // room a strait's badge takes at the board's left or top edge, in cells
 function drawBoard() {
   const { size, lay } = P, pad = 0.3, at = i => [lay.isl[i].c + 0.5, lay.isl[i].r + 0.5];
-  svg = svgEl("svg", { viewBox: `${-pad} ${-pad} ${size + 2 * pad} ${size + 2 * pad}`, role: "img", "aria-label": `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: the board. Tap a link between two islands to build a bridge.`, class: "brg-svg" });
-  svgEl("rect", { x: -pad / 2, y: -pad / 2, width: size + pad, height: size + pad, rx: 0.12, class: "brg-paper" }, svg);
-  for (let i = 0; i < P.grid.length; i++) {                                       // reefs: rock in the water
-    if (P.grid[i] !== "#") continue;
-    const x = (i % size) + 0.5, y = Math.floor(i / size) + 0.5;
-    svgEl("polygon", { points: `${x - 0.32},${y + 0.26} ${x - 0.2},${y - 0.1} ${x - 0.04},${y - 0.3} ${x + 0.16},${y - 0.2} ${x + 0.34},${y + 0.26}`, class: "brg-reef" }, svg);
-  }
+  const x0 = lay.groups.some(g => !g.across) ? -(pad / 2 + MARGIN) : -pad, y0 = lay.groups.some(g => g.across) ? -(pad / 2 + MARGIN) : -pad;      // a strait's number sits in the margin, so the margin grows only for one that has it
+  svg = svgEl("svg", { viewBox: `${x0} ${y0} ${size + pad - x0} ${size + pad - y0}`, role: "img", "aria-label": `${kindText({ size: S.size, level: S.came || S.level, twist: S.twist })}: the board. Tap a link between two islands to build a bridge.`, class: "brg-svg" });
+  svgEl("rect", { x: x0 + pad / 2, y: y0 + pad / 2, width: size + pad / 2 - (x0 + pad / 2), height: size + pad / 2 - (y0 + pad / 2), rx: 0.12, class: "brg-paper" }, svg);
+  straitEls = lay.groups.map(g => {                                              // straits: a dashed line across the sea, its number in the margin
+    const k = g.gap + 1, e = svgEl("g", { class: "brg-strait" }, svg), mid = (g.across ? y0 : x0) + pad / 2 + MARGIN / 2;
+    const [bx, by] = g.across ? [k, mid] : [mid, k], end = size + pad / 2 - 0.04;
+    svgEl("line", g.across ? { x1: k, y1: mid + 0.22, x2: k, y2: end, class: "brg-sline" } : { x1: mid + 0.22, y1: k, x2: end, y2: k, class: "brg-sline" }, e);
+    svgEl("circle", { cx: bx, cy: by, r: 0.22, class: "brg-sbadge" }, e);
+    const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "brg-snum", "font-size": 0.3 * TEXT_SCALE, transform: `translate(${bx} ${by}) scale(${1 / TEXT_SCALE})` }, e);
+    t.textContent = String(g.mx);
+    return e;
+  });
   seg = lay.links.map(l => { const [x1, y1] = at(l.a), [x2, y2] = at(l.b); return { x1, y1, x2, y2 }; });
   // low links first, then the viaducts over them: a viaduct is cased in the paper's colour, so a low bridge under it seems to pass beneath
   linkEls = [];
   [...lay.links.keys()].sort((a, b) => lay.links[a].high - lay.links[b].high).forEach(i => {
-    const l = lay.links[i], { x1, y1, x2, y2 } = seg[i], g = svgEl("g", { class: "brg-l" }, svg), dx = l.vertical ? 0.09 : 0, dy = l.vertical ? 0 : 0.09;
-    svgEl("line", { x1, y1, x2, y2, class: "brg-guide" }, g);
-    if (l.high) { svgEl("line", { x1, y1, x2, y2, class: "brg-case" }, g); svgEl("line", { x1, y1, x2, y2, class: "brg-piers" }, g); }
-    svgEl("line", { x1, y1, x2, y2, class: "brg-b brg-one" }, g);
-    for (const s of [-1, 1]) svgEl("line", { x1: x1 + s * dx, y1: y1 + s * dy, x2: x2 + s * dx, y2: y2 + s * dy, class: "brg-b brg-two" }, g);
+    const l = lay.links[i], { x1, y1, x2, y2 } = seg[i], g = svgEl("g", { class: "brg-l" }, svg), off = d => (l.vertical ? { dx: d, dy: 0 } : { dx: 0, dy: d });
+    const line = (d, cls) => { const { dx, dy } = off(d); svgEl("line", { x1: x1 + dx, y1: y1 + dy, x2: x2 + dx, y2: y2 + dy, class: cls }, g); };
+    // a road's width is drawn in the road: a wide one is a bed with three lanes, a narrow one has a post each side of its middle, an ordinary one is a single line as ever
+    if (l.cap === 3) { line(0, "brg-bed"); for (const d of [-0.14, 0, 0.14]) line(d, "brg-guide"); } else line(0, "brg-guide");
+    if (l.high) { line(0, "brg-case"); line(0, "brg-piers"); }
+    line(0, "brg-b brg-one");
+    for (const s of [-1, 1]) line(s * 0.09, "brg-b brg-two");
+    if (l.cap === 3) for (const d of [-0.14, 0, 0.14]) line(d, "brg-b brg-three");
+    if (l.cap === 1) for (const s of [-1, 1]) { const { dx, dy } = off(s * 0.15); svgEl("rect", { x: (x1 + x2) / 2 + dx - 0.05, y: (y1 + y2) / 2 + dy - 0.05, width: 0.1, height: 0.1, rx: 0.02, class: "brg-post" }, g); }
     linkEls[i] = { g, d: Math.round((x1 + y1) * 40) };
   });
-  for (let i = 0; i < P.grid.length; i++) {                                       // fairways: lanes of open water for shipping, a tint laid over the bridges too so a viaduct's casing doesn't cut the lane in two
-    if (!S.lanes || S.lanes[i] !== "~") continue;
-    const x = i % size, y = Math.floor(i / size);
-    svgEl("rect", { x, y, width: 1, height: 1, class: "brg-lane" }, svg);
-    svgEl("path", { d: `M${x + 0.1} ${y + 0.25}q.06 -.09 .12 0t.12 0`, class: "brg-wave" }, svg);     // in a corner of the cell, clear of a bridge through its middle
-  }
   islEls = lay.isl.map((isle, i) => {
     const [x, y] = at(i), g = svgEl("g", { class: islandClass(i) }, svg);
     if (isle.hill) for (const r of [DISC + 0.09, DISC + 0.17]) svgEl("circle", { cx: x, cy: y, r, class: "brg-hill" }, g);       // a hill: contour lines round it
     svgEl("circle", { cx: x, cy: y, r: DISC + (isle.hill ? 0.26 : 0.1), class: "brg-halo" }, g);        // drawn only round an island that breaks a rule
     svgEl("circle", { cx: x, cy: y, r: DISC, class: "brg-disc" }, g);
-    const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "brg-num", "font-size": (isle.kind ? 0.4 : 0.5) * TEXT_SCALE, transform: `translate(${x} ${y}) scale(${1 / TEXT_SCALE})` }, g);
+    const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "brg-num", "font-size": (isle.kind || isle.n > 9 ? 0.4 : 0.5) * TEXT_SCALE, transform: `translate(${x} ${y}) scale(${1 / TEXT_SCALE})` }, g);
     t.textContent = labelOf(isle);
     return g;
   });
@@ -397,15 +419,19 @@ const islandClass = (i, extra = []) => ["brg-i", P.lay.isl[i].realm ? "r1" : "",
 /** Each link's look from the run (its bridges, a hint's, the wave) and each island's (met, over, shut off, a hint's). */
 function paint() {
   if (!svg || !S) return;
-  const br = breaks(P, S.marks), over = new Set(br.over), met = new Set(br.met), cut = new Set(br.cut), lit = new Set(S.lit?.set || []);
+  const br = breaks(P, S.marks), over = new Set(br.over), met = new Set(br.met), cut = new Set(br.cut), lit = new Set(S.lit?.set || []), ring = new Set(br.ring), looped = new Set(br.ring.flatMap(l => [P.lay.links[l].a, P.lay.links[l].b]));
   trouble = whatBreaks(P, S.marks, br);
   linkEls.forEach(({ g }, l) => {
-    const { a, b } = P.lay.links[l], wrong = S.marks[l] !== "0" && (over.has(a) || over.has(b) || (cut.has(a) && cut.has(b)));   // a bridge on an island that has too many, or inside a group shut off
-    const cls = ["brg-l", P.lay.isl[a].realm ? "k1" : "", P.lay.links[l].high ? "hi" : "", S.marks[l] === "1" ? "c1" : S.marks[l] === "2" ? "c2" : "", wrong ? "bad" : "", lit.has(l) ? "lit" : ""].filter(Boolean).join(" ");
+    const { a, b } = P.lay.links[l], wrong = S.marks[l] !== "0" && (over.has(a) || over.has(b) || (cut.has(a) && cut.has(b)) || ring.has(l));   // a bridge on an island that has too many, inside a group shut off, or round a ring
+    const cls = ["brg-l", P.lay.isl[a].realm ? "k1" : "", P.lay.links[l].high ? "hi" : "", S.marks[l] !== "0" ? `c${S.marks[l]}` : "", wrong ? "bad" : "", lit.has(l) ? "lit" : ""].filter(Boolean).join(" ");
     if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
   });
   islEls.forEach((g, i) => {
-    const cls = islandClass(i, [over.has(i) ? "over" : met.has(i) ? "met" : "", cut.has(i) ? "cut" : "", S.lit?.island === i ? "why" : ""]);
+    const cls = islandClass(i, [over.has(i) ? "over" : met.has(i) ? "met" : "", cut.has(i) ? "cut" : "", looped.has(i) ? "loop" : "", S.lit?.island === i ? "why" : ""]);
+    if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
+  });
+  straitEls.forEach((g, k) => {
+    const cls = `brg-strait${br.straitsOver.includes(k) ? " over" : br.straitsMet.includes(k) ? " met" : ""}${S.lit?.strait === k ? " why" : ""}`;
     if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
   });
   feedModel(br);
@@ -512,16 +538,35 @@ function drawLine() {
   else if (S.lit) { text = S.lit.text; tone = "good"; }
   else if (message) { text = message.text; tone = message.tone; }
   else if (trouble) { text = trouble; tone = "bad"; }
-  else if (S.came && S.came !== S.level && !/[12]/.test(S.marks)) text = `No ${LEVELS[S.level]} puzzle came of this size this time: this one is ${LEVELS[S.came]}.`;
-  else if (!/[12]/.test(S.marks)) text = `${prefs.view === "model" ? "Tap a dashed line to build a bridge, again for a second, again to clear it. Hold to clear. Drag to turn, pinch or scroll to zoom." : "Tap the dotted line between two islands to build a bridge, again for a second, again to clear it. Hold to clear."}${S.twist === "none" || !S.twist ? "" : twistHint()}`;
-  else text = `${P.lay.isl.some(x => x.kind) ? "Every island with its number, or within its bound (4+ at least, ≤3 at most)" : "Every island with as many bridges as its number"}${P.lay.realmSize[1] ? ", each colour one network" : ", all of them joined"}, no bridge crossing another${P.lay.links.some(k => k.high) ? " (a viaduct goes over)" : ""}.`;
+  else if (S.came && S.came !== S.level && !/[123]/.test(S.marks)) text = `No ${LEVELS[S.level]} puzzle came of this size this time: this one is ${LEVELS[S.came]}.`;
+  else if (!/[123]/.test(S.marks)) {
+    const twisted = hasTwist(S.twist);                    // a twist's sentence needs the room, so the first line is shorter with one
+    text = prefs.view === "model" ? "Tap a dashed line to build a bridge, again for another, again to clear it. Hold to clear. Drag to turn, pinch or scroll to zoom."
+      : twisted ? "Tap a dotted line to build a bridge, again for another, again to clear it. Hold to clear." : "Tap the dotted line between two islands to build a bridge, again for a second, again to clear it. Hold to clear.";
+    if (twisted && prefs.view !== "model") text += twistHint();
+  } else text = goalLine();
   if (l.textContent !== text) l.textContent = text;
   l.className = `brg-say${tone ? ` ${tone}` : ""}`;
 }
+/** The line under a board with bridges on it: what is asked, with a word for each twist the puzzle has. */
+function goalLine() {
+  const f = flagsOf(S.twist);
+  const bits = [f.ranges ? "Every island its number or within its bound" : "Every island with as many bridges as its number", f.realms ? "each colour one network" : "all of them joined", "no bridge crossing another"];
+  if (f.hills) bits[2] += " (a viaduct goes over)";
+  if (f.straits) bits.push("each strait with its bridges");
+  if (f.tree) bits.push("no ring");
+  return `${bits.join(", ")}.`;
+}
 /** What a twist adds to the first line: one short sentence for the first twist the puzzle has. */
 function twistHint() {
-  const t = String(S.twist);
-  return t.includes("lanes") ? " Ringed hills join over the lanes: a lane is spanned by a viaduct alone." : t.includes("hills") ? " A bridge between two ringed hills goes over the bridges below it." : t.includes("realms") ? " Islands of one colour join only each other." : t.includes("ranges") ? " 4+ is at least four, ≤3 at most three." : t.includes("reefs") ? " No bridge goes over a reef." : "";
+  const f = flagsOf(S.twist);
+  return f.straits ? " A number on a dashed line counts the bridges that cross it."
+    : f.tree ? " No ring: the bridges never come back round to where they started."
+    : f.wide ? " A road with three lanes holds up to three bridges."
+    : f.narrow ? " A road between two posts holds one bridge only."
+    : f.hills ? " A bridge between two ringed hills goes over the bridges below it."
+    : f.realms ? " Islands of one colour join only each other."
+    : f.ranges ? " 4+ is at least four, ≤3 at most three." : "";
 }
 function drawResult() {
   const done = !!S?.done;
@@ -567,17 +612,19 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>Join the islands with bridges until every island has exactly as many bridges as its number and all the islands are one network. Every puzzle has exactly one answer, reached by reasoning, never by a guess.</p>
     <h4>The rules</h4>
-    <p>A bridge runs straight, in a row or a column, from an island to the next island along it. There may be one or two bridges between a pair of islands, never three, and bridges never cross each other or pass over an island. Every island ends up with as many bridges as its number, and you can walk from any island to any other over the bridges.</p>
+    <p>A bridge runs straight, in a row or a column, from an island to the next island along it. There may be one or two bridges between a pair of islands, never three (unless the road is wide), and bridges never cross each other or pass over an island. Every island ends up with as many bridges as its number, and you can walk from any island to any other over the bridges.</p>
     <p><b>An example.</b> A 1 beside a 1 can't be joined to it, or the two would be shut off together from the rest. An island that has only one way out takes all its bridges there. And an 8 has a double bridge in each of its four directions.</p>
     <h4>Playing</h4>
     <p>Tap the dotted line between two islands to build a bridge, again to make it double, again to clear it; hold a link, or right-click it, to clear it at once. A bridge can't be built across another. The puzzle is solved the moment exactly its answer is built. Undo and Redo step through your marks, and the menu clears the board.</p>
-    <p>A broken rule shows at once, the line under the board saying which: an island with too many bridges in oxblood, a group that has all its bridges while other islands are left out ringed. That comes from the rules, never the answer. An island turns blue once it has its number. Hint (+${HINT}&nbsp;s) puts a wrong bridge right first; otherwise it makes the next step a person would take and says why, the link it settled in gilt and the island that says so ringed.</p>
+    <p>A broken rule shows at once, the line under the board saying which: an island with too many bridges in oxblood, a group that has all its bridges while other islands are left out ringed, a ring of bridges where there may be none. That comes from the rules, never the answer. An island turns blue once it has its number. Hint (+${HINT}&nbsp;s) puts a wrong bridge right first; otherwise it makes the next step a person would take and says why, the link it settled in gilt and the island that says so ringed.</p>
     <h4>Twists</h4>
-    <p><b>Reefs.</b> Rock in the water. No bridge goes over a reef, so two islands can be joined only where nothing lies between them, rock included.</p>
     <p><b>Ranges.</b> Some numbers are only a bound: <b>4+</b> is at least four bridges, <b>≤3</b> at most three. The rest of the rules hold, and the puzzle still has one answer.</p>
     <p><b>Two realms.</b> Two colours of island. A bridge joins two islands of one colour; an island of the other colour in the way stops a link as any island does. Each colour must be one network of its own.</p>
     <p><b>Viaducts.</b> Some islands are hills, ringed like a map's contour lines. A bridge between two hills is a viaduct, drawn cased and ribbed with piers: it goes over any low bridge it meets, which seems to pass under it. Two viaducts, or two low bridges, still can't cross. A hill and an island below it are joined by an ordinary low bridge.</p>
-    <p><b>Fairways.</b> Marked lanes of water for shipping. Nothing but a viaduct may span a lane, so two islands with a lane between them are linked only if both are hills, and a low bridge never runs over one.</p>
+    <p><b>Narrow roads.</b> A road with a post each side of its middle holds one bridge, never two.</p>
+    <p><b>Wide roads.</b> A road drawn with three lanes holds up to three bridges, so an island may have more than eight.</p>
+    <p><b>Straits.</b> A dashed line across the sea with a number at its end: exactly that many bridges cross it, a double bridge counting twice.</p>
+    <p><b>No loops.</b> The bridges never close a ring: walking over them you can't come back to an island without turning round. A double bridge is not a ring.</p>
     <h4>Levels</h4>
     <p>The menu's Levels are a ladder of puzzles in chapters, one new twist each. Solving a level opens the next; any open level can be played again at any time, and is kept as you left it. The first time a level is the same puzzle for everyone; after that it is a new one. Stars are for the score: one for solving it, two for a score within twice the par, three within the par.</p>
     <h4>Difficulty</h4>
@@ -659,8 +706,8 @@ function openMenu() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 /** Another puzzle of the level being played. */
-function confirmLevelBlock() {
-  if (started() && !confirm("Start a new puzzle of this level? This one isn't solved.")) return false;
+async function confirmLevelBlock() {
+  if (started() && !(await sure("Start a new puzzle of this level? This one isn't solved.", { yes: "New puzzle" }))) return false;
   levelBlock(camp.at, true);
   return true;
 }
@@ -670,9 +717,9 @@ function kindChanged() {
   $("level").value = k.level;
   refill(k);
 }
-function clearBoard() {
+async function clearBoard() {
   if (!S || S.done) return;
-  if (!confirm("Clear every bridge on the board?")) return;
+  if (!(await sure("Clear every bridge on the board?", { yes: "Clear" })) || !S || S.done) return;
   for (let l = 0; l < S.marks.length; l++) if (S.marks[l] !== "0") setLink(l, S.marks[l], "0");
 }
 async function copyLink() {
@@ -713,12 +760,12 @@ $("nextBtn").addEventListener("click", () => {
   if (isLevel(S)) { if (S.lv + 1 < COUNT && isOpen(S.lv + 1)) playLevel(S.lv + 1); else openMenu(); }
   else start("random");
 });
-$("level").addEventListener("change", () => {
+$("level").addEventListener("change", async () => {
   const v = $("level").value;
   if (S && S.mode !== "daily" && v === S.level && S.size === prefs.size) return;
   const before = prefs.level;
   prefs.level = v; savePrefs();
-  if (!confirmStart("random")) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.level) : before; }
+  if (!(await confirmStart("random"))) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.level) : before; }
 });
 $("viewBtn").addEventListener("click", () => setView(prefs.view === "model" ? "chart" : "model"));
 $("undoBtn").addEventListener("click", undo);
@@ -752,7 +799,7 @@ async function solo() {
   if (forToday && !IN_FRAME) {                               // today's is a free puzzle: the one in hand, if it is today's, else a new one after asking about the one begun
     const free = read(RUN, null), mine = valid(free) && !isLevel(free) ? free : null;
     if (mine?.mode === "daily" && mine.seed === today()) { begin(mine); refill(chosenKind()); return; }
-    if (!startedRun(mine) || confirm("Today's puzzle is waiting. Leave the one you've started?")) { start("daily"); return; }
+    if (!startedRun(mine) || (await sure("Today's puzzle is waiting. Leave the one you've started?", { yes: "Leave it" }))) { start("daily"); return; }
   }
   if (IN_FRAME) { if (kept) begin(kept); else render(); return; }
   await resume();

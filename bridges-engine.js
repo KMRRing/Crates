@@ -566,6 +566,12 @@ export function whatBreaks(P, marks, br = breaks(P, marks)) {
     const parts = [...tally].map(([lab, n]) => (n === 1 ? `the ${lab}` : `${NUMBER[n] ?? n} ${lab}s`)).slice(0, 4);
     return `Too many bridges on ${over.length} islands: ${parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0]}${tally.size > 4 ? ", …" : ""}.`;
   }
+  if (br.straitsOver?.length > 1) return `${br.straitsOver.length} straits have more bridges across them than their numbers.`;
+  if (br.straitsOver?.length) {                                   // a strait with more bridges across it than its number, said by its number
+    const g = P.lay.groups[br.straitsOver[0]], n = g.ls.reduce((t, l) => t + +marks[l], 0), by = n - g.mx;
+    return `The strait marked ${g.mx} has ${n} bridges across it, ${NUMBER[by] ?? by} too many.`;
+  }
+  if (br.ring?.length) return "The bridges close a ring. In this puzzle they may never come back round to where they started.";
   if (cut.length) return `A group has all its bridges, and the other islands${P.lay.realmSize[1] ? " of its colour" : ""} aren't joined to it.`;
   return "";
 }
