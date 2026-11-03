@@ -18,7 +18,7 @@ function audio() {
     master.gain.value = 0.8;
     master.connect(squash).connect(ctx.destination);
   }
-  if (ctx.state === "suspended") ctx.resume().catch(() => {});    // browsers start audio only from a tap
+  if (ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});    // browsers start audio only from a tap, and an iPhone "interrupts" it when the page was away
   return ctx;
 }
 let hiss = null;
@@ -93,10 +93,13 @@ export const sound = {
   get on() { return on; },
   set on(v) { on = !!v; },
   played: 0,                                       // how many sounds were made (for the tests)
-  /** Opens the sound from a tap (some browsers keep it shut until one). */
+  /**
+   * Opens the sound from a tap (some browsers keep it shut until one: an iPhone only from the end of a touch, so the page
+   * calls this at the lifting of a finger as well as the touching of it, until the context runs).
+   */
   unlock() {
     const c = audio();
-    if (!c || c.unlocked) return;
+    if (!c || (c.unlocked && c.state === "running")) return;
     c.unlocked = true;
     const s = c.createBufferSource();
     s.buffer = c.createBuffer(1, 1, c.sampleRate);
