@@ -13,10 +13,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 const GPL_NAMES = /stockfish|lc0|lczero|leela|komodo|ethereal|koivisto|viridithas|rubichess|berserk/i;
 const GPL_TEXT = /GNU (Affero |Lesser )?General Public License/i;
 const SKIP_DIRS = new Set([".git", "node_modules", ".claude", "docs", "tests", "kb"]);
-const LICENCE_FILE = /^(copying|copyright|licen[cs]e|unlicense)/i, SOURCE_FILE = /\.(js|mjs|h|hpp|cpp|c|patch|wasm\.js)$/i;
-// River's Xiangqi engine (Fairy-Stockfish, GPL v3) is River's own job: it goes when River's engine is replaced, and
-// until then it is the one GPL engine the tree is allowed to hold.
-const RIVER = ["vendor/fairy-stockfish/", "tools/fairy-stockfish.sh"];
+const LICENCE_FILE = /^(copying|copyright|licen[cs]e|unlicense)/i, SOURCE_FILE = /\.(js|mjs|h|hpp|cpp|c|patch)$/i;
 
 const files = [];
 (function walk(dir) {
@@ -27,16 +24,15 @@ const files = [];
   }
 })(ROOT);
 const head = file => { const fd = fs.openSync(path.join(ROOT, file), "r"), b = Buffer.alloc(4000), n = fs.readSync(fd, b, 0, 4000, 0); fs.closeSync(fd); return b.subarray(0, n).toString("utf8"); };
-const river = file => RIVER.some(r => file.startsWith(r));
 
-const byName = files.filter(f => GPL_NAMES.test(f) && !river(f) && !/^sw\.js$/.test(f));
+const byName = files.filter(f => GPL_NAMES.test(f) && !/^sw\.js$/.test(f));
 check(!byName.length, `no file is named for a GPL engine${byName.length ? `: ${byName.slice(0, 6).join(", ")}` : ""}`);
 
-const byHeader = files.filter(f => !river(f) && (LICENCE_FILE.test(path.basename(f)) || (f.startsWith("vendor/") && SOURCE_FILE.test(f))) && GPL_TEXT.test(head(f)));
+const byHeader = files.filter(f => (LICENCE_FILE.test(path.basename(f)) || (f.startsWith("vendor/") && SOURCE_FILE.test(f))) && GPL_TEXT.test(head(f)));
 check(!byHeader.length, `no licence file or source file under vendor/ says GNU General Public License${byHeader.length ? `: ${byHeader.slice(0, 6).join(", ")}` : ""}`);
 
 // the other way round: every engine's WebAssembly sits beside a licence file that names the licence it is under
-const engines = files.filter(f => f.startsWith("vendor/") && /\.wasm$/.test(f) && /caissa|stockfish|engine/i.test(f) && !river(f));
+const engines = files.filter(f => f.startsWith("vendor/") && /\.wasm$/.test(f) && /caissa|stockfish|engine/i.test(f));
 const unlicensed = engines.filter(f => !fs.readdirSync(path.join(ROOT, path.dirname(f))).some(n => LICENCE_FILE.test(n) || /^LICEN[CS]E/i.test(n)));
 check(engines.length > 0 && !unlicensed.length, `every engine's WebAssembly has its licence text beside it (${engines.join(", ") || "none found"})`);
 
