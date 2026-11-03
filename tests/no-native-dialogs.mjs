@@ -28,7 +28,6 @@ const STILL = {
   "origin.js": 3,
   "parley.js": 1,
   "punt.js": 3,
-  "quote.js": 2,
   "rush-menu.js": 1,
   "slate.js": 3,
   "stow.js": 1,
