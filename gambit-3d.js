@@ -11,7 +11,7 @@ import * as THREE from "./vendor/three.js";
 import * as geo from "./gambit-3d-geo.js";
 
 const DEG = Math.PI / 180, FOV = 34 * DEG;
-const MIN_EL = 36 * DEG, MAX_EL = 72 * DEG, MAX_TURN = 32 * DEG;     // how far a drag may tilt and turn the camera from the player's side
+const MIN_EL = 36 * DEG, MAX_EL = 78 * DEG, MAX_TURN = 32 * DEG;     // how far a drag may tilt and turn the camera from the player's side
 const SLIP = 9, TAP_MS = 340;                                        // the pixels a finger may stray and still tap; two taps this close are a double tap
 const CAP = { p: 18, n: 20, b: 20, r: 20, q: 18, k: 4 };            // the most men of a kind (more than a game can make)
 const KNIGHT_TURN = 1.3;                                            // radians
@@ -265,7 +265,7 @@ export function createScene(host, hooks = {}) {
   const colorOf = p => (p.white ? palette.white : palette.black);
   // each side's men face the other's; a knight is turned three-quarters, since from behind or in front it's a thin plate (its head is cut in profile)
   const yawOf = (type, white) => (white ? 0 : Math.PI) + (type === "n" ? KNIGHT_TURN : 0);
-  const counts = {};
+  const counts = {}, ghostCount = {};
   function step(now) {
     const dt = clamp((now - lastNow) / 1000, 0, 0.1);
     lastNow = now;
@@ -318,14 +318,13 @@ export function createScene(host, hooks = {}) {
     for (const p of cands) { if (p.pop) { const u = (now - p.pop.t0) / p.pop.dur; p.s = u >= 1 ? 1 : 0.2 + 0.8 * ease(u); if (u >= 1) p.pop = null; else busy = true; } put(p, 0.05); blob(p.x, p.z, 0.05, 0.62); }
     for (const t of geo.TYPES) { const m = meshes[t]; m.count = counts[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
     // a captured man: fades and sinks where it stood
-    const gc = {};
     let fade = 1;
-    ghosts = ghosts.filter(g => now - g.t0 < g.dur);
-    for (const t of geo.TYPES) ghostMeshes[t].count = 0;
+    if (ghosts.length) ghosts = ghosts.filter(g => now - g.t0 < g.dur);
+    for (const t of geo.TYPES) { ghostMeshes[t].count = 0; ghostCount[t] = 0; }
     for (const g of ghosts) {
-      const u = (now - g.t0) / g.dur, m = ghostMeshes[g.type], i = gc[g.type] = (gc[g.type] || 0);
+      const u = (now - g.t0) / g.dur, m = ghostMeshes[g.type], i = ghostCount[g.type]++;
       fade = Math.min(fade, 1 - ease(u));
-      if (i < 2) { M.makeRotationY(yawOf(g.type, g.white)).scale(S.set(1, 1 - 0.25 * ease(u), 1)).setPosition(g.x, -0.12 * ease(u), g.z); m.setMatrixAt(i, M); m.setColorAt(i, g.white ? palette.white : palette.black); m.count = i + 1; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; gc[g.type]++; }
+      if (i < 2) { M.makeRotationY(yawOf(g.type, g.white)).scale(S.set(1, 1 - 0.25 * ease(u), 1)).setPosition(g.x, -0.12 * ease(u), g.z); m.setMatrixAt(i, M); m.setColorAt(i, g.white ? palette.white : palette.black); m.count = i + 1; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }
       busy = true;
     }
     ghostMat.opacity = ghosts.length ? Math.max(0, fade) : 1;
@@ -362,7 +361,11 @@ export function createScene(host, hooks = {}) {
    * model: { white (White at the bottom), pieces ({ square: "wK" }), last, selected, targets ([{ to, capture }]), check, arrows ([{ from, to, bad }]),
    * pre ({ from, to }), want, held ({ from, x, y }: the board coordinates a man in hand is at, 0..8 across and down), promo ({ colour, squares, choices }) }.
    */
+  let modelSig = "";
   function draw(next) {
+    const sig = JSON.stringify(next);
+    if (sig === modelSig) return;                    // the page redraws often (a clock, a menu): nothing the scene shows has changed, so nothing is drawn
+    modelSig = sig;
     const now = performance.now(), first = !model;
     model = next;
     if (first) { white = next.white; baseYaw = white ? 0 : Math.PI; cam.az = camTo.az = 0; cam.el = camTo.el = 0; fit(); }
@@ -473,14 +476,15 @@ export function createScene(host, hooks = {}) {
   function reset() { camTo.az = 0; camTo.el = 0; wake(); }
 
   // ---------- upkeep ----------
-  new ResizeObserver(resize).observe(host);
+  const sizeWatch = new ResizeObserver(resize);
+  sizeWatch.observe(host);
   const skinWatch = new MutationObserver(applySkin);
   skinWatch.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
   const dark = matchMedia("(prefers-color-scheme: dark)");
   dark.addEventListener?.("change", applySkin);
   document.addEventListener("visibilitychange", wake);
   let lostTimer = 0;
-  canvas.addEventListener("webglcontextlost", e => { e.preventDefault(); clearTimeout(lostTimer); lostTimer = setTimeout(() => hooks.lost?.(), 2500); });
+  canvas.addEventListener("webglcontextlost", e => { e.preventDefault(); if (!shown) return; clearTimeout(lostTimer); lostTimer = setTimeout(() => hooks.lost?.(), 2500); });
   canvas.addEventListener("webglcontextrestored", () => { clearTimeout(lostTimer); marksKey = ""; if (model) lay(model); wake(); });
   applySkin();
   resize();
@@ -502,12 +506,14 @@ export function createScene(host, hooks = {}) {
       if (frameId) cancelAnimationFrame(frameId);
       clearTimeout(lostTimer);
       skinWatch.disconnect();
+      sizeWatch.disconnect();
       dark.removeEventListener?.("change", applySkin);
       document.removeEventListener("visibilitychange", wake);
       for (const t of geo.TYPES) { geoms[t].dispose(); meshes[t].dispose(); ghostMeshes[t].dispose(); }
       boardMesh?.geometry.dispose(); marksGeo.dispose(); shadowGeo.dispose(); shadows.dispose();
       boardMat.dispose(); pieceMat.dispose(); ghostMat.dispose(); marksMat.dispose(); shadowMat.dispose();
       renderer.dispose();
+      renderer.forceContextLoss?.();                // a phone has only a few graphics contexts: give this one back now, not when it's collected
       canvas.remove(); labels.remove(); probe.remove();
     },
   };
