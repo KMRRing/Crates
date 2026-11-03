@@ -133,8 +133,7 @@ function runLeg(S, course, speedFactor) {
   S.T = T1; S.truth.push([...T1]);
   // the DR: the logged speed on the course steered, for the hours run; the fog grows by what the log, the compass and the current can do
   const run = S.leg.run, dr = [S.E[0] + run * vec(course)[0], S.E[1] + run * vec(course)[1]];
-  const noise = legNoise({ logSigma: L.errors.log, compassSigma: S.compass.known === null ? S.compass.sd : Math.min(S.compass.sd, 0.5), current: [L.errors.current * hours, L.errors.current * hours * 0.7] }, course, run);
-  S.pre = { E: dr, P: addP(S.P, noise) };
+  S.pre = { E: dr, P: addP(S.P, processNoise(S, course, hours, run)) };
   if (S.w >= S.watches) return finish(S, "missed", { miss: through });
   S.w += 1; S.jd = S.t0 = t1;
   const wx = S.weathers[S.w - 1];
@@ -144,6 +143,27 @@ function runLeg(S, course, speedFactor) {
   };
   S.phase = "ritual";
   return { ok: true };
+}
+/** What a leg of `run` nm in `hours` on `course` does to the fog: the log, the compass (as far as it is known) and the current. */
+function processNoise(S, course, hours, run) {
+  const e = levelOf(S).errors;
+  return legNoise({ logSigma: e.log, compassSigma: S.compass.known === null ? S.compass.sd : Math.min(S.compass.sd, 0.5), current: [e.current * hours, e.current * hours * 0.7] }, course, run);
+}
+/**
+ * What steering `course` from here would promise, by the reckoning alone (not the truth): the hours to the next twilight, where the DR
+ * would put the ship and the fog it would have grown. Drawn on the chart while the course is chosen.
+ */
+export function forecast(S, course) {
+  const L = levelOf(S), kind = S.kinds[S.w] ?? (S.kinds[S.w - 1] === "dusk" ? "dawn" : "dusk");
+  const jd0 = sceneJd(S), v = vec(course);
+  let E1 = S.E, t1 = jd0 + 0.4;
+  for (let i = 0; i < 3; i++) {
+    const p = toLatLon(L.origin, E1), c = nextCrossing(jd0, kind, p.lat, p.lon, 4 / 24);
+    if (c === null) break;
+    t1 = c; const run = (t1 - jd0) * 24 * L.speed; E1 = [S.E[0] + v[0] * run, S.E[1] + v[1] * run];
+  }
+  const hours = (t1 - jd0) * 24, run = hours * L.speed;
+  return { hours, run, E: E1, P: addP(S.P, processNoise(S, course, hours, run)), at: t1 };
 }
 /** Perpendicular distance from the harbour to the line of a track: how well it was aimed. */
 function lineMiss(p, q, h) {

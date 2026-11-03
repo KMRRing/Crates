@@ -1,0 +1,52 @@
+// What the codex tells: for each constellation Landfall teaches, how to find it, a story or a fact, when it stands high in the
+// evening, and the mastery the player has earned. Words only, and the sky's own arithmetic for the months. Knowledge, never power:
+// nothing here changes how a voyage plays.
+import { FIGURES } from "./landfall-figures.js";
+import { STARS } from "./landfall-stars.js";
+import { julianDate, starAltAz, calendar } from "./landfall-sky.js";
+
+export const MASTERY = ["not seen yet", "seen", "named with a hint", "found without one"];
+
+export const LORE = {
+  UMa: {
+    rule: "Merak and Dubhe, the two stars at the end of the Plough's bowl, point to Polaris: carry their gap five times on.",
+    story: "In the Greek tale Callisto was changed into a bear and set among the stars; her son Arcas follows as the Little Bear.",
+    fact: "Five of its seven stars, all but Dubhe and Alkaid at the two ends, are drifting through space together, a family that formed together.",
+    german: "To a German sailor it is the Großer Wagen, the Great Wagon, and the Little Bear is the Kleiner Wagen.",
+  },
+  UMi: {
+    rule: "Polaris is the tip of the Little Bear's tail. Find it by the Plough's pointers, or from Cassiopeia across the pole.",
+    story: "One Greek tale makes the Little Bear Arcas, the son of Callisto; the sailors of the north made it their guide.",
+    fact: "Polaris is not quite on the pole: in 1856 it stood 1° 22′ from it, about 0° 40′ today. The almanac's correction is that gap.",
+    german: "The Kleiner Wagen, the Little Wagon; Polaris is the Polarstern, the pole star.",
+  },
+  Cas: {
+    rule: "Cassiopeia is a W of five stars. It and the Plough stand on opposite sides of Polaris: when one is low, the other is high.",
+    story: "Cassiopeia was the vain queen of Aethiopia, who boasted of her beauty and was set in the sky on her throne, which tips her upside down for half of every night.",
+    fact: "Its five stars are nearly equally bright, which is what makes the W so easy to pick out, even through haze.",
+    german: "Kassiopeia, which a German sailor calls the Himmels-W, the W in the sky.",
+  },
+};
+
+/** How a sight works, in four lines, for the first visit and the menu. */
+export const HOW = [
+  ["Find the pole star", "Look north. The Plough or Cassiopeia leads you to Polaris. Tap it to choose it."],
+  ["Bring it to the horizon", "Drag in the eyepiece to bring the star down onto the horizon. The lens closes in as you near it. The drum on the right is finer."],
+  ["Centre it and mark", "The swell makes the star bob. Settle it so it swings evenly about the horizon, then tap Mark. Three marks, averaged, beat one."],
+  ["Read the latitude", "The almanac turns your reading into the latitude. The pole star stands as high as you are far north, and the fog around the ship collapses along that line."],
+];
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** The months in which a figure stands highest at nine in the evening, local mean time, in an 1850s year at latitude 55 degrees: "Mar to May". */
+export function monthsHigh(figure, lat = 55) {
+  const des = FIGURES[figure].key[0], star = STARS.find(s => s[2] === des);
+  const alt = MONTHS.map((_, m) => starAltAz(star, julianDate(1856, m + 1, 15, 21), lat, 0).alt);
+  const top = Math.max(...alt), flat = top - Math.min(...alt) < 15;           // Polaris hardly moves: it is the same all year
+  if (flat) return { always: true, altitude: Math.round(top) };
+  const hi = alt.map((a, i) => (a > top - 12 ? i : -1)).filter(i => i >= 0);
+  // the run of months around the best one (months wrap round the year)
+  const best = alt.indexOf(top), run = [best];
+  for (let d = 1; d < 12; d++) { const i = (best + d) % 12, j = (best - d + 12) % 12; if (hi.includes(i) && run.at(-1) === (i + 11) % 12) run.push(i); if (hi.includes(j) && run[0] === (j + 1) % 12) run.unshift(j); }
+  return { best: MONTHS[best], from: MONTHS[run[0]], to: MONTHS[run.at(-1)], altitude: Math.round(top) };
+}
+export const monthsText = figure => { const m = monthsHigh(figure); if (m.always) return "up all night, every night of the year, at about the height of your latitude"; return m.from === m.to ? `highest at nine in the evening in ${m.best}` : `highest at nine in the evening from ${m.from} to ${m.to}, best in ${m.best}`; };
