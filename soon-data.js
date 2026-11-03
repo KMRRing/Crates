@@ -34,16 +34,6 @@ export const SOON = {
       "A search that scores the four swipes would give a hint and a par.",
     ],
   },
-  flank: {
-    name: "Flank", sec: "table",
-    line: "Reversi for two: discs black on one side and white on the other; place one so it brackets a line of the other's discs between two of yours, and they all turn. Most discs when the board is full wins.",
-    todo: [
-      "Added 2 November 2026 (Korbi: \"othello\"). Othello is a trademark and Reversi, the 1880s game it came from, is the name anyone may use; the tile is Flank, for what a move does. Rules belong to no one.",
-      "On seats.js, so two on one phone, a partner's match and a table of friends come with it: a legal move must flank at least one line, a player with none passes, and the game ends when neither can move. The turning discs are the only drawing.",
-      "The computer is our own search: the board is small enough for a few plies with weights for corners, edges and how many moves each side has left (mobility), and the weaker levels make a chosen share of mistakes. The strong free engines (Edax) are GPL, which is the case for writing our own.",
-      "Needs, as every board game here: a coach, a daily puzzle (a position and its best move), and a calm mode with the discs in 3D.",
-    ],
-  },
   cargo: {
     name: "Cargo", sec: "idle",
     line: "Falling blocks: crates of four squares fall into a well; slide and turn them to fill a row across, which clears and lets the rest fall. The well fills as you slip, and the game ends when a new crate cannot enter.",
