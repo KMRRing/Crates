@@ -14,7 +14,8 @@
 // A game is one object, as saved: { v, seed, n (draws made), tanks (six lists of grades 0–4, bottom up, each in order
 // of density), hand (the two parcels offered), pumps (moves made, draw-offs too), untilDelivery, sour (for each tank,
 // pumps its FAME has stood on water), untilDraw (pumps until a draw-off is ready; 0, ready), want (the grade the
-// tanker at the jetty takes), next (the next tanker's), untilTanker (pumps until it comes), lives, score, over }.
+// tanker at the jetty takes), next (the next tanker's), untilTanker (pumps until it comes), lives, score, over };
+// a level's adds lv (its number), rules, goal, limit, shipped (parcels shipped so far) and won.
 
 export const TANKS = 6, LEVELS = 8, GRADES = 4, LIVES = 3, START = 14;
 // slops (SLOP) aren't one of the GRADES offered or delivered: only FAME standing on water makes them
@@ -24,6 +25,8 @@ export const NAMES = ["Water", "FAME", "Diesel", "Naphtha", "Slops"], DENSITY = 
 export const SOUR = 5, DRAW = 10, TANKER = 10;
 // the deliveries: until so many pumps, every so many pumps, so many parcels
 export const PACE = [[25, 3, 1], [60, 2, 1], [120, 1, 1], [200, 1, 2], [Infinity, 1, 3]];
+/** Whether a part of the game is on: all are, unless a level's rules switch one off (deliver, sour, tanker, draw). */
+export const rule = (s, k) => s.rules?.[k] !== false;
 const paceAt = pumps => PACE.find(([until]) => pumps < until);
 export const deliveryEvery = pumps => paceAt(pumps)[1];
 export const deliveryCount = pumps => paceAt(pumps)[2];
@@ -110,6 +113,7 @@ export function newGame(seed) {
 /** A game saved before slops and draw-offs given their clocks, and one saved before the tankers given its first. */
 export function upgrade(game) {
   let s = game;
+  if (s.goal != null) return s;   // a level is always whole
   if (!Array.isArray(s.sour) || s.untilDraw == null) s = { ...structuredClone(s), sour: new Array(TANKS).fill(0), untilDraw: DRAW };
   if (s.want == null) s = charter(s === game ? structuredClone(s) : s);
   return s;
@@ -147,7 +151,7 @@ function settle(s, t, drew) {
   let spilled = -1;
   if (t >= 0 && s.tanks[t].length > LEVELS) { spilled = s.tanks[t].pop(); s.lives--; }
   let tanker = null;
-  if (--s.untilTanker <= 0) {
+  if (rule(s, "tanker") && --s.untilTanker <= 0) {
     s.want = s.next;
     s.next = another(s, s.want);
     s.untilTanker = TANKER;
@@ -157,17 +161,22 @@ function settle(s, t, drew) {
   }
   s.score += gain + (tanker?.gain ?? 0);
   s.pumps++;
+  // a level is won the moment enough has shipped: nothing comes after it
+  if (s.goal != null) {
+    s.shipped += n + (tanker ? shipped(tanker.waves) : 0);
+    if (s.shipped >= s.goal) s.won = true;
+  }
   const delivered = [];
-  if (--s.untilDelivery <= 0) {
+  if (!s.won && rule(s, "deliver") && --s.untilDelivery <= 0) {
     for (let k = deliveryCount(s.pumps - 1); k > 0; k--) {
       const d = delivery(s);
       if (d) { s.tanks = pumped(s.tanks, d.t, d.g); delivered.push(d); }
     }
     s.untilDelivery = deliveryEvery(s.pumps);
   }
-  const soured = sour(s);
+  const soured = s.won || !rule(s, "sour") ? [] : sour(s);
   s.untilDraw = drew ? DRAW : Math.max(0, s.untilDraw - 1);
-  s.over = s.lives <= 0;
+  s.over = s.won || s.lives <= 0 || (s.goal != null && s.pumps >= s.limit);
   return { state: s, waves: r.waves, gain, spilled, tanker, delivered, soured, over: s.over };
 }
 /**
@@ -192,7 +201,7 @@ export function pump(game, slot, t) {
  */
 export function drawOff(game, t) {
   const s = structuredClone(game);
-  if (s.over || s.untilDraw > 0) throw new Error("no draw-off ready");
+  if (s.over || !rule(s, "draw") || s.untilDraw > 0) throw new Error("no draw-off ready");
   if (!(t >= 0 && t < TANKS)) throw new Error("no such tank");
   const k = foot(s.tanks[t]);
   if (!k) throw new Error("nothing at its foot");
@@ -202,5 +211,20 @@ export function drawOff(game, t) {
 /** Every pump there is: [{ slot, t }]. For the tests and the tuning players. */
 export const moves = () => [0, 1].flatMap(slot => [...Array(TANKS).keys()].map(t => ({ slot, t })));
 /** The tanks a draw-off could be spent on now (none while it isn't ready). */
-export const draws = s => (s.over || s.untilDraw > 0 ? [] : [...Array(TANKS).keys()].filter(t => foot(s.tanks[t]) > 0));
+export const draws = s => (s.over || !rule(s, "draw") || s.untilDraw > 0 ? [] : [...Array(TANKS).keys()].filter(t => foot(s.tanks[t]) > 0));
 export const filled = s => s.tanks.reduce((a, x) => a + x.length, 0);
+
+/**
+ * A level's game: the level's tanks dealt from its seed (no line standing), its parts switched on or off (`rules`), a
+ * goal to ship and the pumps it has. level: { id, seed, parcels (dealt about the tanks), rules, goal, limit, drawn
+ * (the draw-off ready from the start), sour (pumps FAME standing on water at the start has already soured for) }.
+ */
+export function newLevel(level) {
+  const s = { v: 1, seed: level.seed >>> 0, n: 0, tanks: Array.from({ length: TANKS }, () => []), hand: [], pumps: 0, untilDelivery: deliveryEvery(0), sour: new Array(TANKS).fill(0), untilDraw: level.drawn ? 0 : DRAW, lives: LIVES, score: 0, over: false,
+    lv: level.id, rules: { ...level.rules }, goal: level.goal, limit: level.limit, shipped: 0, won: false };
+  for (let k = 0; k < level.parcels; k++) { const d = delivery(s); if (d) s.tanks = pumped(s.tanks, d.t, d.g); }
+  s.hand = [pick(s, GRADES), pick(s, GRADES)];
+  // FAME already standing on water when the level opens has been souring for `sour` pumps
+  if (level.sour) s.tanks.forEach((tank, t) => { const w = tank.lastIndexOf(WATER); if (w >= 0 && tank[w + 1] === FAME) s.sour[t] = level.sour; });
+  return rule(s, "tanker") ? charter(s) : s;
+}

@@ -118,3 +118,19 @@ html[data-mode="night"] { --st-danger: #E8806F; }
   #app.settle .st-strip { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: .9rem; margin-top: .5rem; }
   #app.settle .st-line { height: 2.4rem; }
 }
+
+/* levels: the card without the draw-off takes the width of its two parcels; a result with two buttons; the menu's grid of levels */
+.st-tray.nodraw { grid-template-columns: 1fr 1fr; }
+.st-btns { display: flex; gap: .5rem; }
+.st-result.two { grid-template-columns: 1fr; align-content: center; gap: .5rem; }
+.st-result.two .st-btns .st-go { flex: 1; padding: 0 .4rem; }
+.st-btns .st-go[hidden] { display: none; }
+.st-levels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .4rem; margin: .5rem 0 .2rem; }
+.st-lv { display: grid; justify-items: center; gap: .05rem; padding: .35rem 0 .3rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--st-soft); color: var(--ink); font: inherit; cursor: pointer; }
+.st-lv b { font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.st-lv i { font-style: normal; font-size: .62rem; letter-spacing: .05em; color: var(--brass-lo); }
+.st-lv.now { border-color: var(--st-in); box-shadow: inset 0 0 0 2px var(--st-in); }
+.st-lv:disabled { opacity: .4; cursor: default; background: transparent; }
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.settle .st-tray.nodraw { grid-template-rows: repeat(2, 4.4rem); }
+}

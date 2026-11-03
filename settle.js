@@ -6,15 +6,17 @@
 // shows the grade it takes by threes (any other by fours), and the next one's grade and when it comes; lines of three
 // standing ready for their grade's tanker are dotted. The rules are settle-engine.js's; this file draws the farm, plays
 // each move out and keeps the game.
-import { TANKS, LEVELS, LIVES, NAMES, DENSITY, WATER, FAME, SLOP, SOUR, newGame, upgrade, settles, pumped, foot, lines, ship, pump, drawOff, draws, worth } from "./settle-engine.js";
+import { TANKS, LEVELS, LIVES, NAMES, DENSITY, WATER, FAME, SLOP, SOUR, newGame, newLevel, upgrade, rule, settles, pumped, foot, lines, ship, pump, drawOff, draws, worth } from "./settle-engine.js";
+import { LEVELS as COURSE, levelOf, starsFor, isOpen } from "./settle-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line } from "./menu.js";
+import { part, action, line, choice } from "./menu.js";
 import { roundOver } from "./random.js";
+import { noteStars } from "./suite.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "settle:run", BEST = "settle:best", SEEN = "settle:seen", DREW = "settle:drew", JETTY = "settle:jetty";   // pumps made with the tanker explained
+const RUN = "settle:run", LRUN = "settle:lrun", DONE = "settle:levels", MODE = "settle:mode", BEST = "settle:best", SEEN = "settle:seen", DREW = "settle:drew", JETTY = "settle:jetty";   // pumps made with the tanker explained
 const TW = 10, GAP = 2, LH = 7.4, BASE = 60;   // a tank's width, the gap between, a level's height, the floor
 const LETTER = ["W", "F", "D", "N", "S"];
 const DRAWN = "draw";   // the draw-off card's slot, held as a parcel's is
@@ -30,8 +32,21 @@ let picked = -1;         // a parcel (or the draw-off) tapped, to use with a tap
 let berth = null;        // the tanker drawn while a pump plays out ({ want, next, untilTanker }), else the game's
 
 const valid = g => g && g.v === 1 && Array.isArray(g.tanks) && g.tanks.length === TANKS && Array.isArray(g.hand) && g.hand.length === 2;
-function save() { write(RUN, S); }
-function newRun() { S = newGame(Math.floor(Math.random() * 2 ** 31)); drag = null; picked = -1; save(); render(); }
+// the game in play is a level's (S.goal) or the endless one; each keeps its own run, and the mode says which opens
+const isLevel = () => S.goal != null;
+let done = read(DONE, {});   // { level number: { stars, pumps } }
+const starsAll = () => Object.values(done).reduce((n, d) => n + (d?.stars || 0), 0);
+function save() { write(isLevel() ? LRUN : RUN, S); }
+function newRun() { S = newGame(Math.floor(Math.random() * 2 ** 31)); write(MODE, "endless"); drag = null; picked = -1; save(); render(); }
+function openLevel(L) { S = newLevel(L); write(MODE, "levels"); drag = null; picked = -1; save(); render(); }
+/** The level to carry on with: the first without a star. */
+const nextUp = () => COURSE.find(L => !done[L.id]?.stars) ?? COURSE.at(-1);
+function keepStars() {
+  const L = levelOf(S.lv), stars = starsFor(L, S.pumps), was = done[L.id];
+  done = { ...done, [L.id]: { stars: Math.max(was?.stars || 0, stars), pumps: Math.min(was?.pumps ?? Infinity, S.pumps) } };
+  write(DONE, done);
+  noteStars("settle", starsAll());
+}
 
 // ---------- drawing ----------
 const el = (tag, attrs = {}, ...kids) => {
@@ -105,33 +120,57 @@ function drawBoard(tanks, extra = {}) {
   if (extra.tag) { const t = el("text", { class: "st-tag", x: Math.min(62, Math.max(8, tx(extra.tag[1]) + TW / 2)), y: -8 }); t.textContent = extra.tag[0]; marks.append(t); }
   $("board").replaceChildren(
     el("rect", { class: "st-ground", x: -2, y: BASE, width: 74, height: 3.5, rx: .8 }),
-    jettyEl(berth ?? S, !!extra.tag), el("path", { class: "st-header", d: `M-1 -6.5H71` }), shells, parcels, marks, el("g", { id: "fx" }));
+    rule(S, "tanker") ? jettyEl(berth ?? S, !!extra.tag) : el("g", {}), el("path", { class: "st-header", d: `M-1 -6.5H71` }), shells, parcels, marks, el("g", { id: "fx" }));
 }
 function drawStrip() {
-  $("score").textContent = fmt(S.score);
-  $("best").textContent = fmt(Math.max(read(BEST, 0), S.score));
+  if (isLevel()) {
+    $("stripA").innerHTML = `Level <b>${S.lv}</b> · shipped <b>${Math.min(S.shipped, S.goal)}</b>/<b>${S.goal}</b>`;
+    $("stripB").innerHTML = `Pump <b>${S.over ? S.pumps : S.pumps + 1}</b>/<b>${S.limit}</b>`;
+  } else {
+    $("stripA").innerHTML = `Score <b>${fmt(S.score)}</b>`;
+    $("stripB").innerHTML = `Best <b>${fmt(Math.max(read(BEST, 0), S.score))}</b>`;
+  }
   const lives = $("lives");
   lives.replaceChildren(...Array.from({ length: LIVES }, (_, k) => { const i = document.createElement("i"); if (k < S.lives) i.className = "on"; return i; }));
   lives.setAttribute("aria-label", `${S.lives} of ${LIVES} lives`);
+}
+/**
+ * The line under the farm when no parcel is held: a level's brief before its first pump, then what's coming. An endless
+ * game's first pump, then the tanker for three pumps (once, for everyone); else the next delivery and the FAME nearest
+ * souring.
+ */
+function sideLine() {
+  const when = n => (n === 1 ? "after this pump" : `in ${n} pumps`);
+  const souring = rule(S, "sour") ? [...Array(TANKS).keys()].filter(t => S.sour[t] && contact(S.tanks[t]) >= 0).sort((a, b) => S.sour[b] - S.sour[a])[0] : null;
+  const tell = [rule(S, "deliver") ? `a delivery comes ${when(S.untilDelivery)}` : "", souring != null ? `tank ${souring + 1}'s FAME on water sours ${when(SOUR - S.sour[souring])}` : ""].filter(Boolean).join("; ");
+  const tanker = () => `The ${S.want === WATER ? "barge" : "tanker"} in takes ${named(S.want)} by threes, other grades by fours; ${S.next === WATER ? "the water barge" : `${named(S.next)}'s`} is next`;
+  const firstDraw = !read(DREW, false) && draws(S).length > 0, drawn = "A draw-off is ready: drag it onto a tank to drain the water and slops from its foot";
+  if (isLevel()) {
+    const L = levelOf(S.lv), left = S.goal - S.shipped;
+    return S.pumps === 0 ? L.note : rule(S, "tanker") && S.pumps < 3 ? tanker() : draws(S).length && S.pumps < 5 && L.drawn ? drawn
+      : `Ship ${left} more in ${S.limit - S.pumps} pump${S.limit - S.pumps === 1 ? "" : "s"}${tell ? `; ${tell}` : ""}`;
+  }
+  const first = !read(SEEN, false) && S.pumps < 1;
+  return first ? "Drag a parcel onto a tank: it settles by density, the heaviest at the foot"
+    : read(JETTY, 0) < 3 ? tanker() : firstDraw ? drawn : upper(tell);
 }
 function drawSide(text) {
   $("tray").hidden = S.over;
   $("line").hidden = S.over;
   $("result").hidden = !S.over;
   if (S.over) {
-    const best = read(BEST, 0);
-    $("verdict").textContent = `A third spill: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
+    const best = read(BEST, 0), L = isLevel() ? levelOf(S.lv) : null, more = L && COURSE.some(x => x.id === L.id + 1);
+    $("verdict").textContent = L ? (S.won ? `Level ${L.id} done in ${S.pumps} pump${S.pumps === 1 ? "" : "s"}: ${"★".repeat(starsFor(L, S.pumps))}${"☆".repeat(3 - starsFor(L, S.pumps))} (par ${L.par})`
+        : `${S.lives <= 0 ? "A third spill" : "Out of pumps"}: ${S.shipped} of ${S.goal} shipped`)
+      : `A third spill: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
+    $("againBtn").textContent = L ? (S.won ? "Replay" : "Try again") : "New game";
+    $("nextBtn").hidden = !(L && S.won && more);
+    $("result").classList.toggle("two", !!L);
     return;
   }
-  // a first game's first pump, then the tanker for three pumps (once, for everyone); else the next delivery and the
-  // FAME nearest souring
-  const first = !read(SEEN, false) && S.pumps < 1, tanker = read(JETTY, 0) < 3;
-  const souring = [...Array(TANKS).keys()].filter(t => S.sour[t] && contact(S.tanks[t]) >= 0).sort((a, b) => S.sour[b] - S.sour[a])[0];
-  const when = n => (n === 1 ? "after this pump" : `in ${n} pumps`), firstDraw = !read(DREW, false) && draws(S).length > 0;
-  $("line").textContent = text ?? (first ? "Drag a parcel onto a tank: it settles by density, the heaviest at the foot"
-    : tanker ? `The ${S.want === WATER ? "barge" : "tanker"} in takes ${named(S.want)} by threes, other grades by fours; ${S.next === WATER ? "the water barge" : `${named(S.next)}'s`} is next`
-      : firstDraw ? "A draw-off is ready: drag it onto a tank to drain the water and slops from its foot"
-        : `A delivery comes ${when(S.untilDelivery)}${souring != null ? `; tank ${souring + 1}'s FAME on water sours ${when(SOUR - S.sour[souring])}` : ""}`);
+  $("drawBtn").hidden = !rule(S, "draw");
+  $("tray").classList.toggle("nodraw", !rule(S, "draw"));
+  $("line").textContent = text ?? sideLine();
   for (const b of document.querySelectorAll(".st-card:not(.st-draw)")) {
     const slot = Number(b.dataset.slot), g = S.hand[slot];
     b.classList.toggle("picked", slot === picked);
@@ -237,10 +276,13 @@ async function commit(slot, t) {
   S = r.state;
   berth = before;
   save();
-  if (S.score > read(BEST, 0)) write(BEST, S.score);
-  if (told < 3 && (read(SEEN, false) || before.pumps > 0)) write(JETTY, told + 1);
-  if (S.pumps >= 3) write(SEEN, true);
-  if (drawing) write(DREW, true);
+  if (isLevel()) { if (S.won) keepStars(); }   // counted the moment it's final, not when the result opens
+  else {
+    if (S.score > read(BEST, 0)) write(BEST, S.score);
+    if (told < 3 && (read(SEEN, false) || before.pumps > 0)) write(JETTY, told + 1);
+    if (S.pumps >= 3) write(SEEN, true);
+    if (drawing) write(DREW, true);
+  }
   drawSide(" ");
   let tanks = drawing ? await drain(before.tanks, t, r.drained.length) : await settleIn(before.tanks, t, r.grade);
   tanks = await shipOut(tanks, r.waves);
@@ -339,12 +381,49 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
 }
+/** The levels as a grid of numbers with their stars; the ones not yet open are dimmed. */
+function levelGrid() {
+  const grid = document.createElement("div");
+  grid.className = "st-levels";
+  for (const L of COURSE) {
+    const b = document.createElement("button"), n = done[L.id]?.stars || 0, open = isOpen(L.id, done);
+    b.type = "button";
+    b.className = `st-lv${isLevel() && S.lv === L.id ? " now" : ""}`;
+    b.disabled = !open;
+    b.innerHTML = `<b>${L.id}</b><i>${"\u2605".repeat(n)}${"\u2606".repeat(3 - n)}</i>`;
+    b.setAttribute("aria-label", `Level ${L.id}, ${L.name}${open ? `, ${n} of 3 stars` : ", locked: finish the one before"}`);
+    b.addEventListener("click", () => { $("menuDlg").close(); openLevel(L); });
+    grid.append(b);
+  }
+  return grid;
+}
+/** Levels or the endless game: each keeps its own run, so switching loses nothing. */
+function switchMode(m) {
+  if (m === "levels") {
+    const g = read(LRUN, null);
+    if (valid(g) && g.goal != null && levelOf(g.lv)) { S = g; write(MODE, "levels"); drag = null; picked = -1; render(); }
+    else openLevel(nextUp());
+  } else {
+    const g = read(RUN, null);
+    if (valid(g) && g.goal == null) { S = upgrade(g); write(MODE, "endless"); drag = null; picked = -1; render(); } else newRun();
+  }
+  openMenu();
+}
 function openMenu() {
-  const body = $("menuBody");
+  const body = $("menuBody"), L = isLevel() ? levelOf(S.lv) : null;
   body.replaceChildren();
-  part(body, "play").append(action("New game", newRun, "primary"));
+  const play = part(body, "play");
+  if (L) {
+    const next = nextUp();
+    play.append(action(S.over ? `Continue \u00b7 level ${next.id}` : `Continue level ${S.lv}`, () => { if (S.over) openLevel(next); }, "primary"),
+      action("Restart this level", () => openLevel(L), "link"));
+  } else play.append(action("New game", newRun, "primary"));
+  const content = part(body, "content");
+  content.append(choice("Game", [["levels", "Levels"], ["endless", "Endless"]], L ? "levels" : "endless", switchMode));
+  if (L) content.append(levelGrid());
   const best = read(BEST, 0);
-  part(body, "about").append(line(`This game: ${fmt(S.score)} in ${S.pumps} pump${S.pumps === 1 ? "" : "s"}${best ? `; your best ${fmt(best)}` : ""}`));
+  part(body, "about").append(line(L ? `Level ${L.id}, ${L.name}: ship ${L.goal} in ${L.limit} pumps; par ${L.par}. ${starsAll()} of ${COURSE.length * 3} stars`
+    : `This game: ${fmt(S.score)} in ${S.pumps} pump${S.pumps === 1 ? "" : "s"}${best ? `; your best ${fmt(best)}` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -359,11 +438,16 @@ addEventListener("pointerup", endDrag);
 addEventListener("pointercancel", e => { if (drag?.id === e.pointerId) { drag = null; render(); } });
 $("board").addEventListener("pointerup", tapBoard);
 $("board").addEventListener("pointermove", hoverBoard);
-$("againBtn").addEventListener("click", newRun);
+$("againBtn").addEventListener("click", () => (isLevel() ? openLevel(levelOf(S.lv)) : newRun()));
+$("nextBtn").addEventListener("click", () => openLevel(levelOf(S.lv + 1)));
 
 // for tests and debugging
-window.__settle = { get state() { return S; }, commit, tankAt, newRun };
+window.__settle = { get state() { return S; }, commit, tankAt, newRun, openLevel };
 
-S = read(RUN, null);
-if (!valid(S)) newRun();
+// opens on the mode last played: the levels for a newcomer, the endless game for one who has a game saved
+const mode = read(MODE, null) ?? (valid(read(RUN, null)) ? "endless" : "levels");
+S = read(mode === "levels" ? LRUN : RUN, null);
+if (mode === "levels") {
+  if (valid(S) && S.goal != null && levelOf(S.lv)) render(); else openLevel(nextUp());
+} else if (!valid(S)) newRun();
 else { S = upgrade(S); render(); }
