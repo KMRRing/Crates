@@ -19,7 +19,7 @@ Hashiwokakero ("build bridges"; 31 October 2026, Korbi's list of genres to add):
 ## Rulings
 - 1 November 2026, on wrong islands: "highlight it more when the 1+ and ≤5 are wrong and stuff like that, not always super clear from the highlights what's off". A broken rule shows from the marks alone, every time, never from the answer, and the line under the board says which island and by how much.
 - 1 November 2026, on 3D: "Fun atmosphere, which is what the 3D model is really intended for"; "a scenic mode, or just called 3d, which can be applied at all times, and switches the 2d puzzle representation to a beautiful 3d one". The chart and the model are one run; either can be played.
-- 1 November 2026, "Allow zooming in bridges" (the 3D view; the 2D chart's zoom is a later brief).
+- 1 November 2026, "Allow zooming in bridges" (the 3D view first; the chart has its own pinch zoom now).
 - 1 November 2026, "islands of varying sizes depending on number".
 - November 2026: Bridges is the best received game; wants levels like Topple's.
 - 3 November 2026, 13:21, on co-op: "Coop mode for bridges: half the numbers are hidden from each player; other player has those. When clicking on an island, it pings it to the other player so it's easy to communicate which island you are talking about. Can be toggled when in party on that game." Split numbers and pings above are this; the toggle is in the menu.
@@ -33,5 +33,6 @@ Hashiwokakero ("build bridges"; 31 October 2026, Korbi's list of genres to add):
 - **`tree` is not stored on a puzzle**: it comes from the twist name (`flagsOf`). A new twist goes into `TWIST_ORDER` as well as `TWISTS`.
 - **Every road and strait clue shown is needed**: the generator removes clues in random order while the puzzle stays solvable at its level. Don't add one for looks. A puzzle that asks for both narrow and wide has at least one of each.
 - **Ships sail any unoccupied water** (the board plus two cells of sea): islands, built low bridges, viaduct piers and the middle cell of a narrow road (its gate) are blocked, and the cells under a viaduct are crossed, never sailed along. Two ships are kept three cells apart at the start.
+- **The 3D board is a handful of meshes, not a mesh per piece** (`bridges-batch.js`): a new piece of scenery goes into a batch under a colour role, and the marks only choose which vertices are drawn. The shadow map is drawn again only when the sun (the camera's turn) or the bridges change, so nothing that moves may cast a shadow (the ships and buoys don't), or its shadow stands still.
 - **Safari/iPhone is unchecked**: the 3D view was only looked at in Chromium. Keep it without SVG filters on anything that matters, the WebGL pixel ratio at 2 at most, and the animation restartable.
 - **Odd/even islands** (a number replaced by its parity) was weighed for the 3 November 2026 twists and dropped: a weaker Ranges (it only adds a parity to a number), it needs set reasoning a hint can't say in a sentence, and it clutters the disc.

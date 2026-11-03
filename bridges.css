@@ -136,8 +136,12 @@ html[data-theme="modern"] { --brg-logo-tint: #DCEAF4; --brg-logo-edge: #2B6E99; 
 .brg3-zoom { position: absolute; right: .5rem; bottom: .5rem; display: grid; gap: .3rem; }
 .brg3-zoom button { width: 2.1rem; height: 2.1rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--brg-tile); color: var(--ink); font: inherit; font-size: 1.15rem; font-weight: 700; line-height: 1; cursor: pointer; box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 30%, transparent); }
 .brg3-zoom button:active { background: color-mix(in srgb, var(--brass) 25%, var(--brg-tile)); }
-.brg3-n { position: absolute; left: 0; top: 0; display: grid; place-items: center; min-width: 1.1rem; height: 1.1rem; padding: 0 .15rem; border-radius: 999px;
-  border: 1.5px solid var(--ink); background: var(--brg-tile); color: var(--ink); font-weight: 750; font-size: .66rem; font-variant-numeric: tabular-nums; line-height: 1;
+/* a touch screen zooms with two fingers and has no room for the buttons */
+@media (hover: none) and (pointer: coarse) { .brg3-zoom { display: none; } }
+/* the plates grow with the board: --k is set by the script from how many pixels a cell has, so a number never covers its neighbour's and is as big as the room allows */
+.brg3-labels { --k: 1; }
+.brg3-n { position: absolute; left: 0; top: 0; display: grid; place-items: center; min-width: calc(1.3rem * var(--k)); height: calc(1.3rem * var(--k)); padding: 0 calc(.18rem * var(--k)); box-sizing: border-box; border-radius: 999px;
+  border: 1.5px solid var(--ink); background: var(--brg-tile); color: var(--ink); font-weight: 800; font-size: calc(.8rem * var(--k)); font-variant-numeric: tabular-nums; line-height: 1;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 35%, transparent); will-change: transform; }
 .brg3-n.rng { background: color-mix(in srgb, var(--brass) 28%, var(--brg-tile)); }
 .brg3-n.r1 { border-color: var(--brg-copper); }
