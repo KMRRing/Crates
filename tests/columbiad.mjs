@@ -6,7 +6,7 @@
 // one), the cone is stable, the dial is monotone and fine at its top, and each level has a stored winning shot that must
 // still win. The bots' measures are in tests/columbiad-bots.mjs.
 import * as E from "../columbiad-engine.js";
-import { LEVELS, SECTIONS } from "../columbiad-levels.js";
+import { LEVELS, SECTIONS, dailyLevel } from "../columbiad-levels.js";
 import { PROOFS } from "../columbiad-proofs.js";
 import * as A from "../columbiad-aim.js";
 
@@ -139,10 +139,16 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
 
 // ---------- the levels ----------
 {
-  check(LEVELS.length === 6 && SECTIONS.length === 1 && SECTIONS[0].name === "The proving ground" && new Set(LEVELS.map(l => l.id)).size === 6, "section 1, the proving ground, has six levels");
-  check(LEVELS.every(l => E.validate(l).length === 0 && l.goal.type === "hit" && !l.bodies), "each is valid, Earth alone, goal Hit");
-  const ring = LEVELS.map(l => l.target.r), sc = LEVELS.map(l => l.scatter.v), cone = LEVELS.map(l => l.cone.len);
-  check(ring.every((r, i) => i === 0 || r <= ring[i - 1]) && sc.every((s, i) => i === 0 || s >= sc[i - 1]) && cone.every((c, i) => i === 0 || c <= cone[i - 1]) && ring[5] < ring[0] && sc[5] > sc[0], `harder through the section: smaller rings (${ring.join(", ")}), more scatter (${sc.map(s => (s * 100).toFixed(1)).join(", ")} per cent), a shorter cone (${cone.join(", ")})`);
+  const ids = LEVELS.map(l => l.id);
+  check(SECTIONS.length === 5 && SECTIONS[0].levels.length === 6 && SECTIONS[0].name === "The proving ground" && new Set(ids).size === LEVELS.length && SECTIONS.every((sec, k) => sec.levels.every((l, n) => l.id === `${k + 1}-${n + 1}`)), `${SECTIONS.length} sections, ${LEVELS.length} levels, each id its section and place`);
+  check(LEVELS.every(l => E.validate(l).length === 0), "every level is valid");
+  const one = SECTIONS[0].levels;
+  check(one.every(l => l.goal.type === "hit" && !l.bodies), "section 1 is Earth alone, goal Hit");
+  const ring = one.map(l => l.target.r), sc = one.map(l => l.scatter.v), cone = one.map(l => l.cone.len);
+  check(ring.every((r, i) => i === 0 || r <= ring[i - 1]) && sc.every((s, i) => i === 0 || s >= sc[i - 1]) && cone.every((c, i) => i === 0 || c <= cone[i - 1]) && ring[5] < ring[0] && sc[5] > sc[0], `harder through section 1: smaller rings (${ring.join(", ")}), more scatter (${sc.map(s => (s * 100).toFixed(1)).join(", ")} per cent), a shorter cone (${cone.join(", ")})`);
+  check(SECTIONS.slice(1).every(sec => sec.levels.every(l => l.bodies && l.bodies.some(b => b.id === "moon"))) && SECTIONS[2].levels.concat(SECTIONS[3].levels).every(l => E.worldOf(l).moving) && !SECTIONS[1].levels.some(l => E.worldOf(l).moving), "the Moon's sections have a Moon, and where it moves the world has a clock");
+  const days = [20261103, 20261104, 20261105, 20261231, 20270101], picks = days.map(d => dailyLevel(d).id);
+  check(days.every(d => dailyLevel(d) === dailyLevel(d) && LEVELS.indexOf(dailyLevel(d)) >= 3) && new Set(picks).size >= 3, `the day's level is a pure function of the date, never one of the first three (${picks.join(", ")})`);
   for (const lvl of LEVELS) {
     const proofs = PROOFS[lvl.id] || [];
     const wins = proofs.map(p => E.shoot(lvl, p, [0, 0]).won);
@@ -181,4 +187,4 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("columbiad: the doc's units and physics checks, a step that depends on the state alone, rings entered on the path, the dial, the cone, the contract, six levels with their winning shots, the drag-back control");
+else console.log("columbiad: the doc's units and physics checks, a step that depends on the state alone, rings entered on the path, the dial, the cone, the contract, the levels with their winning shots, the drag-back control");

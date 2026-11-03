@@ -6,7 +6,7 @@
 // back, columbiad-aim.js is the pull's arithmetic, columbiad-levels.js the levels. This file keeps the game and the page.
 // The levels come in sections (columbiad-levels.js): the proving ground (Earth alone, all open) and then the Moon's, each opening in
 // order. Where the Moon moves the world has a clock, and a shot is fired at the time it is: the cone is the aim for this very moment.
-import { LEVELS, SECTIONS } from "./columbiad-levels.js";
+import { LEVELS, SECTIONS, dailyLevel } from "./columbiad-levels.js";
 import { newGame, apply, stars as starsOf, cone as coneOf, clampAim, sound as validState, direction, worldOf, ringAt, BARRELS } from "./columbiad-engine.js";
 import { PULL_REM, DEAD_REM, begin as pullBegin, move as pullMove, nudge, crossed } from "./columbiad-aim.js";
 import { createView } from "./columbiad-view.js";
@@ -14,13 +14,15 @@ import { sound } from "./columbiad-sound.js";
 import { bindSwitcher } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, onPause, isPaused } from "./menu.js";
-import { IN_FRAME } from "./suite.js";
+import { IN_FRAME, today, arrivedForToday } from "./suite.js";
+import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
 // CAMP: { at (the level being played, 0 on), stars (the most won in each), bull (whether the ring's inner third was struck) }.
 // RUN: the game of the level being played with its trails, so a watcher (and a reload) draws the same scene. AIMS: the last aim of each level.
 // BEST: the stars won in all, the number the games screen shows. SEEN: set by the first shot, the hint is told once.
-const CAMP = "columbiad:camp", RUN = "columbiad:run", AIMS = "columbiad:aims", BEST = "columbiad:best", SOUND = "columbiad:sound", SEEN = "columbiad:seen";
+// DAILY: the stars won on each day's level, by the day (YYYYMMDD); DRUN is the daily's own run, so the camp's is left as it was.
+const CAMP = "columbiad:camp", RUN = "columbiad:run", AIMS = "columbiad:aims", BEST = "columbiad:best", SOUND = "columbiad:sound", SEEN = "columbiad:seen", DAILY = "columbiad:daily", DRUN = "columbiad:drun";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const noted = new Set();       // the levels whose note has been said this visit
@@ -33,7 +35,9 @@ const full = () => PULL_REM * rootPx();
 sound.on = read(SOUND, true);
 
 let camp = readCamp();
-let lvl = LEVELS[camp.at];
+let daily = 0;                // the day (YYYYMMDD) when today's level is being played, else 0: the camp's level
+const levelNow = () => (daily ? dailyLevel(daily) : LEVELS[camp.at]);
+let lvl = levelNow();
 let S = null;                 // the game of the level: the engine's state, as saved
 let aim = { angle: 90, charge: 0 };
 let ghosts = [];              // the last four shots' trails: { pts (x, y pairs), hit }
@@ -63,10 +67,11 @@ function keepCamp() {
   write(BEST, camp.stars.reduce((a, b) => a + b, 0));
 }
 const goodTrail = g => g && Array.isArray(g.pts) && g.pts.length >= 4 && g.pts.length <= 200 && g.pts.length % 2 === 0 && g.pts.every(Number.isFinite);
-function keepRun() { write(RUN, { id: lvl.id, s: { ...S, aim: { ...aim }, clock: stamp() }, ghosts }); }
+// `at` is the wall time of the keeping: a Moon goes on round while the page is closed, so coming back finds it where it would be, not where it was left
+function keepRun() { write(daily ? DRUN : RUN, { id: lvl.id, day: daily, at: Date.now(), s: { ...S, aim: { ...aim }, clock: stamp() }, ghosts }); }
 function keepAim() {
   clearTimeout(saveTimer); saveTimer = 0;
-  write(AIMS, { ...read(AIMS, {}), [lvl.id]: aim });
+  if (!daily) write(AIMS, { ...read(AIMS, {}), [lvl.id]: aim });
   S.aim = { ...aim };
   keepRun();
 }
@@ -76,25 +81,26 @@ function keepSoon() { if (!saveTimer && !IN_FRAME) saveTimer = setTimeout(keepAi
 // ---------- the level's game ----------
 const defaultAim = () => clampAim(lvl, { angle: (lvl.site ?? 90) - 30, charge: (lvl.barrels ?? BARRELS) * 0.65 });
 function fresh() {
-  const kept = read(AIMS, {})[lvl.id];
+  const kept = daily ? null : read(AIMS, {})[lvl.id];
   aim = clampAim(lvl, kept && Number.isFinite(kept.angle) && Number.isFinite(kept.charge) ? kept : defaultAim());
-  S = newGame(lvl, Math.floor(Math.random() * 2 ** 32), aim);
+  S = newGame(lvl, daily || Math.floor(Math.random() * 2 ** 32), aim);          // the day's scatter is the day's, the same for everyone
   ghosts = []; liveOn = false;
   keepRun();
 }
 function loadRun() {
-  const r = read(RUN, null);
-  if (r && r.id === lvl.id && validState(r.s) && Number.isFinite(r.s.aim.angle) && Number.isFinite(r.s.aim.charge)) {
+  const r = read(daily ? DRUN : RUN, null);
+  if (r && r.id === lvl.id && (r.day || 0) === daily && validState(r.s) && Number.isFinite(r.s.aim.angle) && Number.isFinite(r.s.aim.charge)) {
     S = r.s;
     ghosts = Array.isArray(r.ghosts) ? r.ghosts.filter(goodTrail).slice(-4) : [];
     aim = clampAim(lvl, S.aim);
     liveOn = false;
-    view.setClock(Number.isFinite(S.clock) ? S.clock : 0);
+    const away = moving() && Number.isFinite(r.at) ? Math.max(0, (Date.now() - r.at) / 1000) : 0;
+    view.setClock((Number.isFinite(S.clock) ? S.clock : 0) + away);
   } else fresh();
   phase = S.status === "won" ? "done" : "aim";
 }
 function setupLevel() {
-  lvl = LEVELS[camp.at];
+  lvl = levelNow();
   view.setLevel(lvl);
   buildGauge();
   loadRun();
@@ -107,13 +113,16 @@ function setupLevel() {
   keepCamp();
 }
 function playLevel(n) {
+  daily = 0;
   camp.at = n;
   setupLevel();
 }
 function restart() {
+  const clock = view.clock;                              // a replay is a new game of the level, not a new sky: the Moon keeps its place
   fresh();
   phase = "aim";
   view.setLevel(lvl);
+  if (moving()) { view.setClock(clock); keepRun(); }
   view.setGhosts([]);
   view.setWon(false);
   coneDirty = true;
@@ -149,7 +158,7 @@ function flashCell(from, to) {
 }
 function render() {
   const won = S.status === "won", k = won ? S.shots : S.shots + 1, earn = starsOf(lvl, { status: "won", shots: k });
-  $("lvId").textContent = lvl.id;
+  $("lvId").textContent = daily ? `Daily ${lvl.id}` : lvl.id;
   $("lvName").textContent = lvl.name;
   const gw = goalWords(lvl);
   $("goal").textContent = gw;
@@ -165,8 +174,9 @@ function render() {
   for (const id of ["fire", "angL", "angR", "powD", "powU"]) $(id).disabled = busy;
   if (done) {
     const i = camp.at, last = i + 1 >= LEVELS.length;
-    $("verdict").innerHTML = `<span class="cb-big">${WON[lvl.goal?.type || "hit"]}</span><span class="cb-stars-big">${starsWords(earn)}</span><small>${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}${last ? " · the last level so far" : ""}</small>`;
-    $("nextBtn").hidden = last;
+    $("verdict").innerHTML = `<span class="cb-big">${WON[lvl.goal?.type || "hit"]}</span><span class="cb-stars-big">${starsWords(earn)}</span><small>${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}${last && !daily ? " · the last level so far" : ""}</small>`;
+    $("nextBtn").hidden = !daily && last;
+    $("nextBtn").textContent = daily ? "Share" : "Next level";
   }
   if (typeof measure === "function") measure();
   const seen = read(SEEN, false);
@@ -198,9 +208,10 @@ const view = createView($("scene"), {
   onEnd(res) {
     sound.hushStop();
     view.setGhosts(liveOn ? ghosts.slice(0, -1) : ghosts);
-    if (S.status === "won") { phase = "done"; render(); return; }
+    if (S.status === "won") { phase = "done"; render(); roundOver("columbiad"); return; }
     phase = "aim";
     say(missWords(res), 3600);
+    keepRun();                                           // the clock moved on with the flight: keep it, or coming back finds the Moon behind
     render();
   },
 });
@@ -232,6 +243,24 @@ function missWords(res) {
   const by = Math.max(0, res.near - T.r).toFixed(1);
   if (gated && list.length > 1) return `${fell}${res.gates ? `Through ${res.gates} of ${list.length - 1} gates, ` : ""}${res.gates === list.length - 1 ? "ring" : `gate ${res.gates + 1}`} missed by ${by}`;
   return `${fell}Missed by ${by}`;
+}
+
+/** Today's level, from the menu or the games screen's tile. */
+function playDaily() {
+  daily = today();
+  setupLevel();
+}
+/** What the day's result is worth, for the tile: the stars won, kept by the day. */
+function noteDaily(n) {
+  const days = read(DAILY, {});
+  if (!(days[daily] >= n)) write(DAILY, { ...days, [daily]: n });
+}
+const dateWords = d => `${String(d % 100).padStart(2, "0")}/${String(Math.floor(d / 100) % 100).padStart(2, "0")}/${Math.floor(d / 10000)}`;
+/** The result as a few words to paste: the day, the level, the stars and the shots. */
+async function share() {
+  const earn = starsOf(lvl, { status: "won", shots: S.shots });
+  const text = `Columbiad · today's level, ${dateWords(daily)}\n${lvl.id} ${lvl.name} · ${starsWords(earn)} · ${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}`;
+  try { await navigator.clipboard.writeText(text); say("Result copied"); } catch { say("Couldn't copy the result"); }
 }
 
 /** The bright trail and the words of the last shot go as soon as the gun is touched; its faint ghost stays. */
@@ -267,12 +296,15 @@ function fire() {
   phase = "fly";
   if (S.status === "won") {
     const i = camp.at, n = starsOf(lvl, S);
-    if (n > camp.stars[i]) camp.stars[i] = n;
-    if (S.bull) camp.bull[i] = true;
-    keepCamp();                                          // the result is final now, not when its words appear
+    if (daily) noteDaily(n);
+    else {
+      if (n > camp.stars[i]) camp.stars[i] = n;
+      if (S.bull) camp.bull[i] = true;
+      keepCamp();
+    }                                                    // the result is final now, not when its words appear
   }
   write(SEEN, true);
-  write(AIMS, { ...read(AIMS, {}), [lvl.id]: aim });
+  if (!daily) write(AIMS, { ...read(AIMS, {}), [lvl.id]: aim });
   keepRun();
   view.setGhosts(prior);
   const wall = view.fire(res);
@@ -373,7 +405,7 @@ document.addEventListener("keydown", e => {
   e.preventDefault();
 });
 $("againBtn").addEventListener("click", restart);
-$("nextBtn").addEventListener("click", () => { if (camp.at + 1 < LEVELS.length) playLevel(camp.at + 1); });
+$("nextBtn").addEventListener("click", () => { if (daily) share(); else if (camp.at + 1 < LEVELS.length) playLevel(camp.at + 1); });
 
 // ---------- the menu ----------
 /** A level's place in miniature: the Earth, the gun on it and the ring. */
@@ -414,7 +446,7 @@ function levelList(sec) {
     b.setAttribute("aria-label", `Level ${L.id}, ${L.name}${open ? "" : ", locked: strike the one before it"}${won ? `, ${plural(won, "star")}${camp.bull[n] ? ", bullseye" : ""}` : ""}`);
     b.innerHTML = `<div class="cb-lmap">${mapSvg(L)}</div><div class="cb-lrow"><b>${L.id}</b><span>${open ? `${starsWords(won)}${camp.bull[n] ? " ◎" : ""}` : "locked"}</span></div><div class="cb-lnamed"></div>`;
     b.querySelector(".cb-lnamed").textContent = L.name;
-    b.addEventListener("click", () => { $("menuDlg").close(); if (n !== camp.at) playLevel(n); });
+    b.addEventListener("click", () => { $("menuDlg").close(); if (n !== camp.at || daily) playLevel(n); });
     list.append(b);
   }
   return list;
@@ -424,6 +456,9 @@ function openMenu() {
   body.replaceChildren();
   part(body, "play").append(action(`Replay ${lvl.name}`, restart, "primary"));
   const content = part(body, "content");
+  const due = dailyLevel(today()), got = read(DAILY, {})[today()];
+  content.append(action(`Today's level: ${due.id} ${due.name}${got ? ` · ${starsWords(got)}` : ""}`, () => { if (!daily) playDaily(); }, daily ? "" : "primary"));
+  if (daily) content.append(action(`Back to level ${LEVELS[camp.at].id}`, () => playLevel(camp.at), "link"));
   for (const sec of SECTIONS) {
     const head = document.createElement("p");
     head.className = "cb-sec";
@@ -453,6 +488,7 @@ function settleAway() {
 }
 onPause(settleAway, settleAway);
 document.addEventListener("visibilitychange", settleAway);
+addEventListener("pagehide", () => { if (S && phase !== "fly") keepRun(); });           // a phone may drop the page at any moment it is out of sight
 /** What the controls cover of the picture, told to the view so it fits the world into the rest (the picture itself runs under them). */
 function measure() {
   const st = $("stage").getBoundingClientRect(), top = $("top").getBoundingClientRect(), bot = $("bottom").getBoundingClientRect(), gap = rootPx() * 0.5;
@@ -477,5 +513,6 @@ window.__columbiad = {
 };
 
 measure();
+if (arrivedForToday() && !IN_FRAME) daily = today();          // the tile opens today's level while it is still to play; the camp's run is kept as it was
 setupLevel();
 settleAway();

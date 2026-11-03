@@ -34,7 +34,7 @@
 .cb-stars.bull::after { content: " ◎"; letter-spacing: 0; color: var(--cb-in); }
 
 .cb-hint, .cb-say { position: absolute; z-index: 2; margin: 0; pointer-events: none; font-weight: 650; }
-.cb-hint { left: var(--cb-l); right: var(--cb-r); top: calc(var(--cb-t) + 3.6rem); padding: .5rem .7rem; border: 1px solid var(--brass); border-radius: 4px; background: var(--cb-glass); color: var(--ink); font-size: .84rem; line-height: 1.35; }
+.cb-hint { left: var(--cb-l); right: var(--cb-r); top: calc(var(--cb-t) + 5.4rem); padding: .5rem .7rem; border: 1px solid var(--brass); border-radius: 4px; background: var(--cb-glass); color: var(--ink); font-size: .84rem; line-height: 1.35; }
 .cb-hint[hidden] { display: none; }
 /* how a shot ended, a line over the picture just above the controls; max-content: a box at left 50% is otherwise shrunk to the half of the scene right of it */
 .cb-say { left: calc(50% - var(--ins-r, 0px) / 2); bottom: calc(var(--ins-b, 8rem) + .6rem); transform: translateX(-50%); width: max-content; max-width: calc(100% - var(--ins-r, 0px) - 2rem); padding: .3rem .7rem; border-radius: 4px; background: var(--cb-glass);
