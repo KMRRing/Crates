@@ -44,16 +44,6 @@ export const SOON = {
       "Needs, as every board game here: a coach, a daily puzzle (a position and its best move), and a calm mode with the discs in 3D.",
     ],
   },
-  crown: {
-    name: "Crown", sec: "table",
-    line: "Draughts (checkers) for two: men step diagonally forward on the dark squares, a jump over an enemy man is compulsory, and a man that reaches the far row is crowned and moves both ways.",
-    todo: [
-      "Added 2 November 2026 (Korbi: \"draughts\"). Both names are the common words for the game and free; the tile is Crown, for the move that decides it.",
-      "English draughts (8\u00d78, American checkers) first, International (10\u00d710, men capture backwards, kings fly, the longest capture is compulsory) as a second set of rules. The sets are data: the board's size, whether men capture backwards, whether a king flies, whether the longest capture is compulsory. A forced capture is where the beginner's mistakes are, so the board marks the pieces that must jump.",
-      "On seats.js. The computer is our own search with a transposition table (the game tree is small; English draughts is a solved draw). The strong engines (Scan, GPL) are not needed.",
-      "Needs: a coach, a daily puzzle (a shot: a sacrifice that wins), and a calm mode with the men in 3D.",
-    ],
-  },
   cargo: {
     name: "Cargo", sec: "idle",
     line: "Falling blocks: crates of four squares fall into a well; slide and turn them to fill a row across, which clears and lets the rest fall. The well fills as you slip, and the game ends when a new crate cannot enter.",
