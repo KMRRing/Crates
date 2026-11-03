@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Codex">
+<title>Fuel maths</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dropdown.css">
+<link rel="stylesheet" href="speedmaths.css">
+<link rel="stylesheet" href="speedfuels.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="speed speedfuels fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon sf-mark" aria-hidden="true"></span>Fuel maths</button></h1>
+    <div class="top-right">
+      <select id="mode" class="pool" data-accent="sf" aria-label="Mode">
+        <option value="sprint" data-note="Sixty seconds of one-step desk sums, units and all">Sprint</option>
+        <option value="estimate" data-note="A conversion on the desk, typed to one or two significant figures">Estimate</option>
+        <option value="chains" data-note="From a flow to a cost: three to six steps, worked in order">Chains</option>
+        <option value="daily" data-note="The same mix for everyone, new at midnight UTC">Today's</option>
+      </select>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <p id="duelLine" class="sm-rival" hidden></p>
+  <section class="sm-hud" aria-label="The run">
+    <div class="sm-cell sm-time"><span>Time</span><b id="clock">1:00</b></div>
+    <div class="sm-cell sm-pts"><span>Score</span><b id="score">0</b><em id="gain" class="sm-gain" aria-hidden="true"></em></div>
+    <div class="sm-cell sm-run"><span>Streak</span><b id="streak">0</b><em id="bonus" class="sm-bonus"></em></div>
+    <div class="sm-bar" aria-hidden="true"><i id="bar"></i></div>
+  </section>
+  <section class="sm-stage fit-grow fit-col" aria-label="The sum">
+    <div id="card" class="sm-card fit-grow fit-scroll"></div>
+    <div class="sm-answer" aria-live="polite"><span class="sm-eq" aria-hidden="true">=</span><span id="typed" class="sm-typed"></span><span id="unit" class="sm-unit"></span></div>
+    <p id="verdict" class="sm-verdict" aria-live="polite"></p>
+  </section>
+  <section id="pad" class="sm-pad" aria-label="Number pad"></section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet sm-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="sm-rules"></div>
+</dialog>
+
+<dialog id="reviewDlg" class="sheet sm-sheet pauses" aria-label="The working">
+  <div class="pick-head"><h2 id="reviewTitle">What you missed</h2><button class="btn" type="button" id="reviewClose">Close</button></div>
+  <div id="reviewBody" class="sm-review"></div>
+</dialog>
+
+<p id="toast" class="sm-toast" role="status" aria-live="polite"></p>
+<script type="module" src="speedfuels.js"></script>
+</body>
+</html>
