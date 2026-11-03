@@ -63,7 +63,7 @@ export const AKA = {
   cue: "charades word forehead acting", river: "xiangqi chinese chess", gambit: "chess", boast: "liar's dice perudo chinese dice bluff",
   bigtwo: "deuces climbing cards", landlord: "dou dizhu fight the landlord", banquet: "finger game huaquan morra", gammon: "backgammon",
   trumps: "jass belote coinche schafkopf tricks", contract: "bridge contract bridge auction", quest: "hidden roles traitors company hanse vitalian",
-  bones: "dominoes tiles", factor: "island trading settlement", rack: "word tiles board", pegs: "cribbage", meld: "gin rummy",
+  bones: "dominoes tiles", factor: "factor island trading settlement", rack: "word tiles board", pegs: "cribbage", meld: "gin rummy",
   stone: "go weiqi baduk", tarot: "french tarot", solitaire: "patience klondike freecell", silo: "connect four four in a row",
   flank: "reversi", crown: "draughts checkers", ingot: "2048 sliding tiles",
   heliograph: "mirror", shunt: "rail wagons", polder: "dyke windmill", topple: "dominoes hex", orrery: "match three planets",

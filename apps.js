@@ -589,7 +589,7 @@ export const APPS = [
   { id: "contract", sec: "table", name: "Contract bridge", href: "./contract.html", logo: LOGO("contract", CONTRACT_LOGO), players: [1, 4] },
   { id: "quest", sec: "party", name: "Company", href: "./quest.html", logo: LOGO("quest", QUEST_LOGO), players: [1, 10] },
   { id: "bones", sec: "table", name: "Dominoes", href: "./bones.html", logo: LOGO("bones", BONES_LOGO), players: [1, 4] },
-  { id: "factor", sec: "table", name: "Factor", href: "./factor.html", logo: LOGO("factor", FACTOR_LOGO), players: [1, 4] },
+  { id: "factor", sec: "table", name: "Hanse", href: "./factor.html", logo: LOGO("factor", FACTOR_LOGO), players: [1, 4] },
   { id: "rack", sec: "table", name: "Rack", href: "./rack.html", logo: LOGO("rack", RACK_LOGO), players: [1, 4] },
   { id: "stone", sec: "table", name: "Go", href: "./soon.html?game=stone", logo: LOGO("stone", SOON_CODEX.stone), players: [1, 2], soon: true },
   { id: "pegs", sec: "table", name: "Cribbage", href: "./pegs.html", logo: LOGO("pegs", PEGS_LOGO), players: [1, 2] },

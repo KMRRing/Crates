@@ -41,7 +41,7 @@ export const GAMES = {
   pegs: { name: "Cribbage", page: "./pegs.html" },
   landlord: { name: "Dou Dizhu", page: "./landlord.html" },
   holdem: { name: "Texas Hold'em", page: "./holdem.html" },
-  factor: { name: "Factor", page: "./factor.html" },
+  factor: { name: "Hanse", page: "./factor.html" },
   banquet: { name: "Banquet", page: "./banquet.html" },
   gammon: { name: "Backgammon", page: "./gammon.html" },
   silo: { name: "Four in a row", page: "./silo.html" },

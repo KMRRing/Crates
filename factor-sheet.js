@@ -9,7 +9,7 @@ const cost = c => c.map((n, i) => (n ? `<span class="fc-cost">${n > 1 ? `${n}` :
 export function rulesHtml(opts = {}) {
   const vp = opts.vp || 10;
   return `
-<p>Factor is a game of founding trading posts on a new coast. The land pays whoever stands at a hex when its number is rolled, and you spend what you are paid on roads, posts and factories. <b>First to ${vp} points, on their own turn, wins.</b></p>
+<p>Hanse is a game of founding trading posts on a new coast. The land pays whoever stands at a hex when its number is rolled, and you spend what you are paid on roads, posts and factories. <b>First to ${vp} points, on their own turn, wins.</b></p>
 <h3>Points</h3>
 <ul><li>A post is 1 point and a factory 2.</li><li>The <b>longest road</b> (five roads in a line at the least) is 2, and passes to anyone who gets a longer one.</li>
 <li>The <b>largest fleet</b> (three Privateers played at the least) is 2, and passes to anyone who plays more.</li>
@@ -35,5 +35,5 @@ export function rulesHtml(opts = {}) {
 <h3>Cards</h3>
 <p>One card a turn, never the turn you bought it (a Privateer may be played before you roll).</p>
 <ul>${Object.keys(CARD_NAMES).map(c => `<li><b>${CARD_NAMES[c]}.</b> ${CARD_TEXT[c]}</li>`).join("")}</ul>
-<p class="fc-note">Factor plays by the rules of the genre of island-trading games. The names, the pictures and the code here are Factor's own. A game can be played to ${TARGETS.join(", ")} points, set in the menu.</p>`;
+<p class="fc-note">Hanse plays by the rules of the genre of island-trading games. The names, the pictures and the code here are Hanse's own. A game can be played to ${TARGETS.join(", ")} points, set in the menu.</p>`;
 }
