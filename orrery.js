@@ -6,13 +6,14 @@
 // seen on the right and anticlockwise on the left. Under them, always there, the four colours: a press of one tips the
 // hoop chosen into that colour's plane, or every hoop at once with none chosen, and each shows the hoops in its plane
 // now. A swipe along a hoop sets it going the way the finger went, quicker by how fast. − and + set the tempo, from 1
-// beat a minute to 20 (planets land and drift by the beat, so the quicker it goes the quicker they come); a metronome swings with it. Three or four planets of one colour brought together
+// beat a minute to 20 in twelve steps (planets land and drift by the beat, so the quicker it goes the quicker they come, and
+// the tempo creeps up by itself with them); a metronome swings with it, and a tap on it strikes the next beat now. Three or four planets of one colour brought together
 // in one direction from the sun, however their hoops are going, are a line (at twelve or six o'clock any colour at any
 // tips; anywhere else on hoops in the colour's plane), and the next beat strikes it; a new planet lands every few
 // beats, quicker as the game goes on; when there is no place for one, it is over. The rules are orrery-engine.js's;
 // this file runs the clock, takes the taps, buttons and swipes and keeps the game. The clock starts at the first hoop
 // chosen or button pressed and stops with the menu, with the tab and with the game over.
-import { RINGS, STEP, TEMPOS, FIRST_TEMPO, TIP, SPIN, PLANE, COMBO_WINDOW, TICK, newGame, valid, copy, setRing, setPlane, setTempo, step, between, room, multiplier, period, turnOf, planeOf } from "./orrery-engine.js";
+import { RINGS, STEP, FIRST_TEMPO, TIP, SPIN, PLANE, COMBO_WINDOW, TICK, newGame, valid, copy, setRing, setPlane, setTempo, setOthers, tapBeat, nextTempo, bpm, step, between, room, multiplier, period, turnOf, planeOf } from "./orrery-engine.js";
 import { createOrrery } from "./orrery-3d.js";
 import { createFlat, planetSvg } from "./orrery-flat.js";
 import { sound } from "./orrery-sound.js";
@@ -50,13 +51,16 @@ let frozen = false;      // for tests: the clock held while a picture is taken
 // the game whose lines stood only on hoops set still (version 5) to orrery:still (era 5), the game whose hoops went
 // as fast as a place every beat, or two (version 6), to orrery:brisk (era 6), and the game of hoops a place every second
 // to eighth beat at 20 to 60 beats a minute (version 7) to orrery:eighths (era 7: 23 October 2026, two speeds and tempos
-// of 1 to 20 a minute). The first games' rules show again.
-const SET_ASIDE = ["orrery:turns", "orrery:turns", "orrery:speeds", "orrery:alike", "orrery:still", "orrery:brisk", "orrery:eighths"];
+// of 1 to 20 a minute), and the game whose tempo stood where it was set, with planets that could leave nothing to aim
+// at (version 8, era 8) to orrery:fixed (3 November 2026: the tempo creeps up with the planets, planets are always
+// aimable, a tap on the metronome). The first games' rules show again.
+const SET_ASIDE = ["orrery:turns", "orrery:turns", "orrery:speeds", "orrery:alike", "orrery:still", "orrery:brisk", "orrery:eighths", "orrery:fixed"];
+const OLD_TEMPOS = [1, 2, 4, 6, 12, 20];                      // the list of version 8: `orrery:tempo` was an index into it
 if (!IN_FRAME && read(ERA, 0) < SET_ASIDE.length) {
   const era = Math.floor(Number(read(ERA, 0))) || 0, old = read(BEST, 0);
   if (old) write(SET_ASIDE[Math.max(0, Math.min(SET_ASIDE.length - 1, era))], old);
   write(BEST, 0);
-  write(TEMPO, FIRST_TEMPO);                                   // the tempo kept was an index into the old list
+  write(TEMPO, era === SET_ASIDE.length - 1 ? OLD_TEMPOS[read(TEMPO, -1)] ?? FIRST_TEMPO : FIRST_TEMPO);   // the tempo kept is the tempo itself now, not an index
   try { localStorage.removeItem(SEEN); } catch { /* private mode */ }
   write(ERA, SET_ASIDE.length);
 }
@@ -102,7 +106,7 @@ function curl(n, cw, x = 0, y = 0, k = 1) {
 function save() { if (IN_FRAME) return; write(RUN, copy(S)); savedAt = performance.now(); }
 function newRun() {
   swipes.clear();
-  S = newGame(Math.floor(Math.random() * 2 ** 31), read(TEMPO, FIRST_TEMPO));
+  S = newGame(Math.floor(Math.random() * 2 ** 31), read(TEMPO, FIRST_TEMPO));      // (the engine takes a tempo of 1 to 20 and nothing else)
   running = false;
   choose(-1);
   save();
@@ -125,7 +129,7 @@ const text = (cls, s, x, y, size) => {
 };
 const plaqueG = el("g"), fxG = el("g");
 over.append(plaqueG, fxG);
-const HINT = ["Every hoop steps round on the beat. Tap one, and the", "top row sets it going a slot or two on every beat,", "either way; with none chosen, all four hoops.", "Bring three planets of a colour in line with the sun:", "at twelve or six o'clock any colour, elsewhere only on", "hoops in that colour's plane. The next beat strikes", "them. A colour below tips the hoop chosen into its", "plane, or every hoop if none is; each drifts a tip now", "and then. − and + set the beat."];
+const HINT = ["Every hoop steps round on the beat. Tap one, and the", "top row sets it going a slot or two a beat, either", "way; tap a speed twice and the others take it.", "Bring three planets of a colour in line with the sun:", "at twelve or six o'clock any colour, elsewhere only", "on hoops in that colour's plane. The next beat strikes", "them. A colour below tips the hoop chosen into its", "plane (every hoop, if none is); each drifts a tip now", "and then. − and + set the beat, and a tap on the", "metronome strikes the next one now."];
 /** The words over the orrery while the clock is stopped: the first games' rules, then only how to go on. */
 function redrawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
@@ -157,15 +161,18 @@ function drawStrip() {
   put("score", fmt(S.score));
   put("best", fmt(Math.max(best, S.score)));
   put("room", String(room(S)));
-  const on = S.combo > 1 && S.t - S.lastLock <= COMBO_WINDOW * period(S) && !S.over;
+  const on = S.combo > 1 && S.beat - S.lockBeat <= COMBO_WINDOW && !S.over;
   put("combo", on ? `×${multiplier(S.combo)}` : "");
   $("combo").classList.toggle("on", on);
 }
+/** The tempo now, as shown: the setting crept up since, to a tenth (7.3). */
 function drawTempo() {
-  put("tempo", String(TEMPOS[S.tempo]));
-  $("slowerBtn").disabled = S.over || S.tempo === 0;
-  $("fasterBtn").disabled = S.over || S.tempo === TEMPOS.length - 1;
-  $("tempoBox").setAttribute("aria-label", `Tempo: ${TEMPOS[S.tempo]} beats a minute`);
+  const now = bpm(S), words = `${now.toFixed(1)} beats a minute`;
+  put("tempo", now.toFixed(1));
+  $("slowerBtn").disabled = S.over || nextTempo(now, -1) == null;
+  $("fasterBtn").disabled = S.over || nextTempo(now, 1) == null;
+  $("metroBtn").disabled = S.over;
+  if (shown.words !== words) { shown.words = words; $("tempoBox").setAttribute("aria-label", `Tempo: ${words}`); }
 }
 /** The metronome's arm: on each beat it sets off for the other side, to get there on the next. */
 const arm = document.querySelector(".or-metro-arm");
@@ -267,7 +274,6 @@ function drawSide() {
   if (shown.side === k) return;
   shown.side = k;
   if (S.over) $("verdict").textContent = `No room left: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
-  drawTempo();
 }
 
 // ---------- events of the game ----------
@@ -314,6 +320,7 @@ function tick(ts) {
   view.frame(S, go ? dt : 0);
   drawStrip();
   drawSide();
+  drawTempo();
 }
 function start() {
   if (running || S.over || IN_FRAME) return;
@@ -333,6 +340,7 @@ function stop() {
 /** Chooses a hoop (-1: none) for the buttons; the page and the picture both show it. */
 function choose(ring) {
   chosen = ring < 0 ? null : { ring };
+  firstTap = null;
   if (!IN_FRAME) write(CHOSEN, chosen);
   view.select(ring);
   drawAim(true);
@@ -352,15 +360,27 @@ function letGo() {
   choose(-1);
   sound.play("pick", { ring, power: 0.3 });
 }
+/** Milliseconds within which a second tap on a speed makes a double tap (Korbi, 3 November 2026). */
+const DOUBLE_TAP = 350;
+let firstTap = null;     // the first tap of a double tap that may be coming: { ring, value, was (the hoop's setting before it), at }
 /** A button: the chosen hoop set going at the speed it stands for (`spin`), or tipped into a colour's plane (`colour`): the hoop chosen alone, or every hoop with none chosen. */
 function press(kind, value) {
   if (S.over || paused || IN_FRAME) return;
   sound.unlock();
   start();
   if (kind === "spin") {
-    // the right-hand buttons clockwise as each hoop is seen now; with none chosen, for every hoop, as the colours are
-    for (const ring of chosen ? [chosen.ring] : S.rings.keys()) setRing(S, ring, value * looks(ring));
-    sound.play("press", { strength: Math.abs(value) });
+    const now = performance.now(), again = chosen && firstTap && firstTap.ring === chosen.ring && firstTap.value === value && now - firstTap.at <= DOUBLE_TAP;
+    if (again) {
+      // a double tap on one speed: every other hoop takes it (each the way the button looks from where it is seen) and the hoop chosen goes back to what it had before the first tap
+      setOthers(S, chosen.ring, value, firstTap.was, looks);
+      firstTap = null;
+      sound.play("press", { strength: Math.abs(value) + 1 });
+    } else {
+      firstTap = chosen ? { ring: chosen.ring, value, was: S.rings[chosen.ring].set, at: now } : null;
+      // the right-hand buttons clockwise as each hoop is seen now; with none chosen, for every hoop, as the colours are
+      for (const ring of chosen ? [chosen.ring] : S.rings.keys()) setRing(S, ring, value * looks(ring));
+      sound.play("press", { strength: Math.abs(value) });
+    }
   } else {
     const ring = chosen ? chosen.ring : -1, hoops = S.rings.filter((_, k) => ring < 0 || k === ring), before = hoops.reduce((n, r) => n + r.tip, 0);
     if (setPlane(S, value, ring)) sound.play("tip", { up: Math.sign(PLANE[value] * hoops.length - before) });
@@ -369,13 +389,26 @@ function press(kind, value) {
   drawAim(true);
   drawColours();
 }
-/** − or +: a tempo slower or quicker, kept for the next game too. */
+/** − or +: the next setting below or above the tempo shown, kept for the next game too. */
 function nudgeTempo(by) {
   if (S.over || paused || IN_FRAME) return;
   sound.unlock();
-  if (!setTempo(S, S.tempo + by)) return;
-  write(TEMPO, S.tempo);
-  sound.play("tempo", { up: by });
+  const to = nextTempo(bpm(S), by);
+  if (to == null || !setTempo(S, to)) return;
+  write(TEMPO, to);
+  sound.play("tempo", { up: by, rank: Math.log(to) / Math.log(20) });
+  drawTempo();
+  save();
+}
+/** The metronome tapped: the next beat now, as an early beat (the engine's `tapBeat`). */
+function strike() {
+  if (S.over || paused || IN_FRAME) return;
+  sound.unlock();
+  start();
+  const events = tapBeat(S);
+  if (!events.length) return;
+  for (const ev of events) handle(ev);
+  animate($("metroBtn"), [{ background: "color-mix(in srgb, var(--brass) 45%, var(--sheet))" }, { background: "var(--sheet)" }], { duration: 260, easing: "ease-out", fill: "none" });
   drawTempo();
   save();
 }
@@ -448,7 +481,9 @@ function openMenu() {
   const settings = part(body, "settings");
   settings.append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("land", { ring: 2 }); }));
   settings.append(action("Reset the view", () => { view.setView(0, null); write(VIEW, null); }, "link"));
-  part(body, "about").append(line(`This game: ${fmt(S.score)}, ${plural(S.aligned, "line")} (${plural(S.fours, "four")}), ${plural(S.cleared, "planet")} cleared${best ? `; your best ${fmt(best)}` : ""}`));
+  const about = part(body, "about");
+  about.append(line(`This game: ${fmt(S.score)}, ${plural(S.aligned, "line")} (${plural(S.fours, "four")}), ${plural(S.cleared, "planet")} cleared${best ? `; your best ${fmt(best)}` : ""}`));
+  about.append(line("Tap the metronome to strike the next beat now. With a hoop chosen, tap a speed twice: the other hoops take it, and this one keeps its own."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -460,6 +495,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("againBtn").addEventListener("click", newRun);
 $("slowerBtn").addEventListener("click", () => nudgeTempo(-1));
 $("fasterBtn").addEventListener("click", () => nudgeTempo(1));
+$("metroBtn").addEventListener("click", strike);
 onPause(() => { paused = true; sound.hold(); swipes.clear(); save(); }, () => { paused = false; sound.release(); });
 
 // for tests and debugging
@@ -468,7 +504,7 @@ window.__orrery = {
   get running() { return running; },
   set frozen(v) { frozen = !!v; },
   get chosen() { return chosen; },
-  choose, press, tapHoop, letGo, nudgeTempo, looks,
+  choose, press, tapHoop, letGo, nudgeTempo, strike, looks,
   /** Plays `seconds` of the game at once (as the clock would), events and all. */
   advance(seconds) { for (let t = 0; t < seconds - 1e-9 && !S.over; t += 0.05) { for (const ev of step(S, 0.05)) handle(ev); view.frame(S, 0.05, false); } view.frame(S, 0); drawStrip(); drawSide(); },
   /** Where a place is on the page, in the client coordinates a pointer event carries (the view's own are the canvas's). */

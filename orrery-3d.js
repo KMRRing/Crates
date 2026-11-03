@@ -11,7 +11,7 @@
 // overhead. The page (orrery.js) steps the game and draws it every frame: frame, event, select, pick, angleAt, at,
 // orbit; orrery-flat.js answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
-import { RINGS, PLACES, COLOURS, STEP, TAU, TIP, TIP_MAX, PLANE, FORETELL, TICK, dirOf, turnOf, tiltOf, strikeAt, planeOf } from "./orrery-engine.js";
+import { RINGS, PLACES, COLOURS, STEP, TAU, TIP, TIP_MAX, PLANE, FORETELL, TICK, dirOf, turnOf, tiltOf, strikeAt, dueIn, planeOf } from "./orrery-engine.js";
 
 const DEG = Math.PI / 180;
 // ---------- measures (units of the orrery; the sun is the middle, a place is a twelfth of a hoop) ----------
@@ -499,7 +499,7 @@ export function createOrrery(host) {
       pl.put(w.x * out, w.y * out, w.z * out, PR[k] * (u < 1 ? Math.min(1, 0.3 + u * 3) : 1));
     }
     // the planet foretold, a moment before it lands: faint where it will, pulsing, brighter as it nears
-    const nx = s.next, due = nx.due - s.t;
+    const nx = s.next, due = dueIn(s);
     if (!s.over && nx.ring >= 0 && nx.colour >= 0 && due < FORETELL && s.rings[nx.ring].places[nx.place] < 0) {
       const w = worldOf(s, nx.ring, nx.place), u = 1 - clamp01(due / FORETELL), pulse = 0.8 + 0.2 * Math.sin(clock * 12);
       ghost.show(nx.colour, true);

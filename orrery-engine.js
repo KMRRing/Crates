@@ -1,6 +1,7 @@
 // Orrery's rules, pure (no page): four brass hoops on a pivot axle round a sun, each with twelve places for planets of
-// four colours, stepping on a beat. The beat is a metronome the player sets, at 1, 2, 4, 6, 12 or 20 beats a minute (20,
-// one every three seconds, the fastest: Korbi, 23 October 2026). Every hoop is always going, left or right, at one of two
+// four colours, stepping on a beat. The beat is a metronome the player sets, from 1 to 20 beats a minute in the steps of
+// TEMPOS (20, one every three seconds, the fastest the hand can set: Korbi, 23 October 2026), which creeps up by itself as
+// the planets come quicker (3 November 2026) and which a tap on the metronome strikes at once. Every hoop is always going, left or right, at one of two
 // speeds, a place on every beat or two (slots, he calls them), and keeps that until it's set again: none stands still. It
 // rests between its steps, and a place is a twelfth of a turn, so between beats every planet is exactly on one of twelve
 // places, and nothing coasts. Everything the game does that isn't a picture is counted in beats, so the tempo is the
@@ -18,25 +19,36 @@
 // line. Every few beats a new planet lands, foretold a moment before, more often as the game goes on; an orrery with no
 // place left for one ends the game. The page (orrery.js) draws it and takes the hand; tests/orrery.mjs checks this.
 //
-// A game is one object, as saved: { v, seed, n (draws made), t (seconds played), tempo (an index into TEMPOS), beat (beats
+// A game is one object, as saved: { v, seed, n (draws made), t (seconds played), tempo (the player's setting, in beats a
+// minute) and tempoBeat (the beat it was set at: the tempo now is `bpm(s)`, the setting crept up since), beat (beats
 // so far), lastBeat and beatAt (the time of the last beat and of the next), rings ([{ a (the hoop's turn, in places,
 // 0–11: where its own twelve o'clock place is now, clockwise), set (-2 to 2, never 0: stepping left (negative) or right,
 // slow or fast by its size: a place a beat or two), tip (-3 to 3, in fifteen degrees: the three
 // o'clock side up for positive), places (twelve colours 0–3 or -1 empty, from the hoop's own twelve o'clock clockwise),
 // moved and dir (when it last stepped, and how many places which way: for drawing the step), tipFrom and tipAt (the tip
-// it was turning from, and when: for drawing the tip), drift (its pace: beats between drifts), driftAt (when it drifts
-// next), way (which way it drifts next: 1 up, -1 down) }]), next ({ due (when it lands), ring, place, colour }: the
-// planet foretold; ring -1 where no place was free then), locks ([{ colour, key, seat, ids, members, dir, at }]: the
+// it was turning from, and when: for drawing the tip), drift (its pace: beats between drifts), driftAt (the beat it drifts
+// at next), way (which way it drifts next: 1 up, -1 down) }]), next ({ due (the beat position it lands at: beats, with a
+// fraction), ring, place, colour }: the planet foretold; ring -1 where no place was free then), locks ([{ colour, key, seat, ids, members, dir, at }]: the
 // lines standing, each since `at`, to be struck on the beat), score, cleared (planets), aligned (lines struck), fours (of
-// them, four planets), combo, lastLock (when), over }. Every change happens at an exact time, whatever the steps of time
-// it's played in, so a game goes on the same whether it's played a frame at a time or a minute at once.
+// them, four planets), combo, lastLock (when) and lockBeat (the beat), over }. Planets landing, drifts and the combo are
+// counted in beats, not seconds, so a beat struck early by a tap is simply an early beat. Every change happens at an exact
+// time, whatever the steps of time it's played in, so a game goes on the same whether it's played a frame at a time or a
+// minute at once.
 
-export const VERSION = 8;
-export const RINGS = 4, PLACES = 12, COLOURS = 4, START = 10;
+export const VERSION = 9;
+export const RINGS = 4, PLACES = 12, COLOURS = 4, START = 11;
 export const TAU = Math.PI * 2, STEP = TAU / PLACES, DEG = Math.PI / 180;
-/** The tempos, in beats a minute, slowest first: the fastest is twenty, a beat every three seconds. */
-export const TEMPOS = [1, 2, 4, 6, 12, 20];
-export const FIRST_TEMPO = 4;               // a first game's, twelve a minute (the player's last choice after that, which the page keeps)
+/** The tempos the hand can set, in beats a minute, slowest first: the fastest is twenty, a beat every three seconds (3 November 2026: more steps between 1 and 20). */
+export const TEMPOS = [1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20];
+export const FIRST_TEMPO = 12;              // a first game's (the player's last choice after that, which the page keeps)
+/**
+ * The quickest the metronome creeps to by itself, in beats a minute (3 November 2026): the fastest the hand can set, 20,
+ * which Korbi made the top of the metronome on 23 October 2026. A setting is never taken down, so one above it stands. (An
+ * object so the harness can try another; the game does not change it.)
+ */
+export const TEMPO_CAP = TEMPOS[TEMPOS.length - 1];
+export const CREEP = { cap: TEMPO_CAP };
+
 /** The seconds a beat took at the tempo the game's pace was first set at, twelve a minute: the numbers below in seconds. */
 export const REFERENCE = 5;
 /** A hoop's settings go from -SPIN to SPIN, but never 0 (a hoop is always going): the places it steps on every beat, slow at 1 and fast at 2. */
@@ -56,6 +68,8 @@ export const DRIFT = [6, 7, 8, 10];
 export const TICK = 0.25;                   // seconds a step is drawn over: a short tick, like a wheel let go by an escapement
 export const TIP_TIME = 0.2;                // and a tip: quick, so a press reads as immediate
 export const DWELL = 0.3;                   // seconds a line shows at least before a beat strikes it: what made it (a step, a tip, a landing) has been drawn by then
+/** Seconds after a beat before a tap on the metronome strikes another (a line a beat makes needs DWELL to stand, and a step is drawn over TICK): so a double tap is one beat. */
+export const TAP_GAP = DWELL;
 /** What a line of 3 or 4 planets is worth, before the combo. */
 export const AWARD = [0, 0, 0, 100, 300];
 export const COMBO_WINDOW = 2;              // beats after one line in which the next counts on the combo
@@ -66,8 +80,26 @@ export const PACE = { first: 1.8, least: 0.28, half: 40 };
 export const gap = b => PACE.least + (PACE.first - PACE.least) * 2 ** (-b / PACE.half);
 /** The score multiplier at a combo (1, then a quarter more for each line in a run, to three times). */
 export const multiplier = combo => Math.min(3, 1 + 0.25 * Math.max(0, combo - 1));
-/** Seconds between beats at a game's tempo. */
-export const period = s => 60 / TEMPOS[s.tempo];
+/**
+ * How much quicker the planets come after b beats than at the start: the pace's gap at first over the gap now (1 at the
+ * start, towards 6.4 as the gap closes to its least). The metronome creeps up by the same proportion (Korbi, 3 November 2026).
+ */
+export const creep = b => gap(0) / gap(b);
+/**
+ * The tempo now, in beats a minute: the player's setting (`tempo`, set at beat `tempoBeat`) grown by the proportion the
+ * planets have come quicker since, gently (it changes a little with each beat, never in a jump), to TEMPO_CAP at most. It
+ * is not matched to the planets and not held: a new setting simply replaces it and creeps on from there. A pure function
+ * of the game (the beats counted, the pace), so a saved game, a partner's frame and the tests agree.
+ */
+export const tempoAt = (s, b) => Math.min(s.tempo * creep(b) / creep(s.tempoBeat), Math.max(s.tempo, CREEP.cap));
+export const bpm = s => tempoAt(s, s.beat);
+/** Seconds from this beat to the next, at the tempo now. */
+export const period = s => 60 / bpm(s);
+/** The setting a step of the − or + takes the tempo now to: the next of TEMPOS below or above it (a tenth clear of it, as it's shown), or null at the ends. */
+export function nextTempo(now, by) {
+  const eps = 0.05;
+  return (by < 0 ? TEMPOS.findLast(x => x < now - eps) : TEMPOS.find(x => x > now + eps)) ?? null;
+}
 
 /** The shortest turn from angle a to angle b (-π to π): which way, and how far, a finger went round the sun. */
 export const between = (a, b) => ((((b - a) % TAU) + 3 * Math.PI) % TAU) - Math.PI;
@@ -163,6 +195,14 @@ export function strikeAt(s, at) {
   const P = period(s);
   return s.beatAt + Math.max(0, Math.ceil((at + DWELL - s.beatAt) / P - 1e-9)) * P;
 }
+/** And that beat's number. */
+const strikeBeat = (s, at) => s.beat + 1 + Math.max(0, Math.ceil((at + DWELL - s.beatAt) / period(s) - 1e-9));
+/** How far through the beat the game is, 0 to 1 (a change of tempo and a tap keep or restart it, so it is not read off the clock alone). */
+const through = s => { const P = s.beatAt - s.lastBeat; return P > 0 ? Math.min(1, Math.max(0, (s.t - s.lastBeat) / P)) : 0; };
+/** The game's place in beats: the beats counted and the part of the next gone, which planets landing are counted in. */
+export const where = s => s.beat + through(s);
+/** Seconds until the planet foretold lands (0 if it is due), at the beat now. */
+export const dueIn = s => Math.max(0, (s.next.due - where(s)) * (s.beatAt - s.lastBeat));
 
 // ---------- a game ----------
 /**
@@ -200,37 +240,33 @@ const spread = s => {
  * With none, there is nothing to aim at, whatever the hand does; with every colour, nothing to choose between.
  */
 export const aims = s => spread(s).filter(h => h.size >= 3).length;
-/** How many colours the deal and the landings keep to aim for: at least one, and not all four (Korbi, 23 October 2026). */
-export const AIMS = { least: 1, most: 3 };
-/** The aims there would be with a colour in a place (tried, and taken back). */
-function aimsWith(s, ring, place, colour) {
-  s.rings[ring].places[place] = colour;
-  const n = aims(s);
-  s.rings[ring].places[place] = -1;
-  return n;
-}
 /**
- * The place and colour of the next planet, steered a little: with nothing to aim at, one that brings a colour nearer to
- * three hoops (the colour on most hoops, onto a hoop it isn't on); with as many to aim at as are wanted, never one that
- * makes another. Otherwise as it comes. Hoops' planets only change by landings and lines struck, never by steps, so a
- * colour's hoops are as the player sees them for as long as it takes to land.
+ * How many colours must be on three hoops (a line takes one planet to a hoop, so a colour can be lined up only then): the
+ * floor of what there is to aim for. 23 October 2026, Korbi: "typically 1-3 available options for triples to aim for"; 3
+ * November 2026: planets "such that there are always POSSIBLE triples on the map. while there are less than 3 viable
+ * combinations ... planet spawn rate should double and planets should spawn such that a possible combination is fastest
+ * achieved". Below it the planets land twice as often and are set down to bring a colour to three hoops soonest; at it or
+ * above, as they come, with no ceiling (the old rule that never made a fourth colour available is gone: it held the
+ * count at exactly the floor, and kept a fourth colour from ever spreading).
+ */
+export const VIABLE = 3;
+/**
+ * The place and colour of the next planet. Below VIABLE colours on three hoops, steered: the planet that brings a colour
+ * nearest to three hoops (the colour on most hoops short of three, onto a hoop it isn't on and that has room;
+ * colours level are drawn from the seed, so they take turns), which reaches VIABLE soonest. Otherwise as it comes
+ * (`newcomer`). Hoops' planets only change by landings and lines struck, never by steps, so a colour's hoops are as the
+ * player sees them for as long as it takes to land.
  */
 function aimed(s) {
-  const now = aims(s), on = spread(s);
-  if (now < AIMS.least) {
-    const reach = [];
-    for (let c = 0; c < COLOURS; c++) if (on[c].size) for (let ring = 0; ring < RINGS; ring++) {
-      if (on[c].has(ring)) continue;
+  if (aims(s) < VIABLE) {
+    const on = spread(s), reach = [];
+    for (let c = 0; c < COLOURS; c++) if (on[c].size < 3) for (let ring = 0; ring < RINGS; ring++) {
+      if (on[c].has(ring)) continue;                      // (a hoop without the colour holds none of it: the share is no limit)
       const free = s.rings[ring].places.flatMap((x, p) => (x < 0 ? [p] : []));
       if (free.length) reach.push({ colour: c, ring, free, size: on[c].size });
     }
-    const top = Math.max(0, ...reach.map(x => x.size)), best = reach.filter(x => x.size === top);
+    const top = Math.max(-1, ...reach.map(x => x.size)), best = reach.filter(x => x.size === top);
     if (best.length) { const x = best[pick(s, best.length)]; return { ring: x.ring, place: x.free[pick(s, x.free.length)], colour: x.colour }; }
-  }
-  for (let k = 0; k < 12; k++) {
-    const at = newcomer(s);
-    if (!at) return null;
-    if (now < AIMS.most || aimsWith(s, at.ring, at.place, at.colour) <= now) return at;
   }
   return newcomer(s);
 }
@@ -268,10 +304,13 @@ function colourFor(s, ring = -1) {
   const r = s.rings[ring], weight = scarcity(counts(s));
   return weighted(s, [...Array(COLOURS).keys()].map(c => { const h = r ? holds(r, c) : 0; return { c, w: h >= CAP ? 0 : weight(c) * ALIKE ** h }; })).c;
 }
-/** Foretells the next planet, to land a gap after now. */
-function foretell(s) {
+/**
+ * Foretells the next planet, to land a gap (in beats) after `from`, the beat position the last one landed at. While fewer
+ * colours are on three hoops than VIABLE the gap is half as long (3 November 2026), counted when the planet is foretold.
+ */
+function foretell(s, from) {
   const at = aimed(s) ?? { ring: -1, place: -1, colour: colourFor(s) };
-  s.next = { due: s.t + gap(s.beat) * period(s), ring: at.ring, place: at.place, colour: at.colour };
+  s.next = { due: from + gap(s.beat) / (aims(s) < VIABLE ? 2 : 1), ring: at.ring, place: at.place, colour: at.colour };
 }
 /** The way a hoop at a tip drifts next: on as it was going, or back from 45 degrees. */
 const turned = (tip, way) => (Math.abs(tip + way) > TIP_MAX ? -way : way);
@@ -297,12 +336,12 @@ export function crowds(s) {
  * the turning); the first foretold.
  */
 export function newGame(seed, tempo = FIRST_TEMPO) {
-  const s = { v: VERSION, seed: seed >>> 0, n: 0, t: 0, tempo: clampTempo(tempo), beat: 0, lastBeat: 0, beatAt: 0, rings: [], next: null, locks: [], score: 0, cleared: 0, aligned: 0, fours: 0, combo: 0, lastLock: -1e9, over: false };
+  const s = { v: VERSION, seed: seed >>> 0, n: 0, t: 0, tempo: clampTempo(tempo), tempoBeat: 0, beat: 0, lastBeat: 0, beatAt: 0, rings: [], next: null, locks: [], score: 0, cleared: 0, aligned: 0, fours: 0, combo: 0, lastLock: -1e9, lockBeat: -1e9, over: false };
   s.beatAt = period(s);
   const tips = shuffle(s, [...PLANE]), paces = shuffle(s, [...DRIFT]);
   for (let r = 0; r < RINGS; r++) {
     s.rings.push({ a: pick(s, PLACES), set: FIRST_SET, tip: tips[r], places: new Array(PLACES).fill(-1), moved: -1e9, dir: 1, tipFrom: tips[r], tipAt: -1e9,
-      drift: paces[r], driftAt: paces[r] * period(s), way: turned(tips[r], pick(s, 2) ? 1 : -1) });
+      drift: paces[r], driftAt: paces[r], way: turned(tips[r], pick(s, 2) ? 1 : -1) });
   }
   // the colours in turn, so each is dealt as often as the others (to within one); dealt again if no colour is on three
   // hoops, which leaves nothing to do at the start (Korbi: "it's all different planets on different belts")
@@ -320,13 +359,13 @@ export function newGame(seed, tempo = FIRST_TEMPO) {
       s.rings[m.ring].places[m.place] = o.c;
       s.rings[o.ring].places[o.place] = c.colour;
     }
-    if (!crowds(s).length && aims(s) >= AIMS.least && aims(s) <= AIMS.most) break;
+    if (!crowds(s).length && aims(s) >= VIABLE) break;
   }
-  foretell(s);
+  foretell(s, 0);
   return s;
 }
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
-export const valid = g => !!g && g.v === VERSION && isInt(g.tempo, 0, TEMPOS.length - 1) && [g.t, g.beatAt, g.lastBeat].every(Number.isFinite) && Number.isInteger(g.beat)
+export const valid = g => !!g && g.v === VERSION && Number.isFinite(g.tempo) && g.tempo >= TEMPOS[0] && g.tempo <= 1000 && Number.isInteger(g.tempoBeat) && [g.t, g.beatAt, g.lastBeat].every(Number.isFinite) && Number.isInteger(g.beat)
   && Array.isArray(g.rings) && g.rings.length === RINGS && g.rings.every(r => Array.isArray(r.places) && r.places.length === PLACES && isInt(r.a, 0, PLACES - 1) && isInt(r.set, -SPIN, SPIN) && r.set !== 0
     && isInt(r.tip, -TIP_MAX, TIP_MAX) && [r.moved, r.tipFrom, r.tipAt, r.driftAt].every(Number.isFinite) && r.drift > 0 && Math.abs(r.way) === 1)
   && !!g.next && Number.isFinite(g.next.due) && Array.isArray(g.locks);
@@ -334,7 +373,8 @@ export const valid = g => !!g && g.v === VERSION && isInt(g.tempo, 0, TEMPOS.len
 export const copy = s => structuredClone(s);
 
 // ---------- the hand ----------
-const clampTempo = k => Math.max(0, Math.min(TEMPOS.length - 1, Math.round(k) || 0));
+/** A tempo within what the hand can set (a number of beats a minute, 1 to 20). */
+const clampTempo = x => (Number.isFinite(Number(x)) ? Math.max(TEMPOS[0], Math.min(TEMPOS[TEMPOS.length - 1], Number(x))) : FIRST_TEMPO);
 /**
  * A hoop set going (k from -2 to 2, never 0: left for negative and right for positive, slow at 1, a place on every beat,
  * fast at 2, two places on every beat). It steps on the next beat and every beat after, so a setting answers at once;
@@ -370,22 +410,47 @@ export function setPlane(s, colour, ring = -1) {
   if (moving.length) look(s);
   return moving.length > 0;
 }
-/** The tempo set (an index into TEMPOS): the next beat comes a beat of the new tempo after the last, or at once if that's gone by. */
-export function setTempo(s, k) {
-  k = clampTempo(k);
-  if (s.over || k === s.tempo) return false;
-  const was = period(s);
-  s.tempo = k;
-  // what's counted in beats keeps its place in them: the time left to the planet and to each drift stretches or shrinks with the beat
-  const by = period(s) / was;
-  s.next.due = s.t + (s.next.due - s.t) * by;
-  for (const r of s.rings) r.driftAt = s.t + (r.driftAt - s.t) * by;
-  s.beatAt = Math.max(s.t, s.lastBeat + period(s));
+/**
+ * The tempo set (beats a minute, 1 to 20): it replaces the tempo now, whatever it had crept to, and creeps on from there.
+ * The beat in play keeps its place in it, whatever the beat's new length: the part of it gone is the same part, so what is
+ * counted in beats (the planet foretold, each drift) loses and gains nothing. Returns whether the tempo changed.
+ */
+export function setTempo(s, to) {
+  to = clampTempo(to);
+  if (s.over || Math.abs(to - bpm(s)) < 1e-9) return false;
+  const kept = through(s);
+  s.tempo = to;
+  s.tempoBeat = s.beat;
+  s.lastBeat = s.t - kept * period(s);
+  s.beatAt = s.lastBeat + period(s);
   return true;
 }
-/** The hoop that drifts next. */
-/** When a hoop's drift will show: the beat it falls on (its time, or the first beat after). */
-export const driftTime = (s, ring) => s.beatAt + Math.max(0, Math.ceil((s.rings[ring].driftAt - s.beatAt) / period(s) - 1e-9)) * period(s);
+/**
+ * The metronome tapped: the next beat now (3 November 2026, "for when you're ready"). It is an ordinary beat, only early:
+ * the planets due before it land first, as they would have, the lines standing long enough are struck, the hoops step and
+ * drift, and the beat after comes a whole beat on from now (so a tap can't be followed by a timed beat by accident). A tap
+ * sooner than TAP_GAP after a beat does nothing. Returns what happened, as step() does.
+ */
+export function tapBeat(s) {
+  const events = [];
+  if (s.over || (s.beat > 0 && s.t - s.lastBeat < TAP_GAP - 1e-9)) return events;
+  while (!s.over && s.next.due - s.beat < 1) land(s, events);
+  if (!s.over) beat(s, events);
+  return events;
+}
+/**
+ * A speed set for every hoop but one (`ring`, the hoop chosen), which goes back to what it was (`was`, its setting
+ * before the first tap of a double tap): Korbi, 3 November 2026. `seen(i)` is the way a button looks from where the camera
+ * is, for each hoop (1 or -1: the right-hand buttons clockwise as seen), as a press for every hoop does. Returns whether
+ * anything changed.
+ */
+export function setOthers(s, ring, k, was = s.rings[ring].set, seen = () => 1) {
+  let changed = false;
+  s.rings.forEach((r, i) => { if (i !== ring) changed = setRing(s, i, k * seen(i)) || changed; });
+  return setRing(s, ring, was) || changed;
+}
+/** The beat a hoop drifts at, and when that beat falls (seconds), for the page to show. */
+export const driftTime = (s, ring) => s.beatAt + Math.max(0, Math.ceil(s.rings[ring].driftAt - 1e-9) - s.beat - 1) * period(s);
 export const nextDrift = s => s.rings.reduce((best, r, ring) => (r.driftAt < s.rings[best].driftAt ? ring : best), 0);
 
 // ---------- time passing ----------
@@ -397,12 +462,13 @@ export const nextDrift = s => s.rings.reduce((best, r, ring) => (r.driftAt < s.r
 function beat(s, events) {
   s.beat++;
   s.lastBeat = s.t;
-  s.beatAt = s.t + period(s);
+  s.beatAt = s.t + period(s);                              // the tempo has crept on with the beat
   const due = s.locks.filter(l => l.at + DWELL <= s.t + 1e-9);
   s.locks = s.locks.filter(l => !due.includes(l));
   for (const c of due) {
-    s.combo = s.t - s.lastLock <= COMBO_WINDOW * period(s) ? s.combo + 1 : 1;
+    s.combo = s.beat - s.lockBeat <= COMBO_WINDOW ? s.combo + 1 : 1;
     s.lastLock = s.t;
+    s.lockBeat = s.beat;
     const n = c.members.length, gain = Math.round(AWARD[n] * multiplier(s.combo));
     for (const m of c.members) s.rings[m.ring].places[m.place] = -1;
     s.score += gain;
@@ -423,7 +489,7 @@ function beat(s, events) {
   events.push({ type: "beat", beat: s.beat, stepped });
   if (stepped.length) look(s);
   // the hoops that are due drift now, once the steps have landed (a line they leave or make is looked for as the steps' are)
-  const drifting = s.rings.flatMap((r, ring) => (r.driftAt <= s.t + 1e-9 ? [ring] : [])).sort((a, b) => s.rings[a].driftAt - s.rings[b].driftAt);
+  const drifting = s.rings.flatMap((r, ring) => (r.driftAt <= s.beat ? [ring] : [])).sort((a, b) => s.rings[a].driftAt - s.rings[b].driftAt);
   for (const ring of drifting) drift(s, ring, events);
 }
 function land(s, events) {
@@ -432,7 +498,7 @@ function land(s, events) {
     const at = spot(s, colour) || spot(s);
     if (!at) {
       // a line standing is already made: the beat strikes it first, and the planet lands in the room it leaves
-      if (s.locks.length) { s.next.due = Math.min(...s.locks.map(l => strikeAt(s, l.at))); return; }
+      if (s.locks.length) { s.next.due = Math.min(...s.locks.map(l => strikeBeat(s, l.at))); return; }
       s.over = true;
       s.locks = [];
       events.push({ type: "over" });
@@ -445,7 +511,7 @@ function land(s, events) {
   }
   s.rings[ring].places[place] = colour;
   events.push({ type: "land", ring, place, colour });
-  foretell(s);
+  foretell(s, s.next.due);
   look(s);
 }
 /**
@@ -457,7 +523,7 @@ function drift(s, ring, events) {
   const r = s.rings[ring], from = r.tip;
   tipTo(s, r, r.tip + r.way);
   r.tipAt = s.t + TICK;
-  r.driftAt = s.t + r.drift * period(s);
+  r.driftAt = s.beat + r.drift;
   events.push({ type: "drift", ring, from, tip: r.tip });
   look(s);
 }
@@ -474,7 +540,9 @@ export function step(s, dt) {
   if (s.over) return events;
   const end = s.t + dt;
   for (;;) {
-    const at = Math.min(s.beatAt, s.next.due);
+    // the planet foretold lands at its place in the beats: in this beat if that falls before the next, otherwise after it
+    const part = s.next.due - s.beat, landAt = part < 1 ? s.lastBeat + Math.max(0, part) * (s.beatAt - s.lastBeat) : Infinity;
+    const at = Math.min(s.beatAt, landAt);
     if (at > end) break;
     if (at > s.t) s.t = at;
     if (at === s.beatAt) beat(s, events);
