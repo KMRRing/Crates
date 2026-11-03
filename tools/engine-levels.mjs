@@ -86,8 +86,9 @@ function fit(args) {
 /** Plays the matches. */
 async function measure([game = "river", perPair = "12", firstArg, lastArg, outFile]) {
   const { Engine, levelMove } = await import("../uci.js");
-  const { fairyWorker, stockfishWorker } = await import("./uci-node.mjs");
-  const R = await rulesOf(game, { Engine, fairyWorker, stockfishWorker });
+  const { stockfishWorker } = await import("./uci-node.mjs");
+  const { localWorker } = await import("../river-uci.js");
+  const R = await rulesOf(game, { Engine, localWorker, stockfishWorker });
   if (process.env.LADDER) R.levels = JSON.parse(fs.readFileSync(process.env.LADDER, "utf8")).map((l, i) => ({ id: String(i + 1), name: l.name || `L${i + 1}`, ...l }));
   const first = Number(firstArg || 1), last = Number(lastArg || R.levels.length), n = Number(perPair);
   const engines = [R.worker(), R.worker()];
@@ -126,13 +127,13 @@ async function measure([game = "river", perPair = "12", firstArg, lastArg, outFi
 }
 
 /** A game's rules, levels and engine, as the matches need them. */
-async function rulesOf(name, { Engine, fairyWorker, stockfishWorker }) {
+async function rulesOf(name, { Engine, localWorker, stockfishWorker }) {
   if (name === "river") {
     const X = await import("../river-rules.js"), L = await import("../river-levels.js");
     const firsts = ["h3e3", "b3e3", "c1e3", "g1e3", "g4g5", "c4c5", "b1c3", "h1g3", "h3f3", "b3d3"];
     const replies = ["h10g8", "b10c8", "h8e8", "b8e8", "c7c6", "g7g6", "c10e8", "g10e8", "b8d8", "h8f8"];
     return {
-      levels: L.LEVELS, worker: () => new Engine(fairyWorker, { setup: L.SETUP }),
+      levels: L.LEVELS, worker: () => new Engine(localWorker),
       fresh: red => X.newGame({ red }),
       open: (s, r) => { s = X.act(s, s.red, { move: firsts[Math.floor(r() * firsts.length)] }); return X.act(s, 1 - s.red, { move: replies[Math.floor(r() * replies.length)] }); },
       fen: s => s.start, moves: s => X.movesOf(s), seat: s => X.waitingOn(s), play: (s, seat, m) => X.act(s, seat, { move: m }),

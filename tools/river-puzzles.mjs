@@ -1,5 +1,7 @@
 // Finds River's rush puzzles (river-puzzles.txt): Xiangqi tactics in games River's own levels play among themselves,
-// checked by Fairy-Stockfish as Lichess checks the puzzles it finds in players' games. A game is played first, between
+// checked by an engine as Lichess checks the puzzles it finds in players' games (the bank was found with Fairy-Stockfish
+// as judge, whose search the position counts below were set for; River's own engine does it now, counts to be set again
+// with its speed). A game is played first, between
 // two neighbouring levels from Beginner to Master (its first few moves Novice's, so no two open alike); then at each of
 // its positions the moves the side to move might make are tried as mistakes: the move played, the ten a weak player
 // weighs (the engine's best after 2,000 positions, Beginner's way of looking) and, where a strong level was to move,
@@ -22,16 +24,15 @@
 //   node tools/river-puzzles.mjs find <first game> <games> <out.jsonl>    the games' seeds run from <first game>
 //   node tools/river-puzzles.mjs merge <found.jsonl…>                    writes river-puzzles.txt
 //   node tools/river-puzzles.mjs merge --add [found.jsonl…]              adds to it (alone: names its patterns again)
-// FAIRY=<a native fairy-stockfish> searches twice as fast as the page's WebAssembly, with the same results (built from
-// the same commit: make build ARCH=x86-64-bmi2 largeboards=yes nnue=no). Two at once, on different games, use both cores.
-// TRACE=1 says why each mistake tried was turned away.
+// FAIRY=<a native UCI engine for Xiangqi> judges in its place (an outside binary, never in the tree; for a second
+// opinion on the bank). Two at once, on different games, use both cores. TRACE=1 says why each mistake tried was turned away.
 import fs from "node:fs";
 import { spawn } from "node:child_process";
 import * as X from "../river-rules.js";
-import { LEVELS, SETUP } from "../river-levels.js";
+import { LEVELS } from "../river-levels.js";
 import { Engine, levelMove, valueOf } from "../uci.js";
 import { chances, scoreOf } from "../uci-coach.js";
-import { fairyWorker } from "./uci-node.mjs";
+import { localWorker } from "../river-uci.js";
 import { parsePuzzle, puzzleLine } from "../river-rush.js";
 import { patternsOf } from "../river-patterns.js";
 
@@ -43,10 +44,10 @@ const LEAD = 250, BEFORE = 300, JUMP = 0.3;                      // the swing th
 const HOLD = 250, GAP = 0.5, MATE_GAP = 0.12;                    // the line: still winning, and the only move
 const WXF = ".KAEHRCP";                                          // a piece's letter, for the themes
 
-/** The engine in a process of its own: the native build FAIRY names, else the page's WebAssembly in this one. */
+/** The engine: the native build FAIRY names in a process of its own, else River's own in this one. */
 function worker() {
   const bin = process.env.FAIRY;
-  if (!bin) return fairyWorker();
+  if (!bin) return localWorker();
   const w = { onmessage: null, onerror: null };
   const child = spawn(bin, [], { stdio: ["pipe", "pipe", "ignore"] });
   let carry = "";
@@ -83,7 +84,7 @@ const PLAUSIBLE = { limit: "nodes 2000", multipv: 10 }, CHECK = 40000, SPACING =
 
 async function find([firstArg = "1", countArg = "10", out = "river-puzzles.jsonl"]) {
   const first = Number(firstArg), count = Number(countArg);
-  const engines = { player: new Engine(worker, { setup: SETUP }), analyst: new Engine(worker, { setup: SETUP }), rater: new Engine(worker, { setup: SETUP }) };
+  const engines = { player: new Engine(worker), analyst: new Engine(worker), rater: new Engine(worker) };
   const file = fs.createWriteStream(out, { flags: "a" }), seen = new Set();
   let kept = 0;
   const t0 = Date.now();

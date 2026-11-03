@@ -1,7 +1,7 @@
 // The engines Gambit and River play, each in a worker of its own, spoken to in UCI (the Universal Chess Interface:
 // lines of text such as "position fen …" and "go nodes 100000", answered by "info …" lines and a "bestmove"). Gambit
-// plays Stockfish (vendor/stockfish), River Fairy-Stockfish (vendor/fairy-stockfish, through uci-fairy.js): both are
-// GPL, shipped unchanged or with the patch that built them, and loaded only when a game against one starts.
+// plays Stockfish (vendor/stockfish: GPL, shipped unchanged, loaded only when a game against it starts); River its
+// own engine (river-engine-worker.js, written for the Codex: no one else's code, no licence to carry).
 //
 // An Engine starts its worker on first use and runs one search at a time. A level's strength comes from how far it
 // searches, from the engine's own limiter (UCI_LimitStrength with UCI_Elo, or Skill Level: Gambit's middle levels)
@@ -12,7 +12,7 @@
 /** The workers, by engine. Paths are literal so the app's offline list finds them (tools/offline.mjs). */
 export const WORKERS = {
   stockfish: () => new Worker(new URL("./vendor/stockfish/stockfish-19-lite-single.js", import.meta.url)),
-  fairy: () => new Worker(new URL("./uci-fairy.js", import.meta.url), { type: "module" }),
+  river: () => new Worker(new URL("./river-engine-worker.js", import.meta.url), { type: "module" }),
 };
 
 /** An "info" line's search result: { multipv, depth, cp | mate, pv }, or null for a line without a score and a pv. */
