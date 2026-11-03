@@ -11,6 +11,12 @@
 //   3. Load: the weight above a piece, up its whole column, may not pass what it bears.
 //   4. Logs cross: timber lies along x on an even tier and along y on an odd one (a turned stack swaps them), so timber
 //      on timber always crosses. A function of the tier: it needs no state and survives turning.
+//   5. Long logs (Korbi, 3 November 2026: "yea long logs is good"): oak and birch may fill two cells in a line along the tier's
+//      axis, one piece. Cell codes 9 (long oak) and 10 (long birch) were added after the eight types, so nothing saved is
+//      renumbered. A cell of a long log weighs, bears and is worth what a cell of its tree does (a long log is twice a short
+//      one, and every sum over cells is a sum over pieces), and each half stands on what is under it, on the same tier as the
+//      other: the support, carrying and load rules above are per cell and need nothing more. What pairs the two cells is
+//      `pieces`: along a tier's axis, a run of one long code is paired from its low end.
 
 /** The cargo, by type number minus one. `w` is weight in cwt (hundredweight; the weights are the stacking order), `worth`
  *  in marks (not the order: a chest is worth the most of the six), `top` the shape of its upper side, `bears` the most
@@ -27,9 +33,16 @@ export const CARGO = [
 ];
 export const TYPES = CARGO.length;
 export const CRATE = 1, BARREL = 2, TIMBER = 3, INGOT = 4, CHEST = 5, SACK = 6, GOLD = 7, BIRCH = 8;
+/** The cell codes after the eight types: a cell of a long log of oak or of birch (two such cells in a line make the piece). A
+ *  cell holds a code, 0 to CODES; `typeOf` gives the cargo type of any code, and TYPES stays the number of cargo types. */
+export const LONG_OAK = 9, LONG_BIRCH = 10, CODES = 10;
+export const isLong = c => c > TYPES;
+export const typeOf = c => (c === LONG_OAK ? TIMBER : c === LONG_BIRCH ? BIRCH : c);
+/** The code of a long log of this tree, 0 for a type that has none. */
+export const longOf = t => (t === TIMBER ? LONG_OAK : t === BIRCH ? LONG_BIRCH : 0);
 /** The two trees: both lie in crossing layers (oak, number 3, is the old "timber"; birch and gold were added at the end of the list
- *  so that nothing already saved or shared is renumbered). */
-export const isTimber = t => t === TIMBER || t === BIRCH;
+ *  so that nothing already saved or shared is renumbered). A long log is timber too. */
+export const isTimber = c => { const t = typeOf(c); return t === TIMBER || t === BIRCH; };
 /** Whether a piece of type `u` may carry one of type `t`. */
 const carries = (u, t) => u !== CHEST && (u === SACK ? t === SACK : CARGO[u - 1].w >= CARGO[t - 1].w);
 /** What may stand directly on each type (the quay, 0, carries all). */
@@ -37,8 +50,9 @@ export const CARRIES = Object.fromEntries(CARGO.map(u => [u.id, CARGO.filter(t =
 /** What may stand directly under each type: the quay (0) and the types that carry it. */
 export const UNDER = Object.fromEntries(CARGO.map(c => [c.id, [0, ...CARGO.filter(b => CARRIES[b.id].includes(c.id)).map(b => b.id)]]));
 
-export const weightOf = t => CARGO[t - 1].w;
-export const worthOf = t => CARGO[t - 1].worth;
+/** What a cell weighs and is worth: a cell of a long log, its tree's (so the piece is twice that). */
+export const weightOf = t => CARGO[typeOf(t) - 1].w;
+export const worthOf = t => CARGO[typeOf(t) - 1].worth;
 const sum = (xs, f) => xs.reduce((n, x) => n + f(x), 0);
 /** The axis timber lies along on a tier (`turns`: the stack's quarter turns). */
 export const axisOf = (z, turns = 0) => ((z + turns) % 2 ? "y" : "x");
@@ -46,13 +60,16 @@ export const axisOf = (z, turns = 0) => ((z + turns) % 2 ? "y" : "x");
 /** The pieces of a column from the quay up: [type, ...], no zeros. */
 export const columnOf = (cells, x, y) => cells[x][y].filter(Boolean);
 
+/** Whether a cell of code `u` may carry one of code `t`. */
+const carriesCode = (u, t) => CARRIES[typeOf(u)].includes(typeOf(t));
+
 /** Whether `t` may be put on a column (its pieces from the quay up) with at most `limit` tiers. */
 export function canPlace(column, t, limit) {
   const h = column.length;
   if (h >= limit) return false;
-  if (h && !CARRIES[column[h - 1]].includes(t)) return false;
+  if (h && !carriesCode(column[h - 1], t)) return false;
   const up = [...column, t];
-  return up.every((p, i) => sum(up.slice(i + 1), weightOf) <= CARGO[p - 1].bears);
+  return up.every((p, i) => sum(up.slice(i + 1), weightOf) <= CARGO[typeOf(p) - 1].bears);
 }
 /** How many more of type `t` can be put on a column one after another, up to `limit` tiers. */
 export function room(column, t, limit) {
@@ -75,7 +92,7 @@ export function deduceColumn(shown, types = CARGO.map(c => c.id)) {
   const fill = (k, column) => {
     if (count > 1) return;
     if (k === hidden.length) {
-      if (column.every((t, z) => !z || CARRIES[column[z - 1]].includes(t)) && column.every((t, z) => loadAbove(column, z) <= CARGO[t - 1].bears)) { count++; found = column.slice(); }
+      if (column.every((t, z) => !z || carriesCode(column[z - 1], t)) && column.every((t, z) => loadAbove(column, z) <= CARGO[typeOf(t) - 1].bears)) { count++; found = column.slice(); }
       return;
     }
     for (const t of types) { column[hidden[k]] = t; fill(k + 1, column); }
@@ -85,22 +102,60 @@ export function deduceColumn(shown, types = CARGO.map(c => c.id)) {
   return count === 1 ? found : null;
 }
 
-/** What is wrong with a stack, as a list of words (empty when every rule holds). `limit`: the tiers the quay allows. */
-export function validate(cells, limit = Infinity) {
+/**
+ * The pieces of a stack as `turns` quarter turns have laid it: { list, at, broken }. `list` holds { key (the low cell's), cells
+ * ([x, y, z] each, low to high along the axis), code, type, long } for each piece, `at` maps a cell's key to its piece, and
+ * `broken` lists the long cells that have no other half. A short piece is one cell. A long log is two cells in a line along its
+ * tier's axis (`axisOf`), and only the code pairs them: a run of one long code along the axis is paired from its low end, so turning
+ * moves codes and nothing else (two long logs of a tree end to end are a run of four, paired the same from either end).
+ */
+export function pieces(cells, turns = 0) {
+  const list = [], at = new Map(), broken = [];
+  const X = cells.length, Y = cells[0]?.length || 0, Z = cells[0]?.[0]?.length || 0;
+  const add = (cs, code, bad = false) => {
+    const p = { key: `${cs[0][0]},${cs[0][1]},${cs[0][2]}`, cells: cs, code, type: typeOf(code), long: cs.length > 1 };
+    list.push(p);
+    for (const c of cs) at.set(`${c[0]},${c[1]},${c[2]}`, p);
+    if (bad) broken.push(p.key);
+  };
+  for (let z = 0; z < Z; z++) {
+    const alongX = axisOf(z, turns) === "x", lines = alongX ? Y : X, length = alongX ? X : Y;
+    for (let line = 0; line < lines; line++) {
+      const pos = i => (alongX ? [i, line, z] : [line, i, z]), code = i => { const [x, y] = pos(i); return cells[x][y][z]; };
+      for (let i = 0; i < length;) {
+        const c = code(i);
+        if (!c) { i++; continue; }
+        if (!isLong(c)) { add([pos(i)], c); i++; continue; }
+        let j = i;
+        while (j < length && code(j) === c) j++;
+        for (let k = i; k + 1 < j; k += 2) add([pos(k), pos(k + 1)], c);
+        if ((j - i) % 2) add([pos(j - 1)], c, true);
+        i = j;
+      }
+    }
+  }
+  return { list, at, broken };
+}
+
+/** What is wrong with a stack, as a list of words (empty when every rule holds). `limit`: the tiers the quay allows; `turns`: the
+ *  stack's quarter turns, which decide the way its long logs lie and so which cells make a piece. */
+export function validate(cells, limit = Infinity, turns = 0) {
   const bad = [];
+  const known = t => t >= 1 && t <= CODES;
   cells.forEach((col, x) => col.forEach((row, y) => {
     const at = `column ${x},${y}`;
     let gap = false;
     row.forEach((t, z) => {
       if (!t) { gap = true; return; }
-      if (!(t >= 1 && t <= TYPES)) { bad.push(`${at}: unknown type ${t}`); return; }
+      if (!known(t)) { bad.push(`${at}: unknown type ${t}`); return; }
       if (gap) bad.push(`${at}: piece ${z} floats`);
       if (z >= limit) bad.push(`${at}: piece ${z} is above the ${limit}-tier limit`);
-      if (z && row[z - 1] && !CARRIES[row[z - 1]]?.includes(t)) bad.push(`${at}: a ${CARGO[t - 1].key} on a ${CARGO[row[z - 1] - 1].key}`);
+      if (z && known(row[z - 1]) && !carriesCode(row[z - 1], t)) bad.push(`${at}: a ${CARGO[typeOf(t) - 1].key} on a ${CARGO[typeOf(row[z - 1]) - 1].key}`);
     });
-    const column = row.filter(t => t >= 1 && t <= TYPES);
-    column.forEach((t, z) => { if (loadAbove(column, z) > CARGO[t - 1].bears) bad.push(`${at}: the ${CARGO[t - 1].key} at ${z} bears ${loadAbove(column, z)} over its ${CARGO[t - 1].bears}`); });
+    const column = row.filter(known);
+    column.forEach((t, z) => { const own = CARGO[typeOf(t) - 1]; if (loadAbove(column, z) > own.bears) bad.push(`${at}: the ${own.key} at ${z} bears ${loadAbove(column, z)} over its ${own.bears}`); });
   }));
+  if (!bad.length) for (const k of pieces(cells, turns).broken) bad.push(`piece ${k}: a long log with no other half`);
   return bad;
 }
 

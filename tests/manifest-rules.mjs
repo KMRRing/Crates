@@ -41,7 +41,7 @@ const stack =(...ts) => [[[...ts.map(t => R.CARGO.findIndex(c => c.key === t) + 
   check(breaks.every(b => ok(...b).length), `each of ${breaks.length} breaks of the carrying rule is found (${breaks.map(b => b.join("/")).join(", ")})`);
   check(ok("crate", "crate", "crate", "crate").length && ok("barrel", "barrel", "barrel", "barrel").length && ok("sack", "sack", "sack", "sack").length && !ok("ingot", "ingot", "ingot", "ingot").length && !ok("gold", "ingot", "timber", "birch").length && !ok("gold", "gold", "gold", "gold").length && ok("birch", "birch", "birch", "birch").length, "a column too heavy for its lowest piece is found (four crates, barrels, birch or sacks; four ingots or gold are fine)");
   check(R.validate([[[0, 1, 0]]], 4).length && R.validate([[[1, 0, 1]]], 4).length, "a floating piece is found, with the gap below it or at the quay");
-  check(R.validate(stack("crate", "crate", "crate"), 2).length && R.validate([[[9]]], 4).length, "a piece above the quay's tier limit, and a type that doesn't exist, are found");
+  check(R.validate(stack("crate", "crate", "crate"), 2).length && R.validate([[[R.CODES + 1]]], 4).length, "a piece above the quay's tier limit, and a type that doesn't exist, are found");
   check(R.room([], R.CRATE, 4) === 3 && R.room([], R.INGOT, 4) === 4 && R.room([], R.GOLD, 4) === 4 && R.room([R.GOLD], R.INGOT, 4) === 3 && R.room([R.INGOT], R.GOLD, 4) === 0 && R.room([], R.BARREL, 4) === 3 && R.room([], R.SACK, 4) === 3 && R.room([R.CHEST], R.CRATE, 4) === 0
     && R.room([R.INGOT], R.CHEST, 4) === 1 && R.room([R.INGOT, R.CRATE], R.SACK, 3) === 1 && R.room([R.CRATE, R.CRATE], R.CRATE, 4) === 1 && R.room([R.BARREL], R.CRATE, 4) === 0 && R.room([R.CRATE], R.BARREL, 4) === 3,
   "room: how many more of a type go on a column, by support, load and the tier limit");
@@ -50,6 +50,38 @@ const stack =(...ts) => [[[...ts.map(t => R.CARGO.findIndex(c => c.key === t) + 
   check(same(R.deduceColumn([R.CRATE, null, R.CRATE]), [1, 1, 1]) && same(R.deduceColumn([R.INGOT, null, R.INGOT]), [4, 4, 4]) && R.deduceColumn([null, R.CRATE]) === null && R.deduceColumn([R.CRATE, null]) === null
     && same(R.deduceColumn([null, null, R.CHEST], [R.INGOT, R.CHEST]), [4, 4, 5]) && R.deduceColumn([null, null, R.CHEST], all) === null,
   "a hidden piece is named only where the rules leave one way (between two of a kind; or by the cargo in play), else it isn't");
+}
+
+// long logs (Korbi, 3 November 2026: "yea long logs is good"): oak and birch as one piece filling two cells in a line
+{
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  check(R.LONG_OAK === 9 && R.LONG_BIRCH === 10 && R.CODES === 10 && R.TYPES === 8 && R.CARGO.length === 8 && R.TIMBER === 3 && R.BIRCH === 8,
+    "the long logs are cell codes 9 and 10, after the eight types: nothing saved or shared is renumbered");
+  check(R.typeOf(9) === R.TIMBER && R.typeOf(10) === R.BIRCH && R.typeOf(5) === 5 && R.longOf(R.TIMBER) === 9 && R.longOf(R.BIRCH) === 10 && R.longOf(R.CRATE) === 0
+    && R.isLong(9) && R.isLong(10) && !R.isLong(8) && !R.isLong(0) && R.isTimber(9) && R.isTimber(10) && R.weightOf(9) === R.weightOf(R.TIMBER) && R.worthOf(10) === R.worthOf(R.BIRCH),
+  "a cell of a long log is its tree's: its type, its weight and its worth (the piece is two cells, so twice)");
+  const two = [[[9]], [[9]]], four = [[[10]], [[10]], [[10]], [[10]]];
+  const one = R.pieces(two);
+  check(one.list.length === 1 && one.list[0].long && one.list[0].key === "0,0,0" && same(one.list[0].cells, [[0, 0, 0], [1, 0, 0]]) && one.list[0].type === R.TIMBER && one.at.get("1,0,0") === one.list[0]
+    && !R.validate(two, 4).length && R.totals(two).w === 12 && R.totals(two).v === 6 && R.totals(four).w === 20 && R.totals(four).v === 16,
+  "two cells of a long code in a line along the tier's axis are one piece, named by its low cell, and weigh and are worth twice a short one");
+  const run = R.pieces(four);
+  check(run.list.length === 2 && run.at.get("3,0,0").key === "2,0,0" && run.at.get("1,0,0").key === "0,0,0" && !R.validate(four, 4).length,
+    "a run of one long code is paired from its low end: two logs end to end");
+  const lone = [R.validate([[[9]], [[9]], [[9]]], 4), R.validate([[[9]], [[10]]], 4), R.validate([[[9], [9]]], 4)];
+  check(lone.every(v => v.some(w => /long log with no other half/.test(w))) && R.pieces([[[9]], [[9]], [[9]]]).broken.length === 1 && R.pieces([[[9]], [[10]]]).broken.length === 2,
+    "a long log with no other half is found (an odd run, two trees side by side, one standing across the tier's axis)");
+  const turned = M.turn(two, 1);
+  check(turned.length === 1 && turned[0].length === 2 && !R.validate(turned, 4, 1).length && R.validate(turned, 4, 0).length && R.pieces(turned, 1).list[0].key === "0,0,0"
+    && [0, 1, 2, 3].every(t => !R.validate(M.turn(four, t), 4, t).length && R.pieces(M.turn(four, t), t).list.length === 2),
+  "turning a stack moves its codes and nothing else: a log keeps its two cells, read along the way the turned tier lies");
+  const crossed = [[[3, 9], [3, 9]]];
+  check(!R.validate(crossed, 4).length && R.validate([[[3, 9], [0, 9]]], 4).some(w => /floats/.test(w)) && R.validate([[[1, 9], [1, 9]]], 4).some(w => /timber on a crate/.test(w))
+    && R.validate([[[5, 9], [5, 9]]], 4).length && !R.validate([[[3, 9, 1], [3, 9, 1]]], 4).length,
+  "each half stands on what is under it, on the same tier as the other (no overhang): the support and carrying rules are per cell");
+  check(!R.canPlace([R.CRATE], R.LONG_OAK, 4) && R.canPlace([R.INGOT], R.LONG_BIRCH, 4) && R.canPlace([R.LONG_OAK], R.CRATE, 4) && !R.canPlace([R.LONG_BIRCH], R.TIMBER, 4)
+    && R.room([R.LONG_OAK], R.CRATE, 4) === R.room([R.TIMBER], R.CRATE, 4) && R.loadAbove([R.LONG_OAK, R.CRATE, R.SACK], 0) === 5,
+  "a cell of a long log carries, bears and is carried as its tree's cell does");
 }
 
 // the generator: every stack of every Random round passes the validator, repeatably
@@ -78,5 +110,6 @@ const stack =(...ts) => [[[...ts.map(t => R.CARGO.findIndex(c => c.key === t) + 
   for (let seed = 1; seed <= 30; seed++) { const a = M.makeRound(seed, 1, 0, L); n++; if (a.orders.some(o => o.type === "column")) got++; }
   check(got === n, `a recipe that wants a column question gets one (${got} of ${n} seeds), by dealing the stack again from the seed's own stream`);
 }
+
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

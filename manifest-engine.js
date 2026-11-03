@@ -10,15 +10,17 @@
 // back with one package different; in later ones it comes back turned round, or with two packages swapped.
 // A run is twelve rounds, or until the lives run out.
 //
-// A package is one of six kinds of cargo of a Hanseatic quay (manifest-rules.js: crates, barrels, timber, ingots, chests,
-// sacks), each its own shape: the outline, the hue and the lightness tell them apart, so no one rests on colour alone.
-// The code says "ware" for a cargo type (what the first version called a colour); a cell holds its number, 1 to 6.
+// A package is one of eight kinds of cargo of a Hanseatic quay (manifest-rules.js: crates, barrels, oak, ingots, chests,
+// sacks, gold, birch), each its own shape: the outline, the hue and the lightness tell them apart, so no one rests on colour alone.
+// The code says "ware" for a cargo type (what the first version called a colour); a cell holds its number, 1 to 8, or 9 and 10 for
+// a cell of a long log of oak or birch (two cells, one piece: `pieces`). Everything asked is asked of pieces, and what one
+// piece is of the other's cells is the rules' business; a piece is named by its low cell's key.
 // The stacks obey the rules of manifest-rules.js, the rounds are made from a recipe (how big, which cargo, which
 // questions), and the levels of manifest-levels.js are recipes in a ladder (docs/manifest.md).
 //
 // Together (the end of this file): a table of two to six plays the rounds in step, against each other or as one team
 // that sees the stack in parts.
-import { CARGO, TYPES, isTimber, CARRIES, axisOf, canPlace, room, loadAbove, validate, weightOf, worthOf, columnOf, deduceColumn, totals } from "./manifest-rules.js";
+import { CARGO, TYPES, CODES, TIMBER, BIRCH, isTimber, isLong, typeOf, longOf, CARRIES, axisOf, canPlace, room, loadAbove, validate, weightOf, worthOf, columnOf, deduceColumn, totals, pieces } from "./manifest-rules.js";
 import { outlineOf } from "./manifest-shapes.js";
 
 export const LIVES = 3, ROUNDS = 12;
@@ -30,7 +32,7 @@ export const LIVES = 3, ROUNDS = 12;
  */
 const LOOK = { crate: "#C9A267", barrel: "#7C4E2A", timber: "#5B3A1E", ingot: "#8E9CAB", chest: "#2F3E5C", sack: "#CDBB90", gold: "#C07A08", birch: "#E4DECB" };
 export const WARES = CARGO.map(c => ({ id: c.key, name: c.name, hex: LOOK[c.key] }));
-export { CARGO, TYPES, validate, weightOf, worthOf };
+export { CARGO, TYPES, CODES, validate, weightOf, worthOf, pieces, typeOf, isLong };
 export const VIEWS = { all: "All at once", layers: "Tier by tier", slices: "Slice by slice", pair: "Two tiers, then the rest" };
 
 function rng(seed) {
@@ -56,12 +58,14 @@ const unkey = k => k.split(",").map(Number);
  * `kinds` the questions it may ask, `want` the kinds it tries to carry (the stack is dealt again, from the same seed's
  * stream, until they can all be asked), `orders` how many are posted, `exposure` the hold in ms once the last piece has
  * landed, `change` null or the kind of change round ("ware", "turned", "swap"), and `views` the views that take turns
- * (none: the rotation Random has always had).
+ * (none: the rotation Random has always had), and `long` null or how the long logs of oak and birch are dealt
+ * ({ p: the share of pairs of one tree end to end that are joined, min: that many if the stack has the pairs, max: at most that
+ * many }: the stack is dealt as before and its pairs joined after, so a recipe with none deals the very stacks it always did).
  *
- * Random's recipe for round r: the stack grows to 4×4×3, the cargo from three types to six, the questions widen, and
+ * Random's recipe for round r: the stack grows to 4×4×3, the cargo from three types to eight, the questions widen, and
  * every fourth round is a change round (a ware, then turned, then swapped).
  */
-export function levelOf(r) {
+export function levelOf(r, longs = true) {
   const kinds = ["count", "total", "tier", "spot", "top", "most"];
   if (r >= 3) kinds.push("turned");
   if (r >= 5) kinds.push("which", "weight");
@@ -71,8 +75,12 @@ export function levelOf(r) {
   return {
     x, y, z, types: LADDER.slice(0, types), kinds, want: [], views: null, exposure, orders,
     change: r % 4 === 0 ? ["ware", "turned", "swap"][(r / 4 - 1) % 3] : null,
+    long: longs && r >= LONG_FROM ? LONGS : null,
   };
 }
+/** The round Random first deals long logs in (Infinity: none yet), and how many. */
+export const LONG_FROM = Infinity;
+const LONGS = { p: 0.6, min: 1, max: 3 };
 /** The order the types come into Random: a type is dealt once the ladder reaches it. */
 export const LADDER = [1, 2, 3, 4, 5, 6, 8, 7];
 /**
@@ -89,7 +97,7 @@ const RAMP = [
 export const STEP = 1.2;
 /** How hard a recipe is, 1 for the first round's: the stack's size, the cargo in play, the kinds of question, how many are
  *  asked, and how short the hold. */
-export const difficulty = L => Math.sqrt(L.x * L.y * L.z / 12) * (1 + 0.1 * (L.types.length - 3)) * (1 + 0.03 * (L.kinds.length - 6)) * (1 + 0.08 * (L.orders - 3)) * Math.sqrt(9000 / L.exposure);
+export const difficulty = L => Math.sqrt(L.x * L.y * L.z / 12) * (1 + 0.1 * (L.types.length - 3)) * (1 + 0.03 * (L.kinds.length - 6)) * (1 + 0.08 * (L.orders - 3)) * Math.sqrt(9000 / L.exposure) * (L.long ? 1.04 : 1);
 
 /**
  * The stack for a round: cells[x][y][z] holds a cargo type's number (1 to 6) or 0 for empty; columns stand on the quay.
@@ -105,28 +113,75 @@ function makeStack(r, L) {
       while (col.length < h) {
         const ok = L.types.filter(t => canPlace(col, t, L.z)), below = col[col.length - 1];
         if (!ok.length) break;
+        // a recipe with long logs likes a tree to lie end to end with the same tree, which is what a long log is made of
+        const near = L.long ? alongBefore(cells, x, y, col.length) : 0;
+        if (near && isTimber(near) && ok.includes(near) && r() < 0.5) { col.push(near); continue; }
         // heavy goes low, so what can carry more is dealt first and more often (else most columns would end at a chest or a sack)
         col.push(below && ok.includes(below) && r() < 0.4 ? below : pickBy(r, ok, t => 1 + CARRIES[t].filter(u => L.types.includes(u)).length));
       }
       cells[x].push(Array.from({ length: L.z }, (_, z) => col[z] || 0));
     }
   }
+  if (L.long) joinLongs(r, cells, L);
   return cells;
 }
+/** The cell dealt before (x, y, z) in the line its tier's timber lies along (cells are dealt by x, then y), or 0. */
+const alongBefore = (cells, x, y, z) => (axisOf(z) === "x" ? cells[x - 1]?.[y]?.[z] : cells[x]?.[y - 1]?.[z]) || 0;
+/**
+ * The long logs: pairs of one tree end to end on a tier, in the line its timber lies along, joined into one piece (their cells
+ * take the long code). Nothing else about the stack changes, because the rules are per cell: both halves stand where they
+ * stood. At most `L.long.max`, and never so many that a table of six has fewer than six stretches of the floor to share
+ * (splitStack): a long log joins two columns.
+ */
+function joinLongs(r, cells, L) {
+  const X = cells.length, Y = cells[0].length, cap = Math.max(0, Math.min(L.long.max, X * Y - 6)), pairs = [];
+  for (let z = 0; z < L.z; z++) for (let x = 0; x < X; x++) for (let y = 0; y < Y; y++) {
+    const c = cells[x][y][z], [nx, ny] = axisOf(z) === "x" ? [x + 1, y] : [x, y + 1];
+    if ((c === TIMBER || c === BIRCH) && nx < X && ny < Y && cells[nx][ny][z] === c) pairs.push([x, y, z, nx, ny]);
+  }
+  let made = 0;
+  for (const [x, y, z, nx, ny] of shuffle(r, pairs)) {
+    if (made >= cap) break;
+    const c = cells[x][y][z];
+    if (cells[nx][ny][z] !== c || isLong(c)) continue;                    // one of them went into a long log already
+    if (made >= L.long.min && r() >= L.long.p) continue;
+    cells[x][y][z] = cells[nx][ny][z] = longOf(c);
+    made++;
+  }
+}
 const each = (cells, fn) => cells.forEach((col, x) => col.forEach((row, y) => row.forEach((c, z) => { if (c) fn(x, y, z, c); })));
-const count = (cells, pred) => { let n = 0; each(cells, (x, y, z, c) => { if (pred(x, y, z, c)) n++; }); return n; };
 const copy = cells => cells.map(col => col.map(row => [...row]));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-/** The types (of `types`) a piece could be exchanged for with the stack still standing. */
-function swaps(cells, [x, y, z], types, limit) {
-  const c = cells[x][y][z];
-  return types.filter(n => {
+/** The cell codes a piece could be exchanged for with the stack still standing: another type of `types` for a short piece, the other
+ *  tree's long log for a long one (the footprint stays the same: two cells, a line). */
+function swaps(cells, piece, types, limit) {
+  const c = piece.code, mine = piece.cells;
+  const options = piece.long ? [piece.type === TIMBER ? BIRCH : TIMBER].filter(t => types.includes(t)).map(longOf) : types;
+  return options.filter(n => {
     if (n === c) return false;
-    cells[x][y][z] = n;
+    for (const [x, y, z] of mine) cells[x][y][z] = n;
     const ok = !validate(cells, limit).length;
-    cells[x][y][z] = c;
+    for (const [x, y, z] of mine) cells[x][y][z] = c;
     return ok;
   });
+}
+/** The stack with this piece's cells given another code. */
+function recoded(cells, piece, code) {
+  const m = copy(cells);
+  for (const [x, y, z] of piece.cells) m[x][y][z] = code;
+  return m;
+}
+/** A long log is read as long only if both its halves show: a trunk that goes behind a crate looks like a short one, and what is asked
+ *  of what is seen (its weight, twice a short one's) would be a guess. Seen all at once, such a log is dealt as two short ones of
+ *  its tree. Each half must show as much as a piece must to be pointed at (CLEAR_SEEN). The whole stack decides, for a team as for
+ *  one: a player's own part shows at least as much of each log. */
+export function shortenHidden(cells) {
+  for (;;) {
+    const px = pixelsOf(cells), hidden = pieces(cells, 0).list.filter(p => p.long && p.cells.some(([x, y, z]) => px.get(keyOf(x, y, z)) < CLEAR_SEEN));
+    if (!hidden.length) return;
+    // the short logs that take its place cover other pixels than the halves did, so what shows is looked at again
+    for (const p of hidden) for (const [x, y, z] of p.cells) cells[x][y][z] = p.type;
+  }
 }
 
 // ---------- turning ----------
@@ -148,6 +203,9 @@ export function turnKey(x, y, z, X, Y, turns) {
 }
 /** The stack in a mirror: front and back rows change places. No turn can make it, unless the stack is symmetric. */
 export const mirror = cells => cells.map(col => [...col].reverse());
+/** The key a piece goes by in a stack laid out after `turns` quarter turns, given the key of any one of its cells: its low cell
+ *  along that layout's axis (a long log's low cell is not the one the same cell turns into: turnKey maps cells, not pieces). */
+export const anchorKey = (cells, turns, k) => pieces(cells, turns).at.get(k)?.key ?? k;
 
 // ---------- isometric geometry and visibility ----------
 // The whole-stack view hides inner packages. Which ones show is settled the way the screen settles it: the cubes
@@ -169,8 +227,21 @@ export function cubeFaces(x, y, z, b = boxFor(0)) {
     right: [p(1, 0, 0), p(1, 1, 0), p(1, 1, 1), p(1, 0, 1)],
   };
 }
-/** Draw order: far to near. */
-export const drawOrder = cells => { const out = []; each(cells, (x, y, z, c) => out.push({ x, y, z, c })); return out.sort((a, b) => (a.x + a.y) - (b.x + b.y) || a.z - b.z); };
+/** Draw order: far to near. Each cell is { x, y, z, c } and, in a long log, `half` (0 the low cell along the tier's axis, 1 the high one) and
+ *  `piece` (the log's key), as the stack lies after `turns` quarter turns. */
+export const drawOrder = (cells, turns = 0) => {
+  const out = [];
+  each(cells, (x, y, z, c) => out.push({ x, y, z, c }));
+  if (out.some(o => isLong(o.c))) {
+    const at = pieces(cells, turns).at;
+    for (const o of out) {
+      if (!isLong(o.c)) continue;
+      const p = at.get(keyOf(o.x, o.y, o.z));
+      if (p.long) { o.half = p.key === keyOf(o.x, o.y, o.z) ? 0 : 1; o.piece = p.key; }
+    }
+  }
+  return out.sort((a, b) => (a.x + a.y) - (b.x + b.y) || a.z - b.z);
+};
 /** The ms from the last package's landing until the stack holds still (its bounce settles). */
 export const LANDING = 450;
 /**
@@ -183,6 +254,8 @@ export function dropTimes(cells, view) {
   let k = 0, last = 0;
   const stagger = 45, pause = 1300;
   for (const cube of drawOrder(cells)) {
+    // a long log lands as one, at its low cell's moment (its high cell is drawn after it)
+    if (cube.half === 1 && times[cube.piece] != null) { times[keyOf(cube.x, cube.y, cube.z)] = times[cube.piece]; continue; }
     let at;
     if (view === "layers") at = cube.z * pause + k * stagger;
     else if (view === "slices") at = cube.y * pause + k * stagger;
@@ -197,13 +270,15 @@ export function dropTimes(cells, view) {
 /** What a piece covers of the screen, as convex polygons: the outline of its model (a barrel leaves the corners of its cell
  *  empty, and a corner of the cell that shows through is not the piece), or the cell's three faces for a cell that holds no cargo. */
 function coverOf(cube, b, boxes = false) {
-  if (boxes || !(cube.c >= 1 && cube.c <= TYPES)) return Object.values(cubeFaces(cube.x, cube.y, cube.z, b));
+  if (boxes || !(cube.c >= 1 && cube.c <= CODES)) return Object.values(cubeFaces(cube.x, cube.y, cube.z, b));
   const mid = isoPoint(cube.x + 0.5, cube.y + 0.5, cube.z + 0.5, b);
-  return [outlineOf(cube.c, isTimber(cube.c) && axisOf(cube.z, b.turns || 0) === "y").map(([sx, sy]) => [mid.sx + sx * b.X, mid.sy + sy * b.H])];
+  return [outlineOf(cube.c, isTimber(cube.c) && axisOf(cube.z, b.turns || 0) === "y", cube.half ?? null).map(([sx, sy]) => [mid.sx + sx * b.X, mid.sy + sy * b.H])];
 }
 /** The set of "x,y,z" keys of pieces you can see in the isometric view: the cells are drawn back to front, each as the outline
  *  of its piece (convex, so filled a row of pixels at a time: a pixel is in it when its centre lies from the left crossing of
- *  the row up to the right one), and a piece is seen if enough of it survives (MIN_SEEN pixels: a hair of it is not a piece). */
+ *  the row up to the right one), and a piece is seen if enough of it survives (MIN_SEEN pixels: a hair of it is not a piece).
+ *  A long log is one piece: its two halves' pixels are added, and it is seen by both its cells (a log with half of it hidden shows
+ *  the other half to be there, the same tree on the same tier). */
 export function visibleSet(cells, b = boxFor(0)) {
   const out = new Set();
   for (const [k, n] of seenPixels(cells, b)) if (n >= MIN_SEEN) out.add(k);
@@ -217,9 +292,10 @@ export function clearSet(cells, b = boxFor(0), boxes = false) {
   for (const [k, n] of seenPixels(cells, b, boxes)) if (n >= CLEAR_SEEN) out.add(k);
   return out;
 }
-/** How many raster pixels of each piece survive in the view, by key (see visibleSet). */
-function seenPixels(cells, b = boxFor(0), boxes = false) {
-  const order = drawOrder(cells), out = new Map();
+/** How many raster pixels of each cell survive in the view, by key: a long log's halves apart (seenPixels has them added). */
+export const pixelsOf = (cells, b = boxFor(0)) => seenPixels(cells, b, false, true);
+function seenPixels(cells, b = boxFor(0), boxes = false, apart = false) {
+  const order = drawOrder(cells, b.turns || 0), out = new Map();
   if (!order.length) return out;
   const polys = order.map(cube => ({ key: keyOf(cube.x, cube.y, cube.z), faces: coverOf(cube, b, boxes) }));
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -247,6 +323,14 @@ function seenPixels(cells, b = boxFor(0), boxes = false) {
   const count = new Int32Array(polys.length + 1);
   for (let i = 0; i < buf.length; i++) count[buf[i]]++;
   polys.forEach((p, id) => out.set(p.key, count[id + 1]));
+  if (!boxes && !apart) {                                              // a long log is seen as one: the sum of its halves, for both
+    order.forEach((cube, id) => {
+      if (cube.half !== 0) return;
+      const mate = order.findIndex(o => o.piece === cube.piece && o.half === 1), n = count[id + 1] + count[mate + 1];
+      out.set(polys[id].key, n);
+      out.set(polys[mate].key, n);
+    });
+  }
   return out;
 }
 const MIN_SEEN = 6;                                                   // of 14 pixels to the cell's edge: about 1.5% of a piece's outline
@@ -285,7 +369,7 @@ function numberOptions(r, truth, steps = null) {
 /** The gaps between options for a sum of weights or worths: wider the bigger it is, so that adding up is the way to it. */
 const stepsFor = n => (n < 8 ? [1] : n < 20 ? [1, 2] : n < 60 ? [2, 3, 5] : [5, 10]);
 /** A how-many question in the tense its view allows (what you could see, what lies on the bottom two tiers, what there was). */
-const howMany = (what, view, all = "") => (view === "all" ? `How many ${what} could you see${all}?` : view === "pair" ? `How many ${what} are there on the bottom two tiers?` : `How many ${what} were there${all}?`);
+const howMany = (what, view, all = "", note = "") => (view === "all" ? `How many ${what} could you see${all}${note}?` : view === "pair" ? `How many ${what} are there on the bottom two tiers${note}?` : `How many ${what} were there${all}${note}?`);
 const turnWords = t => (t === 2 ? "from behind" : "from the side");
 
 /** What you saw in a view: every package when they arrive tier by tier or slice by slice; the visible ones all at once; the bottom two tiers otherwise. */
@@ -299,39 +383,48 @@ function seenIn(cells, view, visible) {
  *  tell you what weighs what"): the round's cargo and, for each, what the question's numbers are made of (`w` weight in cwt,
  *  `worth` in marks, `bears` the most that may rest on it). The weights are the same in every round; what is printed is the
  *  truth the answer is worked from. */
-const legendOf = (L, cols) => ({ types: L.types.slice(), cols });
-/** A question's key as rows to print: [{ id, name, w, worth, bears }] with only the columns it asks for. */
-export const legendRows = legend => legend.types.map(id => ({ id, name: CARGO[id - 1].name, ...Object.fromEntries(legend.cols.map(k => [k, CARGO[id - 1][k]])) }));
+const legendOf = (L, cols, longs = false) => ({ types: L.types.slice(), cols, ...(longs && L.long ? { long: L.types.filter(longOf) } : {}) });
+/** A question's key as rows to print: [{ id, name, w, worth, bears }] with only the columns it asks for. A recipe with long logs adds,
+ *  to the questions that sum weights or worths, a row for each long log (its cell code as id): twice its tree's, one piece. */
+export const legendRows = legend => [
+  ...legend.types.map(id => ({ id, name: CARGO[id - 1].name, ...Object.fromEntries(legend.cols.map(k => [k, CARGO[id - 1][k]])) })),
+  ...(legend.long || []).map(id => ({ id: longOf(id), name: `Long ${CARGO[id - 1].name.toLowerCase()}`, ...Object.fromEntries(legend.cols.map(k => [k, 2 * CARGO[id - 1][k]])) })),
+];
 /** One order of a kind, or null if the stack can't make a fair one: { type, posted, question }. */
 function makeOrder(r, type, cells, L, view, visible) {
   const seen = seenIn(cells, view, visible), seenCells = [...seen].map(unkey);
-  const used = [...new Set(seenCells.map(([x, y, z]) => cells[x][y][z]))].sort((a, b) => a - b);
+  // what is asked is asked of pieces: a long log is one, named by its low cell (a stack with none has a piece in every cell)
+  const P = pieces(cells, 0), pcs = seenCells.filter(([x, y, z]) => P.at.get(keyOf(x, y, z)).key === keyOf(x, y, z));
+  const typeAt = ([x, y, z]) => typeOf(cells[x][y][z]), isLongAt = ([x, y, z]) => isLong(cells[x][y][z]);
+  const note = ps => (ps.some(isLongAt) ? " (a long log is one)" : "");
+  const used = [...new Set(seenCells.map(typeAt))].sort((a, b) => a - b);
   const where = view === "all" ? " you could see" : view === "pair" ? " on the bottom two tiers" : "";
   const X = cells.length, Y = cells[0].length;
   if (used.length < 2 && ["spot", "top", "turned"].includes(type)) return null;     // one cargo seen: nothing to choose between
   switch (type) {
     case "count": {
-      const c = pick(r, used), n = seenCells.filter(([x, y, z]) => cells[x][y][z] === c).length;
-      return { type, posted: `How many of one kind of cargo${where}`, question: { as: "number", text: howMany(CARGO[c - 1].plural, view), ware: c, answer: n, options: numberOptions(r, n) } };
+      const c = pick(r, used), mine = pcs.filter(p => typeAt(p) === c), n = mine.length;
+      return { type, posted: `How many of one kind of cargo${where}`, question: { as: "number", text: howMany(CARGO[c - 1].plural, view, "", note(mine)), ware: c, answer: n, options: numberOptions(r, n) } };
     }
     case "total": {
-      const n = seenCells.length;
-      return { type, posted: `How many pieces${where} in all`, question: { as: "number", text: howMany("pieces", view, " in all"), answer: n, options: numberOptions(r, n) } };
+      const n = pcs.length;
+      return { type, posted: `How many pieces${where} in all`, question: { as: "number", text: howMany("pieces", view, " in all", note(pcs)), answer: n, options: numberOptions(r, n) } };
     }
     case "tier": {
       const tiers = [...new Set(seenCells.map(([, , z]) => z))].filter(z => view !== "pair" || z < 2);
-      const z = pick(r, tiers), n = count(cells, (x, y, zz) => zz === z);
-      return { type, posted: `How many on tier ${z + 1}`, question: { as: "number", text: `How many pieces on tier ${z + 1}?`, tier: z, answer: n, options: numberOptions(r, n) } };
+      const z = pick(r, tiers), here = P.list.filter(p => p.cells[0][2] === z), n = here.length;
+      return { type, posted: `How many on tier ${z + 1}`, question: { as: "number", text: `How many pieces on tier ${z + 1}${here.some(p => p.long) ? " (a long log is one)" : ""}?`, tier: z, answer: n, options: numberOptions(r, n) } };
     }
     case "weight": case "worth": {
       const sums = totals(cells, seen), n = type === "weight" ? sums.w : sums.v;
       const what = view === "all" ? "the pieces you could see" : view === "pair" ? "the bottom two tiers" : "the whole stack";
       const text = type === "weight" ? `How much did ${what} weigh, in cwt (hundredweight)?` : `What ${what === "the whole stack" ? "was" : "were"} ${what} worth, in marks?`;
-      return { type, posted: type === "weight" ? `The weight of ${what}` : `The worth of ${what}`, question: { as: "number", text, legend: legendOf(L, type === "weight" ? ["w"] : ["worth"]), answer: n, options: numberOptions(r, n, stepsFor(n)) } };
+      return { type, posted: type === "weight" ? `The weight of ${what}` : `The worth of ${what}`, question: { as: "number", text, legend: legendOf(L, type === "weight" ? ["w"] : ["worth"], true), answer: n, options: numberOptions(r, n, stepsFor(n)) } };
     }
     case "load": {
-      // a piece with something on it: the tier-by-tier views show every piece, so the whole column has been seen
-      const spots = seenCells.filter(([x, y, z]) => cells[x][y][z + 1]);
+      // a piece with something on it: the tier-by-tier views show every piece, so the whole column has been seen. A long log in
+      // the weight (or marked) is left out: it rests half on each of two columns, and the key gives a piece one weight
+      const spots = seenCells.filter(([x, y, z]) => cells[x][y][z + 1] && !cells[x][y].slice(z).some(isLong));
       if (!spots.length) return null;
       const [x, y, z] = pick(r, spots), n = loadAbove(columnOf(cells, x, y), z);
       return { type, posted: "The weight on a piece", question: { as: "number", text: "How much weight rests on the marked piece, in cwt?", legend: legendOf(L, ["w"]), cell: { x, y, z }, answer: n, options: numberOptions(r, n, stepsFor(n)) } };
@@ -341,7 +434,7 @@ function makeOrder(r, type, cells, L, view, visible) {
       const combos = [];
       cells.forEach((col, x) => col.forEach((row, y) => {
         const column = row.filter(Boolean);
-        if (column.length && column.every((_, z) => seen.has(keyOf(x, y, z)))) for (const t of L.types) combos.push([x, y, column, t, room(column, t, L.z)]);
+        if (column.length && !column.some(isLong) && column.every((_, z) => seen.has(keyOf(x, y, z)))) for (const t of L.types) combos.push([x, y, column, t, room(column, t, L.z)]);
       }));
       if (!combos.length) return null;
       const some = combos.filter(c => c[4] > 0), [x, y, column, t, n] = pick(r, some.length && r() < 0.75 ? some : combos);
@@ -353,7 +446,7 @@ function makeOrder(r, type, cells, L, view, visible) {
       const spots = [];
       cells.forEach((col, x) => col.forEach((row, y) => {
         const h = row.filter(Boolean).length;
-        if (h < 2 || !visible.has(keyOf(x, y, h - 1))) return;
+        if (h < 2 || row.some(isLong) || !visible.has(keyOf(x, y, h - 1))) return;
         const shown = row.slice(0, h).map((t, z) => (visible.has(keyOf(x, y, z)) ? t : null));
         if (shown.includes(null) && deduceColumn(shown, L.types)) spots.push([x, y, h - 1]);
       }));
@@ -363,17 +456,17 @@ function makeOrder(r, type, cells, L, view, visible) {
     }
     case "spot": {
       const z = pick(r, [...new Set(seenCells.map(([, , zz]) => zz))]);
-      const [x, y] = pick(r, seenCells.filter(([, , zz]) => zz === z));
-      return { type, posted: `A cargo at a spot on tier ${z + 1}`, question: { as: "ware", text: `Which cargo is the marked piece on tier ${z + 1}?`, cell: { x, y, z }, answer: cells[x][y][z], options: used } };
+      const [x, y] = pick(r, pcs.filter(([, , zz]) => zz === z));
+      return { type, posted: `A cargo at a spot on tier ${z + 1}`, question: { as: "ware", text: `Which cargo is the marked piece on tier ${z + 1}?`, cell: { x, y, z }, answer: typeAt([x, y, z]), options: used } };
     }
     case "top": {
       const tops = [];
       cells.forEach((col, x) => col.forEach((row, y) => { const h = row.filter(Boolean).length; if (h && visible.has(keyOf(x, y, h - 1))) tops.push([x, y, h - 1]); }));
       const [x, y, z] = pick(r, tops);
-      return { type, posted: "The top of a column", question: { as: "ware", text: "Which cargo is on top of the marked column?", cell: { x, y, z }, answer: cells[x][y][z], options: used } };
+      return { type, posted: "The top of a column", question: { as: "ware", text: "Which cargo is on top of the marked column?", cell: { x, y, z }, answer: typeAt([x, y, z]), options: used } };
     }
     case "most": {
-      const tally = used.map(c => [c, seenCells.filter(([x, y, z]) => cells[x][y][z] === c).length]).sort((a, b) => b[1] - a[1]);
+      const tally = used.map(c => [c, pcs.filter(p => typeAt(p) === c).length]).sort((a, b) => b[1] - a[1]);
       if (tally.length < 2 || tally[0][1] === tally[1][1]) return null;
       return { type, posted: `The most common cargo${where}`, question: { as: "ware", text: view === "all" ? "Which cargo could you see most of?" : view === "pair" ? "Which cargo is most common on the bottom two tiers?" : "Which cargo is most common?", answer: tally[0][0], options: used } };
     }
@@ -382,31 +475,31 @@ function makeOrder(r, type, cells, L, view, visible) {
       // so what shows of the marked one is counted on boxes, and enough of it must (3 November 2026: "I can't see the marked
       // piece in this one, very unclear")
       const turns = int(r, 1, 3), turned = turn(cells, turns), shows = clearSet(turned, boxFor(turns), true);
-      const spots = seenCells.filter(([x, y, z]) => shows.has(turnKey(x, y, z, X, Y, turns)));
+      const spots = pcs.filter(([x, y, z]) => shows.has(turnKey(x, y, z, X, Y, turns)));
       if (!spots.length) return null;
       const [x, y, z] = pick(r, spots);
-      return { type, posted: `A spot, the stack seen ${turnWords(turns)}`, question: { as: "ware", text: `The stack seen ${turnWords(turns)}: which cargo is the marked piece?`, turns, cell: { x, y, z }, at: turnKey(x, y, z, X, Y, turns), answer: cells[x][y][z], options: used } };
+      return { type, posted: `A spot, the stack seen ${turnWords(turns)}`, question: { as: "ware", text: `The stack seen ${turnWords(turns)}: which cargo is the marked piece?`, turns, cell: { x, y, z }, at: turnKey(x, y, z, X, Y, turns), answer: typeAt([x, y, z]), options: used } };
     }
     case "which": {
       // four stacks turned the same way: yours, its mirror image, and yours with a package or two changed
       const turns = int(r, 1, 3), b = boxFor(turns), turned = turn(cells, turns), shows = clearSet(turned, b);
-      const both = seenCells.filter(([x, y, z]) => shows.has(turnKey(x, y, z, X, Y, turns)));
+      const both = pcs.filter(([x, y, z]) => shows.has(turnKey(x, y, z, X, Y, turns)));
       if (!both.length) return null;
       // a decoy is a stack that could stand (one that breaks a stacking rule would give itself away), and what it changed shows
       // in it (a smaller piece in the place of a larger one could hide itself, and the decoy would look like yours)
       const showing = (d, spots) => { const v = clearSet(d, b); return spots.every(([x, y, z]) => v.has(turnKey(x, y, z, X, Y, turns))) ? d : null; };
       const changeWare = () => {
-        const [x, y, z] = pick(r, both), c = cells[x][y][z], other = swaps(cells, [x, y, z], used, L.z);
+        const [x, y, z] = pick(r, both), piece = P.at.get(keyOf(x, y, z)), other = swaps(cells, piece, used, L.z);
         if (!other.length) return null;
-        const m = copy(cells); m[x][y][z] = pick(r, other); return showing(turn(m, turns), [[x, y, z]]);
+        return showing(turn(recoded(cells, piece, pick(r, other)), turns), [[x, y, z]]);
       };
+      // two pieces of a size (both short, or both long) trade their cargo
       const swapTwo = () => {
-        const pairs = [];
-        both.forEach((a, i) => both.slice(i + 1).forEach(bb => { if (cells[a[0]][a[1]][a[2]] !== cells[bb[0]][bb[1]][bb[2]]) pairs.push([a, bb]); }));
+        const pairs = [], at = ([x, y, z]) => P.at.get(keyOf(x, y, z));
+        both.forEach((a, i) => both.slice(i + 1).forEach(bb => { if (at(a).long === at(bb).long && at(a).code !== at(bb).code) pairs.push([a, bb]); }));
         if (!pairs.length) return null;
-        const [[x1, y1, z1], [x2, y2, z2]] = pick(r, pairs), m = copy(cells);
-        [m[x1][y1][z1], m[x2][y2][z2]] = [m[x2][y2][z2], m[x1][y1][z1]];
-        return validate(m, L.z).length ? null : showing(turn(m, turns), [[x1, y1, z1], [x2, y2, z2]]);
+        const [a, bb] = pick(r, pairs), m = recoded(recoded(cells, at(a), at(bb).code), at(bb), at(a).code);
+        return validate(m, L.z).length ? null : showing(turn(m, turns), [a, bb]);
       };
       const mirrored = mirror(cells), mirrorIsTurn = [0, 1, 2, 3].some(t => same(turn(cells, t), mirrored));
       const decoys = [];
@@ -438,36 +531,33 @@ const viewFor = (r, L) => (L.change ? "all" : L.views ? L.views[(r - 1) % L.view
  * ones you could see (seen), and can see again when the whole stack comes back (visible, or the turned stack's own).
  */
 function makeChange(r, cells, L, seen, visible, variant) {
-  const clear0 = clearSet(cells), spots = [...seen].filter(k => clear0.has(k)).map(unkey), X = cells.length, Y = cells[0].length;
-  // what comes back is a stack that could stand: a piece is changed for a type the stack still bears, two are swapped only
-  // where both stand in the other's place
-  const alts = s => swaps(cells, s, L.types, L.z);
-  const pairs = [];
+  // a piece is named by its low cell: a long log is one spot, and its other cell is not
+  const P = pieces(cells, 0), at = ([x, y, z]) => P.at.get(keyOf(x, y, z));
+  const clear0 = clearSet(cells), spots = [...seen].filter(k => clear0.has(k) && P.at.get(k).key === k).map(unkey), X = cells.length, Y = cells[0].length;
+  // what comes back is a stack that could stand: a piece is changed for a type the stack still bears (a long log for the other
+  // tree's, in the same two cells), two are swapped only where both stand in the other's place and are of a size
+  const alts = s => swaps(cells, at(s), L.types, L.z);
+  const pairs = [], traded = (a, b) => recoded(recoded(cells, at(a), at(b).code), at(b), at(a).code);
   if (variant === "swap") {
     spots.forEach((a, i) => spots.slice(i + 1).forEach(b => {
-      if (cells[a[0]][a[1]][a[2]] === cells[b[0]][b[1]][b[2]]) return;
-      const m = copy(cells);
-      [m[a[0]][a[1]][a[2]], m[b[0]][b[1]][b[2]]] = [m[b[0]][b[1]][b[2]], m[a[0]][a[1]][a[2]]];
-      if (!validate(m, L.z).length) pairs.push([a, b]);
+      if (at(a).long !== at(b).long || at(a).code === at(b).code) return;
+      if (!validate(traded(a, b), L.z).length) pairs.push([a, b]);
     }));
   }
   // a piece looks different from what it replaces (its outline covers other pixels), so what comes back is checked too: both
   // pieces of a swap, or the changed one, must show in the stack that returns
   if (variant === "swap") {
-    for (const [[x1, y1, z1], [x2, y2, z2]] of shuffle(r, pairs)) {
-      const back = copy(cells);
-      [back[x1][y1][z1], back[x2][y2][z2]] = [back[x2][y2][z2], back[x1][y1][z1]];
-      const shows = clearSet(back);
-      if (shows.has(keyOf(x1, y1, z1)) && shows.has(keyOf(x2, y2, z2)))
-        return { type: "swap", posted: "Two pieces swap places", question: { as: "pair", text: "Two pieces swapped places. Tap both.", turns: 0, back, answer: [keyOf(x1, y1, z1), keyOf(x2, y2, z2)].sort() } };
+    for (const [a, b] of shuffle(r, pairs)) {
+      const back = traded(a, b), shows = clearSet(back);
+      if (shows.has(keyOf(...a)) && shows.has(keyOf(...b)))
+        return { type: "swap", posted: "Two pieces swap places", question: { as: "pair", text: "Two pieces swapped places. Tap both.", turns: 0, back, answer: [keyOf(...a), keyOf(...b)].sort() } };
     }
   }
   const attempt = t => {
     const shows = t ? clearSet(turn(cells, t), boxFor(t)) : clear0;
     for (const spot of shuffle(r, spots.filter(([a, b, c]) => shows.has(turnKey(a, b, c, X, Y, t))))) {
       for (const alt of shuffle(r, alts(spot))) {
-        const changed = copy(cells);
-        changed[spot[0]][spot[1]][spot[2]] = alt;
+        const changed = recoded(cells, at(spot), alt);
         if (clearSet(t ? turn(changed, t) : changed, boxFor(t)).has(turnKey(...spot, X, Y, t))) return { spot, changed, turns: t };
       }
     }
@@ -477,9 +567,11 @@ function makeChange(r, cells, L, seen, visible, variant) {
   const hit = attempt(turns0) || (turns0 ? attempt(0) : null);                 // nothing seen both ways: plain change
   if (!hit) return null;
   const { spot: [x, y, z], changed, turns } = hit;
+  // the answer is the piece as the picture lays it (a long log by its low cell there: the page takes a tap on either half for it)
+  const back = turns ? turn(changed, turns) : changed;
   return turns
-    ? { type: "changeTurned", posted: "Spot the change, the stack turned", question: { as: "cell", text: `The stack's come back seen ${turnWords(turns)}, and one piece is now another cargo. Tap it.`, turns, back: turn(changed, turns), answer: turnKey(x, y, z, X, Y, turns), cell: { x, y, z } } }
-    : { type: "change", posted: "Spot the change", question: { as: "cell", text: "One piece is now another cargo. Tap it.", turns: 0, back: changed, answer: keyOf(x, y, z), cell: { x, y, z } } };
+    ? { type: "changeTurned", posted: "Spot the change, the stack turned", question: { as: "cell", text: `The stack's come back seen ${turnWords(turns)}, and one piece is now another cargo. Tap it.`, turns, back, answer: anchorKey(back, turns, turnKey(x, y, z, X, Y, turns)), cell: { x, y, z } } }
+    : { type: "change", posted: "Spot the change", question: { as: "cell", text: "One piece is now another cargo. Tap it.", turns: 0, back, answer: keyOf(x, y, z), cell: { x, y, z } } };
 }
 
 /**
@@ -506,8 +598,13 @@ export function makeRound(seed, r, team = 0, recipe = null) {
   // the stack is dealt again (from the same stream, so on every device the same) until it can carry every wanted question
   // and the full number of orders, or the tries run out and the best of them stands
   let best = null;
-  for (let attempt = 0, tries = wanted.length || L.change ? TRIES : 6; attempt < tries; attempt++) {
-    const cells = makeStack(rand, L), visible = visibleSet(cells), parts = team > 1 ? splitStack(cells, team) : null;
+  for (let attempt = 0, tries = wanted.length || L.change || L.long ? TRIES : 6; attempt < tries; attempt++) {
+    const cells = makeStack(rand, L);
+    if (L.long && view === "all") shortenHidden(cells);
+    // a recipe that wants long logs wants them in the stack that is asked about (a deal with fewer is a miss, dealt again)
+    const long = L.long ? pieces(cells, 0).list.filter(p => p.long).length : 0, short = L.long && long < L.long.min ? 1 : 0;
+    if (short && attempt < tries - 1) continue;                      // too few logs to ask about: dealt again before the costly part
+    const visible = visibleSet(cells), parts = team > 1 ? splitStack(cells, team) : null;
     const seen = parts && view === "all" ? new Set([...visible, ...parts.flatMap(part => [...visibleSet(partCells(cells, part))])]) : visible;
     const orders = [];
     if (L.change) {
@@ -524,8 +621,8 @@ export function makeRound(seed, r, team = 0, recipe = null) {
     }
     const got = wanted.filter(k => orders.some(o => o.type === k)).length;
     const R = { r, level: L, cells, view, visible, seen, parts, orders };
-    if (!best || got > best.got || (got === best.got && orders.length > best.R.orders.length)) best = { got, R };
-    if (got === wanted.length && orders.length >= (L.change ? 1 : L.orders)) break;
+    if (!best || short < best.short || (short === best.short && (got > best.got || (got === best.got && orders.length > best.R.orders.length)))) best = { short, got, R };
+    if (!short && got === wanted.length && orders.length >= (L.change ? 1 : L.orders)) break;
   }
   return best.R;
 }
@@ -536,16 +633,29 @@ export function makeRound(seed, r, team = 0, recipe = null) {
  * columns of the floor (a part stands on the floor as it was stacked, nothing hanging in the air, and looks the same in
  * every view), one stretch of the floor each. The columns are taken slice by slice, each slice back the way the last
  * came, so a stretch stays in one piece, and the stretches are cut where the parts come out most even: the fewest
- * between the largest and the smallest part (never more than the tallest column), then the evenest spread.
+ * between the largest and the smallest part (never more than the tallest column), then the evenest spread. (A stack with long
+ * logs is shared in groups of columns, below: a stretch of the floor only where no log reaches past it.)
  * Returns n lists of package keys, in the stretches' order.
  */
 export function splitStack(cells, n) {
-  const X = cells.length, Y = cells[0].length, cols = [];
+  const X = cells.length, Y = cells[0].length, snake = [], index = new Map();
   for (let y = 0; y < Y; y++) for (let k = 0; k < X; k++) {
     const x = y % 2 ? X - 1 - k : k, keys = [];
     cells[x][y].forEach((c, z) => { if (c) keys.push(keyOf(x, y, z)); });
-    cols.push(keys);
+    index.set(`${x},${y}`, snake.length);
+    snake.push(keys);
   }
+  // A long log stands on two columns, and a player gets whole columns standing on the floor: the columns it joins go to one player
+  // (turning the stack turns neither the columns nor the log), and the stack is shared out in these groups, each first at its
+  // earliest column's place in the snake. A stack with no long log has a group to a column.
+  const home = snake.map((_, i) => i), root = i => { while (home[i] !== i) i = home[i] = home[home[i]]; return i; };
+  for (const p of pieces(cells, 0).list) if (p.long) {
+    const [a, b] = p.cells.map(([x, y]) => root(index.get(`${x},${y}`)));
+    if (a !== b) home[Math.max(a, b)] = Math.min(a, b);
+  }
+  const groups = new Map();
+  snake.forEach((keys, i) => { const g = root(i); groups.set(g, [...(groups.get(g) || []), ...keys]); });
+  const cols = [...groups.values()];
   const parts = Math.max(1, Math.min(n, cols.length)), sizes = cols.map(c => c.length);
   let best = null;
   // every way of cutting the snake into `parts` stretches (at most 3,003, for sixteen columns and six players)
