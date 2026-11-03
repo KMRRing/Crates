@@ -9,7 +9,7 @@
 // It draws only while something moves. factor.js drives it: set, resetView, dispose.
 import * as THREE from "./vendor/three.js";
 import { HEXES, VERTS, EDGES, PORT_AT, portOut, portVerts, pips } from "./factor-board.js";
-import { DEG, DIST, LOOK, FITTED, clampElev, clampZoom, wrapYaw, viewIn, isFitted, encode, decode } from "./factor-camera.js";
+import { DEG, DIST, LOOK, FITTED, clampElev, clampZoom, wrapYaw, viewIn, isFitted, encode, decode, flick, coasted } from "./factor-camera.js";
 import { scale as pageScale } from "./wide.js";
 
 const SQ3 = Math.sqrt(3);
@@ -207,6 +207,17 @@ function showing(value, yaw) {
   return new THREE.Quaternion().setFromAxisAngle(UP, yaw).multiply(new THREE.Quaternion().setFromUnitVectors(n, UP));
 }
 
+// ---------- where the island lies: its harbours, the sea's size, and the points the camera fits to the box ----------
+/** How far a point is from the middle in hexagon-distance (the flat-topped hexagon of the island's own outline). */
+const hexR = p => Math.max(Math.abs(p[1]), (SQ3 / 2) * Math.abs(p[0]) + Math.abs(p[1]) / 2);
+const portPos = i => { const e = EDGES[PORT_AT[i]], [ux, uy] = portOut(PORT_AT[i]); return [e.x + ux * PORT_AWAY, e.y + uy * PORT_AWAY]; };
+const APO = Math.max(...VERTS.map(v => hexR([v.x, v.y])), ...PORT_AT.map((_, i) => hexR(portPos(i)) + 0.36)) + 0.25;   // the sea's apothem
+/** The land and the harbours, not the frame or the dice: [x, y, z] points the camera keeps in the box (tests/factor-camera.mjs fits it too). */
+export const OUTLINE = [];
+for (const v of VERTS) OUTLINE.push([v.x, TOP, v.y], [v.x, -0.05, v.y]);
+PORT_AT.forEach((_, i) => { const [px, pz] = portPos(i); for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; OUTLINE.push([px + 0.36 * Math.cos(a), SEA + 0.1, pz + 0.36 * Math.sin(a)]); } });
+OUTLINE.push([0, 0.6, -APO + 0.3]);                                      // a factory's chimney on the top row
+
 // ---------- the island ----------
 /**
  * The island in `host`. `view` is the camera the player last arranged (the text `onView` was given: see factor-camera.js;
@@ -258,9 +269,6 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
 
   // ---------- the table and the sea in its frame ----------
   // the frame is a flat-topped hexagon round the island and its harbours (the island's own outline is flat-topped)
-  const hexR = p => Math.max(Math.abs(p[1]), (SQ3 / 2) * Math.abs(p[0]) + Math.abs(p[1]) / 2);
-  const portPos = i => { const e = EDGES[PORT_AT[i]], [ux, uy] = portOut(PORT_AT[i]); return [e.x + ux * PORT_AWAY, e.y + uy * PORT_AWAY]; };
-  const APO = Math.max(...VERTS.map(v => hexR([v.x, v.y])), ...PORT_AT.map((_, i) => hexR(portPos(i)) + 0.36)) + 0.25;   // the sea's apothem
   const RIM = 0.32, FR = (APO + RIM) / (SQ3 / 2);                         // the frame's width and its outer circumradius
   const table = new THREE.Mesh(new THREE.BoxGeometry(60, 0.2, 60), tableMat);
   table.position.y = -0.32;
@@ -410,10 +418,6 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
   // The island is what turns (the world group); the camera and the sun stay put on the screen, so every angle is lit from
   // the same side and the ship, turned to face the camera, always shows her sails.
   const lookAt = new THREE.Vector3(...LOOK);
-  const outline = [];
-  for (const v of VERTS) outline.push([v.x, TOP, v.y], [v.x, -0.05, v.y]);
-  PORT_AT.forEach((_, i) => { const [px, pz] = portPos(i); for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; outline.push([px + 0.36 * Math.cos(a), SEA + 0.1, pz + 0.36 * Math.sin(a)]); } });
-  outline.push([0, 0.6, -APO + 0.3]);                                    // a factory's chimney on the top row
   const LAND = [...VERTS.map(v => [v.x, v.y]), ...PORT_AT.map((_, i) => portPos(i))];   // what the dice must keep clear of
   let width = 1, height = 1;
   let arranged = decode(saved);                                          // what the player has set: their turn, zoom and move
@@ -429,7 +433,7 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
   }
   /** Brings the camera, the island's turn, the ship and the dice to what `arranged` asks of this box; draws on the next frame. */
   function applyView() {
-    ({ yaw, elev, base, zoom, panU, panV } = viewIn(arranged, outline, width, height));
+    ({ yaw, elev, base, zoom, panU, panV } = viewIn(arranged, OUTLINE, width, height));
     world.rotation.y = yaw;
     world.updateMatrixWorld(true);
     TURN.value = yaw;
@@ -510,7 +514,7 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
   const ac = new AbortController();                                        // takes the listeners off the box when the island goes
   const on = (type, fn, opts = {}) => host.addEventListener(type, fn, { ...opts, signal: ac.signal });
   const touches = new Map();                                               // each finger: where it went down, where it is
-  let pinch = null, orbit = null, dragged = false, locked = false, lastTap = null, drift = null, wheelTimer = 0;
+  let pinch = null, pinchQueued = false, orbit = null, dragged = false, locked = false, lastTap = null, drift = null, wheelTimer = 0;
   const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const keep = () => onView(encode(arranged));                              // the camera as the player left it, for this device
   const capture = id => { try { host.setPointerCapture(id); } catch { /* the pointer is gone */ } };   // so a repaint under a finger doesn't lose it
@@ -534,11 +538,9 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
     t.at = [e.clientX, e.clientY];
     if (locked) return;
     if (touches.size === 2 && pinch) {
-      const r = host.getBoundingClientRect(), [a, b] = [...touches.values()].map(x => x.at);
-      const gap = Math.hypot(a[0] - b[0], a[1] - b[1]), mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      panBy(mid[0] - pinch.mid[0], mid[1] - pinch.mid[1]);
-      if (pinch.gap > 10) zoomAt(gap / pinch.gap, mid[0] - r.left, mid[1] - r.top);
-      pinch = { gap, mid };
+      // the two fingers' moves arrive as two events: the step is taken once a frame, from where both are then, or a pair
+      // of fingers moving together would read as a squeeze (and at the greatest zoom, which can't be squeezed back, lose it)
+      if (!pinchQueued) { pinchQueued = true; go(() => { pinchQueued = false; if (pinch) pinchStep(); return false; }); }
     } else if (touches.size === 1) {
       if (!orbit && Math.hypot(t.at[0] - t.from[0], t.at[1] - t.from[1]) > (t.mouse ? 4 : 8)) {     // moved: a drag, no longer a tap
         orbit = { move: t.mouse && (t.shift || t.button > 0), vx: 0, vy: 0, t: performance.now() };
@@ -555,18 +557,26 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
       if (turnBy(dx, dy)) orbit.vy = 0;
     }
   });
+  function pinchStep() {
+    const r = host.getBoundingClientRect(), [a, b] = [...touches.values()].map(x => x.at);
+    const gap = Math.hypot(a[0] - b[0], a[1] - b[1]), mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    panBy(mid[0] - pinch.mid[0], mid[1] - pinch.mid[1]);
+    if (pinch.gap > 10) zoomAt(gap / pinch.gap, mid[0] - r.left, mid[1] - r.top);
+    pinch = { gap, mid };
+  }
   /** A flick carries on, slowing, until it is nearly still (no loop runs once it is). */
   function coast(vx, vy) {
-    if (calm() || Math.hypot(vx, vy) < 0.15) return;
-    const me = drift = { vx, vy };
+    const start = flick(vx, vy);
+    if (calm() || !start) return;
+    const me = drift = { ...start };
     let last = performance.now();
     go(t => {
       if (drift !== me) return false;                                      // a touch, a zoom or a reset took over
-      const dt = Math.min(50, t - last), k = Math.exp(-dt / 260);
+      const step = coasted(me, t - last);
       last = t;
-      if (turnBy(me.vx * dt, me.vy * dt)) me.vy = 0;
-      me.vx *= k; me.vy *= k;
-      if (Math.hypot(me.vx, me.vy) > 0.02) return true;
+      const hit = turnBy(step.dx, step.dy);                                // the camera met its lowest or highest: no more of that
+      me.vx = step.vx; me.vy = hit ? 0 : step.vy;
+      if (!step.done) return true;
       drift = null; keep();
       return false;
     });
@@ -574,7 +584,7 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
   /** The fitted camera again: it glides back from wherever the player took it (the shortest way round). */
   function resetView() {
     if (isFitted(arranged)) return;
-    const to = viewIn(FITTED, outline, width, height), from = { yaw, elev, zoom, px: arranged.px, py: arranged.py };
+    const to = viewIn(FITTED, OUTLINE, width, height), from = { yaw, elev, zoom, px: arranged.px, py: arranged.py };
     const me = drift = {}, dYaw = wrapYaw(to.yaw - yaw), t0 = performance.now(), T = calm() ? 0 : 360;
     go(t => {
       if (drift !== me) return false;
@@ -594,7 +604,7 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
     const was = orbit;
     pinch = null; orbit = null; locked = false;
     host.classList.remove("orbiting");
-    if (was) { if (!cancelled && !was.move && performance.now() - was.t < 90) coast(was.vx, was.vy); keep(); return; }
+    if (was) { if (!cancelled && !was.move && performance.now() - was.t < 100) coast(was.vx, was.vy); keep(); return; }
     if (dragged || cancelled) { keep(); return; }
     const now = performance.now(), [x, y] = t.at;                          // a tap: two on bare island, close together, are a double tap
     if (!t.spot && lastTap && now - lastTap.t < 320 && Math.hypot(x - lastTap.x, y - lastTap.y) < 32) { lastTap = null; resetView(); }
@@ -750,12 +760,13 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
     overStale = false;
     if (!cur) return;
     const s = cur, out = [], ty = TOP + 0.05;
+    const lie = 0.6 + 0.4 * Math.sin(elev);                                // the token is a flatter oval from low down: its number is set a little smaller, and the pips closer
     HEXES.forEach((h, i) => {
       const n = s.num[i];
       if (!n) return;
       const [x, y] = project(h.x, ty, h.y), k = scaleAt(h.x, ty, h.y), hot = n === 6 || n === 8, p = pips(n), dim = s.robber === i;
-      out.push(`<g class="fc-num${hot ? " hot" : ""}${dim ? " dim" : ""}"><text x="${f(x)}" y="${f(y - k * 0.03)}" font-size="${f(k * 0.3)}" text-anchor="middle" dominant-baseline="central">${n}</text>${
-        Array.from({ length: p }, (_, j) => `<circle cx="${f(x + (j - (p - 1) / 2) * k * 0.062)}" cy="${f(y + k * 0.15)}" r="${f(k * 0.021)}"/>`).join("")}</g>`);
+      out.push(`<g class="fc-num${hot ? " hot" : ""}${dim ? " dim" : ""}"><text x="${f(x)}" y="${f(y - k * 0.03 * lie)}" font-size="${f(k * 0.3 * lie)}" text-anchor="middle" dominant-baseline="central">${n}</text>${
+        Array.from({ length: p }, (_, j) => `<circle cx="${f(x + (j - (p - 1) / 2) * k * 0.062)}" cy="${f(y + k * 0.15 * lie)}" r="${f(k * 0.021)}"/>`).join("")}</g>`);
     });
     PORT_AT.forEach((_, i) => {
       const [px, pz] = portPos(i), [x, y] = project(px, SEA + 0.1, pz), k = scaleAt(px, SEA + 0.1, pz);
