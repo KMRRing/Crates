@@ -4,6 +4,7 @@
 // hexes, ringed and given a wide target. Everything is in viewBox units, so the board scales as a picture; the colours
 // are CSS variables (factor.css) and so follow the theme, day and night.
 import { HEXES, VERTS, EDGES, PORT_AT, portVerts, portOut, pips } from "./factor-board.js";
+import { placesOf } from "./factor-props.js";
 
 /** Each resource's mark, drawn in a -1..1 square: a pine, bricks, a fleece, an ear of grain, a hill (and, last, dunes). */
 const MARKS = [
@@ -17,6 +18,7 @@ const MARKS = [
 /** A resource's mark as a small picture of its own (the hand, the trade sheet, the rules). */
 export const resIcon = (r, cls = "") => `<svg class="fc-ic r${r}${cls ? ` ${cls}` : ""}" viewBox="-1 -1 2 2" aria-hidden="true" fill="currentColor">${MARKS[r]}</svg>`;
 
+const MARK = .2;                                    // a land's mark on a tile, in hex units: five of them fit round the token
 const f = n => Math.round(n * 1000) / 1000;
 const hexPoints = h => HEXES[h].corners.map(v => `${f(VERTS[v].x)},${f(VERTS[v].y)}`).join(" ");
 
@@ -58,10 +60,12 @@ export function boardSvg(s, show = {}, label = "The island") {
   HEXES.forEach((h, i) => {
     const t = s.kind[i], n = s.num[i], hot = n === 6 || n === 8, blocked = s.robber === i;
     out.push(`<g class="fc-hex t${t}${blocked ? " blocked" : ""}"><polygon points="${hexPoints(i)}"/>`);
-    if (t < 5) out.push(`<g class="fc-mark-ic r${t}" transform="translate(${f(h.x)} ${f(h.y - .46)}) scale(.27)">${MARKS[t]}</g>`);
+    // the land's mark as many times as the number has pips (the dunes, with no number, one wave), round the token in the
+    // places the 3D island stands its props in
+    if (t < 5) for (const p of placesOf(t, n)) out.push(`<g class="fc-mark-ic r${t}" transform="translate(${f(h.x + p.x)} ${f(h.y + p.z)}) scale(${MARK})">${MARKS[t]}</g>`);
     else out.push(`<g class="fc-mark-ic r5" transform="translate(${f(h.x)} ${f(h.y - .05)}) scale(.5)">${MARKS[5]}</g>`);
     if (n) {
-      const p = pips(n), cy = h.y + .2;
+      const p = pips(n), cy = h.y;
       out.push(`<g class="fc-disc${hot ? " hot" : ""}"><circle cx="${f(h.x)}" cy="${f(cy)}" r=".33"/><text x="${f(h.x)}" y="${f(cy - .045)}" font-size=".36" text-anchor="middle" dominant-baseline="central">${n}</text>
         ${Array.from({ length: p }, (_, k) => `<circle class="fc-pip" cx="${f(h.x + (k - (p - 1) / 2) * .075)}" cy="${f(cy + .2)}" r=".026"/>`).join("")}</g>`);
     }

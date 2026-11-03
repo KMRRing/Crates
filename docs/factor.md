@@ -6,6 +6,8 @@ An island-trading game (October 2026), three or four at a table, against the com
 - 19 October 2026, Korbi: "ensure bots are medium and hard, and hard ones are extremely strong". Easy went; a menu still set to it plays Medium.
 - 3 November 2026, Korbi: "Factor: allow user to drag in 3d model to arrange the camera exactly how they want. The angle, for me, is slightly too shallow at the start." The camera opens fitted at a steeper angle (63° where the box allows; it was 46°) and one finger or the mouse turns and tilts it (30° to 88°); two fingers pinch and move, a double tap or the menu's Reset view fits it again.
 
+- 3 November 2026, Korbi: "would it make sense for the number of sheep/mountains on the tile to reflect the probability? Think would be neat." A tile carries as many props as its token has pips (6 and 8 five, 5 and 9 four, 4 and 10 three, 3 and 11 two, 2 and 12 one), on all five lands, in 3D and flat; the dunes keep their three mounds (`factor-props.js`).
+
 ## Where it differs from the genre, on purpose
 - Where 6 and 8 would touch, the numbers are dealt again.
 - Trading with the table is an offer each of the others answers yes or no to in turn (on your own turn, at most four: `MAX_OFFERS`), not free haggling: each seat answers on its own phone, so a counter-offer would hold the table up.
@@ -18,6 +20,7 @@ An island-trading game (October 2026), three or four at a table, against the com
 - 3D: the island is what turns, never the camera or the light, so every angle is lit from the same side of the screen and the ship (turned to face the camera) always shows her sails. Shaders that print on the table, sea or tiles read the island's own point (`TURN`), else the grain and the tile print swim as it turns. The dice follow the screen's corner, not the island (in 3D they are the only place the roll is shown).
 - 3D: the numbers, harbour rates and every ringed place are an SVG over the canvas, projected through the camera at each pose; a ringed place's target is a patch of the table as the camera sees it, so it stays its own at any angle (below 30° they get thin: the floor is there for that).
 - The camera the player arranged is kept as `suite:factor-view`, a `suite:` key so it never syncs between devices (a phone's screen is its own). A watching frame (`IN_FRAME`) reads it and never writes it. The fitted view is not kept: it refits to the box.
+- Props stand in fixed places for their count (nothing is dealt), clear of the token, so the token sits in the middle of its tile in the flat island too; a prop that grows past its `FOOT` in `tests/factor-props.mjs` would touch the token or the tile's edge.
 - Not yet seen on a phone's own GPU or in Safari. Not yet: a course (Learn), and a result on the games screen.
 
 Saved state: the game as `factor:game` (seats.js), the menu's choices as `factor:opts` and your record as `factor:record`.

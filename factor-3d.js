@@ -10,12 +10,16 @@
 import * as THREE from "./vendor/three.js";
 import { HEXES, VERTS, EDGES, PORT_AT, portOut, portVerts, pips } from "./factor-board.js";
 import { DEG, DIST, LOOK, FITTED, clampElev, clampZoom, wrapYaw, viewIn, isFitted, encode, decode, flick, coasted } from "./factor-camera.js";
+import { placesOf } from "./factor-props.js";
 import { scale as pageScale } from "./wide.js";
 
 const SQ3 = Math.sqrt(3);
 const PCF = 1;                                                // THREE.PCFShadowMap (not in the bundle's exports)
 const TILE = 0.955, TILE_H = 0.15, BEV = 0.035;               // a tile's circumradius (a hair under 1, so they part), height, bevel
 const TOP = TILE_H;                                           // the land's top: everything stands on it
+// How big each land's props stand (rock is drawn at its own size): about as big as five fit round a token, so one reads
+// at a glance. tests/factor-props.mjs holds each to the room a tile has (its FOOT).
+const PROP = { pine: 1.3, brick: 1.25, sheep: 1.3, sheaf: 1.35 };
 const SEA = 0, FLOOR = -0.08;                                  // the sea's surface; the frame's floor under the tiles
 const PORT_AWAY = 0.72;
 
@@ -308,33 +312,34 @@ export function createIsland(host, { view: saved = null, onView = () => {} } = {
       tile.castShadow = true; tile.receiveShadow = true;
       land.add(tile);
       const r = rnd(1000 + i * 7919 + t * 31), y = TOP + 0.002;
-      // round the token, never on it: places at a radius from the middle, turned a little each tile
-      const spots = n => Array.from({ length: n }, (_, k) => { const a = (k / n) * Math.PI * 2 + r() * 0.5 + i, d = 0.5 + r() * 0.2; return [h.x + Math.cos(a) * d, h.y + Math.sin(a) * d * 0.95]; });
-      if (t === 0) for (const [x, z] of spots(7)) {                           // forest: pines
-        const k = 0.8 + r() * 0.45;
+      // as many as the number's pips, in the places that count has (factor-props.js: clear of the token, inside the tile);
+      // each prop its own size and way round
+      const spots = placesOf(t, s.num[i]).map(p => [h.x + p.x * TILE, h.y + p.z * TILE]);
+      if (t === 0) for (const [x, z] of spots) {                              // forest: pines
+        const k = (0.85 + r() * 0.3) * PROP.pine;
         put(M.trunk, geo("trunk", () => new THREE.CylinderGeometry(0.022, 0.03, 0.08, 6)), at(x, y + 0.04 * k, z, 0, k));
         put(M.leaf, geo("pine", () => new THREE.ConeGeometry(0.1, 0.26, 7)), at(x, y + (0.08 + 0.13) * k, z, r() * 3, k));
         put(M.leaf, geo("pine2", () => new THREE.ConeGeometry(0.075, 0.18, 7)), at(x, y + (0.08 + 0.24) * k, z, r() * 3, k));
-      } else if (t === 1) for (const [x, z] of spots(4)) {                    // clay pits: stacks of bricks
-        const yaw = r() * Math.PI;
+      } else if (t === 1) for (const [x, z] of spots) {                       // clay pits: stacks of bricks
+        const yaw = r() * Math.PI, q = PROP.brick;
         for (let l = 0; l < 3; l++) for (let b = 0; b < 3 - l; b++) {
-          const off = (b - (2 - l) / 2) * 0.1, c = Math.cos(yaw), n = Math.sin(yaw);
-          put(l % 2 ? M.brickPale : M.brick, geo("brick", () => new THREE.BoxGeometry(0.09, 0.045, 0.06)), at(x + off * c, y + 0.0225 + l * 0.047, z - off * n, yaw));
+          const off = (b - (2 - l) / 2) * 0.1 * q, c = Math.cos(yaw), n = Math.sin(yaw);
+          put(l % 2 ? M.brickPale : M.brick, geo("brick", () => new THREE.BoxGeometry(0.09, 0.045, 0.06)), at(x + off * c, y + (0.0225 + l * 0.047) * q, z - off * n, yaw, q));
         }
-      } else if (t === 2) for (const [x, z] of spots(4)) {                    // pasture: sheep
-        const yaw = r() * Math.PI * 2, c = Math.cos(yaw), n = Math.sin(yaw);
-        put(M.sheep, geo("fleece", () => new THREE.SphereGeometry(0.075, 12, 8)), at(x, y + 0.085, z, yaw, 1.35, 0.95, 1));
-        put(M.head, geo("head", () => new THREE.SphereGeometry(0.036, 10, 6)), at(x + 0.1 * c, y + 0.1, z - 0.1 * n, yaw, 1.2, 1, 1));
-        for (const [fx, fz] of [[0.05, 0.035], [0.05, -0.035], [-0.05, 0.035], [-0.05, -0.035]]) put(M.head, geo("leg", () => new THREE.CylinderGeometry(0.01, 0.01, 0.05, 5)), at(x + fx * c + fz * n, y + 0.025, z - fx * n + fz * c));
-      } else if (t === 3) for (const [x, z] of spots(8)) {                    // fields: sheaves
-        const k = 0.85 + r() * 0.3;
+      } else if (t === 2) for (const [x, z] of spots) {                       // pasture: sheep
+        const yaw = r() * Math.PI * 2, c = Math.cos(yaw), n = Math.sin(yaw), q = PROP.sheep;
+        put(M.sheep, geo("fleece", () => new THREE.SphereGeometry(0.075, 12, 8)), at(x, y + 0.085 * q, z, yaw, 1.35 * q, 0.95 * q, q));
+        put(M.head, geo("head", () => new THREE.SphereGeometry(0.036, 10, 6)), at(x + 0.1 * q * c, y + 0.1 * q, z - 0.1 * q * n, yaw, 1.2 * q, q, q));
+        for (const [fx, fz] of [[0.05, 0.035], [0.05, -0.035], [-0.05, 0.035], [-0.05, -0.035]]) put(M.head, geo("leg", () => new THREE.CylinderGeometry(0.01, 0.01, 0.05, 5)), at(x + (fx * c + fz * n) * q, y + 0.025 * q, z + (fz * c - fx * n) * q, 0, q));
+      } else if (t === 3) for (const [x, z] of spots) {                       // fields: sheaves
+        const k = (0.85 + r() * 0.3) * PROP.sheaf;
         put(M.sheaf, geo("sheaf", () => new THREE.CylinderGeometry(0.05, 0.035, 0.2, 8)), at(x, y + 0.1 * k, z, 0, k));
         put(M.sheaf, geo("ear", () => new THREE.ConeGeometry(0.065, 0.09, 8)), at(x, y + 0.235 * k, z, 0, k));
-      } else if (t === 4) for (const [x, z] of spots(3)) {                    // hills: rock
-        const k = 0.75 + r() * 0.5;
+      } else if (t === 4) for (const [x, z] of spots) {                       // hills: rock, no wider than the footprint factor-props.js leaves
+        const k = 0.75 + r() * 0.25;
         put(M.rock, geo("peak", () => new THREE.ConeGeometry(0.2, 0.36, 5)), at(x, y + 0.18 * k, z, r() * 3, k));
         put(M.rockPale, geo("cap", () => new THREE.ConeGeometry(0.075, 0.13, 5)), at(x, y + 0.295 * k, z, r() * 3, k));
-      } else for (const [x, z] of spots(3)) {                                 // dunes: mounds of sand
+      } else for (const [x, z] of spots) {                                    // dunes: mounds of sand, drawn in toward the middle
         put(M.sand, geo("dune", () => new THREE.SphereGeometry(0.26, 14, 8)), at(x * 0.85 + h.x * 0.15, y - 0.02, z * 0.85 + h.y * 0.15, r() * 3, 1, 0.32, 0.75));
       }
       if (s.num[i]) {                                                        // the number token
