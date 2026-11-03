@@ -9,7 +9,7 @@
 // away) is ropes on grey, every piece a plain box.
 import { WARES, boxFor, isoPoint, cubeFaces, drawOrder, dropTimes, visibleSet } from "./manifest-engine.js";
 import { QUAY_DEPTH, frameOf, yawOf } from "./manifest-model.js";
-import { barrelRadius, sackRadius, INGOT_SHRINK, hull } from "./manifest-shapes.js";
+import { barrelRadius, sackRadius, INGOT_SHRINK, GOLD_MARK, crownAt, BIRCH_LOGS, hull } from "./manifest-shapes.js";
 import { ready, is3d, stage3d, icon3d, playOut as playOut3d } from "./manifest-pictures.js";
 
 export { QUAY_DEPTH, ready, is3d };
@@ -76,6 +76,17 @@ function lathe(B, A, rOf, side, top, steps = 10) {
   if (top) B.fill(circle(A, 1, rOf(1)), top);
 }
 
+/** A pile of ingots (and of gold: `bright` lifts the top layer to polished tops). */
+function ingotPile(B, A, hex, bright) {
+  for (let k = 0; k < 4; k++) {
+    const half = 0.47 * (1 - INGOT_SHRINK * k), w0 = k / 4, w1 = (k + 1) / 4 - 0.006, d = half * 2 / 3;
+    slab(B, A, [0.5 - half, 0.5 + half], [0.5 - half, 0.5 + half], [w0, w1], hex, (k % 2 ? 0.94 : 1.04) * (k === 3 ? bright : 1));
+    for (const j of [1, 2]) B.line(k % 2 ? [A(0.5 - half + d * j, 0.5 - half, w1), A(0.5 - half + d * j, 0.5 + half, w1)] : [A(0.5 - half, 0.5 - half + d * j, w1), A(0.5 + half, 0.5 - half + d * j, w1)], "rgba(20,26,36,.55)", 1);
+    B.line([A(0.5 - half, 0.5 + half, w1), A(0.5 + half, 0.5 + half, w1)], "rgba(255,255,255,.35)", 1);
+  }
+  if (bright === 1) B.patch([A(0.4, 0.46, 0.99), A(0.6, 0.46, 0.99), A(0.6, 0.54, 0.99), A(0.4, 0.54, 0.99)], "rgba(20,26,36,.5)");
+}
+
 // ---------- the cargo, simpler than the models ----------
 // Each takes a brush, the cell's map, the cargo's colour and, for timber, whether it lies along y.
 const DRAW = {
@@ -125,15 +136,7 @@ const DRAW = {
     }
   },
   // a pile of ingots: four layers of bars, each across the one below and a little smaller
-  4(B, A, hex) {
-    for (let k = 0; k < 4; k++) {
-      const half = 0.47 * (1 - INGOT_SHRINK * k), w0 = k / 4, w1 = (k + 1) / 4 - 0.006, d = half * 2 / 3;
-      slab(B, A, [0.5 - half, 0.5 + half], [0.5 - half, 0.5 + half], [w0, w1], hex, k % 2 ? 0.94 : 1.04);
-      for (const j of [1, 2]) B.line(k % 2 ? [A(0.5 - half + d * j, 0.5 - half, w1), A(0.5 - half + d * j, 0.5 + half, w1)] : [A(0.5 - half, 0.5 - half + d * j, w1), A(0.5 + half, 0.5 - half + d * j, w1)], "rgba(20,26,36,.55)", 1);
-      B.line([A(0.5 - half, 0.5 + half, w1), A(0.5 + half, 0.5 + half, w1)], "rgba(255,255,255,.35)", 1);
-    }
-    B.patch([A(0.4, 0.46, 0.99), A(0.6, 0.46, 0.99), A(0.6, 0.54, 0.99), A(0.4, 0.54, 0.99)], "rgba(20,26,36,.5)");
-  },
+  4(B, A, hex) { ingotPile(B, A, hex, 1); },
   // a chest: a plank box with a lid like half a barrel laid down, black iron straps, a brass lock plate and ring
   5(B, A, hex) {
     slab(B, A, [0.03, 0.97], [0.13, 0.87], [0, 0.52], hex);
@@ -156,11 +159,36 @@ const DRAW = {
     const c = A(0.8, 0.8, 0.32), u = A.unit * 0.1;
     B.line([[c[0], c[1] - u], [c[0] + u * 0.86, c[1] + u * 0.5], [c[0] - u * 0.86, c[1] + u * 0.5]], "rgba(80,50,28,.8)", 1.4, true);
   },
+  // gold ingots: the ingots' pile in gold with polished tops, and a crown stamped across the top (GOLD_MARK, the 3D one's too)
+  7(B, A, hex) {
+    ingotPile(B, A, hex, 1.14);
+    const at = q => { const [x, z] = crownAt(q); return A(0.5 + x, 0.5 + z, 0.995); };
+    B.shape(GOLD_MARK.map(at), "rgba(70,30,2,.82)");
+  },
+  // birch: six slender white logs in a pyramid, black dashes round the bark; seen from its end it is a triangle, not oak's square
+  8(B, A, hex, alongY) {
+    const H = 0.83, ink = "rgba(18,14,10,.8)";
+    const bottom = alongY ? [A(0.97, 0.03, 0), A(0.97, 0.97, 0)] : [A(0.03, 0.97, 0), A(0.97, 0.97, 0)];
+    const ridge = alongY ? [A(0.5, 0.03, H), A(0.5, 0.97, H)] : [A(0.03, 0.5, H), A(0.97, 0.5, H)];
+    // a point on the slope: e along the log (0 to 1), f up the slope (0 the foot, 1 the ridge)
+    const slope = (e, f) => [0, 1].map(i => { const lo = bottom[0][i] + e * (bottom[1][i] - bottom[0][i]), hi = ridge[0][i] + e * (ridge[1][i] - ridge[0][i]); return lo + f * (hi - lo); });
+    B.fill([bottom[0], bottom[1], ridge[1], ridge[0]], shade(hex, alongY ? 0.86 : 0.72));
+    const end = (a, c) => (alongY ? A(a, 0.97, c) : A(0.97, a, c));
+    B.fill([end(0.03, 0), end(0.97, 0), end(0.5, H)], "#3A3226");
+    for (const rope of [0.22, 0.78]) B.line([slope(rope, 0), slope(rope, 1)], "#B99B64", 2);
+    const dashes = [[0.1, 0.18], [0.34, 0.1], [0.56, 0.22], [0.8, 0.14], [0.2, 0.48], [0.46, 0.4], [0.68, 0.52], [0.9, 0.44], [0.12, 0.78], [0.4, 0.7], [0.62, 0.84], [0.86, 0.74]];
+    for (const [e, f] of dashes) B.line([slope(e, f), slope(e + 0.012, f + 0.1)], ink, 1.6);
+    for (const L of BIRCH_LOGS) {
+      const a = 0.5 + L.z, c = L.y + 0.5, ring = r => Array.from({ length: 12 }, (_, i) => end(a + Math.cos(i / 12 * TAU) * r, c + Math.sin(i / 12 * TAU) * r));
+      B.shape(ring(L.r), shade(hex, 0.86)); B.shape(ring(L.r * 0.78), "#EAD6A6");
+      B.line(ring(L.r * 0.4), "rgba(120,80,30,.5)", 0.8, true);
+    }
+  },
 };
 
 /**
  * One piece drawn into `g` from its three faces as screen polygons ({ top, left, right }, each four points as cubeFaces
- * gives them): a cargo's number (1 to 6), or 0 for one under tarpaulin (`lit`: the piece picked out under it). `alongY`: a
+ * gives them): a cargo's number (1 to 8), or 0 for one under tarpaulin (`lit`: the piece picked out under it). `alongY`: a
  * bundle of timber lies along y. `detail` is the packing, left out where a whole stack is the size of a thumb.
  */
 function paintPiece(g, faces, ware, { lit = false, detail = true, alongY = false, tap = null } = {}) {

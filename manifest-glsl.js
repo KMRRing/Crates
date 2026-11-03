@@ -5,8 +5,8 @@
 //
 // A piece is a unit cell centred on the origin. A fragment knows its place in it (vLoc, from -.5 to .5), its surface's
 // normal there (vObjN), and its part of the piece (vPart.x), a seed and two coordinates (manifest-shapes.js lists them).
-// Cargo types are numbered as the engine has them, 1 to 6; 0 and 7 are the tarpaulin and its lit piece, a plain box.
-import { LOGS, INGOT_SHRINK } from "./manifest-shapes.js";
+// Cargo types are numbered as the engine has them, 1 to 8; 0 and 9 are the tarpaulin and its lit piece, a plain box.
+import { LOGS, BIRCH_LOGS, INGOT_SHRINK, GOLD_MARK, GOLD_MARK_SIZE } from "./manifest-shapes.js";
 
 export const COMMON = `
 float h21(vec2 p) { vec3 q = fract(vec3(p.xyx) * .1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
@@ -143,7 +143,7 @@ void barrel(vec3 Q, vec3 N, int part, float pw, inout Surf o) {
   o.ao = mix(.7, 1., smoothstep(0., .1, .5 - abs(Q.y - .5)) * .6 + .4);
 }
 
-// ---- timber: logs with their bark on, tied with rope; a sawn end shows rings and a heart
+// ---- oak: logs with their bark on, tied with rope; a sawn end shows rings and a heart
 const vec3 LOGS[4] = vec3[4](${LOGS.map(L => `vec3(${L.y}, ${L.z}, ${L.r})`).join(", ")});
 void timber(vec3 Q, vec3 N, int part, float seed, vec2 uv, float pw, inout Surf o) {
   vec3 P = Q - .5;
@@ -211,6 +211,77 @@ void ingot(vec3 Q, vec3 N, float seed, float pw, inout Surf o) {
   o.col = c; o.h = hh; o.metal = .55; o.rough = .28 + .3 * fbm(vec2(s, t) * 20.);
   float tw = abs(t) / (.15 * sc);
   o.ao = mix(1., .55, smoothstep(.7, 1., tw) * lowSide);
+}
+
+// ---- birch: slender white logs in a pyramid, tied with rope; the bark is paper-white with black dashes round the trunk, a sawn end
+// is pale with fine rings
+const vec3 BLOGS[6] = vec3[6](${BIRCH_LOGS.map(L => `vec3(${L.y.toFixed(4)}, ${L.z.toFixed(4)}, ${L.r})`).join(", ")});
+void birch(vec3 Q, vec3 N, int part, float seed, vec2 uv, float pw, inout Surf o) {
+  vec3 P = Q - .5;
+  if (part == 2) {
+    float st = fract(uv.x * 4.3 + uv.y * 3.), ridge = .5 + .5 * sin(st * TAU);
+    o.col = vec3(.74, .6, .38) * (.7 + .38 * ridge) * (.9 + .15 * n2(vec2(uv.x * 30., uv.y * 5.)));
+    o.h = .008 * ridge; o.rough = .95; o.ao = .95;
+    return;
+  }
+  int k = int(seed + .5);
+  vec3 L = BLOGS[k];
+  vec2 d = P.yz - L.xy;
+  float R = length(d) / L.z, a = atan(d.x, d.y);
+  if (part == 1) {
+    float ringS = .5 + .5 * sin((R + (n2(vec2(a * 1.4 + seed * 3., R * 3.)) - .5) * .07) * 52.);
+    vec3 c = mix(vec3(.9, .78, .56), vec3(.72, .56, .36), ringS * .5);
+    c *= 1. - .18 * smoothstep(.12, 0., R);
+    c = mix(c, o.col * .95, smoothstep(.8, .88, R));
+    c = mix(c, vec3(.05, .045, .04), smoothstep(.93, .98, R));
+    o.col = c; o.rough = .9; o.h = .006 * ringS - .01 * smoothstep(.9, 1., R);
+    o.ao = mix(1., .75, smoothstep(.8, 1., R));
+    return;
+  }
+  float along = P.x;
+  float tone = fbm(vec2(a * 2. + seed, along * 4.));
+  vec3 c = o.col * (.88 + .22 * tone);
+  float dash = smoothstep(.6, .68, n2(vec2(along * 7. + seed * 3.1, a * 1.1 + seed))) * smoothstep(.38, .55, n2(vec2(a * 1.3 + seed * 2., along * 1.8 + 5.)));
+  float peel = smoothstep(.7, .86, n2(vec2(a * 2. + seed * 5., along * 3. + 2.)));
+  c = mix(c, vec3(.6, .54, .44), peel * .4);
+  c = mix(c, vec3(.06, .05, .045), dash * .9);
+  o.col = c; o.rough = .8; o.h = .01 * tone - .008 * dash;
+  vec3 toMid = normalize(vec3(0., P.y + .12, P.z) + vec3(0., 1e-4, 0.));
+  o.ao = mix(.5, 1., smoothstep(-.35, .5, dot(N, toMid)));
+}
+
+// ---- gold ingots: the ingots' bars cast in gold, their tops polished bright, a crown stamped across the top of the pile
+const vec2 CROWN[${GOLD_MARK.length}] = vec2[${GOLD_MARK.length}](${GOLD_MARK.map(q => `vec2(${q[0]}, ${q[1]})`).join(", ")});
+bool inCrown(vec2 p) {
+  bool in_ = false;
+  for (int i = 0; i < ${GOLD_MARK.length}; i++) {
+    vec2 a = CROWN[i], b = CROWN[i == 0 ? ${GOLD_MARK.length - 1} : i - 1];
+    if ((a.y > p.y) != (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) in_ = !in_;
+  }
+  return in_;
+}
+void gold(vec3 Q, vec3 N, float seed, float pw, inout Surf o) {
+  vec3 P = Q - .5;
+  int bar = int(seed + .5), layer = bar / 3, k = bar - layer * 3;
+  float sc = 1. - ${INGOT_SHRINK.toFixed(3)} * float(layer), across = (float(k) - 1.) * .318 * sc;
+  bool alongX = (layer - (layer / 2) * 2) == 0;
+  float s = alongX ? P.x : P.z, t = (alongX ? P.z : P.x) - across;
+  float top = smoothstep(.5, .85, N.y);
+  float tone = h21(vec2(seed, 7.));
+  vec3 c = o.col * (.9 + .16 * tone) * (.86 + .24 * n2(vec2(s * 30., t * 8. + seed)) + .1 * fbm(vec2(s, t) * 12. + seed));
+  c *= mix(.8, 1.55, top);                                           // the sides sit in shade, the polished tops catch the light
+  vec2 m = vec2(s, t) / sc;
+  float plate = cov(sdBox(m, vec2(0.), vec2(.2, .07), .01), pw) * top * step(float(layer), 2.5);
+  c = mix(c, c * .7, plate);
+  float crown = 0.;
+  if (layer == 3 && top > .5) {
+    vec2 cp = vec2((P.x - P.z) * .70711 / ${GOLD_MARK_SIZE[0]}, -(P.x + P.z) * .70711 / ${GOLD_MARK_SIZE[1]});
+    crown = float(inCrown(cp)) * top;
+  }
+  c = mix(c, vec3(.2, .09, .01), crown * .85);
+  o.col = c; o.h = -.012 * plate - .012 * crown; o.metal = .45; o.rough = .3 + .2 * fbm(vec2(s, t) * 18.);
+  float tw = abs(t) / (.15 * sc);
+  o.ao = mix(1., .6, smoothstep(.7, 1., tw) * (1. - top));
 }
 
 // ---- a chest: dark oak planks, black iron straps with brass studs, a brass lock plate and hasp, a ring at each end
@@ -326,13 +397,15 @@ const vec3 WC[${wareColours.length}] = vec3[${wareColours.length}](${wc});`,
     float pw = max(length(fwidth(Q)) * .58, 1e-4);
     int w = int(vWare + .5), part = int(vPart.x + .5);
     Surf o; o.col = WC[w]; o.rough = .8; o.metal = 0.; o.h = 0.; o.ao = 1.;
-    // 1 crate, 2 barrel, 3 timber, 4 ingots, 5 chest, 6 sack; 0 and 7 the tarpaulin and the lit piece under it
+    // 1 crate, 2 barrel, 3 oak, 4 ingots, 5 chest, 6 sack, 7 gold, 8 birch; 0 and 9 the tarpaulin and the lit piece under it
     if (w == 1) crate(Q, N, pw, o);
     else if (w == 2) barrel(Q, N, part, pw, o);
     else if (w == 3) timber(Q, N, part, vPart.y, vPart.zw, pw, o);
     else if (w == 4) ingot(Q, N, vPart.y, pw, o);
     else if (w == 5) chest(Q, N, part, pw, o);
     else if (w == 6) sack(Q, N, part, pw, o);
+    else if (w == 7) gold(Q, N, vPart.y, pw, o);
+    else if (w == 8) birch(Q, N, part, vPart.y, vPart.zw, pw, o);
     else tarp(Q, N, pw, o);
     vec3 col = o.col * o.ao;
     float lum = dot(col, vec3(.3, .59, .11));

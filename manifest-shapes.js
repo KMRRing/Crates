@@ -1,4 +1,4 @@
-// Manifest's cargo as solid shapes, pure (no page, no three.js): each of the six types is a mesh inside its own cell, a unit
+// Manifest's cargo as solid shapes, pure (no page, no three.js): each of the eight types is a mesh inside its own cell, a unit
 // cube centred on the origin with y up, built here from a few primitives (a box, a frustum, a surface of revolution, a
 // tube). manifest-3d.js hands the arrays to three.js, tests/manifest-shapes.mjs weighs the shapes' silhouettes against each
 // other (the types must be told apart by outline before colour), and the flat drawing's outlines follow the same sizes.
@@ -12,9 +12,12 @@
 //   ingot  0 the bars                            (seed: layer * 3 + bar)
 //   chest  0 body, 1 lid, 2 lid end
 //   sack   0 the bag, 1 the knot
+//   gold   the ingots' mesh again (same shape, told apart by colour and by the crown stamped on the top: GOLD_MARK)
+//   birch  0 bark, 1 sawn end, 2 rope            (seed: the log, 0..5)
 // What a piece does not fill of its cell stays empty: a round thing leaves gaps, and what shows through a stack is still
 // decided by the cell (the engine's visibleSet).
-export const MESH_TYPES = 6;
+import { isTimber } from "./manifest-rules.js";
+export const MESH_TYPES = 8;
 
 // ---------- a little geometry ----------
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -162,6 +165,46 @@ function timber() {
   return m;
 }
 
+/** The slender logs of a bundle of birch lying along x, six in a pyramid (three, two, one): the end is a triangle, where oak's is a
+ *  square of four thick logs, so the two trees are told apart by outline before colour. */
+export const BIRCH_LOGS = (() => {
+  const r = 0.165, gap = 0.31, rise = gap * Math.sqrt(3) / 2, lens = [0.97, 0.94, 0.96, 0.93, 0.98, 0.95], ats = [0, 0.02, -0.02, 0.025, 0, -0.015];
+  const rows = [[-gap, 0, gap], [-gap / 2, gap / 2], [0]];
+  return rows.flatMap((zs, row) => zs.map(z => ({ y: -0.5 + r + 0.024 + row * rise, z, r, len: 0, at: 0 }))).map((L, k) => ({ ...L, len: lens[k], at: ats[k] }));
+})();
+/** The rope round a bundle of birch: a rounded triangle, the logs' centres pushed out by their radius and the cord's. */
+function roundTri(logs, pad) {
+  const n = 72, dirs = Array.from({ length: n }, (_, k) => { const t = k / n * TAU; return [Math.cos(t), Math.sin(t)]; });
+  const pts = dirs.map(([c, s]) => {
+    const best = logs.reduce((a, L) => (L.z * c + L.y * s > a.z * c + a.y * s ? L : a));
+    return [0, best.y + s * pad, best.z + c * pad];
+  });
+  return u => { const f = u * n, i = Math.floor(f) % n, k = f - Math.floor(f), a = pts[i], b = pts[(i + 1) % n]; return [0, lerp(a[1], b[1], k), lerp(a[2], b[2], k)]; };
+}
+function birch() {
+  const m = fresh();
+  BIRCH_LOGS.forEach((L, k) => {
+    const lumps = (u, v) => 1 + 0.03 * (noise(Math.cos(u * TAU) * 2.2 + k * 9, Math.sin(u * TAU) * 2.2 + v * 5) - 0.5);
+    surface(m, 16, 6, (u, v) => { const a = u * TAU, r = L.r * lumps(u, v); return [L.at + (v - 0.5) * L.len, L.y + Math.sin(a) * r, L.z + Math.cos(a) * r]; },
+      p => [0, p[1] - L.y, p[2] - L.z], 0, k, (u, v) => [u, v]);
+    for (const sgn of [1, -1]) {
+      const x = L.at + sgn * L.len / 2, mid = vert(m, [x, L.y, L.z], [sgn, 0, 0], 1, k, 0, 0);
+      const ring = Array.from({ length: 21 }, (_, q) => { const a = q / 20 * TAU; return vert(m, [x, L.y + Math.sin(a) * L.r, L.z + Math.cos(a) * L.r], [sgn, 0, 0], 1, k, Math.sin(a), Math.cos(a)); });
+      for (let q = 0; q < 20; q++) m.i.push(mid, ring[q], ring[q + 1]);
+    }
+  });
+  for (const x of [-0.29, 0.29]) loop(m, x, roundTri(BIRCH_LOGS, BIRCH_LOGS[0].r + 0.012), 0.012, 2, 0);
+  return m;
+}
+
+/** The crown stamped on the top of a pile of gold ingots: the second thing, besides its colour, that tells gold from tin. Its
+ *  corners are in the crown's own square (across -1 to 1, up -1 to 1 as the viewer sees the top), and `crownAt` puts one on the
+ *  cell's top plane (x right, z toward the viewer's left, each -.5 to .5; the isometric view's up is toward -x and -z). Both
+ *  drawings read it from here. */
+export const GOLD_MARK = [[-1, -1], [-1, 0.9], [-0.5, 0.1], [0, 1], [0.5, 0.1], [1, 0.9], [1, -1]];
+export const GOLD_MARK_SIZE = [0.29, 0.27];                                  // half its width and height on the top plane
+export const crownAt = ([across, up]) => { const s = across * GOLD_MARK_SIZE[0], t = up * GOLD_MARK_SIZE[1]; return [(s - t) * Math.SQRT1_2, (-s - t) * Math.SQRT1_2]; };
+
 /** A pile of ingots: four layers of three bars, each layer across the one below, every bar a frustum (the foot wider than the top). */
 export const INGOT_LAYERS = 4, INGOT_SHRINK = 0.045;
 function ingots() {
@@ -218,9 +261,9 @@ function sack() {
   return m;
 }
 
-const BUILD = [crate, barrel, timber, ingots, chest, sack];
+const BUILD = [crate, barrel, timber, ingots, chest, sack, ingots, birch];
 const cache = [];
-/** The mesh of cargo type 1..6: { pos, nor, part, index }. */
+/** The mesh of cargo type 1..8: { pos, nor, part, index }. */
 export function meshOf(type) {
   const k = type - 1;
   if (!BUILD[k]) throw new Error(`no cargo type ${type}`);
@@ -241,12 +284,12 @@ export function hull(points) {
 }
 const outlines = new Map();
 /**
- * What a piece of type 1..6 covers of the screen, as a convex polygon in the engine's screen units around the middle of its
+ * What a piece of type 1..8 covers of the screen, as a convex polygon in the engine's screen units around the middle of its
  * cell: the hull of its mesh seen by the isometric camera (`alongY`: a bundle of timber lying along y). The engine decides
  * what you could see by these, so a round piece that leaves a corner of its cell empty doesn't count as seen through it.
  */
 export function outlineOf(type, alongY = false) {
-  const key = type * 2 + (alongY && type === 3 ? 1 : 0);
+  const key = type * 2 + (alongY && isTimber(type) ? 1 : 0);
   if (!outlines.has(key)) {
     const { pos } = meshOf(type), yaw = key & 1 ? Math.PI / 2 : 0, c = Math.cos(yaw), s = Math.sin(yaw), pts = [];
     for (let i = 0; i < pos.length; i += 3) pts.push(screenOf([pos[i] * c + pos[i + 2] * s, pos[i + 1], -pos[i] * s + pos[i + 2] * c]));

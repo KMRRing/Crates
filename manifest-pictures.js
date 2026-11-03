@@ -185,7 +185,7 @@ export function stage3d(cells, opts) {
   const drops = opts.drop ? (opts.times ? { times: opts.times, last: 0 } : dropTimes(cells, opts.drop)) : { times: {}, last: 0 };
   const items = opts.blank ? [] : layout(cells, turns, frame).map(c => {
     const ringed = opts.ring === c.key;
-    return { key: c.key, ware: opts.grey ? (ringed ? 7 : 0) : c.c, box: c.box, faces: c.faces, yaw: yawOf(c, turns, !!opts.grey),
+    return { key: c.key, ware: opts.grey ? (ringed ? M.LIT_WARE : 0) : c.c, box: c.box, faces: c.faces, yaw: yawOf(c, turns, !!opts.grey),
       dim: !!((opts.highlight && c.c !== opts.highlight) || (opts.tier != null && c.z !== opts.tier)),
       outline: ringed || (markKey === c.key && (!visible || visible.has(c.key))) || outlined.has(c.key) ? 2 : 0 };   // framed: every face, so one seen only from the side is marked too
   });

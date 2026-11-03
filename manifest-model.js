@@ -8,7 +8,7 @@
 // view stretched by √1.5 (its sx = .866(x − z), its sy = .5(x + z) − y, against 1/√2 and 1/√6 for a unit camera), so a
 // box seen by the camera has the outline of the polygons cubeFaces gives.
 import { isoPoint, cubeFaces, drawOrder, boxFor } from "./manifest-engine.js";
-import { axisOf, TIMBER } from "./manifest-rules.js";
+import { axisOf, isTimber } from "./manifest-rules.js";
 
 export const QUAY_DEPTH = 0.42;                    // how far the quay's edge goes down below the floor, in cell heights
 export const PX = 46;                              // the flat drawing's units per engine screen unit
@@ -18,9 +18,9 @@ export const ISO_K = Math.sqrt(1.5);               // engine screen units per ca
 export function boxOf(x, y, z, b) {
   return { cx: (x + 0.5) * b.X, cy: (z + 0.5) * b.H, cz: (y + 0.5) * b.Y, sx: b.X, sy: b.H, sz: b.Y };
 }
-/** How a piece is turned about the vertical in the scene: timber lies along x or along y by its tier (and the stack's
+/** How a piece is turned about the vertical in the scene: timber (oak and birch) lies along x or along y by its tier (and the stack's
  *  turns), the rest stands as modelled. A tarpaulin (grey) hides what is under it, so it is never turned. */
-export const yawOf = (c, turns, grey = false) => (!grey && c.c === TIMBER && axisOf(c.z, turns) === "y" ? Math.PI / 2 : 0);
+export const yawOf = (c, turns, grey = false) => (!grey && isTimber(c.c) && axisOf(c.z, turns) === "y" ? Math.PI / 2 : 0);
 /** A world point's place on the engine's screen. */
 export const screenOf = ([wx, wy, wz]) => [0.866 * (wx - wz), 0.5 * (wx + wz) - wy];
 /** The same, as the unit camera plane sees it (right, up), before the engine's stretch. */

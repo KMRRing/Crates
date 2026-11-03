@@ -1030,9 +1030,10 @@ function openMenu() {
 /** What each cargo weighs and is worth, what it carries and what it can stand on: the rules in a list, from the tables. */
 function showCargo() {
   const body = $("cargoBody"), nameOf = t => CARGO[t - 1].name.toLowerCase();
-  body.replaceChildren(node("p", "mf-cargo-intro", "A piece stands on the quay or on the piece below it. Heavy goes low: ingots, then timber, crates, barrels, and a chest only on top. A column may carry only so much weight (cwt, hundredweight) above each piece. Timber lies in layers that cross."));
+  const byWeight = CARGO.filter(c => c.key !== "chest" && c.key !== "sack").sort((a, b) => b.w - a.w).map(c => c.name.toLowerCase());
+  body.replaceChildren(node("p", "mf-cargo-intro", `A piece stands on the quay or on the piece below it. Heavy goes low: ${byWeight.join(", ")}, and a chest only on top. A column may carry only so much weight (cwt, hundredweight) above each piece. Oak and birch lie in layers that cross.`));
   const list = node("div", "mf-cargo");
-  for (const c of CARGO) {
+  for (const c of CARGO.slice().sort((a, b) => b.w - a.w)) {
     const row = node("div", "mf-cargo-row"), icon = node("div", "mf-cargo-icon"), text = node("div"), carries = CARRIES[c.id].map(nameOf), under = UNDER[c.id].filter(Boolean).map(nameOf);
     icon.append(wareIcon(c.id));
     text.append(node("b", null, c.name), node("span", null, `weighs ${c.w} cwt · worth ${c.worth} marks`),

@@ -5,8 +5,8 @@
 // hidden and what shows is the engine's business and the rules need only the columns: cells[x][y][z], z from the quay up.
 //
 //   1. Support: a piece stands on the quay or on the piece below it. Nothing floats.
-//   2. Heavy low, as a strict order (Korbi, 3 November 2026): ingots, then timber, crates, barrels, and a chest only as a
-//      top piece. A piece may stand on another only if that one weighs at least as much (CARRIES is made from the weights);
+//   2. Heavy low, as a strict order (Korbi, 3 November 2026): gold ingots, ingots, oak, birch, crates, barrels, and a chest
+//      only as a top piece. A piece may stand on another only if that one weighs at least as much (CARRIES is made from the weights);
 //      a chest carries nothing, and a sack (soft, the lightest) is carried only by sacks. The quay carries everything.
 //   3. Load: the weight above a piece, up its whole column, may not pass what it bears.
 //   4. Logs cross: timber lies along x on an even tier and along y on an odd one (a turned stack swaps them), so timber
@@ -18,13 +18,18 @@
 export const CARGO = [
   { id: 1, key: "crate", name: "Crate", plural: "crates", w: 4, worth: 4, top: "flat", bears: 10 },
   { id: 2, key: "barrel", name: "Barrel", plural: "barrels", w: 3, worth: 6, top: "lid", bears: 7 },
-  { id: 3, key: "timber", name: "Timber", plural: "bundles of timber", w: 6, worth: 3, top: "round", bears: 24 },
+  { id: 3, key: "timber", name: "Oak", plural: "bundles of oak", w: 6, worth: 3, top: "round", bears: 24 },
   { id: 4, key: "ingot", name: "Ingots", plural: "piles of ingots", w: 8, worth: 12, top: "flat", bears: 99 },
   { id: 5, key: "chest", name: "Chest", plural: "chests", w: 2, worth: 20, top: "domed", bears: 0 },
   { id: 6, key: "sack", name: "Sack", plural: "sacks", w: 1, worth: 2, top: "soft", bears: 2 },
+  { id: 7, key: "gold", name: "Gold ingots", plural: "piles of gold ingots", w: 12, worth: 40, top: "flat", bears: 99 },
+  { id: 8, key: "birch", name: "Birch", plural: "bundles of birch", w: 5, worth: 4, top: "round", bears: 14 },
 ];
 export const TYPES = CARGO.length;
-export const CRATE = 1, BARREL = 2, TIMBER = 3, INGOT = 4, CHEST = 5, SACK = 6;
+export const CRATE = 1, BARREL = 2, TIMBER = 3, INGOT = 4, CHEST = 5, SACK = 6, GOLD = 7, BIRCH = 8;
+/** The two trees: both lie in crossing layers (oak, number 3, is the old "timber"; birch and gold were added at the end of the list
+ *  so that nothing already saved or shared is renumbered). */
+export const isTimber = t => t === TIMBER || t === BIRCH;
 /** Whether a piece of type `u` may carry one of type `t`. */
 const carries = (u, t) => u !== CHEST && (u === SACK ? t === SACK : CARGO[u - 1].w >= CARGO[t - 1].w);
 /** What may stand directly on each type (the quay, 0, carries all). */

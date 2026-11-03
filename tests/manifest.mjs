@@ -10,6 +10,7 @@
 // last, players away or out of lives, the team's first answer counting, the game over, Play again, the pair's record.
 import { roundTrip, same as sameDb } from "./rtdb.js";
 const M = await import("../manifest-engine.js");
+const { isTimber } = await import("../manifest-rules.js");
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const fail = (...why) => { bad++; console.log("  ", ...why); };
@@ -22,7 +23,7 @@ function fair(a, b, seed, r, team = 0) {
   const L = a.level, where = `${seed}/${r}${team ? ` (a team of ${team})` : ""}`;
   rounds++;
   if (!same(a.cells, b.cells) || !same(a.orders, b.orders)) fail("not repeatable", where);
-  if (a.cells.length !== L.x || a.cells[0].length !== L.y || a.cells[0][0].length !== L.z || L.x > 4 || L.y > 4 || L.z > 3 || L.types.length > 6) fail("size", where);
+  if (a.cells.length !== L.x || a.cells[0].length !== L.y || a.cells[0][0].length !== L.z || L.x > 4 || L.y > 4 || L.z > 3 || L.types.length > M.TYPES) fail("size", where);
   a.cells.forEach(col => col.forEach(row => { for (let z = 1; z < row.length; z++) if (row[z] && !row[z - 1]) fail("floating package", where); }));
   if (Boolean(L.change) !== (r % 4 === 0)) fail("change round in the wrong place", where);
   byView[a.view] = (byView[a.view] || 0) + 1;
@@ -356,27 +357,32 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
     "a tap on a package's top finds that package (the nearest of those under it), a tap on nothing finds none");
 }
 
-// The six cargo types must be told apart by outline first and by colour second (the owner, 3 November 2026: "Each with their
+// The eight cargo types must be told apart by outline first and by colour second (the owner, 3 November 2026: "Each with their
 // own 3d model"; a piece that is only another colour of the same shape is the first version's mistake). So the types are
 // measured two ways, for every pair:
 //  - the outline: the silhouettes of the models (manifest-shapes.js, seen by the isometric camera, a bundle of timber lying
-//    either way) by overlap, shared area over total area; no pair may overlap more than SHAPE;
+//    either way) by overlap, shared area over total area; no pair may overlap more than SHAPE, except the one pair that is meant to
+//    (gold and ingots, below);
 //  - the colour: CIEDE2000 between the two on the same face, for a normal eye and the three dichromacies (Machado 2009,
 //    severity 1), under both drawings' shading and in another piece's shadow.
 // A pair whose outlines are close (over ALIKE) must also be far apart in colour, even for a colour-blind eye, so that no
 // two types are alike in both; the rest are told apart by their outline and their colour is only kept honest by FLOOR.
+// THE EXCEPTION: gold ingots have the ingots' shape on purpose (Korbi, 3 November 2026: "similar skin to the other ingots"). So that
+// pair cannot be told apart by outline and is held to a far stricter colour, GOLD_FAR, for all four eyes under every shading, and
+// has a second cue that is not colour: the crown on the pile's top (tests/manifest-shapes.mjs checks it, both drawings draw it).
 {
-  const SHAPE = 0.9, ALIKE = 0.78, FAR = 9, FLOOR = 4;
+  const SHAPE = 0.9, ALIKE = 0.78, FAR = 9, FLOOR = 4, GOLD_FAR = 20;
+  const GOLD = M.WARES.findIndex(w => w.id === "gold"), INGOT = M.WARES.findIndex(w => w.id === "ingot");
   const Sh = await import("../manifest-shapes.js");
-  const outlines = [1, 2, 3, 4, 5, 6].map(t => (t === 3 ? [Sh.silhouette(t, 96, 0), Sh.silhouette(t, 96, Math.PI / 2)] : [Sh.silhouette(t, 96, 0)]));
+  const outlines = M.WARES.map((_, k) => (isTimber(k + 1) ? [Sh.silhouette(k + 1, 96, 0), Sh.silhouette(k + 1, 96, Math.PI / 2)] : [Sh.silhouette(k + 1, 96, 0)]));
   const overlapOf = (i, j) => Math.max(...outlines[i].flatMap(a => outlines[j].map(b => Sh.overlap(a, b))));
   const NAMES = M.WARES.map(w => w.name.toLowerCase());
   const pairs = [];
-  for (let i = 0; i < 6; i++) for (let j = i + 1; j < 6; j++) pairs.push({ i, j, shape: overlapOf(i, j) });
+  for (let i = 0; i < M.TYPES; i++) for (let j = i + 1; j < M.TYPES; j++) pairs.push({ i, j, shape: overlapOf(i, j), twin: i === INGOT && j === GOLD });
   const fills = outlines.map(o => o[0].reduce((n, v) => n + v, 0) / (96 * 96));
-  const widest = pairs.reduce((a, p) => (p.shape > a.shape ? p : a));
-  check(pairs.every(p => p.shape <= SHAPE) && fills.every(f => f > 0.1),
-    `no two cargo types share an outline: the largest overlap is ${widest.shape.toFixed(2)} (${NAMES[widest.i]} and ${NAMES[widest.j]}), under ${SHAPE}`);
+  const widest = pairs.filter(p => !p.twin).reduce((a, p) => (p.shape > a.shape ? p : a));
+  check(pairs.every(p => p.twin || p.shape <= SHAPE) && fills.every(f => f > 0.1),
+    `no two cargo types share an outline but gold and ingots: the largest overlap of the rest is ${widest.shape.toFixed(2)} (${NAMES[widest.i]} and ${NAMES[widest.j]}), under ${SHAPE}`);
   const lin = c => (c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   const unlin = c => Math.round(255 * Math.min(1, Math.max(0, c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)));
   const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
@@ -413,10 +419,11 @@ check(trips > 60 && !lost, `${trips} changes to a table read back from the datab
   const eyes = Object.keys(EYES);
   const range = (i, j, eye) => Math.min(apart(FLAT, eye, i, j), apart(LIT, eye, i, j));
   const table = pairs.map(p => { const by = eyes.map(e => range(p.i, p.j, e)), low = Math.min(...by); return { ...p, colour: low, eye: eyes[by.indexOf(low)] }; });
-  const alike = table.filter(p => p.shape > ALIKE && p.colour < FAR), dull = table.filter(p => p.colour < FLOOR);
-  const nearest = table.reduce((a, p) => (p.colour < a.colour ? p : a));
+  const alike = table.filter(p => !p.twin && p.shape > ALIKE && p.colour < FAR), dull = table.filter(p => p.colour < FLOOR);
+  const twin = table.find(p => p.twin), nearest = table.filter(p => !p.twin).reduce((a, p) => (p.colour < a.colour ? p : a));
   check(!alike.length && !dull.length,
     `no two types are alike in both outline and colour (outlines over ${ALIKE} overlap are ${FAR} ΔE apart or more for every eye): ${alike.map(p => `${NAMES[p.i]}/${NAMES[p.j]} overlap ${p.shape.toFixed(2)}, ${p.colour.toFixed(1)} ΔE for ${p.eye}`).join("; ") || "none"}; nearest pair in colour ${NAMES[nearest.i]}/${NAMES[nearest.j]}, ${nearest.colour.toFixed(1)} ΔE for ${nearest.eye} (floor ${FLOOR})`);
+  check(twin.colour >= GOLD_FAR, `gold and ingots, the same shape, are at least ${GOLD_FAR} ΔE apart for all four eyes in every shading (the least is ${twin.colour.toFixed(1)}, for ${twin.eye}); the crown on gold is the second cue`);
 }
 
 console.log(bad ? `${bad} problems` : "all checks pass");

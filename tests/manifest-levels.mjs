@@ -1,4 +1,4 @@
-// Manifest's ladder: 32 levels in 8 chapters, each chapter bringing something new and each level harder than the one before
+// Manifest's ladder: 40 levels in 10 chapters, each chapter bringing something new and each level harder than the one before
 // it in its chapter; every level's recipe deals fair rounds from any seed (stacks that obey the rules, the full number of
 // orders, the questions its chapter wants, each answerable by an observer shown only what the view showed); stars and
 // the saved campaign mend themselves.
@@ -11,7 +11,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 // the ladder's shape
 {
-  check(L.COUNT >= 24 && L.COUNT <= 36 && L.CHAPTERS.length === 8 && L.CHAPTERS.every((c, k) => c.from === k * 4) && L.LEVELS.every((lv, i) => L.chapterOf(i) === Math.floor(i / 4)),
+  check(L.COUNT >= 24 && L.COUNT <= 44 && L.CHAPTERS.length === 10 && L.CHAPTERS.every((c, k) => c.from === k * 4) && L.LEVELS.every((lv, i) => L.chapterOf(i) === Math.floor(i / 4)),
     `${L.COUNT} levels in ${L.CHAPTERS.length} chapters of four`);
   const known = new Set(), fresh = [];
   L.CHAPTERS.forEach((c, k) => {
@@ -39,7 +39,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const r = lv.recipe, name = `level ${i + 1}`;
     if (!r.kinds.every(k => kinds.includes(k) && M.KIND_VIEWS[k])) problemsFound.push(`${name}: an unknown kind`);
     if (!r.want.every(k => r.kinds.includes(k) && r.views.some(v => M.KIND_VIEWS[k].includes(v)))) problemsFound.push(`${name}: wants a kind its views can't carry`);
-    if (!r.views.every(v => M.VIEWS[v]) || !r.types.every(t => t >= 1 && t <= 6) || r.x > 4 || r.y > 4 || r.z > 4 || r.x * r.y * r.z > 48) problemsFound.push(`${name}: a view, type or size out of range`);
+    if (!r.views.every(v => M.VIEWS[v]) || !r.types.every(t => t >= 1 && t <= M.TYPES) || r.x > 4 || r.y > 4 || r.z > 4 || r.x * r.y * r.z > 48) problemsFound.push(`${name}: a view, type or size out of range`);
     for (let k = 1; k <= lv.rounds; k++) {
       const rc = L.recipeAt(i, k);
       if (Boolean(rc.change) !== Boolean(lv.changes[k]) || (rc.change && rc.orders !== 1)) problemsFound.push(`${name}: round ${k}'s change`);
@@ -48,8 +48,8 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   });
   if (problemsFound.length) console.log("  ", problemsFound.join("\n   "));
   check(!problemsFound.length, "every recipe names real kinds, views and types, wants only what its views can ask, and puts change rounds inside the level");
-  check(M.levelOf(1).types.length === 3 && M.levelOf(12).types.length === M.LADDER.length && [1, 5, 7, 9].every((r, k, a) => !k || M.levelOf(r).types.length > M.levelOf(a[k - 1]).types.length),
-    "Random widens: three types in round 1, six by round 9");
+  check(M.levelOf(1).types.length === 3 && M.levelOf(12).types.length === M.LADDER.length && [1, 5, 7, 9, 11, 12].every((r, k, a) => !k || M.levelOf(r).types.length > M.levelOf(a[k - 1]).types.length),
+    "Random widens: three types in round 1, six by round 9, the second tree in round 11 and gold in round 12");
 }
 
 // Random's and Today's ramp (Korbi, 3 November 2026: "slow down the increase in difficulty. it really ramps up massively in

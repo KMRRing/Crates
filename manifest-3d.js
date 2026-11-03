@@ -15,8 +15,9 @@ import { packageShader, QUAY } from "./manifest-glsl.js";
 import { cameraOf, QUAY_DEPTH } from "./manifest-model.js";
 
 const TARP = 0xAEA690, LIT = 0xFFF8E4;
-/** The ware numbers as the shader has them: 0 a tarpaulin, 1 to 6 the cargo, 7 the tarpaulin's lit package. */
+/** The ware numbers as the shader has them: 0 a tarpaulin, 1 to 8 the cargo, then the tarpaulin's lit package. */
 const HEX = [TARP, ...WARES.map(w => parseInt(w.hex.slice(1), 16)), LIT];
+export const LIT_WARE = WARES.length + 1;
 
 // ---------- the page's colours: read from its tokens, so every theme and each day and night is its own ----------
 let probe = null, probeCtx = null;

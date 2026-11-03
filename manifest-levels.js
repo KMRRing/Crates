@@ -25,9 +25,9 @@ const ALL = ["layers", "all", "slices", "pair"];
 const CHAPTER_SPECS = [
   { name: "Crates and barrels", about: "Heavy goes low: a crate can carry crates and barrels, a barrel carries only barrels. Count, and say what stood where.",
     types: [1, 2], kinds: BASIC, want: [], views: ["layers", "all", "layers", "all"], names: ["First load", "Two tiers", "Behind the stack", "The wharf"] },
-  { name: "Timber", about: "Bundles of timber lie in layers that cross, and carry crates and barrels too. Now the stack may be shown turned.",
+  { name: "Timber", about: "Bundles of oak lie in layers that cross, and carry crates and barrels too. Now the stack may be shown turned.",
     types: [1, 2, 3], kinds: [...BASIC, "turned"], want: [], views: ["layers", "all", "slices", "all"], names: ["Logs ashore", "Crossed layers", "The raft", "Timber yard"] },
-  { name: "Ingots", about: "Piles of ingots weigh eight hundredweight, the most, and carry anything. Weigh what you saw: the question tells you what each weighs.",
+  { name: "Ingots", about: "Piles of ingots weigh eight hundredweight, the most so far, and carry almost anything. Weigh what you saw: the question tells you what each weighs.",
     types: [1, 2, 3, 4], kinds: [...BASIC, "turned", "weight"], want: ["weight"], views: ["layers", "all", "slices", "pair"], names: ["Ballast", "Bar iron", "Heavy goods", "The foundry"] },
   { name: "Chests", about: "A chest goes last: its lid is domed and nothing stands on it. Between two of one kind, what you cannot see is that kind.",
     types: [1, 2, 3, 4, 5], kinds: [...BASIC, "turned", "weight", "column"], want: ["column"], views: ["all", "layers", "all", "slices"], z: [3, 3, 3, 3], names: ["The strongbox", "Under lock", "Hidden below", "The treasury"] },
@@ -41,6 +41,13 @@ const CHAPTER_SPECS = [
   { name: "The quay master", about: "Everything together, every kind of question, and the stack shown any way round.",
     types: [1, 2, 3, 4, 5, 6], kinds: [...BASIC, "turned", "which", "weight", "worth", "load", "fits", "column"], want: [], views: ALL, names: ["Morning tally", "Busy quay", "The harbour master", "The whole manifest"],
     changes: [{}, { 3: "ware" }, { 4: "turned" }, { 5: "swap" }] },
+  // the two chapters after the quay master were added later, at the end, so that the stars already won (kept by level number) keep their levels
+  { name: "White timber", about: "A second tree: birch, slender and pale with dark marks, lighter than oak and heavier than a crate. It lies in crossing layers like oak and goes between oak and crates.",
+    types: [1, 2, 3, 4, 5, 6, 8], kinds: [...BASIC, "turned", "weight", "worth", "load", "column"], want: ["weight"], views: ["layers", "all", "slices", "pair"], names: ["Silver birch", "Two trees", "The sawmill", "Pale and dark"],
+    changes: [{}, { 3: "ware" }, { 4: "turned" }, { 3: "ware", 5: "swap" }] },
+  { name: "Gold", about: "Gold ingots weigh the most and are worth the most: they stand only on the quay or on more gold. Same shape as the ingots, richer, with a crown stamped on top.",
+    types: [1, 2, 3, 4, 5, 6, 7, 8], kinds: [...BASIC, "turned", "weight", "worth", "load", "fits", "column"], want: ["worth", "weight"], views: ["layers", "all", "slices", "pair"], z: [3, 3, 3, 4], names: ["A glint", "The strongroom", "Bullion", "The royal hoard"],
+    changes: [{}, { 3: "ware" }, { 2: "turned", 4: "swap" }, { 2: "ware", 4: "turned", 5: "swap" }] },
 ];
 
 /** The chapters: where each begins in LEVELS, its name and what it brings. */

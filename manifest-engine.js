@@ -18,7 +18,7 @@
 //
 // Together (the end of this file): a table of two to six plays the rounds in step, against each other or as one team
 // that sees the stack in parts.
-import { CARGO, TYPES, TIMBER, CARRIES, axisOf, canPlace, room, loadAbove, validate, weightOf, worthOf, columnOf, deduceColumn, totals } from "./manifest-rules.js";
+import { CARGO, TYPES, isTimber, CARRIES, axisOf, canPlace, room, loadAbove, validate, weightOf, worthOf, columnOf, deduceColumn, totals } from "./manifest-rules.js";
 import { outlineOf } from "./manifest-shapes.js";
 
 export const LIVES = 3, ROUNDS = 12;
@@ -28,7 +28,7 @@ export const LIVES = 3, ROUNDS = 12;
  * right one and 1.05 on a top. Outline comes first in telling them apart (manifest-shapes.js), then lightness and hue;
  * tests/manifest.mjs measures both: the silhouettes against each other, the colours for a normal eye and the three dichromacies.
  */
-const LOOK = { crate: "#C9A267", barrel: "#7C4E2A", timber: "#5B3A1E", ingot: "#8E9CAB", chest: "#2F3E5C", sack: "#CDBB90" };
+const LOOK = { crate: "#C9A267", barrel: "#7C4E2A", timber: "#5B3A1E", ingot: "#8E9CAB", chest: "#2F3E5C", sack: "#CDBB90", gold: "#C07A08", birch: "#E4DECB" };
 export const WARES = CARGO.map(c => ({ id: c.key, name: c.name, hex: LOOK[c.key] }));
 export { CARGO, TYPES, validate, weightOf, worthOf };
 export const VIEWS = { all: "All at once", layers: "Tier by tier", slices: "Slice by slice", pair: "Two tiers, then the rest" };
@@ -74,7 +74,7 @@ export function levelOf(r) {
   };
 }
 /** The order the types come into Random: a type is dealt once the ladder reaches it. */
-export const LADDER = [1, 2, 3, 4, 5, 6];
+export const LADDER = [1, 2, 3, 4, 5, 6, 8, 7];
 /**
  * Random's ramp, a row a round (x, y, z, how many of the ladder's types, orders, the hold in ms), and Today's: one thing
  * grows a round, nothing leaps (3 November 2026: "slow down the increase in difficulty. it really ramps up massively in
@@ -83,8 +83,8 @@ export const LADDER = [1, 2, 3, 4, 5, 6];
  */
 const RAMP = [
   [3, 2, 2, 3, 3, 9000], [4, 2, 2, 3, 3, 8800], [4, 2, 2, 3, 3, 8600], [3, 3, 2, 3, 3, 8400], [3, 3, 2, 4, 3, 8200], [4, 3, 2, 4, 3, 8000],
-  [4, 3, 2, 5, 3, 7800], [3, 3, 3, 5, 3, 7600], [3, 3, 3, 6, 3, 7400], [4, 4, 2, 6, 3, 7200], [4, 3, 3, 6, 3, 7000], [4, 3, 3, 6, 4, 6800],
-  [4, 3, 3, 6, 4, 6600], [4, 4, 3, 6, 4, 6500], [4, 4, 3, 6, 4, 6300], [4, 4, 3, 6, 4, 6100],
+  [4, 3, 2, 5, 3, 7800], [3, 3, 3, 5, 3, 7600], [3, 3, 3, 6, 3, 7400], [4, 4, 2, 6, 3, 7200], [4, 3, 3, 7, 3, 7200], [4, 3, 3, 8, 3, 7000],
+  [4, 3, 3, 8, 4, 6800], [4, 4, 3, 8, 4, 6500], [4, 4, 3, 8, 4, 6300], [4, 4, 3, 8, 4, 6100],
 ];
 export const STEP = 1.2;
 /** How hard a recipe is, 1 for the first round's: the stack's size, the cargo in play, the kinds of question, how many are
@@ -199,7 +199,7 @@ export function dropTimes(cells, view) {
 function coverOf(cube, b, boxes = false) {
   if (boxes || !(cube.c >= 1 && cube.c <= TYPES)) return Object.values(cubeFaces(cube.x, cube.y, cube.z, b));
   const mid = isoPoint(cube.x + 0.5, cube.y + 0.5, cube.z + 0.5, b);
-  return [outlineOf(cube.c, cube.c === TIMBER && axisOf(cube.z, b.turns || 0) === "y").map(([sx, sy]) => [mid.sx + sx * b.X, mid.sy + sy * b.H])];
+  return [outlineOf(cube.c, isTimber(cube.c) && axisOf(cube.z, b.turns || 0) === "y").map(([sx, sy]) => [mid.sx + sx * b.X, mid.sy + sy * b.H])];
 }
 /** The set of "x,y,z" keys of pieces you can see in the isometric view: the cells are drawn back to front, each as the outline
  *  of its piece (convex, so filled a row of pixels at a time: a pixel is in it when its centre lies from the left crossing of
