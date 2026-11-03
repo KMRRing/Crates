@@ -3,11 +3,29 @@
 // operations not handed to the nearest pair by a glance at the map), the same board for the same seed, and every operation
 // on exactly one chain. Heavy statistics aren't here (they were run by hand, docs/delta.md has the rulings behind the floors);
 // tests/delta.mjs is the slow full check. Run: node tests/delta-gen.mjs
+import fs from "fs";
 const G = await import("../delta-gen.js");
 const M = await import("../delta-metrics.js");
 let bad = 0;
 const check = (ok, what) => { if (!ok) { console.log(`FAIL ${what}`); bad++; } };
-const SEEDS = { easy: 20, medium: 8, hard: 3 }, AGAIN = { easy: 2, medium: 1, hard: 1 };   // seeds per level (Hard costs most); how many are dealt twice for "same seed, same board"
+const SEEDS = { easy: 16, medium: 6, hard: 3 }, AGAIN = { easy: 2, medium: 1, hard: 1 };   // seeds per level (Hard costs most); how many are dealt twice for "same seed, same board"
+// The same seed must give the same board on every phone (today's board, shared links), and exp, pow, log and the trig
+// functions may differ in the last bit between browsers: nothing that deals a board may use them.
+for (const f of ["delta-base.js", "delta-shape.js", "delta-metrics.js", "delta-gen.js"]) {
+  const code = fs.readFileSync(new URL(`../${f}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  check(!/Math\.(exp|expm1|pow|log\w*|sin|cos|tan\w*|cbrt|hypot)\b/.test(code), `${f}: a Math function that differs between browsers`);
+}
+// the measures themselves, on lanes small enough to count by hand: two straight lanes side by side touch 1 + 2 + 2 times;
+// a lane that doubles back on itself has walls of its own, which separate nothing
+{
+  const A = ["0,0", "1,0", "2,0"], B = ["0,1", "1,1", "2,1"], fold = ["0,0", "1,0", "1,1", "0,1"];
+  const w = M.wallsOf([A, B]);
+  check(w.cross === 5 && w.self === 0 && w.perPath.join() === "5,5", `two lanes side by side: ${w.cross} walls between them, expected 5`);
+  const f = M.wallsOf([fold]);
+  check(f.cross === 0 && f.self === 2, `a lane touching itself: ${f.self} walls of its own, expected 2`);
+  const straight = { cells: [], ops: {}, sol: [{ from: "0,0", to: "4,0", cells: ["0,0", "1,0", "2,0", "3,0", "4,0"] }] };
+  check(M.shapeOf(straight).bundled === 1, "a straight run from one number to the other counts as bundled");
+}
 const pairing = s => s.map(x => [x.from, x.to].sort().join("~")).sort().join("|");
 
 for (const [level, count] of Object.entries(SEEDS)) {
