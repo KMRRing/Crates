@@ -18,6 +18,9 @@ import { MODES, modeOf, clockText, strikeMarks, clockFor, runDown, graceAgain, t
 import { rushMenu } from "./rush-menu.js";
 import { busy } from "./loading.js";
 import { SIDEWAYS, sideways } from "./wide.js";
+import { createCourse, progressOf } from "./course.js";
+import { COURSE } from "./hong-lessons.js";
+import { tileStage } from "./hong-course.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "hong:run", OPTS = "hong:opts", STATS = "hong:stats", BEST = "hong:best", BEST_NOFAN = "hong:bestNoFan";
@@ -1151,6 +1154,8 @@ function openMenu() {
       bests: read(RUSH_BEST, {}), daily: read(RUSH_DAILY, {}), day: today(), inFrame: IN_FRAME });
   }
   else part(body, "play").append(action("New game", () => newGame(), "primary"), action("Puzzle rush", () => startRush(), ""), ...copies());
+  const cp = progressOf("hong", COURSE);
+  part(body, "play").append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Mahjong, from the rules", () => course.open()));
   // a puzzle's table keeps its own rules: the game's are for the game
   if (!rush) {
     const content = part(body, "content");
@@ -1396,6 +1401,21 @@ ${nofan ? `<p><b>No fan.</b> Any complete hand wins, and every win pays alike: s
 <p><b>Paying.</b> Each fan doubles the base up to four, then every two (1 2 4 8 16 24 32 48 64 96 128 at ten). Off a discard, its discarder pays 4 × base; self-drawn, each of the others pays 2 × base. Let go the tile that makes someone's fourth set, or their third dragon set, and you pay all of their self-drawn win (包).</p>`}`;
 }
 
+// ---------- the course ----------
+// Learn (the Menu): Hong Kong mahjong taught from nothing (hong-lessons.js) on the course's sheet (course.js), the tiles
+// drawn as the table draws them and every answer the referee's; its last lesson starts a game with the rules it taught.
+const course = createCourse({
+  id: "hong", course: COURSE, cls: "hk", inFrame: IN_FRAME, stage: tileStage(),
+  onRules: () => { $("rulesBody").innerHTML = rules(); $("rulesDlg").showModal(); },
+  onPlay: () => {
+    if (together.room) { toast("Your table plays on: try a game when you're back to solo"); return; }
+    if (rush) leaveRush();
+    Object.assign(opts, { scoring: "fan", flowers: true, minFan: 3 });
+    write(OPTS, opts);
+    newGame();
+  },
+});
+
 // ---------- wiring ----------
 installTiles();
 table3d = createTable3d({
@@ -1424,7 +1444,7 @@ let resizeTimer = null;
 addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 60); });
 
 // for tests and debugging
-window.__hong = { get state() { return G; }, get session() { return S; }, get review() { return R; }, get advice() { return advice; }, get me() { return me; }, get together() { return together; },
+window.__hong = { course, get state() { return G; }, get session() { return S; }, get review() { return R; }, get advice() { return advice; }, get me() { return me; }, get together() { return together; },
   get rush() { return rush; }, get words() { return words; }, startRush, nextRush, leaveRush,
   mine, newGame, nextHand, get view() { return opts.view; }, set(o) { Object.assign(opts, o); write(OPTS, opts); applyLook(); render(); } };
 
