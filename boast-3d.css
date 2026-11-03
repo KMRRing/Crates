@@ -1,0 +1,29 @@
+/* Liar's dice's 3D table (boast-3d.js) on the shared cloth (table3d.css). */
+#app.boast { --tk-felt: color-mix(in srgb, var(--bo-in) 78%, #0B1E2A); }
+.bo-table.bo3 { padding: 0; }
+.bo-table.bo3 .tk-field { flex: 1 1 0; }
+.bo3-centre { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; text-align: center; color: var(--tk-text); --tk-side: 6.2rem; }
+:is(.tk-n2, .tk-n3) .bo3-centre { --tk-side: .8rem; }
+.bo3-centre .bo-bid-big { font-size: clamp(1.4rem, min(9cqh, 8cqw), 3.4rem); }
+.bo3-centre .bo-bid-by, .bo3-centre .bo-bid-round { color: var(--tk-soft); }
+.bo3-centre .bo-bid-call { color: var(--tk-gilt); }
+.bo3-centre .bo-bid-words { font-size: .95rem; }
+.bo3-centre .bo-bid-words small, .bo3-centre .bo-bid-sub, .bo3-centre .bo-said, .bo3-centre .bo-trail, .bo3-centre .bo-odds, .bo3-centre small { color: var(--tk-soft); }
+.bo3-centre .bo-verdict { padding: .25rem .5rem; font-size: .8rem; color: #1E2730; background: color-mix(in srgb, var(--tk-gilt) 85%, transparent); }
+.bo3-centre .bo-verdict.broke { background: color-mix(in srgb, #F0A596 90%, transparent); }
+.bo3-centre .bo-next { background: color-mix(in srgb, var(--tk-text) 30%, transparent); }
+.bo3-centre .bo-next i { background: var(--tk-gilt); }
+.bo3-centre .bo-trail, .bo3-centre .bo-bid-sub { display: none; }
+.bo3-centre .bo-die rect { fill: #FBF7EC; stroke: #7A5518; }
+.bo3-centre .bo-die circle { fill: #1E2730; }
+.bo3-centre .bo-die.red circle { fill: #A8382B; }
+.bo3-call { font-size: .8rem; color: var(--tk-gilt); }
+.bo3-dice { display: inline-flex; gap: .1rem; }
+.bo3-dice .bo-die { width: .95rem; height: .95rem; }
+.tk-plate .bo-short { display: inline-flex; align-items: center; gap: .2rem; font-size: .8rem; font-weight: 800; }
+.tk-plate .bo-short .bo-die { width: .95rem; height: .95rem; }
+.tk-plate .bo-cups { display: inline-flex; gap: .15rem; align-items: center; }
+.tk-plate .bo-cups i { width: .45rem; height: .45rem; border-radius: 50%; border: 1px solid var(--tk-soft); }
+.tk-plate .bo-cups i.on { background: var(--tk-gilt); border-color: var(--tk-gilt); }
+.tk-plate .bo-thinking { font-size: .7rem; color: var(--tk-soft); }
+.tk-plate.mate .tk-med { border-color: #F0A596; }

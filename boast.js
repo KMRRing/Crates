@@ -7,7 +7,9 @@ import { LEVEL_NAMES, oddsFor } from "./boast-bot.js";
 import { seatPage, fillNames } from "./seats-ui.js";
 import { seeded, mix } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { tableView } from "./table3d-view.js";
+import { createBoast3d, plateOf } from "./boast-3d.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
@@ -83,40 +85,79 @@ function draw() {
   if (!page) return;
   const v = V;
   document.body.classList.toggle("bo-watch", !!v?.G && v.seat == null);
-  drawOthers(v);
-  drawCentre(v);
+  if (view.get() === "3d" && v?.G) draw3d(v);
+  else { leave3d(); drawOthers(v); drawCentre(v); }
   drawLog(v);
   drawMine(v);
   drawControls(v);
+}
+
+/** What a player's seat shows, for the flat table and the 3D one: the last bid, the word it called with, its dice once the cups are lifted. */
+function seatParts(v, i) {
+  const s = v.state, shown = s.step === "shown" || s.step === "over", res = shown ? s.result : null;
+  const mine = s.bids.filter(b => b.s === i), bid = mine[mine.length - 1];
+  const turn = (s.step === "bid" && s.turn === i) || (s.step === "pi" && lastBid(s)?.s === i);
+  const call = res && res.challenger === i ? callWord(res.kind === "fanpi" ? "pi" : res.kind) : s.step === "pi" && s.pi?.by === i ? callWord("pi") : "";
+  const dice = res ? (res.dice[i] || []).map(d => die(d, cupCount([d], res.bid, s.opts) ? "lit" : "dim")).join("") : "";
+  return { turn, loser: !!res && res.loser === i, bid: bid ? short(bid) : "", call, dice, cups: cupsHtml(s.cups[i], s.opts.limit) };
 }
 
 /** The others round the table, in turn from you. */
 function drawOthers(v) {
   const box = $("others");
   if (!v?.G) { box.replaceChildren(); return; }
-  const s = v.state, me = v.seat ?? 0, shown = s.step === "shown" || s.step === "over";
+  const s = v.state, me = v.seat ?? 0;
   const order = Array.from({ length: s.seats }, (_, i) => (me + 1 + i) % s.seats).filter(i => v.seat == null || i !== v.seat);
   box.dataset.n = order.length;
   box.innerHTML = order.map(i => {
-    const seat = v.seats[i], mine = s.bids.filter(b => b.s === i), bid = mine[mine.length - 1];
-    const res = shown ? s.result : null;
-    const turn = (s.step === "bid" && s.turn === i) || (s.step === "pi" && lastBid(s)?.s === i);
-    const calls = res && res.challenger === i ? `<span class="bo-call">${callWord(res.kind === "fanpi" ? "pi" : res.kind)}</span>` : "";
-    const piNow = s.step === "pi" && s.pi?.by === i ? `<span class="bo-call">${callWord("pi")}</span>` : "";
-    const dice = res ? `<span class="bo-dice small">${(res.dice[i] || []).map(d => die(d, cupCount([d], res.bid, s.opts) ? "lit" : "dim")).join("")}</span>` : "";
-    return `<li class="bo-p${turn ? " turn" : ""}${res && res.loser === i ? " loser" : ""}${seat.bot ? " bot" : ""}${seat.away ? " away" : ""}">
+    const seat = v.seats[i], p = seatParts(v, i);
+    return `<li class="bo-p${p.turn ? " turn" : ""}${p.loser ? " loser" : ""}${seat.bot ? " bot" : ""}${seat.away ? " away" : ""}">
       <span class="bo-p-head">${CUP}<b class="bo-p-name">${esc(seat.name)}</b></span>
-      ${cupsHtml(s.cups[i], s.opts.limit)}
-      <span class="bo-p-bid">${calls || piNow || (bid ? short(bid) : turn ? `<span class="bo-thinking">thinking</span>` : "")}</span>${dice}</li>`;
+      ${p.cups}
+      <span class="bo-p-bid">${p.call ? `<span class="bo-call">${p.call}</span>` : p.bid || (p.turn ? `<span class="bo-thinking">thinking</span>` : "")}</span>${p.dice ? `<span class="bo-dice small">${p.dice}</span>` : ""}</li>`;
   }).join("");
+}
+
+// the 3D table (boast-3d.js): a frame beside the flat table's own boxes, which are hidden while it's up
+const view = tableView("boast");
+let three = null;
+function enter3d() {
+  if (three) return;
+  $("table").classList.add("bo3");
+  $("others").hidden = $("centre").hidden = true;
+  const host = document.createElement("div");
+  host.id = "clothHost";
+  host.style.cssText = "flex:1 1 0;min-height:0;display:flex";
+  $("table").append(host);
+  three = createBoast3d(host, { quiet: () => IN_FRAME });
+}
+function leave3d() {
+  if (!three) return;
+  three.dispose();
+  three = null;
+  $("clothHost")?.remove();
+  $("table").classList.remove("bo3");
+  $("others").hidden = $("centre").hidden = false;
+}
+function draw3d(v) {
+  enter3d();
+  const s = v.state, me = v.seat ?? 0;
+  const plates = Array.from({ length: s.seats }, (_, i) => {
+    const seat = v.seats[i], p = seatParts(v, i), mine = isMe(i);
+    return plateOf({ name: seat.name, seat: i, mine, turn: p.turn, cups: p.cups, bid: p.bid, call: p.call, dice: mine ? "" : p.dice, thinking: p.turn && !mine && !p.bid && !p.call, loser: p.loser, away: !!seat.away });
+  });
+  three.draw({ seats: s.seats, me, plates, centre: centreHtml(v), bid: `${s.round}:${s.bids.length}:${s.step}` });
+  runBar();
 }
 
 /** The middle of the table: the bid as called, or the cups lifted and who drinks. */
 function drawCentre(v) {
-  const box = $("centre");
+  $("centre").innerHTML = centreHtml(v);
+  runBar();
+}
+function centreHtml(v) {
   if (!v?.G) {
-    box.innerHTML = `<p class="bo-lead">Five dice each under a cup. Bid how many of a face lie under all the cups together; call the last bid a lie with 开.</p>`;
-    return;
+    return `<p class="bo-lead">Five dice each under a cup. Bid how many of a face lie under all the cups together; call the last bid a lie with 开.</p>`;
   }
   const s = v.state, b = lastBid(s), said = v.said ? `<p class="bo-said">${esc(v.said)}</p>` : "";
   const trail = s.bids.length > 1 ? `<p class="bo-trail">${s.bids.slice(-6, -1).map(x => `<span>${esc(nameOf(x.s))} ${short(x)}</span>`).join("")}</p>` : "";
@@ -124,25 +165,22 @@ function drawCentre(v) {
     const r = s.result, w = words({ ...r.bid, n: r.count });
     const verdict = r.held ? `The bid held: ${esc(nameOf(r.loser))} ${isMe(r.loser) ? "drink" : "drinks"} ${r.stake === 1 ? "a cup" : `${r.stake} cups`}`
       : `A lie: ${esc(nameOf(r.loser))} ${isMe(r.loser) ? "drink" : "drinks"} ${r.stake === 1 ? "a cup" : `${r.stake} cups`}`;
-    box.innerHTML = `${said}<div class="bo-bid shown"><span class="bo-bid-call">${esc(callWord(r.kind === "fanpi" ? "fanpi" : r.kind === "pi" ? "pi" : "kai"))}</span>
+    return `${said}<div class="bo-bid shown"><span class="bo-bid-call">${esc(callWord(r.kind === "fanpi" ? "fanpi" : r.kind === "pi" ? "pi" : "kai"))}</span>
       <span class="bo-bid-big">${r.count}<span class="x">×</span>${die(r.bid.f, "big")}</span>
       <span class="bo-bid-words">${esc(w.main)} <small>against ${r.bid.n}${plain(r.bid) && r.bid.f !== 1 ? `, ${esc(callWord("zhai"))}` : ""}</small></span></div>
       <p class="bo-verdict ${r.held ? "held" : "broke"}">${verdict}</p>
       ${s.step === "shown" ? `<span class="bo-next"><i data-until="${s.until}"></i></span>` : ""}`;
-    runBar();
-    return;
   }
   if (!b) {
     const starter = s.turn;
-    box.innerHTML = `${said}<div class="bo-bid empty"><span class="bo-bid-round">Round ${s.round}</span>
+    return `${said}<div class="bo-bid empty"><span class="bo-bid-round">Round ${s.round}</span>
       <span class="bo-bid-words">${isMe(starter) ? "You open" : `${esc(nameOf(starter))} opens`}</span>
       <small>at least ${opening(s.seats)} dice · ones are wild</small></div>`;
-    return;
   }
   const w = words(b);
   const odds = opts.odds && v.seat != null && b.s !== v.seat ? oddsLine(v) : "";
   const pi = s.step === "pi" ? `<p class="bo-verdict pi">${esc(nameOf(s.pi.by))} ${isMe(s.pi.by) ? "chop" : "chops"} it: ${esc(callWord("pi"))} ${esc(callSub("pi"))}, two cups at stake${isMe(b.s) ? ". Chop back for four?" : ""}</p>` : "";
-  box.innerHTML = `${said}<div class="bo-bid"><span class="bo-bid-by">${isMe(b.s) ? "Your bid" : `${esc(nameOf(b.s))}’s bid`}${b.fly ? ` · ${esc(callWord("fei"))}` : ""}</span>
+  return `${said}<div class="bo-bid"><span class="bo-bid-by">${isMe(b.s) ? "Your bid" : `${esc(nameOf(b.s))}’s bid`}${b.fly ? ` · ${esc(callWord("fei"))}` : ""}</span>
     <span class="bo-bid-big">${b.n}<span class="x">×</span>${die(b.f, "big")}${plain(b) && b.f !== 1 ? `<span class="bo-zhai big">${esc(callWord("zhai"))}</span>` : ""}</span>
     <span class="bo-bid-words">${esc(w.main)}</span><small class="bo-bid-sub">${esc(w.sub)}</small></div>${pi}${odds}${trail}`;
 }
@@ -370,6 +408,7 @@ function openMenu() {
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn liar's dice, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const next = () => { saveOpts(); };
+  set.append(view.choice(() => draw()));
   set.append(choice("Players", [[2, "2"], [3, "3"], [4, "4"], [5, "5"], [6, "6"]], opts.seats, v => { opts.seats = Number(v); next(); }));
   set.append(choice("A game ends at", LIMITS.map(n => [n, `${n} cups`]), opts.limit, v => { opts.limit = Number(v); next(); }));
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; next(); }));
@@ -392,6 +431,7 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
+onPause(() => three?.pause(true), () => three?.pause(false));
 window.__boast = { page, get view() { return V; }, opts, fillNames, course };
 // the first time, a game is dealt at once: the table is the menu
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();

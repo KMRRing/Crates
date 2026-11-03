@@ -133,6 +133,7 @@ html[data-mode="night"] .tk-mat { --tk-c: color-mix(in srgb, var(--tk-felt, #295
    plates compact, a fan beside the count rather than over it ---------- */
 @container (max-height: 420px) {
   .tk-mat { height: 104%; }
+  .tk-plate.at-t { top: calc(var(--y) + 17%); }
   .tk-plate:is(.at-l, .at-r) { gap: .1rem; padding-top: .6rem; margin-top: -.6rem; }
   .tk-plate:is(.at-l, .at-r) .tk-tally { flex-direction: row; justify-content: center; gap: .2rem; }
   .tk-plate:is(.at-l, .at-r) .tk-med { width: 1.9rem; height: 1.9rem; font-size: .92rem; }
