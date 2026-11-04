@@ -1,63 +1,132 @@
-/* Drift: the field (seven squares by seven) and its tiles in the four enamels, each with a mark of its own (a dot, a
-   ring, a bar, a chevron) so they're told apart without their colour, the edge the wind will pile them against drawn
-   in brass, a staked tile with a pin in its corner; under it the tile to lay and the next, the three winds forecast,
-   and a line saying what the turn shown would do. Ochre is the house colour. */
+/* Drift: a chart table at dusk. The quay (a hull, a pier, a basin...) lies as planked deck in a sea ruled like a chart,
+   a compass rose in a corner of water whose needle is the wind, its coast in brass and the edge the wind piles crates
+   against in heavier brass; crates are the four enamels slatted and cornered in brass, each with a mark of its own (a
+   dot, a ring, a bar, a chevron) so they are told apart without their colour. Under it the queue: five turns, each
+   its crate, its wind and its weather in a glyph. Ochre is the house colour. */
 :root {
   --dr-in: var(--c0);
   --dr-soft: color-mix(in srgb, var(--dr-in) 15%, var(--sheet));
+  --dr-sea: color-mix(in srgb, var(--c2) 17%, var(--yard));
+  --dr-deck: color-mix(in srgb, var(--c0) 13%, var(--tile));
 }
 
 .dr-mark { display: inline-block; }
 .dr-mark svg { width: 100%; height: 100%; display: block; }
-.dr-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+.dr-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .4rem; font-size: .92rem; color: var(--ink-soft); }
 .dr-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
-.dr-score b { font-size: 1.05rem; }
+.dr-strip span:first-child b { font-size: 1.05rem; }
 
-/* the field: square, as large as its room allows */
+/* the orders of a level: what is still to ship of each good */
+.dr-orders { display: flex; gap: .4rem; margin: 0 0 .45rem; }
+.dr-orders[hidden] { display: none; }
+.dr-order { flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); grid-template-rows: auto auto; column-gap: .3rem; row-gap: .12rem; align-items: center;
+  box-sizing: border-box; padding: .28rem .35rem .3rem; border-radius: 4px; background: var(--dr-soft); border: 1px solid var(--rule); font-size: .68rem; line-height: 1.15; color: var(--ink-soft); }
+.dr-order > svg { grid-row: 1; width: 1.5rem; height: 1.5rem; }
+.dr-order .txt { grid-row: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.dr-order .txt b { display: block; font-size: .86rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dr-order i { grid-column: 1 / -1; grid-row: 2; display: block; height: .22rem; border-radius: 2px; background: linear-gradient(90deg, var(--brass) var(--p), var(--rule) 0); }
+.dr-order.full { border-color: #2F7D5B; }
+.dr-order.full i { background: #2F7D5B; }
+
+/* the quay: as large as its room allows, whatever its shape */
 .dr-field { position: relative; place-items: center; }
-.dr-board { width: min(100cqw, 100cqh); height: min(100cqh, 100cqw); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
-.dr-bed { fill: var(--sheet); stroke: var(--tile-edge); stroke-width: .35; }
-.dr-grid line { stroke: var(--rule); stroke-width: .25; }
-.dr-lee { fill: none; stroke: var(--brass); stroke-width: 1.4; stroke-linecap: round; }
-.dr-tile { transform-box: fill-box; transform-origin: center; }
-.dr-tile > rect { stroke: color-mix(in srgb, var(--ink) 40%, transparent); stroke-width: .35; }
-.dr-tile.k0 > rect { fill: var(--c0); }
-.dr-tile.k1 > rect { fill: var(--c1); }
-.dr-tile.k2 > rect { fill: var(--c2); }
-.dr-tile.k3 > rect { fill: var(--c3); }
+.dr-board { --ar: 1; width: min(100cqw, 100cqh * var(--ar)); height: min(100cqh, 100cqw / var(--ar)); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
+.dr-sea { fill: var(--dr-sea); }
+.dr-dusk { fill: url(#drDusk); }
+.dr-board stop.d0 { stop-color: var(--brass-hi); stop-opacity: .2; }
+.dr-board stop.d1 { stop-color: var(--c2); stop-opacity: .12; }
+.dr-swell { fill: none; stroke: color-mix(in srgb, var(--c2) 40%, transparent); stroke-width: .35; stroke-linecap: round; }
+.dr-frame .outer { fill: none; stroke: var(--brass); stroke-width: .6; }
+.dr-frame .tick { stroke: var(--brass); stroke-width: .35; opacity: .8; }
+.dr-rose .ring { fill: color-mix(in srgb, var(--sheet) 70%, transparent); stroke: var(--brass); stroke-width: .3; }
+.dr-rose .star { fill: color-mix(in srgb, var(--brass) 55%, transparent); }
+.dr-rose .needle { fill: none; stroke: var(--ink); stroke-width: 1.15; stroke-linecap: round; stroke-linejoin: round; }
+
+.dr-deck .plank { fill: var(--dr-deck); }
+.dr-deck .seam { fill: none; stroke: color-mix(in srgb, var(--brass) 30%, transparent); stroke-width: .2; }
+.dr-deck .gridl path { fill: none; stroke: var(--rule); stroke-width: .3; }
+.dr-deck .coast path { fill: none; stroke: var(--brass); stroke-width: .7; stroke-linecap: round; }
+.dr-deck .lee path { fill: none; stroke: var(--brass); stroke-width: 1.9; stroke-linecap: round; }
+
+/* a rogue wave's band, a turn before it comes */
+.dr-waveband rect { fill: color-mix(in srgb, var(--c2) 32%, transparent); stroke: var(--c2); stroke-width: .3; stroke-dasharray: 1.2 .8; }
+.dr-waveband .chev { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+
+/* crates */
+.dr-crate { transform-box: fill-box; transform-origin: center; }
+.dr-crate .box { stroke: color-mix(in srgb, var(--ink) 45%, transparent); stroke-width: .35; }
+.dr-crate.k0 .box { fill: var(--c0); }
+.dr-crate.k1 .box { fill: var(--c1); }
+.dr-crate.k2 .box { fill: var(--c2); }
+.dr-crate.k3 .box { fill: var(--c3); }
+.dr-crate .slat { fill: none; stroke: color-mix(in srgb, var(--ink) 40%, transparent); stroke-width: .3; }
+.dr-crate .bracket { fill: none; stroke: color-mix(in srgb, var(--on-c) 62%, transparent); stroke-width: .5; stroke-linecap: round; stroke-linejoin: round; }
+.dr-crate.k0 .bracket { stroke: color-mix(in srgb, var(--on-c0) 55%, transparent); }
 .dr-fill { fill: var(--on-c); }
-.dr-stroke { fill: none; stroke: var(--on-c); stroke-width: .8; stroke-linecap: round; stroke-linejoin: round; }
-.dr-tile.k0 .dr-fill { fill: var(--on-c0); }
-.dr-tile.k0 .dr-stroke { stroke: var(--on-c0); }
-/* a stake: a pin's head in the corner, and a firmer edge */
-.dr-tile.staked > rect { stroke: var(--ink); stroke-width: .7; }
+.dr-stroke { fill: none; stroke: var(--on-c); stroke-width: .85; stroke-linecap: round; stroke-linejoin: round; }
+.dr-crate.k0 .dr-fill { fill: var(--on-c0); }
+.dr-crate.k0 .dr-stroke { stroke: var(--on-c0); }
+/* moored: an anchor on a brass disc, and a firmer edge */
+.dr-crate.moored .box { stroke: var(--ink); stroke-width: .7; }
+.dr-crate .pin { fill: var(--brass-hi); stroke: var(--ink); stroke-width: .35; }
+.dr-crate .anchor { fill: none; stroke: var(--ink); stroke-width: .5; stroke-linecap: round; }
+/* sealed: gilt edge and the harbour master's wax */
+.dr-crate.sealed .box { stroke: var(--brass-hi); stroke-width: .9; }
+.dr-crate .wax { fill: var(--c3); stroke: var(--brass-hi); stroke-width: .35; }
+.dr-crate .waxstar { fill: var(--brass-hi); }
 /* a squall's stray, a turn before it lands: faint, its edge dashed */
-.dr-tile.stray { opacity: .4; }
-.dr-tile.stray > rect { stroke: var(--ink); stroke-width: .5; stroke-dasharray: 1.3 .9; }
-.dr-pin { fill: var(--sheet); stroke: var(--ink); stroke-width: .5; }
-.dr-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
+.dr-crate.stray { opacity: .42; }
+.dr-crate.stray .box { stroke: var(--ink); stroke-width: .5; stroke-dasharray: 1.3 .9; }
+/* rocks */
+.dr-rock .stone { fill: color-mix(in srgb, var(--ink) 52%, var(--sheet)); stroke: var(--ink); stroke-width: .4; stroke-linejoin: round; }
+.dr-rock .facet { fill: none; stroke: color-mix(in srgb, var(--sheet) 50%, transparent); stroke-width: .35; stroke-linejoin: round; }
+.dr-rock.omen { opacity: .5; }
+.dr-rock.omen .stone { stroke-dasharray: 1.3 .9; }
+.dr-ring { fill: none; stroke: var(--ink); stroke-width: .6; stroke-dasharray: 1.4 .9; }
 .dr-board text.dr-tag { font-size: 4.4px; font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.4px; stroke-linejoin: round; }
 .dr-board text.dr-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }
 .dr-board text.dr-pop.big { font-size: 8px; }
-.dr-board .dr-hint text { font-size: 4.2px; font-weight: 650; fill: var(--ink-soft); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.6px; stroke-linejoin: round; }
+.dr-board .dr-hint text { font-size: 3.9px; font-weight: 650; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--dr-deck); stroke-width: 1.5px; stroke-linejoin: round; }
 
-/* under the field: the tiles coming and the forecast, and the line; at the end, how it went and New game */
-.dr-side { display: grid; gap: .45rem; }
-.dr-tray { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .7rem; height: 4.4rem; }
+/* the weather's glyphs */
+.dr-gl { width: 1.15rem; height: 1.15rem; display: block; }
+.dr-gl path, .dr-gl circle { fill: none; stroke: var(--ink); stroke-width: .95; stroke-linecap: round; stroke-linejoin: round; }
+.dr-gl.g-squall path, .dr-gl.g-wave path { stroke: var(--c2); }
+.dr-gl.g-fog path, .dr-gl.g-rock path { stroke: var(--ink-soft); }
+.dr-gl.g-moor path, .dr-gl.g-moor circle { stroke: var(--brass-lo); }
+.dr-gl.g-seal circle.back { fill: var(--c3); stroke: var(--brass); stroke-width: .5; }
+.dr-gl.g-seal path { stroke: var(--brass-hi); fill: var(--brass-hi); stroke-width: .4; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .dr-gl.g-squall path, html:not([data-mode="day"]) .dr-gl.g-wave path { stroke: #7FA6D6; } }
+html[data-mode="night"] .dr-gl.g-squall path, html[data-mode="night"] .dr-gl.g-wave path { stroke: #7FA6D6; }
+
+/* under the quay: the queue of five turns and the line */
+.dr-side { display: grid; gap: .4rem; }
+.dr-tray { display: grid; gap: .35rem; }
 .dr-tray[hidden] { display: none; }
-.dr-coming { display: grid; grid-template-columns: auto auto auto; align-items: end; gap: .35rem; height: 100%; box-sizing: border-box; padding: .4rem .55rem; border-radius: 6px; background: var(--dr-soft); }
-.dr-coming svg { display: block; }
-.dr-coming svg.now { width: 3rem; height: 3rem; }
-.dr-coming svg.next { width: 1.4rem; height: 1.4rem; opacity: .85; }
-.dr-forecast { display: grid; grid-template-columns: auto auto auto; align-items: center; gap: .15rem; margin-left: .3rem; padding-left: .5rem; border-left: 1px solid var(--rule); align-self: stretch; }
-.dr-forecast svg.now { width: 2rem; height: 2rem; }
-.dr-forecast svg.then { width: 1.25rem; height: 1.25rem; opacity: .7; }
-.dr-arrow { fill: none; stroke: var(--ink); stroke-width: .9; stroke-linecap: round; stroke-linejoin: round; }
-.dr-line { margin: 0; max-height: 100%; overflow: hidden; font-size: .9rem; line-height: 1.3; color: var(--ink-soft); }
+.dr-coming { display: grid; grid-template-columns: 1.35fr repeat(4, 1fr); gap: .3rem; box-sizing: border-box; padding: .35rem; border-radius: 6px; background: var(--dr-soft); border: 1px solid var(--rule); height: 6.3rem; }
+.dr-q { display: flex; flex-direction: column; align-items: center; gap: .18rem; min-width: 0; padding-top: .1rem; }
+.dr-q + .dr-q { border-left: 1px solid var(--rule); }
+.dr-q .dr-cr { width: 1.9rem; height: 1.9rem; display: block; }
+.dr-q.now .dr-cr { width: 2.5rem; height: 2.5rem; }
+.dr-q:nth-child(n+3) { opacity: .88; }
+.dr-q:nth-child(n+4) { opacity: .78; }
+.dr-q:nth-child(n+5) { opacity: .68; }
+.dr-q .winds { display: flex; align-items: center; justify-content: center; gap: .05rem; }
+.dr-q .winds svg.w1 { width: 1.4rem; height: 1.4rem; }
+.dr-q .winds svg.w2 { width: 1rem; height: 1rem; opacity: .75; }
+.dr-q.now .winds svg.w1 { width: 1.55rem; height: 1.55rem; }
+.dr-q .ev { display: flex; align-items: center; justify-content: center; gap: .08rem; min-height: 1.15rem; }
+.dr-q.fog { justify-content: center; opacity: .6; }
+.dr-q.fog .dr-gl { width: 1.5rem; height: 1.5rem; }
+.dr-arrow { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+.dr-line { margin: 0; min-height: 2.5rem; max-height: 2.8rem; overflow: hidden; font-size: .88rem; line-height: 1.3; color: var(--ink-soft); }
 .dr-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
   font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
-.dr-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 4.4rem; }
-.dr-result .dr-go { padding: 0 1.3rem; }
+.dr-go.alt { background: transparent; color: var(--ink); outline: 0; border: 1px solid var(--brass); }
+.dr-go[hidden] { display: none; }
+.dr-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; min-height: 8.4rem; }
+.dr-result .dr-go { padding: 0 1.1rem; }
+.dr-btns { display: grid; gap: .45rem; }
 .dr-result[hidden] { display: none; }
 .dr-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
 
@@ -66,13 +135,26 @@
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .dr-toast.show { opacity: 1; }
 
-/* held sideways: the field on the left with all the height; the score, what's coming and the line beside it */
+/* the menu: the levels by section, each with its quay in miniature */
+.dr-levels { display: grid; gap: .3rem; }
+.dr-sec { display: flex; align-items: center; gap: .4rem; margin-top: .5rem; font-stretch: var(--wide); text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 800; color: var(--brass-lo); }
+.dr-sec .dr-gl { width: 1.1rem; height: 1.1rem; }
+.dr-lrow { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.dr-lrow button { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); grid-template-rows: auto auto auto; column-gap: .5rem; align-items: center; text-align: left; padding: .4rem .5rem; border-radius: 4px; border: 1px solid var(--tile-edge); background: var(--tile); color: var(--ink); font: inherit; font-size: .82rem; cursor: pointer; }
+.dr-lrow button.cur { outline: 2px solid var(--brass); outline-offset: -2px; }
+.dr-lrow button .dr-mini { grid-row: 1 / span 3; width: 2.6rem; height: 2.6rem; }
+.dr-lrow button .dr-mini rect { fill: var(--brass); }
+.dr-lrow button b { font-size: .72rem; color: var(--ink-soft); }
+.dr-lrow button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dr-lrow button .st { font-size: .72rem; color: var(--brass-lo); letter-spacing: .1em; }
+
+/* held sideways: the quay on the left with all the height; the score, the orders, the queue and the line beside it */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.drift { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
-  #app.drift .dr-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
-  #app.drift .dr-field { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
-  #app.drift .dr-side { grid-column: 2; grid-row: 3; align-content: end; }
-  #app.drift .dr-tray { grid-template-columns: 1fr; grid-template-rows: 5rem 4.6rem; height: auto; align-items: start; }
-  #app.drift .dr-coming { justify-self: start; }
-  #app.drift .dr-result { grid-template-columns: 1fr; height: auto; }
+  #app.drift { --beside: 20rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
+  #app.drift .dr-strip { grid-column: 2; grid-row: 2; margin-top: 1rem; }
+  #app.drift .dr-orders { grid-column: 2; grid-row: 3; flex-wrap: wrap; }
+  #app.drift .dr-orders .dr-order { flex: 1 1 45%; }
+  #app.drift .dr-field { grid-column: 1; grid-row: 2 / span 3; margin-top: .8rem; }
+  #app.drift .dr-side { grid-column: 2; grid-row: 4; align-content: end; }
+  #app.drift .dr-result { grid-template-columns: 1fr; min-height: 0; }
 }
