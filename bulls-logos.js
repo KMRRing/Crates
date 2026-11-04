@@ -1,5 +1,5 @@
 // Conjunction's logos on the games screen, in the three houses' drawings (apps.js takes them in): a night disc and, along
-// the ecliptic (the path the planets keep to), five bodies in near-conjunction: Mars, Earth, the Sun at the middle in its
+// the ecliptic (the path the planets keep to), five bodies in near-conjunction: a lava world, an ice world, the Sun at the middle in its
 // halo, ringed Saturn and a small Moon, each lit from the upper left with a gilt rim light on its far edge. No gradient
 // ids and no clip paths (a logo is drawn in several places at once, some hidden): every sphere is stacked translucent circles.
 const f = n => +n.toFixed(2);
@@ -25,8 +25,10 @@ export const BULLS_CODEX = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellip
   + `<circle cx="50" cy="48" r="37.6" fill="none" stroke="#C8923A" stroke-width="1.3"/><circle cx="50" cy="48" r="35.6" fill="none" stroke="#F2D58C" stroke-width=".4" opacity=".55"/>`
   + STARS_100
   + `<path d="M12 62Q50 40 88 33" fill="none" stroke="#C8923A" stroke-width=".7" stroke-dasharray="1.2 2.6" opacity=".8"/>`
-  + ball(22, 58.5, 3.7, "#5A1912", "#C8503C", "#FFD9CC")
-  + ball(34.5, 54, 5.6, "#0F2A55", "#3C86CC", "#CDEBFF")
+  + ball(22, 58.5, 3.7, "#0A0606", "#2A1C18", "#FF9A4A", "#FF7A1F")
+  + `<path d="M19.6 57.4L21.4 58.8L22.2 61L24.6 60.6" fill="none" stroke="#FF8A2A" stroke-width=".7" stroke-linecap="round"/>`
+  + ball(34.5, 54, 5.6, "#5A93B2", "#D6F0FA", "#FFFFFF")
+  + `<path d="M30.4 52L34 54.4L38 53M34 54.4L35 58.4" fill="none" stroke="#2A4A6E" stroke-width=".7" stroke-linecap="round"/>`
   + `<circle cx="51" cy="47.5" r="17" fill="#F2B22E" opacity=".13"/><circle cx="51" cy="47.5" r="13" fill="#F6C75A" opacity=".2"/><circle cx="51" cy="47.5" r="10.4" fill="#FFE08A" opacity=".3"/>`
   + ball(51, 47.5, 8.4, "#B9760C", "#F8CB4C", "#FFFBE0", "#FFF3B8")
   + `<ellipse cx="68" cy="41" rx="10.4" ry="2.9" transform="rotate(-17 68 41)" fill="none" stroke="#7B5A22" stroke-width="1.7"/>`
@@ -40,8 +42,8 @@ export const BULLS_CODEX = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellip
 export const BULLS_MODERN = `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#101B36"/><circle cx="10" cy="10" r="8.3" fill="none" stroke="#E1AB24" stroke-width=".55"/>`
   + `<circle cx="12.4" cy="6.6" r="3.8" fill="#35508F" opacity=".4"/>`
   + `<circle cx="5" cy="6" r=".28" fill="#F4EBD2"/><circle cx="14.6" cy="4.2" r=".24" fill="#F4EBD2"/><circle cx="16" cy="13.8" r=".28" fill="#F4EBD2"/><circle cx="7.2" cy="15.4" r=".24" fill="#F4EBD2"/>`
-  + ball(4.6, 12.4, .85, "#8F3328", "#E0674F", "#FFE0D6")
-  + ball(7.2, 11.2, 1.25, "#1B4A86", "#4F97D8", "#DDF0FF")
+  + ball(4.6, 12.4, .85, "#0A0606", "#2A1C18", "#FF9A4A", "#FF7A1F")
+  + ball(7.2, 11.2, 1.25, "#5A93B2", "#D6F0FA", "#FFFFFF")
   + `<circle cx="10.2" cy="10" r="3.1" fill="#F2B22E" opacity=".22"/>`
   + ball(10.2, 10, 2, "#C98A10", "#F8CB4C", "#FFFBE0", "#FFF3B8")
   + `<ellipse cx="14" cy="8.4" rx="2.4" ry=".68" transform="rotate(-17 14 8.4)" fill="none" stroke="#B38A3C" stroke-width=".38"/>`

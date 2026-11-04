@@ -1,4 +1,5 @@
-// Conjunction's bodies, lit: each of the eight is shaded pixel by pixel as a real sphere (its surface a procedural map on the
+// Conjunction's bodies, lit: the eight (a lava world, the Sun, ringed Saturn, the Moon, a comet, Jupiter, an ice world and a
+// cloud-wrapped world, as unlike as a silhouette, a colour and a surface can make them) are each shaded pixel by pixel as a real sphere (its surface a procedural map on the
 // sphere, one key light from the upper left, a specular glint, a soft night side, a gilt rim light from behind), and the
 // rings are planes that cast a shadow on the globe and take one from it. Pure maths: the pixels come back as RGBA, so Node
 // tests them; `bakeBodies` (browser only) turns them into pictures the pegs use as backgrounds, once per page load (~8
@@ -35,76 +36,66 @@ const CRATERS = [[-0.35, -0.3, 0.88, 0.3], [0.5, -0.45, 0.74, 0.17], [0.28, 0.4,
 // Each body: the sphere's radius (a fraction of the picture's half width: a ringed or rayed one is smaller, so it reads by its
 // shape), its look, and a ring if it has one { tilt from face-on, major axis angle, inner and outer radius in planet radii }.
 export const SPECS = [
-  { S: 0.88, ks: 0.18, sh: 18, atmo: [0.95, 0.5, 0.32, 0.5] },                                                                   // 0 Mars
-  { S: 0.56, sun: true },                                                                                                          // 1 Sun
-  { S: 0.64, ks: 0.3, sh: 26, atmo: [0.5, 0.95, 0.95, 0.8], ring: { tilt: 1.3, rot: -1.36, r1: 1.34, r2: 1.66 } },            // 2 Uranus
-  { S: 0.88, ks: 0.6, sh: 44, atmo: [0.35, 0.62, 1, 1] },                                                                         // 3 Earth
-  { S: 0.88, ks: 0.04, sh: 8, atmo: null },                                                                                        // 4 Moon
-  { S: 0.88, ks: 0.5, sh: 30, atmo: null, gilt: true },                                                                           // 5 Mercury
-  { S: 0.5, ks: 0.25, sh: 22, atmo: [0.8, 0.6, 0.95, 0.4], ring: { tilt: 1.12, rot: -0.35, r1: 1.28, r2: 1.9 } },              // 6 Saturn
-  { S: 0.88, ks: 0.2, sh: 18, atmo: [0.95, 0.7, 0.45, 0.35] },                                                                    // 7 Jupiter
+  { S: 0.72, ks: 0.1, sh: 10, atmo: [1, 0.3, 0.06, 0.8] },                                                                        // 0 Vulcan: a lava world, mid-sized and dark
+  { S: 0.56, sun: true },                                                                                                          // 1 Sun: rays
+  { S: 0.5, ks: 0.25, sh: 22, atmo: [0.8, 0.7, 0.45, 0.4], ring: { tilt: 1.12, rot: -0.35, r1: 1.28, r2: 1.9 } },              // 2 Saturn: a broad ring
+  { S: 0.6, ks: 0.04, sh: 8, atmo: null },                                                                                         // 3 Moon: small and grey
+  { S: 0.42, ks: 0.7, sh: 40, atmo: [0.5, 0.8, 1, 0.9], comet: true, c: [-0.4, -0.4] },                                          // 4 Comet: a small head, a long tail
+  { S: 0.95, ks: 0.2, sh: 18, atmo: [0.95, 0.7, 0.45, 0.35] },                                                                    // 5 Jupiter: the biggest
+  { S: 0.82, ks: 0.9, sh: 60, atmo: [0.55, 0.85, 1, 0.6] },                                                                        // 6 Europa: an ice world
+  { S: 0.7, ks: 0.15, sh: 14, atmo: [0.9, 0.55, 1, 1.4] },                                                                     // 7 Venus: wrapped in violet cloud, small and hazy
 ];
 
 /** The surface of body i at the point p of the unit sphere (turned by `rot` about its axis): [albedo r,g,b, shininess scale, cloud]. */
 function surface(i, p) {
   switch (i) {
-    case 0: {                                                    // Mars: rust, dark plains, a white cap
-      const n = fbm(p, 2.4), m = fbm(p, 4.5, 2);
-      let c = mixc([0.74, 0.34, 0.2], [0.52, 0.22, 0.14], smooth(0.4, 0.65, n));
-      c = mixc(c, [0.3, 0.14, 0.11], smooth(0.52, 0.64, fbm([p[0] + 3, p[1], p[2]], 1.7, 3)) * 0.85);
-      c = mixc(c, [0.92, 0.55, 0.38], smooth(0.55, 0.8, m) * 0.25);
-      const cap = smooth(-0.78 - m * 0.1, -0.9 - m * 0.1, p[1]);
-      return [...mixc(c, [0.98, 0.96, 0.92], cap), 1];
+    case 0: {                                                    // Vulcan: black crust split by glowing lava
+      const n = fbm(p, 2.2, 3), ridge = 1 - Math.abs(2 * fbm(p, 3.1, 3) - 1), ridge2 = 1 - Math.abs(2 * fbm([p[0] + 4, p[1] - 2, p[2]], 6.5, 2) - 1);
+      const crack = Math.max(smooth(0.82, 0.93, ridge), smooth(0.9, 0.96, ridge2) * 0.7);
+      const c = mixc([0.1, 0.075, 0.07], [0.2, 0.15, 0.13], n);
+      const em = mixc([0.95, 0.28, 0.05], [1, 0.8, 0.3], smooth(0.93, 1, ridge)).map(x => x * crack * 1.15);
+      return [...mixc(c, [0.05, 0.03, 0.03], crack), 0.5, 0, em];
     }
-    case 2: {                                                    // Uranus: a pale, glassy cyan with faint belts
-      const b = 0.5 + 0.5 * Math.sin(p[1] * 9 + fbm(p, 2, 2) * 2);
-      return [...mixc([0.5, 0.82, 0.84], [0.62, 0.9, 0.9], b * 0.7), 1];
+    case 2: {                                                    // Saturn: pale gold with fine belts
+      const b = 0.5 + 0.5 * Math.sin(p[1] * 13 + fbm(p, 2.5, 2) * 2.4);
+      return [...mixc([0.78, 0.62, 0.34], [0.98, 0.9, 0.66], b * 0.85), 1];
     }
-    case 3: {                                                    // Earth: ocean, land, ice, cloud
-      const land = fbm(p, 1.7, 4), sea = smooth(0.5, 0.52, land);
-      let c = mixc([0.04, 0.2, 0.52], [0.07, 0.3, 0.62], fbm(p, 6, 2));
-      const lc = mixc([0.2, 0.5, 0.24], [0.62, 0.52, 0.3], smooth(0.55, 0.72, fbm(p, 5, 2)));
-      c = mixc(c, lc, sea);
-      c = mixc(c, [0.95, 0.97, 1], smooth(0.84, 0.94, Math.abs(p[1]) + (fbm(p, 5, 2) - 0.5) * 0.1));
-      const cloud = smooth(0.54, 0.66, fbm([p[0] + 9, p[1] * 1.4, p[2] - 4], 2.6, 4)) * 0.85;
-      return [...mixc(c, [1, 1, 1], cloud), 1 - sea * 0.85 - cloud * 0.8, cloud];
-    }
-    case 4: {                                                    // Moon: grey regolith and craters
+    case 3: {                                                    // Moon: grey regolith and craters
       const n = fbm(p, 3, 3);
-      let c = mixc([0.62, 0.6, 0.55], [0.82, 0.8, 0.74], n);
-      c = mixc(c, [0.42, 0.42, 0.42], smooth(0.5, 0.66, fbm([p[0] - 5, p[1], p[2]], 1.5, 2)) * 0.55);
+      let c = mixc([0.56, 0.56, 0.55], [0.8, 0.8, 0.78], n);
+      c = mixc(c, [0.4, 0.4, 0.4], smooth(0.5, 0.66, fbm([p[0] - 5, p[1], p[2]], 1.5, 2)) * 0.55);
       for (const k of CRATERS) {
         const t = Math.acos(clamp(dot(p, k))) / k[3];
-        if (t < 1) c = mixc(c, [0.36, 0.35, 0.33], (1 - t * t) * 0.6);
-        else if (t < 1.22) c = mixc(c, [0.93, 0.92, 0.86], (1 - (t - 1) / 0.22) * 0.45);
+        if (t < 1) c = mixc(c, [0.3, 0.3, 0.3], (1 - t * t) * 0.7);
+        else if (t < 1.22) c = mixc(c, [0.93, 0.93, 0.9], (1 - (t - 1) / 0.22) * 0.5);
       }
       return [...c, 1];
     }
-    case 5: {                                                    // Mercury: slate, a basin of rings
-      const n = fbm(p, 3.2, 3);
-      let c = mixc([0.2, 0.24, 0.28], [0.36, 0.4, 0.44], n);
-      const b = norm([0.35, 0.05, 0.93]), t = Math.acos(clamp(dot(p, b)));
-      for (const r of [0.3, 0.17]) c = mixc(c, [0.68, 0.76, 0.82], smooth(0.025, 0, Math.abs(t - r)) * 0.8);
-      c = mixc(c, [0.1, 0.12, 0.15], smooth(0.3, 0.17, t) * 0.5);
-      for (const k of [[-0.62, 0.3, 0.72, 0.11], [0.1, -0.5, 0.86, 0.09], [-0.2, 0.62, 0.76, 0.08]]) {
-        const tt = Math.acos(clamp(dot(p, norm(k)))) / k[3];
-        if (tt < 1) c = mixc(c, [0.08, 0.1, 0.13], (1 - tt * tt) * 0.7);
-      }
-      return [...c, 1];
+    case 4: {                                                    // the comet's head: dirty ice, white and blue
+      const n = fbm(p, 4, 3);
+      return [...mixc([0.8, 0.88, 0.97], [1, 1, 1], n), 1];
     }
-    case 6: {                                                    // Saturn: soft lilac and gold belts
-      const b = 0.5 + 0.5 * Math.sin(p[1] * 13 + fbm(p, 2.5, 2) * 2.4);
-      return [...mixc([0.62, 0.42, 0.74], [0.9, 0.74, 0.86], b * 0.8), 1];
-    }
-    case 7: {                                                    // Jupiter: belts and the great red spot
+    case 5: {                                                    // Jupiter: belts and the great red spot
       const warp = fbm(p, 3, 3) * 0.7, s = Math.sin(p[1] * 11 + warp * 4), s2 = Math.sin(p[1] * 27 + warp * 6);
-      let c = mixc([0.95, 0.8, 0.58], [0.62, 0.32, 0.16], smooth(-0.3, 0.45, s));
+      let c = mixc([0.95, 0.8, 0.58], [0.58, 0.28, 0.12], smooth(-0.3, 0.45, s));
       c = mixc(c, [0.98, 0.9, 0.75], smooth(0.2, 1, s2) * 0.35);
       const lon = Math.atan2(p[0], p[2]), lat = Math.asin(clamp(p[1]));
       const dl = (lon - 0.5) / 0.4, da = (lat - 0.3) / 0.17, q = dl * dl + da * da;
       c = mixc(c, [0.62, 0.17, 0.1], smooth(1, 0.35, q) * 0.95);
       c = mixc(c, [0.95, 0.75, 0.55], smooth(1.9, 1.1, q) * smooth(0.9, 1.1, q) * 0.5);
       return [...c, 1];
+    }
+    case 6: {                                                    // Europa: pale cyan ice crossed by long dark cracks
+      const n = fbm(p, 2.5, 3);
+      let c = mixc([0.76, 0.9, 0.96], [0.93, 0.98, 1], n);
+      const l1 = 1 - Math.abs(2 * fbm(p, 2.0, 2) - 1), l2 = 1 - Math.abs(2 * fbm([p[0] + 6, p[1] + 1, p[2]], 3.6, 2) - 1);
+      const crack = Math.max(smooth(0.88, 0.95, l1), smooth(0.9, 0.96, l2) * 0.8);
+      c = mixc(c, [0.16, 0.3, 0.46], crack * 0.9);
+      return [...c, 1];
+    }
+    case 7: {                                                    // Venus: rose cloud in slow swirls, no surface at all
+      const w = fbm(p, 2.2, 3) * 3.2, b = 0.5 + 0.5 * Math.sin(p[1] * 7 + w + Math.sin(p[0] * 3 + w) * 0.9);
+      return [...mixc([0.42, 0.16, 0.5], [0.86, 0.6, 0.86], smooth(0.2, 0.85, b)), 0.6, 1];
     }
   }
   return [0.8, 0.8, 0.8, 1];
@@ -113,7 +104,6 @@ function surface(i, p) {
 /** The ring's colour and opacity at ρ planet radii from the centre: [r,g,b,a]. */
 function ringAt(i, rho, r1, r2, p) {
   const t = (rho - r1) / (r2 - r1);
-  if (i === 2) return [0.82, 0.96, 0.96, 0.9];
   const gap = smooth(0.43, 0.46, t) * smooth(0.55, 0.52, t);   // the Cassini division
   const dens = (0.45 + 0.55 * noise(t * 38, 0, 3)) * (1 - gap * 0.92) * smooth(0, 0.04, t) * smooth(1, 0.94, t);
   const col = mixc([0.72, 0.56, 0.34], [0.96, 0.85, 0.6], noise(t * 17, 5, 1));
@@ -122,7 +112,7 @@ function ringAt(i, rho, r1, r2, p) {
 
 /** Body i drawn into an n by n RGBA picture, its surface turned `rot` radians about its axis. */
 export function renderBody(i, n, rot = 0.5) {
-  const sp = SPECS[i], S = sp.S, px = new Uint8ClampedArray(n * n * 4), cr = Math.cos(rot), sr = Math.sin(rot);
+  const sp = SPECS[i], S = sp.S, px = new Uint8ClampedArray(n * n * 4), cr = Math.cos(rot), sr = Math.sin(rot), [cx, cy] = sp.c || [0, 0];
   let nr = null, e1, ew;
   if (sp.ring) {                                                 // the ring's plane: its major axis e1 in the picture, tilted by `tilt` from face-on
     const { tilt, rot: phi } = sp.ring, c = Math.cos(phi), s = Math.sin(phi);
@@ -132,7 +122,7 @@ export function renderBody(i, n, rot = 0.5) {
     if (nr[2] < 0) nr = nr.map(x => -x);
   }
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const u = ((x + 0.5) / n) * 2 - 1, v = ((y + 0.5) / n) * 2 - 1;
+    const u0 = ((x + 0.5) / n) * 2 - 1, v0 = ((y + 0.5) / n) * 2 - 1, u = u0 - cx, v = v0 - cy;
     const d = Math.hypot(u, v) / S, inside = d <= 1;
     let col = [0, 0, 0], a = 0;
     // the sphere
@@ -140,7 +130,7 @@ export function renderBody(i, n, rot = 0.5) {
     if (edge > 0 && !sp.sun) {
       const nx = u / S / Math.max(d, 1), ny = v / S / Math.max(d, 1), nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny)), N = [nx, ny, nz];
       const p = [N[0] * cr + N[2] * sr, N[1], -N[0] * sr + N[2] * cr];
-      const [ar, ag, ab, sk, cloud] = surface(i, p);
+      const [ar, ag, ab, sk, cloud, em] = surface(i, p);
       let lam = dot(N, LIGHT);
       // a ring across the light shades the globe
       if (nr) {
@@ -155,6 +145,7 @@ export function renderBody(i, n, rot = 0.5) {
       let c = [ar * (NIGHT[0] + diff * WARM[0]), ag * (NIGHT[1] + diff * WARM[1]), ab * (NIGHT[2] + diff * WARM[2])];
       const spec = Math.pow(Math.max(0, dot(N, HALF)), sp.sh) * sp.ks * (sk ?? 1) * light;
       c = [c[0] + spec, c[1] + spec * 0.98, c[2] + spec * 0.94];
+      if (em) c = [c[0] + em[0], c[1] + em[1], c[2] + em[2]];
       const fres = Math.pow(1 - nz, 2.6);
       if (sp.atmo) { const k = fres * sp.atmo[3] * (0.25 + 0.75 * clamp(lam + 0.35)); c = [c[0] + sp.atmo[0] * k, c[1] + sp.atmo[1] * k, c[2] + sp.atmo[2] * k]; }
       const rim = Math.pow(1 - nz, 3) * clamp(dot(N, RIM) + 0.45) * (sp.gilt ? 2.4 : 1.05) + (sp.gilt ? Math.pow(1 - nz, 5) * 1.2 : 0);
@@ -180,6 +171,19 @@ export function renderBody(i, n, rot = 0.5) {
       if (ga > 0) {
         const gc = [1, 0.74 + reach * 0.1, 0.26 + reach * 0.1];
         if (a >= 1) { /* the disc is opaque */ } else { col = a > 0 ? mixc(gc, col, a) : gc; a = Math.max(a, ga); }
+      }
+    }
+    if (sp.comet) {                                              // the tail: dust, curved and cream; ions, straight and blue; both away from the light
+      const along = (u + v) * Math.SQRT1_2, across = (u - v) * Math.SQRT1_2, L = 2.1;
+      if (along > 0) {
+        const f = clamp(1 - along / L), dust = Math.exp(-(((across - along * 0.14) / (0.36 * f + 0.05)) ** 2)) * Math.pow(f, 0.9) * 0.8 * smooth(0, 0.3, along);
+        const ion = Math.exp(-(((across + along * 0.08) / (0.12 * f + 0.03)) ** 2)) * Math.pow(f, 0.7) * smooth(0, 0.3, along);
+        const coma = Math.exp(-Math.max(0, Math.hypot(u, v) - S) * 9) * 0.5;
+        const ta = clamp(dust + ion + coma), tc = mixc(mixc([1, 0.92, 0.74], [0.45, 0.78, 1], ion / (ion + dust + 1e-6)), [0.9, 0.97, 1], coma / (ta + 1e-6) * 0.6);
+        if (ta > 0.01) { col = a > 0 ? mixc(tc, col, a) : tc; a = a + (1 - a) * ta; }
+      } else {
+        const coma = Math.exp(-Math.max(0, Math.hypot(u, v) - S) * 9) * 0.5;
+        if (coma > 0.01) { const tc = [0.85, 0.95, 1]; col = a > 0 ? mixc(tc, col, a) : tc; a = a + (1 - a) * coma; }
       }
     }
     // the ring, in front of the globe or past it
