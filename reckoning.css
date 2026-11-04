@@ -30,7 +30,12 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
 .rk-aim[hidden] { display: none; }
 .rk-score { order: 2; margin-left: auto; font-size: .95rem; color: var(--ink); text-shadow: 0 0 .35rem var(--sheet), 0 0 .35rem var(--sheet); }
 .rk-score b { font-size: 1.2rem; font-weight: 800; }
-.rk-combo { order: 3; min-width: 2.6rem; padding: .1rem .4rem; border-radius: 4px; font-size: .8rem; font-weight: 800; text-align: center; visibility: hidden;
+.rk-coins { order: 3; display: inline-flex; align-items: center; gap: .25rem; font-size: .95rem; font-weight: 800; color: var(--ink); text-shadow: 0 0 .35rem var(--sheet), 0 0 .35rem var(--sheet); }
+.rk-coin { width: .8rem; height: .8rem; border-radius: 50%; background: #F2C230; box-shadow: inset 0 0 0 2px #C9961A; display: inline-block; }
+.rk-gem { display: inline-flex; align-items: center; gap: .2rem; margin-left: .3rem; }
+.rk-gem[hidden] { display: none; }
+.rk-amber { width: .6rem; height: .85rem; border-radius: 50% 50% 55% 55%; background: #F0A12B; box-shadow: inset 0 0 0 2px #C9761A; display: inline-block; }
+.rk-combo { order: 4; min-width: 2.6rem; padding: .1rem .4rem; border-radius: 4px; font-size: .8rem; font-weight: 800; text-align: center; visibility: hidden;
   background: var(--rk-in); color: var(--on-c); }
 .rk-combo.on { visibility: visible; }
 .rk-toast { position: absolute; left: 0; right: 0; top: 22%; margin: 0; text-align: center; font-weight: 800; font-size: 1.15rem; pointer-events: none; opacity: 0;

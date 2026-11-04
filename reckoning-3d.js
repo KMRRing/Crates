@@ -12,7 +12,7 @@
 // body move between the rules' steps (springs, a pose carried over from the one before, the scarf and coat tails dragged by the
 // air) is reckoning-move.js; here it is only drawn.
 import * as THREE from "./vendor/three-run.js";
-import { LANE_W, WALL_X, KINDS, ROLL_T, JUMP_V, speed, solid } from "./reckoning-engine.js";
+import { LANE_W, WALL_X, KINDS, ROLL_T, JUMP_V, speed, solid, tide, bridgeUp } from "./reckoning-engine.js";
 import { Spring, Inertia, Streamer, CameraRig, clamp, lerp, ease } from "./reckoning-move.js";
 
 const BEND = 0.0013;                    // how fast the world drops away: metres of fall per metre-squared of distance
@@ -330,6 +330,15 @@ export function createRunner(host) {
         parts.legs.push(leg);
         leg.userData = { s, k };
       }
+    } else if (f.kind === "barrel") {
+      put(cyl, M.timber, 0.85, 0.85, 0.85, 0, 0.425, 0);
+      for (const y of [0.17, 0.68]) put(cyl, M.gilt, 0.9, 0.07, 0.9, 0, y, 0);
+      put(cyl, M.seam, 0.5, 0.02, 0.5, 0, 0.855, 0);                                       // the lid
+    } else if (f.kind === "balloon") {
+      parts.body = put(sph, M.good, 0.8, 0.98, 0.8, 0, 0.66, 0);
+      put(sph, M.eye, 0.2, 0.28, 0.14, -0.14, 0.86, -0.3);                                  // the shine, on the side the camera sees
+      put(cone, M.timber, 0.14, 0.16, 0.14, 0, 0.12, 0).rotation.x = Math.PI;               // the knot
+      put(box, M.ring, 0.018, 0.85, 0.018, 0, -0.32, 0);                                    // and the string
     } else {
       put(sph, M.gull, 0.5, 0.42, 1.0, 0, 0.4, 0);
       put(cone, M.gilt, 0.12, 0.3, 0.12, 0, 0.42, 0.55).rotation.x = Math.PI / 2;
@@ -359,6 +368,19 @@ export function createRunner(host) {
   const things = new Map(), thingFree = [];
   const part = (to, geo, m, sx, sy, sz, x, y, z) => { const o = new THREE.Mesh(geo, m); o.scale.set(sx, sy, sz); o.position.set(x, y, z); to.add(o); return o; };
 
+  const BRIDGEC = [0xC5483A, 0x3E78B5];                                                  // red and blue: the lever's two colours
+  const basic = hex => curved(new THREE.MeshBasicMaterial({ color: hex, side: THREE.DoubleSide }));
+  const BASIC = { green: basic(0x2F9E6B), red: basic(0xC8402F), amber: basic(0xE8A21A), gold: basic(0xF2C230) };
+  const triGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 3), discGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 18);
+  /** A bridge colour's mark, in shape as well as colour: a triangle for red and a disc for blue (flat on a deck, or `upright` on a board). */
+  function glyph(i, size, thick, upright = false) {
+    const m_ = new THREE.Mesh(i ? discGeo : triGeo, flat(BRIDGEC[i ? 1 : 0], 0.35));
+    m_.scale.set(size * 2, thick, size * 2); if (upright) m_.rotation.x = Math.PI / 2;
+    const g_ = new THREE.Group(); g_.add(m_);
+    if (upright) { const back = new THREE.Mesh(box, M.timber); back.scale.set(size * 2.6, size * 2.6, 0.04); back.position.z = 0.04; g_.add(back); }
+    return g_;
+  }
+
   /** The shape of one thing: `pose` is what moves in it (a bridge lies down, an arm lifts), `base` where it stands. */
   function makeThing(kind, o) {
     const g = new THREE.Group(), T = { group: g, kind, mark: o.mark || 0 };
@@ -372,33 +394,70 @@ export function createRunner(host) {
     } else if (kind === "cart") {
       part(g, box, M.wall, 1.5, 1.4, 1.5, 0, 0.7, 0); part(g, box, M.timber, 1.4, 1.1, 1.3, 0, 1.95, 0);
       part(g, box, M.gilt, 1.55, 0.08, 1.55, 0, 1.4, 0);
-    } else if (kind === "toll" || kind === "bridge" || kind === "tide") {
-      // a gate across a lane: two posts, and a leaf that is down while it blocks and up (or flat, or gone) while it does not
+    } else if (kind === "toll") {
+      // a toll booth: two posts and a bar that lifts for the token of its number (the plate over it shows the number)
       for (const s of [-1, 1]) part(g, cyl, M.timber, 0.16, 2.7, 0.16, s * 0.78, 1.35, 0);
       T.leaf = new THREE.Group(); g.add(T.leaf);
-      if (kind === "toll") {
-        T.leaf.position.set(-0.78, 1.15, 0);
-        part(T.leaf, box, M.crab, 1.56, 0.2, 0.14, 0.78, 0, 0); part(T.leaf, box, M.shirt, 0.3, 0.2, 0.16, 0.3, 0, 0); part(T.leaf, box, M.shirt, 0.3, 0.2, 0.16, 1.1, 0, 0);
-        part(g, box, flat(MARKC[o.mark]), 1.5, 0.5, 0.1, 0, 2.45, 0);
-        for (let i = 0; i < o.mark; i++) part(g, sph, M.shirt, 0.2, 0.2, 0.12, (i - (o.mark - 1) / 2) * 0.34, 2.45, -0.07);
-      } else if (kind === "bridge") {
-        T.leaf.position.set(0, 0, 0.1);
-        part(T.leaf, box, M.timber, 1.5, 2.5, 0.22, 0, 1.25, 0); part(T.leaf, box, M.gilt, 1.5, 0.1, 0.26, 0, 2.2, 0); part(T.leaf, box, M.gilt, 1.5, 0.1, 0.26, 0, 0.5, 0);
-        part(g, box, flat(o.flip ? 0x3E78B5 : 0xC5483A), 0.5, 0.3, 0.12, 0, 2.95, 0);        // a bridge up at 0 is red, at 1 blue: the lever's colour
-      } else {
-        T.leaf.position.set(0, 0, 0);
-        for (let i = -2; i <= 2; i++) part(T.leaf, box, M.steel, 0.07, 2.5, 0.07, i * 0.3, 1.25, 0);
-        part(T.leaf, box, M.steel, 1.5, 0.08, 0.1, 0, 0.5, 0); part(T.leaf, box, M.steel, 1.5, 0.08, 0.1, 0, 1.5, 0);
-        part(g, box, flat(0x3E78B5, 0.4), 1.5, 0.12, 0.12, 0, 2.75, 0);
-      }
+      T.leaf.position.set(-0.78, 1.15, 0);
+      part(T.leaf, box, M.crab, 1.56, 0.2, 0.14, 0.78, 0, 0); part(T.leaf, box, M.shirt, 0.3, 0.2, 0.16, 0.3, 0, 0); part(T.leaf, box, M.shirt, 0.3, 0.2, 0.16, 1.1, 0, 0);
+      part(g, box, flat(MARKC[o.mark]), 1.5, 0.5, 0.1, 0, 2.45, 0);
+      for (let i = 0; i < o.mark; i++) part(g, sph, M.shirt, 0.2, 0.2, 0.12, (i - (o.mark - 1) / 2) * 0.34, 2.45, -0.07);
+      T.k = 1;
+    } else if (kind === "bridge") {
+      // a drawbridge over a channel: a span hinged at its far end that lies flat (cross it) or stands on end (a wall). Its colour and
+      // mark (red triangle, blue disc) are the lever's: stepping on a lever lowers the bridges of the colour it shows
+      const col_ = o.flip ? BRIDGEC[1] : BRIDGEC[0];
+      part(g, box, flat(0x1d4a6e), 1.62, 0.05, 2.4, 0, 0.025, 0);                          // the channel under it
+      part(g, box, M.wall, 0.3, 0.7, 2.4, -0.88, 0.35, 0); part(g, box, M.wall, 0.3, 0.7, 2.4, 0.88, 0.35, 0);       // its banks
+      part(g, box, M.wall, 1.7, 0.45, 0.4, 0, 0.22, 1.1);                                     // the sill the leaf rests on at the far end
+      T.hinge = new THREE.Group(); T.hinge.position.set(0, 0.3, 1.2); g.add(T.hinge);
+      part(T.hinge, box, M.timber, 1.46, 0.12, 2.3, 0, 0, -1.15);
+      for (const s_ of [-1, 1]) part(T.hinge, box, flat(col_, 0.2), 0.1, 0.16, 2.3, s_ * 0.68, 0.06, -1.15);        // coloured rails
+      part(T.hinge, box, M.gilt, 1.46, 0.05, 0.1, 0, 0.07, -0.1); part(T.hinge, box, M.gilt, 1.46, 0.05, 0.1, 0, 0.07, -2.2);
+      const top_ = glyph(o.flip, 0.3, 0.03); top_.position.set(0, 0.09, -1.15); T.hinge.add(top_);                       // the mark on both faces of the span
+      const under_ = glyph(o.flip, 0.3, 0.03); under_.position.set(0, -0.09, -1.15); T.hinge.add(under_);
+      for (const s_ of [-1, 1]) part(g, box, M.wall, 0.32, 2.2, 0.32, s_ * 0.88, 1.1, 1.3);                         // the tower on the far bank
+      const sign = glyph(o.flip, 0.28, 0.06, true); sign.position.set(-0.88, 1.35, -1.25); g.add(sign);               // and a board at the near bank
+      part(g, box, M.timber, 0.07, 1.3, 0.07, -0.88, 0.65, -1.25);
+      T.k = 1;
+    } else if (kind === "tide") {
+      // a sluice gate: a grating on a frame that is raised clear over the lane (open: green lamp and a ring) or lowered to the planks (shut:
+      // red lamp and a cross), half way and flashing amber for the last moments before it changes; water runs in the channel when it is open
+      for (const s_ of [-1, 1]) part(g, cyl, M.timber, 0.18, 3.0, 0.18, s_ * 0.8, 1.5, 0);
+      part(g, box, M.timber, 1.9, 0.3, 0.3, 0, 3.0, 0);
+      part(g, box, flat(0x1d4a6e), 1.62, 0.05, 1.3, 0, 0.025, 0);
+      T.water = part(g, box, flat(0x4FA3D8, 0.35), 1.5, 0.04, 1.2, 0, 0.06, 0);
+      T.leaf = new THREE.Group(); g.add(T.leaf);
+      for (let i = -2; i <= 2; i++) part(T.leaf, box, M.steel, 0.09, 2.5, 0.09, i * 0.3, 1.25, 0);
+      part(T.leaf, box, M.steel, 1.5, 0.1, 0.12, 0, 2.45, 0); part(T.leaf, box, M.steel, 1.5, 0.1, 0.12, 0, 1.2, 0);
+      for (let i = 0; i < 6; i++) part(T.leaf, box, flat(i & 1 ? 0xF2F2EC : 0xC8402F), 0.25, 0.14, 0.15, (i - 2.5) * 0.25, 0.1, 0);     // a hazard stripe on its lower rail
+      T.lamp = part(g, sph, BASIC.green, 0.3, 0.3, 0.3, 0, 3.3, 0);
+      T.ring = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.31, 20), BASIC.green); T.ring.position.set(0, 3.85, 0); g.add(T.ring);                          // passable
+      T.cross = new THREE.Group(); T.cross.position.set(0, 3.85, 0); g.add(T.cross);                                                                          // blocked
+      for (const a of [Math.PI / 4, -Math.PI / 4]) { const b_ = part(T.cross, box, BASIC.red, 0.1, 0.62, 0.05, 0, 0, 0); b_.rotation.z = a; }
       T.k = 1;
     } else if (kind === "token") {
       T.spin = part(g, cyl, flat(MARKC[o.mark], 0.25), 0.7, 0.1, 0.7, 0, 0, 0); T.spin.rotation.x = Math.PI / 2;
       for (let i = 0; i < o.mark; i++) part(g, sph, M.shirt, 0.11, 0.11, 0.11, (i - (o.mark - 1) / 2) * 0.2, 0, -0.07);
     } else if (kind === "lever") {
-      part(g, box, M.timber, 0.7, 0.2, 0.5, 0, -0.35, 0);
-      T.spin = new THREE.Group(); T.spin.position.set(0, -0.25, 0); g.add(T.spin);
-      part(T.spin, box, M.steel, 0.1, 0.8, 0.1, 0, 0.4, 0); part(T.spin, sph, flat(0xC5483A, 0.2), 0.24, 0.24, 0.24, 0, 0.82, 0);
+      // a lever on a plate with a red pad (triangle) and a blue pad (disc): the handle leans to the colour whose bridges are down now,
+      // the pad of the colour the next step will lower pulses, and a dashed line of that colour runs down the quay to the bridges
+      part(g, box, M.timber, 1.0, 0.16, 0.7, 0, -0.36, 0);
+      T.pads = [0, 1].map(i => { const pd = part(g, box, flat(BRIDGEC[i], 0.2), 0.34, 0.07, 0.34, (i ? 1 : -1) * 0.3, -0.26, 0); const gl = glyph(i, 0.16, 0.05); gl.position.set((i ? 1 : -1) * 0.3, -0.2, 0); g.add(gl); return pd; });
+      T.spin = new THREE.Group(); T.spin.position.set(0, -0.26, 0); g.add(T.spin);
+      part(T.spin, box, M.steel, 0.1, 0.8, 0.1, 0, 0.4, 0);
+      T.knobs = [0, 1].map(i => { const kn = part(T.spin, sph, flat(BRIDGEC[i], 0.3), 0.28, 0.28, 0.28, 0, 0.85, 0); kn.visible = false; return kn; });
+      T.wire = Array.from({ length: 14 }, () => { const w_ = part(g, box, flat(BRIDGEC[0], 0.4), 0.22, 0.03, 0.55, 0, -0.43, 1); w_.visible = false; return w_; });
+    } else if (kind === "coin") {
+      T.spin = new THREE.Group(); g.add(T.spin);
+      const c_ = part(T.spin, cyl, flat(0xF2C230, 0.55), 0.46, 0.07, 0.46, 0, 0, 0); c_.rotation.x = Math.PI / 2;
+      const r_ = part(T.spin, cyl, flat(0xC9961A, 0.3), 0.32, 0.09, 0.32, 0, 0, 0); r_.rotation.x = Math.PI / 2;
+    } else if (kind === "gem") {
+      // amber: a big faceted drop with a ring round it, glowing, so it is seen from far off
+      T.spin = new THREE.Group(); g.add(T.spin);
+      part(T.spin, sph, flat(0xF0A12B, 0.75), 0.5, 0.74, 0.5, 0, 0, 0);
+      part(T.spin, cone, flat(0xFFD27A, 0.8), 0.34, 0.4, 0.34, 0, 0.38, 0); part(T.spin, cone, flat(0xC9761A, 0.6), 0.34, 0.4, 0.34, 0, -0.38, 0).rotation.x = Math.PI;
+      T.halo = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.58, 24), BASIC.gold); g.add(T.halo);
     } else if (kind === "amber") {
       T.spin = part(g, sph, flat(GOODC.amber, 0.55), 0.46, 0.62, 0.46, 0, 0, 0);
     } else if (kind === "herring" || kind === "grog") {
@@ -435,20 +494,41 @@ export function createRunner(host) {
       const T = put1(o, o.kind === "toll" || o.kind === "bridge" || o.kind === "tide" ? o.kind : o.shape, 0);
       if (!T) continue;
       T.group.position.set(o.lane * LANE_W, 0, o.z);
-      if (T.leaf) {
-        const want = solid(S, o) ? 1 : 0, k = T.k = T.k + (want - T.k) * Math.min(1, dt * 12);
-        if (o.kind === "toll") T.leaf.rotation.z = (1 - k) * 1.35;
-        else T.leaf.scale.set(1, 0.06 + 0.94 * k, 1);
+      const ease_ = (want, rate = 12) => (T.k += (want - T.k) * Math.min(1, (dt || 0.016) * rate));
+      if (o.kind === "toll") { const k = ease_(solid(S, o) ? 1 : 0); T.leaf.rotation.z = (1 - k) * 1.35; }
+      else if (o.kind === "bridge") {
+        const k = ease_(bridgeUp(S, o) ? 1 : 0, 7);                                          // 1: up, on end; 0: down, flat
+        T.hinge.rotation.x = k * 1.5;
+      } else if (o.kind === "tide") {
+        const ts = tide(S, o), shut = ts.state === "shut" || ts.state === "opening", warn = ts.state === "closing" || ts.state === "opening";
+        const k = ease_(ts.state === "open" ? 0 : ts.state === "shut" ? 1 : 0.5, 9);
+        T.leaf.position.y = (1 - k) * 2.55;                                                  // raised clear when open, on the planks when shut
+        const flash = Math.sin(now * (warn ? 22 : 0)) > 0;
+        T.lamp.material = warn ? (flash ? BASIC.amber : BASIC.red) : shut ? BASIC.red : BASIC.green;
+        T.ring.visible = !shut; T.cross.visible = shut;
+        T.ring.material = warn ? (flash ? BASIC.amber : BASIC.green) : BASIC.green;
+        T.cross.children.forEach(c_ => { c_.material = warn ? (flash ? BASIC.amber : BASIC.red) : BASIC.red; });
+        T.water.scale.set(1.5, 0.04 + (shut ? 0 : 0.03 * Math.sin(now * 8 + o.id)), 1.2);
+        T.water.position.y = shut ? 0.04 : 0.07;
       }
     }
+    const nextBridge = (z) => { let b = null; for (const o of W_.obs) if (o.kind === "bridge" && o.z > z && (!b || o.z < b.z)) b = o; return b; };
     for (const p of W_.pick) {
       const T = put1(p, p.kind, p.y);
       if (!T) continue;
       T.group.visible = !p.taken;
-      const bob = Math.sin(now * 3 + p.id) * 0.07;
+      const bob = p.kind === "coin" || p.kind === "gem" ? Math.sin(now * 3 + p.id) * 0.05 : Math.sin(now * 3 + p.id) * 0.07;
       T.group.position.set(p.lane * LANE_W, p.kind === "lever" ? 0.5 : p.y + bob, p.z);
-      if (T.spin && p.kind !== "lever" && p.kind !== "token") T.spin.rotation.y = now * 1.6 + p.id;
-      if (p.kind === "lever" && T.spin) T.spin.rotation.z = (S.flip ? -0.7 : 0.7);
+      if (T.spin && p.kind !== "lever" && p.kind !== "token") T.spin.rotation.y = now * (p.kind === "coin" ? 3 : 1.6) + p.id;
+      if (T.halo) { T.halo.rotation.y = 0; T.halo.scale.setScalar(1 + 0.12 * Math.sin(now * 4 + p.id)); }
+      if (p.kind === "lever" && T.spin) {
+        const lower = S.flip;                                                                // the colour the next step lowers: the one that is up now
+        T.spin.rotation.z = lower ? 0.7 : -0.7;                                              // the handle leans to the pad that is lowered now's opposite: toward what it will set
+        T.knobs.forEach((kn, i) => { kn.visible = i === lower; });
+        T.pads.forEach((pd, i) => { const pulse = i === lower ? 0.6 + 0.4 * Math.sin(now * 6) : 0; pd.scale.set(0.34 * (1 + 0.25 * pulse), 0.07, 0.34 * (1 + 0.25 * pulse)); });
+        const nb = nextBridge(p.z), n = nb ? Math.min(T.wire.length, Math.floor((nb.z - p.z - 1.4) / 0.85)) : 0;
+        T.wire.forEach((w_, i) => { w_.visible = i < n; if (i < n) { w_.position.set(0, -0.43, 0.9 + i * 0.85); w_.material = flat(BRIDGEC[lower], 0.4); } });
+      }
     }
     for (const [id, T] of things) if (!seen.has(id)) { hideThing(T); thingFree.push(T); things.delete(id); }
   }
@@ -468,13 +548,20 @@ export function createRunner(host) {
     m.position.set(x, y, z); m.frustumCulled = false; world.add(m);
     fx.push({ m, born: now, life, r, kind: "ring" });
   }
-  function burst(x, y, z, n = 6) {
+  function burst(x, y, z, n = 6, mat = M.gilt, size = 0.12, power = 1, life = 0.45) {
     for (let i = 0; i < n; i++) {
-      const m = new THREE.Mesh(box, M.gilt); m.scale.setScalar(0.12); m.position.set(x, y, z); m.frustumCulled = false; world.add(m);
+      const m = new THREE.Mesh(box, mat); m.scale.setScalar(size); m.position.set(x, y, z); m.frustumCulled = false; world.add(m);
       const a = (i / n) * Math.PI * 2 + hash(i + now) * 1.5;
-      fx.push({ m, born: now, life: 0.45, kind: "spark", vx: Math.cos(a) * 2.6, vy: 2 + hash(i * 7 + now) * 2.6, vz: Math.sin(a) * 2.6 });
+      fx.push({ m, born: now, life, size, kind: "spark", vx: Math.cos(a) * 2.6 * power, vy: (2 + hash(i * 7 + now) * 2.6) * power, vz: Math.sin(a) * 2.6 * power });
     }
   }
+  /** A broken barrel flies apart in staves and hoops; a popped balloon in scraps of its own colour (and a ring, the air going out). */
+  function smash(ev) {
+    if (ev.kind === "barrel") { burst(ev.x, ev.y + 0.45, ev.z, 9, M.timber, 0.22, 1.5, 0.7); burst(ev.x, ev.y + 0.6, ev.z, 4, M.gilt, 0.14, 1.3, 0.6); }
+    else { burst(ev.x, ev.y + 0.6, ev.z, 8, balloonMat[(ev.id || 0) % BALLOONC.length], 0.16, 1.2, 0.55); ring(ev.x, ev.y + 0.6, ev.z, 1.4, 0.3); }
+  }
+  /** Coins thrown up out of a broken thing. */
+  function coinsUp(ev) { burst(ev.x, ev.y + 0.3, ev.z, Math.min(8, 3 + ev.n * 2), flat(0xF2C230, 0.7), 0.17, 1.35, 0.8); }
 
   // dust off the planks and spray off the water: two pools of little solids, one instanced mesh each, moved by hand (gravity, drag, and
   // a puff that swells and then shrinks away: a material has one opacity, so what fades is the size)
@@ -659,7 +746,24 @@ export function createRunner(host) {
   /** A foe at rest, or seeing me (f.ph 1: it turns to look, the claws go up and snap, the mark pops over its head), winding
    *  up (2: it rears, the mark is red and shakes) or launched (3: it springs, a crab hopping at me, a gull diving). The rules
    *  put the foe where it is (f.x and f.y move as it launches); this is only how it holds itself. */
+  const BALLOONC = [0xD6453A, 0xE6B422, 0x2F9E8F, 0x7A5CC4];
+  const balloonMat = BALLOONC.map(c => curved(new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.18 })));
+  /** A barrel stands; a balloon floats where it was hung, swaying on its string. Neither looks at me: they are not out to get me. */
+  function poseInert(o, f) {
+    const g = o.group, rig = o.parts.rig;
+    g.visible = true;
+    if (f.kind === "balloon") {
+      o.parts.body.material = balloonMat[f.id % BALLOONC.length];
+      g.position.set(f.x + Math.sin(now * 1.3 + f.id) * 0.08, f.y + Math.sin(now * 1.9 + f.id * 2) * 0.07, f.z);
+      rig.rotation.set(0, 0, Math.sin(now * 1.5 + f.id) * 0.09);
+    } else g.position.set(f.x, f.y, f.z);
+    g.rotation.set(0, Math.PI, 0);
+    g.scale.setScalar(1);
+    o.mark.visible = false;
+  }
+
   function poseFoe(o, f, S) {
+    if (KINDS[f.kind].inert) return poseInert(o, f);
     const g = o.group, rig = o.parts.rig, P = o.parts;
     const ph = f.ph || 0, since = S.t - (f.pt || 0), p = f.p || 0, e3 = ease(p), look = f.look || 0;
     const crab = f.kind === "crab", id = f.id;
@@ -852,11 +956,12 @@ export function createRunner(host) {
       seen.add(f.id);
       let o = foes.get(f.id);
       if (!o) { o = free.find(x => x.kind === f.kind && x.heavy === !!f.heavy) || makeFoe(f); const k = free.indexOf(o); if (k >= 0) free.splice(k, 1); o.born = now; o.died = 0; o.fly = null; o.how = ""; o.dir = 0; o.group.visible = o.shadow.visible = true; foes.set(f.id, o); }
+      if (KINDS[f.kind].inert && !f.alive) { o.died = o.died || now; hideFoe(o); continue; }       // (broken: its pieces fly in ping)
       if (!f.alive && !o.died) { o.died = now; o.fly = knock(o, f, S); }
       if (o.died) { flyBack(o, f, dt); continue; }
       poseFoe(o, f, S);
       o.shadow.position.set(f.x, 0.025, f.z);
-      o.shadow.scale.setScalar(f.kind === "crab" ? 1.2 : 0.8 + 0.1 * (2 - Math.min(2, f.y)));
+      o.shadow.scale.setScalar(f.kind === "crab" ? 1.2 : f.kind === "barrel" ? 0.95 : f.kind === "balloon" ? 0.75 : 0.8 + 0.1 * (2 - Math.min(2, f.y)));
       o.shadow.visible = inSpan(f.z) && f.y < 3;
     }
     for (const [id, o] of foes) if (!seen.has(id)) { hideFoe(o); free.push(o); foes.delete(id); }
@@ -911,7 +1016,7 @@ export function createRunner(host) {
       const e = fx[i], t = (now - e.born) / e.life;
       if (t >= 1) { world.remove(e.m); if (e.kind === "ring") { e.m.geometry.dispose(); e.m.material.dispose(); } fx.splice(i, 1); continue; }
       if (e.kind === "ring") { e.m.scale.setScalar(0.4 + e.r * t); e.m.material.opacity = 0.8 * (1 - t); }
-      else { e.m.position.x += e.vx * dt; e.m.position.z += e.vz * dt; e.vy -= 9 * dt; e.m.position.y += e.vy * dt; e.m.scale.setScalar(0.12 * (1 - t)); }
+      else { e.m.position.x += e.vx * dt; e.m.position.z += e.vz * dt; e.vy -= 9 * dt; e.m.position.y += e.vy * dt; e.m.scale.setScalar((e.size || 0.12) * (1 - t)); e.m.rotation.x += dt * 9; e.m.rotation.z += dt * 7; }
     }
 
     // the camera (reckoning-move.js): it follows his lane late and leans the way he goes, draws back and widens with speed, and settles after a landing
@@ -957,6 +1062,7 @@ export function createRunner(host) {
       case "dive": cam.punch(3); D.stretch.kick(2.2); break;
       case "kill": {
         const o = foes.get(ev.id); if (o) { o.how = ev.how; o.dir = ev.dir || 0; }
+        if (KINDS[ev.kind]?.inert) { smash(ev); D.recoil.set(ev.reward === false ? 0 : 1); shake = Math.max(shake, ev.how === "crash" ? 0.9 : 0.3); break; }
         D.recoil.set(1);
         burst(h.x, h.y + 0.8, h.z + 0.5, ev.how === "slam" ? 4 : 7); shake = Math.max(shake, 0.4); break;
       }
@@ -969,7 +1075,11 @@ export function createRunner(host) {
       case "fall": shake = 0.8; break;
       case "clang": shake = 1; break;
       case "stagger": shake = Math.max(shake, 0.7); burst(h.x, h.y + 0.8, h.z + 0.8, 5); break;
-      case "pick": ring(h.x, h.y + 0.4, h.z + 0.4, 1.3, 0.3); burst(h.x, h.y + 0.9, h.z + 0.6, 4); break;
+      case "coins": coinsUp(ev); break;
+      case "pick":
+        if (ev.what === "coin") { burst(h.x, h.y + 0.9, h.z + 0.5, 2, flat(0xF2C230, 0.7), 0.1, 0.8, 0.3); break; }
+        ring(h.x, h.y + 0.4, h.z + 0.4, ev.what === "gem" ? 2 : 1.3, ev.what === "gem" ? 0.5 : 0.3); burst(h.x, h.y + 0.9, h.z + 0.6, ev.what === "gem" ? 10 : 4); break;
+      case "heart": if (ev.gem) { ring(h.x, h.y + 0.6, h.z + 0.4, 2.2, 0.5); burst(h.x, h.y + 1, h.z + 0.6, 10, flat(0xF0A12B, 0.8), 0.15, 1.2, 0.7); } break;
       case "seized": shake = 1; break;
       case "finish": shake = 0.5; burst(h.x, h.y + 1, h.z + 1, 12); break;
       case "wallrun": shake = Math.max(shake, 0.25); puff(h.x + ev.side * 0.4, h.z, 4, 1.6, 0.22, 0, -spd * 0.1, 1.2, 1.2); break;

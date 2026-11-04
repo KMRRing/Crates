@@ -640,8 +640,9 @@ const events = S => take(S).map(e => e.type);
   {
     const A = newGame({ seed: 3, deal: () => q }); A.hearts = 1; const ans = { ...A.world.gates[0] || { id: 7, q } };
     const O = newGame({ seed: 3, deal: () => q });
-    O.hearts = 2; const gate = { id: 7, z: 0, p0: 0, p1: 1, q, state: "open", pick: null }; O.world.gates.push(gate); O.world.z1 = 1e9;
-    const gl = { id: 8, kind: "gull", lane: 0, x: 0, z: O.hero.z + 0.3, y: 1.35, h: 0.8, alive: true, spent: false, gate: { id: 7, i: 0 } };
+    O.hearts = 2; const gate = { id: 900, z: 0, p0: 0, p1: 1, q, state: "open", pick: null }; O.world.gates.push(gate); O.world.z1 = 1e9;
+    O.world.pits.push({ z0: 0.5, z1: 30, gate: 900 });         // (the water under the gap, which the wrong answer drops me into)
+    const gl = { id: 901, kind: "gull", lane: 0, x: 0, z: O.hero.z + 0.3, y: 1.35, h: 0.8, alive: true, spent: false, gate: { id: 900, i: 0 } };
     O.world.foes.push(gl);
     swipe(O, "up"); run(O, 0.6);
     check(O.hearts === 0 && O.over, "a wrong answer with two hearts left is the end");
