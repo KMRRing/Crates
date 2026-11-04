@@ -43,6 +43,7 @@ html[data-theme="modern"] { --sm-logo-tint: #DCE6EE; --sm-logo-edge: #2D5E88; }
   outline: 1px solid var(--rule); outline-offset: -4px; }
 .sm-q, .sm-screen { margin: auto; width: 100%; text-align: center; }
 .sm-prompt { margin: 0; font-size: 3.1rem; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .01em; overflow-wrap: anywhere; }
+.sm-prompt.words { font-size: 1.65rem; line-height: 1.25; letter-spacing: 0; }
 .sm-name { margin: 0 0 .25rem; font-size: .7rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass-lo); }
 .sm-start { margin: 0 0 .35rem; font-size: 1.45rem; line-height: 1.15; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sm-steps { list-style: none; margin: 0 0 .45rem; padding: 0; text-align: left; font-size: .98rem; }
@@ -112,6 +113,7 @@ html[data-theme="modern"] { --sm-logo-tint: #DCE6EE; --sm-logo-edge: #2D5E88; }
   .sm-steps li { padding: .1rem 0; }
   .sm-to { font-size: .76rem; }
   .sm-prompt { font-size: 2.7rem; }
+  .sm-prompt.words { font-size: 1.5rem; }
   .sm-bar { height: .22rem; }
   .sm-answer { min-height: 2.4rem; margin-top: .3rem; padding-top: .1rem; }
   .sm-typed { font-size: 1.9rem; }
@@ -149,6 +151,7 @@ dialog.sm-sheet { max-height: 86vh; max-height: 86svh; overflow-y: auto; overscr
   #app.speed .sm-hud { grid-column: 2; grid-row: 3; }
   #app.speed .sm-pad { grid-column: 2; grid-row: 4; align-self: end; grid-auto-rows: 3.6rem; margin-top: 0; }
   #app.speed .sm-prompt { font-size: 5.2rem; }
+  #app.speed .sm-prompt.words { font-size: 2.6rem; }
   #app.speed .sm-name { font-size: .85rem; }
   #app.speed .sm-start { font-size: 2.4rem; margin-bottom: .5rem; }
   #app.speed .sm-steps { font-size: 1.35rem; }

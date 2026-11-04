@@ -14,6 +14,8 @@ import { sure } from "./sure.js";
 
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+/** A sum and its answer as the review tells it: a situation reads "8 crates at £37 each: total? → 296", a bare sum "3 + 4 = 7". */
+const qa = p => `${p.prompt}${p.words ? " → " : " = "}${fmtAnswer(p.answer)}`;
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 // a watching frame (IN_FRAME) reads the partner's copy and writes nothing
 const write = (key, v) => { if (IN_FRAME) return; try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -209,7 +211,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
     if (!a) return;
     const p = a.problem, typedText = fmtTyped(a.text);
     let text;
-    if (a.grade === "none") { v.classList.add("bad"); text = `Skipped. ${p.kind === "sum" ? `${p.prompt} = ${fmtAnswer(p.answer)}` : `The answer was ${fmtAnswer(p.answer)}`}`; }
+    if (a.grade === "none") { v.classList.add("bad"); text = `Skipped. ${p.kind === "sum" ? qa(p) : `The answer was ${fmtAnswer(p.answer)}`}`; }
     else if (a.grade === "exact") { v.classList.add("good"); text = p.kind === "sum" ? "" : `Exact: ${fmtAnswer(p.answer)}`; }
     else if (a.grade === "close") {
       v.classList.add("good");
@@ -220,7 +222,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
       v.classList.add("bad");
       const slip = slipOf(a.x, p.answer);
       const why = slip > 0 ? `, ${slip === 1 ? "a zero" : `${slip} zeros`} too many` : slip < 0 ? `, ${slip === -1 ? "a zero" : `${-slip} zeros`} short` : p.sf ? `, ${fmtOff(a.off)} out` : "";
-      text = p.kind === "sum" ? `${p.prompt} = ${fmtAnswer(p.answer)}, not ${typedText}` : `${typedText} is wrong: the answer is ${fmtAnswer(p.answer)}${why}`;
+      text = p.kind === "sum" ? `${qa(p)}, not ${typedText}` : `${typedText} is wrong: the answer is ${fmtAnswer(p.answer)}${why}`;
     }
     if (!text) return;
     v.append(el("span", "sm-vtext", text));
@@ -259,7 +261,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
   function problemCard(p) {
     const box = el("div", `sm-q ${p.kind}`);
     if (p.kind === "sum") {
-      box.append(el("p", "sm-prompt", p.prompt));
+      box.append(el("p", p.words ? "sm-prompt words" : "sm-prompt", p.prompt));
       return box;
     }
     box.append(el("p", "sm-name", p.name), el("p", "sm-start", `${fmtNum(p.start.v)} ${p.start.say}`));
@@ -328,7 +330,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
     if (!items.length) body.append(el("p", "sm-note", "Nothing missed."));
     for (const { problem: p, text, grade } of items) {
       const box = el("section", "sm-miss");
-      if (p.kind === "sum") box.append(el("p", "sm-miss-q", `${p.prompt} = ${fmtAnswer(p.answer)}${p.unit ? ` ${p.unit}` : ""}`));
+      if (p.kind === "sum") box.append(el("p", "sm-miss-q", `${qa(p)}${p.unit ? ` ${p.unit}` : ""}`));
       else {
         box.append(el("h4", "sm-miss-name", p.name), el("p", "sm-miss-start", `${fmtNum(p.start.v)} ${p.start.say}`));
         const ol = el("ol", "sm-steps");
@@ -384,7 +386,7 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
       },
       onLobby: () => { D = null; clockPause(); show(null); },
       onLeave: () => { D = null; show(load(prefs.mode)); },
-      extra: () => { const items = run?.over ? missesOf(run, 8) : []; if (!items.length) return null; const ul = el("ul", "sm-extra"); for (const { problem: p, text } of items) ul.append(el("li", "", `${p.prompt} = ${fmtAnswer(p.answer)}${text ? `, not ${fmtTyped(text)}` : ", skipped"}`)); return ul; },
+      extra: () => { const items = run?.over ? missesOf(run, 8) : []; if (!items.length) return null; const ul = el("ul", "sm-extra"); for (const { problem: p, text } of items) ul.append(el("li", "", `${qa(p)}${text ? `, not ${fmtTyped(text)}` : ", skipped"}`)); return ul; },
       extraTitle: "What you missed",
     });
   }

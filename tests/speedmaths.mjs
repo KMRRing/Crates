@@ -3,7 +3,7 @@
 // significant figures is accepted within a band or when it is the exact figure rounded as asked, and a decimal slip never is.
 import { roundSf, near, parseTyped, judge, BAND, chainRel, askText, fmtOff, slipOf, fmtTyped, fmtNum, fmtAnswer, rng, hashParts, values, stepText, chainProblem, mul, pct } from "../speedmaths-core.js";
 import { POOLS, MODES, DAILY_CYCLE, startRun, dailyRun, matchRun, validRun, normOpts, problemAt, submit, autoMatches, bonusNow, finish, summary, missesOf, lastAnswer, isBest, dailySeed, kindAt, STREAK_STEP, STREAK_MAX } from "../speedmaths-engine.js";
-import { SUM_KINDS, RANGES } from "../speedmaths-pool.js";
+import { SUM_KINDS, RANGES, SCENARIOS, sum as SUM } from "../speedmaths-pool.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -179,7 +179,7 @@ for (const pool of Object.keys(POOLS)) {
   check(validRun(saved) && same(texts(saved, 12), texts(run, 12)) && saved.i === 5 && saved.typed === "12", "a run kept as JSON and read back is the same run, at the same sum, with what was typed");
   const next = submit(saved, String(problemAt(saved).answer), 20000), twin = submit(run, String(problemAt(run).answer), 20000);
   check(next.points === twin.points && saved.score === run.score && saved.log.length === run.log.length, "and goes on exactly as the one that was not kept");
-  check(!validRun(null) && !validRun({}) && !validRun({ ...saved, v: 2 }) && !validRun({ ...saved, pool: "nowhere" }) && !validRun({ ...saved, mode: "marathon" }) && !validRun({ ...saved, seed: "x" }) && !validRun({ ...saved, opts: { kinds: [] } })
+  check(!validRun(null) && !validRun({}) && !validRun({ ...saved, v: 1 }) && !validRun({ ...saved, pool: "nowhere" }) && !validRun({ ...saved, mode: "marathon" }) && !validRun({ ...saved, seed: "x" }) && !validRun({ ...saved, opts: { kinds: [] } })
     && !validRun({ ...saved, opts: { kinds: ["nonsense"], range: 100 } }) && !validRun({ ...saved, log: null }), "a run from an older version, or damaged, is dropped");
 }
 {
@@ -242,6 +242,49 @@ for (const [id, P] of Object.entries(POOLS)) {
     && stepText(p.steps[0]) === "× 1.5 a unit" && stepText(p.steps[1]) === "20% of that", "a chain folds its steps into its answer, and says each as it works it");
   const small = { ...def, build: () => ({ start: { v: 2, say: "x" }, steps: [mul(0.1, "", "y"), mul(2, "", "z"), mul(2, "", "w")] }) };
   check(chainProblem(small, {}) === null, "an answer under 1 is never dealt (the dealer draws again)");
+}
+
+// ---------- every sum is a situation a person meets (Korbi, 4 November 2026) ----------
+{
+  const ids = Object.entries(SCENARIOS).flatMap(([k, list]) => list.map(s => `${k}/${s.id}`));
+  const seen = new Set(), problems = [];
+  const MAX_CHARS = 40;                                    // two lines at 390 px: the card is about 330 px wide, a figure at 1.65rem about 14 px
+  const figures = text => (text.match(/\d[\d,]*(\.\d+)?/g) ?? []).map(x => Number(x.replace(/,/g, "")));
+  for (const range of [20, 100, 1000]) for (const ramp of [0.3, 0.5, 0.75, 1]) for (let seed = 1; seed <= 150; seed++) for (const [kind] of SUM_KINDS) {
+    const s = SUM(kind, rng(hashParts(seed, range, ramp, kind)), ramp, range), sc = SCENARIOS[kind].find(x => `${kind}/${x.id}` === s.scenario);
+    seen.add(s.scenario);
+    if (!sc) { problems.push(`${s.scenario} unknown`); continue; }
+    const ex = { answer: s.answer, sf: 0 };
+    const why = !s.words ? "not a sentence" : !Number.isInteger(s.answer) || s.answer < 1 ? `answer ${s.answer}` : s.prompt.length > MAX_CHARS ? `${s.prompt.length} characters`
+      : figures(s.prompt).some(x => x > sc.max) ? "a figure past its realistic top"
+      : !judge(ex, String(s.answer)).ok || judge(ex, String(s.answer * 10)).ok || judge(ex, String(s.answer / 10)).ok ? "judging" : "";
+    if (why) problems.push(`${s.prompt} (${why})`);
+  }
+  check(ids.length >= 30 && ids.every(i => seen.has(i)), `the sprint deals every one of its ${ids.length} situations`);
+  check(!problems.length, `every sprint sum is a sentence of at most ${MAX_CHARS} characters with a whole answer and no figure past its realistic top, the answer accepted and a zero slip refused${problems.length ? `: ${problems[0]}` : ""}`);
+  check(SCENARIOS.pct.every(s => s.ps.every(p => p >= 2 && p <= 50)), "percentages dealt are ones met: 2% to 50%");
+  const short = Array.from({ length: 60 }, (_, i) => SUM("pct", rng(i + 1), 0.3, 20).scenario);
+  check(short.every(s => /tip|vat|off/.test(s)), "a short range deals only the small bills (no deposit on £20)");
+}
+{
+  // estimates and chains: the figures are ones that occur, in lines that fit a phone
+  const digits = x => Number(Math.abs(x).toPrecision(12)).toString().replace(".", "").replace(/^0+/, "").replace(/0+$/, "").length;
+  const defs = POOLS.mercantile.defs, problems = [];
+  let n = 0;
+  for (const d of defs) for (const figs of combos(d.figs)) {
+    n++;
+    const built = d.build(figs), line = `${fmtNum(built.start.v)} ${built.start.say}`;
+    const stated = [built.start.v, ...built.steps.map(s => s.n)].filter(x => !POOLS.mercantile.constants.includes(x)), long = built.steps.find(s => stepText(s).length > 34);
+    const why = built.steps.length !== d.n ? "n is not the number of steps" : stated.some(x => !(x > 0) || digits(x) > 3) ? `a figure of more than three digits: ${stated.find(x => digits(x) > 3)}`
+      : line.length > 40 ? `start line of ${line.length} characters` : long ? `step too long: ${stepText(long)}` : d.name.length > 28 ? "name too long" : "";
+    if (why) { problems.push(`${d.id} ${JSON.stringify(figs).slice(0, 60)}: ${why}`); break; }
+    const p = chainProblem(d, figs);
+    if (p && (judge(p, String(p.answer * 10)).ok || judge(p, String(p.answer / 10)).ok)) { problems.push(`${d.id}: a zero slip accepted`); break; }
+  }
+  const kinds = new Set(defs.map(d => d.topic));
+  check(defs.length >= 55 && kinds.size >= 8, `the public pool deals ${defs.length} estimates and chains over ${kinds.size} kinds of situation`);
+  check(defs.filter(d => d.n <= 2).length >= 35 && defs.filter(d => d.n >= 3).length >= 20, "enough of each: one- and two-step estimates, and three- to six-step chains");
+  check(!problems.length, `all ${n} combinations of figures state realistic figures in lines that fit a phone, and a zero slip is wrong${problems.length ? `: ${problems[0]}` : ""}`);
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

@@ -44,7 +44,7 @@ export function normOpts(pool, opts = {}) {
 export function startRun({ pool = "mercantile", mode = "sprint", seed, opts, day = null, secs } = {}) {
   if (!POOLS[pool] || !MODES[mode]) throw new Error(`no such run: ${pool} ${mode}`);
   return {
-    v: 1, pool, mode, seed: seed >>> 0, opts: normOpts(pool, mode === "daily" ? {} : opts), secs: secs ?? MODES[mode].secs, day: mode === "daily" ? day : null,
+    v: 2, pool, mode, seed: seed >>> 0, opts: normOpts(pool, mode === "daily" ? {} : opts), secs: secs ?? MODES[mode].secs, day: mode === "daily" ? day : null,
     i: 0, typed: "", used: 0, since: 0, score: 0, streak: 0, top: 0, right: 0, missed: 0, log: [], over: false,
   };
 }
@@ -54,7 +54,7 @@ export const dailyRun = (pool, day) => startRun({ pool, mode: "daily", seed: dai
 export const matchRun = m => startRun({ pool: m.pool, mode: "sprint", seed: m.seed, opts: m.opts, secs: m.secs });
 /** Whether a run read back from storage is one (a saved run from an older version, or damage, is dropped). */
 export function validRun(run) {
-  return !!run && run.v === 1 && !!POOLS[run.pool] && !!MODES[run.mode] && Number.isInteger(run.seed) && Number.isInteger(run.i) && run.i >= 0
+  return !!run && run.v === 2 && !!POOLS[run.pool] && !!MODES[run.mode] && Number.isInteger(run.seed) && Number.isInteger(run.i) && run.i >= 0
     && Array.isArray(run.log) && !!run.opts && Array.isArray(run.opts.kinds) && run.opts.kinds.length > 0 && run.secs > 0
     && POOLS[run.pool].kinds.some(([id]) => id === run.opts.kinds[0]);
 }
@@ -108,7 +108,7 @@ export function problemAt(run, i = run.i) {
   const P = POOLS[run.pool], kind = kindAt(run, i), r = rng(hashParts(run.seed, run.mode, i, "p"));
   if (kind === "sum") {
     const k = pick(r, run.opts.kinds), s = P.sum(k, r, rampAt(run, i), run.opts.range);
-    p = { kind: "sum", id: k, topic: k, prompt: s.prompt, answer: s.answer, unit: s.unit ?? "", sf: 0, worth: 1, key };
+    p = { kind: "sum", id: k, topic: k, prompt: s.prompt, words: !!s.words, scenario: s.scenario ?? k, answer: s.answer, unit: s.unit ?? "", sf: 0, worth: 1, key };
   } else {
     const def = defAt(run, i, kind);
     for (let tries = 0; tries < 24 && !p; tries++) {
