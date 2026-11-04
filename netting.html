@@ -27,22 +27,24 @@
   <div class="nt-strip full-pull">
     <span class="nt-score">Score <b id="score">0</b></span>
     <span id="lives" class="nt-lives"></span>
-    <span class="nt-best">Best <b id="best">0</b></span>
+    <span class="nt-goal" id="goal"></span>
   </div>
+  <section id="levels" class="nt-levels fit-grow fit-scroll" aria-label="Levels" hidden></section>
   <section id="ring" class="nt-ring fit-grow fit-box" aria-label="The houses">
     <svg id="board" class="nt-board" xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 100 100" role="img" aria-label="The houses and what they owe"></svg>
   </section>
 
-  <section class="nt-side">
+  <section class="nt-side" id="side">
     <p id="line" class="nt-line"></p>
     <div id="tray" class="nt-tray">
       <button class="nt-card" type="button" data-slot="0"></button>
       <button class="nt-card" type="button" data-slot="1"></button>
       <button class="nt-card" type="button" data-slot="2"></button>
     </div>
+    <div id="pick" class="nt-pick" hidden></div>
     <div id="result" class="nt-result" hidden>
       <p id="verdict" class="nt-verdict"></p>
-      <button class="nt-go" type="button" id="againBtn">New game</button>
+      <div class="nt-btns" id="resultBtns"></div>
     </div>
   </section>
 </div>
