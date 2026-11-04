@@ -20,6 +20,7 @@ import { busy, waitMark } from "./loading.js";
 import { scale, sideways } from "./wide.js";
 import { leaderboard } from "./standings.js";
 import { BODIES, bodySheet, skyMarkup } from "./bulls-bodies.js";
+import { bakeBodies } from "./bulls-lit.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "bulls:run", PREFS = "bulls:prefs", STATS = "bulls:stats", LOCKS = "bulls:locks", DUELS = "bulls:duels", TODAY = "bulls:count", TABLE = "bulls:table";
@@ -57,7 +58,8 @@ let prefs = (() => {
 })();
 const keepPrefs = () => write(PREFS, prefs);
 document.body.insertAdjacentHTML("afterbegin", bodySheet());   // the bodies, drawn once; every peg re-uses them
-$("board").insertAdjacentHTML("afterbegin", skyMarkup());
+$("board").insertAdjacentHTML("afterbegin", skyMarkup(matchMedia("(prefers-reduced-motion: reduce)").matches));
+bakeBodies();   // the lit bodies, painted between frames; the flat ones show until each is ready
 
 // ---------- the solo game ----------
 // run: a game of Break (bulls-engine's, with the day for today's), a duel, or a lock { kind: "lock", level, seed, tries,
@@ -136,7 +138,7 @@ function cpuSoon() {
     render();
   }, THINK[run.level] || 1200);
 }
-onPause(() => { clockStop(); clearTimeout(cpuTimer); }, () => { clockRun(); cpuSoon(); });
+onPause(() => { clockStop(); clearTimeout(cpuTimer); $("app").classList.add("still"); document.querySelector(".bu-sky")?.pauseAnimations?.(); }, () => { clockRun(); cpuSoon(); $("app").classList.remove("still"); document.querySelector(".bu-sky")?.unpauseAnimations?.(); });   // still: the sky and the glows stand too
 
 // ---------- the work in hand: the row being entered and the notes, solo or at the table ----------
 let tableWork = null;                          // { key (the table's game), input, sel, notes, view }
@@ -359,8 +361,14 @@ function drawBoard(m, auto) {
   }
   drawShield(m);
   const box = $("rows");
-  box.replaceChildren(...m.rows.map(r => rowEl(r, m, auto)));
+  const rows = m.rows.map(r => rowEl(r, m, auto));
+  // the guess just made locks in with a flash: only when one more row has been played in this very game
+  const played = m.rows.filter(r => r.g && !r.now && !r.future).length, key = gameKey();
+  if (flashed && flashed.key === key && played === flashed.played + 1) { const li = rows[m.rows.findLastIndex(r => r.g && !r.now && !r.future)]; li?.classList.add("lockin"); }
+  flashed = { key, played };
+  box.replaceChildren(...rows);
 }
+let flashed = null;
 /** The code under its shutter, drawn again only when it changes; the shutter opening on a game's end turns its pegs over. */
 let shieldWas = null;
 function drawShield(m) {
@@ -479,7 +487,7 @@ function howTo(m) {
   const w = work();
   if (prefs.aid === "marks" && w.input.every(x => x >= 0) && !fits(m.variant, m.visible || [], w.input)) return "That one can't be the code: it doesn't fit every row.";
   return noting ? `Notes: tap a ${m.digits ? "digit" : planets() ? "body" : "colour"} to rule it out, again to mark it in, again to clear it.`
-    : `Pick ${m.p} ${m.digits ? "different digits" : planets() ? "bodies" : "pegs"}, then Guess. A gilt star is aligned, right and in place; a ring is near, right but elsewhere.`;
+    : `Pick ${m.p} ${m.digits ? "different digits" : planets() ? "bodies" : "pegs"}, then Guess. ★ aligned: right place. ○ near: right, but elsewhere.`;
 }
 function drawResult(m) {
   const done = !!m.result;

@@ -80,16 +80,22 @@ const ticks = Array.from({ length: 16 }, (_, i) => {
 }).join("");
 const ROSETTE = `<symbol id="bu-rosette" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="10.6" stroke-width="1"/><circle cx="12" cy="12" r="8.9" stroke-width=".5"/><path d="${ticks}" stroke-width=".7"/></g><path d="M12 4.4L13.5 10.5L19.6 12L13.5 13.5L12 19.6L10.5 13.5L4.4 12L10.5 10.5Z" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="var(--bu-rosette-eye, #fff)"/></symbol>`;
 
-// The night sky behind the rows: fixed stars and a few fine orbits, placed once by a small seeded generator.
-export function skyMarkup() {
+// The night sky behind the rows: a field of fine stars, a few fine orbits with a small lit body on each going slowly round
+// (SMIL, so bulls.js can pause it with the menu), placed once by a small seeded generator. Reduced motion draws it still.
+export function skyMarkup(still = false) {
   let s = 20261104;
   const next = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
   let stars = "", glints = "";
-  for (let i = 0; i < 40; i++) {
-    const x = (next() * 100).toFixed(1), y = (next() * 160).toFixed(1), r = (0.2 + next() * next() * 0.42).toFixed(2);
-    stars += `<circle class="st" cx="${x}" cy="${y}" r="${r}" opacity="${(0.3 + next() * 0.55).toFixed(2)}"/>`;
+  for (let i = 0; i < 90; i++) {
+    const x = (next() * 100).toFixed(1), y = (next() * 160).toFixed(1), r = (0.14 + next() * next() * 0.5).toFixed(2), o = (0.25 + next() * 0.6).toFixed(2);
+    const tw = !still && i % 9 === 0 ? `<animate attributeName="opacity" values="${o};${(o * 0.35).toFixed(2)};${o}" dur="${(3 + next() * 4).toFixed(1)}s" begin="-${(next() * 5).toFixed(1)}s" repeatCount="indefinite"/>` : "";
+    stars += `<circle class="st${i % 7 === 0 ? " warm" : i % 5 === 0 ? " cool" : ""}" cx="${x}" cy="${y}" r="${r}" opacity="${o}">${tw}</circle>`;
   }
-  for (const [x, y] of [[88, 146]]) glints += `<path class="st gl" d="M${x} ${y - 2.4}L${x + 0.4} ${y - 0.4}L${x + 2.4} ${y}L${x + 0.5} ${y + 0.5}L${x} ${y + 2.4}L${x - 0.5} ${y + 0.5}L${x - 2.4} ${y}L${x - 0.5} ${y - 0.5}Z"/>`;
-  const orbits = `<circle class="orb" cx="112" cy="-14" r="98"/><circle class="orb dash" cx="-24" cy="170" r="84"/><circle class="orb" cx="50" cy="196" r="120"/>`;
+  for (const [x, y] of [[88, 146], [90, 12]]) glints += `<path class="st gl" d="M${x} ${y - 2.6}L${x + 0.4} ${y - 0.4}L${x + 2.6} ${y}L${x + 0.5} ${y + 0.5}L${x} ${y + 2.6}L${x - 0.5} ${y + 0.5}L${x - 2.6} ${y}L${x - 0.5} ${y - 0.5}Z"/>`;
+  const orbit = (cx, cy, r, cls, a0, dur, rad) => {
+    const spin = still ? "" : `<animateTransform attributeName="transform" type="rotate" from="${a0} ${cx} ${cy}" to="${a0 + 360} ${cx} ${cy}" dur="${dur}s" repeatCount="indefinite"/>`;
+    return `<circle class="orb${cls}" cx="${cx}" cy="${cy}" r="${r}"/><g transform="rotate(${a0} ${cx} ${cy})">${spin}<circle class="halo" cx="${cx + r}" cy="${cy}" r="${rad * 3}"/><circle class="sat" cx="${cx + r}" cy="${cy}" r="${rad}"/></g>`;
+  };
+  const orbits = orbit(112, -14, 98, "", 200, 240, 1.15) + orbit(-24, 170, 84, " dash", 20, 300, 0.9) + orbit(50, 196, 120, "", 110, 360, 1.4);
   return `<svg class="bu-sky" viewBox="0 0 100 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">${orbits}${stars}${glints}</svg>`;
 }

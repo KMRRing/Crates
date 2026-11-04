@@ -2,13 +2,12 @@
    below take every guess, each with its key pegs (a bull filled in ink, a cow a ring); the entry row, the pegs to pick
    from and the buttons stand under the board, where a thumb is. Oxblood, the bull's colour, is the house enamel. */
 :root { --bu-in: #8F3328; --bu-good: #2F7D5B; --bu-bad: #A8382B; --bu-rowh: 1.9rem; --bu-peg-rim: rgba(28, 42, 52, .55);
-  --bu-sky: color-mix(in srgb, var(--brass) 9%, var(--sheet)); --bu-star: color-mix(in srgb, var(--ink) 62%, transparent); --bu-gold: #C58A08; }   /* by day a pale star chart */
+  --bu-sky: #15204A; --bu-star: #F4EBD2; --bu-gold: #F2C85B; }   /* the board is a night sky in every theme: by day a dusk navy, by night deeper */
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806F; --bu-peg-rim: rgba(236, 226, 203, .5); --bu-sky: #0B1625; --bu-star: #F4EBD2; --bu-gold: #F2C85B; }
+  html:not([data-mode="day"]) { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806F; --bu-peg-rim: rgba(236, 226, 203, .5); --bu-sky: #0A1322; }
 }
-/* night, set in Settings: deep navy */
-html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806F; --bu-peg-rim: rgba(236, 226, 203, .5); --bu-sky: #0B1625; --bu-star: #F4EBD2; --bu-gold: #F2C85B; }
-#app.classic { --bu-sky: var(--sheet); }
+html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806F; --bu-peg-rim: rgba(236, 226, 203, .5); --bu-sky: #0A1322; }
+#app.classic { --bu-sky: var(--sheet); --bu-star: color-mix(in srgb, var(--ink) 62%, transparent); --bu-gold: #C58A08; }   /* Classic pieces keep the pale star chart */
 
 .bu-mark { display: inline-block; }
 .bu-mark svg { width: 100%; height: 100%; display: block; }
@@ -248,3 +247,62 @@ html:is([data-theme="kontor"], [data-theme="office"]) .bu-peg:not(.digit):not(.e
 html[data-theme="kontor"] :is(.bu-board, .bu-shield, .bu-go, .bu-act, .bu-pick, .bu-tabs button) { border-radius: 2px; }
 html[data-theme="kontor"] .bu-pick { border-width: 1px; }
 html[data-theme="office"] :is(.bu-board, .bu-shield, .bu-go, .bu-act, .bu-pick, .bu-tabs button) { border-radius: 4px; }
+
+/* ---------- astral: a night sky, bodies lit by one key light (bulls-lit.js), gilt stars and silver orbits ---------- */
+/* everything on the sky reads light on dark, in every theme and mode */
+#app:not(.classic) :is(.bu-board, .bu-other, .bu-entry, .bu-pad) { --ink: #EEE7D4; --ink-soft: #AEB9CE; --rule: rgba(238, 231, 212, .15); --brass-lo: #E6BF6E;
+  --tile: rgba(255, 255, 255, .07); --tile-edge: rgba(238, 231, 212, .24); --sheet: var(--bu-sky); --bu-in: #F1946F; color: var(--ink); }
+#app:not(.classic) .bu-board, #app:not(.classic) .bu-other { border-color: color-mix(in srgb, var(--brass) 70%, transparent);
+  background: radial-gradient(110% 70% at 92% -6%, rgba(104, 128, 214, .42), transparent 62%), radial-gradient(90% 60% at -8% 104%, rgba(142, 82, 170, .34), transparent 64%),
+    radial-gradient(60% 40% at 48% 52%, rgba(52, 92, 150, .22), transparent 72%), var(--bu-sky);
+  box-shadow: inset 0 0 0 3px var(--bu-sky), inset 0 0 0 4px rgba(238, 231, 212, .14), 0 0 1.1rem rgba(96, 124, 214, .16); }
+#app:not(.classic) .bu-sky .st.warm { fill: #FFD9A0; } #app:not(.classic) .bu-sky .st.cool { fill: #BFD6FF; }
+.bu-sky .orb { stroke: #C9D6F2; stroke-opacity: .2; } .bu-sky .orb.dash { stroke-opacity: .3; }
+.bu-sky .sat { fill: #FFE7A6; } .bu-sky .halo { fill: #FFE7A6; opacity: .14; }
+/* the lit bodies: a picture each, painted by bulls-lit.js as it gets to them (the flat drawing shows till then) */
+.bu-peg.body { background-repeat: no-repeat; background-position: center; background-size: 100% 100%; }
+html.bu-lit0 .bu-peg.body[data-c="0"] { background-image: var(--bu-img-0); } html.bu-lit1 .bu-peg.body[data-c="1"] { background-image: var(--bu-img-1); }
+html.bu-lit2 .bu-peg.body[data-c="2"] { background-image: var(--bu-img-2); } html.bu-lit3 .bu-peg.body[data-c="3"] { background-image: var(--bu-img-3); }
+html.bu-lit4 .bu-peg.body[data-c="4"] { background-image: var(--bu-img-4); } html.bu-lit5 .bu-peg.body[data-c="5"] { background-image: var(--bu-img-5); }
+html.bu-lit6 .bu-peg.body[data-c="6"] { background-image: var(--bu-img-6); } html.bu-lit7 .bu-peg.body[data-c="7"] { background-image: var(--bu-img-7); }
+html.bu-lit0 .bu-peg.body[data-c="0"] svg, html.bu-lit1 .bu-peg.body[data-c="1"] svg, html.bu-lit2 .bu-peg.body[data-c="2"] svg, html.bu-lit3 .bu-peg.body[data-c="3"] svg,
+html.bu-lit4 .bu-peg.body[data-c="4"] svg, html.bu-lit5 .bu-peg.body[data-c="5"] svg, html.bu-lit6 .bu-peg.body[data-c="6"] svg, html.bu-lit7 .bu-peg.body[data-c="7"] svg { visibility: hidden; }
+.bu-peg.settle { animation: bu-settle .22s cubic-bezier(.3, 1.5, .5, 1) both; }
+/* an empty hole is a dark socket, a faint ring of light round it */
+#app:not(.classic) .bu-peg.empty { background: radial-gradient(circle at 42% 36%, rgba(255, 255, 255, .06), rgba(0, 0, 0, .32) 80%); box-shadow: inset 0 0 0 1.5px rgba(238, 231, 212, .2), inset 0 1px 3px rgba(0, 0, 0, .5); }
+#app:not(.classic) .bu-peg.digit { color: var(--ink); }
+#app:not(.classic) .bu-peg.digit:not(.empty) { background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 1px rgba(238, 231, 212, .3), inset 0 1px 0 rgba(255, 255, 255, .12); }
+/* the code's cover: a brass shutter with dark sockets, as before, over the dark sky */
+#app:not(.classic) .bu-shield { --bu-plate: linear-gradient(180deg, #8A6A2E, #4C3A1B); box-shadow: inset 0 0 0 1px rgba(242, 213, 140, .55), inset 0 1px 0 rgba(255, 240, 200, .25); }
+#app:not(.classic) .bu-shield .lab { color: #F2D58C; }
+#app:not(.classic) .bu-shield.open { background: linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .02)); box-shadow: inset 0 0 0 1px rgba(242, 213, 140, .5), 0 0 .9rem rgba(242, 200, 91, .16); }
+#app:not(.classic) .bu-shield .rosette { color: #F2D58C; opacity: .85; }
+#app:not(.classic) .bu-row.now { background: linear-gradient(90deg, rgba(242, 213, 140, .16), rgba(242, 213, 140, .03) 70%, transparent); box-shadow: inset 2px 0 0 rgba(242, 213, 140, .6); }
+/* the keys: a gilt star aligned, a silver ring near */
+#app:not(.classic) .bu-key.bull { background: radial-gradient(circle at 36% 30%, #FFF6C8 0, #F6D56B 45%, #C48B12 100%); }
+#app:not(.classic) .bu-key.cow { box-shadow: inset 0 0 0 1.5px #D5E1F6, 0 0 .3rem rgba(176, 202, 255, .5); }
+#app:not(.classic) .bu-key::before { background: rgba(238, 231, 212, .2); }
+/* the entry tray and the colours to pick: the same sky, so the bodies are lit wherever they stand */
+#app:not(.classic) .bu-entry { padding: .25rem .6rem; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--brass) 55%, transparent);
+  background: radial-gradient(90% 120% at 90% 0%, rgba(104, 128, 214, .3), transparent 65%), radial-gradient(80% 100% at 0% 100%, rgba(142, 82, 170, .25), transparent 65%), var(--bu-sky); }
+#app:not(.classic) .bu-slot[aria-pressed="true"] .bu-peg { box-shadow: 0 0 0 2px var(--bu-sky), 0 0 0 3.5px #F2D58C, 0 0 .7rem rgba(242, 213, 140, .55); }
+#app:not(.classic) .bu-slot[aria-pressed="true"] .bu-peg.empty { box-shadow: inset 0 0 0 2px #F2D58C, 0 0 .7rem rgba(242, 213, 140, .45); animation: bu-pulse 2.8s ease-in-out infinite; }
+#app:not(.classic) .bu-pick { background: radial-gradient(100% 120% at 50% 0%, rgba(104, 128, 214, .26), transparent 70%), var(--bu-sky); border-color: color-mix(in srgb, var(--brass) 50%, transparent); }
+#app:not(.classic) .bu-pad.noting .bu-pick { border-color: #F1946F; }
+#app:not(.classic) .bu-entry .bu-peg.body:not(.empty) { animation: bu-float 6s ease-in-out infinite; }
+#app:not(.classic) .bu-entry .bu-slot:nth-child(2) .bu-peg { animation-delay: -1.5s; } #app:not(.classic) .bu-entry .bu-slot:nth-child(3) .bu-peg { animation-delay: -3s; }
+#app:not(.classic) .bu-entry .bu-slot:nth-child(4) .bu-peg { animation-delay: -4.5s; } #app:not(.classic) .bu-entry .bu-slot:nth-child(5) .bu-peg { animation-delay: -2.2s; }
+@keyframes bu-pulse { 50% { box-shadow: inset 0 0 0 2px rgba(242, 213, 140, .55), 0 0 .2rem rgba(242, 213, 140, .15); } }
+@keyframes bu-float { 50% { transform: translateY(-.1rem); } }
+/* the lock-in: a guess made flares its row, its bodies flash once and its keys light in turn */
+.bu-row.lockin { animation: bu-lock .95s ease-out both; }
+.bu-row.lockin .bu-peg { animation: bu-flare .75s ease-out both; }
+.bu-row.lockin .bu-key.bull, .bu-row.lockin .bu-key.cow { animation: bu-keyin .5s cubic-bezier(.3, 1.6, .5, 1) .35s both; }
+@keyframes bu-lock { 0% { background: rgba(255, 232, 168, .5); box-shadow: 0 0 1.3rem rgba(255, 226, 150, .55), inset 0 0 0 1px rgba(255, 226, 150, .8); } 100% { background: transparent; box-shadow: 0 0 0 rgba(255, 226, 150, 0); } }
+@keyframes bu-flare { 0% { transform: scale(1.22); filter: brightness(2) saturate(.7); } 100% { transform: none; filter: none; } }
+@keyframes bu-keyin { from { transform: scale(0); opacity: 0; } }
+/* the menu or the rules open: the sky and the glows stand still; so with reduced motion */
+#app.still *, #app.still *::before, #app.still *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  #app:not(.classic) .bu-entry .bu-peg, #app:not(.classic) .bu-slot .bu-peg.empty, .bu-row.lockin, .bu-row.lockin .bu-peg, .bu-row.lockin .bu-key { animation: none !important; }
+}
