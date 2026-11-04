@@ -294,8 +294,8 @@ export function openSettings(opts) {
     head.append(back, h);
 
     if (learning) {
-      add("h4", null, "Learning mode");
-      body.appendChild(segmented(learning.modes, learning.mode, learning.onMode, "Learning mode", true));
+      add("h4", null, `Learning: ${learning.label}`);
+      add("p", "stats set-note", "Set on the games screen, under Choose.");
       learning.lines.forEach(line => add("p", "stats set-note", line));
       if (learning.reset) add("button", "link", learning.reset.label).addEventListener("click", learning.reset.run);
     }

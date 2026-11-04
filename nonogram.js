@@ -1012,7 +1012,6 @@ function openMenu() {
   st.append(choice("Mistakes", [["shown", "Shown"], ["hidden", "Hidden"]], settings.mistakes, v => { settings.mistakes = v; saveSettings(); }));
   if (!COOP) st.append(choice("Computer", [["off", "Off"], ["partner", "Partner"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
   if (!COOP && settings.computer !== "off") st.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }));
-  st.append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one grid for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const times = read(TIMES, {}), stats = read(STATS, {});
   const bests = S && pic && !COOP ? times[bestKey()] : null;

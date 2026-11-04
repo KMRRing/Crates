@@ -1036,7 +1036,7 @@ function openMenu() {
     // the topics and the region are for random sets (today's is the same for everyone, every topic and worldwide), so
     // they're shown either way
     content.append(...topicsPart(content, topicsNote(pick.mode === "daily")), mirror("Region", $("region")));
-    part(body, "settings").append(viewChoice(), choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
+    part(body, "settings").append(viewChoice());
     const key = selKey(S), best = key && bests()[key], daily = key && dailies()[key], what = selName(selOf(S));
     part(body, "about").append(
       menuLine(!key ? `${what}: your own mix keeps no best` : `${what}: ${best ? `best ${best.toLocaleString("en-GB")}` : "no finished set yet"}${daily != null ? `, today ${daily.toLocaleString("en-GB")}` : ""}`),

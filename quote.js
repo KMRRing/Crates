@@ -738,7 +738,6 @@ function openMenu() {
     content.append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; openMenu(); }));
     // the topics are for random sets (today's is the same for everyone), so the line shows either way
     content.append(...topicsPart(content, topicsNote(pick.mode === "daily")));
-    part(body, "settings").append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
     // a single topic's best beside the book: the topic the subjects leave alone, else refining, which had sets of its own first
     const best = read(BEST, null), daily = read(DAILY, {})[String(today())], alone = focusOf(mix()) ?? "refining", bestOne = read(`${BEST}:${alone}`, null);
     part(body, "about").append(

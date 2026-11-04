@@ -1026,7 +1026,6 @@ function drawMenu() {
     ...(["countries", "commodities"].some(id => inMix[id] > 0) ? [choice("Name it", Object.entries(NAME_MODES), nameMode(), mo => {
       try { localStorage.setItem(NAME, mo); } catch { /* private mode */ }
     })] : []));
-  part(body, "settings").append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
   if (together.room) {
     const max = maxShare(S);
     part(body, "together").append(choice("Pots", Object.entries(MODES), modeOf(S), switchMode),

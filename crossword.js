@@ -1139,8 +1139,7 @@ function openMenu() {
   // the computer: a partner holding the Down clues; from the next grid
   settingsPart.append(choice("Computer", [["off", "Off"], ["partner", "Partner"]], s.computer, v => { setSetting("computer", v); openMenu(); }));
   if (s.computer !== "off") settingsPart.append(choice("Its pace", Object.entries(PACES).map(([k, r]) => [k, r.name]), s.pace, v => setSetting("pace", v)));
-  settingsPart.append(toggle("Check as you go", s.autocheck, on => setSetting("autocheck", on)),
-    choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
+  settingsPart.append(toggle("Check as you go", s.autocheck, on => setSetting("autocheck", on)));
   const t = read(TIMES, {}), bests = LEVEL_IDS.filter(id => t[id]?.best != null).map(id => `${LEVELS[id].name} ${clock(t[id].best)}`);
   const solvedN = LEVEL_IDS.reduce((n, id) => n + (t[id]?.solved || 0), 0);
   part(body, "about").append(line(bests.length ? `Best: ${bests.join(" · ")} · ${solvedN} solved` : "No grid solved yet"),

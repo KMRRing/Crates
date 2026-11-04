@@ -302,7 +302,6 @@ function openMenu() {
   content.append(...topicsPart(content, pick === "daily" ? "Today's run deals every topic" : onPreset() ? "" : "Your own mix doesn't count for your best"));
   const settings = part(body, "settings");
   if (pick === "random") settings.append(choice("Candidates", SIZES.map(n => [n, String(n)]), prefs.size, v => { prefs.size = v; keepPrefs(); openMenu(); }));
-  settings.append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${CENTRES.length.toLocaleString("en-GB")} things to start from`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

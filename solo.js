@@ -16,6 +16,7 @@ import { modeChoice } from "./crates-board.js";
 import { topicsPart } from "./topics-ui.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
 import { today, noteComparable, noteStreak } from "./suite.js";
+import { cratesMode } from "./crates-mode.js";
 import { roundOver } from "./random.js";
 
 const MAX_MISTAKES = 4;
@@ -218,7 +219,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     persistLocal();
     if (!active) return;
     setPoolParam(store.pool);
-    if (store.cur && decode(store.cur.code)) load(); else fresh();
+    if (takeMode() || !store.cur || !decode(store.cur.code)) fresh(); else load();
     clock.pause();          // the other device is the one being played: this clock waits for a tap here
     view.toast("Caught up with your other device", 2500);
     if (view.menuTag() === "solo") handlers.menu();
@@ -287,13 +288,15 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     return null;
   }
 
-  function setMode(mode) {
+  /** The mode set on the games screen's Choose sheet (learning-mode.js) becomes the run's. A board not yet touched is
+   *  dealt again under it; one begun finishes as it was dealt. */
+  function takeMode() {
+    const mode = cratesMode();
+    if (mode === store.mode) return false;
     store.mode = mode;
     save();
-    const g = game();
-    if (mode !== "off" && !g.done && !g.guesses.length && !g.revealed.length) fresh();   // untouched board: redeal now
-    else { view.toast(mode === "off" ? "Learning mode off" : `${MODE[mode].label} starts with the next board`, 2200); draw(); }
-    settingsSheet();
+    const g = store.cur;
+    return !!g && mode !== "off" && !g.done && !g.guesses.length && !g.revealed.length && !g.daily;
   }
 
   async function resetMode(question, forget) {
@@ -312,9 +315,8 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       onBack: () => handlers.menu(),
       learning: {
         mode: store.mode,
-        modes: MODES.map(m => [m, MODE[m].label]),
+        label: MODE[store.mode].label,
         lines: [MODE[store.mode].about, modeSummary()].filter(Boolean),
-        onMode: setMode,
         reset: store.mode === "norepeat" ? { label: "Start the clues over", run: () => resetMode("Forget which clues you've seen?", () => { store.seen = {}; }) }
           : store.mode !== "off" ? { label: "Reset learning progress", run: () => resetMode("Forget everything learning mode knows about you?", () => { store.deck = emptyDeck(); }) }
           : null,
@@ -448,11 +450,12 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       if (pool && pool !== store.pool) { store.pool = pool; save(); }
       setPoolParam(store.pool);
       view.bind(handlers);
+      const redeal = takeMode();
       const shared = code ? decode(code) : null;
       if (code && !shared) view.toast("That board link isn't valid", 3000);
       if (shared) begin(shared, code.trim().toLowerCase());
-      else if (store.cur && decode(store.cur.code)) load();
-      else fresh();
+      else if (redeal || !store.cur || !decode(store.cur.code)) fresh();
+      else load();
       if (runCode) joinRun(runCode);
     },
     /** A together game takes the screen: stop the clock, keep the run as it is. */
