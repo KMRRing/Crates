@@ -93,7 +93,16 @@ export const GATE_FIRST = 90, GATE_EVERY = 4;
 export const KINDS = {                     // foes: base height and body height (the hero's feet are y = 0)
   crab: { y: 0, h: 1.0, air: false },
   gull: { y: 1.35, h: 0.8, air: true },
+  // inert foes: they do not look, wind up or fly at me, and are broken by the same attacks that cut a crab. A barrel is jumped or broken
+  // (a break gives BREAK_COINS.barrel coins); a balloon floats where it was hung and is popped (BREAK_COINS.balloon coins, and the
+  // popping throws me up again like any kill in the air, so a chain of them is a stair). Run into unbroken, a barrel costs a heart (and
+  // breaks), a balloon costs nothing but my chain (and pops without a reward).
+  barrel: { y: 0, h: 0.85, air: false, inert: true },
+  balloon: { y: 2.2, h: 1.1, air: true, inert: true },
 };
+export const BREAK_COINS = { barrel: 3, balloon: 2 };
+export const GEM_MAX_HEARTS = 5;           // amber: each one found is a heart back, and past the hearts I have, a heart more (up to this many)
+export const COIN_PASS = 0.45;             // a coin or a nugget is taken from this far above or below the hero's body: runs and jumps pick them up
 
 export const speedAt = z => SPEED0 + (SPEED1 - SPEED0) * (1 - Math.exp(-Math.max(0, z) / 700));
 
@@ -105,6 +114,7 @@ function rnd(S, key = "rng") {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 const pick = (S, list) => list[Math.floor(rnd(S) * list.length)];
+const pickc = (S, list) => list[Math.floor(rnd(S, "crng") * list.length)];     // (the coins have a stream of their own, so they never change where the foes are)
 const between = (S, a, b) => a + rnd(S) * (b - a);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
@@ -112,12 +122,12 @@ const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 export function newGame({ seed = 1, deal = null, hearts = 3, launch = false, section = null } = {}) {
   const S = {
     v: 1, seed, rng: seed | 0, qrng: (seed ^ 0x9E3779B9) | 0,
-    t: 0, over: false, hearts, maxHearts: hearts, score: 0, bonus: 0, kills: 0, chain: 0, bestChain: 0,
+    crng: (seed ^ 0x51ED270B) | 0, t: 0, over: false, hearts, maxHearts: hearts, score: 0, bonus: 0, kills: 0, chain: 0, bestChain: 0,
     right: 0, wrong: 0, missed: 0, streak: 0, falls: 0, fwd: launch ? 0.3 : 1,
     hero: { z: 0, x: 0, y: 0, vx: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0, roll: 0, rollQ: false, jumps: 0 },
     world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], foes: [], gates: [], obs: [], pick: [], id: 1 },
     pending: [], answers: [], asked: [], ev: [],
-    sec: 0, hits: 0, carried: {}, token: 0, flip: 0, inv: 0, won: false,
+    sec: 0, hits: 0, carried: {}, token: 0, flip: 0, inv: 0, won: false, coins: 0, gems: 0, broke: 0,
   };
   setDeal(S, deal);
   if (section) beginSection(S, section);
@@ -133,7 +143,7 @@ export function valid(S, sections = null) {
   if (S.sec && (!sections || !sections[S.sec - 1] || !S.mods || !Number.isFinite(S.world.finish) || S.sig !== sectionSig(sections[S.sec - 1]))) return false;
   const W = S.world;
   W.obs ||= []; W.pick ||= [];
-  S.sec ||= 0; S.hits ||= 0; S.carried ||= {}; S.token ||= 0; S.flip ||= 0; S.inv ||= 0; S.won = !!S.won;
+  S.sec ||= 0; S.hits ||= 0; S.carried ||= {}; S.token ||= 0; S.flip ||= 0; S.inv ||= 0; S.won = !!S.won; S.coins ||= 0; S.gems ||= 0; S.broke ||= 0; if (!Number.isFinite(S.crng)) S.crng = (S.seed ^ 0x51ED270B) | 0;
   return true;
 }
 
@@ -175,6 +185,7 @@ function chunk(S) {
     for (const k of kinds) { if ((r -= k[1]) < 0) { kind = k[0]; break; } }
     len = CHUNKS[kind](S, z0);
   }
+  if (W.chunks > 1) sprinkle(S, z0, z0 + len);
   W.z1 = z0 + len;
 }
 
@@ -235,6 +246,51 @@ const CHUNKS = {
   },
 };
 
+// ---------- coins ----------
+// Every stretch of quay, in every run and every section, is sprinkled with trails of coins (Subway Surfers' way): a line in a lane that is
+// free of foes and blockers, that changes lane where the way is blocked, and that arcs over a barrel and over a gap in the planks, which is
+// the path a jump takes. Where a trail ends it now and then ends in amber, hung at the height of a jump or lower. A trail never goes
+// through a lane beside a crab (the cut would carry the hero off the line), so following the coins is the safe way.
+export const COIN_STEP = 2.4, COIN_ARC = 2.7;
+export function sprinkle(S, z0, z1) {
+  const W = S.world;
+  const near = (a, z, r) => Math.abs(a - z) <= r;
+  const blocked = (lane, z) => {
+    for (const f of W.foes) {
+      if (!f.alive || f.gate || !near(f.z, z, 2.4)) continue;
+      if (f.kind === "barrel" || f.kind === "balloon") { if (f.lane === lane && f.kind === "barrel" && near(f.z, z, 0.6)) return true; continue; }
+      if (Math.abs(f.lane - lane) <= (f.kind === "crab" ? 1 : 0) && (f.kind === "crab" || f.y < 2)) return true;
+    }
+    for (const o of W.obs) if (o.lane === lane && near(o.z, z, o.len / 2 + 1.4)) return true;
+    for (const p of W.pits) if (!p.gap && z > p.z0 - 1 && z < p.z1 + 1) return true;
+    return false;
+  };
+  const arcY = (lane, z) => {
+    let y = 0.55;
+    for (const f of W.foes) if (f.alive && f.kind === "barrel" && f.lane === lane && near(f.z, z, COIN_ARC)) y = Math.max(y, 0.55 + 1.15 * (1 - ((z - f.z) / COIN_ARC) ** 2));
+    for (const p of W.pits) if (p.gap) { const c = (p.z0 + p.z1) / 2, R = (p.z1 - p.z0) / 2 + COIN_ARC; if (near(c, z, R)) y = Math.max(y, 0.55 + 1.0 * (1 - ((z - c) / R) ** 2)); }
+    return Math.min(y, 1.5);
+  };
+  let lane = pickc(S, [-1, 0, 1]), left = 0, pause = 1 + Math.floor(rnd(S, "crng") * 3), made = 0;
+  for (let z = z0 + 5; z < z1 - 3; z += COIN_STEP) {
+    if (left <= 0) {
+      if (--pause > 0) continue;
+      const free = [-1, 0, 1].filter(l => !blocked(l, z)).sort((a, b) => Math.abs(a - lane) - Math.abs(b - lane));
+      if (!free.length) { pause = 1; continue; }
+      lane = free[0]; left = 5 + Math.floor(rnd(S, "crng") * 6); made = 0;
+    }
+    if (blocked(lane, z)) {                                       // the way is blocked: the trail swerves to a lane that is free here, or ends
+      const free = [lane - 1, lane + 1].filter(l => l >= -1 && l <= 1 && !blocked(l, z) && !blocked(l, z + COIN_STEP * 1.5));
+      if (free.length) lane = pick(S, free); else { left = 0; pause = 2; continue; }
+    }
+    const end = --left <= 0;
+    if (end && made >= 3 && rnd(S, "crng") < 0.07) pickup(S, "gem", lane, z, { y: rnd(S, "crng") < 0.4 ? 2.0 : 1.0 });
+    else pickup(S, "coin", lane, z, { y: arcY(lane, z) });
+    made++;
+    if (end) pause = 3 + Math.floor(rnd(S, "crng") * 4);
+  }
+}
+
 /** The ferry: the quay stops at a gap wider than a jump, three gulls over it with an answer each, the right one tosses
     me across. A long run-up before it, so the question can be read. */
 function gate(S, z0) {
@@ -257,12 +313,15 @@ function gate(S, z0) {
 // that opens and shuts on a beat, the three a third of a beat apart; H a meal (a heart back). A row beginning with ! is a
 // piece of the old quay: !rest n, !gap n (a gap in the planks of n metres), !gate (a question), !chain, !wall, !wallslam, !pitch n.
 export const OBS = {                       // what blocks: base, top and length along the quay
-  barrel: { y0: 0, y1: 0.85, len: 0.9 },
+  barrel: { y0: 0, y1: 0.85, len: 0.9 },   // (a barrel is a foe now; this is only for a run kept from before)
   beam: { y0: 0.8, y1: 2.2, len: 1.0 },
   cart: { y0: 0, y1: 2.6, len: 1.6 },
+  toll: { y0: 0, y1: 2.6, len: 1.0 },
+  bridge: { y0: 0, y1: 2.4, len: 2.4 },    // the raised leaf of a drawbridge stands this high at the span's far end
+  tide: { y0: 0, y1: 2.6, len: 1.0 },
 };
 export const ROLL_H = 0.6;                 // the height of a hero rolling: a beam hangs above it
-export const TIDE_P = 3.2, TIDE_OPEN = 0.56;   // a sluice gate: the beat in seconds and the part of it that it is open
+export const TIDE_P = 3.0, TIDE_OPEN = 0.5, TIDE_WARN = 0.7;   // a sluice gate: the beat in seconds, the part of it that it is open, and the seconds of warning before it changes
 export const GOODS = { s: "salt", h: "herring", f: "furs", w: "wax", r: "grog", a: "amber" };
 export const GROG_T = 5;                   // seconds that left and right are the wrong way round after a drink
 export const LOAD_LESS = 0.025, LOAD_MIN = 0.8;   // what each good carried takes off the speed of a jump, and the least it comes to
@@ -274,10 +333,22 @@ export function solid(S, o) {
   switch (o.kind) {
     case "toll": return S.token !== o.mark;
     case "bridge": return S.flip === o.flip;
-    case "tide": return ((S.t / TIDE_P + o.ph) % 1 + 1) % 1 >= TIDE_OPEN;
+    case "tide": return tide(S, o).state === "shut" || tide(S, o).state === "opening";
     default: return true;
   }
 }
+
+/** A sluice gate now: "open" (raised, passable), "closing" (still passable: the lamp flashes and the leaf is half down), "shut", or
+ *  "opening" (still shut: the lamp flashes and the leaf is half up); `left` the seconds until the next of those. */
+export function tide(S, o) {
+  const f = (((S.t / TIDE_P + o.ph) % 1) + 1) % 1, toShift = (f < TIDE_OPEN ? TIDE_OPEN - f : 1 - f) * TIDE_P;
+  if (f < TIDE_OPEN) return { state: toShift <= TIDE_WARN ? "closing" : "open", left: toShift };
+  return { state: toShift <= TIDE_WARN ? "opening" : "shut", left: toShift };
+}
+/** Which colour a drawbridge is (0 red, 1 blue), and whether it is up (shut to the hero) now. */
+export const bridgeUp = (S, o) => S.flip === o.flip;
+/** The colour the next lever step lowers: the bridges that are up now. */
+export const leverLowers = S => S.flip;
 
 function obstacle(S, kind, lane, z, extra = {}) {
   const d = OBS[extra.shape || kind] || OBS.cart;
@@ -297,7 +368,12 @@ function cell(S, tok, lane, z) {
     case "c": foe(S, "crab", lane, z); return;
     case "C": foe(S, "crab", lane, z, 0, { hp: 2, heavy: true }); return;
     case "g": foe(S, "gull", lane, z); return;
-    case "b": obstacle(S, "barrel", lane, z); return;
+    case "b": foe(S, "barrel", lane, z); return;
+    case "o": foe(S, "balloon", lane, z); return;                    // a balloon
+    case "O": foe(S, "balloon", lane, z, 3.6); return;               // and a high one: out of reach from the planks
+    case "$": pickup(S, "coin", lane, z); return;                    // a coin
+    case "^": pickup(S, "coin", lane, z, { y: 1.8 }); return;        // a coin at the height of a jump
+    case "A": pickup(S, "gem", lane, z, { y: 1.0 }); return;         // amber, rare
     case "B": obstacle(S, "beam", lane, z); return;
     case "X": obstacle(S, "cart", lane, z); return;
     case "L": pickup(S, "lever", lane, z); return;
@@ -307,9 +383,9 @@ function cell(S, tok, lane, z) {
   if (GOODS[tok]) { pickup(S, GOODS[tok], lane, z, { good: true }); return; }
   const m = /^([TFW])(\d)$/.exec(tok);
   if (!m) throw new Error(`Courier: unknown cell "${tok}"`);
-  if (m[1] === "T") obstacle(S, "toll", lane, z, { shape: "cart", mark: +m[2] });
-  else if (m[1] === "F") obstacle(S, "bridge", lane, z, { shape: "cart", flip: +m[2] });
-  else obstacle(S, "tide", lane, z, { shape: "cart", ph: +m[2] / 3 });
+  if (m[1] === "T") obstacle(S, "toll", lane, z, { mark: +m[2] });
+  else if (m[1] === "F") obstacle(S, "bridge", lane, z, { flip: +m[2] });
+  else obstacle(S, "tide", lane, z, { ph: +m[2] / 3 });
 }
 
 /** What a section is made of, as a short string: a run kept from before the section was changed is not the section any more, and is dropped. */
@@ -323,7 +399,7 @@ export function sectionSig(def) {
 /** Makes a section's quay whole, as `def` (reckoning-sections.js) describes it. */
 export function beginSection(S, def) {
   const W = S.world;
-  S.sec = def.id; S.sig = sectionSig(def); S.rng = (def.id * 7919 + 17) | 0;              // the quay is the same every time; only the questions are dealt afresh
+  S.sec = def.id; S.sig = sectionSig(def); S.rng = (def.id * 7919 + 17) | 0; S.crng = (def.id * 104729 + 5) | 0;              // the quay is the same every time; only the questions are dealt afresh
   S.hearts = S.maxHearts = def.hearts ?? 3;
   S.mods = { v0: def.v0, v1: def.v1 ?? def.v0, omega: def.omega || 0, laden: def.laden || 0, fog: def.fog || 0 };
   S.bill = { want: def.bill?.want || [], bad: def.bill?.bad || [] };
@@ -350,6 +426,7 @@ export function beginSection(S, def) {
     z += pitch;
   }
   W.finish = z + 6; W.z1 = W.finish + 30;
+  if (def.coins !== false) sprinkle(S, def.lead ?? 16, W.finish);
   S.world.foes.sort((a, b) => a.z - b.z);
 }
 
@@ -363,7 +440,7 @@ function touch(S) {
   }
   for (const p of W.pick) {
     if (p.taken || Math.abs(p.z - h.z) > 0.8 || h.mode === "wall" || Math.abs(laneX(p.lane) - h.x) > 0.8) continue;
-    if (h.y + hh < p.y - 0.3 || h.y > p.y + 0.3) continue;
+    if (h.y + hh < p.y - (p.kind === "coin" || p.kind === "gem" ? COIN_PASS : 0.3) || h.y > p.y + 0.3) continue;
     p.taken = true;
     take1(S, p);
     if (S.over) return;
@@ -382,6 +459,14 @@ function take1(S, p) {
     case "token": S.token = p.mark; break;
     case "lever": S.flip ^= 1; break;
     case "meal": if (S.hearts < S.maxHearts) { S.hearts++; S.ev.push({ type: "heart", hearts: S.hearts }); } break;
+    case "coin": S.coins++; S.ev.push({ type: "pick", what: "coin", id: p.id, n: S.coins }); return;
+    case "gem":                                                   // amber: a heart back, or a heart more (up to GEM_MAX_HEARTS)
+      S.gems++;
+      if (S.hearts >= S.maxHearts && S.maxHearts < GEM_MAX_HEARTS) S.maxHearts++;
+      if (S.hearts < S.maxHearts) S.hearts++;
+      S.bonus += 250;
+      S.ev.push({ type: "heart", hearts: S.hearts, gem: true });
+      break;
     default:
       if (S.bill.bad.includes(p.kind)) {                          // the customs take a heart for a thing that is not on the bill
         S.hearts--; S.hits++; S.hero.hurt = HURT_T; S.fwd = 0.7;
@@ -659,7 +744,8 @@ export function step(S, dt) {
       if (dz < -FOE_REACH || dz > ROLL_REACH) continue;
       if ((f.hp || 1) > 1) { stagger(S, f); continue; }
       f.alive = false; S.kills++; S.bonus += 100;
-      S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "roll", y: f.y });
+      S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "roll", x: f.x, y: f.y, z: f.z });
+      payout(S, f);
     }
     if (h.roll === 0 && h.rollQ) { h.roll = ROLL_T; h.rollQ = false; ev.push({ type: "roll", again: true }); }
   }
@@ -673,13 +759,14 @@ export function step(S, dt) {
     const dz = f.z - h.z;
     if (dz < -FOE_REACH || dz > FOE_REACH) continue;
     if (h.hurt > 0 || (h.lunge && h.lunge.foe === f.id) || guarded(S, f)) continue;
-    if (Math.abs(f.x - h.x) > (f.ph === 3 ? HIT_X : LANE_W * 1.05)) continue;     // a launched foe hits where it aimed; the others, the lane they are in and the next
+    if (Math.abs(f.x - h.x) > (inert(f) ? 0.75 : f.ph === 3 ? HIT_X : LANE_W * 1.05)) continue;     // a launched foe hits where it aimed; the others, the lane they are in and the next
     if (KINDS[f.kind].air && h.roll > 0 && grounded(h)) continue;                  // a roll goes under a gull's dive
     if (h.y < f.y + f.h - 0.15 && h.y + HERO_H > f.y + 0.1) hit(S, f);
     if (S.over) return ev;
   }
 
-  if (S.sec) { touch(S); if (S.over) return ev; if (h.z >= S.world.finish) { finish(S); return ev; } }
+  touch(S); if (S.over) return ev;
+  if (S.sec && h.z >= S.world.finish) { finish(S); return ev; }
 
   // gates passed unanswered
   for (const g of S.world.gates) if (g.state === "open" && h.z > g.z + 1.2) { g.state = "missed"; answered(S, g, null); }
@@ -748,7 +835,8 @@ function strike(S, f, how) {
   S.bestChain = Math.max(S.bestChain, S.chain);
   S.kills++;
   S.bonus += 100 + 50 * Math.min(S.chain, 8);
-  S.ev.push({ type: "kill", id: f.id, kind: f.kind, how, chain: S.chain, y: f.y, dir: L?.dir || 0 });
+  S.ev.push({ type: "kill", id: f.id, kind: f.kind, how, chain: S.chain, x: f.x, y: f.y, z: f.z, dir: L?.dir || 0 });
+  payout(S, f);
   // a cut sideways goes on, in the same direction, to the next foe in reach: no hop in between
   const next = how === "side" && L?.dir ? sweepFoe(S, h.lane + L.dir) : null;
   if (next) {
@@ -760,6 +848,14 @@ function strike(S, f, how) {
   }
   h.mode = "air";
   h.vy = how === "bonk" ? BONK_V : air ? CHAIN_V : HOP_V;
+}
+
+/** What a thing broken by an attack gives: a barrel or a balloon, coins (they are credited at once and fly to the counter). */
+function payout(S, f) {
+  const n = BREAK_COINS[f.kind] || 0;
+  if (!n) return;
+  S.coins += n; S.broke++;
+  S.ev.push({ type: "coins", n, x: f.x, y: f.y + f.h / 2, z: f.z, kind: f.kind });
 }
 
 /** A bruiser hit once: one cut less to take, and thrown back down the quay, winding up again from nothing. */
@@ -782,6 +878,7 @@ function sweepFoe(S, lane) {
 // ---------- the foes' minds ----------
 
 const isAir = f => KINDS[f.kind].air;
+const inert = f => !!KINDS[f.kind].inert;
 
 /** A foe within a lane of me sees me (`ph` 1: it looks my way), winds up (2) and launches (3), by seconds to contact so
  *  it is the same at any speed. The launch commits it to the lane I am in then (`aim`): a crab slides across to it, a gull
@@ -792,7 +889,7 @@ const isAir = f => KINDS[f.kind].air;
 function think(S) {
   const h = S.hero, v = speed(S), reachT = FOE_REACH / v;
   for (const f of alive(S)) {
-    if (f.gate || !floorAt(S, f.z)) continue;
+    if (f.gate || inert(f) || !floorAt(S, f.z)) continue;
     const t = (f.z - h.z) / v;
     let ph = f.ph || 0;
     if (ph === 3) { fly(f, t - reachT); continue; }
@@ -828,7 +925,7 @@ function drift(S, dt) {
   const h = S.hero, v = speed(S);
   const above = SIDE_ABOVE - 0.1, below = SIDE_BELOW - 0.1;      // it keeps a little inside what a swipe reaches, so the edge is never where it rests
   for (const f of alive(S)) {
-    if (f.gate || !isAir(f) || f.ph === 3) continue;
+    if (f.gate || inert(f) || !isAir(f) || f.ph === 3) continue;
     const t = (f.z - h.z) / v;
     if (t < -FOE_REACH / v || t > DRIFT_T || !floorAt(S, f.z)) continue;
     const dy = h.y - f.y;
@@ -884,13 +981,23 @@ function land(S) {
     if (dz < -1 || dz > SLAM_R || Math.abs(f.x - h.x) > LANE_W * 1.05 + 0.1) continue;
     f.alive = false; n++; S.kills++;
     S.bonus += 100 + 25 * n;
-    S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "slam", y: f.y });
+    S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "slam", x: f.x, y: f.y, z: f.z });
+    payout(S, f);
   }
   S.ev.push({ type: "shockwave", n });
 }
 
 function hit(S, f) {
   const h = S.hero;
+  if (f.kind === "balloon") {                                     // run into, a balloon pops for nothing: it only ends my chain
+    f.alive = false; S.chain = 0;
+    S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "bump", x: f.x, y: f.y, z: f.z, reward: false });
+    return;
+  }
+  if (f.kind === "barrel") {                                      // a barrel run into breaks, and costs the heart
+    f.alive = false;
+    S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "crash", x: f.x, y: f.y, z: f.z, reward: false });
+  }
   f.spent = true;
   S.hearts--; S.hits++; h.hurt = HURT_T; S.fwd = 0.7; S.chain = 0; S.streak = 0;
   S.ev.push({ type: "hurt", id: f.id, hearts: S.hearts });

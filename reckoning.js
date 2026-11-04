@@ -18,6 +18,7 @@ import { busy } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "reckoning:run", BEST = "reckoning:best", STATS = "reckoning:stats", MISS = "reckoning:miss";
+const COINS = "courier:coins", AMBER = "courier:amber";      // coins and amber banked over all runs (a run's own are in the run, and are banked when it ends)
 const CAMP = "reckoning:camp";                                 // { at (the section to play next, 1 on), stars: [the most won in each section] }
 const LOG = "reckoning:log";                                     // the swipe log: in sessionStorage, so it is not synced between devices (it is long)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -68,6 +69,7 @@ function save() {
 /** A new run: of section `n`, or endless (0). */
 function newRun(n = 0) {
   if (typeof n !== "number") n = 0;                            // (a click hands over its event)
+  if (S && !S.over) bank();                                    // the run left behind keeps what it picked up
   if (n) camp.at = n;
   keepCamp();
   S = setDeal(newGame({ seed: Math.floor(Math.random() * 2 ** 31), deal, launch: true, section: n ? byId(n) : null }), deal);
@@ -108,8 +110,9 @@ function handle(events) {
         say(ev.ok ? "Right" : ev.ok === false ? "Not that one" : "Missed it", ev.ok ? "good" : "bad");
         if (ev.ok !== true) keepMiss(ev.q);
         break;
-      case "heart": say("A heart back", "good"); break;
-      case "pick": say(pickWords(ev), "good"); break;
+      case "heart": say(ev.gem ? "Amber: a heart" : "A heart back", "good"); break;
+      case "coins": say(`+${ev.n} coins`, "good"); break;
+      case "pick": if (ev.what !== "coin") say(pickWords(ev), "good"); break;
       case "seized": say(`Seized: ${ev.what}`, "bad"); break;
       case "stagger": say("Again", "good"); break;
       case "finish": finished(ev); break;
@@ -123,7 +126,7 @@ function handle(events) {
 const MARKS = ["", "red", "green", "blue"];
 function pickWords(ev) {
   if (ev.what === "token") return `${MARKS[ev.mark]} token`;
-  if (ev.what === "lever") return "Lever";
+  if (ev.what === "lever") return S.flip ? "Blue bridges up, red down" : "Red bridges up, blue down";
   if (ev.what === "meal") return "A meal";
   if (ev.what === "grog") return "Grog: left is right";
   return ev.what[0].toUpperCase() + ev.what.slice(1);
@@ -138,6 +141,7 @@ function keepMiss(q) {
 /** The finish of a section: passed (with its stars) or short of its aim. */
 function finished(ev) {
   running = false;
+  bank();
   if (ev.won) {
     camp.stars[S.sec - 1] = Math.max(camp.stars[S.sec - 1], ev.stars);
     const first = camp.stars.findIndex(n => !n);                // the one to play next is the first not yet passed, not the one after the one just played
@@ -151,8 +155,17 @@ function finished(ev) {
   roundOver("reckoning");
 }
 
+/** A run's coins and amber go into the totals when it ends (once). */
+function bank() {
+  if (IN_FRAME || !S || S.banked) return;
+  S.banked = true;
+  if (S.coins) write(COINS, read(COINS, 0) + S.coins);
+  if (S.gems) write(AMBER, read(AMBER, 0) + S.gems);
+}
+
 function over() {
   running = false;
+  bank();
   if (S.sec) { const st = read(STATS, { runs: 0, right: 0, wrong: 0 }); write(STATS, { runs: st.runs + 1, right: st.right + S.right, wrong: st.wrong + S.wrong + S.missed }); save(); showResult(); roundOver("reckoning"); return; }
   const dist = S.score;
   if (dist > best) { best = dist; write(BEST, best); }
@@ -181,6 +194,7 @@ function drawHud() {
   if (put("score", () => sc)) $("score").textContent = sc;
   const g = goalText();
   if (put("goal", () => g)) { $("goal").textContent = g; $("goal").hidden = !g; }
+  if (put("coins", () => `${S.coins}/${S.gems}`)) { $("coinN").textContent = fmt(S.coins); $("gemN").hidden = !S.gems; $("gemN").lastChild.textContent = S.gems; }
   const c = S.chain >= 2 ? `×${S.chain}` : "";
   if (put("combo", () => c)) { $("combo").textContent = c; $("combo").classList.toggle("on", !!c); }
 }

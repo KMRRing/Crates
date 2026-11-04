@@ -49,8 +49,8 @@ export function foesText(S, n = 6) {
   const v = speed(S), t = z => (z - S.hero.z) / v;
   const items = [
     ...S.world.foes.filter(f => f.alive && !f.spent && t(f.z) > -0.15 && t(f.z) < 1.3).map(f => [f.z, foeText(S, f)]),
-    ...(S.world.obs || []).filter(o => t(o.z) > -0.15 && t(o.z) < 1.3).map(o => [o.z, `${o.kind === "cart" || o.kind === "barrel" || o.kind === "beam" ? o.kind : `${o.kind} gate`} ${lane(o.lane)} ${num(t(o.z))}s${solid(S, o) ? " shut" : " open"}`]),
-    ...(S.world.pick || []).filter(p => !p.taken && t(p.z) > -0.15 && t(p.z) < 1.3).map(p => [p.z, `${p.kind}${p.mark ? p.mark : ""} ${lane(p.lane)} ${num(t(p.z))}s`]),
+    ...(S.world.obs || []).filter(o => t(o.z) > -0.15 && t(o.z) < 1.3).map(o => [o.z, `${o.kind === "cart" || o.kind === "barrel" || o.kind === "beam" ? o.kind : o.kind === "bridge" ? `${o.flip ? "blue" : "red"} bridge` : `${o.kind} gate`} ${lane(o.lane)} ${num(t(o.z))}s${o.kind === "bridge" ? (solid(S, o) ? " up" : " down") : solid(S, o) ? " shut" : " open"}`]),
+    ...(S.world.pick || []).filter(p => !p.taken && p.kind !== "coin" && t(p.z) > -0.15 && t(p.z) < 1.3).map(p => [p.z, `${p.kind}${p.mark ? p.mark : ""} ${lane(p.lane)} ${num(t(p.z))}s`]),
   ].sort((a, b) => a[0] - b[0]).slice(0, n);
   return items.length ? items.map(i => i[1]).join("; ") : "none";
 }
@@ -113,7 +113,7 @@ export function describe(S, ev) {
     case "land": return ev.slam ? "land, a slam" : "land";
     case "shockwave": return `shockwave, ${ev.n} cut`;
     case "hurt": return ev.obs ? `HURT by a thing on the quay, ${ev.hearts} hearts left` : `HURT by ${named(ev.id)}, ${ev.hearts} hearts left`;
-    case "pick": return `picked up ${ev.what}${ev.mark ? ` ${ev.mark}` : ""}`;
+    case "pick": return ev.what === "coin" ? "" : `picked up ${ev.what}${ev.mark ? ` ${ev.mark}` : ""}`;
     case "seized": return `SEIZED ${ev.what} by the customs, ${ev.hearts} hearts left`;
     case "stagger": return `bruiser ${ev.id} thrown back, ${ev.hp} cut to go`;
     case "finish": return ev.won ? `FINISH, passed with ${ev.stars} stars` : "FINISH, but short of the aim";
@@ -123,7 +123,8 @@ export function describe(S, ev) {
       const q = ev.q, pick = ev.pick == null ? "none" : q.o[ev.pick];
       return `ANSWER gate${ev.gate} ${ev.ok === true ? "right" : ev.ok === false ? "wrong" : "missed"}: "${q.q}" picked ${pick}; right ${q.o[q.a]}`;
     }
-    case "heart": return `a heart back, ${ev.hearts}`;
+    case "heart": return ev.gem ? `amber: a heart, ${ev.hearts}` : `a heart back, ${ev.hearts}`;
+    case "coins": return `${ev.n} coins out of the ${ev.kind}`;
     case "over": return `OVER, ${ev.score} points`;
     default: return "";
   }
