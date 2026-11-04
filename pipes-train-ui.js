@@ -2,7 +2,7 @@
 // the mainspring gives every gear it drives, the jams, the hint, the stars and the levels. The rules are pipes-train.js's (pure)
 // and the levels pipes-train-levels.js; this file draws them into pipes.html's board, queue, status line and buttons, and keeps
 // the level in hand and the stars under pipes:train and pipes:trainstars, so a partner watching sees the same board.
-import { el, T, MID, drawPiece, drawSource, drawLoad, drawGround, turnArrow, badgeAt, pieceTile, phasesOf, PIECE_NAMES } from "./pipes-wheels.js";
+import { el, T, MID, spinMs, drawPiece, drawSource, drawLoad, drawGround, turnArrow, badgeAt, pieceTile, phasesOf, PIECE_NAMES } from "./pipes-wheels.js";
 import * as Z from "./pipes-train.js";
 import { LEVELS, CHAPTERS } from "./pipes-train-levels.js";
 import { sure } from "./sure.js";
@@ -27,7 +27,7 @@ export function createPuzzle(deps) {
   let stars = {};                          // id -> the best stars won
   let L = null, laid = [], run = null, index = 0;
   let undoStack = [], hint = null, cellG = [], svg = null, last = null;
-  let oilTo = 0, oilTimer = 0, order = [];            // the train turning in a level just solved: how many gears have started
+  let oilTo = 0, oilTimer = 0, order = [], spinEpoch = 0;            // the train turning in a level just solved: how many gears have started
   let shownFor = "", jamKey = "";
 
   // ---------- keeping ----------
@@ -46,7 +46,7 @@ export function createPuzzle(deps) {
 
   // ---------- the level in hand ----------
   function open(id, { fresh = false } = {}) {
-    clearTimeout(oilTimer); oilTimer = 0;
+    clearTimeout(oilTimer); oilTimer = 0; spinEpoch = 0;
     index = Math.max(0, indexOf(id));
     const spec = LEVELS[index];
     L = Z.parseLevel(spec);
@@ -77,7 +77,7 @@ export function createPuzzle(deps) {
     const jams = new Set(gearsOf(c * 3).map((u, i) => (m.jam.has(u) ? i : -1)).filter(i => i >= 0));
     if (f?.k === "source") drawSource(g, f.d, { phase: phases[0], jam: jams.has(0) });
     else if (f?.k === "terminal") {
-      drawLoad(g, f.d, { phase: phases[0], jam: jams.has(0) });
+      drawLoad(g, f.d, { phase: phases[0], jam: jams.has(0), dir: turns[0] });
       const state = res.loadOn ? (res.spinOk ? "ok" : "bad") : "";
       turnArrow(g, ...badgeAt(f.d), L.spin, 5, `g-turn load ${state}`);
     } else if (piece) {
@@ -285,17 +285,19 @@ export function createPuzzle(deps) {
     };
     oilTimer = setTimeout(tick, STEP);
   }
-  /** Sets turning every gear of a solved level the train has reached (`oilTo` of them): each wheel at its own speed (a tooth
-   *  passes at the same rate on all), and the load's hands, minute and hour. Safe to call again: a wheel turns once. */
+  /** Sets every gear of a solved level turning at once, each wheel at its own speed (a tooth passes at the same rate on all), and
+   *  the load's hands, minute and hour, once the train has reached the load (`oilTo`). All wheels count from one start
+   *  (`spinEpoch`): teeth that mesh stay meshed (a wheel started later would be out of step for good), and a redraw, which makes
+   *  new animations, picks the wheels up where they are instead of from zero. Safe to call again: a wheel turns once. */
   function startSpin() {
     if (!run.solved || reduced() || !cellG.length) return;
-    const reach = new Set(order.slice(0, oilTo === Infinity ? order.length : oilTo + 1));
-    if (oilTo > order.length) reach.add(L.terminal.c);
-    for (const c of reach) {
+    if (!spinEpoch) spinEpoch = performance.now();
+    for (let c = 0; c < cellG.length; c++) {
       for (const sp of cellG[c].querySelectorAll(".spin.cw, .spin.ccw")) {
         if (sp.dataset.on) continue;
         sp.dataset.on = "1";
-        sp.animate([{ transform: "rotate(0deg)" }, { transform: `rotate(${sp.classList.contains("ccw") ? -360 : 360}deg)` }], { duration: Number(sp.dataset.n) * 800, iterations: Infinity });
+        const turn = sp.animate([{ transform: "rotate(0deg)" }, { transform: `rotate(${sp.classList.contains("ccw") ? -360 : 360}deg)` }], { duration: spinMs(Number(sp.dataset.n)), iterations: Infinity });
+        turn.currentTime = performance.now() - spinEpoch;
       }
       if (c === L.terminal.c && oilTo > order.length) {
         const s = L.spin ? -1 : 1;

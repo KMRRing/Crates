@@ -48,9 +48,16 @@ export function wheel(g, { x, y, n, dir = null, phase = 0, skin = "", jam = fals
   const hub = n > 8 ? 6 : n > 5 ? 4 : 3;
   el("circle", { r: hub, class: "g-hub" }, body);
   if (dir === null || skin === "barrel") el("circle", { r: hub * 0.42, class: "g-jewel" }, body);
-  if (dir !== null && skin !== "barrel") turnArrow(out, 0, 0, dir, n > 8 ? 10 : n > 5 ? 6.6 : 5, "g-turn on");
+  if (dir !== null && skin !== "barrel" && skin !== "steel") turnArrow(out, 0, 0, dir, n > 8 ? 10 : n > 5 ? 6.6 : 5, "g-turn on");
   return out;
 }
+
+/** One tooth passes a mesh every TOOTH_MS on every wheel, so a wheel of n teeth takes n * TOOTH_MS to turn: meshed wheels stay in step. */
+export const TOOTH_MS = 800;
+export const spinMs = n => n * TOOTH_MS;
+/** The angle (degrees, clockwise positive) a wheel of n teeth has turned t ms after the train started; ccw: 1 counter-clockwise.
+ *  All wheels count t from the same start, which is what keeps their teeth in the gaps they were drawn in. */
+export const spinAngle = (n, ccw, t) => (ccw ? -1 : 1) * 360 * t / spinMs(n);
 
 /**
  * The angle of every wheel (by node, c * 3 + i), so that where two mesh a tooth lies in a gap: from the mainspring outwards, each
@@ -87,7 +94,7 @@ export function drawPiece(g, kind, opts = {}) {
 /** The mainspring: a barrel with its coil, its teeth towards side d, turning clockwise. */
 export function drawSource(g, d, opts = {}) {
   const gear = END[d].gears[0];
-  wheel(g, { x: gear.x, y: gear.y, n: gear.n, dir: null, phase: opts.phase ?? 0, skin: "barrel", jam: !!opts.jam });
+  wheel(g, { x: gear.x, y: gear.y, n: gear.n, dir: 0, phase: opts.phase ?? 0, skin: "barrel", jam: !!opts.jam });
   turnArrow(g, ...badgeAt(d), 0, 5, "g-turn bright");
 }
 /** Where a badge with a turn arrow sits in the mainspring's or the load's square: the corner its wheel leaves free. */
@@ -95,7 +102,7 @@ export const badgeAt = d => (d === 3 ? [51, 9] : d === 0 ? [9, 51] : [9, 9]);
 /** The load at the end of the train: a steel wheel with a watch dial, its teeth towards side d. Returns the dial's two hands. */
 export function drawLoad(g, d, opts = {}) {
   const gear = END[d].gears[0];
-  wheel(g, { x: gear.x, y: gear.y, n: gear.n, dir: null, phase: opts.phase ?? 0, skin: "steel", jam: !!opts.jam });
+  wheel(g, { x: gear.x, y: gear.y, n: gear.n, dir: opts.dir ?? null, phase: opts.phase ?? 0, skin: "steel", jam: !!opts.jam });
   const dial = el("g", { transform: `translate(${gear.x.toFixed(2)} ${gear.y.toFixed(2)})`, class: "dial" }, g);
   el("circle", { r: 13.5, class: "g-dial" }, dial);
   for (let k = 0; k < 12; k++) el("path", { d: `M${pt(k % 3 ? 10.6 : 9.4, k * 30)}L${pt(12, k * 30)}`, class: "g-tick" }, dial);

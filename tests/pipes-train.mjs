@@ -8,6 +8,9 @@
 import * as Z from "../pipes-train.js";
 import { solve } from "../pipes-train-solve.js";
 import { LEVELS, CHAPTERS } from "../pipes-train-levels.js";
+// a bare-bones DOM, enough for the drawing to build a tree we can read (the wheels' `.spin` groups)
+globalThis.document = { createElementNS: (_, tag) => ({ tag, attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = String(v); }, appendChild(c) { this.kids.push(c); return c; } }) };
+const { drawSource, drawLoad, spinAngle, spinMs } = await import("../pipes-wheels.js");
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -229,6 +232,33 @@ check(bad === 0, `all ${LEVELS.length} levels solve exactly as listed (${unique}
   check(ok, `following the hint from nothing, from wrong pieces and from half an answer solves every level (${steps} hints)`);
   const stuck = parsed.filter(({ L }) => L.total > L.cells.filter(f => !f).length).map(({ spec }) => spec.id);
   check(!stuck.length, "every hand has room on its board");
+}
+
+// ---------- the mainspring and the dial turn in step with the train ----------
+{
+  const spins = n => { const out = []; (function walk(x) { if (x.attrs?.class?.startsWith("spin")) out.push(x); x.kids.forEach(walk); })(n); return out; };
+  const node = () => document.createElementNS(null, "g");
+  const dirOf = n => (n.attrs.class.includes("ccw") ? 1 : n.attrs.class.includes("cw") ? 0 : null);
+  let ok = true, meshOk = true, why = "";
+  for (const spec of LEVELS) {
+    const L = Z.parseLevel(spec), res = Z.check(L, Z.layRoute(L, spec.sols[0]));
+    if (!res.solved) continue;
+    const m = res.m, want = m.turn[L.terminal.c * 3], src = node(), dial = node();
+    drawSource(src, L.source.d, {});
+    drawLoad(dial, L.terminal.d, { dir: want >= 0 ? want : null });
+    if (!spins(src).length || spins(src).some(s => dirOf(s) !== 0)) { ok = false; why = `${spec.id}: mainspring`; }
+    if (!spins(dial).length || spins(dial).some(s => dirOf(s) !== want)) { ok = false; why = `${spec.id}: dial`; }
+    // meshed wheels turn opposite ways, and counted from one start a tooth passes at the same rate on both: they never drift
+    m.adj.forEach((vs, u) => vs.forEach(v => {
+      if (v < u) return;
+      const nu = m.shapes[Math.floor(u / 3)].gears[u % 3].n, nv = m.shapes[Math.floor(v / 3)].gears[v % 3].n;
+      if (m.turn[u] === m.turn[v]) meshOk = false;
+      for (const t of [0, 70, 1234, 99999]) if (Math.abs(spinAngle(nu, m.turn[u], t) * nu + spinAngle(nv, m.turn[v], t) * nv) > 1e-6) meshOk = false;
+    }));
+  }
+  check(ok, `the mainspring's wheel turns clockwise and the dial's the way the train drives it, in every level${why ? ` (${why})` : ""}`);
+  check(meshOk, "meshed wheels turn opposite ways, a tooth passing at the same rate on both");
+  check(spinMs(9) * 12 === spinMs(12) * 9, "turn time is proportional to tooth count");
 }
 
 console.log(bad ? `\n${bad} FAILED` : "\nall passed");
