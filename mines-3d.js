@@ -1,13 +1,13 @@
-// Mines' solid fields on the page (mines-solid.js): the cube, the sphere and the geodesic sphere, drawn on one canvas
-// in perspective, by hand (no library, so it works offline). A hidden cell is a tile standing up from the surface (on
-// the cube, a little cube), a dug one is sunk level with it, so the field reads as the flat one does; it's lit from
-// the upper left, so each face shows which way it turns. A finger turns the solid like a trackball and a flick spins
-// it on a moment; two fingers zoom, and slide it once it's larger than its box. Only the half facing you is drawn, back
-// to front. The page asks it what it asks
-// the flat view (mines-draw.js): what to show (set), which cell is under a finger (cellAt), where a cell is (where);
-// and here also whether a cell is fair to tap (fair): one seen edge-on is a slanted sliver, so it is turned to face
-// you before a tap on it counts (face).
-import { solidBoard } from "./mines-solid.js";
+// Mines' solid fields on the page (mines-solid.js): the cube, the rhombicuboctahedron and the football, shapes on a
+// sphere, drawn on one canvas in perspective, by hand (no library, so it works offline, on an iPhone too). The Moon,
+// in space: regolith-grey tiles with craters, sunlit from the upper left, earthshine (the Earth's blue light) from
+// the lower right, a star field behind. A hidden cell is a tile standing up from the surface, a dug one is sunk level
+// with it, so the field reads as the flat one does. A finger turns the solid like a trackball and a flick spins it on a
+// moment; two fingers zoom, and slide it once it's larger than its box. Only the half facing you is drawn, back to
+// front. The page asks it what it asks the flat view (mines-draw.js): what to show (set), which cell is under a finger
+// (cellAt), where a cell is (where); and here also whether a cell is fair to tap (fair): one seen edge-on is a slanted
+// sliver, so it is turned to face you before a tap on it counts (face).
+import { solidBoard, AREA_TO_SIZE } from "./mines-solid.js";
 import { probeIn, readPalette, flagGlyph, mineGlyph, startGlyph, css, mix, alpha } from "./mines-draw.js";
 import { scale } from "./wide.js";
 
@@ -45,19 +45,21 @@ function slerp(a, b, t) {
 const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 const D = 4;                                              // the eye's distance from the middle, in the solid's radius: a gentle perspective
-const COMFORT = { cube: 34, sphere: 36, geodesic: 40 };   // a thumb's cell in px on a phone, as the flat view's: a square's side, a hexagon's width, a triangle's side
-const AREA_TO_SIZE = { cube: 1, sphere: 1.0746, geodesic: 1.5197 };   // that size from the square root of a cell's area (a hexagon's is 0.93 of its width, a triangle's 0.66 of its side)
-const RAISE = { cube: 0.16, sphere: 0.12, geodesic: 0.1 };            // how far a hidden tile stands up, in cells
+const COMFORT = { cube: 34, rhombi: 36, football: 36 };   // a thumb's cell in px on a phone, as the flat view's: a square's side, a hexagon's width (the rhombicuboctahedron's triangles are smaller: a little more room)
+const RAISE = { cube: 0.15, rhombi: 0.14, football: 0.12 };            // how far a hidden tile stands up, in cells
 const GAP = 0.06, BEVEL = 0.1;                            // a tile's foot inset from the cell's outline, and its top inset more (a bevel), as shares of the way to the middle
-const GLYPH = { cube: 0.5, sphere: 0.45, geodesic: 0.36 }; // a number's or a flag's room, over the cell's size on screen (as the flat view's)
+const GLYPH = { cube: 0.5, rhombi: 0.46, football: 0.45 }; // a number's or a flag's room, over the cell's size on screen (as the flat view's)
 const FAIR_FACING = 0.42;                                 // a cell turned further from you than this (the cosine) turns to you before a tap on it counts,
 const FAIR_SIZE = 0.5;                                    // as does one drawn smaller than this share of a thumb's cell (one facing you never is, however far out it's zoomed)
 const MOST = 2.4, ENOUGH = 0.8;                           // as the flat view's: the most it zooms in, times a thumb's size; how near a thumb's size the whole solid may be and still open whole
 const SPIN_MS = 420;                                      // how fast a flick's spin dies away (its time constant)
 const TURN_MS = 380;                                      // how long turning a cell to face you takes
 const SINK_MS = 140;                                      // how long a dug tile takes to sink
-const LIGHT = (() => { const v = [-0.38, 0.55, 0.74], l = Math.hypot(...v); return v.map(x => x / l); })();   // from the upper left, in front
-const SHADES = 16;                                        // steps of light a colour is kept at, so a frame builds no colour strings
+const unitOf = v => { const l = Math.hypot(...v); return v.map(x => x / l); };
+const SUN = unitOf([-0.5, 0.5, 0.7]);                     // the sun: from the upper left, in front
+const EARTH = unitOf([0.62, -0.42, 0.66]);                // the Earth, whose light fills the shadows: from the lower right
+const EARTHSTEPS = 5;                                     // steps of earthshine, as of light
+const SHADES = 16;                                        // steps of sunlight a colour is kept at (times EARTHSTEPS + 1 of earthshine), so a frame builds no colour strings
 // a cube's face turned to you is seen a little from above (16°) and from the right (20°), so the faces there show too
 // (it still faces you at nine-tenths: well inside fair)
 const TILT = qmul(qaxis([0, 1, 0], -20 * Math.PI / 180), qaxis([1, 0, 0], 16 * Math.PI / 180));
@@ -120,23 +122,75 @@ export function createSolidView(host) {
     order = [];
   }
 
-  // ---------- the palette ----------
+  // ---------- the palette: the Moon, whatever the theme ----------
+  const REGOLITH = [172, 167, 158], DUST = [104, 101, 100], SHADOW = [34, 38, 52], EARTHLIGHT = [96, 138, 214], SUNLIGHT = [255, 244, 224];
+  const MOON_NUMS = ["#ECE8DC", "#8DB6FF", "#7FE3AC", "#FF9482", "#C7AEFF", "#FFC46F", "#70E6DC", "#F2F0E8", "#CFCFD8", "#F7DC72", "#A0ACFF", "#EBB98E", "#FF9482"];
+  /** A table of colours for a base: by sunlight (lit, 0 to 1) and earthshine, as css strings, indexed shade * (EARTHSTEPS + 1) + earth. */
+  function lighting(base, ambient = 0.3, sun = 1) {
+    const out = [];
+    for (let sh = 0; sh <= SHADES; sh++) for (let e = 0; e <= EARTHSTEPS; e++) {
+      const lit = Math.pow(sh / SHADES, 0.85), earth = e / EARTHSTEPS;
+      // the unlit side is the base seen by earthshine alone, bluish and dim; sunlight warms it towards its own colour
+      const dark = mix(mix(base, SHADOW, 0.62), EARTHLIGHT, 0.2 * earth);
+      const day = mix(mix(base, SUNLIGHT, 0.12 * lit), EARTHLIGHT, 0.05 * earth);
+      out.push(css(mix(dark, day, Math.min(1, (ambient + (1 - ambient) * lit) * sun))));
+    }
+    return out;
+  }
   function palette() {
     P = readPalette(probe);
-    // the solid's body, seen in the grooves round its tiles: a dark brass by day, below the dial at night
-    P.core = P.dark ? mix(P.yard, [0, 0, 0], 0.42) : mix(P.edge, P.ink, 0.55);
-    const shaded = col => Array.from({ length: SHADES + 1 }, (_, s) => {
-      const lit = s / SHADES;
-      return css(mix(mix(col, P.core, 0.4 * (1 - lit)), [255, 255, 255], (P.dark ? 0.06 : 0.12) * lit));
-    });
-    P.tops = shaded(P.tile);
-    P.walls = shaded(mix(P.tile, P.edge, P.dark ? 0.35 : 0.6));
-    P.floors = shaded(P.dug);
-    P.struck = shaded(mix(P.dug, P.bad, 0.3));
-    P.edgeCss = css(P.edge);
-    P.seamCss = css(mix(P.dug, P.rule, 0.8));
+    // what the glyphs and rings are drawn with is the night's, the sky being dark in every theme
+    Object.assign(P, { dark: true, ink: [26, 28, 38], sheet: [240, 236, 226], flag: [240, 96, 78], good: [127, 194, 168], bad: [232, 128, 111], proof: [127, 168, 216] });
+    P.nums = MOON_NUMS.map(c => { const n = parseInt(c.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; });
+    P.core = [12, 14, 22];                           // the body, seen in the grooves between the tiles
+    P.tops = lighting(REGOLITH, 0.22);
+    P.walls = lighting(mix(REGOLITH, [0, 0, 0], 0.42), 0.18);
+    P.floors = lighting(DUST, 0.34);
+    P.struck = lighting(mix(DUST, [200, 60, 50], 0.38), 0.34);
+    P.edgeCss = "rgba(14,16,24,.55)";
+    P.seamCss = "rgba(8,10,16,.5)";
     P.coreCss = css(P.core);
     P.numCss = P.nums.map(c => css(c));
+    sky = null;
+  }
+  // ---------- the sky: stars, a haze of sunlight, the Earth (drawn once a size and kept) ----------
+  let sky = null;
+  function paintSky() {
+    sky = document.createElement("canvas");
+    sky.width = canvas.width; sky.height = canvas.height;
+    const g = sky.getContext("2d");
+    g.scale(dpr, dpr);
+    const bg = g.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#0A0E1C"); bg.addColorStop(1, "#04060C");
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    const haze = g.createRadialGradient(0, 0, 0, 0, 0, Math.max(W, H) * 0.9);
+    haze.addColorStop(0, "rgba(255,236,200,.16)"); haze.addColorStop(1, "rgba(255,236,200,0)");
+    g.fillStyle = haze; g.fillRect(0, 0, W, H);
+    // the same stars every time (a small generator seeded by the box), a few brighter and warm or cool
+    let a = 0x2F6A9C1;
+    const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    for (let i = 0, m = Math.round(W * H / 1900); i < m; i++) {
+      const x = rnd() * W, y = rnd() * H, big = rnd() < 0.08, r = big ? 0.9 + rnd() * 0.6 : 0.35 + rnd() * 0.5, tint = rnd();
+      g.fillStyle = `rgba(${tint < 0.2 ? "255,214,180" : tint > 0.8 ? "180,206,255" : "240,242,250"},${(big ? 0.9 : 0.35 + rnd() * 0.5).toFixed(2)})`;
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    }
+    // the Earth, small and far, low on the right: the light it throws on the Moon's night side
+    const er = Math.min(W, H) * 0.05, ex = W * 0.87, ey = H * 0.92;
+    const globe = g.createRadialGradient(ex - er * 0.35, ey - er * 0.4, er * 0.1, ex, ey, er);
+    globe.addColorStop(0, "#9CC8FF"); globe.addColorStop(0.55, "#3C74C8"); globe.addColorStop(1, "#16336A");
+    g.fillStyle = globe; g.beginPath(); g.arc(ex, ey, er, 0, Math.PI * 2); g.fill();
+    g.save(); g.beginPath(); g.arc(ex, ey, er, 0, Math.PI * 2); g.clip();
+    g.fillStyle = "rgba(255,255,255,.55)";
+    for (const [dx, dy, rx, ry] of [[-0.3, -0.25, 0.5, 0.14], [0.2, 0.15, 0.55, 0.12], [-0.1, 0.5, 0.4, 0.1]]) { g.beginPath(); g.ellipse(ex + dx * er, ey + dy * er, rx * er, ry * er, -0.4, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = "rgba(60,150,90,.55)";
+    g.beginPath(); g.ellipse(ex + 0.1 * er, ey - 0.05 * er, 0.28 * er, 0.2 * er, 0.5, 0, Math.PI * 2); g.fill();
+    const night = g.createRadialGradient(ex - er * 0.5, ey - er * 0.5, er * 0.4, ex - er * 0.5, ey - er * 0.5, er * 1.7);
+    night.addColorStop(0, "rgba(4,8,20,0)"); night.addColorStop(1, "rgba(4,8,20,.75)");
+    g.fillStyle = night; g.fillRect(ex - er, ey - er, 2 * er, 2 * er);
+    g.restore();
+    const glow = g.createRadialGradient(ex, ey, er, ex, ey, er * 2.4);
+    glow.addColorStop(0, "rgba(110,160,255,.28)"); glow.addColorStop(1, "rgba(110,160,255,0)");
+    g.fillStyle = glow; g.beginPath(); g.arc(ex, ey, er * 2.4, 0, Math.PI * 2); g.fill();
   }
 
   // ---------- the view: how large, and how turned ----------
@@ -163,6 +217,7 @@ export function createSolidView(host) {
     W = r.width; H = r.height; dpr = Math.min(3, window.devicePixelRatio || 1);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     canvas.style.width = `${W}px`; canvas.style.height = `${H}px`;
+    sky = null;
     if (f) { k = was * fitK(); ox = wx * reach(); oy = wy * reach(); clamp(); }
     draw();
   }
@@ -361,39 +416,24 @@ export function createSolidView(host) {
     }
     order.sort((a, b) => VC[3 * a + 2] - VC[3 * b + 2]);
 
-    // the solid's body first: it shows in the grooves round the tiles
+    // the sky, then the body: it shows in the grooves round the tiles. Every cell is flat, so the body is their outlines
+    // (a circle would show past them at the rim); only those facing you, all wound one way, so the outlines add up and
+    // none cuts a hole in another
+    if (!sky) paintSky();
+    ctx.drawImage(sky, 0, 0, W, H);
     ctx.fillStyle = P.coreCss;
-    if (B.shape === "cube") {
-      const a = B.front, sides = [[0, 1], [0, -1], [1, 1], [1, -1], [2, 1], [2, -1]];
-      for (const [axis, sign] of sides) {
-        const nv = turned(R, axis === 0 ? [sign, 0, 0] : axis === 1 ? [0, sign, 0] : [0, 0, sign]);
-        const fc = turned(R, axis === 0 ? [sign * a, 0, 0] : axis === 1 ? [0, sign * a, 0] : [0, 0, sign * a]);
-        if (nv[0] * -fc[0] + nv[1] * -fc[1] + nv[2] * (D - fc[2]) <= 0) continue;
-        ctx.beginPath();
-        for (const [s1, s2] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-          const p = [0, 0, 0];
-          p[axis] = sign * a; p[(axis + 1) % 3] = s1 * a; p[(axis + 2) % 3] = s2 * a;
-          const v = turned(R, p), s = D / (D - v[2]);
-          ctx.lineTo(cx + k * v[0] * s, cy - k * v[1] * s);
-        }
-        ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    for (const i of order) {
+      if (facing[i] <= 0) continue;
+      for (let j = off[i]; j < off[i + 1]; j++) {
+        const px = RIM[3 * j], py = RIM[3 * j + 1], pz = RIM[3 * j + 2];
+        const s = D / (D - (R[6] * px + R[7] * py + R[8] * pz));
+        const x = cx + k * (R[0] * px + R[1] * py + R[2] * pz) * s, y = cy - k * (R[3] * px + R[4] * py + R[5] * pz) * s;
+        if (j === off[i]) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
-    } else {
-      // a sphere's cells are flat, so its body is their outlines (a circle would show past them at the rim); only those
-      // facing you, all wound one way, so the outlines add up and none cuts a hole in another
-      ctx.beginPath();
-      for (const i of order) {
-        if (facing[i] <= 0) continue;
-        for (let j = off[i]; j < off[i + 1]; j++) {
-          const px = RIM[3 * j], py = RIM[3 * j + 1], pz = RIM[3 * j + 2];
-          const s = D / (D - (R[6] * px + R[7] * py + R[8] * pz));
-          const x = cx + k * (R[0] * px + R[1] * py + R[2] * pz) * s, y = cy - k * (R[3] * px + R[4] * py + R[5] * pz) * s;
-          if (j === off[i]) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-      }
-      ctx.fill("nonzero");
+      ctx.closePath();
     }
+    ctx.fill("nonzero");
 
     // the cells, back to front; what's on a cell is drawn with it, upright on the screen whichever way the solid turns
     // so a number always reads, and a tile standing nearer covers it as it should
@@ -405,8 +445,9 @@ export function createSolidView(host) {
         const reader = S.reader ? S.reader(i) : null, mine = reader == null || reader === S.me, told = S.told?.[i] === "1";
         if (mine || told || over) {
           const v = f.nums[i], size = (s0 * (v >= 10 ? 1.0 : 1.25)) / 100;
-          ctx.fillStyle = P.numCss[Math.min(12, v)];
           ctx.setTransform(dpr * size, 0, 0, dpr * size, dpr * x, dpr * (y + s0 * 0.06));
+          ctx.lineWidth = 14; ctx.strokeStyle = "rgba(6,8,14,.7)"; ctx.strokeText(String(v), 0, 0);   // a halo, so a number reads on any grey
+          ctx.fillStyle = P.numCss[Math.min(12, v)];
           ctx.fillText(String(v), 0, 0);
           ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         } else { ctx.fillStyle = alpha(P.seats[S.colour(reader) % 6], 0.55); ctx.beginPath(); ctx.arc(x, y, s0 * 0.16, 0, Math.PI * 2); ctx.fill(); }
@@ -432,7 +473,10 @@ export function createSolidView(host) {
         else wave.delete(i);
       }
       const nx = VN[3 * i], ny = VN[3 * i + 1], nz = VN[3 * i + 2];
-      const lit = Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]), shade = Math.round(lit * SHADES);
+      const lit = Math.max(0, nx * SUN[0] + ny * SUN[1] + nz * SUN[2]), earthLit = Math.max(0, nx * EARTH[0] + ny * EARTH[1] + nz * EARTH[2]);
+      // a little mottling from cell to cell (regolith is not one grey), then the two lights as one table index
+      const mottle = ((Math.imul(i + 1, 2654435761) >>> 28) % 3) - 1, shadeAt = Math.min(SHADES, Math.max(0, Math.round(lit * SHADES) + mottle));
+      const shade = shadeAt * (EARTHSTEPS + 1) + Math.round(Math.min(1, earthLit) * EARTHSTEPS);
       const tile = hiddenCh(ch) || sink > 0, up = tile ? lift * (1 - sink) : 0;
       raisedNow[i] = up;
       // the face on top (a tile's top, or the floor) and, for a tile, its foot, on screen; a top is turned and then
@@ -465,22 +509,29 @@ export function createSolidView(host) {
           ctx.moveTo(BX[j], BY[j]); ctx.lineTo(BX[jn], BY[jn]); ctx.lineTo(FX[jn], FY[jn]); ctx.lineTo(FX[j], FY[j]); ctx.closePath();
         }
         if (area < 0) { ctx.moveTo(FX[j0], FY[j0]); for (let j = j0 + 1; j < j1; j++) ctx.lineTo(FX[j], FY[j]); ctx.closePath(); }
-        ctx.fillStyle = P.walls[Math.round(shade * 0.7)];
+        ctx.fillStyle = P.walls[shade];
         ctx.fill();
         if (area < 0) {
           ctx.beginPath(); ctx.moveTo(FX[j0], FY[j0]); for (let j = j0 + 1; j < j1; j++) ctx.lineTo(FX[j], FY[j]); ctx.closePath();
           ctx.fillStyle = sink > 0 ? P.floors[shade] : P.tops[shade];
           ctx.fill();
           ctx.lineWidth = 1; ctx.strokeStyle = P.edgeCss; ctx.stroke();
+          if (sink === 0) crater(i, ch, shadeAt);
         }
       } else {
         ctx.beginPath(); ctx.moveTo(FX[j0], FY[j0]); for (let j = j0 + 1; j < j1; j++) ctx.lineTo(FX[j], FY[j]); ctx.closePath();
-        ctx.fillStyle = ch === "x" ? P.struck[Math.round(SHADES / 2 + shade / 2)] : P.floors[Math.round(SHADES / 2 + shade / 2)];
+        ctx.fillStyle = ch === "x" ? P.struck[shade] : P.floors[shade];
         ctx.fill();
         ctx.lineWidth = 1; ctx.strokeStyle = P.seamCss; ctx.stroke();
       }
       if (area < 0) glyph(i, ch);
     }
+
+    // the limb: the Moon darkens towards its rim, so it reads as a ball (the sky behind is dark, so a disc is enough)
+    const lr = reach();
+    const limb = ctx.createRadialGradient(cx, cy, lr * 0.55, cx, cy, lr);
+    limb.addColorStop(0, "rgba(4,6,12,0)"); limb.addColorStop(1, "rgba(4,6,12,.5)");
+    ctx.fillStyle = limb; ctx.beginPath(); ctx.arc(cx, cy, lr, 0, Math.PI * 2); ctx.fill();
 
     // rings: a held number's neighbours, a hint, numbers asked for, cells pointed at (those facing you: drawn this frame)
     const shown = i => facing[i] > 0.02;
@@ -507,6 +558,26 @@ export function createSolidView(host) {
       ring(p.cell, 0.12); ctx.lineWidth = 2.5; ctx.strokeStyle = css(col); ctx.stroke();
     }
     if (moving) draw();
+  }
+  /**
+   * A tile's craters: one or two, small, off its middle (where a flag or the start would stand), the same every time. A
+   * bowl (dark) with a bright lip on the side the sun is, squashed along the way to the Moon's middle as the surface
+   * turns away. Skipped where a tile is too small to hold one or is in the sun's glare.
+   */
+  function crater(i, ch, shadeAt) {
+    if (ch !== "." || shadeAt < 0) return;
+    const sz = Math.sqrt(AREA[i]);
+    if (sz < 15) return;
+    const h = Math.imul(i + 7, 2246822519) >>> 0, count = 1 + (h & 1);
+    const toward = Math.atan2(MY[i] - (H / 2 + oy), MX[i] - (W / 2 + ox)), squash = Math.max(0.3, facing[i]);
+    for (let c = 0; c < count; c++) {
+      const g = Math.imul(h ^ (c * 40503 + 1), 3266489917) >>> 0;
+      const ang = ((g & 1023) / 1024) * Math.PI * 2, rr = sz * (0.27 + ((g >>> 10) & 255) / 255 * 0.04), r = sz * (0.065 + ((g >>> 18) & 255) / 255 * 0.045);
+      const x = MX[i] + Math.cos(ang) * rr, y = MY[i] + Math.sin(ang) * rr;
+      ctx.beginPath(); ctx.ellipse(x, y, r * squash, r, toward, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(20,20,30,.26)"; ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = "rgba(255,248,232,.16)"; ctx.stroke();
+    }
   }
   /** Cell i's face as last drawn, drawn in a little (shrink: the share of the way to its middle) as a path. */
   function ring(i, shrink) {

@@ -8,9 +8,9 @@ import { scale } from "./wide.js";
 
 const SQ3 = Math.sqrt(3);
 // a comfortable cell for a thumb, in px on a phone (scale() grows it on a tablet): a square's side, a hexagon's
-// width, a triangle's side (its number has least room)
-const COMFORT = { square: 34, hex: 36, tri: 40 };
-const GLYPH = { square: 0.5, hex: 0.78, tri: 0.36 };     // a number's or a flag's room, in cell units
+// width
+const COMFORT = { square: 34, hex: 36 };
+const GLYPH = { square: 0.5, hex: 0.78 };   // a number's or a flag's room, in cell units
 const MOST = 2.4;                                        // the most it zooms in, times the comfortable size
 const ENOUGH = 0.8;                                      // a field this near a thumb's size whole fits; smaller, it opens close and pans
 

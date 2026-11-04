@@ -1,11 +1,11 @@
 // Mines: Minesweeper on fields that need no guess (October 2026). Every field is dealt by mines-engine.js and proven
-// by its solver (mines-solve.js) to clear from its marked start by reasoning alone, at the level asked; squares,
-// hexes and triangles (mines-grid.js), flat or wrapped round a solid (mines-solid.js: a cube, a sphere, a geodesic
-// sphere); drawn on a canvas by mines-draw.js, or turned in 3D by mines-3d.js. This file keeps the run, the clock, the
+// by its solver (mines-solve.js) to clear from its marked start by reasoning alone, at the level asked; squares and
+// hexes (mines-grid.js), or a shape on a sphere (mines-solid.js: a cube, a rhombicuboctahedron, a football); drawn on a
+// canvas by mines-draw.js, or turned on the Moon, in space, by mines-3d.js. This file keeps the run, the clock, the
 // fingers and the company: a computer partner (mines-bot.js), and at a table (duel.js) a race on one field
 // or one field for a team whose numbers are shared out among its players (mines-team.js).
-import { SHAPES, TILINGS, SIZES, LEVELS, STRIKE, HINT, settingsOf, describe, deal, daily, weekdayOf, WEEK, WEEKDAYS, newRun, dig, flag,
-  chord, score, minesLeft, safeLeft, started, hint, readerOf, isFlag, isSolid, shapeOf, OPEN, STRUCK } from "./mines-engine.js";
+import { SHAPES, TILINGS, BODIES, SIZES, LEVELS, STRIKE, HINT, settingsOf, describe, deal, daily, weekdayOf, WEEK, WEEKDAYS, newRun, dig, flag,
+  chord, score, minesLeft, safeLeft, started, hint, readerOf, isFlag, isSolid, OPEN, STRUCK } from "./mines-engine.js";
 import { createView } from "./mines-draw.js";
 import { createSolidView } from "./mines-3d.js";
 import { PACES, paceOf, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "./mines-bot.js";
@@ -41,12 +41,13 @@ const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s 
 const COMPUTER = { off: "Off", partner: "Partner" };         // "rival" (racing you) was dropped: old saves read as off
 const RULES = { strike: "Costs 60 s", sudden: "Ends the field" };
 const MODES = { race: "Race", team: "One team" };
-// shape is the tiling (squares, hexes, triangles) and solid the 3D switch: each is chosen on its own, and together
-// they make the field's shape (shapeOf: squares in 3D are the cube)
-const prefs = { tool: "dig", shape: "square", solid: false, size: "small", level: "medium", rule: "strike", computer: "off", pace: "quick", together: "team", ...read(PREFS, {}) };
+// shape is the flat tiling (squares or hexes), solid the 3D switch and body the solid it turns to (the cube, the
+// rhombicuboctahedron, the football): the field is the body when 3D is on, else the tiling
+const prefs = { tool: "dig", shape: "square", solid: false, body: "cube", size: "small", level: "medium", rule: "strike", computer: "off", pace: "quick", together: "team", ...read(PREFS, {}) };
 const savePrefs = () => write(PREFS, prefs);
-const chosenShape = () => shapeOf(prefs.shape, prefs.solid);
-if (!TILINGS.includes(prefs.shape)) prefs.shape = "square";
+const chosenShape = () => (prefs.solid ? prefs.body : prefs.shape);
+if (!TILINGS.includes(prefs.shape)) prefs.shape = "square";   // triangles were dropped (4 November 2026)
+if (!BODIES.includes(prefs.body)) prefs.body = "cube";
 prefs.solid = prefs.solid === true;
 if (!SIZES[prefs.size]) prefs.size = "small";
 if (!LEVELS[prefs.level]) prefs.level = "medium";
@@ -79,6 +80,9 @@ function useView(shape) {
   }
   if (next !== view) { view.clear(); view.canvas.hidden = true; view = next; }
   view.canvas.hidden = false;
+  // the Moon's night sky fills the card: the menu button sits on a plate over it, and the card drops its sheet
+  $("app").classList.toggle("plate", !!view.solid);
+  document.querySelector(".mn-card")?.classList.toggle("moon", !!view.solid);
 }
 
 /** The field for these settings, dealt once a visit (dealing a large hard one can take a moment). */
@@ -484,7 +488,7 @@ function whatLine() {
   if (G.mode === "daily" && solo()) return `Today's: ${weekdayOf(G.seed)}'s`;
   return describe(G);
 }
-const SOLID_NOUN = { cube: "the cube", sphere: "the sphere", geodesic: "the sphere" };
+const SOLID_NOUN = { cube: "the cube", rhombi: "the solid", football: "the football" };
 function drawLine() {
   const l = $("line"), seats = readerSeats();
   let text;
@@ -610,9 +614,11 @@ function openMenu() {
   };
   const settingsNote = line(menuNote);
   settingsNote.hidden = !menuNote;
-  // the field's shape is two choices, each made on its own: the tiling, and whether it's wrapped round a solid
-  const shapeChoices = () => [choice("Shape", TILINGS.map(k => [k, SHAPES[k].label]), prefs.shape, v => chosen("shape", v)),
-    toggle("3D", prefs.solid, on => chosen("solid", on))];
+  // the field's shape: a flat tiling, or with 3D on one of the three solids (the Moon, in space)
+  const shapeChoices = () => [prefs.solid
+    ? choice("Solid", BODIES.map(k => [k, SHAPES[k].short || SHAPES[k].label]), prefs.body, v => chosen("body", v))
+    : choice("Shape", TILINGS.map(k => [k, SHAPES[k].label]), prefs.shape, v => chosen("shape", v)),
+  toggle("3D", prefs.solid, on => chosen("solid", on))];
   const levelChoice = () => choice("Level", Object.entries(LEVELS).map(([k, v]) => [k, v.label]), prefs.level, v => chosen("level", v));
   const ruleChoice = () => choice("A mine", Object.entries(RULES), prefs.rule, v => setting("rule", v));
   if (duel.on) {                    // a match: the table's own, and what the next one deals
@@ -664,26 +670,25 @@ function showRules() {
     <ul>
       <li><b>Squares</b>: the eight round a cell, along its sides and at its corners.</li>
       <li><b>Hexes</b>: the six round a hexagon.</li>
-      <li><b>Triangles</b>: twelve, the three along a triangle's sides and nine more at its corners, so a number can be as high as 12.</li>
     </ul>
     <p><b>An example.</b> A 1 with a single hidden cell next to it: that cell is the mine. A 1 whose mine is already found: every other hidden cell round it is safe. Along a wall of hidden cells, 1 2 1: the cells facing the two 1s are mines, the one facing the 2 is safe.</p>
     <h4>In 3D</h4>
-    <p>The menu's 3D switch wraps the field round a solid, so it has no edge: squares cover a cube made of little cubes, hexes a sphere, triangles a geodesic sphere. Drag to turn it, flick it and it spins on, pinch to come closer.</p>
+    <p>The menu's 3D switch plays on the Moon, in space: the field is a shape on a sphere, so it has no edge. Its faces are cut into smaller cells (more cuts, a larger size) and pressed out onto the sphere, so a cell can be slightly bent. A cell touches every cell it shares a corner with. Drag to turn it, flick it and it spins on, pinch to come closer.</p>
     <ul>
       <li><b>The cube</b>: a square touches every square it meets, across the cube's edges too, as if the next face were laid flat beside its own. At the cube's eight corners only three faces meet, so a corner cell touches seven: three on its own face and two on each of the others.</li>
-      <li><b>The sphere</b>: no sphere can be covered with hexagons alone, so it has exactly twelve pentagons among them. A hexagon touches six cells, a pentagon five.</li>
-      <li><b>The geodesic sphere</b>: a triangle touches the twelve it meets at its sides and corners, or eleven beside one of the twelve points where five triangles meet.</li>
+      <li><b>The rhombicuboctahedron</b>: 18 squares and 8 triangles, all the same edge, each cut into smaller squares and triangles. A square touches about eight or nine cells; a triangle at a corner where several meet, more, up to twelve.</li>
+      <li><b>The football</b>: a football's pattern of pentagons among hexagons (the truncated icosahedron, finely cut): exactly twelve pentagons, which touch five cells, among hexagons, which touch six.</li>
     </ul>
     <h4>Playing</h4>
     <p>Every field starts at the cell ringed in brass: it's empty, with no mine round it, so digging it opens a patch, and nothing else can be dug before it. Tap a cell to dig it; hold a finger on it to flag it as a mine (Flag, under the field, swaps the two; a right click flags with a mouse). A flag keeps its cell from your own dig and comes off the way it went on; the count at the top is the mines not yet flagged.</p>
     <p>Tap an open number to work it at once (chording, as mine-clearing games call it): if as many flags stand round it as its number, the rest of its neighbours are dug; if its hidden neighbours are exactly the mines it still lacks, they're flagged. A wrong flag under it means a mine dug. Hold a number to see which cells it counts. On a solid, a cell turned far from you is a slanted sliver, so a tap on it first turns it to face you; then tap it again.</p>
     <p>Hint (+${HINT}&nbsp;s) rings what the open numbers prove next, green a safe cell and red a mine, and in blue the numbers that prove it; it never trusts your flags, so it also finds a wrong one. A mine dug stays on the field, shown, and costs ${STRIKE} seconds; the menu's A mine: Ends the field is the classic rule instead, the field lost at the first mine.</p>
     <h4>Levels</h4>
-    <p>Small, Medium and Large are the field's size. Easy, Medium and Hard are how much reasoning it takes, as Codex's solver measures it, with more mines as it rises: an Easy field never needs more than one number at a time (on triangles, hardly ever), a Hard one often needs two or more numbers taken together. A flat field is hardest at its edges and corners, where mines hide behind the border; a solid has none, so it carries more mines for the same level.</p>
+    <p>Small, Medium and Large are the field's size. Easy, Medium and Hard are how much reasoning it takes, as Codex's solver measures it, with more mines as it rises: an Easy field never needs more than one number at a time a Hard one often needs two or more numbers taken together. A flat field is hardest at its edges and corners, where mines hide behind the border; a solid has none, so it carries more mines for the same level.</p>
     <h4>Score</h4>
     <p>Your time, plus ${STRIKE} seconds for every mine dug and ${HINT} for every hint; lower is better. The clock starts with your first dig and stops while the menu, these rules or the games screen is open. Every kind of field keeps its own best, flat or 3D.</p>
     <h4>Today's field</h4>
-    <p>One field a day, the same for everyone, always flat and always played alone harder as the week goes on: ${week}. Its score counts the moment the last safe cell opens, and is Mines' figure on the games screen.</p>`;
+    <p>One field a day, the same for everyone, always played alone, harder as the week goes on: ${week}. Its score counts the moment the last safe cell opens, and is Mines' figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
 }
