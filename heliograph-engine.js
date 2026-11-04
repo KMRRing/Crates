@@ -267,6 +267,7 @@ export function newGame(seed, x = null) {
   const s = { v: 4, seed: seed >>> 0, n: 0, shape: null, depth: [], layers: [], serial: 0, crystals: new Array(n).fill(null), next: null, mirrors: [], mid: 0,
     moves: movesFor(0, x), touched: [], placed: [], shots: 0, untilDrop: dropEvery(0, x), score: 0, over: false };
   if (x) s.x = JSON.parse(JSON.stringify(x));
+  for (const f of s.x?.fix ?? []) if (f.n) f.n = norm(f.n) || [0, 1, 0];          // a fixture's facing is written to a few places
   fill(s);
   if (x?.gems) s.crystals = x.gems.map(g => ({ ...g }));                 // an authored level's colour crystals stay where they are
   else for (let k = 0; k < n; k++) spawnCrystal(s, k);

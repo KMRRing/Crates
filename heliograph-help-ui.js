@@ -4,7 +4,7 @@
 // the game while it is open (the class `pauses`, menu.js). With "reduce motion", or where the browser can't animate, a scene
 // is a still picture of the end of the shot, the crystals gone ringed and those that fell shaded, side by side.
 import { svgEl, gemBody, prismBody } from "./heliograph-gem.js";
-import { R, MR, PR, CR, PRISM_R, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, pieces, beaconsOf, closed, sunAngle, layerY } from "./heliograph-engine.js";
+import { R, MR, PR, CR, PRISM_R, LAMP_R, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, pieces, beaconsOf, closed, layerY } from "./heliograph-engine.js";
 import { featureOf, runScene, marksOf, verdictOf } from "./heliograph-help.js";
 
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -19,6 +19,8 @@ const canAnimate = () => typeof Element !== "undefined" && typeof Element.protot
 
 /** A line, or a path of lines, in the tube's plane: points are [x, y] (y up). */
 const path = (pts, cls, attrs = {}) => svgEl("path", { d: pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(3)} ${y.toFixed(3)}`).join(""), class: cls, ...attrs });
+/** A hexagon about a point, the nut of a bolt, as the points of a path (after the M). */
+const nut = (p, r) => Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 6 + (i * Math.PI) / 3; return `${(p[0] + r * Math.cos(a)).toFixed(3)} ${(p[1] + r * Math.sin(a)).toFixed(3)}`; }).join("L");
 /** The colours a leg carries, each a beam beside the others (white, if none): [{ c, off }]. */
 const strands = cs => (cs.length ? cs.map((c, j) => ({ c, off: (j - (cs.length - 1) / 2) * wide * 1.05 })) : [{ c: -1, off: 0 }]);
 
@@ -39,13 +41,6 @@ function frameOf(run, still) {
     path([[-R, CEILING + 0.1], [port[0] - 0.3, CEILING + 0.1]], "hg-hceil"), path([[port[0] + 0.3, CEILING + 0.1], [R, CEILING + 0.1]], "hg-hceil"),
     path([[-CROWN_R, CROWN_Y], [CROWN_R, CROWN_Y]], "hg-hcrown"));
   over.append(svgEl("rect", { x: -SKIRT_R, y: SKIRT_Y, width: 2 * SKIRT_R, height: CROWN_Y - SKIRT_Y, class: "hg-hskirt" }));
-  if (spec.sun) {
-    // the sun on the side the light comes from, the light's own line carried up to it
-    const a = (sunAngle(s) * Math.PI) / 180, sun = [port[0] - Math.sin(a) * 0.8, CEILING + Math.cos(a) * 0.8], disc = svgEl("g", { class: "hg-hsun", transform: `translate(${sun[0].toFixed(3)} ${sun[1].toFixed(3)})` });
-    disc.append(svgEl("circle", { r: 0.24 }), svgEl("path", { d: "M0 .34V.5M0 -.34V-.5M.34 0H.5M-.34 0H-.5M.24 .24L.35 .35M-.24 .24L-.35 .35M.24 -.24L.35 -.35M-.24 -.24L-.35 -.35" }));
-    back.append(path([sun, [port[0], CEILING + 0.1]], "hg-hsunline"), disc);
-  }
-
   // the chandelier: each crystal with the thread above it, so a crystal takes its thread when it goes
   const wraps = new Map();
   for (const q of pieces(s)) {
@@ -58,20 +53,35 @@ function frameOf(run, still) {
       g.append(svgEl("circle", { cx: q.p[0], cy: q.p[1], r: 0.74, class: "hg-hglow" }), svgEl("circle", { cx: q.p[0], cy: q.p[1], r: 0.56, class: "hg-hcollar" }));
       g.classList.add("lantern");
     }
+    if (s.x.bolts?.includes(q.id)) g.append(svgEl("path", { class: "hg-hnut", d: `M${nut(q.p, PR * 1.3)}Z` }));
+    if (s.x.frail?.includes(q.id)) {
+      const hurt = s.hurt?.includes(q.id), r = PR;
+      g.append(path([[q.p[0] - r * 0.5, q.p[1] + r * 0.7], [q.p[0], q.p[1] + r * 0.1], [q.p[0] - r * 0.2, q.p[1] - r * 0.2], [q.p[0] + r * 0.4, q.p[1] - r * 0.8]], "hg-hcrack"),
+        ...(hurt ? [path([[q.p[0], q.p[1] + r * 0.1], [q.p[0] + r * 0.7, q.p[1] + r * 0.3]], "hg-hcrack")] : []));
+    }
     strings.append(g);
     wraps.set(q.id, { g, pop });
   }
 
   // what stands in the light: colour crystals, a prism, shutters, the mirrors
   for (const c of s.crystals) over.append(svgEl("g", { transform: `translate(${c.x} ${c.y}) scale(${CR / 4} ${-CR / 4})` }, gemBody(c.c)));
+  const lampHalos = [];
   for (const f of s.x.fix) {
     if (f.k === "prism") over.append(svgEl("g", { transform: `translate(${f.p[0]} ${f.p[1]}) scale(${PRISM_R / 4.6} ${-PRISM_R / 4.6})` }, prismBody(f.cs)));
-    else over.append(path([[f.p[0] - f.r, f.p[1]], [f.p[0] + f.r, f.p[1]]], `hg-hshutter ${closed(s, f) ? "shut" : "open"}`));
+    else if (f.k === "lamp") {
+      const lit = r.lamps.length && r.path.lamps.some(l => l.ok), halo = svgEl("circle", { cx: f.p[0], cy: f.p[1], r: LAMP_R * 1.9, class: "hg-hlamphalo" });
+      over.append(halo, svgEl("circle", { cx: f.p[0], cy: f.p[1], r: LAMP_R * 0.8, class: `hg-hlamp${f.c >= 0 ? ` c${f.c}` : ""}` }), svgEl("circle", { cx: f.p[0], cy: f.p[1], r: LAMP_R, fill: "none", class: "hg-hnut" }));
+      lampHalos.push({ halo, lit });
+    } else if (f.k === "split") {
+      const t = [-f.n[1], f.n[0]], ends = [[f.p[0] - t[0] * f.r, f.p[1] - t[1] * f.r], [f.p[0] + t[0] * f.r, f.p[1] + t[1] * f.r]];
+      over.append(path(ends, "hg-hsplit rim"), path(ends, "hg-hsplit"));
+    } else over.append(path([[f.p[0] - f.r, f.p[1]], [f.p[0] + f.r, f.p[1]]], `hg-hshutter ${closed(s, f) ? "shut" : "open"}`));
   }
   for (const m of s.mirrors) {
     const t = [-m.n[1], m.n[0]];
     const ends = [[m.p[0] - t[0] * MR, m.p[1] - t[1] * MR], [m.p[0] + t[0] * MR, m.p[1] + t[1] * MR]];
     over.append(path(ends, "hg-hmirror rim"), path(ends, "hg-hmirror"));            // a brass rim round the silver
+    if (m.pin) over.append(svgEl("path", { class: "hg-hnut", d: `M${nut(m.p, 0.34)}Z` }));
   }
 
   // the light: a leg after another, each strand of it in a colour it carries
@@ -82,8 +92,9 @@ function frameOf(run, still) {
     const group = svgEl("g");
     for (const { c, off } of strands(leg.cs)) group.append(path([[leg.a[0] + nx * off, leg.a[1] + ny * off], [leg.b[0] + nx * off, leg.b[1] + ny * off]], `hg-hbeam${c < 0 ? " white" : ` c${c}`}`, { pathLength: 1 }));
     beams.append(group);
-    timed.push({ group, at: clock, ms, leg });
-    clock += ms;
+    const at = (leg.t0 / SPEED) * 1000;                    // a branch of the light starts where its parent got to
+    timed.push({ group, at, ms, leg });
+    clock = Math.max(clock, at + ms);
   }
   /** When the light is at a point (milliseconds into the shot): along the leg that passes it. */
   const reach = p => {
@@ -104,6 +115,7 @@ function frameOf(run, still) {
     for (const id of hit) wraps.get(id)?.g.classList.add("shattered");
     for (const id of fell) wraps.get(id)?.g.classList.add("fell");
     spark?.classList.add("on");
+    for (const { halo, lit } of lampHalos) if (lit) halo.classList.add("on");
     return { el: frame, play: () => 0, reset() {} };
   }
 
@@ -132,6 +144,7 @@ function frameOf(run, still) {
         anims.push(g.animate([{ transform: "translate(0px,0px)", opacity: 1 }, { transform: "translate(0px,-1.8px)", opacity: 0 }], { duration: FALL, delay: start, easing: "ease-in", fill: "forwards" }));
         total = Math.max(total, start + FALL);
       }
+      for (const { halo, lit } of lampHalos) if (lit) anims.push(halo.animate([{ opacity: 0, transform: "scale(.5)" }, { opacity: 0.6, transform: "scale(1.2)" }, { opacity: 0.45, transform: "scale(1)" }], { duration: 600, delay: clock, easing: "ease-out", fill: "forwards" }));
       if (spark) anims.push(spark.animate([{ opacity: 0, transform: "scale(.4)" }, { opacity: 1, transform: "scale(1.5)" }, { opacity: 0, transform: "scale(1.9)" }], { duration: 520, delay: clock, easing: "ease-out", fill: "forwards" }));
       markTimer = setTimeout(() => marks.classList.add("on"), total * 0.85);
       return total;

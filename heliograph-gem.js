@@ -28,3 +28,5 @@ const boxed = (cls, body) => svgEl("svg", { viewBox: "-5.5 -5.5 11 11", class: c
 export const gem = (c, cls) => boxed(cls, gemBody(c));
 /** A prism of the tray. */
 export const prismGem = cs => boxed("now prism", prismBody(cs));
+/** A lamp of the tray (a level of lamps with no colour crystal shows what is to be lit): a ball in its colour (clear: pale) in a brass ring. */
+export const lampGem = c => boxed("now lamp", svgEl("g", { class: `hg-lampgem${c >= 0 ? ` c${c}` : ""}` }, svgEl("circle", { r: 3.6 }), svgEl("circle", { r: 4.7, class: "ring" })));

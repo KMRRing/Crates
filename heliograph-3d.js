@@ -6,8 +6,9 @@
 // what the page picks is what is drawn. The page calls draw() whenever anything changes and shot() to play a shot out;
 // heliograph-flat.js answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
-import { R, H, PR, CR, MR, PORT, PRISM_R, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, CELLS, LY, CRYSTALS, pieces, crystalsAt, fixtures, closed, lineOf, beaconsOf, lightAt } from "./heliograph-engine.js";
+import { R, H, PR, CR, MR, PORT, PRISM_R, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, CELLS, LY, pieces, crystalsAt, fixtures, closed, lineOf, beaconsOf, lightAt, lampsOf, LAMP_R } from "./heliograph-engine.js";
 
+const GEMS = 3;                                              // colour crystals a level can stand in the tube
 const TAU = Math.PI * 2, DOUBLE = 2, ADD = 2;                 // THREE.DoubleSide, AdditiveBlending (not in the bundle's exports)
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -117,6 +118,33 @@ const SILVER = `{
   float s = pow(max(dot(R, uKeyDir), 0.), 60.);
   outgoingLight = env * .85 + vec3(.06) + uKeyCol * s * .9 + uLit * .35;
 }`;
+/** A splitter: half-silvered glass, striped with its silvering, a sheen where it turns away. */
+const SPLIT = `{
+  vec3 N = normalize(vNw), V = normalize(cameraPosition - vW); if (dot(N, V) < 0.) N = -N;
+  vec3 R = reflect(-V, N);
+  vec3 env = mix(uGround * 1.1, uSky * 1.15, smoothstep(-.3, .6, R.y));
+  float f = pow(1. - abs(dot(N, V)), 2.), s = step(.5, fract((vL.x + vL.z) * 1.6));
+  outgoingLight = env * (.7 + .3 * s) + uBrass * .1 * s + vec3(.07);
+  diffuseColor.a = .3 + .22 * s + .3 * f;
+}`;
+/** A crack across a crystal: a dark line with a pale edge, on a quad turned to the camera; two when it has been hit once. */
+function crackMaterial(hurt) {
+  const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, depthTest: false, side: DOUBLE });
+  const segs = [[-0.55, 0.75, -0.1, 0.15], [-0.1, 0.15, -0.3, -0.2], [-0.3, -0.2, 0.35, -0.8], ...(hurt ? [[-0.1, 0.15, 0.7, 0.3], [0.7, 0.3, 0.55, 0.65], [-0.3, -0.2, -0.75, -0.45]] : [])];
+  const f = n => n.toFixed(2);
+  m.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 vQ;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvQ = position.xy;");
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>
+varying vec2 vQ;
+float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0., 1.)); }`)
+      .replace("#include <color_fragment>", `#include <color_fragment>
+float d = 9.;
+${segs.map(s => `d = min(d, seg(vQ, vec2(${f(s[0])}, ${f(s[1])}), vec2(${f(s[2])}, ${f(s[3])})));`).join("\n")}
+diffuseColor = vec4(mix(vec3(.09, .07, .05), vec3(.98, .95, .88), 1. - smoothstep(.02, .045, d)), 1. - smoothstep(.06, .1, d));`);
+  };
+  m.customProgramCacheKey = () => `crack${hurt}`;
+  return m;
+}
 /** An additive glow: a quad turned to the camera, clear at its edge. */
 function glowMaterial(power) {
   const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: ADD, depthWrite: false, side: DOUBLE });
@@ -271,11 +299,11 @@ export function createScene(host, view) {
   scene.add(strings);
   // the colour crystals: each its cut, larger, turning, in a glow
   const bigU = { uGlow: { value: 0.35 } };
-  const bigMats = Array.from({ length: CRYSTALS }, () => surface({ main: CRYSTAL, decl: "uniform float uGlow;", own: bigU }));
+  const bigMats = Array.from({ length: GEMS }, () => surface({ main: CRYSTAL, decl: "uniform float uGlow;", own: bigU }));
   const bigCuts = bigMats.map(mat => CUTS.map(make => { const m = new THREE.Mesh(make(), mat); m.visible = false; scene.add(m); return m; }));
   const quadGeo = quad();
   const glow = (power, order = 7) => { const g = new THREE.Mesh(quadGeo, glowMaterial(power)); g.renderOrder = order; g.visible = false; scene.add(g); return g; };
-  const crystalGlows = Array.from({ length: CRYSTALS }, () => glow(2)), portGlow = glow(2.5);
+  const crystalGlows = Array.from({ length: GEMS }, () => glow(2)), portGlow = glow(2.5);
   const rings = Array.from({ length: 40 }, () => { const g = new THREE.Mesh(quadGeo, ringMaterial()); g.renderOrder = 9; g.visible = false; scene.add(g); return g; });
 
   // ---- mirrors: glass, a rim, a stem to a foot on the floor, and the knob that aims the one chosen ----
@@ -325,6 +353,28 @@ export function createScene(host, view) {
     scene.add(g);
     return { g, disc };
   });
+  // lamps (a ball in a brass cage on a stem), splitters (glass in a rim), the nuts of bolted crystals, the cracks of frail ones
+  const lampBall = new THREE.SphereGeometry(1, 20, 14), cageRing = torus(1, 0.045, 40, 6);
+  const lampObjs = Array.from({ length: 4 }, () => {
+    const g = new THREE.Group(), bulb = new THREE.Mesh(lampBall, new THREE.MeshBasicMaterial({ color: 0xffffff })), ringA = new THREE.Mesh(cageRing, brass), ringB = new THREE.Mesh(cageRing, brass), stem = new THREE.Mesh(rod, brass);
+    ringB.rotation.x = Math.PI / 2;
+    bulb.scale.setScalar(LAMP_R * 0.66); ringA.scale.setScalar(LAMP_R * 0.95); ringB.scale.setScalar(LAMP_R * 0.95);
+    g.add(bulb, ringA, ringB);
+    g.visible = stem.visible = false;
+    scene.add(g, stem);
+    return { g, bulb, stem, glow: glow(2, 7) };
+  });
+  const splitMat = surface({ main: SPLIT, transparent: true, depthWrite: false });
+  const splitters = Array.from({ length: 3 }, () => {
+    const g = new THREE.Group(), disc = new THREE.Mesh(discUnit, splitMat), rim = new THREE.Mesh(rimUnit, brass);
+    g.add(disc, rim);
+    g.visible = false;
+    scene.add(g);
+    return { g };
+  });
+  const nutGeo = new THREE.CylinderGeometry(1, 1, 0.13, 6), nuts = Array.from({ length: 8 }, () => { const n = new THREE.Mesh(nutGeo, brass); n.visible = false; scene.add(n); return n; });
+  const crackMats = [crackMaterial(false), crackMaterial(true)];
+  const cracks = Array.from({ length: 8 }, () => { const c = new THREE.Mesh(quadGeo, crackMats[0]); c.renderOrder = 8; c.visible = false; scene.add(c); return c; });
   const sunRod = beam(true), sunGlow = glow(2, 7);          // the sun's own light, from the sky down to the port
 
   // ---- motes: splinters of a shattered crystal ----
@@ -437,12 +487,12 @@ export function createScene(host, view) {
   const across = new THREE.Vector3(), lastAcross = new THREE.Vector3(), toEye = new THREE.Vector3(), mix = new THREE.Color();
   /** The legs of a beam, drawn up to `upto` of its length (all of it for the way it would go). */
   function paintLegs(path, upto, strong) {
-    let nCore = 0, nGlow = 0, run = 0, nSpark = 0, kept = false;
+    let nCore = 0, nGlow = 0, nSpark = 0, kept = false;
     const [r, coreOp, glowR, glowOp] = strong ? [0.075, 1, 0.22, 0.3] : [0.035, 0.85, 0.1, 0.18];
     for (const leg of path.legs) {
       const a = new THREE.Vector3(...leg.a), b = new THREE.Vector3(...leg.b), l = a.distanceTo(b);
-      if (run >= upto) break;
-      const part = Math.min(1, (upto - run) / Math.max(l, 1e-6));
+      if (leg.t0 >= upto || nCore + 3 > cores.length) continue;                 // a branch starts where its parent reached
+      const part = Math.min(1, (upto - leg.t0) / Math.max(l, 1e-6));
       const end = a.clone().lerp(b, part), cs = leg.cs;
       // light of one colour is that colour; of several, beams side by side, a hair apart, one in each, so all show
       // whichever way the beam is seen: they lie across it as the eye sees it, each colour kept to its side from leg to leg,
@@ -476,7 +526,6 @@ export function createScene(host, view) {
         s.material.color.copy(mix);
         s.material.opacity = 0.9;
       }
-      run += l;
     }
     for (let i = nCore; i < cores.length; i++) cores[i].visible = false;
     for (let i = nGlow; i < glows.length; i++) glows[i].visible = false;
@@ -500,7 +549,7 @@ export function createScene(host, view) {
       g.material.opacity = 0.55 + 0.15 * Math.sin(clock * 2.2 + k * 2);
     });
     // a level can have fewer than the endless game's two
-    for (let k = s.crystals.length; k < CRYSTALS; k++) { bigCuts[k].forEach(m => { m.visible = false; }); crystalGlows[k].visible = false; }
+    for (let k = s.crystals.length; k < GEMS; k++) { bigCuts[k].forEach(m => { m.visible = false; }); crystalGlows[k].visible = false; }
   }
   /** The lanterns still hanging, in their collars and glow (those a shot in play has brought down are `gone`). */
   function paintLanterns(s, yOff, gone) {
@@ -530,6 +579,15 @@ export function createScene(host, view) {
       prismGlow.material.color.copy(enamel[prism.cs[0]]).lerp(enamel[prism.cs[1]], 0.5).lerp(white, 0.35);
       prismGlow.material.opacity = 0.4;
     }
+    const glass = fix.filter(f => f.k === "split");
+    splitters.forEach((o, i) => {
+      const f = glass[i];
+      o.g.visible = !!f;
+      if (!f) return;
+      o.g.position.set(...f.p);
+      o.g.quaternion.setFromUnitVectors(UP, new THREE.Vector3(...f.n));
+      o.g.scale.set(f.r, 1, f.r);
+    });
     shutters.forEach((o, i) => {
       const f = louvres[i];
       o.g.visible = !!f;
@@ -550,6 +608,45 @@ export function createScene(host, view) {
       sunGlow.material.opacity = 0.7;
     }
   }
+  /** The nuts of bolted crystals and the cracks of frail ones (`gone`: those a shot in play has shattered). */
+  function paintMarks(s, yOff, gone) {
+    const by = new Map(pieces(s).map(p => [p.id, p]));
+    let nn = 0, nc = 0;
+    for (const id of s.x?.bolts ?? []) {
+      const p = by.get(id), n = nuts[nn];
+      if (!p || !n || gone?.has(id)) continue;
+      nn++;
+      n.visible = true; n.position.set(p.p[0], p.p[1] + yOff, p.p[2]); n.scale.set(PR * 1.32, 1, PR * 1.32); n.rotation.y = 0.3;
+    }
+    for (let i = nn; i < nuts.length; i++) nuts[i].visible = false;
+    const hurt = new Set(s.hurt ?? []);
+    for (const id of s.x?.frail ?? []) {
+      const p = by.get(id), c = cracks[nc];
+      if (!p || !c || gone?.has(id)) continue;
+      nc++;
+      c.visible = true; c.material = crackMats[hurt.has(id) ? 1 : 0];
+      c.position.set(p.p[0], p.p[1] + yOff, p.p[2]); c.quaternion.copy(face()); c.scale.setScalar(PR * 1.5);
+    }
+    for (let i = nc; i < cracks.length; i++) cracks[i].visible = false;
+  }
+  /** The lamps: dark glass until lit, a halo when lit, a ring when the light would reach them. */
+  function paintLamps(s, path, lampsOn) {
+    const list = lampsOf(s);
+    lampObjs.forEach((o, i) => {
+      const f = list[i];
+      o.g.visible = o.stem.visible = !!f;
+      if (!f) { o.glow.visible = false; return; }
+      const lit = (s.lit ?? []).includes(i) || lampsOn?.has(i), reach = path.lamps.some(l => l.i === i && l.ok);
+      o.g.position.set(...f.p);
+      rodTo(o.stem, new THREE.Vector3(f.p[0], 0, f.p[2]), new THREE.Vector3(f.p[0], f.p[1] - LAMP_R * 0.9, f.p[2]), 0.028);
+      const col = f.c < 0 ? beamWhite : enamel[f.c];
+      o.bulb.material.color.copy(col).multiplyScalar(lit ? 1.1 : reach ? 0.8 : 0.42);
+      o.glow.visible = lit || reach;
+      o.glow.position.set(...f.p); o.glow.quaternion.copy(face()); o.glow.scale.setScalar(LAMP_R * (lit ? 5 + 0.4 * Math.sin(clock * 4) : 3.2));
+      o.glow.material.color.copy(col).lerp(white, lit ? 0.35 : 0.1);
+      o.glow.material.opacity = lit ? 0.9 : 0.4;
+    });
+  }
   function paintRings(s, targets) {
     let n = 0;
     const by = new Map(pieces(s).map(p => [p.id, p]));
@@ -569,21 +666,30 @@ export function createScene(host, view) {
       if (m.life <= 0) continue;
       m.life -= dt;
       if (m.life <= 0) { moteMesh.setMatrixAt(i, hide); continue; }
-      m.v[1] -= 6 * dt;
+      m.v[1] -= (m.slow ? 0.8 : 6) * dt;
       for (let k = 0; k < 3; k++) m.p[k] += m.v[k] * dt;
       mat.compose(v3.set(...m.p), q.setFromAxisAngle(UP, m.life * 9), sc.setScalar(m.r * Math.min(1, m.life * 3)));
       moteMesh.setMatrixAt(i, mat);
-      moteMesh.setColorAt(i, enamel[m.c]);
+      moteMesh.setColorAt(i, m.c < 0 ? white : enamel[m.c]);
     }
     moteMesh.instanceMatrix.needsUpdate = true;
     if (moteMesh.instanceColor) moteMesh.instanceColor.needsUpdate = true;
+  }
+  /** Glints of refraction where light is bent or coloured: tiny pale motes that drift up and stay a while. */
+  function sparkle(p, count = 6, c = -1) {
+    for (let n = 0; n < count; n++) {
+      const m = motes.find(x => x.life <= 0);
+      if (!m) return;
+      const a = Math.random() * TAU, s = 0.3 + Math.random() * 0.9;
+      Object.assign(m, { p: [p[0] + (Math.random() - 0.5) * 0.3, p[1] + (Math.random() - 0.5) * 0.3, p[2] + (Math.random() - 0.5) * 0.3], v: [Math.cos(a) * s, 0.6 + Math.random() * 0.8, Math.sin(a) * s], life: 0.5 + Math.random() * 0.7, r: 0.025 + Math.random() * 0.03, c, slow: true });
+    }
   }
   function burst(p, c, count = 9) {
     for (let n = 0; n < count; n++) {
       const m = motes.find(x => x.life <= 0);
       if (!m) return;
       const a = Math.random() * TAU, e = (Math.random() - 0.3) * 2, s = 1.2 + Math.random() * 2;
-      Object.assign(m, { p: [...p], v: [Math.cos(a) * s, e * s * 0.6 + 1, Math.sin(a) * s], life: 0.5 + Math.random() * 0.45, r: 0.05 + Math.random() * 0.06, c });
+      Object.assign(m, { p: [...p], v: [Math.cos(a) * s, e * s * 0.6 + 1, Math.sin(a) * s], life: 0.5 + Math.random() * 0.45, r: 0.05 + Math.random() * 0.06, c, slow: false });
     }
   }
   function stepFalling(dt) {
@@ -607,6 +713,8 @@ export function createScene(host, view) {
     else paintLegs(f.path, Infinity, false);
     paintLanterns(play?.slide != null ? play.after : s, play?.slide != null ? yOff : 0, play && play.slide == null ? play.gone : null);
     paintFixtures(play ? play.before : f.s);
+    paintMarks(play?.slide != null ? play.after : s, play?.slide != null ? yOff : 0, play && play.slide == null ? play.gone : null);
+    paintLamps(play?.slide != null ? play.after : s, play ? play.path : f.path, play?.lampsOn);
     paintRings(s, play ? [] : f.targets);
     portGlow.visible = true; portGlow.position.set(PORT[0], H - 0.32, PORT[2]); portGlow.quaternion.copy(face()); portGlow.scale.setScalar(0.9); portGlow.material.opacity = 0.7;
     const lowY = Math.min(...pieces(f.s).map(p => p.p[1]), Infinity), line = lineOf(f.s);
@@ -645,11 +753,18 @@ export function createScene(host, view) {
       h.done = true;
       play.gone.add(h.id);
       burst(h.p, h.c, 10);
+      sparkle(h.p, 5);
+      play.fx.hit?.(h.c);
     }
-    for (const x of play.crossings) if (!x.done && play.reach >= x.at) { x.done = true; if (x.k >= 0) play.spent.push(x.k); for (const c of x.cs) burst(x.p, c, 14 / x.cs.length); }
+    for (const x of play.crossings) if (!x.done && play.reach >= x.at) { x.done = true; if (x.k >= 0) play.spent.push(x.k); for (const c of x.cs) burst(x.p, c, 14 / x.cs.length); sparkle(x.p, 10); play.fx.cross?.(x.cs); }
+    for (const x of play.splits) if (!x.done && play.reach >= x.at) { x.done = true; sparkle(x.p, 8); }
+    for (const x of play.lampHits) if (!x.done && play.reach >= x.at) { x.done = true; play.lampsOn.add(x.i); sparkle(x.p, 16); burst(x.p, x.c, 8); play.fx.lamp?.(); }
+    for (const x of play.crackHits) if (!x.done && play.reach >= x.at) { x.done = true; sparkle(x.p, 8); play.fx.crack?.(); }
+    if (play.reach < play.total && play.t > play.nextGlint) { play.nextGlint = play.t + 0.07; const leg = play.path.legs.find(l => l.t0 <= play.reach && l.t0 + Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1], l.b[2] - l.a[2]) >= play.reach); if (leg) { const u = (play.reach - leg.t0) / (Math.hypot(leg.b[0] - leg.a[0], leg.b[1] - leg.a[1], leg.b[2] - leg.a[2]) || 1); sparkle([0, 1, 2].map(k => leg.a[k] + (leg.b[k] - leg.a[k]) * u), 1); } }
     if (play.reach >= play.total && !play.fell) {
       play.fell = true;
       play.hold = 0;
+      if (play.fall.length) play.fx.fall?.(play.fall.length);
       for (const p of play.fall) { play.gone.add(p.id); falling.push({ p: [...p.p], v: [(Math.random() - 0.5) * 0.6, -0.5, (Math.random() - 0.5) * 0.6], c: p.c, spin: Math.random() * TAU, life: 1.4 }); }
     }
     if (play.fell) {
@@ -670,27 +785,31 @@ export function createScene(host, view) {
 
   return {
     canvas,
+    live: true,                                                           // a shot in play calls back (sound, as things happen)
     /** Draws the game as it stands: the light's way, the mirror chosen and its knob, the crystals the beam would shatter. */
     draw(frame) { lastFrame = frame; wake(); paint(); },
     /** Plays a shot out (fire()'s result, from the game `before`): the beam drawn out, crystals shattering as it reaches
      *  them, what hung from them falling, the cluster coming down; resolves when it's done. */
-    shot(before, r) {
+    shot(before, r, fx = {}) {
       return new Promise(done => {
-        const along = [], places = crystalsAt(before), fix = fixtures(before);
+        const along = [], places = crystalsAt(before), fix = fixtures(before), lamps = lampsOf(before);
         let run = 0;
         const byId = new Map(pieces(before).map(p => [p.id, p]));
         for (const leg of r.path.legs) {
           const l = Math.hypot(leg.b[0] - leg.a[0], leg.b[1] - leg.a[1], leg.b[2] - leg.a[2]);
-          along.push({ leg, from: run, l });
-          run += l;
+          along.push({ leg, from: leg.t0, l });
+          run = Math.max(run, leg.t0 + l);                    // branches run side by side: the shot lasts as long as the longest
         }
         // what the light passed through (a colour crystal, spent; a prism, which only bursts), where the leg that reached it ends
         const crossings = r.path.cross.map(x => (x.kind === "crystal"
-          ? { k: x.k, at: along[x.leg].from + along[x.leg].l, p: places[x.k], cs: [before.crystals[x.k].c] }
+          ? { k: before.x?.gems ? -1 : x.k, at: along[x.leg].from + along[x.leg].l, p: places[x.k], cs: [before.crystals[x.k].c] }
           : { k: -1, at: along[x.leg].from + along[x.leg].l, p: fix[x.i].p, cs: fix[x.i].cs }));
         const hits = r.shattered.map(id => { const p = byId.get(id); return { id, p: p.p, c: p.c, at: distToSegAll(p.p, along) }; });
         play = { t: 0, reach: 0, total: run, path: r.path, before, after: r.state, hits, gone: new Set(), fall: r.fallen.map(id => byId.get(id)).filter(Boolean),
-          dropped: r.dropped || r.cleared, slide: null, spent: [], crossings, done };
+          dropped: r.dropped || r.cleared, slide: null, spent: [], crossings, done, fx, nextGlint: 0, lampsOn: new Set(),
+          splits: r.path.legs.map((l, i) => ({ l, i })).filter(({ l, i }) => r.path.legs.some((m, j) => j !== i && m.t0 === l.t0 + Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1], l.b[2] - l.a[2]) && m.a === l.b)).map(({ l, i }) => ({ at: along[i].from + along[i].l, p: l.b, done: false })),
+          lampHits: r.path.lamps.filter(l => l.ok).map(l => ({ i: l.i, at: along[l.leg].from + along[l.leg].l, p: lamps[l.i].p, c: lamps[l.i].c < 0 ? -1 : lamps[l.i].c, done: false })),
+          crackHits: r.path.cracked.map(id => { const p = byId.get(id); return { at: distToSegAll(p.p, along), p: p.p, done: false }; }) };
         lastFrame = { ...lastFrame, s: r.state };
         wake();
       });

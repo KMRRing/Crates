@@ -1,7 +1,7 @@
 // Heliograph drawn flat, for a device without WebGL: the same tube, crystals, mirrors and light as heliograph-3d.js, in
 // a canvas, by the same camera (heliograph-view.js), farthest first. It answers to the same calls, so the page plays the
 // same either way; a shot shows at once rather than played out.
-import { R, H, PR, CR, MR, PORT, PRISM_R, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, pieces, crystalsAt, fixtures, closed, lineOf, beaconsOf, lightAt } from "./heliograph-engine.js";
+import { R, H, PR, CR, MR, PORT, PRISM_R, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, pieces, crystalsAt, fixtures, closed, lineOf, beaconsOf, lightAt, lampsOf, LAMP_R } from "./heliograph-engine.js";
 
 const TAU = Math.PI * 2;
 const SHAPES = [6, 4, 4, 6];                          // each colour's cut as a polygon's corners, turned as below
@@ -65,16 +65,20 @@ export function createFlat(host, view) {
     ctx.beginPath(); ctx.arc(px, py, 5, 0, TAU); ctx.fillStyle = k.brass; ctx.fill();
     // everything with a place, farthest first
     const items = [];
-    const lanterns = new Set(beaconsOf(s));
+    const lanterns = new Set(beaconsOf(s)), bolts = new Set(s.x?.bolts ?? []), frail = new Set(s.x?.frail ?? []), hurt = new Set(s.hurt ?? []);
     for (const p of pieces(s)) {
       items.push({ z: P(p.p)[2], draw: () => {
         poly(p.c, p.p, PR);
+        if (bolts.has(p.id)) { const [x, y, z] = P(p.p), r = view.pixels(z) * PR * 1.3; ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + (i * Math.PI) / 3; ctx[i ? "lineTo" : "moveTo"](x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.closePath(); ctx.strokeStyle = k.brass; ctx.lineWidth = 3; ctx.stroke(); }      // a bolted crystal's nut
+        if (frail.has(p.id)) { const [x, y, z] = P(p.p), r = view.pixels(z) * PR, n = hurt.has(p.id) ? 2 : 1; ctx.beginPath(); ctx.moveTo(x - r * 0.5, y - r * 0.7); ctx.lineTo(x, y - r * 0.1); ctx.lineTo(x - r * 0.2, y + r * 0.2); ctx.lineTo(x + r * 0.4, y + r * 0.8); if (n > 1) { ctx.moveTo(x, y - r * 0.1); ctx.lineTo(x + r * 0.7, y - r * 0.3); } ctx.strokeStyle = k.ink; ctx.lineWidth = 1.5; ctx.stroke(); }     // a frail one's crack
         if (lanterns.has(p.id)) { const [x, y, z] = P(p.p); ctx.beginPath(); ctx.arc(x, y, view.pixels(z) * PR * 1.35, 0, TAU); ctx.strokeStyle = k.brass; ctx.lineWidth = 2.2; ctx.stroke(); }     // a lantern's brass collar
       } });
     }
     // a level's prism and shutters: a shut shutter is a brass disc, an open one only its edge
     for (const f of fixtures(s)) {
       if (f.k === "prism") items.push({ z: P(f.p)[2], draw: () => prism(f) });
+      else if (f.k === "lamp") items.push({ z: P(f.p)[2], draw: () => lamp(f, (s.lit ?? []).includes(lampsOf(s).indexOf(f)), frame.path.lamps.some(l => l.ok && lampsOf(s)[l.i] === f)) });
+      else if (f.k === "split") items.push({ z: P(f.p)[2], draw: () => splitter(f) });
       else items.push({ z: P(f.p)[2], draw: () => shutter(f, closed(s, f)) });
     }
     crystalsAt(s).forEach((c, j) => {
@@ -140,6 +144,20 @@ export function createFlat(host, view) {
     discPath(f.p, f.n, f.r);
     if (shut) { ctx.fillStyle = k.brass; ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1; }
     ctx.strokeStyle = k.brass; ctx.lineWidth = 2; ctx.setLineDash(shut ? [] : [5, 4]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  /** A lamp: a ball in its colour (clear: white) in a brass cage, with a halo when lit (or a dashed ring when the light would reach it). */
+  function lamp(f, lit, reached) {
+    const [x, y, z] = P(f.p), r = view.pixels(z) * LAMP_R, col = f.c < 0 ? k.sheet : k.enamel[f.c];
+    ctx.beginPath(); ctx.arc(x, y, r * (lit ? 1.7 : 1.1), 0, TAU); ctx.fillStyle = col; ctx.globalAlpha = lit ? 0.4 : 0.15; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fillStyle = col; ctx.globalAlpha = lit ? 1 : 0.55; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = k.brass; ctx.lineWidth = 2; ctx.stroke();
+    if (reached && !lit) { ctx.beginPath(); ctx.arc(x, y, r * 1.5, 0, TAU); ctx.strokeStyle = k.ink; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]); ctx.stroke(); ctx.setLineDash([]); }
+  }
+  /** A splitter: half-silvered glass in a brass rim, a diagonal across it. */
+  function splitter(f) {
+    discPath(f.p, f.n, f.r);
+    ctx.fillStyle = k.sheet; ctx.globalAlpha = 0.35; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = k.brass; ctx.lineWidth = 2; ctx.stroke();
   }
   /** A prism: a glass triangle on the page, its two colours side by side. */
   function prism(f) {

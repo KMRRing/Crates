@@ -7,10 +7,10 @@
 // heliograph-flat.js without WebGL, both through the camera in heliograph-view.js.
 // Two modes (the menu's Mode) that don't touch each other: Classic, the endless game with its own run and best, and Levels
 // (heliograph-levels.js), six stations of four short levels each, every level a goal in so many shots, with stars.
-import { MIRRORS, MR, FIRST_MOVES, movesFor, canMove, newGame, trace, fire, pieces, addMirror, moveMirror, turnMirror, takeMirror, cantPlace, clampInside, facing, dropEvery, fixtures, closed, beaconsOf, sunAngle } from "./heliograph-engine.js";
+import { MR, FIRST_MOVES, movesFor, canMove, handLeft, newGame, trace, fire, pieces, addMirror, moveMirror, turnMirror, takeMirror, cantPlace, clampInside, facing, dropEvery, fixtures, closed, beaconsOf, sunAngle, lampsOf } from "./heliograph-engine.js";
 import { LEVELS, CHAPTERS, rulesOf, dealLevel, starsOf, starsInReach, featuresOf, goalSentence, goalWords, goalShort, meterOf } from "./heliograph-levels.js";
 import { mapSvg } from "./heliograph-map.js";
-import { svgEl as el, gem, prismGem } from "./heliograph-gem.js";
+import { svgEl as el, gem, prismGem, lampGem } from "./heliograph-gem.js";
 import { createHelp } from "./heliograph-help-ui.js";
 import { ORDER } from "./heliograph-help.js";
 import { createView, onPlane, nearestOnSegment } from "./heliograph-view.js";
@@ -18,7 +18,8 @@ import { createFlat } from "./heliograph-flat.js";
 import { defaultIs3D } from "./mode3d.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, action, line, toggle } from "./menu.js";
+import * as sfx from "./heliograph-sound.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 
@@ -26,7 +27,8 @@ const $ = id => document.getElementById(id);
 // RUN: the endless game; BEST: its best, which the games screen shows. MODE: "classic" or "levels"; CAMP: the level in hand
 // (`at`, 0 on) and the most stars won in each; RUNS: the game of each level begun, by its number (1 on); HELP: the features explained.
 const RUN = "heliograph:run2", BEST = "heliograph:best", SEEN = "heliograph:seen2", MOVED = "heliograph:v2";
-const MODE = "heliograph:mode", CAMP = "heliograph:camp", RUNS = "heliograph:lruns", HELP = "heliograph:help";
+// The campaign of 4 November 2026 (hand-made levels) is a new one: CAMP and RUNS were the 24 dealt levels' and are left alone.
+const MODE = "heliograph:mode", CAMP = "heliograph:camp2", RUNS = "heliograph:lruns2", HELP = "heliograph:help", PREFS = "heliograph:prefs";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
@@ -44,7 +46,7 @@ let S = null;            // the game (heliograph-engine.js's), as saved
 let sel = null;          // the id of the mirror chosen: its handle shows, to turn it by
 let hand = null;         // what a finger is doing: { kind, id, x0, y0, x, y, moved, draft, why, … }
 let playing = false;     // a shot being played out
-const levelOk = g => g.x === undefined || (Number.isInteger(g.x.lv) && g.x.lv >= 0 && g.x.lv < LEVELS.length && !!g.x.goal && Array.isArray(g.crystals) && g.crystals.length <= 2);
+const levelOk = g => g.x === undefined || (Number.isInteger(g.x.lv) && g.x.lv >= 0 && g.x.lv < LEVELS.length && !!g.x.goal && Array.isArray(g.crystals) && g.crystals.length <= 3);
 const valid = g => g && g.v === 4 && Array.isArray(g.layers) && Array.isArray(g.mirrors) && Array.isArray(g.crystals) && levelOk(g);
 
 // ---------- the modes ----------
@@ -215,17 +217,18 @@ function drawChip() {
 const MIRROR_ICON = () => el("svg", { viewBox: "-10 -12 20 24", "aria-hidden": "true" },
   el("path", { class: "hg-stem", d: "M0 2V10M-4 10.5H4" }), el("ellipse", { class: "hg-disc", cx: 0, cy: -3, rx: 7.5, ry: 4.6, transform: "rotate(-24 0 -3)" }));
 function drawTray() {
-  const left = MIRRORS - S.mirrors.length, prisms = fixtures(S).filter(f => f.k === "prism");
+  const left = handLeft(S), prisms = fixtures(S).filter(f => f.k === "prism"), next = S.crystals.length && !S.x?.gems;
   const now = [...S.crystals.map(c => gem(c.c, "now")), ...prisms.map(f => prismGem(f.cs))];
-  $("colour").replaceChildren(...now, ...(S.crystals.length ? [gem(S.next, "next")] : []));
-  $("colour").style.gridTemplateColumns = `repeat(${Math.max(1, now.length)}, 1fr)${S.crystals.length ? " auto" : ""}`;     // two and the next, as ever, in Classic
+  if (!now.length) now.push(...lampsOf(S).map(f => lampGem(f.c)));            // no colour to carry: the lamps to light
+  $("colour").replaceChildren(...now, ...(next ? [gem(S.next, "next")] : []));
+  $("colour").style.gridTemplateColumns = `repeat(${Math.max(1, now.length)}, 1fr)${next ? " auto" : ""}`;     // two and the next, as ever, in Classic; a level's crystals stay, so no next
   const b = $("mirrorBtn");
   if (!b.firstChild) b.append(MIRROR_ICON(), Object.assign(document.createElement("b"), { className: "hg-count" }));
   b.querySelector(".hg-count").textContent = `×${left}`;
   b.disabled = S.over || playing || left <= 0 || !canMove(S);
   // the moves left this shot: a pip each, in the strip
   const mv = $("moves");
-  mv.replaceChildren(...Array.from({ length: movesFor(S.shots) }, (_, i) => { const p = document.createElement("i"); if (i < S.moves) p.className = "on"; return p; }));
+  mv.replaceChildren(...Array.from({ length: movesFor(S.shots, S.x) }, (_, i) => { const p = document.createElement("i"); if (i < S.moves) p.className = "on"; return p; }));
   mv.setAttribute("aria-label", `${S.moves} move${S.moves === 1 ? "" : "s"} left this shot`);
   b.classList.toggle("lifted", hand?.kind === "new" && hand.moved);
   $("takeBtn").disabled = S.over || playing || sel == null || !(S.placed.includes(sel) || canMove(S, sel));
@@ -244,11 +247,12 @@ function verdict() {
   }
   const x = S.x, g = x.goal, stars = starsOf(x, S), out = S.shots >= x.shots;
   if (S.won) {
-    const how = g.kind === "score" ? `Quota met: ${fmt(S.score)} of ${fmt(g.n)}` : g.kind === "beacons" ? `Every lantern down in ${plural(S.metAt, "shot")}` : `Chandelier cleared in ${plural(S.metAt, "shot")}`;
+    const how = g.kind === "score" ? `Quota met: ${fmt(S.score)} of ${fmt(g.n)}` : g.kind === "beacons" ? `Every lantern down in ${plural(S.metAt, "shot")}` : g.kind === "lamps" ? `${g.mode === "order" ? "Signal sent" : "Every lamp lit"} in ${plural(S.metAt, "shot")}` : `Chandelier cleared in ${plural(S.metAt, "shot")}`;
     return `${how}. ${starsWords(stars)}`;
   }
   if (g.kind === "score") return `${out ? "Out of shots" : "The chandelier reached the line"}: ${fmt(S.score)}, ${fmt(g.n - S.score)} short of ${fmt(g.n)}`;
   if (g.kind === "beacons") return `${out ? "Out of shots" : "The chandelier reached the line"} with ${plural(beaconsOf(S).length, "lantern")} still up`;
+  if (g.kind === "lamps") return `${out ? "Out of shots" : "The chandelier reached the line"} with ${plural(lampsOf(S).length - (S.lit ?? []).length, "lamp")} dark`;
   return `${out ? "Out of shots" : "The chandelier reached the line"} with the chandelier still hanging`;
 }
 /** The line under the tube: what a finger is doing, a first game's next step, or what Fire would do now. */
@@ -260,18 +264,25 @@ function say(s, path) {
   else if (path.shattered.length) {
     const f = fire(s), n = f.shattered.length + f.fallen.length;
     text = `Fire brings down ${n}${f.fallen.length ? ` (${f.fallen.length} falling)` : ""}: +${fmt(f.gain)}${f.downed ? `, ${plural(f.downed, "lantern")} down` : ""}`;
-  } else if (!S.moves && hand?.kind !== "turn") text = "No moves left this shot: turn the mirrors, then fire";
+  } else if (path.lamps.some(l => l.ok) || path.cracked.length) {
+    const f = fire(s), bits = [];
+    if (f.lamps.length) bits.push(`lights ${plural(new Set(f.lamps).size, "lamp")}`);
+    if (path.cracked.length) bits.push(`cracks ${plural(path.cracked.length, "crystal")}`);
+    text = `Fire ${bits.join(" and ")}`;
+  } else if (path.lamps.length) text = "The lamp wants another colour of light";
+  else if (!S.moves && hand?.kind !== "turn") text = "No moves left this shot: turn the mirrors, then fire";
   else if (path.stop.what === "shutter") text = "The light stops at a shut shutter";
   else if (path.cross.length) text = "The light is coloured: turn a mirror to send it into the cluster";
   else if (sel != null) text = "Drag the mirror to move it, its handle to turn it";
   else if (s.mirrors.length) text = "Tap a mirror to choose it, then drag it or its handle";
-  else text = S.crystals.length || fixtures(s).some(f => f.k === "prism") ? "Set mirrors to carry the light through a colour crystal" : "Set mirrors to carry the light into the cluster";
+  else text = S.crystals.length || fixtures(s).some(f => f.k === "prism") ? "Set mirrors to carry the light through a colour crystal" : "Set mirrors to carry the light where it is wanted";
   $("say").textContent = text;
 }
 function firstSteps(s, path) {
+  const coloured = s.crystals.length || fixtures(s).some(f => f.k === "prism"), lit = path.shattered.length || path.lamps.some(l => l.ok) || path.cracked.length;
   if (!s.mirrors.length) return "Drag a mirror into the light";
-  if (!path.cross.length) return "Turn it by its handle: light a colour crystal";
-  if (!path.shattered.length) return "Set a mirror in the coloured light; turn it into the cluster";
+  if (coloured && !path.cross.length) return "Turn it by its handle: light a colour crystal";
+  if (!lit) return coloured ? "Set a mirror in the coloured light; turn it into the cluster" : "Turn it by its handle, toward where the light is wanted";
   return "Fire";
 }
 
@@ -346,7 +357,7 @@ function move(e) {
   if (hand.kind === "empty" || hand.kind === "pick") { view.orbit(-dx * 0.009, dy * 0.006); render(); return; }
   if (hand.kind === "mirror") {
     // moving is the scarce thing: two a shot (a mirror set or moved this shot moves again free); turning is free
-    if (!canMove(S, hand.id)) { hand.kind = "stuck"; sel = hand.id; toast("Two moves a shot: turn it by its handle, or fire"); render(); return; }
+    if (!canMove(S, hand.id)) { hand.kind = "stuck"; sel = hand.id; toast(S.mirrors.find(k => k.id === hand.id)?.pin ? "This mirror is bolted down: turn it by its handle" : "Two moves a shot: turn it by its handle, or fire"); render(); return; }
     const m = S.mirrors.find(k => k.id === hand.id), at = placeFor(x + hand.grab[0], y + hand.grab[1], m.id, m.p);
     hand.draft = moveMirror(S, m.id, at.p);
     hand.why = at.why;
@@ -381,7 +392,7 @@ function tap(h) {
 // a mirror from the tray: dragged into the tube (onto the light where it's near), or with a tap, set in the light where
 // it ends; it comes turned to send the light level toward the middle, to be turned from there
 function trayDown(e) {
-  if (hand || playing || S.over || S.mirrors.length >= MIRRORS || !canMove(S) || e.button > 0) return;
+  if (hand || playing || S.over || handLeft(S) <= 0 || !canMove(S) || e.button > 0) return;
   hand = { kind: "new", pid: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, draft: null, why: null, lift: e.pointerType === "mouse" ? 0 : LIFT };
   try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
   e.preventDefault();
@@ -433,7 +444,8 @@ async function shoot() {
   playing = true;
   sel = null;
   render();
-  await scene.shot(before, r);
+  await scene.shot(before, r, sound());
+  if (!scene.live) afterSounds(r, before);
   S = r.state;
   save();
   if (!inLevels() && S.score > read(BEST, 0)) write(BEST, S.score);           // the games screen shows it at once
@@ -441,12 +453,14 @@ async function shoot() {
   playing = false;
   noteStars();
   render();
-  if (S.over) roundOver("heliograph");
+  if (S.over) { roundOver("heliograph"); if (S.won && sfxOn()) sfx.won(); }
   if (r.gain) pop(r, before);
   if (r.cleared && !S.over) toast(`The chandelier is cleared: ${fmt(1000)} more`);
   else if (r.downed && !S.over) toast(r.downed === 1 ? "A lantern is down" : `${r.downed} lanterns are down`);
   else if (r.crushed.length) toast(r.crushed.length === 1 ? "The cluster came down on a mirror: it's back in hand" : `The cluster came down on ${r.crushed.length} mirrors: they're back in hand`);
-  else if (!r.path.cross.length && !r.gain) toast(r.path.stop.what === "shutter" ? "The light stopped at a shut shutter" : "The light never reached a colour crystal");
+  else if (r.lamps.length && !S.over) toast(r.lamps.length === 1 ? "A lamp is lit" : `${r.lamps.length} lamps are lit`);
+  else if (r.path.cracked.length && !r.gain) toast(r.path.cracked.length === 1 ? "A crystal is cracked: it takes a second hit" : "Crystals are cracked: each takes a second hit");
+  else if (!r.path.cross.length && !r.gain && (S.crystals.length || fixtures(before).some(f => f.k === "prism"))) toast(r.path.stop.what === "shutter" ? "The light stopped at a shut shutter" : "The light never reached a colour crystal");
 }
 /** The stars a level has won, kept the moment they are (so leaving a level loses none); the first one opens the next level. */
 function noteStars() {
@@ -467,6 +481,24 @@ function pop(r, before) {
   p.style.left = `${x}px`; p.style.top = `${y}px`;
   p.classList.toggle("big", at.length >= 8);
   p.classList.remove("go"); void p.offsetWidth; p.classList.add("go");
+}
+
+// ---------- sound ----------
+const prefs = read(PREFS, {});
+const sfxOn = () => prefs.sound !== false && !IN_FRAME;
+/** What a shot in play calls as things happen (heliograph-3d.js), each a sound when the menu's Sound is on. */
+function sound() {
+  let n = 0;
+  return !sfxOn() ? {} : { hit: c => sfx.shatter(c, n++), cross: cs => sfx.colour(cs[0]), lamp: () => sfx.lampLit(), crack: () => sfx.crack(), fall: k => sfx.fall(k) };
+}
+/** A shot played where the scene does not call back (the flat tube): its sounds one after another. */
+function afterSounds(r, before) {
+  if (!sfxOn()) return;
+  const f = sound(), by = new Map(pieces(before).map(p => [p.id, p]));
+  r.shattered.forEach((id, i) => setTimeout(() => f.hit(by.get(id)?.c ?? 0), i * 90));
+  if (r.path.lamps.some(l => l.ok)) setTimeout(f.lamp, 200);
+  if (r.path.cracked.length) setTimeout(f.crack, 100);
+  if (r.fallen.length) setTimeout(() => f.fall(r.fallen.length), r.shattered.length * 90 + 150);
 }
 
 // ---------- messages, the menu ----------
@@ -515,6 +547,7 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Mode", [["classic", "Classic"], ["levels", "Levels"]], mode, m => { setMode(m); openMenu(); }));
   if (inLevels()) content.append(levelList());
+  if (!IN_FRAME) part(body, "settings").append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; write(PREFS, prefs); }));
   const best = read(BEST, 0), beaten = camp.stars.filter(Boolean).length, about = part(body, "about");
   about.append(line(inLevels()
     ? `This game: ${fmt(S.score)} in ${plural(S.shots, "shot")}; ${beaten} of ${LEVELS.length} levels beaten, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}`
@@ -557,7 +590,7 @@ $("againBtn").addEventListener("click", newRun);
 $("levelsBtn").addEventListener("click", openMenu);
 
 // for tests and debugging
-window.__heliograph = { get state() { return S; }, set state(s) { S = s; sel = null; render(); }, get sel() { return sel; }, set sel(id) { sel = id; render(); }, view, shoot, newRun, project: p => view.project(p), get shown() { return shown; },
+window.__heliograph = { sfx, get state() { return S; }, set state(s) { S = s; sel = null; render(); }, get sel() { return sel; }, set sel(id) { sel = id; render(); }, view, shoot, newRun, project: p => view.project(p), get shown() { return shown; },
   playLevel, setMode, help, checkHelp, get mode() { return mode; }, get camp() { return camp; }, openMenu };
 
 resume();

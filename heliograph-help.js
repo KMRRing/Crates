@@ -11,7 +11,7 @@
 // the one in a brass collar; `shutter` { p, r, cycle } a bar across the tube; `sun` the sun's course; `shots` which shot of
 // the level it is; `expect` what the engine must make of it (the tests hold the text and the picture to that).
 // The numbers in a text come from the engine too (`worth`, the bonuses); the rest are words.
-import { CELLS, newGame, fire, pointMirror, idOf, layerY, worth, sunAngle, BEACON_BONUS, CLEAR_BONUS } from "./heliograph-engine.js";
+import { CELLS, newGame, fire, pointMirror, idOf, layerY, worth, BEACON_BONUS, CLEAR_BONUS } from "./heliograph-engine.js";
 
 const fmt = n => n.toLocaleString("en-GB");
 const place = q => CELLS.findIndex(c => c.q === q && c.r === 0);
@@ -27,6 +27,9 @@ const ALTERNATE = [[BLUE, RED, BLUE, RED], [RED, BLUE, RED, BLUE, RED, GOLD], [B
 /** Strings with two red crystals at the foot of the second and fourth, for a beam straight up them. */
 const UP = [[RED, BLUE, RED], [RED, BLUE, GOLD, GOLD], [BLUE, RED, BLUE, RED], [BLUE, RED, GOLD, GOLD], [RED, BLUE, RED]];
 
+/** No chandelier: a scene about the light alone. */
+const EMPTY = [[], [], [], [], []];
+
 // the scenes' two shapes of light: down the port, along under the chandelier and up a string (UP), or turned at once into the
 // chandelier from above, across it on a slant (DIAG)
 const DIAG = { a: [-3.3, 12], b: [-2.4, 7.4], aim: [-1, 5] };
@@ -35,12 +38,15 @@ const UPWARD = { a: [-3.6, 7.5] };
 /** Every feature: { id, name, lines (2 short ones; the first says what it is), scenes (one to three, shown in turn) }. */
 export const FEATURES = [
   {
-    id: "quota", name: "Quota",
+    id: "clear", name: "Clearing the chandelier",
     lines: [
-      "Each level gives you so many shots and a quota to reach in them. More points than the quota earn a second star, and a third.",
-      `A shot scores ten times the square of the crystals it shatters, and ten for each that falls: three shattered and three fallen is ${worth(3, 3)}. Long runs of one colour are worth the most.`,
+      "Bring down every crystal. The chandelier doesn't come down any lower and nothing replaces it; the stars are how few shots it takes.",
+      `A cut from the side leaves what hangs above it. A beam up a string from below takes the whole string, and the last crystal down is worth ${fmt(CLEAR_BONUS)} more.`,
     ],
-    scenes: [{ ...DIAG, strings: RUN, gate: { c: GOLD }, caption: "Three of its colour in a row", expect: { shattered: 3, fallen: 3, gain: worth(3, 3), stop: "piece" } }],
+    scenes: [
+      { ...UPWARD, b: [0, 7.8], aim: [0, 3], strings: [[], [], [GOLD, GOLD, GOLD, GOLD], [GREEN, GREEN, GREEN], []], gate: { c: GOLD }, goal: "clear", caption: "Shot 1: a string", expect: { shattered: 4, fallen: 0, cleared: false, gain: worth(4, 0) } },
+      { ...UPWARD, b: [0.92, 7.8], aim: [1, 2], strings: [[], [], [], [GREEN, GREEN, GREEN], []], gate: { c: GREEN }, goal: "clear", caption: "Shot 2: the last", expect: { shattered: 3, fallen: 0, cleared: true, gain: worth(3, 0) + CLEAR_BONUS } },
+    ],
   },
   {
     id: "beacons", name: "Lanterns",
@@ -54,14 +60,14 @@ export const FEATURES = [
     ],
   },
   {
-    id: "clear", name: "Clearing the chandelier",
+    id: "bolt", name: "Bolted crystal",
     lines: [
-      "Bring down every crystal. The chandelier doesn't come down any lower and nothing replaces it; the stars are how few shots it takes.",
-      `A cut from the side leaves what hangs above it. A beam up a string from below takes the whole string, and the last crystal down is worth ${fmt(CLEAR_BONUS)} more.`,
+      "A bolted crystal wears a brass nut. It never falls, and what hangs from it stays up too: a cut above it frees nothing.",
+      "Shatter the bolted crystal itself, with its own colour, and it goes: everything it held falls.",
     ],
     scenes: [
-      { ...UPWARD, b: [0, 7.8], aim: [0, 3], strings: [[], [], [GOLD, GOLD, GOLD, GOLD], [GREEN, GREEN, GREEN], []], gate: { c: GOLD }, goal: "clear", caption: "Shot 1: a string", expect: { shattered: 4, fallen: 0, cleared: false, gain: worth(4, 0) } },
-      { ...UPWARD, b: [0.92, 7.8], aim: [1, 2], strings: [[], [], [], [GREEN, GREEN, GREEN], []], gate: { c: GREEN }, goal: "clear", caption: "Shot 2: the last", expect: { shattered: 3, fallen: 0, cleared: true, gain: worth(3, 0) + CLEAR_BONUS } },
+      { ...DIAG, strings: RUN, gate: { c: GOLD }, bolt: [[1, 4]], caption: "Cut above: it holds", expect: { shattered: 3, fallen: 1, gain: worth(3, 1), stop: "piece" } },
+      { ...DIAG, strings: RUN, gate: { c: GOLD }, bolt: [[1, 3]], caption: "Hit the bolt: all falls", expect: { shattered: 3, fallen: 3, gain: worth(3, 3), stop: "piece" } },
     ],
   },
   {
@@ -76,6 +82,35 @@ export const FEATURES = [
     ],
   },
   {
+    id: "split", name: "Splitter",
+    lines: [
+      "A splitter is half-silvered glass. Light that meets it goes on and turns, as at a mirror: two beams, in the same colours.",
+      "One shot can cut two places, and the beams do not wait for each other. A splitter is fixed; set mirrors on both of its ways.",
+    ],
+    scenes: [
+      { ...UPWARD, a: [-3.6, 7.8], b: [0.92, 7.8], bn: [-Math.SQRT1_2, Math.SQRT1_2], aim: [1, 3], strings: UP, gate: { c: GOLD, at: [-2.2, 7.8] }, split: { p: [-0.92, 7.8], n: [-Math.SQRT1_2, Math.SQRT1_2] }, toward: [-0.92, 7.8], caption: "One beam in, two cuts", expect: { shattered: 4, fallen: 0, gain: worth(4, 0), stop: "piece" } },
+    ],
+  },
+  {
+    id: "lamp", name: "Lamps and signals",
+    lines: [
+      "A lamp is lit by light that reaches it, and the light stops there. A lamp in a colour wants light of that colour; a clear one takes any.",
+      "A level may ask for all the lamps lit, or at once in one shot, or as a signal: in their order, one lit a shot, the numbered ones first.",
+    ],
+    scenes: [
+      { ...DIAG, strings: EMPTY, gate: { c: GOLD }, lamp: { p: [0.6, 9.6], c: GOLD }, goal: "lamps", caption: "Its colour: lit", expect: { lit: 1, stop: "lamp", gain: 0 } },
+      { ...DIAG, strings: EMPTY, gate: { c: GOLD }, lamp: { p: [0.6, 9.6], c: GREEN }, goal: "lamps", caption: "Another colour: dark", expect: { lit: 0, stop: "lamp", gain: 0 } },
+    ],
+  },
+  {
+    id: "pin", name: "Bolted mirror",
+    lines: [
+      "A mirror with a brass nut is bolted to its place: it cannot be moved or taken back, and it is not one of those in hand.",
+      "It turns as freely as any other, by its handle. Light it, and turn it where the light should go.",
+    ],
+    scenes: [{ ...DIAG, strings: RUN, gate: { c: GOLD }, pin: ["b"], caption: "Fixed; turned to the crystals", expect: { shattered: 3, fallen: 3, gain: worth(3, 3), stop: "piece" } }],
+  },
+  {
     id: "shutter", name: "Shutter",
     lines: [
       "A shutter is a brass louvre across the tube. The light stops at it, as at a wall.",
@@ -87,26 +122,15 @@ export const FEATURES = [
     ],
   },
   {
-    id: "blink", name: "Opening shutter",
+    id: "frail", name: "Cracked glass",
     lines: [
-      "This shutter shuts and opens by turns, one shot to the next: a solid bar is shut, a dashed one open.",
-      "The light meets it as it stands when you fire, not as you aim. The line over the tube says whether it is shut now and next shot.",
+      "A cracked crystal takes two hits. The first only cracks it, and the light stops there; the second, in a later shot or from a second beam, shatters it.",
+      "Light that cracks a crystal is spent on it, so what lies beyond waits. A splitter can send two beams to one crystal in a single shot.",
     ],
     scenes: [
-      { ...UPWARD, b: [-0.92, 7.8], aim: [-1, 3], strings: UP, gate: { c: GOLD }, shutter: { p: [-0.7, 8.7], r: 0.9, cycle: [1, 0] }, shots: 0, caption: "Shot 1: shut", expect: { shattered: 0, fallen: 0, gain: 0, stop: "shutter" } },
-      { ...UPWARD, b: [-0.92, 7.8], aim: [-1, 3], strings: UP, gate: { c: GOLD }, shutter: { p: [-0.7, 8.7], r: 0.9, cycle: [1, 0] }, shots: 1, caption: "Shot 2: open", expect: { shattered: 2, fallen: 0, gain: worth(2, 0), stop: "piece" } },
+      { ...UPWARD, b: [0.92, 7.8], aim: [1, 3], strings: UP, gate: { c: GOLD }, frail: [[1, 3]], caption: "First hit: it cracks", expect: { shattered: 0, fallen: 0, cracked: 1, gain: 0, stop: "crack" } },
+      { ...UPWARD, b: [0.92, 7.8], aim: [1, 3], strings: UP, gate: { c: GOLD }, frail: [[1, 3]], hurt: [[1, 3]], caption: "Second hit: it breaks", expect: { shattered: 2, fallen: 0, cracked: 0, gain: worth(2, 0), stop: "piece" } },
     ],
-  },
-  {
-    id: "sun", name: "The sun",
-    lines: [
-      "The sun crosses the sky over the level, and the light comes in more aslant each shot: the dial over the tube shows where it is.",
-      "Where the light falls on a mirror moves with it, so a mirror set for one shot is wrong for the next. Move it to follow the light, or keep it high, near the port, where it has to move least.",
-    ],
-    scenes: [0, 3, 6].map((shots, i) => ({
-      ...UPWARD, b: [0.92, 7.8], aim: [1, 3], strings: [[], ...UP.slice(1)], gate: { c: GOLD, at: [-0.1, 7.75] }, port: -3, follow: true, sun: { from: 10, to: -10 }, span: 7, shots,
-      caption: ["Early: the light leans one way", "Midday: straight down", "Late: it leans the other"][i], expect: { shattered: 2, fallen: 0, gain: worth(2, 0), stop: "piece" },
-    })),
   },
 ];
 /** The order they are taught in, and shown in when a level has several. */
@@ -115,28 +139,33 @@ export const featureOf = id => FEATURES.find(f => f.id === id);
 
 /** The game a scene is a shot of, as the engine has it. */
 export function sceneState(spec) {
-  const goal = spec.goal === "beacons" ? { kind: "beacons", pars: [1, 1] } : spec.goal === "clear" ? { kind: "clear", pars: [1, 1] } : { kind: "score", n: 99999, more: [] };
+  const goal = spec.goal === "beacons" ? { kind: "beacons", pars: [1, 1] } : spec.goal === "clear" ? { kind: "clear", pars: [1, 1] } : spec.goal === "lamps" ? { kind: "lamps", mode: "all", pars: [1, 1] } : { kind: "score", n: 99999, more: [] };
   const shots = spec.shots ?? 0, g = spec.gate ?? {};
-  const x = { lv: -1, shape: "column", colours: [0, 1, 2, 3], extra: 0, crystals: 0, every: 99, shots: spec.span ?? 8, goal, port: [spec.port ?? spec.a[0], 14, 0], fix: [] };
-  if (spec.sun) x.sun = spec.sun;
-  // the first mirror stands where the light falls on it: straight under the port, or along the sun's slant
-  const slant = Math.tan((sunAngle({ x }, shots) * Math.PI) / 180), a = [spec.follow ? x.port[0] + (14 - spec.a[1]) * slant : spec.a[0], spec.a[1], 0], b = [...spec.b, 0];
+  const x = { lv: -1, ...(spec.goal === "lamps" ? { hang: {} } : {}), shape: "column", gems: [], every: 99, shots: spec.span ?? 8, goal, port: [spec.port ?? spec.a[0], 14, 0], fix: [] };
+  const a = [spec.a[0], spec.a[1], 0], b = [...spec.b, 0];
   const t = g.t ?? 0.5, gate = g.at ? [...g.at, 0] : [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 0];
   if (g.cs) x.fix.push({ k: "prism", p: gate, cs: g.cs });
   if (spec.shutter) x.fix.push({ k: "shutter", p: [...spec.shutter.p, 0], n: [0, 1, 0], r: spec.shutter.r, ...(spec.shutter.cycle ? { cycle: spec.shutter.cycle } : {}) });
+  if (spec.split) x.fix.push({ k: "split", p: [...spec.split.p, 0], n: [...spec.split.n, 0], r: 0.7 });
+  if (spec.lamp) x.fix.push({ k: "lamp", p: [...spec.lamp.p, 0], c: spec.lamp.c ?? -1 });
   let s = newGame(1, x);
   s.serial = 0;
   s.depth = CELLS.map(c => (c.r === 0 ? spec.strings[c.q + 2].length : 0));
-  const deepest = Math.max(...s.depth);
+  const deepest = Math.max(0, ...s.depth);
   s.layers = Array.from({ length: deepest }, (_, k) => ({ s: s.serial++, c: CELLS.map(c => (c.r === 0 ? spec.strings[c.q + 2][k] ?? -1 : -1)) }));
   s.crystals = g.c == null ? [] : [{ x: gate[0], y: gate[1], z: 0, c: g.c }];
   s.shots = shots;
   s.untilDrop = 99;
-  if (spec.lantern) s.x.beacons = [idOf(s.layers[spec.lantern[1]].s, place(spec.lantern[0]))];
-  s.mirrors = [{ id: 0, p: a, n: [0, 1, 0] }, { id: 1, p: b, n: [0, 1, 0] }];
+  const idAt = ([q, k]) => idOf(s.layers[k].s, place(q));
+  if (spec.lantern) s.x.beacons = [idAt(spec.lantern)];
+  if (spec.bolt) s.x.bolts = spec.bolt.map(idAt);
+  if (spec.frail) s.x.frail = spec.frail.map(idAt);
+  if (spec.hurt) s.hurt = spec.hurt.map(idAt);
+  s.mirrors = [{ id: 0, p: a, n: [0, 1, 0] }, { id: 1, p: b, n: spec.bn ? [spec.bn[0], spec.bn[1], 0] : [0, 1, 0] }];
+  if (spec.pin) for (const w of spec.pin) s.mirrors[w === "a" ? 0 : 1].pin = true;
   s.mid = 2;
-  s = pointMirror(s, 0, b);
-  return pointMirror(s, 1, hangs(...spec.aim));
+  s = pointMirror(s, 0, spec.toward ? [...spec.toward, 0] : b);
+  return pointMirror(s, 1, spec.lamp ? [...spec.lamp.p, 0] : hangs(...spec.aim));
 }
 /** A scene played: { spec, s (before), r (fire's result) }. */
 export function runScene(spec) {
@@ -147,6 +176,8 @@ export function runScene(spec) {
 export function marksOf({ r }) {
   const out = [];
   if (r.path.stop.what === "shutter") out.push("stopped");
+  if (r.path.cracked.length) out.push("cracked");
+  if (r.lamps.length) out.push("lamp lit");
   if (r.shattered.length) out.push(`${r.shattered.length} shattered`);
   if (r.fallen.length) out.push(`${r.fallen.length} fell`);
   if (r.downed) out.push(r.downed === 1 ? "lantern down" : `${r.downed} lanterns down`);

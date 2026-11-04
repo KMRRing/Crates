@@ -1,184 +1,137 @@
-// Heliograph's levels (heliograph-levels.js on heliograph-engine.js): six stations of four levels, each station bringing one new
-// thing (lanterns, a prism, shutters, the sun); every level's rules are sound, every deal of it is one the simple player
-// wins, no level can be left stuck (a move is always there, a shot always counts, the shots run out), the stars and the
-// goal's words, and what each new thing does to the light. Run: node tests/heliograph-levels.mjs
-import { MIRRORS, CELLS, SHAPES, BEACON_BONUS, CLEAR_BONUS, newGame, copy, trace, fire, plan, pieces, pieceById, canMove, movesFor, fixtures, closed, beaconsOf, sunAngle, lightAt, lineOf } from "../heliograph-engine.js";
-import { LEVELS, CHAPTERS, rulesOf, starsOf, starsInReach, featuresOf, goalSentence, goalShort, goalWords, meterOf, played, dealLevel } from "../heliograph-levels.js";
+// Heliograph's levels (heliograph-levels.js on heliograph-engine.js): six stations of five levels, each made by hand with a
+// designed answer (heliograph-answers.js). Every answer is played through the engine and wins in the shots the stars say; the
+// stations bring their twists in turn; the simple players do not three-star the levels that should take insight; a level
+// cannot be left stuck; the goal's words, the stars, the meter. Run: node tests/heliograph-levels.mjs
+import { newGame, copy, fire, plan, canMove, movesFor, handLeft, addMirror, moveMirror, turnMirror, hangFrom, CELLS } from "../heliograph-engine.js";
+import { LEVELS, CHAPTERS, ANSWERS, rulesOf, starsOf, starsInReach, featuresOf, goalSentence, goalShort, goalWords, meterOf, played, dealLevel } from "../heliograph-levels.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const N = CELLS.length;
+
+/** A level played by its designed answer: the game at the end. An answer is a list of shots, each the mirrors set, moved or turned: ["add", p, n], ["move", id, p, n], ["turn", id, n]. */
+function answered(n) {
+  let s = dealLevel(n);
+  for (const shot of ANSWERS[n]) {
+    for (const [op, a, b, c] of shot) s = op === "add" ? addMirror(s, a, b) : op === "move" ? turnMirror(moveMirror(s, a, b), a, c) : turnMirror(s, a, b);
+    s = fire(s).state;
+    if (s.over) break;
+  }
+  return s;
+}
 
 // ---------- the ladder ----------
 {
-  check(CHAPTERS.length === 6 && CHAPTERS.every(c => c.levels.length === 4) && LEVELS.length === 24, "six stations of four levels");
-  check(new Set(LEVELS.map(L => L.name)).size === LEVELS.length && LEVELS.every((L, n) => L.n === n && L.name && L.about), "every level has a name of its own and a line");
-  check(LEVELS.every(L => SHAPES[L.shape]), "every level hangs a shape the engine has");
-  // each station's new thing: the first level that has a feature is in the station that brings it
+  check(CHAPTERS.length === 6 && CHAPTERS.every(c => c.levels.length === 5) && LEVELS.length === 30, "six stations of five levels");
+  check(new Set(LEVELS.map(L => L.name)).size === LEVELS.length && LEVELS.every((L, n) => L.n === n && L.name && L.about && L.about.length <= 110), "every level has a name of its own and a short line");
+  check(CHAPTERS.every(c => c.name && c.about), "every station has a name and a line");
+  // each station's twist: the first level to have it is in the station that brings it
   const firstAt = {};
   LEVELS.forEach(L => featuresOf(rulesOf(L.n)).forEach(id => { if (!(id in firstAt)) firstAt[id] = L.chapter; }));
-  check(firstAt.quota === 0 && firstAt.beacons === 1 && firstAt.prism === 2 && firstAt.shutter === 3 && firstAt.blink === 3 && firstAt.sun === 4 && firstAt.clear === 5, `the stations bring the quota, lanterns, the prism, shutters, the sun and the clear in turn (${JSON.stringify(firstAt)})`);
-  check(LEVELS.filter(L => L.chapter === 5).slice(0, 3).every(L => featuresOf(rulesOf(L.n)).length >= 2), "the last station mixes what came before");
-  check(LEVELS.every(L => { const x = rulesOf(L.n); return x.lv === L.n && x.shots >= 6 && x.shots <= 14 && x.goal && (x.crystals >= 0 && x.crystals <= 2); }), "every level has its number, 6 to 14 shots, a goal and 0 to 2 colour crystals");
-  check(LEVELS.every(L => { const g = L.goal; return g.kind === "score" ? g.n > 0 && g.more.length === 2 && g.more[0] > g.n && g.more[1] > g.more[0] : g.pars.length === 2 && g.pars[1] <= g.pars[0] && g.pars[0] <= L.shots && (g.kind === "clear" || L.marks); }), "a quota's stars rise; a lantern or clear level's pars fall and fit the shots, and lanterns need marks");
-  check(LEVELS.every(L => rulesOf(L.n).crystals > 0 || rulesOf(L.n).fix?.some(f => f.k === "prism")), "a level with no colour crystal has a prism to colour the light");
-  check(LEVELS.filter(L => L.goal.kind === "score").every(L => L.goal.more[1] <= 2500), "no quota asks for more than a bot-sized game");
+  const want = { clear: 0, beacons: 0, bolt: 1, prism: 2, split: 3, lamp: 4, frail: 5 };
+  check(Object.entries(want).every(([id, ch]) => firstAt[id] === ch), `the stations bring the cut, bolts, the prism, the splitter, lamps and cracked glass in turn (${JSON.stringify(firstAt)})`);
+  const seen = new Set(), news = LEVELS.map(L => { const fresh = featuresOf(rulesOf(L.n)).filter(id => !seen.has(id)); fresh.forEach(id => seen.add(id)); return fresh; });
+  check(news.every(n => n.length <= 2), `no level brings more than two new things at once (${news.map((n, k) => (n.length ? `${k + 1}: ${n.join("+")}` : "")).filter(Boolean).join(", ")})`);
+  check(LEVELS.every(L => { const x = rulesOf(L.n), g = x.goal; return x.lv === L.n && x.shots >= g.pars[0] + 1 && x.shots <= 9 && g.pars.length === 2 && g.pars[1] >= 1 && g.pars[0] === g.pars[1] + 1; }), "every level: its number, a goal whose pars are the answer's shots and one more, and room in the shots to fail once");
+  check(LEVELS.every(L => (L.gems ?? []).length <= 3 && (L.fix ?? []).filter(f => f.k === "lamp").length <= 4 && (L.fix ?? []).filter(f => f.k === "split").length <= 3), "no more gems, lamps and splitters than the tube draws");
+  check(LEVELS.every(L => L.gems?.length || L.fix?.some(f => f.k === "prism") || L.goal.kind === "lamps"), "a level with no colour crystal or prism asks for lamps (white light)");
 }
 
-// ---------- a deal is as the level says (that the simple player wins it: tests/heliograph-deals.mjs) ----------
+// ---------- every level has its designed answer, and it wins in the shots the stars say ----------
 {
-  let ok = true, why = "", total = 0;
-  for (const L of LEVELS) for (const seed of [3, 1009, 55555]) {
-    const s = newGame(seed, rulesOf(L.n));
-    total++;
-    const x = s.x, problems = [
-      x.lv !== L.n && "its number is not kept",
-      s.crystals.length !== L.crystals && "wrong number of colour crystals",
-      s.over && "dealt over",
-      (s.shots !== 0 || s.score !== 0) && "not at the start",
-      L.marks && new Set((x.beacons || []).map(id => id % N)).size !== L.marks.n && "lanterns not on strings of their own",
-      L.marks && !(x.beacons || []).every(id => pieces(s).some(q => q.id === id)) && "a lantern that is not in the chandelier",
-      !L.marks && x.beacons && "lanterns where there are none",
-      JSON.stringify(JSON.parse(JSON.stringify(s))) !== JSON.stringify(s) && "does not survive being saved",
-    ].filter(Boolean);
-    if (problems.length) { ok = false; why += `${L.name} (${seed}): ${problems.join("; ")}. `; }
+  let ok = true, why = "";
+  for (const L of LEVELS) {
+    const x = rulesOf(L.n), s = answered(L.n);
+    if (!ANSWERS[L.n]?.length) { ok = false; why += `${L.name}: no answer. `; continue; }
+    const need = x.goal.pars[1];
+    if (!s.won || s.metAt > need) { ok = false; why += `${L.name}: the answer ${s.won ? `takes ${s.metAt}` : "does not win"}, three stars want ${need}. `; }
+    if (ANSWERS[L.n].length !== need) { ok = false; why += `${L.name}: the answer is ${ANSWERS[L.n].length} shots, the par ${need}. `; }
+    if (starsOf(x, s) !== 3) { ok = false; why += `${L.name}: ${starsOf(x, s)} stars. `; }
   }
-  check(ok, ok ? `every deal (${total}: three seeds of each level) is as the level says, and survives being saved` : why);
-  const a = dealLevel(5, 77), b = dealLevel(5, 77);
-  check(JSON.stringify(a) === JSON.stringify(b), "a level dealt from the same seed is the same game");
+  check(ok, ok ? "each level's designed answer wins it, in the shots of the third star" : why);
+  // a shot is made of the moves it has: the answer never asks for more
+  let fits = true, over = "";
+  for (const L of LEVELS) {
+    let s = dealLevel(L.n);
+    ANSWERS[L.n].forEach((shot, k) => {
+      const spent = shot.filter(([op]) => op !== "turn").length;
+      if (spent > movesFor(k, s.x)) { fits = false; over += `${L.name} shot ${k + 1}: ${spent} moves of ${movesFor(k, s.x)}. `; }
+      for (const [op, a, b, c] of shot) s = op === "add" ? addMirror(s, a, b) : op === "move" ? turnMirror(moveMirror(s, a, b), a, c) : turnMirror(s, a, b);
+      s = fire(s).state;
+    });
+  }
+  check(fits, fits ? "and every shot of every answer stays within the moves a shot has" : over);
+}
+
+// ---------- how the simple players fare: the levels are not won by playing on ----------
+{
+  const rows = [];
+  let easy = 0;
+  for (const L of LEVELS) {
+    const x = rulesOf(L.n), got = {};
+    for (const how of ["glance", "keen", "best"]) { const s = played(dealLevel(L.n), how); got[how] = s.won ? starsOf(x, s) : 0; }
+    rows.push(`${L.chapter + 1}.${L.k + 1} ${L.name}: ${got.glance}${got.keen}${got.best}`);
+    // after the first station's gentle levels, the best simple player does not three-star a level
+    if (L.chapter > 0 || L.k > 1) if (got.best === 3) easy++;
+  }
+  console.log(`     stars of glance, keen and best: ${rows.join("; ")}`);
+  check(easy <= 4, `the simple player that looks at every aim three-stars at most four levels past the first two (${easy})`);
 }
 
 // ---------- no level can be left stuck ----------
 {
   let ok = true, why = "";
   for (const L of LEVELS) {
-    const s0 = newGame(11, rulesOf(L.n));
-    // nothing set, nothing done: the shots run out and the level ends not won
-    let s = copy(s0), k = 0;
-    while (!s.over && k < 40) { s = fire(s).state; k++; }
-    if (!s.over || k > L.shots || s.won) { ok = false; why += `${L.name}: fired empty ${k} times, ${s.over ? "over" : "not over"}${s.won ? ", won" : ""}. `; }
-    // played by a player that looks at four aims, each shot starts with a move to make and room for a mirror
-    s = copy(s0); k = 0;
+    let s = dealLevel(L.n), k = 0;
+    while (!s.over && k < 40) { s = fire(s).state; k++; }                       // nothing set: the shots run out, not won
+    if (!s.over || k > L.shots || s.won) { ok = false; why += `${L.name}: fired empty ${k} times${s.won ? ", won" : ""}. `; }
+    s = dealLevel(L.n); k = 0;
     while (!s.over && k < 40) {
-      if (!canMove(s) || s.moves !== movesFor(s.shots) || s.mirrors.length > MIRRORS) { ok = false; why += `${L.name}: shot ${k} starts with no move. `; break; }
-      const f = fire(plan(s, "glance"));
-      if (f.state.shots !== s.shots + 1) { ok = false; why += `${L.name}: a shot did not count. `; break; }
-      s = f.state; k++;
+      if (!canMove(s) || s.moves !== movesFor(s.shots, s.x) || handLeft(s) < 0) { ok = false; why += `${L.name}: shot ${k} starts with no move. `; break; }
+      s = fire(plan(s, "glance")).state; k++;
     }
     if (!s.over) { ok = false; why += `${L.name}: never ended. `; }
   }
   check(ok, ok ? "fired empty, every level ends within its shots; played, every shot starts with a move and counts" : why);
 }
 
+// ---------- a deal is as the level says ----------
+{
+  let ok = true, why = "";
+  for (const L of LEVELS) {
+    const s = dealLevel(L.n), x = s.x, h = hangFrom(L.hang);
+    const problems = [
+      x.lv !== L.n && "its number is not kept",
+      s.crystals.length !== (L.gems ?? []).length && "wrong number of colour crystals",
+      s.mirrors.length !== (L.pins ?? []).length && "wrong number of bolted mirrors",
+      handLeft(s) !== (L.hand ?? 6) && "wrong number of mirrors in hand",
+      s.over && "dealt over",
+      (s.shots !== 0 || s.score !== 0) && "not at the start",
+      JSON.stringify(s.depth) !== JSON.stringify(h.depth) && "the chandelier is not as written",
+      (s.x.beacons?.length ?? 0) !== h.beacons.length && "lanterns not as written",
+      L.goal.kind === "beacons" && !h.beacons.length && "lanterns asked for, none hung",
+      JSON.stringify(JSON.parse(JSON.stringify(s))) !== JSON.stringify(s) && "does not survive being saved",
+      JSON.stringify({ ...dealLevel(L.n, 99), seed: 0 }) !== JSON.stringify({ ...s, seed: 0 }) && "the seed changes the level",
+    ].filter(Boolean);
+    if (problems.length) { ok = false; why += `${L.name}: ${problems.join("; ")}. `; }
+  }
+  check(ok, ok ? "every level is dealt as written, the same every time, and survives being saved" : why);
+}
+
 // ---------- stars, the goal's words, the meter ----------
 {
-  const q = rulesOf(0), g = q.goal;
-  check([0, g.n - 1, g.n, g.more[0], g.more[1] + 1].map(score => starsOf(q, { score })).join() === "0,0,1,2,3", "a quota: a star at the quota, one at each higher score");
-  const b = rulesOf(4), bp = b.goal.pars;
-  const metIn = shots => starsOf(b, { met: true, metAt: shots });
-  check(starsOf(b, { met: false, metAt: 0 }) === 0 && metIn(b.shots) === 1 && metIn(bp[0]) === 2 && metIn(bp[1]) === 3 && metIn(bp[1] - 1) === 3, "lanterns: a star for bringing them down, more for fewer shots");
-  const reach = k => starsInReach(b, { shots: k, over: false });
-  check(reach(0) === 3 && reach(bp[1] - 1) === 3 && reach(bp[1]) === 2 && reach(bp[0] - 1) === 2 && reach(bp[0]) === 1 && reach(b.shots - 1) === 1, "lanterns: the stars still within reach fall as the shots are used, to the one for bringing them down");
-  check(goalSentence(q).startsWith("Reach") && goalSentence(rulesOf(4)).includes("lanterns") && goalSentence(rulesOf(23)).startsWith("Clear"), "the goal in a sentence: reach, bring down, clear");
-  check(goalShort(q).includes(String(q.shots)) && goalShort(rulesOf(23)).includes("Clear"), "the goal in a few words for the list");
-  const s = dealLevel(4, 5);
-  check(goalWords(rulesOf(4), s).includes("0 of 2") && goalWords(rulesOf(0), dealLevel(0, 5)).startsWith("Quota"), "the goal row says the lanterns down of the lanterns, or the quota");
-  const m = meterOf(q, { score: g.more[1] / 2 });
-  check(Math.abs(m.fill - 0.5) < 1e-9 && m.marks.length === 2 && m.marks[0] < m.marks[1], "a quota's meter runs to the last star, with a tick at each of the others");
-  check(meterOf(b, { shots: 2 }).marks.length === 2, "a lantern level's meter has a tick where each of the upper stars is lost");
-}
-
-// ---------- what each new thing does to the light ----------
-const row = CELLS.map((c, i) => [c, i]).filter(([c]) => c.r === 0).sort(([a], [b]) => a.q - b.q).map(([, i]) => i);
-/** A game set by hand, with no mirrors or colour crystals: a layer of the chandelier of each colour of `layers` along the middle row. */
-function table(x, layers) {
-  const s = newGame(1, { lv: 0, shape: "column", colours: [0, 1, 2, 3], extra: 0, crystals: 0, every: 99, shots: 8, goal: { kind: "score", n: 9999, more: [] }, fix: [], ...x });
-  s.serial = 0;
-  s.depth = CELLS.map((cell, i) => (row.includes(i) ? layers.length : 0));
-  s.layers = layers.map(c => ({ s: s.serial++, c: CELLS.map((cell, i) => (row.includes(i) ? c : -1)) }));
-  s.mirrors = []; s.crystals = []; s.untilDrop = 99;
-  return s;
-}
-{
-  // the prism: the light through it carries its two colours, and it is not spent
-  const prism = { fix: [{ k: "prism", p: [-3, 6, 0], cs: [0, 1] }], port: [-3, 14, 0] };
-  const s = table(prism, [0]);
-  const t = trace(s);
-  check(t.legs.at(-1).cs.join() === "0,1" && t.cross.length === 1 && t.cross[0].kind === "prism", "white light through a prism carries its two colours");
-  check(trace(table(prism, [0])).crossed.length === 0, "a prism is no colour crystal: nothing is spent");
-  const before = JSON.stringify(fixtures(s)), after = fire(s).state;
-  check(JSON.stringify(fixtures(after)) === before && after.crystals.length === 0, "a prism is never spent or replaced");
-}
-{
-  // a shutter: shut, the light stops at it; open, it goes through; by cycle, shot by shot
-  const fix = shut => [{ k: "shutter", p: [-3, 9, 0], n: [0, 1, 0], r: 1.5, ...(shut === "cycle" ? { cycle: [1, 0] } : {}) }];
-  const s = table({ fix: fix(true), port: [-3, 14, 0] }, [0]);
-  check(trace(s).stop.what === "shutter" && trace(s).legs.length === 1 && Math.abs(trace(s).stop.at[1] - 9) < 1e-6, "light stops at a shut shutter, where it meets it");
-  const c = table({ fix: fix("cycle"), port: [-3, 14, 0] }, [0]);
-  const closedNow = k => closed({ ...c, shots: k }, fixtures(c)[0]);
-  check(closedNow(0) && !closedNow(1) && closedNow(2) && !closedNow(3), "a cycled shutter is shut and open by turns, by the shot's number");
-  check(trace(c).stop.what === "shutter" && trace({ ...c, shots: 1 }).stop.what !== "shutter", "and the light meets it as it stands for the shot");
-  const f = fire(c);
-  check(f.state.shots === 1 && f.gain === 0 && f.shattered.length === 0, "firing against a shut shutter is a shot, not a stall, and brings nothing down");
-}
-{
-  // the sun: the light slants a little more each shot, from `from` to `to` over the level
-  const x = rulesOf(LEVELS.findIndex(L => L.sun && L.sun.from === -24));
-  const s = newGame(1, x), last = x.shots - 1;
-  check(Math.abs(sunAngle(s, 0) - x.sun.from) < 1e-9 && Math.abs(sunAngle(s, last) - x.sun.to) < 1e-9 && sunAngle(s, last + 5) === x.sun.to, "the sun runs from its first angle to its last over the shots, and stays there");
-  const d0 = lightAt(s, 0).d, d1 = lightAt(s, last).d;
-  check(d0[0] < 0 && Math.abs(d1[0]) < 1e-9 && Math.abs(Math.hypot(...d0) - 1) < 1e-9, "the light slants one way, then falls straight, a unit direction");
-  check(sunAngle(newGame(1), 3) === 0 && lightAt(newGame(1)).d.join() === "0,-1,0", "with no sun the light falls straight down");
-}
-{
-  // lanterns: crystals of the chandelier that count when they are gone; the bonus is paid once each; the last ends the level
-  const s = dealLevel(4, 5), ids = beaconsOf(s);
-  check(ids.length === 2 && ids.every(id => pieceById(s, id)) && new Set(ids.map(id => id % N)).size === 2, "a level's lanterns are crystals of the chandelier, each on a string of its own");
-  const none = fire(s);
-  check(none.downed === 0 && none.gain === 0 && beaconsOf(none.state).length === 2 && !none.state.over, "a shot that brings no lantern down leaves the level going");
-  const take = (g, id) => { const t = copy(g); t.layers.find(l => l.s === Math.floor(id / N)).c[id % N] = -1; return t; };
-  const one = fire(take(s, ids[0]));
-  check(one.downed === 1 && one.gain >= BEACON_BONUS && beaconsOf(one.state).join() === String(ids[1]) && !one.state.over && !one.state.met, "one lantern down: its bonus is paid and the other is left");
-  const two = fire(take(one.state, ids[1]));
-  check(two.downed === 1 && two.state.met && two.state.metAt === 2 && two.state.over && two.state.won && !beaconsOf(two.state).length, "the last lantern down ends the level, won, in the shots it took");
-  const late = fire(take(s, ids[0]));
-  const again = fire(late.state);
-  check(late.gain >= BEACON_BONUS && again.gain === 0 && again.downed === 0, "a lantern's bonus is paid once");
-  const won = played(dealLevel(4, 5));
-  check(won.won && won.over && won.score >= BEACON_BONUS * 2, "the simple player brings the lanterns down, the bonus paid for each");
-}
-{
-  // clearing: nothing refills the chandelier, and the last crystal ends the level with the bonus
-  const s = dealLevel(23, 3);
-  check(s.x.goal.kind === "clear", "the last level asks for the whole chandelier");
-  let t = copy(s);
-  for (let i = 0; i < 3 && !t.over; i++) t = fire(t).state;
-  check(t.layers.length <= s.layers.length, "it hangs no new crystals as the shots go by");
-  const empty = copy(s);
-  empty.layers.forEach(l => l.c.fill(-1));
-  const f = fire(empty);
-  check(f.cleared && f.gain === CLEAR_BONUS && f.state.over && f.state.won && !pieces(f.state).length, "with nothing left the bonus is paid, nothing is hung again, the level is won");
-  const endless = newGame(5);
-  endless.layers.forEach(l => l.c.fill(-1));
-  const g = fire(endless);
-  check(g.cleared && g.gain === CLEAR_BONUS && pieces(g.state).length > 0 && !g.state.over, "in the endless game the same bonus is paid, and a new chandelier hung");
-}
-
-// ---------- a game saved and opened again; the endless game as it was ----------
-{
-  let s = dealLevel(15, 9), k = 0, same = true;
-  while (!s.over && k < 6) {
-    const planned = plan(s, "best"), a = fire(planned), b = fire(JSON.parse(JSON.stringify(planned)));
-    if (JSON.stringify(a.state) !== JSON.stringify(b.state)) same = false;
-    s = JSON.parse(JSON.stringify(a.state)); k++;
-  }
-  check(same, "a level saved and opened again goes on as it would have (its rules are in the game)");
-  const c = newGame(5);
-  check(!("x" in c) && c.crystals.length === 2 && c.v === 4, "the endless game has no rules of a level in it, and the same shape as ever");
-  const e = fire(plan(c, "best")).state;
-  check(e.x === undefined && e.won === undefined && e.met === undefined && lineOf(e) === 2.2, "and a shot of it keeps it so (no goal, no win, the old line)");
-  const old = JSON.parse(JSON.stringify(c));
-  check(fire(old).state.shots === 1, "a game saved before the levels still plays on");
+  const lamps = LEVELS.findIndex(L => L.goal.kind === "lamps"), lanterns = LEVELS.findIndex(L => L.goal.kind === "beacons"), clear = LEVELS.findIndex(L => L.goal.kind === "clear");
+  const x = rulesOf(lanterns), p = x.goal.pars;
+  const metIn = shots => starsOf(x, { met: true, metAt: shots });
+  check(starsOf(x, { met: false, metAt: 0 }) === 0 && metIn(x.shots) === 1 && metIn(p[0]) === 2 && metIn(p[1]) === 3 && metIn(p[1] - 1) === 3, "a star for the goal, one more for each par in shots");
+  const reach = k => starsInReach(x, { shots: k, over: false });
+  check(reach(0) === 3 && reach(p[1] - 1) === 3 && reach(p[1]) === 2 && reach(p[0] - 1) === 2 && reach(p[0]) === 1, "the stars still within reach fall as the shots are used");
+  check(goalSentence(rulesOf(clear)).startsWith("Clear") && goalSentence(x).includes("lantern") && goalSentence(rulesOf(lamps)).includes("lamp"), "the goal in a sentence: clear, bring down, light");
+  check(goalShort(rulesOf(clear)).includes("Clear") && goalShort(x).includes("lantern") && goalShort(rulesOf(lamps)).length > 0, "the goal in a few words for the list");
+  const order = LEVELS.findIndex(L => L.goal.kind === "lamps" && L.goal.mode === "order"), together = LEVELS.findIndex(L => L.goal.kind === "lamps" && L.goal.mode === "together");
+  check(order < 0 || goalSentence(rulesOf(order)).includes("order"), "a signal says it is lit in order");
+  check(together < 0 || goalSentence(rulesOf(together)).includes("one shot"), "lamps at once say one shot");
+  check(goalWords(x, dealLevel(lanterns)).includes("0 of") && goalWords(rulesOf(lamps), dealLevel(lamps)).includes("0 of"), "the goal row says the lanterns down or the lamps lit");
+  check(meterOf(x, { shots: 2 }).marks.length === 2 && meterOf(x, { shots: 2 }).fill === 2 / x.shots, "the meter is the shots used, with a tick where each of the upper stars is lost");
 }
 
 console.log(bad ? `\n${bad} FAILED` : "\nall ok");

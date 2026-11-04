@@ -51,6 +51,9 @@ html[data-mode="night"] { --hg-danger: #E8806F; --hg-good: #7FC2A8; }
 .hg-gem.c1 > :first-child { fill: var(--c1); }
 .hg-gem.c2 > :first-child { fill: var(--c2); }
 .hg-gem.c3 > :first-child { fill: var(--c3); }
+.hg-lampgem circle { fill: var(--sheet); stroke: var(--brass); stroke-width: .5; }
+.hg-lampgem circle.ring { fill: none; }
+.hg-lampgem.c0 circle:first-child { fill: var(--c0); } .hg-lampgem.c1 circle:first-child { fill: var(--c1); } .hg-lampgem.c2 circle:first-child { fill: var(--c2); } .hg-lampgem.c3 circle:first-child { fill: var(--c3); }
 .hg-half.c0 { fill: var(--c0); }
 .hg-half.c1 { fill: var(--c1); }
 .hg-half.c2 { fill: var(--c2); }
@@ -159,6 +162,12 @@ html[data-mode="night"] { --hg-danger: #E8806F; --hg-good: #7FC2A8; }
 .hg-map-prism { fill: color-mix(in srgb, var(--c1) 60%, var(--c0)); stroke: var(--ink); stroke-width: .1; stroke-linejoin: round; }
 .hg-map-shutter { fill: none; stroke: var(--ink); stroke-width: .3; }
 .hg-map-shutter.blink { stroke-dasharray: .4 .3; }
+.hg-map-bolt { fill: var(--brass); stroke: var(--ink); stroke-width: .1; stroke-linejoin: round; }
+.hg-map-crack { fill: none; stroke: var(--ink); stroke-width: .16; stroke-linecap: round; stroke-linejoin: round; }
+.hg-map-pin { fill: none; stroke: var(--brass); stroke-width: .24; stroke-linecap: round; }
+.hg-map-split { fill: none; stroke: var(--ink); stroke-width: .16; stroke-linecap: round; }
+.hg-map-lamp { fill: var(--sheet); stroke: var(--brass); stroke-width: .16; }
+.hg-map-lamp.c0 { fill: var(--c0); } .hg-map-lamp.c1 { fill: var(--c1); } .hg-map-lamp.c2 { fill: var(--c2); } .hg-map-lamp.c3 { fill: var(--c3); }
 .hg-map-sun circle { fill: var(--brass); }
 .hg-map-sun path { fill: none; stroke: var(--brass); stroke-width: .16; stroke-linecap: round; }
 .hg-map-flag { fill: var(--hg-in); stroke: var(--ink); stroke-width: .1; stroke-linejoin: round; }
@@ -185,6 +194,15 @@ dialog.hg-help { max-height: 92vh; max-height: 92svh; overflow-y: auto; overscro
 .hg-hshutter { stroke-width: .24; }
 .hg-hshutter.shut { stroke: var(--brass); }
 .hg-hshutter.open { stroke: color-mix(in srgb, var(--brass) 75%, transparent); stroke-dasharray: .22 .28; }
+.hg-hnut { fill: none; stroke: var(--brass); stroke-width: .12; stroke-linejoin: round; }
+.hg-hcrack { stroke: var(--ink); stroke-width: .06; stroke-linecap: round; stroke-linejoin: round; }
+.hg-hsplit { stroke: color-mix(in srgb, #E4EDF3 85%, transparent); stroke-width: .3; stroke-linecap: round; }
+.hg-hsplit.rim { stroke: var(--brass); stroke-width: .38; }
+.hg-hlamp { fill: var(--sheet); stroke: var(--brass); stroke-width: .08; opacity: .6; }
+.hg-hlamp.c0 { fill: var(--c0); } .hg-hlamp.c1 { fill: var(--c1); } .hg-hlamp.c2 { fill: var(--c2); } .hg-hlamp.c3 { fill: var(--c3); }
+.hg-hlamp.lit { opacity: 1; }
+.hg-hlamphalo { fill: #FFF6D8; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.hg-hlamphalo.on { opacity: .55; }
 .hg-hglow { fill: var(--c0); opacity: .28; }
 .hg-hcollar { fill: none; stroke: var(--brass); stroke-width: .1; }
 .hg-hbeam { stroke-width: .1; stroke-linecap: round; stroke-dasharray: 1 2; stroke-dashoffset: 0; }
