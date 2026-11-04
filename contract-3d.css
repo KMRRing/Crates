@@ -1,0 +1,128 @@
+/* Contract's table (Menu, View: Table; contract-table.js, contract.js): Table 2.0's surface (table3d.css) under the page's own
+   layout: green baize in a wooden rail with a brass inlay, your hand along the foot, the auction laid out as bid cards, a brass
+   plaque for the contract, the bidding box a tray of bid cards, dummy's hand in columns, each side's tricks stacked at the
+   near corners. Everything here is under #app.bd3, so the flat table is untouched. */
+#app.contract.bd3 { --tk-felt: #226B46; --pg-ink: var(--ink); --pg-soft: var(--ink-soft); }
+
+/* ---------- the cloth: light lettering on baize ---------- */
+.bd3 .bd-table { --tk-rail: .5rem; --ink: #F4EEDC; --ink-soft: #C9D6C4; --bd-in: #F0CD84; --bd-vul: #FF9C8C; --bd-soft: rgba(255, 255, 255, .08); --bd-under: var(--tk-c); --rule: rgba(240, 205, 132, .4);
+  padding: calc(var(--tk-rail) + .3rem) calc(var(--tk-rail) + .15rem); color: var(--ink); }
+.bd3 .bd-table[data-dummy="left"] { grid-template-columns: minmax(0, 2fr) minmax(0, 1.85fr) minmax(0, .85fr); }
+.bd3 .bd-table[data-dummy="right"] { grid-template-columns: minmax(0, .85fr) minmax(0, 1.85fr) minmax(0, 2fr); }
+.bd3 .bd-table .bd-s:not(.red) { color: var(--tk-text); }
+.bd3 .bd-table .bd-s.red { color: #FF9C8C; }
+.bd3 .bd-seat.turn { background: rgba(255, 255, 255, .06); box-shadow: 0 0 0 1.5px var(--tk-gilt), 0 0 .9rem rgba(233, 196, 124, .38); }
+.bd3 .bd-seat.dummy:is(.at-left, .at-right) { align-self: start; }
+/* the compass letter is a brass roundel on a name plate */
+.bd3 .bd-name small { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border: 1px solid #6B4A12; border-radius: 50%; color: #3A2606; font-size: .72em; font-weight: 800;
+  background: radial-gradient(circle at 34% 28%, #F6DD9B, #C99A45 62%, #9B7126); box-shadow: 0 .08rem .15rem rgba(0, 0, 0, .4); }
+.bd3 .bd-tag { background: rgba(0, 0, 0, .35); color: var(--tk-gilt); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tk-gilt) 55%, transparent); }
+.bd3 .bd-tag.on { background: var(--tk-gilt); color: #3A2606; box-shadow: none; }
+.bd3 .bd-count { right: auto; left: 50%; translate: -50% 0; bottom: -.1rem; color: var(--tk-soft); white-space: nowrap; }
+
+/* a trick's cards lie on the cloth with their own thickness and a soft contact shadow; the one taking it is ringed in gilt */
+.bd3 .bd-trick .cd { box-shadow: var(--cd-thick), 0 .16em .38em rgba(0, 0, 0, .42); }
+.bd3 .bd-play.win .cd { box-shadow: 0 0 0 .1em var(--tk-gilt), 0 0 .6em .1em rgba(233, 196, 124, .45), var(--cd-thick), 0 .16em .38em rgba(0, 0, 0, .42); }
+.bd3 .bd-backs .cd { box-shadow: 0 .05em 0 var(--cd-rim), 0 .12em .2em rgba(0, 0, 0, .45); }
+/* a result is a card laid on the cloth, in the page's own ink */
+.bd3 .bd-result { --ink: var(--pg-ink); --ink-soft: var(--pg-soft); color: var(--pg-ink); box-shadow: 0 .3rem .8rem rgba(0, 0, 0, .4); }
+.bd3 .bd-result .bd-s:not(.red) { color: var(--cd-black); }
+.bd3 .bd-result .bd-s.red { color: var(--cd-red); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .bd3 .bd-result .bd-s:not(.red) { color: var(--pg-ink); } }
+html[data-mode="night"] .bd3 .bd-result .bd-s:not(.red) { color: var(--pg-ink); }
+
+/* ---------- the auction: each call a bid card, as a bidding box lays them out ---------- */
+.bd3 .bd-auction th { color: var(--tk-gilt); border-bottom: 1px solid color-mix(in srgb, var(--tk-inl) 75%, transparent); }
+.bd3 .bd-auction th.vul { color: var(--bd-vul); }
+.bd3 .bd-auction th small { color: var(--ink-soft); }
+.bd3 .bd-auction td.next { color: var(--tk-gilt); }
+.bd3 .bd-call { --bc-face: linear-gradient(165deg, #FFF, #F4EDDA 50%, #E4D8B8); --bc-rim: #CDBF9A; --bc-ink: #1E2730;
+  width: calc(100% - .3em); min-height: 1.45em; border-radius: .24em; background: var(--bc-face); color: var(--bc-ink);
+  box-shadow: 0 .09em 0 var(--bc-rim), 0 .15em .22em rgba(0, 0, 0, .42), inset 0 0 0 1px rgba(255, 255, 255, .6); }
+.bd3 .bd-call:is(:hover, :focus-visible) { background: var(--bc-face); filter: brightness(1.06); }
+.bd3 .bd-call .bd-s:not(.red) { color: #1E2730; }
+.bd3 .bd-call .bd-s.red { color: #B3302A; }
+.bd3 .bd-call.k-pass { --bc-face: linear-gradient(165deg, #46A878, #2F7D5B 58%, #256A4B); --bc-rim: #1B4F39; --bc-ink: #F4FBF6; font-size: .8em; }
+.bd3 .bd-call.k-x { --bc-face: linear-gradient(165deg, #D9564A, #B8372C 58%, #9C2B22); --bc-rim: #6E1D17; --bc-ink: #FFF3EF; }
+.bd3 .bd-call.k-xx { --bc-face: linear-gradient(165deg, #4A8FCB, #2D6AA0 58%, #235787); --bc-rim: #173B5E; --bc-ink: #F0F7FD; }
+/* in the page's own landscape side panel the auction lies on a baize of its own */
+.bd3 .bd-aside { --tk-rail: .4rem; --ink: #F4EEDC; --ink-soft: #C9D6C4; --bd-in: #F0CD84; --bd-vul: #FF9C8C; padding: calc(var(--tk-rail) + .3rem); color: var(--ink); }
+.bd3 .bd-aside .bd-s:not(.red) { color: var(--tk-text); }
+.bd3 .bd-aside .bd-s.red { color: #FF9C8C; }
+.bd3 .bd-aside .bd-call .bd-s:not(.red) { color: #1E2730; }
+.bd3 .bd-aside .bd-call .bd-s.red { color: #B3302A; }
+
+/* ---------- dummy: face up in columns, a suit each, every card showing its rank and suit ---------- */
+.bd-cols { display: inline-flex; align-items: flex-start; gap: .25em; font-size: .7rem; }
+.bd-col { display: flex; flex-direction: column; align-items: center; width: 2.5em; min-height: 3.5em; }
+.bd-col .cd + .cd { margin-top: -2.25em; }
+.bd-col .cd:not(:last-child) .cd-s { position: absolute; right: .17em; top: .15em; margin: 0; font-size: .95em; }
+.bd-col .cd:not(:last-child) .cd-ct { display: none; }
+.bd-col.void { border: 1px dashed color-mix(in srgb, var(--tk-text) 28%, transparent); border-radius: .2em; }
+/* dummy's cards to play, across the top, on the cloth */
+.bd3 .bd-dummy .cd, .bd3 .bd-hand .cd { box-shadow: var(--cd-thick); }
+
+/* ---------- the plaque: brass, screwed to the rail, the contract engraved and each vulnerable side's tab in red enamel ---------- */
+.bd-plaque { position: relative; display: inline-grid; grid-template-columns: auto auto; grid-template-areas: "c v" "n v"; align-items: center; column-gap: .55rem; row-gap: 0; min-width: 0;
+  padding: .22rem 1rem .2rem 1rem; border: 1px solid #6B4A12; border-radius: .3rem; font: inherit; color: #3A2606; text-align: left; text-shadow: 0 1px 0 rgba(255, 240, 200, .6);
+  background: linear-gradient(180deg, #F3D895, #D3A44E 46%, #B68433 52%, #DDB466);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -1px 0 rgba(0, 0, 0, .25), 0 .12rem .3rem rgba(0, 0, 0, .35); }
+button.bd-plaque { cursor: pointer; }
+.bd-plaque::before, .bd-plaque::after { content: ""; position: absolute; top: 50%; width: .3rem; height: .3rem; margin-top: -.15rem; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #FFF3D0, #8A6420 75%); box-shadow: 0 0 0 1px rgba(80, 52, 8, .5); }
+.bd-plaque::before { left: .3rem; }
+.bd-plaque::after { right: .3rem; }
+.bd-pl-c { grid-area: c; display: inline-flex; align-items: baseline; gap: .25rem; font-size: 1.05rem; font-weight: 800; line-height: 1.05; white-space: nowrap; }
+.bd-pl-c.idle { font-size: .86rem; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }
+.bd-pl-d { font-size: .72rem; font-weight: 800; }
+.bd-pl-n { grid-area: n; font-size: .56rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); line-height: 1.1; color: rgba(58, 38, 6, .75); white-space: nowrap; }
+.bd-pl-v { grid-area: v; display: grid; gap: .1rem; }
+.bd-vt { display: block; min-width: 2rem; padding: .04rem .25rem; border: 1px solid rgba(58, 38, 6, .45); border-radius: .15rem; font-style: normal; font-size: .56rem; font-weight: 800; line-height: 1.15; text-align: center; text-shadow: none; color: rgba(58, 38, 6, .6);
+  box-shadow: inset 0 1px 1px rgba(58, 38, 6, .25); }
+.bd-vt.on { background: linear-gradient(180deg, #C9503F, #A8382B); border-color: #5A1A12; color: #FDEBD3; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 1px 1px rgba(0, 0, 0, .3); }
+.bd-plaque .bd-s:not(.red) { color: #2B1B05; }
+.bd-plaque .bd-s.red { color: #8E2A1E; }
+html[data-theme="office"] .bd-plaque { border-color: #3B4149; color: #161A1F; text-shadow: 0 1px 0 rgba(255, 255, 255, .5); background: linear-gradient(180deg, #D6DADF, #A8AFB7 46%, #8E959E 52%, #BCC2C9); }
+html[data-theme="office"] .bd-pl-n { color: rgba(22, 26, 31, .75); }
+
+/* ---------- the tricks each side has won: packets of cards face down, turned alternately, at the near corners ---------- */
+.bd-won-row { display: none; }
+.bd3 .bd-won-row { display: flex; justify-content: space-between; align-items: flex-end; position: absolute; left: calc(var(--tk-rail) + .45rem); right: calc(var(--tk-rail) + .45rem); bottom: calc(var(--tk-rail) + .35rem); z-index: 2; pointer-events: none; }
+.bd-won { display: inline-flex; align-items: flex-end; gap: .35rem; }
+.bd-won:not(.us) { flex-direction: row-reverse; }
+.bd-pile { position: relative; flex: none; width: 1.7rem; height: 1.2rem; }
+.bd-won.none .bd-pile { border: 1px dashed color-mix(in srgb, var(--tk-text) 35%, transparent); border-radius: .15rem; }
+.bd-pk { position: absolute; left: 50%; bottom: 0; width: 1.1rem; height: .8rem; margin-left: -.55rem; translate: 0 calc(var(--k) * -.09rem); border-radius: .12rem; border: 1px solid var(--cd-face);
+  background: radial-gradient(ellipse at 32% 24%, color-mix(in srgb, var(--cd-back) 75%, #FFF), var(--cd-back) 60%); box-shadow: 0 1px 0 var(--cd-rim), 0 .1rem .15rem rgba(0, 0, 0, .45), inset 0 0 0 1px color-mix(in srgb, var(--cd-back-line) 70%, transparent); }
+.bd-pk:nth-child(even) { rotate: 90deg; width: .8rem; height: 1.1rem; margin-left: -.4rem; }
+.bd-wn { font-size: .66rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); color: var(--tk-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ---------- the bidding box: a baize tray in a wooden rail, bid cards in it ---------- */
+.bd3 .bd-box.tk-surface { --tk-rail: .32rem; padding: calc(var(--tk-rail) + .28rem) calc(var(--tk-rail) + .3rem); gap: .28rem; border-radius: .5rem; }
+.bd3 .bd-box.tk-surface::before { border-radius: .25rem; }
+#app.bd3 .bd-box .btn { --bc-face: linear-gradient(165deg, #FFF, #F4EDDA 50%, #E4D8B8); --bc-rim: #CDBF9A; --bc-ink: #1E2730;
+  min-height: 2.35rem; border: 0; border-radius: .28rem; background: var(--bc-face); color: var(--bc-ink); outline: 0; text-shadow: none;
+  box-shadow: 0 .11rem 0 var(--bc-rim), 0 .2rem .3rem rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(255, 255, 255, .6); transition: transform .12s, box-shadow .12s; }
+#app.bd3 .bd-box .btn:disabled { opacity: .5; filter: saturate(.55); box-shadow: 0 .06rem 0 var(--bc-rim), 0 .1rem .15rem rgba(0, 0, 0, .35); }
+#app.bd3 .bd-box .btn.on { transform: translateY(-.28rem); background: var(--bc-face); box-shadow: 0 .11rem 0 var(--bc-rim), 0 .55rem .6rem -.05rem rgba(0, 0, 0, .5), 0 0 0 2px var(--tk-gilt); }
+#app.bd3 .bd-box .btn.coach { box-shadow: 0 .11rem 0 var(--bc-rim), 0 .2rem .3rem rgba(0, 0, 0, .45), 0 0 0 2px var(--tk-gilt), 0 0 .8rem rgba(233, 196, 124, .6); }
+#app.bd3 .bd-box .btn .bd-s:not(.red) { color: #1E2730; }
+#app.bd3 .bd-box .btn .bd-s.red { color: #B3302A; }
+#app.bd3 .bd-box .bd-pass { --bc-face: linear-gradient(165deg, #46A878, #2F7D5B 58%, #256A4B); --bc-rim: #1B4F39; --bc-ink: #F4FBF6; }
+#app.bd3 .bd-box .bd-dbl { --bc-face: linear-gradient(165deg, #D9564A, #B8372C 58%, #9C2B22); --bc-rim: #6E1D17; --bc-ink: #FFF3EF; }
+#app.bd3 .bd-box .bd-dbl[data-call="XX"] { --bc-face: linear-gradient(165deg, #4A8FCB, #2D6AA0 58%, #235787); --bc-rim: #173B5E; --bc-ink: #F0F7FD; }
+#app.bd3 .bd-box .bd-hint { --bc-face: linear-gradient(180deg, #F3D895, #D3A44E 46%, #B68433 52%, #DDB466); --bc-rim: #7A5518; --bc-ink: #3A2606; }
+#app.bd3 .bd-box .bd-bid { --bc-face: linear-gradient(180deg, #2E4256, #1E2D3C); --bc-rim: #0E1822; --bc-ink: #F0CD84; }
+#app.bd3 .bd-box .bd-bid:disabled { --bc-face: linear-gradient(180deg, #55606B, #444E58); --bc-ink: #AEB6BE; }
+#app.bd3 .bd-box .bd-bid .bd-s { color: inherit !important; }
+#app.bd3 .bd-box.wait { opacity: .62; }
+@media (prefers-reduced-motion: reduce) { .bd3 .bd-box .btn { transition: none; } }
+
+/* ---------- your hand: each card lifted when it may be played, with its shadow lengthening ---------- */
+.bd-hand .cd.ok, .bd-dummy .cd.ok { box-shadow: var(--cd-thick), 0 .5em .6em -.12em rgba(28, 42, 52, .38); }
+
+/* ---------- held sideways ---------- */
+@media (orientation: landscape) and (min-width: 700px) {
+  .bd3 .bd-aside { overflow: hidden; display: flex; flex-direction: column; }
+  .bd3 .bd-aside .bd-auction { flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; }
+}

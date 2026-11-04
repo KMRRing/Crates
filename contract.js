@@ -13,7 +13,10 @@ import { chooseCall, explainCall, showText } from "./contract-sayc.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { tableView } from "./table3d-view.js";
+import { createMotion, createParallax, rectOf, fill, settle } from "./table3d.js";
+import { plaqueHtml, wonHtml, columnsHtml, columnsEm, tallest, callKind } from "./contract-table.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
@@ -112,6 +115,13 @@ function paceNow(s) {
 }
 
 // ---------- the table ----------
+// Menu, View: Flat (the page's own table, always there) or Table (Table 2.0: the cloth in a wooden rail, a brass plaque, the
+// dummy in columns, bid cards, tricks stacked; contract-table.js, contract-3d.css). With no choice made the default is the suite's.
+const view = tableView("contract", ["flat", "Flat"], "Table");
+const on3 = () => view.get() === "3d";
+let motion = null, parallax = null, lastWin = null;
+const mo = () => (motion ||= createMotion({ quiet: () => IN_FRAME }));
+onPause(() => motion?.hold(true), () => motion?.hold(false));
 let V = null, page = null;
 const randomRounds = seatRounds("contract", ["scored"]);   // random mode's round: a deal played (one passed out is dealt again, no round)
 page = seatPage({
@@ -141,7 +151,7 @@ function draw() {
   if (!v?.G) {
     $("info").innerHTML = "";
     for (const id of ["seatTop", "seatLeft", "seatRight"]) $(id).replaceChildren();
-    $("centre").innerHTML = "";
+    fill($("centre"), "");
     $("hand").innerHTML = "";
     $("aside").innerHTML = "";
     $("say").textContent = "";
@@ -153,16 +163,30 @@ function draw() {
   if (hint && hint.key !== keyOf(s)) hint = null;
   if (s.step !== "bid" || s.turn !== v.seat) pick = { level: null, call: null };
   $("app").dataset.step = s.step;
+  styleTable(s);
   drawInfo(s);
   const top = seatAt("top");
   $("table").classList.toggle("open-top", !!(s.contract && s.dummyShown && top === dummyOf(s) && isMe(s.contract.declarer) && s.step !== "scored" && s.step !== "over"));
   for (const [id, place] of [["seatTop", "top"], ["seatLeft", "left"], ["seatRight", "right"]]) drawSeat($(id), s, seatAt(place));
   fitColumns();
+  fitDummy();
+  drawWon(s);
   drawCentre(s);
   drawAside(s);
   drawHand(s);
   drawSay(s);
   drawControls(s);
+}
+
+/** Table or flat: the classes that dress the page, the parallax while it is the table, dummy's side if it is laid in columns. */
+function styleTable(s) {
+  const t3 = on3(), table = $("table");
+  $("app").classList.toggle("bd3", t3);
+  for (const el of [table, $("aside")]) el.classList.toggle("tk-surface", t3);
+  if (t3 && !parallax) parallax = [createParallax(table), createParallax($("aside"))];
+  if (!t3 && parallax) { parallax.forEach(p => p.dispose()); parallax = null; for (const el of [table, $("aside")]) { el.style.removeProperty("--tk-px"); el.style.removeProperty("--tk-py"); } }
+  const side = t3 && s.contract && s.dummyShown && !["scored", "over", "passed"].includes(s.step) ? placeOf(dummyOf(s)) : "";
+  table.dataset.dummy = side === "left" || side === "right" ? side : "";
 }
 
 /** The line across the top: the deal and who's vulnerable, the contract, the tricks, the match's score. */
@@ -172,6 +196,14 @@ function drawInfo(s) {
   const contract = s.contract ? `<button class="bd-contract" type="button" data-act="auction">${contractHtml(s.contract)} <small>${esc(COMPASS[s.contract.declarer])}</small></button>`
     : `<span class="bd-contract idle">${s.step === "bid" ? "Bidding" : ""}</span>`;
   const tricks = s.contract && s.step !== "bid" ? `<span class="bd-tricks" title="tricks"><b>${s.won[mine]}</b>–<b>${s.won[1 - mine]}</b></span>` : "";
+  if (on3()) {
+    const c = s.contract, d = c ? SEATS[c.declarer] : "";
+    $("info").innerHTML = plaqueHtml({ contract: c ? contractHtml(c) : "", declarer: c ? COMPASS[c.declarer] : "", deal: s.no, deals: DEALS, vul, mine,
+      label: `${c ? `Contract ${contractText(c)} by ${d}. ` : "Bidding. "}${vulText(vul)}. Tap for the auction.` })
+      + (tricks ? `<span class="bd-tricks" title="tricks"><b>${s.won[mine]}</b>–<b>${s.won[1 - mine]}</b></span>` : "")
+      + `<span class="bd-score">us <b>${s.scores[mine]}</b> · them <b>${s.scores[1 - mine]}</b></span>`;
+    return;
+  }
   $("info").innerHTML = `<span class="bd-deal">Deal ${s.no}/${DEALS}<small class="${vul[mine] ? "vul" : ""}">${vulWord}</small></span>${contract}${tricks}<span class="bd-score">us <b>${s.scores[mine]}</b> · them <b>${s.scores[1 - mine]}</b></span>`;
 }
 
@@ -185,10 +217,11 @@ function drawSeat(box, s, seat) {
   const reveal = s.step === "scored" || s.step === "over";
   if (reveal) body = `<span class="bd-rows">${suitRows(s.dealt[seat])}</span>`;
   else if (dummy && place === "top" && isMe(s.contract.declarer)) body = "";            // drawn as cards to play, below
-  else if (dummy) body = `<span class="bd-rows">${suitRows(s.hands[seat])}</span>`;
+  else if (dummy) body = on3() ? columnsHtml(s.hands[seat], c => card(c)) : `<span class="bd-rows">${suitRows(s.hands[seat])}</span>`;
   else if (s.step === "play" || s.step === "trick") body = `<span class="bd-backs">${Array.from({ length: Math.min(n, 13) }, () => backHtml()).join("")}</span>`;
   else if (s.step === "bid" && turn) body = `<span class="bd-think">thinking</span>`;
   box.className = `bd-seat at-${place}${turn && !reveal ? " turn" : ""}${dummy ? " dummy" : ""}`;
+  box.__hand = tallest(s.hands[seat]);
   if (dummy && place === "top" && isMe(s.contract.declarer) && !reveal) {
     // your side declares and dummy is your partner: dummy's cards, yours to play, as a hand
     const live = s.step === "play" && s.turn === seat, ok = live ? new Set(legalCards(s.hands[seat], s.trick)) : null;
@@ -200,6 +233,15 @@ function drawSeat(box, s, seat) {
   box.innerHTML = `${head}${body}`;
 }
 
+/** Dummy's columns (Table): as large as the room beside the name allows, four suits across and the longest down. */
+function fitDummy() {
+  for (const el of document.querySelectorAll("#table .bd-cols")) {
+    const seat = el.closest(".bd-seat"), head = seat.querySelector(".bd-name"), hand = seat.__hand ?? 13;
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const room = { w: seat.clientWidth - 0.4 * rem, h: $("table").clientHeight - (head?.offsetHeight || 0) - 2.6 * rem };
+    el.style.fontSize = `${Math.max(columnsEm(room, hand, { max: 1.05 * rem }), 0.45 * rem)}px`;
+  }
+}
 /** A hand as a bridge column, a suit a line, as large as its seat allows: a long suit would run out of a narrow one. */
 function fitColumns() {
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -212,14 +254,44 @@ function fitColumns() {
 
 /** The middle: the auction while it's bid; the trick; a deal's result. */
 function drawCentre(s) {
-  const box = $("centre");
-  if (s.step === "bid") { box.innerHTML = auctionTable(s, { live: true }); return; }
-  if (s.step === "passed") { box.innerHTML = `<div class="bd-result"><b>Passed out</b><span>Nobody opened: the cards are dealt again.</span></div>`; return; }
-  if (s.step === "scored" || s.step === "over") { box.innerHTML = resultCard(s); return; }
+  const box = $("centre"), fresh = !box._ran;
+  box._ran = true;
+  if (s.step === "bid") { fill(box, auctionTable(s, { live: true })); return; }
+  if (s.step === "passed") { fill(box, `<div class="bd-result"><b>Passed out</b><span>Nobody opened: the cards are dealt again.</span></div>`); return; }
+  if (s.step === "scored" || s.step === "over") { fill(box, resultCard(s)); return; }
   const win = s.step === "trick" ? s.tricks.at(-1)?.winner : null;
-  const cards = s.trick.map(t => `<span class="bd-play at-${placeOf(t.seat)}${t.seat === win ? " win" : ""}">${card(t.card)}</span>`).join("");
+  const cards = s.trick.map(t => `<span class="bd-play at-${placeOf(t.seat)}${t.seat === win ? " win" : ""}" data-seat="${t.seat}">${card(t.card)}</span>`).join("");
   const n = s.tricks.length + (s.step === "trick" ? 0 : 1);
-  box.innerHTML = `<div class="bd-trick">${cards}</div><span class="bd-count">${s.step === "trick" ? `${esc(whoName(win))} ${isMe(win) ? "take" : "takes"} it` : `Trick ${Math.min(13, n)}`}</span>`;
+  const html = `<div class="bd-trick">${cards}</div><span class="bd-count">${s.step === "trick" ? `${esc(whoName(win))} ${isMe(win) ? "take" : "takes"} it` : `Trick ${Math.min(13, n)}`}</span>`;
+  if (win != null) lastWin = win;
+  trickMotion(box, html, s, fresh);
+}
+/** The trick in the middle (Table: each card flown from its seat and settling, a closed trick gathered into a stack and swept to
+ *  its side's pile). Nothing is redrawn while it is the same, so a card in the air is not reset. */
+function trickMotion(box, html, s, fresh) {
+  const was = [...box.querySelectorAll(".bd-trick .bd-play")].map(el => ({ seat: Number(el.dataset.seat), at: rectOf(el.firstElementChild), html: el.firstElementChild?.outerHTML }));
+  if (!fill(box, html) || !on3() || fresh) return;
+  const now = [...box.querySelectorAll(".bd-trick .bd-play")];
+  if (was.length >= 4 && now.length < was.length && lastWin != null) {
+    const mine = sideOf(lastWin) === sideOf(me()), pile = document.querySelector(`#won .bd-won${mine ? ".us" : ":not(.us)"} .bd-pile`);
+    mo().sweep(was, rectOf(pile) || rectOf($("table")));
+  }
+  for (const el of now) {
+    const seat = Number(el.dataset.seat);
+    if (was.some(w => w.seat === seat)) continue;
+    const cd = el.firstElementChild, to = rectOf(cd), place = placeOf(seat);
+    const src = place === "me" ? rectOf($("hand")) : rectOf($(place === "top" ? "seatTop" : place === "left" ? "seatLeft" : "seatRight"));
+    if (!src || !to) continue;
+    if (!mo().moving()) continue;
+    mo().fly({ face: cd.outerHTML, from: { ...src, h: to.h * 0.8 }, to, up0: place !== "me", up1: true, ms: 340, land: cd });
+  }
+}
+/** The tricks each side has taken, stacked at the table's near corners (Table). */
+function drawWon(s) {
+  const el = $("won");
+  if (!on3() || !s.contract || s.step === "bid" || s.step === "passed") { fill(el, ""); return; }
+  const mine = sideOf(me());
+  fill(el, wonHtml(s.won[mine], { label: "Us", us: true }) + wonHtml(s.won[1 - mine], { label: "Them" }));
 }
 /** The auction as bridge writes it, a column a seat, starting from your left: each call a button that says what it shows. */
 function auctionTable(s, { live = false } = {}) {
@@ -227,7 +299,7 @@ function auctionTable(s, { live = false } = {}) {
   const head = order.map(seat => `<th class="${s.vul[sideOf(seat)] ? "vul" : ""}${sideOf(seat) === sideOf(me()) ? " us" : ""}">${COMPASS[seat]}<small>${esc(isMe(seat) ? "you" : nameOf(seat))}</small></th>`).join("");
   const cells = [];
   for (let i = 0; i < order.indexOf(s.dealer); i++) cells.push(`<td></td>`);
-  s.auction.forEach((a, i) => cells.push(`<td><button type="button" class="bd-call" data-call-at="${i}">${callHtml(a.call)}</button></td>`));
+  s.auction.forEach((a, i) => cells.push(`<td><button type="button" class="bd-call k-${callKind(a.call)}" data-call-at="${i}">${callHtml(a.call)}</button></td>`));
   if (live && s.step === "bid") cells.push(`<td class="next">${s.turn === me() ? "?" : "…"}</td>`);
   const rows = [];
   for (let i = 0; i < cells.length; i += 4) rows.push(`<tr>${cells.slice(i, i + 4).join("")}${"<td></td>".repeat(Math.max(0, 4 - cells.slice(i, i + 4).length))}</tr>`);
@@ -317,7 +389,7 @@ function biddingBox(s) {
   const dbl = legal.has("XX") ? "XX" : "X";
   const bid = pick.call ? `Bid ${callHtml(pick.call)}` : "Bid";
   const hintBtn = opts.hints ? `<button class="btn bd-hint" type="button" data-act="hint"${mine ? "" : " disabled"}>Hint</button>` : "";
-  return `<div class="bd-box${mine ? "" : " wait"}"><div class="bd-levels">${levels}</div><div class="bd-strains">${strains}</div>
+  return `<div class="bd-box${mine ? "" : " wait"}${on3() ? " tk-surface" : ""}"><div class="bd-levels">${levels}</div><div class="bd-strains">${strains}</div>
     <div class="bd-calls"><button class="btn bd-pass${hintCall === "P" ? " coach" : ""}" type="button" data-call="P"${legal.has("P") ? "" : " disabled"}>Pass</button><button class="btn bd-dbl${hintCall === dbl ? " coach" : ""}" type="button" data-call="${dbl}"${legal.has(dbl) ? "" : " disabled"}>${dbl === "XX" ? "Rdbl" : "Dbl"}</button>${hintBtn}<button class="btn primary bd-bid" type="button" data-act="bid"${pick.call ? "" : " disabled"}>${bid}</button></div></div>`;
 }
 
@@ -528,6 +600,7 @@ function openMenu() {
   play.append(action("The last deal", showReview, "link"));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
+  set.append(view.choice(() => draw()));
   set.append(choice("The computer", LEVELS, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line(opts.level === "easy" ? "Easy plays its cards by the rules of thumb." : "Medium and Hard weigh each card over deals of the hands they can't see, solved with every card seen; Hard looks at more of them."));
   set.append(toggle("Coach: hints", opts.hints, on => { opts.hints = on; saveOpts(); draw(); }));
