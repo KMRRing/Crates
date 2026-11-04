@@ -1,14 +1,14 @@
 // Shunt's watch movement in 3D (shunt-3d-model.js, shunt-3d-geo.js, shunt-3d-tex.js, shunt-sound.js; the picture itself, shunt-view-3d.js, needs WebGL and is looked at
-// in a browser): the world matches the 2D board (cells, tooth phases), the levers stand on a round rim in the rules' own order and keep their lines, the layers
+// in a browser): the world matches the 2D board (cells, tooth phases), the levers are tabs against the board's outline, each worked out from its entry, the layers
 // keep gears of different pitches apart, a touch finds the lever it means (at least as forgiving as the 2D view's), the case's tilt is small and springs back,
 // the camera always holds the case and the tray, every theme has its colours by day and by night, the geometries and the engraving build, and the page keeps
 // the player's view choice only when it is picked. Run: node tests/shunt-3d.mjs
 import fs from "node:fs";
 import { CELLS, N, ENTRIES } from "../shunt-engine.js";
-import { LEVERS, D, HIT, FAMILY, teethOf } from "../shunt-view-2d.js";
+import { LEVERS, D, HIT, FAMILY, teethOf, offTab } from "../shunt-view-2d.js";
 import {
   cellW, SHAPES, LAYER_Y, THICK, IDLER_THICK, PARTS, topOf, baseOf, gearDeg, RATE, toothOutline, RO, LEVER_W, HIT3, nearestLever, holdAt, onPlate, HOLD, RAIL, QUEUE,
-  homeEl, basis, fit, KEEP, skinFor, METALS, PLATE_R, CASE_R, RIM_R, SEAT_R, CELL_R, TILT_MAX, tiltOfDrag, tiltOfPhone, springStep,
+  homeEl, basis, fit, KEEP, skinFor, METALS, PLATE_R, CASE_R, TRACK_R, HIT_R, TAB, SEAT_R, CELL_R, TILT_MAX, tiltOfDrag, tiltOfPhone, springStep,
 } from "../shunt-3d-model.js";
 
 let bad = 0;
@@ -20,17 +20,36 @@ const root = new URL("../", import.meta.url).pathname;
 check(CELLS.every((_, i) => { const [x, z] = cellW(i), [px, py] = [x * D, z * D]; return near(px, 0.8660254 * CELLS[i].q * D) && near(py, (CELLS[i].r + CELLS[i].q / 2) * D); }), "a cell stands where the 2D view draws it (a unit is its D)");
 check(CELLS.every((_, i) => CELLS.every((__, j) => i === j || Math.hypot(...cellW(i).map((v, k) => v - cellW(j)[k])) > 0.99)), "neighbouring cells are a unit apart, no two closer");
 check(LEVER_W.length === 30 && LEVER_W.every((l, e) => l.e === e && near(l.ux, LEVERS[e].ux) && near(l.uz, LEVERS[e].uy)), "thirty levers, each keeping its number and the way its line runs");
-check(LEVER_W.every(l => near(Math.hypot(l.x, l.z), RIM_R)), "the levers stand on one circle");
 {
-  // the same order round the plate as the hexagon's, an equal angle apart
-  const hexOrder = LEVERS.map(l => ({ e: l.e, a: Math.atan2(l.y, l.x) })).sort((p, q) => p.a - q.a).map(o => o.e);
-  const ang = e => Math.atan2(LEVER_W[e].z, LEVER_W[e].x), gaps = hexOrder.map((e, i) => (((ang(hexOrder[(i + 1) % 30]) - ang(e)) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI));
-  check(gaps.every(g => near(g, 2 * Math.PI / 30, 1e-9)), "in the hexagon's order round the plate, an equal angle apart");
+  // each tab is worked out from the rules' entry: it stands against the outer face of the entry's first cell, a bar parallel to that face
+  const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]], has = (q, r) => CELLS.some(c => c.q === q && c.r === r);
+  const faces = [];
+  CELLS.forEach((c, i) => DIRS.forEach(d => { if (!has(c.q + d[0], c.r + d[1])) faces.push({ i, n: [0.8660254 * d[0], d[1] + d[0] / 2] }); }));
+  check(faces.length === 30, "the board's outline is thirty faces, as many as there are ways in");
+  check(ENTRIES.every((en, e) => { const c = CELLS[en.line[0]]; return !has(c.q - en.d[0], c.r - en.d[1]); }), "every entry's first cell has nothing behind it: a lever is always at a face, never at a corner");
+  check(faces.every(f => LEVER_W.filter(l => ENTRIES[l.e].line[0] === f.i && near(-l.ux, f.n[0] / Math.hypot(...f.n), 1e-6) && near(-l.uz, f.n[1] / Math.hypot(...f.n), 1e-6)).length === 1), "each outer face has exactly one lever, pushing straight in through it");
+  const back = (SEAT_R + 0.04) * 0.8660254 + TAB.gap + TAB.thick / 2;
+  check(LEVER_W.every(l => { const [cx, cz] = cellW(ENTRIES[l.e].line[0]), dx = l.x - cx, dz = l.z - cz; return near(Math.hypot(dx, dz), back, 1e-9) && near(dx * l.uz - dz * l.ux, 0, 1e-9) && dx * l.ux + dz * l.uz < 0; }), "each tab is centred on the normal through its face's middle, just outside the seat's gold edge, and its bar runs parallel to the face");
+  // no tab touches a seat, and all stand inside the gold line round the board
+  const inHex = (px, pz, cx, cz, R) => [0, 1, 2].every(k => { const a = Math.PI / 6 + k * Math.PI / 3; return Math.abs((px - cx) * Math.cos(a) + (pz - cz) * Math.sin(a)) < R * 0.8660254; });
+  let clear = true, inside = true;
+  for (const l of LEVER_W) for (const [a, b] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+    const px = l.x + l.ux * a * TAB.thick / 2 - l.uz * b * TAB.len / 2, pz = l.z + l.uz * a * TAB.thick / 2 + l.ux * b * TAB.len / 2;
+    if (CELLS.some((_, i) => inHex(px, pz, ...cellW(i), SEAT_R + 0.04))) clear = false;
+    if (Math.hypot(px, pz) > TRACK_R - 0.03) inside = false;
+  }
+  check(clear && inside, "no tab's corner is over a seat or its edge, and every tab is inside the gold line");
   let mn = 9;
   for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) mn = Math.min(mn, Math.hypot(LEVER_W[i].x - LEVER_W[j].x, LEVER_W[i].z - LEVER_W[j].z));
-  check(mn > 0.55 && mn > 0.47 * 1.15, "no two levers closer than 0.55 of a cell (the hexagon's were 0.47): a finger has more room");
+  check(mn > TAB.thick * 2.5 && mn > 0.45, `no two tabs closer than 0.45 of a cell (${mn.toFixed(2)}) and the bars do not meet`);
+  // the touch points: the tabs' order round the board, an equal angle apart on a circle, each near its own tab
+  const order = LEVER_W.map(l => ({ e: l.e, a: Math.atan2(l.z, l.x) })).sort((p, q) => p.a - q.a).map(o => o.e), ang = e => Math.atan2(LEVER_W[e].hz, LEVER_W[e].hx);
+  check(LEVER_W.every(l => near(Math.hypot(l.hx, l.hz), HIT_R)) && order.every((e, i) => near((((ang(order[(i + 1) % 30]) - ang(e)) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI), 2 * Math.PI / 30, 1e-9)), "touch points stand an equal angle apart on one circle, in the tabs' order");
+  check(LEVER_W.every(l => Math.hypot(l.hx - l.x, l.hz - l.z) < 0.45), "each touch point is within half a cell of its tab");
+  let hmn = 9;
+  for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) hmn = Math.min(hmn, Math.hypot(LEVER_W[i].hx - LEVER_W[j].hx, LEVER_W[i].hz - LEVER_W[j].hz));
+  check(hmn > 0.5, `touch points are at least half a cell apart (${hmn.toFixed(2)}): a finger has room`);
 }
-check(LEVER_W.every((l, e) => { const en = ENTRIES[e], [cx, cz] = cellW(en.line[0]); return (cx - l.x) * l.ux + (cz - l.z) * l.uz > 0 && Math.hypot(cx - l.x, cz - l.z) < 1.9; }), "each lever stands outside its entry cell, nearer than two cells, and points into it");
 
 // ---------- gears: tooth phases, layers ----------
 check(SHAPES.length === 4 && SHAPES.map(s => s.n).join() === "12,18,24,12", "the shapes: pitches A, B, C and the idler, 12, 18, 24 and 12 teeth");
@@ -72,18 +91,20 @@ check(RO * 2 > 1 && RO * 2 - 1 < SHAPES[0].depth * RO * 2, "two neighbours' tips
 
 // ---------- the lever a touch means ----------
 check(HIT3 >= HIT / D, "a touch finds a lever at least as far off as the 2D view does");
-check(LEVER_W.every(l => nearestLever(l.x, l.z)?.e === l.e), "a touch on a lever's own place finds it");
+check(LEVER_W.every(l => nearestLever(l.x, l.z)?.e === l.e && nearestLever(l.hx, l.hz)?.e === l.e), "a touch on a lever's own tab, or its touch point, finds it");
+check(LEVER_W.every(l => [[-1, -1], [-1, 1], [1, -1], [1, 1]].every(([a, b]) => nearestLever(l.x + l.ux * a * TAB.thick / 2 - l.uz * b * TAB.len / 2, l.z + l.uz * a * TAB.thick / 2 + l.ux * b * TAB.len / 2)?.e === l.e)), "and on any corner of the tab: the whole bar is its own");
 check(LEVER_W.every(l => nearestLever(l.x + l.ux * 0.2, l.z + l.uz * 0.2)?.e === l.e), "and a little along its way");
 {
-  // the nearest decides: no point within HIT3 of two levers is given to the farther
+  // a point on or within 0.08 of a tab is that tab's (the nearest tab); elsewhere the nearest touch point within HIT3 decides
   let wrong = 0;
   for (let i = 0; i < 4000; i++) {
     const x = (Math.sin(i * 12.9898) * 43758.5453 % 1) * 6, z = (Math.sin(i * 78.233) * 12543.1357 % 1) * 6, l = nearestLever(x, z);
-    let best = null, bd = HIT3;
-    for (const m of LEVER_W) { const d = Math.hypot(m.x - x, m.z - z); if (d < bd) { bd = d; best = m; } }
+    let best = null, bd = 0.08;
+    for (const m of LEVER_W) { const d = offTab(x, z, m.x, m.z, m.ux, m.uz, TAB.len, TAB.thick); if (d < bd) { bd = d; best = m; } }
+    if (!best) { bd = HIT3; for (const m of LEVER_W) { const d = Math.hypot(m.hx - x, m.hz - z); if (d < bd) { bd = d; best = m; } } }
     if ((l?.e ?? -1) !== (best?.e ?? -1)) wrong++;
   }
-  check(wrong === 0, "the nearest lever within the radius is the one found");
+  check(wrong === 0, "a touch on a tab is its lever, else the nearest touch point within the radius");
 }
 check(nearestLever(0, 0) === null && nearestLever(0.5, 0.3) === null, "the middle of the plate is no lever");
 check(holdAt(HOLD.x, HOLD.z) && holdAt(HOLD.x + HOLD.r, HOLD.z) && !holdAt(QUEUE[1].x, RAIL.z), "the cradle takes a touch on it and a little beyond, and not the queue");
@@ -161,7 +182,7 @@ check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 
   for (let i = 0; i < stone.attributes.position.count; i++) nearest = Math.min(nearest, Math.hypot(stone.attributes.position.getX(i), stone.attributes.position.getZ(i)));
   check(stone.boundingBox.min.y >= -1e-9 && stone.boundingBox.max.y > 0.08 && chaton.boundingBox.max.x > stone.boundingBox.max.x && chaton.boundingBox.max.y < 0.08, "a ruby is a low dome inside a gold ring that is taller at its lip than the stone's foot");
   check(near(nearest, 0.036, 1e-6), "the ruby has its hole: nothing nearer the axis than its radius");
-  check(G.arrowGeometry().attributes.position.count > 20 && G.chevronGeometry().attributes.position.count > 12 && G.ringGeometry(1, 0.9, 0.02).attributes.position.count > 100 && G.quadGeometry(1).attributes.uv.count === 4, "the lever's arrow, the chevron, the ring and the quad build");
+  check(G.tabGeometry().attributes.position.count > 20 && G.chevronGeometry().attributes.position.count > 12 && G.ringGeometry(1, 0.9, 0.02).attributes.position.count > 100 && G.quadGeometry(1).attributes.uv.count === 4, "the lever's tab, the chevron, the ring and the quad build");
   check(gears.every(g => g.attributes.uv && g.attributes.uv.count === g.attributes.position.count), "each gear has the UVs its circular grain is laid by");
 
   // the engraving: made with Guilloche's machine, a normal map with every groove a V
@@ -169,9 +190,13 @@ check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 
   const dial = T.dialNormals(256), per = T.perlageNormals(64), grn = T.grainNormals(64);
   let tilted = 0;
   for (let i = 0; i < 256 * 256; i++) if (Math.abs(dial.data[i * 4] - 128) > 8 || Math.abs(dial.data[i * 4 + 1] - 128) > 8) tilted++;
-  check(dial.data.length === 256 * 256 * 4 && tilted > 256 * 256 * 0.35 && tilted < 256 * 256 * 0.98, "the dial is engraved (most of it leans one way or another) with some left flat");
+  check(dial.data.length === 256 * 256 * 4 && tilted > 256 * 256 * 0.2 && tilted < 256 * 256 * 0.98, "the dial is engraved (the ring cut deep, the field brushed lightly) with some left flat");
+  const lean = (r0, r1, big) => { let n = 0, k = 0; for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) { const r = Math.hypot(x + 0.5 - 128, y + 0.5 - 128) / 128; if (r < r0 || r >= r1) continue; n++; const i = (y * 256 + x) * 4; if (Math.hypot(dial.data[i] - 128, dial.data[i + 1] - 128) > big) k++; } return k / n; };
+  check(lean(0.1, 0.82, 30) < 0.03 && lean(0.1, 0.82, 4) > 0.3 && lean(0.87, 0.99, 30) > 0.4 && lean(0.83, 0.86, 30) > 0.4, "the field is quiet (a light, even brushing, no deep cuts) while the ring and its turned band are cut deep");
   check(per.data.length === 64 * 64 * 4 && grn.data.length === 64 * 64 * 4 && [dial, per, grn].every(d => { for (let i = 2; i < d.data.length; i += 4) if (d.data[i] < 128) return false; return true; }), "the perlage and the grain build, every normal pointing out of the surface");
-  check(T.DIAL.length >= 3 && T.DIAL.some(c => c.kind === "lines" && c.cross === 90) && T.DIAL.some(c => c.kind === "rays"), "the dial is clous de Paris (two sets of grooves at a right angle) and a sunburst, both cut by guilloche-engine.js");
+  check(T.DIAL.some(c => c.kind === "rays") && T.DIAL.filter(c => c.kind === "ring").length >= 2 && !T.DIAL.some(c => c.kind === "lines"), "the ring is a sunburst between two fine rings, cut by guilloche-engine.js, and there is no clous de Paris (lines at a right angle)");
+  const hh = new Float32Array(64 * 64); T.brush(hh, 64);
+  check(hh[32 * 64 + 52] !== 0 && hh[0] === 0 && new Set(Array.from({ length: 24 }, (_, k) => hh[32 * 64 + 40 + k % 8 + 0 * k].toFixed(4))).size > 3, "the brushed field is lines from the middle, none outside it, each its own height");
 }
 
 // ---------- the sounds: nothing is made until a touch unlocks audio, and off is off ----------

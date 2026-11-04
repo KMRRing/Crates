@@ -1,5 +1,5 @@
 // Shunt's board, drawn flat: a walnut frame round a baize plate of nineteen brass-edged recesses, engraved gears with real teeth
-// (twelve for pitch A, eighteen for B, twenty-four for C), little brass levers on the rim to shove from, the queue as a row of
+// (twelve for pitch A, eighteen for B, twenty-four for C), little steel tabs against the board's outline to shove from, the queue as a row of
 // gears on a brass rail and the hold as a small brass cradle. This file is the only place the look lives: the page (shunt.js)
 // keeps the game and maps touches to moves, and a three-dimensional workshop (shunt-view-3d.js) can replace this module whole.
 //
@@ -26,23 +26,46 @@ const VB = { x: -142, y: -156, w: 284, h: 312 };
 const f = v => Math.round(v * 10) / 10;
 
 // ---------- the levers: where each of the thirty is, and how big a touch it takes ----------
-/** A lever per entry: its centre and the way it points (the way the gear travels). Levers that share an outer corner are nudged apart along the rim. */
+/** Where a touch means each point, for points standing round a board's outline: the same order round, an equal angle apart on a circle of radius R (so
+ *  the zigzag's crowded pairs, half a cell apart, are not crowded when a finger chooses between them), the whole ring turned to move them least. */
+export function spreadAround(pts, R) {
+  const ord = pts.map((p, i) => ({ i, a: Math.atan2(p[1], p[0]) })).sort((p, q) => p.a - q.a), step = 2 * Math.PI / pts.length;
+  let sx = 0, sy = 0;
+  ord.forEach((o, k) => { const d = o.a - k * step; sx += Math.cos(d); sy += Math.sin(d); });
+  const phi = Math.atan2(sy, sx), out = [];
+  ord.forEach((o, k) => { out[o.i] = [Math.cos(phi + k * step) * R, Math.sin(phi + k * step) * R]; });
+  return out;
+}
+/** How far (x, y) is from a tab's bar: the bar is `len` long and `thick` deep about (cx, cy), its depth along the way (ux, uy) the lever shoves. 0 on it. */
+export function offTab(x, y, cx, cy, ux, uy, len, thick) {
+  const dx = x - cx, dy = y - cy;
+  return Math.hypot(Math.max(Math.abs(dx * ux + dy * uy) - thick / 2, 0), Math.max(Math.abs(-dx * uy + dy * ux) - len / 2, 0));
+}
+/** The lever a touch at (x, y) means among `levers` (their tab at (tx, ty), their touch point at (hx, hy)): one whose tab it is on or within `pad` of
+ *  (the nearest tab), else the nearest touch point within `reach`. `ty`/`hy` name the second coordinate and `uy` the second direction ("y" or "z"). */
+export function leverAtPoint(levers, x, y, { reach, pad, len, thick, k = "y" }) {
+  let best = null, bd = pad;
+  const u2 = l => l["u" + k];
+  for (const l of levers) { const d = offTab(x, y, l.x, l[k], l.ux, u2(l), len, thick); if (d < bd) { bd = d; best = l; } }
+  if (best) return best;
+  bd = reach;
+  for (const l of levers) { const d = Math.hypot(l.hx - x, l["h" + k] - y); if (d < bd) { bd = d; best = l; } }
+  return best;
+}
+/** A lever per entry, worked out from the rules: the entry's first cell has no neighbour behind it, so the lever is a tab against that outer face of
+ *  the board, a bar parallel to the face, and (ux, uy) the way the gear travels, which is the face's inward normal (no arrow is drawn). (x, y) is the
+ *  tab; (hx, hy) is where a touch means it (see spreadAround), never farther than half a tab's spacing from it. */
 export const LEVERS = (() => {
   const raw = ENTRIES.map((en, e) => {
-    const [px, py] = cellXY(en.line[0]), [ux, uy] = dirXY(en.d);
-    return { e, ux, uy, cx: px - ux * D * 0.7, cy: py - uy * D * 0.7, kx: px - ux * D, ky: py - uy * D };
+    const [px, py] = cellXY(en.line[0]), [ux, uy] = dirXY(en.d), back = D * 0.58;
+    return { e, ux, uy, x: px - ux * back, y: py - uy * back };
   });
-  raw.forEach(a => {
-    let sh = 0;
-    const vx = -a.uy, vy = a.ux;
-    raw.forEach(b => { if (b !== a && Math.hypot(a.kx - b.kx, a.ky - b.ky) < 3) sh += Math.sign((a.cx - b.cx) * vx + (a.cy - b.cy) * vy); });
-    a.x = a.cx + vx * Math.sign(sh) * D * 0.1;
-    a.y = a.cy + vy * Math.sign(sh) * D * 0.1;
-  });
-  return raw;
+  const hit = spreadAround(raw.map(l => [l.x, l.y]), D * 2.5);
+  return raw.map((l, e) => ({ ...l, hx: hit[e][0], hy: hit[e][1] }));
 })();
 /** How far from a lever's centre a touch still means it, in board units (the nearest lever takes it): the levers are closer than this, so it is the nearest that decides. */
-export const HIT = D * 0.62;
+export const HIT = D * 0.8;
+export const TAB_LEN = D * 0.42, TAB_THICK = D * 0.1;
 
 // ---------- gears ----------
 export const PITCH = [{ n: 12, depth: 0.2, fill: "--sh-a", letter: "A" }, { n: 18, depth: 0.15, fill: "--sh-b", letter: "B" }, { n: 24, depth: 0.12, fill: "--sh-c", letter: "C" }];
@@ -77,6 +100,8 @@ function defsMarkup() {
   <radialGradient id="sh-lo" cx=".7" cy=".78" r=".8"><stop offset="0" stop-color="#000" stop-opacity=".36"/><stop offset=".6" stop-color="#000" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
   <radialGradient id="sh-hub" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#F6E3A6"/><stop offset=".6" stop-color="#C4963A"/><stop offset="1" stop-color="#7A5A1C"/></radialGradient>
   <linearGradient id="sh-brass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1D88C"/><stop offset=".5" stop-color="#C4963A"/><stop offset="1" stop-color="#8A6620"/></linearGradient>
+  <linearGradient id="sh-steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6F9AE0"/><stop offset=".45" stop-color="#2D5AA8"/><stop offset="1" stop-color="#17306A"/></linearGradient>
+  <linearGradient id="sh-steel-lit" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F4F7FF"/><stop offset=".5" stop-color="#C3D0E8"/><stop offset="1" stop-color="#8A9DC2"/></linearGradient>
   <linearGradient id="sh-rail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1D88C"/><stop offset=".45" stop-color="#C4963A"/><stop offset="1" stop-color="#6E4F18"/></linearGradient>
   <radialGradient id="sh-rivet" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#FFF3C8"/><stop offset=".5" stop-color="#C4963A"/><stop offset="1" stop-color="#5E4314"/></radialGradient>
   <radialGradient id="sh-gem" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#F0606A"/><stop offset=".45" stop-color="#B8142E"/><stop offset="1" stop-color="#58061A"/></radialGradient>
@@ -129,17 +154,18 @@ function gemMarkup(x, y, size, lit) {
     + `<circle r="${f(s * 0.2)}" fill="#1c0406" stroke="#FFD9CC" stroke-opacity="${lit ? 0.55 : 0.3}" stroke-width=".6"/>`
     + `<ellipse cx="${f(-s * 0.28)}" cy="${f(-s * 0.3)}" rx="${f(s * 0.22)}" ry="${f(s * 0.11)}" transform="rotate(-38 ${f(-s * 0.28)} ${f(-s * 0.3)})" fill="#fff" fill-opacity="${lit ? 0.8 : 0.4}"/></g>`;
 }
-/** A lever at its place: a slot in the rim, a brass lever in it pointing the way the gear travels. */
+/** A lever at its place: a slot against the board's edge and a flat steel tab in it, a bar parallel to the face it feeds, so the face says the way it
+ *  shoves; the chosen one bright and a little sunk with a glint, the coach's pulsing, one whose line is full dull. */
 function leverMarkup(l, mode) {
   const ang = Math.atan2(l.uy, l.ux) * 180 / Math.PI, sel = mode === "sel", off = mode === "off", pulse = mode === "pulse";
-  const k = sel ? 1.32 : pulse ? 1.18 : 1, L = 0.34 * D * k, W = 0.2 * D * k;
-  const body = `M${f(-L / 2)} ${f(-W * 0.3)}H${f(L * 0.06)}V${f(-W * 0.62)}L${f(L / 2)} 0L${f(L * 0.06)} ${f(W * 0.62)}V${f(W * 0.3)}H${f(-L / 2)}Z`;
-  let s = `<g transform="translate(${f(l.x)} ${f(l.y)}) rotate(${f(ang)})"${pulse ? ' data-pulse="1"' : ""}>`;
-  s += `<rect x="${f(-0.2 * D)}" y="${f(-W * 0.42)}" width="${f(0.4 * D)}" height="${f(W * 0.84)}" rx="${f(W * 0.42)}" fill="#000" opacity="${off ? 0.12 : 0.26}"/>`;
+  const k = sel ? 1.12 : pulse ? 1.08 : 1, L = TAB_LEN * k, T = TAB_THICK * k, sink = sel ? 0.03 * D : 0;
+  const slot = `<rect x="${f(-0.09 * D)}" y="${f(-0.25 * D)}" width="${f(0.2 * D)}" height="${f(0.5 * D)}" rx="2" fill="#000" opacity="${off ? 0.14 : 0.3}"/>`;
+  let s = `<g transform="translate(${f(l.x)} ${f(l.y)}) rotate(${f(ang)})"${pulse ? ' data-pulse="1"' : ""}>${slot}`;
   if (pulse) s += `<circle r="${f(0.34 * D)}" fill="var(--sh-glow)" fill-opacity=".28" stroke="var(--sh-glow)" stroke-width="2" data-ring="1"/>`;
-  s += off ? `<path d="${body}" style="fill:var(--sh-iron)" stroke="#000" stroke-opacity=".4" stroke-width=".8" stroke-linejoin="round"/>`
-    : sel ? `<path d="${body}" style="fill:var(--sh-glow)" stroke="#3d2b0c" stroke-width="1.6" stroke-linejoin="round"/>`
-      : `<path d="${body}" fill="url(#sh-brass)" stroke="#3d2b0c" stroke-width="1" stroke-linejoin="round"/><path d="M${f(-L / 2 + 1)} ${f(-W * 0.24)}H${f(L * 0.04)}" stroke="#fff" stroke-opacity=".55" stroke-width=".8" stroke-linecap="round"/>`;
+  const bar = `x="${f(-T / 2 + sink)}" y="${f(-L / 2)}" width="${f(T)}" height="${f(L)}" rx="1.6"`;
+  s += off ? `<rect ${bar} style="fill:var(--sh-iron)" stroke="#000" stroke-opacity=".4" stroke-width=".8"/>`
+    : sel ? `<rect ${bar} fill="url(#sh-steel-lit)" stroke="#16203a" stroke-width="1.2"/><path d="M${f(sink - T * 0.1)} ${f(-L * 0.36)}V${f(-L * 0.06)}" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="${f(sink)}" cy="${f(-L * 0.2)}" r="${f(0.12 * D)}" fill="var(--sh-glow)" opacity=".5"/>`
+      : `<rect ${bar} fill="url(#sh-steel)" stroke="#16203a" stroke-width="1"/><path d="M${f(-T * 0.18)} ${f(-L * 0.4)}V${f(L * 0.4)}" stroke="#fff" stroke-opacity=".5" stroke-width=".8" stroke-linecap="round"/>`;
   return `${s}</g>`;
 }
 /** The plate: frame, baize, recesses; drawn once per size (it never changes except for its studs, which belong to the state). */
@@ -317,8 +343,7 @@ export function createView({ board, tray }) {
       const m = board.getScreenCTM();
       if (!m) return null;
       const p = new DOMPoint(cx, cy).matrixTransform(m.inverse());
-      let best = null, bd = HIT;
-      for (const l of LEVERS) { const d = Math.hypot(l.x - p.x, l.y - p.y); if (d < bd) { bd = d; best = l; } }
+      const best = leverAtPoint(LEVERS, p.x, p.y, { reach: HIT, pad: D * 0.08, len: TAB_LEN, thick: TAB_THICK });
       if (best) return { kind: "entry", e: best.e, legal: legalNow.has(best.e) };
       return Math.hypot(p.x, p.y) < FRAME ? { kind: "plate" } : null;
     },

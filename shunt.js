@@ -503,7 +503,7 @@ function openMenu() {
   const total = camp.stars.reduce((a, b) => a + b, 0), beaten = camp.stars.filter(Boolean).length;
   const about = part(body, "about");
   about.append(line(`${plural(beaten, "level")} of ${LEVELS.length} beaten, ${plural(total, "star")} of ${LEVELS.length * 3}.`));
-  about.append(line("You never place a gear: the next one of the queue is shoved in from a lever on the rim, and pushes the gears in its way one step along. Gears of one pitch that touch mesh and turn opposite ways; a chain of three or more is a train and scores, half as much again for each jewel under it. A ring of an odd number of gears jams and scores nothing. The idler meshes every pitch, a bridge two. The plate is judged when it is full or the queue is out."));
+  about.append(line("You never place a gear: the next one of the queue is shoved in from a lever at the edge of the plate, and pushes the gears in its way one step along. Gears of one pitch that touch mesh and turn opposite ways; a chain of three or more is a train and scores, half as much again for each jewel under it. A ring of an odd number of gears jams and scores nothing. The idler meshes every pitch, a bridge two. The plate is judged when it is full or the queue is out."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 async function newRandomAsk() {

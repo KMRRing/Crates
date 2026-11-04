@@ -26,7 +26,7 @@ const DATA = [
 // coach pulses a lever that shows this (a shear, a jam) and the shove is held back until another lever is chosen; swap: the
 // coach pulses Swap on the first turn (the best line begins with a swap).
 const META = [
-  { tip: "Tap a lever on the rim to preview a shove, tap it again to shove. Gears of one pitch that touch mesh and turn; three in a chain are a train, and a train scores.",
+  { tip: "Tap a steel tab at the edge of the plate to preview a shove, tap it again to shove. Gears of one pitch that touch mesh and turn; three in a chain are a train, and a train scores.",
     guide: true, coach: ["Tap the glowing lever to preview the shove, then tap it again to shove the gear in.", "Gears of one pitch (tooth size) that touch mesh. Three in a chain make a train.", "Longer trains score more. Keep your chain growing.", "Keep going: the plate is judged when the queue runs out."] },
   { tip: "Two pitches (tooth sizes). Only gears of the same pitch mesh, so grow a chain of each.",
     guide: true, coach: ["Two pitches: gold teeth and blue teeth. Only gears of the same pitch mesh.", "Follow the glow, it marks a good shove. Preview shows what it does.", "Keep each pitch in its own chain.", "Keep going: the plate is judged when the queue runs out."] },

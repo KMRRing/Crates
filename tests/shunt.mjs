@@ -235,9 +235,9 @@ check(LEVELS.length === 12 && LEVELS.every((l, i) => l.no === i + 1 && l.id === 
   check(LEVERS.length === 30 && LEVERS.every((l, e) => l.e === e), "thirty levers, one for each way in");
   let min = 1e9;
   for (const a of LEVERS) for (const b of LEVERS) if (a.e < b.e) min = Math.min(min, Math.hypot(a.x - b.x, a.y - b.y));
-  check(min >= 0.45 * D, `no two levers are closer than 0.45 cells (${(min / D).toFixed(2)})`);
-  check(HIT >= 0.55 * D && HIT <= 0.8 * D, "a touch within 0.62 of a cell of a lever means it, the nearest lever winning");
-  check(LEVERS.every(l => Math.hypot(l.x, l.y) > 1.5 * D && Math.hypot(l.x, l.y) < 3 * D), "the levers stand round the rim");
+  check(min >= 0.4 * D, `no two levers (tabs) are closer than 0.4 cells (${(min / D).toFixed(2)})`);
+  check(HIT >= 0.55 * D && HIT <= 0.8 * D, "a touch within 0.8 of a cell of a lever means it, the nearest lever winning");
+  check(LEVERS.every(l => Math.hypot(l.x, l.y) > 1.5 * D && Math.hypot(l.x, l.y) < 3 * D), "the levers stand round the board's outline");
 }
 
 check(Date.now() - T0 < 5000, `the whole file runs in under five seconds (${Date.now() - T0} ms)`);

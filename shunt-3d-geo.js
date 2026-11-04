@@ -150,10 +150,11 @@ export function trayGeometry(w, d, c, h) {
   return slab(shapeOf(pts), h, 0.02, 2);
 }
 
-/** A lever's arrow (pointing along +x, 0.34 long) and its slot in the frame. */
-export function arrowGeometry(L = 0.36, W = 0.21, h = 0.07) {
-  const pts = [[-L / 2, -W * 0.3], [L * 0.06, -W * 0.3], [L * 0.06, -W * 0.62], [L / 2, 0], [L * 0.06, W * 0.62], [L * 0.06, W * 0.3], [-L / 2, W * 0.3]];
-  return slab(shapeOf(pts), h, 0.014, 1);
+/** A lever's tab: a flat bar with cut corners, `thick` along x (the way it is shoved) and `len` along z (parallel to the face it stands against),
+ *  with a fine bevel all round; its top is `h` up. */
+export function tabGeometry(len = 0.42, thick = 0.1, h = 0.07) {
+  const x = thick / 2, z = len / 2, c = Math.min(x, 0.035);
+  return slab(shapeOf([[-x + c, -z], [x - c, -z], [x, -z + c], [x, z - c], [x - c, z], [-x + c, z], [-x, z - c], [-x, -z + c]]), h, 0.016, 2);
 }
 /** A flat arrow head (a chevron) for the direction a gear is shoved. */
 export function chevronGeometry(s = 0.2) {

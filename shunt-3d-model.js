@@ -1,12 +1,12 @@
 // Shunt's watch movement in three dimensions, the parts that need no WebGL (so Node tests them): where things stand on the plate, which gear
-// is at which height, how a gear turns, where the thirty levers stand on the round rim, which lever a touch means, the case's tilt (its
+// is at which height, how a gear turns, where the thirty lever tabs stand against the board's outline, which lever a touch means, the case's tilt (its
 // limit, its spring, the finger's and the phone's part in it), the camera's fit, and the colours of each theme by day and by night.
 // shunt-view-3d.js draws it; shunt-3d-geo.js makes the shapes and shunt-3d-tex.js the engraving.
 // One world unit is one cell (the distance between the centres of neighbours; the 2D view's D). x runs right, z towards the viewer
 // (the 2D view's y), y up: seen from straight above it is the 2D picture, so a gear's angle and the tooth phases of shunt-view-2d.js
 // hold as they are. The plate's top is y = 0.
-import { CELLS } from "./shunt-engine.js";
-import { LEVERS, D, PITCH, IDLER, FAMILY } from "./shunt-view-2d.js";
+import { CELLS, ENTRIES } from "./shunt-engine.js";
+import { LEVERS, D, PITCH, IDLER, FAMILY, spreadAround, leverAtPoint } from "./shunt-view-2d.js";
 
 const DEG = Math.PI / 180;
 export const SQ = 0.8660254;
@@ -14,7 +14,9 @@ export const cellW = i => [SQ * CELLS[i].q, CELLS[i].r + CELLS[i].q / 2];
 export const CELL_R = 0.577;                      // a cell's corner radius (the hexagon's corners point left and right)
 export const RO = 0.52;                           // a gear's outer radius: two neighbours' teeth overlap by 0.04 and interleave
 export const PLATE_R = 3.18, CASE_R = 3.4;         // the engraved plate's radius, and the case's (bezel and band)
-export const TRACK_R = 2.64, RIM_R = 2.95;         // where the levers' track begins (a gold line round the cells), and the circle their middles stand on
+export const TRACK_R = 2.64;                      // the gold line round the board's tabs, where the outer sunburst ring begins
+export const HIT_R = 2.6;                         // the circle the levers' touch points stand on
+
 export const SEAT_R = 0.5;                        // a seat's corner radius: smaller than the cell's, so a rib of engraving is left between seats
 export const FLOOR = -0.09;                       // a seat's floor, below the plate's top
 
@@ -54,27 +56,25 @@ export function toothOutline(n, ro, depth) {
 export const RAIL = { z: 4.05, x0: -1.4, x1: 2.68, w: 0.98 };
 export const HOLD = { x: -2.0, z: 4.05, r: 0.64 };
 export const QUEUE = [{ x: -0.86, s: 0.86 }, { x: 0.04, s: 0.64 }, { x: 0.76, s: 0.64 }, { x: 1.48, s: 0.64 }, { x: 2.2, s: 0.64 }];
-/** The thirty levers, in world units: where each stands on the round rim and the way it points. The rules keep the lever numbers and the line each
- *  shoves along (the 2D view's, on the hexagon); here they are only placed anew, in the same order round the plate, an equal angle apart (the
- *  hexagon's levers crowd to half a cell at the corners, a circle has room for 0.6) and each still pointing along its own line. */
+/** A lever's tab: a flat bar `len` long and `thick` deep, `h` tall, `gap` clear of its seat's polished edge. */
+export const TAB = { len: 0.42, thick: 0.1, h: 0.07, gap: 0.025 };
+/** The thirty levers, in world units, each worked out from the rules' entry (the cell it feeds and the way it shoves): every entry's first cell has no
+ *  neighbour behind it, so the entry is one outer face of the board's outline, and the tab stands against that face, a bar parallel to it. The way it
+ *  shoves is the face's inward normal (ux, uz; `ang` its angle), so it is drawn with no arrow. No entry is at a corner: a corner has no cell line.
+ *  (x, z) is the tab; (hx, hz) is where a touch means it: the outline zigzags, so tabs crowd to under half a cell apart where two faces meet, and a
+ *  finger chooses among touch points spread equally round a circle instead (spreadAround), each within a third of a cell of its tab. */
 export const LEVER_W = (() => {
-  const hex = LEVERS.map(l => ({ e: l.e, ux: l.ux, uz: l.uy, a: Math.atan2(l.y, l.x) })).sort((p, q) => p.a - q.a);
-  const step = 2 * Math.PI / hex.length;
-  // the turn of the whole ring that moves the levers least from where the hexagon had them
-  let sx = 0, sy = 0;
-  hex.forEach((h, k) => { const d = h.a - k * step; sx += Math.cos(d); sy += Math.sin(d); });
-  const phi = Math.atan2(sy, sx), out = [];
-  hex.forEach((h, k) => { const a = phi + k * step; out[h.e] = { e: h.e, x: Math.cos(a) * RIM_R, z: Math.sin(a) * RIM_R, ux: h.ux, uz: h.uz, ang: Math.atan2(h.uz, h.ux) }; });
-  return out;
+  const raw = ENTRIES.map((en, e) => {
+    const [cx, cz] = cellW(en.line[0]), { ux, uy } = LEVERS[e], back = (SEAT_R + 0.04) * SQ + TAB.gap + TAB.thick / 2;     // out past the seat's gold edge
+    return { e, x: cx - ux * back, z: cz - uy * back, ux, uz: uy, ang: Math.atan2(uy, ux) };
+  });
+  const hit = spreadAround(raw.map(l => [l.x, l.z]), HIT_R);
+  return raw.map((l, e) => ({ ...l, hx: hit[e][0], hz: hit[e][1] }));
 })();
-/** How far from a lever's centre a touch still means it. The 2D view takes 0.62 of a cell and the nearest decides; a finger over a tilted
+/** How far from a lever's touch point a touch still means it, off its tab. The 2D view takes 0.8 of a cell and the nearest decides; a finger over a tilted
  *  plate is less sure, so this is wider (the levers are about 0.5 apart on a side, so the nearest still decides). */
 export const HIT3 = 1.0;
-export const nearestLever = (x, z, r = HIT3) => {
-  let best = null, bd = r;
-  for (const l of LEVER_W) { const d = Math.hypot(l.x - x, l.z - z); if (d < bd) { bd = d; best = l; } }
-  return best;
-};
+export const nearestLever = (x, z, r = HIT3) => leverAtPoint(LEVER_W, x, z, { reach: r, pad: 0.08, len: TAB.len, thick: TAB.thick, k: "z" });
 /** Whether a point of the plate's plane is on the cradle (generously), on the plate, or neither. */
 export const holdAt = (x, z) => Math.hypot(x - HOLD.x, z - HOLD.z) < HOLD.r + 0.22;
 export const onPlate = (x, z) => Math.hypot(x, z) < CASE_R - 0.05;
@@ -101,8 +101,15 @@ export function tiltOfPhone(beta, gamma, beta0, gamma0, turn = 0) {
 }
 
 // ---------- the camera: fixed, a little off straight down, so the case's rim and the rack read ----------
-/** The elevation the case is seen from: a tall card has room to lean back, a wide one is seen from nearer overhead. */
-export const homeEl = aspect => (aspect < 0.8 ? 62 : aspect < 1.1 ? 66 : 74) * DEG;
+/** The elevation the case is seen from. A wide card is seen from nearer overhead. A tall one has height to spare once the case fills its width, so the
+ *  case is raised (seen more from above, so it is taller on the screen) as far as that room allows, up to 78 degrees. */
+export function homeEl(aspect) {
+  const base = (aspect < 0.8 ? 62 : aspect < 1.1 ? 66 : 74);
+  if (aspect >= 1.1) return base * DEG;
+  let best = base;
+  for (let d = base; d <= 78; d++) { const e = extent(KEEP, 0, d * DEG); if (e.hy + 0.3 > (e.hx + 0.08) / aspect) break; best = d; }
+  return best * DEG;
+}
 /** The camera's frame for yaw az and elevation el: right, up and the way back to the camera, unit vectors. */
 export function basis(az, el) {
   const c = [Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)], r = [Math.cos(az), 0, -Math.sin(az)];
@@ -116,16 +123,20 @@ export const KEEP = (() => {
   for (const x of [HOLD.x - HOLD.r - 0.1, RAIL.x1 + 0.1]) for (const z of [RAIL.z - RAIL.w / 2 - 0.05, RAIL.z + RAIL.w / 2 + 0.05]) for (const y of [-0.05, 0.62]) p.push([x, y, z]);
   return p;
 })();
-/** The orthographic frame that holds `points` at this view: half-height H (the width is H times the aspect) and the point looked at; `margin` is the
- *  room left above and below (a tilted case's edge rises and falls), `marginX` at the sides (a lean hardly moves them). */
-export function fit(points, az, el, aspect, margin = 0.12, marginX = margin) {
-  const { r, u, c } = basis(az, el);
+/** The half-extents (on the screen, x then y) of `points` seen from az and el, and where their middle is on the screen. */
+function extent(points, az, el) {
+  const { r, u } = basis(az, el);
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const p of points) {
     const sx = p[0] * r[0] + p[1] * r[1] + p[2] * r[2], sy = p[0] * u[0] + p[1] * u[1] + p[2] * u[2];
     if (sx < x0) x0 = sx; if (sx > x1) x1 = sx; if (sy < y0) y0 = sy; if (sy > y1) y1 = sy;
   }
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, H = Math.max((y1 - y0) / 2 + margin, ((x1 - x0) / 2 + marginX) / aspect);
+  return { hx: (x1 - x0) / 2, hy: (y1 - y0) / 2, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+}
+/** The orthographic frame that holds `points` at this view: half-height H (the width is H times the aspect) and the point looked at; `margin` is the
+ *  room left above and below (a tilted case's edge rises and falls), `marginX` at the sides (a lean hardly moves them). */
+export function fit(points, az, el, aspect, margin = 0.12, marginX = margin) {
+  const { r, u } = basis(az, el), { hx, hy, cx, cy } = extent(points, az, el), H = Math.max(hy + margin, (hx + marginX) / aspect);
   return { H, look: [r[0] * cx + u[0] * cy, r[1] * cx + u[1] * cy, r[2] * cx + u[2] * cy] };
 }
 

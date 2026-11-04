@@ -1,11 +1,10 @@
 // Shunt's board as a watch movement, seen through the case back, drawn with three.js (vendor/three.js, kept on the device, so it works offline).
 // The same family as Topple's table (its low sun, its cool fill, its exposure, its studio of reflections worked out in the materials' shader, the
 // table tilting a little under a finger and springing back), made as a watch: a round polished case in gold or steel, coin-edged, screwed down with
-// blued screws, holding a round plate engraved with Guilloché's own machine (a field of clous de Paris, a sunburst track for the levers; the normal
+// blued screws, holding a round plate engraved with Guilloché's own machine (a field finely brushed in a sunburst, a coarser sunburst ring round it; the normal
 // maps are made in code, shunt-3d-tex.js) with nineteen hexagonal seats cut in it, frosted with perlage on their floors; the gears are watch wheels,
 // gilt, blued or violet, toothed, spoked, bevelled, with a circular grain; a jewel is a synthetic ruby, a round dome with a hole for its pivot in a
-// gold chaton, dull until its train turns and then glowing with a glint; the thirty levers stand on the round rim (their numbers, lines and order are
-// the rules' own, only their places are new); the queue lies on a gold-edged pad and the hold in a round one, on the same tray as the case.
+// gold chaton, dull until its train turns and then glowing with a glint; the thirty levers are small steel tabs, each against the face of the hexagon it feeds (worked out from the rules' entries; no arrows: the face says the way); the queue lies on a gold-edged pad and the hold in a round one, on the same tray as the case.
 // The case tilts (about 12 degrees at most) when a finger drags on an empty part of the plate, or with the phone (deviceTilt, which asks iOS's
 // permission only when called from a tap), on a spring that overshoots a little and rests; the glints of the engraving sweep with it. A touch that
 // does not drag is the game's: a drag that starts on a lever or the hold is the game's too (it slides along the levers). Taps are found through
@@ -18,7 +17,7 @@ import * as THREE from "./vendor/three.js";
 import { CanvasTexture } from "./vendor/three-tex.js";
 import { N, ENTRIES, STUD, judge, goalCheck } from "./shunt-engine.js";
 import {
-  cellW, CELL_R, RO, FLOOR, SHAPES, LAYER_Y, PARTS, topOf, baseOf, gearDeg, RAIL, HOLD, QUEUE, LEVER_W, nearestLever, holdAt, onPlate,
+  cellW, CELL_R, RO, FLOOR, SHAPES, LAYER_Y, PARTS, topOf, baseOf, gearDeg, RAIL, HOLD, QUEUE, LEVER_W, TAB, nearestLever, holdAt, onPlate,
   homeEl, basis, fit, KEEP, skinFor, METALS, PLATE_R, TRACK_R, SEAT_R, TILT_MAX, tiltOfDrag, tiltOfPhone, springStep,
 } from "./shunt-3d-model.js";
 import * as G from "./shunt-3d-geo.js";
@@ -70,7 +69,7 @@ export function createView({ board, tray, onGesture, onLost }) {
   const canvas = renderer.domElement;
   canvas.className = "sh-gl";
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", "The plate, a watch movement seen through its case back: nineteen jewelled seats, thirty levers round the rim, the queue on its tray");
+  canvas.setAttribute("aria-label", "The plate, a watch movement seen through its case back: nineteen jewelled seats, thirty lever tabs against its outline, the queue on its tray");
   host.append(canvas);
   app?.classList.add("view3d");
 
@@ -140,11 +139,17 @@ export function createView({ board, tray, onGesture, onLost }) {
     plate: envify(std({ color: 0xdcd2b8, metalness: 0.95, roughness: 0.3, normalMap: dialMap }), 0.65),
     floor: envify(std({ color: 0x24332d, metalness: 0.7, roughness: 0.42, normalMap: perlageMap, normalScale: new THREE.Vector2(0.8, 0.8) }), 0.7),
     iron: envify(std({ color: 0x2f3a58, metalness: 0.85, roughness: 0.28 })),
+    // the levers' tabs, what a finger presses: polished blued steel (blue where the plate is silver and gold), gunmetal when their line is full,
+    // bright steel with a warm light on it for the one chosen
+    tab: envify(std({ color: 0x2d5aa8, metalness: 0.95, roughness: 0.16 }), 1.1),
+    tabOff: envify(std({ color: 0x3c4048, metalness: 0.8, roughness: 0.42 }), 0.6),
+    tabLit: envify(std({ color: 0xd4deee, metalness: 0.95, roughness: 0.12, emissive: 0x7a5a14, emissiveIntensity: 0.55 }), 1.2),
     blued: envify(std({ color: 0x264a96, metalness: 0.9, roughness: 0.2 })),
     slot: std({ color: 0x14100c, roughness: 0.95 }), velvet: std({ color: 0x5a1c28, roughness: 1 }),
     ruby: ruby(0.2, 0xff2a3a, 0x7e0a1c), rubyLit: ruby(0.7, 0xff5028, 0xd01a30),
     glow: basic({ color: 0xffe08a, opacity: 0.9 }), glowSoft: basic({ color: 0xffe08a, opacity: 0.22 }), red: basic({ color: 0xff3a22, opacity: 0.5, blending: ADD }),
     spark: basic({ color: 0xffb04a, blending: ADD, opacity: 1 }),
+    tabGlow: basic({ color: 0xffd47a, blending: ADD, opacity: 0.4, map: drawn(64, (c, s) => { const g = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.4, "rgba(255,255,255,.3)"); g.addColorStop(1, "rgba(255,255,255,0)"); c.fillStyle = g; c.fillRect(0, 0, s, s); }) }),
     halo: basic({ color: 0xff4a28, blending: ADD, opacity: 0.5, map: drawn(64, (c, s) => { const g = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.35, "rgba(255,255,255,.4)"); g.addColorStop(1, "rgba(255,255,255,0)"); c.fillStyle = g; c.fillRect(0, 0, s, s); }) }),
     glint: basic({ color: 0xffffff, blending: ADD, opacity: 0.9, map: drawn(64, (c, s) => {
       c.translate(s / 2, s / 2);
@@ -157,6 +162,7 @@ export function createView({ board, tray, onGesture, onLost }) {
     }) }),
   };
   M.shadow.map.flipY = false;
+  M.tabGlint = M.glint.clone();
   const gearMat = METALS.map(o => envify(std({ ...o, vertexColors: true, normalMap: grainMap, normalScale: new THREE.Vector2(0.55, 0.55) }), 0.75)), ghostMat = METALS.map(o => std({ ...o, vertexColors: true, transparent: true, opacity: 0.66, depthWrite: false, emissive: o.color, emissiveIntensity: 0.55 }));
   const gearGeo = [0, 1, 2, 3].map(G.gearGeometry);
 
@@ -175,7 +181,7 @@ export function createView({ board, tray, onGesture, onLost }) {
   add(G.plateGeometry(), [M.plate, M.gold], 0, 0, 0, { cast: false });
   add(G.screwHeads(), M.blued, 0, 0, 0, { cast: false });
   add(G.screwSlots(), M.slot, 0, 0, 0, { cast: false });
-  add(G.ringGeometry(TRACK_R + 0.03, TRACK_R - 0.03, 0.02), M.gold, 0, 0, 0, { cast: false });                  // the line between the cells and the lever track
+  add(G.ringGeometry(TRACK_R + 0.03, TRACK_R - 0.03, 0.02), M.gold, 0, 0, 0, { cast: false });                  // the line round the tabs, where the outer ring begins
   // each seat: a polished edge, a frosted floor, and the bush the axle turns in
   const seatGeo = G.seatRingGeometry(SEAT_R - 0.01, SEAT_R + 0.04, 0.02), floorGeo = G.tileUV(G.hexSlab(SEAT_R - 0.002, 0.02, 0.004), 0.3);
   const bushGeo = G.ringGeometry(0.085, 0.045, 0.016, 20), pinGeo = new THREE.CylinderGeometry(0.047, 0.047, 0.004, 14);
@@ -187,18 +193,18 @@ export function createView({ board, tray, onGesture, onLost }) {
     bushes.setMatrixAt(i, _m.makeTranslation(x, FLOOR + 0.02, z)); pins.setMatrixAt(i, _m.makeTranslation(x, FLOOR + 0.0365, z));
   }
   world.add(floors, seats, bushes, pins);
-  // the levers' slots in the track, and the levers: brass blades, iron when their line is full, the chosen one lit and sunk
-  const slotGeo = new THREE.BoxGeometry(0.44, 0.03, 0.25);
+  // the levers' slots and tabs: each tab stands against the face it feeds, in a dark slot it slides in along the way it shoves; polished steel, gunmetal
+  // when its line is full, the chosen one bright, sunk a little when pressed, with a glint
+  const slotGeo = new THREE.BoxGeometry(TAB.thick + 0.07, 0.03, TAB.len + 0.06), tabGeo = G.tabGeometry(TAB.len, TAB.thick, TAB.h);
   const slots = new THREE.InstancedMesh(slotGeo, M.slot, LEVER_W.length);
-  LEVER_W.forEach((l, i) => { _q.setFromAxisAngle(_e, -l.ang); slots.setMatrixAt(i, _m.compose(_p.set(l.x, 0.01, l.z), _q, _s)); });
+  LEVER_W.forEach((l, i) => { _q.setFromAxisAngle(_e, -l.ang); slots.setMatrixAt(i, _m.compose(_p.set(l.x + l.ux * 0.02, 0.01, l.z + l.uz * 0.02), _q, _s)); });
   slots.receiveShadow = true;
   world.add(slots);
-  const arrowGeo = G.arrowGeometry(0.34, 0.19, 0.07);
-  const leverOk = new THREE.InstancedMesh(arrowGeo, M.gold, LEVER_W.length), leverOff = new THREE.InstancedMesh(arrowGeo, M.iron, LEVER_W.length);
-  const leverSel = new THREE.Mesh(arrowGeo, M.glow);
+  const leverOk = new THREE.InstancedMesh(tabGeo, M.tab, LEVER_W.length), leverOff = new THREE.InstancedMesh(tabGeo, M.tabOff, LEVER_W.length);
+  const leverSel = new THREE.Mesh(tabGeo, M.tabLit), tabGlint = new THREE.Mesh(G.quadGeometry(0.5), M.tabGlint);
   for (const m of [leverOk, leverOff]) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; world.add(m); }
-  leverSel.visible = false; leverSel.scale.set(1.28, 1.15, 1.28); world.add(leverSel);
-  const halo = new THREE.Mesh(G.ringGeometry(0.38, 0.33, 0.012), M.glow);
+  leverSel.visible = false; leverSel.castShadow = true; leverSel.scale.set(1.05, 1.08, 1.05); tabGlint.visible = false; world.add(leverSel, tabGlint);
+  const halo = new THREE.Mesh(G.quadGeometry(1.0), M.tabGlow);
   halo.visible = false; world.add(halo);
   const goalRing = add(G.ringGeometry(PLATE_R - 0.01, PLATE_R - 0.06, 0.01), M.glowSoft, 0, 0.002, 0, { cast: false });
   goalRing.visible = false;
@@ -347,7 +353,8 @@ export function createView({ board, tray, onGesture, onLost }) {
     const l = LEVER_W[e];
     _q.setFromAxisAngle(_e, -l.ang);
     leverSel.quaternion.copy(_q);
-    leverSel.position.set(l.x + l.ux * (0.04 + 0.1 * press), 0.02 - 0.012 * press + 0.004, l.z + l.uz * (0.04 + 0.1 * press));
+    leverSel.position.set(l.x + l.ux * (0.01 + 0.06 * press), 0.026 - 0.016 * press, l.z + l.uz * (0.01 + 0.06 * press));
+    tabGlint.position.set(l.x - l.ux * 0.01 - l.uz * 0.12, 0.1 - 0.016 * press, l.z - l.uz * 0.01 + l.ux * 0.12);
     halo.visible = !animState;
     halo.position.set(l.x, 0.012, l.z);
   }
@@ -404,15 +411,17 @@ export function createView({ board, tray, onGesture, onLost }) {
     }
     sparks.count = sp; sparks.instanceMatrix.needsUpdate = true;
     M.glow.opacity = 0.6 + 0.35 * wave;
+    M.tabGlint.opacity = 0.55 + 0.4 * wave;
     M.red.opacity = 0.1 + 0.12 * wave;
     flashes.material.opacity = 0.35 + 0.6 * wave;
     holdRing.visible = pulseHold; holdRing.scale.setScalar(1 + 0.06 * wave);
     if (pulseE >= 0) {
       const l = LEVER_W[pulseE];
       leverSel.visible = true; setLeverSel(pulseE, 0.4 * wave);
-      halo.visible = true; halo.position.set(l.x, 0.012, l.z); halo.scale.setScalar(0.9 + 0.35 * wave);
-    } else if (selE >= 0) { halo.scale.setScalar(1 + 0.05 * wave); }
+      halo.visible = true; halo.position.set(l.x, 0.012, l.z); halo.scale.setScalar(0.8 + 0.3 * wave);
+    } else if (selE >= 0) { halo.scale.setScalar(0.9 + 0.08 * wave); }
     else if (!animState) { leverSel.visible = false; halo.visible = false; }
+    tabGlint.visible = leverSel.visible;
   }
   const tilting = () => !!dragT || Math.abs(tx - target()[0]) > 4e-4 || Math.abs(tz - target()[1]) > 4e-4 || Math.abs(vx) > 2e-3 || Math.abs(vz) > 2e-3;
   const moving = () => !!animState || tilting() || (motion && (hasTrain || pulseE >= 0 || pulseHold || flashList.length > 0));

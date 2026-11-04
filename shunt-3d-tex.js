@@ -1,18 +1,20 @@
-// The engraving of Shunt's watch, as normal maps made in code (no image files; pure, so Node tests them). The plate is cut with Guilloché's own
-// machine (guilloche-engine.js: `passes` gives each cut's lines, `grooveWidth` the V of the graver): a field of clous de Paris (two sets of
-// grooves at a right angle, deep enough to meet, leave a pyramid between four of them), a sunburst on the track the levers stand in, and a fine
-// ring cut at the edge of each. Every groove is a V in section, so a pixel of the plate leans one way or the other, and the lean is what the
-// shader's studio reflects: the glints move over the pyramids as the case tilts. Perlage (the overlapping circles of a movement's
-// plates) frosts a seat's floor, and a circular grain brushes a gear's face (a circle looks the same when the gear turns).
+// The engraving of Shunt's watch, as normal maps made in code (no image files; pure, so Node tests them). The plate is quiet so the gears and jewels
+// are the focus (Korbi, 4 November 2026): its field is brushed, a fine sunburst of radial lines at low contrast, which a tilt sweeps a soft sheen
+// along; the ring outside the board is cut with Guilloché's own machine (guilloche-engine.js: `passes` gives each cut's lines, `grooveWidth` the V of
+// the graver) as a coarser sunburst between two fine rings, and a narrow turned band (fine concentric lines) at its inner edge steps it off the
+// field. Every groove is a V in section, so a pixel of the plate leans one way or the other, and the lean is what the shader's studio reflects.
+// Perlage (the overlapping circles of a movement's plates) frosts a seat's floor, and a circular grain brushes a gear's face (a circle looks the
+// same when the gear turns).
 import { passes, grooveWidth } from "./guilloche-engine.js";
 
-/** The plate's cuts, on a plate of radius 1 (shunt-3d-model.js PLATE_R). The track is what lies outside TRACK_R / PLATE_R. */
+/** The plate's cuts, on a plate of radius 1 (shunt-3d-model.js PLATE_R). The ring is what lies outside TRACK_R / PLATE_R. */
 const ring = (R, depth) => ({ kind: "ring", R, k: 2, a: 0, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2: 0, depth });
 export const DIAL = [
-  { kind: "lines", R: 0.826, k: 2, a: 0, shape: 0, index: 0, pitch: 3, angle: 45, cross: 90, depth: 5 },
   ring(0.826, 2), ring(0.995, 2),
   { kind: "rays", R: 0.985, hub: 0.836, rays: 120, a: 0, k: 2, shape: 0, index: 0, sweep: 0, depth: 4 },
 ];
+/** The brushed field's edge, and the turned band that steps the ring off it (plate radii). */
+export const FIELD = 0.826, TURNED = [0.828, 0.858];
 
 /** Encode a height field (h[y * S + x], in pixels) as a tangent-space normal map: RGBA bytes, the slope read with a central difference.
  *  `wrap` repeats the edges (a tile). The green is the slope down the image (v up the texture, as three.js has it). */
@@ -45,9 +47,35 @@ function groove(h, S, x0, y0, x1, y1, w, slope) {
   }
 }
 
+/** A cheap hash of two integers to 0..1. */
+const hash2 = (a, b) => { const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return v - Math.floor(v); };
+
+/** The brushed sunburst into h (S pixels across the plate): lines from the middle, finer where the circle is longer (96, 192, then 384 of them),
+ *  each a soft ridge of its own height, a little streaked along its length. `amp` is the ridge height as a share of its width in pixels. */
+export function brush(h, S, amp = 0.12) {
+  const half = S / 2, bands = [[0.2, 96], [0.42, 192], [FIELD, 384]];
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const dx = x + 0.5 - half, dy = y + 0.5 - half, r = Math.hypot(dx, dy) / half;
+    if (r >= FIELD) continue;
+    const k = bands.findIndex(b => r < b[0]), B = bands[k][1], t = (Math.atan2(dy, dx) / (2 * Math.PI) + 1) * B, bin = Math.floor(t), fr = t - bin;
+    const px = 2 * Math.PI * Math.max(r, 0.05) * half / B;                    // a line's width in pixels here
+    const v = 0.35 + 0.65 * hash2(bin, k) * (0.75 + 0.25 * hash2(bin, Math.floor(r * half / 14) + 7 * k));
+    h[y * S + x] = Math.sin(Math.PI * fr) * v * amp * px;
+  }
+}
+/** The turned band: fine concentric lines between plate radii r0 and r1, `pitch` pixels apart. */
+export function turn(h, S, r0, r1, pitch = 3.2, amp = 0.5) {
+  const half = S / 2;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const r = Math.hypot(x + 0.5 - half, y + 0.5 - half) / half;
+    if (r >= r0 && r < r1) h[y * S + x] = Math.sin(r * half / pitch * 2 * Math.PI) * amp;
+  }
+}
+
 /** The plate's engraving as a normal map, S pixels across the plate's diameter. Returns { size, data } (RGBA bytes). */
 export function dialNormals(S = 1024, cuts = DIAL, slope = 0.62) {
   const h = new Float32Array(S * S), half = S / 2;
+  brush(h, S); turn(h, S, TURNED[0], TURNED[1]);
   for (const cut of cuts) {
     const w = Math.max(1.2, grooveWidth(cut.depth) * half);
     for (const p of passes(cut)) for (let i = 0; i + 3 < p.length; i += 2) groove(h, S, (p[i] + 1) * half, (p[i + 1] + 1) * half, (p[i + 2] + 1) * half, (p[i + 3] + 1) * half, w, slope);
