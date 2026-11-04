@@ -1,10 +1,12 @@
 # Solitaire
 
-Klondike (draw one or three), FreeCell and Spider (one, two or four suits), each with a deal of the day and no opponent. `solitaire-engine.js` is the rules, `solitaire-solver.js` (run in `solitaire-worker.js`) the deals and hints, `solitaire-board.js` the table that the page and the course (`solitaire-course.js`) both draw and touch, `solitaire.js` the run, clock and records.
+Klondike (draw one or three), FreeCell and Spider (one, two or four suits), each with a deal of the day and no opponent. `solitaire-engine.js` is the rules, `solitaire-solver.js` (run in `solitaire-worker.js`) the deals and hints, `solitaire-board.js` the table that the page and the course (`solitaire-course.js`) both draw and touch, `solitaire.js` the run, clock and records. `solitaire-3d.js` draws the same table with three.js (optional, lazy), `solitaire-sound.js` is its synthesised sound.
 
 - 2 November 2026, Korbi: "solitaire, 2048, connect four: ok, add placeholders". Built to the placeholder's specification: a daily deal per variant, deals a solver can win, a hint, unlimited undo, auto-move, a short course.
 
 - 3 November 2026, Korbi: "an abandoned game counts as a loss" (once started; the tile shows the win count; two-suit Spider certified by the solver, four-suit called "uncertified": "you decide for all").
+
+- 4 November 2026, Korbi: "add 3d to solitaire, nice and beautiful (make it so it's actually still flat, but let the user drag the camera a bit so they can either view it straight from the top, as it is now, or slightly angled for a dynamic effect). also add a nice card and card shuffle sound to it."
 
 ## Traps
 
@@ -14,3 +16,7 @@ Klondike (draw one or three), FreeCell and Spider (one, two or four suits), each
 - **Rules where sets differ:** Klondike has unlimited passes through the stock and lets a card come back down from a foundation; FreeCell and Spider don't. FreeCell carries `(free cells + 1) × 2^empty columns` cards (one fewer power when the target is the empty column). Spider deals only with no empty column, and a king-to-ace run of one suit leaves the table by itself.
 - **Undo is a group.** A move the game made on its own is stored with bit 19 set and undoes with the move before it. They run only after a move of the player's, so an ace dealt face up waits for the first move.
 - **The win count** is what the games screen shows (`MARKS`: "wins", `solitaire:wins`, so the tile never opens `#today`). A game is played from the player's first move and is a loss until it is won, so a closed app is a loss and a resumed game won is one win (`solitaire-record.js`); a day's deal won a second time is practice and counted neither way. A best time needs no hints.
+- **The 3D view only draws.** The board's DOM cards stay as the record of where everything is (and the 2D rules of touch), invisible under the canvas; the view is handed each layout. A press is hit-tested by `view.pick`, not by the DOM, because a tilted pile's face is not where the flat card's is, and a drag's movement is the pointer unprojected onto the plane the lifted card is in. A one-finger drag that starts on a card or a pile never turns the camera; two fingers, bare baize or the right button do.
+- **The choice is written only when the player picks it** (`prefs.view`, `prefs.tilt`, `prefs.yaw` in `solitaire:prefs`): with none, `mode3d.js`'s default decides, so never write the default in. Tilt 36 is the default angle, 0 the flat table's scale.
+- **`vendor/three-tex.js` is a second, tiny bundle** (CanvasTexture) beside the trimmed `vendor/three.js`, which has no textures; same version, so its textures work in the other's renderer. Card faces are canvases painted in the page's `--cd-*` colours and repainted on a theme change.
+- **Sound makes no audio context before a gesture** (Safari would refuse; Chrome warns), and one card is one flick (a second call within 30 ms is dropped).

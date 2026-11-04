@@ -110,13 +110,15 @@ export function thunk(vol = 1) {
 }
 /** The sound the page's setting turns on or off. */
 export function setOn(v) { on = !!v; }
-/** Makes the audio context from the first gesture (Safari starts it only inside one) and plays a silent buffer to open it. */
+/** Makes the audio context from the first gesture (Safari starts it only inside one, and wants a buffer played there) and keeps trying at each gesture until it runs. */
 export function unlock() {
+  const events = ["pointerdown", "touchend", "keydown", "click"];
   const go = () => {
     ready = true;
-    const c = audio(); if (!c) return;
-    try { const s = c.createBufferSource(); s.buffer = c.createBuffer(1, 1, 22050); s.connect(c.destination); s.start(0); } catch { /* it is open anyway */ }
-    if (c.state === "running") for (const e of ["pointerdown", "touchend", "keydown", "click"]) removeEventListener(e, go, true);
+    audio();
+    if (!ctx) return;
+    try { const s = ctx.createBufferSource(); s.buffer = ctx.createBuffer(1, 1, 22050); s.connect(ctx.destination); s.start(0); } catch { /* it is open anyway */ }
+    if (ctx.state === "running") for (const e of events) removeEventListener(e, go, true);
   };
-  for (const e of ["pointerdown", "touchend", "keydown", "click"]) addEventListener(e, go, { capture: true, passive: true });
+  for (const e of events) addEventListener(e, go, { capture: true, passive: true });
 }

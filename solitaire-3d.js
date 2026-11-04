@@ -267,7 +267,7 @@ export function createView(host, opts = {}) {
   }
   function badgeMat(n) {
     const base = texW();
-    return pictureMat(`badge:${n}`, base * 0.9, base * 0.42, (c, w, h) => {
+    return pictureMat(`badge:${n}`, base * 0.5, base * 0.4, (c, w, h) => {
       c.clearRect(0, 0, w, h);
       const e = base / 2.5;
       c.fillStyle = "rgba(12,28,20,.78)"; rrect(c, 0, 0, w, h, h / 2); c.fill();
