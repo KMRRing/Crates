@@ -148,7 +148,7 @@ export async function pull() {
 // ---------- starting a game over (Settings) ----------
 /** A game's keys, for starting it over: its own prefix, and the other names a game keeps (Slate's glyph:, Blend's
  *  blend2:, Gambit's puzzle rush's rush:). Nothing of the suite's (LOCAL) and nothing shared (the review pile, the pictures). */
-const RESET_PREFIXES = { glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"] };
+const RESET_PREFIXES = { glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"], reckoning: ["reckoning:", "courier:"] };
 /**
  * Starts a game over: every key under its prefixes goes, here and, with a solo code, on the code, so your other devices
  * drop them too (a removal syncs like any change, the newer winning: their older copies can't come back). Keys only
@@ -501,7 +501,7 @@ let mirrorTimer = null, watched = null;           // watched: inside a frame, th
 /** The prefixes of a game's keys in storage: the game's id; but Slate keeps its old name, Glyph, and Blend's rebuild
  *  saves under blend2: (so its first version's saves were never misread), its stars under blend:. A key under none of
  *  them isn't the game's: it isn't mirrored, and a watching frame reads the watcher's own. */
-const PREFIXES = { slate: ["glyph:"], blend: ["blend:", "blend2:"] };
+const PREFIXES = { slate: ["glyph:"], blend: ["blend:", "blend2:"], reckoning: ["reckoning:", "courier:"] };
 const gamesKey = (game, k) => !!game && (PREFIXES[game] || [`${game}:`]).some(p => k.startsWith(p));
 // what never goes to a watcher: the suite's own keys, Crates' run link (watching must not join their run), Firebase's
 const WATCH_SKIP = /^(suite:|crates:run|crates:updated|firebase:)/;

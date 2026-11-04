@@ -4,13 +4,14 @@
 // rules' steps, reckoning-questions.js deals the questions from the knowledge banks. This file keeps the clock (a fixed
 // step, however fast the screen draws), takes the swipes, the page's words over the quay and under it, and the run
 // kept between visits. The clock starts at the first swipe and stops with the menu, the tab and the end of the run.
-import { newGame, valid, setDeal, swipe, step, take, speed, starsOf, goalValue, GOODS } from "./reckoning-engine.js";
+import { newGame, valid, setDeal, swipe, step, take, speed, goalValue, GOODS } from "./reckoning-engine.js";
+import { BIOMES, BIOME_IDS } from "./reckoning-biomes.js";
 import { SECTIONS, byId } from "./reckoning-sections.js";
 import { load, dealer, WORLDS } from "./reckoning-questions.js";
 import { RunLog } from "./reckoning-log.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, onPause } from "./menu.js";
+import { part, action, line, choice, onPause } from "./menu.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";                       // a partner watching's frame: it draws a copy, runs no clock and writes nothing
 import { scale } from "./wide.js";
@@ -19,7 +20,6 @@ import { busy } from "./loading.js";
 const $ = id => document.getElementById(id);
 const RUN = "reckoning:run", BEST = "reckoning:best", STATS = "reckoning:stats", MISS = "reckoning:miss";
 const COINS = "courier:coins", AMBER = "courier:amber";      // coins and amber banked over all runs (a run's own are in the run, and are banked when it ends)
-const CAMP = "reckoning:camp";                                 // { at (the section to play next, 1 on), stars: [the most won in each section] }
 const LOG = "reckoning:log";                                     // the swipe log: in sessionStorage, so it is not synced between devices (it is long)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -36,27 +36,14 @@ let logOpen = false;     // the log's own dialog: kept apart from `paused`, sinc
 let frozen = false;      // for tests: the clock held while a picture is taken
 let held = false;        // for recordings: the page's own loop does nothing, and frames are played by hand (advance, frame)
 let best = 0, savedAt = 0, acc = 0, last = 0;
-let camp = { at: 1, stars: SECTIONS.map(() => 0) };
+let playtest = { biome: "quays", seed: 1 };   // the Playtest viewer
 let view = null, deal = null, pool = [];
 let shown = null;        // the gate whose answer is on the cards: { id, until }
 let toastTimer = 0;
+let zoneSeen = "";      // the biome whose name was last said over the quay
 let log = null, lastLog = null;   // this run's swipe log, and the run before's (reckoning-log.js)
 const cache = {};        // what the page last wrote, so a frame writes only what changed
 const put = (key, fn) => { const v = fn(); if (cache[key] !== v) { cache[key] = v; return true; } return false; };
-
-// ---------- the sections ----------
-
-function readCamp() {
-  const c = read(CAMP, null);
-  const stars = SECTIONS.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
-  const first = stars.findIndex(n => !n);                      // the section to play next: the first not yet passed
-  const at = Number.isInteger(c?.at) && c.at >= 1 && c.at <= SECTIONS.length && isOpen(c.at, stars) ? c.at : first < 0 ? SECTIONS.length : first + 1;
-  return { at, stars };
-}
-/** A section is open when it is the first or the one before it is passed (or it is passed itself). */
-const isOpen = (n, stars = camp.stars) => n === 1 || stars[n - 2] > 0 || stars[n - 1] > 0;
-const keepCamp = () => { if (!IN_FRAME) write(CAMP, camp); };
-const stars = n => (n ? "★".repeat(n) + "☆".repeat(3 - n) : "☆☆☆");
 
 // ---------- the run ----------
 
@@ -66,19 +53,19 @@ function save() {
   try { if (log) sessionStorage.setItem(LOG, JSON.stringify({ now: log, last: lastLog })); } catch { /* private mode, or full */ }
 }
 
-/** A new run: of section `n`, or endless (0). */
-function newRun(n = 0) {
+/** A new run: the endless run (0), or Playtest section `n`; `opts.biome` keeps the endless run to one biome, `opts.seed` fixes its seed (the viewer). */
+function newRun(n = 0, opts = {}) {
   if (typeof n !== "number") n = 0;                            // (a click hands over its event)
   if (S && !S.over) bank();                                    // the run left behind keeps what it picked up
-  if (n) camp.at = n;
-  keepCamp();
-  S = setDeal(newGame({ seed: Math.floor(Math.random() * 2 ** 31), deal, launch: true, section: n ? byId(n) : null }), deal);
+  const seed = Number.isFinite(opts.seed) ? opts.seed : Math.floor(Math.random() * 2 ** 31);
+  S = setDeal(newGame({ seed, deal, launch: true, section: n ? byId(n) : null, biome: opts.biome || null }), deal);
   if (log && log.n > 1) lastLog = log;                         // the run just left stays to be copied
   log = new RunLog(S);
-  running = false; acc = 0; shown = null;
+  running = false; acc = 0; shown = null; zoneSeen = "";
   $("result").hidden = true;
   say("");
-  hint(S.sec ? `${byId(S.sec).place}: ${byId(S.sec).name}. ${byId(S.sec).brief}` : "Swipe to run. Up jumps, down rolls, sideways changes lane, and into a wall runs up it.");
+  const sec = S.sec ? byId(S.sec) : null;
+  hint(sec ? `${sec.name}. ${sec.brief}` : S.only ? `${BIOMES[S.only].name}, seed ${seed}. Swipe to run.` : "Swipe to run. Up jumps, down rolls, sideways changes lane, and into a wall runs up it.");
   save();
   drawPage(true);
 }
@@ -115,7 +102,7 @@ function handle(events) {
       case "pick": if (ev.what !== "coin") say(pickWords(ev), "good"); break;
       case "seized": say(`Seized: ${ev.what}`, "bad"); break;
       case "stagger": say("Again", "good"); break;
-      case "finish": finished(ev); break;
+      case "finish": finished(); break;
       case "hurt": say("Hit", "bad"); break;
       case "fall": say("Into the water", "bad"); break;
       case "over": over(); break;
@@ -138,23 +125,6 @@ function keepMiss(q) {
   write(MISS, all.slice(-200));
 }
 
-/** The finish of a section: passed (with its stars) or short of its aim. */
-function finished(ev) {
-  running = false;
-  bank();
-  if (ev.won) {
-    camp.stars[S.sec - 1] = Math.max(camp.stars[S.sec - 1], ev.stars);
-    const first = camp.stars.findIndex(n => !n);                // the one to play next is the first not yet passed, not the one after the one just played
-    camp.at = first < 0 ? SECTIONS.length : first + 1;
-    keepCamp();
-  }
-  const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
-  write(STATS, { runs: st.runs + 1, right: st.right + S.right, wrong: st.wrong + S.wrong + S.missed });
-  save();
-  showResult();
-  roundOver("reckoning");
-}
-
 /** A run's coins and amber go into the totals when it ends (once). */
 function bank() {
   if (IN_FRAME || !S || S.banked) return;
@@ -163,14 +133,25 @@ function bank() {
   if (S.gems) write(AMBER, read(AMBER, 0) + S.gems);
 }
 
+/** The finish of a Playtest section: passed, or short of its aim. */
+function finished() {
+  running = false;
+  bank();
+  const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
+  write(STATS, { runs: st.runs + 1, right: st.right + S.right, wrong: st.wrong + S.wrong + S.missed });
+  save();
+  showResult();
+  roundOver("reckoning");
+}
+
 function over() {
   running = false;
   bank();
-  if (S.sec) { const st = read(STATS, { runs: 0, right: 0, wrong: 0 }); write(STATS, { runs: st.runs + 1, right: st.right + S.right, wrong: st.wrong + S.wrong + S.missed }); save(); showResult(); roundOver("reckoning"); return; }
-  const dist = S.score;
-  if (dist > best) { best = dist; write(BEST, best); }
   const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
   write(STATS, { runs: st.runs + 1, right: st.right + S.right, wrong: st.wrong + S.wrong + S.missed });
+  if (!S.sec && !S.only) {                                     // only the real run counts for the best (not the viewer's)
+    if (S.score > best) { best = S.score; write(BEST, best); write("courier:best", best); }
+  }
   save();
   showResult();
   roundOver("reckoning");
@@ -192,6 +173,8 @@ function drawHud() {
   if (put("hearts", () => `${h}/${max}`)) $("hearts").innerHTML = Array.from({ length: max }, (_, i) => `<span class="rk-heart${i < h ? "" : " gone"}">♥</span>`).join("");
   const sc = S.sec ? `${fmt(Math.min(S.hero.z, S.world.finish))} / ${fmt(S.world.finish)}` : fmt(S.score);
   if (put("score", () => sc)) $("score").textContent = sc;
+  const zn = S.world.zones.find(q => S.hero.z >= q.z0 && S.hero.z < q.z1);
+  if (zn && zn.kind !== "transition" && zn.name !== "question" && zn.name !== "start" && zn.biome !== zoneSeen && !S.sec && !S.over) { zoneSeen = zn.biome; if (running) say(BIOMES[zn.biome].name); }
   const g = goalText();
   if (put("goal", () => g)) { $("goal").textContent = g; $("goal").hidden = !g; }
   if (put("coins", () => `${S.coins}/${S.gems}`)) { $("coinN").textContent = fmt(S.coins); $("gemN").hidden = !S.gems; $("gemN").lastChild.textContent = S.gems; }
@@ -237,9 +220,11 @@ function showResult() {
   $("result").hidden = false;
   const asked = S.right + S.wrong + S.missed;
   const sec = S.sec ? byId(S.sec) : null;
-  if (sec) $("verdict").innerHTML = sectionVerdict(sec);
-  else $("verdict").textContent = `${fmt(S.score)} points, ${fmt(S.hero.z)} m. ${asked ? `${S.right} of ${asked} questions right.` : "No question reached."}`;
-  $("nextBtn").hidden = !(sec && S.won && sec.id < SECTIONS.length);
+  const money = `${fmt(S.coins)} coins${S.gems ? `, ${S.gems} amber` : ""}`;
+  if (sec) $("verdict").innerHTML = `<b>${esc(sec.name)}</b><span class="rk-big">${S.won ? "Passed" : "Not yet"}</span><span>${S.won ? (S.hits ? `${S.hits} ${S.hits === 1 ? "heart" : "hearts"} lost` : "no heart lost") : S.hearts <= 0 ? `Out of hearts at ${fmt(S.hero.z)} of ${fmt(S.world.finish)} m` : "The finish, but short of the aim"}; ${money}</span>`;
+  else $("verdict").innerHTML = `<b>${fmt(S.hero.z)} m</b><span>${fmt(S.score)} points; ${esc(money)}${best && S.score >= best && !S.only ? "; a best" : ""}</span><span>${asked ? `${S.right} of ${asked} questions right.` : "No question reached."}</span>`;
+  $("nextBtn").hidden = !(sec && sec.id < SECTIONS.length);
+  $("nextBtn").textContent = "Next idea";
   $("againBtn").textContent = sec ? "Again" : "New run";
   const ul = $("missed");
   ul.replaceChildren();
@@ -250,22 +235,8 @@ function showResult() {
     li.innerHTML = q ? `<b>${esc(q.q)}</b> ${esc(q.o[q.a])}. ${esc(q.x || "")}` : esc(a.id);
     ul.append(li);
   }
-  if (!ul.children.length && !sec) { const li = document.createElement("li"); li.textContent = asked ? "Every question you reached was right." : "Nothing to review."; ul.append(li); }
   ul.hidden = !ul.children.length;
   hint("");
-}
-/** The result of a section as markup: its name, the stars (or that it was not passed), and what stands between this run and three stars. */
-function sectionVerdict(sec) {
-  const G = sec.goal, v = goalValue(S), par = sec.par;
-  const lost = S.hits ? `${S.hits} ${S.hits === 1 ? "heart" : "hearts"} lost` : "no heart lost";
-  const lines = [];
-  if (S.won) lines.push(lost);
-  else if (S.hearts <= 0) lines.push(`Out of hearts at ${fmt(S.hero.z)} of ${fmt(S.world.finish)} m`);
-  else lines.push("The finish, but short of the aim");
-  if (G.n) lines.push(`${v} of ${G.n} for the aim${par.more ? `, ${par.more} for three stars` : ""}`);
-  const got = starsOf(S);
-  if (S.won && got < 3) lines.push(`Three stars: at most ${par.hits} ${par.hits === 1 ? "heart" : "hearts"} lost${par.more && G.n ? ` and ${par.more}` : ""}`);
-  return `<b>${sec.id}. ${esc(sec.name)}</b><span class="rk-big">${S.won ? stars(got) : "Not yet"}</span>${lines.map(l => `<span>${esc(l)}</span>`).join("")}`;
 }
 const asks = new Map();                                       // question id -> the question dealt, for the review (gates are pruned behind the hero)
 function missedQ(id) { return asks.get(id); }
@@ -339,32 +310,48 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const sec = S.sec ? byId(S.sec) : null;
-  part(body, "play").append(action(sec ? `Restart section ${sec.id}` : "New run", () => newRun(S.sec), "primary"));
-  const content = part(body, "content");
-  const next = camp.at;
-  content.append(action(`Continue: ${next}. ${byId(next).name}`, () => newRun(next), sec && sec.id === next ? "" : "primary"));
+  part(body, "play").append(action(sec ? `Restart ${sec.name}` : "Start", () => newRun(sec ? sec.id : 0, sec ? {} : S.only ? {} : {}), "primary"));
+  if (sec || S.only) part(body, "play").append(action("Start the endless run", () => newRun(0), ""));
+  part(body, "content").append(action("Playtest", openPlaytest, "link"));
+  const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
+  part(body, "about").append(action("Swipe log", openLog, "link"),
+    line(`Best ${fmt(best)} m · ${fmt(read(COINS, 0))} coins${read(AMBER, 0) ? ` · ${read(AMBER, 0)} amber` : ""}`),
+    line(`${WORLDS.quay.name}: ${pool.length.toLocaleString("en-GB")} questions; ${st.runs} runs, ${st.right} right and ${st.wrong} not`));
+  if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+/** Playtest: every idea on its own (the twenty sections and the new things), and a viewer for one biome from a seed. Nothing here counts or unlocks. */
+function openPlaytest() {
+  const body = $("menuBody");
+  body.replaceChildren();
+  part(body, "play").append(action("Back", openMenu, "link"));
+  const viewer = part(body, "content");
+  viewer.append(choice("Biome", BIOME_IDS.map(id => [id, BIOMES[id].name.replace(/^(The|Alongside the) /, "").replace(/^./, c => c.toUpperCase())]), playtest.biome, v => { playtest.biome = v; }));
+  const row = document.createElement("div");
+  row.className = "rk-seedrow";
+  const num = document.createElement("span");
+  num.className = "rk-seed";
+  const show = () => { num.textContent = `Seed ${playtest.seed}`; };
+  const step_ = d => { playtest.seed = Math.max(1, playtest.seed + d); show(); };
+  const mk = (t, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "btn"; b.textContent = t; b.addEventListener("click", fn); return b; };
+  row.append(mk("−", () => step_(-1)), num, mk("+", () => step_(1)), mk("Random", () => { playtest.seed = 1 + Math.floor(Math.random() * 9999); show(); }));
+  show();
+  viewer.append(row, action("Run this biome from this seed", () => { $("menuDlg").close(); newRun(0, { biome: playtest.biome, seed: playtest.seed }); }));
   const list = document.createElement("div");
   list.className = "rk-secs";
   for (const d of SECTIONS) {
-    const b = document.createElement("button"), won = camp.stars[d.id - 1], open = isOpen(d.id);
-    b.type = "button"; b.disabled = !open;
-    b.className = won ? "done" : "";
-    if (d.id === (sec ? sec.id : camp.at)) b.setAttribute("aria-current", "true");
-    b.setAttribute("aria-label", `Section ${d.id}, ${d.name}, ${d.place}${open ? "" : ", locked: pass the one before it"}${won ? `, ${won} of 3 stars` : ""}`);
-    b.innerHTML = '<span class="rk-sn"></span><span class="rk-sname"></span><span class="rk-splace"></span><span class="rk-sstars"></span>';
+    const b = document.createElement("button");
+    b.type = "button";
+    if (S.sec === d.id) b.setAttribute("aria-current", "true");
+    b.setAttribute("aria-label", `${d.name}: ${d.idea}`);
+    b.innerHTML = '<span class="rk-sn"></span><span class="rk-sname"></span><span class="rk-splace"></span>';
     b.querySelector(".rk-sn").textContent = d.id;
     b.querySelector(".rk-sname").textContent = d.name;
-    b.querySelector(".rk-splace").textContent = open ? d.place : "locked";
-    b.querySelector(".rk-sstars").textContent = open ? stars(won) : "";
+    b.querySelector(".rk-splace").textContent = d.brief;
     b.addEventListener("click", () => { $("menuDlg").close(); newRun(d.id); });
     list.append(b);
   }
-  content.append(list, action("Endless run", () => newRun(0), "link"));
-  const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
-  const got = camp.stars.reduce((a, b) => a + b, 0);
-  part(body, "content").append(line(`${WORLDS.quay.name}: ${pool.length.toLocaleString("en-GB")} questions`));
-  part(body, "about").append(action("Swipe log", openLog, "link"), line(`${camp.stars.filter(Boolean).length} of ${SECTIONS.length} sections passed, ${got} of ${SECTIONS.length * 3} stars${best ? `; endless best ${fmt(best)}` : ""}`),
-    line(`${st.runs} runs, ${st.right} right and ${st.wrong} not, over all`));
+  part(body, "content").append(list);
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -374,8 +361,8 @@ bindSwitcher($("appsBtn"), "reckoning");
 document.querySelector(".rk-mark").innerHTML = APPS.find(a => a.id === "reckoning").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("againBtn").addEventListener("click", () => newRun(S.sec));
-$("nextBtn").addEventListener("click", () => newRun(Math.min(SECTIONS.length, S.sec + 1)));
+$("againBtn").addEventListener("click", () => newRun(S.sec, S.only ? { biome: S.only, seed: S.seed } : {}));
+$("nextBtn").addEventListener("click", () => newRun(Math.min(SECTIONS.length, (S.sec || 0) + 1)));
 onPause(() => { paused = true; swipes.clear(); log?.note(S, "paused (the menu or another screen is open)"); save(); }, () => { paused = false; last = performance.now(); log?.note(S, "carried on"); });
 
 // ---------- the log ----------
@@ -437,10 +424,9 @@ async function boot() {
     return;
   }
   done();
-  camp = readCamp();
   S = read(RUN, null);
   if (valid(S, SECTIONS)) { setDeal(S, deal); for (const g of S.world.gates) asks.set(g.q.id, g.q); }
-  if (!valid(S, SECTIONS)) newRun(camp.at);
+  if (!valid(S, SECTIONS)) newRun(0);
   else if (restoreLog(), S.over) { showResult(); drawPage(true); }
   else { hint(IN_FRAME ? "" : "Swipe to carry on."); drawPage(true); }
   requestAnimationFrame(tick);
@@ -449,7 +435,7 @@ async function boot() {
 // for tests and debugging
 window.__reckoning = {
   get state() { return S; }, set state(g) { S = g; if (deal) setDeal(S, deal); drawPage(true); },
-  get view() { return view; }, get running() { return running; }, get log() { return log; }, newRun, start, send, speed: () => speed(S),
+  get view() { return view; }, get running() { return running; }, get log() { return log; }, newRun, start, send, speed: () => speed(S), openMenu, openPlaytest,
   set frozen(v) { frozen = !!v; }, set held(v) { held = !!v; },
   /** Plays `seconds` of the run at once, events and all (as the clock would), then draws; with `frameDt`, frame by frame of that many
    *  seconds, drawing each as the page would (the camera and the hero's body move between frames), for a recording. */

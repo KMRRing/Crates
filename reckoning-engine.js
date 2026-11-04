@@ -50,6 +50,8 @@
 // the questions come from is the page's business: `deal(r, n, asked)` is a function giving { id, q, o: [3 texts], a, x,
 // about } (r a random number from 0 to 1; n how many gates have been made; asked their ids, to not ask twice).
 
+import { makeSegment, nextBiome, difficultyAt, rng as seeded, BIOMES, PIECES } from "./reckoning-biomes.js";
+
 export const LANE_W = 1.7;                 // metres between lane centres
 export const JUMP_H = 1.6;                 // a plain jump's peak: one "jump height"
 export const AIR_T = 0.72;                 // and its time in the air
@@ -119,16 +121,17 @@ const between = (S, a, b) => a + rnd(S) * (b - a);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 /** `launch`: the run sets off from a standstill (a third of the speed, up to full in 0.6 s) rather than at pace. */
-export function newGame({ seed = 1, deal = null, hearts = 3, launch = false, section = null } = {}) {
+export function newGame({ seed = 1, deal = null, hearts = 3, launch = false, section = null, biome = null } = {}) {
   const S = {
     v: 1, seed, rng: seed | 0, qrng: (seed ^ 0x9E3779B9) | 0,
     crng: (seed ^ 0x51ED270B) | 0, t: 0, over: false, hearts, maxHearts: hearts, score: 0, bonus: 0, kills: 0, chain: 0, bestChain: 0,
     right: 0, wrong: 0, missed: 0, streak: 0, falls: 0, fwd: launch ? 0.3 : 1,
     hero: { z: 0, x: 0, y: 0, vx: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0, roll: 0, rollQ: false, jumps: 0 },
-    world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], foes: [], gates: [], obs: [], pick: [], id: 1 },
+    world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], foes: [], gates: [], obs: [], pick: [], rows: [], zones: [], comp: { biome: null, left: 0, last: [], n: 0 }, id: 1 },
     pending: [], answers: [], asked: [], ev: [],
-    sec: 0, hits: 0, carried: {}, token: 0, flip: 0, inv: 0, won: false, coins: 0, gems: 0, broke: 0,
+    sec: 0, hits: 0, carried: {}, token: 0, flip: 0, inv: 0, won: false, coins: 0, gems: 0, broke: 0, set: {}, goal: { kind: "none", n: 0 }, bill: { want: [], bad: [] }, par: { hits: 0 },
   };
+  S.only = biome;                                                  // a run kept to one biome (the Playtest viewer): no other, no question
   setDeal(S, deal);
   if (section) beginSection(S, section);
   ensure(S);
@@ -142,7 +145,8 @@ export function valid(S, sections = null) {
   if (!S || S.v !== 1 || !S.hero || !S.world || !Array.isArray(S.world.foes)) return false;
   if (S.sec && (!sections || !sections[S.sec - 1] || !S.mods || !Number.isFinite(S.world.finish) || S.sig !== sectionSig(sections[S.sec - 1]))) return false;
   const W = S.world;
-  W.obs ||= []; W.pick ||= [];
+  W.obs ||= []; W.pick ||= []; W.rows ||= []; W.zones ||= []; W.comp ||= { biome: null, left: 0, last: [], n: 0 };
+  S.set ||= {}; S.goal ||= { kind: "none", n: 0 }; S.bill ||= { want: [], bad: [] }; S.par ||= { hits: 0 }; S.only ||= null;
   S.sec ||= 0; S.hits ||= 0; S.carried ||= {}; S.token ||= 0; S.flip ||= 0; S.inv ||= 0; S.won = !!S.won; S.coins ||= 0; S.gems ||= 0; S.broke ||= 0; if (!Number.isFinite(S.crng)) S.crng = (S.seed ^ 0x51ED270B) | 0;
   return true;
 }
@@ -170,23 +174,49 @@ export function ensure(S) {
   while (W.z1 < S.hero.z + LOOK) chunk(S);
 }
 
-// [kind, weight, first distance]
-const POOL = [["crabs", 5, 0], ["gulls", 3, 60], ["chain", 3, 140], ["wall", 3, 220], ["wallslam", 2, 330], ["rest", 1, 0]];
-
+/** The next stretch of quay: the start, a question's gap, or a segment from the composer. Segments come by biome, with a difficulty that rises with
+ *  the distance, no repeat of the last two, and a short transition between one biome and the next. */
 function chunk(S) {
-  const W = S.world, z0 = W.z1;
+  const W = S.world, z0 = W.z1, C = W.comp;
   W.chunks++; W.sinceGate++;
   let len;
-  if (W.chunks === 1) len = 18;                                   // the start: nothing to do yet
-  else if (S.deal && z0 >= GATE_FIRST && W.sinceGate >= GATE_EVERY) { len = gate(S, z0); W.sinceGate = 0; }
-  else {
-    const kinds = POOL.filter(k => z0 >= k[2]);
-    let r = rnd(S) * kinds.reduce((n, k) => n + k[1], 0), kind = kinds[0][0];
-    for (const k of kinds) { if ((r -= k[1]) < 0) { kind = k[0]; break; } }
-    len = CHUNKS[kind](S, z0);
-  }
-  if (W.chunks > 1) sprinkle(S, z0, z0 + len);
+  if (W.chunks === 1) { len = 18; W.zones.push({ z0, z1: z0 + len, biome: S.only || "quays", name: "start" }); }
+  else if (S.deal && !S.only && z0 >= GATE_FIRST && W.sinceGate >= GATE_EVERY) { len = gate(S, z0); W.sinceGate = 0; W.zones.push({ z0, z1: z0 + len, biome: C.biome || "quays", name: "question" }); }
+  else len = compose(S, z0);
+  if (W.chunks > 1 && !W.skipCoins) sprinkle(S, z0, z0 + len);
   W.z1 = z0 + len;
+}
+
+/** Picks and builds the next segment (see reckoning-biomes.js). */
+function compose(S, z0) {
+  const W = S.world, C = W.comp, d = difficultyAt(z0), r = seeded(S.seed * 31 + C.n * 7919 + 11);
+  C.n++;
+  let seg;
+  if (!C.biome || (C.left <= 0 && !S.only)) {                      // a new biome: a short stretch between, the way the old one runs out into the new
+    const to = S.only || (C.biome ? nextBiome(C.biome, r) : "quays");
+    const first = !C.biome;
+    C.biome = to; C.left = 3 + Math.floor(r() * 3);
+    if (!first) {
+      seg = { kind: "transition", biome: to, id: `to:${to}`, rows: ["!rest 6", ". . .", "!rest 4"], pitch: 11 };
+      W.zones.push({ z0, z1: z0 + 21, biome: to, name: "transition", kind: "transition" });
+      return buildSegment(S, seg, z0, false);
+    }
+  }
+  for (let tries = 0; tries < 8; tries++) {
+    seg = makeSegment(C.biome, Math.floor(r() * 2 ** 30), d, tries > 3 ? "gen" : null);
+    if (!C.last.includes(seg.id)) break;                            // no immediate repeats of a made or partial piece (a generated one is new by its seed)
+  }
+  C.last.push(seg.id); if (C.last.length > 2) C.last.shift();
+  C.left--;
+  return buildSegment(S, seg, z0, true);
+}
+
+/** Builds a segment's rows at z0 and notes its zone; returns the length. */
+export function buildSegment(S, seg, z0, zone = true) {
+  const W = S.world;
+  const end = buildRows(S, seg.rows, z0, Math.max(seg.pitch, Math.ceil(speedAt(z0) * 0.8 + 2.5)));      // rows a jump apart at least: a barrel's jump carries 0.72 s of running
+  if (zone) W.zones.push({ z0, z1: end + 4, biome: seg.biome, name: seg.name, kind: seg.kind, id: seg.id });
+  return end + 4 - z0;
 }
 
 const reach = z => speedAt(z) * AIR_T;                            // how far a plain jump carries
@@ -332,7 +362,7 @@ export const loadFactor = S => (S.mods?.laden ? Math.max(LOAD_MIN, 1 - LOAD_LESS
 export function solid(S, o) {
   switch (o.kind) {
     case "toll": return S.token !== o.mark;
-    case "bridge": return S.flip === o.flip;
+    case "bridge": return bridgeUp(S, o);
     case "tide": return tide(S, o).state === "shut" || tide(S, o).state === "opening";
     default: return true;
   }
@@ -346,7 +376,7 @@ export function tide(S, o) {
   return { state: toShift <= TIDE_WARN ? "opening" : "shut", left: toShift };
 }
 /** Which colour a drawbridge is (0 red, 1 blue), and whether it is up (shut to the hero) now. */
-export const bridgeUp = (S, o) => S.flip === o.flip;
+export const bridgeUp = (S, o) => (o.link ? !S.set[o.link] : S.flip === o.flip);
 /** The colour the next lever step lowers: the bridges that are up now. */
 export const leverLowers = S => S.flip;
 
@@ -362,7 +392,7 @@ function pickup(S, kind, lane, z, extra = {}) {
   return p;
 }
 
-function cell(S, tok, lane, z) {
+function cell(S, tok, lane, z, ctx = {}) {
   switch (tok) {
     case ".": return;
     case "c": foe(S, "crab", lane, z); return;
@@ -381,8 +411,13 @@ function cell(S, tok, lane, z) {
     case "1": case "2": case "3": pickup(S, "token", lane, z, { mark: +tok }); return;
   }
   if (GOODS[tok]) { pickup(S, GOODS[tok], lane, z, { good: true }); return; }
-  const m = /^([TFW])(\d)$/.exec(tok);
+  const m = /^([TFWKJ])(\d)$/.exec(tok);
   if (!m) throw new Error(`Courier: unknown cell "${tok}"`);
+  if (m[1] === "K" || m[1] === "J") {                               // a lever and the bridges tied to it alone (K1 lowers every J1 after it): nothing else is affected
+    const n = +m[2], link = (ctx.links ||= {})[n] ??= S.world.id++, col = (n - 1) % 2;
+    if (m[1] === "K") pickup(S, "lever", lane, z, { link, col }); else obstacle(S, "bridge", lane, z, { link, flip: col });
+    return;
+  }
   if (m[1] === "T") obstacle(S, "toll", lane, z, { mark: +m[2] });
   else if (m[1] === "F") obstacle(S, "bridge", lane, z, { flip: +m[2] });
   else obstacle(S, "tide", lane, z, { ph: +m[2] / 3 });
@@ -396,18 +431,10 @@ export function sectionSig(def) {
   return (h >>> 0).toString(36);
 }
 
-/** Makes a section's quay whole, as `def` (reckoning-sections.js) describes it. */
-export function beginSection(S, def) {
-  const W = S.world;
-  S.sec = def.id; S.sig = sectionSig(def); S.rng = (def.id * 7919 + 17) | 0; S.crng = (def.id * 104729 + 5) | 0;              // the quay is the same every time; only the questions are dealt afresh
-  S.hearts = S.maxHearts = def.hearts ?? 3;
-  S.mods = { v0: def.v0, v1: def.v1 ?? def.v0, omega: def.omega || 0, laden: def.laden || 0, fog: def.fog || 0 };
-  S.bill = { want: def.bill?.want || [], bad: def.bill?.bad || [] };
-  S.goal = def.goal || { kind: "none", n: 0 };
-  S.par = def.par || { hits: 0 };
-  W.rows = [];
-  let z = def.lead ?? 16, pitch = def.gap;
-  for (const row of def.rows) {
+/** Lays rows on the quay from z (one every `pitch` metres; `!` commands lay the old pieces) and returns where the next would be. */
+export function buildRows(S, rows, z, pitch) {
+  const W = S.world, ctx = {};
+  for (const row of rows) {
     if (row[0] === "!") {
       const [cmd, arg] = row.slice(1).split(" ");
       const n = +arg;
@@ -421,10 +448,24 @@ export function beginSection(S, def) {
     }
     const cells = row.trim().split(/\s+/);
     if (cells.length !== 3) throw new Error(`Courier: a row has three cells: "${row}"`);
-    cells.forEach((tok, i) => cell(S, tok, i - 1, z));
+    cells.forEach((tok, i) => cell(S, tok, i - 1, z, ctx));
     W.rows.push(z);
     z += pitch;
   }
+  return z;
+}
+
+/** Makes a section's quay whole, as `def` (reckoning-sections.js) describes it. */
+export function beginSection(S, def) {
+  const W = S.world;
+  S.sec = def.id; S.sig = sectionSig(def); S.rng = (def.id * 7919 + 17) | 0; S.crng = (def.id * 104729 + 5) | 0;              // the quay is the same every time; only the questions are dealt afresh
+  S.hearts = S.maxHearts = def.hearts ?? 3;
+  S.mods = { v0: def.v0, v1: def.v1 ?? def.v0, omega: def.omega || 0, laden: def.laden || 0, fog: def.fog || 0 };
+  S.bill = { want: def.bill?.want || [], bad: def.bill?.bad || [] };
+  S.goal = def.goal || { kind: "none", n: 0 };
+  S.par = def.par || { hits: 0 };
+  W.rows = [];
+  const z = buildRows(S, def.rows, def.lead ?? 16, def.gap);
   W.finish = z + 6; W.z1 = W.finish + 30;
   if (def.coins !== false) sprinkle(S, def.lead ?? 16, W.finish);
   S.world.foes.sort((a, b) => a.z - b.z);
@@ -457,7 +498,7 @@ function bump(S, o) {
 function take1(S, p) {
   switch (p.kind) {
     case "token": S.token = p.mark; break;
-    case "lever": S.flip ^= 1; break;
+    case "lever": if (p.link) S.set[p.link] = 1; else S.flip ^= 1; break;
     case "meal": if (S.hearts < S.maxHearts) { S.hearts++; S.ev.push({ type: "heart", hearts: S.hearts }); } break;
     case "coin": S.coins++; S.ev.push({ type: "pick", what: "coin", id: p.id, n: S.coins }); return;
     case "gem":                                                   // amber: a heart back, or a heart more (up to GEM_MAX_HEARTS)
@@ -1027,4 +1068,6 @@ function prune(S) {
   W.gates = W.gates.filter(g => g.p1 > z);
   W.obs = W.obs.filter(o => o.z > z);
   W.pick = W.pick.filter(p => p.z > z);
+  W.rows = W.rows.filter(r => r > z);
+  W.zones = W.zones.filter(q => q.z1 > z);
 }

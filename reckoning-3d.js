@@ -14,6 +14,7 @@
 import * as THREE from "./vendor/three-run.js";
 import { LANE_W, WALL_X, KINDS, ROLL_T, JUMP_V, speed, solid, tide, bridgeUp } from "./reckoning-engine.js";
 import { Spring, Inertia, Streamer, CameraRig, clamp, lerp, ease } from "./reckoning-move.js";
+import { BIOMES } from "./reckoning-biomes.js";
 
 const BEND = 0.0013;                    // how fast the world drops away: metres of fall per metre-squared of distance
 const BEND_FROM = 9;                    // from this far in front of the camera (the hero is nearer, and stays level)
@@ -191,11 +192,17 @@ export function createRunner(host) {
   const roofs = new THREE.InstancedMesh(box, M.roof, HOUSES * 2); roofs.frustumCulled = false; world.add(roofs);
   const BOLLARDS = 24;
   const posts = new THREE.InstancedMesh(cyl, M.timber, BOLLARDS * 2); posts.frustumCulled = false; world.add(posts);
+  // what the houses along the quay are made of, by biome: brick and ochre by the harbour, straw and clay on the salt road, mossy greens in the pass,
+  // dark stone in the cellar, hull-brown by the ship, pale render by the canal
+  let biomeNow = "quays";
+  const TONES = { salt: [[196, 160, 96], [176, 128, 76], [214, 186, 128]], forest: [[70, 98, 62], [52, 80, 56], [96, 112, 70]], tunnel: [[60, 56, 62], [48, 46, 54], [72, 66, 70]], ship: [[104, 72, 48], [84, 60, 44], [120, 90, 62]], canal: [[206, 196, 172], [186, 168, 150], [150, 164, 160]] };
+  const biomeTones = () => (TONES[biomeNow] ? TONES[biomeNow].map(c => (night() ? mix(c, [40, 62, 92], 0.35) : c)) : pal.tones);
   function recolour(inst) {
     const c = new THREE.Color();
     for (let i = 0; i < inst.count; i++) {
       const s = inst.userData.shade ? inst.userData.shade[i] : 0.5;
-      col(mix(pal.tones[Math.min(pal.tones.length - 1, Math.floor(s * pal.tones.length))], pal.sky, 0.16), c);
+      const tones = biomeTones();
+      col(mix(tones[Math.min(tones.length - 1, Math.floor(s * tones.length))], pal.sky, 0.16), c);
       inst.setColorAt(i, c);
     }
     if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
@@ -483,6 +490,7 @@ export function createRunner(host) {
       const key = (it.kind === "salt" || it.kind === "furs" || it.kind === "wax" ? "sack:" : "") + keyKind + ":" + (it.mark || 0) + ":" + (it.flip ?? "");
       seen.add(it.id);
       let T = things.get(it.id);
+      if (T && T.key !== key) { hideThing(T); thingFree.push(T); things.delete(it.id); T = null; }       // (a new run counts its ids from one again)
       if (!T) {
         const i = thingFree.findIndex(x => x.key === key);
         if (i >= 0) T = thingFree.splice(i, 1)[0]; else { T = makeThing(keyKind, it); T.key = key; }
@@ -614,6 +622,7 @@ export function createRunner(host) {
   const streakAt = Array.from({ length: STREAKS }, (_, i) => ({ x: (i % 2 ? 1 : -1) * (2.2 + hash(i * 5.7 + 1) * 4.8), y: 0.4 + hash(i * 9.3 + 2) * 4.4, z: hash(i * 2.3 + 3) * STREAK_R, len: 0.6 + hash(i * 7.7 + 4) * 1.1 }));
 
   // ---------- drawing ----------
+  let bk = 0;                                            // 0 to 1: how far into the cellar the fog has closed in
   let now = 0, shake = 0, W = 1, H = 1, blink = 0, baseFov = 70, idleT = 0;
   const cam = new CameraRig();
   function resize() {
@@ -970,7 +979,14 @@ export function createRunner(host) {
     drawThings(S, hz, z1, dt);
     finish.visible = S.sec > 0 && W_.finish > z0 && W_.finish < z1;
     finish.position.z = W_.finish || 0;
-    const fogFar = S.mods?.fog ? S.mods.fog : 105, fogNear = S.mods?.fog ? 4 : 28;
+    const zone = W_.zones && W_.zones.find(q => hz >= q.z0 && hz < q.z1), bio = S.sec ? "quays" : (zone && zone.biome) || biomeNow;
+    if (bio !== biomeNow) { biomeNow = bio; houses.userData.tinted = null; }
+    const tint = BIOMES[bio]?.tint || BIOMES.quays.tint;
+    bk += ((BIOMES[bio]?.dark ? 1 : 0) - bk) * Math.min(1, (dt || 0.016) * 1.5);
+    const k = night() ? 0.5 : 1, off = tint.sky.map(x => x * k);
+    const skyc = mix(mix(pal.sky, [pal.sky[0] + off[0], pal.sky[1] + off[1], pal.sky[2] + off[2]], 1), [24, 22, 28], bk * 0.8);
+    scene.background = col(skyc); scene.fog.color = col(skyc);
+    const fogFar = S.mods?.fog ? S.mods.fog : bk > 0.5 ? 46 : 105, fogNear = S.mods?.fog ? 4 : bk > 0.5 ? 6 : 28;
     scene.fog.far += (fogFar - scene.fog.far) * Math.min(1, (dt || 1) * 3); scene.fog.near += (fogNear - scene.fog.near) * Math.min(1, (dt || 1) * 3);
 
     // the hero

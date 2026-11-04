@@ -1,7 +1,7 @@
 // Courier's rules (reckoning-engine.js) and its feel (reckoning-move.js): the jump, the five ways a swipe attacks (a foe in front, to the side, above,
 // the bonk and the slam), the wall run, the air chain over a pit, the question gate over the water, the quay from a seed
 // and a bot playing whole stretches of it (every kind of chunk is winnable with the swipes the rules give).
-import { bot } from "./reckoning-bot.js";
+import { bot, botStep } from "./reckoning-bot.js";
 import { RunLog, describe } from "../reckoning-log.js";
 import { Spring, Inertia, Streamer, CameraRig } from "../reckoning-move.js";
 import { MAX_QUESTION, MAX_ANSWER, load, dealer } from "../reckoning-questions.js";
@@ -726,9 +726,9 @@ const events = S => take(S).map(e => e.type);
   check(JSON.stringify(a.world) === JSON.stringify(b.world) && JSON.stringify(a.world) !== JSON.stringify(c.world), "the same seed makes the same quay, another seed another");
   const d = copy(a);
   check(JSON.stringify(d) === JSON.stringify(a) && !Object.keys(a).includes("deal"), "a game copies through JSON, the question dealer kept off it");
-  const kinds = new Set(); const s = newGame({ seed: 9 }); s.hero.z = 900; ensure(s);
-  s.world.foes.forEach(f => kinds.add(f.kind));
-  check(kinds.has("crab") && kinds.has("gull") && s.world.pits.length > 0 && s.world.walls.length > 0, "crabs, gulls, pits and walls all come");
+  const kinds = new Set(); let pits = 0, walls = 0;
+  for (const seed of [9, 10, 11]) { const s = newGame({ seed }); for (let z = 0; z <= 2400; z += 100) { s.hero.z = z; ensure(s); s.world.foes.forEach(f => kinds.add(f.kind)); pits += s.world.pits.length; walls += s.world.walls.length; } }
+  check(kinds.has("crab") && kinds.has("gull") && kinds.has("barrel") && kinds.has("balloon") && pits > 0 && walls > 0, "crabs, gulls, barrels, balloons, pits and walls all come");
   const before = JSON.stringify(newGame({ seed: 11, deal: () => ({ id: "x", o: ["a", "b", "c"], a: 1 }) }).world.foes.slice(0, 3));
   check(before === JSON.stringify(newGame({ seed: 11, deal: () => ({ id: "y", o: ["a", "b", "c"], a: 0 }) }).world.foes.slice(0, 3)), "the questions dealt do not move the quay");
 }
@@ -833,7 +833,7 @@ const events = S => take(S).map(e => e.type);
     const st = { next: 0, slamAfter: 0 };
     let steps = 0;
     while (!S.over && S.hero.z < 1800 && steps++ < 300000) {
-      bot(S, st); step(S, DT);
+      botStep(S, st); step(S, DT);
       if (process.env.RECKONING_DEBUG) for (const e of S.ev) if (["hurt", "fall", "clang"].includes(e.type)) {
         const h = S.hero, near = S.world.foes.filter(f => Math.abs(f.z - h.z) < 6).map(f => `${f.kind}${f.alive ? "" : "x"}${f.spent ? "s" : ""}@l${f.lane},${(f.z - h.z).toFixed(1)}`);
         console.log(`   seed ${seed} swipes ${st.log.join(' ')}\n   seed ${seed} t=${S.t.toFixed(2)} ${e.type} z=${h.z.toFixed(1)} lane=${h.lane} y=${h.y.toFixed(2)} ${h.mode} near: ${near.join(" ")}; walls ${S.world.walls.map(w => `${w.side}:${(w.z0 - h.z).toFixed(0)}..${(w.z1 - h.z).toFixed(0)}`)}; pits ${S.world.pits.map(p => `${(p.z0 - h.z).toFixed(0)}..${(p.z1 - h.z).toFixed(0)}`)}`);

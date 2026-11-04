@@ -108,3 +108,9 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
 .rk-sname { grid-area: name; font-size: .8rem; font-weight: 750; line-height: 1.15; overflow-wrap: anywhere; }
 .rk-splace { grid-area: place; font-size: .7rem; color: var(--ink-soft); line-height: 1.2; }
 .rk-sstars { grid-area: stars; font-size: .72rem; letter-spacing: .08em; color: var(--rk-in); }
+
+/* Playtest: a seed row under the biome choice; the ideas below are plain buttons with their one line */
+.rk-seedrow { display: flex; align-items: center; gap: .4rem; margin: .4rem 0; }
+.rk-seed { flex: 1; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rk-secs button { grid-template-areas: "n name" "n place"; }
+.rk-splace { overflow-wrap: anywhere; }

@@ -77,7 +77,7 @@ function cellsAt(S, z) {
 
 /** When the hero reaches metre z, in the run's seconds: the run is played forward in small steps (the pace comes back after a start or a hit). */
 function arrival(S, z) {
-  const m = S.mods, dt = 1 / 60;
+  const m = S.mods || { v0: 10, v1: 16 }, dt = 1 / 60;
   let t = S.t, zz = S.hero.z, fwd = S.fwd;
   for (let n = 0; zz < z && n < 4000; n++) {
     fwd = Math.min(1, fwd + (1 - fwd) * (1 - Math.exp(-dt * 6)) + dt * 0.4);
@@ -88,8 +88,9 @@ function arrival(S, z) {
 }
 
 /** How a lane fares in a row, for a hero who has `flip` and `token`: { cost, gain, out (the lane he ends in), flip, token }. */
-function laneFares(S, cells, L, flip, token, t) {
-  const probe = { flip, token, t };
+function laneFares(S, cells, L, flip, token, t, sets = []) {
+  const probe = { flip, token, t, set: Object.fromEntries(sets.map(k => [k, 1]).concat(Object.entries(S.set))) };
+  let nsets = sets;
   let cost = 0, gain = 0, out = L, nflip = flip, ntoken = token;
   const kill = S.goal.kind === "kills" ? 1.2 : 0;                  // when foes are what is counted, a cut is worth going for
   const crabs = [-1, 0, 1].filter(l => cells[l + 1].some(f => f.kind === "crab"));
@@ -104,28 +105,28 @@ function laneFares(S, cells, L, flip, token, t) {
       if (margin.some(m => solid({ ...probe, t: t + m }, it))) cost += it.kind === "barrel" || it.kind === "beam" ? 0.2 : BIG;
     } else if (it.kind === "crab") cost += (it.heavy ? 0.6 : 0.3) - kill;
     else if (it.taken === false) {
-      if (it.kind === "lever") nflip ^= 1;
+      if (it.kind === "lever") { if (it.link) nsets = [...nsets, it.link]; else nflip ^= 1; }
       else if (it.kind === "token") ntoken = it.mark;
       else if (S.bill.bad.includes(it.kind)) cost += BIG / 2;
       else if (S.bill.want.includes(it.kind)) gain += 1.5;
       else gain += 0.1;
     }
   }
-  return { cost, gain, out, flip: nflip, token: ntoken };
+  return { cost, gain, out, flip: nflip, token: ntoken, sets: nsets };
 }
 
 /** The lane to be in for the next row, found by a search over all the rows to come: lane, lever and token are its state. */
 export function planLane(S) {
   const h = S.hero, rows = S.world.rows.filter(z => z > h.z - 1.3);
   if (!rows.length) return null;
-  let layer = new Map([[`${h.lane}|${S.flip}|${S.token}`, { score: 0, first: null, e: h.lane, flip: S.flip, token: S.token }]]);
+  let layer = new Map([[`${h.lane}|${S.flip}|${S.token}|`, { score: 0, first: null, e: h.lane, flip: S.flip, token: S.token, sets: [] }]]);
   rows.forEach((z, r) => {
     const cells = cellsAt(S, z), t = arrival(S, z), next = new Map();
     for (const st of layer.values()) for (const L of [-1, 0, 1]) {
-      const o = laneFares(S, cells, L, st.flip, st.token, t);
+      const o = laneFares(S, cells, L, st.flip, st.token, t, st.sets);
       const score = st.score + o.cost - o.gain + 0.05 * Math.abs(L - st.e);
-      const key = `${o.out}|${o.flip}|${o.token}`, old = next.get(key);
-      if (!old || score < old.score) next.set(key, { score, first: r === 0 ? L : st.first, e: o.out, flip: o.flip, token: o.token });
+      const key = `${o.out}|${o.flip}|${o.token}|${o.sets.join(",")}`, old = next.get(key);
+      if (!old || score < old.score) next.set(key, { score, first: r === 0 ? L : st.first, e: o.out, flip: o.flip, token: o.token, sets: o.sets });
     }
     layer = next;
   });
@@ -191,8 +192,8 @@ export function rowBot(S, st) {
 /** One tick of the right bot: the old one near a gate, a wall or a gap with gulls over it, the rows' bot elsewhere. */
 export function botStep(S, st) {
   const z = S.hero.z, W = S.world;
-  const old = W.gates.some(g => g.state === "open" && g.p0 - z < 60) || W.walls.some(w => w.z1 > z && w.z0 - z < 40) || W.pits.some(p => !p.gap && p.z1 > z && p.z0 - z < 40);
-  return old ? bot(S, st) : rowBot(S, st);
+  const old = W.gates.some(g => g.state === "open" && g.p0 - z < 60) || W.walls.some(w => w.z1 > z && w.z0 - z < 30) || W.pits.some(p => !p.gap && p.z1 > z && p.z0 - z < 28);
+  return old || (st.slamAfter && S.hero.mode === "air") ? bot(S, st) : rowBot(S, st);
 }
 
 /** Plays a section from its start with the rows' bot, and the old one for the pieces of the old quay; returns the run. */
