@@ -7,6 +7,10 @@
 // read when the run is dealt. Together, one run for the table (together.js): the same five countries for everyone at it,
 // the clues, the guesses and the score shared, anyone guessing, each guess marked with who made it.
 import { COUNTRIES } from "./chart-countries.js";
+import { WORLD, turn, zoom as zoomGlobe } from "./chart-globe.js";
+import { fingers, worldView, clampView, viewWindow, merc } from "./chart-engine.js";
+import { defaultIs3D, onDefaultChange } from "./mode3d.js";
+import { draw as drawGlobe, drawFlat, flatFor, pick as pickCountry, viewOf, A_MIN, A_MAX } from "./origin-globe.js";
 import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, topicsOf, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
   freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } from "./origin-engine.js";
 import { subjectPreset, showStar } from "./topics.js";
@@ -49,116 +53,83 @@ function heatColour(t) {
 const WORDS = [[.9, "scorching"], [.75, "hot"], [.55, "warm"], [.35, "cool"], [.15, "cold"], [0, "freezing"]];
 const warmthWord = t => WORDS.find(([at]) => t >= at)[1];          // for screen readers only
 
-// ---------- the map: every country on Chart's outlines; drag to move it, pinch, scroll or the buttons to zoom; a tap
-// names a country, a second tap on it guesses it. The map moves by its own view (the SVG's viewBox), not by scrolling,
-// so a drag works with a mouse as well as a finger and there are no scrollbars ----------
-const NS = "http://www.w3.org/2000/svg", W = 1000, LAT_TOP = 84, LAT_BOTTOM = -57;
-const H = Math.round(W * (LAT_TOP - LAT_BOTTOM) / 360);
-const px = ([lon, lat]) => [((lon + 180) / 360) * W, ((LAT_TOP - lat) / (LAT_TOP - LAT_BOTTOM)) * H];
-const MIN_W = W / 14, LABEL_PX = 34;                            // the closest zoom; a country's name shows once it's this wide on screen
-let view = null, chosen = null;
-const shapes = new Map(), labels = [];
-function drawMap() {
-  const svg = $("map");
-  const land = document.createElementNS(NS, "g"), names = document.createElementNS(NS, "g");
-  names.setAttribute("class", "og-names");
-  for (const c of COUNTRIES) {
-    const id = c.about || c.id;
-    // one subpath per ring; a ring that crosses the date line breaks there rather than streaking across the map
-    let d = "", minX = Infinity, maxX = -Infinity;
-    for (const ring of c.rings || []) {
-      let prev = null;
-      ring.forEach(p => {
-        const [x, y] = px(p);
-        d += `${prev === null || Math.abs(p[0] - prev) > 180 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
-        prev = p[0]; minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-      });
-      d += "Z";
-    }
-    const path = document.createElementNS(NS, "path");
-    path.setAttribute("d", d);
-    path.setAttribute("class", "og-c");
-    path.dataset.id = id;
-    const t = document.createElementNS(NS, "title"); t.textContent = c.name; path.append(t);
-    land.append(path); shapes.set(id, path);
-    const [x, y] = px([c.lon, c.lat]), label = document.createElementNS(NS, "text");
-    label.setAttribute("x", x.toFixed(1)); label.setAttribute("y", y.toFixed(1)); label.setAttribute("text-anchor", "middle");
-    label.textContent = c.name; names.append(label);
-    labels.push({ label, width: Math.min(maxX - minX, W / 4) });
-  }
-  svg.append(land, names);
-  const box = svg.getBoundingClientRect();
-  view = { w: W / 2.2, h: (W / 2.2) * (box.height / Math.max(1, box.width)) };
-  const [cx, cy] = px([20, 25]);
-  view.x = cx - view.w / 2; view.y = cy - view.h / 2;
-  show();
-}
-/** Draws the current view, kept inside the map; names and lines keep their size on screen at any zoom. */
-function show() {
-  const svg = $("map"), box = svg.getBoundingClientRect(), aspect = box.height / Math.max(1, box.width);
-  view.w = Math.min(W, Math.max(MIN_W, view.w)); view.h = view.w * aspect;
-  view.x = Math.min(W - view.w, Math.max(0, view.x));
-  view.y = view.h >= H ? (H - view.h) / 2 : Math.min(H - view.h, Math.max(0, view.y));
-  svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
-  const k = view.w / Math.max(1, box.width);                    // map units per screen pixel
-  svg.style.setProperty("--k", String(k));
-  for (const { label, width } of labels) label.style.display = width / k >= LABEL_PX ? "" : "none";
-  $("zoomIn").disabled = view.w <= MIN_W + 1e-6; $("zoomOut").disabled = view.w >= W - 1e-6;
-}
-/** Zooms by a factor around a point on screen (client coordinates); without one, around the middle. */
-function zoomBy(factor, at) {
-  const box = $("map").getBoundingClientRect();
-  const fx = at ? (at.x - box.left) / box.width : .5, fy = at ? (at.y - box.top) / box.height : .5;
-  const wx = view.x + fx * view.w, wy = view.y + fy * view.h;
-  view.w = Math.min(W, Math.max(MIN_W, view.w * factor));
-  view.h = view.w * box.height / Math.max(1, box.width);
-  view.x = wx - fx * view.w; view.y = wy - fy * view.h;
-  show();
-}
-// pointers: one moves the map (a tap if it barely moved), two pinch
-const pointers = new Map();
-let gesture = null;
-function wireMap() {
-  const svg = $("map");
-  svg.addEventListener("pointerdown", e => {
-    svg.setPointerCapture(e.pointerId);
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const box = svg.getBoundingClientRect(), pts = [...pointers.values()];
-    gesture = pts.length === 1
-      ? { kind: "pan", from: pts[0], view: { ...view }, moved: false, scale: view.w / box.width }
-      : { kind: "pinch", d: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), w: view.w, moved: true };
+// ---------- the map: Chart's globe (chart-globe.js's camera, origin-globe.js's drawing); drag to spin it, pinch, scroll or the
+// buttons to zoom; a tap names a country, a second tap on it guesses it. Chart has no flat fallback for battery saver
+// that differs in kind (its 2D map is a different projection of the same land), and a globe drawn on demand only costs
+// what a drag costs, so Origin draws only when something changes and turns without animation under reduced motion ----------
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const flat = () => !defaultIs3D();                              // battery saver (Settings' 2D mode): Chart's flat map instead
+let view = { ...WORLD }, fview = worldView(), chosen = null, framed = null, drawQueued = false, turning = 0;
+const size = () => { const r = $("map").getBoundingClientRect(); return [Math.max(1, r.width), Math.max(1, r.height)]; };
+function redraw() {
+  if (drawQueued) return;
+  drawQueued = true;
+  requestAnimationFrame(() => {
+    drawQueued = false;
+    const canvas = $("map"), [w, h] = size(), dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (flat()) { drawFlat(ctx, w, h, fview, paintNow(), css); $("zoomIn").disabled = fview.span <= 1.5 + 1e-6; $("zoomOut").disabled = fview.span >= 360 - 1e-6; }
+    else { drawGlobe(ctx, w, h, view, paintNow(), css); $("zoomIn").disabled = view.a <= A_MIN + 1e-6; $("zoomOut").disabled = view.a >= A_MAX - 1e-6; }
   });
-  svg.addEventListener("pointermove", e => {
-    if (!pointers.has(e.pointerId) || !gesture) return;
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const pts = [...pointers.values()];
-    if (gesture.kind === "pan" && pts.length === 1) {
-      const dx = pts[0].x - gesture.from.x, dy = pts[0].y - gesture.from.y;
-      if (Math.hypot(dx, dy) > 6) gesture.moved = true;
-      if (!gesture.moved) return;
-      view.x = gesture.view.x - dx * gesture.scale; view.y = gesture.view.y - dy * gesture.scale;
-      show();
-    } else if (gesture.kind === "pinch" && pts.length >= 2) {
-      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-      zoomBy((gesture.w * gesture.d / Math.max(1, d)) / view.w, { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 });
-    }
-  });
-  const end = e => {
-    if (!pointers.has(e.pointerId)) return;
-    pointers.delete(e.pointerId);
-    if (gesture?.kind === "pan" && !gesture.moved && e.type === "pointerup") {        // a tap: the country under it
-      const hit = document.elementsFromPoint(e.clientX, e.clientY).find(n => n.classList?.contains("og-c"));
-      if (hit) tapCountry(hit.dataset.id);
-    }
-    if (!pointers.size) gesture = null;
-    else if (pointers.size === 1) { const p = [...pointers.values()][0]; gesture = { kind: "pan", from: p, view: { ...view }, moved: true, scale: view.w / $("map").getBoundingClientRect().width }; }
+}
+/** Turns the globe gently to a view's middle (and zoom, if it has one); jumps with reduced motion. */
+function turnTo(id, keepZoom) {
+  cancelAnimationFrame(turning);
+  if (flat()) { fview = clampView(viewOf(id, 14, true), ...size()); redraw(); return; }
+  const to = keepZoom ? { ...viewOf(id), a: undefined } : viewOf(id);
+  const from = { ...view }, t0 = performance.now(), still = matchMedia("(prefers-reduced-motion: reduce)").matches, dLon = ((to.lon - from.lon + 540) % 360) - 180;
+  const step = now => {
+    const f = still ? 1 : Math.min(1, (now - t0) / 700), e = f * f * (3 - 2 * f);
+    view = { lon: from.lon + dLon * e, lat: from.lat + (to.lat - from.lat) * e, a: to.a === undefined ? from.a : from.a + (to.a - from.a) * e };
+    redraw();
+    if (f < 1) turning = requestAnimationFrame(step);
   };
-  svg.addEventListener("pointerup", end);
-  svg.addEventListener("pointercancel", end);
-  svg.addEventListener("wheel", e => { e.preventDefault(); zoomBy(Math.exp(e.deltaY * 0.0015), { x: e.clientX, y: e.clientY }); }, { passive: false });
-  $("zoomIn").addEventListener("click", () => zoomBy(1 / 1.6));
-  $("zoomOut").addEventListener("click", () => zoomBy(1.6));
-  addEventListener("resize", () => view && show());
+  turning = requestAnimationFrame(step);
+}
+function zoomBy(factor, at) {
+  cancelAnimationFrame(turning);
+  if (!flat()) { view = zoomGlobe(view, factor); redraw(); return; }
+  const [w, h] = size(), [px, py] = at || [w / 2, h / 2], before = flatFor(fview, w, h).toLonLat(px, py);
+  fview = clampView({ ...fview, span: fview.span / factor }, w, h);
+  const after = flatFor(fview, w, h).toLonLat(px, py);                // zoom about the point so it stays under the fingers
+  fview = clampView({ ...fview, lon: fview.lon + before[0] - after[0], my: fview.my + merc(before[1]) - merc(after[1]) }, w, h);
+  redraw();
+}
+// pointers: Chart's own finger counting (one turns the globe, two pinch, a still lift is a tap)
+function wireMap() {
+  const canvas = $("map"), touch = fingers();
+  const at = e => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  for (const type of ["gesturestart", "gesturechange", "gestureend"]) canvas.addEventListener(type, e => e.preventDefault(), { passive: false });
+  canvas.addEventListener("pointerdown", e => {
+    try { canvas.setPointerCapture(e.pointerId); } catch { /* a synthetic pointer */ }
+    cancelAnimationFrame(turning);
+    touch.down(e.pointerId, ...at(e), e.isPrimary);
+  });
+  canvas.addEventListener("pointermove", e => {
+    const g = touch.move(e.pointerId, ...at(e));
+    if (!g) return;
+    const [w, h] = size();
+    if (flat()) {
+      if (g.zoom) zoomBy(g.zoom, g.about);
+      const win = viewWindow(fview, w, h), [dx, dy] = g.pan;
+      fview = clampView({ lon: fview.lon - dx / w * (win.lon1 - win.lon0), my: fview.my + dy / h * (merc(win.lat1) - merc(win.lat0)), span: fview.span }, w, h);
+    } else view = turn(g.zoom ? zoomGlobe(view, g.zoom) : view, ...g.pan, Math.min(w, h));
+    redraw();
+  });
+  const up = e => {
+    const tap = touch.up(e.pointerId, e.type !== "pointerup")?.tap;
+    if (!tap) return;
+    const id = pickCountry(flat() ? fview : view, ...size(), ...tap, flat());
+    if (id) tapCountry(id);
+  };
+  canvas.addEventListener("pointerup", up);
+  canvas.addEventListener("pointercancel", up);
+  canvas.addEventListener("wheel", e => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.2 : 1 / 1.2, at(e)); }, { passive: false });
+  $("zoomIn").addEventListener("click", () => zoomBy(1.6));
+  $("zoomOut").addEventListener("click", () => zoomBy(1 / 1.6));
+  addEventListener("resize", redraw);
 }
 function tapCountry(id) {
   const R = round();
@@ -169,16 +140,27 @@ function tapCountry(id) {
   hideSuggest();
   colourMap();
 }
+/** What the globe paints: guessed countries in their warmth, the answer green once it is decided, the one named. */
+function paintNow() {
+  const R = round(), fills = new Map();
+  for (const id of R?.guesses || []) fills.set(id, heatColour(heat(away(id, R.id).km)));
+  return { fills, answer: R?.done ? R.id : null, chosen: R?.done ? null : chosen };
+}
+/** Redraws, and turns to a country just guessed, or at the end to the answer: never to the answer before. */
 function colourMap() {
-  const R = round();
-  for (const [id, path] of shapes) {
-    let cls = "og-c";
-    path.style.removeProperty("fill");
-    if (R?.guesses.includes(id)) { cls += " og-guessed"; path.style.fill = heatColour(heat(away(id, R.id).km)); }
-    if (R?.done && id === R.id) cls += " og-answer";
-    if (id === chosen && !R?.done) cls += " og-chosen";
-    path.setAttribute("class", cls);
+  const R = round(), run = current(), key = R ? `${run.index}:${R.id}` : null;
+  if (key !== framed?.key || (R && R.guesses.length < framed.guesses)) {
+    cancelAnimationFrame(turning);
+    view = { ...WORLD }; fview = worldView();
+    framed = { key, guesses: R?.guesses.length || 0, done: !!R?.done };
+  } else if (R?.done && !framed.done) {
+    framed.done = true; framed.guesses = R.guesses.length;
+    turnTo(R.id);
+  } else if (R && !R.done && R.guesses.length > framed.guesses) {
+    framed.guesses = R.guesses.length;
+    turnTo(R.guesses.at(-1), true);
   }
+  redraw();
 }
 
 // ---------- the suggestions, as you type: the app's own list, not the browser's ----------
@@ -497,8 +479,8 @@ function openMenu() {
 // ---------- wiring ----------
 document.querySelector(".og-mark").innerHTML = APPS.find(a => a.id === "origin").logo;
 bindSwitcher($("appsBtn"), "origin");
-drawMap();
 wireMap();
+onDefaultChange(() => redraw());
 $("guessIn").addEventListener("input", suggest);
 $("guessIn").addEventListener("blur", () => setTimeout(hideSuggest, 150));
 $("guessIn").addEventListener("keydown", e => {
