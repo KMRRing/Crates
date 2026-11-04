@@ -20,7 +20,7 @@ import { BANK } from "./asterism-bank.js";
 export const SHAPES = { flat: "Flat", cube: "Cube", hex: "Hexagons" };
 export const SOLID_SIZES = { cube: [4], hex: [4, 5, 6, 7] };
 /** What a size is called in the menu, from the shape's own measure. */
-export const sizeName = (shape, n) => (shape === "cube" ? `${n} a side` : shape === "hex" ? `side ${n}` : `${n}×${n}`);
+export const sizeName = (shape, n) => (shape === "cube" ? `${n} a side` : shape === "hex" ? `Side ${n}` : `${n}×${n}`);
 export const isSolid = shape => shape === "cube" || shape === "hex";
 export const solidKind = (shape, size) => `${shape}:${size}`;
 const TRIES = 24, MOVES = 24, WORK = 36;            // counts, not times: a seed makes the same puzzle on every device

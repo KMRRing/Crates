@@ -384,7 +384,7 @@ export function createSpace(host, hooks = {}) {
     CX = new Float32Array(n); CY = new Float32Array(n); CS = new Float32Array(n); CZ = new Float32Array(n); VIS = new Float32Array(n); NZ = new Float32Array(n);
   }
   function fit() {
-    if (mesh) f = (Math.min(W, H) / 2 - Math.max(8, Math.min(W, H) * 0.035)) * Math.sqrt(DM * DM - 1) * (mesh.closed ? 1 : 0.84);
+    if (mesh) f = (Math.min(W, H) / 2 - Math.max(8, Math.min(W, H) * 0.035)) * Math.sqrt(DM * DM - 1) * (mesh.closed ? 1 : 0.9);
     else if (N) f = fitScale(N, W, H, Math.max(8, Math.min(W, H) * 0.035));
   }
   /** Projects the vertices and each cell's middle for the pose; VIS is how squarely a cell faces you (0 or less: away). */
