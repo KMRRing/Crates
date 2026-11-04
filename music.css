@@ -1,0 +1,112 @@
+/* Music: a course in brass instruments. The page is a door (the plate and the way in); the lessons are on course.css's sheet, whose stage holds
+   one SVG instrument drawn to a 360 by 290 box, under a band that says when sound is off. Colours are the suite's tokens; verdigris is the
+   course's enamel. Text in the SVG is in the drawing's units (px), which grow with the stage. */
+:root { --mu-in: var(--c1); --mu-ivory: #F6F0DF; --mu-ebony: #1C2A34; }
+.mu-mark { display: inline-block; }
+.mu-mark svg { width: 100%; height: 100%; display: block; }
+dialog.ln-sheet.musc { --ln-in: var(--mu-in); }
+
+/* ---------- the page: the plate, the words, the way in ---------- */
+.mu-home { justify-content: center; align-items: center; gap: .8rem; min-height: 0; }
+.mu-plate { display: grid; place-items: center; min-height: 0; flex: 1 1 auto; width: 100%; }
+.mu-plate svg { width: 100%; height: 100%; max-width: 26rem; max-height: 100%; display: block; }
+.mu-about { display: grid; gap: .65rem; width: min(100%, 26rem); flex: none; align-content: center; }
+.mu-intro { margin: 0; color: var(--ink-soft); line-height: 1.45; font-size: .95rem; text-align: center; }
+.mu-meter { height: .3125rem; border-radius: 3px; background: var(--sheet); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tile-edge); }
+.mu-meter i { display: block; height: 100%; width: 0; background: var(--brass); }
+.mu-go { width: 100%; min-height: 3rem; padding: 0 .8rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
+  cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-link { min-height: 2.5rem; border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: .88rem; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+html[data-theme="modern"] .mu-go { border-radius: 14px; background: var(--mu-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
+html[data-theme="kontor"] .mu-go { border-radius: 2px; }
+@media (orientation: landscape) and (min-width: 700px) {
+  .mu-home { flex-direction: row; gap: 2rem; padding: 0 1rem; }
+  .mu-plate { flex: 1 1 0; height: 100%; }
+  .mu-about { flex: 0 0 22rem; }
+  .mu-intro { text-align: left; }
+}
+
+/* ---------- the stage: a band for the sound state over one instrument ---------- */
+.ln-stage.mu-stage { display: flex; flex-direction: column; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.mu-stage > svg.mu { flex: 1 1 0; min-height: 0; width: 100%; display: block; touch-action: none; }
+.mu-band, .mu-enable { flex: none; margin: 0 0 .35rem; padding: .4rem .6rem; border-radius: 4px; font: inherit; font-size: .82rem; line-height: 1.3; text-align: center; }
+.mu-band { color: var(--ink-soft); background: color-mix(in srgb, var(--brass) 10%, var(--sheet)); box-shadow: inset 0 0 0 1px var(--tile-edge); }
+.mu-enable { border: 0; background: var(--plate); color: var(--plate-ink); font-weight: 800; cursor: pointer; min-height: 2.25rem; }
+html[data-theme="modern"] .mu-enable { border-radius: 12px; background: var(--mu-in); color: #fff; }
+html[data-theme="kontor"] :is(.mu-enable, .mu-band) { border-radius: 2px; }
+
+svg.mu text { fill: var(--ink); font-family: inherit; pointer-events: none; }
+svg.mu text.mu-cap { fill: var(--ink-soft); font-size: 11.5px; font-weight: 650; }
+svg.mu text.mu-val { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+svg.mu text.mu-read { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+svg.mu text.mu-read.sm { font-size: 14px; }
+svg.mu text.mu-chip-t { font-size: 11.5px; font-weight: 700; }
+svg.mu text.mu-key-t { fill: var(--mu-ebony); font-size: 9.5px; font-weight: 700; }
+svg.mu text.mu-key-t.c { font-weight: 800; }
+svg.mu text.mu-key-t.black, svg.mu text.mu-key-mark.black { fill: var(--mu-ivory); font-size: 8px; }
+svg.mu text.mu-key-mark { fill: var(--mu-ebony); font-size: 11px; font-weight: 800; }
+svg.mu text.mu-acc { font-size: 15px; font-weight: 700; }
+svg.mu text.mu-wedge-t { font-size: 15px; font-weight: 800; }
+svg.mu text.mu-wedge-t.small { font-size: 11.5px; font-weight: 650; fill: var(--ink-soft); }
+svg.mu text.mu-count { fill: var(--ink-soft); font-size: 11px; font-weight: 650; }
+svg.mu text.mu-count.beat { fill: var(--ink); font-size: 13px; font-weight: 800; }
+svg.mu text.mu-padt { fill: var(--ink-soft); font-size: 15px; font-weight: 800; letter-spacing: .2em; }
+
+/* the keyboard */
+.mu .mu-wk { fill: var(--mu-ivory); stroke: var(--mu-ebony); stroke-width: 1; }
+.mu .mu-bk { fill: var(--mu-ebony); stroke: var(--mu-ebony); stroke-width: 1; }
+.mu .mu-wk.lit { fill: color-mix(in srgb, var(--c0) 38%, var(--mu-ivory)); }
+.mu .mu-wk.on { fill: color-mix(in srgb, var(--c2) 38%, var(--mu-ivory)); }
+.mu .mu-bk.lit { fill: color-mix(in srgb, var(--c0) 70%, var(--mu-ebony)); }
+.mu .mu-bk.on { fill: color-mix(in srgb, var(--c2) 70%, var(--mu-ebony)); }
+.mu .mu-wk.hot, .mu .mu-bk.hot { stroke: var(--c3); stroke-width: 2.6; stroke-dasharray: 4 3; }
+.mu .mu-wk.playing { fill: color-mix(in srgb, var(--c0) 65%, var(--mu-ivory)); }
+.mu .mu-bk.playing { fill: var(--c0); }
+/* the staff */
+.mu .mu-line { stroke: var(--ink); stroke-width: 1.1; fill: none; }
+.mu .mu-line.ledger { stroke-width: 1.3; }
+.mu .mu-line.bar { stroke-width: 1.6; }
+.mu .mu-clef { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.mu .mu-clef-b path { fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.mu .mu-clef-b .fill { fill: var(--ink); }
+.mu .mu-note ellipse { fill: var(--ink); }
+.mu .mu-note.placed ellipse { fill: var(--c2); }
+.mu .mu-stem { stroke: var(--ink); stroke-width: 1.4; }
+.mu .mu-ring { fill: none; stroke: var(--c3); stroke-width: 2.2; stroke-dasharray: 4 3; }
+/* buttons and sliders drawn in the box */
+.mu .mu-chip rect { fill: var(--tile); stroke: var(--tile-edge); stroke-width: 1.5; }
+.mu .mu-chip.on rect { stroke: var(--brass); stroke-width: 2; fill: color-mix(in srgb, var(--brass) 16%, var(--tile)); }
+.mu .mu-chip.hot rect { stroke: var(--c3); stroke-width: 2.4; stroke-dasharray: 4 3; }
+.mu .mu-chip.dim text { fill: var(--ink-soft); font-weight: 600; }
+.mu .mu-track { stroke: var(--tile-edge); stroke-width: 5; stroke-linecap: round; }
+.mu .mu-fill { stroke: var(--brass); stroke-width: 5; stroke-linecap: round; }
+.mu .mu-knob { fill: var(--sheet); stroke: var(--brass); stroke-width: 2.2; }
+.mu .mu-pin { fill: var(--brass); }
+.mu .mu-slot rect { fill: var(--tile); stroke: var(--tile-edge); stroke-width: 1.5; }
+.mu .mu-slot.full rect { stroke: var(--brass); }
+.mu .mu-slot.now rect { fill: color-mix(in srgb, var(--c0) 30%, var(--tile)); stroke: var(--c0); stroke-width: 2.4; }
+/* the circle of fifths */
+.mu .mu-wedge { fill: var(--tile); stroke: var(--brass); stroke-width: 1; }
+.mu .mu-wedge.minor { fill: color-mix(in srgb, var(--brass) 12%, var(--tile)); }
+.mu .mu-wedge.on { fill: color-mix(in srgb, var(--c2) 32%, var(--tile)); stroke-width: 2; }
+.mu .mu-wedge.hot { stroke: var(--c3); stroke-width: 3; stroke-dasharray: 5 3; }
+/* the ear trainer and the rhythm bar */
+.mu .mu-dot { fill: none; stroke: var(--brass); stroke-width: 1.5; }
+.mu .mu-dot.ok { fill: var(--c1); stroke: var(--c1); }
+.mu .mu-dot.now { fill: var(--brass); }
+.mu .mu-tone { fill: var(--tile-edge); stroke: var(--brass); stroke-width: 1.2; }
+.mu .mu-tone.now { fill: var(--c0); }
+.mu .mu-pulse { fill: none; stroke: var(--brass); stroke-width: 1.5; }
+.mu .mu-pulse.on { fill: color-mix(in srgb, var(--brass) 38%, var(--sheet)); }
+.mu .mu-pulse.strong { fill: var(--brass); stroke: var(--ink); }
+.mu .mu-cell.now .mu-pulse { fill: var(--c0); stroke: var(--ink); stroke-width: 2.2; }
+.mu .mu-cell.ok .mu-pulse { fill: var(--c1); }
+.mu .mu-cell.miss .mu-pulse { fill: var(--c3); }
+.mu .mu-cellmark { stroke: var(--tile-edge); stroke-width: 1.5; }
+.mu .mu-cellmark.beat { stroke: var(--brass); stroke-width: 2; }
+.mu .mu-barline { stroke: var(--brass); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.mu .mu-pad { fill: color-mix(in srgb, var(--brass) 12%, var(--tile)); stroke: var(--brass); stroke-width: 2; }
+.mu .mu-pad.hit { fill: color-mix(in srgb, var(--c0) 55%, var(--tile)); }
+.mu .mu-bar { fill: color-mix(in srgb, var(--brass) 38%, var(--sheet)); stroke: var(--brass); stroke-width: 1.2; }
+.mu .mu-bar.on { fill: var(--c2); }

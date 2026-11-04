@@ -219,7 +219,7 @@ export function bestOf(app) {
 // code took (Bulls, kept as a count), stars collected (the level games), or a best; and a game with a daily (Punt, Quote, Origin, Order, Chart) shows today's instead when either
 // of you has played it.
 export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", survey: "time", punt: "daily", quote: "daily", origin: "daily",
-  order: "daily", chart: "daily", columbiad: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", deck: "count", parley: "count", navigation: "lessons",
+  order: "daily", chart: "daily", columbiad: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", deck: "count", parley: "count", navigation: "lessons", music: "lessons",
   river: "best", gambit: "best", boast: "streak", bigtwo: "streak", meld: "streak", rack: "streak", pegs: "streak", landlord: "streak", banquet: "streak", gammon: "streak", flank: "streak", silo: "streak", crown: "streak", go: "streak", tarot: "streak", trumps: "streak", quest: "streak", bones: "streak", solitaire: "wins",
   contract: "streak", sudoku: "time", mines: "time", nonogram: "time", hitori: "time", slitherlink: "time", bridges: "time", masyu: "time", nurikabe: "time", bulls: "guesses", assay: "daily", yield: "daily", nexus: "daily", isomer: "time", ladder: "time", lode: "time", lots: "daily", codeword: "time", crossword: "time", acrostic: "time", calcudoku: "time", kakuro: "time", manifest: "daily", ingot: "daily", speedmaths: "daily", speedfuels: "daily" };
 const keyOf = app => (app === "glyph" ? "slate" : app);                // Slate keeps its things under slate:
@@ -269,7 +269,7 @@ export function markOf(app) {
     return r?.best || t != null ? { kind, v: r?.best || 0, day: d, today: t } : null;
   }
   if (kind === "time" || kind === "count" || kind === "guesses") { const r = json(`${k}:${kind === "time" ? "today" : "count"}`, null); return r?.key === d ? { kind, day: d, v: r.v } : null; }
-  if (kind === "lessons") { const r = json("navigation:lessons", null); return r?.done ? { kind, v: `${r.done}/${r.of}` } : null; }     // a course: lessons done of all
+  if (kind === "lessons") { const r = json(`${k}:lessons`, null); return r?.done ? { kind, v: `${r.done}/${r.of}` } : null; }     // a course: lessons done of all
   if (kind === "wins") { const v = json(`${k}:wins`, null); return v ? { kind, v } : null; }
   if (kind === "stars") { const v = app === "calibre" ? calibreStars() : json(`${k}:stars`, null); return v ? { kind, v } : null; }
   if (kind === "daily") { const { best, today: t } = dailyOf(app); return best == null && t == null ? null : { kind, best, day: d, today: t }; }
