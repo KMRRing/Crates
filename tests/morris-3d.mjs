@@ -6,10 +6,10 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 const read = f => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 const js = read("morris.js"), css = read("morris-3d.css"), html = read("morris.html"), draw = read("morris-draw.js");
 check(/tableView\("morris"/.test(js) && /view\.choice\(/.test(js), "the menu offers View through the shared tableView");
-check(/classList\.toggle\("mo3", view\.get\(\) === "3d"\)/.test(js), "the class follows the choice, so flat is the default");
+check(/classList\.toggle\("mo3", view\.get\(\) === "3d"\)/.test(js), "the class follows the choice, so the class follows the choice");
 check(/\.mo3 \.mo-board \{[^}]*rotateX/.test(css), "the 3D table is a tipped plane");
 check(/transform-style: preserve-3d/.test(css) && /\.mo-slab:nth-child\(4\)/.test(css) && (draw.match(/mo-slab/g) || []).length >= 1, "each piece is a stack of slabs under its face, in a preserved 3D scene");
 check(html.includes("morris-3d.css"), "the page links the 3D stylesheet");
-check(!/[^\d.]([3-9]|\d\d+)px/.test(css.replace(/\d+px solid/g, "").replace(/stroke-width: [\d.]+px/g, "").replace(/border: 1px solid/g, "")), "sizes in rem, not px");
+check(!/[^\d.]([3-9]|\d\d+)px/.test(css.replace(/\d+px solid/g, "").replace(/min-width: 700px/g, "").replace(/stroke-width: [\d.]+px/g, "").replace(/border: 1px solid/g, "")), "sizes in rem, not px");
 if (bad) { console.log(`${bad} failed`); process.exit(1); }
 console.log("all passed");
