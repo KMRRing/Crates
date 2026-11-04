@@ -8,6 +8,7 @@ import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, clea
 import { duoLine } from "./duo-records.js";
 import { choice, toggle, line } from "./menu.js";
 import { topicsControls } from "./topics-ui.js";
+import { markedIn } from "./topics-on.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 import { bindRandom } from "./random.js";
 import { bindDeckRow } from "./deck-row.js";
@@ -853,7 +854,7 @@ function startOver() {
 export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["classics", "Classics"], ["idle", "Idle"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party"], ["appendix", "Appendix"]];
 /** The Appendix shows only on the owner's own solo code (Korbi, 4 November 2026: "don't appear unless the user is logged in as ?solo=KORBIRUN"). */
 const APPENDIX_CODE = "KORBIRUN";
-const appendixOpen = () => soloCode() === APPENDIX_CODE;
+const appendixOpen = () => soloCode() === APPENDIX_CODE && markedIn();   // and only while Settings includes content marked for removal (Korbi, same evening: "when content marked for removal is set to exclude, hide the appendix even if it's solo=korbirun")
 const shown = () => APPS.filter(a => a.sec !== "appendix" || appendixOpen());
 const shownSections = () => SECTIONS.filter(([sec]) => sec !== "appendix" || appendixOpen());   // a section with no tile has no group for the list to draw in
 /** A tile's name: a long one (Refinery, Manifest) set closer, a longer one (Undercover) smaller too, to fit its tile. */
