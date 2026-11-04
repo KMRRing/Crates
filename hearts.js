@@ -6,6 +6,9 @@
 import { rules, legalCards, whyNot, sumPoints, trickWinner, pointsOf, cardName, RANKS, TARGETS, suitOf, rankOf } from "./hearts-rules.js";
 import { LEVEL_NAMES } from "./hearts-bot.js";
 import { seatPage } from "./seats-ui.js";
+import { createCourse, progressOf } from "./course.js";
+import { cardStage } from "./course-cards.js";
+import { COURSE, judge, hold, face as courseFace, label as courseLabel, withLabels } from "./hearts-course.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, onPause } from "./menu.js";
@@ -279,13 +282,27 @@ function showRules() {
   $("rulesDlg").showModal();
 }
 
+// ---------- the course ----------
+// Learn (Menu): the game taught from nothing in this engine's variant (hearts-course.js) on the course's sheet
+// (course.js); its last lesson starts a game against Easy.
+const course = createCourse({
+  id: "hearts", course: COURSE, stage: withLabels(cardStage({ face: courseFace, label: courseLabel, judge, hold })), cls: "hr", inFrame: IN_FRAME, onRules: showRules,
+  onPlay: () => {
+    if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
+    opts.level = "easy";
+    saveOpts();
+    newGame();
+  },
+});
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
-  play.append(action("The rules on one page", showRules, "link"));
+  const cp = progressOf("hearts", COURSE);
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Hearts, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
   set.append(view.choice(() => draw()));
@@ -306,6 +323,6 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
 onPause(() => three?.pause(true), () => three?.pause(false));
-window.__hearts = { page, get view() { return V; }, opts, get sel() { return sel; } };
+window.__hearts = { page, course, get view() { return V; }, opts, get sel() { return sel; } };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
