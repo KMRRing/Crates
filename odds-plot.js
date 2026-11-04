@@ -27,7 +27,7 @@ const clip = id => `<clipPath id="${id}"><rect x="${ML}" y="${MT}" width="${W - 
 const pctLabel = v => `${Math.round(v * 100)}%`;
 
 // ---------- Kelly: the growth curve, its top and its ruin zone ----------
-export function kellyPlot({ p, b, f, ruin = false }) {
+export function kellyPlot({ p, b, f, ruin = false, guide = true }) {
   const fs = kelly(p, b), gmax = growth(fs, p, b), z = ruinPoint(p, b);
   const top = Math.max(gmax * 1.35, 0.004), bot = -top * 2.2;
   const X = scale(0, 1, ML, W - MR), Y = scale(bot, top, H - MB, MT);
@@ -39,7 +39,7 @@ export function kellyPlot({ p, b, f, ruin = false }) {
   return svg(`<defs>${clip("odc")}</defs>`
     + (z > 0 && ruin ? `<rect class="od-zone" x="${r1(X(z))}" y="${Y(top)}" width="${r1(X(1) - X(z))}" height="${r1(Y(bot) - Y(top))}"/>${text((X(z) + X(1)) / 2, MT + 12, "ruin zone", "od-zone-t")}` : "")
     + axes(X, Y, ticks, yt) + `<path class="od-zero" d="M${ML} ${r1(Y(0))}H${W - MR}"/>`
-    + (fs > 0 ? `<path class="od-guide" d="M${r1(X(fs))} ${MT}V${H - MB}"/>${text(X(fs), MT + 10, "Kelly", "od-guide-t", X(fs) > W - 60 ? "end" : "start")}` : "")
+    + (guide && fs > 0 ? `<path class="od-guide" d="M${r1(X(fs))} ${MT}V${H - MB}"/>${text(X(fs), MT + 10, "Kelly", "od-guide-t", X(fs) > W - 60 ? "end" : "start")}` : "")
     + `<path class="od-curve" clip-path="url(#odc)" d="${line(pts)}"/><circle class="od-dot" cx="${r1(X(f))}" cy="${r1(Y(shown))}" r="5"/>`
     + text(W / 2, H - 1, "share of the bankroll staked", "od-cap") + text(9, H / 2, "growth per bet", "od-cap od-rot"), `Growth per bet against the share staked: ${pctLabel(f)} gives ${(100 * g).toFixed(2)}%`);
 }
