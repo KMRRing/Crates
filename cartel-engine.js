@@ -1,17 +1,17 @@
 // Cartel's referee: Coup and Liar's Dice built from dice.
 //
 // Everyone has gold dice (their lives and their roles) and plain dice (money and weight in the bidding), all
-// rolled secretly. A face is both a number and a role: 1 Fixer, 2 Banker, 3 Trader, 4 Auditor, 5 Legal,
-// 6 Regulator. Only gold dice give powers; every die counts in bids, with 1s (Fixers) counting as any face.
+// rolled secretly. A face is both a number and a role: 1 Envoy, 2 Mintmaster, 3 Privateer, 4 Clerk, 5 Syndic,
+// 6 Alderman. Only gold dice give powers; every die counts in bids, with 1s (Brokers) counting as any face.
 //
 // A turn is one action, then a bid; before the bid you also get two free moves, once each: ask a player a question
-// about their hand (answered both ways) and, by claiming Fixer, reroll one of your dice. Actions: take a die from
+// about their hand (answered both ways) and, by claiming Envoy, reroll one of your dice. Actions: take a die from
 // the bank (it lands face up, for everyone to see), reroll any of your dice (secretly), hit (pay 7 dice so a player
 // loses a gold die), or claim a role one of your gold dice shows (true or not) to use one of its abilities:
-// Banker takes 3 dice from the bank; Trader steals 2 from a player; Auditor looks at all of a player's dice;
-// Regulator either asks the referee how many dice on the table show a face (an inquiry: the referee answers only
-// a real Regulator, and nobody else can tell whether there was an answer) or pays 4 dice to sanction a player,
-// who loses a gold die. Legal blocks steals and sanctions. Any claim, blocks included, can be challenged by the
+// Mintmaster takes 3 dice from the bank; Privateer steals 2 from a player; Clerk looks at all of a player's dice;
+// Alderman either asks the referee how many dice on the table show a face (an inquiry: the referee answers only
+// a real Alderman, and nobody else can tell whether there was an answer) or pays 4 dice to fine a player,
+// who loses a gold die. Syndic blocks steals and fines. Any claim, blocks included, can be challenged by the
 // player it's aimed at (the next player when it's aimed at no one, the claimant when it's a block): whoever is
 // wrong pays the other 3 dice (a caught bluffer, or a wrong challenger, and the proof is shown: its owner keeps it
 // shown or puts it back, rerolled unseen). The bid raises
@@ -23,24 +23,24 @@
 // The engine holds the truth and records events. Each event says what everyone sees and what only some see, so
 // the table, the log and the AIs each learn exactly what a player at a real table would.
 
-export const ROLES = { 1: "Fixer", 2: "Banker", 3: "Trader", 4: "Auditor", 5: "Legal", 6: "Regulator" };
+export const ROLES = { 1: "Envoy", 2: "Mintmaster", 3: "Privateer", 4: "Clerk", 5: "Syndic", 6: "Alderman" };
 /**
  * What a claimed role lets you do. role: the face the claim is about; target: aimed at a player; free: the free
  * move rather than your action; cost: plain dice paid to the bank on claiming; blockers: roles that block it.
  */
 export const ABILITIES = {
-  bank: { role: 2, label: "Banker", says: "takes 3 dice from the bank", target: false },
-  steal: { role: 3, label: "Trader", says: "steals 2 dice from", target: true, blockers: [5] },
-  audit: { role: 4, label: "Auditor", says: "looks at all the dice of", target: true },
-  reroll: { role: 1, label: "Fixer", says: "rerolls one of their dice", target: false, free: true },
-  inquiry: { role: 6, label: "Regulator: inquiry", says: "learns how many dice show a face", target: false },
-  sanction: { role: 6, label: "Regulator: sanction", target: true, blockers: [5],
-    get cost() { return RULES.sanction; }, get says() { return `pays ${RULES.sanction} dice to sanction`; } },
+  bank: { role: 2, label: "Mintmaster", says: "takes 3 dice from the bank", target: false },
+  steal: { role: 3, label: "Privateer", says: "steals 2 dice from", target: true, blockers: [5] },
+  audit: { role: 4, label: "Clerk", says: "looks at all the dice of", target: true },
+  reroll: { role: 1, label: "Envoy", says: "rerolls one of their dice", target: false, free: true },
+  inquiry: { role: 6, label: "Alderman: inquiry", says: "learns how many dice show a face", target: false },
+  sanction: { role: 6, label: "Alderman: fine", target: true, blockers: [5],
+    get cost() { return RULES.sanction; }, get says() { return `pays ${RULES.sanction} dice to fine`; } },
 };
 // bluffStake: what a caught bluffer pays the challenger; challengeStake: what a wrong challenger pays the claimant
 // (in plain dice). goldStakes: instead, whoever loses a challenge loses a gold die, as in Coup. freeAsk: asking a
 // question is a free move, once a turn, rather than the turn's action.
-// askAfterMove: the free question comes after your move (it informs the bid, not the move); fixerFirst: the Fixer's
+// askAfterMove: the free question comes after your move (it informs the bid, not the move); fixerFirst: the Envoy's
 // free reroll comes before your move (dice that land face up stay seen for a round). Both on since October 2026.
 // provenReroll: the gold die that proves a challenged claim (or block) is shown, and then: "may", the claimant keeps
 // it shown or puts it back, rerolled unseen (keepProof; since October 2026); "keep", it stays shown; "must", it goes
@@ -187,7 +187,7 @@ export function act(s, a) {
     case "claim": {
       const x = ABILITIES[a.ability];
       if (!x) throw new Error("no such role");
-      if (x.free) throw new Error("The Fixer's reroll is a free move, on top of your action");
+      if (x.free) throw new Error("The Envoy's reroll is a free move, on top of your action");
       if (x.target && (a.target == null || s.players[a.target].out || a.target === me.i)) throw new Error("choose a player");
       if (x.cost && plain(me).length < x.cost) throw new Error(`that costs ${x.cost} dice`);
       const challenger = x.target ? a.target : nextAlive(s, me.i);
@@ -202,13 +202,13 @@ export function act(s, a) {
 }
 
 /**
- * The free reroll, once a turn and before your move: claim Fixer to reroll one of your dice (say, one the table
+ * The free reroll, once a turn and before your move: claim Envoy to reroll one of your dice (say, one the table
  * has seen). The next player may challenge it like any claim. Not after your move: dice that land face up from
  * the bank or a steal stay seen for a round.
  */
 export function freeReroll(s, dieId) {
   if (s.over || s.pending || s.freeUsed) throw new Error("The free reroll is once a turn");
-  if (RULES.fixerFirst && s.step !== "act") throw new Error("The Fixer's reroll comes before your move");
+  if (RULES.fixerFirst && s.step !== "act") throw new Error("The Envoy's reroll comes before your move");
   const me = s.players[s.turn];
   if (!me.dice.some(d => d.id === dieId)) throw new Error("choose one of your dice");
   s.freeUsed = true;
@@ -232,7 +232,7 @@ function askQuestion(s, me, them, question) {
 
 /**
  * The free question (when RULES.freeAsk): once a turn, after your move and before your bid, so what you learn
- * shapes the bid but can't make a steal or a sanction safe.
+ * shapes the bid but can't make a steal or a fine safe.
  */
 export function freeAsk(s, target, question) {
   if (!RULES.freeAsk) throw new Error("asking is an action in these rules");
@@ -251,8 +251,8 @@ function cleanQuestion(q) {
 }
 
 /**
- * The entitled player's answer to a pending claim: "challenge", "allow", or (to a steal or sanction aimed at
- * them) a block, { block: role }, claiming a role that blocks it (Legal, for both). A wrong challenger pays the
+ * The entitled player's answer to a pending claim: "challenge", "allow", or (to a steal or fine aimed at
+ * them) a block, { block: role }, claiming a role that blocks it (Syndic, for both). A wrong challenger pays the
  * claimant and the gold die that proves the claim is shown; a caught bluffer pays the challenger and the power
  * doesn't happen (RULES says how much). true and false are accepted for "challenge" and "allow".
  */
@@ -285,7 +285,7 @@ function afterClaim(s, c) {
 
 /**
  * The blocked player's answer to a block: challenge it (true) or accept it (false). A true block costs them
- * 2 dice and stops the steal or sanction; a bluffed block costs the blocker 2 dice and it goes ahead.
+ * 2 dice and stops the steal or fine; a bluffed block costs the blocker 2 dice and it goes ahead.
  */
 export function respondBlock(s, challenge) {
   const b = s.pending;
@@ -384,7 +384,7 @@ function power(s, me, c, choice = {}) {
       break;
     }
     case "inquiry": {                           // how many dice on the table show a face (1s counted)
-      // The answer comes from the referee, who knows the truth: a bluffing "Regulator" gets none. To everyone else
+      // The answer comes from the referee, who knows the truth: a bluffing "Alderman" gets none. To everyone else
       // the event looks the same either way.
       const f = choice.face >= 2 && choice.face <= 6 ? choice.face : (s.bid?.f || 2 + Math.floor(s.r() * 5));
       const real = gold(me).some(d => d.face === 6);
@@ -476,5 +476,5 @@ function loseGold(s, p, why) {
     if (left.length === 1) { s.over = { winner: left[0].i }; emit(s, { t: "win", p: left[0].i }); }
   }
 }
-/** How much a gold die is worth keeping: the Fixer's power (a free reroll) is the slightest, so it goes first. */
+/** How much a gold die is worth keeping: the Envoy's power (a free reroll) is the slightest, so it goes first. */
 const goldWorth = d => (d.face === 1 ? 0 : 1);

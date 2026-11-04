@@ -263,8 +263,8 @@ export class Player {
   }
 
   /**
-   * After its claim is proven: keep the die shown, or put it back (rerolled unseen)? A shown Banker is income nobody
-   * will challenge and a shown Legal a block nobody will test; any other face is worth more hidden again, since a
+   * After its claim is proven: keep the die shown, or put it back (rerolled unseen)? A shown Mintmaster is income nobody
+   * will challenge and a shown Syndic a block nobody will test; any other face is worth more hidden again, since a
    * gold die everyone has seen tells the table one of your roles for the rest of the game. That puts about three
    * proofs in four back; in 400-game tests it played alike with putting every one back.
    */
@@ -327,7 +327,7 @@ export class Player {
       // an inquiry on the standing bid's face settles this turn's bid: call it if it's false (+3 dice), or raise to
       // the true count and leave the next player stuck. Worth most when the bid is a coin flip; a sure bid gains little.
       if (ability === "inquiry") value = ladder ? 0.4 + 2 * RULES.callStake * Math.min(doubt, 1 - doubt) : 0.3;
-      if (ability === "inquiry" && !has) continue;                    // the referee answers only a real Regulator
+      if (ability === "inquiry" && !has) continue;                    // the referee answers only a real Alderman
       if (ability === "sanction") value = goldValue(victim) * (1 - blocked) - x.cost + P.hitBias;
       const challenger = x.target ? victim.i : nextSeat(game, this.seat);
       const believable = chanceHolds(this.publicMind.sample(this.r, 80), this.seat, x.role);
@@ -350,7 +350,7 @@ export class Player {
   }
 
   /**
-   * The free move: whether to claim Legal's reroll this turn, and on which die. Worth it to hide a die the table
+   * The free move: whether to claim Syndic's reroll this turn, and on which die. Worth it to hide a die the table
    * has seen (one that landed face up, or a gold die someone proved), more so when it matters to the bid.
    * Returns a die id, or null.
    */

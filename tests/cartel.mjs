@@ -61,7 +61,7 @@ if (bad) process.exitCode = 1;
     return s;
   };
   const plainOf = p => E.plain(p).length;
-  // a steal blocked honestly (B's gold shows Legal), challenged by the thief: the thief pays 3, nothing is stolen
+  // a steal blocked honestly (B's gold shows Syndic), challenged by the thief: the thief pays 3, nothing is stolen
   let s = setup([3, 1], [5, 1]);
   E.act(s, { type: "claim", ability: "steal", target: 1 });
   E.respond(s, { block: 5 });
@@ -87,10 +87,10 @@ if (bad) process.exitCode = 1;
     let n = s.events.length;
     E.respond(s, "challenge");
     check(s.pending?.type === "proof" && s.pending.claimant === 0 && s.pending.role === 2 && plainOf(s.players[1]) === 0,
-      "a challenged Banker that's true: the challenger pays 3, and the claimant chooses what becomes of the proof");
+      "a challenged Mintmaster that's true: the challenger pays 3, and the claimant chooses what becomes of the proof");
     E.keepProof(s, true);
     check(after(s, n).join() === "challenge,pay,kept,banker" || (after(s, n).includes("kept") && after(s, n).indexOf("banker") > after(s, n).indexOf("kept")),
-      "kept shown: the die stays as it was shown, then the Banker takes its 3");
+      "kept shown: the die stays as it was shown, then the Mintmaster takes its 3");
     check(E.gold(s.players[0]).map(d => d.face).join() === "2,6" && s.step === "bid" && !s.pending, "…and the turn goes on to the bid");
     s = setup([2, 6], [3, 4]);
     E.act(s, { type: "claim", ability: "bank" });
@@ -101,13 +101,13 @@ if (bad) process.exitCode = 1;
     const back = s.events.find(e => e.t === "putBack");
     check(back && back.role === 2 && back.priv[0]?.faces && !("faces" in E.seen(back, 1)) && !E.gold(s.players[0]).find(d => d.id === proofId).open,
       "put back: the die is rerolled unseen (only its owner sees the new face; the table hears which role went back)");
-    check(after(s, n).indexOf("banker") > after(s, n).indexOf("putBack") && s.step === "bid", "…and the Banker still takes its 3");
+    check(after(s, n).indexOf("banker") > after(s, n).indexOf("putBack") && s.step === "bid", "…and the Mintmaster still takes its 3");
     // a proven block, put back: the block still stands
     s = setup([3, 1], [5, 1]);
     E.act(s, { type: "claim", ability: "steal", target: 1 });
     E.respond(s, { block: 5 });
     E.respondBlock(s, true);
-    check(s.pending?.type === "proof" && s.pending.claimant === 1, "a true block, challenged: the blocker chooses what becomes of its Legal");
+    check(s.pending?.type === "proof" && s.pending.claimant === 1, "a true block, challenged: the blocker chooses what becomes of its Syndic");
     E.keepProof(s, false);
     check(plainOf(s.players[0]) === 0 && plainOf(s.players[1]) === 6 && s.step === "bid" && !s.events.some(e => e.t === "trader"),
       "…put back, the steal stays blocked and the thief goes on to bid");
@@ -127,7 +127,7 @@ if (bad) process.exitCode = 1;
   const goldBefore = E.gold(s.players[0]).map(d => d.face).join();
   E.act(s, { type: "claim", ability: "bank" });
   E.respond(s, "allow");
-  check(E.gold(s.players[0]).map(d => d.face).join() === goldBefore && plainOf(s.players[0]) === 6, "Banker takes 3 and the gold dice stay as they were");
+  check(E.gold(s.players[0]).map(d => d.face).join() === goldBefore && plainOf(s.players[0]) === 6, "Mintmaster takes 3 and the gold dice stay as they were");
   // a sanction: 4 dice paid up front, and the target loses a gold die
   s = setup([6, 1, 2, 2, 2], [2, 2]);
   E.plain(s.players[0]).length;                                   // A has 3 plain: give A a fourth
@@ -136,13 +136,13 @@ if (bad) process.exitCode = 1;
   check(plainOf(s.players[0]) === 0, "a sanction is paid for up front: 4 dice to the bank");
   E.respond(s, "allow");
   check(E.gold(s.players[1]).length === 1, "an unblocked sanction takes a gold die");
-  // blocked by a true Legal: the dice are spent, no gold is lost
+  // blocked by a true Syndic: the dice are spent, no gold is lost
   s = setup([6, 1], [5, 2]);
   E.act(s, { type: "take" }); s.turn = 0; s.step = "act";
   E.act(s, { type: "claim", ability: "sanction", target: 1 });
   E.respond(s, { block: 5 });
   E.respondBlock(s, false);
-  check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 0, "a sanction blocked by Legal: the 4 dice are gone and nobody loses gold");
+  check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 0, "a sanction blocked by Syndic: the 4 dice are gone and nobody loses gold");
   // a bluffed sanction, challenged: no gold lost, and the bluffer pays 2 on top of the 4
   s = setup([2, 1], [2, 2]);
   for (let k = 0; k < 3; k++) { E.act(s, { type: "take" }); s.turn = 0; s.step = "act"; }   // 6 plain: 4 for the sanction
@@ -154,21 +154,21 @@ if (bad) process.exitCode = 1;
   E.act(s, { type: "take" }); s.turn = 0; s.step = "act";
   E.act(s, { type: "claim", ability: "sanction", target: 1 });
   try { E.respond(s, { block: 3 }); } catch { blockedWrong = true; }
-  check(blockedWrong, "only Legal blocks a sanction");
-  // only Legal blocks a steal (Trader and Auditor don't)
+  check(blockedWrong, "only Syndic blocks a sanction");
+  // only Syndic blocks a steal (Privateer and Clerk don't)
   for (const role of [3, 4]) {
     s = setup([3, 1], [role, 1]);
     E.act(s, { type: "claim", ability: "steal", target: 1 });
     let refusedBlock = false;
     try { E.respond(s, { block: role }); } catch { refusedBlock = true; }
-    check(refusedBlock, `${role === 3 ? "Trader" : "Auditor"} doesn't block a steal`);
+    check(refusedBlock, `${role === 3 ? "Privateer" : "Clerk"} doesn't block a steal`);
   }
-  // an inquiry: the referee answers a real Regulator, and only a real one
+  // an inquiry: the referee answers a real Alderman, and only a real one
   s = setup([6, 1], [2, 2]);
   E.act(s, { type: "claim", ability: "inquiry", picks: { face: 4 } });
   E.respond(s, "allow");
   let inq = s.events.filter(e => e.t === "inquiry").pop();
-  check(inq.priv[0].count === E.tableCount(s, 4), "a real Regulator's inquiry gets the count");
+  check(inq.priv[0].count === E.tableCount(s, 4), "a real Alderman's inquiry gets the count");
   s = setup([2, 1], [2, 2]);
   E.act(s, { type: "claim", ability: "inquiry", picks: { face: 4 } });
   E.respond(s, "allow");
@@ -187,13 +187,13 @@ if (bad) process.exitCode = 1;
   let twice = false;
   try { E.freeAsk(s, 1, { type: "odd" }); } catch { twice = true; }
   check(twice, "one free question a turn");
-  // the Fixer's reroll: a free move before your move, never after it
+  // the Envoy's reroll: a free move before your move, never after it
   s = setup([5, 1], [2, 1]);
   const shown = E.plain(s.players[0])[0];
   shown.open = true;                                   // a die the table has seen
   E.freeReroll(s, shown.id);
   E.respond(s, "allow");
-  check(s.step === "act" && s.turn === 0 && !E.plain(s.players[0]).find(d => d.id === shown.id).open, "the Fixer's reroll hides a seen die before your move, and the move is still yours");
+  check(s.step === "act" && s.turn === 0 && !E.plain(s.players[0]).find(d => d.id === shown.id).open, "the Envoy's reroll hides a seen die before your move, and the move is still yours");
   let refused = false;
   try { E.freeReroll(s, shown.id); } catch { refused = true; }
   check(refused, "the free reroll only once a turn");
@@ -201,7 +201,7 @@ if (bad) process.exitCode = 1;
   E.act(s, { type: "take" });
   let late = false;
   try { E.freeReroll(s, E.plain(s.players[0]).find(d => d.open).id); } catch { late = true; }
-  check(late, "no Fixer's reroll after your move: a die that just landed face up stays seen for a round");
+  check(late, "no Envoy's reroll after your move: a die that just landed face up stays seen for a round");
   // a lost call costs 3; short of 3, a gold die goes too
   s = setup([2, 2], [2, 2]);
   s.step = "bid";

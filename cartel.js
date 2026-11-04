@@ -8,6 +8,8 @@ import { Mind, PERSONAS } from "./cartel-ai.js";
 import { rules } from "./cartel-rules.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
+// the rules text names roles in spans, so ROLES (cartel-engine.js) is the one place a name is spelled
+document.querySelectorAll("[data-role]").forEach(el => { el.textContent = ROLES[el.dataset.role]; });
 import "./pwa.js";
 import { part, choice, action, ticks } from "./menu.js";
 import { sure } from "./sure.js";
@@ -179,15 +181,15 @@ const byKind = list => [...list].sort((a, b) => (a.kind === b.kind ? 0 : a.kind 
 // ---------- what a role does (tap a gold die) ----------
 const blockedBy = ability => (ABILITIES[ability].blockers || []).map(r => ROLES[r]).join(" or ");
 function roleInfo(face) {
-  const blocks = Object.entries(ABILITIES).filter(([, x]) => x.blockers?.includes(face)).map(([id]) => ({ steal: "steals", sanction: "sanctions" }[id] || id));
+  const blocks = Object.entries(ABILITIES).filter(([, x]) => x.blockers?.includes(face)).map(([id]) => ({ steal: "steals", sanction: "fines" }[id] || id));
   return {
     1: [`Counts as any face in bids.`, `Free move, once a turn: reroll one of your dice in secret (say, one that landed face up).`],
     2: [`Take ${RULES.banker} dice from the bank. They land face up, for everyone to see.`],
     3: [`Steal ${RULES.steal} plain dice from a player.`, `${blockedBy("steal")} blocks it.`],
-    4: [`The player you pick shows you all their dice; only you see them.`, `Works as a bluff too: they can't check whether you're a real Auditor.`],
+    4: [`The player you pick shows you all their dice; only you see them.`, `Works as a bluff too: they can't check whether you're a real ${ROLES[4]}.`],
     5: [`Blocks ${blocks.join(" and ")} aimed at you.`],
-    6: [`Inquiry: the referee tells you how many dice on the table show a face. Only a real Regulator gets an answer.`,
-      `Sanction: pay ${RULES.sanction} dice and a player loses a gold die. ${blockedBy("sanction")} blocks it; the dice are spent either way.`],
+    6: [`Inquiry: the referee tells you how many dice on the table show a face. Only a real ${ROLES[6]} gets an answer.`,
+      `Fine: pay ${RULES.sanction} dice and a player loses a gold die. ${blockedBy("sanction")} blocks it; the dice are spent either way.`],
   }[face];
 }
 function showRole(face, whose) {
@@ -239,7 +241,7 @@ function bothAnswers(e) {
 }
 // How much each kind of line matters when a turn has more than its seat can show: losses first, then the move and what
 // came of it, then a question with its answers (they go together), then the bid (the middle of the table shows it too),
-// and last a Fixer reroll.
+// and last an Envoy reroll.
 const KEEP = { bad: 6, act: 5, answer: 4, ask: 4, bid: 3, free: 2 };
 const MAX_LINES = 7;
 /** Where the least telling of a turn's lines starts, by their kinds, and how many go with it: a question takes its
@@ -254,21 +256,21 @@ function weakest(kinds) {
 function turnLines(turn) {
   const who = i => (i === ME ? "you" : name(i));
   const out = [];
-  let move = null, fixer = false;                    // the move's line, which its outcome finishes; a Fixer reroll before it
+  let move = null, fixer = false;                    // the move's line, which its outcome finishes; an Envoy reroll before it
   const finish = more => { if (move) move.text += more; };
   for (const raw of turn.events) {
     const e = seen(raw, ME);
     switch (e.t) {
       case "claim":
-        if (e.free) { out.push(move = { text: "Fixer reroll", cls: "free" }); fixer = true; break; }
+        if (e.free) { out.push(move = { text: `${ROLES[1]} reroll`, cls: "free" }); fixer = true; break; }
         // a claim aimed at a player names them; the others name the role
-        out.push(move = { text: e.target != null ? `${{ steal: "Trader", audit: "Auditor", sanction: "Sanction" }[e.ability] || ROLES[e.role]} on ${who(e.target)}`
+        out.push(move = { text: e.target != null ? `${{ steal: ROLES[3], audit: ROLES[4], sanction: "Fine" }[e.ability] || ROLES[e.role]} on ${who(e.target)}`
           : e.ability === "inquiry" ? "Inquiry" : ROLES[e.role], cls: "act" });
         break;
       case "take": out.push(move = { text: `Took a ${e.dice[0].face}`, cls: "act" }); break;
       case "reroll": out.push(move = { text: `Rerolled ${e.dice.length}`, cls: "act" }); break;
       case "pass": out.push(move = { text: "Passed", cls: "act" }); break;
-      case "hit": out.push(move = { text: `Hit ${who(e.target)}`, cls: "act" }); break;
+      case "hit": out.push(move = { text: `Verhansung: ${who(e.target)}`, cls: "act" }); break;
       case "challenge": finish(e.held ? ": true" : ": a bluff, caught"); if (!e.held && move) move.cls = "bad"; break;
       case "kept": finish(", kept shown"); break;
       case "putBack": finish(", put back"); break;
@@ -288,8 +290,8 @@ function turnLines(turn) {
       case "out": if (e.p === turn.p) out.push({ text: "Out", cls: "bad" }); break;
     }
   }
-  // a Fixer reroll that went through quietly rides on the move's line
-  if (fixer && out[0]?.cls === "free" && out[0].text === "Fixer reroll" && out[1]?.cls === "act") { out[1].text = `Fixer · ${out[1].text}`; out.shift(); }
+  // an Envoy reroll that went through quietly rides on the move's line
+  if (fixer && out[0]?.cls === "free" && out[0].text === `${ROLES[1]} reroll` && out[1]?.cls === "act") { out[1].text = `${ROLES[1]} · ${out[1].text}`; out.shift(); }
   while (out.length > MAX_LINES) out.splice(...weakest(out.map(ln => ln.cls)));
   return out;
 }
@@ -469,13 +471,13 @@ function line(e) {
     case "take": return `${n(x.p)} ${verb(x.p, "take")} a die from the bank: a ${x.dice[0].face}.`;
     case "reroll": return `${n(x.p)} ${verb(x.p, "reroll")} ${x.dice.length} ${x.dice.length === 1 ? "die" : "dice"}.`;
     case "ask": return `${n(x.p)} ${verb(x.p, "ask")} ${x.target === ME ? "you" : n(x.target)}: ${questionText(x.question)}${x.answer != null ? ` ${answerText(x, x.answer)}` : ""}`;
-    case "hit": return `${n(x.p)} ${verb(x.p, "hit")} ${x.target === ME ? "you" : n(x.target)}.`;
+    case "hit": return `${n(x.p)} ${verb(x.p, "put")} ${x.target === ME ? "you" : n(x.target)} under Verhansung.`;
     case "claim": return `${n(x.p)} ${verb(x.p, "claim")} ${ROLES[x.role]} to ${purpose(x)}.`;
     case "challenge": return x.held
       ? `${n(x.p)} ${verb(x.p, "challenge")}: true, a gold ${x.die.face}.`
       : `${n(x.p)} ${verb(x.p, "challenge")}: a bluff!`;
     case "allow": return `${n(x.p)} ${verb(x.p, "let")} it go.`;
-    case "block": return `${n(x.p)} ${verb(x.p, "block")} the ${x.ability === "sanction" ? "sanction" : "steal"} as ${ROLES[x.role]}.`;
+    case "block": return `${n(x.p)} ${verb(x.p, "block")} the ${x.ability === "sanction" ? "fine" : "steal"} as ${ROLES[x.role]}.`;
     case "blocked": return `${n(x.p)} ${verb(x.p, "accept")} the block.`;
     case "banker": return `${n(x.p)} ${verb(x.p, "take")} ${x.dice.length} dice from the bank: ${x.dice.map(d => d.face).join(", ")}.`;
     case "trader": return x.none ? `${n(x.p)} ${verb(x.p, "get")} nothing.` : `${n(x.p)} ${verb(x.p, "steal")} ${x.lost.length} from ${x.target === ME ? "you" : n(x.target)}.`;
@@ -484,9 +486,9 @@ function line(e) {
     case "kept": return `${n(x.p)} ${verb(x.p, "keep")} the proven ${ROLES[x.role]} shown.`;
     case "putBack": return `${n(x.p)} ${verb(x.p, "put")} the proven ${ROLES[x.role]} back in the cup, rerolled unseen.`;
     case "inquiry": return x.unanswered
-      ? `The referee doesn't answer: your gold dice don't show a Regulator.`
+      ? `The referee doesn't answer: your gold dice don't show the ${ROLES[6]}.`
       : `${n(x.p)} ${verb(x.p, "ask")} the referee how many ${faceLabel(x.face)} are out${x.count != null ? `: ${x.count}` : ""}.`;
-    case "sanction": return `${n(x.p)} ${verb(x.p, "sanction")} ${x.target === ME ? "you" : n(x.target)}.`;
+    case "sanction": return `${n(x.p)} ${verb(x.p, "fine")} ${x.target === ME ? "you" : n(x.target)}.`;
     case "bid": return `${n(x.p)} ${verb(x.p, "bid")} ${x.q} × ${faceLabel(x.f)}.`;
     case "call": return `${n(x.p)} ${verb(x.p, "call")} ${x.bid.q} × ${faceLabel(x.bid.f)}: ${x.held ? "it holds" : "it doesn't hold"}.`;
     case "loseGold": return `${n(x.p)} ${verb(x.p, "lose")} a gold die (${x.die.face}, ${ROLES[x.die.face]}).`;
@@ -495,12 +497,12 @@ function line(e) {
     default: return null;
   }
 }
-/** What a claim is for, in words: "steal from you", "sanction Quant, paying 4". */
+/** What a claim is for, in words: "steal from you", "fine Quant, paying 4". */
 function purpose(e) {
   const t = e.target === ME ? "you" : e.target != null ? name(e.target) : "";
   return {
     bank: "take 3 dice from the bank", steal: `steal 2 dice from ${t}`, audit: `look at all of ${e.target === ME ? "your" : `${t}'s`} dice`,
-    reroll: "reroll one of their dice (a free move)", inquiry: "count a face on the table", sanction: `sanction ${t}, paying ${RULES.sanction} dice`,
+    reroll: "reroll one of their dice (a free move)", inquiry: "count a face on the table", sanction: `fine ${t}, paying ${RULES.sanction} dice`,
   }[e.ability];
 }
 const questionText = q => ({ odd: "is the total odd?", atLeast: `is the total at least ${q.n}?`, any: `any ${faceLabel(q.f)}?`, count: `how many ${faceLabel(q.f)}?` }[q.type]);
@@ -585,12 +587,12 @@ function renderControls() {
   }
   const tray = el("section", "ct-tray", box);
   const b = g.bid, forced = g.step === "act" && mustHit(g);
-  if (g.step === "bid" || forced || !ui.panel) el("h3", "ct-tray-title", tray, g.step === "bid" ? (ui.panel === "ask" ? "Ask before you bid" : b ? "Your bid" : "Open the bidding") : forced ? "Your hand is full: hit someone" : "Your move");
+  if (g.step === "bid" || forced || !ui.panel) el("h3", "ct-tray-title", tray, g.step === "bid" ? (ui.panel === "ask" ? "Ask before you bid" : b ? "Your bid" : "Open the bidding") : forced ? "Your hand is full: Verhansung on someone" : "Your move");
   if (g.step === "act") {
     // no Pass: taking a die is always at least as good, and rerolling a face-up die covers the rest
     const tiles = grid(tray, 4);
     tiles.classList.add("ct-actions");
-    for (const [id, text] of [["take", "Take"], ["reroll", "Reroll"], ["claim", "Claim"], ["hit", "Hit"]]) {
+    for (const [id, text] of [["take", "Take"], ["reroll", "Reroll"], ["claim", "Claim"], ["hit", "Verhansung"]]) {
       const t = button("ct-action", tiles, [icon(id), el("span", null, null, text)], () => {
         if (id === "take") play({ t: "act", action: { type: "take" } });
         else toggle(id);
@@ -629,7 +631,7 @@ function bidPanel(panel) {
 }
 
 /**
- * Claims, three to a row: the Fixer's free reroll (before your move) and the five powers. A role's name is green
+ * Claims, three to a row: the Envoy's free reroll (before your move) and the five powers. A role's name is green
  * when one of your gold dice shows it, red when claiming it would be a bluff.
  */
 function claimPanel(panel) {
@@ -649,7 +651,7 @@ function claimPanel(panel) {
   }
   const x = ABILITIES[c.ability];
   if (c.ability === "reroll") {
-    // the card just picked already says what the Fixer does; the button only claims it, like every other claim
+    // the card just picked already says what the Envoy does; the button only claims it, like every other claim
     go(panel, ui.free != null ? `Claim ${ROLES[x.role]}` : "Tap one of your dice", () => play({ t: "free", die: ui.free }), ui.free == null);
     return;
   }
@@ -686,8 +688,8 @@ function rerollPanel(panel) {
 
 function hitPanel(panel) {
   ui.hit ??= others()[0]?.i;
-  el("p", "ct-note", panel, `Pay ${RULES.hit} dice: they lose a gold die. Tap a player on the table to choose.`);
-  go(panel, `Hit ${name(ui.hit)}`, () => play({ t: "act", action: { type: "hit", target: ui.hit } }));
+  el("p", "ct-note", panel, `Verhansung, the League's expulsion of a town: pay ${RULES.hit} dice and they lose a gold die. Tap a player on the table to choose.`);
+  go(panel, `Verhansung: ${name(ui.hit)}`, () => play({ t: "act", action: { type: "hit", target: ui.hit } }));
 }
 
 /** Your picks for an ability: which face an inquiry counts. (A steal takes dice you can't see, at random.) */
@@ -703,7 +705,7 @@ function showChallenge() {
   const blockBtns = $("blockBtns");
   blockBtns.replaceChildren();
   if (c.type === "block") {
-    const what = c.base.ability === "sanction" ? "sanction" : "steal";
+    const what = c.base.ability === "sanction" ? "fine" : "steal";
     $("challengeText").textContent = `${name(c.claimant)} ${verb(c.claimant, "block")} your ${what}, claiming ${ROLES[c.role]}.`;
     $("challengeKnow").textContent = `${knowText} Challenge it: if it's a bluff, they ${stakeText("pay")} and the ${what} goes ahead; if it's true, you ${stakeText("pay", true)}.`;
     $("allowBtn").textContent = "Accept the block";

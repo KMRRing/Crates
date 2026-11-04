@@ -46,7 +46,7 @@ function personasFor(n, opponents, rng) {
 const toMove = s => (s.over ? null : s.pending ? (s.pending.type === "proof" ? s.pending.claimant : s.pending.challenger) : s.turn);
 
 /**
- * A move, as a seat makes it: { t: "free", die } the Fixer's reroll; { t: "act", action } the turn's move (the
+ * A move, as a seat makes it: { t: "free", die } the Envoy's reroll; { t: "act", action } the turn's move (the
  * referee's act); { t: "ask", target, question }; { t: "bid", q, f } or { t: "bid", call: true }; { t: "answer",
  * decision } to a claim ("challenge", "allow", { block: role }); { t: "block", challenge } to a block; { t: "proof",
  * keep } a proven die kept shown or put back.
@@ -81,7 +81,7 @@ function plainest(s, seat) {
 /**
  * A computer player's move: its personality's player, following the game as its seat sees it, from the start (so any
  * device can make it, the one that ran the table before having gone), on a random stream of this move's own. Its
- * free moves come first, as at the solo table: the Fixer's reroll before its move, the question before its bid.
+ * free moves come first, as at the solo table: the Envoy's reroll before its move, the question before its bid.
  */
 function bot(st, seat, { rng }) {
   const s = wet(clone(st)), persona = PERSONAS[s.players[seat]?.persona] ? s.players[seat].persona : "quant";
