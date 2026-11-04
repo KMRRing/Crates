@@ -13,8 +13,8 @@ export function cardHtml(face, { cls = "", data = {}, label = "" } = {}) {
     const big = face.joker === "big";
     return `<span class="cd joker ${big ? "big" : "small"}${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(label || (big ? "big joker" : "small joker"))}"><span class="cd-j">JOKER</span><span class="cd-pip" aria-hidden="true">★</span></span>`;
   }
-  const red = face.suit === 0 || face.suit === 2, s = SUIT_MARKS[face.suit];
-  return `<span class="cd${red ? " red" : ""}${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(label || `${face.rank} of ${["diamonds", "clubs", "hearts", "spades"][face.suit]}`)}"><span class="cd-r">${esc(face.rank)}</span><span class="cd-s">${s}</span><span class="cd-pip" aria-hidden="true">${s}</span></span>`;
+  const red = face.suit === 0 || face.suit === 2, s = SUIT_MARKS[face.suit], court = ["J", "Q", "K"].includes(String(face.rank));
+  return `<span class="cd${red ? " red" : ""}${court ? ` court rk-${face.rank}` : ""}${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(label || `${face.rank} of ${["diamonds", "clubs", "hearts", "spades"][face.suit]}`)}"><span class="cd-r">${esc(face.rank)}</span><span class="cd-s">${s}</span><span class="cd-pip" aria-hidden="true">${s}</span>${court ? `<span class="cd-ct" aria-hidden="true"></span>` : ""}</span>`;
 }
 /** A card's back: the others' hands. */
 export const backHtml = (cls = "") => `<span class="cd back${cls ? ` ${cls}` : ""}" aria-hidden="true"></span>`;

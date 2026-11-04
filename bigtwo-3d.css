@@ -8,7 +8,6 @@
 .b23-lane { display: flex; justify-content: center; align-items: center; min-width: 0; min-height: calc(var(--cd-line) * 3.5); }
 .b23-lane .cd-line { gap: 0; }
 .b23-lane .cd-line > .cd + .cd { margin-left: -1.15em; }
-.b23-lane .cd { box-shadow: 0 .05em .14em rgba(0, 0, 0, .4); }
 .b23-lane .b2-left { opacity: .9; }
 .tk-centre[data-n="4"] .b23-lane.s2 { grid-column: 1 / -1; grid-row: 1; }
 .tk-centre[data-n="4"] .b23-lane.s3 { grid-column: 1; grid-row: 2; }

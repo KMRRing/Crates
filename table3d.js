@@ -9,16 +9,18 @@
 //
 //   createCloth(host, { seats, clockwise }) the tipped cloth with a plate for each seat and a middle (table3d.css)
 //   createMotion({ quiet })                 cards flown, swept, dealt, popped; a pause; none when motion is off
+//   createParallax(el)                      the lamp and the rail's sheen slide with the phone's tilt or the pointer (Table 2.0)
 //   card, back, plateHtml, pileHtml, fanHtml  the markup (pure strings)
 //   seatSpots, slotOf, rowFit, flightBox, archOf, pileLayers, fanTurns  the arithmetic (pure; tests/table3d.mjs)
 //
 // Nothing here imports menu.js or suite.js, so Node can load it: the game wires the pause (`onPause(m.hold, …)`) and says
 // what is `quiet` (a partner's watching frame shows no motion).
 import { cardHtml, backHtml } from "./cards.js";
+import { flatMode } from "./mode3d.js";
 
 export const ASPECT = 1.4;                                       // a card's height over its width (cards.css: 2.5em by 3.5em)
 export const TILT = 20;                                          // the plane's tilt, degrees
-export const FLY_MS = 460, SWEEP_MS = 520, MOST_FLIGHTS = 24;
+export const FLY_MS = 460, SWEEP_MS = 760, MOST_FLIGHTS = 24;
 const EASE = "cubic-bezier(.3, .7, .2, 1)";
 const SEAT_COLOURS = 6;                                          // --p0..--p5 (style.css), each with a pattern of its own
 
@@ -118,6 +120,7 @@ export function createCloth(host, { seats = 4, clockwise = true } = {}) {
     + spots.map((s, i) => `<div class="tk-plate at-${s.side}" data-slot="${i}" style="--x:${s.x}%;--y:${s.y}%"><span class="tk-body"></span><span class="tk-act"></span></div>`).join("")
     + `</div></div></div>`;
   const field = host.firstElementChild, mat = field.querySelector(".tk-mat");
+  createParallax(field);                                          // frees itself once the field has left the page
   const plates = [...mat.querySelectorAll(".tk-plate")], bodies = plates.map(p => p.firstElementChild), acts = plates.map(p => p.lastElementChild);
   return {
     field, mat, plates, centre: mat.querySelector(".tk-centre"), inlay: mat.querySelector(".tk-inlay"), spots,
@@ -137,6 +140,11 @@ export function createCloth(host, { seats = 4, clockwise = true } = {}) {
 }
 
 // ---------- motion ----------
+/** A card that has landed on the cloth: it comes down from a little height, the shadow tightening, and settles with a small give. */
+export function settle(el) {
+  if (!el?.animate || still?.matches) return;
+  el.animate([{ scale: 1.14, translate: "0 -.28em", boxShadow: "0 .6em .9em -.1em rgba(0, 0, 0, .42)" }, { scale: .97, translate: "0 0", offset: .6 }, { scale: 1 }], { duration: 300, easing: "ease-out" });
+}
 const still = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : null;
 /**
  * Cards in the air. Each is a ghost in a fixed layer over the page, flown by the Web Animations API from where it was to where
@@ -171,21 +179,26 @@ export function createMotion({ quiet = () => false } = {}) {
       g.remove();
       if (!land) return;
       land.classList.remove("tk-coming");
-      land.animate([{ scale: 1.1 }, { scale: 1 }], { duration: 200, easing: "ease-out" });
+      settle(land);
     };
   }
-  /** Cards that lay on the cloth swept to `to` (a plate), shrinking as they go: items are { at: rect, html: the card's markup }. */
+  /** Cards that lay on the cloth gathered into a stack, a beat, then swept to `to` (a plate), shrinking as they go: items are
+   *  { at: rect, html: the card's markup }. */
   function sweep(items, to, { delay = 160 } = {}) {
     if (!to || !moving()) return;
-    items.slice(-MOST_FLIGHTS).forEach((t, i) => {
-      if (!t.at) return;
+    const list = items.filter(t => t.at).slice(-MOST_FLIGHTS);
+    if (!list.length) return;
+    const mx = list.reduce((s, t) => s + t.at.x, 0) / list.length, my = list.reduce((s, t) => s + t.at.y, 0) / list.length;
+    list.forEach((t, i) => {
       const g = document.createElement("div");
       g.className = "tk-ghost sweep";
       g.style.cssText = `width:${t.at.w}px;height:${t.at.h}px;left:${t.at.x - t.at.w / 2}px;top:${t.at.y - t.at.h / 2}px;--cw:${t.at.w}px`;
       g.innerHTML = t.html;
       fx.append(g);
-      track(g.animate([{ transform: "none", opacity: 1 }, { transform: `translate(${to.x - t.at.x}px, ${to.y - t.at.y}px) scale(.3)`, opacity: 0 }],
-        { duration: SWEEP_MS, delay: delay + i * 22, easing: "cubic-bezier(.5, 0, .8, .4)", fill: "both" })).onfinish = () => g.remove();
+      const stack = `translate(${mx - t.at.x + (i - list.length / 2) * 1.2}px, ${my - t.at.y - i * 1.5}px) rotate(${(i % 3 - 1) * 5}deg)`;
+      track(g.animate([{ transform: "none", opacity: 1 }, { transform: stack, opacity: 1, offset: 0.3 }, { transform: stack, opacity: 1, offset: 0.46 },
+        { transform: `translate(${to.x - t.at.x}px, ${to.y - t.at.y}px) scale(.3) rotate(${(i % 3 - 1) * 5}deg)`, opacity: 0 }],
+        { duration: SWEEP_MS, delay: delay + i * 14, easing: "cubic-bezier(.4, 0, .6, 1)", fill: "both" })).onfinish = () => g.remove();
     });
   }
   /** Backs dealt from `from` to each rect of `to` (a plate's fan): `per` rounds, round by round, one after another. */
@@ -211,4 +224,55 @@ export function createMotion({ quiet = () => false } = {}) {
   }
   function dispose() { document.documentElement.classList.remove("tk-held"); for (const a of running) { try { a.cancel(); } catch { /* gone */ } } running.clear(); fx.remove(); }
   return { fly, sweep, deal, pop, hold, moving, dispose, fx };
+}
+
+
+// ---------- parallax ----------
+/** Pure: a tilt (device beta and gamma in degrees, from the first reading) as the table's two numbers, each -1 to 1. */
+export const tiltOf = (beta, gamma, base = { beta: 0, gamma: 0 }, span = 22) => {
+  const c = x => Math.max(-1, Math.min(1, x));
+  return { x: c((gamma - base.gamma) / span), y: c((beta - base.beta) / span) };
+};
+/**
+ * Table 2.0's depth: --tk-px and --tk-py (-1 to 1) on `el`, which the CSS turns into the lamp pool and the rail's sheen sliding a
+ * little and, on the tipped cloth, the plane leaning. Driven by the phone's tilt (a first reading is the rest pose) or a mouse;
+ * eased, at most one write a frame and none when nothing moves. Off under reduced motion, Settings' 2D mode, a hidden page and a
+ * battery below a fifth and not charging. (iPhones ask permission for tilt: this never asks, and the pointer is all they have.)
+ * Returns { dispose }.
+ */
+export function createParallax(el) {
+  const none = { dispose() {} };
+  if (!el || typeof addEventListener !== "function" || still?.matches) return none;
+  let tx = 0, ty = 0, x = 0, y = 0, raf = 0, base = null, low = false, off = false;
+  const on = () => !off && !low && !document.hidden && !flatMode() && !still?.matches;
+  const write = () => {
+    raf = 0;
+    if (!on()) { tx = ty = 0; }
+    x += (tx - x) * 0.14; y += (ty - y) * 0.14;
+    if (Math.abs(tx - x) < 0.004) x = tx;
+    if (Math.abs(ty - y) < 0.004) y = ty;
+    el.style.setProperty("--tk-px", x.toFixed(3));
+    el.style.setProperty("--tk-py", y.toFixed(3));
+    if (x !== tx || y !== ty) raf = requestAnimationFrame(write);
+  };
+  const aim = (a, b) => { if (!el.isConnected) { api.dispose(); return; } if (!on()) return; tx = a; ty = b; if (!raf) raf = requestAnimationFrame(write); };
+  const tilt = e => {
+    if (e.beta == null || e.gamma == null) return;
+    base ||= { beta: e.beta, gamma: e.gamma };
+    base.beta += (e.beta - base.beta) * 0.002;               // the rest pose follows how the phone is held, slowly
+    base.gamma += (e.gamma - base.gamma) * 0.002;
+    const t = tiltOf(e.beta, e.gamma, base);
+    aim(t.x, t.y);
+  };
+  const point = e => {
+    if (e.pointerType !== "mouse") return;
+    aim((e.clientX / innerWidth - 0.5) * 2, (e.clientY / innerHeight - 0.5) * 2);
+  };
+  const hide = () => { if (document.hidden) { tx = ty = 0; base = null; } };
+  addEventListener("deviceorientation", tilt, { passive: true });
+  addEventListener("pointermove", point, { passive: true });
+  document.addEventListener("visibilitychange", hide);
+  try { navigator.getBattery?.().then(b => { const f = () => { low = b.level < 0.2 && !b.charging; }; f(); b.addEventListener("levelchange", f); b.addEventListener("chargingchange", f); }).catch(() => {}); } catch { /* no battery api */ }
+  const api = { dispose() { off = true; removeEventListener("deviceorientation", tilt); removeEventListener("pointermove", point); document.removeEventListener("visibilitychange", hide); cancelAnimationFrame(raf); } };
+  return api;
 }

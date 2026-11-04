@@ -90,7 +90,9 @@
 
 /* ---------- cards on the cloth: the suite's own, drawn from --cw; piles; a card that is flying in waits unseen ---------- */
 .tk-c { font-size: calc(var(--cw, 2.6rem) / 2.5); }
-.tk-centre .tk-c, .tk-pile .tk-c { box-shadow: 0 .06em .16em rgba(0, 0, 0, .4); }
+/* a card on the cloth: its own thickness and edge (cards.css), and a soft contact shadow where it lies */
+.tk-mat :is(.tk-centre, .tk-pile) .cd:not(.lit) { box-shadow: var(--cd-thick), 0 .16em .38em rgba(0, 0, 0, .42); }
+.tk-mat :is(.tk-centre, .tk-pile) .cd.lit { box-shadow: 0 0 0 .14em var(--tk-gilt), var(--cd-thick), 0 .16em .38em rgba(0, 0, 0, .42); }
 .tk-coming { opacity: 0; }
 .tk-pile { --cw: 2.6rem; position: relative; display: inline-block; flex: none; width: var(--cw); height: calc(var(--cw) * 1.4); font-size: calc(var(--cw) / 2.5); }
 .tk-pile.empty { border: 1px dashed color-mix(in srgb, var(--tk-text) 40%, transparent); border-radius: .2em; }
@@ -110,15 +112,45 @@
 .tk-gf > .cd, .tk-gb > .cd { position: absolute; left: 0; top: 0; box-shadow: 0 .4rem .9rem rgba(0, 0, 0, .38); }
 .tk-held .tk-field *, .tk-held .tk-field *::before, .tk-held .tk-field *::after { animation-play-state: paused !important; }
 
-/* ---------- themes: the chart rays and the double rule are Codex's own; at night the cloth is deeper ---------- */
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .tk-mat { border-width: 1px; border-radius: .9rem;
-  background: radial-gradient(ellipse 62% 48% at 50% 54%, color-mix(in srgb, var(--tk-lit) 70%, transparent), transparent 74%), radial-gradient(ellipse 100% 100% at 50% 50%, transparent 52%, rgba(6, 14, 24, .4)), var(--tk-c);
-  box-shadow: 0 1rem 1.2rem -.9rem rgba(0, 0, 0, .5); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .tk-inlay { box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"]) .tk-act { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.tk-n, .tk-count, .tk-pn) { border-color: var(--rule); }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .tk-mat { --tk-c: color-mix(in srgb, var(--tk-felt, #29507A) 72%, #000); } }
-html[data-mode="night"] .tk-mat { --tk-c: color-mix(in srgb, var(--tk-felt, #29507A) 72%, #000); }
+/* ---------- Table 2.0: the surface ----------
+   A polished wood rail (grain baked as an image, a sheen that slides with the tilt), a brass inlay line and a dark groove, and
+   inside them the cloth: a fine weave, fibres, a soft vignette and a lamp pool. All static layers, painted once; the only moving
+   parts are the lamp and the sheen (createParallax, off under reduced motion and when the battery is low). .tk-mat is the
+   tipped plane; .tk-surface is the same flat on, for a table whose layout is its own (Contract's). */
+:root { --tk-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.006 .42' numOctaves='3' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.1 -.5'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23g)'/%3E%3C/svg%3E"); --tk-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .6 -.26'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23f)'/%3E%3C/svg%3E"); }
+.tk-surface { position: relative; isolation: isolate; }
+:is(.tk-mat, .tk-surface) { --tk-c: var(--tk-felt, #29507A); --tk-lit: color-mix(in srgb, var(--tk-c) 74%, #FFF); --tk-text: #F5F0E2; --tk-soft: color-mix(in srgb, var(--tk-text) 72%, var(--tk-c));
+  --tk-gilt: #E9C47C; --tk-ink: #7A5518; --tk-go: #7FC2A8;
+  --tk-w1: #86502E; --tk-w2: #62371F; --tk-w3: #41230F; --tk-inl: #D6A94F; --tk-rail: .62rem;
+  box-sizing: border-box; border: 1px solid rgba(0, 0, 0, .6); border-radius: .75rem; color: var(--tk-text);
+  background: var(--tk-grain) 0 0 / 260px 260px,
+    linear-gradient(104deg, transparent 18%, rgba(255, 240, 215, .16) 34%, transparent 50%) calc(50% + var(--tk-px, 0) * 36%) 0 / 240% 100% no-repeat,
+    linear-gradient(180deg, var(--tk-w1), var(--tk-w2) 55%, var(--tk-w3));
+  box-shadow: inset 0 1px 0 rgba(255, 235, 200, .32), inset 0 -2px 0 rgba(0, 0, 0, .4), 0 1rem 1.2rem -.9rem rgba(0, 0, 0, .55), 0 .12rem .3rem rgba(0, 0, 0, .3); }
+.tk-mat { transform: rotateX(calc(var(--tk-tilt) + var(--tk-py, 0) * -1.1deg)) rotateY(calc(var(--tk-px, 0) * 1.5deg)); }
+/* the cloth, sunk under the rail: the brass line, a groove, then the weave */
+:is(.tk-mat, .tk-surface)::before { content: ""; position: absolute; inset: var(--tk-rail); border-radius: .35rem; pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .075) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .04) 0 1px, transparent 1px 3px),
+    var(--tk-fibre) 0 0 / 160px 160px,
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 50%, rgba(2, 8, 14, .46)),
+    radial-gradient(ellipse 62% 48% at 50% 54%, color-mix(in srgb, var(--tk-lit) 62%, transparent), transparent 74%),
+    var(--tk-c);
+  box-shadow: inset 0 .22rem .55rem rgba(0, 0, 0, .5), 0 0 0 .1rem #150C06, 0 0 0 calc(.1rem + 1px) var(--tk-inl), 0 0 .5rem calc(.1rem + 1px) rgba(214, 169, 79, .18); }
+/* the lamp: a warm pool that slides a little against the cloth as the phone tips */
+:is(.tk-mat, .tk-surface)::after { content: ""; position: absolute; inset: var(--tk-rail); border-radius: .35rem; pointer-events: none;
+  background: radial-gradient(ellipse 58% 46% at calc(50% + var(--tk-px, 0) * 11%) calc(46% + var(--tk-py, 0) * 9%), rgba(255, 236, 190, .17), transparent 72%); }
+.tk-surface > * { position: relative; z-index: 1; }
+.tk-inlay { border-color: color-mix(in srgb, var(--tk-inl) 60%, transparent); }
+html[data-theme="office"] :is(.tk-mat, .tk-surface) { --tk-w1: #3A4048; --tk-w2: #272C33; --tk-w3: #181B20; --tk-inl: #9BA3AD; border-radius: .9rem; }
+html[data-theme="office"] .tk-inlay { box-shadow: none; }
+html[data-theme="office"] :is(.tk-n, .tk-count, .tk-pn) { border-color: var(--rule); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) :is(.tk-mat, .tk-surface) { --tk-c: color-mix(in srgb, var(--tk-felt, #29507A) 72%, #000); --tk-w1: #5A3420; --tk-w2: #3E2315; --tk-w3: #26140B; --tk-inl: #B8913F; }
+  html[data-theme="office"]:not([data-mode="day"]) :is(.tk-mat, .tk-surface) { --tk-w1: #3A4048; --tk-w2: #272C33; --tk-w3: #181B20; --tk-inl: #9BA3AD; } }
+html[data-mode="night"] :is(.tk-mat, .tk-surface) { --tk-c: color-mix(in srgb, var(--tk-felt, #29507A) 72%, #000); --tk-w1: #5A3420; --tk-w2: #3E2315; --tk-w3: #26140B; --tk-inl: #B8913F; }
+html[data-theme="office"][data-mode="night"] :is(.tk-mat, .tk-surface) { --tk-w1: #3A4048; --tk-w2: #272C33; --tk-w3: #181B20; --tk-inl: #9BA3AD; }
+@media (prefers-reduced-motion: reduce) { .tk-plate.on .tk-med::before, .tk-plate.thinking .tk-info::after { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tk-plate.on .tk-med::before, .tk-plate.thinking .tk-info::after { animation: none; } }
 
 /* ---------- a short phone: the plates' room, the plane's, given up first ---------- */

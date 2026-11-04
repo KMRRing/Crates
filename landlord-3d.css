@@ -13,7 +13,6 @@
 .ll3-lane { display: flex; justify-content: center; align-items: center; min-width: 0; min-height: calc(var(--cd-line) * 3.6); }
 .ll3-lane .ll-rows { justify-items: center; }
 .ll3-lane .cd-line.many > .cd + .cd { margin-left: -1.55em; }
-.ll3-lane .cd { box-shadow: 0 .05em .14em rgba(0, 0, 0, .4); }
 .ll3-sc { margin-right: .25rem; font-style: normal; }
 .ll3-role { margin-right: .25rem; padding: 0 .25rem; border-radius: .2rem; font-style: normal; background: color-mix(in srgb, var(--tk-gilt) 85%, transparent); color: #1E2730; }
 .ll3-role.peasant { background: none; box-shadow: inset 0 0 0 1px var(--tk-soft); color: var(--tk-soft); }

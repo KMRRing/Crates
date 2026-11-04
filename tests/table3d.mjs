@@ -97,5 +97,18 @@ check(same(T.fanTurns(0), []) && same(T.fanTurns(1), [0]) && same(T.fanTurns(3),
   check(patterns && [0, 1, 2, 3, 4, 5].every(i => css.includes(`.tk-s${i} {`)), "every seat colour has its own pattern (a colour is never all that tells players apart)");
 }
 
+// ---------- Table 2.0: depth, courts ----------
+check(T.tiltOf(0, 0).x === 0 && T.tiltOf(10, 11).x === 0.5 && T.tiltOf(-99, 99).x === 1 && T.tiltOf(-99, 99).y === -1, "a tilt is -1 to 1 either way, nothing at rest");
+check(T.tiltOf(50, 20, { beta: 40, gamma: 20 }).x === 0 && T.tiltOf(62, 20, { beta: 40, gamma: 20 }).y === 1, "the first reading is the rest pose");
+check(typeof T.createParallax === "function" && T.createParallax(null).dispose() === undefined, "parallax with nothing to move is a no-op");
+{
+  const { cardHtml } = await import("../cards.js");
+  check(cardHtml({ rank: "K", suit: 2 }).includes("court rk-K") && cardHtml({ rank: "Q", suit: 0 }).includes("cd-ct"), "a court card carries its emblem");
+  check(!cardHtml({ rank: "10", suit: 1 }).includes("court") && !cardHtml({ rank: "A", suit: 3 }).includes("cd-ct") && !cardHtml({ joker: "big" }).includes("cd-ct"), "numbers, aces and jokers carry none");
+  const cards = readFileSync(new URL("../cards.css", import.meta.url), "utf8");
+  check(["J", "Q", "K"].every(r => cards.includes(`.rk-${r} .cd-ct`)) && cards.includes(".cd.back::after"), "the stylesheet draws the courts and the engraved back");
+  check(css.includes(".tk-surface") && css.includes("::before") && css.includes("prefers-reduced-motion"), "the kit has the flat surface, the cloth layer, and respects reduced motion");
+}
+
 console.log(bad ? `\n${bad} FAILED` : "\n3D card table: seats, fan, pile, row, flight, arch and markup");
 process.exit(bad ? 1 : 0);
