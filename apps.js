@@ -673,7 +673,7 @@ export const APPS = [
   { id: "gallery", sec: "party", name: "Gallery", href: "./party.html?game=gallery", logo: LOGO("gallery", GALLERY_LOGO), players: [3, 10], party: true },
   { id: "hilo", sec: "party", name: "Higher or Lower", href: "./party.html?game=hilo", logo: LOGO("hilo", HILO_LOGO), players: [1, 24], party: true },
   { id: "coup", sec: "party", name: "Cabal", href: "./party.html?game=coup", logo: LOGO("coup", COUP_LOGO), players: [1, 6], party: true },
-  { id: "pewter", sec: "party", name: "Pewter", href: "./party.html?game=pewter", logo: LOGO("pewter", PEWTER_LOGO), players: [2, 6], party: true },
+  { id: "pewter", sec: "party", name: "Pewter", href: "./party.html?game=pewter", logo: LOGO("pewter", PEWTER_LOGO), players: [1, 6], party: true },
   { id: "beacon", sec: "party", name: "Beacon", href: "./party.html?game=beacon", logo: LOGO("beacon", BEACON_LOGO), players: [2, 10], party: true },
   { id: "cue", sec: "party", name: "Cue", href: "./cue.html", logo: LOGO("cue", CUE_LOGO), players: [2, 12] },
   { id: "river", sec: "board", name: "Xiangqi", href: "./river.html", logo: LOGO("river", RIVER_LOGO), players: [1, 2] },

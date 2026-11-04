@@ -64,3 +64,12 @@ html[data-theme="office"] :is(.pw-p, .pw-step, .pw-target, .pw-hand) { border-ra
   html:not([data-mode="day"]) .pw-col { --pw-silver: #D3D8E0; --pw-silver-edge: #8B93A2; --pw-pewter: #7A818C; --pw-pewter-edge: #C5CAD2; --bad: #E8806F; }
 }
 html[data-mode="night"] .pw-col { --pw-silver: #D3D8E0; --pw-silver-edge: #8B93A2; --pw-pewter: #7A818C; --pw-pewter-edge: #C5CAD2; --bad: #E8806F; }
+
+/* Alone against the computer (party-pewter-solo.js): the setup's pickers and the foot under the table. */
+.pw-solo { gap: .3rem; }
+.pw-solo-foot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; padding-top: .3rem; }
+.pw-solo-foot.three { grid-template-columns: 1.4fr 1fr 1fr; }
+.pw-solo-foot .pk-btn { min-height: 2.4rem; margin-top: 0; padding-left: .3rem; padding-right: .3rem; }
+.pw-solo .pk-pick { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
+.pw-solo .pk-pick.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pw-solo .pk-pick button { min-height: 2.6rem; }

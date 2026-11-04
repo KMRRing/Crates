@@ -17,6 +17,7 @@
 import { h, button, waitingFor, countdown } from "./party-kit.js";
 import { shuffle } from "./party-core.js";
 import { PERSONAS, pewterBot } from "./party-pewter-bot.js";
+import { play } from "./party-pewter-solo.js";
 
 export const COINS = ["p", "p", "p", "b"];                    // p silver, b pewter
 export const WINS = 2;
@@ -263,6 +264,8 @@ export default {
   min: 2,                                                  // the lobby lists it from two people; need() lets one alone start it with computer players
   max: MAX_SEATS,
   blurb: "Lay a coin, bid how many you can turn without finding the pewter.",
+  solo: play,                                              // alone against one to five computer players (party-pewter-solo.js)
+  soloText: "Alone against 1–5 computer players",
   rules: [
     "Everyone has four coins: three silver and one pewter, a bad one. Each round everyone lays one coin face down. Then, in turn, you either add another of your own coins on top of your stack, or open the bidding.",
     "A bid names how many coins you will turn without finding a pewter. Others raise it, or pass and are out of the round. The highest bidder turns coins: all of their own stack first, from the top, then others' stacks, one coin at a time, from whichever stacks they choose.",
@@ -271,6 +274,7 @@ export default {
   ],
   options: [
     { id: "fill", label: "Computer players", choices: [["0", "None"], ["4", "Fill to 4"], ["5", "Fill to 5"], ["6", "Fill to 6"]], value: "0" },
+    { id: "level", label: "Computer level", choices: [["1", "Simple"], ["2", "Medium"], ["3", "Hard"]], value: "2" },
     { id: "clock", label: "Clock", choices: [["0", "Off"], ["20", "20 s"], ["30", "30 s"], ["60", "60 s"]], value: "60" },
   ],
 
@@ -294,7 +298,7 @@ export default {
       first, turn: first, clock, log: [`${nameOf(all, first)} starts.`],
       say: `Pewter. Everyone lay a coin face down. ${nameOf(all, first)} starts.`,
     };
-    if (bots.length) s.bots = Object.fromEntries(bots.map(b => [b.uid, 1]));
+    if (bots.length) s.bots = Object.fromEntries(bots.map(b => [b.uid, [1, 2, 3].includes(Number(options.level)) ? Number(options.level) : 2]));   // the level: 1 simple, 2 medium, 3 hard
     if (!clock) delete s.clock; else s.deadline = now + clock;
     return s;
   },
