@@ -223,7 +223,7 @@ Everything below holds for both:
 - **`#app` has the class `full`** (with `fit-screen` / `beside` as before). The header stays in the markup (`.top`:
   `#appsBtn`, `#menuBtn`, its other buttons, even a hidden `<select class="pool">`) but is a quiet empty band: the title,
   logo, partner pill and every header button but `#menuBtn` are `display: none`; `#menuBtn` is the Codex mark (three
-  rules in Kontor/Office, the word Menu in Modern), fixed top right inside the safe area. `style.css`, "Full screen".
+  rules in Office), fixed top right inside the safe area. `style.css`, "Full screen".
 - **menu.js does the rest**: the menu's first entry is **Back to menu** (it clicks the hidden `#appsBtn`: no party, no
   watching frame), then the header's own buttons (Rules, Learn, Help… named as they were; not one the menu already has),
   then your partner's line. A game's menu code needs no change; a header `<select>` has its choice in the menu already
@@ -236,12 +236,11 @@ Everything below holds for both:
   essential is lost: a clock stays visible, a header choice is in the menu.
 - **Over a dark picture** (a night sky, the Earth from space, any canvas with its own night picture) the button sits on
   a plate (a see-through sheet disc with a brass hairline): add `plate` to `#app` (Columbiad, Landfall and Almanac are
-  named in `style.css`), or Kontor's and Office's ink rules vanish by day. A header's clock or lives (a `span` or `p` in
+  named in `style.css`), or the mark's navy vanishes against it by day. A header's clock or lives (a `span` or `p` in
   `.top-right`) stay beside the mark; widen `--full-slot` for the row that keeps clear of them (Crossword).
 - `full` is the shared frame's class: a game's own switch must not use it (Hong, Tribute and Trumps' "Full screen"
   choice, the cloth filling the screen with the header's buttons on it, is `ontable`).
-- Check a new page at 390×664, 390×844 and sideways in the three themes, day and night; Modern's button is wider
-  (`--full-slot`).
+- Check a new page at 390×664, 390×844 and sideways in the two looks: Codex day, Codex night and Office.
 
 ## Header dropdowns
 
@@ -269,15 +268,22 @@ a wide screen, an × at the top right, a tap outside closes it. Fill `#menuBody`
 
 ## Themes
 
-Three themes (Codex, Modern, Kontor), each day and night, set by `theme.js` on `<html data-theme data-mode>`.
+Two looks, set by `theme.js` on `<html data-theme data-mode>`: **Codex** (the default, no `data-theme`; day and night,
+following the phone unless set in Settings) and **Office** (`data-theme="office"`, night only: `theme.js` forces
+`data-mode="night"` and ignores `suite:mode`). Modern and Kontor were removed (Korbi, 4 November 2026: "it's time to
+fully ditch the modern and kontor themes. we only have one office theme (dark), and codex (light and dark)"); a device
+that still has one saved becomes Codex. `tests/themes.mjs` fails if a stylesheet or script names either as a theme.
 - Write styles that follow them: colours from the variables (`--yard`, `--ink`, `--sheet`, `--tile`, `--brass`,
   `--plate`…), never fixed hex for the page, panels or buttons (a game's own board colours are fine); spaced capitals
   as `text-transform: var(--caps); letter-spacing: calc(.1em * var(--track))`, wide lettering as `var(--wide)`.
 - Dark rules go in `@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) … }` plus a copy under
-  `html[data-mode="night"] …` (every stylesheet is written that way now).
-- Codex's ornaments (ticks, inset frames, gilt) are Codex's: if you add one, undo it for Modern and Kontor in
-  `themes.css`. A new game needs a Modern logo and a Kontor icon in `apps.js` (else it shows Codex's).
-- Check a new screen in all three, day and night.
+  `html[data-mode="night"] …` (every stylesheet is written that way now). Office is always `data-mode="night"`, so those
+  night rules are its rules too.
+- Codex's ornaments (ticks, inset frames, gilt) are Codex's: if you add one, undo it for Office with a
+  `html[data-theme="office"]` rule (night values only; Office has no day) in the game's stylesheet or `themes.css`.
+  A new game needs an Office line icon in `apps.js` (`OFFICE_ICONS`, `class="k-ico"`; else it shows Codex's logo).
+- A 3D skin table (`SKINS`) has `codex` and `office`; Office's is night.
+- Check a new screen in Codex day, Codex night and Office.
 
 ## Checking syntax
 

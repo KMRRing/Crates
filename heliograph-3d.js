@@ -12,24 +12,16 @@ const TAU = Math.PI * 2, DOUBLE = 2, ADD = 2;                 // THREE.DoubleSid
 const UP = new THREE.Vector3(0, 1, 0);
 
 // ---------- the skins ----------
-// Codex: brass on a navy plate under warm glass. Modern: an architect's white model with gilt. Office: Fluent's greys
-// and blue. Kontor: white and green, as its drawings are. At night the room is dark and the light is brighter for it.
+// Codex: brass on a navy plate under warm glass. Office: Fluent's greys
+// and blue. At night the room is dark and the light is brighter for it.
 const SKINS = {
   codex: {
     day: { brass: 0xcfa142, plate: 0x1c2a34, line: 0xcfa142, glass: 0xe9dcc0, sky: 0xf2e8d2, ground: 0x4a4034, key: 0xffffff, keyI: 0.75, amb: 0.62, exposure: 1.0, beam: 0xfff3d0 },
     night: { brass: 0xc39a3e, plate: 0x0d151c, line: 0xc39a3e, glass: 0x5b6f96, sky: 0x5b6f96, ground: 0x10151b, key: 0xb9cdee, keyI: 0.55, amb: 0.55, exposure: 1.12, beam: 0xfff0c8 },
   },
-  modern: {
-    day: { brass: 0xd7ad3f, plate: 0xeef0ef, line: 0xb9c3c8, glass: 0xdfe8ee, sky: 0xffffff, ground: 0xb9c3c8, key: 0xffffff, keyI: 0.7, amb: 0.7, exposure: 1.0, beam: 0xfffbea },
-    night: { brass: 0xc9a23c, plate: 0x2a3238, line: 0x55626c, glass: 0xa4b8c9, sky: 0xa4b8c9, ground: 0x151b20, key: 0xc8dbef, keyI: 0.55, amb: 0.55, exposure: 1.12, beam: 0xfff6dc },
-  },
   office: {
     day: { brass: 0x9aa3aa, plate: 0xf3f3f3, line: 0x0f6cbd, glass: 0xdcebfa, sky: 0xffffff, ground: 0xc7c7c7, key: 0xffffff, keyI: 0.65, amb: 0.75, exposure: 1.0, beam: 0xffffff },
     night: { brass: 0x6e6e6e, plate: 0x2b2b2b, line: 0x479ef5, glass: 0x3a4c60, sky: 0x3a4c60, ground: 0x141414, key: 0xcfe4fb, keyI: 0.5, amb: 0.55, exposure: 1.1, beam: 0xeaf4ff },
-  },
-  kontor: {
-    day: { brass: 0x5fae80, plate: 0xffffff, line: 0x1e7a45, glass: 0xe4eee8, sky: 0xffffff, ground: 0xc9d2cc, key: 0xffffff, keyI: 0.6, amb: 0.8, exposure: 1.0, beam: 0xffffff },
-    night: { brass: 0x3dd884, plate: 0x15201a, line: 0x3dd884, glass: 0x4f7a60, sky: 0x4f7a60, ground: 0x0b100d, key: 0xa8f0c8, keyI: 0.5, amb: 0.55, exposure: 1.15, beam: 0xeafff2 },
   },
 };
 export function skinNow() {

@@ -164,7 +164,7 @@ const bargesOf = sol => [...sol].map((ch, i) => (ch === BARGE ? i : -1)).filter(
 {
   const apps = fs.readFileSync(root + "apps.js", "utf8"), page = fs.readFileSync(root + "moor.js", "utf8"), html = fs.readFileSync(root + "moor.html", "utf8");
   const css = fs.readFileSync(root + "moor.css", "utf8"), three = fs.readFileSync(root + "moor-3d.js", "utf8");
-  check(/id: "moor",[^\n]*href: "\.\/moor\.html"/.test(apps) && /moor: `<svg viewBox="0 0 20 20"/.test(apps) && /moor: `<svg class="k-ico"/.test(apps), "the tile opens the game, with a Modern logo and a Kontor icon");
+  check(/id: "moor",[^\n]*href: "\.\/moor\.html"/.test(apps) && /moor: `<svg class="k-ico"/.test(apps), "the tile opens the game, with an Office icon");
   check(/roundOver\("moor"\)/.test(page) && /noteDayTime\("moor"/.test(page) && /arrivedForToday\(\)/.test(page) && /onPause\(/.test(page) && /bindSwitcher\(\$\("appsBtn"\), "moor"\)/.test(page),
     "the page counts a solve for Random and for today, opens today's from the tile, stops its clock with the menu");
   check(/moor\.css/.test(html) && /moor\.js/.test(html) && /class="moor full titled fit-screen beside"/.test(html), "the page links its styles and script");

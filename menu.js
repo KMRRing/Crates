@@ -152,17 +152,16 @@ export function todayPart(body, { app, done, result, play, playing = false, busy
 }
 
 export const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-// Kontor's menu button: three rules, technical
-const KONTOR_MENU = '<svg class="k-menu" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg>';
+// Office's menu button: three rules
+const OFFICE_MENU = '<svg class="k-menu" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg>';
 // the menu button: the Codex mark standing still (mark.js; style.css turns its movement while the menu is open)
-/** Draws `btn` as the games' menu button (the mark; three rules in Kontor and Office), turning while `dlg` is open. Modern keeps
- *  its plain "Menu" button. A page with a second menu button (Almanac's, over the star chart) calls this for it too. */
+/** Draws `btn` as the games' menu button (the mark; three rules in Office), turning while `dlg` is open. A page with a second menu button (Almanac's, over the star chart) calls this for it too. */
 export function markButton(btn, dlg) {
   const look = document.documentElement.dataset.theme;
-  if (!btn || !dlg || look === "modern") return;
+  if (!btn || !dlg) return;
   btn.classList.add("cx-btn");
   btn.setAttribute("aria-label", "Menu");
-  btn.innerHTML = look === "kontor" || look === "office" ? KONTOR_MENU : MARK;   // Office: the same three rules, rounded in themes.css
+  btn.innerHTML = look === "office" ? OFFICE_MENU : MARK;   // Office: three rules, rounded in themes.css
   new MutationObserver(() => btn.classList.toggle("turning", dlg.open)).observe(dlg, { attributes: true, attributeFilter: ["open"] });
 }
 // a game played by a party (?party=CODE in its address): the party's part heads its menu (party-link.js, loaded only

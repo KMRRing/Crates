@@ -28,16 +28,11 @@ const SKINS = {
     day: { felt: 0x2c6a52, wood: [0x6b3a1c, 0x3a1b0b], brass: 0xcaa040, ivory: 0xf4ecd8, pip: 0x141922, back: 0x4a2c1b, sun: 0xfff1d8, sunI: 3.0, fill: 0xdce6ff, fillI: 0.5, sky: 0xfff4de, ground: 0x6b5a48, hemi: 0.95, exposure: 1.12 },
     night: { felt: 0x2a6a55, wood: [0x6e3c1e, 0x3a1c0c], brass: 0xc09638, ivory: 0xf0e6cc, pip: 0x10151c, back: 0x4a2c1b, sun: 0xc4d6f2, sunI: 2.7, fill: 0xffc98a, fillI: 0.7, sky: 0x9fb4de, ground: 0x34343c, hemi: 1.05, exposure: 1.3 },
   },
-  modern: {
+  office: {
     day: { felt: 0x2a5f86, wood: [0x7a4a28, 0x41230f], brass: 0xd7ad3f, ivory: 0xf6efde, pip: 0x141922, back: 0x23364a, sun: 0xffffff, sunI: 2.8, fill: 0xe4ecff, fillI: 0.55, sky: 0xffffff, ground: 0xa9b0b6, hemi: 1.1, exposure: 1.08 },
     night: { felt: 0x2a6190, wood: [0x6c4224, 0x371c0c], brass: 0xc9a23c, ivory: 0xf0e8d2, pip: 0x10151c, back: 0x25394e, sun: 0xcfe0f6, sunI: 2.6, fill: 0xffd7a0, fillI: 0.65, sky: 0xaabdd8, ground: 0x2c3640, hemi: 1.05, exposure: 1.3 },
   },
-  kontor: {
-    day: { felt: 0x1f6e47, wood: [0x5b3a24, 0x2c1a0e], brass: 0xc4a248, ivory: 0xf3ecda, pip: 0x141b18, back: 0x1c3d2c, sun: 0xffffff, sunI: 2.7, fill: 0xeaf2ee, fillI: 0.55, sky: 0xffffff, ground: 0xb4c0b8, hemi: 1.15, exposure: 1.05 },
-    night: { felt: 0x20754c, wood: [0x5c3a22, 0x2c190d], brass: 0xbb9a40, ivory: 0xeee6d0, pip: 0x0f1512, back: 0x1b3e2c, sun: 0xd2e2e6, sunI: 2.6, fill: 0xffe2b0, fillI: 0.65, sky: 0xa5b7ba, ground: 0x1c2822, hemi: 1.0, exposure: 1.3 },
-  },
 };
-SKINS.office = SKINS.modern;
 
 // ---------- shaders ----------
 const NOISE = `

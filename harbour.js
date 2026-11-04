@@ -992,7 +992,7 @@ async function makeMap() {
   mapView ||= createFlat($("sea"));
   $("sea").view = mapView;                                   // for the tests: where a hex is on screen
 }
-// the theme (Codex, Modern, Kontor) and day or night re-skin the 3D harbour as they change
+// the theme (Codex, Office) and day or night re-skin the 3D harbour as they change
 new MutationObserver(() => mapView?.theme()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => mapView?.theme());
 

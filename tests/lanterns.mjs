@@ -219,7 +219,7 @@ const made = [];
 {
   const apps = fs.readFileSync(root + "apps.js", "utf8"), page = fs.readFileSync(root + "lanterns.js", "utf8"), html = fs.readFileSync(root + "lanterns.html", "utf8");
   const css = fs.readFileSync(root + "lanterns.css", "utf8"), three = fs.readFileSync(root + "lanterns-3d.js", "utf8");
-  check(/id: "lanterns",[^\n]*href: "\.\/lanterns\.html"/.test(apps) && /^ {2}lanterns: `<svg viewBox="0 0 20 20"/m.test(apps) && /^ {2}lanterns: `<svg class="k-ico"/m.test(apps), "the tile opens the game, with a Modern logo and a Kontor icon");
+  check(/id: "lanterns",[^\n]*href: "\.\/lanterns\.html"/.test(apps) && /^ {2}lanterns: `<svg class="k-ico"/m.test(apps), "the tile opens the game, with an Office icon");
   check(/roundOver\("lanterns"\)/.test(page) && /noteDayTime\("lanterns"/.test(page) && /arrivedForToday\(\)/.test(page) && /onPause\(/.test(page) && /bindSwitcher\(\$\("appsBtn"\), "lanterns"\)/.test(page),
     "the page counts a solve for Random and for today, opens today's from the tile, stops its clock with the menu");
   check(/lanterns\.css/.test(html) && /lanterns\.js/.test(html) && /class="lanterns full titled fit-screen beside"/.test(html), "the page links its styles and script");

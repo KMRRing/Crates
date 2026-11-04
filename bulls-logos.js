@@ -38,19 +38,6 @@ export const BULLS_CODEX = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellip
   + glintStar(68, 21, 3.4, "#F2D58C")
   + `</svg>`;
 
-// Modern: flat and bright on the games screen's pale sheet, so a dark disc with the five bodies in a row
-export const BULLS_MODERN = `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#101B36"/><circle cx="10" cy="10" r="8.3" fill="none" stroke="#E1AB24" stroke-width=".55"/>`
-  + `<circle cx="12.4" cy="6.6" r="3.8" fill="#35508F" opacity=".4"/>`
-  + `<circle cx="5" cy="6" r=".28" fill="#F4EBD2"/><circle cx="14.6" cy="4.2" r=".24" fill="#F4EBD2"/><circle cx="16" cy="13.8" r=".28" fill="#F4EBD2"/><circle cx="7.2" cy="15.4" r=".24" fill="#F4EBD2"/>`
-  + ball(4.6, 12.4, .85, "#0A0606", "#2A1C18", "#FF9A4A", "#FF7A1F")
-  + ball(7.2, 11.2, 1.25, "#5A93B2", "#D6F0FA", "#FFFFFF")
-  + `<circle cx="10.2" cy="10" r="3.1" fill="#F2B22E" opacity=".22"/>`
-  + ball(10.2, 10, 2, "#C98A10", "#F8CB4C", "#FFFBE0", "#FFF3B8")
-  + `<ellipse cx="14" cy="8.4" rx="2.4" ry=".68" transform="rotate(-17 14 8.4)" fill="none" stroke="#B38A3C" stroke-width=".38"/>`
-  + ball(14, 8.4, 1.2, "#6B3A7A", "#C99BD6", "#F5E3FA")
-  + ball(16.5, 7, .6, "#A59D84", "#F0EBDD", "#FFFFFF")
-  + `</svg>`;
-
-// Kontor: a line icon on the ink, the brass for the Sun
-export const BULLS_KONTOR = `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><g style="stroke-width:1.15">`
+// Office: a line icon on the ink, the brass for the Sun
+export const BULLS_OFFICE = `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><g style="stroke-width:1.15">`
   + `<circle cx="5.2" cy="14.6" r=".9"/><circle cx="8.6" cy="13.2" r="1.5"/><circle class="f" cx="12.6" cy="11.6" r="2.2"/><circle cx="17" cy="9.9" r="1.3"/><ellipse cx="17" cy="9.9" rx="2.9" ry=".8" transform="rotate(-17 17 9.9)"/></g></svg>`;

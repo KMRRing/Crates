@@ -64,9 +64,7 @@ for (const mode of ["day", "night"]) {
 // each theme's ink and paper (`--tile`), as style.css and themes.css give them; a night's board paper is 90% paper and 10% ink (bridges.css's --brg-tile)
 const THEMES = {
   "codex day": [style, "#1C2A34", "#FBF8F0"], "codex night": [style, "#ECE2CB", "#1E2A35"],
-  "modern day": [themes, "#1C2A34", "#F7F8F7"], "modern night": [themes, "#E3E8EB", "#1D262D"],
-  "kontor day": [themes, "#111A15", "#FFFFFF"], "kontor night": [themes, "#D3E2D8", "#131B16"],
-  "office day": [themes, "#242424", "#FFFFFF"], "office night": [themes, "#FFFFFF", "#292929"],
+  "office night": [themes, "#FFFFFF", "#292929"],   // Office is night only
 };
 const token = (name, night) => {
   const darkBlock = css.match(/html\[data-mode="night"\] \{([^}]*)\}/)[1], base = css.match(/:root \{([^}]*)\}/)[1];

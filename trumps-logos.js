@@ -25,22 +25,8 @@ export const BELOTE_CODEX = codex(card(-16, 30, SPADE), card(12, 32, HEART));
 export const SCHAFKOPF_CODEX = codex(card(-16, 30, ACORN), card(12, 32, LEAF));
 export const COINCHE_CODEX = codex(card(-16, 30, CLUB), card(12, 32, DIAMOND));
 
-// Modern's: flat colour on a 20 square
-const modern = (a, b) => `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="4" width="8.5" height="12" rx="1.4" transform="rotate(-14 6.7 10)" fill="#E8F1EC" stroke="#2E6B4F" stroke-width="1.2"/><rect x="8.5" y="3.5" width="9" height="13" rx="1.4" transform="rotate(10 13 10)" fill="#FFFFFF" stroke="#2E6B4F" stroke-width="1.2"/>${a}${b}</svg>`;
-const m = {
-  rose: [0, 1, 2, 3, 4].map(i => { const a = (i * 72 - 90) * Math.PI / 180; return `<circle cx="${+(6.7 + 1.7 * Math.cos(a)).toFixed(2)}" cy="${+(10 + 1.7 * Math.sin(a)).toFixed(2)}" r="1.05" fill="#A8452F"/>`; }).join("") + `<circle cx="6.7" cy="10" r=".8" fill="#D9A441"/>`,
-  shield: `<path d="M10.8 7H15.2V10.6C15.2 12.4 14 13.4 13 13.8 12 13.4 10.8 12.4 10.8 10.6Z" fill="#A8452F"/><path d="M13 7.9V12.6M11.6 10H14.4" stroke="#fff" stroke-width="1"/>`,
-  spade: `<path d="M6.7 6.6C9 8.6 9.6 10 8.4 11C7.8 11.4 7.2 11.2 7 10.8C7 11.6 7.2 12.2 7.6 12.8H5.8C6.2 12.2 6.4 11.6 6.4 10.8C6.2 11.2 5.6 11.4 5 11C3.8 10 4.4 8.6 6.7 6.6Z" fill="#2E6B4F"/>`,
-  heart: `<path d="M13 13.6C9.8 11.4 10.2 8.6 11.8 8.6C12.5 8.6 13 9.1 13 9.7C13 9.1 13.5 8.6 14.2 8.6C15.8 8.6 16.2 11.4 13 13.6Z" fill="#A8452F"/><path d="M11.4 7.8L11.7 6.2L12.4 7L13 6L13.6 7L14.3 6.2L14.6 7.8Z" fill="#D9A441"/>`,
-  acorn: `<path d="M5.1 9H8.3C8.3 11.2 7.5 12.4 6.7 12.9 5.9 12.4 5.1 11.2 5.1 9Z" fill="#D9A441"/><path d="M4.8 9.1C4.8 7.6 5.7 6.9 6.7 6.9S8.6 7.6 8.6 9.1Z" fill="#7A5226"/>`,
-  club: `<circle cx="6.7" cy="8.4" r="1.2" fill="#2E6B4F"/><circle cx="5.4" cy="10.6" r="1.2" fill="#2E6B4F"/><circle cx="8" cy="10.6" r="1.2" fill="#2E6B4F"/><path d="M6.3 10.6H7.1L7.4 12.8H6Z" fill="#2E6B4F"/>`,
-  diamond: `<path d="M13 6.8L15.2 10.2L13 13.6L10.8 10.2Z" fill="#A8452F"/>`,
-  leaf: `<path d="M13 6.8C10.8 8.6 10.6 11.2 13 13.8C15.4 11.2 15.2 8.6 13 6.8Z" fill="#3E8E3A"/><path d="M13 8.2V13" stroke="#E8F1EC" stroke-width=".6"/>`,
-};
-export const TRUMPS_MODERN = { jass: modern(m.rose, m.shield), belote: modern(m.spade, m.heart), schafkopf: modern(m.acorn, m.leaf), coinche: modern(m.club, m.diamond) };
-
-// Kontor's (and Office's): a line drawing on a 24 square, `.a` the accent line
-const kontor = (a, b) => `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="9" height="14" rx="1.5" transform="rotate(-12 7.5 12)"/><rect x="11" y="4" width="9.5" height="14.5" rx="1.5" transform="rotate(10 15.7 11.2)"/>${a}${b}</svg>`;
+// Office's: a line drawing on a 24 square, `.a` the accent line
+const office = (a, b) => `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="9" height="14" rx="1.5" transform="rotate(-12 7.5 12)"/><rect x="11" y="4" width="9.5" height="14.5" rx="1.5" transform="rotate(10 15.7 11.2)"/>${a}${b}</svg>`;
 const k = {
   rose: `<circle cx="7.4" cy="12.2" r="1.2"/><path class="a" d="M7.4 9.1a1.6 1.6 0 1 1 1.5 2M9.9 11.3a1.6 1.6 0 1 1-.6 2.4M8.3 15.6a1.6 1.6 0 1 1-2.8-.2M5 13.8a1.6 1.6 0 1 1 .4-2.6"/>`,
   shield: `<path d="M13 8.2H18.4V12.4C18.4 14.6 17 15.8 15.7 16.4 14.4 15.8 13 14.6 13 12.4Z"/><path class="a" d="M15.7 9.2V15M14 11.8H17.4"/>`,
@@ -51,4 +37,4 @@ const k = {
   diamond: `<path class="a" d="M15.8 7.6L18 11.8L15.8 16L13.6 11.8Z"/>`,
   leaf: `<path class="a" d="M15.8 7.6C13 9.8 12.8 13 15.8 16.4 18.8 13 18.6 9.8 15.8 7.6Z"/><path d="M15.8 9.4V15.2"/>`,
 };
-export const TRUMPS_KONTOR = { jass: kontor(k.rose, k.shield), belote: kontor(k.spade, k.heart), schafkopf: kontor(k.acorn, k.leaf), coinche: kontor(k.club, k.diamond) };
+export const TRUMPS_OFFICE = { jass: office(k.rose, k.shield), belote: office(k.spade, k.heart), schafkopf: office(k.acorn, k.leaf), coinche: office(k.club, k.diamond) };

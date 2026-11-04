@@ -189,7 +189,7 @@ const made = [];
   const read = f => fs.readFileSync(root + f, "utf8");
   const apps = read("apps.js"), page = read("asterism.js"), html = read("asterism.html"), css = read("asterism.css");
   check(/id: "asterism",[^\n]*href: "\.\/asterism\.html"/.test(apps) && /asterism: "time"/.test(read("suite.js")) && /asterism: "a puzzle solved"/.test(read("random-core.js")) && /asterism: \{ name: "Asterism"/.test(read("rooms.js")), "the tile, the games screen's figure, Random and the rooms list know it");
-  check(/asterism: `<svg viewBox="0 0 20 20"/.test(apps) && /asterism: `<svg class="k-ico"/.test(apps) && /const ASTERISM_LOGO/.test(apps), "a logo in each of the three houses");
+  check(/asterism: `<svg class="k-ico"/.test(apps) && /const ASTERISM_LOGO/.test(apps), "a logo in each of the two houses");
   check(/roundOver\("asterism"\)/.test(page) && /noteDayTime\("asterism"/.test(page) && /arrivedForToday\(\)/.test(page) && /onPause\(/.test(page) && /bindSwitcher\(\$\("appsBtn"\), "asterism"\)/.test(page),
     "the page counts a solve for Random and for today, opens today's from the tile, stops its clock with the menu");
   check(/asterism\.css/.test(html) && /asterism\.js/.test(html) && /class="asterism full titled fit-screen beside"/.test(html), "the page links its styles and script, full screen and titled");

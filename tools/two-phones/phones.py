@@ -44,7 +44,7 @@ class Phone:
         return self
 
     def look(self, theme, mode):
-        """Theme (codex, modern, kontor) and day or night, then the page again."""
+        """Theme (codex, office) and day or night, then the page again."""
         self.page.evaluate("([t, m]) => { localStorage.setItem('suite:theme', t); localStorage.setItem('suite:mode', m); }", [theme, mode])
         self.page.reload()
 

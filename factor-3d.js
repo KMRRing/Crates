@@ -31,14 +31,6 @@ const SKINS = {
     day: { table: [0x6e5038, 0x5a3f2a], grain: 1, rim: 0x4a2c17, rimTop: 0xc49a3e, sun: 0xfff1d8, sunI: 2.6, sunAt: [-5, 12, 7], sky: 0xfff4de, ground: 0x6f5c45, hemi: 1.05, exposure: 1.05 },
     night: { table: [0x37281c, 0x2c1f15], grain: 1, rim: 0x2d1a0d, rimTop: 0xb38c38, sun: 0xc4d4f0, sunI: 1.9, sunAt: [-5, 12, 6], sky: 0x8fa3cc, ground: 0x24242a, hemi: 0.85, exposure: 1.2 },
   },
-  modern: {
-    day: { table: [0xe2d2b4, 0xd2bd98], grain: 0.7, rim: 0x9b7650, rimTop: 0xe8dcc6, sun: 0xffffff, sunI: 2.4, sunAt: [-5, 12, 8], sky: 0xffffff, ground: 0xb7bec2, hemi: 1.15, exposure: 1.02 },
-    night: { table: [0x4a4038, 0x3a312a], grain: 0.7, rim: 0x2e241b, rimTop: 0x6c6156, sun: 0xc6d6ee, sunI: 1.8, sunAt: [-5, 12, 6], sky: 0x9aacc8, ground: 0x1c232a, hemi: 0.9, exposure: 1.2 },
-  },
-  kontor: {
-    day: { table: [0x3b6b52, 0x335f48], grain: 0, rim: 0x23402f, rimTop: 0x1e7a45, sun: 0xffffff, sunI: 2.4, sunAt: [-5, 12, 8], sky: 0xffffff, ground: 0xb9c6be, hemi: 1.15, exposure: 1.02 },
-    night: { table: [0x15291f, 0x112219], grain: 0, rim: 0x0c1912, rimTop: 0x2eb36a, sun: 0xc8dad4, sunI: 1.7, sunAt: [-5, 12, 6], sky: 0x8fa5a0, ground: 0x0c1410, hemi: 0.85, exposure: 1.22 },
-  },
   office: {
     day: { table: [0xd6d8db, 0xcdd0d4], grain: 0, rim: 0x8a8f96, rimTop: 0xf3f3f3, sun: 0xffffff, sunI: 2.3, sunAt: [-5, 12, 8], sky: 0xffffff, ground: 0xc4c8cc, hemi: 1.2, exposure: 1.0 },
     night: { table: [0x2c2f34, 0x26292d], grain: 0, rim: 0x1b1d20, rimTop: 0x479ef5, sun: 0xcfd8e6, sunI: 1.7, sunAt: [-5, 12, 6], sky: 0x9aa6b8, ground: 0x15171a, hemi: 0.9, exposure: 1.2 },

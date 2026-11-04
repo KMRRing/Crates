@@ -38,20 +38,12 @@ const SKINS = {
     day: { birch: [0xe6cd9f, 0xdfc392, 0xebd7b0], mahoL: 0x68250f, mahoD: 0x2c0e06, brass: 0xcaa040, inlay: 0x3f160c, sun: 0xfff0d6, sunI: 2.9, sunAt: [-6, 13, 8], fill: 0xdce6ff, fillI: 0.7, sky: 0xfff4de, ground: 0x7a6650, hemi: 0.95, exposure: 1.12 },
     night: { birch: [0xcdb487, 0xc6aa7c, 0xd2bc93], mahoL: 0x58200f, mahoD: 0x260c06, brass: 0xc09638, inlay: 0x33120a, sun: 0xb9cdee, sunI: 1.7, sunAt: [-6, 13, 7], fill: 0xffc98a, fillI: 0.85, sky: 0x8fa6d4, ground: 0x2a2a30, hemi: 0.75, exposure: 1.18 },
   },
-  modern: {
-    day: { birch: [0xefdcb8, 0xe8d3aa, 0xf3e4c4], mahoL: 0x70301c, mahoD: 0x34130a, brass: 0xd7ad3f, inlay: 0x48190f, sun: 0xffffff, sunI: 2.6, sunAt: [-5, 13, 8], fill: 0xe4ecff, fillI: 0.8, sky: 0xffffff, ground: 0xb9c0c4, hemi: 1.15, exposure: 1.08 },
-    night: { birch: [0xcbb894, 0xc4b08a, 0xd0bf9e], mahoL: 0x5e281a, mahoD: 0x2b100a, brass: 0xc9a23c, inlay: 0x3a150d, sun: 0xc3d6f0, sunI: 1.6, sunAt: [-5, 13, 7], fill: 0xffd7a0, fillI: 0.7, sky: 0x9db0cc, ground: 0x1c242b, hemi: 0.85, exposure: 1.2 },
-  },
-  kontor: {
-    day: { birch: [0xe9d8b6, 0xe2cfa8, 0xeedfc0], mahoL: 0x672a1b, mahoD: 0x30140d, brass: 0xc4a248, inlay: 0x3c1a11, sun: 0xffffff, sunI: 2.5, sunAt: [-5, 13, 8], fill: 0xeaf2ee, fillI: 0.8, sky: 0xffffff, ground: 0xc9d2cc, hemi: 1.2, exposure: 1.05 },
-    night: { birch: [0xc3b392, 0xbcab8a, 0xc9ba9b], mahoL: 0x522318, mahoD: 0x250f09, brass: 0xbb9a40, inlay: 0x2f130c, sun: 0xc6d8dc, sunI: 1.4, sunAt: [-5, 13, 7], fill: 0xffe2b0, fillI: 0.6, sky: 0x93a5a8, ground: 0x0e1511, hemi: 0.8, exposure: 1.22 },
-  },
 };
 // What the table is made of, for each scene (topple-levels.js: a level's `scene`): the field's three tones, the frame's light and
 // dark, the metal of the bands and studs, the line between the dominoes' hexagons (`line`) and the bands' dark (`inlay`), by day
 // and by night, and how the shader draws it (`style`: 1 marble, 2 planks, 3 flagstones, 4 gravel; 0 is the birch and mahogany of
 // Classic, which this leaves exactly as it was) and how glossy field and frame are (`rough`). Water and stone take the scene's too.
-// The theme still sets the light and the enamels, so a scene follows Codex, Modern and Kontor, and day and night.
+// The theme still sets the light and the enamels, so a scene follows Codex and Office, and day and night.
 const SCENES = {
   marble: {
     style: 1, rough: [0.2, 0.24],

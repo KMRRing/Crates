@@ -17,10 +17,6 @@ const DIST = EYE;                                             // the camera's di
 const SKINS = {
   codex: { day: { bench: [0x6e5038, 0x5a3f2a], grain: 1, sun: 0xfff1d8, sunI: 2.5, sky: 0xfff4de, ground: 0x6f5c45, hemi: 1.0, exposure: 1.05, ghost: 0x1c2a34, bg: 0x4a3524 },
     night: { bench: [0x37281c, 0x2c1f15], grain: 1, sun: 0xd2dcf0, sunI: 2.0, sky: 0x8fa3cc, ground: 0x24242a, hemi: 0.85, exposure: 1.18, ghost: 0xe2b865, bg: 0x1e160f } },
-  modern: { day: { bench: [0xe2d2b4, 0xd2bd98], grain: 0.7, sun: 0xffffff, sunI: 2.3, sky: 0xffffff, ground: 0xb7bec2, hemi: 1.1, exposure: 1.0, ghost: 0x1c2a34, bg: 0xc9b896 },
-    night: { bench: [0x4a4038, 0x3a312a], grain: 0.7, sun: 0xc6d6ee, sunI: 1.9, sky: 0x9aacc8, ground: 0x1c232a, hemi: 0.9, exposure: 1.2, ghost: 0xf3ead6, bg: 0x2a241f } },
-  kontor: { day: { bench: [0x3b6b52, 0x335f48], grain: 0, sun: 0xffffff, sunI: 2.3, sky: 0xffffff, ground: 0xb9c6be, hemi: 1.1, exposure: 1.0, ghost: 0x0b2a1a, bg: 0x2c5240 },
-    night: { bench: [0x15291f, 0x112219], grain: 0, sun: 0xc8dad4, sunI: 1.8, sky: 0x8fa5a0, ground: 0x0c1410, hemi: 0.85, exposure: 1.2, ghost: 0x2eb36a, bg: 0x0c1912 } },
   office: { day: { bench: [0xd6d8db, 0xcdd0d4], grain: 0, sun: 0xffffff, sunI: 2.2, sky: 0xffffff, ground: 0xc4c8cc, hemi: 1.15, exposure: 1.0, ghost: 0x0f6cbd, bg: 0xbfc3c8 },
     night: { bench: [0x2c2f34, 0x26292d], grain: 0, sun: 0xcfd8e6, sunI: 1.8, sky: 0x9aa6b8, ground: 0x15171a, hemi: 0.9, exposure: 1.2, ghost: 0x479ef5, bg: 0x1b1d20 } },
 };

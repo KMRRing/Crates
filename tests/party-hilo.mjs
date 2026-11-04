@@ -35,7 +35,7 @@ check(GAMES.includes(hilo) && e?.kind === "party" && typeof hilo.solo === "funct
   && fits(e, 2) && fits(e, 24) && !fits(e, 1), "one of Party's games, and played on one phone too");
 const apps = readFileSync(new URL("../apps.js", import.meta.url), "utf8");
 check(/id: "hilo", sec: "party", name: "Higher or Lower", href: "\.\/party\.html\?game=hilo", logo: LOGO\("hilo", HILO_LOGO\)/.test(apps)
-  && /^ {2}hilo: `<svg viewBox="0 0 20 20"/m.test(apps) && /^ {2}hilo: `<svg class="k-ico"/m.test(apps), "a tile on the games screen, opening it, with its logo in every theme");
+  && /^ {2}hilo: `<svg class="k-ico"/m.test(apps), "a tile on the games screen, opening it, with its logo in both looks");
 
 // ---------- at a party ----------
 {

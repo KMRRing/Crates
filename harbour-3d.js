@@ -1,6 +1,6 @@
 // Harbour's map in 3D: hex tiles, the quays' warehouses and yards, a few gabled houses and little cogs, drawn with
 // three.js (vendor/three.js, kept on the device like every other file, so it plays offline). Everything is built in
-// code, no models and no textures, so every colour comes from the skin: Codex, Modern, Kontor or Office (the suite's
+// code, no models and no textures, so every colour comes from the skin: Codex or Office (the suite's
 // theme), each by day and by night, and the metals' colours from the stylesheet, as the flat map has them. It answers
 // the same calls as the flat map (harbour-flat.js): setLevel, draw, pick, drag, release, theme, resize, dispose. It
 // draws only while something moves.
@@ -12,9 +12,8 @@ const centre = (x, y) => new THREE.Vector3(W * (x + 0.5 + (y & 1) / 2), 0, 1.5 *
 const EL = 52, YAW = 18;                                  // the camera: degrees above the sea, and turned off south
 const SHIP = { coaster: { len: 1.12, beam: .42 }, handy: { len: 1.5, beam: .5 } };      // a Schnigge and a Cog
 
-// The skins. Codex: a chart in brass and navy, oak ships with a red-striped sail and brick warehouses. Modern: an
-// architect's white model. Kontor: a drawing office, every edge inked; at night a green trace on black. At night, in all
-// three, windows and quay lamps are lit, ships carry a stern lantern, the castles glow a little, and the sea has a glow
+// The skins. Codex: a chart in brass and navy, oak ships with a red-striped sail and brick warehouses. Office: a
+// drawing office, every edge inked, flat greys and blue. At night, in both, windows and quay lamps are lit, ships carry a stern lantern, the castles glow a little, and the sea has a glow
 // of its own, as moonlit water does, so it always reads against the land. Keys: hull, boot (the waterline), deck, house
 // (the castles), glass (windows and lanterns), funnel (the mast and yard), band (the sail's stripe), sail; wall and roof
 // are the warehouses' and the town's; pier, empty (an empty hold) and the rest are the scene's.
@@ -28,15 +27,6 @@ const SKINS = {
       wall: 0x94553f, roof: 0x4a3027, pier: 0x6d604c, empty: 0x5c5a4a, sky: 0x9fb6dd, ground: 0x2a2f36, hemi: 1.2, sun: 0xbcd2f2, sunI: 2, sunAt: [-6, 10, -3], exposure: 1.25,
       night: true, lamp: 0xffc56a },
   },
-  modern: {
-    day: { land: 0xf3f4f2, grass: 0xe8ecea, side: .86, plate: 0xbcc6cb, water: [0x8fbfd3, 0x88b8cc], decor: "shrub", leaf: 0xc4d4cb,
-      hull: 0xfbfbf9, boot: 0x1c2a34, deck: 0xc9d1d5, house: 0xffffff, glass: 0x1c2a34, funnel: 0x1c2a34, band: 0xa23c30, sail: 0xffffff,
-      wall: 0xffffff, roof: 0xc9d1d5, pier: 0xc9d1d5, empty: 0xe4e7e7, sky: 0xffffff, ground: 0xb9c3c8, hemi: 1.45, sun: 0xffffff, sunI: 2, sunAt: [3, 12, 5], exposure: 1 },
-    night: { land: 0x3a4651, grass: 0x36424c, side: .75, plate: 0x080c0f, water: [0x27566e, 0x245168], seaGlow: .22, decor: "shrub", leaf: 0x3b5249,
-      hull: 0xdce3e8, boot: 0x0b1014, deck: 0x46545f, house: 0xf2f5f7, houseGlow: .15, glass: 0xcfe8ff, funnel: 0x1c2a34, band: 0xa23c30, sail: 0xe6ecf0,
-      wall: 0x52606b, roof: 0x3a4651, pier: 0x46545f, empty: 0x3a4651, sky: 0xa4b8c9, ground: 0x1a2228, hemi: 1.15, sun: 0xc8dbef, sunI: 1.8, sunAt: [-5, 11, -3], exposure: 1.2,
-      night: true, lamp: 0xcfe8ff },
-  },
   // Office: Fluent's neutrals and its blue; flat light greys by day, charcoal at night
   office: {
     day: { land: 0xf5f5f5, grass: null, side: .92, plate: 0x8a8a8a, water: [0xdcebfa, 0xd3e5f8], decor: null,
@@ -47,17 +37,8 @@ const SKINS = {
       wall: 0x2b2b2b, roof: 0x3d3d3d, pier: 0x3d3d3d, empty: 0x333333, edge: [0x479ef5, .9], landEdge: [0x479ef5, .18], sky: 0x3a4c60, ground: 0x141414, hemi: .9, sun: 0xcfe4fb, sunI: 1.2, sunAt: [-4, 12, -3], exposure: 1,
       night: true, lamp: 0x9ccbfa },
   },
-  kontor: {
-    day: { land: 0xe4eae6, grass: null, side: .9, plate: 0x93a39a, water: [0xb2cabd, 0xabc4b6], decor: null,
-      hull: 0x111a15, boot: 0x2eb36a, deck: 0x2e3b33, house: 0xffffff, glass: 0x111a15, funnel: 0x111a15, band: 0x2eb36a, sail: 0xffffff,
-      wall: 0xffffff, roof: 0xc9d2cc, pier: 0x93a39a, empty: 0xc9d2cc, edge: [0x1e7a45, .55], landEdge: [0x1e7a45, .16], sky: 0xffffff, ground: 0xc9d2cc, hemi: 1.75, sun: 0xffffff, sunI: 1.25, sunAt: [4, 12, 6], exposure: 1 },
-    night: { land: 0x18231c, grass: null, side: .8, plate: 0x030504, water: [0x1d4a33, 0x1b452f], seaGlow: .3, decor: null,
-      hull: 0x15201a, boot: 0x3dd884, deck: 0x1f2c24, house: 0x22302a, houseGlow: .2, glass: 0x6bffb0, funnel: 0x15201a, band: 0x3dd884, sail: 0x2c3d33,
-      wall: 0x1f2c24, roof: 0x2c3d33, pier: 0x2c3d33, empty: 0x22302a, edge: [0x3dd884, .95], landEdge: [0x3dd884, .2], sky: 0x4f7a60, ground: 0x0b100d, hemi: .9, sun: 0xa8f0c8, sunI: 1.2, sunAt: [-4, 12, -3], exposure: 1.25,
-      night: true, lamp: 0x6bffb0 },
-  },
 };
-/** The skin in force: the suite's theme (Codex unless Modern or Kontor) and day or night (as set, else as the device). */
+/** The skin in force: the suite's theme (Codex or Office) and day or night (as set, else as the device). */
 export function skinNow() {
   const root = document.documentElement, theme = SKINS[root.dataset.theme] ? root.dataset.theme : "codex";
   const night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -193,15 +174,15 @@ export function create3D(box) {
     }
     instanced(hexGeo(R * .965, .16), mat(0xffffff, { roughness: .35, emissive: skin.water[0], emissiveIntensity: skin.seaGlow || 0 }), wet, (c, m) => m.makeTranslation(c.p.x, -.08, c.p.z),
       c => skin.water[(c.x + c.y) & 1]);
-    // trees on Codex's land, shrubs on Modern's, none on Kontor's
+    // trees on Codex's land, none on Office's
     if (skin.decor) {
       const spots = [];
       for (const c of land) if (c.d <= 1 && hash(c.x, c.y, 2) < .5) for (let i = 0; i < 1 + Math.floor(hash(c.x, c.y, 3) * 3); i++) {
         const a = hash(c.x, c.y, 4 + i) * Math.PI * 2, d = hash(c.x, c.y, 9 + i) * .5;
         spots.push({ x: c.p.x + Math.cos(a) * d, z: c.p.z + Math.sin(a) * d, y: height(c) - .14, s: .8 + hash(c.x, c.y, 13 + i) * .5 });
       }
-      const geo = skin.decor === "pine" ? new THREE.ConeGeometry(.17, .46, 6) : new THREE.IcosahedronGeometry(.17, 0);
-      instanced(geo, mat(skin.leaf), spots, (s, m) => m.compose(new THREE.Vector3(s.x, s.y + (skin.decor === "pine" ? .23 : .12) * s.s, s.z), new THREE.Quaternion(), new THREE.Vector3(s.s, s.s, s.s)));
+      const geo = new THREE.ConeGeometry(.17, .46, 6);
+      instanced(geo, mat(skin.leaf), spots, (s, m) => m.compose(new THREE.Vector3(s.x, s.y + .23 * s.s, s.z), new THREE.Quaternion(), new THREE.Vector3(s.s, s.s, s.s)));
     }
     // where a quay meets the shore: the first land hex round its berth, those towards the camera first
     const shoreOf = c => { for (const h of [2, 1, 3, 0, 4, 5]) { const n = neighbour(c.x, c.y, h); if (at(n.x, n.y) === "land") return n; } return null; };
@@ -216,7 +197,7 @@ export function create3D(box) {
       instanced(new THREE.BoxGeometry(.2, .16, .24), mat(0xffffff, { roughness: .85 }), homes, place(.08), c => col.set(skin.wall).offsetHSL(0, 0, (hash(c.x, c.y, 24) - .5) * .1));
       instanced(tri(.14, .1, .27), mat(skin.roof, { roughness: .8 }), homes, place(.16));
     }
-    // Kontor inks every tile's top edge, and the land's corners down to the sea: the sea's lines in full, the land's faint
+    // Office inks every tile's top edge, and the land's corners down to the sea: the sea's lines in full, the land's faint
     // (and fading with it)
     const ink = (list, [colour, opacity]) => {
       const pts = [];
@@ -256,7 +237,7 @@ export function create3D(box) {
       yard.rotation.y = Math.atan2(-towards.x, -towards.z);                       // its front, local +z, faces the berth
       scene.add(yard);
       const put = (geo, material, x, y, z) => { const m = new THREE.Mesh(geo, material); m.position.set(x, y, z); m.castShadow = true; yard.add(m); return m; };
-      const inked = m => {                                                          // Kontor and Office draw every edge
+      const inked = m => {                                                          // Office draws every edge
         if (skin.edge) { const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 30), new THREE.LineBasicMaterial({ color: skin.edge[0], transparent: true, opacity: skin.edge[1] })); e.position.copy(m.position); e.rotation.copy(m.rotation); yard.add(e); }
         return m;
       };
