@@ -1,11 +1,11 @@
 // Crossword (README, Crossword): a British blocked crossword on the knowledge base, in Learning. A few of its entries
 // are the knowledge base's clue links, a country or commodity named from its clue or the clue named from its reason,
 // the rest ordinary words with the clue bank's clues (or, in a Lexicon grid, every entry a clue link); the crossings
-// settle what a clue alone can't. Random grids by kind, size, level, pool, direction, topics and twist, or today's, the
+// settle what a clue alone can't. Random grids by clues and topics, at a level that follows how you play, or today's, the
 // same for everyone; and at a table, the clues split between the players (one grid, nobody
 // can finish alone) or a race on the same grid. The puzzles are crossword-engine.js's (made in crossword-worker.js),
 // the solvers crossword-solve.js's, the table crossword-table.js's; this page draws them and takes the typing.
-import { LEVELS, LEVEL_IDS, SIZES, SIZE_IDS, KINDS, kindOf, ASKS, MODES, POOLS, topicsOf, themeFits, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
+import { LEVELS, LEVEL_IDS, SIZES, KINDS, kindOf, POOLS, topicsOf, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
 import { span, clamp, zoomTo, squareAt, rectOf, show, fingers } from "./crossword-zoom.js";
 import { partnerMove, seeded, PACES } from "./crossword-solve.js";
 import { TABLE_MODES, peopleOf, isTable, freshTable, tidy, newGameAt, readable, holders, lettersOf, writers, writeAt, checkAt, revealAt, runOf, reportAt, runTotal, standings, raceOver, resultOf } from "./crossword-table.js";
@@ -14,7 +14,8 @@ import { subjectPreset } from "./topics.js";
 import { subjectsOn, markedIn, allowed } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { part, choice, toggle, action, line, todayPart, onPause, isPaused } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, noteDayTime, soloHref, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -35,13 +36,19 @@ const RUN = "crossword:run", SETTINGS = "crossword:settings", TIMES = "crossword
 const APP = 1;                 // the table's version
 
 // ---------- settings ----------
-// Your own choices for a random grid; today's is the same for everyone whatever they are (dailyOptions)
-// size: squares across, or null for the level's own until one is chosen; kind: classic, lexicon or both (KINDS)
-// computer: off, or a partner holding the Down clues of a split grid; pace: how well and how fast it plays
-const DEFAULTS = { level: "medium", size: null, kind: "both", pool: "mixed", asks: "both", mode: "classic", computer: "off", pace: "quick", autocheck: false, tableMode: "split" };
-const settings = () => { const s = { ...DEFAULTS, ...read(SETTINGS, {}) }; return { ...s, kind: kindOf(s.kind), computer: s.computer === "partner" ? "partner" : "off" }; };
-/** The squares across a random grid of yours will have: the size you chose, or your level's own. */
-const sizeOf = s => (SIZE_IDS.includes(Number(s.size)) ? Number(s.size) : LEVELS[s.level]?.size || 13);
+// The menu is the minimum it needs to be (Korbi, 4 November 2026): the clues (Classic, Almanac or Both), the zoom, the computer
+// partner and the topics line. The level is the hidden ramp (`ramp.js`, `crossword:ramp`, first rung the level once saved), a grid
+// is its level's own size, every answer and both ways, no twist, the partner's pace quick, and nothing checks as you go.
+// computer: off, or a partner holding the Down clues of a split grid; today's is the same for everyone (dailyOptions)
+const DEFAULTS = { kind: "both", computer: "off", tableMode: "split" };
+const FIXED = { size: null, pool: "mixed", asks: "both", mode: "classic", pace: "quick", autocheck: false };
+const kept = read(SETTINGS, {});
+const settings = () => {
+  const s = { ...DEFAULTS, ...read(SETTINGS, {}), ...FIXED };
+  return { ...s, kind: kindOf(s.kind), computer: s.computer === "partner" ? "partner" : "off", level: ramp("crossword", LEVEL_IDS, { start: kept.level }) };
+};
+/** The squares across a random grid of yours: its level's own. */
+const sizeOf = s => LEVELS[s.level]?.size || 13;
 /** The computer player a new grid of yours gets: { kind, level } or null (never on today's, which is the same for everyone). */
 const computerFor = daily => (daily || settings().computer !== "partner" ? null : { kind: "partner", level: PACES[settings().pace] ? settings().pace : "quick" });
 const setSetting = (k, v) => write(SETTINGS, { ...settings(), [k]: v });
@@ -710,6 +717,9 @@ function solvedSolo() {
     t[p.level] = lv;
     write(TIMES, t);
   }
+  if (!S.daily && !S.partner && p.level === settings().level) {      // the ramp: up after a grid with no help, down after giving up
+    if (pl.gaveUp) ramp.lost(); else ramp.won(!pl.reveals && !pl.checks);
+  }
   learnFrom(p, pl, ownClue);
   save();
   paint(); drawClock();
@@ -1087,7 +1097,6 @@ const together = createTogether({
 const backToSolo = () => { if (together.room) together.leave(); else location.replace(soloHref()); };
 
 // ---------- the menu ----------
-let pick = null;
 function openMenu() {
   const body = $("menuBody"), dlg = $("menuDlg"), top = dlg.open ? dlg.scrollTop : 0;
   body.replaceChildren();
@@ -1111,35 +1120,16 @@ function openMenu() {
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
-  pick ??= (S?.daily && !S.play?.done) || dailyDue("crossword") ? "daily" : "random";
-  const onToday = S?.daily === today();
-  play_.prepend(action(pick === "random" ? "New grid" : onToday ? "Start today's again" : "Today's grid", () => (pick === "random" ? newGrid(false) : onToday ? restartToday() : openToday()), "primary"));
+  const onToday = S?.daily === today(), playing = onToday && !S.play?.done;
+  play_.prepend(action("New grid", () => newGrid(false), "primary"));
+  todayPart(body, { app: "crossword", play: () => openToday(), playing });
+  if (playing) part(body, "play").append(action("Start today's again", () => restartToday(), "link"));
   const content = part(body, "content");
-  // what today's is, whichever is picked: a line that came and went would move every choice under it
-  content.append(choice("Grid", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }),
-    line("Today's is Medium, 13×13, every topic: the same for everyone."));
-  // the rest is your random grid's, shown with today's picked too: changing any of it picks Random for the next grid
-  // (today's stays as it is), and a change that shows or hides another choice draws the menu again
-  const set = (key, again = false) => v => { setSetting(key, v); if (again || pick !== "random") { pick = "random"; redrawMenu(key); } };
   const knowledge = s.kind !== "classic";
-  content.append(
-    keyed("kind", choice("Clues", Object.entries(KINDS), s.kind, set("kind", true))),
-    keyed("size", choice("Size", SIZE_IDS.map(n => [n, `${n}×${n}`]), sizeOf(s), set("size", true))),
-    keyed("level", choice("Level", LEVEL_IDS.map(id => [id, LEVELS[id].name]), s.level, set("level", true))),
-    ...(knowledge ? [
-      keyed("pool", choice("Answers", Object.entries(POOLS), s.pool, set("pool"))),
-      // a Lexicon grid of country and commodity names alone can't be filled: there are too few of them
-      keyed("asks", choice("Knowledge", Object.entries(ASKS).filter(([k]) => s.kind !== "lexicon" || k !== "fwd"), s.kind === "lexicon" && s.asks === "fwd" ? "both" : s.asks, set("asks"))),
-      ...(themeFits({ level: s.level, size: sizeOf(s), kind: s.kind }) ? [keyed("mode", choice("Twist", Object.entries(MODES), s.mode, set("mode")))] : []),
-      // Settings' topics, in a sheet from here, for the next random grid (the Grid line above says today's takes every topic)
-      ...topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; the presets and today's do"),
-    ] : []),
-  );
-  const settingsPart = part(body, "settings");
-  // the computer: a partner holding the Down clues; from the next grid
-  settingsPart.append(choice("Computer", [["off", "Off"], ["partner", "Partner"]], s.computer, v => { setSetting("computer", v); openMenu(); }));
-  if (s.computer !== "off") settingsPart.append(choice("Its pace", Object.entries(PACES).map(([k, r]) => [k, r.name]), s.pace, v => setSetting("pace", v)));
-  settingsPart.append(toggle("Check as you go", s.autocheck, on => setSetting("autocheck", on)));
+  content.append(choice("Clues", Object.entries(KINDS), s.kind, v => { setSetting("kind", v); openMenu(); }),
+    // Settings' topics, in a sheet from here, for the next random grid (today's takes every topic)
+    ...(knowledge ? topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; the presets and today's do") : []));
+  part(body, "settings").append(toggle("Computer partner", s.computer === "partner", on => setSetting("computer", on ? "partner" : "off")));
   const t = read(TIMES, {}), bests = LEVEL_IDS.filter(id => t[id]?.best != null).map(id => `${LEVELS[id].name} ${clock(t[id].best)}`);
   const solvedN = LEVEL_IDS.reduce((n, id) => n + (t[id]?.solved || 0), 0);
   part(body, "about").append(line(bests.length ? `Best: ${bests.join(" · ")} · ${solvedN} solved` : "No grid solved yet"),
@@ -1147,17 +1137,6 @@ function openMenu() {
   if (!dlg.open) dlg.showModal();
   dlg.scrollTop = top;
 }
-/** A menu control marked with what it sets, so the menu drawn again can be scrolled to keep it where it was. */
-const keyed = (key, node) => { node.dataset.key = key; return node; };
-/** The menu drawn again with the control just changed (`key`) under the finger where it was. */
-function redrawMenu(key) {
-  const dlg = $("menuDlg"), at = () => dlg.querySelector(`[data-key="${key}"]`)?.getBoundingClientRect().top;
-  const was = at();
-  openMenu();
-  const now = at();
-  if (was != null && now != null) dlg.scrollTop += now - was;
-}
-
 // ---------- the keyboard ----------
 let keyDown = 0;               // when a finger last landed on a key
 function buildKeyboard() {
