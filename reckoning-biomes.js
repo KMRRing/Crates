@@ -29,32 +29,32 @@ export const BIOMES = {
   quays: {
     name: "Harbour quays", feel: "Warehouses and bollards: crabs and barrels, gulls overhead, the planks of the quay.",
     cells: [["c", 5, 0], ["b", 4, 0], ["g", 2, 0.1], ["B", 2, 0.15], ["o", 1.5, 0], ["C", 1, 0.45], ["X", 1, 0.3]], carts: 1, rest: 0.18, pitch: [11, 13], rows: [6, 9],
-    pieces: ["barrels", "gap", "ferry", "granary", "dock-slam", "ditch"], tint: { sky: [0, 0, 0], water: 0, dusk: 0 },
+    pieces: ["barrels", "gap", "ferry", "granary", "dock-slam", "ditch", "ramp", "balcony"], tint: { sky: [0, 0, 0], water: 0, dusk: 0 },
   },
   salt: {
     name: "The salt road", feel: "Open road between low houses: carts block lanes, barrels in the ruts, ditches to jump, a lot of coin.",
     cells: [["X", 4, 0], ["b", 4, 0], ["c", 2, 0.1], ["B", 1.5, 0.2], ["g", 1, 0.3], ["o", 1, 0]], carts: 2, rest: 0.12, pitch: [11, 13], rows: [6, 9],
-    pieces: ["barrels", "gap", "ditch", "toll"], tint: { sky: [28, 16, -10], water: 0, dusk: 0.15 },
+    pieces: ["barrels", "gap", "ditch", "toll", "ramp"], tint: { sky: [28, 16, -10], water: 0, dusk: 0.15 },
   },
   canal: {
     name: "Canal and locks", feel: "Water on both sides: drawbridges and levers, sluice gates, gulls over the lock.",
     cells: [["c", 3, 0], ["b", 3, 0], ["g", 3, 0], ["o", 2, 0], ["B", 1, 0.2], ["X", 1, 0.3]], carts: 1, rest: 0.22, pitch: [11, 13], rows: [6, 8],
-    pieces: ["bridges", "sluices", "ferry", "gap", "ditch"], tint: { sky: [-6, 6, 16], water: 0.3, dusk: 0 },
+    pieces: ["bridges", "sluices", "ferry", "gap", "ditch", "sky"], tint: { sky: [-6, 6, 16], water: 0.3, dusk: 0 },
   },
   ship: {
     name: "Alongside the ship", feel: "A great hull beside the quay: gulls and beams, barrels rolled off the deck, walls to run along.",
     cells: [["g", 4, 0], ["B", 3, 0], ["b", 3, 0], ["c", 3, 0], ["o", 1.5, 0], ["C", 1, 0.5]], carts: 1, rest: 0.15, pitch: [11, 13], rows: [6, 9],
-    pieces: ["granary", "dock-slam", "ferry", "barrels"], tint: { sky: [-4, 0, 10], water: 0.2, dusk: 0.1 },
+    pieces: ["granary", "dock-slam", "ferry", "barrels", "climb", "ramp", "balcony", "sky"], tint: { sky: [-4, 0, 10], water: 0.2, dusk: 0.1 },
   },
   forest: {
     name: "Forest pass", feel: "Trees close over the road: fallen branches to roll under, logs to jump, crows, a few balloons for the children.",
     cells: [["B", 4, 0], ["b", 4, 0], ["c", 3, 0], ["g", 2, 0.1], ["o", 2.5, 0], ["X", 1, 0.35], ["C", 1, 0.5]], carts: 1, rest: 0.2, pitch: [11, 14], rows: [6, 9],
-    pieces: ["barrels", "ditch", "gap", "ferry"], tint: { sky: [-14, 8, -8], water: 0, dusk: 0.1 },
+    pieces: ["barrels", "ditch", "gap", "ferry", "ramp", "sky"], tint: { sky: [-14, 8, -8], water: 0, dusk: 0.1 },
   },
   tunnel: {
     name: "The cellar tunnel", feel: "Under the Kontor: a vault, lamps, narrow ways: carts in two lanes and one left to run, beams, crabs in the damp.",
     cells: [["X", 6, 0], ["B", 3, 0], ["c", 3, 0], ["b", 3, 0], ["C", 1, 0.5]], carts: 2, rest: 0.1, pitch: [11, 12], rows: [7, 10],
-    pieces: ["barrels", "toll"], tint: { sky: [-30, -26, -20], water: 0, dusk: 0.6 }, dark: true,
+    pieces: ["barrels", "toll", "narrows"], tint: { sky: [-30, -26, -20], water: 0, dusk: 0.6 }, dark: true,
   },
 };
 export const BIOME_IDS = Object.keys(BIOMES);
@@ -121,6 +121,11 @@ export const PIECES = {
   "dock-slam": { kind: "made", name: "Over the wall, onto the crabs", rows: ["!rest 4", "!wallslam 0", "!rest 6"], pitch: 11, from: 0.3 },
   bridges: { kind: "made", name: "The drawbridges", rows: ["!rest 4", "K1 . .", "J1 J1 J1", "!rest 4", "c . .", ". K2 .", "J2 J2 J2", "!rest 4"], pitch: 12, from: 0 },
   sluices: { kind: "made", name: "The sluice gates", rows: ["!rest 4", "W0 W1 W2", "c . .", "W2 W0 W1", "!rest 4"], pitch: 12, from: 0.1 },
+  ramp: { kind: "made", name: "A ramp to the loft", rows: ["!rest 4", "!ramp 0", "!rest 8"], pitch: 11, from: 0.1 },
+  balcony: { kind: "made", name: "A jump pad to the balcony", rows: ["!rest 4", "!balcony 0", "!rest 8"], pitch: 11, from: 0.2 },
+  sky: { kind: "made", name: "Nothing but balloons", rows: ["!rest 4", "!sky 0", "!rest 8"], pitch: 11, from: 0.3 },
+  climb: { kind: "made", name: "The ship's side", rows: ["!rest 4", "!climb 0", "!rest 8"], pitch: 11, from: 0.35 },
+  narrows: { kind: "made", name: "The narrows", rows: ["!rest 4", ". X X", "$ X X", "X . X", "X $ X", "X X .", "X X $", "X . X", ". X X", "!rest 4"], pitch: 11, from: 0.1 },
   toll: { kind: "made", name: "The toll booth", rows: ["!rest 4", "1 2 3", "T1 T2 T3", "!rest 4"], pitch: 12, from: 0 },
 };
 const SLOT_HAZ = { ground: ["c", "b", "B"], air: ["g", "o"] };

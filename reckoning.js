@@ -5,7 +5,7 @@
 // step, however fast the screen draws), takes the swipes, the page's words over the quay and under it, and the run
 // kept between visits. The clock starts at the first swipe and stops with the menu, the tab and the end of the run.
 import { newGame, valid, setDeal, swipe, step, take, speed, goalValue, GOODS } from "./reckoning-engine.js";
-import { BIOMES, BIOME_IDS } from "./reckoning-biomes.js";
+import { BIOMES, BIOME_IDS, PIECES } from "./reckoning-biomes.js";
 import { SECTIONS, byId } from "./reckoning-sections.js";
 import { load, dealer, WORLDS } from "./reckoning-questions.js";
 import { RunLog } from "./reckoning-log.js";
@@ -58,14 +58,14 @@ function newRun(n = 0, opts = {}) {
   if (typeof n !== "number") n = 0;                            // (a click hands over its event)
   if (S && !S.over) bank();                                    // the run left behind keeps what it picked up
   const seed = Number.isFinite(opts.seed) ? opts.seed : Math.floor(Math.random() * 2 ** 31);
-  S = setDeal(newGame({ seed, deal, launch: true, section: n ? byId(n) : null, biome: opts.biome || null }), deal);
+  S = setDeal(newGame({ seed, deal, launch: true, section: n ? byId(n) : null, biome: opts.biome || null, piece: opts.piece || null }), deal);
   if (log && log.n > 1) lastLog = log;                         // the run just left stays to be copied
   log = new RunLog(S);
   running = false; acc = 0; shown = null; zoneSeen = "";
   $("result").hidden = true;
   say("");
   const sec = S.sec ? byId(S.sec) : null;
-  hint(sec ? `${sec.name}. ${sec.brief}` : S.only ? `${BIOMES[S.only].name}, seed ${seed}. Swipe to run.` : "Swipe to run. Up jumps, down rolls, sideways changes lane, and into a wall runs up it.");
+  hint(sec ? `${sec.name}. ${sec.brief}` : S.piece ? `${PIECES[S.piece].name}, again and again. Swipe to run.` : S.only ? `${BIOMES[S.only].name}, seed ${seed}. Swipe to run.` : "Swipe to run. Up jumps, down rolls, sideways changes lane, and into a wall runs up it.");
   save();
   drawPage(true);
 }
@@ -352,6 +352,19 @@ function openPlaytest() {
     list.append(b);
   }
   part(body, "content").append(list);
+  const pieces = document.createElement("div");
+  pieces.className = "rk-secs";
+  for (const [id, P] of Object.entries(PIECES)) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-label", `Piece: ${P.name}`);
+    b.innerHTML = '<span class="rk-sn">·</span><span class="rk-sname"></span><span class="rk-splace"></span>';
+    b.querySelector(".rk-sname").textContent = P.name;
+    b.querySelector(".rk-splace").textContent = `piece, ${id}`;
+    b.addEventListener("click", () => { $("menuDlg").close(); newRun(0, { piece: id, seed: playtest.seed }); });
+    pieces.append(b);
+  }
+  part(body, "content").append(pieces);
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -361,7 +374,7 @@ bindSwitcher($("appsBtn"), "reckoning");
 document.querySelector(".rk-mark").innerHTML = APPS.find(a => a.id === "reckoning").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("againBtn").addEventListener("click", () => newRun(S.sec, S.only ? { biome: S.only, seed: S.seed } : {}));
+$("againBtn").addEventListener("click", () => newRun(S.sec, S.only ? { biome: S.piece ? null : S.only, seed: S.seed, piece: S.piece } : {}));
 $("nextBtn").addEventListener("click", () => newRun(Math.min(SECTIONS.length, (S.sec || 0) + 1)));
 onPause(() => { paused = true; swipes.clear(); log?.note(S, "paused (the menu or another screen is open)"); save(); }, () => { paused = false; last = performance.now(); log?.note(S, "carried on"); });
 
@@ -419,7 +432,7 @@ async function boot() {
     const { createRunner } = await import("./reckoning-3d.js");
     view = createRunner($("stage"));
   } catch (err) {
-    done();
+    done(); console.error("courier view:", err);
     $("hint").textContent = view ? String(err) : "This game is drawn in 3D, and this browser can't (no WebGL).";
     return;
   }

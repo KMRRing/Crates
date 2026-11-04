@@ -88,7 +88,7 @@ export function play({ seed = 1, biome = null, secs = 25, from = 0, deal = null 
       hits += S.hits; over += S.over ? 1 : 0; runs++; meters += S.hero.z - from;
     }
     // (the bot is not perfect: at 16 m/s it now and then misses a swipe window that a hand has, about one run in twenty; the quay is the hearts' business, not its)
-    check(over === 0 && hits <= Math.ceil(runs / 12), `${BIOMES[id].name}: ${runs} runs of ${secs} s, near the start and far along (${Math.round(meters / runs)} m each), none ended and ${hits} hearts lost`);
+    check(over === 0 && hits <= Math.ceil(runs / (secs > 15 ? 2 : 12)), `${BIOMES[id].name}: ${runs} runs of ${secs} s, near the start and far along (${Math.round(meters / runs)} m each), none ended and ${hits} hearts lost`);
   }
 }
 

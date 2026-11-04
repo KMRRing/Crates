@@ -97,13 +97,13 @@ export class CameraRig {
   update(dt, s) {
     const k = clamp((s.speed - 8) / 8, 0, 1);                                      // how fast: 0 up to 8 m/s, 1 at the full 16
     this.sx.to(s.x * 0.55 + s.vx * 0.05, dt, 7, 0.85);
-    this.sy.to(3.2 + Math.min(Math.max(s.y, 0), 4) * 0.35 - (s.rolling ? 0.3 : 0) - k * 0.25, dt, 6.5, 0.7);
+    this.sy.to(3.2 + Math.min(Math.max(s.y, 0), 4) * 0.35 + Math.max(0, Math.min(s.y, 8) - 4) * 0.55 - (s.rolling ? 0.3 : 0) - k * 0.25, dt, s.y > 3 ? 11 : 6.5, 0.8);       // up a wall or on a balcony it keeps up, or the hero climbs out of the picture
     this.sdip.to(0, dt, 10, 0.4);
-    this.sback.to(5.4 + k * 1.0 + (s.lunging ? 0.2 : 0) + Math.min(Math.max(s.y, 0), 3) * 0.12, dt, 4.5, 0.9);
+    this.sback.to(5.4 + k * 1.0 + (s.lunging ? 0.2 : 0) + Math.min(Math.max(s.y, 0), 6) * 0.12, dt, 4.5, 0.9);
     this.sfov.to(k * 6, dt, 5, 0.8);
     this.spunch.to(0, dt, 9, 0.55);
     this.sroll.to(clamp(s.vx * 0.0032, -0.06, 0.06) * 1 - (s.wall || 0) * 0.075, dt, 9, 0.55);
-    this.slook.to(1.2 + Math.min(Math.max(s.y, 0), 4) * 0.25, dt, 8, 0.9);
+    this.slook.to(1.2 + Math.min(Math.max(s.y, 0), 4) * 0.25 + Math.max(0, Math.min(s.y, 8) - 4) * 0.45, dt, s.y > 3 ? 13 : 8, 0.9);
     const o = this.out;
     o.x = this.sx.x; o.y = this.sy.x + this.sdip.x; o.back = this.sback.x; o.lookX = this.sx.x * 0.6; o.lookY = this.slook.x;
     o.ahead = 10 + k * 2; o.fov = this.sfov.x + this.spunch.x; o.roll = this.sroll.x;

@@ -25,6 +25,24 @@ A three-lane swipe runner on a Hanseatic quay (2 November 2026, in Blades of Bri
 - 4 November 2026, 08:56 (this replaces the 01:53 ruling's "levels, after all"): "The couriers sections aren't levels they're ideas and the endless runs will be a combination of different auto generated biomes and these sections. I see a lot of what has been done is build features instead of sections." "The final game will be endless run only, made up of sections", of three kinds: fully generated from a biome, partly generated (the map fixed, the spawn places not), fully pre-made. Fixes asked for: sluices and drawbridges that show which is open; barrels broken by an attack; balloons on the same mechanic; "gold coins and rarely amber ... continuously collectible like subway surfers not just section specific".
 - Wall running, same message: "if I'm in the middle lane and there's a wall on the right of the right lane, if I jump up then right mid air, it'll do a wall run, then most walls won't allow me to get higher but sometimes always [read: also] I get a second jump from this, so if the wall is higher, or if there's a wall opposite, then you can jump again and then left or right and you'll wall run on a higher level."
 
+## The wall run
+Korbi's words (4 November 2026) read as: a wall run resets the jump; most walls give no more height, a taller wall or a wall opposite gives a second jump, and the swipe after it joins a wall higher up. ("Sometimes always" read as "sometimes also".) One state machine (`side()`, `up()`, `step()` in `reckoning-engine.js`; `tests/courier-walls.mjs` has a test for every row):
+
+| From | Swipe or event | To |
+|---|---|---|
+| run | sideways towards a wall in the edge lane I am in | wall, feet at `WALL_Y` (2 m) |
+| run, middle lane | sideways towards the wall | a lane change; the wall run is the next swipe |
+| air (any jump) | towards a wall in my edge lane, feet under its top | wall, at the height I was (never above top - 0.5); the jump is mine again |
+| air, above the top | towards the wall | a lane change attempt; no wall (an ordinary wall, `WALL_TOP` 3.2 m, gives no height) |
+| wall | up | air, `WALLJUMP_V`, and `kick` is set |
+| air with `kick`, in the lane across | sideways towards a wall on the other side | wall there, at my height: chains upwards, 2.4 m a jump, to the wall's `top` |
+| air with `kick`, same side | towards the wall | wall again, higher, if the wall's `top` allows (a taller wall) |
+| wall | away from it | air in the wall's lane, no `kick` |
+| wall | towards it | nothing, and nothing is kept |
+| wall | the wall's end | air, `wallend`; falls onto what is below (a deck, the planks, the water) |
+
+A wall's `top` is its height (`WALL_TOP` when it has none); the ship's side stands 8.5 m over water, so it takes two jumps and two crossings.
+
 ## Traps
 - Swipe windows are in seconds to contact, not metres, so they are the same at 10 m/s and at 16. A foe's `aim` is fixed at its launch.
 - The world is drawn in a group mirrored in x (`world`), and the camera gets the mirrored x. Lane +1 is the hero's right.
@@ -45,6 +63,8 @@ A three-lane swipe runner on a Hanseatic quay (2 November 2026, in Blades of Bri
 - Barrels and balloons are foes (`KINDS`, `inert`): the attacks that cut a crab break them, nothing makes them look or fly at me. A barrel run into costs a heart and breaks; a balloon run into costs only the chain. Coins come out of a break (`BREAK_COINS`). The old `b` obstacle is gone from new quays (a kept run's is still handled).
 - Coins have a random stream of their own (`crng`), so adding or moving them never moves a foe; `sprinkle` runs after a stretch is made. A trail never goes through a crab's lane or the one beside it, so the coins are the safe line.
 - A sluice's lamp, ring/cross and leaf all come from `tide()`, the same function `solid()` uses: closing is still open, opening is still shut (the warning is the last `TIDE_WARN` seconds). A bridge's colour (red 0, blue 1) is its `flip`; the lever lowers the bridges that are up now.
+- Ground above the quay is `W.decks` (lanes l0 to l1, height y, a `ramp` rising over its first metres, a `down` falling over its last; none means a sheer edge). Foes, coins and obstacles take `gy`, the ground under them, when they are made, so decks must be laid before the things on them; every test of "on the ground" is relative to `gy` (`gyOf(f)`, `h.gy`). A deck's sheer front run or jumped into more than 0.6 m too low costs a heart and puts me on it (`g > 0.5`: the far lip of a pit is not a deck). A drop off a deck is free. A pad (`W.pads`) throws me `PAD_V` (4.3 m) up and gives the jump back; the bot keeps off decks and pads (`freeLane`), so the soaks prove only that they can be avoided; `tests/courier-walls.mjs` plays them.
+- The camera follows height past 4 m with a steeper slope (`reckoning-move.js`), and the hero's shadow and a line down to it are drawn at `h.gy`, so height over a deck or water can be read. Only a phone can say whether it is enough.
 
 ## To come
-The models (`makeFoe` and the hero's block are where the shapes are made; the built-in ones stay as stand-ins), sound, the daily and the duel (the engine already runs from a seed), the pile, a second world, the other two modes Korbi thought of (a plain Subway Surfers one, a stealth one), a coyote time (a jump allowed a moment after the quay ends), and a look at how the swipe windows and the new movement feel on a phone.
+The models (`makeFoe` and the hero's block are where the shapes are made; the built-in ones stay as stand-ins), sound, the daily and the duel (the engine already runs from a seed), the pile, a second world, the other two modes Korbi thought of (a plain Subway Surfers one, a stealth one), a coyote time (a jump allowed a moment after the quay ends), the daily run, and a look at how the swipe windows and the new movement feel on a phone.

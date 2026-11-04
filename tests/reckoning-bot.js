@@ -12,11 +12,19 @@ export function bot(S, st) {
   const act = (dir, wait = 0.05) => { swipe(S, dir); st.next = S.t + wait; (st.log ||= []).push(`${S.t.toFixed(2)}:${dir}@l${h.lane},y${h.y.toFixed(1)}`); if (st.log.length > 8) st.log.shift(); };
   // the wall: an outer lane and a swipe into it, a wall jump near its end
   if (h.mode === "wall") {
-    const w = W.walls.find(w => w.side === h.wall);
+    const w = W.walls.find(w => w.side === h.wall && w.z1 > h.z);
+    if (w && (w.top ?? 3.2) > 5 && h.y < w.top - 2.6) return act("up");                    // a tall wall (the ship's side): a jump off it, then across, higher each time
     const pit = W.pits.find(p => p.z1 > h.z - 1 && p.z0 < w.z1);
     if (w && h.z > w.z1 - 1.6 && W.foes.some(f => f.alive && f.y <= 0.3 && f.z > w.z1 && f.z < w.z1 + 14)) return act("up");
     return;
   }
+  if (h.mode === "air" && h.kick && h.vy < 0) {
+    const w = W.walls.find(w => (w.top ?? 3.2) > 5 && w.z0 - 2 < h.z && w.z1 > h.z + 2 && w.side === -h.lane);
+    if (w && h.y < w.top - 1.4) return act(w.side > 0 ? "right" : "left");
+  }
+  // ground above the quay and jump pads are left alone: a lane with none of them is taken
+  const free = freeLane(S);
+  if (free !== null && h.mode === "run" && h.lane !== free) return act(free > h.lane ? "right" : "left", 0.05);
   if (st.slamAfter && h.mode === "air" && h.y > SLAM_MIN_Y && h.vy < 0 && h.z > st.slamAfter) { st.slamAfter = 0; return act("down"); }
   // a gull one lane over that has wound up is about to dive: a roll goes under it (and a run of them leaves no gap)
   const dive = W.foes.find(f => f.alive && !f.spent && f.kind === "gull" && !f.gate && f.ph >= 2 && ttc(f.z) > -0.1 && ttc(f.z) < 0.2 && Math.abs(f.lane - h.lane) === 1);
@@ -61,6 +69,18 @@ export function bot(S, st) {
     if (wall.z0 - h.z < 2.2) { st.slamAfter = wall.z1 + 2.5; return act(wall.side > 0 ? "right" : "left"); }
     return;
   }
+}
+
+/** The lane to be in while a deck or a jump pad is near (the bot does not use them): the free lane nearest, or null if it is on one or none is near. */
+export function freeLane(S) {
+  const h = S.hero, W = S.world;
+  if (h.gy > 0.3) return null;
+  const near = W.decks.filter(d => d.z1 > h.z - 1 && d.z0 - h.z < 30), pads = W.pads.filter(p => p.z > h.z - 1 && p.z - h.z < 30);
+  if (!near.length && !pads.length) return null;
+  const bad = lane => near.some(d => lane >= d.l0 && lane <= d.l1) || pads.some(p => p.lane === lane);
+  const ok = [-1, 0, 1].filter(l => !bad(l));
+  if (!ok.length || !bad(h.lane)) return null;
+  return ok.sort((a, b) => Math.abs(a - h.lane) - Math.abs(b - h.lane))[0];
 }
 
 // ---------- a section's rows ----------
@@ -192,7 +212,7 @@ export function rowBot(S, st) {
 /** One tick of the right bot: the old one near a gate, a wall or a gap with gulls over it, the rows' bot elsewhere. */
 export function botStep(S, st) {
   const z = S.hero.z, W = S.world;
-  const old = W.gates.some(g => g.state === "open" && g.p0 - z < 60) || W.walls.some(w => w.z1 > z && w.z0 - z < 30) || W.pits.some(p => !p.gap && p.z1 > z && p.z0 - z < 28);
+  const old = W.decks.some(d => d.z1 > z - 1 && d.z0 - z < 30) || W.pads.some(p => p.z > z - 1 && p.z - z < 30) || W.gates.some(g => g.state === "open" && g.p0 - z < 60) || W.walls.some(w => w.z1 > z && w.z0 - z < 30) || W.pits.some(p => !p.gap && p.z1 > z && p.z0 - z < 28);
   return old || (st.slamAfter && S.hero.mode === "air") ? bot(S, st) : rowBot(S, st);
 }
 

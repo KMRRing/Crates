@@ -209,6 +209,42 @@ export function createRunner(host) {
   }
   const hash = n => { let x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
+  // ground above the quay: a ramp is a wedge, a balcony a block with a pale top, and a jump pad a gilt plate that breathes; a hero in the air over
+  // either has a line down to his shadow (hy - gy tall) so that his height can be read
+  const STEPS = 8;
+  const rampMeshes = g => {                                                            // a slope: a thin slab on its line, and steps under it to fill the side
+    const r = { slab: new THREE.Mesh(box, M.plank), steps: [] };
+    g.add(r.slab);
+    for (let i = 0; i < STEPS; i++) { const m = new THREE.Mesh(box, M.timber); m.frustumCulled = false; g.add(m); r.steps.push(m); }
+    r.slab.frustumCulled = false;
+    return r;
+  };
+  /** Lays a slope from (zA, yA) to (zB, yB) over width w at x. */
+  const layRamp = (r, on, x, w, zA, yA, zB, yB) => {
+    r.slab.visible = on; for (const m of r.steps) m.visible = on;
+    if (!on) return;
+    const len = zB - zA, dy = yB - yA, hyp = Math.hypot(len, dy), th = Math.atan2(dy, len);
+    r.slab.scale.set(w + 0.06, 0.24, hyp); r.slab.rotation.set(-th, 0, 0);
+    r.slab.position.set(x, (yA + yB) / 2 - 0.12 * Math.cos(th), (zA + zB) / 2 + 0.12 * Math.sin(th));
+    r.steps.forEach((m, i) => {
+      const a = yA + dy * i / STEPS, b = yA + dy * (i + 1) / STEPS, h = Math.min(a, b);
+      m.visible = h > 0.02;
+      m.scale.set(w, Math.max(0.01, h), len / STEPS); m.position.set(x, h / 2, zA + len * (i + 0.5) / STEPS);
+    });
+  };
+  const deckGroups = [], padMeshes = [];
+  const deckGroup = () => {
+    const g = new THREE.Group(), flat = new THREE.Mesh(box, M.timber), top = new THREE.Mesh(box, M.plank);
+    for (const m of [flat, top]) { m.frustumCulled = false; g.add(m); }
+    g.userData = { up: rampMeshes(g), down: rampMeshes(g), flat, top }; g.frustumCulled = false; world.add(g); deckGroups.push(g);
+    return g;
+  };
+  const padMesh = () => {
+    const g = new THREE.Group(), a = new THREE.Mesh(cyl, M.gilt), b = new THREE.Mesh(cyl, M.plank);
+    g.add(a, b); g.userData = { a, b }; world.add(g); padMeshes.push(g);
+    return g;
+  };
+  const dropLine = new THREE.Mesh(box, M.ring); dropLine.frustumCulled = false; dropLine.visible = false; world.add(dropLine);
   // walls that can be run along
   const wallBoxes = [];
   const wallBox = () => { const m = new THREE.Mesh(box, M.wall); m.frustumCulled = false; world.add(m); wallBoxes.push(m); return m; };
@@ -954,7 +990,32 @@ export function createRunner(host) {
     wallBoxes.forEach((m, i) => {
       const w = walls[i];
       m.visible = !!w;
-      if (w) { m.scale.set(1.0, 3.6, w.z1 - w.z0); m.position.set(w.side * (WALL_X + 0.5), 1.8, (w.z0 + w.z1) / 2); }
+      if (w) { const top = (w.top ?? 3.2) + 0.4; m.scale.set(1.0, top, w.z1 - w.z0); m.position.set(w.side * (WALL_X + 0.5), top / 2, (w.z0 + w.z1) / 2); }
+    });
+
+    // decks and pads
+    const decks = W_.decks.filter(d => d.z1 > z0 && d.z0 < z1);
+    while (deckGroups.length < decks.length) deckGroup();
+    deckGroups.forEach((g, i) => {
+      const d = decks[i];
+      g.visible = !!d;
+      if (!d) return;
+      const w = (d.l1 - d.l0 + 1) * LANE_W, x = (d.l0 + d.l1) / 2 * LANE_W, { up, flat, top, down } = g.userData;
+      const f0 = d.z0 + d.ramp, f1 = d.z1 - d.down;
+      layRamp(up, d.ramp > 0, x, w, d.z0, 0, f0, d.y); layRamp(down, d.down > 0, x, w, f1, d.y, d.z1, 0);
+      flat.scale.set(w, d.y, f1 - f0); flat.position.set(x, d.y / 2, (f0 + f1) / 2);
+      top.scale.set(w + 0.06, 0.12, f1 - f0 + 0.06); top.position.set(x, d.y + 0.02, (f0 + f1) / 2);
+    });
+    const pads = W_.pads.filter(p => p.z > z0 && p.z < z1);
+    while (padMeshes.length < pads.length) padMesh();
+    padMeshes.forEach((g, i) => {
+      const p = pads[i];
+      g.visible = !!p;
+      if (!p) return;
+      const k = 1 + 0.08 * Math.sin(now * 7);
+      g.position.set(p.lane * LANE_W, p.y, p.z);
+      g.userData.a.scale.set(1.3, 0.14, 1.3); g.userData.a.position.y = 0.07;
+      g.userData.b.scale.set(0.8 * k, 0.2, 0.8 * k); g.userData.b.position.y = 0.2;
     });
 
     // foes (ids start again with each run, so a new run puts every foe back in the pool first)
@@ -969,9 +1030,9 @@ export function createRunner(host) {
       if (!f.alive && !o.died) { o.died = now; o.fly = knock(o, f, S); }
       if (o.died) { flyBack(o, f, dt); continue; }
       poseFoe(o, f, S);
-      o.shadow.position.set(f.x, 0.025, f.z);
+      o.shadow.position.set(f.x, (f.gy || 0) + 0.025, f.z);
       o.shadow.scale.setScalar(f.kind === "crab" ? 1.2 : f.kind === "barrel" ? 0.95 : f.kind === "balloon" ? 0.75 : 0.8 + 0.1 * (2 - Math.min(2, f.y)));
-      o.shadow.visible = inSpan(f.z) && f.y < 3;
+      o.shadow.visible = inSpan(f.z) && f.y - (f.gy || 0) < 3;
     }
     for (const [id, o] of foes) if (!seen.has(id)) { hideFoe(o); free.push(o); foes.delete(id); }
 
@@ -997,9 +1058,12 @@ export function createRunner(host) {
     blink = h.hurt > 0 ? blink + dt : 0;
     hero.visible = h.hurt <= 0 || Math.floor(blink * 14) % 2 === 0;
     const floor = !pits.some(p => hz > p.z0 && hz < p.z1);
-    heroShadow.visible = floor && hy < 6;
-    heroShadow.position.set(hx, 0.03, hz);
-    heroShadow.scale.setScalar(Math.max(0.3, 1.1 - hy * 0.12) * (1 + D.stretch.x * -0.5));
+    const gy = h.mode === "wall" ? 0 : h.gy || 0, up = hy - gy;
+    heroShadow.visible = (floor || gy > 0) && up < 9 && h.mode !== "wall";
+    heroShadow.position.set(hx, gy + 0.03, hz);
+    heroShadow.scale.setScalar(Math.max(0.3, 1.1 - up * 0.12) * (1 + D.stretch.x * -0.5));
+    dropLine.visible = heroShadow.visible && up > 1.4;                                     // the line down to the shadow: how high I am over what is under me
+    if (dropLine.visible) { dropLine.scale.set(0.035, up, 0.035); dropLine.position.set(hx, gy + up / 2, hz); }
 
     // dust under his feet: a puff at each footfall, a trail behind a roll, a scrape along a wall
     const grounded = h.mode === "run" && !h.lunge && hy < 0.05;
