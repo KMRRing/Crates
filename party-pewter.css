@@ -73,3 +73,5 @@ html[data-mode="night"] .pw-col { --pw-silver: #D3D8E0; --pw-silver-edge: #8B93A
 .pw-solo .pk-pick { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
 .pw-solo .pk-pick.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .pw-solo .pk-pick button { min-height: 2.6rem; }
+.pw-solo .pk-pick.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.pw-solo-label { margin: .35rem 0 0; font-size: .75rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }

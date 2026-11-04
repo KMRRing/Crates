@@ -12,6 +12,7 @@ export const YOU = "you";
 export const MOST = PERSONAS.length;                                   // their seats are bot1…bot5, named and tempered by seat
 export const LEVELS = [["1", "Simple"], ["2", "Medium"], ["3", "Hard"]];
 
+const CHOICES_NAME = Object.fromEntries(LEVELS);
 const clampFoes = n => Math.max(1, Math.min(MOST, Number(n) | 0 || 3));
 const clampLevel = l => ([1, 2, 3].includes(Number(l)) ? Number(l) : 2);
 const people = name => [{ uid: YOU, name }];
@@ -122,14 +123,17 @@ export function play(stage, { back }) {
   }
 
   function setup() {
-    const foesPick = pickPlayer([1, 2, 3, 4, 5].map(n => ({ uid: String(n), name: n === 1 ? "1 opponent" : `${n} opponents` })),
+    const foesPick = pickPlayer([1, 2, 3, 4, 5].map(n => ({ uid: String(n), name: String(n) })),
       { picked: String(foes), label: "Opponents", onPick: u => { foes = clampFoes(u); save(); show(); } });
+    foesPick.classList.add("five");
     const levelPick = pickPlayer(LEVELS.map(([uid, name]) => ({ uid, name })),
       { picked: String(level), label: "Level", onPick: u => { level = clampLevel(u); save(); show(); } });
     levelPick.classList.add("three");
     root.replaceChildren(h("div", { class: "pa-home fit-col fit-grow" },
       h("p", { class: "pa-intro" }, "Pewter against the computer: Quant, Gambler, Hedger, Sceptic and Wildcat each bid in their own way. Choose how many sit down with you, and how well they play."),
+      h("p", { class: "pw-solo-label" }, foes === 1 ? "1 opponent" : `${foes} opponents`),
       foesPick,
+      h("p", { class: "pw-solo-label" }, `Level: ${CHOICES_NAME[level]}`),
       levelPick,
       h("div", { class: "fit-grow" }),
       button("Deal", () => begin()),
