@@ -106,6 +106,7 @@ export const LEFT_OUT = {
   quest: "hidden loyalties, a game for people round a table (Party's section)",
   timegrapher: "an instrument, not a game",
   navigation: "a course of lessons in order, not a round to repeat",
+  wine: "a course of lessons in order, not a round to repeat",
   arthistory: "a course of lessons in order, not a round to repeat",
   music: "a course of lessons in order, not a round to repeat",
   landfall: "no round yet (a voyage is several watches over many minutes; a short round, its random mode and daily come in milestone 5)",
