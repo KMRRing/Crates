@@ -15,7 +15,7 @@ import { leaderboard } from "./standings.js";
 import "./pwa.js";
 import { today, reportDuo } from "./suite.js";
 import { roundOver } from "./random.js";
-import { part, choice, action, line, onPause } from "./menu.js";
+import { part, choice, action, line, onPause, todayPart } from "./menu.js";
 
 
 const $ = id => document.getElementById(id);
@@ -523,7 +523,6 @@ function toast(msg, ms = 2600) {
 
 // the menu: Play (start the run you've chosen), Content (random or today's); at a table, Versus or Co-op (between
 // runs) and back to solo
-let pick = null;                                              // the run the menu will start: "solo" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -533,9 +532,9 @@ function openMenu() {
     else t.append(line(`${MODES[mode]} this run; you can change it once it's over.`));
     t.append(action("Back to solo", () => together.leave(), "link"));
   } else {
-    pick ??= run?.mode === "daily" ? "daily" : "solo";
-    part(body, "play").append(action("Start a run", () => startSolo(pick), "primary"));
-    part(body, "content").append(choice("Run", [["solo", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
+    part(body, "play").append(action("Start a run", () => startSolo("solo"), "primary"));
+    const day = read(DAILY, {})[today()];
+    todayPart(body, { done: day != null, result: day != null ? day.toLocaleString("en-GB") : "", play: () => startSolo("daily"), playing: run?.mode === "daily" && !runDone(), busy: !!run && !runDone() });
     const best = read(BEST, 0);
     if (best) part(body, "about").append(line(`Best ${best.toLocaleString("en-GB")}`));
   }

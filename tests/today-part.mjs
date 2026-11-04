@@ -23,7 +23,7 @@ check(markResult({ kind: "time", v: 754 }) === "12:34" && markResult({ kind: "ti
 check(todayState({ mark: { kind: "time", day: 1, v: 125 } }).line === "Today's: done · 2:05" && todayState({ mark: null }).kind === "play", "read from the tile's mark when the game gives none");
 
 // ---------- no game offers a daily as a mode ----------
-const PENDING = new Set(["isomer", "codeword", "crossword", "acrostic", "assay", "lode", "mines", "nonogram", "solitaire", "spot", "survey", "nexus", "bulls", "lots", "chart", "quote", "origin", "order", "punt", "stow", "ladder", "rush-menu", "rush-sheet", "rush", "river-rush-ui", "hong", "tribute", "speedmaths-ui", "speedmaths", "speedfuels", "delta", "slate", "yield", "ingot", "yacht", "columbiad", "solo", "manifest", "shunt"]);   // not yet changed (this list goes when the last game is)
+const PENDING = new Set(["assay", "nonogram", "mines", "crossword", "hong", "crown", "survey", "nexus", "bulls", "lots", "chart", "quote", "origin", "order", "punt", "stow", "ladder", "rush-menu", "rush-sheet", "rush", "river-rush-ui", "tribute", "speedmaths-ui", "speedmaths", "speedfuels", "delta", "slate", "yield", "ingot", "yacht", "columbiad", "solo", "manifest", "shunt"]);   // not yet changed (this list goes when the last game is)
 const files = fs.readdirSync(root).filter(f => /\.(js|html)$/.test(f) && f !== "sw.js" && !PENDING.has(f.replace(/\.\w+$/, "")));
 /** The text of every call of name( … ) in src, to its closing parenthesis (strings skipped, so a bracket in a label can't end it). */
 function calls(src, name) {

@@ -13,7 +13,7 @@ import { STAGES as SAYING_STAGES } from "./kb/items/choice/sayings.js";
 import { scale, sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, ticks, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { part, choice, ticks, toggle, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy, waitMark } from "./loading.js";
@@ -755,11 +755,8 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
-let pick = null;                                              // what New puzzle starts: "random" or "daily"
 function contentPart(body, forNext = false) {
   const content = part(body, "content");
-  if (!forNext) content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "daily" && !forNext) { content.append(line("Today's is Medium, from every source: the same for everyone.")); return; }
   content.append(
     choice("Level", Object.entries(LEVELS).map(([id, l]) => [id, l.label]), prefs.level, v => { prefs.level = v; keepPrefs(); prefetch(); }),
     choice("Twist", Object.entries(TWISTS).map(([id, t]) => [id, t.label]), prefs.twist, v => { prefs.twist = v; keepPrefs(); prefetch(); openMenu(); }),
@@ -795,9 +792,9 @@ function openMenu() {
       action("Back to solo", () => team.leave(), "link"));
     contentPart(body, true);
   } else {
-    pick ??= S?.mode === "daily" ? "daily" : "random";
-    part(body, "play").append(action(pick === "daily" ? "Today's acrostic" : "New puzzle", () => confirmStart(pick), "primary"));
+    part(body, "play").append(action("New puzzle", () => confirmStart("random"), "primary"));
     contentPart(body);
+    todayPart(body, { app: "acrostic", play: () => start("daily"), playing: S?.mode === "daily" && S.day === today(), busy: started() });
   }
   const times = read(TIMES, {}), bests = Object.keys(LEVELS).map(l => times[`${l}:classic`] != null ? `${LEVELS[l].label} ${fmt(times[`${l}:classic`])}` : null).filter(Boolean);
   part(body, "about").append(line(bests.length ? `Your bests: ${bests.join(", ")}.` : "Your bests show here once you've solved one."),

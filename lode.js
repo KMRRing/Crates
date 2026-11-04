@@ -17,7 +17,7 @@ import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, ticks, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, ticks, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a watching frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
@@ -462,7 +462,6 @@ function openWords() {
 }
 
 // ---------- the menu ----------
-let pick = null;                                              // what the menu's New board starts: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -472,15 +471,12 @@ function openMenu() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function menuSolo(body) {
-  pick ??= S?.mode === "daily" ? "daily" : "random";
-  part(body, "play").append(action("New board", () => confirmStart(pick), "primary"));
+  part(body, "play").append(action("New board", () => confirmStart("random"), "primary"));
   const content = part(body, "content");
-  content.append(choice("Board", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") {
-    content.append(mirror("Themes", $("pool")));
-    content.append(choice("Level", Object.entries(LEVELS).map(([k, L]) => [k, L.label]), settings.level, v => { settings.level = v; saveSettings(); }));
-    contentChoices(content);
-  } else content.append(line("Today's board is Medium and square, from every theme and topic: the same for everyone."));
+  content.append(mirror("Themes", $("pool")));
+  content.append(choice("Level", Object.entries(LEVELS).map(([k, L]) => [k, L.label]), settings.level, v => { settings.level = v; saveSettings(); }));
+  contentChoices(content);
+  todayPart(body, { app: "lode", play: () => start("daily"), playing: S?.mode === "daily" && S.day === today(), busy: started() });
   settingsPart(part(body, "settings"));
   if (S && !S.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
   const about = part(body, "about"), times = read(TIMES, {});

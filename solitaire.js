@@ -12,7 +12,7 @@ import { createCourse, progressOf } from "./course.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, toggle, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, toggle, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { statsOf as statsIn, addStats as addIn, totalWins, life } from "./solitaire-record.js";
 import { today, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -39,9 +39,9 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const isAuto = x => !!(x & (1 << 19));
 
 // ---------- what you chose ----------
-const prefs = { variant: "klondike1", mode: "random", auto: true, four: false, ...read(PREFS, {}) };
+const prefs = { variant: "klondike1", auto: true, four: false, ...read(PREFS, {}) };
 if (!E.VARIANTS[prefs.variant]) prefs.variant = "klondike1";
-if (prefs.mode !== "daily") prefs.mode = "random";
+delete prefs.mode;                                   // older saves chose Random or Today's here; Today's is a button now (menu.js todayPart), and a saved run of it still resumes
 const savePrefs = () => write(PREFS, prefs);
 // prefs.view ("3d" or "flat"), .tilt and .yaw (degrees) are written only when the player picks one; with none the suite's
 // 2D/3D default (mode3d.js, the main menu's battery saver) decides, so it must never be written in for them.
@@ -102,7 +102,7 @@ async function refill(id) {
   refilling = true;
   try {
     const day = today();
-    if (prefs.mode === "daily" && triedFor(id, day) == null) {         // today's deal, searched ahead of the tap that asks for it
+    if (!(read(DAILIES, {})[day] || {})[id] && triedFor(id, day) == null) {         // today's deal, searched ahead of the tap that asks for it
       const r = await ask({ op: "deal", variant: id, key: day }, { lane: "spare" });
       if (r?.certified) keepTried(id, day, r.tryNo);
     }
@@ -197,7 +197,7 @@ async function switchTo(id) {
   if (S && id === S.id) return;
   const kept = read(GAME(id), null);
   if (validGame(kept) && !kept.done) { begin(kept); return; }
-  await deal(prefs.mode === "daily" && !(read(DAILIES, {})[today()] || {})[id] ? "daily" : "random", id);
+  await deal("random", id);
 }
 
 // ---------- playing ----------
@@ -485,13 +485,12 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play"), content = part(body, "content"), settings = part(body, "settings"), about = part(body, "about");
-  play.append(action(prefs.mode === "daily" ? "Today's deal" : "New deal", () => newDeal(prefs.mode), "primary"));
+  play.append(action("New deal", () => newDeal("random"), "primary"));
   if (S && S.log.length && !S.done) play.append(action("Start this deal again", restart));
   play.append(action("Learn Solitaire", () => course.open()), action("The rules", showRules, "link"));
   content.append(mirror("Game", $("variant")));
-  content.append(choice("Deal", [["random", "Random"], ["daily", "Today's"]], prefs.mode, v => { prefs.mode = v; savePrefs(); openMenu(); }));
-  const days = read(DAILIES, {})[today()] || {};
-  if (prefs.mode === "daily") content.append(line(E.IDS.filter(id => days[id] != null).length ? `Won today: ${E.IDS.filter(id => days[id] != null).map(id => `${E.titleOf(id)} ${fmt(days[id])}`).join(", ")}.` : "Today's deal is the same for everyone."));
+  const won = (read(DAILIES, {})[today()] || {})[prefs.variant];
+  todayPart(body, { done: won != null, result: won != null ? fmt(won) : "", play: () => newDeal("daily"), playing: S?.mode === "daily" && S.key === today() && S.id === prefs.variant });   // newDeal asks before it gives a game up
   settings.append(toggle("Move cards up by themselves", prefs.auto, on => { prefs.auto = on; savePrefs(); }));
   settings.append(toggle("Four-colour suits", prefs.four, on => { prefs.four = on; savePrefs(); board.setFourColour(on); }));
   if (!IN_FRAME) {
@@ -518,7 +517,7 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
-$("nextBtn").addEventListener("click", () => deal(S?.mode === "daily" ? "random" : prefs.mode));
+$("nextBtn").addEventListener("click", () => deal("random"));
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", hint);
@@ -540,7 +539,7 @@ async function startUp() {
   applyView();
   const kept = read(GAME(prefs.variant), null);
   if (validGame(kept)) begin(kept);
-  else if (!IN_FRAME) await deal(prefs.mode === "daily" ? "daily" : "random");
+  else if (!IN_FRAME) await deal("random");
   if (!IN_FRAME && S) setTimeout(() => refill(S.id), 1500);
 }
 startUp();

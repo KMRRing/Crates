@@ -13,7 +13,7 @@ import { createDuel } from "./duel.js";
 import { busy, waitMark } from "./loading.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, line, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";   // the day, the same for everyone; a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
@@ -528,7 +528,6 @@ const WHERE = "isomer:where";
 const atTable = kind => { const code = (kind === "race" ? duel.together : together).room?.code; if (code && !inParty()) write(WHERE, { code, kind }); };
 
 // ---------- the menu ----------
-let pick = null;                 // what New puzzle deals: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -549,12 +548,10 @@ function openMenu() {
     showMenu(body);
     return;
   }
-  pick ??= (S?.kind === "daily" && !S.run.done) || dailyDue("isomer") ? "daily" : "random";
-  part(body, "play").append(action("New puzzle", () => confirmDeal(pick), "primary"));
+  part(body, "play").append(action("New puzzle", () => confirmDeal("random"), "primary"));
   const content = part(body, "content");
-  content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") contentPart(body, true);
-  else content.append(line("Today's is a Classic at Medium, every topic in: the same for everyone."));
+  contentPart(body, true);
+  todayPart(body, { app: "isomer", play: () => deal("daily"), playing: S?.kind === "daily" && S.day === today(), busy: started() });
   const times = read(TIMES, {});
   const best = S ? times[`${S.puzzle.mode}/${S.puzzle.level}`] : null;
   part(body, "about").append(line(`${S ? `${MODES[S.puzzle.mode].label}, ${LEVELS[S.puzzle.level].label.toLowerCase()}: ${best != null ? `best ${clock(best)}` : "not solved yet"}. ` : ""}A hinted letter is ${PER_HINT} s.`));

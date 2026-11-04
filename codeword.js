@@ -11,7 +11,7 @@ import { subjectsOn, markedIn } from "./topics-on.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -703,7 +703,6 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
-let pick = null;                                              // the grid the menu will start: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -722,12 +721,10 @@ function openMenu() {
     showMenu(body);
     return;
   }
-  pick ??= S?.mode === "daily" ? "daily" : "random";
-  part(body, "play").append(action("New grid", () => confirmStart(pick), "primary"));
+  part(body, "play").append(action("New grid", () => confirmStart("random"), "primary"));
   const content = part(body, "content");
-  content.append(choice("Grid", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") content.append(mirror("Level", $("level")), sizeChoice());
-  else content.append(line("Today's grid is Medium, 13 by 13: the same for everyone."));
+  content.append(mirror("Level", $("level")), sizeChoice());
+  todayPart(body, { app: "codeword", play: () => start("daily"), playing: S?.mode === "daily" && unpack(S.puzzle).seed === today(), busy: started() });
   const best = S ? read(TIMES, {})[bestKey(S.opts)] : null;
   part(body, "about").append(
     line(S ? `${LEVEL_NAMES[S.opts.level]}, ${SIZES[S.opts.size].n} by ${SIZES[S.opts.size].n}: ${best != null ? `best ${fmt(best)}` : "not cracked yet"}. A hint adds ${HINT} s, a check ${CHECK} s.` : "A crossword with no clues."),
