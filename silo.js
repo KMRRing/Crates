@@ -161,7 +161,7 @@ function drawSeats() {
   }
 }
 
-const view = tableView("silo", ["board", "Board"]);                   // Menu, View: the flat board (the default) or the frame leaning back on its feet (silo-3d.css)
+const view = tableView("silo", ["board", "Board"]);                   // Menu, View: the flat board or the frame leaning back on its feet (silo-3d.css)
 const applyView = () => $("app").classList.toggle("si3", view.get() === "3d");
 
 function drawBoard() {

@@ -6,6 +6,7 @@
 // modelled and nothing is a picture. It draws only while something moves. slipway.js drives it: setBlock, refresh, ray,
 // eye, forward, orbit, view, cursor, guide, offcut, ghost.
 import * as THREE from "./vendor/three.js";
+import { defaultIs3D } from "./mode3d.js";   // Settings' 2D mode (battery saver): this game is 3D only, so its flattest is a ratio of 1 and no shadow map
 import { mesh, ghostGrid, targetAt, woodBox, CELL, EYE, VIEWS } from "./slipway-carve.js";
 
 const DEG = Math.PI / 180, PCF = 1, DOUBLE = 2;               // THREE.PCFShadowMap, THREE.DoubleSide (not in the bundle's exports)
@@ -95,8 +96,8 @@ export function benchMaterial(U) {
 
 export function createBench(host) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "low-power" });   // throws where there's no WebGL
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
-  renderer.shadowMap.enabled = true;
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, defaultIs3D() ? 2 : 1));
+  renderer.shadowMap.enabled = defaultIs3D();
   renderer.shadowMap.type = PCF;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   const canvas = renderer.domElement;

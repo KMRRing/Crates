@@ -21,6 +21,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME } from "./suite.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -32,10 +33,16 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const sum = a => a.reduce((t, x) => t + x, 0);
 const NAMES = ["Hinrich", "Gesa", "Claus", "Wiebke"];                  // the computer players, by seat: Hanseatic first names
 
-let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, flat: false, autoDecline: false, ...read(OPTS, {}) };
+let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, autoDecline: false, ...read(OPTS, {}) };
 if (!TARGETS.includes(opts.vp)) opts.vp = DEFAULTS.vp;
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";      // Easy is gone (October 2026)
 if (![3, 4].includes(opts.seats)) opts.seats = DEFAULTS.seats;
+// opts.view ("3d" or "flat") is the player's own choice, kept only when made; with none the suite's default applies (mode3d.js).
+// (opts.flat: false was the old default written into every save; true was a choice.)
+if (opts.flat === true && !opts.view) opts.view = "flat";
+delete opts.flat;
+if (opts.view !== "3d" && opts.view !== "flat") delete opts.view;
+const flatNow = () => !wants3D(opts.view, "3d");
 const saveOpts = () => write(OPTS, opts);
 /** The camera kept on this device, as the 3D island wrote it. A watching frame reads it but never writes: its game is the partner's. */
 const keptView = () => { try { return localStorage.getItem(VIEW); } catch { return null; } };
@@ -247,8 +254,8 @@ function drawBoard(v) {
 // Flat is the same island as an SVG (factor-draw.js), for a phone low on battery or a device without WebGL: both take
 // the same taps, so nothing else on the page knows which it has.
 async function useView() {
-  if (island && opts.flat) { island.dispose(); island = null; }
-  if (!island && !opts.flat) {
+  if (island && flatNow()) { island.dispose(); island = null; }
+  if (!island && !flatNow()) {
     try { island = (await import("./factor-3d.js")).createIsland($("board"), { view: keptView(), onView: keepView }); }
     catch (err) { console.warn("Factor: no 3D here, so the island is drawn flat.", err); island = null; }
   }
@@ -586,7 +593,7 @@ function openMenu() {
   set.append(line("The points and players apply from the next game."));
   set.append(toggle("Sound", sound.on, on => { sound.on = on; keepOn({ setItem: (k, v) => localStorage.setItem(k, v) }, on); }));
   set.append(toggle("Decline trades automatically", !!opts.autoDecline, setIgnore));
-  set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], opts.flat ? "flat" : "3d", v => { opts.flat = v === "flat"; keep(); useView(); }));
+  set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], flatNow() ? "flat" : "3d", v => { opts.view = v; keep(); useView(); }));
   if (island) {
     set.append(action("Reset view", () => island?.resetView()));
   }
@@ -615,3 +622,4 @@ $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 window.__factor = { page, get view() { return V; }, opts, ui, draw, get island() { return island; } };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 await useView();
+onDefaultChange(() => { if (!opts.view) useView(); });   // Settings' 2D mode, live

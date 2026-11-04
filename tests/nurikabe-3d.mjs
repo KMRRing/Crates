@@ -41,7 +41,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 // ---------- the page: flat by default, the view on offer in the menu, the pixel ratio capped ----------
 {
   const js = fs.readFileSync(new URL("../nurikabe.js", import.meta.url), "utf8"), glsrc = fs.readFileSync(new URL("../nurikabe-3d.js", import.meta.url), "utf8");
-  check(/view: "board"/.test(js) && /Play in 3D/.test(js) && /Play in 2D/.test(js), "the board is flat until 3D is asked for, and the menu offers each view");
+  check(/wants3D\(prefs\.view, "model"\)/.test(js) && /Play in 3D/.test(js) && /Play in 2D/.test(js), "the view is the player's choice or the suite's default (3D, flat in 2D mode), and the menu offers each view");
   check(/setPixelRatio\(Math\.min\(devicePixelRatio \|\| 1, 2\)\)/.test(glsrc), "WebGL's pixel ratio is capped at 2");
   check(!/\b(alert|confirm|prompt)\(/.test(glsrc), "no browser pop-ups");
 }

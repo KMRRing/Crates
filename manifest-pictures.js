@@ -14,12 +14,14 @@ import { QUAY_DEPTH, frameOf, iconFrame, cameraOf, layout, packageAt, fall, yawO
 import { typeOf, codeOf } from "./manifest-rules.js";
 import { hull } from "./manifest-shapes.js";
 import { onPause } from "./menu.js";
+import { defaultIs3D } from "./mode3d.js";
 
 // three.js is 580 KB: the game waits for it (the page asks `ready` before it draws a picture) but not for long, and a
 // device that can't run it plays the flat drawing from the start, never one that turns 3D halfway through
 let GL = null, M = null;
 let settleLoad = null;
-const loading = import("./manifest-3d.js").then(m => { M = m; GL = m.createGL(); if (GL) warm(); }).catch(() => { GL = null; });
+// (Settings' 2D mode, battery saver: the flat drawing from the start, three.js not even fetched; this game keeps no choice of its own)
+const loading = (defaultIs3D() ? import("./manifest-3d.js") : Promise.reject(new Error("2D mode"))).then(m => { M = m; GL = m.createGL(); if (GL) warm(); }).catch(() => { GL = null; });
 /** Resolves when the 3D drawing is up or has been given up on. */
 export const ready = Promise.race([loading, new Promise(r => { settleLoad = setTimeout(r, 4000); })]).then(() => clearTimeout(settleLoad));
 /** One package drawn small, so the shaders are compiled now, while the page waits, and not as the first stack falls. */

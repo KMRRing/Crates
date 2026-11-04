@@ -10,6 +10,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
 import { sure } from "./sure.js";
@@ -30,10 +31,13 @@ const kindText = k => `${k.size}×${k.size} · ${LEVELS[k.level]}`;
 const kindKey = k => `${k.size}:${k.level}`;
 
 // ---------- what you chose ----------
-const prefs = { size: 8, level: "easy", view: "chart", ...read(PREFS, {}) };
+const prefs = { size: 8, level: "easy", ...read(PREFS, {}) };
 if (!SIZES.includes(prefs.size)) prefs.size = 8;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
-if (prefs.view !== "model") prefs.view = "chart";
+// prefs.view is the player's own choice ("model" or "2d"), kept only when they make one; with none the suite's default applies (mode3d.js).
+// ("chart" was the old default, written into every save: dropped.) `viewShown` is what is on the screen now.
+if (prefs.view !== "model" && prefs.view !== "2d") delete prefs.view;
+let viewShown = wants3D(prefs.view, "model") ? "model" : "chart";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
 const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level) });
 
@@ -364,7 +368,7 @@ function wave() {
 let model = null, modelFor = null;
 /** The model follows the run: a new puzzle is built into it, a change of marks moors and casts off barges, a hint's cells glow. */
 function feedModel(br) {
-  if (!model || prefs.view !== "model" || !S || !P) return;
+  if (!model || viewShown !== "model" || !S || !P) return;
   if (modelFor !== P) { model.set(P); modelFor = P; }
   model.update(S.marks, br || breaks(P, S.marks), S.lit);
 }
@@ -376,8 +380,8 @@ async function setView(v, remember = true) {
       if (paused) model.hold(true);
     } catch (err) { console.warn("Moor: no 3D here.", err); toast("This browser can't draw 3D."); v = "chart"; }
   }
-  prefs.view = v;
-  if (remember) savePrefs();
+  viewShown = v;
+  if (remember) { prefs.view = v === "model" ? "model" : "2d"; savePrefs(); }
   const on = v === "model";
   $("card").classList.toggle("is-model", on);
   $("model").hidden = !on;
@@ -528,7 +532,7 @@ function openMenu() {
   const play = part(body, "play");
   play.append(action("New puzzle", () => confirmStart(pick), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
-  play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
+  play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
   content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") {
     content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
@@ -592,7 +596,7 @@ $("level").addEventListener("change", async () => {
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
-$("viewBtn").addEventListener("click", () => setView(prefs.view === "model" ? "chart" : "model"));
+$("viewBtn").addEventListener("click", () => setView(viewShown === "model" ? "chart" : "model"));
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else clockRun(); });
 window.addEventListener("pagehide", () => clockPause());
 window.addEventListener("hashchange", () => { const l = linked(); if (l && !(S && S.seed === l.seed && S.mode === l.mode)) openLinked(l); });
@@ -623,4 +627,5 @@ async function solo() {
   if (!S) { if (IN_FRAME) render(); else start("random"); }
 }
 $("level").value = chosenKind().level;
-solo().then(() => { if (prefs.view === "model") setView("model", false); });
+solo().then(() => { if (viewShown === "model") setView("model", false); });
+onDefaultChange(is3D => { if (!prefs.view && S) setView(is3D ? "model" : "chart", false); });   // Settings' 2D mode, live

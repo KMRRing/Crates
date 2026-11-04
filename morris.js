@@ -129,7 +129,7 @@ function judgeFor(v) {
 
 // ---------- the board ----------
 const board = createBoard($("board"), { onTap: pt => tap(pt) });
-const view = tableView("morris", ["board", "Board"]);                  // Menu, View: the flat board (the default) or the board tipped away from you (morris-3d.css)
+const view = tableView("morris", ["board", "Board"]);                  // Menu, View: the flat board or the board tipped away from you (morris-3d.css)
 const applyView = () => $("app").classList.toggle("mo3", view.get() === "3d");
 
 function draw() {

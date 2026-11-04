@@ -9,6 +9,7 @@ import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
 import { LEVELS } from "./harbour-levels.js";
 import { noteStars } from "./suite.js";
+import { defaultIs3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
 import { REGIONS, regionOf, newCompany, feedOf, engineOf, PAR } from "./harbour-season.js";
 import { createSeasonScreen } from "./harbour-season-ui.js";
@@ -608,8 +609,8 @@ function openMenu() {
   else if (!screenOn) set.append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"));
   set.append(toggle("Sound", sound.on, on => { sound.on = on; write("harbour:sound", on); }));
   if (!screenOn) set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], mapView.flat ? "flat" : "3d", async v => {
-    if ((v === "flat") === !!mapView.flat) return;
     write("harbour:flat", v === "flat");
+    if ((v === "flat") === !!mapView.flat) return;
     await makeMap();
     mapView.setLevel(L, G);
     render(true);
@@ -977,12 +978,14 @@ function nextOn(text, to) {
 }
 function nextOff() { if ($("next").hidden) return; $("next").hidden = true; banner(); }
 // a region: the port's harbour, programs and clock give way to the region's chart, fleet and month
-// the map: in 3D where the device can draw it and the player hasn't asked for it flat, flat otherwise
+// the map: in 3D where the device can draw it and the player hasn't asked for it flat, flat otherwise; harbour:flat is
+// the player's own choice (true or false), written only when they make it, else the suite's default (mode3d.js)
+const flatChosen = () => read("harbour:flat", null);
 let mapView = null;
 async function makeMap() {
   mapView?.dispose();
   mapView = null;
-  if (!read("harbour:flat", false)) {
+  if (!(flatChosen() ?? !defaultIs3D())) {
     try { mapView = (await import("./harbour-3d.js")).create3D($("sea")); }
     catch (err) { console.warn("Harbour: no 3D here, so the harbour is drawn flat.", err); }
   }
@@ -998,6 +1001,7 @@ const at = read(`${KEY}at`, null), startAt = at && stepOf(at) && isOpen(stepOf(a
 await makeMap();
 load(LEVELS.find(l => l.id === startAt) || LEVELS[0]);    // a level is always loaded, under a region or the world if one's on top
 if (startAt !== L.id) goTo(startAt);
+onDefaultChange(async () => { if (flatChosen() != null) return; await makeMap(); mapView.setLevel(L, G); render(true); });   // Settings' 2D mode, live
 // the games screen's figure: ingots collected, every par met on every level
 const dropsAll = () => LEVELS.reduce((n, l) => n + parsMet(l, bestsOf(l)).length, 0);
 noteStars("harbour", dropsAll());

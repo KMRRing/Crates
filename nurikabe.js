@@ -9,6 +9,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
 import { sure } from "./sure.js";
@@ -41,10 +42,13 @@ const teamMs = () => (team ? (team.ms || 0) + Math.max(0, Date.now() - team.at) 
 const hintId = () => `h${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 // ---------- what you chose ----------
-const prefs = { size: 8, level: "easy", view: "board", ...read(PREFS, {}) };
+const prefs = { size: 8, level: "easy", ...read(PREFS, {}) };
 if (!SIZES.includes(prefs.size)) prefs.size = 8;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
-if (prefs.view !== "model") prefs.view = "board";
+// prefs.view is the player's own choice ("model" or "2d"), kept only when they make one; with none the suite's default applies (mode3d.js).
+// ("board" was the old default, written into every save: dropped.) `viewShown` is what is on the screen now.
+if (prefs.view !== "model" && prefs.view !== "2d") delete prefs.view;
+let viewShown = wants3D(prefs.view, "model") ? "model" : "board";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
 const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level) });
 
@@ -363,7 +367,7 @@ function wave() {
 let model = null, modelFor = null;
 /** The model follows the run: a new puzzle is built into it, every change of the marks, the rules broken or a hint's cells is shown. */
 function feedModel(sets) {
-  if (!model || prefs.view !== "model" || !S || !P) return;
+  if (!model || viewShown !== "model" || !S || !P) return;
   if (modelFor !== P) { model.set({ N: P.N, clue: P.clue }); modelFor = P; }
   model.update({ marks: S.marks, ...sets, solved: !!S.done });
 }
@@ -374,8 +378,8 @@ async function setView(v, remember = true) {
       model = (await import("./nurikabe-3d.js")).createModel($("model"), { press, playable: () => !!S && !S.done && !IN_FRAME && !paused });
     } catch (err) { console.warn("Atoll: no 3D here.", err); toast("This browser can't draw 3D."); v = "board"; }
   }
-  prefs.view = v;
-  if (remember) savePrefs();
+  viewShown = v;
+  if (remember) { prefs.view = v === "model" ? "model" : "2d"; savePrefs(); }
   const on = v === "model";
   $("board").closest(".nk-card").classList.toggle("is-model", on);
   $("model").hidden = !on;
@@ -518,7 +522,7 @@ function openMenu() {
   const play = part(body, "play");
   play.append(action(COOP ? "Another puzzle" : "New puzzle", () => confirmStart(pick), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
-  play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "board" : "model"), "link"), action("The rules", showRules, "link"));
+  play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "board" : "model"), "link"), action("The rules", showRules, "link"));
   if (!COOP) content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") {
     content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
@@ -654,5 +658,6 @@ async function joinPartner() {
   if (!coop && !IN_FRAME) solo();
 }
 $("level").value = chosenKind().level;
-if (prefs.view === "model") setView("model", false);
+if (viewShown === "model") setView("model", false);
+onDefaultChange(is3D => { if (!prefs.view && S) setView(is3D ? "model" : "board", false); });   // Settings' 2D mode, live
 if (COOP) joinPartner().catch(e => { console.error(e); solo(); }); else solo();

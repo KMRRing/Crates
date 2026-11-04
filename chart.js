@@ -58,6 +58,7 @@ function picture(p) {
 import "./pwa.js";
 import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked run for your best
 import { roundOver } from "./random.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { sure } from "./sure.js";
 
 const $ = id => document.getElementById(id);
@@ -80,7 +81,8 @@ const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); 
 const save = () => { if (!inRoom()) write(RUN, S); };
 // the 3D mode (a choice in the menu, kept on this device): the same map drawn as a globe from space, views.globe its camera
 const VIEW = "chart:view";
-let mode3d = read(VIEW, "2d") === "3d";
+// the player's choice is written only when they make one; with none the suite's default applies (mode3d.js)
+let mode3d = wants3D(read(VIEW, null), "3d");
 const sizeNow = () => (mode3d ? GLOBE : SIZES.world);
 const current = () => byId.get(S.set[S.index]);
 // ---------- your mix of topics, and the region ----------
@@ -1008,13 +1010,14 @@ function topicsNote(daily = false) {
   if (one) return `Chart deals ${TOPICS.find(([id]) => id === one)[1]} alone, a set with a best of its own`;
   return `Chart deals ${n} of its ${TOPICS.length} topics${p === "custom" ? "; your own mix keeps no best" : ""}`;
 }
-/** The map's two looks: flat (the default) or a globe from space. A choice for this device, taking effect at once. */
+/** The map's two looks: flat or a globe from space (with no choice kept, the suite's default, mode3d.js). A choice for this device, taking effect at once. */
 const viewChoice = () => choice("Map", [["2d", "2D map"], ["3d", "3D globe"]], mode3d ? "3d" : "2d", v => {
   mode3d = v === "3d";
   write(VIEW, v);
   delete views.globe;
   if (S) render();
 });
+onDefaultChange(is3D => { if (read(VIEW, null)) return; mode3d = is3D; delete views.globe; if (S) render(); });   // Settings' 2D mode, live
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();

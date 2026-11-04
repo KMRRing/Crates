@@ -24,7 +24,8 @@ const PAIR = "pair:code", ME = "pair:me";       // the pair's room and your play
 const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const PUSH_DELAY = 1500;
 // what stays on this device: the suite's bookkeeping, Crates' run (synced by run.js), Firebase's own sign-in
-const LOCAL = /^(suite:|crates:run|crates:updated|crates:v2|firebase:)/;
+// (settings:flat, the 2D battery saver, is one phone's: another device has its own battery)
+const LOCAL = /^(suite:|settings:flat|crates:run|crates:updated|crates:v2|firebase:)/;
 // the store sits beside Crates' run under crates/runs (where 8-letter codes may write), at the code moved on seven letters
 // (codes made here avoid I and O, which read as 1 and 0; a code you choose may use any letter, and moves through all 26)
 const storePath = code => `crates/runs/${/[IO]/.test(code)

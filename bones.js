@@ -46,13 +46,13 @@ let V = null;
 // the tile you've picked when it would go on either end; cleared whenever the table moves on
 let ui = { key: "", sel: null };
 let page = null;
-const view = tableView("bones");                                   // Menu, View: the flat table (the default) or the felt table in 3D (bones-3d.js, loaded when first asked for)
+const view = tableView("bones");                                   // Menu, View: the flat table or the felt table in 3D (bones-3d.js, loaded when first asked for)
 let table3 = null, loading3 = false, laidAt = { key: "", n: -1 };    // the 3D table when it is up; and the line's length it last drew, to know which tile was just laid
 const applyView = () => $("app").classList.toggle("bn3", !!table3);
 onPause(() => table3?.hold(), () => table3?.release());
 /** Back to the flat table (the choice, or the 3D one failing): the scene is taken down and the picture drawn again. */
 function drop3d(why) {
-  if (why) { view.set("table"); toast(why); }
+  if (why) { view.fail(); toast(why); }
   if (!table3) return;
   table3.dispose();
   table3 = null;
@@ -69,7 +69,7 @@ function raise3d() {
       onGhost: end => { if (ui.sel != null) play({ t: "play", tile: ui.sel, end }); },
       onLost: () => drop3d("The 3D table stopped (the graphics were reset): back to the flat one"),
     });
-  }).catch(err => { console.warn("Dominoes: no 3D here, so the table is drawn flat.", err); view.set("table"); toast("This device can't draw the 3D table: it stays flat"); })
+  }).catch(err => { console.warn("Dominoes: no 3D here, so the table is drawn flat.", err); view.fail(); toast("This device can't draw the 3D table: it stays flat"); })
     .finally(() => { loading3 = false; draw(); });
 }
 

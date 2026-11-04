@@ -9,6 +9,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
 import { sure } from "./sure.js";
@@ -34,8 +35,14 @@ const kindKey = k => (shapeOf(k) !== "flat" ? `${k.shape}${k.size}:1:${k.level}`
 const cap = t => t[0].toUpperCase() + t.slice(1);
 
 // ---------- what you chose ----------
-const prefs = { size: 8, k: 1, level: "easy", view: "space", shape: "flat", ...read(PREFS, {}) };
-if (prefs.view !== "flat") prefs.view = "space";
+const prefs = { size: 8, k: 1, level: "easy", shape: "flat", ...read(PREFS, {}) };
+// prefs.look ("space" or "flat") is the player's own choice, kept only when they make one; with none the suite's default (mode3d.js)
+// applies. (prefs.view was the old key and wrote "space", the default, into every save: only its "flat" is carried over.)
+if (prefs.view === "flat" && !prefs.look) prefs.look = "flat";
+delete prefs.view;
+if (prefs.look !== "space" && prefs.look !== "flat") delete prefs.look;
+let slowFlat = false;                                              // the space view was too slow here: flat for this visit, not a choice
+const lookNow = () => (slowFlat || !wants3D(prefs.look, "space") ? "flat" : "space");
 if (!isSolid(prefs.shape)) prefs.shape = "flat";
 prefs.sizes = { cube: 4, hex: 5, ...(prefs.sizes || {}) };            // the size chosen on each solid shape
 for (const sh of Object.keys(SOLID_SIZES)) if (!SOLID_SIZES[sh].includes(prefs.sizes[sh])) prefs.sizes[sh] = SOLID_SIZES[sh][0];
@@ -301,7 +308,7 @@ const starAt = (cx, cy) => Array.from({ length: 10 }, (_, i) => {
   const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.17 : 0.4;
   return `${(cx + r * Math.cos(a)).toFixed(3)},${(cy + r * Math.sin(a)).toFixed(3)}`;
 }).join(" ");
-/** The board in the view chosen: space (a canvas in perspective, asterism-space.js; the default) or the flat grid (an SVG).
+/** The board in the view chosen: space (a canvas in perspective, asterism-space.js; the suite's default unless the player chose) or the flat grid (an SVG).
  *  Space falls back to the flat grid where a canvas can't be had, or the device draws it too slowly. */
 let space = null, turnMode = false, turnBtn = null;   // turnMode: a one-finger drag turns the board instead of dotting
 function drawBoard() {
@@ -312,9 +319,9 @@ function drawBoard() {
   $("board").parentElement.classList.remove("space");
   const solid = shapeOf(S) !== "flat";
   if (solid && !SPACE_AVAILABLE()) { $("board").textContent = "This shape needs a browser that can draw on a canvas."; return; }
-  if ((prefs.view === "space" || solid) && SPACE_AVAILABLE()) {
+  if ((lookNow() === "space" || solid) && SPACE_AVAILABLE()) {
     $("board").parentElement.classList.add("space");
-    space = createSpace($("board"), { slow: () => { if (!space || solid) return; prefs.view = "flat"; savePrefs(); drawBoard(); toast("This device drew the space view slowly: the flat grid is showing. The menu brings the space view back.", 6000); } });
+    space = createSpace($("board"), { slow: () => { if (!space || solid) return; slowFlat = true; drawBoard(); toast("This device drew the space view slowly: the flat grid is showing. The menu brings the space view back.", 6000); } });
     space.canvas.addEventListener("pointerdown", down);
     space.canvas.addEventListener("contextmenu", e => e.preventDefault());
     turnBtn = Object.assign(document.createElement("button"), { type: "button", className: "ast-turn", textContent: "Turn" });
@@ -631,7 +638,7 @@ function openMenu() {
     content.append(mirror("Level", $("level")));
   } else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
   const look = part(body, "settings");
-  if (shapeOf(S) === "flat") look.append(choice("View", [["space", "Space"], ["flat", "Flat grid"]], prefs.view, v => { prefs.view = v; savePrefs(); if (P) drawBoard(); openMenu(); }));
+  if (shapeOf(S) === "flat") look.append(choice("View", [["space", "Space"], ["flat", "Flat grid"]], lookNow(), v => { slowFlat = false; prefs.look = v; savePrefs(); if (P) drawBoard(); openMenu(); }));
   if (space) look.append(action("Reset the view", () => space?.resetView()));
   const best = S ? bestOf(S) : null;
   const about = part(body, "about");
@@ -724,3 +731,4 @@ async function solo() {
 }
 $("level").value = chosenKind().level;
 solo();
+onDefaultChange(() => { if (!prefs.look && P) drawBoard(); });   // Settings' 2D mode, live

@@ -15,6 +15,7 @@ import { part, choice, action, line, onPause } from "./menu.js";
 import { sure } from "./sure.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -35,7 +36,13 @@ let opts = { level: "medium", n: 4, mine: "random", ...read(OPTS, {}) };
 const saveOpts = () => write(OPTS, opts);
 // how the map is looked at: the globe or the flat schematic, and whether the panel below it is folded away
 const VIEW = "carrack:view";
-const look = { map: "globe", min: false, ...read(VIEW, {}) };
+const look = { min: false, ...read(VIEW, {}) };
+// look.view ("globe" or "flat") is the player's own choice, kept only when they make one; with none the suite's default (mode3d.js)
+// applies. (look.map was the old key and wrote "globe", the default, into every save: only its "flat" is carried over.)
+if (look.map === "flat" && !look.view) look.view = "flat";
+delete look.map;
+if (look.view !== "globe" && look.view !== "flat") delete look.view;
+const mapNow = () => (wants3D(look.view, "globe") ? "globe" : "flat");
 const saveLook = () => write(VIEW, look);
 
 let toastTimer = 0;
@@ -120,7 +127,7 @@ const factorsHere = (s, p) => Array.from({ length: s.n }, (_, k) => k).filter(k 
 let globe = null;
 function drawBoard(s, seat) {
   const reachSet = ui.sail != null && seat != null ? reach(s, seat, ui.sail) : null;
-  const onGlobe = look.map === "globe";
+  const onGlobe = mapNow() === "globe";
   $("board").classList.toggle("globe", onGlobe);
   $("flat").hidden = onGlobe;
   $("globe").hidden = !onGlobe;
@@ -409,7 +416,7 @@ $("panel").addEventListener("click", async e => {
     saveDraft();
     globe?.focus(orderPorts(o).map(ll));
   } else if (act === "drop") { ui.draft.splice(Number(b.dataset.i), 1); saveDraft(); }
-  else if (act === "look") { const o = (V.state.pend[V.seat] || ui.draft)[Number(b.dataset.i)]; if (o && look.map === "globe") globe?.focus(orderPorts(o).map(ll), true); return; }
+  else if (act === "look") { const o = (V.state.pend[V.seat] || ui.draft)[Number(b.dataset.i)]; if (o && mapNow() === "globe") globe?.focus(orderPorts(o).map(ll), true); return; }
   else if (act === "sail") { ui.sail = Number(b.dataset.p); ui.to = null; ui.n = 1; }
   else if (act === "cancel") { ui.sail = null; ui.to = null; }
   else if (act === "to") { ui.to = Number(b.dataset.p); ui.n = 1; }
@@ -625,7 +632,7 @@ function openMenu() {
   content.append(choice("Your power", [["random", "Random"], ...POWERS.map(p => [p.id, p.name])], opts.mine, v => { opts.mine = v; saveOpts(); }));
   content.append(line("Applies from the next game. At a table the other seats go to the friends who sit down."));
   const set = part(body, "settings");
-  set.append(choice("Map", [["globe", "Globe"], ["flat", "Flat"]], look.map, v => { look.map = v; saveLook(); draw(); }));
+  set.append(choice("Map", [["globe", "Globe"], ["flat", "Flat"]], mapNow(), v => { look.view = v; saveLook(); draw(); }));
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("carrack:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
@@ -641,6 +648,7 @@ $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
 $("mapReset").addEventListener("click", () => globe?.reset());
 $("panelBtn").addEventListener("click", () => { look.min = !look.min; saveLook(); draw(); });
+onDefaultChange(() => { if (!look.view && V) draw(); });   // Settings' 2D mode, live
 onPause(() => {}, () => {});
 window.__carrack = { page, get view() { return V; }, ui, opts, look, get globe() { return globe; } };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();

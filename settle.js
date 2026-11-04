@@ -13,6 +13,7 @@ import "./pwa.js";
 import { part, action, line, choice, onPause } from "./menu.js";
 import { roundOver } from "./random.js";
 import { noteStars, IN_FRAME } from "./suite.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { busy } from "./loading.js";
 
 const $ = id => document.getElementById(id);
@@ -460,10 +461,10 @@ $("board").addEventListener("pointermove", hoverBoard);
 $("againBtn").addEventListener("click", () => (isLevel() ? openLevel(levelOf(S.lv)) : newRun()));
 $("nextBtn").addEventListener("click", () => openLevel(levelOf(S.lv + 1)));
 
-// ---------- the 3D farm, when asked for: the flat one stays the default (it spares the battery) ----------
-const wide = () => read(VIEW, "flat") === "3d";
+// ---------- the 3D farm: the suite's default (mode3d.js) unless the player chose (VIEW is written only then) ----------
+const wide = () => wants3D(read(VIEW, null), "3d");
 /** Shows the farm in 3D (settle-3d.js) or flat; where there's no WebGL the flat farm stays and says why. */
-async function showFarm(want3d) {
+async function showFarm(want3d, quiet = false) {
   if (want3d === !!V3) return;
   if (!want3d) { V3?.dispose(); V3 = null; $("board").style.display = ""; render(); return; }
   const done = busy("Building the tank farm");
@@ -476,7 +477,7 @@ async function showFarm(want3d) {
     console.warn("Settle: no 3D here, so the farm is drawn flat.", err);
     V3 = null;
     $("board").style.display = "";
-    if (!IN_FRAME) toast("3D isn't available on this device: the farm stays flat");
+    if (!IN_FRAME && !quiet) toast("3D isn't available on this device: the farm stays flat");
   } finally { done(); }
 }
 onPause(() => V3?.pause(), ms => V3?.resume(ms));
@@ -491,4 +492,5 @@ if (mode === "levels") {
   if (valid(S) && S.goal != null && levelOf(S.lv)) render(); else openLevel(nextUp());
 } else if (!valid(S)) newRun();
 else { S = upgrade(S); render(); }
-if (wide()) { $("board").style.display = "none"; showFarm(true); }   // no flash of the flat farm first
+if (wide()) { $("board").style.display = "none"; showFarm(true, read(VIEW, null) == null); }   // no flash of the flat farm first; a device that cannot is not told when it never asked
+onDefaultChange(is3D => { if (read(VIEW, null) == null) showFarm(is3D, true); });   // Settings' 2D mode, live

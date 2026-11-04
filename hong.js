@@ -14,6 +14,7 @@ import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, today } from "./suite.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { MODES, modeOf, clockText, strikeMarks, clockFor, runDown, graceAgain, timeUp, noteRun, bestsLine, endTitle } from "./rush-core.js";
 import { rushMenu } from "./rush-menu.js";
 import { busy } from "./loading.js";
@@ -36,9 +37,10 @@ const clone = x => JSON.parse(JSON.stringify(x));
 // G: the hand in play (the engine's state). S: the game around it: { seed, firstDealer, names, humans, results }.
 // R: the coach's notes on your decisions this hand, for the review at its end.
 let G = null, S = null, R = [];
-let opts = { flowers: true, minFan: 3, rounds: 1, scoring: "fan", coach: "on", pace: "steady", numbers: true, bots: "hard", full: false, view: "table", ...read(OPTS, {}) };
-const VIEWS = [["table", "Table"], ["3d", "3D"]];                  // the table drawn flat (hong.js) or seen at an angle (hong-3d.js)
-if (!VIEWS.some(([k]) => k === opts.view)) opts.view = "table";
+let opts = { flowers: true, minFan: 3, rounds: 1, scoring: "fan", coach: "on", pace: "steady", numbers: true, bots: "hard", full: false, ...read(OPTS, {}) };
+const VIEWS = [["flat", "Table"], ["3d", "3D"]];                   // the table drawn flat (hong.js) or seen at an angle (hong-3d.js)
+// opts.view is kept only when the player chose (else the suite's default, mode3d.js); "table" was the old default written into every save
+if (!VIEWS.some(([k]) => k === opts.view)) delete opts.view;
 // the coach was on or off (with Hint) until October 2026, and "differ" for a day: kept as the way it means now
 const coachWas = opts.coach;
 opts.coach = coachWas === true ? "on" : coachWas === false ? "hints" : coachWas === "differ" ? "check" : COACH.includes(coachWas) ? coachWas : "on";
@@ -55,7 +57,8 @@ const keyNow = () => (G ? `${G.hand}:${G.log.length}:${G.phase}` : "");
 const low = () => matchMedia(`${SIDEWAYS} and (max-height: 500px)`).matches;
 /** The view chosen in the menu: the table drawn flat (#board, below) or seen at an angle (#board3d, hong-3d.js). The tiles
  *  in your hand, your seat's line, the coach and the buttons are the same elements in both, drawn here. */
-const in3d = () => opts.view === "3d" && !!table3d;
+const in3d = () => wants3D(opts.view, "3d") && !!table3d;
+const viewNow = () => (wants3D(opts.view, "3d") ? "3d" : "flat");
 let table3d = null;
 /** The ratio of a tile in your hand's height to its width: the 3D view's slabs are thicker (hong-tiles.js). */
 const tileRatio = () => (in3d() ? SLAB_H / TILE_W : 4 / 3);
@@ -1171,7 +1174,7 @@ function openMenu() {
     if (differs) content.append(line("These take effect with a new game."));
   }
   part(body, "settings").append(
-    choice("View", VIEWS, opts.view, v => set("view", v)),
+    choice("View", VIEWS, viewNow(), v => set("view", v)),
     choice("Computer players", [["medium", "Medium"], ["hard", "Hard"]], together.room ? S?.bots || "hard" : opts.bots, v => {
       set("bots", v);
       if (together.room) together.act(g => { if (!g.session) return false; g.session.bots = v; });
@@ -1443,10 +1446,12 @@ window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); }
 let resizeTimer = null;
 addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 60); });
 
+onDefaultChange(() => { if (!opts.view) { applyLook(); render(); } });   // Settings' 2D mode, live
+
 // for tests and debugging
 window.__hong = { course, get state() { return G; }, get session() { return S; }, get review() { return R; }, get advice() { return advice; }, get me() { return me; }, get together() { return together; },
   get rush() { return rush; }, get words() { return words; }, startRush, nextRush, leaveRush,
-  mine, newGame, nextHand, get view() { return opts.view; }, set(o) { Object.assign(opts, o); write(OPTS, opts); applyLook(); render(); } };
+  mine, newGame, nextHand, get view() { return viewNow(); }, set(o) { Object.assign(opts, o); write(OPTS, opts); applyLook(); render(); } };
 
 /** Back to where you were: a puzzle rush left open, else your game as you left it, else a new one. */
 function load() {

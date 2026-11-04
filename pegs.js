@@ -100,7 +100,7 @@ function lane(s, seat) {
     <b class="pg-pts">${s.scores[seat]}</b></div>`;
 }
 
-const view = tableView("pegs");                                    // Menu, View: the flat table (the default) or the cloth tipped away from you (pegs-3d.css)
+const view = tableView("pegs");                                    // Menu, View: the flat table or the cloth tipped away from you (pegs-3d.css)
 const applyView = () => $("app").classList.toggle("pg3", view.get() === "3d");
 
 function drawTable(v) {

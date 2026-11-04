@@ -21,6 +21,7 @@ import { scale, sideways } from "./wide.js";
 import { leaderboard } from "./standings.js";
 import { BODIES, bodySheet, skyMarkup } from "./bulls-bodies.js";
 import { bakeBodies } from "./bulls-lit.js";
+import { defaultIs3D } from "./mode3d.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "bulls:run", PREFS = "bulls:prefs", STATS = "bulls:stats", LOCKS = "bulls:locks", DUELS = "bulls:duels", TODAY = "bulls:count", TABLE = "bulls:table";
@@ -59,7 +60,7 @@ let prefs = (() => {
 const keepPrefs = () => write(PREFS, prefs);
 document.body.insertAdjacentHTML("afterbegin", bodySheet());   // the bodies, drawn once; every peg re-uses them
 $("board").insertAdjacentHTML("afterbegin", skyMarkup(matchMedia("(prefers-reduced-motion: reduce)").matches));
-bakeBodies();   // the lit bodies, painted between frames; the flat ones show until each is ready
+if (defaultIs3D()) bakeBodies();   // the lit bodies, painted between frames; the flat ones show until each is ready (and stay under Settings' 2D mode, battery saver)
 
 // ---------- the solo game ----------
 // run: a game of Break (bulls-engine's, with the day for today's), a duel, or a lock { kind: "lock", level, seed, tries,

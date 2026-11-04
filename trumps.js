@@ -260,7 +260,7 @@ function playProbe(s) {
  * rows are one and the cards have the other's room (Learn is in the menu too). Where the browser can, the page goes
  * full screen as well (an app on the home screen already is); the setting stays when the browser leaves it.
  */
-const view = tableView("trumps");                                  // Menu, View: the flat table (the default) or the cloth tipped away from you (trumps-3d.css)
+const view = tableView("trumps");                                  // Menu, View: the flat table or the cloth tipped away from you (trumps-3d.css)
 const applyView = () => $("app").classList.toggle("tr3", view.get() === "3d");
 function placeFull() {
   applyView();

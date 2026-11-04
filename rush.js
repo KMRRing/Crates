@@ -6,7 +6,7 @@
 // under Chess's header, not a part of gambit.html, so it keeps the identity it had as a game (rush): its keys (rush:),
 // what your partner sees you playing, and the battle's requests and Party's.
 import { mountPuzzle, solutionSan, holdScene } from "./chess-board.js";
-import { getView, setView, viewChoice } from "./gambit-view.js";
+import { getView, viewChoice } from "./gambit-view.js";
 import { sure } from "./sure.js";
 import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -122,7 +122,7 @@ function mount(p, step = 0) {
   $("meta").textContent = "";
   board?.destroy();
   board = mountPuzzle($("board"), p, { interactive: !IN_FRAME && !S.over, replyMs: 300, firstMs: 450, startStep: step, onStep: keepRun, onDone: solved => settle(p, solved),
-    view: getView(), onNotice: msg => toast(msg), onUnavailable: () => setView("board") });
+    view: getView(), onNotice: msg => toast(msg) });
   keepRun(step);
 }
 const metaOf = p => `Rated ${n0(p.rating)}${p.themes.length ? ` · ${p.themes.join(", ")}` : ""}`;

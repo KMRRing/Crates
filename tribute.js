@@ -13,6 +13,7 @@ import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, noteStreak, today } from "./suite.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { MODES, modeOf, clockText, strikeMarks, clockFor, runDown, graceAgain, timeUp, noteRun, bestsLine, endTitle } from "./rush-core.js";
 import { rushMenu } from "./rush-menu.js";
 import { sideways, SIDEWAYS } from "./wide.js";
@@ -28,7 +29,7 @@ const RUN = "tribute:run", OPTS = "tribute:opts", STATS = "tribute:stats";
 // otherwise; on (Always), its play at every decision as well.
 const COACH = ["off", "hints", "check", "on"];
 // the table as the cloth seen from above, or tipped away in perspective with its seats round it (tribute-3d.js)
-const VIEWS = [["table", "Table"], ["3d", "3D"]];
+const VIEWS = [["flat", "Table"], ["3d", "3D"]];
 // 2: the table's coach and card counter are the table's, kept on every phone (an older page there updates first)
 const APP = 2;
 const BOTS = ["Wei", "Lin", "Fang"];                             // right, across (your partner), left
@@ -41,11 +42,11 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 // ---------- state ----------
 // G: the hand in play (the engine's state, the match's levels in it). S: the table: { names, humans }.
 let G = null, S = null;
-let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", coach: "hints", full: false, side: null, view: "table", ...read(OPTS, {}) };
+let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", coach: "hints", full: false, side: null, ...read(OPTS, {}) };
 if (!COACH.includes(opts.coach)) opts.coach = "hints";
-if (!VIEWS.some(([k]) => k === opts.view)) opts.view = "table";
+if (!VIEWS.some(([k]) => k === opts.view)) delete opts.view;   // kept only when the player chose (else mode3d.js's default); "table" was the old default written into every save
 let table3d = null;                                              // the 3D view, once the page is wired (the foot of this file)
-const in3d = () => opts.view === "3d" && !!table3d;
+const in3d = () => wants3D(opts.view, "3d") && !!table3d;
 let me = 0;
 // At a table together the coach and the card counter are the table's, the same on every phone: at a party its host sets
 // them (party-link.js knows who that is), at a pair's table either of you; solo, they're yours.
@@ -1109,7 +1110,7 @@ function openMenu() {
   part(body, "settings").append(
     ...rules,
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
-    choice("View", VIEWS, opts.view, v => { opts.view = v; write(OPTS, opts); showView(); render(); }),
+    choice("View", VIEWS, wants3D(opts.view, "3d") ? "3d" : "flat", v => { opts.view = v; write(OPTS, opts); showView(); render(); }),
     toggle("Full screen", !!opts.full, v => { fullScreen(v); set("full", v); }),
     choice("Held sideways, your cards", [["row", "In a row"], ["stack", "Stacked"]], sideOf(), v => set("side", v)),
   );
@@ -1356,7 +1357,7 @@ addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setT
  *  Your cards, the coach's line and the buttons are the same elements in both; so is the table itself, so the header and the
  *  levels go onto it in full screen as they always have. */
 function showView() {
-  const three = opts.view === "3d" && !!table3d;
+  const three = in3d();
   $("app").classList.toggle("tb3", three);
   $("board3d").hidden = !three;
   table3d?.empty();
@@ -1364,6 +1365,7 @@ function showView() {
 }
 table3d = createTable3d({ G: () => G, me: () => me, nameOf, who, busy: () => busyWith, handId, acts: trickActs, news: newsLines, cardClass, quiet: IN_FRAME });
 showView();
+onDefaultChange(() => { if (!opts.view) { showView(); render(); } });   // Settings' 2D mode, live
 
 // for tests and debugging
 window.__tribute = { course, get state() { return G; }, get me() { return me; }, get together() { return together; }, get selected() { return [...selected]; },

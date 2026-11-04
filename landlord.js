@@ -128,7 +128,7 @@ function playOf(seat, per) {
   if (a?.cards) return { rows: rows(a.cards, per) };
   return turn && !isMe(seat) ? { think: "thinking" } : {};
 }
-const view = tableView("landlord");                                // Menu, View: the flat table (the default) or the 3D one (landlord-3d.js)
+const view = tableView("landlord");                                // Menu, View: the flat table or the 3D one (landlord-3d.js)
 let three = null;
 
 function drawTable(v) {

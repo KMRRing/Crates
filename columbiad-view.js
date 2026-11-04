@@ -8,6 +8,7 @@
 // same in every theme; the chrome over it is the page's.
 import { direction, targetAt, ringAt, bodyAt, worldOf } from "./columbiad-engine.js";
 import { createGlobe, loadEarth, warm, sunOf } from "./columbiad-globe.js";
+import { defaultIs3D } from "./mode3d.js";
 
 const INK = "233,223,198", BRASS = "217,164,65", BRASS_HI = "240,213,138", GOOD = "127,194,168", BAD = "232,128,111";
 const SKY_TOP = "#080d19", SKY_BOT = "#16213a";
@@ -461,7 +462,7 @@ export function createView(canvas, hooks = {}) {
     if (moving()) { raf = requestAnimationFrame(tick); idled = false; }
     else {
       if (!idled) { idled = true; hooks.onIdle?.(); }
-      if (!reduced() && lvl) raf = requestAnimationFrame(tick);   // the Earth's slow turn
+      if (!reduced() && lvl && defaultIs3D()) raf = requestAnimationFrame(tick);   // the Earth's slow turn (Settings' 2D mode, battery saver: Columbiad is 3D only, so the Earth stands still)
     }
   }
   function wake() { if (!raf && !held) { last = performance.now(); lastDraw = 0; idled = false; raf = requestAnimationFrame(tick); } }

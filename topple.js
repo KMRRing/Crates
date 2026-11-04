@@ -17,6 +17,7 @@ import { LEVELS, levelRules, COLOUR_NAMES } from "./topple-levels.js";
 import { mapSvg } from "./topple-map.js";
 import { heading, hexAt, SH, ZOOM, bounds, pieceSvg, floorYs, floorName } from "./topple-slab.js";
 import { createTable } from "./topple-3d.js";
+import { defaultIs3D } from "./mode3d.js";
 import { sound } from "./topple-sound.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -60,9 +61,11 @@ let floor = 0;           // the floor in play (0 on), kept as topple:floor
 sound.on = read(SOUND, true);
 const stage = $("stage");
 let view;
-try { view = createTable(stage); }
-catch (err) {
-  console.warn("Topple: no WebGL here, so the table is drawn flat.", err);
+try {
+  if (!defaultIs3D()) throw new Error("2D mode (battery saver): the flat table");   // Settings; no choice of its own to keep in this game
+  view = createTable(stage);
+} catch (err) {
+  if (defaultIs3D()) console.warn("Topple: no WebGL here, so the table is drawn flat.", err);
   view = (await import("./topple-flat.js")).createFlat(stage);
 }
 
