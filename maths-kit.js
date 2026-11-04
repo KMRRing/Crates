@@ -13,8 +13,16 @@ import { pretty } from "./maths-expr.js";
 let turn = 0;
 /** One option as the text on its button. */
 export function show(o) {
+  if (o && o.c) return cshow(o.c);
   if (Array.isArray(o)) return `x = ${o.map(pretty).join(" or ")}`;
   return typeof o === "string" && o.startsWith("~") ? o.slice(1) : pretty(String(o));
+}
+/** A complex number [re, im] as text: 5 − i, 2i, −1 + 2i. */
+export function cshow([re, im]) {
+  const f = v => String(Number(v.toPrecision(10))), imag = `${Math.abs(im) === 1 ? "" : f(Math.abs(im))}i`;
+  if (!im) return f(re).replace("-", "−");
+  if (!re) return `${im < 0 ? "−" : ""}${imag}`;
+  return `${f(re).replace("-", "−")} ${im < 0 ? "−" : "+"} ${imag}`;
 }
 /** A number as an expression text, exact enough for printing and for the checks. */
 export const ex = v => (Number.isInteger(v) ? String(v) : String(Number(v.toPrecision(12))));

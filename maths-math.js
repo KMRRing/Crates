@@ -140,3 +140,16 @@ export const cpow = (z, n) => { const r = cabs(z) ** n, t = carg(z) * n; return 
 // ---------- angles ----------
 export const rad = d => (d * Math.PI) / 180;
 export const deg = r => (r * 180) / Math.PI;
+
+// ---------- Maclaurin coefficients [c0, c1, … cN] of the standard functions ----------
+export function taylorCoef(name, N) {
+  return Array.from({ length: N + 1 }, (_, k) => {
+    switch (name) {
+      case "exp": return 1 / fact(k);
+      case "sin": return k % 2 ? (-1) ** ((k - 1) / 2) / fact(k) : 0;
+      case "cos": return k % 2 ? 0 : (-1) ** (k / 2) / fact(k);
+      case "ln1p": return k ? (-1) ** (k + 1) / k : 0;
+      default: throw new Error(`taylorCoef: ${name}`);
+    }
+  });
+}

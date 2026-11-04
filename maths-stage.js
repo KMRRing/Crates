@@ -51,10 +51,12 @@ function planeSvg(w, vars, W, H) {
     g.push(`M0 ${py.toFixed(1)}H${W}`);
     if (k !== 0 && !w.bare) lab.push(`<text class="mx-tk" x="${Math.min(W - 24, Math.max(3, X(0) + 4)).toFixed(1)}" y="${(py - 3).toFixed(1)}">${nm(v, 3)}</text>`);
   }
-  o.push(`<path class="mx-grid" d="${g.join("")}"/>`);
-  if (y0 < 0 && y1 > 0) o.push(`<path class="mx-axis" d="M0 ${Y(0).toFixed(1)}H${W}"/>`);
-  if (x0 < 0 && x1 > 0) o.push(`<path class="mx-axis" d="M${X(0).toFixed(1)} 0V${H}"/>`);
-  o.push(lab.join(""));
+  if (!w.bare) {
+    o.push(`<path class="mx-grid" d="${g.join("")}"/>`);
+    if (y0 < 0 && y1 > 0) o.push(`<path class="mx-axis" d="M0 ${Y(0).toFixed(1)}H${W}"/>`);
+    if (x0 < 0 && x1 > 0) o.push(`<path class="mx-axis" d="M${X(0).toFixed(1)} 0V${H}"/>`);
+    o.push(lab.join(""));
+  }
   // an area under the first curve
   if (w.shade) {
     const f = fn(w.fns[w.shade.fn || 0].e), a = ev(w.shade.a, vars), b = ev(w.shade.b, vars), n = 80, pts = [];
@@ -226,7 +228,7 @@ export function mathsStage() {
       S.holds = bad == null;
       const bands = `<rect class="mx-band y" x="0" y="${Y(w.L + w.eps).toFixed(1)}" width="${W}" height="${(Y(w.L - w.eps) - Y(w.L + w.eps)).toFixed(1)}"/><rect class="mx-band x ${S.holds ? "ok" : "no"}" x="${X(w.a - S.delta).toFixed(1)}" y="0" width="${(X(w.a + S.delta) - X(w.a - S.delta)).toFixed(1)}" height="${H}"/>`;
       fig.innerHTML = svg.replace(/(<path class="mx-grid")/, `${bands}$1`);
-      read.innerHTML = `ε = <b>${nm(w.eps, 3)}</b> · δ = <b>${nm(S.delta, 2)}</b> · ${S.holds ? "every x within δ of " + nm(w.a, 2) + " keeps f within ε of " + nm(w.L, 2) : "f escapes the band at x = " + nm(bad, 2)}`;
+      read.innerHTML = `ε = <b>${nm(w.eps, 3)}</b> · δ = <b>${nm(S.delta, 2)}</b> · ${S.holds ? "f stays inside the band" : "f escapes at x = " + nm(bad, 2)}`;
       host.querySelector('[data-pv="delta"]').textContent = nm(S.delta, 2);
     };
     host.addEventListener("input", e => { if (e.target.dataset?.p === "delta") { S.delta = Number(e.target.value); S.moved = true; paint(); } });
@@ -312,8 +314,18 @@ export function mathsStage() {
         let best = Infinity;
         for (let v = p.min; v <= p.max + 1e-9; v += p.step) { const d = Math.abs(ev(w.goal.e, { ...S.p, [k]: v }) - w.goal.v); if (d < best) { best = d; S.p = { ...S.p, [k]: Math.round(v / p.step) * p.step }; } }
       }
-      if (w.kind === "riemann") S.n = w.goal.show ?? w.n?.max ?? 60;
-      if (w.kind === "taylor") S.deg = w.goal.show ?? w.deg?.max ?? 8;
+      if (w.kind === "riemann") {                         // the cheapest rule that wins: fewest strips, over every rule offered
+        const f = fn(w.f), F = x => f({ x }), exact = simpson(F, w.a, w.b);
+        let best = null;
+        for (const how of w.hows || ["left", "right", "mid", "trap"]) for (let n = w.n?.min ?? 1; n <= (w.n?.max ?? 60); n++) {
+          if (Math.abs(riemann(F, w.a, w.b, n, how) - exact) <= w.goal.err * Math.abs(exact)) { if (!best || n < best.n) best = { n, how }; break; }
+        }
+        if (best) { S.n = best.n; S.how = best.how; }
+      }
+      if (w.kind === "taylor") {
+        const f = fn(w.f);
+        for (let n = 0; n <= (w.deg?.max ?? 8); n++) { let s = 0; for (let k = 0; k <= n; k++) s += (w.c[k] || 0) * w.at ** k; if (Math.abs(f({ x: w.at }) - s) <= w.goal.err) { S.deg = n; break; } }
+      }
       if (w.kind === "epsdelta") S.delta = Math.max(0.01, Math.round(bestDelta(w) * 90) / 100);
     },
     draw(s, st) {
