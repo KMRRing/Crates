@@ -1,149 +1,244 @@
-// Shunt's rules (shunt-engine.js): the deal from a seed, a track's squares from the end shoved in at, a shove rolling
-// the wagons up to the first gap, a full track shoving its far wagon off the rails for a life, runs across and down
-// departing (a square in two counted once) and their points, the goods train's wagons (in no run, more and more often),
-// scrap flats (never departing, shoved off a full track for no life), the end at the third derailment, a game saved and
-// opened again, and whole games played out to their end.
-import { N, CARGOES, LIVES, START, PACE, SCRAP, SCRAP_ODDS, dropEvery, dropCount, newGame, track, runs, roll, shove, shoves, worth, filled } from "../shunt-engine.js";
+// Shunt (shunt-engine.js, shunt-bots.js, shunt-levels.js; the page is shunt.js): the shove and the line rule, shear, jams by odd
+// rings, bridges and idlers, the scoring, the goals, a state kept and read back, the twelve levels (each deck won by the line
+// stored with it, each teaching what it says, the bots' floors), the random plates and the daily, and the levers' geometry.
+// The slow searches (the beam at width 1500, a hundred runs of each bot) are in tests/shunt-search.mjs. Run: node tests/shunt.mjs
+import { CELLS, N, ENTRIES, at, fresh, swap, shove, step, play, track, legal, legalEntries, canSwap, over, judge, goalCheck, effect, sound, mend, movesOf, STUD, EMPTY, VALUE } from "../shunt-engine.js";
+import { rng, playRandom, playGreedy, beam, search } from "../shunt-bots.js";
+import { LEVELS, COACHED, DIFFS, goalWords, plateOf, randomPlate, dailyPlate, rating, rated } from "../shunt-levels.js";
+import { LEVERS, D, HIT } from "../shunt-view-2d.js";
+import { roundTrip } from "./rtdb.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const i = (x, y) => y * N + x;
-/** A game with a yard drawn by hand: rows of characters, "." empty, "0"–"3" a wagon, "4" a scrap flat, from the top. */
-function yard(rows, next = [0, 0], extra = {}) {
-  const s = newGame(1);
-  s.cells = new Array(N * N).fill(-1);
-  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== ".") s.cells[i(x, y)] = Number(ch); }));
-  s.next = next;
-  s.untilDrop = 99;
-  return Object.assign(s, extra);
-}
-const row = (s, y) => [...Array(N).keys()].map(x => (s.cells[i(x, y)] < 0 ? "." : s.cells[i(x, y)])).join("");
+const canon = v => (Array.isArray(v) ? v.map(canon) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])])) : v);
+const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+const T0 = Date.now();
+const lvl = (cells = {}, deal = [0], extra = {}) => ({ stud: [], jewels: [], start: cells, deal, goal: {}, ...extra });
+/** An entry by where the gear goes in and which way it travels: the cell on the rim and the step (q, r) it travels by. */
+const entry = (q, r, dq, dr) => ENTRIES.findIndex(en => en.line[0] === at(q, r) && en.d[0] === dq && en.d[1] === dr);
 
-// ---------- the deal ----------
+// ---------- the plate ----------
+check(N === 19 && CELLS.length === 19, "a hexagonal plate of nineteen cells");
+check(ENTRIES.length === 30 && ENTRIES.every(en => en.line.length >= 3 && en.line.length <= 5), "thirty ways in, along lines of three to five cells");
+check(ENTRIES.every((en, i) => i % 2 || (en.line.join() === ENTRIES[i + 1].line.slice().reverse().join())), "every line can be entered from either end");
+check(new Set(ENTRIES.map(en => en.line[0])).size === 12, "from the twelve cells of the rim");
+const E0 = entry(-2, 0, 1, 0);                                       // along the row r = 0 from the left
+check(E0 >= 0 && ENTRIES[E0].line.length === 5 && ENTRIES[E0].line[0] === at(-2, 0) && ENTRIES[E0].line[4] === at(2, 0), "the middle row from its left end");
+
+// ---------- shoving ----------
 {
-  const a = newGame(7), b = newGame(7), c = newGame(8);
-  check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a.cells) !== JSON.stringify(c.cells), "the same seed deals the same yard, another seed another");
-  check(filled(a) === START && runs(a.cells).length === 0, `${START} wagons standing, none in a run`);
-  check(a.next.length === 2 && a.lives === LIVES && a.score === 0 && a.untilDrop === dropEvery(0) && !a.over, "two wagons coming, three lives, the goods train counting down");
-  check([...Array(40).keys()].every(k => runs(newGame(k).cells).length === 0), "no deal starts with a run");
+  const row = [-2, -1, 0, 1, 2].map(q => at(q, 0));
+  let s = fresh(lvl({}, [0, 1, 2]));
+  let r = shove(s, E0);
+  check(r.s.cells[row[0]] === 0 && r.moved.length === 0 && r.at === row[0] && r.s.q.join() === "1,2", "into an empty entry cell the gear lands there");
+  s = fresh(lvl({ [row[0]]: 1 }, [0]));
+  r = shove(s, E0);
+  check(r.s.cells[row[0]] === 0 && r.s.cells[row[1]] === 1 && r.moved.length === 1, "an occupied entry cell: its gear moves one step into the gap, the new one takes its place");
+  s = fresh(lvl({ [row[0]]: 1, [row[1]]: 1, [row[2]]: 2, [row[4]]: 1 }, [0]));
+  r = shove(s, E0);
+  check(same(row.map(c => r.s.cells[c]), [0, 1, 1, 2, 1]) && r.moved.length === 3, "a block moves up to the first gap, and what lies beyond the gap stays");
+  s = fresh(lvl(Object.fromEntries(row.map(c => [c, 1])), [0]));
+  check(shove(s, E0) === null && !legal(s, E0) && !legalEntries(s).includes(E0), "a full line takes no shove");
+  check(shove(s, E0 + 1) === null, "nor from the other end");
+  // from the far end
+  s = fresh(lvl({ [row[4]]: 1 }, [2]));
+  const E1 = E0 + 1;
+  r = shove(s, E1);
+  check(r.s.cells[row[4]] === 2 && r.s.cells[row[3]] === 1, "from the far end the same, the other way");
+  // a stud ends a line and never moves
+  s = fresh(lvl({ [row[0]]: 1 }, [0], { stud: [row[2]] }));
+  check(track(s, E0).length === 2 && s.cells[row[2]] === STUD, "a stud ends the line");
+  r = shove(s, E0);
+  check(r.s.cells[row[2]] === STUD && r.s.cells[row[0]] === 0 && r.s.cells[row[1]] === 1, "and stays where it is");
+  s = fresh(lvl({ [row[0]]: 1, [row[1]]: 1 }, [0], { stud: [row[2]] }));
+  check(shove(s, E0) === null, "a line full up to a stud takes no shove");
+  check(track(s, entry(2, 0, -1, 0)).length === 2 && track(s, entry(2, 0, -1, 0))[0] === row[4], "a stud ends the line from the far end too");
+}
+// the queue, the hold
+{
+  let s = fresh(lvl({}, [0, 1, 2, 0]));
+  check(canSwap(s) && swap(s).hold === 0 && swap(s).q.join() === "1,2,0" && swap(s).swapped === 1, "swap puts the next gear in the hold");
+  const t = swap(s);
+  check(!canSwap(t), "once a turn");
+  check(shove(t, E0).s.swapped === 0 && canSwap(shove(t, E0).s) && shove(t, E0).s.cells[at(-2, 0)] === 1, "a shove after a swap shoves the gear that came up, and frees the swap");
+  const u = shove(t, E0).s, w = swap(u);
+  check(w.hold === 2 && w.q[0] === 0, "a second swap trades the next gear with the held one");
+  const last = fresh(lvl({}, [2]));
+  check(!canSwap(last) && swap(last).hold === 2 && swap(last).q.length === 0, "the last gear cannot be held (nothing to bring up)");
+  const lone = swap(fresh(lvl({}, [0, 1])));
+  const emptied = shove(lone, E0).s;
+  check(emptied.q.length === 0 && emptied.hold === 0 && !over(emptied), "with the queue out the held gear is the last to shove");
+  check(over(shove(emptied, E0).s), "and then the plate is judged");
+  check(over(fresh(lvl({}, []))), "no gear to shove: judged");
+  const stuck = fresh(lvl(Object.fromEntries(CELLS.map((c, i) => [i, 1])), [0]));
+  check(over(stuck), "a full plate: judged");
+  check(step(fresh(lvl({}, [0, 1])), -1) !== null && step(fresh(lvl({}, [0])), -1) === null && step(fresh(lvl({}, [0])), 99) === null && step(fresh(lvl({}, [0])), 0.5) === null, "a move that is not allowed is none");
 }
 
-// ---------- the tracks ----------
+// ---------- meshing, trains, jams ----------
+const A = 0, B = 1, C = 2, I = 3, AB = 4, AC = 5, BC = 6;
+const place = cells => fresh(lvl(Object.fromEntries(Object.entries(cells).map(([k, v]) => [at(...k.split(",").map(Number)), v]))));
 {
-  check(track("left", 2).join() === [12, 13, 14, 15, 16, 17].join() && track("right", 2).join() === [17, 16, 15, 14, 13, 12].join(), "a row from its left end and from its right");
-  check(track("top", 1).join() === [1, 7, 13, 19, 25, 31].join() && track("bottom", 1).join() === [31, 25, 19, 13, 7, 1].join(), "a column from its top and from its foot");
+  const row3 = c => place({ "-1,0": c[0], "0,0": c[1], "1,0": c[2] });
+  check(judge(row3([A, A, A])).score === VALUE[3] && judge(row3([A, A, A])).comps.some(t => t.n === 3 && !t.jam), "three gears of one pitch in a row: a train of three, 10");
+  check(judge(row3([A, B, A])).score === 0 && judge(row3([A, B, A])).comps.length === 3, "different pitches never mesh");
+  check(judge(row3([A, I, B])).score === VALUE[3], "an idler meshes every pitch");
+  check(judge(row3([A, AB, B])).score === VALUE[3] && judge(row3([A, AB, C])).score === 0, "a bridge meshes the two pitches it shows, and no other");
+  check(judge(row3([AB, AB, AB])).score === VALUE[3] && judge(row3([AC, B, BC])).score === 0, "a bridge meshes another bridge it shares a pitch with");
+  const fuse = place({ "-2,0": A, "-1,0": A, "0,0": AB, "1,0": B, "2,0": B });
+  check(judge(fuse).comps.length === 1 && judge(fuse).score === VALUE[5], "a bridge fuses two trains into one of five");
+  // spin classes alternate along a train
+  const J = judge(row3([A, A, A]));
+  check(J.sg[at(0, 0)] === -J.sg[at(1, 0)] && J.sg[at(1, 0)] === J.sg[at(-1, 0)] * 1 && J.sg[at(0, 0)] === -J.sg[at(-1, 0)], "meshed gears turn opposite ways");
+  // an odd ring jams
+  const tri = place({ "0,0": A, "1,0": A, "0,1": A });
+  check(judge(tri).jams === 1 && judge(tri).score === 0 && judge(tri).comps[0].jam, "three gears in a triangle jam: no score");
+  const tri2 = place({ "0,0": A, "1,0": A, "0,1": A, "-1,0": A, "-2,0": A });
+  check(judge(tri2).jams === 1 && judge(tri2).score === 0, "a jam takes the whole train down with it");
+  const hexRing = place({ "1,0": A, "0,1": A, "-1,1": A, "-1,0": A, "0,-1": A, "1,-1": A });
+  check(judge(hexRing).jams === 0 && judge(hexRing).score === VALUE[6], "a ring of six (even) turns: a train of six, 22");
+  const triMixed = place({ "0,0": A, "1,0": A, "0,1": I });
+  check(judge(triMixed).jams === 1, "an idler can close a ring and jam");
+  const pair = place({ "0,0": A, "1,0": A });
+  check(judge(pair).score === 0 && judge(pair).jams === 0, "two gears turn but score nothing");
+  check([3, 4, 5, 6, 7].every((n, i) => VALUE[n] === [10, 16, 20, 22, 23][i]) && VALUE[Math.min(9, 7)] === 23, "trains of three to seven and more score 10, 16, 20, 22, 23");
+  // jewels
+  const jw = fresh(lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(-1, 0)]: A }, [0], { jewels: [at(0, 0), at(2, 0)] }));
+  check(judge(jw).score === VALUE[3] * 1.5, "a jewel under a turning train: half as much again");
+  const jw2 = fresh(lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(-1, 0)]: A }, [0], { jewels: [at(0, 0), at(1, 0)] }));
+  check(judge(jw2).score === VALUE[3] * 2, "two jewels: twice");
+  const jj = fresh(lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(0, 1)]: A }, [0], { jewels: [at(0, 0)] }));
+  check(judge(jj).score === 0, "a jewel under a jammed train pays nothing");
 }
 
-// ---------- a shove ----------
+// ---------- what a shove does ----------
 {
-  const s = yard(["01.3.."], [2, 1]);
-  const r = roll(s, { side: "left", line: 0 });
-  const after = shove(s, { side: "left", line: 0 });
-  check(row(after.state, 0) === "2013.." && r.moved.map(m => m.join(">")).join() === "1>2,0>1,-1>0" && r.derailed < 0, "the wagons from the end shoved in roll on up to the first gap; the rest stand");
-  check(row(shove(s, { side: "right", line: 0 }).state, 0) === "01.3.2", "from the other end: the gap is at the end, so the wagon just stands there");
-  check(after.state.next[0] === 1 && after.state.next.length === 2 && after.state.shoves === 1, "the next wagon comes up, another after it");
-  check(row(s, 0) === "01.3.." && s.shoves === 0, "the game a shove was made from is left as it was");
-  const full = yard(["012301"], [2, 0]), f = shove(full, { side: "left", line: 0 });
-  check(row(f.state, 0) === "201230" && f.derailed === 5 && f.state.lives === LIVES - 1, "a full track: the far wagon is shoved off the rails, a life lost");
-  check(roll(full, { side: "left", line: 0 }).derailed === 5 && full.lives === LIVES, "roll shows a shove beforehand without making it");
-}
-
-// ---------- runs ----------
-{
-  const s = yard(["00.1.."], [0, 2]), r = shove(s, { side: "left", line: 0 });
-  check(r.departed.join() === "0,1,2" && row(r.state, 0) === "...1.." && r.gain === worth(3) && r.state.score === 90, "three alike in a line depart: ten times the square of three");
-  check(r.cells.slice(0, 4).join() === "0,0,0,1", "what a shove did keeps the yard as it stood before they departed, to be played out");
-  const down = yard(["......", "2.....", "2.....", "1....."], [2, 0]), d = shove(down, { side: "top", line: 0 });
-  check(d.departed.join() === [i(0, 0), i(0, 1), i(0, 2)].join() && d.state.cells[i(0, 3)] === 1, "and down");
-  const cross = yard([".00...", "0.....", "0....."], [0, 1]), x = shove(cross, { side: "top", line: 0 });
-  check(x.departed.length === 5 && x.gain === worth(5), "a wagon in two runs at once sends both off, itself counted once: 250");
-  const pair = yard(["330..."], [3, 0]);
-  check(roll(pair, { side: "left", line: 0 }).departed.length === 3 && roll(pair, { side: "right", line: 0 }).departed.length === 0, "the wagon shoved in joins the pair it pushes along; from the far end it stands alone");
-  check(runs(yard(["1111.."]).cells).length === 4 && runs(yard(["11.11."]).cells).length === 0, "a run is three or more in a row, with no gap");
-  check(worth(3) === 90 && worth(4) === 160 && worth(6) === 360, "ten times the square of the wagons departing");
-}
-
-// ---------- the goods train ----------
-{
-  const s = yard(["01....", "23...."], [1, 1], { untilDrop: 1, shoves: 10 }), r = shove(s, { side: "left", line: 5 });
-  check(r.dropped.length === dropCount(10) && r.dropped.every(k => s.cells[k] < 0 && r.state.cells[k] >= 0), "every few shoves the goods train leaves a wagon on an empty square");
-  check(r.state.untilDrop === dropEvery(11), "then counts down afresh");
-  check(PACE.every(([, every, count]) => every >= 1 && count >= 1) && dropEvery(0) > dropEvery(120) && dropCount(0) < dropCount(500), "it comes more often, and with more, as the game goes on");
-  // played at random for a while: nothing left standing in a run after a shove, the goods train's wagons included
-  let z = 11;
-  const rnd = () => ((z = (z * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-  let quiet = true, seen = 0;
-  for (let g = 0; g < 30; g++) {
-    let st = newGame(500 + g);
-    while (!st.over && st.shoves < 150) {
-      const all = shoves(st).filter(m => m.result.derailed < 0), pick = (all.length ? all : shoves(st))[Math.floor(rnd() * (all.length || 24))];
-      seen += pick.result.dropped.length;
-      if (runs(pick.result.state.cells).length) quiet = false;
-      st = pick.result.state;
-    }
+  // shear: a shove slides a whole line and pulls a train apart
+  const s = place({ "-2,0": A, "-1,0": A, "0,0": A, "0,-1": B });
+  const e = entry(-2, 0, 1, 0), r = shove({ ...s, q: [B], hold: -1 }, e), f = effect({ ...s, q: [B], hold: -1 }, r);
+  check(f.A.score === VALUE[3] && f.B.score === VALUE[3] && f.moved === 3 && f.broken.length === 0 && f.newJams === 0, "a shove along a train moves it as a block: the train stays whole, no shear");
+  // a shove across a train shears it: level 3's own demonstration
+  {
+    const L3 = LEVELS[2], t = fresh(L3), shears = legalEntries(t).map(e => ({ e, f: effect(t, shove(t, e)) })).filter(x => x.f.broken.length && x.f.B.score < x.f.A.score);
+    check(shears.length > 0 && shears.every(x => x.f.broken.every(tr => tr.n >= 3)), "a shove that pulls a train of three or more apart is reported as breaking it, and costs score");
+    const x = shears[0], r = shove(t, x.e), oldCells = x.f.broken[0].cells, where = new Map(r.moved.map(m => [m[0], m[1]])), J = judge(r.s);
+    check(new Set(oldCells.map(c => J.comp[where.has(c) ? where.get(c) : c])).size > 1, "its gears now stand in more than one train");
   }
-  check(quiet && seen > 100, `the goods train's wagons stand in no run (${seen} of them)`);
+  const tri = place({ "0,0": A, "1,0": A });
+  const withNext = { ...tri, q: [A] }, e3 = entry(0, 2, 0, -1);
+  const rj = shove(withNext, e3), fj = effect(withNext, rj);
+  check(fj.newJams >= 0 && typeof fj.B.score === "number", "effect reports new jams");
+  // a jam the shove makes: a gear landing next to two meshed gears
+  const base = place({ "1,0": A, "0,1": A });
+  let found = -1;
+  for (const e of legalEntries({ ...base, q: [A] })) { const x = shove({ ...base, q: [A] }, e); if (effect({ ...base, q: [A] }, x).newJams > 0) { found = e; break; } }
+  check(found >= 0, "some shove into two touching gears makes a jam, and effect says so");
 }
 
-// ---------- scrap flats ----------
+// ---------- goals ----------
 {
-  check(runs(yard(["444..."]).cells).length === 0 && runs(yard(["004000"]).cells).length === 3, "scrap flats never make a run, and break one");
-  const s = yard(["012304"], [2, 0]), r = shove(s, { side: "left", line: 0 });
-  check(r.scrapped && r.derailed === 5 && r.state.lives === LIVES && row(r.state, 0) === "201230", "shoved off the end of a full track, a scrap flat costs no life");
-  const back = shove(yard(["412301"], [2, 0]), { side: "left", line: 0 });
-  check(!back.scrapped && back.state.lives === LIVES - 1 && row(back.state, 0) === "241230", "but whatever's at the far end goes: a cargo wagon there still costs one");
-  check(roll(yard(["412301"], [2, 0]), { side: "right", line: 0 }).scrapped, "from the other end, the same track sends the scrap flat off");
-  let z = 13, left = 0, scrap = 0, coming = true;
-  const rnd = () => ((z = (z * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-  for (let g = 0; g < 30; g++) {
-    let st = newGame(700 + g);
-    while (!st.over && st.shoves < 150) {
-      const all = shoves(st).filter(m => m.result.derailed < 0), pick = (all.length ? all : shoves(st))[Math.floor(rnd() * (all.length || 24))];
-      for (const i of pick.result.dropped) { left++; if (pick.result.state.cells[i] === SCRAP) scrap++; }
-      if (pick.result.state.next.some(c => c >= CARGOES)) coming = false;
-      st = pick.result.state;
-    }
+  const s = fresh({ ...lvl({ [at(0, 0)]: A, [at(1, 0)]: A, [at(-1, 0)]: A }, [A]), goal: { score: 10 }, jewels: [at(0, 0)] });
+  check(goalCheck(s).ok && goalCheck({ ...s, goal: { score: 16 } }).ok === false, "a score goal");
+  check(goalCheck({ ...s, goal: { jewels: true } }).ok && !goalCheck({ ...s, jewels: [at(0, 0), at(0, -2)], goal: { jewels: true } }).ok, "a jewel goal: every jewel under a turning train");
+  check(goalCheck({ ...s, goal: { trains: { k: 1, m: 3 } } }).ok && !goalCheck({ ...s, goal: { trains: { k: 2, m: 3 } } }).ok && !goalCheck({ ...s, goal: { trains: { k: 1, m: 4 } } }).ok, "a trains goal: so many separate trains of so many");
+  check(goalCheck({ ...s, goal: { nojam: true } }).ok && !goalCheck({ ...place({ "0,0": A, "1,0": A, "0,1": A }), goal: { nojam: true } }).ok, "a no-jam goal");
+  check(goalWords({ nojam: true, score: 42 }) === "No jam, score 42" && goalWords({ jewels: true, trains: { k: 2, m: 4 }, score: 68 }) === "Cover every jewel, 2 separate trains of 4+, score 68" && goalWords({}) === "Pure score", "a goal in words");
+}
+
+// ---------- a state kept and read back ----------
+{
+  const L = LEVELS[11], s = play(L, L.sol.slice(0, 9));
+  check(sound(s) && sound(fresh(L)), "a state made here is sound");
+  check(same(JSON.parse(JSON.stringify(s)), s), "plain JSON: it survives a round through text unchanged");
+  const back = mend(roundTrip(s));
+  check(sound(back) && same(back, s), "and through a store that keeps no empty arrays or objects (queue out, no jewels, no goal parts)");
+  const ended = play(LEVELS[0], LEVELS[0].sol);
+  check(sound(mend(roundTrip(ended))) && same(mend(roundTrip(ended)), ended), "the end of a plate (queue out, nothing held) survives it too");
+  check(!sound(null) && !sound({}) && !sound({ ...s, v: 99 }) && !sound({ ...s, cells: s.cells.slice(1) }) && !sound({ ...s, cells: s.cells.map(() => 9) }) && !sound({ ...s, q: "x" }), "a stale or damaged state is not sound (an old run must not crash the page)");
+  check(play(LEVELS[0], [99]) === null && play(LEVELS[0], [3, 3, 3, 3, 3, 3, 3, 3]) === null, "moves that do not play are none");
+  check(same(play(L, L.sol.slice(0, 9)), s), "a plate and its moves are the state: the same moves play the same");
+}
+
+// ---------- the twelve levels ----------
+check(LEVELS.length === 12 && LEVELS.every((l, i) => l.no === i + 1 && l.id === `l${i + 1}`), "twelve levels, in order");
+{
+  const bad1 = [];
+  for (const L of LEVELS) {
+    const s = play(L, L.sol), J = s && judge(s);
+    if (!s || !over(s) || !goalCheck(s, J).ok || J.score !== L.best) bad1.push(L.id);
   }
-  check(scrap > left / (2 * SCRAP_ODDS) && scrap < (2 * left) / SCRAP_ODDS && coming, `the goods train leaves a scrap flat about one wagon in ${SCRAP_ODDS} (${scrap} of ${left}); the wagons coming never are`);
+  check(!bad1.length, `every level's deck is won by the line stored with it, to its best score${bad1.length ? `: not ${bad1}` : ""}`);
+  check(LEVELS.every(l => l.stars[0] >= (l.goal.score || 0) && l.stars[1] >= l.stars[0] && l.stars[1] <= l.best), "the stars climb from the goal to just under the best known");
+  check(LEVELS.slice(8).every(l => l.goal.score <= 0.9 * l.best) && LEVELS.every(l => l.goal.score <= 0.9 * l.best), "no goal asks more than nine tenths of the best known score");
+  check(LEVELS.every(l => l.deal.length <= N - l.stud.length - Object.keys(l.start).length && l.deal.every(g => g >= 0 && g <= 6)), "every deck fits its plate");
+  check(LEVELS.every(l => sound(fresh(l)) && l.jewels.every(j => fresh(l).cells[j] === EMPTY)), "every level's start is sound, its jewels on open cells");
+  const groups = L => new Set(L.deal.concat(Object.values(L.start)).filter(g => g <= 2 || g >= 4).flatMap(g => (g <= 2 ? [g] : g === 4 ? [0, 1] : g === 5 ? [0, 2] : [1, 2])));
+  check(groups(LEVELS[0]).size === 1 && groups(LEVELS[1]).size === 2 && groups(LEVELS[2]).size === 2, "the first level has one pitch, the second and third two");
+  check(LEVELS[2].demo === "shear" && LEVELS[3].demo === "jam" && LEVELS[4].swap && LEVELS[0].guide && LEVELS[1].guide, "levels 3 and 4 demonstrate a shear and a jam, 5 the hold, 1 and 2 are guided");
+  // the demonstrations exist at the first turn: a shear that costs score, a shove that jams
+  const first = L => fresh(L);
+  const shears = L => legalEntries(first(L)).filter(e => { const f = effect(first(L), shove(first(L), e)); return f.broken.length && f.B.score < f.A.score; });
+  const jams = L => legalEntries(first(L)).filter(e => effect(first(L), shove(first(L), e)).newJams > 0);
+  check(shears(LEVELS[2]).length > 0 && jams(LEVELS[3]).length > 0, "level 3 has a shove that shears a train and costs score, level 4 one that jams, at its first turn");
+  check(LEVELS[4].sol[0] === -1, "level 5's best line begins with a swap (the coach pulses the cradle)");
+  check(LEVELS[5].deal.includes(I) && LEVELS[6].jewels.length === 3 && LEVELS[6].goal.jewels && LEVELS[7].deal.some(g => g >= 4) && LEVELS[7].goal.trains, "level 6 deals idlers, 7 has three jewels, 8 deals bridges and asks for separate trains");
+  check(LEVELS[10].deal.some(g => g >= 4) && LEVELS[11].stud.length === 3 && LEVELS[11].jewels.length === 2, "levels 11 and 12 are the old fusion and workshop plates");
+  check(LEVELS.slice(0, COACHED).every(l => l.tip && l.coach?.length >= 3) && LEVELS.slice(COACHED).every(l => l.tip && !l.coach), "levels 1 to 8 have coach lines, the rest only their tip");
+  check(LEVELS.every(l => l.tip.length <= 190 && (l.coach || []).every(c => c.length <= 130)), "every line fits the coach's box");
+}
+// the bots (a few runs each; the hundred-run floors are in tests/shunt-search.mjs)
+{
+  const wins = (L, runs, bot) => { let n = 0; for (let i = 0; i < runs; i++) n += bot(L, i + 1).ok; return Math.round(100 * n / runs); };
+  const g = LEVELS.slice(0, 6).map(L => wins(L, 20, playGreedy));
+  check(g.slice(0, 4).every(p => p >= 80) && g.slice(4, 6).every(p => p >= 40), `the greedy player (always the best score now) beats levels 1 to 4 at least four times in five and 5 and 6 at least two in five (${g.join(", ")}%)`);
+  const bw = LEVELS.map(L => beam(L, 40).ok);
+  check(bw.slice(0, 8).every(Boolean), "a beam search of width 40 wins levels 1 to 8");
+  const r = LEVELS.slice(0, 4).map(L => wins(L, 20, playRandom));
+  check(r.every(p => p < 80), `a player shoving at random does not walk through them (${r.join(", ")}%)`);
 }
 
-// ---------- the end ----------
+// ---------- random plates and the daily ----------
 {
-  const s = yard(["012301"], [2, 0], { lives: 1 }), r = shove(s, { side: "left", line: 0 });
-  check(r.over && r.state.over && r.state.lives === 0, "the third derailment ends the game");
-  const after = shove(r.state, { side: "left", line: 1 });
-  check(after.moved.length === 0 && JSON.stringify(after.state) === JSON.stringify(r.state), "nothing moves once it's over");
-}
-
-// ---------- saved and opened again ----------
-{
-  let s = newGame(42);
-  for (let k = 0; k < 9; k++) s = shove(s, { side: ["left", "top", "right", "bottom"][k % 4], line: k % N }).state;
-  const again = JSON.parse(JSON.stringify(s));
-  check(JSON.stringify(shove(s, { side: "top", line: 3 })) === JSON.stringify(shove(again, { side: "top", line: 3 })), "a game saved and opened again goes on as it would have");
-}
-
-// ---------- whole games ----------
-{
-  const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
-  let z = 3;
-  const rnd = () => ((z = (z * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-  const random = [], greedy = [];
-  for (let g = 0; g < 5; g++) {
-    let s = newGame(100 + g);
-    while (!s.over && s.shoves < 1000) { const all = shoves(s); s = all[Math.floor(rnd() * all.length)].result.state; }
-    random.push(s.shoves);
-    // the best shove each turn: the most points, no derailment (bar scrap's), the yard kept empty and clear of scrap
-    let t = newGame(100 + g);
-    const scrap = st => st.cells.filter(c => c === SCRAP).length;
-    while (!t.over && t.shoves < 1000) {
-      t = shoves(t).map(m => ({ m, v: m.result.gain - (m.result.derailed >= 0 && !m.result.scrapped ? 400 : 0) - 3 * filled(m.result.state) - 12 * scrap(m.result.state) })).sort((a, b) => b.v - a.v)[0].m.result.state;
-    }
-    greedy.push(t.shoves);
+  for (const d of DIFFS) {
+    const p = randomPlate(12345, d), q = randomPlate(12345, d), o = randomPlate(12346, d);
+    check(same(p, q) && !same(p, o), `a ${d} plate is the same from its seed, and another seed gives another plate`);
   }
-  check(median(random) < 60, `shoving anywhere: off the rails three times in about ${median(random)} shoves`);
-  check(median(greedy) > 100 && Math.max(...greedy) < 1000, `shoving with thought: about ${median(greedy)} shoves, and the goods train still ends it`);
+  const easy = plateOf(1, "easy"), med = plateOf(1, "medium"), hard = plateOf(1, "hard");
+  check(easy.stud.length === 0 && med.stud.length === 0 && Object.values(easy.start).every(g => g <= 1) && easy.deal.every(g => g <= 1), "easy: two pitches, no studs, no idlers or bridges");
+  check(med.deal.filter(g => g === 3).length === 2 && med.deal.every(g => g <= 3) && med.jewels.length === 2, "medium: three pitches and two idlers, two jewels");
+  const hardIs = [1, 2, 3, 4, 5, 6, 7, 8].map(s => plateOf(s, "hard"));
+  check(hardIs.every(h => h.deal.some(g => g >= 4) && h.deal.some(g => g === 3) && h.jewels.length === 3 && h.stud.length <= 2), "hard: idlers, bridges, three jewels, up to two studs");
+  check(hardIs.every(h => h.deal.length === N - h.stud.length - Object.keys(h.start).length), "hard plates are dealt full");
+  check([...DIFFS].every(d => [1, 2, 3, 4, 5].every(s => { const p = plateOf(s, d); return sound(fresh({ ...p, goal: {} })) && new Set([...p.stud, ...p.jewels, ...Object.keys(p.start).map(Number)]).size === p.stud.length + p.jewels.length + Object.keys(p.start).length; })), "studs, jewels and starting gears never share a cell");
+  // a rated plate: its goal is one the search itself met
+  for (const d of DIFFS) {
+    const plate = randomPlate(77, d), sr = rating(plate, d);
+    sr.step(Infinity);
+    const spec = sr.result(), sr2 = search(fresh({ ...plate, goal: {} }), 40);
+    sr2.step(Infinity);
+    const top = sr2.result().score;
+    check(spec.goal.score <= top && spec.stars[0] >= spec.goal.score && spec.stars[1] <= top && spec.stars[1] >= spec.stars[0] && spec.goal.score >= 10, `a ${d} plate's goal (${spec.goal.score}) and stars (${spec.stars}) are under what the search scored (${top})`);
+    const w = beam(spec, 40);
+    check(w.ok, `and the search wins it (${d})`);
+  }
+  const days = [20261104, 20261105, 20261231];
+  const ds = days.map(d => dailyPlate(d)), again = days.map(d => dailyPlate(d));
+  check(same(ds, again) && !same(ds[0], ds[1]) && ds.every(p => p.kind === "daily" && same(p.start, {}) && p.deal.length === N - p.stud.length), "the daily is dealt from the day alone: the same every time, another each day, full, with no starting gears");
+  const rate = day => { const p = dailyPlate(day), sr = rating(p, "hard"); sr.step(Infinity); return sr.result(); };
+  const r1 = rate(20261104), r2 = rate(20261104);
+  check(same(r1, r2) && r1.goal.score >= 10 && r1.stars[0] <= r1.stars[1], "its goal and stars are the same on every device (the search is deterministic)");
+  check(!ds.some(p => !sound(fresh({ ...p, goal: {} }))), "a daily plate is sound");
 }
 
-if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("shunt: the deal, the tracks, a shove, runs, the goods train, scrap flats, the end, saving, whole games");
+// ---------- the levers ----------
+{
+  check(LEVERS.length === 30 && LEVERS.every((l, e) => l.e === e), "thirty levers, one for each way in");
+  let min = 1e9;
+  for (const a of LEVERS) for (const b of LEVERS) if (a.e < b.e) min = Math.min(min, Math.hypot(a.x - b.x, a.y - b.y));
+  check(min >= 0.45 * D, `no two levers are closer than 0.45 cells (${(min / D).toFixed(2)})`);
+  check(HIT >= 0.55 * D && HIT <= 0.8 * D, "a touch within 0.62 of a cell of a lever means it, the nearest lever winning");
+  check(LEVERS.every(l => Math.hypot(l.x, l.y) > 1.5 * D && Math.hypot(l.x, l.y) < 3 * D), "the levers stand round the rim");
+}
+
+check(Date.now() - T0 < 5000, `the whole file runs in under five seconds (${Date.now() - T0} ms)`);
+process.exit(bad ? 1 : 0);

@@ -66,7 +66,7 @@ export const AKA = {
   bones: "dominoes tiles puzzle rush", factor: "factor island trading settlement", rack: "word tiles board", pegs: "cribbage", meld: "gin rummy",
   go: "weiqi baduk", tarot: "french tarot", solitaire: "patience klondike freecell", silo: "connect four four in a row",
   flank: "reversi", morris: "nine mens morris mills merels", crown: "draughts checkers", ingot: "2048 sliding tiles",
-  lanterns: "akari light up bulbs lights lamps", asterism: "star battle two not touch stars regions", heliograph: "mirror", shunt: "rail wagons", polder: "dyke windmill", topple: "dominoes hex", orrery: "match three planets",
+  lanterns: "akari light up bulbs lights lamps", asterism: "star battle two not touch stars regions", heliograph: "mirror", shunt: "gears hex shove jam train mesh", polder: "dyke windmill", topple: "dominoes hex", orrery: "match three planets",
   netting: "obligations trading houses", settle: "tank farm parcels", slipway: "carving ship",
   trade: "history of trade course silk road slave trade colonial colonialism geography commodities chokepoint chokepoints straits spices monsoon indian ocean atlantic opium east india company hanse cowries map",
   firmament: "astronomy history of the universe big bang cosmos stars planets galileo kepler newton einstein hubble copernicus telescope eclipse course",
