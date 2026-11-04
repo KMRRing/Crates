@@ -135,7 +135,7 @@ const BOXES = [[374, 330, 90], [374, 560, 90], [560, 780, 110], [880, 640, 100],
   check(/tableView\("bones"\)/.test(js) && /view\.choice\(/.test(js), "the menu offers View through the shared tableView (flat is the default, the choice the device's own)");
   check(/import\("\.\/bones-3d\.js"\)/.test(js) && !/^import .*bones-3d\.js/m.test(js), "the scene is loaded only when the 3D table is asked for");
   check(/classList\.toggle\("bn3", !!table3\)/.test(js), "the page's class follows the scene being up, so a device that can't draw it stays flat");
-  check(/catch\(err =>[^]*?view\.set\("table"\)/.test(js) && /onLost/.test(js) && /webglcontextlost/.test(src), "no WebGL, or a lost context, falls back to the flat table");
+  check(/catch\(err =>[^]*?view\.fail\(\)/.test(js) && /onLost/.test(js) && /webglcontextlost/.test(src), "no WebGL, or a lost context, falls back to the flat table");
   check(/onPause\(\(\) => table3\?\.hold\(\)/.test(js), "the table stands still while the menu is open");
   check(/dispose\(\)/.test(src) && /renderer\.forceContextLoss/.test(src) && /geometry\.dispose/.test(src), "going back to flat disposes the geometry, the materials and the context");
   check(/shadowMap\.autoUpdate = false/.test(src) && /1000 \/ 30/.test(src) && /1000 \/ 15/.test(src) && /Math\.min\(devicePixelRatio \|\| 1, 2\)/.test(src), "it draws on demand, 30 frames a second moving, 15 settling, pixel ratio at most 2");
