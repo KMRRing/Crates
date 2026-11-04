@@ -1,7 +1,7 @@
 // The last chapter of the Chess course: pawn structure and the squares worth holding, the principles of the endgame, the routine of
 // thinking before a move, and a game against the weakest level of Chess (Beginner) from a prepared position. What a structure lesson
 // calls isolated, doubled, passed, an outpost, an open file or a bad bishop is worked out from the pieces (chess-lab.js), and a king and pawn
-// puzzle is held by the test to the full solution of that ending (chess-kpk.js).
+// puzzle is held by the test to the full solution of that ending (its table is kept for the tests, not the page).
 import { isolated, doubled, passed, filesOf, pawnsOnColour, legalUcis } from "./chess-lab.js";
 import { threatened, fenAfter } from "./chess-judge.js";
 import { bd, tap, uciLine } from "./chess-kit.js";

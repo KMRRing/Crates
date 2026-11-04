@@ -1,6 +1,6 @@
 // The Chess course's first mates and endings: the mates with a king and queen, a rook, or two rooks against a bare king, and the king and
 // pawn ending where the opposition decides. A mate is found by the rules (goal "mate"); the king-and-pawn endings are held by the test to
-// a complete solution of the ending (chess-kpk.js): a step with `table` states positions as { w, b, p, turn, won } and a goal with `kpk`
+// a complete solution of the ending (its table is kept for the tests, not the page): a step with `table` states positions as { w, b, p, turn, won } and a goal with `kpk`
 // has as its right moves exactly those that keep the win.
 import { Chess } from "./vendor/chess.js";
 import { fenOf } from "./chess-lab.js";
