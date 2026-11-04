@@ -1,7 +1,7 @@
 // Loom's cloths (loom-float.js, loom-levels.js): a nonogram of floats. The clue of a pick or a thread is the lengths of its own
 // yarn's floats (gold's among them), the solver is the nonogram line solver's, a shaft ties crossings into one variable, a
 // crossing of one colour is settled and a float runs on across it, and every level of the ladder is a cloth whose clues have
-// exactly one answer, the same from the same seed. The page's ids are checked against loom.html.
+// exactly one answer, the same from the same seed. The page's ids are checked against nonogram.html.
 import { readFileSync } from "node:fs";
 import { makePuzzle, makeUnique, count, grade, start, propagate, done, nextStep, met, lineMet, fixed, isKnown, stateOf, WARP, WEFT, GOLD } from "../loom-float.js";
 import { LEVELS, CHAPTERS, WEAVES, levelOf, chapterOf, makeLevel, starsFor, seedOf, GOLD_YARN, YARNS } from "../loom-levels.js";
@@ -141,16 +141,17 @@ check(starsFor(0, 0) === 3 && starsFor(1, 0) === 2 && starsFor(0, 1) === 2 && st
 
 // ---------- the page ----------
 {
-  const html = readFileSync(new URL("../loom.html", import.meta.url), "utf8");
+  const html = readFileSync(new URL("../nonogram.html", import.meta.url), "utf8");     // the cloth is a mode of Nonogram's page
+  const own = new Set(/new Set\(\[([^\]]*)\]\)/.exec(readFileSync(new URL("../loom-kit.js", import.meta.url), "utf8"))[1].match(/[A-Za-z]+/g));   // loom-kit's `$` puts "cl" in front of these
   const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
   const used = new Set();
-  for (const f of ["loom.js", "loom-play.js", "loom-kit.js"]) {
+  for (const f of ["loom-mode.js", "loom-play.js", "loom-kit.js"]) {
     const src = readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
-    for (const m of src.matchAll(/\$\("([A-Za-z]+)"\)/g)) used.add(m[1]);
+    for (const m of src.matchAll(/\$\("([A-Za-z]+)"\)/g)) used.add(own.has(m[1]) ? `cl${m[1][0].toUpperCase()}${m[1].slice(1)}` : m[1]);
   }
   const missing = [...used].filter(id => !ids.has(id));
-  check(used.size > 10 && !missing.length, `every id the scripts look up is in loom.html (${used.size}; missing: ${missing.join(", ") || "none"})`);
-  check(/roundOver\("loom"\)/.test(readFileSync(new URL("../loom-play.js", import.meta.url), "utf8")), "the cloths end a round for Random mode");
+  check(used.size > 10 && !missing.length, `every id the scripts look up is in nonogram.html (${used.size}; missing: ${missing.join(", ") || "none"})`);
+  check(/roundOver\("nonogram"\)/.test(readFileSync(new URL("../loom-play.js", import.meta.url), "utf8")), "the cloths end a round for Random mode");
   check(/loom:run2/.test(readFileSync(new URL("../loom-play.js", import.meta.url), "utf8")) && /loom:camp/.test(readFileSync(new URL("../loom-kit.js", import.meta.url), "utf8")), "what the page shows is kept under loom: keys (run, stars)");
 }
 
