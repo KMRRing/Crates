@@ -37,6 +37,8 @@ html[data-mode="night"] { --sv-in: #D9AF62; --sv-good: #7FC2A8; --sv-bad: #E8806
 .sv-lab.runs { width: auto; min-width: var(--b); padding: 0 calc(var(--b) * .16); font-size: calc(var(--b) * .56); letter-spacing: .02em; white-space: nowrap; border-radius: 4px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--sv-in) 55%, transparent); }
 .sv-lab.fog { color: var(--ink-soft); background: color-mix(in srgb, var(--sheet) 55%, transparent); box-shadow: none; border: 1px dashed color-mix(in srgb, var(--ink) 40%, transparent); }
 .sv-lab.hot { background: var(--plate); color: var(--plate-ink); box-shadow: 0 0 0 2px var(--sv-in), 0 0 0 4px color-mix(in srgb, var(--sv-in) 35%, transparent); z-index: 1; }
+.sv-reset { position: absolute; left: .5rem; bottom: .5rem; z-index: 2; width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 1px solid var(--brass); background: color-mix(in srgb, var(--sheet) 82%, transparent); color: var(--ink); font: inherit; font-size: 1.25rem; line-height: 1; cursor: pointer; touch-action: manipulation; }
+.sv-reset[hidden] { display: none; }
 .sv-nogl { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 1.5rem; text-align: center; color: var(--ink-soft); font-weight: 650; line-height: 1.4; }
 
 /* under the block: a line of what to do or what happened, the tools; at the end, how it went and the way on, in the same room */

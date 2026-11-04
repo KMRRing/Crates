@@ -13,7 +13,10 @@ import { linesOf, coordsOf } from "./survey-engine.js";
 
 const DEG = Math.PI / 180;
 const BACK = 1;                                   // THREE.BackSide (not in the bundle's exports)
-const MIN_EL = 14 * DEG, MAX_EL = 80 * DEG;
+const MIN_EL = -72 * DEG, MAX_EL = 86 * DEG;      // from below (the plinth steps aside) to nearly overhead (not quite: straight up has no 'up')
+const MIN_ZOOM = 0.55, MAX_ZOOM = 6, HOME = { az: 35 * DEG, el: 34 * DEG, zoom: 1, px: 0, py: 0 };
+const DAMP = 3.4, COAST_MIN = 0.03;                // inertia: the share of speed left falls as e^(-DAMP t); under COAST_MIN rad/s it stops
+const calm = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };   // no coasting, no tween, no spin
 const OFF = 0.1;                                  // how far beyond its face a row's reading floats, in cubes
 const CHIP_MS = 260, STRIKE_MS = 460, MARK_MS = 200, WAVE_MS = 38, SPIN = 0.5;   // animations; the wave of ore at the end (ms a cube later); the slow turn after a win (rad/s)
 const SHARDS = 220;
@@ -139,7 +142,11 @@ export function createBlock(host) {
   }
 
   // ---------- the camera ----------
-  let width = 1, height = 1, az = 35 * DEG, el = 34 * DEG, dist = 20;
+  // The frame (the projection's size) is fitted once, to the block at its default tilt, and then stays: turning and tipping
+  // never refit it, so nothing swells or shrinks under a finger. What the person changes is the angle, the zoom and a pan.
+  let width = 1, height = 1, az = HOME.az, el = HOME.el, zoom = HOME.zoom, px = 0, py = 0, dist = 20;
+  let frame0 = { cu: 0, cv: 0, hu: 1, hv: 1 };
+  let vAz = 0, vEl = 0, lastMove = 0, tween = null;               // the turn's speed (rad/s) for coasting after a release
   function pose(a = az, e = el) {
     camera.position.set(Math.sin(a) * Math.cos(e) * dist, Math.sin(e) * dist, Math.cos(a) * Math.cos(e) * dist).add(LOOK);
     camera.up.set(0, 1, 0);
@@ -161,28 +168,43 @@ export function createBlock(host) {
     }
     return { u0, u1, v0, v1 };
   }
-  function fit() {
+  /** The frame, from the block's size and the room: only when either changes. */
+  function refit() {
     if (!size) return;
-    const x = extent(el), pad = 0.015, aspect = width / height;
-    const cu = (x.u0 + x.u1) / 2, cv = (x.v0 + x.v1) / 2;
+    const x = extent(HOME.el), pad = 0.015, aspect = width / height;
     let hu = ((x.u1 - x.u0) / 2) * (1 + pad), hv = ((x.v1 - x.v0) / 2) * (1 + pad);
     if (hu / hv < aspect) hu = hv * aspect; else hv = hu / aspect;
-    camera.projectionMatrix.makePerspective(cu - hu, cu + hu, cv + hv, cv - hv, 1, 200);
+    frame0 = { cu: (x.u0 + x.u1) / 2, cv: (x.v0 + x.v1) / 2, hu, hv };
+    fit();
+  }
+  /** How far the view may be pushed off the middle: the block's middle stays inside the room. */
+  const panLimit = () => ({ x: frame0.hu * 0.9 / zoom + frame0.hu * 0.3, y: frame0.hv * 0.9 / zoom + frame0.hv * 0.3 });
+  /** The camera for the angles, zoom and pan now. */
+  function fit() {
+    if (!size) return;
+    el = Math.max(MIN_EL, Math.min(MAX_EL, el));
+    zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+    const lim = panLimit();
+    px = Math.max(-lim.x, Math.min(lim.x, px)); py = Math.max(-lim.y, Math.min(lim.y, py));
+    const { cu, cv, hu, hv } = frame0, u = hu / zoom, v = hv / zoom;
+    camera.projectionMatrix.makePerspective(cu + px - u, cu + px + u, cv + py + v, cv + py - v, 1, 200);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     pose();
     // the light turns with the camera (from above, a little to the left), so the faces you see are lit the same from every side
-    const la = az - 0.55, le = Math.min(el + 0.45, 1.3), D = size * 3 + 8;
+    const la = az - 0.55, le = Math.max(-1.3, Math.min(el + 0.45, 1.3)), D = size * 3 + 8;
     sun.position.set(Math.sin(la) * Math.cos(le) * D, Math.sin(le) * D, Math.cos(la) * Math.cos(le) * D);
     sun.target.position.set(0, 0, 0);
     const s = size * 0.95 + 2.2;
     Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s, near: 1, far: D * 2 });
     sun.shadow.camera.updateProjectionMatrix();
+    const above = el > -3 * DEG;                                                       // from below the block hangs free: the plinth steps aside
+    plinth.visible = trim.visible = above;
   }
   function resize() {
     const r = host.getBoundingClientRect();
     width = Math.max(1, Math.round(r.width)); height = Math.max(1, Math.round(r.height));
     renderer.setSize(width, height, false);
-    fit();
+    refit();
     invalidate();
   }
   const screenOf = (x, y, z) => { V.set(x, y, z).project(camera); return [((V.x + 1) / 2) * width, ((1 - V.y) / 2) * height]; };
@@ -221,7 +243,7 @@ export function createBlock(host) {
     trim.scale.set(span[0] + 1.2, 0.12, span[2] + 1.2); trim.position.set(0, -span[1] / 2 - 0.34 - 0.06, 0);
     lab = buildLabels();
     applySkin();
-    fit();
+    refit();
     update(false);
   }
   function buildLabels() {
@@ -351,7 +373,21 @@ export function createBlock(host) {
     const dt = last ? Math.min(0.05, (ts - last) / 1000) : 0.016, now = performance.now();
     last = ts;
     let busy = false;
-    if (spinUntil > now) { az += dt * SPIN; fit(); busy = true; }
+    if (spinUntil > now && !calm()) { az += dt * SPIN; fit(); busy = true; }
+    if (tween) {
+      const k = Math.min(1, (now - tween.t0) / tween.ms), e = k * k * (3 - 2 * k);
+      az = tween.az0 + (tween.az1 - tween.az0) * e; el = tween.el0 + (tween.el1 - tween.el0) * e; zoom = tween.z0 + (tween.z1 - tween.z0) * e;
+      px = tween.px0 * (1 - e); py = tween.py0 * (1 - e);
+      fit(); busy = true;
+      if (k >= 1) { tween = null; viewChanged(); }
+    } else if (vAz || vEl) {                                      // coasting after a release: the speed dies away smoothly
+      az += vAz * dt; el += vEl * dt;
+      if (el <= MIN_EL || el >= MAX_EL) vEl = 0;
+      const k = Math.exp(-DAMP * dt);
+      vAz *= k; vEl *= k;
+      if (Math.hypot(vAz, vEl) < COAST_MIN) { vAz = vEl = 0; viewChanged(); }
+      fit(); busy = true;
+    }
     if (anims.size) {
       for (const [i, a] of anims) if (now - a.t0 > Math.max(CHIP_MS, STRIKE_MS, MARK_MS)) anims.delete(i);
       paintAll();
@@ -430,16 +466,63 @@ export function createBlock(host) {
       return x < 0 || y < 0 || z < 0 || x >= n || y >= n || z >= n || st[x + n * (y + n * z)] === 1;
     });
   }
-  function orbit(dAz, dEl) {
-    spinUntil = 0;
-    az += dAz;
-    el = Math.max(MIN_EL, Math.min(MAX_EL, el + dEl));
+  // The person's hands on the view. orbit/zoomBy/pan are called as a finger moves; release() lets a turn coast.
+  let onView = null;
+  const view = () => [az, el, zoom, px, py];
+  const viewChanged = () => onView?.(view());
+  /** Turns the block by an angle (a finger moving); remembers how fast, for the coast. */
+  function orbit(dAz, dEl, ts = performance.now()) {
+    spinUntil = 0; tween = null;
+    const now = ts, dt = Math.max(8, now - (lastMove || now - 16)) / 1000;
+    az += dAz; el = Math.max(MIN_EL, Math.min(MAX_EL, el + dEl));
+    const a = Math.min(1, dt * 12);                                    // a smoothed speed, so one odd event doesn't fling it
+    vAz += (dAz / dt - vAz) * a; vEl += (dEl / dt - vEl) * a;
+    lastMove = now;
     fit();
     invalidate();
   }
-  function setView(a, e) {
-    az = Number.isFinite(a) ? a : 35 * DEG;
-    el = Number.isFinite(e) ? Math.max(MIN_EL, Math.min(MAX_EL, e)) : 34 * DEG;
+  /** Stops a coast or a tween the moment a finger lands; true if one was going (that touch is then not a tap). */
+  function grab() {
+    const was = !!tween || Math.hypot(vAz, vEl) > 0.15;
+    vAz = vEl = 0; tween = null; lastMove = 0; spinUntil = 0;
+    return was;
+  }
+  /** A finger lifted: the turn goes on a while at the speed it had, unless it had stopped or motion is reduced. */
+  function release(ts = performance.now()) {
+    if (calm() || ts - lastMove > 90) vAz = vEl = 0;
+    lastMove = 0;
+    if (vAz || vEl) invalidate(); else viewChanged();
+  }
+  /** Zooms by a factor about a point of the screen (client coordinates), which stays under the fingers. */
+  function zoomBy(f, cx, cy) {
+    tween = null;
+    const r = canvas.getBoundingClientRect(), sx = (cx - r.left) / r.width * 2 - 1, sy = -((cy - r.top) / r.height * 2 - 1);
+    const z0 = zoom;
+    zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * f));
+    px += frame0.hu * sx * (1 / z0 - 1 / zoom); py += frame0.hv * sy * (1 / z0 - 1 / zoom);
+    fit(); invalidate();
+  }
+  /** Slides the view by pixels of the screen (two fingers, or a mouse with shift). */
+  function pan(dx, dy) {
+    tween = null;
+    px -= (dx / width) * 2 * frame0.hu / zoom; py += (dy / height) * 2 * frame0.hv / zoom;
+    fit(); invalidate();
+  }
+  /** Whether the view is anywhere but home. */
+  const away = () => Math.abs(Math.sin(az - HOME.az)) > 0.01 || Math.cos(az - HOME.az) < 0.9999 || Math.abs(el - HOME.el) > 0.01 || Math.abs(zoom - 1) > 0.01 || Math.abs(px) + Math.abs(py) > 0.002;
+  /** Back to the first view, turning the short way round (at once if motion is reduced). */
+  function reset() {
+    vAz = vEl = 0;
+    const turn = ((HOME.az - az + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+    if (calm()) { az = HOME.az; el = HOME.el; zoom = 1; px = py = 0; tween = null; fit(); invalidate(); viewChanged(); return; }
+    tween = { t0: performance.now(), ms: 420, az0: az, az1: az + turn, el0: el, el1: HOME.el, z0: zoom, z1: 1, px0: px, py0: py };
+    invalidate();
+  }
+  /** Sets the view outright: [az, el, zoom, px, py], what a saved one holds (NaN or missing parts are home's). */
+  function setView(a, e, z, x, y) {
+    const num = (v, d) => (Number.isFinite(v) ? v : d);
+    vAz = vEl = 0; tween = null;
+    az = num(a, HOME.az); el = num(e, HOME.el); zoom = num(z, 1); px = num(x, 0); py = num(y, 0);
     fit();
     invalidate();
   }
@@ -456,13 +539,16 @@ export function createBlock(host) {
   resize();
 
   return {
-    canvas, set, update, pick, focus, halo: haloAt, orbit, setView,
+    canvas, set, update, pick, focus, halo: haloAt, orbit, setView, grab, release, zoomBy, pan, reset,
+    set onView(fn) { onView = fn; },
+    get away() { return away(); },
+    get coasting() { return !!(vAz || vEl || tween); },
     /** After a win: the block turns slowly for a few seconds. */
     spin(ms = 6000) { spinUntil = performance.now() + ms; invalidate(); },
     redraw: invalidate,
     /** Whether a cube can be seen from here (the ray through its middle meets it first). */
     visible(i) { const [x, y] = where(i); return pick(x, y) === i; },
-    get angles() { return [az, el]; },
+    get angles() { return view(); },
     get skin() { return skin; },
     /** For tests: what is animating, which rows are lit. */
     where,

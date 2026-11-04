@@ -65,7 +65,7 @@ catch (err) {
   console.warn("Survey: no WebGL here.", err);
   stage.replaceChildren(Object.assign(document.createElement("p"), { className: "sv-nogl", textContent: "Survey draws its block in 3D, which this browser has switched off or lacks." }));
 }
-if (view) { const v = read(VIEW, null); if (Array.isArray(v)) view.setView(v[0], v[1]); }
+if (view) { const v = read(VIEW, null); if (Array.isArray(v)) view.setView(...v); }
 
 // ---------- the clock ----------
 // A solo block counts the time spent on screen (run.ms); a match's counts from when the table started it (duel.js).
@@ -400,7 +400,7 @@ function openMenu() {
     if (pick === "random") content.append(mirror("Size", $("size")), readingsChoice());
     else content.append(line(`Today's block is ${SIZES[DAILY.size].label.toLowerCase()}, seams marked: the same for everyone.`));
   }
-  if (view) part(body, "settings").append(action("Reset the view", () => { view.setView(NaN, NaN); write(VIEW, null); }, "link"));
+  if (view) part(body, "settings").append(action("Reset the view", () => view.reset(), "link"));
   const about = part(body, "about");
   if (levels) {
     const cleared = camp.stars.filter(Boolean).length;
@@ -428,37 +428,78 @@ async function copyLink() {
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
 
-// ---------- the block under a finger: a tap works the tool, a drag turns the block ----------
+// ---------- the block under a finger: a tap works the tool, a drag turns the block, two fingers zoom and slide it ----------
+// A touch is a tap only if it stays put, is quick, and did not land on a coasting block (that touch just stops it). Anything
+// else never chips: a drag, a pinch, a long press (which only reads the cube's rows).
+const TAP_MS = 450, DOUBLE_MS = 320;
+let lastTap = { t: 0, x: 0, y: 0 }, pinch = null;
+const resetBtn = $("viewReset");
+const showReset = () => { if (resetBtn) resetBtn.hidden = !view?.away; };
+if (view) {
+  view.onView = v => { if (!IN_FRAME) write(VIEW, v.map(x => +x.toFixed(4))); showReset(); };
+  showReset();
+}
+const spread = () => { const [a, b] = [...fingers.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
 stage.addEventListener("pointerdown", e => {
   if (e.button > 0 || !view) return;
   e.preventDefault();
   try { stage.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
+  const coasting = view.grab();                                             // a touch on a coasting block stops it, and is not a tap
   for (const g of fingers.values()) g.moved = true;                         // a second finger is not a tap
-  const cube = !S || S.run.done || IN_FRAME || paused ? -1 : view.pick(e.clientX, e.clientY);
-  fingers.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, cube, moved: fingers.size > 0 });
+  const cube = !S || S.run.done || IN_FRAME || paused || coasting ? -1 : view.pick(e.clientX, e.clientY);
+  fingers.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(), cube, moved: fingers.size > 0 || coasting, pan: e.shiftKey });
+  if (fingers.size === 2) pinch = spread();
   if (cube >= 0) view.focus(cube);                                          // pressed: its three rows light up
 });
 addEventListener("pointermove", e => {
   const g = fingers.get(e.pointerId);
   if (!g) return;
-  if (!g.moved && Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > 9 * scale()) { g.moved = true; view.focus(-1); }
-  if (g.moved && fingers.size === 1) view.orbit(-(e.clientX - g.x) * 0.0085, (e.clientY - g.y) * 0.0055);
+  const slop = (e.pointerType === "mouse" ? 5 : 10) * scale();
+  if (!g.moved && Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > slop) { g.moved = true; view.focus(-1); }
+  const dx = e.clientX - g.x, dy = e.clientY - g.y;
   g.x = e.clientX; g.y = e.clientY;
+  if (!g.moved) return;
+  if (fingers.size === 2 && pinch) {
+    const now = spread();
+    view.zoomBy(now.d / pinch.d, now.x, now.y);
+    view.pan(now.x - pinch.x, now.y - pinch.y);
+    pinch = now;
+  } else if (fingers.size === 1) {
+    if (g.pan) view.pan(dx, dy);
+    else view.orbit(-dx * 0.0085, dy * 0.0075, e.timeStamp);
+  }
 });
 function lift(e) {
   const g = fingers.get(e.pointerId);
   if (!g) return;
   fingers.delete(e.pointerId);
-  if (g.moved || e.type === "pointercancel") {
+  pinch = fingers.size === 2 ? spread() : null;
+  const tap = !g.moved && e.type !== "pointercancel" && performance.now() - g.t0 < TAP_MS;
+  if (!tap) {
     view.focus(-1);
-    if (g.moved && !fingers.size && !IN_FRAME) write(VIEW, view.angles);
+    if (!fingers.size) { view.release(e.timeStamp); showReset(); }
     return;
   }
-  if (g.cube >= 0) { tapCube(g.cube); view.focus(g.cube, 1400); }
+  const now = performance.now();
+  if (g.cube < 0) {                                                         // empty air: a second tap there brings the block home
+    if (now - lastTap.t < DOUBLE_MS && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40 * scale()) { view.reset(); lastTap.t = 0; }
+    else lastTap = { t: now, x: e.clientX, y: e.clientY };
+    return;
+  }
+  lastTap.t = 0;
+  tapCube(g.cube);
+  view.focus(g.cube, 1400);
 }
 addEventListener("pointerup", lift);
 addEventListener("pointercancel", lift);
 stage.addEventListener("contextmenu", e => e.preventDefault());
+stage.addEventListener("wheel", e => {                                       // a mouse or a trackpad pinch
+  if (!view) return;
+  e.preventDefault();
+  view.zoomBy(Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0016)), e.clientX, e.clientY);
+  showReset();
+}, { passive: false });
+resetBtn?.addEventListener("click", () => { view?.reset(); });
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "survey");
