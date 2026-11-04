@@ -11,7 +11,7 @@ import { load, dealer, WORLDS } from "./reckoning-questions.js";
 import { RunLog } from "./reckoning-log.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, choice, onPause } from "./menu.js";
+import { part, action, line, choice, toggle, onPause } from "./menu.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";                       // a partner watching's frame: it draws a copy, runs no clock and writes nothing
 import { scale } from "./wide.js";
@@ -19,11 +19,13 @@ import { typed } from "./sure.js";
 import { T, setTune, resetTune } from "./reckoning-tune.js";
 import { createLab } from "./reckoning-labui.js";
 import { busy } from "./loading.js";
+import * as sound from "./reckoning-sound.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "reckoning:run", BEST = "reckoning:best", STATS = "reckoning:stats", MISS = "reckoning:miss";
 const COINS = "courier:coins", AMBER = "courier:amber";      // coins and amber banked over all runs (a run's own are in the run, and are banked when it ends)
-const LOG = "reckoning:log";                                     // the swipe log: in sessionStorage, so it is not synced between devices (it is long)
+const SOUND = "reckoning:sound", HAPTICS = "reckoning:haptics";   // the menu's switches (on unless turned off)
+const LOG = "reckoning:log";                                    // the swipe log: in sessionStorage, so it is not synced between devices (it is long)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const fmt = n => Math.floor(n).toLocaleString("en-GB");
@@ -46,6 +48,9 @@ let hitstop = 0, lastLead = 0;   // seconds the picture still stands frozen afte
 let lab = null, labEnd = null, labGo = null, labUi = null;   // the Feel lab: the real run kept while a stretch plays, and what to call when it ends or starts
 let zoneSeen = "";      // the biome whose name was last said over the quay
 let log = null, lastLog = null;   // this run's swipe log, and the run before's (reckoning-log.js)
+sound.setOn(!IN_FRAME && read(SOUND, true) !== false);     // a watching partner's frame makes no sound; audio starts at the first touch (unlock)
+sound.setHaptics(!IN_FRAME && read(HAPTICS, true) !== false);
+if (!IN_FRAME) sound.unlock();
 const cache = {};        // what the page last wrote, so a frame writes only what changed
 const put = (key, fn) => { const v = fn(); if (cache[key] !== v) { cache[key] = v; return true; } return false; };
 
@@ -94,6 +99,7 @@ function handle(events) {
   for (const ev of events) {
     log.event(S, ev);
     view.ping(ev, S);
+    if (!IN_FRAME) sound.cue(ev);
     switch (ev.type) {
       case "kill": if (T.HITSTOP > 0) hitstop = T.HITSTOP; if (ev.chain >= 2) say(`Chain ×${ev.chain}`, "good"); else if (ev.how === "slam") say("Slam", "good"); break;
       case "shockwave": if (ev.n) say(`Slam ×${ev.n}`, "good"); break;
@@ -180,7 +186,7 @@ function drawHud() {
   const sc = S.sec ? `${fmt(Math.min(S.hero.z, S.world.finish))} / ${fmt(S.world.finish)}` : fmt(S.score);
   if (put("score", () => sc)) $("score").textContent = sc;
   const zn = S.world.zones.find(q => S.hero.z >= q.z0 && S.hero.z < q.z1);
-  if (zn && zn.kind !== "transition" && zn.name !== "question" && zn.name !== "start" && zn.biome !== zoneSeen && !S.sec && !S.over) { zoneSeen = zn.biome; if (running) say(BIOMES[zn.biome].name); }
+  if (zn && zn.kind !== "transition" && zn.name !== "question" && zn.name !== "start" && zn.biome !== zoneSeen && !S.sec && !S.over) { zoneSeen = zn.biome; if (running) { say(BIOMES[zn.biome].name); sound.biome(); } }
   const g = goalText();
   if (put("goal", () => g)) { $("goal").textContent = g; $("goal").hidden = !g; }
   if (put("coins", () => `${S.coins}/${S.gems}`)) { $("coinN").textContent = fmt(S.coins); $("gemN").hidden = !S.gems; $("gemN").lastChild.textContent = S.gems; }
@@ -276,6 +282,8 @@ function tick(ts) {
       lead = lastLead = simulate(dt);
       if (performance.now() - savedAt > SAVE_EVERY) save();
     }
+    sound.setLive(go && !document.hidden);                     // the bed and the footsteps: only while the run is going
+    if (go && !hitstop) sound.feet(dt, speed(S), S.hero.mode === "run" && !(S.hero.roll > 0));
     // the hero stands ready until the first swipe (and again when a run is picked up), breathing on the real clock
     const idle = !running && !S.over && !paused && !logOpen;
     view.frame(S, vdt, { lead, idle, real: dt });
@@ -332,6 +340,11 @@ function openMenu() {
   if (sec || S.only) part(body, "play").append(action("Start the endless run", () => newRun(0), ""));
   part(body, "content").append(action("Playtest", openPlaytest, "link"));
   if (!IN_FRAME) part(body, "content").append(action("Feel lab", () => labUi.home(), "link"));
+  if (!IN_FRAME) {
+    part(body, "settings").append(
+      toggle("Sound", read(SOUND, true) !== false, on => { write(SOUND, on); sound.setOn(on); if (on) sound.sample(); }),
+      toggle("Haptics", read(HAPTICS, true) !== false, on => { write(HAPTICS, on); sound.setHaptics(on); }));
+  }
   const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
   part(body, "about").append(action("Swipe log", openLog, "link"),
     line(`Best ${fmt(best)} m · ${fmt(read(COINS, 0))} coins${read(AMBER, 0) ? ` · ${read(AMBER, 0)} amber` : ""}`),
