@@ -620,7 +620,6 @@ export const APPS = [
   { id: "boast", sec: "table", name: "Liar's dice", href: "./boast.html", logo: LOGO("boast", BOAST_LOGO), players: [1, 6] },
   { id: "bigtwo", sec: "table", name: "Big Two", href: "./bigtwo.html", logo: LOGO("bigtwo", BIGTWO_LOGO), players: [1, 4] },
   { id: "landlord", sec: "table", name: "Dou Dizhu", href: "./landlord.html", logo: LOGO("landlord", LANDLORD_LOGO), players: [1, 3] },
-  { id: "banquet", sec: "table", name: "Banquet", href: "./banquet.html", logo: LOGO("banquet", BANQUET_LOGO), players: [1, 2] },
   { id: "gammon", sec: "table", name: "Backgammon", href: "./gammon.html", logo: LOGO("gammon", GAMMON_LOGO), players: [1, 2] },
   { id: "trumps", sec: "table", name: "Trumps", href: "./trumps.html", logo: LOGO("trumps", TRUMPS_LOGO), players: [1, 4] },
   { id: "contract", sec: "table", name: "Contract bridge", href: "./contract.html", logo: LOGO("contract", CONTRACT_LOGO), players: [1, 4] },
@@ -666,6 +665,7 @@ export const APPS = [
   { id: "holdem", sec: "appendix", name: "Hold'em", href: "./holdem.html", logo: LOGO("holdem", HOLDEM_LOGO), players: [1, 6] },
   { id: "guilloche", sec: "appendix", name: "Guilloché", href: "./guilloche.html", logo: LOGO("guilloche", GUILLOCHE_LOGO), players: [1, 1] },
   { id: "timegrapher", sec: "appendix", name: "Timegrapher", href: "./timegrapher.html", logo: LOGO("timegrapher", TIMEGRAPHER_LOGO), players: [1, 1] },
+  { id: "banquet", sec: "appendix", name: "Banquet", href: "./banquet.html", logo: LOGO("banquet", BANQUET_LOGO), players: [1, 2] },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
