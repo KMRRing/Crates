@@ -185,7 +185,6 @@ export function createRunner(host) {
     hemi.intensity = night() ? 1.9 : 1.7;
     sun.color = col(night() ? [200, 215, 235] : [255, 244, 222]);
     sun.intensity = night() ? 1.3 : 1.5;
-    scene.traverse(o => { if (o.isInstancedMesh && o.userData.tint) recolour(o); });
   }
 
   // the quay: solid stretches between the pits, seams across it, water below
@@ -211,29 +210,19 @@ export function createRunner(host) {
   // water beside the quay: what sweeps past at the edges of the picture is what tells the eye how fast it is going
   const darkPlanks = new THREE.InstancedMesh(box, M.plank2, Math.ceil(SEAMS / 2) + 2); darkPlanks.frustumCulled = false; world.add(darkPlanks);
   const LAMPS = 9, LAMP_GAP = 13;
-  const poles = new THREE.InstancedMesh(cyl, M.pole, LAMPS * 2); poles.frustumCulled = false; world.add(poles);
-  const lanterns = new THREE.InstancedMesh(box, M.gilt, LAMPS * 2); lanterns.frustumCulled = false; world.add(lanterns);
-  // scenery: warehouses (a body and two steps of gable) and bollards, placed from the distance alone, so they are the same every time
-  const HOUSES = 15;                                                                     // each side, each a body and two steps
-  const houses = new THREE.InstancedMesh(box, M.brick, HOUSES * 2 * 3); houses.frustumCulled = false; houses.userData.tint = true; world.add(houses);
-  const roofs = new THREE.InstancedMesh(box, M.roof, HOUSES * 2); roofs.frustumCulled = false; world.add(roofs);
+  const poles = new THREE.InstancedMesh(models.poleGeo(), models.vc, LAMPS * 2); poles.frustumCulled = false; world.add(poles);
+  const lanterns = new THREE.InstancedMesh(models.lanternGeo(), models.vcGlow, LAMPS * 2); lanterns.frustumCulled = false; world.add(lanterns);
+  // scenery: Hanseatic warehouses (three kinds of stepped gable, each its own instanced mesh) and bollards, placed from the distance alone, so they are the same every time
+  const HOUSES = 15;                                                                     // each side
+  const houseMeshes = models.houseGeos.map(geo => { const m = new THREE.InstancedMesh(geo, models.vc, HOUSES * 2); m.frustumCulled = false; m.count = 0; world.add(m); return m; });
   const BOLLARDS = 24;
-  const posts = new THREE.InstancedMesh(cyl, M.timber, BOLLARDS * 2); posts.frustumCulled = false; world.add(posts);
+  const posts = new THREE.InstancedMesh(models.bollardGeo(), models.vc, BOLLARDS * 2); posts.frustumCulled = false; world.add(posts);
   // what the houses along the quay are made of, by biome: brick and ochre by the harbour, straw and clay on the salt road, mossy greens in the pass,
   // dark stone in the cellar, hull-brown by the ship, pale render by the canal
   let biomeNow = "quays";
   const TONES = { salt: [[196, 160, 96], [176, 128, 76], [214, 186, 128]], forest: [[70, 98, 62], [52, 80, 56], [96, 112, 70]], tunnel: [[60, 56, 62], [48, 46, 54], [72, 66, 70]], ship: [[104, 72, 48], [84, 60, 44], [120, 90, 62]], canal: [[206, 196, 172], [186, 168, 150], [150, 164, 160]] };
   const biomeTones = () => (TONES[biomeNow] ? TONES[biomeNow].map(c => (night() ? mix(c, [40, 62, 92], 0.35) : c)) : pal.tones);
-  function recolour(inst) {
-    const c = new THREE.Color();
-    for (let i = 0; i < inst.count; i++) {
-      const s = inst.userData.shade ? inst.userData.shade[i] : 0.5;
-      const tones = biomeTones();
-      col(mix(tones[Math.min(tones.length - 1, Math.floor(s * tones.length))], pal.sky, 0.16), c);
-      inst.setColorAt(i, c);
-    }
-    if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
-  }
+  const houseTone = (s, tones, into) => { const c = mix(tones[Math.min(tones.length - 1, Math.floor(s * tones.length))], pal.sky, 0.16); return col(night() ? mix(c, [130, 150, 180], 0.28) : c, into); };
   const hash = n => { let x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
   // ground above the quay: a ramp is a wedge, a balcony a block with a pale top, and a jump pad a gilt plate that breathes; a hero in the air over
@@ -340,125 +329,18 @@ export function createRunner(host) {
   }
 
   // ---------- a section's things: what blocks the quay, what is picked up, the finish ----------
-  // Boxes and cylinders, like everything else here; their colours are the goods' own, the same in every theme.
-  const GOODC = { salt: 0xEDE6D3, herring: 0x7F9CB4, furs: 0x7A5230, wax: 0xE2C24A, timber: 0xC99A5B, amber: 0xF0A12B, meal: 0xC4573A, lever: 0xB8892B };
-  const MARKC = [0x808080, 0xC5483A, 0x3E9A6B, 0x3E78B5];
-  const flats = {};
-  const flat = (hex, glow = 0) => (flats[`${hex}:${glow}`] ||= curved(new THREE.MeshLambertMaterial({ color: hex, emissive: glow ? hex : 0x000000, emissiveIntensity: glow })));
+  // The shapes are made in reckoning-models.js; here they are placed, kept in pools, and animated.
+  const { flat, BASIC, BRIDGEC } = models;
   const things = new Map(), thingFree = [];
+  const COINS = 160;                                                                    // coins are one instanced mesh: a trail is dozens of them
+  const coinInst = new THREE.InstancedMesh(models.coinGeo(), models.vcGlow, COINS); coinInst.frustumCulled = false; coinInst.count = 0; world.add(coinInst);
+  const cM = new THREE.Matrix4(), cQ = new THREE.Quaternion(), cV = new THREE.Vector3(), cS = new THREE.Vector3(1, 1, 1), cY = new THREE.Vector3(0, 1, 0);
   const part = (to, geo, m, sx, sy, sz, x, y, z) => { const o = new THREE.Mesh(geo, m); o.scale.set(sx, sy, sz); o.position.set(x, y, z); to.add(o); return o; };
-
-  const BRIDGEC = [0xC5483A, 0x3E78B5];                                                  // red and blue: the lever's two colours
-  const basic = hex => curved(new THREE.MeshBasicMaterial({ color: hex, side: THREE.DoubleSide }));
-  const BASIC = { green: basic(0x2F9E6B), red: basic(0xC8402F), amber: basic(0xE8A21A), gold: basic(0xF2C230) };
-  const triGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 3), discGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 18);
-  /** A bridge colour's mark, in shape as well as colour: a triangle for red and a disc for blue (flat on a deck, or `upright` on a board). */
-  function glyph(i, size, thick, upright = false) {
-    const m_ = new THREE.Mesh(i ? discGeo : triGeo, flat(BRIDGEC[i ? 1 : 0], 0.35));
-    m_.scale.set(size * 2, thick, size * 2); if (upright) m_.rotation.x = Math.PI / 2;
-    const g_ = new THREE.Group(); g_.add(m_);
-    if (upright) { const back = new THREE.Mesh(box, M.timber); back.scale.set(size * 2.6, size * 2.6, 0.04); back.position.z = 0.04; g_.add(back); }
-    return g_;
-  }
 
   /** The shape of one thing: `pose` is what moves in it (a bridge lies down, an arm lifts), `base` where it stands. */
   function makeThing(kind, o) {
-    const g = new THREE.Group(), T = { group: g, kind, mark: o.mark || 0 };
-    if (kind === "barrel") {
-      part(g, cyl, M.timber, 0.85, 0.85, 0.85, 0, 0.425, 0);
-      for (const y of [0.18, 0.68]) part(g, cyl, M.gilt, 0.9, 0.07, 0.9, 0, y, 0);
-    } else if (kind === "beam") {
-      part(g, box, M.timber, 0.06, 2.6, 0.06, 0, 3.4, 0);                                // the rope it hangs by
-      part(g, box, M.timber, 1.5, 1.35, 0.95, 0, 1.5, 0);
-      part(g, box, M.gilt, 1.56, 0.08, 1.0, 0, 1.0, 0); part(g, box, M.gilt, 1.56, 0.08, 1.0, 0, 2.0, 0);
-    } else if (kind === "cart") {
-      part(g, box, M.wall, 1.5, 1.4, 1.5, 0, 0.7, 0); part(g, box, M.timber, 1.4, 1.1, 1.3, 0, 1.95, 0);
-      part(g, box, M.gilt, 1.55, 0.08, 1.55, 0, 1.4, 0);
-    } else if (kind === "toll") {
-      // a toll booth: two posts and a bar that lifts for the token of its number (the plate over it shows the number)
-      for (const s of [-1, 1]) part(g, cyl, M.timber, 0.16, 2.7, 0.16, s * 0.78, 1.35, 0);
-      T.leaf = new THREE.Group(); g.add(T.leaf);
-      T.leaf.position.set(-0.78, 1.15, 0);
-      part(T.leaf, box, M.crab, 1.56, 0.2, 0.14, 0.78, 0, 0); part(T.leaf, box, M.shirt, 0.3, 0.2, 0.16, 0.3, 0, 0); part(T.leaf, box, M.shirt, 0.3, 0.2, 0.16, 1.1, 0, 0);
-      part(g, box, flat(MARKC[o.mark]), 1.5, 0.5, 0.1, 0, 2.45, 0);
-      for (let i = 0; i < o.mark; i++) part(g, sph, M.shirt, 0.2, 0.2, 0.12, (i - (o.mark - 1) / 2) * 0.34, 2.45, -0.07);
-      T.k = 1;
-    } else if (kind === "bridge") {
-      // a drawbridge over a channel: a span hinged at its far end that lies flat (cross it) or stands on end (a wall). Its colour and
-      // mark (red triangle, blue disc) are the lever's: stepping on a lever lowers the bridges of the colour it shows
-      const col_ = o.flip ? BRIDGEC[1] : BRIDGEC[0];
-      part(g, box, flat(0x1d4a6e), 1.62, 0.05, 2.4, 0, 0.025, 0);                          // the channel under it
-      part(g, box, M.wall, 0.3, 0.7, 2.4, -0.88, 0.35, 0); part(g, box, M.wall, 0.3, 0.7, 2.4, 0.88, 0.35, 0);       // its banks
-      part(g, box, M.wall, 1.7, 0.45, 0.4, 0, 0.22, 1.1);                                     // the sill the leaf rests on at the far end
-      T.hinge = new THREE.Group(); T.hinge.position.set(0, 0.3, 1.2); g.add(T.hinge);
-      part(T.hinge, box, M.timber, 1.46, 0.12, 2.3, 0, 0, -1.15);
-      for (const s_ of [-1, 1]) part(T.hinge, box, flat(col_, 0.2), 0.1, 0.16, 2.3, s_ * 0.68, 0.06, -1.15);        // coloured rails
-      part(T.hinge, box, M.gilt, 1.46, 0.05, 0.1, 0, 0.07, -0.1); part(T.hinge, box, M.gilt, 1.46, 0.05, 0.1, 0, 0.07, -2.2);
-      const top_ = glyph(o.flip, 0.3, 0.03); top_.position.set(0, 0.09, -1.15); T.hinge.add(top_);                       // the mark on both faces of the span
-      const under_ = glyph(o.flip, 0.3, 0.03); under_.position.set(0, -0.09, -1.15); T.hinge.add(under_);
-      for (const s_ of [-1, 1]) part(g, box, M.wall, 0.32, 2.2, 0.32, s_ * 0.88, 1.1, 1.3);                         // the tower on the far bank
-      const sign = glyph(o.flip, 0.28, 0.06, true); sign.position.set(-0.88, 1.35, -1.25); g.add(sign);               // and a board at the near bank
-      part(g, box, M.timber, 0.07, 1.3, 0.07, -0.88, 0.65, -1.25);
-      T.k = 1;
-    } else if (kind === "tide") {
-      // a sluice gate: a grating on a frame that is raised clear over the lane (open: green lamp and a ring) or lowered to the planks (shut:
-      // red lamp and a cross), half way and flashing amber for the last moments before it changes; water runs in the channel when it is open
-      for (const s_ of [-1, 1]) part(g, cyl, M.timber, 0.18, 3.0, 0.18, s_ * 0.8, 1.5, 0);
-      part(g, box, M.timber, 1.9, 0.3, 0.3, 0, 3.0, 0);
-      part(g, box, flat(0x1d4a6e), 1.62, 0.05, 1.3, 0, 0.025, 0);
-      T.water = part(g, box, flat(0x4FA3D8, 0.35), 1.5, 0.04, 1.2, 0, 0.06, 0);
-      T.leaf = new THREE.Group(); g.add(T.leaf);
-      for (let i = -2; i <= 2; i++) part(T.leaf, box, M.steel, 0.09, 2.5, 0.09, i * 0.3, 1.25, 0);
-      part(T.leaf, box, M.steel, 1.5, 0.1, 0.12, 0, 2.45, 0); part(T.leaf, box, M.steel, 1.5, 0.1, 0.12, 0, 1.2, 0);
-      for (let i = 0; i < 6; i++) part(T.leaf, box, flat(i & 1 ? 0xF2F2EC : 0xC8402F), 0.25, 0.14, 0.15, (i - 2.5) * 0.25, 0.1, 0);     // a hazard stripe on its lower rail
-      T.lamp = part(g, sph, BASIC.green, 0.3, 0.3, 0.3, 0, 3.3, 0);
-      T.ring = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.31, 20), BASIC.green); T.ring.position.set(0, 3.85, 0); g.add(T.ring);                          // passable
-      T.cross = new THREE.Group(); T.cross.position.set(0, 3.85, 0); g.add(T.cross);                                                                          // blocked
-      for (const a of [Math.PI / 4, -Math.PI / 4]) { const b_ = part(T.cross, box, BASIC.red, 0.1, 0.62, 0.05, 0, 0, 0); b_.rotation.z = a; }
-      T.k = 1;
-    } else if (kind === "token") {
-      T.spin = part(g, cyl, flat(MARKC[o.mark], 0.25), 0.7, 0.1, 0.7, 0, 0, 0); T.spin.rotation.x = Math.PI / 2;
-      for (let i = 0; i < o.mark; i++) part(g, sph, M.shirt, 0.11, 0.11, 0.11, (i - (o.mark - 1) / 2) * 0.2, 0, -0.07);
-    } else if (kind === "lever") {
-      // a lever on a plate with a red pad (triangle) and a blue pad (disc): the handle leans to the colour whose bridges are down now,
-      // the pad of the colour the next step will lower pulses, and a dashed line of that colour runs down the quay to the bridges
-      part(g, box, M.timber, 1.0, 0.16, 0.7, 0, -0.36, 0);
-      T.pads = [0, 1].map(i => { const pd = part(g, box, flat(BRIDGEC[i], 0.2), 0.34, 0.07, 0.34, (i ? 1 : -1) * 0.3, -0.26, 0); const gl = glyph(i, 0.16, 0.05); gl.position.set((i ? 1 : -1) * 0.3, -0.2, 0); g.add(gl); return pd; });
-      T.spin = new THREE.Group(); T.spin.position.set(0, -0.26, 0); g.add(T.spin);
-      part(T.spin, box, M.steel, 0.1, 0.8, 0.1, 0, 0.4, 0);
-      T.knobs = [0, 1].map(i => { const kn = part(T.spin, sph, flat(BRIDGEC[i], 0.3), 0.28, 0.28, 0.28, 0, 0.85, 0); kn.visible = false; return kn; });
-      T.wire = Array.from({ length: 14 }, () => { const w_ = part(g, box, flat(BRIDGEC[0], 0.4), 0.22, 0.03, 0.55, 0, -0.43, 1); w_.visible = false; return w_; });
-    } else if (kind === "coin") {
-      T.spin = new THREE.Group(); g.add(T.spin);
-      const c_ = part(T.spin, cyl, flat(0xF2C230, 0.55), 0.46, 0.07, 0.46, 0, 0, 0); c_.rotation.x = Math.PI / 2;
-      const r_ = part(T.spin, cyl, flat(0xC9961A, 0.3), 0.32, 0.09, 0.32, 0, 0, 0); r_.rotation.x = Math.PI / 2;
-    } else if (kind === "gem") {
-      // amber: a big faceted drop with a ring round it, glowing, so it is seen from far off
-      T.spin = new THREE.Group(); g.add(T.spin);
-      part(T.spin, sph, flat(0xF0A12B, 0.75), 0.5, 0.74, 0.5, 0, 0, 0);
-      part(T.spin, cone, flat(0xFFD27A, 0.8), 0.34, 0.4, 0.34, 0, 0.38, 0); part(T.spin, cone, flat(0xC9761A, 0.6), 0.34, 0.4, 0.34, 0, -0.38, 0).rotation.x = Math.PI;
-      T.halo = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.58, 24), BASIC.gold); g.add(T.halo);
-    } else if (kind === "amber") {
-      T.spin = part(g, sph, flat(GOODC.amber, 0.55), 0.46, 0.62, 0.46, 0, 0, 0);
-    } else if (kind === "herring") {
-      T.spin = new THREE.Group(); g.add(T.spin);
-      part(T.spin, cyl, flat(GOODC[kind]), 0.55, 0.62, 0.55, 0, 0, 0); part(T.spin, cyl, M.gilt, 0.58, 0.07, 0.58, 0, 0.17, 0); part(T.spin, cyl, M.gilt, 0.58, 0.07, 0.58, 0, -0.17, 0);
-    } else if (kind === "timber") {
-      // a stack of three pine logs, laid side by side with a fourth across the top, each end a paler ring
-      T.spin = new THREE.Group(); g.add(T.spin);
-      for (const [x, y] of [[-0.3, -0.14], [0.3, -0.14], [0, 0.2]]) {
-        const l = part(T.spin, cyl, flat(GOODC.timber), 0.5, 1.0, 0.5, x, y, 0); l.rotation.x = Math.PI / 2;
-        for (const e of [-0.5, 0.5]) part(T.spin, cyl, flat(0xE8CC94), 0.4, 0.03, 0.4, x, y, e).rotation.x = Math.PI / 2;
-      }
-    } else if (kind === "meal") {
-      T.spin = new THREE.Group(); g.add(T.spin);
-      part(T.spin, sph, flat(GOODC.meal), 0.6, 0.4, 0.5, 0, 0, 0); part(T.spin, sph, M.shirt, 0.2, 0.14, 0.2, 0, 0.2, 0);
-    } else {                                                                              // a sack: salt, furs, wax
-      T.spin = new THREE.Group(); g.add(T.spin);
-      part(T.spin, sph, flat(GOODC[kind] || 0xcccccc), 0.62, 0.56, 0.5, 0, 0, 0); part(T.spin, cyl, M.timber, 0.2, 0.14, 0.2, 0, 0.3, 0);
-    }
-    g.traverse(x => { x.frustumCulled = false; });
-    world.add(g);
+    const T = models.makeThing(kind, o);
+    world.add(T.group);
     return T;
   }
   const hideThing = T => { T.group.visible = false; };
@@ -501,7 +383,15 @@ export function createRunner(host) {
       }
     }
     const nextBridge = (z) => { let b = null; for (const o of W_.obs) if (o.kind === "bridge" && o.z > z && (!b || o.z < b.z)) b = o; return b; };
+    let nCoins = 0;
     for (const p of W_.pick) {
+      if (p.kind === "coin") {
+        if (!p.taken && p.z >= hz - 1.6 && p.z <= z1 && nCoins < COINS) {
+          cV.set(p.lane * LANE_W, p.y + Math.sin(now * 3 + p.id) * 0.05, p.z);
+          coinInst.setMatrixAt(nCoins++, cM.compose(cV, cQ.setFromAxisAngle(cY, now * 3 + p.id), cS));
+        }
+        continue;
+      }
       const T = put1(p, p.kind, p.y);
       if (!T) continue;
       T.group.visible = !p.taken;
@@ -513,11 +403,12 @@ export function createRunner(host) {
         const lower = S.flip;                                                                // the colour the next step lowers: the one that is up now
         T.spin.rotation.z = lower ? 0.7 : -0.7;                                              // the handle leans to the pad that is lowered now's opposite: toward what it will set
         T.knobs.forEach((kn, i) => { kn.visible = i === lower; });
-        T.pads.forEach((pd, i) => { const pulse = i === lower ? 0.6 + 0.4 * Math.sin(now * 6) : 0; pd.scale.set(0.34 * (1 + 0.25 * pulse), 0.07, 0.34 * (1 + 0.25 * pulse)); });
+        T.pads.forEach((pd, i) => { const pulse = i === lower ? 0.6 + 0.4 * Math.sin(now * 6) : 0; pd.scale.setScalar(1 + 0.25 * pulse); });
         const nb = nextBridge(p.z), n = nb ? Math.min(T.wire.length, Math.floor((nb.z - p.z - 1.4) / 0.85)) : 0;
         T.wire.forEach((w_, i) => { w_.visible = i < n; if (i < n) { w_.position.set(0, -0.43, 0.9 + i * 0.85); w_.material = flat(BRIDGEC[lower], 0.4); } });
       }
     }
+    coinInst.count = nCoins; coinInst.instanceMatrix.needsUpdate = true;
     for (const [id, T] of things) if (!seen.has(id)) { hideThing(T); thingFree.push(T); things.delete(id); }
   }
   // the finish: a gilt arch across the quay with a banner, and a line of checks on the planks
@@ -895,30 +786,25 @@ export function createRunner(host) {
 
     // scenery, by slot: slot k is the house k * 11 metres along, the same wherever the hero is
     const SP = 11, base = Math.floor((hz - BEHIND) / SP);
-    houses.userData.shade = houses.userData.shade || new Array(houses.count).fill(0.5);
-    let hi = 0, ri = 0;
+    const tones = biomeTones(), hc = new THREE.Color(), hq = new THREE.Quaternion(), hv = new THREE.Vector3(), hs = new THREE.Vector3(), yAxis = new THREE.Vector3(0, 1, 0);
+    const used = houseMeshes.map(() => 0);
     for (const side of [-1, 1]) {
       for (let k = 0; k < HOUSES; k++) {
         const n = base + k, r1 = hash(n * 2 + (side > 0 ? 1 : 0)), r2 = hash(n * 5 + 3 + side), r3 = hash(n * 7 + 1);
-        const w = 4.6 + r1 * 2.6, hgt = 4.2 + r2 * 5, depth = 5.6 + r3 * 2.4, x = side * (6.4 + depth / 2), zc = n * SP + SP / 2;
-        const parts = [[w, hgt, depth, hgt / 2, 0], [w * 0.72, 1.6, depth, hgt + 0.8, 0], [w * 0.4, 1.4, depth, hgt + 2.3, 0]];
-        parts.forEach(([pw, ph, pd, py], j) => {
-          m4.compose(v.set(x, py, zc), q, new THREE.Vector3(pw, ph, pd));
-          houses.setMatrixAt(hi, m4);
-          houses.userData.shade[hi] = r1 * 0.999;
-          hi++;
-        });
-        m4.compose(v.set(x, hgt + 3.2, zc), q.setFromAxisAngle(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3(w * 0.3, 0.7, depth + 0.5));
-        roofs.setMatrixAt(ri++, m4);
-        q.identity();
+        const kind = Math.min(2, Math.floor(r2 * 3)), within = r2 * 3 - kind, K = models.HOUSE_KINDS[kind];
+        const sd = 0.85 + r3 * 0.3, x = side * (6.5 + K.D * sd / 2), zc = n * SP + SP / 2;
+        hq.setFromAxisAngle(yAxis, -side * Math.PI / 2);                                  // its gable faces the quay
+        m4.compose(hv.set(x, 0, zc), hq, hs.set(0.88 + r1 * 0.3, 0.9 + within * 0.4, sd));
+        const mesh_ = houseMeshes[kind], i = used[kind]++;
+        mesh_.setMatrixAt(i, m4);
+        mesh_.setColorAt(i, houseTone(r1 * 0.999, tones, hc));
       }
     }
-    houses.instanceMatrix.needsUpdate = roofs.instanceMatrix.needsUpdate = true;
-    if (!houses.userData.tinted || houses.userData.tinted !== base) { recolour(houses); houses.userData.tinted = base; }
+    houseMeshes.forEach((m_, i) => { m_.count = used[i]; m_.instanceMatrix.needsUpdate = true; if (m_.instanceColor) m_.instanceColor.needsUpdate = true; });
     for (let i = 0; i < BOLLARDS; i++) {
       for (const s of [-1, 1]) {
         const z = (Math.floor((hz - BEHIND) / 6) + i) * 6 + 3;
-        m4.compose(v.set(s * (QUAY_W / 2 - 0.2), 0.3, z), q, inSpan(z) ? new THREE.Vector3(0.28, 0.6, 0.28) : nil);
+        m4.compose(v.set(s * (QUAY_W / 2 - 0.2), 0, z), q, inSpan(z) ? one : nil);
         posts.setMatrixAt(2 * i + (s > 0 ? 1 : 0), m4);
       }
     }
@@ -926,9 +812,9 @@ export function createRunner(host) {
     for (let i = 0; i < LAMPS; i++) {
       for (const s of [-1, 1]) {
         const j = 2 * i + (s > 0 ? 1 : 0), z = (Math.floor((hz - BEHIND) / LAMP_GAP) + i) * LAMP_GAP + 5;
-        m4.compose(v.set(s * (QUAY_W / 2 + 0.75), 1.3, z), q, new THREE.Vector3(0.22, 4.2, 0.22));
+        m4.compose(v.set(s * (QUAY_W / 2 + 0.75), 0, z), q, one);
         poles.setMatrixAt(j, m4);
-        m4.compose(v.set(s * (QUAY_W / 2 + 0.75), 3.55, z), q, new THREE.Vector3(0.42, 0.5, 0.42));
+        m4.compose(v.set(s * (QUAY_W / 2 + 0.75), 3.65, z), q, one);
         lanterns.setMatrixAt(j, m4);
       }
     }
@@ -991,7 +877,7 @@ export function createRunner(host) {
     finish.visible = S.sec > 0 && W_.finish > z0 && W_.finish < z1;
     finish.position.z = W_.finish || 0;
     const zone = W_.zones && W_.zones.find(q => hz >= q.z0 && hz < q.z1), bio = S.sec ? "quays" : (zone && zone.biome) || biomeNow;
-    if (bio !== biomeNow) { biomeNow = bio; houses.userData.tinted = null; }
+    if (bio !== biomeNow) biomeNow = bio;
     const tint = BIOMES[bio]?.tint || BIOMES.quays.tint;
     bk += ((BIOMES[bio]?.dark ? 1 : 0) - bk) * Math.min(1, (dt || 0.016) * 1.5);
     const k = night() ? 0.5 : 1, off = tint.sky.map(x => x * k);
@@ -1123,5 +1009,5 @@ export function createRunner(host) {
   const themeWatch = new MutationObserver(retheme);
   themeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", retheme);
-  return { frame, ping, resize, retheme, dispose, canvas, get stats() { return renderer.info.render; }, palette: () => pal };
+  return { frame, ping, resize, retheme, dispose, canvas, scene, get stats() { return renderer.info.render; }, palette: () => pal };
 }

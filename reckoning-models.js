@@ -110,6 +110,7 @@ const boxG = () => once("box", () => {
   return g;
 });
 
+const quadG = () => once("quad", () => ({ p: [-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0], n: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], i: [0, 1, 2, 0, 2, 3] }));   // a unit square facing +z
 /** Triangles of a simple counter-clockwise polygon, by ear clipping. */
 function earclip(pts) {
   const idx = pts.map((_, i) => i), out = [];
@@ -338,8 +339,8 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
     J.torso = joint(body, 0, 0.86, 0);
     {
       const t = new Builder();
-      t.add(lathe(CHEST, 16), "hero", { s: [CX, 1, CZ] });
-      t.add(lathe(SKIRT, 16), "hero", { s: [CX, 1, CZ] });
+      t.add(lathe(CHEST, 12), "hero", { s: [CX, 1, CZ] });
+      t.add(lathe(SKIRT, 12), "hero", { s: [CX, 1, CZ] });
       t.add(lathe(band(0.25, 0.27, -0.272, -0.238), 16, { hard: true }), "gilt", { s: [CX, 1, CZ] });      // the hem's trim
       t.add(lathe([[0.17, 0.03], [0.178, 0.06], [0.2, 0.1], [0.207, 0.13], [0.19, 0.12], [0.168, 0.08]], 16), "scarf", { s: [CX * 1.01, 1, CZ * 1.01] });     // the sash
       t.add(lathe([[0.164, -0.012], [0.186, -0.012], [0.186, 0.032], [0.164, 0.032]], 16, { hard: true }), "boot", { s: [CX * 1.02, 1, CZ * 1.02] });        // the belt
@@ -431,11 +432,11 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
     J.hat = joint(J.head, 0, 0.275, 0);
     {
       const t = new Builder();
-      t.add(lathe([[0, -0.012], [0.14, -0.012], [0.172, 0.0], [0.166, 0.06], [0.158, 0.13], [0.13, 0.18], [0.07, 0.198], [0, 0.2]], 18), "hero");        // the crown
+      t.add(lathe([[0, -0.012], [0.14, -0.012], [0.172, 0.0], [0.166, 0.06], [0.158, 0.13], [0.13, 0.18], [0.07, 0.198], [0, 0.2]], 14), "hero");        // the crown
       t.add(lathe([[0.168, 0.03], [0.176, 0.034], [0.177, 0.075], [0.169, 0.078]], 18, { hard: true }), "gilt");                        // the band
       t.add(lathe([[0.155, 0.05], [0.166, 0.054], [0.167, 0.072], [0.157, 0.07]], 18, { hard: true }), "goldDark");
       // the brim: wide, pinned up at the sides and the back, down in front
-      const brim = lathe([[0.14, 0.0], [0.24, -0.002], [0.33, 0.0], [0.375, 0.012], [0.378, 0.03], [0.37, 0.034], [0.325, 0.024], [0.24, 0.016], [0.14, 0.02]], 20);
+      const brim = lathe([[0.14, 0.0], [0.24, -0.002], [0.33, 0.0], [0.375, 0.012], [0.378, 0.03], [0.37, 0.034], [0.325, 0.024], [0.24, 0.016], [0.14, 0.02]], 16);
       warp(brim, (x, y, z) => {
         const r = Math.hypot(x, z), u = clamp01((r - 0.15) / 0.23), ph = Math.atan2(x, z);
         return [x, y + u * u * (0.11 * Math.sin(ph) ** 2 - 0.045 * Math.max(0, Math.cos(ph)) + 0.06 * Math.max(0, -Math.cos(ph))), z];
@@ -494,12 +495,12 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
 
   /** The barrel's staves, hoops and lid, in `b`, standing on y = 0, 0.85 m high and across at the belly. */
   function barrelInto(b, o = {}) {
-    const H = 0.85, R = y => 0.325 + 0.1 * Math.pow(Math.sin(PI * clamp01(y / H)), 0.8);
+    const H = 0.85, R = y => 0.325 + 0.1 * Math.pow(Math.sin(PI * clamp01(y / H)), 0.8), at = { s: o.s ?? 1, p: o.p || [0, 0, 0] };
     const stave = [0.06, 0.12, 0.2, 0.3, 0.42, 0.55, 0.65, 0.73, 0.79, 0.83, 0.85];
-    b.add(lathe([[0, 0.005], [R(0.005), 0.005], ...stave.map(y => [R(y), y]), [R(H) - 0.03, H - 0.004], [0, H - 0.004]], 14, { facet: true }), o.staves || ["timber", "timberDark"]);
-    b.add(lathe([[0.3, H - 0.003], [0.31, H + 0.012], [0.285, H + 0.014], [0, H - 0.01]], 14), o.lid || "timberLight");      // the lid, a little sunk
-    for (const y of o.hoops || [0.13, 0.25, 0.6, 0.72]) b.add(lathe([[R(y) - 0.01, y - 0.024], [R(y) + 0.014, y - 0.024], [R(y) + 0.014, y + 0.024], [R(y) - 0.01, y + 0.024]], 14, { hard: true }), o.hoop || "gilt");
-    b.add(lathe([[0.3, H + 0.012], [0.318, H + 0.016], [0.318, H + 0.03], [0.3, H + 0.03]], 14, { hard: true }), "timberDark", { k: 0.9 });       // the chime
+    b.add(lathe([[0, 0.005], [R(0.005), 0.005], ...stave.map(y => [R(y), y]), [R(H) - 0.03, H - 0.004], [0, H - 0.004]], 14, { facet: true }), o.staves || ["timber", "timberDark"], at);
+    b.add(lathe([[0.3, H - 0.003], [0.31, H + 0.012], [0.285, H + 0.014], [0, H - 0.01]], 14), o.lid || "timberLight", at);      // the lid, a little sunk
+    for (const y of o.hoops || [0.13, 0.25, 0.6, 0.72]) b.add(lathe([[R(y) - 0.01, y - 0.024], [R(y) + 0.014, y - 0.024], [R(y) + 0.014, y + 0.024], [R(y) - 0.01, y + 0.024]], 14, { hard: true }), o.hoop || "gilt", at);
+    b.add(lathe([[0.3, H + 0.012], [0.318, H + 0.016], [0.318, H + 0.03], [0.3, H + 0.03]], 14, { hard: true }), "timberDark", { ...at, k: 0.9 });       // the chime
   }
   /** A claw's finger: a curved, tapering pincer along +z from its root, curling towards x = -d. */
   const fingerInto = (b, d, col, tip) => {
@@ -661,5 +662,303 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
     return m;
   }
 
-  return { retheme, buildHero, makeFoe, balloonMat, BALLOONC, flat, BASIC, vc, vcGlow, kit: { Builder, lathe, extrude, extrudeSide, warp, sphereG, cylG, capsuleG, boxG, arc, mesh, joint } };
+  // ---------- the things on the quay: what blocks it, what is picked up ----------
+  // Their own colours are the same in every theme (hex); the stone, timber and brass follow the palette.
+  const GOODC = { salt: 0xEDE6D3, herring: 0x7F9CB4, furs: 0x7A5230, wax: 0xE2C24A, timber: 0xC99A5B, amber: 0xF0A12B, meal: 0xC4573A };
+  const MARKC = [0x808080, 0xC5483A, 0x3E9A6B, 0x3E78B5];
+  const BRIDGEC = [0xC5483A, 0x3E78B5];                                              // red and blue: the lever's two colours
+  const unitBox = new THREE.BoxGeometry(1, 1, 1);
+  const amberMat = curved(new THREE.MeshLambertMaterial({ color: 0xF0A12B, emissive: 0xF0A12B, emissiveIntensity: 0.45, transparent: true, opacity: 0.7, depthWrite: false }));
+  /** A built geometry kept by key, so every thing of a kind shares it. */
+  const geoOf = (key, fn) => once(`geo:${key}`, () => { const b = new Builder(); fn(b); return b.build(); });
+  const own = (parent, geo, mat = vc) => { const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; parent.add(m); return m; };
+
+  /** A log lying along z, `len` long and `r` thick, with pale rings on its ends. */
+  const logInto = (b, p, r, len, bark = "timber", core = "timberLight") => {
+    b.add(cylG(r, r, len, 10, false), bark, { p: [p[0], p[1], p[2] - len / 2], r: [PI / 2, 0, 0], k: 0.95 });
+    for (const e of [-1, 1]) {
+      b.add(cylG(r * 0.92, r * 0.92, 0.014, 10), core, { p: [p[0], p[1], p[2] + e * (len / 2 + 0.002)], r: [PI / 2, 0, 0], s: [1, e, 1] });
+      b.add(cylG(r * 0.5, r * 0.5, 0.02, 8), "timberDark", { p: [p[0], p[1], p[2] + e * (len / 2 + 0.006)], r: [PI / 2, 0, 0], s: [1, e, 1], k: 0.9 });
+    }
+  };
+  const sackG = () => once("sack", () => lathe([[0, 0], [0.18, 0], [0.28, 0.08], [0.33, 0.24], [0.31, 0.4], [0.22, 0.52], [0.1, 0.58], [0.1, 0.6], [0.13, 0.68], [0.06, 0.66], [0, 0.66]], 10));
+  const heartPoly = () => Array.from({ length: 28 }, (_, k) => { const t = (k / 28) * TAU; return [0.0285 * 16 * Math.pow(Math.sin(t), 3), 0.0285 * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) + 0.04]; });
+  /** The red triangle or the blue disc of a bridge colour, flat (up = true, lying on y) or upright facing the camera (-z). */
+  const glyphInto = (b, i, size, thick, p, up) => {
+    const col = BRIDGEC[i ? 1 : 0], g = i ? cylG(size, size, thick, 14) : extrude([[0, size * 1.15], [size * 1.05, -size * 0.8], [-size * 1.05, -size * 0.8]], thick, thick * 0.3);
+    if (i) b.add(g, col, { p: up ? [p[0], p[1] - thick / 2, p[2]] : [p[0], p[1], p[2] + thick / 2], r: up ? [0, 0, 0] : [-PI / 2, 0, 0], s: up ? 1 : [1, 1, 1] });
+    else b.add(g, col, { p, r: up ? [-PI / 2, 0, 0] : [0, PI, 0] });
+  };
+
+  function makeThing(kind, o = {}) {
+    const g = new THREE.Group(), T = { group: g, kind, mark: o.mark || 0 };
+    const mk = o.mark || 0;
+    if (kind === "barrel") {
+      own(g, geoOf("barrelT", b => { b.ao = [0, 0.85, 0.72, 1]; barrelInto(b); }));
+    } else if (kind === "beam") {
+      // a bundle of timber slung from a crane's hook: three logs, two, one, ends to the camera, in a rope sling
+      own(g, geoOf("beam", b => {
+        b.ao = [0.8, 2.2, 0.7, 1];
+        for (const [x, y] of [[-0.45, 1.05], [0, 1.05], [0.45, 1.05], [-0.225, 1.44], [0.225, 1.44], [0, 1.83]]) logInto(b, [x, y, 0], 0.225, 0.95);
+        for (const z of [-0.28, 0.28]) {                                                      // the straps round the bundle
+          for (const [x0, y0, x1, y1] of [[-0.66, 0.9, -0.2, 2.02], [0.66, 0.9, 0.2, 2.02]]) b.rod("steel", [x0, y0, z], [x1, y1, z], 0.02, 0.02, { seg: 4, k: 0.8 });
+          b.rod("steel", [-0.66, 0.92, z], [0.66, 0.92, z], 0.02, 0.02, { seg: 4, k: 0.8 });
+        }
+        for (const s of [-1, 1]) { b.rod("timberLight", [s * 0.62, 1.0, 0.0], [0, 3.35, 0], 0.025, 0.025, { seg: 4 }); }                 // the sling
+        b.add(lathe([[0.1, 3.3], [0.14, 3.34], [0.1, 3.4], [0.07, 3.34], [0.1, 3.3]], 8, { hard: true }), "steel");
+        b.rod("timberLight", [0, 3.4, 0], [0, 4.8, 0], 0.03, 0.03, { seg: 4 });
+      }));
+    } else if (kind === "cart") {
+      own(g, geoOf("cart", b => {
+        b.ao = [0, 2.5, 0.75, 1];
+        b.add(extrude([[-0.58, 0.5], [0.58, 0.5], [0.68, 1.4], [-0.68, 1.4]], 1.5, 0.035), "timber");                                    // the bed
+        for (const y of [0.78, 1.04, 1.26]) for (const s of [-1, 1]) b.box("timberDark", [0, y, s * 0.755], [1.2 + (y - 0.5) * 0.2, 0.025, 0.012]);          // plank lines, front and back
+        for (const s of [-1, 1]) b.box("timberLight", [0, 1.41, s * 0.0], [1.4, 0.04, 1.54], { k: 0.9 });
+        for (const x of [-0.6, 0.6]) for (const s of [-1, 1]) b.box("steel", [x * 1.06, 0.95, s * 0.76], [0.06, 0.92, 0.02], { r: [0, 0, x > 0 ? -0.1 : 0.1], k: 0.7 });       // iron corner straps
+        b.rod("timber", [0, 0.6, 0.7], [0, 0.4, 1.35], 0.04, 0.03, { seg: 5 });                                                           // the shaft
+        b.box("timberDark", [0, 0.42, 0.0], [1.2, 0.1, 0.2]);                                                                              // the axle
+        for (const s of [-1, 1]) {                                                                                                         // wheels with spokes
+          const x = s * 0.73;
+          b.add(lathe(band(0.46, 0.55, -0.06, 0.06), 16, { hard: true }), "steel", { p: [x, 0.52, 0.0], r: [0, 0, PI / 2], k: 0.8 });
+          b.add(lathe(band(0.38, 0.46, -0.045, 0.045), 16, { hard: true }), "timberDark", { p: [x, 0.52, 0.0], r: [0, 0, PI / 2] });
+          b.add(cylG(0.1, 0.1, 0.16, 8), "timberLight", { p: [x - s * 0.08, 0.52, 0.0], r: [0, 0, PI / 2] });
+          for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU; b.rod("timber", [x, 0.52, 0], [x, 0.52 + Math.cos(a) * 0.43, Math.sin(a) * 0.43], 0.028, 0.028, { seg: 4 }); }
+        }
+        // the load: sacks tied down with rope
+        const sk = (x, y, z, sc, c, ry) => b.add(sackG(), c, { p: [x, y, z], s: sc, r: [0, ry, 0] });
+        sk(-0.34, 1.4, -0.28, 1.35, 0xE6DCC2, 0.4); sk(0.34, 1.4, -0.26, 1.35, 0xD8CBAA, -0.5); sk(-0.3, 1.4, 0.34, 1.3, 0xD8CBAA, 0.9); sk(0.32, 1.4, 0.34, 1.3, 0xE6DCC2, 0.1);
+        sk(0.0, 1.95, -0.05, 1.45, 0xEDE3C8, 0.3);
+        b.rod("timberLight", [-0.7, 1.45, -0.77], [0.1, 2.35, -0.3], 0.02, 0.02, { seg: 4 }); b.rod("timberLight", [0.7, 1.45, -0.77], [-0.1, 2.35, -0.3], 0.02, 0.02, { seg: 4 });
+      }));
+    } else if (kind === "toll") {
+      // a toll booth: two posts and a bar that lifts for the token of its number (the plate over it shows the number)
+      own(g, geoOf(`toll${mk}`, b => {
+        b.ao = [0, 2.9, 0.78, 1];
+        for (const s of [-1, 1]) {
+          b.add(lathe([[0, 0], [0.15, 0], [0.15, 0.12], [0.1, 0.2], [0.09, 2.5], [0.12, 2.58], [0.12, 2.68], [0, 2.7]], 10), "timber", { p: [s * 0.78, 0, 0] });
+          b.ell("gilt", [s * 0.78, 2.76, 0], [0.1, 0.1, 0.1], { seg: 8, rows: 5 });
+          b.add(lathe(band(0.085, 0.12, 0.98, 1.06), 10, { hard: true }), "gilt", { p: [s * 0.78, 0, 0] });
+        }
+        b.box("timberDark", [0, 2.45, 0.02], [1.7, 0.6, 0.06]);                                                                        // the plate: a frame, the field and the number
+        b.add(extrude([[-0.72, -0.22], [0.72, -0.22], [0.72, 0.22], [-0.72, 0.22]], 0.05, 0.015), MARKC[mk], { p: [0, 2.45, -0.03] });
+        for (let i = 0; i < mk; i++) b.ell("shirt", [(i - (mk - 1) / 2) * 0.34, 2.45, -0.075], [0.1, 0.1, 0.06], { seg: 8, rows: 5 });
+        b.box("gilt", [0, 2.19, -0.02], [1.6, 0.03, 0.08]); b.box("gilt", [0, 2.71, -0.02], [1.6, 0.03, 0.08]);
+        b.ell("steel", [-0.78, 1.15, 0.0], [0.13, 0.13, 0.13], { seg: 8, rows: 5 });                                                   // the bar's hinge
+        b.box("steel", [0.78, 1.15, 0.0], [0.1, 0.18, 0.12]);                                                                          // and its catch
+      }));
+      T.leaf = new THREE.Group(); g.add(T.leaf);
+      T.leaf.position.set(-0.78, 1.15, 0);
+      own(T.leaf, geoOf("tollbar", b => {
+        for (let i = 0; i < 6; i++) b.add(extrude([[0, -0.085], [0.26, -0.08], [0.26, 0.08], [0, 0.085]], 0.12, 0.02), i & 1 ? 0xF2F2EC : 0xC8402F, { p: [0.0 + i * 0.26, 0, 0] });
+        b.ell("steel", [-0.1, 0, 0], [0.12, 0.1, 0.1], { seg: 8, rows: 5 });
+        b.rod("steel", [-0.3, 0, 0], [0, 0, 0], 0.05, 0.05, { seg: 6 });
+        b.ell("gilt", [-0.32, 0, 0], [0.09, 0.09, 0.09], { seg: 8, rows: 5 });
+      }));
+      T.k = 1;
+    } else if (kind === "bridge") {
+      // a drawbridge over a channel: a span hinged at its far end that lies flat (cross it) or stands on end (a wall). Its colour and
+      // mark (red triangle, blue disc) are the lever's: stepping on a lever lowers the bridges of the colour it shows
+      const f = o.flip ? 1 : 0;
+      own(g, geoOf("bridgeS", b => {
+        b.ao = [0, 2.3, 0.78, 1];
+        b.box(0x1d4a6e, [0, 0.025, 0], [1.62, 0.05, 2.4]);                                                                              // the channel under it
+        for (const s of [-1, 1]) {
+          b.add(extrude([[-0.15, 0], [0.15, 0], [0.13, 0.7], [-0.13, 0.7]], 2.4, 0.03), "wall", { p: [s * 0.88, 0, 0] });                  // its banks
+          b.box("wallLight", [s * 0.88, 0.71, 0], [0.34, 0.03, 2.44]);
+          b.add(extrude([[-0.16, 0], [0.16, 0], [0.14, 2.2], [-0.14, 2.2]], 0.34, 0.03), "wall", { p: [s * 0.88, 0, 1.3] });                // the tower on the far bank
+          b.box("gilt", [s * 0.88, 2.24, 1.3], [0.4, 0.06, 0.4]);
+          b.rod("timberDark", [s * 0.88, 0.2, 1.3], [s * 0.88, 2.1, 1.3], 0.02, 0.02, { seg: 4, k: 0.01 });
+        }
+        b.add(extrude([[-0.85, 0], [0.85, 0], [0.8, 0.45], [-0.8, 0.45]], 0.4, 0.03), "wall", { p: [0, 0, 1.1] });                          // the sill the leaf rests on at the far end
+        b.rod("timber", [-0.88, 0.0, -1.25], [-0.88, 1.2, -1.25], 0.035, 0.035, { seg: 5 });                                              // the board at the near bank
+        b.box("timberDark", [-0.88, 1.35, -1.21], [0.74, 0.74, 0.05]);
+      }));
+      const sign = new Builder(); glyphInto(sign, f, 0.28, 0.06, [-0.88, 1.35, -1.27], false); own(g, sign.build(), vcGlow);
+      T.hinge = new THREE.Group(); T.hinge.position.set(0, 0.3, 1.2); g.add(T.hinge);
+      own(T.hinge, geoOf("bridgeH", b => {
+        b.ao = [-0.1, 0.2, 0.8, 1];
+        for (let i = 0; i < 11; i++) b.add(extrude([[-0.73, -0.1], [0.73, -0.1], [0.73, 0.1], [-0.73, 0.1]], 0.02, 0.004), i & 1 ? "timberLight" : "timber", { r: [PI / 2, 0, 0], p: [0, 0.0, -0.1 - i * 0.21], s: [1, 1, 1] });
+        for (const s of [-1, 1]) b.box("timberDark", [s * 0.5, -0.04, -1.15], [0.1, 0.08, 2.3]);
+        b.box("gilt", [0, 0.07, -0.1], [1.46, 0.05, 0.1]); b.box("gilt", [0, 0.07, -2.2], [1.46, 0.05, 0.1]);
+      }));
+      const hg = new Builder(); hg.ao = null;
+      for (const s of [-1, 1]) { hg.box(BRIDGEC[f], [s * 0.68, 0.07, -1.15], [0.1, 0.16, 2.3]); for (let k = 0; k < 4; k++) hg.cone(BRIDGEC[f], [s * 0.68, 0.1, -0.35 - k * 0.55], [s * 0.68, 0.34, -0.35 - k * 0.55], 0.03, 0.03, { seg: 5 }); }          // coloured rails and posts
+      glyphInto(hg, f, 0.3, 0.03, [0, 0.09, -1.15], true);
+      hg.add(f ? cylG(0.3, 0.3, 0.03, 14) : extrude([[0, 0.345], [0.315, -0.24], [-0.315, -0.24]], 0.03, 0.01), BRIDGEC[f], { p: [0, -0.09, -1.15], r: f ? [0, 0, 0] : [PI / 2, 0, 0] });                       // the same mark under the span
+      own(T.hinge, hg.build(), vcGlow);
+      T.k = 1;
+    } else if (kind === "tide") {
+      // a sluice gate: a grating on a frame that is raised clear over the lane (open: green lamp and a ring) or lowered to the planks (shut:
+      // red lamp and a cross), half way and flashing amber for the last moments before it changes; water runs in the channel when it is open
+      own(g, geoOf("tideS", b => {
+        b.ao = [0, 3.2, 0.78, 1];
+        for (const s of [-1, 1]) {
+          b.add(extrude([[-0.13, 0], [0.13, 0], [0.11, 3.0], [-0.11, 3.0]], 0.34, 0.03), "wall", { p: [s * 0.82, 0, 0] });                    // stone piers
+          b.box("wallLight", [s * 0.82, 3.03, 0], [0.34, 0.07, 0.42]);
+          b.add(lathe(band(0.1, 0.16, 1.2, 1.3), 8, { hard: true }), "steel", { p: [s * 0.82, 0, 0], k: 0.8 });
+        }
+        b.box("timber", [0, 3.0, 0], [1.9, 0.3, 0.3]);                                                                                   // the beam over them, with its winch
+        b.add(cylG(0.2, 0.2, 0.5, 12), "timberDark", { p: [-0.25, 3.28, 0], r: [0, 0, PI / 2] });
+        b.add(lathe(band(0.19, 0.24, -0.04, 0.04), 12, { hard: true }), "gilt", { p: [0.25, 3.28, 0], r: [0, 0, PI / 2] });
+        b.add(lathe(band(0.19, 0.24, -0.04, 0.04), 12, { hard: true }), "gilt", { p: [-0.75, 3.28, 0], r: [0, 0, PI / 2] });
+        b.box(0x1d4a6e, [0, 0.025, 0], [1.62, 0.05, 1.3]);                                                                                // the channel
+        b.add(lathe([[0.17, 3.38], [0.2, 3.3], [0.2, 3.2], [0.14, 3.2], [0.14, 3.38]], 8, { hard: true }), "steel", { k: 0.5, p: [0, 0, 0.0] });          // the lamp's cap and base
+      }));
+      T.water = new THREE.Mesh(unitBox, flat(0x4FA3D8, 0.35)); T.water.scale.set(1.5, 0.04, 1.2); T.water.position.set(0, 0.06, 0); T.water.frustumCulled = false; g.add(T.water);
+      T.leaf = new THREE.Group(); g.add(T.leaf);
+      own(T.leaf, geoOf("tideL", b => {
+        for (let i = -2; i <= 2; i++) { b.rod("steel", [i * 0.3, 0.05, 0], [i * 0.3, 2.45, 0], 0.045, 0.045, { seg: 6 }); b.cone("steel", [i * 0.3, 2.45, 0], [i * 0.3, 2.68, 0], 0.05, 0.004, { seg: 6 }); }
+        b.box("steel", [0, 2.35, 0], [1.56, 0.1, 0.12], { k: 0.9 }); b.box("steel", [0, 1.2, 0], [1.56, 0.1, 0.12], { k: 0.9 });
+        for (let i = 0; i < 6; i++) b.box(i & 1 ? 0xF2F2EC : 0xC8402F, [(i - 2.5) * 0.25, 0.14, 0], [0.25, 0.16, 0.15]);                    // a hazard stripe on its lower rail
+        for (const s of [-1, 1]) b.box("steel", [s * 0.76, 1.3, 0], [0.08, 2.6, 0.14], { k: 0.8 });
+      }));
+      T.lamp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), BASIC.green); T.lamp.position.set(0, 3.29, 0); T.lamp.frustumCulled = false; g.add(T.lamp);
+      T.ring = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.31, 20), BASIC.green); T.ring.position.set(0, 3.85, 0); T.ring.frustumCulled = false; g.add(T.ring);
+      T.cross = new THREE.Group(); T.cross.position.set(0, 3.85, 0); g.add(T.cross);
+      {
+        const x = new Builder(); x.box(0xffffff, [0, 0, 0], [0.1, 0.62, 0.05], { r: [0, 0, PI / 4] }); x.box(0xffffff, [0, 0, 0], [0.1, 0.62, 0.05], { r: [0, 0, -PI / 4] });
+        own(T.cross, x.build(), BASIC.red);
+      }
+      T.k = 1;
+    } else if (kind === "token") {
+      T.spin = new THREE.Group(); g.add(T.spin);
+      const face = own(T.spin, geoOf(`token${mk}`, b => {
+        b.add(lathe([[0, 0], [0.35, 0], [0.35, 0.07], [0.3, 0.085], [0, 0.085]], 18), MARKC[mk]);
+        b.add(lathe(band(0.29, 0.36, 0.0, 0.11), 18, { hard: true }), "gilt");                                                          // the rim
+        for (let i = 0; i < mk; i++) b.ell("shirt", [(i - (mk - 1) / 2) * 0.2, 0.09, 0], [0.06, 0.04, 0.06], { seg: 8, rows: 4 });         // the number, raised
+        if (!mk) b.add(cylG(0.08, 0.08, 0.04, 8), "shirt", { p: [0, 0.085, 0] });
+      }), vcGlow);
+      face.rotation.x = -PI / 2;                                                                                                       // its face (+y) towards the camera (-z)
+    } else if (kind === "lever") {
+      // a lever on a plate with a red pad (triangle) and a blue pad (disc): the handle leans to the colour whose bridges are down now,
+      // the pad of the colour the next step will lower pulses, and a dashed line of that colour runs down the quay to the bridges
+      own(g, geoOf("leverS", b => {
+        b.add(extrude([[-0.5, -0.07], [0.5, -0.07], [0.5, 0.07], [-0.5, 0.07]], 0.7, 0.03), "timber", { p: [0, -0.36, 0], r: [PI / 2, 0, 0] });
+        b.box("gilt", [0, -0.28, 0], [1.02, 0.02, 0.72], { k: 0.9 });
+        b.cone("steel", [0, -0.28, 0], [0, -0.2, 0], 0.16, 0.12, { seg: 10 });
+      }));
+      T.pads = [0, 1].map(i => {
+        const pb = geoOf(`pad${i}`, b => { b.add(extrude([[-0.17, -0.17], [0.17, -0.17], [0.17, 0.17], [-0.17, 0.17]], 0.06, 0.02), BRIDGEC[i], { r: [PI / 2, 0, 0], k: 0.9 }); glyphInto(b, i, 0.13, 0.04, [0, 0.045, 0], true); });
+        const m = own(g, pb, vcGlow); m.position.set((i ? 1 : -1) * 0.3, -0.25, 0); return m;
+      });
+      T.spin = new THREE.Group(); T.spin.position.set(0, -0.26, 0); g.add(T.spin);
+      own(T.spin, geoOf("leverH", b => { b.rod("steel", [0, 0, 0], [0, 0.78, 0], 0.05, 0.035, { seg: 6 }); b.ell("gilt", [0, 0.02, 0], [0.09, 0.09, 0.09], { seg: 8, rows: 5 }); }));
+      T.knobs = [0, 1].map(i => { const kn = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), flat(BRIDGEC[i], 0.3)); kn.position.set(0, 0.85, 0); kn.visible = false; kn.frustumCulled = false; T.spin.add(kn); return kn; });
+      T.wire = Array.from({ length: 14 }, () => { const w = new THREE.Mesh(unitBox, flat(BRIDGEC[0], 0.4)); w.scale.set(0.22, 0.03, 0.55); w.position.set(0, -0.43, 1); w.visible = false; w.frustumCulled = false; g.add(w); return w; });
+    } else if (kind === "coin") {
+      T.spin = new THREE.Group(); g.add(T.spin);
+      own(T.spin, coinGeo(), vcGlow);
+    } else if (kind === "gem" || kind === "amber") {
+      // amber: a faceted drop (or a rough nugget) of translucent resin with a glowing heart, and a ring round it when it is big, so it is seen from far off
+      T.spin = new THREE.Group(); g.add(T.spin);
+      const big = kind === "gem";
+      own(T.spin, geoOf(`amber${kind}`, b => { b.add(lathe(big ? [[0, -0.4], [0.17, -0.16], [0.26, 0.06], [0.2, 0.27], [0, 0.4]] : [[0, -0.3], [0.17, -0.2], [0.24, 0.0], [0.2, 0.22], [0.08, 0.32], [0, 0.31]], big ? 6 : 7, { facet: true }), "#F0A12B"); }), amberMat);
+      own(T.spin, geoOf(`heart${kind}`, b => {
+        b.add(lathe(big ? [[0, -0.22], [0.09, -0.08], [0.13, 0.04], [0.09, 0.15], [0, 0.22]] : [[0, -0.17], [0.09, -0.1], [0.12, 0.0], [0.08, 0.13], [0, 0.17]], 6, { facet: true }), "#FFD27A");
+        if (!big) { b.ell("#5a3a12", [0.05, 0.02, 0.06], [0.03, 0.014, 0.012], { seg: 6, rows: 4 }); b.rod("#5a3a12", [0.03, 0.02, 0.06], [0.08, 0.04, 0.07], 0.004, 0.004, { seg: 3 }); }                  // a small insect caught in it
+      }), vcGlow);
+      if (big) { T.halo = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.58, 24), BASIC.gold); T.halo.frustumCulled = false; g.add(T.halo); }
+    } else if (kind === "herring") {
+      T.spin = new THREE.Group(); g.add(T.spin);
+      own(T.spin, geoOf("herring", b => { b.ao = [-0.3, 0.3, 0.75, 1]; barrelInto(b, { s: 0.62, p: [0, -0.27, 0], staves: [GOODC.herring, 0x6A869E], hoop: "gilt", lid: 0xA9BFD0, hoops: [0.14, 0.7] }); }));
+    } else if (kind === "timber") {
+      // a stack of three pine logs, laid side by side with a fourth across the top, each end a paler ring
+      T.spin = new THREE.Group(); g.add(T.spin);
+      own(T.spin, geoOf("timberP", b => {
+        for (const [x, y] of [[-0.27, -0.14], [0.27, -0.14], [0, 0.22]]) logInto(b, [x, y, 0], 0.25, 0.95, GOODC.timber, 0xE8CC94);
+        b.rod("timberLight", [-0.5, -0.05, -0.2], [0.5, -0.05, -0.2], 0.018, 0.018, { seg: 4 }); b.rod("timberLight", [-0.5, -0.05, 0.2], [0.5, -0.05, 0.2], 0.018, 0.018, { seg: 4 });
+      }));
+    } else if (kind === "meal") {
+      // a heart-shaped pie on a plate: a heart back
+      T.spin = new THREE.Group(); g.add(T.spin);
+      own(T.spin, geoOf("meal", b => {
+        b.add(extrude(heartPoly(), 0.2, 0.06), GOODC.meal, { p: [0, 0.0, 0], r: [0, 0, 0] });
+        b.add(extrude(heartPoly().map(([x, y]) => [x * 0.62, y * 0.62 + 0.02]), 0.04, 0.012), 0xE0A06A, { p: [0, 0.0, -0.1] });                      // a pale pastry lattice on the face
+        for (const [x, y] of [[-0.17, 0.18], [0.17, 0.18], [0, 0.0]]) b.ell(0x9C3A22, [x, y, -0.13], [0.05, 0.05, 0.03], { seg: 6, rows: 4 });
+        b.add(lathe([[0, -0.3], [0.34, -0.3], [0.4, -0.27], [0.4, -0.25], [0, -0.25]], 14), "shirt", { p: [0, 0, 0], r: [0, 0, 0] });                    // the plate
+      }));
+    } else {                                                                              // a sack: salt, furs, wax
+      T.spin = new THREE.Group(); g.add(T.spin);
+      own(T.spin, geoOf(`sack${kind}`, b => {
+        b.ao = [-0.3, 0.35, 0.75, 1];
+        if (kind === "furs") {                                                              // a bale of pelts: a roll, roped, with fur showing at its ends
+          b.add(cylG(0.23, 0.23, 0.6, 10, false), 0x7A5230, { p: [-0.3, 0, 0], r: [0, 0, -PI / 2] });
+          for (const e of [-1, 1]) { b.ell(0xA77C52, [e * 0.3, 0, 0], [0.1, 0.22, 0.22], { seg: 8, rows: 5 }); b.ell(0xC9A375, [e * 0.32, 0.05, 0.0], [0.06, 0.12, 0.14], { seg: 6, rows: 4 }); }
+          for (const x of [-0.14, 0.14]) b.add(lathe(band(0.22, 0.245, -0.025, 0.025), 10, { hard: true }), "timberLight", { p: [x, 0, 0], r: [0, 0, -PI / 2] });
+        } else if (kind === "wax") {                                                       // two round cakes of wax, stamped, tied with cord
+          for (const [y, r] of [[-0.17, 0.3], [0.04, 0.27]]) { b.add(lathe([[0, 0], [r, 0], [r + 0.015, 0.03], [r + 0.015, 0.16], [r - 0.02, 0.19], [0, 0.19]], 14), GOODC.wax, { p: [0, y, 0] }); }
+          b.add(lathe(band(0.08, 0.12, 0.23, 0.25), 10, { hard: true }), 0xB8962E, { p: [0, 0.0, 0] }); b.add(cylG(0.05, 0.05, 0.03, 8), 0xB8962E, { p: [0, 0.23, 0] });
+        } else {
+          b.add(sackG(), GOODC[kind] || 0xCCCCCC, { p: [0, -0.28, 0], s: [0.9, 0.9, 0.85] });
+          b.add(lathe(band(0.09, 0.125, 0.0, 0.05), 8, { hard: true }), "timber", { p: [0, 0.22, 0] });
+          for (const s of [-1, 1]) b.cone(GOODC[kind] || 0xCCCCCC, [s * 0.03, 0.27, 0], [s * 0.1, 0.4, 0.02], 0.045, 0.008, { seg: 5 });
+        }
+      }));
+    }
+    g.traverse(x => { x.frustumCulled = false; });
+    return T;
+  }
+  /** The coin: a rim, a field sunk below it and a raised centre, on both faces; its face is towards the camera (-z) and it spins about y. */
+  function coinGeo() {
+    return geoOf("coin", b => {
+      for (const s of [-1, 1]) {
+        b.add(lathe([[0.17, 0.0], [0.17, 0.03], [0.065, 0.03], [0.07, 0.052], [0, 0.058]], 8), 0xD9A21B, { r: [s * PI / 2, 0, 0] });
+        b.add(lathe([[0.232, 0.0], [0.23, 0.042], [0.2, 0.054], [0.165, 0.03]], 8), 0xFFD84A, { r: [s * PI / 2, 0, 0] });
+      }
+    });
+  }
+
+  // ---------- scenery: Hanseatic gabled warehouses, bollards, lamp posts ----------
+  /** A merchant's house: a brick body under a ridge roof, its end to the quay as a stepped gable with a hoist at the top, windows by floor,
+   *  a door, string courses. Built facing +z; the wall is white and the instance's colour (the biome's tone) tints it. */
+  function houseInto(b, F, H, D, steps) {
+    const hw = F / 2, sh = 0.58, sw = Math.min(0.62, (hw - 0.55) / steps), top = H + steps * sh;
+    b.ao = [0, top, 0.7, 1];
+    b.add(extrude([[-hw, 0], [hw, 0], [hw, H], [-hw, H]], D, 0.04), 0xffffff, { p: [0, 0, 0] });                                      // the body
+    const R = [], L = [];
+    for (let i = 0; i < steps; i++) { const x = hw - i * sw, y = H + i * sh; R.push([x, y + sh], [x - sw, y + sh]); L.unshift([-(x - sw), y + sh], [-x, y + sh]); }
+    const gable = [[-hw, H - 0.2], [hw, H - 0.2], [hw, H], ...R, [0, top + 0.5], ...L, [-hw, H]];
+    b.add(extrude(gable.filter((p, i, a) => i === 0 || Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) > 1e-4), 0.5, 0.04), 0xf2ead8, { p: [0, 0, D / 2 - 0.25] });          // the stepped gable, in a paler stone
+    b.add(extrude([[-hw - 0.15, H - 0.02], [hw + 0.15, H - 0.02], [0, H + hw * 0.62]], D - 0.4, 0.03), "roof", { p: [0, 0, -0.2] });                       // the roof behind it
+    const win = (x, y, z, w, h, side) => {                                                                                              // a window: a pale frame and a dark pane, two flat quads
+      const r = side ? [0, Math.sign(x) * PI / 2, 0] : [0, 0, 0], d = side ? [Math.sign(x) * 0.012, 0, 0] : [0, 0, 0.012], at = (k) => side ? [x + d[0] * k, y, z] : [x, y, z + d[2] * k];
+      b.add(quadG(), 0xe9e0c8, { p: at(1), s: [w + 0.16, h + 0.16, 1], r });
+      b.add(quadG(), 0x27303d, { p: at(2), s: [w, h, 1], r });
+    };
+    const floors = Math.max(1, Math.floor((H - 0.4) / 1.7)), cols = F > 5.5 ? 3 : 2, zf = D / 2 + 0.01;
+    for (let r = 0; r < floors; r++) {
+      const y = 1.5 + r * 1.7;
+      if (r) b.box(0xe9e0c8, [0, y - 0.95, zf + 0.02], [F + 0.12, 0.1, 0.1]);                                                          // string course
+      for (let c = 0; c < cols; c++) { const x = (c - (cols - 1) / 2) * (F / (cols + 0.2)); if (!r && cols % 2 && c === (cols - 1) / 2) continue; win(x, y, zf, 0.62, 0.95, false); }
+      for (const s of [-1, 1]) win(s * (hw + 0.01), y, 0, 0.7, 0.95, true);
+    }
+    if (cols % 2) {                                                                                                                      // the door
+      b.add(extrude([[-0.5, 0], [0.5, 0], [0.5, 1.7], [0.0, 2.2], [-0.5, 1.7]], 0.12, 0.03), 0x4a3524, { p: [0, 0, zf] });
+      b.box(0xe9e0c8, [0, 0.07, zf + 0.1], [1.4, 0.14, 0.3]);
+    }
+    for (let i = 0; i < Math.min(steps - 1, 2); i++) win(0, H + 0.35 + i * 1.1, D / 2 + 0.26, 0.42, 0.62, false);                         // windows in the gable
+    b.add(extrude([[-0.28, 0], [0.28, 0], [0.28, 0.8], [-0.28, 0.8]], 0.1, 0.02), 0x4a3524, { p: [0, H + 0.1, D / 2 + 0.28] });          // the loading hatch under the hoist
+    b.rod(0x3a2a1c, [0, top - 0.1, D / 2 + 0.1], [0, top + 0.1, D / 2 + 1.0], 0.07, 0.05, { seg: 5 });                                   // the hoist beam
+    b.rod(0x3a2a1c, [0, top + 0.1, D / 2 + 1.0], [0, top - 0.9, D / 2 + 0.95], 0.015, 0.015, { seg: 3 });
+  }
+  const HOUSE_KINDS = [{ F: 6.6, H: 4.4, D: 6.6, steps: 3 }, { F: 5.8, H: 5.9, D: 6.6, steps: 4 }, { F: 5.0, H: 7.4, D: 6.6, steps: 5 }];
+  const houseGeos = HOUSE_KINDS.map((k, i) => geoOf(`house${i}`, b => houseInto(b, k.F, k.H, k.D, k.steps)));
+
+  /** A mooring bollard, 0.6 m, standing on y = 0. */
+  const bollardGeo = () => geoOf("bollard", b => {
+    b.add(lathe([[0, 0], [0.17, 0], [0.12, 0.12], [0.12, 0.44], [0.19, 0.55], [0.12, 0.62], [0, 0.62]], 7), "timber");
+    b.add(lathe([[0.125, 0.2], [0.15, 0.2], [0.15, 0.34], [0.125, 0.34]], 7, { hard: true }), "timberLight");                                // a turn of rope
+  });
+  /** A lamp post from the water (y -0.8) to 3.4, with a foot ring and a bracket; its lantern is its own geometry. */
+  const poleGeo = () => geoOf("pole", b => {
+    b.add(lathe([[0, -0.8], [0.14, -0.8], [0.12, 0.3], [0.1, 3.3], [0.15, 3.4], [0, 3.4]], 6), "timber");
+    b.add(lathe(band(0.09, 0.15, 0.3, 0.42), 6, { hard: true }), "gilt", { k: 0.9 });
+  });
+  const lanternGeo = () => geoOf("lantern", b => {
+    b.add(cylG(0.24, 0.24, 0.06, 6), "gilt", { p: [0, -0.25, 0] });
+    b.add(cylG(0.2, 0.2, 0.42, 6), 0xFFE2A0, { p: [0, -0.2, 0], k: 1 });                                                               // the lit glass
+    b.add(cylG(0.3, 0.02, 0.22, 6), "gilt", { p: [0, 0.22, 0] });
+  });
+
+  return { retheme, buildHero, makeFoe, makeThing, coinGeo, houseGeos, HOUSE_KINDS, bollardGeo, poleGeo, lanternGeo, balloonMat, BALLOONC, flat, BASIC, BRIDGEC, vc, vcGlow, unitBox, kit: { Builder, lathe, extrude, extrudeSide, warp, sphereG, cylG, capsuleG, boxG, arc, mesh, joint } };
 }
