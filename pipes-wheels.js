@@ -48,7 +48,7 @@ export function wheel(g, { x, y, n, dir = null, phase = 0, skin = "", jam = fals
   const hub = n > 8 ? 6 : n > 5 ? 4 : 3;
   el("circle", { r: hub, class: "g-hub" }, body);
   if (dir === null || skin === "barrel") el("circle", { r: hub * 0.42, class: "g-jewel" }, body);
-  if (dir !== null && skin !== "barrel") turnArrow(out, 0, 0, dir, n > 8 ? 9 : n > 5 ? 6.2 : 5, "g-turn on");
+  if (dir !== null && skin !== "barrel") turnArrow(out, 0, 0, dir, n > 8 ? 10 : n > 5 ? 6.6 : 5, "g-turn on");
   return out;
 }
 

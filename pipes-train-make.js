@@ -47,6 +47,8 @@ export function makeLevel(seed, o) {
   const r = rng(mix(seed, 91));
   const R = randomRoute(o.cols, o.rows, o.pieces, r, o.turns || 0);
   if (!R) return null;
+  // the mainspring and the load side by side would look meshed when they are not
+  if (Math.abs(R.source.c % o.cols - R.terminal.c % o.cols) + Math.abs(Math.floor(R.source.c / o.cols) - Math.floor(R.terminal.c / o.cols)) < 2) return null;
   const n = R.passes.length, cls = Array(n).fill(1);
   const idx = shuffled([...Array(n).keys()], r), duos = o.duos || 0, trios = o.trios || 0;
   idx.slice(0, duos).forEach(i => { cls[i] = 2; });

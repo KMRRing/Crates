@@ -190,7 +190,7 @@ html[data-mode="night"] { --gr-steel: #B4BEC6; --gr-ruby: #E0506A; --gr-dial: #E
 :is(.pi-board, .pi-queue) .gear.barrel .g-body { fill: color-mix(in srgb, var(--gr-steel) 72%, var(--pi-ground)); stroke: var(--gr-steel-dark); }
 :is(.pi-board, .pi-queue) .gear.steel .g-body { fill: var(--gr-steel); stroke: var(--gr-steel-dark); }
 /* a jam: the gears stop and flash oxblood */
-.pi-board .gear.jam .g-body { fill: var(--pi-bad); stroke: var(--gr-ink); animation: pi-jam .7s ease-in-out infinite alternate; }
+.pi-board .gear.jam .g-body { fill: color-mix(in srgb, var(--pi-bad) 78%, #fff); stroke: var(--gr-ink); animation: pi-jam .7s ease-in-out infinite alternate; }
 .pi-board .gear.jam :is(.g-rim, .g-hole, .g-hub) { opacity: .55; }
 @keyframes pi-jam { from { opacity: 1; } to { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .pi-board .gear.jam .g-body { animation: none; } }

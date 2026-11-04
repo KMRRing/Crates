@@ -9,13 +9,13 @@
 // identity (stars are kept by it): new levels go at the end of a chapter.
 
 export const CHAPTERS = [
-  { key: "a", name: "Meshing", rule: "Mesh the gears from the mainspring to the dial and lay every one: meshed gears turn opposite ways, and the arrows say which." },
-  { key: "b", name: "Duos", rule: "A duo is two small gears meshed in one square: the turn leaves it flipped, and it meshes only on its two ports." },
-  { key: "c", name: "Trios", rule: "A trio is three small gears: it passes the turn on as a single does, but meshes only on its two ports." },
-  { key: "d", name: "Loads", rule: "A load takes a single gear that must turn the way shown: count the gears before it, and which squares flip the turn." },
-  { key: "e", name: "Jams", rule: "Gears side by side must turn opposite ways, or they jam. A duo flips the turn, so beside one the train may not touch itself." },
-  { key: "f", name: "Fixed gears", rule: "A dark pinned gear is part of the train: run through it." },
-  { key: "g", name: "The movement", rule: "Everything at once: duos, trios, fixed gears, loads and jams on one plate." },
+  { key: "a", name: "Meshing", rule: "Mesh gears from the mainspring to the dial: each arrow shows its turn." },
+  { key: "b", name: "Duos", rule: "A duo is two small gears in one square: it flips the turn." },
+  { key: "c", name: "Trios", rule: "A trio is three small gears: it keeps the turn, and meshes on two sides." },
+  { key: "d", name: "Loads", rule: "A load takes a single gear that must turn the way shown." },
+  { key: "e", name: "Jams", rule: "Gears side by side must turn opposite ways, or they jam." },
+  { key: "f", name: "Fixed gears", rule: "A dark pinned gear is part of the train." },
+  { key: "g", name: "The movement", rule: "Everything at once: duos, trios, fixed gears, loads, jams." },
   { key: "h", name: "Complications", rule: "A bigger plate, and every piece in play." },
 ];
 
@@ -43,8 +43,8 @@ export const LEVELS = [
   { id: "wb5", name: "Reverser", chapter: "b", out: "S", inlet: "S", spin: "ccw", hand: "g6 dne1 dnw2", sols: ["wNWWWSSen","wWNWWSSen","wWnWWSSEn","wnWWWSSEn"],
     map: ["....S", ".T...", "...#.", "..#..", "..#.."] },
   // Trios
-  { id: "wc1", name: "Train", chapter: "c", out: "W", inlet: "W", spin: "ccw", hand: "g3 tse1", sols: ["WvEE"],
-    map: ["..S..", "..T..", ".....", "....."] },
+  { id: "wc1", name: "Train", chapter: "c", out: "E", inlet: "W", spin: "ccw", hand: "g3 tne1", sols: ["NES>","S>NE"],
+    map: [".....", ".....", ".S..T", "....."] },
   { id: "wc2", name: "Chain", chapter: "c", out: "E", inlet: "E", spin: "cw", hand: "g4 tnw1", sols: ["NE^WW","E^NWW","E^WNW","^ENWW"],
     map: [".T...", ".....", ".S...", "....."] },
   { id: "wc3", name: "Compound", chapter: "c", out: "W", inlet: "S", spin: "ccw", hand: "g4 th1 tse1", sols: ["<NNN>N","<NN>NN","<N>NNN"],
