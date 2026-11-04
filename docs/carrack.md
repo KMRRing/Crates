@@ -11,6 +11,8 @@ A contest for trade from the Baltic to China, c. 1480 to 1650, for two to six of
 - Each power has a start silver and a `base` revenue (a named line in its income: league dues, the Estado's upkeep…) that exist to even the nine out; they were tuned against 1000-game runs of Medium players. Change a power's special rule, silver or base and re-run `tests/carrack-balance.mjs` with `GAMES=1000`; the win rate is steep in Portugal's and Hanse's start silver.
 - Cut from the design: "demand terms" after a battle, the Swahili yearly change of alliance, the pirate die in combat, the -1 against the monsoon (a monsoon lane is simply sailed one way a round), a `sell` order, Kongo and Kilwa refusing a contract (there is no contract to refuse).
 
+- 4 November 2026, Korbi: "carrack should have a nice scrollable globe map. I currently can only see the routes, not even land/water behind it." The globe (`carrack-globe.js`, `carrack-board.js`; Chart's camera and Natural Earth land, copied, no modern borders) is the default; the flat schematic stays as Menu, Map, Flat.
+
 ## History: corrections to the design, and what is not checked
 
 Checked against sources (4 November 2026): the Hanse Peterhof at Novgorod was closed by Ivan III in 1494 and reopened in 1514; the Steelyard in London was closed by Elizabeth I in 1598; the Ming relaxed the sea ban in January 1567 at Yuegang only, for Chinese merchants (so Ningbo stays closed to foreigners all game); Iwami silver began in 1526 (Kamiya Jutei); Banda before 1621 about 15,000 people, after it about 1,000 remained (Loth and Corn) or 90 percent killed, enslaved or deported (Lape), Coen's attack on Lontor began 11 March 1621.
@@ -26,4 +28,5 @@ Recalled, not opened (a reviewer must check): Elmina fort 1482; Almeida at Kilwa
 - The state keeps `pend[seat]` as 0 or a never-empty list (`[{ t: "pass" }]` for nothing); `restore` rebuilds everything the database drops.
 - Schematic map: x/y keep compass order only (the test checks it); do not "correct" a coordinate toward true scale, the names no longer fit. Labels are placed by `lab`; a new port needs the overlap test re-run.
 - A fleet is also the escort of a caravan: lanes marked `c` carry fleets too.
+- Globe lanes are great circles through `GVIA` (carrack-map.js), the turns that keep a sea lane off land: found by a path search over the 110 m coast, then thinned by hand. A new lane or port needs `tests/carrack-globe.mjs` to pass, which fails for a sea lane across land. The land is coarse (a port may sit a degree from its coast on it); lon/lat are the real places and the engine never reads them.
 - `tests/carrack.mjs` holds a second rulebook written from this page; if a rule changes, change both.

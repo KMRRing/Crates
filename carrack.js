@@ -7,6 +7,7 @@ import {
   hasFactor, sourcesOf, portValue, closedTo, active, fleetsAt,
 } from "./carrack-rules.js";
 import { PORTS, LANES, GOODS, REGIONS, BY_REGION, W, H, labelBox } from "./carrack-map.js";
+import { createGlobe } from "./carrack-board.js";
 import { seatPage } from "./seats-ui.js";
 import { shuffle } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -32,6 +33,10 @@ const REGION_NAMES = ["BALTIC", "ATLANTIC", "MEDITERRANEAN", "WEST AFRICA", "SWA
 
 let opts = { level: "medium", n: 4, mine: "random", ...read(OPTS, {}) };
 const saveOpts = () => write(OPTS, opts);
+// how the map is looked at: the globe or the flat schematic, and whether the panel below it is folded away
+const VIEW = "carrack:view";
+const look = { map: "globe", min: false, ...read(VIEW, {}) };
+const saveLook = () => write(VIEW, look);
 
 let toastTimer = 0;
 function toast(msg, ms = 2600) {
@@ -64,7 +69,7 @@ const nameOf = seat => (seat === -2 ? "the people of the port" : powerName(seat)
 function draw() {
   if (!page) return;
   const v = V;
-  if (!v?.G) { $("board").innerHTML = ""; $("panel").innerHTML = ""; $("tabs").innerHTML = ""; $("strip").textContent = ""; drawBar(); return; }
+  if (!v?.G) { $("flat").innerHTML = ""; $("panel").innerHTML = ""; $("tabs").innerHTML = ""; $("strip").textContent = ""; drawBar(); return; }
   const s = v.state, seat = v.seat;
   // a new year (or game): the draft is read back for this year or started again, the year's tab shows what happened
   const roundKey = `${v.G.seq}:${s.round}:${s.step}`;
@@ -72,6 +77,7 @@ function draw() {
     const first = ui.roundKey === "";
     ui.roundKey = roundKey;
     ui.sel = null; ui.sail = null; ui.to = null; ui.n = 1;
+    ui.turned = !first;                       // the globe turns to last year's ports, once it is drawn
     if (!first && s.hist.length && seat != null) ui.tab = "year";
   }
   const dKey = `${v.G.seq}:${s.round}:${seat}`;
@@ -111,8 +117,59 @@ const centroids = BY_REGION.map(list => [list.reduce((t, i) => t + PORTS[i].x, 0
 const fleetsHere = (s, p) => Array.from({ length: s.n }, (_, k) => ({ seat: k, n: s.fl[k][p] })).filter(f => f.n > 0);
 const factorsHere = (s, p) => Array.from({ length: s.n }, (_, k) => k).filter(k => s.own[p] !== k && hasFactor(s, p, k));
 
+let globe = null;
 function drawBoard(s, seat) {
   const reachSet = ui.sail != null && seat != null ? reach(s, seat, ui.sail) : null;
+  const onGlobe = look.map === "globe";
+  $("board").classList.toggle("globe", onGlobe);
+  $("flat").hidden = onGlobe;
+  $("globe").hidden = !onGlobe;
+  $("mapReset").hidden = !onGlobe;
+  $("app").classList.toggle("cr-min", look.min);
+  $("panelBtn").setAttribute("aria-expanded", String(!look.min));
+  $("panelBtn").classList.toggle("on", look.min);
+  $("panelBtn").textContent = look.min ? "Panel" : "Full map";
+  if (!onGlobe) { drawFlat(s, seat, reachSet); return; }
+  globe ??= createGlobe($("globe"), { onTap: p => { if (V?.G) tapPort(p); } });
+  globe.render({ lanes: LANES.filter(l => active(s, l.a) && active(s, l.b)), ports: PORTS.filter(p => active(s, p.i)).map(p => portModel(s, p, reachSet)) });
+  // the globe follows the play: to the ports of a sail being planned, and (once) to the ports of last year
+  const key = `${ui.sail}:${ui.to}`;
+  if (key !== ui.lookKey) { ui.lookKey = key; if (ui.sail != null) globe.focus(ui.to != null ? [ll(ui.sail), ll(ui.to)] : [ll(ui.sail), ...[...reachSet.keys()].map(ll)]); }
+  if (ui.turned) { ui.turned = false; globe.focus(yearPorts(s).map(ll)); }
+}
+const ll = i => [PORTS[i].lon, PORTS[i].lat];
+/** The ports last year's deeds name, for the globe to turn to. */
+function yearPorts(s) {
+  const text = s.log.filter(l => !isEventLine(l) && !l.startsWith("Income:")).join("\n");
+  return PORTS.filter(p => text.includes(p.name)).map(p => p.i);
+}
+/** The ports an order is about. */
+const orderPorts = o => (o.t === "move" ? [o.from, o.to] : o.port != null ? [o.port] : []);
+function portModel(s, p, reachSet) {
+  const own = s.own[p.i];
+  const cls = [ui.sel === p.i && "sel", reachSet?.has(p.i) && "reach", ui.sail === p.i && "from", reachSet && !reachSet.has(p.i) && ui.sail !== p.i && "dim"].filter(Boolean).join(" ");
+  return {
+    i: p.i, name: p.name, lon: p.lon, lat: p.lat, lab: p.lab, value: p.value, cls, free: own < 0, fill: own >= 0 ? seatColour(own) : "", fort: !!s.fort[p.i],
+    ring: ui.sel === p.i || ui.sail === p.i ? "on" : reachSet?.has(p.i) ? "reach" : null,
+    items: [...fleetsHere(s, p.i).map(f => ({ kind: "fleet", n: f.n, fill: seatColour(f.seat) })), ...factorsHere(s, p.i).map(k => ({ kind: "fac", fill: seatColour(k) }))],
+  };
+}
+/** Where each port's fleets and factors sit on the flat map: the first place round the dot that no name, dot or other chips
+ *  are on (below it, above, beside, then further out), so a crowded coast (Guangzhou, Yuegang, Ningbo) stays readable. */
+function chipSpots(s) {
+  const here = PORTS.filter(p => active(s, p.i)), hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const taken = [...here.map(labelBox), ...here.map(p => ({ x: p.x - 4.5, y: p.y - 4.5, w: 9, h: 9 }))], spots = new Map();
+  for (const p of here) {
+    const n = fleetsHere(s, p.i).length + factorsHere(s, p.i).length;
+    if (!n) continue;
+    const w = n * 8.5 - 1.5, h = 7;
+    const boxes = [[-w / 2, 6], [-w / 2, -13], [6, -3.5], [-6 - w, -3.5], [-w / 2, 14], [-w / 2, -21], [8, 4], [-8 - w, 4]].map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy, w, h }));
+    const pick = boxes.find(b => b.x >= 0 && b.x + w <= W && b.y >= 0 && b.y + h <= H && !taken.some(o => hit(o, b))) || boxes[0];
+    taken.push(pick); spots.set(p.i, pick);
+  }
+  return spots;
+}
+function drawFlat(s, seat, reachSet) {
   let svg = `<svg class="cr-map" viewBox="0 0 ${W} ${H}" role="img" aria-label="The map: 36 ports from the Baltic to Japan">`;
   svg += `<rect class="cr-sea" x="0" y="0" width="${W}" height="${H}" rx="4"/>`;
   REGION_NAMES.forEach((r, i) => {
@@ -125,6 +182,7 @@ function drawBoard(s, seat) {
     svg += `<path class="cr-lane${[...l.f].map(c => " f" + c).join("")}" d="${lanePath(l)}"/>`;
     if (l.f.includes("p")) svg += `<text class="cr-pir" x="${(a.x + b.x) / 2}" y="${(a.y + b.y) / 2 + 2.4}" text-anchor="middle">×</text>`;
   }
+  const spots = chipSpots(s);
   for (const p of PORTS) {
     if (!active(s, p.i)) continue;
     const own = s.own[p.i], box = labelBox(p);
@@ -137,9 +195,9 @@ function drawBoard(s, seat) {
     svg += `<text class="cr-name" x="${box.x.toFixed(1)}" y="${(box.y + 6.3).toFixed(1)}">${esc(p.name)}</text>`;
     const items = [...fleetsHere(s, p.i).map(f => ({ ...f, kind: "fleet" })), ...factorsHere(s, p.i).map(k => ({ seat: k, kind: "fac" }))];
     if (items.length) {
-      const wTot = items.length * 8.5 - 1.5, y0 = p.lab.includes("s") ? p.y - 13 : p.y + 6;
+      const spot = spots.get(p.i), y0 = +spot.y.toFixed(1);
       items.forEach((it, i) => {
-        const x0 = p.x - wTot / 2 + i * 8.5;
+        const x0 = spot.x + i * 8.5;
         if (it.kind === "fleet") svg += `<rect class="cr-chip" x="${x0.toFixed(1)}" y="${y0}" width="7" height="7" style="fill:${seatColour(it.seat)}"/><text class="cr-n" x="${(x0 + 3.5).toFixed(1)}" y="${y0 + 5.7}" text-anchor="middle">${it.n}</text>`;
         else svg += `<path class="cr-fac" d="M${(x0 + 3.5).toFixed(1)} ${y0 - .2}l3.7 3.7l-3.7 3.7l-3.7 -3.7z" style="fill:${seatColour(it.seat)}"/>`;
       });
@@ -154,9 +212,9 @@ function drawBoard(s, seat) {
   });
   svg += `<text class="cr-key cap" x="238" y="${12 + s.n * 11 + 3}">STANDING NOW</text>`;
   svg += `</svg>`;
-  $("board").innerHTML = svg;
+  $("flat").innerHTML = svg;
 }
-$("board").addEventListener("click", e => {
+$("flat").addEventListener("click", e => {
   const svg = e.target.closest("svg");
   if (!svg || !V?.G) return;
   const r = svg.getBoundingClientRect();
@@ -232,7 +290,7 @@ function draftHtml(s, seat, list, sent) {
     h += `<ol class="cr-draft${sent ? " sent" : ""}">`;
     list.forEach((o, i) => {
       if (o.t === "pass") h += `<li><span>No orders: the year passes</span></li>`;
-      else h += `<li><span>${esc(orderText(s, o))}${costTag(s, seat, o)}</span>${sent ? "" : `<button type="button" class="cr-x" data-act="drop" data-i="${i}" aria-label="Remove this order">×</button>`}</li>`;
+      else h += `<li><span data-act="look" data-i="${i}">${esc(orderText(s, o))}${costTag(s, seat, o)}</span>${sent ? "" : `<button type="button" class="cr-x" data-act="drop" data-i="${i}" aria-label="Remove this order">×</button>`}</li>`;
     });
     h += `</ol>`;
   }
@@ -345,10 +403,13 @@ $("panel").addEventListener("click", async e => {
   const act = b.dataset.act;
   if (act === "add") {
     if (ui.draft.length >= MAX_ORDERS) return;
-    ui.draft.push(JSON.parse(b.dataset.o));
+    const o = JSON.parse(b.dataset.o);
+    ui.draft.push(o);
     ui.sail = null; ui.to = null; ui.sel = null;
     saveDraft();
+    globe?.focus(orderPorts(o).map(ll));
   } else if (act === "drop") { ui.draft.splice(Number(b.dataset.i), 1); saveDraft(); }
+  else if (act === "look") { const o = (V.state.pend[V.seat] || ui.draft)[Number(b.dataset.i)]; if (o && look.map === "globe") globe?.focus(orderPorts(o).map(ll), true); return; }
   else if (act === "sail") { ui.sail = Number(b.dataset.p); ui.to = null; ui.n = 1; }
   else if (act === "cancel") { ui.sail = null; ui.to = null; }
   else if (act === "to") { ui.to = Number(b.dataset.p); ui.n = 1; }
@@ -564,6 +625,7 @@ function openMenu() {
   content.append(choice("Your power", [["random", "Random"], ...POWERS.map(p => [p.id, p.name])], opts.mine, v => { opts.mine = v; saveOpts(); }));
   content.append(line("Applies from the next game. At a table the other seats go to the friends who sit down."));
   const set = part(body, "settings");
+  set.append(choice("Map", [["globe", "Globe"], ["flat", "Flat"]], look.map, v => { look.map = v; saveLook(); draw(); }));
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("carrack:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
@@ -577,8 +639,10 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
+$("mapReset").addEventListener("click", () => globe?.reset());
+$("panelBtn").addEventListener("click", () => { look.min = !look.min; saveLook(); draw(); });
 onPause(() => {}, () => {});
-window.__carrack = { page, get view() { return V; }, ui, opts };
+window.__carrack = { page, get view() { return V; }, ui, opts, look, get globe() { return globe; } };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
 if (!read(SEEN, 0) && !IN_FRAME && !page.atTable && !new URLSearchParams(location.search).get("table")) setTimeout(openWalk, 400);
