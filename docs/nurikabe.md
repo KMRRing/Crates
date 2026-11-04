@@ -19,3 +19,5 @@ Score and bests as Pearl's. Held sideways, the board takes the left with all the
 Not done: the head-to-head, a computer rival, boards past 10×10, bigger islands, and Expert.
 
 Co-op (3 November 2026, `docs/coop.md`, `nurikabe-coop.js`): a paired partner joins and shades the same sea. The dots are shared too (one board; each is a note both of you see). A shared solve earns no best, today's time or Random round, and the host's `nurikabe:run` follows the shared board. Undoing a stroke puts back each cell only if it is still as you left it.
+
+3D (4 November 2026, Korbi: "atoll: 3d mode, all land and we carve a river."): the menu's Play in 3D (`prefs.view`, flat by default) draws the board as solid green land with the sea carved out as a river; the flat board stays the simple mode. A drag turns it, so painting by drag is flat only. Safari/iPhone is unchecked: only looked at in Chromium; keep the WebGL pixel ratio at 2 at most.

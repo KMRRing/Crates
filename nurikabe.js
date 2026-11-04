@@ -41,9 +41,10 @@ const teamMs = () => (team ? (team.ms || 0) + Math.max(0, Date.now() - team.at) 
 const hintId = () => `h${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 // ---------- what you chose ----------
-const prefs = { size: 8, level: "easy", ...read(PREFS, {}) };
+const prefs = { size: 8, level: "easy", view: "board", ...read(PREFS, {}) };
 if (!SIZES.includes(prefs.size)) prefs.size = 8;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
+if (prefs.view !== "model") prefs.view = "board";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
 const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level) });
 
@@ -169,7 +170,7 @@ function clockPause() {
   clockFrom = null;
   save();
 }
-onPause(() => { paused = true; clockPause(); cancelPress(); }, () => { paused = false; clockRun(); });
+onPause(() => { paused = true; clockPause(); cancelPress(); model?.hold(true); }, () => { paused = false; clockRun(); model?.hold(false); });
 const elapsed = () => (!S ? 0 : S.done ? S.done.ms : COOP ? teamMs() : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
 const penalty = () => HINT * (S?.hints || 0);
 const scoreOf = ms => Math.round(ms / 1000) + penalty();
@@ -346,14 +347,40 @@ function paint() {
       lit.has(x) ? "lit" : why.has(x) ? "why" : ""].filter(Boolean).join(" ");
     if (cellEls[x].g.getAttribute("class") !== cls) cellEls[x].g.setAttribute("class", cls);
   }
+  feedModel({ pool, cut, over, done, lit, why });
 }
 /** The solve, shown: the sea turns gilt from the top left. */
 function wave() {
+  model?.celebrate();
   if (!svg) return;
   svg.classList.remove("solved");
   void svg.getBoundingClientRect();
   cellEls.forEach(({ g, d }) => g.style.setProperty("--d", `${d}ms`));
   svg.classList.add("solved");
+}
+
+// ---------- 3D: the same board as solid land with the sea carved out as a river (nurikabe-3d.js, loaded when first asked for) ----------
+let model = null, modelFor = null;
+/** The model follows the run: a new puzzle is built into it, every change of the marks, the rules broken or a hint's cells is shown. */
+function feedModel(sets) {
+  if (!model || prefs.view !== "model" || !S || !P) return;
+  if (modelFor !== P) { model.set({ N: P.N, clue: P.clue }); modelFor = P; }
+  model.update({ marks: S.marks, ...sets, solved: !!S.done });
+}
+/** Flat (the default and the simple mode) or model (`prefs.view` keeps "board" and "model"). The model's code (three.js) comes only when it is first wanted; where there is no WebGL the flat board stays. */
+async function setView(v, remember = true) {
+  if (v === "model" && !model) {
+    try {
+      model = (await import("./nurikabe-3d.js")).createModel($("model"), { press, playable: () => !!S && !S.done && !IN_FRAME && !paused });
+    } catch (err) { console.warn("Atoll: no 3D here.", err); toast("This browser can't draw 3D."); v = "board"; }
+  }
+  prefs.view = v;
+  if (remember) savePrefs();
+  const on = v === "model";
+  $("board").closest(".nk-card").classList.toggle("is-model", on);
+  $("model").hidden = !on;
+  model?.show(on);
+  if (on) paint();
 }
 
 // ---------- the board under a finger: a tap cycles a cell, a drag paints cell after cell ----------
@@ -491,7 +518,7 @@ function openMenu() {
   const play = part(body, "play");
   play.append(action(COOP ? "Another puzzle" : "New puzzle", () => confirmStart(pick), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
-  play.append(action("The rules", showRules, "link"));
+  play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "board" : "model"), "link"), action("The rules", showRules, "link"));
   if (!COOP) content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") {
     content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
@@ -576,7 +603,7 @@ setInterval(() => {
 
 // for tests and debugging
 window.__nurikabe = {
-  get state() { return S; }, get puzzle() { return P; }, get coop() { return coop; }, press, useHint, undo, redo, start,
+  get model() { return model; }, setView, get state() { return S; }, get puzzle() { return P; }, get coop() { return coop; }, press, useHint, undo, redo, start,
   /** Where a cell's middle is on the screen, for tests that tap or drag it as a finger would. */
   cellOf: x => { const m = svg.getScreenCTM(), [r, c] = rc(x); return { x: (c + 0.5) * m.a + m.e, y: (r + 0.5) * m.d + m.f }; },
 };
@@ -627,4 +654,5 @@ async function joinPartner() {
   if (!coop && !IN_FRAME) solo();
 }
 $("level").value = chosenKind().level;
+if (prefs.view === "model") setView("model", false);
 if (COOP) joinPartner().catch(e => { console.error(e); solo(); }); else solo();

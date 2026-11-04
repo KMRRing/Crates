@@ -54,6 +54,24 @@ html[data-theme="modern"] { --nk-logo-tint: #E3EBF3; --nk-logo-edge: #2D5E88; }
 @keyframes nk-wave { 0% { fill: var(--nk-sea); } 40% { fill: var(--nk-gilt); } 100% { fill: color-mix(in srgb, var(--nk-gilt) 55%, var(--nk-sea)); } }
 @media (prefers-reduced-motion: reduce) { .nk-svg.solved .nk-c.sea .nk-cell { animation: none; fill: color-mix(in srgb, var(--nk-gilt) 55%, var(--nk-sea)); } }
 
+/* the 3D view (nurikabe-3d.js), over the flat board's place and played the same way; the numbers are plates of the page laid over their blocks */
+.nk-model { position: absolute; inset: .5rem; overflow: hidden; border-radius: 4px; background: var(--nk-tile); }
+.nk-model[hidden] { display: none; }
+.nk-card.is-model .nk-board { visibility: hidden; }
+.nk3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.nk3-gl:active { cursor: grabbing; }
+.nk3-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; --k: 1; }
+.nk3-n { position: absolute; left: 0; top: 0; display: grid; place-items: center; min-width: calc(1.3rem * var(--k)); height: calc(1.3rem * var(--k)); padding: 0 calc(.15rem * var(--k)); box-sizing: border-box;
+  border-radius: 4px; border: 1.5px solid var(--ink); background: var(--nk-tile); color: var(--ink); font-family: Archivo, Arial, sans-serif; font-weight: 800; font-size: calc(.85rem * var(--k));
+  font-variant-numeric: tabular-nums; line-height: 1; box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 35%, transparent); will-change: transform; }
+.nk3-n.done { border-color: var(--nk-good); color: var(--nk-good); background: color-mix(in srgb, var(--nk-good) 18%, var(--nk-tile)); }
+.nk3-n.over { border-color: var(--nk-bad); color: var(--nk-bad); background: color-mix(in srgb, var(--nk-bad) 22%, var(--nk-tile)); }
+.nk3-n.why { box-shadow: 0 0 0 2px var(--nk-gilt); }
+.nk3-zoom { position: absolute; right: .5rem; bottom: .5rem; display: grid; gap: .3rem; }
+.nk3-zoom button { width: 2.1rem; height: 2.1rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--nk-tile); color: var(--ink); font: inherit; font-size: 1.15rem; font-weight: 700; line-height: 1; cursor: pointer; }
+.nk3-zoom button:active { background: color-mix(in srgb, var(--brass) 25%, var(--nk-tile)); }
+@media (hover: none) and (pointer: coarse) { .nk3-zoom { display: none; } }
+
 /* under the board: a line of what to do or what happened, three tools; at the end, how it went and the way on, in the
    same room. The line keeps three lines' height, so a long hint never moves the board. */
 .nk-side { display: grid; align-content: start; margin-top: .6rem; min-height: 7.2rem; }
