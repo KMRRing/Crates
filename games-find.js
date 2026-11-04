@@ -56,7 +56,7 @@ export const AKA = {
   harbour: "ships program hex route", pipes: "pipe dream plumbing watch clockwork mainspring cogs", survey: "ore mining 3d deduction rock",
   stow: "packing cargo hold fit", loose: "block blast block puzzle blocks line clear tetris hexa", cartel: "dice bluff coup roles liar", hong: "mahjong mah jong majiang hong kong puzzle rush", tribute: "guan dan climbing cards partners puzzle rush",
   mines: "minesweeper", bulls: "bulls bulls and cows mastermind code breaking cows", assay: "word guess weigh alphabet balance", yield: "words letters tray",
-  ladder: "doublets word ladder", calcudoku: "kenken", kakuro: "cross sums", bridges: "hashiwokakero", slitherlink: "loop", sudoku: "number place digits nonet killer sudoku jigsaw sudoku diagonal sudoku x sudoku", hitori: "shade repeats numbers", masyu: "pearls loop", nurikabe: "islands sea",
+  ladder: "doublets word ladder", calcudoku: "kenken", kakuro: "cross sums", bridges: "hashiwokakero", slitherlink: "loop", sudoku: "number place digits nonet killer sudoku jigsaw sudoku diagonal sudoku x sudoku", hitori: "shade repeats numbers", masyu: "pearls loop", nurikabe: "islands sea", moor: "tents trees camping tents and trees docks barges boats harbour",
   party: "lobby room friends evening", undercover: "spy social deduction", whoami: "guess identity forehead", gauge: "estimate dial",
   fuse: "bomb", snap: "match cards pairs", sketch: "drawing pictionary", whispers: "telephone chinese whispers",
   forger: "forgery drawing bluff", gallery: "art drawing", hilo: "higher lower cards", coup: "bluff secret roles influence",
