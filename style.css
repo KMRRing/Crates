@@ -403,9 +403,6 @@ html.watching-frame #app.full > .top { display: none; }                         
 .home-logo svg { width: 100%; height: 100%; display: block; pointer-events: none; }
 .home-logo:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 .home-logo:active { opacity: .7; }
-@media (orientation: landscape) and (max-height: 520px) {      /* held sideways on a phone: beside the name */
-  #app.full.titled > .top.has-logo { flex-direction: row; align-items: center; justify-content: flex-start; gap: .55rem; }
-}
 .menu-full-row { display: flex; gap: .5rem; }
 .menu-full-row .btn.wide { flex: 1 1 0; width: auto; margin-top: .45rem; }
 .menu-full .menu-line { margin-top: .5rem; }
