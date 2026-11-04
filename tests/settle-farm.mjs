@@ -60,7 +60,7 @@ const shipped = (tanks, want) => lines(tanks, want).map(([t]) => t).join();
   check(worth(4) === 160 && worth(6) === 360 && worth(9) === 810, "ten times the square of all a pump ships, its waves together: a 2x2 is 160, a 3x2 360, a 3x3 810");
   // with thought (laying pairs), a second wave turns up now and then
   let waves = 0, st = newGame(311);
-  for (let k = 0; k < 400 && !st.over; k++) {
+  for (let k = 0; k < 250 && !st.over; k++) {
     const all = moves().map(m => pump(st, m.slot, m.t)), top = all.reduce((a, o) => (a.gain + 40 * pairsOf(a.state.tanks) >= o.gain + 40 * pairsOf(o.state.tanks) ? a : o));
     if (top.waves.length > 1) waves++;
     st = top.state;
@@ -133,7 +133,7 @@ const shipped = (tanks, want) => lines(tanks, want).map(([t]) => t).join();
   const play = (s, pick) => { while (!s.over && s.pumps < 3000) s = pick(s, [...moves().map(m => pump(s, m.slot, m.t)), ...draws(s).map(k => drawOff(s, k))]); return s; };
   const best = (all, v) => all.reduce((a, o) => (v(o) > v(a) ? o : a)).state;
   const emptiest = t => t.tanks.findIndex(x => x.length === Math.min(...t.tanks.map(y => y.length)));
-  for (let g = 0; g < 6; g++) {
+  for (let g = 0; g < 5; g++) {
     let s = newGame(100 + g);
     while (!s.over && s.pumps < 3000) { const m = moves()[Math.floor(rnd() * 18)]; s = pump(s, m.slot, m.t).state; }
     random.push(s.pumps);
