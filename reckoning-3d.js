@@ -1,6 +1,5 @@
-// Courier in 3D, drawn with three.js (vendor/three-run.js): the quay as boxes, for now. Every shape here is a stand-in
-// for a model that will come (docs/courier.md: the asset list): the hero, a crab, a gull, a warehouse, a bollard, each
-// built in one place (`makeFoe`, the hero's block, the scenery's) so a glTF can take over one at a time. What stays when the models arrive is the look:
+// Courier in 3D, drawn with three.js (vendor/three-run.js). The models (the hero, the foes, the things on the quay, the houses) are made in
+// reckoning-models.js, so a glTF can take over one at a time; here they are placed, posed and lit. The look that stays:
 //  - a world that curves away below the horizon (a vertex patch on every material: the further from the camera, the
 //    lower), which is what makes a straight run read as a run over the top of something;
 //  - the Codex's palette, read from the page's own colours (style.css's tokens), so the three themes, day and night,
@@ -149,33 +148,30 @@ export function createRunner(host) {
   const longBox = n => new THREE.BoxGeometry(1, 1, 1, 1, 1, n);
   const quayBox = longBox(96), deckBox = longBox(48);
   const disc = new THREE.CircleGeometry(0.5, 20).rotateX(-Math.PI / 2);
-  const cone = new THREE.ConeGeometry(0.5, 1, 10);
 
   const M = {
-    stone: mat("stone"), plank: mat("plank"), seam: mat("seam"), water: mat("water"), brick: mat("brick"), wall: mat("wall"),
-    timber: mat("timber"), roof: mat("roof"), hero: mat("hero"), gilt: mat("gilt"), crab: mat("crab"), gull: mat("gull"),
-    banner: mat("banner"), skin: mat("skin"), good: mat("good"), claw: mat("claw"), belly: mat("belly"), eye: mat("eye"), pupil: mat("pupil"),
+    stone: mat("stone"), plank: mat("plank"), seam: mat("seam"), water: mat("water"), wall: mat("wall"),
+    timber: mat("timber"), hero: mat("hero"), gilt: mat("gilt"), 
+    
     markBg: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })), markSees: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
     markWind: curved(new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })),
-    plank2: mat("plank2"), pole: mat("pole"), chalk: mat("chalk"), hazard: mat("hazard"), splint: mat("splint"),
+    plank2: mat("plank2"), chalk: mat("chalk"), hazard: mat("hazard"), splint: mat("splint"),
     pitwater: curved(new THREE.MeshBasicMaterial()), beacon: curved(new THREE.MeshBasicMaterial({ fog: false })),
     dust: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, depthWrite: false })),
     spray: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false })),
     streak: curved(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, fog: false })),
-    scarf: mat("scarf"), boot: mat("boot"), steel: mat("steel"), hair: mat("hair"), shirt: mat("shirt"),
+    shirt: mat("shirt"), pole: mat("pole"), banner: mat("banner"),
     shadow: curved(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })),
     ring: curved(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })),
   };
   function retheme() {
     pal = palette();
     const set = (m, a) => col(a, m.color);
-    set(M.stone, pal.stone); set(M.plank, pal.plank); set(M.seam, pal.seam); set(M.water, pal.water); M.brick.color.set(0xffffff); set(M.wall, pal.wall);        // the warehouses take their own colours (instance colours multiply the material's)
-    set(M.timber, pal.timber); set(M.roof, pal.roof); set(M.hero, pal.hero); set(M.gilt, pal.gilt); set(M.crab, pal.crab); set(M.gull, pal.gull);
-    set(M.banner, pal.banner); set(M.skin, pal.skin);
-    set(M.scarf, pal.scarf); set(M.boot, pal.boot); set(M.steel, pal.steel); set(M.hair, pal.hair); set(M.shirt, pal.shirt); set(M.good, pal.good); set(M.ring, pal.ring);
-    set(M.claw, pal.claw); set(M.belly, pal.belly); set(M.eye, pal.eye); set(M.pupil, pal.pupil);
+    set(M.stone, pal.stone); set(M.plank, pal.plank); set(M.seam, pal.seam); set(M.water, pal.water); set(M.wall, pal.wall);
+    set(M.timber, pal.timber); set(M.hero, pal.hero); set(M.gilt, pal.gilt); set(M.pole, pal.timber); set(M.banner, pal.banner);
+    set(M.shirt, pal.shirt); set(M.ring, pal.ring);
     set(M.chalk, pal.chalk); set(M.hazard, pal.hazard); set(M.splint, pal.splint); set(M.pitwater, pal.pitwater); set(M.beacon, pal.beacon);
-    set(M.plank2, pal.plank2); set(M.pole, pal.timber); set(M.dust, pal.dust); set(M.spray, pal.spray); set(M.streak, pal.streak);
+    set(M.plank2, pal.plank2); set(M.dust, pal.dust); set(M.spray, pal.spray); set(M.streak, pal.streak);
     set(M.markBg, pal.mark); set(M.markSees, pal.gilt); set(M.markWind, pal.alert);
     models.retheme(pal, col, night());
     scene.background = col(pal.sky);
@@ -213,8 +209,11 @@ export function createRunner(host) {
   const poles = new THREE.InstancedMesh(models.poleGeo(), models.vc, LAMPS * 2); poles.frustumCulled = false; world.add(poles);
   const lanterns = new THREE.InstancedMesh(models.lanternGeo(), models.vcGlow, LAMPS * 2); lanterns.frustumCulled = false; world.add(lanterns);
   // scenery: Hanseatic warehouses (three kinds of stepped gable, each its own instanced mesh) and bollards, placed from the distance alone, so they are the same every time
-  const HOUSES = 15;                                                                     // each side
+  const HOUSES = 11;                                                                     // each side (the fog hides what is further than 105 m)
   const houseMeshes = models.houseGeos.map(geo => { const m = new THREE.InstancedMesh(geo, models.vc, HOUSES * 2); m.frustumCulled = false; m.count = 0; world.add(m); return m; });
+  // moored cogs and harbour cranes in the water between the quay and the houses, at places that follow the same slots as the houses
+  const ships = new THREE.InstancedMesh(models.shipGeo(), models.vc, HOUSES * 2); ships.frustumCulled = false; ships.count = 0; world.add(ships);
+  const cranes = new THREE.InstancedMesh(models.craneGeo(), models.vc, HOUSES * 2); cranes.frustumCulled = false; cranes.count = 0; world.add(cranes);
   const BOLLARDS = 24;
   const posts = new THREE.InstancedMesh(models.bollardGeo(), models.vc, BOLLARDS * 2); posts.frustumCulled = false; world.add(posts);
   // what the houses along the quay are made of, by biome: brick and ochre by the harbour, straw and clay on the salt road, mossy greens in the pass,
@@ -412,10 +411,7 @@ export function createRunner(host) {
     for (const [id, T] of things) if (!seen.has(id)) { hideThing(T); thingFree.push(T); things.delete(id); }
   }
   // the finish: a gilt arch across the quay with a banner, and a line of checks on the planks
-  const finish = new THREE.Group();
-  for (const s of [-1, 1]) part(finish, cyl, M.gilt, 0.3, 5.4, 0.3, s * (QUAY_W / 2 - 0.1), 2.7, 0);
-  part(finish, box, M.gilt, QUAY_W, 0.3, 0.3, 0, 5.4, 0); part(finish, box, M.banner, QUAY_W - 0.6, 1.0, 0.08, 0, 4.7, 0);
-  for (let i = 0; i < 12; i++) part(finish, box, i & 1 ? M.shirt : M.hero, QUAY_W / 12, 0.03, 0.6, (i - 5.5) * (QUAY_W / 12), 0.03, 0);
+  const finish = new THREE.Group(); { const m_ = new THREE.Mesh(models.finishGeo(QUAY_W), models.vc); finish.add(m_); }
   finish.visible = false; finish.traverse(o => { o.frustumCulled = false; }); world.add(finish);
 
   // effects: rings on the planks, bursts
@@ -660,12 +656,14 @@ export function createRunner(host) {
     rig.rotation.set(-pitch, 0, 0);
     rig.position.set(0, hop, 0);
     if (f.spent && f.alive) g.rotation.z = Math.sin(now * 30) * 0.08;
+    const far = f.z - S.hero.z > 40;                                                       // out in the haze: the fine parts are not drawn
     if (crab) {
       let raise = 0.4 + 0.12 * Math.sin(now * 5 + id), spread = 0.15, jaw = 0.18 + 0.12 * Math.sin(now * 7 + id);
       if (ph === 1) { raise = 0.75; jaw = 0.1 + 0.4 * (0.5 + 0.5 * Math.sin(now * 20)); }
       else if (ph === 2) { raise = 0.75 + 0.6 * ease(since / 0.2); spread = 0.65; jaw = 0.55; }
       else if (ph === 3) { raise = 1.35 * (1 - e3) - 0.25 * e3; spread = 0.65 * (1 - e3); jaw = 0.55 * (1 - e3) + 0.05; }
-      P.arms.forEach((a, i) => { const s = i ? 1 : -1; a.rotation.set(-raise, s * spread, 0); a.userData.jaws.forEach((j, n) => { j.rotation.y = (n ? -1 : 1) * jaw; }); });
+      P.legs.forEach(l => { l.visible = !far; }); P.eyes.forEach(e => { e.visible = !far; });
+      P.arms.forEach((a, i) => { const s = i ? 1 : -1; a.rotation.set(-raise, s * spread, 0); a.userData.jaws.forEach((j, n) => { j.rotation.y = (n ? -1 : 1) * jaw; j.visible = !far; }); });
       P.eyes.forEach((e, i) => { e.rotation.z = (i ? 1 : -1) * (ph ? 0.1 : 0.25 + 0.1 * Math.sin(now * 3 + id)); e.position.y = 0.6 + (ph ? 0.06 : 0); });
       P.legs.forEach(l => { l.rotation.y = Math.sin(now * (ph === 3 ? 30 : 12) + l.userData.k * 2 + l.userData.s + id) * 0.3; });
     } else {
@@ -800,6 +798,15 @@ export function createRunner(host) {
         mesh_.setColorAt(i, houseTone(r1 * 0.999, tones, hc));
       }
     }
+    let nShips = 0, nCranes = 0;
+    for (const side of [-1, 1]) {
+      for (let k = 0; k < HOUSES; k++) {
+        const n = base + k, rr = hash(n * 13 + side * 5.5 + 9), zc = n * SP + SP / 2;
+        if (rr < 0.17) { hq.setFromAxisAngle(yAxis, hash(n * 9 + side) < 0.5 ? 0 : Math.PI); ships.setMatrixAt(nShips++, m4.compose(hv.set(side * 5.3, 0, zc + (hash(n * 2.1) - 0.5) * 2), hq, hs.set(1, 1, 1))); }
+        else if (rr < 0.25) { hq.setFromAxisAngle(yAxis, -Math.PI / 2); cranes.setMatrixAt(nCranes++, m4.compose(hv.set(side * 5.2, 0, zc), hq, hs.set(0.7, 0.7, 0.7))); }
+      }
+    }
+    ships.count = nShips; cranes.count = nCranes; ships.instanceMatrix.needsUpdate = cranes.instanceMatrix.needsUpdate = true;
     houseMeshes.forEach((m_, i) => { m_.count = used[i]; m_.instanceMatrix.needsUpdate = true; if (m_.instanceColor) m_.instanceColor.needsUpdate = true; });
     for (let i = 0; i < BOLLARDS; i++) {
       for (const s of [-1, 1]) {

@@ -287,7 +287,8 @@ export function createModels({ curved }) {
     set("coatDark", mix(pal.hero, D, 0.3)); set("coatLight", mix(pal.hero, W, 0.16));
     set("goldDark", mix(pal.gilt, D, 0.35)); set("bootDark", mix(pal.boot, D, 0.35)); set("hairDark", mix(pal.hair, D, 0.3));
     set("crabLight", mix(pal.crab, [255, 190, 140], 0.35)); set("crabDark", mix(pal.crab, D, 0.28)); set("clawDark", mix(pal.claw, D, 0.25));
-    set("gullBack", mix(pal.gull, dark ? [150, 160, 180] : [96, 108, 126], 0.55)); set("gullTip", dark ? [40, 46, 62] : [34, 38, 48]);
+    if (dark) set("gull", [246, 246, 250]);                                           // by night the gulls are the thing to read: kept light
+    set("gullBack", dark ? [168, 178, 196] : mix(pal.gull, [96, 108, 126], 0.55)); set("gullTip", dark ? [40, 46, 62] : [34, 38, 48]);
     set("beak", dark ? [244, 190, 70] : [236, 176, 48]); set("beakRed", [214, 70, 52]);
     set("timberLight", mix(pal.timber, W, 0.25)); set("timberDark", mix(pal.timber, D, 0.35));
     set("wallLight", mix(pal.wall, W, 0.2)); set("roofDark", mix(pal.roof, D, 0.3));
@@ -504,24 +505,24 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
   }
   /** A claw's finger: a curved, tapering pincer along +z from its root, curling towards x = -d. */
   const fingerInto = (b, d, col, tip) => {
-    const P = [[0, 0, 0], [-d * 0.02, 0, 0.16], [-d * 0.07, 0, 0.31], [-d * 0.12, 0, 0.43]], R = [0.085, 0.065, 0.04, 0.012];
-    for (let i = 0; i < 3; i++) b.rod(i === 2 ? tip : col, P[i], P[i + 1], R[i], R[i + 1], { seg: 6 });
-    for (let i = 0; i < 3; i++) b.cone("crabLight", [-d * (0.03 + i * 0.03) - d * 0.045, 0, 0.12 + i * 0.1], [-d * (0.03 + i * 0.03) - d * 0.075, 0, 0.16 + i * 0.1], 0.02, 0.003, { seg: 4, k: 0.9 });
+    const P = [[0, 0, 0], [-d * 0.04, 0, 0.2], [-d * 0.12, 0, 0.43]], R = [0.085, 0.05, 0.012];
+    b.rod(col, P[0], P[1], R[0], R[1], { seg: 5 }); b.rod(tip, P[1], P[2], R[1], R[2], { seg: 5 });
+    b.cone("crabLight", [-d * 0.075, 0, 0.17], [-d * 0.105, 0, 0.22], 0.02, 0.003, { seg: 4, k: 0.9 });
   };
 
   function buildCrab(f) {
     const heavy = !!f.heavy, g = new THREE.Group(), rig = new THREE.Group(), parts = { rig }; g.add(rig);
     const body = new Builder(); body.ao = [0.2, 0.7, 0.62, 1];
-    body.add(lathe([[0, 0.26], [0.3, 0.26], [0.46, 0.28], [0.5, 0.33], [0.49, 0.41], [0.42, 0.52], [0.3, 0.61], [0.16, 0.66], [0, 0.67]], 16), "crab", { s: [1, 1, 0.8] });
-    for (const s of [-1, 1]) body.ell("crabLight", [s * 0.14, 0.625, 0.1], [0.14, 0.075, 0.13], { seg: 10, rows: 5 });         // the humps of the carapace
-    body.ell("crabLight", [0, 0.64, -0.12], [0.2, 0.055, 0.14], { seg: 10, rows: 5 });
-    body.ell("crabDark", [0, 0.6, -0.34], [0.3, 0.07, 0.07], { seg: 10, rows: 4 });                                                // the back edge's roll
+    body.add(lathe([[0, 0.26], [0.3, 0.26], [0.46, 0.28], [0.5, 0.33], [0.49, 0.41], [0.42, 0.52], [0.3, 0.61], [0.16, 0.66], [0, 0.67]], 14), "crab", { s: [1, 1, 0.8] });
+    for (const s of [-1, 1]) body.ell("crabLight", [s * 0.14, 0.625, 0.1], [0.14, 0.075, 0.13], { seg: 8, rows: 4 });         // the humps of the carapace
+    body.ell("crabLight", [0, 0.64, -0.12], [0.2, 0.055, 0.14], { seg: 8, rows: 4 });
+    body.ell("crabDark", [0, 0.6, -0.34], [0.3, 0.07, 0.07], { seg: 8, rows: 3 });                                                // the back edge's roll
     for (let k = -2; k <= 2; k++) {                                                                                                 // the teeth along the front edge
       const a = k * 0.27, x = 0.46 * Math.sin(a), z = 0.4 * Math.cos(a);
       body.cone("claw", [x, 0.43, z], [x * 1.12, 0.47, z * 1.2 + 0.05], 0.034, 0.004, { seg: 4 });
     }
     for (const s of [-1, 1]) { body.cone("claw", [s * 0.44, 0.38, 0.04], [s * 0.64, 0.46, 0.1], 0.07, 0.006, { seg: 6 }); body.cone("claw", [s * 0.4, 0.37, -0.12], [s * 0.54, 0.43, -0.18], 0.05, 0.005, { seg: 6 }); }
-    body.ell("belly", [0, 0.27, 0.02], [0.45, 0.1, 0.36]);
+    body.ell("belly", [0, 0.27, 0.02], [0.45, 0.1, 0.36], { seg: 10, rows: 4 });
     body.ell("crabDark", [0, 0.3, 0.33], [0.1, 0.05, 0.06], { seg: 8, rows: 4 });                                                   // the mouth
     if (heavy) {
       body.add(lathe([[0, 0.57], [0.28, 0.54], [0.38, 0.49], [0.44, 0.45], [0.45, 0.49], [0.4, 0.58], [0.3, 0.665], [0.15, 0.715], [0, 0.72]], 14), "steel", { s: [1, 1, 0.82], k: 0.95 });   // a steel cap over the shell
@@ -539,20 +540,20 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
     parts.eyes = [-1, 1].map(s => {
       const e = joint(rig, s * 0.16, 0.6, 0.3);
       const t = new Builder();
-      t.rod("belly", [0, 0, 0], [0, 0.15, 0.02], 0.032, 0.026);
-      t.ell("eye", [0, 0.2, 0.03], [0.08, 0.08, 0.08], { seg: 10, rows: 6 });
-      t.ell("pupil", [0, 0.205, 0.1], [0.042, 0.045, 0.03], { seg: 8, rows: 5 });
-      t.ell("crab", [0, 0.235, 0.0], [0.07, 0.035, 0.07], { seg: 8, rows: 4 });                                                      // the lid
+      t.rod("belly", [0, 0, 0], [0, 0.15, 0.02], 0.032, 0.026, { seg: 5 });
+      t.ell("eye", [0, 0.2, 0.03], [0.08, 0.08, 0.08], { seg: 8, rows: 5 });
+      t.ell("pupil", [0, 0.205, 0.1], [0.042, 0.045, 0.03], { seg: 6, rows: 3 });
+      t.ell("crab", [0, 0.235, 0.0], [0.07, 0.035, 0.07], { seg: 6, rows: 3 });                                                      // the lid
       mesh(t, e);
       return e;
     });
     parts.arms = [-1, 1].map(s => {
       const arm = joint(rig, s * 0.34, 0.46, 0.3);
       const t = new Builder();
-      t.rod("crab", [0, 0, 0], [0, 0.03, 0.2], 0.075, 0.062);
-      t.ell("claw", [0, 0.03, 0.22], [0.085, 0.085, 0.085], { seg: 8, rows: 5 });
-      t.ell("crab", [0, 0.02, 0.43], [0.19, 0.14, 0.24]);                                                                          // the palm
-      t.ell("crabLight", [0, 0.1, 0.42], [0.12, 0.05, 0.16], { seg: 8, rows: 4 });
+      t.rod("crab", [0, 0, 0], [0, 0.03, 0.2], 0.075, 0.062, { seg: 6 });
+      t.ell("claw", [0, 0.03, 0.22], [0.085, 0.085, 0.085], { seg: 6, rows: 4 });
+      t.ell("crab", [0, 0.02, 0.43], [0.19, 0.14, 0.24], { seg: 8, rows: 5 });                                                                          // the palm
+      t.ell("crabLight", [0, 0.1, 0.42], [0.12, 0.05, 0.16], { seg: 6, rows: 3 });
       if (heavy) {
         t.add(lathe([[0.1, 0.0], [0.115, 0.02], [0.115, 0.14], [0.1, 0.16]], 10, { hard: true }), "steel", { r: [PI / 2, 0, 0], p: [0, 0.03, 0.04] });
         for (const a of [-1, 1]) t.ell("gilt", [a * 0.095, 0.03, 0.12], [0.026, 0.026, 0.026], { seg: 6, rows: 4 });
@@ -571,9 +572,9 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
       const side = joint(rig, s * 0.3, 0.36, 0.0), t = new Builder();
       for (const k of [-1, 0, 1]) {
         const z = k * 0.2, hip = [s * 0.02, 0.0, z], knee = [s * 0.22, 0.14 - Math.abs(k) * 0.01, z * 1.3 + k * 0.03], foot = [s * 0.4, -0.35, z * 1.6 + k * 0.1];
-        t.rod("crab", hip, knee, 0.05, 0.042, { seg: 5 });
+        t.rod("crab", hip, knee, 0.05, 0.042, { seg: 4 });
         t.ell("claw", knee, [0.05, 0.05, 0.05], { seg: 5, rows: 3 });
-        t.rod("crab", knee, foot, 0.04, 0.012, { seg: 5 });
+        t.rod("crab", knee, foot, 0.04, 0.012, { seg: 4 });
         t.cone("clawDark", [foot[0] + s * 0.005, foot[1] + 0.03, foot[2]], [foot[0] + s * 0.01, foot[1] - 0.005, foot[2] + 0.01], 0.014, 0.004, { seg: 5 });
       }
       mesh(t, side);
@@ -636,9 +637,9 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
   function buildBalloon() {
     const g = new THREE.Group(), rig = new THREE.Group(), parts = { rig }; g.add(rig);
     const prof = [[0, 0.0], [0.04, 0.0], [0.055, 0.045], [0.03, 0.09]];
-    for (let k = 0; k <= 14; k++) { const t = k / 14, y = 0.13 + 1.0 * t; prof.push([Math.max(0.03, 0.43 * Math.pow(Math.sin(PI * Math.pow(t, 0.72)), 0.85)), y]); }
+    for (let k = 0; k <= 11; k++) { const t = k / 11, y = 0.13 + 1.0 * t; prof.push([Math.max(0.03, 0.43 * Math.pow(Math.sin(PI * Math.pow(t, 0.72)), 0.85)), y]); }
     prof.push([0, 1.15]);
-    const body = new Builder(); body.add(lathe(prof, 16), "good");
+    const body = new Builder(); body.add(lathe(prof, 14), "good");
     parts.body = mesh(body, rig, balloonMat[0]);
     const rest = new Builder();
     rest.ell("eye", [-0.17, 0.86, 0.3], [0.07, 0.15, 0.04], { seg: 8, rows: 5, r: [0, -0.4, 0.3] });                           // the shine
@@ -701,8 +702,7 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
         b.ao = [0.8, 2.2, 0.7, 1];
         for (const [x, y] of [[-0.45, 1.05], [0, 1.05], [0.45, 1.05], [-0.225, 1.44], [0.225, 1.44], [0, 1.83]]) logInto(b, [x, y, 0], 0.225, 0.95);
         for (const z of [-0.28, 0.28]) {                                                      // the straps round the bundle
-          for (const [x0, y0, x1, y1] of [[-0.66, 0.9, -0.2, 2.02], [0.66, 0.9, 0.2, 2.02]]) b.rod("steel", [x0, y0, z], [x1, y1, z], 0.02, 0.02, { seg: 4, k: 0.8 });
-          b.rod("steel", [-0.66, 0.92, z], [0.66, 0.92, z], 0.02, 0.02, { seg: 4, k: 0.8 });
+          b.rod("timberLight", [-0.5, 0.86, z], [0.5, 0.86, z], 0.018, 0.018, { seg: 4 });             // the lashing under the bottom row
         }
         for (const s of [-1, 1]) { b.rod("timberLight", [s * 0.62, 1.0, 0.0], [0, 3.35, 0], 0.025, 0.025, { seg: 4 }); }                 // the sling
         b.add(lathe([[0.1, 3.3], [0.14, 3.34], [0.1, 3.4], [0.07, 3.34], [0.1, 3.3]], 8, { hard: true }), "steel");
@@ -799,7 +799,7 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
         }
         b.box("timber", [0, 3.0, 0], [1.9, 0.3, 0.3]);                                                                                   // the beam over them, with its winch
         b.add(cylG(0.2, 0.2, 0.5, 12), "timberDark", { p: [-0.25, 3.28, 0], r: [0, 0, PI / 2] });
-        b.add(lathe(band(0.19, 0.24, -0.04, 0.04), 12, { hard: true }), "gilt", { p: [0.25, 3.28, 0], r: [0, 0, PI / 2] });
+        b.add(lathe(band(0.19, 0.24, -0.04, 0.04), 12, { hard: true }), "gilt", { p: [-0.25, 3.28, 0], r: [0, 0, PI / 2] });
         b.add(lathe(band(0.19, 0.24, -0.04, 0.04), 12, { hard: true }), "gilt", { p: [-0.75, 3.28, 0], r: [0, 0, PI / 2] });
         b.box(0x1d4a6e, [0, 0.025, 0], [1.62, 0.05, 1.3]);                                                                                // the channel
         b.add(lathe([[0.17, 3.38], [0.2, 3.3], [0.2, 3.2], [0.14, 3.2], [0.14, 3.38]], 8, { hard: true }), "steel", { k: 0.5, p: [0, 0, 0.0] });          // the lamp's cap and base
@@ -833,7 +833,7 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
       // a lever on a plate with a red pad (triangle) and a blue pad (disc): the handle leans to the colour whose bridges are down now,
       // the pad of the colour the next step will lower pulses, and a dashed line of that colour runs down the quay to the bridges
       own(g, geoOf("leverS", b => {
-        b.add(extrude([[-0.5, -0.07], [0.5, -0.07], [0.5, 0.07], [-0.5, 0.07]], 0.7, 0.03), "timber", { p: [0, -0.36, 0], r: [PI / 2, 0, 0] });
+        b.add(extrude([[-0.5, -0.35], [0.5, -0.35], [0.5, 0.35], [-0.5, 0.35]], 0.16, 0.03), "timber", { p: [0, -0.36, 0], r: [-PI / 2, 0, 0] });
         b.box("gilt", [0, -0.28, 0], [1.02, 0.02, 0.72], { k: 0.9 });
         b.cone("steel", [0, -0.28, 0], [0, -0.2, 0], 0.16, 0.12, { seg: 10 });
       }));
@@ -960,5 +960,50 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
     b.add(cylG(0.3, 0.02, 0.22, 6), "gilt", { p: [0, 0.22, 0] });
   });
 
-  return { retheme, buildHero, makeFoe, makeThing, coinGeo, houseGeos, HOUSE_KINDS, bollardGeo, poleGeo, lanternGeo, balloonMat, BALLOONC, flat, BASIC, BRIDGEC, vc, vcGlow, unitBox, kit: { Builder, lathe, extrude, extrudeSide, warp, sphereG, cylG, capsuleG, boxG, arc, mesh, joint } };
+  /** A moored cog: a low hull in the water beside the quay (its bow to +z), a mast with two yards, furled sails, stays and a pennant. */
+  const shipGeo = () => geoOf("ship", b => {
+    b.ao = [-1.2, 12, 0.7, 1];
+    b.add(extrudeSide([[-4.5, 0.4], [4.9, 0.45], [4.5, -0.2], [3.4, -1.0], [-3.3, -1.0], [-4.3, -0.3]], 2.5, 0.18), "timberDark");                      // the hull
+    b.add(extrudeSide([[-4.3, 0.42], [4.8, 0.47], [4.8, 0.55], [-4.3, 0.5]], 2.62, 0.04), "timber");                                                  // the sheer strake
+    b.add(extrudeSide([[-4.0, 0.45], [4.5, 0.5], [4.5, 0.62], [-4.0, 0.57]], 2.2, 0.03), "timberLight", { k: 0.9 });                                   // the deck
+    b.rod("timber", [0, 0.5, 5.0], [0, 1.1, 6.6], 0.1, 0.06, { seg: 5 });                                                                               // the bowsprit
+    b.add(lathe([[0, -0.3], [0.2, -0.3], [0.14, 5], [0.09, 11.4], [0.1, 12.0], [0, 12.0]], 6), "timber", { p: [0, 0.5, 0.3] });                      // the mast
+    for (const [y, w] of [[8.8, 3.0], [11.0, 2.0]]) {
+      b.rod("timberDark", [-w, y, 0.3], [w, y, 0.3], 0.07, 0.07, { seg: 5 });                                                                        // a yard
+      b.add(cylG(0.2, 0.2, w * 1.5, 6, true), "shirt", { p: [-w * 0.75, y - 0.25, 0.3], r: [0, 0, -PI / 2], k: 0.9 });                                  // the sail, furled
+    }
+    for (const s of [-1, 1]) { b.rod("timberLight", [0, 11.8, 0.3], [s * 2.3, 0.7, 0.3 + s * 0.2], 0.016, 0.016, { seg: 3 }); b.rod("timberLight", [0, 11.8, 0.3], [s * 0.1, 0.7, 4.8], 0.016, 0.016, { seg: 3 }); }
+    b.add(extrude([[0, 0], [0.9, -0.12], [0.75, -0.3], [0, -0.4]], 0.02, 0.005), "scarf", { p: [0, 11.95, 0.3], r: [0, PI / 2, 0] });                  // a pennant
+  });
+  /** A harbour crane on the quay's edge: an A-frame of timber, a jib over the water towards +x, a treadwheel, and a hook on a rope. */
+  const craneGeo = () => geoOf("crane", b => {
+    b.ao = [0, 11, 0.72, 1];
+    for (const z of [-1.4, 1.4]) { b.rod("timber", [0, 0, z], [0.3, 9.4, z * 0.35], 0.2, 0.14, { seg: 5 }); b.rod("timber", [-2.2, 0, z], [0.3, 9.0, z * 0.35], 0.14, 0.1, { seg: 5 }); }
+    b.box("timberDark", [-0.9, 3.5, 0], [3.2, 0.2, 3.0]); b.box("timberDark", [-0.4, 6.2, 0], [2.0, 0.2, 1.4]);
+    b.rod("timber", [0.3, 9.2, 0], [4.8, 8.2, 0], 0.16, 0.1, { seg: 5 });                                                                               // the jib
+    b.rod("timberLight", [0.3, 9.7, 0], [4.7, 8.4, 0], 0.03, 0.03, { seg: 3 });
+    b.add(lathe(band(1.5, 1.7, -0.7, 0.7), 12, { hard: true }), "timberDark", { p: [-1.1, 3.3, 0], r: [0, 0, PI / 2] });                                 // the treadwheel's rims
+    for (let k = 0; k < 6; k++) { const a = (k / 6) * PI; b.rod("timber", [-1.1 + 0, 3.3 + Math.cos(a) * 1.6, Math.sin(a) * 1.6], [-1.1, 3.3 - Math.cos(a) * 1.6, -Math.sin(a) * 1.6], 0.06, 0.06, { seg: 4 }); }
+    b.rod("timberLight", [4.7, 8.3, 0], [4.7, 5.6, 0], 0.025, 0.025, { seg: 3 });                                                                       // the rope
+    b.add(lathe([[0, 0], [0.15, 0], [0.12, 0.3], [0, 0.3]], 7), "steel", { p: [4.7, 5.3, 0], k: 0.8 });
+    b.ell("timber", [4.7, 8.3, 0], [0.16, 0.16, 0.16], { seg: 6, rows: 4 });
+  });
+
+  /** The finish: a gilt arch across a quay `W` wide, a banner under its lintel, and a line of checks on the planks. */
+  const finishGeo = W => geoOf(`finish${W}`, b => {
+    const x = W / 2 - 0.1;
+    for (const s of [-1, 1]) {
+      b.add(lathe([[0, 0], [0.34, 0], [0.34, 0.25], [0.2, 0.35], [0.17, 5.0], [0.26, 5.1], [0.28, 5.4], [0, 5.45]], 10), "gilt", { p: [s * x, 0, 0] });
+      b.add(lathe(band(0.16, 0.24, 1.8, 1.95), 10, { hard: true }), "goldDark", { p: [s * x, 0, 0] });
+      b.ell("gilt", [s * x, 5.7, 0], [0.22, 0.22, 0.22], { seg: 8, rows: 5 });
+    }
+    b.box("gilt", [0, 5.5, 0], [W, 0.34, 0.34]); b.box("goldDark", [0, 5.28, 0], [W - 0.4, 0.1, 0.4]);
+    b.add(plate([[5.2, W / 2 - 0.45, 0], [4.9, W / 2 - 0.45, 0.03], [4.5, W / 2 - 0.45, -0.02], [4.2, W / 2 - 0.45, 0.02], [3.95, W / 2 - 0.9, 0], [3.8, 0, 0]], 0.05), "banner");     // the banner, swallow-tailed
+    b.box("gilt", [0, 5.2, -0.03], [W - 0.9, 0.05, 0.06]);
+    b.ell("shirt", [0, 4.5, -0.05], [0.5, 0.5, 0.05], { seg: 10, rows: 6 }); b.ell("gilt", [0, 4.5, -0.07], [0.32, 0.32, 0.04], { seg: 10, rows: 6 });
+    for (let i = 0; i < 12; i++) b.add(quadG(), i & 1 ? "shirt" : "hero", { p: [(i - 5.5) * (W / 12), 0.03, 0], s: [W / 12, 0.6, 1], r: [-PI / 2, 0, 0] });      // the line of checks
+    b.ao = null;
+  });
+
+  return { retheme, buildHero, makeFoe, makeThing, coinGeo, shipGeo, finishGeo, craneGeo, houseGeos, HOUSE_KINDS, bollardGeo, poleGeo, lanternGeo, balloonMat, BALLOONC, flat, BASIC, BRIDGEC, vc, vcGlow, unitBox, kit: { Builder, lathe, extrude, extrudeSide, warp, sphereG, cylG, capsuleG, boxG, arc, mesh, joint } };
 }
