@@ -34,9 +34,10 @@ import gallery from "./party-gallery.js";
 import hilo from "./party-hilo.js";
 import coup from "./party-coup.js";
 import pewter from "./party-pewter.js";
+import beacon from "./party-beacon.js";
 
 /** The games, in the order the lobby lists them. */
-export const GAMES = [undercover, whoami, echo, decoy, gauge, fuse, snap, sketch, whispers, forger, gallery, hilo, coup, pewter];
+export const GAMES = [undercover, whoami, echo, decoy, gauge, fuse, snap, sketch, whispers, forger, gallery, hilo, coup, pewter, beacon];
 export const gameById = id => GAMES.find(g => g.id === id) || null;
 
 /** A seeded generator (mulberry32): the same seed gives the same numbers, on every device and every retry. */

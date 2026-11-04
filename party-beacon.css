@@ -1,0 +1,56 @@
+/* Beacon (Party): the crews' score, whose turn it is and the clue, the five by five board (a pilot sees the key on it,
+   everyone sees what is uncovered), the clue box or the crew's buttons, and the last few lines of what happened. The
+   crews are two enamels: Ochre (--c0) and Cobalt (--c2); each also has its own mark in a corner of the word, so the
+   board reads without colour. */
+.bc-col { gap: .6rem; }
+.bc-score { display: flex; justify-content: space-between; gap: .5rem; font-size: .8rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.bc-left { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .5rem; border-radius: 4px; border: 1.5px solid transparent; }
+.bc-left::before { content: ""; width: .7rem; height: .7rem; border-radius: 2px; background: var(--bc); }
+.bc-left b { font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); color: var(--ink); }
+.bc-left.now { border-color: var(--bc); color: var(--ink); }
+.bc-t0 { --bc: var(--c0); --bc-on: var(--on-c0); }
+.bc-t1 { --bc: var(--c2); --bc-on: var(--on-c); }
+.bc-turn { display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .5rem .7rem; border-radius: 6px; border-left: .3rem solid var(--bc);
+  background: color-mix(in srgb, var(--bc) 14%, var(--sheet)); font-weight: 700; }
+.bc-clue { font-size: .9rem; white-space: nowrap; }
+.bc-clue b { font-size: 1.3rem; font-weight: 800; letter-spacing: .02em; }
+.bc-verdict { display: grid; justify-items: center; gap: .15rem; padding: .7rem; border-radius: 6px; background: var(--bc); color: var(--bc-on); text-align: center; }
+.bc-verdict strong { font-size: 1.15rem; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }
+.bc-verdict span { font-size: .85rem; opacity: .9; }
+
+.bc-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-rows: 3.1rem; gap: .3rem; }
+.bc-card { position: relative; display: grid; place-items: center; min-width: 0; padding: .15rem .1rem; border: 1.5px solid var(--tile-edge); border-radius: 5px; background: var(--tile);
+  color: var(--ink); font: inherit; font-size: .72rem; font-weight: 700; line-height: 1.1; text-align: center; cursor: default; }
+button.bc-card { cursor: pointer; }
+.bc-card.long { font-size: .6rem; }
+.bc-word { overflow-wrap: anywhere; }
+.bc-glyph { position: absolute; top: .05rem; left: .2rem; font-style: normal; font-size: .55rem; line-height: 1; opacity: .85; }
+.bc-card.sel { outline: 2px solid var(--pa-in); outline-offset: 1px; background: var(--pa-soft); }
+/* a pilot's (and everyone's, once it is over) view of a covered word: its owner as a bar under it */
+.bc-card.peek.bc-ka { border-color: var(--c0); box-shadow: inset 0 -.3rem 0 var(--c0); }
+.bc-card.peek.bc-kb { border-color: var(--c2); box-shadow: inset 0 -.3rem 0 var(--c2); }
+.bc-card.peek.bc-kx { border-color: var(--ink); border-width: 2px; background: color-mix(in srgb, var(--ink) 16%, var(--tile)); }
+.bc-grid.done .bc-card.peek { opacity: .62; }
+/* uncovered */
+.bc-card.up.bc-ka { background: var(--c0); border-color: var(--c0); color: var(--on-c0); }
+.bc-card.up.bc-kb { background: var(--c2); border-color: var(--c2); color: var(--on-c); }
+.bc-card.up.bc-kn { background: color-mix(in srgb, var(--ink) 10%, var(--sheet)); border-style: dashed; color: var(--ink-soft); }
+.bc-card.up.bc-kx { background: var(--ink); border-color: var(--ink); color: var(--yard); }
+
+.bc-signal { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .4rem; align-items: stretch; }
+.bc-signal .pk-btn { width: auto; padding: 0 1rem; }
+.bc-input { min-width: 0; }
+.bc-num { min-width: 3.4rem; padding: 0 .4rem; border: 1.5px solid var(--tile-edge); border-radius: 5px; background: var(--tile); color: var(--ink); font: inherit; font-weight: 800; }
+.bc-problem { margin: 0; min-height: 1.1rem; font-size: .8rem; color: #A8382B; }
+.bc-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+.bc-actions .pk-btn { width: auto; padding: 0 1rem; }
+.bc-hint { margin: 0; font-size: .85rem; color: var(--ink); }
+.bc-hint.soft { color: var(--ink-soft); font-size: .78rem; }
+.bc-log { margin: 0; padding: 0; list-style: none; display: grid; gap: .1rem; font-size: .78rem; color: var(--ink-soft); }
+.bc-log li { padding-left: .5rem; border-left: .2rem solid var(--bc); }
+.bc-log li.bc-kx { color: var(--ink); font-weight: 700; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .bc-problem { color: #E8806F; }
+}
+html[data-mode="night"] .bc-problem { color: #E8806F; }
+html[data-theme="office"] :is(.bc-card, .bc-turn, .bc-verdict, .bc-num) { border-radius: 4px; }
