@@ -121,11 +121,11 @@ function seaLayer() {
   const g = el("g", { class: "dr-sea-layer" });
   const w = W * CELL, h = H * CELL;
   g.append(el("defs", {}, el("linearGradient", { id: "drDusk", x1: 0, y1: 0, x2: 0, y2: 1 }, el("stop", { offset: 0, class: "d0" }), el("stop", { offset: 1, class: "d1" }))),
-    el("rect", { class: "dr-sea", x: -PAD, y: -PAD, width: w + 2 * PAD, height: h + 2 * PAD }), el("rect", { class: "dr-dusk", x: -PAD, y: -PAD, width: w + 2 * PAD, height: h + 2 * PAD }));
+    el("rect", { class: "dr-sea", x: -PAD + .6, y: -PAD + .6, width: w + 2 * PAD - 1.2, height: h + 2 * PAD - 1.2 }), el("rect", { class: "dr-dusk", x: -PAD + .6, y: -PAD + .6, width: w + 2 * PAD - 1.2, height: h + 2 * PAD - 1.2 }));
   for (let y = -1; y <= H; y++) for (let x = -1; x <= W; x++) {
     if ((x + y * 2 + 8) % 3 !== 0 || (x >= 0 && y >= 0 && x < W && y < H && S.cells[xy(x, y)] !== WATER)) continue;
     const cx = x * CELL + 1.5, cy = y * CELL + 5.5;
-    if (cx < -PAD + 1 || cx > w + PAD - 4 || cy < -PAD + 1 || cy > h + PAD - 1) continue;
+    if (cx < -PAD + 2 || cx > w + PAD - 6 || cy < -PAD + 2 || cy > h + PAD - 2) continue;
     g.append(el("path", { class: "dr-swell", d: `M${cx} ${cy}q1.7-1.9 3.4 0t3.4 0` }));
   }
   return g;
@@ -525,7 +525,10 @@ function openMenu() {
   about.append(line(inVoyage()
     ? `This game: ${fmt(S.score)} in ${plural(S.turns, "turn")}; ${beaten} of ${LEVELS.length} levels filled, ${plural(total, "star")}`
     : `This game: ${fmt(S.score)} in ${plural(S.turns, "turn")}${best ? `; your best on the ${SHAPES[S.shape].name.toLowerCase()} ${fmt(best)}` : ""}`));
-  about.append(line("The weather: a squall blows stray crates on to the quay; a rogue wave shoves a row or column one square; a second gust follows the wind; fog hides the queue; a rock rises from the water; a moored crate stays put; a sealed crate ships every crate of its good. Each is forecast in the queue under the field, and drawn on the quay a turn ahead."));
+  const how = document.createElement("p");
+  how.className = "note";
+  how.textContent = "The weather: a squall blows stray crates on to the quay; a rogue wave shoves a row or column one square; a second gust follows the wind; fog hides the queue; a rock rises from the water; a moored crate stays put; a sealed crate ships every crate of its good. Each is forecast in the queue under the field, and drawn on the quay a turn ahead.";
+  about.append(how);
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
