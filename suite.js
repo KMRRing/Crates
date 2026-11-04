@@ -219,7 +219,7 @@ export function bestOf(app) {
 // code took (Bulls, kept as a count), stars collected (the level games), or a best; and a game with a daily (Punt, Quote, Origin, Order, Chart) shows today's instead when either
 // of you has played it.
 export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", survey: "time", punt: "daily", quote: "daily", origin: "daily",
-  order: "daily", chart: "daily", columbiad: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", deck: "count", parley: "count", navigation: "lessons", music: "lessons",
+  order: "daily", chart: "daily", columbiad: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", deck: "count", parley: "count", navigation: "lessons", music: "lessons", odds: "stars",
   river: "best", gambit: "best", boast: "streak", bigtwo: "streak", meld: "streak", rack: "streak", pegs: "streak", landlord: "streak", banquet: "streak", gammon: "streak", flank: "streak", silo: "streak", crown: "streak", go: "streak", tarot: "streak", trumps: "streak", quest: "streak", bones: "streak", solitaire: "wins",
   contract: "streak", sudoku: "time", mines: "time", nonogram: "time", hitori: "time", slitherlink: "time", bridges: "time", masyu: "time", nurikabe: "time", bulls: "guesses", assay: "daily", yield: "daily", nexus: "daily", isomer: "time", ladder: "time", lode: "time", lots: "daily", codeword: "time", crossword: "time", acrostic: "time", calcudoku: "time", kakuro: "time", manifest: "daily", ingot: "daily", speedmaths: "daily", speedfuels: "daily" };
 const keyOf = app => (app === "glyph" ? "slate" : app);                // Slate keeps its things under slate:
@@ -236,6 +236,7 @@ export function noteDayTime(app, secs, day = today()) { if (json(`${app}:today`,
 export function noteDayCount(app, day = today()) { const r = json(`${app}:count`, null); keep(`${app}:count`, { key: day, v: r?.key === day ? r.v + 1 : 1 }); }
 /** Stars collected, in all. */
 export function noteStars(app, n) { if (json(`${app}:stars`, null) !== n) keep(`${app}:stars`, n); }   // only a change goes up
+const oddsLessons = () => Object.keys(json("odds:course", {})?.done || {}).length;      // lessons done in the Odds course
 const calibreStars = () => Object.values(json("calibre:progress", {}) || {}).reduce((n, p) => n + (p?.stars || 0), 0);
 // a daily game's best and today's: Quote, Chart and Punt keep them as comparable results; Origin keeps each day's total
 // by the day (YYYYMMDD), Order each day's by the day and the mode (YYYYMMDD/dates: it has a daily for each), its tile
@@ -271,7 +272,7 @@ export function markOf(app) {
   if (kind === "time" || kind === "count" || kind === "guesses") { const r = json(`${k}:${kind === "time" ? "today" : "count"}`, null); return r?.key === d ? { kind, day: d, v: r.v } : null; }
   if (kind === "lessons") { const r = json(`${k}:lessons`, null); return r?.done ? { kind, v: `${r.done}/${r.of}` } : null; }     // a course: lessons done of all
   if (kind === "wins") { const v = json(`${k}:wins`, null); return v ? { kind, v } : null; }
-  if (kind === "stars") { const v = app === "calibre" ? calibreStars() : json(`${k}:stars`, null); return v ? { kind, v } : null; }
+  if (kind === "stars") { const v = app === "calibre" ? calibreStars() : app === "odds" ? oddsLessons() : json(`${k}:stars`, null); return v ? { kind, v } : null; }
   if (kind === "daily") { const { best, today: t } = dailyOf(app); return best == null && t == null ? null : { kind, best, day: d, today: t }; }
   const v = bestOf(app);
   return v == null ? null : { kind, v };

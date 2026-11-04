@@ -1,0 +1,178 @@
+/* Odds: a course on probability and judgement. Plum is the house colour; the lessons are course.css's sheet with this stage
+   (odds-stage.js) on it. Figures are SVG whose strokes and fills are classes here, so the three themes, day and night,
+   restyle them. */
+:root { --od-in: #5B4B8A; --od-in-soft: color-mix(in srgb, var(--od-in) 14%, var(--sheet)); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --od-in: #B3A4E3; } }
+html[data-mode="night"] { --od-in: #B3A4E3; }
+
+.od-mark { display: inline-block; }
+.od-mark svg { width: 100%; height: 100%; display: block; }
+dialog.ln-sheet.od { --ln-in: var(--od-in); }
+
+/* ---------- the landing behind the sheet ---------- */
+.od-intro { margin: .4rem 0 .7rem; color: var(--ink-soft); line-height: 1.45; }
+.od-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin-bottom: .7rem; }
+.od-stats div { padding: .5rem .3rem; border-radius: 5px; background: var(--sheet); text-align: center; }
+.od-stats b { display: block; font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.od-stats span { font-size: .72rem; color: var(--ink-soft); }
+.od-go { width: 100%; min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; padding: 0 .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.od-h { margin: 1rem 0 .3rem; font-size: .76rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--od-in); }
+.od-record { display: flex; flex-direction: column; min-height: 0; }
+.od-recfig { min-height: 7rem; display: grid; }
+.od-recfig .od-svg { width: 100%; height: 100%; }
+.od-recnote { margin: .3rem 0 0; font-size: .82rem; color: var(--ink-soft); line-height: 1.4; }
+@media (orientation: landscape) and (min-width: 700px) {
+  .od-home { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); column-gap: 2rem; align-content: start; }
+  .od-about, .od-record { display: block; }
+  .od-record { display: flex; }
+  .od-recfig { min-height: 12rem; }
+}
+html[data-theme="modern"] .od-go { border-radius: 14px; background: var(--od-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
+html[data-theme="kontor"] .od-go { border-radius: 2px; }
+
+/* a step with nothing on the stage (a question by itself): the words take its room, at the bottom as ever */
+dialog.ln-sheet.od .ln-stage:empty { display: none; }
+dialog.ln-sheet.od .ln-lesson:has(.ln-stage:empty) .ln-side { flex: 1 1 auto; min-height: 0; }
+dialog.ln-sheet.od .ln-lesson:has(.ln-stage:empty) .ln-text { flex: 1 1 auto; max-height: none; }
+
+/* ---------- the stage: every widget fills the box the words leave it ---------- */
+.od-fig { flex: 1 1 0; min-height: 0; display: grid; }
+.od-svg { width: 100%; height: 100%; display: block; }
+.od-dial, .od-sim, .od-sum, .od-calib, .od-range-box, .od-tree, .od-chain, .od-formula, .od-grid-wrap { height: 100cqh; max-height: 100cqh; box-sizing: border-box; display: flex; flex-direction: column; gap: .35rem; min-height: 0; padding: .1rem 0; }
+.od-read { margin: 0; font-size: .82rem; line-height: 1.35; color: var(--ink); text-align: center; font-variant-numeric: tabular-nums; }
+.od-note { margin: 0; padding: .4rem .55rem; border-radius: 4px; font-size: .84rem; line-height: 1.35; background: var(--od-in-soft); }
+.od-note.ok { background: color-mix(in srgb, var(--ln-ok) 15%, var(--sheet)); }
+.od-note.no { background: color-mix(in srgb, var(--ln-no) 13%, var(--sheet)); }
+.od-ask, .od-prog { margin: 0; font-size: .74rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); text-align: center; }
+.od-big { margin: 0; text-align: center; font-size: 2.6rem; font-weight: 800; color: var(--ln-in); }
+
+/* figures: strokes and text */
+.od-t { fill: var(--ink-soft); font-family: inherit; font-size: 9.5px; }
+.od-tick { font-size: 9px; font-variant-numeric: tabular-nums; }
+.od-cap { font-size: 9.5px; letter-spacing: .02em; }
+.od-grid path { stroke: var(--rule); stroke-width: 1; fill: none; }
+.od-ax { stroke: var(--ink-soft); stroke-width: 1; fill: none; }
+.od-zero { stroke: var(--ink-soft); stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+.od-curve { stroke: var(--ln-in); stroke-width: 2.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.od-curve2 { stroke: var(--brass); stroke-width: 2.6; fill: none; stroke-linecap: round; }
+.od-dot { fill: var(--ln-in); stroke: var(--sheet); stroke-width: 2; }
+.od-dot2 { fill: var(--brass); stroke: var(--sheet); stroke-width: 2; }
+.od-guide { stroke: var(--brass); stroke-width: 1.4; stroke-dasharray: 4 3; fill: none; }
+.od-guide-t, .od-key2 { fill: var(--brass); font-weight: 700; }
+.od-key { fill: var(--ln-in); font-weight: 700; }
+.od-key.ok { fill: var(--ln-ok); } .od-key.no { fill: var(--ln-no); }
+.od-zone { fill: color-mix(in srgb, var(--ln-no) 15%, transparent); }
+.od-zone-t { fill: var(--ln-no); font-weight: 700; }
+.od-bar { fill: color-mix(in srgb, var(--ln-in) 75%, transparent); }
+.od-exact { fill: none; stroke: var(--ink); stroke-width: 1.2; }
+.od-cone { fill: color-mix(in srgb, var(--ln-in) 14%, transparent); }
+.od-path { fill: none; stroke: color-mix(in srgb, var(--ln-in) 55%, transparent); stroke-width: 1.2; }
+.od-diag { stroke: var(--brass); stroke-width: 1.4; stroke-dasharray: 4 3; fill: none; }
+.od-range { fill: color-mix(in srgb, var(--ln-in) 22%, transparent); stroke: var(--ln-in); stroke-width: 1.5; }
+.od-range.ok { fill: color-mix(in srgb, var(--ln-ok) 22%, transparent); stroke: var(--ln-ok); }
+.od-range.no { fill: color-mix(in srgb, var(--ln-no) 18%, transparent); stroke: var(--ln-no); }
+
+/* things to read */
+.od-formula { justify-content: center; align-items: center; text-align: center; gap: .55rem; }
+.od-formula p { margin: 0; font-size: 1.12rem; font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.od-formula p:first-child { color: var(--ln-in); }
+.od-frac { display: inline-grid; justify-items: center; font-size: clamp(.95rem, 4.4cqw, 1.15rem); font-weight: 700; }
+.od-frac i { font-style: normal; padding: .15rem .5rem; text-align: center; }
+.od-frac i:first-child { border-bottom: 2px solid var(--ink); }
+.od-formula small { color: var(--ink-soft); font-size: .8rem; max-width: 26rem; }
+.od-rows { width: 100%; border-collapse: collapse; align-self: stretch; }
+.od-read .buy { color: var(--ln-in); } .od-read .sell { color: var(--brass); }
+.od-rows th, .od-rows td { padding: .38rem .45rem; border-bottom: 1px solid var(--rule); font-size: .88rem; text-align: left; vertical-align: top; }
+.od-rows th { font-weight: 700; color: var(--ink-soft); width: 42%; }
+.od-rows td { font-weight: 700; font-variant-numeric: tabular-nums; }
+.od-pool thead th { font-size: .72rem; width: auto; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: .06em; }
+.od-pool tfoot td, .od-pool tfoot th { border-bottom: 0; font-size: .8rem; }
+.od-grid-wrap { height: 100cqh; }
+
+/* the 36 throws */
+.od-cells { flex: 0 1 auto; align-self: center; height: calc(100cqh - 1.6rem); max-width: 100%; aspect-ratio: 1; display: grid; grid-template-columns: .55fr repeat(6, 1fr); grid-template-rows: .55fr repeat(6, 1fr); gap: 3px; }
+.od-edge { display: grid; place-items: center; }
+.od-die { width: 80%; max-width: 1.5rem; height: auto; }
+.od-die rect { fill: var(--sheet); stroke: var(--ink-soft); stroke-width: .7; }
+.od-die circle { fill: var(--ink); }
+.od-cell { min-width: 0; min-height: 0; padding: 0; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink-soft); font: inherit; font-size: clamp(.62rem, 3.6cqh, .8rem); font-variant-numeric: tabular-nums; cursor: pointer; }
+.od-cell.mark { background: color-mix(in srgb, var(--ln-in) 24%, var(--sheet)); border-color: var(--ln-in); color: var(--ink); font-weight: 800; }
+.od-cell.sel { background: color-mix(in srgb, var(--ln-in) 34%, var(--sheet)); border-color: var(--ln-in); box-shadow: inset 0 0 0 1.5px var(--ln-in); color: var(--ink); font-weight: 800; }
+.od-cell.off { opacity: .28; }
+.od-cell.miss { border-style: dashed; border-color: var(--ln-no); }
+.od-count { margin: 0; text-align: center; font-size: .8rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; height: 1.2rem; }
+
+/* controls */
+.od-chips { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: center; }
+.od-chips.six { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.od-chip, .od-tf, .od-btn, .od-step { min-height: 2.5rem; padding: 0 .7rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums; }
+.od-chips.six .od-chip { padding: 0; }
+.od-chip.sel, .od-tf.sel { border-color: var(--ln-in); box-shadow: inset 0 0 0 1.5px var(--ln-in); background: color-mix(in srgb, var(--ln-in) 14%, var(--tile)); }
+.od-chip.quiet, .od-btn.quiet { color: var(--ink-soft); }
+.od-chip:disabled, .od-tf:disabled, .od-step:disabled { opacity: .55; cursor: default; }
+.od-tf.truth { border-color: var(--ln-ok); }
+.od-two { display: flex; gap: .4rem; justify-content: center; }
+.od-two > * { flex: 1 1 0; text-decoration: none; text-align: center; display: grid; place-items: center; }
+.od-btn { color: var(--ln-in); }
+.od-tf { font-size: 1.05rem; min-height: 2.9rem; }
+.od-slide { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem; gap: .4rem; align-items: center; }
+.od-step { min-width: 2.75rem; padding: 0; font-size: 1.3rem; line-height: 1; }
+.od-out { margin: 0; text-align: center; font-size: 1.3rem; font-weight: 800; color: var(--ln-in); font-variant-numeric: tabular-nums; line-height: 1; }
+.od-sl { display: grid; gap: .1rem; font-size: .8rem; color: var(--ink-soft); }
+.od-sl span { display: flex; justify-content: space-between; }
+.od-sl b { color: var(--ink); font-variant-numeric: tabular-nums; }
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 2.5rem; background: transparent; margin: 0; touch-action: none; }
+input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--brass); }
+input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--brass); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 1.7rem; height: 1.7rem; margin-top: calc(-.85rem + 2px); border-radius: 50%; border: 2px solid var(--sheet); background: var(--ln-in); box-shadow: 0 0 0 1px var(--ink-soft); }
+input[type="range"]::-moz-range-thumb { width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 2px solid var(--sheet); background: var(--ln-in); box-shadow: 0 0 0 1px var(--ink-soft); }
+input[type="range"]:disabled { opacity: .5; }
+input[type="range"]:focus-visible { outline: 2px solid var(--ln-in); outline-offset: 2px; }
+
+/* simulations and bars */
+.od-bars { display: grid; gap: .5rem; align-content: center; padding: 0 .2rem; }
+.od-bar-row { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) 3.6rem; gap: .5rem; align-items: center; font-size: .8rem; }
+.od-bar-row span { color: var(--ink-soft); font-weight: 700; }
+.od-bar-row em { font-style: normal; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.od-track { position: relative; height: 1.1rem; background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 3px; }
+.od-track i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--ln-in) 75%, transparent); border-radius: 2px; }
+.od-track b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.od-sim .od-bars { flex: 1 1 0; }
+
+/* the tree */
+.od-tree { gap: .5rem; text-align: center; justify-content: space-evenly; }
+.od-root, .od-node { display: grid; justify-items: center; padding: .5rem .4rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); line-height: 1.15; }
+.od-root { align-self: center; padding: .25rem 1.2rem; }
+.od-node b, .od-root b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.od-node small, .od-root small { font-size: .74rem; color: var(--ink-soft); }
+.od-node.blank { border-style: dashed; color: var(--ink-soft); }
+.od-node.active { border-color: var(--ln-in); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ln-in) 40%, transparent); }
+.od-node.ok b { color: var(--ink); }
+.od-node.wide { align-self: center; padding: .25rem 1.2rem; }
+.od-branch { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; border-top: 1.5px solid var(--brass); padding-top: .3rem; }
+.od-limb { display: grid; gap: .3rem; justify-items: center; align-content: start; }
+.od-limb > .od-node { width: 80%; }
+.od-twig { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem; width: 100%; border-top: 1.5px solid var(--rule); padding-top: .3rem; }
+.od-tree .od-ask { font-size: .76rem; text-transform: none; letter-spacing: 0; font-stretch: normal; color: var(--ink); font-weight: 700; }
+
+/* the chain of evidence */
+.od-chain { justify-content: center; gap: .55rem; }
+.od-meter { position: relative; height: 2.4rem; border-radius: 6px; background: var(--tile); border: 1.5px solid var(--tile-edge); overflow: hidden; }
+.od-meter i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--ln-in) 55%, transparent); transition: width .2s; }
+.od-meter b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.od-odds { margin: 0; text-align: center; font-size: .9rem; color: var(--ink-soft); }
+.od-odds strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.od-hist { display: flex; flex-wrap: wrap; gap: .3rem; justify-content: center; min-height: 1.6rem; }
+.od-hist span { padding: .15rem .45rem; border-radius: 4px; font-size: .76rem; font-weight: 700; background: var(--tile); border: 1px solid var(--tile-edge); }
+.od-hist .up { color: var(--ln-ok); } .od-hist .down { color: var(--ln-no); } .od-hist .none { color: var(--ink-soft); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .od-meter i { transition: none; } }
+
+/* statements and ranges */
+.od-calib, .od-range-box { gap: .45rem; }
+.od-claim { margin: 0; font-size: 1.02rem; font-weight: 700; line-height: 1.35; text-align: center; }
+.od-range-box .od-fig { flex: 1 1 0; }
+.od-sum { justify-content: center; }
+.od-sum .od-svg { flex: 1 1 0; min-height: 0; }
+
+html[data-theme="modern"] :is(.od-chip, .od-tf, .od-btn, .od-step, .od-cell, .od-node, .od-root, .od-meter) { border-radius: 12px; }
+html[data-theme="kontor"] :is(.od-chip, .od-tf, .od-btn, .od-step, .od-cell, .od-node, .od-root, .od-meter) { border-radius: 2px; }
