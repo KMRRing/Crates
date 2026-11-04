@@ -55,7 +55,7 @@ export const AKA = {
   spot: "mental maths arithmetic sums", speedmaths: "mental arithmetic sums quick", manifest: "memory packages quay",
   harbour: "ships program hex route", pipes: "pipe dream plumbing watch clockwork mainspring cogs", survey: "ore mining 3d deduction rock",
   stow: "packing cargo hold fit", cartel: "dice bluff coup roles liar", hong: "mahjong mah jong majiang hong kong", tribute: "guan dan climbing cards partners",
-  mines: "minesweeper", bulls: "mastermind bulls and cows code", assay: "wordle word guess", yield: "spelling bee",
+  mines: "minesweeper", bulls: "bulls bulls and cows mastermind code breaking cows", assay: "wordle word guess", yield: "spelling bee",
   ladder: "doublets word ladder", calcudoku: "kenken", kakuro: "cross sums", bridges: "hashiwokakero", slitherlink: "loop",
   party: "lobby room friends evening", undercover: "spy social deduction", whoami: "guess identity forehead", gauge: "estimate dial",
   fuse: "bomb", snap: "match cards pairs", sketch: "drawing pictionary", whispers: "telephone chinese whispers",

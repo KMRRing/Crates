@@ -297,7 +297,7 @@ function keysEl(b, c, p) {
   box.style.setProperty("--kc", String(Math.ceil(p / 2)));
   for (let i = 0; i < p; i++) box.append(el("i", `bu-key${i < b ? " bull" : i < b + c ? " cow" : ""}`));
   box.setAttribute("role", "img");
-  box.setAttribute("aria-label", `${plural(b, "bull")}, ${plural(c, "cow")}`);
+  box.setAttribute("aria-label", `${b} aligned, ${c} near`);
   return box;
 }
 /** The notes on a symbol: the player's own (1 out, 2 in), else with the aid's marks on, what the rows say. */
@@ -402,7 +402,7 @@ function rowEl(r, m, auto, copyable = true) {
   else li.append(el("span"));
   if (r.g && !r.now && !r.future) {
     const words = r.g.map(x => symName(x, m.digits)).join(", ");
-    li.setAttribute("aria-label", r.hidden ? `Clue ${r.n}: ${r.hidden}` : `${m.kind === "lock" ? "Clue" : "Guess"} ${r.n}: ${words}${r.sealed ? `: ${r.sealed}` : r.b != null ? `: ${plural(r.b, "bull")}, ${plural(r.c, "cow")}` : ""}`);
+    li.setAttribute("aria-label", r.hidden ? `Clue ${r.n}: ${r.hidden}` : `${m.kind === "lock" ? "Clue" : "Guess"} ${r.n}: ${words}${r.sealed ? `: ${r.sealed}` : r.b != null ? `: ${r.b} aligned, ${r.c} near` : ""}`);
     if (copyable && r.copy && m.entry && m.kind === "break") { li.classList.add("copyable"); li.dataset.copy = JSON.stringify(r.g); }
   }
   return li;
@@ -479,7 +479,7 @@ function howTo(m) {
   const w = work();
   if (prefs.aid === "marks" && w.input.every(x => x >= 0) && !fits(m.variant, m.visible || [], w.input)) return "That one can't be the code: it doesn't fit every row.";
   return noting ? `Notes: tap a ${m.digits ? "digit" : planets() ? "body" : "colour"} to rule it out, again to mark it in, again to clear it.`
-    : `Pick ${m.p} ${m.digits ? "different digits" : planets() ? "bodies" : "pegs"}, then Guess. A bull ★ is right and in place, a cow ○ right but elsewhere.`;
+    : `Pick ${m.p} ${m.digits ? "different digits" : planets() ? "bodies" : "pegs"}, then Guess. A gilt star is aligned, right and in place; a ring is near, right but elsewhere.`;
 }
 function drawResult(m) {
   const done = !!m.result;
@@ -912,8 +912,8 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>Break a hidden code from the score each guess earns, in as few guesses as you can.</p>
     <h4>The rules</h4>
-    <p>Each guess earns a bull ${P ? "★" : "●"} for every ${piece} of the right ${kind} in the right place, and a cow ○ for every other ${piece} of a ${kind} the code holds elsewhere, counted only as often as both hold it. The key marks say how many of each, not which.</p>
-    <p><b>An example.</b> ${P ? "Against the code Mars, Sun, Uranus, Earth, the guess Mars, Mars, Earth, Moon earns one bull (the first Mars) and one cow (Earth); the second Mars earns nothing, as the code holds only one." : "Against the code red, yellow, green, blue, the guess red, red, blue, white earns one bull (the first red) and one cow (the blue); the second red earns nothing, as the code holds only one."}</p>
+    <p>Each guess earns an <b>aligned</b> mark ${P ? "★" : "●"} (a bull, in the pencil game's words) for every ${piece} of the right ${kind} in the right place, and a <b>near</b> mark ○ (a cow) for every other ${piece} of a ${kind} the code holds elsewhere, counted only as often as both hold it. The key marks say how many of each, not which.</p>
+    <p><b>An example.</b> ${P ? "Against the code Mars, Sun, Uranus, Earth, the guess Mars, Mars, Earth, Moon earns one aligned (the first Mars) and one near (Earth); the second Mars earns nothing, as the code holds only one." : "Against the code red, yellow, green, blue, the guess red, red, blue, white earns one aligned (the first red) and one near (the blue); the second red earns nothing, as the code holds only one."}</p>
     <p>Four boards (Board, in the menu): <b>Classic</b>, four ${piece}s of six ${kind}s, repeats allowed, in ten rows (the classic code-breaking board); <b>Super</b>, five ${piece}s of eight ${kind}s in twelve rows; <b>Bulls and Cows</b>, four different digits in ten rows, every guess four different digits too; <b>Small</b>, three ${piece}s of six ${kind}s in eight rows. ${P ? "Each body has a marking of its own (Mars its white cap, the Sun its rays, Uranus a thin ring, Earth its land, the Moon craters, Mercury a basin of rings, Saturn a broad ring, Jupiter bands), so it reads by its shape too. Pieces, in the menu, brings back the plain coloured pegs." : "Each colour carries a mark of its own, so it reads by its shape too."}</p>
     <h4>Three ways to play</h4>
     <p><b>Break</b>: the computer hides a code and you break it. A fair codemaker hides one from the start; a devious one (Codemaker, in the menu) hides none and answers each guess so that as many codes as possible still fit, so only a strategy that wins in the worst case beats it, and the code it shows at the end fits every answer.</p>

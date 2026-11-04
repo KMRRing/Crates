@@ -4,7 +4,7 @@ The canonical puzzle genres (October 2026), in a section of their own on the gam
 The genres, with a Codex name wherever the genre's best-known name is someone's trademark (Wordle, Spelling Bee, Strands and Connections are the New York Times's, Jumble is Tribune's, Mastermind a board game's):
 - Number grids: Sudoku, Calcudoku (the genre KenKen made famous) and Kakuro.
 - Logic grids: Hitori, Nonogram and Mines (Minesweeper); Slitherlink (a loop), Masyu (a loop through pearls), Nurikabe (islands and a sea) and Bridges (Hashiwokakero, islands joined by bridges).
-- Code-breaking: Bulls (Mastermind, named after Bulls and Cows, the pencil-and-paper game it came from).
+- Code-breaking: Conjunction (id bulls; Mastermind, from Bulls and Cows, the pencil-and-paper game).
 - Words: Assay (Wordle's genre: an assay tests what a sample is made of), Yield (Spelling Bee's: how many words seven letters give), Codeword, Ladder (Lewis Carroll's word ladders, his Doublets), Isomer (Jumble's: the same letters rearranged, as an isomer is the same atoms rearranged), Lode (Strands': the theme's words run through the board like ore, the word that spans it the mother lode), Lots (Connections': sixteen words sorted into lots of four by wordplay, where Crates sorts them by what they point to; Crates' Classic since 2 November 2026, with no tile of its own) and Acrostic.
 
 Pieces several of them share are each kept by one game and only used by the others: `wordlist.js`, the English word list every word game draws on; the clue bank for ordinary words, which Crossword and Acrostic use; the digit-grid board Sudoku made, which Calcudoku and Kakuro use; the grid filler Codeword made, which Crossword uses.

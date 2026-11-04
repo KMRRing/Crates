@@ -56,7 +56,7 @@ export const GAMES = {
   masyu: { name: "Masyu", page: "./masyu.html" },
   nurikabe: { name: "Nurikabe", page: "./nurikabe.html" },
   bridges: { name: "Bridges", page: "./bridges.html" },
-  bulls: { name: "Bulls", page: "./bulls.html" },
+  bulls: { name: "Conjunction", page: "./bulls.html" },
   assay: { name: "Assay", page: "./assay.html" },
   yield: { name: "Yield", page: "./yield.html" },
   speedmaths: { name: "Speed maths", page: "./speedmaths.html" },
