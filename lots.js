@@ -11,7 +11,7 @@ import { sure } from "./sure.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { topicsPart } from "./topics-ui.js";
 import { subjectsOn } from "./topics-on.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";
@@ -282,7 +282,6 @@ function askLink({ head, words, options, onPick, note = "" }) {
   if (!nameDlg.open) nameDlg.showModal();
 }
 // ---------- the menu ----------
-let pickBoard = null;                                        // the board the menu will start: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -317,16 +316,13 @@ async function toCountries() {
   if (await confirmLeave("Leave this board unfinished?")) location.href = "crates.html"; else openMenu();
 }
 function soloMenu(body) {
-  pickBoard ??= (S?.kind === "daily" && !S.done) || !dayDone() ? "daily" : "random";
   part(body, "play").append(action(S && !S.done ? "New board" : "Next board", async () => {
-    if (pickBoard === "daily") { openToday(); return; }
     if (await confirmLeave()) newBoard();
   }, "primary"));
   const content = part(body, "content");
-  content.append(...modeChoice("classic", toCountries), choice("Board", [["random", "Random"], ["daily", "Today's"]], pickBoard, v => { pickBoard = v; openMenu(); }));
-  if (pickBoard === "random") {
-    content.append(levelChoice(), ...topicsPart(content, "Today’s board deals from every one"));
-  } else content.append(line(dayDone() ? "Today's board is done: a new one tomorrow." : "Today's board: Medium, the same for everyone."));
+  content.append(...modeChoice("classic", toCountries), levelChoice(), ...topicsPart(content, "Today’s board deals from every one"));
+  const score = read(DAILY, {})[today()];
+  todayPart(body, { done: dayDone(), result: score != null ? `${Math.floor(score / 100000)} of 8` : "", play: openToday, playing: S?.kind === "daily" && S.day === today() && !S.done });   // openToday asks before it leaves a board
   part(body, "play").append(action("Invite players", () => { location.href = "party.html?game=lots&invite=1"; }));
   const st = read(STATS, {}), about = part(body, "about");
   const day = read(DAILY, {})[today()];

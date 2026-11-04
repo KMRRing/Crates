@@ -11,7 +11,7 @@ import { PLAYS, KINDS, freshTable, isTable, tidy, teamGuess, teamTry, begin, set
 import { bindSwitcher, APPS } from "./apps.js";
 import { sure } from "./sure.js";
 import "./pwa.js";
-import { part, choice, action, line, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";   // the day, the same for everyone (UTC); a watching frame writes nothing
 import { roundOver } from "./random.js";
 import { createTogether } from "./together.js";
@@ -946,25 +946,22 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (together.room || joining) { tableMenu(body); return; }
-  pickDaily ??= run?.kind === "break" && run.daily ? true : !dayDone();         // today's first, while it's still to play
-  part(body, "play").append(action(run && !run.done ? "New game" : "Play again", () => startPicked(prefs.play === "break" && pickDaily ? "daily" : prefs.play), "primary"),
+  part(body, "play").append(action(run && !run.done ? "New game" : "Play again", () => startPicked(prefs.play), "primary"),
     action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Play", [["break", "Break"], ["duel", "Duel"], ["lock", "Lock"]], prefs.play, v => { prefs.play = v; keepPrefs(); openMenu(); }));
   if (prefs.play === "break") {
-    content.append(choice("Code", [["random", "Random"], ["daily", "Today's"]], pickDaily ? "daily" : "random", v => { pickDaily = v === "daily"; openMenu(); }));
-    if (pickDaily) content.append(line(`Today's code is Classic, the same for everyone${dayDone() ? `: ${todayWords()}` : ""}.`));
-    else content.append(boardChoice(), choice("Codemaker", Object.entries(MAKERS), prefs.maker, v => { prefs.maker = v; keepPrefs(); }));
+    content.append(boardChoice(), choice("Codemaker", Object.entries(MAKERS), prefs.maker, v => { prefs.maker = v; keepPrefs(); }));
   } else if (prefs.play === "duel") {
     content.append(boardChoice(), choice("Computer", Object.entries(LEVELS).map(([k, x]) => [k, x.label]), prefs.cpu, v => { prefs.cpu = v; keepPrefs(); }));
   } else {
     content.append(choice("Level", Object.entries(LOCK_LEVELS).map(([k, x]) => [k, x.label]), prefs.lock, v => { prefs.lock = v; keepPrefs(); openMenu(); }), line(LOCK_LEVELS[prefs.lock].about));
   }
   part(body, "settings").append(choice("Help", [["off", "Off"], ["count", "Count"], ["marks", "Marks"]], prefs.aid, v => { prefs.aid = v; keepPrefs(); render(); }), piecesChoice());
+  todayPart(body, { done: dayDone(), result: todayWords().replace(/^you /, ""), play: () => startPicked("daily"), playing: run?.kind === "break" && !!run.daily && !run.done });   // startPicked asks before it leaves a game
   part(body, "about").append(line(aboutLine()), action("Copy a link to this game", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-let pickDaily = null;                           // the menu's Code choice for Break: today's or a random one
 const piecesChoice = () => choice("Pieces", [["planets", "Planets"], ["classic", "Classic"]], prefs.pieces, v => { prefs.pieces = v; keepPrefs(); shieldWas = null; render(); });
 const boardChoice = () => choice("Board", Object.entries(VARIANTS).map(([k, v]) => [k, v.label]), prefs.variant, v => { prefs.variant = v; keepPrefs(); });
 function todayWords() { const t = read(TODAY, null); return t?.key === today() ? (t.v ? `you broke it in ${t.v}` : "you didn't break it") : ""; }

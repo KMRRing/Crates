@@ -17,7 +17,7 @@ import { topicsPart } from "./topics-ui.js";
 import { showPicture, pictureName, nameIn } from "./pics.js";
 import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, action, line, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, soloHref, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
@@ -297,7 +297,7 @@ const together = createTogether({
 const backToSolo = () => { if (together.room) together.leave(); else location.replace(soloHref()); };
 
 // ---------- the menu ----------
-let pick = null;
+let pick = null;                                              // the menu's Order choice: { mode }
 /** What the menu says of the topics for a mode: where they stand and a link to Settings' control (none for the stories,
  *  which have no topics). Alone, a random run is dealt from them and today's from every topic; at a table, the next game
  *  is dealt from the dealer's. */
@@ -321,14 +321,18 @@ function openMenu() {
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
-  pick ??= { mode: S?.mode || "dates", daily: (!!S?.daily && !S.over) || dailyDue("order") };   // today's first, while it's still to play
-  part(body, "play").append(action("New run", () => newRun(pick.mode, pick.daily), "primary"));
+  pick ??= { mode: S?.mode || "dates" };
+  part(body, "play").append(action("New run", () => newRun(pick.mode, false), "primary"));
   const content = part(body, "content");
-  content.append(
-    choice("Order", Object.entries(MODES), pick.mode, v => { pick.mode = v; openMenu(); }),
-    choice("Run", [[false, "Random"], [true, "Today's"]], pick.daily, v => { pick.daily = v; openMenu(); }));
-  // the topics are for random runs (today's is the same for everyone), so they're shown either way
+  content.append(choice("Order", Object.entries(MODES), pick.mode, v => { pick.mode = v; openMenu(); }));
   topicsFor(content, pick.mode, true);
+  // today's run of the Order chosen, kept by the day and the mode
+  const got = read(DAILY, {})[`${today()}/${pick.mode}`];
+  todayPart(body, {
+    done: got != null, result: got != null ? `${got} placed` : "",
+    play: () => newRun(pick.mode, true), playing: !!S?.daily && S.day === today() && S.mode === pick.mode && !S.over,
+    busy: !!S && !S.over && S.line.length > 1,
+  });
   const best = read(BEST, {});
   part(body, "about").append(line(`Best: dates ${best.dates ?? "–"}${FAMILIES.some(f => bestIn(best, f)) ? `, quantities ${Math.max(...FAMILIES.map(f => bestIn(best, f)))}` : ""} · ${DATES.length} dated cards, ${FAMILIES.length} families of quantities`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

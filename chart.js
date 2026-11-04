@@ -6,7 +6,7 @@
 // pair's duo match, a party's), everyone pins the same place on their own phone, and the reveal shows every pin, each
 // one's distance and points and the standings (chart-table.js is the table's rules).
 import { PER_SET, regionSpan, pickMixed, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, featureBox, pointsFor, TOPICS, TOPIC_PRESETS, topicsOf, topicsDealt, bestTopicOf, comparableMix, focusOf, OLD_TOPICS, OLD_NAMES, oldTopicOf, topicOf, LOCAL, REGIONS, regionView, regionsOfPlace, askFor, homeOf, HOME_KM, fingers } from "./chart-engine.js";
-import { part, choice, action, line as menuLine, mirror } from "./menu.js";
+import { part, choice, action, line as menuLine, mirror, todayPart } from "./menu.js";
 import { cleanMix, anyIn, mixParam, mixFromParam, subjectPreset, SUBJECT_PRESETS, showStar } from "./topics.js";
 import { subjectsOn, allowed, markedIn } from "./topics-on.js";
 import { mkOfEntity } from "./marked.js";
@@ -56,7 +56,7 @@ function picture(p) {
   if (pic.dataset.title !== p.pic) { pic.dataset.title = p.pic; showPicture(pic, p.pic, { width: 480 }); }
 }
 import "./pwa.js";
-import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked run for your best
+import { today, noteComparable, arrivedForToday } from "./suite.js";          // the day, the same for everyone (UTC); a ranked run for your best
 import { roundOver } from "./random.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { sure } from "./sure.js";
@@ -1000,13 +1000,11 @@ async function copyLink() {
 // sheet that sets them for every game, and the region), Settings (learning mode), About (your bests here, a link); at a
 // table, the topics and region of a fresh set for everyone (the region deals it at once, the topics the next) and the
 // table's own part
-let pick = null;                                              // the set the menu will start: { mode }
 /** What the topics line adds for this game: how many of its topics the subjects leave in, and what that means for your best. */
-function topicsNote(daily = false) {
+function topicsNote() {
   const on = subjectsOn(), w = topicsOf(on), n = TOPICS.filter(([id]) => w[id] > 0).length, p = subjectPreset(on), one = focusOf(w);
   if (p === "none" || p === "all") return "";                 // the line says all there is to say
   if (!n) return "None are Chart's, so every topic is dealt";
-  if (daily) return "Today's set deals every topic, worldwide";
   if (one) return `Chart deals ${TOPICS.find(([id]) => id === one)[1]} alone, a set with a best of its own`;
   return `Chart deals ${n} of its ${TOPICS.length} topics${p === "custom" ? "; your own mix keeps no best" : ""}`;
 }
@@ -1030,15 +1028,13 @@ function openMenu() {
     part(body, "together").append(action(S?.done ? "Play again" : "A fresh set", () => startRoomSet(selOf(S).region), "primary"),
       ...(S?.done ? [action("Final standings", () => finishRoom(true))] : []), action("Back to solo", () => together.leave(), "link"));
   } else {
-    pick ??= { mode: S?.mode === "daily" || dailyDue("chart") ? "daily" : "random" };   // today's first, while it's still to play
     const play = part(body, "play");
-    play.append(action("Start a set", () => confirmStart(pick.mode), "primary"));
+    play.append(action("Start a set", () => confirmStart("random"), "primary"));
     if (S?.done) play.append(action("See how it went", finish));
     const content = part(body, "content");
-    content.append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; openMenu(); }));
-    // the topics and the region are for random sets (today's is the same for everyone, every topic and worldwide), so
-    // they're shown either way
-    content.append(...topicsPart(content, topicsNote(pick.mode === "daily")), mirror("Region", $("region")));
+    // the topics and the region are for random sets: today's is the same for everyone, every topic and worldwide
+    content.append(...topicsPart(content, topicsNote()), mirror("Region", $("region")));
+    todayPart(body, { app: "chart", play: () => confirmStart("daily"), playing: S?.mode === "daily" && S.seed === today() && !S.done });   // confirmStart asks before it leaves a set
     part(body, "settings").append(viewChoice());
     const key = selKey(S), best = key && bests()[key], daily = key && dailies()[key], what = selName(selOf(S));
     part(body, "about").append(
@@ -1081,13 +1077,12 @@ async function choose() {
   const sel = chosen();
   if (inRoom()) { startRoomSet(sel.region); return; }
   if (S && !S.done && S.index > 0 && !(await sure("Start a new set with this? This one isn't finished."))) { showSelection(); return; }
-  if (pick) pick.mode = "random";
   start("random", sel);
 }
 fillRegions(mix(), "world");
 $("region").addEventListener("change", choose);
-// topics changed in the sheet: the regions' counts follow them, and today's, the same for everyone, gives way to a random set
-addEventListener("topics:changed", () => { fillRegions(mix(), $("region").value); if (pick?.mode === "daily") pick.mode = "random"; });
+// topics changed in the sheet: the regions' counts follow them
+addEventListener("topics:changed", () => fillRegions(mix(), $("region").value));
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "chart");

@@ -10,7 +10,7 @@ import { lettersFor, RACE_LADDERS } from "./ladder-table.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, ticks, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, ticks, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, dailyDue, IN_FRAME } from "./suite.js";   // a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
@@ -604,23 +604,23 @@ document.addEventListener("keydown", e => {
 });
 
 // ---------- the menu ----------
-let pick = null;            // what New ladder deals: daily, random, linked, book
+let pick = null;            // what New ladder deals: random, linked, book
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (room.on || room.joining) { room.menu(body); showMenu(body); return; }
-  pick ??= dailyDue("ladder") ? "daily" : G?.kind && G.kind !== "daily" ? G.kind : prefs.kind;
+  pick ??= G?.kind && G.kind !== "daily" ? G.kind : prefs.kind;
   const startLabel = pick === "book" ? "Play the chapter" : "New ladder";
-  part(body, "play").append(action(startLabel, async () => { if (await confirmLeave()) { if (pick !== "daily") { prefs.kind = pick; keepPrefs(); } deal(pick); } }, "primary"));
+  part(body, "play").append(action(startLabel, async () => { if (await confirmLeave()) { prefs.kind = pick; keepPrefs(); deal(pick); } }, "primary"));
   const content = part(body, "content");
-  content.append(choice("Ladders", Object.entries(KINDS), pick, v => { pick = v; openMenu(); }));
-  if (pick === "daily") content.append(line(`Today's ladder is Medium, four or five letters, Classic: the same for everyone.${dailyDue("ladder") ? "" : " You've climbed it."}`));
+  content.append(choice("Ladders", Object.entries(KINDS).filter(([k]) => k !== "daily"), pick, v => { pick = v; openMenu(); }));   // Today's is a button (todayPart)
+  todayPart(body, { app: "ladder", play: () => deal("daily"), playing: G?.kind === "daily" && G.P.day === today() && !G.run.done, busy: started() });
   if (pick === "random" || pick === "linked") content.append(mirror("Level", $("level")));
   if (pick === "random") content.append(ticks("Letters", LENGTHS.map(n => [n, String(n)]), prefs.lengths, xs => { prefs.lengths = xs.length ? xs : [4, 5]; keepPrefs(); }));
   if (pick === "linked") content.append(ticks("Themes", Object.entries(THEMES), prefs.themes, xs => { prefs.themes = xs.length ? xs : Object.keys(THEMES); keepPrefs(); }));
   if (pick === "book") content.append(bookList());
   const settings = part(body, "settings");
-  if (pick !== "book" && pick !== "daily") settings.append(choice("Rules", Object.entries(RULES), prefs.rules, v => { prefs.rules = v; keepPrefs(); }));
+  if (pick !== "book") settings.append(choice("Rules", Object.entries(RULES), prefs.rules, v => { prefs.rules = v; keepPrefs(); }));
   settings.append(choice("Computer", [["off", "Off"], ["partner", "Partner"]], prefs.computer, v => { prefs.computer = v; keepPrefs(); openMenu(); }));
   if (prefs.computer !== "off") {
     settings.append(choice("Its level", Object.entries(PARTNERS).map(([k, r]) => [k, r.label]), prefs.cpu, v => { prefs.cpu = v; keepPrefs(); }));

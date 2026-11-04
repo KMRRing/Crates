@@ -13,7 +13,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { GAMES, roomInAddress, otherHere, joiningWords } from "./rooms.js";
 import "./pwa.js";
-import { part, action, line } from "./menu.js";
+import { part, action, line, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteStars, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -274,7 +274,8 @@ function openMenu() {
       const p = part(body, "play"), next = nextPlan(), done = plan.plan?.done;
       if (done && next) p.append(action(`Next: ${names.level(next)}`, () => openPlan(next), "primary"));
       p.append(action(done ? "Stow it again" : "Start this manifest again", () => openPlan(plan.level), done && next ? "" : "primary"));
-      p.append(action("Today's manifest", playDaily));
+      const stars = read(DAILY, {})[today()] || 0;
+      todayPart(body, { done: stars > 0, result: "★".repeat(stars), play: playDaily, playing: String(plan.level?.id).startsWith("d") && !done });
       part(body, "content").append(campaign(lv => { close(); openPlan(lv); }, lv => !isOpen(lv)));
     }
   }

@@ -14,7 +14,7 @@ import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
@@ -344,7 +344,6 @@ function toast(msg, ms = 2600) {
 }
 // the menu: Play (a new block), Content (Levels or Free play; in Levels the ladder, in Free play random or today's, the size and
 // how the rows are read), Settings (the view), About (your stars or your best here, a link)
-let pick = null;                                              // the free block the menu will start: "random" or "daily"
 /** The levels, three to a row under their chapter: each its rock in miniature, its number and name and the stars won. Those not open yet are dimmed; any open one can be played at any time, as it was left. */
 function levelList() {
   const all = document.createElement("div");
@@ -391,15 +390,14 @@ function openMenu() {
     return;
   }
   const levels = track === "levels", content = part(body, "content");
-  pick ??= S?.mode === "daily" ? "daily" : "random";
-  part(body, "play").append(action("New block", () => (levels ? confirmLevelBlock() : confirmStart(pick)), "primary"));
+  part(body, "play").append(action("New block", () => (levels ? confirmLevelBlock() : confirmStart("random")), "primary"));
   content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
   if (levels) content.append(levelList());
-  else {
-    content.append(choice("Block", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-    if (pick === "random") content.append(mirror("Size", $("size")), readingsChoice());
-    else content.append(line(`Today's block is ${SIZES[DAILY.size].label.toLowerCase()}, seams marked: the same for everyone.`));
-  }
+  else content.append(mirror("Size", $("size")), readingsChoice());
+  todayPart(body, {
+    app: "survey", play: () => { if (track !== "free") { track = "free"; write(TRACK, track); } start("daily"); },
+    playing: S?.mode === "daily" && S.seed === today() && !S.run.done, busy: started(),
+  });
   if (view) part(body, "settings").append(action("Reset the view", () => view.reset(), "link"));
   const about = part(body, "about");
   if (levels) {

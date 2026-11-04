@@ -38,8 +38,8 @@ function picture(q) {
   });
 }
 import "./pwa.js";
-import { part, choice, action, line } from "./menu.js";
-import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked set for your best
+import { part, choice, action, line, todayPart } from "./menu.js";
+import { today, noteComparable, arrivedForToday } from "./suite.js";          // the day, the same for everyone (UTC); a ranked set for your best
 import { roundOver } from "./random.js";
 
 const $ = id => document.getElementById(id);
@@ -706,15 +706,11 @@ async function copyLink() {
 // the menu: Play (start the set you've chosen), Content (random or today's, and where the topics stand), Settings
 // (learning mode), About (your bests, a link to this set); at a table, how a pair plays (Ranges or Trade: a fresh set
 // either way) and the table's own part. The topics themselves are set once for every game (a link to the sheet that does).
-let pick = null;                                              // the set the menu will start: { mode }
-// a change of topics with today's picked turns the next set to a random one: today's is the same for everyone
-addEventListener("topics:changed", () => { if (pick?.mode === "daily") pick.mode = "random"; });
 /** What the topics line adds for this game: how many of its categories the subjects leave in, and what that means for your best. */
-function topicsNote(daily = false) {
+function topicsNote() {
   const on = subjectsOn(), w = topicsOf(on), n = TOPICS.filter(([id]) => w[id] > 0).length, p = subjectPreset(on), one = focusOf(w);
   if (p === "none" || p === "all") return "";                 // the line says all there is to say
   if (!n) return "None are Quote's, so every topic is dealt";
-  if (daily) return "Today's set deals every topic";
   if (one) return `Quote deals ${CATS[one]} alone, a set with a best of its own`;
   return `Quote deals ${n === TOPICS.length ? "all" : `${n} of`} its ${TOPICS.length} topics${p === "custom" ? "; your own mix keeps no best" : ""}`;
 }
@@ -730,14 +726,13 @@ function openMenu() {
     const note = topicsNote();                                // the table's fresh set is dealt from the topics of whoever deals it
     part(body, "content").append(...topicsPart(body, note ? `${note}; a fresh set is dealt from yours` : "A fresh set is dealt from yours"));
   } else {
-    pick ??= { mode: S?.mode === "daily" || dailyDue("quote") ? "daily" : "random" };   // today's first, while it's still to play
     const play = part(body, "play");
-    play.append(action("Start a set", () => confirmStart(pick.mode), "primary"));
+    play.append(action("Start a set", () => confirmStart("random"), "primary"));
     if (S?.done) play.append(action("See how it went", finish));
     const content = part(body, "content");
-    content.append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; openMenu(); }));
-    // the topics are for random sets (today's is the same for everyone), so the line shows either way
-    content.append(...topicsPart(content, topicsNote(pick.mode === "daily")));
+    // the topics are for random sets: today's is the same for everyone
+    content.append(...topicsPart(content, topicsNote()));
+    todayPart(body, { app: "quote", play: () => confirmStart("daily"), playing: S?.mode === "daily" && S.seed === today() && !S.done });   // confirmStart asks before it leaves a set
     // a single topic's best beside the book: the topic the subjects leave alone, else refining, which had sets of its own first
     const best = read(BEST, null), daily = read(DAILY, {})[String(today())], alone = focusOf(mix()) ?? "refining", bestOne = read(`${BEST}:${alone}`, null);
     part(body, "about").append(

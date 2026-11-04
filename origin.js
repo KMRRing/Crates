@@ -17,7 +17,7 @@ import { subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, action, line, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
@@ -446,9 +446,6 @@ const together = createTogether({
 const backToSolo = () => { if (together.room) together.leave(); else location.replace(soloHref()); };
 
 // ---------- the menu ----------
-let pick = null;
-// topics changed (in the sheet Change topics opens) with today's picked: the next run is a random one, which they are for
-addEventListener("topics:changed", () => { if (pick === "daily") pick = "random"; });
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -463,14 +460,11 @@ function openMenu() {
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
-  pick ??= (S?.daily && !S.over) || dailyDue("origin") ? "daily" : "random";   // today's first, while it's still to play
-  part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
+  part(body, "play").append(action("New run", () => newRun(false), "primary"));
   const content = part(body, "content");
-  content.append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  // your topics (the clues they leave out) are for random runs, today's being the same for everyone: shown either way
-  // (a game opens on today's, and topics shown only with Random were never found), and one changed with today's picked
-  // turns the next run to a random one (below)
-  content.append(...topicsPart(content, pick === "daily" ? "Today's run deals every topic" : onPreset() ? "" : "Your own mix doesn't count for your best"));
+  // your topics (the clues they leave out) are for random runs; today's is the same for everyone
+  content.append(...topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; today's run deals every topic"));
+  todayPart(body, { app: "origin", play: openToday, playing: !!S?.daily && !S.over });   // openToday asks before it leaves a run you've started
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${ANSWERS.length} countries`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

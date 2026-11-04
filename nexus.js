@@ -14,7 +14,7 @@ import { mkOfEntity } from "./marked.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
 import { topicsPart } from "./topics-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, action, line, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC)
 import { roundOver } from "./random.js";
@@ -279,9 +279,6 @@ function lobby() {
 }
 
 // ---------- the menu ----------
-let pick = null;
-// topics changed (in the sheet Change topics opens) with today's picked: the next run is a random one, which they are for
-addEventListener("topics:changed", () => { if (pick === "daily") pick = "random"; });
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -292,16 +289,13 @@ function openMenu() {
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
-  pick ??= S?.daily ? "daily" : "random";
-  part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
+  part(body, "play").append(action("New run", () => newRun(false), "primary"));
   const content = part(body, "content");
-  content.append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  // today's run is the same for everyone, so your rounds are for random runs, and so are your topics, but they're shown
-  // either way: a game opens on today's, and topics shown only with Random were never found
-  if (pick === "random") content.append(choice("Rounds", MODES, prefs.mode, v => { prefs.mode = v; keepPrefs(); openMenu(); }));
-  content.append(...topicsPart(content, pick === "daily" ? "Today's run deals every topic" : onPreset() ? "" : "Your own mix doesn't count for your best"));
+  todayPart(body, { app: "nexus", play: () => newRun(true), playing: !!S?.daily && !S.over, busy: started() });
+  content.append(choice("Rounds", MODES, prefs.mode, v => { prefs.mode = v; keepPrefs(); openMenu(); }));
+  content.append(...topicsPart(content, onPreset() ? "" : "Your own mix doesn't count for your best; today's run deals every topic"));
   const settings = part(body, "settings");
-  if (pick === "random") settings.append(choice("Candidates", SIZES.map(n => [n, String(n)]), prefs.size, v => { prefs.size = v; keepPrefs(); openMenu(); }));
+  settings.append(choice("Candidates", SIZES.map(n => [n, String(n)]), prefs.size, v => { prefs.size = v; keepPrefs(); openMenu(); }));
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${CENTRES.length.toLocaleString("en-GB")} things to start from`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

@@ -19,7 +19,7 @@ import { check } from "./typing.js";
 import * as known from "./known.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./question-flags.js";
 import { gameHref, GAMES, joiningWords } from "./rooms.js";
-import { part, choice, action, line, ticks } from "./menu.js";
+import { part, choice, action, line, ticks, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { subjectPreset, showStar } from "./topics.js";
 import { subjectsOn, dealt, markedIn } from "./topics-on.js";
@@ -995,9 +995,12 @@ function drawMenu() {
   const play = part(body, "play");
   // at a table a new run is the whole table's (dealt from your choices below), and today's run is played alone
   if (together.room) play.append(action("New run", () => newSession("mix", pickLength), "primary"));
-  else play.append(action("New run", () => newSession("mix", pickLength), "primary"), action("Today's run", newDaily),
-    line(S?.daily ? "Today's run: it counts for your best." : S?.ranked ? "A topics preset with every difficulty in: it counts for your best."
-      : "Your best counts today's run, and runs on a topics preset with every difficulty in, at any length: not your own mix."));
+  else {
+    play.append(action("New run", () => newSession("mix", pickLength), "primary"),
+      line(S?.daily ? "Today's run: it counts for your best." : S?.ranked ? "A topics preset with every difficulty in: it counts for your best."
+        : "Your best counts today's run, and runs on a topics preset with every difficulty in, at any length: not your own mix."));
+    todayPart(body, { app: "punt", play: newDaily, playing: !!S?.daily && !S.done });   // newDaily asks before it leaves a run you've started
+  }
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
   // what a run deals: the topics set in Settings (a line and a link here, never a control of its own), the difficulties
   // for all of them, and each subject bank's stages; a change applies to the next run
