@@ -1,23 +1,23 @@
 // Assay (README, Assay): guess the hidden word. By default it is weighed: letters weigh by their place in the
 // alphabet, and each place of a guess reads right, or the word's letter comes later (up) or earlier (down). The classic
-// colour marks (in place, elsewhere in the word, out) are the menu's other reading. One word, several boards at once, a
-// word that dodges, or a three-minute sprint, at four lengths and three levels, with a hard rule or a strict one in
-// colours. The rules,
+// colour marks (in place, elsewhere in the word, out) are the menu's Words. The menu is one choice of what to play; the
+// rest is fixed (one word, five letters, a mix of the levels). Several boards at once, a word that dodges, a
+// three-minute sprint, and the hard and strict rules in colours are the Levels'. The rules,
 // the words, the levels and the daily are assay-engine.js's; the team's table
 // assay-table.js's. Together: the pair as a team, each seeing one colour of the marks (together.js), or everyone
 // racing the same word (duel.js), from the partner sheet or a Party. Levels (assay-levels.js) are a ladder of recipes
 // beside free play, each kept as it was left (assay:lruns), its stars in assay:camp. Words are one of three games (the
 // lexicon, assay-lexicons.js): the other two, primes and equations (assay-numbers.js), are played alone, in free play
 // and on the ladder, with every mode; the daily, the team and the race are words.
-import { LENGTHS, LEVELS, BOARDS, DAILY, HIT, NEAR, GREY, UNSEEN, SPRINT_MS, READS, readOf, readFor, boundsOf, newGame, guessIn, rowsOf, solvedAt, limitOf, guessesFor, answersOf,
-  scoreOf, sprintSolved, guessesUsed, timeUp, dailyWord, seenAs, unhide, packOf, levelOf, meanGuesses } from "./assay-engine.js";
+import { LENGTHS, MIX, DAILY, HIT, NEAR, GREY, UNSEEN, SPRINT_MS, readOf, readFor, boundsOf, newGame, guessIn, rowsOf, solvedAt, limitOf, guessesFor, answersOf,
+  scoreOf, sprintSolved, guessesUsed, timeUp, dailyWord, seenAs, unhide } from "./assay-engine.js";
 import { freshTeam, isTeam, tidy, guessAt, rowsOfTable, roleAt, resultOf as teamResult, dealAt, limitOfTable } from "./assay-table.js";
 import { ENGLISH } from "./assay-words.js";
 import { lexOf, unitOf, nounOf, ready, IDS } from "./assay-lexicons.js";
 import * as LV from "./assay-levels.js";
 import { miniature } from "./assay-mini.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { part, choice, action, todayPart, line, onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
@@ -47,29 +47,30 @@ const big = w => w.toUpperCase();
 const clock = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const NUMBER = { 2: "Two", 4: "Four", 8: "Eight" };
 const MODE_NAMES = { classic: "One word", boards: "Boards", dodge: "Dodge", sprint: "Sprint" };
-const LEVEL_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard" };
+const LEVEL_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard", [MIX]: "" };         // the mix is not said: it is what a word is
 const RULE_NAMES = { free: "Free", hard: "Hard", strict: "Strict" };
-const RULE_LINES = { free: "Any word may be guessed.", hard: "Hard: a letter found stays in place, and every letter shown is used.", strict: "Strict: every guess could be the word." };
 
 // ---------- what you've chosen ----------
-const DEFAULTS = { lang: "en", mode: "classic", len: 5, boards: 4, level: "medium", rules: "free", read: "scale", contrast: false };
-const READ_NAMES = { scale: "Weighed", colour: "Colours" };
+// One choice (Korbi, 4 November 2026: "the menu is the minimum it needs to be"): what to play. Everything else is fixed:
+// one word of five letters (digits for Primes, seven characters for Equations), the mix of all three bands, any word may be
+// guessed, and the daily is weighed. Boards, Dodge and Sprint are in the Levels. `lang` and `read` are worked out from the choice.
+const GAMES = [["levels", "Levels"], ["words", "Words"], ["weighed", "Weighed"], ["primes", "Primes"], ["equations", "Equations"]];
+const FIXED = { mode: "classic", boards: 4, level: MIX, rules: "free" };
+/** The choice of a player who has only the old menu's: its track (levels | free), Game (lang) and Marks (read). */
+function gameFromOld(p) {
+  const t = read(TRACK, null);
+  if (t === "levels" || (t !== "free" && !read(RUN, null))) return "levels";
+  if (p.lang === "primes" || p.lang === "equations") return p.lang;
+  return p.read === "colour" ? "words" : "weighed";
+}
 function cleanPrefs(p) {
-  const x = { ...DEFAULTS, ...(p && typeof p === "object" ? p : {}) };
-  if (!MODE_NAMES[x.mode]) x.mode = DEFAULTS.mode;
-  if (!IDS.includes(x.lang)) x.lang = DEFAULTS.lang;
-  const lens = lexOf(x.lang).lengths;
-  if (!lens.includes(x.len)) x.len = lens.includes(DEFAULTS.len) ? DEFAULTS.len : lens.at(-1);
-  if (!BOARDS.includes(x.boards) || x.boards === 1) x.boards = DEFAULTS.boards;
-  if (!LEVELS.includes(x.level)) x.level = DEFAULTS.level;
-  if (!RULE_NAMES[x.rules]) x.rules = DEFAULTS.rules;
-  if (!READS.includes(x.read)) x.read = DEFAULTS.read;
-  x.contrast = !!x.contrast;
-  return x;
+  const o = p && typeof p === "object" ? p : {};
+  const game = GAMES.some(([id]) => id === o.game) ? o.game : gameFromOld(o);
+  const lang = game === "primes" || game === "equations" ? game : "en", lens = lexOf(lang).lengths;
+  return { game, lang, read: game === "words" ? "colour" : "scale", ...FIXED, len: lens.includes(5) ? 5 : lens[Math.floor(lens.length / 2)] };
 }
 let prefs = cleanPrefs(read(PREFS, null));
 const setPref = (k, v) => { prefs = cleanPrefs({ ...prefs, [k]: v }); write(PREFS, prefs); };
-const applyContrast = () => document.documentElement.classList.toggle("as-contrast", prefs.contrast);
 
 // ---------- the levels ----------
 /** The campaign as kept: the level being played and the stars won in each, mended if it is not what it should be. */
@@ -82,8 +83,8 @@ let camp = readCamp();
 /** Whether level n (0 on) is open: the first, and any whose one before is beaten. */
 const isOpen = n => n === 0 || camp.stars[n - 1] >= 1;
 // Someone who has played before carries on with free play (the daily among it); a new player begins on the ladder.
-let track = read(TRACK, null);
-if (track !== "levels" && track !== "free") track = read(RUN, null) ? "free" : "levels";
+let track = prefs.game === "levels" ? "levels" : "free";
+write(TRACK, track);
 
 // ---------- the game on the screen ----------
 // S: a game of yours (assay-engine.js's, with kind "daily" or "random", the draft being typed), or
@@ -129,8 +130,8 @@ async function start(kind) {
   const day = today(), lex = kind === "daily" ? LEX : lexOf(prefs.lang);
   await prepare(lex);
   begin(kind === "daily"
-    ? newGame({ lex, ...DAILY, rules: prefs.rules, read: prefs.read, words: [dailyWord(day, lex)], day, seed: day })
-    : newGame({ lex, mode: prefs.mode, len: prefs.len, boards: prefs.boards, level: prefs.level, rules: prefs.rules, read: prefs.read, seed: randomSeed(), avoid: read(SEEN, []) }), kind);
+    ? newGame({ lex, ...DAILY, read: "scale", words: [dailyWord(day, lex)], day, seed: day })
+    : newGame({ lex, mode: prefs.mode, len: prefs.len, level: prefs.level, read: prefs.read, seed: randomSeed(), avoid: read(SEEN, []) }), kind);
 }
 async function confirmStart(kind) {
   if (started() && !(await sure(kind === "daily" ? "Leave this word for today's?" : "Start a new word? This one isn't finished."))) return;
@@ -163,6 +164,13 @@ async function setTrack(next) {
   track = next;
   write(TRACK, track);
   await resume();
+}
+/** The menu's one choice. Levels, or what to play in free play: a word not yet guessed at is dealt again at once, else it waits for New word. */
+async function setGame(game) {
+  if (game === prefs.game) return;
+  setPref("game", game);
+  if (game === "levels" || track === "levels") { await setTrack(game === "levels" ? "levels" : "free"); return; }
+  if (S && !S.duel && S.kind !== "daily" && !S.over && !S.guesses.length && !(S.past || []).length) await start("random");
 }
 
 // ---------- the clock ----------
@@ -629,10 +637,10 @@ async function copyResult() {
 // Everyone at the table plays the match's game on their own phone from the moment it starts: the fewest guesses win,
 // then the quicker (a sprint: the most words). Your own game, its stats and today's stay as they were.
 const matchFrom = p => {
-  const g = newGame({ lex: LEX, mode: p.mode, len: p.len, boards: p.boards, level: p.level, rules: p.rules, read: p.read, seed: randomSeed() });
+  const g = newGame({ lex: LEX, mode: FIXED.mode, len: 5, level: FIXED.level, read: "scale", seed: randomSeed() });
   return { seed: g.seed, mode: g.mode, len: g.len, boards: g.boards, level: g.level, rules: g.rules, read: g.read, secret: g.secret };
 };
-const describeMatch = m => [MODE_NAMES[m.mode] === "Boards" ? `${NUMBER[m.boards]} boards` : MODE_NAMES[m.mode], `${m.len} letters`, LEVEL_NAMES[m.level], m.read === "scale" ? "weighed" : "colours", m.rules !== "free" ? RULE_NAMES[m.rules] : null].filter(Boolean).join(", ")
+const describeMatch = m => [MODE_NAMES[m.mode] === "Boards" ? `${NUMBER[m.boards]} boards` : MODE_NAMES[m.mode], `${m.len} letters`, LEVEL_NAMES[m.level] || null, m.read === "scale" ? "weighed" : "colours", m.rules !== "free" ? RULE_NAMES[m.rules] : null].filter(Boolean).join(", ")
   + (m.mode === "sprint" ? ": the most words in three minutes" : ": the fewest guesses win, then the quicker");
 function playMatch(match, { begun, kept }) {
   const same = kept && kept.seed === match.seed && kept.mode === match.mode && valid(kept);
@@ -842,21 +850,20 @@ function showRules() {
     `${inWords(g)}${i ? "" : " guesses"} for ${i ? "one" : "a word"} of ${LENGTHS.filter(n => guessesFor(n) === g).map(inWords).join(", ").replace(/, (\w+)$/, " or $1")} letters`);
   $("rulesBody").innerHTML = `
     <p>Find the hidden word. Each guess must be a word of the same length, and it is <b>weighed</b> against the hidden one: letters weigh by their place in the alphabet, A the lightest and Z the heaviest, and each place of your guess is read on its own.</p>
-    <p><b>The marks.</b> <b>Green</b>: the right letter. <b>Blue ▲</b>: the word's letter in that place weighs more than yours, so it comes later in the alphabet. <b>Red ▼</b>: it weighs less, so it comes earlier. A place narrows as a balance does, by halves; the strip under the board says what each place may still be, from the earliest letter to the latest. High contrast, in Settings, turns the green dark.</p>
+    <p><b>The marks.</b> <b>Green</b>: the right letter. <b>Blue ▲</b>: the word's letter in that place weighs more than yours, so it comes later in the alphabet. <b>Red ▼</b>: it weighs less, so it comes earlier. A place narrows as a balance does, by halves; the strip under the board says what each place may still be, from the earliest letter to the latest.</p>
     <p><b>For example.</b> The word is CRANE and you guess TRACE: T is red ▼ (the word's first letter, C, comes before T), R and A are green, C is blue ▲ (the word has N there, which comes after C), E is green.</p>
     <p><b>Guesses.</b> You have ${counts.join(" and ")}: four is the hard length, whole families of its words differing in one letter (BAKE, CAKE, FAKE, LAKE, MAKE). Any word of the length in the word list may be guessed; one that isn't, or a guess too short, shakes and costs nothing. The hidden words are everyday words, never a plural, a past tense or another form of a word.</p>
     <p><b>Playing.</b> Type on the keyboard under the board, Enter at its left and Delete at its right, or on a keyboard of your own.</p>
-    <p><b>Colours.</b> Settings' Marks has the classic reading too: <b>green</b> if the letter is in the word in that place, <b>ochre</b> if it is in the word somewhere else, <b>grey</b> if it isn't in the word at all, and the keys take the colours your guesses have shown. TRACE against CRANE: T is grey, R and A green, C ochre, E green. A letter guessed twice is marked the ones in place first, then elsewhere for as many as the word has left, the rest grey: against THOSE, GEESE gets its S and its last E green and the rest grey, since THOSE has only one E.</p>
-    <p><b>Hard and Strict</b> (colours only). Settings' Rules: <b>Free</b> takes any word; <b>Hard</b> keeps a letter found in place there and uses every letter shown, as often as shown; <b>Strict</b> asks for a word that could still be the answer, so a letter shown elsewhere also moves and a grey one stays out. A guess they forbid is turned away with the reason. A change takes effect at once on a word not yet guessed at, otherwise from the next. Several boards always play free.</p>
-    <p><b>Modes.</b> In the menu, with the letters (${inWords(LENGTHS[0])} to ${inWords(LENGTHS.at(-1))}) and the level: <b>One word</b>; <b>Boards</b>, two, four or eight words at once, every guess played on each, with ${guessesFor(5, 2)}, ${guessesFor(5, 4)} or ${guessesFor(5, 8)} guesses at five letters; <b>Dodge</b>, where no word is chosen: each guess is read to keep as many words in play as it can, and you beat it by leaving it one word and guessing that, in as few guesses as you can; <b>Sprint</b>, as many words as you can in ${inWords(SPRINT_MS / 60000)} minutes, a word solved or spent moving on at once. The levels go by how many guesses a player needs, not by how rare the word is.</p>
-    <p><b>Numbers.</b> The menu's Game also has <b>Primes</b>, where the hidden number is a prime of four or five digits and every guess must be a prime too (each digit is weighed too, 0 the lightest), and <b>Equations</b>, where the hidden sum balances, six to eight characters of digits, + − × ÷ and one =, with a whole number alone on the right (the sum is worked in the usual order: 6÷4×2 is 3), every guess must balance too, and the marks are always colours. These are played alone, not as the daily or at a table.</p>
-    <p><b>Today's word.</b> The same for everyone: ${inWords(DAILY.len)} letters at ${LEVEL_NAMES[DAILY.level]}, ${inWords(guessesFor(DAILY.len))} guesses, and a new one at midnight UTC, read the way Settings' Marks says. It counts the moment your last guess lands, and your streak is the days solved in a row. Copy the result gives a line of marks a guess, ◆ for a right letter, with the rule if Hard or Strict was on.</p>
+    <p><b>Colours.</b> The menu's Words is the classic reading: <b>green</b> if the letter is in the word in that place, <b>ochre</b> if it is in the word somewhere else, <b>grey</b> if it isn't in the word at all, and the keys take the colours your guesses have shown. TRACE against CRANE: T is grey, R and A green, C ochre, E green. A letter guessed twice is marked the ones in place first, then elsewhere for as many as the word has left, the rest grey: against THOSE, GEESE gets its S and its last E green and the rest grey, since THOSE has only one E.</p>
+    <p><b>Hard and Strict</b> (colours only, in some levels). Everywhere else any word may be guessed; <b>Hard</b> keeps a letter found in place there and uses every letter shown, as often as shown; <b>Strict</b> asks for a word that could still be the answer, so a letter shown elsewhere also moves and a grey one stays out. A guess they forbid is turned away with the reason. Several boards always play free.</p>
+    <p><b>Modes.</b> The levels have them, at four to seven letters: <b>One word</b>; <b>Boards</b>, two, four or eight words at once, every guess played on each, with ${guessesFor(5, 2)}, ${guessesFor(5, 4)} or ${guessesFor(5, 8)} guesses at five letters; <b>Dodge</b>, where no word is chosen: each guess is read to keep as many words in play as it can, and you beat it by leaving it one word and guessing that, in as few guesses as you can; <b>Sprint</b>, as many words as you can in ${inWords(SPRINT_MS / 60000)} minutes, a word solved or spent moving on at once. Easy, Medium and Hard go by how many guesses a player needs, not by how rare the word is; a free word is drawn from all three.</p>
+    <p><b>Numbers.</b> The menu's Play also has <b>Primes</b>, where the hidden number is a prime of four or five digits and every guess must be a prime too (each digit is weighed too, 0 the lightest), and <b>Equations</b>, where the hidden sum balances, six to eight characters of digits, + − × ÷ and one =, with a whole number alone on the right (the sum is worked in the usual order: 6÷4×2 is 3), every guess must balance too, and the marks are always colours. These are played alone, not as the daily or at a table.</p>
+    <p><b>Today's word.</b> The same for everyone: ${inWords(DAILY.len)} letters at ${LEVEL_NAMES[DAILY.level]}, ${inWords(guessesFor(DAILY.len))} guesses, always weighed, and a new one at midnight UTC. It counts the moment your last guess lands, and your streak is the days solved in a row. Copy the result gives a line of marks a guess, ◆ for a right letter.</p>
     <p><b>Together.</b> With your partner, as a team: one word, guesses taken in turns, in colours, and the colours split, one of you seeing what's in place and the other what's elsewhere; a letter is out only when neither of you has it lit, so say what you see. Notes strikes letters out on your own keyboard. Or a race, at a party too: the same word on every phone, the fewest guesses winning, then the quicker.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 
 // ---------- the menu ----------
-let pick = null;                          // the next game of yours: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -865,30 +872,19 @@ function openMenu() {
     if (duel.on) {
       duel.menu(together);
       if (duel.together.others().length === 1) together.append(action("Play as a team instead", () => switchTo("team"), ""));
-      nextChoices(part(body, "content"), "The next match", false);
     } else if (team.room) {
       together.append(action("Another word", () => teamNext(), "primary"), action("Race instead", () => switchTo("race"), ""));
       const all = people().map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`);
       together.append(line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`), action("Back to solo", backToSolo, "link"));
-      const content = part(body, "content");
-      content.append(choice("Letters", LENGTHS.map(n => [n, String(n)]), T?.len ?? prefs.len, v => { setPref("len", v); }),
-        choice("Words", LEVELS.map(l => [l, LEVEL_NAMES[l]]), prefs.level, v => setPref("level", v)), line("For the next word."));
     } else { const wait = line(joiningWords()); wait.prepend(waitMark()); together.append(wait, action("Back to solo", backToSolo, "link")); }
-    settingsPart(body, false, !team.room);
     showMenu(body);
     return;
   }
-  const levels = track === "levels", content = part(body, "content");
-  pick ??= (S?.kind === "daily" && !S.over) || dueToday() ? "daily" : "random";
-  part(body, "play").append(action(levels ? "New word" : pick === "daily" ? "Today's word" : "New word", () => (levels ? confirmLevelWord() : confirmStart(pick)), "primary"));
-  content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
+  const levels = track === "levels", content = part(body, "content"), today0 = S?.kind === "daily" && !S.over;
+  part(body, "play").append(action("New word", () => (levels ? confirmLevelWord() : confirmStart("random")), dueToday() && !today0 ? "" : "primary"));
+  todayPart(body, { done: !dueToday(), result: dayResult(), play: () => start("daily"), playing: today0, busy: started() && !today0 });
+  content.append(choice("Play", GAMES, prefs.game, v => { setGame(v); openMenu(); }));
   if (levels) content.append(levelList());
-  else {
-    content.append(choice("Word", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-    if (pick === "random") nextChoices(content, null);
-    else content.append(line(`Today's word: five letters, Medium, six guesses, the same for everyone.${dueToday() ? "" : ` You took ${dayResult()}.`}`));
-  }
-  settingsPart(body, true);
   const about = part(body, "about");
   if (levels) about.append(line(`${camp.stars.filter(Boolean).length} of ${LV.COUNT} levels cleared, ${plural(camp.stars.reduce((a, b) => a + b, 0), "star")}. Each level sets its own rules.`));
   else about.append(line(aboutLine()));
@@ -922,39 +918,6 @@ function showMenu(body) {
   part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-/** The choices for the next game: the game (words, primes or equations), mode, length, boards, level. */
-function nextChoices(box, note, solo = true) {
-  const redraw = () => { openMenu(); }, lex = lexOf(solo ? prefs.lang : "en"), unit = unitOf(lex), noun = nounOf(lex);
-  if (solo) box.append(choice("Game", IDS.map(id => [id, id === "en" ? "Words" : lexOf(id).name]), prefs.lang, async v => { setPref("lang", v); await prepare(lexOf(v)); redraw(); }));
-  box.append(choice("Mode", Object.entries(MODE_NAMES), prefs.mode, v => { setPref("mode", v); redraw(); }),
-    choice(unit[0].toUpperCase() + unit.slice(1), lex.lengths.map(n => [n, String(n)]), prefs.len, v => { setPref("len", v); redraw(); }));
-  if (prefs.mode === "boards") box.append(choice("Boards", [[2, "Two"], [4, "Four"], [8, "Eight"]], prefs.boards, v => { setPref("boards", v); redraw(); }));
-  box.append(choice(lex.id === "en" ? "Words" : lex.name, LEVELS.map(l => [l, LEVEL_NAMES[l]]), prefs.level, v => { setPref("level", v); redraw(); }));
-  if (lex.levelNote) box.append(line(lex.levelNote));
-  if (lex.load && !loaded.has(lex.id)) { prepare(lex).then(redraw); box.append(line(`${lex.name} are on their way.`)); return; }
-  const P = packOf(lex, prefs.len), g = guessesFor(prefs.len, prefs.mode === "boards" ? prefs.boards : 1), mean = meanGuesses(P, prefs.level);
-  const say = prefs.mode === "dodge" ? `${levelOf(P, prefs.level).length} ${noun}s to dodge with; no limit, the fewest guesses best.`
-    : prefs.mode === "sprint" ? `Three minutes, ${plural(guessesFor(prefs.len), "guess", "guesses")} a ${noun}.`
-    : `${plural(g, "guess", "guesses")}${Number.isFinite(mean) ? `; a player like most needs about ${mean.toFixed(1)} on one board` : ""}.`;
-  box.append(line(note ? `${note}: ${say}` : say));
-}
-function settingsPart(body, solo, marks = true) {
-  const settings = part(body, "settings"), levels = solo && track === "levels";
-  if (marks && !levels) {
-    settings.append(choice("Marks", Object.entries(READ_NAMES), prefs.read, v => {
-      setPref("read", v);
-      const fresh = S && !S.duel && S.kind !== "level" && !S.guesses.length && !(S.past || []).length;
-      if (fresh) { S.read = readFor(lexOf(S.lang), v); if (S.read === "scale") S.rules = "free"; else if (S.boards === 1) S.rules = prefs.rules; save(); render(); }
-      openMenu();
-    }), line(prefs.read === "scale" ? "Weighed: letters weigh by their place in the alphabet; each place reads right, ▲ the word's letter is later, ▼ earlier." : "Colours: the classic marks, green in place, ochre elsewhere in the word, grey out."));
-  }
-  if (!levels && (!marks || prefs.read === "colour")) settings.append(choice("Rules", Object.entries(RULE_NAMES), prefs.rules, v => {
-    setPref("rules", v);
-    if (S && !S.duel && !S.guesses.length && S.boards === 1 && readOf(S) === "colour") { S.rules = v; save(); render(); }
-    openMenu();
-  }), line(prefs.mode === "boards" ? "Several boards always play free." : RULE_LINES[prefs.rules]));
-  settings.append(toggle("High contrast", prefs.contrast, on => { setPref("contrast", on); applyContrast(); }));
-}
 const dayResult = () => { const v = read(DAILY_KEY, {})[today()]; return v > 6 ? "it to the end without it" : plural(v, "guess", "guesses"); };
 function aboutLine() {
   const st = read(STATS, {}).daily, s = read(STREAK, null), best = read(BEST, null);
@@ -984,7 +947,6 @@ async function askName() {
 // ---------- wiring ----------
 document.querySelector(".as-mark").innerHTML = APPS.find(a => a.id === "assay")?.logo || "";
 bindSwitcher($("appsBtn"), "assay");
-applyContrast();
 $("menuBtn").addEventListener("click", openMenu);
 $("levelBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());

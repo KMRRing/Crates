@@ -6,7 +6,7 @@
 // team's split colours (the parts make the whole, and neither part alone does), played at a table through the
 // database's own round trip.
 import { GREY, NEAR, HIT, READS, readOf, readFor, boundsOf, LENGTHS, LEVELS, guessesFor, marksOf, codeOfMarks, marksOfCode, codeAt, packOf, fits, rulesBreak, rng, hashOf,
-  gradeOf, gradesOf, levelOf, meanGuesses, RUNS, deal, dailyWord, dayNumber, DAILY, newGame, guessIn, rowsOf, solvedAt, answersOf,
+  gradeOf, gradesOf, levelOf, MIX, meanGuesses, RUNS, deal, dailyWord, dayNumber, DAILY, newGame, guessIn, rowsOf, solvedAt, answersOf,
   hide, unhide, dodgeStep, dodgeCands, timeUp, sprintSolved, scoreOf, lettersOf, refusal, roleOf, seenAs, UNSEEN, limitOf, allHit } from "../assay-engine.js";
 import { ENGLISH, inflection } from "../assay-words.js";
 import { CRUDE } from "../assay-crude.js";
@@ -144,6 +144,17 @@ check(marksOf("crane", "crane").every(m => m === HIT) && codeOfMarks(marksOf("cr
   const other = { ...ENGLISH, id: "stale" }, Q = packOf(other, 5), t1 = Date.now();
   check(gradesOf(Q) === null && levelOf(Q, "easy").every(i => Q.tier[i] <= 1) && levelOf(Q, "medium").length === Q.N && Number.isNaN(meanGuesses(Q, "hard")) && Date.now() - t1 < 200,
     "answers without kept grades get levels by commonness at once, never a phone grading thousands of words");
+  // the Words mix (the menu's only words level): every band's answers, drawn from a band picked at random
+  {
+    const mixAll = new Set(levelOf(P, MIX)), bands = ["easy", "medium", "hard"].map(l => new Set(levelOf(P, l)));
+    check(bands.every(b => [...b].every(i => mixAll.has(i))) && mixAll.size === new Set(bands.flatMap(b => [...b])).size, "the mix holds every answer of Easy, Medium and Hard");
+    const got = deal({ level: MIX, seed: 11, count: 600 }).map(w => P.words.indexOf(w));
+    const share = bands.map(b => got.filter(i => b.has(i)).length / got.length);
+    check(new Set(got).size === 600 && bands.every((_, k) => got.some(i => bands[k].has(i) && !bands.some((b, j) => j !== k && b.has(i)))), "a mix deals different answers, from each band");
+    check(same(deal({ level: MIX, seed: 5, count: 3 }), deal({ level: MIX, seed: 5, count: 3 })) && newGame({ level: MIX, seed: 5 }).level === MIX, "a mix is dealt the same from a seed, and a game keeps it");
+    const firsts = new Set(Array.from({ length: 60 }, (_, k) => bands.findIndex(b => b.has(P.words.indexOf(deal({ level: MIX, seed: k + 1 })[0])))));
+    check(firsts.size >= 3, `the first word of a mix comes from every band, not always the easiest (${share.map(x => x.toFixed(2)).join(", ")} of 600)`);
+  }
 }
 
 // ---------- the daily ----------

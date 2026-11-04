@@ -18,6 +18,8 @@ export const readFor = (lex, read) => (read === "scale" && lex?.id !== "equation
 export const LENGTHS = [4, 5, 6, 7];
 export const BOARDS = [1, 2, 4, 8];
 export const LEVELS = ["easy", "medium", "hard"];
+/** The menu's only words level (Korbi, 4 November 2026: "easy medium hard words, also redundant... just do mix"): every band's answers, a word as likely to be from one band as another. */
+export const MIX = "mix";
 export const RULES = ["free", "hard", "strict"];
 export const MODES = ["classic", "boards", "dodge", "sprint"];
 // Six guesses for five letters. Four letters is the hard length (whole families differ in one letter:
@@ -220,6 +222,11 @@ const levelLists = new Map();
 const quantile = (sorted, q) => sorted[Math.min(sorted.length - 1, Math.floor(q * (sorted.length - 1)))];
 /** The pack indices of a level's answers, in alphabetical order. */
 export function levelOf(P, level) {
+  if (level === MIX) {
+    const key = `${P.lex.id}:${P.len}:${MIX}`;
+    if (!levelLists.has(key)) levelLists.set(key, Object.freeze([...new Set(LEVELS.flatMap(l => levelOf(P, l)))].sort((a, b) => a - b)));
+    return levelLists.get(key);
+  }
   const key = `${P.lex.id}:${P.len}:${level}`;
   if (!levelLists.has(key) && P.lex.levelOf) levelLists.set(key, Object.freeze(P.lex.levelOf(P, level)));   // numbers have their own kinds
   if (!levelLists.has(key)) {
@@ -237,10 +244,20 @@ export function meanGuesses(P, level) {
 }
 
 // ---------- dealing ----------
+/** All of a mix's answers in an order that draws each from a band picked at random (each band shuffled), so Easy, Medium and Hard come about equally. */
+function mixOrder(P, r) {
+  const bands = LEVELS.map(l => shuffled(levelOf(P, l), r)), at = bands.map(() => 0), seen = new Set(), out = [];
+  while (bands.some((b, k) => at[k] < b.length)) {
+    const open = bands.map((_, k) => k).filter(k => at[k] < bands[k].length), k = open[r() % open.length], i = bands[k][at[k]++];
+    if (!seen.has(i)) { seen.add(i); out.push(i); }
+  }
+  return out;
+}
 /** `count` different answers of a length and level, from the seed; words in `avoid` (seen lately) only when needed. */
 export function deal({ lex = ENGLISH, len = 5, level = "medium", seed = 1, count = 1, avoid = [] }) {
-  const P = packOf(lex, len), list = levelOf(P, level), r = rng(seed), skip = new Set(avoid), out = [];
-  const order = shuffled(list, r);
+  const P = packOf(lex, len), r = rng(seed), skip = new Set(avoid), out = [];
+  // a mix picks the band for each answer first, so the easy and the hard come as often as the medium (the union alone is mostly medium)
+  const order = level === MIX ? mixOrder(P, r) : shuffled(levelOf(P, level), r);
   for (const i of order) { if (out.length >= count) break; if (!skip.has(P.words[i])) out.push(P.words[i]); }
   for (const i of order) { if (out.length >= count) break; if (!out.includes(P.words[i])) out.push(P.words[i]); }
   return out;

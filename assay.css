@@ -1,7 +1,6 @@
 /* Assay: letter tiles on the page, the keyboard under them. The marks are the enamels. Weighed (the default): verdigris
    for a right letter, cobalt for "the word's letter is later" and oxblood for "earlier", each with its arrow. Colours
-   (the classic reading): verdigris in place, ochre elsewhere, the ink's own warm grey out (high contrast: cobalt in
-   place, so the marks never hang on green against yellow). Cobalt is the house colour. */
+   (the classic reading): verdigris in place, ochre elsewhere, the ink's own warm grey out. Cobalt is the house colour. */
 :root {
   --assay-in: #2C5B8A; --assay-soft: color-mix(in srgb, var(--assay-in) 15%, var(--sheet));
   --as-hit: var(--c1); --as-hit-ink: var(--on-c);
@@ -19,7 +18,6 @@
 /* night, set in Settings */
 html[data-mode="night"] { --assay-in: #6FA0D2; --as-out: color-mix(in srgb, var(--ink-soft) 30%, var(--tile)); --as-out-ink: var(--ink);
   --as-good: #7FC2A8; --as-bad: #E8806F; --as-typed: color-mix(in srgb, var(--ink) 55%, var(--tile-edge)); }
-html.as-contrast { --as-hit: var(--c2); --as-hit-ink: var(--on-c); --as-up: var(--c0); }
 
 .as-mark { display: inline-block; }
 .as-mark svg { width: 100%; height: 100%; display: block; }
