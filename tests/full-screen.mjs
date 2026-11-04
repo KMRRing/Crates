@@ -16,7 +16,7 @@ const EXEMPT = new Set(["soon.html"]);   // the placeholder for a game to come: 
 // TITLED: knowledge, puzzles, classics, courses, tools and word games, and Party (its Snap and Sketch drop the title in party.js)
 const TITLED = new Set(`crates lots punt quote origin order chart ledger nexus isomer lode acrostic crossword nonogram
   slate delta spot speedmaths pipes survey stow
-  sudoku calcudoku kakuro hitori masyu nurikabe slitherlink asterism moor mines ladder bridges bulls codeword assay yield
+  sudoku calcudoku kakuro hitori masyu nurikabe slitherlink lanterns asterism moor mines ladder bridges bulls codeword assay yield
   calibre parley arthistory wine trade music odds speedfuels blend refinery rack cartel deck rush
   party quest cue`.split(/\s+/).map(n => n + ".html"));
 // FULL alone: card and dice games, board games, idle and ambient games, pictures (Manifest, Almanac, Guilloché, Timegrapher)

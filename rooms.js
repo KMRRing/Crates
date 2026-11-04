@@ -60,6 +60,7 @@ export const GAMES = {
   masyu: { name: "Pearl", page: "./masyu.html" },
   nurikabe: { name: "Atoll", page: "./nurikabe.html" },
   asterism: { name: "Asterism", page: "./asterism.html" },
+  lanterns: { name: "Lanterns", page: "./lanterns.html" },
   moor: { name: "Moor", page: "./moor.html" },
   bridges: { name: "Bridges", page: "./bridges.html" },
   bulls: { name: "Conjunction", page: "./bulls.html" },

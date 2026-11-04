@@ -40,6 +40,7 @@ export const ROUNDS = {
   masyu: "a puzzle solved",
   nurikabe: "a puzzle solved",
   asterism: "a puzzle solved",
+  lanterns: "a puzzle solved",
   moor: "a puzzle solved",
   bridges: "a puzzle solved",
   bulls: "a code broken or its rows run out, a duel settled, or a lock opened",
