@@ -44,7 +44,7 @@ export const COURSE = {
           ],
         },
         {
-          id: "deal", title: "The deal and the winds", zh: "起牌",
+          id: "deal", title: "The deal, the winds", zh: "起牌",
           steps: [
             { rows: [{ label: "Dealer: East 東", text: "14 tiles" }, { label: "The others", text: "13 tiles" }], say: "One player deals and sits as East (東); the others are South, West and North in the order of play, which goes to the right. The dealer starts with fourteen tiles, the others thirteen; flowers in the deal are set out and replaced from the end of the wall." },
             { rows: [{ label: "Dealer: East 東", text: "14 tiles" }, { label: "The others", text: "13 tiles" }], quiz: ["13", "14", "16"], answer: 1, say: "How many tiles does the dealer start with?", why: "Fourteen: the first draw is already in the hand, so the dealer begins with a tile to throw.", check: () => String(deal0().seats[0].hand.length) },
@@ -137,14 +137,14 @@ export const COURSE = {
           ],
         },
         {
-          id: "kongs", title: "Kongs, robbing, the last tile", zh: "槓",
+          id: "kongs", title: "Kongs and the last tile", zh: "槓",
           steps: [
             { goal: "claim", answer: "Win", ...ROBBED, opts: ["Pass", "Win"], say: "The player across adds a fourth 8 of bamboo to the pung they called. That kong tile is one of yours: you're waiting on the 5 or the 8 of bamboo. Rob it.", then: "Robbing a kong (搶槓) is worth a fan, and the player who added it pays. Only a kong added to a called pung can be robbed.", proves: () => fanAt(ROBBED) === 4 },
             { rows: [{ label: "Win on a kong's replacement 槓上開花", text: "1 fan" }, { label: "Win on the last tile 海底撈月", text: "1 fan" }], quiz: WORDS, answer: 1, say: "The tile you draw to replace a kong completes your hand. How many fan does that add?", why: "One, as does winning on the last tile of the wall (or on its last throw).", check: () => WORDS[fanAt({ ...ALL_CHOWS, flags: { afterKong: true } }) - fanAt(ALL_CHOWS)] },
           ],
         },
         {
-          id: "block", title: "Passing, liability, the next deal", zh: "包",
+          id: "block", title: "Liability and next deal", zh: "包",
           steps: [
             { goal: "claim", answer: "Pass", ...RED_PUNG, block: true, opts: ["Pass", "Win"], say: "You passed on a win a moment ago (糊一唔糊二) and haven't drawn since. Now the tile comes that would win. Try Win.", then: "A win you pass bars you from winning off a throw until you draw again." },
             { rows: [{ label: "Their sets down", text: "three; a fourth makes it" }], quiz: ["Nothing", "The whole of their self-drawn win", "Half"], answer: 1, say: "A player has three sets down and you throw the tile that gives them a fourth. If they then win by drawing, what do you pay?", why: "All of it (包): the three would have paid 2 bases each, you pay 6. The same holds for the tile that makes a third dragon set.", check: () => { const s = sceneOf({ hand: "1m 2m 3m", discard: "3p", from: 0, others: { 1: "3p 3p 8s 8s" }, othersMelds: { 1: ["p:1m", "p:5s", "c:7p"] } }); E.act(s, 1, { t: "pung", k: tilesOf("3p")[0] }); return s.liable[1] === 0 ? "The whole of their self-drawn win" : "?"; } },
@@ -157,7 +157,7 @@ export const COURSE = {
       id: "well", title: "A little strategy", zh: "策略",
       lessons: [
         {
-          id: "shape", title: "Keep tiles that connect", zh: "牌形",
+          id: "shape", title: "Tiles that connect", zh: "牌形",
           steps: [
             { goal: "discard", crit: "shanten", ...LONE_HONOURS, why: "That breaks a run you've made, or the pair of neighbours. Throw a loner.", say: "Efficiency decides the first half of a hand. You hold three runs and the 5 and 7 of characters, which a 6 would join; the 9 of bamboo, the north wind and the green dragon connect to nothing. Throw the tile that costs you least.", then: "A loner: nothing you draw makes much of it. Honours with no pair go first, then the ends of the suits." },
             { goal: "discard", crit: "waits", hand: "2m 3m 4m 6p 7p 8p 3s 4s 5s Wd Wd 5m 6m 8m", why: "Another throw leaves a narrower wait.", say: "Ready is not enough: the more tiles that win, the sooner you win. Throw one of the 5, 6 and 8 of characters to be ready on as many tiles as you can.", then: "The 8: you wait on the 1, 4 and 7 of characters, eleven tiles in all. Either of the others leaves a single wait, the 7, with four." },
