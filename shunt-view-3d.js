@@ -153,7 +153,7 @@ export function createView({ board, tray, onGesture, onLost }) {
     shadow: basic({ color: 0x000000, opacity: 0.34, map: drawn(256, (c, s) => {
       // the quad's picture, z running down it: the case's round blob, the queue tray's long one and the hold's
       const blob = (x, y, rx, ry) => { c.save(); c.translate(x * s, y * s); c.scale(rx * s, ry * s); const g = c.createRadialGradient(0, 0, 0, 0, 0, 1); g.addColorStop(0, "rgba(0,0,0,1)"); g.addColorStop(0.6, "rgba(0,0,0,.8)"); g.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = g; c.beginPath(); c.arc(0, 0, 1, 0, Math.PI * 2); c.fill(); c.restore(); };
-      blob(0.5, 0.45, 0.37, 0.34); blob(0.57, 0.845, 0.28, 0.1); blob(0.29, 0.845, 0.09, 0.1);
+      blob(0.5, 0.45, 0.37, 0.34); blob(0.57, 0.83, 0.27, 0.07); blob(0.29, 0.83, 0.09, 0.07);
     }) }),
   };
   M.shadow.map.flipY = false;
