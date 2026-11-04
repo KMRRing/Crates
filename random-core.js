@@ -30,7 +30,7 @@ export const ROUNDS = {
   columbiad: "a level struck (the ring hit, the speed asked, the gate passed or the loop flown)",
   pipes: "a level solved",
   survey: "a block cleared",
-  stow: "a manifest stowed, or a level of loose cargo won or stuck",
+  stow: "a manifest stowed",
   // Classics
   sudoku: "a grid solved",
   mines: "a field, cleared or blown up",
@@ -64,6 +64,7 @@ export const ROUNDS = {
   drift: "a game over",
   slipway: "a part carved to a star, or an assembly that holds",
   loom: "a cloth woven",
+  loose: "a level of Loose cargo won, or stuck with nothing in hand that fits",
   reckoning: "a run over (the hearts gone)",
   // Board games, Cards & dice: a hand where the game is dealt hand by hand, else a game
   cartel: "a game",

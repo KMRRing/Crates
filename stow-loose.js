@@ -317,7 +317,7 @@ export function createLoose(ctx) {
       write(PROGRESS, progress);
       ctx.stars();
     } else if (!anyFits(F, S.board, piecesNow().filter((_, j) => S.slots[j]))) S.done = { won: false };
-    if (S.done) roundOver("stow");
+    if (S.done) roundOver("loose");
   }
   const starsAll = () => Object.values(progress).reduce((n, p) => n + (p?.stars || 0), 0);
 

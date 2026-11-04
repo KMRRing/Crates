@@ -148,7 +148,9 @@ export async function pull() {
 // ---------- starting a game over (Settings) ----------
 /** A game's keys, for starting it over: its own prefix, and the other names a game keeps (Slate's glyph:, Blend's
  *  blend2:, Gambit's puzzle rush's rush:). Nothing of the suite's (LOCAL) and nothing shared (the review pile, the pictures). */
-const RESET_PREFIXES = { glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"], reckoning: ["reckoning:", "courier:"] };
+const RESET_PREFIXES = { glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"], reckoning: ["reckoning:", "courier:"],
+  // Stow's page holds two tiles: Loose cargo's saves are two of stow:'s keys (and its figure, loose:stars), so each tile resets its own
+  stow: ["stow:plan", "stow:day", "stow:view", "stow:mode", "stow:stars", "stow:best"], loose: ["stow:run", "stow:progress", "loose:"] };
 /**
  * Starts a game over: every key under its prefixes goes, here and, with a solo code, on the code, so your other devices
  * drop them too (a removal syncs like any change, the newer winning: their older copies can't come back). Keys only
@@ -219,7 +221,7 @@ export function bestOf(app) {
 // code took (Bulls, kept as a count), stars collected (the level games), or a best; and a game with a daily (Punt, Quote, Origin, Order, Chart) shows today's instead when either
 // of you has played it.
 export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", survey: "time", punt: "daily", quote: "daily", origin: "daily",
-  order: "daily", chart: "daily", columbiad: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", deck: "count", parley: "count", navigation: "lessons", wine: "lessons",arthistory: "lessons", music: "lessons", odds: "stars",
+  order: "daily", chart: "daily", columbiad: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", loose: "stars", deck: "count", parley: "count", navigation: "lessons", wine: "lessons",arthistory: "lessons", music: "lessons", odds: "stars",
   river: "best", gambit: "best", boast: "streak", bigtwo: "streak", hearts: "streak", meld: "streak", rack: "streak", pegs: "streak", landlord: "streak", banquet: "streak", gammon: "streak", flank: "streak", silo: "streak", crown: "streak", go: "streak", tarot: "streak", trumps: "streak", quest: "streak", bones: "streak", solitaire: "wins",
   contract: "streak", sudoku: "time", mines: "time", nonogram: "time", hitori: "time", slitherlink: "time", bridges: "time", masyu: "time", nurikabe: "time", asterism: "time", bulls: "guesses", assay: "daily", yield: "daily", nexus: "daily", isomer: "time", ladder: "time", lode: "time", lots: "daily", codeword: "time", crossword: "time", acrostic: "time", calcudoku: "time", kakuro: "time", manifest: "daily", ingot: "daily", speedmaths: "daily", speedfuels: "daily" };
 const keyOf = app => (app === "glyph" ? "slate" : app);                // Slate keeps its things under slate:

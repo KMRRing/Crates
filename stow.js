@@ -15,7 +15,7 @@ import { GAMES, roomInAddress, otherHere, joiningWords } from "./rooms.js";
 import "./pwa.js";
 import { part, action, line, choice } from "./menu.js";
 import { sure } from "./sure.js";
-import { today, noteStars } from "./suite.js";
+import { today, noteStars, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy, waitMark } from "./loading.js";
 
@@ -33,7 +33,14 @@ const before = lv => ORDER.find(l => l.chapter === lv.chapter && l.n === lv.n - 
 // until October 2026 today's hold (Loose cargo's) was kept whole here; today's manifest is kept under stow:dayplan
 try { localStorage.removeItem("stow:day"); } catch { /* private mode */ }
 
-let mode = read(MODE, "plan") === "loose" ? "loose" : "plan";
+// Loose cargo has a tile of its own (stow.html?mode=loose, id "loose" on the games screen) and the Stow tile opens the
+// manifests; both stay one page and one set of keys. A watching frame has no address to say, so it follows the partner's copy
+// of stow:mode. The mode is written when the page is opened, not when it is reloaded: a reload by a change synced from another
+// device would otherwise write its own mode back, and two devices in different modes would reload each other for ever.
+const asked = new URLSearchParams(location.search).get("mode");
+let mode = IN_FRAME && !asked ? (read(MODE, "plan") === "loose" ? "loose" : "plan") : asked === "loose" ? "loose" : "plan";
+const ME = mode === "loose" ? "loose" : "stow";             // the game this page is on the games screen
+try { if (performance.getEntriesByType("navigation")[0]?.type !== "reload") write(MODE, mode); } catch { /* private mode */ }
 let view = { ...VIEW, ...read(TURNED, {}) };
 let progress = read(PLANS, {});                                 // { manifestId: { stars, restows } }
 let run = null;                                                 // the manifest in play solo: { id, plan, turns }
@@ -78,9 +85,9 @@ const plan = createPlan({
     $("retryBtn").className = n ? "sw-go quiet" : "sw-go";
   },
 });
-const loose = createLoose({ $, read, write, toast, view: () => view, active: () => showing() === "loose", stars: () => noteStars("stow", starsAll()) });
+const loose = createLoose({ $, read, write, toast, view: () => view, active: () => showing() === "loose", stars: () => noteStars("loose", loose.starsAll()) });
 const current = () => (showing() === "loose" ? loose : plan);
-const starsAll = () => Object.values(progress).reduce((n, p) => n + (p?.stars || 0), 0) + loose.starsAll();
+const starsAll = () => Object.values(progress).reduce((n, p) => n + (p?.stars || 0), 0);   // the manifests' (Loose cargo's are its own tile's)
 
 function enter(m) {
   mode = m;
@@ -262,7 +269,7 @@ function openMenu() {
     part(body, "together").append(action("Start this manifest again", pick(plan.level), "primary"), action("Back to solo", () => together.leave(), "link"));
     part(body, "content").append(campaign(lv => { close(); pick(lv)(); }, () => false));
   } else {
-    part(body, "content").append(choice("Cargo", [["plan", "Manifests"], ["loose", "Loose cargo"]], mode, m => { write(MODE, m); enter(m); openMenu(); }));
+    part(body, "content").append(choice("Cargo", [["plan", "Manifests"], ["loose", "Loose cargo"]], mode, m => { write(MODE, m); location.href = m === "loose" ? "stow.html?mode=loose" : "stow.html"; }));
     if (mode === "loose") loose.menu(body, close);
     else {
       const p = part(body, "play"), next = nextPlan(), done = plan.plan?.done;
@@ -273,7 +280,7 @@ function openMenu() {
     }
   }
   const day = read(DAILY, {})[today()];
-  part(body, "about").append(line(`${starsAll()} of ${(MANIFESTS.length * 3) + loose.total} stars${day ? ` · today's ${"★".repeat(day)}` : ""}`));
+  part(body, "about").append(line(ME === "loose" ? `${loose.starsAll()} of ${loose.total} stars` : `${starsAll()} of ${MANIFESTS.length * 3} stars${day ? ` · today's ${"★".repeat(day)}` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 /** The manifests, chapter by chapter, with their stars. */
@@ -291,8 +298,9 @@ function campaign(go, locked) {
 }
 
 // ---------- wiring ----------
-bindSwitcher($("appsBtn"), "stow");
-document.querySelector(".sw-mark").innerHTML = APPS.find(a => a.id === "stow").logo;
+bindSwitcher($("appsBtn"), ME);
+document.querySelector(".sw-mark").innerHTML = APPS.find(a => a.id === ME).logo;
+if (ME === "loose") { $("appsBtn").lastChild.textContent = "Loose cargo"; document.title = "Loose cargo"; }
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("retryBtn").addEventListener("click", () => {
@@ -364,6 +372,7 @@ window.__stow = {
 $("app").dataset.mode = mode;
 enter(mode);
 noteStars("stow", starsAll());
+noteStars("loose", loose.starsAll());
 // Opened for a duo match or a party's table: the mark covers your own hold while you sit down (a new manifest starts at
 // yours), so nothing's stowed in it by mistake; it waits as you left it, for Back to solo.
 const code = roomInAddress();

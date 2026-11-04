@@ -47,7 +47,8 @@ for (const id of ELIGIBLE) {
     }
   }
   if (!said.length) silent.push(`${id} (${ownFiles(t).join(", ") || "no files"})`);
-  for (const s of said) if (s.name !== id && s.name !== t.page) misnamed.push(`${s.f} says ${s.name ?? "a name it doesn't define"}, not ${id}`);
+  // a page with two tiles (Stow's, and Loose cargo's) names whichever of them it is
+  for (const s of said) if (s.name !== id && s.name !== t.page && !TILES.some(x => x.id === s.name && x.page === t.page)) misnamed.push(`${s.f} says ${s.name ?? "a name it doesn't define"}, not ${id}`);
 }
 check(!silent.length, `every game dealt calls roundOver when its round is over (${ELIGIBLE.length} games)${silent.length ? `: not ${silent.join(", ")}` : ""}`);
 check(!misnamed.length, `each names itself when it does${misnamed.length ? `: ${misnamed.join("; ")}` : ""}`);
