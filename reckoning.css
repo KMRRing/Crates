@@ -25,9 +25,9 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
 .rk-hearts { display: inline-flex; gap: .2rem; min-width: 4.4rem; font-size: 1.15rem; line-height: 1; }
 .rk-heart { color: var(--rk-bad); }
 .rk-heart.gone { color: color-mix(in srgb, var(--ink-soft) 55%, transparent); }
-.rk-goal { order: 1; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: .75rem; font-weight: 700; color: var(--ink);
+.rk-aim { order: 1; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: .75rem; font-weight: 700; color: var(--ink);
   text-shadow: 0 0 .35rem var(--sheet), 0 0 .35rem var(--sheet); }
-.rk-goal[hidden] { display: none; }
+.rk-aim[hidden] { display: none; }
 .rk-score { order: 2; margin-left: auto; font-size: .95rem; color: var(--ink); text-shadow: 0 0 .35rem var(--sheet), 0 0 .35rem var(--sheet); }
 .rk-score b { font-size: 1.2rem; font-weight: 800; }
 .rk-combo { order: 3; min-width: 2.6rem; padding: .1rem .4rem; border-radius: 4px; font-size: .8rem; font-weight: 800; text-align: center; visibility: hidden;
@@ -99,7 +99,7 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
 .rk-secs button:disabled { opacity: .42; cursor: default; }
 .rk-secs button.done { background: var(--rk-soft); }
 .rk-secs button[aria-current] { border-color: var(--rk-in); box-shadow: inset 0 0 0 1.5px var(--rk-in); }
-.rk-sn { grid-area: n; font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 1.5rem; text-align: center; }
+.rk-sn { grid-area: n; font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; width: 1.9rem; text-align: center; }
 .rk-sname { grid-area: name; font-size: .8rem; font-weight: 750; line-height: 1.15; overflow-wrap: anywhere; }
 .rk-splace { grid-area: place; font-size: .7rem; color: var(--ink-soft); line-height: 1.2; }
 .rk-sstars { grid-area: stars; font-size: .72rem; letter-spacing: .08em; color: var(--rk-in); }

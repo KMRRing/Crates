@@ -1,5 +1,5 @@
 # Courier
-A three-lane swipe runner on a Hanseatic quay (2 November 2026, in Blades of Brim's way), in `reckoning.html`, `reckoning.js`, `reckoning.css`; rules in `reckoning-engine.js` (pure, tested by `tests/reckoning.mjs`), drawing in `reckoning-3d.js`, its springs in `reckoning-move.js`, questions from `reckoning-questions.js`. It sits in Idle: played on reflex, a question now and then. Every shape is a box standing in for a model to come; one world, no sound. It was called Reckoning until 3 November 2026: the name is now Courier on screen only, and ids, filenames, tests and the `reckoning:` saved keys keep the old one so saved state survives.
+A three-lane swipe runner on a Hanseatic quay (2 November 2026, in Blades of Brim's way), in `reckoning.html`, `reckoning.js`, `reckoning.css`; rules in `reckoning-engine.js` (pure, tested by `tests/reckoning.mjs`), drawing in `reckoning-3d.js`, its springs in `reckoning-move.js`, questions from `reckoning-questions.js`. It has twenty sections (`reckoning-sections.js`: data, rows of three cells; the engine's "sections" makes them whole; `tests/courier-sections.mjs` wins each with a bot) and the endless run. It sits in Idle (4 November: in Knowledge): played on reflex, a question now and then. Every shape is a box standing in for a model to come; one world, no sound. It was called Reckoning until 3 November 2026: the name is now Courier on screen only, and ids, filenames, tests and the `reckoning:` saved keys keep the old one so saved state survives.
 
 ## Rulings (Korbi, 2 November 2026 unless said)
 - Swoop: "while in air when swiping left or right on descend should enter attack mode" (a ground foe in the next lane, from up to 4.5 m above it).
@@ -22,6 +22,7 @@ A three-lane swipe runner on a Hanseatic quay (2 November 2026, in Blades of Bri
 - "swipe directions are inverted": fixed in the view, below.
 - "add logs to the game that shows and indexes the swipes and events; I want to copy what happened and explain what I wanted to happen in those cases": Menu, Swipe log.
 - 3 November 2026 (the plan, row 10): the hero's movement far more dynamic, judged by feel; no new levels, wall runs or monsters, and the hit stumble and screen shake belong to row 22.
+- 4 November 2026, 01:53: "make sure the agents finish, especially courier needs a lot of work, don't stop until you have 20 interesting sections" (so levels, after all: twenty sections, each with an idea of its own, in order, the twentieth hard).
 
 ## Traps
 - Swipe windows are in seconds to contact, not metres, so they are the same at 10 m/s and at 16. A foe's `aim` is fixed at its launch.
@@ -35,7 +36,10 @@ A three-lane swipe runner on a Hanseatic quay (2 November 2026, in Blades of Bri
 - Down in a jump with nothing under is known as a roll by its landing speed (a dive starts at 24 m/s, no fall of its own gets near), so nothing is remembered and a bonk, a lunge or the water cancels it.
 - The slam never answers a question (a gull is in the air, the shockwave is on the ground). A wrong answer costs two hearts, one for the answer and one for the water.
 - The swipe log is in the tab's `sessionStorage` (`reckoning:log`), not under the synced keys. `reckoning:miss` is kept with the entities for the pile but nothing reads it yet (`pile.js` is shared).
-- Kept under `reckoning:`: `run`, `best`, `stats`, `miss`. A partner watching reads `run` and draws it without a clock.
+- A section's quay is made whole at its start (`ensure` does nothing when `S.sec`), from `S.rng` seeded by the section's id, so it is the same every run; only the questions are dealt afresh (`qrng`). A kept run whose section has since changed (`S.sig`) or is gone is dropped by `valid`; an endless run from before sections is given the fields it lacks.
+- Writing a section: no thing to pick up in the row of a crab beside its lane (the crab is cut as it comes and the cut carries the hero off); a row of sluices has all three beats; keep 40 to 60 m before a `!gate`, `!chain` or `!wall` to crabs and rest only (the test's old bot plays those pieces and knows nothing of tokens or barrels); a bruiser needs 12 m after it. A section the bot cannot win at par does not get in.
+- A class with `-go` in its name gets Kontor's and Office's button lettering (`[class*="-go"]` in `themes.css`): the aim under the hearts is `rk-aim` for that.
+- Kept under `reckoning:`: `run`, `best` (the endless run's), `camp` (`{ at, stars: [0 to 3 for each section] }`), `stats`, `miss`. A partner watching reads `run` and draws it without a clock.
 
 ## To come
 The models (`makeFoe` and the hero's block are where the shapes are made; the built-in ones stay as stand-ins), sound, the daily and the duel (the engine already runs from a seed), the pile, a second world, the other two modes Korbi thought of (a plain Subway Surfers one, a stealth one), a coyote time (a jump allowed a moment after the quay ends), and a look at how the swipe windows and the new movement feel on a phone.

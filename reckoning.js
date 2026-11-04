@@ -140,7 +140,8 @@ function finished(ev) {
   running = false;
   if (ev.won) {
     camp.stars[S.sec - 1] = Math.max(camp.stars[S.sec - 1], ev.stars);
-    camp.at = Math.min(SECTIONS.length, S.sec + 1);
+    const first = camp.stars.findIndex(n => !n);                // the one to play next is the first not yet passed, not the one after the one just played
+    camp.at = first < 0 ? SECTIONS.length : first + 1;
     keepCamp();
   }
   const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
@@ -214,7 +215,6 @@ function goalText() {
   if (noun) bits.push(`${noun[0].toUpperCase()}${noun.slice(1)} ${v}/${n}`);
   if (S.token) bits.push(`${MARKS[S.token]} token`);
   if (S.inv > S.t) bits.push("left is right");
-  if (S.mods.laden && S.carried.total) bits.push("loaded");
   return bits.join(" · ");
 }
 
