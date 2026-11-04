@@ -113,7 +113,7 @@ await ready(EQUATIONS);
 {
   const page = readFileSync(new URL("../assay.js", import.meta.url), "utf8");
   check(/whileBusy\(`Loading the/.test(page) && /lex\.load \|\| loaded\.has/.test(page) && /await prepare\(/.test(page), "the equations file is fetched only when a game of them is begun or resumed, said while it comes");
-  check(/choice\("Game"/.test(page) && /lexNow\(\)\.letter\(e\.key\)/.test(page) && /keysFor !== lexNow\(\)\.id/.test(page), "the menu chooses the game, the keyboard and the keys follow it");
+  check(/choice\("Play", GAMES/.test(page) && /lexNow\(\)\.letter\(e\.key\)/.test(page) && /keysFor !== lexNow\(\)\.id/.test(page), "the menu chooses what to play, the keyboard and the keys follow it");
   check(!/import \{[^}]*EQUATIONS[^}]*\} from/.test(page) && !/import "\.\/assay-equations/.test(page), "the page doesn't import the equation answers itself");
 }
 
