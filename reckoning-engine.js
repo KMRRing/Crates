@@ -25,8 +25,8 @@
 //     height                             the lanes beside me
 //   down, in the air, neither of those   a quick drop, and a roll on landing (a plain jump's height or less)
 //   left/right with a wall beside me   a wall run, which lifts me, from the outer lane or, with no foe to cut, from the middle
-//   left/right on a wall, away from it  with a foe in reach that way: the aerial cut a swipe in the air would be; else a drop
 //                                        one (by way of the lane); up on the wall is a higher jump
+//   left/right on a wall, away from it  with a foe in reach that way: the aerial cut a swipe in the air would be; else a drop
 // The gulls of a question (a gate) can be jumped at from further off (GATE_WIN), so a jump in front of the right one
 // is a jump attack, and the throw after it carries me over the gap. The foe a swipe goes for (and the ones a sweep goes on
 // to) cannot hurt me until the swipe is done, and a foe that is hitting me waits LATE_WIN seconds before the hit lands, in
