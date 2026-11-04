@@ -6,28 +6,40 @@
 // and the Earth's slow turn, a few times a second); it stops when the menu is open or the page is away. Nothing here changes a
 // rule: the rules are columbiad-engine.js's, and this plays a finished flight back. The colours are the picture's own, the
 // same in every theme; the chrome over it is the page's.
-import { direction, targetAt, ringAt, bodyAt, worldOf } from "./columbiad-engine.js";
+import { direction, targetAt, ringAt, bodyAt, worldOf, isMoving, padAt } from "./columbiad-engine.js";
 import { createGlobe, loadEarth, warm, sunOf } from "./columbiad-globe.js";
 import { defaultIs3D } from "./mode3d.js";
 
 const INK = "233,223,198", BRASS = "217,164,65", BRASS_HI = "240,213,138", GOOD = "127,194,168", BAD = "232,128,111";
+/** The Moon's map, tinted: a red rocky moon and an icy one are the same craters in another colour (the maps are made once and tinted by the globe). */
+const TINTS = { red: [1.35, 0.62, 0.46], ice: [0.72, 0.94, 1.3] };
 const SKY_TOP = "#080d19", SKY_BOT = "#16213a";
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 /** The Earth's turn, in turns a second (1.26 degrees: a day in four and a half minutes). */
 const SPIN = 0.0035;
 
-/** The world box a level's aim view shows: the launch pad and the ground round it, the Moon and the ring; the Earth is as much of it as that holds. { x0, y0, x1, y1 }. */
+/** The world box a level's aim view shows: the launch pad and the ground round it, every body (a body on a rail by its whole orbit) and every ring. { x0, y0, x1, y1 }. */
 export function frameOf(lvl) {
   if (lvl.frame) return { x0: lvl.frame[0], y0: lvl.frame[1], x1: lvl.frame[2], y1: lvl.frame[3] };
-  const site = lvl.site ?? 90, re = worldOf(lvl).re, [ox, oy] = direction(site).map(v => v * re), tx = -oy / re, ty = ox / re;
-  const pts = [];
-  for (const a of [-1, 1]) for (const o of [-0.5, 1.25]) pts.push([ox + tx * a + ox / re * o, oy + ty * a + oy / re * o]);
-  const T = lvl.target;
-  if (T && T.at) pts.push([T.at[0] - T.r - 0.3, T.at[1] - T.r - 0.3], [T.at[0] + T.r + 0.3, T.at[1] + T.r + 0.3]);
-  return {
-    x0: Math.min(...pts.map(p => p[0])), y0: Math.min(...pts.map(p => p[1])),
-    x1: Math.max(...pts.map(p => p[0])), y1: Math.max(...pts.map(p => p[1])),
-  };
+  const w = worldOf(lvl), [ox, oy] = padAt(lvl, 0), [ux, uy] = direction(lvl.site ?? 90), tx = -uy, ty = ux, pts = [];
+  for (const a of [-1.7, 1.7]) for (const o of [-0.8, 1.9]) pts.push([ox + tx * a + ux * o, oy + ty * a + uy * o]);
+  const grow = (x, y, r) => pts.push([x - r, y - r], [x + r, y + r]);
+  w.bodies.forEach((b, i) => {
+    if (i === w.fi && !b.rail) return;                                    // the launch body shows as much as the pad's neighbourhood holds
+    if (b.rail) grow(b.cx, b.cy, b.a + b.r);
+    else grow(b.x, b.y, b.r * 1.1);
+  });
+  for (const z of lvl.hazards || []) {                                    // a ring plane or a burning zone is shown whole; a rock is only a rock
+    const b = z.body ? w.bodies.find(q => q.id === z.body) : null;
+    if (b && !b.rail && (z.band || z.look === 'heat')) grow(b.x, b.y, z.band ? z.band[1] : z.r);
+  }
+  for (const T of [lvl.target, ...(lvl.gates || [])]) {
+    if (!T) continue;
+    if (T.rail) grow(T.rail.about ? T.rail.about[0] : 0, T.rail.about ? T.rail.about[1] : 0, T.rail.a + T.r);
+    else if (T.at) grow(T.at[0], T.at[1], T.r + 0.3);
+    else if (T.body != null) { const b = w.bodies.find(q => q.id === T.body); if (b) grow(b.rail ? b.cx : b.x, b.rail ? b.cy : b.y, b.rail ? b.a + b.r : b.r + 0.5); }
+  }
+  return { x0: Math.min(...pts.map(p => p[0])), y0: Math.min(...pts.map(p => p[1])), x1: Math.max(...pts.map(p => p[0])), y1: Math.max(...pts.map(p => p[1])) };
 }
 
 export function createView(canvas, hooks = {}) {
@@ -45,6 +57,7 @@ export function createView(canvas, hooks = {}) {
   let flight = null, live = null;                                     // the flight playing; the trail it leaves until the next shot
   let flash = 0, pulse = 0;                                           // the glint at the pad when a shot leaves, and the pad's ring opening
   const smoke = [], sparks = [];
+  const hash01 = i => { let h = Math.imul(i + 1, 0x9E3779B1); h ^= h >>> 15; h = Math.imul(h, 0x85EBCA6B); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
   let raf = 0, last = 0, held = false, ff = false, settleAt = 0;
   // the stars: a fixed scatter, nudged a little as the camera moves
   const stars = [];
@@ -106,10 +119,96 @@ export function createView(canvas, hooks = {}) {
         ctx.save(); ctx.setLineDash([1, 7 * u]); ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${INK},.2)`;
         ctx.beginPath(); ctx.arc(sx(b.cx), sy(b.cy), b.a * cam.k, 0, 6.2832); ctx.stroke(); ctx.restore();
       }
+      if (!b.globe) { proc(b, x, y, R, p); continue; }
       // a moon keeps one face to what it circles: its turn is its way round
       const turn = b.rail ? Math.atan2(p[1] - b.cy, p[0] - b.cx) / 6.2832 * (b.retro ? -1 : 1) : b.spin;
       planet(b.globe, x, y, R, turn + b.offset, [48, 96, 192, 320]);
     }
+  }
+  /** The bodies drawn from gradients, not a map: still pictures, so nothing in them can jitter. The light comes from the upper left, as the globes' does. */
+  const LX = -0.707, LY = -0.707;
+  function sphere(x, y, R, c0, c1, c2) {
+    const g = ctx.createRadialGradient(x + LX * R * 0.45, y + LY * R * 0.45, R * 0.05, x, y, R);
+    g.addColorStop(0, c0); g.addColorStop(0.55, c1); g.addColorStop(1, c2);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.fill();
+  }
+  function proc(b, x, y, R, p) {
+    if (x + R * 4 < 0 || x - R * 4 > W || y + R * 4 < 0 || y - R * 4 > H) return;
+    ctx.save();
+    if (b.kind === "giant") {
+      sphere(x, y, R, "#f0dcae", "#c79a62", "#5b3d2b");
+      ctx.save(); ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.clip();
+      const bands = [[-0.78, 0.1, "120,70,40"], [-0.5, 0.14, "250,235,200"], [-0.22, 0.1, "140,84,50"], [0.05, 0.16, "255,240,205"], [0.36, 0.11, "130,80,48"], [0.62, 0.13, "245,225,190"]];
+      for (const [o, h, c] of bands) { ctx.fillStyle = `rgba(${c},.28)`; ctx.fillRect(x - R, y + o * R - h * R / 2, 2 * R, h * R); }
+      const g = ctx.createRadialGradient(x + LX * R * 0.3, y + LY * R * 0.3, R * 0.5, x, y, R * 1.05);
+      g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(8,6,16,.62)");
+      ctx.fillStyle = g; ctx.fillRect(x - R, y - R, 2 * R, 2 * R);
+      ctx.restore();
+    } else if (b.kind === "sun") {
+      const g = ctx.createRadialGradient(x, y, R * 0.6, x, y, R * 3.2);
+      g.addColorStop(0, "rgba(255,200,90,.55)"); g.addColorStop(0.35, "rgba(255,150,60,.16)"); g.addColorStop(1, "rgba(255,120,40,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R * 3.2, 0, 6.2832); ctx.fill();
+      sphere(x, y, R, "#fffbe0", "#ffc94d", "#ee7a1c");
+    } else if (b.kind === "rock") {
+      const n = 9, pts = [];
+      for (let k = 0; k < n; k++) { const a = k / n * 6.2832, rr = R * (0.78 + 0.3 * hash01(b.i * 31 + k)); pts.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr]); }
+      ctx.beginPath(); pts.forEach((q, k) => (k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.closePath();
+      const g = ctx.createRadialGradient(x + LX * R * 0.4, y + LY * R * 0.4, R * 0.1, x, y, R * 1.1);
+      g.addColorStop(0, "#b8ad9c"); g.addColorStop(1, "#4a4540"); ctx.fillStyle = g; ctx.fill();
+    } else if (b.kind === "comet") {
+      const sunB = bodies.find(q => q.kind === "sun"), sp = sunB ? bodyAt(lvl, sunB.i, now()) : [0, 0];
+      let ax = p[0] - sp[0], ay = p[1] - sp[1]; const m = Math.hypot(ax, ay) || 1; ax /= m; ay /= m;
+      const tl = Math.max(R * 9, 46 * u), X = x + ax * tl, Y = y - ay * tl, g = ctx.createLinearGradient(x, y, X, Y);
+      g.addColorStop(0, "rgba(190,230,255,.7)"); g.addColorStop(1, "rgba(190,230,255,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - ay * R * 1.1, y - ax * R * 1.1); ctx.lineTo(X, Y); ctx.lineTo(x + ay * R * 1.1, y + ax * R * 1.1); ctx.closePath(); ctx.fill();
+      const c = ctx.createRadialGradient(x, y, 0, x, y, R * 2.4); c.addColorStop(0, "rgba(220,240,255,.8)"); c.addColorStop(1, "rgba(190,230,255,0)");
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, R * 2.4, 0, 6.2832); ctx.fill();
+      sphere(x, y, R, "#ffffff", "#c8d2dc", "#6a7480");
+    } else if (b.kind === "station") {
+      const s = R;
+      ctx.translate(x, y);
+      ctx.fillStyle = "#6f8fc4"; ctx.fillRect(-s * 2.6, -s * 0.45, s * 1.7, s * 0.9); ctx.fillRect(s * 0.9, -s * 0.45, s * 1.7, s * 0.9);
+      ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1; ctx.strokeRect(-s * 2.6, -s * 0.45, s * 1.7, s * 0.9); ctx.strokeRect(s * 0.9, -s * 0.45, s * 1.7, s * 0.9);
+      ctx.fillStyle = "#d7d2c4"; ctx.beginPath(); ctx.arc(0, 0, s * 0.85, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = "#34405a"; ctx.beginPath(); ctx.arc(0, 0, s * 0.4, 0, 6.2832); ctx.fill();
+    }
+    ctx.restore();
+  }
+  /** What is lethal: a burning zone, a field of rock, a ring plane with its gaps. */
+  function hazards() {
+    const list = lvl.hazards;
+    if (!list || !list.length) return;
+    const w = worldOf(lvl), t = now();
+    ctx.save();
+    for (const z of list) {
+      const p = z.body ? bodyAt(lvl, w.bodies.findIndex(b => b.id === z.body), t) : z.at || [0, 0], x = sx(p[0]), y = sy(p[1]);
+      if (z.band) {
+        const r0 = z.band[0] * cam.k, r1 = z.band[1] * cam.k, gaps = (z.gaps || []).map(([a, hw]) => [(a - hw) * 0.017453, (a + hw) * 0.017453]).sort((m, n) => m[0] - n[0]);
+        // the plane's rings are arcs between the gaps; seen from above, so counter-clockwise on the screen is clockwise in the arcs' angles
+        const arcs = [];
+        if (!gaps.length) arcs.push([0, 6.2832]);
+        else gaps.forEach((g, k) => { const nx = gaps[(k + 1) % gaps.length]; arcs.push([g[1], nx[0] + (k === gaps.length - 1 ? 6.2832 : 0)]); });
+        for (const [a0, a1] of arcs) {
+          ctx.beginPath(); ctx.arc(x, y, r1, -a1, -a0); ctx.arc(x, y, r0, -a0, -a1, true); ctx.closePath();
+          ctx.fillStyle = "rgba(226,200,150,.22)"; ctx.fill();
+          ctx.lineWidth = 1; ctx.strokeStyle = "rgba(240,215,165,.55)"; ctx.stroke();
+          const mid = (r0 + r1) / 2;
+          ctx.beginPath(); ctx.arc(x, y, mid, -a1, -a0); ctx.strokeStyle = "rgba(240,215,165,.3)"; ctx.setLineDash([1, 4 * u]); ctx.stroke(); ctx.setLineDash([]);
+        }
+      } else if (z.look === "heat") {
+        const R = z.r * cam.k, g = ctx.createRadialGradient(x, y, R * 0.3, x, y, R);
+        g.addColorStop(0, "rgba(255,110,60,.22)"); g.addColorStop(1, "rgba(255,90,50,.04)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.fill();
+        ctx.setLineDash([5 * u, 4 * u]); ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${BAD},.8)`; ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
+      } else {
+        const R = Math.max(z.r * cam.k, 2.5 * u);
+        ctx.beginPath(); for (let k = 0; k < 8; k++) { const a = k / 8 * 6.2832, rr = R * (0.8 + 0.3 * hash01(Math.round(p[0] * 97 + p[1] * 53) + k)); const X = x + Math.cos(a) * rr, Y = y + Math.sin(a) * rr; if (k) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }
+        ctx.closePath();
+        const g = ctx.createRadialGradient(x + LX * R * 0.4, y + LY * R * 0.4, R * 0.1, x, y, R * 1.1);
+        g.addColorStop(0, "#a69c8c"); g.addColorStop(1, "#3f3b37"); ctx.fillStyle = g; ctx.fill();
+      }
+    }
+    ctx.restore();
   }
   function sky() {
     const g = ctx.createLinearGradient(0, 0, 0, H);
@@ -127,22 +226,35 @@ export function createView(canvas, hooks = {}) {
     const w = worldOf(lvl);
     ctx.save();
     ctx.setLineDash([1, 6 * u]); ctx.lineWidth = 1;
-    for (const b of w.bodies) {
-      const x = sx(b.x), y = sy(b.y);
-      if (b.rail) continue;
+    const t = now();
+    w.bodies.forEach((b, i) => {
+      if (b.mu < 0.3) return;
+      const p = bodyAt(lvl, i, t), x = sx(p[0]), y = sy(p[1]), r0 = Math.max(b.r, 0.25 * Math.sqrt(b.mu));
       for (const m of [1.5, 2, 2.8, 4]) {
         ctx.strokeStyle = `rgba(${INK},${0.16 / (0.5 + m * 0.5)})`;
-        ctx.beginPath(); ctx.arc(x, y, b.r * m * cam.k, 0, 6.2832); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, y, r0 * m * cam.k, 0, 6.2832); ctx.stroke();
       }
-    }
+    });
     ctx.restore();
   }
   /** The goal on the picture: the target ring, or each gate in order, with what is asked of the arrival drawn on the ring itself. */
   function ring() {
     const goal = lvl.goal || { type: "hit" }, list = lvl.gates || [lvl.target];
+    if (goal.type === "orbit") {                                           // no ring: the reach within which the sweep counts, and how far to go round
+      const i = worldOf(lvl).bodies.findIndex(q => q.id === goal.body), p = bodyAt(lvl, i, now()), x = sx(p[0]), y = sy(p[1]), R = goal.rmax * cam.k;
+      ctx.save(); ctx.setLineDash([7 * u, 5 * u]); ctx.lineWidth = 2 * u; ctx.strokeStyle = `rgba(${BRASS},.85)`;
+      ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.stroke(); ctx.restore();
+      label(`↻ ${goal.sweep}°`, x, y - R - 10 * u, BRASS_HI, 13);
+      return;
+    }
     list.forEach((T, i) => oneRing(T, i, list.length, goal));
   }
   function oneRing(T, i, n, goal) {
+    if (T.rail) {                                                          // the loop a moving ring is on
+      const c = T.rail.about || [0, 0];
+      ctx.save(); ctx.setLineDash([1, 7 * u]); ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${BRASS},.3)`;
+      ctx.beginPath(); ctx.arc(sx(c[0]), sy(c[1]), T.rail.a * cam.k, 0, 6.2832); ctx.stroke(); ctx.restore();
+    }
     const p = ringAt(lvl, T, now()), R = Math.max(T.r * cam.k, 7 * u), x = sx(p[0]), y = sy(p[1]);
     if (x + R * 2 < 0 || x - R * 2 > W || y + R * 2 < 0 || y - R * 2 > H) return;
     const last = i === n - 1, col = won && last ? GOOD : BRASS, lim = n > 1 ? T : goal.type === "soft" ? { soft: goal.speed } : goal.type === "fast" ? { fast: goal.speed } : {};
@@ -179,6 +291,7 @@ export function createView(canvas, hooks = {}) {
         ctx.restore();
       }
     }
+    if (T.win) label(`T+${T.win[0]}–${T.win[1]} s`, x, y + R + 14 * u, BRASS_HI);
     if (goal.type === "orbit" && last) label(`↻ ${goal.sweep}°`, x, y + R + 14 * u, BRASS_HI);
     if (goal.type === "return" && last) label("down here", x, y - R - 8 * u, BRASS_HI);
     if (flare > 0 && last) {
@@ -211,7 +324,6 @@ export function createView(canvas, hooks = {}) {
   // The preview suggests where the shot goes and does not solve it (Korbi, 4 November 2026): a spray of dots, each on one of the sample
   // shells at its station (the shells are perturbed far more than a real shot, engine `previewSpread`), so the further they go the more they scatter;
   // they swell and fade. Chosen over a cone, a soft band and a fan of lines: a line of any kind still reads as the answer.
-  const hash01 = i => { let h = Math.imul(i + 1, 0x9E3779B1); h ^= h >>> 15; h = Math.imul(h, 0x85EBCA6B); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
   function coneBand() {
     if (!cone || coneAlpha <= 0.01) return;
     const c = cone, n = c.centre.length / 2;
@@ -223,10 +335,7 @@ export function createView(canvas, hooks = {}) {
     }
   }
   /** Where a shot leaves: the pad, a point on the Earth's rim at the level's site. */
-  function padWorld() {
-    const re = worldOf(lvl).re, [ox, oy] = direction(lvl.site ?? 90);
-    return [ox * re, oy * re];
-  }
+  function padWorld() { return padAt(lvl, now()); }
   /** The launch pad: a brass tick standing out of the rim, a small bright disc on it and a ring that opens when a shot leaves (a marker, not a machine). */
   function pad() {
     const [px, py] = padWorld(), [ox, oy] = direction(lvl.site ?? 90), X = sx(px), Y = sy(py), nx = ox, ny = -oy, L = 14 * u;
@@ -325,6 +434,7 @@ export function createView(canvas, hooks = {}) {
     sky();
     const t = now();
     wells();
+    hazards();
     earthBody();
     moons(t);
     pad();
@@ -341,7 +451,7 @@ export function createView(canvas, hooks = {}) {
   // ---------- time ----------
   /** The world's time as the picture shows it: the flight's own while a shell is out, else the clock. */
   function now() { return flight ? flight.t0 + flight.gt : clock; }
-  const rails = () => !!lvl && worldOf(lvl).moving;
+  const rails = () => !!lvl && isMoving(lvl);
   // ---------- motion ----------
   function pace(path) {
     // how long the flight is shown: the game's own seconds are a tenth of a second for a low shot, so a flight is stretched to
@@ -365,7 +475,7 @@ export function createView(canvas, hooks = {}) {
     if (!flight) return;
     const f = flight;
     flight = null; coneAlpha = 1;
-    if (rails()) clock = f.t0 + f.T;                                  // the world goes on from the moment the shell's flight ended
+    clock = f.t0;                                                     // the world resets: the aim view shows it at the launch time again
     live.upto = f.n; live.head = null;
     if (f.res.hit && f.res.hit.ok && !f.hit) { f.hit = true; hit(f.res.hit); }
     if (f.res.end === "impact") {
@@ -383,7 +493,6 @@ export function createView(canvas, hooks = {}) {
     hooks.onHit?.(h);
   }
   function step(dt) {
-    if (!flight && rails()) clock += dt;
     if (flash > 0) flash = Math.max(0, flash - dt / 0.3);
     if (pulse > 0) pulse = Math.max(0, pulse - dt / 0.7);
     if (flare > 0) flare = Math.max(0, flare - dt / 0.9);
@@ -425,7 +534,7 @@ export function createView(canvas, hooks = {}) {
     const e = 1 - Math.exp(-dt * 5.5);
     cam.x += (goal.x - cam.x) * e; cam.y += (goal.y - cam.y) * e; cam.k *= Math.pow(goal.k / cam.k, e);
   }
-  const moving = () => !!flight || rails() || settleAt > 0 || smoke.length > 0 || sparks.length > 0 || flash > 0 || pulse > 0 || flare > 0 || Math.abs(goal.k - cam.k) > 0.05 || Math.abs(goal.x - cam.x) * cam.k > 0.3 || Math.abs(goal.y - cam.y) * cam.k > 0.3;
+  const moving = () => !!flight || settleAt > 0 || smoke.length > 0 || sparks.length > 0 || flash > 0 || pulse > 0 || flare > 0 || Math.abs(goal.k - cam.k) > 0.05 || Math.abs(goal.x - cam.x) * cam.k > 0.3 || Math.abs(goal.y - cam.y) * cam.k > 0.3;
   function tick(ts) {
     raf = 0;
     if (held) return;
@@ -458,11 +567,11 @@ export function createView(canvas, hooks = {}) {
       const w = worldOf(l);
       w.bodies.forEach((b, i) => {
         if (b.id === "earth") return;
-        const v = l.look?.[b.id] || {};
-        bodies.push({ i, id: b.id, r: b.r, rail: b.rail, a: b.a, cx: b.cx, cy: b.cy, retro: b.T < 0 || v.retro, min: v.min ?? 5, offset: v.offset ?? 0, spin: v.spin ?? 0,
-          globe: createGlobe("moon", { tilt: v.tilt ?? 8, tint: v.tint || [1, 1, 1] }) });
+        const v = l.look?.[b.id] || {}, tint = v.tint || TINTS[b.kind] || [1, 1, 1], textured = b.kind === "moon" || b.kind === "red" || b.kind === "ice";
+        bodies.push({ i, id: b.id, kind: b.kind, r: b.r, rail: b.rail, a: b.a, cx: b.cx, cy: b.cy, retro: b.T < 0 || v.retro, min: v.min ?? (textured ? 5 : 4), offset: v.offset ?? 0, spin: v.spin ?? 0,
+          globe: textured ? createGlobe("moon", { tilt: v.tilt ?? 8, tint }) : null });
       });
-      if (bodies.length) warm(() => { draw(); wake(); });
+      if (bodies.some(b => b.globe)) warm(() => { draw(); wake(); });
       flight = null; live = null; cone = null; ghosts = []; rope = null; won = false; flare = 0; smoke.length = 0; sparks.length = 0; flash = 0; pulse = 0; settleAt = 0; coneAlpha = 1;
       draw();
     },

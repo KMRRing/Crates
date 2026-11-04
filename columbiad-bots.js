@@ -5,10 +5,15 @@
 // A "move" is { angle, charge, t }: the aim in degrees, the powder in barrels, the firing time. A level whose world stands
 // still has only angle and charge to try; where a moon moves the sweep has a third axis, the time, one layer for each of
 // `nt` moments of the world's period, and a solution is a place in all three.
-import { shoot, normal, uniform, clampAim, apply, newGame, worldOf, BARRELS, DRAWS } from "./columbiad-engine.js";
+import { MOVERS_ON, shoot, normal, uniform, clampAim, apply, newGame, worldOf, BARRELS, DRAWS } from "./columbiad-engine.js";
 
 /** The seconds after which the world repeats: its own `period`, else the longest rail's (40 s with the Moon), 0 where nothing moves. */
-export const periodOf = lvl => (worldOf(lvl).moving ? lvl.period ?? Math.max(...worldOf(lvl).bodies.filter(b => b.rail).map(b => Math.abs(b.T))) : 0);
+export const periodOf = lvl => {
+  if (lvl.period !== undefined) return lvl.period;
+  const Ts = worldOf(lvl).bodies.filter(b => b.rail).map(b => Math.abs(b.T));
+  for (const r of [lvl.target, ...(lvl.gates || [])]) if (r && r.rail && MOVERS_ON) Ts.push(Math.abs(r.rail.T ?? 1));
+  return Ts.length ? Math.max(...Ts) : 0;
+};
 
 /**
  * The angles and charges the sweep tries: the legal half turn about the site's up and 0 to the level's barrels, or, for a level
@@ -236,7 +241,7 @@ export function descend(lvl, mv, { steps = [1, 0.1, 0.5], floor = [0.05, 0.01, 0
       if (k === 2 && !timed) continue;
       for (const sg of [1, -1]) {
         const n = { ...best }; n[k === 0 ? "angle" : k === 1 ? "charge" : "t"] += sg * st[k];
-        n.angle = Math.round(n.angle * 100) / 100; n.charge = Math.round(n.charge * 100) / 100; n.t = Math.round(n.t * 100) / 100;
+        n.angle = Math.round(n.angle * 100) / 100; n.charge = Math.round(n.charge * 100) / 100; n.t = Math.round(n.t * 10) / 10;       // a countdown is kept in tenths
         const c = cost(lvl, n);
         if (c < bc - 1e-9) { best = n; bc = c; moved = true; }
       }

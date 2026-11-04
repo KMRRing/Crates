@@ -31,7 +31,7 @@
       <div id="top" class="cb-top">
         <div class="cb-chip">
           <span class="cb-lv"><b id="lvId"></b><span id="lvName"></span></span>
-          <span class="cb-sub"><span class="cb-shot">Shot <b id="shot">1</b></span><span id="stars" class="cb-stars" role="img"></span></span>
+          <span class="cb-sub"><span class="cb-shot">Shot <b id="shot">1</b></span><span id="stars" class="cb-stars" role="img"></span><span id="last" class="cb-last"></span></span>
           <span id="goal" class="cb-goal" hidden></span>
         </div>
       </div>
@@ -46,7 +46,16 @@
             <span class="cb-r">Elevation <b id="elev">0.0°</b><i id="lean" aria-hidden="true"></i></span>
             <span class="cb-r">Power <b id="pow">0.0</b><small id="cap"></small></span>
           </div>
-          <div id="gauge" class="cb-gauge" role="meter" aria-label="Power" aria-valuemin="0"></div>
+          <div class="cb-gaugerow">
+            <div id="gauge" class="cb-gauge" role="meter" aria-label="Power" aria-valuemin="0"></div>
+            <button id="fine" class="cb-fine" type="button" aria-pressed="false" aria-label="Fine adjustment">Fine</button>
+          </div>
+          <div id="timeRow" class="cb-time" hidden>
+            <span class="cb-r">Fire at <b id="tval">T+0.0 s</b></span>
+            <button class="cb-tbtn" id="tL" type="button" aria-label="Earlier"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5L8 12l7 7"/></svg></button>
+            <input id="tRange" class="cb-range" type="range" min="0" max="10" step="0.1" value="0" aria-label="Launch countdown, seconds after the world starts">
+            <button class="cb-tbtn" id="tR" type="button" aria-label="Later"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
           <div class="cb-pad">
             <button class="cb-nudge" id="angL" type="button" aria-label="Aim left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5L8 12l7 7"/></svg></button>
             <button class="cb-nudge" id="angR" type="button" aria-label="Aim right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>

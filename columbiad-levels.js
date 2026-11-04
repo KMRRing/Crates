@@ -14,7 +14,8 @@
 //
 // Every level is proved in tests/columbiad.mjs: a straight aim at the ring (or the first gate), at any power and a couple of degrees either way, never
 // wins; a stored shot (columbiad-proofs.js, found by the solver of tools/columbiad-solve.mjs) does, with its window of angles and powers.
-import { MOVERS_ON } from "./columbiad-engine.js";
+import { isMoving } from "./columbiad-engine.js";
+import { FAR } from "./columbiad-levels-far.js";
 
 const EARTH = { id: "earth", mu: 34, r: 4.2 };
 const moon = (x, y) => ({ id: "moon", at: [x, Math.round((y + 0.2) * 100) / 100], mu: 7.5, r: 1.35 });
@@ -23,7 +24,7 @@ const WORLD = { barrels: 16, dial: [2.0, 4.4], dt: 1 / 60, tMax: 30, bounds: 40,
 const S2 = { scatter: { v: 0.003, deg: 0.2 } };                  // the later sections are less forgiving
 const HOME = r => ({ at: [0, 4.2], r });                    // a ring on the ground at the pad: where a shot that has been round the Moon comes down
 
-export const SECTIONS = [
+const CORE = [
   { id: 1, name: "Beside the Moon", idea: "The Moon pulls: aim wide of it and be drawn in", levels: [
     { ...WORLD, id: "1-1", name: "Beside the Moon", note: "The ring lies beyond the Moon's shoulder. The Moon pulls the shot: aim wide of it and let it bend you in.",
       bodies: [EARTH, moon(0.6, 8.7)], target: { at: [2.2, 10.6], r: 0.6 }, aim: { angle: 72, charge: 10 } },
@@ -55,12 +56,11 @@ export const SECTIONS = [
       bodies: [EARTH, moon(0.4, 9)], gates: [{ at: [-1.4, 10.5], r: 0.5 }, HOME(0.6)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 7 }, aim: { angle: 70, charge: 10 } },
   ] },
 ];
+export const SECTIONS = [...CORE, ...FAR];
 for (const sec of SECTIONS) for (const l of sec.levels) if (l.gates) l.target = l.gates[l.gates.length - 1];
 
-/** Whether a level has anything that moves (a body on a rail, a Moon with no place given, a ring on a rail): parked while MOVERS_ON is off, so such a level is left out. */
-export const hasMovers = l => (l.bodies || []).some(b => b.rail || (b.id === "moon" && !b.at)) || [l.target, ...(l.gates || [])].some(t => t && t.rail);
-const usable = l => MOVERS_ON || !hasMovers(l);
-for (const sec of SECTIONS) sec.levels = sec.levels.filter(usable);
+/** Whether a level has anything that moves (a body on a rail, a Moon with no place given, a ring on a rail or a body): such a level has the launch countdown. */
+export const hasMovers = isMoving;
 export const LEVELS = SECTIONS.flatMap(s => s.levels);
 /** The section a level (its index) belongs to. */
 export const sectionOf = n => SECTIONS.find(s => s.levels.includes(LEVELS[n]));

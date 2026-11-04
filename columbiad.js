@@ -7,7 +7,7 @@
 // The levels come in sections (columbiad-levels.js), each opening in order; the ring is behind the Moon, so the way is round it. Where a
 // world moves (parked: MOVERS_ON in the engine) it has a clock, and a shot is launched at the time it is.
 import { LEVELS, SECTIONS, dailyLevel } from "./columbiad-levels.js";
-import { newGame, apply, stars as starsOf, cone as coneOf, clampAim, sound as validState, direction, worldOf, ringAt, BARRELS } from "./columbiad-engine.js";
+import { newGame, apply, stars as starsOf, cone as coneOf, clampAim, sound as validState, direction, worldOf, ringAt, bodyAt, padAt, isMoving, DELAY_MAX, BARRELS } from "./columbiad-engine.js";
 import { PULL_REM, DEAD_REM, begin as pullBegin, move as pullMove, nudge, crossed } from "./columbiad-aim.js";
 import { createView } from "./columbiad-view.js";
 import { sound } from "./columbiad-sound.js";
@@ -46,11 +46,12 @@ let ghosts = [];              // the last four shots' trails: { pts (x, y pairs)
 let liveOn = false;           // the newest shot's bright trail is still on the scene (it is its own ghost until the aim is touched)
 let phase = "aim";            // "aim", "fly" (a shot being shown), "done" (the ring struck: how it went, and on)
 let touch = null;             // the finger on the scene: { id, kind ("aim" or "press"), x, y, drag, timer, ff }
-let coneDirty = true, coneAt = 0;
+let coneDirty = true;
 let saveTimer = 0, sayTimer = 0;
-/** The moment a shot fired now is fired at, in hundredths of a second (so it is the same number wherever it is replayed). */
-const stamp = () => Math.round(view.clock * 100) / 100;
-const moving = () => worldOf(lvl).moving;
+/** The moment a shot is fired at: the countdown the player set (every shot starts from world time 0). */
+const stamp = () => (moving() ? aim.t || 0 : 0);
+const moving = () => isMoving(lvl);
+let fine = false;             // the fine mode: a drag moves the aim an eighth as far and a nudge is a tenth as big
 
 // ---------- keeping ----------
 /** A level is open when it begins its section or the one before it in the section has been struck; the first of a section is always open. */
@@ -69,8 +70,7 @@ function keepCamp() {
   write(BEST, camp.stars.reduce((a, b) => a + b, 0));
 }
 const goodTrail = g => g && Array.isArray(g.pts) && g.pts.length >= 4 && g.pts.length <= 200 && g.pts.length % 2 === 0 && g.pts.every(Number.isFinite);
-// `at` is the wall time of the keeping: a Moon goes on round while the page is closed, so coming back finds it where it would be, not where it was left
-function keepRun() { write(daily ? DRUN : RUN, { id: lvl.id, day: daily, at: Date.now(), s: { ...S, aim: { ...aim }, clock: stamp() }, ghosts }); }
+function keepRun() { write(daily ? DRUN : RUN, { id: lvl.id, day: daily, s: { ...S, aim: { ...aim }, clock: stamp() }, ghosts }); }
 function keepAim() {
   clearTimeout(saveTimer); saveTimer = 0;
   if (!daily) write(AIMS, { ...read(AIMS, {}), [lvl.id]: aim });
@@ -81,10 +81,10 @@ function keepAim() {
 function keepSoon() { if (!saveTimer && !IN_FRAME) saveTimer = setTimeout(keepAim, 400); }
 
 // ---------- the level's game ----------
-const defaultAim = () => clampAim(lvl, lvl.aim || { angle: (lvl.site ?? 90) - 20, charge: (lvl.barrels ?? BARRELS) * 0.6 });
+const defaultAim = () => clampAim(lvl, { t: moving() ? 0 : undefined, ...(lvl.aim || { angle: (lvl.site ?? 90) - 20, charge: (lvl.barrels ?? BARRELS) * 0.6 }) });
 function fresh() {
   const kept = daily ? null : read(AIMS, {})[lvl.id];
-  aim = clampAim(lvl, kept && Number.isFinite(kept.angle) && Number.isFinite(kept.charge) ? kept : defaultAim());
+  aim = clampAim(lvl, kept && Number.isFinite(kept.angle) && Number.isFinite(kept.charge) ? { ...kept, t: moving() ? kept.t ?? 0 : undefined } : defaultAim());
   S = newGame(lvl, daily || Math.floor(Math.random() * 2 ** 32), aim);          // the day's scatter is the day's, the same for everyone
   ghosts = []; liveOn = false;
   keepRun();
@@ -94,10 +94,8 @@ function loadRun() {
   if (r && r.id === lvl.id && (r.day || 0) === daily && validState(r.s) && Number.isFinite(r.s.aim.angle) && Number.isFinite(r.s.aim.charge)) {
     S = r.s;
     ghosts = Array.isArray(r.ghosts) ? r.ghosts.filter(goodTrail).slice(-4) : [];
-    aim = clampAim(lvl, S.aim);
+    aim = clampAim(lvl, { ...S.aim, t: moving() ? S.aim.t ?? 0 : undefined });
     liveOn = false;
-    const away = moving() && Number.isFinite(r.at) ? Math.max(0, (Date.now() - r.at) / 1000) : 0;
-    view.setClock((Number.isFinite(S.clock) ? S.clock : 0) + away);
   } else fresh();
   phase = S.status === "won" ? "done" : "aim";
 }
@@ -106,6 +104,7 @@ function setupLevel() {
   view.setLevel(lvl);
   buildGauge();
   loadRun();
+  view.setClock(stamp());
   view.setGhosts(ghosts);
   view.setWon(S.status === "won");
   coneDirty = true;
@@ -120,11 +119,10 @@ function playLevel(n) {
   setupLevel();
 }
 function restart() {
-  const clock = view.clock;                              // a replay is a new game of the level, not a new sky: the Moon keeps its place
   fresh();
   phase = "aim";
   view.setLevel(lvl);
-  if (moving()) { view.setClock(clock); keepRun(); }
+  view.setClock(stamp());
   view.setGhosts([]);
   view.setWon(false);
   coneDirty = true;
@@ -145,9 +143,13 @@ function buildGauge() {
 }
 function renderAim() {
   const off = aim.angle - (lvl.site ?? 90);
-  $("elev").textContent = `${(90 - Math.abs(off)).toFixed(1)}°`;
   $("lean").textContent = off > 0.04 ? "◀" : off < -0.04 ? "▶" : "";
-  $("pow").textContent = aim.charge.toFixed(1);
+  $("pow").textContent = aim.charge.toFixed(fine ? 2 : 1);
+  $("elev").textContent = `${(90 - Math.abs(off)).toFixed(fine ? 2 : 1)}°`;
+  $("timeRow").hidden = !moving();
+  if (moving()) { $("tval").textContent = `T+${(aim.t || 0).toFixed(1)} s`; $("tRange").value = String(aim.t || 0); $("tRange").max = String(lvl.delayMax ?? DELAY_MAX); }
+  const lastShot = S.log[S.log.length - 1];
+  $("last").textContent = lastShot ? `Last ${(90 - Math.abs(lastShot.a - (lvl.site ?? 90))).toFixed(1)}° · ${lastShot.c.toFixed(1)}${moving() ? ` · T+${(lastShot.t || 0).toFixed(1)}` : ""}` : "";
   cells.forEach((c, i) => c.style.setProperty("--f", Math.max(0, Math.min(1, aim.charge - i)).toFixed(3)));
   $("gauge").setAttribute("aria-valuenow", aim.charge.toFixed(1));
 }
@@ -173,7 +175,7 @@ function render() {
   const done = phase === "done", busy = phase !== "aim";
   $("deck").classList.toggle("away", done);
   $("result").hidden = !done;
-  for (const id of ["fire", "angL", "angR", "powD", "powU"]) $(id).disabled = busy;
+  for (const id of ["fire", "angL", "angR", "powD", "powU", "tL", "tR", "tRange"]) $(id).disabled = busy;
   if (done) {
     const i = camp.at, last = i + 1 >= LEVELS.length;
     $("verdict").innerHTML = `<span class="cb-big">${WON[lvl.goal?.type || "hit"]}</span><span class="cb-stars-big">${starsWords(earn)}</span><small>${plural(S.shots, "shot")}${S.bull ? " · bullseye" : ""}${last && !daily ? " · the last level so far" : ""}</small>`;
@@ -198,11 +200,8 @@ const unsay = () => { clearTimeout(sayTimer); $("say").classList.remove("show");
 // ---------- the scene ----------
 const view = createView($("scene"), {
   before() {
-    // where the world moves, the preview is the aim for this moment: it is made again ten times a second (a coarse step keeps that cheap)
-    if (!coneDirty && moving() && phase === "aim" && !view.flying && performance.now() - coneAt > 100) coneDirty = true;
     if (!coneDirty) return;
     coneDirty = false;
-    coneAt = performance.now();
     view.setCone(aim.charge >= 0.05 ? coneOf(lvl, aim, stamp()) : null);
   },
   onHit() { sound.play("chime"); },
@@ -213,7 +212,7 @@ const view = createView($("scene"), {
     if (S.status === "won") { phase = "done"; render(); roundOver("columbiad"); return; }
     phase = "aim";
     say(missWords(res), 3600);
-    keepRun();                                           // the clock moved on with the flight: keep it, or coming back finds the Moon behind
+    keepRun();
     render();
   },
 });
@@ -221,7 +220,10 @@ const view = createView($("scene"), {
 const unit = n => n.toFixed(n < 10 ? 1 : 0);
 /** What the level asks, in a line. */
 function goalWords(L) {
-  const g = L.goal || { type: "hit" };
+  const g = L.goal || { type: "hit" }, base = goalBase(L, g);
+  return L.thrift ? `${base ? `${base} · ` : ""}Least power earns the stars` : base;
+}
+function goalBase(L, g) {
   switch (g.type) {
     case "soft": return `Arrive at ${unit(g.speed)} or slower`;
     case "fast": return `Arrive at ${unit(g.speed)} or faster`;
@@ -235,7 +237,7 @@ const WON = { hit: "Hit", soft: "Soft arrival", fast: "Fast pass", gates: "Throu
 /** How a shot that did not win went, for the line over the picture. */
 function missWords(res) {
   const g = lvl.goal || { type: "hit" }, list = lvl.gates || [lvl.target], gated = !!lvl.gates && (g.type === "gates" || g.type === "return");
-  const fell = res.end === "impact" ? `Struck the ${res.body === "earth" ? "Earth" : res.body}. ` : res.end === "lost" ? "Lost to space. " : res.end === "time" ? "Out of time. " : "";
+  const fell = res.end === "burned" ? `Lost to ${res.body}. ` : res.end === "impact" ? `Struck the ${res.body === "earth" ? "Earth" : res.body}. ` : res.end === "lost" ? "Lost to space. " : res.end === "time" ? "Out of time. " : "";
   if (g.type === "orbit") return `${fell}Swept ${Math.round(Math.abs(res.sweep) * 57.2958)}° of ${g.sweep}°`;
   const T = gated ? list[Math.min(res.gates, list.length - 1)] : lvl.target;
   if (res.hit && !res.hit.ok) {
@@ -339,8 +341,8 @@ scene.addEventListener("pointermove", e => {
   if (!touch || touch.id !== e.pointerId || touch.kind !== "aim") return;
   const dx = e.clientX - touch.x, dy = e.clientY - touch.y;
   touch.x = e.clientX; touch.y = e.clientY;
-  const before = aim.charge, r = pullMove(lvl, touch.drag, dx, dy, full(), DEAD_REM * rootPx());
-  aim = r.aim;
+  const before = aim.charge, r = pullMove(lvl, touch.drag, dx, dy, full(), DEAD_REM * rootPx(), fine ? 0.125 : 1);
+  aim = { ...r.aim, t: aim.t };
   if (r.ticks) { sound.play("tick", { n: Math.floor(aim.charge) }); flashCell(before, aim.charge); navigator.vibrate?.(6); }
   ropeNow(e);
   changed();
@@ -368,7 +370,7 @@ function nudgeBy(da, dc, k = 1) {
   if (phase !== "aim" || IN_FRAME || isPaused()) return;
   touched();
   const was = aim.charge;
-  aim = nudge(lvl, aim, da, dc, k);
+  aim = nudge(lvl, aim, da, dc, fine ? k / 10 : k);
   if (dc) { if (crossed(was, aim.charge)) { sound.play("tick", { n: Math.floor(aim.charge) }); flashCell(was, aim.charge); } else sound.play("nudge"); }
   else sound.play("nudge");
   changed();
@@ -388,6 +390,38 @@ function bindNudge(id, da, dc) {
   b.addEventListener("click", e => { if (e.detail === 0) nudgeBy(da, dc); });             // a click with no press before it is a key's
   b.addEventListener("contextmenu", e => e.preventDefault());
 }
+/** The launch countdown: a tenth of a second a tap, faster the longer it is held, and the slider for a swing. */
+function timeBy(d, k = 1) {
+  if (phase !== "aim" || IN_FRAME || isPaused() || !moving()) return;
+  touched();
+  aim = clampAim(lvl, { ...aim, t: (aim.t || 0) + d * 0.1 * k });
+  sound.play("nudge");
+  timeChanged();
+}
+function timeChanged() { view.setClock(stamp()); changed(); keepSoon(); }
+function bindTime(id, d) {
+  const b = $(id);
+  let rep = 0, n = 0;
+  const stop = () => { clearTimeout(rep); clearInterval(rep); rep = 0; };
+  b.addEventListener("pointerdown", e => {
+    if (e.button > 0) return;
+    stop(); n = 0;
+    timeBy(d);
+    rep = setTimeout(() => { rep = setInterval(() => { n++; timeBy(d, n < 8 ? 1 : n < 20 ? 3 : 8); }, 75); }, 380);
+  });
+  for (const t of ["pointerup", "pointerleave", "pointercancel"]) b.addEventListener(t, stop);
+  b.addEventListener("click", e => { if (e.detail === 0) timeBy(d); });
+  b.addEventListener("contextmenu", e => e.preventDefault());
+}
+bindTime("tL", -1);
+bindTime("tR", +1);
+$("tRange").addEventListener("input", e => {
+  if (phase !== "aim" || IN_FRAME || isPaused()) return;
+  touched();
+  aim = clampAim(lvl, { ...aim, t: parseFloat(e.target.value) });
+  timeChanged();
+});
+$("fine").addEventListener("click", () => { fine = !fine; $("fine").setAttribute("aria-pressed", String(fine)); renderAim(); });
 bindNudge("angL", +1, 0);
 bindNudge("angR", -1, 0);
 bindNudge("powU", 0, +1);
@@ -401,6 +435,8 @@ document.addEventListener("keydown", e => {
     case "ArrowRight": nudgeBy(-1, 0, k); break;
     case "ArrowUp": nudgeBy(0, +1, k); break;
     case "ArrowDown": nudgeBy(0, -1, k); break;
+    case ",": timeBy(-1, k); break;
+    case ".": timeBy(+1, k); break;
     case " ": case "Enter": if (e.target.closest?.("button")) return; fire(); break;
     default: return;
   }
@@ -410,24 +446,32 @@ $("againBtn").addEventListener("click", restart);
 $("nextBtn").addEventListener("click", () => { if (daily) share(); else if (camp.at + 1 < LEVELS.length) playLevel(camp.at + 1); });
 
 // ---------- the menu ----------
-/** A level's place in miniature: the Earth's cap, the launch pad, the Moon and the ring(s), at their true sizes. */
+/** A level's place in miniature: the launch pad, the bodies, the hazards and the ring(s), at their true sizes (a body on a rail where it starts, with its orbit). */
 function mapSvg(L) {
-  const w = worldOf(L), rings = L.gates || [L.target], f = n => n.toFixed(3), site = L.site ?? 90, re = w.re;
-  const [gx, gy] = direction(site);
-  // what the picture must hold: the pad and a stretch of rim, each body, each ring
-  let x0 = gx * re - 1.6, x1 = gx * re + 1.6, y0 = gy * re - 1.6, y1 = gy * re + 1.6;
+  const w = worldOf(L), rings = L.gates || [L.target], f = n => n.toFixed(3), [px, py] = padAt(L, 0);
+  let x0 = px - 1.6, x1 = px + 1.6, y0 = py - 1.6, y1 = py + 1.6;
   const grow = (x, y, r = 0) => { x0 = Math.min(x0, x - r); x1 = Math.max(x1, x + r); y0 = Math.min(y0, y - r); y1 = Math.max(y1, y + r); };
-  for (const b of w.bodies) if (b.id !== "earth") grow(b.x, b.y, b.r + 0.3);
+  w.bodies.forEach((b, i) => { if (i !== w.fi) { const p = bodyAt(L, i, 0); grow(p[0], p[1], b.r + 0.3); } });
   for (const T of rings) { const p = ringAt(L, T, 0); grow(p[0], p[1], T.r + 0.2); }
   const s = Math.max(x1 - x0, y1 - y0) * 1.06, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
   let g = "";
-  w.bodies.forEach(b => { g += `<circle class="${b.id === "earth" ? "cb-map-earth" : "cb-map-moon"}" cx="${f(b.x)}" cy="${f(-b.y)}" r="${f(b.r)}"/>`; });
+  for (const z of L.hazards || []) {
+    const p = z.body ? bodyAt(L, w.bodies.findIndex(b => b.id === z.body), 0) : z.at;
+    if (z.band) g += `<circle class="cb-map-band" cx="${f(p[0])}" cy="${f(-p[1])}" r="${f((z.band[0] + z.band[1]) / 2)}" stroke-width="${f(z.band[1] - z.band[0])}"/>`;
+    else g += `<circle class="cb-map-haz" cx="${f(p[0])}" cy="${f(-p[1])}" r="${f(Math.max(z.r, s * 0.012))}"/>`;
+  }
+  w.bodies.forEach((b, i) => {
+    const p = bodyAt(L, i, 0);
+    if (b.rail) g += `<circle class="cb-map-rail" cx="${f(b.cx)}" cy="${f(-b.cy)}" r="${f(b.a)}"/>`;
+    g += `<circle class="cb-map-body cb-map-${b.kind}" cx="${f(p[0])}" cy="${f(-p[1])}" r="${f(Math.max(b.r, s * 0.02))}"/>`;
+  });
   rings.forEach((T, k) => {
     const p = ringAt(L, T, 0), last = k === rings.length - 1;
+    if (T.rail) g += `<circle class="cb-map-rail" cx="${f(T.rail.about ? T.rail.about[0] : 0)}" cy="${f(-(T.rail.about ? T.rail.about[1] : 0))}" r="${f(T.rail.a)}"/>`;
     g += `<circle class="${last ? "cb-map-ring" : "cb-map-gate"}" cx="${f(p[0])}" cy="${f(-p[1])}" r="${f(Math.max(T.r, s * 0.03))}"/>`;
     if (rings.length > 1) g += `<text class="cb-map-num" font-size="${f(s * 0.06)}" x="${f(p[0])}" y="${f(-p[1] + s * 0.02)}">${k + 1}</text>`;
   });
-  g += `<circle class="cb-map-pad" cx="${f(gx * re)}" cy="${f(-gy * re)}" r="${f(s * 0.035)}"/>`;
+  g += `<circle class="cb-map-pad" cx="${f(px)}" cy="${f(-py)}" r="${f(s * 0.035)}"/>`;
   return `<svg viewBox="${f(cx - s / 2)} ${f(-cy - s / 2)} ${f(s)} ${f(s)}" aria-hidden="true">${g}</svg>`;
 }
 function levelList(sec) {
@@ -504,7 +548,7 @@ addEventListener("pageshow", () => view.redraw());
 // for tests and debugging
 window.__columbiad = {
   get state() { return S; }, get aim() { return aim; }, get phase() { return phase; }, get lvl() { return lvl; }, get camp() { return camp; }, get ghosts() { return ghosts; },
-  setAim(a) { touched(); aim = clampAim(lvl, a); changed(); keepAim(); },
+  setAim(a) { touched(); aim = clampAim(lvl, { t: moving() ? 0 : undefined, ...a }); view.setClock(stamp()); changed(); keepAim(); },
   fire, playLevel, restart, view, full,
   /** Where a point of the world lies on the page. */
   pointOf(x, y) { const r = scene.getBoundingClientRect(), [px, py] = view.screenOf(x, y); return [r.left + px, r.top + py]; },

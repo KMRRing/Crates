@@ -13,9 +13,10 @@
 // state alone, never of frame time. A last-bit difference near a threshold could flip a hit, so every authored level is
 // robust enough (columbiad-levels.js) that none can decide it.
 
-/** Moving bodies and rings (a Moon on a rail, a ring riding it) are parked, 4 November 2026 (Korbi: "Moving objects, let's parke those, it's fiddly"):
- *  with the flag off a body on a rail stands still where its phase puts it at time 0, and nothing in a level moves. Code and tests stay. */
-export let MOVERS_ON = false;
+/** Moving bodies and rings (a Moon on a rail, a ring riding it) were parked on 4 November 2026 (Korbi: "Moving objects, let's parke those, it's fiddly"),
+ *  then brought back the same day under his reset-time rule: every shot starts from world time 0 and the player sets the launch countdown, so a
+ *  shot can be reproduced and tweaked. With the flag off a body on a rail stands still where its phase puts it at time 0 (the tests turn it off to keep that code). */
+export let MOVERS_ON = true;
 /** Only the tests turn movers on, to keep their code working. */
 export function setMovers(on) { MOVERS_ON = !!on; worlds = new WeakMap(); }
 export const R = 1, A_MOON = 60.3, R_MOON = 0.273, MASS_RATIO = 81.3, T_MOON = 40, EPS = 0.05;
@@ -30,6 +31,8 @@ export const LIFT = 0.02;
 export const DT_MIN = 1e-4, DT_MAX = 1 / 120;
 /** The aim is kept in these steps (degrees, barrels), so a value is the same number wherever it was made. */
 export const ANGLE_STEP = 0.05, CHARGE_STEP = 0.01;
+/** The longest launch countdown a level offers (seconds after the world's time 0), unless it says `delayMax`. */
+export const DELAY_MAX = 10;
 
 // ---------- the unit circle, from arithmetic alone ----------
 // A quarter turn halved ten times with the half-angle formulas (sqrt, +, /) gives 1/1024 of it; rotating by that again
@@ -137,21 +140,23 @@ export function worldOf(lvl) {
   let w = worlds.get(lvl);
   if (w) return w;
   const list = lvl.bodies || [{ id: "earth" }], bodies = list.map(b => {
-    const id = b.id, mu = b.mu ?? (id === "moon" ? MU_M : MU_E), r = b.r ?? (id === "moon" ? R_MOON : R);
+    const id = b.id, mu = b.mu ?? (id === "moon" ? MU_M : MU_E), r = b.r ?? (id === "moon" ? R_MOON : R), kind = b.kind || id;
     if ((b.rail || (id === "moon" && !b.at)) && !MOVERS_ON) {    // parked: where the rail puts it at the start, standing still
       const rl = b.rail || {};
       unit(rl.phase ?? 0);
       const c = rl.about || [0, 0], a = rl.a ?? A_MOON;
-      return { id, mu, r, rail: false, x: c[0] + a * UX, y: c[1] + a * UY, a: 0, T: 1, phase: 0, cx: 0, cy: 0 };
+      return { id, kind, mu, r, rail: false, x: c[0] + a * UX, y: c[1] + a * UY, a: 0, T: 1, phase: 0, cx: 0, cy: 0 };
     }
     if (b.rail || (id === "moon" && !b.at)) {                    // the Moon is on its rail unless the level puts it somewhere (`at`)
       const rl = b.rail || {};
-      return { id, mu, r, rail: true, a: rl.a ?? A_MOON, T: rl.T ?? T_MOON, phase: rl.phase ?? 0, cx: (rl.about || [0, 0])[0], cy: (rl.about || [0, 0])[1], x: 0, y: 0 };
+      return { id, kind, mu, r, rail: true, a: rl.a ?? A_MOON, T: rl.T ?? T_MOON, phase: rl.phase ?? 0, cx: (rl.about || [0, 0])[0], cy: (rl.about || [0, 0])[1], x: 0, y: 0 };
     }
-    return { id, mu, r, rail: false, x: (b.at || [0, 0])[0], y: (b.at || [0, 0])[1], a: 0, T: 1, phase: 0, cx: 0, cy: 0 };
+    return { id, kind, mu, r, rail: false, x: (b.at || [0, 0])[0], y: (b.at || [0, 0])[1], a: 0, T: 1, phase: 0, cx: 0, cy: 0 };
   });
-  const e = bodies.find(b => b.id === "earth");
-  w = { bodies, n: bodies.length, moving: bodies.some(b => b.rail), re: e ? e.r : R };
+  // the launch body: the level's `from`, else the Earth, else the first
+  let fi = bodies.findIndex(b => b.id === (lvl.from || "earth"));
+  if (fi < 0) fi = 0;
+  w = { bodies, n: bodies.length, moving: bodies.some(b => b.rail), re: bodies[fi] ? bodies[fi].r : R, fi };
   worlds.set(lvl, w);
   return w;
 }
@@ -162,6 +167,28 @@ export function bodyAt(lvl, i, t) {
   unit(turnsOf(b, t));
   return [b.cx + b.a * UX, b.cy + b.a * UY];
 }
+/** Where the launch pad is at time t: a point on the launch body's rim at the level's site. */
+export function padAt(lvl, t = 0) {
+  const w = worldOf(lvl), p = bodyAt(lvl, w.fi, t), [ux, uy] = direction(lvl.site ?? 90);
+  return [p[0] + ux * w.re, p[1] + uy * w.re];
+}
+/** The hazards of a level as the flight wants them (cached): lethal discs and bands (a ring plane, with its gaps), on a body or at a place. */
+const hazardCache = new WeakMap();
+function hazardsOf(lvl) {
+  let h = hazardCache.get(lvl);
+  if (h) return h;
+  const w = worldOf(lvl);
+  h = (lvl.hazards || []).map(z => {
+    const bi = z.body ? w.bodies.findIndex(b => b.id === z.body) : -1, out = { name: z.name || "the hazard", bi, at: z.at || [0, 0], band: !!z.band };
+    if (z.band) { out.r0 = z.band[0] * z.band[0]; out.r1 = z.band[1] * z.band[1]; out.gaps = (z.gaps || []).map(([a, hw]) => { const d = direction(a), c = direction(hw)[0]; return [d[0], d[1], c]; }); }
+    else out.r = z.r;
+    return out;
+  });
+  hazardCache.set(lvl, h);
+  return h;
+}
+/** Whether anything in a level moves (a body on a rail, a ring on a body or a rail): such a level has the launch countdown. */
+export const isMoving = lvl => MOVERS_ON && ((lvl.bodies || []).some(b => b.rail || (b.id === "moon" && !b.at)) || [lvl.target, ...(lvl.gates || [])].some(t => t && (t.rail || (t.body != null && (lvl.bodies || []).some(b => b.id === t.body && (b.rail || (b.id === "moon" && !b.at)))))));
 /** Whether a ring moves: it is on a body or on a rail of its own. */
 const rides = tg => MOVERS_ON && (tg.body != null || !!tg.rail);
 /**
@@ -246,6 +273,7 @@ export function fly(lvl, ini, o = {}) {
   if (smp) { smp.out[0] = x; smp.out[1] = y; sk = 1; }
   let tgx = 0, tgy = 0, wasIn = false;
   if (cur) { const p = ringAt(lvl, cur, t); tgx = p[0]; tgy = p[1]; wasIn = (x - tgx) * (x - tgx) + (y - tgy) * (y - tgy) < ring * ring; }
+  const haz = hazardsOf(lvl), air = lvl.air || [], airI = air.map(a => w.bodies.findIndex(b => b.id === a.body));
   const moving = w.moving, bx0 = new Float64Array(w.n * 2), bx1 = moving ? new Float64Array(w.n * 2) : bx0;
   const place = (arr, tt) => { for (let i = 0; i < w.n; i++) { const b = w.bodies[i]; if (b.rail) { unit(turnsOf(b, tt)); arr[2 * i] = b.cx + b.a * UX; arr[2 * i + 1] = b.cy + b.a * UY; } else { arr[2 * i] = b.x; arr[2 * i + 1] = b.y; } } };
   place(bx0, t);
@@ -262,7 +290,7 @@ export function fly(lvl, ini, o = {}) {
     accel(w, t + h, x + h * k3x, y + h * k3y);
     const k4x = vx + h * k3vx, k4y = vy + h * k3vy, k4vx = AX, k4vy = AY;
     const nx = x + h / 6 * (k1x + 2 * k2x + 2 * k3x + k4x), ny = y + h / 6 * (k1y + 2 * k2y + 2 * k3y + k4y);
-    const nvx = vx + h / 6 * (k1vx + 2 * k2vx + 2 * k3vx + k4vx), nvy = vy + h / 6 * (k1vy + 2 * k2vy + 2 * k3vy + k4vy);
+    let nvx = vx + h / 6 * (k1vx + 2 * k2vx + 2 * k3vx + k4vx), nvy = vy + h / 6 * (k1vy + 2 * k2vy + 2 * k3vy + k4vy);
     const nt = t + h, dx = nx - x, dy = ny - y;
     steps++;
     // what the segment meets: the target's ring (the first time only) and any body's surface, whichever comes first
@@ -273,6 +301,20 @@ export function fly(lvl, ini, o = {}) {
       if (!(r > 0)) continue;
       const u = enters(x - bx0[2 * i], y - bx0[2 * i + 1], dx - (bx1[2 * i] - bx0[2 * i]), dy - (bx1[2 * i + 1] - bx0[2 * i + 1]), r);
       if (u < uBody) { uBody = u; which = i; }
+    }
+    for (let hi = 0; hi < haz.length; hi++) {                      // a lethal disc is entered like a body; a band is a place the step ends in
+      const z = haz[hi], zx0 = z.bi >= 0 ? bx0[2 * z.bi] : z.at[0], zy0 = z.bi >= 0 ? bx0[2 * z.bi + 1] : z.at[1], zx1 = z.bi >= 0 ? bx1[2 * z.bi] : zx0, zy1 = z.bi >= 0 ? bx1[2 * z.bi + 1] : zy0;
+      let u = 2;
+      if (z.band) {
+        const qx = nx - zx1, qy = ny - zy1, d2 = qx * qx + qy * qy;
+        if (d2 >= z.r0 && d2 <= z.r1) {
+          const d = Math.sqrt(d2);
+          let gap = false;
+          for (const g of z.gaps) if ((qx * g[0] + qy * g[1]) / d > g[2]) { gap = true; break; }
+          if (!gap) u = 1;
+        }
+      } else u = enters(x - zx0, y - zy0, dx - (zx1 - zx0), dy - (zy1 - zy0), z.r);
+      if (u < uBody) { uBody = u; which = w.n + hi; }
     }
     let ntx = tgx, nty = tgy, uT = 2, dist = Infinity;
     if (cur) {
@@ -291,7 +333,7 @@ export function fly(lvl, ini, o = {}) {
       const speed = Math.sqrt(rvx * rvx + rvy * rvy);
       // the arrival speed asked of this ring: a gate's own, else the level's goal (soft: at or below, fast: at or above)
       const lim = gated ? cur : goal.type === "soft" ? { soft: goal.speed } : goal.type === "fast" ? { fast: goal.speed } : {};
-      const ok = (lim.soft === undefined || speed <= lim.soft) && (lim.fast === undefined || speed >= lim.fast);
+      const ok = (lim.soft === undefined || speed <= lim.soft) && (lim.fast === undefined || speed >= lim.fast) && (cur.win === undefined || (ut >= cur.win[0] && ut <= cur.win[1]));
       if (gated && gi < rings.length - 1) {
         if (ok) {                                           // a gate passed in order: the next ring is the one to enter
           gi++; cur = rings[gi]; ring = cur.r; near = Infinity; core = Infinity; tNear = nt;
@@ -320,10 +362,14 @@ export function fly(lvl, ini, o = {}) {
       const px = x + dx * uBody, py = y + dy * uBody;
       length += Math.sqrt((px - x) * (px - x) + (py - y) * (py - y));
       x = px; y = py; vx = vx + (nvx - vx) * uBody; vy = vy + (nvy - vy) * uBody; t = t + h * uBody;
-      end = "impact"; body = w.bodies[which].id;
+      if (which >= w.n) { end = "burned"; body = haz[which - w.n].name; } else { end = "impact"; body = w.bodies[which].id; }
       break;
     }
     length += Math.sqrt(dx * dx + dy * dy);
+    for (let ai = 0; ai < air.length; ai++) {                         // an atmosphere: speed lost in proportion to depth, from its edge to the surface
+      const b = w.bodies[airI[ai]], px = (moving ? bx1 : bx0)[2 * airI[ai]], py = (moving ? bx1 : bx0)[2 * airI[ai] + 1], a = air[ai], d = Math.sqrt((nx - px) * (nx - px) + (ny - py) * (ny - py));
+      if (d < a.r) { const f = 1 - a.k * h * (a.r - d) / (a.r - b.r); nvx *= f; nvy *= f; }
+    }
     x = nx; y = ny; vx = nvx; vy = nvy; t = nt;
     if (moving) for (let i = 0; i < w.n * 2; i++) bx0[i] = bx1[i];
     tgx = ntx; tgy = nty;
@@ -358,16 +404,21 @@ export function clampAim(lvl, aim) {
   const angle = Math.round((site + a) / ANGLE_STEP) * ANGLE_STEP;
   let c = aim.charge;
   c = c < 0 ? 0 : c > cap ? cap : c;
-  return { angle: Math.round(angle * 100) / 100, charge: Math.round(Math.round(c / CHARGE_STEP) * CHARGE_STEP * 100) / 100 };
+  const out = { angle: Math.round(angle * 100) / 100, charge: Math.round(Math.round(c / CHARGE_STEP) * CHARGE_STEP * 100) / 100 };
+  if (Number.isFinite(aim.t)) { const m = lvl.delayMax ?? DELAY_MAX; out.t = Math.round(Math.min(m, Math.max(0, aim.t)) * 10) / 10; }     // the launch countdown, in tenths of a second
+  return out;
 }
 /** Where a shot starts and how fast it goes: the aim, with its speed and angle perturbed by the draws g = [g1, g2] (0, 0 for none). */
 export function muzzle(lvl, aim, g = [0, 0], t = 0, spread = null) {
-  const sc = spread || lvl.scatter || { v: 0, deg: 0 }, site = lvl.site ?? 90;
-  const v = dialSpeed(lvl, aim.charge) * (1 + sc.v * g[0]), re = worldOf(lvl).re;
-  unit(site / 360);
-  const bx = re * UX, by = re * UY;
+  const sc = spread || lvl.scatter || { v: 0, deg: 0 };
+  const v = dialSpeed(lvl, aim.charge) * (1 + sc.v * g[0]), pad = padAt(lvl, t), bx = pad[0], by = pad[1];
+  let bvx = 0, bvy = 0;
+  if (lvl.inherit && isMoving(lvl)) {                                  // a shell leaves a body that moves with the body's own velocity added (a station's, a planet's)
+    const w = worldOf(lvl), e = 1e-3, a = bodyAt(lvl, w.fi, t + e), b = bodyAt(lvl, w.fi, t - e);
+    bvx = (a[0] - b[0]) / (2 * e); bvy = (a[1] - b[1]) / (2 * e);
+  }
   unit((aim.angle + sc.deg * g[1]) / 360);
-  return { x: bx + UX * LIFT, y: by + UY * LIFT, vx: v * UX, vy: v * UY, t };
+  return { x: bx + UX * LIFT, y: by + UY * LIFT, vx: v * UX + bvx, vy: v * UY + bvy, t };
 }
 /** A whole shot: the shell fired with the draws g and flown to its end. */
 export function shoot(lvl, mv, g = [0, 0], o = {}) {
@@ -486,10 +537,13 @@ export function validate(lvl) {
   if (!(lvl.cone?.len > 0)) bad.push("needs cone { len }");
   if (!Number.isFinite(lvl.site ?? 90)) bad.push("site is an angle in degrees");
   if (!w.bodies.length || w.bodies.some(b => !(b.mu > 0))) bad.push("every body needs a mass");
+  if (lvl.from && !w.bodies.some(b => b.id === lvl.from)) bad.push("the launch body is not in the level");
+  for (const z of lvl.hazards || []) if ((z.body && !w.bodies.some(b => b.id === z.body)) || (!z.band && !(z.r > 0)) || (z.band && !(z.band[1] > z.band[0] && z.band[0] > 0))) bad.push(`hazard ${z.name || ""} is badly made`);
+  for (const a of lvl.air || []) if (!w.bodies.some(b => b.id === a.body) || !(a.k > 0)) bad.push("an atmosphere needs a body and a drag k");
   if (tg && tg.body == null && !tg.rail && Array.isArray(tg.at)) {
     for (const b of w.bodies) if (!b.rail && Math.sqrt((tg.at[0] - b.x) ** 2 + (tg.at[1] - b.y) ** 2) < b.r + tg.r * 0.2 && !(type === "return")) bad.push("the target's middle is inside a body");
-    const site = lvl.site ?? 90, s = direction(site), re = w.re;
-    if (Math.sqrt((tg.at[0] - s[0] * re) ** 2 + (tg.at[1] - s[1] * re) ** 2) < tg.r + 0.1 && type !== "return") bad.push("the target is on the launch point");
+    const pad = padAt(lvl, 0);
+    if (Math.sqrt((tg.at[0] - pad[0]) ** 2 + (tg.at[1] - pad[1]) ** 2) < tg.r + 0.1 && type !== "return") bad.push("the target is on the launch point");
   }
   return bad;
 }
@@ -519,5 +573,6 @@ export function apply(lvl, s0, mv, o = {}) {
 /** Three stars for a win with the first shot, two with the second or third, one with any other; none before a win. */
 export function stars(lvl, s) {
   if (s.status !== "won") return 0;
+  if (lvl.thrift) { const c = s.log.length ? s.log[s.log.length - 1].c : Infinity; return c <= lvl.thrift[0] ? 3 : c <= lvl.thrift[1] ? 2 : 1; }      // a gentle level: the stars are for the least power
   return s.shots === 1 ? 3 : s.shots <= 3 ? 2 : 1;
 }
