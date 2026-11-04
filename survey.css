@@ -6,6 +6,9 @@
 }
 /* night, set in Settings */
 html[data-mode="night"] { --sv-in: #D9AF62; --sv-good: #7FC2A8; --sv-bad: #E8806F; }
+:root { --sv-silver: #5d6e86; --sv-gold: #9a6a14; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --sv-silver: #c9d4e4; --sv-gold: #e5b95a; } }
+html[data-mode="night"] { --sv-silver: #c9d4e4; --sv-gold: #e5b95a; }
 
 .sv-mark { display: inline-block; }
 .sv-mark svg { width: 100%; height: 100%; display: block; }
@@ -35,6 +38,13 @@ html[data-mode="night"] { --sv-in: #D9AF62; --sv-good: #7FC2A8; --sv-bad: #E8806
 .sv-lab.box { border-radius: 2px; box-shadow: 0 0 0 2px var(--ink); }
 /* runs: the seams' lengths in order ("2 1"), so the plate is as wide as its digits; fog: a row with no reading */
 .sv-lab.runs { width: auto; min-width: var(--b); padding: 0 calc(var(--b) * .16); font-size: calc(var(--b) * .56); letter-spacing: .02em; white-space: nowrap; border-radius: 4px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--sv-in) 55%, transparent); }
+/* two ores, or a fault: several numbers on a plate. Silver then gold, each its own colour and underlined so it does not rest on colour alone; a bar between the sides of a fault */
+.sv-lab.two { display: flex; align-items: center; gap: calc(var(--b) * .2); width: auto; min-width: var(--b); padding: 0 calc(var(--b) * .2); font-size: calc(var(--b) * .6); white-space: nowrap; box-shadow: 0 0 0 1px color-mix(in srgb, var(--brass) 75%, transparent); }
+.sv-lab.two span { display: inline-flex; gap: calc(var(--b) * .16); }
+.sv-lab.two i { font-style: normal; }
+.sv-lab.two i.s { color: var(--sv-silver); box-shadow: inset 0 -2px 0 var(--sv-silver); }
+.sv-lab.two i.g { color: var(--sv-gold); box-shadow: inset 0 -2px 0 var(--sv-gold); }
+.sv-lab.two u { align-self: stretch; width: 2px; margin: calc(var(--b) * .12) 0; background: var(--brass); }
 .sv-lab.fog { color: var(--ink-soft); background: color-mix(in srgb, var(--sheet) 55%, transparent); box-shadow: none; border: 1px dashed color-mix(in srgb, var(--ink) 40%, transparent); }
 .sv-lab.hot { background: var(--plate); color: var(--plate-ink); box-shadow: 0 0 0 2px var(--sv-in), 0 0 0 4px color-mix(in srgb, var(--sv-in) 35%, transparent); z-index: 1; }
 .sv-reset { position: absolute; left: .5rem; bottom: .5rem; z-index: 2; width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 1px solid var(--brass); background: color-mix(in srgb, var(--sheet) 82%, transparent); color: var(--ink); font: inherit; font-size: 1.25rem; line-height: 1; cursor: pointer; touch-action: manipulation; }
@@ -98,4 +108,4 @@ html[data-mode="night"] { --sv-in: #D9AF62; --sv-good: #7FC2A8; --sv-bad: #E8806
 .sv-lrow b { font-size: .9rem; font-variant-numeric: tabular-nums; }
 .sv-lrow span { color: var(--brass); font-size: .66rem; letter-spacing: .1em; white-space: nowrap; }
 .sv-lname { font-size: .62rem; line-height: 1.2; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); color: var(--ink-soft); overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-.sv-lsize { font-size: .62rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.sv-lsize { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .62rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }

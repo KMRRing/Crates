@@ -7,14 +7,15 @@
 // Topple's are) and Free play (a size, a reading, a random block or today's). Together, the same block for everyone at the
 // table (duel.js).
 import { SIZES, READINGS, STRIKE, HINT, makePuzzle, newRun, chip, mark, hint, wasteLeft, score } from "./survey-engine.js";
-import { LEVELS, COUNT, CHAPTERS, chapterOf, seedOf, levelPuzzle, shapeOf, parOf, starsFor } from "./survey-levels.js";
+import { LEVELS, COUNT, CHAPTERS, chapterOf, seedOf, levelPuzzle, shapeOf, parOf, starsFor, placeOfId } from "./survey-levels.js";
+import { sound } from "./survey-sound.js";
 import { miniature } from "./survey-mini.js";
 import { createBlock } from "./survey-3d.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, action, line, mirror, toggle, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";   // the day, the same for everyone (UTC); a partner watching's frame runs no clock and writes nothing
 import { roundOver } from "./random.js";
@@ -25,7 +26,8 @@ const sizeDropdown = dropdown(document.getElementById("size"));   // the header 
 const $ = id => document.getElementById(id);
 // RUN: the free block in play. TRACK: "levels" or "free", the way played. CAMP: the level being played and the stars won in each.
 // LRUNS: the block of each level as it was left (by level).
-const RUN = "survey:run", TIMES = "survey:times", READ = "survey:readings", VIEW = "survey:view", ERA = "survey:era", TRACK = "survey:track", CAMP = "survey:camp", LRUNS = "survey:lruns";
+const RUN = "survey:run", TIMES = "survey:times", READ = "survey:readings", VIEW = "survey:view", ERA = "survey:era", TRACK = "survey:track", CAMP = "survey:camp2", LRUNS = "survey:lruns2", SOUND = "survey:sound";
+// The ladder grew chapters in November 2026 (twists), which moved the levels: what was kept under the first 25 numbers (survey:camp, survey:lruns) is read once into these, by where each level stands now.
 const DAILY = { size: "medium", readings: "seams" };   // today's block is the same for everyone, so its size and readings are fixed
 const SAVE_EVERY = 5000;                                 // ms between saves of a block in play (a partner watching sees it that often)
 
@@ -49,6 +51,7 @@ let P = null;              // its puzzle, made from the seed
 let tool = "chip";
 let readings = read(READ, "seams");   // what the next random block is read with (the menu's choice)
 if (!READINGS[readings]) readings = "seams";
+sound.on = read(SOUND, true) !== false;
 let track = "levels";      // the way played (set below, once a saved block can be told from a stray one)
 let camp = { at: 0, stars: LEVELS.map(() => 0) };
 let clockFrom = null;      // when the clock last started running (performance.now), or null while it is stopped
@@ -79,7 +82,7 @@ function clockPause() {
   clockFrom = null;
   save();
 }
-onPause(() => { paused = true; clockPause(); fingers.clear(); view?.focus(-1); }, () => { paused = false; clockRun(); });   // the menu stops the clock too
+onPause(() => { paused = true; clockPause(); fingers.clear(); view?.focus(-1); sound.hold(); }, () => { paused = false; clockRun(); sound.release(); });   // the menu stops the clock too
 const elapsed = () => (S.run.done ? S.run.ms : S.duel ? Math.max(0, duel.now() - S.begun) : S.run.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
 const penalty = r => STRIKE * r.strikes + HINT * r.hints;
 
@@ -101,11 +104,25 @@ const valid = s => !!s && Number.isInteger(s.seed) && !!READINGS[s.readings] && 
 /** The campaign as kept: the level being played and the stars won in each, mended if it is not what it should be. */
 function readCamp() {
   const c = read(CAMP, null), stars = LEVELS.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
-  const open = stars.findIndex(s => s < 1);                          // the first level not beaten is the last one open
-  return { at: Number.isInteger(c?.at) ? Math.max(0, Math.min(c.at, open < 0 ? COUNT - 1 : open)) : 0, stars };
+  const top = stars.reduce((t, v, k) => (v > 0 ? k : t), -1);        // the furthest level beaten: everything before it is open too
+  return { at: Number.isInteger(c?.at) ? Math.max(0, Math.min(c.at, top + 1, COUNT - 1)) : 0, stars };
 }
-/** Whether level n (0 on) is open: the first, and any whose one before is beaten. */
-const isOpen = n => n === 0 || camp.stars[n - 1] >= 1;
+/** Whether level n (0 on) is open: the first, and any up to one past the furthest beaten. */
+const isOpen = n => n === 0 || camp.stars.some((v, k) => v > 0 && k >= n - 1);
+/** Moves what the first 25-level ladder kept (by those numbers) to where the levels stand now, once. */
+function migrate() {
+  if (IN_FRAME || read(CAMP, null) || (!read("survey:camp", null) && !read("survey:lruns", null))) return;
+  const old = read("survey:camp", null), runs = read("survey:lruns", {}), stars = LEVELS.map(() => 0), kept = {};
+  for (let id = 0; id < 25; id++) {
+    const at = placeOfId(id);
+    if (at < 0) continue;
+    if (Number.isInteger(old?.stars?.[id])) stars[at] = Math.max(0, Math.min(3, old.stars[id]));
+    if (runs[id]) kept[at] = { ...runs[id], level: at };
+  }
+  write(CAMP, { at: Math.max(0, placeOfId(Number.isInteger(old?.at) ? old.at : 0)), stars });
+  write(LRUNS, kept);
+}
+migrate();
 camp = readCamp();
 // A player with a free block in hand from before levels came carries on with it; anyone else begins on the ladder.
 track = read(TRACK, null);
@@ -131,7 +148,7 @@ function recordLevel(sc) {
 }
 
 // ---------- starting ----------
-const hashFor = s => (isLevel(s) ? `#l=${s.level}&s=${s.seed}` : `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&z=${s.size}&r=${s.readings}`);
+const hashFor = s => (isLevel(s) ? `#l=${s.level}&s=${s.seed}&v=2` : `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&z=${s.size}&r=${s.readings}`);
 /** Puts a block on the table: `s` is { seed, mode, size, readings } (a level's: level, no size), `run` the run in it. */
 function begin(s, run = newRun(), at = {}) {
   S = { ...s, run, ...at };
@@ -199,15 +216,18 @@ function tapCube(i) {
   if (tool === "chip") {
     const wasMarked = run.marked.includes(i), wasShown = run.shown.includes(i), result = chip(P, run, i);
     if (result === "no") {
-      note(wasMarked ? "That cube is marked, so it is safe. Take the mark off to chip it." : wasShown ? "That cube is ore: it stays." : null);
+      note(P.hard?.[i] ? "Granite: too hard to chip, and never ore. Work round it." : wasMarked ? "That cube is marked, so it is safe. Take the mark off to chip it." : wasShown ? "That cube is ore: it stays." : null);
+      if (P.hard?.[i]) sound.play("granite");
       navigator.vibrate?.(12);
       return;
     }
-    if (result === "strike") { note(`Ore! That cube stays, and costs ${STRIKE} s.`, "bad"); navigator.vibrate?.(70); }
-    else note(null);
+    if (result === "strike") { note(`${P.ores === 2 ? (P.gold[i] ? "Gold" : "Silver") : "Ore"}! That cube stays, and costs ${STRIKE} s.`, "bad"); navigator.vibrate?.(70); sound.play("strike"); }
+    else if (result === "lit") { note("The lantern lights its neighbours: waste crumbles, ore shows. Free.", "good"); navigator.vibrate?.([20, 30, 20]); sound.play("lamp"); }
+    else { note(null); sound.play("chip"); }
   } else {
     if (!mark(P, run, i)) { note(run.shown.includes(i) ? "That cube is known to be ore already." : null); return; }
     note(null);
+    sound.play("mark");
   }
   changed();
 }
@@ -215,9 +235,10 @@ function useHint() {
   if (!S || !view || S.run.done || IN_FRAME || paused) return;
   const h = hint(P, S.run, i => (view.visible(i) ? 1 : 0));       // a cube you can see, if the readings force one
   if (!h) { note("The readings tell no more than you already know."); return; }
-  view.halo(h.exposed ? h.cell : -1, [h.line]);
+  view.halo(h.exposed ? h.cell : -1, h.line >= 0 ? [h.line] : []);
   const what = h.v === 0 ? "waste" : "ore";
-  note(h.exposed ? `Hint: the glowing cube is ${what}${h.v === 1 ? "; it is shown in gold now" : ""}. The lit row says so.` : `Hint: the lit row forces a ${what} cube deeper in. Chip towards it.`, "good");
+  if (h.lamp) note("Hint: the readings can't go further until the glowing lantern is chipped. It lights its neighbours.", "good");
+  else note(h.exposed ? `Hint: the glowing cube is ${what}${h.v === 1 ? "; it is shown in gold now" : ""}. The lit row says so.` : `Hint: the lit row forces a ${what} cube deeper in. Chip towards it.`, "good");
   changed();
 }
 /** The run changed: the block, the strip and the keeping follow, and the end is settled the moment the last waste is gone. */
@@ -239,6 +260,7 @@ function finish() {
     roundOver("survey");
   }
   view.spin();
+  sound.play("reveal");
 }
 
 // ---------- drawing ----------
@@ -255,6 +277,10 @@ function drawStrip() {
 function drawLine() {
   const l = $("line"), text = !S ? "The same block for everyone at the table." : message ? message.text
     : tool === "mark" ? "Tap a cube to mark it as ore: it is safe from the chisel. Tap again to take the mark off."
+    : P?.lamps ? "Tap a cube to chip it. A glowing lantern is waste: chip it and it lights its six neighbours."
+    : P?.hard ? "Tap a cube to chip it. Grey granite never chips and is never ore: the plates count the ore only."
+    : P?.cut ? "Tap a cube to chip it. A row across the brass fault has two readings, one for each side of it."
+    : P?.ores === 2 ? "Tap a cube to chip it. A plate reads the silver, then the gold, of its row; both ores stay."
     : isLevel(S) && LEVELS[S.level].fog > 0 ? "Tap a cube to chip it. A ? plate is a row nobody read; the others still settle every cube."
     : S.readings === "counts" ? "Tap a cube to chip it. Each plate counts the ore cubes in its row."
     : S.readings === "runs" ? "Tap a cube to chip it. A plate lists a row's seams: 2 1 is a seam of two, a gap, then one."
@@ -344,6 +370,8 @@ function toast(msg, ms = 2600) {
 }
 // the menu: Play (a new block), Content (Levels or Free play; in Levels the ladder, in Free play random or today's, the size and
 // how the rows are read), Settings (the view), About (your stars or your best here, a link)
+/** What a level has besides its rock, in a word or two, for its tile. */
+const twistTags = L => [L.twist?.hard && "granite", L.twist?.lamps && "lanterns", L.twist?.ores === 2 && "2 ores", L.twist?.cut && "fault"].filter(Boolean);
 /** The levels, three to a row under their chapter: each its rock in miniature, its number and name and the stars won. Those not open yet are dimmed; any open one can be played at any time, as it was left. */
 function levelList() {
   const all = document.createElement("div");
@@ -370,7 +398,7 @@ function levelList() {
       name.className = "sv-lname";
       name.textContent = L.name;
       size.className = "sv-lsize";
-      size.textContent = (L.box ?? [L.n, L.n, L.n]).join("×");
+      size.textContent = [(L.box ?? [L.n, L.n, L.n]).join("×"), ...twistTags(L)].join(" · ");
       b.append(map, row, name, size);
       b.addEventListener("click", () => { $("menuDlg").close(); playLevel(n); });
       grid.append(b);
@@ -398,7 +426,9 @@ function openMenu() {
     app: "survey", play: () => { if (track !== "free") { track = "free"; write(TRACK, track); } start("daily"); },
     playing: S?.mode === "daily" && S.seed === today() && !S.run.done, busy: started(),
   });
-  if (view) part(body, "settings").append(action("Reset the view", () => view.reset(), "link"));
+  const settings = part(body, "settings");
+  settings.append(toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("chip"); }));
+  if (view) settings.append(action("Reset the view", () => view.reset(), "link"));
   const about = part(body, "about");
   if (levels) {
     const cleared = camp.stars.filter(Boolean).length;
@@ -441,6 +471,7 @@ const spread = () => { const [a, b] = [...fingers.values()]; return { d: Math.hy
 stage.addEventListener("pointerdown", e => {
   if (e.button > 0 || !view) return;
   e.preventDefault();
+  sound.unlock();
   try { stage.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
   const coasting = view.grab();                                             // a touch on a coasting block stops it, and is not a tap
   for (const g of fingers.values()) g.moved = true;                         // a second finger is not a tap
@@ -468,6 +499,7 @@ addEventListener("pointermove", e => {
   }
 });
 function lift(e) {
+  sound.unlock();                                                           // an iPhone opens its sound at the end of a touch
   const g = fingers.get(e.pointerId);
   if (!g) return;
   fingers.delete(e.pointerId);
@@ -532,7 +564,7 @@ function hashBlock() {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("d") || h.get("s"));
   if (!seed) return null;
   if (h.has("l")) {
-    const level = Number(h.get("l"));
+    const level = h.get("v") === "2" ? Number(h.get("l")) : placeOfId(Number(h.get("l")));    // (a link from the first ladder names a level by its old number)
     return Number.isInteger(level) && level >= 0 && level < COUNT && isOpen(level) ? { seed, mode: "level", level, size: null, readings: LEVELS[level].kind } : null;
   }
   return { seed, mode: h.get("d") ? "daily" : "random", size: SIZES[h.get("z")] ? h.get("z") : "small", readings: READINGS[h.get("r")] ? h.get("r") : "seams" };

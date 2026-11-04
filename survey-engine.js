@@ -11,6 +11,8 @@
 // A cube's number is x + n(y + nz). A row ("line") is the n cubes along one axis a (0 x, 1 y, 2 z) at the other two
 // coordinates (u, v), which are the axes (a+1)%3 and (a+2)%3; its number is a n² + u n + v.
 
+import { WASTE, fullOf, oreOf, targetsOf, round } from "./survey-twist.js";
+
 export const SIZES = {
   small: { label: "Small", n: 3, depth: [2, 3] },     // depth: how many steps of reasoning at the least, for seams marked and for counts only
   medium: { label: "Medium", n: 4, depth: [3, 4] },
@@ -95,11 +97,12 @@ export function readingsOf(n, ore, present = null) {
  * row whose reading is null has none to go by (fog) and can be anything the rock allows.
  */
 export function forcedIn(frame, clues, st) {
+  if (twisted(frame)) return forcedTwist(frame, clues, st);
   const { n, kind, present } = frame, L = linesOf(n), full = (1 << n) - 1, out = [], seen = new Set(), by = indexOf(n, kind);
   for (let k = 0; k < L.length; k++) {
     const cells = L[k].cells;
     let pm = full, om = 0, wm = 0;
-    if (present) { pm = 0; cells.forEach((c, i) => { if (present[c]) pm |= 1 << i; }); if (!pm) continue; }
+    if (present) { pm = 0; cells.forEach((c, i) => { if (present[c] && !frame.hard?.[c]) pm |= 1 << i; }); if (!pm && !cells.some(c => present[c])) continue; }   // granite is in the rock but is never ore
     cells.forEach((c, i) => { if (st[c] === 1) om |= 1 << i; else if (st[c] === 0) wm |= 1 << i; });
     const list = clues[k] ? by.get(keyOf(kind, clues[k])) || [] : everyRow(n);
     let and = full, or = 0, any = false;
@@ -116,8 +119,9 @@ export function forcedIn(frame, clues, st) {
 }
 /** Reasons along the rows until nothing more follows: { st, depth } (depth: the rounds of reasoning, each using only what the round before settled), or null on a contradiction. */
 export function reasonIn(frame, clues, st0 = null) {
+  if (twisted(frame)) return reasonTwist(frame, clues, st0);
   const { n, present } = frame, st = st0 ? Int8Array.from(st0) : new Int8Array(n * n * n).fill(-1);
-  if (present && !st0) for (let i = 0; i < st.length; i++) if (!present[i]) st[i] = 0;        // no cube there: nothing to find
+  if (present && !st0) for (let i = 0; i < st.length; i++) if (!present[i] || frame.hard?.[i]) st[i] = 0;        // no cube there, or granite: nothing to find
   let depth = 0;
   for (;;) {
     const f = forcedIn(frame, clues, st);
@@ -132,7 +136,49 @@ export function reasonIn(frame, clues, st0 = null) {
 export const forced = (n, clues, seams, st) => forcedIn({ n, kind: seams ? "seams" : "counts", present: null }, clues, st);
 export const reason = (n, clues, seams, st0 = null) => reasonIn({ n, kind: seams ? "seams" : "counts", present: null }, clues, st0);
 /** The frame of a puzzle's rules. */
-export const frameOf = p => ({ n: p.n, kind: p.kind, present: p.present });
+export const frameOf = p => ({ n: p.n, kind: p.kind, present: p.present, hard: p.hard, ores: p.ores, cut: p.cut, lamps: p.lamps });
+
+// ---------- the twists: two ores, a fault ----------
+/** Whether the readings need the three-state solver (two ores, or rows read in two halves by a fault). */
+const twisted = f => f.ores === 2 || !!f.cut;
+const TYPE = [WASTE, 2, 4, 6];                       // what a known state (0 waste, 1 silver or ore, 2 gold, 3 ore of either kind) leaves a cube
+/** The masks of what every cube may be, from what is known (st: -1 unknown, 0 waste, 1 silver or ore, 2 gold, 3 ore of either kind). */
+function domOf(frame, st) {
+  const { n, present, hard } = frame, dom = new Uint8Array(n ** 3);
+  for (let i = 0; i < dom.length; i++) dom[i] = (present && !present[i]) || hard?.[i] ? WASTE : st[i] < 0 ? fullOf(frame) : TYPE[st[i]] & fullOf(frame);
+  return dom;
+}
+/** A mask as what it settles: 0 waste, 1 ore, -1 not yet. */
+const classOf = (frame, m) => (m === WASTE ? 0 : (m & WASTE) === 0 && m ? 1 : -1);
+function forcedTwist(frame, clues, st) {
+  const dom = domOf(frame, st), r = round(frame, linesOf(frame.n), clues, dom);
+  if (!r) return null;
+  const out = [];
+  for (let i = 0; i < dom.length; i++) {
+    if (st[i] >= 0 || frame.hard?.[i] || (frame.present && !frame.present[i]) || r.dom[i] === dom[i]) continue;
+    const c = classOf(frame, r.dom[i]);
+    if (c >= 0) out.push({ cell: i, v: c, line: rowOf(frame, clues, i, dom) });
+  }
+  return out;
+}
+/** A row through a cube that settles it on its own, with what is known (for a hint to light). */
+function rowOf(frame, clues, i, dom) {
+  const L = linesOf(frame.n), ks = linesThrough(frame.n, i);
+  for (const k of ks) { const r = round(frame, [L[k]], [clues[k]], dom); if (r && classOf(frame, r.dom[i]) >= 0) return k; }
+  return ks[0];
+}
+function reasonTwist(frame, clues, st0) {
+  let dom = domOf(frame, st0 ?? new Int8Array(frame.n ** 3).fill(-1)), depth = 0;
+  const L = linesOf(frame.n);
+  for (;;) {
+    const r = round(frame, L, clues, dom);
+    if (!r) return null;
+    if (!r.changed) break;
+    dom = r.dom; depth++;
+  }
+  const st = Int8Array.from(dom, m => classOf(frame, m));
+  return { st, depth, solved: !st.includes(-1) };
+}
 
 // ---------- a puzzle ----------
 /** A body of ore grown from one cube by adding a neighbour of a cube it has, to `target` cubes (within the rock, if it has a shape). */
@@ -225,6 +271,111 @@ function build({ n, present, kind, want, share = 0, r }) {
   if (!best) throw new Error("couldn't make a puzzle");
   return best;
 }
+// ---------- twists: granite, lanterns, two ores, a fault ----------
+/** Whether a cube of the rock is on its surface (a face of the block, or beside a gap): seen, and chippable, from the start. */
+const onSurface = (n, present, i) => {
+  const [x, y, z] = coordsOf(n, i);
+  return x === 0 || y === 0 || z === 0 || x === n - 1 || y === n - 1 || z === n - 1 || AXES.some(d => !present[cellAt(n, x + d[0], y + d[1], z + d[2])]);
+};
+/**
+ * What a lantern chipped lights: its six neighbours and, one lantern among the waste lighting the next, theirs. Waste there
+ * crumbles at once, ore shows (no strike), granite and gaps are left. `p` is { n, present, hard, ore, lamps }; `done` the cubes
+ * already gone or shown, which this adds to. Returns { gone, shown }.
+ */
+export function lightUp(p, lamp, done) {
+  const { n } = p, gone = [], shown = [], stack = [lamp], lamps = new Set(p.lamps);
+  while (stack.length) {
+    const [x, y, z] = coordsOf(n, stack.pop());
+    for (const d of AXES) {
+      const a = x + d[0], b = y + d[1], c = z + d[2];
+      if (a < 0 || b < 0 || c < 0 || a >= n || b >= n || c >= n) continue;
+      const j = cellAt(n, a, b, c);
+      if (!p.present[j] || p.hard?.[j] || done.has(j)) continue;
+      done.add(j);
+      if (p.ore[j]) shown.push(j); else { gone.push(j); if (lamps.has(j)) stack.push(j); }
+    }
+  }
+  return { gone, shown };
+}
+/** The rows' readings of a twisted block: as readingsOf, with the target of each channel (an ore, a side of the fault) too. */
+function readingsTwist(frame, ore, gold) {
+  const { n, present } = frame, L = linesOf(n);
+  return L.map(l => {
+    let m = 0, any = false;
+    const states = l.cells.map((c, i) => { if (present[c]) any = true; if (ore[c] && !frame.hard?.[c]) { m |= 1 << i; return gold?.[c] ? 2 : 1; } return 0; });
+    return any ? { ...readMask(m), t: targetsOf(frame, l.a, states) } : null;
+  });
+}
+/**
+ * What is known once every lantern is chipped: st (-1 unknown, 0 waste, 1 ore or silver, 2 gold) with granite, gaps, the
+ * lanterns and what they light settled. Chipping a lantern costs nothing, so a player can always start here.
+ */
+export function startOf(p) {
+  if (!p.lamps?.length) return null;
+  const st = new Int8Array(p.n ** 3).fill(-1), done = new Set(), type = j => (p.gold?.[j] ? 2 : 1);
+  for (let i = 0; i < st.length; i++) if (!p.present[i] || p.hard?.[i]) st[i] = 0;
+  for (const l of p.lamps ?? []) {
+    if (!done.has(l)) { done.add(l); st[l] = 0; }
+    const lit = lightUp(p, l, done);
+    for (const j of lit.gone) st[j] = 0;
+    for (const j of lit.shown) st[j] = type(j);
+  }
+  return st;
+}
+/** The best rock of a few tries for a twisted block: build(), with granite on its surface, two ores, a fault and lanterns as the twist asks. */
+function buildTwist({ n, present, kind, want, share = 0, r, twist }) {
+  const all = present ?? new Uint8Array(n ** 3).fill(1), cells = [...all.keys()].filter(i => all[i]), surface = cells.filter(i => onSurface(n, all, i));
+  const cut = twist.cut ? { axis: Math.floor(r() * 3), at: 1 + Math.floor(r() * (n - 1)) } : null, ores = twist.ores === 2 ? 2 : 1;
+  let best = null;
+  for (let attempt = 0; attempt < 400; attempt++) {
+    let hard = null;
+    if (twist.hard) {                                                           // granite: some of the surface, seen from the start
+      hard = new Uint8Array(n ** 3);
+      const pool = surface.slice();
+      for (let k = Math.max(1, Math.round(twist.hard * cells.length)); k > 0 && pool.length; k--) hard[pool.splice(Math.floor(r() * pool.length), 1)[0]] = 1;
+    }
+    const can = hard ? all.map((v, i) => (v && !hard[i] ? 1 : 0)) : all, total = sum(can);
+    const ore = layout(n, r, can, total), count = sum(ore);
+    if (count < total * 0.28 || count > total * 0.6 || !reachable(n, hard ? ore.map((o, i) => o | hard[i]) : ore, all)) continue;
+    let gold = null;
+    if (ores === 2) {                                                           // gold in a lump from one cube of the ore, silver the rest
+      gold = new Uint8Array(n ** 3);
+      const oreAt = [...ore.keys()].filter(i => ore[i]), want2 = Math.round(count * (0.3 + 0.25 * r())), seen = new Set(), stack = [];
+      const first = oreAt[Math.floor(r() * oreAt.length)];
+      stack.push(first); seen.add(first);
+      for (let g = 0; g < want2 && stack.length; ) {
+        const i = stack.splice(Math.floor(r() * stack.length), 1)[0];
+        gold[i] = 1; g++;
+        const [x, y, z] = coordsOf(n, i);
+        for (const d of AXES) { const a = x + d[0], b = y + d[1], c = z + d[2]; if (a < 0 || b < 0 || c < 0 || a >= n || b >= n || c >= n) continue; const j = cellAt(n, a, b, c); if (ore[j] && !seen.has(j)) { seen.add(j); stack.push(j); } }
+      }
+      if (sum(gold) === 0 || sum(gold) === count) continue;
+    }
+    let lamps = null;
+    if (twist.lamps) {                                                          // lanterns: waste on the surface, the more ore round it the better
+      const pool = surface.filter(i => !ore[i] && !hard?.[i]);
+      lamps = [];
+      for (let k = 0; k < twist.lamps && pool.length; k++) {
+        const score2 = i => { const [x, y, z] = coordsOf(n, i); return AXES.reduce((t, d) => { const a = x + d[0], b = y + d[1], c = z + d[2]; return t + (a >= 0 && b >= 0 && c >= 0 && a < n && b < n && c < n && ore[cellAt(n, a, b, c)] ? 1 : 0); }, 0); };
+        const top = pool.map(i => [score2(i) + r() * 1.5, i]).sort((a, b) => b[0] - a[0]);
+        const at = top[0][1];
+        lamps.push(at); pool.splice(pool.indexOf(at), 1);
+      }
+      if (!lamps.length) continue;
+    }
+    const frame = { n, kind, present: all, hard, ores, cut, lamps };
+    let clues = ores === 2 || cut ? readingsTwist(frame, ore, gold) : readingsOf(n, ore, all);
+    const st0 = lamps ? startOf({ n, present: all, hard, ore, gold, lamps }) : null;
+    let got = reasonIn(frame, clues, st0);
+    if (!got?.solved) continue;
+    if (lamps && twist.needLamps && attempt < 150 && reasonIn({ ...frame, lamps: null }, clues)?.solved) continue;     // this one doesn't need its lanterns
+    if (share) { const f = fog(frame, clues, share, r); clues = f.clues; got = { ...got, depth: reasonIn(frame, clues, st0).depth }; }
+    if (!best || got.depth > best.depth) best = { ore, clues, depth: got.depth, hard, gold, ores: ores === 2 ? 2 : undefined, cut: cut ?? undefined, lamps: lamps ?? undefined };
+    if (best.depth >= want || attempt >= 60) break;
+  }
+  if (!best) throw new Error("couldn't make a puzzle");
+  return best;
+}
 /**
  * A puzzle from a seed: { seed, size, readings, kind, n, present, ore, clues, depth, waste }. The same seed makes the
  * same puzzle. It has one answer, got by reasoning along the rows (depth rounds of it) without a guess, every waste
@@ -242,9 +393,9 @@ export function makePuzzle(seed, sizeId, readings = "seams") {
  * (the share of readings left off), depth (the rounds of reasoning it should ask), salt }.
  */
 export function makeLevel(spec, seed) {
-  const { n, present, kind, fog: share = 0, depth: want, salt = 0 } = spec, r = rng(mix(mix(seed, 5000 + salt), KIND_NUMBER[kind]));
-  const got = build({ n, present, kind, want, share, r });
-  return { seed, size: null, readings: kind, kind, n, present, ...got, waste: sum(present) - sum(got.ore) };
+  const { n, present, kind, fog: share = 0, depth: want, salt = 0, twist = null } = spec, r = rng(mix(mix(seed, 5000 + salt), KIND_NUMBER[kind]));
+  const got = twist ? buildTwist({ n, present, kind, want, share, r, twist }) : build({ n, present, kind, want, share, r });
+  return { seed, size: null, readings: kind, kind, n, present, ...got, waste: sum(present) - sum(got.hard ?? []) - sum(got.ore) };
 }
 
 // ---------- a run ----------
@@ -253,7 +404,7 @@ export const newRun = () => ({ gone: [], shown: [], marked: [], strikes: 0, hint
 const set = list => new Set(list);
 /** A cube still in the rock and with a face to the open air (the surface, a gap in the rock, or beside a chipped cube): the only ones that can be chipped or marked. */
 export function exposed(p, run, i) {
-  if (!p.present[i] || run.gone.includes(i)) return false;
+  if (!p.present[i] || p.hard?.[i] || run.gone.includes(i)) return false;
   const n = p.n, [x, y, z] = coordsOf(n, i), gone = set(run.gone);
   return AXES.some(d => { const a = x + d[0], b = y + d[1], c = z + d[2]; return a < 0 || b < 0 || c < 0 || a >= n || b >= n || c >= n || !p.present[cellAt(n, a, b, c)] || gone.has(cellAt(n, a, b, c)); });
 }
@@ -266,8 +417,15 @@ export function chip(p, run, i) {
   if (run.done || run.marked.includes(i) || run.shown.includes(i) || !exposed(p, run, i)) return "no";
   if (p.ore[i]) { run.shown.push(i); run.strikes++; return "strike"; }
   run.gone.push(i);
+  let result = "chipped";
+  if (p.lamps?.includes(i)) {                                    // a lantern: it lights what is round it, ore shown free, waste crumbling
+    const lit = lightUp(p, i, new Set([...run.gone, ...run.shown]));
+    run.gone.push(...lit.gone); run.shown.push(...lit.shown);
+    run.marked = run.marked.filter(j => !lit.gone.includes(j) && !lit.shown.includes(j));
+    result = "lit";
+  }
   if (wasteLeft(p, run) === 0) run.done = true;
-  return "chipped";
+  return result;
 }
 /** Marks a cube as ore, or takes the mark off: true if it changed. Only a cube that can be chipped, and not one already known to be ore. */
 export function mark(p, run, i) {
@@ -281,9 +439,9 @@ export function mark(p, run, i) {
 /** What is known for sure to the player: waste chipped, ore found. (Marks are their own opinion.) */
 export function known(p, run) {
   const st = new Int8Array(p.n ** 3).fill(-1);
-  for (let i = 0; i < st.length; i++) if (!p.present[i]) st[i] = 0;
+  for (let i = 0; i < st.length; i++) if (!p.present[i] || p.hard?.[i]) st[i] = 0;
   for (const i of run.gone) st[i] = 0;
-  for (const i of run.shown) st[i] = 1;
+  for (const i of run.shown) st[i] = p.gold?.[i] ? 2 : 1;
   return st;
 }
 /**
@@ -295,7 +453,11 @@ export function known(p, run) {
 export function hint(p, run, prefer = () => 0) {
   if (run.done) return null;
   const f = forcedIn(frameOf(p), p.clues, known(p, run));
-  if (!f?.length) return null;
+  if (!f?.length) {
+    const lamp = p.lamps?.find(l => !run.gone.includes(l));        // the readings may need what a lantern shows
+    if (f && lamp != null) { run.hints++; return { cell: lamp, v: 0, line: -1, exposed: true, lamp: true }; }
+    return null;
+  }
   const gone = set(run.gone), open = f.filter(x => exposed(p, run, x.cell) && !gone.has(x.cell));
   const best = list => list.reduce((b, x) => (b == null || prefer(x.cell) > prefer(b.cell) ? x : b), null);      // the one the caller likes best (the first of equals)
   const pickFrom = best(open.filter(x => x.v === 0)) ?? best(open.filter(x => x.v === 1 && !run.shown.includes(x.cell))) ?? best(open) ?? f[0];
@@ -306,7 +468,7 @@ export function hint(p, run, prefer = () => 0) {
 }
 /** A row's state in the run: the cubes still in it, and whether it is done (only ore left in it: it has no waste to chip). A row with no reading (fog) is never done, however little is left. */
 export function lineState(p, run, k) {
-  const gone = set(run.gone), left = linesOf(p.n)[k].cells.filter(c => p.present[c] && !gone.has(c)).length, c = p.clues[k]?.c ?? null;
+  const gone = set(run.gone), left = linesOf(p.n)[k].cells.filter(c => p.present[c] && !p.hard?.[c] && !gone.has(c)).length, c = p.clues[k]?.c ?? null;
   return { left, count: c, done: c != null && left === c };
 }
 /** Your time: seconds played, and the penalties. Lower is better. */

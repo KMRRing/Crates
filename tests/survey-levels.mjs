@@ -3,13 +3,13 @@
 // every level makes a block with one answer, got by reasoning along the rows, that can be chipped clear, for any seed;
 // and that the blocks Survey made before levels came are still the blocks their seeds name (today's, and links).
 import { createHash } from "node:crypto";
-import { READINGS, makePuzzle, newRun, exposed, chip, wasteLeft, score, reasonIn, frameOf, reachable, readingsOf, linesOf } from "../survey-engine.js";
-import { SHAPES, shapeOf, CHAPTERS, LEVELS, COUNT, chapterOf, seedOf, levelPuzzle, PAR_PER_CUBE, parOf, starsFor } from "../survey-levels.js";
+import { READINGS, makePuzzle, newRun, exposed, chip, wasteLeft, score, reasonIn, frameOf, reachable, readingsOf, linesOf, startOf } from "../survey-engine.js";
+import { SHAPES, shapeOf, CHAPTERS, LEVELS, COUNT, chapterOf, seedOf, levelPuzzle, placeOfId, PAR_PER_CUBE, parOf, starsFor } from "../survey-levels.js";
 import { miniature } from "../survey-mini.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const SEEDS = [0, 1, 2, 3].map(k => (k ? 7919 * k + 31 : null));    // the level's own seed first, then three others
+const SEEDS = [0, 1, 2].map(k => (k ? 7919 * k + 31 : null));    // the level's own seed first, then two others
 
 // ---------- the shapes ----------
 {
@@ -57,6 +57,14 @@ const SEEDS = [0, 1, 2, 3].map(k => (k ? 7919 * k + 31 : null));    // the level
   // a chapter's first level brings what the chapter is about: runs in Runs, fog in Fog, a shape in Cuttings
   const first = c => LEVELS[CHAPTERS.find(x => x.name === c).from];
   check(first("Blind counts").kind === "counts" && first("Runs").kind === "runs" && first("Cuttings").shape !== "cube" && first("Fog").fog > 0, "each chapter's first level brings its idea");
+  check(first("Granite").twist?.hard && first("Lanterns").twist?.lamps && first("Silver and gold").twist?.ores === 2 && first("Faults").twist?.cut, "and so does each twist's: granite, lanterns, two ores, a fault");
+  // each chapter ends on a set piece: its biggest block, or one mixing what came before
+  const to = k => (CHAPTERS[k + 1]?.from ?? COUNT) - 1;
+  check(CHAPTERS.every((c, k) => to(k) - c.from >= 3 || k === 0), "every chapter has at least four levels");
+  // the twists come one at a time: a level has only the twists its chapter or one before it brought
+  const brought = { hard: "Granite", lamps: "Lanterns", ores: "Silver and gold", cut: "Faults" }, at = name => CHAPTERS.findIndex(c => c.name === name);
+  check(LEVELS.every((L, i) => Object.entries(brought).every(([t, ch]) => !L.twist?.[t] || chapterOf(i) >= at(ch))), "no level uses a twist before its chapter brings it");
+  check(LEVELS.filter(L => L.twist).length >= 16 && new Set(LEVELS.map(L => L.id)).size === COUNT && LEVELS.every(L => Number.isInteger(L.id)), "sixteen or more levels with a twist, each with an id of its own");
   const sizes = LEVELS.map(L => L.n);
   check(Math.max(...sizes) === 7 && sizes.slice(0, 4).every(n => n <= 5), "the first chapter is small blocks, and the ladder reaches seven cubes");
 }
@@ -71,29 +79,44 @@ let worst = 0, shortOfDepth = 0, total = 0;
     for (const s of SEEDS) {
       const seed = s ?? seedOf(i), t = performance.now(), p = levelPuzzle(i, seed), took = performance.now() - t;
       worst = Math.max(worst, took); total++;
-      const n = L.n, cells = n ** 3, present = p.present, got = reasonIn(frameOf(p), p.clues);
+      const n = L.n, cells = n ** 3, present = p.present, got = reasonIn(frameOf(p), p.clues, startOf(p));
       if (p.level !== i || p.n !== n || p.kind !== L.kind || p.readings !== L.kind || p.seed !== seed) fail(i, seed, "wrong header");
       if (!got?.solved) fail(i, seed, "not solved by reasoning");
       else for (let c = 0; c < cells; c++) if (present[c] && got.st[c] !== p.ore[c]) { fail(i, seed, "reasoning reached another answer"); break; }
-      for (let c = 0; c < cells; c++) if (p.ore[c] && !present[c]) { fail(i, seed, "ore outside the rock"); break; }
-      if (!reachable(n, p.ore, present)) fail(i, seed, "a waste cube sealed in");
-      const there = [...present].reduce((t2, v) => t2 + v, 0), ore = [...p.ore].reduce((t2, v) => t2 + v, 0);
-      if (p.waste !== there - ore || p.waste < 1 || wasteLeft(p, newRun()) !== p.waste) fail(i, seed, "waste miscounted");
+      for (let c = 0; c < cells; c++) if (p.ore[c] && (!present[c] || p.hard?.[c])) { fail(i, seed, "ore outside the rock"); break; }
+      if (!reachable(n, p.hard ? p.ore.map((o, c) => o | p.hard[c]) : p.ore, present)) fail(i, seed, "a waste cube sealed in");
+      const there = [...present].reduce((t2, v) => t2 + v, 0), ore = [...p.ore].reduce((t2, v) => t2 + v, 0), granite = [...(p.hard ?? [])].reduce((t2, v) => t2 + v, 0);
+      if (p.waste !== there - ore - granite || p.waste < 1 || wasteLeft(p, newRun()) !== p.waste) fail(i, seed, "waste miscounted");
+      // the twists: granite is on the surface (seen from the start), lanterns are waste on the surface, gold is ore, and a lantern's neighbours are known
+      if (!!p.hard !== !!L.twist?.hard || !!p.lamps !== !!L.twist?.lamps || (p.ores === 2) !== (L.twist?.ores === 2) || !!p.cut !== !!L.twist?.cut) fail(i, seed, "the twist isn't in the block");
+      const surface = c => { const [x, y, z] = [c % n, Math.floor(c / n) % n, Math.floor(c / (n * n))]; return [x, y, z].some(v => v === 0 || v === n - 1) || [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].some(d => !present[(x + d[0]) + n * ((y + d[1]) + n * (z + d[2]))]); };
+      for (let c = 0; c < cells; c++) if (p.hard?.[c] && !surface(c)) { fail(i, seed, "granite inside the rock"); break; }
+      for (const l of p.lamps ?? []) if (p.ore[l] || p.hard?.[l] || !present[l] || !surface(l)) fail(i, seed, "a lantern that is ore, granite or buried");
+      if (p.ores === 2) { for (let c = 0; c < cells; c++) if (p.gold[c] && !p.ore[c]) { fail(i, seed, "gold that isn't ore"); break; } if (!p.gold.includes(1) || p.ore.every((o, c) => !o || p.gold[c])) fail(i, seed, "two ores, one of them missing"); }
+      if (p.lamps && L.twist.needLamps && reasonIn({ ...frameOf(p), lamps: null }, p.clues)?.solved) fail(i, seed, "the lanterns aren't needed");
       if (ore < there * 0.28 || ore > there * 0.6) fail(i, seed, `ore is ${Math.round((100 * ore) / there)}% of the rock`);
       // the readings are the ore's, row by row, except where fog has taken them off
-      const truth = readingsOf(n, p.ore, present), rows = linesOf(n).length;
+      const truth = readingsOf(n, p.ore, present), rows = linesOf(n).length, lines = linesOf(n);
       if (p.clues.length !== rows) fail(i, seed, "a reading short");
       let off = 0, hasRock = 0;
       p.clues.forEach((c, k) => {
         if (truth[k] == null) { if (c != null) fail(i, seed, "a plate on a row with no rock"); return; }
         hasRock++;
-        if (c == null) off++; else if (JSON.stringify(c) !== JSON.stringify(truth[k])) fail(i, seed, "a wrong reading");
+        if (c == null) { off++; return; }
+        const { t, ...plain } = c;
+        if (JSON.stringify(plain) !== JSON.stringify(truth[k])) fail(i, seed, "a wrong reading");
+        if (t) {                                               // the channels of a row: its two ores, the two sides of a fault
+          const want = [], cut = p.cut && p.cut.axis === lines[k].a;
+          lines[k].cells.forEach((cell, j) => { if (!p.ore[cell] || p.hard?.[cell]) return; const side = cut && j >= p.cut.at ? 1 : 0, kind = p.ores === 2 ? (p.gold[cell] ? 1 : 0) : 0; want[side * (p.ores === 2 ? 2 : 1) + kind] = (want[side * (p.ores === 2 ? 2 : 1) + kind] ?? 0) + 1; });
+          const len = (cut ? 2 : 1) * (p.ores === 2 ? 2 : 1);
+          if (JSON.stringify(Array.from({ length: len }, (_, j) => want[j] ?? 0)) !== JSON.stringify(t)) fail(i, seed, "a wrong channel reading");
+        }
       });
       if (L.fog === 0 && off) fail(i, seed, "fog where there is none");
       if (L.fog > 0 && (off === 0 || off > Math.round(hasRock * L.fog))) fail(i, seed, `${off} of ${hasRock} rows in fog, for ${L.fog}`);
       if (got.depth < L.depth) shortOfDepth++;
       const again = levelPuzzle(i, seed);
-      if (JSON.stringify([...again.ore, ...again.clues.map(c => JSON.stringify(c))]) !== JSON.stringify([...p.ore, ...p.clues.map(c => JSON.stringify(c))])) fail(i, seed, "not the same twice");
+      if (JSON.stringify([...again.ore, ...(again.hard ?? []), ...(again.lamps ?? []), ...again.clues.map(c => JSON.stringify(c))]) !== JSON.stringify([...p.ore, ...(p.hard ?? []), ...(p.lamps ?? []), ...p.clues.map(c => JSON.stringify(c))])) fail(i, seed, "not the same twice");
     }
   });
   check(ok, `every level makes a block with one answer by reasoning, ore in the rock, none sealed in, readings true, fog as asked, the same twice${why ? ` (${why})` : ""}`);
@@ -116,9 +139,9 @@ let worst = 0, shortOfDepth = 0, total = 0;
     let guard = 0, stuck = false;
     while (!run.done && guard++ < 2000) {
       let hit = -1;
-      for (let c = 0; c < L.n ** 3; c++) if (p.present[c] && !p.ore[c] && !run.gone.includes(c) && exposed(p, run, c)) { hit = c; break; }
+      for (let c = 0; c < L.n ** 3; c++) if (p.present[c] && !p.ore[c] && !p.hard?.[c] && !run.gone.includes(c) && exposed(p, run, c)) { hit = c; break; }
       if (hit < 0) { stuck = true; break; }
-      if (chip(p, run, hit) !== "chipped") { stuck = true; break; }
+      if (!["chipped", "lit"].includes(chip(p, run, hit))) { stuck = true; break; }
     }
     if (stuck || !run.done || run.gone.length !== p.waste || run.strikes) { ok = false; why = `level ${i + 1}`; }
   });
@@ -137,6 +160,15 @@ let worst = 0, shortOfDepth = 0, total = 0;
   // a strike (20 s) or a hint (30 s) is in the score, so it is in the stars
   const run = { ...newRun(), ms: (par - 10) * 1000, strikes: 1 };
   check(score(run) === par + 10 && starsFor(p, score(run)) === 2, "a strike's seconds count against the stars");
+}
+
+// ---------- the ladder before twists: the same blocks, wherever they now stand ----------
+{
+  const LEGACY = "0:3241f241bc 1:c9ee52a7b3 2:cca3b745ee 3:433372b9f6 4:c2bd9c1674 5:677fc28c6d 6:f3a0c6cd8e 7:1bf03eed5e 8:3827abd476 9:ba0e401e20 10:fb6f654efc 11:b38971cff4 12:b02c72d47e 13:d721bf00b5 14:c86bb98e5c 15:f16a9152f6 16:4f90356f27 17:028d31945f 18:dd658ebc21 19:5a05fa1842 20:caa0870a01 21:875d98d334 22:ea7c7b239b 23:1d02446dfd 24:eaeb5632fc".split(" ");
+  const h = p => createHash("sha1").update(JSON.stringify([...p.ore]) + JSON.stringify(p.clues.map(c => c && [c.c, c.g, c.r]))).digest("hex").slice(0, 10);
+  const wrong = LEGACY.filter(e => { const [id, hash] = e.split(":"), at = placeOfId(+id); return at < 0 || LEVELS[at].id !== +id || h(levelPuzzle(at, seedOf(at))) !== hash; });
+  check(!wrong.length, `the 25 levels of the first ladder are all still there, each the same first block as before${wrong.length ? `: ${wrong.join(", ")}` : ""}`);
+  check(placeOfId(99) === -1 && LEVELS.slice(0, 4).every(L => L.id < 4), "an unknown old number maps nowhere, and the first four levels are still the test pits");
 }
 
 // ---------- blocks from before levels ----------

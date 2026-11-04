@@ -1,7 +1,8 @@
 // Survey's rules (survey-engine.js): a block of rock hiding a body of ore, readings on every row of it, chipping waste
 // from the outside in, strikes for ore chipped, hints, and puzzles that have one answer, reachable by reasoning along
 // the rows without a guess.
-import { SIZES, READINGS, STRIKE, HINT, cellAt, coordsOf, linesOf, linesThrough, readingsOf, forced, reason, reasonIn, frameOf, reachable, makePuzzle, newRun, exposed, wasteLeft, chip, mark, known, hint, lineState, score } from "../survey-engine.js";
+import { SIZES, READINGS, STRIKE, HINT, cellAt, coordsOf, linesOf, linesThrough, readingsOf, forced, reason, reasonIn, frameOf, reachable, makePuzzle, makeLevel, newRun, exposed, wasteLeft, chip, mark, known, hint, lineState, score, startOf, lightUp } from "../survey-engine.js";
+import { channelsOf, channelOf } from "../survey-twist.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -79,6 +80,81 @@ const sizes = Object.keys(SIZES);
     if (found !== 1) unique = false;
   }
   check(unique, "a search that may guess finds exactly one layout for each of 12 small puzzles");
+}
+
+
+// ---------- twists: granite, lanterns, two ores, a fault ----------
+{
+  // A search that may guess: every assignment of waste, silver and gold (two ores; one ore otherwise) to the cubes that fits the readings
+  // and what lanterns show, found by backtracking with each row's counts, and what ore-or-waste each leaves. One answer means one such split.
+  const answers = p => {
+    const n = p.n, L = linesOf(n), frame = frameOf(p), top = p.ores === 2 ? 2 : 1, start = startOf(p);
+    const free = [...Array(n ** 3).keys()], cur = new Int8Array(n ** 3), found = new Set();
+    const cnt = L.map((l, k) => new Array(channelsOf(frame, l.a)).fill(0));
+    const left = L.map(l => l.cells.length);
+    const fix = i => (!p.present[i] || p.hard?.[i] ? 0 : start && start[i] >= 0 ? (start[i] === 0 ? 0 : (p.ores === 2 ? start[i] : 1)) : -1);
+    const place = (i, v) => {                                   // false if a row can't be met any more
+      let ok = true;
+      for (const k of linesThrough(n, i)) {
+        const l = L[k], at = l.cells.indexOf(i);
+        left[k]--;
+        if (v > 0) cnt[k][channelOf(frame, l.a, at, v)]++;
+      }
+      return ok;
+    };
+    const unplace = (i, v) => { for (const k of linesThrough(n, i)) { const l = L[k], at = l.cells.indexOf(i); left[k]++; if (v > 0) cnt[k][channelOf(frame, l.a, at, v)]--; } };
+    const targets = k => p.clues[k]?.t ?? [p.clues[k]?.c];
+    const fine = i => linesThrough(n, i).every(k => { const t = targets(k); if (!p.clues[k]) return true; const c = cnt[k]; if (!p.clues[k].t) { let tot = 0; for (const x of c) tot += x; return tot <= t[0] && tot + left[k] >= t[0]; } return t.every((x, ch) => c[ch] <= x) && t.reduce((a, x, ch) => a + Math.max(0, x - c[ch]), 0) <= left[k]; });
+    const go = i => {
+      if (found.size > 1) return;
+      if (i === n ** 3) { found.add(Array.from(cur, v => (v > 0 ? 1 : 0)).join("")); return; }
+      const f = fix(i);
+      for (let v = 0; v <= top; v++) {
+        if (f >= 0 && v !== f) continue;
+        cur[i] = v; place(i, v);
+        if (fine(i)) go(i + 1);
+        unplace(i, v);
+      }
+    };
+    go(0);
+    return found;
+  };
+  let ok = true, why = "";
+  const specs = [["granite", { hard: 0.12 }], ["lanterns", { lamps: 2 }], ["two ores", { ores: 2 }], ["a fault", { cut: true }], ["all", { hard: 0.1, lamps: 1, ores: 2, cut: true }]];
+  for (const [name, twist] of specs) for (const seed of [1, 2, 3]) {
+    const p = makeLevel({ n: 3, present: new Uint8Array(27).fill(1), kind: "counts", depth: 2, twist, salt: 7 }, seed);
+    const found = answers(p);
+    if (found.size !== 1 || !found.has(Array.from(p.ore, o => (o ? 1 : 0)).join(""))) { ok = false; why = `${name} seed ${seed}: ${found.size} answers`; }
+  }
+  check(ok, `a search that may guess finds exactly one split of ore and waste for each twist's block on 3×3×3, the one the block was made from${why ? ` (${why})` : ""}`);
+}
+{
+  // granite: never chipped or marked, never ore, not waste to clear
+  const p = makeLevel({ n: 4, present: new Uint8Array(64).fill(1), kind: "seams", depth: 3, twist: { hard: 0.15 }, salt: 1 }, 5), run = newRun(), rock = [...p.hard.keys()].filter(i => p.hard[i]);
+  check(rock.length >= 1 && rock.every(i => !p.ore[i] && !exposed(p, run, i) && chip(p, run, i) === "no" && mark(p, run, i) === false && run.strikes === 0), "granite can't be chipped, marked or struck, and is never ore");
+  check(p.waste === 64 - rock.length - p.ore.reduce((a, b) => a + b, 0) && known(p, run).every((v, i) => !p.hard[i] || v === 0), "granite isn't waste to chip, and it's known from the start");
+  const r = newRun();
+  let guard = 0;
+  while (!r.done && guard++ < 200) { const w = [...p.ore.keys()].find(i => !p.ore[i] && !p.hard[i] && !r.gone.includes(i) && exposed(p, r, i)); if (w == null) break; chip(p, r, w); }
+  check(r.done && r.gone.every(i => !p.hard[i]), "the block is cleared with the granite left where it is");
+}
+{
+  // lanterns: waste on the surface; chipped, they light the six round them (ore shown free, waste gone, a lantern among it lighting its own)
+  const p = makeLevel({ n: 4, present: new Uint8Array(64).fill(1), kind: "counts", depth: 3, twist: { lamps: 3, needLamps: true }, salt: 2 }, 9), run = newRun();
+  const lamp = p.lamps[0], start = startOf(p);
+  check(p.lamps.length >= 1 && p.lamps.every(l => !p.ore[l] && exposed(p, run, l)), "lanterns are waste, and can be reached from the first tap");
+  const r1 = chip(p, run, lamp);
+  check(r1 === "lit" && run.strikes === 0 && run.gone.includes(lamp), "a lantern chipped is lit, and costs nothing");
+  const done = new Set(), lit = lightUp(p, lamp, done);
+  check(lit.gone.every(j => !p.ore[j] && run.gone.includes(j)) && lit.shown.every(j => p.ore[j] && run.shown.includes(j)), "what it lights is what the block holds: waste crumbles, ore shows");
+  for (const l of p.lamps) if (!run.gone.includes(l)) chip(p, run, l);
+  const k = known(p, run);
+  check([...k].every((v, i) => start[i] < 0 || k[i] === start[i]) && wasteLeft(p, run) === p.waste - run.gone.length, "with every lantern lit, what is known is what the solver starts from");
+  const h = hint(p, newRun());
+  check(h && (h.lamp ? p.lamps.includes(h.cell) : true), "a hint that finds nothing the rows force yet points at a lantern, if there is one");
+  const chain = { n: 3, present: new Uint8Array(27).fill(1), ore: new Uint8Array(27), lamps: [0, 1] };
+  const got = lightUp(chain, 0, new Set([0]));
+  check(got.gone.includes(1) && got.gone.includes(2), "a lantern among the waste lights its neighbours' lanterns in turn: 0 lights 1, which lights 2");
 }
 
 // ---------- a run ----------

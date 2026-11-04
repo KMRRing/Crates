@@ -19,21 +19,22 @@ const DAMP = 3.4, COAST_MIN = 0.03;                // inertia: the share of spee
 const calm = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };   // no coasting, no tween, no spin
 const OFF = 0.1;                                  // how far beyond its face a row's reading floats, in cubes
 const CHIP_MS = 260, STRIKE_MS = 460, MARK_MS = 200, WAVE_MS = 38, SPIN = 0.5;   // animations; the wave of ore at the end (ms a cube later); the slow turn after a win (rad/s)
-const SHARDS = 220;
+const SHARDS = 220, SPARKS = 48, FAULT_GAP = 0.07;   // shards of a chipped cube; glints on ore; half the crack a fault opens (cosmetic: the rules see none)
+const AMBER = 0xffc65c;
 
 // ---------- the skins ----------
 const MODES = {
   day: { rock: 0xb9ab92, sky: 0xf1e6cd, ground: 0x5a4d3c, hemi: 1.15, key: 0xfff1d6, keyI: 2.6, exposure: 1.0, shadow: 0.55 },
   night: { rock: 0x98938a, sky: 0x6c80a6, ground: 0x141a22, hemi: 1.05, key: 0xcbdaf5, keyI: 2.2, exposure: 1.05, shadow: 0.6 },
 };
-const THEMES = { codex: { brass: [0xcfa142, 0xc39a3e], plate: [0x1c2a34, 0x0d151c] }, modern: { brass: [0xd7ad3f, 0xc9a23c], plate: [0x2a3238, 0x151b20] }, kontor: { brass: [0xc4a248, 0xbb9a40], plate: [0x22302a, 0x0f1612] } };
+const THEMES = { codex: { brass: [0xcfa142, 0xc39a3e], plate: [0x1c2a34, 0x0d151c] }, office: { brass: [0xc4a248, 0xbb9a40], plate: [0x22302a, 0x0f1612] } };
 /** The skin in force: the suite's theme and day or night (as set, else as the device), with the theme's gold and blue enamels (ore, marks). */
 export function skinNow() {
   const root = document.documentElement, theme = THEMES[root.dataset.theme] ? root.dataset.theme : "codex";
   const night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
   const css = getComputedStyle(root), pick = (name, or) => { const v = (css.getPropertyValue(name) || "").trim(); return /^#[0-9a-f]{6}$/i.test(v) ? v : or; };
   const i = night ? 1 : 0;
-  return { name: `${theme} ${night ? "night" : "day"}`, night, ...MODES[night ? "night" : "day"], brass: THEMES[theme].brass[i], plate: THEMES[theme].plate[i], ore: pick("--c0", "#D49A22"), mark: pick("--c2", "#2C5B8A") };
+  return { name: `${theme} ${night ? "night" : "day"}`, night, ...MODES[night ? "night" : "day"], brass: THEMES[theme].brass[i], plate: THEMES[theme].plate[i], ore: pick("--c0", "#D49A22"), mark: pick("--c2", "#2C5B8A"), silver: night ? "#aebccf" : "#8d9db3", granite: night ? "#4b5762" : "#626d79", lamp: night ? "#ffd27a" : "#f4b640" };
 }
 
 // ---------- shapes ----------
@@ -113,6 +114,18 @@ export function createBlock(host) {
   const shards = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), shardMat, SHARDS);
   shards.frustumCulled = false;
   scene.add(shards);
+  // glints on ore: small bright diamonds that swell and die, only while one is alive (and not at all in the battery saver)
+  const sparkMat = new THREE.MeshBasicMaterial({ color: 0xfff3c4, transparent: true, depthWrite: false, blending: 2 });   // 2: THREE.AdditiveBlending (not in the bundle's exports)
+  const sparks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), sparkMat, SPARKS);
+  sparks.frustumCulled = false;
+  scene.add(sparks);
+  const lampMat = new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0.32, depthWrite: false, blending: 2 });
+  lampMat.side = BACK;
+  let lampGlow = null;                              // one shell round each lantern
+  const faultMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false });
+  const fault = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), faultMat);
+  fault.visible = false;
+  scene.add(fault);
 
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P3 = new THREE.Vector3(), S3 = new THREE.Vector3(), V = new THREE.Vector3(), ndc = new THREE.Vector3();
   const HIDE = new THREE.Matrix4().makeScale(0, 0, 0), C = new THREE.Color();
@@ -125,12 +138,14 @@ export function createBlock(host) {
   const anims = new Map();                                                                 // cube -> { kind, t0 }
   let hot = new Set(), focusCell = -1, focusUntil = 0, haloCell = -1, haloUntil = 0, spinUntil = 0;
   let skin = skinNow();
-  const rock = new THREE.Color(), gold = new THREE.Color(), blue = new THREE.Color();
+  const rock = new THREE.Color(), gold = new THREE.Color(), blue = new THREE.Color(), silver = new THREE.Color(), granite = new THREE.Color(), lamp = new THREE.Color();
+  let lampAt = new Set(), glowUntil = 0;
 
   // ---------- the skin ----------
   function applySkin() {
     skin = skinNow();
-    rock.set(skin.rock); gold.set(skin.ore); blue.set(skin.mark).lerp(C.set(0xffffff), 0.1);
+    rock.set(skin.rock); gold.set(skin.ore); blue.set(skin.mark).lerp(C.set(0xffffff), 0.1); silver.set(skin.silver); granite.set(skin.granite); lamp.set(skin.lamp);
+    faultMat.color.set(skin.brass);
     hemi.color.set(skin.sky); hemi.groundColor.set(skin.ground); hemi.intensity = skin.hemi;
     sun.color.set(skin.key); sun.intensity = skin.keyI;
     renderer.toneMappingExposure = skin.exposure;
@@ -237,6 +252,24 @@ export function createBlock(host) {
       const h = Math.sin(i * 78.233 + n) * 43758.5453;
       tint[i] = 0.93 + 0.1 * (h - Math.floor(h));
     }
+    if (P.cut) {                                                                // a fault: a hairline crack, the two halves a little apart
+      for (let i = 0; i < count; i++) ctr[i * 3 + P.cut.axis] += (coordsOf(n, i)[P.cut.axis] >= P.cut.at ? 1 : -1) * FAULT_GAP;
+      const dims = span.map(v => v + 0.5);
+      fault.scale.set(...dims.map((v, a) => (a === P.cut.axis ? 0.02 : v)));
+      fault.position.set(0, 0, 0);
+      fault.position.setComponent(P.cut.axis, P.cut.at - 0.5 - mid[P.cut.axis]);
+      fault.visible = true;
+    } else fault.visible = false;
+    lampAt = new Set(P.lamps ?? []);
+    if (lampGlow) { scene.remove(lampGlow); lampGlow.dispose(); lampGlow = null; }
+    if (lampAt.size) {
+      lampGlow = new THREE.InstancedMesh(new THREE.BoxGeometry(1.14, 1.14, 1.14), lampMat, lampAt.size);
+      lampGlow.frustumCulled = false;
+      [...lampAt].forEach((c, k) => { M.compose(P3.set(ctr[c * 3], ctr[c * 3 + 1], ctr[c * 3 + 2]), Q, S3.set(1, 1, 1)); lampGlow.setMatrixAt(k, M); });
+      scene.add(lampGlow);
+    }
+    for (let k = 0; k < SPARKS; k++) { sp[k].life = 0; sparks.setMatrixAt(k, HIDE); }
+    glowUntil = 0;
     st = new Int8Array(count).fill(-1); mk = new Uint8Array(count);
     left = new Int16Array(3 * n * n);
     plinth.scale.set(span[0] + 0.9, 0.34, span[2] + 0.9); plinth.position.set(0, -span[1] / 2 - 0.17, 0);
@@ -246,38 +279,51 @@ export function createBlock(host) {
     refit();
     update(false);
   }
+  /** The numbers of a plate that reads several channels: silver then gold where there are two ores (the two colours), a bar between the sides of a fault. Only numbers go in. */
+  function plateOf(t, axis) {
+    const cut = P.cut && P.cut.axis === axis, per = P.ores === 2 ? 2 : 1, out = [];
+    for (let side = 0; side < (cut ? 2 : 1); side++) {
+      const one = t.slice(side * per, side * per + per).map((v, k) => `<i class="${per === 2 ? (k ? "g" : "s") : "o"}">${v | 0}</i>`).join("");
+      out.push(`<span>${one}</span>`);
+    }
+    return out.join('<u></u>');
+  }
   function buildLabels() {
     labels.replaceChildren();
     return linesOf(n).map((ln, k) => {
       const at = ln.cells.map((c, i) => (P.present[c] ? i : -1)).filter(i => i >= 0);
       if (!at.length) return { ln, none: true };                                                   // no rock along this row: no plate
       const cl = P.clues[k], el = document.createElement("div");
-      const shape = !cl ? " fog" : P.kind === "runs" ? " runs" : P.kind === "counts" ? "" : ["", "", " ring", " box"][cl.g];   // one seam or none: a plain plate
+      const two = !!cl && !!cl.t && (P.ores === 2 || P.cut);                                       // two ores or a fault: a plate of several numbers
+      const shape = !cl ? " fog" : two ? " two" : P.kind === "runs" ? " runs" : P.kind === "counts" ? "" : ["", "", " ring", " box"][cl.g];   // one seam or none: a plain plate
       el.className = "sv-lab";
       el.style.visibility = "hidden";                                                              // until its first place on the screen
-      el.textContent = !cl ? "?" : P.kind === "runs" ? (cl.r.length ? cl.r.join(" ") : "0") : String(cl.c);
+      if (two) el.innerHTML = plateOf(cl.t, ln.a);
+      else el.textContent = !cl ? "?" : P.kind === "runs" ? (cl.r.length ? cl.r.join(" ") : "0") : String(cl.c);
       labels.append(el);
       return { el, ln, shape, first: at[0], last: at[at.length - 1], x: -1e9, y: -1e9, o: -1, cls: "" };   // first, last: where the rock begins and ends along the row
     });
   }
 
   /** What a cube is in the run now: 0 rock, 1 gone, 2 ore shown (at the end, every cube left is). */
-  function stateOf(i, gone, shown) { return !P.present[i] || gone.has(i) ? 1 : R.done || shown.has(i) ? 2 : 0; }
+  function stateOf(i, gone, shown) { return !P.present[i] ? 1 : P.hard?.[i] ? 3 : gone.has(i) ? 1 : R.done || shown.has(i) ? 2 : 0; }   // 3: granite
   /** Reads the run again: every cube's look, with a chip, a strike or a mark animated where one just happened (not on the first call after set(), or with animate off). */
   function update(animate = true) {
     if (!P) return;
     const gone = new Set(R.gone), shown = new Set(R.shown), marked = new Set(R.marked), now = performance.now(), count = n ** 3;
     const first = st[0] === -1, ending = R.done && st.some(s => s === 0);
-    let wave = 0;
+    let wave = 0, chips = 0;
+    const calmer = calm();
     for (let i = 0; i < count; i++) {
       const s = stateOf(i, gone, shown), m = s === 0 && marked.has(i) ? 1 : 0;
       if (s !== st[i] && animate && !first) {
-        if (s === 1) { anims.set(i, { kind: "chip", t0: now }); burst(i); }
-        else if (s === 2) anims.set(i, { kind: "strike", t0: now + (ending ? wave++ * WAVE_MS : 0) });
+        if (s === 1) { anims.set(i, { kind: "chip", t0: now + (calmer ? 0 : chips++ * 55) }); burst(i, lampAt.has(i)); }   // a lantern's neighbours go one after another
+        else if (s === 2) { const t0 = now + (ending ? wave++ * WAVE_MS : calmer ? 0 : chips++ * 55); anims.set(i, { kind: "strike", t0 }); if (!ending) glint(i, 5); }
       } else if (m && !mk[i] && animate && !first) anims.set(i, { kind: "mark", t0: now });
       st[i] = s; mk[i] = m;
     }
-    for (let k = 0; k < lab.length; k++) left[k] = lab[k].ln.cells.reduce((t, c) => t + (st[c] === 1 ? 0 : 1), 0);   // (a cube not there counts as gone)
+    for (let k = 0; k < lab.length; k++) left[k] = lab[k].ln.cells.reduce((t, c) => t + (st[c] === 1 || st[c] === 3 ? 0 : 1), 0);   // (a cube not there counts as gone, and granite is not ore)
+    if (ending && animate && defaultIs3D() && !calmer) { glowUntil = now + 1700 + wave * WAVE_MS; for (let i = 0; i < count; i++) if (P.present[i] && !P.hard?.[i] && P.ore[i]) glint(i, 2, 400 + Math.random() * wave * WAVE_MS); }
     paintAll();
     invalidate();
   }
@@ -293,10 +339,13 @@ export function createBlock(host) {
       else s = 1 + 0.1 * Math.sin(Math.PI * Math.min(1, t));
     }
     P3.set(ctr[i * 3], ctr[i * 3 + 1], ctr[i * 3 + 2]);
+    const ore = P.ores === 2 && !P.gold[i] ? silver : gold;
     if (s <= 0.001) { cubes.setMatrixAt(i, HIDE); } else { S3.set(s, s, s); M.compose(P3, Q, S3); cubes.setMatrixAt(i, M); }
-    C.copy(rock).multiplyScalar(tint[i]);
+    C.copy(st[i] === 3 ? granite : rock).multiplyScalar(tint[i]);
+    if (lampAt.has(i) && st[i] === 0) C.lerp(lamp, 0.7).multiplyScalar(1.12);
     if (mk[i]) C.lerp(blue, 0.8);
-    if (toGold > 0) C.lerp(gold, toGold);
+    if (toGold > 0) C.lerp(ore, toGold);
+    if (glowUntil > now && st[i] === 2) glow *= 1 + 0.5 * Math.sin(Math.PI * Math.min(1, Math.max(0, (glowUntil - now) / 1700)));
     if (i === focusCell) C.multiplyScalar(1.28);
     if (i === haloCell && halo.visible) C.lerp(haloMat.color, 0.3 + 0.2 * Math.sin(now / 130));      // a hinted cube breathes
     cubes.setColorAt(i, C.multiplyScalar(glow));
@@ -310,17 +359,50 @@ export function createBlock(host) {
   }
   const ease = t => 1 - (1 - t) * (1 - t);
 
+  // ---------- glints on ore ----------
+  const sp = Array.from({ length: SPARKS }, () => ({ life: 0, t0: 0, x: 0, y: 0, z: 0, s: 0, on: false }));
+  let sparkAt = 0;
+  for (let k = 0; k < SPARKS; k++) sparks.setMatrixAt(k, HIDE);
+  /** `k` glints on the faces of a cube of ore, each after `delay` ms. Nothing in the battery saver or with reduced motion. */
+  function glint(i, k, delay = 0) {
+    if (!defaultIs3D() || calm()) return;
+    for (let j = 0; j < k; j++) {
+      const p = sp[sparkAt = (sparkAt + 1) % SPARKS], a = Math.floor(Math.random() * 3), side = Math.random() < 0.5 ? -0.5 : 0.5, c = [Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5];
+      c[a] = side;
+      Object.assign(p, { life: 1, t0: performance.now() + delay + j * 90, x: ctr[i * 3] + c[0] * 0.9, y: ctr[i * 3 + 1] + c[1] * 0.9, z: ctr[i * 3 + 2] + c[2] * 0.9, s: 0.1 + Math.random() * 0.09 });
+    }
+    invalidate();
+  }
+  function stepSparks(now) {
+    let live = false;
+    for (let k = 0; k < SPARKS; k++) {
+      const p = sp[k];
+      if (!p.life) { if (p.on) { sparks.setMatrixAt(k, HIDE); p.on = false; } continue; }
+      const t = (now - p.t0) / 520;
+      if (t < 0) { live = true; continue; }
+      if (t >= 1) { p.life = 0; continue; }
+      live = p.on = true;
+      const z = p.s * Math.sin(Math.PI * t);
+      Q.setFromAxisAngle(V.set(0, 0, 1), t * 2.4);
+      M.compose(P3.set(p.x, p.y + t * 0.12, p.z), Q, S3.set(z, z * 1.7, z));
+      sparks.setMatrixAt(k, M);
+    }
+    Q.identity();
+    sparks.instanceMatrix.needsUpdate = true;
+    return live;
+  }
+
   // ---------- shards: what a chipped cube breaks into ----------
   const sh = Array.from({ length: SHARDS }, () => ({ life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, s: 0, spin: 0, rx: 0, ry: 0 }));
   let shardAt = 0;
   for (let i = 0; i < SHARDS; i++) { shards.setMatrixAt(i, HIDE); shards.setColorAt(i, C.set(0xffffff)); }
-  function burst(i) {
-    for (let k = 0; k < 7; k++) {
+  function burst(i, lit = false) {
+    for (let k = 0; k < (lit ? 12 : 7); k++) {
       const p = sh[shardAt = (shardAt + 1) % SHARDS], ox = Math.random() - 0.5, oy = Math.random() - 0.5, oz = Math.random() - 0.5;
       const len = Math.hypot(ox, oy, oz) || 1, out = 1.6 + Math.random() * 2.2;
       Object.assign(p, { life: 0.55 + Math.random() * 0.3, x: ctr[i * 3] + ox * 0.7, y: ctr[i * 3 + 1] + oy * 0.7, z: ctr[i * 3 + 2] + oz * 0.7,
         vx: (ox / len) * out, vy: (oy / len) * out + 2.2, vz: (oz / len) * out, s: 0.07 + Math.random() * 0.07, spin: (Math.random() - 0.5) * 12, rx: Math.random() * 6, ry: Math.random() * 6 });
-      shards.setColorAt(shardAt, C.copy(rock).multiplyScalar(0.8 + Math.random() * 0.3));
+      shards.setColorAt(shardAt, C.copy(lit ? lamp : rock).multiplyScalar(0.8 + Math.random() * 0.3));
     }
     if (shards.instanceColor) shards.instanceColor.needsUpdate = true;
   }
@@ -394,6 +476,9 @@ export function createBlock(host) {
       busy = true;
     }
     if (stepShards(dt)) busy = true;
+    if (stepSparks(now)) busy = true;
+    if (glowUntil > now) { busy = true; paintAll(); renderer.toneMappingExposure = skin.exposure * (1 + 0.28 * Math.sin(Math.PI * Math.max(0, (glowUntil - now) / 1700))); }
+    else if (glowUntil) { glowUntil = 0; renderer.toneMappingExposure = skin.exposure; paintAll(); }
     if (focusCell >= 0 && focusUntil && now > focusUntil) focus(-1);
     if (haloUntil) {
       if (now > haloUntil) haloAt(-1);
