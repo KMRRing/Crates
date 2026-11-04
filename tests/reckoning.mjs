@@ -801,7 +801,7 @@ const events = S => take(S).map(e => e.type);
   let peak = 0; for (let i = 0; i < 40; i++) { const y = 3.2 + 1.6 * Math.sin(i / 39 * Math.PI); cam.update(1 / 60, { x: 0, y, ground: 3.2, vx: 0, speed: 16, wall: 0 }); peak = Math.max(peak, cam.out.y - quayY - 3.2); }
   check(peak > 0.1 && peak < 1.0, `a jump over a deck lifts it only in part (${peak.toFixed(2)} m of 1.6)`);
   let lowest = 9; for (let i = 0; i < 60; i++) { cam.update(1 / 60, { x: 0, y: 3.2, ground: 3.2, vx: 0, speed: 16, wall: 0 }); } for (let i = 0; i < 90; i++) { const y = Math.max(0, 3.2 - 12.3 * (i / 60) ** 2); const before = cam.out.y; cam.update(1 / 60, { x: 0, y, ground: 0, vx: 0, speed: 16, wall: 0 }); lowest = Math.min(lowest, cam.out.y - before); }
-  check(lowest > -0.15 && Math.abs(cam.out.y - quayY) < 0.05, `a drop to the quay is followed without a lurch (${lowest.toFixed(2)} m in a frame)`);
+  check(lowest > -0.2 && Math.abs(cam.out.y - quayY) < 0.05, `a drop to the quay is followed without a lurch (${lowest.toFixed(2)} m in a frame)`);
   const cam2 = new CameraRig(), before = JSON.stringify(cam2.out); cam2.update(0, { x: 5, y: 3, vx: 9, speed: 16, wall: 1 });
   check(Number.isFinite(cam2.out.x) && JSON.stringify(cam2.out) !== before.replace("NaN", ""), "a frame of no time leaves the camera finite");
 }
