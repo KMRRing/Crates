@@ -36,7 +36,7 @@ export function fitDistance(pts, az, el, look, tx, ty, mx = 0, my = 0) {
 }
 /** The first view's elevation for a card `aspect` wide to tall: the taller the card, the more it is looked down on. */
 export const homeElevation = aspect => {
-  const lo = Math.sin(40 * DEG), hi = Math.sin(62 * DEG);
+  const lo = Math.sin(30 * DEG), hi = Math.sin(46 * DEG);
   return Math.asin(Math.max(lo, Math.min(hi, 1 / Math.max(0.2, aspect))));
 };
 

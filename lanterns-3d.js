@@ -1,6 +1,8 @@
-// Lanterns as a night sea, drawn with three.js (vendor/three.js, kept on the device, so it works offline): the board's white
+// Lanterns as a strait, drawn with three.js (vendor/three.js, kept on the device, so it works offline): the board's white
 // cells are shoals, flat slabs just under the surface of a slowly moving sea, its rocks are rocks with their number on a
-// chip of the page laid over them, and a lantern is a lighthouse: a white tower with a red band, a gilt lamp and a dark cap.
+// chip of the page laid over them. The sea is a channel between stone cliffs, open at both ends (the water runs off to a hazy
+// horizon away from the viewer and out of the frame towards them), with small cogs sailing along it both ways, beside the board
+// and never over a cell. A lantern is a lighthouse: a white tower with a red band, a gilt lamp and a dark cap.
 // Its beams run along the row and the column to the next rock, a pale strip on the water with a brighter patch of light
 // sweeping out along it, and every cell they cross turns warm. It is the puzzle, played: a tap on a shoal calls the page's
 // press(cell, "tap"), a hold press(cell, "hold") (the page lights, dots and clears, as on the flat board), a drag turns the
@@ -8,25 +10,33 @@
 // the ground under it (and, for a tower, from the lamp's height too), tested in Node as `cellUnder`.
 // The page calls set(puzzle) for a new puzzle and update(marks, breaks, hint) after a change. Everything that repeats is an
 // InstancedMesh: a handful of draw calls for any board. There are no shadows and no filters (the beams are stacked
-// translucent strips). It draws only while it is on screen and nothing has paused it (the menu, a hidden tab): thirty frames
-// a second while the player is doing something, fifteen when only the sea and the beams move.
+// translucent strips). It draws only while it is on screen and nothing has paused it (the menu, a hidden tab), at the
+// screen's own rate (the ships never stop moving); the ships advance by the time between frames, so a pause holds them.
 // Throws where there is no WebGL (the page then keeps the flat board).
 import * as THREE from "./vendor/three.js";
 import { cellAtGround, cellXZ, runsFrom, fitDistance, homeElevation } from "./lanterns-model.js";
 
 const DEG = Math.PI / 180;
-const FOV = 30 * DEG, MIN_EL = 28 * DEG, MAX_EL = 82 * DEG, HOME_AZ = 0;
+const FOV = 58 * DEG, MIN_EL = 20 * DEG, MAX_EL = 82 * DEG, HOME_AZ = 0;
 const MAX_ZOOM = 3.2;
 const HOLD = 430, SLIP = 9;                      // ms a press takes to dot a cell (as on the flat board), and the pixels a finger may stray and still tap
-const BUSY_MS = 1000 / 30, CALM_MS = 1000 / 15, BUSY_FOR = 1400;
+const SIDE = 0.9;                                // cells of water kept in the frame beside the board, so the strait is seen
 const SLAB = 0.12, TOWER = 0.95;                 // the shoal's thickness, and a tower's height
+const LANE0 = 1.0, LANE_GAP = 0.9;   // ships keep to lanes beside the board, this far from its edge
+// side (−1 left, 1 right), lane, way (1 towards the viewer, −1 away), speed in cells a second, where on the strait it starts (0..1), size
+const SHIPS = [
+  [-1, 0, -1, 1.3, 0.42, 0.9], [-1, 0, -1, 1.3, 0.92, 1], [-1, 1, 1, 0.9, 0.62, 0.95], [-1, 1, 1, 0.9, 0.12, 0.9],
+  [1, 0, 1, 1.1, 0.5, 0.95], [1, 0, 1, 1.1, 0.0, 1], [1, 1, -1, 1.6, 0.35, 0.85], [1, 1, -1, 1.6, 0.85, 0.9],
+];
 const WAVE = (x, z, t) => 0.022 * Math.sin(x * 0.9 + t * 0.8) + 0.016 * Math.sin(z * 1.3 - t * 0.6) + 0.01 * Math.sin((x + z) * 2.1 + t * 1.7);
 
 export const SKINS = {
   day: { sea: 0x3f8db4, slab: 0xcfe7e1, lit: 0xffe39a, dark: 0xd98a78, hint: 0xf2c14e, rock: 0x77716a, rockHi: 0x8c857b, tower: 0xf4efe2, band: 0xb5432f, lamp: 0xffd98a, cap: 0x3b4a58, buoy: 0xf4efe2,
-    beam: 0xffe9a0, beamA: 0.3, comet: 0xfff6d0, cometA: 0.55, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.3, exposure: 1.0, clash: 0xd0422e },
+    beam: 0xffe9a0, beamA: 0.3, comet: 0xfff6d0, cometA: 0.55, hemi: 1.15, sky: 0xfff4dc, ground: 0x6d8fa6, key: 0xfff0d2, keyI: 2.3, exposure: 1.0, clash: 0xd0422e,
+    haze: 0xd3e4ea, skyTop: 0x86b8de, cliff: 0x7b7168, hull: 0x5b3e2d, sail: 0xf3ecd9, cloth: 0xc4533a },
   night: { sea: 0x1d4361, slab: 0x7da3b3, lit: 0xf1cf78, dark: 0xb86a58, hint: 0xf4cf6a, rock: 0x8d877d, rockHi: 0xa29c91, tower: 0xe8e3d4, band: 0xc9543c, lamp: 0xffe29a, cap: 0x2a3644, buoy: 0xe8e3d4,
-    beam: 0xffe08a, beamA: 0.42, comet: 0xfff1bd, cometA: 0.7, hemi: 0.95, sky: 0x9fb2d6, ground: 0x14202c, key: 0xb9cbef, keyI: 1.5, exposure: 1.1, clash: 0xe8705a },
+    beam: 0xffe08a, beamA: 0.42, comet: 0xfff1bd, cometA: 0.7, hemi: 0.95, sky: 0x9fb2d6, ground: 0x14202c, key: 0xb9cbef, keyI: 1.5, exposure: 1.1, clash: 0xe8705a,
+    haze: 0x3a5c82, skyTop: 0x0c1a30, cliff: 0x59606b, hull: 0x7a5640, sail: 0xd9d3c0, cloth: 0xa8483a },
 };
 function skinNow() {
   const root = document.documentElement, night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -59,6 +69,21 @@ export function createModel(host, opts = {}) {
     sea: solid({ color: 0x3f8db4, roughness: 0.55, metalness: 0.05 }), slab: solid({ color: 0xffffff }), rock: solid({ color: 0xffffff }),
     tower: solid({ color: 0xffffff }), band: solid({ color: 0xb5432f }), cap: solid({ color: 0x3b4a58 }), buoy: solid({ color: 0xf4efe2 }),
     lamp: new THREE.MeshBasicMaterial({ color: 0xffd98a }), beam: glass(0xffe9a0, 0.3), comet: glass(0xfff6d0, 0.55),
+    cliff: solid({ color: 0xffffff, vertexColors: true, roughness: 0.95 }), hull: solid({ color: 0x5b3e2d }), sail: solid({ color: 0xffffff, side: 2 }),
+  };
+  // the sky: a dome that follows the camera, haze at the rim fading up to the sky's colour; the sea's fog is the haze's colour, so the water melts into it
+  const SKY_R = 100, skyGeo = new THREE.SphereGeometry(SKY_R, 16, 10);
+  skyGeo.setAttribute("color", new THREE.Float32BufferAttribute(skyGeo.attributes.position.count * 3, 3));
+  const sky = new THREE.Mesh(skyGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: 1, depthWrite: false, depthTest: false, fog: false }));
+  sky.renderOrder = -1;
+  sky.frustumCulled = false;
+  scene.add(sky);
+  // the bundle has no Fog class; the renderer only asks a fog for these
+  scene.fog = { isFog: true, color: new THREE.Color(0xd3e4ea), near: 20, far: 60 };
+  const paintSky = k => {
+    const c = skyGeo.attributes.color, p = skyGeo.attributes.position, lo = new THREE.Color(k.haze), hi = new THREE.Color(k.skyTop), t = new THREE.Color();
+    for (let i = 0; i < p.count; i++) { t.copy(lo).lerp(hi, Math.pow(Math.max(0, p.getY(i) / SKY_R), 0.55)); c.setXYZ(i, t.r, t.g, t.b); }
+    c.needsUpdate = true;
   };
   const MA = new THREE.Matrix4(), MB = new THREE.Matrix4(), QA = new THREE.Quaternion(), VA = new THREE.Vector3(), VB = new THREE.Vector3(), CA = new THREE.Color();
   const UP = new THREE.Vector3(0, 1, 0);
@@ -66,10 +91,12 @@ export function createModel(host, opts = {}) {
   // ---------- the world: rebuilt for each puzzle ----------
   let N = 0, black = null, size = 0, world = null, sea = null, seaTop = [], slabs = null, rocks = null, chips = [];
   let towers = null, bands = null, lamps = null, caps = null, buoys = null, beams = null, comets = null;
+  let cliffs = [], ships = [], shipParts = null, shipPose = null, HALF = 60, ZMIN = -59, ZMAX = 18;   // the strait runs ±HALF; ships sail from ZMIN (in the haze) to ZMAX (below the frame)
   let marks = "", br = null, hint = null, fitPts = [], lightList = [], runs = [];   // what is on show
   const disposeWorld = () => {
     if (world) { scene.remove(world); world.traverse(o => o.geometry?.dispose()); }
-    world = sea = slabs = rocks = towers = bands = lamps = caps = buoys = beams = comets = null;
+    world = sea = slabs = rocks = towers = bands = lamps = caps = buoys = beams = comets = shipParts = null;
+    cliffs = []; ships = [];
     labels.replaceChildren();
     chips = [];
   };
@@ -81,9 +108,9 @@ export function createModel(host, opts = {}) {
     black = Uint8Array.from(puzzle.grid, ch => (ch === "." ? 0 : 1));
     world = new THREE.Group();
     scene.add(world);
-    // the sea: a slab wider than the board, its top moving gently
-    const span = N + 16, cuts = Math.max(24, Math.min(56, Math.ceil(span / 0.7)));
-    const sg = new THREE.BoxGeometry(span, 0.5, span, cuts, 1, cuts), sp = sg.attributes.position;
+    // the sea: a long channel through the middle of the scene, its top moving gently, running off in the fog at both ends
+    HALF = N / 2 + 52; ZMIN = 1 - HALF; ZMAX = N / 2 + 13;
+    const wide = N + 40, sg = new THREE.BoxGeometry(wide, 0.5, HALF * 2, Math.ceil(wide / 1.0), 1, Math.ceil((HALF * 2) / 1.2)), sp = sg.attributes.position;
     seaTop = [];
     for (let i = 0; i < sp.count; i++) if (sp.getY(i) > 0) seaTop.push(i);
     sg.translate(0, -0.25 - SLAB, 0);
@@ -118,6 +145,8 @@ export function createModel(host, opts = {}) {
       }
     });
     world.add(rocks);
+    buildCliffs(puzzle.grid);
+    buildShips();
     // lighthouses: up to one on every white cell (shown or hidden by the marks); each is four pieces
     const cap = Math.max(1, whites.length);
     towers = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.19, 0.3, TOWER, 14), M.tower, cap);
@@ -131,11 +160,115 @@ export function createModel(host, opts = {}) {
     for (const m of [beams, comets]) { m.count = 0; m.frustumCulled = false; world.add(m); }
     const h = N / 2 + 0.12;
     fitPts = [];
-    for (const y of [-0.1, 1.15]) for (const sx of [-1, 1]) for (const sz of [-1, 1]) fitPts.push(sx * h, y, sz * h);
+    for (const y of [-0.1, 1.15]) for (const sx of [-1, 1]) for (const sz of [-1, 1]) fitPts.push(sx * (h + SIDE), y, sz * h);
     marks = ""; br = null; hint = null;
     applySkin();
     resize();
   }
+
+  // ---------- the cliffs: rock massifs down both sides of the channel ----------
+  const hash3 = (x, y, z, k) => { const v = Math.sin(x * 127.1 + y * 311.7 + z * 74.7 + k * 19.19) * 43758.5453; return v - Math.floor(v); };
+  const corner = (p, i) => [Math.round(p.getX(i) * 400), Math.round(p.getY(i) * 400), Math.round(p.getZ(i) * 400)];
+  /** One kind of rock: a lumpy low-poly mass (0 boulder, 1 crag, 2 shelf, 3 spire), shaded dark at the foot and light at the top. */
+  function crag(kind) {
+    let g = kind === 3 ? new THREE.CylinderGeometry(0.1, 1, 2, 6, 3) : new THREE.IcosahedronGeometry(1, 1);
+    if (g.index) g = g.toNonIndexed();
+    const p = g.attributes.position, col = new Float32Array(p.count * 3), height = [];
+    for (let i = 0; i < p.count; i++) {
+      let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const j = 0.76 + 0.46 * hash3(...corner(p, i), kind);     // the same lump wherever a corner is shared
+      if (kind === 1) { const f = 1 - 0.38 * Math.max(0, y); x *= f; z *= f; y *= 1.7; }
+      else if (kind === 2) { x *= 1.35; z *= 1.1; y *= 0.55; }
+      else if (kind === 0) y *= 0.85;
+      x *= j; z *= j; y = Math.max(-0.4, y * (kind === 3 ? 0.8 + 0.4 * j : j));
+      p.setXYZ(i, x, y, z);
+      height.push(y);
+    }
+    const hi = Math.max(...height);
+    for (let i = 0; i < p.count; i++) {
+      const sh = 0.7 + 0.42 * Math.min(1, Math.max(0, (height[i] + 0.4) / (hi + 0.4))) + 0.07 * hash3(...corner(p, i), 9);
+      col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = sh;
+    }
+    g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    return g;
+  }
+  /** The cliffs of this puzzle (the same for the same puzzle): three rows of rock a side, low at the water, high behind. */
+  function buildCliffs(seedText) {
+    let a = 0;
+    for (let i = 0; i < seedText.length; i++) a = (Math.imul(a, 31) + seedText.charCodeAt(i)) | 0;
+    const rnd = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const rows = [
+      { step: 1.9, off: 0, r: [1.3, 2.3], h: [0.8, 1.6], kinds: [0, 0, 2, 2, 1] },
+      { step: 2.7, off: 3.2, r: [1.9, 3.0], h: [1.2, 2.1], kinds: [0, 1, 1, 3, 2] },
+      { step: 3.8, off: 7.2, r: [2.8, 4.2], h: [1.3, 2.1], kinds: [1, 1, 3, 3, 0] },
+    ];
+    const lists = [[], [], [], []];
+    for (const side of [-1, 1]) {
+      const ph = side < 0 ? 0 : 2.1, edge = z => N / 2 + 4.0 + 0.6 * Math.sin(z * 0.19 + 1.3 + ph) + 0.3 * Math.sin(z * 0.43 + ph * 2);     // the channel wanders a little
+      for (const row of rows) for (let z = -HALF - 4; z <= HALF + 4; z += row.step * (0.8 + 0.4 * rnd())) {
+        const r = row.r[0] + (row.r[1] - row.r[0]) * rnd(), sx = r * (0.9 + 0.4 * rnd()), sz = r * (0.9 + 0.4 * rnd()), sy = r * (row.h[0] + (row.h[1] - row.h[0]) * rnd());
+        const kind = row.kinds[Math.floor(rnd() * row.kinds.length)];
+        lists[kind].push({ x: side * (edge(z) + sx * 1.25 + row.off + (rnd() - 0.5) * 0.8), y: 0.3 * sy - 0.1, z, rot: rnd() * 6.28, sx, sy, sz, tint: 0.85 + 0.3 * rnd() });
+      }
+    }
+    lists.forEach((list, kind) => {
+      if (!list.length) return;
+      const m = new THREE.InstancedMesh(crag(kind), M.cliff, list.length);
+      list.forEach((c, i) => m.setMatrixAt(i, MA.compose(VA.set(c.x, c.y, c.z), QA.setFromAxisAngle(UP, c.rot), VB.set(c.sx, c.sy, c.sz))));
+      m.frustumCulled = false;
+      m.userData.tints = list.map(c => c.tint);
+      world.add(m);
+      cliffs.push(m);
+    });
+  }
+  const paintCliffs = k => { for (const m of cliffs) { m.userData.tints.forEach((t, i) => m.setColorAt(i, CA.set(k.cliff).multiplyScalar(t))); m.instanceColor.needsUpdate = true; } };
+
+  // ---------- the ships: cogs in lanes beside the board, some sailing each way, a few meshes in all ----------
+  function buildShips() {
+    const hullG = new THREE.BoxGeometry(0.46, 0.22, 1.3), hp = hullG.attributes.position;
+    for (let i = 0; i < hp.count; i++) {                      // the bow narrows and rises, the keel is narrower than the deck
+      const z = hp.getZ(i), y = hp.getY(i);
+      let x = hp.getX(i);
+      if (z > 0) { x *= 1 - 0.85 * (z / 0.65); hp.setY(i, y + 0.07 * (z / 0.65)); }
+      if (y < 0) x *= 0.7;
+      hp.setX(i, x);
+    }
+    const piece = (g, mat, n) => { const m = new THREE.InstancedMesh(g, mat, n); m.frustumCulled = false; world.add(m); return m; }, n = SHIPS.length;
+    shipParts = {
+      hull: piece(hullG, M.hull, n),
+      castle: piece(new THREE.BoxGeometry(0.4, 0.17, 0.4), M.hull, n),
+      mast: piece(new THREE.CylinderGeometry(0.022, 0.03, 1.15, 6), M.hull, n),
+      sail: piece(new THREE.BoxGeometry(1, 1, 0.03), M.sail, n * 2),
+    };
+    // where each piece sits on a ship (its bow is +z)
+    const at = (x, y, z, sx = 1, sy = 1) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, 1));
+    shipPose = { hull: [at(0, 0.06, 0)], castle: [at(0, 0.24, -0.5)], mast: [at(0, 0.7, 0.05)], sail: [at(0, 0.78, 0.1, 0.8, 0.5), at(0, 1.18, 0.1, 0.52, 0.28)] };
+    ships = SHIPS.map(([side, lane, way, speed, from, size], i) => ({ x: side * (N / 2 + LANE0 + lane * LANE_GAP), way, speed, from, s: from, size, ph: i * 1.7, cloth: i % 3 === 1 }));
+  }
+  const QY = new THREE.Quaternion(), QP = new THREE.Quaternion(), QR = new THREE.Quaternion(), AX = new THREE.Vector3(1, 0, 0), AZ = new THREE.Vector3(0, 0, 1), MS = new THREE.Matrix4();
+  /** Put every ship at its place along the channel, bobbing on the water; small at either end, where it is out of sight in the haze. */
+  function sail(t) {
+    if (!shipParts) return;
+    const span = ZMAX - ZMIN;
+    ships.forEach((sh, i) => {
+      const z = sh.way > 0 ? ZMIN + sh.s * span : ZMAX - sh.s * span, k = Math.min(1, Math.max(0.001, Math.min(z - ZMIN, ZMAX - z) / 6)) * sh.size;
+      QA.copy(QY.setFromAxisAngle(UP, sh.way > 0 ? 0 : Math.PI)).multiply(QP.setFromAxisAngle(AX, 0.03 * Math.sin(t * 1.3 + sh.ph))).multiply(QR.setFromAxisAngle(AZ, 0.05 * Math.sin(t * 1.7 + sh.ph)));
+      MS.compose(VA.set(sh.x, WAVE(sh.x, z, t) + 0.01, z), QA, VB.set(k, k, k));
+      for (const key of ["hull", "castle", "mast"]) shipParts[key].setMatrixAt(i, MA.multiplyMatrices(MS, shipPose[key][0]));
+      shipPose.sail.forEach((pm, j) => shipParts.sail.setMatrixAt(i * 2 + j, MA.multiplyMatrices(MS, pm)));
+    });
+    for (const m of Object.values(shipParts)) m.instanceMatrix.needsUpdate = true;
+  }
+  /** The ships sail on by `dt` seconds (a pause gives none, so they stand still with the menu). */
+  function advanceShips(dt) {
+    const span = ZMAX - ZMIN;
+    for (const sh of ships) sh.s = (sh.s + (sh.speed * dt) / span) % 1;
+  }
+  const paintShips = k => {
+    if (!shipParts) return;
+    ships.forEach((sh, i) => { for (let j = 0; j < 2; j++) shipParts.sail.setColorAt(i * 2 + j, CA.set(sh.cloth && j === 0 ? k.cloth : k.sail)); });
+    shipParts.sail.instanceColor.needsUpdate = true;
+  };
 
   // ---------- what the marks show ----------
   /** Lanterns, buoys (a dot is a cell with no lantern) and beams, and the colour of each shoal. */
@@ -202,15 +335,24 @@ export function createModel(host, opts = {}) {
     camera.lookAt(LOOK);
     camera.updateMatrixWorld();
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+    sky.position.copy(camera.position);
+    scene.fog.near = dist + size * 0.3 + 1;                  // the board and the water round it are clear, the far strait goes to haze
+    scene.fog.far = scene.fog.near + 32;
   }
   function fit() {
     if (!size) return;
     const aspect = width / height, ty = Math.tan(FOV / 2), tx = ty * aspect, near = 0.5, top = near * ty, right = top * aspect, pad = 0.4 * rem;
     fitDist = Math.max(4, fitDistance(fitPts, az, el, [0, 0.2, 0], tx, ty, (2 * pad) / width, (2 * pad) / height));
-    camera.projectionMatrix.makePerspective(-right, right, top, -top, near, Math.max(120, fitDist + size * 2 + 30));
-    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    const far = Math.max(180, fitDist + size * 2 + 130);
     dist = fitDist / zoom;
     pose();
+    // the board fills the width, and a tall card has room above and below it: slide the frame up (the view stays the same, only the frame moves) until
+    // the board's near edge is at the bottom, so the far strait and its haze fill the top
+    let lowest = 0;
+    for (let i = 0; i < fitPts.length; i += 3) { VA.set(fitPts[i], fitPts[i + 1], fitPts[i + 2]).applyMatrix4(camera.matrixWorldInverse); lowest = Math.min(lowest, VA.y / -VA.z); }
+    const lift = Math.max(0, Math.min(1.1 * ty, lowest + ty - 0.12));
+    camera.projectionMatrix.makePerspective(-right, right, top + near * lift, -top + near * lift, near, far);
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
     camDirty = true;
     const D = size * 2 + 8, la = az - 0.7, le = Math.min(el + 0.4, 1.2);
     sun.position.set(Math.sin(la) * Math.cos(le) * D, Math.sin(le) * D, Math.cos(la) * Math.cos(le) * D);
@@ -229,7 +371,9 @@ export function createModel(host, opts = {}) {
     const k = skinNow();
     M.sea.color.set(k.sea); M.band.color.set(k.band); M.cap.color.set(k.cap); M.buoy.color.set(k.buoy); M.lamp.color.set(k.lamp);
     M.beam.color.set(k.beam); M.beam.opacity = k.beamA; M.comet.color.set(k.comet); M.comet.opacity = k.cometA;
-    M.rock.color.set(k.rock); M.slab.color.set(0xffffff); M.tower.color.set(0xffffff);
+    M.rock.color.set(k.rock); M.slab.color.set(0xffffff); M.tower.color.set(0xffffff); M.hull.color.set(k.hull);
+    scene.fog.color.set(k.haze);
+    paintSky(k); paintCliffs(k); paintShips(k);
     hemi.color.set(k.sky); hemi.groundColor.set(k.ground); hemi.intensity = k.hemi;
     sun.color.set(k.key); sun.intensity = k.keyI;
     renderer.toneMappingExposure = k.exposure;
@@ -251,7 +395,7 @@ export function createModel(host, opts = {}) {
   }
 
   // ---------- drawing: only while it is shown and not paused ----------
-  let shown = false, held = false, frameId = 0, last = 0, busyUntil = 0, winUntil = 0, lastT = performance.now();
+  let shown = false, held = false, frameId = 0, winUntil = 0, lastT = performance.now();
   const t0 = performance.now(), still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   let drawn = 0;
   function draw(now) {
@@ -259,6 +403,8 @@ export function createModel(host, opts = {}) {
     const t = still ? 0 : (now - t0) / 1000, dt = Math.min(0.1, Math.max(0, (now - lastT) / 1000));
     lastT = now;
     if (spinUntil > now) { az += 0.35 * dt; fit(); }
+    if (!still) advanceShips(dt);
+    sail(t);
     const sp = sea.geometry.attributes.position;
     for (const i of seaTop) sp.setY(i, WAVE(sp.getX(i), sp.getZ(i), t));
     sp.needsUpdate = true;
@@ -291,13 +437,12 @@ export function createModel(host, opts = {}) {
   function frame(now) {
     frameId = 0;
     if (!shown || held || document.hidden) return;
-    if (now - last >= (now < busyUntil ? BUSY_MS : CALM_MS) - 2) { last = now; draw(now); }
+    draw(now);
     if (!still || spinUntil > now) frameId = requestAnimationFrame(frame);
   }
   /** Something happened (a touch, a change of the marks): draw at full rate for a moment, and again once if the player asked for less motion. */
   function wake() {
     if (!shown || held || !world) return;
-    busyUntil = performance.now() + BUSY_FOR;
     if (still) draw(performance.now());
     if (!frameId) frameId = requestAnimationFrame(frame);
   }
@@ -449,7 +594,7 @@ export function createModel(host, opts = {}) {
     },
     pick: cellUnder,
     shoalAt,
-    get live() { return { lanterns: lightList.length, buoys: buoys?.count || 0, beams: beams?.count || 0, chips: chips.length, shown, frames: drawn }; },
-    dispose() { shown = false; if (frameId) cancelAnimationFrame(frameId); disposeWorld(); renderer.dispose(); },
+    get live() { return { ships: ships.length, cliffs: cliffs.reduce((n, m) => n + m.count, 0), lanterns: lightList.length, buoys: buoys?.count || 0, beams: beams?.count || 0, chips: chips.length, shown, frames: drawn }; },
+    dispose() { shown = false; if (frameId) cancelAnimationFrame(frameId); disposeWorld(); skyGeo.dispose(); renderer.dispose(); },
   };
 }
