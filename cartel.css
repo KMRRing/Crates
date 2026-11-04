@@ -197,3 +197,24 @@ dialog.ct-pop .ct-go { width: 100%; }
 }
 .ct-toast.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .ct-toast { transition: none; } }
+
+/* the 3D table (Menu, View: 3D; cartel-3d.js): the scene fills the table's box and the page's own boxes stand over it, so the
+   text, the taps and the picked outline are the same as on the flat table. The scene stands a leather ledger under each seat,
+   a brass plate under the bid and the dice in the empty boxes that hold their place. */
+.ct-stage { display: none; }
+.ct3 .ct-stage { display: block; position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; z-index: 0;
+  background: #14271f; }                              /* what shows until the scene's first frame */
+.ct3 > :not(.ct-stage) { position: relative; z-index: 1; }
+.ct3 { background: none; box-shadow: none; outline-color: transparent; }
+.ct3 .ct-seat { background: none; border-color: transparent; box-shadow: none; animation: none; }
+.ct3 .ct-seat.turn { border-color: transparent; box-shadow: none; }
+.ct3 .ct-seat.targetable:not(.picked) { border-color: transparent; }
+.ct3 .ct-seat.targetable.picked { border-color: transparent; box-shadow: none; background: none; }
+.ct3 .ct-mine { border-top: 0; }
+.ct3 .ct-die.picked { outline: 0; }
+.ct3 .ct-marker { background: none; border: 0; padding: .2rem .85rem; color: #2B1B08; text-shadow: 0 1px 0 rgba(255, 238, 190, .6); }
+.ct3 .ct-marker small { opacity: .8; }
+.ct3 .ct-marker.open { color: #E8DFC9; text-shadow: none; font-weight: 700; }
+.ct3 .ct-marker.held, .ct3 .ct-marker.broke { color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, .35); background: none; border: 0; }
+.ct3 .ct-ticker, .ct3 .ct-tally { text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.ct3 .ct-notes li { background: rgba(10, 20, 15, .55); }

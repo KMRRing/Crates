@@ -16,6 +16,7 @@ import { sure } from "./sure.js";
 import { seatRounds } from "./random.js";
 import { noteStreak, IN_FRAME } from "./suite.js";
 import { scale } from "./wide.js";
+import { tableView } from "./table3d-view.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace", COUNTED = "cartel:counted";
@@ -33,6 +34,11 @@ let mind = null;              // what you know
 let publicMind = null;        // what everyone knows (to show which of your dice the table has seen)
 let followed = "";            // the game and seat the minds follow
 let ui = null;                // your choices in progress
+// Menu, View: the flat table (the page's own boxes) or the 3D one (cartel-3d.js, three.js), which stands in the same boxes
+// and replaces only the drawing; the default is the suite's (mode3d.js), written only when the player picks
+const view = tableView("cartel", ["flat", "Flat"]);
+let T3 = null, T3loading = false;
+const ghost = () => view.get() === "3d";     // the table's dice are empty boxes for the scene to stand in, wherever it is yet
 
 const freshUi = () => ({ panel: null, reroll: new Set(), free: null, ask: { target: null, type: "count", f: 4, n: 15 }, claim: { ability: "bank", target: null, face: 4 }, hit: null, bid: null });
 /** A seat's name: yours "You"; at a table, whoever sits there, else the computer's personality. */
@@ -110,7 +116,7 @@ function onView(v) {
   if (v.G.n !== movesSeen) { movesSeen = v.G.n; tapped = false; }
   // what you know, followed event by event: afresh for a new game, or a seat changed (a friend took over a computer's)
   const key = `${v.code || "solo"}:${v.G.seq}:${v.G.started}:${ME}`;
-  if (followed !== key) { followed = key; mind = new Mind(ME, g.players.length); publicMind = new Mind(null, g.players.length); ui = freshUi(); }
+  if (followed !== key) { followed = key; mind = new Mind(ME, g.players.length); publicMind = new Mind(null, g.players.length); ui = freshUi(); T3?.reset(); }
   mind.follow(g, e => seen(e, ME));
   publicMind.follow(g, e => ({ ...e, priv: undefined }));
   render();
@@ -143,10 +149,12 @@ async function play(move) {
 
 // ---------- rendering ----------
 function render() {
+  $("table").classList.toggle("ct3", ghost());
   renderSeats();
   renderCentre();
   renderMine();
   renderControls();
+  T3?.sync(snapshot());
 }
 
 // ---------- dice ----------
@@ -161,10 +169,15 @@ function svgEl(tag, attrs, parent) {
   return n;
 }
 /** A die: { face (null = hidden), kind, how ("peek" = only you know), seen (everyone has seen it) }. */
-function dieSvg({ face, kind, how, seen }, size) {
+function dieSvg({ face, kind, how, seen, id }, size, standIn = false) {
   const gold = kind === "gold";
   const svg = svgEl("svg", { viewBox: "0 0 24 24", width: size, height: size, class: "ct-die", role: "img" });
   svg.setAttribute("aria-label", face == null ? `hidden ${kind} die` : `${kind} ${face}${gold ? `, ${ROLES[face]}` : ""}${how === "peek" ? ", only you know" : ""}`);
+  if (standIn) {
+    // the 3D table draws this die where the box is (taps, labels and the picked outline stay the page's)
+    Object.assign(svg.dataset, { die: id, kind, face: face ?? "", how: how || "", seen: seen ? "1" : "" });
+    return svg;
+  }
   if (face == null) {
     svgEl("rect", { x: 1.2, y: 1.2, width: 21.6, height: 21.6, rx: 5, fill: "#1A0B0F", stroke: gold ? "#C9A23B" : "#6B4B52", "stroke-width": 1.6 }, svg);
     svgEl("text", { x: 12, y: 16.2, "text-anchor": "middle", "font-size": 11, "font-weight": 800, fill: gold ? "#C9A23B" : "#8C6E75", "font-family": "Archivo, Arial, sans-serif" }, svg).textContent = "?";
@@ -338,6 +351,7 @@ function renderSeats() {
   $("seats").replaceChildren(...g.players.filter(p => p.i !== ME).map(p => {
     const seat = document.createElement("div");
     const canTarget = aim && !p.out;
+    seat.dataset.seat = p.i;
     seat.className = `ct-seat${g.turn === p.i && !g.over ? " turn" : ""}${p.out ? " out" : ""}${canTarget ? " targetable" : ""}${canTarget && aim.picked === p.i ? " picked" : ""}`;
     if (canTarget) { seat.setAttribute("role", "button"); seat.addEventListener("click", () => aim.pick(p.i)); }
     const plaque = document.createElement("div");
@@ -349,7 +363,7 @@ function renderSeats() {
     const dice = document.createElement("div");
     dice.className = "ct-dice";
     dice.append(...byKind(mind.known(p.i)).map(d => {
-      const svg = dieSvg(d, 20);
+      const svg = dieSvg(d, 20, ghost());
       svg.style.width = svg.style.height = "var(--seat-die, 20px)";
       if (d.kind === "gold" && d.face != null) { svg.classList.add("ct-tappable"); svg.addEventListener("click", e => { e.stopPropagation(); showRole(d.face, p.i); }); }
       return svg;
@@ -375,15 +389,18 @@ function renderCentre() {
   // with no bid standing, the last call's verdict sits where the bid stood, until someone bids again
   const lastBidOrCall = [...g.events].reverse().find(e => e.t === "bid" || e.t === "call");
   if (b) {
-    marker.append(`${b.q} ×`, dieSvg({ face: b.f, kind: "plain" }, 24));
+    marker.append(`${b.q} ×`, dieSvg({ face: b.f, kind: "plain", id: "bid" }, 24, ghost()));
+    marker.dataset.state = "bid";
     by.textContent = `${b.by === ME ? "your bid" : `${name(b.by)}'s bid`} · ${totalDice(g)} dice`;
   } else if (lastBidOrCall?.t === "call") {
     const c = lastBidOrCall, loser = c.held ? c.p : c.bid.by;
     marker.classList.add(c.held ? "held" : "broke");
+    marker.dataset.state = c.held ? "held" : "broke";
     marker.append(`${c.bid.q} × ${faceLabel(c.bid.f)} ${c.held ? "held" : "busted"}`);
     by.textContent = `${name(loser)} ${verb(loser, "pay")} · ${totalDice(g)} dice`;
   } else {
     marker.append("No bid yet");
+    marker.dataset.state = "open";
     by.textContent = `${totalDice(g)} dice on the table`;
   }
   marker.appendChild(by);
@@ -444,7 +461,7 @@ function renderMine() {
   dice.className = "ct-dice";
   dice.append(...byKind(me.dice).map(d => {
     const fig = document.createElement("figure");
-    const svg = dieSvg({ face: d.face, kind: d.kind, seen: seenByAll.has(d.id) }, 36);
+    const svg = dieSvg({ face: d.face, kind: d.kind, seen: seenByAll.has(d.id), id: d.id }, 36, ghost());
     svg.style.width = svg.style.height = "var(--mine-die, 36px)";
     if (shaken.has(d.id)) svg.classList.add("shake");
     const chosen = fixing ? ui.free === d.id : ui.reroll.has(d.id);
@@ -784,8 +801,63 @@ function openMenu() {
     try { localStorage.setItem(PACE, id); } catch { /* private mode */ }
     page.runner.kick();                                        // a move already waiting takes the new pace
     renderControls();
-  }));
+  }), view.choice(() => { if (g && mind) render(); use3D(); }));
   if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+// ---------- the 3D table ----------
+/** Where each new die came from and each gone one went, read off the events (an id the scene has not seen takes its flight from here). */
+function movesOf() {
+  const from = {}, to = {}, at = i => (i === ME ? "me" : i);
+  for (const e of g.events) {
+    if (e.t === "take" || e.t === "banker" || e.t === "receive") for (const d of e.dice || []) from[d.id] = "bank";
+    else if (e.t === "trader") { for (const d of e.dice || []) from[d.id] = at(e.target); for (const id of e.lost || []) to[id] = at(e.p); }
+    else if (e.t === "pay") for (const d of e.dice || []) to[d.id] = "bank";
+    else if (e.t === "loseGold" && e.die) to[e.die.id] = "bank";
+  }
+  return { from, to };
+}
+/** The table as the page has laid it out, for the scene: every box's rectangle from the stage's top left, and what each says. */
+function snapshot() {
+  const stage = $("stage").getBoundingClientRect();
+  const rel = el => { const r = el.getBoundingClientRect(); return { x: r.left - stage.left, y: r.top - stage.top, w: r.width, h: r.height }; };
+  const has = (el, c) => el.classList.contains(c);
+  const marker = document.querySelector(".ct-marker");
+  const dice = [];
+  for (const el of $("table").querySelectorAll("[data-die]")) {
+    const r = rel(el), parent = el.closest(".ct-dice")?.getBoundingClientRect();
+    // a die clipped out of its seat's two rows is not on the table
+    if (parent && (r.y + r.h / 2 > parent.bottom - stage.top + 1 || r.x + r.w / 2 > parent.right - stage.left + 1)) continue;
+    dice.push({ id: el.dataset.die, kind: el.dataset.kind, face: el.dataset.face === "" ? null : Number(el.dataset.face), how: el.dataset.how, seen: !!el.dataset.seen, picked: has(el, "picked"), ...r });
+  }
+  const verdict = marker && (marker.dataset.state === "held" || marker.dataset.state === "broke") ? marker.dataset.state : null;
+  return { w: stage.width, h: stage.height, dice, verdict, ...movesOf(),
+    seats: [...$("seats").querySelectorAll(".ct-seat")].map(el => ({ idx: Number(el.dataset.seat), turn: has(el, "turn"), out: has(el, "out"), aim: has(el, "targetable"), picked: has(el, "picked"), ...rel(el) })),
+    mine: ME != null ? { turn: has($("mine"), "turn"), ...rel($("mine")) } : null,
+    centre: rel($("centre")), marker: marker ? { state: marker.dataset.state || "bid", ...rel(marker) } : null };
+}
+/** Starts or stops the 3D table to match the View choice (cartel-3d.js loads only when it's wanted; where there's no WebGL the flat table stays and says why). */
+async function use3D() {
+  if (ghost() && !T3 && !T3loading) {
+    T3loading = true;
+    try {
+      const m = await import("./cartel-3d.js");
+      if (ghost() && !T3) {
+        T3 = m.createCartel3d($("stage"), { onLost: () => { view.fail(); toast("The 3D table lost its graphics: drawing the flat table"); use3D(); } });
+        if (g && mind) render();
+      }
+    } catch (err) {
+      console.warn("Cartel: no 3D here, so the table is drawn flat.", err);
+      view.fail();
+      if (!IN_FRAME) toast("3D isn't available on this device: the table stays flat");
+      if (g && mind) render();
+    }
+    T3loading = false;
+  } else if (!ghost() && T3) {
+    T3.dispose();
+    T3 = null;
+    if (g && mind) render();
+  }
 }
 
 // ---------- messages ----------
@@ -828,4 +900,5 @@ const page = seatPage({
   botName: (s, G) => PERSONAS[G?.state?.players?.[s]?.persona]?.name || "Quant",
   onView, onOver, hold: holding, newGame: () => startGame(),
 });
-window.__cartel = { get game() { return g; }, get mind() { return mind; }, get view() { return V; }, page };
+use3D();
+window.__cartel = { snapshot, get t3() { return T3; }, get game() { return g; }, get mind() { return mind; }, get view() { return V; }, page };

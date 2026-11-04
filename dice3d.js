@@ -206,7 +206,7 @@ export function showing(value, yaw = 0) {
  * A stage in `host` (a box with a size). Options:
  *   camera { elev (degrees above the table, 58), fov (26), target [x, 0, z], span (world units across the box: locks the
  *            camera to the page's pixels) | fit [[x, y, z]…] (every point must stay in view) }
- *   shadows (true; off under the battery saver), clear (colour, or (night) => colour), onSkin(night, stage),
+ *   shadows (true; off under the battery saver), light { sun: [day, night], hemi: [day, night] }, exposure, clear (colour, or (night) => colour), onSkin(night, stage),
  *   onLost() (the WebGL context went), cell (atlas cell size, 192)
  * Throws where there is no WebGL: the page draws flat.
  */
@@ -217,6 +217,7 @@ export function createDiceStage(host, o = {}) {
   renderer.shadowMap.enabled = wantShadows;
   renderer.shadowMap.type = PCF;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  if (o.exposure) renderer.toneMappingExposure = o.exposure;
   const canvas = renderer.domElement;
   canvas.style.cssText = "display:block;width:100%;height:100%";
   host.replaceChildren(canvas);
@@ -226,6 +227,7 @@ export function createDiceStage(host, o = {}) {
   camera.isPerspectiveCamera = true;
   camera.updateProjectionMatrix = () => {};
 
+  const LT = { sun: [2.6, 2.1], hemi: [1.0, 0.8], ...o.light };            // the lights' strength by day and by night
   const cam = { elev: 58, fov: 26, target: [0, 0, 0], ...o.camera };
   const ELEV = cam.elev * Math.PI / 180, FOV = cam.fov * Math.PI / 180;
   const sun = new THREE.DirectionalLight(0xfff0d8, 2.6), hemi = new THREE.HemisphereLight(0xfff4e4, 0x4a3a2c, 1.0);
@@ -304,8 +306,8 @@ export function createDiceStage(host, o = {}) {
     night = root.dataset.mode ? root.dataset.mode === "night" : matchMedia("(prefers-color-scheme: dark)").matches;
     const clear = typeof o.clear === "function" ? o.clear(night) : o.clear;
     if (clear != null) renderer.setClearColor(clear, 1);
-    sun.intensity = night ? 2.1 : 2.6;
-    hemi.intensity = night ? 0.8 : 1.0;
+    sun.intensity = LT.sun[night ? 1 : 0];
+    hemi.intensity = LT.hemi[night ? 1 : 0];
     for (const f of skinners) f(night, stage);
     invalidate();
   }
@@ -470,8 +472,8 @@ export function createDiceStage(host, o = {}) {
     }
 
     let before = [], first = true;
-    /** The dice to show now: the diff with the last call decides what moves. `snap` puts everything in place at once. */
-    function setDice(list, { snap = false } = {}) {
+    /** The dice to show now: the diff with the last call decides what moves. `snap` puts everything in place at once; `to` (a Map of id → {x, z}) says where a die that has gone flies to. */
+    function setDice(list, { snap = false, to = null } = {}) {
       const after = list.map(e => ({ ...e, size: e.size || 1 }));
       const diff = diffDice(before, after);
       const instant = snap || first || calm() || (performance.now() - resized < 250 && !diff.born.length && !diff.gone.length);
@@ -497,7 +499,7 @@ export function createDiceStage(host, o = {}) {
           d.value = e.value ?? d.value; hop(d, rest);
         } else { d.rest = rest; if (!d.anim) settle(d); }
       }
-      for (const o2 of diff.gone) { const d = live.get(o2.id); if (d && !d.leaving) { if (instant) live.delete(o2.id); else leave(d, o2.to); } }
+      for (const o2 of diff.gone) { const d = live.get(o2.id); if (d && !d.leaving) { if (instant) live.delete(o2.id); else leave(d, to?.get(o2.id) ?? o2.to); } }
       before = after;
       first = false;
       invalidate();
