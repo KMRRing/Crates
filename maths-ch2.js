@@ -53,7 +53,7 @@ const quadratics = lesson("quadratics", "Quadratics", [
 // ---------- sequences ----------
 const sequences = lesson("sequences", "Sequences", [
   P("An arithmetic sequence adds the same difference d each time: the n-th term is a + (n − 1)d, and the first n terms add up to n/2 × (2a + (n − 1)d). A geometric sequence multiplies by the same ratio r each time.",
-    { kind: "formula", tex: tx`u_n=a+(n-1)d\qquad S_n=\frac n2\bigl(2a+(n-1)d\bigr)\qquad u_n=ar^{n-1}\qquad S_n=\frac{a(1-r^n)}{1-r}`, note: "If |r| < 1 the geometric terms shrink, and the sum to infinity is a ÷ (1 − r)." }),
+    { kind: "formula", tex: [tx`u_n=a+(n-1)d`, tx`S_n=\frac n2\,(2a+(n-1)d)`, tx`u_n=ar^{n-1}`, tx`S_n=\frac{a(1-r^n)}{1-r}`], note: "If |r| < 1 the geometric terms shrink, and the sum to infinity is a ÷ (1 − r)." }),
   N("seq-term", "The sequence 7, 11, 15, … is arithmetic. What is its 20th term?", ex(K.arithTerm(7, 4, 20)), "a = 7, d = 4: 7 + 19 × 4 = 83.", { t: "js", f: "(()=>{let u=7;for(let i=1;i<20;i++)u+=4;return u})()" }),
   N("seq-sum", "What is the sum of the first 20 terms of 7, 11, 15, …?", ex(K.arithSum(7, 4, 20)), "20/2 × (2·7 + 19·4) = 10 × 90 = 900. Pairing first and last (7 + 83 = 90) ten times says the same.", { t: "js", f: "(()=>{let u=7,s=0;for(let i=1;i<=20;i++){s+=u;u+=4}return s})()" }),
   N("seq-geo", "What is the sum of the first 10 terms of 3, 6, 12, …?", ex(K.geoSum(3, 2, 10)), "a = 3, r = 2: 3 × (2¹⁰ − 1)/(2 − 1) = 3 × 1023 = 3069.", { t: "js", f: "(()=>{let u=3,s=0;for(let i=0;i<10;i++){s+=u;u*=2}return s})()" }),
@@ -97,7 +97,7 @@ const transform = lesson("transform", "Moving graphs", [
 // ---------- exponentials and logarithms ----------
 const logs = lesson("logs", "Exponents, logs", [
   P("A logarithm is the power you need: log₂ 8 = 3 because 2³ = 8. It undoes the exponential, so it turns multiplying into adding and powers into multiples.",
-    { kind: "formula", tex: tx`\log_a(xy)=\log_a x+\log_a y\qquad \log_a(x^k)=k\log_a x\qquad a^x=b\iff x=\frac{\ln b}{\ln a}` }),
+    { kind: "formula", tex: [tx`\log_a(xy)=\log_a x+\log_a y`, tx`\log_a(x^k)=k\log_a x`, tx`a^x=b\iff x=\frac{\ln b}{\ln a}`] }),
   Q("log-eval", "What is log₂ 32 + log₂ 2?", "6", ["5", "7", "34"], "log₂ 32 = 5 and log₂ 2 = 1, and together 6 = log₂ 64: adding logs multiplies the numbers.", { t: "js", f: "Math.log2(32)+Math.log2(2)" }),
   N("log-solve", "Solve 2ˣ = 50 for x, to 3 significant figures.", ex(Number(Math.log2(50).toPrecision(3))), "x = ln 50 ÷ ln 2 = 5.64. Check: 2⁵ = 32 and 2⁶ = 64 bracket 50.", { t: "js", f: "Math.log(50)/Math.log(2)" }, { tol: 0.005 }),
   N("log-half", "A radioactive sample halves every 8 days. After how many days is 1/10 of it left? To 3 significant figures.", ex(Number((8 * Math.log2(10)).toPrecision(3))), "(1/2)^(t/8) = 1/10 gives t = 8 log₂ 10 = 8 × 3.32 = 26.6 days.", { t: "js", f: "8*Math.log(10)/Math.log(2)" }, { tol: 0.05 }),

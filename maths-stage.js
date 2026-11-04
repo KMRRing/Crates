@@ -127,7 +127,7 @@ export function mathsStage() {
   const ws = st => (st.ws ||= {});
 
   /** Display maths into an element. */
-  const tex = (el, t) => setRich(el, `$$${t}$$`);
+  const tex = (el, t) => setRich(el, `$$${Array.isArray(t) ? `\\begin{gathered}${t.join("\\\\")}\\end{gathered}` : t}$$`);
 
   // ----- the widgets: each fills `host` and keeps its state in st.ws -----
   function planeWidget(host, w, st) {

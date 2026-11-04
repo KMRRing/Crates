@@ -42,7 +42,7 @@ const ratio = lesson("ratio", "Ratio and percent", [
 // ---------- powers and roots ----------
 const powers = lesson("powers", "Powers and roots", [
   P("A power counts repeated multiplication, and the rules follow from counting: add the powers when you multiply, subtract when you divide, multiply them when you raise a power to a power. A negative power is a reciprocal, and a power 1/n is an n-th root.",
-    { kind: "formula", tex: tx`a^m a^n=a^{m+n},\quad \frac{a^m}{a^n}=a^{m-n},\quad (a^m)^n=a^{mn},\quad a^{-n}=\frac1{a^n},\quad a^{1/n}=\sqrt[n]{a}`, note: "And a⁰ = 1: it is aᵐ ÷ aᵐ." }),
+    { kind: "formula", tex: [tx`a^m a^n=a^{m+n}\qquad \frac{a^m}{a^n}=a^{m-n}`, tx`(a^m)^n=a^{mn}\qquad a^{-n}=\frac1{a^n}`, tx`a^{1/n}=\sqrt[n]{a}\qquad a^0=1`], note: "And a⁰ = 1: it is aᵐ ÷ aᵐ." }),
   Q("pow-mul", "What is 2⁵ × 2⁻²?", "8", ["128", "1/1024", "16"], "Add the powers: 2³ = 8. Check: 32 × ¼ = 8.", { t: "js", f: "Math.pow(2,5)*Math.pow(2,-2)" }),
   N("pow-frac", "Work out 16 to the power ¾.", ex(16 ** 0.75), "16^(3/4) = (16^(1/4))³ = 2³ = 8: take the root first, it keeps the numbers small.", { t: "js", f: "Math.pow(16,0.75)" }),
   Q("pow-simplify", "Simplify (x³)² × x⁻⁴.", "x^2", ["x^10", "x^(-2)", "x^5"], "(x³)² = x⁶, and x⁶ × x⁻⁴ = x².", { t: "ident", f: "(x^3)^2*x^(-4)" }),
@@ -54,11 +54,11 @@ const powers = lesson("powers", "Powers and roots", [
 // ---------- standard form and surds ----------
 const standard = lesson("standard", "Standard form, surds", [
   P("Standard form writes a number as A × 10ⁿ with A at least 1 and below 10: it makes very large and very small figures readable.",
-    { kind: "formula", tex: tx`45\,000\,000=4.5\times10^{7}\qquad 0.00032=3.2\times10^{-4}`, note: "Count how far the point moves; moving left makes the power positive." }),
+    { kind: "formula", tex: [tx`45\,000\,000=4.5\times10^{7}`, tx`0.00032=3.2\times10^{-4}`], note: "Count how far the point moves; moving left makes the power positive." }),
   Q("std-mul", "What is (3 × 10⁴) × (2 × 10⁵)?", "6*10^9", ["6*10^20", "5*10^9", "6*10^8"], "Multiply the numbers (3 × 2 = 6) and add the powers (4 + 5 = 9).", { t: "js", f: "3e4*2e5" }),
   N("std-ratio", "How many times larger is 3.2 × 10⁶ than 8 × 10³?", "400", "3.2 ÷ 8 = 0.4 and 10⁶ ÷ 10³ = 10³, so 0.4 × 1000 = 400.", { t: "js", f: "3.2e6/8e3" }),
   P("A surd is a root that does not come out exactly, like √2. Keep it exact: √72 = √36 × √2 = 6√2, taking out the biggest square factor.",
-    { kind: "formula", tex: tx`\sqrt{72}=\sqrt{36\times2}=6\sqrt2\qquad \frac{6}{\sqrt3}=\frac{6\sqrt3}{3}=2\sqrt3`, note: "To clear a surd from the bottom, multiply top and bottom by it." }),
+    { kind: "formula", tex: [tx`\sqrt{72}=\sqrt{36\times2}=6\sqrt2`, tx`\frac{6}{\sqrt3}=\frac{6\sqrt3}{3}=2\sqrt3`], note: "To clear a surd from the bottom, multiply top and bottom by it." }),
   Q("surd-simplify", "Simplify √72.", "6*sqrt(2)", ["6*sqrt(3)", "9*sqrt(2)", "8*sqrt(3)"], "72 = 36 × 2 and √36 = 6, so √72 = 6√2 ≈ 8.485.", { t: "js", f: "Math.sqrt(72)" }),
   Q("surd-rationalise", "Rationalise 6/√3 (no root in the bottom).", "2*sqrt(3)", ["3*sqrt(2)", "6*sqrt(3)", "sqrt(3)/2"], "Multiply top and bottom by √3: 6√3/3 = 2√3 ≈ 3.464.", { t: "js", f: "6/Math.sqrt(3)" }),
 ]);
