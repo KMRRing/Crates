@@ -851,6 +851,9 @@ function startOver() {
 /** The games screen's sections, in order: every game is in one (APPS' sec). The Appendix at the back holds what is set aside for
  *  now: games flagged to leave, or to become an app of their own (README, The Appendix). */
 export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["classics", "Classics"], ["idle", "Idle"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party"], ["appendix", "Appendix"]];
+/** The Appendix shows only on the owner's own solo code (Korbi, 4 November 2026: "don't appear unless the user is logged in as ?solo=KORBIRUN"). */
+const APPENDIX_CODE = "KORBIRUN";
+const shown = () => APPS.filter(a => a.sec !== "appendix" || soloCode() === APPENDIX_CODE);
 /** A tile's name: a long one (Refinery, Manifest) set closer, a longer one (Undercover) smaller too, to fit its tile. */
 export const nameClass = name => `app-name${name.length >= 10 ? " long longer" : name.length >= 8 ? " long" : ""}`;
 const tile = (a, current) => `<li class="app-tile" data-id="${a.id}"><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
@@ -1046,13 +1049,13 @@ export function bindSwitcher(button, current) {
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <p class="menu-line apps-note" role="status" hidden></p>
     <div class="rd-rows" data-rows${bannerOn() ? "" : " hidden"}><div class="rd-row"><div class="rd-cell" data-deck></div><div class="rd-cell" data-random></div><div class="rd-cell" data-choose></div></div></div>
-    <ul class="apps-list">${tiles(APPS, current)}</ul></div>`;
+    <ul class="apps-list">${tiles(shown(), current)}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
   dlg.querySelector("[data-settings]").addEventListener("click", () => openSettings(dlg));
   // the list's edges fade where there are more tiles past them, so a phone that shows five rows says there's a sixth
   const list = dlg.querySelector(".apps-list");
-  bindFind({ dlg, list, apps: APPS, sections: SECTIONS });        // the stars, and the search and filter that come down from the list's top
+  bindFind({ dlg, list, apps: shown(), sections: SECTIONS });        // the stars, and the search and filter that come down from the list's top
   const edges = () => {
     list.classList.toggle("more-above", list.scrollTop > 1);
     list.classList.toggle("more-below", list.scrollTop + list.clientHeight < list.scrollHeight - 1);
