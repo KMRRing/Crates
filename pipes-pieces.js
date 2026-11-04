@@ -1,3 +1,4 @@
+// Shared: the parked 3D map's old-model engine (pipes-puzzle*.js) and the flat Gears (pipes-train*.js, pipes-wheels.js) both use DIRS, back and the seeded chance (rng, mix).
 // Pipes: the puzzle's pieces and the seeded chance the generators draw on. Squares are numbered c = z * cols * rows + y *
 // cols + x (z is the layer, 0 on a flat board); sides 0 N, 1 E, 2 S, 3 W, 4 U (up to the layer above), 5 D. A piece is its
 // channels, each a pair of sides the oil can pass between; a crossing has two, and the oil may pass through it twice,

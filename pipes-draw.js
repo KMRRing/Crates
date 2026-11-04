@@ -1,3 +1,4 @@
+// Shared: the parked 3D map's old-model engine (pipes-puzzle*.js) and the flat Gears (pipes-train*.js, pipes-wheels.js) both use el, T, MID, turnArrow and drawGround.
 // How Gears draws its squares, shared by the board (pipes-puzzle-ui.js) and the hand: a square is 60 units in an SVG whose
 // viewBox is the board in squares. A gear is a brass wheel whose teeth show only on the sides it meshes with (a clip, so the
 // teeth run through the opening as the wheel turns), with a steel hub and a ruby jewel; a fixed gear is darker, with a stud.

@@ -1,3 +1,7 @@
+// PARKED (4 November 2026, Korbi: "Let's park the 3d mode for now, but trust it's coming later and in detail."): the 3D map is kept
+// whole but not offered: pipes.js's MAP_ON turns it back on. It plays the OLD model (pipes-puzzle*.js: gears whose teeth show only on
+// the sides they mesh, arbors, reductions), which the flat board has left for whole gears (pipes-train*.js); before it returns it needs
+// redoing in that scheme (a stack of floors of single, duo and trio squares). Its saved keys pipes:map and pipes:mapstars are left alone.
 // Picks the levels of Gears' 3D map from the generator and writes pipes-map-levels.js: `node pipes-map-pick.mjs`.
 // The same way pipes-puzzle-pick.mjs picks the flat ones: each slot of a chapter has a target for how hard the solver found
 // it (squares tried), rising through the chapter, and the candidate nearest the target is kept. A level's id is its identity
