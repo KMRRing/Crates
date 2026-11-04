@@ -257,7 +257,7 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
   background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 1px no-repeat,
     repeating-linear-gradient(90deg, var(--brass) 0 1px, transparent 1px 9px) left bottom / 100% 5px no-repeat; }
 .apps-brand img { width: 2rem; height: 2rem; display: block; }
-/* the games in their sections (Learning, Puzzles, Board & card games, Party), one list that scrolls in its own box */
+/* the games in their sections (Learning, Puzzles, Board games, Cards & dice, Party), one list that scrolls in its own box */
 .apps-list { list-style: none; padding: 0; margin: .8rem 0 0; display: flex; flex-direction: column; gap: 1.1rem;
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
   /* an edge with more tiles past it fades out (apps.js marks which) */

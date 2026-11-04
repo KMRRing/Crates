@@ -550,7 +550,7 @@ export const APPS = [
   { id: "glyph", sec: "puzzle", name: "Slate", href: "./slate.html", logo: LOGO("slate", SLATE_LOGO), players: [1, 6] },
   { id: "delta", sec: "puzzle", name: "Delta", href: "./delta.html", logo: LOGO("delta", DELTA_LOGO), players: [1, 6] },
   { id: "punt", sec: "knowledge", name: "Punt", href: "./punt.html", logo: LOGO("punt", PUNT_LOGO), players: [1, 6], score: "return" },   // its best: a return a question
-  { id: "cartel", sec: "table", name: "Cartel", href: "./cartel.html", logo: LOGO("cartel", CARTEL_LOGO), players: [1, 4] },
+  { id: "cartel", sec: "cards", name: "Cartel", href: "./cartel.html", logo: LOGO("cartel", CARTEL_LOGO), players: [1, 4] },
   { id: "spot", sec: "puzzle", name: "Spot", href: "./spot.html", logo: LOGO("spot", SPOT_LOGO), players: [1, 6] },
   { id: "speedmaths", sec: "puzzle", name: "Speed maths", href: "./speedmaths.html", logo: LOGO("speedmaths", SPEEDMATHS_LOGO), players: [1, 6] },
   { id: "quote", sec: "knowledge", name: "Quote", href: "./quote.html", logo: LOGO("quote", QUOTE_LOGO), players: [1, 6] },
@@ -561,11 +561,11 @@ export const APPS = [
   { id: "chart", sec: "knowledge", name: "Chart", href: "./chart.html", logo: LOGO("chart", CHART_LOGO), players: [1, 6] },
   { id: "harbour", sec: "idle", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO), players: [1, 1] },
   { id: "pipes", sec: "puzzle", name: "Gears", href: "./pipes.html", logo: LOGO("pipes", PIPES_LOGO), players: [1, 1] },
-  { id: "hong", sec: "table", name: "Mahjong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO), players: [1, 4] },
+  { id: "hong", sec: "board", name: "Mahjong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO), players: [1, 4] },
   // Deck: no tile (31 October 2026, Korbi): the banner under the head opens it, as a third choice beside Random and Choose, and
   // its page keeps its name and logo here
   { id: "deck", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO), players: [1, 1] },
-  { id: "tribute", sec: "table", name: "Guandan", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO), players: [1, 4] },
+  { id: "tribute", sec: "cards", name: "Guandan", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO), players: [1, 4] },
   { id: "nexus", sec: "knowledge", name: "Nexus", href: "./nexus.html", logo: LOGO("nexus", NEXUS_LOGO), players: [1, 6] },
   { id: "survey", sec: "puzzle", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO), players: [1, 6] },
   { id: "stow", sec: "puzzle", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO), players: [1, 6] },
@@ -618,29 +618,29 @@ export const APPS = [
   { id: "hilo", sec: "party", name: "Higher or Lower", href: "./party.html?game=hilo", logo: LOGO("hilo", HILO_LOGO), players: [1, 24], party: true },
   { id: "coup", sec: "party", name: "Cabal", href: "./party.html?game=coup", logo: LOGO("coup", COUP_LOGO), players: [1, 6], party: true },
   { id: "cue", sec: "party", name: "Cue", href: "./cue.html", logo: LOGO("cue", CUE_LOGO), players: [2, 12] },
-  { id: "river", sec: "table", name: "Xiangqi", href: "./river.html", logo: LOGO("river", RIVER_LOGO), players: [1, 2] },
-  { id: "gambit", sec: "table", name: "Chess", href: "./gambit.html", logo: LOGO("gambit", GAMBIT_LOGO), players: [1, 2] },
+  { id: "river", sec: "board", name: "Xiangqi", href: "./river.html", logo: LOGO("river", RIVER_LOGO), players: [1, 2] },
+  { id: "gambit", sec: "board", name: "Chess", href: "./gambit.html", logo: LOGO("gambit", GAMBIT_LOGO), players: [1, 2] },
   // Gambit's puzzle rush: no tile (it opens from Gambit's menu), but a page of its own with Gambit's logo, so it has a name
   // for what your partner is playing, the puzzle battle's requests and Party
   { id: "rush", within: "gambit", name: "Puzzle rush", href: "./rush.html", logo: LOGO("gambit", GAMBIT_LOGO), players: [1, 6] },
-  { id: "boast", sec: "table", name: "Liar's dice", href: "./boast.html", logo: LOGO("boast", BOAST_LOGO), players: [1, 6] },
-  { id: "bigtwo", sec: "table", name: "Big Two", href: "./bigtwo.html", logo: LOGO("bigtwo", BIGTWO_LOGO), players: [1, 4] },
-  { id: "landlord", sec: "table", name: "Dou Dizhu", href: "./landlord.html", logo: LOGO("landlord", LANDLORD_LOGO), players: [1, 3] },
-  { id: "gammon", sec: "table", name: "Backgammon", href: "./gammon.html", logo: LOGO("gammon", GAMMON_LOGO), players: [1, 2] },
-  { id: "trumps", sec: "table", name: "Trumps", href: "./trumps.html", logo: LOGO("trumps", TRUMPS_LOGO), players: [1, 4] },
-  { id: "contract", sec: "table", name: "Contract bridge", href: "./contract.html", logo: LOGO("contract", CONTRACT_LOGO), players: [1, 4] },
+  { id: "boast", sec: "cards", name: "Liar's dice", href: "./boast.html", logo: LOGO("boast", BOAST_LOGO), players: [1, 6] },
+  { id: "bigtwo", sec: "cards", name: "Big Two", href: "./bigtwo.html", logo: LOGO("bigtwo", BIGTWO_LOGO), players: [1, 4] },
+  { id: "landlord", sec: "cards", name: "Dou Dizhu", href: "./landlord.html", logo: LOGO("landlord", LANDLORD_LOGO), players: [1, 3] },
+  { id: "gammon", sec: "board", name: "Backgammon", href: "./gammon.html", logo: LOGO("gammon", GAMMON_LOGO), players: [1, 2] },
+  { id: "trumps", sec: "cards", name: "Trumps", href: "./trumps.html", logo: LOGO("trumps", TRUMPS_LOGO), players: [1, 4] },
+  { id: "contract", sec: "cards", name: "Contract bridge", href: "./contract.html", logo: LOGO("contract", CONTRACT_LOGO), players: [1, 4] },
   { id: "quest", sec: "party", name: "Company", href: "./quest.html", logo: LOGO("quest", QUEST_LOGO), players: [1, 10] },
-  { id: "bones", sec: "table", name: "Dominoes", href: "./bones.html", logo: LOGO("bones", BONES_LOGO), players: [1, 4] },
-  { id: "factor", sec: "table", name: "Hanse", href: "./factor.html", logo: LOGO("factor", FACTOR_LOGO), players: [1, 4] },
-  { id: "rack", sec: "table", name: "Rack", href: "./rack.html", logo: LOGO("rack", RACK_LOGO), players: [1, 4] },
-  { id: "pegs", sec: "table", name: "Cribbage", href: "./pegs.html", logo: LOGO("pegs", PEGS_LOGO), players: [1, 2] },
-  { id: "meld", sec: "table", name: "Gin rummy", href: "./meld.html", logo: LOGO("meld", MELD_LOGO), players: [1, 2] },
-  { id: "tarot", sec: "table", name: "Tarot", href: "./tarot.html", logo: LOGO("tarot", TAROT_LOGO), players: [1, 5] },
-  { id: "solitaire", sec: "table", name: "Solitaire", href: "./solitaire.html", logo: LOGO("solitaire", SOLITAIRE_CODEX), players: [1, 1] },
-  { id: "silo", sec: "table", name: "Four in a row", href: "./silo.html", logo: LOGO("silo", SILO_LOGO), players: [1, 2] },
-  { id: "flank", sec: "table", name: "Reversi", href: "./flank.html", logo: LOGO("flank", FLANK_LOGO), players: [1, 2] },
-  { id: "crown", sec: "table", name: "Draughts", href: "./crown.html", logo: LOGO("crown", CROWN_LOGO), players: [1, 2] },
-  { id: "go", sec: "table", name: "Go", href: "./go.html", logo: LOGO("go", GO_LOGO), players: [1, 1] },
+  { id: "bones", sec: "board", name: "Dominoes", href: "./bones.html", logo: LOGO("bones", BONES_LOGO), players: [1, 4] },
+  { id: "factor", sec: "board", name: "Hanse", href: "./factor.html", logo: LOGO("factor", FACTOR_LOGO), players: [1, 4] },
+  { id: "rack", sec: "board", name: "Rack", href: "./rack.html", logo: LOGO("rack", RACK_LOGO), players: [1, 4] },
+  { id: "pegs", sec: "cards", name: "Cribbage", href: "./pegs.html", logo: LOGO("pegs", PEGS_LOGO), players: [1, 2] },
+  { id: "meld", sec: "cards", name: "Gin rummy", href: "./meld.html", logo: LOGO("meld", MELD_LOGO), players: [1, 2] },
+  { id: "tarot", sec: "cards", name: "Tarot", href: "./tarot.html", logo: LOGO("tarot", TAROT_LOGO), players: [1, 5] },
+  { id: "solitaire", sec: "cards", name: "Solitaire", href: "./solitaire.html", logo: LOGO("solitaire", SOLITAIRE_CODEX), players: [1, 1] },
+  { id: "silo", sec: "board", name: "Four in a row", href: "./silo.html", logo: LOGO("silo", SILO_LOGO), players: [1, 2] },
+  { id: "flank", sec: "board", name: "Reversi", href: "./flank.html", logo: LOGO("flank", FLANK_LOGO), players: [1, 2] },
+  { id: "crown", sec: "board", name: "Draughts", href: "./crown.html", logo: LOGO("crown", CROWN_LOGO), players: [1, 2] },
+  { id: "go", sec: "board", name: "Go", href: "./go.html", logo: LOGO("go", GO_LOGO), players: [1, 1] },
   // Idle: as much thinking as a bubble shooter, and no more (README, Idle)
   { id: "heliograph", sec: "idle", name: "Heliograph", href: "./heliograph.html", logo: LOGO("heliograph", HELIOGRAPH_LOGO), players: [1, 1] },
   { id: "shunt", sec: "idle", name: "Shunt", href: "./shunt.html", logo: LOGO("shunt", SHUNT_LOGO), players: [1, 1] },
@@ -786,7 +786,7 @@ function startOver() {
 
 /** The games screen's sections, in order: every game is in one (APPS' sec). The Appendix at the back holds what is set aside for
  *  now: games flagged to leave, or to become an app of their own (README, The Appendix). */
-export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["classics", "Classics"], ["idle", "Idle"], ["table", "Board & card games"], ["party", "Party"], ["appendix", "Appendix"]];
+export const SECTIONS = [["knowledge", "Knowledge"], ["courses", "Courses"], ["puzzle", "Puzzles"], ["classics", "Classics"], ["idle", "Idle"], ["board", "Board games"], ["cards", "Cards & dice"], ["party", "Party"], ["appendix", "Appendix"]];
 /** A tile's name: a long one (Refinery, Manifest) set closer, a longer one (Undercover) smaller too, to fit its tile. */
 export const nameClass = name => `app-name${name.length >= 10 ? " long longer" : name.length >= 8 ? " long" : ""}`;
 const tile = (a, current) => `<li class="app-tile" data-id="${a.id}"><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
