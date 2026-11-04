@@ -12,6 +12,7 @@
 //   view.hit(clientX, clientY)              -> { kind: "entry", e, legal } | { kind: "hold" } | { kind: "plate" } | null
 //   view.leverAt(e) -> [clientX, clientY]   where a lever is on the page (the tests tap it)
 //   view.setMotion(on)                      gears turn (off: reduced motion, or the game paused)
+//   view.dispose()                          lets go of the board and the tray (the other view takes them over)
 //   view.kind = "2d"
 import { CELLS, N, ENTRIES, STUD, judge, track, legal } from "./shunt-engine.js";
 
@@ -19,7 +20,7 @@ export const D = 50;                                            // the distance 
 const SQ = 0.8660254;
 export const cellXY = i => [SQ * CELLS[i].q * D, (CELLS[i].r + CELLS[i].q / 2) * D];
 const dirXY = d => { const x = SQ * d[0], y = d[1] + d[0] / 2, l = Math.hypot(x, y); return [x / l, y / l]; };
-const RO = 26;                                                   // a gear's outer radius
+export const RO = 26;                                                   // a gear's outer radius
 const FRAME = 150, BAIZE = 133;                                  // the walnut frame's and the baize's radius (corner to centre)
 const VB = { x: -142, y: -156, w: 284, h: 312 };
 const f = v => Math.round(v * 10) / 10;
@@ -44,12 +45,12 @@ export const LEVERS = (() => {
 export const HIT = D * 0.62;
 
 // ---------- gears ----------
-const PITCH = [{ n: 12, depth: 0.2, fill: "--sh-a", letter: "A" }, { n: 18, depth: 0.15, fill: "--sh-b", letter: "B" }, { n: 24, depth: 0.12, fill: "--sh-c", letter: "C" }];
-const IDLER = { n: 12, depth: 0.18, fill: "--sh-i", letter: "I" };
+export const PITCH = [{ n: 12, depth: 0.2, fill: "--sh-a", letter: "A" }, { n: 18, depth: 0.15, fill: "--sh-b", letter: "B" }, { n: 24, depth: 0.12, fill: "--sh-c", letter: "C" }];
+export const IDLER = { n: 12, depth: 0.18, fill: "--sh-i", letter: "I" };
 /** The family of each gear code: plain A, B, C; the idler; the bridges (two pitches). */
-const FAMILY = [[0], [1], [2], [3], [0, 1], [0, 2], [1, 2]];
+export const FAMILY = [[0], [1], [2], [3], [0, 1], [0, 2], [1, 2]];
 const spec = k => (k === 3 ? IDLER : PITCH[k]);
-const teethOf = c => (c === 3 ? IDLER.n : FAMILY[c].length === 1 ? PITCH[c].n : Math.round((PITCH[FAMILY[c][0]].n + PITCH[FAMILY[c][1]].n) / 2));
+export const teethOf = c => (c === 3 ? IDLER.n : FAMILY[c].length === 1 ? PITCH[c].n : Math.round((PITCH[FAMILY[c][0]].n + PITCH[FAMILY[c][1]].n) / 2));
 /** The outline of a toothed wheel: trapezoid teeth with a rounded tip and root, the first tooth centred on angle 0 (so every hex direction meets a tooth or a gap). */
 function toothPath(n, ro, depth) {
   const step = 2 * Math.PI / n, root = ro * (1 - depth), prof = [[-0.5, root], [-0.3, root], [-0.19, ro * 0.985], [-0.11, ro], [0.11, ro], [0.19, ro * 0.985], [0.3, root]];
@@ -321,6 +322,8 @@ export function createView({ board, tray }) {
     },
     setMotion(on) { motion = !!on && !reduced(); if (motion) wake(); else { if (raf) cancelAnimationFrame(raf); raf = 0; if (model) view.draw(model); } },
   };
-  document.addEventListener("visibilitychange", () => wake());
+  const onVis = () => wake();
+  document.addEventListener("visibilitychange", onVis);
+  view.dispose = () => { motion = false; if (raf) cancelAnimationFrame(raf); raf = 0; document.removeEventListener("visibilitychange", onVis); board.replaceChildren(); tray.replaceChildren(); };
   return view;
 }

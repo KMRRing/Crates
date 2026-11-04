@@ -1,7 +1,7 @@
 // Shunt: shove gears onto a hexagonal plate from its rim and make trains of meshing gears (README, Idle; docs/shunt.md). The rules are
 // shunt-engine.js's, the search that gives the Hint and rates a plate is shunt-bots.js's, the plates are shunt-levels.js's and
-// the picture is shunt-view-2d.js's (a three-dimensional view can take its place: this file keeps the game and maps touches to moves,
-// and never draws). Three modes (the menu's Mode): Levels (twelve plates, each opening the next, the first eight coached),
+// the picture is shunt-view-2d.js's or, in 3D, shunt-view-3d.js's (the tinker's workshop; the same calls, so this file keeps the game and
+// maps touches to moves, and never draws). Three modes (the menu's Mode): Levels (twelve plates, each opening the next, the first eight coached),
 // Random (a fresh plate by difficulty) and Daily (today's plate, the same for everyone).
 // A touch on a lever previews its shove; the same lever again (or Shove) makes it; sliding a finger over the levers shows each in
 // turn. A game is the plate and its list of moves (-1 swaps, e shoves at entry e): that is all that is kept, as `shunt:run` (Levels),
@@ -9,7 +9,9 @@
 import { play, swap, shove, judge, goalCheck, effect, over, canSwap, legal, legalEntries, ENTRIES } from "./shunt-engine.js";
 import { search } from "./shunt-bots.js";
 import { LEVELS, COACHED, DIFFS, DIFF_NAMES, goalWords, randomPlate, dailyPlate, rating } from "./shunt-levels.js";
-import { createView } from "./shunt-view-2d.js";
+import { createView as createView2d } from "./shunt-view-2d.js";
+import { sound as sfx } from "./shunt-sound.js";
+import { defaultIs3D } from "./mode3d.js";
 import { bindSwitcher } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle, choice, onPause } from "./menu.js";
@@ -24,15 +26,19 @@ const $ = id => document.getElementById(id);
 // games screen shows. RUN, RRUN, DRUN: the game of each mode (plate and moves). DAILY: the score of each day's plate, by the day (YYYYMMDD).
 // SEL: the lever being previewed, so a partner sees it. COACH: coach lines on or off. DIFF: Random's difficulty. SEEN: terms already explained.
 // Everything is read through shunt-keep.js, which drops (that key only) what is not a value this build made.
+// VIEW: "3d" or "2d", kept only when the player picks one (with none, the suite's 2D-mode setting decides: mode3d.js). SOUND: the workshop's sounds on or off.
 const MODE = KEYS.mode, CAMP = KEYS.camp, BEST = KEYS.best, RRUN = KEYS.rrun, DRUN = KEYS.drun, DAILY = KEYS.daily, SEL = KEYS.sel, COACH = KEYS.coach, DIFF = KEYS.diff, SEEN = KEYS.seen;
+const VIEW = "shunt:view", SOUND = "shunt:sound";
 const kp = keeper(localStorage, IN_FRAME), { write } = kp;
+const read = (k, d, ok) => kp.read(k, d, ok);
 const fmt = v => String(Math.round(v * 10) / 10);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const starStr = n => "★".repeat(n) + "☆".repeat(3 - n);
 
 if (!IN_FRAME) migrate(kp);
 
-const view = createView({ board: $("board"), tray: $("tray") });
+sfx.on = read(SOUND, true) !== false;
+let view = createView2d({ board: $("board"), tray: $("tray") });
 
 let mode = readMode(kp);
 let camp = readCamp(kp);
@@ -382,6 +388,28 @@ function runHint() {
   setTimeout(tick, 20);
 }
 
+// ---------- the view: the 2D drawing or the 3D workshop (three.js, loaded only when wanted; where it cannot draw, the 2D one stays) ----------
+const wantsView = () => (IN_FRAME ? false : read(VIEW, null) === "3d" ? true : read(VIEW, null) === "2d" ? false : defaultIs3D());
+/** Show the workshop (true) or the flat plate. `remember` (a pick of the player's) keeps the choice; the default is never written down. */
+async function setView(want3d, remember = false) {
+  if (remember) write(VIEW, want3d ? "3d" : "2d");
+  if (want3d === (view.kind === "3d")) return;
+  while (animating) await new Promise(res => setTimeout(res, 80));
+  let next = null;
+  if (want3d) {
+    const finish = busy("Setting up the workshop");
+    try { next = (await import("./shunt-view-3d.js")).createView({ board: $("board"), tray: $("tray"), onGesture: () => { touch = null; }, onLost: lostGl }); }
+    catch (err) { console.warn("Shunt: no 3D here.", err); toast("This browser can't draw 3D."); } finally { finish(); }
+    if (!next) return;
+  }
+  view.dispose?.();
+  view = next || createView2d({ board: $("board"), tray: $("tray") });
+  if (spec) render();
+}
+/** The graphics card dropped the picture: the flat plate takes over, without the player's choice being changed. */
+function lostGl() { toast("The 3D view stopped: showing the flat plate."); setView(false); }
+addEventListener("settings:flat", () => { if (read(VIEW, null) === null && !IN_FRAME) setView(defaultIs3D()); });
+
 // ---------- touches: the levers (a tap previews, the same lever again shoves; a slide shows each in turn) and the cradle ----------
 let toastTimer = 0;
 function toast(msg) {
@@ -452,6 +480,7 @@ function openMenu() {
   body.replaceChildren();
   const play = part(body, "play");
   play.append(action(run.kind === "level" ? `Replay level ${levelNo()}` : run.kind === "random" ? "New plate" : "Replay today's plate", () => (run.kind === "random" ? newRandomAsk() : replay()), "primary"));
+  if (!IN_FRAME) play.append(action(view.kind === "3d" ? "Play in 2D" : "Play in 3D", () => setView(view.kind !== "3d", true), "link"));
   const content = part(body, "content");
   content.append(choice("Mode", [["levels", "Levels"], ["random", "Random"], ["daily", "Daily"]], mode, v => { $("menuDlg").close(); setMode(v); }));
   if (mode === "levels") content.append(levelList());
@@ -460,7 +489,9 @@ function openMenu() {
     const got = readDaily(kp)[today()];
     content.append(line(got != null ? `Today's plate: you scored ${fmt(got)}. It is the same for everyone, and a better score replaces it.` : "Today's plate is the same for everyone. Your score counts the moment the plate is judged."));
   }
-  part(body, "settings").append(toggle("Coach lines (levels 1 to 8)", coachOn, on => { coachOn = on; write(COACH, on); coachFor(); render(); }));
+  const settings = part(body, "settings");
+  settings.append(toggle("Coach lines (levels 1 to 8)", coachOn, on => { coachOn = on; write(COACH, on); coachFor(); render(); }));
+  if (view.kind === "3d") settings.append(toggle("Sound", sfx.on, on => { sfx.on = on; write(SOUND, on); if (on) { sfx.unlock(); sfx.play("tick"); } }));
   const total = camp.stars.reduce((a, b) => a + b, 0), beaten = camp.stars.filter(Boolean).length;
   const about = part(body, "about");
   about.append(line(`${plural(beaten, "level")} of ${LEVELS.length} beaten, ${plural(total, "star")} of ${LEVELS.length * 3}.`));
@@ -485,13 +516,14 @@ wireTouches();
 onPause(() => view.setMotion(false), () => view.setMotion(true));
 
 window.__shunt = {
-  get S() { return S; }, get spec() { return spec; }, get run() { return run; }, get pv() { return pv; }, get done() { return done; }, get pulse() { return pulse; }, get camp() { return camp; },
-  view, preview, commit, doSwap, undo, playLevel, newRandom, newDaily, setMode, runHint, get hintInfo() { return hintInfo; }, get offer() { return offer; }, get mode() { return mode; },
+  get view() { return view; }, setView, get S() { return S; }, get spec() { return spec; }, get run() { return run; }, get pv() { return pv; }, get done() { return done; }, get pulse() { return pulse; }, get camp() { return camp; },
+  preview, commit, doSwap, undo, playLevel, newRandom, newDaily, setMode, runHint, get hintInfo() { return hintInfo; }, get offer() { return offer; }, get mode() { return mode; },
 };
 
 (async () => {
   const wantsDaily = arrivedForToday() && !IN_FRAME;     // the games screen's tile opens today's plate while it is still to play
   if (wantsDaily) { mode = "daily"; write(MODE, mode); }
+  if (wantsView()) await setView(true);
   try { await resume(); } catch (e) {
     // a kept value that passed its checks and still broke the page: let go of the runs and start at the first level
     console.warn("Shunt: starting afresh", e);
