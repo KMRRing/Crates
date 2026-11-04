@@ -218,6 +218,7 @@ screen (`docs/full-screen.md`; `tests/full-screen.mjs` fails for a page with a h
   (a puzzle or quiz page `full titled`, a card table, board or picture `full`; a brief that says only `full` means the
   ambient one), and goes in the `TITLED` or `FULL` list of `tests/full-screen.mjs`. A titled page's status row
   (`full-pull`) is an ordinary line under the band, not beside the button.
+  A titled page shows its game's logo above the title, a tap goes back to the games, from `menu.js` (Korbi, 4 November 2026).
 Everything below holds for both:
 - **`#app` has the class `full`** (with `fit-screen` / `beside` as before). The header stays in the markup (`.top`:
   `#appsBtn`, `#menuBtn`, its other buttons, even a hidden `<select class="pool">`) but is a quiet empty band: the title,

@@ -294,3 +294,34 @@ function upgrade() {
   }
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", upgrade); else upgrade();
+
+// ---------- the title's logo (Korbi, 4 November 2026: "add the logo to the top left above where the title of the game is ...
+// clicking the logo takes you to the menu") ----------
+// A `full titled` page shows its game's own logo (the one its tile has on the games screen, in the theme's version) above
+// its name; a tap is Back to menu (clicks the hidden #appsBtn), so where the menu has no such entry (a party's game, a frame
+// that only watches) there is no logo either. Pages without a title get none. style.css, "Full screen", the title's logo.
+function titleLogo() {
+  const app = document.querySelector("#app.full"), top = app?.querySelector(":scope > .top"), games = document.getElementById("appsBtn");
+  if (!app || !top || !games || IN_PARTY || IN_FRAME) return;
+  let btn = null, apps = null;
+  const drop = () => { btn?.remove(); btn = null; top.classList.remove("has-logo"); };
+  const sync = () => {
+    if (!app.classList.contains("titled")) return drop();
+    const svg = app.querySelector(".pa-mark")?.innerHTML.trim()   // Party's own mark follows the game on its table
+      || apps?.find(a => a.href.split("/").pop() === (location.pathname.split("/").pop() || "index.html"))?.logo;
+    if (!svg) return drop();
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button"; btn.className = "home-logo"; btn.setAttribute("aria-label", "Back to the games");
+      btn.addEventListener("click", () => games.click());
+      top.prepend(btn);
+    }
+    if (btn.innerHTML !== svg) btn.innerHTML = svg;
+    top.classList.add("has-logo");
+  };
+  import("./apps.js").then(m => { apps = m.APPS; sync(); }).catch(e => console.error(e));
+  new MutationObserver(sync).observe(app, { attributes: true, attributeFilter: ["class"] });
+  const pa = app.querySelector(".pa-mark");
+  if (pa) new MutationObserver(sync).observe(pa, { childList: true });
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", titleLogo); else titleLogo();

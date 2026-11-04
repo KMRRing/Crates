@@ -53,5 +53,12 @@ check(!stale.length, `the lists name only pages that exist with a header${stale.
 // the stylesheet that shows the name: titled turns the hidden title back on, in the band, and keeps the logo and the pill off it
 const css = fs.readFileSync(root + "style.css", "utf8");
 check(/#app\.full\.titled > \.top > \.mark \{[^}]*display: block !important/.test(css) && /#app\.full\.titled > \.top :is\(\.mark-icon, \.partner-pill/.test(css), "style.css shows a titled page's name in the band, without the logo or the pill");
+// the title's logo (menu.js, titleLogo): menu.js finds a titled page's tile in apps.js by its file name, so every titled page must have one,
+// and it shows only on titled pages (menu.js asks for `#app.full.titled`; a FULL page never has the class, checked above)
+const tiles = new Set([...fs.readFileSync(root + "apps.js", "utf8").matchAll(/href: "\.\/([^"]+\.html)"/g)].map(m => m[1]));
+const noLogo = [...TITLED].filter(p => !tiles.has(p));
+check(!noLogo.length, `every titled page has a tile in apps.js, so a logo above its title${noLogo.length ? `: ${noLogo.join(", ")}` : ""}`);
+const menu = fs.readFileSync(root + "menu.js", "utf8");
+check(/classList\.contains\("titled"\)\) return drop\(\)/.test(menu) && /"Back to the games"/.test(menu) && /games\.click\(\)/.test(menu), "menu.js shows the logo only on a titled page, named Back to the games, and clicks #appsBtn");
 check(withHeader.length >= 90, `the pages with a header (${withHeader.length})`);
 process.exit(bad ? 1 : 0);
