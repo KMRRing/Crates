@@ -22,3 +22,4 @@ Now the Cloth mode of Nonogram (4 November 2026; `docs/nonogram.md`, Cloth): `lo
 
 ## Not yet
 Knitting (a stitch is a loop, not a crossing: another game), a free loom to design on, cloths on more than eight shafts, the other chapters laid as threads (a float on a weave could set every column on the same shaft; gold could be a third gesture), harder colour cloths (smaller clues, since colour and shafts only give information), chapters that combine the layers, a finished cloth shown woven in 3D like Bridges', and a first cloth of the day.
+- 4 November 2026: "the menu is the minimum it needs to be": Cloth's menu keeps Sound; the cloth always shows what's wrong (`opts.marks` is forced on).

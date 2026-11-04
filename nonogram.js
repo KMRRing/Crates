@@ -8,13 +8,14 @@ import { cellAt, withCell, emptyGrid, EMPTY, CROSS, agrees, drawn, wrongCells, k
 import { PICTURES, TOPICS, topicsOf, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, siblingsOf, poolOf, madeAlready, remember } from "./nonogram-pictures.js";
 import { hexGrid, hexOwner, lineName } from "./nonogram-hex.js";
 import { PACES, createMind, botMove } from "./nonogram-bot.js";
+import { ramp } from "./ramp.js";
 import { createBoard, HOLD_SECOND } from "./nonogram-board.js";
 import { createHexBoard } from "./nonogram-hexboard.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, toggle, action, line, mirror, onPause, isPaused } from "./menu.js";
-import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
+import { part, choice, action, line, todayPart, onPause, isPaused } from "./menu.js";
+import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo, markOf } from "./suite.js";
+import { markDone } from "./today-core.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { subjectsOn, markedIn } from "./topics-on.js";
@@ -26,8 +27,6 @@ import { cellEdit, tallyEdit, onceEdit } from "./board-share.js";
 import nonogramCoop, { lookValue, looksOf } from "./nonogram-coop.js";
 import { check as checkTyped, normalize } from "./typing.js";
 import * as pile from "./pile.js";
-
-dropdown(document.getElementById("size"));
 
 const $ = id => document.getElementById(id);
 const RUN = "nonogram:run", SETTINGS = "nonogram:settings", TIMES = "nonogram:times", SEEN = "nonogram:seen", STATS = "nonogram:stats";
@@ -42,29 +41,30 @@ const TOPIC_ONE = { countries: "country", flags: "flag", lakes: "lake", regions:
 const S3 = Math.sqrt(3);
 
 // ---------- settings (the menu's) ----------
-const DEFAULTS = { topic: "countries", region: "world", band: "any", grid: "square", nameIt: true, mistakes: "shown", computer: "off", pace: "medium", together: "split", mode: "picture" };
-const settings = { ...DEFAULTS, ...read(SETTINGS, {}) };
-if (!TOPICS[settings.topic] && settings.topic !== "all") settings.topic = DEFAULTS.topic;
-if (!REGIONS.some(([id]) => id === settings.region)) settings.region = DEFAULTS.region;
-if (!BANDS[settings.band] && settings.band !== "any") settings.band = "any";
-if (settings.grid !== "hex") settings.grid = "square";
-if (!PACES[settings.pace]) settings.pace = "medium";
-if (settings.mode !== "cloth") settings.mode = "picture";           // Cloth is Loom's weaving puzzle (below), a mode of this page
-if (settings.computer !== "partner") settings.computer = "off";          // "rival" (racing you) was dropped
-const saveSettings = () => { if (!IN_FRAME) write(SETTINGS, settings); };
+// One choice (Korbi, 4 November 2026: "the menu is the minimum it needs to be"): the mode, Pictures, Hexes or Cloth. Everything
+// else is fixed: every kind of picture (Settings' topics decide the mix), worldwide, any difficulty, mistakes shown, Name it on,
+// no computer partner; the size is the hidden ramp (`sizeNow`). The old Picture/Grid/Pictures/Region/Size/Level/Name it/
+// Mistakes/Computer/Its pace choices are ignored where they were kept.
+const FIXED = { topic: "all", region: "world", band: "any", nameIt: true, mistakes: "shown", computer: "off", pace: "medium" };
+const kept = read(SETTINGS, {});
+const settings = { together: kept.together === "race" ? "race" : "split", mode: "picture", grid: "square", ...FIXED };
+const applyMode = m => { settings.mode = m; settings.grid = m === "hex" ? "hex" : "square"; };
+applyMode(kept.mode === "cloth" ? "cloth" : kept.mode === "hex" || kept.grid === "hex" ? "hex" : "picture");
+const saveSettings = () => { if (!IN_FRAME) write(SETTINGS, { together: settings.together, mode: settings.mode }); };
 // Loom's address (loom.html) comes here as ?mode=cloth: Cloth becomes the mode kept, and the address is cleared of it.
 const modeLink = new URLSearchParams(location.search);
 if (modeLink.get("mode") === "cloth" && !IN_FRAME) {
-  settings.mode = "cloth"; saveSettings();
+  applyMode("cloth"); saveSettings();
   modeLink.delete("mode");
   history.replaceState(null, "", `${location.pathname}${modeLink.size ? `?${modeLink}` : ""}${location.hash}`);
 }
 let cloth = null;                      // loom-mode.js's controller, once the page is showing Cloth (loaded only then)
-const MODES = [["picture", "Picture"], ["cloth", "Cloth"]];
-const GRIDS = [["square", "Squares"], ["hex", "Hexes"]];
-// a flag is a rectangle and stays on squares: on hexes the menu's flags are countries, and back on squares flags again
-const topicNow = () => (settings.grid === "hex" && settings.topic === "flags" ? "countries" : settings.topic);
-const topicChoices = () => [...Object.entries(TOPICS).filter(([k]) => !(settings.grid === "hex" && k === "flags")), ["all", "All"]];
+const MODES = [["picture", "Pictures"], ["hex", "Hexes"], ["cloth", "Cloth"]];
+// The size is a ramp: Small, then Medium and Large as pictures are drawn without a fuss (`finish`). The first step is the size of the
+// picture last in play, so a player who chose one carries on with it. It is one predictable line, so `nonogram:times` buckets fill.
+const SIZE_STEPS = ["small", "medium", "large"];
+const START_SIZE = read(RUN, null)?.size;
+const sizeNow = () => ramp("nonogram", SIZE_STEPS, { start: START_SIZE });
 
 // A party of two opened this page (&coop=1, docs/coop.md): the grid is the room's, one grid for two phones, every clue seen by both
 // (not the Split match below, where the clues are dealt out), and what this file does to it goes through `coop.edit` as edits
@@ -176,7 +176,6 @@ async function begin(s, run = null, at = {}) {
   if (S.rules.computer === "rival") S.rules = { ...S.rules, computer: "off" };
   tool = P.colours > 1 ? Math.min(tool > 0 ? tool : 1, P.colours) : tool === CROSS ? CROSS : 1;
   message = null; hintCells = []; hintLine = null; stroke = null; clockFrom = null;
-  $("size").value = S.size;
   useBoard(!!P.hex);
   board.set(P, S.grid, boardExtras());
   if (S.done) board.reveal(true);
@@ -191,11 +190,11 @@ async function begin(s, run = null, at = {}) {
 }
 const DAILY_RULES = { mistakes: "shown", nameIt: true, computer: "off", pace: "medium" };
 /** A new picture: today's, or one dealt from the menu's choices (learning mode first offering what's due again). */
-async function start(mode = "random", size = $("size").value) {
+async function start(mode = "random", size = sizeNow()) {
   if (COOP) {       // another picture for both of you, dealt by the menu's choices on this phone
     if (!coop) return;
     const share = await coopFresh(size);
-    if (share) await coop.renew(share); else toast("Nothing to draw there at this size: try another region or size");
+    if (share) await coop.renew(share); else toast("Nothing to draw here");
     return;
   }
   if (mode === "daily") {
@@ -208,14 +207,12 @@ async function start(mode = "random", size = $("size").value) {
     return;
   }
   const got = await nextPick(size);
-  if (!got) { toast("Nothing to draw there at this size: try another region or size"); return; }
+  if (!got) { toast("Nothing to draw here"); return; }
   noteSeen(got.id);
-  const computer = settings.computer, play = computer === "partner" ? "split" : "solo";
-  if (await begin({ id: got.id, size, hex: settings.grid === "hex", mode: "random", play, rules: { mistakes: settings.mistakes, nameIt: settings.nameIt, computer, pace: settings.pace } }) && got.nearest)
-    note(`No ${BANDS[settings.band].toLowerCase()} picture here at this size: this is the nearest.`);
+  await begin({ id: got.id, size, hex: settings.grid === "hex", mode: "random", play: "solo", rules: { mistakes: settings.mistakes, nameIt: settings.nameIt, computer: "off", pace: settings.pace } });
 }
 /** A picture dealt by the menu's choices, as the board a party of two draws on (coop-page.js); `always`: a country at Medium if the choices deal nothing. Null if none. */
-async function coopFresh(size = $("size").value || "medium", always = false) {
+async function coopFresh(size = sizeNow(), always = false) {
   let hex = settings.grid === "hex", got = await nextPick(size), pz = got && await made(got.id, size, hex);
   if (!pz && always) { size = "medium"; hex = false; got = dealPicture({ topic: "countries", region: "world", size, grid: "square" }); pz = await made(got.id, size, hex); }
   if (!pz) return null;
@@ -228,10 +225,10 @@ async function coopFresh(size = $("size").value || "medium", always = false) {
 let upcoming = null;                                              // { key, got }
 // Settings' subjects (topics-on.js) are read when a picture is dealt, never once at start-up; they leave kinds out of "All"
 const mixNow = () => topicsOf(subjectsOn());
-const dealKey = size => JSON.stringify([topicNow(), settings.region, settings.band, settings.grid, size, pile.mode(), mixNow()]);
+const dealKey = size => JSON.stringify([settings.topic, settings.region, settings.band, settings.grid, size, pile.mode(), mixNow()]);
 function dealNow(size) {
   const seen = read(SEEN, []), prefer = pile.learning() ? learningPicks() : [];
-  return dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, mix: mixNow(), seen, prefer, marked: markedIn() });
+  return dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, grid: settings.grid, mix: mixNow(), seen, prefer, marked: markedIn() });
 }
 async function nextPick(size) {
   const key = dealKey(size);
@@ -243,21 +240,21 @@ async function nextPick(size) {
 let maker = null, asked = 0;
 function prepare() {
   if (IN_FRAME || duel.on) return;
-  const size = $("size").value, key = dealKey(size);
+  const size = sizeNow(), key = dealKey(size);
   if (upcoming?.key === key) return;
-  const args = { topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, mix: mixNow(), seen: [S?.id, ...read(SEEN, [])].filter(Boolean), prefer: pile.learning() ? learningPicks() : [] };
+  const args = { topic: settings.topic, region: settings.region, size, band: settings.band, grid: settings.grid, mix: mixNow(), seen: [S?.id, ...read(SEEN, [])].filter(Boolean), prefer: pile.learning() ? learningPicks() : [] };
   try {
     maker ??= new Worker(new URL("./nonogram-worker.js", import.meta.url), { type: "module" });
     const n = ++asked;
     maker.onmessage = ({ data }) => {
-      if (data.n !== asked || dealKey($("size").value) !== key) return;
+      if (data.n !== asked || dealKey(sizeNow()) !== key) return;
       if (data.puzzle) remember(data.puzzle);
       upcoming = { key, got: data.got };
     };
     maker.postMessage({ n, args });
   } catch (e) {                                                   // no module workers here: on the page, when it's idle
     console.warn("Nonogram: no worker", e);
-    setTimeout(() => { if (!duel.on && dealKey($("size").value) === key) upcoming = { key, got: dealNow(size) }; }, 2500);
+    setTimeout(() => { if (!duel.on && dealKey(sizeNow()) === key) upcoming = { key, got: dealNow(size) }; }, 2500);
   }
 }
 /** Learning mode's picks (by its mode): pictures you couldn't name; then those about what other games found you weak on. */
@@ -436,6 +433,10 @@ function finish() {
   botSleep();
   const counts = S.rules.computer !== "partner";                  // with the computer drawing half, the time isn't yours alone
   if (counts) S.fresh = recordBest(S.score);
+  if (counts && S.mode === "random" && S.play === "solo" && S.size === sizeNow()) {      // the ramp: up after a clean picture, down after a struggle
+    if (S.mistakes + S.hints >= 4) ramp.lost(); else ramp.won(!S.mistakes && !S.hints);
+    prepare();
+  }
   if (S.mode === "daily") noteDayTime("nonogram", S.score, S.day); // today's: the first finish counts
   bump("solved");
   save();
@@ -788,8 +789,8 @@ function partnerLooks() {
 const inParty = /[?&]party=[A-Za-z]{4}\b/.test(location.search);
 let chosen = false;                                               // Split or Race picked in the menu this time
 function matchDeal() {
-  const size = SIZES[$("size").value] ? $("size").value : "medium", grid = settings.grid;
-  const got = dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid, seen: read(SEEN, []), marked: markedIn() })
+  const size = sizeNow(), grid = settings.grid;
+  const got = dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, grid, seen: read(SEEN, []), marked: markedIn() })
     || dealPicture({ topic: "countries", region: "world", size: "medium", grid });
   // a party's first match is a race (a table of friends each with a phone); a pair's is split, and the menu's choice
   // is the next match's
@@ -814,7 +815,7 @@ const duel = createDuel({
       if (play === "split") split.start(n); else race.tell();
     });
   },
-  onLobby: match => { split.stop(); S = null; P = null; $("size").value = SIZES[match.size] ? match.size : "medium"; render(); },
+  onLobby: match => { split.stop(); S = null; P = null; render(); },
   onLeave: () => { split.stop(); solo(); },
   extra: () => (S && pic && (S.name || !rules().nameIt) ? Object.assign(document.createElement("p"), { textContent: `${pic.flag && pic.topic !== "lakes" ? `${pic.flag} ` : ""}${pic.name}${S.name ? (S.name.right ? ": you named it" : ": not named") : ""}.` }) : null),
   extraTitle: "The picture",
@@ -946,11 +947,11 @@ function showRules() {
     <h4>The rules</h4>
     <p>Every row and every column has a clue: the lengths of its runs of filled cells, in order. 3 1 2 is three filled cells, a gap, one, a gap, two; a gap is one blank cell or more, and blanks may start and end the line. In a flag each run has its colour too, shown on the clue: runs of different colours may touch, runs of the same colour need a gap.</p>
     <p><b>An example.</b> In a row of 10 with the clue 8, the run pushed as far left as it goes fills cells 1 to 8, and as far right 3 to 10: cells 3 to 8 are filled whichever way it lies.</p>
-    <p>The menu chooses the pictures (countries, flags, lakes or all), the region and the size (about 100, 225 or 400 cells). On Hexes (Grid, in the menu) the grid is a hexagon of hexagonal cells, each on three lines (its row and two slants), every line with a clue read toward the board; there the picture is a country's or a lake's outline, one cell wide.</p>
+    <p>The pictures are countries, flags, lakes and regions (Settings' topics choose the mix). The size grows with you: Small (about 100 cells), then Medium (225) and Large (400) as you draw pictures cleanly, and back a step after a struggle. On Hexes (the menu's Mode) the grid is a hexagon of hexagonal cells, each on three lines (its row and two slants), every line with a clue read toward the board; there the picture is a country's or a lake's outline, one cell wide.</p>
     <h4>Playing</h4>
     <p>Fill (for a flag, its colours) and Cross are the tools. A tap fills or crosses one cell, and a drag runs along its row or column; the first cell decides what a stroke does: on an empty cell it fills, on one of its colour it clears, and a fill never covers a cell crossed out. Undo and Redo take whole strokes. A Large picture zooms (pinch, the zoom button or a mouse wheel) and pans (two fingers). On a computer, right-click crosses, X picks the cross, 1 to 7 a colour, and Ctrl+Z undoes.</p>
-    <p>A finished line's clue greys, and the lines under your finger light with their clues. Mistakes (in the menu) are Shown at first: a wrong fill or cross is refused, the cell shows what it really is, and it costs ${MISTAKE} seconds. Hidden, as on paper, nothing says you're wrong, and the picture is done when every line agrees with its clue. Hint (+${HINT}&nbsp;s) fills in the next cell the clues force and names the line that says so; with mistakes hidden, it rings a wrong cell first.</p>
-    <p>Name it (on at first): once before the picture is finished you may name it, typed. Right takes off up to ${CREDIT.small}, ${CREDIT.medium} or ${CREDIT.large} seconds (Small, Medium, Large), in proportion to how much was still to draw; wrong adds ${WRONG_NAME}. Not named by the end, it asks then, for nothing off.</p>
+    <p>A finished line's clue greys, and the lines under your finger light with their clues. A wrong fill or cross is refused, the cell shows what it really is, and it costs ${MISTAKE} seconds. Hint (+${HINT}&nbsp;s) fills in the next cell the clues force and names the line that says so.</p>
+    <p>Name it: once before the picture is finished you may name it, typed. Right takes off up to ${CREDIT.small}, ${CREDIT.medium} or ${CREDIT.large} seconds (Small, Medium, Large), in proportion to how much was still to draw; wrong adds ${WRONG_NAME}. Not named by the end, it asks then, for nothing off.</p>
     <h4>Levels</h4>
     <p>Difficulty is how far the reasoning has to reach, never how many clues there are. <b>Easy</b>: the simple rules alone (push each run as far left and as far right as it goes: a cell inside the same run both ways is filled, a cell no run can reach is blank), in six rounds or fewer. <b>Medium</b>: seven to ten rounds, or the complete line logic somewhere (every way a line's runs can lie that fits what's known: a cell they all agree on is settled). <b>Hard</b>: eleven rounds or more, or a contradiction (suppose a cell filled and follow the lines: if they clash, it's blank). Where a region has nothing of a level at a size, the nearest is dealt and the line says so.</p>
     <h4>Score</h4>
@@ -962,15 +963,21 @@ function showRules() {
 }
 
 // ---------- the menu ----------
-let pick = null;                                                   // the picture the menu will start: "random" or "daily"
-/** Another mode: the page is made again for it (the picture in play and the cloth are each saved as they stand). */
+/** Another mode: Cloth is another page's worth (made again; the picture in play and the cloth are each saved as they stand), Pictures
+ *  and Hexes only change the next picture, dealt at once when the one on the board hasn't been touched. */
 function setMode(v) {
-  if (v === (cloth ? "cloth" : "picture")) return;
-  settings.mode = v; saveSettings();
-  history.replaceState(null, "", location.pathname);              // a link's picture would bring the pictures back
-  location.reload();
+  if (v === (cloth ? "cloth" : settings.mode)) return;
+  const toggles = v === "cloth" || cloth;
+  applyMode(v); saveSettings();
+  if (toggles) {
+    history.replaceState(null, "", location.pathname);              // a link's picture would bring the pictures back
+    location.reload();
+    return;
+  }
+  if (S && !S.done && !started() && S.mode !== "daily") start("random");
+  openMenu();
 }
-const modeChoice = () => choice("Mode", MODES, cloth ? "cloth" : "picture", setMode);
+const modeChoice = () => choice("Mode", MODES, cloth ? "cloth" : settings.mode, setMode);
 function openMenu() {
   if (!cloth && $("app").classList.contains("cloth")) return;      // the cloth is still loading
   const body = $("menuBody");
@@ -986,32 +993,17 @@ function openMenu() {
     part(body, "play").append(action("The rules", showRules, "link"));
     duel.menu(part(body, "together"));
     part(body, "together").append(choice("Next match", [["split", "Split"], ["race", "Race"]], inParty && !chosen ? "race" : settings.together, v => { settings.together = v; chosen = true; saveSettings(); }));
-    content().append(choice("Grid", GRIDS, settings.grid, v => { settings.grid = v; saveSettings(); openMenu(); }),
-      choice("Pictures", topicChoices(), topicNow(), v => { settings.topic = v; saveSettings(); }), mirror("Size", $("size")));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
-  pick = COOP ? "random" : pick ?? (S?.mode === "daily" ? "daily" : "random");
-  const play = part(body, "play");
-  play.append(action(COOP ? "Another picture" : pick === "daily" ? "Today's picture" : "New picture", () => confirmStart(pick), "primary"));
+  const play = part(body, "play"), today0 = S?.mode === "daily" && S.day === today() && !S.done, todayDone = markDone(markOf("nonogram"));
+  play.append(action(COOP ? "Another picture" : "New picture", () => confirmStart("random"), COOP || today0 || todayDone ? "primary" : ""));
   if (S && !S.done) play.append(action("Start this one again", restart, "link"));
   play.append(action("The rules", showRules, "link"));
+  if (!COOP) todayPart(body, { app: "nonogram", play: () => start("daily"), playing: today0, busy: started() && !today0 });
   const c = content();
   if (!COOP) c.append(modeChoice());
-  if (!COOP) c.append(choice("Picture", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") {
-    c.append(choice("Grid", GRIDS, settings.grid, v => { settings.grid = v; saveSettings(); openMenu(); }),
-      choice("Pictures", topicChoices(), topicNow(), v => { settings.topic = v; saveSettings(); openMenu(); }),
-      choice("Region", REGIONS, settings.region, v => { settings.region = v; saveSettings(); }),
-      mirror("Size", $("size")),
-      choice("Level", [["any", "Any"], ...Object.entries(BANDS)], settings.band, v => { settings.band = v; saveSettings(); }));
-    if (topicNow() === "all") c.append(...topicsPart(c, "Only for All pictures: a kind picked above is dealt as it is"));
-  } else c.append(line("Today's is a country's outline, medium: the same for everyone, named for the score."));
-  const st = part(body, "settings");
-  if (!COOP) st.append(toggle("Name it", settings.nameIt, v => { settings.nameIt = v; saveSettings(); }));
-  st.append(choice("Mistakes", [["shown", "Shown"], ["hidden", "Hidden"]], settings.mistakes, v => { settings.mistakes = v; saveSettings(); }));
-  if (!COOP) st.append(choice("Computer", [["off", "Off"], ["partner", "Partner"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
-  if (!COOP && settings.computer !== "off") st.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }));
+  c.append(...topicsPart(c));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one grid for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const times = read(TIMES, {}), stats = read(STATS, {});
   const bests = S && pic && !COOP ? times[bestKey()] : null;
@@ -1047,11 +1039,6 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => { if (!duel.on) start("random"); else if (S?.play === "split") duel.again(); else duel.open(); });
-$("size").addEventListener("change", async () => {
-  if (duel.on) { if (!(await duel.newMatch())) $("size").value = duel.match?.size || "medium"; return; }
-  if (S && $("size").value === S.size && S.mode !== "daily") return;
-  if (!(await confirmStart("random"))) $("size").value = S?.size || "medium";
-});
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
@@ -1120,7 +1107,7 @@ async function solo() {
     if (!started() || await sure("Today's picture is waiting. Leave the one you've started?", { yes: "Today's picture" })) { start("daily"); return; }
   }
   if (S) begin({ id: S.id, size: S.size, hex: S.hex, mode: S.mode, day: S.day, play: S.play }, S);
-  else start("random", $("size").value || "medium");
+  else start("random");
 }
 /** The run of the shared board, as this page keeps one: the solve as the finished picture's clock and score. */
 function coopRun(shared) {
@@ -1168,7 +1155,7 @@ async function joinPartner() {
   const { startCoop } = await import("./coop-page.js");
   coop = await startCoop("nonogram", {
     toast, show: showBoard,
-    fresh: () => coopFresh($("size").value || "medium", true),
+    fresh: () => coopFresh(sizeNow(), true),
     bar: el => { const r = $("rival"); r.hidden = false; r.replaceChildren(el); },
   });
   coopReady();

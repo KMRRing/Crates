@@ -11,7 +11,7 @@ export const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JS
 export const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
 
 export const OPTS = "loom:opts", BEST = "loom:best";
-export const opts = { sound: true, marks: true, ...read(OPTS, {}) };
+export const opts = { sound: true, ...read(OPTS, {}), marks: true };      // what's wrong is always shown (4 November 2026: the menu is the minimum it needs to be)
 export const saveOpts = () => write(OPTS, opts);
 
 export const CAMP = "loom:camp";

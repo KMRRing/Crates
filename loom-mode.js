@@ -17,8 +17,7 @@ export function enterCloth() {
     /** The cloth's parts of the menu (the page adds its Mode choice). */
     menu(body) {
       play.menu(body);
-      part(body, "settings").append(toggle("Show what's wrong in the cloth", opts.marks, on => { opts.marks = on; saveOpts(); play.marks(on); }),
-        toggle("Sound", opts.sound, on => { opts.sound = on; saveOpts(); }));
+      part(body, "settings").append(toggle("Sound", opts.sound, on => { opts.sound = on; saveOpts(); }));
       const stars = read(BEST, 0);
       if (stars) part(body, "about").append(line(`${stars} star${stars === 1 ? "" : "s"} so far.`));
     },
