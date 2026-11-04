@@ -567,7 +567,7 @@ export const APPS = [
   // tile, reached from Crates' header (Countries | Classic), under Crates' header and logo; its name is for what your partner
   // is playing, the requests and Party
   { id: "lots", within: "crates", name: "Crates Classic", href: "./lots.html", logo: LOGO("crates", CRATES_LOGO), players: [1, 6] },
-  { id: "codeword", sec: "classics", name: "Codeword", href: "./codeword.html", logo: LOGO("codeword", CODEWORD_LOGO), players: [1, 6], team: "time" },
+  { id: "codeword", sec: "knowledge", name: "Codeword", href: "./codeword.html", logo: LOGO("codeword", CODEWORD_LOGO), players: [1, 6], team: "time" },
   { id: "calcudoku", sec: "classics", name: "Calcudoku", href: "./calcudoku.html", logo: LOGO("calcudoku", CALCUDOKU_LOGO), players: [1, 6], team: "time" },
   { id: "kakuro", sec: "classics", name: "Kakuro", href: "./kakuro.html", logo: LOGO("kakuro", KAKURO_LOGO), players: [1, 6], team: "time" },
   // Not built yet: each tile opens soon.html, which says what the game will be and what's left to do (soon-data.js)
@@ -628,7 +628,7 @@ export const APPS = [
   { id: "drift", sec: "idle", name: "Drift", href: "./drift.html", logo: LOGO("drift", DRIFT_LOGO), players: [1, 1] },
   { id: "slipway", sec: "idle", name: "Slipway", href: "./slipway.html", logo: LOGO("slipway", SLIPWAY_LOGO), players: [1, 1] },
   { id: "loom", sec: "idle", name: "Loom", href: "./loom.html", logo: LOGO("loom", LOOM_LOGO), players: [1, 1] },
-  { id: "reckoning", sec: "idle", name: "Courier", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO), players: [1, 1] },
+  { id: "reckoning", sec: "knowledge", name: "Courier", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO), players: [1, 1] },
   { id: "landfall", sec: "idle", name: "Landfall", href: "./landfall.html", logo: LOGO("landfall", LANDFALL_LOGO), players: [1, 1] },
   { id: "ingot", sec: "idle", name: "Ingot", href: "./ingot.html", logo: LOGO("ingot", INGOT_LOGO), players: [1, 1] },
   // The Appendix: what is set aside until it leaves for an app of its own or goes (README, The Appendix). Random and Start a
