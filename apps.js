@@ -652,7 +652,7 @@ export const APPS = [
   { id: "netting", sec: "idle", name: "Netting", href: "./netting.html", logo: LOGO("netting", NETTING_LOGO), players: [1, 1] },
   { id: "settle", sec: "idle", name: "Settle", href: "./settle.html", logo: LOGO("settle", SETTLE_LOGO), players: [1, 1] },
   { id: "drift", sec: "idle", name: "Drift", href: "./drift.html", logo: LOGO("drift", DRIFT_LOGO), players: [1, 1] },
-  { id: "slipway", sec: "idle", name: "Slipway", href: "./slipway.html", logo: LOGO("slipway", SLIPWAY_LOGO), players: [1, 1] },
+  { id: "slipway", sec: "puzzle", name: "Slipway", href: "./slipway.html", logo: LOGO("slipway", SLIPWAY_LOGO), players: [1, 1] },
   { id: "loom", sec: "idle", name: "Loom", href: "./loom.html", logo: LOGO("loom", LOOM_LOGO), players: [1, 1] },
   { id: "reckoning", sec: "knowledge", name: "Courier", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO), players: [1, 1] },
   { id: "landfall", sec: "idle", name: "Landfall", href: "./landfall.html", logo: LOGO("landfall", LANDFALL_LOGO), players: [1, 1] },
