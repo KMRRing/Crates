@@ -34,7 +34,7 @@ At a table (October 2026): a pair's match from the partner sheet, or a party of 
 
 The next question no longer shows the last one's pick and commitment (October 2026): the choice was cleared only after the new question had been drawn, so Commit straight away would have committed to an option you never chose.
 
-The page fits the screen: the slip takes the room left and scrolls inside itself when a question is long (its torn edge stays put), and at the reveal the result sits under the slip with its notes scrolling inside, so Next stays in reach while the slip keeps the right answer in sight.
+The page fits the screen: the slip takes the room left and scrolls inside itself when a question is long (its brass rule stays put), and at the reveal the result sits under the slip with its notes scrolling inside, so Next stays in reach while the slip keeps the right answer in sight.
 
 The level dropdown in the header is the suite's own, as in Crates (`dropdown.js`): a button in Punt's logo colours, and the levels on a card with a tick on the current one, scrolling inside itself on a phone. A hidden select still holds the level, so links and rooms work as before.
 
@@ -61,4 +61,4 @@ Every right answer doubles what you committed (October 2026), and every question
 
 No subject question gives its answer away. Every bank was audited (442 of 3,067 questions did: the right option clearly the longest, or the only one with a formula or a number) and those questions rewritten, every option as long, specific and plausible as the answer: often a neighbouring idea (Veblen for Giffen, contango for backwardation, Bellman-Ford for Dijkstra, the expected shortfall for VaR, jihad as a false fifth pillar) or the answer with one thing changed; detail that only the answer carried moved to the explanation. `tests/banks.mjs` holds every bank to it.
 
-Held sideways (README, Bigger screens), the slip stands on the left with its picture as large as the column lets it be; where you stand (the question, the purse) is beside it at the top, and the commitment or the result at the bottom, where a thumb is. The slip's torn edge is drawn in rem, so its teeth grow with an upright tablet's page.
+Held sideways (README, Bigger screens), the slip stands on the left with its picture as large as the column lets it be; where you stand (the question, the purse) is beside it at the top, and the commitment or the result at the bottom, where a thumb is. The card's brass rule and lozenge are drawn in rem, so they grow with an upright tablet's page.
