@@ -12,7 +12,7 @@ import { openTable, inviteSheet, createNarrator, tableInAddress, setTableParam, 
 import { getSync, lan } from "./net.js";
 import { qrSvg } from "./qr.js";
 import { h, button, names } from "./party-kit.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, action, line } from "./menu.js";
 import { bindSwitcher, APPS, nameClass } from "./apps.js";
 import { IN_FRAME, playerId } from "./suite.js";
 import { busy, progress } from "./loading.js";
@@ -34,8 +34,8 @@ for (const g of GAMES) if (g.css && !document.querySelector(`link[href="${g.css}
 const OPTS = "party:opts";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-// this device's choices: the narrator's voice, and the game and options last picked (the host's next party starts there)
-const opts = { voice: true, pick: GAMES[0].id, options: {}, ...read(OPTS, {}) };
+// this device's choices: the game and options last picked (the host's next party starts there)
+const opts = { pick: GAMES[0].id, options: {}, ...read(OPTS, {}) };
 // a game's own tile (party.html?game=echo), or another game's Invite players (?game=bones&invite=1), opens Party on
 // it: the page wears that game's name and logo, it's the game picked when this phone opens a party, and an invite opens
 // the party at once
@@ -92,8 +92,7 @@ function remember(b) {
 
 // ---------- the table ----------
 let branch = null, me = null, said = "", moving = false;
-const narrator = createNarrator();
-narrator.muted = !opts.voice;
+const narrator = createNarrator({ game: "party" });   // written only: Party speaks no Chinese game
 const table = openTable({
   game: "party", app: APP, max: 24, toast,
   onState(b, m) {
@@ -458,10 +457,7 @@ function openMenu() {
     else if (lan) play.append(action("Leave the party", () => table.leave().then(() => lan.leave()), "link"));
     else play.append(action("Leave the party", () => table.leave(), "link"));
   }
-  part(body, "settings").append(toggle("The narrator's voice", opts.voice, on => {
-    opts.voice = on; write(OPTS, opts); narrator.muted = !on;
-  }));
-  part(body, "about").append(line("The phone that runs a game of Party's speaks each step aloud; every phone shows it. Keep that phone in the middle, screen up."));
+  part(body, "about").append(line("Every phone shows each step of a game as it happens."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

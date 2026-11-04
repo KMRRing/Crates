@@ -20,7 +20,7 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const NAMES = ["Marlow", "Rowan"];                                         // the computer players, by seat
 
-let opts = { level: "hard", to: 121, voice: false, ...read(OPTS, {}) };
+let opts = { level: "hard", to: 121, ...read(OPTS, {}) };
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "hard";
 if (!TO.includes(opts.to)) opts.to = 121;
 const saveOpts = () => write(OPTS, opts);
@@ -41,7 +41,7 @@ const cards = (ids, cls = "") => ids.map(id => card(id, cls)).join("");
 let V = null, sel = [], selFor = "", page = null;
 const randomRounds = seatRounds("pegs", ["show"]);                          // random mode's round: a deal
 page = seatPage({
-  rules, id: "pegs", app: 1, pace: 1100, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "pegs", app: 1, pace: 1100, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level,
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -247,7 +247,6 @@ function openMenu() {
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(choice("A game ends at", TO.map(n => [n, String(n)]), opts.to, v => { opts.to = Number(v); saveOpts(); }));
   set.append(line("The length applies from the next game."));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("pegs:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

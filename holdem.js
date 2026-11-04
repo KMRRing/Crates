@@ -37,7 +37,7 @@ const NAMES = ["Ah Keung", "Mei Ling", "Lao Ho", "Siu Ming", "Ah Lan", "Dai Lo"]
 // the coach: off; hints, when you ask; check, a hint when you ask and a word on each move of yours it would have made
 // otherwise; on (Always), its move at each of your decisions as well
 const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
-let opts = { level: "hard", hands: DEFAULTS.hands, rake: DEFAULTS.rake, seats: 5, odds: false, voice: true, coach: "hints", ...read(OPTS, {}) };
+let opts = { level: "hard", hands: DEFAULTS.hands, rake: DEFAULTS.rake, seats: 5, odds: false, coach: "hints", ...read(OPTS, {}) };
 if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
 if (!HANDS.includes(opts.hands)) opts.hands = DEFAULTS.hands;
 if (!RAKES.includes(opts.rake)) opts.rake = DEFAULTS.rake;
@@ -62,7 +62,7 @@ const cap = s => s[0].toUpperCase() + s.slice(1);
 let V = null, page = null, raiseTo = null, sizeMoved = false, sizeKey = "", eqCache = { key: "", v: null }, oddsCache = { key: "", v: null };
 const randomRounds = seatRounds("holdem", ["shown"]);   // random mode's round: a hand
 page = seatPage({
-  rules, id: "holdem", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "holdem", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level,
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -538,7 +538,6 @@ function openMenu() {
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
   set.append(line("The length, commission and seats apply from the next game."));
   set.append(toggle("Odds line", opts.odds, on => { opts.odds = on; keep(); draw(); }));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; keep(); }));
   const r = read(RECORD, { played: 0, won: 0 }), best = read(BEST, null);
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${typeof best === "number" ? `; best result +${fmt(best)}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

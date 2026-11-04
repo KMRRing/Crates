@@ -26,7 +26,7 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const BOT = "Dimitri";
 
-let opts = { match: 3, cube: true, level: "medium", voice: true, ...read(OPTS, {}) };
+let opts = { match: 3, cube: true, level: "medium", ...read(OPTS, {}) };
 if (!MATCHES.includes(opts.match)) opts.match = 3;
 const saveOpts = () => write(OPTS, opts);
 
@@ -53,7 +53,7 @@ const lastKey = s => (s?.last ? `${s.game}:${s.last.ply}` : "");
 let page = null;
 const randomRounds = seatRounds("gammon", ["gameover"]);   // random mode's round: a game of the match
 page = seatPage({
-  rules, id: "gammon", app: 1, pace: 700, botName: () => BOT, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "gammon", app: 1, pace: 700, botName: () => BOT, level: () => opts.level,
   onView: v => { V = v; follow(v); draw(); randomRounds(v); }, onOver, toast, newGame: newMatch,
 });
 
@@ -341,7 +341,6 @@ function openMenu() {
   set.append(toggle("The doubling cube", opts.cube, on => { opts.cube = on; saveOpts(); }));
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line("The match and the cube apply from the next match."));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("gammon:streak", { now: 0, best: 0 });
   const rushBests = bestsLine(rush.bests());
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} matches${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No matches finished yet."), ...(rushBests ? [line(rushBests)] : []));

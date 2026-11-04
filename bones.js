@@ -27,7 +27,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const signed = n => (n > 0 ? `+${n}` : String(n));
 
 const saved = read(OPTS, {});
-let opts = { game: GAMES[saved.game] ? saved.game : "partnership", level: LEVEL_NAMES.some(([k]) => k === saved.level) ? saved.level : "medium", voice: saved.voice ?? true };
+let opts = { game: GAMES[saved.game] ? saved.game : "partnership", level: LEVEL_NAMES.some(([k]) => k === saved.level) ? saved.level : "medium" };
 for (const g of Object.keys(GAMES)) opts[g] = { ...GAMES[g].defaults, ...(saved[g] || {}) };
 const saveOpts = () => write(OPTS, opts);
 const seatsFor = game => (game === "fives" ? opts.fives.players : 4);
@@ -76,7 +76,7 @@ function raise3d() {
 const randomRounds = seatRounds("bones", ["scored"]);   // random mode's round: a hand
 page = seatPage({
   rules, id: "bones", app: 1, pace: 850, botName: s => (NAMES[V?.state?.game || opts.game] || NAMES.partnership)[(s + 2) % 3],
-  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
+  level: () => opts.level, onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => V?.seats?.[seat]?.name ?? `Seat ${seat + 1}`;
@@ -416,7 +416,6 @@ function openMenu() {
   }
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line("The game and its settings apply from the next game."));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("bones:streak", { now: 0, best: 0 });
   const rushBests = bestsLine(rush.bests());
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."), ...(rushBests ? [line(rushBests)] : []));

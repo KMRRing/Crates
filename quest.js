@@ -33,7 +33,7 @@ const leg = i => `${LEGS[i][0]} → ${LEGS[i][1]}`;
 const ROLE_OPTIONS = [["seer", "Lookout, Mutineer"], ["guardian", "Pilot, Wrecker"], ["veiled", "Stowaway"], ["hermit", "Smuggler"]];
 const PLAYERS = [5, 6, 7, 8, 9, 10];
 
-let opts = { players: 7, roles: ["seer", "guardian"], level: "medium", voice: true, chat: true, ...read(OPTS, {}) };
+let opts = { players: 7, roles: ["seer", "guardian"], level: "medium", chat: true, ...read(OPTS, {}) };
 if (!PLAYERS.includes(opts.players)) opts.players = 7;
 const saveOpts = () => write(OPTS, opts);
 const roleOptions = () => Object.fromEntries(ROLE_OPTIONS.map(([k]) => [k, opts.roles.includes(k)]));
@@ -144,7 +144,7 @@ let popSeat = null;
 let page = null;
 page = seatPage({
   // app 2: the talk and the traitors' strike (a phone on older code at the table is asked to update)
-  rules, id: "quest", app: 2, botName: s => NAMES[s % NAMES.length], level: () => opts.level, voice: () => opts.voice,
+  rules, id: "quest", app: 2, botName: s => NAMES[s % NAMES.length], level: () => opts.level,
   // a vote or a card is secret till all are in: nothing to watch, so the computer gives its own at once; the
   // computer's strike waits for the traitors' words
   pace: s => (s.step === "vote" || s.step === "quest" ? 240 : s.step === "assassin" ? 2000 : 1000),
@@ -685,7 +685,6 @@ function openMenu() {
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line("Players and roles apply from the next game."));
   set.append(toggle("The computer players talk", opts.chat, on => { opts.chat = on; saveOpts(); }));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("quest:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

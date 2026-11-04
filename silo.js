@@ -26,7 +26,7 @@ const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-let opts = { level: "medium", start: "alternate", opponent: "computer", coach: false, voice: true, ...read(OPTS, {}) };
+let opts = { level: "medium", start: "alternate", opponent: "computer", coach: false, ...read(OPTS, {}) };
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";
 if (!STARTS.some(([k]) => k === opts.start)) opts.start = "alternate";
 const saveOpts = () => write(OPTS, opts);
@@ -61,7 +61,7 @@ const gameKey = v => `${v.G.seq}:${v.G.started}`;
 
 const randomRounds = seatRounds("silo");   // random mode's round: a game
 page = seatPage({
-  rules, id: "silo", app: 1, botName, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "silo", app: 1, botName, level: () => opts.level,
   pace: s => (advised(s.moves) != null || opts.level !== "hard" ? 650 : 3400),
   hold: () => (hotseat() ? V?.toMove === 1 : thinking !== null),
   onView: v => { V = v; follow(v); draw(); randomRounds(v); think(v); ask(v); },
@@ -308,7 +308,6 @@ function openMenu() {
   set.append(view.choice(() => drawBoard()));
   set.append(choice("Who starts", STARTS, opts.start, v => { opts.start = v; saveOpts(); }));
   set.append(toggle("Coach: hints, and who is winning", opts.coach, on => { opts.coach = on; saveOpts(); asked = ""; if (V) ask(V); draw(); }));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   if (page.host) set.append(action("Start a new tally", () => newGame(true), "link"));
   const r = read(RECORD, { played: 0, won: 0, drawn: 0 }), st = read("silo:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${r.drawn ? `, ${r.drawn} drawn` : ""}${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));

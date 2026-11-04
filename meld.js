@@ -7,7 +7,7 @@ import { LEVEL_NAMES } from "./meld-bot.js";
 import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { part, choice, action, line, onPause } from "./menu.js";
 import { tableView } from "./table3d-view.js";
 import { createMeld3d, plateOf, myPlate } from "./meld-3d.js";
 import { seatRounds } from "./random.js";
@@ -22,7 +22,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const NAMES = ["Marlow", "Rowan"];                                         // the computer players, by seat
 const SORTS = [["melds", "Melds first"], ["rank", "By rank"], ["suit", "By suit"]];
 
-let opts = { level: "hard", to: 100, sort: "melds", voice: false, ...read(OPTS, {}) };
+let opts = { level: "hard", to: 100, sort: "melds", ...read(OPTS, {}) };
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "hard";
 if (!TO.includes(opts.to)) opts.to = 100;
 if (!SORTS.some(([k]) => k === opts.sort)) opts.sort = "melds";
@@ -44,7 +44,7 @@ const cards = (ids, cls = "") => ids.map(id => card(id, cls)).join("");
 let V = null, sel = null, selFor = "", page = null;
 const randomRounds = seatRounds("meld", ["shown"]);                         // random mode's round: a hand
 page = seatPage({
-  rules, id: "meld", app: 1, pace: 1100, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "meld", app: 1, pace: 1100, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level,
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -319,7 +319,6 @@ function openMenu() {
   set.append(choice("A game ends at", TO.map(n => [n, String(n)]), opts.to, v => { opts.to = Number(v); keep(); }));
   set.append(line("The length applies from the next game."));
   set.append(choice("Your cards", SORTS, opts.sort, v => { opts.sort = v; keep(); draw(); }));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; keep(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("meld:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

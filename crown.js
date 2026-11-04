@@ -24,7 +24,7 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const BOT = "Computer";
 
-let opts = { set: "english", you: "ink", level: "medium", vs: "computer", mark: true, ahead: false, labels: false, voice: true, ...read(OPTS, {}) };
+let opts = { set: "english", you: "ink", level: "medium", vs: "computer", mark: true, ahead: false, labels: false, ...read(OPTS, {}) };
 if (!SETS[opts.set]) opts.set = "english";
 const saveOpts = () => write(OPTS, opts);
 
@@ -74,7 +74,7 @@ const posKey = () => (V?.G ? `${V.G.seq}:${S().ply}` : "");
 
 const randomRounds = seatRounds("crown");
 page = seatPage({
-  rules, id: "crown", app: 1, pace: 700, botName: (seat, G) => (G?.state?.hot ? "Player 2" : BOT), level: () => opts.level, voice: () => opts.voice,
+  rules, id: "crown", app: 1, pace: 700, botName: (seat, G) => (G?.state?.hot ? "Player 2" : BOT), level: () => opts.level,
   hold, onView: v => { V = v; follow(v); work(v); draw(); randomRounds(v); }, onOver, toast, newGame: newGame,
 });
 
@@ -442,7 +442,6 @@ function openMenu() {
   set.append(toggle("Ring the pieces that must jump", opts.mark, on => { opts.mark = on; saveOpts(); draw(); }));
   set.append(toggle("Show who is ahead", opts.ahead, on => { opts.ahead = on; saveOpts(); aheadFor = { key: "", score: null }; if (V) work(V); draw(); }));
   set.append(toggle("Coordinates on the board", opts.labels, on => { opts.labels = on; saveOpts(); draw(); }));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0, drawn: 0 }), st = read("crown:run", { now: 0, best: 0 }), days = read("crown:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${r.drawn ? `, ${r.drawn} drawn` : ""}${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (days.best) part(body, "about").append(line(`Shot of the day: ${streakNow(days, today())} ${streakNow(days, today()) === 1 ? "day" : "days"} running, best ${days.best}.`));

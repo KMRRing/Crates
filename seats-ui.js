@@ -14,7 +14,7 @@ export const fillNames = (text, seats) => String(text || "").replace(/\{s(\d+)\}
 
 /**
  * opts: rules (the game), id (its storage prefix and table branch), app (its code's version at a table), pace,
- * botName(seat, G), level() (the computer players' strength), voice() (the narrator on), onView(view), onOver(view),
+ * botName(seat, G), level() (the computer players' strength), voice() (the narrator on; only for a game in SPOKEN_TABLES), onView(view), onOver(view),
  * toast(msg), newGame() (the page's own deal, with its options: what the host's phone deals on arriving at a party's
  * table), hold() (solo: the page holds the computer's next move, as Cartel's Tap to continue does; runner.kick()
  * lets it go). Returns { move, deal, view, invite, leave, menu(part), runner }.
@@ -26,7 +26,7 @@ export function seatPage({ rules, id, app = 1, pace = 900, botName, level = () =
     save(G) { if (!IN_FRAME) try { localStorage.setItem(KEY, JSON.stringify(G)); } catch { /* private mode */ } },
   };
   const solo = localTable(store, { name: savedName() || "You" });
-  let narrator = createNarrator(), runner = null;
+  let narrator = createNarrator({ game: id }), runner = null;
 
   let dealFirst = false;   // at a party's table, until its first state is in: whether this phone deals its first game
   function firstDeal() {
@@ -37,7 +37,7 @@ export function seatPage({ rules, id, app = 1, pace = 900, botName, level = () =
   const remote = openTable({
     game: id, app, max: rules.seats.max, toast,
     onState: () => { invite.update(); if (runner?.table === remote) runner.update(); firstDeal(); },
-    onLeave: () => { invite.close(); narrator = createNarrator(); runner.use(solo); },
+    onLeave: () => { invite.close(); narrator = createNarrator({ game: id }); runner.use(solo); },
   });
   const invite = inviteSheet(remote, { title: "Invite players", note: "Scan with the camera, or open the link: no app needed. Each takes a computer player's seat." });
 
@@ -45,7 +45,7 @@ export function seatPage({ rules, id, app = 1, pace = 900, botName, level = () =
     rules, table: solo, level, pace, botName,
     paused: () => IN_FRAME || isPaused() || hold(),
     onView: v => {
-      narrator.muted = !voice() || IN_FRAME;
+      narrator.muted = !voice?.() || IN_FRAME;   // voice() only in the games that may speak (SPOKEN_TABLES)
       // solo, this phone speaks; at a table, the one that runs it; a seat named in a line ({s2}) by who sits there now
       const say = v.G?.say ? { ...v.G.say, text: fillNames(v.G.say.text, v.seats) } : null;
       v.said = narrator.hear({ say }, v.mode === "solo" ? { driver: true } : v.me) || "";
@@ -71,7 +71,7 @@ export function seatPage({ rules, id, app = 1, pace = 900, botName, level = () =
     const done = busy("Joining the table", { delay: 0 });
     remote.joinAddress().then(ok => {
       if (!ok) return;
-      narrator = createNarrator();
+      narrator = createNarrator({ game: id });
       dealFirst = party;
       runner.use(remote);
       firstDeal();

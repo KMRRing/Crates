@@ -30,7 +30,7 @@ const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JSON.stri
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const LEVELS = [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]];
 
-let opts = { level: "hard", voice: true, hints: true, ...read(OPTS, {}) };
+let opts = { level: "hard", hints: true, ...read(OPTS, {}) };
 if (!LEVELS.some(([k]) => k === opts.level)) opts.level = "hard";
 const saveOpts = () => write(OPTS, opts);
 
@@ -116,7 +116,7 @@ let V = null, page = null;
 const randomRounds = seatRounds("contract", ["scored"]);   // random mode's round: a deal played (one passed out is dealt again, no round)
 page = seatPage({
   rules, id: "contract", app: 1, pace: paceNow, hold: holding, botName: s => SEATS[s],
-  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; lookAhead(v); draw(); randomRounds(v); }, onOver, toast, newGame,
+  level: () => opts.level, onView: v => { V = v; lookAhead(v); draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => (V?.seats?.[seat]?.name ?? SEATS[seat]);
@@ -531,7 +531,6 @@ function openMenu() {
   set.append(choice("The computer", LEVELS, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line(opts.level === "easy" ? "Easy plays its cards by the rules of thumb." : "Medium and Hard weigh each card over deals of the hands they can't see, solved with every card seen; Hard looks at more of them."));
   set.append(toggle("Coach: hints", opts.hints, on => { opts.hints = on; saveOpts(); draw(); }));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), about = part(body, "about"), rushBests = bestsLine(rush.bests());
   about.append(line(r.played ? `Won ${r.won} of ${r.played} matches.` : "No match finished yet."), ...(rushBests ? [line(rushBests)] : []));
   if (!$("menuDlg").open) $("menuDlg").showModal();

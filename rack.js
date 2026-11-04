@@ -18,7 +18,7 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const NAMES = ["", "Quill", "Sable", "Pip"];                                // the computer players, by seat
 
-let opts = { level: "medium", players: 2, voice: false, ...read(OPTS, {}) };
+let opts = { level: "medium", players: 2, ...read(OPTS, {}) };
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";
 if (![2, 3, 4].includes(opts.players)) opts.players = 2;
 const saveOpts = () => write(OPTS, opts);
@@ -35,7 +35,7 @@ function toast(msg, ms = 2600) {
 let V = null, page = null;
 const randomRounds = seatRounds("rack");                                    // random mode's round: a game
 page = seatPage({
-  rules, id: "rack", app: 1, pace: 1100, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "rack", app: 1, pace: 1100, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level,
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -294,7 +294,6 @@ function openMenu() {
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); warm(v); }));
   set.append(choice("Players in a new game", [[2, "2"], [3, "3"], [4, "4"]], opts.players, v => { opts.players = Number(v); saveOpts(); }));
   set.append(line("The number of players applies from the next game."));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("rack:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

@@ -32,7 +32,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const sum = a => a.reduce((t, x) => t + x, 0);
 const NAMES = ["Hinrich", "Gesa", "Claus", "Wiebke"];                  // the computer players, by seat: Hanseatic first names
 
-let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, voice: true, flat: false, autoDecline: false, ...read(OPTS, {}) };
+let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, flat: false, autoDecline: false, ...read(OPTS, {}) };
 if (!TARGETS.includes(opts.vp)) opts.vp = DEFAULTS.vp;
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";      // Easy is gone (October 2026)
 if (![3, 4].includes(opts.seats)) opts.seats = DEFAULTS.seats;
@@ -63,7 +63,7 @@ let flights = null, flown = null;                                               
 const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], pick: [], t: newTrade("bank"), ans: null, tview: null, auto: "" };
 const randomRounds = seatRounds("factor");   // random mode's round: a game
 page = seatPage({
-  rules, id: "factor", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "factor", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level,
   onView: v => { V = v; follow(v); draw(); showFlights(v); setTimeout(() => autoAnswer(v), 0); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -584,7 +584,6 @@ function openMenu() {
   set.append(choice("Players", [[3, "3"], [4, "4"]], opts.seats, v => { opts.seats = Number(v); keep(); }));
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
   set.append(line("The points and players apply from the next game."));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; keep(); }));
   set.append(toggle("Sound", sound.on, on => { sound.on = on; keepOn({ setItem: (k, v) => localStorage.setItem(k, v) }, on); }));
   set.append(toggle("Decline trades automatically", !!opts.autoDecline, setIgnore));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], opts.flat ? "flat" : "3d", v => { opts.flat = v === "flat"; keep(); useView(); }));
