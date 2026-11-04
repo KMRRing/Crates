@@ -19,7 +19,7 @@ export const SECTIONS = [
   ] },
   { id: 4, name: "Crosswinds", event: "gust", blurb: "Some turns a second gust follows the wind at once, from another quarter.", levels: [
     { id: "4-1", name: "Two winds", note: "A double arrow in the queue is a turn with two winds. The crates settle after the first, then the second blows.", shape: "pier", goods: 3, moor: 6, gust: { p: 0.3 }, orders: [6, 6, 6, 0], turns: 24 },
-    { id: "4-2", name: "Backed and veered", note: "Gusts and squalls together: read the queue before you lay.", shape: "basin", goods: 3, moor: 6, gust: { p: 0.25 }, squall: { every: 5, count: 1 }, orders: [9, 9, 6, 0], turns: 32 },
+    { id: "4-2", name: "Backed and veered", note: "Gusts and squalls together: read the queue before you lay.", shape: "basin", goods: 3, moor: 6, gust: { p: 0.25 }, squall: { every: 5, count: 1 }, orders: [9, 9, 9, 0], turns: 30 },
   ] },
   { id: 5, name: "Rogue waves", event: "wave", blurb: "A wave shoves a whole row or column one square, drawn as a band on the quay a turn ahead.", levels: [
     { id: "5-1", name: "The swell", note: "A band with an arrow marks the row or column the wave will push, before the wind. A crate with water behind it does not move.", shape: "eight", goods: 3, moor: 6, wave: { p: 0.3 }, orders: [6, 6, 3, 0], turns: 26 },
@@ -31,7 +31,7 @@ export const SECTIONS = [
   ] },
   { id: 7, name: "Reefs", event: "rock", blurb: "A rock rises from the water on an empty square, forecast a turn ahead, and stays: slides stop at it and lines are broken by it.", levels: [
     { id: "7-1", name: "Shoals", note: "A faint rock on the quay is where one will stand next turn. No crate can be laid there; keep your lines clear of it.", shape: "quay", goods: 3, moor: 6, rock: { p: 0.15, max: 3 }, orders: [6, 6, 6, 0], turns: 26 },
-    { id: "7-2", name: "Rocks and rollers", note: "Rocks, waves and gusts on a narrow hull.", shape: "hull", goods: 3, moor: 6, rock: { p: 0.1, max: 3 }, wave: { p: 0.15 }, gust: { p: 0.15 }, orders: [9, 9, 6, 0], turns: 34 },
+    { id: "7-2", name: "Rocks and rollers", note: "Rocks, waves and gusts on a narrow hull.", shape: "hull", goods: 3, moor: 6, rock: { p: 0.1, max: 3 }, wave: { p: 0.15 }, gust: { p: 0.15 }, orders: [9, 9, 9, 0], turns: 36 },
   ] },
   { id: 8, name: "Harbour master", event: "seal", blurb: "Now and then a crate comes sealed: laid, it ships every crate of its good on the quay.", levels: [
     { id: "8-1", name: "The seal", note: "A sealed crate is a good you choose to ship in full. Lay it when the quay holds the most of its good, and fill an order outright.", shape: "pier", goods: 4, moor: 6, seal: 8, mix: [2, 2, 2, 2], orders: [6, 6, 6, 6], turns: 36 },

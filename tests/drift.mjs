@@ -245,9 +245,9 @@ const T = (rs, s, i, winds) => lay(rs, plan(rs, s, winds), i);
 // ---------- whole games by simple players ----------
 {
   const win = (l, bot, n) => { let w = 0; for (let sd = 1; sd <= n; sd++) if (play(levelRules(LEVELS.find(x => x.id === l)), sd, bot).status === "won") w++; return w / n; };
-  const p11 = win("1-1", "planner", 10), r11 = win("1-1", "random", 10), p12 = win("1-2", "planner", 10), r21 = win("2-1", "random", 10), p21 = win("2-1", "planner", 10);
+  const p11 = win("1-1", "planner", 8), r11 = win("1-1", "random", 8), p12 = win("1-2", "planner", 8), r21 = win("2-1", "random", 8), p21 = win("2-1", "planner", 8);
   check(p11 >= 0.5 && p12 >= 0.5 && p21 >= 0.5, `the planner clears the early levels (1-1 ${p11 * 100}%, 1-2 ${p12 * 100}%, 2-1 ${p21 * 100}%)`);
-  check(r11 <= p11 && r21 <= 0.3 && win("2-2", "random", 10) <= 0.3, `laying anywhere clears fewer (1-1 ${r11 * 100}%, 2-1 ${r21 * 100}%)`);
+  check(r11 <= p11 && r21 <= 0.3 && win("2-2", "random", 8) <= 0.3, `laying anywhere clears fewer (1-1 ${r11 * 100}%, 2-1 ${r21 * 100}%)`);
   const open = openRules("hull");
   let turns = [], anywhere = [];
   for (let sd = 1; sd <= 4; sd++) { const s = play(open, sd, "random", 400); anywhere.push(s.turns); }

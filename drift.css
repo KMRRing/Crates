@@ -8,6 +8,7 @@
   --dr-soft: color-mix(in srgb, var(--dr-in) 15%, var(--sheet));
   --dr-sea: color-mix(in srgb, var(--c2) 17%, var(--yard));
   --dr-deck: color-mix(in srgb, var(--c0) 13%, var(--tile));
+  --dr-brass: color-mix(in srgb, var(--brass) 70%, var(--ink));   /* brass that still shows where a theme's brass is a pale grey */
 }
 
 .dr-mark { display: inline-block; }
@@ -36,17 +37,17 @@
 .dr-board stop.d0 { stop-color: var(--brass-hi); stop-opacity: .2; }
 .dr-board stop.d1 { stop-color: var(--c2); stop-opacity: .12; }
 .dr-swell { fill: none; stroke: color-mix(in srgb, var(--c2) 40%, transparent); stroke-width: .35; stroke-linecap: round; }
-.dr-frame .outer { fill: none; stroke: var(--brass); stroke-width: .6; }
-.dr-frame .tick { stroke: var(--brass); stroke-width: .35; opacity: .8; }
-.dr-rose .ring { fill: color-mix(in srgb, var(--sheet) 70%, transparent); stroke: var(--brass); stroke-width: .3; }
+.dr-frame .outer { fill: none; stroke: var(--dr-brass); stroke-width: .6; }
+.dr-frame .tick { stroke: var(--dr-brass); stroke-width: .35; opacity: .8; }
+.dr-rose .ring { fill: color-mix(in srgb, var(--sheet) 70%, transparent); stroke: var(--dr-brass); stroke-width: .3; }
 .dr-rose .star { fill: color-mix(in srgb, var(--brass) 55%, transparent); }
 .dr-rose .needle { fill: none; stroke: var(--ink); stroke-width: 1.15; stroke-linecap: round; stroke-linejoin: round; }
 
 .dr-deck .plank { fill: var(--dr-deck); }
 .dr-deck .seam { fill: none; stroke: color-mix(in srgb, var(--brass) 30%, transparent); stroke-width: .2; }
 .dr-deck .gridl path { fill: none; stroke: var(--rule); stroke-width: .3; }
-.dr-deck .coast path { fill: none; stroke: var(--brass); stroke-width: .7; stroke-linecap: round; }
-.dr-deck .lee path { fill: none; stroke: var(--brass); stroke-width: 1.9; stroke-linecap: round; }
+.dr-deck .coast path { fill: none; stroke: var(--dr-brass); stroke-width: .7; stroke-linecap: round; }
+.dr-deck .lee path { fill: none; stroke: var(--dr-brass); stroke-width: 1.9; stroke-linecap: round; }
 
 /* a rogue wave's band, a turn before it comes */
 .dr-waveband rect { fill: color-mix(in srgb, var(--c2) 32%, transparent); stroke: var(--c2); stroke-width: .3; stroke-dasharray: 1.2 .8; }

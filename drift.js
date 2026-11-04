@@ -16,10 +16,11 @@ import { IN_FRAME } from "./suite.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "drift:run", VOYAGE = "drift:voyage", MODE = "drift:mode", CAMP = "drift:camp", SHAPE = "drift:shape", BEST = "drift:best", SEEN = "drift:seen", HINT = "drift:hint";
+const RUN = "drift:run", VOYAGE = "drift:voyage", MODE = "drift:mode", CAMP = "drift:camp", SHAPE = "drift:shape", BEST = "drift:best", EVENTS = "drift:events", HINT = "drift:hint";
 const CELL = 10, PAD = 7;
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+const hinted = () => read(HINT, false) || read("drift:seen", false) === true;   // (drift:seen was the old game's)
 const fmt = n => n.toLocaleString("en-GB");
 const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 
@@ -62,9 +63,9 @@ function resume() { const g = savedGame(); if (g) begin(g); else newRun(); }
 /** The event a section brings, said once, the first time a level of it opens. */
 async function introduce() {
   if (!inVoyage() || IN_FRAME || S.turns > 0 || S.status !== "play") return;
-  const sec = SECTIONS.find(s => s.id === level().section), seen = read(SEEN, []);
+  const sec = SECTIONS.find(s => s.id === level().section), seen = read(EVENTS, []);
   if (!sec.event || seen.includes(sec.event)) return;
-  write(SEEN, [...seen, sec.event]);
+  write(EVENTS, [...seen, sec.event]);
   await notice(`${sec.name}. ${sec.blurb}`);
 }
 
@@ -215,7 +216,7 @@ function drawBoard(cells, extra = {}) {
   }
   const wave = extra.wave === undefined ? S.plan[0].wave : extra.wave;
   const kids = [seaLayer(), deckLayer(cells, wind), ...(wave && ahead ? [waveLayer(wave)] : []), crates, marks, frameLayer(wind)];
-  if (!read(HINT, false) && S.turns < 3 && S.status === "play" && !extra.fresh) {
+  if (!hinted() && S.turns < 3 && S.status === "play" && !extra.fresh) {
     kids.push(el("g", { class: "dr-hint" }, ...["Press a square to see the turn:", "the crate, then the wind", "blows everything one way"].map((t, k) => {
       const n = el("text", { x: W * CELL / 2, y: H * CELL / 2 - 4 + k * 5.4 });
       n.textContent = t;
@@ -321,7 +322,7 @@ function drawSide(text) {
   }
   $("coming").replaceChildren(...Array.from({ length: QUEUE }, (_, k) => queueCol(k)));
   $("coming").setAttribute("aria-label", `Coming: ${Array.from({ length: QUEUE }, (_, k) => (k > 0 && foggy(S) ? "hidden by fog" : describeTurn(k))).join("; then ")}`);
-  $("line").textContent = text ?? (inVoyage() && S.turns === 0 && !read(HINT, false) ? level().note : weatherWords());
+  $("line").textContent = text ?? (inVoyage() && S.turns === 0 && !hinted() ? level().note : weatherWords());
 }
 function render() { drawBoard(S.cells); drawStrip(); drawOrders(); drawSide(); }
 
