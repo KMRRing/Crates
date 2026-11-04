@@ -15,6 +15,7 @@ html[data-theme="office"] { --ml-in: #0F6CBD; }
 @media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --ml-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --ml-in: #479EF5; }
 
+.ln-sheet.ml { --ln-in: var(--ml-in); }
 .ml-mark { display: inline-block; }
 .ml-mark svg { width: 100%; height: 100%; display: block; }
 .ml-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); }

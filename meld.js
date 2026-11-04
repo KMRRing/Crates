@@ -5,6 +5,9 @@
 import { rules, TO, BONUS, SHOW_MS, RANKS, rankOf, suitOf, cardName, short, deadCount, arrangements } from "./meld-rules.js";
 import { LEVEL_NAMES } from "./meld-bot.js";
 import { seatPage } from "./seats-ui.js";
+import { createCourse, progressOf } from "./course.js";
+import { cardStage } from "./course-cards.js";
+import { COURSE, judge, toGin, hold } from "./meld-course.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, onPause } from "./menu.js";
@@ -305,13 +308,30 @@ function showRules() {
   $("rulesDlg").showModal();
 }
 
+// ---------- the course ----------
+// Learn (the Menu): gin rummy taught from nothing (meld-course.js) on the course's sheet (course.js); its last lesson
+// starts a game against Easy. The stage numbers its cards as course-cards does, so face and name go through toGin.
+const ACT = { meld: "Meld these", rest: "These are dead", throw: "Throw it", knock: "Knock", gin: "Go gin", lay: "Lay these off" };
+const base = cardStage({ face: id => face(toGin(id)), label: id => cardName(toGin(id)), judge, hold });
+const course = createCourse({
+  id: "meld", course: COURSE, cls: "ml", inFrame: IN_FRAME, onRules: showRules,
+  stage: { ...base, label: (s, t) => (s.goal && ACT[Object.keys(s.goal)[0]]) || base.label(s, t) },
+  onPlay: () => {
+    if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
+    opts.level = "easy";
+    saveOpts();
+    newGame();
+  },
+});
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
-  play.append(action("The rules on one page", showRules, "link"));
+  const cp = progressOf("meld", COURSE);
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn gin rummy, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
   set.append(view.choice(() => draw()));
@@ -332,6 +352,6 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
 onPause(() => three?.pause(true), () => three?.pause(false));
-window.__meld = { page, get view() { return V; }, opts };
+window.__meld = { page, get view() { return V; }, opts, course };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
