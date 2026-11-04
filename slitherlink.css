@@ -126,3 +126,31 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sl
 .slk-cell.over .slk-in-mark { fill: color-mix(in srgb, var(--slk-bad) 28%, var(--slk-tile)); stroke: var(--slk-bad); }
 .slk-cell.over .slk-out-mark { fill: var(--slk-bad); }
 .slk-svg.shaded .slk-cell.over .slk-ring { stroke: var(--slk-bad); }
+
+/* the chart: vellum and iron-gall ink, in 2D as in 3D (slitherlink-3d.js); the card around it stays the theme's */
+:root { --slk-ink: #2a2118; --slk-vellum: #e8dcbc; --slk-land: #688c42; --slk-sea: #306688; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --slk-ink: #1d1710; --slk-vellum: #9a8e70; --slk-land: #4f7032; --slk-sea: #24506c; } }
+html[data-mode="night"] { --slk-ink: #1d1710; --slk-vellum: #9a8e70; --slk-land: #4f7032; --slk-sea: #24506c; }
+.slk-paper { fill: var(--slk-vellum); stroke: color-mix(in srgb, var(--slk-ink) 40%, var(--slk-vellum)); }
+.slk-guide { stroke: color-mix(in srgb, var(--slk-ink) 24%, var(--slk-vellum)); }
+.slk-num, .slk-dot { fill: var(--slk-ink); }
+.slk-dot.bad { fill: var(--slk-bad); }
+.slk-dot.lit { fill: var(--slk-gilt); }
+.slk-cell.met .slk-num { fill: var(--slk-ink); opacity: .38; }
+.slk-cell.over .slk-num { fill: var(--slk-bad); opacity: 1; }
+.slk-svg.solved .slk-cell .slk-num { fill: var(--slk-ink); opacity: 1; }
+.slk-e.ln .slk-seg { stroke: var(--slk-ink); }
+.slk-e.cr .slk-x { stroke: color-mix(in srgb, var(--slk-ink) 65%, var(--slk-vellum)); }
+.slk-e.lit.ln .slk-seg { stroke: var(--slk-gilt); }
+.slk-e.wrong.ln .slk-seg { stroke: var(--slk-bad); }
+.slk-in-mark { fill: color-mix(in srgb, var(--slk-land) 40%, var(--slk-vellum)); stroke: color-mix(in srgb, var(--slk-land) 70%, transparent); }
+.slk-out-mark { fill: var(--slk-sea); }
+.slk-cell.over .slk-in-mark { fill: color-mix(in srgb, var(--slk-bad) 28%, var(--slk-vellum)); stroke: var(--slk-bad); }
+.slk-cell.over .slk-out-mark { fill: var(--slk-bad); }
+@keyframes slk-wave { 0% { stroke: var(--slk-ink); } 40% { stroke: var(--slk-gilt); } 100% { stroke: var(--slk-gilt); } }
+
+/* the 3D chart fills the card; the flat board is hidden under it while it shows */
+.slk-model { position: absolute; inset: 0; overflow: hidden; border-radius: 4px; background: #2a1d12; }
+.slk-model[hidden] { display: none; }
+.slk-card.is-model .slk-board { visibility: hidden; }
+.slk3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }

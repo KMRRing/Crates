@@ -28,3 +28,16 @@ Making one. The loop is made as always; then 40% of the cells have their number 
 ## Co-op
 
 A paired partner can join a Circuit you are playing and draw on the same board (3 November 2026, `docs/coop.md`). A shared solve counts for neither of you: no best in `slitherlink:times`, no today's time, no Random round. The host's `slitherlink:run` follows the shared board and is theirs again when it ends; the guest's is never written. `slitherlink-coop.js` says how a run becomes a board and back; `tests/coop-request.mjs` plays it.
+
+## 3D: the survey chart
+
+Korbi, 4 November 2026: "circuit: think of a fitting 3d theme for it (exploration age mercantilism astronomy horology) and add it, similar to the other puzzles that have a beautiful 3D mode."
+
+Chosen: **a cartographer's survey of a newly found island**, over an astronomer's star chart or a horologist's escapement path, because the loop's inside and outside are land and sea without any stretching: nothing in the others gives the two sides a meaning. The mapping, which is the rule of the look (`slitherlink-3d.js`):
+- The board is a portolan chart on vellum on a walnut desk, a candle (warm, casts the shadows) and a cool window (fill); brass dividers, a lead weight on the corner, an inkpot and a quill stand in whatever desk the frame leaves round the vellum.
+- The dots are pinpricks; the numbers are soundings in an engraver's hand; the loop is the coast, inked with a growing quill stroke as you draw it.
+- An edge marked "no line" is a faint pencil cross, an unknown edge a quiet pencil line; a number with all its lines goes quiet, one with too many, a corner with three lines and a wrong loop are oxblood, a hint is gilt: exactly the rules of the flat board. Shaded clues: a hatched green wash is inside (land), three waves outside (sea).
+- Solved, in about five seconds (a tap skips it; reduced motion and a board loaded already solved go straight to the end): the sea outside the coast deepens from shallows to blue, the land inside rises in hills (sand, green, ochre, rock) with trees, a harbour town with a pier and a flag on the highest hill, and a cog sails once round the new coast and docks. The clock and the day's counting are untouched; the solve is only shown.
+- The 2D view wears the same vellum and iron-gall ink; the card round it is the theme's.
+
+Traps. The tap is read in the board's own coordinates (`edgeAtPoint`, the flat board's rule): the camera is nearly overhead (78°, a 9° lens) so the far row is no smaller than the flat board's cells were, which a 390×664 measure of the hit area of every edge, before and after, held (the camera was first lower and fell short; do not lower it without measuring again). The view is a `View` choice in the menu, kept in `slitherlink:prefs` as `view` only when chosen (`mode3d.js` says the default); the quill and the bell are sounds only the chart makes, with a Sound toggle (`slitherlink:sound`). Frames are drawn only while an edge is inking in or the solve is running.

@@ -5,10 +5,13 @@
 // are made in slitherlink-worker.js. This file keeps the run, the clock and the taps, and draws the board.
 import { SIZES, LEVELS, DAILY, NONE, LINE, CROSS, INSIDE, OUTSIDE, puzzleOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn } from "./slitherlink-engine.js";
 import { scale } from "./wide.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
+import { sound } from "./slitherlink-sound.js";
+import { edgeAtPoint } from "./slitherlink-3d-geo.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
+import { part, choice, action, line, mirror, toggle, onPause, isPaused, todayPart } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
@@ -17,11 +20,10 @@ import { cellEdit, tallyEdit, onceEdit } from "./board-share.js";
 import slkCoop from "./slitherlink-coop.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "slitherlink:run", TIMES = "slitherlink:times", PREFS = "slitherlink:prefs", SPARES = "slitherlink:spares";
+const RUN = "slitherlink:run", TIMES = "slitherlink:times", PREFS = "slitherlink:prefs", SPARES = "slitherlink:spares", SOUND = "slitherlink:sound";
 const HINT = 30;                     // seconds a hint adds
 const SAVE_EVERY = 5000;             // ms between saves of a puzzle in play (a partner watching sees it that often)
 const HOLD = 430;                    // ms a press takes to cross an edge instead of cycling it
-const REACH = 0.4;                   // how far from an edge, in cells, a finger still means that edge
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -48,6 +50,10 @@ const prefs = { size: 7, level: "easy", twist: "none", ...read(PREFS, {}) };
 if (!SIZES.includes(prefs.size)) prefs.size = 7;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
 if (!shadeOn(prefs.twist)) prefs.twist = "none";
+// prefs.view is the player's own choice ("3d" or "flat"), kept only when they make one; with none the suite's default applies (mode3d.js).
+if (prefs.view !== "3d" && prefs.view !== "flat") delete prefs.view;
+let viewShown = wants3D(prefs.view, "3d") ? "3d" : "flat";
+sound.on = read(SOUND, true);
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
 const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level), twist: prefs.twist });
 
@@ -172,7 +178,7 @@ function clockPause() {
   clockFrom = null;
   save();
 }
-onPause(() => { paused = true; clockPause(); cancelPress(); }, () => { paused = false; clockRun(); });
+onPause(() => { paused = true; clockPause(); cancelPress(); model?.hold(true); }, () => { paused = false; clockRun(); model?.hold(false); });
 const elapsed = () => (!S ? 0 : S.done ? S.done.ms : COOP ? teamMs() : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
 const penalty = () => HINT * (S?.hints || 0);
 const scoreOf = ms => Math.round(ms / 1000) + penalty();
@@ -194,6 +200,7 @@ function press(e, how) {
   const from = S.marks[e], to = how === "hold" ? (from === CROSS ? NONE : CROSS) : nextMark(from);
   setEdge(e, from, to);
   if (to === LINE) navigator.vibrate?.(8);
+  if (viewShown === "3d") sound.play(to === LINE ? "quill" : "cross");
 }
 function setEdge(e, from, to, undoable = true, weak = false) {
   if (from === to) return;
@@ -304,6 +311,7 @@ function finish() {
   S.done = { ms, score: scoreOf(ms) };
   S.lit = null;
   S.fresh = recordBest(S.done.score);
+  if (viewShown === "3d") sound.play("bell", 0.5);
   if (S.mode === "daily") noteDayTime("slitherlink", S.done.score, S.seed);       // today's puzzle: the first solve's time
   save();
   roundOver("slitherlink");
@@ -344,6 +352,7 @@ function drawBoard() {
   svg.addEventListener("pointerdown", down);
   svg.addEventListener("contextmenu", e => e.preventDefault());
   paint();
+  feedModel(true);
 }
 /** Each edge's look from the run: line, crossed, lit by a hint, part of a wrong loop; each number's: met, over, a hint's. */
 function paint() {
@@ -359,6 +368,34 @@ function paint() {
     if (g.getAttribute("class") !== cls) g.setAttribute("class", cls);
   });
   dotEls.forEach((d, x) => d.setAttribute("class", `slk-dot${bad.has(x) ? " bad" : S.lit?.vertex === x ? " lit" : ""}`));
+  feedModel(false, { over, met, wrong, bad, lit });
+}
+
+// ---------- 3D: the same board as a cartographer's chart (slitherlink-3d.js, loaded when first asked for) ----------
+let model = null, modelFor = null;
+/** The chart follows the run: a new puzzle is built into it, every change of the marks, the rules broken, a hint's edges or a solve is shown. */
+function feedModel(fresh, sets) {
+  if (!model || viewShown !== "3d" || !S || !P) return;
+  if (fresh || modelFor !== P) { model.set({ g: P.g, clue: P.clue }); modelFor = P; sets = null; }
+  if (!sets) { const br = breaks(P, S.marks); sets = { over: new Set([...br.over, ...br.shade]), met: new Set(br.met), wrong: new Set(br.loop), bad: new Set(br.bad), lit: new Set(S.lit?.set || []) }; }
+  model.update({ marks: S.marks, over: sets.over, met: sets.met, wrong: sets.wrong, bad: sets.bad, lit: sets.lit, why: [S.lit?.cell ?? -1, S.lit?.cell2 ?? -1], vertex: S.lit?.vertex ?? -1, solved: !!S.done });
+}
+/** Flat or 3D (`prefs.view` keeps the choice only once made). The chart's code (three.js) comes only when first wanted; where there is no WebGL the flat board stays. */
+async function setView(v, remember = true) {
+  if (v === "3d" && !model) {
+    try {
+      model = (await import("./slitherlink-3d.js")).createChart($("model"));
+      model.canvas.addEventListener("pointerdown", down);
+      model.canvas.addEventListener("contextmenu", e => e.preventDefault());
+    } catch (err) { console.warn("Circuit: no 3D here.", err); toast("This browser can't draw 3D."); v = "flat"; }
+  }
+  viewShown = v;
+  if (remember) { prefs.view = v; savePrefs(); }
+  const on = v === "3d" && !!model;
+  $("board").closest(".slk-card").classList.toggle("is-model", on);
+  $("model").hidden = !on;
+  model?.show(on);
+  if (on) { modelFor = null; paint(); }
 }
 /** The solve, shown: the loop turns gilt from the top left. */
 function wave() {
@@ -373,14 +410,10 @@ function wave() {
 let pressing = null;   // { id, edge, x, y, timer, held }
 /** The edge nearest a finger, if one is close enough: the nearest grid line of either kind. */
 function edgeAt(ev) {
-  const m = svg?.getScreenCTM();
-  if (!m) return -1;
-  const { x, y } = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse()), { R, C, H } = P.g;
-  const gx = Math.min(C, Math.max(0, Math.round(x))), gy = Math.min(R, Math.max(0, Math.round(y)));
-  const dv = Math.abs(x - gx), dh = Math.abs(y - gy);
-  if (Math.min(dv, dh) > REACH) return -1;
-  if (dh <= dv) return gy * C + Math.min(C - 1, Math.max(0, Math.floor(x)));
-  return H + Math.min(R - 1, Math.max(0, Math.floor(y))) * (C + 1) + gx;
+  let p = null;
+  if (viewShown === "3d" && model) p = model.point(ev.clientX, ev.clientY);       // the chart reads the board's own coordinates off the vellum
+  else { const m = svg?.getScreenCTM(); if (m) p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse()); }
+  return p && P ? edgeAtPoint(P.g, p.x, p.y) : -1;
 }
 function down(ev) {
   if (ev.button > 0) { if (ev.button === 2) press(edgeAt(ev), "hold"); return; }
@@ -389,7 +422,8 @@ function down(ev) {
   cancelPress();
   const edge = edgeAt(ev);
   if (edge < 0) return;
-  try { svg.setPointerCapture(ev.pointerId); } catch { /* a synthetic event */ }
+  sound.unlock();
+  try { (viewShown === "3d" && model ? model.canvas : svg).setPointerCapture(ev.pointerId); } catch { /* a synthetic event */ }
   pressing = { id: ev.pointerId, edge, x: ev.clientX, y: ev.clientY, held: false };
   pressing.timer = setTimeout(() => { if (!pressing) return; pressing.held = true; navigator.vibrate?.(14); press(pressing.edge, "hold"); }, HOLD);
 }
@@ -490,6 +524,8 @@ function openMenu() {
   content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
   content.append(mirror("Level", $("level")));
   content.append(choice("Clues", [["none", "Numbers"], ["shade", "With shading"]], prefs.twist, v => { prefs.twist = v; savePrefs(); kindChanged(); openMenu(); }));
+  const look = part(body, "settings");
+  look.append(choice("View", [["flat", "Flat"], ["3d", "3D"]], viewShown, v => { setView(v); openMenu(); }), toggle("Sound", sound.on, on => { sound.on = on; write(SOUND, on); if (on) sound.play("quill"); }));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const best = S && !COOP ? bestOf(S) : null;
   const about = part(body, "about");
@@ -567,14 +603,23 @@ setInterval(() => {
 }, 250);
 
 // for tests and debugging
+/** A board position (corners at whole numbers) on the screen, in whichever view shows. */
+const onScreen = (x, y) => {
+  if (viewShown === "3d" && model) return model.project(x, y);
+  const m = svg.getScreenCTM();
+  return { x: x * m.a + m.e, y: y * m.d + m.f };
+};
 window.__slitherlink = {
   get state() { return S; }, get puzzle() { return P; }, get coop() { return coop; }, press, useHint, undo, redo, start, edgeAt,
   /** Where an edge's middle is on the screen, for tests that tap it as a finger would. */
   screenOf: e => {
-    const m = svg.getScreenCTM(), { ea, eb, C } = P.g, at = x => [x % (C + 1), Math.floor(x / (C + 1))];
-    const [x1, y1] = at(ea[e]), [x2, y2] = at(eb[e]), x = (x1 + x2) / 2, y = (y1 + y2) / 2;
-    return { x: x * m.a + m.e, y: y * m.d + m.f };
+    const { ea, eb, C } = P.g, at = x => [x % (C + 1), Math.floor(x / (C + 1))];
+    const [x1, y1] = at(ea[e]), [x2, y2] = at(eb[e]);
+    return onScreen((x1 + x2) / 2, (y1 + y2) / 2);
   },
+  /** Where a corner is on the screen (for the tap-accuracy measure). */
+  screenVertex: v => onScreen(v % (P.g.C + 1), Math.floor(v / (P.g.C + 1))),
+  get model() { return model; }, setView, get view() { return viewShown; },
 };
 
 const forToday = arrivedForToday();   // from the games screen's tile: today's puzzle, still to play
@@ -622,4 +667,6 @@ async function joinPartner() {
   if (!coop && !IN_FRAME) solo();
 }
 $("level").value = chosenKind().level;
+if (viewShown === "3d") setView("3d", false);
+onDefaultChange(is3D => { if (!prefs.view) setView(is3D ? "3d" : "flat", false); });      // Settings' 2D mode, live
 if (COOP) joinPartner().catch(e => { console.error(e); solo(); }); else solo();
