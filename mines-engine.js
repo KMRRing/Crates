@@ -1,5 +1,5 @@
-// Mines: Minesweeper on fields proven to need no guess. The rules of a field (digging, flags, chording, strikes, the
-// end), how a field is dealt (generated, then cleared by the solver in mines-solve.js from its marked start, and kept
+// Mines: Minesweeper on fields proven to need no guess. The rules of a field (digging, flags, chording, the end: a
+// mine dug ends the field, lost), how a field is dealt (generated, then cleared by the solver in mines-solve.js from its marked start, and kept
 // only if it needs no guess and its reasoning fits the level asked), its grade, its 3BV, the daily, hints, and the
 // split that gives each player of a team part of the numbers. A field is whatever says who touches whom: a flat
 // tiling (mines-grid.js) or a shape on a sphere (mines-solid.js), and nothing here asks which. Pure, no page:
@@ -15,8 +15,7 @@ export const BODIES = Object.keys(SOLIDS);
 export const isSolid = shape => !!SOLIDS[shape];
 export const SIZES = { small: { label: "Small" }, medium: { label: "Medium" }, large: { label: "Large" } };
 export const LEVELS = { easy: { label: "Easy" }, medium: { label: "Medium" }, hard: { label: "Hard" } };
-export const STRIKE = 60;     // seconds a mine costs: more than a guess is worth, so reasoning stays the cheaper way
-export const HINT = 20;       // seconds a hint costs
+export const HINT = 20;       // seconds a hint costs (a mine costs the field: it ends it, 4 November 2026)
 
 // Each shape's fields. Flat ones upright (a phone's screen): [columns, rows]. Squares are Minesweeper's own three; hexes
 // are sized to about the same number of cells. A solid's are [k, k]: cells along the cube's edge, the cuts along a
@@ -40,20 +39,24 @@ export const MINES = {
   rhombi: { small: [14, 19, 24], medium: [34, 42, 50], large: [62, 76, 94] },
   football: { small: [20, 24, 28], medium: [52, 60, 66], large: [92, 106, 118] },
 };
-// What each level asks of the reasoning, as the solver measures it (mines-solve.js): `hard` counts the rounds that
-// needed more than one number (two numbers, a group, the count), `top` the hardest level allowed or wanted. Easy
-// never needs more than one number where the shape allows it; Hard needs the most, measured on samples of each field
-// (tests/mines.mjs keeps them honest). On hexes two numbers almost never prove more than one does, so a hex field is
-// made harder by its mines and the count. A solid asks what its flat tiling asks of a field its size.
+// What each level asks of the reasoning, as the solver measures it (mines-solve.js). `needs` is the hardest technique a
+// field requires, [least, most], in the solver's levels (1 one number, 2 two numbers, 3 a group of numbers, 4 the mines
+// left): Easy needs only 1, Medium 2 at most, Hard at least 3, and on a Large Hard field a real deduction of that kind
+// (`deep`, a round of level 3 or 4) at least once. `hard` counts the rounds that needed more than one number, so two
+// fields of one level still differ. Measured on samples of each field (tests/mines.mjs keeps them honest). On hexes two
+// numbers almost never prove more than one does, so a hex field is made harder by its mines and the count. A solid
+// asks what its flat tiling asks of a field its size.
+const NEEDS = { easy: [1, 1], medium: [1, 2], hard: [3, 4] };
+const band = (level, hard, extra = {}) => ({ needs: NEEDS[level], hard, ...extra });
 const SQUARE_BANDS = {
-  small: { easy: { hard: [0, 0] }, medium: { hard: [1, 4] }, hard: { hard: [3, 99] } },
-  medium: { easy: { hard: [0, 0] }, medium: { hard: [1, 5] }, hard: { hard: [5, 99] } },
-  large: { easy: { hard: [0, 0] }, medium: { hard: [2, 7] }, hard: { hard: [10, 99] } },
+  small: { easy: band("easy", [0, 0]), medium: band("medium", [1, 4]), hard: band("hard", [3, 99]) },
+  medium: { easy: band("easy", [0, 0]), medium: band("medium", [1, 5]), hard: band("hard", [5, 99]) },
+  large: { easy: band("easy", [0, 0]), medium: band("medium", [2, 7]), hard: band("hard", [10, 99], { deep: 2 }) },
 };
 const HEX_BANDS = {
-  small: { easy: { hard: [0, 0] }, medium: { hard: [0, 1] }, hard: { hard: [1, 99] } },
-  medium: { easy: { hard: [0, 0] }, medium: { hard: [0, 1] }, hard: { hard: [1, 99] } },
-  large: { easy: { hard: [0, 0] }, medium: { hard: [0, 2] }, hard: { hard: [1, 99] } },
+  small: { easy: band("easy", [0, 0]), medium: band("medium", [0, 1]), hard: band("hard", [1, 99]) },
+  medium: { easy: band("easy", [0, 0]), medium: band("medium", [0, 1]), hard: band("hard", [1, 99]) },
+  large: { easy: band("easy", [0, 0]), medium: band("medium", [0, 2]), hard: band("hard", [1, 99], { deep: 2 }) },
 };
 export const TARGET = { square: SQUARE_BANDS, hex: HEX_BANDS, cube: SQUARE_BANDS, rhombi: SQUARE_BANDS, football: HEX_BANDS };
 const LEVEL_AT = { easy: 0, medium: 1, hard: 2 };
@@ -123,13 +126,19 @@ function lay(d, nb, R) {
   for (let k = 0; k < d.count; k++) mine[free[k]] = 1;
   return { mine, start };
 }
-/** How a solve compares with what the level asks: 0 inside the target, else how far outside. */
+/** How a solve compares with what the level asks: 0 inside the target, else how far outside (the technique level weighs most). */
 function miss(grade, target) {
-  const [lo, hi] = target.hard;
-  return grade.hard < lo ? lo - grade.hard : grade.hard > hi ? grade.hard - hi : 0;
+  const [lo, hi] = target.hard, [nlo, nhi] = target.needs;
+  const needs = grade.top < nlo ? (nlo - grade.top) * 100 : grade.top > nhi ? (grade.top - nhi) * 100 : 0;
+  const deep = target.deep && grade.deep < target.deep ? (target.deep - grade.deep) * 50 : 0;
+  return needs + deep + (grade.hard < lo ? lo - grade.hard : grade.hard > hi ? grade.hard - hi : 0);
 }
-/** A solve's grade: { top (the hardest level used), hard (rounds needing more than one number), rounds }. */
-export const gradeOf = r => ({ top: r.max, hard: r.rounds[2] + r.rounds[3] + r.rounds[4], rounds: r.rounds });
+/**
+ * A solve's grade: { top (the hardest level used, which is what the field needs: the solver always takes the cheapest
+ * proof there is), hard (rounds needing more than one number), deep (rounds needing a group of numbers or the count),
+ * rounds }.
+ */
+export const gradeOf = r => ({ top: r.max, hard: r.rounds[2] + r.rounds[3] + r.rounds[4], deep: r.rounds[3] + r.rounds[4], rounds: r.rounds });
 
 /** Whether a team of two needs both of its players: neither one's share of the numbers clears the field alone. */
 export function needsBoth(f) {
@@ -212,12 +221,12 @@ export const weekdayOf = day => WEEKDAYS[new Date(Date.UTC(Math.floor(day / 1000
 // ---------- a field in play ----------
 // A run keeps every cell as one character of a string, so it saves and travels as it is (the database keeps a string
 // whole, where a list could come back with holes): "." hidden, "o" open, "0"-"5" a flag (the seat that placed it, 0
-// alone), "x" a mine dug by mistake (a strike: it stays, shown, and counts as found).
+// alone), "x" the mine that was dug: the end of the field, lost (it stays shown).
 export const HIDDEN = ".", OPEN = "o", STRUCK = "x";
 export const isFlag = ch => ch >= "0" && ch <= "5";
 
 /** A fresh run on a field: nothing open, the clock at nought. */
-export const newRun = f => ({ cells: HIDDEN.repeat(f.n), strikes: 0, hints: 0, ms: 0, done: false, won: false, lost: false });
+export const newRun = f => ({ cells: HIDDEN.repeat(f.n), hints: 0, ms: 0, done: false, won: false, lost: false });
 
 const put = (cells, i, ch) => cells.slice(0, i) + ch + cells.slice(i + 1);
 /** Every safe cell is open. */
@@ -240,19 +249,19 @@ export function safeLeft(f, cells) {
 export const started = (f, cells) => cells[f.start] === OPEN;
 
 /**
- * Digs cell i (rules: { sudden: a mine ends the field }). Returns { ok, opened: [cells], struck, why } and changes
- * the run: an empty cell opens its neighbours, and theirs; a mine is a strike (or, sudden, the end); the last safe
- * cell open is the end. Refused (ok false, why): an open or flagged cell, or anywhere but the start before it's open.
+ * Digs cell i. Returns { ok, opened: [cells], struck, why } and changes the run: an empty cell opens its neighbours,
+ * and theirs; a mine is the end of the field, lost (4 November 2026: no time penalty, no going on); the last safe
+ * cell open is the end, won. Refused (ok false, why): an open or flagged cell, or anywhere but the start before it's open.
  */
-export function dig(f, run, i, rules = {}) {
+export function dig(f, run, i) {
   if (run.done || i < 0 || i >= f.n) return { ok: false, why: "done" };
   const ch = run.cells[i];
   if (ch !== HIDDEN) return { ok: false, why: isFlag(ch) ? "flag" : "open" };
   if (!started(f, run.cells) && i !== f.start) return { ok: false, why: "start" };
   if (f.mine[i]) {
     run.cells = put(run.cells, i, STRUCK);
-    run.strikes++;
-    if (rules.sudden) { run.done = true; run.lost = true; }
+    run.done = true;
+    run.lost = true;
     return { ok: true, opened: [], struck: i };
   }
   const opened = flood(f, run, i);
@@ -280,7 +289,7 @@ export function flag(f, run, i, by = 0) {
   if (isFlag(ch)) { run.cells = put(run.cells, i, HIDDEN); return true; }
   return false;
 }
-/** What a number's neighbours hold now: { hidden: [cells], marked (flags and strikes) }. */
+/** What a number's neighbours hold now: { hidden: [cells], marked (flags, and the mine that ended the field) }. */
 export function around(f, cells, i) {
   const hidden = [];
   let marked = 0;
@@ -289,16 +298,16 @@ export function around(f, cells, i) {
 }
 /**
  * A tap on an open number (chording): with as many flags round it as its number, its other hidden neighbours are dug
- * (a wrong flag means a mine dug: a strike); with as many hidden and flagged as its number, the hidden ones are
+ * (a wrong flag means a mine dug: the field is lost); with as many hidden and flagged as its number, the hidden ones are
  * flagged. Returns { kind: "dig" | "flag" | "none", cells, results }.
  */
-export function chord(f, run, i, rules = {}, by = 0) {
+export function chord(f, run, i, by = 0) {
   if (run.done || run.cells[i] !== OPEN || f.nums[i] === 0) return { kind: "none", cells: [] };
   const { hidden, marked } = around(f, run.cells, i);
   if (!hidden.length) return { kind: "none", cells: [] };
   if (marked === f.nums[i]) {
     const results = [];
-    for (const j of hidden) { if (run.done) break; if (run.cells[j] === HIDDEN) results.push({ cell: j, ...dig(f, run, j, rules) }); }
+    for (const j of hidden) { if (run.done) break; if (run.cells[j] === HIDDEN) results.push({ cell: j, ...dig(f, run, j) }); }
     return { kind: "dig", cells: hidden, results };
   }
   if (marked + hidden.length === f.nums[i]) {
@@ -308,8 +317,8 @@ export function chord(f, run, i, rules = {}, by = 0) {
   return { kind: "none", cells: [] };
 }
 
-/** A run's score in seconds: its time, plus STRIKE a mine and HINT a hint. Lower is better. */
-export const score = run => Math.round(run.ms / 1000) + STRIKE * run.strikes + HINT * run.hints;
+/** A cleared run's score in seconds: its time, plus HINT a hint. Lower is better. (A lost field has no score.) */
+export const score = run => Math.round(run.ms / 1000) + HINT * run.hints;
 
 // ---------- what a player knows, and hints ----------
 /**

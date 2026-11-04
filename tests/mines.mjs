@@ -1,6 +1,6 @@
 // Mines (mines-grid.js, mines-solid.js, mines-solve.js, mines-engine.js, mines-bot.js, mines-team.js): the three
 // tilings and the three solids, and who touches whom on each (the cube's edges and corners, the rhombicuboctahedron's
-// squares and triangles, the football's twelve pentagons); the rules of a field (digging, the flood, flags, chording, strikes, the end); the solver, every
+// squares and triangles, the football's twelve pentagons); the rules of a field (digging, the flood, flags, chording, the end: a mine ends it); the solver, every
 // deduction it makes checked against every way the mines could lie, flat and round a solid; fields dealt that clear
 // without a guess, at the reasoning their level asks, on every shape; hints; the computer rival and partner; the
 // split of a team's numbers (the shares make the whole and neither clears the field alone); the team's field through
@@ -8,7 +8,7 @@
 import { SHAPES, neighbours, outline, cellAt, shareOf, extent } from "../mines-grid.js";
 import { SOLIDS, solidBoard, solidShares } from "../mines-solid.js";
 import { solve, createSolver, placements } from "../mines-solve.js";
-import { FIELDS, MINES, TARGET, SIZES, LEVELS, STRIKE, HINT, dims, deal, fieldOf, bbbv, newRun, dig, flag, chord, score, minesLeft, safeLeft,
+import { FIELDS, MINES, TARGET, SIZES, LEVELS, HINT, dims, deal, fieldOf, bbbv, newRun, dig, flag, chord, score, minesLeft, safeLeft,
   started, hint, needsBoth, readerOf, daily, WEEK, weekdayOf, describe, settingsOf, rng, graphOf, isSolid, BODIES,
   SHAPES as EVERY } from "../mines-engine.js";
 import { PACES, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "../mines-bot.js";
@@ -134,14 +134,14 @@ const M = (w, h, list, shape = "square") => { const m = new Uint8Array(w * h); f
   check(flag(f, run, 4) && run.cells[4] === "0" && minesLeft(f, run.cells) === 1 && dig(f, run, 4).why === "flag", "a flag marks a mine, counts off the mines left, and keeps its cell from digging");
   check(flag(f, run, 4) && run.cells[4] === "." && flag(f, run, 4), "a flag comes off again (and back)");
   check(!flag(f, run, 6) && dig(f, run, 6).why === "open", "an open cell takes no flag and no dig");
-  const before = run.strikes, hit = dig(f, run, 18);
-  check(hit.ok && hit.struck === 18 && run.cells[18] === "x" && run.strikes === before + 1 && !run.done && minesLeft(f, run.cells) === 0, "a mine dug is a strike: it stays, shown, and counts as found");
-  check(score({ ms: 61400, strikes: 1, hints: 2 }) === 61 + STRIKE + 2 * HINT, "a score is the seconds on the clock plus the mines and hints");
+  const hit = dig(f, run, 18);
+  check(hit.ok && hit.struck === 18 && run.cells[18] === "x" && run.done && run.lost && !run.won && dig(f, run, 19).why === "done" && !flag(f, run, 19), "a mine dug ends the field, lost: nothing more can be dug or flagged");
+  check(score({ ms: 61400, hints: 2 }) === 61 + 2 * HINT && !("strikes" in newRun(f)), "a score is the seconds on the clock plus the hints; a mine adds no time");
   const h2 = fieldOf("square", 3, 3, M(3, 3, [[0, 0], [0, 2]]), 7), s = newRun(h2);
   dig(h2, s, 7);
   check(s.cells === "...oooooo", "a start on the bottom row opens the two rows above the mines' row");
-  dig(h2, s, 0, { sudden: true });
-  check(s.done && s.lost && !s.won && dig(h2, s, 1).why === "done", "played sudden, a mine ends the field");
+  dig(h2, s, 0);
+  check(s.done && s.lost && !s.won && s.cells[0] === "x" && dig(h2, s, 1).why === "done", "a mine ends the field");
 }
 {
   // chording, on a dealt field: a number with as many hidden neighbours as mines still missing flags them; one with
@@ -162,7 +162,9 @@ const M = (w, h, list, shape = "square") => { const m = new Uint8Array(w * h); f
   const safeOne = g.nb[k].find(j => wrong.cells[j] === "." && !g.mine[j]);
   flag(g, wrong, safeOne);
   const c = chord(g, wrong, k);
-  check(c.kind === "dig" && wrong.strikes === 1 && c.results.some(r => r.struck >= 0), "a wrong flag makes a chord dig a mine: a strike");
+  check(c.kind === "dig" && wrong.lost && wrong.done && c.results.some(r => r.struck >= 0), "a wrong flag makes a chord dig a mine: the field is lost, and the chord stops there");
+  const hitAt = c.results.findIndex(r => r.struck >= 0);
+  check(c.results.slice(hitAt + 1).every(r => !r.ok), "nothing is dug after the mine that ended the field");
 }
 {
   // 3BV: one empty patch opens a field's border at once; a number no empty cell touches is a click of its own
@@ -287,7 +289,7 @@ function sure(ways, c, mine) {
 // ---------- fields dealt without a guess, at their level ----------
 {
   const grades = {};
-  let solved = 0, total = 0, startClear = 0, counts = 0, fit = 0, easyTop = 0, easyTotal = 0, solidTotal = 0;
+  let solved = 0, total = 0, startClear = 0, counts = 0, fit = 0, easyTop = 0, easyTotal = 0, solidTotal = 0, techFit = 0, techExact = 0;
   for (const shape of every) for (const size of Object.keys(SIZES)) for (const level of Object.keys(LEVELS)) {
     const xs = [];
     for (let k = 1; k <= 3; k++) {
@@ -299,8 +301,11 @@ function sure(ways, c, mine) {
       // as wide a patch as anywhere)
       if (!f.mine[f.start] && f.nb[f.start].every(j => !f.mine[j]) && f.nums[f.start] === 0 && f.nb[f.start].length === (isSolid(shape) ? graphOf(shape, f.w, f.h).most : EVERY[shape].most)) startClear++;
       if (f.count === dims({ shape, size, level }).count && f.n === dims({ shape, size, level }).n) counts++;
-      const [lo, hi] = TARGET[shape][size][level].hard;
+      const T = TARGET[shape][size][level], [lo, hi] = T.hard;
       if (f.grade.hard >= lo && f.grade.hard <= hi) fit++;
+      // the technique a field needs (grade.top) is what its level asks, and exact: it clears with that and not with less
+      if (f.grade.top >= T.needs[0] && f.grade.top <= T.needs[1] && (!T.deep || f.grade.deep >= T.deep)) techFit++;
+      if (solve(f, { most: f.grade.top }).solved && (f.grade.top === 1 || !solve(f, { most: f.grade.top - 1 }).solved)) techExact++;
       if (level === "easy") { easyTotal++; if (f.grade.top <= 1) easyTop++; }
       xs.push(f.grade.hard);
     }
@@ -309,7 +314,9 @@ function sure(ways, c, mine) {
   check(solved === total && solidTotal === 81, `every field dealt clears from its start by reasoning alone, flat or round a solid (${solved}/${total})`);
   check(startClear === total && counts === total, "every start is empty, with no mine round it, and every field has its level's mines");
   check(fit >= total * 0.9, `fields meet their level's reasoning (${fit}/${total}; the rest the closest of ${400} tried)`);
-  check(easyTop === easyTotal, "an easy field of squares or hexes, flat or on a solid, never needs more than one number at a time");
+  check(techFit >= total * 0.95, `fields need the technique their level asks: Easy one number, Medium two at most, Hard a group or the count (${techFit}/${total})`);
+  check(techExact === total, "a field's grade is exact: the solver clears it at that level of technique and not at the one below");
+  check(easyTop === easyTotal,"an easy field of squares or hexes, flat or on a solid, never needs more than one number at a time");
   const ordered = every.every(sh => Object.keys(SIZES).every(sz => grades[`${sh}:${sz}:easy`] <= grades[`${sh}:${sz}:medium`] && grades[`${sh}:${sz}:medium`] <= grades[`${sh}:${sz}:hard`]));
   check(ordered, "every shape and size: hard fields need more than medium, medium more than easy");
   // a solid's levels take more mines than its flat tiling's, a share of the field: it has no edge to stick at
@@ -337,7 +344,7 @@ function sure(ways, c, mine) {
     if (h.cells.every(c => !!f.mine[c] === h.mine) && h.from.length >= (h.level === 4 ? 0 : 1)) right++;
     for (const c of h.cells) { if (h.mine) flag(f, run, c); else dig(f, run, c); }
   }
-  check(given > 3 && right === given && run.won && !run.strikes, `hints alone clear a field, every one right (${given})`);
+  check(given > 3 && right === given && run.won, `hints alone clear a field, every one right (${given})`);
   const g = deal({ seed: 6, shape: "square", size: "small", level: "easy" }), r2 = newRun(g);
   dig(g, r2, g.start);
   const safe = [...Array(g.n).keys()].find(i => r2.cells[i] === "." && !g.mine[i] && g.nb[i].some(j => r2.cells[j] === "o"));
@@ -416,7 +423,7 @@ function sure(ways, c, mine) {
   // the two of them clear it, each move by whoever's turn it is, through the round trip every time
   let turn = 0;
   for (let guard = 0; guard < 400 && !teamField(g, f).end; guard++) {
-    const fdNow = teamField(g, f), run = { cells: fdNow.cells, strikes: fdNow.strikes, hints: 0, ms: 0, done: false, won: false, lost: false };
+    const fdNow = teamField(g, f), run = { cells: fdNow.cells, hints: 0, ms: 0, done: false, won: false, lost: false };
     const h = hint(f, run);
     if (!h) break;
     const c = h.mine ? h.cells.find(x => fdNow.cells[x] === ".") : h.cells[0];
@@ -435,8 +442,8 @@ function sure(ways, c, mine) {
   startAll(lost, 10);
   teamMove(lost, f, 0, { kind: "dig", cell: f.start }, { now: 20 });
   const someMine = [...Array(f.n).keys()].find(i => f.mine[i]);
-  teamMove(lost, f, 0, { kind: "dig", cell: someMine }, { now: 30, sudden: true });
-  check(teamField(lost, f).end && !teamField(lost, f).end.won && teamField(lost, f).strikes === 1, "played sudden, the team's first mine ends its field");
+  teamMove(lost, f, 0, { kind: "dig", cell: someMine }, { now: 30 });
+  check(teamField(lost, f).end && !teamField(lost, f).end.won && !teamMove(lost, f, 1, { kind: "flag", cell: 0 }, { now: 40 }), "the team's first mine ends its field, for everyone");
   check(freshField(f, 3).cells === ".".repeat(f.n), "a fresh field is all hidden");
 }
 
@@ -454,7 +461,7 @@ function sure(ways, c, mine) {
       for (const c of h.cells) { if (h.mine) { if (run.cells[c] === ".") flag(f, run, c); } else dig(f, run, c); }
       run = JSON.parse(JSON.stringify(run));
     }
-    carried &&= run.won && run.ms === 12345 && safeLeft(f, run.cells) === 0 && !run.strikes;
+    carried &&= run.won && run.ms === 12345 && safeLeft(f, run.cells) === 0;
   }
   check(carried, "a run kept as JSON at every move carries on to the end, flat or round a solid, hints alone clearing it");
   check(WEEK.length === 7 && WEEK.every(d => EVERY[d.shape] && SIZES[d.size] && LEVELS[d.level]), "a field for each day of the week");

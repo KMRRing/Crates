@@ -4,7 +4,7 @@
 // canvas by mines-draw.js, or turned on the Moon, in space, by mines-3d.js. This file keeps the run, the clock, the
 // fingers and the company: a computer partner (mines-bot.js), and at a table (duel.js) a race on one field
 // or one field for a team whose numbers are shared out among its players (mines-team.js).
-import { SHAPES, TILINGS, BODIES, SIZES, LEVELS, STRIKE, HINT, settingsOf, describe, deal, daily, weekdayOf, WEEK, WEEKDAYS, newRun, dig, flag,
+import { SHAPES, TILINGS, BODIES, SIZES, LEVELS, HINT, settingsOf, describe, deal, daily, weekdayOf, WEEK, WEEKDAYS, newRun, dig, flag,
   chord, score, minesLeft, safeLeft, started, hint, readerOf, isFlag, isSolid, OPEN, STRUCK } from "./mines-engine.js";
 import { createView } from "./mines-draw.js";
 import { createSolidView } from "./mines-3d.js";
@@ -25,6 +25,7 @@ import { busy } from "./loading.js";
 dropdown(document.getElementById("size"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
+const DAYLOST = "mines:daylost";    // today's field, lost to a mine: its run is kept so the day can't be played again
 const RUN = "mines:run", PREFS = "mines:prefs", TIMES = "mines:times", VIEW = "mines:view";
 const SAVE_EVERY = 5000;            // ms between saves of a field in play (a partner watching sees it that often)
 const HOLD = 420;                   // ms a finger stays down for the other tool (or, on a number, to light its neighbours)
@@ -39,11 +40,10 @@ const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s 
 
 // ---------- what the player chose ----------
 const COMPUTER = { off: "Off", partner: "Partner" };         // "rival" (racing you) was dropped: old saves read as off
-const RULES = { strike: "Costs 60 s", sudden: "Ends the field" };
 const MODES = { race: "Race", team: "One team" };
 // shape is the flat tiling (squares or hexes), solid the 3D switch and body the solid it turns to (the cube, the
 // rhombicuboctahedron, the football): the field is the body when 3D is on, else the tiling
-const prefs = { tool: "dig", shape: "square", solid: false, body: "cube", size: "small", level: "medium", rule: "strike", computer: "off", pace: "quick", together: "team", ...read(PREFS, {}) };
+const prefs = { tool: "dig", shape: "square", solid: false, body: "cube", size: "small", level: "medium", computer: "off", pace: "quick", together: "team", ...read(PREFS, {}) };
 const savePrefs = () => write(PREFS, prefs);
 const chosenShape = () => (prefs.solid ? prefs.body : prefs.shape);
 if (!TILINGS.includes(prefs.shape)) prefs.shape = "square";   // triangles were dropped (4 November 2026)
@@ -51,15 +51,14 @@ if (!BODIES.includes(prefs.body)) prefs.body = "cube";
 prefs.solid = prefs.solid === true;
 if (!SIZES[prefs.size]) prefs.size = "small";
 if (!LEVELS[prefs.level]) prefs.level = "medium";
-if (!RULES[prefs.rule]) prefs.rule = "strike";
 if (!COMPUTER[prefs.computer]) prefs.computer = "off";
 if (!MODES[prefs.together]) prefs.together = "team";
 prefs.pace = paceOf(prefs.pace);
 $("size").value = prefs.size;
 
 // ---------- the game on screen ----------
-// G: { kind ("solo", "race" or "team"), f (the field), run ({ cells, strikes, hints, ms, done, won, lost }), seed,
-// mode ("random" or "daily", solo), shape, size, level, rule, computer, pace, told (string), pings ([{ cell, at,
+// G: { kind ("solo", "race" or "team"), f (the field), run ({ cells, hints, ms, done, won, lost }), seed,
+// mode ("random" or "daily", solo), shape, size, level, computer, pace, told (string), pings ([{ cell, at,
 // seat }]), asked ([…] the partner's), fresh (a new best), begun (a match's start), n (its number) }
 let G = null;
 let message = null;                 // { text, tone } until the next tap; else the line says how to play
@@ -120,15 +119,16 @@ function elapsed() {
   if (G.kind === "race") return Math.max(0, duel.now() - G.begun);
   return G.run.ms + (clockFrom != null ? performance.now() - clockFrom : 0);
 }
-const penalty = r => STRIKE * r.strikes + HINT * r.hints;
+const penalty = r => HINT * r.hints;
 onPause(() => { paused = true; clockPause(); bot.stop(); dropFingers(); }, () => { paused = false; clockRun(); bot.plan(); render(); });
 
 // ---------- keeping ----------
 const keyOf = g => `${g.shape}:${g.size}:${g.level}${g.computer === "partner" ? ":partner" : ""}`;
+const snapshot = () => ({ seed: G.seed, mode: G.mode, shape: G.shape, size: G.size, level: G.level, computer: G.computer, pace: G.pace,
+  run: G.run, told: G.told, pings: G.pings.filter(p => Date.now() - p.at < PING_MS), asked: G.asked, fresh: G.fresh });
 function save() {
   if (IN_FRAME || !G) return;
-  const keep = { seed: G.seed, mode: G.mode, shape: G.shape, size: G.size, level: G.level, rule: G.rule, computer: G.computer, pace: G.pace,
-    run: G.run, told: G.told, pings: G.pings.filter(p => Date.now() - p.at < PING_MS), asked: G.asked, fresh: G.fresh };
+  const keep = snapshot();
   if (G.kind === "race") duel.keep(keep); else if (G.kind === "solo") write(RUN, keep);
   savedAt = performance.now();
 }
@@ -146,17 +146,22 @@ const hashFor = g => (g.mode === "daily" ? `#d=${g.seed}` : `#s=${g.seed}&f=${g.
 /** Puts a field on the table: `s` its settings and seed, `kept` what was saved of it (its run, the partner's tells…). */
 async function begin(s, kept = null, { kind = "solo", begun = null, n = null } = {}) {
   const team = kind === "team" || (kind === "solo" && s.computer === "partner" && s.mode !== "daily");
+  // today's field, once lost, stays lost: asking for it again shows the lost run, never a fresh one
+  if (!kept && kind === "solo" && s.mode === "daily") { const lost = read(DAYLOST, null); if (valid(lost) && lost.mode === "daily" && lost.seed === s.seed && lost.run.lost) kept = lost; }
   const f = await fieldFor({ seed: s.seed, shape: s.shape, size: s.size, level: s.level, team });
   bot.stop();
   clockFrom = null;
   G = {
-    kind, f, seed: s.seed, mode: s.mode || "random", shape: s.shape, size: s.size, level: s.level, rule: RULES[s.rule] ? s.rule : "strike",
+    kind, f, seed: s.seed, mode: s.mode || "random", shape: s.shape, size: s.size, level: s.level,
     computer: kind === "solo" && s.mode !== "daily" && s.computer === "partner" ? "partner" : "off",
     pace: paceOf(s.pace), run: kept?.run && kept.run.cells?.length === f.n ? kept.run : newRun(f),
     told: typeof kept?.told === "string" && kept.told.length === f.n ? kept.told : ".".repeat(f.n),
     pings: Array.isArray(kept?.pings) ? kept.pings : [], asked: Array.isArray(kept?.asked) ? kept.asked : [], fresh: !!kept?.fresh,
     begun, n, table: null,
   };
+  // a field kept from before a mine ended it (it was struck and went on): it's lost now
+  if (G.run.cells.includes(STRUCK) && !G.run.done) { G.run.done = true; G.run.lost = true; }
+  delete G.run.strikes;
   message = null; shownHint = null; focus = -1;
   $("size").value = G.size;
   const saved = read(VIEW, null);
@@ -172,12 +177,7 @@ async function begin(s, kept = null, { kind = "solo", begun = null, n = null } =
 const fieldKey = () => (G ? `${G.kind}|${G.seed}|${G.shape}|${G.size}|${G.level}` : "");
 function start(mode, o = {}) {
   const d = mode === "daily" ? { ...daily(today()), seed: today() } : { shape: chosenShape(), size: $("size").value, level: prefs.level, seed: randomSeed() };
-  return begin({ ...d, mode, rule: prefs.rule, computer: prefs.computer, pace: prefs.pace, ...o });
-}
-/** The same field again, from nothing (after a field lost to a mine). */
-function retry() {
-  if (!G || G.kind !== "solo") return;
-  begin({ seed: G.seed, mode: G.mode, shape: G.shape, size: G.size, level: G.level, rule: G.rule, computer: G.computer, pace: G.pace });
+  return begin({ ...d, mode, computer: prefs.computer, pace: prefs.pace, ...o });
 }
 
 // ---------- who reads which numbers ----------
@@ -212,7 +212,6 @@ const nameOf = seat => {
 };
 
 // ---------- moves ----------
-const rules = () => ({ sudden: G.rule === "sudden" });
 function note(text, tone = "") { message = text ? { text, tone } : null; drawLine(); }
 /** A tap on cell i with the tool in hand (alt: the other tool, from a held finger or a right click). */
 function tapCell(i, alt = false) {
@@ -244,13 +243,13 @@ function move(act) {
   const by = 0;
   let opened = [], struck = 0;
   if (act.kind === "dig") {
-    const r = dig(G.f, G.run, act.cell, rules());
+    const r = dig(G.f, G.run, act.cell);
     if (!r.ok) return;
     opened = r.opened; struck = r.struck >= 0 ? 1 : 0;
   } else if (act.kind === "flag") {
     if (!flag(G.f, G.run, act.cell, by)) return;
   } else if (act.kind === "chord") {
-    const r = chord(G.f, G.run, act.cell, rules(), by);
+    const r = chord(G.f, G.run, act.cell, by);
     if (r.kind === "none") { flash(act.cell); return; }
     if (r.kind === "dig") for (const x of r.results) { if (x.ok) opened.push(...x.opened); if (x.struck >= 0) struck++; }
   }
@@ -260,7 +259,7 @@ function move(act) {
 function after(before, opened, from, struck) {
   if (struck) {
     navigator.vibrate?.(80);
-    note(G.run.lost ? "A mine. The field is lost." : `A mine: it stays shown, and costs ${STRIKE} s.`, "bad");
+    note("A mine. The field is lost.", "bad");
   } else if (message?.tone !== "good") note(null);
   view.set({ cells: G.run.cells }, opened, from);
   if (!before.includes(OPEN) && G.run.cells.includes(OPEN)) clockRun();
@@ -325,7 +324,7 @@ function finish() {
     const sc = score(r);
     G.fresh = recordBest(sc);
     if (G.mode === "daily") noteDayTime("mines", sc, G.seed);       // today's field: the first clear's score
-  }
+  } else if (G.mode === "daily") write(DAYLOST, snapshot());          // today's field lost: final, it can't be dealt again
   save();
   roundOver("mines");
 }
@@ -354,7 +353,7 @@ const bot = (() => {
     if (!live()) return;
     const before = G.run.cells;
     if (m.kind === "dig") {
-      const r = dig(G.f, G.run, m.cell, rules());
+      const r = dig(G.f, G.run, m.cell);
       if (!r.ok) { plan(); return; }
       after(before, r.opened, m.cell, r.struck >= 0 ? 1 : 0);
       return;
@@ -381,10 +380,10 @@ const bot = (() => {
 const byResult = (a, b) => (!!a.lost - !!b.lost) || (a.done && b.done ? a.score - b.score : (b.done ? 1 : 0) - (a.done ? 1 : 0)) || ((a.ms ?? Infinity) - (b.ms ?? Infinity)) || 0;
 const duel = createDuel({
   game: "mines", name: "Mines", accent: "--mn-in", line: $("rival"), toast, lower: true, compare: byResult,
-  deal: () => ({ seed: randomSeed(), shape: chosenShape(), size: SIZES[$("size").value] ? $("size").value : "small", level: prefs.level, rule: prefs.rule, mode: prefs.together }),
-  describe: m => `${describe(m)}${m.rule === "sudden" ? ", a mine ends it" : ""}: ${m.mode === "team" ? "one field for the table, each of you reading part of its numbers" : "the same field for everyone, the fastest clear wins"}`,
+  deal: () => ({ seed: randomSeed(), shape: chosenShape(), size: SIZES[$("size").value] ? $("size").value : "small", level: prefs.level, mode: prefs.together }),
+  describe: m => `${describe(m)}, a mine ends it: ${m.mode === "team" ? "one field for the table, each of you reading part of its numbers" : "the same field for everyone, the fastest clear wins"}`,
   play: (match, { begun, kept, n }) => {
-    const s = { ...settingsOf(match), seed: match.seed, rule: match.rule, mode: "random" };
+    const s = { ...settingsOf(match), seed: match.seed, mode: "random" };
     if (match.mode === "team") {
       begin(s, null, { kind: "team", begun, n }).then(() => {
         const t = duel.together.room?.data;                 // the table as the room last had it, until the watch answers
@@ -410,7 +409,7 @@ function tell(done = false) {
     return;
   }
   const r = G.run, share = Math.round(100 * (1 - safeLeft(G.f, r.cells) / (G.f.n - G.f.count)));
-  if (done) duel.report({ score: score(r), text: r.lost ? "lost to a mine" : `${fmt(score(r))}${r.strikes ? `, ${plural(r.strikes, "mine")}` : ""}`, done: true, lost: !!r.lost, ms: r.ms });
+  if (done) duel.report({ score: score(r), text: r.lost ? "lost to a mine" : fmt(score(r)), done: true, lost: !!r.lost, ms: r.ms });
   else duel.report({ score: share, text: `${share}%` });
 }
 let tellTimer = 0;
@@ -437,7 +436,7 @@ function onTable(t) {
 function syncTeam() {
   const fd = teamField(G.table, G.f);
   const was = G.run.cells;
-  G.run = { cells: fd?.cells || ".".repeat(G.f.n), strikes: fd?.strikes || 0, hints: fd?.hints || 0, ms: 0, done: !!fd?.end, won: !!fd?.end?.won, lost: !!fd?.end && !fd.end.won };
+  G.run = { cells: fd?.cells || ".".repeat(G.f.n), hints: fd?.hints || 0, ms: 0, done: !!fd?.end, won: !!fd?.end?.won, lost: !!fd?.end && !fd.end.won };
   G.told = fd?.told || ".".repeat(G.f.n);
   G.pings = Object.entries(fd?.pings || {}).map(([k, p]) => ({ cell: p.cell, at: p.at - duel.now() + Date.now(), seat: Number(k.slice(1)) }));
   const opened = [];
@@ -451,16 +450,16 @@ const teamOver = () => !!(G?.table && teamField(G.table, G.f)?.end);
 function teamAct(act, quiet = false) {
   if (!G.table) G.table = { n: G.n, start: G.begun };
   const t = structuredClone(G.table), now = duel.now();
-  if (teamMove(t, G.f, mySeat(), act, { now, sudden: G.rule === "sudden" })) {
-    const struckBefore = G.run.strikes;
+  if (teamMove(t, G.f, mySeat(), act, { now })) {
+    const lostBefore = G.run.lost;
     G.table = t;
     syncTeam();
-    if (!quiet && G.run.strikes > struckBefore) { navigator.vibrate?.(80); note(G.run.lost ? "A mine. The field is lost." : `A mine: it stays shown, and costs the team ${STRIKE} s.`, "bad"); }
+    if (!quiet && G.run.lost && !lostBefore) { navigator.vibrate?.(80); note("A mine. The team's field is lost.", "bad"); }
     else if (!quiet && act.kind === "tell") note("Your number there is shown to everyone now.");
   } else if (act.kind === "chord") { flash(act.cell); return; }
   // what it was made on, held for the transaction: by the time it runs a rematch may have dealt another field
-  const n = G.n, f = G.f, seat = mySeat(), sudden = G.rule === "sudden";
-  duel.together.act(g => g.n === n && teamMove(g, f, seat, act, { now: duel.now(), sudden }));
+  const n = G.n, f = G.f, seat = mySeat();
+  duel.together.act(g => g.n === n && teamMove(g, f, seat, act, { now: duel.now() }));
   tellSoon();
 }
 const reported = new Set();
@@ -530,11 +529,10 @@ function drawResult() {
   if (!over) return;
   const r = G.run, v = $("verdict");
   let head, more = "", tone = r.won ? "good" : "bad";
-  $("retryBtn").hidden = !(solo() && r.lost);
   if (G.kind === "team") {
     const fd = teamField(G.table, G.f), sc = fd ? teamScore(G.table, fd) : 0;
     head = r.won ? `Cleared together: ${fmt(sc)}.` : "A mine: the team's field is lost.";
-    more = [fd?.strikes ? `${plural(fd.strikes, "mine")} (+${STRIKE * fd.strikes} s)` : "", fd?.hints ? `${plural(fd.hints, "hint")} (+${HINT * fd.hints} s)` : ""].filter(Boolean).join(", ");
+    more = fd?.hints ? `${plural(fd.hints, "hint")} (+${HINT * fd.hints} s)` : "";
     $("nextBtn").textContent = "Play again";
   } else if (G.kind === "race") {
     head = r.won ? `Cleared: ${fmt(score(r))}.` : "A mine: your field is lost.";
@@ -546,12 +544,11 @@ function drawResult() {
     const bits = [];
     if (r.won) {
       bits.push(`${fmt(r.ms / 1000)} on the clock`);
-      if (r.strikes) bits.push(`${plural(r.strikes, "mine")} (+${STRIKE * r.strikes} s)`);
       if (r.hints) bits.push(`${plural(r.hints, "hint")} (+${HINT * r.hints} s)`);
       const secs = r.ms / 1000;
       if (secs > 0) bits.push(`3BV ${G.f.bbbv}, ${(G.f.bbbv / secs).toFixed(2)} a second`);
       bits.push(G.fresh ? "a new best" : best != null ? `your best ${fmt(best)}` : "");
-    } else bits.push("Every field can be cleared without a guess: try it again?");
+    } else bits.push("Every mine is shown, wrong flags crossed. Every field can be cleared without a guess.");
     more = bits.filter(Boolean).join(" · ");
     $("nextBtn").textContent = "Another field";
   }
@@ -607,7 +604,7 @@ function openMenu() {
   const setting = (key, v) => {
     prefs[key] = v; savePrefs();
     if (G && solo() && !started(G.f, G.run.cells)) {
-      begin({ seed: G.seed, mode: G.mode, shape: G.shape, size: G.size, level: G.level, rule: prefs.rule, computer: prefs.computer, pace: prefs.pace });
+      begin({ seed: G.seed, mode: G.mode, shape: G.shape, size: G.size, level: G.level, computer: prefs.computer, pace: prefs.pace });
       menuNote = "";
     } else if (!duel.on) menuNote = "From the next field.";
     openMenu();
@@ -620,7 +617,6 @@ function openMenu() {
     : choice("Shape", TILINGS.map(k => [k, SHAPES[k].label]), prefs.shape, v => chosen("shape", v)),
   toggle("3D", prefs.solid, on => chosen("solid", on))];
   const levelChoice = () => choice("Level", Object.entries(LEVELS).map(([k, v]) => [k, v.label]), prefs.level, v => chosen("level", v));
-  const ruleChoice = () => choice("A mine", Object.entries(RULES), prefs.rule, v => setting("rule", v));
   if (duel.on) {                    // a match: the table's own, and what the next one deals
     const together = part(body, "together");
     if (G?.kind === "team") {
@@ -633,7 +629,6 @@ function openMenu() {
       line(prefs.together === "team" ? "One field for the table: each of you reads the numbers on your own cells." : "The same field for everyone: the fastest clear wins."));
     part(body, "play").append(action("The rules", showRules, "link"));
     part(body, "content").append(...shapeChoices(), mirror("Size", $("size")), levelChoice());
-    part(body, "settings").append(ruleChoice());
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
@@ -646,10 +641,10 @@ function openMenu() {
   const settings = part(body, "settings");
   settings.append(choice("Computer", Object.entries(COMPUTER), prefs.computer, v => setting("computer", v)));
   if (prefs.computer !== "off") settings.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), prefs.pace, v => setting("pace", v)));
-  settings.append(ruleChoice(), settingsNote);
+  settings.append(settingsNote);
   const best = G ? read(TIMES, {})[keyOf(G)] : null;
   part(body, "about").append(
-    line(G ? `${describe(G)}${G.computer === "partner" ? ", with the computer" : ""}: ${best != null ? `best ${fmt(best)}` : "not cleared yet"}. A mine costs ${STRIKE} s, a hint ${HINT} s.` : ""),
+    line(G ? `${describe(G)}${G.computer === "partner" ? ", with the computer" : ""}: ${best != null ? `best ${fmt(best)}` : "not cleared yet"}. A mine ends the field; a hint costs ${HINT} s.` : ""),
     action("Copy a link to this field", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -682,11 +677,12 @@ function showRules() {
     <h4>Playing</h4>
     <p>Every field starts at the cell ringed in brass: it's empty, with no mine round it, so digging it opens a patch, and nothing else can be dug before it. Tap a cell to dig it; hold a finger on it to flag it as a mine (Flag, under the field, swaps the two; a right click flags with a mouse). A flag keeps its cell from your own dig and comes off the way it went on; the count at the top is the mines not yet flagged.</p>
     <p>Tap an open number to work it at once (chording, as mine-clearing games call it): if as many flags stand round it as its number, the rest of its neighbours are dug; if its hidden neighbours are exactly the mines it still lacks, they're flagged. A wrong flag under it means a mine dug. Hold a number to see which cells it counts. On a solid, a cell turned far from you is a slanted sliver, so a tap on it first turns it to face you; then tap it again.</p>
-    <p>Hint (+${HINT}&nbsp;s) rings what the open numbers prove next, green a safe cell and red a mine, and in blue the numbers that prove it; it never trusts your flags, so it also finds a wrong one. A mine dug stays on the field, shown, and costs ${STRIKE} seconds; the menu's A mine: Ends the field is the classic rule instead, the field lost at the first mine.</p>
+    <p>Hint (+${HINT}&nbsp;s) rings what the open numbers prove next, green a safe cell and red a mine, and in blue the numbers that prove it; it never trusts your flags, so it also finds a wrong one.</p>
+    <p><b>A mine dug ends the field</b>, lost, with no time added: every mine is shown, the wrongly flagged cells crossed, and the field can't be taken up again. Since every field can be cleared without a guess, it's always your own mistake, or a wrong flag under a number you worked. At a table, the player who digs a mine ends the team's field for everyone, and in a race puts only themselves out (the others play on).</p>
     <h4>Levels</h4>
-    <p>Small, Medium and Large are the field's size. Easy, Medium and Hard are how much reasoning it takes, as Codex's solver measures it, with more mines as it rises: an Easy field never needs more than one number at a time a Hard one often needs two or more numbers taken together. A flat field is hardest at its edges and corners, where mines hide behind the border; a solid has none, so it carries more mines for the same level.</p>
+    <p>Small, Medium and Large are the field's size. Easy, Medium and Hard are how much reasoning it takes, as Codex's solver measures it, with more mines as it rises. Easy: one number at a time. Medium: two numbers together (a 1-1, a 1-2-1; where one number's mines are all inside another's). Hard: also a group of numbers worked through ("if this were a mine, then…") or the count of mines left; a Large Hard field needs one of those at least twice. None ever needs a guess. A flat field is hardest at its edges and corners, where mines hide behind the border; a solid has none, so it carries more mines for the same level.</p>
     <h4>Score</h4>
-    <p>Your time, plus ${STRIKE} seconds for every mine dug and ${HINT} for every hint; lower is better. The clock starts with your first dig and stops while the menu, these rules or the games screen is open. Every kind of field keeps its own best, flat or 3D.</p>
+    <p>Your time, plus ${HINT} seconds for every hint; lower is better. Only a cleared field has a score, and only it can be a best. The clock starts with your first dig and stops while the menu, these rules or the games screen is open. Every kind of field keeps its own best, flat or 3D.</p>
     <h4>Today's field</h4>
     <p>One field a day, the same for everyone, always played alone, harder as the week goes on: ${week}. Its score counts the moment the last safe cell opens, and is Mines' figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
@@ -791,7 +787,6 @@ $("nextBtn").addEventListener("click", () => {
   else if (G?.kind === "race") duel.open();
   else start(G?.mode === "daily" ? "random" : G?.mode || "random");
 });
-$("retryBtn").addEventListener("click", retry);
 $("size").addEventListener("change", async () => {
   prefs.size = $("size").value; savePrefs();
   if (duel.on) { if (!(await duel.newMatch())) $("size").value = duel.match?.size || "small"; return; }   // a new match at that size, for everyone
@@ -817,10 +812,10 @@ setInterval(() => {
 /** The field a link names (#s=SEED&f=SHAPE.SIZE.LEVEL, or #d=DAY for a day's), or null. */
 function hashField() {
   const h = new URLSearchParams(location.hash.slice(1)), dayLink = Number(h.get("d")), seed = Number(h.get("s"));
-  if (dayLink) return { ...daily(dayLink), seed: dayLink, mode: "daily", rule: prefs.rule, computer: "off", pace: prefs.pace };
+  if (dayLink) return { ...daily(dayLink), seed: dayLink, mode: "daily", computer: "off", pace: prefs.pace };
   if (!seed) return null;
   const [shape, size, level] = String(h.get("f") || "").split(".");
-  return { ...settingsOf({ shape, size, level }), seed, mode: "random", rule: prefs.rule, computer: prefs.computer, pace: prefs.pace };
+  return { ...settingsOf({ shape, size, level }), seed, mode: "random", computer: prefs.computer, pace: prefs.pace };
 }
 const same = (a, b) => !!a && a.seed === b.seed && a.mode === b.mode && a.shape === b.shape && a.size === b.size && a.level === b.level;
 
