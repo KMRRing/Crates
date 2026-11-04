@@ -21,7 +21,7 @@ export const cellXY = i => [SQ * CELLS[i].q * D, (CELLS[i].r + CELLS[i].q / 2) *
 const dirXY = d => { const x = SQ * d[0], y = d[1] + d[0] / 2, l = Math.hypot(x, y); return [x / l, y / l]; };
 const RO = 26;                                                   // a gear's outer radius
 const FRAME = 150, BAIZE = 133;                                  // the walnut frame's and the baize's radius (corner to centre)
-const VB = { x: -138, y: -156, w: 276, h: 312 };
+const VB = { x: -142, y: -156, w: 284, h: 312 };
 const f = v => Math.round(v * 10) / 10;
 
 // ---------- the levers: where each of the thirty is, and how big a touch it takes ----------
@@ -129,7 +129,7 @@ function leverMarkup(l, mode) {
   const body = `M${f(-L / 2)} ${f(-W * 0.3)}H${f(L * 0.06)}V${f(-W * 0.62)}L${f(L / 2)} 0L${f(L * 0.06)} ${f(W * 0.62)}V${f(W * 0.3)}H${f(-L / 2)}Z`;
   let s = `<g transform="translate(${f(l.x)} ${f(l.y)}) rotate(${f(ang)})"${pulse ? ' data-pulse="1"' : ""}>`;
   s += `<rect x="${f(-0.2 * D)}" y="${f(-W * 0.42)}" width="${f(0.4 * D)}" height="${f(W * 0.84)}" rx="${f(W * 0.42)}" fill="#000" opacity="${off ? 0.12 : 0.26}"/>`;
-  if (pulse) s += `<circle r="${f(0.4 * D)}" fill="var(--sh-glow)" fill-opacity=".28" stroke="var(--sh-glow)" stroke-width="2" data-ring="1"/>`;
+  if (pulse) s += `<circle r="${f(0.34 * D)}" fill="var(--sh-glow)" fill-opacity=".28" stroke="var(--sh-glow)" stroke-width="2" data-ring="1"/>`;
   s += off ? `<path d="${body}" style="fill:var(--sh-iron)" stroke="#000" stroke-opacity=".4" stroke-width=".8" stroke-linejoin="round"/>`
     : sel ? `<path d="${body}" style="fill:var(--sh-glow)" stroke="#3d2b0c" stroke-width="1.6" stroke-linejoin="round"/>`
       : `<path d="${body}" fill="url(#sh-brass)" stroke="#3d2b0c" stroke-width="1" stroke-linejoin="round"/><path d="M${f(-L / 2 + 1)} ${f(-W * 0.24)}H${f(L * 0.04)}" stroke="#fff" stroke-opacity=".55" stroke-width=".8" stroke-linecap="round"/>`;

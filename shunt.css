@@ -34,16 +34,16 @@ html[data-mode="night"] { --sh-wood: #3C2517; --sh-baize: #1D362C; --sh-recess: 
 .sh-sc { flex: none; font-size: .86rem; color: var(--ink-soft); white-space: nowrap; }
 .sh-sc b { color: var(--ink); font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sh-stars { margin-left: .45rem; color: var(--brass-lo); letter-spacing: .1em; }
-.sh-goal { display: flex; gap: .3rem; flex-wrap: nowrap; overflow: hidden; align-items: center; min-height: 1.65rem; }
-.sh-goal .lab { flex: none; font-size: .64rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
-.sh-chip { flex: none; padding: .12rem .4rem; border: 1px solid var(--brass); border-radius: 4px; background: var(--sheet); font-size: .72rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.sh-chip.ok { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--sheet)); }
-.sh-chip.ok::before { content: "\2713\00a0"; color: var(--good); font-weight: 800; }
-.sh-chip.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--sheet)); }
+.sh-aim { display: flex; gap: .3rem; flex-wrap: nowrap; overflow: hidden; align-items: center; min-height: 1.65rem; }
+.sh-aim .lab { flex: none; font-size: .64rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.sh-part { flex: none; padding: .12rem .4rem; border: 1px solid var(--brass); border-radius: 4px; background: var(--sheet); font-size: .72rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sh-part.ok { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--sheet)); }
+.sh-part.ok::before { content: "\2713\00a0"; color: var(--good); font-weight: 800; }
+.sh-part.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--sheet)); }
 
 /* the plate: as large as its room allows */
 .sh-plate { position: relative; }
-.sh-board { display: block; width: min(100cqw, 100cqh * 276 / 312); height: auto; aspect-ratio: 276 / 312; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.sh-board { display: block; width: min(100cqw, 100cqh * 284 / 312); height: auto; aspect-ratio: 284 / 312; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .sh-letter { font: 800 8px/1 var(--font); text-anchor: middle; dominant-baseline: central; fill: #2a1d08; fill-opacity: .8; pointer-events: none; }
 .sh-tag { font: 800 8.5px/1 var(--font); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 .sh-cap { font: 800 7.5px/1 var(--font); letter-spacing: .16em; text-anchor: middle; fill: var(--ink-soft); }
@@ -83,9 +83,9 @@ html[data-mode="night"] { --sh-wood: #3C2517; --sh-baize: #1D362C; --sh-recess: 
 
 /* held sideways: the plate on the left with all the height; the head, the coach, the queue and the buttons beside it, the buttons low where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.shunt { --beside: 20rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.shunt { --beside: 22rem; grid-template-rows: auto auto minmax(0, 1fr); }
   #app.shunt .sh-head { grid-column: 2; grid-row: 2; align-content: start; margin-top: .6rem; }
-  #app.shunt .sh-goal { flex-wrap: wrap; overflow: visible; }
+  #app.shunt .sh-aim { flex-wrap: wrap; overflow: visible; }
   #app.shunt .sh-plate { grid-column: 1; grid-row: 2 / span 2; margin-top: .6rem; }
   #app.shunt .sh-side { grid-column: 2; grid-row: 3; align-content: end; }
 }

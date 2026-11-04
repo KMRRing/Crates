@@ -243,7 +243,7 @@ function chips(J) {
   const g = goalCheck(S, J), out = [];
   g.parts.forEach(p => {
     const t = p.id === "score" ? `Score ${fmt(p.have)}/${p.need}` : p.id === "trains" ? `${p.have}/${goal().trains.k} separate trains of ${goal().trains.m}+` : p.id === "jewels" ? `Jewels ${p.have}/${p.need}` : p.ok ? "No jam" : `No jam: ${p.have} jammed`;
-    out.push(`<span class="sh-chip${p.ok ? " ok" : p.id === "nojam" && p.have ? " bad" : ""}">${t}</span>`);
+    out.push(`<span class="sh-part${p.ok ? " ok" : p.id === "nojam" && p.have ? " bad" : ""}">${t}</span>`);
   });
   return `<span class="lab">Goal</span>${out.join("")}`;
 }
