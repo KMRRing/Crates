@@ -36,7 +36,7 @@
   </header>
 
   <button id="gauge" class="yd-gauge" type="button" aria-haspopup="dialog">
-    <span class="yd-rank"><b id="rank">Crude</b><span id="clock" class="yd-clock" hidden></span><span id="points" class="yd-points">0</span></span>
+    <span class="yd-rank"><b id="rank">Crude</b><span id="slate" class="yd-slate" hidden>Slate</span><span id="clock" class="yd-clock" hidden></span><span id="points" class="yd-points">0</span></span>
     <span id="scale" class="yd-scale" aria-hidden="true"></span>
   </button>
 
@@ -55,7 +55,10 @@
   <section class="yd-play fit-grow fit-col" aria-label="The board">
     <p id="word" class="yd-word" aria-live="polite"></p>
     <p id="line" class="yd-line" aria-live="polite"></p>
-    <div id="board" class="yd-board fit-grow" role="group" aria-label="Letters"></div>
+    <div class="yd-rig fit-grow">
+      <button id="column" class="yd-column" type="button" aria-haspopup="dialog" aria-label="The column"></button>
+      <div id="board" class="yd-board" role="group" aria-label="Letters"></div>
+    </div>
     <div class="yd-keys">
       <button id="delBtn" class="yd-key" type="button" aria-label="Delete a letter (hold to clear)">Delete</button>
       <button id="mixBtn" class="yd-key yd-mix" type="button" aria-label="Shuffle the letters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 0-14.3-4.9M4 12.5a8 8 0 0 0 14.3 4.9"/><path d="M5.2 2.8v4.3h4.3M18.8 21.2v-4.3h-4.3"/></svg></button>

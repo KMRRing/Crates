@@ -5,7 +5,7 @@
 // kept through JSON.
 import { BOARDS, LEVELS, DAILY, RANKS, MASTER, TOP, FULL_BONUS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge,
   chartOf, outerOf, statsOf, depthOf, centreFor, centresIn, teamFound, onlyMine, counts, zipfOf, hiveSets, makesDaily,
-  maskOf, FIRST_DAY } from "../yield-engine.js";
+  maskOf, FIRST_DAY, CUTS, cutOf, columnOf } from "../yield-engine.js";
 import { WORDS, DAYS, BLOCKED } from "../yield-words.js";
 import { isWord, isVariant, tierOf } from "../wordlist.js";
 import { roundTrip } from "./rtdb.js";
@@ -167,6 +167,19 @@ check(RANKS.length === 10 && RANKS[0][1] === "Dry hole" && RANKS[MASTER][1] === 
   const seats = new Map([[1, b]]), word = wb[0];
   check(judge(p, word, { centre: a, seats, dict }).kind === "centre" && judge(p, word, { centre: a, seats, dict }).by === 1 && judge(p, word, { centre: b, dict }).kind === "word",
     "a word with only your partner's letter is theirs to enter, and says whose it is");
+}
+
+// ---------- the column: words as cuts by length, half of each a balanced slate ----------
+{
+  check(CUTS.length === 5 && [4, 5, 6, 7, 8, 9, 12].map(n => cutOf("a".repeat(n))).join() === "0,1,2,3,4,4,4", "five cuts by length: light ends 4, naphtha 5, kerosene 6, gasoil 7, residue 8 and up");
+  const p = deal({ seed: 4242, level: "medium" }), words = yieldOf(p), none = columnOf(words);
+  check(none.cuts.reduce((s, c) => s + c.n, 0) === words.length && none.cuts.every(c => c.target === Math.ceil(c.n / 2)), "the assay counts every word once; a cut's target is half, rounded up");
+  check(!none.slate && columnOf(words, new Set(words)).slate, "no words, no slate; every word, a slate");
+  const half = new Set(words.filter((w, i) => i % 2 === 0));
+  const some = columnOf(words, half), lone = columnOf(words, new Set(words.filter(w => cutOf(w) !== 0)));
+  check(columnOf([], new Set()).slate && lone.slate === (lone.cuts[0].n === 0), "a cut the crude doesn't hold needs nothing; one it holds needs its half");
+  check(some.cuts.every(c => c.have <= c.n), "found counts never pass the assay");
+  check(totalOf(p, words) === words.reduce((s, w) => s + pointsOf(p, w), 0), "the slate is a mark: points are still the words' alone");
 }
 
 // ---------- a run kept ----------

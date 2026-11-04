@@ -250,6 +250,31 @@ export const centreFor = (p, slot) => (p.centres?.length ? p.centres[(slot ?? 0)
 /** The centres in play at a team's table of `people`. */
 export const centresIn = (p, people) => (p.centres?.length ? p.centres.slice(0, Math.max(1, Math.min(people, p.centres.length))) : [p.centre]);
 
+
+// ---------- the column: the words as a crude's cuts ----------
+// Korbi, 4 November 2026 (docs/yield.md): a twist that isn't spelling bee's. A distillation column draws a crude off
+// in cuts by boiling range; here a word's cut is its length, the light ends at the top (four letters) to the residue
+// at the bottom (eight or more). Every puzzle is an assay, a count of its words in each cut. A balanced slate is half
+// of every cut the crude has found. It is a mark beside the rank, never points, so the 70% walk is untouched.
+export const CUTS = [
+  { id: "light", name: "Light ends", min: 4, max: 4 }, { id: "naphtha", name: "Naphtha", min: 5, max: 5 },
+  { id: "kerosene", name: "Kerosene", min: 6, max: 6 }, { id: "gasoil", name: "Gasoil", min: 7, max: 7 },
+  { id: "residue", name: "Residue", min: 8, max: Infinity },
+];
+export const SLATE_SHARE = 0.5;
+/** The cut a word is drawn off in: its index in CUTS. */
+export const cutOf = w => Math.min(CUTS.length - 1, Math.max(0, w.length - MIN_LEN));
+/**
+ * The column for a puzzle's words and what's found: for each cut, n (words the crude has there), have (found), target
+ * (half of n, rounded up; 0 for a cut the crude doesn't have) and met. slate: every cut the crude has is at target.
+ */
+export function columnOf(words, found = new Set()) {
+  const cuts = CUTS.map(c => ({ ...c, n: 0, have: 0, target: 0, met: true }));
+  for (const w of words) { const c = cuts[cutOf(w)]; c.n++; if (found.has(w)) c.have++; }
+  for (const c of cuts) { c.target = Math.ceil(c.n * SLATE_SHARE); c.met = c.have >= c.target; }
+  return { cuts, slate: cuts.every(c => c.met) };
+}
+
 // ---------- ranks ----------
 // A well's career, from a dry hole to the last drop: each rank a share of the puzzle's points. Last drop is every
 // word; Supergiant, the one to aim for, 70% (the levels' grading and the dailies' walk are measured at it).

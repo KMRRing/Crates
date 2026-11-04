@@ -3,12 +3,12 @@
 // puzzles and the computer player are yield-engine.js's; this file keeps the runs, draws the board and takes the taps.
 // Today's puzzle and a random one are kept apart, so switching between them loses neither. Together (duel.js): a race,
 // the same letters for everyone against the clock, or a team, the same letters with a key letter each.
-import { BOARDS, LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
+import { BOARDS, LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, CUTS, cutOf, columnOf, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
   outerOf, centreFor, centresIn, teamFound, onlyMine } from "./yield-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, mirror, toggle, onPause, isPaused } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, reportDuo, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -16,6 +16,7 @@ import { createDuel } from "./duel.js";
 import { branchPath } from "./rooms.js";
 import { waitMark } from "./loading.js";
 import { sideways } from "./wide.js";
+import * as sfx from "./yield-sound.js";
 
 dropdown(document.getElementById("pick"));   // the header dropdown in the suite's style (dropdown.js)
 
@@ -37,7 +38,8 @@ const up = w => w.toUpperCase();
 const DAY = "yield:day", RUN = "yield:run", ON = "yield:on", PREFS = "yield:prefs", STATS = "yield:stats", DAILY_KEY = "yield:daily", LAST = "yield:last";
 const SAVE_EVERY = 5000;                          // ms between saves of the clock while it runs
 const CLOCKS = [[0, "Untimed"], [180, "3 min"], [300, "5 min"]];
-const prefs = { level: "medium", board: "hive", secs: 0, together: null, raceSecs: 180, ...read(PREFS, {}) };
+const prefs = { level: "medium", board: "hive", secs: 0, together: null, raceSecs: 180, sound: true, ...read(PREFS, {}) };
+sfx.setSound(prefs.sound !== false);
 // what a match you deal will be, until you choose: a pair plays as a team (a key each, each needing the other); a
 // party, a table of friends, races
 const togetherMode = () => prefs.together || (new URLSearchParams(location.search).has("party") ? "race" : "team");
@@ -56,7 +58,7 @@ function loadDict() {
 // S: { kind ("day", "run", "race" or "team"), p (the puzzle), found (in the order found), extra (words typed that
 // don't count), typed, picks (a wheel's tile for each typed letter, -1 for none free), outer (the letters round the
 // centre, as shown), used (ms on the clock), secs (a sprint's length, 0 untimed), top (the best rank reached),
-// over, shown (the words were revealed) } and, in a match, begun and n.
+// over, shown (the words were revealed), slate (the column was balanced: a mark, never points) } and, in a match, begun and n.
 let S = null;
 let P = null;          // what the run's puzzle gives: { words (a team's: everyone's), set, total, need, mine (this player's words), centre }
 let team = null;       // a team match as the table has it: { found: Map(word -> slot), people (seats), over }
@@ -210,7 +212,8 @@ function shuffle() {
 }
 
 // ---------- a word entered ----------
-const PRAISE = w => (w.length <= 4 ? "Good" : w.length <= 6 ? "Fine" : "Splendid");
+/** Whether the column is balanced now (half of every cut the crude has found). */
+const slatedNow = () => !!P && columnOf(P.words, new Set(foundMap().keys())).slate;
 async function enter() {
   if (!canType() || !S.typed) return;
   const word = S.typed;
@@ -227,18 +230,19 @@ async function enter() {
   const nameOf = slot => first(people().find(o => o.slot === slot)?.name);
   switch (r.kind) {
     case "word": {
-      const before = rankOf(pointsNow(), P.total);
+      const before = rankOf(pointsNow(), P.total), slated = slatedNow();
       S.found.push(word);
-      const after = rankOf(pointsNow(), P.total);
-      say(r.full ? (p.board === "wheel" ? "Every tile!" : "Full set!") : after > before ? `${RANKS[after][1]}!` : PRAISE(word), "good", r.points);
+      const after = rankOf(pointsNow(), P.total), balanced = !slated && slatedNow();
+      say(r.full ? (p.board === "wheel" ? "Every tile!" : "Full set!") : after > before ? `${RANKS[after][1]}!` : balanced ? "Balanced slate!" : CUTS[cutOf(word)].name, "good", r.points);
+      if (balanced || after > before) sfx.slate(); else sfx.draw(cutOf(word), r.full);
       found();
       break;
     }
-    case "short": refuse("Too short: four letters at least"); break;
-    case "letters": refuse(p.board === "wheel" ? "Only the letters on the plate" : "Only the letters on the tray"); break;
+    case "short": refuse("Too light: four letters at least"); break;
+    case "letters": refuse(p.board === "wheel" ? "Not on the plate: only its letters" : "Not on the tray: only its letters"); break;
     case "tiles": refuse("Each tile once only"); break;
-    case "centre": refuse(r.by != null ? `That one's ${nameOf(r.by)}'s: it has their ${up(centreFor(S.p, r.by))}, not your ${up(p.centre)}` : `Missing the key letter, ${up(p.centre)}`); break;
-    case "found": refuse(r.by != null && r.by !== (duel.together.slot ?? 0) ? `${nameOf(r.by)} found that one` : "Already found"); break;
+    case "centre": refuse(r.by != null ? `That one's ${nameOf(r.by)}'s: it has their ${up(centreFor(S.p, r.by))}, not your ${up(p.centre)}` : `Off spec: no key letter, ${up(p.centre)}`); break;
+    case "found": refuse(r.by != null && r.by !== (duel.together.slot ?? 0) ? `${nameOf(r.by)} found that one` : "Already logged"); break;
     case "variant": noteExtra(word); refuse("One side of the Atlantic's spelling only: not counted", ""); break;
     case "rare": noteExtra(word); refuse("A word, but rarer than Yield counts", ""); break;
     default: refuse("Not in Yield's list");
@@ -251,6 +255,7 @@ function refuse(text, tone = "bad") {
   const w = $("word");
   w.classList.remove("shake"); void w.offsetWidth; w.classList.add("shake");
   navigator.vibrate?.(tone === "bad" ? 18 : 0);
+  sfx.shut();
 }
 /** A word that counts: the daily's figure, the record, the table, and the end once everything is found. */
 function found() {
@@ -258,6 +263,7 @@ function found() {
   const master = S.top < MASTER && rank >= MASTER;                 // the rank to aim for, reached with this word
   if (S.kind === "day") noteDaily(pts);
   if (rank > S.top) { noteRank(S.top, rank); S.top = rank; }
+  if (!S.slate && slatedNow()) { S.slate = true; noteSlate(); }
   if (S.kind === "team") { tell(); if (all) endTeam(); return; }
   if (S.kind === "race") { if (all) S.over = true; tell(all); return; }     // a race's result sheet is duel.js's
   if (all) finish("full");
@@ -269,6 +275,12 @@ function noteDaily(pts) {
   if ((d[S.p.day] ?? -1) >= pts) return;
   const keepDays = Object.fromEntries(Object.entries(d).filter(([k]) => Number(k) >= S.p.day - 400));   // a year or so is plenty
   write(DAILY_KEY, { ...keepDays, [S.p.day]: pts });
+}
+/** The record: how often a column was balanced (each solo puzzle counts once). */
+function noteSlate() {
+  if (S.kind === "race" || S.kind === "team") return;
+  const st = read(STATS, {}) || {};
+  write(STATS, { ...st, slate: (st.slate || 0) + 1 });
 }
 /** The record: how often the coveted rank and the last drop were reached (each puzzle counts once). */
 function noteRank(from, to) {
@@ -343,6 +355,7 @@ function drawGauge() {
   $("rank").textContent = RANKS[rank][1];
   $("points").replaceChildren(String(pts), ...(total ? [el("small", "", ` / ${total}`)] : []));
   scaleTicks.forEach((t, i) => t.classList.toggle("on", !!total && pts >= P.need[i]));
+  $("slate").hidden = !S?.slate;
   myIndex.style.left = `${placeOf(pts) * 100}%`;
   drawTheirIndexes();
   $("gauge").setAttribute("aria-label", `${RANKS[rank][1]}: ${pts} of ${total} points. The ranks`);
@@ -376,6 +389,45 @@ function drawClock() {
   c.textContent = fmt(Math.max(0, left));
   c.classList.toggle("low", left <= 30);
 }
+// the column beside the tray: a vessel of five cuts, light ends at the top, the residue at the foot. Each cut's bar
+// fills with the words found there (of all the crude holds), a tick marks half of them, the slate's target.
+const cutEls = CUTS.map((c, i) => {
+  const b = el("span", "yd-cut"), nm = el("span", "nm", c.name), ct = el("span", "ct"), bar = el("span", "bar"), fill = el("i", "fill"), mark = el("i", "mark");
+  b.style.setProperty("--cut", `var(--cut${i})`);
+  bar.append(fill, mark);
+  b.append(nm, ct, bar);
+  return { b, ct, fill, mark };
+});
+$("column").replaceChildren(...cutEls.map(x => x.b));
+let drawnCol = null;
+function drawColumn() {
+  const col = S && P ? columnOf(P.words, new Set(foundMap().keys())) : null, key = S ? `${S.p.letters}${S.p.centre}` : "";
+  const fresh = drawnCol && drawnCol.key === key ? drawnCol.have : null;
+  cutEls.forEach((x, i) => {
+    const c = col?.cuts[i], have = c?.have ?? 0, has = !!c?.n;
+    x.b.classList.toggle("none", !has);
+    x.b.classList.toggle("met", has && c.met);
+    x.ct.textContent = !has ? "–" : c.met ? `✓ ${have}` : `${have}/${c.target}`;
+    x.fill.style.width = has ? `${(100 * have) / c.n}%` : "0";
+    x.mark.style.left = has ? `${(100 * c.target) / c.n}%` : "0";
+    if (fresh && have > fresh[i]) { x.b.classList.remove("drew"); void x.b.offsetWidth; x.b.classList.add("drew"); }
+  });
+  drawnCol = { key, have: cutEls.map((_, i) => col?.cuts[i].have ?? 0) };
+  $("column").setAttribute("aria-label", col ? `The column: ${col.cuts.filter(c => c.n).map(c => `${c.name} ${c.have} of ${c.target}`).join(", ")}${col.slate ? ". Balanced slate" : ""}` : "The column");
+}
+function openColumn() {
+  if (!S || !P) return;
+  const col = columnOf(P.words, new Set(foundMap().keys())), body = sheet("The column");
+  body.append(el("p", "yd-note", "Your words are drawn off by length, as a column cuts a crude. This crude's assay is what it holds in each cut; half of every cut is a balanced slate. Points and ranks don't change."));
+  const ul = el("ul", "yd-ranks");
+  col.cuts.forEach(c => {
+    const li = el("li", c.n && c.met ? "done" : "");
+    li.append(el("b", "", c.name), el("span", "", !c.n ? "none in this crude" : `${c.have} of ${c.n} found${c.met ? "" : `, ${c.target - c.have} to the target`} · ${c.max === Infinity ? `${c.min}+` : c.min} letters`));
+    ul.append(li);
+  });
+  body.append(ul, el("p", "yd-sum", col.slate ? "Balanced slate." : "Not balanced yet: the cuts short of target are the ones to hunt."));
+  openSheet();
+}
 function drawFound() {
   const map = foundMap(), words = [...map.keys()].filter(w => P?.set.has(w));
   $("foundCount").textContent = plural(words.length, "word");
@@ -394,7 +446,7 @@ function render() {
   const p = boardP();
   $("pick").options[0].disabled = duel.on;          // at a table the header deals a match at a level; today's isn't one
   if (S && P) $("pick").value = S.kind === "day" ? "today" : LEVELS[S.p.level] ? S.p.level : "medium";
-  drawBoard(); markTeam(); drawWord(); drawLine(); drawGauge(); drawFound(); drawClock();
+  drawBoard(); markTeam(); drawWord(); drawLine(); drawGauge(); drawColumn(); drawFound(); drawClock();
   const off = !canType();
   setBoardOff(off);
   for (const id of ["delBtn", "enterBtn"]) $(id).disabled = off;
@@ -412,7 +464,7 @@ function save() {
 }
 const validRun = s => !!s && !!s.p && BOARDS[s.p.board] && typeof s.p.letters === "string" && typeof s.p.centre === "string" && Array.isArray(s.found);
 /** A run made whole: what an older save or the database's round trip leaves out. */
-const tidy = s => ({ typed: "", picks: [], extra: [], used: 0, secs: 0, top: 0, over: false, shown: false, ...s, found: [...(s.found || [])] });
+const tidy = s => ({ typed: "", picks: [], extra: [], used: 0, secs: 0, top: 0, over: false, shown: false, slate: null, ...s, found: [...(s.found || [])] });
 const started = s => !!s && !s.over && (s.found.length > 0 || s.used > 20000);
 
 // ---------- starting ----------
@@ -422,6 +474,7 @@ function show(s) {
   S = tidy(s);
   if (!S.outer || S.outer.length !== S.p.letters.length - 1) S.outer = outerOf(boardP());
   derive();
+  S.slate ??= slatedNow();                      // a run kept before the column existed: its mark, without a fanfare
   drawnFor = null;
   message = null;
   if (S.kind === "day" || S.kind === "run") write(ON, S.kind);
@@ -514,18 +567,26 @@ function stats(items) {
 }
 /** The words, alphabetical, in columns: found ones as they are (a team's in their finder's colour), missed ones faint. */
 function wordList(words, map, { missed = false } = {}) {
-  const ul = el("ul", `yd-words${missed ? " shown" : ""}`), p = boardP();
-  for (const w of [...words].sort()) {
-    const got = map.has(w);
-    if (!got && !missed) continue;
-    const li = el("li", `${isFull(p, w) ? "full" : ""}${got ? "" : " miss"}`);
-    li.dataset.w = w;
-    const by = map.get(w);
-    if (S.kind === "team" && got && by != null) { const dot = el("i", "who"); dot.style.setProperty("--who", `var(--p${by % 6})`); li.append(dot); }
-    li.append(up(w));
-    ul.append(li);
-  }
-  return ul;
+  const box = el("div", "yd-cuts"), p = boardP();
+  CUTS.forEach((c, i) => {
+    const ul = el("ul", `yd-words${missed ? " shown" : ""}`), here = words.filter(w => cutOf(w) === i);
+    for (const w of [...here].sort()) {
+      const got = map.has(w);
+      if (!got && !missed) continue;
+      const li = el("li", `${isFull(p, w) ? "full" : ""}${got ? "" : " miss"}`);
+      li.dataset.w = w;
+      const by = map.get(w);
+      if (S.kind === "team" && got && by != null) { const dot = el("i", "who"); dot.style.setProperty("--who", `var(--p${by % 6})`); li.append(dot); }
+      li.append(up(w));
+      ul.append(li);
+    }
+    if (!ul.childElementCount) return;
+    const head = el("h5", "yd-cut-h"), have = here.filter(w => map.has(w)).length;
+    head.style.setProperty("--cut", `var(--cut${i})`);
+    head.append(el("span", "", c.name), el("small", "", `${have} of ${here.length}`));
+    box.append(head, ul);
+  });
+  return box;
 }
 
 // ---------- what a word means: the clue bank's plain clue (clues.js, Crossword's and Acrostic's), when it has one ----------
@@ -739,9 +800,10 @@ function openMenu() {
   part(body, "content").append(mirror("Puzzle", $("pick")),
     choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); $("menuDlg").close(); confirmNew(); }));
   part(body, "settings").append(choice("Clock", CLOCKS, prefs.secs, v => { prefs.secs = v; keepPrefs(); openMenu(); }));
+  part(body, "settings").append(toggle("Sound", prefs.sound !== false, v => { prefs.sound = v; sfx.setSound(v); keepPrefs(); }));
   const st = read(STATS, {}) || {}, sprints = Object.entries(st.sprints || {}), last = read(LAST, null);
   if (last?.p) part(body, "about").append(action(dayName(last.p.day), openLast, "link"));
-  part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; ${RANKS[MASTER][1]} ${st.master || 0} times, ${RANKS[TOP][1]} ${st.full || 0}${sprints.length ? `. Sprint bests: ${sprints.map(([k, v]) => { const [secs, board, level] = k.split(":"); return `${Number(secs) / 60} min ${BOARDS[board]?.toLowerCase() || ""} ${LEVELS[level]?.toLowerCase() || ""} ${v}`; }).join(", ")}` : ""}.`),
+  part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; ${RANKS[MASTER][1]} ${st.master || 0} times, ${RANKS[TOP][1]} ${st.full || 0}, balanced slate ${st.slate || 0}${sprints.length ? `. Sprint bests: ${sprints.map(([k, v]) => { const [secs, board, level] = k.split(":"); return `${Number(secs) / 60} min ${BOARDS[board]?.toLowerCase() || ""} ${LEVELS[level]?.toLowerCase() || ""} ${v}`; }).join(", ")}` : ""}.`),
     line("Words: SCOWL, with wordfreq's frequencies (CC BY-SA 4.0)."));
   showMenu(body);
 }
@@ -760,6 +822,7 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>Make as many words as you can from the seven letters on the tray. Every word has ${inWords(MIN_LEN)} letters or more and uses the key letter, the one on the keyed plate; a letter may be used as often as you like. Every puzzle has at least one full set, a word that uses all seven.</p>
     <p><b>Points.</b> A word of ${inWords(MIN_LEN)} letters scores 1, a longer word a point a letter, and a full set ${FULL_BONUS} more: a six-letter word scores 6, a full set of seven letters ${7 + FULL_BONUS}.</p>
+    <p><b>The column.</b> A refinery draws a crude off in cuts. Yours are by length: light ends ${inWords(MIN_LEN)} letters, naphtha five, kerosene six, gasoil seven, residue eight or more. The column beside the tray shows each cut filling, a tick at half of what this crude holds there. Half of every cut it holds is a balanced slate, marked beside your rank; it adds no points. Some crudes have no residue.</p>
     <p><b>Ranks.</b> Your points climb a well's career, each rank a share of the puzzle's points: ${ranks.slice(0, -1).join(", ")} and ${ranks.at(-1)}. ${RANKS[MASTER][1]} is the one to aim for. Tap the gauge for the points each rank needs in this puzzle.</p>
     <p><b>The words.</b> Ordinary English, the same on both sides of the Atlantic: the letters never include an S, or every plural would count, and a spelling only one side uses (colour or color) never counts. A word that doesn't count is told apart: a word, but rarer than Yield counts; one side of the Atlantic's spelling only; or not in Yield's list.</p>
     <p><b>Playing.</b> Tap the letters (each goes in as your finger lands) and Enter. Delete takes a letter off, or the whole word if you hold it, and Shuffle moves the outer letters about. On a keyboard: type, Enter, Backspace, Space to shuffle, Escape to clear. Your words run under the gauge, the newest first; tap them for every one, and a word for what it means. The Chart is the hints grid: what's left by first letter and length, and by the first two letters.</p>
@@ -799,6 +862,7 @@ $("gauge").addEventListener("click", openRanks);
 $("duelLine").addEventListener("click", e => { if (S?.kind === "team") { e.stopImmediatePropagation(); openWords(); } }, true);
 $("foundBtn").addEventListener("click", () => { if (!sideways()) openWords(); });
 $("chartBtn").addEventListener("click", openChart);
+$("column").addEventListener("click", openColumn);
 $("enterBtn").addEventListener("click", enter);
 $("mixBtn").addEventListener("click", shuffle);
 // Delete: a tap takes a letter off, a hold clears the word
