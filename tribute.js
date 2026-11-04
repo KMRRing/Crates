@@ -18,6 +18,9 @@ import { rushMenu } from "./rush-menu.js";
 import { sideways, SIDEWAYS } from "./wide.js";
 import { busy } from "./loading.js";
 import { createTable3d, cardFace, levelHtml } from "./tribute-3d.js";
+import { createCourse, progressOf } from "./course.js";
+import { COURSE } from "./tribute-lessons.js";
+import { cardStage } from "./tribute-course.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "tribute:run", OPTS = "tribute:opts", STATS = "tribute:stats";
@@ -1087,6 +1090,8 @@ function openMenu() {
     rushMenu(body, { pick: rushPick, start: () => { write(RUSH_NEXT, rushPick); rushPick = null; startRush(); }, results: rush.over ? endRush : null, back: leaveRush,
       backText: "Back to the match", bests: read(RUSH_BEST, {}), daily: read(RUSH_DAILY, {}), day: today(), inFrame: IN_FRAME });
   } else part(body, "play").append(action("New match", () => newMatch(), "primary"), action("Puzzle rush", () => startRush(), ""), ...copies());
+  const cp = progressOf("tribute", COURSE);
+  part(body, "play").append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Guandan, from the rules", () => course.open()));
   if (!rush) {                                                   // a puzzle's table keeps its own rules: the match's are for the match
     const content = part(body, "content");
     content.append(choice("Match", [["deals", "Six hands"], ["toA", "To the ace"]], opts.mode, v => set("mode", v)));
@@ -1324,6 +1329,19 @@ $("rushLeave").addEventListener("click", () => leaveRush());
 $("copyClose").addEventListener("click", () => $("copyDlg").close());
 $("whyDlg").addEventListener("click", e => { if (e.target === $("whyDlg")) $("whyDlg").close(); });
 $("helpBtn").addEventListener("click", () => { $("rulesBody").innerHTML = rules(); $("rulesDlg").showModal(); });
+
+// ---------- the course ----------
+// Learn (the Menu): Guan Dan taught from nothing (tribute-lessons.js) on the course's sheet (course.js), the cards drawn
+// as the table draws them and every answer the referee's; its last lesson starts a match.
+const course = createCourse({
+  id: "tribute", course: COURSE, cls: "tb", inFrame: IN_FRAME, stage: cardStage(),
+  onRules: () => { $("rulesBody").innerHTML = rules(); $("rulesDlg").showModal(); },
+  onPlay: () => {
+    if (together.room) { toast("Your table plays on: try a match when you're back to solo"); return; }
+    if (rush) leaveRush();
+    newMatch();
+  },
+});
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", nextHand);
 $("tableBtn").addEventListener("click", () => $("resultDlg").close());
@@ -1348,7 +1366,7 @@ table3d = createTable3d({ G: () => G, me: () => me, nameOf, who, busy: () => bus
 showView();
 
 // for tests and debugging
-window.__tribute = { get state() { return G; }, get me() { return me; }, get together() { return together; }, get selected() { return [...selected]; },
+window.__tribute = { course, get state() { return G; }, get me() { return me; }, get together() { return together; }, get selected() { return [...selected]; },
   get rush() { return rush; }, startRush, nextRush, leaveRush,
   apply: (seat, a) => apply(seat, a), mine, newMatch, nextHand, select(ids) { selected.clear(); for (const id of ids) selected.add(id); render(); }, playSelected, pass, showHint,
   get checks() { return C; }, get hint() { return hint; } };

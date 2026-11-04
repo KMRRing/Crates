@@ -1,0 +1,32 @@
+/* Guan Dan's course (tribute-course.js, on course.css's sheet): the cards of a lesson, in rows, with the hand to pick from
+   and the buttons of an exercise. The cards are the table's own (.tb-card, tribute.css); their width, --tc-w, is set by the
+   stage to the largest at which the lesson fits. */
+.ln-sheet.tb { --ln-in: var(--tb-in); }
+.tc { --tc-w: 2.6rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: .55rem; justify-items: center; align-content: center; min-width: 0; padding: .3rem 0; }
+.tc-row { display: grid; justify-items: center; gap: .25rem; max-width: 100%; }
+.tc-row > small { font-size: .74rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); text-align: center; }
+.tc-row > small i { font-style: normal; text-transform: none; letter-spacing: 0; font-stretch: normal; font-weight: 600; color: var(--ln-in); }
+.tc-word { font-size: 1.05rem; font-weight: 800; color: var(--ln-in); text-align: center; }
+.tc-top .tc-line { padding: .3rem .5rem; border-radius: 6px; background: color-mix(in srgb, var(--ln-in) 9%, var(--sheet)); border: 1px solid var(--tile-edge); }
+.tc-line { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: calc(var(--tc-w) * .1); max-width: min(100%, calc(var(--per, 99) * var(--tc-w) * 1.1 + 2px)); }
+.tc-card { position: relative; flex: none; width: var(--tc-w); height: calc(var(--tc-w) * 1.385); padding: calc(var(--tc-w) * .06) calc(var(--tc-w) * .08); font-size: calc(var(--tc-w) * .365); transition: transform .12s; }
+.tc-card .s { font-size: .86em; }
+.tc-card .w { right: .08em; bottom: .05em; font-size: .8em; }
+.tc-card.joker .r { font-size: .53em; }
+button.tc-card { cursor: pointer; font-family: inherit; }
+.tc-card.sel { background: color-mix(in srgb, var(--ln-in) 24%, var(--tb-face)); border-color: var(--ln-in); box-shadow: 0 0 0 1.5px var(--ln-in); transform: translateY(-.4rem); }
+.tc-card.hint::after { content: ""; position: absolute; left: 14%; right: 14%; bottom: -.4rem; height: .2rem; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--ln-in) 0 .3rem, transparent .3rem .5rem); }
+.tc-table { display: grid; width: min(100%, 26rem); }
+.tc-trow { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: .32rem .1rem; border-bottom: 1px solid var(--rule); font-size: .9rem; }
+.tc-trow span { font-weight: 600; }
+.tc-trow b { color: var(--ln-in); text-align: right; font-weight: 800; }
+.tc-chips { display: flex; gap: .4rem; }
+.tc-chips span { padding: .1rem .5rem; border: 1px solid var(--rule); border-radius: 4px; color: var(--ink-soft); font-size: .72rem; font-weight: 700; }
+.tc-opts { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem; width: 100%; }
+.tc-opt { flex: 1 1 5rem; max-width: 12rem; min-height: 2.75rem; padding: .45rem .7rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile);
+  color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
+.tc-opt.tried { border-color: var(--ln-no); }
+.tc-opt.hint { border-color: var(--ln-in); box-shadow: inset 0 0 0 1.5px var(--ln-in); }
+html[data-theme="modern"] .tc-opt { border-radius: 12px; }
+html[data-theme="kontor"] .tc-opt { border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) { .tc-card { transition: none; } }
