@@ -1,0 +1,19 @@
+/* Hearts' 3D table (hearts-3d.js) on the shared cloth (table3d.css): green baize, a card to a lane. */
+#app.hearts { --tk-felt: color-mix(in srgb, var(--hr-in) 80%, #0B1E2A); }
+.hr-table.hr3 { display: flex; padding: 0; background: none; border: 0; box-shadow: none; overflow: visible; }
+.hr-table.hr3 .tk-field { flex: 1 1 0; }
+/* the lanes: each seat's card on the cloth in front of it, the middle's words under them */
+.hr3 .tk-centre { --cd-line: clamp(.7rem, min(3.1cqh, 2.4cqw), 1.5rem); display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, auto) 1fr; align-content: center;
+  gap: .1rem .3rem; place-items: stretch; --tk-side: 6.2rem; }
+.hr3-lane { display: flex; justify-content: center; align-items: center; min-width: 0; min-height: calc(var(--cd-line) * 3.5); font-size: var(--cd-line); }
+.hr3-lane .cd { box-shadow: 0 .05em .14em rgba(0, 0, 0, .4); }
+.hr3-lane.s2 { grid-column: 1 / -1; grid-row: 1; }
+.hr3-lane.s1 { grid-column: 1; grid-row: 2; }
+.hr3-lane.s3 { grid-column: 2; grid-row: 2; }
+.hr3-lane.s0 { grid-column: 1 / -1; grid-row: 3; }
+.hr3-top { grid-column: 1 / -1; grid-row: -2 / -1; display: grid; justify-items: center; align-content: center; gap: .15rem; text-align: center; min-width: 0; }
+.hr3 .hr-note { margin: 0; font-size: .74rem; color: var(--tk-soft); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hr3-sc { margin-right: .25rem; font-style: normal; }
+.hr3-taken { font-style: normal; font-weight: 800; color: #F0A596; }
+.tk-count.low { color: #A8382B; }
+@container (max-height: 420px) { .hr3 .hr-note { display: none; } }
