@@ -72,7 +72,7 @@ export const { FRONT_WIN, ABOVE_WIN, SIDE_WIN, BUFFER, LAND_BUFFER } = T;   // B
 export const RETARGET_MIN = 0.03;          // a cut already in flight can be moved until this close to landing
 export const ROLL_T = T.ROLL_T;            // seconds a roll lasts
 export const GULL_UP_WIN = 0.9;            // up at a gull in my lane that has seen me is a jump attack from this far off (else a plain jump flew into its dive)
-export const SIGHT_T = 1.1, WIND_T = 0.6, LAUNCH_T = 0.3;   // seconds to contact: a foe sees me, winds up, launches
+export const SIGHT_T = 1.1, WIND_T = 0.6, LAUNCH_T = 0.3;   // seconds to contact: a foe sees me, winds up, launches (the crab's and the gull's; each kind's own are in BEHAVIOURS)
 export const HIT_X = 0.8 * LANE_W;         // a launched foe hits what is this near the lane it aimed at
 export const SIDE_ABOVE = 2.0, SIDE_BELOW = 2.5;   // a swipe sideways in the air reaches a flyer in the next lane from this far above its base ("a bit above and next to it") or below it
 export const UP_ABOVE = 1.2;               // an up swipe cuts a flyer in my lane only from this far above its base ("just slightly above"); higher up it is down: a bonk
@@ -97,6 +97,17 @@ export const KINDS = {                     // foes: base height and body height 
   // breaks), a balloon costs nothing but my chain (and pops without a reward).
   barrel: { y: 0, h: 0.85, air: false, inert: true },
   balloon: { y: 2.2, h: 1.1, air: true, inert: true },
+};
+/** What each kind of foe does and what beats it (5 November 2026: one table, not one state machine for all). `sight`, `wind`, `launch`: seconds to contact at
+ *  which it notices me, rears and launches (`think`); `move`: the shape of the attack (`slide` into the lane aimed at, `dive` from the air, `throw` a shot,
+ *  `roll` down its own lane, `swing` over two lanes); `counters`: the ways to beat it (front/side cuts, roll, jump, lane change, slam, bonk, clash);
+ *  `punishes`: the habit it punishes, which is why no two kinds punish the same one. tests/courier-foes.mjs proves each counter works and each habit fails. */
+export const BEHAVIOURS = {
+  crab: { sight: 1.1, wind: 0.6, launch: 0.3, move: "slide", counters: ["front", "side", "roll", "clash", "slam", "bonk", "jump"], punishes: "waiting for it in the lane" },
+  bruiser: { sight: 1.1, wind: 0.6, launch: 0.3, move: "slide", counters: ["front", "side", "roll", "clash", "slam", "bonk"], punishes: "one cut and on" },
+  gull: { sight: 1.1, wind: 0.6, launch: 0.3, move: "dive", counters: ["roll", "side", "slam", "bonk", "front", "clash"], punishes: "jumping into its lane" },
+  barrel: { inert: true, counters: ["front", "side", "roll", "jump", "lane"], punishes: "" },
+  balloon: { inert: true, counters: ["front", "side", "bonk", "lane"], punishes: "" },
 };
 export const BREAK_COINS = { barrel: 3, balloon: 2 };
 export const GEM_MAX_HEARTS = 5;           // amber: each one found is a heart back, and past the hearts I have, a heart more (up to this many)
@@ -1109,6 +1120,8 @@ function sweepFoe(S, lane, ahead = 0) {
 // ---------- the foes' minds ----------
 
 const isAir = f => KINDS[f.kind].air;
+/** The behaviour of a foe: a heavy crab is the bruiser's. */
+export const behOf = f => BEHAVIOURS[f.heavy ? "bruiser" : f.kind] || BEHAVIOURS[f.kind];
 const inert = f => !!KINDS[f.kind].inert;
 
 /** A foe within a lane of me sees me (`ph` 1: it looks my way), winds up (2) and launches (3), by seconds to contact so
@@ -1127,11 +1140,12 @@ function think(S) {
     if (ph === 3) { fly(f, t - reachT); continue; }
     if (t < -reachT) continue;
     const dl = h.lane - f.lane;
-    if (t > SIGHT_T || Math.abs(dl) > 1) { f.ph = 0; continue; }
+    const B = behOf(f), k = f.tempo || 1;                                            // (k: a quicker variant winds up and launches later in the approach)
+    if (t > B.sight * k || Math.abs(dl) > 1) { f.ph = 0; continue; }
     f.look = Math.sign(dl);
     if (ph === 0) { ph = 1; f.pt = S.t; S.ev.push({ type: "notice", id: f.id, kind: f.kind, lane: f.lane, look: f.look }); }
-    if (ph === 1 && t <= WIND_T) { ph = 2; f.pt = S.t; S.ev.push({ type: "wind", id: f.id, kind: f.kind, lane: f.lane }); }
-    if (ph === 2 && t <= LAUNCH_T && (!isAir(f) || (grounded(h) && !h.lunge))) {      // (a gull does not dive while I fly at something: at it, it would run from my cut)
+    if (ph === 1 && t <= B.wind * k) { ph = 2; f.pt = S.t; S.ev.push({ type: "wind", id: f.id, kind: f.kind, lane: f.lane }); }
+    if (ph === 2 && t <= B.launch * k && (!isAir(f) || (grounded(h) && !h.lunge))) {      // (a gull does not dive while I fly at something: at it, it would run from my cut)
       ph = 3; f.pt = S.t; f.aim = h.lane; f.lt = Math.max(0, t - reachT); f.y0 = f.y;
       S.ev.push({ type: "launch", id: f.id, kind: f.kind, lane: f.lane, aim: f.aim });
       fly(f, t - reachT);
