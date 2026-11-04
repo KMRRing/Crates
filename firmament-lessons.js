@@ -11,8 +11,11 @@ import { CH6 } from "./firmament-c6.js";
 import { CH7 } from "./firmament-c7.js";
 import { CH8 } from "./firmament-c8.js";
 import { CH9 } from "./firmament-c9.js";
+import { CH10 } from "./firmament-c10.js";
+import { CH11 } from "./firmament-c11.js";
+import { CH12 } from "./firmament-c12.js";
 
-export const SOURCE = [CH1, CH2, CH3, CH4, CH5, CH6, CH7, CH8, CH9];
+export const SOURCE = [CH1, CH2, CH3, CH4, CH5, CH6, CH7, CH8, CH9, CH10, CH11, CH12];
 
 function stepOf(raw, id, l) {
   const base = { id, when: l.when, fig: raw.fig || l.fig };

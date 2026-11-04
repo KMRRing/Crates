@@ -33,7 +33,7 @@ function bars({ rows, max, unit = "" }) {
   rows.forEach(([label, v, hi], i) => {
     const y = 16 + i * h, bw = Math.max(2, (v / m) * 214), bh = Math.min(26, h - 24);
     out.push(T(10, y + 10, label, { a: "start", s: 10 }), `<rect class="${hi ? "fa" : "ff"}" x="10" y="${r1(y + 16)}" width="${r1(bw)}" height="${r1(bh)}" rx="2"/>`,
-      T(10 + bw + 6, y + 16 + bh / 2 + 4, `${String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${unit ? ` ${unit}` : ""}`, { a: "start", s: 9.5, c: "fm" }));
+      T(10 + bw + 6, y + 16 + bh / 2 + 4, `${String(v).replace(/^\d+/, i => i.replace(/\B(?=(\d{3})+(?!\d))/g, ","))}${unit ? ` ${unit}` : ""}`, { a: "start", s: 9.5, c: "fm" }));
   });
   return out.join("");
 }

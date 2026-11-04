@@ -11,3 +11,5 @@ A narrative course in how we came to know the universe (people, arguments, instr
 - **Contested numbers are never asked as a bare number**: Eratosthenes' stadion, Ma'mun's mile, al-Biruni's cubit are told as ranges with who disputes.
 - **Landfall and Orrery are linked (menu), never restated**; `tests/firmament.mjs` fails on an 8-word run copied from a Landfall note.
 - **A figure's `t` is its type**; give a figure's own angle another key (`ang`).
+- **Counts that move are dated in the words** (confirmed exoplanets: 5,000 in March 2022, 6,000 in September 2025) and never asked as a number.
+- **Open questions in the last chapters** (K2-18 b, Hubble tension, DESI, Planet Nine) are told as claims with who holds which view; update the sentence, not the question, when one settles.

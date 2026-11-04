@@ -14,7 +14,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 const RAD = Math.PI / 180;
 
 // ---------- the shape ----------
-check(COURSE.chapters.map(c => c.id).join() === "naked,greeks,asia,revolution,telescope,gravity,distance,light,relativity", "the chapters are in the order of the brief");
+check(COURSE.chapters.map(c => c.id).join() === "naked,greeks,asia,revolution,telescope,gravity,distance,light,relativity,galaxies,bigbang,worlds", "the chapters are in the order of the brief");
 check(new Set(LESSON_IDS).size === LESSON_IDS.length && lessonsOf(COURSE).length === LESSONS.length, `${LESSONS.length} lessons, each id once`);
 check(COURSE.chapters.every(c => c.lessons.length >= 3), "every chapter has at least three lessons");
 check(LESSONS.every(l => l.steps.some(s => s.kind === "text") && l.steps.filter(s => s.kind === "quiz").length >= 2 || l.steps.filter(s => s.kind === "quiz").length >= 1), "every lesson has words and a question");
@@ -96,6 +96,18 @@ const CHECKS = {
   bend: () => 4 * 1.32712440018e20 / (299792458 ** 2 * 6.957e8) / RAD * 3600,
   rs: () => 2 * 1.32712440018e20 / 299792458 ** 2 / 1000,
   gw: () => 36 + 29 - 62,
+  // chapters 10 to 12
+  leavitt: () => Math.sqrt(10),
+  hubble500: () => 977.792 / 500,
+  hubble70: () => 977.792 / 70,
+  cmb: () => 2.897771955 / 2.725,
+  helium: () => 100 * (2 + 2) / (2 + 14),
+  keplerian: () => Math.pow(4, -0.5),
+  tension: () => (73.0 - 67.4) / Math.sqrt(0.5 ** 2 + 1.0 ** 2),
+  jupWobble: () => 1.26686534e17 / 1.32712440e20 * 13069.7,
+  earthWobble: () => 3.986004418e14 / 1.32712440018e20 * 29784.7,
+  transitDepth: () => (6371 / 695700) ** 2 * 100,
+  dark: () => 68.3 + 26.8,
 };
 const calcSteps = quiz.filter(s => s.calc);
 check(calcSteps.length >= 20, `${calcSteps.length} numeric questions`);
