@@ -61,11 +61,13 @@ const callWord = (k, talk = opts.talk) => (talk === "en" ? CALLS[k].en : talk ==
 const callSub = (k, talk = opts.talk) => (talk === "en" ? `${CALLS[k].zh} ${CALLS[k].py}` : talk === "yue" ? CALLS[k].jp : CALLS[k].py);
 /** A bid in short: 5 × ⚄, plain marked. */
 const short = b => `<span class="bo-short">${b.n}<span class="x">×</span>${die(b.f, "mini")}${plain(b) && b.f !== 1 ? `<span class="bo-zhai">${callWord("zhai")}</span>` : ""}</span>`;
-/** Cups drunk, as pips against the game's limit. */
-function cupsHtml(n, limit) {
-  if (limit > 6) return `<span class="bo-cups" aria-label="${n} of ${limit} cups"><b>${n}</b>/${limit}</span>`;
-  return `<span class="bo-cups" aria-label="${n} of ${limit} cups">${Array.from({ length: limit }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`;
+/** Lives left, as pips against the game's limit. `lost` is the seat's loss count (the state's `cups`: the name stays, saved games and tables hold it). */
+function cupsHtml(lost, limit) {
+  const left = Math.max(0, limit - lost);
+  if (limit > 6) return `<span class="bo-cups" aria-label="${left} of ${limit} lives left"><b>${left}</b>/${limit}</span>`;
+  return `<span class="bo-cups" aria-label="${left} of ${limit} lives left">${Array.from({ length: limit }, (_, i) => `<i class="${i < left ? "on" : ""}"></i>`).join("")}</span>`;
 }
+const livesOf = n => (n === 1 ? "a life" : `${n} lives`);
 
 // ---------- the table ----------
 let V = null;                                     // the view on screen
@@ -150,7 +152,7 @@ function draw3d(v) {
   runBar();
 }
 
-/** The middle of the table: the bid as called, or the cups lifted and who drinks. */
+/** The middle of the table: the bid as called, or the cups lifted and who loses. */
 function drawCentre(v) {
   $("centre").innerHTML = centreHtml(v);
   runBar();
@@ -163,8 +165,8 @@ function centreHtml(v) {
   const trail = s.bids.length > 1 ? `<p class="bo-trail">${s.bids.slice(-6, -1).map(x => `<span>${esc(nameOf(x.s))} ${short(x)}</span>`).join("")}</p>` : "";
   if (s.step === "shown" || s.step === "over") {
     const r = s.result, w = words({ ...r.bid, n: r.count });
-    const verdict = r.held ? `The bid held: ${esc(nameOf(r.loser))} ${isMe(r.loser) ? "drink" : "drinks"} ${r.stake === 1 ? "a cup" : `${r.stake} cups`}`
-      : `A lie: ${esc(nameOf(r.loser))} ${isMe(r.loser) ? "drink" : "drinks"} ${r.stake === 1 ? "a cup" : `${r.stake} cups`}`;
+    const verdict = r.held ? `The bid held: ${esc(nameOf(r.loser))} ${isMe(r.loser) ? "lose" : "loses"} ${livesOf(r.stake)}`
+      : `A lie: ${esc(nameOf(r.loser))} ${isMe(r.loser) ? "lose" : "loses"} ${livesOf(r.stake)}`;
     return `${said}<div class="bo-bid shown"><span class="bo-bid-call">${esc(callWord(r.kind === "fanpi" ? "fanpi" : r.kind === "pi" ? "pi" : "kai"))}</span>
       <span class="bo-bid-big">${r.count}<span class="x">×</span>${die(r.bid.f, "big")}</span>
       <span class="bo-bid-words">${esc(w.main)} <small>against ${r.bid.n}${plain(r.bid) && r.bid.f !== 1 ? `, ${esc(callWord("zhai"))}` : ""}</small></span></div>
@@ -179,7 +181,7 @@ function centreHtml(v) {
   }
   const w = words(b);
   const odds = opts.odds && v.seat != null && b.s !== v.seat ? oddsLine(v) : "";
-  const pi = s.step === "pi" ? `<p class="bo-verdict pi">${esc(nameOf(s.pi.by))} ${isMe(s.pi.by) ? "chop" : "chops"} it: ${esc(callWord("pi"))} ${esc(callSub("pi"))}, two cups at stake${isMe(b.s) ? ". Chop back for four?" : ""}</p>` : "";
+  const pi = s.step === "pi" ? `<p class="bo-verdict pi">${esc(nameOf(s.pi.by))} ${isMe(s.pi.by) ? "chop" : "chops"} it: ${esc(callWord("pi"))} ${esc(callSub("pi"))}, two lives at stake${isMe(b.s) ? ". Chop back for four?" : ""}</p>` : "";
   return `${said}<div class="bo-bid"><span class="bo-bid-by">${isMe(b.s) ? "Your bid" : `${esc(nameOf(b.s))}’s bid`}${b.fly ? ` · ${esc(callWord("fei"))}` : ""}</span>
     <span class="bo-bid-big">${b.n}<span class="x">×</span>${die(b.f, "big")}${plain(b) && b.f !== 1 ? `<span class="bo-zhai big">${esc(callWord("zhai"))}</span>` : ""}</span>
     <span class="bo-bid-words">${esc(w.main)}</span><small class="bo-bid-sub">${esc(w.sub)}</small></div>${pi}${odds}${trail}`;
@@ -269,9 +271,9 @@ function drawControls(v) {
   }
   const prev = lastBid(s);
   if (s.step === "pi" && prev?.s === v.seat) {
-    box.innerHTML = `<p class="bo-status">${esc(nameOf(s.pi.by))} chopped your bid. Trust it? Chop back and four cups ride on it.</p>
-      <div class="bo-row two"><button class="btn bo-call-btn" type="button" data-act="take"><b>${esc(callWord("take"))}</b><small>let it open · 2 cups</small></button>
-      <button class="btn primary bo-call-btn" type="button" data-act="fanpi"><b>${esc(callWord("fanpi"))}</b><small>${esc(callSub("fanpi"))} · 4 cups</small></button></div>`;
+    box.innerHTML = `<p class="bo-status">${esc(nameOf(s.pi.by))} chopped your bid. Trust it? Chop back and four lives ride on it.</p>
+      <div class="bo-row two"><button class="btn bo-call-btn" type="button" data-act="take"><b>${esc(callWord("take"))}</b><small>let it open · 2 lives</small></button>
+      <button class="btn primary bo-call-btn" type="button" data-act="fanpi"><b>${esc(callWord("fanpi"))}</b><small>${esc(callSub("fanpi"))} · 4 lives</small></button></div>`;
     return;
   }
   const mine = s.step === "bid" && s.turn === v.seat;
@@ -302,7 +304,7 @@ function statusLine(v) {
   const s = v.state;
   if (s.step === "over") {
     const win = s.winners.map(nameOf);
-    return v.seat != null && s.winners.includes(v.seat) ? (win.length > 1 ? `You drank least, with ${win.filter(n => n !== nameOf(v.seat)).join(" and ")}` : "You drank least: you win") : `${win.join(" and ")} drank least`;
+    return v.seat != null && s.winners.includes(v.seat) ? (win.length > 1 ? `You kept the most lives, with ${win.filter(n => n !== nameOf(v.seat)).join(" and ")}` : "You kept the most lives: you win") : `${win.join(" and ")} kept the most lives`;
   }
   if (s.step === "shown") return "The cups are up";
   if (s.step === "pi") return `${nameOf(lastBid(s).s)} decides: chop back, or let it open`;
@@ -346,9 +348,9 @@ function onOver(v) {
 function showEnd(v) {
   const s = v.state, rows = Array.from({ length: s.seats }, (_, i) => i).sort((a, b) => s.cups[a] - s.cups[b]);
   const mine = v.seat != null && s.winners.includes(v.seat);
-  $("endHead").textContent = mine ? (s.winners.length > 1 ? "You share the win" : "You drank least") : `${s.winners.map(nameOf).join(" and ")} ${s.winners.length > 1 ? "share it" : "wins"}`;
+  $("endHead").textContent = mine ? (s.winners.length > 1 ? "You share the win" : "You kept the most lives") : `${s.winners.map(nameOf).join(" and ")} ${s.winners.length > 1 ? "share it" : "wins"}`;
   const kinds = s.log.reduce((m, e) => ({ ...m, [e.kind]: (m[e.kind] || 0) + 1 }), {});
-  $("endBody").innerHTML = `<ol class="bo-standings">${rows.map(i => `<li class="${s.winners.includes(i) ? "won" : ""}${isMe(i) ? " me" : ""}"><span class="nm">${esc(nameOf(i))}</span>${cupsHtml(s.cups[i], Math.max(s.opts.limit, s.cups[i]))}<b>${s.cups[i]}</b></li>`).join("")}</ol>
+  $("endBody").innerHTML = `<ol class="bo-standings">${rows.map(i => `<li class="${s.winners.includes(i) ? "won" : ""}${isMe(i) ? " me" : ""}"><span class="nm">${esc(nameOf(i))}</span>${cupsHtml(s.cups[i], s.opts.limit)}<b>${Math.max(0, s.opts.limit - s.cups[i])}</b></li>`).join("")}</ol>
     <p class="bo-end-note">${s.log.length} rounds: ${kinds.kai || 0} opened, ${(kinds.pi || 0) + (kinds.fanpi || 0)} chopped${kinds.fanpi ? `, ${kinds.fanpi} chopped back` : ""}.</p>`;
   $("endAgain").hidden = !page.host;
   if (!$("endDlg").open) $("endDlg").showModal();
@@ -369,14 +371,13 @@ function showRules() {
     <p>Liar's dice as it's played round a table in Hong Kong, Macau and Guangdong (大話骰, daai6 waa6 sik1, "big-talk dice") and on the mainland (吹牛, chuīniú, "to brag"). Everyone has five dice under a cup and sees only their own.</p>
     <p><b>Bidding.</b> In turn, each says how many dice of one face lie under all the cups together: "four fives" means at least four 5s on the table. The opening bid is at least as many dice as there are players. Each bid must beat the last: more dice, or as many of a higher face (2 lowest, 6 highest).</p>
     <p><b>Ones are wild</b>: a 1 counts as whatever face is bid. A plain bid (斋, zhāi) counts no ones: "four fives, plain" needs four real 5s. A bid on ones is plain by nature, and the highest plain face. A plain bid may follow a wild one at the same count; going back to wild ones after a plain bid (飞, fēi, "fly") takes two dice more.</p>
-    <p><b>Opening.</b> Instead of bidding, the next player may call the last bid a lie: 开 (kāi, "open"). Every cup is lifted and the face counted (with the ones, unless the bid was plain). As many or more: the bid held and the opener drinks. Fewer: the bidder drinks. 劈 (pī, "chop") opens at double: two cups ride on it, and the bidder may answer 反劈 (fǎn pī, "chop back") to make it four. Whoever drank starts the next round.</p>
-    <p><b>The end.</b> When someone has drunk ${opts.limit} cups, the game ends; whoever drank least wins. Here a cup is a point; at a table, it's a drink.</p>
+    <p><b>Opening.</b> Instead of bidding, the next player may call the last bid a lie: 开 (kāi, "open"). Every cup is lifted and the face counted (with the ones, unless the bid was plain). As many or more: the bid held and the opener loses a life. Fewer: the bidder loses a life. 劈 (pī, "chop") opens at double: two lives ride on it, and the bidder may answer 反劈 (fǎn pī, "chop back") to make it four. Whoever lost lives starts the next round.</p>
+    <p><b>The end.</b> Everyone starts with ${opts.limit} lives. When someone is out of lives the game ends, and whoever has the most left wins.</p>
     <p><b>House rules</b> (Menu): 豹子 (bàozi, "leopard"): five dice alike under one cup count seven, five alike with ones among them six. 散 (sǎn, "scattered"): a cup of five different faces is rolled again before anyone bids.</p>
     <h3>What's said at the table</h3>
     <table class="bo-talk"><thead><tr><th></th><th>普通话</th><th>廣東話</th></tr></thead><tbody>
     ${row(w(3, 5), "Three fives")}${row(w(2, 6), "Two sixes")}${row(w(4, 3, true), "Four threes, plain")}${row(w(5, 1), "Five ones")}${row(w(12, 2), "Twelve twos")}
     ${call("kai", "Open!")}${call("pi", "Chop!")}${call("fanpi", "Chop back!")}${call("zhai", "Plain (no wild ones)")}${call("fei", "Fly: wild again")}
-    <tr><td>Drink!</td><td><b>喝！</b><br><small>hē</small></td><td><b>飲！</b><br><small>jam2</small></td></tr>
     <tr><td>Shake the cups</td><td><b>摇骰子</b><br><small>yáo shǎizi</small></td><td><b>搖骰</b><br><small>jiu4 sik1</small></td></tr>
     </tbody></table>
     <p class="bo-rules-note">Mandarin counts "two" of something as 两 (liǎng), the face two as 二 (èr); Cantonese counts dice with 粒 (nap1, "grain"), Mandarin with 个 (gè). Menu, Table talk, sets the language the bids are called in.</p>`;
@@ -410,7 +411,7 @@ function openMenu() {
   const next = () => { saveOpts(); };
   set.append(view.choice(() => draw()));
   set.append(choice("Players", [[2, "2"], [3, "3"], [4, "4"], [5, "5"], [6, "6"]], opts.seats, v => { opts.seats = Number(v); next(); }));
-  set.append(choice("A game ends at", LIMITS.map(n => [n, `${n} cups`]), opts.limit, v => { opts.limit = Number(v); next(); }));
+  set.append(choice("Lives each", LIMITS.map(n => [n, `${n} lives`]), opts.limit, v => { opts.limit = Number(v); next(); }));
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; next(); }));
   set.append(choice("Table talk", TALK, opts.talk, v => { opts.talk = v; next(); draw(); }));
   set.append(toggle("劈 and 反劈 (chop, chop back)", opts.pi, on => { opts.pi = on; next(); }));

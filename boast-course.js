@@ -85,16 +85,16 @@ export const COURSE = {
         {
           id: "open", title: "Open!", zh: "开",
           steps: [
-            { rows: [{ label: "The last bid", bid: "7 5" }, { label: "Your turn", text: "开！" }], say: "On your turn, instead of bidding you may call the last bid a lie: 开 (kāi, \"open\"; Cantonese 開, hoi1). Every cup is lifted and the face counted, with the ones unless the bid was plain. As many as bid, or more: the bid held, and the opener drinks. Fewer: the bidder drinks. Here a cup is a point; the game ends when someone reaches the limit, and whoever drank least wins." },
-            { rows: [{ label: "Your cup", dice: "5 5 2 3 6" }, { label: "Lifted", dice: "1 4 4 6 2" }, { label: "Lifted", dice: "5 3 3 2 6" }, { label: "Lifted", dice: "1 5 6 6 4" }], tap: "7 5", count: 6, say: "You opened seven fives. Tap every die that counts.", then: "Six: one short. The bidder drinks." },
-            { rows: [{ label: "The bid", bid: "5 3 z" }, { label: "Lifted", dice: "3 3 1 6 2" }, { label: "Lifted", dice: "4 3 5 1 6" }, { label: "Lifted", dice: "3 2 2 5 6" }], quiz: ["The bidder", "The one who opened"], answer: 0, say: "Five threes, plain, was opened. Who drinks?", why: "The bidder: plain, only real threes count, and there are four. With the ones it would have held, at six." },
+            { rows: [{ label: "The last bid", bid: "7 5" }, { label: "Your turn", text: "开！" }], say: "On your turn, instead of bidding you may call the last bid a lie: 开 (kāi, \"open\"; Cantonese 開, hoi1). Every cup is lifted and the face counted, with the ones unless the bid was plain. As many as bid, or more: the bid held, and the opener loses a life. Fewer: the bidder loses a life. Everyone starts with the same number of lives; the game ends when someone has none left, and whoever has the most wins." },
+            { rows: [{ label: "Your cup", dice: "5 5 2 3 6" }, { label: "Lifted", dice: "1 4 4 6 2" }, { label: "Lifted", dice: "5 3 3 2 6" }, { label: "Lifted", dice: "1 5 6 6 4" }], tap: "7 5", count: 6, say: "You opened seven fives. Tap every die that counts.", then: "Six: one short. The bidder loses a life." },
+            { rows: [{ label: "The bid", bid: "5 3 z" }, { label: "Lifted", dice: "3 3 1 6 2" }, { label: "Lifted", dice: "4 3 5 1 6" }, { label: "Lifted", dice: "3 2 2 5 6" }], quiz: ["The bidder", "The one who opened"], answer: 0, say: "Five threes, plain, was opened. Who loses a life?", why: "The bidder: plain, only real threes count, and there are four. With the ones it would have held, at six." },
           ],
         },
         {
           id: "chop", title: "Chop", zh: "劈",
           steps: [
-            { rows: [{ label: "The last bid", bid: "8 6" }, { label: "Chop", text: "劈！" }, { label: "Chop back", text: "反劈！" }], say: "劈 (pī, \"chop\"; Cantonese pek3) opens with two cups riding on it. The bidder may answer 反劈 (fǎn pī, \"chop back\"; faan2 pek3), and then four do. Menu turns them off." },
-            { rows: [{ label: "You", text: "劈！" }, { label: "The bidder", text: "反劈！" }], quiz: ["One", "Two", "Four"], answer: 2, say: "You chopped, the bidder chopped back, and the bid held. How many cups do you drink?", why: "Four: the chop made it two, the chop back four." },
+            { rows: [{ label: "The last bid", bid: "8 6" }, { label: "Chop", text: "劈！" }, { label: "Chop back", text: "反劈！" }], say: "劈 (pī, \"chop\"; Cantonese pek3) opens with two lives riding on it. The bidder may answer 反劈 (fǎn pī, \"chop back\"; faan2 pek3), and then four do. Menu turns them off." },
+            { rows: [{ label: "You", text: "劈！" }, { label: "The bidder", text: "反劈！" }], quiz: ["One", "Two", "Four"], answer: 2, say: "You chopped, the bidder chopped back, and the bid held. How many lives do you lose?", why: "Four: the chop made it two, the chop back four." },
           ],
         },
         {
@@ -152,7 +152,7 @@ export const COURSE = {
         {
           id: "sure", title: "Chop when sure", zh: "劈",
           steps: [
-            { rows: [{ label: "Your cup", dice: "2 3 3 6 6" }, { label: "The last bid", bid: "9 5" }], odds: { bid: "9 5", shown: 0.03 }, quiz: ["劈: chop", "开: open", "Raise: nine sixes"], answer: 0, say: "Your cup is 2 3 3 6 6, and the last bid is nine fives. What now?", why: "Chop. It needs nine fives from fifteen dice where you'd expect five: about 1 time in 30. Two cups ride on it, and you'll almost surely win them. If the bidder chops back, four." },
+            { rows: [{ label: "Your cup", dice: "2 3 3 6 6" }, { label: "The last bid", bid: "9 5" }], odds: { bid: "9 5", shown: 0.03 }, quiz: ["劈: chop", "开: open", "Raise: nine sixes"], answer: 0, say: "Your cup is 2 3 3 6 6, and the last bid is nine fives. What now?", why: "Chop. It needs nine fives from fifteen dice where you'd expect five: about 1 time in 30. Two lives ride on it, and you'll almost surely win them. If the bidder chops back, four." },
           ],
         },
         {

@@ -118,7 +118,7 @@ export function botMove(state, seat, { level = "hard", rng = Math.random } = {})
   const pLast = prev ? noisy(chance(samples, prev, v.opts)) : 1;
   if (L.look) {
     // a look ahead to the next player: in each sample they see their own cup and reckon the bid on it (the rest by
-    // the average), opening it when it looks unlikely to them. Opened, a raise costs me a cup if it's false and them
+    // the average), opening it when it looks unlikely to them. Opened, a raise costs me a life if it's false and them
     // one if it's true; raised past, the round goes on. So a true bid that looks false to them (a plain bid on a face
     // this cup holds, a face they lack) draws a wrong 开, and a false one that looks likely passes.
     const nxt = (v.me + 1) % v.seats, rest = 5 * (v.seats - 1);

@@ -1,5 +1,5 @@
-// Higher or Lower, the drinking game (October 2026): one deck of 52, shuffled, and a tap turns the next card. Whoever's
-// go it is says higher or lower out loud first; wrong, or the same rank again, and they drink. Aces high. Played on one
+// Higher or Lower (October 2026): one deck of 52, shuffled, and a tap turns the next card. Whoever's
+// go it is says higher or lower out loud first; wrong, or the same rank again, and they lose. Aces high. Played on one
 // phone in the middle of the table (its tile, or Party's list before a party's open: `solo`), the deck kept on the
 // phone (party:hilo); or at a party, every phone showing the same card and anyone's tap turning the next for everyone
 // (`view`, the deck in the game's state).
@@ -25,7 +25,7 @@ export function newDeck(rng = Math.random) {
 export const next = deck => (deck.at < 51 ? { ...deck, at: deck.at + 1 } : null);
 /** The deck with its next card turned, or after the last a new one shuffled (deal: which deck this is). */
 export const turned = (deck, rng = Math.random) => next(deck) || { ...deck, ...newDeck(rng), deal: (deck.deal || 1) + 1 };
-/** How a card compares with the one turned before it: "higher", "lower", or "same" (a drink whatever was called). */
+/** How a card compares with the one turned before it: "higher", "lower", or "same" (a loss whatever was called). */
 export const verdict = (before, card) => (rankOf(card) > rankOf(before) ? "higher" : rankOf(card) < rankOf(before) ? "lower" : "same");
 /** Whether what the phone kept is a deck: the 52 each once, and a place in it. */
 export const isDeck = d => Array.isArray(d?.order) && d.order.length === 52 && new Set(d.order).size === 52
@@ -52,7 +52,7 @@ export function told(state, name) {
   const card = state.order[state.at];
   if (!state.at) return `${name} shuffled a new deck: the ${nameOf(card)}.`;
   const v = verdict(state.order[state.at - 1], card);
-  return `${name}: the ${nameOf(card)}. ${v === "same" ? "The same: drink!" : v === "higher" ? "Higher." : "Lower."}`;
+  return `${name}: the ${nameOf(card)}. ${v === "same" ? "The same: that's a loss!" : v === "higher" ? "Higher." : "Lower."}`;
 }
 
 // ---------- the table ----------
@@ -66,7 +66,7 @@ function cardEl(c) {
 }
 const PLACES = ["hl-enter", "hl-now", "hl-before", "hl-gone"];
 const place = (el, cls) => { el.classList.remove(...PLACES); el.classList.add(cls); };
-const SAY = { higher: "↑ Higher", lower: "↓ Lower", same: "= The same: drink" };
+const SAY = { higher: "↑ Higher", lower: "↓ Lower", same: "= The same: a loss" };
 
 /**
  * The table on a stage: the pile (the card turned, and the one before it tilted under it, its corner showing), what
@@ -165,9 +165,9 @@ export default {
   name: "Higher or Lower",
   min: 2,
   max: 24,
-  blurb: "The drinking game: call the next card higher or lower, and drink if you're wrong. On one phone, or everyone's.",
+  blurb: "Call the next card higher or lower, and lose if you're wrong. On one phone, or everyone's.",
   rules: [
-    "One deck of 52. Whoever's go it is says out loud whether the next card will be higher or lower than the one showing, then taps it over: wrong, and they drink. The same rank again and they drink too. Aces are high; suits don't count; the go passes to the left after every card.",
+    "One deck of 52. Whoever's go it is says out loud whether the next card will be higher or lower than the one showing, then taps it over: wrong, and they lose. The same rank again and they lose too. Aces are high; suits don't count; the go passes to the left after every card.",
     "On one phone (its tile, or Party's list), put the phone in the middle of the table. At a party every phone shows the same card and anyone can tap for the next; the host can shuffle a new deck. After the last card, a tap shuffles one.",
   ],
   css: "party-hilo.css",

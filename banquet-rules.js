@@ -1,14 +1,14 @@
 // Banquet: the hand games of a Chinese banquet table, for two (seats.js runs it, solo against the computer or at a table
 // with a friend). 划拳 (huáquán, "drawing fists"): each throws a hand of none to five fingers and calls the total of both
 // hands at once, in the verses the table uses (two is 哥俩好, "two good brothers"); the one who calls it right while the
-// other doesn't makes the other drink. 十五二十 (sap6 ng5 ji6 sap6, "fifteen, twenty"), Hong Kong's: each shows both hands,
-// open or fist, five or nothing each; the caller calls the total, and two right calls in a row make the other drink, a
+// other doesn't makes the other lose a life. 十五二十 (sap6 ng5 ji6 sap6, "fifteen, twenty"), Hong Kong's: each shows both hands,
+// open or fist, five or nothing each; the caller calls the total, and two right calls in a row make the other lose a life, a
 // wrong one passes the call. Throws are made in turn here but hidden until both are in, so it plays as at the table.
 
 /** 划拳's calls, the total 0 to 10: the verse, its pinyin, what it says. Regions differ; these are among the commonest. */
 export const HUA = [
   { zh: "宝拳", py: "bǎo quán", en: "the treasured fist: none" },
-  { zh: "一心敬", py: "yī xīn jìng", en: "with all my heart, a toast" },
+  { zh: "一心敬", py: "yī xīn jìng", en: "with all my heart, my respects" },
   { zh: "哥俩好", py: "gē liǎ hǎo", en: "two good brothers" },
   { zh: "三星照", py: "sān xīng zhào", en: "three stars shine" },
   { zh: "四喜财", py: "sì xǐ cái", en: "four joys and wealth" },
@@ -100,7 +100,7 @@ export const rules = {
     if (s.cups.some(c => c >= s.limit)) {
       s.step = "over";
       s.winners = [s.cups[0] >= s.limit ? 1 : 0];
-      s.say = `{s${s.winners[0]}} wins: {s${other(s.winners[0])}} has drunk ${s.limit} cups.`;
+      s.say = `{s${s.winners[0]}} wins: {s${other(s.winners[0])}} is out of lives.`;
       delete s.until;
       return s;
     }
@@ -110,7 +110,7 @@ export const rules = {
     delete s.until;
     if (s.mode === "huaquan") s.first = other(s.first);          // in turn, so neither always throws second
     else s.first = s.caller;
-    s.say = r.loser != null ? `{s${r.loser}} drinks.` : s.mode === "huaquan" ? (r.right.every(Boolean) ? "Both right: again." : "Neither: again.") : r.hit
+    s.say = r.loser != null ? `{s${r.loser}} loses a life.` : s.mode === "huaquan" ? (r.right.every(Boolean) ? "Both right: again." : "Neither: again.") : r.hit
       ? `Right! One more, {s${s.caller}}.` : `Wrong: {s${s.caller}} calls.`;
     return s;
   },
@@ -130,7 +130,7 @@ export const rules = {
   },
 };
 
-/** Both throws in: the hands shown, the calls judged, the cups drunk. */
+/** Both throws in: the hands shown, the calls judged, the lives lost. */
 function reveal(s, now) {
   const [a, b] = s.throws, total = a.hand + b.hand;
   let loser = null, right = [false, false], hit = false;

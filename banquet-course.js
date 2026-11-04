@@ -1,6 +1,6 @@
 // Banquet's course (Learn, in the header): 划拳 and 十五二十 taught from nothing, on the course's sheet (course.js) with a
 // stage of its own: the hands drawn as the table draws them (banquet-draw.js), the calls in their characters with their
-// sound and number. Every rule it states is the rules' (banquet-rules.js): what a hand may call, who drinks.
+// sound and number. Every rule it states is the rules' (banquet-rules.js): what a hand may call, who loses a life.
 //
 // A step's stage, as a lesson writes it:
 //   mode: "huaquan" | "shiwu"               the game (划拳 unless said)
@@ -148,11 +148,11 @@ export const COURSE = {
           ],
         },
         {
-          id: "drink", title: "Who drinks", zh: "喝",
+          id: "drink", title: "Who loses a life", zh: "输",
           steps: [
-            { rows: [{ label: "One right", text: "the other drinks" }, { label: "Both right, or neither", text: "again" }], say: "Both hands shown, both calls judged: whoever called it right while the other didn't makes the other drink. Both right, or both wrong, and you throw again. A game is to three cups, or five or seven: whoever drinks that many first loses. Here a cup is a point; at a table, a drink, or tea." },
-            { mine: 2, theirs: 3, calls: { mine: 5, theirs: 7 }, quiz: ["They drink", "You drink", "Again"], answer: 0, say: "You threw two calling 五魁首; they threw three calling 七个巧.", why: "Five: your 五魁首 is right and their 七个巧 isn't. They drink." },
-            { mine: 4, theirs: 2, calls: { mine: 6, theirs: 6 }, quiz: ["They drink", "You drink", "Again"], answer: 2, say: "Both called 六六顺.", why: "Six, and both right: again." },
+            { rows: [{ label: "One right", text: "the other loses a life" }, { label: "Both right, or neither", text: "again" }], say: "Both hands shown, both calls judged: whoever called it right while the other didn't makes the other lose a life. Both right, or both wrong, and you throw again. Everyone starts with three lives, or five or seven: whoever loses them all first loses." },
+            { mine: 2, theirs: 3, calls: { mine: 5, theirs: 7 }, quiz: ["They lose a life", "You lose a life", "Again"], answer: 0, say: "You threw two calling 五魁首; they threw three calling 七个巧.", why: "Five: your 五魁首 is right and their 七个巧 isn't. They lose a life." },
+            { mine: 4, theirs: 2, calls: { mine: 6, theirs: 6 }, quiz: ["They lose a life", "You lose a life", "Again"], answer: 2, say: "Both called 六六顺.", why: "Six, and both right: again." },
           ],
         },
         {
@@ -166,15 +166,15 @@ export const COURSE = {
         {
           id: "caller", title: "The caller", zh: "叫",
           steps: [
-            { rows: [{ label: "Right twice running", text: "the other drinks" }, { label: "Wrong", text: "the call passes" }], say: "In 十五二十 only one calls; the other just shows. Call it right twice running and the other drinks, and calls next; call it wrong and the call passes." },
+            { rows: [{ label: "Right twice running", text: "the other loses a life" }, { label: "Wrong", text: "the call passes" }], say: "In 十五二十 only one calls; the other just shows. Call it right twice running and the other loses a life, and calls next; call it wrong and the call passes." },
             { mode: "shiwu", mine: 5, tap: "calls", count: 3, say: "You call, showing one hand open: tap every call you may make.", then: "五, 十 or 十五: your five, and their none, five or ten." },
-            { quiz: ["They drink, and call next", "You call once more", "You drink"], answer: 0, rights: 2, say: "You called it right last time. Right again?", why: "Twice running: they drink, and the call is theirs." },
+            { quiz: ["They lose a life, and call next", "You call once more", "You lose a life"], answer: 0, rights: 2, say: "You called it right last time. Right again?", why: "Twice running: they lose a life, and the call is theirs." },
           ],
         },
         {
           id: "first", title: "A first game", zh: "",
           steps: [
-            { say: "That's the table. Play Lao Wang at Easy, who throws and calls at random: 划拳 first; the menu has 十五二十 and how many cups a game is.", play: true, mode: "huaquan", level: "easy" },
+            { say: "That's the table. Play Lao Wang at Easy, who throws and calls at random: 划拳 first; the menu has 十五二十 and how many lives a game starts with.", play: true, mode: "huaquan", level: "easy" },
           ],
         },
       ],

@@ -40,8 +40,8 @@ function toast(msg, ms = 2600) {
 /** A call's words: the verse (or the Cantonese) large, the sound and the sense beneath. */
 const callOf = (mode, c) => (mode === "shiwu" ? { zh: SHIWU[c].zh, say: SHIWU[c].jp, en: SHIWU[c].en } : { zh: HUA[c].zh, say: HUA[c].py, en: HUA[c].en });
 
-/** Cups drunk, as pips against the game's limit. */
-const cupsHtml = (n, limit) => `<span class="bq-cups" aria-label="${n} of ${limit} cups">${Array.from({ length: limit }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`;
+/** Lives left, as pips against the game's limit. `lost` is the state's `cups` (the name stays: saved games and tables hold it). */
+const cupsHtml = (lost, limit) => `<span class="bq-cups" aria-label="${Math.max(0, limit - lost)} of ${limit} lives left">${Array.from({ length: limit }, (_, i) => `<i class="${i < limit - lost ? "on" : ""}"></i>`).join("")}</span>`;
 
 // ---------- the table ----------
 let V = null;
@@ -71,13 +71,13 @@ function draw() {
   drawControls(V);
 }
 
-/** A player's place: their name, their cups, and what they've done this round. */
+/** A player's place: their name, their lives, and what they've done this round. */
 function drawSeat(box, v, seat) {
   if (!v?.G) { box.replaceChildren(); return; }
   const s = v.state, t = s.throws[seat], turn = s.step === "throw" && rules.toMove(s) === seat;
   const role = s.mode === "shiwu" ? (s.caller === seat ? `<span class="bq-role">calls${s.streak && s.caller === seat ? " · 1 right" : ""}</span>` : "") : "";
   const doing = s.step === "throw" ? (t ? "thrown" : turn ? (isMe(seat) ? "your throw" : "thinking…") : "") : "";
-  box.className = `bq-seat ${box.id === "mine" ? "mine" : "them"}${turn ? " turn" : ""}${s.last?.loser === seat && s.step !== "throw" ? " drinks" : ""}`;
+  box.className = `bq-seat ${box.id === "mine" ? "mine" : "them"}${turn ? " turn" : ""}${s.last?.loser === seat && s.step !== "throw" ? " out" : ""}`;
   box.innerHTML = `<b class="bq-name">${esc(nameOf(seat))}</b>${role}${cupsHtml(s.cups[seat], s.limit)}<span class="bq-doing">${doing}</span>`;
 }
 
@@ -112,8 +112,8 @@ function drawCentre(v) {
 }
 function verdict(s) {
   const r = s.last;
-  if (r.loser !== undefined) return isMe(r.loser) ? "You drink!" : `${nameOf(r.loser)} drinks!`;
-  if (s.mode === "shiwu") return r.hit ? (isMe(r.caller) ? "Right! Once more and they drink" : `Right: once more and you drink`) : `Wrong: the call passes to ${isMe(s.caller) ? "you" : nameOf(s.caller)}`;
+  if (r.loser !== undefined) return isMe(r.loser) ? "You lose a life!" : `${nameOf(r.loser)} loses a life!`;
+  if (s.mode === "shiwu") return r.hit ? (isMe(r.caller) ? "Right! Once more and they lose a life" : `Right: once more and you lose a life`) : `Wrong: the call passes to ${isMe(s.caller) ? "you" : nameOf(s.caller)}`;
   return r.right[0] && r.right[1] ? "Both right: again" : "Neither right: again";
 }
 
@@ -197,10 +197,10 @@ function onOver(v) {
 }
 function showEnd(v) {
   const s = v.state, mine = s.winners.includes(v.seat ?? -1);
-  $("endHead").textContent = mine ? "You win: they drank first" : `${nameOf(s.winners[0])} wins`;
+  $("endHead").textContent = mine ? "You win: they ran out of lives first" : `${nameOf(s.winners[0])} wins`;
   const rounds = s.log.length, hits = s.log.filter(x => x.loser !== undefined).length;
-  $("endBody").innerHTML = `<ol class="bq-standings">${[s.winners[0], 1 - s.winners[0]].map(i => `<li class="${s.winners.includes(i) ? "won" : ""}${isMe(i) ? " me" : ""}"><span class="nm">${esc(nameOf(i))}</span>${cupsHtml(s.cups[i], s.limit)}<b>${s.cups[i]}</b></li>`).join("")}</ol>
-    <p class="bq-end-note">${rounds} ${rounds === 1 ? "round" : "rounds"}, ${hits} ${hits === 1 ? "cup" : "cups"} drunk.</p>`;
+  $("endBody").innerHTML = `<ol class="bq-standings">${[s.winners[0], 1 - s.winners[0]].map(i => `<li class="${s.winners.includes(i) ? "won" : ""}${isMe(i) ? " me" : ""}"><span class="nm">${esc(nameOf(i))}</span>${cupsHtml(s.cups[i], s.limit)}<b>${Math.max(0, s.limit - s.cups[i])}</b></li>`).join("")}</ol>
+    <p class="bq-end-note">${rounds} ${rounds === 1 ? "round" : "rounds"}, ${hits} ${hits === 1 ? "life" : "lives"} lost.</p>`;
   $("endAgain").hidden = !page.host;
   if (!$("endDlg").open) $("endDlg").showModal();
 }
@@ -216,13 +216,13 @@ function showRules() {
   const hua = HUA.map((c, i) => `<tr><td class="n">${i}</td><td><b>${c.zh}</b><br><small>${c.py}</small></td><td>${esc(c.en)}</td></tr>`).join("");
   const shi = Object.entries(SHIWU).map(([n, c]) => `<tr><td class="n">${n}</td><td><b>${c.zh}</b><br><small>${c.jp}</small></td><td>${esc(c.en)}</td></tr>`).join("");
   $("rulesBody").innerHTML = `
-    <p>Two hand games of the banquet table, for two, played for cups: whoever drinks ${opts.limit} first loses. Here a cup is a point; at a table, it's a drink (or tea).</p>
+    <p>Two hand games of the banquet table, for two, played for lives: everyone starts with ${opts.limit}, and whoever loses them all first loses.</p>
     <h3>划拳 · huáquán, "drawing fists"</h3>
-    <p>Both throw a hand at once, none to five fingers, and call the total of both hands. Fingers go up from the thumb: one is the thumb, two the thumb and the forefinger (pointing a finger at someone is rude). Whoever calls it right while the other doesn't makes the other drink; both right, or neither, and you go again. A call your own hand rules out, below your own fingers or past them and five more, is a 臭拳 (chòu quán, "stinking fist"), and isn't allowed here.</p>
+    <p>Both throw a hand at once, none to five fingers, and call the total of both hands. Fingers go up from the thumb: one is the thumb, two the thumb and the forefinger (pointing a finger at someone is rude). Whoever calls it right while the other doesn't makes the other lose a life; both right, or neither, and you go again. A call your own hand rules out, below your own fingers or past them and five more, is a 臭拳 (chòu quán, "stinking fist"), and isn't allowed here.</p>
     <p>Each total has its verse, said with the throw, and every region has its own; these are among the commonest.</p>
     <table class="bq-talk"><tbody>${hua}</tbody></table>
     <h3>十五二十 · sap6 ng5 ji6 sap6, "fifteen, twenty"</h3>
-    <p>Hong Kong's. Each shows both hands, open (five) or a fist (nothing): none, five or ten each, so the total of four hands is 0, 5, 10, 15 or 20. One player calls, the other just shows. Call it right twice in a row and the other drinks (and calls next); call it wrong and the call passes to the other. The calls are in Cantonese:</p>
+    <p>Hong Kong's. Each shows both hands, open (five) or a fist (nothing): none, five or ten each, so the total of four hands is 0, 5, 10, 15 or 20. One player calls, the other just shows. Call it right twice in a row and the other loses a life (and calls next); call it wrong and the call passes to the other. The calls are in Cantonese:</p>
     <table class="bq-talk"><tbody>${shi}</tbody></table>
     <p class="bq-rules-note">Throws are made in turn here, but neither sees the other's until both are in, so it plays as at the table. The computer on Sharp watches what you throw and counts on your habits; on Easy it throws at random.</p>`;
   $("rulesDlg").showModal();
@@ -260,7 +260,7 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(choice("Game", GAMES, opts.mode, v => { opts.mode = v; saveOpts(); }));
-  set.append(choice("A game ends at", LIMITS.map(n => [n, `${n} cups`]), opts.limit, v => { opts.limit = Number(v); saveOpts(); }));
+  set.append(choice("Lives each", LIMITS.map(n => [n, `${n} lives`]), opts.limit, v => { opts.limit = Number(v); saveOpts(); }));
   set.append(choice("The computer", LEVELS, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line("The game and its end apply from the next game."));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));

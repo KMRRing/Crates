@@ -48,7 +48,7 @@ check(/id: "hilo", sec: "party", name: "Higher or Lower", href: "\.\/party\.html
   check((await t.act(2, st => tap(st, seen, t.uid(2)))) === false && t.state.at === 1, "Ana's tap on the card Mei already turned turns nothing");
   check(await t.act(2, st => tap(st, sees(), t.uid(2))) && t.state.at === 2 && t.seats.every(s => s.data.game.state.at === 2), "her tap on the card showing turns the next");
   const said = told(t.state, "Ana"), v = verdict(t.state.order[1], t.state.order[2]);
-  check(said === `Ana: the ${nameOf(t.state.order[2])}. ${v === "same" ? "The same: drink!" : v === "higher" ? "Higher." : "Lower."}`, `the narrator: "${said}"`);
+  check(said === `Ana: the ${nameOf(t.state.order[2])}. ${v === "same" ? "The same: that's a loss!" : v === "higher" ? "Higher." : "Lower."}`, `the narrator: "${said}"`);
   while (t.state.at < 51) await t.act(0, st => tap(st, sees(), t.uid(0)));
   check(await t.act(1, st => tap(st, sees(), t.uid(1))) && t.state.at === 0 && t.state.deal === 2 && isDeck(t.state), "after the last card, the next tap shuffles a new deck");
   check(told(t.state, "Mei") === `Mei shuffled a new deck: the ${nameOf(t.state.order[0])}.`, "and the narrator says so");

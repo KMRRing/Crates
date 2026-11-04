@@ -12,7 +12,7 @@ check(a.state === "on" && a.meta === "<span>c</span>" && a.tally.includes("6x3")
 check(plateOf({ ...base, mine: true }).name === "You", "your own plate says You");
 check(plateOf({ ...base, call: "开" }).tally.includes("bo3-call") && !plateOf({ ...base, call: "开" }).tally.includes("6x3"), "a call replaces the bid on the plate");
 check(plateOf({ ...base, dice: "<i>d</i>" }).tally.includes("bo3-dice"), "the dice show once the cups are lifted");
-check(plateOf({ ...base, loser: true }).state === "mate" && plateOf({ ...base, loser: true }).label.includes("drinks"), "the one who drinks is marked and named for a screen reader");
+check(plateOf({ ...base, loser: true }).state === "mate" && plateOf({ ...base, loser: true }).label.includes("loses"), "the one who loses is marked and named for a screen reader");
 check(plateOf({ ...base, turn: true, thinking: true }).state === "on thinking", "a thinking player thinks");
 check(plateOf({ ...base, away: true }).state === "out", "an absent player's plate is dimmed");
 check(!plateOf({ ...base, name: "<b>", call: "<i>" }).tally.includes("<i>") && !plateOf({ ...base, name: "<b>" }).label.includes("<b>x"), "a called word is escaped");

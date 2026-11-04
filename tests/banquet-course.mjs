@@ -2,7 +2,7 @@
 // (banquet-rules.js). Every hand shown is one the game has; every tap exercise has as many calls to find as its words
 // say, the hand's own (no 臭拳), and every call outside them is refused with why; every call to make is one the hand may
 // make and judged right, and of the calls only the meant ones are; the figures the lessons quote are worked out again
-// (the totals, the verses' numbers, who drinks, the caller's two in a row by the rules themselves, the odds by counting,
+// (the totals, the verses' numbers, who loses a life, the caller's two in a row by the rules themselves, the odds by counting,
 // the likeliest total from the other's last throws as Sharp weighs them, the sequence Sharp reads best); the stage
 // takes every exercise to its end by taps; the course keeps its progress.
 import { COURSE, CALLS, callWords, wantedOf, whyNot, judge, handStage } from "../banquet-course.js";
@@ -60,7 +60,7 @@ const verses = LESSONS.find(x => x.lesson.id === "verses").lesson.steps.filter(s
 check(verses.every(s => (/^[A-Z]/.test(said(s)) ? said(s) === WORDS[s.verse] && s.say.includes(HUA[s.verse].zh) : said(s) === HUA[s.verse].zh)), "the verses' numbers, as the game has them");
 check(HUA[3].zh === "三星照" && HUA[5].zh === "五魁首" && HUA[10].zh === "十全美" && callWords("shiwu", 15).zh === "十五", "the verses quoted are the game's");
 
-// who drinks, by the rules: both throws made on a fresh 划拳 table
+// who loses a life, by the rules: both throws made on a fresh 划拳 table
 function play(mode, a, b) {
   let s = rules.deal({ options: { mode, limit: 3 }, rng: () => 0.1 });
   const first = s.first, order = [first, 1 - first], th = { [0]: a, [1]: b };
@@ -69,13 +69,13 @@ function play(mode, a, b) {
 }
 for (const s of LESSONS.find(x => x.lesson.id === "drink").lesson.steps.filter(x => x.quiz)) {
   const r = play("huaquan", { hand: s.mine, call: s.calls.mine }, { hand: s.theirs, call: s.calls.theirs }).last;
-  const words = r.loser === 1 ? "They drink" : r.loser === 0 ? "You drink" : "Again";
+  const words = r.loser === 1 ? "They lose a life" : r.loser === 0 ? "You lose a life" : "Again";
   check(said(s) === words, `${s.calls.mine} against ${s.calls.theirs} with hands ${s.mine} and ${s.theirs}: "${words}"`);
 }
 const sw = step("shiwu", s => s.quiz);
 check(said(sw) === SHIWU[sw.mine + sw.theirs].zh && sw.total === sw.mine + sw.theirs, `十五二十: ${sw.mine} and ${sw.theirs}, "${said(sw)}"`);
 {
-  // the caller right twice running: the other drinks, and calls next
+  // the caller right twice running: the other loses a life, and calls next
   let s = rules.deal({ options: { mode: "shiwu", limit: 3 }, rng: () => 0.1 });
   const c = s.caller;
   for (let k = 0; k < 2; k++) {
@@ -83,7 +83,7 @@ check(said(sw) === SHIWU[sw.mine + sw.theirs].zh && sw.total === sw.mine + sw.th
     if (k === 0) s = rules.wake(s, { now: 99999 });
   }
   const rt = step("caller", x => x.rights);
-  check(s.last.loser === 1 - c && s.caller === 1 - c && said(rt) === "They drink, and call next", "right twice running: they drink, and call next");
+  check(s.last.loser === 1 - c && s.caller === 1 - c && said(rt) === "They lose a life, and call next", "right twice running: they lose a life, and call next");
 }
 
 // the odds, counted

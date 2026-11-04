@@ -35,7 +35,7 @@ html[data-theme="office"][data-mode="night"] { --bq-in: #479EF5; }
 .bq-side { display: flex; flex-direction: column; gap: .45rem; }
 .bq-seat { display: flex; align-items: center; gap: .5rem; padding: .4rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); min-height: 2.6rem; }
 .bq-seat.turn { border-color: var(--bq-in); box-shadow: inset 0 0 0 1.5px var(--bq-in); }
-.bq-seat.drinks { background: color-mix(in srgb, var(--bq-wrong) 14%, var(--tile)); }
+.bq-seat.out { background: color-mix(in srgb, var(--bq-wrong) 14%, var(--tile)); }
 .bq-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bq-role { padding: .05rem .4rem; border-radius: 3px; background: var(--bq-in); color: var(--sheet); font-size: .75rem; font-weight: 800; }
 .bq-doing { margin-left: auto; font-size: .8rem; color: var(--ink-soft); white-space: nowrap; }

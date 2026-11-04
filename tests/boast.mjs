@@ -1,7 +1,7 @@
 // Boast (boast-rules.js, boast-bot.js): the bids and what may follow what (the opening at least as many dice as
 // players, more dice or a higher face, ones wild unless plain, 1 highest among plain bids, plain at the same count after
 // wild, two more to fly back to wild), the count under the cups (wild ones, plain, the leopards when on), the round
-// (开, 劈 and 反劈 at one, two and four cups, the loser starting the next), the game's end at the limit, the words a
+// (开, 劈 and 反劈 at one, two and four lives, the loser starting the next), the game's end at the limit, the words a
 // bid is called in (Mandarin, Cantonese, English), the state through the database, whole games of computer players,
 // and Hard against Medium and Easy.
 import { rules, canFollow, leastAfter, bidsAfter, cupCount, tableCount, roll, bidWords, plain, opening, most, SHOW_MS, DEFAULTS } from "../boast-rules.js";
@@ -80,8 +80,8 @@ check(leastAfter(B(6, 5, true), 3, false, 4) === 8 && leastAfter(B(6, 5), 2, tru
   const opener = G.state.turn, bidder = third;
   G = applyMove(rules, G, opener, { t: "kai" }, 100).G;
   const r = G.state.result;
-  check(G.state.step === "shown" && r.count === 5 && r.held && r.loser === opener && G.state.cups[opener] === 1, "开: five sixes with the ones, the bid holds, the opener drinks a cup");
-  check(G.say.text.startsWith("开！一共五个六。") && G.say.text.includes(`{s${opener}}喝一杯`), `the narrator says the count and who drinks (${G.say.text})`);
+  check(G.state.step === "shown" && r.count === 5 && r.held && r.loser === opener && G.state.cups[opener] === 1, "开: five sixes with the ones, the bid holds, the opener loses a life");
+  check(G.say.text.startsWith("开！一共五个六。") && G.say.text.includes(`{s${opener}}丢一条命`), `the narrator says the count and who loses (${G.say.text})`);
   check(rules.toMove(G.state) === null && rules.wakeAt(G.state) === 100 + SHOW_MS && applyWake(rules, G, 200) === null, "the cups stay lifted a while, nobody to move");
   G = applyWake(rules, G, 100 + SHOW_MS);
   check(G.state.step === "bid" && G.state.round === 2 && G.state.turn === opener && G.state.bids.length === 0, "then the next round, the loser starting");
@@ -95,9 +95,9 @@ check(leastAfter(B(6, 5, true), 3, false, 4) === 8 && leastAfter(B(6, 5), 2, tru
   check(G.state.step === "pi" && rules.toMove(G.state) === a && G.say.text === "劈！", "劈: the bidder must answer");
   const before = G.state.cups[a];
   const G4 = applyMove(rules, G, a, { t: "fanpi" }, 300).G, G2 = applyMove(rules, G, a, { t: "take" }, 300).G;
-  check(G4.state.cups[a] === before + 4 && G4.state.result.kind === "fanpi" && G2.state.cups[a] === before + 2, "a false bid chopped costs its bidder two cups, four if he chopped back");
+  check(G4.state.cups[a] === before + 4 && G4.state.result.kind === "fanpi" && G2.state.cups[a] === before + 2, "a false bid chopped costs its bidder two lives, four if he chopped back");
   G = applyWake(rules, G4, 300 + SHOW_MS);
-  check(G.state.step === "over" && G.state.winners.length >= 1 && G.state.winners.every(i => G.state.cups[i] === Math.min(...G.state.cups)), "past the limit the game ends; whoever drank least wins");
+  check(G.state.step === "over" && G.state.winners.length >= 1 && G.state.winners.every(i => G.state.cups[i] === Math.min(...G.state.cups)), "past the limit the game ends; whoever kept the most lives wins");
   check(applyMove(rules, newRecord(rules, { seats: 2, options: { pi: false }, seed: 1, now: 0 }), 0, { t: "pi" }).error !== undefined, "with 劈 off, there's no chop");
 }
 

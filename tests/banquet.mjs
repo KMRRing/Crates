@@ -1,7 +1,7 @@
 // Banquet (banquet-rules.js) on seats.js: 划拳's calls and what a hand may call (no 臭拳, a call it can't reach); a round
-// (throws hidden until both are in, the one right while the other's wrong making the other drink, both or neither again,
-// who throws first in turn); 十五二十 (only the caller calls, two right in a row make the other drink, a wrong call passes
-// it); the game's end at the cups; the narrator's lines in Mandarin and Cantonese; the state through the database; the
+// (throws hidden until both are in, the one right while the other's wrong making the other lose a life, both or neither again,
+// who throws first in turn); 十五二十 (only the caller calls, two right in a row make the other lose a life, a wrong call passes
+// it); the game's end at the limit; the narrator's lines in Mandarin and Cantonese; the state through the database; the
 // computer players (legal throws; the sharp one reading a player's habits); whole games.
 import { rules, HUA, SHIWU, callsFor, SHOW_MS } from "../banquet-rules.js";
 import { newRecord, applyMove, applyWake, botMove, seeded } from "../seats.js";
@@ -26,13 +26,13 @@ const wake = (G, now) => applyWake(rules, G, now) || G;
   G = move(G, first, { t: "throw", hand: 2, call: 5 });
   check(G.state.step === "throw" && rules.toMove(G.state) === 1 - first && G.state.throws[first], "the first throw is in, unseen");
   G = move(G, 1 - first, { t: "throw", hand: 3, call: 7 });
-  check(G.state.step === "shown" && G.state.last.total === 5 && G.state.last.loser === 1 - first && G.state.cups[1 - first] === 1, "both in: five, the first called it, the other drinks");
+  check(G.state.step === "shown" && G.state.last.total === 5 && G.state.last.loser === 1 - first && G.state.cups[1 - first] === 1, "both in: five, the first called it, the other loses a life");
   check(G.say.lang === "zh-CN" && G.say.text === "五魁首！七个巧！", "the calls said in Mandarin, as thrown");
   G = wake(G, T + SHOW_MS);
-  check(G.state.step === "throw" && G.state.first === 1 - first && G.state.round === 2 && /drinks/.test(G.say.text), "then the next round, the other throwing first");
+  check(G.state.step === "throw" && G.state.first === 1 - first && G.state.round === 2 && /loses a life/.test(G.say.text), "then the next round, the other throwing first");
   G = move(G, 1 - first, { t: "throw", hand: 1, call: 3 });
   G = move(G, first, { t: "throw", hand: 2, call: 3 });
-  check(G.state.last.loser === undefined && G.state.cups.join() === [0, 1].map(i => (i === 1 - first ? 1 : 0)).join(), "both right: nobody drinks");
+  check(G.state.last.loser === undefined && G.state.cups.join() === [0, 1].map(i => (i === 1 - first ? 1 : 0)).join(), "both right: nobody loses a life");
   G = wake(G, T + 2 * SHOW_MS);
   check(/Both right/.test(G.say.text), "and it's said");
   const st = roundTrip(G.state), back = rules.restore(st);
@@ -44,7 +44,7 @@ const wake = (G, now) => applyWake(rules, G, now) || G;
     G = move(G, b, { t: "throw", hand: hb, call: b === first ? 5 : 4 });
     G = wake(G, T + (3 + i) * SHOW_MS);
   }
-  check(G.state.step === "over" && G.state.winners[0] === first && G.state.cups[1 - first] === 3 && /wins/.test(G.say.text), "three cups drunk: the game is over");
+  check(G.state.step === "over" && G.state.winners[0] === first && G.state.cups[1 - first] === 3 && /wins/.test(G.say.text), "three lives lost: the game is over");
 }
 {
   let G = newRecord(rules, { seats: 2, options: { mode: "shiwu", limit: 3 }, seed: 3, now: T });
@@ -53,7 +53,7 @@ const wake = (G, now) => applyWake(rules, G, now) || G;
   check(applyMove(rules, G, c, { t: "throw", hand: 5, call: 0 }).error && applyMove(rules, G, c, { t: "throw", hand: 7, call: 7 }).error, "hands are five or nothing; the call can't be below your own");
   G = move(G, c, { t: "throw", hand: 5, call: 15 });
   G = move(G, 1 - c, { t: "throw", hand: 10 });
-  check(G.state.last.hit && G.state.streak === 1 && G.state.caller === c && G.say.lang === "zh-HK" && G.say.text === "十五！", "a right call (fifteen, in Cantonese): one more and the other drinks");
+  check(G.state.last.hit && G.state.streak === 1 && G.state.caller === c && G.say.lang === "zh-HK" && G.say.text === "十五！", "a right call (fifteen, in Cantonese): one more and the other loses a life");
   G = wake(G, T + SHOW_MS);
   check(/One more/.test(G.say.text) && rules.toMove(G.state) === c, "the caller calls again");
   G = move(G, c, { t: "throw", hand: 0, call: 10 });
@@ -66,7 +66,7 @@ const wake = (G, now) => applyWake(rules, G, now) || G;
   G = wake(G, T + 3 * SHOW_MS);
   G = move(G, c2, { t: "throw", hand: 0, call: 0 });
   G = move(G, 1 - c2, { t: "throw", hand: 0 });
-  check(G.state.last.loser === 1 - c2 && G.state.cups[1 - c2] === 1 && G.state.caller === 1 - c2, "two right in a row: the other drinks, and calls next");
+  check(G.state.last.loser === 1 - c2 && G.state.cups[1 - c2] === 1 && G.state.caller === 1 - c2, "two right in a row: the other loses a life, and calls next");
 }
 {
   // the computer players: legal throws, and the sharp one reading a habit

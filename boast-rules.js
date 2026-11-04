@@ -1,8 +1,8 @@
 // Liar's dice (boast.html): Liar's dice as it's played round a table in Hong Kong, Macau and Guangdong (大話骰, daai6 waa6 sik1, "big-talk
 // dice") and across the mainland (吹牛, chuīniú, "to brag"): five dice each under a cup, bids on how many of a face lie
 // under all the cups together, ones wild until someone bids without them (斋, zhāi, "plain"), and 开 (kāi, "open") to
-// call the last bid a lie and lift every cup. The loser drinks; here, a cup is a point against you, and the game ends
-// when someone has drunk the limit. The rules are the Hong Kong bar rules (zh.wikipedia, 大話骰), the commonest set:
+// call the last bid a lie and lift every cup. The loser loses a life per stake, and the game ends
+// when someone has lost the limit (`cups` counts lives lost: the name stays for saved games). The rules are the Hong Kong bar rules (zh.wikipedia, 大話骰), the commonest set:
 //
 //  · The opening bid is at least as many dice as there are players (起叫, qǐjiào).
 //  · Each bid beats the last: more dice, or as many of a higher face (2 < 3 < 4 < 5 < 6; among plain bids 1 is highest).
@@ -17,7 +17,7 @@
 import { botMove } from "./boast-bot.js";
 
 export const SHOW_MS = 5200;                  // the cups stay lifted this long before the next round
-export const LIMITS = [3, 6, 10];             // a game ends when someone has drunk this many cups
+export const LIMITS = [3, 6, 10];             // lives each: a game ends when someone has lost this many
 export const DEFAULTS = { limit: 6, pi: true, bao: false, san: false, talk: "zh" };
 
 /** A bid: { s (the bidder's seat), n (how many dice), f (the face), z (plain) }. A bid on 1s is always plain. */
@@ -142,14 +142,14 @@ function sayBid(talk, b, flies) {
   if (talk === "yue") return say("yue", `${w.yue}${flies ? "，飛" : ""}`);
   return say("en", `${w.en[0].toUpperCase()}${w.en.slice(1)}${flies ? ", wild again" : ""}`);
 }
-const CUPS_ZH = ["", "一杯", "两杯", "三杯", "四杯"], CUPS_YUE = ["", "一杯", "兩杯", "三杯", "四杯"];
+const LIVES_ZH = ["", "一条命", "两条命", "三条命", "四条命"], LIVES_YUE = ["", "一條命", "兩條命", "三條命", "四條命"];
 function sayVerdict(talk, r) {
   const loser = `{s${r.loser}}`, b = r.bid, w = bidWords({ ...b, n: r.count });
   const call = r.kind === "fanpi" ? CALLS.fanpi : r.kind === "pi" ? CALLS.pi : CALLS.kai;
-  if (talk === "zh") return say("zh", `${call.zh}！一共${r.count === 0 ? "零" : w.zh.replace(/斋$/, "")}。${loser}喝${CUPS_ZH[r.stake]}。`);
-  if (talk === "yue") return say("yue", `${call.yue}！總共${r.count === 0 ? "零" : w.yue.replace(/齋$/, "")}。${loser}飲${CUPS_YUE[r.stake]}。`);
+  if (talk === "zh") return say("zh", `${call.zh}！一共${r.count === 0 ? "零" : w.zh.replace(/斋$/, "")}。${loser}丢${LIVES_ZH[r.stake]}。`);
+  if (talk === "yue") return say("yue", `${call.yue}！總共${r.count === 0 ? "零" : w.yue.replace(/齋$/, "")}。${loser}失${LIVES_YUE[r.stake]}。`);
   const what = `${enCount(r.count)} ${r.count === 1 ? EN_F1[b.f] : EN_F[b.f]}`;
-  return say("en", `${call.en}! ${what[0].toUpperCase()}${what.slice(1)} in all, against ${enCount(b.n)}. ${r.stake === 1 ? "A cup" : `${enCount(r.stake)[0].toUpperCase()}${enCount(r.stake).slice(1)} cups`} for ${loser}.`);
+  return say("en", `${call.en}! ${what[0].toUpperCase()}${what.slice(1)} in all, against ${enCount(b.n)}. ${loser} loses ${r.stake === 1 ? "a life" : `${enCount(r.stake)} lives`}.`);
 }
 
 // ---------- the game ----------
@@ -177,7 +177,7 @@ function newRound(s, starter, rng) {
   delete s.until;
 }
 
-/** Lifts the cups: counts the bid, says who drinks, keeps the round in the log. */
+/** Lifts the cups: counts the bid, says who loses, keeps the round in the log. */
 function open(s, challenger, kind, stake, now) {
   const b = lastBid(s), count = tableCount(s.dice, b, s.opts), held = count >= b.n;
   const loser = held ? challenger : b.s;
@@ -253,8 +253,8 @@ export const rules = {
       s.step = "over";
       s.winners = s.cups.map((c, i) => (c === least ? i : -1)).filter(i => i >= 0);
       const who = s.winners.map(i => `{s${i}}`);
-      s.say = s.opts.talk === "en" ? say("en", `Game over. ${who.join(" and ")} drank least.`)
-        : s.opts.talk === "yue" ? say("yue", `完場！${who.join("同")}飲得最少。`) : say("zh", `结束！${who.join("和")}喝得最少。`);
+      s.say = s.opts.talk === "en" ? say("en", `Game over. ${who.join(" and ")} kept the most lives.`)
+        : s.opts.talk === "yue" ? say("yue", `完場！${who.join("同")}剩低最多命。`) : say("zh", `结束！${who.join("和")}剩的命最多。`);
       delete s.until;
       return s;
     }
@@ -278,7 +278,7 @@ function pick(o) {
   return out;
 }
 
-/** What one seat may know: its own dice, everything said, the cups drunk; the others' dice only once lifted. */
+/** What one seat may know: its own dice, everything said, the lives lost; the others' dice only once lifted. */
 export function seen(s, seat) {
   return {
     seats: s.seats, opts: s.opts, me: seat, mine: s.dice[seat] || [], bids: s.bids, cups: s.cups, step: s.step, turn: s.turn,
