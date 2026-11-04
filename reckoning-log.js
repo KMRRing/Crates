@@ -109,6 +109,7 @@ export function describe(S, ev) {
     case "walljump": return `wall jump off the ${lane(ev.side)} wall`;
     case "wallrun": return `wall run, the ${lane(ev.side)} wall`;
     case "wallleave": return "left the wall";
+    case "clash": return `${named(ev.id)} was lunging at me and met my swipe: knocked back`;
     case "wallend": return "the wall ended";
     case "land": return ev.slam ? "land, a slam" : "land";
     case "shockwave": return `shockwave, ${ev.n} cut`;

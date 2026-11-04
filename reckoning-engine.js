@@ -25,6 +25,7 @@
 //     height                             the lanes beside me
 //   down, in the air, neither of those   a quick drop, and a roll on landing (a plain jump's height or less)
 //   left/right with a wall beside me   a wall run, which lifts me, from the outer lane or, with no foe to cut, from the middle
+//   left/right on a wall, away from it  with a foe in reach that way: the aerial cut a swipe in the air would be; else a drop
 //                                        one (by way of the lane); up on the wall is a higher jump
 // The gulls of a question (a gate) can be jumped at from further off (GATE_WIN), so a jump in front of the right one
 // is a jump attack, and the throw after it carries me over the gap. The foe a swipe goes for (and the ones a sweep goes on
@@ -56,28 +57,20 @@ import { T, airTime } from "./reckoning-tune.js";
 import { makeSegment, nextBiome, difficultyAt, rng as seeded, BIOMES, PIECES } from "./reckoning-biomes.js";
 
 export const LANE_W = 1.7;                 // metres between lane centres
-export const JUMP_H = 1.6;                 // a plain jump's peak: one "jump height"
-export const AIR_T = 0.72;                 // and its time in the air
-export const G = 8 * JUMP_H / (AIR_T * AIR_T);
-const peakV = h => Math.sqrt(2 * G * h);   // the upward speed that rises h
-export const JUMP_V = G * AIR_T / 2;
-export const HOP_V = peakV(0.9);           // a kill on the ground: a small hop
-export const CHAIN_V = peakV(1.7);         // a kill in the air: up again, past where I was
-export const BONK_V = peakV(1.9);
-export const WALLJUMP_V = peakV(2.4);
+// The jump's numbers are the tuning's (reckoning-tune.js, where Korbi's Feel lab round is the default); these are its defaults at load, for the tests.
+export const { JUMP_H, AIR_T, G, JUMP_V, HOP_V, CHAIN_V, BONK_V, WALLJUMP_V, SLAM_MIN_Y } = T;
 export const SLAM_V = 24;
-export const SLAM_MIN_Y = JUMP_H + 0.1;   // above this is "more than one jump height": a slam throws a shockwave
 export const HERO_H = 1.1;
 export const WALL_X = 1.5 * LANE_W;        // a wall's face
 export const WALL_HERO_X = WALL_X - 0.5;   // where a wall runner's feet are
 export const WALL_Y = 2.0;
 export const WALL_TOP = 3.2;               // an ordinary wall's height: a wall run on it can be re-joined only below this, so a jump from it gets me no higher
-export const PAD_V = peakV(4.3);           // a jump pad throws me this hard: up past a balcony's edge
-export const LANE_OMEGA = 34;              // the spring of a lane change (critically damped, 1/s): 80% of the way in 0.09 s and 95% in 0.14, a quick start and a soft arrival
-export const LANE_T = 4.75 / LANE_OMEGA;   // so a lane change takes this long (0.14 s) to be 95% done; a swipe made on top of another carries on from the speed it had
-export const FRONT_WIN = 0.28, ABOVE_WIN = 0.55, SIDE_WIN = 0.6, BUFFER = 0.14, LAND_BUFFER = 0.32;   // BUFFER: how long a swipe with nothing yet to work on is kept; LAND_BUFFER: the most a jump swiped in the air is kept, to be taken on landing
+export const PAD_V = T.PAD_V;              // a jump pad throws me this hard: up past a balcony's edge
+export const LANE_OMEGA = T.LANE_OMEGA;     // the spring of a lane change (critically damped, 1/s): a quick start and a soft arrival
+export const LANE_T = T.LANE_T;
+export const { FRONT_WIN, ABOVE_WIN, SIDE_WIN, BUFFER, LAND_BUFFER } = T;   // BUFFER: how long a swipe with nothing yet to work on is kept; LAND_BUFFER: the most a jump swiped in the air is kept, to be taken on landing
 export const RETARGET_MIN = 0.03;          // a cut already in flight can be moved until this close to landing
-export const ROLL_T = 0.45;                // seconds a roll lasts (it was 0.32; Korbi, 2 November 2026: "rolls should last a bit longer"): 4.5 to 7 m of quay
+export const ROLL_T = T.ROLL_T;            // seconds a roll lasts
 export const GULL_UP_WIN = 0.9;            // up at a gull in my lane that has seen me is a jump attack from this far off (else a plain jump flew into its dive)
 export const SIGHT_T = 1.1, WIND_T = 0.6, LAUNCH_T = 0.3;   // seconds to contact: a foe sees me, winds up, launches
 export const HIT_X = 0.8 * LANE_W;         // a launched foe hits what is this near the lane it aimed at
@@ -726,6 +719,8 @@ function side(S, dir) {
     if (dir !== -h.wall) return true;                             // towards the wall I am on: nothing to do (and nothing kept to do later)
     h.mode = "air"; h.vy = 0; h.noWall = S.t + 0.3; h.lane = h.wall; h.wall = 0;
     S.ev.push({ type: "wallleave" });
+    const t = sideTarget(S, h.lane + dir, dir);                   // a foe in reach that way (4 November 2026, Korbi): leaving is the aerial cut a swipe in the air would make
+    if (t) cutSide(S, t, dir);
     return true;
   }
   const wl = wallAt(S, dir, h.z + 0.6), room = wl ? topOf(wl) - 0.3 - h.y : -1;       // room: how far under the wall's top my feet are
@@ -733,9 +728,7 @@ function side(S, dir) {
   if (wl && (same || across) && (grounded(h) || room >= 0)) { enterWall(S, dir, wl, { across: !same }); return true; }
   const lane = h.lane + dir;
   if (lane < -1 || lane > 1) return false;
-  // the next lane's foe first; with none in range there, one two lanes across (the hero crosses both lanes to it)
-  let f = sideFoe(S, lane), to = lane;
-  if (!f && lane + dir >= -1 && lane + dir <= 1) { f = sideFoe(S, lane + dir); if (f) to = lane + dir; }
+  const tgt = sideTarget(S, lane, dir), f = tgt && tgt.f;
   // from the middle lane, towards a wall in the edge lane, with no foe to cut on the way: one swipe, by way of the lane, is the wall run
   if (!f && wl && h.lane === 0 && S.t >= h.noWall && (grounded(h) || room >= 0)) {
     h.lane = dir;
@@ -743,10 +736,31 @@ function side(S, dir) {
     enterWall(S, dir, wl, { via: true });
     return true;
   }
-  h.lane = to;
-  S.ev.push({ type: "lane", lane: to, dir });
-  if (f) startLunge(S, f, dir, "side");
+  if (tgt) cutSide(S, tgt, dir);
+  else moveTo(S, lane, dir);
   return true;
+}
+
+/** The lane change of a swipe sideways, noted for the clash rule. */
+function moveTo(S, lane, dir) {
+  const h = S.hero;
+  h.swipe = { t: S.t, dir, from: h.lane };
+  h.lane = lane;
+  S.ev.push({ type: "lane", lane, dir });
+}
+
+/** The foe a swipe sideways goes for: the next lane's first; with none in range there, one two lanes across (the hero crosses both lanes to it). */
+function sideTarget(S, lane, dir) {
+  if (lane < -1 || lane > 1) return null;
+  let f = sideFoe(S, lane), to = lane;
+  if (!f && lane + dir >= -1 && lane + dir <= 1) { f = sideFoe(S, lane + dir); if (f) to = lane + dir; }
+  return f ? { f, to } : null;
+}
+
+/** A swipe sideways that cuts: into the foe's lane, and at it. */
+function cutSide(S, { f, to }, dir) {
+  moveTo(S, to, dir);
+  startLunge(S, f, dir, "side");
 }
 
 /** Onto the wall `wl` on side `dir`. */
@@ -770,6 +784,7 @@ function retarget(S, dir) {
   const f = nearest(S, (f, t) => f.lane === lane && (t >= RETARGET_MIN || late(f)) && t <= (f.gate ? GATE_WIN : T.SIDE_WIN) &&
     (f.y - gyOf(f) <= 0.3 || sideReach(f, h)));
   if (!f) return false;
+  h.swipe = { t: S.t, dir, from: h.lane };
   h.lane = lane;
   L.foe = f.id; L.left = L.total = Math.max(0.06, ttcOf(S, f)); L.how = "side"; L.dir = dir; L.air = L.air || f.y - gyOf(f) > 0.3;
   S.ev.push({ type: "lane", lane, dir }, { type: "lunge", how: "side", kind: f.kind, gate: f.gate ? f.gate.id : 0, retarget: true });
@@ -918,6 +933,7 @@ export function step(S, dt) {
     if (f.gate) continue;
     if (late(f)) {                                                  // it is hitting me, but a swipe at it still wins for LATE_WIN seconds
       if (targeted(h, f)) continue;                                 // (the swipe is not done yet: it cannot hurt me)
+      if (clashes(S, f)) { clash(S, f); continue; }
       if (h.hurt > 0) f.threat = null;
       else if (S.t - f.threat >= T.LATE_WIN) { f.threat = null; hit(S, f); if (S.over) return ev; }
       continue;
@@ -928,7 +944,8 @@ export function step(S, dt) {
     if (Math.abs(f.x - h.x) > (inert(f) ? 0.75 : f.ph === 3 ? HIT_X : LANE_W * 1.05)) continue;     // a launched foe hits where it aimed; the others, the lane they are in and the next
     if (KINDS[f.kind].air && h.roll > 0 && grounded(h)) continue;                  // a roll goes under a gull's dive
     if (h.y < f.y + f.h - 0.15 && h.y + HERO_H > f.y + 0.1) {
-      if (inert(f) || T.LATE_WIN <= 0) hit(S, f);
+      if (clashes(S, f)) clash(S, f);
+      else if (inert(f) || T.LATE_WIN <= 0) hit(S, f);
       else f.threat = S.t;
     }
     if (S.over) return ev;
@@ -1016,6 +1033,32 @@ function strike(S, f, how) {
   }
   h.mode = "air";
   h.vy = how === "bonk" ? T.BONK_V : air ? T.CHAIN_V : T.HOP_V;
+}
+
+/** A foe lunging at me that I have just swiped into (4 November 2026, Korbi: "if I swipe into an enemy next to me that is lunging at me, they
+ *  shouldn't then go through me, they should bounce back once we collide and die or lose their attack"). It counts when the foe has launched
+ *  (`ph` 3), came from the side the swipe went to (any lane that way), and the swipe was at most CLASH_T ago, a sideways swipe that moved me
+ *  (a cut, a lane change, a cut moved on). A roll alone does not count: 2 November, "rolling on a lane that the attacking enemy isn't on
+ *  won't dodge their side lunges". */
+export const CLASH_T = 0.3;
+const clashes = (S, f) => {
+  const w = S.hero.swipe;
+  return !!w && f.ph === 3 && !inert(f) && !f.gate && S.t - w.t <= CLASH_T && Math.sign(f.lane - w.from) === w.dir;
+};
+
+/** The collision goes my way: a foe is knocked back and dies (a bruiser loses the attack and is thrown back), and I am not hurt. In the air it is an
+ *  aerial kill: the chain and my jump back, as for any cut there. */
+function clash(S, f) {
+  const h = S.hero, dir = h.swipe.dir;
+  f.threat = null;
+  S.ev.push({ type: "clash", id: f.id, kind: f.kind, dir });
+  if ((f.hp || 1) > 1) { stagger(S, f); return; }
+  f.alive = false; S.kills++;
+  const air = h.y - h.gy > 0.5;
+  if (air) { S.chain++; S.bestChain = Math.max(S.bestChain, S.chain); h.jumps = 1; h.vy = Math.max(h.vy, T.CHAIN_V); }
+  S.bonus += 100 + (air ? 50 * Math.min(S.chain, 8) : 0);
+  S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "clash", chain: air ? S.chain : 0, x: f.x, y: f.y, z: f.z, dir });
+  payout(S, f);
 }
 
 /** What a thing broken by an attack gives: a barrel or a balloon, coins (they are credited at once and fly to the counter). */

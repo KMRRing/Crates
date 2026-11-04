@@ -101,8 +101,9 @@ const atZ = z => S => S.hero.z >= z;
   const S = scene({ lane: 0, walls: [{ side: 1, z0: 10, z1: 90 }] });
   go(S, atZ(4)); sw(S, "up");
   go(S, S => S.hero.vy < 0 && S.hero.y > 1.0);
+  const y0 = S.hero.y;
   sw(S, "right");
-  check(S.hero.mode === "wall" && S.hero.wall === 1 && S.hero.wallY < 1.7, "in a jump from the middle lane the same, at the height I was (Korbi's first words)");
+  check(S.hero.mode === "wall" && S.hero.wall === 1 && Math.abs(S.hero.wallY - y0) < 0.05, "in a jump from the middle lane the same, at the height I was (Korbi's first words)");
 }
 {
   const S = scene({ lane: 0, walls: [{ side: 1, z0: 10, z1: 90 }] });

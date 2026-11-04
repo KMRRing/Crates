@@ -10,13 +10,13 @@ import { DEFAULTS } from "./reckoning-tune.js";
 const f2 = x => (+x.toFixed(2)).toString();
 
 /** The tests. `key` is the tunable (reckoning-tune.js); `lo`..`hi` the range searched; `start` where the first pair is centred
- *  (today's value unless said); `more`/`less` say what the second tap means when both of a pair want to be higher/lower;
+ *  (the default unless said); `more`/`less` say what the second tap means when both of a pair want to be higher/lower;
  *  `stretch` is the kind of quay it is asked on; `core` marks the ones in the short round; `how` is the one line shown while it plays. */
 export const TESTS = [
   { id: "lane", name: "Lane change", key: "LANE_OMEGA", lo: 14, hi: 70, unit: "/s", fmt: v => String(Math.round(v)), more: "Both too slow", less: "Both too sharp", stretch: "lanes", core: true, how: "Swipe left and right round the carts." },
   { id: "jumpH", name: "Jump height", key: "JUMP_H", lo: 1.0, hi: 2.6, unit: "m", fmt: f2, more: "Both too low", less: "Both too high", stretch: "jump", core: true, how: "Jump the gaps; take the coins in the air." },
   { id: "air", name: "Jump hang time", key: "AIR_T", lo: 0.5, hi: 1.0, unit: "s", fmt: f2, more: "Both too short", less: "Both too floaty", stretch: "jump", how: "Jump the gaps." },
-  { id: "fall", name: "Fall speed", key: "FALL", lo: 1, hi: 2.4, start: 1.4, unit: "x", fmt: f2, more: "Both too floaty", less: "Both too heavy", stretch: "jump", core: true, how: "Jump the gaps; feel the way down." },
+  { id: "fall", name: "Fall speed", key: "FALL", lo: 1, hi: 2.4, unit: "x", fmt: f2, more: "Both too floaty", less: "Both too heavy", stretch: "jump", core: true, how: "Jump the gaps; feel the way down." },
   { id: "landing", name: "Landing memory", key: "LAND_BUFFER", lo: 0.1, hi: 0.6, unit: "s", fmt: f2, more: "Both drop my early jump", less: "Both jump when I did not mean to", stretch: "double", core: true, how: "Jump, and swipe up again just before you land." },
   { id: "swipePx", name: "Swipe distance", key: "SWIPE_PX", lo: 8, hi: 60, unit: "px", fmt: v => String(Math.round(v)), more: "Both too twitchy", less: "Both too stiff", stretch: "lanesFast", core: true, how: "Swipe left and right, short and quick." },
   { id: "swipeMid", name: "Swipe on the move or on release", key: "SWIPE_MID", binary: [1, 0], trials: 2, names: ["as the finger moves", "when the finger lifts"], stretch: "lanesFast", core: true, how: "Swipe left and right." },
@@ -26,14 +26,14 @@ export const TESTS = [
   { id: "buffer", name: "Swipe memory", key: "BUFFER", lo: 0.04, hi: 0.35, unit: "s", fmt: f2, more: "Both drop my early swipes", less: "Both act on old swipes", stretch: "quick", how: "Swipe at the crabs a little early." },
   { id: "roll", name: "Roll", key: "ROLL_T", lo: 0.25, hi: 0.8, unit: "s", fmt: f2, more: "Both too short", less: "Both too long", stretch: "roll", core: true, how: "Swipe down under the beams and through the crabs." },
   { id: "wall", name: "Wall jump height", key: "WALLJUMP_H", lo: 1.4, hi: 3.6, unit: "m", fmt: f2, more: "Both too low", less: "Both too high", stretch: "wall", how: "Jump, then sideways into the wall; up leaves it." },
-  { id: "hitstop", name: "Hit-stop on a kill", key: "HITSTOP", lo: 0, hi: 0.12, start: 0.04, unit: "s", fmt: v => v.toFixed(3), more: "Both too short", less: "Both too long", stretch: "crabs", core: true, how: "Cut the crabs." },
+  { id: "hitstop", name: "Hit-stop on a kill", key: "HITSTOP", lo: 0, hi: 0.12, unit: "s", fmt: v => v.toFixed(3), more: "Both too short", less: "Both too long", stretch: "crabs", core: true, how: "Cut the crabs." },
   { id: "follow", name: "Camera follow", key: "CAM_FOLLOW", lo: 0.5, hi: 2.2, unit: "x", fmt: f2, more: "Both too lazy", less: "Both too stiff", stretch: "lanes", core: true, how: "Swipe left and right; watch the camera." },
   { id: "kick", name: "Camera kick", key: "CAM_KICK", lo: 0, hi: 2.5, unit: "x", fmt: f2, more: "Both too calm", less: "Both too jolty", stretch: "jump", how: "Jump the gaps; watch the landings." },
-  { id: "coyote", name: "Coyote time", key: "COYOTE", lo: 0, hi: 0.2, start: 0.08, unit: "s", fmt: v => v.toFixed(3), more: "Both too strict", less: "Both too lenient", stretch: "gaps", core: true, how: "Run to the edge and jump as late as you can." },
+  { id: "coyote", name: "Coyote time", key: "COYOTE", lo: 0, hi: 0.3, unit: "s", fmt: v => v.toFixed(3), more: "Both too strict", less: "Both too lenient", stretch: "gaps", core: true, how: "Run to the edge and jump as late as you can." },
 ];
 export const testOf = id => TESTS.find(t => t.id === id);
 
-/** The value a test starts from: the one in use, or its own `start` while that is still today's. */
+/** The value a test starts from: the one in use, or its own `start` while that is still the default. */
 export const startOf = (t, current) => (t.start != null && current === DEFAULTS[t.key] ? t.start : current);
 
 /** One test's search. `pair()` gives { lo, hi } (the two values to compare), `answer(a)` takes "lo", "hi", "same", "more" or "less". */

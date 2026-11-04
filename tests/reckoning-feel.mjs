@@ -1,7 +1,7 @@
-// Courier's Feel lab: the tuning object reproduces today's numbers exactly, a tuned value reaches the rules (and a coyote jump works),
+// Courier's Feel lab: the tuning object reproduces Korbi's Feel lab round (4 November 2026, 22:19 UTC) exactly, a tuned value reaches the rules (and a coyote jump works),
 // the search converges for a simulated answerer, every test's stretch builds, and the results text holds everything.
-import { DEFAULTS, T, setTune, resetTune } from "../reckoning-tune.js";
-import { newGame, swipe, step, take, speed, G, JUMP_V, HOP_V, CHAIN_V, BONK_V, WALLJUMP_V, PAD_V, SLAM_MIN_Y, LANE_T, LANE_W } from "../reckoning-engine.js";
+import { DEFAULTS, airTime, T, setTune, resetTune } from "../reckoning-tune.js";
+import { newGame, swipe, step, take, speed, GULL_UP_WIN, GATE_WIN, G, JUMP_V, HOP_V, CHAIN_V, BONK_V, WALLJUMP_V, PAD_V, SLAM_MIN_Y, LANE_T, LANE_W } from "../reckoning-engine.js";
 import { TESTS, Search, stretch, cleanFeel, resultsText } from "../reckoning-lab.js";
 import { copy } from "../reckoning-engine.js";
 
@@ -9,13 +9,15 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const DT = 1 / 120;
 
-// 1. the defaults are today's, bit for bit
+// 1. the defaults are his lab round's, bit for bit
 resetTune();
-const g0 = 8 * 1.6 / (0.72 * 0.72), pk = h => Math.sqrt(2 * g0 * h);
-check(T.G === g0 && G === g0 && T.JUMP_V === g0 * 0.72 / 2 && JUMP_V === T.JUMP_V, "gravity and the jump's speed come out as they did");
-check(T.HOP_V === pk(0.9) && T.CHAIN_V === pk(1.7) && T.BONK_V === pk(1.9) && T.WALLJUMP_V === pk(2.4) && T.PAD_V === pk(4.3), "the hop, chain, bonk, wall jump and pad");
+const g0 = 8 * 2.1 / (0.69 * 0.69), pk = h => Math.sqrt(2 * g0 * h);
+check(T.G === g0 && G === g0 && T.JUMP_V === g0 * 0.69 / 2 && JUMP_V === T.JUMP_V, "gravity and the jump's speed come out as they did");
+check(T.HOP_V === pk(0.9) && T.CHAIN_V === pk(1.7) && T.BONK_V === pk(1.9) && T.WALLJUMP_V === pk(2.27) && T.PAD_V === pk(4.3), "the hop, chain, bonk, wall jump and pad");
 check(HOP_V === T.HOP_V && CHAIN_V === T.CHAIN_V && BONK_V === T.BONK_V && WALLJUMP_V === T.WALLJUMP_V && PAD_V === T.PAD_V && SLAM_MIN_Y === T.SLAM_MIN_Y && LANE_T === T.LANE_T, "and the engine's exported ones agree");
-check(T.LANE_OMEGA === 34 && T.BUFFER === 0.14 && T.LAND_BUFFER === 0.32 && T.ROLL_T === 0.45 && T.FRONT_WIN === 0.28 && T.ABOVE_WIN === 0.55 && T.SIDE_WIN === 0.6 && T.FALL === 1 && T.COYOTE === 0.1, "the windows and times");
+check(T.LANE_OMEGA === 45 && T.BUFFER === 0.22 && T.LAND_BUFFER === 0.27 && T.ROLL_T === 0.5 && T.FRONT_WIN === 0.3 && T.ABOVE_WIN === 0.83 && T.SIDE_WIN === 0.79 && T.FALL === 1.18 && T.COYOTE === 0.167, "the windows and times");
+check(T.SWIPE_PX === 22 && T.SWIPE_MID === 1 && T.HITSTOP === 0.014 && T.CAM_FOLLOW === 1.22 && T.CAM_KICK === 0.45 && T.WALLJUMP_H === 2.27 && T.JUMP_H === 2.1 && T.AIR_T === 0.69, "and the page's and the view's");
+check(GULL_UP_WIN >= T.ABOVE_WIN && GULL_UP_WIN <= GATE_WIN, "a gull in my own lane that has seen me is jumped at from at least as far as a plain one, and no further than a question's");
 
 // 2. a plain jump is the same in every step with the defaults, and different when tuned
 function jumpTrace() {
@@ -26,12 +28,12 @@ function jumpTrace() {
   return { peak, t, ys };
 }
 const base = jumpTrace();
-check(Math.abs(base.peak - 1.6) < 0.06 && Math.abs(base.t - 0.72) < 0.03, "a jump peaks at 1.6 m and lasts 0.72 s");
+check(Math.abs(base.peak - 2.1) < 0.09 && Math.abs(base.t - airTime()) < 0.03 && base.t < 0.69, "a jump peaks at 2.1 m and lasts 0.66 s (0.69 s up and down at equal gravity, less with the quicker fall)");
 setTune({ FALL: 2 });
 const heavy = jumpTrace();
-check(Math.abs(heavy.peak - base.peak) < 0.06 && heavy.t < base.t - 0.05, "a stronger fall keeps the peak and shortens the jump");
-setTune({ FALL: 1, JUMP_H: 2.4 });
-check(jumpTrace().peak > 2.3, "a tuned jump height reaches the rules");
+check(Math.abs(heavy.peak - base.peak) < 0.06 && heavy.t < base.t - 0.03, "a stronger fall keeps the peak and shortens the jump");
+setTune({ FALL: 1, JUMP_H: 2.6 });
+check(jumpTrace().peak > 2.5, "a tuned jump height reaches the rules");
 resetTune();
 check(JSON.stringify(jumpTrace().ys) === JSON.stringify(base.ys), "back to the defaults, the same jump to the last digit");
 
@@ -48,9 +50,9 @@ function edgeJump(coyote, wait) {
 }
 check(!edgeJump(0, 0.06), "with no coyote time a jump just after the edge does nothing");
 check(edgeJump(0.1, 0.06), "with 0.1 s a jump 0.06 s after the edge is a jump");
-check(!edgeJump(0.1, 0.25), "and not 0.25 s after it");
+check(!edgeJump(0.167, 0.25), "and not 0.25 s after it");
 
-// the default: a jump pressed at the very end of the grace still clears the widest gap Courier lays (6.5 m), at the speed it is laid for
+// the default: a jump pressed at the very end of the grace still clears a 4 m gap, the narrowest Courier lays, and one pressed at the lip clears the widest (6 m), at the speed it is laid for
 function clears(wait, width) {
   resetTune();
   const S = newGame({ seed: 5 }); S.world.foes = []; S.world.walls = []; S.world.gates = []; S.world.z1 = 1e9;
@@ -61,8 +63,9 @@ function clears(wait, width) {
   for (let t = 0; t < 3 && !S.over && S.hero.z < 3 + width + 2; t += DT) { step(S, DT); take(S); }
   return !S.over && S.hearts === S.maxHearts && S.hero.z > 3 + width;
 }
-check(clears(0.09, 6.5), "with the default grace a jump 0.09 s after the lip clears a 6.5 m gap");
-check(!clears(0.25, 6.5), "and one 0.25 s after it does not");
+check(clears(0.15, 4), "with the default grace a jump 0.15 s after the lip clears a 4 m gap");
+check(clears(0, 6), "and one at the lip clears a 6 m gap");
+check(!clears(0.25, 4), "and one 0.25 s after it does not");
 
 // 4. the search converges on a simulated answerer
 const rng = seed => () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };

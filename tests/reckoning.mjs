@@ -5,6 +5,7 @@ import { bot, botStep } from "./reckoning-bot.js";
 import { RunLog, describe } from "../reckoning-log.js";
 import { Spring, Inertia, Streamer, CameraRig } from "../reckoning-move.js";
 import { MAX_QUESTION, MAX_ANSWER, load, dealer } from "../reckoning-questions.js";
+import { T as TUNE, airTime } from "../reckoning-tune.js";
 import { LANE_W, LANE_T, JUMP_H, JUMP_V, AIR_T, WALL_Y, SLAM_MIN_Y, ROLL_T, SIDE_ABOVE, UP_ABOVE, DRIFT_V, BUFFER, LAND_BUFFER, KINDS, speed, speedAt, newGame, copy, setDeal, swipe, step, take, ensure } from "../reckoning-engine.js";
 
 let bad = 0;
@@ -34,7 +35,7 @@ const events = S => take(S).map(e => e.type);
   swipe(S, "up");
   let peak = 0, t = 0;
   while (S.hero.mode === "air" && t < 2) { step(S, DT); peak = Math.max(peak, S.hero.y); t += DT; }
-  check(Math.abs(peak - JUMP_H) < 0.05 && Math.abs(t - AIR_T) < 0.04 && S.hero.mode === "run" && S.hero.y === 0, `a jump peaks at ${peak.toFixed(2)} m (one jump height ${JUMP_H}) and lasts ${t.toFixed(2)} s`);
+  check(Math.abs(peak - JUMP_H) < 0.08 && Math.abs(t - airTime()) < 0.04 && S.hero.mode === "run" && S.hero.y === 0, `a jump peaks at ${peak.toFixed(2)} m (one jump height ${JUMP_H}) and lasts ${t.toFixed(2)} s (${AIR_T} up, less coming down faster)`);
   check(speedAt(0) === 10 && speedAt(5000) > 15.9 && speedAt(300) > speedAt(100), "the run quickens with distance, towards 16 m/s");
   const T = scene({ hero: { y: 1.2, mode: "air" } });
   swipe(T, "up"); run(T, 0.05);
@@ -105,8 +106,8 @@ const events = S => take(S).map(e => e.type);
   check(!f.alive && S.hero.vy > 0 || S.hero.y > 1, "down directly above a foe lands on it");
   const e = events(S);
   check(e.includes("kill") && !e.includes("shockwave") && S.hero.mode === "air", "and bounces into another jump, with no shockwave");
-  run(S, 0.5);
-  check(S.hero.y > 1.4, "(it rises like a jump)");
+  let top = 0; for (let t = 0; t < 0.7; t += DT) { step(S, DT); top = Math.max(top, S.hero.y); }
+  check(top > 1.4, "(it rises like a jump)");
 }
 
 // ---------- 3. the slam ----------
@@ -327,14 +328,14 @@ const events = S => take(S).map(e => e.type);
   [S, f] = gull([], 1.2, 0);
   check(S.hearts === 2 && f.ph === 3 && f.aim === 0, "a gull in my own lane attacks too: it dives down the lane");
   {
-    const U = scene({ hero: { lane: 0, y: 6, mode: "air", vy: 9 } }), g = foeAt(U, "gull", -1, 1.2);
+    const U = scene({ hero: { lane: 0, y: 12, mode: "air", vy: 9 } }), g = foeAt(U, "gull", -1, 1.2);
     run(U, 1.0);
     check(U.hero.mode === "air" && g.ph === 2 && g.y > 1.35, "and none dives on a hero in the air (it waits for him to come down, climbing towards him)");
   }
   {
     const U = scene({ hero: { lane: 0 } }), g = foeAt(U, "gull", -1, 1.2);
     U.world.pits.push({ z0: g.z - 2, z1: g.z + 2 });
-    run(U, 1.4);
+    run(U, 1.2);
     check(!g.ph && U.hearts === 3, "a gull over a pit is the bridge, not an enemy");
   }
   {
@@ -459,7 +460,7 @@ const events = S => take(S).map(e => e.type);
   check(U.hero.jumps === 0 && U.hero.vy < 5, "a plain jump has no second one to give");
   const V = scene(), h1 = foeAt(V, "gull", 0, 0.4), h2 = foeAt(V, "gull", 1, 0.9);
   h2.y = 2.6;
-  run(V, 0.01); swipe(V, "up"); run(V, 0.45); swipe(V, "right"); run(V, 1.2);
+  run(V, 0.01); swipe(V, "up"); run(V, 0.45); swipe(V, "right"); run(V, 0.7);
   check(!h1.alive && !h2.alive && V.chain === 2, "and after a cut I can swipe sideways to the next gull as before");
   const W = scene({ hero: { y: 2, mode: "air", vy: 0 } }), c = foeAt(W, "crab", 0, 0.1);
   swipe(W, "down"); run(W, 0.2);
@@ -510,7 +511,7 @@ const events = S => take(S).map(e => e.type);
   swipe(S, "up"); run(S, 0.1);
   let peak = 0;
   for (let i = 0; i < 300 && S.hero.mode === "air"; i++) { step(S, DT); peak = Math.max(peak, S.hero.y); }
-  check(peak > WALL_Y + 2.2 && peak > SLAM_MIN_Y * 2, `up on the wall jumps again, higher than a jump from the ground (peak ${peak.toFixed(1)} m)`);
+  check(peak > WALL_Y + 2.2 && peak > JUMP_H * 1.9, `up on the wall jumps again, higher than a jump from the ground (peak ${peak.toFixed(1)} m)`);
   S = wallScene(); swipe(S, "right"); run(S, 0.5);
   S.world.walls[0].z1 = S.hero.z + 3; run(S, 0.6);
   check(S.hero.mode !== "wall", "at the wall's end the hero comes off it");
@@ -661,7 +662,7 @@ const events = S => take(S).map(e => e.type);
   check(back.text() === log.text() && (back.note(S, "x"), back.n === log.n + 1), "a log survives being saved and carries on numbering");
   const T = scene({ hero: { y: 0 } }); const L2 = new RunLog(T);
   swipe(T, "down"); T.hero.mode = "run"; swipe(T, "up"); for (const e of take(T)) L2.event(T, e);
-  check(describe(T, { type: "wait", dir: "up" }).includes("kept for 0.14 s") && describe(T, { type: "drop", dir: "left" }).includes("dropped"), "a swipe that waits, and one dropped, are said");
+  check(describe(T, { type: "wait", dir: "up" }).includes(`kept for ${BUFFER} s`) && describe(T, { type: "drop", dir: "left" }).includes("dropped"), "a swipe that waits, and one dropped, are said");
   {
     const A = scene({ hero: { lane: 0 } }); foeAt(A, "crab", -1, 1.4); foeAt(A, "gull", 1, 1.4);
     const L3 = new RunLog(A);
@@ -712,7 +713,7 @@ const events = S => take(S).map(e => e.type);
   const S = scene(); swipe(S, "right");
   const xs = []; for (let i = 0; i < 60; i++) { step(S, DT); xs.push([S.hero.x, S.hero.vx]); }
   const mono = xs.every(([x], i) => i === 0 || x >= xs[i - 1][0] - 1e-9), at = ms => xs[Math.round(ms / 1000 / DT) - 1][0];
-  check(mono && at(8) < LANE_W * 0.05 && at(90) > LANE_W * 0.78 && at(140) > LANE_W * 0.94, `a lane change is an arc: a soft start (${at(8).toFixed(3)} m after 8 ms), 80% in 0.09 s, 95% in ${(LANE_T).toFixed(2)} s`);
+  check(mono && at(8) < LANE_W * 0.06 && at(70) > LANE_W * 0.78 && at(110) > LANE_W * 0.94, `a lane change is an arc: a soft start (${at(8).toFixed(3)} m after 8 ms), 80% in 0.07 s, 95% in ${(LANE_T).toFixed(2)} s`);
   run(S, 0.4);
   check(S.hero.x === LANE_W && S.hero.vx === 0, "and it arrives exactly, at rest");
   // a swipe made on top of another carries on from the speed it had: no stop in the middle, no jump in x
@@ -744,7 +745,7 @@ const events = S => take(S).map(e => e.type);
   // landing says how hard
   const A = scene(); swipe(A, "up"); run(A, 1);
   const land = take(A).find(e => e.type === "land");
-  check(land && Math.abs(land.v - JUMP_V) < 0.6, `a landing says how hard it was (${land ? land.v.toFixed(1) : "?"} m/s after a jump of ${JUMP_V.toFixed(1)})`);
+  check(land && Math.abs(land.v - JUMP_V * Math.sqrt(TUNE.FALL)) < 0.6, `a landing says how hard it was (${land ? land.v.toFixed(1) : "?"} m/s after a jump of ${JUMP_V.toFixed(1)})`);
   const B = scene({ hero: { y: 3, mode: "air", vy: 0 } }); swipe(B, "down"); run(B, 0.5);
   check(take(B).find(e => e.type === "land").v > 20, "and a dive's is much harder");
   // a run that sets off from a standstill

@@ -36,9 +36,9 @@ export const SECTIONS = [
   {
     id: 5, name: "Mind the Gap", place: "Stade", idea: "The planks break off: jump at the edge. Amber hangs in the air above the landing.",
     brief: "A gap in the planks: jump at its edge. Amber hangs high: jump to take it.",
-    v0: 10, v1: 11, gap: 11, bill: { want: ["amber"] }, goal: { kind: "goods", n: 6 }, par: { hits: 0, more: 10 },
-    rows: ["!rest 8", "!gap 4", "!rest 6", "a . .", ". a .", "!rest 8", "!gap 5", "!rest 6", ". . a", "a a .", "!rest 8", "!gap 5.5", "!rest 6", ". a a", "a . a", "c . .", ". a .", "!rest 8", "!gap 6", "!rest 6", "a a a", "!rest 8", "!gap 6", "!rest 6", ". a .",
-      "c . .", ". a c", "a . .", "!rest 8", "!gap 6", "!rest 6", "a a .", "b . a", ". a a", "!rest 8", "!gap 6.5", "!rest 6", "a a a"],
+    v0: 10, v1: 11, gap: 11, bill: { want: ["amber"] }, goal: { kind: "goods", n: 6 }, par: { hits: 0, more: 10 },   // gaps 6 and 6.5 became 5.8 and 6 when the jump got higher and shorter (Feel lab, 4 November 2026): 0.69 s up and a quicker fall carry 6.6 m at 10 m/s, 7.3 at 11
+    rows: ["!rest 8", "!gap 4", "!rest 6", "a . .", ". a .", "!rest 8", "!gap 5", "!rest 6", ". . a", "a a .", "!rest 8", "!gap 5.5", "!rest 6", ". a a", "a . a", "c . .", ". a .", "!rest 8", "!gap 5.8", "!rest 6", "a a a", "!rest 8", "!gap 5.8", "!rest 6", ". a .",
+      "c . .", ". a c", "a . .", "!rest 8", "!gap 5.8", "!rest 6", "a a .", "b . a", ". a a", "!rest 8", "!gap 6", "!rest 6", "a a a"],
   },
   {
     id: 6, name: "Hamburg Customs", place: "Hamburg", idea: "A token opens only the booth that bears its number: take the one you will need.",

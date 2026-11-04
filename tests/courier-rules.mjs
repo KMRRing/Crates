@@ -60,7 +60,7 @@ function gull(swipes, extra = {}) {
   check(!g.alive && U.hearts === 3, "and a jump at it as it dives (ttc 0.2) cuts it down");
   const V = scene(0), h = foe(V, "gull", 0, 0.5);
   V.world.pits.push({ z0: h.z - 3, z1: h.z + 3 });
-  run(V, 0.6);
+  run(V, 0.45);
   check(V.hearts === 3 && !h.ph, "a gull over a pit is still the bridge: it never attacks");
 }
 

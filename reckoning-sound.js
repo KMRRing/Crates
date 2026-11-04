@@ -238,6 +238,7 @@ export const SILENT = [
   "drop",        // a kept swipe that never worked
   "notice",      // a foe has seen me: its wind-up is the telegraph that is heard
   "wallleave",   // the wall let go: the jump or lane event of the swipe sounds
+  "clash",       // a lunging foe met my swipe: its kill or stagger follows and sounds
   "wallend",     // the wall ran out: the fall or landing sounds
   "over",        // the run ended: the hit or fall that ended it has sounded
 ];

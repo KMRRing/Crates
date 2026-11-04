@@ -691,7 +691,7 @@ export function createRunner(host) {
     const h = S.hero, v = speed(S), side = Math.sign(f.x - h.x) || 1;
     const how = o.how, dir = o.dir;
     let vx = side * 2.5, vy = 5, vz = v + 3, sx = -9, sz = side * 4;
-    if (how === "side") { vx = (dir || side) * 8; vy = 4.5; vz = v + 1; sx = -4; sz = -(dir || side) * 12; }
+    if (how === "side" || how === "clash") { vx = (dir || side) * 8; vy = 4.5; vz = v + 1; sx = -4; sz = -(dir || side) * 12; }
     else if (how === "front" || how === "above" || how === "up") { vx = 0; vy = 7.5; vz = v + 4; sx = -9; sz = side * 3; }
     else if (how === "roll") { vx = 0; vy = 4; vz = v + 9; sx = -14; sz = 0; }
     else if (how === "slam") { vx = side * 7; vy = 9; vz = v + 3; sx = -8; sz = side * 9; }
