@@ -1,0 +1,66 @@
+/* Pewter (Party): the table as a grid of tiles (name, rounds won, the coins laid face down or turned, the coins left), what
+   is happening and what this phone can do about it, your own coins, and the last few lines of what happened. A coin is
+   a disc: silver is round with a ring, a pewter has a square hole through it (as a cash coin), so nobody tells them
+   apart by colour alone. */
+.pw-col { --pw-silver: #C4CAD3; --pw-silver-edge: #7C8594; --pw-pewter: #5B6068; --pw-pewter-edge: #2D3138; --bad: #A8382B; gap: .4rem; }
+.pw-players { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem; }
+.pw-p { display: grid; gap: .15rem; min-width: 0; padding: .25rem .4rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); }
+.pw-p.turn, .pw-p.won { border-color: var(--pa-in); background: var(--pa-soft); box-shadow: inset 0 0 0 1px var(--pa-in); }
+.pw-p.high { border-color: var(--brass); }
+.pw-p.out { opacity: .55; }
+.pw-p.me .pw-name { text-decoration: underline; text-underline-offset: .15em; }
+.pw-top { display: flex; align-items: center; justify-content: space-between; gap: .3rem; min-width: 0; }
+.pw-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .85rem; font-weight: 700; }
+.pw-wins { flex: none; display: inline-flex; gap: .2rem; }
+.pw-pip { display: inline-block; width: .6rem; height: .6rem; border: 1.5px solid var(--brass); border-radius: 50%; }
+.pw-pip.on { background: var(--brass); }
+.pw-row { display: flex; align-items: center; justify-content: space-between; gap: .3rem; min-height: 1.3rem; font-size: .8rem; color: var(--ink-soft); }
+.pw-stack { display: flex; align-items: center; min-width: 0; }
+.pw-stack .pw-coin { margin-right: -.35rem; }
+.pw-left { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
+.pw-bid { font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); color: var(--brass); }
+.pw-bid.pass { color: var(--ink-soft); font-weight: 600; }
+
+.pw-coin { position: relative; display: inline-block; flex: none; width: 1.2rem; height: 1.2rem; border-radius: 50%; border: 1.5px solid var(--pw-silver-edge); box-sizing: border-box;
+  background: radial-gradient(circle at 35% 30%, #F2F4F7, var(--pw-silver) 60%, #9AA2AF); }
+.pw-coin::after { content: ""; position: absolute; inset: 22%; border-radius: 50%; border: 1px solid var(--pw-silver-edge); }
+.pw-coin.pewter { border-color: var(--pw-pewter-edge); background: radial-gradient(circle at 35% 30%, #8A9099, var(--pw-pewter) 65%, #3F444B); }
+.pw-coin.pewter::after { inset: 33%; border-radius: 1px; border: 0; background: var(--sheet); box-shadow: 0 0 0 1px var(--pw-pewter-edge); }
+.pw-coin.back { border-color: var(--brass); background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--brass) 35%, var(--sheet)) 0 3px, var(--sheet) 3px 6px); }
+.pw-coin.back::after { display: none; }
+.pw-coin.turned { transform: translateY(-.1rem); }
+
+.pw-ask { display: grid; place-items: center; min-height: 2.4rem; font-size: 1rem; line-height: 1.2; text-align: center; }
+.pw-sub { text-align: center; font-size: .85rem; }
+.pw-row2 { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .45rem; }
+.pw-col .pk-btn { min-height: 2.6rem; padding-left: .3rem; padding-right: .3rem; }
+.pw-col .pk-wait { font-size: .85rem; }
+.pw-bidbox { display: grid; gap: .35rem; }
+.pw-stepper { display: grid; grid-template-columns: 3rem 1fr 3rem; align-items: stretch; gap: .35rem; }
+.pw-step { min-height: 2.6rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; font-size: 1.4rem; font-weight: 700; cursor: pointer; }
+.pw-step:disabled { opacity: .4; cursor: default; }
+.pw-n { display: grid; place-items: center; align-content: center; gap: 0; font-size: 1.6rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.pw-n em { font-style: normal; font-size: .68rem; font-weight: 600; color: var(--ink-soft); }
+.pw-targets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
+.pw-target { display: grid; gap: .1rem; min-height: 2.8rem; padding: .3rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; text-align: center; cursor: pointer; }
+.pw-target span { font-size: .75rem; color: var(--ink-soft); }
+
+.pw-hand { display: grid; gap: .25rem; width: 100%; padding: .35rem .45rem .45rem; border: 1.5px solid var(--pa-in); border-radius: 6px; background: var(--pa-soft); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.pw-hand-label { display: flex; justify-content: space-between; font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.pw-hand-label em { font-style: normal; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.pw-hand-coins { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
+.pw-group { display: grid; gap: .15rem; min-height: 2.2rem; align-content: start; }
+.pw-group small { font-size: .65rem; color: var(--ink-soft); }
+.pw-group em { font-style: normal; font-size: .75rem; color: var(--ink-soft); }
+.pw-coins { display: flex; flex-wrap: wrap; gap: .25rem; }
+.pw-hand .pw-coin { width: 1.5rem; height: 1.5rem; }
+.pw-log { margin: 0; padding: 0; list-style: none; display: grid; gap: .1rem; font-size: .78rem; line-height: 1.25; color: var(--ink-soft); }
+.pw-log li:first-child { color: var(--ink); }
+.pw-final li span:last-child { text-align: right; }
+
+html[data-theme="office"] :is(.pw-p, .pw-step, .pw-target, .pw-hand) { border-radius: 4px; }
+@media (max-height: 700px) { .pw-log li:nth-child(n+3) { display: none; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .pw-col { --pw-silver: #D3D8E0; --pw-silver-edge: #8B93A2; --pw-pewter: #7A818C; --pw-pewter-edge: #C5CAD2; --bad: #E8806F; }
+}
+html[data-mode="night"] .pw-col { --pw-silver: #D3D8E0; --pw-silver-edge: #8B93A2; --pw-pewter: #7A818C; --pw-pewter-edge: #C5CAD2; --bad: #E8806F; }
