@@ -187,7 +187,6 @@ export const ELSEWHERE = [
   { id: "rack", name: "Rack", kind: "table", page: "rack.html", max: 4, blurb: "A word game on a board: lay tiles on premium squares, make words that cross, score the most." },
   { id: "landlord", name: "Dou Dizhu", kind: "table", page: "landlord.html", max: 3, blurb: "斗地主: the landlord against the two peasants." },
   { id: "holdem", name: "Texas Hold'em", kind: "table", page: "holdem.html", max: 6, blurb: "德州撲克: Macau's rules, no limit, a commission to the house; up to six at the felt." },
-  { id: "factor", name: "Hanse", kind: "table", page: "factor.html", max: 4, blurb: "Settle an island and trade for what it lacks: roads, posts and factories, first to ten points." },
   { id: "banquet", name: "Banquet", kind: "table", page: "banquet.html", max: 2, blurb: "划拳 and 十五二十, the hand games of a banquet table." },
   { id: "gammon", name: "Backgammon", kind: "table", page: "gammon.html", max: 2, blurb: "Backgammon: a match, with the doubling cube." },
   { id: "flank", name: "Reversi", kind: "table", page: "flank.html", max: 2, blurb: "Reversi: close a line of discs and they all turn." },
