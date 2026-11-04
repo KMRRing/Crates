@@ -93,7 +93,7 @@ export function createView({ board, tray, onGesture, onLost }) {
   const M = {
     wood: envify(std({ vertexColors: true, roughness: 0.45 }), 0.6), timber: std({ color: 0x4e2f1b, roughness: 0.6 }), bench: std({ vertexColors: true, roughness: 0.85 }),
     baize: std({ color: 0x2d5142, roughness: 1 }), rim: envify(std({ color: 0xc9a14a, metalness: 0.8, roughness: 0.3 })), floor: std({ color: 0x1f3a30, roughness: 1 }),
-    slot: std({ color: 0x16110d, roughness: 0.95 }), iron: envify(std({ color: 0x3b4044, metalness: 0.8, roughness: 0.4 })), rail: envify(std({ color: 0xd3ad56, metalness: 0.8, roughness: 0.28 })), velvet: std({ color: 0x6b1f2b, roughness: 1 }),
+    slot: std({ color: 0x2c2118, roughness: 0.95 }), iron: envify(std({ color: 0x3b4044, metalness: 0.8, roughness: 0.4 })), rail: envify(std({ color: 0xd3ad56, metalness: 0.8, roughness: 0.28 })), velvet: std({ color: 0x6b1f2b, roughness: 1 }),
     paper: std({ color: 0xe8d8b0, roughness: 0.95 }), ink: std({ color: 0x3a2a1a, roughness: 1 }), shade: std({ color: 0x2f6b4f, roughness: 0.3, metalness: 0.2, emissive: 0x000000 }),
     glass: std({ color: 0xcfe8ff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.28, depthWrite: false }), wax: std({ color: 0x9a2a22, roughness: 0.4 }),
     steel: envify(std({ color: 0xb9c0c6, metalness: 0.9, roughness: 0.25 })), handle: std({ color: 0x6b3d24, roughness: 0.6 }),
@@ -607,6 +607,8 @@ export function createView({ board, tray, onGesture, onLost }) {
     get angles() { return { az, el }; },
     get stats() { return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles }; },
     renderNow() { place(); renderer.render(scene, camera); },
+    /** For tests: draw a shove under way at `ms` into it (call setMotion(false) first, so the loop stands still). */
+    scrub(ms) { if (animState) { stepShove(animState.t0 + ms); place(); renderer.render(scene, camera); } },
     dispose() {
       if (raf) cancelAnimationFrame(raf);
       raf = 0; shown = false;
