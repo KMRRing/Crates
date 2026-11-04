@@ -8,6 +8,7 @@
 // its rules mattering), today's made twice the same, and a table of three stowing one manifest through the database.
 import * as E from "../stow-engine.js";
 import * as M from "../stow-pack.js";
+import { frameOf, extentOf, EL_MIN, EL_MAX } from "../stow-3d.js";
 import { CHAPTERS, LEVELS } from "../stow-levels.js";
 import { CHAPTERS as PLAN_CHAPTERS, MANIFESTS } from "../stow-manifests.js";
 
@@ -315,6 +316,23 @@ check(LEVELS.every(l => E.starsFor(l.par, l.par) === 3 && E.starsFor(l.par + 1, 
   }
   check(t.done?.stars === 2 && t.done.restows === 1 && t.moves === level.pieces.length + 2 && order.slice(0, 3).join("") === "202", `three stow it together, Sarah passed over while away (${order.join("")}): stowed, two stars for one restow`);
   check(R.restart(structuredClone(t), level).moves === 0 && !R.planOf(R.restart(structuredClone(t), level)).done, "a new manifest at the table starts from an empty hold");
+}
+
+// a hold in decks never changes the size of its frame as the view turns or tilts (Korbi, 4 November 2026): every view
+// of every decked level, Loose cargo's and the manifests', draws inside the one frame, whose proportions are fixed
+{
+  const fields = [...LEVELS.filter(l => l.field.decks).map(l => E.makeField(l.field)), ...MANIFESTS.filter(l => l.hold.decks).map(M.fieldOf)];
+  let worst = 0, n = 0;
+  for (const f of fields) {
+    const [fx, fy, fw, fh] = frameOf(f);
+    if (frameOf(f)[2] !== fw || frameOf(f)[3] !== fh) worst = Infinity;
+    for (let az = 0; az < 360; az += 45) for (const el of [EL_MIN, 44, EL_MAX]) {
+      const [x0, y0, x1, y1] = extentOf(f, { az, el });
+      n++;
+      worst = Math.max(worst, fx - x0, fy - y0, x1 - (fx + fw), y1 - (fy + fh));
+    }
+  }
+  check(fields.length > 10 && worst <= 1e-9, `${fields.length} decked holds: ${n} views (turned an eighth at a time, three tilts) all fit one frame`);
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }

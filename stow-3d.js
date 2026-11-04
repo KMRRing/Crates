@@ -56,10 +56,25 @@ function lens(geo, cam) {
   };
 }
 
-/** The drawing's frame for a camera: wide enough for the plan turned any way, deep enough for the decks at this tilt. */
-export function frameOf(field, cam, pad = 0.35) {
-  const g = geometry(field), e = cam.el * RAD, top = -g.R * Math.sin(e) - g.H * Math.cos(e), bottom = g.R * Math.sin(e);
-  return [-g.R - pad, top - pad, 2 * g.R + 2 * pad, bottom - top + 2 * pad];
+/** The drawing's frame: one for the hold whatever the camera, wide enough for the plan turned any way and tall enough for
+ *  the decks at every tilt, so turning or tilting the view never resizes the frame (Korbi, 4 November 2026). */
+export function frameOf(field, pad = 0.35) {
+  const g = geometry(field);
+  if (g.frame) return g.frame;
+  let top = 0, bottom = 0;
+  for (let el = EL_MIN; el <= EL_MAX; el += 1) {
+    const e = el * RAD;
+    top = Math.min(top, -g.R * Math.sin(e) - g.H * Math.cos(e));
+    bottom = Math.max(bottom, g.R * Math.sin(e));
+  }
+  return (g.frame = [-g.R - pad, top - pad, 2 * g.R + 2 * pad, bottom - top + 2 * pad]);
+}
+
+/** The bounds of the hold itself (floor and rim) on the drawing for a camera: [x0, y0, x1, y1]. Always inside frameOf. */
+export function extentOf(field, cam) {
+  const g = geometry(field), L = lens(g, cam), ps = g.cells.flatMap(c => c.pts.flatMap(p => [L.p(p[0], p[1], 0), L.p(p[0], p[1], g.H)]));
+  const xs = ps.map(p => p[0]), ys = ps.map(p => p[1]);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
 }
 
 // the convex hull of a few points (a crate's outline on the drawing), for telling what hides a stamp
@@ -133,7 +148,7 @@ export function holdScene(svg, field, cam) {
   const g = geometry(field), n2 = field.n2;
   let L = lens(g, cam);
   const scene = {
-    get frame() { return frameOf(field, cam); },
+    get frame() { return frameOf(field); },
     setCam(c) { cam = c; L = lens(g, cam); svg.setAttribute("viewBox", scene.frame.map(f3).join(" ")); },
     centre(i) { const c = g.cells[i % n2]; return L.p(c.x, c.y, (Math.floor(i / n2) + 0.5) * g.dh); },
     draw(o) {
