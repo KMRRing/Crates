@@ -433,15 +433,15 @@ function openMenu() {
   content.append(choice("Rules", SET_IDS.map(id => [id, SETS[id].name]), opts.set, v => { opts.set = v; saveOpts(); }));
   content.append(line(`${SETS[opts.set].blurb}`));
   if (!page.atTable) {
-    content.append(choice("Play against", [["computer", "The computer"], ["friend", "A friend on this phone"]], opts.vs, v => { opts.vs = v; saveOpts(); }));
+    content.append(choice("Opponent", [["computer", "Computer"], ["friend", "Two on this phone"]], opts.vs, v => { opts.vs = v; saveOpts(); }));
+    content.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
     content.append(choice("You play", [["ink", "Ink (first)"], ["ivory", "Ivory"], ["swap", "Each in turn"]], opts.you, v => { opts.you = v; saveOpts(); }));
   }
   const set = part(body, "settings");
-  set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line("The rules, colours and opponent apply from the next game."));
   set.append(toggle("Ring the pieces that must jump", opts.mark, on => { opts.mark = on; saveOpts(); draw(); }));
   set.append(toggle("Show who is ahead", opts.ahead, on => { opts.ahead = on; saveOpts(); aheadFor = { key: "", score: null }; if (V) work(V); draw(); }));
-  set.append(toggle("Label the files and ranks", opts.labels, on => { opts.labels = on; saveOpts(); draw(); }));
+  set.append(toggle("Coordinates on the board", opts.labels, on => { opts.labels = on; saveOpts(); draw(); }));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0, drawn: 0 }), st = read("crown:run", { now: 0, best: 0 }), days = read("crown:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${r.drawn ? `, ${r.drawn} drawn` : ""}${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));

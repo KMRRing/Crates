@@ -641,10 +641,10 @@ function openMenu() {
   if (opts.game === "jass") {
     set.append(choice("Cards", [["swiss", "Swiss"], ["french", "French"]], o.pack, v => { o.pack = v; saveOpts(); }));
     set.append(choice("Count", [["simple", "All single"], ["swiss", "×1 to ×4"]], o.count, v => { o.count = v; saveOpts(); }));
-    set.append(choice("Play to", [[1000, "1000"], [1500, "1500"], [2500, "2500"], [3000, "3000"]], o.target, v => { o.target = Number(v); saveOpts(); }));
+    set.append(choice("A game ends at", [[1000, "1000"], [1500, "1500"], [2500, "2500"], [3000, "3000"]], o.target, v => { o.target = Number(v); saveOpts(); }));
     set.append(toggle("Weis and Stöck", o.weis, on => { o.weis = on; saveOpts(); }));
-  } else if (opts.game === "belote") set.append(choice("Play to", [[501, "501"], [1000, "1000"]], o.target, v => { o.target = Number(v); saveOpts(); }));
-  else if (opts.game === "coinche") set.append(choice("Play to", [[1000, "1000"], [2000, "2000"]], o.target, v => { o.target = Number(v); saveOpts(); }));
+  } else if (opts.game === "belote") set.append(choice("A game ends at", [[501, "501"], [1000, "1000"]], o.target, v => { o.target = Number(v); saveOpts(); }));
+  else if (opts.game === "coinche") set.append(choice("A game ends at", [[1000, "1000"], [2000, "2000"]], o.target, v => { o.target = Number(v); saveOpts(); }));
   else set.append(choice("Deals", [[8, "8"], [16, "16"], [24, "24"]], o.deals, v => { o.deals = Number(v); saveOpts(); }));
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line("The game and its settings apply from the next game."));

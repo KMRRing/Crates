@@ -978,13 +978,13 @@ function openMenu() {
       choice("Pictures", topicChoices(), topicNow(), v => { settings.topic = v; saveSettings(); openMenu(); }),
       choice("Region", REGIONS, settings.region, v => { settings.region = v; saveSettings(); }),
       mirror("Size", $("size")),
-      choice("Difficulty", [["any", "Any"], ...Object.entries(BANDS)], settings.band, v => { settings.band = v; saveSettings(); }));
+      choice("Level", [["any", "Any"], ...Object.entries(BANDS)], settings.band, v => { settings.band = v; saveSettings(); }));
     if (topicNow() === "all") c.append(...topicsPart(c, "Only for All pictures: a kind picked above is dealt as it is"));
   } else c.append(line("Today's is a country's outline, medium: the same for everyone, named for the score."));
   const st = part(body, "settings");
   if (!COOP) st.append(toggle("Name it", settings.nameIt, v => { settings.nameIt = v; saveSettings(); }));
   st.append(choice("Mistakes", [["shown", "Shown"], ["hidden", "Hidden"]], settings.mistakes, v => { settings.mistakes = v; saveSettings(); }));
-  if (!COOP) st.append(choice("The computer", [["off", "Off"], ["partner", "Partner"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
+  if (!COOP) st.append(choice("Computer", [["off", "Off"], ["partner", "Partner"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
   if (!COOP && settings.computer !== "off") st.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }));
   st.append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one grid for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));

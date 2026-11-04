@@ -632,7 +632,7 @@ function openMenu() {
     part(body, "play").append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Xiangqi, from the rules", () => course.open()),
       action("Puzzle rush", () => { closeDialogs(); rush.open(); }), action("The rules on one page", showRules, "link"));
     part(body, "content").append(
-      choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }),
+      choice("Opponent", [["engine", "Computer"], ["two", "Two on this phone"]], pick.mode, v => { pick.mode = v; }),
       choice("Strength", LEVELS.map(l => [l.id, `${l.name} ${rating(l.rating)}`]), pick.level, v => { pick.level = v; }),
       choice("You play", [["red", "Red"], ["black", "Black"], ["either", "Either"]], pick.colour, v => { pick.colour = v; }));
   }

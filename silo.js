@@ -301,7 +301,7 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   if (!page.atTable && page.host) {
     const content = part(body, "content");
-    content.append(choice("Play against", [["computer", "The computer"], ["friend", "A friend here"]], opts.opponent, v => { opts.opponent = v; saveOpts(); thinking = null; page.runner.kick(); draw(); }));
+    content.append(choice("Opponent", [["computer", "Computer"], ["friend", "Two on this phone"]], opts.opponent, v => { opts.opponent = v; saveOpts(); thinking = null; page.runner.kick(); draw(); }));
     if (opts.opponent === "computer") content.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); thinking = null; draw(); }));
   }
   const set = part(body, "settings");

@@ -171,12 +171,14 @@ function fullHead(body) {
   if (!app) return null;
   const box = el("div", "menu-full"), games = document.getElementById("appsBtn");
   box.dataset.full = "1";
-  const have = new Set([...body.querySelectorAll("button")].map(b => b.textContent.trim().toLowerCase()));
+  // "Rules" and "The rules on one page" are one button, and so are "Learn" and "Learn Big Two, from the rules"
+  const same = t => { t = t.trim().toLowerCase(); return /^learn\b/.test(t) ? "learn" : /^(the )?rules\b/.test(t) ? "rules" : t; };
+  const have = new Set([...body.querySelectorAll("button")].map(b => same(b.textContent)));
   if (games && !IN_PARTY && !IN_FRAME && !have.has("back to menu")) box.append(action("Back to menu", () => games.click()));   // Almanac's own, if the page still has one
   const row = el("div", "menu-full-row");
   for (const b of app.querySelectorAll(":scope > .top .top-right > button:not(#menuBtn, .dd)")) {   // .dd: a header dropdown, which the menu has as its own choice
     const text = (b.textContent || b.getAttribute("aria-label") || "").trim();
-    if (!text || b.hidden || b.disabled || have.has(text.toLowerCase())) continue;
+    if (!text || b.hidden || b.disabled || have.has(same(text))) continue;
     row.append(action(text, () => b.click()));
   }
   if (row.children.length) box.append(row);

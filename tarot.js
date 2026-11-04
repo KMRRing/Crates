@@ -529,7 +529,7 @@ function openMenu() {
   set.append(toggle("Petit sec voids the deal", opts.petitSec, on => { opts.petitSec = on; saveOpts(); }));
   set.append(toggle("Four-colour suits", opts.colours, on => { opts.colours = on; document.documentElement.classList.toggle("tr-colours", on); saveOpts(); }));
   set.append(toggle("Show the taker's points", opts.counting, on => { opts.counting = on; saveOpts(); draw(); }));
-  set.append(toggle("Coach (Hint button)", opts.coach, on => { opts.coach = on; saveOpts(); draw(); }));
+  set.append(toggle("Coach: hints", opts.coach, on => { opts.coach = on; saveOpts(); draw(); }));
   const r = read(RECORD, { played: 0, won: 0, best: null }), st = read("tarot:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}${r.best != null ? `; best ${sign(r.best)}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

@@ -336,11 +336,12 @@ function openMenu() {
   const cp = progressOf("flank", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Reversi, from the rules", () => course.open()));
   play.append(action("The rules on one page", showRules, "link"));
+  const content = part(body, "content");
+  content.append(choice("Opponent", [["computer", "Computer"], ["two", "Two on this phone"]], opts.mode, v => { opts.mode = v; saveOpts(); }));
+  content.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); botKey = ""; botWork(V); }));
+  content.append(choice("You play", [["dark", "Dark (first)"], ["light", "Light"], ["either", "Either"]], opts.colour, v => { opts.colour = v; saveOpts(); }));
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
-  set.append(choice("Opponent", [["computer", "Computer"], ["two", "Two on this phone"]], opts.mode, v => { opts.mode = v; saveOpts(); }));
-  set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); botKey = ""; botWork(V); }));
-  set.append(choice("You play", [["dark", "Dark (first)"], ["light", "Light"], ["either", "Either"]], opts.colour, v => { opts.colour = v; saveOpts(); }));
   set.append(line("The opponent and colour apply from the next game."));
   set.append(choice("Coach", [["off", "Off"], ["hints", "Hints"], ["always", "Always"]], opts.coach, v => { opts.coach = v; saveOpts(); hintAt = { key: "", sq: -1 }; draw(); coachWork(V); }));
   set.append(toggle("Mark the squares you may play", opts.marks, on => { opts.marks = on; saveOpts(); draw(); }));

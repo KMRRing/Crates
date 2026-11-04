@@ -621,7 +621,7 @@ function openMenu() {
   if (pick === "book") content.append(bookList());
   const settings = part(body, "settings");
   if (pick !== "book" && pick !== "daily") settings.append(choice("Rules", Object.entries(RULES), prefs.rules, v => { prefs.rules = v; keepPrefs(); }));
-  settings.append(choice("The computer", [["off", "Off"], ["partner", "Partner"]], prefs.computer, v => { prefs.computer = v; keepPrefs(); openMenu(); }));
+  settings.append(choice("Computer", [["off", "Off"], ["partner", "Partner"]], prefs.computer, v => { prefs.computer = v; keepPrefs(); openMenu(); }));
   if (prefs.computer !== "off") {
     settings.append(choice("Its level", Object.entries(PARTNERS).map(([k, r]) => [k, r.label]), prefs.cpu, v => { prefs.cpu = v; keepPrefs(); }));
     if (prefs.computer === "partner") settings.append(line("It holds every other letter of a random or linked Classic ladder, from the next one."));

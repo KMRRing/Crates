@@ -894,7 +894,7 @@ function openMenu() {
     play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
     duel.menu(part(body, "together"));
     const content = part(body, "content");
-    content.append(mirror("Next match: difficulty", $("level")));
+    content.append(mirror("Level", $("level")));
     if (m) content.append(line(`This match: ${nameOf(m)}, ${m.size}×${m.size}${hasTwist(m.twist) ? ` · ${twistName(m.twist)}` : ""}.`));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -911,7 +911,7 @@ function openMenu() {
     content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
     if (pick === "random") {
       content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
-      content.append(mirror("Difficulty", $("level")));
+      content.append(mirror("Level", $("level")));
       content.append(choice("Twist", Object.entries(TWISTS), prefs.twist, v => { prefs.twist = v; savePrefs(); kindChanged(); openMenu(); }));
     } else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
   }

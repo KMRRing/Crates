@@ -337,7 +337,7 @@ function openMenu() {
   const set = part(body, "settings");
   set.append(view.choice(() => drawBoard()));
   if (board3d) set.append(action("Reset the 3D view", () => board3d?.resetView()));
-  set.append(choice("A match to", MATCHES.map(n => [n, n === 1 ? "1 game" : `${n} points`]), opts.match, v => { opts.match = Number(v); saveOpts(); }));
+  set.append(choice("A match ends at", MATCHES.map(n => [n, n === 1 ? "1 game" : `${n} points`]), opts.match, v => { opts.match = Number(v); saveOpts(); }));
   set.append(toggle("The doubling cube", opts.cube, on => { opts.cube = on; saveOpts(); }));
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line("The match and the cube apply from the next match."));
