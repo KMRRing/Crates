@@ -382,9 +382,10 @@ export function library(level) {
 }
 /**
  * Searches the level's uses breadth first (blocks that came out the same are one): the fewest uses that solve it within
- * its budget from this placement (or from a block already worked on, `from` = { b, used }), and how many different orders of that many solve it. Returns { best, orders, path (one solving order) } or null.
+ * its budget from this placement (or from a block already worked on, `from` = { b, used }), and how many different orders of that many solve it. Returns { best, orders, path (one solving order) } or null (nothing solves it); { capped: true } if `maxNodes` uses were tried without an answer.
  */
-export function search(level, at, cap = 8, from = null) {
+export function search(level, at, cap = 8, from = null, maxNodes = Infinity) {
+  let nodes = 0;
   const start = from ? from.b : blockFor(level, at);
   // a saw or a kerf that does nothing now never will (wood only comes off); the rest may wait on a knot or a kerf
   const ops = library(level).filter(op => (op.tool !== "saw" && op.tool !== "kerf") || apply(copyOf(start), op).ok);
@@ -396,6 +397,7 @@ export function search(level, at, cap = 8, from = null) {
     for (const f of frontier) for (const op of ops) {
       if (left(level, f.used, op.tool) <= 0) continue;
       if (op.tool === "kerf" && f.b.kerfs.some(k => k.w === op.wall)) continue;
+      if (++nodes > maxNodes) return { capped: true };
       const b = copyOf(f.b), r = apply(b, op);
       if (!r.ok) continue;
       const k = key(b), used = { ...f.used, [op.tool]: f.used[op.tool] + 1 };

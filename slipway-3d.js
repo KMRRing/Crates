@@ -386,8 +386,12 @@ export function createBench(host) {
   function setReveal(on) {
     if (!on) { reveal = null; work.position.y = 0; ghost.visible = ghostOn; invalidate(); return; }
     ghost.visible = false; cursor.visible = false; sheet.visible = edgeLine.visible = false; cutGhost.visible = false;
-    const t0 = performance.now(), az0 = az;
+    // room to turn all the way round: the view is sized to the part's diagonal, whatever way it is facing
+    box = woodBox(b);
+    const diag = Math.hypot(box[3] - box[0], box[4] - box[1], box[5] - box[2]) * S;
+    const half0 = half, half1 = Math.max(half, diag * 0.62 / Math.min(1, width / height)), t0 = performance.now(), az0 = az;
     reveal = t => {
+      half = half0 + (half1 - half0) * Math.min(1, (t - t0) / 600);
       const s = (t - t0) / 1000;
       work.position.y = Math.min(1, s * 2) * 0.1;
       az = az0 - Math.min(s, 5) * 0.55;
