@@ -1,19 +1,19 @@
-/* Yield: seven letters in a hive (or nine tiles in a wheel), a gauge of the run's ranks across the top, the words
-   found under it. Its enamel is honey ochre, Spelling Bee's colour and the suite's first enamel: the centre hex is
-   filled with it, lettered in the dark ink the ochre crates take. */
+/* Yield: seven letters on a brass-framed tray (or nine tiles on a plate), a gauge of the run's ranks across the top,
+   the words found under it. Its enamel is cobalt; the key letter sits on a keyed plate, the suite's primary-action
+   colours (navy lettered in gilt by day, brass lettered in navy by night). */
 :root {
-  --yd-in: #9A6A10;                     /* lines and words in the game's colour, dark enough to read on the page */
-  --yd-hive: #D49A22;                   /* the centre's enamel */
-  --yd-on-hive: #2A2005;
-  --yd-in-soft: color-mix(in srgb, var(--yd-hive) 18%, var(--sheet));
+  --yd-in: #2C5B8A;                     /* lines and words in the game's colour, dark enough to read on the page */
+  --yd-key: var(--plate);               /* the keyed plate */
+  --yd-on-key: var(--plate-ink);
+  --yd-in-soft: color-mix(in srgb, var(--yd-in) 15%, var(--sheet));
   --yd-good: #2F7D5B; --yd-bad: #A8382B;
-  --yd-logo-tint: #F1DDAE; --yd-logo-edge: var(--logo-edge);   /* the header dropdown wears the logo's colours */
+  --yd-logo-tint: #D5E1EC; --yd-logo-edge: var(--logo-edge);   /* the header dropdown wears the logo's colours */
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --yd-in: #E2B24E; --yd-hive: #D9A53A; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #574115; }
+  html:not([data-mode="day"]) { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #1F3A55; }
 }
-html[data-mode="night"] { --yd-in: #E2B24E; --yd-hive: #D9A53A; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #574115; }
-html[data-theme="modern"] { --yd-logo-tint: #F6E6C2; --yd-logo-edge: #A2690F; }
+html[data-mode="night"] { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #1F3A55; }
+html[data-theme="modern"] { --yd-logo-tint: #D5E1EC; --yd-logo-edge: #2D5E88; }
 
 .yd-mark { display: inline-block; }
 .yd-mark svg { width: 100%; height: 100%; display: block; }
@@ -34,7 +34,7 @@ html[data-theme="modern"] { --yd-logo-tint: #F6E6C2; --yd-logo-edge: #A2690F; }
 .yd-tick { position: absolute; top: .2rem; width: 0; height: .6rem; border-left: 1px solid var(--brass); }
 .yd-tick::after { content: ""; position: absolute; left: -.28rem; top: .16rem; width: .5rem; height: .5rem; border-radius: 50%; box-sizing: border-box;
   border: 1px solid var(--brass); background: var(--sheet); }
-.yd-tick.on::after { background: var(--yd-hive); border-color: var(--yd-in); }
+.yd-tick.on::after { background: var(--yd-key); border-color: var(--yd-key); }
 .yd-tick.top::after { border-radius: 1px; transform: rotate(45deg); }
 .yd-index { position: absolute; top: -.05rem; width: 0; height: 0; transition: left .35s ease; }
 .yd-index::before { content: ""; position: absolute; left: -.4rem; top: 0; border-style: solid; border-width: .5rem .4rem 0; border-color: var(--ink) transparent transparent; }
@@ -67,7 +67,7 @@ html[data-theme="modern"] { --yd-logo-tint: #F6E6C2; --yd-logo-edge: #A2690F; }
   font-size: var(--word-size, 1.9rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: uppercase; }
 .yd-word .c { color: var(--yd-in); }
 .yd-word .x { color: color-mix(in srgb, var(--ink) 30%, transparent); }
-.yd-word::after { content: ""; display: inline-block; width: 2px; height: 1.1em; margin-left: .08em; background: var(--yd-hive); animation: yd-caret 1.1s steps(1) infinite; }
+.yd-word::after { content: ""; display: inline-block; width: 2px; height: 1.1em; margin-left: .08em; background: var(--yd-in); animation: yd-caret 1.1s steps(1) infinite; }
 .yd-word.off::after { display: none; }
 @keyframes yd-caret { 50% { opacity: 0; } }
 .yd-word.shake { animation: yd-shake .32s ease; }
@@ -77,7 +77,7 @@ html[data-theme="modern"] { --yd-logo-tint: #F6E6C2; --yd-logo-edge: #A2690F; }
   text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yd-line.good { color: var(--yd-good); }
 .yd-line.bad { color: var(--yd-bad); }
-.yd-line .pts { display: inline-grid; place-items: center; min-width: 1.6rem; height: 1.3rem; padding: 0 .35rem; border-radius: 4px; background: var(--yd-hive); color: var(--yd-on-hive); font-size: .78rem; font-weight: 800; }
+.yd-line .pts { display: inline-grid; place-items: center; min-width: 1.6rem; height: 1.3rem; padding: 0 .35rem; border-radius: 4px; background: var(--yd-key); color: var(--yd-on-key); font-size: .78rem; font-weight: 800; }
 .yd-line .ld { width: 1rem; height: 1rem; }
 
 .yd-board { position: relative; min-height: 8rem; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -87,22 +87,25 @@ html[data-theme="modern"] { --yd-logo-tint: #F6E6C2; --yd-logo-edge: #A2690F; }
 .yd-cell .face { fill: var(--tile); stroke: var(--tile-edge); stroke-width: 1.5px; transition: fill .08s; }
 .yd-cell .inlay { fill: none; stroke: var(--rule); stroke-width: 1px; }
 .yd-cell text { fill: var(--ink); font-family: var(--font); font-weight: 800; font-stretch: var(--wide); text-anchor: middle; dominant-baseline: central; pointer-events: none; text-transform: uppercase; }
-.yd-cell.centre .face { fill: var(--yd-hive); stroke: var(--yd-in); }
-.yd-cell.centre .inlay { stroke: color-mix(in srgb, var(--yd-on-hive) 35%, transparent); }
-.yd-cell.centre text { fill: var(--yd-on-hive); }
+.yd-board .bed { fill: color-mix(in srgb, var(--brass) 14%, var(--yard)); stroke: var(--brass); stroke-width: 1.5px; }
+.yd-board .rivet { fill: var(--brass); }
+.yd-cell.centre .face { fill: var(--yd-key); stroke: var(--yd-key); }
+.yd-cell.centre .inlay { stroke: color-mix(in srgb, var(--yd-on-key) 45%, transparent); }
+.yd-cell.centre text { fill: var(--yd-on-key); }
+.yd-cell text.keyword { font-size: 11px; font-weight: 800; font-stretch: 100%; letter-spacing: .22em; fill: color-mix(in srgb, var(--yd-on-key) 70%, transparent); }
 .yd-cell.down .face { fill: color-mix(in srgb, var(--ink) 14%, var(--tile)); }
-.yd-cell.centre.down .face { fill: color-mix(in srgb, var(--yd-on-hive) 22%, var(--yd-hive)); }
+.yd-cell.centre.down .face { fill: color-mix(in srgb, var(--yd-on-key) 22%, var(--yd-key)); }
 .yd-cell.used .face { fill: color-mix(in srgb, var(--ink) 8%, var(--yard)); stroke: var(--rule); }
 .yd-cell.used text { fill: color-mix(in srgb, var(--ink) 28%, transparent); }
-.yd-cell.centre.used .face { fill: color-mix(in srgb, var(--yd-hive) 38%, var(--yard)); stroke: var(--yd-in); }
-.yd-cell.centre.used text { fill: color-mix(in srgb, var(--yd-on-hive) 40%, transparent); }
+.yd-cell.centre.used .face { fill: color-mix(in srgb, var(--yd-key) 45%, var(--yard)); stroke: var(--yd-key); }
+.yd-cell.centre.used text { fill: color-mix(in srgb, var(--yd-on-key) 60%, transparent); }
 .yd-cell .ring { fill: none; stroke: var(--who, var(--p1)); stroke-width: 4px; }
 .yd-cell text.tag { fill: var(--who, var(--p1)); font-size: 15px; font-weight: 800; font-stretch: 100%; }
 .yd-board.mixing text { opacity: 0; transition: opacity .09s; }
 .yd-board text { transition: opacity .12s; }
 .yd-board.off .yd-cell { cursor: default; }
 .yd-board.off .yd-cell text { fill: color-mix(in srgb, var(--ink) 45%, transparent); }
-.yd-board.off .yd-cell.centre text { fill: color-mix(in srgb, var(--yd-on-hive) 60%, transparent); }
+.yd-board.off .yd-cell.centre text { fill: color-mix(in srgb, var(--yd-on-key) 60%, transparent); }
 
 .yd-keys { display: grid; grid-template-columns: 1fr auto 1fr; gap: .6rem; align-items: center; margin-top: .5rem; }
 .yd-key { min-height: 3.1rem; border-radius: 5px; border: 1.5px solid var(--brass); background: var(--sheet); color: var(--ink); font: inherit; font-size: .84rem;
@@ -181,8 +184,7 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-key { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-mix { border-radius: 50%; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-enter { border-radius: 14px; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"]) .yd-enter { background: var(--yd-hive); color: var(--yd-on-hive); border-color: var(--yd-hive); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-cell .inlay { display: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.yd-cell .inlay, .yd-board .rivet) { display: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-ranks li, html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-stats div { border-radius: 10px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-toast { border-radius: 10px; }
 html[data-theme="office"] .yd-key, html[data-theme="office"] .yd-found, html[data-theme="office"] .yd-chart-btn { border-radius: 4px; }

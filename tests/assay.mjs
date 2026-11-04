@@ -1,11 +1,11 @@
-// Assay (README, Assay): the marks as Wordle gives them, repeated letters included; the hard and strict rules and
+// Assay (README, Assay): the classic colour marks, repeated letters included, and the weighed marks (the default reading); the hard and strict rules and
 // what they say; the answers (everyday words, no forms of others, nothing crude) and what's accepted; the grades
 // (kept ahead in assay-grades.js, and the same as worked out now) and the levels they make; the daily, the same for
 // everyone and no word twice in years; every mode played through (one board, several, the word that dodges, the
 // sprint); a game kept and read back; the computer players, each a way of solving, stronger level by level; the
 // team's split colours (the parts make the whole, and neither part alone does), played at a table through the
 // database's own round trip.
-import { GREY, NEAR, HIT, LENGTHS, LEVELS, guessesFor, marksOf, codeOfMarks, marksOfCode, codeAt, packOf, fits, rulesBreak, rng, hashOf,
+import { GREY, NEAR, HIT, READS, readOf, readFor, boundsOf, LENGTHS, LEVELS, guessesFor, marksOf, codeOfMarks, marksOfCode, codeAt, packOf, fits, rulesBreak, rng, hashOf,
   gradeOf, gradesOf, levelOf, meanGuesses, RUNS, deal, dailyWord, dayNumber, DAILY, newGame, guessIn, rowsOf, solvedAt, answersOf,
   hide, unhide, dodgeStep, dodgeCands, timeUp, sprintSolved, scoreOf, lettersOf, refusal, roleOf, seenAs, UNSEEN, limitOf, allHit } from "../assay-engine.js";
 import { ENGLISH, inflection } from "../assay-words.js";
@@ -22,6 +22,50 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const t0 = Date.now();
+
+// ---------- the weighed reading ----------
+{
+  // CRANE guessed as TRACE: T is later than the word's C (down), R and A right, C earlier than N (up), E right
+  check(same(marksOf("trace", "crane", "scale"), [GREY, HIT, HIT, NEAR, HIT]), "weighed: trace against crane reads down, right, right, up, right");
+  check(marksOf("crane", "crane", "scale").every(m => m === HIT) && same(marksOf("aaaaa", "zzzzz", "scale"), [NEAR, NEAR, NEAR, NEAR, NEAR]), "weighed: the word itself is all right; every place of aaaaa is up against zzzzz");
+  check(same(marksOf("kebab", "abbey", "scale"), [GREY, GREY, HIT, NEAR, NEAR]) && same(marksOf("geese", "those", "scale"), [NEAR, NEAR, NEAR, HIT, HIT]), "weighed: repeated letters need no special care, each place is read alone");
+  const P = packOf(ENGLISH, 5, "scale"), C = packOf(ENGLISH, 5), r = rng(77);
+  let agree = true, scaleOk = true;
+  for (let k = 0; k < 2000; k++) {
+    const g = r() % P.N, a = r() % P.N;
+    if (codeAt(P, g, a) !== codeOfMarks(marksOf(P.words[g], P.words[a], "scale"))) agree = false;
+    if (codeAt(C, g, a) !== codeOfMarks(marksOf(C.words[g], C.words[a]))) scaleOk = false;
+  }
+  check(agree && scaleOk && P.read === "scale" && C.read === undefined && P.words === C.words, "the solvers' quick weighed marking agrees with marksOf on 2,000 pairs, and the colour pack is untouched");
+  check(same(READS, ["scale", "colour"]) && readOf({ read: "scale" }) === "scale" && readOf({}) === "colour" && readOf(null) === "colour", "a game kept before there were two readings was played in colours");
+  check(readFor(ENGLISH, "scale") === "scale" && readFor({ id: "equations" }, "scale") === "colour" && readFor({ id: "primes" }, "scale") === "scale" && readFor(ENGLISH, "colour") === "colour", "equations stay in colours; words and primes may be weighed");
+  const g = newGame({ words: ["crane"], read: "scale", rules: "strict" });
+  check(g.read === "scale" && g.rules === "free" && newGame({ words: ["crane"] }).read === "colour" && newGame({ words: ["crane"], rules: "strict" }).rules === "strict", "a weighed game plays free (hard and strict are about colours); the engine's own default is colours");
+  guessIn(g, "trace");
+  check(same(rowsOf(g, 0)[0].marks, [GREY, HIT, HIT, NEAR, HIT]) && refusal(g, "slate") === null, "a weighed game's rows are weighed, and any word may be guessed after");
+  guessIn(g, "crane");
+  check(g.over === "won" && solvedAt(g, 0) === 1, "solved by the word itself");
+  // what each place may still be
+  const alpha = [..."abcdefghijklmnopqrstuvwxyz"];
+  const rows = [{ guess: "trace", marks: marksOf("trace", "crane", "scale") }, { guess: "bound", marks: marksOf("bound", "crane", "scale") }];
+  const b = boundsOf(rows, 5, alpha);
+  check(b.length === 5 && b[0].from === "c" && b[0].to === "s" && b[1].exact && b[1].from === "r" && b[3].exact && b[3].from === "n" && b[4].exact, "the bounds: each place from the earliest letter it may be to the latest, a right letter exactly");
+  check(alpha.every(l => { const w = "crane"; return b.every((x, i) => x.exact ? w[i] === x.from : w[i] >= x.from && w[i] <= x.to); }), "the bounds never rule out the word's own letters");
+  // solvable: Steady, Sharp and Master all finish every one of a sample of words weighed
+  let finished = true, mean = 0;
+  for (const level of ["steady", "sharp", "master"]) for (let k = 0; k < 12; k++) {
+    const w = newGame({ read: "scale", seed: 900 + k * 17 }), plan = rivalPlan(w, level);
+    for (const row of plan.rows) { if (!guessIn(w, row.guess).ok) finished = false; if (w.over) break; }
+    if (w.over !== "won") finished = false;
+    if (level === "steady") mean += w.guesses.length / 12;
+  }
+  check(finished && mean < 5, `the computer players solve weighed games within the guesses (Steady ${mean.toFixed(1)} on average)`);
+  // the dodging word, weighed: it keeps the largest group of the weighed marks
+  const d = newGame({ mode: "dodge", len: 5, level: "easy", read: "scale", seed: 3 });
+  guessIn(d, "slate");
+  const Pw = packOf(ENGLISH, 5, "scale"), left = dodgeCands(d, ENGLISH, 1);
+  check(left.length > 0 && left.length === d.left && left.every(i => same(marksOf("slate", Pw.words[i], "scale"), d.marks[0])), "the dodging word, weighed, keeps the words that fit its reading");
+}
 
 // ---------- the marks ----------
 check(same(marksOf("eerie", "crane"), [GREY, GREY, NEAR, GREY, HIT]), "eerie against crane: the E in place is green, the other two grey, R elsewhere");
@@ -47,7 +91,7 @@ check(marksOf("crane", "crane").every(m => m === HIT) && codeOfMarks(marksOf("cr
   check(rulesBreak("bloke", rows, "free") === null, "free: anything goes");
   check(rulesBreak("bloke", rows, "hard") === "The 2nd letter must be R" && rulesBreak("bored", rows, "hard") === "The 2nd letter must be R",
     "hard: a letter in place must stay there");
-  check(rulesBreak("crimp", rows, "hard") === null, "hard: a letter shown out may be used again (Wordle's hard mode)");
+  check(rulesBreak("crimp", rows, "hard") === null, "hard: a letter shown out may be used again (the hard rule)");
   check(rulesBreak("crimp", rows, "strict") === "There's no C", "strict: a letter shown out stays out");
   const near = [{ guess: "stare", marks: marksOf("stare", "trout") }];  // T and R elsewhere
   check(rulesBreak("blond", near, "hard") === "Use the T", "hard: every letter shown in the word is used");
@@ -75,7 +119,7 @@ check(marksOf("crane", "crane").every(m => m === HIT) && codeOfMarks(marksOf("cr
   const crude = ["cums", "crap", "sluts", "rapes", "faggots", "rapists", "condom", "retard", "midget", "slave", "lynch"].filter(w => all.includes(w));
   check(!crude.length, `nothing crude, and no slur's neighbour${crude.length ? `: ${crude.join(" ")}` : ""}`);
   check(ENGLISH.accepts("xylyl") === false && ENGLISH.accepts("qajaq") === false && ENGLISH.accepts("zebra") && ENGLISH.accepts("quixotic"), "a non-word is turned away; any real word is a guess");
-  check(CRUDE.size > 150 && [...CRUDE].every(w => /^[a-z]{4,7}$/.test(w) && ENGLISH.accepts(w)), `crude words (${CRUDE.size}) may be guessed, as in Wordle`);
+  check(CRUDE.size > 150 && [...CRUDE].every(w => /^[a-z]{4,7}$/.test(w) && ENGLISH.accepts(w)), `crude words (${CRUDE.size}) may be guessed`);
   check([...CRUDE].every(w => !isWord(w)) && ["penis", "fuck", "pussy", "vagina", "boobs", "whore"].every(w => CRUDE.has(w)), "assay-crude.js holds only what the shared list lacks, and the words people open with");
   check(LENGTHS.every(n => ENGLISH.answers(n).every(x => !CRUDE.has(x.w))), "none of them is ever the answer");
 }

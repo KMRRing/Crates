@@ -1,8 +1,8 @@
-// Yield (README, Yield): Spelling Bee's genre. Seven letters in a hive, or nine tiles in a wheel; words of four letters
-// or more from them, each with the centre letter; points for each, ranks from Crude to Full yield. The rules, the
+// Yield (README, Yield): seven letters on a tray, or nine tiles on a plate; words of four letters or more from them,
+// each with the key letter; points for each, ranks from Dry hole to Last drop. The rules, the
 // puzzles and the computer player are yield-engine.js's; this file keeps the runs, draws the board and takes the taps.
 // Today's puzzle and a random one are kept apart, so switching between them loses neither. Together (duel.js): a race,
-// the same letters for everyone against the clock, or a team, the same letters with a centre letter each.
+// the same letters for everyone against the clock, or a team, the same letters with a key letter each.
 import { BOARDS, LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
   outerOf, centreFor, centresIn, teamFound, onlyMine } from "./yield-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -38,7 +38,7 @@ const DAY = "yield:day", RUN = "yield:run", ON = "yield:on", PREFS = "yield:pref
 const SAVE_EVERY = 5000;                          // ms between saves of the clock while it runs
 const CLOCKS = [[0, "Untimed"], [180, "3 min"], [300, "5 min"]];
 const prefs = { level: "medium", board: "hive", secs: 0, together: null, raceSecs: 180, ...read(PREFS, {}) };
-// what a match you deal will be, until you choose: a pair plays as a team (a centre each, each needing the other); a
+// what a match you deal will be, until you choose: a pair plays as a team (a key each, each needing the other); a
 // party, a table of friends, races
 const togetherMode = () => prefs.together || (new URLSearchParams(location.search).has("party") ? "race" : "team");
 if (!LEVELS[prefs.level]) prefs.level = "medium";
@@ -83,64 +83,82 @@ const pointsNow = () => (S && P ? totalOf(boardP(), [...foundMap().keys()].filte
 const isOver = () => !!S?.over || (S?.kind === "team" && !!team?.over);
 
 // ---------- the board ----------
-const R = 50, H = Math.sqrt(3) * R;
-// a hive: the centre, then the six round it clockwise from the top; a wheel: three rows of three, the centre in the middle
-const HIVE = [[0, 0], [0, -H], [1.5 * R, -H / 2], [1.5 * R, H / 2], [0, H], [-1.5 * R, H / 2], [-1.5 * R, -H / 2]];
-const WHEEL = [[-88, -88], [0, -88], [88, -88], [-88, 0], [0, 0], [88, 0], [-88, 88], [0, 88], [88, 88]];
-const hexPoints = (cx, cy, r) => Array.from({ length: 6 }, (_, k) => { const a = (Math.PI / 3) * k; return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`; }).join(" ");
+// A tray (board "hive"): the key letter in a keyed plate beside a rack of the six others, two rows of three; the plate
+// stands tall at the left when the box is wide, and lies long across the top when it is tall. A plate (board "wheel"):
+// nine tiles, three by three, the key in the middle. A tile is { x, y, w, h } (its centre and size) in the picture's units.
+const TILE = 84, PITCH = 94;
+function layoutOf(plate, tall) {
+  if (plate) {
+    const tiles = Array.from({ length: 9 }, (_, i) => ({ x: ((i % 3) - 1) * 92, y: (Math.floor(i / 3) - 1) * 92, w: TILE, h: TILE }));
+    return { view: "-148 -148 296 296", frame: [-142, -142, 284, 284], tiles, keyAt: 4 };
+  }
+  const rack = i => ({ col: i % 3, row: Math.floor(i / 3) });
+  if (tall) {
+    const tiles = [{ x: 136, y: 42, w: 272, h: TILE }, ...Array.from({ length: 6 }, (_, i) => ({ x: 42 + rack(i).col * PITCH, y: 136 + rack(i).row * PITCH, w: TILE, h: TILE }))];
+    return { view: "-17 -17 306 306", frame: [-11, -11, 294, 294], tiles, keyAt: 0 };
+  }
+  const tiles = [{ x: 42, y: 89, w: TILE, h: 2 * TILE + 10 }, ...Array.from({ length: 6 }, (_, i) => ({ x: 136 + rack(i).col * PITCH, y: 42 + rack(i).row * PITCH, w: TILE, h: TILE }))];
+  return { view: "-17 -17 400 212", frame: [-11, -11, 388, 200], tiles, keyAt: 0 };
+}
 const NS = "http://www.w3.org/2000/svg";
 const svgEl = (tag, attrs = {}) => { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
-let cells = [];        // [{ g, text, letter, centre }] in board order
+let cells = [];        // [{ g, text, letter, centre (the key tile), x, y, w, h }] in board order
 let drawnFor = null;
-/** The board's letters, in board order: a hive's centre first, a wheel's centre fifth. */
+/** The board's letters, in board order: a tray's key first, a plate's key fifth. */
 function boardLetters() {
   const out = [...(S.outer || "")];
   if (S.p.board === "wheel") out.splice(4, 0, myCentre()); else out.unshift(myCentre());
   return out;
 }
+/** A tray lies long in a wide box and stands in a tall one (an upright tablet); the box is measured as it is drawn. */
+const tallBox = () => { const b = $("board"); return b.clientHeight > 0 && b.clientWidth / b.clientHeight < 1.45; };
 function drawBoard() {
   const box = $("board");
   if (!S) { box.replaceChildren(); drawnFor = null; cells = []; return; }
-  const wheel = S.p.board === "wheel", key = `${S.p.board}:${S.p.letters}:${myCentre()}:${S.outer}`;
+  const plate = S.p.board === "wheel", tall = !plate && tallBox(), key = `${S.p.board}:${tall}:${S.p.letters}:${myCentre()}:${S.outer}`;
   if (drawnFor === key) return;
   drawnFor = key;
-  const svg = svgEl("svg", { viewBox: wheel ? "-136 -136 272 272" : "-131 -134 262 268", role: "presentation" });
-  const spots = wheel ? WHEEL : HIVE, letters = boardLetters(), centreAt = wheel ? 4 : 0;
-  cells = spots.map(([x, y], i) => {
-    const g = svgEl("g", { class: `yd-cell${i === centreAt ? " centre" : ""}`, "data-i": String(i) });
-    if (wheel) {
-      g.append(svgEl("rect", { class: "face", x: x - 40, y: y - 40, width: 80, height: 80, rx: 6 }), svgEl("rect", { class: "inlay", x: x - 34, y: y - 34, width: 68, height: 68, rx: 3 }));
-    } else {
-      g.append(svgEl("polygon", { class: "face", points: hexPoints(x, y, R * 0.94) }), svgEl("polygon", { class: "inlay", points: hexPoints(x, y, R * 0.8) }));
-    }
-    const text = svgEl("text", { x, y: y + 1, "font-size": wheel ? 44 : 46 });
+  const lay = layoutOf(plate, tall), svg = svgEl("svg", { viewBox: lay.view, role: "presentation" });
+  const [fx, fy, fw, fh] = lay.frame;
+  svg.append(svgEl("rect", { class: "bed", x: fx, y: fy, width: fw, height: fh, rx: 8 }));
+  for (const [x, y] of [[fx + 8, fy + 8], [fx + fw - 8, fy + 8], [fx + 8, fy + fh - 8], [fx + fw - 8, fy + fh - 8]]) svg.append(svgEl("circle", { class: "rivet", cx: x, cy: y, r: 2.6 }));
+  const letters = boardLetters();
+  cells = lay.tiles.map((t, i) => {
+    const g = svgEl("g", { class: `yd-cell${i === lay.keyAt ? " centre" : ""}`, "data-i": String(i) });
+    const x0 = t.x - t.w / 2, y0 = t.y - t.h / 2;
+    g.append(svgEl("rect", { class: "face", x: x0, y: y0, width: t.w, height: t.h, rx: 6 }), svgEl("rect", { class: "inlay", x: x0 + 6, y: y0 + 6, width: t.w - 12, height: t.h - 12, rx: 3 }));
+    const text = svgEl("text", { x: t.x, y: t.y + 1, "font-size": i === lay.keyAt ? 50 : 44 });
     text.textContent = letters[i] || "";
     g.append(text);
+    if (i === lay.keyAt && !plate) {                       // the keyed plate says what it is
+      const tag = svgEl("text", { class: "keyword", x: t.x, y: y0 + 14 });
+      tag.textContent = "KEY";
+      g.append(tag);
+    }
     svg.append(g);
-    return { g, text, letter: letters[i], centre: i === centreAt, x, y };
+    return { g, text, letter: letters[i], centre: i === lay.keyAt, ...t };
   });
   box.replaceChildren(svg);
   drawUsed();
 }
-/** At a team's table, the other players' centre letters on this board, each ringed in its player's colour with their
+/** At a team's table, the other players' key letters on this board, each ringed in its player's colour with their
  *  initial: redrawn with every change, since players sit down after the board is drawn. */
 function markTeam() {
   for (const c of cells) { c.g.querySelector(".ring")?.remove(); c.g.querySelector(".tag")?.remove(); c.g.style.removeProperty("--who"); }
   if (S?.kind !== "team") return;
-  const me = duel.together.slot ?? 0, wheel = S.p.board === "wheel";
+  const me = duel.together.slot ?? 0;
   for (const o of people()) {
     if (o.slot === me) continue;
     const c = cells.find(x => !x.centre && x.letter === centreFor(S.p, o.slot));
     if (!c) continue;
     c.g.style.setProperty("--who", `var(--p${o.slot % 6})`);
-    const ring = wheel ? svgEl("rect", { class: "ring", x: c.x - 34, y: c.y - 34, width: 68, height: 68, rx: 3 }) : svgEl("polygon", { class: "ring", points: hexPoints(c.x, c.y, R * 0.8) });
-    c.g.insertBefore(ring, c.text);
-    const tag = svgEl("text", { class: "tag", x: c.x, y: c.y - (wheel ? 25 : R * 0.55) });
+    c.g.insertBefore(svgEl("rect", { class: "ring", x: c.x - c.w / 2 + 5, y: c.y - c.h / 2 + 5, width: c.w - 10, height: c.h - 10, rx: 3 }), c.text);
+    const tag = svgEl("text", { class: "tag", x: c.x, y: c.y - c.h / 2 + 17 });
     tag.textContent = initial(o.name);
     c.g.append(tag);
   }
 }
-/** A wheel's tiles in use by the word being made. */
+/** A plate's tiles in use by the word being made. */
 function drawUsed() {
   if (!S || S.p.board !== "wheel") return;
   const used = new Set(S.picks || []);
@@ -212,14 +230,14 @@ async function enter() {
       const before = rankOf(pointsNow(), P.total);
       S.found.push(word);
       const after = rankOf(pointsNow(), P.total);
-      say(r.full ? (p.board === "wheel" ? "Every tile!" : "Pangram!") : after > before ? `${RANKS[after][1]}!` : PRAISE(word), "good", r.points);
+      say(r.full ? (p.board === "wheel" ? "Every tile!" : "Full set!") : after > before ? `${RANKS[after][1]}!` : PRAISE(word), "good", r.points);
       found();
       break;
     }
     case "short": refuse("Too short: four letters at least"); break;
-    case "letters": refuse(p.board === "wheel" ? "Only the letters on the tiles" : "Only the letters in the hive"); break;
+    case "letters": refuse(p.board === "wheel" ? "Only the letters on the plate" : "Only the letters on the tray"); break;
     case "tiles": refuse("Each tile once only"); break;
-    case "centre": refuse(r.by != null ? `That one's ${nameOf(r.by)}'s: it has their ${up(centreFor(S.p, r.by))}, not your ${up(p.centre)}` : `Missing the centre letter, ${up(p.centre)}`); break;
+    case "centre": refuse(r.by != null ? `That one's ${nameOf(r.by)}'s: it has their ${up(centreFor(S.p, r.by))}, not your ${up(p.centre)}` : `Missing the key letter, ${up(p.centre)}`); break;
     case "found": refuse(r.by != null && r.by !== (duel.together.slot ?? 0) ? `${nameOf(r.by)} found that one` : "Already found"); break;
     case "variant": noteExtra(word); refuse("One side of the Atlantic's spelling only: not counted", ""); break;
     case "rare": noteExtra(word); refuse("A word, but rarer than Yield counts", ""); break;
@@ -243,7 +261,7 @@ function found() {
   if (S.kind === "team") { tell(); if (all) endTeam(); return; }
   if (S.kind === "race") { if (all) S.over = true; tell(all); return; }     // a race's result sheet is duel.js's
   if (all) finish("full");
-  else if (master) roundOver("yield");                             // a puzzle with no end of its own: Master refiner is one
+  else if (master) roundOver("yield");                             // a puzzle with no end of its own: Supergiant is one
 }
 /** Today's points so far, for the games screen (and your partner's): every word counts the moment it's found. */
 function noteDaily(pts) {
@@ -252,7 +270,7 @@ function noteDaily(pts) {
   const keepDays = Object.fromEntries(Object.entries(d).filter(([k]) => Number(k) >= S.p.day - 400));   // a year or so is plenty
   write(DAILY_KEY, { ...keepDays, [S.p.day]: pts });
 }
-/** The record: how often the coveted rank and the full yield were reached (each puzzle counts once). */
+/** The record: how often the coveted rank and the last drop were reached (each puzzle counts once). */
 function noteRank(from, to) {
   if (S.kind === "race" || S.kind === "team") return;
   const st = read(STATS, {}) || {};
@@ -312,8 +330,8 @@ function drawLine() {
   const idle = !S ? (duel.on ? "The letters show when the match starts" : "")
     : isOver() ? (S.kind === "race" ? "Time" : S.shown ? "Every word shown" : S.over && S.secs ? "Time" : "")
     : paused ? "" : S.found.length ? ""
-    : S.kind === "team" ? `Your letter is ${up(myCentre())}: every word of yours has it`
-    : S.p.board === "wheel" ? "Each tile once; every word uses the centre" : "Four letters or more, each with the centre";
+    : S.kind === "team" ? `Your key letter is ${up(myCentre())}: every word of yours has it`
+    : S.p.board === "wheel" ? "Each tile once; every word uses the key tile" : "Four letters or more, each with the key letter";
   l.replaceChildren(idle);
 }
 // the scale is built once: a tick for each rank, your index over it, and a layer under it for the others' indexes
@@ -424,7 +442,7 @@ function openLast() {
   const last = read(LAST, null);
   if (!last?.p) return;
   const words = yieldOf(last.p), got = new Set(last.found), body = sheet(dayName(last.p.day));
-  body.append(el("p", "yd-sum", `${plural(last.found.length, "word")} of ${words.length}, ${totalOf(last.p, last.found.filter(w => words.includes(w)))} of ${totalOf(last.p, words)} points. The centre was ${up(last.p.centre)}.`));
+  body.append(el("p", "yd-sum", `${plural(last.found.length, "word")} of ${words.length}, ${totalOf(last.p, last.found.filter(w => words.includes(w)))} of ${totalOf(last.p, words)} points. The key letter was ${up(last.p.centre)}.`));
   const ul = el("ul", "yd-words shown");
   for (const w of words) { const li = el("li", `${isFull(last.p, w) ? "full" : ""}${got.has(w) ? "" : " miss"}`, up(w)); li.dataset.w = w; ul.append(li); }
   body.append(ul);
@@ -586,7 +604,7 @@ function chartInto(body, c) {
 function openRanks() {
   if (!S || !P) return;
   const pts = pointsNow(), rank = rankOf(pts, P.total), body = sheet("Ranks");
-  body.append(el("p", "yd-note", "A refinery's run, from crude to every drop: each rank a share of the puzzle's points. Master refiner is the one to aim for; Full yield is every word."));
+  body.append(el("p", "yd-note", `A well's career, from a dry hole to the last drop: each rank a share of the puzzle's points. ${RANKS[MASTER][1]} is the one to aim for; ${RANKS[TOP][1]} is every word.`));
   const ul = el("ul", "yd-ranks");
   RANKS.forEach(([, name], i) => { const li = el("li", `${i === rank ? "on" : ""}${i < rank ? " done" : ""}`); li.append(el("b", "", name), el("span", "", String(P.need[i]))); ul.append(li); });
   body.append(ul);
@@ -596,7 +614,7 @@ function openRanks() {
 // ---------- together: a race or a team (duel.js) ----------
 // The first to sit down at the table deals the match their own way (the menu's Together); either can deal the other
 // kind from the menu at the table. A race: the same letters for everyone and a clock, the most points wins (duel.js
-// ranks it). A team: the same letters and a centre each (README, Yield: Together), every player's words in one yield;
+// ranks it). A team: the same letters and a key each (README, Yield: Together), every player's words in one yield;
 // each phone writes only its own words, to its own run, so two finds at once never collide, and the team's yield is
 // every run's words together. A team's match isn't ranked: it ends when every word is found or someone calls it, and
 // is recorded for the pair as a team's.
@@ -609,7 +627,7 @@ function people() {
   return Object.values(g.players || {}).filter(x => x && x.slot != null).map(x => ({ slot: x.slot, name: x.name, me: x.slot === me })).sort((a, b) => a.slot - b.slot);
 }
 const matchText = m => (m.mode === "team"
-  ? `Team: ${BOARDS[m.board]} at ${LEVELS[m.level]}. The same letters, a centre letter each: one yield between you`
+  ? `Team: ${BOARDS[m.board]} at ${LEVELS[m.level]}. The same letters, a key letter each: one yield between you`
   : `Race: ${BOARDS[m.board]} at ${LEVELS[m.level]}, ${m.secs / 60} minutes. The same letters for everyone: the most points wins`);
 const duel = createDuel({
   game: "yield", name: "Yield", accent: "--yd-in", line: $("duelLine"), toast,
@@ -723,7 +741,7 @@ function openMenu() {
   part(body, "settings").append(choice("Clock", CLOCKS, prefs.secs, v => { prefs.secs = v; keepPrefs(); openMenu(); }));
   const st = read(STATS, {}) || {}, sprints = Object.entries(st.sprints || {}), last = read(LAST, null);
   if (last?.p) part(body, "about").append(action(dayName(last.p.day), openLast, "link"));
-  part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; Master refiner ${st.master || 0} times, Full yield ${st.full || 0}${sprints.length ? `. Sprint bests: ${sprints.map(([k, v]) => { const [secs, board, level] = k.split(":"); return `${Number(secs) / 60} min ${BOARDS[board]?.toLowerCase() || ""} ${LEVELS[level]?.toLowerCase() || ""} ${v}`; }).join(", ")}` : ""}.`),
+  part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; ${RANKS[MASTER][1]} ${st.master || 0} times, ${RANKS[TOP][1]} ${st.full || 0}${sprints.length ? `. Sprint bests: ${sprints.map(([k, v]) => { const [secs, board, level] = k.split(":"); return `${Number(secs) / 60} min ${BOARDS[board]?.toLowerCase() || ""} ${LEVELS[level]?.toLowerCase() || ""} ${v}`; }).join(", ")}` : ""}.`),
     line("Words: SCOWL, with wordfreq's frequencies (CC BY-SA 4.0)."));
   showMenu(body);
 }
@@ -740,16 +758,16 @@ function showRules() {
   const ranks = RANKS.map(([share, name], i) => (i === 0 ? name : i === TOP ? `${name} (every word)` : `${name} (${Math.round(share * 100)}%)`));
   const sprints = CLOCKS.filter(([secs]) => secs).map(([secs]) => inWords(secs / 60)).join(" or ");
   $("rulesBody").innerHTML = `
-    <p>Make as many words as you can from the seven letters in the hive. Every word has ${inWords(MIN_LEN)} letters or more and uses the centre letter; a letter may be used as often as you like. Every puzzle has at least one pangram, a word that uses all seven.</p>
-    <p><b>Points.</b> A word of ${inWords(MIN_LEN)} letters scores 1, a longer word a point a letter, and a pangram ${FULL_BONUS} more: a six-letter word scores 6, a pangram of seven letters ${7 + FULL_BONUS}.</p>
-    <p><b>Ranks.</b> Your points climb a refinery's run, each rank a share of the puzzle's points: ${ranks.slice(0, -1).join(", ")} and ${ranks.at(-1)}. ${RANKS[MASTER][1]} is the one to aim for. Tap the gauge for the points each rank needs in this puzzle.</p>
+    <p>Make as many words as you can from the seven letters on the tray. Every word has ${inWords(MIN_LEN)} letters or more and uses the key letter, the one on the keyed plate; a letter may be used as often as you like. Every puzzle has at least one full set, a word that uses all seven.</p>
+    <p><b>Points.</b> A word of ${inWords(MIN_LEN)} letters scores 1, a longer word a point a letter, and a full set ${FULL_BONUS} more: a six-letter word scores 6, a full set of seven letters ${7 + FULL_BONUS}.</p>
+    <p><b>Ranks.</b> Your points climb a well's career, each rank a share of the puzzle's points: ${ranks.slice(0, -1).join(", ")} and ${ranks.at(-1)}. ${RANKS[MASTER][1]} is the one to aim for. Tap the gauge for the points each rank needs in this puzzle.</p>
     <p><b>The words.</b> Ordinary English, the same on both sides of the Atlantic: the letters never include an S, or every plural would count, and a spelling only one side uses (colour or color) never counts. A word that doesn't count is told apart: a word, but rarer than Yield counts; one side of the Atlantic's spelling only; or not in Yield's list.</p>
-    <p><b>Playing.</b> Tap the letters (each goes in as your finger lands) and Enter. Delete takes a letter off, or the whole word if you hold it, and Shuffle turns the outer letters round. On a keyboard: type, Enter, Backspace, Space to shuffle, Escape to clear. Your words run under the gauge, the newest first; tap them for every one, and a word for what it means. The Chart is the hints grid: what's left by first letter and length, and by the first two letters.</p>
-    <p><b>The Wheel.</b> The menu's Board: nine tiles from one nine-letter word in place of the hive. Every word uses the centre tile and each tile once at most (a letter on two tiles may be used twice), and the nine-letter word scores as a pangram.</p>
+    <p><b>Playing.</b> Tap the letters (each goes in as your finger lands) and Enter. Delete takes a letter off, or the whole word if you hold it, and Shuffle moves the outer letters about. On a keyboard: type, Enter, Backspace, Space to shuffle, Escape to clear. Your words run under the gauge, the newest first; tap them for every one, and a word for what it means. The Chart is the hints grid: what's left by first letter and length, and by the first two letters.</p>
+    <p><b>The Plate.</b> The menu's Board: nine tiles from one nine-letter word in place of the tray. Every word uses the key tile in the middle and each tile once at most (a letter on two tiles may be used twice), and the nine-letter word scores as a full set.</p>
     <p><b>Levels.</b> Light, Medium and Heavy, the menu's Puzzle: how far down the vocabulary ${RANKS[MASTER][1]} takes you. Light gets there on everyday words; Heavy needs words people rarely use.</p>
     <p><b>Clock.</b> In Settings: untimed, or a sprint of ${sprints} minutes on the next random puzzle, the most points before time is up. It stands still while the menu or these rules are open.</p>
     <p><b>Today's puzzle.</b> A ${LEVELS[DAILY.level]} ${BOARDS[DAILY.board].toLowerCase()}, the same seven letters for everyone, and a new one at midnight UTC. Your points count for the day as each word is found, so you can leave and come back, and today's and a random puzzle are kept apart, so switching loses neither. Show the words, in the menu, ends a puzzle and lists them all; the daily before today's keeps its words in the menu too.</p>
-    <p><b>Together.</b> A race: the same letters for everyone and a clock of ${sprints} minutes, the most points winning. Or a team: the same letters but a centre letter each, so each of you has words only you can enter; the chart on your phone is your partner's, what's left that they can enter, for you to tell them.</p>`;
+    <p><b>Together.</b> A race: the same letters for everyone and a clock of ${sprints} minutes, the most points winning. Or a team: the same letters but a key letter each, so each of you has words only you can enter; the chart on your phone is your partner's, what's left that they can enter, for you to tell them.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 
@@ -829,7 +847,7 @@ $("pick").addEventListener("change", async () => {
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); duel.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("pagehide", () => clockPause());
-addEventListener("resize", () => { drawFound(); });
+addEventListener("resize", () => { drawBoard(); markTeam(); drawFound(); });
 setInterval(tick, 250);
 // the dictionary comes once the page is drawn, so the first rare word typed is answered at once
 setTimeout(() => { if (!IN_FRAME) loadDict(); }, 2500);

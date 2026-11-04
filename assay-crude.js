@@ -1,9 +1,9 @@
-// Crude words, as guesses only (README, Assay). Wordle accepts them, so a player who opens with one is not turned away; none can
+// Crude words, as guesses only (README, Assay). Word games commonly accept them, so a player who opens with one is not turned away; none can
 // be the answer, since answers come from the commonest words (assay-words.js). The shared English list (wordlist.js) leaves
 // them out, so they are kept here, for the lengths Assay plays (four to seven). Sexual, bodily and profane words and insults;
-// no slur against a people, a faith or a sexuality (the original lets those in; this does not, so a team's screen never
+// no slur against a people, a faith or a sexuality (some lists let those in; this does not, so a team's screen never
 // shows one a partner typed). Written by hand from the profanity lists of naughty-words (LDNOOBW) and profane-words and
-// from Wordle's own list of words it accepts (five letters), keeping real words and leaving misspellings and brands out.
+// from a public list of the words such games accept (five letters), keeping real words and leaving misspellings and brands out.
 export const CRUDE = new Set(`
   anal anus boob clit cock cuck cunt dick fuck jism jizz milf mofo nads orgy poon porn pube quim rape sexy shat
   shit slut smut tits twat wang wank

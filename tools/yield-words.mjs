@@ -7,8 +7,8 @@
 // and "tenanting" come with "gong" and "tenant": a Zipf frequency of 2, once in ten million words, is the line, 1.5
 // for the commonest lists); or SCOWL's sizes 50 and 55 at a Zipf of 3 or more, once in a million (the ordinary modern words SCOWL
 // files as rare: online, timeline, texting), less the names, brands, slang and archaisms their frequency flatters. Never:
-// a spelling only one side of the Atlantic uses, an s anywhere (Yield's letters never include S, as Spelling Bee's
-// don't), or a word on BLOCKED, the slurs, vulgarities and crude words a game played with friends shouldn't count.
+// a spelling only one side of the Atlantic uses, an s anywhere (Yield's letters never include S, or every plural
+// would count), or a word on BLOCKED, the slurs, vulgarities and crude words a game played with friends shouldn't count.
 import fs from "node:fs";
 import zlib from "node:zlib";
 import { wordsOf, tierOf, isVariant } from "../wordlist.js";

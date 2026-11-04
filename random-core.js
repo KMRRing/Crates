@@ -43,7 +43,7 @@ export const ROUNDS = {
   bridges: "a puzzle solved",
   bulls: "a code broken or its rows run out, a duel settled, or a lock opened",
   assay: "a word, found or its guesses gone",
-  yield: "a puzzle to Master refiner, or over (every word, the clock, or the words shown)",
+  yield: "a puzzle to Supergiant, or over (every word, the clock, or the words shown)",
   isomer: "a puzzle solved",
   ladder: "a ladder climbed",
   lode: "a board finished",

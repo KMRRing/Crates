@@ -1,5 +1,5 @@
 // Yield (README, Yield): the words it counts, the rules of a word typed, points and ranks, that a puzzle's yield is
-// every word its letters make and has a pangram, the generator's levels against its own measure of difficulty, the
+// every word its letters make and has a full set, the generator's levels against its own measure of difficulty, the
 // daily the same everywhere and never a letter set twice in its walk, the computer player at its three levels, the
 // chart, a team's split (the parts make the whole, neither alone does) through the database's round trip, and a run
 // kept through JSON.
@@ -30,11 +30,11 @@ check(all.every(w => zipfOf(w) >= 1.5) && zipfOf("the") === 0, "every counted wo
   const p = { board: "hive", letters: "ailnoty", centre: "l", level: "medium", seed: 1 };
   const j = (w, o = {}) => judge(p, w, { dict, ...o });
   check(j("lot").kind === "short" && j("toil").kind === "word" && j("TOIL").kind === "word", "four letters or more; case doesn't matter");
-  check(j("into").kind === "centre" && j("blot").kind === "letters" && j("lo2t").kind === "letters", "the centre letter in every word; only the hive's letters");
+  check(j("into").kind === "centre" && j("blot").kind === "letters" && j("lo2t").kind === "letters", "the key letter in every word; only the tray's letters");
   check(j("toil", { have: new Set(["toil"]) }).kind === "found" && j("toil", { have: new Map([["toil", 1]]) }).by === 1, "a word found once, and by whom");
-  const pangram = yieldOf(p).find(w => isFull(p, w)), twice = yieldOf(p).find(w => w.length >= 5 && new Set(w).size < w.length);
-  check(j("toil").points === 1 && j("lotion").points === 6 && j(pangram).points === pangram.length + FULL_BONUS && j(pangram).full && !j("lotion").full,
-    `four letters 1, longer one a letter, a pangram seven more (${pangram}, ${j(pangram).points})`);
+  const fullSet = yieldOf(p).find(w => isFull(p, w)), twice = yieldOf(p).find(w => w.length >= 5 && new Set(w).size < w.length);
+  check(j("toil").points === 1 && j("lotion").points === 6 && j(fullSet).points === fullSet.length + FULL_BONUS && j(fullSet).full && !j("lotion").full,
+    `four letters 1, longer one a letter, a full set seven more (${fullSet}, ${j(fullSet).points})`);
   check(j(twice).kind === "word" && pointsOf(p, twice) === twice.length, `letters as often as you like (${twice})`);
   check(j("loti").kind !== "word" && j("loyal").kind === "word", "only words Yield counts score");
   const u = { board: "hive", letters: "celnoru", centre: "o", level: "medium", seed: 1 };
@@ -55,17 +55,17 @@ check(all.every(w => zipfOf(w) >= 1.5) && zipfOf("the") === 0, "every counted wo
 }
 
 // ---------- ranks ----------
-check(RANKS.length === 10 && RANKS[0][1] === "Crude" && RANKS[MASTER][1] === "Master refiner" && RANKS[MASTER][0] === 0.7 && RANKS[TOP][1] === "Full yield" && RANKS.every(([f], i) => !i || f > RANKS[i - 1][0]),
-  "ten ranks from Crude to Full yield, rising, Master refiner at 70%");
+check(RANKS.length === 10 && RANKS[0][1] === "Dry hole" && RANKS[MASTER][1] === "Supergiant" && RANKS[MASTER][0] === 0.7 && RANKS[TOP][1] === "Last drop" && RANKS.every(([f], i) => !i || f > RANKS[i - 1][0]),
+  "ten ranks from Dry hole to Last drop, rising, Supergiant at 70%");
 {
   const need = needed(200);
-  check(need[8] === 140 && need[9] === 200 && need[1] === 4, "the points each rank needs, rounded (70% of 200 is 140)");
-  check(rankOf(0, 200) === 0 && rankOf(139, 200) === 7 && rankOf(140, 200) === 8 && rankOf(199, 200) === 8 && rankOf(200, 200) === 9, "Master refiner at 70%; Full yield only with every point");
+  check(need[8] === 140 && need[9] === 200 && need[1] === 6, "the points each rank needs, rounded (70% of 200 is 140)");
+  check(rankOf(0, 200) === 0 && rankOf(139, 200) === 7 && rankOf(140, 200) === 8 && rankOf(199, 200) === 8 && rankOf(200, 200) === 9, "Supergiant at 70%; Last drop only with every point");
 }
 
 // ---------- a puzzle's yield: every word its letters make ----------
 {
-  let exact = true, pangrams = true, n = 0;
+  let exact = true, fullSets = true, n = 0;
   for (const board of Object.keys(BOARDS)) for (const level of Object.keys(LEVELS)) for (let s = 1; s <= 12; s++) {
     const p = deal({ seed: s * 7717 + level.length, level, board }), got = yieldOf(p);
     // brute force: every counted word, tried against the letters
@@ -73,11 +73,11 @@ check(RANKS.length === 10 && RANKS[0][1] === "Crude" && RANKS[MASTER][1] === "Ma
     const fits = w => w.includes(p.centre) && (maskOf(w) & ~M) === 0 && (board === "hive" || [...w].every(ch => [...w].filter(x => x === ch).length <= have[ch]));
     const want = all.filter(fits).sort();
     if (want.join() !== got.join()) exact = false;
-    if (!got.some(w => isFull(p, w))) pangrams = false;
+    if (!got.some(w => isFull(p, w))) fullSets = false;
     n++;
   }
   check(exact, `a puzzle's yield is exactly the counted words its letters make (${n} puzzles, every word tried)`);
-  check(pangrams, "every one has a pangram (a wheel, its nine-letter word)");
+  check(fullSets, "every one has a full set (a wheel, its nine-letter word)");
 }
 
 // ---------- dealing: the same puzzle from the same seed, each level as it says ----------
