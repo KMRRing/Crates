@@ -6,7 +6,7 @@
 // A touch on a lever previews its shove; the same lever again (or Shove) makes it; sliding a finger over the levers shows each in
 // turn. A game is the plate and its list of moves (-1 swaps, e shoves at entry e): that is all that is kept, as `shunt:run` (Levels),
 // `shunt:rrun` (Random) or `shunt:drun` (Daily), so a partner watching draws the same plate from the same keys.
-import { play, swap, shove, judge, goalCheck, effect, over, canSwap, legal, legalEntries, sound, ENTRIES } from "./shunt-engine.js";
+import { play, swap, shove, judge, goalCheck, effect, over, canSwap, legal, legalEntries, ENTRIES } from "./shunt-engine.js";
 import { search } from "./shunt-bots.js";
 import { LEVELS, COACHED, DIFFS, DIFF_NAMES, goalWords, randomPlate, dailyPlate, rating } from "./shunt-levels.js";
 import { createView } from "./shunt-view-2d.js";
@@ -17,27 +17,27 @@ import { sure } from "./sure.js";
 import { busy } from "./loading.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";
+import { KEYS, RUN_KEY, keeper, migrate, readMode, readDiff, readCoach, readSeen, readDaily, readSel, readCamp, savedRun as savedRunOf } from "./shunt-keep.js";
 
 const $ = id => document.getElementById(id);
 // MODE: "levels", "random" or "daily". CAMP: { at (the level being played, 0 on), stars (the most won in each) }. BEST: stars won in all, the figure the
 // games screen shows. RUN, RRUN, DRUN: the game of each mode (plate and moves). DAILY: the score of each day's plate, by the day (YYYYMMDD).
 // SEL: the lever being previewed, so a partner sees it. COACH: coach lines on or off. DIFF: Random's difficulty. SEEN: terms already explained.
-// VER: 2 once the old rail-yard Shunt's run and best (a score in thousands) have been let go of.
-const MODE = "shunt:mode", CAMP = "shunt:camp", BEST = "shunt:best", RUN = "shunt:run", RRUN = "shunt:rrun", DRUN = "shunt:drun", DAILY = "shunt:daily", SEL = "shunt:sel", COACH = "shunt:coach", DIFF = "shunt:diff", SEEN = "shunt:seen", VER = "shunt:ver";
-const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
-const write = (k, v) => { if (IN_FRAME) return; try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+// Everything is read through shunt-keep.js, which drops (that key only) what is not a value this build made.
+const MODE = KEYS.mode, CAMP = KEYS.camp, BEST = KEYS.best, RRUN = KEYS.rrun, DRUN = KEYS.drun, DAILY = KEYS.daily, SEL = KEYS.sel, COACH = KEYS.coach, DIFF = KEYS.diff, SEEN = KEYS.seen;
+const kp = keeper(localStorage, IN_FRAME), { write } = kp;
 const fmt = v => String(Math.round(v * 10) / 10);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const starStr = n => "★".repeat(n) + "☆".repeat(3 - n);
 
-if (!IN_FRAME && read(VER, 0) !== 2) { write(RUN, null); write(BEST, 0); write(VER, 2); }
+if (!IN_FRAME) migrate(kp);
 
 const view = createView({ board: $("board"), tray: $("tray") });
 
-let mode = ["levels", "random", "daily"].includes(read(MODE, "levels")) ? read(MODE, "levels") : "levels";
-let camp = readCamp();
-let diff = DIFFS.includes(read(DIFF, "medium")) ? read(DIFF, "medium") : "medium";
-let coachOn = read(COACH, true) !== false;
+let mode = readMode(kp);
+let camp = readCamp(kp);
+let diff = readDiff(kp);
+let coachOn = readCoach(kp);
 let spec = null;            // the plate being played: stud, jewels, start, deal, goal, stars (+ id, no, name, sol for a level)
 let run = null;             // { kind, n | seed, diff | day, moves, spec? }
 let S = null;               // the state now (the plate after its moves)
@@ -47,37 +47,20 @@ let hintInfo = null, thinking = 0, hintTok = 0, hints = 0;
 let note = "", offer = false, undoStreak = 0;
 let pulse = null;           // the coach's pulse: { e } (a lever) or { hold: true }
 let demoE = -1, demoSeen = false;
-let seen = new Set(read(SEEN, []));
+let seen = readSeen(kp);
 let epoch = 0;              // a new plate or level makes what a search or an animation was about to do void
 
 // ---------- keeping ----------
-function readCamp() {
-  const c = read(CAMP, null), stars = LEVELS.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
-  const open = stars.findIndex(s => s < 1);
-  return { at: Number.isInteger(c?.at) ? Math.max(0, Math.min(c.at, open < 0 ? LEVELS.length - 1 : open)) : 0, stars };
-}
 function keepCamp() { write(CAMP, camp); write(BEST, camp.stars.reduce((a, b) => a + b, 0)); }
 const isOpen = n => n === 0 || camp.stars[n - 1] >= 1;
-const keyOf = () => (mode === "levels" ? RUN : mode === "random" ? RRUN : DRUN);
+const keyOf = () => RUN_KEY[mode];
 const keepRun = () => write(keyOf(), { v: 1, ...run, hints, at: Date.now() });
 const keepSel = () => write(SEL, pv ? { e: pv.e, swap: pv.swapFirst ? 1 : 0 } : null);
 
-/** The plate of a run as kept: a level's from the levels, the others' stored with the run (their goal came from a search). */
-function specOf(r) {
-  if (r.kind === "level") return LEVELS[r.n] || null;
-  const p = r.spec;
-  return p && Array.isArray(p.deal) && Array.isArray(p.jewels) && Array.isArray(p.stud) && p.start && p.goal && Array.isArray(p.stars) ? p : null;
-}
-/** A run read from the keys, or null if it is not one this file made (the old game's, or damaged). */
-function savedRun() {
-  const r = read(keyOf(), null);
-  if (!r || r.v !== 1 || !Array.isArray(r.moves) || !r.moves.every(Number.isInteger)) return null;
-  if (mode === "levels" ? !(r.kind === "level" && r.n === camp.at) : mode === "random" ? r.kind !== "random" : !(r.kind === "daily" && r.day === today())) return null;
-  const sp = specOf(r);
-  if (!sp) return null;
-  const st = play(sp, r.moves);
-  return st && sound(st) ? r : null;
-}
+/** The mode's saved run, or null (and its key dropped) if it is not one this build made and can draw. */
+const savedRun = () => savedRunOf(kp, mode, camp.at, today());
+/** The plate of a run: a level's from the levels, the others' kept with the run (their goal came from a search). */
+const specOf = r => (r.kind === "level" ? LEVELS[r.n] : r.spec);
 
 // ---------- the plate in play ----------
 function enter(r, sp) {
@@ -88,7 +71,7 @@ function enter(r, sp) {
   pv = null; hintInfo = null; thinking = 0; hintTok++; note = ""; offer = false; undoStreak = 0; pulse = null;
   done = over(S);
   demoE = -1; demoSeen = run.moves.length > 0;
-  const kept = read(SEL, null);
+  const kept = readSel(kp);
   if (!done && kept && Number.isInteger(kept.e) && kept.e >= 0 && kept.e < ENTRIES.length) {
     const before = kept.swap ? (canSwap(S) ? swap(S) : null) : S, r2 = before && legal(before, kept.e) ? shove(before, kept.e) : null;
     if (r2) pv = { e: kept.e, before, s: r2.s, moved: r2.moved, at: r2.at, swapFirst: !!kept.swap };
@@ -349,7 +332,7 @@ function finish() {
     if (n > camp.stars[run.n]) { camp.stars[run.n] = n; keepCamp(); }
     if (ok) roundOver("shunt");
   } else {
-    if (run.kind === "daily") { const days = read(DAILY, {}); if (!(days[run.day] >= J.score)) write(DAILY, { ...days, [run.day]: J.score }); }
+    if (run.kind === "daily") { const days = readDaily(kp); if (!(days[run.day] >= J.score)) write(DAILY, { ...days, [run.day]: J.score }); }
     roundOver("shunt");
   }
   render();
@@ -474,7 +457,7 @@ function openMenu() {
   if (mode === "levels") content.append(levelList());
   else if (mode === "random") content.append(choice("Difficulty", DIFFS.map(d => [d, DIFF_NAMES[d]]), diff, v => { diff = v; write(DIFF, v); $("menuDlg").close(); newRandomAsk(); }));
   else {
-    const got = read(DAILY, {})[today()];
+    const got = readDaily(kp)[today()];
     content.append(line(got != null ? `Today's plate: you scored ${fmt(got)}. It is the same for everyone, and a better score replaces it.` : "Today's plate is the same for everyone. Your score counts the moment the plate is judged."));
   }
   part(body, "settings").append(toggle("Coach lines (levels 1 to 8)", coachOn, on => { coachOn = on; write(COACH, on); coachFor(); render(); }));
@@ -509,5 +492,11 @@ window.__shunt = {
 (async () => {
   const wantsDaily = arrivedForToday() && !IN_FRAME;     // the games screen's tile opens today's plate while it is still to play
   if (wantsDaily) { mode = "daily"; write(MODE, mode); }
-  await resume();
+  try { await resume(); } catch (e) {
+    // a kept value that passed its checks and still broke the page: let go of the runs and start at the first level
+    console.warn("Shunt: starting afresh", e);
+    for (const k of [...Object.values(RUN_KEY), SEL]) write(k, null);
+    mode = "levels"; write(MODE, mode); camp = readCamp(kp);
+    await resume();
+  }
 })();
