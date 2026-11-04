@@ -81,7 +81,7 @@ check(same(chosenFrom(null), [...ELIGIBLE]) && same(chosenFrom(undefined), [...E
 check(same(chosenFrom({ out: ["crates", "punt"] }), ELIGIBLE.filter(id => id !== "crates" && id !== "punt")), "a game taken out isn't chosen");
 check(same(keptFrom(["crates", "glyph"]).out, ELIGIBLE.filter(id => id !== "crates" && id !== "glyph")) && same(chosenFrom(keptFrom(["crates", "glyph"])), ["crates", "glyph"]),
   "the device keeps the games taken out, and reads the choice back the same");
-check(same(chosenFrom({ out: [...keptFrom(["crates"]).out.filter(id => id !== "loom")] }), ["crates", "loom"]),
+check(same(chosenFrom({ out: [...keptFrom(["crates"]).out.filter(id => id !== "slipway")] }), ["crates", "slipway"]),
   "a game the device didn't know of when the choice was kept (added since) comes in, as every game does at first");
 check(same(keptFrom(["crates", "nonsense", "lexicon"]), keptFrom(["crates"])), "a game it doesn't deal is never kept as chosen");
 check(!canStart([]) && !canStart(null) && !canStart(["lexicon"]) && canStart(["crates"]) && canStart(chosenFrom(null)), "a choice of nothing can't start random mode");

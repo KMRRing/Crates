@@ -1073,7 +1073,7 @@ document.addEventListener("keydown", e => {
 document.addEventListener("visibilitychange", () => { if (document.hidden) { clockPause(); botSleep(); } else { clockRun(); botWake(); board.redraw(); duel.resync(); coop?.together.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("pagehide", () => clockPause());
-window.addEventListener("hashchange", () => { const h = hashPicture(); if (!cloth && !COOP && !duel.on && h && !isShown(h)) begin(h); });
+window.addEventListener("hashchange", () => { const h = hashPicture(); if (h && $("app").classList.contains("cloth")) { location.reload(); return; } if (!COOP && !duel.on && h && !isShown(h)) begin(h); });
 let ticks = 0, lookKey = "";
 setInterval(() => {
   if (!S) return;
