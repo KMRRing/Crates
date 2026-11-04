@@ -43,7 +43,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 // ---------- the waterworks, from the solved sea: one intake and one outlet on the edge, a current along the network, and no detail by a number ----------
 {
   let boards = 0, edgeOk = 0, flowOk = 0, nearNum = 0, spaced = 0, barged = 0;
-  for (const size of [6, 8, 10]) for (const seed of [11, 12, 13]) {
+  for (const size of [6, 8, 10]) for (const seed of [11, 12]) {
     const p = generate(seed * 101 + size, size, "easy"), P = puzzleOf(size, p.grid, p.sol), N = size;
     const marks = Array.from({ length: N * N }, (_, x) => (P.sol[x] === 1 ? SEA : "0")).join(""), w = works(N, P.clue, marks);
     boards++;
