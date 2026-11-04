@@ -709,7 +709,7 @@ export const APPS = [
   { id: "heliograph", sec: "idle", name: "Heliograph", href: "./heliograph.html", logo: LOGO("heliograph", HELIOGRAPH_LOGO), players: [1, 1] },
   { id: "shunt", sec: "idle", name: "Shunt", href: "./shunt.html", logo: LOGO("shunt", SHUNT_LOGO), players: [1, 1] },
   { id: "polder", sec: "appendix", name: "Polder", href: "./polder.html", logo: LOGO("polder", POLDER_LOGO), players: [1, 1] },
-  { id: "topple", sec: "idle", name: "Topple", href: "./topple.html", logo: LOGO("topple", TOPPLE_LOGO), players: [1, 1] },
+  { id: "topple", sec: "board", name: "Topple", href: "./topple.html", logo: LOGO("topple", TOPPLE_LOGO), players: [1, 1] },
   { id: "columbiad", sec: "idle", name: "Columbiad", href: "./columbiad.html", logo: LOGO("columbiad", COLUMBIAD_LOGO), players: [1, 1] },
   { id: "orrery", sec: "idle", name: "Orrery", href: "./orrery.html", logo: LOGO("orrery", ORRERY_LOGO), players: [1, 1] },
   { id: "avalanche", sec: "appendix", name: "Avalanche", href: "./avalanche.html", logo: LOGO("avalanche", AVALANCHE_LOGO), players: [1, 1] },
