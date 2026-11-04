@@ -41,7 +41,7 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
 .pt-slip { --star-top: .3rem; --star-right: .5rem; --star-bg: transparent; position: relative; background: var(--pt-ticket); border: 1px solid var(--pt-ticket-edge); border-radius: 6px;
   padding: 0; margin-top: .4rem; display: flex; flex-direction: column; }
 .pt-slip-body { flex: 1 1 auto; min-height: 0; padding: 1.3rem 1rem 1rem; border-radius: 6px; }
-.pt-slip::before { content: ""; position: absolute; left: .9rem; right: .9rem; top: .45rem; height: 3px; pointer-events: none;
+.pt-slip::before { content: ""; position: absolute; left: .9rem; right: .9rem; top: .45rem; height: .1875rem; box-sizing: border-box; pointer-events: none;
   border-top: 1px solid var(--brass, var(--pt-ticket-edge)); border-bottom: 1px solid var(--brass, var(--pt-ticket-edge)); opacity: .7; }
 .pt-slip::after { content: ""; position: absolute; left: 50%; top: .29rem; width: .42rem; height: .42rem; pointer-events: none;
   transform: translateX(-50%) rotate(45deg); background: var(--pt-ticket); border: 1px solid var(--brass, var(--pt-ticket-edge)); }
