@@ -654,7 +654,7 @@ export const APPS = [
   { id: "drift", sec: "idle", name: "Drift", href: "./drift.html", logo: LOGO("drift", DRIFT_LOGO), players: [1, 1] },
   { id: "slipway", sec: "puzzle", name: "Slipway", href: "./slipway.html", logo: LOGO("slipway", SLIPWAY_LOGO), players: [1, 1] },
   { id: "loom", sec: "idle", name: "Loom", href: "./loom.html", logo: LOGO("loom", LOOM_LOGO), players: [1, 1] },
-  { id: "reckoning", sec: "knowledge", name: "Courier", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO), players: [1, 1] },
+  { id: "reckoning", sec: "idle", name: "Courier", href: "./reckoning.html", logo: LOGO("reckoning", RECKONING_LOGO), players: [1, 1] },
   { id: "landfall", sec: "idle", name: "Landfall", href: "./landfall.html", logo: LOGO("landfall", LANDFALL_LOGO), players: [1, 1] },
   { id: "ingot", sec: "idle", name: "Ingot", href: "./ingot.html", logo: LOGO("ingot", INGOT_LOGO), players: [1, 1] },
   // The Appendix: what is set aside until it leaves for an app of its own or goes (README, The Appendix). Random and Start a
