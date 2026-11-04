@@ -109,6 +109,7 @@ export const LEFT_OUT = {
   maths: "a course of lessons, not a game with rounds",
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   ledger: "the record of how well you learn, not a game",
+  shoe: "a deck of cards on a table with no rules or rounds, for people in one room",
   party: "a room for people round a table, each on their own phone",
   cue: "a word to act, draw or describe for the people round you",
   quest: "hidden loyalties, a game for people round a table (Party's section)",

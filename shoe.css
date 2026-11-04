@@ -1,0 +1,91 @@
+/* Shoe: a deck on a table. The table phone shows the piles and who holds how many; a hand phone shows a small table above
+   its own cards. Upright: the table, then the log, your cards and your buttons. Sideways: the table on the left, the rest
+   beside it with the buttons low. */
+:root {
+  --sh-in: #1E7F8C;                                                /* teal: the game's enamel */
+  --sh-soft: color-mix(in srgb, var(--sh-in) 13%, var(--sheet));
+  --sh-felt: color-mix(in srgb, var(--sh-in) 9%, var(--sheet));
+}
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --sh-in: #6CC3CF; --sh-felt: color-mix(in srgb, #1E7F8C 24%, var(--sheet)); } }
+html[data-mode="night"] { --sh-in: #6CC3CF; --sh-felt: color-mix(in srgb, #1E7F8C 24%, var(--sheet)); }
+html[data-theme="kontor"] { --sh-in: #11707E; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --sh-in: #3FB5C4; } }
+html[data-theme="kontor"][data-mode="night"] { --sh-in: #3FB5C4; }
+html[data-theme="office"] { --sh-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --sh-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --sh-in: #479EF5; }
+
+.sh-mark { display: inline-block; }
+.sh-mark svg { width: 100%; height: 100%; display: block; }
+.sh-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); }
+.sh-strip b { color: var(--ink); }
+
+/* ---------- the table ---------- */
+.sh-board { display: flex; flex-direction: column; gap: .35rem; min-height: 0; padding: .45rem; border-radius: 6px; background: var(--sh-felt);
+  border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sh-felt), inset 0 0 0 5px var(--rule); overflow: hidden; }
+#app.is-hand .sh-board { flex: 4 1 0; }
+.sh-seats { display: flex; flex-wrap: wrap; gap: .3rem; justify-content: center; max-height: 38%; overflow: auto; flex: none; }
+.sh-seat { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem .4rem; max-width: 100%; padding: .2rem .45rem; border-radius: 5px; background: var(--sheet);
+  border: 1px solid var(--rule); font-size: .84rem; }
+.sh-seat b { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 9rem; }
+.sh-seat.me { border-color: var(--sh-in); }
+.sh-seat.away { opacity: .55; }
+.sh-n { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; padding: 0 .3rem; border-radius: 3px; background: var(--sh-soft);
+  border: 1px solid var(--rule); font-weight: 800; font-size: .76rem; font-variant-numeric: tabular-nums; }
+.sh-shown { display: flex; flex-wrap: wrap; font-size: .62rem; padding-right: 1.1em; }
+.sh-shown .cd + .cd { margin-left: -1.3em; }
+.sh-felt { flex: 1 1 0; min-height: 0; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: .55rem .9rem; }
+.sh-pile { display: grid; justify-items: center; align-content: start; gap: .3rem; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: var(--sh-size, 1rem); cursor: pointer; }
+.sh-pile .sh-lab { font-size: .7rem; line-height: 1; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); white-space: nowrap; }
+.sh-pile.sel .sh-lab { color: var(--sh-in); }
+.sh-pile .sh-top { position: relative; display: inline-flex; }
+.sh-pile.deep .sh-top > .cd { box-shadow: .1em .1em 0 -.02em var(--cd-edge), .2em .2em 0 -.04em var(--cd-edge), 0 1px 2px rgba(28, 42, 52, .2); }
+.sh-slot { width: 2.5em; height: 3.5em; box-sizing: border-box; border: 1px dashed var(--rule); border-radius: .2em; }
+.sh-spread { display: inline-flex; font-size: inherit; }
+.sh-spread > .cd { cursor: pointer; }
+.sh-spread > .cd + .cd { margin-left: calc(var(--sh-step, 1em) - 2.5em); }
+.sh-empty { margin: auto; color: var(--ink-soft); text-align: center; max-width: 18rem; line-height: 1.4; }
+
+/* ---------- the log, your cards and your buttons ---------- */
+.sh-side { display: flex; flex-direction: column; gap: .35rem; padding-top: .45rem; min-height: 0; }
+#app.is-hand .sh-side { flex: 5 1 0; }
+.sh-log { margin: 0; font-size: .86rem; line-height: 1.3; color: var(--ink-soft); display: grid; align-content: end; gap: .1rem; }
+.sh-log p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-log p:last-child { color: var(--ink); font-weight: 700; }
+#app.is-hand .sh-log { height: 1.4em; align-content: center; text-align: center; }
+#app.is-hand .sh-log p:not(:last-child) { display: none; }
+.sh-hand { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; padding-top: .5rem; box-sizing: border-box; }
+.sh-hand[hidden], #app.is-tv .sh-hand { display: none; }
+.sh-row { flex: 1 1 0; min-height: 0; display: flex; align-items: flex-end; font-size: var(--cd-size, 1rem); justify-content: center; }
+.sh-row > .cd { cursor: pointer; transition: transform .1s; }
+.sh-row > .cd + .cd { margin-left: calc(var(--cd-step, 1.6em) - 2.5em); }
+.sh-row > .cd.sel { transform: translateY(-.5rem); background: color-mix(in srgb, var(--sh-in) 18%, var(--cd-face)); border-color: var(--sh-in); box-shadow: 0 0 0 1.5px var(--sh-in); z-index: 1; }
+.sh-none { margin: auto; color: var(--ink-soft); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .sh-row > .cd { transition: none; } }
+.sh-bar { display: grid; gap: .4rem; }
+.sh-bar .row { display: flex; gap: .4rem; }
+.sh-bar .btn { flex: 1 1 0; min-width: 0; min-height: 2.7rem; padding: .3rem .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-bar .btn.main { flex: 2 1 0; }
+.sh-bar .btn.small { flex: .8 1 0; }
+.sh-bar .btn.mid { flex: 1.4 1 0; }
+
+/* ---------- the sheet that asks what to do ---------- */
+.sh-ask #askBody { display: grid; gap: .5rem; }
+.sh-ask .grp { display: grid; gap: .3rem; }
+.sh-ask .grp > span { font-size: .78rem; color: var(--ink-soft); }
+.sh-ask .grp > div { display: flex; flex-wrap: wrap; gap: .4rem; }
+.sh-ask .btn { flex: 1 1 8rem; min-height: 2.7rem; }
+.sh-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.sh-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* held sideways: the table on the left, the log, your cards and the buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.shoe { --beside: 24rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.shoe .sh-strip { grid-column: 1 / -1; grid-row: 2; }
+  #app.shoe .sh-board { grid-column: 1; grid-row: 3; }
+  #app.shoe .sh-side { grid-column: 2; grid-row: 3; justify-content: flex-end; }
+  #app.is-hand .sh-board, #app.is-hand .sh-side { flex: none; }
+}
+html[data-theme="office"] :is(.sh-board, .sh-seat) { border-radius: 4px; }

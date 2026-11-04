@@ -131,8 +131,12 @@ async function voteFor(t, pick) { for (const u of [...t.state.alive]) await t.se
     const tile = (e.tiles || [e.id]).every(t => new RegExp(`id: "${t}",[^\\n]*logo:`).test(apps));
     let fitsPage = true;
     if (e.kind === "table") {
-      const { rules } = await import(`../${e.id}-rules.js`);
-      fitsPage = rules.seats.max >= e.max && (!e.across || rules.seats.min === 4);
+      if (existsSync(new URL(`../${e.id}-rules.js`, import.meta.url))) {
+        const { rules } = await import(`../${e.id}-rules.js`);
+        fitsPage = rules.seats.max >= e.max && (!e.across || rules.seats.min === 4);
+      } else {   // a table with no rules to seat (Shoe's cards are only kept): its page opens the table for that many
+        fitsPage = new RegExp(`openTable\\(\\{[^}]*\\bmax: ${e.max}\\b`).test(readFileSync(new URL(`../${e.id}.js`, import.meta.url), "utf8"));
+      }
     } else {
       const name = e.id === "glyph" ? "slate" : e.id;   // Slate's id is its first name, glyph
       // the page's script and its own modules (Ladder seats its table in ladder-room.js)

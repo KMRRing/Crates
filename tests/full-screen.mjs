@@ -13,14 +13,14 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 const root = new URL("..", import.meta.url).pathname;
 const EXEMPT = new Set(["soon.html"]);   // the placeholder for a game to come: a card with a name, no game and no menu
 
-// TITLED: knowledge, puzzles, classics, courses, tools and word games, and Party (its Snap and Sketch drop the title in party.js)
+// TITLED: knowledge, puzzles, classics, courses, tools and word games, and Party (its Sketch drops the title in party.js)
 const TITLED = new Set(`crates lots punt quote origin order chart ledger nexus isomer lode acrostic crossword nonogram
   slate delta spot speedmaths pipes survey stow shunt
   sudoku calcudoku kakuro hitori masyu nurikabe slitherlink lanterns asterism moor mines ladder bridges bulls codeword assay yield
   calibre parley arthistory wine firmament trade music odds maths speedfuels blend refinery rack cartel deck rush
   party quest cue`.split(/\s+/).map(n => n + ".html"));
 // FULL alone: card and dice games, board games, idle and ambient games, pictures (Manifest, Almanac, Guilloché, Timegrapher)
-const FULL = new Set(`contract trumps tribute landlord bigtwo hearts carrack meld pegs hong bones boast yacht solitaire banquet holdem blackjack baccarat
+const FULL = new Set(`contract trumps tribute landlord bigtwo hearts shoe carrack meld pegs hong bones boast yacht solitaire banquet holdem blackjack baccarat
   tarot craps roulette sicbo factor gambit flank morris crown go river silo gammon carrom
   avalanche columbiad reckoning drift heliograph landfall netting orrery polder settle slipway topple harbour ingot
   almanac manifest guilloche timegrapher`.split(/\s+/).map(n => n + ".html"));
