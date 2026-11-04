@@ -18,7 +18,7 @@ import { dropdown } from "./dropdown.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, choice, onPause } from "./menu.js";
+import { part, action, choice, toggle, onPause } from "./menu.js";
 import { sure } from "./sure.js";
 
 const $ = id => document.getElementById(id);
@@ -606,18 +606,14 @@ function openMenu() {
   const set = part(body, "settings");
   if (screenOn === SEASON) set.append(action("Start this region over", async () => { if (await sure(`Start ${nameOf(shown)} over? Its weeks, carriers, warehouse space and contracts all go.`, { yes: "Start over" })) SEASON.restart(); }, "link"));
   else if (!screenOn) set.append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"));
-  set.append(action(sound.on ? "Sound off" : "Sound on", () => { sound.on = !sound.on; write("harbour:sound", sound.on); }, "link"));
-  if (!screenOn) set.append(action(mapView.flat ? "Draw the harbour in 3D" : "Draw the harbour flat", async () => {
-    write("harbour:flat", !mapView.flat);
+  set.append(toggle("Sound", sound.on, on => { sound.on = on; write("harbour:sound", on); }));
+  if (!screenOn) set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], mapView.flat ? "flat" : "3d", async v => {
+    if ((v === "flat") === !!mapView.flat) return;
+    write("harbour:flat", v === "flat");
     await makeMap();
     mapView.setLevel(L, G);
     render(true);
-  }, "link"));
-  set.append(action("Start Harbour over", async () => {
-    if (!(await sure("Start Harbour over from the first level? Every plan, best and region goes.", { yes: "Start over" }))) return;
-    for (const k of Object.keys(localStorage)) if (k.startsWith(KEY)) localStorage.removeItem(k);
-    location.reload();
-  }, "link"));
+  }));
   const about = part(body, "about"), note = document.createElement("p");
   note.className = "hb-note";
   if (screenOn === SEASON) {

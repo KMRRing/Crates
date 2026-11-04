@@ -530,7 +530,7 @@ function openMenu() {
   const set = part(body, "settings");
   set.append(choice("The computer", LEVELS, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line(opts.level === "easy" ? "Easy plays its cards by the rules of thumb." : "Medium and Hard weigh each card over deals of the hands they can't see, solved with every card seen; Hard looks at more of them."));
-  set.append(toggle("Hints", opts.hints, on => { opts.hints = on; saveOpts(); draw(); }));
+  set.append(toggle("Coach: hints", opts.hints, on => { opts.hints = on; saveOpts(); draw(); }));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), about = part(body, "about"), rushBests = bestsLine(rush.bests());
   about.append(line(r.played ? `Won ${r.won} of ${r.played} matches.` : "No match finished yet."), ...(rushBests ? [line(rushBests)] : []));

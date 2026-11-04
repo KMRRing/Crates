@@ -701,7 +701,7 @@ function teamKey() {
 
 // ---------- the menu ----------
 // Play: a new puzzle, the words shown. Content: which puzzle (the header's choice: today's or a level) and the board.
-// Settings: a sprint's clock (for the next puzzle: a clock on a puzzle already under way would be no sprint). Together: what a match you deal will be.
+// Settings: a sprint's clock (for the next puzzle: a clock on a puzzle already under way would be no sprint). Together: only at a table.
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -721,7 +721,6 @@ function openMenu() {
   part(body, "content").append(mirror("Puzzle", $("pick")),
     choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); $("menuDlg").close(); confirmNew(); }));
   part(body, "settings").append(choice("Clock", CLOCKS, prefs.secs, v => { prefs.secs = v; keepPrefs(); openMenu(); }));
-  part(body, "together").append(choice("A match you deal", [["team", "Team"], ["race", "Race"]], togetherMode(), v => { prefs.together = v; keepPrefs(); }));
   const st = read(STATS, {}) || {}, sprints = Object.entries(st.sprints || {}), last = read(LAST, null);
   if (last?.p) part(body, "about").append(action(dayName(last.p.day), openLast, "link"));
   part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; Master refiner ${st.master || 0} times, Full yield ${st.full || 0}${sprints.length ? `. Sprint bests: ${sprints.map(([k, v]) => { const [secs, board, level] = k.split(":"); return `${Number(secs) / 60} min ${BOARDS[board]?.toLowerCase() || ""} ${LEVELS[level]?.toLowerCase() || ""} ${v}`; }).join(", ")}` : ""}.`),

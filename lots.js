@@ -327,7 +327,7 @@ function soloMenu(body) {
   if (pickBoard === "random") {
     content.append(levelChoice(), ...topicsPart(content, "Today’s board deals from every one"));
   } else content.append(line(dayDone() ? "Today's board is done: a new one tomorrow." : "Today's board: Medium, the same for everyone."));
-  part(body, "together").append(action("Invite players", () => { location.href = "party.html?game=lots&invite=1"; }, "link"));
+  part(body, "play").append(action("Invite players", () => { location.href = "party.html?game=lots&invite=1"; }));
   const st = read(STATS, {}), about = part(body, "about");
   const day = read(DAILY, {})[today()];
   about.append(line([st.played ? `${st.played} played, ${st.solved || 0} solved, ${st.perfect || 0} perfect` : "No board finished yet",

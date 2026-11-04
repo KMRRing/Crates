@@ -3,7 +3,7 @@ An island-trading game (October 2026), three or four at a table, against the com
 
 ## Rulings
 - 3 November 2026, 20:01, Korbi: "Hanse is great." The game's name people read is Hanse; the id, `factor:*` keys, file names and URLs stay `factor`, and "factor" still finds it in the games search.
-- 19 October 2026, Korbi: "make Factor 3D, subtle table, real dice, the roads and towns proper there, tiles; a 2D mode in settings for battery saving". The 3D island is `factor-3d.js` on the vendored three.js, no model or texture files (so it plays offline); the menu's "Flat island, to save battery" (`flat` in `factor:opts`) is the SVG of `factor-draw.js`, which a device without WebGL gets on its own. Both take the same taps (`data-v`, `data-e`, `data-h`).
+- 19 October 2026, Korbi: "make Factor 3D, subtle table, real dice, the roads and towns proper there, tiles; a 2D mode in settings for battery saving". The 3D island is `factor-3d.js` on the vendored three.js, no model or texture files (so it plays offline); the menu's View, Flat (`flat` in `factor:opts`) is the SVG of `factor-draw.js`, which a device without WebGL gets on its own. Both take the same taps (`data-v`, `data-e`, `data-h`).
 - 19 October 2026, Korbi: "ensure bots are medium and hard, and hard ones are extremely strong". Easy went; a menu still set to it plays Medium.
 - 3 November 2026, Korbi: "Factor: allow user to drag in 3d model to arrange the camera exactly how they want. The angle, for me, is slightly too shallow at the start." The camera opens fitted at a steeper angle (63° where the box allows; it was 46°) and one finger or the mouse turns and tilts it (30° to 88°); two fingers pinch and move, a double tap or the menu's Reset view fits it again.
 

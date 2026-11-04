@@ -315,8 +315,8 @@ function openMenu() {
   const set = part(body, "settings");
   const keep = () => saveOpts();
   set.append(view.choice(() => draw()));
-  set.append(choice("Computer player", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
-  set.append(choice("A game goes to", TO.map(n => [n, String(n)]), opts.to, v => { opts.to = Number(v); keep(); }));
+  set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
+  set.append(choice("A game ends at", TO.map(n => [n, String(n)]), opts.to, v => { opts.to = Number(v); keep(); }));
   set.append(line("The length applies from the next game."));
   set.append(choice("Your cards", SORTS, opts.sort, v => { opts.sort = v; keep(); draw(); }));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; keep(); }));

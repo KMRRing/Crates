@@ -403,7 +403,7 @@ function openMenu() {
   set.append(choice("Game", Object.values(GAMES).map(g => [g.id, g.name]), opts.game, v => { opts.game = v; saveOpts(); openMenu(); }));
   const o = opts[opts.game], put = (k, v) => { o[k] = v; saveOpts(); };
   if (opts.game === "partnership") {
-    set.append(choice("Play to", TARGETS.partnership.map(n => [n, String(n)]), o.target, v => put("target", Number(v))));
+    set.append(choice("A game ends at", TARGETS.partnership.map(n => [n, String(n)]), o.target, v => put("target", Number(v))));
     set.append(choice("The winners score", [["losers", "Their pips"], ["all", "Every hand's"]], o.count, v => put("count", v)));
   } else if (opts.game === "gaple") {
     set.append(choice("Deals", DEALS.map(n => [n, String(n)]), o.deals, v => put("deals", Number(v))));
@@ -411,7 +411,7 @@ function openMenu() {
     set.append(toggle("A lone double blank counts 25", o.blank25, on => put("blank25", on)));
   } else {
     set.append(choice("Players", [[2, "2"], [3, "3"], [4, "4 (pairs)"]], o.players, v => put("players", Number(v))));
-    set.append(choice("Play to", TARGETS.fives.map(n => [n, String(n)]), o.target, v => put("target", Number(v))));
+    set.append(choice("A game ends at", TARGETS.fives.map(n => [n, String(n)]), o.target, v => put("target", Number(v))));
     set.append(choice("Deal", [["pub", "Pub"], ["championship", "Championship"]], o.deal, v => put("deal", v)));
   }
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));

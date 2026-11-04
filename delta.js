@@ -532,7 +532,7 @@ function drawMenu() {
   const play = part(body, "play");
   play.append(action("New board", () => newBoard(), "primary"));
   if (!S.done) play.append(action("Show the solution", giveUp));
-  if (!together.room) part(body, "content").append(mirror("Difficulty", $("level")));
+  if (!together.room) part(body, "content").append(mirror("Level", $("level")));
   if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
   else part(body, "about").append(action("Copy a link to this board", async () => {
     try { await navigator.clipboard.writeText(location.href); toast("Link copied"); } catch { toast(location.href, 6000); }

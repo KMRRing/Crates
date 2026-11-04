@@ -846,7 +846,7 @@ function levelNote() {
 function settingsPart(body, atTable) {
   const s = part(body, "settings");
   if (!atTable) {
-    s.append(choice("Computer", [["off", "Off"], ["partner", "With it"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
+    s.append(choice("Computer", [["off", "Off"], ["partner", "Partner"]], settings.computer, v => { settings.computer = v; saveSettings(); openMenu(); }));
     if (settings.computer !== "off") s.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }),
       line("You and Codex each see part of the givens; its digits show as it finds them. From the next grid."));
   }

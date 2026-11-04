@@ -577,19 +577,18 @@ function openMenu() {
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
-  play.append(toggle("Decline trades automatically", !!opts.autoDecline, setIgnore));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
-  set.append(choice("Points to win", TARGETS.map(n => [n, String(n)]), opts.vp, v => { opts.vp = Number(v); keep(); }));
+  set.append(choice("A game ends at", TARGETS.map(n => [n, String(n)]), opts.vp, v => { opts.vp = Number(v); keep(); }));
   set.append(choice("Players", [[3, "3"], [4, "4"]], opts.seats, v => { opts.seats = Number(v); keep(); }));
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
   set.append(line("The points and players apply from the next game."));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; keep(); }));
   set.append(toggle("Sound", sound.on, on => { sound.on = on; keepOn({ setItem: (k, v) => localStorage.setItem(k, v) }, on); }));
-  set.append(toggle("Flat island, to save battery", opts.flat, on => { opts.flat = on; keep(); useView(); }));
+  set.append(toggle("Decline trades automatically", !!opts.autoDecline, setIgnore));
+  set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], opts.flat ? "flat" : "3d", v => { opts.flat = v === "flat"; keep(); useView(); }));
   if (island) {
-    set.append(line("Drag the island to turn it, pinch to zoom, two fingers to move it, double-tap to reset."));
     set.append(action("Reset view", () => island?.resetView()));
   }
   const r = read(RECORD, { played: 0, won: 0 });

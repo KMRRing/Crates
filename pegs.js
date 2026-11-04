@@ -244,8 +244,8 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
-  set.append(choice("Computer player", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
-  set.append(choice("A game goes to", TO.map(n => [n, String(n)]), opts.to, v => { opts.to = Number(v); saveOpts(); }));
+  set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
+  set.append(choice("A game ends at", TO.map(n => [n, String(n)]), opts.to, v => { opts.to = Number(v); saveOpts(); }));
   set.append(line("The length applies from the next game."));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("pegs:streak", { now: 0, best: 0 });

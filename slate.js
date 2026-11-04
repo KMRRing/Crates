@@ -1004,9 +1004,9 @@ function drawMenu() {
   body.replaceChildren();
   $("menuTitle").textContent = room ? "Playing together" : "Menu";
   part(body, "play").append(action("New board", () => newBoard(), "primary"), action(S.done ? "Show the result" : "Show our fill", giveUp));
-  if (!room) part(body, "content").append(mirror("Difficulty", $("level")));
+  if (!room) part(body, "content").append(mirror("Level", $("level")));
   if (room) part(body, "together").append(action("Back to solo", () => leave(), "link"));
-  else part(body, "about").append(action("Copy this board's link", async () => {
+  else part(body, "about").append(action("Copy a link to this board", async () => {
     try { await navigator.clipboard.writeText(location.href); toast("Board link copied"); } catch { toast(location.href); }
   }, "link"));
 }
