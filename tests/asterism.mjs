@@ -4,7 +4,7 @@
 // takes (each true of the answer, and enough to solve a puzzle alone), the marks and the rules they break, a run through
 // JSON; and the page wired to it.
 import fs from "node:fs";
-import { KINDS, STARS, SIZES, LEVELS, ORDER, DAILY, NONE, STAR, DOT, puzzleOf, answers, solveAs, gradeOf, findStep, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn } from "../asterism-engine.js";
+import { KINDS, STARS, SIZES, LEVELS, ORDER, DAILY, NONE, STAR, DOT, newAxisStroke, axisStroke, puzzleOf, answers, solveAs, gradeOf, findStep, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn } from "../asterism-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -200,6 +200,26 @@ const made = [];
   check(!/getContext\(["']\w*webgl/i.test(space) && /getContext\("2d"\)/.test(space) && /Math\.min\(2, window\.devicePixelRatio/.test(space) && /prefers-reduced-motion/.test(space) && /visibilitychange/.test(space) && !/\bfilter\s*=|shadowBlur/.test(space), "the space view is a 2D canvas (no WebGL, no filters or shadow blur), pixel ratio capped at 2, still for reduced motion, asleep when hidden");
   check(/slow\(\)/.test(space) && /hooks\.slow/.test(space) && /slow:/.test(page), "a device that draws it slowly is handed back to the flat grid");
   check(/TIMES = "asterism:times"/.test(page), "times are kept lowest-first under asterism:times (the games screen reads a :best as highest-is-best)");
+}
+
+// ---------- a dotting stroke stays on its row or column ----------
+{
+  const N = 8, run = (start, pts) => {                       // start: [x, y] in board units; pts: the pointer's samples
+    const st = newAxisStroke(N, Math.floor(start[0]), Math.floor(start[1]), start[0], start[1]), out = [];
+    for (const [x, y] of pts) out.push(...axisStroke(st, x, y));
+    return { out, st };
+  };
+  check(run([2.5, 3.5], [[2.7, 3.6], [2.8, 3.4]]).out.length === 0, "a wobble under half a cell marks nothing more and picks no axis");
+  check(run([2.5, 3.5], [[3.2, 3.6], [4.5, 3.5], [5.5, 3.5]]).out.join() === "27,28,29", "a sideways stroke dots the row, each cell once, in order");
+  check(run([2.5, 3.5], [[2.6, 4.2], [2.5, 5.5], [2.5, 6.5]]).out.join() === "34,42,50", "a downward stroke dots the column");
+  check(run([2.5, 3.5], [[3.1, 3.5], [4.5, 3.5], [4.6, 4.3], [5.5, 5.2], [6.5, 7.9]]).out.join() === "27,28,29,30", "once locked to the row a finger wandering down does not leave it or change axis");
+  check(run([2.5, 3.5], [[2.5, 4.1], [3.5, 4.6], [6.5, 4.8], [7.5, 5.0]]).st.axis === "col" && run([2.5, 3.5], [[2.5, 4.1], [3.5, 4.6], [6.5, 4.8]]).out.join() === "34", "the first half cell decides: a down-first stroke stays in the column, sideways wander ignored");
+  check(run([2.5, 3.5], [[4.5, 3.9], [7.5, 3.5]]).out.join() === "27,28,29,30,31", "a fast finger (two samples) skips no cell, and the start cell is left to the caller");
+  check(run([2.5, 3.5], [[3.6, 3.5], [0.5, 3.5]]).out.join() === "27,26,25,24", "turning back along the line dots toward the other end, cells on the way included");
+  check(run([2.5, 3.5], [[-3, 3.5], [20, 3.5]]).out.length === 9 && run([2.5, 3.5], [[-3, 3.5], [20, 3.5]]).out.every(x => x >= 24 && x < 32), "off the board the stroke is held to the line's ends");
+  check(run([2.5, 3.5], [[3.1, 4.0], [3.2, 4.1]]).st.axis === null && run([2.5, 3.5], [[3.1, 4.0], [3.9, 4.1]]).st.axis === "row", "a diagonal start waits for a clear lead before picking the axis");
+  check(run([0.5, 0.5], [[0.5, -4], [0.5, -9]]).out.length === 0, "a stroke pulled off the top of the board has no cells to dot");
+  check(run([7.5, 7.5], [[7.6, 9], [9, 12]]).out.length === 0, "nor off the far corner");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; } else console.log("asterism: the rules, the generator, the grading, hints and marks hold");

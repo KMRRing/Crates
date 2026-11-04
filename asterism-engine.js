@@ -517,3 +517,32 @@ export function hintFor(P, marks) {
   for (let x = 0; x < marks.length; x++) if (P.sol[x] === 1 && marks[x] !== STAR) return { reveal: x, should: STAR };
   return null;
 }
+
+// ---------- a dotting stroke held to one line ----------
+/** Half a cell: how far a stroke goes before it picks row or column. */
+export const LOCK_AT = 0.5;
+/** The lead the way it moves more must have over the other to pick an axis (a diagonal wobble waits), and the distance at which it is picked anyway. */
+const LOCK_RATIO = 1.5, LOCK_FORCE = 1.5;
+export const newAxisStroke = (N, c, r, px, py) => ({ N, c, r, px, py, axis: null, at: null });
+/**
+ * A stroke follows the row or the column through the cell it began on, so a finger that wanders still dots a straight
+ * line. The axis is chosen once, when the point (board units: a cell is 1 wide) is half a cell from where the press
+ * began, as the way it has moved more, and never changes: to turn, lift and start again. Only the point's place along
+ * that line counts (clamped to the board), and every cell between the last place and this one is returned, in order, so
+ * a fast finger skips none. Returns the new cells' indexes (empty before the lock and while the finger stays in a cell).
+ */
+export function axisStroke(st, x, y) {
+  const { N, c, r } = st;
+  if (!st.axis) {
+    const dx = x - st.px, dy = y - st.py;
+    const major = Math.max(Math.abs(dx), Math.abs(dy)), minor = Math.min(Math.abs(dx), Math.abs(dy));
+    if (major < LOCK_AT || (major < LOCK_FORCE && major < LOCK_RATIO * minor)) return [];   // (a clear lead, else wait for one)
+    st.axis = Math.abs(dx) >= Math.abs(dy) ? "row" : "col";
+    st.at = st.axis === "row" ? c : r;
+  }
+  const t = Math.min(N - 1, Math.max(0, Math.floor(st.axis === "row" ? x : y)));
+  const out = [], dir = Math.sign(t - st.at);
+  for (let i = st.at + dir; dir && i !== t + dir; i += dir) out.push(st.axis === "row" ? r * N + i : i * N + c);
+  st.at = t;
+  return out;
+}

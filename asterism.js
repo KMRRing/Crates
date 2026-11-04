@@ -2,7 +2,7 @@
 // every region so that no two stars touch, not even corner to corner. The rules, the puzzles and the reasoning are
 // asterism-engine.js's (every puzzle has one answer, and is graded by the hardest step a person needs); the puzzles are
 // made in asterism-worker.js. This file keeps the run, the clock and the taps, and draws the board.
-import { KINDS, STARS, LEVELS, DAILY, NONE, STAR, DOT, puzzleOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn } from "./asterism-engine.js";
+import { KINDS, STARS, LEVELS, DAILY, NONE, STAR, DOT, newAxisStroke, axisStroke, puzzleOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn } from "./asterism-engine.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -365,6 +365,13 @@ function cellAt(ev) {
   const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse()), { N } = P;
   return p.x < 0 || p.y < 0 || p.x >= N || p.y >= N ? -1 : Math.floor(p.y) * N + Math.floor(p.x);
 }
+/** A point of the screen in board units (a cell is 1 wide), unclamped; null with no board drawn. */
+function boardPoint(ev) {
+  const m = svg?.getScreenCTM();
+  if (!m) return null;
+  const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse());
+  return { x: p.x, y: p.y };
+}
 function down(ev) {
   if (ev.button > 0) { if (ev.button === 2) press(cellAt(ev), "hold"); return; }
   if (!S || paused) return;
@@ -385,14 +392,17 @@ function cancelPress() {
   if (pressing.view) { pressing.view.press(-1); pressing.view.release(); }
   pressing = null;
 }
-/** A finger dotting: the first cell decides, an empty one starts dotting empty cells, a dot starts rubbing dots out. */
-function stroke(ev) {
-  const x = cellAt(ev), s = pressing.stroke;
-  if (x < 0) return;
-  const was = S.marks[x];
+/** Applies the stroke's action to one cell: the first cell decides, an empty one starts dotting, a dot starts rubbing dots out; stars stay. */
+function strokeCell(x) {
+  const s = pressing.stroke, was = S.marks[x];
   s.mode ??= was === NONE ? DOT : was === DOT ? NONE : null;
   if (s.mode == null || was === STAR || was === s.mode) return;
   setCell(x, was, s.mode, s.id);
+}
+/** A finger dotting stays on the row or column it began on (axisStroke), however it wanders. */
+function stroke(ev) {
+  const p = boardPoint(ev);
+  if (p) for (const x of axisStroke(pressing.stroke.axis, p.x, p.y)) strokeCell(x);
 }
 addEventListener("pointermove", ev => {
   if (!pressing || ev.pointerId !== pressing.id) return;
@@ -405,10 +415,9 @@ addEventListener("pointermove", ev => {
       pressing.view.drag(ev.clientX - pressing.x, ev.clientY - pressing.y); pressing.lx = ev.clientX; pressing.ly = ev.clientY;
       return;
     }
-    pressing.stroke = { id: newStroke(), mode: null };
-    const x = pressing.cell, was = S.marks[x];                         // the cell it began on counts too
-    pressing.stroke.mode = was === NONE ? DOT : was === DOT ? NONE : null;
-    if (pressing.stroke.mode != null && was !== STAR) setCell(x, was, pressing.stroke.mode, pressing.stroke.id);
+    const from = boardPoint({ clientX: pressing.x, clientY: pressing.y }), { N } = P;
+    pressing.stroke = { id: newStroke(), mode: null, axis: newAxisStroke(N, pressing.cell % N, Math.floor(pressing.cell / N), from.x, from.y) };
+    strokeCell(pressing.cell);                                         // the cell it began on counts too
   }
   stroke(ev);
 });
