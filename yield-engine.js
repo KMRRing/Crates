@@ -1,20 +1,19 @@
-// Yield: Spelling Bee's genre (README, Yield). Seven letters in a hive, words of four letters or more that use only
-// them, each with the centre letter, letters as often as you like; at least one pangram uses all seven. The Wheel is
-// the genre's other half, the newspapers' Target and Polygon: nine tiles, each used once at most, and a nine-letter word
-// among them. The words that count are yield-words.js's (ordinary English, the same on both sides of the Atlantic);
+// Yield (README, Yield): seven letters on a tray, words of four letters or more that use only them, each with the key
+// letter, letters as often as you like; at least one full set uses all seven. The Plate (id "wheel") is the other
+// board: nine tiles, each used once at most, and a nine-letter word among them. The words that count are yield-words.js's (ordinary English, the same on both sides of the Atlantic);
 // a puzzle's yield is every one of them its letters make, found exhaustively here. Pure: no page, tested in Node.
 import { WORDS, BAND, BLOCKED, DAYS } from "./yield-words.js";
 
 // ---------- the boards and the levels ----------
-export const BOARDS = { hive: "Hive", wheel: "Wheel" };
+export const BOARDS = { hive: "Tray", wheel: "Plate" };
 export const LEVELS = { light: "Light", medium: "Medium", heavy: "Heavy" };
 export const DAILY = { board: "hive", level: "medium" };   // today's, the same for everyone
 export const MIN_LEN = 4, FULL_BONUS = 7;
 const A = 97;
 
-// The crude grades: a level is the depth of vocabulary its Master refiner needs (depth, below), with a size and a
-// pangram that suit it. Light reaches the coveted rank on everyday words; Heavy needs words people use less.
-// Sizes are counts of words: a hive gives more than a wheel, whose letters are spent as they're used.
+// The crude grades: a level is the depth of vocabulary its Supergiant needs (depth, below), with a size and a
+// full set that suit it. Light reaches the coveted rank on everyday words; Heavy needs words people use less.
+// Sizes are counts of words: a tray gives more than a plate, whose letters are spent as they're used.
 const BANDS = {
   hive: {
     light: { words: [20, 42], depth: [2.75, 9], full: 3.0 },
@@ -73,7 +72,7 @@ function index() {
   IDX = { zipf, hive, wheel, sets: [...sets].sort((a, b) => a - b), nines: nines.sort(), blocked: new Set(BLOCKED.split(" ")) };
   return IDX;
 }
-/** Every hive's letters that have a pangram, each as its seven letters: the sets a hive is dealt from. */
+/** Every tray's letters that have a full set, each as its seven letters: the sets a tray is dealt from. */
 export const hiveSets = () => index().sets.map(lettersOf);
 /** Whether Yield counts a word anywhere (any case). */
 export const counts = w => index().zipf.has(String(w || "").toLowerCase());
@@ -86,7 +85,7 @@ export const ease = w => zipfOf(w) - 0.2 * (w.length - MIN_LEN);
 // A puzzle is { board, letters, centre, level, seed } (and a team's, centres: one for each seat, in seat order).
 // letters: a hive's seven, alphabetical; a wheel's nine tiles, alphabetical, a letter twice when the word has it twice.
 const tilesOf = p => countsOf(p.letters);
-/** Whether a word uses every letter: a hive's pangram (all seven), a wheel's nine-letter word (every tile). */
+/** Whether a word uses every letter: a tray's full set (all seven), a plate's nine-letter word (every tile). */
 export const isFull = (p, w) => (p.board === "wheel" ? w.length === p.letters.length : bitsOf(maskOf(w)) === 7);
 /** A word's points: one for four letters, one a letter for more, seven more for using every letter. */
 export const pointsOf = (p, w) => (w.length === MIN_LEN ? 1 : w.length) + (isFull(p, w) ? FULL_BONUS : 0);
@@ -111,7 +110,7 @@ export const totalOf = (p, words) => words.reduce((s, w) => s + pointsOf(p, w), 
 // ---------- difficulty ----------
 /**
  * How deep a puzzle's vocabulary goes: finding its words in order of ease (the commonest and shortest first, as a
- * person tends to), the ease of the word that takes the points past the Master refiner's 70%. A low depth means the
+ * person tends to), the ease of the word that takes the points past the Supergiant's 70%. A low depth means the
  * coveted rank needs words people use rarely; it is the level's measure, the size only a range for it.
  */
 export function depthOf(p, words) {
@@ -120,7 +119,7 @@ export function depthOf(p, words) {
   for (const w of sorted) { acc += pointsOf(p, w); if (acc >= RANKS[MASTER][0] * total) return ease(w); }
   return 0;
 }
-/** What a puzzle is like: its size, points, depth, its pangrams' commonness, and how much of it is one ending. */
+/** What a puzzle is like: its size, points, depth, its full sets' commonness, and how much of it is one ending. */
 export function statsOf(p, words = yieldOf(p)) {
   const fulls = words.filter(w => isFull(p, w));
   return { words: words.length, points: totalOf(p, words), depth: depthOf(p, words), full: Math.max(0, ...fulls.map(zipfOf)), fulls: fulls.length,
@@ -140,7 +139,7 @@ function distance(board, level, s, team = false) {
 
 // ---------- dealing ----------
 const TRIES = 400;
-/** The candidates a seed tries, in order: [letters, centre]. A hive: a letter set with a pangram, then its centres in a random order; a wheel: a nine-letter word, then its letters. */
+/** The candidates a seed tries, in order: [letters, centre]. A tray: a letter set with a full set, then its centres in a random order; a wheel: a nine-letter word, then its letters. */
 function* candidates(board, r) {
   const { sets, nines } = index();
   for (;;) {
@@ -175,7 +174,7 @@ export function makesDaily(letters) {
   return [...letters].some(c => suits(DAILY.board, DAILY.level, statsOf({ board: DAILY.board, letters, centre: c })));
 }
 /**
- * Today's puzzle: a hive at Medium, the same for everyone. The days walk through DAYS, every letter set that can make
+ * Today's puzzle: a tray at Medium, the same for everyone. The days walk through DAYS, every letter set that can make
  * one, in the shuffled order yield-words.js keeps (deciding which sets can takes seconds, too long for a phone to
  * work out as it opens), so no set comes back until all thousand-odd have been used, nearly three years; each day
  * takes the first of its set's centres, in an order the day's seed sets, that makes a Medium puzzle.
@@ -252,13 +251,13 @@ export const centreFor = (p, slot) => (p.centres?.length ? p.centres[(slot ?? 0)
 export const centresIn = (p, people) => (p.centres?.length ? p.centres.slice(0, Math.max(1, Math.min(people, p.centres.length))) : [p.centre]);
 
 // ---------- ranks ----------
-// A refinery's run, from crude to every drop of the barrel: each rank a share of the puzzle's points. Full yield is
-// every word; Master refiner, the one to aim for, 70%.
-export const RANKS = [[0, "Crude"], [0.02, "Warming up"], [0.05, "On stream"], [0.08, "On spec"], [0.15, "Steady"], [0.25, "Full rate"],
-  [0.4, "Cracking"], [0.5, "Record run"], [0.7, "Master refiner"], [1, "Full yield"]];
-/** Where Master refiner (the rank to aim for) and Full yield (every word) are in RANKS. */
+// A well's career, from a dry hole to the last drop: each rank a share of the puzzle's points. Last drop is every
+// word; Supergiant, the one to aim for, 70% (the levels' grading and the dailies' walk are measured at it).
+export const RANKS = [[0, "Dry hole"], [0.03, "Spudded"], [0.06, "Seeping"], [0.1, "Shows"], [0.18, "Flowing"], [0.28, "Producing"],
+  [0.4, "Plateau"], [0.55, "Gusher"], [0.7, "Supergiant"], [1, "Last drop"]];
+/** Where Supergiant (the rank to aim for) and Last drop (every word) are in RANKS. */
 export const MASTER = 8, TOP = RANKS.length - 1;
-/** The points each rank needs, for a puzzle of `total` points (rounded, as players count them; Full yield is all). */
+/** The points each rank needs, for a puzzle of `total` points (rounded, as players count them; Last drop is all). */
 export const needed = total => RANKS.map(([f], i) => (i === TOP ? total : Math.round(f * total)));
 /** The rank reached with `points` of `total`: its index in RANKS. */
 export function rankOf(points, total) {
@@ -272,7 +271,7 @@ export function rankOf(points, total) {
 /**
  * What a typed word is, for a puzzle (README, Yield: what a word gets): { kind, points, full, by }. kind is one of
  *   short (fewer than four letters), letters (a letter not on the board), tiles (a wheel's tile used twice),
- *   centre (no centre letter: by is the seat whose letter it has, at a team's table), found (already found: by
+ *   centre (no key letter: by is the seat whose letter it has, at a team's table), found (already found: by
  *   whoever found it), word (it counts: its points), variant (one side of the Atlantic's spelling only), rare (a
  *   word, but rarer than Yield counts), unknown (not in Yield's list).
  * have: what's been found, Map(word -> seat) or a Set; centre: this player's letter; seats: the other players'
@@ -298,7 +297,7 @@ export function judge(p, typed, { have = new Set(), centre = p.centre, seats = n
 
 // ---------- the yield chart: what's left, by first letter and length ----------
 /**
- * The hints Spelling Bee's players know as the grid: for every first letter, how many words are left of each length,
+ * The hints grid: for every first letter, how many words are left of each length,
  * and how many are left by their first two letters. rows: [{ letter, n: { length: count }, total }]; lengths: the
  * lengths with any word (longer than 9 counted as 9, so the grid stays narrow); starts: [[two letters, count]].
  */
@@ -315,8 +314,8 @@ export function chartOf(words, found = new Set()) {
     starts: [...starts.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)) };
 }
 
-// ---------- the hive's outer letters, shuffled ----------
-/** The letters round the centre in the order shown: the board's letters less one centre tile, shuffled by r. */
+// ---------- the tray's outer letters, shuffled ----------
+/** The letters beside the key in the order shown: the board's letters less one centre tile, shuffled by r. */
 export function outerOf(p, r = Math.random) {
   const rest = [...p.letters], at = rest.indexOf(p.centre);
   if (at >= 0) rest.splice(at, 1);

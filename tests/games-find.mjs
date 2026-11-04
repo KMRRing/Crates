@@ -96,7 +96,7 @@ check(fold("Hold'em") === "holdem" && fold("Guilloché") === "guilloche" && fold
 check(same(hits({ query: "courier" }), ["reckoning"]) && same(hits({ query: "reckoning" }), ["reckoning"]), "Courier is found by its name and by its id (its page, saves and keys are still reckoning)");
 check(same(hits({ query: "lexicon" }), ["lexicon"]) && same(hits({ query: "glyph" }), ["glyph"]) && same(hits({ query: "almanac" }), ["lexicon"]), "an old name is found by the id (Almanac's lexicon, Slate's glyph)");
 check(same(hits({ query: "hold'em" }), ["holdem"]) && same(hits({ query: "holdem" }), ["holdem"]) && hits({ query: "hold" }).includes("holdem"), "Hold'em, whichever way it's typed");
-check(hits({ query: "word" }).includes("crossword") && hits({ query: "word" }).includes("codeword") && hits({ query: "word" }).includes("assay"), "a word inside a name (Crossword, Codeword) and a genre (Assay is Wordle's)");
+check(hits({ query: "word" }).includes("crossword") && hits({ query: "word" }).includes("codeword") && hits({ query: "word" }).includes("assay"), "a word inside a name (Crossword, Codeword) and a word game (Assay)");
 check(same(hits({ query: "mahjong" }), ["hong"]) && same(hits({ query: "chess" }).sort(), ["gambit", "river"]) && hits({ query: "chess school" }).join() === "gambit" && hits({ query: "xiangqi" }).join() === "river", "genre words find the game");
 check(hits({ query: "party" }).length >= 14 && hits({ query: "party" }).includes("undercover") && hits({ query: "knowledge" }).length === tiles.filter(a => a.sec === "knowledge").length, "a section's name finds its games");
 check(same(hits({ query: "sudoku crates" }), []) && same(hits({ query: "pipe dream" }), ["pipes"]), "every word typed has to match (and each is the start of a word)");

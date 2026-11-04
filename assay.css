@@ -1,10 +1,12 @@
-/* Assay: letter tiles on the page, the keyboard under them. The marks are the enamels: verdigris in place, ochre
-   elsewhere, the ink's own warm grey out (high contrast: cobalt in place, so the two never hang on green against
-   yellow). Cobalt is the house colour. */
+/* Assay: letter tiles on the page, the keyboard under them. The marks are the enamels. Weighed (the default): verdigris
+   for a right letter, cobalt for "the word's letter is later" and oxblood for "earlier", each with its arrow. Colours
+   (the classic reading): verdigris in place, ochre elsewhere, the ink's own warm grey out (high contrast: cobalt in
+   place, so the marks never hang on green against yellow). Cobalt is the house colour. */
 :root {
   --assay-in: #2C5B8A; --assay-soft: color-mix(in srgb, var(--assay-in) 15%, var(--sheet));
   --as-hit: var(--c1); --as-hit-ink: var(--on-c);
   --as-near: var(--c0); --as-near-ink: var(--on-c0);
+  --as-up: var(--c2); --as-down: var(--c3);
   --as-out: color-mix(in srgb, var(--ink-soft) 78%, var(--sheet)); --as-out-ink: var(--sheet);
   --as-good: #2F7D5B; --as-bad: #A8382B;
   --as-edge: var(--tile-edge); --as-typed: color-mix(in srgb, var(--ink) 60%, var(--tile-edge));
@@ -17,7 +19,7 @@
 /* night, set in Settings */
 html[data-mode="night"] { --assay-in: #6FA0D2; --as-out: color-mix(in srgb, var(--ink-soft) 30%, var(--tile)); --as-out-ink: var(--ink);
   --as-good: #7FC2A8; --as-bad: #E8806F; --as-typed: color-mix(in srgb, var(--ink) 55%, var(--tile-edge)); }
-html.as-contrast { --as-hit: var(--c2); --as-hit-ink: var(--on-c); }
+html.as-contrast { --as-hit: var(--c2); --as-hit-ink: var(--on-c); --as-up: var(--c0); }
 
 .as-mark { display: inline-block; }
 .as-mark svg { width: 100%; height: 100%; display: block; }
@@ -62,6 +64,12 @@ html.as-contrast { --as-hit: var(--c2); --as-hit-ink: var(--on-c); }
 .as-tile.h { background: var(--as-hit); border-color: var(--as-hit); color: var(--as-hit-ink); }
 .as-tile.n { background: var(--as-near); border-color: var(--as-near); color: var(--as-near-ink); }
 .as-tile.g { background: var(--as-out); border-color: var(--as-out); color: var(--as-out-ink); }
+/* weighed: a tile off the mark keeps the ink's letter on a tint of its enamel, and its arrow points the way the word's letter lies */
+.as-grid.scale .as-tile { position: relative; }
+.as-grid.scale .as-tile.n { background: color-mix(in srgb, var(--as-up) 22%, var(--tile)); border-color: var(--as-up); color: var(--ink); }
+.as-grid.scale .as-tile.g { background: color-mix(in srgb, var(--as-down) 20%, var(--tile)); border-color: var(--as-down); color: var(--ink); }
+.as-grid.scale .as-tile.n::after, .as-grid.scale .as-tile.g::after { content: "▲"; position: absolute; left: 0; right: 0; top: 7%; text-align: center; font-size: calc(var(--t) * .24); line-height: 1; color: var(--as-up); }
+.as-grid.scale .as-tile.g::after { content: "▼"; top: auto; bottom: 7%; color: var(--as-down); }
 /* together: a letter whose colour is your partner's to see, not a grey */
 .as-tile.u { background: var(--sheet); border-color: var(--as-typed); border-style: dashed; color: var(--ink); }
 .as-row.now .as-tile:not(.d) { border-color: color-mix(in srgb, var(--as-typed) 45%, var(--as-edge)); }
@@ -113,6 +121,14 @@ html.as-contrast { --as-hit: var(--c2); --as-hit-ink: var(--on-c); }
 .as-key.struck::after { content: ""; position: absolute; left: 22%; right: 22%; top: 50%; height: 2px; background: var(--as-bad); transform: rotate(-24deg); }
 .as-keys.off .as-key { opacity: .45; pointer-events: none; }
 
+/* weighed: under the board, what each place may still be, earliest letter to latest; a place found is green */
+.as-bounds { display: flex; justify-content: center; gap: .3rem; margin: .4rem 0 0; }
+.as-bounds[hidden] { display: none; }
+.as-bound { flex: 0 1 3.4rem; min-width: 0; box-sizing: border-box; padding: .24rem .1rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); color: var(--ink);
+  font-size: .78rem; font-weight: 800; letter-spacing: .03em; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.as-bound.open { color: var(--ink-soft); font-weight: 500; }
+.as-bound.ex { background: var(--as-hit); border-color: var(--as-hit); color: var(--as-hit-ink); }
+
 /* the sheet at the end: the words, what they mean, how you've done */
 .as-words { display: grid; gap: .3rem; justify-content: center; margin: .3rem 0 .7rem; }
 .as-word { display: flex; gap: .25rem; justify-content: center; }
@@ -145,7 +161,7 @@ dialog.as-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .as-toast.on { opacity: 1; }
 
 /* Kontor's square corners */
-html[data-theme="kontor"] .as-tile, html[data-theme="kontor"] .as-key, html[data-theme="kontor"] .as-notes { border-radius: 2px; }
+html[data-theme="kontor"] .as-tile, html[data-theme="kontor"] .as-key, html[data-theme="kontor"] .as-notes, html[data-theme="kontor"] .as-bound { border-radius: 2px; }
 
 /* held sideways (#app.beside): the boards take the left column, all its height; the strip and the line stand at the
    right, the keyboard low where a thumb is */
@@ -156,6 +172,7 @@ html[data-theme="kontor"] .as-tile, html[data-theme="kontor"] .as-key, html[data
   .assay .as-grid.multi { --tmax: 3.5rem; }
   .assay .as-others { grid-column: 2; grid-row: 2; }
   .assay .as-strip { grid-column: 2; grid-row: 3; margin-top: .9rem; flex-wrap: wrap; row-gap: .3rem; }
+  .assay .as-bounds { grid-column: 2; grid-row: 5; align-self: end; justify-content: flex-start; margin-bottom: .4rem; }
   .assay .as-say { grid-column: 2; grid-row: 4; justify-content: flex-start; white-space: normal; text-align: left; min-height: 3rem; align-items: flex-start; }
   .assay .as-keys { grid-column: 2; grid-row: 6; --kh: clamp(2.75rem, 10svh, 4.25rem); }
 }
@@ -173,6 +190,8 @@ html[data-theme="kontor"] .as-tile, html[data-theme="kontor"] .as-key, html[data
 /* the tiles take the marks' colours; a dodging word's are dashed, as it has not settled */
 .as-lmap rect.g { fill: var(--as-out); } .as-lmap rect.n { fill: var(--as-near); } .as-lmap rect.h { fill: var(--as-hit); }
 .as-lmap rect.d.n { fill: none; stroke: var(--as-near); stroke-width: .12; stroke-dasharray: .3 .2; }
+.as-lmap svg.scale rect.n { fill: var(--as-up); } .as-lmap svg.scale rect.g { fill: var(--as-down); }
+.as-lmap svg.scale rect.d.n { fill: none; stroke: var(--as-up); }
 .as-lmap circle.f { fill: var(--sheet); stroke: var(--brass); stroke-width: .35; }
 .as-lmap .k { stroke: var(--ink-soft); stroke-width: .3; fill: var(--ink-soft); }
 .as-lmap .p { stroke: var(--as-hit); stroke-width: .5; stroke-linecap: round; }

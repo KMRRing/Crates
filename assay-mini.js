@@ -1,9 +1,9 @@
 // A level's game in miniature (assay.js's list of levels): its board as a few rows of tiles, as many columns as the
 // word has letters, several boards side by side as the game has them; the dodging word's tiles dashed, since they are
-// not settled; a sprint as a clock. SVG only: the colours are the stylesheet's (.g out, .n elsewhere, .h in place).
+// not settled; a sprint as a clock. SVG only: the colours are the stylesheet's (.h right, .n elsewhere or later, .g out or earlier).
 // The marks are a fixed picture, never the level's word, so the list gives nothing away.
 const PICTURE = ["gngg", "ghng", "hhgn", "hhhh"];            // the rows of a game going well, by the mark of each letter
-const mark = (row, col) => PICTURE[row][(col * 2 + row) % 4];
+const mark = (row, col) => PICTURE[row][(col * 3 + row) % 4];
 
 /** The svg (as a string) of a level `L` ({ mode, len, boards }). */
 export function miniature(L) {
@@ -21,7 +21,7 @@ export function miniature(L) {
     }
   }
   const W = across * w + (across - 1) * bgap, H = down * h + (down - 1) * bgap, pad = .2;
-  return `<svg viewBox="${-pad} ${-pad} ${(W + 2 * pad).toFixed(2)} ${(H + 2 * pad).toFixed(2)}" aria-hidden="true">${tiles.join("")}</svg>`;
+  return `<svg${L.read === "scale" ? ' class="scale"' : ""} viewBox="${-pad} ${-pad} ${(W + 2 * pad).toFixed(2)} ${(H + 2 * pad).toFixed(2)}" aria-hidden="true">${tiles.join("")}</svg>`;
 }
 /** A sprint: a dial with the minute marks, and the hand a little past the quarter. */
 function clockFace() {

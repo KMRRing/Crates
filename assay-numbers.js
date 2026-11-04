@@ -1,11 +1,11 @@
 // Assay's two number games (README, Assay: Numbers), lexicons in the engine's sense (see assay-words.js): what can be
-// typed, what is accepted as a guess and what may be the answer. The marks are Wordle's on digits and signs.
+// typed, what is accepted as a guess and what may be the answer. The marks are the engine's, on digits and signs.
 //
 // Primes: a prime of four or five digits (Primel's idea). A guess must be a prime too, so every guess is a real
 // question about primes. Easy: no digit repeats; Medium: any; Hard: a digit repeats (the marks of a repeat are the
 // least obvious).
 //
-// Equations: a sum that balances, of six to eight characters (Nerdle's idea): digits, + - * / and one =, a number
+// Equations: a sum that balances, of six to eight characters: digits, + - * / and one =, a number
 // alone on the right. A guess must balance, by the usual order of operations (the sum is worked exactly: 6/4*2 is 3),
 // no number with a leading zero. Answers leave out the trivial (a zero added, a one multiplied) and are in
 // assay-equations.js, written by assay-equations.mjs and loaded when first wanted. Easy: only + and -, at most two

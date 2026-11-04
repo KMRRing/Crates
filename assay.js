@@ -1,13 +1,15 @@
-// Assay: Wordle's genre (README, Assay). Guess the hidden word; each letter of a guess is marked in place, elsewhere
-// in the word, or out. One word, several boards at once, a word that dodges, or a three-minute sprint, at four
-// lengths and three levels, with Wordle's hard rule or a strict one. The rules,
+// Assay (README, Assay): guess the hidden word. By default it is weighed: letters weigh by their place in the
+// alphabet, and each place of a guess reads right, or the word's letter comes later (up) or earlier (down). The classic
+// colour marks (in place, elsewhere in the word, out) are the menu's other reading. One word, several boards at once, a
+// word that dodges, or a three-minute sprint, at four lengths and three levels, with a hard rule or a strict one in
+// colours. The rules,
 // the words, the levels and the daily are assay-engine.js's; the team's table
 // assay-table.js's. Together: the pair as a team, each seeing one colour of the marks (together.js), or everyone
 // racing the same word (duel.js), from the partner sheet or a Party. Levels (assay-levels.js) are a ladder of recipes
 // beside free play, each kept as it was left (assay:lruns), its stars in assay:camp. Words are one of three games (the
 // lexicon, assay-lexicons.js): the other two, primes and equations (assay-numbers.js), are played alone, in free play
 // and on the ladder, with every mode; the daily, the team and the race are words.
-import { LENGTHS, LEVELS, BOARDS, DAILY, HIT, NEAR, GREY, UNSEEN, SPRINT_MS, newGame, guessIn, rowsOf, solvedAt, limitOf, guessesFor, answersOf,
+import { LENGTHS, LEVELS, BOARDS, DAILY, HIT, NEAR, GREY, UNSEEN, SPRINT_MS, READS, readOf, readFor, boundsOf, newGame, guessIn, rowsOf, solvedAt, limitOf, guessesFor, answersOf,
   scoreOf, sprintSolved, guessesUsed, timeUp, dailyWord, seenAs, unhide, packOf, levelOf, meanGuesses } from "./assay-engine.js";
 import { freshTeam, isTeam, tidy, guessAt, rowsOfTable, roleAt, resultOf as teamResult, dealAt, limitOfTable } from "./assay-table.js";
 import { ENGLISH } from "./assay-words.js";
@@ -50,7 +52,8 @@ const RULE_NAMES = { free: "Free", hard: "Hard", strict: "Strict" };
 const RULE_LINES = { free: "Any word may be guessed.", hard: "Hard: a letter found stays in place, and every letter shown is used.", strict: "Strict: every guess could be the word." };
 
 // ---------- what you've chosen ----------
-const DEFAULTS = { lang: "en", mode: "classic", len: 5, boards: 4, level: "medium", rules: "free", contrast: false };
+const DEFAULTS = { lang: "en", mode: "classic", len: 5, boards: 4, level: "medium", rules: "free", read: "scale", contrast: false };
+const READ_NAMES = { scale: "Weighed", colour: "Colours" };
 function cleanPrefs(p) {
   const x = { ...DEFAULTS, ...(p && typeof p === "object" ? p : {}) };
   if (!MODE_NAMES[x.mode]) x.mode = DEFAULTS.mode;
@@ -60,6 +63,7 @@ function cleanPrefs(p) {
   if (!BOARDS.includes(x.boards) || x.boards === 1) x.boards = DEFAULTS.boards;
   if (!LEVELS.includes(x.level)) x.level = DEFAULTS.level;
   if (!RULE_NAMES[x.rules]) x.rules = DEFAULTS.rules;
+  if (!READS.includes(x.read)) x.read = DEFAULTS.read;
   x.contrast = !!x.contrast;
   return x;
 }
@@ -125,8 +129,8 @@ async function start(kind) {
   const day = today(), lex = kind === "daily" ? LEX : lexOf(prefs.lang);
   await prepare(lex);
   begin(kind === "daily"
-    ? newGame({ lex, ...DAILY, rules: prefs.rules, words: [dailyWord(day, lex)], day, seed: day })
-    : newGame({ lex, mode: prefs.mode, len: prefs.len, boards: prefs.boards, level: prefs.level, rules: prefs.rules, seed: randomSeed(), avoid: read(SEEN, []) }), kind);
+    ? newGame({ lex, ...DAILY, rules: prefs.rules, read: prefs.read, words: [dailyWord(day, lex)], day, seed: day })
+    : newGame({ lex, mode: prefs.mode, len: prefs.len, boards: prefs.boards, level: prefs.level, rules: prefs.rules, read: prefs.read, seed: randomSeed(), avoid: read(SEEN, []) }), kind);
 }
 async function confirmStart(kind) {
   if (started() && !(await sure(kind === "daily" ? "Leave this word for today's?" : "Start a new word? This one isn't finished."))) return;
@@ -233,7 +237,7 @@ function finish() {
   setTimeout(() => { if (S?.over) showDone(); }, revealMs() + 350);
 }
 const revealMs = () => (matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : (S?.len || 5) * 110 + 250);
-const modeKey = s => (s.kind === "daily" ? "daily" : `${s.lang && s.lang !== "en" ? `${s.lang}-` : ""}${s.mode}-${s.len}${s.mode === "boards" ? `x${s.boards}` : ""}-${s.level}`);
+const modeKey = s => (s.kind === "daily" ? "daily" : `${s.lang && s.lang !== "en" ? `${s.lang}-` : ""}${s.mode}-${s.len}${s.mode === "boards" ? `x${s.boards}` : ""}-${s.level}${readOf(s) === "scale" ? "-w" : ""}`);   // weighed games keep their own record: the kept ones are colours'
 /** Counts a game of yours the moment it's over: its stats and today's (the daily). */
 function record() {
   if (IN_FRAME || S.counted) return;
@@ -279,17 +283,17 @@ function boardsView() {
     // the letters being typed: yours, else those of whoever's turn it is, as they come
     const typing = T.players?.[Object.keys(T.players).find(id => T.players[id].slot === T.turn)]?.draft || "";
     const mine = !!myDraft || T.turn === team.slot;
-    return { key: `t:${T.created}:${T.n}:${T.len}`, len: T.len, rows: limitOfTable(T), fit: limitOfTable(T), boards: [{ rows, solved: T.over === "won" }],
+    return { read: "colour", key: `t:${T.created}:${T.n}:${T.len}`, len: T.len, rows: limitOfTable(T), fit: limitOfTable(T), boards: [{ rows, solved: T.over === "won" }],
       draft: T.over ? "" : mine ? myDraft : typing, draftBy: mine ? team.slot : T.turn, team: true };
   }
   if (!S) {
     const m = lobbyMatch || { len: prefs.len };
-    return { key: `lobby:${m.len}`, len: m.len, rows: guessesFor(m.len), fit: guessesFor(m.len), boards: [{ rows: [], solved: false }], draft: "" };
+    return { read: prefs.read, key: `lobby:${m.len}:${prefs.read}`, len: m.len, rows: guessesFor(m.len), fit: guessesFor(m.len), boards: [{ rows: [], solved: false }], draft: "" };
   }
   const n = S.mode === "boards" ? S.boards : 1, dodge = S.mode === "dodge";
   const boards = Array.from({ length: n }, (_, b) => ({ rows: rowsOf(S, b), solved: S.mode !== "sprint" && solvedAt(S, b) >= 0 }));
   const fit = dodge ? 8 : limitOf(S), rows = dodge ? Math.max(fit, S.guesses.length + (S.over ? 0 : 1)) : fit;
-  return { key: `s:${S.seed}:${S.mode}:${S.len}:${n}:${S.mode === "sprint" ? S.at : 0}:${rows}`, len: S.len, rows, fit, boards, draft: S.over ? "" : S.draft };
+  return { read: readOf(S), key: `s:${S.seed}:${S.mode}:${S.len}:${n}:${S.mode === "sprint" ? S.at : 0}:${rows}:${readOf(S)}`, len: S.len, rows, fit, boards, draft: S.over ? "" : S.draft };
 }
 /**
  * How the boards stand in their room: the arrangement whose tiles come out largest, among those whose tiles still
@@ -312,6 +316,7 @@ function buildBoards(v) {
   grid.style.cssText = `--len: ${v.len}; --rows: ${v.fit}; --bc: ${bc}; --br: ${br};`;
   grid.classList.toggle("multi", v.boards.length > 1);
   grid.classList.toggle("team", !!v.team);
+  grid.classList.toggle("scale", v.read === "scale");
   const boards = v.boards.map((_, b) => {
     const board = el("div", "as-board");
     board.setAttribute("aria-label", v.boards.length > 1 ? `Board ${b + 1}` : "Board");
@@ -329,7 +334,8 @@ function buildBoards(v) {
   built = { key: `${v.key}:${bc}x${br}`, v, boards, bc, br };
 }
 const MARK = { [HIT]: "h", [NEAR]: "n", [GREY]: "g", [UNSEEN]: "u" };
-const SAY = { [HIT]: "in place", [NEAR]: "elsewhere", [GREY]: "not in the word", [UNSEEN]: "not yours to see" };
+const SAY = { colour: { [HIT]: "in place", [NEAR]: "elsewhere", [GREY]: "not in the word", [UNSEEN]: "not yours to see" },
+  scale: { [HIT]: "right", [NEAR]: "the word's letter comes later", [GREY]: "the word's letter comes earlier" } };
 /** Draws the boards; `typing` when only the letters in the row being typed in changed, so the rows already played stay as they are. */
 function drawBoards(typing = false) {
   const v = boardsView(), [bc, br] = arrange(v.boards.length, v.len, v.fit);
@@ -356,7 +362,7 @@ function drawBoards(typing = false) {
         tile.textContent = lexNow().show ? lexNow().show(letter) : letter;
         tile.className = `as-tile${done ? ` ${MARK[done.marks[i]]}` : letter ? " d" : ""}`;
         tile.style.setProperty("--i", String(i));
-        if (done) tile.setAttribute("aria-label", `${big(letter)}, ${SAY[done.marks[i]]}`); else tile.removeAttribute("aria-label");
+        if (done) tile.setAttribute("aria-label", `${big(letter)}, ${SAY[v.read][done.marks[i]]}`); else tile.removeAttribute("aria-label");
       });
     });
   });
@@ -426,10 +432,11 @@ function keyTap(k) {
   typeKey(k);
 }
 function drawKeys() {
-  const v = boardsView(), n = v.boards.length;
-  // what each letter has shown on each board (a solved board's letters no longer matter)
+  const v = boardsView(), n = v.boards.length, weighed = v.read === "scale";
+  // what each letter has shown on each board (a solved board's letters no longer matter); weighed marks belong to a place, so the keys stay plain
   const per = v.boards.map(b => {
     const out = {};
+    if (weighed) return out;
     for (const { guess, marks } of b.rows) [...guess].forEach((l, i) => { if (marks[i] !== UNSEEN && !(out[l] >= marks[i])) out[l] = marks[i]; });
     return out;
   });
@@ -449,6 +456,19 @@ function drawKeys() {
   $("keys").classList.toggle("off", !!(IN_FRAME || joining || (!S && !T) || (S && S.duel && !duel.playing)));
 }
 
+// ---------- the strip under the board: what each place may still be (weighed games on one board) ----------
+function drawBounds() {
+  const box = $("bounds"), show = !!S && !T && readOf(S) === "scale" && S.mode !== "boards";
+  box.hidden = !show;
+  if (!show) return;
+  const lex = lexNow(), alphabet = [...lex.rows.join("")].sort(), b = boundsOf(rowsOf(S, 0), S.len, alphabet), shown = c => String(lex.show ? lex.show(c) : c).toUpperCase();
+  box.replaceChildren(...b.map(x => {
+    const open = x.from === alphabet[0] && x.to === alphabet.at(-1);
+    return el("span", `as-bound${x.exact ? " ex" : open ? " open" : ""}`, x.exact ? shown(x.from) : open ? "·" : `${shown(x.from)}–${shown(x.to)}`);
+  }));
+  box.setAttribute("aria-label", `What each place may still be: ${b.map((x, i) => `${i + 1}, ${x.exact ? shown(x.from) : `${shown(x.from)} to ${shown(x.to)}`}`).join("; ")}`);
+}
+
 // ---------- the strip over the board, the line under it ----------
 function drawStrip() {
   const what = $("what"), count = $("count"), lb = $("levelBtn");
@@ -466,7 +486,7 @@ function drawStrip() {
   const lvl = S.kind === "level" && !S.duel;
   const kind = S.duel ? "Race" : S.kind === "daily" ? "Today's" : lvl ? `Level ${S.lv + 1}` : S.mode === "boards" ? `${NUMBER[S.boards]} boards` : S.mode === "classic" ? null : MODE_NAMES[S.mode];
   const lx = lexOf(S.lang);
-  const bits = [(S.duel || lvl) && S.mode === "boards" ? `${NUMBER[S.boards]} boards` : null, lvl && (S.mode === "dodge" || S.mode === "sprint") ? MODE_NAMES[S.mode] : null, lx.id === "en" ? null : lx.name, `${S.len} ${unitOf(lx)}`, S.kind === "daily" || lvl ? null : LEVEL_NAMES[S.level], S.rules !== "free" ? RULE_NAMES[S.rules] : null].filter(Boolean);
+  const bits = [(S.duel || lvl) && S.mode === "boards" ? `${NUMBER[S.boards]} boards` : null, lvl && (S.mode === "dodge" || S.mode === "sprint") ? MODE_NAMES[S.mode] : null, lx.id === "en" ? null : lx.name, `${S.len} ${unitOf(lx)}`, S.kind === "daily" || lvl ? null : LEVEL_NAMES[S.level], readOf(S) === "colour" && lx.id !== "equations" ? "Colours" : null, S.rules !== "free" ? RULE_NAMES[S.rules] : null].filter(Boolean);
   what.replaceChildren(...(kind ? [el("b", "", kind), " · "] : []), bits.join(" · "));
   if (S.mode === "sprint") {
     const left = Math.max(0, SPRINT_MS - elapsed());
@@ -492,7 +512,8 @@ function drawSay() {
     box.append(text, linkButton(S.duel ? "The result" : "How it went", () => (S.duel ? duel.open() : showDone())));
     return;
   }
-  if (fresh && !S.guesses.length) box.textContent = S.mode === "dodge" ? "No word is chosen: it dodges every guess it can" : S.mode === "sprint" ? `As many ${nounOf(lexOf(S.lang))}s as you can in three minutes` : `Guess the ${S.len}-${S.lang === "en" ? "letter" : lexOf(S.lang).unit.replace(/s$/, "")} ${nounOf(lexOf(S.lang))}${S.mode === "boards" ? "s" : ""}`;
+  if (fresh && !S.guesses.length && readOf(S) === "scale" && S.mode === "classic") box.textContent = `Guess the ${S.len}-${S.lang === "en" ? "letter" : lexOf(S.lang).unit.replace(/s$/, "")} ${nounOf(lexOf(S.lang))}: ▲ later in the alphabet, ▼ earlier`;
+  else if (fresh && !S.guesses.length) box.textContent = S.mode === "dodge" ? "No word is chosen: it dodges every guess it can" : S.mode === "sprint" ? `As many ${nounOf(lexOf(S.lang))}s as you can in three minutes` : `Guess the ${S.len}-${S.lang === "en" ? "letter" : lexOf(S.lang).unit.replace(/s$/, "")} ${nounOf(lexOf(S.lang))}${S.mode === "boards" ? "s" : ""}`;
 }
 const linkButton = (text, fn) => { const b = el("button", "link", text); b.type = "button"; b.addEventListener("click", fn); return b; };
 
@@ -503,6 +524,7 @@ function render(typing = false) {
   if (!duel.on) drawTeamLine();
   drawStrip();
   drawBoards();
+  drawBounds();
   drawKeys();
   drawSay();
 }
@@ -542,7 +564,7 @@ function showDone() {
     if (dueToday()) buttons.append(action("Today's word", () => start("daily"), "primary"));
     buttons.append(action(S.kind === "daily" ? "A random word" : "New word", () => start("random"), dueToday() ? "" : "primary"));
   } else buttons.append(action("New word", () => start("random"), "primary"));
-  if (S.mode !== "sprint") buttons.append(action("Copy the grid", copyGrid, ""));
+  if (S.mode !== "sprint") buttons.append(action("Copy the result", copyResult, ""));
   body.append(buttons);
   for (const b of body.querySelectorAll(".btn, .link")) b.addEventListener("click", () => $("doneDlg").close());
   if (!$("doneDlg").open) $("doneDlg").showModal();
@@ -591,29 +613,30 @@ async function defineInto(body, words) {
 }
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const dayText = day => `${day % 100} ${MONTHS[Math.floor(day / 100) % 100 - 1]} ${Math.floor(day / 10000)}`;
-async function copyGrid() {
-  const sq = { [HIT]: "🟩", [NEAR]: "🟨", [GREY]: "⬜" }, n = S.mode === "boards" ? S.boards : 1;
+/** The result as plain text, a line a guess: ◆ right (colours: in place), ▲ the word's letter comes later, ▼ earlier (colours: ◇ elsewhere, · out). */
+async function copyResult() {
+  const weighed = readOf(S) === "scale", sign = weighed ? { [HIT]: "◆", [NEAR]: "▲", [GREY]: "▼" } : { [HIT]: "◆", [NEAR]: "◇", [GREY]: "·" }, n = S.mode === "boards" ? S.boards : 1;
   const lx = lexOf(S.lang), size = `${S.len} ${unitOf(lx)}`;
   const what = S.kind === "daily" ? dayText(S.day) : S.kind === "level" ? `level ${S.lv + 1}, ${size}` : S.mode === "dodge" ? `Dodge, ${size}` : S.mode === "boards" ? `${NUMBER[S.boards]} boards, ${size}` : size;
   const score = S.mode === "dodge" ? `in ${S.guesses.length}` : `${S.over === "won" ? S.guesses.length : "X"}/${limitOf(S)}`;
-  const head = `Assay ${lx.id === "en" ? "" : `${lx.name} `}${what} ${score}${S.rules !== "free" ? "*" : ""}`;
-  const grids = Array.from({ length: n }, (_, b) => rowsOf(S, b).map(r => r.marks.map(m => sq[m]).join("")).join("\n"));
+  const head = `Assay ${lx.id === "en" ? "" : `${lx.name} `}· ${what} · ${weighed ? "weighed" : "colours"}${S.rules !== "free" ? ` · ${RULE_NAMES[S.rules].toLowerCase()}` : ""} · ${score}`;
+  const grids = Array.from({ length: n }, (_, b) => rowsOf(S, b).map((r, k) => `${k + 1} ${r.marks.map(m => sign[m]).join("")}`).join("\n"));
   const text = `${head}\n${grids.join("\n\n")}`;
-  try { await navigator.clipboard.writeText(text); toast("Grid copied"); } catch { toast(text, 6000); }
+  try { await navigator.clipboard.writeText(text); toast("Result copied"); } catch { toast(text, 6000); }
 }
 
 // ---------- the race: the same word for everyone (duel.js) ----------
 // Everyone at the table plays the match's game on their own phone from the moment it starts: the fewest guesses win,
 // then the quicker (a sprint: the most words). Your own game, its stats and today's stay as they were.
 const matchFrom = p => {
-  const g = newGame({ lex: LEX, mode: p.mode, len: p.len, boards: p.boards, level: p.level, rules: p.rules, seed: randomSeed() });
-  return { seed: g.seed, mode: g.mode, len: g.len, boards: g.boards, level: g.level, rules: g.rules, secret: g.secret };
+  const g = newGame({ lex: LEX, mode: p.mode, len: p.len, boards: p.boards, level: p.level, rules: p.rules, read: p.read, seed: randomSeed() });
+  return { seed: g.seed, mode: g.mode, len: g.len, boards: g.boards, level: g.level, rules: g.rules, read: g.read, secret: g.secret };
 };
-const describeMatch = m => [MODE_NAMES[m.mode] === "Boards" ? `${NUMBER[m.boards]} boards` : MODE_NAMES[m.mode], `${m.len} letters`, LEVEL_NAMES[m.level], m.rules !== "free" ? RULE_NAMES[m.rules] : null].filter(Boolean).join(", ")
+const describeMatch = m => [MODE_NAMES[m.mode] === "Boards" ? `${NUMBER[m.boards]} boards` : MODE_NAMES[m.mode], `${m.len} letters`, LEVEL_NAMES[m.level], m.read === "scale" ? "weighed" : "colours", m.rules !== "free" ? RULE_NAMES[m.rules] : null].filter(Boolean).join(", ")
   + (m.mode === "sprint" ? ": the most words in three minutes" : ": the fewest guesses win, then the quicker");
 function playMatch(match, { begun, kept }) {
   const same = kept && kept.seed === match.seed && kept.mode === match.mode && valid(kept);
-  const g = same ? kept : { ...newGame({ lex: LEX, mode: match.mode, len: match.len, boards: match.boards, level: match.level, rules: match.rules, seed: match.seed, words: match.secret ? match.secret.map(unhide) : null }), draft: "" };
+  const g = same ? kept : { ...newGame({ lex: LEX, mode: match.mode, len: match.len, boards: match.boards, level: match.level, rules: match.rules, read: match.read, seed: match.seed, words: match.secret ? match.secret.map(unhide) : null }), draft: "" };
   S = { ...g, duel: true, begun, kind: "race" };
   lobbyMatch = null; shownDone = null; reveal = null; fresh = !g.guesses.length;
   save();
@@ -818,15 +841,17 @@ function showRules() {
   const counts = [...new Set(LENGTHS.map(n => guessesFor(n)))].sort((a, b) => a - b).map((g, i) =>
     `${inWords(g)}${i ? "" : " guesses"} for ${i ? "one" : "a word"} of ${LENGTHS.filter(n => guessesFor(n) === g).map(inWords).join(", ").replace(/, (\w+)$/, " or $1")} letters`);
   $("rulesBody").innerHTML = `
-    <p>Find the hidden word. Each guess must be a word of the same length, and each of its letters is marked: <b>green</b> if it's in the word in that place, <b>ochre</b> if it's in the word somewhere else, <b>grey</b> if it isn't in the word at all. High contrast, in Settings, makes the green blue.</p>
-    <p><b>For example.</b> The word is CRANE and you guess TRACE: T is grey, R and A green, C ochre, E green. A letter guessed twice is marked the way word-guessing games usually mark it: the ones in place first, then elsewhere for as many as the word has left, the rest grey. Against THOSE, GEESE gets its S and its last E green and the rest grey, since THOSE has only one E.</p>
+    <p>Find the hidden word. Each guess must be a word of the same length, and it is <b>weighed</b> against the hidden one: letters weigh by their place in the alphabet, A the lightest and Z the heaviest, and each place of your guess is read on its own.</p>
+    <p><b>The marks.</b> <b>Green</b>: the right letter. <b>Blue ▲</b>: the word's letter in that place weighs more than yours, so it comes later in the alphabet. <b>Red ▼</b>: it weighs less, so it comes earlier. A place narrows as a balance does, by halves; the strip under the board says what each place may still be, from the earliest letter to the latest. High contrast, in Settings, turns the green dark.</p>
+    <p><b>For example.</b> The word is CRANE and you guess TRACE: T is red ▼ (the word's first letter, C, comes before T), R and A are green, C is blue ▲ (the word has N there, which comes after C), E is green.</p>
     <p><b>Guesses.</b> You have ${counts.join(" and ")}: four is the hard length, whole families of its words differing in one letter (BAKE, CAKE, FAKE, LAKE, MAKE). Any word of the length in the word list may be guessed; one that isn't, or a guess too short, shakes and costs nothing. The hidden words are everyday words, never a plural, a past tense or another form of a word.</p>
-    <p><b>Playing.</b> Type on the keyboard under the board, Enter at its left and Delete at its right, or on a keyboard of your own. The keys take the colours your guesses have shown, so what's left is plain to see.</p>
-    <p><b>Hard and Strict.</b> Settings' Rules: <b>Free</b> takes any word; <b>Hard</b> is the hard mode of word-guessing games, where a letter found in place stays there and every letter shown is used, as often as shown; <b>Strict</b> asks for a word that could still be the answer, so a letter shown elsewhere also moves and a grey one stays out. A guess they forbid is turned away with the reason. A change takes effect at once on a word not yet guessed at, otherwise from the next. Several boards always play free.</p>
-    <p><b>Modes.</b> In the menu, with the letters (${inWords(LENGTHS[0])} to ${inWords(LENGTHS.at(-1))}) and the level: <b>One word</b>; <b>Boards</b>, two, four or eight words at once, every guess played on each, with ${guessesFor(5, 2)}, ${guessesFor(5, 4)} or ${guessesFor(5, 8)} guesses at five letters; <b>Dodge</b>, where no word is chosen: each guess is marked to keep as many words in play as it can, and you beat it by leaving it one word and guessing that, in as few guesses as you can; <b>Sprint</b>, as many words as you can in ${inWords(SPRINT_MS / 60000)} minutes, a word solved or spent moving on at once. The levels go by how many guesses a player needs, not by how rare the word is.</p>
-    <p><b>Numbers.</b> The menu's Game also has <b>Primes</b>, where the hidden number is a prime of four or five digits and every guess must be a prime too, and <b>Equations</b>, where the hidden sum balances, six to eight characters of digits, + − × ÷ and one =, with a whole number alone on the right (the sum is worked in the usual order: 6÷4×2 is 3), and every guess must balance too. The marks, the keys, the guesses, the rules, the modes are the same, a digit or a sign at a time. These are played alone, not as the daily or at a table.</p>
-    <p><b>Today's word.</b> The same for everyone: ${inWords(DAILY.len)} letters at ${LEVEL_NAMES[DAILY.level]}, ${inWords(guessesFor(DAILY.len))} guesses, and a new one at midnight UTC. It counts the moment your last guess lands, and your streak is the days solved in a row. Hard or Strict may be on for it; Copy the grid then marks your grid with an asterisk, as other word-guessing games do.</p>
-    <p><b>Together.</b> With your partner, as a team: one word, guesses taken in turns, and the colours split, one of you seeing what's in place and the other what's elsewhere; a letter is out only when neither of you has it lit, so say what you see. Notes strikes letters out on your own keyboard. Or a race, at a party too: the same word on every phone, the fewest guesses winning, then the quicker.</p>`;
+    <p><b>Playing.</b> Type on the keyboard under the board, Enter at its left and Delete at its right, or on a keyboard of your own.</p>
+    <p><b>Colours.</b> Settings' Marks has the classic reading too: <b>green</b> if the letter is in the word in that place, <b>ochre</b> if it is in the word somewhere else, <b>grey</b> if it isn't in the word at all, and the keys take the colours your guesses have shown. TRACE against CRANE: T is grey, R and A green, C ochre, E green. A letter guessed twice is marked the ones in place first, then elsewhere for as many as the word has left, the rest grey: against THOSE, GEESE gets its S and its last E green and the rest grey, since THOSE has only one E.</p>
+    <p><b>Hard and Strict</b> (colours only). Settings' Rules: <b>Free</b> takes any word; <b>Hard</b> keeps a letter found in place there and uses every letter shown, as often as shown; <b>Strict</b> asks for a word that could still be the answer, so a letter shown elsewhere also moves and a grey one stays out. A guess they forbid is turned away with the reason. A change takes effect at once on a word not yet guessed at, otherwise from the next. Several boards always play free.</p>
+    <p><b>Modes.</b> In the menu, with the letters (${inWords(LENGTHS[0])} to ${inWords(LENGTHS.at(-1))}) and the level: <b>One word</b>; <b>Boards</b>, two, four or eight words at once, every guess played on each, with ${guessesFor(5, 2)}, ${guessesFor(5, 4)} or ${guessesFor(5, 8)} guesses at five letters; <b>Dodge</b>, where no word is chosen: each guess is read to keep as many words in play as it can, and you beat it by leaving it one word and guessing that, in as few guesses as you can; <b>Sprint</b>, as many words as you can in ${inWords(SPRINT_MS / 60000)} minutes, a word solved or spent moving on at once. The levels go by how many guesses a player needs, not by how rare the word is.</p>
+    <p><b>Numbers.</b> The menu's Game also has <b>Primes</b>, where the hidden number is a prime of four or five digits and every guess must be a prime too (each digit is weighed too, 0 the lightest), and <b>Equations</b>, where the hidden sum balances, six to eight characters of digits, + − × ÷ and one =, with a whole number alone on the right (the sum is worked in the usual order: 6÷4×2 is 3), every guess must balance too, and the marks are always colours. These are played alone, not as the daily or at a table.</p>
+    <p><b>Today's word.</b> The same for everyone: ${inWords(DAILY.len)} letters at ${LEVEL_NAMES[DAILY.level]}, ${inWords(guessesFor(DAILY.len))} guesses, and a new one at midnight UTC, read the way Settings' Marks says. It counts the moment your last guess lands, and your streak is the days solved in a row. Copy the result gives a line of marks a guess, ◆ for a right letter, with the rule if Hard or Strict was on.</p>
+    <p><b>Together.</b> With your partner, as a team: one word, guesses taken in turns, in colours, and the colours split, one of you seeing what's in place and the other what's elsewhere; a letter is out only when neither of you has it lit, so say what you see. Notes strikes letters out on your own keyboard. Or a race, at a party too: the same word on every phone, the fewest guesses winning, then the quicker.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 
@@ -849,7 +874,7 @@ function openMenu() {
       content.append(choice("Letters", LENGTHS.map(n => [n, String(n)]), T?.len ?? prefs.len, v => { setPref("len", v); }),
         choice("Words", LEVELS.map(l => [l, LEVEL_NAMES[l]]), prefs.level, v => setPref("level", v)), line("For the next word."));
     } else { const wait = line(joiningWords()); wait.prepend(waitMark()); together.append(wait, action("Back to solo", backToSolo, "link")); }
-    settingsPart(body, false);
+    settingsPart(body, false, !team.room);
     showMenu(body);
     return;
   }
@@ -884,7 +909,7 @@ function levelList() {
       b.setAttribute("aria-label", `Level ${n + 1}, ${L.name}${won ? `, ${plural(won, "star")}` : ""}${open ? "" : ", not open yet"}`);
       map.innerHTML = miniature(L);
       row.append(el("b", "", String(n + 1)), el("span", "", open ? STAR.repeat(won) + HOLLOW.repeat(3 - won) : ""));
-      const bits = [L.mode === "boards" ? `${NUMBER[L.boards]} boards` : L.mode === "dodge" ? "Dodge" : L.mode === "sprint" ? "Sprint" : null, `${L.len} ${unitOf(lexOf(L.lex)).replace("characters", "chars")}`, L.rules !== "free" ? RULE_NAMES[L.rules] : null].filter(Boolean);
+      const bits = [L.mode === "boards" ? `${NUMBER[L.boards]} boards` : L.mode === "dodge" ? "Dodge" : L.mode === "sprint" ? "Sprint" : null, `${L.len} ${unitOf(lexOf(L.lex)).replace("characters", "chars")}`, L.rules !== "free" ? RULE_NAMES[L.rules] : null, L.read === "colour" && L.lex !== "equations" ? "Colours" : null].filter(Boolean);
       b.append(map, row, el("div", "as-lname", L.name), el("div", "as-lsize", bits.join(" · ")));
       b.addEventListener("click", () => { $("menuDlg").close(); playLevel(n); });
       grid.append(b);
@@ -913,11 +938,19 @@ function nextChoices(box, note, solo = true) {
     : `${plural(g, "guess", "guesses")}${Number.isFinite(mean) ? `; a player like most needs about ${mean.toFixed(1)} on one board` : ""}.`;
   box.append(line(note ? `${note}: ${say}` : say));
 }
-function settingsPart(body, solo) {
-  const settings = part(body, "settings");
-  if (!(solo && track === "levels")) settings.append(choice("Rules", Object.entries(RULE_NAMES), prefs.rules, v => {
+function settingsPart(body, solo, marks = true) {
+  const settings = part(body, "settings"), levels = solo && track === "levels";
+  if (marks && !levels) {
+    settings.append(choice("Marks", Object.entries(READ_NAMES), prefs.read, v => {
+      setPref("read", v);
+      const fresh = S && !S.duel && S.kind !== "level" && !S.guesses.length && !(S.past || []).length;
+      if (fresh) { S.read = readFor(lexOf(S.lang), v); if (S.read === "scale") S.rules = "free"; else if (S.boards === 1) S.rules = prefs.rules; save(); render(); }
+      openMenu();
+    }), line(prefs.read === "scale" ? "Weighed: letters weigh by their place in the alphabet; each place reads right, ▲ the word's letter is later, ▼ earlier." : "Colours: the classic marks, green in place, ochre elsewhere in the word, grey out."));
+  }
+  if (!levels && (!marks || prefs.read === "colour")) settings.append(choice("Rules", Object.entries(RULE_NAMES), prefs.rules, v => {
     setPref("rules", v);
-    if (S && !S.duel && !S.guesses.length && S.boards === 1) { S.rules = v; save(); render(); }
+    if (S && !S.duel && !S.guesses.length && S.boards === 1 && readOf(S) === "colour") { S.rules = v; save(); render(); }
     openMenu();
   }), line(prefs.mode === "boards" ? "Several boards always play free." : RULE_LINES[prefs.rules]));
   settings.append(toggle("High contrast", prefs.contrast, on => { setPref("contrast", on); applyContrast(); }));
