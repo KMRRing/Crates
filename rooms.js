@@ -35,6 +35,7 @@ export const GAMES = {
   gambit: { name: "Chess", page: "./gambit.html" },
   boast: { name: "Liar's dice", page: "./boast.html" },
   bigtwo: { name: "Big Two", page: "./bigtwo.html" },
+  hearts: { name: "Hearts", page: "./hearts.html" },
   meld: { name: "Gin rummy", page: "./meld.html" },
   rack: { name: "Rack", page: "./rack.html" },
   pegs: { name: "Cribbage", page: "./pegs.html" },

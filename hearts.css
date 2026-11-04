@@ -23,7 +23,7 @@ html[data-theme="office"][data-mode="night"] { --hr-in: #479EF5; }
 .hr-strip .hr-red { color: var(--hr-red); }
 
 /* ---------- the table ---------- */
-.hr-table { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+.hr-table { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.3fr) minmax(0, .9fr); grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas: ". top ." "left centre right" "me me me"; gap: .35rem; padding: .5rem; min-height: 0; border-radius: 6px; background: var(--hr-felt);
   border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--hr-felt), inset 0 0 0 5px var(--rule); overflow: hidden; }
 .hr-seat { display: grid; gap: .25rem; justify-items: center; align-content: start; min-width: 0; padding: .3rem; border-radius: 6px; }
@@ -50,7 +50,7 @@ html[data-theme="office"][data-mode="night"] { --hr-in: #479EF5; }
 
 /* the middle: the trick laid in a cross, each card toward whoever played it; faint outlines hold the places */
 .hr-centre { grid-area: centre; position: relative; min-width: 0; min-height: 0; container-type: size; }
-.hr-trick { position: absolute; left: 50%; top: 50%; translate: -50% -50%; font-size: clamp(.55rem, min(13.5cqh, 17cqw), 2.3rem); width: 5.5em; height: 7em; }
+.hr-trick { position: absolute; left: 50%; top: 50%; translate: -50% -50%; font-size: clamp(.55rem, min(13.5cqh, 17cqw), 3rem); width: 5.5em; height: 7em; }
 .hr-slot { position: absolute; width: 2.5em; height: 3.5em; border-radius: .2em; border: 1px dashed var(--rule); box-sizing: border-box; }
 .hr-slot > .cd { position: absolute; left: -1px; top: -1px; box-shadow: 0 1px 3px rgba(28, 42, 52, .3); }
 .hr-slot.win > .cd { box-shadow: 0 0 0 2px var(--hr-in), 0 1px 3px rgba(28, 42, 52, .3); }

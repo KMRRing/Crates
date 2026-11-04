@@ -88,8 +88,8 @@ function seatHtml(v, seat) {
   else if (turn && !isMe(seat)) tag = `<span class="hr-thinking">thinking</span>`;
   const back = place === "at-me" ? "" : `<span class="hr-n" title="Cards left">${backHtml("tiny")}<b>${s.hands[seat].length}</b></span>`;
   return `<div class="hr-seat ${place}${turn ? " turn" : ""}${trickWinnerNow(s) === seat ? " wins" : ""}">
-    <div class="hr-who"><b>${esc(who(seat))}</b>${back}<span class="hr-sc" title="Score">${s.scores[seat]}</span><span class="hr-pts" title="Points taken this hand" style="${taken ? "" : "visibility:hidden"}">♥ ${taken}</span></div>
-    <div class="hr-play">${tag || "&nbsp;"}</div></div>`;
+    <div class="hr-who"><b>${esc(who(seat))}</b>${back}<span class="hr-sc" title="Score">${s.scores[seat]}</span><span class="hr-pts" title="Points taken this hand" style="${taken ? "" : "visibility:hidden"}">+${taken}</span></div>
+    ${place === "at-me" ? "" : `<div class="hr-play">${tag || "&nbsp;"}</div>`}</div>`;
 }
 
 function centreHtml(v) {
@@ -133,7 +133,7 @@ function drawTable(v) {
     }));
     const lanes = [0, 1, 2, 3].map(seat => { const c = trickOf(s, seat); return c != null ? cardMarkup(c, win === seat ? "lit" : "") : ""; });
     const note = s.step === "pass" ? `Pass ${DIR_WORD[s.dir]}: ${s.give.filter(g => g.length === 3).length} of 4 have passed` : resultLine(s) || `Hand ${s.deal} · ♥ ${s.broken ? "broken" : "unbroken"}`;
-    three.draw({ me, plates, lanes, top: `<p class="hr-note">${esc(note)}</p>`, winner: s.step === "play" && s.done > 0 && !s.trick.plays.length ? s.trick.lead : shownStep(s) ? s.trick.lead : null });
+    three.draw({ me, plates, lanes, top: `<p class="hr-note">${esc(note)}</p>`, winner: !s.trick.plays.length && s.done > 0 ? s.trick.lead : null });
     return;
   }
   if (three) { three.dispose(); three = null; table.classList.remove("hr3"); }
@@ -274,7 +274,7 @@ function showRules() {
     <p>Hearts is a trick-taking game for four, each for themselves: take as few points as you can. Every heart is a point and the Q♠ is thirteen, 26 in a hand.</p>
     <p><b>The pass.</b> Each hand begins with everyone passing three cards face down: to the left in the first hand, to the right in the second, across in the third, and in the fourth none; then round again. Pick the three, tap Pass. You see the three you were passed marked on the foot of those cards.</p>
     <p><b>The play.</b> The holder of the 2♣ leads it. Play goes round to the left and you must follow the suit led if you can; if you can't, play anything. The highest card of the suit led takes the trick and leads the next. The first trick has no points in it unless you can't help it (a hand of nothing but hearts and the Q♠). Hearts can't be led until one has been played on an earlier trick (they are "broken"), unless you hold nothing else. The Q♠ doesn't break them.</p>
-    <p><b>Scoring.</b> At the end of a hand each player takes the points in their tricks. The game goes on until someone reaches ${TARGETS.join(", ")} (Menu: 100 by default) and then the lowest score wins; a tie for the lowest plays on.</p>
+    <p><b>Scoring.</b> At the end of a hand each player takes the points in their tricks. The game goes on until someone reaches 100 points (Menu: 50, 100 or 150), and then the lowest score wins; a tie for the lowest plays on.</p>
     <p><b>Shooting the moon.</b> Take every heart and the Q♠ in one hand and you score nothing while the other three score 26 each (Menu can turn that into 26 off your own score).</p>`;
   $("rulesDlg").showModal();
 }

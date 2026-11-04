@@ -61,7 +61,7 @@ export const AKA = {
   fuse: "bomb", snap: "match cards pairs", sketch: "drawing pictionary", whispers: "telephone chinese whispers",
   forger: "forgery drawing bluff", gallery: "art drawing", hilo: "higher lower cards", coup: "bluff secret roles influence",
   cue: "charades word forehead acting", river: "xiangqi chinese chess", gambit: "chess school lessons course learn to play beginner openings tactics checkmate endgame", boast: "liar's dice perudo chinese dice bluff",
-  bigtwo: "deuces climbing cards", landlord: "dou dizhu fight the landlord", banquet: "finger game huaquan morra", gammon: "backgammon",
+  bigtwo: "deuces climbing cards", hearts: "black lady queen of spades shoot the moon tricks", landlord: "dou dizhu fight the landlord", banquet: "finger game huaquan morra", gammon: "backgammon",
   trumps: "jass belote coinche schafkopf tricks", contract: "bridge contract bridge auction", quest: "hidden roles traitors company hanse vitalian",
   bones: "dominoes tiles", factor: "factor island trading settlement", rack: "word tiles board", pegs: "cribbage", meld: "gin rummy",
   go: "weiqi baduk", tarot: "french tarot", solitaire: "patience klondike freecell", silo: "connect four four in a row",

@@ -6,8 +6,13 @@
 import { readFileSync } from "node:fs";
 import { rules, legalCards, whyNot, handResult, trickWinner, pointsOf, cardName, RANKS, SUITS, TRICK_MS, SHOW_MS, QUEEN_SPADES, TWO_CLUBS, byHand } from "../hearts-rules.js";
 import { botMove, passCards } from "../hearts-bot.js";
-import { newRecord, applyMove, applyWake, seeded } from "../seats.js";
+import { newRecord, applyMove, applyWake, seeded, createRunner } from "../seats.js";
+import { createTable } from "../table.js";
+import { fakeDb } from "./fake-db.js";
 import { roundTrip, same } from "./rtdb.js";
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function until(pred, ms = 4000) { const end = Date.now() + ms; while (Date.now() < end) { if (pred()) return true; await sleep(5); } return pred(); }
 
 let bad = 0;
 const ok = (yes, what) => { console.log(`${yes ? "ok  " : "FAIL"} ${what}`); if (!yes) bad++; };
@@ -222,6 +227,56 @@ function rulebook(s, seat) {
     hands = 0;
   }
   ok(all, `whole games of computer players at every strength: every move in the rulebook's set, every card accounted for, each hand 26 points, the winner the lowest${why ? ` (${why})` : ""}`);
+}
+
+// ---------- at a table: two people and two computer players ----------
+{
+  // the timed steps shortened so the test needn't wait them out
+  const quick = { ...rules,
+    act: (s, seat, m, ctx) => { const r = rules.act(s, seat, m, ctx); if (typeof r !== "string" && r.until) r.until = ctx.now + 20; return r; },
+    wake: (s, ctx) => { const r = rules.wake(s, ctx); if (r?.until) r.until = ctx.now + 20; return r; } };
+  const db = fakeDb(), devices = [];
+  function device(uid) {
+    const d = { uid, last: null };
+    d.table = createTable({ game: "hearts", app: 1, max: 4, sync: db.device(uid), backupMs: 400, onState: () => d.runner?.update(), onLeave: () => {} });
+    d.runner = createRunner({ rules: quick, table: d.table, pace: 5, botName: s => `Bot ${s}`, level: () => "easy", onView: v => { d.last = v; } });
+    devices.push(d);
+    return d;
+  }
+  const host = device("h"), guest = device("g");
+  const code = await host.table.open({ name: "Korbi", pid: "pk" });
+  await db.settle();
+  ok(await guest.table.join(code, { name: "Mei", pid: "pm" }) === "ok", "a friend sits down at the table");
+  await db.settle();
+  await host.runner.deal({}, 4);
+  await db.settle(8);
+  ok(host.last.seats.map(s => (s.bot ? "bot" : s.name)).join() === "Korbi,Mei,bot,bot" && host.last.state.step === "pass", "two people and two computer players, the first hand passing");
+  // the friend chooses first, though seat 0 is the one the table waits on
+  const rng = seeded(6);
+  const err1 = await guest.runner.move(botMove(guest.last.state, 1, { level: "easy", rng }));
+  await db.settle(6);
+  ok(!err1 && host.last.state.give[1].length === 3 && host.last.state.step === "pass" && host.last.toMove === 0, "a friend may pass before their turn comes, and the table still waits for seat 0");
+  const again = await guest.runner.move(botMove(guest.last.state, 1, { level: "easy", rng }));
+  ok(/passed already/.test(again), "but only once");
+  ok(!(await host.runner.move(botMove(host.last.state, 0, { level: "easy", rng }))), "the host passes");
+  await until(() => host.last.state.step === "play" && guest.last.state.step === "play", 3000);
+  ok(host.last.state.step === "play" && host.last.state.hands.every(h => h.length === 13), "the computer players pass on their own, and the play begins");
+  // the people play on their turns; the computer's turns are the host's phone's alone
+  let moves = 0;
+  for (let i = 0; i < 200 && !["shown", "over"].includes(host.last.state.step); i++) {
+    await until(() => ["shown", "over"].includes(host.last.state.step) || [0, 1].includes(host.last.toMove), 1500);
+    const t = host.last.toMove;
+    if (t !== 0 && t !== 1) continue;
+    const who = t === 0 ? host : guest;
+    await until(() => who.last.toMove === t, 500);
+    const e = await who.runner.move(botMove(who.last.state, t, { level: "easy", rng }));
+    if (!e) moves++;
+    await db.settle(4);
+  }
+  await until(() => ["shown", "over"].includes(host.last.state.step) && guest.last.state.step === host.last.state.step, 2000);
+  const e = host.last.state;
+  ok(["shown", "over"].includes(e.step) && moves > 10 && e.result.pts.reduce((a, b) => a + b, 0) === 26 && same(e.scores, guest.last.state.scores), `a whole hand at the table: the people on their turns (${moves} moves), the computer on its own, the points 26, both phones agreeing`);
+  for (const d of devices) d.runner.stop();
 }
 
 // ---------- the computer players ----------

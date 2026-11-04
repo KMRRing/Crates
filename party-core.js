@@ -180,6 +180,7 @@ export function endGame(branch) {
 export const ELSEWHERE = [
   { id: "boast", name: "Liar's dice", kind: "table", page: "boast.html", max: 6, blurb: "Liar's dice with Chinese rules: bid on all the dice under the cups, or open." },
   { id: "bigtwo", name: "Big Two", kind: "table", page: "bigtwo.html", max: 4, blurb: "鋤大D, Hong Kong's climbing card game: be first to shed your cards." },
+  { id: "hearts", name: "Hearts", kind: "table", page: "hearts.html", max: 4, blurb: "Hearts: pass three, avoid the hearts and the Q♠, or shoot the moon; the lowest score wins." },
   { id: "pegs", name: "Cribbage", kind: "table", page: "pegs.html", max: 2, blurb: "Cribbage for two: discard to the crib, peg to 31, count fifteens, pairs and runs; first to 121." },
   { id: "meld", name: "Gin rummy", kind: "table", page: "meld.html", max: 2, blurb: "Gin rummy for two: meld sets and runs, knock with 10 or less in deadwood, or go gin." },
   { id: "rack", name: "Rack", kind: "table", page: "rack.html", max: 4, blurb: "A word game on a board: lay tiles on premium squares, make words that cross, score the most." },
