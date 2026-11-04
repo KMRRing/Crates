@@ -740,10 +740,10 @@ export const APPS = [
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
-// Settings, at the top right of the games screen (a gear in Codex, sliders in the other themes): the theme (Deco, Modern,
-// Kontor or Office; each with a day and a night that follow the system).
+// Settings, at the top right of the games screen (a gear in Codex, sliders in Office): the theme (Codex or Office); Codex has
+// a day and a night that follow the system unless set, Office is night only.
 // The choice lives on this device and applies at once, here and on every page (theme.js reads it before drawing).
-const THEMES = [["deco", "Codex"], ["modern", "Modern"], ["kontor", "Kontor"], ["office", "Office"]];
+const THEMES = [["deco", "Codex"], ["office", "Office"]];
 const MODES = [["auto", "Auto"], ["day", "Day"], ["night", "Night"]];
 export const theme = () => document.documentElement.dataset.theme || "deco";
 const mode = () => document.documentElement.dataset.mode || "auto";
@@ -769,7 +769,7 @@ function openSettings(host) {
   }
   sheet.querySelector(".settings-body").replaceChildren(
     choice("Theme", THEMES, theme(), t => keep("suite:theme", t, "deco")),
-    choice("Appearance", MODES, mode(), m => keep("suite:mode", m, "auto")),
+    ...(theme() === "office" ? [] : [choice("Appearance", MODES, mode(), m => keep("suite:mode", m, "auto"))]),   // Office is night only
     toggle("Deck and Random on this screen", bannerOn(), on => {
       try { if (on) localStorage.removeItem(BANNER); else localStorage.setItem(BANNER, "off"); } catch { /* private mode */ }
       host.querySelector("[data-rows]")?.toggleAttribute("hidden", !on);      // at once, nothing to reload

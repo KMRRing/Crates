@@ -1,12 +1,14 @@
-// Codex's look, chosen on the games screen (More, Settings): the theme (Codex, the default; Modern; Kontor; Office) and
-// day or night (following the phone unless set). A plain script in every page's head, so the look is set before the
+// Codex's look, chosen on the games screen (More, Settings): Codex (the default; day or night, following the phone unless
+// set) or Office (night only, whatever the phone says). A plain script in every page's head, so the look is set before the
 // page draws and never flashes the wrong one; and, being the first thing every page runs, where a page that plays with
 // others starts connecting.
 (function () {
   try {
     var t = localStorage.getItem("suite:theme"), m = localStorage.getItem("suite:mode");
-    if (t === "modern" || t === "kontor" || t === "office") document.documentElement.dataset.theme = t;
-    if (m === "day" || m === "night") document.documentElement.dataset.mode = m;
+    // Modern and Kontor are gone: a device that still has one saved becomes Codex
+    if (t && t !== "office") { try { localStorage.removeItem("suite:theme"); } catch (e) { /* ignore */ } t = null; }
+    if (t === "office") { document.documentElement.dataset.theme = "office"; document.documentElement.dataset.mode = "night"; }
+    else if (m === "day" || m === "night") document.documentElement.dataset.mode = m;
   } catch (e) { /* private mode: Codex, following the phone */ }
 })();
 // The loader's mark, large (style.css, .cx-load): nine pictures stacked, each moving part its own layer, put in here so it
