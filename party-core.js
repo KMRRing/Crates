@@ -173,6 +173,7 @@ export function endGame(branch) {
 // seats: Crates, River and Gambit two; Tribute and Hong up to four, the computer in the seats nobody has; the rest up
 // to six, each on their own phone (one board or line for the team in Slate, Delta, Origin and Order; the head-to-heads
 // on one deal, duel.js, as a race).
+//   tiles: the games-screen tiles that open this one page (Jass, Belote and Schafkopf share trumps.html and its table);
 //   kind: "table" or "duo"; page: where it's played; max: the most people it seats; across: two people sit across a
 //   four-seat table (partners); duo: the game's name in the room (its branch, and a request's game); race: everyone
 //   plays the same deal on their own phone (duel.js); bots: a duo match whose empty seats the computer takes (Hong,
@@ -193,7 +194,7 @@ export const ELSEWHERE = [
   { id: "silo", name: "Four in a row", kind: "table", page: "silo.html", max: 2, blurb: "Four in a row: drop discs into seven columns, first to line up four." },
   { id: "crown", name: "Draughts", kind: "table", page: "crown.html", max: 2, blurb: "Draughts: step and jump on the dark squares, a jump is compulsory, a man that reaches the far row is crowned." },
   { id: "tarot", name: "Tarot", kind: "table", page: "tarot.html", max: 5, blurb: "French tarot for three, four or five: bid, take the dog, call a king for a partner, win the points." },
-  { id: "trumps", name: "Trumps", kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote, Coinche or Schafkopf, at a table of four." },
+  { id: "trumps", name: "Jass, Belote, Schafkopf", tiles: ["jass", "belote", "schafkopf"], kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote (and Coinche) or Schafkopf, whichever the host last played, at a table of four; the host's menu changes it." },
   { id: "quest", name: "Company", kind: "table", page: "quest.html", max: 10, blurb: "Hidden loyalties: find the Vitalians before three cargoes are lost." },
   { id: "bones", name: "Dominoes", kind: "table", page: "bones.html", max: 4, blurb: "Dominoes: Partnership, Gaple, or Fives and Threes." },
   { id: "cartel", name: "Cartel", kind: "table", page: "cartel.html", max: 4, blurb: "Secret roles and Liar's Dice in dice: claim roles you may not hold, bid on dice you can't see." },

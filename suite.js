@@ -15,6 +15,7 @@ import { getSync } from "./net.js";
 import { roomInAddress } from "./rooms.js";
 import { today, movedToDates, bestOfDay } from "./days.js";
 import { duoRecordsOf } from "./duo-records.js";
+import { TILES as TRUMPS_TILES, tileOf, gameInAddress } from "./trumps-tiles.js";
 
 const SOLO = "suite:solo", META = "suite:meta", PULLED = "suite:pulled";
 const WATCHING = new URLSearchParams(location.search).has("watch");   // this page shows your partner's game (see below)
@@ -150,7 +151,8 @@ export async function pull() {
  *  blend2:, Gambit's puzzle rush's rush:). Nothing of the suite's (LOCAL) and nothing shared (the review pile, the pictures). */
 const RESET_PREFIXES = { nonogram: ["nonogram:", "loom:"], glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"], reckoning: ["reckoning:", "courier:"],
   // Stow's page holds two tiles: Loose cargo's saves are two of stow:'s keys (and its figure, loose:stars), so each tile resets its own
-  stow: ["stow:plan", "stow:day", "stow:view", "stow:mode", "stow:stars", "stow:best"], loose: ["stow:run", "stow:progress", "loose:"] };
+  stow: ["stow:plan", "stow:day", "stow:view", "stow:mode", "stow:stars", "stow:best"], loose: ["stow:run", "stow:progress", "loose:"],
+  jass: ["trumps:jass:"], belote: ["trumps:belote:"], schafkopf: ["trumps:schafkopf:", "trumps:course", "trumps:rush"] };   // the three tiles of trumps.html
 /**
  * Starts a game over: every key under its prefixes goes, here and, with a solo code, on the code, so your other devices
  * drop them too (a removal syncs like any change, the newer winning: their older copies can't come back). Keys only
@@ -222,9 +224,9 @@ export function bestOf(app) {
 // of you has played it.
 export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", survey: "time", punt: "daily", quote: "daily", origin: "daily",
   order: "daily", chart: "daily", columbiad: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", loose: "stars", deck: "count", parley: "count", navigation: "lessons", wine: "lessons",arthistory: "lessons", music: "lessons", odds: "stars",
-  river: "best", gambit: "best", boast: "streak", bigtwo: "streak", hearts: "streak", meld: "streak", rack: "streak", pegs: "streak", landlord: "streak", banquet: "streak", gammon: "streak", flank: "streak", silo: "streak", crown: "streak", go: "streak", tarot: "streak", trumps: "streak", quest: "streak", bones: "streak", solitaire: "wins",
+  river: "best", gambit: "best", boast: "streak", bigtwo: "streak", hearts: "streak", meld: "streak", rack: "streak", pegs: "streak", landlord: "streak", banquet: "streak", gammon: "streak", flank: "streak", silo: "streak", crown: "streak", go: "streak", tarot: "streak", jass: "streak", belote: "streak", schafkopf: "streak", quest: "streak", bones: "streak", solitaire: "wins",
   contract: "streak", sudoku: "time", mines: "time", nonogram: "time", hitori: "time", slitherlink: "time", bridges: "time", masyu: "time", nurikabe: "time", asterism: "time", bulls: "guesses", assay: "daily", yield: "daily", nexus: "daily", isomer: "time", ladder: "time", lode: "time", lots: "daily", codeword: "time", crossword: "time", acrostic: "time", calcudoku: "time", kakuro: "time", manifest: "daily", ingot: "daily", speedmaths: "daily", speedfuels: "daily" };
-const keyOf = app => (app === "glyph" ? "slate" : app);                // Slate keeps its things under slate:
+const keyOf = app => (app === "glyph" ? "slate" : TRUMPS_TILES[app] ? `trumps:${app}` : app);   // Slate keeps its things under slate:; Jass, Belote and Schafkopf each theirs on the one trumps page
 /** A game won or lost, in a game that counts streaks: the current run, and the longest. */
 export function noteStreak(app, won) {
   const s = json(`${app}:streak`, null) || { now: 0, best: 0 };
@@ -323,7 +325,9 @@ export async function watchBests(cb) {
 /** The games that can be played together (a duo match is the game opened in the pair's room). */
 export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html", stow: "stow.html", hong: "hong.html", tribute: "tribute.html",
   river: "river.html", gambit: "gambit.html", rush: "rush.html", origin: "origin.html", order: "order.html", blend: "blend.html", nexus: "nexus.html", survey: "survey.html", manifest: "manifest.html", refinery: "refinery.html", sudoku: "sudoku.html", mines: "mines.html", nonogram: "nonogram.html", hitori: "hitori.html", bulls: "bulls.html", assay: "assay.html", yield: "yield.html", isomer: "isomer.html", ladder: "ladder.html", lode: "lode.html", lots: "lots.html", codeword: "codeword.html", crossword: "crossword.html", acrostic: "acrostic.html", calcudoku: "calcudoku.html", kakuro: "kakuro.html", bridges: "bridges.html", speedmaths: "speedmaths.html" };
-const pageGame = () => (page() === "index" ? "" : page());   // "" at home (index): no game open
+/** The game this page is on the games screen: its file's name, but trumps.html is Jass, Belote or Schafkopf (the address's
+ *  ?game=, else the one played last). "" at home (index): no game open. */
+const pageGame = () => (page() === "index" ? "" : page() === "trumps" ? tileOf(gameInAddress(location.search) || json("trumps:opts", null)?.game) || "jass" : page());
 const ASK_FOR = 2 * 60 * 1000;                  // a request stands for two minutes
 const FOLLOW_FOR = 10 * 60 * 1000;              // its yes takes the device that asked to the table this long after (it may have slept through it)
 const FOLLOWED = "suite:followed";              // the request this device last went to the table for (suite: keys stay on the device)
@@ -503,7 +507,7 @@ let mirrorTimer = null, watched = null;           // watched: inside a frame, th
 /** The prefixes of a game's keys in storage: the game's id; but Slate keeps its old name, Glyph, and Blend's rebuild
  *  saves under blend2: (so its first version's saves were never misread), its stars under blend:. A key under none of
  *  them isn't the game's: it isn't mirrored, and a watching frame reads the watcher's own. */
-const PREFIXES = { nonogram: ["nonogram:", "loom:"], slate: ["glyph:"], blend: ["blend:", "blend2:"], reckoning: ["reckoning:", "courier:"] };
+const PREFIXES = { nonogram: ["nonogram:", "loom:"], slate: ["glyph:"], blend: ["blend:", "blend2:"], reckoning: ["reckoning:", "courier:"], jass: ["trumps:"], belote: ["trumps:"], schafkopf: ["trumps:"] };
 const gamesKey = (game, k) => !!game && (PREFIXES[game] || [`${game}:`]).some(p => k.startsWith(p));
 // what never goes to a watcher: the suite's own keys, Crates' run link (watching must not join their run), Firebase's
 const WATCH_SKIP = /^(suite:|crates:run|crates:updated|firebase:)/;
@@ -609,7 +613,7 @@ export function codesLink(kind) {
   if (duoCode()) u.searchParams.set("duo", duoCode());
   return u.toString();
 }
-export const watchHref = game => `${DUO_GAMES[game] || `${game}.html`}?watch=1`;
+export const watchHref = game => (TRUMPS_TILES[game] ? `trumps.html?game=${game}&watch=1` : `${DUO_GAMES[game] || `${game}.html`}?watch=1`);
 
 // a link with codes in it (?solo=, ?duo=): take them on, then go on without them in the address
 {
@@ -641,3 +645,18 @@ if (!WATCHING) for (const k of ["origin:daily", "order:daily"]) { const moved = 
 }
 if (FRAME) readCopy();
 else if (WATCHING) { try { await watchInFrames(); } catch (e) { console.error(e); } }
+
+// Trumps became three tiles (Jass, Belote, Schafkopf): the one streak and the one record that covered them all go to the
+// game played last, and each tile counts from there under trumps:<tile>:. Done on every page, so the games screen shows it.
+(function moveTrumpsFigures() {
+  if (WATCHING) return;
+  try {
+    const olds = ["streak", "record"].filter(n => raw.get(`trumps:${n}`) != null);
+    if (!olds.length) return;
+    const tile = tileOf(json("trumps:game", null)?.state?.game || json("trumps:opts", null)?.game) || "jass";
+    for (const n of olds) {
+      if (raw.get(`trumps:${tile}:${n}`) == null) localStorage.setItem(`trumps:${tile}:${n}`, raw.get(`trumps:${n}`));
+      localStorage.removeItem(`trumps:${n}`);
+    }
+  } catch { /* private mode */ }
+})();

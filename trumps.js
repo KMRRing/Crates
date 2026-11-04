@@ -19,6 +19,7 @@ import { part, choice, toggle, action, line } from "./menu.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
+import { TILES, tileOf, gameInAddress } from "./trumps-tiles.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, cardStage } from "./trumps-course.js";
 import { createRush } from "./trumps-rush-ui.js";
@@ -27,7 +28,7 @@ import { sideways } from "./wide.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const OPTS = "trumps:opts", RECORD = "trumps:record";
+const OPTS = "trumps:opts", RUN = "trumps:game";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -37,6 +38,29 @@ const BOTS = { jass: ["Ueli", "Vreni", "Beat"], belote: ["Gérard", "Martine", "
 let opts = { game: "jass", level: "medium", full: false, jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 }, ...read(OPTS, {}) };
 if (!GAMES[opts.game]) opts.game = "jass";
 const saveOpts = () => write(OPTS, opts);
+
+// ---------- Jass, Belote and Schafkopf: three tiles, one page ----------
+// The address says which (?game=), else it's the game of the run in progress, else the one last chosen. One run is kept
+// at a time (trumps:game): a tile for another game puts it away under its tile (trumps:game:<tile>) and takes that
+// tile's own back, so opening Jass never throws away a Schafkopf hand. At a table or in a partner's frame the run isn't ours.
+const readRun = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+{
+  const here = readRun(RUN), asked = gameInAddress(location.search);
+  const inRoom = /[?&](table|room)=/.test(location.search);
+  const game = asked || (GAMES[here?.state?.game] ? here.state.game : opts.game);
+  if (!IN_FRAME && !inRoom && here?.state?.game && tileOf(here.state.game) !== tileOf(game)) {
+    write(`${RUN}:${tileOf(here.state.game)}`, here);
+    const back = readRun(`${RUN}:${tileOf(game)}`);
+    if (back) { write(RUN, back); try { localStorage.removeItem(`${RUN}:${tileOf(game)}`); } catch { /* private mode */ } }
+    else try { localStorage.removeItem(RUN); } catch { /* private mode */ }
+  }
+  opts.game = game;
+  if (!IN_FRAME && asked) saveOpts();
+}
+let wore = null;                                                // the tile the page wears now (wearTile)
+const tileNow = () => tileOf(V?.state?.game || opts.game) || "jass";
+/** This tile's own record (its streak is noteStreak's, trumps:<tile>:streak). */
+const recordKey = () => `trumps:${tileNow()}:record`;
 // Schafkopf's cards simple (the suits' marks, the rank in the corner) or as the whole Bavarian pack, drawn
 // (trumps-deck.js), at the table and in the course and the rush alike
 const applyLook = () => { LOOK.german = opts.look === "pictures" ? deckPics() : null; };
@@ -133,11 +157,11 @@ function nextHand() {
   page.runner.kick();
 }
 const nextLabel = s => (GAMES[s.game].done(s) ? "The result" : "Next hand");
-const randomRounds = seatRounds("trumps", ["scored"]);   // random mode's round: a hand
+const randomRounds = { jass: seatRounds("jass", ["scored"]), belote: seatRounds("belote", ["scored"]), schafkopf: seatRounds("schafkopf", ["scored"]) };   // random mode's round: a hand, by the tile
 page = seatPage({
   // app 2: the table's coach is the table's (house), kept on every phone; an older page at the table updates first
   rules, id: "trumps", app: 2, pace: paceNow, hold: holding, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
-  level: () => opts.level, onView: v => { V = v; lookAhead(v); draw(); randomRounds(v); }, onOver, toast, newGame,
+  level: () => opts.level, onView: v => { V = v; lookAhead(v); draw(); randomRounds[tileNow()](v); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => V?.seats?.[seat]?.name ?? `Seat ${seat + 1}`;
@@ -157,6 +181,7 @@ function draw() {
   if (coach() !== coachWas) { coachWas = coach(); advice = said = null; }   // the table's coach changed: its words go
   const v = V;
   placeFull();
+  wearTile();
   if (!v?.G) { $("info").innerHTML = ""; for (const id of ["seatTop", "seatLeft", "seatRight"]) $(id).replaceChildren(); $("centre").innerHTML = ""; $("hand").innerHTML = ""; $("controls").innerHTML = `<button class="btn primary tr-go" type="button" data-act="new">New game</button>`; return; }
   if (coach() === "on" && !v.over) { const a = adviceNow(); if (a) a.shown = true; }
   drawInfo(v.state);
@@ -554,11 +579,11 @@ $("controls").addEventListener("click", async e => {
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const won = v.state.winners.includes(v.seat);
-  const r = read(RECORD, { played: 0, won: 0 });
+  const r = read(recordKey(), { played: 0, won: 0 });
   r.played++;
   if (won) r.won++;
-  write(RECORD, r);
-  noteStreak("trumps", won);
+  write(recordKey(), r);
+  noteStreak(`trumps:${tileNow()}`, won);
   setTimeout(() => { if (V?.over) showEnd(V); }, 1500);
 }
 function showEnd(v) {
@@ -630,12 +655,18 @@ function openMenu() {
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
-  const cp = progressOf("trumps", COURSE);
-  play.append(action(cp.done ? `Learn Schafkopf: ${cp.done} of ${cp.of} lessons done` : "Learn Schafkopf, from the rules", () => course.open()));
-  if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
+  const cp = progressOf("trumps", COURSE), schafkopf = tileNow() === "schafkopf";
+  if (schafkopf) {
+    play.append(action(cp.done ? `Learn Schafkopf: ${cp.done} of ${cp.of} lessons done` : "Learn Schafkopf, from the rules", () => course.open()));
+    if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
+  }
   play.append(action("The rules on one page", showRules, "link"));
   const content = part(body, "content");
-  content.append(choice("Game", [["jass", "Jass"], ["belote", "Belote"], ["coinche", "Coinche"], ["schafkopf", "Schafkopf"]], opts.game, v => { opts.game = v; saveOpts(); openMenu(); }));
+  content.append(choice("Game", [["jass", "Jass"], ["belote", "Belote"], ["coinche", "Coinche"], ["schafkopf", "Schafkopf"]], opts.game, v => {
+    // another tile's game is that tile (its own name, logo, figures and run); at a table the game applies from the next deal
+    if (tileOf(v) !== tileNow() && !page.atTable && !IN_FRAME) { opts.game = v; saveOpts(); location.href = `trumps.html?game=${v}`; return; }
+    opts.game = v; saveOpts(); openMenu();
+  }));
   const set = part(body, "settings"), o = opts[opts.game];
   set.append(view.choice(() => draw()));
   if (opts.game === "jass") {
@@ -660,22 +691,32 @@ function openMenu() {
     set.append(choice("Cards", [["drawn", "Simple"], ["pictures", "Bavarian"]], opts.look === "pictures" ? "pictures" : "drawn", v => { opts.look = v; saveOpts(); applyLook(); draw(); }));
   }
   set.append(toggle("Full screen", !!opts.full, on => { fullScreen(on); opts.full = on; saveOpts(); draw(); }));
-  const r = read(RECORD, { played: 0, won: 0 });
-  const rushBests = bestsLine(rush.bests()), about = part(body, "about");
+  const r = read(recordKey(), { played: 0, won: 0 });
+  const rushBests = schafkopf ? bestsLine(rush.bests()) : "", about = part(body, "about");
   about.append(line(r.played ? `Won ${r.won} of ${r.played} games.` : "No games finished yet."), ...(rushBests ? [line(rushBests)] : []));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
 // ---------- wiring ----------
-bindSwitcher($("appsBtn"), "trumps");
-document.querySelector(".tr-mark").innerHTML = APPS.find(a => a.id === "trumps")?.logo || "";
+bindSwitcher($("appsBtn"), tileOf(opts.game));
+/** The page wears its tile: Jass, Belote or Schafkopf, with that tile's logo; Learn is Schafkopf's course, the others' rules. */
+function wearTile() {
+  const t = tileNow();
+  if (t === wore) return;
+  wore = t;
+  $("trName").textContent = TILES[t].name;
+  document.title = TILES[t].name;
+  document.querySelector(".tr-mark").innerHTML = APPS.find(a => a.id === t)?.logo || "";
+  $("learnBtn").textContent = t === "schafkopf" ? "Learn" : "Rules";
+}
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("learnBtn").addEventListener("click", () => course.open());
+$("learnBtn").addEventListener("click", () => (tileNow() === "schafkopf" ? course.open() : showRules()));
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("whyClose").addEventListener("click", () => $("whyDlg").close());
 addEventListener("resize", () => fitTable());
 document.addEventListener("fullscreenchange", () => fitTable());
+wearTile();
 window.__trumps = { page, get view() { return V; }, opts, laufende, course, rush };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();

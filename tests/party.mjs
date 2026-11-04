@@ -128,7 +128,7 @@ async function voteFor(t, pick) { for (const u of [...t.state.alive]) await t.se
   const duo = readFileSync(new URL("../suite.js", import.meta.url), "utf8").match(/DUO_GAMES = \{([^}]*)\}/)[1];
   for (const e of ELSEWHERE) {
     const page = existsSync(new URL(`../${e.page}`, import.meta.url));
-    const tile = new RegExp(`id: "${e.id}",[^\\n]*logo:`).test(apps);
+    const tile = (e.tiles || [e.id]).every(t => new RegExp(`id: "${t}",[^\\n]*logo:`).test(apps));
     let fitsPage = true;
     if (e.kind === "table") {
       const { rules } = await import(`../${e.id}-rules.js`);

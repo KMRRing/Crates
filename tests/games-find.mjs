@@ -34,7 +34,7 @@ const BY_HAND = new Set(["party", "cue"]);       // Party's lobby for 2 to 24; C
 const off = [];
 for (const a of APPS) {
   if (!a.players || a.soon || BY_HAND.has(a.id)) continue;
-  const party = GAMES.find(g => g.id === a.id), e = ELSEWHERE.find(x => x.id === a.id);
+  const party = GAMES.find(g => g.id === a.id), e = ELSEWHERE.find(x => x.id === a.id || x.tiles?.includes(a.id));
   const want = party ? [typeof party.solo === "function" ? 1 : party.min, party.max] : e ? [1, e.max] : duo[a.id] || COOP_GAMES[a.id] || a.id === "glyph" ? [1, 2] : [1, 1];
   if (!same(a.players, want)) off.push(`${a.id} ${JSON.stringify(a.players)} not ${JSON.stringify(want)}`);
 }
