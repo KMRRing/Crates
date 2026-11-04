@@ -1,7 +1,10 @@
-// What Loom's page keeps: reading and writing what's saved, the sounds, the options and the dialog a finished cloth opens.
+// What the Cloth mode of Nonogram's page keeps: reading and writing what's saved, the sounds, the options and the dialog a finished cloth opens.
 import { IN_FRAME } from "./suite.js";
 
-export const $ = id => document.getElementById(id);
+// The cloth's parts share nonogram.html with the picture's, so the ones whose names Nonogram also uses carry a "cl" in front
+// there (clLine, clNextBtn); menuDlg is the page's one menu.
+const OWN = new Set(["line", "acts", "marker", "jobName", "jobNo", "jobStars", "clothHost", "doneDlg", "doneHead", "doneStars", "doneBody", "doneNote", "againBtn", "nextBtn"]);
+export const $ = id => document.getElementById(OWN.has(id) ? `cl${id[0].toUpperCase()}${id.slice(1)}` : id);
 export const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 /** Keeps a value; a partner's watching frame keeps nothing. */
 export const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };

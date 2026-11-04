@@ -419,7 +419,7 @@ export function createPlay(host) {
     SOUND.done();
     clearTimeout(doneTimer);
     doneTimer = setTimeout(showDone, 350);
-    roundOver("loom");
+    roundOver("nonogram");
   }
   function showDone() {
     const all = camp(), d = run.done, i = LEVELS.indexOf(lv), last = i === LEVELS.length - 1;

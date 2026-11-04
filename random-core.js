@@ -34,7 +34,7 @@ export const ROUNDS = {
   // Classics
   sudoku: "a grid solved",
   mines: "a field, cleared or blown up",
-  nonogram: "a picture finished, and named when naming is on",
+  nonogram: "a picture finished, and named when naming is on (in Cloth mode, a cloth woven)",
   hitori: "a puzzle solved",
   slitherlink: "a puzzle solved",
   masyu: "a puzzle solved",
@@ -63,7 +63,6 @@ export const ROUNDS = {
   settle: "a game over",
   drift: "a game over",
   slipway: "a part carved to a star, or an assembly that holds",
-  loom: "a cloth woven",
   loose: "a level of Loose cargo won, or stuck with nothing in hand that fits",
   reckoning: "a run over (the hearts gone)",
   // Board games, Cards & dice: a hand where the game is dealt hand by hand, else a game
