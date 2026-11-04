@@ -66,7 +66,7 @@ export const AKA = {
   bones: "dominoes tiles", factor: "factor island trading settlement", rack: "word tiles board", pegs: "cribbage", meld: "gin rummy",
   go: "weiqi baduk", tarot: "french tarot", solitaire: "patience klondike freecell", silo: "connect four four in a row",
   flank: "reversi", crown: "draughts checkers", ingot: "2048 sliding tiles",
-  heliograph: "mirror", shunt: "rail wagons", polder: "dyke windmill", topple: "dominoes hex", orrery: "match three planets",
+  asterism: "star battle two not touch stars regions", heliograph: "mirror", shunt: "rail wagons", polder: "dyke windmill", topple: "dominoes hex", orrery: "match three planets",
   netting: "obligations trading houses", settle: "tank farm parcels", slipway: "carving ship", loom: "weaving cloth",
   wine: "wine course grapes vintage sommelier champagne bordeaux burgundy rioja barolo tasting cellar", reckoning: "runner quay", landfall: "celestial navigation sextant stars constellations sailing", arthistory: "art history course painting sculpture architecture renaissance baroque impressionism cubism museum gallery", music: "music course theory ear training notes scales chords rhythm piano keyboard",navigation: "navigation course astrolabe sextant chronometer longitude tides compass chart", blend: "blender gasoline fuel specification", refinery: "refining crude distillation",
   speedfuels: "fuel pricing mental maths", baccarat: "casino punto banco", blackjack: "casino twenty-one pontoon",
