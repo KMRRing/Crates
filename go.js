@@ -6,6 +6,7 @@
 import { BLACK, WHITE, PASS, SIZES, MAX_HANDICAP, newGame, replay, isLegal, ptName, areaScore, result, groupAt, opp, neighbours } from "./go-rules.js";
 import { LEVELS, DEFAULT_LEVEL, levelOf, visitsFor } from "./go-levels.js";
 import { createBoard } from "./go-view.js";
+import { defaultIs3D } from "./mode3d.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { roundOver } from "./random.js";
@@ -15,14 +16,14 @@ import { waitMark } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const OPTS = "go:opts", RUN = "go:run", RECORD = "go:record";
+const OPTS = "go:opts", RUN = "go:run", RECORD = "go:record", VIEW = "go:view";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const NET = "g170-b6c96-s175395328-d26788732";
 
 // opts: the next game's choices. side: "b" or "w" (the colour you play) or "two" (two people on this phone).
-let opts = { size: 9, side: "b", level: DEFAULT_LEVEL, handicap: 0, confirm: true, estimate: false, ...read(OPTS, {}) };
+let opts = { size: 9, side: "b", level: DEFAULT_LEVEL, handicap: 0, confirm: true, estimate: false, click: true, ...read(OPTS, {}) };
 if (!SIZES.includes(opts.size)) opts.size = 9;
 if (!["b", "w", "two"].includes(opts.side)) opts.side = "b";
 if (!(opts.handicap === 0 || (opts.handicap >= 2 && opts.handicap <= MAX_HANDICAP))) opts.handicap = 0;
@@ -115,7 +116,7 @@ function applyHeld() {
   }
   play(out.move, true);
 }
-onPause(() => { paused = true; }, () => { paused = false; if (held) applyHeld(); });
+onPause(() => { paused = true; board3d?.hold(true); }, () => { paused = false; board3d?.hold(false); if (held) applyHeld(); });
 
 // ---------- a move ----------
 function why(pt) {
@@ -265,6 +266,34 @@ async function wantRead() {
 
 // ---------- the drawing ----------
 const board = createBoard($("board"), { onTap: tap });
+
+// ---------- 3D: the same game on a kaya board in a warm room (go-3d.js, loaded when first wanted) ----------
+// The view is the player's explicit choice (go:view, written only when they pick one) or else the suite's default (mode3d.js:
+// 3D unless the main menu's battery saver is on). A watching frame always draws flat. Where there is no WebGL, or the context
+// is lost, the flat board is drawn for this visit and the choice is left alone.
+let board3d = null, making3d = false, lost3d = false, in3d = false;
+const chosenView = () => { const v = read(VIEW, null); return v === "3d" || v === "2d" ? v : null; };
+const wants3d = () => !IN_FRAME && !lost3d && (chosenView() ?? (defaultIs3D() ? "3d" : "2d")) === "3d";
+async function applyView() {
+  const want = wants3d();
+  if (want && !board3d && !making3d) {
+    making3d = true;
+    $("stage").classList.add("is3d", "wait3d");                 // no flash of the flat board while three.js loads
+    try {
+      board3d = (await import("./go-3d.js")).createBoard3d($("board3d"), { onTap: tap, click: () => opts.click, onLost: () => { lost3d = true; toast("3D stopped working here: the flat board."); applyView(); } });
+      if (paused) board3d.hold(true);
+    } catch (e) { console.warn("Go: no 3D here.", e); lost3d = true; toast("This browser can't draw 3D: the flat board."); }
+    making3d = false;
+  }
+  in3d = want && !!board3d && !lost3d;
+  $("stage").classList.toggle("is3d", in3d || making3d);
+  $("stage").classList.toggle("wait3d", making3d);
+  $("board3d").hidden = !in3d;
+  board3d?.show(in3d);
+  if (run) draw();
+}
+const setView = v => { write(VIEW, v); applyView(); };
+addEventListener("settings:flat", () => { if (!chosenView()) applyView(); });
 function estimateBlack() {
   const e = run.est;
   if (!e || e.n !== run.game.moves.length || !R) return null;
@@ -278,8 +307,8 @@ function draw() {
   const deadSet = new Set(run.dead || []);
   let owner = null;
   if (run.phase !== "play" && !run.game.resigned) owner = areaScore(R.pos, deadSet).owner;
-  board.draw({
-    size: n, stones: R.pos.b, last: R.made.length && R.made.at(-1).pt >= 0 ? R.made.at(-1).pt : -1, ko: R.pos.ko, dead: deadSet, owner,
+  (in3d ? board3d : board).draw({
+    moves: run.game.moves.length, size: n, stones: R.pos.b, last: R.made.length && R.made.at(-1).pt >= 0 ? R.made.at(-1).pt : -1, ko: R.pos.ko, dead: deadSet, owner,
     estimate: opts.estimate && run.phase === "play" && est ? est.own : null, pending: humanToMove() ? pending : -1, toMove: R.pos.toMove,
     locked: IN_FRAME,
   });
@@ -359,6 +388,7 @@ function openMenu() {
     if (run && run.phase === "play" && run.game.moves.length > 8 && !(await sure("Start a new game? This one isn't finished.", { yes: "New game", no: "Keep playing" }))) return;
     startGame();
   }, "primary"));
+  play.append(action(in3d ? "Play in 2D" : "Play in 3D", () => setView(in3d ? "2d" : "3d"), "link"));
   play.append(action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Board", SIZES.map(s => [s, `${s}×${s}`]), opts.size, v => { opts.size = +v; saveOpts(); }));
@@ -371,6 +401,7 @@ function openMenu() {
   content.append(line("These apply from the next game. Komi is 7.5, or a half point with a handicap."));
   const set = part(body, "settings");
   set.append(toggle("Tap twice to play a stone", opts.confirm, on => { opts.confirm = on; pending = -1; saveOpts(); draw(); }));
+  if (in3d) set.append(toggle("Click of stones", opts.click, on => { opts.click = on; saveOpts(); }));
   set.append(toggle("Show who is ahead", opts.estimate, on => { opts.estimate = on; saveOpts(); draw(); wantRead(); }));
   const rec = read(RECORD, { played: 0, won: 0 }), st = read("go:streak", { now: 0, best: 0 });
   const about = part(body, "about");
@@ -389,5 +420,6 @@ $("aboutClose").addEventListener("click", () => $("aboutDlg").close());
 if (!IN_FRAME) startWorker();
 if (run) syncReplay();
 if (!run || !R) startGame(); else { draw(); if (!IN_FRAME && computerToMove()) think(); }
-window.__go = { get run() { return run; }, get R() { return R; }, opts, tap, startGame, get ready() { return ready; }, get dead() { return dead; } };
+applyView();
+window.__go = { get run() { return run; }, get R() { return R; }, opts, tap, startGame, get ready() { return ready; }, get dead() { return dead; }, get board3d() { return board3d; }, get in3d() { return in3d; } };
 void opp; void neighbours;
