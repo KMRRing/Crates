@@ -1,3 +1,7 @@
+// PARKED (4 November 2026, Korbi: "Let's park the 3d mode for now, but trust it's coming later and in detail."): the 3D map is kept
+// whole but not offered: pipes.js's MAP_ON turns it back on. It plays the OLD model (pipes-puzzle*.js: gears whose teeth show only on
+// the sides they mesh, arbors, reductions), which the flat board has left for whole gears (pipes-train*.js); before it returns it needs
+// redoing in that scheme (a stack of floors of single, duo and trio squares). Its saved keys pipes:map and pipes:mapstars are left alone.
 // Pipes, the 3D map: where the layers of a map sit on the screen. The map is drawn as a stack of flat plates (one per layer,
 // each the flat board's own picture), seen from above and turned by a finger: an orthographic camera, so a plate is just an
 // affine picture of its flat self (an SVG matrix) and a tap on it can be turned back into a square. Pure, so Node tests it.

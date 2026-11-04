@@ -1,3 +1,7 @@
+// PARKED (4 November 2026, Korbi: "Let's park the 3d mode for now, but trust it's coming later and in detail."): the 3D map is kept
+// whole but not offered: pipes.js's MAP_ON turns it back on. It plays the OLD model (pipes-puzzle*.js: gears whose teeth show only on
+// the sides they mesh, arbors, reductions), which the flat board has left for whole gears (pipes-train*.js); before it returns it needs
+// redoing in that scheme (a stack of floors of single, duo and trio squares). Its saved keys pipes:map and pipes:mapstars are left alone.
 // Pipes, the puzzle: the solver that proves a level has its answer (and how many). It runs the oil from the wellhead and,
 // at every empty square, tries each piece of the hand that takes the oil in, so every route it finds uses the hand
 // exactly, passes all the old pipe and the stakes in order, and ends in the terminal's inlet. Used by the generator

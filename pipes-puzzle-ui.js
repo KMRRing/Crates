@@ -1,3 +1,7 @@
+// PARKED (4 November 2026, Korbi: "Let's park the 3d mode for now, but trust it's coming later and in detail."): the 3D map is kept
+// whole but not offered: pipes.js's MAP_ON turns it back on. It plays the OLD model (pipes-puzzle*.js: gears whose teeth show only on
+// the sides they mesh, arbors, reductions), which the flat board has left for whole gears (pipes-train*.js); before it returns it needs
+// redoing in that scheme (a stack of floors of single, duo and trio squares). Its saved keys pipes:map and pipes:mapstars are left alone.
 // Gears, the puzzle, on the page (November 2026; Pipes until 4 November): the board of the level in hand, the hand of pieces to lay, the train's way as
 // it stands, the hint, the stars and the levels. The rules are pipes-puzzle.js's (pure) and the levels are
 // pipes-puzzle-levels.js; this file draws them into pipes.html's board, queue, status line and buttons, and keeps the
