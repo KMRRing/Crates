@@ -1,5 +1,5 @@
 // Asterism in space: the board as a pane of dark glass floating in deep space, each region a nebula of its own colour held
-// in a pale rule, a star an ignition (a bloom and a four-point flare) hovering over the glass, a dot a speck of dust.
+// in a pale rule, a star an ignition (a white-hot point in a bloom, a four-point flare as it lights) hovering over the glass, a dot a speck of dust.
 // One 2D canvas drawn by hand in perspective (the way Mines' Moon is, mines-3d.js): no WebGL, so nothing can lose a context
 // on an iPhone, and the same pixels on every device. The glass is a flat plane: each cell's nebula is a piece of one picture
 // made once a puzzle (`nebula`), laid on the cell's projected corners (an affine fit to three of them: a cell is small, so
@@ -116,6 +116,7 @@ export function createSpace(host, hooks = {}) {
   const radial = (size, stops) => sprite(size, (g, s) => { const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); for (const [o, col] of stops) gr.addColorStop(o, col); g.fillStyle = gr; g.fillRect(0, 0, s, s); });
   const BLOOM = radial(128, [[0, "rgba(255,246,226,1)"], [0.16, "rgba(236,208,146,.42)"], [0.5, "rgba(190,150,86,.11)"], [1, "rgba(170,130,70,0)"]]);
   const EMBER = radial(128, [[0, "rgba(226,170,150,.95)"], [0.18, "rgba(150,50,42,.5)"], [0.5, "rgba(104,30,28,.16)"], [1, "rgba(90,24,24,0)"]]);
+  const CORE = radial(64, [[0, "rgba(255,255,250,1)"], [0.22, "rgba(255,248,226,.9)"], [0.5, "rgba(244,222,166,.28)"], [1, "rgba(230,200,140,0)"]]);   // the tight white-hot halo round a star's core
   const SOFT = radial(48, [[0, "rgba(255,255,255,1)"], [0.35, "rgba(255,255,255,.3)"], [1, "rgba(255,255,255,0)"]]);
   const UNDER = radial(256, [[0, "rgba(86,100,150,.34)"], [0.45, "rgba(52,56,110,.12)"], [1, "rgba(30,30,80,0)"]]);
   const FLARE = sprite(128, (g, s) => {                  // a four-point flare: two thin streaks, a fainter pair on the diagonals
@@ -131,6 +132,16 @@ export function createSpace(host, hooks = {}) {
 
   // ---------- the sky: stars far and near, nebulae behind ----------
   let sky = null, mid = [], near = [];
+  /** A star: no glyph, a point of light. A tight halo, then a small white-hot disc (a conflict's is pale rose). */
+  function starCore(px, py, u, pop, isBad) {
+    const k = Math.max(0.01, pop), h = u * 0.5 * k;
+    ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = isBad ? 0.7 : 1;
+    ctx.drawImage(CORE, px - h, py - h, 2 * h, 2 * h);
+    ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(px, py, Math.max(1.6, u * 0.14 * k), 0, 6.2832);
+    ctx.fillStyle = isBad ? "#FFE6DE" : "#FFFFFF"; ctx.fill();
+  }
+
   function buildSky() {
     sky = document.createElement("canvas");
     sky.width = Math.round(W * dpr); sky.height = Math.round(H * dpr);
@@ -554,12 +565,7 @@ export function createSpace(host, hooks = {}) {
       ctx.globalAlpha = 0.8; ctx.drawImage(spr, px - bl, py - bl, 2 * bl, 2 * bl);
       if (flash > 0.03) { const fs = u * (0.8 + 1.1 * flash); ctx.globalAlpha = Math.min(1, flash); ctx.drawImage(FLARE, px - fs, py - fs, 2 * fs, 2 * fs); }
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
-      const rOut = u * 0.36 * Math.max(0.01, pop), rIn = rOut * 0.42;
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++) { const an = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? rIn : rOut, X = px + rad * Math.cos(an), Y = py + rad * Math.sin(an); if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }
-      ctx.closePath();
-      ctx.fillStyle = isBad ? "#D9A596" : "#F6EBCB"; ctx.fill();
-      ctx.lineWidth = Math.max(1, u * 0.05); ctx.strokeStyle = isBad ? "#8E2F2A" : "#B8933F"; ctx.lineJoin = "round"; ctx.stroke();
+      starCore(px, py, u, pop, isBad);
       if (isBad) {
         ctx.beginPath(); ctx.arc(px, py, u * (0.5 + 0.06 * pulse), 0, 6.2832);
         ctx.strokeStyle = `rgba(190,80,68,${(0.7 + 0.3 * pulse).toFixed(2)})`; ctx.lineWidth = Math.max(1.4, u * 0.07); ctx.setLineDash([u * 0.16, u * 0.1]); ctx.stroke(); ctx.setLineDash([]);
@@ -744,16 +750,7 @@ export function createSpace(host, hooks = {}) {
       const fl = flash;
       if (fl > 0.03) { const fs = u * (0.8 + 1.1 * fl); ctx.globalAlpha = Math.min(1, fl); ctx.drawImage(FLARE, p[0] - fs, p[1] - fs, 2 * fs, 2 * fs); }
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
-      const rOut = u * 0.36 * Math.max(0.01, pop), rIn = rOut * 0.42;       // the star itself, upright to the eye
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const an = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? rIn : rOut;
-        const X = p[0] + rad * Math.cos(an), Y = p[1] + rad * Math.sin(an);
-        if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
-      }
-      ctx.closePath();
-      ctx.fillStyle = isBad ? "#D9A596" : "#F6EBCB"; ctx.fill();
-      ctx.lineWidth = Math.max(1, u * 0.05); ctx.strokeStyle = isBad ? "#8E2F2A" : "#B8933F"; ctx.lineJoin = "round"; ctx.stroke();
+      starCore(p[0], p[1], u, pop, isBad);
       if (isBad) {                                                     // a ring: a conflict is seen without colour
         ctx.beginPath(); ctx.arc(p[0], p[1], u * (0.5 + 0.06 * pulse), 0, 6.2832);
         ctx.strokeStyle = `rgba(190,80,68,${(0.7 + 0.3 * pulse).toFixed(2)})`; ctx.lineWidth = Math.max(1.4, u * 0.07); ctx.setLineDash([u * 0.16, u * 0.1]); ctx.stroke(); ctx.setLineDash([]);
