@@ -7,8 +7,8 @@ import { seeded, mix } from "./seats.js";
 
 export const DIE = 1;
 export const FELT = { w: 11, d: 8.4 };
-export const SCATTER = { x0: -3.5, x1: 3.5, z0: -2.2, z1: 0.7 };            // where rolled dice may come to rest
-export const ROW_Z = 2.75;                                                   // the held dice's row, near the player
+export const SCATTER = { x0: -3.5, x1: 3.5, z0: -2.5, z1: 1.0 };            // where rolled dice may come to rest
+export const ROW_Z = 2.5;                                                    // the held dice's row, near the player
 export const GAP = 1.2;                                                      // between neighbours in the row
 
 /** The place of die i in the held row. */

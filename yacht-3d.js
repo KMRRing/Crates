@@ -11,7 +11,7 @@ import { DIE, FELT, ROW_Z, SCATTER, GAP, heldSpot, scatterSpots, keyNumber, FACE
 
 const PCF = 1;                                                              // THREE.PCFShadowMap (the soft one is not in the bundle)
 const NEAR = 1, FAR = 120, FOV = 30 * Math.PI / 180, ELEV = 54 * Math.PI / 180, TARGET_Z = 0.3;
-const FIT = [[-4.1, 0, -3.0], [4.1, 0, -3.0], [-4.1, 0, 3.4], [4.1, 0, 3.4], [-4.1, 1.2, -3.0], [4.1, 1.2, -3.0]];   // what the camera must keep in view
+const FIT = [[-4.1, 0, -3.2], [4.1, 0, -3.2], [-4.1, 0, 3.15], [4.1, 0, 3.15], [-4.1, 1.2, -3.2], [4.1, 1.2, -3.2]];   // what the camera must keep in view
 const clamp01 = u => Math.max(0, Math.min(1, u));
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
