@@ -4,7 +4,7 @@
 // canvas by mines-draw.js, or turned on the Moon, in space, by mines-3d.js. This file keeps the run, the clock, the
 // fingers and the company: a computer partner (mines-bot.js), and at a table (duel.js) a race on one field
 // or one field for a team whose numbers are shared out among its players (mines-team.js).
-import { SHAPES, TILINGS, BODIES, SIZES, LEVELS, HINT, settingsOf, describe, deal, daily, weekdayOf, WEEK, WEEKDAYS, newRun, dig, flag,
+import { SHAPES, SIZES, LEVELS, HINT, settingsOf, describe, deal, daily, weekdayOf, WEEK, WEEKDAYS, newRun, dig, flag,
   chord, score, minesLeft, safeLeft, started, hint, readerOf, isFlag, isSolid, OPEN, STRUCK } from "./mines-engine.js";
 import { createView } from "./mines-draw.js";
 import { createSolidView } from "./mines-3d.js";
@@ -13,16 +13,15 @@ import { teamMove, teamField, teamScore, readers, PING_MS } from "./mines-team.j
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { dropdown } from "./dropdown.js";
-import { part, choice, toggle, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { ramp } from "./ramp.js";
+import { part, choice, toggle, action, line, todayPart, onPause, isPaused } from "./menu.js";
 import { sure } from "./sure.js";
-import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
+import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo, markOf } from "./suite.js";
+import { markDone } from "./today-core.js";
 import { roundOver } from "./random.js";
 import { createDuel } from "./duel.js";
 import { branchPath } from "./rooms.js";
 import { busy } from "./loading.js";
-
-dropdown(document.getElementById("size"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
 const DAYLOST = "mines:daylost";    // today's field, lost to a mine: its run is kept so the day can't be played again
@@ -39,22 +38,23 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`; };
 
 // ---------- what the player chose ----------
-const COMPUTER = { off: "Off", partner: "Partner" };         // "rival" (racing you) was dropped: old saves read as off
+// Korbi, 4 November 2026: "the menu is the minimum it needs to be". The Shape choice lists the flat tilings and then the solids
+// labelled 3D (his words: "instead of having a 3D toggle just add two more options in the previous setting and label them
+// '3D'"); size and level are one hidden ramp; the computer is one partner toggle at a fixed pace.
 const MODES = { race: "Race", team: "One team" };
-// shape is the flat tiling (squares or hexes), solid the 3D switch and body the solid it turns to (the cube, the
-// rhombicuboctahedron, the football): the field is the body when 3D is on, else the tiling
-const prefs = { tool: "dig", shape: "square", solid: false, body: "cube", size: "small", level: "medium", computer: "off", pace: "quick", together: "team", ...read(PREFS, {}) };
+const MENU_SHAPES = ["square", "hex", "cube", "football"];     // the rhombicuboctahedron is played from a link or a kept field, not chosen
+const SHAPE_NAMES = { square: "Squares", hex: "Hexes", cube: "Cube 3D", football: "Football 3D" };
+const kept = read(PREFS, {});
+const prefs = { tool: ["dig", "flag", "point"].includes(kept.tool) ? kept.tool : "dig", computer: kept.computer === "partner" ? "partner" : "off", pace: "quick",
+  together: MODES[kept.together] ? kept.together : "team",
+  // the old choice: a flat tiling, or with 3D on the body (the rhombicuboctahedron went with the menu, to the cube)
+  shape: (() => { const f = kept.solid === true ? (kept.body === "football" ? "football" : "cube") : kept.shape; return MENU_SHAPES.includes(f) ? f : "square"; })() };
 const savePrefs = () => write(PREFS, prefs);
-const chosenShape = () => (prefs.solid ? prefs.body : prefs.shape);
-if (!TILINGS.includes(prefs.shape)) prefs.shape = "square";   // triangles were dropped (4 November 2026)
-if (!BODIES.includes(prefs.body)) prefs.body = "cube";
-prefs.solid = prefs.solid === true;
-if (!SIZES[prefs.size]) prefs.size = "small";
-if (!LEVELS[prefs.level]) prefs.level = "medium";
-if (!COMPUTER[prefs.computer]) prefs.computer = "off";
-if (!MODES[prefs.together]) prefs.together = "team";
-prefs.pace = paceOf(prefs.pace);
-$("size").value = prefs.size;
+// The ramp's steps, easiest first: size then level, the hardest last. The first rung is the old saved size and level (or the nearest).
+const STEPS = ["small.easy", "small.medium", "medium.easy", "medium.medium", "medium.hard", "large.medium", "large.hard"];
+const [oldSize, oldLevel] = [kept.size ?? "small", kept.level ?? "medium"];
+const START = [`${oldSize}.${oldLevel}`, ...STEPS.filter(x => x.endsWith(`.${oldLevel}`)), ...STEPS.filter(x => x.startsWith(`${oldSize}.`))].find(x => STEPS.includes(x));
+const stepNow = () => { const [size, level] = ramp("mines", STEPS, { start: START }).split("."); return { size, level }; };
 
 // ---------- the game on screen ----------
 // G: { kind ("solo", "race" or "team"), f (the field), run ({ cells, hints, ms, done, won, lost }), seed,
@@ -163,7 +163,6 @@ async function begin(s, kept = null, { kind = "solo", begun = null, n = null } =
   if (G.run.cells.includes(STRUCK) && !G.run.done) { G.run.done = true; G.run.lost = true; }
   delete G.run.strikes;
   message = null; shownHint = null; focus = -1;
-  $("size").value = G.size;
   const saved = read(VIEW, null);
   useView(f.shape);
   view.setField(f, saved?.key === fieldKey() ? saved : "comfort");
@@ -176,7 +175,7 @@ async function begin(s, kept = null, { kind = "solo", begun = null, n = null } =
 }
 const fieldKey = () => (G ? `${G.kind}|${G.seed}|${G.shape}|${G.size}|${G.level}` : "");
 function start(mode, o = {}) {
-  const d = mode === "daily" ? { ...daily(today()), seed: today() } : { shape: chosenShape(), size: $("size").value, level: prefs.level, seed: randomSeed() };
+  const d = mode === "daily" ? { ...daily(today()), seed: today() } : { shape: prefs.shape, ...stepNow(), seed: randomSeed() };
   return begin({ ...d, mode, computer: prefs.computer, pace: prefs.pace, ...o });
 }
 
@@ -320,6 +319,9 @@ function finish() {
   else if (clockFrom != null) { r.ms += performance.now() - clockFrom; clockFrom = null; }
   bot.stop();
   if (G.kind === "race") { tell(true); save(); return; }
+  if (G.mode === "random" && G.computer === "off" && `${G.size}.${G.level}` === Object.values(stepNow()).join(".")) {   // the ramp: up after a clean clear, down after a mine
+    if (r.won) ramp.won(r.hints === 0); else if (r.lost) ramp.lost();
+  }
   if (r.won) {
     const sc = score(r);
     G.fresh = recordBest(sc);
@@ -380,7 +382,7 @@ const bot = (() => {
 const byResult = (a, b) => (!!a.lost - !!b.lost) || (a.done && b.done ? a.score - b.score : (b.done ? 1 : 0) - (a.done ? 1 : 0)) || ((a.ms ?? Infinity) - (b.ms ?? Infinity)) || 0;
 const duel = createDuel({
   game: "mines", name: "Mines", accent: "--mn-in", line: $("rival"), toast, lower: true, compare: byResult,
-  deal: () => ({ seed: randomSeed(), shape: chosenShape(), size: SIZES[$("size").value] ? $("size").value : "small", level: prefs.level, mode: prefs.together }),
+  deal: () => ({ seed: randomSeed(), shape: prefs.shape, ...stepNow(), mode: prefs.together }),
   describe: m => `${describe(m)}, a mine ends it: ${m.mode === "team" ? "one field for the table, each of you reading part of its numbers" : "the same field for everyone, the fastest clear wins"}`,
   play: (match, { begun, kept, n }) => {
     const s = { ...settingsOf(match), seed: match.seed, mode: "random" };
@@ -587,22 +589,19 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
-// Play (a new field as chosen), Content (random or today's; the shape, size and level), Together (a match's own),
-// Settings (the computer, what a mine costs), About (your best here, a link)
-let pick = null;                    // the field the menu will start: "random" or "daily"
+// Play (a new field, today's), Content (the shape), Together (a match's own), Settings (the computer partner), About (your best here, a link)
 let menuNote = "";                  // what a setting just changed says (that it waits for the next field)
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  // the field's own choices deal a new one at once, as the size does (a match: the next one, for everyone); the
-  // settings take a field not yet begun at once, else the next
-  const chosen = (key, v) => {
-    prefs[key] = v; savePrefs();
+  // the shape deals a new field at once (a match: the next one, for everyone); the partner takes a field not yet begun at once, else the next
+  const chooseShape = v => {
+    prefs.shape = v; savePrefs();
     $("menuDlg").close();
     if (duel.on) duel.newMatch(); else confirmStart("random");
   };
-  const setting = (key, v) => {
-    prefs[key] = v; savePrefs();
+  const setPartner = on => {
+    prefs.computer = on ? "partner" : "off"; savePrefs();
     if (G && solo() && !started(G.f, G.run.cells)) {
       begin({ seed: G.seed, mode: G.mode, shape: G.shape, size: G.size, level: G.level, computer: prefs.computer, pace: prefs.pace });
       menuNote = "";
@@ -611,12 +610,8 @@ function openMenu() {
   };
   const settingsNote = line(menuNote);
   settingsNote.hidden = !menuNote;
-  // the field's shape: a flat tiling, or with 3D on one of the three solids (the Moon, in space)
-  const shapeChoices = () => [prefs.solid
-    ? choice("Solid", BODIES.map(k => [k, SHAPES[k].short || SHAPES[k].label]), prefs.body, v => chosen("body", v))
-    : choice("Shape", TILINGS.map(k => [k, SHAPES[k].label]), prefs.shape, v => chosen("shape", v)),
-  toggle("3D", prefs.solid, on => chosen("solid", on))];
-  const levelChoice = () => choice("Level", Object.entries(LEVELS).map(([k, v]) => [k, v.label]), prefs.level, v => chosen("level", v));
+  // the field's shape: a flat tiling, or a solid on the Moon, in space (labelled 3D)
+  const shapeChoice = () => choice("Shape", MENU_SHAPES.map(k => [k, SHAPE_NAMES[k]]), prefs.shape, chooseShape);
   if (duel.on) {                    // a match: the table's own, and what the next one deals
     const together = part(body, "together");
     if (G?.kind === "team") {
@@ -628,20 +623,15 @@ function openMenu() {
     together.append(choice("Next", Object.entries(MODES), prefs.together, v => { prefs.together = v; savePrefs(); }),
       line(prefs.together === "team" ? "One field for the table: each of you reads the numbers on your own cells." : "The same field for everyone: the fastest clear wins."));
     part(body, "play").append(action("The rules", showRules, "link"));
-    part(body, "content").append(...shapeChoices(), mirror("Size", $("size")), levelChoice());
+    part(body, "content").append(shapeChoice());
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
-  pick ??= G?.mode === "daily" ? "daily" : "random";
-  part(body, "play").append(action("New field", () => confirmStart(pick), "primary"), action("The rules", showRules, "link"));
-  const content = part(body, "content");
-  content.append(choice("Field", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") content.append(...shapeChoices(), mirror("Size", $("size")), levelChoice());
-  else { const d = daily(today()); content.append(line(`Today's is ${weekdayOf(today())}'s: ${describe(d).toLowerCase()}, the same for everyone.`)); }
-  const settings = part(body, "settings");
-  settings.append(choice("Computer", Object.entries(COMPUTER), prefs.computer, v => setting("computer", v)));
-  if (prefs.computer !== "off") settings.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), prefs.pace, v => setting("pace", v)));
-  settings.append(settingsNote);
+  const daily0 = G?.mode === "daily" && !G.run.done;
+  part(body, "play").append(action("New field", () => confirmStart("random"), daily0 || markDone(markOf("mines")) ? "primary" : ""), action("The rules", showRules, "link"));
+  todayPart(body, { app: "mines", play: () => start("daily"), playing: daily0, busy: begunHere() && G.mode !== "daily" });
+  part(body, "content").append(shapeChoice());
+  part(body, "settings").append(toggle("Computer partner", prefs.computer === "partner", setPartner), settingsNote);
   const best = G ? read(TIMES, {})[keyOf(G)] : null;
   part(body, "about").append(
     line(G ? `${describe(G)}${G.computer === "partner" ? ", with the computer" : ""}: ${best != null ? `best ${fmt(best)}` : "not cleared yet"}. A mine ends the field; a hint costs ${HINT} s.` : ""),
@@ -661,17 +651,16 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>Open every cell of the field that hides no mine. The field is cleared the moment the last safe cell is open: you never have to mark the mines themselves. Every field can be cleared by reasoning alone, without a guess.</p>
     <h4>The rules</h4>
-    <p>A cell you dig shows how many of the cells touching it hide a mine. A cell with none round it shows nothing and opens its neighbours by itself, and theirs, so one dig can open a whole patch. Which cells touch depends on the shape (Shape, in the menu):</p>
+    <p>A cell you dig shows how many of the cells touching it hide a mine. A cell with none round it shows nothing and opens its neighbours by itself, and theirs, so one dig can open a whole patch. Which cells touch depends on the shape (the menu's Shape):</p>
     <ul>
       <li><b>Squares</b>: the eight round a cell, along its sides and at its corners.</li>
       <li><b>Hexes</b>: the six round a hexagon.</li>
     </ul>
     <p><b>An example.</b> A 1 with a single hidden cell next to it: that cell is the mine. A 1 whose mine is already found: every other hidden cell round it is safe. Along a wall of hidden cells, 1 2 1: the cells facing the two 1s are mines, the one facing the 2 is safe.</p>
     <h4>In 3D</h4>
-    <p>The menu's 3D switch plays on the Moon, in space: the field is a shape on a sphere, so it has no edge. Its faces are cut into smaller cells (more cuts, a larger size) and pressed out onto the sphere, so a cell can be slightly bent. A cell touches every cell it shares a corner with. Drag to turn it, flick it and it spins on, pinch to come closer.</p>
+    <p>The menu's Shape options labelled 3D play on the Moon, in space: the field is a shape on a sphere, so it has no edge. Its faces are cut into smaller cells (more cuts, a larger size) and pressed out onto the sphere, so a cell can be slightly bent. A cell touches every cell it shares a corner with. Drag to turn it, flick it and it spins on, pinch to come closer.</p>
     <ul>
       <li><b>The cube</b>: a square touches every square it meets, across the cube's edges too, as if the next face were laid flat beside its own. At the cube's eight corners only three faces meet, so a corner cell touches seven: three on its own face and two on each of the others.</li>
-      <li><b>The rhombicuboctahedron</b>: 18 squares and 8 triangles, all the same edge, each cut into smaller squares and triangles. A square touches about eight or nine cells; a triangle at a corner where several meet, more, up to twelve.</li>
       <li><b>The football</b>: a football's pattern of pentagons among hexagons (the truncated icosahedron, finely cut): exactly twelve pentagons, which touch five cells, among hexagons, which touch six.</li>
     </ul>
     <h4>Playing</h4>
@@ -680,7 +669,7 @@ function showRules() {
     <p>Hint (+${HINT}&nbsp;s) rings what the open numbers prove next, green a safe cell and red a mine, and in blue the numbers that prove it; it never trusts your flags, so it also finds a wrong one.</p>
     <p><b>A mine dug ends the field</b>, lost, with no time added: every mine is shown, the wrongly flagged cells crossed, and the field can't be taken up again. Since every field can be cleared without a guess, it's always your own mistake, or a wrong flag under a number you worked. At a table, the player who digs a mine ends the team's field for everyone, and in a race puts only themselves out (the others play on).</p>
     <h4>Levels</h4>
-    <p>Small, Medium and Large are the field's size. Easy, Medium and Hard are how much reasoning it takes, as Codex's solver measures it, with more mines as it rises. Easy: one number at a time. Medium: two numbers together (a 1-1, a 1-2-1; where one number's mines are all inside another's). Hard: also a group of numbers worked through ("if this were a mine, then…") or the count of mines left; a Large Hard field needs one of those at least twice. None ever needs a guess. A flat field is hardest at its edges and corners, where mines hide behind the border; a solid has none, so it carries more mines for the same level.</p>
+    <p>The size (Small, Medium, Large) and the level (Easy, Medium, Hard) grow with you, one step after each field cleared without a hint and back one after a mine. Level is how much reasoning a field takes, as Codex's solver measures it, with more mines as it rises. Easy: one number at a time. Medium: two numbers together (a 1-1, a 1-2-1; where one number's mines are all inside another's). Hard: also a group of numbers worked through ("if this were a mine, then…") or the count of mines left; a Large Hard field needs one of those at least twice. None ever needs a guess. A flat field is hardest at its edges and corners, where mines hide behind the border; a solid has none, so it carries more mines for the same level.</p>
     <h4>Score</h4>
     <p>Your time, plus ${HINT} seconds for every hint; lower is better. Only a cleared field has a score, and only it can be a best. The clock starts with your first dig and stops while the menu, these rules or the games screen is open. Every kind of field keeps its own best, flat or 3D.</p>
     <h4>Today's field</h4>
@@ -786,12 +775,6 @@ $("nextBtn").addEventListener("click", () => {
   if (G?.kind === "team") duel.again();
   else if (G?.kind === "race") duel.open();
   else start(G?.mode === "daily" ? "random" : G?.mode || "random");
-});
-$("size").addEventListener("change", async () => {
-  prefs.size = $("size").value; savePrefs();
-  if (duel.on) { if (!(await duel.newMatch())) $("size").value = duel.match?.size || "small"; return; }   // a new match at that size, for everyone
-  if (G && $("size").value === G.size && G.mode !== "daily") return;
-  if (!(await confirmStart("random"))) $("size").value = G?.size || "small";
 });
 for (const b of $("tools").querySelectorAll("[data-tool]")) b.addEventListener("click", () => { prefs.tool = b.dataset.tool; savePrefs(); message = null; render(); });
 $("hintBtn").addEventListener("click", useHint);
