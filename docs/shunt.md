@@ -3,6 +3,7 @@
 Gears shoved onto a hex plate (radius 2, 19 cells, 30 rim levers). Meshed gears form trains; an odd loop jams.
 
 - 4 Nov 2026, Korbi: "new shunt is incredible, maybe a bit too difficult, so the earlier levels will need to do a bit of handholding. same idea: random - levels - daily. Do make it a lot prettier, we're going max 3d beautiful tinkers workshop here".
+- 4 Nov 2026, Korbi: "jewels should be jewel coloured": a ruby in both views, dull until its train turns.
 
 Traps:
 - A run is the level plus its integer moves (-1 swap, 0..29 shove), replayed by `play()`; never store a board. Levels carry a stored beam line `sol` that `tests/shunt.mjs` replays: change a rule and regenerate them.

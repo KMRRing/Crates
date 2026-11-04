@@ -120,8 +120,9 @@ function gearMarkup(x, y, c, o = {}) {
   return `${s}</g>`;
 }
 function gemMarkup(x, y, size, lit) {
-  const s = size;
-  return `<g transform="translate(${f(x)} ${f(y)})">${lit ? `<circle r="${f(s * 1.5)}" fill="#FFB8A8" opacity=".35" data-glow="1"/>` : ""}<path d="M0 ${-s}L${f(s * 0.85)} ${f(-s * 0.2)}L0 ${s}L${f(-s * 0.85)} ${f(-s * 0.2)}Z" fill="${lit ? "url(#sh-gem)" : "none"}" stroke="${lit ? "#4a0f0a" : "var(--sh-edge)"}" stroke-width="${lit ? 1 : 1.3}" stroke-opacity="${lit ? 0.9 : 0.7}" ${lit ? "" : 'stroke-dasharray="3 2"'}/>${lit ? `<path d="M${f(-s * 0.85)} ${f(-s * 0.2)}H${f(s * 0.85)}M0 ${-s}L${f(-s * 0.3)} ${f(-s * 0.2)}L0 ${s}M0 ${-s}L${f(s * 0.3)} ${f(-s * 0.2)}L0 ${s}" stroke="#fff" stroke-opacity=".45" stroke-width=".7" fill="none"/>` : ""}</g>`;
+  // always a ruby: unlit it is set dull in its socket, lit it glows (Korbi, 4 November 2026: "jewels should be jewel coloured")
+  const s = size, facets = `M${f(-s * 0.85)} ${f(-s * 0.2)}H${f(s * 0.85)}M0 ${-s}L${f(-s * 0.3)} ${f(-s * 0.2)}L0 ${s}M0 ${-s}L${f(s * 0.3)} ${f(-s * 0.2)}L0 ${s}`;
+  return `<g transform="translate(${f(x)} ${f(y)})">${lit ? `<circle r="${f(s * 1.5)}" fill="#FFB8A8" opacity=".35" data-glow="1"/>` : ""}<path d="M0 ${-s}L${f(s * 0.85)} ${f(-s * 0.2)}L0 ${s}L${f(-s * 0.85)} ${f(-s * 0.2)}Z" fill="url(#sh-gem)" fill-opacity="${lit ? 1 : 0.6}" stroke="#4a0f0a" stroke-width="1" stroke-opacity=".9"/><path d="${facets}" stroke="#fff" stroke-opacity="${lit ? 0.45 : 0.25}" stroke-width=".7" fill="none"/></g>`;
 }
 /** A lever at its place: a slot in the rim, a brass lever in it pointing the way the gear travels. */
 function leverMarkup(l, mode) {
