@@ -91,17 +91,18 @@ function arrival(S, z) {
 function laneFares(S, cells, L, flip, token, t) {
   const probe = { flip, token, t };
   let cost = 0, gain = 0, out = L, nflip = flip, ntoken = token;
+  const kill = S.goal.kind === "kills" ? 1.2 : 0;                  // when foes are what is counted, a cut is worth going for
   const crabs = [-1, 0, 1].filter(l => cells[l + 1].some(f => f.kind === "crab"));
   const mine = crabs.includes(L);
   const near = crabs.filter(l => Math.abs(l - L) === 1);
   let eff = L;
-  if (!mine && near.length === 1) { eff = near[0]; out = eff; cost += 0.4; }       // it is cut as it comes, and I am in its lane
+  if (!mine && near.length === 1) { eff = near[0]; out = eff; cost += 0.4 - kill; }       // it is cut as it comes, and I am in its lane
   else if (near.length >= 1 && (mine || near.length > 1)) cost += BIG;               // one cut cannot answer two
   for (const it of cells[eff + 1]) {
     if (it.y0 !== undefined) {
       const margin = it.kind === "tide" ? [-0.2, 0, 0.2] : [0];
       if (margin.some(m => solid({ ...probe, t: t + m }, it))) cost += it.kind === "barrel" || it.kind === "beam" ? 0.2 : BIG;
-    } else if (it.kind === "crab") cost += it.heavy ? 0.6 : 0.3;
+    } else if (it.kind === "crab") cost += (it.heavy ? 0.6 : 0.3) - kill;
     else if (it.taken === false) {
       if (it.kind === "lever") nflip ^= 1;
       else if (it.kind === "token") ntoken = it.mark;
@@ -187,15 +188,21 @@ export function rowBot(S, st) {
   return false;
 }
 
+/** One tick of the right bot: the old one near a gate, a wall or a gap with gulls over it, the rows' bot elsewhere. */
+export function botStep(S, st) {
+  const z = S.hero.z, W = S.world;
+  const old = W.gates.some(g => g.state === "open" && g.p0 - z < 60) || W.walls.some(w => w.z1 > z && w.z0 - z < 40) || W.pits.some(p => !p.gap && p.z1 > z && p.z0 - z < 40);
+  return old ? bot(S, st) : rowBot(S, st);
+}
+
 /** Plays a section from its start with the rows' bot, and the old one for the pieces of the old quay; returns the run. */
 export function playSection(def, { seed = 3, deal = null, launch = true, limit = 200000 } = {}) {
   const S = newGame({ seed, deal, launch, section: def });
   const st = { next: 0, slamAfter: 0 };
   const DT = 1 / 120;
   let steps = 0;
-  const old = () => S.world.gates.some(g => g.state === "open" && g.p0 - S.hero.z < 60) || S.world.walls.some(w => w.z1 > S.hero.z && w.z0 - S.hero.z < 40) || S.world.pits.some(p => !p.gap && p.z1 > S.hero.z && p.z0 - S.hero.z < 40);
   while (!S.over && steps++ < limit) {
-    if (old()) bot(S, st); else rowBot(S, st);
+    botStep(S, st);
     step(S, DT);
     if (process.env.COURIER_DEBUG) for (const e of S.ev) if (["hurt", "fall", "clang", "seized"].includes(e.type)) console.log(`   sec ${def.id} t=${S.t.toFixed(2)} z=${S.hero.z.toFixed(1)} ${e.type} lane=${S.hero.lane} y=${S.hero.y.toFixed(2)} swipes ${(st.log || []).join(" ")}`);
     S.ev.length = 0;

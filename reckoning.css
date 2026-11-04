@@ -25,9 +25,12 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
 .rk-hearts { display: inline-flex; gap: .2rem; min-width: 4.4rem; font-size: 1.15rem; line-height: 1; }
 .rk-heart { color: var(--rk-bad); }
 .rk-heart.gone { color: color-mix(in srgb, var(--ink-soft) 55%, transparent); }
-.rk-score { margin-left: auto; font-size: .95rem; color: var(--ink); text-shadow: 0 0 .35rem var(--sheet), 0 0 .35rem var(--sheet); }
+.rk-goal { order: 1; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: .75rem; font-weight: 700; color: var(--ink);
+  text-shadow: 0 0 .35rem var(--sheet), 0 0 .35rem var(--sheet); }
+.rk-goal[hidden] { display: none; }
+.rk-score { order: 2; margin-left: auto; font-size: .95rem; color: var(--ink); text-shadow: 0 0 .35rem var(--sheet), 0 0 .35rem var(--sheet); }
 .rk-score b { font-size: 1.2rem; font-weight: 800; }
-.rk-combo { min-width: 2.6rem; padding: .1rem .4rem; border-radius: 4px; font-size: .8rem; font-weight: 800; text-align: center; visibility: hidden;
+.rk-combo { order: 3; min-width: 2.6rem; padding: .1rem .4rem; border-radius: 4px; font-size: .8rem; font-weight: 800; text-align: center; visibility: hidden;
   background: var(--rk-in); color: var(--on-c); }
 .rk-combo.on { visibility: visible; }
 .rk-toast { position: absolute; left: 0; right: 0; top: 22%; margin: 0; text-align: center; font-weight: 800; font-size: 1.15rem; pointer-events: none; opacity: 0;
@@ -54,14 +57,19 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
 .rk-card.here { box-shadow: 0 0 0 2px var(--brass); }
 
 /* the run is over: a sheet over the quay */
-.rk-result { position: absolute; inset: .6rem; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: .5rem; padding: .7rem; border: 1px solid var(--brass);
+.rk-result { position: absolute; inset: auto .6rem .6rem; max-height: calc(100% - 1.2rem); display: grid; grid-template-rows: auto minmax(0, auto) auto; gap: .5rem; padding: .7rem; border: 1px solid var(--brass);
   border-radius: 6px; background: var(--sheet); }
 .rk-result[hidden] { display: none; }
-.rk-verdict { margin: 0; font-size: .9rem; font-weight: 700; color: var(--ink); }
+.rk-verdict { margin: 0; display: grid; gap: .2rem; font-size: .85rem; font-weight: 600; color: var(--ink); }
+.rk-verdict b { font-size: .95rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
+.rk-big { font-size: 1.6rem; letter-spacing: .12em; color: var(--rk-in); line-height: 1.2; }
+.rk-missed[hidden] { display: none; }
 .rk-missed { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; align-content: start; font-size: .78rem; color: var(--ink-soft); }
 .rk-missed li { padding: .3rem .45rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--yard); line-height: 1.25; }
 .rk-missed b { color: var(--ink); font-weight: 700; }
-.rk-acts { display: grid; grid-template-columns: auto 1fr; gap: .5rem; }
+.rk-acts { display: flex; gap: .5rem; }
+.rk-acts .rk-go { flex: 1; }
+.rk-acts [hidden] { display: none; }
 .rk-alt { min-height: 2.6rem; padding: 0 .9rem; border: 1px solid var(--brass); border-radius: 5px; background: transparent; color: var(--ink); font: inherit; font-weight: 700;
   font-size: .85rem; cursor: pointer; }
 .rk-go { min-height: 2.6rem; border: 0; border-radius: 5px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 800;
@@ -83,3 +91,15 @@ html[data-mode="night"] { --rk-good: #7FC2A8; --rk-bad: #E8806F; }
 .rk-log-text { display: block; width: 100%; box-sizing: border-box; height: min(52vh, 26rem); padding: .5rem; border: 1px solid var(--rule); border-radius: 5px;
   background: var(--yard); color: var(--ink); font: .7rem/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; resize: none; white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; }
 .rk-log-acts { display: flex; justify-content: flex-end; margin-top: .5rem; }
+
+/* the sections in the menu: a grid, each with its number, name, place and stars; the one to play is outlined, a locked one is dimmed */
+.rk-secs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; margin: .5rem 0; }
+.rk-secs button { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "n name" "n place" "n stars"; column-gap: .5rem; align-items: center; padding: .35rem .5rem; border: 1px solid var(--rule); border-radius: 5px;
+  background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.rk-secs button:disabled { opacity: .42; cursor: default; }
+.rk-secs button.done { background: var(--rk-soft); }
+.rk-secs button[aria-current] { border-color: var(--rk-in); box-shadow: inset 0 0 0 1.5px var(--rk-in); }
+.rk-sn { grid-area: n; font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 1.5rem; text-align: center; }
+.rk-sname { grid-area: name; font-size: .8rem; font-weight: 750; line-height: 1.15; overflow-wrap: anywhere; }
+.rk-splace { grid-area: place; font-size: .7rem; color: var(--ink-soft); line-height: 1.2; }
+.rk-sstars { grid-area: stars; font-size: .72rem; letter-spacing: .08em; color: var(--rk-in); }

@@ -4,7 +4,8 @@
 // rules' steps, reckoning-questions.js deals the questions from the knowledge banks. This file keeps the clock (a fixed
 // step, however fast the screen draws), takes the swipes, the page's words over the quay and under it, and the run
 // kept between visits. The clock starts at the first swipe and stops with the menu, the tab and the end of the run.
-import { newGame, valid, setDeal, swipe, step, take, speed, speedAt } from "./reckoning-engine.js";
+import { newGame, valid, setDeal, swipe, step, take, speed, starsOf, goalValue, GOODS } from "./reckoning-engine.js";
+import { SECTIONS, byId } from "./reckoning-sections.js";
 import { load, dealer, WORLDS } from "./reckoning-questions.js";
 import { RunLog } from "./reckoning-log.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -17,6 +18,7 @@ import { busy } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "reckoning:run", BEST = "reckoning:best", STATS = "reckoning:stats", MISS = "reckoning:miss";
+const CAMP = "reckoning:camp";                                 // { at (the section to play next, 1 on), stars: [the most won in each section] }
 const LOG = "reckoning:log";                                     // the swipe log: in sessionStorage, so it is not synced between devices (it is long)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -33,12 +35,27 @@ let logOpen = false;     // the log's own dialog: kept apart from `paused`, sinc
 let frozen = false;      // for tests: the clock held while a picture is taken
 let held = false;        // for recordings: the page's own loop does nothing, and frames are played by hand (advance, frame)
 let best = 0, savedAt = 0, acc = 0, last = 0;
+let camp = { at: 1, stars: SECTIONS.map(() => 0) };
 let view = null, deal = null, pool = [];
 let shown = null;        // the gate whose answer is on the cards: { id, until }
 let toastTimer = 0;
 let log = null, lastLog = null;   // this run's swipe log, and the run before's (reckoning-log.js)
 const cache = {};        // what the page last wrote, so a frame writes only what changed
 const put = (key, fn) => { const v = fn(); if (cache[key] !== v) { cache[key] = v; return true; } return false; };
+
+// ---------- the sections ----------
+
+function readCamp() {
+  const c = read(CAMP, null);
+  const stars = SECTIONS.map((_, k) => (Number.isInteger(c?.stars?.[k]) ? Math.max(0, Math.min(3, c.stars[k])) : 0));
+  const first = stars.findIndex(n => !n);                      // the section to play next: the first not yet passed
+  const at = Number.isInteger(c?.at) && c.at >= 1 && c.at <= SECTIONS.length && isOpen(c.at, stars) ? c.at : first < 0 ? SECTIONS.length : first + 1;
+  return { at, stars };
+}
+/** A section is open when it is the first or the one before it is passed (or it is passed itself). */
+const isOpen = (n, stars = camp.stars) => n === 1 || stars[n - 2] > 0 || stars[n - 1] > 0;
+const keepCamp = () => { if (!IN_FRAME) write(CAMP, camp); };
+const stars = n => (n ? "★".repeat(n) + "☆".repeat(3 - n) : "☆☆☆");
 
 // ---------- the run ----------
 
@@ -48,14 +65,18 @@ function save() {
   try { if (log) sessionStorage.setItem(LOG, JSON.stringify({ now: log, last: lastLog })); } catch { /* private mode, or full */ }
 }
 
-function newRun() {
-  S = setDeal(newGame({ seed: Math.floor(Math.random() * 2 ** 31), deal, launch: true }), deal);
+/** A new run: of section `n`, or endless (0). */
+function newRun(n = 0) {
+  if (typeof n !== "number") n = 0;                            // (a click hands over its event)
+  if (n) camp.at = n;
+  keepCamp();
+  S = setDeal(newGame({ seed: Math.floor(Math.random() * 2 ** 31), deal, launch: true, section: n ? byId(n) : null }), deal);
   if (log && log.n > 1) lastLog = log;                         // the run just left stays to be copied
   log = new RunLog(S);
   running = false; acc = 0; shown = null;
   $("result").hidden = true;
   say("");
-  hint("Swipe to run. Up jumps, down rolls, sideways changes lane, and into a wall runs up it.");
+  hint(S.sec ? `${byId(S.sec).place}: ${byId(S.sec).name}. ${byId(S.sec).brief}` : "Swipe to run. Up jumps, down rolls, sideways changes lane, and into a wall runs up it.");
   save();
   drawPage(true);
 }
@@ -88,11 +109,24 @@ function handle(events) {
         if (ev.ok !== true) keepMiss(ev.q);
         break;
       case "heart": say("A heart back", "good"); break;
+      case "pick": say(pickWords(ev), "good"); break;
+      case "seized": say(`Seized: ${ev.what}`, "bad"); break;
+      case "stagger": say("Again", "good"); break;
+      case "finish": finished(ev); break;
       case "hurt": say("Hit", "bad"); break;
       case "fall": say("Into the water", "bad"); break;
       case "over": over(); break;
     }
   }
+}
+
+const MARKS = ["", "red", "green", "blue"];
+function pickWords(ev) {
+  if (ev.what === "token") return `${MARKS[ev.mark]} token`;
+  if (ev.what === "lever") return "Lever";
+  if (ev.what === "meal") return "A meal";
+  if (ev.what === "grog") return "Grog: left is right";
+  return ev.what[0].toUpperCase() + ev.what.slice(1);
 }
 
 function keepMiss(q) {
@@ -101,8 +135,24 @@ function keepMiss(q) {
   write(MISS, all.slice(-200));
 }
 
+/** The finish of a section: passed (with its stars) or short of its aim. */
+function finished(ev) {
+  running = false;
+  if (ev.won) {
+    camp.stars[S.sec - 1] = Math.max(camp.stars[S.sec - 1], ev.stars);
+    camp.at = Math.min(SECTIONS.length, S.sec + 1);
+    keepCamp();
+  }
+  const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
+  write(STATS, { runs: st.runs + 1, right: st.right + S.right, wrong: st.wrong + S.wrong + S.missed });
+  save();
+  showResult();
+  roundOver("reckoning");
+}
+
 function over() {
   running = false;
+  if (S.sec) { const st = read(STATS, { runs: 0, right: 0, wrong: 0 }); write(STATS, { runs: st.runs + 1, right: st.right + S.right, wrong: st.wrong + S.wrong + S.missed }); save(); showResult(); roundOver("reckoning"); return; }
   const dist = S.score;
   if (dist > best) { best = dist; write(BEST, best); }
   const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
@@ -126,7 +176,10 @@ function hint(text) { $("hint").textContent = text; }
 function drawHud() {
   const h = S.hearts, max = S.maxHearts;
   if (put("hearts", () => `${h}/${max}`)) $("hearts").innerHTML = Array.from({ length: max }, (_, i) => `<span class="rk-heart${i < h ? "" : " gone"}">♥</span>`).join("");
-  if (put("score", () => fmt(S.score))) $("score").textContent = fmt(S.score);
+  const sc = S.sec ? `${fmt(Math.min(S.hero.z, S.world.finish))} / ${fmt(S.world.finish)}` : fmt(S.score);
+  if (put("score", () => sc)) $("score").textContent = sc;
+  const g = goalText();
+  if (put("goal", () => g)) { $("goal").textContent = g; $("goal").hidden = !g; }
   const c = S.chain >= 2 ? `×${S.chain}` : "";
   if (put("combo", () => c)) { $("combo").textContent = c; $("combo").classList.toggle("on", !!c); }
 }
@@ -137,7 +190,7 @@ function drawAsk() {
   if (S.over) return;
   const now = performance.now(), h = S.hero;
   if (shown && now > shown.until) shown = null;
-  const g = S.world.gates.find(g => (g.state === "open" && h.z < g.p1 && g.p0 - h.z <= THINK_T * speedAt(h.z)) || (shown && shown.id === g.id));
+  const g = S.world.gates.find(g => (g.state === "open" && h.z < g.p1 && g.p0 - h.z <= THINK_T * speed(S)) || (shown && shown.id === g.id));
   if (!g) { if (put("ask", () => "none")) $("ask").hidden = true; return; }
   const lane = h.lane + 1;
   const key = `${g.id}:${g.state}:${shown ? 1 : 0}:${lane}`;
@@ -153,11 +206,27 @@ function drawAsk() {
   });
 }
 
+/** What the section asks and where it stands, and what is carried or in force: a line under the hearts. */
+function goalText() {
+  if (!S.sec) return "";
+  const bits = [], G = S.goal, n = G.n, v = goalValue(S);
+  const noun = { goods: S.bill.want.length === 1 ? S.bill.want[0] : "goods", right: "right", kills: "cut", chain: "chain", hearts: "hearts" }[G.kind];
+  if (noun) bits.push(`${noun[0].toUpperCase()}${noun.slice(1)} ${v}/${n}`);
+  if (S.token) bits.push(`${MARKS[S.token]} token`);
+  if (S.inv > S.t) bits.push("left is right");
+  if (S.mods.laden && S.carried.total) bits.push("loaded");
+  return bits.join(" · ");
+}
+
 function showResult() {
   $("ask").hidden = true; cache.ask = "none";
   $("result").hidden = false;
   const asked = S.right + S.wrong + S.missed;
-  $("verdict").textContent = `${fmt(S.score)} points, ${fmt(S.hero.z)} m. ${asked ? `${S.right} of ${asked} questions right.` : "No question reached."}`;
+  const sec = S.sec ? byId(S.sec) : null;
+  if (sec) $("verdict").innerHTML = sectionVerdict(sec);
+  else $("verdict").textContent = `${fmt(S.score)} points, ${fmt(S.hero.z)} m. ${asked ? `${S.right} of ${asked} questions right.` : "No question reached."}`;
+  $("nextBtn").hidden = !(sec && S.won && sec.id < SECTIONS.length);
+  $("againBtn").textContent = sec ? "Again" : "New run";
   const ul = $("missed");
   ul.replaceChildren();
   for (const a of S.answers) {
@@ -167,8 +236,22 @@ function showResult() {
     li.innerHTML = q ? `<b>${esc(q.q)}</b> ${esc(q.o[q.a])}. ${esc(q.x || "")}` : esc(a.id);
     ul.append(li);
   }
-  if (!ul.children.length) { const li = document.createElement("li"); li.textContent = asked ? "Every question you reached was right." : "Nothing to review."; ul.append(li); }
+  if (!ul.children.length && !sec) { const li = document.createElement("li"); li.textContent = asked ? "Every question you reached was right." : "Nothing to review."; ul.append(li); }
+  ul.hidden = !ul.children.length;
   hint("");
+}
+/** The result of a section as markup: its name, the stars (or that it was not passed), and what stands between this run and three stars. */
+function sectionVerdict(sec) {
+  const G = sec.goal, v = goalValue(S), par = sec.par;
+  const lost = S.hits ? `${S.hits} ${S.hits === 1 ? "heart" : "hearts"} lost` : "no heart lost";
+  const lines = [];
+  if (S.won) lines.push(lost);
+  else if (S.hearts <= 0) lines.push(`Out of hearts at ${fmt(S.hero.z)} of ${fmt(S.world.finish)} m`);
+  else lines.push("The finish, but short of the aim");
+  if (G.n) lines.push(`${v} of ${G.n} for the aim${par.more ? `, ${par.more} for three stars` : ""}`);
+  const got = starsOf(S);
+  if (S.won && got < 3) lines.push(`Three stars: at most ${par.hits} ${par.hits === 1 ? "heart" : "hearts"} lost${par.more && G.n ? ` and ${par.more}` : ""}`);
+  return `<b>${sec.id}. ${esc(sec.name)}</b><span class="rk-big">${S.won ? stars(got) : "Not yet"}</span>${lines.map(l => `<span>${esc(l)}</span>`).join("")}`;
 }
 const asks = new Map();                                       // question id -> the question dealt, for the review (gates are pruned behind the hero)
 function missedQ(id) { return asks.get(id); }
@@ -241,10 +324,32 @@ addEventListener("pagehide", () => { if (!IN_FRAME) save(); });
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  part(body, "play").append(action("New run", newRun, "primary"));
+  const sec = S.sec ? byId(S.sec) : null;
+  part(body, "play").append(action(sec ? `Restart section ${sec.id}` : "New run", () => newRun(S.sec), "primary"));
+  const content = part(body, "content");
+  const next = camp.at;
+  content.append(action(`Continue: ${next}. ${byId(next).name}`, () => newRun(next), sec && sec.id === next ? "" : "primary"));
+  const list = document.createElement("div");
+  list.className = "rk-secs";
+  for (const d of SECTIONS) {
+    const b = document.createElement("button"), won = camp.stars[d.id - 1], open = isOpen(d.id);
+    b.type = "button"; b.disabled = !open;
+    b.className = won ? "done" : "";
+    if (d.id === (sec ? sec.id : camp.at)) b.setAttribute("aria-current", "true");
+    b.setAttribute("aria-label", `Section ${d.id}, ${d.name}, ${d.place}${open ? "" : ", locked: pass the one before it"}${won ? `, ${won} of 3 stars` : ""}`);
+    b.innerHTML = '<span class="rk-sn"></span><span class="rk-sname"></span><span class="rk-splace"></span><span class="rk-sstars"></span>';
+    b.querySelector(".rk-sn").textContent = d.id;
+    b.querySelector(".rk-sname").textContent = d.name;
+    b.querySelector(".rk-splace").textContent = open ? d.place : "locked";
+    b.querySelector(".rk-sstars").textContent = open ? stars(won) : "";
+    b.addEventListener("click", () => { $("menuDlg").close(); newRun(d.id); });
+    list.append(b);
+  }
+  content.append(list, action("Endless run", () => newRun(0), "link"));
   const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
+  const got = camp.stars.reduce((a, b) => a + b, 0);
   part(body, "content").append(line(`${WORLDS.quay.name}: ${pool.length.toLocaleString("en-GB")} questions`));
-  part(body, "about").append(action("Swipe log", openLog, "link"), line(`This run: ${fmt(S.score)}, ${S.right} right, ${S.wrong + S.missed} not${best ? `; your best ${fmt(best)}` : ""}`),
+  part(body, "about").append(action("Swipe log", openLog, "link"), line(`${camp.stars.filter(Boolean).length} of ${SECTIONS.length} sections passed, ${got} of ${SECTIONS.length * 3} stars${best ? `; endless best ${fmt(best)}` : ""}`),
     line(`${st.runs} runs, ${st.right} right and ${st.wrong} not, over all`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -255,7 +360,8 @@ bindSwitcher($("appsBtn"), "reckoning");
 document.querySelector(".rk-mark").innerHTML = APPS.find(a => a.id === "reckoning").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("againBtn").addEventListener("click", newRun);
+$("againBtn").addEventListener("click", () => newRun(S.sec));
+$("nextBtn").addEventListener("click", () => newRun(Math.min(SECTIONS.length, S.sec + 1)));
 onPause(() => { paused = true; swipes.clear(); log?.note(S, "paused (the menu or another screen is open)"); save(); }, () => { paused = false; last = performance.now(); log?.note(S, "carried on"); });
 
 // ---------- the log ----------
@@ -317,9 +423,10 @@ async function boot() {
     return;
   }
   done();
+  camp = readCamp();
   S = read(RUN, null);
-  if (valid(S)) { setDeal(S, deal); for (const g of S.world.gates) asks.set(g.q.id, g.q); }
-  if (!valid(S)) newRun();
+  if (valid(S, SECTIONS)) { setDeal(S, deal); for (const g of S.world.gates) asks.set(g.q.id, g.q); }
+  if (!valid(S, SECTIONS)) newRun(camp.at);
   else if (restoreLog(), S.over) { showResult(); drawPage(true); }
   else { hint(IN_FRAME ? "" : "Swipe to carry on."); drawPage(true); }
   requestAnimationFrame(tick);

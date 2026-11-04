@@ -417,10 +417,10 @@ export function createRunner(host) {
   }
   const hideThing = T => { T.group.visible = false; };
   /** Draws what a section lays on the quay near the hero; things leave and enter as he runs. */
-  function drawThings(S, z0, z1, dt) {
+  function drawThings(S, hz, z1, dt) {
     const W_ = S.world, seen = new Set();
     const put1 = (it, keyKind, y0) => {
-      if (it.z < z0 - 4 || it.z > z1) return null;
+      if (it.z < hz - 1.6 || it.z > z1) return null;                                   // one behind the hero is gone: the camera is close behind him
       const key = (it.kind === "salt" || it.kind === "furs" || it.kind === "wax" ? "sack:" : "") + keyKind + ":" + (it.mark || 0) + ":" + (it.flip ?? "");
       seen.add(it.id);
       let T = things.get(it.id);
@@ -862,7 +862,7 @@ export function createRunner(host) {
     for (const [id, o] of foes) if (!seen.has(id)) { hideFoe(o); free.push(o); foes.delete(id); }
 
     // a section's things, its finish, and its fog
-    drawThings(S, z0, z1, dt);
+    drawThings(S, hz, z1, dt);
     finish.visible = S.sec > 0 && W_.finish > z0 && W_.finish < z1;
     finish.position.z = W_.finish || 0;
     const fogFar = S.mods?.fog ? S.mods.fog : 105, fogNear = S.mods?.fog ? 4 : 28;
