@@ -265,57 +265,8 @@ export function createRunner(host) {
   const free = [];
   let runSeed = null;
   function makeFoe(f) {
-    const g = new THREE.Group(), parts = {};
-    const rig = new THREE.Group(); g.add(rig); parts.rig = rig;                         // what pitches, rears and hops; the group above it only turns
-    const put = (geo, m, sx, sy, sz, x, y, z, to = rig) => { const o = new THREE.Mesh(geo, m); o.scale.set(sx, sy, sz); o.position.set(x, y, z); to.add(o); return o; };
-    if (f.kind === "crab") {
-      // a crab, so that it is read as one: a wide low shell over a pale belly, two eyes on stalks, six legs, and two big
-      // claws with a thumb and a finger each, held up in front (all of it under 1.5 m across, the asset list's size)
-      put(sph, M.crab, 1.0, 0.5, 0.78, 0, 0.46, 0);
-      put(sph, M.belly, 0.86, 0.2, 0.66, 0, 0.3, 0.02);
-      put(sph, M.crab, 0.5, 0.2, 0.3, 0, 0.66, 0.2);                                    // the brow
-      parts.eyes = [-1, 1].map(s => {
-        const e = new THREE.Group(); e.position.set(s * 0.17, 0.68, 0.34); rig.add(e);
-        put(cyl, M.belly, 0.05, 0.2, 0.05, 0, 0.1, 0, e);
-        put(sph, M.eye, 0.15, 0.15, 0.15, 0, 0.23, 0, e);
-        put(sph, M.pupil, 0.08, 0.08, 0.08, 0, 0.24, 0.07, e);
-        return e;
-      });
-      parts.arms = [-1, 1].map(s => {
-        const arm = new THREE.Group(); arm.position.set(s * 0.46, 0.52, 0.28); rig.add(arm);
-        put(cyl, M.crab, 0.11, 0.34, 0.11, 0, 0, 0.17, arm).rotation.x = Math.PI / 2;
-        const claw = new THREE.Group(); claw.position.set(0, 0.03, 0.4); arm.add(claw);
-        put(sph, M.claw, 0.42, 0.3, 0.46, 0, 0, 0.08, claw);
-        const jaw = d => { const piv = new THREE.Group(); piv.position.set(d * 0.09, 0, 0.2); claw.add(piv); put(cone, M.claw, 0.17, 0.46, 0.12, 0, 0, 0.22, piv).rotation.x = Math.PI / 2; return piv; };
-        arm.userData.jaws = [jaw(-1), jaw(1)];
-        return arm;
-      });
-      parts.legs = [];
-      for (const s of [-1, 1]) for (const k of [-1, 0, 1]) {
-        const leg = new THREE.Group(); leg.position.set(s * 0.46, 0.34, k * 0.2 + 0.02); rig.add(leg);
-        const up = put(cyl, M.crab, 0.06, 0.3, 0.06, s * 0.13, 0.04, 0, leg); up.rotation.z = -s * 1.1;
-        const low = put(cyl, M.crab, 0.05, 0.3, 0.05, s * 0.3, -0.1, 0, leg); low.rotation.z = s * 0.25;
-        parts.legs.push(leg);
-        leg.userData = { s, k };
-      }
-    } else if (f.kind === "barrel") {
-      put(cyl, M.timber, 0.85, 0.85, 0.85, 0, 0.425, 0);
-      for (const y of [0.17, 0.68]) put(cyl, M.gilt, 0.9, 0.07, 0.9, 0, y, 0);
-      put(cyl, M.seam, 0.5, 0.02, 0.5, 0, 0.855, 0);                                       // the lid
-    } else if (f.kind === "balloon") {
-      parts.body = put(sph, M.good, 0.8, 0.98, 0.8, 0, 0.66, 0);
-      put(sph, M.eye, 0.2, 0.28, 0.14, -0.14, 0.86, -0.3);                                  // the shine, on the side the camera sees
-      put(cone, M.timber, 0.14, 0.16, 0.14, 0, 0.12, 0).rotation.x = Math.PI;               // the knot
-      put(box, M.ring, 0.018, 0.85, 0.018, 0, -0.32, 0);                                    // and the string
-    } else {
-      put(sph, M.gull, 0.5, 0.42, 1.0, 0, 0.4, 0);
-      put(cone, M.gilt, 0.12, 0.3, 0.12, 0, 0.42, 0.55).rotation.x = Math.PI / 2;
-      parts.wings = [-1, 1].map(s => { const pivot = new THREE.Group(); pivot.position.set(s * 0.22, 0.46, 0); const w = new THREE.Mesh(box, M.gull); w.scale.set(0.6, 0.06, 0.5); w.position.x = s * 0.3; pivot.add(w); rig.add(pivot); return pivot; });
-      parts.banner = put(box, M.banner, 0.5, 0.36, 0.04, 0, -0.22, 0);
-      parts.rope = put(box, M.timber, 0.03, 0.4, 0.03, 0, 0.04, 0);
-    }
-    g.traverse(o => { o.frustumCulled = false; });
-    if (f.heavy) { put(cone, M.steel, 0.5, 0.35, 0.5, 0, 0.95, 0.05); put(box, M.steel, 0.95, 0.12, 0.7, 0, 0.78, 0.12); g.traverse(o => { o.frustumCulled = false; }); }
+    const { group: g, parts } = models.makeFoe(f);
+    const put = (geo, m, sx, sy, sz, x, y, z, to) => { const o = new THREE.Mesh(geo, m); o.scale.set(sx, sy, sz); o.position.set(x, y, z); to.add(o); return o; };
     const shadow = new THREE.Mesh(disc, M.shadow); shadow.frustumCulled = false;
     // the mark over a foe that has seen me: an exclamation point on a pale plate, facing the camera (behind the hero, so
     // facing -z), brass when it has just seen me and red when it is winding up
@@ -725,8 +676,7 @@ export function createRunner(host) {
   /** A foe at rest, or seeing me (f.ph 1: it turns to look, the claws go up and snap, the mark pops over its head), winding
    *  up (2: it rears, the mark is red and shakes) or launched (3: it springs, a crab hopping at me, a gull diving). The rules
    *  put the foe where it is (f.x and f.y move as it launches); this is only how it holds itself. */
-  const BALLOONC = [0xD6453A, 0xE6B422, 0x2F9E8F, 0x7A5CC4];
-  const balloonMat = BALLOONC.map(c => curved(new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.18 })));
+  const { BALLOONC, balloonMat } = models;
   /** A barrel stands; a balloon floats where it was hung, swaying on its string. Neither looks at me: they are not out to get me. */
   function poseInert(o, f) {
     const g = o.group, rig = o.parts.rig;
@@ -764,7 +714,7 @@ export function createRunner(host) {
       else if (ph === 2) { raise = 0.75 + 0.6 * ease(since / 0.2); spread = 0.65; jaw = 0.55; }
       else if (ph === 3) { raise = 1.35 * (1 - e3) - 0.25 * e3; spread = 0.65 * (1 - e3); jaw = 0.55 * (1 - e3) + 0.05; }
       P.arms.forEach((a, i) => { const s = i ? 1 : -1; a.rotation.set(-raise, s * spread, 0); a.userData.jaws.forEach((j, n) => { j.rotation.y = (n ? -1 : 1) * jaw; }); });
-      P.eyes.forEach((e, i) => { e.rotation.z = (i ? 1 : -1) * (ph ? 0.1 : 0.25 + 0.1 * Math.sin(now * 3 + id)); e.position.y = 0.68 + (ph ? 0.06 : 0); });
+      P.eyes.forEach((e, i) => { e.rotation.z = (i ? 1 : -1) * (ph ? 0.1 : 0.25 + 0.1 * Math.sin(now * 3 + id)); e.position.y = 0.6 + (ph ? 0.06 : 0); });
       P.legs.forEach(l => { l.rotation.y = Math.sin(now * (ph === 3 ? 30 : 12) + l.userData.k * 2 + l.userData.s + id) * 0.3; });
     } else {
       const fast = ph === 1 ? 14 : ph === 2 ? 5 : 9, amp = ph === 2 ? 0.95 : 0.55;

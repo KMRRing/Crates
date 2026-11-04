@@ -84,6 +84,8 @@ function lathe(profile, seg = 12, { hard = false, facet = false } = {}) {
   }
   return g;
 }
+/** A rectangular ring's profile, counter-clockwise, so its normals face out (rIn to rOut, y0 to y1). */
+const band = (rIn, rOut, y0, y1) => [[rOut, y0], [rOut, y1], [rIn, y1], [rIn, y0], [rOut, y0]];
 const arc = (cx, cy, rx, ry, a0, a1, n) => Array.from({ length: n + 1 }, (_, k) => { const a = a0 + (a1 - a0) * k / n; return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)]; });
 const sphereG = (seg = 12, rows = 8) => once(`sph${seg}:${rows}`, () => lathe(arc(0, 0, 1, 1, -PI / 2, PI / 2, rows).map(([r, y]) => [Math.max(0, r), y]), seg));
 /** A cylinder or cone frustum of radii r0 (bottom) and r1 (top), from y 0 to h, capped. */
@@ -220,7 +222,7 @@ class Builder {
   add(g, colour, o = {}) {
     const [px, py, pz] = o.p || [0, 0, 0];
     const sc = o.s ?? 1, [sx, sy, sz] = typeof sc === "number" ? [sc, sc, sc] : sc;
-    const q = o.q || (o.r ? tq.setFromEuler(te.set(o.r[0], o.r[1], o.r[2], "XYZ")) : tq.identity());
+    const q = o.q || (o.r ? tq.setFromEuler(te.set(o.r[0], o.r[1], o.r[2], o.order || "XYZ")) : tq.identity());
     const base = this.P.length / 3, k0 = o.k ?? 1, alt = Array.isArray(colour), ids = alt ? colour.map(slotOf) : slotOf(colour);
     for (let i = 0; i < g.p.length; i += 3) {
       tv.set(g.p[i] * sx, g.p[i + 1] * sy, g.p[i + 2] * sz).applyQuaternion(q);
@@ -236,21 +238,21 @@ class Builder {
     for (let t = 0; t < g.i.length; t += 3) { const a = g.i[t] + base, b = g.i[t + 1] + base, c = g.i[t + 2] + base; if (flip) this.I.push(a, c, b); else this.I.push(a, b, c); }
     return this;
   }
-  ell(colour, p, s, o = {}) { return this.add(sphereG(o.seg || 12, o.rows || 8), colour, { ...o, p, s }); }
+  ell(colour, p, s, o = {}) { return this.add(sphereG(o.seg || 10, o.rows || 6), colour, { ...o, p, s }); }
   box(colour, p, s, o = {}) { return this.add(boxG(), colour, { ...o, p, s }); }
   /** A rod from a to b (rounded ends), radius r0 at a and r1 at b. */
   rod(colour, a, b, r0, r1 = r0, o = {}) {
     const d = tv.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]), len = d.length();
     if (len < 1e-5) return this;
     const q = new THREE.Quaternion().setFromUnitVectors(UP, d.clone().divideScalar(len));
-    return this.add(capsuleG(len, r0, r1, o.seg || 8), colour, { ...o, p: a, q });
+    return this.add(capsuleG(len, r0, r1, o.seg || 6), colour, { ...o, p: a, q });
   }
   /** A frustum (cone or cylinder) from a to b. */
   cone(colour, a, b, r0, r1, o = {}) {
     const d = tv.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]), len = d.length();
     if (len < 1e-5) return this;
     const q = new THREE.Quaternion().setFromUnitVectors(UP, d.clone().divideScalar(len));
-    return this.add(cylG(r0, r1, len, o.seg || 8, o.caps !== false), colour, { ...o, p: a, q });
+    return this.add(cylG(r0, r1, len, o.seg || 6, o.caps !== false), colour, { ...o, p: a, q });
   }
   build() {
     const g = new THREE.BufferGeometry();
@@ -299,11 +301,11 @@ export function createModels({ curved }) {
   // and sash, a wide hat with a plume, a rapier in his right hand and its scabbard at his left hip. He is seen from behind, so the back
   // is where the detail is: the tails split down the middle, the cross-belt, the scarf's ends, the hat's brim and the plume.
   const CHEST = [[0, 0], [0.16, 0], [0.175, 0.1], [0.212, 0.25], [0.224, 0.36], [0.205, 0.46], [0.13, 0.53], [0.07, 0.56], [0, 0.565]];
-  const SKIRT = [[0.15, 0.03], [0.168, 0.0], [0.2, -0.08], [0.238, -0.18], [0.262, -0.25], [0.254, -0.255], [0.19, -0.1], [0.14, 0.0]];
+  const SKIRT = [[0.262, -0.25], [0.238, -0.18], [0.2, -0.08], [0.168, 0.0], [0.15, 0.03], [0.14, 0.0], [0.19, -0.1], [0.254, -0.255], [0.262, -0.25]];   // a shell: out up, in down
   const CX = 1.14, CZ = 0.8;                                         // the coat is wider than it is deep
   const rAt = y => {                                                  // the coat's radius at a height (back of it: z = -CZ * r)
     const prof = y >= 0 ? CHEST : SKIRT.slice(0, 5);
-    const pts = y >= 0 ? prof : prof.slice().reverse();
+    const pts = prof;
     for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], c = pts[i + 1]; const lo = Math.min(a[1], c[1]), hi = Math.max(a[1], c[1]); if (y >= lo && y <= hi && hi > lo) return a[0] + (c[0] - a[0]) * (y - a[1]) / (c[1] - a[1]); }
     return 0.2;
   };
@@ -323,8 +325,8 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
       mesh(th, hip);
       const sh = new Builder();
       sh.rod("boot", [0, 0.05, 0], [0, -0.33, 0], 0.082, 0.056);                    // the shaft
-      sh.add(lathe([[0.071, 0.075], [0.1, 0.082], [0.112, 0.03], [0.1, -0.02], [0.08, 0.0], [0.071, 0.02]], 14), "bootDark");            // the cuff turned down
-      sh.add(lathe([[0.108, 0.082], [0.114, 0.088], [0.12, 0.08], [0.116, 0.074]], 14), "gilt");
+      sh.add(lathe([[0.071, 0.02], [0.08, 0.0], [0.1, -0.02], [0.112, 0.03], [0.1, 0.082], [0.071, 0.075]], 14), "bootDark");            // the cuff turned down
+      sh.add(lathe(band(0.104, 0.118, 0.074, 0.09), 14, { hard: true }), "gilt");
       sh.add(extrudeSide([[-0.075, -0.445], [0.185, -0.445], [0.215, -0.425], [0.205, -0.395], [0.12, -0.372], [0.05, -0.34], [-0.055, -0.318], [-0.082, -0.36]], 0.118, 0.022), "boot");      // the foot
       sh.box("bootDark", [0, -0.44, 0.075], [0.126, 0.016, 0.3], { k: 0.7 });          // the sole
       sh.box("bootDark", [0, -0.425, -0.052], [0.1, 0.045, 0.05]);                   // the heel
@@ -338,7 +340,7 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
       const t = new Builder();
       t.add(lathe(CHEST, 16), "hero", { s: [CX, 1, CZ] });
       t.add(lathe(SKIRT, 16), "hero", { s: [CX, 1, CZ] });
-      t.add(lathe([[0.2, -0.236], [0.262, -0.25], [0.268, -0.262], [0.262, -0.272], [0.198, -0.25]], 16), "gilt", { s: [CX, 1, CZ] });      // the hem's trim
+      t.add(lathe(band(0.25, 0.27, -0.272, -0.238), 16, { hard: true }), "gilt", { s: [CX, 1, CZ] });      // the hem's trim
       t.add(lathe([[0.17, 0.03], [0.178, 0.06], [0.2, 0.1], [0.207, 0.13], [0.19, 0.12], [0.168, 0.08]], 16), "scarf", { s: [CX * 1.01, 1, CZ * 1.01] });     // the sash
       t.add(lathe([[0.164, -0.012], [0.186, -0.012], [0.186, 0.032], [0.164, 0.032]], 16, { hard: true }), "boot", { s: [CX * 1.02, 1, CZ * 1.02] });        // the belt
       t.box("gilt", [0, 0.01, CZ * 0.19 + 0.005], [0.075, 0.07, 0.02]);
@@ -422,18 +424,18 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
       t.rod("hair", [0, 0, 0], [0, -0.09, -0.035], 0.05, 0.043);
       t.rod("hair", [0, -0.09, -0.035], [0, -0.2, -0.025], 0.043, 0.034);
       t.rod("hairDark", [0, -0.2, -0.025], [0, -0.32, 0.005], 0.034, 0.007);
-      t.add(lathe([[0.045, 0.02], [0.056, 0.0], [0.05, -0.03], [0.04, -0.025]], 10), "scarf");     // the ribbon that ties it
+      t.add(lathe(band(0.04, 0.056, -0.03, 0.02), 10, { hard: true }), "scarf");     // the ribbon that ties it
       t.ell("scarf", [0, -0.02, -0.07], [0.04, 0.028, 0.02], { seg: 8, rows: 4 });
       mesh(t, J.ponytail);
     }
     J.hat = joint(J.head, 0, 0.275, 0);
     {
       const t = new Builder();
-      t.add(lathe([[0, 0.2], [0.07, 0.198], [0.13, 0.18], [0.158, 0.13], [0.166, 0.06], [0.172, 0.0], [0.14, -0.012], [0, -0.012]], 18), "hero");        // the crown
+      t.add(lathe([[0, -0.012], [0.14, -0.012], [0.172, 0.0], [0.166, 0.06], [0.158, 0.13], [0.13, 0.18], [0.07, 0.198], [0, 0.2]], 18), "hero");        // the crown
       t.add(lathe([[0.168, 0.03], [0.176, 0.034], [0.177, 0.075], [0.169, 0.078]], 18, { hard: true }), "gilt");                        // the band
       t.add(lathe([[0.155, 0.05], [0.166, 0.054], [0.167, 0.072], [0.157, 0.07]], 18, { hard: true }), "goldDark");
       // the brim: wide, pinned up at the sides and the back, down in front
-      const brim = lathe([[0.14, 0.0], [0.24, -0.002], [0.33, 0.0], [0.375, 0.012], [0.378, 0.03], [0.37, 0.034], [0.325, 0.024], [0.24, 0.016], [0.14, 0.02]], 28);
+      const brim = lathe([[0.14, 0.0], [0.24, -0.002], [0.33, 0.0], [0.375, 0.012], [0.378, 0.03], [0.37, 0.034], [0.325, 0.024], [0.24, 0.016], [0.14, 0.02]], 20);
       warp(brim, (x, y, z) => {
         const r = Math.hypot(x, z), u = clamp01((r - 0.15) / 0.23), ph = Math.atan2(x, z);
         return [x, y + u * u * (0.11 * Math.sin(ph) ** 2 - 0.045 * Math.max(0, Math.cos(ph)) + 0.06 * Math.max(0, -Math.cos(ph))), z];
@@ -462,8 +464,8 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
       mesh(t, sh);
       const f = new Builder();
       f.rod("hero", [0, 0.0, 0], [0, -0.2, 0], 0.057, 0.048);
-      f.add(lathe([[0.05, -0.17], [0.056, -0.21], [0.075, -0.265], [0.06, -0.272], [0.046, -0.24]], 12), "shirt");          // the lace cuff
-      f.add(lathe([[0.052, -0.168], [0.059, -0.17], [0.059, -0.19], [0.052, -0.19]], 12, { hard: true }), "gilt");
+      f.add(lathe([[0.046, -0.24], [0.06, -0.272], [0.075, -0.265], [0.056, -0.21], [0.05, -0.17]], 12), "shirt");          // the lace cuff
+      f.add(lathe(band(0.05, 0.06, -0.192, -0.168), 12, { hard: true }), "gilt");
       f.ell("boot", [0, -0.3, 0.005], [0.052, 0.062, 0.058]);                                                                // the glove
       f.ell("boot", [0, -0.27, 0.04], [0.025, 0.03, 0.03], { seg: 6, rows: 4 });                                             // thumb
       mesh(f, el);
@@ -475,9 +477,9 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
       const t = new Builder();
       t.rod("boot", [0, 0.025, 0], [0, -0.095, 0], 0.022, 0.02);                                         // the grip
       t.ell("gilt", [0, 0.06, 0], [0.035, 0.035, 0.035], { seg: 8, rows: 5 });                           // the pommel
-      t.add(lathe([[0.0, -0.1], [0.045, -0.104], [0.075, -0.13], [0.08, -0.17], [0.07, -0.17], [0.06, -0.14], [0.03, -0.118], [0, -0.115]], 14), "gilt");        // the cup
+      t.add(lathe([[0.08, -0.17], [0.075, -0.13], [0.045, -0.104], [0, -0.1], [0, -0.115], [0.03, -0.118], [0.06, -0.14], [0.07, -0.17], [0.08, -0.17]], 14), "gilt");        // the cup
       t.rod("gilt", [-0.1, -0.12, 0], [0.1, -0.12, 0], 0.009, 0.009, { seg: 6 });                       // the quillons
-      t.add(lathe([[0.014, -0.17], [0.012, -0.3], [0.007, -0.7], [0.002, -1.0], [0, -1.012]], 6), "steel");  // the blade
+      t.add(lathe([[0, -1.012], [0.002, -1.0], [0.007, -0.7], [0.012, -0.3], [0.014, -0.17]], 6), "steel");  // the blade
       t.rod("steel", [0, -0.2, 0.0], [0, -0.7, 0], 0.003, 0.003, { k: 1.25 });
       mesh(t, J.hand);
     }
@@ -485,5 +487,179 @@ const surfaceZ = (x, y) => -CZ * Math.sqrt(Math.max(0, rAt(y) ** 2 - (x / CX) **
     return { hero, body, J };
   }
 
-  return { retheme, buildHero, flat, BASIC, vc, vcGlow, kit: { Builder, lathe, extrude, extrudeSide, warp, sphereG, cylG, capsuleG, boxG, arc, mesh, joint } };
+  // ---------- the foes ----------
+  // Each is a group over a `rig` (what pitches, rears and hops) with its moving parts as joints, a mesh each; the rest is merged into the body.
+  const BALLOONC = [0xD6453A, 0xE6B422, 0x2F9E8F, 0x7A5CC4];
+  const balloonMat = BALLOONC.map(c => curved(new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: 0.18 })));
+
+  /** The barrel's staves, hoops and lid, in `b`, standing on y = 0, 0.85 m high and across at the belly. */
+  function barrelInto(b, o = {}) {
+    const H = 0.85, R = y => 0.325 + 0.1 * Math.pow(Math.sin(PI * clamp01(y / H)), 0.8);
+    const stave = [0.06, 0.12, 0.2, 0.3, 0.42, 0.55, 0.65, 0.73, 0.79, 0.83, 0.85];
+    b.add(lathe([[0, 0.005], [R(0.005), 0.005], ...stave.map(y => [R(y), y]), [R(H) - 0.03, H - 0.004], [0, H - 0.004]], 14, { facet: true }), o.staves || ["timber", "timberDark"]);
+    b.add(lathe([[0.3, H - 0.003], [0.31, H + 0.012], [0.285, H + 0.014], [0, H - 0.01]], 14), o.lid || "timberLight");      // the lid, a little sunk
+    for (const y of o.hoops || [0.13, 0.25, 0.6, 0.72]) b.add(lathe([[R(y) - 0.01, y - 0.024], [R(y) + 0.014, y - 0.024], [R(y) + 0.014, y + 0.024], [R(y) - 0.01, y + 0.024]], 14, { hard: true }), o.hoop || "gilt");
+    b.add(lathe([[0.3, H + 0.012], [0.318, H + 0.016], [0.318, H + 0.03], [0.3, H + 0.03]], 14, { hard: true }), "timberDark", { k: 0.9 });       // the chime
+  }
+  /** A claw's finger: a curved, tapering pincer along +z from its root, curling towards x = -d. */
+  const fingerInto = (b, d, col, tip) => {
+    const P = [[0, 0, 0], [-d * 0.02, 0, 0.16], [-d * 0.07, 0, 0.31], [-d * 0.12, 0, 0.43]], R = [0.085, 0.065, 0.04, 0.012];
+    for (let i = 0; i < 3; i++) b.rod(i === 2 ? tip : col, P[i], P[i + 1], R[i], R[i + 1], { seg: 6 });
+    for (let i = 0; i < 3; i++) b.cone("crabLight", [-d * (0.03 + i * 0.03) - d * 0.045, 0, 0.12 + i * 0.1], [-d * (0.03 + i * 0.03) - d * 0.075, 0, 0.16 + i * 0.1], 0.02, 0.003, { seg: 4, k: 0.9 });
+  };
+
+  function buildCrab(f) {
+    const heavy = !!f.heavy, g = new THREE.Group(), rig = new THREE.Group(), parts = { rig }; g.add(rig);
+    const body = new Builder(); body.ao = [0.2, 0.7, 0.62, 1];
+    body.add(lathe([[0, 0.26], [0.3, 0.26], [0.46, 0.28], [0.5, 0.33], [0.49, 0.41], [0.42, 0.52], [0.3, 0.61], [0.16, 0.66], [0, 0.67]], 16), "crab", { s: [1, 1, 0.8] });
+    for (const s of [-1, 1]) body.ell("crabLight", [s * 0.14, 0.625, 0.1], [0.14, 0.075, 0.13], { seg: 10, rows: 5 });         // the humps of the carapace
+    body.ell("crabLight", [0, 0.64, -0.12], [0.2, 0.055, 0.14], { seg: 10, rows: 5 });
+    body.ell("crabDark", [0, 0.6, -0.34], [0.3, 0.07, 0.07], { seg: 10, rows: 4 });                                                // the back edge's roll
+    for (let k = -2; k <= 2; k++) {                                                                                                 // the teeth along the front edge
+      const a = k * 0.27, x = 0.46 * Math.sin(a), z = 0.4 * Math.cos(a);
+      body.cone("claw", [x, 0.43, z], [x * 1.12, 0.47, z * 1.2 + 0.05], 0.034, 0.004, { seg: 4 });
+    }
+    for (const s of [-1, 1]) { body.cone("claw", [s * 0.44, 0.38, 0.04], [s * 0.64, 0.46, 0.1], 0.07, 0.006, { seg: 6 }); body.cone("claw", [s * 0.4, 0.37, -0.12], [s * 0.54, 0.43, -0.18], 0.05, 0.005, { seg: 6 }); }
+    body.ell("belly", [0, 0.27, 0.02], [0.45, 0.1, 0.36]);
+    body.ell("crabDark", [0, 0.3, 0.33], [0.1, 0.05, 0.06], { seg: 8, rows: 4 });                                                   // the mouth
+    if (heavy) {
+      body.add(lathe([[0, 0.57], [0.28, 0.54], [0.38, 0.49], [0.44, 0.45], [0.45, 0.49], [0.4, 0.58], [0.3, 0.665], [0.15, 0.715], [0, 0.72]], 14), "steel", { s: [1, 1, 0.82], k: 0.95 });   // a steel cap over the shell
+      for (let k = 0; k < 8; k++) { const a = -PI * 0.9 + k * PI * 0.257; body.ell("gilt", [0.43 * Math.sin(a), 0.47, 0.36 * Math.cos(a)], [0.03, 0.03, 0.03], { seg: 6, rows: 4 }); }
+      body.cone("steel", [0, 0.7, 0.04], [0, 0.88, 0.02], 0.06, 0.008, { seg: 8 });                                                  // a crest
+      body.rod("steel", [0, 0.66, 0.02], [0, 0.66, -0.3], 0.025, 0.025);
+      for (const s of [-1, 1]) {
+        body.cone("steel", [s * 0.4, 0.58, 0.16], [s * 0.5, 0.78, 0.18], 0.06, 0.008, { seg: 7 });                                 // spiked pauldrons
+        body.ell("steel", [s * 0.38, 0.54, 0.16], [0.11, 0.06, 0.11], { seg: 8, rows: 5 });
+        body.ell("gilt", [s * 0.38, 0.6, 0.16], [0.03, 0.03, 0.03], { seg: 6, rows: 4 });
+      }
+      body.add(extrude([[-0.2, 0.6], [0.2, 0.6], [0.0, 0.44]], 0.04, 0.01), "steel", { p: [0, 0, 0.34], r: [-0.55, 0, 0] });         // a brow plate
+    }
+    mesh(body, rig);
+    parts.eyes = [-1, 1].map(s => {
+      const e = joint(rig, s * 0.16, 0.6, 0.3);
+      const t = new Builder();
+      t.rod("belly", [0, 0, 0], [0, 0.15, 0.02], 0.032, 0.026);
+      t.ell("eye", [0, 0.2, 0.03], [0.08, 0.08, 0.08], { seg: 10, rows: 6 });
+      t.ell("pupil", [0, 0.205, 0.1], [0.042, 0.045, 0.03], { seg: 8, rows: 5 });
+      t.ell("crab", [0, 0.235, 0.0], [0.07, 0.035, 0.07], { seg: 8, rows: 4 });                                                      // the lid
+      mesh(t, e);
+      return e;
+    });
+    parts.arms = [-1, 1].map(s => {
+      const arm = joint(rig, s * 0.34, 0.46, 0.3);
+      const t = new Builder();
+      t.rod("crab", [0, 0, 0], [0, 0.03, 0.2], 0.075, 0.062);
+      t.ell("claw", [0, 0.03, 0.22], [0.085, 0.085, 0.085], { seg: 8, rows: 5 });
+      t.ell("crab", [0, 0.02, 0.43], [0.19, 0.14, 0.24]);                                                                          // the palm
+      t.ell("crabLight", [0, 0.1, 0.42], [0.12, 0.05, 0.16], { seg: 8, rows: 4 });
+      if (heavy) {
+        t.add(lathe([[0.1, 0.0], [0.115, 0.02], [0.115, 0.14], [0.1, 0.16]], 10, { hard: true }), "steel", { r: [PI / 2, 0, 0], p: [0, 0.03, 0.04] });
+        for (const a of [-1, 1]) t.ell("gilt", [a * 0.095, 0.03, 0.12], [0.026, 0.026, 0.026], { seg: 6, rows: 4 });
+        t.cone("steel", [0, 0.14, 0.42], [0, 0.34, 0.4], 0.05, 0.005, { seg: 6 });
+      }
+      mesh(t, arm);
+      arm.userData.jaws = [-1, 1].map(d => {
+        const j = joint(arm, d * 0.085, 0.02, 0.58), fb = new Builder();
+        fingerInto(fb, d, "claw", "clawDark");
+        mesh(fb, j);
+        return j;
+      });
+      return arm;
+    });
+    parts.legs = [-1, 1].map(s => {                                                                                                  // three legs a side, one mesh and one sway a side
+      const side = joint(rig, s * 0.3, 0.36, 0.0), t = new Builder();
+      for (const k of [-1, 0, 1]) {
+        const z = k * 0.2, hip = [s * 0.02, 0.0, z], knee = [s * 0.22, 0.14 - Math.abs(k) * 0.01, z * 1.3 + k * 0.03], foot = [s * 0.4, -0.35, z * 1.6 + k * 0.1];
+        t.rod("crab", hip, knee, 0.05, 0.042, { seg: 5 });
+        t.ell("claw", knee, [0.05, 0.05, 0.05], { seg: 5, rows: 3 });
+        t.rod("crab", knee, foot, 0.04, 0.012, { seg: 5 });
+        t.cone("clawDark", [foot[0] + s * 0.005, foot[1] + 0.03, foot[2]], [foot[0] + s * 0.01, foot[1] - 0.005, foot[2] + 0.01], 0.014, 0.004, { seg: 5 });
+      }
+      mesh(t, side);
+      side.userData = { s, k: 0 };
+      return side;
+    });
+    return { group: g, parts };
+  }
+
+  function buildGull() {
+    const g = new THREE.Group(), rig = new THREE.Group(), parts = { rig }; g.add(rig);
+    const b = new Builder(); b.ao = [0.15, 0.7, 0.72, 1];
+    b.ell("gull", [0, 0.4, -0.04], [0.22, 0.2, 0.5]);                                                                              // the body
+    b.ell("gull", [0, 0.4, 0.22], [0.2, 0.19, 0.3]);                                                                               // the breast
+    b.ell("gullBack", [0, 0.49, -0.1], [0.19, 0.09, 0.42], { seg: 10, rows: 5 });                                                   // the grey mantle
+    b.ell("gull", [0, 0.52, 0.34], [0.13, 0.14, 0.15], { seg: 10, rows: 6 });                                                       // the neck
+    b.ell("gull", [0, 0.6, 0.43], [0.115, 0.11, 0.125], { seg: 10, rows: 7 });                                                      // the head
+    b.cone("beak", [0, 0.585, 0.5], [0, 0.565, 0.74], 0.05, 0.012, { seg: 6 });                                                      // the beak, with its hook
+    b.cone("beak", [0, 0.568, 0.72], [0, 0.535, 0.77], 0.018, 0.002, { seg: 5 });
+    b.cone("beakRed", [0, 0.555, 0.62], [0, 0.55, 0.7], 0.017, 0.012, { seg: 5 });
+    for (const s of [-1, 1]) {
+      b.ell("beak", [s * 0.1, 0.625, 0.46], [0.03, 0.03, 0.03], { seg: 7, rows: 5 });
+      b.ell("pupil", [s * 0.118, 0.628, 0.472], [0.016, 0.018, 0.018], { seg: 6, rows: 4 });
+      b.rod("beak", [s * 0.07, 0.25, 0.04], [s * 0.065, 0.2, 0.17], 0.014, 0.012, { seg: 5 });                                        // the feet, tucked up under
+      b.ell("beak", [s * 0.065, 0.2, 0.19], [0.035, 0.012, 0.05], { seg: 6, rows: 3 });
+    }
+    b.add(plate(Array.from({ length: 5 }, (_, k) => { const u = k / 4; return [u * 0.3, 0.07 + 0.09 * Math.sin(u * 2.4), 0]; }).reverse(), 0.03), "gull", { p: [0, 0.42, -0.5], r: [-PI / 2 + 0.12, 0, 0] });   // the tail's fan
+    mesh(b, rig);
+    const wingFor = () => {
+      const wb = new Builder();
+      const inner = [[0, 0.17], [0.16, 0.185], [0.36, 0.12], [0.36, -0.1], [0.28, -0.16], [0.21, -0.11], [0.14, -0.17], [0.06, -0.12], [0, -0.14]];
+      const outer = [[0, 0.12], [0.12, 0.095], [0.24, -0.01], [0.245, -0.09], [0.17, -0.07], [0.12, -0.14], [0.0, -0.1]];
+      const tip = [[0.1, 0.1], [0.24, -0.01], [0.245, -0.09], [0.17, -0.07], [0.12, -0.14], [0.08, -0.08]];
+      const flatPart = (poly, col, p, rz, th) => wb.add(extrude(poly, th, 0.008), col, { p, r: [PI / 2, 0, rz], order: "ZYX" });
+      flatPart(inner, "gull", [0, 0, 0], 0.17, 0.034);
+      const wx = 0.36 * Math.cos(0.17), wy = 0.36 * Math.sin(0.17);
+      flatPart(outer, "gull", [wx, wy, 0], -0.1, 0.03);
+      flatPart(tip, "gullTip", [wx, wy + 0.002, 0], -0.1, 0.034);
+      return wb;
+    };
+    const wingGeo = wingFor().build();
+    parts.wings = [-1, 1].map(s => {
+      const w = joint(rig, s * 0.2, 0.47, 0.02);
+      const m = new THREE.Mesh(wingGeo, vc); m.frustumCulled = false; if (s < 0) m.scale.x = -1;                                      // the left wing is the right one mirrored
+      w.add(m);
+      return w;
+    });
+    const rope = new Builder(), banner = new Builder();
+    rope.rod("timber", [0.0, 0.3, 0.0], [-0.12, 0.0, 0.0], 0.012, 0.012, { seg: 5 }); rope.rod("timber", [0.0, 0.3, 0.0], [0.12, 0.0, 0.0], 0.012, 0.012, { seg: 5 });
+    rope.rod("timberDark", [-0.27, -0.0, 0.0], [0.27, 0.0, 0.0], 0.016, 0.016, { seg: 6 });
+    parts.rope = mesh(rope, rig);
+    banner.add(plate([[-0.02, 0.24, 0], [-0.12, 0.245, 0.01], [-0.24, 0.24, -0.006], [-0.34, 0.245, 0.008], [-0.4, 0.24, 0], [-0.5, 0.12, 0.006], [-0.54, 0.0, 0]], 0.014), "banner");          // a swallow-tailed cloth
+    banner.add(extrude([[0, 0.1], [0.08, 0], [0, -0.1], [-0.08, 0]], 0.012, 0.003), "gilt", { p: [0, -0.26, 0.012] });
+    banner.add(extrude([[0, 0.07], [0.055, 0], [0, -0.07], [-0.055, 0]], 0.012, 0.003), "banner", { p: [0, -0.26, 0.019], k: 0.85 });
+    banner.rod("gilt", [-0.24, -0.04, 0.0], [-0.24, -0.4, 0.0], 0.008, 0.008, { seg: 5 }); banner.rod("gilt", [0.24, -0.04, 0.0], [0.24, -0.4, 0.0], 0.008, 0.008, { seg: 5 });
+    parts.banner = mesh(banner, rig);
+    return { group: g, parts };
+  }
+
+  function buildBalloon() {
+    const g = new THREE.Group(), rig = new THREE.Group(), parts = { rig }; g.add(rig);
+    const prof = [[0, 0.0], [0.04, 0.0], [0.055, 0.045], [0.03, 0.09]];
+    for (let k = 0; k <= 14; k++) { const t = k / 14, y = 0.13 + 1.0 * t; prof.push([Math.max(0.03, 0.43 * Math.pow(Math.sin(PI * Math.pow(t, 0.72)), 0.85)), y]); }
+    prof.push([0, 1.15]);
+    const body = new Builder(); body.add(lathe(prof, 16), "good");
+    parts.body = mesh(body, rig, balloonMat[0]);
+    const rest = new Builder();
+    rest.ell("eye", [-0.17, 0.86, 0.3], [0.07, 0.15, 0.04], { seg: 8, rows: 5, r: [0, -0.4, 0.3] });                           // the shine
+    rest.ell("eye", [-0.24, 0.66, 0.26], [0.03, 0.04, 0.02], { seg: 6, rows: 4 });
+    rest.add(lathe(band(0.044, 0.06, -0.03, 0.02), 8, { hard: true }), "gilt");                                      // the tie
+    const pts = [[0, 0.0, 0], [0.03, -0.12, 0.01], [-0.03, -0.24, 0], [0.03, -0.36, -0.01], [0, -0.5, 0]];
+    for (let i = 0; i < pts.length - 1; i++) rest.rod("ring", pts[i], pts[i + 1], 0.01, 0.009, { seg: 4 });
+    mesh(rest, rig);
+    return { group: g, parts };
+  }
+  function buildBarrel() {
+    const g = new THREE.Group(), rig = new THREE.Group(), parts = { rig }; g.add(rig);
+    const b = new Builder(); b.ao = [0, 0.85, 0.72, 1]; barrelInto(b);
+    mesh(b, rig);
+    return { group: g, parts };
+  }
+  /** The model of a foe by its kind (`crab`, `gull`, `barrel`, `balloon`; a heavy crab is the bruiser): `{ group, parts }`. */
+  function makeFoe(f) {
+    const m = f.kind === "crab" ? buildCrab(f) : f.kind === "barrel" ? buildBarrel() : f.kind === "balloon" ? buildBalloon() : buildGull();
+    m.group.traverse(o => { o.frustumCulled = false; });
+    return m;
+  }
+
+  return { retheme, buildHero, makeFoe, balloonMat, BALLOONC, flat, BASIC, vc, vcGlow, kit: { Builder, lathe, extrude, extrudeSide, warp, sphereG, cylG, capsuleG, boxG, arc, mesh, joint } };
 }
