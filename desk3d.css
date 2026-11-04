@@ -1,0 +1,189 @@
+/* desk3d (desk3d.js): a board as a slab on a leather desk. Everything is keyed on `.d3-on`, which desk3d.js puts on the page's root
+   while the desk is showing: with it off, none of this applies and the page is exactly as it was. Class names here avoid the
+   syllables themes.css restyles by pattern ("-go", "-chip", "-tag", "-label", "-note", "-cat"), which would catch them. The
+   looks are Codex (vellum and brass, day and night) and Office at night; colours come from the suite's tokens where a token says it
+   (paper, ink, brass, oxblood), and from the materials below where it is a thing in the room (oak, leather, brass keys). */
+
+/* ---------- the room: materials, per look (Codex by day first) ---------- */
+.d3-on {
+  --d3-f: .5rem; --d3-t: .9rem;                         /* the frame's width and the slab's thickness */
+  --d3-wood-hi: #C99452; --d3-wood-lo: #8C5B2B; --d3-grain: rgb(70 36 10 / .16);
+  --d3-side-hi: #E0AE70; --d3-side-mid: #94622F; --d3-side-lo: #4E3017;
+  --d3-desk-a: #7A3626; --d3-desk-b: #45190F; --d3-stitch: rgb(232 190 110 / .75);
+  --d3-lamp: 255 206 120; --d3-window: 255 244 214;
+  --d3-key-hi: #F3DA97; --d3-key-lo: #C99C46; --d3-key-side: #86601C; --d3-key-edge: #A47528; --d3-key-ink: #1C2A34;
+  --d3-tile-hi: #F3DA97; --d3-tile-lo: #CFA24C; --d3-tile-side: #86601C; --d3-tile-ink: #1C2A34;
+  --d3-ink: #1C2A34; --d3-engrave: rgb(255 255 255 / .85); --d3-pencil: #4B4536; --d3-hl: .55; --d3-groove: rgb(60 40 10 / .55);
+  --d3-rule: #BDA774; --d3-paper: linear-gradient(135deg, rgb(255 255 255 / .35), transparent 46%, rgb(80 50 10 / .06));
+  --d3-spot: radial-gradient(circle at 50% 36%, #FFFCEC, rgb(255 214 130 / .7) 90%);
+  --d3-peer: radial-gradient(circle at 50% 34%, rgb(255 226 150 / .5), rgb(255 214 130 / .22) 78%);
+  --d3-same: radial-gradient(circle at 50% 40%, rgb(255 205 100 / .8), rgb(255 205 100 / .4) 85%);
+  --d3-dim: rgb(40 25 5 / .07);
+  --d3-hint: 212 154 34;
+  --d3-glint: linear-gradient(100deg, transparent, rgb(255 190 70 / .38) 36%, rgb(255 255 255 / .62) 50%, rgb(255 190 70 / .38) 64%, transparent);
+  --d3-ox: #8E2B22; --d3-ox-hi: #B64637; --d3-ox-ink: #FBE9DC; --d3-ox-glow: radial-gradient(circle at 50% 40%, rgb(142 43 34 / .36), rgb(142 43 34 / .14));
+  --d3-mat: radial-gradient(120% 90% at 20% 0%, var(--d3-desk-a), var(--d3-desk-b));
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .d3-on {
+    --d3-wood-hi: #8A5C31; --d3-wood-lo: #4D311A; --d3-grain: rgb(0 0 0 / .22);
+    --d3-side-hi: #A87444; --d3-side-mid: #563519; --d3-side-lo: #24150A;
+    --d3-desk-a: #34190F; --d3-desk-b: #160A07; --d3-stitch: rgb(201 154 69 / .55);
+    --d3-lamp: 255 190 100; --d3-window: 150 175 215;
+    --d3-key-hi: #E9C47C; --d3-key-lo: #B38838; --d3-key-side: #5C4216; --d3-key-edge: #7A5A20; --d3-key-ink: #10181F;
+    --d3-tile-hi: #E9C47C; --d3-tile-lo: #BC9040; --d3-tile-side: #5C4216; --d3-tile-ink: #10181F;
+    --d3-ink: var(--ink); --d3-engrave: rgb(0 0 0 / .75); --d3-pencil: #B9AE95; --d3-hl: .05; --d3-groove: rgb(0 0 0 / .7);
+    --d3-rule: #3C3626; --d3-paper: linear-gradient(135deg, rgb(255 235 190 / .06), transparent 50%, rgb(0 0 0 / .18));
+    --d3-spot: radial-gradient(circle at 50% 36%, rgb(168 128 62 / .85), rgb(120 88 38 / .8) 90%);
+    --d3-peer: radial-gradient(circle at 50% 34%, rgb(230 180 90 / .26), rgb(230 180 90 / .1) 78%);
+    --d3-same: radial-gradient(circle at 50% 40%, rgb(240 190 90 / .5), rgb(240 190 90 / .24) 85%);
+    --d3-dim: rgb(0 0 0 / .24);
+    --d3-hint: 226 184 101;
+    --d3-glint: linear-gradient(100deg, transparent, rgb(255 214 140 / .4) 36%, rgb(255 246 220 / .6) 50%, rgb(255 214 140 / .4) 64%, transparent);
+    --d3-ox: #A83A2E; --d3-ox-hi: #C9594A; --d3-ox-ink: #FFEDE3; --d3-ox-glow: radial-gradient(circle at 50% 40%, rgb(232 128 111 / .34), rgb(232 128 111 / .12));
+  }
+}
+html[data-mode="night"] .d3-on {
+  --d3-wood-hi: #8A5C31; --d3-wood-lo: #4D311A; --d3-grain: rgb(0 0 0 / .22);
+  --d3-side-hi: #A87444; --d3-side-mid: #563519; --d3-side-lo: #24150A;
+  --d3-desk-a: #34190F; --d3-desk-b: #160A07; --d3-stitch: rgb(201 154 69 / .55);
+  --d3-lamp: 255 190 100; --d3-window: 150 175 215;
+  --d3-key-hi: #E9C47C; --d3-key-lo: #B38838; --d3-key-side: #5C4216; --d3-key-edge: #7A5A20; --d3-key-ink: #10181F;
+  --d3-tile-hi: #E9C47C; --d3-tile-lo: #BC9040; --d3-tile-side: #5C4216; --d3-tile-ink: #10181F;
+  --d3-ink: var(--ink); --d3-engrave: rgb(0 0 0 / .75); --d3-pencil: #B9AE95; --d3-hl: .05; --d3-groove: rgb(0 0 0 / .7);
+  --d3-rule: #3C3626; --d3-paper: linear-gradient(135deg, rgb(255 235 190 / .06), transparent 50%, rgb(0 0 0 / .18));
+  --d3-spot: radial-gradient(circle at 50% 36%, rgb(168 128 62 / .85), rgb(120 88 38 / .8) 90%);
+  --d3-peer: radial-gradient(circle at 50% 34%, rgb(230 180 90 / .26), rgb(230 180 90 / .1) 78%);
+  --d3-same: radial-gradient(circle at 50% 40%, rgb(240 190 90 / .5), rgb(240 190 90 / .24) 85%);
+  --d3-dim: rgb(0 0 0 / .24);
+  --d3-hint: 226 184 101;
+  --d3-glint: linear-gradient(100deg, transparent, rgb(255 214 140 / .4) 36%, rgb(255 246 220 / .6) 50%, rgb(255 214 140 / .4) 64%, transparent);
+  --d3-ox: #A83A2E; --d3-ox-hi: #C9594A; --d3-ox-ink: #FFEDE3; --d3-ox-glow: radial-gradient(circle at 50% 40%, rgb(232 128 111 / .34), rgb(232 128 111 / .12));
+}
+/* Office (night only): graphite slab on grey felt, steel keys, blue enamel tiles */
+html[data-theme="office"] .d3-on {
+  --d3-wood-hi: #5B6672; --d3-wood-lo: #323A43; --d3-grain: rgb(0 0 0 / .12);
+  --d3-side-hi: #7B8794; --d3-side-mid: #3A434D; --d3-side-lo: #181D22;
+  --d3-desk-a: #2D3238; --d3-desk-b: #15181B; --d3-stitch: rgb(98 171 245 / .4);
+  --d3-lamp: 190 215 255; --d3-window: 150 180 225;
+  --d3-key-hi: #5A616A; --d3-key-lo: #3B4148; --d3-key-side: #14171A; --d3-key-edge: #6E767F; --d3-key-ink: #FFFFFF;
+  --d3-tile-hi: #5DAAF7; --d3-tile-lo: #2F7FD0; --d3-tile-side: #123C68; --d3-tile-ink: #FFFFFF;
+  --d3-ink: var(--ink); --d3-engrave: rgb(0 0 0 / .7); --d3-pencil: #B5B5B5; --d3-hl: .06; --d3-groove: rgb(0 0 0 / .7);
+  --d3-rule: #404040; --d3-paper: linear-gradient(135deg, rgb(255 255 255 / .05), transparent 50%, rgb(0 0 0 / .16));
+  --d3-spot: radial-gradient(circle at 50% 36%, rgb(71 158 245 / .5), rgb(71 158 245 / .34) 90%);
+  --d3-peer: radial-gradient(circle at 50% 34%, rgb(120 180 245 / .24), rgb(120 180 245 / .09) 78%);
+  --d3-same: radial-gradient(circle at 50% 40%, rgb(120 180 245 / .5), rgb(120 180 245 / .24) 85%);
+  --d3-dim: rgb(0 0 0 / .26);
+  --d3-hint: 233 196 106;
+  --d3-glint: linear-gradient(100deg, transparent, rgb(98 171 245 / .4) 36%, rgb(235 245 255 / .85) 50%, rgb(98 171 245 / .4) 64%, transparent);
+  --d3-ox: #B33A47; --d3-ox-hi: #D2606B; --d3-ox-ink: #FFFFFF; --d3-ox-glow: radial-gradient(circle at 50% 40%, rgb(241 112 123 / .34), rgb(241 112 123 / .12));
+}
+
+/* ---------- the stage is the desk's blotter; the world inside it tips ---------- */
+.d3-world { display: contents; }
+.d3-desk, .d3-cast, .d3-frame, .d3-side, .d3-sheen { display: none; }
+.d3-on .desk3d { position: relative; overflow: hidden; overflow: clip; perspective: 90rem; perspective-origin: 50% 36%; place-items: center; padding: .9rem 1.2rem;
+  margin-inline: calc(-1 * var(--d3-bleed, 0px)); border-radius: var(--d3-r, 0); background: var(--d3-mat); isolation: isolate; }
+/* the blotter's edge: a shadow just inside it and a line of stitching */
+.d3-on .desk3d::before, .d3-on .desk3d::after { content: ""; position: absolute; pointer-events: none; z-index: 5; }
+.d3-on .desk3d::before { inset: 0; border-radius: inherit; box-shadow: inset 0 0 1.3rem rgb(0 0 0 / .42), inset 0 1px 0 rgb(255 255 255 / .1); }
+.d3-on .desk3d::after { inset: .36rem; border: 1px dashed var(--d3-stitch); border-radius: .3rem; }
+.d3-on .d3-world { display: grid; position: relative; place-items: center; transform-style: preserve-3d; will-change: transform;
+  transform: rotateX(17deg) scale(.95); }
+.d3-on .d3-host { display: block; width: auto; height: auto; transform-style: preserve-3d; }
+/* leather, a window's light from the upper left and a lamp's pool from the upper right, all laid on the desk plane so they tip with it */
+.d3-on .d3-desk { display: block; position: absolute; left: 50%; top: 50%; width: var(--d3-sw, 30rem); height: var(--d3-sh, 30rem); pointer-events: none;
+  transform: translate3d(-50%, -50%, calc(-1 * var(--d3-t)));
+  background:
+    radial-gradient(ellipse 52% 40% at 80% 14%, rgb(var(--d3-lamp) / .34), transparent 72%),
+    linear-gradient(112deg, rgb(var(--d3-window) / .26), transparent 55%),
+    radial-gradient(ellipse at 50% 50%, transparent 52%, rgb(0 0 0 / .42) 100%),
+    var(--d3-mat); }
+
+/* ---------- the slab: the board's own element, dressed ---------- */
+.d3-on .d3-slab { transform-style: preserve-3d; }
+.d3-on .d3-frame { display: block; position: absolute; inset: calc(-1 * var(--d3-f)); pointer-events: none;
+  background: repeating-linear-gradient(98deg, transparent 0 .22rem, var(--d3-grain) .22rem .26rem, transparent .26rem .6rem), linear-gradient(135deg, var(--d3-wood-hi), var(--d3-wood-lo));
+  clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, var(--d3-f) var(--d3-f), var(--d3-f) calc(100% - var(--d3-f)), calc(100% - var(--d3-f)) calc(100% - var(--d3-f)), calc(100% - var(--d3-f)) var(--d3-f), var(--d3-f) var(--d3-f)); }
+.d3-on .d3-cast { display: block; position: absolute; inset: calc(-1 * var(--d3-f)); pointer-events: none; background: rgb(0 0 0 / .5); border-radius: .2rem;
+  box-shadow: 0 0 1.2rem .25rem rgb(0 0 0 / .55); transform: translate3d(.28rem, .5rem, calc(-1 * var(--d3-t))); }
+.d3-on .d3-side { display: block; position: absolute; pointer-events: none; }
+.d3-on .d3-n, .d3-on .d3-s { left: calc(-1 * var(--d3-f)); right: calc(-1 * var(--d3-f)); height: var(--d3-t); }
+.d3-on .d3-e, .d3-on .d3-w { top: calc(-1 * var(--d3-f)); bottom: calc(-1 * var(--d3-f)); width: var(--d3-t); }
+.d3-on .d3-n { top: calc(-1 * var(--d3-f)); transform-origin: top; transform: rotateX(-90deg); background: linear-gradient(to bottom, var(--d3-side-mid), var(--d3-side-lo)); }
+.d3-on .d3-s { bottom: calc(-1 * var(--d3-f)); transform-origin: bottom; transform: rotateX(90deg);
+  background: linear-gradient(to top, var(--d3-side-hi) 0, var(--d3-side-hi) 14%, var(--d3-side-mid) 18%, var(--d3-side-lo)); }
+.d3-on .d3-w { left: calc(-1 * var(--d3-f)); transform-origin: left; transform: rotateY(90deg);
+  background: linear-gradient(to right, var(--d3-side-hi) 0, var(--d3-side-hi) 14%, var(--d3-side-mid) 18%, var(--d3-side-lo)); }
+.d3-on .d3-e { right: calc(-1 * var(--d3-f)); transform-origin: right; transform: rotateY(-90deg);
+  background: linear-gradient(to left, var(--d3-side-mid) 0, var(--d3-side-mid) 14%, var(--d3-side-lo) 18%, var(--d3-side-lo)); }
+/* a gloss over the board, and the glint that sweeps it when it's solved (one transform, composited) */
+.d3-on .d3-sheen { display: block; position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; z-index: 4;
+  background: linear-gradient(118deg, rgb(255 255 255 / .16), transparent 34%, transparent 72%, rgb(0 0 0 / .07)); }
+.d3-glint { position: absolute; top: -30%; bottom: -30%; left: -40%; width: 30%; opacity: 0; transform: skewX(-20deg);
+  background: var(--d3-glint); }
+.d3-shine .d3-glint { animation: d3-sweep 1.15s cubic-bezier(.4, 0, .25, 1) both; }
+@keyframes d3-sweep { 0% { opacity: 0; transform: translateX(0) skewX(-20deg); } 14%, 84% { opacity: 1; } 100% { opacity: 0; transform: translateX(520%) skewX(-20deg); } }
+@keyframes d3-set { from { transform: scale(1.28); opacity: .55; } to { transform: none; opacity: 1; } }
+@keyframes d3-glow { 0%, 100% { opacity: 0; } 40% { opacity: .8; } }
+@media (prefers-reduced-motion: reduce) {
+  .d3-on .d3-world { will-change: auto; }
+  .d3-shine .d3-glint { left: 10%; width: 80%; transform: skewX(-20deg); animation: d3-glow 1.2s ease-in-out both; }
+  :root .d3-on .dg-c.entered .dg-v { animation: none; }
+}
+
+/* ---------- the digit grid on the slab (digits.js: Nonet, Calcudoku, Tally) ---------- */
+:root .d3-on .dg { background: var(--d3-paper), var(--sheet); border-radius: 2px; box-shadow: inset 0 0 0 1px var(--d3-groove), inset 2px 3px 7px rgb(0 0 0 / .3); }
+:root .d3-on .dg-thin { stroke: var(--d3-rule); stroke-width: 1.4; }
+:root .d3-on .dg-heavy, :root .d3-on .dg-frame { stroke: var(--brass-lo); stroke-width: 2.6; }
+:root .d3-on .dg-frame { stroke-width: 2; }
+/* each cell a shallow well; --d3-ring is where a state adds its own ring or glow */
+:root .d3-on .dg-c:not(.dg-block, .dg-clue) { box-shadow: var(--d3-ring, 0 0 #0000), inset 0 1px 2px rgb(0 0 0 / .14), inset 0 -1px 0 rgb(255 255 255 / var(--d3-hl)); }
+:root .d3-on .dg-c.d3-down { transform: scale(.93); transition: transform .06s; }
+/* given digits engraved; yours a raised tile that drops into its well */
+:root .d3-on .dg-c.given .dg-v { color: var(--d3-ink); text-shadow: 1px 1px 0 var(--d3-engrave), -.5px -.5px 0 rgb(0 0 0 / .22); }
+:root .d3-on .dg-c.entered .dg-v { display: grid; place-items: center; width: 80%; height: 80%; border-radius: calc(var(--cell) * .14); font-size: calc(var(--cell) * .55); font-weight: 640;
+  color: var(--d3-tile-ink); background: linear-gradient(160deg, var(--d3-tile-hi), var(--d3-tile-lo)); text-shadow: 0 1px 0 rgb(255 255 255 / .4);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .7), inset 0 -2px 2px rgb(0 0 0 / .18), 0 1.5px 0 var(--d3-tile-side), 0 3px 4px rgb(0 0 0 / .38); animation: d3-set .2s ease-out; }
+:root .d3-on .dg-c.entered[style*="--own"] .dg-v { background: linear-gradient(160deg, color-mix(in srgb, var(--own) 72%, #fff), var(--own)); color: #fff; text-shadow: none; }
+/* pencil marks: small, graphite, engraved */
+:root .d3-on .dg:not(.caged) .dg-n { inset: 3%; }
+:root .d3-on .dg-n { font-size: calc(var(--cell) * .3); font-weight: 740; color: var(--d3-pencil); text-shadow: 0 .5px 0 rgb(255 255 255 / var(--d3-hl)); }
+:root .d3-on .dg.caged .dg-n { font-size: calc(var(--cell) * .23); }
+:root .d3-on .dg-n i.same { background: var(--d3-tile-lo); color: var(--d3-tile-ink); text-shadow: none; box-shadow: 0 0 .35rem rgb(var(--d3-lamp) / .9); }
+/* highlights are light: the lamp warms the row, column and box of the cell you are on and the rest of the slab falls a little into shade */
+:root .d3-on .dg:has(.dg-c.sel) .dg-c:not(.peer, .sel, .same, .conflict, .lit, .focus, .sealed, .dg-block, .dg-clue) { background: var(--d3-dim); }
+:root .d3-on .dg-c.peer { background: var(--d3-peer); }
+:root .d3-on .dg-c.same { background: var(--d3-same); }
+:root .d3-on .dg-c.sel { background: var(--d3-spot); --d3-ring: 0 0 0 2px var(--brass), 0 0 .8rem rgb(var(--d3-lamp) / .8); }
+:root .d3-on .dg-c.other { --d3-ring: inset 0 0 0 2px var(--who); }
+:root .d3-on .dg-c.sel.other { --d3-ring: 0 0 0 2px var(--brass), 0 0 0 4px var(--who); }
+:root .d3-on .dg-c.lit { background: radial-gradient(circle at 50% 40%, rgb(var(--d3-hint) / .55), rgb(var(--d3-hint) / .22)); }
+:root .d3-on .dg-c.focus { background: radial-gradient(circle at 50% 40%, rgb(var(--d3-hint) / .8), rgb(var(--d3-hint) / .4)); --d3-ring: 0 0 0 2px rgb(var(--d3-hint)), 0 0 .7rem rgb(var(--d3-hint) / .8); }
+/* errors are oxblood: a lacquered tile for your digit, an oxblood engraving for a given one */
+:root .d3-on .dg-c.conflict { background: var(--d3-ox-glow); }
+:root .d3-on .dg-c.conflict.given .dg-v { color: var(--d3-ox-hi); }
+:root .d3-on .dg-c.conflict.entered .dg-v, :root .d3-on .dg-c.wrong.entered .dg-v { background: linear-gradient(160deg, var(--d3-ox-hi), var(--d3-ox)); color: var(--d3-ox-ink); text-shadow: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .3), inset 0 -2px 2px rgb(0 0 0 / .25), 0 1.5px 0 #4A140E, 0 3px 4px rgb(0 0 0 / .4); }
+:root .d3-on .dg-c.wrong .dg-v { text-decoration-color: var(--d3-ox-ink); }
+/* a unit finished: a quick lamp-flash along it (the glint over the slab is the solve's) */
+:root .d3-on .dg-c.flash::after { background: radial-gradient(circle, rgb(255 244 205 / .95), rgb(var(--d3-lamp) / 0) 78%); animation-delay: calc(var(--k, 0) * 14ms); }
+
+/* ---------- the number pad: raised keys that press down ---------- */
+:root .d3-on .dg-key { border: 0; border-radius: .4rem; color: var(--d3-key-ink); background: linear-gradient(180deg, var(--d3-key-hi), var(--d3-key-lo)); transition: transform .07s, box-shadow .07s;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .55), inset 0 0 0 1px var(--d3-key-edge), 0 3px 0 var(--d3-key-side), 0 5px 7px rgb(0 0 0 / .3); }
+:root .d3-on .dg-key small { color: color-mix(in srgb, var(--d3-key-ink) 68%, transparent); }
+:root .d3-on .dg-key:active { transform: translateY(2px); background: linear-gradient(180deg, var(--d3-key-hi), var(--d3-key-lo));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .55), inset 0 0 0 1px var(--d3-key-edge), 0 1px 0 var(--d3-key-side), 0 2px 3px rgb(0 0 0 / .3); }
+:root .d3-on .dg-key.lit { background: linear-gradient(180deg, var(--d3-key-hi), var(--d3-key-lo));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .55), inset 0 0 0 1px var(--d3-key-edge), 0 0 0 2px rgb(var(--d3-lamp)), 0 3px 0 var(--d3-key-side), 0 5px 9px rgb(var(--d3-lamp) / .6); }
+:root .d3-on .dg-pad.notes .dg-key b { color: color-mix(in srgb, var(--d3-key-ink) 70%, transparent); }
+:root .d3-on .dg-tool { border: 0; border-radius: .4rem; background: linear-gradient(180deg, rgb(255 255 255 / .12), rgb(0 0 0 / .05)); transition: transform .07s, box-shadow .07s;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 2px 0 rgb(0 0 0 / .18), 0 3px 5px rgb(0 0 0 / .14); }
+:root .d3-on .dg-tool:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 1px 0 rgb(0 0 0 / .18); }
+:root .d3-on .dg-tool[aria-pressed="true"] { background: color-mix(in srgb, var(--dg-in) 18%, transparent); box-shadow: inset 0 2px 5px rgb(0 0 0 / .35), 0 1px 0 rgb(255 255 255 / .2); }
+
+/* locked raster scale: tipping the world must re-composite its layers, never repaint them */
+.d3-on :is(.d3-desk, .d3-host, .d3-slab, .d3-cast, .d3-frame, .d3-side, .d3-sheen) { will-change: transform; }
+/* the leather grain is a layer of its own: as a second background of the desk it was repainted on every frame of the tilt */
+.d3-on .d3-desk::after { content: ""; position: absolute; inset: 0; background: url("data:image/png;base64,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"); will-change: transform; }
