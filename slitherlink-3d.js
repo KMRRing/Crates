@@ -113,6 +113,7 @@ export function createChart(host, opts = {}) {
   const ptex = (canvasEl, repeat) => { const t = tex(canvasEl, false); t.wrapS = t.wrapT = 1000; t.repeat.set(repeat, repeat); return t; };
 
   function set(puzzle) {
+    clearIsland(); solveAt = null;     // the last puzzle's land, town, cog and sea go with it
     disposeAll();
     g = puzzle.g; C = g.C; R = g.R; clue = puzzle.clue;
     ends = Array.from({ length: g.E }, (_, e) => edgeEnds(g, e));
@@ -318,7 +319,17 @@ export function createChart(host, opts = {}) {
   let island = null;     // { landGroup, sea, ship, course, dock, houses[], trees, flag, pier }
   function clearIsland() {
     if (!island) return;
-    for (const o of [island.landGroup, island.sea, island.ship, island.pier]) { o.parent?.remove(o); }
+    const shared = new Set([box, cyl, cone4, cone7, quad]), keep = new Set(Object.values(M));   // the scene's own geometry and materials stay
+    for (const root of [island.landGroup, island.sea, island.ship, island.pier]) {
+      root.parent?.remove(root);
+      root.traverse(o => {
+        if (o.geometry && !shared.has(o.geometry)) o.geometry.dispose();
+        for (const m of [].concat(o.material || [])) if (!keep.has(m)) m.dispose();
+      });
+      root.dispose?.();
+    }
+    island.treeMesh.dispose?.();
+    M.sea.opacity = 0;
     island = null;
   }
   function buildIsland(marks) {
@@ -528,7 +539,7 @@ export function createChart(host, opts = {}) {
     /** Holds the drawing still while the menu is open, then lets it go on. */
     hold(on) { held = !!on; if (held && frameId) { cancelAnimationFrame(frameId); frameId = 0; } else wake(); },
     /** For tests and the looks: the state of things. */
-    get live() { return { shown, frames: drawn, calls: renderer.info.render.calls, solving: solveAt != null, island: !!island, width, height, dist }; },
+    get live() { return { shown, frames: drawn, calls: renderer.info.render.calls, geometries: renderer.info.memory.geometries, sea: M.sea.opacity, solving: solveAt != null, island: !!island, width, height, dist }; },
     /** For looks: jump to the end of the solve, or to a moment of it. */
     solveAt(t) { if (!island) return; solveAt = performance.now() - t; wake(); },
     dispose() { shown = false; if (frameId) cancelAnimationFrame(frameId); disposeAll(); renderer.dispose(); },
