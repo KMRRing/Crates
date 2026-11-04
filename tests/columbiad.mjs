@@ -1,13 +1,15 @@
-// Columbiad's rules (columbiad-engine.js), its first six levels (columbiad-levels.js) and the drag-back control's numbers
-// (columbiad-aim.js). The design doc's physics checks: energy kept over a flight, a tangential launch at circular speed stays
+// Columbiad's rules (columbiad-engine.js), its levels (columbiad-levels.js) and the drag-back control's numbers
+// (columbiad-aim.js). The rules are checked in the honest world the first versions flew in (a level that gives no bodies gets it), the
+// levels in their own big Earth and Moon. The design doc's physics checks: energy kept over a flight, a tangential launch at circular speed stays
 // in orbit, a radial shot at 0.99 of escape speed peaks far out and at 1.01 escapes, the Moon is back where it began after
 // exactly 40 s. Then the engine's own promises: the same inputs give the same path whatever is recorded (a step is a
 // function of the state alone), a ring is entered on the continuous path (a fast shell does not tunnel through a small
 // one), the cone is stable, the dial is monotone and fine at its top, and each level has a stored winning shot that must
 // still win. The bots' measures are in tests/columbiad-bots.mjs.
 import * as E from "../columbiad-engine.js";
-import { LEVELS, SECTIONS, dailyLevel } from "../columbiad-levels.js";
+import { LEVELS, SECTIONS, dailyLevel, hasMovers } from "../columbiad-levels.js";
 import { PROOFS } from "../columbiad-proofs.js";
+import { windowOf } from "../columbiad-bots.js";
 import * as A from "../columbiad-aim.js";
 
 let bad = 0;
@@ -43,6 +45,7 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
   const under = peak(0.99), over = peak(1.01);
   check(under.end === "impact" && under.m > 45 && under.m < 60, `a radial shot at 0.99 of escape speed peaks at ${under.m.toFixed(1)} Earth radii and falls back (the doc says near 50; the softening of the Earth's pull moves it a few)`);
   check(over.end !== "impact" && over.m > 300, "…and at 1.01 it escapes");
+  E.setMovers(true);                       // parked in the game; its code is kept and checked here
   const ml = { ...base, bodies: [{ id: "earth" }, { id: "moon", rail: { phase: 0.1 } }] };
   const p0 = E.bodyAt(ml, 1, 0), p40 = E.bodyAt(ml, 1, 40), p80 = E.bodyAt(ml, 1, 80), q = E.bodyAt(ml, 1, 10);
   check(p0[0] === p40[0] && p0[1] === p40[1] && p0[0] === p80[0] && p0[1] === p80[1], "the Moon is exactly where it began after 40 s, and after 80");
@@ -50,6 +53,9 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
   let radius = 0;
   for (let t = 0.013; t < 40; t += 0.971) { const p = E.bodyAt(ml, 1, t); radius = Math.max(radius, Math.abs(rad(p[0], p[1]) - 60.3)); }
   check(radius < 1e-4, `the rail keeps its radius to ${radius.toExponential(1)} all round (a table built from sqrt and arithmetic, no cos or sin)`);
+  E.setMovers(false);
+  const parked = { ...base, bodies: [{ id: "earth" }, { id: "moon", rail: { phase: 0.1 } }], target: { rail: { a: 5, T: 3, phase: 0.2 }, r: 0.5 } }, w0 = E.bodyAt(parked, 1, 0), w9 = E.bodyAt(parked, 1, 9.37), r0 = E.ringAt(parked, parked.target, 0), r9 = E.ringAt(parked, parked.target, 1.1);
+  check(!E.MOVERS_ON && !E.worldOf(parked).moving && w0[0] === w9[0] && w0[1] === w9[1] && r0[0] === r9[0] && r0[1] === r9[1] && near(rad(w0[0], w0[1]), 60.3, 1e-9), "with movers parked (MOVERS_ON off) a Moon on a rail stands where its phase puts it and a ring on a rail stands too: nothing moves, and the world has no clock");
 }
 
 // ---------- determinism, and a step that depends on the state alone ----------
@@ -139,23 +145,33 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
 
 // ---------- the levels ----------
 {
-  const ids = LEVELS.map(l => l.id);
-  check(SECTIONS.length === 5 && SECTIONS[0].levels.length === 6 && SECTIONS[0].name === "The proving ground" && new Set(ids).size === LEVELS.length && SECTIONS.every((sec, k) => sec.levels.every((l, n) => l.id === `${k + 1}-${n + 1}`)), `${SECTIONS.length} sections, ${LEVELS.length} levels, each id its section and place`);
+  const ids = LEVELS.map(l => l.id), bearingOf = l => { const t = (l.gates || [l.target])[0].at, s = E.direction(l.site ?? 90), re = E.worldOf(l).re; return Math.atan2(t[1] - s[1] * re, t[0] - s[0] * re) * 180 / Math.PI; };
+  check(SECTIONS.length === 3 && SECTIONS.map(s => s.levels.length).join() === "4,5,3" && new Set(ids).size === LEVELS.length && SECTIONS.every((sec, k) => sec.levels.every((l, n) => l.id === `${k + 1}-${n + 1}`)), `${SECTIONS.length} sections, ${LEVELS.length} levels, each id its section and place`);
   check(LEVELS.every(l => E.validate(l).length === 0), "every level is valid");
-  const one = SECTIONS[0].levels;
-  check(one.every(l => l.goal.type === "hit" && !l.bodies), "section 1 is Earth alone, goal Hit");
-  const ring = one.map(l => l.target.r), sc = one.map(l => l.scatter.v), cone = one.map(l => l.cone.len);
-  check(ring.every((r, i) => i === 0 || r <= ring[i - 1]) && sc.every((s, i) => i === 0 || s >= sc[i - 1]) && cone.every((c, i) => i === 0 || c <= cone[i - 1]) && ring[5] < ring[0] && sc[5] > sc[0], `harder through section 1: smaller rings (${ring.join(", ")}), more scatter (${sc.map(s => (s * 100).toFixed(1)).join(", ")} per cent), a shorter cone (${cone.join(", ")})`);
-  check(SECTIONS.slice(1).every(sec => sec.levels.every(l => l.bodies && l.bodies.some(b => b.id === "moon"))) && SECTIONS[2].levels.concat(SECTIONS[3].levels).every(l => E.worldOf(l).moving) && !SECTIONS[1].levels.some(l => E.worldOf(l).moving), "the Moon's sections have a Moon, and where it moves the world has a clock");
+  check(LEVELS.every(l => !hasMovers(l) && !E.worldOf(l).moving) && E.MOVERS_ON === false, "movers are parked: no level has a body or a ring that moves, and the world has no clock");
+  check(hasMovers({ bodies: [{ id: "earth" }, { id: "moon" }] }) && hasMovers({ bodies: [{ id: "earth" }, { id: "moon", rail: {} }] }) && !hasMovers({ bodies: [{ id: "earth" }, { id: "moon", at: [0, 9] }] }), "a level that leans on a mover (a Moon with no place, a rail) is the kind that is left out");
+  // the world: big on the screen, one consistent rule
+  check(LEVELS.every(l => { const w = E.worldOf(l), e = w.bodies[0], m = w.bodies[1]; return e.id === "earth" && m.id === "moon" && e.r >= 4 && m.r >= 1.2 && m.r / e.r > 0.25 && m.mu / e.mu > 0.15 && m.mu / e.mu < 0.3 && !m.rail; }), "every level has a large Earth and Moon (the Moon over a quarter of the Earth's radius, its pull a fifth of the Earth's) standing still");
+  check(LEVELS.every(l => l.dial && l.dial[0] < l.dial[1] && E.dialSpeed(l, 0) === 0 && E.dialSpeed(l, l.barrels) === l.dial[1] && E.dialSpeed(l, 8) < E.dialSpeed(l, 9)), "a level's dial is a straight line from its slowest to its fastest speed");
+  const sec = SECTIONS.map(s => s.levels.map(l => l.target.r));
+  check(sec[0].every((r, i) => i === 0 || r <= sec[0][i - 1]) && sec[1].every((r, i) => i === 0 || r <= sec[1][i - 1]) && Math.max(...sec[1]) < Math.min(...sec[0]) && SECTIONS[1].levels.every(l => l.scatter.v >= SECTIONS[0].levels[0].scatter.v), `a gentle ramp: rings shrink within a section (${sec[0].join(", ")}; ${sec[1].join(", ")}) and the second section's are smaller than the first's`);
   const days = [20261103, 20261104, 20261105, 20261231, 20270101], picks = days.map(d => dailyLevel(d).id);
   check(days.every(d => dailyLevel(d) === dailyLevel(d) && LEVELS.indexOf(dailyLevel(d)) >= 3) && new Set(picks).size >= 3, `the day's level is a pure function of the date, never one of the first three (${picks.join(", ")})`);
   for (const lvl of LEVELS) {
-    const proofs = PROOFS[lvl.id] || [];
-    const wins = proofs.map(p => E.shoot(lvl, p, [0, 0]).won);
+    // the straight shot never works: the line to the ring (or the first gate) is crossed by the Moon, and aimed along it, a couple of degrees either way, at every power, the shot never wins
+    const b = bearingOf(lvl), first = (lvl.gates || [lvl.target])[0], moon = E.worldOf(lvl).bodies[1], s = E.direction(lvl.site ?? 90), re = E.worldOf(lvl).re;
+    const px = s[0] * re, py = s[1] * re, dx = first.at[0] - px, dy = first.at[1] - py, len = rad(dx, dy), perp = Math.abs((moon.x - px) * dy - (moon.y - py) * dx) / len, along = ((moon.x - px) * dx + (moon.y - py) * dy) / len;
+    let straightWins = 0;
+    for (let c = 0.5; c <= lvl.barrels; c += 0.25) for (let o = -2.5; o <= 2.5; o += 0.5) { const r = E.shoot(lvl, { angle: b + o, charge: c }, [0, 0], { watch: false }); if (r.won) straightWins++; }
+    const gated = !!lvl.gates, blocked = gated || (perp < moon.r && along > 0 && along < len + moon.r);       // a free return aims at a gate beside the Moon and its ring is at the pad: no straight line does both
+    check(straightWins === 0 && blocked, `${lvl.id} ${lvl.name}: ${gated ? "the gate is aimed at straight and the ring is at the pad, so no straight line does both" : `the Moon is in the way of the straight line (it passes ${perp.toFixed(2)} from the Moon's middle, the Moon ${moon.r} across)`}, and a shot aimed straight, ${(b).toFixed(1)} degrees plus or minus 2.5, at any power (${(lvl.barrels / 0.25 | 0)} of them) never wins`);
+    // and the way round exists: the stored shots win, in a window a thumb can find, and keep winning under the scatter
+    const proofs = PROOFS[lvl.id] || [], wins = proofs.map(p => E.shoot(lvl, p, [0, 0]).won);
     let robust = 1;
     for (const p of proofs.slice(0, 1)) { let w = 0; for (let k = 0; k < 20; k++) if (E.shoot(lvl, p, [E.normal(5, 24 * k), E.normal(5, 24 * k + 12)]).won) w++; robust = w / 20; }
-    check(proofs.length > 0 && wins.every(Boolean) && proofs.every(p => p.margin >= 0.4 || lvl.id === "1-1") && robust >= Math.max(0.4, proofs[0].rob - 0.35),
-      `${lvl.id} ${lvl.name}: its stored winning shot${proofs.length > 1 ? "s" : ""} (${proofs.map(p => `${p.angle} degrees, ${p.charge} barrels`).join("; ")}) still win${proofs.length > 1 ? "" : "s"}, ${(robust * 100).toFixed(0)}% of the time under the scatter`);
+    const p0 = proofs[0], win = p0 && windowOf(lvl, p0), ends = !!p0 && [[p0.win.a0, p0.charge], [p0.win.a1, p0.charge], [p0.angle, p0.win.c0], [p0.angle, p0.win.c1]].every(([a, c]) => E.shoot(lvl, { angle: a, charge: c }, [0, 0]).won);
+    check(proofs.length >= 2 && wins.every(Boolean) && robust >= 0.7 && ends && win.da >= 2.5 && win.dc >= 0.5 && win.da === p0.win.da && win.dc === p0.win.dc && Math.abs(p0.angle - b) > 3,
+      `${lvl.id}: a way round exists: ${proofs.map(p => `${p.angle} degrees at power ${p.charge}`).join("; ")} win; the first holds ${(robust * 100).toFixed(0)}% under the scatter, with a window of ${win ? win.da : "?"} degrees by ${win ? win.dc : "?"} power units, ${p0 ? Math.abs(p0.angle - b).toFixed(0) : "?"} degrees off the straight line`);
   }
 }
 

@@ -1,30 +1,18 @@
 // The shots each level was proved solvable by (tools/columbiad-bench.mjs write): the most robust the bench found, with the share
-// of 200 scattered runs that won ("rob") and how far inside the ring it passes at no scatter ("margin": 1 is the middle, 0 the edge).
+// of 200 scattered runs that won ("rob"), how far inside the ring it passes at no scatter ("margin": 1 is the middle, 0 the edge) and the window of angles and powers it sits in ("win").
 // t is the firing time (a moving world's clock; 0 where nothing moves). tests/columbiad.mjs fires every one and it must still win: a
 // change to the rules or a level that breaks one is caught there.
 export const PROOFS = {
-  "1-1": [{ angle: 74, charge: 8.7, t: 0, rob: 1, margin: 0.54 }],
-  "1-2": [{ angle: 69, charge: 11.2, t: 0, rob: 1, margin: 1 }],
-  "1-3": [{ angle: 58, charge: 11.8, t: 0, rob: 1, margin: 0.97 }, { angle: 178, charge: 11.8, t: 0, rob: 1, margin: 0.89 }],
-  "1-4": [{ angle: 167, charge: 11.3, t: 0, rob: 0.95, margin: 0.97 }, { angle: 23, charge: 10.8, t: 0, rob: 0.89, margin: 0.95 }],
-  "1-5": [{ angle: 4, charge: 12.2, t: 0, rob: 0.9, margin: 0.93 }, { angle: 47, charge: 11.8, t: 0, rob: 0.68, margin: 0.92 }],
-  "1-6": [{ angle: 150, charge: 12.7, t: 0, rob: 0.72, margin: 1 }, { angle: 17, charge: 11.5, t: 0, rob: 0.67, margin: 0.98 }],
-  "2-1": [{ angle: 84.5, charge: 14.96, t: 0, rob: 1, margin: 0.85 }, { angle: 84.5, charge: 15.6, t: 0, rob: 1, margin: 0.85 }],
-  "2-2": [{ angle: 82, charge: 15.65, t: 0, rob: 0.93, margin: 0.98 }, { angle: 88.5, charge: 15.58, t: 0, rob: 0.91, margin: 0.99 }],
-  "2-3": [{ angle: 96.5, charge: 15.05, t: 0, rob: 1, margin: 1 }, { angle: 92.5, charge: 15.09, t: 0, rob: 0.98, margin: 0.99 }],
-  "2-4": [{ angle: 82, charge: 15.53, t: 0, rob: 0.96, margin: 0.99 }, { angle: 88.56, charge: 15.3, t: 0, rob: 0.44, margin: 0.98 }],
-  "2-5": [{ angle: 99.5, charge: 15.48, t: 0, rob: 0.85, margin: 0.97 }, { angle: 105.13, charge: 15.31, t: 0, rob: 0.47, margin: 1 }],
-  "3-1": [{ angle: 127.94, charge: 15.66, t: 6.09, rob: 1, margin: 0.92 }, { angle: 34.5, charge: 15.9, t: 28.09, rob: 1, margin: 0.92 }],
-  "3-2": [{ angle: 84.56, charge: 15.5, t: 20, rob: 0.99, margin: 0.88 }, { angle: 125, charge: 15.64, t: 28, rob: 0.99, margin: 0.88 }],
-  "3-3": [{ angle: 88.58, charge: 15.9, t: 32, rob: 1, margin: 1 }, { angle: 128, charge: 15.9, t: 1, rob: 1, margin: 1 }],
-  "3-4": [{ angle: 76.63, charge: 15.8, t: 12, rob: 1, margin: 0.85 }, { angle: 50.19, charge: 15.8, t: 6.09, rob: 0.99, margin: 0.85 }],
-  "4-1": [{ angle: 100.5, charge: 14.6, t: 28.05, rob: 1, margin: 0.93 }, { angle: 110.75, charge: 14.95, t: 30.2, rob: 1, margin: 0.93 }],
-  "4-2": [{ angle: 115.69, charge: 15.25, t: 14.01, rob: 1, margin: 0.92 }, { angle: 125.5, charge: 15.25, t: 11.7, rob: 1, margin: 0.92 }],
-  "4-3": [{ angle: 110.5, charge: 15.55, t: 32, rob: 1, margin: 0.89 }, { angle: 120.94, charge: 15.65, t: 34.03, rob: 1, margin: 0.89 }],
-  "5-1": [{ angle: 84.5, charge: 14.96, t: 0, rob: 1, margin: 0.82 }, { angle: 90.5, charge: 15.05, t: 0, rob: 0.95, margin: 0.82 }],
-  "5-2": [{ angle: 84, charge: 14.8, t: 0, rob: 0.66, margin: 0.89 }, { angle: 89, charge: 14.9, t: 0, rob: 0.6, margin: 0.89 }],
-  "5-3": [{ angle: 82.75, charge: 15.88, t: 0, rob: 1, margin: 0.83 }, { angle: 86.75, charge: 15.96, t: 0, rob: 1, margin: 0.98 }],
-  "5-4": [{ angle: 84, charge: 15.18, t: 0, rob: 0.84, margin: 0.5 }, { angle: 87.5, charge: 14.92, t: 0, rob: 0.53, margin: 0.5 }],
-  "5-5": [{ angle: 90.5, charge: 14.95, t: 0, rob: 0.7, margin: 0.5 }, { angle: 79, charge: 15, t: 0, rob: 0.68, margin: 0.5 }],
-  "5-6": [{ angle: 85.75, charge: 15.37, t: 0, rob: 0.91, margin: 0.75 }, { angle: 94.5, charge: 15.43, t: 0, rob: 0.72, margin: 0.64 }],
+  "1-1": [{ angle: 49.06, charge: 7.03, t: 0, rob: 1, margin: 1, win: {"a0":45.56,"a1":58.01,"c0":6.11,"c1":7.81,"da":12.5,"dc":1.72} }, { angle: 54, charge: 7.3, t: 0, rob: 1, margin: 1, win: {"a0":44.95,"a1":58.6,"c0":6.02,"c1":8.6,"da":13.7,"dc":2.6} }],
+  "1-2": [{ angle: 123.5, charge: 7.74, t: 0, rob: 1, margin: 1, win: {"a0":119.6,"a1":132.5,"c0":6.7,"c1":8.74,"da":12.95,"dc":2.06} }, { angle: 126.75, charge: 7.35, t: 0, rob: 1, margin: 1, win: {"a0":120.65,"a1":131.5,"c0":6.55,"c1":8.03,"da":10.9,"dc":1.5} }],
+  "1-3": [{ angle: 55, charge: 7.4, t: 0, rob: 1, margin: 1, win: {"a0":51.65,"a1":63.1,"c0":6.72,"c1":8,"da":11.5,"dc":1.3} }, { angle: 59.38, charge: 7.54, t: 0, rob: 1, margin: 1, win: {"a0":51.23,"a1":63.53,"c0":6.68,"c1":8.34,"da":12.35,"dc":1.68} }],
+  "1-4": [{ angle: 49.94, charge: 6.45, t: 0, rob: 1, margin: 1, win: {"a0":44.69,"a1":55.29,"c0":5.59,"c1":7.23,"da":10.65,"dc":1.66} }, { angle: 53, charge: 7.01, t: 0, rob: 1, margin: 1, win: {"a0":43.3,"a1":56.55,"c0":5.83,"c1":8.27,"da":13.3,"dc":2.46} }],
+  "2-1": [{ angle: 114.69, charge: 8.29, t: 0, rob: 1, margin: 1, win: {"a0":111.34,"a1":122.54,"c0":7.75,"c1":8.77,"da":11.25,"dc":1.04} }, { angle: 118.37, charge: 8.15, t: 0, rob: 1, margin: 1, win: {"a0":112.02,"a1":122.07,"c0":7.67,"c1":8.57,"da":10.1,"dc":0.92} }],
+  "2-2": [{ angle: 65.44, charge: 7.8, t: 0, rob: 1, margin: 1, win: {"a0":58.79,"a1":69.94,"c0":7.24,"c1":8.28,"da":11.2,"dc":1.06} }, { angle: 60.38, charge: 8.03, t: 0, rob: 1, margin: 1, win: {"a0":57.98,"a1":70.93,"c0":7.49,"c1":8.53,"da":13,"dc":1.06} }],
+  "2-3": [{ angle: 53.13, charge: 8, t: 0, rob: 1, margin: 1, win: {"a0":46.88,"a1":55.78,"c0":7.48,"c1":8.48,"da":8.95,"dc":1.02} }, { angle: 55, charge: 8.4, t: 0, rob: 1, margin: 1, win: {"a0":52.7,"a1":57,"c0":7.78,"c1":9,"da":4.35,"dc":1.24} }],
+  "2-4": [{ angle: 56.5, charge: 9.09, t: 0, rob: 1, margin: 1, win: {"a0":51.1,"a1":58.75,"c0":8.75,"c1":9.41,"da":7.7,"dc":0.68} }, { angle: 58.5, charge: 9.44, t: 0, rob: 1, margin: 1, win: {"a0":56.7,"a1":60.15,"c0":9.04,"c1":9.82,"da":3.5,"dc":0.8} }],
+  "2-5": [{ angle: 63.81, charge: 8, t: 0, rob: 1, margin: 1, win: {"a0":57.51,"a1":66.96,"c0":7.6,"c1":8.36,"da":9.5,"dc":0.78} }, { angle: 67, charge: 8.5, t: 0, rob: 1, margin: 1, win: {"a0":64.8,"a1":69,"c0":8.02,"c1":8.96,"da":4.25,"dc":0.96} }],
+  "3-1": [{ angle: 114, charge: 7.1, t: 0, rob: 1, margin: 1, win: {"a0":111.55,"a1":116.35,"c0":6.54,"c1":8.14,"da":4.85,"dc":1.62} }, { angle: 115, charge: 7.57, t: 0, rob: 1, margin: 1, win: {"a0":112.75,"a1":117.15,"c0":6.65,"c1":8.69,"da":4.45,"dc":2.06} }],
+  "3-2": [{ angle: 119, charge: 7.04, t: 0, rob: 1, margin: 1, win: {"a0":116.7,"a1":121.1,"c0":6.62,"c1":7.9,"da":4.45,"dc":1.3} }, { angle: 121, charge: 7.98, t: 0, rob: 1, margin: 1, win: {"a0":119.2,"a1":122.75,"c0":7,"c1":8.62,"da":3.6,"dc":1.64} }],
+  "3-3": [{ angle: 59.5, charge: 7.94, t: 0, rob: 1, margin: 1, win: {"a0":58,"a1":61.05,"c0":7.14,"c1":8.36,"da":3.1,"dc":1.24} }, { angle: 60.5, charge: 7.46, t: 0, rob: 1, margin: 1, win: {"a0":58.85,"a1":62.2,"c0":6.96,"c1":8.2,"da":3.4,"dc":1.26} }],
 };

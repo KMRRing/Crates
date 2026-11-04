@@ -1,94 +1,68 @@
-// Columbiad's levels: plain data, in sections of about six, each adding one idea (the design doc's table). The first section is the
-// Earth alone and one goal, Hit; the next four take the engine's Moon (columbiad-engine.js) and its goals one at a time.
+// Columbiad's levels: plain data, in sections, each adding one idea. 4 November 2026 (Korbi): the Earth and the Moon are large on the
+// screen and the ring is behind the Moon, so a shot aimed straight at it never works and the way is round the Moon's pull.
 //
-// A level: { id, name, note (told once on arriving), site (the cannon's place on the Earth, degrees round from the right; 90 is the
-// top), target { at, r } (the ring's middle and radius in Earth radii: bigger is easier; or { body, off, r } riding a body, or
-// { rail, r } on a rail of its own), goal { type: "hit" | "soft" | "fast" | "gates" | "return" | "orbit", ... }, gates (the rings
-// of a gated goal, in order, the last the target), scatter { v (a share), deg } (the shot-to-shot error in speed and aim, one
-// standard deviation), cone { len (how many Earth radii of flight the preview shows), dt, rec (its coarse step and its path's
-// spacing, for a far world) }, barrels (the most powder the level loads), tMax (seconds of flight allowed), par (shots),
-// bodies (the world: the Earth alone when absent; the Moon is { id: "moon" } on its rail, or { id: "moon", at } standing still,
-// any other body gives its mu, r and rail), band { lean, charge: [from, to] } (where on the dial the solutions lie: the bots sweep
-// that, not the whole dial), frame (the aim view's box), look (how a body is drawn), period (seconds after which the world
-// repeats, when it moves) }.
+// The world is stylised but keeps one consistent rule: the Earth is 4.2 across its radius and the Moon 1.35, the Earth's
+// pull is 34 and the Moon's 7.5 (about a fifth), so a shell leaving at the dial's top clears the Earth (escape speed 4.0) and one slower
+// than 3.3 is held by the Moon (its own escape speed). Honest masses (81 to 1) would make the Moon's pull too weak to steer by.
 //
-// The numbers were set with the bots (tools/columbiad-bench.mjs): each ring is a share of the dial's moves that win (the
-// design's 0.2% to 5%, of the band for the Moon's levels), the best solutions hold at 70 to 100% under the scatter, and a later level has a
-// smaller ring, more scatter and a shorter cone. Targets are written out, not computed, so the same number is used on every device.
-// A moving world is fired into at the time it is: a shot is { angle, charge, t }, and t is when the gun fires.
-const MOON = [10.5, 59.4];                      // the Moon standing still, 60.3 Earth radii from the centre, 10 degrees right of up
-const NEAR = [-17.7, 44.1];
-const OVER = [0, 60.3];                         // the Moon straight over the cannon
-const HOME = { at: [0, 1], r: 0.5 };            // a ring on the ground at the foot of the gun: where a shell fired straight up comes down                     // a nearer place for it: 47.5 R, 22 degrees left of up
-const RAIL = ph => ({ id: "moon", rail: { phase: ph } });       // the Moon on its rail, its 40 seconds' circle, starting ph of a turn round
-const SWING = { barrels: 16, tMax: 14, bounds: 130, scatter: { v: 0.0005, deg: 0.05 }, band: { lean: 90, charge: [14.6, 15.9] }, cone: { len: 62, dt: 1 / 30, rec: 0.3 }, par: 1, period: 40, frame: [-70, -6, 70, 72] };
-const MOONS = { barrels: 16, tMax: 14, bounds: 130, scatter: { v: 0.0005, deg: 0.05 }, band: { lean: 30, charge: [14, 16] }, cone: { len: 62, dt: 1 / 30, rec: 0.3 }, par: 1 };
+// A level: { id, name, note (told once on arriving), site (the launch pad's place on the Earth, degrees round from the right; 90 is the top),
+// bodies [Earth, Moon] (mu: pull, r: size, at: place), target { at, r } (the ring's middle and radius: bigger is easier) or, for goal
+// "return", gates (the rings in order, the last the target), goal { type }, dial [slowest, fastest] (the speed power 0 and the top of the
+// gauge give, a straight line between), scatter { v (a share), deg } (the shot-to-shot error, one standard deviation), cone { len } (how many
+// units of flight the preview shows), barrels (the gauge's power units), tMax (time of flight allowed), par, band { lean, charge } (where
+// the bots look), frame (the aim view's box) }.
+//
+// Every level is proved in tests/columbiad.mjs: a straight aim at the ring (or the first gate), at any power and a couple of degrees either way, never
+// wins; a stored shot (columbiad-proofs.js, found by the solver of tools/columbiad-solve.mjs) does, with its window of angles and powers.
+import { MOVERS_ON } from "./columbiad-engine.js";
+
+const EARTH = { id: "earth", mu: 34, r: 4.2 };
+const moon = (x, y) => ({ id: "moon", at: [x, Math.round((y + 0.2) * 100) / 100], mu: 7.5, r: 1.35 });
+const WORLD = { barrels: 16, dial: [2.0, 4.4], dt: 1 / 60, tMax: 30, bounds: 40, site: 90, goal: { type: "hit" }, scatter: { v: 0.002, deg: 0.15 }, cone: { len: 12 }, par: 1,
+  frame: [-3.9, 2.9, 3.9, 12.8], band: { lean: 60, charge: [0.5, 16] } };
+const S2 = { scatter: { v: 0.003, deg: 0.2 } };                  // the later sections are less forgiving
+const HOME = r => ({ at: [0, 4.2], r });                    // a ring on the ground at the pad: where a shot that has been round the Moon comes down
 
 export const SECTIONS = [
-  { id: 1, name: "The proving ground", idea: "Earth only: charge sets range, gravity bends the arc", open: "all", levels: [
-    { id: "1-1", name: "First round", note: "A mortar lob: the more powder, the farther it falls.",
-      site: 90, target: { at: [0.587, 1.104], r: 0.30 }, goal: { type: "hit" }, scatter: { v: 0.010, deg: 0.5 }, cone: { len: 6 }, barrels: 9, tMax: 0.9, par: 1 },
-    { id: "1-2", name: "Higher ground", note: "A ring above the horizon. Loft the shell and let gravity bring it in.",
-      site: 90, target: { at: [1.131, 1.131], r: 0.24 }, goal: { type: "hit" }, scatter: { v: 0.012, deg: 0.6 }, cone: { len: 5 }, barrels: 12, tMax: 0.9, par: 1 },
-    { id: "1-3", name: "Over the horizon", note: "The ring lies beyond the curve of the Earth. A shell fired level, with powder enough, follows the ground round.",
-      site: 90, target: { at: [1.295, 0.113], r: 0.20 }, goal: { type: "hit" }, scatter: { v: 0.015, deg: 0.8 }, cone: { len: 4 }, barrels: 12, tMax: 0.9, par: 1 },
-    { id: "1-4", name: "The long way round", note: "The ring is behind the world. Either way round will do.",
-      site: 90, target: { at: [0.650, -1.126], r: 0.17 }, goal: { type: "hit" }, scatter: { v: 0.020, deg: 1.0 }, cone: { len: 3.2 }, barrels: 12, tMax: 0.9, par: 1 },
-    { id: "1-5", name: "Far limb", note: "A high ring on the far side. The cone is short: trust the arc.",
-      site: 90, target: { at: [1.871, -0.330], r: 0.15 }, goal: { type: "hit" }, scatter: { v: 0.020, deg: 1.0 }, cone: { len: 2.6 }, barrels: 13, tMax: 0.9, par: 1 },
-    { id: "1-6", name: "Antipode", note: "Straight through the world, as far from the cannon as the Earth allows.",
-      site: 90, target: { at: [0.000, -1.600], r: 0.13 }, goal: { type: "hit" }, scatter: { v: 0.020, deg: 1.0 }, cone: { len: 2.2 }, barrels: 13, tMax: 0.9, par: 1 },
+  { id: 1, name: "Beside the Moon", idea: "The Moon pulls: aim wide of it and be drawn in", levels: [
+    { ...WORLD, id: "1-1", name: "Beside the Moon", note: "The ring lies beyond the Moon's shoulder. The Moon pulls the shot: aim wide of it and let it bend you in.",
+      bodies: [EARTH, moon(0.6, 8.7)], target: { at: [2.2, 10.6], r: 0.6 }, aim: { angle: 72, charge: 10 } },
+    { ...WORLD, id: "1-2", name: "The other shoulder", note: "The same from the left. Power sets how flat the arc is; the angle then has to follow.",
+      bodies: [EARTH, moon(-0.4, 8.9)], target: { at: [-1.9, 11.1], r: 0.55 }, aim: { angle: 108, charge: 10 } },
+    { ...WORLD, id: "1-3", name: "High shoulder", note: "A ring higher up the Moon's far side.",
+      bodies: [EARTH, moon(0, 9)], target: { at: [1.3, 11.2], r: 0.5 }, cone: { len: 11 }, aim: { angle: 72, charge: 10 } },
+    { ...WORLD, id: "1-4", name: "Close pass", note: "Hugging the Moon: its pull is strongest here.",
+      bodies: [EARTH, moon(0.8, 8.6)], target: { at: [2.4, 10.2], r: 0.45 }, cone: { len: 10 }, aim: { angle: 72, charge: 10 } },
   ] },
-  { id: 2, name: "The Moon's pull", idea: "The Moon stands still, 60 Earth radii up, and pulls: powder near the top of the dial reaches it", levels: [
-    { ...MOONS, id: "2-1", name: "Moonfall", note: "The Moon is 60 Earth radii away and pulls on the shell: nearly all the powder reaches it.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: MOON }], target: { body: "moon", r: 1.8 }, goal: { type: "hit" }, frame: [-27, -6, 41, 80] },
-    { ...MOONS, id: "2-2", name: "Over the Moon", note: "A ring above the Moon. Its pull bends the arc: aim beside it and be drawn in.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: MOON }], target: { at: [11, 83], r: 2.5 }, goal: { type: "hit" }, frame: [-27, -6, 41, 94] },
-    { ...MOONS, id: "2-3", name: "Skimming", note: "A nearer Moon, and a ring hugging its far side.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: NEAR }], target: { at: [-12, 50.5], r: 2.2 }, goal: { type: "hit" }, frame: [-40, -6, 28, 66], band: { lean: 36, charge: [13.5, 15.2] } },
-    { ...MOONS, id: "2-4", name: "Behind the Moon", note: "Dead behind the Moon, as the gun sees it. The shell must go round.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: MOON }], target: { at: [12.7, 71.7], r: 1.8 }, goal: { type: "hit" }, frame: [-27, -6, 41, 90] },
-    { ...MOONS, id: "2-5", name: "A far Moon", note: "The Moon is farther up here: the very top of the dial.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: [-24, 62] }], target: { at: [-27, 67.5], r: 1.8 }, goal: { type: "hit" }, frame: [-48, -6, 20, 90], band: { lean: 36, charge: [14.6, 16] } },
+  { id: 2, name: "Behind the Moon", idea: "The ring is hidden by the Moon: there is no straight line, only a way round", levels: [
+    { ...WORLD, ...S2, id: "2-1", name: "Eclipse", note: "Dead behind the Moon. Go round either side.",
+      bodies: [EARTH, moon(0.6, 8.7)], target: { at: [0.6, 11.5], r: 0.4 }, aim: { angle: 70, charge: 10 } },
+    { ...WORLD, ...S2, id: "2-2", name: "Moonshadow", note: "Tucked close behind it.",
+      bodies: [EARTH, moon(-0.8, 8.5)], target: { at: [-0.8, 11.0], r: 0.38 }, cone: { len: 10 }, aim: { angle: 110, charge: 10 } },
+    { ...WORLD, ...S2, id: "2-3", name: "Off the line", note: "Behind the Moon as the pad sees it, which is not straight up.",
+      bodies: [EARTH, moon(1.2, 9)], target: { at: [1.8, 11.7], r: 0.36 }, cone: { len: 10 }, aim: { angle: 70, charge: 10 } },
+    { ...WORLD, ...S2, id: "2-4", name: "Far behind", note: "Well out in its shadow: a long way round.",
+      bodies: [EARTH, moon(0.2, 8.4)], target: { at: [0.5, 12.1], r: 0.34 }, cone: { len: 9 }, aim: { angle: 70, charge: 10 } },
+    { ...WORLD, ...S2, id: "2-5", name: "Needle", note: "A small ring behind a heavy Moon.",
+      bodies: [EARTH, moon(-0.4, 8.8)], target: { at: [-0.5, 11.4], r: 0.3 }, cone: { len: 8 }, aim: { angle: 110, charge: 10 } },
   ] },
-  { id: 3, name: "The Moon moves", idea: "The Moon goes round in 40 seconds: the cone is the aim for this moment, so fire when it is ready", levels: [
-    { ...SWING, id: "3-1", name: "Tracking", note: "Now the Moon moves, once round in 40 seconds. The cone shows where a shot fired this instant goes: wait for it to meet the ring.",
-      site: 90, bodies: [{ id: "earth" }, RAIL(0.18)], target: { body: "moon", r: 3.5 }, goal: { type: "hit" } },
-    { ...SWING, id: "3-2", name: "Leading it", note: "A smaller ring, and the Moon will have moved on by the time the shell is there.",
-      site: 90, bodies: [{ id: "earth" }, RAIL(0.62)], target: { body: "moon", r: 2.2 }, goal: { type: "hit" } },
-    { ...SWING, id: "3-3", name: "Above it", note: "The ring rides above the Moon, so the Moon's pull bends the shell on the way in.",
-      site: 90, bodies: [{ id: "earth" }, RAIL(0.35)], target: { body: "moon", off: [0, 9], r: 2.6 }, goal: { type: "hit" } },
-    { ...SWING, id: "3-4", name: "Half a cone", note: "The preview stops halfway. Judge the rest by the Moon.",
-      site: 90, bodies: [{ id: "earth" }, RAIL(0.8)], target: { body: "moon", r: 1.8 }, goal: { type: "hit" }, scatter: { v: 0.0004, deg: 0.04 }, cone: { len: 32, dt: 1 / 30, rec: 0.3 } },
-  ] },
-  { id: 4, name: "More moons", idea: "Moons that are not the Moon: a numbered few, one going backwards, each with a pull of its own", levels: [
-    { ...SWING, id: "4-1", name: "Moon II", note: "A second moon, nearer in and lighter, the same 40 seconds round. Strike it, and mind the Moon's pull on the way.",
-      site: 90, bodies: [{ id: "earth" }, RAIL(0.3), { id: "ii", mu: 30, r: 0.2, rail: { a: 36, T: 40, phase: 0.55 } }], target: { body: "ii", r: 2.8 }, goal: { type: "hit" }, ask: "Strike Moon II",
-      look: { ii: { tint: [1.0, 0.8, 0.66], tilt: -14 } }, band: { lean: 90, charge: [13.8, 15.4] } },
-    { ...SWING, id: "4-2", name: "Backwards", note: "Moon III goes round the other way, and weighs as much as the Moon.",
-      site: 90, bodies: [{ id: "earth" }, RAIL(0.1), { id: "iii", mu: 60, r: 0.24, rail: { a: 46, T: -40, phase: 0.8 } }], target: { body: "iii", r: 2.8 }, goal: { type: "hit" }, ask: "Strike Moon III",
-      look: { iii: { tint: [0.74, 0.86, 1.0], tilt: 10 } }, band: { lean: 90, charge: [14, 15.6] } },
-    { ...SWING, id: "4-3", name: "Three moons", note: "Three moons, two ways round. The ring is on the farthest.",
-      site: 90, bodies: [{ id: "earth" }, RAIL(0.45), { id: "ii", mu: 30, r: 0.2, rail: { a: 30, T: 40, phase: 0.05 } }, { id: "iii", mu: 60, r: 0.24, rail: { a: 46, T: -40, phase: 0.7 } }], target: { body: "moon", r: 2.4 }, goal: { type: "hit" }, ask: "Strike the Moon",
-      look: { ii: { tint: [1.0, 0.8, 0.66], tilt: -14 }, iii: { tint: [0.74, 0.86, 1.0], tilt: 10 } } },
-  ] },
-  { id: 5, name: "Other objectives", idea: "Not only a hit: arrive gently or fast, swing round the Moon, come home", levels: [
-    { ...MOONS, id: "5-1", name: "Soft touch", note: "Reach the Moon slowly. A ring shows the speed asked: a shell that has hung in the sky falls in gently, one that has raced up does not.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: MOON }], target: { body: "moon", r: 1.5 }, goal: { type: "soft", speed: 11 }, frame: [-27, -6, 41, 80] },
-    { ...MOONS, id: "5-2", name: "Feather", note: "Slower still: a shell that all but stops over the Moon.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: MOON }], target: { body: "moon", r: 2.5 }, goal: { type: "soft", speed: 6 }, frame: [-27, -6, 41, 80] },
-    { ...MOONS, id: "5-3", name: "Full speed", note: "The other way: through a ring above the Moon at speed, with the dial near its top.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: MOON }], target: { at: [11, 83], r: 2.5 }, goal: { type: "fast", speed: 9 }, frame: [-27, -6, 41, 94] },
-    { ...MOONS, id: "5-4", name: "Swing round", note: "Bend your path round the Moon: sweep three quarters of a turn about it, inside the dotted ring.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: MOON }], target: { body: "moon", r: 4.5 }, goal: { type: "orbit", body: "moon", rmax: 4.5, sweep: 270 }, scatter: { v: 0.0004, deg: 0.04 }, frame: [-27, -6, 41, 80], band: { lean: 14, charge: [14.7, 15.4] }, grid: { da: 0.25, dc: 0.01 } },
-    { ...MOONS, id: "5-5", name: "The loop", note: "A whole turn about the Moon, inside the ring: a shell that hangs there and circles.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: MOON }], target: { body: "moon", r: 6 }, goal: { type: "orbit", body: "moon", rmax: 6, sweep: 360 }, scatter: { v: 0.0002, deg: 0.02 }, frame: [-27, -6, 41, 80], band: { lean: 14, charge: [14.7, 15.4] }, grid: { da: 0.25, dc: 0.01 } },
-    { ...MOONS, id: "5-6", name: "Free return", note: "Round the Moon and home: through the gate beside it, then back down to the ring at the foot of the gun.",
-      site: 90, bodies: [{ id: "earth" }, { id: "moon", at: OVER }], gates: [{ at: [5, 66], r: 3 }, HOME], target: HOME, goal: { type: "return", via: "Moon" }, tMax: 24, frame: [-27, -6, 41, 80], band: { lean: 12, charge: [14.5, 15.6] } },
+  { id: 3, name: "Round and home", idea: "Out by one side of the Moon and back: a free return", levels: [
+    { ...WORLD, ...S2, id: "3-1", name: "Free return", note: "Through the gate beside the Moon, then home to the ring at the pad.",
+      bodies: [EARTH, moon(0.6, 8.7)], gates: [{ at: [-1.6, 9.8], r: 0.65 }, HOME(0.8)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 9 }, aim: { angle: 70, charge: 10 } },
+    { ...WORLD, ...S2, id: "3-2", name: "Figure of eight", note: "The gate is on the other shoulder: the way out is the right-hand side.",
+      bodies: [EARTH, moon(-0.4, 8.9)], gates: [{ at: [1.7, 9.9], r: 0.6 }, HOME(0.7)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 8 }, aim: { angle: 110, charge: 10 } },
+    { ...WORLD, ...S2, id: "3-3", name: "Apollo", note: "A tight gate and a small ring at home.",
+      bodies: [EARTH, moon(0.4, 9)], gates: [{ at: [-1.4, 10.5], r: 0.5 }, HOME(0.6)], goal: { type: "return", via: "Moon" }, tMax: 40, cone: { len: 7 }, aim: { angle: 70, charge: 10 } },
   ] },
 ];
+for (const sec of SECTIONS) for (const l of sec.levels) if (l.gates) l.target = l.gates[l.gates.length - 1];
+
+/** Whether a level has anything that moves (a body on a rail, a Moon with no place given, a ring on a rail): parked while MOVERS_ON is off, so such a level is left out. */
+export const hasMovers = l => (l.bodies || []).some(b => b.rail || (b.id === "moon" && !b.at)) || [l.target, ...(l.gates || [])].some(t => t && t.rail);
+const usable = l => MOVERS_ON || !hasMovers(l);
+for (const sec of SECTIONS) sec.levels = sec.levels.filter(usable);
 export const LEVELS = SECTIONS.flatMap(s => s.levels);
 /** The section a level (its index) belongs to. */
 export const sectionOf = n => SECTIONS.find(s => s.levels.includes(LEVELS[n]));
-/** The level of a day (YYYYMMDD): the same for everyone, from the fourth level on (the first three are lessons), by integer arithmetic only so every device agrees. */
+/** The level of a day (YYYYMMDD): the same for everyone, from the fourth level on, by integer arithmetic only so every device agrees. */
 export const dailyLevel = day => { const pool = LEVELS.slice(3); return pool[(Math.imul(day, 2654435761) >>> 0) % pool.length]; };

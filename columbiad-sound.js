@@ -1,5 +1,5 @@
 // Columbiad's sounds, made as they play (Web Audio: noise and short sine decays, no files, so there is nothing to cache and no
-// licence to keep): the cannon's boom, a tick for each barrel of powder under the thumb, a hush while the shell is out, a chime
+// licence to keep): the launch (a rising rush and a low swell), a tick for each unit of power under the thumb, a hush while the shell is out, a chime
 // when it arrives, a hollow thud when it does not. Off, and nothing is made at all. The audio context is made only from a
 // touch (browsers, and an iPhone above all, start sound only from one) and is stopped while the menu is open or the page is
 // hidden, which is the pause rule. An iPhone has no vibration for a web page, so the tick is a sound and a flash of the gauge.
@@ -60,14 +60,13 @@ function tone(c, t, { freq, to = freq, gain, dur, type = "sine", attack = 0.003 
 }
 
 const VOICES = {
-  /** The cannon: a crack, a low thump falling away, and rumble that hangs. */
-  boom(c, t) {
-    burst(c, t, { freq: 4200, to: 300, q: 0.5, gain: 0.7, dur: 0.12 });
-    burst(c, t, { freq: 420, to: 55, q: 0.8, gain: 1.0, dur: 1.1 });
-    tone(c, t, { freq: 130, to: 34, gain: 0.95, dur: 0.7 });
-    tone(c, t, { freq: 62, to: 28, gain: 0.7, dur: 1.0 });
+  /** The launch: a rush of air that climbs and fades, over a low swell that rises (nothing struck, nothing fired). */
+  launch(c, t) {
+    burst(c, t, { freq: 300, to: 3200, q: 0.9, gain: 0.5, dur: 0.9, type: "bandpass" });
+    tone(c, t, { freq: 70, to: 150, gain: 0.55, dur: 0.8, attack: 0.12 });
+    tone(c, t, { freq: 140, to: 300, gain: 0.18, dur: 0.6, attack: 0.1 });
   },
-  /** One barrel of powder passing under the thumb: a soft wooden-brass ratchet click (a few milliseconds of band-passed noise) over a quiet low sine, a touch higher the more is loaded. */
+  /** One unit of power passing under the thumb: a soft wooden-brass ratchet click (a few milliseconds of band-passed noise) over a quiet low sine, a touch higher the more is loaded. */
   tick(c, t, { n = 4 }) {
     burst(c, t, { freq: 1300 + n * 40, to: 700, q: 2.2, gain: 0.07, dur: 0.035, type: "bandpass" });
     tone(c, t, { freq: 210 + n * 9, to: 170 + n * 7, gain: 0.05, dur: 0.06, attack: 0.004 });

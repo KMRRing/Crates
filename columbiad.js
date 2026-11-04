@@ -1,11 +1,11 @@
-// Columbiad: a cannon on the Earth, a ring in the sky, one gesture. Pull back anywhere on the scene like a slingshot: the shell
-// goes the way opposite the pull and the powder is how long the pull is, a tick under the thumb for each barrel. The cone shows
-// where the scatter lets a shot fall; the arrows beside Fire fine-tune; Fire sends it, a tap on the scene while it flies skips to the end
-// and a held press runs it fast. A miss costs nothing: the gun is aimed as it was and the shot is a faint trail on the scene.
+// Columbiad: a launch from the Earth, a ring behind the Moon, one gesture. Pull back anywhere on the scene like a slingshot: the shot
+// goes the way opposite the pull and the power is how long the pull is, a tick under the thumb for each unit. The preview shows
+// where the scatter lets a shot fall, for a limited length; the arrows beside Launch fine-tune; Launch sends it, a tap on the scene while it flies skips to the end
+// and a held press runs it fast. A miss costs nothing: the aim stays as it was and the shot is a faint trail on the scene.
 // The rules are columbiad-engine.js's (it plays the whole shot at once and hands over its path); columbiad-view.js plays the path
 // back, columbiad-aim.js is the pull's arithmetic, columbiad-levels.js the levels. This file keeps the game and the page.
-// The levels come in sections (columbiad-levels.js): the proving ground (Earth alone, all open) and then the Moon's, each opening in
-// order. Where the Moon moves the world has a clock, and a shot is fired at the time it is: the cone is the aim for this very moment.
+// The levels come in sections (columbiad-levels.js), each opening in order; the ring is behind the Moon, so the way is round it. Where a
+// world moves (parked: MOVERS_ON in the engine) it has a clock, and a shot is launched at the time it is.
 import { LEVELS, SECTIONS, dailyLevel } from "./columbiad-levels.js";
 import { newGame, apply, stars as starsOf, cone as coneOf, clampAim, sound as validState, direction, worldOf, ringAt, BARRELS } from "./columbiad-engine.js";
 import { PULL_REM, DEAD_REM, begin as pullBegin, move as pullMove, nudge, crossed } from "./columbiad-aim.js";
@@ -22,7 +22,9 @@ const $ = id => document.getElementById(id);
 // RUN: the game of the level being played with its trails, so a watcher (and a reload) draws the same scene. AIMS: the last aim of each level.
 // BEST: the stars won in all, the number the games screen shows. SEEN: set by the first shot, the hint is told once.
 // DAILY: the stars won on each day's level, by the day (YYYYMMDD); DRUN is the daily's own run, so the camp's is left as it was.
-const CAMP = "columbiad:camp", RUN = "columbiad:run", AIMS = "columbiad:aims", BEST = "columbiad:best", SOUND = "columbiad:sound", SEEN = "columbiad:seen", DAILY = "columbiad:daily", DRUN = "columbiad:drun";
+// The keys with a 3 are the world of 4 November 2026 (a big Earth and Moon, rings behind the Moon): the levels were all made again, so what the old
+// keys hold (levels with other rings and other dials) is not read and is left where it is.
+const CAMP = "columbiad:camp3", RUN = "columbiad:run3", AIMS = "columbiad:aims3", BEST = "columbiad:best", SOUND = "columbiad:sound", SEEN = "columbiad:seen", DAILY = "columbiad:daily", DRUN = "columbiad:drun3";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (IN_FRAME) return; try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const noted = new Set();       // the levels whose note has been said this visit
@@ -41,7 +43,7 @@ let lvl = levelNow();
 let S = null;                 // the game of the level: the engine's state, as saved
 let aim = { angle: 90, charge: 0 };
 let ghosts = [];              // the last four shots' trails: { pts (x, y pairs), hit }
-let liveOn = false;           // the newest shot's bright trail is still on the scene (it is its own ghost until the gun is touched)
+let liveOn = false;           // the newest shot's bright trail is still on the scene (it is its own ghost until the aim is touched)
 let phase = "aim";            // "aim", "fly" (a shot being shown), "done" (the ring struck: how it went, and on)
 let touch = null;             // the finger on the scene: { id, kind ("aim" or "press"), x, y, drag, timer, ff }
 let coneDirty = true, coneAt = 0;
@@ -51,10 +53,10 @@ const stamp = () => Math.round(view.clock * 100) / 100;
 const moving = () => worldOf(lvl).moving;
 
 // ---------- keeping ----------
-/** A level is open when it begins its section or the one before it in the section has been struck; the proving ground is all open (a place to try the gun). */
+/** A level is open when it begins its section or the one before it in the section has been struck; the first of a section is always open. */
 function isOpen(n) {
   const L = LEVELS[n], sec = SECTIONS.find(x => x.levels.includes(L)), k = sec.levels.indexOf(L);
-  return sec.open === "all" || k === 0 || camp.stars[n - 1] > 0 || camp.stars[n] > 0;
+  return k === 0 || camp.stars[n - 1] > 0 || camp.stars[n] > 0;
 }
 function readCamp() {
   const c = read(CAMP, null);
@@ -75,11 +77,11 @@ function keepAim() {
   S.aim = { ...aim };
   keepRun();
 }
-/** While a thumb moves the gun, the keeping follows a moment behind, so a partner's frame sees it travel. */
+/** While a thumb moves the aim, the keeping follows a moment behind, so a partner's frame sees it travel. */
 function keepSoon() { if (!saveTimer && !IN_FRAME) saveTimer = setTimeout(keepAim, 400); }
 
 // ---------- the level's game ----------
-const defaultAim = () => clampAim(lvl, { angle: (lvl.site ?? 90) - 30, charge: (lvl.barrels ?? BARRELS) * 0.65 });
+const defaultAim = () => clampAim(lvl, lvl.aim || { angle: (lvl.site ?? 90) - 20, charge: (lvl.barrels ?? BARRELS) * 0.6 });
 function fresh() {
   const kept = daily ? null : read(AIMS, {})[lvl.id];
   aim = clampAim(lvl, kept && Number.isFinite(kept.angle) && Number.isFinite(kept.charge) ? kept : defaultAim());
@@ -181,7 +183,7 @@ function render() {
   if (typeof measure === "function") measure();
   const seen = read(SEEN, false);
   $("hint").hidden = !!seen || IN_FRAME || phase !== "aim";
-  if (!$("hint").hidden) $("hint").textContent = "Pull back like a slingshot: the shell flies the other way, and a longer pull loads more powder. Press Fire; the arrows fine-tune.";
+  if (!$("hint").hidden) $("hint").textContent = "Pull back like a slingshot: the shot flies the other way, and a longer pull is more power. Press Launch; the arrows fine-tune.";
   else if (phase === "aim" && S.shots === 0 && lvl.note && !noted.has(lvl.id)) { noted.add(lvl.id); say(lvl.note, 5200); }
 }
 function say(words, ms = 2400) {
@@ -263,7 +265,7 @@ async function share() {
   try { await navigator.clipboard.writeText(text); say("Result copied"); } catch { say("Couldn't copy the result"); }
 }
 
-/** The bright trail and the words of the last shot go as soon as the gun is touched; its faint ghost stays. */
+/** The bright trail and the words of the last shot go as soon as the aim is touched; its faint ghost stays. */
 function touched() {
   unsay();
   if (liveOn) { liveOn = false; view.clearLive(); view.setGhosts(ghosts); }
@@ -285,7 +287,7 @@ function trailOf(res) {
 
 function fire() {
   if (phase !== "aim" || IN_FRAME || isPaused()) return;
-  if (aim.charge < 0.1) { say("Pull back to load powder"); return; }
+  if (aim.charge < 0.1) { say("Pull back to add power"); return; }
   sound.unlock();
   touched();
   const { state, res } = apply(lvl, S, { angle: aim.angle, charge: aim.charge, t: stamp() });
@@ -308,7 +310,7 @@ function fire() {
   keepRun();
   view.setGhosts(prior);
   const wall = view.fire(res);
-  sound.play("boom");
+  sound.play("launch");
   sound.hush(wall);
   render();
 }
@@ -361,7 +363,7 @@ addEventListener("pointerup", e => { if (!IN_FRAME) sound.unlock(); lift(e, fals
 addEventListener("pointercancel", e => lift(e, true));
 $("stage").addEventListener("contextmenu", e => e.preventDefault());
 
-// ---------- the nudges, Fire, the keys ----------
+// ---------- the nudges, Launch, the keys ----------
 function nudgeBy(da, dc, k = 1) {
   if (phase !== "aim" || IN_FRAME || isPaused()) return;
   touched();
@@ -408,30 +410,24 @@ $("againBtn").addEventListener("click", restart);
 $("nextBtn").addEventListener("click", () => { if (daily) share(); else if (camp.at + 1 < LEVELS.length) playLevel(camp.at + 1); });
 
 // ---------- the menu ----------
-/** A level's place in miniature: the Earth, the gun on it and the ring. */
+/** A level's place in miniature: the Earth's cap, the launch pad, the Moon and the ring(s), at their true sizes. */
 function mapSvg(L) {
-  const w = worldOf(L), rings = L.gates || [L.target], f = n => n.toFixed(3);
-  // what the picture must hold: the Earth, each moon (all of its rail), each ring (all of its rail)
-  let x0 = -1.1, x1 = 1.1, y0 = -1.1, y1 = 1.1;
+  const w = worldOf(L), rings = L.gates || [L.target], f = n => n.toFixed(3), site = L.site ?? 90, re = w.re;
+  const [gx, gy] = direction(site);
+  // what the picture must hold: the pad and a stretch of rim, each body, each ring
+  let x0 = gx * re - 1.6, x1 = gx * re + 1.6, y0 = gy * re - 1.6, y1 = gy * re + 1.6;
   const grow = (x, y, r = 0) => { x0 = Math.min(x0, x - r); x1 = Math.max(x1, x + r); y0 = Math.min(y0, y - r); y1 = Math.max(y1, y + r); };
-  for (const b of w.bodies) if (b.id !== "earth") { if (b.rail) grow(b.cx, b.cy, Math.abs(b.a) + 1); else grow(b.x, b.y, b.r + 0.5); }
-  for (const T of rings) { if (T.rail) grow(T.rail.about?.[0] ?? 0, T.rail.about?.[1] ?? 0, Math.abs(T.rail.a) + T.r); else if (T.body != null) { const p = ringAt(L, T, 0); grow(p[0], p[1], T.r + 0.5); } else grow(T.at[0], T.at[1], T.r + 0.1); }
-  const s = Math.max(x1 - x0, y1 - y0) * 1.06, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, mark = s * 0.012;
-  const [gx, gy] = direction(L.site ?? 90);
-  let g = `<circle class="cb-map-earth" cx="0" cy="0" r="${f(Math.max(1, s * 0.02))}"/>`;
-  w.bodies.forEach((b, i) => {
-    if (b.id === "earth") return;
-    if (b.rail) g += `<circle class="cb-map-rail" cx="${f(b.cx)}" cy="${f(-b.cy)}" r="${f(Math.abs(b.a))}"/>`;
-    const p = ringAt(L, { body: b.id, r: 0 }, 0);
-    g += `<circle class="cb-map-moon" cx="${f(p[0])}" cy="${f(-p[1])}" r="${f(Math.max(b.r, s * 0.018))}"/>`;
-  });
+  for (const b of w.bodies) if (b.id !== "earth") grow(b.x, b.y, b.r + 0.3);
+  for (const T of rings) { const p = ringAt(L, T, 0); grow(p[0], p[1], T.r + 0.2); }
+  const s = Math.max(x1 - x0, y1 - y0) * 1.06, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  let g = "";
+  w.bodies.forEach(b => { g += `<circle class="${b.id === "earth" ? "cb-map-earth" : "cb-map-moon"}" cx="${f(b.x)}" cy="${f(-b.y)}" r="${f(b.r)}"/>`; });
   rings.forEach((T, k) => {
-    if (T.rail) g += `<circle class="cb-map-rail" cx="${f(T.rail.about?.[0] ?? 0)}" cy="${f(-(T.rail.about?.[1] ?? 0))}" r="${f(Math.abs(T.rail.a))}"/>`;
     const p = ringAt(L, T, 0), last = k === rings.length - 1;
     g += `<circle class="${last ? "cb-map-ring" : "cb-map-gate"}" cx="${f(p[0])}" cy="${f(-p[1])}" r="${f(Math.max(T.r, s * 0.03))}"/>`;
     if (rings.length > 1) g += `<text class="cb-map-num" font-size="${f(s * 0.06)}" x="${f(p[0])}" y="${f(-p[1] + s * 0.02)}">${k + 1}</text>`;
   });
-  g += `<circle class="cb-map-gun" cx="${f(gx * 1.03)}" cy="${f(-gy * 1.03)}" r="${f(s * 0.035)}"/>`;
+  g += `<circle class="cb-map-pad" cx="${f(gx * re)}" cy="${f(-gy * re)}" r="${f(s * 0.035)}"/>`;
   return `<svg viewBox="${f(cx - s / 2)} ${f(-cy - s / 2)} ${f(s)} ${f(s)}" aria-hidden="true">${g}</svg>`;
 }
 function levelList(sec) {

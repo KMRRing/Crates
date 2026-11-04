@@ -1,10 +1,11 @@
-// Columbiad's rules: a shell fired from the Baltimore Gun Club's cannon through honest two-dimensional gravity (Earth and
-// Moon, a test particle that feels both and moves neither), the Moon on a rail. Pure: no page, plain JSON for the state,
+// Columbiad's rules: a shell launched from a point on the Earth's surface through two-dimensional gravity (Earth and
+// Moon, a test particle that feels both and moves neither). A level sets its own world: the Earth's and the Moon's size, mass
+// and place (stylised, large on the screen so the Moon's pull is something to steer by), and the dial's range of speeds. Pure: no page, plain JSON for the state,
 // all randomness from one seed and a draw counter, so it runs in Node (the tests, the bots, the bench) and in the page.
 //
-// Units are Earth radii and seconds: R = 1, the Moon 60.3 away with a radius of 0.273, 81.3 times lighter than the Earth,
-// its 27.3-day month shown in T = 40 s. So a shell skimming the Earth goes round in 0.085 s: what the page shows is
-// slowed down (columbiad-view.js); the clock here is the game's own.
+// The constants below (R = 1, the Moon 60.3 away, 81.3 times lighter) are the honest world the first versions flew in;
+// a level that gives no bodies still gets it, and the physics tests use it. The shipped levels give their own world
+// (columbiad-levels.js: units are the Earth's radius over three, so a body is large on the screen).
 //
 // Determinism: the same level, seed, aim and firing time give the same path on every device, so the integrator, the
 // gravity, the Moon's rail, the muzzle and the draws use only + - * / and sqrt (exact in every engine) and never Math.sin,
@@ -12,13 +13,18 @@
 // state alone, never of frame time. A last-bit difference near a threshold could flip a hit, so every authored level is
 // robust enough (columbiad-levels.js) that none can decide it.
 
+/** Moving bodies and rings (a Moon on a rail, a ring riding it) are parked, 4 November 2026 (Korbi: "Moving objects, let's parke those, it's fiddly"):
+ *  with the flag off a body on a rail stands still where its phase puts it at time 0, and nothing in a level moves. Code and tests stay. */
+export let MOVERS_ON = false;
+/** Only the tests turn movers on, to keep their code working. */
+export function setMovers(on) { MOVERS_ON = !!on; worlds = new WeakMap(); }
 export const R = 1, A_MOON = 60.3, R_MOON = 0.273, MASS_RATIO = 81.3, T_MOON = 40, EPS = 0.05;
 const EPS2 = EPS * EPS;
 /** Standard gravitational parameters: mu_E = 4 pi^2 a^3 / T^2 (about 5410), mu_M = mu_E / 81.3 (about 66.5). */
 export const MU_E = 4 * Math.PI * Math.PI * A_MOON * A_MOON * A_MOON / (T_MOON * T_MOON);
 export const MU_M = MU_E / MASS_RATIO;
 export const V_CIRC = Math.sqrt(MU_E / R), V_ESC = Math.sqrt(2 * MU_E / R), V_MOON = 2 * Math.PI * A_MOON / T_MOON;
-/** How far in front of the surface a shell starts (along the barrel). The drawn cannon is much bigger than this. */
+/** How far above the surface a shell starts (along its direction), so the first step is not inside the ground. */
 export const LIFT = 0.02;
 /** The step: dt = clamp(0.02 r_min / v, DT_MIN, DT_MAX), r_min the distance to the nearest body's centre. */
 export const DT_MIN = 1e-4, DT_MAX = 1 / 120;
@@ -97,6 +103,12 @@ const KNOT_M = (() => {
   for (let i = 0; i <= 7; i++) m[i] = old[i];
   return m;
 })();
+/** The speed a level's dial gives for a charge of b power units: a level's own `dial: [slowest, fastest]` is a straight line from the first to the second over its power units (the honest world uses the stretched table below). */
+export function dialSpeed(lvl, b) {
+  if (!lvl.dial) return speedOf(b);
+  const cap = lvl.barrels ?? BARRELS;
+  return b <= 0 ? 0 : lvl.dial[0] + (lvl.dial[1] - lvl.dial[0]) * (b / cap);
+}
 /** Muzzle speed (Earth radii a second) for a charge of b barrels. */
 export function speedOf(b) {
   const n = KNOT_B.length;
@@ -120,19 +132,26 @@ export function chargeFor(v) {
  * A level's bodies as the integrator wants them. A body is { id, mu, r (its size, for a landing), at: [x, y] } or, on a
  * rail, { rail: { a, T, phase (turns), about: [x, y] } }. A level with none has the Earth alone, at the origin.
  */
-const worlds = new WeakMap();
+let worlds = new WeakMap();
 export function worldOf(lvl) {
   let w = worlds.get(lvl);
   if (w) return w;
   const list = lvl.bodies || [{ id: "earth" }], bodies = list.map(b => {
     const id = b.id, mu = b.mu ?? (id === "moon" ? MU_M : MU_E), r = b.r ?? (id === "moon" ? R_MOON : R);
+    if ((b.rail || (id === "moon" && !b.at)) && !MOVERS_ON) {    // parked: where the rail puts it at the start, standing still
+      const rl = b.rail || {};
+      unit(rl.phase ?? 0);
+      const c = rl.about || [0, 0], a = rl.a ?? A_MOON;
+      return { id, mu, r, rail: false, x: c[0] + a * UX, y: c[1] + a * UY, a: 0, T: 1, phase: 0, cx: 0, cy: 0 };
+    }
     if (b.rail || (id === "moon" && !b.at)) {                    // the Moon is on its rail unless the level puts it somewhere (`at`)
       const rl = b.rail || {};
       return { id, mu, r, rail: true, a: rl.a ?? A_MOON, T: rl.T ?? T_MOON, phase: rl.phase ?? 0, cx: (rl.about || [0, 0])[0], cy: (rl.about || [0, 0])[1], x: 0, y: 0 };
     }
     return { id, mu, r, rail: false, x: (b.at || [0, 0])[0], y: (b.at || [0, 0])[1], a: 0, T: 1, phase: 0, cx: 0, cy: 0 };
   });
-  w = { bodies, n: bodies.length, moving: bodies.some(b => b.rail) };
+  const e = bodies.find(b => b.id === "earth");
+  w = { bodies, n: bodies.length, moving: bodies.some(b => b.rail), re: e ? e.r : R };
   worlds.set(lvl, w);
   return w;
 }
@@ -144,14 +163,14 @@ export function bodyAt(lvl, i, t) {
   return [b.cx + b.a * UX, b.cy + b.a * UY];
 }
 /** Whether a ring moves: it is on a body or on a rail of its own. */
-const rides = tg => tg.body != null || !!tg.rail;
+const rides = tg => MOVERS_ON && (tg.body != null || !!tg.rail);
 /**
  * Where a ring is at time t: [x, y]. A ring is { at: [x, y], r }, or on a body { body: id, off: [dx, dy], r }, or on a rail of
  * its own { rail: { a, T, phase (turns), about: [x, y] }, r } (a beacon).
  */
 export function ringAt(lvl, tg, t) {
   if (tg.rail) {
-    const rl = tg.rail, T = rl.T ?? 1, k = t / T;
+    const rl = tg.rail, T = rl.T ?? 1, k = MOVERS_ON ? t / T : 0;
     unit((rl.phase ?? 0) + (k - Math.floor(k)));
     const c = rl.about || [0, 0];
     return [c[0] + rl.a * UX, c[1] + rl.a * UY];
@@ -213,7 +232,7 @@ function nearest(p0x, p0y, dx, dy) {
  */
 export function fly(lvl, ini, o = {}) {
   const w = worldOf(lvl), tg = lvl.target, goal = lvl.goal || { type: "hit" };
-  const tMax = o.tMax ?? lvl.tMax ?? 1.2, bound = o.bounds ?? lvl.bounds ?? 16, bound2 = bound * bound, dtMax = o.dtMax ?? DT_MAX;
+  const tMax = o.tMax ?? lvl.tMax ?? 1.2, bound = o.bounds ?? lvl.bounds ?? 16, bound2 = bound * bound, dtMax = o.dtMax ?? lvl.dt ?? DT_MAX;
   // the rings to pass: the target; or, for gates and a free return, the gates in order (the last is the target)
   const gated = goal.type === "gates" || goal.type === "return", rings = gated ? lvl.gates : tg ? [tg] : [], orbit = goal.type === "orbit" ? { i: w.bodies.findIndex(b => b.id === goal.body), rmax: goal.rmax, need: goal.sweep * 0.017453292519943295 } : null;
   let gi = 0, cur = rings[0] || tg || null, ring = cur ? cur.r : 0, swp = 0;
@@ -344,9 +363,9 @@ export function clampAim(lvl, aim) {
 /** Where a shot starts and how fast it goes: the aim, with its speed and angle perturbed by the draws g = [g1, g2] (0, 0 for none). */
 export function muzzle(lvl, aim, g = [0, 0], t = 0) {
   const sc = lvl.scatter || { v: 0, deg: 0 }, site = lvl.site ?? 90;
-  const v = speedOf(aim.charge) * (1 + sc.v * g[0]);
+  const v = dialSpeed(lvl, aim.charge) * (1 + sc.v * g[0]), re = worldOf(lvl).re;
   unit(site / 360);
-  const bx = R * UX, by = R * UY;
+  const bx = re * UX, by = re * UY;
   unit((aim.angle + sc.deg * g[1]) / 360);
   return { x: bx + UX * LIFT, y: by + UY * LIFT, vx: v * UX, vy: v * UY, t };
 }
@@ -463,8 +482,8 @@ export function validate(lvl) {
   if (!w.bodies.length || w.bodies.some(b => !(b.mu > 0))) bad.push("every body needs a mass");
   if (tg && tg.body == null && !tg.rail && Array.isArray(tg.at)) {
     for (const b of w.bodies) if (!b.rail && Math.sqrt((tg.at[0] - b.x) ** 2 + (tg.at[1] - b.y) ** 2) < b.r + tg.r * 0.2 && !(type === "return")) bad.push("the target's middle is inside a body");
-    const site = lvl.site ?? 90, s = direction(site);
-    if (Math.sqrt((tg.at[0] - s[0]) ** 2 + (tg.at[1] - s[1]) ** 2) < tg.r + 0.1 && type !== "return") bad.push("the target is on the cannon");
+    const site = lvl.site ?? 90, s = direction(site), re = w.re;
+    if (Math.sqrt((tg.at[0] - s[0] * re) ** 2 + (tg.at[1] - s[1] * re) ** 2) < tg.r + 0.1 && type !== "return") bad.push("the target is on the launch point");
   }
   return bad;
 }

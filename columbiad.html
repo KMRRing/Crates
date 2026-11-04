@@ -17,14 +17,14 @@
 </head>
 <body>
 <!-- the whole screen is the picture (the shared full-screen frame, `full over`: the header is empty, the Codex mark opens the menu, whose
-     first entry is Back to menu). Every control is drawn over the picture: the level and its stars at the top left, the aim and Fire along
+     first entry is Back to menu). Every control is drawn over the picture: the level and its stars at the top left, the aim and Launch along
      the bottom, or down the right side held sideways -->
 <div id="app" class="columbiad full over">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">Columbiad</button></h1>
     <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
   </header>
-  <section id="table" class="cb-table" aria-label="The gun and its target">
+  <section id="table" class="cb-table" aria-label="The launch and its target">
     <div id="stage" class="cb-stage">
       <canvas id="scene" class="cb-scene" aria-hidden="true"></canvas>
 
@@ -39,20 +39,20 @@
       <p id="hint" class="cb-hint" hidden></p>
       <p id="say" class="cb-say" role="status" aria-live="polite"></p>
 
-      <!-- the aim and its powder, the nudges and Fire; after a hit, how it went, in the same box -->
+      <!-- the aim and its power, the nudges and Launch; after a hit, how it went, in the same box -->
       <section id="bottom" class="cb-bottom">
         <div id="deck" class="cb-deck">
           <div class="cb-read">
             <span class="cb-r">Elevation <b id="elev">0.0°</b><i id="lean" aria-hidden="true"></i></span>
-            <span class="cb-r">Powder <b id="pow">0.0</b><small id="cap"></small></span>
+            <span class="cb-r">Power <b id="pow">0.0</b><small id="cap"></small></span>
           </div>
-          <div id="gauge" class="cb-gauge" role="meter" aria-label="Powder in barrels" aria-valuemin="0"></div>
+          <div id="gauge" class="cb-gauge" role="meter" aria-label="Power" aria-valuemin="0"></div>
           <div class="cb-pad">
-            <button class="cb-nudge" id="angL" type="button" aria-label="Turn the gun left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5L8 12l7 7"/></svg></button>
-            <button class="cb-nudge" id="angR" type="button" aria-label="Turn the gun right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-            <button class="cb-fire" id="fire" type="button">Fire</button>
-            <button class="cb-nudge" id="powD" type="button" aria-label="Less powder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
-            <button class="cb-nudge" id="powU" type="button" aria-label="More powder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
+            <button class="cb-nudge" id="angL" type="button" aria-label="Aim left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5L8 12l7 7"/></svg></button>
+            <button class="cb-nudge" id="angR" type="button" aria-label="Aim right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+            <button class="cb-fire" id="fire" type="button">Launch</button>
+            <button class="cb-nudge" id="powD" type="button" aria-label="Less power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+            <button class="cb-nudge" id="powU" type="button" aria-label="More power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
           </div>
         </div>
         <div id="result" class="cb-result" hidden>

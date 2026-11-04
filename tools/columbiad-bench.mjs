@@ -13,7 +13,7 @@
 import { writeFileSync } from "node:fs";
 import { LEVELS } from "../columbiad-levels.js";
 import { PROOFS } from "../columbiad-proofs.js";
-import { sweep, survey, blindRate, robustness, families, findShots, descend, timeWindow, periodOf } from "../columbiad-bots.js";
+import { sweep, survey, blindRate, robustness, families, findShots, descend, timeWindow, periodOf, windowOf } from "../columbiad-bots.js";
 import { validate, shoot } from "../columbiad-engine.js";
 
 const args = process.argv.slice(2), fine = args.includes("fine"), write = args.includes("write"), look = args.includes("find");
@@ -44,14 +44,14 @@ for (const lvl of LEVELS) {
   const best = top[0];
   if (!best) { console.log(`${lvl.id} ${lvl.name.padEnd(20)} NO SOLUTION FOUND  ${bad.join("; ")}`); continue; }
   const blind = blindRate(lvl, 2000), win = P ? timeWindow(lvl, best) : null;
-  proofs[lvl.id] = top.map(p => ({ angle: p.angle, charge: p.charge, t: p.t, rob: round(p.rob), margin: p.margin }));
+  proofs[lvl.id] = top.map(p => ({ angle: p.angle, charge: p.charge, t: p.t, rob: round(p.rob), margin: p.margin, win: windowOf(lvl, p) }));
   const wnd = win ? `  window ${win.width.toFixed(2)} s` : "";
   console.log(`${lvl.id} ${lvl.name.padEnd(20)} wins ${(sv.fraction * 100).toFixed(2).padStart(5)}%  families ${fams.length} (${fams.slice(0, 4).map(f => f.size).join("/")})  best ${best.angle}/${best.charge}/${best.t} robust ${(best.rob * 100).toFixed(0)}%  blind ${(blind * 100).toFixed(1)}% a shot (${(1 / Math.max(blind, 1e-4)).toFixed(0)} shots)  careful ${(1 / best.rob).toFixed(2)} shots  margin ${best.margin}${wnd}  ${bad.join("; ")} [${((performance.now() - t0) / 1000).toFixed(1)} s]`);
 }
 if (write) {
-  const body = LEVELS.filter(l => proofs[l.id]).map(l => `  "${l.id}": [${proofs[l.id].map(p => `{ angle: ${p.angle}, charge: ${p.charge}, t: ${p.t}, rob: ${p.rob}, margin: ${p.margin} }`).join(", ")}],`).join("\n");
+  const body = LEVELS.filter(l => proofs[l.id]).map(l => `  "${l.id}": [${proofs[l.id].map(p => `{ angle: ${p.angle}, charge: ${p.charge}, t: ${p.t}, rob: ${p.rob}, margin: ${p.margin}, win: ${JSON.stringify(p.win || null)} }`).join(", ")}],`).join("\n");
   writeFileSync(new URL("../columbiad-proofs.js", import.meta.url), `// The shots each level was proved solvable by (tools/columbiad-bench.mjs write): the most robust the bench found, with the share
-// of 200 scattered runs that won ("rob") and how far inside the ring it passes at no scatter ("margin": 1 is the middle, 0 the edge).
+// of 200 scattered runs that won ("rob"), how far inside the ring it passes at no scatter ("margin": 1 is the middle, 0 the edge) and the window of angles and powers it sits in ("win").
 // t is the firing time (a moving world's clock; 0 where nothing moves). tests/columbiad.mjs fires every one and it must still win: a
 // change to the rules or a level that breaks one is caught there.
 export const PROOFS = {\n${body}\n};\n`);

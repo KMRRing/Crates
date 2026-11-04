@@ -67,6 +67,21 @@ export function timeWindow(lvl, mv, step = 0.05, reach = 8) {
 }
 
 /**
+ * The window a winning shot sits in, with no scatter: how far the angle can move either way at its power, and the power either way
+ * at its angle, before it stops winning (what a thumb has to hit). { a0, a1 (degrees), c0, c1 (power units), da, dc (the widths) }.
+ */
+export function windowOf(lvl, mv, { da = 0.05, dc = 0.02, reach = 20 } = {}) {
+  const cap = lvl.barrels ?? BARRELS, wins = (angle, charge) => shoot(lvl, { angle, charge, t: mv.t || 0 }, [0, 0], { watch: false }).won;
+  let a0 = mv.angle, a1 = mv.angle, c0 = mv.charge, c1 = mv.charge;
+  while (a1 - mv.angle < reach && wins(a1 + da, mv.charge)) a1 += da;
+  while (mv.angle - a0 < reach && wins(a0 - da, mv.charge)) a0 -= da;
+  while (c1 < cap - 1e-9 && wins(mv.angle, Math.min(cap, c1 + dc))) c1 = Math.min(cap, c1 + dc);
+  while (mv.charge - c0 < reach && c0 > dc && wins(mv.angle, c0 - dc)) c0 -= dc;
+  const r = v => Math.round(v * 100) / 100;
+  return { a0: r(a0), a1: r(a1), c0: r(c0), c1: r(c1), da: r(a1 - a0 + da), dc: r(c1 - c0 + dc) };
+}
+
+/**
  * The winning cells in connected groups (eight neighbours), biggest first: [{ cells, size, deepest }]. The groups are made
  * from the cells with every neighbour winning too (`core`), so two arcs that touch at a thin neck, a low shot and a lob
  * for the same ring, are two families; the cells on the rim join the group they touch.

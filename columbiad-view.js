@@ -1,5 +1,5 @@
-// Columbiad's scene, on a canvas that fills the whole screen: a night sky, the Earth and the moons as lit globes
-// (columbiad-globe.js), the cannon (columbiad-gun.js), the preview cone, the ghosts of earlier shots, the ring, and a flight
+// Columbiad's scene, on a canvas that fills the whole screen: a night sky, the Earth and the moons as large lit globes
+// (columbiad-globe.js) with a faint well of rings round each, the launch pad on the Earth, the preview, the ghosts of earlier shots, the ring, and a flight
 // that the camera follows with a glowing trail and slows for the last stretch. The page's controls are drawn over the picture,
 // not beside it, so the camera fits the world into what they leave free (`setInsets`) while the sky and the Earth run edge
 // to edge. The page draws only while something moves (a drag, a flight, smoke hanging, the camera easing, a moon on its rail,
@@ -8,7 +8,6 @@
 // same in every theme; the chrome over it is the page's.
 import { direction, targetAt, ringAt, bodyAt, worldOf } from "./columbiad-engine.js";
 import { createGlobe, loadEarth, warm, sunOf } from "./columbiad-globe.js";
-import { drawGun, gunSize, MUZZLE } from "./columbiad-gun.js";
 
 const INK = "233,223,198", BRASS = "217,164,65", BRASS_HI = "240,213,138", GOOD = "127,194,168", BAD = "232,128,111";
 const SKY_TOP = "#080d19", SKY_BOT = "#16213a";
@@ -16,12 +15,12 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 /** The Earth's turn, in turns a second (1.26 degrees: a day in four and a half minutes). */
 const SPIN = 0.0035;
 
-/** The world box a level's aim view shows: the sky above the cannon, a little of the ground under it, and the ring; the Earth is as much of it as that holds. { x0, y0, x1, y1 }. */
+/** The world box a level's aim view shows: the launch pad and the ground round it, the Moon and the ring; the Earth is as much of it as that holds. { x0, y0, x1, y1 }. */
 export function frameOf(lvl) {
   if (lvl.frame) return { x0: lvl.frame[0], y0: lvl.frame[1], x1: lvl.frame[2], y1: lvl.frame[3] };
-  const site = lvl.site ?? 90, [ox, oy] = direction(site), tx = -oy, ty = ox;
+  const site = lvl.site ?? 90, re = worldOf(lvl).re, [ox, oy] = direction(site).map(v => v * re), tx = -oy / re, ty = ox / re;
   const pts = [];
-  for (const a of [-1, 1]) for (const o of [-0.5, 1.25]) pts.push([ox + tx * a + ox * o, oy + ty * a + oy * o]);
+  for (const a of [-1, 1]) for (const o of [-0.5, 1.25]) pts.push([ox + tx * a + ox / re * o, oy + ty * a + oy / re * o]);
   const T = lvl.target;
   if (T && T.at) pts.push([T.at[0] - T.r - 0.3, T.at[1] - T.r - 0.3], [T.at[0] + T.r + 0.3, T.at[1] + T.r + 0.3]);
   return {
@@ -43,7 +42,7 @@ export function createView(canvas, hooks = {}) {
   // the aim view: the level's own frame, grown to hold the whole cone, so the preview is never out of sight
   const base = () => (coneBox && !lvl.frame ? { x0: Math.min(frame.x0, coneBox.x0), y0: Math.min(frame.y0, coneBox.y0), x1: Math.max(frame.x1, coneBox.x1), y1: Math.max(frame.y1, coneBox.y1) } : frame);
   let flight = null, live = null;                                     // the flight playing; the trail it leaves until the next shot
-  let recoil = 0, flash = 0, shake = 0, since = 0;                    // seconds since the shot, for the cannon's kick
+  let flash = 0, pulse = 0;                                           // the glint at the pad when a shot leaves, and the pad's ring opening
   const smoke = [], sparks = [];
   let raf = 0, last = 0, held = false, ff = false, settleAt = 0;
   // the stars: a fixed scatter, nudged a little as the camera moves
@@ -87,6 +86,11 @@ export function createView(canvas, hooks = {}) {
     ctx.drawImage(pic, x - d / 2, y - d / 2, d, d);
     ctx.restore();
   }
+  /** The Earth at its place in the world, large: the launch pad is a point on its rim. */
+  function earthBody() {
+    const e = worldOf(lvl).bodies.find(b => b.id === "earth");
+    if (e) earth(sx(e.x), sy(e.y), e.r * cam.k);
+  }
   function earth(ex, ey, R) {
     if (!earthG) { earthG = createGlobe("earth", { tilt: 24, roll: -12, gap: 30 }); loadEarth(() => { draw(); wake(); }); warm(() => { draw(); wake(); }); }
     planet(earthG, ex, ey, R, spin, [96, 192, 288, 384, 512, 640]);
@@ -116,10 +120,20 @@ export function createView(canvas, hooks = {}) {
       const X = ((x * W + px) % W + W) % W, Y = ((y * H + py) % H + H) % H;
       ctx.fillRect(X, Y, s * u, s * u);
     }
-    // altitude circles, dotted, as on a gunnery chart
+  }
+  /** A gravity well: dotted rings round a body, nearer together as it pulls harder, so where a shot will bend can be read at a glance. */
+  function wells() {
+    const w = worldOf(lvl);
     ctx.save();
-    ctx.setLineDash([1, 6 * u]); ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${INK},.14)`;
-    if (cam.k > 40) for (const r of [1.5, 2, 3, 4, 6, 8]) { ctx.beginPath(); ctx.arc(sx(0), sy(0), r * cam.k, 0, 6.2832); ctx.stroke(); }
+    ctx.setLineDash([1, 6 * u]); ctx.lineWidth = 1;
+    for (const b of w.bodies) {
+      const x = sx(b.x), y = sy(b.y);
+      if (b.rail) continue;
+      for (const m of [1.5, 2, 2.8, 4]) {
+        ctx.strokeStyle = `rgba(${INK},${0.16 / (0.5 + m * 0.5)})`;
+        ctx.beginPath(); ctx.arc(x, y, b.r * m * cam.k, 0, 6.2832); ctx.stroke();
+      }
+    }
     ctx.restore();
   }
   /** The goal on the picture: the target ring, or each gate in order, with what is asked of the arrival drawn on the ring itself. */
@@ -195,7 +209,7 @@ export function createView(canvas, hooks = {}) {
   }
   function coneBand() {
     if (!cone || coneAlpha <= 0.01) return;
-    const c = leadCone(cone), n = c.centre.length / 2, a = coneAlpha;
+    const c = cone, n = c.centre.length / 2, a = coneAlpha;
     if (n < 2) return;
     const X0 = sx(c.centre[0]), Y0 = sy(c.centre[1]), X1 = sx(c.centre[2 * n - 2]), Y1 = sy(c.centre[2 * n - 1]);
     // one gradient along the shot, from a faint tint at the muzzle to nothing at the far end (no closing rule, no hard edge)
@@ -226,15 +240,29 @@ export function createView(canvas, hooks = {}) {
     polyline(c.centre); ctx.stroke();
     ctx.restore();
   }
-  /** Where the muzzle is in the world: the pivot (the gun's height above the ground along the surface's normal) and the barrel's reach along the aim. */
-  function muzzleWorld(kick = 0) {
-    const site = lvl.site ?? 90, [ox, oy] = direction(site), [dx, dy] = direction(aim.angle), g = gunSize(cam.k, u), px = ox + ox * g.PH / cam.k, py = oy + oy * g.PH / cam.k, m = (MUZZLE * g.L - kick) / cam.k;
-    return [px + dx * m, py + dy * m];
+  /** Where a shot leaves: the pad, a point on the Earth's rim at the level's site. */
+  function padWorld() {
+    const re = worldOf(lvl).re, [ox, oy] = direction(lvl.site ?? 90);
+    return [ox * re, oy * re];
   }
-  function cannon() {
-    const site = lvl.site ?? 90, [ox, oy] = direction(site), g = gunSize(cam.k, u);
-    const kick = reduced() ? 0 : recoil * 0.1 * cam.k * (g.L / Math.max(0.34 * cam.k, 22 * u));
-    drawGun(ctx, sx(ox), sy(oy), cam.k, u, site, aim.angle * Math.PI / 180, kick, sun);
+  /** The launch pad: a brass tick standing out of the rim, a small bright disc on it and a ring that opens when a shot leaves (a marker, not a machine). */
+  function pad() {
+    const [px, py] = padWorld(), [ox, oy] = direction(lvl.site ?? 90), X = sx(px), Y = sy(py), nx = ox, ny = -oy, L = 14 * u;
+    ctx.save();
+    ctx.lineCap = "round";
+    const g = ctx.createRadialGradient(X, Y, 0, X, Y, 26 * u);
+    g.addColorStop(0, `rgba(${BRASS_HI},.55)`); g.addColorStop(1, `rgba(${BRASS},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X, Y, 26 * u, 0, 6.2832); ctx.fill();
+    ctx.strokeStyle = `rgba(${BRASS_HI},.95)`; ctx.lineWidth = 2 * u;
+    ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(X + nx * L, Y + ny * L); ctx.stroke();
+    ctx.strokeStyle = `rgba(${BRASS},.9)`; ctx.lineWidth = 1.5 * u;
+    ctx.beginPath(); ctx.moveTo(X - ny * 7 * u, Y + nx * 7 * u); ctx.lineTo(X + ny * 7 * u, Y - nx * 7 * u); ctx.stroke();
+    ctx.fillStyle = "#fffdf4"; ctx.beginPath(); ctx.arc(X, Y, 3 * u, 0, 6.2832); ctx.fill();
+    if (pulse > 0) {
+      ctx.strokeStyle = `rgba(${BRASS_HI},${pulse * 0.9})`; ctx.lineWidth = 2 * u;
+      ctx.beginPath(); ctx.arc(X, Y, (6 + (1 - pulse) * 30) * u, 0, 6.2832); ctx.stroke();
+    }
+    ctx.restore();
   }
   function trail() {
     if (!live) return;
@@ -273,7 +301,7 @@ export function createView(canvas, hooks = {}) {
       ctx.fillRect(sx(p.x) - s / 2, sy(p.y) - s / 2, s, s);
     }
     if (flash > 0) {
-      const [mx, my] = muzzleWorld(), X = sx(mx), Y = sy(my), r = (0.42 * cam.k + 18 * u) * flash;
+      const [mx, my] = padWorld(), X = sx(mx), Y = sy(my), r = 34 * u * flash;
       const g = ctx.createRadialGradient(X, Y, 0, X, Y, r);
       g.addColorStop(0, `rgba(255,250,225,${flash})`); g.addColorStop(0.25, `rgba(${BRASS_HI},${0.8 * flash})`); g.addColorStop(1, `rgba(${BRASS},0)`);
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X, Y, r, 0, 6.2832); ctx.fill();
@@ -312,16 +340,16 @@ export function createView(canvas, hooks = {}) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (!lvl) { ctx.fillStyle = SKY_TOP; ctx.fillRect(0, 0, W, H); return; }
     ctx.save();
-    if (shake > 0.2) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
     sky();
     const t = now();
-    earth(sx(0), sy(0), cam.k);
+    wells();
+    earthBody();
     moons(t);
+    pad();
     ghostLines();
     ring();
     coneBand();
     trail();
-    cannon();
     puffs();
     ctx.restore();
     vignette();
@@ -332,35 +360,6 @@ export function createView(canvas, hooks = {}) {
   /** The world's time as the picture shows it: the flight's own while a shell is out, else the clock. */
   function now() { return flight ? flight.t0 + flight.gt : clock; }
   const rails = () => !!lvl && worldOf(lvl).moving;
-  /**
-   * The first stretch of a path, drawn from the muzzle: the shell's true path starts at the ground under the gun, and the gun
-   * is a character much larger than that, so a display copy is led out of the muzzle and joins the true path within `fade`
-   * Earth radii of travel (a picture only: the rules never see it).
-   */
-  function lead(pts, mx, my, fade = 1.1) {
-    const n = pts.length / 2, out = Float64Array.from(pts), ox = mx - pts[0], oy = my - pts[1];
-    let acc = 0;
-    for (let i = 0; i < n; i++) {
-      if (i) acc += Math.hypot(pts[2 * i] - pts[2 * i - 2], pts[2 * i + 1] - pts[2 * i - 1]);
-      const f = acc >= fade ? 0 : (1 - acc / fade) * (1 - acc / fade);
-      if (f <= 0) break;
-      out[2 * i] += ox * f; out[2 * i + 1] += oy * f;
-    }
-    return out;
-  }
-
-  /** A cone led out of the muzzle the way a flight is (the same shift on the central path and on both edges). */
-  function leadCone(c) {
-    const [mx, my] = muzzleWorld(), n = c.centre.length / 2, ox = mx - c.centre[0], oy = my - c.centre[1], fade = 1.1, f = new Float64Array(n);
-    let acc = 0;
-    for (let i = 0; i < n; i++) {
-      if (i) acc += Math.hypot(c.centre[2 * i] - c.centre[2 * i - 2], c.centre[2 * i + 1] - c.centre[2 * i - 1]);
-      f[i] = acc >= fade ? 0 : (1 - acc / fade) * (1 - acc / fade);
-    }
-    const sh = a => { const o = Float64Array.from(a); for (let i = 0; i < n; i++) { o[2 * i] += ox * f[i]; o[2 * i + 1] += oy * f[i]; } return o; };
-    return { ...c, centre: sh(c.centre), left: sh(c.left), right: sh(c.right) };
-  }
-
   // ---------- motion ----------
   function pace(path) {
     // how long the flight is shown: the game's own seconds are a tenth of a second for a low shot, so a flight is stretched to
@@ -373,14 +372,11 @@ export function createView(canvas, hooks = {}) {
     const p = res.path, n = p.length / 3;
     let pts = new Float64Array(n * 2);
     for (let i = 0; i < n; i++) { pts[2 * i] = p[3 * i + 1]; pts[2 * i + 1] = p[3 * i + 2]; }
-    { const [mx, my] = muzzleWorld(); pts = lead(pts, mx, my); }
     const t0 = p[0], T = p[3 * (n - 1)] - t0, wall = over.wall ?? pace(p);
     flight = { res, p, n, t0, T, rate: T / wall, gt: 0, i: 0, slow: 1, prevD: Infinity, hit: false, wall, elapsed: 0 };
     live = { pts, upto: 1, head: [pts[0], pts[1]] };
     won = false; hitAt = null; flare = 0;
-    since = 0; recoil = 1; flash = 1; shake = reduced() ? 0 : 6 * u; coneAlpha = 0.4;
-    const [mx, my] = muzzleWorld();
-    for (let i = 0; i < 9; i++) smoke.push({ x: mx, y: my, vx: (Math.random() - 0.3) * 0.05 + direction(aim.angle)[0] * 0.04, vy: (Math.random() - 0.3) * 0.05 + direction(aim.angle)[1] * 0.04, r0: 0.03, r1: 0.08 + Math.random() * 0.07, age: -i * 0.03, life: reduced() ? 1.5 : 3.2 + Math.random() });
+    flash = 1; pulse = reduced() ? 0 : 1; coneAlpha = 0.4;
     wake();
   }
   function finishFlight() {
@@ -405,11 +401,9 @@ export function createView(canvas, hooks = {}) {
     hooks.onHit?.(h);
   }
   function step(dt) {
-    since += dt;
     if (!flight && rails()) clock += dt;
-    recoil = since < 0.05 ? since / 0.05 : Math.exp(-(since - 0.05) * 5.5);
-    if (flash > 0) flash = Math.max(0, flash - dt / 0.14);
-    if (shake > 0) shake = Math.max(0, shake - dt * 60 * u);
+    if (flash > 0) flash = Math.max(0, flash - dt / 0.3);
+    if (pulse > 0) pulse = Math.max(0, pulse - dt / 0.7);
     if (flare > 0) flare = Math.max(0, flare - dt / 0.9);
     for (const p of smoke) { p.age += dt; if (p.age > 0) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 0.8; p.vy *= 1 - dt * 0.8; } }
     for (let i = smoke.length - 1; i >= 0; i--) if (smoke[i].age > smoke[i].life) smoke.splice(i, 1);
@@ -449,7 +443,7 @@ export function createView(canvas, hooks = {}) {
     const e = 1 - Math.exp(-dt * 5.5);
     cam.x += (goal.x - cam.x) * e; cam.y += (goal.y - cam.y) * e; cam.k *= Math.pow(goal.k / cam.k, e);
   }
-  const moving = () => !!flight || rails() || settleAt > 0 || smoke.length > 0 || sparks.length > 0 || flash > 0 || flare > 0 || shake > 0.2 || recoil > 0.004 || Math.abs(goal.k - cam.k) > 0.05 || Math.abs(goal.x - cam.x) * cam.k > 0.3 || Math.abs(goal.y - cam.y) * cam.k > 0.3;
+  const moving = () => !!flight || rails() || settleAt > 0 || smoke.length > 0 || sparks.length > 0 || flash > 0 || pulse > 0 || flare > 0 || Math.abs(goal.k - cam.k) > 0.05 || Math.abs(goal.x - cam.x) * cam.k > 0.3 || Math.abs(goal.y - cam.y) * cam.k > 0.3;
   function tick(ts) {
     raf = 0;
     if (held) return;
@@ -465,7 +459,6 @@ export function createView(canvas, hooks = {}) {
     draw();
     if (moving()) { raf = requestAnimationFrame(tick); idled = false; }
     else {
-      recoil = 0;
       if (!idled) { idled = true; hooks.onIdle?.(); }
       if (!reduced() && lvl) raf = requestAnimationFrame(tick);   // the Earth's slow turn
     }
@@ -487,7 +480,7 @@ export function createView(canvas, hooks = {}) {
           globe: createGlobe("moon", { tilt: v.tilt ?? 8, tint: v.tint || [1, 1, 1] }) });
       });
       if (bodies.length) warm(() => { draw(); wake(); });
-      flight = null; live = null; cone = null; ghosts = []; rope = null; won = false; flare = 0; smoke.length = 0; sparks.length = 0; recoil = 0; flash = 0; shake = 0; settleAt = 0; coneAlpha = 1;
+      flight = null; live = null; cone = null; ghosts = []; rope = null; won = false; flare = 0; smoke.length = 0; sparks.length = 0; flash = 0; pulse = 0; settleAt = 0; coneAlpha = 1;
       draw();
     },
     // these only note the change and ask for a frame; the page's hooks.before runs in that frame, ahead of the drawing
