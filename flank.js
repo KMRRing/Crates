@@ -13,6 +13,7 @@ import { seatPage } from "./seats-ui.js";
 import { applyMove } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
@@ -34,6 +35,13 @@ let opts = { mode: "computer", level: "medium", colour: "dark", coach: "hints", 
 if (!["computer", "two"].includes(opts.mode)) opts.mode = "computer";
 if (!["off", "hints", "always"].includes(opts.coach)) opts.coach = "hints";
 if (!["dark", "light", "either"].includes(opts.colour)) opts.colour = "dark";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Either colour (the sides alternate), the squares you may
+// play marked, whatever an older save chose. The computer's strength is the hidden ramp, its first step the old saved
+// choice (a lesson's game plays Easy, once). The coach is on or off (a saved Always stays Always).
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { colour: "either", marks: true });
+let lesson = null, lessonNext = null;                                // a lesson's game names its own level, once
+const levelNow = () => lesson || ramp("flank", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -113,7 +121,7 @@ function drawSeats(v) {
   const s = v.state, me = isTwo(v) ? 0 : v.seat ?? 0, n = tally(s.b);
   for (const [box, seat] of [[far, 1 - me], [near, me]]) {
     const c = colourOf(s, seat), turn = !v.over && v.toMove === seat;
-    const sub = isTwo(v) ? "" : v.mode === "solo" && seat === 1 ? `${levelOf(opts.level).name} · ${COLOURS[c]}` : COLOURS[c];   // two on one phone: the name is the colour already
+    const sub = isTwo(v) ? "" : v.mode === "solo" && seat === 1 ? `${levelOf(levelNow()).name} · ${COLOURS[c]}` : COLOURS[c];   // two on one phone: the name is the colour already
     box.className = `fk-seat ${box.id}${turn ? " turn" : ""}`;
     box.innerHTML = `<i class="fk-swatch ${c}"></i><b class="fk-name">${esc(nameOf(v, seat))}</b><small>${esc(sub)}</small><span class="fk-count" aria-label="${n[c]} discs">${n[c]}</span>`;
   }
@@ -198,7 +206,7 @@ function botWork(v) {
   const who = v?.toMove;
   const mine = v?.G && !v.over && who != null && v.seats?.[who]?.bot && !IN_FRAME && (v.mode === "solo" || v.me?.driver) && !isTwo(v);
   if (!mine) { if (holding) { holding = false; } return; }
-  const s = v.state, level = opts.level, key = `${level}|${keyOf(s)}`;
+  const s = v.state, level = levelNow(), key = `${level}|${keyOf(s)}`;
   if (primed(s.b, s.t, level)) { holding = false; return; }
   if (botKey === key) return;
   botKey = key;
@@ -280,6 +288,7 @@ function onOver(v) {
     if (!r.winner) rec.drawn++;
     write(RECORD, rec);
     noteStreak("flank", !!mine);
+    if (!page.atTable && !isTwo(v) && !lesson) { levelNow(); mine ? ramp.won(true) : r.winner ? ramp.lost() : ramp.won(false); }
   }
   setTimeout(() => { if (V?.over && V.G === v.G) showEnd(V); }, 1100);
 }
@@ -293,6 +302,7 @@ function showEnd(v) {
 }
 function newGame() {
   if ($("endDlg").open) $("endDlg").close();
+  lesson = lessonNext; lessonNext = null;
   hintAt = { key: "", sq: -1 };
   botKey = "";
   const two = opts.mode === "two" && !page.atTable;
@@ -312,7 +322,7 @@ function showRules() {
     <h3>Playing well</h3>
     <p>Corners can never be turned, and the squares touching an empty corner give it away. Moves matter more than discs: the side with more choices is the one that can wait. Early on, fewer discs is often better. The Learn course goes through all of it.</p>
     <h3>Here</h3>
-    <p class="fk-rules-note">Tap a marked square to play. Hint shows the coach's best move and who is ahead; Undo takes back your last move and the reply. The computer: Easy slips often, Medium looks a few moves ahead, Hard looks eight moves ahead and plays out the last fourteen squares exactly.</p>`;
+    <p class="fk-rules-note">Tap a marked square to play. Hint shows the coach's best move and who is ahead; Undo takes back your last move and the reply. The computer plays harder as you win and easier as you lose.</p>`;
   $("rulesDlg").showModal();
 }
 
@@ -321,7 +331,7 @@ const course = createCourse({
   onPlay: step => {
     if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
     opts.mode = "computer";
-    opts.level = step?.level || "easy";
+    lessonNext = step?.level || "easy";
     saveOpts();
     newGame();
   },
@@ -338,13 +348,10 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Opponent", [["computer", "Computer"], ["two", "Two on this phone"]], opts.mode, v => { opts.mode = v; saveOpts(); }));
-  content.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); botKey = ""; botWork(V); }));
-  content.append(choice("You play", [["dark", "Dark (first)"], ["light", "Light"], ["either", "Either"]], opts.colour, v => { opts.colour = v; saveOpts(); }));
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
-  set.append(line("The opponent and colour apply from the next game."));
-  set.append(choice("Coach", [["off", "Off"], ["hints", "Hints"], ["always", "Always"]], opts.coach, v => { opts.coach = v; saveOpts(); hintAt = { key: "", sq: -1 }; draw(); coachWork(V); }));
-  set.append(toggle("Mark the squares you may play", opts.marks, on => { opts.marks = on; saveOpts(); draw(); }));
+  set.append(line("The opponent applies from the next game."));
+  set.append(toggle("Coach", opts.coach !== "off", on => { opts.coach = on ? "hints" : "off"; saveOpts(); hintAt = { key: "", sq: -1 }; draw(); coachWork(V); }));
   const r = read(RECORD, { played: 0, won: 0, drawn: 0 }), st = read("flank:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games against the computer or a friend${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -353,7 +360,7 @@ function openMenu() {
 // ---------- the page on its runner ----------
 // (last: seatPage hands over the saved game at once, and everything the first view draws must exist by then)
 page = seatPage({
-  rules, id: "flank", app: 1, pace: 650, botName: () => "Computer", level: () => opts.level, voice: () => false,
+  rules, id: "flank", app: 1, pace: 650, botName: () => "Computer", level: () => levelNow(), voice: () => false,
   onView: v => { V = v; syncTwo(v); draw(); botWork(v); coachWork(v); randomRounds(v); },
   onOver, toast, newGame, hold: () => holding,
 });

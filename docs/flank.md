@@ -16,3 +16,5 @@ Traps:
 Not built: a daily puzzle (the soon-data entry asked for it and a 3D mode).
 - 3D view (Menu, View): the board tipped away from you by CSS alone (`flank-3d.css`), flat the default, the choice the device's own (`suite:flank-view`); the discs keep their own turning.
 - 3 November 2026, Korbi: "you decide, 3D mode: yes". Decided: no daily puzzle; the 3D mode goes to the 3D-modes agent.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Opponent (Computer or Two on this phone), Coach (on or off; a saved Always stays Always) and View. The computer's strength, You play and Mark the squares you may play are gone: the strength is the hidden ramp (`flank:ramp`, up a step after a win, down after a loss, the same after a draw; its first step is the level that was saved; a lesson's game plays Easy and leaves it alone), the colours alternate, the squares you may play are marked.

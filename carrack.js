@@ -12,6 +12,7 @@ import { seatPage } from "./seats-ui.js";
 import { shuffle } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, onPause } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
@@ -33,6 +34,11 @@ const HARM = new Set(["afonso", "eastafrica", "mita", "banda", "kilwa", "goa", "
 const REGION_NAMES = ["BALTIC", "ATLANTIC", "MEDITERRANEAN", "WEST AFRICA", "SWAHILI COAST", "ARABIAN SEA", "BAY OF BENGAL", "SOUTH CHINA SEA", "JAPAN"];
 
 let opts = { level: "medium", n: 4, mine: "random", ...read(OPTS, {}) };
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Your power is drawn by lot, whatever an older save chose.
+// The computer players' strength is the hidden ramp, its first step the old saved choice.
+const OLD_LEVEL = opts.level;
+opts.mine = "random";
+const levelNow = () => ramp("carrack", LEVELS, { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 // how the map is looked at: the globe or the flat schematic, and whether the panel below it is folded away
 const VIEW = "carrack:view";
@@ -62,7 +68,7 @@ let V = null, page = null;
 const randomRounds = seatRounds("carrack");   // random mode's round: a game
 
 page = seatPage({
-  rules, id: "carrack", app: 1, pace: 650, level: () => opts.level, voice: () => false,
+  rules, id: "carrack", app: 1, pace: 650, level: () => levelNow(), voice: () => false,
   botName: (seat, G) => POWERS[G?.state?.pw?.[seat]]?.name || `Seat ${seat + 1}`,
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
@@ -526,6 +532,7 @@ function onOver(v) {
   if (won) r.won++;
   write(RECORD, r);
   noteStreak("carrack", !!won);
+  if (!page.atTable) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   setTimeout(() => { if (V?.over) showEnd(V); }, 1200);
 }
 function showEnd(v) {
@@ -629,11 +636,9 @@ function openMenu() {
   play.append(action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Powers at the table", [2, 3, 4, 5, 6].map(n => [n, String(n)]), opts.n, v => { opts.n = Number(v); saveOpts(); }));
-  content.append(choice("Your power", [["random", "Random"], ...POWERS.map(p => [p.id, p.name])], opts.mine, v => { opts.mine = v; saveOpts(); }));
   content.append(line("Applies from the next game. At a table the other seats go to the friends who sit down."));
   const set = part(body, "settings");
   set.append(choice("Map", [["globe", "Globe"], ["flat", "Flat"]], mapNow(), v => { look.view = v; saveLook(); draw(); }));
-  set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("carrack:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

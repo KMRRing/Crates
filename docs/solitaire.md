@@ -20,3 +20,5 @@ Klondike (draw one or three), FreeCell and Spider (one, two or four suits), each
 - **The choice is written only when the player picks it** (`prefs.view`, `prefs.tilt`, `prefs.yaw` in `solitaire:prefs`): with none, `mode3d.js`'s default decides, so never write the default in. Tilt 36 is the default angle, 0 the flat table's scale.
 - **`vendor/three-tex.js` is a second, tiny bundle** (CanvasTexture) beside the trimmed `vendor/three.js`, which has no textures; same version, so its textures work in the other's renderer. Card faces are canvases painted in the page's `--cd-*` colours and repainted on a theme change.
 - **Sound makes no audio context before a gesture** (Safari would refuse; Chrome warns), and one card is one flick (a second call within 30 ms is dropped).
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Game (the variant), Today's, Table (3D or Flat) and Sound. Move cards up by themselves, Four-colour suits and Camera are gone: cards move up by themselves, the suits are the usual two colours, and the camera is the board's own to tilt (a drag in 3D); the saved Table, tilt and sound stay.

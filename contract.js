@@ -14,6 +14,7 @@ import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { createMotion, createParallax, rectOf, fill, settle } from "./table3d.js";
 import { plaqueHtml, wonHtml, columnsHtml, columnsEm, tallest, callKind } from "./contract-table.js";
@@ -35,6 +36,11 @@ const LEVELS = [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]];
 
 let opts = { level: "hard", hints: true, ...read(OPTS, {}) };
 if (!LEVELS.some(([k]) => k === opts.level)) opts.level = "hard";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The computer's strength is the hidden ramp, its first
+// step the old saved choice (a lesson's match plays the level its step names, once).
+const OLD_LEVEL = opts.level;
+let lesson = null, lessonNext = null;
+const levelNow = () => lesson || ramp("contract", LEVELS.map(([k]) => k), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -91,16 +97,16 @@ function ask(msg) {
   if (!w) return Promise.resolve(null);
   return new Promise(res => { const id = ++asked; answers.set(id, res); w.postMessage({ id, ...msg }); });
 }
-const thinks = () => opts.level !== "easy";
+const thinks = () => levelNow() !== "easy";
 let want = null, ahead = { key: null, since: 0, done: true };
 function lookAhead(v) {
   want = null;
   if (!v?.G || v.over || v.toMove == null || !v.seats[v.toMove]?.bot || v.state.step !== "play" || !thinks()) return;
   if (IN_FRAME || (v.mode !== "solo" && !v.me?.driver)) return;
-  want = aheadKey(v.state, v.toMove, opts.level);
+  want = aheadKey(v.state, v.toMove, levelNow());
   if (ahead.key === want) return;
   const a = ahead = { key: want, since: Date.now(), done: false };
-  ask({ kind: "move", state: v.state, seat: v.toMove, level: opts.level }).then(move => {
+  ask({ kind: "move", state: v.state, seat: v.toMove, level: levelNow() }).then(move => {
     a.done = true;
     if (move) remember(a.key, move);
     if (ahead === a) page?.runner.kick();
@@ -111,7 +117,7 @@ function paceNow(s) {
   if (s.step === "bid") return BID_PACE;
   if (want == null || ahead.key !== want) return PACE;
   const spent = Date.now() - ahead.since;
-  return Math.max(150, (ahead.done ? PACE : (THINK[opts.level]?.ms ?? PACE) + LATE) - spent);
+  return Math.max(150, (ahead.done ? PACE : (THINK[levelNow()]?.ms ?? PACE) + LATE) - spent);
 }
 
 // ---------- the table ----------
@@ -126,7 +132,7 @@ let V = null, page = null;
 const randomRounds = seatRounds("contract", ["scored"]);   // random mode's round: a deal played (one passed out is dealt again, no round)
 page = seatPage({
   rules, id: "contract", app: 1, pace: paceNow, hold: holding, botName: s => SEATS[s],
-  level: () => opts.level, onView: v => { V = v; lookAhead(v); draw(); randomRounds(v); }, onOver, toast, newGame,
+  level: () => levelNow(), onView: v => { V = v; lookAhead(v); draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => (V?.seats?.[seat]?.name ?? SEATS[seat]);
@@ -539,6 +545,7 @@ function onOver(v) {
   if (won) r.won++;
   write(RECORD, r);
   noteStreak("contract", won);
+  if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : s.scores[mine] < s.scores[1 - mine] ? ramp.lost() : ramp.won(false); }
   setTimeout(() => { if (V?.over) showEnd(V); }, 1500);
 }
 function showEnd(v) {
@@ -555,6 +562,7 @@ function showEnd(v) {
 function newGame() {
   $("endDlg").open && $("endDlg").close();
   hint = said = null;
+  lesson = lessonNext; lessonNext = null;
   page.deal({}, 4);
 }
 $("endAgain").addEventListener("click", newGame);
@@ -579,7 +587,7 @@ const course = createCourse({
   onRules: showRules,
   onPlay: step => {
     if (page.atTable) { toast("Your table plays on: start a match when you're back to solo"); return; }
-    if (step?.level) { opts.level = step.level; saveOpts(); }
+    if (step?.level) lessonNext = step.level;
     newGame();
   },
 });
@@ -601,9 +609,7 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
-  set.append(choice("The computer", LEVELS, opts.level, v => { opts.level = v; saveOpts(); }));
-  set.append(line(opts.level === "easy" ? "Easy plays its cards by the rules of thumb." : "Medium and Hard weigh each card over deals of the hands they can't see, solved with every card seen; Hard looks at more of them."));
-  set.append(toggle("Coach: hints", opts.hints, on => { opts.hints = on; saveOpts(); draw(); }));
+  set.append(toggle("Coach", opts.hints, on => { opts.hints = on; saveOpts(); draw(); }));
   const r = read(RECORD, { played: 0, won: 0 }), about = part(body, "about"), rushBests = bestsLine(rush.bests());
   about.append(line(r.played ? `Won ${r.won} of ${r.played} matches.` : "No match finished yet."), ...(rushBests ? [line(rushBests)] : []));
   if (!$("menuDlg").open) $("menuDlg").showModal();

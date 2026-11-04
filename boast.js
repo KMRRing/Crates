@@ -8,6 +8,7 @@ import { seatPage, fillNames } from "./seats-ui.js";
 import { seeded, mix } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { createBoast3d, plateOf } from "./boast-3d.js";
 import { seatRounds } from "./random.js";
@@ -25,9 +26,17 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const NAMES = ["Ling", "Lin", "Wei", "Fang", "Ming", "Kit"];                // the computer players, by seat
 const TALK = [["zh", "普通话"], ["yue", "廣東話"], ["en", "English"]];
 
-// the menu's choices: the next game's (players, its end, the house rules, the table talk) and the page's own
+// the menu's choices: the table talk and the page's own
 let opts = { seats: 4, level: "hard", limit: 6, pi: true, bao: false, san: false, talk: "zh", odds: false, voice: true, ...read(OPTS, {}) };
 if (!LIMITS.includes(opts.limit)) opts.limit = 6;
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Four players, six lives each, 劈 and 反劈 on, the two
+// other house rules off, no odds line, whatever an older save chose (a game in hand keeps its own rules, in its state).
+// The computer's strength is the hidden ramp, its first step the old saved choice; table talk is a language, or Off, which
+// is the narrator's voice off.
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { seats: 4, limit: 6, pi: true, bao: false, san: false, odds: false });
+let lesson = false, lessonNext = false;                              // a lesson's game plays against Easy, once
+const levelNow = () => (lesson ? "easy" : ramp("boast", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL }));
 const saveOpts = () => write(OPTS, opts);
 const gameOptions = () => ({ limit: opts.limit, pi: opts.pi, bao: opts.bao, san: opts.san, talk: opts.talk });
 
@@ -76,7 +85,7 @@ let shaken = "";                                  // the round whose dice last s
 let page = null;                                  // set once the runner is up (it draws its first view while starting)
 const randomRounds = seatRounds("boast", ["shown"]);   // random mode's round: a round of bidding, its cups lifted
 page = seatPage({
-  rules, id: "boast", app: 1, pace: 1150, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "boast", app: 1, pace: 1150, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => levelNow(), voice: () => opts.voice,
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const lastBid = s => (s?.bids?.length ? s.bids[s.bids.length - 1] : null);
@@ -338,6 +347,7 @@ $("controls").addEventListener("click", async e => {
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const won = v.state.winners.includes(v.seat);
+  if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   const r = read(RECORD, { played: 0, won: 0 });
   r.played++;
   if (won) r.won++;
@@ -357,6 +367,7 @@ function showEnd(v) {
 }
 function newGame() {
   $("endDlg").open && $("endDlg").close();
+  lesson = lessonNext; lessonNext = false;
   page.deal(gameOptions(), Math.max(2, Math.min(6, opts.seats)));
 }
 $("endAgain").addEventListener("click", newGame);
@@ -373,14 +384,13 @@ function showRules() {
     <p><b>Ones are wild</b>: a 1 counts as whatever face is bid. A plain bid (斋, zhāi) counts no ones: "four fives, plain" needs four real 5s. A bid on ones is plain by nature, and the highest plain face. A plain bid may follow a wild one at the same count; going back to wild ones after a plain bid (飞, fēi, "fly") takes two dice more.</p>
     <p><b>Opening.</b> Instead of bidding, the next player may call the last bid a lie: 开 (kāi, "open"). Every cup is lifted and the face counted (with the ones, unless the bid was plain). As many or more: the bid held and the opener loses a life. Fewer: the bidder loses a life. 劈 (pī, "chop") opens at double: two lives ride on it, and the bidder may answer 反劈 (fǎn pī, "chop back") to make it four. Whoever lost lives starts the next round.</p>
     <p><b>The end.</b> Everyone starts with ${opts.limit} lives. When someone is out of lives the game ends, and whoever has the most left wins.</p>
-    <p><b>House rules</b> (Menu): 豹子 (bàozi, "leopard"): five dice alike under one cup count seven, five alike with ones among them six. 散 (sǎn, "scattered"): a cup of five different faces is rolled again before anyone bids.</p>
     <h3>What's said at the table</h3>
     <table class="bo-talk"><thead><tr><th></th><th>普通话</th><th>廣東話</th></tr></thead><tbody>
     ${row(w(3, 5), "Three fives")}${row(w(2, 6), "Two sixes")}${row(w(4, 3, true), "Four threes, plain")}${row(w(5, 1), "Five ones")}${row(w(12, 2), "Twelve twos")}
     ${call("kai", "Open!")}${call("pi", "Chop!")}${call("fanpi", "Chop back!")}${call("zhai", "Plain (no wild ones)")}${call("fei", "Fly: wild again")}
     <tr><td>Shake the cups</td><td><b>摇骰子</b><br><small>yáo shǎizi</small></td><td><b>搖骰</b><br><small>jiu4 sik1</small></td></tr>
     </tbody></table>
-    <p class="bo-rules-note">Mandarin counts "two" of something as 两 (liǎng), the face two as 二 (èr); Cantonese counts dice with 粒 (nap1, "grain"), Mandarin with 个 (gè). Menu, Table talk, sets the language the bids are called in.</p>`;
+    <p class="bo-rules-note">Mandarin counts "two" of something as 两 (liǎng), the face two as 二 (èr); Cantonese counts dice with 粒 (nap1, "grain"), Mandarin with 个 (gè). Table talk, in the menu, sets the language the bids are called in.</p>`;
   $("rulesDlg").showModal();
 }
 
@@ -393,8 +403,7 @@ const course = createCourse({
   stage: diceStage({ die, counts: (hand, bid) => cupCount(hand, bid), follows: (prev, bid, seats) => canFollow(prev, bid, seats), words: bidEnglish, judge }),
   onPlay: () => {
     if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
-    opts.level = "easy";
-    saveOpts();
+    lessonNext = true;
     newGame();
   },
 });
@@ -410,16 +419,7 @@ function openMenu() {
   const set = part(body, "settings");
   const next = () => { saveOpts(); };
   set.append(view.choice(() => draw()));
-  set.append(choice("Players", [[2, "2"], [3, "3"], [4, "4"], [5, "5"], [6, "6"]], opts.seats, v => { opts.seats = Number(v); next(); }));
-  set.append(choice("Lives each", LIMITS.map(n => [n, `${n} lives`]), opts.limit, v => { opts.limit = Number(v); next(); }));
-  set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; next(); }));
-  set.append(choice("Table talk", TALK, opts.talk, v => { opts.talk = v; next(); draw(); }));
-  set.append(toggle("劈 and 反劈 (chop, chop back)", opts.pi, on => { opts.pi = on; next(); }));
-  set.append(toggle("豹子: five alike count extra", opts.bao, on => { opts.bao = on; next(); }));
-  set.append(toggle("散: five different faces rolled again", opts.san, on => { opts.san = on; next(); }));
-  set.append(line("Players, the end and the house rules apply from the next game."));
-  set.append(toggle("Show the odds of the last bid", opts.odds, on => { opts.odds = on; next(); draw(); }));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; next(); }));
+  set.append(choice("Table talk", [...TALK, ["off", "Off"]], opts.voice ? opts.talk : "off", v => { opts.voice = v !== "off"; if (v !== "off") opts.talk = v; next(); draw(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("boast:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

@@ -41,6 +41,9 @@ const isAuto = x => !!(x & (1 << 19));
 // ---------- what you chose ----------
 const prefs = { variant: "klondike1", auto: true, four: false, ...read(PREFS, {}) };
 if (!E.VARIANTS[prefs.variant]) prefs.variant = "klondike1";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Cards move up by themselves, the suits are the usual
+// two colours, whatever an older save chose (the camera is the board's own to tilt; the table's view and the sound stay).
+prefs.auto = true; prefs.four = false;
 delete prefs.mode;                                   // older saves chose Random or Today's here; Today's is a button now (menu.js todayPart), and a saved run of it still resumes
 const savePrefs = () => write(PREFS, prefs);
 // prefs.view ("3d" or "flat"), .tilt and .yaw (degrees) are written only when the player picks one; with none the suite's
@@ -491,12 +494,9 @@ function openMenu() {
   content.append(mirror("Game", $("variant")));
   const won = (read(DAILIES, {})[today()] || {})[prefs.variant];
   todayPart(body, { done: won != null, result: won != null ? fmt(won) : "", play: () => newDeal("daily"), playing: S?.mode === "daily" && S.key === today() && S.id === prefs.variant });   // newDeal asks before it gives a game up
-  settings.append(toggle("Move cards up by themselves", prefs.auto, on => { prefs.auto = on; savePrefs(); }));
-  settings.append(toggle("Four-colour suits", prefs.four, on => { prefs.four = on; savePrefs(); board.setFourColour(on); }));
   if (!IN_FRAME) {
     settings.append(choice("Table", [["3d", "3D"], ["flat", "Flat"]], wants3D() ? "3d" : "flat", v => { prefs.view = v; failed3d = false; savePrefs(); applyView().then(openMenu); }));
-    if (board.view) settings.append(choice("Camera", [["top", "Top"], ["angled", "Angled"]], board.view.camera().tilt < ANGLED / 2 ? "top" : "angled", v => { board.view.setCamera(v === "top" ? 0 : ANGLED, 0); board.view.commit(); showTilt(); }));
-    else if (failed3d) settings.append(line("This browser can't draw 3D."));
+    if (!board.view && failed3d) settings.append(line("This browser can't draw 3D."));
     settings.append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; savePrefs(); sound.setOn(on); if (on) sound.flick(); }));
   }
   const st = statsOf(prefs.variant), t = read(TIMES, {})[prefs.variant];

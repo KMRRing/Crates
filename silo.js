@@ -10,6 +10,7 @@ import { seatPage } from "./seats-ui.js";
 import { applyMove } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
@@ -29,6 +30,13 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 let opts = { level: "medium", start: "alternate", opponent: "computer", coach: false, ...read(OPTS, {}) };
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";
 if (!STARTS.some(([k]) => k === opts.start)) opts.start = "alternate";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The first move alternates, whatever an older save chose.
+// The computer's strength is the hidden ramp, its first step the old saved choice (a lesson's game plays its own level,
+// once).
+const OLD_LEVEL = opts.level;
+opts.start = "alternate";
+let lesson = null, lessonNext = null;
+const levelNow = () => lesson || ramp("silo", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -61,8 +69,8 @@ const gameKey = v => `${v.G.seq}:${v.G.started}`;
 
 const randomRounds = seatRounds("silo");   // random mode's round: a game
 page = seatPage({
-  rules, id: "silo", app: 1, botName, level: () => opts.level,
-  pace: s => (advised(s.moves) != null || opts.level !== "hard" ? 650 : 3400),
+  rules, id: "silo", app: 1, botName, level: () => levelNow(),
+  pace: s => (advised(s.moves) != null || levelNow() !== "hard" ? 650 : 3400),
   hold: () => (hotseat() ? V?.toMove === 1 : thinking !== null),
   onView: v => { V = v; follow(v); draw(); randomRounds(v); think(v); ask(v); },
   onOver, toast, newGame: () => newGame(true),
@@ -93,7 +101,7 @@ function think(v) {
   if (!page || !v.G || v.over || !page.host || hotseat()) { thinking = null; return; }
   const who = v.toMove, moves = v.state.moves;
   const mine = v.seats[who]?.bot;
-  if (opts.level !== "hard" || !mine || advised(moves) != null) { thinking = null; return; }
+  if (levelNow() !== "hard" || !mine || advised(moves) != null) { thinking = null; return; }
   if (thinking === moves) return;
   thinking = moves;
   player.ask(moves).then(res => {
@@ -249,6 +257,7 @@ async function newGame(fresh) {
   const v = V;
   if (v?.G && !v.over && v.state.moves.length > 1 && !IN_FRAME && !(await sure("Leave this game and start a new one?", { yes: "New game" }))) return;
   thinking = null; hint = { moves: "", col: -1, want: "" }; analysis = null; asked = "";
+  lesson = lessonNext; lessonNext = null;
   page.deal({ start: opts.start, fresh: !!fresh }, 2);
 }
 
@@ -260,6 +269,7 @@ function onOver(v) {
   if (s.winner === -1) r.drawn++;
   else if (s.winner === v.seat && !hotseat()) r.won++;
   write(RECORD, r);
+  if (!hotseat() && !page.atTable && !lesson) { levelNow(); s.winner === -1 ? ramp.won(false) : s.winner === v.seat ? ramp.won(true) : ramp.lost(); }
   if (!hotseat() && s.winner !== -1) noteStreak("silo", s.winner === v.seat);
 }
 
@@ -283,7 +293,7 @@ const course = createCourse({
   onPlay: step => {
     const level = step?.level || "easy", name = LEVEL_NAMES.find(([k]) => k === level)?.[1] || level;
     if (page.atTable) { toast(`Your table plays on: try a game against ${name} when you're back to solo`); return; }
-    opts.level = level;
+    lessonNext = level;
     opts.opponent = "computer";
     saveOpts();
     newGame(true);
@@ -302,11 +312,9 @@ function openMenu() {
   if (!page.atTable && page.host) {
     const content = part(body, "content");
     content.append(choice("Opponent", [["computer", "Computer"], ["friend", "Two on this phone"]], opts.opponent, v => { opts.opponent = v; saveOpts(); thinking = null; page.runner.kick(); draw(); }));
-    if (opts.opponent === "computer") content.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); thinking = null; draw(); }));
   }
   const set = part(body, "settings");
   set.append(view.choice(() => drawBoard()));
-  set.append(choice("Who starts", STARTS, opts.start, v => { opts.start = v; saveOpts(); }));
   set.append(toggle("Coach: hints, and who is winning", opts.coach, on => { opts.coach = on; saveOpts(); asked = ""; if (V) ask(V); draw(); }));
   if (page.host) set.append(action("Start a new tally", () => newGame(true), "link"));
   const r = read(RECORD, { played: 0, won: 0, drawn: 0 }), st = read("silo:streak", { now: 0, best: 0 });

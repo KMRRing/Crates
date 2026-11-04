@@ -11,6 +11,7 @@ import { createTogether, seatsOf, seatOfSlot, peopleSeats, runsElsewhere } from 
 import { GAMES, roomInAddress, joiningWords } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, noteStreak, today } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
@@ -44,6 +45,11 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 let G = null, S = null;
 let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", coach: "hints", full: false, side: null, ...read(OPTS, {}) };
 if (!COACH.includes(opts.coach)) opts.coach = "hints";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Six hands, a steady pace, no card counter, no full
+// screen, the cards held by the screen's shape, whatever an older save chose (a match in hand keeps its own rules). The
+// computer's strength is the hidden ramp, its first step the old saved choice; the coach is on or off.
+const OLD_BOTS = opts.bots;
+Object.assign(opts, { mode: "deals", deals: 6, pace: "steady", counter: false, full: false, side: null });
 if (!VIEWS.some(([k]) => k === opts.view)) delete opts.view;   // kept only when the player chose (else mode3d.js's default); "table" was the old default written into every save
 let table3d = null;                                              // the 3D view, once the page is wired (the foot of this file)
 const in3d = () => wants3D(opts.view, "3d") && !!table3d;
@@ -92,7 +98,8 @@ function workerFor(role) {
   return workers[role];
 }
 /** How strong the computer players are: the room's setting at a table together, so both devices play the same. */
-const skill = () => ((together.room ? S?.bots : opts.bots) === "medium" ? "medium" : "hard");
+const strength = () => ramp("tribute", ["medium", "hard"], { start: OLD_BOTS });
+const skill = () => ((together.room ? S?.bots : strength()) === "medium" ? "medium" : "hard");
 /** The computer's choice in a seat now: { action, why }; `kind`: "decide", or "hints": the plays weighed, hard's choice
  *  first, each with what speaks for and against it (tribute-bot.js's weigh). */
 async function think(state, seat, kind = "decide", extra = {}) {
@@ -656,7 +663,7 @@ function record() {
   const st = read(STATS, { hands: 0, firsts: 0, oneTwo: 0, matches: 0, wins: 0 });
   st.hands++;
   if (r.team === us) { st.firsts++; if (r.gain === 3) st.oneTwo++; }
-  if (r.over) { st.matches++; if (r.winner === us) st.wins++; noteStreak("tribute", r.winner === us); }
+  if (r.over) { st.matches++; if (r.winner === us) st.wins++; noteStreak("tribute", r.winner === us); strength(); r.winner === us ? ramp.won(true) : ramp.lost(); }
   write(STATS, st);
   save();
 }
@@ -959,7 +966,7 @@ function freshRoom(players, { ask = null, people = null, rules = null } = {}) {
   const names = [0, 1, 2, 3].map(s => (humans.includes(s) ? "" : BOTS[s - 1]));
   for (const [, p] of Object.entries(players)) names[seatOfSlot(p.slot)] = p.name;
   const game = E.toRoom(E.newGame({ mode: opts.mode, deals: opts.deals }, (Math.random() * 2 ** 32) >>> 0));
-  const kept = { bots: rules?.bots || opts.bots, coach: COACH.includes(rules?.coach) ? rules.coach : opts.coach, counter: typeof rules?.counter === "boolean" ? rules.counter : !!opts.counter };
+  const kept = { bots: rules?.bots || strength(), coach: COACH.includes(rules?.coach) ? rules.coach : opts.coach, counter: typeof rules?.counter === "boolean" ? rules.counter : !!opts.counter };
   return { v: 1, app: APP, created: Date.now(), players, game, table: { names, humans, started: Date.now(), ...kept } };
 }
 let roomHand = null;                                             // the table's hand last drawn here, by its seed
@@ -1093,26 +1100,12 @@ function openMenu() {
   } else part(body, "play").append(action("New match", () => newMatch(), "primary"), action("Puzzle rush", () => startRush(), ""), ...copies());
   const cp = progressOf("tribute", COURSE);
   part(body, "play").append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Guandan, from the rules", () => course.open()));
-  if (!rush) {                                                   // a puzzle's table keeps its own rules: the match's are for the match
-    const content = part(body, "content");
-    content.append(choice("Match", [["deals", "Six hands"], ["toA", "To the ace"]], opts.mode, v => set("mode", v)));
-    if (G && G.opts.mode !== opts.mode) content.append(line("This takes effect with a new match."));
-  }
-  const bots = together.room ? S?.bots || "hard" : opts.bots;
-  // the table's rules: at a table together, written to the table, for every phone at it; a party's guests see the host's
+  // the table's coach: at a table together, written to the table, for every phone at it; a party's guests see the host's
   const rule = (k, v) => { set(k, v); if (together.room) together.act(g => { if (!g.table) return false; g.table[k] = v; }); };
-  const COACHES = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
-  const rules = setsRules()
-    ? [choice("Computer players", [["medium", "Medium"], ["hard", "Hard"]], bots, v => rule("bots", v)),
-      choice("Coach", COACHES, coach(), v => { rule("coach", v); hint = null; advise(); render(); }),
-      toggle("Card counter", counting(), v => rule("counter", v))]
-    : [line(`${party?.partyHost()?.name || "The host"} sets the table's rules: computer players ${bots === "medium" ? "Medium" : "Hard"}, coach ${COACHES.find(([k]) => k === coach())[1]}, card counter ${counting() ? "on" : "off"}.`)];
   part(body, "settings").append(
-    ...rules,
-    choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
     choice("View", VIEWS, wants3D(opts.view, "3d") ? "3d" : "flat", v => { opts.view = v; write(OPTS, opts); showView(); render(); }),
-    toggle("Full screen", !!opts.full, v => { fullScreen(v); set("full", v); }),
-    choice("Held sideways, your cards", [["row", "In a row"], ["stack", "Stacked"]], sideOf(), v => set("side", v)),
+    setsRules() ? toggle("Coach", coach() !== "off", v => { rule("coach", v ? "hints" : "off"); hint = null; advise(); render(); })
+      : line(`Coach ${coach() === "off" ? "off" : "on"}, as ${party?.partyHost()?.name || "the host"} set it for the table.`),
   );
   const st = read(STATS, null), rushBests = rush ? "" : bestsLine(read(RUSH_BEST, {}));
   if (rushBests) part(body, "about").append(line(rushBests));

@@ -31,3 +31,5 @@ The fourth idle game (October 2026; README, Idle): `topple.html`, `topple.js`, `
 - **A table of two floors**: a cell is `floor * 61 + hexagon`, a fall goes down a drop and never up, and what is drawn over the table asks the view where a hexagon's floor is (`baseOf`).
 - **Feature help is derived from the engine** (`topple-help.js`: its scenes run on the game's own rules, its figures are read from the engine and the levels), so a picture cannot disagree with the game. Classic and a watching frame show none.
 - **Thresholds nobody has tried on a phone**: how far a slide is a push (0.55 of a hexagon and 18 px), how far out the handle stands (0.74), a double tap (420 ms, 40 px), a long press (half a second, 8 px).
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Mode (Classic or Levels) and Sound, and nothing is cut: it was already the minimum.

@@ -12,6 +12,7 @@ import { createTogether, seatsOf, seatOfSlot, peopleSeats, runsElsewhere } from 
 import { GAMES, roomInAddress, joiningWords } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, today } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
@@ -38,6 +39,11 @@ const clone = x => JSON.parse(JSON.stringify(x));
 // R: the coach's notes on your decisions this hand, for the review at its end.
 let G = null, S = null, R = [];
 let opts = { flowers: true, minFan: 3, rounds: 1, scoring: "fan", coach: "on", pace: "steady", numbers: true, bots: "hard", full: false, ...read(OPTS, {}) };
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Classic rules (fan, flowers, 3 fan, the East round), a
+// steady pace, numbered tiles, one row, no full screen: whatever an older save chose. A game in hand keeps its own rules
+// (G.opts, in the run). The computer's strength is the hidden ramp (below); the old saved choice is its first step.
+const OLD_BOTS = opts.bots;
+Object.assign(opts, { flowers: true, minFan: 3, rounds: 1, scoring: "fan", pace: "steady", numbers: true, rows: "one", full: false });
 const VIEWS = [["flat", "Table"], ["3d", "3D"]];                   // the table drawn flat (hong.js) or seen at an angle (hong-3d.js)
 // opts.view is kept only when the player chose (else the suite's default, mode3d.js); "table" was the old default written into every save
 if (!VIEWS.some(([k]) => k === opts.view)) delete opts.view;
@@ -75,7 +81,8 @@ function startWorker() {
   } catch { worker = false; }
 }
 /** How strong the computer players are: the room's setting at a table together, so both devices play the same. */
-const skill = () => ((together.room ? S?.bots : opts.bots) === "medium" ? "medium" : "hard");
+const strength = () => ramp("hong", ["medium", "hard"], { start: OLD_BOTS });
+const skill = () => ((together.room ? S?.bots : strength()) === "medium" ? "medium" : "hard");
 /** What the computer would do in a seat now: { action, why, rows, threats }. A computer player plays at the strength
  *  chosen; the coach, in your seat, is always hard's, and gives the same answer every time it's asked. */
 const think = (state, seat) => ask(state, seat, { how: isHuman(seat) ? { skill: "hard", noise: false } : { skill: skill(), seed: seat + 1 } });
@@ -731,7 +738,9 @@ function record() {
   if (gameOver()) {
     st.games++;
     const mineScore = G.scores[me];
-    if (G.scores.every((x, i) => i === me || x < mineScore)) st.firsts++;
+    const first = G.scores.every((x, i) => i === me || x < mineScore);
+    if (first) st.firsts++;
+    if (!together.room) { strength(); first ? ramp.won(true) : ramp.lost(); }
     // no fan's wins pay a few points where fan's pay tens: its best is kept apart (the menu says it), the games screen's is fan's
     const key = E.noFan(G.opts) ? BEST_NOFAN : BEST, best = read(key, null);
     if (best == null || mineScore > best) write(key, mineScore);
@@ -1020,7 +1029,7 @@ function freshRoom(players, { ask = null, people = null } = {}) {
   const names = [0, 1, 2, 3].map(s => (humans.includes(s) ? "" : BOTS[s - 1]));
   for (const [, p] of Object.entries(players)) names[seatOfSlot(p.slot)] = p.name;
   const game = E.deal({ seed, dealer: firstDealer, round: 0, hand: 0, opts: { flowers: opts.flowers, minFan: opts.minFan, rounds: opts.rounds, scoring: opts.scoring } });
-  return { v: 1, app: APP, created: Date.now(), players, game, session: { v: 1, seed, firstDealer, names, humans, results: [], started: Date.now(), bots: opts.bots } };
+  return { v: 1, app: APP, created: Date.now(), players, game, session: { v: 1, seed, firstDealer, names, humans, results: [], started: Date.now(), bots: strength() } };
 }
 let roomHand = null, roomGame = null;                            // the table's hand and game last drawn here, by their seeds
 function onRoomState(g) {
@@ -1159,31 +1168,9 @@ function openMenu() {
   else part(body, "play").append(action("New game", () => newGame(), "primary"), action("Puzzle rush", () => startRush(), ""), ...copies());
   const cp = progressOf("hong", COURSE);
   part(body, "play").append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Mahjong, from the rules", () => course.open()));
-  // a puzzle's table keeps its own rules: the game's are for the game
-  if (!rush) {
-    const content = part(body, "content");
-    const nofan = opts.scoring === "nofan";
-    content.append(choice("Scoring", [["fan", "Fan"], ["nofan", "No fan"]], nofan ? "nofan" : "fan", v => { set("scoring", v); openMenu(); }));
-    if (!nofan) content.append(
-      choice("Flowers", [[true, "With"], [false, "Without"]], opts.flowers, v => set("flowers", v)),
-      choice("Minimum", [[3, "3 fan"], [1, "1 fan"], [0, "None"]], opts.minFan, v => set("minFan", v)),
-    );
-    content.append(choice("Length", [[1, "East round"], [2, "Two rounds"], [4, "Four rounds"]], opts.rounds, v => set("rounds", v)));
-    // what the game in hand plays against what's chosen (no fan has no flowers and no minimum of its own)
-    const differs = G && (E.noFan(G.opts) !== nofan || (G.opts.rounds || 1) !== opts.rounds || (!nofan && (G.opts.flowers !== opts.flowers || G.opts.minFan !== opts.minFan)));
-    if (differs) content.append(line("These take effect with a new game."));
-  }
   part(body, "settings").append(
     choice("View", VIEWS, viewNow(), v => set("view", v)),
-    choice("Computer players", [["medium", "Medium"], ["hard", "Hard"]], together.room ? S?.bots || "hard" : opts.bots, v => {
-      set("bots", v);
-      if (together.room) together.act(g => { if (!g.session) return false; g.session.bots = v; });
-    }),
-    choice("Coach", [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]], opts.coach, v => { set("coach", v); if (v === "on") askCoach(); }),
-    choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
-    toggle("Numbers on the tiles", opts.numbers, v => set("numbers", v)),
-    choice("Your tiles, upright", [["one", "One row"], ["two", "Two rows"], ["suits", "By suit"]], opts.rows === "two" || opts.rows === "suits" ? opts.rows : "one", v => set("rows", v)),
-    toggle("Full screen", !!opts.full, v => { fullScreen(v); set("full", v); }),
+    toggle("Coach", opts.coach !== "off", v => { set("coach", v ? "on" : "off"); if (v) askCoach(); }),
   );
   const st = read(STATS, null), best = read(BEST, null), bestNoFan = read(BEST_NOFAN, null);
   if (st?.hands) part(body, "about").append(line(`${st.hands} hand${st.hands === 1 ? "" : "s"}: won ${st.wins} (${st.self} self-drawn), dealt in ${st.dealIns}${st.bestFan ? ` · biggest ${st.bestFan} fan` : ""}${st.games ? ` · ${st.games} game${st.games === 1 ? "" : "s"}, first in ${st.firsts}` : ""}${best != null ? ` · best game ${signed(best)}` : ""}${bestNoFan != null ? ` · best without fan ${signed(bestNoFan)}` : ""}`));

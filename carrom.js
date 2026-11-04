@@ -10,6 +10,7 @@ import { seatPage } from "./seats-ui.js";
 import { applyMove } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sure } from "./sure.js";
@@ -27,6 +28,12 @@ if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";
 if (!FIRSTS.some(([k]) => k === opts.first)) opts.first = "alternate";
 if (opts.guide !== "off") opts.guide = "line";
 opts.closeup = opts.closeup === true;
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The aim guide a line and the breaks taking turns,
+// whatever an older save chose (the close-up is still the striker's own camera, and Reset view puts it back). The
+// computer's strength is the hidden ramp, its first step the old saved choice.
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { guide: "line", first: "alternate" });
+const levelNow = () => ramp("carrom", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -50,7 +57,7 @@ const viewer = v => (hotseat() ? (v.toMove ?? 0) : v.seat ?? 0);
 
 const randomRounds = seatRounds("carrom");
 page = seatPage({
-  rules, id: "carrom", app: 1, botName, level: () => opts.level,
+  rules, id: "carrom", app: 1, botName, level: () => levelNow(),
   pace: s => 650 + (s?.last?.steps ? Math.min(4200, s.last.steps * 8.4) : 0),     // the shot just played is watched before the computer answers
   hold: () => animating || (hotseat() && V?.toMove === 1),
   onView: v => { V = v; follow(v); draw(); randomRounds(v); },
@@ -234,6 +241,7 @@ function onOver(v) {
   if (s.winner === v.seat && !hotseat()) r.won++;
   write(RECORD, r);
   if (!hotseat()) noteStreak("carrom", s.winner === v.seat);
+  if (!hotseat() && !page.atTable) { levelNow(); s.winner === v.seat ? ramp.won(true) : ramp.lost(); }
 }
 
 // ---------- rules, menu ----------
@@ -265,13 +273,9 @@ function openMenu() {
   if (!page.atTable && page.host) {
     const content = part(body, "content");
     content.append(choice("Opponent", [["computer", "Computer"], ["friend", "Two on this phone"]], opts.opponent, v => { opts.opponent = v; saveOpts(); page.runner.kick(); draw(); }));
-    if (opts.opponent === "computer") content.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   }
   const set = part(body, "settings");
-  set.append(toggle("Close-up on the striker", opts.closeup, v => { opts.closeup = v; saveOpts(); scene?.closeup(v); }));
   set.append(action("Reset view", () => { opts.closeup = false; saveOpts(); scene?.resetView(); }, "link"));
-  set.append(choice("Aim guide", [["line", "Line"], ["off", "Off"]], opts.guide, v => { opts.guide = v; saveOpts(); draw(); }));
-  set.append(choice("Who breaks", FIRSTS, opts.first, v => { opts.first = v; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("carrom:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

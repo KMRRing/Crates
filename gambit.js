@@ -9,6 +9,7 @@ import { getView, viewChoice } from "./gambit-view.js";
 import { sure } from "./sure.js";
 import { PIECES } from "./chess-pieces.js";
 import { LEVELS, levelById, HINT, REVIEW } from "./gambit-levels.js";
+import { ramp } from "./ramp.js";
 import { openingOf } from "./gambit-openings.js";
 import { Engine, levelMove } from "./uci.js";
 import { COACH, isCoach, createCoach } from "./uci-coach.js";
@@ -41,6 +42,12 @@ const cap = s => s[0].toUpperCase() + s.slice(1);
 // ---------- settings and the game ----------
 let opts = { mode: "engine", level: "3", colour: "white", coords: true, coach: "hints", ...read(OPTS, {}) };
 if (!isCoach(opts.coach)) opts.coach = "hints";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Either colour (a coin), coordinates on, whatever an
+// older save chose. The computer's strength is the hidden ramp over the levels (up a rung after a win, down after a loss,
+// kept as gambit:ramp), its first rung the old saved choice; the record stays by level. The coach is on or off.
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { colour: "either", coords: true });
+const levelNow = () => levelById(opts.forceLevel || ramp("gambit", LEVELS.map(l => l.id), { start: OLD_LEVEL })).id;
 const saveOpts = () => write(OPTS, opts);
 /**
  * the game in play: gambit-rules.js's state and the page's: { v, start, moves, result, white, mode ("engine" or "two"),
@@ -52,7 +59,7 @@ const saveOpts = () => write(OPTS, opts);
  */
 function freshGame() {
   const white = opts.mode === "two" ? 0 : opts.colour === "black" ? 1 : opts.colour === "either" ? (Math.random() < 0.5 ? 0 : 1) : 0;
-  return { ...G.newGame({ white }), mode: opts.mode === "two" ? "two" : "engine", level: levelById(opts.level).id, created: Date.now(), hint: null, lesson: null, marks: {}, review: null, counted: false };
+  return { ...G.newGame({ white }), mode: opts.mode === "two" ? "two" : "engine", level: levelNow(), created: Date.now(), hint: null, lesson: null, marks: {}, review: null, counted: false };
 }
 function loadGame() {
   const g = G.fromRoom(read(GAME, null));
@@ -287,6 +294,7 @@ function recordEnd() {
     rec[S.level] = { w: r.w + (won ? 1 : 0), d: r.d + (g.result.winner ? 0 : 1), l: r.l + (lost ? 1 : 0) };
     write(RECORD, rec);
     if (won) write(BEST, Math.max(read(BEST, 0) || 0, levelById(S.level).rating));
+    if (levelNow() === S.level) { won ? ramp.won(true) : lost ? ramp.lost() : ramp.won(false); }   // a lesson's game against another level moves nothing
   }
   roundOver("gambit");
 }
@@ -550,7 +558,7 @@ function learnLine() {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  pick = { mode: opts.mode, level: opts.level, colour: opts.colour };
+  pick = { mode: opts.mode };
   if (inRoom()) {
     part(body, "together").append(line(`A match with ${partnerName()}: you play ${yourColour() === "white" ? "White" : "Black"}.`),
       ...(cur().result ? [] : [action("Resign", resign, "")]), action("Back to solo", () => together.leave(), "link"));
@@ -558,18 +566,15 @@ function openMenu() {
     const g = cur();
     part(body, "play").append(action("New game", async () => {
       if (!S.result && G.movesOf(S).length > 1 && !(await sure("Start a new game? This one isn't finished.", { yes: "New game" }))) return;
-      Object.assign(opts, pick); saveOpts(); newGame();
+      opts.mode = pick.mode; saveOpts(); newGame();
     }, "primary"), ...(IN_FRAME ? [] : [action("Puzzle rush", () => { location.href = "rush.html"; }), action(learnLine(), () => openLessons())]),
     ...(!g.result && G.movesOf(g).length ? [action("Resign", resign, "link")] : []));
     part(body, "content").append(
-      choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }),
-      choice("Strength", LEVELS.map(l => [l.id, `${l.name} ${rating(l.rating)}`]), pick.level, v => { pick.level = v; }),
-      choice("You play", [["white", "White"], ["black", "Black"], ["either", "Either"]], pick.colour, v => { pick.colour = v; }));
+      choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }));
   }
   const set = part(body, "settings");
-  if (!inRoom()) set.append(choice("Coach", COACH, opts.coach, setCoach));
+  if (!inRoom()) set.append(toggle("Coach", opts.coach !== "off", on => setCoach(on ? "hints" : "off")));
   if (!IN_FRAME) set.append(viewChoice(v => board.setView(v)));
-  set.append(toggle("Coordinates on the board", opts.coords, on => { opts.coords = on; saveOpts(); render(); }));
   const best = read(BEST, 0), rec = read(RECORD, {});
   const record = LEVELS.filter(l => rec[l.id]).map(l => `${l.name} ${rec[l.id].w}–${rec[l.id].d}–${rec[l.id].l}`).join(", ");
   const rushBests = bestsLine(read(RUSH_BEST, {}));
@@ -686,9 +691,10 @@ async function startFrom(moves, level) {
   if (!G.replay({ moves: text }).ok) return false;
   if (!S.result && G.movesOf(S).length > 1 && !(await sure("Start the lesson's game? The one you have isn't finished.", { yes: "Start" }))) return false;
   const kept = { ...opts };
-  Object.assign(opts, { mode: "engine", level, colour: "white" });
+  Object.assign(opts, { mode: "engine", forceLevel: level, colour: "white" });
   S = { ...freshGame(), moves: text };
   Object.assign(opts, kept);
+  delete opts.forceLevel;
   closeDialogs();
   afterMove(false);
   ensureEngine();

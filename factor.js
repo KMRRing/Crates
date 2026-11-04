@@ -18,6 +18,7 @@ import { flightsBetween, markOf, worth } from "./factor-flights.js";
 import { createFlights } from "./factor-fly.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { ramp } from "./ramp.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME } from "./suite.js";
@@ -37,6 +38,12 @@ let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, autoDeclin
 if (!TARGETS.includes(opts.vp)) opts.vp = DEFAULTS.vp;
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";      // Easy is gone (October 2026)
 if (![3, 4].includes(opts.seats)) opts.seats = DEFAULTS.seats;
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The classic length and four players, whatever an older
+// save chose (a game in hand keeps its own rules, in its state). The computer players' strength is the hidden ramp, its
+// first step the old saved choice. (Decline trades automatically is the button on the game's own screen.)
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { vp: DEFAULTS.vp, seats: DEFAULTS.seats });
+const levelNow = () => ramp("factor", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 // opts.view ("3d" or "flat") is the player's own choice, kept only when made; with none the suite's default applies (mode3d.js).
 // (opts.flat: false was the old default written into every save; true was a choice.)
 if (opts.flat === true && !opts.view) opts.view = "flat";
@@ -70,7 +77,7 @@ let flights = null, flown = null;                                               
 const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], pick: [], t: newTrade("bank"), ans: null, tview: null, auto: "" };
 const randomRounds = seatRounds("factor");   // random mode's round: a game
 page = seatPage({
-  rules, id: "factor", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level,
+  rules, id: "factor", app: 1, pace: 800, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => levelNow(),
   onView: v => { V = v; follow(v); draw(); showFlights(v); setTimeout(() => autoAnswer(v), 0); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -550,6 +557,7 @@ function onOver(v) {
   r.played++;
   if (won) r.won++;
   write(RECORD, r);
+  if (!page.atTable) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   setTimeout(() => { if (V?.over) showEnd(V); }, 1400);
 }
 function showEnd(v) {
@@ -587,12 +595,7 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
-  set.append(choice("A game ends at", TARGETS.map(n => [n, String(n)]), opts.vp, v => { opts.vp = Number(v); keep(); }));
-  set.append(choice("Players", [[3, "3"], [4, "4"]], opts.seats, v => { opts.seats = Number(v); keep(); }));
-  set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
-  set.append(line("The points and players apply from the next game."));
   set.append(toggle("Sound", sound.on, on => { sound.on = on; keepOn({ setItem: (k, v) => localStorage.setItem(k, v) }, on); }));
-  set.append(toggle("Decline trades automatically", !!opts.autoDecline, setIgnore));
   set.append(choice("View", [["3d", "3D"], ["flat", "Flat"]], flatNow() ? "flat" : "3d", v => { opts.view = v; keep(); useView(); }));
   if (island) {
     set.append(action("Reset view", () => island?.resetView()));

@@ -7,6 +7,7 @@ import { LEVEL_NAMES, advise } from "./yacht-bot.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, todayPart } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";
@@ -27,6 +28,11 @@ const NAMES = ["Tern", "Gull", "Skua"];                                  // the 
 // the menu's choices: the next game's (players) and the page's own
 let opts = { seats: 1, level: "hard", quick: false, ...read(OPTS, {}) };
 if (!(opts.seats >= 1 && opts.seats <= 4)) opts.seats = 1;
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. A row is picked, then Score (never one tap), whatever an
+// older save chose. The computer players' strength is the hidden ramp, its first step the old saved choice.
+const OLD_LEVEL = opts.level;
+opts.quick = false;
+const levelNow = () => ramp("yacht", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -46,7 +52,7 @@ let freshN = -1;                                  // the move whose score was la
 let page = null;                                  // set once the runner is up (it draws its first view while starting)
 const randomRounds = seatRounds("yacht");         // random mode's round: a game
 page = seatPage({
-  rules, id: "yacht", app: 1, pace: 800, botName: s => NAMES[s - 1] || `Seat ${s + 1}`, level: () => opts.level, voice: () => false,
+  rules, id: "yacht", app: 1, pace: 800, botName: s => NAMES[s - 1] || `Seat ${s + 1}`, level: () => levelNow(), voice: () => false,
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => (seat === V?.seat ? "You" : V?.seats?.[seat]?.name ?? NAMES[seat - 1] ?? `Seat ${seat + 1}`);
@@ -223,6 +229,7 @@ function onOver(v) {
     r.played++;
     if (won) r.won++;
     write(RECORD, r);
+    if (!page.atTable) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   }
   setTimeout(() => { if (V?.over) showEnd(V); }, 700);
 }
@@ -262,7 +269,7 @@ function showRules() {
     ${CATS.map((c, i) => row(c.name, CAT_HELP[i], i < 6 ? "face × count" : i === 8 || i === 9 ? "30" : i === 11 ? "50" : "sum")).join("")}
     </table>
     <p><b>Upper bonus.</b> Ones to Sixes together scoring ${BONUS_AT} or more (three of each face is exactly ${BONUS_AT}) earn ${BONUS} extra.</p>
-    <p><b>Alone</b>, you play for a best score; Menu, Today’s daily, deals every player the same dice that day. <b>With others</b> (Menu, Players, or Invite players), you take turns, and the dice you roll are your own.</p>
+    <p><b>Alone</b>, you play for a best score; Today’s, in the menu, deals every player the same dice that day. <b>With others</b> (Menu, Players, or Invite players), you take turns, and the dice you roll are your own.</p>
     <p>On a phone, tap a die after a roll to hold it, tap a score in the sheet to choose a category, then Score. In 3D, tap the dice on the table.</p>`;
   $("rulesDlg").showModal();
 }
@@ -296,8 +303,6 @@ function openMenu() {
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
   set.append(choice("Players", [[1, "Alone"], [2, "2"], [3, "3"], [4, "4"]], opts.seats, v => { opts.seats = Number(v); saveOpts(); }));
-  set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
-  set.append(toggle("Score with one tap on a row", opts.quick, on => { opts.quick = on; saveOpts(); }));
   set.append(line("Players apply from the next game."));
   const r = read(RECORD, { played: 0, won: 0 }), best = read(BEST, 0);
   part(body, "about").append(line(`${best ? `Best alone: ${best}. ` : ""}${r.played ? `Won ${r.won} of ${r.played} games against others.` : "No game against others yet."}`));

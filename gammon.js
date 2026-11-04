@@ -10,6 +10,7 @@ import { boardSvg } from "./gammon-draw.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
@@ -28,6 +29,13 @@ const BOT = "Dimitri";
 
 let opts = { match: 3, cube: true, level: "medium", ...read(OPTS, {}) };
 if (!MATCHES.includes(opts.match)) opts.match = 3;
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. A match to 3 points with the doubling cube, whatever an
+// older save chose (a match in hand keeps its own rules, in its state). The computer's strength is the hidden ramp, its
+// first step the old saved choice (a lesson's match plays its own level, once).
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { match: 3, cube: true });
+let lesson = null, lessonNext = null;
+const levelNow = () => lesson || ramp("gammon", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -53,7 +61,7 @@ const lastKey = s => (s?.last ? `${s.game}:${s.last.ply}` : "");
 let page = null;
 const randomRounds = seatRounds("gammon", ["gameover"]);   // random mode's round: a game of the match
 page = seatPage({
-  rules, id: "gammon", app: 1, pace: 700, botName: () => BOT, level: () => opts.level,
+  rules, id: "gammon", app: 1, pace: 700, botName: () => BOT, level: () => levelNow(),
   onView: v => { V = v; follow(v); draw(); randomRounds(v); }, onOver, toast, newGame: newMatch,
 });
 
@@ -268,6 +276,7 @@ function onOver(v) {
   if (won) r.won++;
   write(RECORD, r);
   noteStreak("gammon", won);
+  if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   setTimeout(() => { if (V?.over) showEnd(V); }, 1200);
 }
 function showEnd(v) {
@@ -283,6 +292,7 @@ function newMatch() {
   $("endDlg").open && $("endDlg").close();
   ui = { key: "", made: [], sel: null, hinted: false };
   shown = { key: "", me: null, op: null, frames: [], timer: 0 };
+  lesson = lessonNext; lessonNext = null;
   page.deal({ match: opts.match, cube: opts.cube }, 2);
 }
 $("endAgain").addEventListener("click", newMatch);
@@ -296,11 +306,11 @@ function showRules() {
     <p>Roll two dice and move a checker the number on each, one after the other (one checker may take both). A double is played four times. A checker may land on an empty point, on your own, or on a point where the other side has a single checker (a blot), which is hit and goes onto the bar; never on a point with two or more of theirs. You must use both dice if you can; if only one can be used, the larger one where it can.</p>
     <p>With a checker on the bar, you must enter it first, into the other side's home board (top right) on the point of a die. Once all fifteen are in your home board, you bear them off: a die takes one off its point, or from the highest point you hold if the die is bigger.</p>
     <h3>Winning</h3>
-    <p>Bear off all fifteen first. A gammon (two points): the other side has borne none off. A backgammon (three): and still has one on the bar or in your home board. A match goes to 1, 3, 5 or 7 points.</p>
+    <p>Bear off all fifteen first. A gammon (two points): the other side has borne none off. A backgammon (three): and still has one on the bar or in your home board. A match goes to 3 points.</p>
     <h3>The cube</h3>
     <p>Before you roll you may double: the other side takes and plays on for twice the points, the cube now theirs to double back, or drops and gives you the game at what it was. The game after someone first comes within a point of the match (the Crawford game) is played without the cube.</p>
     <h3>Here</h3>
-    <p class="gm-rules-note">Tap a checker: it moves if it can go only one way, otherwise the points it may go to are ringed. Undo takes moves back; Done plays them. Hint shows the computer's play on Hard. The computer: Easy wobbles, Medium plays what it judges best, Hard looks a roll ahead.</p>`;
+    <p class="gm-rules-note">Tap a checker: it moves if it can go only one way, otherwise the points it may go to are ringed. Undo takes moves back; Done plays them. Hint shows the computer's play on Hard. The computer plays harder as you win and easier as you lose.</p>`;
   $("rulesDlg").showModal();
 }
 
@@ -313,8 +323,7 @@ const course = createCourse({
   onPlay: step => {
     const level = step?.level || "easy", name = LEVEL_NAMES.find(([k]) => k === level)?.[1] || level;
     if (page.atTable) { toast(`Your table plays on: try a match against ${name} when you're back to solo`); return; }
-    opts.level = level;
-    saveOpts();
+    lessonNext = level;
     newMatch();
   },
 });
@@ -337,10 +346,6 @@ function openMenu() {
   const set = part(body, "settings");
   set.append(view.choice(() => drawBoard()));
   if (board3d) set.append(action("Reset the 3D view", () => board3d?.resetView()));
-  set.append(choice("A match ends at", MATCHES.map(n => [n, n === 1 ? "1 game" : `${n} points`]), opts.match, v => { opts.match = Number(v); saveOpts(); }));
-  set.append(toggle("The doubling cube", opts.cube, on => { opts.cube = on; saveOpts(); }));
-  set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
-  set.append(line("The match and the cube apply from the next match."));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("gammon:streak", { now: 0, best: 0 });
   const rushBests = bestsLine(rush.bests());
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} matches${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No matches finished yet."), ...(rushBests ? [line(rushBests)] : []));

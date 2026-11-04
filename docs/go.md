@@ -1,5 +1,5 @@
 # Go
-Go against a KataGo network (our own search and WebAssembly arithmetic, in a worker), or two on one phone. Boards 9, 13, 19; handicap 2 to 9; Chinese area scoring, komi 7.5 (a half point with a handicap), positional superko. After two passes the net marks the stones it thinks are dead and you correct them. Pages: `go.html`, `go.js`; rules `go-rules.js`; net `go-net.js` + `vendor/go/go-nn.wasm`; search `go-search.js`; levels `go-levels.js`.
+Go against a KataGo network (our own search and WebAssembly arithmetic, in a worker), or two on one phone. Boards 9, 13, 19; Chinese area scoring, komi 7.5 (the engine still plays a handicap of 2 to 9, with a half point, but the menu offers none), positional superko. After two passes the net marks the stones it thinks are dead and you correct them. Pages: `go.html`, `go.js`; rules `go-rules.js`; net `go-net.js` + `vendor/go/go-nn.wasm`; search `go-search.js`; levels `go-levels.js`.
 
 ## Rulings
 - 3 November 2026 (Korbi, 23:48): "yep go" to building Go with KataGo as the opponent; and (22:22, on Chess's engine) "yea we go for the weaker one": a smaller, licence-clean opponent beats a stronger unlicensed one.
@@ -16,3 +16,5 @@ Go against a KataGo network (our own search and WebAssembly arithmetic, in a wor
 - Ladder (planes 14 to 17) and pass-alive area (18, 19) inputs are zero, so the net reads ladders and settled groups less well than KataGo proper.
 - Dead stones are proposed from the net's ownership (a group is dead if most of its stones lie where the net sees the other side owning): it can be wrong; the player's marks are final.
 - The computer resigns after three reads under 3% win rate, well into the game; it passes only if a pass is its best move or you passed.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Board (9, 13, 19), You play (Black, White, Two on this phone) and Play in 2D or 3D. The computer's strength, Handicap, Tap twice to play a stone, Click of stones and Show who is ahead are gone: the strength is the hidden ramp (`go:ramp` over the six levels, up a step after a win, down after a loss; its first step is the level that was saved), no handicap, a second tap on the same point plays it, the stones click, no estimate line. Board stays: it is the game's own size, not a level.

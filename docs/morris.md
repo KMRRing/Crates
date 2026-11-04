@@ -9,3 +9,5 @@ Traps:
 - Hard's root window is `best - tie - 1` so that the bounds alpha-beta returns for the other moves never fall inside the tie band (this once made Hard lose to Easy).
 - Course positions are checked by `tests/morris-course.mjs`; `mill: true` says the answer must close a mill, `proved` that the search finds it best.
 - 3D look (Korbi, 4 Nov 2026: "board should be centralized more in 3d, also colours are a bit ugly"): the tilt is about the board middle with the perspective in the board own transform (sized from the stage), so it stays centred at every size; the 3D palette is its own (`#app.mo3` in `morris-3d.css`).
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Opponent (Computer or Two on this phone), Coach (on or off; a saved Always stays Always) and View. The computer's strength, You play and Mark the points a piece may go to are gone: the strength is the hidden ramp (`morris:ramp`, up a step after a win, down after a loss, the same after a draw; its first step is the level that was saved; a lesson's game plays Easy and leaves it alone), the colours alternate, the points a piece may go to are marked.

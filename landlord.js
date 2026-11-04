@@ -8,6 +8,7 @@ import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { createLandlord3d, plateOf } from "./landlord-3d.js";
 import { seatRounds } from "./random.js";
@@ -27,6 +28,14 @@ const TALK = [["zh", "普通话"], ["yue", "廣東話"], ["en", "English"]];
 
 let opts = { level: "hard", deals: 6, bidding: "points", talk: "zh", voice: true, counter: true, order: "big", ...read(OPTS, {}) };
 if (!DEALS.includes(opts.deals)) opts.deals = 6;
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Six deals, bidding for points, cards biggest first and
+// the card counter on, whatever an older save chose (a game in hand keeps its own rules, in its state). The computer's
+// strength is the hidden ramp, its first step the old saved choice; table talk is a language, or Off, which is the
+// narrator's voice off.
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { deals: 6, bidding: "points", order: "big", counter: true });
+let lesson = false, lessonNext = false;                              // a lesson's game plays against Easy, once
+const levelNow = () => (lesson ? "easy" : ramp("landlord", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL }));
 const saveOpts = () => write(OPTS, opts);
 const gameOptions = () => ({ deals: opts.deals, bidding: opts.bidding, talk: opts.talk });
 
@@ -60,7 +69,7 @@ const typeName = p => TYPE_NAMES[p.type];
 let V = null, sel = new Set(), selFor = "", page = null, hints = { key: "", list: [], i: 0 };
 const randomRounds = seatRounds("landlord", ["shown"]);   // random mode's round: a deal (one thrown in is dealt again, no round)
 page = seatPage({
-  rules, id: "landlord", app: 1, pace: 950, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "landlord", app: 1, pace: 950, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => levelNow(), voice: () => opts.voice,
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -299,6 +308,7 @@ $("bar").addEventListener("click", async e => {
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const won = v.state.winners.includes(v.seat);
+  if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   const r = read(RECORD, { played: 0, won: 0 });
   r.played++;
   if (won) r.won++;
@@ -318,6 +328,7 @@ function showEnd(v) {
 }
 function newGame() {
   if ($("endDlg").open) $("endDlg").close();
+  lesson = lessonNext; lessonNext = false;
   page.deal(gameOptions(), 3);
 }
 $("endAgain").addEventListener("click", newGame);
@@ -329,7 +340,7 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>Dou Dizhu (斗地主, dòu dìzhǔ, "fight the landlord") is China's most played card game: one player, the landlord (地主), against the other two, the peasants (农民), who play as a side. Be first to play out all your cards; a peasant going out wins for both.</p>
     <p><b>The deal.</b> All 54 cards, both jokers in: seventeen each and three face down, the kitty (底牌, dǐpái). A card is turned face up as they're dealt: whoever gets it bids first.</p>
-    <p><b>Bidding</b>, as the menu has it. <i>For points</i> (叫分): once round, each bids 1, 2 or 3 points, more than the last bid, or passes (不叫); a 3 ends it at once, and the highest bidder is landlord at that stake. <i>Call and rob</i> (叫地主, 抢地主, as the apps play): the first to call is landlord unless robbed; each player after the caller may rob once, each rob doubling the stake; if anyone robbed, the caller has the last word. Nobody bids: the cards are dealt again.</p>
+    <p><b>Bidding</b> (叫分): once round, each bids 1, 2 or 3 points, more than the last bid, or passes (不叫); a 3 ends it at once, and the highest bidder is landlord at that stake. Nobody bids: the cards are dealt again.</p>
     <p><b>The landlord</b> takes the kitty, shown to everyone first, and leads. Play goes round to the right.</p>
     <p><b>Order.</b> Big joker (大王), small joker (小王), 2, A, K, Q, J, 10 … 3. Suits don't matter.</p>
     <h3>The plays</h3>
@@ -364,8 +375,7 @@ const course = createCourse({
   id: "landlord", course: COURSE, stage: cardStage({ face, label: cardName, judge }), cls: "ll", inFrame: IN_FRAME, onRules: showRules,
   onPlay: () => {
     if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
-    opts.level = "easy";
-    saveOpts();
+    lessonNext = true;
     newGame();
   },
 });
@@ -381,14 +391,7 @@ function openMenu() {
   const set = part(body, "settings");
   const keep = () => saveOpts();
   set.append(view.choice(() => draw()));
-  set.append(choice("A game is", DEALS.map(n => [n, `${n} deals`]), opts.deals, v => { opts.deals = Number(v); keep(); }));
-  set.append(choice("Bidding", [["points", "For points 叫分"], ["rob", "Call and rob 抢地主"]], opts.bidding, v => { opts.bidding = v; keep(); }));
-  set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
-  set.append(line("The length and the bidding apply from the next game."));
-  set.append(choice("Your cards", [["big", "Biggest first"], ["small", "Smallest first"]], opts.order, v => { opts.order = v; keep(); draw(); }));
-  set.append(toggle("Card counter 记牌器", opts.counter, on => { opts.counter = on; keep(); draw(); }));
-  set.append(choice("Table talk", TALK, opts.talk, v => { opts.talk = v; keep(); }));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; keep(); }));
+  set.append(choice("Table talk", [...TALK, ["off", "Off"]], opts.voice ? opts.talk : "off", v => { opts.voice = v !== "off"; if (v !== "off") opts.talk = v; keep(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("landlord:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

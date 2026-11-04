@@ -16,6 +16,7 @@ import { cardHtml, backHtml } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
@@ -37,6 +38,13 @@ const BOTS = { jass: ["Ueli", "Vreni", "Beat"], belote: ["Gérard", "Martine", "
 
 let opts = { game: "jass", level: "medium", full: false, jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 }, ...read(OPTS, {}) };
 if (!GAMES[opts.game]) opts.game = "jass";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Each game by its classic rules and length (Jass: Swiss
+// cards, every card single, 1000, Weis and Stöck; Belote 1000; Coinche 2000; Schafkopf 8 deals, simple cards), no full
+// screen, whatever an older save chose (a game in hand keeps its own rules, in its state). The computer's strength is the
+// hidden ramp, one for each game, its first step the old saved choice; the coach is on or off.
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { full: false, look: "drawn", jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 } });
+let lesson = null, lessonNext = null;                                // a lesson's game names its own level, once
 const saveOpts = () => write(OPTS, opts);
 
 // ---------- Jass, Belote, Coinche and Schafkopf: four tiles, one page ----------
@@ -65,6 +73,7 @@ const readRun = k => { try { return JSON.parse(localStorage.getItem(k)); } catch
 }
 let wore = null;                                                // the tile the page wears now (wearTile)
 const tileNow = () => tileOf(V?.state?.game || opts.game) || "jass";
+const levelNow = () => lesson || ramp("trumps", LEVEL_NAMES.map(([k]) => k), { id: V?.state?.game || opts.game, start: OLD_LEVEL });
 /** This tile's own record (its streak is noteStreak's, trumps:<tile>:streak). */
 const recordKey = () => `trumps:${tileNow()}:record`;
 // Schafkopf's cards simple (the suits' marks, the rank in the corner) or as the whole Bavarian pack, drawn
@@ -135,11 +144,11 @@ let want = null, ahead = { key: null, since: 0, done: true };
 function lookAhead(v) {
   want = null;
   if (!v?.G || v.over || v.toMove == null || !v.seats[v.toMove]?.bot || (v.state.step !== "play" && v.state.step !== "bid")) return;
-  if (!thinksAhead(v.state.game, opts.level) || IN_FRAME || (v.mode !== "solo" && !v.me?.driver)) return;
-  want = aheadKey(v.state, v.toMove, opts.level);
+  if (!thinksAhead(v.state.game, levelNow()) || IN_FRAME || (v.mode !== "solo" && !v.me?.driver)) return;
+  want = aheadKey(v.state, v.toMove, levelNow());
   if (ahead.key === want) return;
   const a = ahead = { key: want, since: Date.now(), done: false };
-  ask("players", { kind: "move", state: v.state, seat: v.toMove, level: opts.level }).then(move => {
+  ask("players", { kind: "move", state: v.state, seat: v.toMove, level: levelNow() }).then(move => {
     a.done = true;
     if (move) remember(a.key, move);
     if (ahead === a) page?.runner.kick();
@@ -167,7 +176,7 @@ const randomRounds = { jass: seatRounds("jass", ["scored"]), belote: seatRounds(
 page = seatPage({
   // app 2: the table's coach is the table's (house), kept on every phone; an older page at the table updates first
   rules, id: "trumps", app: 2, pace: paceNow, hold: holding, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
-  level: () => opts.level, onView: v => { V = v; lookAhead(v); draw(); randomRounds[tileNow()](v); }, onOver, toast, newGame,
+  level: () => levelNow(), onView: v => { V = v; lookAhead(v); draw(); randomRounds[tileNow()](v); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => V?.seats?.[seat]?.name ?? `Seat ${seat + 1}`;
@@ -585,6 +594,7 @@ $("controls").addEventListener("click", async e => {
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const won = v.state.winners.includes(v.seat);
+  if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   const r = read(recordKey(), { played: 0, won: 0 });
   r.played++;
   if (won) r.won++;
@@ -605,6 +615,7 @@ function showEnd(v) {
 function newGame() {
   $("endDlg").open && $("endDlg").close();
   advice = said = null;                                          // the coach's words were the last game's
+  lesson = lessonNext; lessonNext = null;
   page.deal({ game: opts.game, ...opts[opts.game] }, 4);
 }
 $("endAgain").addEventListener("click", newGame);
@@ -617,7 +628,7 @@ const RULES = {
     <p>In trumps the Under (the Bauer, 20) is highest, then the nine (the Nell, 14), then the ace (11), king (4), Ober (3), Banner (10), 8, 7, 6. Other suits: ace (11), king (4), Ober (3), Under (2), Banner (10), 9, 8, 7, 6. In Obenabe and Undenufe each 8 is worth 8, and in Undenufe the six is worth 11 and the ace nothing. The last trick adds 5: 157 in all, and taking all nine tricks (a match) 100 more.</p>
     <h3>Playing</h3><p>Follow suit, or trump: you may always trump, but never under a trump already in the trick (unless you've only trumps). The Bauer never has to be played: holding it as your only trump, you needn't follow trumps.</p>
     <h3>Weis and Stöck</h3><p>Runs of three or more in a suit (20, 50, 100, then 50 more a card) and four alike (Unders 200, nines 150, aces, kings, Obers and Banners 100) are counted in the first trick; only the side with the best single Weis scores, all of its own. The king and Ober of trumps in one hand (Stöck) score 20.</p>
-    <p class="tr-rules-note">Menu: the French pack, the Swiss count (acorns and roses single, shields and bells double, Obenabe three, Undenufe four times) and the target.</p>`,
+`,
   belote: `<p>Belote, the classic: four players, partners across, 32 cards, play to the right. Five cards each, and one turned up: in turn, take its suit as trumps (the taker gets the turned card and two more) or pass; if all pass, each may name another suit; if all pass again, it's dealt anew. Everyone else gets three more: eight each.</p>
     <h3>The cards</h3><p>Trumps: jack (20), nine (14), ace (11), ten (10), king (4), queen (3), 8, 7. Other suits: ace (11), ten (10), king (4), queen (3), jack (2), 9, 8, 7. The last trick adds 10 (dix de der): 162. King and queen of trumps in one hand (belote, rebelote): 20.</p>
     <h3>Playing</h3><p>Follow suit. If you can't, trump, over any trump already in, unless your partner holds the trick (then play anything). When trumps are led, beat the best trump in if you can.</p>
@@ -645,7 +656,7 @@ const course = createCourse({
     const level = step?.level || "easy", name = LEVEL_NAMES.find(([k]) => k === level)?.[1] || level;
     if (page.atTable) { toast(`Your table plays on: try a Schafkopf against ${name} when you're back to solo`); return; }
     opts.game = "schafkopf";
-    opts.level = level;
+    lessonNext = level;
     saveOpts();
     newGame();
   },
@@ -667,30 +678,18 @@ function openMenu() {
     if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
   }
   play.append(action("The rules on one page", showRules, "link"));
-  const set = part(body, "settings"), o = opts[opts.game];
+  const set = part(body, "settings");
   set.append(view.choice(() => draw()));
-  if (opts.game === "jass") {
-    set.append(choice("Cards", [["swiss", "Swiss"], ["french", "French"]], o.pack, v => { o.pack = v; saveOpts(); }));
-    set.append(choice("Count", [["simple", "All single"], ["swiss", "×1 to ×4"]], o.count, v => { o.count = v; saveOpts(); }));
-    set.append(choice("A game ends at", [[1000, "1000"], [1500, "1500"], [2500, "2500"], [3000, "3000"]], o.target, v => { o.target = Number(v); saveOpts(); }));
-    set.append(toggle("Weis and Stöck", o.weis, on => { o.weis = on; saveOpts(); }));
-  } else if (opts.game === "belote") set.append(choice("A game ends at", [[501, "501"], [1000, "1000"]], o.target, v => { o.target = Number(v); saveOpts(); }));
-  else if (opts.game === "coinche") set.append(choice("A game ends at", [[1000, "1000"], [2000, "2000"]], o.target, v => { o.target = Number(v); saveOpts(); }));
-  else set.append(choice("Deals", [[8, "8"], [16, "16"], [24, "24"]], o.deals, v => { o.deals = Number(v); saveOpts(); }));
-  set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
-  set.append(line("The game and its settings apply from the next game."));
-  // the coach and the cards change at once
+  // the coach changes at once; at a table the host's choice goes on the table for every phone, and the others see it
   if (opts.game === "schafkopf") {
-    // at a table the host's choice goes on the table for every phone; the others see it
-    if (setsRules()) set.append(choice("Coach", COACH, coach(), v => {
+    if (setsRules()) set.append(toggle("Coach", coach() !== "off", on => {
+      const v = on ? "hints" : "off";
       opts.coach = v; saveOpts(); advice = null; said = null;
       if (page.atTable) page.runner.table.act(cur => { cur.house = { ...(cur.house || {}), coach: v }; });
       draw();
     }));
-    else set.append(line(`Coach: ${COACH.find(([k]) => k === coach())[1]}, as the host set it for the table.`));
-    set.append(choice("Cards", [["drawn", "Simple"], ["pictures", "Bavarian"]], opts.look === "pictures" ? "pictures" : "drawn", v => { opts.look = v; saveOpts(); applyLook(); draw(); }));
+    else set.append(line(`Coach: ${coach() === "off" ? "off" : "on"}, as the host set it for the table.`));
   }
-  set.append(toggle("Full screen", !!opts.full, on => { fullScreen(on); opts.full = on; saveOpts(); draw(); }));
   const r = read(recordKey(), { played: 0, won: 0 });
   const rushBests = schafkopf ? bestsLine(rush.bests()) : "", about = part(body, "about");
   about.append(line(r.played ? `Won ${r.won} of ${r.played} games.` : "No games finished yet."), ...(rushBests ? [line(rushBests)] : []));

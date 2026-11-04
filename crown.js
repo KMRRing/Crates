@@ -9,10 +9,11 @@ import { inHand, mustSquares, tapSquare } from "./crown-tap.js";
 import { boardSvg, centreOf, pieceSvg } from "./crown-draw.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { part, choice, toggle, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { defaultIs3D } from "./mode3d.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteDayTime, arrivedForToday, today } from "./suite.js";
+import { ramp } from "./ramp.js";
 import { sure } from "./sure.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, boardStage, dayCourse, dayStreak, streakNow } from "./crown-course.js";
@@ -27,6 +28,13 @@ const BOT = "Computer";
 
 let opts = { set: "english", you: "ink", level: "medium", vs: "computer", mark: true, ahead: false, labels: false, ...read(OPTS, {}) };
 if (!SETS[opts.set]) opts.set = "english";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Each side in turn, the pieces that must jump ringed, no
+// "who is ahead" line, no coordinates, whatever an older save chose. The computer's strength is the hidden ramp, its first
+// step the old saved choice.
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { you: "swap", mark: true, ahead: false, labels: false });
+let lesson = null, lessonNext = null;                                // a lesson's game names its own level, once
+const levelNow = () => lesson || ramp("crown", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 
 // ---------- the 3D board (crown-3d.js, loaded when it is wanted) ----------
@@ -85,7 +93,7 @@ function workerSend(kind, v) {
       }
       const id = ++jobId;
       jobs.set(id, resolve);
-      worker.postMessage({ id, kind, state: v.state, level: opts.level, seed: v.G.seed, n: v.G.n });
+      worker.postMessage({ id, kind, state: v.state, level: levelNow(), seed: v.G.seed, n: v.G.n });
     } catch { workerOff = true; resolve(null); }
   });
 }
@@ -108,7 +116,7 @@ const posKey = () => (V?.G ? `${V.G.seq}:${S().ply}` : "");
 
 const randomRounds = seatRounds("crown");
 page = seatPage({
-  rules, id: "crown", app: 1, pace: 700, botName: (seat, G) => (G?.state?.hot ? "Player 2" : BOT), level: () => opts.level,
+  rules, id: "crown", app: 1, pace: 700, botName: (seat, G) => (G?.state?.hot ? "Player 2" : BOT), level: () => levelNow(),
   hold, onView: v => { V = v; follow(v); work(v); draw(); randomRounds(v); }, onOver, toast, newGame: newGame,
 });
 
@@ -119,7 +127,7 @@ function hold() {
   if (v.state.hot) return true;
   if (workerOff) return false;
   const who = v.toMove;
-  return who != null && !!v.seats[who]?.bot && !ready.has(readyKey(v.state, opts.level));
+  return who != null && !!v.seats[who]?.bot && !ready.has(readyKey(v.state, levelNow()));
 }
 
 /** Work for the worker after a view: the computer's move, and the coach's judgement of the position. */
@@ -128,11 +136,11 @@ function work(v) {
   const s = v.state, key = `${v.G.seq}:${s.ply}`;
   const who = v.toMove;
   const runsBot = !s.hot && who != null && v.seats[who]?.bot && (v.mode === "solo" || v.me?.driver);
-  if (runsBot && !ready.has(readyKey(s, opts.level)) && !pending.has(`m${key}`)) {
+  if (runsBot && !ready.has(readyKey(s, levelNow())) && !pending.has(`m${key}`)) {
     pending.add(`m${key}`);
     workerSend("move", v).then(r => {
       pending.delete(`m${key}`);
-      if (r?.path) { ready.set(readyKey(s, opts.level), r.path); page.runner.kick(); }
+      if (r?.path) { ready.set(readyKey(s, levelNow()), r.path); page.runner.kick(); }
     });
   }
   if (opts.ahead && aheadFor.key !== key && !pending.has(`a${key}`)) {
@@ -394,6 +402,7 @@ async function endDraw() {
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const r = v.state.result, won = r.winner === v.seat;
+  if (!v.state.hot && !page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : r.winner == null ? ramp.won(false) : ramp.lost(); }
   if (!v.state.hot) {
     const rec = read(RECORD, { played: 0, won: 0, drawn: 0 });
     rec.played++;
@@ -422,6 +431,7 @@ function showEnd(v) {
 }
 function newGame() {
   $("endDlg").open && $("endDlg").close();
+  lesson = lessonNext; lessonNext = null;
   ui = { key: "", sel: null, partial: [], hint: [], flash: 0 };
   shown = { key: "", anim: null, token: shown.token + 1 };
   aheadFor = { key: "", score: null };
@@ -451,7 +461,7 @@ function showRules() {
     <h3>Winning</h3>
     <p>You win when the other side has no move: every piece taken, or what is left is blocked. The game is drawn when the same position comes up a third time, or when ${set.quiet / 2} moves each go by without a capture or a man moving.</p>
     <h3>Here</h3>
-    <p class="cr-rules-note">Tap a piece, then the square it goes to. A ringed piece must jump (Settings can hide the rings). In a run of several jumps, tap each landing square, or just the last when there is only one route. Take back undoes your move and the reply; Hint shows the computer's choice on Hard.</p>`;
+    <p class="cr-rules-note">Tap a piece, then the square it goes to. A ringed piece must jump. In a run of several jumps, tap each landing square, or just the last when there is only one route. Take back undoes your move and the reply; Hint shows the computer's choice on Hard.</p>`;
   $("rulesDlg").showModal();
 }
 
@@ -460,7 +470,7 @@ const course = createCourse({
   onPlay: step => {
     const level = step?.level || "easy", name = LEVEL_NAMES.find(([k]) => k === level)?.[1] || level;
     if (page.atTable) { toast(`Your table plays on: try a game against ${name} when you're back to solo`); return; }
-    opts.level = level;
+    lessonNext = level;
     if (step?.set && SETS[step.set]) opts.set = step.set;
     opts.vs = "computer";
     saveOpts();
@@ -485,23 +495,18 @@ function openMenu() {
   page.menu(play);
   const cp = progressOf("crown", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn draughts, from the rules", () => course.open()));
-  if (dayShot) play.append(action(shotDone() ? "The shot of the day: solved" : "The shot of the day", () => dayShot.open(DAY.chapters[0].lessons[0].id)));
+  if (dayShot) todayPart(body, { app: "crown", done: shotDone() || undefined, play: () => dayShot.open(DAY.chapters[0].lessons[0].id) });
   play.append(action("The rules on one page", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Rules", SET_IDS.map(id => [id, SETS[id].name]), opts.set, v => { opts.set = v; saveOpts(); }));
   content.append(line(`${SETS[opts.set].blurb}`));
   if (!page.atTable) {
     content.append(choice("Opponent", [["computer", "Computer"], ["friend", "Two on this phone"]], opts.vs, v => { opts.vs = v; saveOpts(); }));
-    content.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
-    content.append(choice("You play", [["ink", "Ink (first)"], ["ivory", "Ivory"], ["swap", "Each in turn"]], opts.you, v => { opts.you = v; saveOpts(); }));
   }
   const set = part(body, "settings");
   if (!IN_FRAME && (board3d || !lost3d)) set.append(action(board3d ? "Play in 2D" : "Play in 3D", () => setView(board3d ? "2d" : "3d")));
   if (board3d) set.append(action("Reset the 3D view", () => board3d?.resetView(), "link"));
-  set.append(line("The rules, colours and opponent apply from the next game."));
-  set.append(toggle("Ring the pieces that must jump", opts.mark, on => { opts.mark = on; saveOpts(); draw(); }));
-  set.append(toggle("Show who is ahead", opts.ahead, on => { opts.ahead = on; saveOpts(); aheadFor = { key: "", score: null }; if (V) work(V); draw(); }));
-  if (!board3d) set.append(toggle("Coordinates on the board", opts.labels, on => { opts.labels = on; saveOpts(); draw(); }));
+  set.append(line("The rules and the opponent apply from the next game."));
   const r = read(RECORD, { played: 0, won: 0, drawn: 0 }), st = read("crown:run", { now: 0, best: 0 }), days = read("crown:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${r.drawn ? `, ${r.drawn} drawn` : ""}${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (days.best) part(body, "about").append(line(`Shot of the day: ${streakNow(days, today())} ${streakNow(days, today()) === 1 ? "day" : "days"} running, best ${days.best}.`));

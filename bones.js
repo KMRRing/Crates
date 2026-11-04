@@ -18,6 +18,7 @@ import { COURSE, tileStage } from "./bones-course.js";
 import { createRush } from "./bones-rush-ui.js";
 import { bestsLine } from "./rush-core.js";
 import "./pwa.js";
+import { ramp } from "./ramp.js";
 
 const $ = id => document.getElementById(id);
 const OPTS = "bones:opts", RECORD = "bones:record";
@@ -28,7 +29,13 @@ const signed = n => (n > 0 ? `+${n}` : String(n));
 
 const saved = read(OPTS, {});
 let opts = { game: GAMES[saved.game] ? saved.game : "partnership", level: LEVEL_NAMES.some(([k]) => k === saved.level) ? saved.level : "medium" };
-for (const g of Object.keys(GAMES)) opts[g] = { ...GAMES[g].defaults, ...(saved[g] || {}) };
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Each game is played by its classic rules (the targets,
+// deals and scoring in bones-rules.js's defaults), whatever an older save chose; a game in hand keeps the rules it began
+// with (its state's own opts). The computer's level is the hidden ramp, its first step the old saved choice.
+for (const g of Object.keys(GAMES)) opts[g] = { ...GAMES[g].defaults };
+const OLD_LEVEL = opts.level;
+let lesson = null, lessonNext = null;                                                   // a lesson's game names its own level, once
+const levelNow = () => lesson || ramp("bones", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 const seatsFor = game => (game === "fives" ? opts.fives.players : 4);
 
@@ -76,7 +83,7 @@ function raise3d() {
 const randomRounds = seatRounds("bones", ["scored"]);   // random mode's round: a hand
 page = seatPage({
   rules, id: "bones", app: 1, pace: 850, botName: s => (NAMES[V?.state?.game || opts.game] || NAMES.partnership)[(s + 2) % 3],
-  level: () => opts.level, onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
+  level: () => levelNow(), onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => V?.seats?.[seat]?.name ?? `Seat ${seat + 1}`;
@@ -328,6 +335,7 @@ $("controls").addEventListener("click", e => {
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const won = v.state.winners.includes(v.seat);
+  if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   const r = read(RECORD, { played: 0, won: 0 });
   r.played++;
   if (won) r.won++;
@@ -348,6 +356,7 @@ function showEnd(v) {
 }
 function newGame() {
   $("endDlg").open && $("endDlg").close();
+  lesson = lessonNext; lessonNext = null;
   page.deal({ game: opts.game, ...opts[opts.game] }, seatsFor(opts.game));
 }
 $("endAgain").addEventListener("click", newGame);
@@ -358,7 +367,7 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>Dominoes with the double-six set: 28 tiles, every pair of numbers from blank to six once. A tile is laid against an end of the line with the same number; a double lies across. Can't lay one? Knock (pass).</p>
     <h3>Partnership</h3>
-    <p>The block game of Latin America and the Caribbean. Four play, partners across the table; seven tiles each, play passing to the right. The first hand is led with the double six; after that the lead passes on and any tile may lead. The hand ends when someone lays their last tile, and their side scores the pips left in the other side's hands; or when nobody can lay a tile, and the side holding fewer pips scores the other side's (level: no score). First side to ${opts.partnership.target} wins. In the menu: count every hand's pips instead, and the target.</p>
+    <p>The block game of Latin America and the Caribbean. Four play, partners across the table; seven tiles each, play passing to the right. The first hand is led with the double six; after that the lead passes on and any tile may lead. The hand ends when someone lays their last tile, and their side scores the pips left in the other side's hands; or when nobody can lay a tile, and the side holding fewer pips scores the other side's (level: no score). First side to ${opts.partnership.target} wins.</p>
     <h3>Gaple</h3>
     <p>Indonesia's. Four, each for themselves; seven tiles each. The first hand opens with the double blank; after it the last hand's winner leads a double (or the next player round who has one). Whoever goes out, or holds the fewest pips when nobody can lay a tile, wins the hand; the fewest wins every hand, and each player pays every other the difference between their counts (the lowest tile breaks a tie). After the deals agreed, the most chips win. In the menu: lay a tile face down when you can't play (it counts against you) instead of passing, and a lone double blank counting 25.</p>
     <h3>Fives and Threes</h3>
@@ -378,8 +387,7 @@ const course = createCourse({
   onPlay: step => {
     const level = step?.level || "easy", name = LEVEL_NAMES.find(([k]) => k === level)?.[1] || level;
     if (page.atTable) { toast(`Your table plays on: try a game against ${name} when you're back to solo`); return; }
-    opts.level = level;
-    saveOpts();
+    lessonNext = level;
     newGame();
   },
 });
@@ -401,21 +409,6 @@ function openMenu() {
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
   set.append(choice("Game", Object.values(GAMES).map(g => [g.id, g.name]), opts.game, v => { opts.game = v; saveOpts(); openMenu(); }));
-  const o = opts[opts.game], put = (k, v) => { o[k] = v; saveOpts(); };
-  if (opts.game === "partnership") {
-    set.append(choice("A game ends at", TARGETS.partnership.map(n => [n, String(n)]), o.target, v => put("target", Number(v))));
-    set.append(choice("The winners score", [["losers", "Their pips"], ["all", "Every hand's"]], o.count, v => put("count", v)));
-  } else if (opts.game === "gaple") {
-    set.append(choice("Deals", DEALS.map(n => [n, String(n)]), o.deals, v => put("deals", Number(v))));
-    set.append(choice("Stuck", [["pass", "Pass"], ["discard", "Lay one down"]], o.stuck, v => put("stuck", v)));
-    set.append(toggle("A lone double blank counts 25", o.blank25, on => put("blank25", on)));
-  } else {
-    set.append(choice("Players", [[2, "2"], [3, "3"], [4, "4 (pairs)"]], o.players, v => put("players", Number(v))));
-    set.append(choice("A game ends at", TARGETS.fives.map(n => [n, String(n)]), o.target, v => put("target", Number(v))));
-    set.append(choice("Deal", [["pub", "Pub"], ["championship", "Championship"]], o.deal, v => put("deal", v)));
-  }
-  set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
-  set.append(line("The game and its settings apply from the next game."));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("bones:streak", { now: 0, best: 0 });
   const rushBests = bestsLine(rush.bests());
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."), ...(rushBests ? [line(rushBests)] : []));

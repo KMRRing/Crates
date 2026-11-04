@@ -30,3 +30,5 @@ Recalled, not opened (a reviewer must check): Elmina fort 1482; Almeida at Kilwa
 - A fleet is also the escort of a caravan: lanes marked `c` carry fleets too.
 - Globe lanes are great circles through `GVIA` (carrack-map.js), the turns that keep a sea lane off land: found by a path search over the 110 m coast, then thinned by hand. A new lane or port needs `tests/carrack-globe.mjs` to pass, which fails for a sea lane across land. The land is coarse (a port may sit a degree from its coast on it); lon/lat are the real places and the engine never reads them.
 - `tests/carrack.mjs` holds a second rulebook written from this page; if a rule changes, change both.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Powers at the table (2 to 6), Map (Globe or Flat) and the walkthrough. Your power and Computer players are gone: your power is drawn by lot, and the computer players' strength is the hidden ramp (`carrack:ramp`, up a step after a game won, down after one lost; its first step is the level that was saved).

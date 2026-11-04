@@ -14,6 +14,7 @@ import { createTogether, seatsOf } from "./together.js";
 import { roomInAddress } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { busy, waitMark } from "./loading.js";
@@ -41,6 +42,13 @@ if (!["traditional", "simplified"].includes(opts.script)) opts.script = "traditi
 if (!["characters", "pictures"].includes(opts.pieces)) opts.pieces = "characters";
 setPictures(opts.pieces === "pictures");
 if (!isCoach(opts.coach)) opts.coach = "hints";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Either colour (a coin), the generals not facing, the
+// traditional characters, whatever an older save chose (Pieces, Characters or Pictures, stays). The computer's strength is
+// the hidden ramp over the levels (up a rung after a win, down after a loss, kept as river:ramp), its first rung the old
+// saved choice; the record stays by level. The coach is on or off.
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { colour: "either", facing: false, script: "traditional" });
+const levelNow = () => levelById(opts.forceLevel || ramp("river", LEVELS.map(l => l.id), { start: OLD_LEVEL })).id;
 const saveOpts = () => write(OPTS, opts);
 /**
  * G: the game in play, river-rules.js's state and the page's: { v, start, moves, result, red, mode ("engine" or "two"),
@@ -52,7 +60,7 @@ const saveOpts = () => write(OPTS, opts);
  */
 function freshGame() {
   const red = opts.mode === "two" ? 0 : opts.colour === "black" ? 1 : opts.colour === "either" ? (Math.random() < 0.5 ? 0 : 1) : 0;
-  return { ...X.newGame({ red }), mode: opts.mode === "two" ? "two" : "engine", level: levelById(opts.level).id, created: Date.now(), hint: null, lesson: null, marks: {}, review: null, counted: false };
+  return { ...X.newGame({ red }), mode: opts.mode === "two" ? "two" : "engine", level: levelNow(), created: Date.now(), hint: null, lesson: null, marks: {}, review: null, counted: false };
 }
 function loadGame() {
   const g = X.fromRoom(read(GAME, null));
@@ -293,6 +301,7 @@ function recordEnd() {
     rec[G.level] = { w: r.w + (won ? 1 : 0), d: r.d + (g.result.winner ? 0 : 1), l: r.l + (lost ? 1 : 0) };
     write(RECORD, rec);
     if (won) write(BEST, Math.max(read(BEST, 0) || 0, levelById(G.level).rating));
+    if (levelNow() === G.level) { won ? ramp.won(true) : lost ? ramp.lost() : ramp.won(false); }   // a lesson's game against another level moves nothing
   }
   roundOver("river");
 }
@@ -592,7 +601,12 @@ function openingMoves(line) {
 const course = createCourse({
   script: () => opts.script,
   inFrame: IN_FRAME,
-  onPlay: () => { Object.assign(opts, { mode: "engine", level: "1", colour: "red" }); saveOpts(); newGame(); },
+  onPlay: () => {
+    const kept = { ...opts };
+    Object.assign(opts, { mode: "engine", forceLevel: "1", colour: "red" });
+    newGame();
+    Object.assign(opts, kept); delete opts.forceLevel; saveOpts();
+  },
 });
 function showRules() { $("rulesBody").innerHTML = rules(); $("rulesDlg").showModal(); }
 
@@ -613,12 +627,11 @@ function openMenu() {
   if (rush.on) {                                                // the rush's own: its runs, your rating, your bests
     rush.menu(body);
     if (!IN_FRAME) part(body, "play").append(action("The rules on one page", showRules, "link"));
-    part(body, "settings").append(choice("Pieces", [["characters", "Characters"], ["pictures", "Pictures"]], opts.pieces, setPieces),
-      choice("Characters", [["traditional", "Traditional"], ["simplified", "Simplified"]], opts.script, setScript));
+    part(body, "settings").append(choice("Pieces", [["characters", "Characters"], ["pictures", "Pictures"]], opts.pieces, setPieces));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
-  pick = { mode: opts.mode, level: opts.level, colour: opts.colour };
+  pick = { mode: opts.mode };
   if (inRoom()) {
     part(body, "together").append(line(`A match with ${partnerName()}: you play ${D.red === mySeat() ? "Red" : "Black"}.`),
       ...(cur().result ? [] : [action("Resign", resign, "")]), action("Back to solo", () => together.leave(), "link"));
@@ -626,22 +639,17 @@ function openMenu() {
     const g = cur();
     part(body, "play").append(action("New game", async () => {
       if (!G.result && X.movesOf(G).length > 1 && !(await sure("Start a new game? This one isn't finished.", { yes: "New game" }))) return;
-      Object.assign(opts, pick); saveOpts(); newGame();
+      opts.mode = pick.mode; saveOpts(); newGame();
     }, "primary"), ...(!g.result && X.movesOf(g).length ? [action("Resign", resign, "link")] : []));
     const cp = progress();
     part(body, "play").append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Xiangqi, from the rules", () => course.open()),
       action("Puzzle rush", () => { closeDialogs(); rush.open(); }), action("The rules on one page", showRules, "link"));
     part(body, "content").append(
-      choice("Opponent", [["engine", "Computer"], ["two", "Two on this phone"]], pick.mode, v => { pick.mode = v; }),
-      choice("Strength", LEVELS.map(l => [l.id, `${l.name} ${rating(l.rating)}`]), pick.level, v => { pick.level = v; }),
-      choice("You play", [["red", "Red"], ["black", "Black"], ["either", "Either"]], pick.colour, v => { pick.colour = v; }));
+      choice("Opponent", [["engine", "Computer"], ["two", "Two on this phone"]], pick.mode, v => { pick.mode = v; }));
   }
   const set = part(body, "settings");
-  if (!inRoom()) set.append(choice("Coach", COACH, opts.coach, setCoach));
-  set.append(
-    toggle("Facing each other", opts.facing, on => { opts.facing = on; saveOpts(); render(); }),
-    choice("Pieces", [["characters", "Characters"], ["pictures", "Pictures"]], opts.pieces, setPieces),
-    choice("Characters", [["traditional", "Traditional"], ["simplified", "Simplified"]], opts.script, setScript));
+  if (!inRoom()) set.append(toggle("Coach", opts.coach !== "off", on => setCoach(on ? "hints" : "off")));
+  set.append(choice("Pieces", [["characters", "Characters"], ["pictures", "Pictures"]], opts.pieces, setPieces));
   const best = read(BEST, 0), rec = read(RECORD, {});
   const record = LEVELS.filter(l => rec[l.id]).map(l => `${l.name} ${rec[l.id].w}–${rec[l.id].d}–${rec[l.id].l}`).join(", ");
   const rushBests = bestsLine(read(RUSH_BEST, {}), { patterns: "Patterns" });

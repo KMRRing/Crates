@@ -11,6 +11,7 @@ import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
@@ -26,6 +27,13 @@ const NAMES = ["Marlow", "Rowan"];                                         // th
 let opts = { level: "hard", to: 121, ...read(OPTS, {}) };
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "hard";
 if (!TO.includes(opts.to)) opts.to = 121;
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. The game ends at 121, whatever an older save chose (a game in hand
+// keeps its own rules, in its state). The computer's strength is the hidden ramp, its first step the old saved choice (a
+// lesson's game plays Easy, once).
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { to: 121 });
+let lesson = false, lessonNext = false;
+const levelNow = () => (lesson ? "easy" : ramp("pegs", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL }));
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -44,7 +52,7 @@ const cards = (ids, cls = "") => ids.map(id => card(id, cls)).join("");
 let V = null, sel = [], selFor = "", page = null;
 const randomRounds = seatRounds("pegs", ["show"]);                          // random mode's round: a deal
 page = seatPage({
-  rules, id: "pegs", app: 1, pace: 1100, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level,
+  rules, id: "pegs", app: 1, pace: 1100, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => levelNow(),
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -211,6 +219,7 @@ function onOver(v) {
   if (won) r.won++;
   write(RECORD, r);
   noteStreak("pegs", won);
+  if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   setTimeout(() => { if (V?.over) showEnd(V); }, 900);
 }
 function showEnd(v) {
@@ -223,6 +232,7 @@ function showEnd(v) {
 }
 function newGame() {
   if ($("endDlg").open) $("endDlg").close();
+  lesson = lessonNext; lessonNext = false;
   page.deal({ to: opts.to }, 2);
 }
 $("endAgain").addEventListener("click", newGame);
@@ -245,8 +255,7 @@ const course = createCourse({
   id: "pegs", course: COURSE, stage: cardStage({ face: lessonFace, label: lessonLabel, judge, hold }), cls: "pg", inFrame: IN_FRAME, onRules: showRules,
   onPlay: () => {
     if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
-    opts.level = "easy";
-    saveOpts();
+    lessonNext = true;
     newGame();
   },
 });
@@ -261,9 +270,6 @@ function openMenu() {
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Cribbage, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
-  set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
-  set.append(choice("A game ends at", TO.map(n => [n, String(n)]), opts.to, v => { opts.to = Number(v); saveOpts(); }));
-  set.append(line("The length applies from the next game."));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("pegs:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

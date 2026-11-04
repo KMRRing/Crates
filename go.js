@@ -1,7 +1,6 @@
 // Go against the computer, or two on one phone. The rules are go-rules.js's (Chinese area scoring, positional superko), the
 // computer is the KataGo g170 network searched by go-search.js in a worker (go-worker.js) while the board stays alive, and
-// this page draws the board (go-view.js), takes a tap as a move (a second tap on the same point confirms it, unless you turn
-// that off), and runs the end: after two passes the computer marks the stones it thinks are dead, you mark them as you see
+// this page draws the board (go-view.js), takes a tap as a move (a second tap on the same point confirms it), and runs the end: after two passes the computer marks the stones it thinks are dead, you mark them as you see
 // them, and the area is counted. The game is kept as its moves (go:run), so Undo and a reload are a replay.
 import { BLACK, WHITE, PASS, SIZES, MAX_HANDICAP, newGame, replay, isLegal, ptName, areaScore, result, groupAt, opp, neighbours } from "./go-rules.js";
 import { LEVELS, DEFAULT_LEVEL, levelOf, visitsFor } from "./go-levels.js";
@@ -9,6 +8,7 @@ import { createBoard } from "./go-view.js";
 import { defaultIs3D } from "./mode3d.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sure } from "./sure.js";
@@ -28,6 +28,12 @@ if (!SIZES.includes(opts.size)) opts.size = 9;
 if (!["b", "w", "two"].includes(opts.side)) opts.side = "b";
 if (!(opts.handicap === 0 || (opts.handicap >= 2 && opts.handicap <= MAX_HANDICAP))) opts.handicap = 0;
 opts.level = levelOf(opts.level).id;
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. No handicap, a tap twice to play a stone, the click of
+// stones on, no "who is ahead" line, whatever an older save chose. The computer's strength is the hidden ramp over the
+// levels (up a step after a win, down after a loss, kept as go:ramp), its first step the old saved choice.
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { handicap: 0, confirm: true, click: true, estimate: false });
+const levelNow = () => ramp("go", LEVELS.map(l => l.id), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -229,6 +235,7 @@ function finish() {
     const won = res.winner === run.human;
     if (won) rec.won++;
     write(RECORD, rec);
+    if (levelNow() === run.level) won ? ramp.won(true) : ramp.lost();
     noteStreak("go", won);
   }
   draw();
@@ -340,7 +347,7 @@ function draw() {
 function startGame() {
   if ($("endDlg").open) $("endDlg").close();
   const g = newGame({ size: opts.size, handicap: opts.side === "two" ? 0 : opts.handicap });
-  run = { game: g, human: opts.side, level: opts.level, phase: "play", dead: [], result: null, est: null, low: 0 };
+  run = { game: g, human: opts.side, level: levelNow(), phase: "play", dead: [], result: null, est: null, low: 0 };
   pending = -1; thinking = 0; held = null; reading = 0;
   syncReplay();
   saveRun();
@@ -360,9 +367,7 @@ function showRules() {
     <p>No move may bring back a whole-board position that has stood before (positional superko). The usual case is the ko: a single stone taken and retaken, so after a capture you must play elsewhere first.</p>
     <h3>The end</h3>
     <p>When both sides pass in a row the game stops. Dead stones, which could not live if play went on, come off, and each side scores its stones plus the empty points only it surrounds (Chinese area scoring). White adds komi, 7.5 in an even game, for moving second. The computer marks the stones it thinks are dead; tap a group to mark or unmark it, or Play on to carry on.</p>
-    <h3>Handicap</h3>
-    <p>The weaker player may take Black with 2 to 9 stones set on the star points before White's first move; the komi is then a half point.</p>
-    <p class="go-rules-note">Tap a point once to see the stone, tap it again to play (Menu turns that off). Undo takes back your move and the reply.</p>`;
+    <p class="go-rules-note">Tap a point once to see the stone, tap it again to play. Undo takes back your move and the reply.</p>`;
   $("rulesDlg").showModal();
 }
 function showAbout() {
@@ -393,16 +398,7 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Board", SIZES.map(s => [s, `${s}×${s}`]), opts.size, v => { opts.size = +v; saveOpts(); }));
   content.append(choice("You play", [["b", "Black"], ["w", "White"], ["two", "Two on this phone"]], opts.side, v => { opts.side = v; saveOpts(); openMenu(); }));
-  if (opts.side !== "two") {
-    content.append(choice("The computer", LEVELS.map(l => [l.id, l.name]), opts.level, v => { opts.level = v; saveOpts(); openMenu(); }));
-    content.append(line(levelOf(opts.level).note + "."));
-    content.append(choice("Handicap", [[0, "None"], ...Array.from({ length: MAX_HANDICAP - 1 }, (_, i) => [i + 2, String(i + 2)])], opts.handicap, v => { opts.handicap = +v; saveOpts(); }));
-  }
-  content.append(line("These apply from the next game. Komi is 7.5, or a half point with a handicap."));
-  const set = part(body, "settings");
-  set.append(toggle("Tap twice to play a stone", opts.confirm, on => { opts.confirm = on; pending = -1; saveOpts(); draw(); }));
-  if (in3d) set.append(toggle("Click of stones", opts.click, on => { opts.click = on; saveOpts(); }));
-  set.append(toggle("Show who is ahead", opts.estimate, on => { opts.estimate = on; saveOpts(); draw(); wantRead(); }));
+  content.append(line("These apply from the next game. Komi is 7.5."));
   const rec = read(RECORD, { played: 0, won: 0 }), st = read("go:streak", { now: 0, best: 0 });
   const about = part(body, "about");
   about.append(line(rec.played ? `Won ${rec.won} of ${rec.played} games against the computer${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games against the computer finished yet."));

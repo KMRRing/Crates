@@ -6,6 +6,7 @@
 // each of your decisions.
 import { rules, check, value, rankOf, suitOf, RANKS, KIND_NAMES, PLAY_TALK, DEALS, cardName, SHOW_MS } from "./bigtwo-rules.js";
 import { LEVEL_NAMES } from "./bigtwo-bot.js";
+import { ramp } from "./ramp.js";
 import { think, quickPlan, sameMove, BUDGET } from "./bigtwo-think.js";
 import { one, playsWords, moveSaid, moveNames, adviceLine, after, pts, verdict } from "./bigtwo-coach.js";
 import { seatPage } from "./seats-ui.js";
@@ -35,6 +36,14 @@ const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "A
 let opts = { seats: 4, level: "hard", deals: 8, suits: "hk", triples: true, top: true, talk: "yue", voice: true, sort: "rank", coach: "hints", ...read(OPTS, {}) };
 if (!DEALS.includes(opts.deals)) opts.deals = 8;
 if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Four players, eight deals, the Hong Kong suit order,
+// triples and 頂大 on, cards sorted by rank, whatever an older save chose (a game in hand keeps its own rules, in its
+// state). The computer's strength is the hidden ramp, its first step the old saved choice; the coach is on or off (a
+// saved Hints, Check or Always is on as it was); table talk is a language, or Off, which is the narrator's voice off.
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { seats: 4, deals: 8, suits: "hk", triples: true, top: true, sort: "rank" });
+let lesson = null, lessonNext = false;                                                   // a lesson's game plays against Easy, once
+const levelNow = () => (lesson ? "easy" : null) || ramp("bigtwo", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL });
 const saveOpts = () => write(OPTS, opts);
 const gameOptions = () => ({ deals: opts.deals, suits: opts.suits, triples: opts.triples, top: opts.top, talk: opts.talk });
 
@@ -58,7 +67,7 @@ let V = null, sel = new Set(), selFor = "", page = null;
 let hinted = null;
 const randomRounds = seatRounds("bigtwo", ["shown"]);   // random mode's round: a deal
 page = seatPage({
-  rules, id: "bigtwo", app: 1, pace: 950, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
+  rules, id: "bigtwo", app: 1, pace: 950, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => levelNow(), voice: () => opts.voice,
   onView: v => { V = v; draw(); randomRounds(v); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
@@ -382,6 +391,7 @@ $("whyClose").addEventListener("click", () => $("whyDlg").close());
 function onOver(v) {
   if (v.seat == null || IN_FRAME) return;
   const won = v.state.winners.includes(v.seat);
+  if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   const r = read(RECORD, { played: 0, won: 0 });
   r.played++;
   if (won) r.won++;
@@ -400,6 +410,7 @@ function showEnd(v) {
 }
 function newGame() {
   if ($("endDlg").open) $("endDlg").close();
+  lesson = lessonNext; lessonNext = false;
   page.deal(gameOptions(), Math.max(3, Math.min(4, opts.seats)));
 }
 $("endAgain").addEventListener("click", newGame);
@@ -410,11 +421,11 @@ function showRules() {
   const row = (k, en) => `<tr><td>${en}</td><td><b>${PLAY_TALK[k].yue}</b><br><small>${PLAY_TALK[k].jp}</small></td><td><b>${PLAY_TALK[k].zh}</b><br><small>${PLAY_TALK[k].py}</small></td></tr>`;
   $("rulesBody").innerHTML = `
     <p>Big Two (鋤大D, co4 daai6 di1, "hoeing the big deuce") is Hong Kong's card game: be first to play out all your cards. Four players, thirteen cards each (three players get seventeen, the spare to whoever holds the ♦3).</p>
-    <p><b>Order.</b> Twos are the highest cards, threes the lowest: 3 4 5 6 7 8 9 10 J Q K A 2. Between equal ranks the suit decides: ♦ diamonds (階磚) lowest, then ♣ clubs (梅花), ♥ hearts (紅心), ♠ spades (葵扇) highest. Menu, Suits, swaps clubs and diamonds, as some tables do.</p>
+    <p><b>Order.</b> Twos are the highest cards, threes the lowest: 3 4 5 6 7 8 9 10 J Q K A 2. Between equal ranks the suit decides: ♦ diamonds (階磚) lowest, then ♣ clubs (梅花), ♥ hearts (紅心), ♠ spades (葵扇) highest.</p>
     <p><b>Plays.</b> A single, a pair, a triple, or five cards: a straight (five ranks in a row), a flush (five of a suit), a full house (three and two), four of a kind with one more card, a straight flush. Four cards on their own aren't a play.</p>
     <p><b>The first play</b> of a game is the ♦3's, and must include it. After that, each player in turn (to the right) plays the same number of cards, higher, or passes. A pass doesn't stop you playing when your turn comes round again. When everyone else has passed, the last player to play leads anything. The first out wins the deal and leads the next.</p>
     <p><b>What beats what.</b> Singles by rank, then suit. Pairs by rank, then their higher suit. Five-card hands by kind: straight &lt; flush &lt; full house &lt; four of a kind &lt; straight flush. Straights from 34567 up to 10JQKA, then 23456, then A2345, the highest; no straight goes round from K through A to 2. Flushes by their ranks from the top, the suit only when every rank is the same; full houses by their three, four of a kind by its four.</p>
-    <p><b>頂大</b> (ding2 daai6, "top it"): when the next player has one card left, a single you play must be your highest, or you'd let them out cheaply. Menu turns it off.</p>
+    <p><b>頂大</b> (ding2 daai6, "top it"): when the next player has one card left, a single you play must be your highest, or you'd let them out cheaply.</p>
     <p><b>Scoring.</b> When someone goes out, each other player pays a point for each card left, two for each when ten or more are left (雙炒, soeng1 caau2, "double fry"), three for each when all thirteen are (三炒). The winner takes them all. A game is ${opts.deals} deals; the most points wins.</p>
     <h3>What's said at the table</h3>
     <table class="b2-talk"><thead><tr><th></th><th>廣東話</th><th>普通话</th></tr></thead><tbody>
@@ -434,8 +445,7 @@ const course = createCourse({
   id: "bigtwo", course: COURSE, stage: cardStage({ face, label: cardName, judge, hold }), cls: "b2", inFrame: IN_FRAME, onRules: showRules,
   onPlay: () => {
     if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
-    opts.level = "easy";
-    saveOpts();
+    lessonNext = true;
     newGame();
   },
 });
@@ -451,17 +461,8 @@ function openMenu() {
   const set = part(body, "settings");
   const keep = () => saveOpts();
   set.append(view.choice(() => draw()));
-  set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; keep(); word = null; draw(); }));
-  set.append(choice("Players", [[3, "3"], [4, "4"]], opts.seats, v => { opts.seats = Number(v); keep(); }));
-  set.append(choice("A game is", DEALS.map(n => [n, `${n} deals`]), opts.deals, v => { opts.deals = Number(v); keep(); }));
-  set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
-  set.append(choice("Suits, lowest first", [["hk", "♦ ♣ ♥ ♠"], ["tw", "♣ ♦ ♥ ♠"]], opts.suits, v => { opts.suits = v; keep(); }));
-  set.append(toggle("Triples", opts.triples, on => { opts.triples = on; keep(); }));
-  set.append(toggle("頂大: top it for one card", opts.top, on => { opts.top = on; keep(); }));
-  set.append(line("Players, the length and the house rules apply from the next game."));
-  set.append(choice("Your cards", [["rank", "By rank"], ["suit", "By suit"]], opts.sort, v => { opts.sort = v; keep(); draw(); }));
-  set.append(choice("Table talk", TALK, opts.talk, v => { opts.talk = v; keep(); }));
-  set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; keep(); }));
+  set.append(toggle("Coach", opts.coach !== "off", on => { opts.coach = on ? "hints" : "off"; keep(); word = null; draw(); }));
+  set.append(choice("Table talk", [...TALK, ["off", "Off"]], opts.voice ? opts.talk : "off", v => { opts.voice = v !== "off"; if (v !== "off") opts.talk = v; keep(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("bigtwo:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

@@ -18,6 +18,7 @@ import { fitRow } from "./cards.js";
 import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { ramp } from "./ramp.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
@@ -37,6 +38,14 @@ if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "hard";
 if (![3, 4, 5].includes(opts.seats)) opts.seats = 4;
 if (!DEALS.includes(opts.deals)) opts.deals = 8;
 opts.hot = Math.max(1, Math.min(opts.seats, Number(opts.hot) || 1));
+// Korbi, 4 November 2026: the menu is the minimum it needs to be. Eight deals, a Petit sec voiding the deal, the taker's
+// points shown, the usual two-colour suits, whatever an older save chose (a game in hand keeps its own rules, in its
+// state). The computer players' strength is the hidden ramp, its first step the old saved choice (a lesson's game plays
+// Easy, once). Players and People on this phone stay: they are who sits down.
+const OLD_LEVEL = opts.level;
+Object.assign(opts, { deals: 8, petitSec: true, counting: true, colours: false });
+let lesson = false, lessonNext = false;
+const levelNow = () => (lesson ? "easy" : ramp("tarot", LEVEL_NAMES.map(([k]) => k), { start: OLD_LEVEL }));
 const saveOpts = () => write(OPTS, opts);
 const gameOptions = () => ({ deals: opts.deals, petitSec: opts.petitSec });
 document.documentElement.classList.toggle("tr-colours", !!opts.colours);
@@ -63,7 +72,7 @@ const hot = () => !!page && !page.atTable && opts.hot > 1;
 const isHot = seat => hot() && seat < opts.hot;
 const randomRounds = seatRounds("tarot", ["shown"]);   // random mode's round: a deal
 page = seatPage({
-  rules: pageRules, id: "tarot", app: 1, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => false,
+  rules: pageRules, id: "tarot", app: 1, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => levelNow(), voice: () => false,
   pace: s => (cache.has(keyOf(s, s.turn)) ? 650 : s.step === "play" ? 850 : 1100),
   hold: () => thinking !== null || (hot() && V?.toMove != null && V.toMove < opts.hot),
   onView: v => { V = v; follow(v); draw(); randomRounds(v); think(v); },
@@ -100,11 +109,11 @@ function follow(v) {
 function think(v) {
   if (!page || !v.G || v.over || !page.host || page.atTable || IN_FRAME) { thinking = null; return; }
   const s = v.state, seat = v.toMove;
-  if (seat == null || s.step !== "play" || !v.seats[seat]?.bot || isHot(seat) || !LEVELS[opts.level]?.samples) { thinking = null; return; }
+  if (seat == null || s.step !== "play" || !v.seats[seat]?.bot || isHot(seat) || !LEVELS[levelNow()]?.samples) { thinking = null; return; }
   const k = keyOf(s, seat);
   if (cache.has(k) || thinking === k) return;
   thinking = k;
-  player.ask({ kind: "move", G: v.G, seat, level: opts.level }).then(mv => {
+  player.ask({ kind: "move", G: v.G, seat, level: levelNow() }).then(mv => {
     if (mv) cache.set(k, mv);
     if (cache.size > 6) cache.delete(cache.keys().next().value);
     if (thinking === k) { thinking = null; page.runner.kick(); }
@@ -478,6 +487,7 @@ function onOver(v) {
   r.best = r.best == null ? s.scores[mine] : Math.max(r.best, s.scores[mine]);
   write(RECORD, r);
   noteStreak("tarot", won);
+  if (!page.atTable && !lesson) { levelNow(); won ? ramp.won(true) : ramp.lost(); }
   setTimeout(() => { if (V?.over) showEnd(V); }, 900);
 }
 function showEnd(v) {
@@ -492,6 +502,7 @@ function showEnd(v) {
 function newGame() {
   if ($("endDlg").open) $("endDlg").close();
   snap = null; cache.clear(); uncovered = "";
+  lesson = lessonNext; lessonNext = false;
   page.deal(gameOptions(), opts.seats);
 }
 $("endAgain").addEventListener("click", newGame);
@@ -509,7 +520,7 @@ function showRules() {
 }
 const course = createCourse({
   id: "tarot", course: COURSE, stage: tarotStage(), cls: "tr", inFrame: IN_FRAME, onRules: showRules,
-  onPlay: () => { opts.level = "easy"; opts.seats = 4; opts.hot = 1; saveOpts(); newGame(); },
+  onPlay: () => { lessonNext = true; opts.seats = 4; opts.hot = 1; saveOpts(); newGame(); },
 });
 
 function openMenu() {
@@ -521,15 +532,10 @@ function openMenu() {
   const cp = progressOf("tarot", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Tarot, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
-  set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; cache.clear(); saveOpts(); }));
   set.append(choice("Players", [[3, "3"], [4, "4"], [5, "5"]], opts.seats, v => { opts.seats = Number(v); opts.hot = Math.min(opts.hot, opts.seats); saveOpts(); }));
-  set.append(choice("A game is", DEALS.map(n => [n, `${n} deals`]), opts.deals, v => { opts.deals = Number(v); saveOpts(); }));
   set.append(choice("On this phone", [1, 2, 3, 4, 5].filter(n => n <= opts.seats).map(n => [n, n === 1 ? "just me" : `${n} people`]), opts.hot, v => { opts.hot = Number(v); saveOpts(); }));
-  set.append(line("People on this phone pass it round: each hand is hidden until its player taps. The length and the players apply from the next game."));
-  set.append(toggle("Petit sec voids the deal", opts.petitSec, on => { opts.petitSec = on; saveOpts(); }));
-  set.append(toggle("Four-colour suits", opts.colours, on => { opts.colours = on; document.documentElement.classList.toggle("tr-colours", on); saveOpts(); }));
-  set.append(toggle("Show the taker's points", opts.counting, on => { opts.counting = on; saveOpts(); draw(); }));
-  set.append(toggle("Coach: hints", opts.coach, on => { opts.coach = on; saveOpts(); draw(); }));
+  set.append(line("People on this phone pass it round: each hand is hidden until its player taps. The players apply from the next game."));
+  set.append(toggle("Coach", opts.coach, on => { opts.coach = on; saveOpts(); draw(); }));
   const r = read(RECORD, { played: 0, won: 0, best: null }), st = read("tarot:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}${r.best != null ? `; best ${sign(r.best)}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

@@ -52,9 +52,9 @@ const faceLabel = f => `${f}s`;
 const person = i => V?.mode === "table" && V.seats?.[i] && !V.seats[i].bot;
 
 // ---------- games ----------
-/** The opponents chosen last time (personality ids), or three different ones at random. */
+/** Three different opponents (personality ids) drawn at random for each game (Korbi, 4 November 2026: the menu is the
+ *  minimum it needs to be; you no longer pick them). */
 function chosenOpponents() {
-  try { const t = JSON.parse(localStorage.getItem(TABLE)); if (Array.isArray(t) && t.length >= 2 && t.every(x => PERSONAS[x])) return t; } catch { /* first visit */ }
   const ids = Object.keys(PERSONAS).sort(() => Math.random() - 0.5);
   return ids.slice(0, 3);
 }
@@ -78,14 +78,8 @@ try {
 } catch { /* nothing kept, or nothing readable */ }
 
 // ---------- the pace of the computer's moves ----------
-/** The pace chosen (an earlier "fast" switch carries over as Fast). */
-function pace() {
-  try {
-    const p = localStorage.getItem(PACE);
-    if (PACES[p]) return p;
-    return localStorage.getItem("cartel:fast") === "1" ? "fast" : "steady";
-  } catch { return "steady"; }
-}
+/** The pace of the computer's moves: steady. */
+function pace() { return "steady"; }                         // fixed (it was a choice in the menu until 4 November 2026)
 /** How long the computer's next move stays: the pace chosen; once you're out, the rest of the game plays itself quickly. */
 const moveMs = st => (ME != null && st?.players?.[ME]?.out ? 120 : PACES[pace()].ms ?? 120);
 // Tap to continue (solo): the computer's next move waits for a tap anywhere on the table, then comes at once
@@ -782,26 +776,17 @@ function showOver() {
 }
 
 // ---------- menu ----------
-// the menu: Play (a new game with the opponents chosen; Invite players, or the table's line), Content (two or three
-// opponents), Settings (the pace of the computer's turns)
+// the menu: Play (a new game, its opponents drawn; Invite players, or the table's line)
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  let picked = chosenOpponents();
   const top = part(body, "play");
   if (page.host) top.append(action("New game", async () => {
-    if (picked.length < 2) { toast("Pick at least two opponents"); return; }
     if (g && !g.over && g.moves > 2 && !(await sure("Start a new game? This one isn't finished."))) return;
-    startGame(picked);
+    startGame();
   }, "primary"));
   page.menu(top);
-  // the opponents: tick two or three (a fourth ticked lets go of the one ticked longest ago)
-  part(body, "content").append(ticks("Opponents (two or three)", Object.entries(PERSONAS).map(([id, p]) => [id, `${p.name}, ${p.trait}`]), picked, next => { picked = next; }, 3));
-  part(body, "settings").append(choice("Computer turns", Object.entries(PACES).map(([id, p]) => [id, p.label]), pace(), id => {
-    try { localStorage.setItem(PACE, id); } catch { /* private mode */ }
-    page.runner.kick();                                        // a move already waiting takes the new pace
-    renderControls();
-  }), view.choice(() => { if (g && mind) render(); use3D(); }));
+  part(body, "settings").append(view.choice(() => { if (g && mind) render(); use3D(); }));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

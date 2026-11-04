@@ -7,7 +7,7 @@ Files: `carrom-engine.js` the physics, `carrom-rules.js` the rules, `carrom-bot.
 ## House rules, and why
 
 Simple on purpose (the brief: nothing beyond the striker down).
-- Seat 0 plays white from the bottom baseline and breaks first, seat 1 black from the top; who breaks alternates (or is set in the menu). Two players only: the real game's four-player doubles is not here.
+- Seat 0 plays white from the bottom baseline and breaks first, seat 1 black from the top; who breaks alternates (it was a menu choice until 4 November 2026). Two players only: the real game's four-player doubles is not here.
 - A man of yours down: shoot again. A man of theirs down stays down and counts for them, and the turn ends (the real game returns it; staying down is simpler and punishes a careless shot just as well).
 - **Foul = the striker down:** the turn ends and the man of yours that went down last comes back to the middle (this shot's included, so a foul that also pocketed one nets nothing). With none down, it costs only the turn (no "owed" men to track).
 - **The queen must be covered** by one of your men on the same shot or the very next of that turn; else she goes back to the middle. A queen down on a foul goes back.
@@ -31,3 +31,5 @@ Simple on purpose (the brief: nothing beyond the striker down).
 - **A slow phone loses effects, never steps.** Playback takes the steps its clock owes (many a frame if need be); only the shadows and the pixel ratio go (`lite`).
 - **The computer's levels are the hand, not the search:** all of them pick the best of the shots they try by playing them out, so what separates them is the scatter added to the chosen shot (`slip`, `weak` in `carrom-bot.js`). Without it even Medium cleared a board in a dozen shots.
 - The database keeps no empty lists: `restore` makes `last.pocketed` and `last.returned` whole again.
+
+**4 November 2026, Korbi: the menu is the minimum it needs to be.** The menu is Opponent (Computer or Two on this phone) and Reset view. The computer's strength, Close-up on the striker, Aim guide and Who breaks are gone: the strength is the hidden ramp (`carrom:ramp`, up a step after a game won, down after one lost; its first step is the level that was saved), the aim guide is the line, the breaks take turns; the close-up is still the camera's own to take (a pinch or the striker), and Reset view puts it back.
