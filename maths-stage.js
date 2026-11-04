@@ -128,8 +128,18 @@ export function mathsStage() {
   const task = s => !!(s.num || s.bank || s.w?.goal);
   const ws = st => (st.ws ||= {});
 
+  // A formula wider than its box shrinks to fit, whenever it is drawn (Temml loads late) or the box changes.
+  const fit = el => {
+    el.style.fontSize = "";
+    const c = el.clientWidth, w = el.scrollWidth;
+    if (c && w > c + 1) el.style.fontSize = `${(parseFloat(getComputedStyle(el).fontSize) * c) / w * 0.97}px`;
+  };
   /** Display maths into an element. */
-  const tex = (el, t) => setRich(el, `$$${Array.isArray(t) ? `\\begin{gathered}${t.join("\\\\")}\\end{gathered}` : t}$$`);
+  const tex = (el, t) => {
+    setRich(el, `$$${Array.isArray(t) ? `\\begin{gathered}${t.join("\\\\")}\\end{gathered}` : t}$$`);
+    new MutationObserver(() => fit(el)).observe(el, { childList: true });
+    new ResizeObserver(() => fit(el)).observe(el);
+  };
 
   // ----- the widgets: each fills `host` and keeps its state in st.ws -----
   function planeWidget(host, w, st) {

@@ -103,7 +103,7 @@ const recur = lesson("recur", "Recurrences", [
 // ---------- proof by contradiction and the pigeonhole ----------
 const contra = lesson("contra", "Contradiction", [
   P("To prove something by contradiction, assume it is false and follow the consequences until they clash with something known. The pigeonhole principle is the simplest tool: put more than n objects into n boxes and some box holds two.",
-    { kind: "formula", tex: [tx`\sqrt2=\tfrac pq\ \text{in lowest terms}\;\Rightarrow\;p^2=2q^2\;\Rightarrow\;p,\,q\text{ both even}`], note: "Both even contradicts 'lowest terms', so √2 is irrational." }),
+    { kind: "formula", tex: [tx`\sqrt2=\tfrac pq\ \text{in lowest terms}`, tx`\Rightarrow\;p^2=2q^2`, tx`\Rightarrow\;p,\,q\text{ both even}`], note: "Both even contradicts 'lowest terms', so √2 is irrational." }),
   N("ct-pig", "How many people must be in a room to be sure that two share a birth month?", "13", "There are 12 months (boxes). With 12 people, each could have a different one; the 13th must repeat.", { t: "js", f: "12+1" }),
   N("ct-socks", "A drawer holds many red, blue and green socks in the dark. What is the fewest you must pull out to be sure of a matching pair?", "4", "Three socks could be one of each colour. The fourth must match one of them.", { t: "js", f: "3+1" }),
   N("ct-sum", "Among any 5 whole numbers, two always have the same remainder on division by 4. How many different remainders are there (the boxes)?", "4", "The remainders are 0, 1, 2 and 3: four boxes for five numbers, so two numbers share a box.", { t: "js", f: "4" }),
@@ -113,7 +113,7 @@ const contra = lesson("contra", "Contradiction", [
 // ---------- paths in graphs ----------
 const paths = lesson("paths", "Paths and cycles", [
   P("A walk through a graph that uses every edge exactly once is an Euler trail. Euler (1736, the bridges of Königsberg) showed this is possible only if at most two vertices have odd degree. A path through every vertex once is a different question, much harder to answer.",
-    { kind: "formula", tex: [tx`\#\{v:\deg v\text{ odd}\}\in\{0,2\}\iff\text{an Euler trail exists (connected graph)}`] }),
+    { kind: "formula", tex: [tx`\text{odd-degree vertices}\in\{0,2\}`, tx`\iff\text{an Euler trail exists}`] }),
   Q("pa-bridges", "Königsberg's four land areas had degrees 3, 3, 3 and 5 (counting bridges). Could a walk cross every bridge exactly once?", "~No: four vertices have odd degree", ["~Yes: it needs only one odd vertex", "~Yes: every graph has such a walk", "~No: there are too many bridges"], "A trail needs 0 or 2 odd vertices, and here all four are odd. Euler's argument founded graph theory.", { t: "words" }),
   N("pa-bfs", "A, B, C, D, E are joined as A-B, A-C, B-D, C-D, D-E. What is the fewest edges on a path from A to E?", "3", "A-B-D-E (or A-C-D-E): three edges. Every route must pass through D.", { t: "js", f: "(()=>{const adj={A:'BC',B:'AD',C:'AD',D:'BCE',E:'D'};let d={A:0},q=['A'];while(q.length){const v=q.shift();for(const w of adj[v])if(!(w in d)){d[w]=d[v]+1;q.push(w)}}return d.E})()" }),
   N("pa-cyc", "How many different round trips (cycles, not counting direction or starting point) visit all 5 vertices of K₅ once each?", "12", "Fix the start and order the other four: 4! = 24 orders, and each cycle is counted twice (forwards and backwards): 24 ÷ 2 = 12.", { t: "js", f: "(4*3*2*1)/2" }),
