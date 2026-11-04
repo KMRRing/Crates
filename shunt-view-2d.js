@@ -79,7 +79,7 @@ function defsMarkup() {
   <linearGradient id="sh-brass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1D88C"/><stop offset=".5" stop-color="#C4963A"/><stop offset="1" stop-color="#8A6620"/></linearGradient>
   <linearGradient id="sh-rail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1D88C"/><stop offset=".45" stop-color="#C4963A"/><stop offset="1" stop-color="#6E4F18"/></linearGradient>
   <radialGradient id="sh-rivet" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#FFF3C8"/><stop offset=".5" stop-color="#C4963A"/><stop offset="1" stop-color="#5E4314"/></radialGradient>
-  <radialGradient id="sh-gem" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#FF8F7A"/><stop offset=".45" stop-color="#D2203A"/><stop offset="1" stop-color="#5E0814"/></radialGradient>
+  <radialGradient id="sh-gem" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#F0606A"/><stop offset=".45" stop-color="#B8142E"/><stop offset="1" stop-color="#58061A"/></radialGradient>
   <clipPath id="sh-frame-clip"><polygon points="${pointyHex(FRAME)}"/></clipPath>
   <clipPath id="sh-left"><rect x="-30" y="-30" width="30" height="60"/></clipPath><clipPath id="sh-right"><rect x="0" y="-30" width="30" height="60"/></clipPath>`;
   for (let c = 0; c < 7; c++) {
@@ -125,7 +125,7 @@ function gemMarkup(x, y, size, lit) {
   const s = size;
   return `<g transform="translate(${f(x)} ${f(y)})">${lit ? `<circle r="${f(s * 1.7)}" fill="#FF7A5A" opacity=".32" data-glow="1"/>` : ""}`
     + `<circle r="${f(s * 1.02)}" fill="url(#sh-hub)" stroke="#5E4314" stroke-width=".8"/><circle r="${f(s * 0.8)}" fill="none" stroke="#5E4314" stroke-opacity=".55" stroke-width=".6"/>`
-    + `<circle r="${f(s * 0.7)}" fill="url(#sh-gem)" fill-opacity="${lit ? 1 : 0.62}"/>`
+    + `<circle r="${f(s * 0.7)}" fill="url(#sh-gem)" fill-opacity="${lit ? 1 : 0.82}"/>`
     + `<circle r="${f(s * 0.2)}" fill="#1c0406" stroke="#FFD9CC" stroke-opacity="${lit ? 0.55 : 0.3}" stroke-width=".6"/>`
     + `<ellipse cx="${f(-s * 0.28)}" cy="${f(-s * 0.3)}" rx="${f(s * 0.22)}" ry="${f(s * 0.11)}" transform="rotate(-38 ${f(-s * 0.28)} ${f(-s * 0.3)})" fill="#fff" fill-opacity="${lit ? 0.8 : 0.4}"/></g>`;
 }
