@@ -1,0 +1,57 @@
+/* Chess School: a course in brass instruments. The page is a door (the plate and the way in); the lessons are on course.css's sheet, whose
+   stage holds Gambit's board (chess-board.css) under the lesson's own marks. Colours are the suite's tokens; verdigris is the course's
+   enamel. The marks are drawn to the board's 8 by 8 units, so their lines and text are in those units. */
+:root { --cs-in: var(--c1); --cs-light: #EFE3C8; --cs-dark: #9C8257; }
+.cs-mark { display: inline-block; }
+.cs-mark svg { width: 100%; height: 100%; display: block; }
+dialog.ln-sheet.chsc { --ln-in: var(--cs-in); }
+
+/* ---------- the page: the plate, the words, the way in ---------- */
+.cs-home { justify-content: center; align-items: center; gap: .8rem; min-height: 0; }
+.cs-plate { display: grid; place-items: center; min-height: 0; flex: 1 1 auto; width: 100%; }
+.cs-plate svg { width: 100%; height: 100%; max-width: 26rem; max-height: 100%; display: block; }
+.cs-about { display: grid; gap: .65rem; width: min(100%, 26rem); flex: none; align-content: center; }
+.cs-intro { margin: 0; color: var(--ink-soft); line-height: 1.45; font-size: .95rem; text-align: center; }
+.cs-meter { height: .3125rem; border-radius: 3px; background: var(--sheet); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tile-edge); }
+.cs-meter i { display: block; height: 100%; width: 0; background: var(--brass); }
+.cs-go { width: 100%; min-height: 3rem; padding: 0 .8rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
+  cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-link { min-height: 2.5rem; border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: .88rem; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+html[data-theme="modern"] .cs-go { border-radius: 14px; background: var(--cs-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
+html[data-theme="kontor"] .cs-go { border-radius: 2px; }
+@media (orientation: landscape) and (min-width: 700px) {
+  .cs-home { flex-direction: row; gap: 2rem; padding: 0 1rem; }
+  .cs-plate { flex: 1 1 0; height: 100%; }
+  .cs-about { flex: 0 0 22rem; }
+  .cs-intro { text-align: left; }
+}
+/* the plate's squares are the board's own colours */
+svg.cs .cs-sq.light { fill: var(--cs-light); }
+svg.cs .cs-sq.dark { fill: var(--cs-dark); }
+svg.cs .cs-frame { fill: none; stroke: var(--brass); stroke-width: 2; }
+svg.cs .cs-line { fill: none; stroke: var(--c3); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 2 7; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) svg.cs .cs-sq.light { fill: #CDBF9E; }
+  html:not([data-mode="day"]) svg.cs .cs-sq.dark { fill: #8C744B; }
+}
+html[data-mode="night"] svg.cs .cs-sq.light { fill: #CDBF9E; }
+html[data-mode="night"] svg.cs .cs-sq.dark { fill: #8C744B; }
+
+/* ---------- the stage: the board as large as the room leaves it, the marks over it ---------- */
+.ln-stage.cc-stage { justify-items: center; }
+.cc-wrap { position: relative; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); }
+.cc-board, .cc-board .ch-board { width: 100%; height: 100%; }
+.cc-over { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.cc-over.tapping { pointer-events: auto; cursor: pointer; touch-action: manipulation; }
+.cc-mark { stroke: none; }
+.cc-mark.a { fill: color-mix(in srgb, var(--c2) 42%, transparent); }
+.cc-mark.b { fill: rgba(46, 158, 91, .55); }
+.cc-mark.c { fill: color-mix(in srgb, var(--c0) 55%, transparent); }
+.cc-mark.tap { fill: color-mix(in srgb, var(--c2) 55%, transparent); stroke: var(--c2); stroke-width: .06; }
+.cc-mark.bad { fill: rgba(168, 56, 43, .5); }
+.cc-arrow { stroke-width: .17; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.cc-arrow.a { fill: color-mix(in srgb, var(--c2) 85%, transparent); stroke: color-mix(in srgb, var(--c2) 85%, transparent); }
+.cc-arrow.b { fill: rgba(46, 158, 91, .85); stroke: rgba(46, 158, 91, .85); }
+.cc-arrow.bad { fill: rgba(168, 56, 43, .8); stroke: rgba(168, 56, 43, .8); }
+.cc-label { font-family: var(--font); font-size: .3px; font-weight: 800; fill: #1C2A34; paint-order: stroke; stroke: rgba(239, 227, 200, .85); stroke-width: .08px; pointer-events: none; }

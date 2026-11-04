@@ -539,6 +539,11 @@ ${row("P", "Pawn", "One square forward, two on its first move; it captures one s
 
 // ---------- the menu ----------
 let pick = null;
+/** The menu's way into Chess School (chess.html), with how far through it you are (its tile's key). */
+function learnLine() {
+  const cp = read("chess:lessons", null);
+  return cp?.done ? `Learn Chess: ${cp.done} of ${cp.of} lessons done` : "Learn Chess, from the board";
+}
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -551,7 +556,7 @@ function openMenu() {
     part(body, "play").append(action("New game", async () => {
       if (!S.result && G.movesOf(S).length > 1 && !(await sure("Start a new game? This one isn't finished.", { yes: "New game" }))) return;
       Object.assign(opts, pick); saveOpts(); newGame();
-    }, "primary"), ...(IN_FRAME ? [] : [action("Puzzle rush", () => { location.href = "rush.html"; })]),
+    }, "primary"), ...(IN_FRAME ? [] : [action("Puzzle rush", () => { location.href = "rush.html"; }), action(learnLine(), () => { location.href = "chess.html"; })]),
     ...(!g.result && G.movesOf(g).length ? [action("Resign", resign, "link")] : []));
     part(body, "content").append(
       choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }),
@@ -647,12 +652,36 @@ window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); }
 addEventListener("resize", () => render());
 window.__gambit = { get game() { return cur(); }, get engineUp() { return engineUp; }, get judging() { return judging; }, onMove, newGame, takeBack, hint, review, setCoach, G };
 
+/**
+ * The game that ends Chess School (chess.html) opens here from its position: ?moves=e2e4,e7e5,…&level=1. The moves are checked by the rules
+ * before they are played, a game in progress is asked about first, and the options you keep are left as they were.
+ */
+async function fromCourse() {
+  const q = new URLSearchParams(location.search), moves = (q.get("moves") || "").split(",").filter(Boolean);
+  history.replaceState(null, "", location.pathname);                    // reloading must not offer it again
+  const text = moves.join(" ");
+  if (!G.replay({ moves: text }).ok) return false;
+  if (!S.result && G.movesOf(S).length > 1 && !(await sure("Start the lesson's game? The one you have isn't finished.", { yes: "Start" }))) return false;
+  const kept = { ...opts };
+  Object.assign(opts, { mode: "engine", level: q.get("level"), colour: "white" });
+  S = { ...freshGame(), moves: text };
+  Object.assign(opts, kept);
+  closeDialogs();
+  afterMove(false);
+  ensureEngine();
+  return true;
+}
+function resumeGame() {
+  if (!IN_FRAME && S.mode === "engine" && !S.result) {
+    if (G.waitingOn(S) === 1) kick();
+    else engine.start().then(() => { engineUp = true; render(); advise(); }, () => {});
+  } else advise();
+}
+
 render();
 const code = roomInAddress();
 if (code) {
   joining = busy("Joining your partner", { delay: 0 });
   together.join(code).then(ok => { if (!ok) { seated(); kick(); } });
-} else if (!IN_FRAME && S.mode === "engine" && !S.result) {
-  if (G.waitingOn(S) === 1) kick();
-  else engine.start().then(() => { engineUp = true; render(); advise(); }, () => {});
-} else advise();
+} else if (!IN_FRAME && new URLSearchParams(location.search).has("moves")) fromCourse().then(started => { if (!started) resumeGame(); });
+else resumeGame();
