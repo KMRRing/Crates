@@ -65,7 +65,7 @@ export const AKA = {
   jass: "schieber chibre swiss cards tricks trumps weis obenabe undenufe", belote: "coinche french cards tricks trumps", schafkopf: "bavarian cards tricks sauspiel wenz solo puzzle rush", contract: "bridge contract bridge auction", quest: "hidden roles traitors company hanse vitalian",
   bones: "dominoes tiles puzzle rush", factor: "factor island trading settlement", rack: "word tiles board", pegs: "cribbage", meld: "gin rummy",
   go: "weiqi baduk", tarot: "french tarot", solitaire: "patience klondike freecell", silo: "connect four four in a row",
-  flank: "reversi", crown: "draughts checkers", ingot: "2048 sliding tiles",
+  flank: "reversi", morris: "nine mens morris mills merels", crown: "draughts checkers", ingot: "2048 sliding tiles",
   lanterns: "akari light up bulbs lights lamps", asterism: "star battle two not touch stars regions", heliograph: "mirror", shunt: "rail wagons", polder: "dyke windmill", topple: "dominoes hex", orrery: "match three planets",
   netting: "obligations trading houses", settle: "tank farm parcels", slipway: "carving ship",
   trade: "history of trade course silk road slave trade colonial colonialism geography commodities chokepoint chokepoints straits spices monsoon indian ocean atlantic opium east india company hanse cowries map",

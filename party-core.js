@@ -195,6 +195,7 @@ export const ELSEWHERE = [
   { id: "carrom", name: "Carrom", kind: "table", page: "carrom.html", max: 2, blurb: "Carrom: flick the striker, pocket your colour and cover the queen." },
   { id: "silo", name: "Four in a row", kind: "table", page: "silo.html", max: 2, blurb: "Four in a row: drop discs into seven columns, first to line up four." },
   { id: "crown", name: "Draughts", kind: "table", page: "crown.html", max: 2, blurb: "Draughts: step and jump on the dark squares, a jump is compulsory, a man that reaches the far row is crowned." },
+  { id: "morris", name: "Nine Men's Morris", kind: "table", page: "morris.html", max: 2, blurb: "Nine Men's Morris: place nine pieces, slide them, close a mill of three to take one of theirs." },
   { id: "tarot", name: "Tarot", kind: "table", page: "tarot.html", max: 5, blurb: "French tarot for three, four or five: bid, take the dog, call a king for a partner, win the points." },
   { id: "trumps", name: "Jass, Belote, Schafkopf", tiles: ["jass", "belote", "schafkopf"], kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote (and Coinche) or Schafkopf, whichever the host last played, at a table of four; the host's menu changes it." },
   { id: "quest", name: "Company", kind: "table", page: "quest.html", max: 10, blurb: "Hidden loyalties: find the Vitalians before three cargoes are lost." },

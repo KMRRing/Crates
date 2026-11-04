@@ -1,0 +1,20 @@
+/* Nine Men's Morris's 3D view (Menu, View: 3D): the board a slab tipped away from you, its far side further and smaller, and
+   the pieces stood on it as turned discs with an edge, each a stack of thin slabs under its face. Only the picture changes: the
+   board, its taps and the pieces' sliding are the flat board's own, and the compositor does the tilt (nothing is redrawn).
+   Safari keeps a 3D scene only while every box between the tilted board and the slabs says preserve-3d and none clips. */
+.mo3 .mo-stage { perspective: 60rem; -webkit-perspective: 60rem; perspective-origin: 50% 100%; }
+.mo3 .mo-board { transform-origin: 50% 100%; transform: rotateX(32deg); border-radius: .4rem;
+  box-shadow: 0 .45rem 0 -.1rem color-mix(in srgb, var(--mo-frame) 70%, #000), 0 1.4rem 1.4rem -.8rem rgba(0, 0, 0, .55); }
+.mo3 :is(.mo-board, .mo-grid, .mo-pieces, .mo-pc) { transform-style: preserve-3d; -webkit-transform-style: preserve-3d; }
+.mo3 .mo-slab { display: block; position: absolute; inset: 0; border-radius: 50%; box-sizing: border-box; }
+.mo3 .mo-pc[data-c="d"] .mo-slab { background: var(--mo-dark); border: 1px solid var(--mo-dark-edge); }
+.mo3 .mo-pc[data-c="l"] .mo-slab { background: var(--mo-light); border: 1px solid var(--mo-light-edge); }
+.mo3 .mo-slab:nth-child(1) { transform: translateZ(.1rem); box-shadow: 0 .12rem .3rem rgba(0, 0, 0, .5); }
+.mo3 .mo-slab:nth-child(2) { transform: translateZ(.22rem); }
+.mo3 .mo-slab:nth-child(3) { transform: translateZ(.34rem); }
+.mo3 .mo-slab:nth-child(4) { transform: translateZ(.46rem); }
+.mo3 .mo-top { transform: translateZ(.58rem); }
+.mo3 .mo-top::before { content: ""; position: absolute; inset: 14%; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .22); }
+/* the points and their marks lie on the board; a piece stands over its point */
+.mo3 .mo-mill { stroke-width: 5px; }
+.mo3 .mo-pc::before, .mo3 .mo-pc::after { transform: translateZ(.7rem); }

@@ -84,6 +84,7 @@ export const ROUNDS = {
   silo: "a game",
   carrom: "a game",
   crown: "a game",
+  morris: "a game",
   go: "a game",
   tarot: "a deal",
   jass: "a hand",
