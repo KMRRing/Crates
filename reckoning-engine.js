@@ -109,25 +109,35 @@ const between = (S, a, b) => a + rnd(S) * (b - a);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 /** `launch`: the run sets off from a standstill (a third of the speed, up to full in 0.6 s) rather than at pace. */
-export function newGame({ seed = 1, deal = null, hearts = 3, launch = false } = {}) {
+export function newGame({ seed = 1, deal = null, hearts = 3, launch = false, section = null } = {}) {
   const S = {
     v: 1, seed, rng: seed | 0, qrng: (seed ^ 0x9E3779B9) | 0,
     t: 0, over: false, hearts, maxHearts: hearts, score: 0, bonus: 0, kills: 0, chain: 0, bestChain: 0,
     right: 0, wrong: 0, missed: 0, streak: 0, falls: 0, fwd: launch ? 0.3 : 1,
     hero: { z: 0, x: 0, y: 0, vx: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0, roll: 0, rollQ: false, jumps: 0 },
-    world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], foes: [], gates: [], id: 1 },
+    world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], foes: [], gates: [], obs: [], pick: [], id: 1 },
     pending: [], answers: [], asked: [], ev: [],
+    sec: 0, hits: 0, carried: {}, token: 0, flip: 0, inv: 0, won: false,
   };
   setDeal(S, deal);
+  if (section) beginSection(S, section);
   ensure(S);
   return S;
 }
 /** The question dealer is a function, so it is kept off the object (and out of what is saved). */
 export function setDeal(S, deal) { Object.defineProperty(S, "deal", { value: deal, writable: true, enumerable: false, configurable: true }); return S; }
 export function copy(S) { return setDeal(JSON.parse(JSON.stringify(S)), S.deal); }
-export function valid(S) { return !!S && S.v === 1 && S.hero && S.world && Array.isArray(S.world.foes); }
+/** A run kept by an earlier version has none of the section fields: it is an endless run, and is given them. A run of a section that is no more is not valid. */
+export function valid(S, sections = null) {
+  if (!S || S.v !== 1 || !S.hero || !S.world || !Array.isArray(S.world.foes)) return false;
+  if (S.sec && (!sections || !sections[S.sec - 1] || !S.mods || !Number.isFinite(S.world.finish))) return false;
+  const W = S.world;
+  W.obs ||= []; W.pick ||= [];
+  S.sec ||= 0; S.hits ||= 0; S.carried ||= {}; S.token ||= 0; S.flip ||= 0; S.inv ||= 0; S.won = !!S.won;
+  return true;
+}
 
-export const speed = S => speedAt(S.hero.z) * S.fwd;
+export const speed = S => (S.mods ? S.mods.v0 + (S.mods.v1 - S.mods.v0) * (1 - Math.exp(-Math.max(0, S.hero.z) / 700)) : speedAt(S.hero.z)) * S.fwd;
 export const laneX = lane => lane * LANE_W;
 
 // ---------- the quay ----------
@@ -146,6 +156,7 @@ function foe(S, kind, lane, z, y = KINDS[kind].y, extra = {}) {
 /** Makes chunks of quay until there is LOOK metres of it ahead of the hero. Which kinds come, and when, is by distance. */
 export function ensure(S) {
   const W = S.world;
+  if (S.sec) return;                                              // a section is built whole, at its start
   while (W.z1 < S.hero.z + LOOK) chunk(S);
 }
 
@@ -237,6 +248,173 @@ function gate(S, z0) {
   return p1 - z0 + 10;
 }
 
+// ---------- sections ----------
+// A section (reckoning-sections.js) is a short quay made by hand: rows of three cells, one to a lane, a row every `gap`
+// metres, and a finish. Cells are words split on spaces: . (empty) c crab, C bruiser (two cuts, thrown back by the first),
+// g gull; b barrel (jump it), B beam (roll under it), X cart (go round); goods s salt, h herring, f furs, w wax, r grog,
+// a amber (hung in the air); 1 2 3 a token; T1 T2 T3 a toll booth that lets through only the token of its number;
+// L a lever (turns the drawbridges over); F0 F1 a drawbridge, up when the lever is at that number; W0 W1 W2 a sluice gate
+// that opens and shuts on a beat, the three a third of a beat apart; H a meal (a heart back). A row beginning with ! is a
+// piece of the old quay: !rest n, !gap n (a gap in the planks of n metres), !gate (a question), !chain, !wall, !wallslam, !pitch n.
+export const OBS = {                       // what blocks: base, top and length along the quay
+  barrel: { y0: 0, y1: 0.85, len: 0.9 },
+  beam: { y0: 0.8, y1: 2.2, len: 1.0 },
+  cart: { y0: 0, y1: 2.6, len: 1.6 },
+};
+export const ROLL_H = 0.6;                 // the height of a hero rolling: a beam hangs above it
+export const TIDE_P = 3.2, TIDE_OPEN = 0.56;   // a sluice gate: the beat in seconds and the part of it that it is open
+export const GOODS = { s: "salt", h: "herring", f: "furs", w: "wax", r: "grog", a: "amber" };
+export const GROG_T = 5;                   // seconds that left and right are the wrong way round after a drink
+export const LOAD_LESS = 0.025, LOAD_MIN = 0.8;   // what each good carried takes off the speed of a jump, and the least it comes to
+
+export const loadFactor = S => (S.mods?.laden ? Math.max(LOAD_MIN, 1 - LOAD_LESS * (S.carried.total || 0)) : 1);
+
+/** Whether a thing on the quay stops the hero now. */
+export function solid(S, o) {
+  switch (o.kind) {
+    case "toll": return S.token !== o.mark;
+    case "bridge": return S.flip === o.flip;
+    case "tide": return ((S.t / TIDE_P + o.ph) % 1 + 1) % 1 >= TIDE_OPEN;
+    default: return true;
+  }
+}
+
+function obstacle(S, kind, lane, z, extra = {}) {
+  const d = OBS[extra.shape || kind] || OBS.cart;
+  const o = { id: S.world.id++, kind, shape: extra.shape || kind, lane, z, len: d.len, y0: d.y0, y1: d.y1, ...extra };
+  S.world.obs.push(o);
+  return o;
+}
+function pickup(S, kind, lane, z, extra = {}) {
+  const p = { id: S.world.id++, kind, lane, z, y: kind === "amber" ? 2.3 : 0.55, taken: false, ...extra };
+  S.world.pick.push(p);
+  return p;
+}
+
+function cell(S, tok, lane, z) {
+  switch (tok) {
+    case ".": return;
+    case "c": foe(S, "crab", lane, z); return;
+    case "C": foe(S, "crab", lane, z, 0, { hp: 2, heavy: true }); return;
+    case "g": foe(S, "gull", lane, z); return;
+    case "b": obstacle(S, "barrel", lane, z); return;
+    case "B": obstacle(S, "beam", lane, z); return;
+    case "X": obstacle(S, "cart", lane, z); return;
+    case "L": pickup(S, "lever", lane, z); return;
+    case "H": pickup(S, "meal", lane, z); return;
+    case "1": case "2": case "3": pickup(S, "token", lane, z, { mark: +tok }); return;
+  }
+  if (GOODS[tok]) { pickup(S, GOODS[tok], lane, z, { good: true }); return; }
+  const m = /^([TFW])(\d)$/.exec(tok);
+  if (!m) throw new Error(`Courier: unknown cell "${tok}"`);
+  if (m[1] === "T") obstacle(S, "toll", lane, z, { shape: "cart", mark: +m[2] });
+  else if (m[1] === "F") obstacle(S, "bridge", lane, z, { shape: "cart", flip: +m[2] });
+  else obstacle(S, "tide", lane, z, { shape: "cart", ph: +m[2] / 3 });
+}
+
+/** Makes a section's quay whole, as `def` (reckoning-sections.js) describes it. */
+export function beginSection(S, def) {
+  const W = S.world;
+  S.sec = def.id; S.rng = (def.id * 7919 + 17) | 0;              // the quay is the same every time; only the questions are dealt afresh
+  S.hearts = S.maxHearts = def.hearts ?? 3;
+  S.mods = { v0: def.v0, v1: def.v1 ?? def.v0, omega: def.omega || 0, laden: def.laden || 0, fog: def.fog || 0 };
+  S.bill = { want: def.bill?.want || [], bad: def.bill?.bad || [] };
+  S.goal = def.goal || { kind: "none", n: 0 };
+  S.par = def.par || { hits: 0 };
+  W.rows = [];
+  let z = def.lead ?? 16, pitch = def.gap;
+  for (const row of def.rows) {
+    if (row[0] === "!") {
+      const [cmd, arg] = row.slice(1).split(" ");
+      const n = +arg;
+      if (cmd === "pitch") pitch = n;
+      else if (cmd === "rest") z += n;
+      else if (cmd === "gap") { W.pits.push({ z0: z, z1: z + n, gap: true }); z += n; }
+      else if (cmd === "gate") z += gate(S, z);
+      else if (CHUNKS[cmd]) z += CHUNKS[cmd](S, z);
+      else throw new Error(`Courier: unknown piece "${row}"`);
+      continue;
+    }
+    const cells = row.trim().split(/\s+/);
+    if (cells.length !== 3) throw new Error(`Courier: a row has three cells: "${row}"`);
+    cells.forEach((tok, i) => cell(S, tok, i - 1, z));
+    W.rows.push(z);
+    z += pitch;
+  }
+  W.finish = z + 6; W.z1 = W.finish + 30;
+  S.world.foes.sort((a, b) => a.z - b.z);
+}
+
+/** What the hero meets on the quay as he runs: a thing that stops him, and what he picks up. */
+function touch(S) {
+  const h = S.hero, W = S.world, hh = h.roll > 0 && h.mode === "run" ? ROLL_H : HERO_H;
+  if (h.mode !== "wall") for (const o of W.obs) {
+    const dz = o.z - h.z;
+    if (Math.abs(dz) > o.len / 2 + 0.3 || h.hurt > 0 || Math.abs(laneX(o.lane) - h.x) > 0.75 || !solid(S, o)) continue;
+    if (h.y < o.y1 - 0.1 && h.y + hh > o.y0 + 0.1) { bump(S, o); if (S.over) return; }
+  }
+  for (const p of W.pick) {
+    if (p.taken || Math.abs(p.z - h.z) > 0.8 || h.mode === "wall" || Math.abs(laneX(p.lane) - h.x) > 0.8) continue;
+    if (h.y + hh < p.y - 0.3 || h.y > p.y + 0.3) continue;
+    p.taken = true;
+    take1(S, p);
+    if (S.over) return;
+  }
+}
+
+function bump(S, o) {
+  const h = S.hero;
+  S.hearts--; S.hits++; h.hurt = HURT_T; S.fwd = 0.7; S.chain = 0; S.streak = 0;
+  S.ev.push({ type: "hurt", id: 0, obs: o.id, hearts: S.hearts });
+  if (S.hearts <= 0) end(S);
+}
+
+function take1(S, p) {
+  switch (p.kind) {
+    case "token": S.token = p.mark; break;
+    case "lever": S.flip ^= 1; break;
+    case "meal": if (S.hearts < S.maxHearts) { S.hearts++; S.ev.push({ type: "heart", hearts: S.hearts }); } break;
+    default:
+      if (S.bill.bad.includes(p.kind)) {                          // the customs take a heart for a thing that is not on the bill
+        S.hearts--; S.hits++; S.hero.hurt = HURT_T; S.fwd = 0.7;
+        S.ev.push({ type: "seized", what: p.kind, hearts: S.hearts });
+        if (S.hearts <= 0) end(S);
+        return;
+      }
+      S.carried[p.kind] = (S.carried[p.kind] || 0) + 1;
+      S.carried.total = (S.carried.total || 0) + 1;
+      S.bonus += 50;
+      if (p.kind === "grog") S.inv = S.t + GROG_T;
+  }
+  S.ev.push({ type: "pick", what: p.kind, mark: p.mark || 0, id: p.id });
+}
+
+/** How far the section's aim has been got: goods of the bill carried, questions right, foes cut, the longest chain, hearts left. */
+export function goalValue(S) {
+  const g = S.goal || { kind: "none" };
+  switch (g.kind) {
+    case "goods": return S.bill.want.reduce((n, k) => n + (S.carried[k] || 0), 0);
+    case "right": return S.right;
+    case "kills": return S.kills;
+    case "chain": return S.bestChain;
+    case "hearts": return S.hearts;
+    default: return 0;
+  }
+}
+export const goalMet = S => (S.goal?.n || 0) <= goalValue(S);
+
+/** Stars for a section: 0 if it is not passed, one for passing, two for no more than one heart over par, three for par and the full aim. */
+export function starsOf(S) {
+  if (!S.won) return 0;
+  const par = S.par || { hits: 0 };
+  return 1 + (S.hits <= par.hits + 1 ? 1 : 0) + (S.hits <= par.hits && goalValue(S) >= (par.more ?? S.goal?.n ?? 0) ? 1 : 0);
+}
+
+function finish(S) {
+  S.over = true; S.won = goalMet(S);
+  S.ev.push({ type: "finish", won: S.won, stars: starsOf(S), score: S.score });
+}
+
 // ---------- swipes ----------
 
 const ttcOf = (S, f) => (f.z - S.hero.z) / speed(S);
@@ -257,6 +435,7 @@ const grounded = h => h.mode === "run";
 /** A swipe: "up" | "down" | "left" | "right". It works now if it can, else waits a moment (BUFFER) for something to work on. */
 export function swipe(S, dir) {
   if (S.over) return S.ev;
+  if (S.inv > S.t && (dir === "left" || dir === "right")) dir = dir === "left" ? "right" : "left";       // the grog: left is right
   if (!resolve(S, dir)) { const keep = keepFor(S, dir); S.pending.push({ dir, until: S.t + keep }); S.ev.push({ type: "wait", dir, keep }); }
   return S.ev;
 }
@@ -303,12 +482,12 @@ function up(S) {
   });
   if (f) { startLunge(S, f, 0, f.y <= 0.3 ? "front" : "above"); return true; }
   if (grounded(h)) {
-    h.mode = "air"; h.vy = JUMP_V; h.roll = 0;
+    h.mode = "air"; h.vy = JUMP_V * loadFactor(S); h.roll = 0;
     S.ev.push({ type: "jump" });
     return true;
   }
   if (h.mode === "air" && h.jumps > 0) {                          // a cut in the air gave my jump back: one more, from here
-    h.jumps = 0; h.slam = false; h.vy = Math.max(h.vy, JUMP_V);
+    h.jumps = 0; h.slam = false; h.vy = Math.max(h.vy, JUMP_V * loadFactor(S));
     S.ev.push({ type: "jump", air: true });
     return true;
   }
@@ -438,9 +617,10 @@ export function step(S, dt) {
   // quick start and a soft arrival, and a swipe made on top of another, or a cut that ends, carries on from the speed it had.
   const tx = h.mode === "wall" ? h.wall * WALL_HERO_X : laneX(h.lane);
   {
-    const d = h.x - tx, v0 = h.vx || 0, e = Math.exp(-LANE_OMEGA * dt), c = v0 + LANE_OMEGA * d;
+    const om = S.mods?.omega || LANE_OMEGA;                         // wet planks are slower to turn on
+    const d = h.x - tx, v0 = h.vx || 0, e = Math.exp(-om * dt), c = v0 + om * d;
     h.x = tx + (d + c * dt) * e;
-    h.vx = (v0 - LANE_OMEGA * c * dt) * e;
+    h.vx = (v0 - om * c * dt) * e;
     if (Math.abs(h.x - tx) < 5e-4 && Math.abs(h.vx) < 0.05) { h.x = tx; h.vx = 0; }
   }
 
@@ -469,6 +649,7 @@ export function step(S, dt) {
       if (f.gate || f.y > 0.3 || f.lane !== h.lane) continue;
       const dz = f.z - h.z;
       if (dz < -FOE_REACH || dz > ROLL_REACH) continue;
+      if ((f.hp || 1) > 1) { stagger(S, f); continue; }
       f.alive = false; S.kills++; S.bonus += 100;
       S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "roll", y: f.y });
     }
@@ -489,6 +670,8 @@ export function step(S, dt) {
     if (h.y < f.y + f.h - 0.15 && h.y + HERO_H > f.y + 0.1) hit(S, f);
     if (S.over) return ev;
   }
+
+  if (S.sec) { touch(S); if (S.over) return ev; if (h.z >= S.world.finish) { finish(S); return ev; } }
 
   // gates passed unanswered
   for (const g of S.world.gates) if (g.state === "open" && h.z > g.z + 1.2) { g.state = "missed"; answered(S, g, null); }
@@ -544,6 +727,12 @@ function strike(S, f, how) {
     }
     return;
   }
+  if ((f.hp || 1) > 1) {                                             // a bruiser takes the first cut and is thrown back for the second
+    stagger(S, f);
+    h.mode = "air"; h.vy = how === "bonk" ? BONK_V : high ? CHAIN_V : HOP_V;
+    if (high) h.jumps = 1;
+    return;
+  }
   f.alive = false;
   const air = high || how === "bonk" || how === "above";
   if (air) h.jumps = 1;                                              // an attack in the air gives my jump back
@@ -563,6 +752,13 @@ function strike(S, f, how) {
   }
   h.mode = "air";
   h.vy = how === "bonk" ? BONK_V : air ? CHAIN_V : HOP_V;
+}
+
+/** A bruiser hit once: one cut less to take, and thrown back down the quay, winding up again from nothing. */
+export const STAGGER_Z = 5.5;
+function stagger(S, f) {
+  f.hp--; f.z += STAGGER_Z; f.ph = 0; f.x = laneX(f.lane); f.pt = S.t; S.bonus += 50;
+  S.ev.push({ type: "stagger", id: f.id, hp: f.hp });
 }
 
 /** The foe a cut sideways goes on to: in the next lane along, not a gull of a question (that is an answer, and is chosen),
@@ -644,7 +840,7 @@ function answered(S, g, ok) {
   } else {
     if (ok === false) S.wrong++; else S.missed++;
     S.streak = 0;
-    S.hearts = Math.max(0, S.hearts - 1);
+    S.hearts = Math.max(0, S.hearts - 1); S.hits++;
   }
   S.ev.push({ type: "answer", gate: g.id, ok, q: g.q, pick: g.pick });
   if (!ok && S.hearts <= 0) end(S);
@@ -688,7 +884,7 @@ function land(S) {
 function hit(S, f) {
   const h = S.hero;
   f.spent = true;
-  S.hearts--; h.hurt = HURT_T; S.fwd = 0.7; S.chain = 0; S.streak = 0;
+  S.hearts--; S.hits++; h.hurt = HURT_T; S.fwd = 0.7; S.chain = 0; S.streak = 0;
   S.ev.push({ type: "hurt", id: f.id, hearts: S.hearts });
   if (S.hearts <= 0) end(S);
 }
@@ -696,7 +892,7 @@ function hit(S, f) {
 /** Into the water: a heart, and back on the far bank. */
 function fall(S) {
   const h = S.hero, p = pitAt(S, h.z);
-  S.falls++; S.hearts--; S.streak = 0; S.chain = 0;
+  S.falls++; S.hearts--; S.hits++; S.streak = 0; S.chain = 0;
   S.ev.push({ type: "fall", hearts: S.hearts });
   if (S.hearts <= 0) { end(S); return; }
   if (p) h.z = p.z1 + 1.5;
@@ -714,4 +910,6 @@ function prune(S) {
   W.pits = W.pits.filter(p => p.z1 > z);
   W.walls = W.walls.filter(w => w.z1 > z);
   W.gates = W.gates.filter(g => g.p1 > z);
+  W.obs = W.obs.filter(o => o.z > z);
+  W.pick = W.pick.filter(p => p.z > z);
 }
