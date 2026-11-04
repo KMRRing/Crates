@@ -5,7 +5,7 @@
 // A swipe line says what the swipe met: where the hero was and what he was doing, and the foes about to reach him with
 // the seconds until each does (the windows are in seconds, so that is the number that explains what a swipe did). The
 // lines after it, with the next numbers, are what the rules did about it.
-import { speed, BUFFER } from "./reckoning-engine.js";
+import { speed, BUFFER, solid } from "./reckoning-engine.js";
 
 const LANE = { "-1": "L", 0: "M", 1: "R" };
 const lane = n => LANE[n] ?? String(n);
@@ -44,12 +44,15 @@ export function heroText(S) {
   return bits.join(", ");
 }
 
-/** The foes about to reach the hero (or just past), nearest first. */
+/** The foes about to reach the hero (or just past), nearest first; in a section, the things on the quay with them (a gate says whether it is shut). */
 export function foesText(S, n = 6) {
-  const v = speed(S);
-  const near = S.world.foes.filter(f => f.alive && !f.spent && (f.z - S.hero.z) / v > -0.15 && (f.z - S.hero.z) / v < 1.3)
-    .sort((a, b) => a.z - b.z).slice(0, n);
-  return near.length ? near.map(f => foeText(S, f)).join("; ") : "none";
+  const v = speed(S), t = z => (z - S.hero.z) / v;
+  const items = [
+    ...S.world.foes.filter(f => f.alive && !f.spent && t(f.z) > -0.15 && t(f.z) < 1.3).map(f => [f.z, foeText(S, f)]),
+    ...(S.world.obs || []).filter(o => t(o.z) > -0.15 && t(o.z) < 1.3).map(o => [o.z, `${o.kind === "cart" || o.kind === "barrel" || o.kind === "beam" ? o.kind : `${o.kind} gate`} ${lane(o.lane)} ${num(t(o.z))}s${solid(S, o) ? " shut" : " open"}`]),
+    ...(S.world.pick || []).filter(p => !p.taken && t(p.z) > -0.15 && t(p.z) < 1.3).map(p => [p.z, `${p.kind}${p.mark ? p.mark : ""} ${lane(p.lane)} ${num(t(p.z))}s`]),
+  ].sort((a, b) => a[0] - b[0]).slice(0, n);
+  return items.length ? items.map(i => i[1]).join("; ") : "none";
 }
 
 export class RunLog {
@@ -109,7 +112,11 @@ export function describe(S, ev) {
     case "wallend": return "the wall ended";
     case "land": return ev.slam ? "land, a slam" : "land";
     case "shockwave": return `shockwave, ${ev.n} cut`;
-    case "hurt": return `HURT by ${named(ev.id)}, ${ev.hearts} hearts left`;
+    case "hurt": return ev.obs ? `HURT by a thing on the quay, ${ev.hearts} hearts left` : `HURT by ${named(ev.id)}, ${ev.hearts} hearts left`;
+    case "pick": return `picked up ${ev.what}${ev.mark ? ` ${ev.mark}` : ""}`;
+    case "seized": return `SEIZED ${ev.what} by the customs, ${ev.hearts} hearts left`;
+    case "stagger": return `bruiser ${ev.id} thrown back, ${ev.hp} cut to go`;
+    case "finish": return ev.won ? `FINISH, passed with ${ev.stars} stars` : "FINISH, but short of the aim";
     case "fall": return `FALL into the water, ${ev.hearts} hearts left`;
     case "clang": return `CLANG: the wrong gull (${named(ev.id)})`;
     case "answer": {
