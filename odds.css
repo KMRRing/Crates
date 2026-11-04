@@ -47,9 +47,9 @@ dialog.ln-sheet.od .ln-lesson:has(.ln-stage:empty) .ln-text { flex: 1 1 auto; ma
 .od-big { margin: 0; text-align: center; font-size: 2.6rem; font-weight: 800; color: var(--ln-in); }
 
 /* figures: strokes and text */
-.od-t { fill: var(--ink-soft); font-family: inherit; font-size: 9.5px; }
-.od-tick { font-size: 9px; font-variant-numeric: tabular-nums; }
-.od-cap { font-size: 9.5px; letter-spacing: .02em; }
+text.od-t { fill: var(--ink-soft); font-family: inherit; font-size: 9.5px; }
+text.od-tick { font-size: 9px; font-variant-numeric: tabular-nums; }
+text.od-cap { font-size: 9.5px; letter-spacing: .02em; }
 .od-grid path { stroke: var(--rule); stroke-width: 1; fill: none; }
 .od-ax { stroke: var(--ink-soft); stroke-width: 1; fill: none; }
 .od-zero { stroke: var(--ink-soft); stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
@@ -90,7 +90,7 @@ dialog.ln-sheet.od .ln-lesson:has(.ln-stage:empty) .ln-text { flex: 1 1 auto; ma
 .od-grid-wrap { height: 100cqh; }
 
 /* the 36 throws */
-.od-cells { flex: 0 1 auto; align-self: center; height: calc(100cqh - 1.6rem); max-width: 100%; aspect-ratio: 1; display: grid; grid-template-columns: .55fr repeat(6, 1fr); grid-template-rows: .55fr repeat(6, 1fr); gap: 3px; }
+.od-cells { flex: 0 1 auto; align-self: center; height: calc(100cqh - 1.6rem); max-width: 100%; aspect-ratio: 1; display: grid; grid-template-columns: .55fr repeat(6, 1fr); grid-template-rows: .55fr repeat(6, 1fr); gap: .19rem; }
 .od-edge { display: grid; place-items: center; }
 .od-die { width: 80%; max-width: 1.5rem; height: auto; }
 .od-die rect { fill: var(--sheet); stroke: var(--ink-soft); stroke-width: .7; }
@@ -122,8 +122,8 @@ dialog.ln-sheet.od .ln-lesson:has(.ln-stage:empty) .ln-text { flex: 1 1 auto; ma
 .od-sl span { display: flex; justify-content: space-between; }
 .od-sl b { color: var(--ink); font-variant-numeric: tabular-nums; }
 input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 2.5rem; background: transparent; margin: 0; touch-action: none; }
-input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--brass); }
-input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--brass); }
+input[type="range"]::-webkit-slider-runnable-track { height: .25rem; border-radius: 2px; background: var(--brass); }
+input[type="range"]::-moz-range-track { height: .25rem; border-radius: 2px; background: var(--brass); }
 input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 1.7rem; height: 1.7rem; margin-top: calc(-.85rem + 2px); border-radius: 50%; border: 2px solid var(--sheet); background: var(--ln-in); box-shadow: 0 0 0 1px var(--ink-soft); }
 input[type="range"]::-moz-range-thumb { width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 2px solid var(--sheet); background: var(--ln-in); box-shadow: 0 0 0 1px var(--ink-soft); }
 input[type="range"]:disabled { opacity: .5; }
@@ -136,7 +136,7 @@ input[type="range"]:focus-visible { outline: 2px solid var(--ln-in); outline-off
 .od-bar-row em { font-style: normal; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
 .od-track { position: relative; height: 1.1rem; background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 3px; }
 .od-track i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--ln-in) 75%, transparent); border-radius: 2px; }
-.od-track b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.od-track b { position: absolute; top: -.19rem; bottom: -.19rem; width: 2px; background: var(--ink); }
 .od-sim .od-bars { flex: 1 1 0; }
 
 /* the tree */

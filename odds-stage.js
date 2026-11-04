@@ -28,12 +28,12 @@ const FMT = {
 };
 const dialFmt = w => (v, axis = false) => (axis && w.fmt === "pence" ? `${v < 0 ? "−" : ""}${Math.round(100 * Math.abs(v))}p` : axis && w.fmt === "pound" ? `${v < 0 ? "−" : ""}£${Math.round(Math.abs(v) * 100) / 100}` : FMT[w.fmt](w, v));
 /** The picture and the reading for a dial at value v. */
-function dialView(w, v) {
+function dialView(w, v, hide = false) {
   const f = dialFmt(w);
   switch (w.plot) {
     case "kelly": {
       const g = M.growth(v, w.p, w.b), z = M.ruinPoint(w.p, w.b);
-      return { fig: P.kellyPlot({ p: w.p, b: w.b, f: v, ruin: !!w.ruin }), read: v <= 0 ? "Stake nothing: no growth." : g > 0 ? `Stake ${f(v)} · grows ${pct(g, 2)} a bet · doubles in about ${Math.round(Math.LN2 / g)} bets` : g === -Infinity ? `Stake ${f(v)} · one loss is ruin` : `Stake ${f(v)} · shrinks ${pct(-g, 2)} a bet${v > z ? " · in the ruin zone" : ""}` };
+      return { fig: P.kellyPlot({ p: w.p, b: w.b, f: v, ruin: !!w.ruin, guide: !hide }), read: v <= 0 ? "Stake nothing: no growth." : g > 0 ? `Stake ${f(v)} · grows ${pct(g, 2)} a bet · doubles in about ${Math.round(Math.LN2 / g)} bets` : g === -Infinity ? `Stake ${f(v)} · one loss is ruin` : `Stake ${f(v)} · shrinks ${pct(-g, 2)} a bet${v > z ? " · in the ruin zone" : ""}` };
     }
     case "wrongp": {
       const g = M.growth(w.f, v, w.b);
@@ -264,7 +264,7 @@ export function oddsStage() {
   const setDial = (v, live) => {
     const w = W(), st = cur.st; if (!w || w.kind !== "dial" || (isTask(cur.step) && st.done)) return;
     st.val = v;
-    const view = dialView(w, v), fig = box.querySelector(".od-fig"), read = box.querySelector(".od-read");
+    const view = dialView(w, v, isTask(cur.step) && !st.done), fig = box.querySelector(".od-fig"), read = box.querySelector(".od-read");
     if (fig) fig.innerHTML = view.fig; if (read) read.innerHTML = view.read;
     const out = box.querySelector("[data-out]"); if (out) out.textContent = dialFmt(w)(v);
     if (!live) api.changed();
@@ -393,7 +393,7 @@ export function oddsStage() {
         case "range": html = rangeView(w, st); break;
         case "lab": html = lab(w); break;
         case "dial": {
-          const v = st.val ?? w.start, view = dialView(w, v), f = dialFmt(w);
+          const v = st.val ?? w.start, view = dialView(w, v, isTask(s) && !st.done), f = dialFmt(w);
           const lock = isTask(s) && st.done ? "disabled" : "";
           html = `<div class="od-dial"><div class="od-fig">${view.fig}</div><p class="od-read" aria-live="polite">${view.read}</p>
             <div class="od-slide"><button type="button" class="od-step" data-step="-1" aria-label="Less" ${lock}>−</button>
