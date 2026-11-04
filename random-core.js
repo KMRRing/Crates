@@ -75,6 +75,7 @@ export const ROUNDS = {
   yacht: "a game (twelve rounds on the score sheet)",
   bigtwo: "a deal",
   hearts: "a hand",
+  carrack: "a game (eight years of secret orders)",
   meld: "a hand",
   rack: "a game",
   pegs: "a deal",

@@ -13,7 +13,7 @@
 // carrack-map.js.
 import { PORTS, N_PORTS, IDX, ADJ, GOODS } from "./carrack-map.js";
 import { shuffle } from "./seats.js";
-import { submit, take, nextSeat, isOrders } from "./carrack-orders.js";
+import { submit, take, nextSeat, waiting, isOrders } from "./carrack-orders.js";
 
 export const ROUNDS = 8;
 /** The years each round stands for. */
@@ -34,15 +34,15 @@ const RIM = new Set([4, 5, 6]);
 // euro: counts toward the cap of three European or Mediterranean powers at a table. sea: the home seas (regions): +1 to
 // every die there.
 export const POWERS = [
-  { id: "hanse", name: "Hanse towns", euro: 1, sea: [0, 1], homes: ["LUB", "REV"], fleets: { LUB: 1, REV: 1 }, factors: [], silver: 6, ocean: 0, base: -1, baseName: "league dues" },
+  { id: "hanse", name: "Hanse", euro: 1, sea: [0, 1], homes: ["LUB", "REV"], fleets: { LUB: 1, REV: 1 }, factors: [], silver: 6, ocean: 0, base: -1, baseName: "league dues" },
   { id: "portugal", name: "Portugal", euro: 1, sea: [1, 3], homes: ["LIS", "ELM"], fleets: { LIS: 1, ELM: 1 }, factors: [], silver: 7, ocean: 1, base: -3, baseName: "the Estado's upkeep" },
   { id: "venice", name: "Venice", euro: 1, sea: [2], homes: ["VEN"], fleets: { VEN: 3 }, factors: ["ALE", "CON"], silver: 7, ocean: 0, base: 3, baseName: "the Republic's revenue" },
   { id: "ottomans", name: "Ottomans", euro: 1, sea: [2], homes: ["CON"], fleets: { CON: 3 }, factors: [], silver: 8, ocean: 0, base: 2, baseName: "the sultan's revenue" },
   { id: "ming", name: "Ming China", euro: 0, sea: [7, 8], homes: ["GUA", "NIN", "YUE"], fleets: { GUA: 1, NIN: 1 }, factors: ["NAH", "MNL"], silver: 2, ocean: 0, base: 0, baseName: "the empire's revenue" },
-  { id: "gujarat", name: "Gujarati merchants", euro: 0, sea: [5], homes: ["CAM"], fleets: { CAM: 1 }, factors: ["MLC", "CAL", "ADE"], silver: 8, ocean: 0, base: 0, baseName: "cloth exports" },
+  { id: "gujarat", name: "Gujarat", euro: 0, sea: [5], homes: ["CAM"], fleets: { CAM: 1 }, factors: ["MLC", "CAL", "ADE"], silver: 8, ocean: 0, base: 0, baseName: "cloth exports" },
   { id: "malacca", name: "Malacca", euro: 0, sea: [6], homes: ["MLC"], fleets: { MLC: 2 }, factors: ["ACE", "BAN"], silver: 9, ocean: 0, base: 1, baseName: "harbour dues" },
   { id: "ryukyu", name: "Ryukyu", euro: 0, sea: [7], homes: ["NAH"], fleets: { NAH: 2 }, factors: ["GUA", "YUE", "NIN"], silver: 5, ocean: 0, base: 0, baseName: "tribute missions" },
-  { id: "swahili", name: "Swahili city-states", euro: 0, sea: [4], homes: ["KIL", "MOM", "MAL"], fleets: { KIL: 1, MOM: 1 }, factors: ["SOF"], silver: 8, ocean: 0, base: 3, baseName: "inland trade" },
+  { id: "swahili", name: "Swahili coast", euro: 0, sea: [4], homes: ["KIL", "MOM", "MAL"], fleets: { KIL: 1, MOM: 1 }, factors: ["SOF"], silver: 8, ocean: 0, base: 3, baseName: "inland trade" },
 ];
 export const POWER_IDX = Object.fromEntries(POWERS.map((p, i) => [p.id, i]));
 const HANSE = 0, PORTUGAL = 1, VENICE = 2, OTTOMANS = 3, MING = 4, GUJARAT = 5, MALACCA = 6, RYUKYU = 7, SWAHILI = 8;
@@ -84,7 +84,7 @@ const bit = seat => 1 << seat;
 export const hasFactor = (s, p, seat) => (s.fac[p] & bit(seat)) !== 0;
 export const powerOf = (s, seat) => POWERS[s.pw[seat]];
 export const seatOfPower = (s, id) => s.pw.indexOf(POWER_IDX[id]);
-const nm = (s, seat) => (seat >= 0 ? powerOf(s, seat).name : "natives");
+const nm = (s, seat) => (seat >= 0 ? powerOf(s, seat).name : "the port's people");
 
 /** Ports where the Hanse founds a factor without a fleet: the Baltic and the North Sea (London, Antwerp). */
 export const kontorPort = p => PORTS[p].region === 0 || p === P("LON");
@@ -241,6 +241,8 @@ const buildCost = (s, seat, p) => {
   return COST.build;
 };
 const refitCost = s => (s.F.voc ? 2 : COST.refit);
+/** What an order costs its seat in silver (tolls on the way not counted). */
+export const orderCost = (s, seat, o) => ({ factor: COST.factor, build: o.t === "build" ? buildCost(s, seat, o.port) : 0, fort: COST.fort, claim: COST.claim, refit: refitCost(s), redress: COST.redress })[o.t] || 0;
 const fleetCap = (s, seat) => (s.pw[seat] === GUJARAT ? 1 : CAP);
 
 /** Why a seat's orders can't be set now, or "" when they can. */
@@ -399,11 +401,13 @@ function battle(s, rng, log, p, seat, n, target) {
   if (takes) s.gr[seat]++;
   const where = PORTS[p].name;
   const who = nm(s, target);
+  // the dice are in the line, so the page can show what was rolled: "dice 6·5 (+1) against 4·3 (+0)"
+  const rolled = `dice ${a.join("·")} (${ma >= 0 ? "+" : ""}${ma}) against ${df.length ? df.join("·") : "none"} (${md >= 0 ? "+" : ""}${md})`;
   if (takes && breach && s.fl[seat][p] > 0 && (target < 0 || s.fl[target][p] === 0)) {
     s.own[p] = seat; s.fort[p] = 0;
-    log.push(`${nm(s, seat)} takes ${where} from ${who}: a bombardment, one grievance token.`);
+    log.push(`${nm(s, seat)} takes ${where} from ${who}: ${rolled}; a bombardment, one grievance token.`);
   } else {
-    log.push(`${nm(s, seat)} attacks ${who} at ${where}: ${al ? `loses ${al}` : "loses none"}, ${dl ? `${who} loses ${dl}` : "no losses for them"}${takes ? "; a bombardment, one grievance token" : ""}.`);
+    log.push(`${nm(s, seat)} attacks ${who} at ${where}: ${rolled}; ${al ? `loses ${al}` : "loses none"}, ${dl ? `${who} loses ${dl}` : "no losses for them"}${takes ? "; a bombardment, one grievance token" : ""}.`);
   }
 }
 
@@ -428,7 +432,7 @@ export function resolveRound(s, all, rng, opt = {}) {
   for (let k = 0; k < s.n; k++) {
     for (const o of ord(k, "redress")) if (s.gr[k] > 0 && s.si[k] >= COST.redress) { s.si[k] -= COST.redress; s.gr[k]--; log.push(`${nm(s, k)} pays ${COST.redress} silver in compensation: one grievance token less.`); }
     for (const o of ord(k, "refit")) { void o; const c = refitCost(s); if (!s.oc[k] && s.si[k] >= c) { s.si[k] -= c; s.oc[k] = 1; log.push(`${nm(s, k)} buys ocean ships.`); } }
-    for (const o of ord(k, "build")) { const c = buildCost(s, k, o.port); if (s.own[o.port] === k && s.si[k] >= c && s.fl[k][o.port] < fleetCap(s, k)) { s.si[k] -= c; s.fl[k][o.port]++; } }
+    for (const o of ord(k, "build")) { const c = buildCost(s, k, o.port); if (s.own[o.port] === k && s.si[k] >= c && s.fl[k][o.port] < fleetCap(s, k)) { s.si[k] -= c; s.fl[k][o.port]++; log.push(`${nm(s, k)} builds a fleet at ${PORTS[o.port].name}.`); } }
   }
   // 2. moves: all leave, then all arrive; tolls and pirates on the way
   const arrivals = [];
@@ -447,7 +451,7 @@ export function resolveRound(s, all, rng, opt = {}) {
         const roll = 1 + Math.floor(rng() * 6);
         if (roll <= (s.gr[k] >= 3 ? 2 : 1) && n > 0) { n--; log.push(`Pirates take a ${nm(s, k)} fleet on the way to ${PORTS[o.to].name}.`); }
       }
-      if (n > 0) arrivals.push({ seat: k, to: o.to, n, atk: o.atk ?? null });
+      if (n > 0) { arrivals.push({ seat: k, to: o.to, n, atk: o.atk ?? null }); log.push(`${nm(s, k)} ${o.atk != null ? "sends" : "sails"} ${n} fleet${n > 1 ? "s" : ""} from ${PORTS[o.from].name} to ${PORTS[o.to].name}.`); }
     }
   }
   for (const a of arrivals) s.fl[a.seat][a.to] = Math.min(fleetCap(s, a.seat), s.fl[a.seat][a.to] + a.n);
@@ -675,6 +679,7 @@ export const rules = {
   seats: { min: 2, max: 6 },
   deal,
   toMove: s => (s.step === "over" ? null : nextSeat(s)),
+  toMoveAll: s => (s.step === "over" ? [] : waiting(s)),
   anytime: isOrders,
   act(s, seat, m, { rng }) {
     if (!isOrders(m)) return "Set your orders";

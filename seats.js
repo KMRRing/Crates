@@ -9,6 +9,10 @@
 //   { id, seats: { min, max },
 //     deal({ seats, options, rng, now, prev }) → state     a fresh game for that many seats (prev: the last one's state)
 //     toMove(state) → seat | null                          whose decision it is; null when it's nobody's (a pause, the end)
+//     toMoveAll?(state) → [seat]                           a game of simultaneous secret orders (Carrack): every seat yet to
+//                                                          decide; the runner has all the computer players among them move
+//                                                          at once, so a slow person doesn't hold them up (toMove still names
+//                                                          the first, for the view and for a person's away lapse)
 //     act(state, seat, move, { rng, now }) → state | string   the move made (on a copy), or why it can't be
 //     bot(state, seat, { level, rng }) → move              a computer player's move, from what that seat may know
 //     over(state) → bool
@@ -198,6 +202,32 @@ export function createRunner({ rules, table, level = () => null, pace = 900, bot
     if (!v.G || v.over || (t.local && paused())) return;
     const rev = t.data.rev;
     const who = v.toMove;
+    const together = rules.toMoveAll ? rules.toMoveAll(v.state).filter(k => v.seats[k]?.bot) : [];
+    if (together.length) {
+      // simultaneous orders: all the computer players set theirs in one change, as soon as the pace has passed
+      timer = setTimeout(() => t.drive(() => {
+        const b = t.data;
+        if (!b?.game || b.rev !== rev || (t.local && paused())) return;
+        t.act(cur => {
+          if (!cur.game) return false;
+          let done = false, owing = rules.toMoveAll(stateOf(rules, cur.game)).length;
+          for (const k of together) {
+            if (!rules.toMoveAll(stateOf(rules, cur.game)).includes(k)) continue;
+            let move;
+            try { move = botMove(rules, cur.game, k, level()); } catch (e) { console.error(e); continue; }
+            const r = applyMove(rules, cur.game, k, move, t.now());
+            if (r.error) { console.warn(`${rules.id}: the computer's move was refused (${r.error})`, move); continue; }
+            cur.game = r.G; done = true;
+            // the last orders in resolve the round and the next round's slots are empty again: nobody else moves into it
+            const left = rules.toMoveAll(stateOf(rules, cur.game)).length;
+            if (left >= owing) break;
+            owing = left;
+          }
+          return done ? undefined : false;
+        }, { rev });
+      }), typeof pace === "function" ? pace(v.state) : pace);
+      return;
+    }
     if (who != null && v.seats[who]?.bot) {
       timer = setTimeout(() => t.drive(() => {
         const b = t.data;

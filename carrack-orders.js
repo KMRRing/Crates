@@ -6,11 +6,9 @@
 // A game keeps in its state `pend`: one slot per seat, 0 while that seat has set nothing, else its orders as a list that
 // is never empty (the database keeps no empty lists, so "no orders" is written as [{ t: "pass" }]).
 //
-// What seats.js would need to do this properly (not done here, seats.js is shared): the runner moves a computer player only
-// when it is `toMove`, which is the lowest seat yet to set orders. A person in seat 0 who is slow therefore holds up every
-// computer player behind them (all of it hidden: nobody sees the others' orders), and at a table of several people the
-// bots wait for the first person. The fix is a `toMoveAll(state) → [seats]` beside `toMove`, and the runner scheduling
-// each bot in that list at once. Until then the cost is only the wait.
+// seats.js's runner moves a computer player when it is `toMove`, the lowest seat yet to set orders; so the rules also give
+// `toMoveAll(state)` (every seat yet to set them, `waiting` below) and the runner has all the computer players among them
+// set theirs in one change, whoever is slow (tests/carrack-seats.mjs).
 
 /** The seats yet to set their orders, lowest first. */
 export const waiting = s => s.pend.map((p, i) => (p === 0 ? i : -1)).filter(i => i >= 0);

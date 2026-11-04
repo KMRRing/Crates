@@ -1,6 +1,6 @@
 # Carrack
 
-A contest for trade from the Baltic to China, c. 1480 to 1650, for two to six of nine powers (Hanse towns, Portugal, Venice, the Ottomans; Ming China, Gujarati merchants, Malacca, Ryukyu, the Swahili city-states: at most three of the first four at a table). Eight rounds, each a trading year in one era (1480 to 1497, 1498 to 1516, 1517 to 1539, 1540 to 1564, 1565 to 1589, 1590 to 1611, 1612 to 1631, 1632 to 1650). Every power sets up to three secret orders at once; they are carried out together (pay, move, battle, found and claim, income, the era's events). Files: `carrack-map.js`, `carrack-rules.js`, `carrack-orders.js`, `carrack-bot.js`; `tests/carrack.mjs`, `tests/carrack-balance.mjs`. The UI and the tile are not built (October to November 2026: stage 1).
+A contest for trade from the Baltic to China, c. 1480 to 1650, for two to six of nine powers (Hanse towns, Portugal, Venice, the Ottomans; Ming China, Gujarati merchants, Malacca, Ryukyu, the Swahili city-states: at most three of the first four at a table). Eight rounds, each a trading year in one era (1480 to 1497, 1498 to 1516, 1517 to 1539, 1540 to 1564, 1565 to 1589, 1590 to 1611, 1612 to 1631, 1632 to 1650). Every power sets up to three secret orders at once; they are carried out together (pay, move, battle, found and claim, income, the era's events). Files: `carrack-map.js`, `carrack-rules.js`, `carrack-orders.js`, `carrack-bot.js`; `tests/carrack.mjs`, `tests/carrack-balance.mjs`, `tests/carrack-seats.mjs`. The page (`carrack.html`, `.js`, `.css`) and the tile are stage 2 (4 November 2026).
 
 ## Rulings
 
@@ -21,7 +21,8 @@ Recalled, not opened (a reviewer must check): Elmina fort 1482; Almeida at Kilwa
 
 ## Traps
 
-- Orders are simultaneous but `seats.js` has one `toMove`. `carrack-orders.js` uses Hearts' trick: setting orders is `anytime`, `toMove` is the lowest seat yet to set them, the last set resolves the round. A computer player behind a slow person waits for them; fixing that needs a `toMoveAll(state)` in `seats.js` (shared).
+- Orders are simultaneous but `seats.js` has one `toMove`. `carrack-orders.js` uses Hearts' trick: setting orders is `anytime`, `toMove` is the lowest seat yet to set them, the last set resolves the round. `toMoveAll` (added to `seats.js`, 4 November 2026) lets the runner set every computer player's orders at once; a game without it behaves as before.
+- The log lines are the page's text: the battle line carries the dice as `dice 6·5 (+1) against 4·3 (+0)`, which `carrack.js` turns into dice; change the wording and change `diceHtml` too. The powers are named so a verb agrees ("Hanse takes", not "Hanse towns takes").
 - The state keeps `pend[seat]` as 0 or a never-empty list (`[{ t: "pass" }]` for nothing); `restore` rebuilds everything the database drops.
 - Schematic map: x/y keep compass order only (the test checks it); do not "correct" a coordinate toward true scale, the names no longer fit. Labels are placed by `lab`; a new port needs the overlap test re-run.
 - A fleet is also the escort of a caravan: lanes marked `c` carry fleets too.
