@@ -1,7 +1,9 @@
 // Atoll's 3D view (nurikabe-3d.js), the parts that are plain arithmetic: which cell a ray meets, how far the camera stands for the
 // board to be in view at every turn and tilt, and that the page offers the view and keeps flat as its default.
 import fs from "node:fs";
-import { cellXZ, cellHit, fitDistance, basis, homeElevation, MIN_EL, MAX_EL, FOV, LAND_H, CLUE_H, BED_H, WATER_H } from "../nurikabe-3d.js";
+import { cellXZ, cellHit, fitDistance, basis, homeElevation, MIN_EL, MAX_EL, FOV, LAND_H, CLUE_H, BED_H, WATER_H, WATER_FULL } from "../nurikabe-3d.js";
+import { works, plotsOf, outward } from "../nurikabe-works.js";
+import { generate, puzzleOf, SEA } from "../nurikabe-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -38,12 +40,46 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
   check(homeElevation(0.5) >= MIN_EL && homeElevation(2) <= MAX_EL && homeElevation(0.5) < homeElevation(1.4), "the first tilt is within the limits, steeper for a tall card");
 }
 
+// ---------- the waterworks, from the solved sea: one intake and one outlet on the edge, a current along the network, and no detail by a number ----------
+{
+  let boards = 0, edgeOk = 0, flowOk = 0, nearNum = 0, spaced = 0, barged = 0;
+  for (const size of [6, 8, 10]) for (const seed of [11, 12, 13]) {
+    const p = generate(seed * 101 + size, size, "easy"), P = puzzleOf(size, p.grid, p.sol), N = size;
+    const marks = Array.from({ length: N * N }, (_, x) => (P.sol[x] === 1 ? SEA : "0")).join(""), w = works(N, P.clue, marks);
+    boards++;
+    if (w.source >= 0 && outward(N, w.source) && w.sea[w.source] && (w.outlet < 0 || (w.outlet !== w.source && outward(N, w.outlet)))) edgeOk++;
+    let ok = true;
+    for (let x = 0; x < N * N; x++) if (w.sea[x] && w.dist[x] >= 0) { const l = Math.hypot(w.flow[2 * x], w.flow[2 * x + 1]); if (l > 1e-6 && Math.abs(l - 1) > 1e-3) ok = false; }
+    if (ok) flowOk++;
+    const stands = [...w.locks.flatMap(l => l.gates), ...w.sluices.map(s => s.cell), ...w.bridges.map(b => b.cell), ...w.norias.map(n => n.cell)];
+    if (stands.every(x => !P.clue[x] && ![x - N, x + N, x - 1, x + 1].some(y => P.clue[y] && Math.abs((y % N) - (x % N)) <= 1))) nearNum++;
+    if (new Set(stands).size === stands.length && stands.every(x => w.sea[x])) spaced++;
+    if (w.barges === 0 || w.path.length >= 4) barged++;
+  }
+  check(edgeOk === boards, "the intake and the outlet are different sea cells on the board's edge");
+  check(flowOk === boards, "every channel cell's current is a unit direction (or still)");
+  check(nearNum === boards, "no lock gate, sluice, bridge or noria stands on or beside a number");
+  check(spaced === boards, "each detail has a cell of its own, in the water");
+  check(barged === boards, "barges ride only where the route from intake to outlet is long enough");
+  const N = 5, clue = Array(25).fill(0);
+  clue[0] = 2; clue[24] = 1;
+  const marks = "0".repeat(25).split("");
+  marks[1] = marks[5] = marks[6] = SEA;
+  const own = plotsOf(N, clue, marks.join(""));
+  check(own[0] === -1 && own[24] === -1, "a plot is whole only with its one number and exactly that many cells");
+  marks[2] = marks[7] = marks[10] = marks[11] = marks[3] = marks[4] = marks[8] = marks[9] = marks[12] = marks[13] = marks[14] = marks[15] = marks[16] = marks[17] = marks[18] = marks[19] = marks[20] = marks[21] = marks[22] = marks[23] = SEA;
+  const own2 = plotsOf(N, clue, marks.join(""));
+  check(own2[24] === 24 && own2[0] === -1, "a lone one-cell plot is whole");
+  check(WATER_FULL > WATER_H && WATER_FULL < LAND_H, "a solved canal fills above its first level and below the banks");
+}
+
 // ---------- the page: flat by default, the view on offer in the menu, the pixel ratio capped ----------
 {
   const js = fs.readFileSync(new URL("../nurikabe.js", import.meta.url), "utf8"), glsrc = fs.readFileSync(new URL("../nurikabe-3d.js", import.meta.url), "utf8");
   check(/wants3D\(prefs\.view, "model"\)/.test(js) && /Play in 3D/.test(js) && /Play in 2D/.test(js), "the view is the player's choice or the suite's default (3D, flat in 2D mode), and the menu offers each view");
   check(/setPixelRatio\(Math\.min\(devicePixelRatio \|\| 1, 2\)\)/.test(glsrc), "WebGL's pixel ratio is capped at 2");
   check(!/\b(alert|confirm|prompt)\(/.test(glsrc), "no browser pop-ups");
+  check(/soundSolved\(\)/.test(js) && /IN_FRAME\) soundSolved/.test(js), "the knock and the running water play on the player's own solve, never in a watching frame");
 }
 
 process.exit(bad ? 1 : 0);

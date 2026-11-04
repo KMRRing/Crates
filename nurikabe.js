@@ -2,6 +2,8 @@
 // the rest of the board is sea, in one piece and with no 2×2 block of it. The rules, the puzzles and the reasoning are
 // nurikabe-engine.js's (every puzzle has one answer, and is graded by the hardest step a person needs); the puzzles are
 // made in nurikabe-worker.js. This file keeps the run, the clock and the taps, and draws the board.
+import { solved as soundSolved } from "./nurikabe-sound.js";
+import { plotsOf } from "./nurikabe-works.js";
 import { SIZES, LEVELS, DAILY, NONE, SEA, LAND, puzzleOf, generate, nextMark, withMark, solvedBy, breaks, hintFor, levelOn } from "./nurikabe-engine.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -315,6 +317,7 @@ function finish() {
   save();
   roundOver("nurikabe");
   wave();
+  if (!IN_FRAME) soundSolved();
 }
 
 // ---------- the board ----------
@@ -330,6 +333,7 @@ function drawBoard() {
   cellEls = Array.from({ length: P.cells }, (_, x) => {
     const [r, c] = rc(x), g = svgEl("g", { class: "nk-c" }, svg);
     svgEl("rect", { x: c, y: r, width: 1, height: 1, class: "nk-cell" }, g);
+    svgEl("path", { d: `M${c + 0.18} ${r + 0.36}q.16-.12.32 0t.32 0M${c + 0.18} ${r + 0.66}q.16-.12.32 0t.32 0`, class: "nk-flow" }, g);
     svgEl("circle", { cx: c + 0.5, cy: r + 0.5, r: 0.1, class: "nk-dot" }, g);
     if (P.clue[x]) svgEl("text", { x: c + 0.5, y: r + 0.5 + 0.2, class: "nk-num" }, g).textContent = P.clue[x];
     svgEl("rect", { x: c + 0.07, y: r + 0.07, width: 0.86, height: 0.86, class: "nk-ring" }, g);
@@ -344,10 +348,10 @@ function drawBoard() {
 function paint() {
   if (!svg || !S) return;
   const br = breaks(P, S.marks), pool = new Set(br.pool), cut = new Set(br.cut), over = new Set(br.island), done = new Set(br.done);
-  const lit = new Set(S.lit?.set || []), why = new Set(S.lit?.focus || []);
+  const lit = new Set(S.lit?.set || []), why = new Set(S.lit?.focus || []), plots = plotsOf(P.N, P.clue, S.marks);
   for (let x = 0; x < cellEls.length; x++) {
     const m = S.marks[x];
-    const cls = ["nk-c", m === SEA ? "sea" : m === LAND ? "land" : "", pool.has(x) ? "pool" : "", cut.has(x) ? "cut" : "", over.has(x) ? "over" : "", done.has(x) ? "done" : "",
+    const cls = ["nk-c", m === SEA ? "sea" : m === LAND ? "land" : "", pool.has(x) ? "pool" : "", cut.has(x) ? "cut" : "", over.has(x) ? "over" : "", done.has(x) ? "done" : "", P.clue[x] ? "num" : "", plots[x] >= 0 ? "whole" : "",
       lit.has(x) ? "lit" : why.has(x) ? "why" : ""].filter(Boolean).join(" ");
     if (cellEls[x].g.getAttribute("class") !== cls) cellEls[x].g.setAttribute("class", cls);
   }
