@@ -262,6 +262,7 @@ a wide screen, an × at the top right, a tap outside closes it. Fill `#menuBody`
   Topics are not a content choice of a game's: they are Settings' one set of subjects (`topics.js`, `topics-on.js`,
   `topics-ui.js`), each on or off. A game maps its topics to subjects with `TOPIC_OF`, derives its mix when it deals with
   `mixFromSubjects` (all on is its old Balanced, seed for seed), and its menu shows `topicsPart` (a line and a link).
+- **No Difficulty, Strength or Size picker:** `ramp(game, steps, { start })` from `ramp.js` is the hidden level (up after a clean win with `ramp.won(clean)`, down after a loss with `ramp.lost()`, kept as `<game>:ramp`; `start` is the old saved choice); Korbi, 4 November 2026: the menu is the minimum it needs to be.
 - **No instructions in the menu.** A line longer than about two sentences is folded into a closed "How it works" at
   the bottom by `menu.js`; better still, cut it. Keep a menu to choices, buttons and a short status line.
 
