@@ -1,0 +1,83 @@
+/* Carrom as a birch board in a walnut frame, brass pockets, ivory and ebony men with a red queen. The board is a 3D picture
+   (carrom-3d.js) that reads its colours from the variables below, so each theme, day and night, tints it. Upright: the other
+   player, the board, you, then what's asked, the power of a pull and the buttons. Sideways: the board on the left and
+   everything else in the column beside it. */
+:root {
+  --ca-in: #8A5A2B;                                              /* the game's enamel: walnut, for its lines and buttons */
+  --ca-soft: color-mix(in srgb, var(--ca-in) 13%, var(--sheet));
+  --ca-board: #E3C48C; --ca-frame: #5B3A25; --ca-line: #5A341E; --ca-red: #A8382B; --ca-pocket: #15110F;
+  --ca-white: #F3E9D0; --ca-black: #2C2623; --ca-queen: #B22C26; --ca-striker: #2E828A;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --ca-in: #D3A168; --ca-board: #A98B5C; --ca-frame: #3C2819; --ca-line: #2E1B10; --ca-white: #E8DDC2; --ca-black: #3A332F; --ca-striker: #3D9AA3; }
+}
+html[data-mode="night"] { --ca-in: #D3A168; --ca-board: #A98B5C; --ca-frame: #3C2819; --ca-line: #2E1B10; --ca-white: #E8DDC2; --ca-black: #3A332F; --ca-striker: #3D9AA3; }
+html[data-theme="kontor"] { --ca-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --ca-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --ca-in: #2EB36A; }
+html[data-theme="office"] { --ca-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --ca-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --ca-in: #479EF5; }
+
+.ca-mark { display: inline-block; }
+.ca-mark svg { width: 100%; height: 100%; display: block; }
+.ca-strip { margin: 0; font-size: .82rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ca-strip b { color: var(--ink); }
+
+/* ---------- the players: a swatch, a name, the men still on the board ---------- */
+.ca-seat { display: flex; align-items: center; gap: .55rem; padding: .3rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); min-height: 2.3rem; box-sizing: border-box; margin-top: .4rem; }
+.ca-seat.turn { border-color: var(--ca-in); box-shadow: inset 0 0 0 1.5px var(--ca-in); }
+.ca-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ca-name small { font-weight: 600; color: var(--ink-soft); margin-left: .3rem; }
+.ca-men { display: flex; gap: .2rem; margin-left: auto; align-items: center; }
+.ca-pip { width: .8rem; height: .8rem; border-radius: 50%; box-sizing: border-box; flex: none; border: 1.5px solid var(--ink-soft); }
+.ca-pip.w { background: var(--ca-white); }
+.ca-pip.b { background: var(--ca-black); }
+.ca-pip.q { background: var(--ca-queen); border-color: var(--ca-queen); margin-left: .25rem; }
+.ca-pip.gone { background: transparent; opacity: .35; border-style: dashed; }
+.ca-pip.q.gone { background: transparent; }
+.ca-pip.q.held { opacity: 1; border-style: solid; }
+.ca-swatch { width: 1.3rem; height: 1.3rem; border-radius: 50%; flex: none; box-sizing: border-box; border: 2px solid var(--ink-soft); }
+.ca-swatch.w { background: var(--ca-white); }
+.ca-swatch.b { background: var(--ca-black); }
+.ca-note { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; }
+
+/* ---------- the board: all the room there is ---------- */
+.ca-stage { flex: 1 1 auto; min-height: 0; position: relative; margin: .3rem 0; }
+.ca-gl { display: block; position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+.ca-none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 1rem; color: var(--ink-soft); }
+
+/* ---------- what's asked, the power of a pull, the buttons ---------- */
+.ca-status { margin: 0; min-height: 2.9em; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; line-height: 1.3; font-size: .9rem; gap: .1rem; }
+.ca-status .last { color: var(--ink-soft); font-size: .8rem; }
+.ca-status b { color: var(--ca-in); }
+.ca-power { height: .45rem; margin: .25rem .4rem; border-radius: 3px; background: color-mix(in srgb, var(--ink) 12%, transparent); overflow: hidden; }
+.ca-power i { display: block; height: 100%; width: 0; background: #2F7D5B; }
+.ca-power.mid i { background: var(--brass); }
+.ca-power.high i { background: #A8382B; }
+.ca-power.off i { background: color-mix(in srgb, var(--ink) 35%, transparent); }
+.ca-controls { display: flex; gap: .45rem; align-items: center; }
+.ca-go { flex: 1 1 0; min-width: 0; min-height: 2.9rem; padding: .3rem .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ca-go.nudge { flex: 0 0 3.2rem; font-size: 1.3rem; line-height: 1; }
+.ca-dots::after { content: "…"; animation: ca-dots 1.2s steps(4, end) infinite; display: inline-block; width: 1em; overflow: hidden; vertical-align: bottom; }
+@keyframes ca-dots { from { width: 0; } to { width: 1em; } }
+@media (prefers-reduced-motion: reduce) { .ca-dots::after { animation: none; } }
+
+.ca-sheet p { line-height: 1.45; }
+.ca-rules h3 { margin: .9rem 0 .2rem; font-size: .8rem; text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass-lo); }
+.ca-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.ca-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* held sideways: the board on the left, everything else in the column beside it, the buttons at its foot */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.carrom { --beside: 21rem; grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto; }
+  #app.carrom .ca-stage { grid-column: 1; grid-row: 2 / span 6; margin: 0; }
+  #app.carrom #them { grid-column: 2; grid-row: 2; }
+  #app.carrom #mine { grid-column: 2; grid-row: 3; }
+  #app.carrom .ca-status { grid-column: 2; grid-row: 4; margin-top: .5rem; }
+  #app.carrom .ca-power { grid-column: 2; grid-row: 5; }
+  #app.carrom .ca-controls { grid-column: 2; grid-row: 7; }
+}
+html[data-theme="office"] .ca-seat { border-radius: 4px; }
