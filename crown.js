@@ -9,7 +9,8 @@ import { inHand, mustSquares, tapSquare } from "./crown-tap.js";
 import { boardSvg, centreOf, pieceSvg } from "./crown-draw.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
+import { defaultIs3D } from "./mode3d.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteDayTime, arrivedForToday, today } from "./suite.js";
 import { sure } from "./sure.js";
@@ -27,6 +28,39 @@ const BOT = "Computer";
 let opts = { set: "english", you: "ink", level: "medium", vs: "computer", mark: true, ahead: false, labels: false, ...read(OPTS, {}) };
 if (!SETS[opts.set]) opts.set = "english";
 const saveOpts = () => write(OPTS, opts);
+
+// ---------- the 3D board (crown-3d.js, loaded when it is wanted) ----------
+// Menu, Play in 3D / Play in 2D. With no choice of the player's own the suite's setting decides (mode3d.js); a choice is kept under
+// `crown:view` only when they make it, never the default. A partner's watching frame, and any device without WebGL, draw the flat board.
+const VIEW = "crown:view";
+const chosenView = () => { try { const v = localStorage.getItem(VIEW); return v === "3d" || v === "2d" ? v : null; } catch { return null; } };
+const wants3d = () => !IN_FRAME && !lost3d && (chosenView() ?? (defaultIs3D() ? "3d" : "2d")) === "3d";
+let board3d = null, making3d = false, lost3d = false;
+async function make3d(explicit) {
+  if (making3d) return;
+  making3d = true;
+  try {
+    const { createBoard } = await import("./crown-3d.js");
+    if (wants3d() && !board3d) {
+      board3d = createBoard($("board"), { onTap: tap3d, onLost: () => { lost3d = true; toast("3D stopped working here: the flat board."); draw(); } });
+      if (isPaused()) board3d.hold(true);
+    }
+  } catch (err) {
+    console.warn("Draughts: no 3D here, so the board is drawn flat.", err);
+    lost3d = true;
+    if (explicit) toast("No 3D on this device: the flat board.");
+  }
+  making3d = false;
+  draw();
+}
+onPause(() => board3d?.hold(true), () => board3d?.hold(false));
+addEventListener("settings:flat", () => { if (V) drawBoard(); });         // the suite's 2D setting reaches a game that has no choice of its own
+function setView(v) {
+  try { localStorage.setItem(VIEW, v); } catch { /* private mode */ }
+  if (v === "3d" && lost3d) lost3d = false;
+  if (v === "3d") make3d(true);
+  draw();
+}
 
 let toastTimer = 0;
 function toast(msg, ms = 2600) {
@@ -157,11 +191,11 @@ const canAct = () => !!V?.G && !V.over && !animating() && actor() != null && S()
 
 function drawBoard() {
   const box = $("board"), v = V;
-  if (!v?.G) { box.innerHTML = ""; return; }
+  if (!v?.G) { if (!board3d) box.innerHTML = ""; return; }
   const s = v.state, bottom = bottomSide();
   const view = { set: s.set, board: s.board, bottom, labels: opts.labels, last: s.last ? [...s.last.path] : [] };
   if (animating()) {
-    view.board = shown.anim.before;
+    if (!board3d) view.board = shown.anim.before;
     view.last = [];
   } else if (canAct()) {
     const list = legalNow(), must = mustSquares(list);
@@ -180,8 +214,32 @@ function drawBoard() {
     }
     if (ui.hint.length) view.hint = ui.hint;
   } else if (ui.hint.length && !s.result) view.hint = ui.hint;
+  const three = wants3d();
+  if (!three && board3d) { board3d.dispose(); board3d = null; box.innerHTML = ""; }
+  if (three && !board3d) make3d(false);
+  $("app").classList.toggle("cr3", !!board3d);
+  if (board3d) {
+    // the 3D board plays the move that led here itself, so it gets the position as it is now and not the one before the move
+    const mv = s.last ? { path: s.last.path, caps: s.last.caps, before: s.last.before } : null;
+    board3d.set({ ...view, board: s.board, move: mv });
+    if (animating()) run3dAnim(shown.anim, mv);
+    return;
+  }
   box.innerHTML = boardSvg(view);
   if (animating()) runAnim(shown.anim);
+}
+
+/** The other side's move on the 3D board: the board plays it, and the page keeps its input shut for as long as it takes. */
+function run3dAnim(a, mv) {
+  setTimeout(() => { if (shown.anim?.token !== a.token) return; shown.anim = null; draw(); }, board3d.duration(mv) + 120);
+}
+
+/** A tap on a square of the 3D board: the flat board's tap. True when it did something. */
+function tap3d(sq) {
+  if (!canAct()) return false;
+  const was = JSON.stringify([ui.sel, ui.partial, ui.hint]);
+  tap(sq);
+  return was !== JSON.stringify([ui.sel, ui.partial, ui.hint]);
 }
 
 /** The other side's piece slid along its path; the pieces it took go when it lands. */
@@ -438,10 +496,12 @@ function openMenu() {
     content.append(choice("You play", [["ink", "Ink (first)"], ["ivory", "Ivory"], ["swap", "Each in turn"]], opts.you, v => { opts.you = v; saveOpts(); }));
   }
   const set = part(body, "settings");
+  if (!IN_FRAME && (board3d || !lost3d)) set.append(action(board3d ? "Play in 2D" : "Play in 3D", () => setView(board3d ? "2d" : "3d")));
+  if (board3d) set.append(action("Reset the 3D view", () => board3d?.resetView(), "link"));
   set.append(line("The rules, colours and opponent apply from the next game."));
   set.append(toggle("Ring the pieces that must jump", opts.mark, on => { opts.mark = on; saveOpts(); draw(); }));
   set.append(toggle("Show who is ahead", opts.ahead, on => { opts.ahead = on; saveOpts(); aheadFor = { key: "", score: null }; if (V) work(V); draw(); }));
-  set.append(toggle("Coordinates on the board", opts.labels, on => { opts.labels = on; saveOpts(); draw(); }));
+  if (!board3d) set.append(toggle("Coordinates on the board", opts.labels, on => { opts.labels = on; saveOpts(); draw(); }));
   const r = read(RECORD, { played: 0, won: 0, drawn: 0 }), st = read("crown:run", { now: 0, best: 0 }), days = read("crown:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${r.drawn ? `, ${r.drawn} drawn` : ""}${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (days.best) part(body, "about").append(line(`Shot of the day: ${streakNow(days, today())} ${streakNow(days, today()) === 1 ? "day" : "days"} running, best ${days.best}.`));
@@ -456,7 +516,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => { if (V) drawBoard(); });
-window.__crown = { page, get view() { return V; }, opts, course, ready, get ui() { return ui; } };
+window.__crown = { page, get view() { return V; }, opts, course, ready, get ui() { return ui; }, get board3d() { return board3d; } };
 const forToday = arrivedForToday();      // from the games screen's tile: today's shot is still to play
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 if (forToday && dayShot && !page.atTable) dayShot.open(DAY.chapters[0].lessons[0].id);
