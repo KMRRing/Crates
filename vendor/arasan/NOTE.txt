@@ -12,7 +12,9 @@ Changes:  arasan-wasi.patch, applied to that commit: no thread is started (the s
           the build uses stop the engine instead (the build has no exceptions; none is ever thrown), "go nodes N" is new
           (the search ends at the first count of positions past N, once its first iteration is whole: Gambit's levels
           are set by positions, not time), MultiPV allows up to 16 lines (10 before), bitboards use WebAssembly's native
-          64-bit integers. No rule, search or evaluation is changed. wasi-shim/ stands in for what a WebAssembly C++
+          64-bit integers, and the network's first layer (1536 -> 16, int8) is summed in plain integers over the non-zero
+          groups of inputs: its SSE/AVX2 code gave other numbers than the layer's own generic code on the same input and
+          weights (puzzles solved at depth 8: 58 of 80 against 75 with the generic arithmetic). No rule or search is changed. wasi-shim/ stands in for what a WebAssembly C++
           library leaves out: <thread>, <mutex>, <condition_variable> and <pthread.h> (nothing is ever started),
           <fstream> (a file that can't be opened), and <immintrin.h>, the ~50 x86 SSE instructions the network code uses,
           written over WebAssembly SIMD with the same arithmetic. WebAssembly SIMD needs Safari 16.4 / iOS 16.4 or later.
@@ -20,7 +22,7 @@ Build:    build.sh (clang 18 for wasm32-wasi, with the WASI C library and libc++
           libc++-18-dev-wasm32 packages; the C++ library and the C library are linked into the .wasm, under the
           Apache 2.0 licence with the LLVM exception and the MIT and public-domain terms of wasi-libc, none of which
           asks for more than they already get from being named here). The script writes arasan.wasm and arasan.nnue.z.
-          arasan.wasm: SHA-256 da4cfbf4aa0d3853b52d70d8220539483e0ef656d6a283a3c197dd4ae8ec02c6, 840,050 bytes.
+          arasan.wasm: SHA-256 d56f0ca8654eeba1355f6b367710b200a11d07a55461daa481920a3cdaa22dfd, 840,811 bytes.
 Network:  arasanv9-20261023.nnue, from network/ in the same commit, 28,456,512 bytes, SHA-256
           95d981f4e03598a3110484c69f145455c278a525c62acd2a30c26f953382078c: 9 king buckets x 768 features into 1,536
           int16 neurons per side, then a sparse 1536 -> 16 -> 32 -> 1 head in int8 and int32, 8 variants by piece count.
@@ -58,5 +60,6 @@ Licence:  Arasan: MIT, Copyright 1994-2026 by Jon Dart, and its LICENSE grants t
 
 Why not the Caissa this replaced: its network (Caissa-Nets) carries no licence file, though the engine is MIT
 (docs/licences-images-and-engines.md). Why not the Stockfish before it: GPL v3. Arasan is the weaker of the engines that are
-clean (Korbi, 3 November 2026: "yea we go for the weaker one"): about 2.5 times the time per position of Caissa's in
-WebAssembly, and weaker at the same count of positions (tools/engine-levels-gambit-arasan.jsonl).
+clean (Korbi, 3 November 2026: "yea we go for the weaker one"): about 3 times the time per position of Caissa's in
+WebAssembly, and weaker at one position count (at 1,500 positions about 250 Elo below Caissa; the weaker levels, which
+draw among several moves, come out level; equal time was not measured): tools/engine-levels-gambit-arasan.jsonl.

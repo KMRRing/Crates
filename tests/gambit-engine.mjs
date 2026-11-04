@@ -16,7 +16,7 @@ import { roundTrip, same } from "./rtdb.js";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 // the search that fingerprints the network (see "the unpacked network"): found by running it once on the checked-in files
-const PROBE = { best: "e2e4", cp: 51 };
+const PROBE = { best: "e2e3", cp: 40 };
 let bad = 0;
 let lap = performance.now();
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}${process.env.LAPS ? ` [${Math.round(performance.now() - lap)} ms]` : ""}`); lap = performance.now(); if (!ok) bad++; };
@@ -30,7 +30,7 @@ const legalIn = (fen, moves = []) => {
 
 // ---------- the files ----------
 // (the hashes are the ones in vendor/arasan/NOTE.txt: a changed build or network is a deliberate act, noted there)
-check(sha("vendor/arasan/arasan.wasm") === "da4cfbf4aa0d3853b52d70d8220539483e0ef656d6a283a3c197dd4ae8ec02c6"
+check(sha("vendor/arasan/arasan.wasm") === "d56f0ca8654eeba1355f6b367710b200a11d07a55461daa481920a3cdaa22dfd"
   && sha("vendor/arasan/arasan.nnue.z") === "43f55bca0cc895a8319b7162f5e3fbac98e008ff661fdc0ee17c4f734bb85b3b", "the engine's WebAssembly and its packed network are the ones vendor/arasan/NOTE.txt names");
 // The app keeps offline whatever its pages load, found by reading them (tools/offline.mjs, tests/offline.mjs): the page
 // starts the worker by a literal path, and the worker fetches the engine and its network by literal paths too.

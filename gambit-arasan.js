@@ -10,6 +10,11 @@ const HASH_MB = 16;
 // Skill Level is Stockfish's; Arasan's own limiter (UCI_LimitStrength, UCI_Elo) is left off: a level plays by the nodes
 // it is given, and the draw among its moves (choose() in uci.js), so every level is the same engine at a different effort.
 const NOT_OURS = /^setoption name (Skill Level|UCI_LimitStrength|UCI_Elo)\b/i;
+// Arasan's centipawns run larger than Caissa's (the start 92 against 61, a queen up 1,700 against 668, depth 10), and the
+// coach's words (a pawn, much better, the winning chances) and the levels' temper were set on that smaller scale, so the
+// scores it says are put on it (0.4 matches at both ends); mate scores are not scaled.
+export const CP_SCALE = 0.4;
+const scaled = line => line.replace(/ score cp (-?\d+)/, (_, n) => ` score cp ${Math.round(Number(n) * CP_SCALE)}`);
 // bounds are search lines cut short (a window failing), not scores to draw from
 const wanted = line => !/ (lowerbound|upperbound)\b/.test(line);
 
@@ -51,7 +56,7 @@ export async function startArasan(wasm, net, onLine) {
   let asked = 1;                                                    // the lines the search in hand may print
   const whole = () => held.lines.size >= (held.size || asked) || !held.sent;
   const release = () => {
-    [...held.lines].sort((a, b) => a[0] - b[0]).forEach(([, l]) => onLine(l));
+    [...held.lines].sort((a, b) => a[0] - b[0]).forEach(([, l]) => onLine(scaled(l)));
     Object.assign(held, { lines: new Map(), size: held.lines.size, sent: true });
   };
   const hear = line => {
