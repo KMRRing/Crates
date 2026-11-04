@@ -12,7 +12,7 @@ export const DIST = 30;
 export const MIN_ELEV = 30 * DEG, MAX_ELEV = 88 * DEG, TOP = 88 * DEG, MAX_YAW = 38 * DEG, MAX_ZOOM = 2.4;
 export const FRAME = 0.62;                                    // the rim round the squares
 export const RIM_Y = 0.2, BASE_Y = -0.5;                      // the rim's top and the board's underside
-const GIVE = 0.04;
+const GIVE = 0.07;
 
 export const clampElev = e => Math.max(MIN_ELEV, Math.min(MAX_ELEV, Number.isFinite(e) ? e : 55 * DEG));
 export const clampYaw = y => Math.max(-MAX_YAW, Math.min(MAX_YAW, Number.isFinite(y) ? y : 0));
@@ -65,10 +65,10 @@ export function frame(outline, yaw, elev, w, h, pad = 0.05) {
 }
 /** How large the board is drawn at a pose, in pixels per unit of tangent. */
 export const sizeAt = (outline, yaw, elev, w, h) => { const x = extent(outline, yaw, elev); return Math.min(w / (x.u1 - x.u0), h / (x.v1 - x.v0)); };
-/** The height the board opens at: the lower the taller the box (a tall box has height to spare, which a low camera uses to show the
- *  board standing up), the highest a wide one; the one nearest that which costs at most GIVE of the largest picture. */
+/** The height the board opens at: the one nearest 50 degrees among those that cost at most GIVE of the largest picture (a low
+ *  camera shrinks the far side and a wide box would rather have it low; a tall one, width-bound, takes what is nearest 50). */
 export function fitted(outline, w, h) {
-  const t = Math.max(0, Math.min(1, (h / w - 0.7) / 0.5)), prefer = (62 - 18 * t) * DEG, all = [];
+  const prefer = 50 * DEG, all = [];
   for (let d = 32; d <= 80; d++) all.push({ elev: d * DEG, size: sizeAt(outline, 0, d * DEG, w, h) });
   const top = Math.max(...all.map(a => a.size));
   return { yaw: 0, elev: all.filter(a => a.size >= top * (1 - GIVE)).sort((a, b) => Math.abs(a.elev - prefer) - Math.abs(b.elev - prefer))[0].elev };

@@ -1,9 +1,12 @@
-/* Draughts's 3D board (crown-3d.js): the canvas fills what the seats leave, the camera fits the board into it, centred. */
+/* Draughts's 3D board (crown-3d.js): the canvas is the board's box, a little less tall than wide (a tilted board is a shallower
+   shape), with a row under it for the Top view button; the camera fits the board into the canvas, centred, and the seats stay close. */
 #app.cr3 .cr-table { gap: .35rem; }
-#app.cr3 .cr-board { flex: 1 1 0; width: 100%; min-height: 0; aspect-ratio: auto; align-self: stretch; position: relative; overflow: hidden; border-radius: 6px; }
-.cr3-gl { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+#app.cr3 .cr-board { flex: none; width: min(100cqw, calc((100cqh - 6rem) / .98)); aspect-ratio: 1 / .98; position: relative; }
+.cr3-gl { display: block; width: 100%; height: calc(100% - 2.5rem); touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; border-radius: 6px; }
 .cr-board.orbiting .cr3-gl { cursor: grabbing; }
-.cr3-top { position: absolute; right: .4rem; bottom: .4rem; min-height: 2.25rem; padding: 0 .7rem; font: inherit; font-size: .72rem; font-weight: 800;
+.cr3-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2.5rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.cr3-tip { font-size: .7rem; color: var(--ink-soft); line-height: 1.2; }
+.cr3-top { flex: none; min-height: 2.25rem; padding: 0 .7rem; font: inherit; font-size: .72rem; font-weight: 800;
   font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink);
-  background: color-mix(in srgb, var(--sheet) 88%, transparent); border: 1px solid var(--tile-edge); border-radius: 4px; cursor: pointer; }
+  background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 4px; cursor: pointer; }
 .cr3-top[aria-pressed="true"] { border-color: var(--cr-in); box-shadow: inset 0 0 0 1px var(--cr-in); }

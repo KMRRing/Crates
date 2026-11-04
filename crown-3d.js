@@ -182,13 +182,16 @@ const scaled = (hex, k) => new THREE.Color(hex).multiplyScalar(k);
 export function createBoard(host, { onTap = () => false, onLost = () => {} } = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "low-power" });   // throws where there is no WebGL: the page draws flat
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = 1;                                          // THREE.PCFShadowMap (the soft one was removed from three.js; PCF is soft enough at this size)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   const canvas = renderer.domElement;
   canvas.className = "cr3-gl";
-  const topBtn = document.createElement("button");
+  const topBtn = document.createElement("button"), bar = document.createElement("div"), tip = document.createElement("span");
   topBtn.type = "button"; topBtn.className = "cr3-top"; topBtn.textContent = "Top view"; topBtn.setAttribute("aria-pressed", "false");
-  host.replaceChildren(canvas, topBtn);
+  bar.className = "cr3-bar";
+  tip.className = "cr3-tip"; tip.textContent = "Two fingers turn it · two taps reset";
+  bar.append(tip, topBtn);
+  host.replaceChildren(canvas, bar);
 
   const scene = new THREE.Scene(), world = new THREE.Group();
   scene.add(world);
@@ -219,7 +222,7 @@ export function createBoard(host, { onTap = () => false, onLost = () => {} } = {
   const fade = m => track(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: m.roughness, metalness: m.metalness, transparent: true, opacity: 0.4, depthWrite: false }));
   const matInkFade = fade(matInk), matIvoryFade = fade(matIvory);
   const matTable = track(new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
-  const matCast = [0.16, 0.12, 0.08].map(o => track(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: o, depthWrite: false })));
+  const matCast = Array.from({ length: 10 }, () => 0.022).map(o => track(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: o, depthWrite: false })));
   const mark = (opacity = 1) => track(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity, depthWrite: false, toneMapped: false }));
   const MK = { last: mark(0.55), hint: mark(0.6), hintRing: mark(), must: mark(), sel: mark(), hop: mark(), hopEdge: mark(), end: mark() };
   for (const m of Object.values(MK)) { m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -2; }
@@ -255,7 +258,7 @@ export function createBoard(host, { onTap = () => false, onLost = () => {} } = {
     }
     mesh(merge(dark), matWalnut, false, true);
     // the shadow it throws on the table
-    [[0.55, 0], [1.1, 1], [1.9, 2]].forEach(([grow, k]) => {
+    Array.from({ length: 10 }, (_, k) => 0.15 + k * 0.14).forEach((grow, k) => {
       const m = new THREE.Mesh(slab(rrect(2 * B + grow, 2 * B + grow, 0.4 + grow / 2), BASE_Y - 0.012, 0.001), matCast[k]);
       m.frustumCulled = false; m.renderOrder = -1; g.add(m);
     });
@@ -279,7 +282,7 @@ export function createBoard(host, { onTap = () => false, onLost = () => {} } = {
       mat.userData.u.uLight.value.copy(scaled(hex, hi));
     }
     matBrass.color.setHex(col("--cr-edge", 0xb8923f));
-    matInk.color.setHex(col("--cr-ink", 0x222e38)); matInk.emissive.setHex(col("--cr-ink-edge", 0x0a1016)); matInk.emissiveIntensity = night ? 0.2 : 0.03;
+    matInk.color.setHex(col("--cr-ink", 0x222e38)); matInk.emissive.setHex(col("--cr-ink-edge", 0x0a1016)); matInk.emissiveIntensity = night ? 0.1 : 0.03;
     matIvory.color.setHex(col("--cr-ivory", 0xf7f0de));
     matInkFade.color.setHex(col("--cr-ink", 0x222e38)); matIvoryFade.color.setHex(col("--cr-ivory", 0xf7f0de));
     matInkMark.color.setHex(col("--cr-ink-mark", 0xd2ae5a)); matIvoryMark.color.setHex(col("--cr-ivory-mark", 0x2a3944)); matCrown.color.setHex(col("--cr-crown", 0xd8b04c));
@@ -290,7 +293,7 @@ export function createBoard(host, { onTap = () => false, onLost = () => {} } = {
     tk.done();
     sun.color.setHex(night ? 0xcfdcf6 : 0xfff0d8); sun.intensity = night ? 2.0 : 2.7;
     hemi.color.setHex(night ? 0xa5b4d2 : 0xfff4e4); hemi.groundColor.setHex(night ? 0x2a2018 : 0x5a4636); hemi.intensity = night ? 1.05 : 1.0;
-    renderer.toneMappingExposure = night ? 1.12 : 1.0;
+    renderer.toneMappingExposure = night ? 1.3 : 1.0;
     invalidate();
   }
 
@@ -337,7 +340,7 @@ export function createBoard(host, { onTap = () => false, onLost = () => {} } = {
     applyView();
   }
   function resize() {
-    const r = host.getBoundingClientRect();
+    const r = canvas.getBoundingClientRect();
     width = Math.max(1, Math.round(r.width)); height = Math.max(1, Math.round(r.height));
     renderer.setPixelRatio(Math.max(1, Math.min(devicePixelRatio || 1, 2, Math.sqrt(2.4e6 / (width * height)))));
     renderer.setSize(width, height, false);
@@ -604,15 +607,14 @@ export function createBoard(host, { onTap = () => false, onLost = () => {} } = {
   // to swing it a little, up and down to tilt). Two fingers pinch to zoom and, moving together, turn it (or, zoomed in, move
   // it); the wheel zooms where it points. Two taps that did nothing put the camera back.
   const ac = new AbortController();
-  const on = (type, fn, opts = {}) => host.addEventListener(type, fn, { ...opts, signal: ac.signal });
+  const on = (type, fn, opts = {}) => canvas.addEventListener(type, fn, { ...opts, signal: ac.signal });
   const touches = new Map();
   let pinch = null, pinchQueued = false, orbit = null, dragged = false, locked = false, lastTap = null, drift = null, wheelTimer = 0;
-  const capture = id => { try { host.setPointerCapture(id); } catch { /* the pointer is gone */ } };
+  const capture = id => { try { canvas.setPointerCapture(id); } catch { /* the pointer is gone */ } };
   const overBoard = (x, y) => { const p = boardPoint(pose, x, y, width, height); return !!p && onBoard(S, p[0], p[1]); };
   on("pointerdown", e => {
-    if (e.target === topBtn) return;
     if (touches.size >= 2) return;
-    const r = host.getBoundingClientRect();
+    const r = canvas.getBoundingClientRect();
     touches.set(e.pointerId, { from: [e.clientX, e.clientY], at: [e.clientX, e.clientY], mouse: e.pointerType === "mouse", button: e.button, shift: e.shiftKey, board: overBoard(e.clientX - r.left, e.clientY - r.top) });
     if (touches.size === 1) { dragged = false; locked = false; orbit = null; if (drift) { drift = null; dragged = true; } }
     else {
@@ -644,7 +646,7 @@ export function createBoard(host, { onTap = () => false, onLost = () => {} } = {
     }
   });
   function pinchStep() {
-    const r = host.getBoundingClientRect(), [a, b] = [...touches.values()].map(x => x.at);
+    const r = canvas.getBoundingClientRect(), [a, b] = [...touches.values()].map(x => x.at);
     const gap = Math.hypot(a[0] - b[0], a[1] - b[1]), mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], dx = mid[0] - pinch.mid[0], dy = mid[1] - pinch.mid[1];
     if (pinch.gap > 10) zoomAt(gap / pinch.gap, mid[0] - r.left, mid[1] - r.top);
     if (pose.zoom > 1.02) panBy(dx, dy); else turnBy(dx, dy);
@@ -685,7 +687,7 @@ export function createBoard(host, { onTap = () => false, onLost = () => {} } = {
     pinch = null; orbit = null; locked = false;
     host.classList.remove("orbiting");
     if (was || dragged || cancelled) return;
-    const r = host.getBoundingClientRect(), [x, y] = t.at;
+    const r = canvas.getBoundingClientRect(), [x, y] = t.at;
     const sq = pickAt(pose, x - r.left, y - r.top, width, height, setId, bottom, q => recs.has(q), q => isKing(recs.get(q)?.ch));
     const used = sq >= 0 && !!onTap(sq);
     const now = performance.now();
@@ -698,18 +700,18 @@ export function createBoard(host, { onTap = () => false, onLost = () => {} } = {
   on("wheel", e => {
     e.preventDefault();
     drift = null;
-    const r = host.getBoundingClientRect();
+    const r = canvas.getBoundingClientRect();
     zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
   }, { passive: false });
 
   const ro = new ResizeObserver(resize);
-  ro.observe(host);
+  ro.observe(canvas);
   const mo = new MutationObserver(applySkin);
   mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
   const mq = matchMedia("(prefers-color-scheme: dark)");
   mq.addEventListener?.("change", applySkin);
-  canvas.addEventListener("webglcontextlost", e => { e.preventDefault(); onLost(); });
-  canvas.addEventListener("webglcontextrestored", invalidate);
+  canvas.addEventListener("webglcontextlost", e => { e.preventDefault(); if (!dead) onLost(); }, { signal: ac.signal });
+  canvas.addEventListener("webglcontextrestored", invalidate, { signal: ac.signal });
   buildBoard("english");
   applySkin();
   resize();
