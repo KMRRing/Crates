@@ -1,0 +1,71 @@
+/* Art history: a course in a gilt frame. The page is a door (the plate and the way in); the lessons are on course.css's sheet, whose stage holds
+   the step's pictures in a row with a credit line under each. Colours are the suite's tokens; the oxblood enamel is the course's own. */
+:root { --ah-in: var(--c3); }
+.ah-mark { display: inline-block; }
+.ah-mark svg { width: 100%; height: 100%; display: block; }
+dialog.ln-sheet.ahc { --ln-in: var(--ah-in); }
+
+/* ---------- the page: the plate, the words, the way in ---------- */
+.ah-home { justify-content: center; align-items: center; gap: .8rem; min-height: 0; }
+.ah-plate { display: grid; place-items: center; min-height: 0; flex: 1 1 auto; width: 100%; }
+.ah-plate svg { width: 100%; height: 100%; max-width: 26rem; max-height: 100%; display: block; }
+.ah-about { display: grid; gap: .65rem; width: min(100%, 26rem); flex: none; align-content: center; }
+.ah-intro { margin: 0; color: var(--ink-soft); line-height: 1.45; font-size: .95rem; text-align: center; }
+.ah-fine { margin: 0; color: var(--ink-soft); font-size: .78rem; text-align: center; }
+.ah-meter { height: .3125rem; border-radius: 3px; background: var(--sheet); overflow: hidden; box-shadow: inset 0 0 0 1px var(--tile-edge); }
+.ah-meter i { display: block; height: 100%; width: 0; background: var(--brass); }
+.ah-go { width: 100%; min-height: 3rem; padding: 0 .8rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
+  cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ah-link { min-height: 2.5rem; border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: .88rem; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.ah-link[hidden] { display: none; }
+html[data-theme="modern"] .ah-go { border-radius: 14px; background: var(--ah-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
+html[data-theme="kontor"] .ah-go { border-radius: 2px; }
+@media (orientation: landscape) and (min-width: 700px) {
+  .ah-home { flex-direction: row; gap: 2rem; padding: 0 1rem; }
+  .ah-plate { flex: 1 1 0; height: 100%; }
+  .ah-about { flex: 0 0 22rem; }
+  .ah-intro, .ah-fine { text-align: left; }
+}
+/* the plate: a gilt frame, a mount, a small landscape */
+svg.ah .ah-wire { stroke: var(--ink-soft); stroke-width: 1.2; fill: none; }
+svg.ah .ah-pin { fill: var(--brass); stroke: var(--ink); stroke-width: 1; }
+svg.ah .ah-frame { fill: color-mix(in srgb, var(--brass) 70%, var(--sheet)); stroke: var(--ink); stroke-width: 2; }
+svg.ah .ah-rim { fill: none; stroke: color-mix(in srgb, var(--ink) 45%, transparent); stroke-width: 1; transform: translate(0, 0); }
+svg.ah .ah-mount { fill: var(--sheet); stroke: var(--brass); stroke-width: 1.4; }
+svg.ah .ah-sky { fill: color-mix(in srgb, var(--c2) 18%, var(--sheet)); }
+svg.ah .ah-sun { fill: var(--c0); stroke: var(--ink); stroke-width: 1; }
+svg.ah .ah-hill.far { fill: color-mix(in srgb, var(--c2) 55%, var(--sheet)); }
+svg.ah .ah-hill.near { fill: color-mix(in srgb, var(--c1) 70%, var(--sheet)); }
+svg.ah .ah-tower { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+svg.ah .ah-label { fill: var(--sheet); stroke: var(--brass); stroke-width: 1.2; }
+svg.ah .ah-label-line { stroke: var(--ink-soft); stroke-width: 1.2; stroke-linecap: round; }
+
+/* ---------- the stage: the step's pictures, each with its credit ---------- */
+.ah-stage { padding: .1rem 0; }
+.ah-pics { display: grid; gap: .5rem; height: 100cqh; min-height: 0; grid-template-columns: repeat(var(--n, 1), minmax(0, 1fr)); align-items: stretch; }
+.ah-pics.n1 { --n: 1; } .ah-pics.n2 { --n: 2; } .ah-pics.n3 { --n: 3; }
+.ah-fig { margin: 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: .25rem; }
+.ah-cell { position: relative; flex: 1 1 0; min-height: 0; border-radius: 3px; background: color-mix(in srgb, var(--brass) 10%, var(--sheet)) url("loader-small.svg") center / 2.2rem no-repeat;
+  box-shadow: inset 0 0 0 1px var(--tile-edge); overflow: hidden; }
+.ah-fig.gone .ah-cell { background-image: none; }
+.ah-pic { position: absolute; inset: .2rem; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; min-width: 0; min-height: 0; }
+.ah-pic[hidden] { display: none; }
+.ah-pic img.pic { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; background-image: none; }
+.ah-miss { position: absolute; inset: 0; display: grid; place-content: center; gap: .2rem; padding: .4rem; text-align: center; color: var(--ink-soft); }
+.ah-miss[hidden] { display: none; }
+.ah-miss b { font-size: .8rem; color: var(--ink); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.ah-miss span { font-size: .72rem; }
+.ah-fig figcaption { flex: none; min-height: 3.75em; font-size: .68rem; line-height: 1.25; color: var(--ink-soft); text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.ah-none { display: grid; place-items: center; height: 100cqh; color: var(--brass); font-size: 1.4rem; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.2em * var(--track)); opacity: .6; }
+@media (orientation: landscape) and (min-width: 700px) {
+  .ah-fig figcaption { font-size: .8rem; }
+  .ah-pics.n3 { --n: 3; }
+}
+
+/* the sheet's words and options take more of a phone's height than the stage's default allows: a question and four options must all show */
+@media (max-width: 699px) {
+  dialog.ln-sheet.ahc .ln-text { max-height: 46vh; max-height: 46svh; }
+  dialog.ln-sheet.ahc .ln-stage { min-height: 6.5rem; }
+}
+dialog.ln-sheet.ahc .ln-opt { min-height: 2.5rem; padding: .35rem .65rem; }

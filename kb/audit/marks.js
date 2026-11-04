@@ -1309,5 +1309,8 @@ export const ENTITY = {
   "jus-cogens": "p", "erga-omnes": "p", "par-in-parem": "p", "mare-liberum": "p", "transit-passage": "p", "mfn": "p",
   "national-treatment": "p", "blocking-statute": "p", "hull-formula": "p", "separation-of-powers": "p", "rule-of-law": "p", "separate-legal-personality": "p",
   "ultra-vires": "p", "fiduciary-duty": "p", "apparent-authority": "p", "delegatus": "p", "qui-facit-per-alium": "p", "undisclosed-principal": "p",
-  "del-credere": "p", "wrongful-trading": "p"
+  "del-credere": "p", "wrongful-trading": "p", "great-sphinx-of-giza": "r", "great-pyramid-of-giza": "r", "nefertiti-bust": "r", "mask-of-tutankhamun": "r",
+  "discobolus": "r", "doryphoros": "r", "kritios-boy": "r", "winged-victory-of-samothrace": "r", "venus-de-milo": "r", "laocoon-and-his-sons": "r",
+  "augustus-of-prima-porta": "r", "trajans-column": "r", "alexander-mosaic": "r", "basilica-of-san-vitale": "r", "christ-pantocrator-sinai": "r", "pisa-cathedral": "r",
+  "david-michelangelo": "r", "holy-trinity-masaccio": "r", "ecstasy-of-saint-teresa": "r", "psyche-revived-by-cupids-kiss": "r", "fountain-duchamp": "r", "unique-forms-of-continuity-in-space": "r"
 };
