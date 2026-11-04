@@ -19,7 +19,7 @@ import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, toggle, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, mirror, toggle, onPause, isPaused, todayPart } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
@@ -841,7 +841,6 @@ function showRules() {
 
 // the menu: Play (a new puzzle, clearing the board, the rules), Content (Levels or Free play; in Levels the ladder, in Free play
 // random or today's, the size, the difficulty, the twist), About
-let pick = null;                                              // what New puzzle starts in Free play: "random" or "daily"
 /** The levels, three to a row under their chapter: each its chart in miniature, its number and name and the stars won. Those not open yet are dimmed; any open one can be played at any time, as it was left. */
 function levelList() {
   const all = document.createElement("div");
@@ -904,21 +903,18 @@ function openMenu() {
     return;
   }
   const levels = track === "levels", content = part(body, "content"), play = part(body, "play");
-  pick ??= S?.mode === "daily" ? "daily" : "random";
-  play.append(action("New puzzle", () => (levels ? confirmLevelBlock() : confirmStart(pick)), "primary"));
+  play.append(action("New puzzle", () => (levels ? confirmLevelBlock() : confirmStart("random")), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
   play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "chart" : "model"), "link"));
   play.append(action("The rules", showRules, "link"));
   content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
   if (levels) content.append(levelList());
   else {
-    content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-    if (pick === "random") {
-      content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
-      content.append(mirror("Level", $("level")));
-      content.append(choice("Twist", Object.entries(TWISTS), prefs.twist, v => { prefs.twist = v; savePrefs(); kindChanged(); openMenu(); }));
-    } else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
+    content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
+    content.append(mirror("Level", $("level")));
+    content.append(choice("Twist", Object.entries(TWISTS), prefs.twist, v => { prefs.twist = v; savePrefs(); kindChanged(); openMenu(); }));
   }
+  todayPart(body, { app: "bridges", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
   const about = part(body, "about");
   if (levels) {
     const solved = camp.stars.filter(Boolean).length;

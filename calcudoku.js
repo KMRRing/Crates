@@ -18,7 +18,7 @@ import { branchPath } from "./rooms.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, toggle, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, toggle, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
@@ -775,7 +775,6 @@ function showRules() {
 }
 
 // ---------- the menu ----------
-let pick = null;                     // what the menu's New grid starts: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -792,19 +791,16 @@ function openMenu() {
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
-  pick = COOP ? "random" : pick ?? (S?.mode === "daily" ? "daily" : "random");
   const play = part(body, "play");
-  play.append(action(COOP ? "Another grid" : "New grid", () => confirmStart(pick), "primary"));
+  play.append(action(COOP ? "Another grid" : "New grid", () => confirmStart("random"), "primary"));
   if (S && !S.done) {
     play.append(action("Fill in every pencil mark", fillNotes));
     if (!COOP) play.append(action("Show the solution", giveUp, "link"));       // a shared grid is never given up on for both
   }
   play.append(action("The rules", showRules, "link"));
-  const content = part(body, "content");
-  if (!COOP) content.append(choice("Grid", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") contentPart(body, COOP);
-  else content.append(line("Today's grid is a classic 6×6 at Medium, the same for everyone; its time is the games screen's figure."));
-  settingsPart(body, COOP || pick !== "random");
+  contentPart(body, COOP);
+  settingsPart(body, COOP);
+  if (!COOP) todayPart(body, { app: "calcudoku", play: () => start("daily"), playing: S?.mode === "daily" && S.grid.seed === today(), busy: startedSolo() });
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one grid for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const best = S && !COOP ? read(TIMES, {})[kindKey(kindOf(P))] : null;
   const about = part(body, "about");
@@ -888,7 +884,6 @@ $("size").addEventListener("change", async () => {
   settings.level = levelFor(settings.rules, settings.size, settings.level);
   saveSettings();
   if (duel.on) return;                               // at a table, it's what Another grid deals
-  pick = "random";
   if (!(await confirmStart("random")) && P) { settings.size = P.n; saveSettings(); syncSize(P.n); }    // kept the grid: its size stays
 });
 syncSize();

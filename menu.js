@@ -12,7 +12,9 @@
 // Loaded by every page through pwa.js.
 
 import { MARK } from "./mark.js";
-import { IN_FRAME } from "./suite.js";
+import { IN_FRAME, markOf } from "./suite.js";
+import { sure } from "./sure.js";
+import { todayState } from "./today-core.js";
 
 export const PARTS = ["play", "content", "together", "settings", "about"];
 const LABEL = { play: "", content: "Content", together: "Together", settings: "Settings", about: "About" };
@@ -123,6 +125,31 @@ export function mirror(label, select) {
 }
 /** A short status line (a best, where you are). */
 export const line = text => el("p", "menu-line", text);
+
+/**
+ * Today's daily, as a button and not a mode (Korbi, 4 November 2026): put at the top of the Play part.
+ *  - still to play: a primary "Play today's" (asks first when `busy`, a run you've started that it would leave);
+ *  - being played: a line "Today's: playing", and `back` (a function, or { text, fn }) to the run you left, if the game kept one;
+ *  - done: no button, one line "Today's: done" and the game's own `result` ("9 of 12", a time, a score).
+ * `done` is the game's own record; give `app` instead and it is read as the games screen's tile reads it (`markOf`), with a time
+ * or a score for the result. `play` starts today's (the menu has closed by then). Returns the elements it put there.
+ */
+export function todayPart(body, { app, done, result, play, playing = false, busy = false, back = null } = {}) {
+  const st = todayState({ done, result, playing, back, mark: app ? markOf(app) : null });
+  const items = [];
+  if (st.kind === "done") items.push(line(st.line));
+  else if (st.kind === "playing") {
+    items.push(line(st.line));
+    if (st.back) items.push(action(st.back.text, st.back.fn, "link"));
+  } else {
+    items.push(action(st.button, async () => {
+      if (busy && !(await sure("Today's is waiting. Leave the one you've started?", { yes: "Today's", no: "Keep mine" }))) return;
+      play();
+    }, "primary"));
+  }
+  part(body, "play").prepend(...items);
+  return items;
+}
 
 export const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 // Kontor's menu button: three rules, technical

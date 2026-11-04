@@ -7,7 +7,7 @@ import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
@@ -618,25 +618,21 @@ function showRules() {
 }
 
 // the menu: Play (a new puzzle, clearing the board, the rules), Content (random or today's, the stars, the size, the level), About
-let pick = null;                                              // what New puzzle starts: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const content = part(body, "content");
-  pick = pick ?? (S?.mode === "daily" ? "daily" : "random");
   const play = part(body, "play");
-  play.append(action("New puzzle", () => confirmStart(pick), "primary"));
+  play.append(action("New puzzle", () => confirmStart("random"), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
   play.append(action("The rules", showRules, "link"));
-  content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") {
-    content.append(choice("Shape", Object.entries(SHAPES), prefs.shape, v => { prefs.shape = v; savePrefs(); kindChanged(); openMenu(); }));
-    if (prefs.shape === "flat") {
-      content.append(choice("Stars a row", STARS.map(n => [n, String(n)]), prefs.k, v => { prefs.k = v; if (!KINDS[v].includes(prefs.size)) prefs.size = 8; savePrefs(); kindChanged(); openMenu(); }));
-      content.append(choice("Size", KINDS[prefs.k].map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
-    } else content.append(choice("Size", SOLID_SIZES[prefs.shape].map(n => [n, sizeName(prefs.shape, n)]), prefs.sizes[prefs.shape], v => { prefs.sizes[prefs.shape] = v; savePrefs(); kindChanged(); openMenu(); }));
-    content.append(mirror("Level", $("level")));
-  } else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
+  content.append(choice("Shape", Object.entries(SHAPES), prefs.shape, v => { prefs.shape = v; savePrefs(); kindChanged(); openMenu(); }));
+  if (prefs.shape === "flat") {
+    content.append(choice("Stars a row", STARS.map(n => [n, String(n)]), prefs.k, v => { prefs.k = v; if (!KINDS[v].includes(prefs.size)) prefs.size = 8; savePrefs(); kindChanged(); openMenu(); }));
+    content.append(choice("Size", KINDS[prefs.k].map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
+  } else content.append(choice("Size", SOLID_SIZES[prefs.shape].map(n => [n, sizeName(prefs.shape, n)]), prefs.sizes[prefs.shape], v => { prefs.sizes[prefs.shape] = v; savePrefs(); kindChanged(); openMenu(); }));
+  content.append(mirror("Level", $("level")));
+  todayPart(body, { app: "asterism", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
   const look = part(body, "settings");
   if (shapeOf(S) === "flat") look.append(choice("View", [["space", "Space"], ["flat", "Flat grid"]], lookNow(), v => { slowFlat = false; prefs.look = v; savePrefs(); if (P) drawBoard(); openMenu(); }));
   if (space) look.append(action("Reset the view", () => space?.resetView()));

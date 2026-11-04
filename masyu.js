@@ -8,7 +8,7 @@ import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
@@ -522,21 +522,17 @@ function showRules() {
 }
 
 // the menu: Play (a new puzzle, clearing the board, the rules), Content (random or today's, the size, the level), About
-let pick = null;                                              // what New puzzle starts: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const content = part(body, "content");
-  pick = COOP ? "random" : pick ?? (S?.mode === "daily" ? "daily" : "random");
   const play = part(body, "play");
-  play.append(action(COOP ? "Another puzzle" : "New puzzle", () => confirmStart(pick), "primary"));
+  play.append(action(COOP ? "Another puzzle" : "New puzzle", () => confirmStart("random"), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
   play.append(action("The rules", showRules, "link"));
-  if (!COOP) content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") {
-    content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
-    content.append(mirror("Level", $("level")));
-  } else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
+  if (!COOP) todayPart(body, { app: "masyu", play: () => start("daily"), playing: S?.mode === "daily" && S.seed === today(), busy: started() });
+  content.append(choice("Size", SIZES.map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
+  content.append(mirror("Level", $("level")));
   if (coop) part(body, "together").append(line(`Co-op with ${coop.otherName}: one board for you both.`), action(coop.host ? "End the co-op" : "Leave the co-op", () => coop.leave(), "link"));
   const best = S && !COOP ? bestOf(S) : null;
   const about = part(body, "about");
