@@ -1,4 +1,4 @@
-// Parley: three beginner courses (parley-courses.js) on the pile's schedule. A study session reviews what's due,
+// Parley: four beginner courses (parley-courses.js) on the pile's schedule. A study session reviews what's due,
 // each card at the drill its pile level earns (recognise, then listen, then produce, then cloze), and then
 // introduces new words, each shown on a learn card and drilled at once, up to a daily cap; any unit can also be
 // learned at once from its row, whatever the day's count. The phone's voice reads
@@ -146,6 +146,7 @@ function learnCard(it) {
   if (w.ex.py) ex.append(el("div", "py", w.ex.py));
   ex.append(el("div", "en", w.ex.en), speakBtn(w.ex.l2));
   card.appendChild(ex);
+  if (w.note) card.appendChild(el("div", "wnote", w.note));
   speak(w.w);
   const go = document.createElement("button"); go.type = "button"; go.className = "pa-go"; go.textContent = "Got it: test me";
   go.addEventListener("click", () => {
@@ -165,7 +166,7 @@ function drill(it, kind) {
   const { w } = it, r = rng((Date.now() ^ it.key.length * 7919) >>> 0);
   const pool = allWords().filter(x => x.key !== it.key && (met().has(x.key) || x.unit === it.unit));
   // the wrong answers: none that means the same, sounds the same, or shows the same label as another option
-  const label = x => (C.script ? `${x.w}\n${x.py}` : x.w), sound = x => x.py || x.w;
+  const label = x => (C.script ? `${x.w}\n${x.py}` : x.w), sound = x => x.py || strip(x.w);   // qué and que sound the same
   const others = (n, show) => {
     const taken = new Set([show(w)]), out = [];
     for (const { w: x } of shuffle(r, pool.slice())) {
@@ -199,7 +200,7 @@ function drill(it, kind) {
     typed(it);
   } else {
     // the word in its sentence, matched without case and without its article (le professeur → Professeur)
-    const bare = w.w.replace(/^(le|la|l'|les|un|une|der|die|das|ein|eine) /, "").replace(/ \((m|f)\)$/, "").replace(/^(avoir|haben) /, "");
+    const bare = w.w.replace(ART, "").replace(/ \((m|f)\)$/, "").replace(/^(avoir|haben) /, "");
     const target = [w.w, bare].find(t => new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(w.ex.l2));
     const sentence = w.ex.l2, gapped = target ? sentence.replace(new RegExp(target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "____") : sentence;
     if (gapped === sentence) { drill(it, "recognise"); return; }
@@ -229,8 +230,11 @@ function toneNumbers(py) {
     return t ? plain + t : plain;
   }).join(" ");
 }
-const isNoun = w => /^(le|la|l'|les|un|une|der|die|das|ein|eine) /.test(w.w);
-const articleOf = w => (w.w.match(/^(le|la|l'|les|un|une|der|die|das|ein|eine) /) || [])[1] || null;
+// the articles a word can open with, and the ones typed production offers (un/una, ein/eine and plurals are shown, not drilled)
+const ARTICLES = { fr: ["le", "la", "l'"], de: ["der", "die", "das"], es: ["el", "la"] };
+const ART = /^(le|la|l'|les|un|une|der|die|das|ein|eine|el|los|las|una) /;
+const isNoun = w => ART.test(w.w);
+const articleOf = w => (w.w.match(ART) || [])[1] || null;
 const strip = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9' ]/g, "").replace(/\s+/g, " ").trim();
 
 /** Multiple choice; one tap judges. */
@@ -254,7 +258,7 @@ function typed(it) {
   let article = null;
   if (!C.script && isNoun(w)) {
     const want = articleOf(w);
-    const arts = C.id === "fr" ? ["le", "la", "l'"] : ["der", "die", "das"];
+    const arts = ARTICLES[C.id] || ARTICLES.de;
     const row = el("div", "pa-articles");
     const btns = arts.map(a => { const b = document.createElement("button"); b.type = "button"; b.className = "pa-option"; b.textContent = a; b.setAttribute("aria-pressed", "false"); b.addEventListener("click", () => { article = a; btns.forEach(x => x.setAttribute("aria-pressed", String(x === b))); }); return b; });
     row.append(...btns);
@@ -274,10 +278,10 @@ function typed(it) {
       right = got === want || got.replace(/5/g, "") === want.replace(/5/g, "");
       if (!right && sameSounds) note = `The sounds are right; the tones aren't: ${w.py}.`;
     } else {
-      const bare = w.w.replace(/^(le|la|l'|les|un|une|der|die|das|ein|eine) /, "").replace(/ \((m|f)\)$/, "");
+      const bare = w.w.replace(ART, "").replace(/ \((m|f)\)$/, "");
       const wordRight = strip(v) === strip(bare) || strip(v) === strip(w.w);
       const want = articleOf(w);
-      const articleRight = !want || !["le", "la", "l'", "der", "die", "das"].includes(want) || article === want;
+      const articleRight = !want || !(ARTICLES[C.id] || []).includes(want) || article === want;
       right = wordRight && articleRight;
       if (wordRight && !articleRight) note = `The word is right; the article is ${want}: ${w.w}.`;
     }
@@ -305,7 +309,7 @@ function showVerdict(it, locked = false) {
   const v = $("verdict");
   v.className = `pa-verdict ${right ? "good" : "bad"}`;
   v.textContent = right ? (learned ? "Right: learned." : "Right.") : "Not quite.";
-  $("note").textContent = note || `${w.w}${w.py ? ` (${w.py})` : ""}: ${w.en}. ${w.ex.l2}${w.ex.py ? ` ${w.ex.py}` : ""} — ${w.ex.en}`;
+  $("note").textContent = (note || `${w.w}${w.py ? ` (${w.py})` : ""}: ${w.en}. ${w.ex.l2}${w.ex.py ? ` ${w.ex.py}` : ""} — ${w.ex.en}`) + (w.note ? ` (${w.note})` : "");
   if (locked) $("answerBox").querySelectorAll("button, input").forEach(x => { x.disabled = true; });
   $("nextBtn").hidden = false;
   $("nextBtn").textContent = session.at + 1 < session.items.length ? "Next" : "Finish";
