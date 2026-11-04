@@ -1,11 +1,11 @@
-// Masyu's rules, puzzles and reasoning. One loop is drawn through the middles of the cells of a grid, from cell to
+// Pearl's rules, puzzles and reasoning. One loop is drawn through the middles of the cells of a grid, from cell to
 // neighbouring cell; it never crosses, branches or touches itself. A white circle is passed straight through, and the
 // loop turns in the cell before or the cell after it (or both). A black circle is a turn, and the loop goes straight on
 // for at least one more cell both ways. Every circle is on the loop; the loop needn't visit every cell. Every puzzle made
 // here has exactly one answer and is graded by the hardest step a person needs to reach it. No page in it:
 // masyu-worker.js makes puzzles off the page, masyu.js plays them, tests/masyu.mjs checks it all in Node.
 //
-// The loop is Slitherlink's, one size down: the cells of an N×N board are the corners of a Slitherlink board of
+// The loop is Circuit's, one size down: the cells of an N×N board are the corners of a Circuit board of
 // (N-1)×(N-1) cells, so the board, its edges, the corner rule and the loop rule are loop-engine.js's, and this file brings
 // the circles. A state is one number an edge (0 unknown, 1 line, 2 crossed), the marks a player keeps are the same as
 // characters, one string a board; the first N·(N-1) edges are the horizontal ones, row by row, then the vertical ones.
@@ -159,8 +159,8 @@ export function answerOf(size, grid) {
 /**
  * A closed loop for the N×N board (N even), as the cells inside it on the (N-1)×(N-1) board the loop outlines: a random
  * tree of 2×2 blocks, each block a cell of the inside and each branch a cell joining two, so the outline is a single
- * loop that never meets itself and, unless leaves were cut off, passes through every cell of the Masyu board. A blob of
- * cells grown at random (Slitherlink's loops) has outlines of short steps, which leave a Masyu puzzle almost no circles to
+ * loop that never meets itself and, unless leaves were cut off, passes through every cell of the Pearl board. A blob of
+ * cells grown at random (Circuit's loops) has outlines of short steps, which leave a Pearl puzzle almost no circles to
  * put; this one has long runs and corners with arms. `keep` is the share of blocks left after cutting leaves.
  */
 function treeLoop(N, rng, keep) {

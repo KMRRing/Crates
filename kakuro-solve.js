@@ -1,4 +1,4 @@
-// Kakuro's exact solver, pure: candidates as bit masks, every run kept to the ways it can still be filled, and a
+// Tally's exact solver, pure: candidates as bit masks, every run kept to the ways it can still be filled, and a
 // search on the cell with the fewest candidates, counting solutions up to a limit (two, to prove there is exactly one).
 // The generator fills its grids with it too, and kakuro-logic.js's human-style solver uses fitRun for its own step.
 import { POP, ALL, bit, digitOf, digitsOf, combosOf } from "./kakuro-grid.js";

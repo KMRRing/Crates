@@ -1,4 +1,4 @@
-// Masyu: draw one loop through the middles of the cells of a grid, from cell to neighbouring cell; it goes straight through
+// Pearl: draw one loop through the middles of the cells of a grid, from cell to neighbouring cell; it goes straight through
 // every white pearl (and turns in a cell next to it) and turns on every black pearl (going straight on for a cell
 // either way), and never crosses or touches itself. The rules, the puzzles and the reasoning are masyu-engine.js's (every
 // puzzle has one answer, and is graded by the hardest step a person needs); the puzzles are made in masyu-worker.js. This
@@ -52,7 +52,7 @@ const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.l
 
 // ---------- making puzzles ----------
 // Made in a worker, so the screen stays responsive, and a spare of each kind played lately is made in the background
-// and kept, so a new puzzle is instant. Where there's no worker they're made on the page, as Hitori's are.
+// and kept, so a new puzzle is instant. Where there's no worker they're made on the page, as Cull's are.
 let worker = null, workerless = false, asked = 0;
 const waiting = new Map();
 function make(seed, k) {
@@ -516,7 +516,7 @@ function showRules() {
     <h4>Time</h4>
     <p>Your score is your time plus ${HINT} seconds a hint; lower is better, and your best is kept for each size and level. The clock stops while the menu, these rules or the games screen is open.</p>
     <h4>Today's puzzle</h4>
-    <p>An 8×8 at Medium, the same for everyone. Its first solve counts the moment the loop is drawn, and is Masyu's figure on the games screen.</p>`;
+    <p>An 8×8 at Medium, the same for everyone. Its first solve counts the moment the loop is drawn, and is Pearl's figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
 }

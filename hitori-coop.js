@@ -1,6 +1,6 @@
-// Hitori played as a pair (docs/coop.md): how the game's saved run becomes a shared board and a shared board becomes a run
+// Cull played as a pair (docs/coop.md): how the game's saved run becomes a shared board and a shared board becomes a run
 // again. Pure, so tests can check it without a page, and loaded by the host's phone on any page when a partner is let in
-// (coop-games.js lists it), not only by Hitori's own. Not the split board of duel.js (each partner sees half the numbers):
+// (coop-games.js lists it), not only by Cull's own. Not the split board of duel.js (each partner sees half the numbers):
 // here both of you see every number and edit one board.
 //
 // The shared board: the puzzle (`fixed`: it never changes) and one layer, `marks`, a character a cell as in a run ("." nothing,

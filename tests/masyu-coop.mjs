@@ -1,4 +1,4 @@
-// Masyu as a pair (masyu-coop.js, on board-share.js; docs/coop.md): the host's run becomes a shared board and the board a run
+// Pearl as a pair (masyu-coop.js, on board-share.js; docs/coop.md): the host's run becomes a shared board and the board a run
 // again, a board this version can't play is refused, and two phones on one board in the database in memory: lines drawn on
 // different edges both stand, the same edge changed two ways ends as one value, an undo leaves what the partner did since, a
 // hint counts once, the solve is the first writer's and nothing changes the lines after it.
@@ -14,7 +14,7 @@ const puzzle = generate(7, 6, "easy");
 const run = { v: 1, mode: "random", seed: 7, size: 6, level: "easy", came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol, marks: "0".repeat(puzzle.sol.length), ms: 4000, hints: 1, undo: [[1, "0", "1", 0]], redo: [], lit: { set: [1] } };
 
 // ---------- registered, and its board out of the host's saved keys ----------
-check(COOP_GAMES.masyu?.page === "masyu.html" && COOP_GAMES.masyu.keys.join() === KEY && (await coopAdapter("masyu")).share === coopOf.share, "Masyu is in coop-games.js, its key under masyu:, its adapter loads");
+check(COOP_GAMES.masyu?.page === "masyu.html" && COOP_GAMES.masyu.keys.join() === KEY && (await coopAdapter("masyu")).share === coopOf.share, "Pearl is in coop-games.js, its key under masyu:, its adapter loads");
 const board = coopOf.share({ [KEY]: JSON.stringify(run) });
 check(board && board.layers.marks === run.marks && board.fixed.sol === run.sol && board.fixed.grid === run.grid && board.start.ms === 4000 && board.start.hints === 1, "a puzzle in play becomes a board: its puzzle fixed, its marks the one layer, the clock and hints where the host stood");
 check(!("undo" in board.fixed) && !("marks" in board.fixed) && !("ms" in board.fixed) && !("done" in board.fixed) && !("lit" in board.fixed), "what is the host's own (undo, the clock, marks, a hint's gilt) is not in the puzzle");

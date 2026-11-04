@@ -1,4 +1,4 @@
-// Nurikabe (nurikabe-engine.js): the board, the rules checked against every filling of small boards by a plain search, the
+// Atoll (nurikabe-engine.js): the board, the rules checked against every filling of small boards by a plain search, the
 // generator (one answer, across seeds, every size and level, the same puzzle for a seed on every device, today's the same
 // for everyone), the grading (each level solves a puzzle and the one below doesn't), the steps a hint takes (each true of
 // the answer, and enough to solve a puzzle alone), the rules the marks break, and a run through JSON and the database's

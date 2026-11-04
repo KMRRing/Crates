@@ -1,4 +1,4 @@
-// Slitherlink: draw one loop along the edges of a grid of dots; each number says how many of its cell's four sides the
+// Circuit: draw one loop along the edges of a grid of dots; each number says how many of its cell's four sides the
 // loop uses, and the loop never crosses or touches itself; a shaded puzzle also marks some cells as inside the loop
 // (tinted) or outside it (dotted). The rules, the puzzles and the reasoning are
 // slitherlink-engine.js's (every puzzle has one answer, and is graded by the hardest step a person needs); the puzzles
@@ -53,7 +53,7 @@ const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.l
 
 // ---------- making puzzles ----------
 // Made in a worker, so the screen stays responsive, and a spare of each kind played lately is made in the background
-// and kept, so a new puzzle is instant. Where there's no worker they're made on the page, as Hitori's are.
+// and kept, so a new puzzle is instant. Where there's no worker they're made on the page, as Cull's are.
 let worker = null, workerless = false, asked = 0;
 const waiting = new Map();
 function make(seed, k) {
@@ -314,7 +314,7 @@ function finish() {
 const NS = "http://www.w3.org/2000/svg";
 const svgEl = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const [a, v] of Object.entries(attrs)) n.setAttribute(a, v); parent?.appendChild(n); return n; };
 /** The numbers are set a hundred times larger and scaled back down, centred by an explicit offset: Safari lays out text
- *  under a unit tall badly (as Hitori's and Delta's are). */
+ *  under a unit tall badly (as Cull's and Delta's are). */
 const TEXT_SCALE = 100;
 let svg = null, edgeEls = [], cellEls = [], dotEls = [];
 function drawBoard() {
@@ -472,7 +472,7 @@ function showRules() {
     <h4>Time</h4>
     <p>Your score is your time plus ${HINT} seconds a hint; lower is better, and your best is kept for each size, level and kind of clue. The clock stops while the menu, these rules or the games screen is open.</p>
     <h4>Today's puzzle</h4>
-    <p>A 7×7 at Medium, the same for everyone. Its first solve counts the moment the loop is drawn, and is Slitherlink's figure on the games screen.</p>`;
+    <p>A 7×7 at Medium, the same for everyone. Its first solve counts the moment the loop is drawn, and is Circuit's figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
 }

@@ -1,4 +1,4 @@
-// Sudoku (sudoku-engine.js and its pieces): the rules as units, the exact solver, grids generated with exactly one
+// Nonet (sudoku-engine.js and its pieces): the rules as units, the exact solver, grids generated with exactly one
 // solution for every kind and level, graded by the hardest technique a person needs, every step of the human-style
 // solver sound, hints that name a step, the computer player, grids and runs through JSON, the givens split for playing
 // together (the parts make the whole, neither alone does, and the relay finishes), the table through the database's

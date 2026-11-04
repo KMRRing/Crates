@@ -57,7 +57,7 @@ const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.l
 
 // ---------- making puzzles ----------
 // Made in a worker, so the screen stays responsive, and a spare of each kind played lately is made in the background
-// and kept, so a new puzzle is instant. Where there's no worker they're made on the page, as Hitori's are.
+// and kept, so a new puzzle is instant. Where there's no worker they're made on the page, as Cull's are.
 let worker = null, workerless = false, asked = 0;
 const waiting = new Map();
 function make(seed, k) {
@@ -397,7 +397,7 @@ function finish() {
 const NS = "http://www.w3.org/2000/svg";
 const svgEl = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const [a, v] of Object.entries(attrs)) n.setAttribute(a, v); parent?.appendChild(n); return n; };
 /** The numbers are set a hundred times larger and scaled back down, centred by an explicit offset: Safari lays out text
- *  under a unit tall badly (as Hitori's and Delta's are). */
+ *  under a unit tall badly (as Cull's and Delta's are). */
 const TEXT_SCALE = 100;
 let svg = null, linkEls = [], islEls = [], straitEls = [], seg = [];
 let realmed = false;                // the puzzle has two realms: blue and orange islands (docs/bridges.md, "The two realms' language")

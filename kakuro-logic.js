@@ -1,4 +1,4 @@
-// Kakuro's human-style solver, pure: the steps a person takes, each found by a technique that says why, always the
+// Tally's human-style solver, pure: the steps a person takes, each found by a technique that says why, always the
 // easiest step there is. It grades a grid (the hardest technique it needs), gives a hint (the next step, named, with
 // its cells), and paces the computer player (kakuro-bot.js). A grid it can't finish is never dealt.
 //

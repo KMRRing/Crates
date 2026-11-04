@@ -1,4 +1,4 @@
-// Hitori: shade cells so that no number is left twice in a row or a column (on a hex board, in any of its three
+// Cull: shade cells so that no number is left twice in a row or a column (on a hex board, in any of its three
 // lines), no two shaded cells touch, and the rest stay joined. The rules, the puzzles and the reasoning are
 // hitori-engine.js's (every puzzle has one answer, and is graded by the hardest step a person needs); the puzzles are
 // made in hitori-worker.js. This file keeps the run, the clock and the taps, draws the board, and plays it together on
@@ -506,7 +506,7 @@ function offerLevels(shape, size) {
 // on their half only, one time for the team). The table is duel.js's; the split board's marks are kept in it beside
 // the runs (pair: { n, k: marks, b: who marked each, h: hints, done }), written in a transaction a mark.
 const duel = createDuel({
-  game: "hitori", name: "Hitori", accent: "--hi-in", line: $("duelLine"), toast, lower: true,
+  game: "hitori", name: "Cull", accent: "--hi-in", line: $("duelLine"), toast, lower: true,
   deal: dealMatch,
   describe: m => (m.mode === "pair" ? `The split board, ${kindText(m)}: you each see half the numbers, and solve it as one` : `A race, ${kindText(m)}: the same puzzle for everyone, the fastest solve wins`),
   play: (match, { begun, kept }) => (match.mode === "pair" ? playPair(match) : playRace(match, begun, kept)),
@@ -682,7 +682,7 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>Shade cells until no number is left twice in a row or a column. Every puzzle has exactly one answer, reached by reasoning, never by a guess.</p>
     <h4>The rules</h4>
-    <p>Nikoli's three, unchanged: no number is left unshaded twice in a row or a column; no two shaded cells touch side by side (corner to corner is fine); and the unshaded cells stay joined in one piece, side to side.</p>
+    <p>The classic three, unchanged: no number is left unshaded twice in a row or a column; no two shaded cells touch side by side (corner to corner is fine); and the unshaded cells stay joined in one piece, side to side.</p>
     <p>Two boards (Board, in the menu): <b>Square</b>, 5×5 to 12×12, numbered 1 to its side; and <b>Hex</b>, a hexagon of hexagons 5, 7, 9 or 11 across, numbered 1 to its width, where every cell lies on three lines (its row and two slants) and has up to six neighbours.</p>
     <p><b>An example.</b> Two 4s side by side in a row: one of them stays (both shaded would touch), so every other 4 in that row is shaded. And a cell between two of the same number always stays: shaded, it would leave both its neighbours unshaded, and the number twice.</p>
     <h4>Playing</h4>
@@ -693,7 +693,7 @@ function showRules() {
     <h4>Time</h4>
     <p>Your score is your time plus ${HINT} seconds a hint; lower is better, and your best is kept for each board, size and level. The clock stops while the menu, these rules or the games screen is open.</p>
     <h4>Today's puzzle</h4>
-    <p>An 8×8 at Medium, the same for everyone. Its first solve counts the moment the shading is the answer, and is Hitori's figure on the games screen.</p>`;
+    <p>An 8×8 at Medium, the same for everyone. Its first solve counts the moment the shading is the answer, and is Cull's figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
 }

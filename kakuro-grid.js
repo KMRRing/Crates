@@ -1,4 +1,4 @@
-// Kakuro's grid, pure (no DOM): which cells are black, the runs of white cells (each headed by its clue cell, the
+// Tally's grid, pure (no DOM): which cells are black, the runs of white cells (each headed by its clue cell, the
 // black cell just left of an across run or just above a down run), each white cell's two runs and its peers, digits
 // held as bits, the combinations a run can be (the sets of different digits that add up, or multiply out, to its
 // clue), and the seeded random numbers every grid is made from. Everything else (kakuro-solve.js, kakuro-logic.js,
@@ -49,7 +49,7 @@ export function shapeOf(rows, cols, black) {
   return { rows, cols, cells, black: Uint8Array.from(black), white: Int16Array.from(white), runs, across, down, peers };
 }
 
-/** Whether a pattern is a Kakuro's: every white cell in an across run and a down run of two cells or more, none longer
+/** Whether a pattern is a Tally's: every white cell in an across run and a down run of two cells or more, none longer
  *  than nine (there are only nine digits), and the white cells all joined, edge to edge. */
 export function patternOk(rows, cols, black) {
   const cells = rows * cols;

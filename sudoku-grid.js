@@ -1,4 +1,4 @@
-// Sudoku's grid, pure (no DOM): an n×n grid's cells and units (its rows, columns and regions, and its two diagonals
+// Nonet's grid, pure (no DOM): an n×n grid's cells and units (its rows, columns and regions, and its two diagonals
 // where they count), each cell's peers, digits held as bits, and the seeded random numbers every grid is made from.
 // Everything else (sudoku-solve.js, sudoku-logic.js, sudoku-engine.js) is written against what shapeOf returns, so a
 // region of any shape, a diagonal or a killer cage is just another list of cells.

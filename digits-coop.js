@@ -1,4 +1,4 @@
-// The digit grid as a shared board (docs/coop.md): what Sudoku, Calcudoku and Kakuro share, as digits-edit.js is what they
+// The digit grid as a shared board (docs/coop.md): what Nonet, Calcudoku and Tally share, as digits-edit.js is what they
 // share on the page. Pure (no page), so tests can check it and a phone can load an adapter from any page.
 //
 // A set of entries (digits-edit.js: `v` a value a cell, 0 when empty; `n` a mask a cell, bit d for a pencil mark of digit d) is
@@ -72,8 +72,8 @@ export function cursorsOf(players, me, hereIds, cells) {
 
 // ---------- the adapter of a game on the digit grid ----------
 /**
- * The adapter (coop-games.js) of a game that keeps its run as `{ v, mode, grid, entries, ms, hints, done }` (Sudoku, Calcudoku,
- * Kakuro): the grid fixed, the entries as layers, hints a tally, the solve a once-value. `validGrid` is the game's own check of an
+ * The adapter (coop-games.js) of a game that keeps its run as `{ v, mode, grid, entries, ms, hints, done }` (Nonet, Calcudoku,
+ * Tally): the grid fixed, the entries as layers, hints a tally, the solve a once-value. `validGrid` is the game's own check of an
  * encoded grid; `shape(grid)` says how many digits it has (`k`) and cells (`cells`), a square grid of n digits by default.
  * Selection, undo, redo, the Notes switch and a hint's gilt are each player's own, so none is in the board. A run with the computer as
  * partner (`pair`) is never shared: its digits and its share of the clues are not a person's.

@@ -1,6 +1,6 @@
-// Sudoku (October 2026): fill the grid so every row, column and region holds each digit once. The rules, the grids
+// Nonet (October 2026): fill the grid so every row, column and region holds each digit once. The rules, the grids
 // and the solvers are sudoku-engine.js and its pieces (every grid is generated, has one solution, and is graded by the
-// hardest technique a person needs); the board is the digit grid (digits.js), which Calcudoku and Kakuro share. This
+// hardest technique a person needs); the board is the digit grid (digits.js), which Calcudoku and Tally share. This
 // file keeps the run (your entries, the clock, hints), the computer (a partner holding half the
 // givens), and the table: a race on one grid, or Together, the givens shared out so nobody can finish alone.
 import { RULES, SIZES, LEVELS, DAILY, levelsOf, levelFor, decode, validGrid, shapeFor, viewOf } from "./sudoku-engine.js";
@@ -251,7 +251,7 @@ function makeBoard(sumsVisible = null, key = "") {
     pad: $("pad"),
     tools: ["undo", "redo", "erase", "notes", { id: "hint", label: "Hint", note: `+${HINT} s` }],
     onInput,
-    name: "Sudoku grid",
+    name: "Nonet grid",
   });
 }
 
@@ -494,7 +494,7 @@ let M = null;            // this device's side of the match: { match, n, begun, 
 let roomVal = null, stopWatch = null, reportTimer = 0, lentSince = {};
 const togetherMode = () => read(TOGETHER, null) || (new URLSearchParams(location.search).has("party") ? "race" : "split");
 const duel = createDuel({
-  game: "sudoku", name: "Sudoku", accent: "--sudoku-in", line: $("table"), toast, lower: true,
+  game: "sudoku", name: "Nonet", accent: "--sudoku-in", line: $("table"), toast, lower: true,
   deal: async () => {
     const grid = await dealGrid({ rules: settings.rules, size: settings.size, level: settings.level });
     return { seed: grid.seed, mode: togetherMode(), grid };
@@ -785,7 +785,7 @@ function showRules() {
     <h4>Time</h4>
     <p>The clock stops while the menu, these rules or the games screen is open, the grid hidden meanwhile. A hint adds ${HINT} seconds. Your best is the lowest time for each rule set, size and level; a grid solved with the computer is a team's time, not your best.</p>
     <h4>Today's grid</h4>
-    <p>A classic 9×9 at Medium, the same for everyone and always played alone. Its time counts the moment the last digit goes in, and is Sudoku's figure on the games screen.</p>`;
+    <p>A classic 9×9 at Medium, the same for everyone and always played alone. Its time counts the moment the last digit goes in, and is Nonet's figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
 }

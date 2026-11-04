@@ -1,4 +1,4 @@
-// Masyu (masyu-engine.js, on loop-engine.js): the board and its edges, the rules checked against every simple loop on small
+// Pearl (masyu-engine.js, on loop-engine.js): the board and its edges, the rules checked against every simple loop on small
 // boards found by a plain search, the generator (one answer, across seeds, every size and level, the same puzzle for a
 // seed on every device, today's the same for everyone), the grading (each level needs its hardest step and no harder),
 // the steps a hint takes (each true of the answer, and enough to solve a puzzle alone), the rules the marks break, and

@@ -15,7 +15,7 @@ html[data-mode="night"] { --calcudoku-in: #7FC2A8; --cd-good: #7FC2A8; --cd-bad:
 /* the cages' clues: no paper behind them (the rules don't need covering, and a lit cell shows through), and in the
    cell that holds one, the pencil marks sit under it */
 #app.calcudoku .dg-l { background: none; padding: 0; margin: calc(var(--cell) * .04) 0 0 calc(var(--cell) * .06); font-size: calc(var(--cell) * .25); letter-spacing: -.01em; }
-/* every digit a little smaller and lower than Sudoku's, so it clears the clue over it, and all of a row's stay level */
+/* every digit a little smaller and lower than Nonet's, so it clears the clue over it, and all of a row's stay level */
 #app.calcudoku .dg-v { font-size: calc(var(--cell) * .55); translate: 0 calc(var(--cell) * .09); }
 #app.calcudoku .dg-c.tagged .dg-n { top: 31%; font-size: calc(var(--cell) * .21); }
 /* a cage whose clue someone else holds: its "?" set softer, as a label still to come */

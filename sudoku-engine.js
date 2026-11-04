@@ -1,4 +1,4 @@
-// Sudoku's rules and its grids, pure (no DOM), shared by the page, its worker (sudoku-worker.js) and tests/sudoku.mjs.
+// Nonet's rules and its grids, pure (no DOM), shared by the page, its worker (sudoku-worker.js) and tests/sudoku.mjs.
 //
 // The rules are the usual ones: fill the grid so that every row, every column and every region holds each digit once.
 // The regions are the boxes (3×3 on a 9×9, two rows by three columns on a 6×6) or, in Jigsaw, pieces of any shape;

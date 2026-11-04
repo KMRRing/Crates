@@ -1,4 +1,4 @@
-// Kakuro's rules and its grids, pure (no DOM): shared by the page, its worker (kakuro-worker.js) and tests/kakuro.mjs.
+// Tally's rules and its grids, pure (no DOM): shared by the page, its worker (kakuro-worker.js) and tests/kakuro.mjs.
 //
 // The rules are the usual ones: a crossword of numbers. Every run of white cells, across or down, holds different
 // digits 1 to 9 that add up to the clue at its head (the black cell to its left, or above it); in Products they
@@ -116,7 +116,7 @@ function canBlacken(black, rows, cols, i, j) {
 }
 const whiteOf = black => { const out = []; for (let i = 0; i < black.length; i++) if (!black[i]) out.push(i); return out; };
 /** How welcome a black cell at i is for the runs it cuts: the pieces it leaves of its row's run and its column's, a
- *  piece of three to five welcome, a pair less so (a grid of pairs is a lattice, not a Kakuro), a solid block of four
+ *  piece of three to five welcome, a pair less so (a grid of pairs is a lattice, not a Tally), a solid block of four
  *  black cells inside the grid least of all. */
 function pieces(black, rows, cols, i) {
   const cells = rows * cols, c = i % cols, row = j => Math.floor(j / cols) === Math.floor(i / cols);
@@ -134,7 +134,7 @@ function pieces(black, rows, cols, i) {
 }
 /**
  * A pattern of black cells for a grid rows × cols: the first row and column black (they hold the clues), the inside
- * symmetric under a half turn (a printed Kakuro's convention), every white cell in an across run and a down run of
+ * symmetric under a half turn (a printed Tally's convention), every white cell in an across run and a down run of
  * two to `longest` cells, the white cells in one piece, about `density` of the inside black. Black cells are added a
  * pair at a time, each pair the other's half turn, weighted: one that cuts a run too long most, then one touching a
  * black cell corner to corner (which draws the staircases printed grids have), by the pieces it leaves (pieces), and
@@ -366,7 +366,7 @@ export function decode(e) {
   const shape = shapeOf(rows, cols, black);
   return { rules: e.rules, op, rows, cols, level: e.level, rank: e.rank, seed: e.seed, black, solution, shape, clues: cluesOf(shape, solution, op) };
 }
-/** Whether an encoded grid is whole: its size, a Kakuro's pattern, a digit in every white cell and none twice in a
+/** Whether an encoded grid is whole: its size, a Tally's pattern, a digit in every white cell and none twice in a
  *  run, and (Products) every clue short enough to print. */
 export function validGrid(e) {
   try {

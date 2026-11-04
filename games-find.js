@@ -56,7 +56,7 @@ export const AKA = {
   harbour: "ships program hex route", pipes: "pipe dream plumbing watch clockwork mainspring cogs", survey: "ore mining 3d deduction rock",
   stow: "packing cargo hold fit", cartel: "dice bluff coup roles liar", hong: "mahjong mah jong majiang hong kong", tribute: "guan dan climbing cards partners",
   mines: "minesweeper", bulls: "bulls bulls and cows mastermind code breaking cows", assay: "wordle word guess", yield: "spelling bee",
-  ladder: "doublets word ladder", calcudoku: "kenken", kakuro: "cross sums", bridges: "hashiwokakero", slitherlink: "loop",
+  ladder: "doublets word ladder", calcudoku: "kenken", kakuro: "cross sums", bridges: "hashiwokakero", slitherlink: "loop", sudoku: "number place digits", hitori: "shade repeats numbers", masyu: "pearls loop", nurikabe: "islands sea",
   party: "lobby room friends evening", undercover: "spy social deduction", whoami: "guess identity forehead", gauge: "estimate dial",
   fuse: "bomb", snap: "match cards pairs", sketch: "drawing pictionary", whispers: "telephone chinese whispers",
   forger: "forgery drawing bluff", gallery: "art drawing", hilo: "higher lower cards", coup: "bluff secret roles influence",

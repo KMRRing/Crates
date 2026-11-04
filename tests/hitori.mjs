@@ -1,4 +1,4 @@
-// Hitori (hitori-engine.js): the boards and their lines, the rules, the counting solver against a plain search of every
+// Cull (hitori-engine.js): the boards and their lines, the rules, the counting solver against a plain search of every
 // shading, the generator (one answer, across many seeds, every board and level, the same puzzle for a seed on every
 // device, today's the same for everyone), the grading (each level needs its hardest step and no harder), the steps a
 // person takes (each true of the answer), hints, the rules the marks break, the split board (the two halves make the

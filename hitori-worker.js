@@ -1,4 +1,4 @@
-// Makes Hitori's puzzles off the page (hitori.js), so the screen stays responsive while a large Expert board is
+// Makes Cull's puzzles off the page (hitori.js), so the screen stays responsive while a large Expert board is
 // steered towards its level (it can take a second or two on a phone).
 import { generate } from "./hitori-engine.js";
 

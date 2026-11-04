@@ -1,4 +1,4 @@
-/* Hitori: a grid of numbers on paper tiles. Shading blacks a tile out in navy (by night a darker dial than the tiles),
+/* Cull: a grid of numbers on paper tiles. Shading blacks a tile out in navy (by night a darker dial than the tiles),
    keeping rings its number in plum, the game's enamel (on a split board, in its keeper's colour). What breaks a rule is
    oxblood, a hint's cells gilt. The board is an SVG drawn to a viewBox, so it grows with its box. */
 :root {

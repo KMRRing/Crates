@@ -5,14 +5,14 @@
 // board. The adapters are pure, so a phone can load one from any page. A game is added here once its own page is wired to
 // the shared board (coop-page.js).
 export const COOP_GAMES = {
-  slitherlink: { id: "slitherlink", name: "Slitherlink", page: "slitherlink.html", keys: ["slitherlink:run"], load: () => import("./slitherlink-coop.js") },
-  nurikabe: { id: "nurikabe", name: "Nurikabe", page: "nurikabe.html", keys: ["nurikabe:run"], load: () => import("./nurikabe-coop.js") },
-  hitori: { id: "hitori", name: "Hitori", page: "hitori.html", keys: ["hitori:run"], load: () => import("./hitori-coop.js") },
-  sudoku: { id: "sudoku", name: "Sudoku", page: "sudoku.html", keys: ["sudoku:run"], load: () => import("./sudoku-coop.js") },
+  slitherlink: { id: "slitherlink", name: "Circuit", page: "slitherlink.html", keys: ["slitherlink:run"], load: () => import("./slitherlink-coop.js") },
+  nurikabe: { id: "nurikabe", name: "Atoll", page: "nurikabe.html", keys: ["nurikabe:run"], load: () => import("./nurikabe-coop.js") },
+  hitori: { id: "hitori", name: "Cull", page: "hitori.html", keys: ["hitori:run"], load: () => import("./hitori-coop.js") },
+  sudoku: { id: "sudoku", name: "Nonet", page: "sudoku.html", keys: ["sudoku:run"], load: () => import("./sudoku-coop.js") },
   calcudoku: { id: "calcudoku", name: "Calcudoku", page: "calcudoku.html", keys: ["calcudoku:run"], load: () => import("./calcudoku-coop.js") },
-  kakuro: { id: "kakuro", name: "Kakuro", page: "kakuro.html", keys: ["kakuro:run"], load: () => import("./kakuro-coop.js") },
+  kakuro: { id: "kakuro", name: "Tally", page: "kakuro.html", keys: ["kakuro:run"], load: () => import("./kakuro-coop.js") },
   nonogram: { id: "nonogram", name: "Nonogram", page: "nonogram.html", keys: ["nonogram:run"], load: () => import("./nonogram-coop.js") },
-  masyu: { id: "masyu", name: "Masyu", page: "masyu.html", keys: ["masyu:run"], load: () => import("./masyu-coop.js") },
+  masyu: { id: "masyu", name: "Pearl", page: "masyu.html", keys: ["masyu:run"], load: () => import("./masyu-coop.js") },
   bridges: { id: "bridges", name: "Bridges", page: "bridges.html", keys: ["bridges:run", "bridges:lruns", "bridges:track", "bridges:camp"], load: () => import("./bridges-coop.js") },
 };
 

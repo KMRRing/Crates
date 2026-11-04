@@ -1,4 +1,4 @@
-// Hitori as a pair (hitori-coop.js, on board-share.js; docs/coop.md): the host's run becomes a shared board and the board a run
+// Cull as a pair (hitori-coop.js, on board-share.js; docs/coop.md): the host's run becomes a shared board and the board a run
 // again, a board this version can't play is refused (and a table's own run, a race or the split board, is never shared), and
 // two phones on one board in the database in memory: cells shaded apart both stand, the same cell marked two ways ends as one
 // value, an undo leaves what the partner did since, a hint counts once, the solve is the first writer's and nothing changes the
@@ -18,7 +18,7 @@ const runOf = (shape, size, level, seed = 5) => {
 const run = runOf("square", 6, "easy");
 
 // ---------- registered, and its board out of the host's saved keys ----------
-check(COOP_GAMES.hitori?.page === "hitori.html" && COOP_GAMES.hitori.keys.join() === KEY && (await coopAdapter("hitori")).share === coopOf.share, "Hitori is in coop-games.js, its key under hitori:, its adapter loads");
+check(COOP_GAMES.hitori?.page === "hitori.html" && COOP_GAMES.hitori.keys.join() === KEY && (await coopAdapter("hitori")).share === coopOf.share, "Cull is in coop-games.js, its key under hitori:, its adapter loads");
 const board = coopOf.share({ [KEY]: JSON.stringify(run) });
 check(board && board.layers.marks === run.marks && board.fixed.sol === run.sol && board.fixed.grid === run.grid && board.start.ms === 4000 && board.start.hints === 1, "a puzzle in play becomes a board: its puzzle fixed, its marks the one layer, the clock and hints where the host stood");
 check(["undo", "marks", "ms", "done", "lit", "rival"].every(k => !(k in board.fixed)), "what is the host's own (undo, the clock, marks, a hint's gilt, the computer rival) is not in the puzzle");

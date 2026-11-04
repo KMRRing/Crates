@@ -1,4 +1,4 @@
-// Kakuro's computer player, pure: the human-style solver (kakuro-logic.js) worked through at a person's pace. Each
+// Tally's computer player, pure: the human-style solver (kakuro-logic.js) worked through at a person's pace. Each
 // step takes the time a person needs for its technique (a crossing is seen in seconds, the ways a long run can fit
 // take a minute, a chain longer), less when there are many cells to place at a glance and more with one, with a
 // little luck either way, all at one of three paces. As a partner (Together) it sees only its share of the clues, works out its next digit from

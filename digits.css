@@ -1,4 +1,4 @@
-/* The digit grid (digits.js): the board Sudoku, Calcudoku and Kakuro are played on, and its number pad. Paper with
+/* The digit grid (digits.js): the board Nonet, Calcudoku and Tally are played on, and its number pad. Paper with
    hairlines between the cells and heavy ink between regions, framed in ink with a brass rule outside it, the way a
    printed puzzle sits on an instrument's page; the digits in the house face, given ones in ink, yours in the game's
    enamel (--dg-in, which each game sets). Every size inside the board is a share of a cell (container units), so it
@@ -6,7 +6,7 @@
 :root {
   --dg-in: var(--c2);
   --dg-soft: color-mix(in srgb, var(--dg-in) 13%, transparent);
-  --dg-block: #1C2A34;          /* Kakuro's black cells: navy by day */
+  --dg-block: #1C2A34;          /* Tally's black cells: navy by day */
   --dg-block-ink: #F3E1BA;
   --dg-bad: #A8382B;
   --dg-hint: #D49A22;

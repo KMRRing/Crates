@@ -1,4 +1,4 @@
-// Kakuro as a pair (kakuro-coop.js, on digits-coop.js and board-share.js; docs/coop.md): the host's run becomes a shared board and
+// Tally as a pair (kakuro-coop.js, on digits-coop.js and board-share.js; docs/coop.md): the host's run becomes a shared board and
 // the board a run again, a run with the computer as partner is never shared, a grid of each rule set survives the database, and
 // two phones on one board in the database in memory: digits in different cells both stand, pencil marks of different digits in one
 // cell both stand, the same cell written two ways ends as one value, an undo leaves what the partner did since, a hint counts once,
@@ -15,7 +15,7 @@ const made = new Map();
 const gridOf = ([rules, size]) => { const key = `${rules}${size}`; if (!made.has(key)) made.set(key, encode(generate({ seed: 7, rules, size, level: "easy" }))); return made.get(key); };
 
 await digitsSuite({
-  check, id: "kakuro", name: "Kakuro", coopOf, KEY, playable,
+  check, id: "kakuro", name: "Tally", coopOf, KEY, playable,
   kinds: [["sums", 8], ["products", 8]],
   gridOf,
   decode,

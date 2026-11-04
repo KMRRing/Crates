@@ -1,7 +1,7 @@
-// Kakuro (October 2026): a crossword of sums. Every run of white cells holds different digits that add up (in
+// Tally (October 2026): a crossword of sums. Every run of white cells holds different digits that add up (in
 // Products, multiply) to the clue at its head. The rules, the grids and the solvers are kakuro-engine.js and its
 // pieces (every grid is generated, has one solution, and is graded by how much a person has to work out); the board is
-// the digit grid (digits.js), which Sudoku and Calcudoku share. This file keeps the run (your entries, the clock,
+// the digit grid (digits.js), which Nonet and Calcudoku share. This file keeps the run (your entries, the clock,
 // hints), the helper (the ways a run can be), the computer (a partner holding the down clues),
 // and the table: a race on one grid, or Together, the clues split so nobody can finish alone.
 import { RULES, SIZES, LEVELS, DAILY, levelsOf, levelFor, decode, validGrid, cluesSeen } from "./kakuro-engine.js";
@@ -233,7 +233,7 @@ function makeBoard(seen = null, key = "") {
     pad: $("pad"),
     tools: ["undo", "redo", "erase", "notes", { id: "hint", label: "Hint", note: `+${HINT} s` }],
     onInput,
-    name: "Kakuro grid",
+    name: "Tally grid",
   });
   clueEls = shape.runs.map((run, k) => {
     const el = board.cellEl(run.head).querySelector(run.dir === "across" ? ".dg-across" : ".dg-down");
@@ -543,7 +543,7 @@ let M = null;            // this device's side of the match: { match, n, begun, 
 let roomVal = null, stopWatch = null, reportTimer = 0, lentSince = {};
 const togetherMode = () => read(TOGETHER, null) || (new URLSearchParams(location.search).has("party") ? "race" : "split");
 const duel = createDuel({
-  game: "kakuro", name: "Kakuro", accent: "--kakuro-in", line: $("table"), toast, lower: true,
+  game: "kakuro", name: "Tally", accent: "--kakuro-in", line: $("table"), toast, lower: true,
   deal: async () => {
     const grid = await dealGrid({ rules: settings.rules, size: settings.size, level: settings.level });
     return { seed: grid.seed, mode: togetherMode(), grid };
@@ -822,13 +822,13 @@ function showRules() {
     <p><b>An example.</b> 16 in two cells can only be 7 and 9, and 17 in two only 8 and 9. Where an across 3 in two (1 and 2) crosses a down 4 in two (1 and 3), the cell is 1.</p>
     <h4>Playing</h4>
     <p>Tap a cell, then a digit; the same digit again rubs it out. A selected cell lights its two runs, and a digit tapped with no cell selected lights where it stands. Notes writes in pencil: the candidates a solver jots small in a cell. On a keyboard: the arrows (past black cells), the digits (with Shift, in pencil), Backspace, N for Notes, Ctrl+Z and Ctrl+Y.</p>
-    <p>A digit twice in a run, and a run that can no longer make its clue, show in oxblood (Mark mistakes), read from the board, never the solution; a run that's full and adds up has its clue fade, and a digit you write takes its pencil mark from the rest of its runs (Clear pencil marks as you write). Show the ways a run can be (off at first) lists under the grid the ways the selected cell's two runs can still add up and dims the keys neither allows: the combination table a solver keeps beside a printed Kakuro. The grid is solved the moment every digit is right. Hint (+${HINT}&nbsp;s) strikes through a wrong digit first, then pencil marks that leave out their cell's digit; otherwise it names the easiest next step. The menu also fills in every pencil mark, or shows the solution (the grid then doesn't count).</p>
+    <p>A digit twice in a run, and a run that can no longer make its clue, show in oxblood (Mark mistakes), read from the board, never the solution; a run that's full and adds up has its clue fade, and a digit you write takes its pencil mark from the rest of its runs (Clear pencil marks as you write). Show the ways a run can be (off at first) lists under the grid the ways the selected cell's two runs can still add up and dims the keys neither allows: the combination table a solver keeps beside a printed Tally. The grid is solved the moment every digit is right. Hint (+${HINT}&nbsp;s) strikes through a wrong digit first, then pencil marks that leave out their cell's digit; otherwise it names the easiest next step. The menu also fills in every pencil mark, or shows the solution (the grid then doesn't count).</p>
     <h4>Levels</h4>
     <p>A grid's level is how much working out it takes, never how many clues it has: the steps beyond a glance for each white cell, and the hardest of them. <b>Easy</b> needs the ways that fit (a run's combinations narrowed to those its cells can hold) about once in twelve cells; <b>Medium</b> up to once in four or five; <b>Hard</b> up to once in two or three, or a block's sums (in a rectangle of the grid, the clues of the across runs wholly inside it, less those of the down runs, give what the one or two cells left over come to); <b>Expert</b> a chain (suppose a cell of two candidates took one: if the plain steps then leave a run that can't be made, it takes the other), or working out at nearly every other cell. Expert is offered in Sums at 10×10 and 12×12.</p>
     <h4>Time</h4>
     <p>The clock stops while the menu, these rules or the games screen is open, the grid hidden meanwhile. A hint adds ${HINT} seconds. Your best is the lowest time for each rule set, size and level; a grid solved with the computer is a team's time, not your best.</p>
     <h4>Today's grid</h4>
-    <p>Sums, 10×10, at Medium, the same for everyone and always played alone. Its time counts the moment the last digit goes in, and is Kakuro's figure on the games screen.</p>`;
+    <p>Sums, 10×10, at Medium, the same for everyone and always played alone. Its time counts the moment the last digit goes in, and is Tally's figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
 }

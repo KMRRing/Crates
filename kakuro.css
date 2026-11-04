@@ -1,4 +1,4 @@
-/* Kakuro: the grid on the digit board (digits.css: its black cells, the clue cells split by their diagonal), its
+/* Tally: the grid on the digit board (digits.css: its black cells, the clue cells split by their diagonal), its
    clock and kind over it, a line of what's happening (or, with the helper on, the ways the selected cell's runs can
    be) and the number pad under it. Verdigris is the house colour: the ink of a digit you write. */
 :root { --kakuro-in: #3D7A66; --kakuro-soft: color-mix(in srgb, var(--kakuro-in) 15%, var(--sheet)); --ka-good: #2F7D5B; --ka-bad: #A8382B;

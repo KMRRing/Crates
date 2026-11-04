@@ -18,7 +18,7 @@ let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const game = { ...COOP_GAMES.slitherlink, ...(await COOP_GAMES.slitherlink.load()).default };      // the registry's entry and the adapter, as one
 
-// a run of Slitherlink in play, as the game saves it
+// a run of Circuit in play, as the game saves it
 const puzzle = generate(11, 5, "easy");
 const run = { v: 1, mode: "random", seed: 11, size: 5, level: "easy", twist: "none", came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol,
   marks: withMark(withMark(NONE.repeat(puzzle.sol.length), 0, LINE), 3, "2"), undo: [[0, "0", "1"]], redo: [], ms: 41250.7, hints: 1, done: null, lit: null };

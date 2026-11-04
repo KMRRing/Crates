@@ -48,13 +48,13 @@ export const GAMES = {
   trumps: { name: "Trumps", page: "./trumps.html" },
   quest: { name: "Company", page: "./quest.html" },
   bones: { name: "Dominoes", page: "./bones.html" },
-  sudoku: { name: "Sudoku", page: "./sudoku.html" },
+  sudoku: { name: "Nonet", page: "./sudoku.html" },
   mines: { name: "Mines", page: "./mines.html" },
   nonogram: { name: "Nonogram", page: "./nonogram.html" },
-  hitori: { name: "Hitori", page: "./hitori.html" },
-  slitherlink: { name: "Slitherlink", page: "./slitherlink.html" },
-  masyu: { name: "Masyu", page: "./masyu.html" },
-  nurikabe: { name: "Nurikabe", page: "./nurikabe.html" },
+  hitori: { name: "Cull", page: "./hitori.html" },
+  slitherlink: { name: "Circuit", page: "./slitherlink.html" },
+  masyu: { name: "Pearl", page: "./masyu.html" },
+  nurikabe: { name: "Atoll", page: "./nurikabe.html" },
   bridges: { name: "Bridges", page: "./bridges.html" },
   bulls: { name: "Conjunction", page: "./bulls.html" },
   assay: { name: "Assay", page: "./assay.html" },
@@ -69,7 +69,7 @@ export const GAMES = {
   crossword: { name: "Crossword", page: "./crossword.html" },
   acrostic: { name: "Acrostic", page: "./acrostic.html" },
   calcudoku: { name: "Calcudoku", page: "./calcudoku.html" },
-  kakuro: { name: "Kakuro", page: "./kakuro.html" },
+  kakuro: { name: "Tally", page: "./kakuro.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0

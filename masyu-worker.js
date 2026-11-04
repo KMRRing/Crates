@@ -1,4 +1,4 @@
-// Makes Masyu's puzzles off the page (masyu.js), so the screen stays responsive while a Hard 10×10 is
+// Makes Pearl's puzzles off the page (masyu.js), so the screen stays responsive while a Hard 10×10 is
 // steered towards its level (it can take a second or two on a phone).
 import { generate } from "./masyu-engine.js";
 

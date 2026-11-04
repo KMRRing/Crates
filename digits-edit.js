@@ -1,6 +1,6 @@
 // The digit grid's entries, pure (no DOM): what a player has written in each cell, a digit or pencil marks, and the
 // undo and redo of it, kept as plain JSON so a game saves it with its run (and a partner watching sees it). Every game
-// on the digit grid (digits.js) uses it: Sudoku, Calcudoku, Kakuro. A cell holds a value 1..k, 0 when it's empty (the
+// on the digit grid (digits.js) uses it: Nonet, Calcudoku, Tally. A cell holds a value 1..k, 0 when it's empty (the
 // board shows value v as its v-th digit, so a grid of 0..5 can have a 0 in it); its notes are a bit mask, bit v for
 // value v.
 //

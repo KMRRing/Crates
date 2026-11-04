@@ -1,4 +1,4 @@
-// Sudoku's grids are made off the page (sudoku.js asks; this answers), so a hard one, which can take a phone a few
+// Nonet's grids are made off the page (sudoku.js asks; this answers), so a hard one, which can take a phone a few
 // seconds, never holds the screen. { id, kind: "grid", seed, rules, size, level } → { id, grid } (encoded, as the run
 // keeps it); { id, kind: "split", grid, k, seed } → { id, split } (the givens shared out for a table of k).
 import { generate, encode, decode, splitFor } from "./sudoku-engine.js";

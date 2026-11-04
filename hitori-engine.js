@@ -1,4 +1,4 @@
-// Hitori's rules, pure (no page). A grid of numbers: shade cells so that no number is left twice in a row or a column
+// Cull's rules, pure (no page). A grid of numbers: shade cells so that no number is left twice in a row or a column
 // (on a hex board, in any of its three lines), no two shaded cells touch side by side, and the cells left unshaded stay
 // joined in one piece. Every puzzle here has exactly one answer, which a counting solver proves, and a solver that
 // reasons as a person does grades it by the hardest step it needs; the same solver gives hints, paces the computer
@@ -17,7 +17,7 @@ export const LEVEL_LIST = Object.keys(LEVELS);
 /**
  * The levels a board offers. On a hex board the connection rule almost never settles anything (a kept cell has six
  * neighbours, so the kept cells are hardly ever at risk of being cut apart), so there is no Medium; and on the widest
- * hex a supposition always breaks within two rounds, so there is no Expert either (measured: README, Hitori).
+ * hex a supposition always breaks within two rounds, so there is no Expert either (measured: README, Cull).
  */
 export function levelsFor(shape, size) {
   if (shape !== "hex") return LEVEL_LIST;

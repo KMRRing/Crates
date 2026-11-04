@@ -1,4 +1,4 @@
-// Sudoku's table, pure, so tests/sudoku.mjs can play a match through the database's round trip. Every match sits on
+// Nonet's table, pure, so tests/sudoku.mjs can play a match through the database's round trip. Every match sits on
 // the head-to-head table (duel.js, duel-core.js: the seats, the lobby, Ready, the countdown to a start everyone
 // shares), with the grid itself in the match. A race is a head-to-head as any: each solves their own copy, and the
 // runs say how far each has got. A match played Together keeps one grid for the table beside the runs:

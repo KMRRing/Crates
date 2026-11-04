@@ -1,4 +1,4 @@
-// Sudoku's computer player, pure: the human-style solver (sudoku-logic.js) worked through at a person's pace. Each
+// Nonet's computer player, pure: the human-style solver (sudoku-logic.js) worked through at a person's pace. Each
 // step takes the time a person would need for its technique (a single takes seconds to spot, a chain minutes), longer
 // when there's only one to find and shorter when there are many, with a little luck either way, all at one of three
 // paces. As a partner in

@@ -1,4 +1,4 @@
-// Sudoku as a pair (sudoku-coop.js, on digits-coop.js and board-share.js; docs/coop.md): the host's run becomes a shared board and
+// Nonet as a pair (sudoku-coop.js, on digits-coop.js and board-share.js; docs/coop.md): the host's run becomes a shared board and
 // the board a run again, a run with the computer as partner is never shared (its digits and its share of the givens are not a
 // person's), the grid of every rule set survives the database, and two phones on one board in the database in memory: digits in
 // different cells both stand, pencil marks of different digits in one cell both stand, the same cell written two ways ends as one
@@ -12,7 +12,7 @@ import { checker, digitsSuite } from "./coop-kit.js";
 const { check, done } = checker();
 
 await digitsSuite({
-  check, id: "sudoku", name: "Sudoku", coopOf, KEY, playable,
+  check, id: "sudoku", name: "Nonet", coopOf, KEY, playable,
   kinds: [["classic", 9], ["classic", 6], ["jigsaw", 9], ["x", 9]],
   gridOf: ([rules, size]) => encode(generate({ seed: 7, rules, size, level: "easy" })),
   decode,

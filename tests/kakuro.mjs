@@ -1,4 +1,4 @@
-// Kakuro (kakuro-engine.js and its pieces): the rules as runs, the combinations, the exact solver, grids generated with
+// Tally (kakuro-engine.js and its pieces): the rules as runs, the combinations, the exact solver, grids generated with
 // exactly one solution for every rules, size and level, graded by how much a person has to work out, every step of
 // the human-style solver sound and named, the computer player, grids and runs through JSON, the clues split for
 // playing together (the parts make the whole, neither alone has one solution, and the relay finishes), the table
@@ -33,7 +33,7 @@ const gridOf = rows => {
   check([...g.shape.peers[10]].sort((a, b) => a - b).join() === "6,9,11,14" && g.shape.across[10] === 4 && g.shape.down[10] === 1, "a cell's peers are the rest of its two runs");
   check(cluesOf(g.shape, g.sol).join() === "4,14,3,16,16,15" && cluesOf(g.shape, g.sol, "product").join() === "3,64,2,63,108,56", "each run's clue: the sum of its digits (or their product)");
   check(patternOk(4, 4, g.black) && !patternOk(4, 4, Uint8Array.from([1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1])) && !patternOk(3, 3, Uint8Array.from([1, 1, 1, 1, 0, 1, 1, 0, 1])),
-    "a pattern with a run of one, or a white cell in the clue frame's row, isn't a Kakuro's");
+    "a pattern with a run of one, or a white cell in the clue frame's row, isn't a Tally's");
   const c = m => [...m].map(x => [...Array(10).keys()].filter(d => x & bit(d)).join("")).join(" ");
   check(c(combosOf("sum", 2, 3)) === "12" && c(combosOf("sum", 3, 23)) === "689" && c(combosOf("sum", 9, 45)) === "123456789" && combosOf("sum", 2, 10).length === 4 && combosOf("sum", 3, 15).length === 8,
     "sums: 3 in two is 1 2, 23 in three 6 8 9, 45 in nine every digit; 10 in two four ways, 15 in three eight");
@@ -77,7 +77,7 @@ const made = [];
     const sol = solver(p.shape, p.clues, op).solve({ maxNodes: 400000 });
     if (sol.count !== 1) problems.push(`${at}: ${sol.count} solutions`);
     else if (sol.solution.join("") !== p.solution.join("")) problems.push(`${at}: not its solution`);
-    if (!patternOk(p.rows, p.cols, p.black)) problems.push(`${at}: not a Kakuro's pattern`);
+    if (!patternOk(p.rows, p.cols, p.black)) problems.push(`${at}: not a Tally's pattern`);
     for (let i = 0; i < cells; i++) if (p.black[i] !== p.black[mirror(p, i)] && Math.floor(i / p.cols) && i % p.cols) { problems.push(`${at}: not symmetric`); break; }
     for (const run of p.shape.runs) {
       if (new Set([...run.cells].map(c => p.solution[c])).size !== run.cells.length) problems.push(`${at}: a digit twice in a run`);

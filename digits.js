@@ -1,20 +1,20 @@
-// The digit grid (October 2026): the board Sudoku, Calcudoku and Kakuro are played on, its number pad and its keys.
+// The digit grid (October 2026): the board Nonet, Calcudoku and Tally are played on, its number pad and its keys.
 // It draws and it listens; the game keeps every bit of state (what's in the cells, the selection, the Notes switch)
 // and decides what a tap means, so a game's saved run is the whole picture, and a partner watching sees it as it is.
 // Pure helpers for the entries (writing, pencil marks, undo and redo) are in digits-edit.js; the look is digits.css.
 //
 //   const board = createBoard(host, {
-//     rows: 9, cols: 9,           // the grid's size (Kakuro's are rectangles); 4 to 12 a side reads well on a phone
+//     rows: 9, cols: 9,           // the grid's size (Tally's are rectangles); 4 to 12 a side reads well on a phone
 //     digits: [1, …, 9],          // the symbols a cell can hold, in order: a cell's value v (1..k) shows digits[v-1],
 //                                 // so a Calcudoku of 0..5 is digits [0, 1, 2, 3, 4, 5]; the pad has a key for each
-//     regions: [region per cell], // a heavy rule runs between cells of different regions (Sudoku's boxes, a jigsaw's
+//     regions: [region per cell], // a heavy rule runs between cells of different regions (Nonet's boxes, a jigsaw's
 //                                 // pieces, Calcudoku's cages); null: the frame only
 //     cages: [{ cells, label }],  // Killer's cages, outlined in dashes inside their cells; label (a sum, "12×") in the
 //                                 // corner of the cage's top-left cell. With cageRules, cages are drawn as heavy rules
 //     cageRules: false,           //   instead (Calcudoku, which has no regions: pass its cages and no regions)
-//     diagonals: false,           // the two long diagonals' cells shaded (Sudoku X)
+//     diagonals: false,           // the two long diagonals' cells shaded (Nonet X)
 //     kinds: [kind per cell],     // "" a cell to fill (the default), "block" blacked out, "clue" a block split by a
-//     clues: { cell: { across, down } },  // diagonal holding Kakuro's sums: across upper right, down lower left
+//     clues: { cell: { across, down } },  // diagonal holding Tally's sums: across upper right, down lower left
 //     peers: cell => [cells],     // what to tint while a cell is selected (default: its row, column and region)
 //     pad: element,               // where to draw the number pad (null: none)
 //     tools: ["undo", "redo", "erase", "notes", { id: "hint", label: "Hint", note: "+30 s" }],  // the pad's buttons
@@ -22,7 +22,7 @@
 //                                 //   { type: "select", cell }        a cell tapped, or reached with the arrow keys
 //                                 //   { type: "digit", value, note }  a digit key (note: in pencil: Notes on, or Shift)
 //                                 //   { type: "erase" | "undo" | "redo" | "notes" }, { type: "tool", id }
-//     name: "Sudoku grid",        // what a screen reader calls the board
+//     name: "Nonet grid",        // what a screen reader calls the board
 //   });
 //   board.draw({                  // the state, as the game keeps it; anything left out stays as last drawn
 //     values: [v per cell],       // 0 for empty

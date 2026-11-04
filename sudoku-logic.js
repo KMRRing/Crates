@@ -1,4 +1,4 @@
-// Sudoku's human-style solver, pure: the techniques a person uses, from the plainest to the hardest, each a function
+// Nonet's human-style solver, pure: the techniques a person uses, from the plainest to the hardest, each a function
 // that finds one step on the grid as it stands (a digit placed, or candidates struck out) and says why. It does three
 // jobs: it grades a grid by the hardest technique it needs (Easy needs singles only, Expert needs chains), it gives
 // hints (the easiest next step, named, with the cells that prove it), and it is the computer player, which works

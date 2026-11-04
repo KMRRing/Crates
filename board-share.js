@@ -6,7 +6,7 @@
 //   fixed   what never changes while the board is shared (the puzzle); the game's own shape, JSON.
 //   layers  the marks people make, one string a layer, a character a cell. Strings, since the database keeps no empty
 //           list and reads a list back with holes; a string is whole or it is not there. Most classic boards are one layer
-//           (Slitherlink's edges), some two (a cell's colour and its notes).
+//           (Circuit's edges), some two (a cell's colour and its notes).
 //   tally   counts that only grow (hints taken): a set of ids, so adding the same one twice counts once.
 //   once    values the first writer sets and nobody changes (the time it was solved in).
 //   rev     the number of edits applied: how an editor knows its own edit has come back to it.

@@ -1,5 +1,5 @@
-// The loop kernel: what Slitherlink and Masyu share. One loop is drawn along the edges of a grid of corners (a corner is
-// a dot for Slitherlink, a cell's middle for Masyu); a corner has no line or two; the loop never crosses or touches
+// The loop kernel: what Circuit and Pearl share. One loop is drawn along the edges of a grid of corners (a corner is
+// a dot for Circuit, a cell's middle for Pearl); a corner has no line or two; the loop never crosses or touches
 // itself. A puzzle kind brings its own clues: `sweep(g, X, st, rec)` (what its clues settle, -1 on a contradiction, 1 if
 // it settled something, else 0) and `closes(g, X, st, e)` (whether the lines drawn with edge `e` added meet every clue);
 // `loopSolver` makes the solver for it: the rules followed to a standstill, trials (suppose an edge one way and see

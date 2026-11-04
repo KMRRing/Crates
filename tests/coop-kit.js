@@ -104,7 +104,7 @@ export async function commonSuite({ check, id, adapter, share, layer, cells: [c0
 }
 
 /**
- * What every game on the digit grid (digits-coop.js: Sudoku, Calcudoku, Kakuro) has to do as a pair, from a grid of its own:
+ * What every game on the digit grid (digits-coop.js: Nonet, Calcudoku, Tally) has to do as a pair, from a grid of its own:
  * `kinds` are the game's kinds (the first is played), `gridOf(kind)` an encoded grid of one, `decode(grid)` its puzzle (`solution`, and
  * `n` and `givens` where the grid is square), `shape(puzzle)` otherwise says `{ k: digits, cells, free(i): whether a player writes in
  * cell i }`, `badGrid` a grid this version can't play. `coopOf` is the adapter's default export, `KEY` and `playable` its other two;

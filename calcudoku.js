@@ -1,7 +1,7 @@
 // Calcudoku (October 2026): fill the grid so every row and column holds each digit once, and every cage makes its
 // target by its operation (the genre KenKen made famous). The rules, the grids and the solvers are
 // calcudoku-engine.js and its pieces (every grid is generated, has one solution, and is graded by the hardest technique
-// a person needs); the board is the digit grid Sudoku made (digits.js), its cages drawn as heavy rules. This file
+// a person needs); the board is the digit grid Nonet made (digits.js), its cages drawn as heavy rules. This file
 // keeps the run (your entries, the clock, hints), the computer (a partner holding half the
 // clues), and the table: a race on one grid, or Together, the clues shared out so nobody can finish alone.
 import { RULES, SIZES, LEVELS, DAILY, levelsOf, levelFor, decode, validGrid, viewOf } from "./calcudoku-engine.js";

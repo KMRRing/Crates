@@ -1,4 +1,4 @@
-// Sudoku's exact solver, pure: it settles what the grid forces (a cell with one candidate left, a digit with one place
+// Nonet's exact solver, pure: it settles what the grid forces (a cell with one candidate left, a digit with one place
 // left in a unit, a Killer cage's sums), then tries each candidate of the cell with the fewest, counting solutions up to
 // a limit. With a limit of two it proves a grid has exactly one solution, the test every grid passes before it's dealt;
 // with a random order it fills an empty grid at random, which is how every solution starts. Candidates are bit masks

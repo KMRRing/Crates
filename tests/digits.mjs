@@ -1,4 +1,4 @@
-// The digit grid's pure parts, which Sudoku, Calcudoku and Kakuro share: the entries (digits-edit.js: writing, pencil
+// The digit grid's pure parts, which Nonet, Calcudoku and Tally share: the entries (digits-edit.js: writing, pencil
 // marks, rubbing out, undo and redo as one move each, notes cleared from a written digit's peers, repeats found,
 // everything through JSON), and the board's lines (linesOf in digits.js: heavy rules between regions, cages drawn in
 // dashes inside their cells, a clue cell's diagonal).

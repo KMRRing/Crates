@@ -1,4 +1,4 @@
-/* Sudoku: the grid on the digit board (digits.css), its clock and kind over it, a line of what's happening and the
+/* Nonet: the grid on the digit board (digits.css), its clock and kind over it, a line of what's happening and the
    number pad under it. Cobalt is the house colour: the ink of a digit you write. */
 :root { --sudoku-in: #2C5B8A; --sudoku-soft: color-mix(in srgb, var(--sudoku-in) 15%, var(--sheet)); --su-good: #2F7D5B; --su-bad: #A8382B;
   --su-logo-tint: #D2DEEA; --su-logo-edge: var(--logo-edge); }

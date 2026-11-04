@@ -1,4 +1,4 @@
-// Slitherlink's rules, puzzles and reasoning. One loop is drawn along the edges of a grid of dots; each number says how
+// Circuit's rules, puzzles and reasoning. One loop is drawn along the edges of a grid of dots; each number says how
 // many of its cell's four sides the loop uses; the loop never crosses or touches itself. Every puzzle made here has
 // exactly one answer and is graded by the hardest step a person needs to reach it. No page in it: slitherlink-worker.js
 // makes puzzles off the page, slitherlink.js plays them, tests/slitherlink.mjs checks it all in Node.
