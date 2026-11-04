@@ -71,7 +71,7 @@
  "kb": 2.7,
  "landlord": 2.5,
  "trumps": 2.5,
- "shunt": 2.5,
+ "shunt": 1.5,
  "crossword": 1.9,
  "party": 1.9,
  "blend": 1.7,
@@ -146,5 +146,6 @@
  "banquet-course": 0.1,
  "baccarat-course": 0.1,
  "ledger": 0.1,
- "digits": 0.1
+ "digits": 0.1,
+ "shunt-search": 22
 }

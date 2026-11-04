@@ -54,7 +54,7 @@ export const ROUNDS = {
   kakuro: "a grid solved",
   // Idle: the game over, as each says it
   heliograph: "a game over",
-  shunt: "a game over",
+  shunt: "a plate judged (a level with its goal met; a random plate or the daily, any score)",
   topple: "a game over (in Levels, the level's)",
   orrery: "a game over",
   netting: "a game over",

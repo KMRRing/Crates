@@ -17,30 +17,30 @@
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="shunt full fit-screen beside">
+<div id="app" class="shunt full titled fit-screen beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon sh-mark" aria-hidden="true"></span>Shunt</button></h1>
     <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
   </header>
 
-  <div class="sh-strip full-pull">
-    <span class="sh-score">Score <b id="score">0</b></span>
-    <span id="lives" class="sh-lives"></span>
-    <span class="sh-best">Best <b id="best">0</b></span>
+  <!-- where you are and what is asked: the plate's name, its goal as chips, the score and the stars -->
+  <div class="sh-head">
+    <div class="sh-line1"><span id="plateName" class="sh-name"></span><span class="sh-sc">Score <b id="score">0</b><span id="stars" class="sh-stars" aria-label="Stars"></span></span></div>
+    <div id="goal" class="sh-goal" aria-label="Goal"></div>
   </div>
-  <section id="yard" class="sh-yard fit-grow fit-box" aria-label="The yard">
-    <svg id="board" class="sh-board" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 78 78" role="img" aria-label="The yard"></svg>
+  <section id="plate" class="sh-plate fit-grow fit-box" aria-label="The plate">
+    <svg id="board" class="sh-board" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The plate: nineteen cells and thirty levers round it"></svg>
   </section>
 
   <section class="sh-side">
-    <div id="tray" class="sh-tray">
-      <div class="sh-coming" id="coming" aria-label="The wagon coming, and the next"></div>
-      <p id="line" class="sh-line"></p>
-    </div>
-    <div id="result" class="sh-result" hidden>
-      <p id="verdict" class="sh-verdict"></p>
-      <button class="sh-go" type="button" id="againBtn">New game</button>
+    <p id="coach" class="sh-coach" aria-live="polite"></p>
+    <svg id="tray" class="sh-tray" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The gears coming, and the hold"></svg>
+    <div class="sh-acts">
+      <button id="undoBtn" class="sh-btn" type="button">Undo</button>
+      <button id="hintBtn" class="sh-btn" type="button">Hint</button>
+      <button id="swapBtn" class="sh-btn" type="button">Swap</button>
+      <button id="shoveBtn" class="sh-btn plate" type="button">Shove</button>
     </div>
   </section>
 </div>
