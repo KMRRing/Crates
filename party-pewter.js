@@ -44,6 +44,7 @@ function after(s, u, list = alive(s)) {
   return u;
 }
 const word = c => (c === "b" ? "pewter" : "silver");
+const cap = w => w[0].toUpperCase() + w.slice(1);
 const coinWord = n => `${n} coin${n === 1 ? "" : "s"}`;
 
 // ---------- moving ----------
@@ -258,6 +259,7 @@ const seatsFor = (n, options) => Math.max(n, Math.min(MAX_SEATS, Number(options?
 export default {
   id: "pewter",
   name: "Pewter",
+  css: "party-pewter.css",
   min: 2,                                                  // the lobby lists it from two people; need() lets one alone start it with computer players
   max: MAX_SEATS,
   blurb: "Lay a coin, bid how many you can turn without finding the pewter.",
@@ -351,8 +353,9 @@ function drawPewter(stage, ctx) {
     return h("li", { class: cls },
       h("span", { class: "pw-top" }, h("span", { class: "pw-name" }, name(u)),
         h("span", { class: "pw-wins", "aria-label": `${s.wins?.[u] || 0} of ${WINS} rounds won` }, ...Array.from({ length: WINS }, (_, i) => h("i", { class: `pw-pip${i < (s.wins?.[u] || 0) ? " on" : ""}` })))),
-      n ? h("span", { class: "pw-row" }, stackEl, h("span", { class: "pw-left" }, `${n}`)) : h("span", { class: "pw-row" }, "out"),
-      s.bid && s.bid.by === u && ["bid", "flip"].includes(s.phase) ? h("span", { class: "pw-bid" }, `bid ${s.bid.n}`) : (s.passed || []).includes(u) ? h("span", { class: "pw-bid pass" }, "passed") : null);
+      h("span", { class: "pw-row" }, n ? stackEl : null,
+        s.bid && s.bid.by === u && ["bid", "flip"].includes(s.phase) ? h("span", { class: "pw-bid" }, `bid ${s.bid.n}`) : (s.passed || []).includes(u) ? h("span", { class: "pw-bid pass" }, "passed") : null,
+        h("span", { class: "pw-left" }, n ? `${n}` : "out")));
   })));
 
   if (!seated) parts.push(sub("You joined after the coins were dealt: watch this one, play the next."));
@@ -370,7 +373,7 @@ function drawPewter(stage, ctx) {
       button(`${label} ${local.bid}`, () => onSend(local.bid)));
   };
   const addRow = () => h("div", { class: "pw-row2" },
-    ...["p", "b"].filter(c => mine.includes(c)).map(c => button(`Add ${word(c)} · ${count(mine, c)}`, () => send({ add: c }), { primary: false, cls: "pw-add" })));
+    ...["p", "b"].filter(c => mine.includes(c)).map(c => button(`${cap(word(c))} ×${count(mine, c)}`, () => send({ add: c }), { primary: false, cls: "pw-add" })));
 
   if (s.phase === "lay") {
     const who = alive(s), done = u => (isBot(s, u) ? false : inputs[u]?.lay != null);
@@ -378,7 +381,7 @@ function drawPewter(stage, ctx) {
     if (seated && live && !sent) {
       parts.push(ask("Lay a coin face down"));
       parts.push(h("div", { class: "pw-row2" }, ...["p", "b"].filter(c => mine.includes(c)).map(c =>
-        button(`${word(c)[0].toUpperCase()}${word(c).slice(1)} · ${count(mine, c)}`, () => send({ lay: c }), { primary: c === "p", cls: "pw-lay" }))));
+        button(`${cap(word(c))} ×${count(mine, c)}`, () => send({ lay: c }), { primary: c === "p", cls: "pw-lay" }))));
       parts.push(sub("Silver is safe for you to turn. Pewter is a trap for whoever turns it."));
     } else parts.push(ask(sent ? "Your coin is down" : "Coins are going down"));
     parts.push(h("p", { class: "pk-wait" }, waitingFor(peopleOf(who.filter(u => !isBot(s, u))), who.filter(done))));
@@ -416,7 +419,7 @@ function drawPewter(stage, ctx) {
   }
 
   // your own coins: face up on your phone, hidden again with a tap for a neighbour's glance
-  if (seated && live) {
+  if (seated && live && !over) {
     const face = c => disc(coinsHidden ? "?" : c);
     parts.push(h("button", { type: "button", class: `pw-hand${coinsHidden ? " hidden" : ""}`, "aria-pressed": String(coinsHidden), onclick: () => { coinsHidden = !coinsHidden; draw(); } },
       h("span", { class: "pw-hand-label" }, "Your coins", h("em", {}, coinsHidden ? "tap to show" : "tap to hide")),
