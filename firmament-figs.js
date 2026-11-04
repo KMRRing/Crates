@@ -62,7 +62,7 @@ function shadow({ deg = 7.2 }) {
   const a0 = -90 * RAD, a1 = a0 + d, rr = 26, ar = 18, b0 = Math.atan2(ny, nx), b1 = -90 * RAD;
   out.push(P(`M${r1(cx + rr * Math.cos(a0))} ${r1(cy + rr * Math.sin(a0))}A${rr} ${rr} 0 0 1 ${r1(cx + rr * Math.cos(a1))} ${r1(cy + rr * Math.sin(a1))}`, "fh", 1.8));
   out.push(P(`M${r1(tx + ar * Math.cos(b1))} ${r1(ty + ar * Math.sin(b1))}A${ar} ${ar} 0 0 0 ${r1(tx + ar * Math.cos(b0))} ${r1(ty + ar * Math.sin(b0))}`, "fh", 1.8));
-  out.push(T(cx - 6, 22, "Syene: sun overhead", { a: "end", s: 9.5 }), T(tx + 6, 22, `Alexandria: ${deg}°`, { a: "start", s: 9.5 }), T(cx + 12, cy - 30, `${deg}°`, { a: "start", s: 10.5, c: "fh" }));
+  out.push(T(cx - 6, 22, "Syene: sun overhead", { a: "end", s: 9.5 }), T(tx + 14, 22, `Alexandria: ${deg}° off`, { a: "start", s: 9.5 }), T(cx + 12, cy - 30, `${deg}°`, { a: "start", s: 10.5, c: "fh" }));
   return out.join("");
 }
 
@@ -150,6 +150,67 @@ function dip() {
   return out.join("");
 }
 
-export const FIGS = { timeline, bars, plot, shadow, halfmoon, precession, tusi, epicycle, lunareclipse, spirals, compass, dip };
+/** Copernicus's trick: the Sun, the Earth, and Venus at its greatest elongation, where the line of sight just grazes Venus's orbit. */
+function elong({ deg = 46 }) {
+  const S0 = [100, 100], E = [220, 100], d = deg * RAD, ES = 120, EV = ES * Math.cos(d), V = [E[0] - EV * Math.cos(d), E[1] - EV * Math.sin(d)], rv = ES * Math.sin(d);
+  return [C(S0[0], S0[1], rv, "fs", 1.2), L(E[0], E[1], V[0] - (E[0] - V[0]) * .25, V[1] - (E[1] - V[1]) * .25, "fh", 1.6), L(S0[0], S0[1], V[0], V[1], "fl", 1.2), L(S0[0], S0[1], E[0], E[1], "fs", 1),
+    C(S0[0], S0[1], 7, "fa", 1.4), C(E[0], E[1], 5, "ff", 1.4), C(V[0], V[1], 4, "fa", 1.2),
+    P(`M${E[0] - 40} ${E[1]}A40 40 0 0 1 ${r1(E[0] - 40 * Math.cos(d))} ${r1(E[1] - 40 * Math.sin(d))}`, "fh", 1.6), T(E[0] - 52, E[1] - 12, `${deg}°`, { s: 11, c: "fh" }),
+    T(S0[0], S0[1] + 22, "Sun", { s: 10 }), T(E[0], E[1] + 18, "Earth", { s: 10 }), T(V[0] + 4, V[1] - 8, "Venus", { a: "start", s: 10 }), T(316, 184, "orbit radius = sin of the angle", { a: "end", s: 9.5, c: "fm" })].join("");
+}
+
+/** Kepler's second law: a strongly stretched orbit, the Sun at one focus, and two equal-time wedges of equal area. */
+function orbit({ e = 0.6 }) {
+  const a = 104, b = a * Math.sqrt(1 - e * e), cx = 160, cy = 92, sx = cx + a * e, out = [`<ellipse class="ff" stroke-width="1.6" cx="${cx}" cy="${cy}" rx="${a}" ry="${r1(b)}"/>`];
+  const pos = M => { let E = M; for (let i = 0; i < 40; i++) E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E)); return [cx + a * Math.cos(E), cy - b * Math.sin(E)]; };
+  for (const [m0, m1, cls] of [[-0.4, 0.4, "fa"], [Math.PI - 0.4, Math.PI + 0.4, "fa"]]) {
+    let d = `M${r1(sx)} ${cy}`;
+    for (let i = 0; i <= 12; i++) { const [x, y] = pos(m0 + (m1 - m0) * i / 12); d += `L${r1(x)} ${r1(y)}`; }
+    out.push(`<path class="${cls}" stroke-width="1" d="${d}Z"/>`);
+  }
+  out.push(C(sx, cy, 5.5, "fa", 1.4), T(sx + 4, cy + 18, "Sun", { s: 9.5 }), T(cx, 186, "equal areas in equal times: fast near the Sun", { s: 10 }));
+  return out.join("");
+}
+
+/** Venus seen through a telescope: crescents large and near, the full disc small and far; Ptolemy allowed only crescents. */
+function phases() {
+  const out = [], rs = [24, 20, 16, 12, 9], fr = [.12, .3, .5, .8, .97];
+  rs.forEach((r, i) => {
+    const cx = 36 + i * 62, cy = 84, f = fr[i], rx = r * Math.abs(1 - 2 * f);
+    out.push(`<circle class="ff" stroke-width="1.2" cx="${cx}" cy="${cy}" r="${r}"/>`, `<circle class="fshade" cx="${cx}" cy="${cy}" r="${r}"/>`);
+    out.push(`<path class="fa" stroke-width="0" d="M${cx} ${cy - r}A${r} ${r} 0 0 1 ${cx} ${cy + r}A${r1(rx)} ${r} 0 0 ${f < .5 ? 0 : 1} ${cx} ${cy - r}Z"/>`, C(cx, cy, r, "fl", 1.2));
+  });
+  out.push(T(160, 130, "Venus: near Earth it is a big crescent, far away a small full disc", { s: 9.5 }), T(160, 150, "Ptolemy: crescents only. Copernicus, Tycho: all phases.", { s: 9.5, c: "fh" }));
+  return out.join("");
+}
+
+/** Newton's cannon: faster shots land farther, and one is fast enough to miss the ground all the way round. */
+function cannon() {
+  // the Earth is cut off by the frame: only its top, where the mountain stands, matters
+  const cx = 160, cy = 180, R = 112, top = cy - R, wx = r => r1(Math.sqrt(r * r - 100)), out = [P(`M${cx - wx(R)} 190A${R} ${R} 0 0 1 ${cx + wx(R)} 190Z`, "ff", 1.8), P(`M${cx - wx(R + 12)} 190A${R + 12} ${R + 12} 0 0 1 ${cx + wx(R + 12)} 190`, "fd", 1.2)];
+  for (const a of [9, 20, 34]) { const t = a * RAD, ex = cx + R * Math.sin(t), ey = cy - R * Math.cos(t); out.push(P(`M${cx} ${top - 2}Q${r1(cx + (ex - cx) * .75)} ${top - 2} ${r1(ex)} ${r1(ey)}`, "fh", 1.6)); }
+  out.push(L(cx - 6, top, cx + 6, top, "fb", 3), T(cx, 24, "slow shots land near, fast ones far", { s: 10 }), T(cx, 160, "fast enough: it never lands", { s: 9.5, c: "fh" }), T(10, 46, "dashed: the ball that never lands", { a: "start", s: 9, c: "fm" }));
+  return out.join("");
+}
+
+/** Parallax: the nearby star seems to shift against the distant ones as the Earth goes round the Sun. */
+function parallax() {
+  const out = [], sx = 160, sy = 140, star = [160, 60];
+  out.push(L(20, 20, 300, 20, "fs", 1), T(160, 14, "distant stars", { s: 9.5, c: "fm" }), C(sx, sy, 6, "fa", 1.4), P(`M${sx - 64} ${sy}A64 64 0 1 0 ${sx + 64} ${sy}A64 64 0 1 0 ${sx - 64} ${sy}`, "fd", 1.2));
+  for (const dx of [-64, 64]) { out.push(C(sx + dx, sy, 4, "ff", 1.4)); out.push(L(sx + dx, sy, (sx + dx) + (star[0] - (sx + dx)) * (sy - 20) / (sy - star[1]), 20, "fh", 1.2)); }
+  out.push(C(star[0], star[1], 4, "fa", 1.2), T(star[0] + 8, star[1] + 3, "near star", { a: "start", s: 9.5 }), T(sx, sy + 20, "Sun", { s: 9.5 }), T(sx - 64, sy + 16, "January", { s: 9 }), T(sx + 64, sy + 16, "July", { s: 9 }), T(160, 184, "p: half the shift, in arcseconds, gives the distance in parsecs as 1 ÷ p", { s: 9.5, c: "fm" }));
+  return out.join("");
+}
+
+/** A spectrum: a rainbow crossed by dark lines (absorption), or dark with bright lines (emission). */
+function spectrum({ lines = [], emit = false, label = "" }) {
+  const out = [`<linearGradient id="fmRb" x1="0" x2="1"><stop offset="0" stop-color="#6A3D78"/><stop offset=".2" stop-color="#2C5B8A"/><stop offset=".4" stop-color="#2F7D5B"/><stop offset=".6" stop-color="#E2B865"/><stop offset=".8" stop-color="#C8783A"/><stop offset="1" stop-color="#A8382B"/></linearGradient>`];
+  out.push(`<rect x="30" y="60" width="260" height="56" rx="2" fill="${emit ? "#10181F" : "url(#fmRb)"}" stroke="currentColor" stroke-width="1.2" class="fl"/>`);
+  for (const [p, name] of lines) { const x = 30 + p * 260; out.push(`<rect x="${r1(x - 1.4)}" y="60" width="2.8" height="56" fill="${emit ? "#E2B865" : "#10181F"}"/>`, name ? T(x, 134, name, { s: 8.5, c: "fm" }) : ""); }
+  out.push(T(30, 52, "violet", { a: "start", s: 9, c: "fm" }), T(290, 52, "red", { a: "end", s: 9, c: "fm" }), T(160, 160, label, { s: 10 }));
+  return out.join("");
+}
+
+export const FIGS = { timeline, bars, plot, shadow, halfmoon, precession, tusi, epicycle, lunareclipse, spirals, compass, dip, elong, orbit, phases, cannon, parallax, spectrum };
 /** A figure as the inside of an svg; a lesson without one of its own gets a timeline if it has dates, else nothing. */
 export function draw(fig) { return fig && FIGS[fig.t] ? FIGS[fig.t](fig) : ""; }

@@ -46,12 +46,13 @@ svg.fm rect.ff, svg.fm rect.fa { stroke-width: 1.2; }
 /* ---------- the stage: a diagram and its date line ---------- */
 .fm-stage { padding: .1rem 0; }
 .fm-fig { margin: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; height: 100cqh; min-height: 0; justify-items: center; }
-.fm-fig svg { width: 100%; height: 100%; max-width: 38rem; display: block; min-height: 0; }
+.fm-fig svg { width: 100%; height: 100%; max-width: 38rem; display: block; min-height: 0; overflow: hidden; }
 .fm-fig figcaption { padding: .1rem 0 0; font-size: .74rem; color: var(--ink-soft); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); text-align: center; }
 
 /* the sheet's words and options take more of a phone's height than the stage's default allows: a question and four options must all show */
 @media (max-width: 699px) {
-  dialog.ln-sheet.firmamentc .ln-text { max-height: 50vh; max-height: 50svh; }
-  dialog.ln-sheet.firmamentc .ln-stage { min-height: 5.5rem; }
+  dialog.ln-sheet.firmamentc .ln-text { max-height: 38vh; max-height: 38svh; }
+  dialog.ln-sheet.firmamentc .ln-text p { font-size: .9rem; line-height: 1.36; }
+  dialog.ln-sheet.firmamentc .ln-stage { min-height: 8.5rem; }
 }
 dialog.ln-sheet.firmamentc .ln-opt { min-height: 2.5rem; padding: .35rem .65rem; }

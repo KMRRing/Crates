@@ -5,8 +5,11 @@ import { hash } from "./firmament-ask.js";
 import { CH1 } from "./firmament-c1.js";
 import { CH2 } from "./firmament-c2.js";
 import { CH3 } from "./firmament-c3.js";
+import { CH4 } from "./firmament-c4.js";
+import { CH5 } from "./firmament-c5.js";
+import { CH6 } from "./firmament-c6.js";
 
-export const SOURCE = [CH1, CH2, CH3];
+export const SOURCE = [CH1, CH2, CH3, CH4, CH5, CH6];
 
 function stepOf(raw, id, l) {
   const base = { id, when: l.when, fig: raw.fig || l.fig };
