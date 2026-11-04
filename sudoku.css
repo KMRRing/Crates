@@ -78,3 +78,7 @@ dialog.su-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   #app.sudoku .dg-pad { --pad-cols: 3; --key-h: 3.7rem; --key-font: 1.75rem; }
   #app.sudoku .su-next { grid-auto-flow: row; }
 }
+
+/* the desk (desk3d.css): the blotter runs to the screen edges on a phone, and is a rounded mat beside the pad held sideways */
+.su-stage { --d3-bleed: 1rem; }
+@media (orientation: landscape) and (min-width: 700px) { .su-stage { --d3-bleed: 0px; --d3-r: .5rem; } }

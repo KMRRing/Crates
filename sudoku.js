@@ -8,6 +8,7 @@ import { stateOf, nextStep, say } from "./sudoku-logic.js";
 import { partnerMove, PACES } from "./sudoku-bot.js";
 import { boxRegions, rng, mix, bit } from "./sudoku-grid.js";
 import { createBoard } from "./digits.js";
+import { desk3d, deskView } from "./desk3d.js";
 import { freshEntries, validEntries, write as writeDigit, pencil, rub, fill, set, undo, redo, repeats } from "./digits-edit.js";
 import { coopOf, placeCoop, hintCoop, coopValues, shareOf, orphanShares, placedBy as placedBySeat } from "./sudoku-room.js";
 import { createDuel } from "./duel.js";
@@ -28,6 +29,12 @@ import sudokuCoop from "./sudoku-coop.js";
 dropdown(document.getElementById("level"));
 
 const $ = id => document.getElementById(id);
+// the board as a slab on a desk (desk3d.js), or flat: the player's choice, else the suite's default (battery saver: flat)
+const deskChoice = deskView("sudoku"), desk = desk3d($("stage"), $("board"));
+const showDesk = () => desk.set(deskChoice.get() === "desk");
+showDesk();
+deskChoice.watch(showDesk);
+let glinted = null;
 const RUN = "sudoku:run", SETTINGS = "sudoku:settings", TIMES = "sudoku:times", SPARES = "sudoku:spares", TOGETHER = "sudoku:together";
 const HINT = 30;                     // seconds a hint adds
 const SAVE_EVERY = 5000;             // ms between saves while the clock runs (a partner watching sees it that often)
@@ -435,6 +442,7 @@ function render() {
   drawStrip();
   drawLine(done);
   drawResult();
+  if (flash && flash.key !== glinted && String(flash.key).startsWith("done:")) { glinted = flash.key; desk.glint(); }
 }
 function countsOf(values) {
   const out = {};
@@ -846,7 +854,8 @@ function settingsPart(body, atTable) {
     if (settings.computer !== "off") s.append(choice("Its pace", Object.entries(PACES).map(([k, p]) => [k, p.label]), settings.pace, v => { settings.pace = v; saveSettings(); }),
       line("You and Codex each see part of the givens; its digits show as it finds them. From the next grid."));
   }
-  s.append(toggle("Mark repeats", settings.repeats, v => { settings.repeats = v; saveSettings(); render(); }),
+  s.append(choice("View", deskChoice.options, deskChoice.get(), v => { deskChoice.set(v); showDesk(); }),
+    toggle("Mark repeats", settings.repeats, v => { settings.repeats = v; saveSettings(); render(); }),
     toggle("Clear pencil marks as you write", settings.tidy, v => { settings.tidy = v; saveSettings(); }));
 }
 /** The level select offers what the rules and size have (no Expert on a 6×6 or in Killer). */
