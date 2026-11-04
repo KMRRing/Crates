@@ -7,7 +7,6 @@ import { mapSvg, placeOf } from "./trade-map.js";
 import { PICS } from "./trade-pictures.js";
 import { KB_POWERS } from "./trade-kb.js";
 
-const picsOn = () => { try { return localStorage.getItem("trade:pics") !== "off"; } catch { return true; } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const POWER_ROWS = [["span", "When"], ["where", "Where"], ["traded", "Traded"], ["model", "How it worked"], ["ruled", "Ruled by"], ["fell", "Why it ended"], ["then", "What came after"], ["dark", "The cost"]];
 
@@ -21,7 +20,6 @@ export function tradeStage() {
       box.innerHTML = `<div class="td-pics n${Math.min(s.pic.length, 2)}">${s.pic.map(k => `<figure class="td-fig"><div class="td-cell"><div class="td-pic"></div><div class="td-miss" hidden><b>${esc(PICS[k].says)}</b><span>Picture not available</span></div></div><figcaption>${esc(PICS[k].says)}. Picture: Wikipedia, "${esc(PICS[k].title)}".</figcaption></figure>`).join("")}</div>`;
       s.pic.forEach((k, i) => {
         const fig = box.querySelectorAll(".td-fig")[i], node = fig.querySelector(".td-pic"), miss = fig.querySelector(".td-miss");
-        if (!picsOn()) { fig.classList.add("gone"); miss.hidden = false; miss.querySelector("span").textContent = "Pictures are off (Menu)"; return; }
         showPicture(node, PICS[k].title, { width: OFFLINE_WIDTH, alt: PICS[k].says }).then(ok => { if (ok === false && cur === s) { fig.classList.add("gone"); miss.hidden = false; } });
       });
       return;

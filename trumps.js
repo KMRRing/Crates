@@ -39,12 +39,18 @@ let opts = { game: "jass", level: "medium", full: false, jass: { pack: "swiss", 
 if (!GAMES[opts.game]) opts.game = "jass";
 const saveOpts = () => write(OPTS, opts);
 
-// ---------- Jass, Belote and Schafkopf: three tiles, one page ----------
+// ---------- Jass, Belote, Coinche and Schafkopf: four tiles, one page ----------
 // The address says which (?game=), else it's the game of the run in progress, else the one last chosen. One run is kept
 // at a time (trumps:game): a tile for another game puts it away under its tile (trumps:game:<tile>) and takes that
 // tile's own back, so opening Jass never throws away a Schafkopf hand. At a table or in a partner's frame the run isn't ours.
 const readRun = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
 {
+  // until 4 November 2026 Coinche was Belote's, its run put away under Belote's tile
+  const oldCoinche = readRun(`${RUN}:belote`);
+  if (!IN_FRAME && oldCoinche?.state?.game === "coinche") {
+    if (!readRun(`${RUN}:coinche`)) write(`${RUN}:coinche`, oldCoinche);
+    try { localStorage.removeItem(`${RUN}:belote`); } catch { /* private mode */ }
+  }
   const here = readRun(RUN), asked = gameInAddress(location.search);
   const inRoom = /[?&](table|room)=/.test(location.search);
   const game = asked || (GAMES[here?.state?.game] ? here.state.game : opts.game);
@@ -157,7 +163,7 @@ function nextHand() {
   page.runner.kick();
 }
 const nextLabel = s => (GAMES[s.game].done(s) ? "The result" : "Next hand");
-const randomRounds = { jass: seatRounds("jass", ["scored"]), belote: seatRounds("belote", ["scored"]), schafkopf: seatRounds("schafkopf", ["scored"]) };   // random mode's round: a hand, by the tile
+const randomRounds = { jass: seatRounds("jass", ["scored"]), belote: seatRounds("belote", ["scored"]), coinche: seatRounds("coinche", ["scored"]), schafkopf: seatRounds("schafkopf", ["scored"]) };   // random mode's round: a hand, by the tile
 page = seatPage({
   // app 2: the table's coach is the table's (house), kept on every phone; an older page at the table updates first
   rules, id: "trumps", app: 2, pace: paceNow, hold: holding, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
@@ -661,12 +667,6 @@ function openMenu() {
     if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
   }
   play.append(action("The rules on one page", showRules, "link"));
-  const content = part(body, "content");
-  content.append(choice("Game", [["jass", "Jass"], ["belote", "Belote"], ["coinche", "Coinche"], ["schafkopf", "Schafkopf"]], opts.game, v => {
-    // another tile's game is that tile (its own name, logo, figures and run); at a table the game applies from the next deal
-    if (tileOf(v) !== tileNow() && !page.atTable && !IN_FRAME) { opts.game = v; saveOpts(); location.href = `trumps.html?game=${v}`; return; }
-    opts.game = v; saveOpts(); openMenu();
-  }));
   const set = part(body, "settings"), o = opts[opts.game];
   set.append(view.choice(() => draw()));
   if (opts.game === "jass") {

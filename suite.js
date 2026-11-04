@@ -153,7 +153,7 @@ export async function pull() {
 const RESET_PREFIXES = { nonogram: ["nonogram:", "loom:"], glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"], reckoning: ["reckoning:", "courier:"],
   // Stow's page holds two tiles: Loose cargo's saves are two of stow:'s keys (and its figure, loose:stars), so each tile resets its own
   stow: ["stow:plan", "stow:day", "stow:view", "stow:mode", "stow:stars", "stow:best"], loose: ["stow:run", "stow:progress", "loose:"],
-  jass: ["trumps:jass:"], belote: ["trumps:belote:"], schafkopf: ["trumps:schafkopf:", "trumps:course", "trumps:rush"] };   // the three tiles of trumps.html
+  jass: ["trumps:jass:"], belote: ["trumps:belote:"], coinche: ["trumps:coinche:"], schafkopf: ["trumps:schafkopf:", "trumps:course", "trumps:rush"] };   // the four tiles of trumps.html
 /**
  * Starts a game over: every key under its prefixes goes, here and, with a solo code, on the code, so your other devices
  * drop them too (a removal syncs like any change, the newer winning: their older copies can't come back). Keys only
@@ -508,7 +508,7 @@ let mirrorTimer = null, watched = null;           // watched: inside a frame, th
 /** The prefixes of a game's keys in storage: the game's id; but Slate keeps its old name, Glyph, and Blend's rebuild
  *  saves under blend2: (so its first version's saves were never misread), its stars under blend:. A key under none of
  *  them isn't the game's: it isn't mirrored, and a watching frame reads the watcher's own. */
-const PREFIXES = { nonogram: ["nonogram:", "loom:"], slate: ["glyph:"], blend: ["blend:", "blend2:"], reckoning: ["reckoning:", "courier:"], jass: ["trumps:"], belote: ["trumps:"], schafkopf: ["trumps:"] };
+const PREFIXES = { nonogram: ["nonogram:", "loom:"], slate: ["glyph:"], blend: ["blend:", "blend2:"], reckoning: ["reckoning:", "courier:"], jass: ["trumps:"], belote: ["trumps:"], coinche: ["trumps:"], schafkopf: ["trumps:"] };
 const gamesKey = (game, k) => !!game && (PREFIXES[game] || [`${game}:`]).some(p => k.startsWith(p));
 // what never goes to a watcher: the suite's own keys, Crates' run link (watching must not join their run), Firebase's
 const WATCH_SKIP = /^(suite:|crates:run|crates:updated|firebase:)/;

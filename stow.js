@@ -13,7 +13,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { GAMES, roomInAddress, otherHere, joiningWords } from "./rooms.js";
 import "./pwa.js";
-import { part, action, line, choice } from "./menu.js";
+import { part, action, line } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, noteStars, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -269,7 +269,6 @@ function openMenu() {
     part(body, "together").append(action("Start this manifest again", pick(plan.level), "primary"), action("Back to solo", () => together.leave(), "link"));
     part(body, "content").append(campaign(lv => { close(); pick(lv)(); }, () => false));
   } else {
-    part(body, "content").append(choice("Cargo", [["plan", "Manifests"], ["loose", "Loose cargo"]], mode, m => { write(MODE, m); location.href = m === "loose" ? "stow.html?mode=loose" : "stow.html"; }));
     if (mode === "loose") loose.menu(body, close);
     else {
       const p = part(body, "play"), next = nextPlan(), done = plan.plan?.done;

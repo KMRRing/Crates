@@ -18,7 +18,7 @@ import { bindFind, starButton } from "./games-bar.js";
 import { SOON_CODEX, SOON_MODERN, SOON_KONTOR } from "./soon-logos.js";
 import { BULLS_CODEX, BULLS_MODERN, BULLS_KONTOR } from "./bulls-logos.js";
 import { SOLITAIRE_CODEX, SOLITAIRE_MODERN, SOLITAIRE_KONTOR } from "./solitaire-logos.js";
-import { JASS_CODEX, BELOTE_CODEX, SCHAFKOPF_CODEX, TRUMPS_MODERN, TRUMPS_KONTOR } from "./trumps-logos.js";
+import { JASS_CODEX, BELOTE_CODEX, COINCHE_CODEX, SCHAFKOPF_CODEX, TRUMPS_MODERN, TRUMPS_KONTOR } from "./trumps-logos.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
 // times --wire, which style.css raises on the selected game; the engraved detail keeps its own fine weight.
@@ -734,6 +734,7 @@ export const APPS = [
   { id: "craps", sec: "appendix", name: "Craps", href: "./craps.html", logo: LOGO("craps", CRAPS_LOGO), players: [1, 1] },
   { id: "holdem", sec: "appendix", name: "Hold'em", href: "./holdem.html", logo: LOGO("holdem", HOLDEM_LOGO), players: [1, 6] },
   { id: "guilloche", sec: "appendix", name: "Guilloché", href: "./guilloche.html", logo: LOGO("guilloche", GUILLOCHE_LOGO), players: [1, 1] },
+  { id: "coinche", sec: "appendix", name: "Coinche", href: "./trumps.html?game=coinche", logo: LOGO("coinche", COINCHE_CODEX), players: [1, 4] },
   { id: "timegrapher", sec: "appendix", name: "Timegrapher", href: "./timegrapher.html", logo: LOGO("timegrapher", TIMEGRAPHER_LOGO), players: [1, 1] },
   { id: "banquet", sec: "appendix", name: "Banquet", href: "./banquet.html", logo: LOGO("banquet", BANQUET_LOGO), players: [1, 2] },
 ];

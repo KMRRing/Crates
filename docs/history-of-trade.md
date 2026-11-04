@@ -12,3 +12,5 @@ A course of 45 lessons in 14 chapters, from the first obsidian blades to today's
 - **Contested numbers are never asked as a number.** They are asked as "which statement is defensible", the answer carrying the range and who disputes it. A figure the outline marks `(check)` stays out of questions until verified (`tests/trade.mjs` lists the ones it refuses; `docs/history-of-trade-notes.md` lists what is open).
 - **A picture may not load, and the course must still be finishable.** Words never depend on a picture; a title no one has looked at on a connected machine is in the notes file.
 - **Maps name places that fit.** A place whose name cannot be set without overlapping another is a test failure: drop the lesser place from the lesson's `pts`, not from the text.
+
+4 November 2026, Korbi: no setting duplicates a tile or a suite setting. The Pictures toggle is gone; pictures follow the suite (Settings, Keep pictures offline).

@@ -1,6 +1,5 @@
 // Order: enough dated cards for a run, quantity families of one unit with enough cards each, and every card a number
-// that can be compared; a run's placements (right, wrong, the lives, the end); higher or lower (a chain of cards, none
-// twice, none too close, one family; the tap, the move on, the end; the page's keys); and the table, when several play one
+// that can be compared; a run's placements (right, wrong, the lives, the end); and the table, when several play one
 // run together (order-engine.js): a tap places the card only if it's still the card in hand on the line the player
 // saw, so two phones tapping at once place it once; the lives are the team's; each card keeps who placed it; each
 // player's tally, the pair's record (a team result) and a new game. Every state goes through the database's own round
@@ -127,111 +126,11 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   check(g.n === 2 && cards(g.run).every(id => cat(id) !== "art"), "and its next game too");
 }
 
-// ---------- higher or lower (November 2026) ----------
-// one life, two cards, tap the higher: a chain of cards dealt whole from the seed, none twice, none too close to call to the
-// one before, all in one family; the tap judges the pair, a right one moves the chain on, a wrong one ends the run
+// Higher or lower is not a way to play Order (4 November 2026): a saved choice of it plays the line
 {
-  const { HL_MODES, HL_FAMILIES, HL_LEAST, HL_WORTH, dealHigherLower, answerHigherLower, advanceHigherLower, pairOf, higherOf, wasRight, tooClose } = await import("../order-engine.js");
-  const { bestOfDay } = await import("../days.js");
-  const cat = id => BY_ID.get(id).cat, cards = run => run.cards, fam = run => familyOf(run.unit);
-  const balanced = TOPIC_PRESETS.balanced.topics, none = Object.fromEntries(TOPICS.map(([id]) => [id, 0]));
-  /** The run's pairs in order, each a tap would judge (the card with its value showing, the one beside it). */
-  const pairs = run => run.cards.slice(1).map((id, i) => [run.cards[i], id]);
-  // too close to call: the same year; quantities within a hundredth, in whatever unit each is in
-  const pops = FAMILIES.flatMap(f => f.ids).filter(id => id.startsWith("mq-population-")).map(id => [id, size(id)]).sort((x, y) => x[1] - y[1]);
-  const near = pops.findIndex(([, v], k) => k && v > pops[k - 1][1] && v / pops[k - 1][1] < 1.01), apart = pops.findIndex(([, v], k) => k && v / pops[k - 1][1] > 1.05);
-  const years = dates.filter(q => !q.pic).map(q => q.truth).sort((a, b) => a - b), k = years.findIndex((v, n) => n && v === years[n - 1] + 1);
-  const [early, late] = [dates.find(q => q.truth === years[k - 1]), dates.find(q => q.truth === years[k])], twin = dates.find(q => q.id !== early.id && q.truth === early.truth);
-  check(near > 0 && tooClose(pops[near - 1][0], pops[near][0]) && tooClose(pops[near][0], pops[near - 1][0]) && apart > 0 && !tooClose(pops[apart - 1][0], pops[apart][0]),
-    "quantities within one per cent are too close to call, either way round; others are not");
-  check(twin && tooClose(early.id, twin.id) && !tooClose(early.id, late.id), "the same year is too close to call, the next year is not");
-
-  check(Object.keys(HL_MODES).join() === "dates,quantities" && dealHigherLower("stories", 3).mode === "dates", "dates and quantities; History's stories have nothing to compare");
-  check(HL_FAMILIES.length >= 5 && HL_FAMILIES.every(f => f.ids.length >= HL_LEAST && f.ids.every(id => size(id) > 0)), `${HL_FAMILIES.length} families to run through, each of ${HL_LEAST} cards or more, every size above zero`);
-  const a = dealHigherLower("dates", 11), b = dealHigherLower("quantities", 11);
-  check(same(a, dealHigherLower("dates", 11)) && same(b, dealHigherLower("quantities", 11)) && !same(a, dealHigherLower("dates", 12)) && !same(b, dealHigherLower("quantities", 12)), "a seed deals the same run every time, another seed another");
-  check(Object.keys(a).join() === "hl,seed,mode,unit,cards,at,score,over,picked" && a.hl && a.at === 0 && a.score === 0 && !a.over && a.picked === null && same(JSON.parse(JSON.stringify(a)), a),
-    "a run is plain data (it is kept in localStorage as it stands): the chain, where it has got to, the score, no tap yet");
-  check([11, 12, 13].every(seed => same(dealHigherLower("dates", seed), dealHigherLower("dates", seed, balanced)) && same(dealHigherLower("quantities", seed), dealHigherLower("quantities", seed, balanced))),
-    "every topic in deals a run as it would with no mix, so today's run is the same whatever anyone's mix");
-
-  // what every run is, over many seeds
-  let longest = 0, shortest = Infinity;
-  for (let seed = 1; seed <= 80; seed++) for (const mode of ["dates", "quantities"]) {
-    const run = dealHigherLower(mode, seed * 7919), ids = cards(run);
-    longest = Math.max(longest, ids.length); shortest = Math.min(shortest, ids.length);
-    const bad = [];
-    if (new Set(ids).size !== ids.length) bad.push("a card twice");
-    if (mode === "dates" ? !ids.every(id => BY_ID.get(id).unit === "year" && dates.some(q => q.id === id)) : !(HL_FAMILIES.includes(fam(run)) && ids.every(id => fam(run).ids.includes(id)))) bad.push("not one family");
-    for (const [x, y] of pairs(run)) {
-      const [p, q] = [size(x), size(y)];
-      if (mode === "dates" ? p === q : Math.max(p, q) / Math.min(p, q) <= 1.01) bad.push(`too close: ${x} and ${y}`);
-    }
-    check(!bad.length && run.cards.length >= HL_LEAST, `seed ${seed * 7919}, ${mode}: ${bad.join("; ") || `${ids.length} cards, one chain`}`);
-    if (bad.length) break;
-  }
-  check(shortest >= HL_LEAST && longest >= dates.length * 0.95, `a run is the whole pool in a chain: dates ${longest} cards, the shortest ${shortest}`);
-  check(new Set(Array.from({ length: 60 }, (_, i) => dealHigherLower("quantities", 500 + i).unit)).size >= 4, "the quantities come from several families, not always the biggest");
-
-  // the tap
-  const run = dealHigherLower("dates", 21), [x, y] = pairOf(run), hi = higherOf(x, y), lo = hi === x ? y : x, frozen = JSON.stringify(run);
-  const right = answerHigherLower(run, hi);
-  check(JSON.stringify(run) === frozen, "a tap makes a new run and leaves the old one as it was");
-  check(right.picked === hi && right.score === 1 && !right.over && right.at === 0 && wasRight(right) === true && same(pairOf(right), [x, y]), "a right tap scores, shows both and keeps the pair on the table");
-  check(answerHigherLower(right, lo) === right && answerHigherLower(run, "no-such-card") === run, "a second tap, or a card not on the table, does nothing");
-  const next = advanceHigherLower(right);
-  check(next.at === 1 && next.picked === null && pairOf(next)[0] === y && pairOf(next)[1] === run.cards[2] && next.score === 1, "after a right tap the card dealt beside the other takes its place, and a new one is dealt");
-  check(advanceHigherLower(run) === run, "nothing moves on before a tap");
-  const wrong = answerHigherLower(run, lo);
-  check(wrong.over && wrong.score === 0 && wrong.picked === lo && wasRight(wrong) === false && advanceHigherLower(wrong) === wrong && answerHigherLower(wrong, hi) === wrong, "a wrong tap ends the run: no score for it, no going on, no second try");
-  // the winner doesn't stay: tapping the left card when it is the higher still puts the right one in its place
-  const leftHigher = Array.from({ length: 40 }, (_, i) => dealHigherLower("dates", 900 + i)).find(r => higherOf(...pairOf(r)) === r.cards[0]);
-  check(leftHigher && pairOf(advanceHigherLower(answerHigherLower(leftHigher, leftHigher.cards[0])))[0] === leftHigher.cards[1], "the card beside the other takes its place, higher or lower than it: the run is a chain, not the highest so far");
-
-  // played through: always right clears the pool; right k times then wrong scores k
-  const play = (run, taps) => { let r = run, n = 0; while (!r.over) { const [p, q] = pairOf(r), h = higherOf(p, q); r = answerHigherLower(r, n++ < taps ? h : h === p ? q : p); r = advanceHigherLower(r); } return r; };
-  for (const mode of ["dates", "quantities"]) {
-    const sure = play(dealHigherLower(mode, 77), Infinity);
-    check(sure.over && sure.score === sure.cards.length - 1 && wasRight(sure) === true && sure.at === sure.cards.length - 2, `${mode}: every tap right to the last pair: ${sure.score} right, over, every card dealt`);
-    const fall = play(dealHigherLower(mode, 77), 5);
-    check(fall.over && fall.score === 5 && wasRight(fall) === false, `${mode}: five right then a wrong one: a score of five, over`);
-  }
-  check(play(dealHigherLower("dates", 5), 0).score === 0, "a wrong first tap scores nothing");
-
-  // topics: the cards drawn by their topics' weights, as the line's are
-  const trader = cleanTopics({ trade: 2, markets: 2, art: 0, people: 0, wine: 0 }), t1 = dealHigherLower("dates", 11, trader);
-  check(cards(t1).every(id => cat(id) !== "art" && cat(id) !== "people" && cat(id) !== "wine") && !t1.wide && cards(t1).length > 30, "a topic out: none of its cards, the rest all dealt");
-  const w1 = dealHigherLower("dates", 9, { ...none, wine: 1 });
-  check(w1.wide && new Set(cards(w1).map(cat)).size > 1 && cards(w1).length >= dates.length * 0.9, "a mix that leaves too few cards deals from every topic, and says so");
-  const head = (r, n) => cards(r).slice(0, n).filter(id => cat(id) === "markets").length;
-  let more = 0, inn = 0;
-  for (let seed = 0; seed < 60; seed++) { more += head(dealHigherLower("dates", seed, { ...balanced, markets: 2 }), 40); inn += head(dealHigherLower("dates", seed, balanced), 40); }
-  check(more > inn * 1.3, `a topic more comes earlier in the chain (${more} against ${inn} of its cards among the first forty)`);
-  const [topic, family] = TOPICS.map(([id]) => [id, HL_FAMILIES.find(f => f.ids.filter(i => cat(i) === id).length >= HL_LEAST)]).find(([, f]) => f) || [];
-  if (topic) {
-    const q = dealHigherLower("quantities", 7, { ...none, [topic]: 1 });
-    check(!q.wide && cards(q).length >= HL_LEAST && cards(q).every(id => cat(id) === topic && fam(q).ids.includes(id)), `quantities with only ${topic} in: one family, only its cards in that topic`);
-  }
-  const thin = TOPICS.map(([id]) => id).find(id => !HL_FAMILIES.some(f => f.ids.filter(i => cat(i) === id).length >= HL_LEAST));
-  check(!thin || dealHigherLower("quantities", 7, { ...none, [thin]: 1 }).wide, "quantities with no family of enough cards in the topics in deal from every topic, and say so");
-
-  // no repeats: what you've seen comes after what you haven't, and the memory is let go when too little is left
-  const plain = dealHigherLower("dates", 5), seen = new Set(cards(plain).slice(0, 40)), again = dealHigherLower("dates", 5, null, seen);
-  check(same(plain, dealHigherLower("dates", 5, null, new Set())) && !again.recycled, "nothing seen: the deal is the seed's");
-  check(cards(again).slice(0, dates.length - seen.size - 10).every(id => !seen.has(id)) && cards(again).length === cards(plain).length, "the unseen cards come first, the seen ones after");
-  const most = new Set(dates.map(q => q.id).slice(0, dates.length - (HL_WORTH - 1)));
-  check(dealHigherLower("dates", 6, null, most).recycled && !dealHigherLower("dates", 6, null, new Set(dates.map(q => q.id).slice(0, dates.length - HL_WORTH))).recycled, "fewer unseen cards than a good run's worth: the deal says it reached back, and the page lets them go");
-  const q1 = dealHigherLower("quantities", 3, null, new Set()), q2 = dealHigherLower("quantities", 3, null, new Set(fam(q1).ids));
-  check(q2.unit !== q1.unit && !q2.recycled, "a family with nothing unseen isn't dealt while others have cards you haven't seen");
-  check(dealHigherLower("quantities", 4, null, new Set(HL_FAMILIES.flatMap(f => f.ids))).recycled, "every card seen: a deal still comes, and says it went back over them");
-
-  // the page: its own run, bests and daily, the seen memory, the round's end
   const page = fs.readFileSync(new URL("../order.js", import.meta.url), "utf8");
-  check(/HL = "order:hl", HL_BEST = "order:hlbest", PLAY = "order:play"/.test(page) && /BEST = "order:best"/.test(page) && !/write\(BEST, [^)]*hl/i.test(page), "higher or lower keeps its run, its bests and the way you play under order:, apart from the line's best");
-  check(/dealHigherLower\(m, seed, daily \? null : mixFor\(m\), daily \? null : new Set\(seenIds\(\)\), daily\)/.test(page) && /if \(!H\.daily\) markSeen\(/.test(page), "the page deals a run of your own from what you've seen and notes each card as it shows; a daily doesn't");
-  check(/\$\{H\.day \?\? today\(\)\}\/hl-\$\{H\.mode\}/.test(page) && bestOfDay({ "20261102/hl-dates": 9, "20261102/dates": 4, "20261101/hl-dates": 30 }, 20261102) === 9, "today's run is kept in the daily map by the day and its mode, where the games screen reads it");
-  check((page.match(/roundOver\("order"\)/g) || []).length >= 2 && /onPause\(/.test(page), "both ways of playing end a round for Random mode, and the moment before the next pair stands still while the menu is open");
-  check(/Object\.entries\(hlOn\(\) \? HL_MODES : MODES\)/.test(page), "the menu offers higher or lower no History");
+  check(!/HigherLower|hlOn|HL_MODES/.test(page) && !("dealHigherLower" in await import("../order-engine.js")), "no higher or lower mode in Order");
+  check(/for \(const k of \["order:play", "order:hl", "order:hlbest"\]\)/.test(page), "a saved higher or lower choice, run and bests are let go: Order plays the line");
 }
 
 // ---------- the table ----------
@@ -311,5 +210,5 @@ const seat = (name, slot) => ({ name, slot, pid: `p${slot}`, online: true });
   check(dealRun("dates", 11, null, null, true).deck.join() === dealRun("dates", 11, null, null, false).deck.join(), "Exclude: a daily's cards are those of a run of your own, seed for seed");
 }
 
-console.log(bad ? `order: ${bad} problems` : `order: ${dates.length} dated cards, ${FAMILIES.length} quantity families (${FAMILIES.map(f => `${f.unit} ${f.ids.length}`).join(", ")}); a run, its topics, higher or lower and a table of three played through`);
+console.log(bad ? `order: ${bad} problems` : `order: ${dates.length} dated cards, ${FAMILIES.length} quantity families (${FAMILIES.map(f => `${f.unit} ${f.ids.length}`).join(", ")}); a run, its topics and a table of three played through`);
 if (bad) process.exitCode = 1;

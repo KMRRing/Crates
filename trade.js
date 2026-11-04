@@ -7,15 +7,15 @@ import { COURSE } from "./trade-lessons.js";
 import { tradeStage } from "./trade-stage.js";
 import { plate } from "./trade-plate.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, action, line, toggle } from "./menu.js";
+import { part, action, line } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
 import { sure } from "./sure.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
 const COUNT = "trade:lessons";               // { done, of }: what the games screen's tile shows
-const PICS = "trade:pics";                   // "off" when the reader would rather have no pictures fetched
 const total = lessonsOf(COURSE).length;
+if (!IN_FRAME) try { localStorage.removeItem("trade:pics"); } catch { /* private mode */ }   // the Pictures toggle is gone: pictures follow the suite (Settings, Keep pictures offline)
 
 bindSwitcher($("appsBtn"), "trade");
 document.querySelector(".td-mark").innerHTML = APPS.find(a => a.id === "trade")?.logo || "";
@@ -51,9 +51,6 @@ function openMenu() {
   play.append(action("All the lessons", () => course.open()));
   if (!IN_FRAME) {
     const settings = part(body, "settings");
-    let on = true;
-    try { on = localStorage.getItem(PICS) !== "off"; } catch { /* private mode */ }
-    settings.append(toggle("Pictures from Wikipedia", on, v => { try { if (v) localStorage.removeItem(PICS); else localStorage.setItem(PICS, "off"); } catch { /* private mode */ } }));
     if (p.done) settings.append(action("Start the course over", async () => {
       if (!(await sure("Forget which lessons you have done?"))) return;
       try { localStorage.removeItem("trade:course"); localStorage.removeItem(COUNT); } catch { /* private mode */ }

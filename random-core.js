@@ -104,7 +104,7 @@ export const LEFT_OUT = {
   // the Appendix (Korbi, 3 November 2026: it stays out of Random and of Start a game over): set aside until each leaves for an
   // app of its own, so Random never sends you there; the games keep their roundOver calls, which do nothing meanwhile
   blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
-  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, polder: APPENDIX, avalanche: APPENDIX, masyu: APPENDIX,
+  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, polder: APPENDIX, avalanche: APPENDIX, masyu: APPENDIX, coinche: APPENDIX,
   odds: "a course of lessons, not a game with rounds",
   maths: "a course of lessons, not a game with rounds",
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
