@@ -11,6 +11,10 @@ import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";
 import { sure } from "./sure.js";
+import { die } from "./yacht-die.js";
+import { createCourse, progressOf } from "./course.js";
+import { COURSE } from "./yacht-course.js";
+import { yachtStage } from "./yacht-course-stage.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -32,15 +36,6 @@ function toast(msg, ms = 2600) {
   t.classList.add("on");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("on"), ms);
-}
-
-// ---------- the dice, drawn ----------
-const PIPS = { 1: [[1, 1]], 2: [[0, 0], [2, 2]], 3: [[0, 0], [1, 1], [2, 2]], 4: [[0, 0], [2, 0], [0, 2], [2, 2]],
-  5: [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]], 6: [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]] };
-/** A die (0: not rolled yet, no pips). */
-function die(face) {
-  const pips = (PIPS[face] || []).map(([c, r]) => `<circle${face === 1 ? ' class="red"' : ""} cx="${6 + 6 * c}" cy="${6 + 6 * r}" r="${face === 1 ? 3.2 : 2.3}"/>`).join("");
-  return `<svg class="ya-die" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="4.6"/>${pips}</svg>`;
 }
 
 // ---------- the table ----------
@@ -272,6 +267,15 @@ function showRules() {
   $("rulesDlg").showModal();
 }
 
+// Learn: the lessons on the course sheet; their last step starts a game, asking before it leaves one begun
+async function playFromCourse() {
+  if (page.atTable) { toast("Lessons end back at your table"); return; }
+  const s = V?.state;
+  if (s && s.step === "play" && s.sheets.some(sh => sh.some(x => x >= 0)) && !(await sure("Leave the game you’re playing for a new one?"))) return;
+  await newGame();
+}
+const course = createCourse({ id: "yacht", course: COURSE, stage: yachtStage(), cls: "ya", inFrame: IN_FRAME, onRules: showRules, onPlay: playFromCourse });
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -286,6 +290,8 @@ function openMenu() {
   if (V && myTurn(V) && V.state.left < 3 && V.state.left >= 0) {
     content.append(action("Hint", () => { const h = advise(V.state, V.seat); toast(`${h.name} for ${h.pts} looks best`); }, "link"));
   }
+  const cp = progressOf("yacht", COURSE);
+  content.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Yacht, from the rules", () => course.open()));
   content.append(action("The rules", showRules, "link"));
   const set = part(body, "settings");
   set.append(view.choice(() => draw()));
@@ -304,9 +310,10 @@ document.querySelector(".ya-mark").innerHTML = APPS.find(a => a.id === "yacht")?
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
+$("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 window.addEventListener("resize", () => { if (V) draw(); });
-window.__yacht = { page, get view() { return V; }, opts, get three() { return three; }, openOf };
+window.__yacht = { page, course, get view() { return V; }, opts, get three() { return three; }, openOf };
 // the games screen's tile opens today's while it's still to play; the first time, a game is dealt at once: the table is the menu
 const forToday = arrivedForToday();
 if (!IN_FRAME && !page.atTable && !new URLSearchParams(location.search).get("table")) {
