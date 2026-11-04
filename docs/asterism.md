@@ -4,4 +4,5 @@ Star Battle (4 November 2026, named per the Nikoli rule in `classics.md`; "star 
 - Tap cycles empty, dot, star; hold or right-click makes a star; a drag dots. Only stars count; dots are notes.
 - Two stars a row has no Easy (none exists: they need Medium steps from the first move) and 5×5 has no Expert; `levelOn`/the line say so. Two stars start at 8×8 (7×7 and smaller made no unique puzzle).
 - Times are lowest-first in `asterism:times`, not `:best` (the games screen reads `:best` as highest-is-best); the tile shows today's time.
+- Space view (4 November 2026, Korbi: "Asterism has no numbers, so it is the obvious candidate for a really beautiful 3D, luminescent, floating-in-space visualisation"): the default; the flat grid stays a menu choice and is where a slow device lands (`asterism-space.js`, a 2D canvas, no WebGL). A drag there turns the board, so dotting cell after cell by dragging is the flat grid's only; a tap is picked through the projection with the glass taken half way up a star's hover.
 - Not done: a pair or party mode, a computer rival.

@@ -152,6 +152,38 @@ const made = [];
   check(JSON.stringify(back) === JSON.stringify(run) && puzzleOf(back.size, back.k, back.reg, back.sol).sol.length === N * N, "a saved run comes back as it went");
 }
 
+// ---------- the space view's projection: what a finger picks is what is drawn there ----------
+{
+  const { poseMatrix, project, unproject, pickCell, fitScale, REST, LIMITS } = await import("../asterism-space.js");
+  const W = 350, H = 420, poses = [[REST.yaw, REST.pitch], [0, 0], [LIMITS.yaw, LIMITS.hi], [-LIMITS.yaw, 0.6], [0.4, 0.2]];
+  let wrong = 0, total = 0, smallest = 1e9, fits = true, back = true;
+  for (const N of [5, 8, 10]) {
+    const f = fitScale(N, W, H, 8), cx = W / 2, cy = H / 2 + 2;
+    for (const [yaw, pitch] of poses) {
+      const R = poseMatrix(yaw, pitch);
+      for (let x = 0; x < N * N; x++) {
+        const [sx, sy] = project(R, N, f, cx, cy, (x % N) + 0.5 - N / 2, Math.floor(x / N) + 0.5 - N / 2, 0.15);
+        total++; if (pickCell(R, N, f, cx, cy, sx, sy) !== x) wrong++;
+      }
+      const p = project(R, N, f, cx, cy, 1.3, -0.7, 0.15), q = unproject(R, N, f, cx, cy, p[0], p[1], 0.15);
+      if (Math.hypot(q[0] - 1.3, q[1] + 0.7) > 1e-6) back = false;
+    }
+    const R = poseMatrix(REST.yaw, REST.pitch);                                    // at rest: the whole pane is in the box, and no cell is too small to hit
+    for (const x of [-N / 2, N / 2]) for (const y of [-N / 2, N / 2]) {
+      const [sx, sy] = project(R, N, f, cx, cy, x, y, 0);
+      if (sx < 0 || sx > W || sy < 0 || sy > H) fits = false;
+    }
+    if (N === 10) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const a = project(R, N, f, cx, cy, c - 5, r - 5, 0), b = project(R, N, f, cx, cy, c - 4, r - 5, 0), d = project(R, N, f, cx, cy, c - 5, r - 4, 0);
+      smallest = Math.min(smallest, Math.hypot(b[0] - a[0], b[1] - a[1]), Math.hypot(d[0] - a[0], d[1] - a[1]));
+    }
+  }
+  check(wrong === 0 && back, `a tap on a cell's middle picks that cell, at rest and turned to the limits (${total} cells, 5 poses)`);
+  check(fits && smallest >= 20, `at rest the pane fits its box and the smallest cell is ${smallest.toFixed(1)} px on a 350×420 phone box (10×10)`);
+  const R = poseMatrix(REST.yaw, REST.pitch), f = fitScale(8, W, H, 8), out = (u, v) => { const [sx, sy] = project(R, 8, f, W / 2, H / 2 + 2, u - 4, v - 4, 0.15); return pickCell(R, 8, f, W / 2, H / 2 + 2, sx, sy); };
+  check(out(-0.2, 3.5) === 24 && out(7.9, 8.2) === 63 && out(-1, 3) === -1 && out(4, 9) === -1, "a touch just past the pane's edge picks its edge cell (a third of a cell of slack), a far one nothing");
+}
+
 // ---------- the pages ----------
 {
   const read = f => fs.readFileSync(root + f, "utf8");
@@ -163,6 +195,10 @@ const made = [];
   check(/asterism\.css/.test(html) && /asterism\.js/.test(html) && /class="asterism full titled fit-screen beside"/.test(html), "the page links its styles and script, full screen and titled");
   check(!/\b(alert|confirm|prompt)\(/.test(page) && /IN_FRAME/.test(page), "no browser pop-ups, and a watching frame writes nothing");
   check(!/Star Battle/.test(page + html + css) && /star battle/.test(read("games-find.js")), "the old name is a search keyword only");
+  const space = read("asterism-space.js");
+  check(/from "\.\/asterism-space\.js"/.test(page) && /prefs\.view === "space"/.test(page) && /"Flat grid"/.test(page) && /space\?\.pause\(\)/.test(page), "the page draws the space view by default, with the flat grid a menu choice, and stops it with the menu");
+  check(!/getContext\(["']\w*webgl/i.test(space) && /getContext\("2d"\)/.test(space) && /Math\.min\(2, window\.devicePixelRatio/.test(space) && /prefers-reduced-motion/.test(space) && /visibilitychange/.test(space) && !/\bfilter\s*=|shadowBlur/.test(space), "the space view is a 2D canvas (no WebGL, no filters or shadow blur), pixel ratio capped at 2, still for reduced motion, asleep when hidden");
+  check(/slow\(\)/.test(space) && /hooks\.slow/.test(space) && /slow:/.test(page), "a device that draws it slowly is handed back to the flat grid");
   check(/TIMES = "asterism:times"/.test(page), "times are kept lowest-first under asterism:times (the games screen reads a :best as highest-is-best)");
 }
 

@@ -34,7 +34,13 @@ html[data-theme="modern"] { --ast-logo-tint: #E3E8F7; --ast-logo-edge: #3F58A6; 
 /* the board: the stage, framed in a double rule (a brass edge, a hairline four pixels inside it) */
 .ast-card { position: relative; border-radius: 6px; background: var(--sheet); padding: .5rem;
   box-shadow: inset 0 0 0 1px var(--brass), inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
-.ast-board { width: 100%; height: 100%; display: grid; place-items: center; min-height: 0; }
+.ast-board { position: relative; width: 100%; height: 100%; display: grid; place-items: center; min-height: 0; }
+/* the space view (asterism-space.js): deep space in every theme, a window in the themed frame; the canvas is laid over the
+   box, never in its flow, and sized to it by script */
+.ast-space { position: absolute; left: 0; top: 0; display: block; background: #04060F; border-radius: .25rem; touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none; cursor: grab; }
+html:is([data-theme="modern"], [data-theme="office"]) .ast-space { border-radius: .85rem; }
+html[data-theme="kontor"] .ast-space { border-radius: 1px; }
 .ast-svg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }
 .ast-paper { fill: var(--ast-tile); stroke: none; }
 .ast-t { stroke: none; }

@@ -12,6 +12,7 @@ import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
 import { sure } from "./sure.js";
+import { createSpace, SPACE_AVAILABLE } from "./asterism-space.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "asterism:run", TIMES = "asterism:times", PREFS = "asterism:prefs", SPARES = "asterism:spares";
@@ -31,7 +32,8 @@ const kindKey = k => `${k.size}:${k.k}:${k.level}`;
 const cap = t => t[0].toUpperCase() + t.slice(1);
 
 // ---------- what you chose ----------
-const prefs = { size: 8, k: 1, level: "easy", ...read(PREFS, {}) };
+const prefs = { size: 8, k: 1, level: "easy", view: "space", ...read(PREFS, {}) };
+if (prefs.view !== "flat") prefs.view = "space";
 if (!STARS.includes(prefs.k)) prefs.k = 1;
 if (!KINDS[prefs.k].includes(prefs.size)) prefs.size = 8;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
@@ -148,7 +150,7 @@ function clockPause() {
   clockFrom = null;
   save();
 }
-onPause(() => { paused = true; clockPause(); cancelPress(); }, () => { paused = false; clockRun(); });
+onPause(() => { paused = true; clockPause(); cancelPress(); space?.pause(); }, () => { paused = false; clockRun(); space?.resume(); });
 const elapsed = () => (!S ? 0 : S.done ? S.done.ms : S.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
 const penalty = () => HINT * (S?.hints || 0);
 const scoreOf = ms => Math.round(ms / 1000) + penalty();
@@ -288,7 +290,25 @@ const starAt = (cx, cy) => Array.from({ length: 10 }, (_, i) => {
   const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.17 : 0.4;
   return `${(cx + r * Math.cos(a)).toFixed(3)},${(cy + r * Math.sin(a)).toFixed(3)}`;
 }).join(" ");
+/** The board in the view chosen: space (a canvas in perspective, asterism-space.js; the default) or the flat grid (an SVG).
+ *  Space falls back to the flat grid where a canvas can't be had, or the device draws it too slowly. */
+let space = null;
 function drawBoard() {
+  space?.destroy();
+  space = null; svg = null; cellEls = [];
+  $("board").replaceChildren();
+  $("board").parentElement.classList.remove("space");
+  if (prefs.view === "space" && SPACE_AVAILABLE()) {
+    $("board").parentElement.classList.add("space");
+    space = createSpace($("board"), { slow: () => { if (!space) return; prefs.view = "flat"; savePrefs(); drawBoard(); toast("This device drew the space view slowly: the flat grid is showing. The menu brings the space view back.", 6000); } });
+    space.canvas.addEventListener("pointerdown", down);
+    space.canvas.addEventListener("contextmenu", e => e.preventDefault());
+    paint();
+    return;
+  }
+  drawFlat();
+}
+function drawFlat() {
   const { N } = P, pad = 0.2;
   svg = svgEl("svg", { viewBox: `${-pad} ${-pad} ${N + 2 * pad} ${N + 2 * pad}`, role: "img", "aria-label": `${kindText(S)}: the board. Tap a cell to dot it, again to make it a star, again to clear it.`, class: "ast-svg" });
   svgEl("rect", { x: -pad / 2, y: -pad / 2, width: N + pad, height: N + pad, rx: 0.12, class: "ast-paper" }, svg);
@@ -317,9 +337,10 @@ function drawBoard() {
 }
 /** Each cell's look from the run: star, dot, a rule it breaks, a hint's cell, a hint's evidence. */
 function paint() {
-  if (!svg || !S) return;
+  if (!S || !(svg || space)) return;
   const br = breaks(P, S.marks), lit = new Set(S.lit?.set || []), why = new Set(S.lit?.evidence || []), short = new Set();
   for (const i of br.short) for (const c of P.groups[i].cells) short.add(c);
+  if (space) { space.set(P, S, { bad: new Set([...br.bad, ...short]), lit: S.lit?.set, why: S.lit?.evidence }); return; }
   for (let x = 0; x < cellEls.length; x++) {
     const m = S.marks[x], cls = ["ast-c", m === STAR ? "s1" : m === DOT ? "s2" : "", br.bad.has(x) || short.has(x) ? "bad" : "", lit.has(x) ? "lit" : why.has(x) ? "why" : ""].filter(Boolean).join(" ");
     if (cellEls[x].g.getAttribute("class") !== cls) cellEls[x].g.setAttribute("class", cls);
@@ -327,7 +348,7 @@ function paint() {
 }
 /** The solve, shown: the stars flash from the top left. */
 function wave() {
-  if (!svg) return;
+  if (!svg) return;                  // (the space view lights the whole field itself when it sees the puzzle solved)
   svg.classList.remove("solved");
   void svg.getBoundingClientRect();
   cellEls.forEach(({ g, d }) => g.style.setProperty("--d", `${d}ms`));
@@ -338,6 +359,7 @@ function wave() {
 let pressing = null;   // { id, cell, x, y, timer, held, stroke ({ id, mode }) }
 /** The cell under a point of the screen, or -1. */
 function cellAt(ev) {
+  if (space) return space.cellAt(ev);
   const m = svg?.getScreenCTM();
   if (!m) return -1;
   const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse()), { N } = P;
@@ -345,16 +367,24 @@ function cellAt(ev) {
 }
 function down(ev) {
   if (ev.button > 0) { if (ev.button === 2) press(cellAt(ev), "hold"); return; }
-  if (!S || S.done || IN_FRAME || paused) return;
+  if (!S || paused) return;
+  const plays = !S.done && !IN_FRAME;
+  if (!space && !plays) return;
   ev.preventDefault();
   cancelPress();
   const cell = cellAt(ev);
-  if (cell < 0) return;
-  try { svg.setPointerCapture(ev.pointerId); } catch { /* a synthetic event */ }
-  pressing = { id: ev.pointerId, cell, x: ev.clientX, y: ev.clientY, held: false, stroke: null };
-  pressing.timer = setTimeout(() => { if (!pressing || pressing.stroke) return; pressing.held = true; navigator.vibrate?.(14); press(pressing.cell, "hold"); }, HOLD);
+  if (!space && cell < 0) return;
+  try { (space?.canvas || svg).setPointerCapture(ev.pointerId); } catch { /* a synthetic event */ }
+  pressing = { id: ev.pointerId, cell: plays ? cell : -1, x: ev.clientX, y: ev.clientY, lx: ev.clientX, ly: ev.clientY, held: false, stroke: null, orbit: false, view: space };
+  if (space) { space.grab(); space.press(pressing.cell); }     // (a finger on the space view turns it; dotting cell after cell is the flat grid's)
+  if (pressing.cell >= 0) pressing.timer = setTimeout(() => { if (!pressing || pressing.stroke || pressing.orbit) return; pressing.held = true; navigator.vibrate?.(14); press(pressing.cell, "hold"); }, HOLD);
 }
-function cancelPress() { if (pressing) clearTimeout(pressing.timer); pressing = null; }
+function cancelPress() {
+  if (!pressing) return;
+  clearTimeout(pressing.timer);
+  if (pressing.view) { pressing.view.press(-1); pressing.view.release(); }
+  pressing = null;
+}
 /** A finger dotting: the first cell decides, an empty one starts dotting empty cells, a dot starts rubbing dots out. */
 function stroke(ev) {
   const x = cellAt(ev), s = pressing.stroke;
@@ -366,9 +396,15 @@ function stroke(ev) {
 }
 addEventListener("pointermove", ev => {
   if (!pressing || ev.pointerId !== pressing.id) return;
+  if (pressing.orbit) { pressing.view.drag(ev.clientX - pressing.lx, ev.clientY - pressing.ly); pressing.lx = ev.clientX; pressing.ly = ev.clientY; return; }
   if (!pressing.stroke) {
     if (Math.hypot(ev.clientX - pressing.x, ev.clientY - pressing.y) <= DRAG * scale()) return;
     clearTimeout(pressing.timer);
+    if (pressing.view) {                                               // space: the drag turns the board
+      pressing.orbit = true; pressing.view.press(-1);
+      pressing.view.drag(ev.clientX - pressing.x, ev.clientY - pressing.y); pressing.lx = ev.clientX; pressing.ly = ev.clientY;
+      return;
+    }
     pressing.stroke = { id: newStroke(), mode: null };
     const x = pressing.cell, was = S.marks[x];                         // the cell it began on counts too
     pressing.stroke.mode = was === NONE ? DOT : was === DOT ? NONE : null;
@@ -378,9 +414,9 @@ addEventListener("pointermove", ev => {
 });
 addEventListener("pointerup", ev => {
   if (!pressing || ev.pointerId !== pressing.id) return;
-  const { cell, held, stroke: drew } = pressing;
+  const { cell, held, stroke: drew, orbit } = pressing;
   cancelPress();
-  if (!held && !drew && cell >= 0) press(cell, "tap");
+  if (!held && !drew && !orbit && cell >= 0) press(cell, "tap");
 });
 addEventListener("pointercancel", cancelPress);
 
@@ -480,6 +516,8 @@ function openMenu() {
     content.append(choice("Size", KINDS[prefs.k].map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
     content.append(mirror("Level", $("level")));
   } else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
+  const look = part(body, "settings");
+  look.append(choice("View", [["space", "Space"], ["flat", "Flat grid"]], prefs.view, v => { prefs.view = v; savePrefs(); if (P) drawBoard(); openMenu(); }));
   const best = S ? bestOf(S) : null;
   const about = part(body, "about");
   about.append(line(S ? `${kindText({ size: S.size, k: S.k, level: S.came || S.level })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Put the stars in."));
@@ -549,9 +587,9 @@ setInterval(() => {
 
 // for tests and debugging
 window.__asterism = {
-  get state() { return S; }, get puzzle() { return P; }, press, useHint, undo, redo, start,
+  get state() { return S; }, get puzzle() { return P; }, get space() { return space; }, press, useHint, undo, redo, start,
   /** Where a cell's middle is on the screen, for tests that tap or drag it as a finger would. */
-  cellOf: x => { const m = svg.getScreenCTM(), c = (x % P.N) + 0.5, r = Math.floor(x / P.N) + 0.5; return { x: c * m.a + m.e, y: r * m.d + m.f }; },
+  cellOf: x => { if (space) return space.where(x); const m = svg.getScreenCTM(), c = (x % P.N) + 0.5, r = Math.floor(x / P.N) + 0.5; return { x: c * m.a + m.e, y: r * m.d + m.f }; },
 };
 
 const forToday = arrivedForToday();   // from the games screen's tile: today's puzzle, still to play
