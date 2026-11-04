@@ -5,10 +5,11 @@
 // made once a puzzle (`nebula`), laid on the cell's projected corners (an affine fit to three of them: a cell is small, so
 // the perspective inside it is below a pixel), the rest is paths and a few pre-drawn glow sprites.
 //
-// A finger turns the pane like a turntable, tilted back (drag), a flick spins on a moment, and it eases back to its
-// resting pose (tilted gently, so a thumb's cell stays a thumb's cell). A tap picks through the same projection run
-// backwards (`pickCell`), with the slack of a third of a cell round the pane. The page asks it what it asks the flat
-// view: what to show (set), which cell is under a finger (cellAt), where a cell is (where).
+// The page turns the pane like a turntable, tilted back (drag, twist), a flick spins on a moment and stops, and the pane
+// stays where it was left (4 November 2026, Korbi: the ease-back to rest was annoying); `resetView` is the way home. A tap
+// picks through the same projection run backwards (`pickCell`), with the slack of a third of a cell round the pane. The
+// page asks it what it asks the flat view: what to show (set), which cell is under a finger (cellAt), where a cell is
+// (where), and where a finger is on the board (boardPoint, for the dotting stroke).
 //
 // Battery: nothing is drawn unless something moves. A finger on it draws every frame, a flick, a flare, a sweep or the
 // end of a puzzle thirty a second, and the glow of a conflict and the slow float fifteen, for twenty seconds after
@@ -67,14 +68,15 @@ export function pickCell(R, N, f, cx, cy, sx, sy, slack = 0.34) {
 }
 
 // ---------- the look ----------
-// [hue, saturation %, lightness %] of each region's nebula. Hue alone never says which region (ten of them, and eyes
-// differ): every region is held in a pale rule, and the colours alternate light and deep.
-const HUES = [[46, 92, 60], [98, 66, 50], [150, 70, 48], [178, 84, 50], [204, 92, 62], [230, 86, 70], [258, 84, 70], [288, 74, 64], [318, 82, 66], [340, 86, 70]];
+// [hue, saturation %, lightness %, pattern] of each region's nebula: muted and dim, told apart by value, by a faint pattern
+// laid in it and by the rule that holds it (never by hue alone: ten regions, and eyes differ).
+const HUES = [[236, 34, 26, 0], [208, 16, 27, 1], [176, 30, 24, 2], [270, 22, 30, 3], [34, 38, 27, 4], [222, 26, 19, 5], [300, 16, 26, 6], [76, 18, 25, 7], [190, 24, 29, 8], [44, 34, 30, 9]];
 const hsla = ([h, s, l], a, dl = 0) => `hsla(${h}, ${s}%, ${Math.min(96, l + dl)}%, ${a})`;
 const TEX = 44;                        // px a cell has in the nebula picture
-const SKY = ["#04060F", "#0A1030", "#060A1C"];
+const SKY = ["#03050B", "#070B17", "#04060D"];
 const rng = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
 const easeOutBack = t => { const c = 1.70158, u = t - 1; return 1 + (c + 1) * u * u * u + c * u * u; };
+const easeIO = t => t * t * (3 - 2 * t);
 const bump = (a, len) => (a <= 0 || a >= len ? 0 : Math.sin(Math.PI * a / len) ** 2);   // 0 to 1 to 0 over len ms
 
 const ASLEEP = 20000;                  // ms after anything happens that the float and the glow of a conflict keep drawing
@@ -97,7 +99,7 @@ export function createSpace(host, hooks = {}) {
 
   let P = null, S = null, N = 0, marks = "";
   let W = 1, H = 1, dpr = 1, cx = 0, cy = 0, f = 1;
-  let yaw = REST.yaw, pitch = REST.pitch, vyaw = 0, vpitch = 0, grabbed = false, touchedAt = -1e9, hot = -1;
+  let yaw = REST.yaw, pitch = REST.pitch, vyaw = 0, vpitch = 0, grabbed = false, touchedAt = -1e9, hot = -1, homing = null;
   const moves = [];                                      // the last moves of a drag [t, dyaw, dpitch], for a flick
   let R = poseMatrix(yaw, pitch);                        // the pose last drawn (a tap is picked with it)
   let VX = new Float32Array(0), VY = new Float32Array(0);
@@ -110,14 +112,14 @@ export function createSpace(host, hooks = {}) {
   // ---------- sprites: glows drawn once ----------
   const sprite = (size, paint) => { const c = document.createElement("canvas"); c.width = c.height = size; paint(c.getContext("2d"), size); return c; };
   const radial = (size, stops) => sprite(size, (g, s) => { const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); for (const [o, col] of stops) gr.addColorStop(o, col); g.fillStyle = gr; g.fillRect(0, 0, s, s); });
-  const BLOOM = radial(128, [[0, "rgba(255,246,222,1)"], [0.14, "rgba(255,226,150,.78)"], [0.42, "rgba(255,176,84,.2)"], [1, "rgba(255,150,60,0)"]]);
-  const EMBER = radial(128, [[0, "rgba(255,236,200,1)"], [0.14, "rgba(255,150,90,.8)"], [0.42, "rgba(255,70,30,.26)"], [1, "rgba(255,60,20,0)"]]);
-  const SOFT = radial(48, [[0, "rgba(255,255,255,1)"], [0.35, "rgba(255,255,255,.35)"], [1, "rgba(255,255,255,0)"]]);
-  const UNDER = radial(256, [[0, "rgba(96,130,255,.55)"], [0.45, "rgba(70,60,200,.2)"], [1, "rgba(40,30,140,0)"]]);
+  const BLOOM = radial(128, [[0, "rgba(255,246,226,1)"], [0.16, "rgba(236,208,146,.42)"], [0.5, "rgba(190,150,86,.11)"], [1, "rgba(170,130,70,0)"]]);
+  const EMBER = radial(128, [[0, "rgba(226,170,150,.95)"], [0.18, "rgba(150,50,42,.5)"], [0.5, "rgba(104,30,28,.16)"], [1, "rgba(90,24,24,0)"]]);
+  const SOFT = radial(48, [[0, "rgba(255,255,255,1)"], [0.35, "rgba(255,255,255,.3)"], [1, "rgba(255,255,255,0)"]]);
+  const UNDER = radial(256, [[0, "rgba(86,100,150,.34)"], [0.45, "rgba(52,56,110,.12)"], [1, "rgba(30,30,80,0)"]]);
   const FLARE = sprite(128, (g, s) => {                  // a four-point flare: two thin streaks, a fainter pair on the diagonals
     const streak = (len, w, a) => {
       const gr = g.createLinearGradient(s / 2 - len, 0, s / 2 + len, 0);
-      gr.addColorStop(0, "rgba(255,240,200,0)"); gr.addColorStop(0.5, `rgba(255,248,230,${a})`); gr.addColorStop(1, "rgba(255,240,200,0)");
+      gr.addColorStop(0, "rgba(240,224,180,0)"); gr.addColorStop(0.5, `rgba(250,240,214,${a * 0.7})`); gr.addColorStop(1, "rgba(240,224,180,0)");
       g.fillStyle = gr; g.fillRect(s / 2 - len, s / 2 - w / 2, 2 * len, w);
     };
     streak(s / 2, 2.4, 1);
@@ -137,18 +139,18 @@ export function createSpace(host, hooks = {}) {
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
     const r = rng(0x5A17E3);
     g.globalCompositeOperation = "lighter";
-    for (const [h, x, y, rad, a] of [[262, 0.2, 0.18, 0.7, 0.2], [196, 0.85, 0.34, 0.6, 0.15], [316, 0.3, 0.82, 0.62, 0.14], [226, 0.75, 0.9, 0.55, 0.16], [168, 0.1, 0.5, 0.45, 0.1]]) {
+    for (const [h, x, y, rad, a] of [[240, 0.2, 0.18, 0.7, 0.07], [200, 0.85, 0.34, 0.6, 0.05], [270, 0.3, 0.82, 0.62, 0.05], [226, 0.75, 0.9, 0.55, 0.06], [180, 0.1, 0.5, 0.45, 0.04]]) {
       const gr = g.createRadialGradient(x * W, y * H, 0, x * W, y * H, rad * Math.max(W, H));
-      gr.addColorStop(0, `hsla(${h}, 80%, 52%, ${a})`); gr.addColorStop(1, `hsla(${h}, 80%, 40%, 0)`);
+      gr.addColorStop(0, `hsla(${h}, 34%, 40%, ${a})`); gr.addColorStop(1, `hsla(${h}, 34%, 30%, 0)`);
       g.fillStyle = gr; g.fillRect(0, 0, W, H);
     }
     for (let i = 0, n = Math.round(W * H / 1500); i < n; i++) {          // the far stars, fixed
-      g.fillStyle = `rgba(${r() < 0.2 ? "255,226,196" : r() > 0.75 ? "196,216,255" : "238,242,252"}, ${(0.18 + r() * 0.5).toFixed(2)})`;
+      g.fillStyle = `rgba(${r() < 0.2 ? "240,222,190" : r() > 0.75 ? "196,206,228" : "226,230,238"}, ${(0.14 + r() * 0.4).toFixed(2)})`;
       const s = 0.5 + r() * 0.7;
       g.fillRect(r() * W, r() * H, s, s);
     }
-    mid = Array.from({ length: Math.round(W * H / 5200) }, () => ((() => { const x = r() * W, y = r() * H, s = 0.8 + r() * 0.9, a = (0.35 + r() * 0.5).toFixed(2), k = r(); return { x, y, s, col: `rgba(${k < 0.25 ? "255,224,190" : k > 0.75 ? "190,212,255" : "240,244,255"},${a})` }; })()));
-    near = Array.from({ length: Math.max(8, Math.round(W * H / 15000)) }, () => ({ x: r() * W, y: r() * H, s: 5 + r() * 9, a: 0.4 + r() * 0.5, p: r() * 6.28 }));
+    mid = Array.from({ length: Math.round(W * H / 5200) }, () => ((() => { const x = r() * W, y = r() * H, s = 0.8 + r() * 0.9, a = (0.25 + r() * 0.4).toFixed(2), k = r(); return { x, y, s, col: `rgba(${k < 0.25 ? "240,220,186" : k > 0.75 ? "190,202,228" : "230,234,242"},${a})` }; })()));
+    near = Array.from({ length: Math.max(8, Math.round(W * H / 15000)) }, () => ({ x: r() * W, y: r() * H, s: 5 + r() * 9, a: 0.25 + r() * 0.35, p: r() * 6.28 }));
   }
 
   // ---------- the nebulae: one picture of the whole pane, made once a puzzle ----------
@@ -164,24 +166,26 @@ export function createSpace(host, hooks = {}) {
       g.beginPath();
       for (const x of cells) g.rect((x % N) * TEX, Math.floor(x / N) * TEX, TEX, TEX);
       g.clip();
-      for (const x of cells) {                                     // a glowing plate, brightest at the middle
+      for (const x of cells) {                                     // a dim plate, a little brighter at the middle
         const px = (x % N) * TEX + TEX / 2, py = Math.floor(x / N) * TEX + TEX / 2;
         const gr = g.createRadialGradient(px, py, 0, px, py, TEX * 0.78);
-        gr.addColorStop(0, hsla(col, 0.36)); gr.addColorStop(1, hsla(col, 0.13, -12));
+        gr.addColorStop(0, hsla(col, 0.92)); gr.addColorStop(1, hsla(col, 0.78, -6));
         g.fillStyle = gr; g.fillRect(px - TEX / 2, py - TEX / 2, TEX, TEX);
       }
       g.globalCompositeOperation = "lighter";
-      for (let i = 0, m = Math.min(14, 3 + Math.round(cells.length * 0.7)); i < m; i++) {   // clouds across the cells
+      for (let i = 0, m = Math.min(10, 2 + Math.round(cells.length * 0.5)); i < m; i++) {   // soft clouds across the cells
         const x = cells[Math.floor(r() * cells.length)], px = (x % N) * TEX + r() * TEX, py = Math.floor(x / N) * TEX + r() * TEX, rad = TEX * (1.1 + r() * 1.5);
         const gr = g.createRadialGradient(px, py, 0, px, py, rad);
-        gr.addColorStop(0, hsla(col, 0.12 + r() * 0.1, 8 + r() * 12)); gr.addColorStop(1, hsla(col, 0));
+        gr.addColorStop(0, hsla(col, 0.07 + r() * 0.06, 6 + r() * 8)); gr.addColorStop(1, hsla(col, 0));
         g.fillStyle = gr; g.fillRect(px - rad, py - rad, 2 * rad, 2 * rad);
       }
-      for (let i = 0, m = cells.length * 3; i < m; i++) {         // a few bright grains
+      g.globalCompositeOperation = "source-over";
+      for (let i = 0, m = cells.length * 2; i < m; i++) {         // a few faint grains
         const x = cells[Math.floor(r() * cells.length)];
-        g.fillStyle = hsla(col, 0.3 + r() * 0.4, 24);
-        g.fillRect((x % N) * TEX + r() * TEX, Math.floor(x / N) * TEX + r() * TEX, 1.4, 1.4);
+        g.fillStyle = hsla(col, 0.16 + r() * 0.2, 26);
+        g.fillRect((x % N) * TEX + r() * TEX, Math.floor(x / N) * TEX + r() * TEX, 1.2, 1.2);
       }
+      pattern(g, col[3], hsla(col, 0.34, 20), n);                 // the region's own faint pattern, so colour is never the only sign
       g.restore();
     }
     for (let rr = 0; rr < N; rr++) for (let c = 0; c < N; c++) {   // the rules between regions, as vertex pairs of the (N+1)² lattice
@@ -189,6 +193,21 @@ export function createSpace(host, hooks = {}) {
       if (c < N - 1 && P.reg[x] !== P.reg[x + 1]) edges.push(rr * (N + 1) + c + 1, (rr + 1) * (N + 1) + c + 1);
       if (rr < N - 1 && P.reg[x] !== P.reg[x + N]) edges.push((rr + 1) * (N + 1) + c, (rr + 1) * (N + 1) + c + 1);
     }
+  }
+  /** A region's pattern over the whole picture (the clip keeps it in the region): ten that differ in direction and kind. */
+  function pattern(g, k, ink, n) {
+    const st = TEX / 4;                                           // spacing: four lines or dots to a cell
+    g.strokeStyle = ink; g.fillStyle = ink; g.lineWidth = 1.1;
+    g.beginPath();
+    if (k === 1 || k === 5) for (let o = -n; o < n * 2; o += st) { g.moveTo(o, 0); g.lineTo(o + n, n); }                    // "\" hatch
+    if (k === 4 || k === 5) for (let o = -n; o < n * 2; o += st) { g.moveTo(o, n); g.lineTo(o + n, 0); }                                // "/" hatch
+    if (k === 3) for (let y = st / 2; y < n; y += st) { g.moveTo(0, y); g.lineTo(n, y); }                                             // horizontal rules
+    if (k === 6) for (let x = st / 2; x < n; x += st) { g.moveTo(x, 0); g.lineTo(x, n); }                                              // vertical rules
+    if (k === 8) for (let y = st; y < n; y += st * 2) for (let x = 0; x < n; x += st * 2) { g.moveTo(x, y); g.lineTo(x + st, y - st / 2); g.lineTo(x + st * 2, y); }   // waves
+    g.stroke();
+    if (k === 2) for (let y = st / 2; y < n; y += st) for (let x = st / 2; x < n; x += st) g.fillRect(x - 0.9, y - 0.9, 1.8, 1.8);       // dots
+    if (k === 7) { g.beginPath(); for (let y = st; y < n; y += st * 2) for (let x = st; x < n; x += st * 2) { g.moveTo(x + 2.4, y); g.arc(x, y, 2.4, 0, 6.2832); } g.stroke(); }   // rings
+    if (k === 9) { g.beginPath(); for (let y = st; y < n; y += st * 2) for (let x = st; x < n; x += st * 2) { g.moveTo(x - 2.5, y); g.lineTo(x + 2.5, y); g.moveTo(x, y - 2.5); g.lineTo(x, y + 2.5); } g.stroke(); }   // crosses
   }
   const hashOf = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 
@@ -225,7 +244,7 @@ export function createSpace(host, hooks = {}) {
       f = fitScale(N, W, H, Math.max(8, Math.min(W, H) * 0.035));
       buildNebula();
       groupsDone = completeGroups(S.marks, opts.bad);
-      canvas.setAttribute("aria-label", `The board, in space: ${N} by ${N}. Tap a cell to dot it, again to make it a star, again to clear it. Drag to turn the board.`);
+      canvas.setAttribute("aria-label", `The board, in space: ${N} by ${N}. Tap a cell to dot it, again to make it a star, again to clear it. Drag along a row or column to dot cells; turn the board with two fingers, or with the Turn button.`);
     } else if (S.marks !== marks) {
       for (let x = 0; x < N * N; x++) {
         const was = marks[x], is = S.marks[x];
@@ -264,7 +283,7 @@ export function createSpace(host, hooks = {}) {
 
   // ---------- turning ----------
   const clampPose = () => { yaw = Math.max(-LIMITS.yaw, Math.min(LIMITS.yaw, yaw)); pitch = Math.max(LIMITS.lo, Math.min(LIMITS.hi, pitch)); };
-  function grab() { grabbed = true; vyaw = vpitch = 0; moves.length = 0; touchedAt = performance.now(); wake(); }
+  function grab() { grabbed = true; vyaw = vpitch = 0; homing = null; moves.length = 0; touchedAt = performance.now(); wake(); }
   function drag(dx, dy) {
     const now = performance.now(), ky = 0.0062, kp = 0.0058;
     yaw += dx * ky; pitch -= dy * kp; clampPose();
@@ -272,32 +291,40 @@ export function createSpace(host, hooks = {}) {
     while (moves.length && now - moves[0][0] > 90) moves.shift();
     touchedAt = now; wake();
   }
+  /** Two fingers twisting: the pane turns about the vertical by the angle (radians, clockwise on the screen is positive). */
+  function twist(a) { yaw += a * 0.9; clampPose(); touchedAt = performance.now(); wake(); }
   function release() {
     if (!grabbed) return;
     grabbed = false;
     const now = performance.now(), recent = moves.filter(m => now - m[0] < 90);
-    if (recent.length > 1 && !still()) {
+    if (recent.length > 1 && !still()) {                               // a flick spins on for a moment, then stops where it is
       const span = Math.max(16, now - recent[0][0]);
       vyaw = 0.6 * recent.reduce((a, m) => a + m[1], 0) / span; vpitch = 0.6 * recent.reduce((a, m) => a + m[2], 0) / span;
     }
     moves.length = 0;
     touchedAt = now;
-    if (still()) { yaw = REST.yaw; pitch = REST.pitch; }               // asked for less motion: back at once, no spin
     wake();
   }
-  const IDLE = 1500;                                                    // ms a pose is left alone before it eases back
+  /** Back to the opening pose (the menu's Reset view): a short glide, at once for reduced motion. */
+  function resetView() {
+    vyaw = vpitch = 0;
+    if (still()) { yaw = REST.yaw; pitch = REST.pitch; homing = null; } else homing = { t0: performance.now(), y0: yaw, p0: pitch };
+    wake();
+  }
+  const HOME_MS = 380;
   function stepPose(now, dt) {
     if (grabbed) return;
+    if (homing) {
+      const t = Math.min(1, (now - homing.t0) / HOME_MS), e = 1 - (1 - t) ** 3;
+      yaw = homing.y0 + (REST.yaw - homing.y0) * e; pitch = homing.p0 + (REST.pitch - homing.p0) * e;
+      if (t >= 1) homing = null;
+      return;
+    }
     if (Math.abs(vyaw) > 1e-5 || Math.abs(vpitch) > 1e-5) {
       yaw += vyaw * dt; pitch += vpitch * dt;
       const k = Math.exp(-dt / 280); vyaw *= k; vpitch *= k;
       clampPose();
       if (Math.abs(vyaw) < 4e-5 && Math.abs(vpitch) < 4e-5) vyaw = vpitch = 0;
-    }
-    if (now - touchedAt > IDLE) {
-      const k = 1 - Math.exp(-dt / 520);
-      yaw += (REST.yaw - yaw) * k; pitch += (REST.pitch - pitch) * k;
-      if (Math.abs(yaw - REST.yaw) < 0.0008 && Math.abs(pitch - REST.pitch) < 0.0008) { yaw = REST.yaw; pitch = REST.pitch; }
     }
   }
 
@@ -306,7 +333,7 @@ export function createSpace(host, hooks = {}) {
   function schedule() { if (!raf && !halted && !dead && !document.hidden && P && S) raf = requestAnimationFrame(tick); }
   function tick(now) {
     raf = 0;
-    const busy = grabbed || vyaw !== 0 || vpitch !== 0 || now - touchedAt < IDLE + 1400 || sweeps.length > 0 || recent(now) || (winAt != null && now - winAt < 30000);
+    const busy = grabbed || vyaw !== 0 || vpitch !== 0 || homing || now - touchedAt < 1400 || sweeps.length > 0 || recent(now) || (winAt != null && now - winAt < 30000);
     const fps = grabbed ? 60 : busy ? 30 : 15;
     if (now - last < 1000 / fps - 4) { schedule(); return; }
     const t0 = performance.now();
@@ -329,8 +356,8 @@ export function createSpace(host, hooks = {}) {
     last = now;
     const calm = still();
     stepPose(now, dt);
-    const win = winAt != null, wage = win ? (calm ? 1e9 : now - winAt) : 0;
-    const fy = calm ? 0 : Math.sin(now / 2300) * 0.016 + (win ? Math.sin(now / 5200) * 0.16 : 0), fp = calm ? 0 : Math.sin(now / 1900 + 1) * 0.011;
+    const win = winAt != null, wage = win ? (calm ? 1e9 : now - winAt) : 0, wb = win ? easeIO(Math.min(1, wage / 3200)) : 0;   // wb: the end's slow brightening, 0 to 1
+    const fy = calm ? 0 : Math.sin(now / 2300) * 0.016 + (win ? Math.sin(now / 5200) * 0.05 : 0), fp = calm ? 0 : Math.sin(now / 1900 + 1) * 0.011;
     const yw = yaw + fy, pt = pitch + fp;
     R = poseMatrix(yw, pt);
     const d = DIST * N, half = N / 2, M = N + 1;
@@ -347,7 +374,7 @@ export function createSpace(host, hooks = {}) {
 
     // the sky, and the near stars sliding a little against it as the pane turns
     ctx.drawImage(sky, 0, 0, W, H);
-    const drift = calm ? 0 : now / 1000 * (win ? 7 : 1.6), px = (yw - REST.yaw) * W, py = (pt - REST.pitch) * H;
+    const drift = calm ? 0 : now / 1000 * (win ? 3 : 1.6), px = (yw - REST.yaw) * W, py = (pt - REST.pitch) * H;
     ctx.globalCompositeOperation = "lighter";
     for (const s of mid) {
       const x = (((s.x - px * 0.1 - drift * 0.5) % W) + W) % W, y = (((s.y + py * 0.1) % H) + H) % H;
@@ -361,7 +388,7 @@ export function createSpace(host, hooks = {}) {
 
     // the glow the pane throws on the dark under it
     const under = at(N / 2, N / 2, -1.6), ur = unit * N * 0.95;
-    ctx.globalAlpha = win ? Math.min(1, 0.55 + wage / 1600) : 0.55;
+    ctx.globalAlpha = 0.55 + 0.35 * wb;
     ctx.drawImage(UNDER, under[0] - ur, under[1] - ur * 0.85, 2 * ur, 2 * ur * 0.85);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
@@ -371,16 +398,16 @@ export function createSpace(host, hooks = {}) {
     const corner = (x, y, z) => at(x, y, z);
     const top = [corner(0, 0, 0), corner(N, 0, 0), corner(N, N, 0), corner(0, N, 0)], low = [corner(0, 0, -THICK), corner(N, 0, -THICK), corner(N, N, -THICK), corner(0, N, -THICK)];
     const sides = [[0, 1, cam[1] < -half], [1, 2, cam[0] > half], [2, 3, cam[1] > half], [3, 0, cam[0] < -half]];
-    ctx.fillStyle = "#070B1E"; ctx.beginPath();
+    ctx.fillStyle = "#05070F"; ctx.beginPath();
     low.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.fill();
     for (const [a, b, face] of sides) {
       if (!face) continue;
       const g = ctx.createLinearGradient(top[a][0], top[a][1], low[a][0], low[a][1]);
-      g.addColorStop(0, "rgba(170,196,255,.7)"); g.addColorStop(1, "rgba(50,70,150,.55)");
+      g.addColorStop(0, "rgba(150,148,132,.5)"); g.addColorStop(1, "rgba(40,46,70,.5)");
       ctx.fillStyle = g; ctx.beginPath();
       ctx.moveTo(top[a][0], top[a][1]); ctx.lineTo(top[b][0], top[b][1]); ctx.lineTo(low[b][0], low[b][1]); ctx.lineTo(low[a][0], low[a][1]); ctx.closePath(); ctx.fill();
     }
-    ctx.fillStyle = "rgba(8,12,32,.9)"; ctx.beginPath();
+    ctx.fillStyle = "rgba(5,8,18,.94)"; ctx.beginPath();
     top.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.fill();
 
     // the nebulae, a piece to each cell
@@ -396,7 +423,7 @@ export function createSpace(host, hooks = {}) {
     ctx.beginPath(); top.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.clip();
     const sx = top[0][0] + (top[2][0] - top[0][0]) * (0.5 + (yw - REST.yaw) * 0.9), sy = top[0][1] + (top[2][1] - top[0][1]) * (0.5 + (yw - REST.yaw) * 0.9);
     const sg = ctx.createLinearGradient(sx - (top[1][0] - top[0][0]) * 0.5, sy - (top[1][1] - top[0][1]) * 0.5, sx + (top[1][0] - top[0][0]) * 0.5, sy + (top[1][1] - top[0][1]) * 0.5);
-    sg.addColorStop(0, "rgba(180,205,255,0)"); sg.addColorStop(0.5, "rgba(190,215,255,.10)"); sg.addColorStop(1, "rgba(180,205,255,0)");
+    sg.addColorStop(0, "rgba(190,196,214,0)"); sg.addColorStop(0.5, "rgba(190,196,214,.055)"); sg.addColorStop(1, "rgba(190,196,214,0)");
     ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
     ctx.restore();
 
@@ -407,67 +434,64 @@ export function createSpace(host, hooks = {}) {
 
     // lights across plates: a hint's cells, a finger, sweeps, the end
     ctx.globalCompositeOperation = "lighter";
-    for (const x of lit) { quad(x); ctx.fillStyle = "rgba(255,206,110,.22)"; ctx.fill(); }
-    if (hot >= 0) { quad(hot); ctx.fillStyle = "rgba(200,225,255,.2)"; ctx.fill(); }
+    for (const x of lit) { quad(x); ctx.fillStyle = "rgba(214,176,100,.17)"; ctx.fill(); }
+    if (hot >= 0) { quad(hot); ctx.fillStyle = "rgba(190,200,222,.13)"; ctx.fill(); }
     if (sweeps.length) {
       for (const sw of sweeps) for (const [x, delay] of sw.items) {
         const v = bump(now - sw.t0 - delay, SWEEP_MS);
-        if (v > 0.01) { quad(x); ctx.fillStyle = `rgba(190,226,255,${(0.5 * v).toFixed(3)})`; ctx.fill(); }
+        if (v > 0.01) { quad(x); ctx.fillStyle = `rgba(206,194,150,${(0.3 * v).toFixed(3)})`; ctx.fill(); }
       }
       sweeps = sweeps.filter(sw => now - sw.t0 < SWEEP_MS + sw.items.reduce((m, i) => Math.max(m, i[1]), 0));
     }
-    if (win) {
-      const calmWin = calm ? 0.1 : 0.06 + 0.03 * Math.sin(now / 900);
-      for (let x = 0; x < N * N; x++) {
-        const r = Math.floor(x / N), c = x % N, v = calmWin + 0.3 * bump(wage - (r + c) * 55, 900);
-        if (v > 0.02) { quad(x); ctx.fillStyle = `rgba(255,236,190,${v.toFixed(3)})`; ctx.fill(); }
-      }
+    if (wb > 0.01) {                                                // solved: the whole field warms slowly, no flash
+      ctx.fillStyle = `rgba(214,184,120,${(0.075 * wb).toFixed(3)})`;
+      ctx.beginPath(); top.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.fill();
     }
-    // a conflict pulses a warm red-orange (and is ringed, so it never rests on colour alone)
+    // a conflict pulses a dull oxblood (and is ringed, so it never rests on colour alone)
     const pulse = calm ? 0.7 : 0.5 + 0.5 * Math.sin(now / 240);
     for (const x of bad) {
       if (marks[x] === STAR) continue;
-      quad(x); ctx.fillStyle = `rgba(255,96,40,${(0.1 + 0.14 * pulse).toFixed(3)})`; ctx.fill();
+      quad(x); ctx.fillStyle = `rgba(150,40,34,${(0.16 + 0.12 * pulse).toFixed(3)})`; ctx.fill();
     }
     ctx.globalCompositeOperation = "source-over";
 
     // the lattice, then the rules that hold each region, then the pane's rim
     ctx.lineJoin = "round"; ctx.lineCap = "round";
-    ctx.strokeStyle = "rgba(4,6,18,.6)"; ctx.lineWidth = Math.max(1, unit * 0.045);
+    ctx.strokeStyle = "rgba(2,4,10,.62)"; ctx.lineWidth = Math.max(1, unit * 0.045);
     ctx.beginPath();
     for (let i = 1; i < N; i++) { ctx.moveTo(VX[i], VY[i]); ctx.lineTo(VX[N * M + i], VY[N * M + i]); ctx.moveTo(VX[i * M], VY[i * M]); ctx.lineTo(VX[i * M + N], VY[i * M + N]); }
     ctx.stroke();
     ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = win ? "rgba(255,236,190,.28)" : "rgba(170,200,255,.2)"; ctx.lineWidth = Math.max(3, unit * 0.2);
+    ctx.strokeStyle = `rgba(196,170,112,${(0.1 + 0.08 * wb).toFixed(3)})`; ctx.lineWidth = Math.max(3, unit * 0.18);
     ctx.beginPath();
     for (let i = 0; i < edges.length; i += 2) { ctx.moveTo(VX[edges[i]], VY[edges[i]]); ctx.lineTo(VX[edges[i + 1]], VY[edges[i + 1]]); }
     ctx.stroke();
     ctx.globalCompositeOperation = "source-over";
-    ctx.strokeStyle = "rgba(236,243,255,.92)"; ctx.lineWidth = Math.max(1.4, unit * 0.07);
+    ctx.strokeStyle = "rgba(214,200,164,.82)"; ctx.lineWidth = Math.max(1.4, unit * 0.06);
     ctx.stroke();
-    ctx.strokeStyle = win ? "rgba(255,226,150,.95)" : "rgba(200,220,255,.8)"; ctx.lineWidth = Math.max(1.6, unit * 0.085);
+    ctx.strokeStyle = `rgba(${196 + Math.round(24 * wb)},${164 + Math.round(30 * wb)},${98 + Math.round(24 * wb)},.88)`; ctx.lineWidth = Math.max(1.6, unit * 0.08);
     ctx.beginPath(); top.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.stroke();
 
     // rings: a broken rule, a hint's cell, a hint's evidence (dashed): outlines say it, colour only helps
     ctx.lineWidth = Math.max(1.4, unit * 0.075);
     for (const x of bad) {
       if (marks[x] === STAR) continue;
-      quad(x); ctx.strokeStyle = `rgba(255,120,70,${(0.55 + 0.3 * pulse).toFixed(2)})`; ctx.setLineDash([unit * 0.18, unit * 0.12]); ctx.stroke();
+      quad(x); ctx.strokeStyle = `rgba(196,86,74,${(0.6 + 0.3 * pulse).toFixed(2)})`; ctx.setLineDash([unit * 0.18, unit * 0.12]); ctx.stroke();
     }
     ctx.setLineDash([]);
-    for (const x of lit) { quad(x); ctx.strokeStyle = "rgba(255,214,120,.95)"; ctx.lineWidth = Math.max(2, unit * 0.12); ctx.stroke(); }
+    for (const x of lit) { quad(x); ctx.strokeStyle = "rgba(226,190,116,.95)"; ctx.lineWidth = Math.max(2, unit * 0.12); ctx.stroke(); }
     ctx.lineWidth = Math.max(1.4, unit * 0.075); ctx.setLineDash([unit * 0.16, unit * 0.1]);
-    for (const x of why) { quad(x); ctx.strokeStyle = "rgba(255,214,120,.9)"; ctx.stroke(); }
+    for (const x of why) { quad(x); ctx.strokeStyle = "rgba(226,190,116,.9)"; ctx.stroke(); }
     ctx.setLineDash([]);
-    if (hot >= 0) { quad(hot); ctx.strokeStyle = "rgba(230,240,255,.85)"; ctx.lineWidth = Math.max(1.6, unit * 0.09); ctx.stroke(); }
+    if (hot >= 0) { quad(hot); ctx.strokeStyle = "rgba(214,218,232,.8)"; ctx.lineWidth = Math.max(1.6, unit * 0.09); ctx.stroke(); }
 
     // dust: a marked-empty cell is a faint speck
     ctx.globalCompositeOperation = "lighter";
     for (let x = 0; x < N * N; x++) {
       if (marks[x] !== DOT) continue;
       const r = Math.floor(x / N), c = x % N, p = at(c + 0.5, r + 0.5, 0.04), fade = calm ? 1 : Math.min(1, (now - dust[x]) / 280), sz = p[2] * 0.34;
-      ctx.globalAlpha = 0.5 * fade; ctx.drawImage(SOFT, p[0] - sz, p[1] - sz, 2 * sz, 2 * sz);
-      ctx.globalAlpha = 0.85 * fade; ctx.fillStyle = "#CFE0FF"; ctx.beginPath(); ctx.arc(p[0], p[1], Math.max(1, p[2] * 0.055), 0, 6.2832); ctx.fill();
+      ctx.globalAlpha = 0.32 * fade; ctx.drawImage(SOFT, p[0] - sz, p[1] - sz, 2 * sz, 2 * sz);
+      ctx.globalAlpha = 0.85 * fade; ctx.fillStyle = "#B9C2D6"; ctx.beginPath(); ctx.arc(p[0], p[1], Math.max(1, p[2] * 0.055), 0, 6.2832); ctx.fill();
     }
     ctx.globalAlpha = 1;
 
@@ -485,18 +509,17 @@ export function createSpace(host, hooks = {}) {
       const isBad = bad.has(x), age = calm ? 900 : now - born[x];
       const p = at(c + 0.5, r + 0.5, LIFT), g0 = at(c + 0.5, r + 0.5, 0.02), u = p[2];
       const pop = age < 0 ? 0 : age < 460 ? easeOutBack(age / 460) : 1;
-      const flash = calm ? (age < 1400 ? 0.4 : 0) : Math.exp(-Math.max(0, age) / 320);
-      let wf = 0, gl = 1;
-      if (win) { wf = bump(wage - (r + c) * 55 - 120, 1000); gl = 1.3 + 0.1 * (calm ? 0 : Math.sin(now / 700 + x)); }
+      const flash = calm ? (age < 1400 ? 0.25 : 0) : 0.6 * Math.exp(-Math.max(0, age) / 320);
+      const gl = 1 + 0.3 * wb;                                         // the end: each star glows a little more, slowly
       const throb = isBad && !calm ? 0.85 + 0.25 * pulse : 1;
       const spr = isBad ? EMBER : BLOOM;
       ctx.globalCompositeOperation = "lighter";
       const pool = g0[2] * 1.15 * Math.max(0.2, pop);                  // the light it throws down on the glass
-      ctx.globalAlpha = 0.34; ctx.drawImage(spr, g0[0] - pool, g0[1] - pool * 0.7, 2 * pool, 2 * pool * 0.7);
-      const bl = u * (1.3 + 0.8 * flash + 0.5 * wf) * pop * gl * throb;
-      ctx.globalAlpha = 0.85; ctx.drawImage(spr, p[0] - bl, p[1] - bl, 2 * bl, 2 * bl);
-      const fl = flash + wf;
-      if (fl > 0.03) { const fs = u * (1.0 + 1.5 * fl); ctx.globalAlpha = Math.min(1, fl); ctx.drawImage(FLARE, p[0] - fs, p[1] - fs, 2 * fs, 2 * fs); }
+      ctx.globalAlpha = 0.2 + 0.1 * wb; ctx.drawImage(spr, g0[0] - pool, g0[1] - pool * 0.7, 2 * pool, 2 * pool * 0.7);
+      const bl = u * (1.05 + 0.6 * flash) * pop * gl * throb;
+      ctx.globalAlpha = 0.8; ctx.drawImage(spr, p[0] - bl, p[1] - bl, 2 * bl, 2 * bl);
+      const fl = flash;
+      if (fl > 0.03) { const fs = u * (0.8 + 1.1 * fl); ctx.globalAlpha = Math.min(1, fl); ctx.drawImage(FLARE, p[0] - fs, p[1] - fs, 2 * fs, 2 * fs); }
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
       const rOut = u * 0.36 * Math.max(0.01, pop), rIn = rOut * 0.42;       // the star itself, upright to the eye
       ctx.beginPath();
@@ -506,21 +529,28 @@ export function createSpace(host, hooks = {}) {
         if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y);
       }
       ctx.closePath();
-      ctx.fillStyle = isBad ? "#FFC3A0" : "#FFF3CC"; ctx.fill();
-      ctx.lineWidth = Math.max(1, u * 0.05); ctx.strokeStyle = isBad ? "#FF5A2A" : "#F2B445"; ctx.lineJoin = "round"; ctx.stroke();
+      ctx.fillStyle = isBad ? "#D9A596" : "#F6EBCB"; ctx.fill();
+      ctx.lineWidth = Math.max(1, u * 0.05); ctx.strokeStyle = isBad ? "#8E2F2A" : "#B8933F"; ctx.lineJoin = "round"; ctx.stroke();
       if (isBad) {                                                     // a ring: a conflict is seen without colour
         ctx.beginPath(); ctx.arc(p[0], p[1], u * (0.5 + 0.06 * pulse), 0, 6.2832);
-        ctx.strokeStyle = `rgba(255,110,60,${(0.7 + 0.3 * pulse).toFixed(2)})`; ctx.lineWidth = Math.max(1.4, u * 0.07); ctx.setLineDash([u * 0.16, u * 0.1]); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = `rgba(190,80,68,${(0.7 + 0.3 * pulse).toFixed(2)})`; ctx.lineWidth = Math.max(1.4, u * 0.07); ctx.setLineDash([u * 0.16, u * 0.1]); ctx.stroke(); ctx.setLineDash([]);
       }
     }
   }
 
   // ---------- asked by the page ----------
   const local = ev => { const b = canvas.getBoundingClientRect(); return [ev.clientX - b.left, ev.clientY - b.top]; };
-  function cellAt(ev) {
+  /** The cell under a pointer, or -1; `slack` (cells round the pane that still count as its edge) 0 asks "is it on the pane". */
+  function cellAt(ev, slack) {
     if (!P || !N) return -1;
     const [x, y] = local(ev);
-    return pickCell(R, N, f, cx, cy, x, y);
+    return pickCell(R, N, f, cx, cy, x, y, slack);
+  }
+  /** A pointer on the board in board units (a cell is 1 wide, from the top left), unclamped; null if the eye looks away. */
+  function boardPoint(ev) {
+    if (!P || !N) return null;
+    const [x, y] = local(ev), p = unproject(R, N, f, cx, cy, x, y, LIFT / 2);
+    return p ? { x: p[0] + N / 2, y: p[1] + N / 2 } : null;
   }
   /** Where a cell's middle is on the screen (client px), as it is drawn now. */
   function where(x) {
@@ -536,7 +566,7 @@ export function createSpace(host, hooks = {}) {
   }
   resize();
   return {
-    canvas, set, clear, press, grab, drag, release, cellAt, where, pause, resume, destroy, drawNow, stats,
+    canvas, set, clear, press, grab, drag, twist, release, resetView, cellAt, boardPoint, where, pause, resume, destroy, drawNow, stats,
     get pose() { return { yaw, pitch }; }, get asleep() { return !raf; },
   };
 }

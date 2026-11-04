@@ -37,8 +37,14 @@ html[data-theme="modern"] { --ast-logo-tint: #E3E8F7; --ast-logo-edge: #3F58A6; 
 .ast-board { position: relative; width: 100%; height: 100%; display: grid; place-items: center; min-height: 0; }
 /* the space view (asterism-space.js): deep space in every theme, a window in the themed frame; the canvas is laid over the
    box, never in its flow, and sized to it by script */
-.ast-space { position: absolute; left: 0; top: 0; display: block; background: #04060F; border-radius: .25rem; touch-action: none; user-select: none; -webkit-user-select: none;
-  -webkit-touch-callout: none; cursor: grab; }
+.ast-space { position: absolute; left: 0; top: 0; display: block; background: #03050B; border-radius: .25rem; touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none; cursor: pointer; }
+.ast-space.turning { cursor: grab; }
+/* the Turn switch: a small brass plate in the board's top corner, where the tilted pane leaves the dark free */
+.ast-turn { position: absolute; left: .85rem; top: .85rem; z-index: 2; min-height: 2.25rem; padding: 0 .8rem; border: 1px solid #8D7A4E; border-radius: 4px;
+  background: rgba(5, 8, 18, .72); color: #CDBE98; font: inherit; font-size: .74rem; font-weight: 800; font-stretch: var(--wide); text-transform: uppercase;
+  letter-spacing: .1em; cursor: pointer; touch-action: manipulation; }
+.ast-turn.on { background: #CDBE98; color: #0A0E1A; border-color: #CDBE98; }
 html:is([data-theme="modern"], [data-theme="office"]) .ast-space { border-radius: .85rem; }
 html[data-theme="kontor"] .ast-space { border-radius: 1px; }
 .ast-svg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }

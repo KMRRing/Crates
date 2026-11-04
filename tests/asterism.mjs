@@ -199,6 +199,8 @@ const made = [];
   check(/from "\.\/asterism-space\.js"/.test(page) && /prefs\.view === "space"/.test(page) && /"Flat grid"/.test(page) && /space\?\.pause\(\)/.test(page), "the page draws the space view by default, with the flat grid a menu choice, and stops it with the menu");
   check(!/getContext\(["']\w*webgl/i.test(space) && /getContext\("2d"\)/.test(space) && /Math\.min\(2, window\.devicePixelRatio/.test(space) && /prefers-reduced-motion/.test(space) && /visibilitychange/.test(space) && !/\bfilter\s*=|shadowBlur/.test(space), "the space view is a 2D canvas (no WebGL, no filters or shadow blur), pixel ratio capped at 2, still for reduced motion, asleep when hidden");
   check(/slow\(\)/.test(space) && /hooks\.slow/.test(space) && /slow:/.test(page), "a device that draws it slowly is handed back to the flat grid");
+  check(!/\bIDLE\b|eases back/.test(space) && /resetView/.test(space) && /"Reset the view"/.test(page), "the view stays where it was left (no ease-back); the menu's Reset the view is the way home");
+  check(/boardPoint/.test(space) && /axisStroke\(/.test(page) && /pressing\.turns/.test(page) && /twoStart/.test(page) && /ev\.shiftKey/.test(page) && /ast-turn/.test(page), "in space a one-finger drag dots along its axis; two fingers, the Turn button, shift or a drag off the pane turn it");
   check(/TIMES = "asterism:times"/.test(page), "times are kept lowest-first under asterism:times (the games screen reads a :best as highest-is-best)");
 }
 

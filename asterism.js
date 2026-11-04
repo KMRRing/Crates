@@ -292,10 +292,11 @@ const starAt = (cx, cy) => Array.from({ length: 10 }, (_, i) => {
 }).join(" ");
 /** The board in the view chosen: space (a canvas in perspective, asterism-space.js; the default) or the flat grid (an SVG).
  *  Space falls back to the flat grid where a canvas can't be had, or the device draws it too slowly. */
-let space = null;
+let space = null, turnMode = false, turnBtn = null;   // turnMode: a one-finger drag turns the board instead of dotting
 function drawBoard() {
   space?.destroy();
-  space = null; svg = null; cellEls = [];
+  turnBtn?.remove();
+  space = null; svg = null; cellEls = []; turnBtn = null;
   $("board").replaceChildren();
   $("board").parentElement.classList.remove("space");
   if (prefs.view === "space" && SPACE_AVAILABLE()) {
@@ -303,10 +304,22 @@ function drawBoard() {
     space = createSpace($("board"), { slow: () => { if (!space) return; prefs.view = "flat"; savePrefs(); drawBoard(); toast("This device drew the space view slowly: the flat grid is showing. The menu brings the space view back.", 6000); } });
     space.canvas.addEventListener("pointerdown", down);
     space.canvas.addEventListener("contextmenu", e => e.preventDefault());
+    turnBtn = Object.assign(document.createElement("button"), { type: "button", className: "ast-turn", textContent: "Turn" });
+    turnBtn.title = "Turn the board with one finger (two fingers always turn it)";
+    turnBtn.addEventListener("click", () => setTurn(!turnMode));
+    $("board").parentElement.append(turnBtn);
+    setTurn(turnMode);
     paint();
     return;
   }
   drawFlat();
+}
+function setTurn(on) {
+  turnMode = on;
+  if (!turnBtn) return;
+  turnBtn.setAttribute("aria-pressed", String(on));
+  turnBtn.classList.toggle("on", on);
+  space?.canvas.classList.toggle("turning", on);
 }
 function drawFlat() {
   const { N } = P, pad = 0.2;
@@ -367,14 +380,20 @@ function cellAt(ev) {
 }
 /** A point of the screen in board units (a cell is 1 wide), unclamped; null with no board drawn. */
 function boardPoint(ev) {
+  if (space) return space.boardPoint(ev);
   const m = svg?.getScreenCTM();
   if (!m) return null;
   const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse());
   return { x: p.x, y: p.y };
 }
+// In space a one-finger drag dots cell after cell, as on the flat grid (4 November 2026, Korbi: a drag along a row must
+// place dots). The board turns with two fingers (a drag, a twist), with a drag that begins off the pane, with the Turn
+// button on, or with the shift key held.
+const touches = new Map();           // the fingers down on the space view: id -> { x, y }
 function down(ev) {
   if (ev.button > 0) { if (ev.button === 2) press(cellAt(ev), "hold"); return; }
   if (!S || paused) return;
+  if (space && pressing && pressing.id !== ev.pointerId && !pressing.two) { twoStart(ev); return; }
   const plays = !S.done && !IN_FRAME;
   if (!space && !plays) return;
   ev.preventDefault();
@@ -382,15 +401,35 @@ function down(ev) {
   const cell = cellAt(ev);
   if (!space && cell < 0) return;
   try { (space?.canvas || svg).setPointerCapture(ev.pointerId); } catch { /* a synthetic event */ }
-  pressing = { id: ev.pointerId, cell: plays ? cell : -1, x: ev.clientX, y: ev.clientY, lx: ev.clientX, ly: ev.clientY, held: false, stroke: null, orbit: false, view: space };
-  if (space) { space.grab(); space.press(pressing.cell); }     // (a finger on the space view turns it; dotting cell after cell is the flat grid's)
-  if (pressing.cell >= 0) pressing.timer = setTimeout(() => { if (!pressing || pressing.stroke || pressing.orbit) return; pressing.held = true; navigator.vibrate?.(14); press(pressing.cell, "hold"); }, HOLD);
+  const turns = !!space && (!plays || turnMode || ev.shiftKey || space.cellAt(ev, 0) < 0);
+  pressing = { id: ev.pointerId, cell: plays ? cell : -1, x: ev.clientX, y: ev.clientY, lx: ev.clientX, ly: ev.clientY, held: false, stroke: null, orbit: false, turns, view: space, two: null };
+  if (space) { touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY }); space.grab(); space.press(pressing.cell); }
+  if (pressing.cell >= 0) pressing.timer = setTimeout(() => { if (!pressing || pressing.stroke || pressing.orbit || pressing.two) return; pressing.held = true; navigator.vibrate?.(14); press(pressing.cell, "hold"); }, HOLD);
 }
 function cancelPress() {
+  touches.clear();
   if (!pressing) return;
   clearTimeout(pressing.timer);
   if (pressing.view) { pressing.view.press(-1); pressing.view.release(); }
   pressing = null;
+}
+/** The second finger lands: whatever the first began is over, and the two together turn the board. */
+function twoStart(ev) {
+  clearTimeout(pressing.timer);
+  touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  try { space.canvas.setPointerCapture(ev.pointerId); } catch { /* a synthetic event */ }
+  pressing.two = { a: pressing.id, b: ev.pointerId, ...pair(pressing.id, ev.pointerId) };
+  pressing.cell = -1;
+  space.press(-1);
+}
+const pair = (a, b) => { const p = touches.get(a), q = touches.get(b); return { cx: (p.x + q.x) / 2, cy: (p.y + q.y) / 2, ang: Math.atan2(q.y - p.y, q.x - p.x) }; };
+function twoMove() {
+  const t = pressing.two, g = pair(t.a, t.b), tau = 2 * Math.PI;
+  let da = g.ang - t.ang;
+  if (da > Math.PI) da -= tau; else if (da < -Math.PI) da += tau;
+  pressing.view.drag(g.cx - t.cx, g.cy - t.cy);
+  pressing.view.twist(da);
+  Object.assign(t, g);
 }
 /** Applies the stroke's action to one cell: the first cell decides, an empty one starts dotting, a dot starts rubbing dots out; stars stay. */
 function strokeCell(x) {
@@ -405,27 +444,31 @@ function stroke(ev) {
   if (p) for (const x of axisStroke(pressing.stroke.axis, p.x, p.y)) strokeCell(x);
 }
 addEventListener("pointermove", ev => {
+  if (touches.has(ev.pointerId)) touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (pressing?.two) { if (touches.has(pressing.two.a) && touches.has(pressing.two.b)) twoMove(); return; }
   if (!pressing || ev.pointerId !== pressing.id) return;
   if (pressing.orbit) { pressing.view.drag(ev.clientX - pressing.lx, ev.clientY - pressing.ly); pressing.lx = ev.clientX; pressing.ly = ev.clientY; return; }
   if (!pressing.stroke) {
     if (Math.hypot(ev.clientX - pressing.x, ev.clientY - pressing.y) <= DRAG * scale()) return;
     clearTimeout(pressing.timer);
-    if (pressing.view) {                                               // space: the drag turns the board
+    if (pressing.turns) {                                              // space, begun to turn: the drag turns the board
       pressing.orbit = true; pressing.view.press(-1);
       pressing.view.drag(ev.clientX - pressing.x, ev.clientY - pressing.y); pressing.lx = ev.clientX; pressing.ly = ev.clientY;
       return;
     }
     const from = boardPoint({ clientX: pressing.x, clientY: pressing.y }), { N } = P;
+    if (!from) return;
     pressing.stroke = { id: newStroke(), mode: null, axis: newAxisStroke(N, pressing.cell % N, Math.floor(pressing.cell / N), from.x, from.y) };
     strokeCell(pressing.cell);                                         // the cell it began on counts too
   }
   stroke(ev);
 });
 addEventListener("pointerup", ev => {
+  if (pressing?.two && (ev.pointerId === pressing.two.a || ev.pointerId === pressing.two.b)) { cancelPress(); return; }   // (the other finger's lift then does nothing)
   if (!pressing || ev.pointerId !== pressing.id) return;
-  const { cell, held, stroke: drew, orbit } = pressing;
+  const { cell, held, stroke: drew, orbit, two } = pressing;
   cancelPress();
-  if (!held && !drew && !orbit && cell >= 0) press(cell, "tap");
+  if (!held && !drew && !orbit && !two && cell >= 0) press(cell, "tap");
 });
 addEventListener("pointercancel", cancelPress);
 
@@ -492,7 +535,7 @@ function showRules() {
   $("rulesBody").innerHTML = `
     <p>The board is cut into as many regions as it is wide, each outlined in a heavy rule. Put stars in the cells so that <b>every row, every column and every region holds exactly the same number of stars</b> (one on the easier boards, two on the larger ones), and <b>no two stars touch</b>, not even corner to corner. Every puzzle has exactly one answer, reached by reasoning, never by a guess.</p>
     <h4>Playing</h4>
-    <p>Tap a cell to dot it (a dot is your own note: "no star here"), again to make it a star, again to clear it. Hold a cell, or right-click it, to make it a star at once. Drag across cells to dot many at once (start on a dot to rub dots out). Only the stars count: the puzzle is solved the moment exactly its answer is starred. Undo and Redo step through your marks, and the menu clears the board.</p>
+    <p>Tap a cell to dot it (a dot is your own note: "no star here"), again to make it a star, again to clear it. Hold a cell, or right-click it, to make it a star at once. Drag across cells to dot many at once, along the row or column you began on (start on a dot to rub dots out). In the space view, two fingers turn the board (drag or twist), and so does a drag begun off the pane, the Turn button with one finger, or a mouse drag with Shift held; the board stays where you leave it, and the menu's Reset the view brings it home. Only the stars count: the puzzle is solved the moment exactly its answer is starred. Undo and Redo step through your marks, and the menu clears the board.</p>
     <p>A broken rule shows at once, in oxblood, with a line under the board saying which: two stars touching, a row, column or region with too many, or one with no room left for its stars. That comes from the rules, never the answer. Hint (+${HINT}&nbsp;s) puts a wrong mark right first; otherwise it makes the next step a person would take and says why, the cells it settled in gilt and the cells that say so dashed.</p>
     <h4>Finding the stars</h4>
     <p><b>A star's surroundings.</b> The eight cells round a star are empty. <b>A full group.</b> A row, column or region with all its stars has the rest empty. <b>Just enough room.</b> A group that has exactly as many cells left as stars to place has stars in them all.</p>
@@ -527,6 +570,7 @@ function openMenu() {
   } else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
   const look = part(body, "settings");
   look.append(choice("View", [["space", "Space"], ["flat", "Flat grid"]], prefs.view, v => { prefs.view = v; savePrefs(); if (P) drawBoard(); openMenu(); }));
+  if (space) look.append(action("Reset the view", () => space?.resetView()));
   const best = S ? bestOf(S) : null;
   const about = part(body, "about");
   about.append(line(S ? `${kindText({ size: S.size, k: S.k, level: S.came || S.level })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Put the stars in."));
