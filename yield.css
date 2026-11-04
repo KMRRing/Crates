@@ -90,7 +90,7 @@ html[data-theme="modern"] { --yd-logo-tint: #D5E1EC; --yd-logo-edge: #2D5E88; }
   border: 1.5px solid var(--brass); border-radius: .9rem; background: color-mix(in srgb, var(--brass) 8%, var(--sheet)); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .yd-cut { position: relative; flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 1fr auto; grid-template-rows: 1fr auto; align-items: end; column-gap: .3rem; padding: .3rem .45rem .35rem; border-top: 1px solid var(--rule); }
 .yd-cut:first-child { border-top: 0; }
-.yd-cut::after { content: ""; position: absolute; right: -.5rem; bottom: .5rem; width: .5rem; height: 6px; background: var(--cut); border: 1px solid var(--brass); border-left: 0; box-sizing: border-box; border-radius: 0 2px 2px 0; }
+.yd-cut::after { content: ""; position: absolute; right: -.5rem; bottom: .5rem; width: .5rem; height: .375rem; background: var(--cut); border: 1px solid var(--brass); border-left: 0; box-sizing: border-box; border-radius: 0 2px 2px 0; }
 .yd-cut .nm { grid-column: 1 / span 2; align-self: start; font-size: .56rem; font-weight: 800; line-height: 1.1; text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yd-cut .ct { grid-column: 2; grid-row: 2; justify-self: end; align-self: center; font-size: .58rem; font-weight: 800; line-height: 1.1; min-width: 1.5rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
 .yd-cut .bar { grid-column: 1; grid-row: 2; position: relative; height: .62rem; margin-top: .12rem; border: 1px solid var(--brass); border-radius: 2px; background: var(--yard); overflow: visible; }
