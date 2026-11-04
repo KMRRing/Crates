@@ -12,7 +12,7 @@
 // body move between the rules' steps (springs, a pose carried over from the one before, the scarf and coat tails dragged by the
 // air) is reckoning-move.js; here it is only drawn.
 import * as THREE from "./vendor/three-run.js";
-import { LANE_W, WALL_X, KINDS, ROLL_T, JUMP_V, speed } from "./reckoning-engine.js";
+import { LANE_W, WALL_X, KINDS, ROLL_T, JUMP_V, speed, solid } from "./reckoning-engine.js";
 import { Spring, Inertia, Streamer, CameraRig, clamp, lerp, ease } from "./reckoning-move.js";
 
 const BEND = 0.0013;                    // how fast the world drops away: metres of fall per metre-squared of distance
@@ -338,6 +338,7 @@ export function createRunner(host) {
       parts.rope = put(box, M.timber, 0.03, 0.4, 0.03, 0, 0.04, 0);
     }
     g.traverse(o => { o.frustumCulled = false; });
+    if (f.heavy) { put(cone, M.steel, 0.5, 0.35, 0.5, 0, 0.95, 0.05); put(box, M.steel, 0.95, 0.12, 0.7, 0, 0.78, 0.12); g.traverse(o => { o.frustumCulled = false; }); }
     const shadow = new THREE.Mesh(disc, M.shadow); shadow.frustumCulled = false;
     // the mark over a foe that has seen me: an exclamation point on a pale plate, facing the camera (behind the hero, so
     // facing -z), brass when it has just seen me and red when it is winding up
@@ -346,8 +347,117 @@ export function createRunner(host) {
     const bar = put(box, M.markSees, 0.12, 0.3, 0.04, 0, 0.1, -0.05, mark), dot = put(sph, M.markSees, 0.13, 0.13, 0.06, 0, -0.17, -0.05, mark);
     mark.visible = false; mark.traverse(o => { o.frustumCulled = false; });
     world.add(g, shadow, mark);
-    return { group: g, parts, shadow, mark, markParts: [bar, dot], kind: f.kind };
+    return { group: g, parts, shadow, mark, markParts: [bar, dot], kind: f.kind, heavy: !!f.heavy };
   }
+
+  // ---------- a section's things: what blocks the quay, what is picked up, the finish ----------
+  // Boxes and cylinders, like everything else here; their colours are the goods' own, the same in every theme.
+  const GOODC = { salt: 0xEDE6D3, herring: 0x7F9CB4, furs: 0x7A5230, wax: 0xE2C24A, grog: 0xB5651D, amber: 0xF0A12B, meal: 0xC4573A, lever: 0xB8892B };
+  const MARKC = [0x808080, 0xC5483A, 0x3E9A6B, 0x3E78B5];
+  const flats = {};
+  const flat = (hex, glow = 0) => (flats[`${hex}:${glow}`] ||= curved(new THREE.MeshLambertMaterial({ color: hex, emissive: glow ? hex : 0x000000, emissiveIntensity: glow })));
+  const things = new Map(), thingFree = [];
+  const part = (to, geo, m, sx, sy, sz, x, y, z) => { const o = new THREE.Mesh(geo, m); o.scale.set(sx, sy, sz); o.position.set(x, y, z); to.add(o); return o; };
+
+  /** The shape of one thing: `pose` is what moves in it (a bridge lies down, an arm lifts), `base` where it stands. */
+  function makeThing(kind, o) {
+    const g = new THREE.Group(), T = { group: g, kind, mark: o.mark || 0 };
+    if (kind === "barrel") {
+      part(g, cyl, M.timber, 0.85, 0.85, 0.85, 0, 0.425, 0);
+      for (const y of [0.18, 0.68]) part(g, cyl, M.gilt, 0.9, 0.07, 0.9, 0, y, 0);
+    } else if (kind === "beam") {
+      part(g, box, M.timber, 0.06, 2.6, 0.06, 0, 3.4, 0);                                // the rope it hangs by
+      part(g, box, M.timber, 1.5, 1.35, 0.95, 0, 1.5, 0);
+      part(g, box, M.gilt, 1.56, 0.08, 1.0, 0, 1.0, 0); part(g, box, M.gilt, 1.56, 0.08, 1.0, 0, 2.0, 0);
+    } else if (kind === "cart") {
+      part(g, box, M.wall, 1.5, 1.4, 1.5, 0, 0.7, 0); part(g, box, M.timber, 1.4, 1.1, 1.3, 0, 1.95, 0);
+      part(g, box, M.gilt, 1.55, 0.08, 1.55, 0, 1.4, 0);
+    } else if (kind === "toll" || kind === "bridge" || kind === "tide") {
+      // a gate across a lane: two posts, and a leaf that is down while it blocks and up (or flat, or gone) while it does not
+      for (const s of [-1, 1]) part(g, cyl, M.timber, 0.16, 2.7, 0.16, s * 0.78, 1.35, 0);
+      T.leaf = new THREE.Group(); g.add(T.leaf);
+      if (kind === "toll") {
+        T.leaf.position.set(-0.78, 1.15, 0);
+        part(T.leaf, box, M.crab, 1.56, 0.2, 0.14, 0.78, 0, 0); part(T.leaf, box, M.shirt, 0.3, 0.2, 0.16, 0.3, 0, 0); part(T.leaf, box, M.shirt, 0.3, 0.2, 0.16, 1.1, 0, 0);
+        part(g, box, flat(MARKC[o.mark]), 1.5, 0.5, 0.1, 0, 2.45, 0);
+        for (let i = 0; i < o.mark; i++) part(g, sph, M.shirt, 0.2, 0.2, 0.12, (i - (o.mark - 1) / 2) * 0.34, 2.45, -0.07);
+      } else if (kind === "bridge") {
+        T.leaf.position.set(0, 0, 0.1);
+        part(T.leaf, box, M.timber, 1.5, 2.5, 0.22, 0, 1.25, 0); part(T.leaf, box, M.gilt, 1.5, 0.1, 0.26, 0, 2.2, 0); part(T.leaf, box, M.gilt, 1.5, 0.1, 0.26, 0, 0.5, 0);
+        part(g, box, flat(o.flip ? 0x3E78B5 : 0xC5483A), 0.5, 0.3, 0.12, 0, 2.95, 0);        // a bridge up at 0 is red, at 1 blue: the lever's colour
+      } else {
+        T.leaf.position.set(0, 0, 0);
+        for (let i = -2; i <= 2; i++) part(T.leaf, box, M.steel, 0.07, 2.5, 0.07, i * 0.3, 1.25, 0);
+        part(T.leaf, box, M.steel, 1.5, 0.08, 0.1, 0, 0.5, 0); part(T.leaf, box, M.steel, 1.5, 0.08, 0.1, 0, 1.5, 0);
+        part(g, box, flat(0x3E78B5, 0.4), 1.5, 0.12, 0.12, 0, 2.75, 0);
+      }
+      T.k = 1;
+    } else if (kind === "token") {
+      T.spin = part(g, cyl, flat(MARKC[o.mark], 0.25), 0.7, 0.1, 0.7, 0, 0, 0); T.spin.rotation.x = Math.PI / 2;
+      for (let i = 0; i < o.mark; i++) part(g, sph, M.shirt, 0.11, 0.11, 0.11, (i - (o.mark - 1) / 2) * 0.2, 0, -0.07);
+    } else if (kind === "lever") {
+      part(g, box, M.timber, 0.7, 0.2, 0.5, 0, -0.35, 0);
+      T.spin = new THREE.Group(); T.spin.position.set(0, -0.25, 0); g.add(T.spin);
+      part(T.spin, box, M.steel, 0.1, 0.8, 0.1, 0, 0.4, 0); part(T.spin, sph, flat(0xC5483A, 0.2), 0.24, 0.24, 0.24, 0, 0.82, 0);
+    } else if (kind === "amber") {
+      T.spin = part(g, sph, flat(GOODC.amber, 0.55), 0.46, 0.62, 0.46, 0, 0, 0);
+    } else if (kind === "herring" || kind === "grog") {
+      T.spin = new THREE.Group(); g.add(T.spin);
+      part(T.spin, cyl, flat(GOODC[kind]), 0.55, 0.62, 0.55, 0, 0, 0); part(T.spin, cyl, M.gilt, 0.58, 0.07, 0.58, 0, 0.17, 0); part(T.spin, cyl, M.gilt, 0.58, 0.07, 0.58, 0, -0.17, 0);
+    } else if (kind === "meal") {
+      T.spin = new THREE.Group(); g.add(T.spin);
+      part(T.spin, sph, flat(GOODC.meal), 0.6, 0.4, 0.5, 0, 0, 0); part(T.spin, sph, M.shirt, 0.2, 0.14, 0.2, 0, 0.2, 0);
+    } else {                                                                              // a sack: salt, furs, wax
+      T.spin = new THREE.Group(); g.add(T.spin);
+      part(T.spin, sph, flat(GOODC[kind] || 0xcccccc), 0.62, 0.56, 0.5, 0, 0, 0); part(T.spin, cyl, M.timber, 0.2, 0.14, 0.2, 0, 0.3, 0);
+    }
+    g.traverse(x => { x.frustumCulled = false; });
+    world.add(g);
+    return T;
+  }
+  const hideThing = T => { T.group.visible = false; };
+  /** Draws what a section lays on the quay near the hero; things leave and enter as he runs. */
+  function drawThings(S, z0, z1, dt) {
+    const W_ = S.world, seen = new Set();
+    const put1 = (it, keyKind, y0) => {
+      if (it.z < z0 - 4 || it.z > z1) return null;
+      const key = (it.kind === "salt" || it.kind === "furs" || it.kind === "wax" ? "sack:" : "") + keyKind + ":" + (it.mark || 0) + ":" + (it.flip ?? "");
+      seen.add(it.id);
+      let T = things.get(it.id);
+      if (!T) {
+        const i = thingFree.findIndex(x => x.key === key);
+        if (i >= 0) T = thingFree.splice(i, 1)[0]; else { T = makeThing(keyKind, it); T.key = key; }
+        T.group.visible = true; T.id = it.id; things.set(it.id, T);
+      }
+      return T;
+    };
+    for (const o of W_.obs) {
+      const T = put1(o, o.kind === "toll" || o.kind === "bridge" || o.kind === "tide" ? o.kind : o.shape, 0);
+      if (!T) continue;
+      T.group.position.set(o.lane * LANE_W, 0, o.z);
+      if (T.leaf) {
+        const want = solid(S, o) ? 1 : 0, k = T.k = T.k + (want - T.k) * Math.min(1, dt * 12);
+        if (o.kind === "toll") T.leaf.rotation.z = (1 - k) * 1.35;
+        else T.leaf.scale.set(1, 0.06 + 0.94 * k, 1);
+      }
+    }
+    for (const p of W_.pick) {
+      const T = put1(p, p.kind, p.y);
+      if (!T) continue;
+      T.group.visible = !p.taken;
+      const bob = Math.sin(now * 3 + p.id) * 0.07;
+      T.group.position.set(p.lane * LANE_W, p.kind === "lever" ? 0.5 : p.y + bob, p.z);
+      if (T.spin && p.kind !== "lever" && p.kind !== "token") T.spin.rotation.y = now * 1.6 + p.id;
+      if (p.kind === "lever" && T.spin) T.spin.rotation.z = (S.flip ? -0.7 : 0.7);
+    }
+    for (const [id, T] of things) if (!seen.has(id)) { hideThing(T); thingFree.push(T); things.delete(id); }
+  }
+  // the finish: a gilt arch across the quay with a banner, and a line of checks on the planks
+  const finish = new THREE.Group();
+  for (const s of [-1, 1]) part(finish, cyl, M.gilt, 0.3, 5.4, 0.3, s * (QUAY_W / 2 - 0.1), 2.7, 0);
+  part(finish, box, M.gilt, QUAY_W, 0.3, 0.3, 0, 5.4, 0); part(finish, box, M.banner, QUAY_W - 0.6, 1.0, 0.08, 0, 4.7, 0);
+  for (let i = 0; i < 12; i++) part(finish, box, i & 1 ? M.shirt : M.hero, QUAY_W / 12, 0.03, 0.6, (i - 5.5) * (QUAY_W / 12), 0.03, 0);
+  finish.visible = false; finish.traverse(o => { o.frustumCulled = false; }); world.add(finish);
 
   // effects: rings on the planks, bursts
   const fx = [];
@@ -561,7 +671,7 @@ export function createRunner(host) {
     g.visible = true;
     g.position.set(f.x + shiver, lift, f.z - adv);
     g.rotation.set(0, Math.PI - yaw, 0);
-    g.scale.setScalar(1);
+    g.scale.setScalar(f.heavy ? 1.35 : 1);
     rig.rotation.set(-pitch, 0, 0);
     rig.position.set(0, hop, 0);
     if (f.spent && f.alive) g.rotation.z = Math.sin(now * 30) * 0.08;
@@ -741,7 +851,7 @@ export function createRunner(host) {
       if (f.z < z0 - 4 || f.z > z1) continue;
       seen.add(f.id);
       let o = foes.get(f.id);
-      if (!o) { o = free.find(x => x.kind === f.kind) || makeFoe(f); const k = free.indexOf(o); if (k >= 0) free.splice(k, 1); o.born = now; o.died = 0; o.fly = null; o.how = ""; o.dir = 0; o.group.visible = o.shadow.visible = true; foes.set(f.id, o); }
+      if (!o) { o = free.find(x => x.kind === f.kind && x.heavy === !!f.heavy) || makeFoe(f); const k = free.indexOf(o); if (k >= 0) free.splice(k, 1); o.born = now; o.died = 0; o.fly = null; o.how = ""; o.dir = 0; o.group.visible = o.shadow.visible = true; foes.set(f.id, o); }
       if (!f.alive && !o.died) { o.died = now; o.fly = knock(o, f, S); }
       if (o.died) { flyBack(o, f, dt); continue; }
       poseFoe(o, f, S);
@@ -750,6 +860,13 @@ export function createRunner(host) {
       o.shadow.visible = inSpan(f.z) && f.y < 3;
     }
     for (const [id, o] of foes) if (!seen.has(id)) { hideFoe(o); free.push(o); foes.delete(id); }
+
+    // a section's things, its finish, and its fog
+    drawThings(S, z0, z1, dt);
+    finish.visible = S.sec > 0 && W_.finish > z0 && W_.finish < z1;
+    finish.position.z = W_.finish || 0;
+    const fogFar = S.mods?.fog ? S.mods.fog : 105, fogNear = S.mods?.fog ? 4 : 28;
+    scene.fog.far += (fogFar - scene.fog.far) * Math.min(1, (dt || 1) * 3); scene.fog.near += (fogNear - scene.fog.near) * Math.min(1, (dt || 1) * 3);
 
     // the hero
     hero.position.set(hx, hy, hz);
@@ -851,6 +968,10 @@ export function createRunner(host) {
       case "hurt": shake = 1.2; break;
       case "fall": shake = 0.8; break;
       case "clang": shake = 1; break;
+      case "stagger": shake = Math.max(shake, 0.7); burst(h.x, h.y + 0.8, h.z + 0.8, 5); break;
+      case "pick": ring(h.x, h.y + 0.4, h.z + 0.4, 1.3, 0.3); burst(h.x, h.y + 0.9, h.z + 0.6, 4); break;
+      case "seized": shake = 1; break;
+      case "finish": shake = 0.5; burst(h.x, h.y + 1, h.z + 1, 12); break;
       case "wallrun": shake = Math.max(shake, 0.25); puff(h.x + ev.side * 0.4, h.z, 4, 1.6, 0.22, 0, -spd * 0.1, 1.2, 1.2); break;
       case "walljump": shake = Math.max(shake, 0.25); D.crouch.set(0.6); D.crouchW = 20; D.stretch.kick(2); cam.punch(1.5); puff(h.x + ev.side * 0.4, h.z, 5, 2, 0.24, -ev.side * 1.5, 0, 1.4, h.y); break;
     }

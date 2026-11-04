@@ -130,7 +130,7 @@ export function copy(S) { return setDeal(JSON.parse(JSON.stringify(S)), S.deal);
 /** A run kept by an earlier version has none of the section fields: it is an endless run, and is given them. A run of a section that is no more is not valid. */
 export function valid(S, sections = null) {
   if (!S || S.v !== 1 || !S.hero || !S.world || !Array.isArray(S.world.foes)) return false;
-  if (S.sec && (!sections || !sections[S.sec - 1] || !S.mods || !Number.isFinite(S.world.finish))) return false;
+  if (S.sec && (!sections || !sections[S.sec - 1] || !S.mods || !Number.isFinite(S.world.finish) || S.sig !== sectionSig(sections[S.sec - 1]))) return false;
   const W = S.world;
   W.obs ||= []; W.pick ||= [];
   S.sec ||= 0; S.hits ||= 0; S.carried ||= {}; S.token ||= 0; S.flip ||= 0; S.inv ||= 0; S.won = !!S.won;
@@ -312,10 +312,18 @@ function cell(S, tok, lane, z) {
   else obstacle(S, "tide", lane, z, { shape: "cart", ph: +m[2] / 3 });
 }
 
+/** What a section is made of, as a short string: a run kept from before the section was changed is not the section any more, and is dropped. */
+export function sectionSig(def) {
+  const text = JSON.stringify([def.rows, def.v0, def.v1, def.gap, def.omega, def.laden, def.hearts, def.bill]);
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
 /** Makes a section's quay whole, as `def` (reckoning-sections.js) describes it. */
 export function beginSection(S, def) {
   const W = S.world;
-  S.sec = def.id; S.rng = (def.id * 7919 + 17) | 0;              // the quay is the same every time; only the questions are dealt afresh
+  S.sec = def.id; S.sig = sectionSig(def); S.rng = (def.id * 7919 + 17) | 0;              // the quay is the same every time; only the questions are dealt afresh
   S.hearts = S.maxHearts = def.hearts ?? 3;
   S.mods = { v0: def.v0, v1: def.v1 ?? def.v0, omega: def.omega || 0, laden: def.laden || 0, fog: def.fog || 0 };
   S.bill = { want: def.bill?.want || [], bad: def.bill?.bad || [] };
