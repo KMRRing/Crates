@@ -10,6 +10,7 @@
 //   { tool: "drill", d, at, view }   d: the way the bit goes; at: a point on the face it starts on
 // `strokes` is every stroke worth trying (for the search in the tests); `view` names where to look from.
 import { hull, boxPlanes, box, bar } from "./slipway-carve.js";
+import { built } from "./slipway-parts.js";
 
 const norm = v => { const l = Math.hypot(...v); return v.map(x => x / l); };
 const R2 = Math.SQRT1_2;
@@ -25,7 +26,7 @@ const SHELL = hull([...boxPlanes(24, 16, 8), [-0.6, 1, 0, 8.8], [0.6, 1, 0, 23.2
 const KNEE = hull([...boxPlanes(16, 16, 16), [1, 1, 1, 40], [-1, 2, -1, 22], [1, -1, 0, 10]]);
 const HEAD = hull([...boxPlanes(40, 10, 7), [-0.5, 1, 0, 5], [0.5, 1, 0, 25]]);
 
-export const LEVELS = [
+const OLD = [
   { id: "wedge", name: "Mast wedge",
     line: "Driven round the mast to wedge it. A cut is the plane through your eye and your line: look edge-on at a face, then draw along it.",
     size: [36, 12, 10], slack: 0, knots: [],
@@ -95,4 +96,21 @@ export const LEVELS = [
       { tool: "plane", n: [0, 1, 0], aim: [[17, 10, 3.5], [23, 10, 3.5]], view: "top" },
       { tool: "plane", n: [0, 1, 0], aim: [[17, 10, 3.5], [23, 10, 3.5]], view: "top" }] } },
 ];
+
+/** Where each of the seven first parts goes in the cog. */
+const WHERE = { wedge: "mast", treenail: "hull", step: "mast", pin: "rig", shell: "rig", knee: "hull", mast: "mast" };
+/**
+ * The chapters, each bringing in one tool or rule, then mixing. `tools` are the ones it introduces (Random opens them as
+ * the chapter is reached).
+ */
+export const CHAPTERS = [
+  { id: "sawyer", name: "Sawyer", tools: ["saw"], line: "The saw. A cut is the plane through your eye and your line: look edge-on at a face, then draw along it.", levels: ["wedge", "cleat", "knee", "cathead"] },
+  { id: "joiner", name: "Joiner", tools: ["plane"], line: "The plane. It goes with the grain on a flat face, three layers a stroke, and stops on a knot.", levels: ["treenail", "step", "pin", "strake", "pintle"] },
+  { id: "driller", name: "Driller", tools: ["drill", "gouge"], line: "The drill and the gouge. Square to a face, and wood round them to back it: bore before you slope or thin.", levels: ["shell", "mast", "tholepin", "deadeye", "trenailbeam", "sheave"] },
+  { id: "mortiser", name: "Mortiser", tools: ["kerf", "chisel"], line: "The back saw and the chisel. Score both shoulders, then chop between them, from a square face.", levels: ["scarf", "gudgeon", "partner", "bitt", "cheek"] },
+  { id: "shipwright", name: "Shipwright", tools: ["adze", "shave"], line: "The adze and the spokeshave. Rough across the grain, then finish along it.", levels: ["tiller", "handspike", "capstan", "oar", "yard"] },
+  { id: "master", name: "Master", tools: [], line: "Every tool, in the order the wood allows.", levels: ["futtock", "stemknee", "rudderhead", "hawse", "bowsprit", "sternpost"] },
+];
+const ALL = new Map([...OLD.map(l => [l.id, { ...l, spot: WHERE[l.id] }]), ...built().map(l => [l.id, l])]);
+export const LEVELS = CHAPTERS.flatMap((c, ci) => c.levels.map(id => { const l = ALL.get(id); l.chapter = ci; return l; }));
 export const levelAt = i => LEVELS[i];
