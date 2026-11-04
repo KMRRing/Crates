@@ -90,8 +90,8 @@ const transform = lesson("transform", "Moving graphs", [
   G("tr-vertex", "Move the parabola so its vertex is at (3, −2).",
     { kind: "plot", win: [-3, 8, -4, 10], fns: [{ e: "x^2", k: "c", dash: true }, { e: "(x-h)^2+k" }], pts: [{ p: [3, -2], k: "b", label: "(3, −2)" }], params: { h: { min: -4, max: 6, step: 1, v: 0, label: "h" }, k: { min: -4, max: 4, step: 1, v: 0, label: "k" } }, goal: { p: { h: 3, k: -2 }, tol: 0.01 }, alt: "parabola moved" },
     "h = 3, k = −2: y = (x − 3)² − 2. Minus inside the bracket moves the curve to the right, which feels backwards the first time.", { t: "goal", eqs: [["(3-h)^2+k", -2]] }),
-  Q("tr-reflect", "The graph of y = f(x) is reflected in the x-axis. What is the new equation?", "-f(x)", ["f(-x)", "f(x)-1", "1/f(x)"], "Each height flips sign: y = −f(x). Reflecting in the y-axis instead replaces x by −x: y = f(−x).", { t: "words" }),
-  Q("tr-stretch", "The graph of y = f(x) is stretched away from the x-axis by a factor 3. What is the new equation?", "3*f(x)", ["f(3x)", "f(x/3)", "f(x)+3"], "Every height triples: y = 3f(x). Replacing x by 3x would squeeze the graph towards the y-axis instead.", { t: "words" }),
+  Q("tr-reflect", "The graph of y = f(x) is reflected in the x-axis. What is the new equation?", "~y = −f(x)", ["~y = f(−x)", "~y = f(x) − 1", "~y = 1/f(x)"], "Each height flips sign: y = −f(x). Reflecting in the y-axis instead replaces x by −x: y = f(−x).", { t: "words" }),
+  Q("tr-stretch", "The graph of y = f(x) is stretched away from the x-axis by a factor 3. What is the new equation?", "~y = 3f(x)", ["~y = f(3x)", "~y = f(x/3)", "~y = f(x) + 3"], "Every height triples: y = 3f(x). Replacing x by 3x would squeeze the graph towards the y-axis instead.", { t: "words" }),
 ]);
 
 // ---------- exponentials and logarithms ----------

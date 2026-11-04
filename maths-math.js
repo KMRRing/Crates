@@ -22,7 +22,8 @@ export const factorText = n => factorise(n).map(([p, e]) => (e > 1 ? `${p}${"⁰
 // ---------- numbers as text ----------
 /** A number with at most d decimals and no trailing zeros: 3.10 → "3.1"; negatives with a true minus. */
 export function nm(v, d = 2) {
-  const s = (Math.round(v * 10 ** d) / 10 ** d).toFixed(d).replace(/\.?0+$/, "");
+  let s = (Math.round(v * 10 ** d) / 10 ** d).toFixed(d);
+  if (s.includes(".")) s = s.replace(/\.?0+$/, "");
   return (s === "-0" ? "0" : s).replace("-", "−");
 }
 /** Significant figures. */
