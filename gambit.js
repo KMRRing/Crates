@@ -22,6 +22,9 @@ import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";
 import { busy, waitMark } from "./loading.js";
 import { bestsLine } from "./rush-core.js";
+import { createCourse, progressOf } from "./course.js";
+import { COURSE } from "./chess-lessons.js";
+import { chessStage } from "./chess-stage.js";
 
 const $ = id => document.getElementById(id);
 const GAME = "gambit:game", OPTS = "gambit:opts", BEST = "gambit:best", RECORD = "gambit:record";
@@ -539,10 +542,10 @@ ${row("P", "Pawn", "One square forward, two on its first move; it captures one s
 
 // ---------- the menu ----------
 let pick = null;
-/** The menu's way into Chess School (chess.html), with how far through it you are (its tile's key). */
+/** The menu's Learn entry, as Mahjong's and Guandan's: how far through the lessons you are, or where they start. */
 function learnLine() {
-  const cp = read("chess:lessons", null);
-  return cp?.done ? `Learn Chess: ${cp.done} of ${cp.of} lessons done` : "Learn Chess, from the board";
+  const cp = progressOf("chess", COURSE);
+  return cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Chess, from the board";
 }
 function openMenu() {
   const body = $("menuBody");
@@ -556,7 +559,7 @@ function openMenu() {
     part(body, "play").append(action("New game", async () => {
       if (!S.result && G.movesOf(S).length > 1 && !(await sure("Start a new game? This one isn't finished.", { yes: "New game" }))) return;
       Object.assign(opts, pick); saveOpts(); newGame();
-    }, "primary"), ...(IN_FRAME ? [] : [action("Puzzle rush", () => { location.href = "rush.html"; }), action(learnLine(), () => { location.href = "chess.html"; })]),
+    }, "primary"), ...(IN_FRAME ? [] : [action("Puzzle rush", () => { location.href = "rush.html"; }), action(learnLine(), () => openLessons())]),
     ...(!g.result && G.movesOf(g).length ? [action("Resign", resign, "link")] : []));
     part(body, "content").append(
       choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }),
@@ -652,18 +655,38 @@ window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); }
 addEventListener("resize", () => render());
 window.__gambit = { get game() { return cur(); }, get engineUp() { return engineUp; }, get judging() { return judging; }, onMove, newGame, takeBack, hint, review, setCoach, G };
 
+// ---------- the lessons ----------
+// Learn (the Menu): chess from the board to a first game (chess-lessons.js) on the course's sheet (course.js), with Chess's own board
+// and rules; its last lesson starts a game from the position it reached. Progress is kept under chess:course (the course was a page of
+// its own, chess.html, which now sends you here with ?learn=1).
+const stage = chessStage();
+const course = createCourse({ id: "chess", course: COURSE, cls: "chsc", inFrame: IN_FRAME, stage,
+  onPlay: step => { startFrom(step.moves, step.level); } });
+document.querySelector("dialog.ln-sheet").addEventListener("close", () => stage.stop());
+/** Opens where the reader left off, or at the map once every lesson is done. */
+function openLessons() {
+  const p = progressOf("chess", COURSE);
+  let at = null;
+  try { at = JSON.parse(localStorage.getItem("chess:course") || "{}").at; } catch { /* none */ }
+  if (p.done === p.of) course.open(); else course.open(at?.id || p.next.lesson.id);
+}
+
 /**
- * The game that ends Chess School (chess.html) opens here from its position: ?moves=e2e4,e7e5,…&level=1. The moves are checked by the rules
+ * ?moves=e2e4,e7e5,…&level=1 (the old link from the course's page): the game from that position. The moves are checked by the rules
  * before they are played, a game in progress is asked about first, and the options you keep are left as they were.
  */
 async function fromCourse() {
   const q = new URLSearchParams(location.search), moves = (q.get("moves") || "").split(",").filter(Boolean);
   history.replaceState(null, "", location.pathname);                    // reloading must not offer it again
+  return startFrom(moves, q.get("level"));
+}
+/** The lessons' last step: a game from the position they reached, against the level the step names. */
+async function startFrom(moves, level) {
   const text = moves.join(" ");
   if (!G.replay({ moves: text }).ok) return false;
   if (!S.result && G.movesOf(S).length > 1 && !(await sure("Start the lesson's game? The one you have isn't finished.", { yes: "Start" }))) return false;
   const kept = { ...opts };
-  Object.assign(opts, { mode: "engine", level: q.get("level"), colour: "white" });
+  Object.assign(opts, { mode: "engine", level, colour: "white" });
   S = { ...freshGame(), moves: text };
   Object.assign(opts, kept);
   closeDialogs();
@@ -684,4 +707,5 @@ if (code) {
   joining = busy("Joining your partner", { delay: 0 });
   together.join(code).then(ok => { if (!ok) { seated(); kick(); } });
 } else if (!IN_FRAME && new URLSearchParams(location.search).has("moves")) fromCourse().then(started => { if (!started) resumeGame(); });
+else if (!IN_FRAME && new URLSearchParams(location.search).has("learn")) { history.replaceState(null, "", location.pathname); resumeGame(); openLessons(); }
 else resumeGame();
