@@ -79,3 +79,24 @@ html[data-theme="office"] :is(.cp-p, .cp-act, .cp-hand, .cp-pick) { border-radiu
   html:not([data-mode="day"]) .cp-col { --cc-duke: #B58AD9; --cc-assassin: #A3A3B2; --cc-captain: #6FA5DC; --cc-ambassador: #7FC2A8; --cc-contessa: #E8806F; --bad: #E8806F; }
 }
 html[data-mode="night"] .cp-col { --cc-duke: #B58AD9; --cc-assassin: #A3A3B2; --cc-captain: #6FA5DC; --cc-ambassador: #7FC2A8; --cc-contessa: #E8806F; --bad: #E8806F; }
+
+/* The 3D table (party-coup-3d.js): a lit room behind a transparent canvas, the seats' tags laid over it as the flat table's own tiles.
+   Its height is fixed, so nothing moves as the game does; the flat list stays for a screen reader. */
+.cp-3d { position: relative; flex: none; height: clamp(11.5rem, 34svh, 21rem); overflow: hidden; border: 1.5px solid var(--brass); border-radius: 6px;
+  background: radial-gradient(ellipse at 50% 46%, #e8d6ae 0, #b99b6c 82%); }
+.cp-3d .cp3-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cp3-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.cp-tag { position: absolute; left: 0; top: 0; max-width: 46%; padding: .15rem .35rem; gap: .3rem; box-sizing: border-box; white-space: nowrap; }
+.cp-tag .cp-name, .cp-tag .cp-coins { font-size: .78rem; }
+.cp-tag.out { opacity: .7; }
+.cp3-note { position: absolute; left: 0; top: 0; padding: .1rem .35rem; border: 1px solid var(--brass); border-radius: 4px; background: color-mix(in srgb, var(--sheet) 88%, transparent); color: var(--ink);
+  font-size: .68rem; font-weight: 700; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); white-space: nowrap; }
+.cp3-note[hidden] { display: none; }
+.cp3-note.claim { border-color: var(--pa-in); }
+.cp3-mine { position: absolute; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 6px; }
+.cp3-mine[hidden] { display: none; }
+.cp3-mine:focus-visible { outline: 2px solid var(--pa-in); }
+.cp-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .cp-3d { background: radial-gradient(ellipse at 50% 46%, #3b2a1b 0, #130e0a 84%); } }
+html[data-mode="night"] .cp-3d { background: radial-gradient(ellipse at 50% 46%, #3b2a1b 0, #130e0a 84%); }
+@media (orientation: landscape) and (min-width: 700px) { .cp-3d { height: clamp(14rem, 52svh, 26rem); } }

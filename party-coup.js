@@ -21,6 +21,7 @@
 import { h, button, pickPlayer, waitingFor, countdown } from "./party-kit.js";
 import { shuffle } from "./party-core.js";
 import { play } from "./party-coup-solo.js";
+import { wants3D, pick3D, sceneOf, signature } from "./party-coup-table.js";
 
 export const CARDS = ["duke", "assassin", "captain", "ambassador", "contessa"];
 export const COPIES = 3;
@@ -354,6 +355,9 @@ export default {
   wakeAt: s => (s.phase !== "over" && s.deadline) || null,
 
   view(stage, ctx) { drawCoup(stage, ctx); },
+
+  /** Menu, Table: flat or 3D (party.js puts it in the settings part). Only a pick is saved; until then the suite's 2D/3D default stands. */
+  viewChoice: () => ({ label: "Table", options: [["flat", "Flat"], ["3d", "3D"]], value: wants3D() ? "3d" : "flat", onChange: v => { pick3D(v === "3d"); three.lostAt = 0; redrawLast(); } }),
 };
 
 // ---------- drawing ----------
@@ -361,6 +365,42 @@ export default {
 // to the step they were made in, and are dropped when the step moves on.
 const local = { key: "", pick: null, keep: new Set() };
 let handHidden = false;
+
+// The 3D table (party-coup-3d.js, three.js: loaded only when the table is drawn in 3D). One picture lives on through the redraws a
+// step makes, moving into each new stage; if its stage is gone it frees itself. Where there is no WebGL the flat table stands in for
+// good; where the context is lost it does for a while, and 3D is tried again after that.
+const three = { host: null, table: null, loading: false, broken: false, lostAt: 0, sig: "", last: null, wired: false };
+const LOST_FOR = 10000;
+function redrawLast() {
+  const l = three.last;
+  if (l?.stage.isConnected) drawCoup(l.stage, l.ctx);
+}
+function release() {
+  three.table?.dispose();
+  Object.assign(three, { host: null, table: null, sig: "", loading: false });
+}
+/** The 3D picture's box if the table is to be drawn in 3D now, else null (the flat list is drawn). */
+function box3D() {
+  if (!wants3D() || three.broken || Date.now() - three.lostAt < LOST_FOR) return null;
+  three.host ||= h("div", { class: "cp-3d" });
+  if (!three.table && !three.loading) {
+    three.loading = true;
+    const host = three.host;
+    import("./party-coup-3d.js").then(m => {
+      if (three.host !== host) return;
+      const table = m.createTable(host, {
+        onLost: () => { three.lostAt = Date.now(); release(); redrawLast(); },
+        onMine: () => { handHidden = !handHidden; redrawLast(); },
+      });
+      table.gone(() => { if (three.table === table) release(); });
+      three.table = table;
+      three.loading = false;
+      if (!three.wired) { three.wired = true; import("./menu.js").then(mn => mn.onPause(() => three.table?.hold(true), () => three.table?.hold(false))).catch(() => {}); }
+      redrawLast();
+    }).catch(e => { console.warn("Cabal: no 3D here.", e); three.broken = true; release(); redrawLast(); });
+  }
+  return three.host;
+}
 
 function card(c, { back = false } = {}) {
   if (back) return h("span", { class: "cp-card back", "aria-label": "A card face down" });
@@ -383,7 +423,9 @@ function drawCoup(stage, ctx) {
   const parts = [];
 
   // the table: who is whose turn, the coins, the cards face down and face up
-  parts.push(h("ul", { class: "cp-players" }, ...s.seats.map(u => {
+  const box = box3D();
+  if (box) parts.push(box);
+  parts.push(h("ul", { class: `cp-players${box ? " cp-sr" : ""}` }, ...s.seats.map(u => {
     const n = hand(s, u).length, up = faceUp(s, u);
     const cls = ["cp-p", u === me.uid ? "me" : "", n ? "" : "out", !over && n && u === s.turn ? "turn" : "", !over && s.act?.target === u ? "target" : "", over && s.won === u ? "won" : ""].filter(Boolean).join(" ");
     return h("li", { class: cls }, h("span", { class: "cp-name" }, name(u)),
@@ -392,6 +434,7 @@ function drawCoup(stage, ctx) {
   })));
 
   // what's happening, and what this phone can do about it
+  if (!box && wants3D() && (three.broken || Date.now() - three.lostAt < LOST_FOR)) parts.push(sub("3D isn't available right now: here is the flat table."));
   if (!seated) parts.push(sub("You joined after the cards were dealt: watch this one, play the next."));
   else if (!live && !over) parts.push(sub("You're out: watch, and keep your face straight."));
   const who = u => (u === me.uid ? "you" : name(u));
@@ -480,5 +523,13 @@ function drawCoup(stage, ctx) {
   const log = (s.log || []).slice(-4).reverse();
   parts.push(h("ol", { class: "cp-log", "aria-label": "What has happened" }, ...log.map(t => h("li", {}, t))));
   stage.replaceChildren(h("div", { class: "pk-col cp-col" }, ...parts));
+  three.last = { stage, ctx };
+  if (box && three.table) {
+    const t = sceneOf(s, me.uid, { hidden: handHidden, names: Object.fromEntries(s.seats.map(u => [u, name(u)])) });
+    if (t.claim) t.claim.label = `${CARD[t.claim.card].name}${t.claim.block ? " (block)" : ""}`;
+    const sig = signature(t) + (t.claim?.label || "");
+    three.table.show(true);
+    if (sig !== three.sig) { three.sig = sig; three.table.update(t); }
+  }
 }
 
