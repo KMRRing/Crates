@@ -118,6 +118,7 @@ export const LEFT_OUT = {
   trade: "a course of lessons in order, not a round to repeat",
   arthistory: "a course of lessons in order, not a round to repeat",
   music: "a course of lessons in order, not a round to repeat",
+  firmament: "a course of lessons in order, not a round to repeat",
   landfall: "no round yet (a voyage is several watches over many minutes; a short round, its random mode and daily come in milestone 5)",
   // not built yet: the tile opens a page saying what's to do (soon-data.js); a game that's built moves to ROUNDS
 };
