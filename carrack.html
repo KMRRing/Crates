@@ -27,7 +27,14 @@
   </header>
 
   <p id="strip" class="cr-strip full-pull"></p>
-  <section id="board" class="cr-board" aria-label="The map"></section>
+  <section id="board" class="cr-board" aria-label="The map">
+    <div id="flat" class="cr-flat"></div>
+    <div id="globe" class="cr-globe" hidden></div>
+    <div class="cr-ctl">
+      <button type="button" id="mapReset" class="cr-ctl-btn" aria-label="Show the whole trade again">Reset</button>
+      <button type="button" id="panelBtn" class="cr-ctl-btn" aria-expanded="true" aria-controls="panel">Panel</button>
+    </div>
+  </section>
   <section id="side" class="cr-side fit-grow" aria-label="Orders, the year and the standings">
     <div id="tabs" class="cr-tabs" role="tablist"></div>
     <div id="panel" class="cr-panel fit-scroll" role="tabpanel" aria-live="polite"></div>
