@@ -79,7 +79,7 @@ function defsMarkup() {
   <linearGradient id="sh-brass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1D88C"/><stop offset=".5" stop-color="#C4963A"/><stop offset="1" stop-color="#8A6620"/></linearGradient>
   <linearGradient id="sh-rail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1D88C"/><stop offset=".45" stop-color="#C4963A"/><stop offset="1" stop-color="#6E4F18"/></linearGradient>
   <radialGradient id="sh-rivet" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#FFF3C8"/><stop offset=".5" stop-color="#C4963A"/><stop offset="1" stop-color="#5E4314"/></radialGradient>
-  <linearGradient id="sh-gem" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9C8A"/><stop offset=".5" stop-color="#D2382B"/><stop offset="1" stop-color="#7C1710"/></linearGradient>
+  <radialGradient id="sh-gem" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#FF8F7A"/><stop offset=".45" stop-color="#D2203A"/><stop offset="1" stop-color="#5E0814"/></radialGradient>
   <clipPath id="sh-frame-clip"><polygon points="${pointyHex(FRAME)}"/></clipPath>
   <clipPath id="sh-left"><rect x="-30" y="-30" width="30" height="60"/></clipPath><clipPath id="sh-right"><rect x="0" y="-30" width="30" height="60"/></clipPath>`;
   for (let c = 0; c < 7; c++) {
@@ -120,9 +120,14 @@ function gearMarkup(x, y, c, o = {}) {
   return `${s}</g>`;
 }
 function gemMarkup(x, y, size, lit) {
-  // always a ruby: unlit it is set dull in its socket, lit it glows (Korbi, 4 November 2026: "jewels should be jewel coloured")
-  const s = size, facets = `M${f(-s * 0.85)} ${f(-s * 0.2)}H${f(s * 0.85)}M0 ${-s}L${f(-s * 0.3)} ${f(-s * 0.2)}L0 ${s}M0 ${-s}L${f(s * 0.3)} ${f(-s * 0.2)}L0 ${s}`;
-  return `<g transform="translate(${f(x)} ${f(y)})">${lit ? `<circle r="${f(s * 1.5)}" fill="#FFB8A8" opacity=".35" data-glow="1"/>` : ""}<path d="M0 ${-s}L${f(s * 0.85)} ${f(-s * 0.2)}L0 ${s}L${f(-s * 0.85)} ${f(-s * 0.2)}Z" fill="url(#sh-gem)" fill-opacity="${lit ? 1 : 0.6}" stroke="#4a0f0a" stroke-width="1" stroke-opacity=".9"/><path d="${facets}" stroke="#fff" stroke-opacity="${lit ? 0.45 : 0.25}" stroke-width=".7" fill="none"/></g>`;
+  // a synthetic ruby bearing as a watch has them (Korbi, 4 November 2026: "jewels should be jewel coloured", "like the jewels in a watch"):
+  // a round domed stone with a hole for the pivot, set in a gold chaton; dull until its train turns, then it glows and glints
+  const s = size;
+  return `<g transform="translate(${f(x)} ${f(y)})">${lit ? `<circle r="${f(s * 1.7)}" fill="#FF7A5A" opacity=".32" data-glow="1"/>` : ""}`
+    + `<circle r="${f(s * 1.02)}" fill="url(#sh-hub)" stroke="#5E4314" stroke-width=".8"/><circle r="${f(s * 0.8)}" fill="none" stroke="#5E4314" stroke-opacity=".55" stroke-width=".6"/>`
+    + `<circle r="${f(s * 0.7)}" fill="url(#sh-gem)" fill-opacity="${lit ? 1 : 0.62}"/>`
+    + `<circle r="${f(s * 0.2)}" fill="#1c0406" stroke="#FFD9CC" stroke-opacity="${lit ? 0.55 : 0.3}" stroke-width=".6"/>`
+    + `<ellipse cx="${f(-s * 0.28)}" cy="${f(-s * 0.3)}" rx="${f(s * 0.22)}" ry="${f(s * 0.11)}" transform="rotate(-38 ${f(-s * 0.28)} ${f(-s * 0.3)})" fill="#fff" fill-opacity="${lit ? 0.8 : 0.4}"/></g>`;
 }
 /** A lever at its place: a slot in the rim, a brass lever in it pointing the way the gear travels. */
 function leverMarkup(l, mode) {
@@ -209,7 +214,7 @@ export function createView({ board, tray }) {
     const movedTo = pv ? new Map(pv.moved.map(x => [x[1], x[0]])) : new Map();
     let s = plateMarkup(st);
     if (pv) track(base, pv.e).forEach(c => { const [x, y] = cellXY(c); s += `<polygon points="${hexPoly(x, y, D * 0.577)}" fill="var(--sh-glow)" fill-opacity=".16" stroke="none"/>`; });
-    st.jewels.forEach(j => { if (st.cells[j] < 0) { const [x, y] = cellXY(j); s += gemMarkup(x, y, D * 0.2, false); } });
+    st.jewels.forEach(j => { if (st.cells[j] < 0) { const [x, y] = cellXY(j); s += gemMarkup(x, y, D * 0.19, false); } });
     for (let i = 0; i < N; i++) {
       const c = st.cells[i];
       if (c < 0) continue;

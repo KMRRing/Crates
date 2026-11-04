@@ -1,9 +1,8 @@
-// The shapes of Shunt's workshop (three.js, vendor/three.js; shunt-view-3d.js puts them together). Every builder returns a geometry laid
-// on the bench: y up, the plate's top at y = 0, a shape's own Y running along z (so a drawing in x and y is the view from above).
+// The shapes of Shunt's watch movement (three.js, vendor/three.js; shunt-view-3d.js puts them together). Every builder returns a geometry laid
+// on the plate: y up, the plate's top at y = 0, a shape's own Y running along z (so a drawing in x and y is the view from above).
 import * as THREE from "./vendor/three.js";
-import { toothOutline, SHAPES, THICK, IDLER_THICK, RO, CELL_R, BAIZE_R, FRAME_R, FLOOR } from "./shunt-3d-model.js";
+import { toothOutline, SHAPES, THICK, IDLER_THICK, RO, PLATE_R, CASE_R, SEAT_R, FLOOR, cellW } from "./shunt-3d-model.js";
 import { CELLS } from "./shunt-engine.js";
-import { cellW } from "./shunt-3d-model.js";
 
 const TAU = Math.PI * 2;
 
@@ -49,12 +48,20 @@ export function gearGeometry(k) {
     for (let s = 8; s >= 0; s--) { const a = a0 + (a1 - a0) * s / 8; w.push([Math.cos(a) * r1, Math.sin(a) * r1]); }
     holes.push(w);
   }
-  const H = k === 3 ? IDLER_THICK : THICK, g = slab(shapeOf(toothOutline(n, RO, depth), holes), H, 0.014);
+  const H = k === 3 ? IDLER_THICK : THICK, g = slab(shapeOf(toothOutline(n, RO, depth), holes), H, 0.02, 2);
   shade(g);
   // relief: a raised ring on the web and a boss round the axle, so a gear's face is not one flat sheet
   const ringTop = slab(shapeOf(ring(0.405, 36), [ring(0.372, 36)]), 0.024, 0.006).translate(0, H, 0), boss = slab(shapeOf(ring(0.17, 24), [ring(0.075, 14)]), 0.04, 0.008).translate(0, H, 0);
   paint(ringTop, 0.95); paint(boss, 0.95);
-  return merge([g, ringTop, boss]);
+  const all = merge([g, ringTop, boss]);
+  faceUV(all, 1.1);
+  return all;
+}
+/** UVs from the position seen from above, the gear's middle at (0.5, 0.5) and `span` world units across: the circular grain's map is laid on so. */
+function faceUV(g, span) {
+  const p = g.attributes.position, uv = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) / span + 0.5; uv[i * 2 + 1] = p.getZ(i) / span + 0.5; }
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
 }
 /** A constant vertex colour (the share of light a part of a gear gets). */
 function paint(g, v) { const n = g.attributes.position.count; g.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(v), 3)); }
@@ -71,110 +78,76 @@ function shade(g) {
   g.setAttribute("color", new THREE.Float32BufferAttribute(c, 3));
 }
 
-/** A hexagon's corners, radius R, the first at angle a0 (the cells' corners point left and right; the plate's point up). */
+/** A hexagon's corners, radius R, the first at angle a0 (the cells' corners point left and right). */
 export const hexPts = (R, a0 = 0) => Array.from({ length: 6 }, (_, k) => [Math.cos(a0 + k * Math.PI / 3) * R, Math.sin(a0 + k * Math.PI / 3) * R]);
-/** The cell hexagon: a recess in the cloth, a floor, a stud's plug. */
-export const cellHex = (R) => hexPts(R, 0);
 
-/** The cloth: a hexagon of baize with a hole for each cell, its top at y = 0. The hole walls and the edge are the brass (group 1). */
-export function baizeGeometry() {
-  const holes = CELLS.map((_, i) => { const [cx, cz] = cellW(i); return hexPts(CELL_R - 0.03, 0).map(([x, y]) => [x + cx, y + cz]); });
-  return plate(shapeOf(hexPts(BAIZE_R, -Math.PI / 2), holes), -FLOOR + 0.03, 0);
+/** The engraved plate: a disc with a hexagonal seat cut through it at each cell, its top at y = 0 (group 0: the engraved faces, group 1: the polished
+ *  walls of the seats). Its UVs are the position seen from above, the middle of the plate at (0.5, 0.5), the plate's diameter across: the engraving's. */
+export function plateGeometry() {
+  const holes = CELLS.map((_, i) => { const [cx, cz] = cellW(i); return hexPts(SEAT_R, 0).map(([x, y]) => [x + cx, y + cz]); });
+  const g = plate(shapeOf(ring(PLATE_R, 192), holes), -FLOOR + 0.1, 0);
+  faceUV(g, PLATE_R * 2);
+  return g;
 }
-/** A flat hexagonal slab (a recess's floor, a stud's plug) standing on y = 0. */
+/** A hexagonal frame (a seat's polished edge) between corner radii r1 > r0, standing h tall on y = 0. */
+export const seatRingGeometry = (r0, r1, h) => slab(shapeOf(hexPts(r1, 0), [hexPts(r0, 0)]), h, Math.min(0.008, h / 3));
+/** A flat hexagonal slab (a seat's floor) standing on y = 0. */
 export const hexSlab = (R, h, bevel = 0.01) => slab(shapeOf(hexPts(R, 0)), h, bevel);
-
-// ---------- the walnut frame: six mitred beams with their grain running along them, built as one mesh with vertex colours ----------
-const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
-const smooth = (a, b, t) => a + (b - a) * t * t * (3 - 2 * t);
-/** Value noise along one axis, a few octaves: the grain's wander. */
-const noise1 = (x, seed) => { const i = Math.floor(x), f = x - i; return smooth(hash(i + seed * 17.3), hash(i + 1 + seed * 17.3), f); };
-/** The wood's colour at a point of a board: `a` the light, `b` the dark; u along the grain, v across (in world units). */
-export function grain(u, v, seed, a, b, ring = 1) {
-  const warp = (noise1(u * 0.9, seed) - 0.5) * 0.9 + (noise1(u * 3.1, seed + 3) - 0.5) * 0.25;
-  const t = 0.5 + 0.5 * Math.sin((v + warp) * 26 * ring) * (0.55 + 0.45 * noise1(v * 5, seed + 9));
-  const fine = noise1(v * 90 + u * 2, seed + 5) * 0.25;
-  const m = Math.max(0, Math.min(1, t * 0.8 + fine));
-  return [a[0] + (b[0] - a[0]) * m, a[1] + (b[1] - a[1]) * m, a[2] + (b[2] - a[2]) * m];
+/** A seat's floor wants the perlage tile repeated: its UV in tiles of `tile` world units. */
+export function tileUV(g, tile) {
+  const p = g.attributes.position, uv = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) / tile; uv[i * 2 + 1] = p.getZ(i) / tile; }
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  return g;
 }
-const rgb = hex => [((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255];
-const lin = c => c.map(v => Math.pow(v, 2.2));
 
-/** The frame round the cloth: its top at y = 0.07, chamfered outside and in, its side going down to the bench. */
-export function frameGeometry(colA, colB) {
-  const A = lin(rgb(colA)), B = lin(rgb(colB));
-  const Ro = FRAME_R + 0.2, Ri = BAIZE_R - 0.02, TOP = 0.07, CH = 0.035, BOT = -0.22, U = 36, V = 12;
-  const pos = [], col = [], idx = [];
-  const corner = (R, k) => { const a = -Math.PI / 2 + k * Math.PI / 3; return [Math.cos(a) * R, Math.sin(a) * R]; };
-  /** A strip between two polylines (each a function of u in 0..1 giving [x, y, z]), with the colour at each vertex. */
-  const strip = (p0, p1, rows, tint, flip = true) => {
-    const base = pos.length / 3;
-    for (let j = 0; j <= rows; j++) for (let i = 0; i <= U; i++) {
-      const u = i / U, a = p0(u), b = p1(u), t = j / rows;
-      pos.push(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
-      const c = tint(u, t, a, b);
-      col.push(c[0], c[1], c[2]);
-    }
-    // wound so the face looks outwards or up: the strips run from the plate's middle outwards (and down), which is the wrong way round
-    for (let j = 0; j < rows; j++) for (let i = 0; i < U; i++) {
-      const q = base + j * (U + 1) + i;
-      if (flip) idx.push(q, q + 1, q + U + 1, q + 1, q + U + 2, q + U + 1); else idx.push(q, q + U + 1, q + 1, q + 1, q + U + 1, q + U + 2);
-    }
-  };
-  for (let k = 0; k < 6; k++) {
-    const [ox0, oz0] = corner(Ro, k), [ox1, oz1] = corner(Ro, k + 1), [ix0, iz0] = corner(Ri, k), [ix1, iz1] = corner(Ri, k + 1);
-    const lerp = (a0, a1, u) => a0 + (a1 - a0) * u;
-    const len = Math.hypot(ox1 - ox0, oz1 - oz0);
-    const edge = (R, y, inset) => u => { const [x0, z0] = corner(R, k), [x1, z1] = corner(R, k + 1), x = lerp(x0, x1, u), z = lerp(z0, z1, u), l = Math.hypot(x, z) || 1; return [x - (x / l) * inset, y, z - (z / l) * inset]; };
-    // top: from just inside the outer chamfer to just outside the inner one (the board's grain runs along the edge)
-    const outerTop = edge(Ro, TOP, CH * 1.6), innerTop = edge(Ri, TOP, -CH * 1.2);
-    const wood = (u, t) => grain(u * len, t * (Ro - Ri), k, A, B);
-    strip(innerTop, outerTop, V, (u, t) => wood(u, t));
-    const dark = c => c.map(v => v * 0.55);
-    strip(edge(Ro, TOP, CH * 1.6), edge(Ro, TOP - CH, 0), 1, (u, t) => (t ? dark(wood(u, 1)) : wood(u, 1)));            // the outer chamfer
-    strip(edge(Ro, TOP - CH, 0), edge(Ro, BOT, 0), 1, (u, t) => dark(wood(u, 1)).map(v => v * (t ? 0.55 : 1)));      // the side
-    strip(edge(Ri, TOP, -CH * 1.2), edge(Ri, TOP - CH * 0.6, -0.001), 1, (u, t) => dark(wood(u, 0)), false);        // the inner chamfer
+/** A solid of revolution about y: `prof` is [radius, height, flute] points, travelled so the surface is on their left (up the inside, over the top,
+ *  down the outside), N steps round; a point's flute is the depth of the fine ridges (FLUTES of them) cut in its radius. Smooth-shaded all round. */
+export function latheGeometry(prof, N = 36, FLUTES = 0) {
+  const pos = [], idx = [];
+  prof.forEach(([r, y, fl = 0]) => { for (let j = 0; j < N; j++) { const a = j / N * Math.PI * 2, rr = r + fl * Math.cos(a * FLUTES); pos.push(Math.cos(a) * rr, y, Math.sin(a) * rr); } });
+  for (let i = 0; i < prof.length - 1; i++) for (let j = 0; j < N; j++) {
+    const a = i * N + j, b = i * N + (j + 1) % N, c = (i + 1) * N + j, d = (i + 1) * N + (j + 1) % N;
+    idx.push(a, b, c, b, d, c);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
 }
-
-/** The bench: planks running left to right, grain, seams and (by night) the lamp's pool of light baked into the colours. */
-export function benchGeometry(skin, lampAt) {
-  const X0 = -13, X1 = 13, Z0 = -10, Z1 = 11, NX = 26, NZ = 260, A = lin(rgb(skin.benchA)), B = lin(rgb(skin.benchB));
-  const pos = new Float32Array((NX + 1) * (NZ + 1) * 3), col = new Float32Array(pos.length), idx = [];
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
-  for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) { const q = j * (NX + 1) + i; idx.push(q, q + NX + 1, q + 1, q + 1, q + NX + 1, q + NX + 2); }
-  g.setIndex(idx);
-  recolorBench(g, skin, lampAt);
-  const p = g.attributes.position;
-  for (let j = 0; j <= NZ; j++) for (let i = 0; i <= NX; i++) p.setXYZ(j * (NX + 1) + i, X0 + (X1 - X0) * i / NX, -0.22, Z0 + (Z1 - Z0) * j / NZ);
-  p.needsUpdate = true;
-  g.computeVertexNormals();
-  return g;
+/** The watch case: a polished bezel round the plate, rounded on top, over a band that is coin-edged (fine flutes), down to the bottom. Its top is
+ *  y = 0.222 and the plate's edge meets the inner lip at y = 0. */
+export function caseGeometry() {
+  const R0 = PLATE_R, R1 = CASE_R;
+  return latheGeometry([[R0 - 0.01, 0], [R0 - 0.01, 0.13], [R0 + 0.02, 0.18], [R0 + 0.06, 0.212], [R0 + 0.1, 0.222], [R1 - 0.07, 0.205], [R1 - 0.025, 0.15], [R1, 0.08],
+    [R1, 0.0, 0.007], [R1, -0.16, 0.009], [R1, -0.32, 0.009], [R1 - 0.02, -0.44, 0.004], [R1 - 0.1, -0.52], [R0 - 0.1, -0.54]], 360, 90);
 }
-export function recolorBench(g, skin, lampAt) {
-  const NX = 26, NZ = 260, X0 = -13, X1 = 13, Z0 = -10, Z1 = 11, A = lin(rgb(skin.benchA)), B = lin(rgb(skin.benchB)), c = g.attributes.color, PLANK = 1.15;
-  for (let j = 0; j <= NZ; j++) {
-    const z = Z0 + (Z1 - Z0) * j / NZ, plank = Math.floor(z / PLANK + 100), v = z - plank * PLANK, seam = Math.min(v, PLANK - v);
-    for (let i = 0; i <= NX; i++) {
-      const x = X0 + (X1 - X0) * i / NX, off = hash(plank) * 9;
-      const w = grain(x + off, v * 0.9 + plank * 0.37, plank, A, B, 1.4 * skin.grain + 0.3);
-      let s = seam < 0.025 ? 0.35 : seam < 0.06 ? 0.75 : 1;
-      s *= 0.88 + 0.24 * hash(plank + 0.5);
-      // the room's light: a wide pool round the lamp by day, a tight one by night
-      const d = Math.hypot(x - lampAt[0], z - lampAt[1]), pool = Math.exp(-(d * d) / (skin.lamp > 0.5 ? 26 : 120));
-      const lit = skin.lamp > 0.5 ? 0.18 + 0.82 * pool : 0.62 + 0.38 * pool;
-      c.setXYZ(j * (NX + 1) + i, w[0] * s * lit, w[1] * s * lit, w[2] * s * lit);
-    }
-  }
-  c.needsUpdate = true;
+/** Six screws on the bezel, blued steel: a domed head (group 0) with its slot cut in it as a dark bar (group 1, merged separately by the caller). */
+export const SCREWS = Array.from({ length: 6 }, (_, k) => { const a = -Math.PI / 2 + k * Math.PI / 3 + 0.26, r = (PLATE_R + CASE_R) / 2 + 0.01; return { x: Math.cos(a) * r, z: Math.sin(a) * r, turn: (k * 2.4) % Math.PI }; });
+export function screwHeads() {
+  return merge(SCREWS.map(s => { const h = new THREE.SphereGeometry(0.058, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2); h.scale(1, 0.32, 1); h.translate(s.x, 0.218, s.z); return h; }));
+}
+export function screwSlots() {
+  return merge(SCREWS.map(s => { const b = new THREE.BoxGeometry(0.11, 0.012, 0.016); b.rotateY(-s.turn); b.translate(s.x, 0.243, s.z); return b; }));
+}
+
+/** A synthetic ruby as a watch has them, a round cabochon with a hole through it for the pivot: a dome of height H over radius R, the hole (radius
+ *  `hole`) running down its middle. Stands on y = 0. */
+export function cabochonGeometry(R = 0.145, H = 0.1, hole = 0.036) {
+  const a0 = Math.asin(hole / R), steps = 14, prof = [[hole, 0], [hole, H * Math.cos(a0)]];    // the hole's wall, then the dome from the hole out to the foot
+  for (let s = 1; s <= steps; s++) { const q = a0 + (Math.PI / 2 - a0) * s / steps; prof.push([R * Math.sin(q), H * Math.cos(q)]); }
+  return latheGeometry(prof, 36);
+}
+/** Its setting, the chaton: a polished gold ring with a rounded outside and a lip that closes over the stone's foot. Stands on y = 0 and is 0.072 tall. */
+export function chatonGeometry(R = 0.205, rIn = 0.135) {
+  return latheGeometry([[rIn - 0.004, 0], [rIn - 0.004, 0.04], [rIn, 0.062], [rIn + 0.02, 0.072], [R - 0.03, 0.066], [R - 0.004, 0.047], [R + 0.004, 0.02], [R, 0]], 40);
+}
+/** A rounded rectangle slab (the rack's tray) of w by d, corner radius c, standing on y = 0, h tall. */
+export function trayGeometry(w, d, c, h) {
+  const pts = [];
+  for (let k = 0; k < 4; k++) { const cx = (k === 0 || k === 3 ? 1 : -1) * (w / 2 - c), cz = (k < 2 ? 1 : -1) * (d / 2 - c); for (let s = 0; s <= 6; s++) { const a = (k * 90 + s * 15) * Math.PI / 180; pts.push([cx + Math.cos(a) * c, cz + Math.sin(a) * c]); } }
+  return slab(shapeOf(pts), h, 0.02, 2);
 }
 
 /** A lever's arrow (pointing along +x, 0.34 long) and its slot in the frame. */
@@ -188,17 +161,14 @@ export function chevronGeometry(s = 0.2) {
 }
 /** A flat ring (outer and inner radius) of height h. */
 export const ringGeometry = (ro, ri, h, n = 40) => slab(shapeOf(ring(ro, n), [ring(ri, n)]), h, Math.min(0.01, h / 3));
-/** A hexagonal ring with its corner at the top, between corner radii r0 and r1. */
-export const hexRingGeometry = (r0, r1, h) => slab(shapeOf(hexPts(r1, -Math.PI / 2), [hexPts(r0, -Math.PI / 2)]), h, Math.min(0.006, h / 3));
-/** A diamond plate (a corner piece of the frame) with sides s. */
-export const diamondGeometry = (s, h) => slab(shapeOf([[0, -s * 0.8], [s * 0.6, 0], [0, s * 0.8], [-s * 0.6, 0]]), h, 0.006);
-/** A faceted gem: a crown and a pavilion of six facets, standing on y = 0 with its girdle at y = 0.05. */
-export function gemGeometry(r = 0.1) {
-  const crown = new THREE.CylinderGeometry(r * 0.55, r, r * 0.45, 6, 1), pav = new THREE.ConeGeometry(r, r * 0.95, 6, 1);
-  crown.translate(0, r * 0.225 + r * 0.95, 0);
-  pav.rotateX(Math.PI);
-  pav.translate(0, r * 0.475, 0);
-  return merge([crown, pav]);
+/** A flat rectangle of w by d lying on y = 0, with UVs 0..1: a glow, a glint or a soft shadow is drawn on it. */
+export function quadGeometry(w, d = w) {
+  const g = new THREE.BufferGeometry(), x = w / 2, z = d / 2;
+  g.setAttribute("position", new THREE.Float32BufferAttribute([-x, 0, -z, x, 0, -z, x, 0, z, -x, 0, z], 3));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
+  g.setIndex([0, 2, 1, 0, 3, 2]);
+  return g;
 }
 /** Several geometries as one (same attributes: position, normal, uv). */
 export function merge(list) {

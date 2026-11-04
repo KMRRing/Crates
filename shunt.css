@@ -89,7 +89,6 @@ html[data-mode="night"] { --sh-wood: #3C2517; --sh-baize: #1D362C; --sh-recess: 
   #app.shunt .sh-side { grid-column: 2; grid-row: 3; align-content: end; }
 }
 
-/* the 3D workshop: the canvas fills the plate's box, the flat board and the tray (the queue and the hold are on the bench) give way to it */
+/* the 3D watch movement: the canvas fills the plate's box and is clear round the case, so the page shows through; the flat board and the tray (the queue and the hold are on the movement's own tray) give way to it */
 .sh-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; border-radius: 4px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; outline: none; }
 #app.view3d .sh-board, #app.view3d .sh-tray { display: none; }
-#app.view3d .sh-plate { border-radius: 4px; box-shadow: 0 0 0 1px var(--brass); }

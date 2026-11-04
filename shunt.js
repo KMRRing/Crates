@@ -1,6 +1,6 @@
 // Shunt: shove gears onto a hexagonal plate from its rim and make trains of meshing gears (README, Idle; docs/shunt.md). The rules are
 // shunt-engine.js's, the search that gives the Hint and rates a plate is shunt-bots.js's, the plates are shunt-levels.js's and
-// the picture is shunt-view-2d.js's or, in 3D, shunt-view-3d.js's (the tinker's workshop; the same calls, so this file keeps the game and
+// the picture is shunt-view-2d.js's or, in 3D, shunt-view-3d.js's (the watch movement; the same calls, so this file keeps the game and
 // maps touches to moves, and never draws). Three modes (the menu's Mode): Levels (twelve plates, each opening the next, the first eight coached),
 // Random (a fresh plate by difficulty) and Daily (today's plate, the same for everyone).
 // A touch on a lever previews its shove; the same lever again (or Shove) makes it; sliding a finger over the levers shows each in
@@ -26,9 +26,9 @@ const $ = id => document.getElementById(id);
 // games screen shows. RUN, RRUN, DRUN: the game of each mode (plate and moves). DAILY: the score of each day's plate, by the day (YYYYMMDD).
 // SEL: the lever being previewed, so a partner sees it. COACH: coach lines on or off. DIFF: Random's difficulty. SEEN: terms already explained.
 // Everything is read through shunt-keep.js, which drops (that key only) what is not a value this build made.
-// VIEW: "3d" or "2d", kept only when the player picks one (with none, the suite's 2D-mode setting decides: mode3d.js). SOUND: the workshop's sounds on or off.
+// VIEW: "3d" or "2d", kept only when the player picks one (with none, the suite's 2D-mode setting decides: mode3d.js). SOUND: the watch's sounds on or off. TILT: the case follows the phone's tilt (asked for in the menu, where iOS gets its permission request from a tap).
 const MODE = KEYS.mode, CAMP = KEYS.camp, BEST = KEYS.best, RRUN = KEYS.rrun, DRUN = KEYS.drun, DAILY = KEYS.daily, SEL = KEYS.sel, COACH = KEYS.coach, DIFF = KEYS.diff, SEEN = KEYS.seen;
-const VIEW = "shunt:view", SOUND = "shunt:sound";
+const VIEW = "shunt:view", SOUND = "shunt:sound", TILT = "shunt:tilt";
 const kp = keeper(localStorage, IN_FRAME), { write } = kp;
 const read = (k, d, ok) => kp.read(k, d, ok);
 const fmt = v => String(Math.round(v * 10) / 10);
@@ -388,19 +388,20 @@ function runHint() {
   setTimeout(tick, 20);
 }
 
-// ---------- the view: the 2D drawing or the 3D workshop (three.js, loaded only when wanted; where it cannot draw, the 2D one stays) ----------
+// ---------- the view: the 2D drawing or the 3D watch movement (three.js, loaded only when wanted; where it cannot draw, the 2D one stays) ----------
 const wantsView = () => (IN_FRAME ? false : read(VIEW, null) === "3d" ? true : read(VIEW, null) === "2d" ? false : defaultIs3D());
-/** Show the workshop (true) or the flat plate. `remember` (a pick of the player's) keeps the choice; the default is never written down. */
+/** Show the watch movement (true) or the flat plate. `remember` (a pick of the player's) keeps the choice; the default is never written down. */
 async function setView(want3d, remember = false) {
   if (remember) write(VIEW, want3d ? "3d" : "2d");
   if (want3d === (view.kind === "3d")) return;
   while (animating) await new Promise(res => setTimeout(res, 80));
   let next = null;
   if (want3d) {
-    const finish = busy("Setting up the workshop");
+    const finish = busy("Setting up the movement");
     try { next = (await import("./shunt-view-3d.js")).createView({ board: $("board"), tray: $("tray"), onGesture: () => { touch = null; }, onLost: lostGl }); }
     catch (err) { console.warn("Shunt: no 3D here.", err); toast("This browser can't draw 3D."); } finally { finish(); }
     if (!next) return;
+    if (read(TILT, false, v => typeof v === "boolean")) next.deviceTilt(true, true);       // asked for before: only listen (iOS keeps its permission for the visit)
   }
   view.dispose?.();
   view = next || createView2d({ board: $("board"), tray: $("tray") });
@@ -492,6 +493,13 @@ function openMenu() {
   const settings = part(body, "settings");
   settings.append(toggle("Coach lines (levels 1 to 8)", coachOn, on => { coachOn = on; write(COACH, on); coachFor(); render(); }));
   if (view.kind === "3d") settings.append(toggle("Sound", sfx.on, on => { sfx.on = on; write(SOUND, on); if (on) { sfx.unlock(); sfx.play("tick"); } }));
+  if (view.kind === "3d" && view.canDeviceTilt && matchMedia("(pointer: coarse)").matches) {
+    settings.append(toggle("Tilt with the phone", read(TILT, false, v => typeof v === "boolean"), async on => {
+      const got = await view.deviceTilt(on);                                          // asks iOS's permission here, from the tap
+      write(TILT, got);
+      if (on && !got) toast("The phone's tilt isn't available here.");
+    }));
+  }
   const total = camp.stars.reduce((a, b) => a + b, 0), beaten = camp.stars.filter(Boolean).length;
   const about = part(body, "about");
   about.append(line(`${plural(beaten, "level")} of ${LEVELS.length} beaten, ${plural(total, "star")} of ${LEVELS.length * 3}.`));

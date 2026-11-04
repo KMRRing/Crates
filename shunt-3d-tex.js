@@ -1,0 +1,77 @@
+// The engraving of Shunt's watch, as normal maps made in code (no image files; pure, so Node tests them). The plate is cut with Guilloché's own
+// machine (guilloche-engine.js: `passes` gives each cut's lines, `grooveWidth` the V of the graver): a field of clous de Paris (two sets of
+// grooves at a right angle, deep enough to meet, leave a pyramid between four of them), a sunburst on the track the levers stand in, and a fine
+// ring cut at the edge of each. Every groove is a V in section, so a pixel of the plate leans one way or the other, and the lean is what the
+// shader's studio reflects: the glints move over the pyramids as the case tilts. Perlage (the overlapping circles of a movement's
+// plates) frosts a seat's floor, and a circular grain brushes a gear's face (a circle looks the same when the gear turns).
+import { passes, grooveWidth } from "./guilloche-engine.js";
+
+/** The plate's cuts, on a plate of radius 1 (shunt-3d-model.js PLATE_R). The track is what lies outside TRACK_R / PLATE_R. */
+const ring = (R, depth) => ({ kind: "ring", R, k: 2, a: 0, shape: 0, n: 1, index: 0, feed: 0, k2: 1, a2: 0, depth });
+export const DIAL = [
+  { kind: "lines", R: 0.826, k: 2, a: 0, shape: 0, index: 0, pitch: 3, angle: 45, cross: 90, depth: 5 },
+  ring(0.826, 2), ring(0.995, 2),
+  { kind: "rays", R: 0.985, hub: 0.836, rays: 120, a: 0, k: 2, shape: 0, index: 0, sweep: 0, depth: 4 },
+];
+
+/** Encode a height field (h[y * S + x], in pixels) as a tangent-space normal map: RGBA bytes, the slope read with a central difference.
+ *  `wrap` repeats the edges (a tile). The green is the slope down the image (v up the texture, as three.js has it). */
+export function normalsOf(h, S, wrap = false) {
+  const out = new Uint8Array(S * S * 4), at = (x, y) => {
+    if (wrap) { x = (x + S) % S; y = (y + S) % S; } else { x = x < 0 ? 0 : x >= S ? S - 1 : x; y = y < 0 ? 0 : y >= S ? S - 1 : y; }
+    return h[y * S + x];
+  };
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const nx = -(at(x + 1, y) - at(x - 1, y)) / 2, ny = -(at(x, y + 1) - at(x, y - 1)) / 2, l = Math.hypot(nx, ny, 1), o = (y * S + x) * 4;
+    out[o] = Math.round((nx / l * 0.5 + 0.5) * 255); out[o + 1] = Math.round((ny / l * 0.5 + 0.5) * 255); out[o + 2] = Math.round((1 / l * 0.5 + 0.5) * 255); out[o + 3] = 255;
+  }
+  return out;
+}
+
+/** Cut a groove along (x0, y0)-(x1, y1) into h (S wide), a V of half-width w pixels and the walls' slope `slope` (pixels of depth a pixel).
+ *  Row by row (or column by column for a flat line) only the pixels near the line are visited, so a long diagonal costs its length, not its box. */
+function groove(h, S, x0, y0, x1, y1, w, slope) {
+  const dx = x1 - x0, dy = y1 - y0, len2 = dx * dx + dy * dy || 1, steep = Math.abs(dy) >= Math.abs(dx);
+  const cut = (px, py) => {
+    const t = Math.max(0, Math.min(1, ((px - x0) * dx + (py - y0) * dy) / len2)), d = Math.hypot(px - (x0 + t * dx), py - (y0 + t * dy));
+    if (d < w) { const v = -(1 - d / w) * w * slope, i = py * S + px; if (v < h[i]) h[i] = v; }
+  };
+  if (steep) {
+    const a = Math.max(0, Math.floor(Math.min(y0, y1) - w)), b = Math.min(S - 1, Math.ceil(Math.max(y0, y1) + w)), k = dy ? dx / dy : 0, reach = Math.ceil(w * Math.hypot(1, k)) + 1;
+    for (let py = a; py <= b; py++) { const xc = Math.round(x0 + (py - y0) * k); for (let px = Math.max(0, xc - reach); px <= Math.min(S - 1, xc + reach); px++) cut(px, py); }
+  } else {
+    const a = Math.max(0, Math.floor(Math.min(x0, x1) - w)), b = Math.min(S - 1, Math.ceil(Math.max(x0, x1) + w)), k = dx ? dy / dx : 0, reach = Math.ceil(w * Math.hypot(1, k)) + 1;
+    for (let px = a; px <= b; px++) { const yc = Math.round(y0 + (px - x0) * k); for (let py = Math.max(0, yc - reach); py <= Math.min(S - 1, yc + reach); py++) cut(px, py); }
+  }
+}
+
+/** The plate's engraving as a normal map, S pixels across the plate's diameter. Returns { size, data } (RGBA bytes). */
+export function dialNormals(S = 1024, cuts = DIAL, slope = 0.62) {
+  const h = new Float32Array(S * S), half = S / 2;
+  for (const cut of cuts) {
+    const w = Math.max(1.2, grooveWidth(cut.depth) * half);
+    for (const p of passes(cut)) for (let i = 0; i + 3 < p.length; i += 2) groove(h, S, (p[i] + 1) * half, (p[i + 1] + 1) * half, (p[i + 2] + 1) * half, (p[i + 3] + 1) * half, w, slope);
+  }
+  return { size: S, data: normalsOf(h, S) };
+}
+
+/** Perlage: rows of circles each overlapping the last, a dome to each, as a tile of S pixels that repeats. */
+export function perlageNormals(S = 128, rad = 0.62) {
+  const h = new Float32Array(S * S), cell = S / 2, R = rad * cell * 1.15;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    let best = -1e9;
+    for (let j = -1; j <= 2; j++) for (let i = -1; i <= 2; i++) {
+      const cx = (i + (j & 1 ? 0.5 : 0)) * cell, cy = j * cell * 0.62, d = Math.hypot(x - cx, y - cy);
+      if (d < R) best = Math.max(best, Math.sqrt(1 - (d / R) * (d / R)) * R * 0.5 - j * 0.9);   // each row a little under the one before it
+    }
+    h[y * S + x] = best < -1e8 ? 0 : best;
+  }
+  return { size: S, data: normalsOf(h, S, true) };
+}
+
+/** A circular grain: fine concentric ridges about the middle of a square of side `span` (world units), S pixels across. */
+export function grainNormals(S = 256, span = 1.1, pitch = 0.05) {
+  const h = new Float32Array(S * S);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) h[y * S + x] = Math.sin(Math.hypot(x - S / 2, y - S / 2) / S * span / pitch * Math.PI * 2) * 0.9;
+  return { size: S, data: normalsOf(h, S) };
+}
