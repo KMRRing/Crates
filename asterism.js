@@ -13,6 +13,7 @@ import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
 import { sure } from "./sure.js";
 import { createSpace, SPACE_AVAILABLE } from "./asterism-space.js";
+import { SHAPES, SOLID_SIZES, sizeName, isSolid, solidPuzzle, solidRegionsOk, topoOf, generateSolid } from "./asterism-solid.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "asterism:run", TIMES = "asterism:times", PREFS = "asterism:prefs", SPARES = "asterism:spares";
@@ -27,37 +28,44 @@ const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 /** Seconds as 1:05 (or 1:02:05). */
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`; };
-const kindText = k => `${k.size}×${k.size} · ${plural(k.k, "star")} · ${LEVELS[k.level]}`;
-const kindKey = k => `${k.size}:${k.k}:${k.level}`;
+const shapeOf = k => (isSolid(k?.shape) ? k.shape : "flat");
+const kindText = k => (shapeOf(k) !== "flat" ? `${SHAPES[k.shape]} ${sizeName(k.shape, k.size)} · ${LEVELS[k.level]}` : `${k.size}×${k.size} · ${plural(k.k, "star")} · ${LEVELS[k.level]}`);
+const kindKey = k => (shapeOf(k) !== "flat" ? `${k.shape}${k.size}:1:${k.level}` : `${k.size}:${k.k}:${k.level}`);
 const cap = t => t[0].toUpperCase() + t.slice(1);
 
 // ---------- what you chose ----------
-const prefs = { size: 8, k: 1, level: "easy", view: "space", ...read(PREFS, {}) };
+const prefs = { size: 8, k: 1, level: "easy", view: "space", shape: "flat", ...read(PREFS, {}) };
 if (prefs.view !== "flat") prefs.view = "space";
+if (!isSolid(prefs.shape)) prefs.shape = "flat";
+prefs.sizes = { cube: 4, hex: 5, ...(prefs.sizes || {}) };            // the size chosen on each solid shape
+for (const sh of Object.keys(SOLID_SIZES)) if (!SOLID_SIZES[sh].includes(prefs.sizes[sh])) prefs.sizes[sh] = SOLID_SIZES[sh][0];
 if (!STARS.includes(prefs.k)) prefs.k = 1;
 if (!KINDS[prefs.k].includes(prefs.size)) prefs.size = 8;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
-const chosenKind = () => ({ size: prefs.size, k: prefs.k, level: levelOn(prefs.size, prefs.k, prefs.level) });
+const chosenKind = () => (prefs.shape === "flat"
+  ? { size: prefs.size, k: prefs.k, level: levelOn(prefs.size, prefs.k, prefs.level) }
+  : { shape: prefs.shape, size: prefs.sizes[prefs.shape], k: 1, level: levelOn(0, 1, prefs.level) });
 
 // ---------- making puzzles ----------
 // Made in a worker, so the screen stays responsive, and a spare of each kind played lately is made in the background
 // and kept, so a new puzzle is instant. Where there's no worker they're made on the page, as Hitori's are.
 let worker = null, workerless = false, asked = 0;
 const waiting = new Map();
+const generateOf = (seed, k) => (shapeOf(k) !== "flat" ? generateSolid(seed, k.shape, k.size, k.level) : generate(seed, k.size, k.k, k.level));
 function make(seed, k) {
-  if (workerless) return Promise.resolve(generate(seed, k.size, k.k, k.level));
+  if (workerless) return Promise.resolve(generateOf(seed, k));
   try {
     worker ||= new Worker(new URL("./asterism-worker.js", import.meta.url), { type: "module" });
     worker.onmessage = e => { waiting.get(e.data.id)?.resolve(e.data.puzzle); waiting.delete(e.data.id); };
     worker.onerror = () => {
       workerless = true; worker = null;
-      for (const w of waiting.values()) w.resolve(generate(w.seed, w.k.size, w.k.k, w.k.level));
+      for (const w of waiting.values()) w.resolve(generateOf(w.seed, w.k));
       waiting.clear();
     };
-  } catch { workerless = true; return Promise.resolve(generate(seed, k.size, k.k, k.level)); }
+  } catch { workerless = true; return Promise.resolve(generateOf(seed, k)); }
   const id = ++asked;
-  return new Promise(resolve => { waiting.set(id, { resolve, seed, k }); worker.postMessage({ id, seed, size: k.size, k: k.k, level: k.level }); });
+  return new Promise(resolve => { waiting.set(id, { resolve, seed, k }); worker.postMessage({ id, seed, size: k.size, k: k.k, level: k.level, shape: shapeOf(k) }); });
 }
 const SPARE_KINDS = 6;                 // spares kept for the kinds played most lately
 function takeSpare(k) {
@@ -96,8 +104,11 @@ async function nextPuzzle(k) {
 //      cells, its evidence and its words), fresh (a new best) }
 let S = null, P = null;
 let clockFrom = null, savedAt = 0, paused = false;
-const valid = s => !!s && s.v === 1 && KINDS[s.k]?.includes(s.size) && typeof s.reg === "string" && typeof s.marks === "string"
-  && typeof s.sol === "string" && s.sol.length === s.size * s.size && s.marks.length === s.sol.length && s.reg.length === s.sol.length && Number.isFinite(s.ms);
+const valid = s => {
+  if (!s || s.v !== 1 || typeof s.reg !== "string" || typeof s.marks !== "string" || typeof s.sol !== "string" || !Number.isFinite(s.ms)) return false;
+  const cells = shapeOf(s) === "flat" ? (KINDS[s.k]?.includes(s.size) ? s.size * s.size : -1) : (s.k === 1 && SOLID_SIZES[s.shape].includes(s.size) && solidRegionsOk(s.shape, s.size, s.reg) ? topoOf(s.shape, s.size).n : -1);
+  return cells > 0 && s.sol.length === cells && s.marks.length === cells && s.reg.length === cells;
+};
 
 function save() {
   if (IN_FRAME || !S) return;
@@ -109,7 +120,7 @@ const started = () => !!S && !S.done && (S.marks.includes(STAR) || S.marks.inclu
 /** Puts a puzzle on the board. */
 function begin(s) {
   S = { v: 1, undo: [], redo: [], ms: 0, hints: 0, done: null, lit: null, ...s };
-  P = puzzleOf(S.size, S.k, S.reg, S.sol);
+  P = shapeOf(S) !== "flat" ? solidPuzzle(S.shape, S.size, S.reg, S.sol) : puzzleOf(S.size, S.k, S.reg, S.sol);
   clockFrom = null;
   $("level").value = levelOn(S.size, S.k, S.level);
   if (!IN_FRAME) history.replaceState(null, "", hashOf(S));
@@ -131,7 +142,7 @@ async function start(mode, k = chosenKind()) {
   const { seed, puzzle } = await nextPuzzle(k);
   if (puzzle) begin(fromPuzzle("random", seed, k, puzzle));
 }
-const fromPuzzle = (mode, seed, k, puzzle) => ({ mode, seed, size: k.size, k: k.k, level: k.level, came: puzzle.level, reg: puzzle.reg, sol: puzzle.sol, marks: NONE.repeat(puzzle.sol.length) });
+const fromPuzzle = (mode, seed, k, puzzle) => ({ mode, seed, ...(shapeOf(k) !== "flat" ? { shape: k.shape } : {}), size: k.size, k: k.k, level: k.level, came: puzzle.level, reg: puzzle.reg, sol: puzzle.sol, marks: NONE.repeat(puzzle.sol.length) });
 async function confirmStart(mode, k) {
   if (started() && !(await sure("Start a new puzzle? This one isn't solved.", { yes: "New puzzle" }))) return false;
   start(mode, k);
@@ -158,9 +169,9 @@ const scoreOf = ms => Math.round(ms / 1000) + penalty();
 // ---------- bests ----------
 // Kept in asterism:times by size, stars and level, lowest first, not asterism:best (the games screen reads a best as
 // highest-is-best); the games screen's figure is today's time (noteDayTime, asterism:today).
-const bestOf = s => read(TIMES, {})[kindKey({ size: s.size, k: s.k, level: s.came || s.level })];
+const bestOf = s => read(TIMES, {})[kindKey({ shape: s.shape, size: s.size, k: s.k, level: s.came || s.level })];
 function recordBest(sc) {
-  const times = read(TIMES, {}), k = kindKey({ size: S.size, k: S.k, level: S.came || S.level }), fresh = times[k] == null || sc < times[k];
+  const times = read(TIMES, {}), k = kindKey({ shape: S.shape, size: S.size, k: S.k, level: S.came || S.level }), fresh = times[k] == null || sc < times[k];
   if (fresh) { times[k] = sc; write(TIMES, times); }
   return fresh;
 }
@@ -209,7 +220,7 @@ function changed() {
 }
 
 // ---------- hints ----------
-const groupName = g => (g.kind === "row" ? `row ${g.id + 1}` : g.kind === "col" ? `column ${g.id + 1}` : "the marked region");
+const groupName = g => (g.kind === "row" ? `row ${g.id + 1}` : g.kind === "col" ? `column ${g.id + 1}` : g.kind === "belt" ? "the marked belt" : g.kind === "line" ? "the marked line" : "the marked region");
 const listOf = (word, ids) => {
   const n = ids.map(i => i + 1);
   return n.length === 1 ? `${word} ${n[0]}` : `${word}s ${n.slice(0, -1).join(", ")} and ${n.at(-1)}`;
@@ -231,7 +242,7 @@ function explain(x) {
     }
     case "look": return `A star here would leave ${groupName(x.group)} no room for ${x.group.kind === "region" || P.k === 1 ? "its star" : "its stars"}: so this cell is empty.`;
     case "count": {
-      const word = x.orient === "col" ? "column" : "row", lines = listOf(word, x.lines), regions = x.regions.length === 1 ? "the marked region" : `the ${x.regions.length} marked regions`;
+      const word = { col: "column", row: "row", belt: "belt", line: "line" }[x.orient], lines = word === "belt" || word === "line" ? (x.lines.length === 1 ? `the marked ${word}` : `the ${x.lines.length} marked ${word}s`) : listOf(word, x.lines), regions = x.regions.length === 1 ? "the marked region" : `the ${x.regions.length} marked regions`;
       if (x.dir === "regions-in-lines") return `${cap(lines)} must hold ${plural(x.stars, "star")}. ${cap(regions)} lie${x.regions.length === 1 ? "s" : ""} wholly inside ${x.lines.length === 1 ? "it" : "them"} and need${x.regions.length === 1 ? "s" : ""} as many, so the other cells of ${x.lines.length === 1 ? "that" : "those"} ${word}${x.lines.length === 1 ? "" : "s"} are empty.`;
       return `${cap(lines)} must hold ${plural(x.stars, "star")}, all inside ${regions}. That leaves nothing for the rest of ${x.regions.length === 1 ? "that region" : "those regions"}: its other cells are empty.`;
     }
@@ -299,9 +310,11 @@ function drawBoard() {
   space = null; svg = null; cellEls = []; turnBtn = null;
   $("board").replaceChildren();
   $("board").parentElement.classList.remove("space");
-  if (prefs.view === "space" && SPACE_AVAILABLE()) {
+  const solid = shapeOf(S) !== "flat";
+  if (solid && !SPACE_AVAILABLE()) { $("board").textContent = "This shape needs a browser that can draw on a canvas."; return; }
+  if ((prefs.view === "space" || solid) && SPACE_AVAILABLE()) {
     $("board").parentElement.classList.add("space");
-    space = createSpace($("board"), { slow: () => { if (!space) return; prefs.view = "flat"; savePrefs(); drawBoard(); toast("This device drew the space view slowly: the flat grid is showing. The menu brings the space view back.", 6000); } });
+    space = createSpace($("board"), { slow: () => { if (!space || solid) return; prefs.view = "flat"; savePrefs(); drawBoard(); toast("This device drew the space view slowly: the flat grid is showing. The menu brings the space view back.", 6000); } });
     space.canvas.addEventListener("pointerdown", down);
     space.canvas.addEventListener("contextmenu", e => e.preventDefault());
     turnBtn = Object.assign(document.createElement("button"), { type: "button", className: "ast-turn", textContent: "Turn" });
@@ -440,8 +453,46 @@ function strokeCell(x) {
 }
 /** A finger dotting stays on the row or column it began on (axisStroke), however it wanders. */
 function stroke(ev) {
+  if (pressing.stroke.follow) { for (const x of pressing.stroke.follow(ev)) strokeCell(x); return; }
   const p = boardPoint(ev);
   if (p) for (const x of axisStroke(pressing.stroke.axis, p.x, p.y)) strokeCell(x);
+}
+/** A dotting stroke on a cube or a hexagon board follows one of the lines through the cell it began on (a belt, or a row),
+ *  the one that runs the way the finger first goes on the screen, and keeps to it: each sample dots the cells between where
+ *  it was and the line's cell nearest the finger (round a belt the shorter way). */
+function lineStroke(cell, x0, y0) {
+  const lines = space.linesOf(cell).map(gi => P.topo.lines[gi]);
+  let line = null, at = -1;
+  const near = (l, ev, from) => {
+    let best = -1, bd = (2.2 * space.cellPx) ** 2;
+    l.cells.forEach((x, i) => { if (!space.faces(x) && x !== from) return; const w = space.where(x), d = (w.x - ev.clientX) ** 2 + (w.y - ev.clientY) ** 2; if (d < bd) { bd = d; best = i; } });
+    return best;
+  };
+  return ev => {
+    const out = [];
+    if (!line) {
+      const dx = ev.clientX - x0, dy = ev.clientY - y0, len = Math.hypot(dx, dy);
+      if (len < DRAG * scale()) return out;
+      let best = null, bc = 0.6;
+      for (const l of lines) {
+        const i = l.cells.indexOf(cell), n = l.cells.length, a = l.cells[l.cyclic ? (i + 1) % n : Math.min(n - 1, i + 1)], b = l.cells[l.cyclic ? (i + n - 1) % n : Math.max(0, i - 1)];
+        const pa = space.where(a), pb = space.where(b), tx = pa.x - pb.x, ty = pa.y - pb.y, tl = Math.hypot(tx, ty);
+        if (!tl) continue;
+        const c = Math.abs(dx * tx + dy * ty) / (len * tl);
+        if (c > bc) { bc = c; best = l; }
+      }
+      if (!best) return out;                                         // no line runs that way yet: wait for a clearer lead
+      line = best; at = line.cells.indexOf(cell);
+    }
+    const t = near(line, ev, line.cells[at]);
+    if (t < 0 || t === at) return out;
+    const n = line.cells.length;
+    let dir = Math.sign(t - at);
+    if (line.cyclic) { const fwd = (t - at + n) % n; dir = fwd <= n / 2 ? 1 : -1; }
+    for (let i = at; i !== t;) { i = line.cyclic ? (i + dir + n) % n : i + dir; out.push(line.cells[i]); }
+    at = t;
+    return out;
+  };
 }
 addEventListener("pointermove", ev => {
   if (touches.has(ev.pointerId)) touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
@@ -454,6 +505,12 @@ addEventListener("pointermove", ev => {
     if (pressing.turns) {                                              // space, begun to turn: the drag turns the board
       pressing.orbit = true; pressing.view.press(-1);
       pressing.view.drag(ev.clientX - pressing.x, ev.clientY - pressing.y); pressing.lx = ev.clientX; pressing.ly = ev.clientY;
+      return;
+    }
+    if (space?.isMesh) {
+      pressing.stroke = { id: newStroke(), mode: null, follow: lineStroke(pressing.cell, pressing.x, pressing.y) };
+      strokeCell(pressing.cell);
+      stroke(ev);
       return;
     }
     const from = boardPoint({ clientX: pressing.x, clientY: pressing.y }), { N } = P;
@@ -479,7 +536,7 @@ function drawStrip() {
   if (!S) { put("time", "0:00"); put("penalty", ""); put("kind", ""); return; }
   put("time", fmt(elapsed() / 1000 + penalty()));
   put("penalty", penalty() ? `+${penalty()} s` : "");
-  put("kind", `${S.mode === "daily" ? "Today · " : ""}${kindText({ size: S.size, k: S.k, level: S.came || S.level })}`);
+  put("kind", `${S.mode === "daily" ? "Today · " : ""}${kindText({ shape: S.shape, size: S.size, k: S.k, level: S.came || S.level })}`);
 }
 /** What the marks break, in words (from the rules alone). */
 function brokenText() {
@@ -537,6 +594,8 @@ function showRules() {
     <h4>Playing</h4>
     <p>Tap a cell to dot it (a dot is your own note: "no star here"), again to make it a star, again to clear it. Hold a cell, or right-click it, to make it a star at once. Drag across cells to dot many at once, along the row or column you began on (start on a dot to rub dots out). In the space view, two fingers turn the board (drag or twist), and so does a drag begun off the pane, the Turn button with one finger, or a mouse drag with Shift held; the board stays where you leave it, and the menu's Reset the view brings it home. Only the stars count: the puzzle is solved the moment exactly its answer is starred. Undo and Redo step through your marks, and the menu clears the board.</p>
     <p>A broken rule shows at once, in oxblood, with a line under the board saying which: two stars touching, a row, column or region with too many, or one with no room left for its stars. That comes from the rules, never the answer. Hint (+${HINT}&nbsp;s) puts a wrong mark right first; otherwise it makes the next step a person would take and says why, the cells it settled in gilt and the cells that say so dashed.</p>
+    <h4>Shapes</h4>
+    <p><b>Flat</b> is the square board. On a <b>Cube</b> a line is a <b>belt</b>: the ring of cells that goes round the cube at one layer (four faces' worth), and every belt, like every region, holds one star. Every cell is on two belts, as a flat cell is on a row and a column, and a star touches the cells round it across an edge or a corner of the cube as well. On a <b>Hexagons</b> board the lines are the rows in all three directions, and every one holds one star. Drag along a belt or a row to dot it, as on the flat board; a finger held on a cell lights the lines through it. The cube and the hexagon board are drawn in space only.</p>
     <h4>Finding the stars</h4>
     <p><b>A star's surroundings.</b> The eight cells round a star are empty. <b>A full group.</b> A row, column or region with all its stars has the rest empty. <b>Just enough room.</b> A group that has exactly as many cells left as stars to place has stars in them all.</p>
     <p><b>A group's few ways.</b> Two stars in a short row can go only so many ways without touching; a cell none of those ways uses is empty. <b>No room left.</b> If a star in a cell would leave some row, column or region with nowhere for its stars, the cell is empty. <b>A region held to a line.</b> A region wholly inside one row has the row's star: the row's other cells are empty (and the same the other way round).</p>
@@ -564,16 +623,19 @@ function openMenu() {
   play.append(action("The rules", showRules, "link"));
   content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") {
-    content.append(choice("Stars a row", STARS.map(n => [n, String(n)]), prefs.k, v => { prefs.k = v; if (!KINDS[v].includes(prefs.size)) prefs.size = 8; savePrefs(); kindChanged(); openMenu(); }));
-    content.append(choice("Size", KINDS[prefs.k].map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
+    content.append(choice("Shape", Object.entries(SHAPES), prefs.shape, v => { prefs.shape = v; savePrefs(); kindChanged(); openMenu(); }));
+    if (prefs.shape === "flat") {
+      content.append(choice("Stars a row", STARS.map(n => [n, String(n)]), prefs.k, v => { prefs.k = v; if (!KINDS[v].includes(prefs.size)) prefs.size = 8; savePrefs(); kindChanged(); openMenu(); }));
+      content.append(choice("Size", KINDS[prefs.k].map(n => [n, `${n}×${n}`]), prefs.size, v => { prefs.size = v; savePrefs(); kindChanged(); openMenu(); }));
+    } else content.append(choice("Size", SOLID_SIZES[prefs.shape].map(n => [n, sizeName(prefs.shape, n)]), prefs.sizes[prefs.shape], v => { prefs.sizes[prefs.shape] = v; savePrefs(); kindChanged(); openMenu(); }));
     content.append(mirror("Level", $("level")));
   } else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
   const look = part(body, "settings");
-  look.append(choice("View", [["space", "Space"], ["flat", "Flat grid"]], prefs.view, v => { prefs.view = v; savePrefs(); if (P) drawBoard(); openMenu(); }));
+  if (shapeOf(S) === "flat") look.append(choice("View", [["space", "Space"], ["flat", "Flat grid"]], prefs.view, v => { prefs.view = v; savePrefs(); if (P) drawBoard(); openMenu(); }));
   if (space) look.append(action("Reset the view", () => space?.resetView()));
   const best = S ? bestOf(S) : null;
   const about = part(body, "about");
-  about.append(line(S ? `${kindText({ size: S.size, k: S.k, level: S.came || S.level })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Put the stars in."));
+  about.append(line(S ? `${kindText({ shape: S.shape, size: S.size, k: S.k, level: S.came || S.level })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Put the stars in."));
   about.append(action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -596,12 +658,14 @@ async function copyLink() {
 }
 
 // ---------- links: #s=SEED&n=8&k=1&l=medium (#d= for a day's) ----------
-const hashOf = s => `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&k=${s.k}&l=${s.level}`;
+const hashOf = s => `#${s.mode === "daily" ? "d" : "s"}=${s.seed}&n=${s.size}&k=${s.k}&l=${s.level}${shapeOf(s) !== "flat" ? `&sh=${s.shape}` : ""}`;
 function linked() {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("d") || h.get("s"));
   if (!seed) return null;
+  const level = LEVELS[h.get("l")] ? h.get("l") : "medium", shape = isSolid(h.get("sh")) ? h.get("sh") : "flat";
+  if (shape !== "flat" && !h.get("d")) { const size = SOLID_SIZES[shape].includes(Number(h.get("n"))) ? Number(h.get("n")) : SOLID_SIZES[shape][0]; return { seed, mode: "random", k: { shape, size, k: 1, level } }; }
   const k = STARS.includes(Number(h.get("k"))) ? Number(h.get("k")) : 1, size = KINDS[k].includes(Number(h.get("n"))) ? Number(h.get("n")) : 8;
-  return { seed, mode: h.get("d") ? "daily" : "random", k: { size, k, level: levelOn(size, k, LEVELS[h.get("l")] ? h.get("l") : "medium") } };
+  return { seed, mode: h.get("d") ? "daily" : "random", k: { size, k, level: levelOn(size, k, level) } };
 }
 async function openLinked(l) {
   const done = busy("Making the puzzle", { delay: 250 });
@@ -621,7 +685,7 @@ $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => start("random"));
 $("level").addEventListener("change", async () => {
   const v = $("level").value;
-  if (S && S.mode !== "daily" && v === levelOn(S.size, S.k, S.level) && S.size === prefs.size && S.k === prefs.k) return;
+  if (S && S.mode !== "daily" && v === levelOn(S.size, S.k, S.level) && shapeOf(S) === prefs.shape && S.size === chosenKind().size && S.k === chosenKind().k) return;
   const before = prefs.level;
   prefs.level = v; savePrefs();
   if (!(await confirmStart("random"))) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.k, S.level) : before; }
@@ -652,7 +716,7 @@ async function solo() {
   S = null;
   if (valid(kept)) S = kept;
   const l = linked();
-  if (l && !(S && S.seed === l.seed && S.mode === l.mode && S.size === l.k.size)) { openLinked(l); return; }
+  if (l && !(S && S.seed === l.seed && S.mode === l.mode && S.size === l.k.size && shapeOf(S) === shapeOf(l.k))) { openLinked(l); return; }
   const todays = forToday && !IN_FRAME && !(S?.mode === "daily" && S.seed === today());
   if (S) { const s = S; S = null; begin(s); if (!IN_FRAME) refill(chosenKind()); }       // yours is on the board while it asks about today's
   if (todays && (!S || !started() || await sure("Today's puzzle is waiting. Leave the one you've started?", { yes: "Today's puzzle", no: "Keep mine" }))) { start("daily"); return; }
