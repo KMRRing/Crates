@@ -68,6 +68,7 @@ export const AKA = {
   flank: "reversi", crown: "draughts checkers", ingot: "2048 sliding tiles",
   asterism: "star battle two not touch stars regions", heliograph: "mirror", shunt: "rail wagons", polder: "dyke windmill", topple: "dominoes hex", orrery: "match three planets",
   netting: "obligations trading houses", settle: "tank farm parcels", slipway: "carving ship",
+  trade: "history of trade course silk road slave trade colonial colonialism geography commodities chokepoint chokepoints straits spices monsoon indian ocean atlantic opium east india company hanse cowries map",
   wine: "wine course grapes vintage sommelier champagne bordeaux burgundy rioja barolo tasting cellar", reckoning: "runner quay", landfall: "celestial navigation sextant astrolabe stars constellations night sky pole star polaris orion sirius sailing voyage latitude longitude chronometer compass noon sun notebook mercator tide", arthistory: "art history course painting sculpture architecture renaissance baroque impressionism cubism museum gallery", music: "music course theory ear training notes scales chords rhythm piano keyboard", blend: "blender gasoline fuel specification", refinery: "refining crude distillation",
   speedfuels: "fuel pricing mental maths", baccarat: "casino punto banco", blackjack: "casino twenty-one pontoon",
   roulette: "casino wheel", sicbo: "casino dice", craps: "casino dice", holdem: "poker casino texas",

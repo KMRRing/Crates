@@ -17,7 +17,7 @@ const EXEMPT = new Set(["soon.html"]);   // the placeholder for a game to come: 
 const TITLED = new Set(`crates lots punt quote origin order chart ledger nexus isomer lode acrostic crossword nonogram
   slate delta spot speedmaths pipes survey stow
   sudoku calcudoku kakuro hitori masyu nurikabe slitherlink asterism mines ladder bridges bulls codeword assay yield
-  calibre parley arthistory wine music odds speedfuels blend refinery rack cartel deck rush
+  calibre parley arthistory wine trade music odds speedfuels blend refinery rack cartel deck rush
   party quest cue`.split(/\s+/).map(n => n + ".html"));
 // FULL alone: card and dice games, board games, idle and ambient games, pictures (Manifest, Almanac, Guilloché, Timegrapher)
 const FULL = new Set(`contract trumps tribute landlord bigtwo hearts meld pegs hong bones boast solitaire banquet holdem blackjack baccarat
