@@ -6,12 +6,12 @@
 // as on a fast one.
 
 export const LEVELS = [
-  { id: "1", name: "Beginner", rating: 700, limit: "nodes 2000", multipv: 12, temper: 80 },
-  { id: "2", name: "Novice", rating: 1100, limit: "nodes 2000", multipv: 10, temper: 48 },
-  { id: "3", name: "Casual", rating: 1300, limit: "nodes 2500", multipv: 8, temper: 28 },
-  { id: "4", name: "Club", rating: 1600, limit: "nodes 3000", multipv: 6, temper: 16 },
+  { id: "1", name: "Beginner", rating: 700, limit: "nodes 2000", multipv: 12, temper: 140 },
+  { id: "2", name: "Novice", rating: 1100, limit: "nodes 2000", multipv: 10, temper: 85 },
+  { id: "3", name: "Casual", rating: 1300, limit: "nodes 2500", multipv: 8, temper: 55 },
+  { id: "4", name: "Club", rating: 1600, limit: "nodes 3000", multipv: 6, temper: 19 },
   { id: "5", name: "Strong club", rating: 1900, limit: "nodes 3000", multipv: 6, temper: 11 },
-  { id: "6", name: "Expert", rating: 2200, limit: "nodes 3000", multipv: 6, temper: 6 },
+  { id: "6", name: "Expert", rating: 2200, limit: "nodes 3000", multipv: 6, temper: 7 },
   { id: "7", name: "Master", rating: 2500, limit: "nodes 3000" },
   { id: "8", name: "Full strength", rating: 3000, limit: "nodes 100000" },
 ];
