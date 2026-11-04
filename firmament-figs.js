@@ -17,7 +17,7 @@ export const yr = y => (y < 0 ? `${-y} BCE` : `${y} CE`);
 /** A line of dated marks: { from, to, marks: [[year, label, "hi"?]] }. Labels alternate above and below on two tiers so they do not touch. */
 function timeline({ from, to, marks }) {
   const x = y => 22 + (y - from) / (to - from) * 276, out = [L(18, 100, 302, 100, "fb", 2)];
-  out.push(T(18, 134, yr(from), { a: "start", s: 8.5, c: "fm" }), T(302, 134, yr(to), { a: "end", s: 8.5, c: "fm" }));
+  out.push(T(18, 186, yr(from), { a: "start", s: 8.5, c: "fm" }), T(302, 186, yr(to), { a: "end", s: 8.5, c: "fm" }));
   marks.forEach(([y, label, hi], i) => {
     const up = i % 2 === 0, tier = Math.floor(i / 2) % 2, len = 22 + tier * 24, px = x(y), ty = up ? 100 - len - 4 : 100 + len + 11;
     out.push(L(px, 100, px, up ? 100 - len : 100 + len, "fs", 1), C(px, 100, 3.2, hi ? "fa" : "ff", 1.4));
@@ -198,7 +198,7 @@ function parallax() {
   const out = [], sx = 160, sy = 140, star = [160, 60];
   out.push(L(20, 20, 300, 20, "fs", 1), T(160, 14, "distant stars", { s: 9.5, c: "fm" }), C(sx, sy, 6, "fa", 1.4), P(`M${sx - 64} ${sy}A64 64 0 1 0 ${sx + 64} ${sy}A64 64 0 1 0 ${sx - 64} ${sy}`, "fd", 1.2));
   for (const dx of [-64, 64]) { out.push(C(sx + dx, sy, 4, "ff", 1.4)); out.push(L(sx + dx, sy, (sx + dx) + (star[0] - (sx + dx)) * (sy - 20) / (sy - star[1]), 20, "fh", 1.2)); }
-  out.push(C(star[0], star[1], 4, "fa", 1.2), T(star[0] + 8, star[1] + 3, "near star", { a: "start", s: 9.5 }), T(sx, sy + 20, "Sun", { s: 9.5 }), T(sx - 64, sy + 16, "January", { s: 9 }), T(sx + 64, sy + 16, "July", { s: 9 }), T(160, 184, "p: half the shift, in arcseconds, gives the distance in parsecs as 1 ÷ p", { s: 9.5, c: "fm" }));
+  out.push(C(star[0], star[1], 4, "fa", 1.2), T(star[0] + 8, star[1] + 3, "near star", { a: "start", s: 9.5 }), T(sx, sy + 20, "Sun", { s: 9.5 }), T(sx - 64, sy + 16, "January", { s: 9 }), T(sx + 64, sy + 16, "July", { s: 9 }), T(160, 184, "distance in parsecs = 1 ÷ parallax (arcseconds)", { s: 9.5, c: "fm" }));
   return out.join("");
 }
 

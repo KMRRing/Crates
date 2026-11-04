@@ -8,8 +8,11 @@ import { CH3 } from "./firmament-c3.js";
 import { CH4 } from "./firmament-c4.js";
 import { CH5 } from "./firmament-c5.js";
 import { CH6 } from "./firmament-c6.js";
+import { CH7 } from "./firmament-c7.js";
+import { CH8 } from "./firmament-c8.js";
+import { CH9 } from "./firmament-c9.js";
 
-export const SOURCE = [CH1, CH2, CH3, CH4, CH5, CH6];
+export const SOURCE = [CH1, CH2, CH3, CH4, CH5, CH6, CH7, CH8, CH9];
 
 function stepOf(raw, id, l) {
   const base = { id, when: l.when, fig: raw.fig || l.fig };

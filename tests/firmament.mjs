@@ -14,7 +14,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 const RAD = Math.PI / 180;
 
 // ---------- the shape ----------
-check(COURSE.chapters.map(c => c.id).join() === "naked,greeks,asia,revolution,telescope,gravity", "the chapters are in the order of the brief");
+check(COURSE.chapters.map(c => c.id).join() === "naked,greeks,asia,revolution,telescope,gravity,distance,light,relativity", "the chapters are in the order of the brief");
 check(new Set(LESSON_IDS).size === LESSON_IDS.length && lessonsOf(COURSE).length === LESSONS.length, `${LESSONS.length} lessons, each id once`);
 check(COURSE.chapters.every(c => c.lessons.length >= 3), "every chapter has at least three lessons");
 check(LESSONS.every(l => l.steps.some(s => s.kind === "text") && l.steps.filter(s => s.kind === "quiz").length >= 2 || l.steps.filter(s => s.kind === "quiz").length >= 1), "every lesson has words and a question");
@@ -82,6 +82,20 @@ const CHECKS = {
   orbitV: () => Math.sqrt(3.986004418e14 / 6.371e6) / 1000,
   halley: () => Math.sqrt(17.8 ** 3),
   earthMass: () => 9.80665 * 6.371e6 ** 2 / 6.6743e-11 / 1e24,
+  // chapters 7 to 9
+  titius: () => (0.4 + 0.3 * 128) / 30.07 * 100 - 100,
+  lalande: () => 6378 / Math.tan(8.6 / 3600 * RAD) / 1e6,
+  aberr: () => Math.atan(29.78 / 299792.458) / RAD * 3600,
+  bessel: () => 1 / 0.314 * 3.2615638,
+  wien: () => 2.897771955e6 / 5772,
+  doppler: () => 299792.458 * 0.1 / 656.28,
+  sb: () => 2 ** 4,
+  kelvin: () => 6.6743e-11 * (1.98841e30) ** 2 / (6.957e8 * 3.828e26) / (365.25 * 86400) / 1e6,
+  massloss: () => 3.828e26 / 299792458 ** 2 / 1e9,
+  mercury: () => { const GM = 1.32712440018e20, c = 299792458, a = 5.7909e10, e = 0.20563, per = 6 * Math.PI * GM / (c * c * a * (1 - e * e)); return per * (36525 / 87.969) * 180 / Math.PI * 3600; },
+  bend: () => 4 * 1.32712440018e20 / (299792458 ** 2 * 6.957e8) / RAD * 3600,
+  rs: () => 2 * 1.32712440018e20 / 299792458 ** 2 / 1000,
+  gw: () => 36 + 29 - 62,
 };
 const calcSteps = quiz.filter(s => s.calc);
 check(calcSteps.length >= 20, `${calcSteps.length} numeric questions`);
