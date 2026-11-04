@@ -685,7 +685,7 @@ export const APPS = [
   { id: "boast", sec: "cards", name: "Liar's dice", href: "./boast.html", logo: LOGO("boast", BOAST_LOGO), players: [1, 6] },
   { id: "yacht", sec: "cards", name: "Yacht", href: "./yacht.html", logo: LOGO("yacht", YACHT_LOGO), players: [1, 4] },
   { id: "bigtwo", sec: "cards", name: "Big Two", href: "./bigtwo.html", logo: LOGO("bigtwo", BIGTWO_LOGO), players: [1, 4] },
-  { id: "shoe", sec: "cards", name: "Shoe", href: "./shoe.html", logo: LOGO("shoe", SHOE_LOGO), players: [1, 10] },
+  { id: "shoe", sec: "party", name: "Shoe", href: "./shoe.html", logo: LOGO("shoe", SHOE_LOGO), players: [1, 10] },
   { id: "hearts", sec: "cards", name: "Hearts", href: "./hearts.html", logo: LOGO("hearts", HEARTS_LOGO), players: [1, 4] },
   { id: "landlord", sec: "cards", name: "Dou Dizhu", href: "./landlord.html", logo: LOGO("landlord", LANDLORD_LOGO), players: [1, 3] },
   { id: "gammon", sec: "board", name: "Backgammon", href: "./gammon.html", logo: LOGO("gammon", GAMMON_LOGO), players: [1, 2] },
