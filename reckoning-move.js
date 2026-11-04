@@ -75,20 +75,24 @@ export class Streamer {
   kick(a, b = 0) { this.a.kick(a); this.b.kick(b); }
 }
 
-/** The camera. `update(dt, s)` takes the hero as drawn, { x, y, vx, speed, wall, rolling, lunging }, and gives where the camera is
- *  in the hero's terms (x across, y up, `back` metres behind him, what it looks at, its field of view over the base one in
- *  degrees, and its roll in radians): it follows his lane late and leans the way he goes, rises with him late so a jump shows,
- *  draws back and widens with speed, banks with a wall run, and a landing dips it and lets it spring back. */
+const JUMP_FULL = 1.6;   // a plain jump's height: up to it the camera follows part of the air height, past it nearly all
+
+/** The camera. `update(dt, s)` takes the hero as drawn, { x, y, ground, vx, speed, wall, rolling, lunging } (`ground`: the level he stands
+ *  on, or hangs on at a wall; none is the quay), and gives where the camera is in the hero's terms (x across, y up, `back` metres behind
+ *  him, what it looks at, its field of view over the base one in degrees, and its roll in radians): it follows his lane late and leans
+ *  the way he goes, follows his ground level fully and the height of a jump only in part (4 November 2026, Korbi: on an upper level the
+ *  hero is framed as on the quay), draws back and widens with speed, banks with a wall run, and a landing dips it and lets it spring back. */
 export class CameraRig {
   constructor() {
-    this.sx = new Spring(0); this.sy = new Spring(3.2); this.sback = new Spring(5.4); this.sfov = new Spring(0);
-    this.sroll = new Spring(0); this.slook = new Spring(1.2); this.sdip = new Spring(0); this.spunch = new Spring(0);
+    this.sx = new Spring(0); this.sg = new Spring(0); this.sair = new Spring(0); this.sairL = new Spring(0); this.sbase = new Spring(0);
+    this.sback = new Spring(5.4); this.sfov = new Spring(0);
+    this.sroll = new Spring(0); this.sdip = new Spring(0); this.spunch = new Spring(0);
     this.out = { x: 0, y: 3.2, back: 5.4, lookX: 0, lookY: 1.2, ahead: 10, fov: 0, roll: 0 };
   }
-  /** Back to where the camera stands for a hero at rest in his lane, at once (a new run). */
-  reset(x = 0) {
-    this.sx.set(x * 0.55); this.sy.set(3.2); this.sback.set(5.4); this.slook.set(1.2);
-    for (const s of [this.sfov, this.sroll, this.sdip, this.spunch]) s.set(0);
+  /** Back to where the camera stands for a hero at rest in his lane at `ground`, at once (a new run). */
+  reset(x = 0, ground = 0) {
+    this.sx.set(x * 0.55); this.sg.set(ground); this.sback.set(5.4);
+    for (const s of [this.sair, this.sairL, this.sbase, this.sfov, this.sroll, this.sdip, this.spunch]) s.set(0);
   }
   /** A landing at `impact` m/s: the camera dips and the picture draws in a little, and both come back with an overshoot. */
   land(impact) { this.sdip.x -= clamp(impact * 0.028, 0.05, 0.5) * T.CAM_KICK; this.spunch.x -= clamp(impact * 0.12, 0.4, 3) * T.CAM_KICK; }
@@ -99,15 +103,20 @@ export class CameraRig {
   update(dt, s) {
     const k = clamp((s.speed - 8) / 8, 0, 1), f = T.CAM_FOLLOW;   // how fast: 0 up to 8 m/s, 1 at the full 16; f: how quickly the springs chase the hero
     this.sx.to(s.x * 0.55 + s.vx * 0.05, dt, 7 * f, 0.85);
-    this.sy.to(3.2 + Math.min(Math.max(s.y, 0), 4) * 0.35 + Math.max(0, Math.min(s.y, 8) - 4) * 0.55 - (s.rolling ? 0.3 : 0) - k * 0.25, dt, (s.y > 3 ? 11 : 6.5) * f, 0.8);       // up a wall or on a balcony it keeps up, or the hero climbs out of the picture
+    const y = Math.max(s.y, 0);
+    this.sg.to(s.ground || 0, dt, 7.5 * f, 1);                                            // the level he stands on, all of it: a ramp, a drop, a wall
+    const gs = Math.min(this.sg.x, y + 0.3);                                               // (a fall is followed at his own pace, never left behind)
+    const up = Math.max(0, y - gs), extra = Math.max(0, up - JUMP_FULL);                   // what is a jump's: shown in part, and nearly all past a plain jump's height, or he leaves the picture's top
+    this.sair.to(Math.min(up, JUMP_FULL) * 0.4 + extra * 0.85, dt, 11 * f, 0.8);
+    this.sairL.to(Math.min(up, JUMP_FULL) * 0.2 + extra * 0.7, dt, 13 * f, 0.9);
+    this.sbase.to(-(s.rolling ? 0.3 : 0) - k * 0.25, dt, 6.5 * f, 0.8);
     this.sdip.to(0, dt, 10, 0.4);
-    this.sback.to(5.4 + k * 1.0 + (s.lunging ? 0.2 : 0) + Math.min(Math.max(s.y, 0), 6) * 0.12, dt, 4.5 * f, 0.9);
+    this.sback.to(5.4 + k * 1.0 + (s.lunging ? 0.2 : 0) + Math.min(up, 6) * 0.12, dt, 4.5 * f, 0.9);
     this.sfov.to(k * 6, dt, 5, 0.8);
     this.spunch.to(0, dt, 9, 0.55);
     this.sroll.to(clamp(s.vx * 0.0032, -0.06, 0.06) * 1 - (s.wall || 0) * 0.075, dt, 9, 0.55);
-    this.slook.to(1.2 + Math.min(Math.max(s.y, 0), 4) * 0.25 + Math.max(0, Math.min(s.y, 8) - 4) * 0.45, dt, (s.y > 3 ? 13 : 8) * f, 0.9);
     const o = this.out;
-    o.x = this.sx.x; o.y = this.sy.x + this.sdip.x; o.back = this.sback.x; o.lookX = this.sx.x * 0.6; o.lookY = this.slook.x;
+    o.x = this.sx.x; o.y = 3.2 + gs + this.sair.x + this.sbase.x + this.sdip.x; o.back = this.sback.x; o.lookX = this.sx.x * 0.6; o.lookY = 1.2 + gs + this.sairL.x;
     o.ahead = 10 + k * 2; o.fov = this.sfov.x + this.spunch.x; o.roll = this.sroll.x;
     return o;
   }

@@ -793,6 +793,14 @@ const events = S => take(S).map(e => e.type);
   const yRest = settle({ x: 0, y: 0, vx: 0, speed: 16, wall: 0 }, 3).y;
   cam.land(10); let low = 0, high = 0; for (let i = 0; i < 90; i++) { const y = cam.update(1 / 60, { x: 0, y: 0, vx: 0, speed: 16, wall: 0 }).y; low = Math.min(low, y - yRest); high = Math.max(high, y - yRest); }
   check(low < -0.1 && high > 0.005 && Math.abs(cam.out.y - yRest) < 0.01, `a landing dips it (${low.toFixed(2)} m), it springs back past (${high.toFixed(3)}) and settles`);
+  // the ground he stands on is followed fully: on a deck the picture is the quay's, a jump over it only partly followed, a high one enough
+  const quayY = settle({ x: 0, y: 0, ground: 0, vx: 0, speed: 16, wall: 0 }, 3).y, quayL = cam.out.lookY;
+  settle({ x: 0, y: 3.2, ground: 3.2, vx: 0, speed: 16, wall: 0 }, 3);
+  check(Math.abs(cam.out.y - quayY - 3.2) < 0.01 && Math.abs(cam.out.lookY - quayL - 3.2) < 0.01, "on a deck the camera stands exactly as high over him as on the quay");
+  let peak = 0; for (let i = 0; i < 40; i++) { const y = 3.2 + 1.6 * Math.sin(i / 39 * Math.PI); cam.update(1 / 60, { x: 0, y, ground: 3.2, vx: 0, speed: 16, wall: 0 }); peak = Math.max(peak, cam.out.y - quayY - 3.2); }
+  check(peak > 0.1 && peak < 1.0, `a jump over a deck lifts it only in part (${peak.toFixed(2)} m of 1.6)`);
+  let lowest = 9; for (let i = 0; i < 60; i++) { cam.update(1 / 60, { x: 0, y: 3.2, ground: 3.2, vx: 0, speed: 16, wall: 0 }); } for (let i = 0; i < 90; i++) { const y = Math.max(0, 3.2 - 12.3 * (i / 60) ** 2); const before = cam.out.y; cam.update(1 / 60, { x: 0, y, ground: 0, vx: 0, speed: 16, wall: 0 }); lowest = Math.min(lowest, cam.out.y - before); }
+  check(lowest > -0.15 && Math.abs(cam.out.y - quayY) < 0.05, `a drop to the quay is followed without a lurch (${lowest.toFixed(2)} m in a frame)`);
   const cam2 = new CameraRig(), before = JSON.stringify(cam2.out); cam2.update(0, { x: 5, y: 3, vx: 9, speed: 16, wall: 1 });
   check(Number.isFinite(cam2.out.x) && JSON.stringify(cam2.out) !== before.replace("NaN", ""), "a frame of no time leaves the camera finite");
 }

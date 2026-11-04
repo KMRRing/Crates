@@ -104,8 +104,8 @@ function palette() {
     good: mix(e[1], yard, 0.1),
     ring: mix(brass, sheet, 0.3),
     plank2: mix(stone, [0, 0, 0], 0.2),     // every other plank a shade darker than the stone, in every theme (it was mixed towards the ink, which is pale at night: the slabs came out lighter)
-    chalk: [250, 244, 226],                                                // the gap's signals: paint on the lips, pale wood where a plank broke, a lit lantern, and water that is lighter than the planks
-    hazard: [214, 66, 42],
+    chalk: dark ? [206, 198, 176] : [232, 224, 200],                                                // the gap's signals: paint on the lips, pale wood where a plank broke, a lit lantern, and water that is lighter than the planks
+    hazard: dark ? [176, 72, 56] : [146, 52, 42],            // oxblood and chalk, weathered: he found the red and white bright (4 November 2026)
     splint: dark ? [232, 204, 160] : [196, 150, 96],
     pitwater: dark ? [74, 142, 190] : [28, 104, 152],
     beacon: [255, 176, 48],
@@ -195,8 +195,8 @@ export function createRunner(host) {
 
   // what says "gap ahead" from far off (4 November 2026, Korbi: the gaps "are only visible very late"): water lighter than the planks
   // in the pit, paint across the planks closing in on the lip, paint and pale splintered ends on both lips, and lit lanterns on posts,
-  // a gantry with a striped board 24 m before the lip (a tall thing: the planks are a few pixels deep that far off) and short ones at it
-  const MAXP = 6, WARN_AT = [10, 7, 4.5], FAR_POST = 24;
+  // a gantry with a plank sign 24 m before the lip (a tall thing: the planks are a few pixels deep that far off) and short ones at it
+  const MAXP = 6, WARN_AT = [10, 7, 4.5], FAR_POST = 24, SIGN_Y = 3.3;
   const mk = (geo, m, n) => { const i = new THREE.InstancedMesh(geo, m, n); i.frustumCulled = false; world.add(i); return i; };
   const pitWaters = Array.from({ length: MAXP }, () => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, 1, 16).rotateX(-Math.PI / 2), M.pitwater); m.frustumCulled = false; m.visible = false; world.add(m); return m; });
   const warnBars = mk(box, M.chalk, MAXP * WARN_AT.length), lipA = mk(box, M.chalk, MAXP * 9), lipB = mk(box, M.hazard, MAXP * 9), beams = mk(box, M.timber, MAXP);
@@ -312,16 +312,14 @@ export function createRunner(host) {
         const r1 = hash(Math.floor(z * 3) + k * 17), r2 = hash(Math.floor(z * 5) + k * 31 + 7), len = 0.35 + r2 * 0.7;
         set(splints, sp++, (k - 3) * 0.85 + (r1 - 0.5) * 0.3, -0.02 - r1 * 0.04, z + dir * (len / 2 - 0.1), 0.26 + r1 * 0.12, 0.08, len, (r2 - 0.5) * 0.5, dir * (0.12 + r1 * 0.25));
       }
-      for (const side of [-1, 1]) for (const [z, h, sz] of [[p.z0 - FAR_POST, 5.4, 0.5], [p.z0 - 0.9, 1.15, 0.3]]) {
+      for (const side of [-1, 1]) for (const [z, h, sz] of [[p.z0 - FAR_POST, 4.0, 0.42], [p.z0 - 0.9, 1.15, 0.3]]) {
         set(gPosts, po, side * (E - 0.1), h / 2, z, 0.2, h, 0.2);
         set(beacons, po, side * (E - 0.1), h + sz * 0.45, z, sz * pulse, sz * pulse, sz * pulse);
         po++;
       }
-      set(beams, i, 0, 5.2, p.z0 - FAR_POST, QUAY_W, 0.24, 0.24);
-      for (let k = 0; k < 6; k++) {                                                   // the board hung from it, striped like the lips
-        const c = k & 1;
-        set(c ? lipB : lipA, c ? b++ : a++, (k - 2.5) * (QUAY_W / 6), 4.55, p.z0 - FAR_POST, QUAY_W / 6, 0.9, 0.08);
-      }
+      set(beams, i, 0, SIGN_Y + 0.62, p.z0 - FAR_POST, QUAY_W, 0.2, 0.2);              // a timber beam, and a plain plank sign hung from it: oxblood, with a chalk line along it
+      set(lipB, b++, 0, SIGN_Y, p.z0 - FAR_POST, QUAY_W - 0.5, 0.62, 0.07);
+      set(lipA, a++, 0, SIGN_Y, p.z0 - FAR_POST - 0.05, QUAY_W - 0.5, 0.1, 0.05);
     });
     wipe(warnBars, w); wipe(beams, list.length); wipe(lipA, a); wipe(lipB, b); wipe(splints, sp); wipe(gPosts, po); wipe(beacons, po);
     for (const mesh of [warnBars, lipA, lipB, splints, gPosts, beacons, beams]) mesh.instanceMatrix.needsUpdate = true;
@@ -492,6 +490,7 @@ export function createRunner(host) {
   let bk = 0;                                            // 0 to 1: how far into the cellar the fog has closed in
   let now = 0, shake = 0, W = 1, H = 1, blink = 0, baseFov = 70, idleT = 0;
   const cam = new CameraRig();
+  let wallHold = 0;
   function resize() {
     const r = host.getBoundingClientRect();
     W = Math.max(1, Math.round(r.width)); H = Math.max(1, Math.round(r.height));
@@ -737,7 +736,7 @@ export function createRunner(host) {
       hy = h.y + h.vy * lead;
       if (h.y >= 0 && !W_.pits.some(p => h.z > p.z0 && h.z < p.z1)) hy = Math.max(hy, 0);          // not through the planks he is about to land on
     }
-    if (S.seed !== vis.seed) { vis.seed = S.seed; vis.y = hy; vis.vy = 0; cam.reset(h.x); resetHero(); }
+    if (S.seed !== vis.seed) { vis.seed = S.seed; vis.y = hy; vis.vy = 0; cam.reset(h.x, h.mode === "wall" ? hy : h.gy || 0); wallHold = 0; resetHero(); }
     if (pdt > 1e-4) {
       if (dt > 0 && vis.y > WATER_Y && hy <= WATER_Y) splash(hx, hz, 22, clamp(-vis.vy / 9, 0.8, 1.5));     // he goes in: the rules call it a fall only a metre lower
       vis.vy += (clamp((hy - vis.y) / pdt, -30, 30) - vis.vy) * Math.min(1, pdt * 40); vis.y = hy;
@@ -943,7 +942,9 @@ export function createRunner(host) {
     }
 
     // the camera (reckoning-move.js): it follows his lane late and leans the way he goes, draws back and widens with speed, and settles after a landing
-    const c = cam.update(pdt, { x: hx, y: hy, vx: kin.vx, speed: spd, wall: h.mode === "wall" ? h.wall : 0, rolling: st.rolling, lunging: !!h.lunge });
+    // the ground he is framed on: the deck under him, or the wall he hangs on; after a jump off a wall it stays up there until he lands, or he would sink out of frame
+    if (h.mode === "wall") wallHold = hy; else if (h.mode === "run") wallHold = 0;
+    const c = cam.update(pdt, { x: hx, y: hy, ground: Math.max(wallHold, h.gy || 0), vx: kin.vx, speed: spd, wall: h.mode === "wall" ? h.wall : 0, rolling: st.rolling, lunging: !!h.lunge });
     const fov = clamp(baseFov + c.fov, 40, 90);
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
     camera.up.set(Math.sin(c.roll), Math.cos(c.roll), 0);
@@ -1016,5 +1017,5 @@ export function createRunner(host) {
   const themeWatch = new MutationObserver(retheme);
   themeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", retheme);
-  return { frame, ping, resize, retheme, dispose, canvas, scene, get stats() { return renderer.info.render; }, palette: () => pal };
+  return { frame, ping, resize, retheme, dispose, canvas, scene, camera, hero, get stats() { return renderer.info.render; }, palette: () => pal };
 }
