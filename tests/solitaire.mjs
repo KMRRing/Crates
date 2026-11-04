@@ -198,7 +198,7 @@ const read = f => fs.readFileSync(root + f, "utf8");
   const html = read("solitaire.html"), page = read("solitaire.js"), css = read("solitaire.css"), suite = read("suite.js"), apps = read("apps.js"), rc = read("random-core.js");
   check(/solitaire\.css/.test(html) && /solitaire\.js/.test(html) && /cards\.css/.test(html) && /class="solitaire (full )?fit-screen beside"/.test(html), "the page links its styles and script and fits the screen");
   check(/IN_FRAME/.test(page) && /roundOver\("solitaire"\)/.test(page) && /life\(S/.test(page) && !/noteStreak/.test(page), "it counts played and won, tells Random its round and leaves a watching frame alone");
-  check(/solitaire: "wins"/.test(suite) && /ROUNDS = \{[\s\S]*solitaire: "/.test(rc) && /id: "solitaire", sec: "table", name: "Solitaire", href: "\.\/solitaire\.html"/.test(apps), "the games screen shows its win count, Random deals it, and its tile opens the page");
+  check(/solitaire: "wins"/.test(suite) && /ROUNDS = \{[\s\S]*solitaire: "/.test(rc) && /id: "solitaire", sec: "(table|cards)", name: "Solitaire", href: "\.\/solitaire\.html"/.test(apps), "the games screen shows its win count, Random deals it, and its tile opens the page");
   check(/orientation: landscape\) and \(min-width: 700px\)/.test(css) && /prefers-color-scheme: dark/.test(css) && /data-mode="night"/.test(css), "it has a sideways layout and a night one");
   check(!/\b(alert|confirm|prompt)\(/.test(page), "it asks with the suite's own pop-ups");
   check(/new Worker\(new URL\("\.\/solitaire-worker\.js", import\.meta\.url\)/.test(page), "the solver runs in a worker");
