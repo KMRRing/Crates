@@ -18,6 +18,8 @@ import { today, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
 import { busy, progress } from "./loading.js";
 import { sure } from "./sure.js";
+import * as sound from "./solitaire-sound.js";
+import { defaultIs3D } from "./mode3d.js";
 
 const $ = id => document.getElementById(id);
 const PREFS = "solitaire:prefs", TIMES = "solitaire:times", DAILIES = "solitaire:dailies", DEALS = "solitaire:deals", SPARES = "solitaire:spares", STATS = "solitaire:stats", WINS = "solitaire:wins";
@@ -41,6 +43,11 @@ const prefs = { variant: "klondike1", mode: "random", auto: true, four: false, .
 if (!E.VARIANTS[prefs.variant]) prefs.variant = "klondike1";
 if (prefs.mode !== "daily") prefs.mode = "random";
 const savePrefs = () => write(PREFS, prefs);
+// prefs.view ("3d" or "flat"), .tilt and .yaw (degrees) are written only when the player picks one; with none the suite's
+// 2D/3D default (mode3d.js, the main menu's battery saver) decides, so it must never be written in for them.
+// prefs.sound is off only when the player turned it off.
+sound.setOn(!IN_FRAME && prefs.sound !== false);
+sound.unlock();
 
 // ---------- looking for deals and moves ----------
 // Off the page, in a worker: a two-suit Spider deal can take a few seconds on a phone. A spare random deal of the game in
@@ -133,7 +140,7 @@ function save() {
 }
 
 /** Puts a game on the table. */
-function begin(s) {
+function begin(s, fresh = false) {
   autoToken++; rev++;
   S = { v: 1, certified: E.CHECKED(s.id), redo: [], ms: 0, hints: 0, done: null, ...s };
   ORDER = E.shuffled(S.id, S.key, S.tryNo);
@@ -146,7 +153,8 @@ function begin(s) {
   $("variant").value = S.id;
   $("table").classList.remove("won");
   say(!prefs.seen && !IN_FRAME && !S.log.length ? "Tap a card to send it where it goes, or drag it. Tap the stock for more cards." : "");
-  draw(true);
+  if (fresh) { sound.shuffle(); sound.dealing(7, 0.07, 0.7); }
+  draw(true, fresh);
   save();
   if (S.done) { $("verdict").textContent = verdict(); }
   clockRun();
@@ -169,7 +177,7 @@ async function deal(mode, id = prefs.variant) {
     }
     if (certified) keepTried(id, key, tryNo);
   }
-  begin({ id, mode, key, tryNo, certified, log: [] });
+  begin({ id, mode, key, tryNo, certified, log: [] }, true);
   if (mode === "random") setTimeout(() => refill(id), 700);
 }
 /** New deal: asks first when a game well under way would be given up (it ends the streak). */
@@ -183,7 +191,7 @@ async function newDeal(mode) {
 async function restart() {
   if (!S) return;
   if (started() && !(await sure("Start this deal again? The game so far counts as a loss.", { yes: "Start again", no: "Keep playing" }))) return;
-  begin({ ...S, log: [], redo: [], ms: 0, hints: 0, done: null, counted: false });
+  begin({ ...S, log: [], redo: [], ms: 0, hints: 0, done: null, counted: false }, true);
 }
 async function switchTo(id) {
   if (S && id === S.id) return;
@@ -202,9 +210,11 @@ function commit(m, auto = false) {
     if (!prefs.seen) { prefs.seen = true; savePrefs(); }
     if (!IN_FRAME) addStats(S.id, life(S, practice()).first());      // a loss until it is won
   }
+  const runs = G.runs.length;
   E.applyMut(G, m);
   S.log.push(E.pack(m, auto));
   rev++;
+  sayMove(m, G.runs.length > runs);
   if (plan) { if (plan[planAt] && E.sameMove(plan[planAt], m)) planAt++; else plan = null; }
   hintMove = null;
   if (!auto) clockRun();
@@ -227,6 +237,13 @@ async function settle() {
   }
 }
 function play(m) { if (commit(m)) settle(); }
+/** The sound of a move: a card to a foundation (or a run leaving Spider's table) thunks, the stock turns with a snap, any other flicks. */
+function sayMove(m, runOff = false) {
+  const f = E.kindOf(m.f), t = E.kindOf(m.t);
+  if (t === E.FND || runOff) { sound.flick(0.55); setTimeout(() => sound.thunk(), 55); }
+  else if (f === E.STK) { if (V().game === "spider") sound.dealing(10, 0.04); else sound.snap(); }
+  else sound.flick();
+}
 
 /** A tap: the stock turns; a card goes where it goes best; one that can't says why. */
 function tapped(spot) {
@@ -289,6 +306,7 @@ function undo() {
   G = E.replay(S.id, ORDER, S.log).s;
   plan = null; hintMove = null;
   say("");
+  sound.flick(0.5);
   save();
   draw();
 }
@@ -303,6 +321,7 @@ function redo() {
     S.log.push(x);
   }
   plan = null; hintMove = null;
+  sound.flick(0.5);
   save();
   draw();
   if (E.won(G)) win();
@@ -375,15 +394,53 @@ const board = createBoard($("table"), {
   fourColour: prefs.four, readonly: IN_FRAME,
   onTap: tapped, onMove: play, onReject: text => say(text, "bad"),
 });
+
+// ---------- the table in 3D ----------
+// The 3D view (solitaire-3d.js, three.js) is loaded only when it is wanted; where there is no WebGL, or the GL context is lost,
+// the flat table stays or comes back. A watching frame is always flat.
+const ANGLED = 38;
+let failed3d = false, viewing = 0;
+const wants3D = () => !IN_FRAME && !failed3d && (prefs.view ? prefs.view === "3d" : defaultIs3D());
+const tiltNow = () => (typeof prefs.tilt === "number" ? prefs.tilt : ANGLED);
+async function applyView() {
+  const my = ++viewing, want = wants3D();
+  if (want && !board.view) {
+    try {
+      const m = await import("./solitaire-3d.js");
+      if (my !== viewing || board.view) return;
+      const v = m.createView($("table"), {
+        onCamera: (tilt, yaw) => { prefs.tilt = Math.round(tilt); prefs.yaw = Math.round(yaw); savePrefs(); showTilt(); },
+        onLost: () => { failed3d = true; applyView(); },
+      });
+      v.setCamera(tiltNow(), prefs.yaw || 0, false);
+      board.setView(v);
+    } catch (err) { console.warn("Solitaire: no 3D here.", err); failed3d = true; }
+  } else if (!want && board.view) {
+    const v = board.view;
+    board.setView(null);
+    v.dispose();
+  }
+  showTilt();
+}
+function showTilt() {
+  const b = $("tiltBtn"), v = board.view;
+  b.hidden = !v;
+  if (!v) return;
+  const { tilt } = v.camera();
+  b.textContent = tilt < 1 ? "Top" : Math.abs(tilt - ANGLED) < 1 ? "Angled" : "Tilted";
+}
+$("tiltBtn").addEventListener("click", () => { board.view?.preset(); showTilt(); });
+addEventListener("settings:flat", () => { if (!prefs.view) applyView(); });
+onPause(() => board.view?.hold(true), () => board.view?.hold(false));
 function say(text, kind = "") {
   said = text;
   const el = $("line");
   el.textContent = text;
   el.className = `so-say${kind ? ` ${kind}` : ""}`;
 }
-function draw(instant = false) {
+function draw(instant = false, deal = false) {
   if (!S) return;
-  board.render(G, { hint: hintMove, bad: flashing, instant });
+  board.render(G, { hint: hintMove, bad: flashing, instant, deal });
   const done = !!S.done;
   $("controls").hidden = done;
   $("result").hidden = !done;
@@ -437,6 +494,12 @@ function openMenu() {
   if (prefs.mode === "daily") content.append(line(E.IDS.filter(id => days[id] != null).length ? `Won today: ${E.IDS.filter(id => days[id] != null).map(id => `${E.titleOf(id)} ${fmt(days[id])}`).join(", ")}.` : "Today's deal is the same for everyone."));
   settings.append(toggle("Move cards up by themselves", prefs.auto, on => { prefs.auto = on; savePrefs(); }));
   settings.append(toggle("Four-colour suits", prefs.four, on => { prefs.four = on; savePrefs(); board.setFourColour(on); }));
+  if (!IN_FRAME) {
+    settings.append(choice("Table", [["3d", "3D"], ["flat", "Flat"]], wants3D() ? "3d" : "flat", v => { prefs.view = v; failed3d = false; savePrefs(); applyView().then(openMenu); }));
+    if (board.view) settings.append(choice("Camera", [["top", "Top"], ["angled", "Angled"]], board.view.camera().tilt < ANGLED / 2 ? "top" : "angled", v => { board.view.setCamera(v === "top" ? 0 : ANGLED, 0); board.view.commit(); showTilt(); }));
+    else if (failed3d) settings.append(line("This browser can't draw 3D."));
+    settings.append(toggle("Sound", prefs.sound !== false, on => { prefs.sound = on; savePrefs(); sound.setOn(on); if (on) sound.flick(); }));
+  }
   const st = statsOf(prefs.variant), t = read(TIMES, {})[prefs.variant];
   about.append(line(st.played ? `${E.titleOf(prefs.variant)}: ${st.wins} won of ${st.played} played${t?.best != null ? `, best ${fmt(t.best)}` : ""}.` : `${E.titleOf(prefs.variant)}: nothing played yet.`));
   if (!E.CHECKED(prefs.variant)) about.append(line("Uncertified: some deals cannot be won."));
@@ -474,6 +537,7 @@ window.__solitaire = {
 };
 
 async function startUp() {
+  applyView();
   const kept = read(GAME(prefs.variant), null);
   if (validGame(kept)) begin(kept);
   else if (!IN_FRAME) await deal(prefs.mode === "daily" ? "daily" : "random");
