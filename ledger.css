@@ -5,9 +5,24 @@
 }
 html[data-mode="night"] { --lg-in: #79A9D6; --lg-good: #7FC2A8; --lg-bad: #E8806F; }
 
-.lg-body { overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: .8rem; padding: .7rem 0 1.2rem; min-height: 0; }
-.lg-card { padding: .9rem .9rem 1rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge);
+.lg-body { display: flex; flex-direction: column; gap: .5rem; padding: .3rem 0 0; min-height: 0; overflow: hidden; }
+.lg-body > * { flex: none; }
+.lg-card { padding: .8rem .85rem .9rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge);
   box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+/* upright: the headline and tabs stay, one card at a time scrolls inside its own box */
+.lg-body > .lg-card { display: none; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.lg-body > .lg-card.on { display: block; }
+.lg-head { display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; padding: .5rem .5rem .55rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); }
+.lg-head > .lg-lead { grid-column: 1 / -1; margin: 0; font-size: .82rem; color: var(--ink-soft); }
+.lg-hc { display: grid; gap: .05rem; text-align: center; min-width: 0; }
+.lg-hc .lab { font-size: .56rem; font-weight: 800; font-stretch: var(--wide, 100%); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); line-height: 1.2; }
+.lg-hc b { font-size: 1.25rem; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.lg-hc small { font-size: .62rem; color: var(--ink-soft); }
+.lg-hc .arr { font-style: normal; font-size: .95rem; }
+.lg-hc .arr.up { color: var(--lg-good); } .lg-hc .arr.down { color: var(--lg-bad); } .lg-hc .arr.flat { color: var(--ink-soft); }
+.lg-tabs { display: flex; gap: .25rem; }
+.lg-tab { flex: 1 1 0; min-width: 0; padding: .45rem .1rem; border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--tile); color: var(--ink-soft); font: inherit; font-size: .62rem; font-weight: 700; letter-spacing: 0; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+.lg-tab[aria-selected="true"] { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
 .lg-card h2 { margin: 0 0 .15rem; font-size: .8rem; font-weight: 800; font-stretch: var(--wide, 100%); letter-spacing: .12em; text-transform: uppercase; color: var(--brass-lo, var(--ink-soft)); }
 .lg-lead { margin: 0 0 .7rem; font-size: .92rem; line-height: 1.4; }
 .lg-lead b { font-variant-numeric: tabular-nums; }
@@ -23,7 +38,7 @@ html[data-mode="night"] { --lg-in: #79A9D6; --lg-good: #7FC2A8; --lg-bad: #E8806
 .lg-bars .bar.two { display: grid; gap: 2px; height: auto; background: none; }   /* knowledge: the claim above, what you knew below */
 .lg-bars .bar.two i { height: .45rem; border-radius: 2px; min-width: 2px; }
 .lg-bars .bar.two i.claimed { background: none; box-shadow: inset 0 0 0 1.5px var(--lg-in); }
-.lg-sub-h { margin: 1.1rem 0 .2rem; font-size: .95rem; }
+.lg-sub-h { margin: 1rem 0 .3rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide, 100%); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
 .lg-bars .val { font-variant-numeric: tabular-nums; color: var(--ink-soft); white-space: nowrap; }
 .lg-bars .val b { color: var(--ink); }
 
@@ -53,8 +68,60 @@ html[data-mode="night"] { --lg-in: #79A9D6; --lg-good: #7FC2A8; --lg-bad: #E8806
 .lg-two b { display: block; font-size: 1.15rem; color: var(--ink); font-variant-numeric: tabular-nums; }
 .lg-sizes { margin-top: .3rem; }
 .lg-sub { margin: .7rem 0 .3rem; }
-/* held sideways (#app.wide): the cards side by side, as many across as fit, the note under them all */
+.lg-two.lg-three { grid-template-columns: repeat(3, 1fr); }
+.lg-two.lg-three div { font-size: .68rem; }
+.lg-two.lg-three b { font-size: 1.05rem; }
+.lg-piles-bar { margin-top: 0; }
+
+/* subjects */
+.lg-subj { display: grid; grid-template-columns: 1fr 5.5rem 2.6rem; gap: .05rem .5rem; align-items: center; padding: .4rem 0; border-top: 1px solid var(--rule); font-size: .84rem; }
+.lg-subj .name { font-weight: 700; }
+.lg-subj .bar { height: .6rem; border-radius: 2px; background: color-mix(in srgb, var(--ink) 9%, transparent); overflow: hidden; }
+.lg-subj .bar i { display: block; height: 100%; background: var(--lg-in); }
+.lg-subj .val { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lg-subj small { grid-column: 1 / 3; font-size: .7rem; color: var(--ink-soft); }
+.lg-subj a { grid-column: 3; justify-self: end; font-size: .72rem; font-weight: 700; color: var(--lg-in); white-space: nowrap; }
+.lg-fold, .lg-sec { margin-top: .6rem; border-top: 1px solid var(--rule); }
+.lg-fold > summary, .lg-sec > summary { cursor: pointer; padding: .5rem 0 .25rem; font-size: .8rem; color: var(--ink-soft); }
+.lg-sec > summary { display: grid; gap: .1rem; color: var(--ink); }
+.lg-sec > summary b { font-size: .78rem; font-stretch: var(--wide, 100%); letter-spacing: .08em; text-transform: uppercase; }
+.lg-sec .sum { font-size: .7rem; color: var(--ink-soft); }
+
+/* games */
+.lg-game { display: grid; grid-template-columns: 1fr auto; gap: .05rem .5rem; align-items: baseline; padding: .35rem 0; border-top: 1px solid var(--rule); font-size: .82rem; }
+.lg-game .name { font-weight: 700; color: var(--ink); text-decoration: none; }
+.lg-game .last { color: var(--ink-soft); font-size: .7rem; text-align: right; }
+.lg-game .facts { grid-column: 1 / -1; font-size: .72rem; color: var(--ink-soft); }
+.lg-game.stalled .last { color: var(--lg-bad); }
+.lg-game .lg-dots { grid-column: 1 / -1; }
+.lg-dots { display: inline-flex; gap: .2rem; margin-top: .2rem; }
+.lg-dots i { width: .55rem; height: .55rem; border-radius: 2px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 35%, transparent); }
+.lg-dots i.on { background: var(--lg-in); box-shadow: none; }
+.lg-alert { padding: .5rem .6rem; margin-bottom: .3rem; border-radius: 5px; font-size: .8rem; background: color-mix(in srgb, var(--lg-bad) 10%, var(--sheet)); box-shadow: inset 3px 0 0 var(--lg-bad); }
+.lg-alert p { margin: .1rem 0; }
+.lg-inline, .lg-link { color: var(--lg-in); font-weight: 700; }
+
+/* judgement and next steps */
+.lg-read { margin: .1rem 0 .4rem; padding: .5rem .6rem; border-radius: 5px; background: color-mix(in srgb, var(--lg-in) 10%, var(--sheet)); font-size: .86rem; line-height: 1.4; }
+.lg-read p { margin: .2rem 0; }
+.lg-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+.lg-steps li { display: grid; gap: .1rem; padding: .7rem .75rem; border-radius: 6px; background: color-mix(in srgb, var(--lg-in) 8%, var(--sheet)); border: 1px solid var(--tile-edge); }
+.lg-steps .tag { font-size: .6rem; font-weight: 800; font-stretch: var(--wide, 100%); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.lg-steps .go { font-size: 1.02rem; font-weight: 800; color: var(--lg-in); }
+.lg-steps small { font-size: .78rem; color: var(--ink-soft); }
+.lg-will { padding-left: 1.1rem; font-size: .86rem; line-height: 1.45; color: var(--ink-soft); }
+.lg-will b { color: var(--ink); }
+.lg-go { display: inline-block; margin-top: .8rem; text-decoration: none; }
+.lg-body > .lg-empty-card { flex: 0 1 auto; }
+
+/* held sideways: the headline across, the five cards in a grid, each scrolling in its own box */
 @media (orientation: landscape) and (min-width: 700px) {
-  .lg-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); align-content: start; }
-  .lg-body > .lg-note { grid-column: 1 / -1; }
+  .lg-body { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); gap: .6rem; }
+  .lg-head { grid-column: 1 / -1; padding: .45rem .8rem; }
+  .lg-tabs { display: none; }
+  .lg-body > .lg-card { display: block; }
+  .lg-knowledge { grid-column: 1; grid-row: 2; } .lg-revision { grid-column: 2; grid-row: 2; }
+  .lg-games { grid-column: 3; grid-row: 2 / 4; } .lg-judgement { grid-column: 1; grid-row: 3; }
+  .lg-body > .lg-card.lg-next { grid-column: 2; grid-row: 3; }
+  .lg-body > .lg-empty-card { grid-column: 1 / -1; grid-row: 1 / 4; }
 }

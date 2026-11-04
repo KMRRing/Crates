@@ -19,8 +19,8 @@ export const GRADES = ["SS", "S", "A", "B", "C"];
 
 const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } };
 const write = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode */ } };
-const fresh = () => ({ since: Date.now(), recall: {}, stake: {}, size: {}, know: {}, market: {} });
-/** The record as kept: { since, recall: { week: { gap: [right, n] } }, stake: { week: { tenth: [won, n, brier] } }, size: { week: { pct: [won, n] } }, know: { week: { pct: [won, n, guesses, implied] } }, market: { week: { n, inside, grades } } } */
+const fresh = () => ({ since: Date.now(), recall: {}, stake: {}, size: {}, know: {}, market: {}, days: {} });
+/** The record as kept: { since, recall: { week: { gap: [right, n] } }, stake: { week: { tenth: [won, n, brier] } }, size: { week: { pct: [won, n] } }, know: { week: { pct: [won, n, guesses, implied] } }, market: { week: { n, inside, grades } }, days: { YYYYMMDD: [items back, right] } (the last 120 days) } */
 export function stats() { return read() || fresh(); }
 /** Starts the record afresh (the piles stay as they are). */
 export function reset() { write(fresh()); }
@@ -56,6 +56,11 @@ function bump(path, add) {
 /** An item from the pile came back after `gap` ms and was answered right or not. */
 export function noteRecall(gap, right) {
   bump(["recall", weekOf(), gapOf(Math.max(0, gap))], v => { const [r, n] = v || [0, 0]; return [r + (right ? 1 : 0), n + 1]; });
+  // the days with a review, for the Ledger's streak: the pile keeps only an item's latest answer, so the days are noted here
+  const s = stats(), d = new Date().toISOString().slice(0, 10).replace(/-/g, ""), days = (s.days ||= {}), [k, n] = days[d] || [0, 0];
+  days[d] = [k + (right ? 1 : 0), n + 1];
+  for (const old of Object.keys(days).sort().slice(0, -120)) delete days[old];
+  write(s);
 }
 /** A Punt bet: a share `pct` (1–100) of the pot at decimal odds `odds`, won or lost, and (when Punt says) the chance a
  *  pure guess had, `guess`, for knowledge read two ways. */
