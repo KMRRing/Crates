@@ -115,7 +115,6 @@ function pickWords(ev) {
   if (ev.what === "token") return `${MARKS[ev.mark]} token`;
   if (ev.what === "lever") return S.flip ? "Blue bridges up, red down" : "Red bridges up, blue down";
   if (ev.what === "meal") return "A meal";
-  if (ev.what === "grog") return "Grog: left is right";
   return ev.what[0].toUpperCase() + ev.what.slice(1);
 }
 
@@ -211,7 +210,6 @@ function goalText() {
   const noun = { goods: S.bill.want.length === 1 ? S.bill.want[0] : "goods", right: "right", kills: "cut", chain: "chain", hearts: "hearts" }[G.kind];
   if (noun) bits.push(`${noun[0].toUpperCase()}${noun.slice(1)} ${v}/${n}`);
   if (S.token) bits.push(`${MARKS[S.token]} token`);
-  if (S.inv > S.t) bits.push("left is right");
   return bits.join(" · ");
 }
 

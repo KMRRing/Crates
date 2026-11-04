@@ -404,7 +404,7 @@ export function createRunner(host) {
 
   // ---------- a section's things: what blocks the quay, what is picked up, the finish ----------
   // Boxes and cylinders, like everything else here; their colours are the goods' own, the same in every theme.
-  const GOODC = { salt: 0xEDE6D3, herring: 0x7F9CB4, furs: 0x7A5230, wax: 0xE2C24A, grog: 0xB5651D, amber: 0xF0A12B, meal: 0xC4573A, lever: 0xB8892B };
+  const GOODC = { salt: 0xEDE6D3, herring: 0x7F9CB4, furs: 0x7A5230, wax: 0xE2C24A, timber: 0xC99A5B, amber: 0xF0A12B, meal: 0xC4573A, lever: 0xB8892B };
   const MARKC = [0x808080, 0xC5483A, 0x3E9A6B, 0x3E78B5];
   const flats = {};
   const flat = (hex, glow = 0) => (flats[`${hex}:${glow}`] ||= curved(new THREE.MeshLambertMaterial({ color: hex, emissive: glow ? hex : 0x000000, emissiveIntensity: glow })));
@@ -503,9 +503,16 @@ export function createRunner(host) {
       T.halo = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.58, 24), BASIC.gold); g.add(T.halo);
     } else if (kind === "amber") {
       T.spin = part(g, sph, flat(GOODC.amber, 0.55), 0.46, 0.62, 0.46, 0, 0, 0);
-    } else if (kind === "herring" || kind === "grog") {
+    } else if (kind === "herring") {
       T.spin = new THREE.Group(); g.add(T.spin);
       part(T.spin, cyl, flat(GOODC[kind]), 0.55, 0.62, 0.55, 0, 0, 0); part(T.spin, cyl, M.gilt, 0.58, 0.07, 0.58, 0, 0.17, 0); part(T.spin, cyl, M.gilt, 0.58, 0.07, 0.58, 0, -0.17, 0);
+    } else if (kind === "timber") {
+      // a stack of three pine logs, laid side by side with a fourth across the top, each end a paler ring
+      T.spin = new THREE.Group(); g.add(T.spin);
+      for (const [x, y] of [[-0.3, -0.14], [0.3, -0.14], [0, 0.2]]) {
+        const l = part(T.spin, cyl, flat(GOODC.timber), 0.5, 1.0, 0.5, x, y, 0); l.rotation.x = Math.PI / 2;
+        for (const e of [-0.5, 0.5]) part(T.spin, cyl, flat(0xE8CC94), 0.4, 0.03, 0.4, x, y, e).rotation.x = Math.PI / 2;
+      }
     } else if (kind === "meal") {
       T.spin = new THREE.Group(); g.add(T.spin);
       part(T.spin, sph, flat(GOODC.meal), 0.6, 0.4, 0.5, 0, 0, 0); part(T.spin, sph, M.shirt, 0.2, 0.14, 0.2, 0, 0.2, 0);

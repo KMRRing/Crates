@@ -160,8 +160,7 @@ export function rowBot(S, st) {
   const h = S.hero, v = speed(S), W = S.world;
   if (h.lunge || S.pending.length || S.t < st.next) return false;
   const act = (dir, wait = 0.06) => {
-    const flipped = S.inv > S.t && (dir === "left" || dir === "right");           // after the grog the swipe is made the other way
-    swipe(S, flipped ? (dir === "left" ? "right" : "left") : dir);
+    swipe(S, dir);
     st.next = S.t + wait;
     (st.log ||= []).push(`${S.t.toFixed(2)}:${dir}@l${h.lane},y${h.y.toFixed(1)}`); if (st.log.length > 8) st.log.shift();
     return true;

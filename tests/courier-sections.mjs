@@ -2,7 +2,7 @@
 // and all twenty sections are played through by a bot that swipes by the rules (tests/reckoning-bot.js): each must reach its finish with
 // its aim met and no more hearts lost than its par allows, so a section nobody can win does not get in.
 import { SECTIONS, byId } from "../reckoning-sections.js";
-import { newGame, valid, copy, swipe, step, take, speed, goalValue, starsOf, solid, loadFactor, sectionSig, JUMP_V, LANE_W, TIDE_P, STAGGER_Z, GROG_T } from "../reckoning-engine.js";
+import { newGame, valid, copy, swipe, step, take, speed, goalValue, starsOf, solid, loadFactor, sectionSig, JUMP_V, LANE_W, TIDE_P, STAGGER_Z } from "../reckoning-engine.js";
 import { playSection } from "./reckoning-bot.js";
 
 let bad = 0;
@@ -66,7 +66,7 @@ function make(rows, extra = {}) {
   check(Math.min(...counts) >= 1 && Math.max(...counts) <= 2, "the three sluice gates are a third of a beat apart, so one is always open");
 }
 
-// ---------- the bruiser, the grog, the load, the gap ----------
+// ---------- the bruiser, the load, the gap ----------
 {
   const S = make(["C . ."]); run(S, 0.6); swipe(S, "left");
   run(S, 0.45);
@@ -75,12 +75,6 @@ function make(rows, extra = {}) {
   take(S);
   swipe(S, "up"); run(S, 1);
   check(!b.alive && S.hits === 0, "the second cut kills it");
-}
-{
-  const S = make([". . ."]); S.inv = S.t + GROG_T; swipe(S, "left");
-  check(S.hero.lane === 1, "after the grog left is right");
-  S.inv = 0; swipe(S, "left");
-  check(S.hero.lane === 0, "and then it is as it was");
 }
 {
   const S = make([". . ."], { laden: 1 });

@@ -131,7 +131,7 @@ export function newGame({ seed = 1, deal = null, hearts = 3, launch = false, sec
     hero: { z: 0, x: 0, y: 0, gy: 0, kick: false, padT: 0, vx: 0, vy: 0, lane: 0, mode: "run", wall: 0, wallY: WALL_Y, lunge: null, slam: false, hurt: 0, noWall: 0, roll: 0, rollQ: false, jumps: 0 },
     world: { z1: 0, chunks: 0, sinceGate: 0, pits: [], walls: [], decks: [], pads: [], foes: [], gates: [], obs: [], pick: [], rows: [], zones: [], comp: { biome: null, left: 0, last: [], n: 0 }, id: 1 },
     pending: [], answers: [], asked: [], ev: [],
-    sec: 0, hits: 0, carried: {}, token: 0, flip: 0, inv: 0, won: false, coins: 0, gems: 0, broke: 0, set: {}, goal: { kind: "none", n: 0 }, bill: { want: [], bad: [] }, par: { hits: 0 },
+    sec: 0, hits: 0, carried: {}, token: 0, flip: 0, won: false, coins: 0, gems: 0, broke: 0, set: {}, goal: { kind: "none", n: 0 }, bill: { want: [], bad: [] }, par: { hits: 0 },
   };
   S.piece = PIECES[piece] ? piece : null;                           // Playtest: one piece of the quay, again and again
   S.only = biome || (S.piece ? Object.keys(BIOMES).find(b => BIOMES[b].pieces.includes(piece)) || "quays" : null);                                                  // a run kept to one biome (the Playtest viewer): no other, no question
@@ -150,7 +150,7 @@ export function valid(S, sections = null) {
   const W = S.world;
   W.obs ||= []; W.pick ||= []; W.decks ||= []; W.pads ||= []; S.hero.gy ||= 0; W.rows ||= []; W.zones ||= []; W.comp ||= { biome: null, left: 0, last: [], n: 0 };
   S.piece ||= null; S.set ||= {}; S.goal ||= { kind: "none", n: 0 }; S.bill ||= { want: [], bad: [] }; S.par ||= { hits: 0 }; S.only ||= null;
-  S.sec ||= 0; S.hits ||= 0; S.carried ||= {}; S.token ||= 0; S.flip ||= 0; S.inv ||= 0; S.won = !!S.won; S.coins ||= 0; S.gems ||= 0; S.broke ||= 0; if (!Number.isFinite(S.crng)) S.crng = (S.seed ^ 0x51ED270B) | 0;
+  S.sec ||= 0; S.hits ||= 0; S.carried ||= {}; S.token ||= 0; S.flip ||= 0; S.won = !!S.won; S.coins ||= 0; S.gems ||= 0; S.broke ||= 0; if (!Number.isFinite(S.crng)) S.crng = (S.seed ^ 0x51ED270B) | 0;
   return true;
 }
 
@@ -423,7 +423,7 @@ function gate(S, z0) {
 // ---------- sections ----------
 // A section (reckoning-sections.js) is a short quay made by hand: rows of three cells, one to a lane, a row every `gap`
 // metres, and a finish. Cells are words split on spaces: . (empty) c crab, C bruiser (two cuts, thrown back by the first),
-// g gull; b barrel (jump it), B beam (roll under it), X cart (go round); goods s salt, h herring, f furs, w wax, r grog,
+// g gull; b barrel (jump it), B beam (roll under it), X cart (go round); goods s salt, h herring, f furs, w wax, t timber,
 // a amber (hung in the air); 1 2 3 a token; T1 T2 T3 a toll booth that lets through only the token of its number;
 // L a lever (turns the drawbridges over); F0 F1 a drawbridge, up when the lever is at that number; W0 W1 W2 a sluice gate
 // that opens and shuts on a beat, the three a third of a beat apart; H a meal (a heart back). A row beginning with ! is a
@@ -438,8 +438,7 @@ export const OBS = {                       // what blocks: base, top and length 
 };
 export const ROLL_H = 0.6;                 // the height of a hero rolling: a beam hangs above it
 export const TIDE_P = 3.0, TIDE_OPEN = 0.5, TIDE_WARN = 0.7;   // a sluice gate: the beat in seconds, the part of it that it is open, and the seconds of warning before it changes
-export const GOODS = { s: "salt", h: "herring", f: "furs", w: "wax", r: "grog", a: "amber" };
-export const GROG_T = 5;                   // seconds that left and right are the wrong way round after a drink
+export const GOODS = { s: "salt", h: "herring", f: "furs", w: "wax", t: "timber", a: "amber" };
 export const LOAD_LESS = 0.025, LOAD_MIN = 0.8;   // what each good carried takes off the speed of a jump, and the least it comes to
 
 export const loadFactor = S => (S.mods?.laden ? Math.max(LOAD_MIN, 1 - LOAD_LESS * (S.carried.total || 0)) : 1);
@@ -610,7 +609,6 @@ function take1(S, p) {
       S.carried[p.kind] = (S.carried[p.kind] || 0) + 1;
       S.carried.total = (S.carried.total || 0) + 1;
       S.bonus += 50;
-      if (p.kind === "grog") S.inv = S.t + GROG_T;
   }
   S.ev.push({ type: "pick", what: p.kind, mark: p.mark || 0, id: p.id });
 }
@@ -661,7 +659,6 @@ const grounded = h => h.mode === "run";
 /** A swipe: "up" | "down" | "left" | "right". It works now if it can, else waits a moment (BUFFER) for something to work on. */
 export function swipe(S, dir) {
   if (S.over) return S.ev;
-  if (S.inv > S.t && (dir === "left" || dir === "right")) dir = dir === "left" ? "right" : "left";       // the grog: left is right
   if (!resolve(S, dir)) { const keep = keepFor(S, dir); S.pending.push({ dir, until: S.t + keep }); S.ev.push({ type: "wait", dir, keep }); }
   return S.ev;
 }

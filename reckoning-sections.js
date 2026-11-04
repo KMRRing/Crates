@@ -84,10 +84,10 @@ export const SECTIONS = [
     rows: ["W0 W1 W2", "c . .", "W2 W0 W1", ". . c", "W1 W2 W0", "c . .", "W0 W1 W2", ". c .", "W2 W0 W1", ". . c", "W1 W2 W0", "W0 W1 W2", "c . .", "W2 W0 W1", "b . .", "W1 W2 W0", ". B .", "W0 W1 W2", "c . .", "W2 W0 W1", ". . c", "W1 W2 W0", "W2 W0 W1", "W0 W1 W2", "W1 W2 W0"],
   },
   {
-    id: 13, name: "Grog Night", place: "Rostock", idea: "Every cask of grog is a bonus, and left is right for five seconds after each.",
-    brief: "Take the grog. Then left is right, for a while.",
-    v0: 10, v1: 11, gap: 12, bill: { want: ["grog"] }, goal: { kind: "goods", n: 3 }, par: { hits: 0, more: 6 },
-    rows: [". r .", "c . X", "X . c", ". c X", "r . .", "X c .", ". . X", "X . .", ". r .", "c X .", ". X c", "X . c", ". . r", "c . X", "X . .", "r c .", ". . X", "X . .", ". X c", "r . X", "X c .", ". . X", "c . X", ". r .", "X . c", "X c .", ". . r", "c X .", ". X ."],
+    id: 13, name: "Timber Wharf", place: "Rostock", idea: "Stacks of timber stand in the lanes the carts leave open: read each row early and change lane for the next stack.",
+    brief: "Take the timber. Carts shut the other lanes.",
+    v0: 10, v1: 11, gap: 12, bill: { want: ["timber"] }, goal: { kind: "goods", n: 3 }, par: { hits: 0, more: 6 },
+    rows: [". t .", "c . X", "X . c", ". c X", "t . .", "X c .", ". . X", "X . .", ". t .", "c X .", ". X c", "X . c", ". . t", "c . X", "X . .", "t c .", ". . X", "X . .", ". X c", "t . X", "X c .", ". . X", "c . X", ". t .", "X . c", "X c .", ". . t", "c X .", ". X ."],
   },
   {
     id: 14, name: "Granary Walls", place: "Danzig", idea: "The warehouse walls run beside the water: run up one and over the gap, then change sides.",

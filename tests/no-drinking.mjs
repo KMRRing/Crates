@@ -9,17 +9,15 @@ const root = new URL("..", import.meta.url).pathname;
 // whole files that are subject matter: knowledge banks and word lists, the Wine course, the clue and definition data,
 // the language courses (they teach "I drink tea"), a bill-splitting sum, the kinds of a thing
 const SUBJECT = /(-bank|-data|-words|-pool|-labels|-regions|-service|-subjects|-layout|-themes)\.js$|^(clues-data|slate-defs|kb-things|kb-index|parley-courses|parley-es|wine-bank|chart-geo|pics-list)\.js$/;
-// Reckoning's grog is a Hanseatic trade good (a cask to take for a bonus), not a penalty
-const TRADE = new Set(["reckoning-engine.js"]);
 // lines that are not a drink being taken: a topic's name, a lesson's saved id (renaming it would reset a player's progress)
 const LINE_OK = [/food (and|&amp;|&) drink/i, /\bid: "drink"/, /\bkind: "drink"|\bdrink: "food"/];
 
-const BANNED = /\b(drinks?|drinking|drank|drunk(en)?|sips?|sipping|sipped|chugs?|chugging|tipsy|bottoms up|swigs?|booze|boozy|cheers)\b/i;
+const BANNED = /\b(drinks?|drinking|drank|drunk(en)?|sips?|sipping|sipped|chugs?|chugging|tipsy|bottoms up|swigs?|booze|boozy|cheers|grog)\b/i;
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 
-const files = fs.readdirSync(root).filter(f => /\.(js|html|css)$/.test(f) && f !== "sw.js" && !SUBJECT.test(f) && !TRADE.has(f));
+const files = fs.readdirSync(root).filter(f => /\.(js|html|css)$/.test(f) && f !== "sw.js" && !SUBJECT.test(f));
 const found = [];
 for (const f of files) {
   const text = fs.readFileSync(root + f, "utf8")
