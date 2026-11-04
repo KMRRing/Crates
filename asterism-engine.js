@@ -44,7 +44,9 @@ export function puzzleOf(N, k, reg, sol = null) {
     for (let i = 0; i < N; i++) groups.push({ kind: "region", id: i, cells: [] });
     for (let x = 0; x < N * N; x++) groups[2 * N + R[x]]?.cells.push(x);
     const of = Array.from({ length: N * N }, (_, x) => [Math.floor(x / N), N + (x % N), 2 * N + R[x]]);
-    P = { N, k, reg: R, nbr, nb4, groups, of };
+    const fam = o => Array.from({ length: N }, (_, i) => o + i);
+    P = { N, n: N * N, k, reg: R, nbr, nb4, groups, of,
+      pairs: [[fam(0), fam(2 * N), "regions-in-lines", "row"], [fam(2 * N), fam(0), "lines-in-regions", "row"], [fam(N), fam(2 * N), "regions-in-lines", "col"], [fam(2 * N), fam(N), "lines-in-regions", "col"]] };
     if (PUZZLES.size > 200) PUZZLES.clear();
     PUZZLES.set(key, P);
   }
@@ -167,47 +169,25 @@ function look(P, st) {
   return null;
 }
 
-/** Lines and regions that must hold the same stars. If the regions lying wholly inside some lines need as many stars as
- *  the lines do, the lines' other cells are empty; and the same the other way round. `s` lines (or regions) at a time. */
+/** Groups that must hold the same stars. `P.pairs` says which families of disjoint groups (rows, columns, regions; on a
+ *  solid its belts) are weighed against which: if the groups of one family lying wholly inside `s` groups of the other need
+ *  as many stars as those do, the others' remaining cells are empty. Lines against regions, and regions against lines. */
 function counting(P, st, s) {
-  const N = P.N, open = P.groups.map(g => unknownIn(st, g));
+  const open = P.groups.map(g => unknownIn(st, g));
   const needs = P.groups.map((g, i) => (open[i].length ? need(P, st, g) : 0));
-  const inReg = Array.from({ length: 2 * N }, () => new Int16Array(N));        // open cells of a line in a region
-  for (let i = 0; i < 2 * N; i++) for (const c of open[i]) inReg[i][P.reg[c]]++;
-  for (const o of [0, N]) {
-    const subsets = pickSets(N, s);
-    for (const S of subsets) {
-      const lines = S.map(i => o + i);
-      const cells = new Set(lines.flatMap(l => open[l]));
-      const needL = lines.reduce((t, l) => t + needs[l], 0);
-      if (needL <= 0) continue;
-      // regions wholly inside the lines
-      const inside = [];
-      for (let r = 0; r < N; r++) {
-        const total = open[2 * N + r].length;
-        if (total && needs[2 * N + r] > 0 && S.reduce((t, i) => t + inReg[o + i][r], 0) === total) inside.push(r);
-      }
-      if (inside.length && inside.reduce((t, r) => t + needs[2 * N + r], 0) === needL) {
-        const keep = new Set(inside);
-        const set = [...cells].filter(c => !keep.has(P.reg[c])).map(c => [c, 2]);
-        if (set.length) return { level: s === 1 ? 1 : s === 2 ? 2 : 3, tech: "count", dir: "regions-in-lines", orient: o ? "col" : "row", lines: S, regions: inside, stars: needL, set, cells: [...lines.flatMap(l => P.groups[l].cells), ...inside.flatMap(r => P.groups[2 * N + r].cells)] };
-      }
-    }
-    // the other way: lines wholly inside regions
-    for (const S of subsets) {
-      const regs = S, rcells = regs.flatMap(r => open[2 * N + r]);
-      const needR = regs.reduce((t, r) => t + needs[2 * N + r], 0);
-      if (needR <= 0) continue;
-      const inside = [];
-      for (let i = 0; i < N; i++) {
-        const total = open[o + i].length;
-        if (total && needs[o + i] > 0 && regs.reduce((t, r) => t + inReg[o + i][r], 0) === total) inside.push(i);
-      }
-      if (inside.length && inside.reduce((t, i) => t + needs[o + i], 0) === needR) {
-        const gone = new Set(inside.flatMap(i => open[o + i]));
-        const set = rcells.filter(c => !gone.has(c)).map(c => [c, 2]);
-        if (set.length) return { level: s === 1 ? 1 : s === 2 ? 2 : 3, tech: "count", dir: "lines-in-regions", orient: o ? "col" : "row", lines: inside, regions: regs, stars: needR, set, cells: [...inside.flatMap(i => P.groups[o + i].cells), ...regs.flatMap(r => P.groups[2 * N + r].cells)] };
-      }
+  const level = s === 1 ? 1 : s === 2 ? 2 : 3;
+  for (const [A, B, dir, orient] of P.pairs) {
+    for (const S of pickSets(A.length, s)) {
+      const from = S.map(i => A[i]), needA = from.reduce((t, g) => t + needs[g], 0);
+      if (needA <= 0) continue;
+      const cells = new Set(from.flatMap(g => open[g]));
+      const inside = B.filter(g => open[g].length && needs[g] > 0 && open[g].every(c => cells.has(c)));
+      if (!inside.length || inside.reduce((t, g) => t + needs[g], 0) !== needA) continue;
+      const keep = new Set(inside.flatMap(g => open[g]));
+      const set = [...cells].filter(c => !keep.has(c)).map(c => [c, 2]);
+      if (!set.length) continue;
+      const ids = gs => gs.map(g => P.groups[g].id), lines = dir === "regions-in-lines" ? from : inside, regions = dir === "regions-in-lines" ? inside : from;
+      return { level, tech: "count", dir, orient, lines: ids(lines), regions: ids(regions), stars: needA, set, cells: [...lines.flatMap(g => P.groups[g].cells), ...regions.flatMap(g => P.groups[g].cells)] };
     }
   }
   return null;
@@ -266,7 +246,7 @@ export function findStep(P, st, maxLevel = 3) {
 const applied = (st, step) => { for (const [c, m] of step.set) st[c] = m; };
 /** Solves from a state with the steps up to `maxLevel`: whether it got there, the hardest level it used, the steps. */
 export function solveAs(P, maxLevel = 3, from = null) {
-  const st = from ? Int8Array.from(from) : new Int8Array(P.N * P.N);
+  const st = from ? Int8Array.from(from) : new Int8Array(P.n);
   let level = 0, steps = 0;
   for (;;) {
     const step = findStep(P, st, maxLevel);

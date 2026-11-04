@@ -21,6 +21,8 @@ import { STAR, DOT } from "./asterism-engine.js";
 export const REST = { yaw: -0.14, pitch: 0.42 };
 /** How far a finger may turn it. */
 export const LIMITS = { yaw: 0.95, lo: 0.0, hi: 1.12 };
+/** A solid turns all the way round, and over its poles (almost); it rests with three faces showing. */
+export const SOLID = { rest: { yaw: 0.7, pitch: 0.55 }, lo: -1.45, hi: 1.45 };
 const DIST = 2.9;                      // the eye's distance from the pane's middle, in pane widths: a gentle perspective
 const LIFT = 0.3;                      // how far a star hovers over the glass, in cells
 const THICK = 0.2;                     // the glass's thickness, in cells
@@ -97,9 +99,9 @@ export function createSpace(host, hooks = {}) {
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   const still = () => motion.matches;
 
-  let P = null, S = null, N = 0, marks = "";
+  let P = null, S = null, N = 0, marks = "", cellsN = 0;
   let W = 1, H = 1, dpr = 1, cx = 0, cy = 0, f = 1;
-  let yaw = REST.yaw, pitch = REST.pitch, vyaw = 0, vpitch = 0, grabbed = false, touchedAt = -1e9, hot = -1, homing = null;
+  let rest = REST, yaw = REST.yaw, pitch = REST.pitch, vyaw = 0, vpitch = 0, grabbed = false, touchedAt = -1e9, hot = -1, homing = null;
   const moves = [];                                      // the last moves of a drag [t, dyaw, dpitch], for a flick
   let R = poseMatrix(yaw, pitch);                        // the pose last drawn (a tap is picked with it)
   let VX = new Float32Array(0), VY = new Float32Array(0);
@@ -221,7 +223,7 @@ export function createSpace(host, hooks = {}) {
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     canvas.style.width = `${W}px`; canvas.style.height = `${H}px`;
     cx = W / 2; cy = H / 2 + 2;
-    if (N) f = fitScale(N, W, H, Math.max(8, Math.min(W, H) * 0.035));
+    fit();
     buildSky();
     wake();
   }
@@ -237,16 +239,18 @@ export function createSpace(host, hooks = {}) {
     if (!P || !S) return;
     const now = performance.now();
     if (fresh) {
-      N = P.N; marks = S.marks;
-      VX = new Float32Array((N + 1) * (N + 1)); VY = new Float32Array((N + 1) * (N + 1));
-      born = new Float64Array(N * N).fill(-1e9); gone = new Float64Array(N * N).fill(-1e9); dust = new Float64Array(N * N).fill(-1e9);
+      N = P.N || 0; marks = S.marks; cellsN = P.n;
+      mesh = null;
+      if (P.topo) { buildMesh(); rest = mesh.closed ? SOLID.rest : REST; } else { rest = REST; VX = new Float32Array((N + 1) * (N + 1)); VY = new Float32Array((N + 1) * (N + 1)); }
+      born = new Float64Array(cellsN).fill(-1e9); gone = new Float64Array(cellsN).fill(-1e9); dust = new Float64Array(cellsN).fill(-1e9);
       sweeps = []; winAt = S.done ? -1e9 : null; lastPlaced = -1;
-      f = fitScale(N, W, H, Math.max(8, Math.min(W, H) * 0.035));
-      buildNebula();
+      yaw = rest.yaw; pitch = rest.pitch; vyaw = vpitch = 0; homing = null;
+      fit();
+      if (!mesh) buildNebula();
       groupsDone = completeGroups(S.marks, opts.bad);
-      canvas.setAttribute("aria-label", `The board, in space: ${N} by ${N}. Tap a cell to dot it, again to make it a star, again to clear it. Drag along a row or column to dot cells; turn the board with two fingers, or with the Turn button.`);
+      canvas.setAttribute("aria-label", `The board, in space: ${mesh ? (mesh.closed ? "a cube" : "a hexagon") : `${N} by ${N}`}. Tap a cell to dot it, again to make it a star, again to clear it. Drag along a row or column to dot cells; turn the board with two fingers, or with the Turn button.`);
     } else if (S.marks !== marks) {
-      for (let x = 0; x < N * N; x++) {
+      for (let x = 0; x < cellsN; x++) {
         const was = marks[x], is = S.marks[x];
         if (was === is) continue;
         if (is === STAR) { born[x] = now; lastPlaced = x; } else if (was === STAR) gone[x] = now;
@@ -275,14 +279,18 @@ export function createSpace(host, hooks = {}) {
   function startSweep(gi, now) {
     const cells = P.groups[gi].cells;
     const from = cells.includes(lastPlaced) ? lastPlaced : cells[0], fr = Math.floor(from / N), fc = from % N;
+    if (mesh) { const a = mesh.cells[from].c; sweeps.push({ t0: now, items: cells.map(x => [x, Math.hypot(...mesh.cells[x].c.map((v, i) => v - a[i])) / mesh.size * SWEEP_STEP]) }); return; }
     sweeps.push({ t0: now, items: cells.map(x => [x, Math.hypot(Math.floor(x / N) - fr, (x % N) - fc) * SWEEP_STEP]) });
   }
-  const clear = () => { P = null; S = null; N = 0; };
+  const clear = () => { P = null; S = null; N = 0; mesh = null; };
   /** A finger is down on cell x (it shows which one a tap would change), or on none (-1). */
   function press(x) { hot = x; wake(); }
 
   // ---------- turning ----------
-  const clampPose = () => { yaw = Math.max(-LIMITS.yaw, Math.min(LIMITS.yaw, yaw)); pitch = Math.max(LIMITS.lo, Math.min(LIMITS.hi, pitch)); };
+  const clampPose = () => {
+    if (mesh?.closed) { yaw = ((yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI; pitch = Math.max(SOLID.lo, Math.min(SOLID.hi, pitch)); return; }
+    yaw = Math.max(-LIMITS.yaw, Math.min(LIMITS.yaw, yaw)); pitch = Math.max(LIMITS.lo, Math.min(LIMITS.hi, pitch));
+  };
   function grab() { grabbed = true; vyaw = vpitch = 0; homing = null; moves.length = 0; touchedAt = performance.now(); wake(); }
   function drag(dx, dy) {
     const now = performance.now(), ky = 0.0062, kp = 0.0058;
@@ -308,7 +316,7 @@ export function createSpace(host, hooks = {}) {
   /** Back to the opening pose (the menu's Reset view): a short glide, at once for reduced motion. */
   function resetView() {
     vyaw = vpitch = 0;
-    if (still()) { yaw = REST.yaw; pitch = REST.pitch; homing = null; } else homing = { t0: performance.now(), y0: yaw, p0: pitch };
+    if (still()) { yaw = rest.yaw; pitch = rest.pitch; homing = null; } else { clampPose(); homing = { t0: performance.now(), y0: yaw, p0: pitch }; }
     wake();
   }
   const HOME_MS = 380;
@@ -316,7 +324,7 @@ export function createSpace(host, hooks = {}) {
     if (grabbed) return;
     if (homing) {
       const t = Math.min(1, (now - homing.t0) / HOME_MS), e = 1 - (1 - t) ** 3;
-      yaw = homing.y0 + (REST.yaw - homing.y0) * e; pitch = homing.p0 + (REST.pitch - homing.p0) * e;
+      yaw = homing.y0 + (rest.yaw - homing.y0) * e; pitch = homing.p0 + (rest.pitch - homing.p0) * e;
       if (t >= 1) homing = null;
       return;
     }
@@ -340,7 +348,7 @@ export function createSpace(host, hooks = {}) {
     frame(now);
     const ms = performance.now() - t0;
     stats.ms = ms; stats.frames++; stats.avg = stats.avg ? stats.avg * 0.9 + ms * 0.1 : ms;
-    if (stats.frames > 12 && ms > SLOW_MS) { if (++slowCount >= SLOW_FRAMES) { halted = true; hooks.slow?.(); return; } } else if (slowCount > 0 && ms < SLOW_MS / 2) slowCount--;
+    if (!mesh && stats.frames > 12 && ms > SLOW_MS) { if (++slowCount >= SLOW_FRAMES) { halted = true; hooks.slow?.(); return; } } else if (slowCount > 0 && ms < SLOW_MS / 2) slowCount--;
     if (busy || now < awakeUntil) schedule();
   }
   const recent = now => { for (let i = 0; i < born.length; i++) if (now - born[i] < 1400 || now - gone[i] < 500) return true; return false; };
@@ -348,6 +356,232 @@ export function createSpace(host, hooks = {}) {
   document.addEventListener("visibilitychange", onVis);
   const pause = () => { halted = true; cancelAnimationFrame(raf); raf = 0; };
   const resume = () => { halted = false; wake(4000); };
+
+  // ---------- a cube or a hexagon board: cells as polygons (asterism-solid.js) ----------
+  // The cube's cells lie on the unit sphere (the cube projected radially, as Mines' solids are), the hexagon board on a
+  // plane; both are drawn by hand in perspective, the cells facing you only, as polygons through their projected corners.
+  // The region's look is its dim colour, shaded by the light, a faint mark in each cell (as the nebula's pattern is on
+  // the square pane), and the brass rule that holds it.
+  const DM = 4;                                              // the eye's distance from the middle, in the solid's radius
+  const LIGHT = [-0.35, -0.55, 0.76];
+  let mesh = null, PX = null, PY = null, PZ = null, CX = null, CY = null, CS = null, CZ = null, VIS = null, NZ = null;
+  const shadeCache = new Map();
+  function buildMesh() {
+    const M = P.topo.mesh, idx = new Map(), V = [], cv = [];
+    const key = p => `${Math.round(p[0] * 1e5)},${Math.round(p[1] * 1e5)},${Math.round(p[2] * 1e5)}`;
+    for (const cell of M.cells) cv.push(cell.pts.map(p => { const k = key(p); let i = idx.get(k); if (i === undefined) { i = V.length / 3; idx.set(k, i); V.push(p[0], p[1], p[2]); } return i; }));
+    const owner = new Map();
+    cv.forEach((ids, x) => ids.forEach((a, j) => { const b = ids[(j + 1) % ids.length], k = a < b ? `${a}-${b}` : `${b}-${a}`; let l = owner.get(k); if (!l) owner.set(k, l = []); l.push(x); }));
+    const rules = [], rim = [];
+    for (const [k, cells] of owner) {
+      const [a, b] = k.split("-").map(Number);
+      if (cells.length === 1) rim.push(a, b, cells[0]);
+      else if (P.reg[cells[0]] !== P.reg[cells[1]]) rules.push(a, b, cells[0], cells[1]);
+    }
+    const nV = V.length / 3, n = M.cells.length;
+    mesh = { V: Float32Array.from(V), cv, rules, rim, closed: M.closed, size: M.size, cells: M.cells };
+    PX = new Float32Array(nV); PY = new Float32Array(nV); PZ = new Float32Array(nV);
+    CX = new Float32Array(n); CY = new Float32Array(n); CS = new Float32Array(n); CZ = new Float32Array(n); VIS = new Float32Array(n); NZ = new Float32Array(n);
+  }
+  function fit() {
+    if (mesh) f = (Math.min(W, H) / 2 - Math.max(8, Math.min(W, H) * 0.035)) * Math.sqrt(DM * DM - 1) * (mesh.closed ? 1 : 0.84);
+    else if (N) f = fitScale(N, W, H, Math.max(8, Math.min(W, H) * 0.035));
+  }
+  /** Projects the vertices and each cell's middle for the pose; VIS is how squarely a cell faces you (0 or less: away). */
+  function projectMesh() {
+    const V = mesh.V, nV = V.length / 3;
+    for (let i = 0; i < nV; i++) {
+      const x = V[3 * i], y = V[3 * i + 1], z = V[3 * i + 2];
+      const rx = R[0] * x + R[1] * y + R[2] * z, ry = R[3] * x + R[4] * y + R[5] * z, rz = R[6] * x + R[7] * y + R[8] * z, s = f / (DM - rz);
+      PX[i] = cx + s * rx; PY[i] = cy + s * ry; PZ[i] = rz;
+    }
+    mesh.cells.forEach((c, x) => {
+      const [X, Y, Z] = c.c, rx = R[0] * X + R[1] * Y + R[2] * Z, ry = R[3] * X + R[4] * Y + R[5] * Z, rz = R[6] * X + R[7] * Y + R[8] * Z, s = f / (DM - rz);
+      const [a, b, d] = c.nrm, nx = R[0] * a + R[1] * b + R[2] * d, ny = R[3] * a + R[4] * b + R[5] * d, nz = R[6] * a + R[7] * b + R[8] * d;
+      const ex = -rx, ey = -ry, ez = DM - rz, el = Math.hypot(ex, ey, ez);
+      CX[x] = cx + s * rx; CY[x] = cy + s * ry; CS[x] = s * mesh.size; CZ[x] = rz; NZ[x] = nz;
+      VIS[x] = (nx * ex + ny * ey + nz * ez) / el;
+    });
+  }
+  const FACING = 0.04;
+  const polyPath = x => {
+    const ids = mesh.cv[x];
+    ctx.beginPath(); ctx.moveTo(PX[ids[0]], PY[ids[0]]);
+    for (let j = 1; j < ids.length; j++) ctx.lineTo(PX[ids[j]], PY[ids[j]]);
+    ctx.closePath();
+  };
+  /** The cell under a point of the canvas: the nearest of those facing you with the point inside, or -1 (a sliver seen edge-on is not one). */
+  function meshPick(sx, sy) {
+    let best = -1, bz = -1e9;
+    for (let x = 0; x < VIS.length; x++) {
+      if (VIS[x] < 0.22 || CZ[x] < bz) continue;
+      const ids = mesh.cv[x];
+      let inside = false;
+      for (let i = 0, j = ids.length - 1; i < ids.length; j = i++) {
+        const xi = PX[ids[i]], yi = PY[ids[i]], xj = PX[ids[j]], yj = PY[ids[j]];
+        if ((yi > sy) !== (yj > sy) && sx < (xj - xi) * (sy - yi) / (yj - yi) + xi) inside = !inside;
+      }
+      if (inside) { best = x; bz = CZ[x]; }
+    }
+    return best;
+  }
+  /** A faint mark in a cell, one of ten, told by its shape and direction (never by colour). */
+  function markIn(x, kind, u) {
+    const ids = mesh.cv[x], ax = PX[ids[1]] - PX[ids[0]], ay = PY[ids[1]] - PY[ids[0]], al = Math.hypot(ax, ay) || 1;
+    const ex = ax / al, ey = ay / al, fx = -ey, fy = ex, cxx = CX[x], cyy = CY[x], h = u * 0.22;
+    const seg = (x1, y1, x2, y2) => { ctx.moveTo(cxx + ex * x1 + fx * y1, cyy + ey * x1 + fy * y1); ctx.lineTo(cxx + ex * x2 + fx * y2, cyy + ey * x2 + fy * y2); };
+    ctx.beginPath();
+    switch (kind) {
+      case 1: seg(-h, -h, h, h); seg(-h, 0, 0, h); seg(0, -h, h, 0); break;               // "\" hatch
+      case 2: for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.moveTo(cxx + ex * a * h * 0.7 + fx * b * h * 0.7 + 1, cyy + ey * a * h * 0.7 + fy * b * h * 0.7); ctx.arc(cxx + ex * a * h * 0.7 + fx * b * h * 0.7, cyy + ey * a * h * 0.7 + fy * b * h * 0.7, 1, 0, 6.2832); } break;
+      case 3: seg(-h * 1.3, -h * 0.5, h * 1.3, -h * 0.5); seg(-h * 1.3, h * 0.5, h * 1.3, h * 0.5); break;   // two rules along the cell
+      case 4: seg(-h, h, h, -h); seg(-h, 0, 0, -h); seg(0, h, h, 0); break;                // "/" hatch
+      case 5: seg(-h, -h, h, h); seg(-h, h, h, -h); break;                                  // a cross
+      case 6: seg(-h * 0.5, -h * 1.3, -h * 0.5, h * 1.3); seg(h * 0.5, -h * 1.3, h * 0.5, h * 1.3); break;   // two rules across it
+      case 7: ctx.moveTo(cxx + h, cyy); ctx.arc(cxx, cyy, h, 0, 6.2832); break;              // a ring
+      case 8: seg(-h * 1.3, 0, -h * 0.65, -h * 0.5); seg(-h * 0.65, -h * 0.5, 0, 0); seg(0, 0, h * 0.65, -h * 0.5); seg(h * 0.65, -h * 0.5, h * 1.3, 0); break;   // a wave
+      case 9: seg(-h, 0, h, 0); seg(0, -h, 0, h); break;                                    // a plus
+      default: return;
+    }
+    ctx.stroke();
+  }
+  /** Lines through a cell (its belts, or rows): what a press shows, so a belt can be followed by eye. */
+  const linesOf = x => P.of[x].filter(gi => P.groups[gi].kind !== "region");
+
+  function frameMesh(now, calm, win, wage, wb, yw, pt) {
+    projectMesh();
+    const n = mesh.cells.length, unit = f / DM * mesh.size;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+    drawSky(now, yw, pt, calm, win);
+    const ur = f / Math.sqrt(DM * DM - 1) * (mesh.closed ? 1.18 : 1.05);
+    ctx.globalAlpha = 0.5 + 0.35 * wb;
+    ctx.drawImage(UNDER, cx - ur, cy - ur * 0.9, 2 * ur, 2 * ur * 0.9);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+
+    // the cells facing you, dim and shaded, a faint mark in each
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    const shown = [];
+    for (let x = 0; x < n; x++) if (VIS[x] > FACING) shown.push(x);
+    shown.sort((a, b) => CZ[a] - CZ[b]);
+    for (const x of shown) {
+      const r = P.reg[x], hue = HUES[r % HUES.length], lit = Math.max(0, (R[0] * mesh.cells[x].nrm[0] + R[1] * mesh.cells[x].nrm[1] + R[2] * mesh.cells[x].nrm[2]) * LIGHT[0] + (R[3] * mesh.cells[x].nrm[0] + R[4] * mesh.cells[x].nrm[1] + R[5] * mesh.cells[x].nrm[2]) * LIGHT[1] + NZ[x] * LIGHT[2]);
+      const shade = (0.55 + 0.55 * lit) * (0.62 + 0.38 * Math.min(1, VIS[x] * 1.6)), q = `${r}:${Math.round(shade * 24)}`;
+      let col = shadeCache.get(q);
+      if (!col) shadeCache.set(q, col = `hsl(${hue[0]}, ${hue[1]}%, ${Math.min(60, hue[2] * 1.25 * shade).toFixed(1)}%)`);
+      polyPath(x); ctx.fillStyle = col; ctx.fill();
+    }
+    ctx.strokeStyle = "rgba(1,3,8,.9)"; ctx.lineWidth = Math.max(1.2, unit * 0.07);
+    for (const x of shown) { polyPath(x); ctx.stroke(); }
+    ctx.lineWidth = 1;
+    for (const x of shown) {
+      if (VIS[x] < 0.3 || unit < 11) continue;
+      const hue = HUES[P.reg[x] % HUES.length];
+      ctx.strokeStyle = ctx.fillStyle = `hsla(${hue[0]}, ${hue[1]}%, ${Math.min(80, hue[2] + 24)}%, ${(0.36 * Math.min(1, VIS[x] * 1.4)).toFixed(2)})`;
+      markIn(x, hue[3], CS[x]);
+      if (hue[3] === 2) ctx.fill();
+    }
+
+    // lights across the plates: the belts through a finger's cell, a hint's cells, sweeps, the end, a conflict
+    const quad = polyPath;
+    ctx.globalCompositeOperation = "lighter";
+    if (hot >= 0) for (const gi of linesOf(hot)) for (const x of P.groups[gi].cells) if (VIS[x] > FACING) { quad(x); ctx.fillStyle = "rgba(214,190,130,.075)"; ctx.fill(); }
+    for (const x of lit) if (VIS[x] > FACING) { quad(x); ctx.fillStyle = "rgba(214,176,100,.17)"; ctx.fill(); }
+    if (hot >= 0 && VIS[hot] > FACING) { quad(hot); ctx.fillStyle = "rgba(190,200,222,.13)"; ctx.fill(); }
+    if (sweeps.length) {
+      for (const sw of sweeps) for (const [x, delay] of sw.items) {
+        const v = bump(now - sw.t0 - delay, SWEEP_MS);
+        if (v > 0.01 && VIS[x] > FACING) { quad(x); ctx.fillStyle = `rgba(206,194,150,${(0.3 * v).toFixed(3)})`; ctx.fill(); }
+      }
+      sweeps = sweeps.filter(sw => now - sw.t0 < SWEEP_MS + sw.items.reduce((m, i) => Math.max(m, i[1]), 0));
+    }
+    if (wb > 0.01) for (const x of shown) { quad(x); ctx.fillStyle = `rgba(214,184,120,${(0.075 * wb).toFixed(3)})`; ctx.fill(); }
+    const pulse = calm ? 0.7 : 0.5 + 0.5 * Math.sin(now / 240);
+    for (const x of bad) if (marks[x] !== STAR && VIS[x] > FACING) { quad(x); ctx.fillStyle = `rgba(150,40,34,${(0.16 + 0.12 * pulse).toFixed(3)})`; ctx.fill(); }
+    ctx.globalCompositeOperation = "source-over";
+
+    // the rules that hold each region (where either side faces you), and a hexagon board's rim
+    const rule = (a, b, c1, c2) => PZ[a] > -0.12 && PZ[b] > -0.12 && (VIS[c1] > FACING || (c2 != null && VIS[c2] > FACING));
+    ctx.beginPath();
+    for (let i = 0; i < mesh.rules.length; i += 4) if (rule(mesh.rules[i], mesh.rules[i + 1], mesh.rules[i + 2], mesh.rules[i + 3])) { ctx.moveTo(PX[mesh.rules[i]], PY[mesh.rules[i]]); ctx.lineTo(PX[mesh.rules[i + 1]], PY[mesh.rules[i + 1]]); }
+    ctx.strokeStyle = `rgba(196,170,112,${(0.1 + 0.08 * wb).toFixed(3)})`; ctx.lineWidth = Math.max(3, unit * 0.16); ctx.stroke();
+    ctx.strokeStyle = "rgba(214,200,164,.84)"; ctx.lineWidth = Math.max(1.4, unit * 0.06); ctx.stroke();
+    if (mesh.rim.length) {
+      ctx.beginPath();
+      for (let i = 0; i < mesh.rim.length; i += 3) if (VIS[mesh.rim[i + 2]] > FACING) { ctx.moveTo(PX[mesh.rim[i]], PY[mesh.rim[i]]); ctx.lineTo(PX[mesh.rim[i + 1]], PY[mesh.rim[i + 1]]); }
+      ctx.strokeStyle = `rgb(${196 + Math.round(24 * wb)},${164 + Math.round(30 * wb)},${98 + Math.round(24 * wb)})`; ctx.lineWidth = Math.max(1.6, unit * 0.09); ctx.stroke();
+    }
+
+    // rings: a broken rule, a hint's cell, its evidence (dashed), a finger's cell
+    ctx.lineWidth = Math.max(1.4, unit * 0.075);
+    for (const x of bad) if (marks[x] !== STAR && VIS[x] > FACING) { quad(x); ctx.strokeStyle = `rgba(196,86,74,${(0.6 + 0.3 * pulse).toFixed(2)})`; ctx.setLineDash([unit * 0.18, unit * 0.12]); ctx.stroke(); }
+    ctx.setLineDash([]);
+    for (const x of lit) if (VIS[x] > FACING) { quad(x); ctx.strokeStyle = "rgba(226,190,116,.95)"; ctx.lineWidth = Math.max(2, unit * 0.12); ctx.stroke(); }
+    ctx.lineWidth = Math.max(1.4, unit * 0.075); ctx.setLineDash([unit * 0.16, unit * 0.1]);
+    for (const x of why) if (VIS[x] > FACING) { quad(x); ctx.strokeStyle = "rgba(226,190,116,.9)"; ctx.stroke(); }
+    ctx.setLineDash([]);
+    if (hot >= 0 && VIS[hot] > FACING) { quad(hot); ctx.strokeStyle = "rgba(214,218,232,.8)"; ctx.lineWidth = Math.max(1.6, unit * 0.09); ctx.stroke(); }
+
+    // dust, and the stars (the nearest cells last)
+    ctx.globalCompositeOperation = "lighter";
+    for (const x of shown) {
+      if (marks[x] !== DOT) continue;
+      const fade = calm ? 1 : Math.min(1, (now - dust[x]) / 280), sz = CS[x] * 0.34 * Math.min(1, VIS[x] * 1.6);
+      ctx.globalAlpha = 0.32 * fade; ctx.drawImage(SOFT, CX[x] - sz, CY[x] - sz, 2 * sz, 2 * sz);
+      ctx.globalAlpha = 0.85 * fade; ctx.fillStyle = "#B9C2D6"; ctx.beginPath(); ctx.arc(CX[x], CY[x], Math.max(1, CS[x] * 0.055), 0, 6.2832); ctx.fill();
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    for (let x = 0; x < n; x++) {
+      if (marks[x] !== STAR) {
+        const a = now - gone[x];
+        if (a < 450 && !calm && VIS[x] > FACING) {
+          const sz = CS[x] * 1.5 * (1 - a / 450 * 0.5);
+          ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.5 * (1 - a / 450); ctx.drawImage(BLOOM, CX[x] - sz, CY[x] - sz, 2 * sz, 2 * sz); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+        }
+        continue;
+      }
+      if (VIS[x] <= 0.1) continue;
+      const isBad = bad.has(x), age = calm ? 900 : now - born[x], u = CS[x] * Math.min(1, 0.55 + VIS[x] * 0.6);
+      const lift = mesh.cells[x].nrm, px = CX[x] + (R[0] * lift[0] + R[1] * lift[1] + R[2] * lift[2]) * f / DM * mesh.size * 0.3, py = CY[x] + (R[3] * lift[0] + R[4] * lift[1] + R[5] * lift[2]) * f / DM * mesh.size * 0.3;
+      const pop = age < 0 ? 0 : age < 460 ? easeOutBack(age / 460) : 1;
+      const flash = calm ? (age < 1400 ? 0.25 : 0) : 0.6 * Math.exp(-Math.max(0, age) / 320);
+      const gl = 1 + 0.3 * wb, throb = isBad && !calm ? 0.85 + 0.25 * pulse : 1, spr = isBad ? EMBER : BLOOM;
+      ctx.globalCompositeOperation = "lighter";
+      const pool = u * 1.15 * Math.max(0.2, pop), flat = Math.max(0.35, VIS[x]);
+      ctx.globalAlpha = 0.2 + 0.1 * wb; ctx.drawImage(spr, CX[x] - pool, CY[x] - pool * flat, 2 * pool, 2 * pool * flat);
+      const bl = u * (1.05 + 0.6 * flash) * pop * gl * throb;
+      ctx.globalAlpha = 0.8; ctx.drawImage(spr, px - bl, py - bl, 2 * bl, 2 * bl);
+      if (flash > 0.03) { const fs = u * (0.8 + 1.1 * flash); ctx.globalAlpha = Math.min(1, flash); ctx.drawImage(FLARE, px - fs, py - fs, 2 * fs, 2 * fs); }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+      const rOut = u * 0.36 * Math.max(0.01, pop), rIn = rOut * 0.42;
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) { const an = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? rIn : rOut, X = px + rad * Math.cos(an), Y = py + rad * Math.sin(an); if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }
+      ctx.closePath();
+      ctx.fillStyle = isBad ? "#D9A596" : "#F6EBCB"; ctx.fill();
+      ctx.lineWidth = Math.max(1, u * 0.05); ctx.strokeStyle = isBad ? "#8E2F2A" : "#B8933F"; ctx.lineJoin = "round"; ctx.stroke();
+      if (isBad) {
+        ctx.beginPath(); ctx.arc(px, py, u * (0.5 + 0.06 * pulse), 0, 6.2832);
+        ctx.strokeStyle = `rgba(190,80,68,${(0.7 + 0.3 * pulse).toFixed(2)})`; ctx.lineWidth = Math.max(1.4, u * 0.07); ctx.setLineDash([u * 0.16, u * 0.1]); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+  }
+
+  /** The sky, and the near stars sliding a little against it as the board turns. */
+  function drawSky(now, yw, pt, calm, win) {
+    ctx.drawImage(sky, 0, 0, W, H);
+    const drift = calm ? 0 : now / 1000 * (win ? 3 : 1.6), px = (yw - rest.yaw) * W, py = (pt - rest.pitch) * H;
+    ctx.globalCompositeOperation = "lighter";
+    for (const s of mid) {
+      const x = (((s.x - px * 0.1 - drift * 0.5) % W) + W) % W, y = (((s.y + py * 0.1) % H) + H) % H;
+      ctx.fillStyle = s.col; ctx.fillRect(x, y, s.s, s.s);
+    }
+    for (const s of near) {
+      const x = (((s.x - px * 0.28 - drift) % W) + W) % W, y = (((s.y + py * 0.28) % H) + H) % H, tw = calm ? 0.8 : 0.65 + 0.35 * Math.sin(now / 700 + s.p);
+      ctx.globalAlpha = s.a * tw; ctx.drawImage(SOFT, x - s.s, y - s.s, 2 * s.s, 2 * s.s);
+    }
+    ctx.globalAlpha = 1;
+  }
 
   // ---------- one frame ----------
   function frame(now) {
@@ -360,6 +594,7 @@ export function createSpace(host, hooks = {}) {
     const fy = calm ? 0 : Math.sin(now / 2300) * 0.016 + (win ? Math.sin(now / 5200) * 0.05 : 0), fp = calm ? 0 : Math.sin(now / 1900 + 1) * 0.011;
     const yw = yaw + fy, pt = pitch + fp;
     R = poseMatrix(yw, pt);
+    if (mesh) { frameMesh(now, calm, win, wage, wb, yw, pt); return; }
     const d = DIST * N, half = N / 2, M = N + 1;
     for (let r = 0; r <= N; r++) for (let c = 0; c <= N; c++) {
       const x = c - half, y = r - half, rx = R[0] * x + R[1] * y, ry = R[3] * x + R[4] * y, rz = R[6] * x + R[7] * y, s = f / (d - rz);
@@ -372,19 +607,7 @@ export function createSpace(host, hooks = {}) {
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
 
-    // the sky, and the near stars sliding a little against it as the pane turns
-    ctx.drawImage(sky, 0, 0, W, H);
-    const drift = calm ? 0 : now / 1000 * (win ? 3 : 1.6), px = (yw - REST.yaw) * W, py = (pt - REST.pitch) * H;
-    ctx.globalCompositeOperation = "lighter";
-    for (const s of mid) {
-      const x = (((s.x - px * 0.1 - drift * 0.5) % W) + W) % W, y = (((s.y + py * 0.1) % H) + H) % H;
-      ctx.fillStyle = s.col; ctx.fillRect(x, y, s.s, s.s);
-    }
-    for (const s of near) {
-      const x = (((s.x - px * 0.28 - drift) % W) + W) % W, y = (((s.y + py * 0.28) % H) + H) % H, tw = calm ? 0.8 : 0.65 + 0.35 * Math.sin(now / 700 + s.p);
-      ctx.globalAlpha = s.a * tw; ctx.drawImage(SOFT, x - s.s, y - s.s, 2 * s.s, 2 * s.s);
-    }
-    ctx.globalAlpha = 1;
+    drawSky(now, yw, pt, calm, win);
 
     // the glow the pane throws on the dark under it
     const under = at(N / 2, N / 2, -1.6), ur = unit * N * 0.95;
@@ -542,18 +765,21 @@ export function createSpace(host, hooks = {}) {
   const local = ev => { const b = canvas.getBoundingClientRect(); return [ev.clientX - b.left, ev.clientY - b.top]; };
   /** The cell under a pointer, or -1; `slack` (cells round the pane that still count as its edge) 0 asks "is it on the pane". */
   function cellAt(ev, slack) {
-    if (!P || !N) return -1;
+    if (!P) return -1;
+    if (mesh) { const [mx, my] = local(ev); return meshPick(mx, my); }
+    if (!N) return -1;
     const [x, y] = local(ev);
     return pickCell(R, N, f, cx, cy, x, y, slack);
   }
   /** A pointer on the board in board units (a cell is 1 wide, from the top left), unclamped; null if the eye looks away. */
   function boardPoint(ev) {
-    if (!P || !N) return null;
+    if (!P || !N || mesh) return null;
     const [x, y] = local(ev), p = unproject(R, N, f, cx, cy, x, y, LIFT / 2);
     return p ? { x: p[0] + N / 2, y: p[1] + N / 2 } : null;
   }
   /** Where a cell's middle is on the screen (client px), as it is drawn now. */
   function where(x) {
+    if (mesh) { const b = canvas.getBoundingClientRect(); return { x: b.left + CX[x], y: b.top + CY[x] }; }
     const b = canvas.getBoundingClientRect(), p = project(R, N, f, cx, cy, (x % N) + 0.5 - N / 2, Math.floor(x / N) + 0.5 - N / 2, LIFT / 2);
     return { x: b.left + p[0], y: b.top + p[1] };
   }
@@ -566,7 +792,9 @@ export function createSpace(host, hooks = {}) {
   }
   resize();
   return {
-    canvas, set, clear, press, grab, drag, twist, release, resetView, cellAt, boardPoint, where, pause, resume, destroy, drawNow, stats,
+    canvas, set, clear, press, grab, drag, twist, release, resetView, cellAt, boardPoint, linesOf: x => (mesh ? linesOf(x) : []),
+    /** Whether a cell faces you well enough to follow a line across; and how big a cell is on the screen (px). */
+    faces: x => !!mesh && VIS[x] > 0.15, get cellPx() { return mesh ? f / DM * mesh.size : f / (DIST * N); }, get isMesh() { return !!mesh; }, where, pause, resume, destroy, drawNow, stats,
     get pose() { return { yaw, pitch }; }, get asleep() { return !raf; },
   };
 }
