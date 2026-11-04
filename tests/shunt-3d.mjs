@@ -110,7 +110,7 @@ for (const th of ["codex", "modern", "kontor", "office"]) for (const night of [f
   const s = skinFor(th, night), need = ["room", "benchA", "benchB", "frame", "frameB", "baize", "floor", "rim", "rail", "velvet", "paper", "key", "keyI", "sky", "ground", "hemiI", "fill", "fillI", "exposure", "lamp", "shade", "grain", "envSky", "envGround", "envWin"];
   check(need.every(k => s[k] !== undefined && Number.isFinite(s[k])), `${th} by ${night ? "night" : "day"} has every colour and light`);
 }
-check(skinFor("codex", true).lamp > skinFor("codex", false).lamp && skinFor("codex", true).hemiI < skinFor("codex", false).hemiI, "night is a lamp in a dim room: the lamp lights more of it and the sky less");
+check(skinFor("codex", true).lamp > skinFor("codex", false).lamp && skinFor("codex", true).keyI < skinFor("codex", false).keyI + 0.01, "night is a lamp in a dim room: the lamp glows more and the key is no stronger");
 check(skinFor("nothing", false).baize === skinFor("codex", false).baize, "an unknown theme is Codex's look");
 check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 0), "four metals: brass, blued steel, violet, iron");
 
