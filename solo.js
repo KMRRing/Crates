@@ -10,7 +10,7 @@ import { createRun, cleanCode, validCode } from "./run.js";
 import { busy } from "./loading.js";
 import { recognised, pairKey } from "./known.js";
 import * as view from "./view.js";
-import { part, action, line, isPaused, onPause } from "./menu.js";
+import { part, action, line, isPaused, onPause, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { modeChoice } from "./crates-board.js";
 import { topicsPart } from "./topics-ui.js";
@@ -409,10 +409,12 @@ export function createSolo({ setPoolParam, setBoardParam }) {
           // clue learn: a tile whose clue you opened comes back even if you skip the board
           if (!g.done && g.mode === "clues" && store.mode === "clues") learnFromClues(store.deck, board, g);
           fresh();
-        }, "primary"), action("Today's board", async () => {
-          if (!g.done && g.guesses.length && !(await sure("Leave this board unfinished?", { yes: "Leave it" }))) return;
-          if (daily()) close();
-        }));
+        }, "primary"));
+        const had = store.daily?.key === today(), playing = g.daily === today() && !g.done;
+        todayPart(body, {
+          done: had && !playing, result: store.daily?.pts != null ? `${store.daily.pts} of 8 in ${formatTime(store.daily.ms)}` : "",   // one go: leaving it unfinished is a go had
+          play: () => { daily(); }, playing, busy: !g.done && g.guesses.length > 0,
+        });
         part(body, "content").append(...modeChoice("country", handlers.classic), ...topicsPart(body), action("Difficulty and regions", settingsSheet));
         const about = part(body, "about"), done = store.history.length;
         if (done) {

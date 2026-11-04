@@ -10,7 +10,7 @@
 import { busy } from "./loading.js";
 import { today } from "./days.js";
 import { MODES, STRIKES, modeOf, clockText, strikeMarks, clockFor, runDown, graceAgain, timeUp, bestsOf, noteRun, endTitle, runOrder } from "./rush-core.js";
-import { runChoice, modeChoice } from "./rush-menu.js";
+import { modeChoice } from "./rush-menu.js";
 
 const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -49,8 +49,8 @@ export function createRushSheet(game, { inFrame = false } = {}) {
   // the run: { v, kind, mode, seed, order (ids), i, score, strikes, left (ms; null with no clock), wait (this puzzle's
   // grace left), answer ({ name, verdict }), over, why, log [{ id, verdict }], best, was }
   let run = upgrade(read(RUN, null)), st = null, last = 0, savedAt = 0;
-  // the next run's kind and clock: the last run's, until the sheet's choices change them
-  const pick = { kind: run?.kind === "daily" ? "daily" : "random", mode: modeOf(run?.mode) };
+  // the next run's clock: the last run's, until the sheet's choice changes it (today's is its own button)
+  const pick = { kind: "random", mode: modeOf(run?.mode) };
   const save = () => write(RUN, run);
   const puzzle = () => (run && bank ? bank.find(p => p.id === run.order[run.i]) || null : null);
 
@@ -147,7 +147,14 @@ export function createRushSheet(game, { inFrame = false } = {}) {
       : [["Three misses", "end the run"], [`Your best, ${label}`, mine ? String(mine) : "none yet"], ...(todays != null ? [["Today's run", String(todays)]] : [])];
     const box = $(".ln-stage");
     box.innerHTML = `<div class="rush-setup"><div class="rush-rows">${rows.map(([l, t]) => `<div class="rush-row"><small>${esc(l)}</small><b>${esc(t)}</b></div>`).join("")}</div><div class="rush-pick"></div></div>`;
-    if (!inFrame) box.querySelector(".rush-pick").append(runChoice(pick, [], () => draw()), modeChoice(pick, () => draw()));
+    if (!inFrame) {
+      const today = document.createElement("button");     // Today's is a button while it's still to play on this clock, not a kind of run to pick
+      today.type = "button";
+      today.className = "btn wide primary";
+      today.textContent = "Play today's";
+      today.addEventListener("click", async () => { await loadBank(); pick.kind = "daily"; start(); });
+      box.querySelector(".rush-pick").append(modeChoice(pick, () => draw()), ...(todays == null ? [today] : []));
+    }
     $(".ln-text").innerHTML = done
       ? `<p class="ln-say">${esc(endTitle(done.why || (timeUp(done) ? "time" : done.strikes >= STRIKES ? "strikes" : "bank")))}. ${done.score} found.</p>`
       : `<p class="ln-say">${esc(game.intro)}</p>`;
@@ -156,7 +163,7 @@ export function createRushSheet(game, { inFrame = false } = {}) {
   }
 
   $("[data-act]").addEventListener("click", async () => {
-    if (!run || run.over) { await loadBank(); start(); return; }
+    if (!run || run.over) { await loadBank(); pick.kind = "random"; start(); return; }
     if (run.answer) next(); else play();
   });
   $("[data-close]").addEventListener("click", () => dlg.close());

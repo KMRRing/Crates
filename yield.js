@@ -8,7 +8,7 @@ import { BOARDS, LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, CUTS, c
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, toggle, onPause, isPaused } from "./menu.js";
+import { part, choice, action, line, mirror, toggle, onPause, isPaused, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, dailyDue, reportDuo, IN_FRAME } from "./suite.js";
 import { roundOver } from "./random.js";
@@ -444,7 +444,6 @@ function drawFound() {
 }
 function render() {
   const p = boardP();
-  $("pick").options[0].disabled = duel.on;          // at a table the header deals a match at a level; today's isn't one
   if (S && P) $("pick").value = S.kind === "day" ? "today" : LEVELS[S.p.level] ? S.p.level : "medium";
   drawBoard(); markTeam(); drawWord(); drawLine(); drawGauge(); drawColumn(); drawFound(); drawClock();
   const off = !canType();
@@ -796,6 +795,8 @@ function openMenu() {
   }
   const play = part(body, "play");
   play.append(action(prefs.secs ? `New ${prefs.secs / 60}-minute sprint` : "New puzzle", () => confirmNew(), "primary"));
+  const left = S?.kind === "day" ? read(RUN, null) : null;                  // the random puzzle you left for today's
+  todayPart(body, { app: "yield", play: showToday, playing: S?.kind === "day", back: validRun(left) && !left.over ? () => show(left) : null });
   if (S && !S.over && (S.kind === "day" || S.kind === "run")) play.append(action("Show the words", async () => { if (await sure("Show every word? This puzzle ends here.")) finish("shown"); }, "link"));
   part(body, "content").append(mirror("Puzzle", $("pick")),
     choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); $("menuDlg").close(); confirmNew(); }));

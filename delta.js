@@ -13,7 +13,7 @@ import { sure } from "./sure.js";
 import "./pwa.js";
 import { gameHref, GAMES, branchPath, otherHere, joiningWords } from "./rooms.js";
 import { dropdown } from "./dropdown.js";
-import { part, action, mirror, isPaused, onPause } from "./menu.js";
+import { part, action, mirror, isPaused, onPause, todayPart } from "./menu.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -532,6 +532,7 @@ function drawMenu() {
   const play = part(body, "play");
   play.append(action("New board", () => newBoard(), "primary"));
   if (!S.done) play.append(action("Show the solution", giveUp));
+  if (!together.room) todayPart(body, { app: "delta", play: () => newBoard("today"), playing: S.daily === today() });   // newBoard asks before it leaves a board you've started
   if (!together.room) part(body, "content").append(mirror("Level", $("level")));
   if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
   else part(body, "about").append(action("Copy a link to this board", async () => {

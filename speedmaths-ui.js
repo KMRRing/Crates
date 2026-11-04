@@ -7,7 +7,7 @@ import { BAND, chainRel, fmtNum, fmtAnswer, fmtTyped, fmtOff, askText, stepText,
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, ticks, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, ticks, action, line, mirror, onPause, isPaused, todayPart } from "./menu.js";
 import { today, arrivedForToday, IN_FRAME } from "./suite.js";
 import { createDuel } from "./duel.js";
 import { sure } from "./sure.js";
@@ -36,9 +36,12 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
   const KEY = { prefs: `${id}:prefs`, best: `${id}:best`, bests: `${id}:bests`, daily: `${id}:daily`, run: m => `${id}:run:${m}` };
   // the choices: the mode on the screen, and what the next sprint is made of (the operations, the range)
   const prefs = { mode: headline === "chains" ? "chains" : "sprint", kinds: ALL, range: P.range, ...read(KEY.prefs, {}) };
-  if (!MODES[prefs.mode]) prefs.mode = "sprint";
+  // Today's is a button (todayPart, menu.js), not a mode to choose: a "daily" kept from before is read as the mode you had, and
+  // today's run on the screen keeps the mode you left (`resting`), to come back to
+  if (!MODES[prefs.mode] || prefs.mode === "daily") prefs.mode = headline === "chains" ? "chains" : "sprint";
+  let resting = prefs.mode;
   Object.assign(prefs, normOpts(pool, prefs));
-  const keepPrefs = () => write(KEY.prefs, prefs);
+  const keepPrefs = () => write(KEY.prefs, { ...prefs, mode: prefs.mode === "daily" ? resting : prefs.mode });
 
   let run = null;               // the run on the screen
   let phase = "idle";           // idle (nothing going: Start, or Continue), running, over
@@ -353,13 +356,13 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
     chains: `${MODES.chains.secs} seconds of long ones: a figure and three steps or more, one answer.`,
     daily: `${MODES.daily.secs} seconds of all three, the same for everyone today. It counts once.`,
   };
+  const setMode = m => { if (m !== "daily") resting = m; prefs.mode = m; keepPrefs(); };
   function switchTo(m) {
     if (!MODES[m] || watching) return;
     if (D) { $("mode").value = "sprint"; dd.sync(); return; }
     clockPause();
     save();
-    prefs.mode = m;
-    keepPrefs();
+    setMode(m);
     $("mode").value = m;
     dd.sync();
     document.activeElement?.blur?.();
@@ -415,9 +418,15 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
     const content = part(body, "content");
     if (D || duel?.on) {
       duel.menu(part(body, "together"));
-    } else if (prefs.mode !== "daily") {
-      part(body, "play").append(action(run && !run.over && (run.i > 0 || run.used > 0) ? `New ${label(prefs.mode).toLowerCase()}` : `Start the ${label(prefs.mode).toLowerCase()}`,
+    } else {
+      const play = part(body, "play");
+      if (prefs.mode !== "daily") play.append(action(run && !run.over && (run.i > 0 || run.used > 0) ? `New ${label(prefs.mode).toLowerCase()}` : `Start the ${label(prefs.mode).toLowerCase()}`,
         () => (phase === "running" ? newRun() : begin()), "primary"));
+      const got = (read(KEY.daily, {}) || {})[today()];
+      todayPart(body, {
+        done: got != null, result: got != null ? String(got) : "", play: () => { switchTo("daily"); begin(); }, playing: prefs.mode === "daily",
+        back: prefs.mode === "daily" ? { text: `Back to the ${label(resting).toLowerCase()}`, fn: () => switchTo(resting) } : null,
+      });
     }
     if (!D) content.append(mirror("Mode", $("mode")));
     if (P.ranges) content.append(ticks("Sprint operations", P.kinds, prefs.kinds, v => setKinds(v), Infinity, { all: true }),
@@ -525,8 +534,8 @@ export function createSpeed({ id, pool, name, headline = "sprint", duel: raced =
 
   // start: the mode on the screen, its run where it was left; Today's if the games screen's tile sent us for it
   const solo = (forToday = false) => {
-    const m = forToday ? "daily" : prefs.mode;
-    if (m !== prefs.mode) { prefs.mode = m; keepPrefs(); }
+    const under = load("daily"), m = forToday || (under && !under.over && (under.i > 0 || under.used > 0)) ? "daily" : prefs.mode;   // today's run under way is where you land
+    if (m !== prefs.mode) setMode(m);
     $("mode").value = prefs.mode;
     dd.sync();
     show(load(prefs.mode));

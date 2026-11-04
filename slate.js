@@ -13,7 +13,7 @@ import { reportDuo, today, noteDayTime, arrivedForToday, playerId, sayWhere } fr
 import { roundOver } from "./random.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { dropdown } from "./dropdown.js";
-import { part, action, mirror, isPaused, onPause } from "./menu.js";
+import { part, action, mirror, isPaused, onPause, todayPart } from "./menu.js";
 import { sure } from "./sure.js";
 import { sideways, scale } from "./wide.js";
 
@@ -1004,6 +1004,7 @@ function drawMenu() {
   body.replaceChildren();
   $("menuTitle").textContent = room ? "Playing together" : "Menu";
   part(body, "play").append(action("New board", () => newBoard(), "primary"), action(S.done ? "Show the result" : "Show our fill", giveUp));
+  if (!room) todayPart(body, { app: "glyph", play: () => newBoard("today"), playing: S.daily === today() });   // newBoard asks before it leaves a board you've started
   if (!room) part(body, "content").append(mirror("Level", $("level")));
   if (room) part(body, "together").append(action("Back to solo", () => leave(), "link"));
   else part(body, "about").append(action("Copy a link to this board", async () => {

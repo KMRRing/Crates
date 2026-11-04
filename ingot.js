@@ -6,7 +6,7 @@
 import { N, SIZE, DIRS, WIN, newGame, daySeed, move, undo, end, valid, hint, play, value } from "./ingot-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, onPause, isPaused } from "./menu.js";
+import { part, action, line, onPause, isPaused, todayPart } from "./menu.js";
 import { roundOver } from "./random.js";
 import { sure } from "./sure.js";
 import { today, arrivedForToday, IN_FRAME } from "./suite.js";
@@ -241,15 +241,16 @@ function openMenu() {
   body.replaceChildren();
   const play = part(body, "play");
   play.append(action("New game", () => fresh("random"), "primary"));
-  play.append(action(dayDone() ? "Today's board again" : "Today's board", () => fresh("daily")));
+  const day = read(DAILY, {})[today()];
+  todayPart(body, { done: dayDone(), result: day != null ? fmt(day) : "", play: () => fresh("daily"), playing: S.kind === "daily" && S.day === today() && !S.over });   // fresh asks before it leaves a game
   if (started()) play.append(action("End this game", async () => {
     if (!(await sure("End this game here? Its score stands.", { yes: "End it" }))) return;
     S = end(S);
     finish();
   }, "link"));
-  const best = read(BEST, 0), day = read(DAILY, {})[today()];
+  const best = read(BEST, 0);
   part(body, "about").append(line(`This game: ${fmt(S.score)} in ${S.moves} swipe${S.moves === 1 ? "" : "s"}, the top bar ${fmt(value(S.top))}${best ? `; your best ${fmt(best)}` : ""}`),
-    line(day != null ? `Today's board: ${fmt(day)}. A second go is practice.` : "Today's board is the same for everyone: the same bars land where the same swipes make room."));
+    line("Today's board is the same for everyone: the same bars land where the same swipes make room. A second go is practice."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

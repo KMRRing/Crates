@@ -389,7 +389,7 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
       pick, start: () => { next = { ...pick }; pick = null; start(); }, results: S?.over ? results : null, back: close, backText: "Back to the game",
       own: [["patterns", "Patterns"]], ownNote: "Patterns: the named mates and tricks alone, each said after it's done, with no clock.",
       rating, resetRating: () => { rating.r = 1000; rating.n = 0; write(RATING, rating); drawHud(); },
-      bests: read(BEST, {}), daily: read(DAILY, {}), day: today(), inFrame: IN_FRAME,
+      bests: read(BEST, {}), daily: read(DAILY, {}), day: today(), inFrame: IN_FRAME, todayOn: !!S?.daily && !S.over,
     });
   }
 

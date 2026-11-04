@@ -6,7 +6,7 @@ import { rules, CATS, CAT_HELP, ROUNDS, BONUS, BONUS_AT, scoreOf, totals, winner
 import { LEVEL_NAMES, advise } from "./yacht-bot.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, todayPart } from "./menu.js";
 import { tableView } from "./table3d-view.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";
@@ -284,8 +284,8 @@ function openMenu() {
   page.menu(play);
   const content = part(body, "content");
   if (!page.atTable) {
-    const days = read(DAILY, {}), got = days[today()];
-    content.append(action(got != null ? `Today’s daily: you made ${got}. Play it again` : "Today’s daily", () => dailyGame(), ""));
+    const got = read(DAILY, {})[today()];
+    todayPart(body, { done: got != null, result: got != null ? String(got) : "", play: () => dailyGame(), playing: V?.state?.step === "play" && !!V.state.opts?.daily });   // dailyGame asks before it leaves a game
   }
   if (V && myTurn(V) && V.state.left < 3 && V.state.left >= 0) {
     content.append(action("Hint", () => { const h = advise(V.state, V.seat); toast(`${h.name} for ${h.pts} looks best`); }, "link"));

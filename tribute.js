@@ -1089,7 +1089,7 @@ function openMenu() {
     // the rush's own, as every game's rush has it (rush-menu.js): a run and its clock, your bests
     rushPick ??= rushNext();
     rushMenu(body, { pick: rushPick, start: () => { write(RUSH_NEXT, rushPick); rushPick = null; startRush(); }, results: rush.over ? endRush : null, back: leaveRush,
-      backText: "Back to the match", bests: read(RUSH_BEST, {}), daily: read(RUSH_DAILY, {}), day: today(), inFrame: IN_FRAME });
+      backText: "Back to the match", bests: read(RUSH_BEST, {}), daily: read(RUSH_DAILY, {}), day: today(), inFrame: IN_FRAME, todayOn: rush.kind === "daily" && !rush.over });
   } else part(body, "play").append(action("New match", () => newMatch(), "primary"), action("Puzzle rush", () => startRush(), ""), ...copies());
   const cp = progressOf("tribute", COURSE);
   part(body, "play").append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Guandan, from the rules", () => course.open()));

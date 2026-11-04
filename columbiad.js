@@ -13,7 +13,7 @@ import { createView } from "./columbiad-view.js";
 import { sound } from "./columbiad-sound.js";
 import { bindSwitcher } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, toggle, onPause, isPaused } from "./menu.js";
+import { part, action, line, toggle, onPause, isPaused, todayPart } from "./menu.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";
 import { roundOver } from "./random.js";
 
@@ -453,8 +453,10 @@ function openMenu() {
   part(body, "play").append(action(`Replay ${lvl.name}`, restart, "primary"));
   const content = part(body, "content");
   const due = dailyLevel(today()), got = read(DAILY, {})[today()];
-  content.append(action(`Today's level: ${due.id} ${due.name}${got ? ` · ${starsWords(got)}` : ""}`, () => { if (!daily) playDaily(); }, daily ? "" : "primary"));
-  if (daily) content.append(action(`Back to level ${LEVELS[camp.at].id}`, () => playLevel(camp.at), "link"));
+  todayPart(body, {
+    done: !!got, result: got ? `${due.id} ${due.name}, ${starsWords(got)}` : "", play: playDaily, playing: !!daily,
+    back: daily ? { text: `Back to level ${LEVELS[camp.at].id}`, fn: () => playLevel(camp.at) } : null,
+  });
   for (const sec of SECTIONS) {
     const head = document.createElement("p");
     head.className = "cb-sec";

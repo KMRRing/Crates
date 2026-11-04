@@ -408,7 +408,7 @@ function openMenu() {
     rushMenu(body, {
       pick, start: () => { next = { ...pick }; pick = null; start(); }, results: S?.over ? results : null, back: backToGame,
       rating, resetRating: () => { rating.r = 1000; rating.n = 0; write(RATING, rating); drawHud(); },
-      bests: read(BEST, {}), daily: read(DAILY, {}), day: today(), inFrame: IN_FRAME,
+      bests: read(BEST, {}), daily: read(DAILY, {}), day: today(), inFrame: IN_FRAME, todayOn: !!S?.daily && !S.over,
     });
     part(body, "settings").append(...(IN_FRAME ? [] : [viewSetting()]), coordsToggle());
   }
