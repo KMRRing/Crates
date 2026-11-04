@@ -27,6 +27,4 @@ button.tc-card { cursor: pointer; font-family: inherit; }
   color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
 .tc-opt.tried { border-color: var(--ln-no); }
 .tc-opt.hint { border-color: var(--ln-in); box-shadow: inset 0 0 0 1.5px var(--ln-in); }
-html[data-theme="modern"] .tc-opt { border-radius: 12px; }
-html[data-theme="kontor"] .tc-opt { border-radius: 2px; }
 @media (prefers-reduced-motion: reduce) { .tc-card { transition: none; } }

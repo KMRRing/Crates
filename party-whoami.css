@@ -43,6 +43,4 @@
 .wa-end li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: .5rem; align-items: baseline; padding: .4rem .2rem; border-bottom: 1px solid var(--rule); }
 .wa-end-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wa-end-who { font-weight: 800; color: var(--pa-in); overflow-wrap: anywhere; }
-html[data-theme="modern"] .wa-reroll { border-radius: 12px; }
 html[data-theme="office"] :is(.wa-me, .wa-card, .wa-reroll) { border-radius: 4px; }
-html[data-theme="kontor"] .wa-reroll { border-radius: 2px; }

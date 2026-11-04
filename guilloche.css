@@ -93,4 +93,3 @@ html #acts .lg-act { flex: 1 1 0; min-width: 0; min-height: 0; padding: .2rem .3
   #app.guilloche .lg-side { grid-column: 2; grid-row: 5; }
 }
 html[data-theme="office"] :is(.lg-jobs button, .lg-bench, .lg-tabs button) { border-radius: 4px; }
-html[data-theme="kontor"] :is(.lg-jobs button, .lg-bench, .lg-tabs button) { border-radius: 2px; }

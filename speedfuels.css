@@ -7,6 +7,4 @@
   html:not([data-mode="day"]) { --sf-in: #E2B24E; --sf-logo-tint: #574115; }
 }
 html[data-mode="night"] { --sf-in: #E2B24E; --sf-logo-tint: #574115; }
-html[data-theme="modern"] { --sf-logo-tint: #F6E6C2; --sf-logo-edge: #A2690F; }
 #app.speedfuels { --speed-in: var(--sf-in); }
-html:is([data-theme="modern"], [data-theme="kontor"]) #app.speedfuels .sm-key.k-go { color: #2A2005; }

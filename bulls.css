@@ -236,16 +236,11 @@ dialog.bu-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 }
 
 /* ---------- the themes: Codex's ornaments (the double rule, the brass hatching, the domed enamel) are its own ---------- */
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-board { box-shadow: none; border-color: var(--tile-edge); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-shield { --bu-plate: color-mix(in srgb, var(--brass) 38%, var(--bu-sky)); box-shadow: inset 0 0 0 1px var(--tile-edge); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) #app.classic .bu-shield { background: color-mix(in srgb, var(--ink) 8%, var(--sheet)); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-go { outline: 0; }
-html[data-theme="modern"] .bu-board { border-radius: 16px; }
-html[data-theme="modern"] :is(.bu-go, .bu-act, .bu-pick) { border-radius: 12px; }
-html[data-theme="modern"] .bu-go { letter-spacing: normal; text-transform: none; font-stretch: 100%; font-size: 1rem; }
-html:is([data-theme="kontor"], [data-theme="office"]) .bu-peg:not(.digit):not(.empty):not(.body) { background: var(--peg); }
-html[data-theme="kontor"] :is(.bu-board, .bu-shield, .bu-go, .bu-act, .bu-pick, .bu-tabs button) { border-radius: 2px; }
-html[data-theme="kontor"] .bu-pick { border-width: 1px; }
+html[data-theme="office"] .bu-board { box-shadow: none; border-color: var(--tile-edge); }
+html[data-theme="office"] .bu-shield { --bu-plate: color-mix(in srgb, var(--brass) 38%, var(--bu-sky)); box-shadow: inset 0 0 0 1px var(--tile-edge); }
+html[data-theme="office"] #app.classic .bu-shield { background: color-mix(in srgb, var(--ink) 8%, var(--sheet)); }
+html[data-theme="office"] .bu-go { outline: 0; }
+html[data-theme="office"] .bu-peg:not(.digit):not(.empty):not(.body) { background: var(--peg); }
 html[data-theme="office"] :is(.bu-board, .bu-shield, .bu-go, .bu-act, .bu-pick, .bu-tabs button) { border-radius: 4px; }
 
 /* ---------- astral: a night sky, bodies lit by one key light (bulls-lit.js), gilt stars and silver orbits ---------- */

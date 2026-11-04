@@ -16,11 +16,7 @@
 }
 html[data-mode="night"] { --cr-in: #E0A070; --cr-frame: #2A1D12; --cr-light: #A99B7C; --cr-dark: #4D3524; --cr-lastc: #A98B3E;
   --cr-ink: #131B22; --cr-ink-edge: #7C8A94; --cr-ivory: #E9DFC6; }
-html[data-theme="kontor"] { --cr-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --cr-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --cr-in: #2EB36A; }
 html[data-theme="office"] { --cr-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --cr-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --cr-in: #479EF5; }
 
 .cr-mark-ico { display: inline-block; }

@@ -154,11 +154,11 @@ dialog.cw-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .cw-rules p { line-height: 1.45; }
 
 /* the other themes' corners and buttons */
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-tool { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-go { border-radius: 14px; background: var(--cw-in); color: var(--cw-go-ink); font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-krow button, html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-opts button { border-radius: 8px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-skip { border-radius: 10px; }
+html[data-theme="office"] .cw-tool { border-radius: 10px; }
+html[data-theme="office"] .cw-go { border-radius: 14px; background: var(--cw-in); color: var(--cw-go-ink); font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .cw-toast { border-radius: 10px; }
+html[data-theme="office"] .cw-krow button, html[data-theme="office"] .cw-opts button { border-radius: 8px; }
+html[data-theme="office"] .cw-skip { border-radius: 10px; }
 
 /* a tall phone (the home screen's app, 390×844): the grid is as wide as the screen with room to spare under it, which
    the key table takes, between the grid and the line (at half as wide as tall or narrower: a 390-wide phone needs

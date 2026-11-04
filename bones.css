@@ -11,12 +11,8 @@
   html:not([data-mode="day"]) { --bn-in: #DDA272; --bn-felt: color-mix(in srgb, #8A4B22 20%, var(--yard)); --bn-tile: #E8DEC8; --bn-pip: #16202A; --bn-edge: #0E141A; --bn-back: #7A5236; }
 }
 html[data-mode="night"] { --bn-in: #DDA272; --bn-felt: color-mix(in srgb, #8A4B22 20%, var(--yard)); --bn-tile: #E8DEC8; --bn-pip: #16202A; --bn-edge: #0E141A; --bn-back: #7A5236; }
-/* Kontor and Office lend it their own accent, as in their other games */
-html[data-theme="kontor"] { --bn-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --bn-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --bn-in: #2EB36A; }
+/* Office lends it its own accent, as to its other games */
 html[data-theme="office"] { --bn-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --bn-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --bn-in: #479EF5; }
 
 .bn-mark { display: inline-block; }
@@ -139,7 +135,6 @@ html[data-theme="office"] :is(.bn-seat, .bn-result) { border-radius: 4px; }
 .lb-hand .bn-mine.hinted .bn-tile rect { stroke: var(--bn-in); stroke-width: .09; stroke-dasharray: .16 .1; }
 .bn-ghost.on .bn-tile rect { fill: color-mix(in srgb, var(--bn-in) 42%, transparent); stroke-dasharray: none; stroke-width: .12; }
 html[data-theme="office"] .lb-board { border-radius: 4px; }
-
 
 /* a short phone: the narrator's line gives way */
 @media (max-height: 640px) and (orientation: portrait) {

@@ -8,11 +8,7 @@
 }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --b2-in: #B79BE0; --b2-felt: color-mix(in srgb, #6C4A9E 22%, var(--sheet)); } }
 html[data-mode="night"] { --b2-in: #B79BE0; --b2-felt: color-mix(in srgb, #6C4A9E 22%, var(--sheet)); }
-html[data-theme="kontor"] { --b2-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --b2-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --b2-in: #2EB36A; }
 html[data-theme="office"] { --b2-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --b2-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --b2-in: #479EF5; }
 
 /* the course's sheet (course.css) in the game's enamel */

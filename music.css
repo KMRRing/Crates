@@ -18,8 +18,6 @@ dialog.ln-sheet.musc { --ln-in: var(--mu-in); }
   font-stretch: 106%; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
   cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mu-link { min-height: 2.5rem; border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: .88rem; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
-html[data-theme="modern"] .mu-go { border-radius: 14px; background: var(--mu-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
-html[data-theme="kontor"] .mu-go { border-radius: 2px; }
 @media (orientation: landscape) and (min-width: 700px) {
   .mu-home { flex-direction: row; gap: 2rem; padding: 0 1rem; }
   .mu-plate { flex: 1 1 0; height: 100%; }
@@ -33,8 +31,6 @@ html[data-theme="kontor"] .mu-go { border-radius: 2px; }
 .mu-band, .mu-enable { flex: none; margin: 0 0 .35rem; padding: .4rem .6rem; border-radius: 4px; font: inherit; font-size: .82rem; line-height: 1.3; text-align: center; }
 .mu-band { color: var(--ink-soft); background: color-mix(in srgb, var(--brass) 10%, var(--sheet)); box-shadow: inset 0 0 0 1px var(--tile-edge); }
 .mu-enable { border: 0; background: var(--plate); color: var(--plate-ink); font-weight: 800; cursor: pointer; min-height: 2.25rem; }
-html[data-theme="modern"] .mu-enable { border-radius: 12px; background: var(--mu-in); color: #fff; }
-html[data-theme="kontor"] :is(.mu-enable, .mu-band) { border-radius: 2px; }
 
 svg.mu text { fill: var(--ink); font-family: inherit; pointer-events: none; }
 svg.mu text.mu-cap { fill: var(--ink-soft); font-size: 11.5px; font-weight: 650; }

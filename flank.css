@@ -19,11 +19,7 @@
 html[data-mode="night"] { --fk-in: #7FA6D6; --fk-frame: #5C4519; --fk-frame-hi: #C99A45; --fk-field: #2E4760; --fk-line: rgba(201, 154, 69, .5);
   --fk-dark: #0B1116; --fk-dark-hi: #26394A; --fk-dark-edge: #C99A45; --fk-light: #EDE3CC; --fk-light-hi: #FBF4E4; --fk-light-edge: #8C7A55;
   --fk-good: #7FC2A8; --fk-bad: #E8806F; }
-html[data-theme="kontor"] { --fk-in: #1E5FA8; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --fk-in: #5FA3F0; } }
-html[data-theme="kontor"][data-mode="night"] { --fk-in: #5FA3F0; }
 html[data-theme="office"] { --fk-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --fk-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --fk-in: #479EF5; }
 
 .fk-mark { display: inline-block; }
@@ -123,9 +119,6 @@ html[data-theme="office"][data-mode="night"] { --fk-in: #479EF5; }
 
 /* other themes: their corners */
 html[data-theme="office"] :is(.fk-seat, .fk-frame) { border-radius: 4px; }
-html[data-theme="modern"] :is(.fk-seat) { border-radius: 12px; }
-html[data-theme="modern"] .fk-frame { border-radius: 14px; }
-html[data-theme="kontor"] :is(.fk-seat, .fk-frame, .fk-meter) { border-radius: 2px; }
 
 /* ---------- the course's stage (flank-course.js): the board as large as the stage allows ---------- */
 .ln-sheet.fk { --ln-in: var(--fk-in); }

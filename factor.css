@@ -19,11 +19,7 @@ html[data-mode="night"] {
   --fc-in: #B5C46A; --fc-good: #7FC2A8; --fc-bad: #E8806F; --fc-mix: #F2E8CC;
   --r0: #2F6A41; --r1: #96472F; --r2: #7E9457; --r3: #A98A2F; --r4: #566270; --r5: #8F8564; --sea: #17303A;
   --disc: #E8DFC9; --disc-hot: #B5392B; }
-html[data-theme="kontor"] { --fc-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --fc-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --fc-in: #2EB36A; }
 html[data-theme="office"] { --fc-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --fc-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --fc-in: #479EF5; }
 /* a resource's mark: its colour, mixed toward the ink (dark by day, light by night), so it reads on its own tile */
 :root { --rd0: color-mix(in srgb, var(--r0) 38%, var(--fc-mix)); --rd1: color-mix(in srgb, var(--r1) 38%, var(--fc-mix)); --rd2: color-mix(in srgb, var(--r2) 38%, var(--fc-mix));
@@ -289,4 +285,3 @@ html #bar .fc-go.primary { flex: 1.4 1 0; }
   #app.factor .fc-go.primary { flex: 1 1 30%; }
 }
 html[data-theme="office"] .fc-seat, html[data-theme="office"] .fc-res, html[data-theme="office"] .fc-chip { border-radius: 4px; }
-html[data-theme="kontor"] .fc-seat, html[data-theme="kontor"] .fc-res, html[data-theme="kontor"] .fc-chip { border-radius: 2px; }

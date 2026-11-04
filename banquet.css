@@ -10,12 +10,8 @@
   html:not([data-mode="day"]) { --bq-in: #8DB2E6; --bq-right: #7FC2A8; --bq-wrong: #E8806F; }
 }
 html[data-mode="night"] { --bq-in: #8DB2E6; --bq-right: #7FC2A8; --bq-wrong: #E8806F; }
-/* Kontor and Office lend it their own accent, as in their other games */
-html[data-theme="kontor"] { --bq-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --bq-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --bq-in: #2EB36A; }
+/* Office lends it its own accent, as to its other games */
 html[data-theme="office"] { --bq-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --bq-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --bq-in: #479EF5; }
 
 .bq-mark { display: inline-block; }

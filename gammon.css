@@ -13,11 +13,7 @@
 }
 html[data-mode="night"] { --gm-in: #7FC2A8; --gm-frame: #3E2C1C; --gm-field: #2B3640; --gm-pa: #9A4A36; --gm-pb: #4B6F94; --gm-bar: #2A2017;
   --gm-mine: #EDE3CC; --gm-mine-edge: #B9A57C; --gm-theirs: #0B1116; --gm-theirs-edge: #8C7A55; --gm-die: #EDE3CC; }
-html[data-theme="kontor"] { --gm-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --gm-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --gm-in: #2EB36A; }
 html[data-theme="office"] { --gm-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --gm-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --gm-in: #479EF5; }
 
 .gm-mark { display: inline-block; }

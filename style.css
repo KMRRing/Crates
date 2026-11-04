@@ -51,34 +51,16 @@
   --d-logo-edge: var(--logo-edge);
   --pt-logo-tint: #CFE2D2;  /* Punt's logo: a betting chip */
   --pt-logo-edge: var(--logo-edge);
-  --ct-logo-tint: #EBD0D3;  /* Cartel's logo: a die */
-  --ct-logo-edge: var(--logo-edge);
-  --sp-logo-tint: #F2D3C2;  /* Spot's logo: a spot */
-  --sp-logo-edge: var(--logo-edge);
-  --qt-logo-tint: #D7DAEE;  /* Quote's logo: quotation marks */
-  --qt-logo-edge: var(--logo-edge);
-  --mf-logo-tint: #CDE5E1;  /* Manifest's logo: a stack of packages */
-  --mf-logo-edge: var(--logo-edge);
   --ch-logo-tint: #D2DEEA;  /* Chart's logo: a map pin */
   --ch-logo-edge: var(--logo-edge);
   --sv-logo-tint: #EFDDC1;  /* Survey's logo: a grid with ore */
   --sv-logo-edge: var(--logo-edge);
   --bl-logo-tint: #E0E7C8;  /* Blend's logo: a flask */
   --bl-logo-edge: var(--logo-edge);
-  --pi-logo-tint: #F1D5C6;  /* Pipes' logo: a bend of pipe */
-  --pi-logo-edge: var(--logo-edge);
   --rf-logo-tint: #D5E0E8;  /* Refinery's logo: a distillation column */
   --rf-logo-edge: var(--logo-edge);
-  --ru-logo-tint: #E6D9C8;  /* Rush's logo: a knight */
-  --ru-logo-edge: var(--logo-edge);
-  --dk-logo-tint: #E6D7EC;  /* Deck's logo: a stack of cards */
-  --dk-logo-edge: var(--logo-edge);
   --pa-logo-tint: #CFE7E2;  /* Parley's logo: two speech marks */
   --pa-logo-edge: var(--logo-edge);
-  --od-logo-tint: #DDD6EE;  /* Odds' logo: a die and a bell curve */
-  --od-logo-edge: var(--logo-edge);
-  --lg-logo-tint: #EDE0BC;  /* Ledger's logo: an open ledger */
-  --lg-logo-edge: var(--logo-edge);
   --hb-logo-tint: #D6DCEB;  /* Harbour's logo: a tanker from above */
   --hb-logo-edge: var(--logo-edge);
   box-sizing: border-box;
@@ -112,20 +94,11 @@
     --sl-logo-tint: #2E3B46;
     --d-logo-tint: #1F4A42;
     --pt-logo-tint: #23432F;
-    --ct-logo-tint: #4B1F27;
-    --sp-logo-tint: #5A2A18;
-    --qt-logo-tint: #2A2F57;
-    --mf-logo-tint: #17403E;
     --ch-logo-tint: #1E3A55;
     --sv-logo-tint: #4D3818;
     --bl-logo-tint: #39431A;
-    --pi-logo-tint: #55291A;
     --rf-logo-tint: #263D50;
-    --ru-logo-tint: #3F2D1D;
-    --dk-logo-tint: #3D2347;
     --pa-logo-tint: #1B4440;
-    --od-logo-tint: #2F2749;
-    --lg-logo-tint: #4A3D1E;
     --hb-logo-tint: #23304F;
   }
 }
@@ -156,20 +129,11 @@ html[data-mode="night"] {
     --sl-logo-tint: #2E3B46;
     --d-logo-tint: #1F4A42;
     --pt-logo-tint: #23432F;
-    --ct-logo-tint: #4B1F27;
-    --sp-logo-tint: #5A2A18;
-    --qt-logo-tint: #2A2F57;
-    --mf-logo-tint: #17403E;
     --ch-logo-tint: #1E3A55;
     --sv-logo-tint: #4D3818;
     --bl-logo-tint: #39431A;
-    --pi-logo-tint: #55291A;
     --rf-logo-tint: #263D50;
-    --ru-logo-tint: #3F2D1D;
-    --dk-logo-tint: #3D2347;
     --pa-logo-tint: #1B4440;
-    --od-logo-tint: #2F2749;
-    --lg-logo-tint: #4A3D1E;
     --hb-logo-tint: #23304F;
   }
 *, *::before, *::after { box-sizing: inherit; }
@@ -360,8 +324,7 @@ dialog.apps-pop .pick-head h2 { font-size: 1.05rem; }
    the partner's pill, the Rules/Learn buttons and the dropdowns are out of sight, and their work is in the menu (Back to
    menu first). A thin row of live status (score, time, lives) sits in that band beside the button: .full-pull. A picture
    that wants the whole screen leaves the band out too: .full.over. */
-#app.full { --full-btn: 2.5rem; --full-edge: .5rem; --full-band: 2.75rem; --full-slot: 3.25rem; padding-top: calc(env(safe-area-inset-top, 0px) + .5rem); }   /* --full-slot: what a row beside the button leaves for it */
-html[data-theme="modern"] #app.full { --full-slot: 4.5rem; }                                 /* Modern's button is the word Menu */
+#app.full { --full-btn: 2.5rem; --full-edge: .5rem; --full-band: 2.75rem; --full-slot: 3.25rem; padding-top: calc(env(safe-area-inset-top, 0px) + .5rem); }   /* --full-slot: what a row beside the button leaves for it */                                 /* Modern's button is the word Menu */
 #app.full > .top { height: var(--full-band); padding: 0; margin: 0; background: none !important; border: 0 !important; }
 /* what the header showed besides buttons (a clock, lives) stays, in a row with the mark; buttons and dropdowns go to the menu */
 #app.full > .top > .mark, #app.full > .top .top-right > :is(button:not(#menuBtn), select, .dd, .dd-list) { display: none !important; }
@@ -369,10 +332,9 @@ html[data-theme="modern"] #app.full { --full-slot: 4.5rem; }                    
   top: calc(env(safe-area-inset-top, 0px) + var(--full-edge)); right: calc(env(safe-area-inset-right, 0px) + var(--full-edge)); }
 #app.full.over > .top { height: 0; }
 #app.full #menuBtn { width: var(--full-btn); height: var(--full-btn); min-height: 0; padding: 0; margin: 0; }
-#app.full #menuBtn.pick:not(.cx-btn) { width: auto; padding: 0 .7rem; background: var(--sheet); }       /* Modern's plain word */
 #app.full #menuBtn.cx-btn .cx { width: 2.25rem; height: 2.25rem; }
 /* over a picture that is always dark (a night sky, the Earth from space, a 3D scene) the button sits on a plate: a
-   see-through sheet disc with a brass hairline, so Kontor's and Office's ink rules (and the mark's navy) can't vanish in
+   see-through sheet disc with a brass hairline, so the mark's navy can't vanish in
    any theme by day. A page opts in with `plate` on #app; these pages are named here so their own files stay theirs. */
 #app.full:is(.plate, .columbiad, .landfall, .almanac) #menuBtn { background: color-mix(in srgb, var(--sheet) 86%, transparent) !important;
   box-shadow: 0 0 0 1px var(--brass), 0 2px 8px rgba(0, 0, 0, .35); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
@@ -779,8 +741,7 @@ dialog.sure .sure-row .btn { flex: 1; padding-inline: .8rem; }
 .coop-who b { color: var(--ink); font-weight: 800; }
 .coop-leave { flex: none; min-height: 2.125rem; padding: 0 .75rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--yard); color: var(--ink);
   font: inherit; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); cursor: pointer; touch-action: manipulation; }
-html:is([data-theme="modern"], [data-theme="office"]) .coop-leave { border-radius: 12px; font-stretch: 100%; text-transform: none; letter-spacing: normal; }
-html[data-theme="kontor"] .coop-leave { border-radius: 2px; border-width: 1px; font-stretch: 100%; }
+html[data-theme="office"] .coop-leave { border-radius: 12px; font-stretch: 100%; text-transform: none; letter-spacing: normal; }
 
 .code-chip svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex: none; }
 .partner-line { min-width: 0; flex: 1 1 auto; border: 0; background: none; padding: .3rem .1rem; font: inherit; font-size: .78rem; font-weight: 700;
@@ -831,7 +792,7 @@ html.busy body::after { animation-delay: 0s; }
 @keyframes busy-in { from { opacity: 0; } }
 /* A task with stages (loading.js, progress): under the mark's words, a bar filling as it goes, a glint running along
    it so a long stage never looks stuck, and the stage's words under the bar; the bar in the brass that reads as text
-   (Modern's --brass is a hairline grey). A page opened to join others (a party, a table, a partner's match) shows its
+   . A page opened to join others (a party, a table, a partner's match) shows its
    words and a bar from its first moment, while its own files load (theme.js sets html.joining and the words, before
    anything of the page has run); the page's own take over once it runs. */
 /* The mark, large: nine pictures stacked (mark/*.svg, put in by theme.js), each moving part its own layer, so the GPU
@@ -887,7 +848,7 @@ img.pic { background: url("loader-small.svg") center / 2.2rem no-repeat; }
 .home dialog.apps [data-close] { display: none; }
 
 /* the menu's controls: a row with its label; one-of as a segmented row, on-off as a switch; a quiet status line */
-/* a label and a segmented choice side by side; where they don't fit (Kontor's spaced capitals, a narrow phone), the choice
+/* a label and a segmented choice side by side; where they don't fit (a narrow phone), the choice
    moves under its label whole, never breaking apart */
 .menu-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem .75rem; margin: .5rem 0; }
 .menu-label { font-weight: 700; font-size: .95rem; }
@@ -945,7 +906,6 @@ img.pic { background: url("loader-small.svg") center / 2.2rem no-repeat; }
 /* Settings' "Start a game over": the games three across, and quiet while one is being cleared */
 .settings-reset .menu-grid { grid-template-columns: repeat(auto-fit, minmax(5.2rem, 1fr)); }
 .settings-reset .menu-grid button:disabled { opacity: .45; cursor: default; }
-
 
 /* the header: a game's name never gives way. The title holds at least its icon and its word, and your partner's pill
    takes only what's left (shortened, or gone on a narrow phone), instead of pushing the name under the buttons */

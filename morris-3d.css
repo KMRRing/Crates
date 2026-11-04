@@ -4,7 +4,7 @@
    Safari keeps a 3D scene only while every box between the tilted board and the slabs says preserve-3d and none clips.
    The board is tilted about its own middle with the eye level with it, then scaled to leave a margin and lifted by what the
    near edge's growth adds below the middle, so the whole tilted board (pieces and edge too) is centred in the stage. The
-   palette is the 3D view's own: a walnut board (a slate in Modern, Kontor and Office) inlaid with brass, ebony and ivory
+   palette is the 3D view's own: a walnut board (a slate in Office) inlaid with brass, ebony and ivory
    pieces that differ in their marks too (a brass pip on the ebony, an engraved ring on the ivory). */
 #app.mo3 {
   --mo-field: #95693E; --mo-field-hi: #AE8252; --mo-field-lo: #76512D; --mo-frame: #5E3C22; --mo-frame-hi: #D4AE62; --mo-line: #F1DDA8; --mo-pt: #E2B865;
@@ -13,20 +13,13 @@
   --mo-mark: rgba(255, 248, 230, .9); --mo-hint: #FFE08A; --mo-good: #86DDB6; --mo-bad: #F26B58;
   --mo-lift: -3.5%;
 }
-html[data-theme="modern"] #app.mo3 { --mo-field: #5E7283; --mo-field-hi: #74899A; --mo-field-lo: #485A69; --mo-frame: #34414C; --mo-frame-hi: #B9C6D0; --mo-line: #E3EBF1; --mo-pt: #D9E3EA; }
-html[data-theme="kontor"] #app.mo3 { --mo-field: #3F6B55; --mo-field-hi: #528068; --mo-field-lo: #2E5240; --mo-frame: #243D31; --mo-frame-hi: #C9B77A; --mo-line: #E8E0B4; --mo-pt: #D8C887; }
 html[data-theme="office"] #app.mo3 { --mo-field: #587088; --mo-field-hi: #6C87A1; --mo-field-lo: #435A70; --mo-frame: #2F4256; --mo-frame-hi: #C7D3DF; --mo-line: #E4ECF4; --mo-pt: #D5E0EB; }
 @media (prefers-color-scheme: dark) {
   html:not([data-mode="day"]) #app.mo3 { --mo-field: #4A3524; --mo-field-hi: #5A422D; --mo-field-lo: #38281A; --mo-frame: #2A1D12; --mo-frame-hi: #B58A3E; --mo-line: #C99A45; --mo-pt: #C99A45;
     --mo-light: #E8DEC4; --mo-dark-hi: #40382F; --mo-good: #7FC9A6; --mo-bad: #EE7A68; }
-  html[data-theme="modern"]:not([data-mode="day"]) #app.mo3 { --mo-field: #2F3C48; --mo-field-hi: #3B4B59; --mo-field-lo: #232D37; --mo-frame: #1B232B; --mo-frame-hi: #8FA1B0; --mo-line: #8FA1B0; --mo-pt: #A9B8C4; }
-  html[data-theme="kontor"]:not([data-mode="day"]) #app.mo3 { --mo-field: #1F3B2D; --mo-field-hi: #28493A; --mo-field-lo: #162B21; --mo-frame: #0F1D16; --mo-frame-hi: #9C8F58; --mo-line: #B5A76B; --mo-pt: #B5A76B; }
-  html[data-theme="office"]:not([data-mode="day"]) #app.mo3 { --mo-field: #2C3E50; --mo-field-hi: #384D63; --mo-field-lo: #213140; --mo-frame: #17222D; --mo-frame-hi: #7F96AD; --mo-line: #8CA4BD; --mo-pt: #A4B8CC; }
 }
 html[data-mode="night"] #app.mo3 { --mo-field: #4A3524; --mo-field-hi: #5A422D; --mo-field-lo: #38281A; --mo-frame: #2A1D12; --mo-frame-hi: #B58A3E; --mo-line: #C99A45; --mo-pt: #C99A45;
   --mo-light: #E8DEC4; --mo-dark-hi: #40382F; --mo-good: #7FC9A6; --mo-bad: #EE7A68; }
-html[data-theme="modern"][data-mode="night"] #app.mo3 { --mo-field: #2F3C48; --mo-field-hi: #3B4B59; --mo-field-lo: #232D37; --mo-frame: #1B232B; --mo-frame-hi: #8FA1B0; --mo-line: #8FA1B0; --mo-pt: #A9B8C4; }
-html[data-theme="kontor"][data-mode="night"] #app.mo3 { --mo-field: #1F3B2D; --mo-field-hi: #28493A; --mo-field-lo: #162B21; --mo-frame: #0F1D16; --mo-frame-hi: #9C8F58; --mo-line: #B5A76B; --mo-pt: #B5A76B; }
 html[data-theme="office"][data-mode="night"] #app.mo3 { --mo-field: #2C3E50; --mo-field-hi: #384D63; --mo-field-lo: #213140; --mo-frame: #17222D; --mo-frame-hi: #7F96AD; --mo-line: #8CA4BD; --mo-pt: #A4B8CC; }
 
 /* the table the board stands on: a soft pool of light from above on the page's own colour */

@@ -88,7 +88,6 @@ html #clActs .lm-brush[aria-checked="true"] { border-color: var(--lm-in); box-sh
   #app.nonogram.cloth .lm-brushes, #app.nonogram.cloth .lm-moves { height: 2.75rem; flex: none; }
 }
 html[data-theme="office"] :is(.lm-jobs button, .lm-bench) { border-radius: 4px; }
-html[data-theme="kontor"] :is(.lm-jobs button, .lm-bench) { border-radius: 2px; }
 
 /* a page in one mode shows only that mode's parts */
 #app.cloth :is(.ng-strip, .ng-card, .ng-side) { display: none; }

@@ -31,8 +31,6 @@ dialog.ln-sheet.ma { --ln-in: var(--ma-in); }
   .ma-about, .ma-chapters { display: block; }
   .ma-chapters { display: flex; }
 }
-html[data-theme="modern"] .ma-go { border-radius: 14px; background: var(--ma-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
-html[data-theme="kontor"] .ma-go { border-radius: 2px; }
 
 /* a step with nothing on the stage (a question by itself): the words take its room */
 dialog.ln-sheet.ma .ln-stage:empty { display: none; }
@@ -116,5 +114,3 @@ text.mx-lb.a { fill: var(--ln-in); } text.mx-lb.b { fill: var(--brass); }
 .mx-opt.no { border-color: var(--ln-no); }
 .mx-opt:disabled { cursor: default; }
 .mx-x { font-size: .84rem; line-height: 1.4; color: var(--ink-soft); }
-html[data-theme="modern"] :is(.mx-chip, .mx-key, .mx-opt, .mx-out) { border-radius: 12px; }
-html[data-theme="kontor"] :is(.mx-chip, .mx-key, .mx-opt, .mx-out) { border-radius: 2px; }

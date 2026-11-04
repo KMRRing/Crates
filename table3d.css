@@ -146,8 +146,7 @@
 html[data-theme="office"] :is(.tk-mat, .tk-surface) { --tk-w1: #3A4048; --tk-w2: #272C33; --tk-w3: #181B20; --tk-inl: #9BA3AD; border-radius: .9rem; }
 html[data-theme="office"] .tk-inlay { box-shadow: none; }
 html[data-theme="office"] :is(.tk-n, .tk-count, .tk-pn) { border-color: var(--rule); }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) :is(.tk-mat, .tk-surface) { --tk-c: color-mix(in srgb, var(--tk-felt, #29507A) 72%, #000); --tk-w1: #5A3420; --tk-w2: #3E2315; --tk-w3: #26140B; --tk-inl: #B8913F; }
-  html[data-theme="office"]:not([data-mode="day"]) :is(.tk-mat, .tk-surface) { --tk-w1: #3A4048; --tk-w2: #272C33; --tk-w3: #181B20; --tk-inl: #9BA3AD; } }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) :is(.tk-mat, .tk-surface) { --tk-c: color-mix(in srgb, var(--tk-felt, #29507A) 72%, #000); --tk-w1: #5A3420; --tk-w2: #3E2315; --tk-w3: #26140B; --tk-inl: #B8913F; } }
 html[data-mode="night"] :is(.tk-mat, .tk-surface) { --tk-c: color-mix(in srgb, var(--tk-felt, #29507A) 72%, #000); --tk-w1: #5A3420; --tk-w2: #3E2315; --tk-w3: #26140B; --tk-inl: #B8913F; }
 html[data-theme="office"][data-mode="night"] :is(.tk-mat, .tk-surface) { --tk-w1: #3A4048; --tk-w2: #272C33; --tk-w3: #181B20; --tk-inl: #9BA3AD; }
 @media (prefers-reduced-motion: reduce) { .tk-plate.on .tk-med::before, .tk-plate.thinking .tk-info::after { animation: none; } }

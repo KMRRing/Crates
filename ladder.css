@@ -180,12 +180,9 @@ dialog.ld-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   #app.ladder .ld-ladder { --t: clamp(2.2rem, min(calc((100cqw - 7.6rem - (var(--n, 4) - 1) * var(--gap)) / var(--n, 4)), calc((100cqh - 1.8rem - (var(--rows, 6) - 1) * .45rem) / var(--rows, 6))), 4.6rem); }
 }
 
-/* the other themes: rounder, flatter, and Kontor's square */
-html:is([data-theme="modern"], [data-theme="office"]) .ld-card { border-radius: 20px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="office"]) .ld-t { border-radius: 9px; }
-html:is([data-theme="modern"], [data-theme="office"]) .ld-tool { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="office"]) .ld-go { border-radius: 14px; background: var(--ld-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="office"]) .ld-toast { border-radius: 10px; }
-html[data-theme="kontor"] .ld-card { border-radius: 2px; box-shadow: none; }
-html[data-theme="kontor"] .ld-t { border-radius: 2px; }
-html[data-theme="kontor"] .ld-tool { border-radius: 2px; }
+/* Office: rounder, flatter */
+html[data-theme="office"] .ld-card { border-radius: 20px; box-shadow: none; }
+html[data-theme="office"] .ld-t { border-radius: 9px; }
+html[data-theme="office"] .ld-tool { border-radius: 12px; }
+html[data-theme="office"] .ld-go { border-radius: 14px; background: var(--ld-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .ld-toast { border-radius: 10px; }

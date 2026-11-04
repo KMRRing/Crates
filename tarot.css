@@ -12,11 +12,7 @@
   --tr-t0: #7FB6D4; --tr-t1: #7FC2A8; --tr-t2: #E0B866; --tr-t3: #E8806F; --tr-t4: #D9C9A3; } }
 html[data-mode="night"] { --tr-in: #E08A96; --tr-felt: color-mix(in srgb, #8E2F3E 22%, var(--sheet));
   --tr-t0: #7FB6D4; --tr-t1: #7FC2A8; --tr-t2: #E0B866; --tr-t3: #E8806F; --tr-t4: #D9C9A3; }
-html[data-theme="kontor"] { --tr-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --tr-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --tr-in: #2EB36A; }
 html[data-theme="office"] { --tr-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --tr-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --tr-in: #479EF5; }
 
 /* the course's sheet (course.css) in the game's enamel */

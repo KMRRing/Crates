@@ -11,11 +11,7 @@
   html:not([data-mode="day"]) { --ya-in: #6FB6D2; --ya-die: #EDE3CC; --ya-die-edge: #8C7A55; --ya-pip: #16212B; --ya-felt: #1F4A3C; --ya-felt-edge: #112B22; --ya-held: #7FC2A8; --ya-bad: #E8806F; }
 }
 html[data-mode="night"] { --ya-in: #6FB6D2; --ya-die: #EDE3CC; --ya-die-edge: #8C7A55; --ya-pip: #16212B; --ya-felt: #1F4A3C; --ya-felt-edge: #112B22; --ya-held: #7FC2A8; --ya-bad: #E8806F; }
-html[data-theme="kontor"] { --ya-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --ya-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --ya-in: #2EB36A; }
 html[data-theme="office"] { --ya-in: #0F6CBD; --ya-die: #FFFFFF; --ya-die-edge: #A19F9D; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --ya-in: #479EF5; --ya-die: #E1DFDD; --ya-die-edge: #797775; } }
 html[data-theme="office"][data-mode="night"] { --ya-in: #479EF5; --ya-die: #E1DFDD; --ya-die-edge: #797775; }
 
 .ya-mark { display: inline-block; }

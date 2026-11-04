@@ -14,7 +14,6 @@
   html:not([data-mode="day"]) { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #1F3A55; --cut4: #8C7560; --cut3: #A8743A; }
 }
 html[data-mode="night"] { --yd-in: #8DB4DC; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #1F3A55; --cut4: #8C7560; --cut3: #A8743A; }
-html[data-theme="modern"] { --yd-logo-tint: #D5E1EC; --yd-logo-edge: #2D5E88; }
 
 .yd-mark { display: inline-block; }
 .yd-mark svg { width: 100%; height: 100%; display: block; }
@@ -209,13 +208,13 @@ dialog.yd-sheet { max-height: 86vh; max-height: 86svh; overflow-y: auto; overscr
 }
 
 /* ---------- Codex's ornaments, undone for the other themes ---------- */
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-found { border-radius: 12px; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-chart-btn { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-key { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-mix { border-radius: 50%; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-enter { border-radius: 14px; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.yd-cell .inlay, .yd-board .rivet) { display: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-ranks li, html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-stats div { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-toast { border-radius: 10px; }
+html[data-theme="office"] .yd-found { border-radius: 12px; outline: none; }
+html[data-theme="office"] .yd-chart-btn { border-radius: 12px; }
+html[data-theme="office"] .yd-key { border-radius: 12px; }
+html[data-theme="office"] .yd-mix { border-radius: 50%; }
+html[data-theme="office"] .yd-enter { border-radius: 14px; outline: none; }
+html[data-theme="office"] :is(.yd-cell .inlay, .yd-board .rivet) { display: none; }
+html[data-theme="office"] .yd-ranks li, html[data-theme="office"] .yd-stats div { border-radius: 10px; }
+html[data-theme="office"] .yd-toast { border-radius: 10px; }
 html[data-theme="office"] .yd-key, html[data-theme="office"] .yd-found, html[data-theme="office"] .yd-chart-btn { border-radius: 4px; }
 html[data-theme="office"] .yd-enter { border-radius: 4px; }

@@ -6,11 +6,7 @@
 :root { --tr-in: #2E6B4F; --tr-soft: color-mix(in srgb, var(--tr-in) 13%, var(--sheet)); --tr-felt: color-mix(in srgb, #2E6B4F 14%, var(--yard)); }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --tr-in: #7FC2A8; --tr-felt: color-mix(in srgb, #2E6B4F 22%, var(--yard)); } }
 html[data-mode="night"] { --tr-in: #7FC2A8; --tr-felt: color-mix(in srgb, #2E6B4F 22%, var(--yard)); }
-html[data-theme="kontor"] { --tr-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --tr-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --tr-in: #2EB36A; }
 html[data-theme="office"] { --tr-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --tr-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --tr-in: #479EF5; }
 
 .tr-mark { display: inline-block; }

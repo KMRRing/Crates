@@ -127,8 +127,8 @@ dialog.is-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   #app.isomer .is-result { grid-template-columns: 1fr; }
 }
 
-/* Modern, Kontor and Office: no inset frame on the stage, rounder corners, the way on in the house enamel */
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .is-board { border-radius: 20px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.is-tool, .is-tile, .is-clue) { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .is-go { border-radius: 14px; background: var(--is-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .is-toast { border-radius: 10px; }
+/* Office: no inset frame on the stage, rounder corners, the way on in the house enamel */
+html[data-theme="office"] .is-board { border-radius: 20px; box-shadow: none; }
+html[data-theme="office"] :is(.is-tool, .is-tile, .is-clue) { border-radius: 12px; }
+html[data-theme="office"] .is-go { border-radius: 14px; background: var(--is-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .is-toast { border-radius: 10px; }

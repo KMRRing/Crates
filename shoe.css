@@ -8,11 +8,7 @@
 }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --sh-in: #6CC3CF; --sh-felt: color-mix(in srgb, #1E7F8C 24%, var(--sheet)); } }
 html[data-mode="night"] { --sh-in: #6CC3CF; --sh-felt: color-mix(in srgb, #1E7F8C 24%, var(--sheet)); }
-html[data-theme="kontor"] { --sh-in: #11707E; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --sh-in: #3FB5C4; } }
-html[data-theme="kontor"][data-mode="night"] { --sh-in: #3FB5C4; }
 html[data-theme="office"] { --sh-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --sh-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --sh-in: #479EF5; }
 
 .sh-mark { display: inline-block; }

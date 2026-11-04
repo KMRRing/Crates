@@ -1,319 +1,203 @@
-/* The themes beyond Codex (whose look is the stylesheets themselves). Loaded last on every page.
-   Modern is Codex as it was before the Art Deco update: its palette, logos and every visual property (colour,
-   lettering, borders, corners, shadows, ornaments) restored from the stylesheets of 253953f^ for each selector Deco
-   changed; spacing is today's. Kontor starts from the same undecorated base and dresses it as Kontor: dense, technical,
-   an office's green. Office starts from it too and dresses it as Microsoft Office does, after Outlook: Fluent's neutrals
-   and its blue, Segoe UI in sentence case, hairline borders, small rounded corners, no ornaments. Theme and day or night are chosen on the games screen (More, Settings); theme.js sets them on
-   <html> before the page draws. Generated once from the old stylesheets, maintained by hand from here. */
+/* Office, the one theme beyond Codex (whose look is the stylesheets themselves). Loaded last on every page.
+   Office is night only: theme.js sets data-theme="office" and data-mode="night" on <html> before the page draws, whatever
+   the phone says. It starts from the undecorated base below (each selector Codex's Art Deco dress restyled, as it was
+   before) and dresses it as Microsoft Office does, after Outlook: Fluent's neutrals and its blue, Segoe UI in sentence
+   case, hairline borders, small rounded corners, no ornaments. */
 
-/* ---------- Modern's palette (and the logos' colours), day and night ---------- */
-html[data-theme="modern"] { --gap: .375rem; --tile-ratio: .8; --yard: #E4E7E7; --ink: #1C2A34; --ink-soft: #5A6B77; --tile: #F7F8F7; --tile-edge: #C9D1D5; --c0: #E1AB24; --c1: #3F7A50; --c2: #2D5E88; --c3: #A23C30; --on-c0: #2A2005; --on-c: #F7F5EF; --sheet: #F4F5F4; --focus: #2D5E88; --p0: #2D5E88; --p1: #C06A1B; --learn: #3F7A50; --font: "Archivo", "Helvetica Neue", Arial, sans-serif; --cr-logo-tint: #F3E1BA; --cr-logo-edge: #A2690F; --sl-logo-tint: #D3DEE7; --sl-logo-edge: #3F5A70; --d-logo-tint: #CBE7E4; --d-logo-edge: #17807C; --pt-logo-tint: #CFE6D8; --pt-logo-edge: #2E6B4A; --ct-logo-tint: #F1D7DC; --ct-logo-edge: #8E2C3B; --sp-logo-tint: #FBDCCB; --sp-logo-edge: #C2511F; --qt-logo-tint: #DCDFF5; --qt-logo-edge: #3F4DAE; --mf-logo-tint: #D2ECEA; --mf-logo-edge: #137C77; --ch-logo-tint: #D5E7F1; --ch-logo-edge: #1F6F9A; --sv-logo-tint: #F3E6CF; --sv-logo-edge: #9A6B1E; --bl-logo-tint: #E6EFD2; --bl-logo-edge: #5B7A1E; --pi-logo-tint: #F4DCD1; --pi-logo-edge: #B4532A; --rf-logo-tint: #D8E4EC; --rf-logo-edge: #35607E; --ru-logo-tint: #EADFD2; --ru-logo-edge: #6B4A2B; --dk-logo-tint: #EEDFF2; --dk-logo-edge: #6D3B7A; --pa-logo-tint: #D8EEEC; --pa-logo-edge: #1E7A74; --lg-logo-tint: #F2E6C8; --lg-logo-edge: #8A6A1E; --hb-logo-tint: #DCE3F0; --hb-logo-edge: #263A63;
-  --brass: var(--tile-edge); --brass-hi: var(--sheet); --brass-lo: var(--ink-soft); --rule: var(--tile-edge); --plate: var(--ink); --plate-ink: var(--yard); --logo-edge: var(--ink-soft);
-  --caps: none; --track: 0; --stretch-btn: 100%; --wide: 100%; }
-@media (prefers-color-scheme: dark) { html[data-theme="modern"]:not([data-mode="day"]) { --yard: #141B20; --ink: #E3E8EB; --ink-soft: #93A3AE; --tile: #1D262D; --tile-edge: #33414B; --sheet: #1D262D; --focus: #8EB9DE; --p0: #6FA3D6; --p1: #E39A55; --learn: #86C79A; } }
-html[data-theme="modern"][data-mode="night"] { --yard: #141B20; --ink: #E3E8EB; --ink-soft: #93A3AE; --tile: #1D262D; --tile-edge: #33414B; --sheet: #1D262D; --focus: #8EB9DE; --p0: #6FA3D6; --p1: #E39A55; --learn: #86C79A; }
-
-/* ---------- the undecorated base Modern and Kontor share: each selector Deco restyled, as it was before ---------- */
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-about { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-margin { border-radius: 16px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-margin-row span { text-transform: uppercase; letter-spacing: .06em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-go { border-radius: 14px; background: var(--bl-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-chip { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-spec { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-row { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-row .name .bio { border-radius: 999px; font-size: .7rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-table { border-radius: 26px; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-seat { border-radius: 16px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-seat.targetable.picked::after { border-radius: 999px; background: #E76F51; letter-spacing: .04em; text-transform: uppercase; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-marker { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-notes li { border-radius: 999px; border: 1px solid rgba(255, 255, 255, .22); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-tray { border-radius: 18px; box-shadow: 0 1px 0 rgba(0, 0, 0, .04); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-chip { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-chip small { text-transform: uppercase; letter-spacing: .04em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-action { border-radius: 14px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-panel { border-radius: 14px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-label { text-transform: uppercase; letter-spacing: .06em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-choice { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-role { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-step-btn { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-go { border-radius: 14px; background: var(--ct-ox-fill); color: #fff; text-transform: none; letter-spacing: normal; font-stretch: 100%; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ct-row .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) dialog.ct-pop { border: 0; border-radius: 18px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-card { border-radius: 20px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-cat { border-radius: 999px; font-size: .72rem; font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-map { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-go { border-radius: 14px; background: var(--ch-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; font-stretch: 100%; letter-spacing: normal; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-stats div { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-summary { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dk-piles div { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dk-go { border-radius: 14px; background: var(--dk-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dk-option { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dk-number input { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dk-number button { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dk-summary { border-radius: 16px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dk-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dk-speak { border: 1.5px solid var(--ink-soft); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .d-num { font-stretch: 112%; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dd { border-radius: 6px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dd-list { border: 1px solid var(--tile-edge); border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dd-opt { border-radius: 8px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dd-opt.on { background: color-mix(in srgb, var(--ink) 7%, transparent); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dd-opt:active { background: color-mix(in srgb, var(--ink) 7%, transparent); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hb-ctl { border: 1.5px solid var(--ink); border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hb-ctl.primary { background: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hb-picktool[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hb-cell.lp-badge { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hb-bests thead th { letter-spacing: .05em; text-transform: uppercase; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-stage { border-radius: 20px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-order { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-order b { text-transform: uppercase; letter-spacing: .06em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-book.strip .mf-chiplet { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-row { border-radius: 14px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-chip { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-mini button { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-go { border-radius: 14px; background: var(--mf-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-stats div { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pa-stats div { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pa-go { border-radius: 14px; background: var(--pa-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pa-unit { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pa-card { border-radius: 16px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pa-option { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pa-type input { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pa-type button { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pa-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pi-stage { border-radius: 20px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pi-board { border-radius: 14px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pi-go { border-radius: 14px; background: var(--pi-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pi-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pi-stats div { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pi-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt-lengths .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt-pot b { font-stretch: 112%; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt-chips .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt-picture img { border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.18); filter: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt-reasons .btn[aria-checked="true"] { background: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-card { border-radius: 20px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-cat { border-radius: 999px; font-size: .72rem; font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-side span { text-transform: uppercase; letter-spacing: .06em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-side input { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-go { border-radius: 14px; background: var(--qt-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-stats div { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-about { border-radius: 999px; border: 1.5px solid var(--rf-edge, #C9D1D5); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-margin { border-radius: 16px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-margin-row span { text-transform: uppercase; letter-spacing: .06em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-go { border-radius: 14px; background: var(--rf-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-tabs { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-pane { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-chip { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-group { text-transform: uppercase; letter-spacing: .06em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-stream { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-pool { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-pick button { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-pick .head { text-transform: uppercase; letter-spacing: .06em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .sq.light { fill: #E4ECF3; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .sq.dark { fill: #6B8DB0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .coord.on-light { fill: #6B8DB0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .coord.on-dark { fill: #E4ECF3; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ru-stats div { border-radius: 12px; }
+/* ---------- the undecorated base: each selector Codex dressed, as it was before ---------- */
+html[data-theme="office"] .bl-about { border-radius: 999px; }
+html[data-theme="office"] .bl-margin { border-radius: 16px; box-shadow: none; }
+html[data-theme="office"] .bl-margin-row span { text-transform: uppercase; letter-spacing: .06em; }
+html[data-theme="office"] .bl-go { border-radius: 14px; background: var(--bl-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .bl-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
+html[data-theme="office"] .bl-chip { border-radius: 999px; }
+html[data-theme="office"] .bl-spec { border-radius: 12px; }
+html[data-theme="office"] .bl-row { border-radius: 12px; }
+html[data-theme="office"] .bl-row .name .bio { border-radius: 999px; font-size: .7rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; }
+html[data-theme="office"] .bl-toast { border-radius: 10px; }
+html[data-theme="office"] .ct-table { border-radius: 26px; outline: none; outline-offset: 0; }
+html[data-theme="office"] .ct-seat { border-radius: 16px; }
+html[data-theme="office"] .ct-seat.targetable.picked::after { border-radius: 999px; background: #E76F51; letter-spacing: .04em; text-transform: uppercase; }
+html[data-theme="office"] .ct-marker { border-radius: 999px; }
+html[data-theme="office"] .ct-notes li { border-radius: 999px; border: 1px solid rgba(255, 255, 255, .22); }
+html[data-theme="office"] .ct-tray { border-radius: 18px; box-shadow: 0 1px 0 rgba(0, 0, 0, .04); }
+html[data-theme="office"] .ct-chip { border-radius: 999px; }
+html[data-theme="office"] .ct-chip small { text-transform: uppercase; letter-spacing: .04em; }
+html[data-theme="office"] .ct-action { border-radius: 14px; }
+html[data-theme="office"] .ct-panel { border-radius: 14px; }
+html[data-theme="office"] .ct-label { text-transform: uppercase; letter-spacing: .06em; }
+html[data-theme="office"] .ct-choice { border-radius: 12px; }
+html[data-theme="office"] .ct-role { border-radius: 12px; }
+html[data-theme="office"] .ct-step-btn { border-radius: 12px; }
+html[data-theme="office"] .ct-go { border-radius: 14px; background: var(--ct-ox-fill); color: #fff; text-transform: none; letter-spacing: normal; font-stretch: 100%; outline: none; outline-offset: 0; }
+html[data-theme="office"] .ct-row .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+html[data-theme="office"] dialog.ct-pop { border: 0; border-radius: 18px; }
+html[data-theme="office"] .ch-card { border-radius: 20px; box-shadow: none; }
+html[data-theme="office"] .ch-cat { border-radius: 999px; font-size: .72rem; font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
+html[data-theme="office"] .ch-map { border-radius: 12px; }
+html[data-theme="office"] .ch-go { border-radius: 14px; background: var(--ch-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .ch-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; font-stretch: 100%; letter-spacing: normal; }
+html[data-theme="office"] .ch-stats div { border-radius: 12px; }
+html[data-theme="office"] .ch-summary { border-radius: 12px; }
+html[data-theme="office"] .ch-toast { border-radius: 10px; }
+html[data-theme="office"] .dk-piles div { border-radius: 12px; }
+html[data-theme="office"] .dk-go { border-radius: 14px; background: var(--dk-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .dk-option { border-radius: 12px; }
+html[data-theme="office"] .dk-number input { border-radius: 12px; }
+html[data-theme="office"] .dk-number button { border-radius: 12px; }
+html[data-theme="office"] .dk-summary { border-radius: 16px; box-shadow: none; }
+html[data-theme="office"] .dk-toast { border-radius: 10px; }
+html[data-theme="office"] .dk-speak { border: 1.5px solid var(--ink-soft); }
+html[data-theme="office"] .d-num { font-stretch: 112%; }
+html[data-theme="office"] .dd { border-radius: 6px; }
+html[data-theme="office"] .dd-list { border: 1px solid var(--tile-edge); border-radius: 12px; }
+html[data-theme="office"] .dd-opt { border-radius: 8px; }
+html[data-theme="office"] .dd-opt.on { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+html[data-theme="office"] .dd-opt:active { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+html[data-theme="office"] .hb-ctl { border: 1.5px solid var(--ink); border-radius: 999px; }
+html[data-theme="office"] .hb-ctl.primary { background: var(--ink); color: var(--yard); }
+html[data-theme="office"] .hb-picktool[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+html[data-theme="office"] .hb-cell.lp-badge { border-radius: 999px; }
+html[data-theme="office"] .hb-bests thead th { letter-spacing: .05em; text-transform: uppercase; }
+html[data-theme="office"] .mf-stage { border-radius: 20px; box-shadow: none; }
+html[data-theme="office"] .mf-order { border-radius: 12px; }
+html[data-theme="office"] .mf-order b { text-transform: uppercase; letter-spacing: .06em; }
+html[data-theme="office"] .mf-book.strip .mf-chiplet { border-radius: 999px; }
+html[data-theme="office"] .mf-row { border-radius: 14px; }
+html[data-theme="office"] .mf-chip { border-radius: 12px; }
+html[data-theme="office"] .mf-mini button { border-radius: 12px; }
+html[data-theme="office"] .mf-go { border-radius: 14px; background: var(--mf-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .mf-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
+html[data-theme="office"] .mf-stats div { border-radius: 12px; }
+html[data-theme="office"] .mf-toast { border-radius: 10px; }
+html[data-theme="office"] .pa-stats div { border-radius: 12px; }
+html[data-theme="office"] .pa-go { border-radius: 14px; background: var(--pa-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .pa-unit { border-radius: 12px; }
+html[data-theme="office"] .pa-card { border-radius: 16px; box-shadow: none; }
+html[data-theme="office"] .pa-option { border-radius: 12px; }
+html[data-theme="office"] .pa-type input { border-radius: 12px; }
+html[data-theme="office"] .pa-type button { border-radius: 12px; }
+html[data-theme="office"] .pa-toast { border-radius: 10px; }
+html[data-theme="office"] .pi-stage { border-radius: 20px; box-shadow: none; }
+html[data-theme="office"] .pi-board { border-radius: 14px; }
+html[data-theme="office"] .pi-go { border-radius: 14px; background: var(--pi-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .pi-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html[data-theme="office"] .pi-stats div { border-radius: 12px; }
+html[data-theme="office"] .pi-toast { border-radius: 10px; }
+html[data-theme="office"] .pt-lengths .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+html[data-theme="office"] .pt-pot b { font-stretch: 112%; }
+html[data-theme="office"] .pt-chips .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+html[data-theme="office"] .pt-picture img { border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.18); filter: none; }
+html[data-theme="office"] .pt-reasons .btn[aria-checked="true"] { background: var(--ink); color: var(--yard); }
+html[data-theme="office"] .qt-card { border-radius: 20px; box-shadow: none; }
+html[data-theme="office"] .qt-cat { border-radius: 999px; font-size: .72rem; font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
+html[data-theme="office"] .qt-side span { text-transform: uppercase; letter-spacing: .06em; }
+html[data-theme="office"] .qt-side input { border-radius: 12px; }
+html[data-theme="office"] .qt-go { border-radius: 14px; background: var(--qt-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .qt-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
+html[data-theme="office"] .qt-stats div { border-radius: 12px; }
+html[data-theme="office"] .qt-toast { border-radius: 10px; }
+html[data-theme="office"] .rf-about { border-radius: 999px; border: 1.5px solid var(--rf-edge, #C9D1D5); }
+html[data-theme="office"] .rf-margin { border-radius: 16px; box-shadow: none; }
+html[data-theme="office"] .rf-margin-row span { text-transform: uppercase; letter-spacing: .06em; }
+html[data-theme="office"] .rf-go { border-radius: 14px; background: var(--rf-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .rf-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
+html[data-theme="office"] .rf-tabs { border-radius: 12px; }
+html[data-theme="office"] .rf-pane { border-radius: 12px; }
+html[data-theme="office"] .rf-chip { border-radius: 999px; }
+html[data-theme="office"] .rf-group { text-transform: uppercase; letter-spacing: .06em; }
+html[data-theme="office"] .rf-stream { border-radius: 12px; }
+html[data-theme="office"] .rf-pool { border-radius: 12px; }
+html[data-theme="office"] .rf-pick button { border-radius: 12px; }
+html[data-theme="office"] .rf-pick .head { text-transform: uppercase; letter-spacing: .06em; }
+html[data-theme="office"] .rf-toast { border-radius: 10px; }
+html[data-theme="office"] .ch-board .sq.light { fill: #E4ECF3; }
+html[data-theme="office"] .ch-board .sq.dark { fill: #6B8DB0; }
+html[data-theme="office"] .ch-board .coord.on-light { fill: #6B8DB0; }
+html[data-theme="office"] .ch-board .coord.on-dark { fill: #E4ECF3; }
+html[data-theme="office"] .ru-stats div { border-radius: 12px; }
 /* Stow without Codex's wood: the cargo a neutral grey, the stamp in the theme's own accent */
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) { --sw-cell: color-mix(in srgb, var(--ink) 7%, var(--sheet)); --sw-cargo: color-mix(in srgb, var(--ink) 30%, var(--sheet)); --sw-stamp: var(--sw-in); --sw-stamp-edge: var(--sheet); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-board { border-radius: 20px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-slot { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-go { border-radius: 14px; background: var(--sw-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-row button { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-chapter, html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-strip #where { font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .g-actions .btn { letter-spacing: normal; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .g-krow button.place { background: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .g-defs .pos { text-transform: uppercase; letter-spacing: .05em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-mod { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-mod small { text-transform: uppercase; letter-spacing: .05em; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-sum em { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-field { border-radius: 20px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-sum { border-radius: 14px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-token { border-radius: 18px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-overlay { border-radius: 20px; background: rgba(20, 27, 32, .55); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-card { border-radius: 22px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-stats div { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-go { border-radius: 16px; background: var(--sp-or); color: #fff; text-transform: none; letter-spacing: normal; font-stretch: 100%; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .top { background: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mark { font-size: 1.75rem; font-stretch: 100%; letter-spacing: -.02em; text-transform: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mark-btn { text-transform: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) dialog.apps .pick-head h2 { font-size: 1.75rem; font-stretch: 100%; letter-spacing: -.02em; text-transform: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .app-row { border-radius: 14px; border: 2px solid transparent; outline: none; outline-offset: 0; }
-html[data-theme="modern"] :is(.find-field input, .find-pick select) { border-radius: 12px; }
-/* Modern's brass is a hairline grey, which would leave a starred star looking as unstarred as the rest: its stars are ink */
-html[data-theme="modern"] :is(.app-star[aria-pressed="true"] svg, .apps-sec-star) { fill: var(--ink); stroke: var(--ink); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .app-name { font-size: clamp(.82rem, 17cqh, 1.1rem); font-stretch: 100%; letter-spacing: normal; text-transform: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .app-now { font-size: .68rem; font-weight: 750; letter-spacing: normal; text-transform: none; border-radius: 999px; background: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) dialog.apps-pop { border: 0; border-radius: 18px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) dialog.apps-pop .pick-head h2 { font-size: 1.3rem; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pool { border-radius: 6px; background-color: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pick { border: 1.5px solid var(--ink-soft); border-radius: 6px; font-weight: 600; font-stretch: 100%; letter-spacing: normal; text-transform: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .tile { border: 2px solid var(--tile-edge); border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .tile[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); background: color-mix(in srgb, var(--ink) 7%, var(--tile)); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cell.psel .tile { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); background: color-mix(in srgb, var(--ink) 7%, var(--tile)); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .crate { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .crate-name { font-size: 1.3rem; font-stretch: 100%; letter-spacing: -.01em; text-transform: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .btn { border: 1.5px solid var(--ink); border-radius: 999px; font-weight: 650; font-stretch: 100%; letter-spacing: normal; text-transform: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .btn.primary { background: var(--ink); color: var(--yard); outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sheet .join-run input { border: 1.5px solid var(--ink-soft); border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sheet h4 { font-size: .8rem; font-weight: 700; font-stretch: 100%; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .seg { border: 1.5px solid var(--ink); border-radius: 6px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .seg button { border-left: 1.5px solid var(--ink); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .seg button[aria-checked="true"] { background: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .chip { border: 1.5px solid var(--ink-soft); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--yard); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sheet input { border: 1.5px solid var(--ink); border-radius: 6px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pick-head h2 { font-size: 1.4rem; font-stretch: 100%; letter-spacing: -.01em; text-transform: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .code-chip { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .code-chip em.on { color: #3a9d57; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .partner-pill { font-size: .62rem; letter-spacing: normal; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .partner-line.on { color: #3a9d57; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .icon-btn { border: 1.5px solid var(--tile-edge); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) dialog.menu-sheet { border-radius: 18px 18px 0 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) dialog.menu-sheet .pick-head h2 { font-size: 1.15rem; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .menu-h { font-size: .72rem; font-stretch: 100%; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sv-card { border-radius: 20px; box-shadow: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sv-tool { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sv-go { border-radius: 14px; background: var(--sv-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sv-toast { border-radius: 10px; }
-@media (prefers-color-scheme: dark) {
-/* Modern's own logo tints stay light at night (a newer game's, from its own stylesheet, are deep), so a dropdown takes
-   a deep face of the logo's edge, as before the Deco update, lettered and ticked in the ink, which reads whatever the
-   tint; Kontor and Office keep Codex's deep night face, lettered in the ink (dropdown.css). Lettered in the tint on
-   a face of the same tint, as all three once were, a choice couldn't be read. */
-html[data-theme="modern"]:not([data-mode="day"]) .dd { background: color-mix(in srgb, var(--dd-edge, var(--tile)) 30%, var(--yard)); color: var(--ink); }
-html[data-theme="modern"]:not([data-mode="day"]) .dd-tick { stroke: color-mix(in srgb, var(--dd-edge, var(--ink)) 45%, var(--ink)); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .ch-board .sq.light { fill: #CBD6E0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .ch-board .sq.dark { fill: #4F6E8F; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .ch-board .coord.on-light { fill: #4F6E8F; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .ch-board .coord.on-dark { fill: #CBD6E0; }
-}
-html[data-theme="modern"][data-mode="night"] .dd { background: color-mix(in srgb, var(--dd-edge, var(--tile)) 30%, var(--yard)); color: var(--ink); }
-html[data-theme="modern"][data-mode="night"] .dd-tick { stroke: color-mix(in srgb, var(--dd-edge, var(--ink)) 45%, var(--ink)); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"])[data-mode="night"] .ch-board .sq.light { fill: #CBD6E0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"])[data-mode="night"] .ch-board .sq.dark { fill: #4F6E8F; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"])[data-mode="night"] .ch-board .coord.on-light { fill: #4F6E8F; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"])[data-mode="night"] .ch-board .coord.on-dark { fill: #CBD6E0; }
+html[data-theme="office"] { --sw-cell: color-mix(in srgb, var(--ink) 7%, var(--sheet)); --sw-cargo: color-mix(in srgb, var(--ink) 30%, var(--sheet)); --sw-stamp: var(--sw-in); --sw-stamp-edge: var(--sheet); }
+html[data-theme="office"] .sw-board { border-radius: 20px; box-shadow: none; }
+html[data-theme="office"] .sw-slot { border-radius: 12px; }
+html[data-theme="office"] .sw-go { border-radius: 14px; background: var(--sw-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .sw-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
+html[data-theme="office"] .sw-row button { border-radius: 10px; }
+html[data-theme="office"] .sw-chapter, html[data-theme="office"] .sw-strip #where { font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
+html[data-theme="office"] .sw-toast { border-radius: 10px; }
+html[data-theme="office"] .g-actions .btn { letter-spacing: normal; }
+html[data-theme="office"] .g-krow button.place { background: var(--ink); color: var(--yard); }
+html[data-theme="office"] .g-defs .pos { text-transform: uppercase; letter-spacing: .05em; }
+html[data-theme="office"] .sp-mod { border-radius: 999px; }
+html[data-theme="office"] .sp-mod small { text-transform: uppercase; letter-spacing: .05em; }
+html[data-theme="office"] .sp-sum em { border-radius: 999px; }
+html[data-theme="office"] .sp-field { border-radius: 20px; }
+html[data-theme="office"] .sp-sum { border-radius: 14px; }
+html[data-theme="office"] .sp-token { border-radius: 18px; }
+html[data-theme="office"] .sp-overlay { border-radius: 20px; background: rgba(20, 27, 32, .55); }
+html[data-theme="office"] .sp-card { border-radius: 22px; }
+html[data-theme="office"] .sp-stats div { border-radius: 12px; }
+html[data-theme="office"] .sp-go { border-radius: 16px; background: var(--sp-or); color: #fff; text-transform: none; letter-spacing: normal; font-stretch: 100%; outline: none; outline-offset: 0; }
+html[data-theme="office"] .sp-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
+html[data-theme="office"] .sp-toast { border-radius: 10px; }
+html[data-theme="office"] .top { background: none; }
+html[data-theme="office"] .mark { font-size: 1.75rem; font-stretch: 100%; letter-spacing: -.02em; text-transform: none; }
+html[data-theme="office"] .mark-btn { text-transform: none; }
+html[data-theme="office"] dialog.apps .pick-head h2 { font-size: 1.75rem; font-stretch: 100%; letter-spacing: -.02em; text-transform: none; }
+html[data-theme="office"] .app-row { border-radius: 14px; border: 2px solid transparent; outline: none; outline-offset: 0; }
+html[data-theme="office"] .app-name { font-size: clamp(.82rem, 17cqh, 1.1rem); font-stretch: 100%; letter-spacing: normal; text-transform: none; }
+html[data-theme="office"] .app-now { font-size: .68rem; font-weight: 750; letter-spacing: normal; text-transform: none; border-radius: 999px; background: var(--ink); color: var(--yard); }
+html[data-theme="office"] dialog.apps-pop { border: 0; border-radius: 18px; }
+html[data-theme="office"] dialog.apps-pop .pick-head h2 { font-size: 1.3rem; }
+html[data-theme="office"] .pool { border-radius: 6px; background-color: var(--ink); color: var(--yard); }
+html[data-theme="office"] .pick { border: 1.5px solid var(--ink-soft); border-radius: 6px; font-weight: 600; font-stretch: 100%; letter-spacing: normal; text-transform: none; }
+html[data-theme="office"] .tile { border: 2px solid var(--tile-edge); border-radius: 10px; }
+html[data-theme="office"] .tile[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); background: color-mix(in srgb, var(--ink) 7%, var(--tile)); }
+html[data-theme="office"] .cell.psel .tile { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); background: color-mix(in srgb, var(--ink) 7%, var(--tile)); }
+html[data-theme="office"] .crate { border-radius: 10px; }
+html[data-theme="office"] .crate-name { font-size: 1.3rem; font-stretch: 100%; letter-spacing: -.01em; text-transform: none; }
+html[data-theme="office"] .btn { border: 1.5px solid var(--ink); border-radius: 999px; font-weight: 650; font-stretch: 100%; letter-spacing: normal; text-transform: none; }
+html[data-theme="office"] .btn.primary { background: var(--ink); color: var(--yard); outline: none; outline-offset: 0; }
+html[data-theme="office"] .sheet .join-run input { border: 1.5px solid var(--ink-soft); border-radius: 999px; }
+html[data-theme="office"] .sheet h4 { font-size: .8rem; font-weight: 700; font-stretch: 100%; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+html[data-theme="office"] .seg { border: 1.5px solid var(--ink); border-radius: 6px; }
+html[data-theme="office"] .seg button { border-left: 1.5px solid var(--ink); }
+html[data-theme="office"] .seg button[aria-checked="true"] { background: var(--ink); color: var(--yard); }
+html[data-theme="office"] .chip { border: 1.5px solid var(--ink-soft); }
+html[data-theme="office"] .chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--yard); }
+html[data-theme="office"] .sheet input { border: 1.5px solid var(--ink); border-radius: 6px; }
+html[data-theme="office"] .pick-head h2 { font-size: 1.4rem; font-stretch: 100%; letter-spacing: -.01em; text-transform: none; }
+html[data-theme="office"] .code-chip { border-radius: 999px; }
+html[data-theme="office"] .code-chip em.on { color: #3a9d57; }
+html[data-theme="office"] .partner-pill { font-size: .62rem; letter-spacing: normal; }
+html[data-theme="office"] .partner-line.on { color: #3a9d57; }
+html[data-theme="office"] .icon-btn { border: 1.5px solid var(--tile-edge); }
+html[data-theme="office"] dialog.menu-sheet { border-radius: 18px 18px 0 0; }
+html[data-theme="office"] dialog.menu-sheet .pick-head h2 { font-size: 1.15rem; }
+html[data-theme="office"] .menu-h { font-size: .72rem; font-stretch: 100%; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+html[data-theme="office"] .sv-card { border-radius: 20px; box-shadow: none; }
+html[data-theme="office"] .sv-tool { border-radius: 12px; }
+html[data-theme="office"] .sv-go { border-radius: 14px; background: var(--sv-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html[data-theme="office"] .sv-toast { border-radius: 10px; }
 
-/* ---------- Kontor: dense and technical, an office's green (after Kontor, the trading office's own app): system
-   lettering in small tracked capitals for labels, hairlines, square corners, tabular figures, line icons ---------- */
-html[data-theme="kontor"] {
-  --font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --yard: #EEF1EF; --ink: #111A15; --ink-soft: #5B6A61; --tile: #FFFFFF; --tile-edge: #C9D2CC; --sheet: #FFFFFF;
-  --c0: #C8901A; --c1: #1E7A45; --c2: #2A64A0; --c3: #B23B30; --on-c: #FFFFFF; --on-c0: #231A04;
-  --brass: #1E7A45; --brass-hi: #FFFFFF; --brass-lo: #1E7A45; --rule: #D3DBD6; --plate: #1E7A45; --plate-ink: #FFFFFF;
-  --focus: #1E7A45; --p0: #2A64A0; --p1: #C46A1E; --learn: #1E7A45; --logo-edge: #111A15;
-  --caps: uppercase; --track: .5; --stretch-btn: 100%; --wide: 100%;
-}
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) {
-  --yard: #0B100D; --ink: #D3E2D8; --ink-soft: #8A9E91; --tile: #131B16; --tile-edge: #24322A; --sheet: #121915;
-  --c1: #2EB36A; --brass: #2EB36A; --brass-hi: #04110A; --brass-lo: #48C67F; --rule: #1E2A23; --plate: #2EB36A; --plate-ink: #04110A;
-  --focus: #48C67F; --p0: #6FA6D8; --p1: #E39A55; --learn: #48C67F; --logo-edge: #D3E2D8; } }
-html[data-theme="kontor"][data-mode="night"] {
-  --yard: #0B100D; --ink: #D3E2D8; --ink-soft: #8A9E91; --tile: #131B16; --tile-edge: #24322A; --sheet: #121915;
-  --c1: #2EB36A; --brass: #2EB36A; --brass-hi: #04110A; --brass-lo: #48C67F; --rule: #1E2A23; --plate: #2EB36A; --plate-ink: #04110A;
-  --focus: #48C67F; --p0: #6FA6D8; --p1: #E39A55; --learn: #48C67F; --logo-edge: #D3E2D8; }
-html[data-theme="kontor"] body { font-family: var(--font); font-size: .9375rem; font-variant-numeric: tabular-nums; }
-html[data-theme="kontor"] :is(.btn, .pick, .tile, .app-row, .menu-seg, .menu-grid button, .menu-switch, .menu-switch::after, dialog.sheet, dialog.menu-sheet, dialog.apps-pop, .code-chip, .icon-btn, input, select, [class*="-go"]) { border-radius: 2px; }
-html[data-theme="kontor"] :is(.btn, .pick, .tile, .app-row, .code-chip, .icon-btn) { border-width: 1px; box-shadow: none; }
-html[data-theme="kontor"] :is(.btn, .pick, .menu-h, .pick-head h2, .app-name, .sheet h4, .menu-label, [class*="-go"], .menu-seg button) {
-  text-transform: uppercase; letter-spacing: .06em; font-stretch: 100%; font-weight: 650; }
-html[data-theme="kontor"] :is(.btn, [class*="-go"]) { font-size: .8rem; }
-html[data-theme="kontor"] .btn.primary, html[data-theme="kontor"] [class*="-go"]:not(.quiet) { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); outline: 0; }
-html[data-theme="kontor"] :is(.mark, .mark-btn) { font-size: 1.05rem; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; font-stretch: 100%; }
-html[data-theme="kontor"] .top, html[data-theme="kontor"] .apps-brand { background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 2px no-repeat; }
-html[data-theme="kontor"] .menu-h { color: var(--brass-lo); }
-/* Kontor's icons and menu button: line drawings, square ends, one stroke in the green */
+/* Office's line icons and menu button (apps.js, menu.js): line drawings, one stroke */
 .k-ico { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; stroke-linejoin: miter; color: var(--ink); }
 .k-ico .a { stroke: var(--brass); }
 .k-ico .f { fill: var(--brass); stroke: none; }
 .k-menu { width: 1.625rem; height: 1.625rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: square; }
-/* Modern's ornaments: none (its plain Menu button is the game's own) */
-html[data-theme="modern"] .top, html[data-theme="modern"] .apps-brand { background: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.btn.primary, [class*="-go"]) { outline: 0; }
+html[data-theme="office"] :is(.btn.primary, [class*="-go"]) { outline: 0; }
 
-/* the games screen's title, per theme: Modern's bold sentence case beside the mark on its rounded tile; Kontor's tracked capitals */
-html[data-theme="modern"] .apps-brand { font-stretch: 100%; letter-spacing: -.01em; text-transform: none; font-size: 1.6rem; font-weight: 800; }
-html[data-theme="modern"] .apps-brand { gap: .6rem; }
-html[data-theme="modern"] .apps-brand img { width: 2.1rem; height: 2.1rem; border-radius: 9px; }
-html[data-theme="kontor"] .apps-brand { font-family: var(--font); font-stretch: 100%; letter-spacing: .24em; text-transform: uppercase; font-size: 1.15rem; font-weight: 700; }
-
-/* Cartel in Kontor: the felt becomes a trading screen (near-black, a faint grid, a green hairline), gold becomes green */
-html[data-theme="kontor"] { --ct-gold: #2EB36A; --ct-gold-edge: #1E7A45; }
-html[data-theme="kontor"] .ct-table { border: 1px solid var(--ct-gold-edge); border-radius: 2px; outline: 0; box-shadow: none; color: #D3E2D8;
-  background: linear-gradient(rgba(46, 179, 106, .07) 1px, transparent 1px) 0 0 / 100% 22px,
-    linear-gradient(90deg, rgba(46, 179, 106, .07) 1px, transparent 1px) 0 0 / 22px 100%, #0C120E; }
-html[data-theme="kontor"] .ct-seat { border-radius: 2px; border-width: 1px; background: rgba(255, 255, 255, .03); border-color: rgba(211, 226, 216, .14); }
-html[data-theme="kontor"] .ct-seat.turn { border-color: #2EB36A; box-shadow: 0 0 0 2px rgba(46, 179, 106, .25); }
-html[data-theme="kontor"] :is(.ct-log-line.ask, .ct-log-line.answer, .ct-mine-ask, .ct-mine.turn .ct-plaque b) { color: #4CCB7E; }
-html[data-theme="kontor"] :is(.ct-log-line.act, .ct-log-line.free, .ct-log-line.bid) { color: #D3E2D8; }
-html[data-theme="kontor"] .ct-die.picked { outline-color: #2EB36A; border-radius: 2px; }
-html[data-theme="kontor"] .ct-notes li { border-color: rgba(46, 179, 106, .35); color: #D3E2D8; border-radius: 2px; }
-
-/* ---------- Pipes and Harbour, per theme: their boards are drawn from these variables ---------- */
-/* Modern: as they were before Deco (Pipes' steel pipes on slate with rust; Harbour's blue-grey water) */
-html[data-theme="modern"] { --pi-in: #B4532A; --pi-in-soft: #F4DCD1; --pi-ground: #1F2A32; --pi-tile: #2C3A44; --pi-tile-edge: #3B4C58;
-  --pi-pipe: #9AA7B0; --pi-pipe-dark: #6E7D88; --pi-rock: #182028; --pi-good: #2E9E5B; --pi-bad: #D23B2A; --pi-edge: #C9D1D5; }
-@media (prefers-color-scheme: dark) { html[data-theme="modern"]:not([data-mode="day"]) { --pi-in: #E0794E; --pi-in-soft: #3E251A; --pi-edge: #33414B; } }
-html[data-theme="modern"][data-mode="night"] { --pi-in: #E0794E; --pi-in-soft: #3E251A; --pi-edge: #33414B; }
-html[data-theme="modern"] .harbour { --hb-water: #CFE1EA; --hb-grid: rgba(28, 42, 52, .13); --hb-land: #E8E2D4; --hb-hull: #FBFBF9; }
-@media (prefers-color-scheme: dark) { html[data-theme="modern"]:not([data-mode="day"]) .harbour { --hb-water: #1F3E4D; --hb-grid: rgba(227, 232, 235, .09); --hb-land: #232A2F; --hb-hull: #DCE3E8; } }
-html[data-theme="modern"][data-mode="night"] .harbour { --hb-water: #1F3E4D; --hb-grid: rgba(227, 232, 235, .09); --hb-land: #232A2F; --hb-hull: #DCE3E8; }
-
-/* Kontor: a schematic. Pipes on a near-black screen in pale grey lines, the inlet and a good flow in the green; Harbour
-   a chart in greys with a green grid, land as flat grey blocks, hulls white */
-html[data-theme="kontor"] { --sw-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --sw-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --sw-in: #2EB36A; }
-html[data-theme="kontor"] { --pi-in: #2EB36A; --pi-in-soft: color-mix(in srgb, #2EB36A 16%, var(--sheet)); --pi-ground: #0C120E; --pi-tile: #141C17;
-  --pi-tile-edge: #26342C; --pi-pipe: #A9BDB0; --pi-pipe-dark: #5E7368; --pi-rock: #070B09; --pi-good: #2EB36A; --pi-bad: #E06C5A; --pi-edge: var(--tile-edge); }
-html[data-theme="kontor"] .harbour { --hb-water: #D3E1D8; --hb-grid: rgba(30, 122, 69, .16); --hb-land: #C3CDC6; --hb-hull: #FFFFFF; --hb-ship-ink: #111A15; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) .harbour { --hb-water: #233A2D; --hb-grid: rgba(46, 179, 106, .14); --hb-land: #1C2620; --hb-hull: #D3E2D8; } }
-html[data-theme="kontor"][data-mode="night"] .harbour { --hb-water: #233A2D; --hb-grid: rgba(46, 179, 106, .14); --hb-land: #1C2620; --hb-hull: #D3E2D8; }
-html[data-theme="kontor"] .hb-land { shape-rendering: crispEdges; }
-/* Kontor's square corners on the boards too */
-html[data-theme="kontor"] :is(.pi-stage, .pi-board, .pi-go, .pi-stats div, .hb-map, .hb-cell, .hb-tool, .hb-ctl) { border-radius: 2px; }
-html[data-theme="kontor"] .pi-board rect[rx="8"] { rx: 1.5px; }
-
-/* ---------- Office: after Outlook and Microsoft's Fluent design. Light greys and white surfaces by day, charcoal at
-   night; one blue for what can be pressed; Segoe UI in sentence case; hairlines; 4 px corners; no ornaments, no
+/* ---------- Office: after Outlook and Microsoft's Fluent design. Charcoal surfaces, night only; one blue for what can be pressed; Segoe UI in sentence case; hairlines; 4 px corners; no ornaments, no
    marks: the games screen shows names and thin monochrome line icons. ---------- */
 html[data-theme="office"] {
   --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
-  --yard: #F5F5F5; --ink: #242424; --ink-soft: #616161; --tile: #FFFFFF; --tile-edge: #D1D1D1; --sheet: #FFFFFF;
-  --c0: #C19C00; --c1: #107C10; --c2: #0F6CBD; --c3: #C50F1F; --on-c: #FFFFFF; --on-c0: #1F1A00;
-  --brass: #0F6CBD; --brass-hi: #FFFFFF; --brass-lo: #0F6CBD; --rule: #E0E0E0; --plate: #0F6CBD; --plate-ink: #FFFFFF;
-  --focus: #0F6CBD; --p0: #0F6CBD; --p1: #C239B3; --learn: #107C10; --logo-edge: #242424;
+  --yard: #1F1F1F; --ink: #FFFFFF; --ink-soft: #ADADAD; --tile: #292929; --tile-edge: #474747; --sheet: #292929;
+  --c0: #E9C46A; --c1: #54B054; --c2: #479EF5; --c3: #F1707B; --on-c: #141414; --on-c0: #141414;
+  --brass: #479EF5; --brass-hi: #0A1A2B; --brass-lo: #62ABF5; --rule: #3D3D3D; --plate: #115EA3; --plate-ink: #FFFFFF;
+  --focus: #62ABF5; --p0: #479EF5; --p1: #E085D8; --learn: #54B054; --logo-edge: #FFFFFF;
   --caps: none; --track: 0; --stretch-btn: 100%; --wide: 100%;
-  --of-hover: #F0F0F0; --of-selected: #EBF3FC; --of-shadow: 0 2px 4px rgba(0, 0, 0, .14), 0 0 2px rgba(0, 0, 0, .12);
+  --of-hover: #333333; --of-selected: #0E2A47; --of-shadow: 0 2px 4px rgba(0, 0, 0, .5), 0 0 2px rgba(0, 0, 0, .4);
 }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) {
-  --yard: #1F1F1F; --ink: #FFFFFF; --ink-soft: #ADADAD; --tile: #292929; --tile-edge: #474747; --sheet: #292929;
-  --c0: #E9C46A; --c1: #54B054; --c2: #479EF5; --c3: #F1707B; --on-c: #141414; --on-c0: #141414;
-  --brass: #479EF5; --brass-hi: #0A1A2B; --brass-lo: #62ABF5; --rule: #3D3D3D; --plate: #115EA3; --plate-ink: #FFFFFF;
-  --focus: #62ABF5; --p0: #479EF5; --p1: #E085D8; --learn: #54B054; --logo-edge: #FFFFFF;
-  --of-hover: #333333; --of-selected: #0E2A47; --of-shadow: 0 2px 4px rgba(0, 0, 0, .5), 0 0 2px rgba(0, 0, 0, .4); } }
-html[data-theme="office"][data-mode="night"] {
-  --yard: #1F1F1F; --ink: #FFFFFF; --ink-soft: #ADADAD; --tile: #292929; --tile-edge: #474747; --sheet: #292929;
-  --c0: #E9C46A; --c1: #54B054; --c2: #479EF5; --c3: #F1707B; --on-c: #141414; --on-c0: #141414;
-  --brass: #479EF5; --brass-hi: #0A1A2B; --brass-lo: #62ABF5; --rule: #3D3D3D; --plate: #115EA3; --plate-ink: #FFFFFF;
-  --focus: #62ABF5; --p0: #479EF5; --p1: #E085D8; --learn: #54B054; --logo-edge: #FFFFFF;
-  --of-hover: #333333; --of-selected: #0E2A47; --of-shadow: 0 2px 4px rgba(0, 0, 0, .5), 0 0 2px rgba(0, 0, 0, .4); }
 
 /* lettering: Segoe UI, 14 px, sentence case everywhere; headings semibold, never tracked or stretched */
 html[data-theme="office"] body { font-family: var(--font); font-size: .875rem; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
@@ -367,45 +251,28 @@ html[data-theme="office"] :is(.ct-log-line.act, .ct-log-line.free, .ct-log-line.
 html[data-theme="office"] .ct-die.picked { outline-color: #479EF5; border-radius: 4px; }
 html[data-theme="office"] .ct-notes li { border-color: rgba(71, 158, 245, .4); color: #FFFFFF; border-radius: 4px; }
 
-/* Gears (Pipes until 4 November): a light grid of white tiles and grey gears by day, charcoal at night; the flow's inlet and a good run in blue */
-html[data-theme="office"] { --sw-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --sw-in: #479EF5; } }
-html[data-theme="office"][data-mode="night"] { --sw-in: #479EF5; }
-html[data-theme="office"] { --pi-in: #0F6CBD; --pi-in-soft: #EBF3FC; --pi-ground: #E0E0E0; --pi-tile: #FFFFFF; --pi-tile-edge: #D1D1D1;
-  --pi-pipe: #8A8A8A; --pi-pipe-dark: #616161; --pi-rock: #BDBDBD; --pi-good: #107C10; --pi-bad: #C50F1F; --pi-edge: var(--tile-edge); }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --pi-in: #479EF5; --pi-in-soft: #0E2A47; --pi-ground: #141414;
-  --pi-tile: #292929; --pi-tile-edge: #3D3D3D; --pi-pipe: #ADADAD; --pi-pipe-dark: #707070; --pi-rock: #0A0A0A; --pi-good: #54B054; --pi-bad: #F1707B; } }
-html[data-theme="office"][data-mode="night"] { --pi-in: #479EF5; --pi-in-soft: #0E2A47; --pi-ground: #141414;
-  --pi-tile: #292929; --pi-tile-edge: #3D3D3D; --pi-pipe: #ADADAD; --pi-pipe-dark: #707070; --pi-rock: #0A0A0A; --pi-good: #54B054; --pi-bad: #F1707B; }
-/* Harbour: a pale blue chart by day with flat grey land, deep navy at night */
-html[data-theme="office"] .harbour { --hb-water: #DCEBFA; --hb-grid: rgba(15, 108, 189, .12); --hb-land: #E0E0E0; --hb-hull: #FFFFFF; --hb-ship-ink: #242424; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) .harbour { --hb-water: #163454; --hb-grid: rgba(71, 158, 245, .14); --hb-land: #2E2E2E; --hb-hull: #E0E0E0; } }
-html[data-theme="office"][data-mode="night"] .harbour { --hb-water: #163454; --hb-grid: rgba(71, 158, 245, .14); --hb-land: #2E2E2E; --hb-hull: #E0E0E0; }
+/* Gears (Pipes until 4 November): charcoal tiles and grey gears; the flow's inlet and a good run in blue */
+html[data-theme="office"] { --sw-in: #479EF5; }
+html[data-theme="office"] { --pi-in: #479EF5; --pi-in-soft: #0E2A47; --pi-ground: #141414; --pi-tile: #292929; --pi-tile-edge: #3D3D3D;
+  --pi-pipe: #ADADAD; --pi-pipe-dark: #707070; --pi-rock: #0A0A0A; --pi-good: #54B054; --pi-bad: #F1707B; --pi-edge: var(--tile-edge); }
+/* Harbour: a deep navy chart with flat grey land */
+html[data-theme="office"] .harbour { --hb-water: #163454; --hb-grid: rgba(71, 158, 245, .14); --hb-land: #2E2E2E; --hb-hull: #E0E0E0; --hb-ship-ink: #242424; }
 html[data-theme="office"] :is(.pi-stage, .pi-board, .pi-go, .pi-stats div, .hb-map, .hb-cell, .hb-tool, .hb-ctl, .hb-tag) { border-radius: 4px; }
 html[data-theme="office"] .pi-board rect[rx="8"] { rx: 3px; }
-/* chess: Office's own board, light grey and blue-grey */
-html[data-theme="office"] .ch-board .sq.light { fill: #F0F0F0; }
-html[data-theme="office"] .ch-board .sq.dark { fill: #A9C2DA; }
-html[data-theme="office"] .ch-board .coord.on-light { fill: #616161; }
-html[data-theme="office"] .ch-board .coord.on-dark { fill: #FFFFFF; }
-html[data-theme="office"][data-mode="night"] .ch-board .sq.light { fill: #D6D6D6; }
-html[data-theme="office"][data-mode="night"] .ch-board .sq.dark { fill: #5A7894; }
+/* chess: Office's own board, grey and blue-grey */
+html[data-theme="office"] .ch-board .sq.light { fill: #D6D6D6; }
+html[data-theme="office"] .ch-board .sq.dark { fill: #5A7894; }
+html[data-theme="office"] .ch-board .coord.on-light { fill: #4F6E8F; }
+html[data-theme="office"] .ch-board .coord.on-dark { fill: #CBD6E0; }
 /* choices as Fluent marks them: the selected option in blue, a switch that's on in blue */
 html[data-theme="office"] .menu-seg button[aria-checked="true"],
 html[data-theme="office"] .menu-grid button:is([aria-checked="true"], [aria-pressed="true"]) { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
 html[data-theme="office"] .menu-switch[aria-checked="true"] { background: var(--plate); }
 html[data-theme="office"] .menu-switch[aria-checked="true"]::after { background: #FFFFFF; }
 
-/* random mode (style.css, random.js): the banner naming the next game, and the tag in a game's title, in each theme's
-   corners and surfaces: Modern's rounded card and pill, Kontor's square hairlines, Office's Fluent card */
-html[data-theme="modern"] .rd-next { border-radius: 14px; border-color: var(--tile-edge); }
-html[data-theme="modern"] .rd-chip { border-radius: 999px; border-color: var(--tile-edge); color: var(--ink-soft); padding-inline: .4375rem; }
-html[data-theme="kontor"] .rd-next { border-radius: 2px; border-width: 1px; }
-html[data-theme="kontor"] .rd-chip { border-radius: 2px; }
+/* random mode (style.css, random.js): the banner naming the next game, and the tag in a game's title, in Office's Fluent card */
 html[data-theme="office"] .rd-next { border-radius: 8px; border: 1px solid var(--tile-edge); box-shadow: var(--of-shadow); }
 html[data-theme="office"] .rd-chip { border-radius: 4px; }
 
-/* a titled page's name in the band (style.css, "Titled"): each theme's own lettering, at the band's size */
-html[data-theme="modern"] #app.full.titled > .top > .mark { font-size: 1.35rem; font-stretch: 100%; letter-spacing: -.02em; text-transform: none; }
-html[data-theme="kontor"] #app.full.titled > .top > .mark { font-size: .95rem; font-weight: 700; font-stretch: 100%; letter-spacing: .14em; text-transform: uppercase; }
+/* a titled page's name in the band (style.css, "Titled"): Office's lettering, at the band's size */
 html[data-theme="office"] #app.full.titled > .top > .mark { font-size: 1.05rem; font-weight: 600; font-stretch: 100%; letter-spacing: 0; text-transform: none; }

@@ -8,7 +8,6 @@
 }
 /* night, set in Settings */
 html[data-mode="night"] { --lo-in: #8EA9E0; --lo-gold: #E2B865; --lo-on: #10181F; --lo-good: #7FC2A8; --lo-bad: #E8806F; --lo-logo-tint: #2A3550; }
-html[data-theme="modern"] { --lo-logo-tint: #D8E0F3; --lo-logo-edge: #34508F; }
 
 .lo-mark { display: inline-block; }
 .lo-mark svg { width: 100%; height: 100%; display: block; }
@@ -120,10 +119,10 @@ dialog.lo-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .lo-toast.show { opacity: 1; }
 
 /* Codex's double rule round the theme and the board; the other themes keep their own frames */
-html:not([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.lo-theme, .lo-stage) { box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.lo-theme, .lo-stage) { border-radius: 16px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .lo-wlist li { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .lo-toast { border-radius: 10px; }
+html:not([data-theme="office"]) :is(.lo-theme, .lo-stage) { box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+html[data-theme="office"] :is(.lo-theme, .lo-stage) { border-radius: 16px; }
+html[data-theme="office"] .lo-wlist li { border-radius: 10px; }
+html[data-theme="office"] .lo-toast { border-radius: 10px; }
 
 @media (prefers-reduced-motion: reduce) { .lo-disc.fresh, .lo-vein.fresh { animation: none; } }
 

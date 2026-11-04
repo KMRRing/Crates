@@ -73,16 +73,13 @@ body.tg-on .tg-listen::before { content: ""; display: inline-block; width: .55re
   #app.timegrapher .tg-acts { grid-column: 2; grid-row: 6; }
 }
 html[data-theme="office"] .tg-trace { border-radius: 4px; box-shadow: none; }
-html[data-theme="kontor"] .tg-trace { border-radius: 2px; box-shadow: none; }
-html[data-theme="modern"] .tg-trace { border-radius: 12px; box-shadow: none; }
 
 /* the watch on the microphone: its dropdown, and what its calibre says to listen for */
 .tg-watch { display: flex; align-items: center; gap: .5rem; min-width: 0; }
 .tg-watch .dd { max-width: 12rem; }
 /* the other themes letter a dropdown in its own tint at night, meant for a header (where the suite hides them now):
    in the strip it takes their tile, lettered in ink */
-@media (prefers-color-scheme: dark) { html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]):not([data-mode="day"]) .tg-watch .dd { background: var(--tile); color: var(--ink); } }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"])[data-mode="night"] .tg-watch .dd { background: var(--tile); color: var(--ink); }
+html[data-theme="office"][data-mode="night"] .tg-watch .dd { background: var(--tile); color: var(--ink); }
 @media (max-width: 26rem) { .tg-meter small { display: none; } }         /* a phone: the bars alone, the strip's room for the calibre */
 .tg-watch small { color: var(--ink-soft); font-size: .76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 

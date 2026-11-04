@@ -19,8 +19,6 @@ dialog.ln-sheet.ahc { --ln-in: var(--ah-in); }
   cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ah-link { min-height: 2.5rem; border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: .88rem; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
 .ah-link[hidden] { display: none; }
-html[data-theme="modern"] .ah-go { border-radius: 14px; background: var(--ah-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
-html[data-theme="kontor"] .ah-go { border-radius: 2px; }
 @media (orientation: landscape) and (min-width: 700px) {
   .ah-home { flex-direction: row; gap: 2rem; padding: 0 1rem; }
   .ah-plate { flex: 1 1 0; height: 100%; }

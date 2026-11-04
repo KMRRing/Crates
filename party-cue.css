@@ -6,7 +6,7 @@
 .pcu-top b { color: var(--pa-in); font-size: .95rem; }
 .pcu-card { flex: 1 1 auto; min-height: 6rem; container-type: size; display: grid; grid-template-rows: auto 1fr auto; align-items: center; justify-items: center; gap: .5rem;
   padding: 1rem .9rem; box-sizing: border-box; text-align: center; border: 1px solid var(--tile-edge); border-radius: 8px; background: var(--sheet); position: relative; overflow: hidden; }
-html:not([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pcu-card { box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+html:not([data-theme="office"]) .pcu-card { box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
 .pcu-card p { margin: 0; }
 .pcu-kind { font-size: .82rem; font-weight: 800; color: var(--pa-in); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.16em * var(--track)); }
 .pcu-text { --fit: calc(92cqw / (var(--n, 8) * .62)); font-size: clamp(1.1rem, min(21cqmin, var(--fit)), 5.6rem); font-weight: 800; line-height: 1.12; overflow-wrap: anywhere; color: var(--ink); max-width: 100%; }

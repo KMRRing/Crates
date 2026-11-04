@@ -23,13 +23,6 @@
 /* night, set in Settings */
 html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806F; --mf-timber: #7E6B47; --mf-line: rgba(0, 0, 0, .5); --mf-pile: rgba(0, 0, 0, .55); --mf-seam: rgba(0, 0, 0, .3);
   --mf-sea: color-mix(in srgb, var(--mf-in) 17%, var(--sheet)); --mf-deep: color-mix(in srgb, var(--mf-in) 28%, var(--sheet)); --mf-town: color-mix(in srgb, var(--brass) 30%, var(--sheet)); }
-/* Modern's brass is its hairline grey, too faint for a skyline: its town takes the ink instead */
-html[data-theme="modern"] { --mf-town: color-mix(in srgb, var(--ink-soft) 20%, var(--sheet)); }
-@media (prefers-color-scheme: dark) {
-  html[data-theme="modern"]:not([data-mode="day"]) { --mf-town: color-mix(in srgb, var(--ink-soft) 26%, var(--sheet)); }
-}
-html[data-theme="modern"][data-mode="night"] { --mf-town: color-mix(in srgb, var(--ink-soft) 26%, var(--sheet)); }
-
 .mf-mark { display: inline-block; }
 .mf-mark svg { width: 100%; height: 100%; display: block; }
 .mf-hud { display: flex; justify-content: space-between; align-items: center; margin: .5rem 0; min-height: 2rem; }
@@ -203,10 +196,10 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 
 /* the themes beyond Codex keep their own look (themes.css rounds the tally's entries as chips and squares nothing off):
    a ledger's ruled page is Codex's, the others' entries stand apart, and a pass is a chip */
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-book:not(.strip) .mf-order { border: 0; border-radius: 12px; margin-bottom: .35rem; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-order .mf-price { border-left: 1px solid var(--rule); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-pass { border-radius: 999px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-view { border-radius: 14px; }
+html[data-theme="office"] .mf-book:not(.strip) .mf-order { border: 0; border-radius: 12px; margin-bottom: .35rem; }
+html[data-theme="office"] .mf-order .mf-price { border-left: 1px solid var(--rule); }
+html[data-theme="office"] .mf-pass { border-radius: 999px; }
+html[data-theme="office"] .mf-view { border-radius: 14px; }
 
 /* the ladder in the menu: levels three to a row under their chapter, each its number, the stars won and its name */
 #menuBody .mf-chap { margin: .9rem 0 .15rem; font-size: .66rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--brass); }

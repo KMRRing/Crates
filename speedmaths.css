@@ -11,7 +11,6 @@
   html:not([data-mode="day"]) { --sm-good: #7FC2A8; --sm-bad: #E8806F; --sm-logo-tint: #2A3F55; }
 }
 html[data-mode="night"] { --sm-good: #7FC2A8; --sm-bad: #E8806F; --sm-logo-tint: #2A3F55; }
-html[data-theme="modern"] { --sm-logo-tint: #DCE6EE; --sm-logo-edge: #2D5E88; }
 #app.speedmaths { --speed-in: var(--sm-in); }
 #app.speed { --speed-soft: color-mix(in srgb, var(--speed-in) 15%, var(--sheet)); }
 
@@ -164,12 +163,11 @@ dialog.sm-sheet { max-height: 86vh; max-height: 86svh; overflow-y: auto; overscr
 }
 
 /* ---------- Codex's ornaments, undone for the other themes ---------- */
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sm-cell,
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sm-card { border-radius: 12px; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sm-key { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sm-key.k-go { border-radius: 14px; outline: none; }
-html:is([data-theme="modern"], [data-theme="kontor"]) .sm-key.k-go { background: var(--speed-in); color: #FFFFFF; border-color: var(--speed-in); }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sm-stats li,
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sm-toast { border-radius: 10px; }
+html[data-theme="office"] .sm-cell,
+html[data-theme="office"] .sm-card { border-radius: 12px; outline: none; }
+html[data-theme="office"] .sm-key { border-radius: 12px; }
+html[data-theme="office"] .sm-key.k-go { border-radius: 14px; outline: none; }
+html[data-theme="office"] .sm-stats li,
+html[data-theme="office"] .sm-toast { border-radius: 10px; }
 html[data-theme="office"] .sm-key, html[data-theme="office"] .sm-cell, html[data-theme="office"] .sm-card { border-radius: 4px; }
 html[data-theme="office"] .sm-key.k-go { border-radius: 4px; }

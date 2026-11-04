@@ -16,11 +16,7 @@
 }
 html[data-mode="night"] { --si-in: #8DB6E2; --si-face: #162A3D; --si-back: #0A1118; --si-edge: #060B10;
   --si-0: #E9B53A; --si-1: #7DB2E6; --si-lit: #FFF4CF; }
-html[data-theme="kontor"] { --si-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --si-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --si-in: #2EB36A; }
 html[data-theme="office"] { --si-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --si-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --si-in: #479EF5; }
 
 .si-mark { display: inline-block; }

@@ -4,11 +4,7 @@
 :root { --bd-in: #1F5E73; --bd-soft: color-mix(in srgb, var(--bd-in) 13%, var(--sheet)); --bd-felt: color-mix(in srgb, var(--bd-in) 11%, var(--yard)); --bd-vul: #A8382B; }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --bd-in: #7CC4D6; --bd-felt: color-mix(in srgb, #1F5E73 26%, var(--yard)); --bd-vul: #E8806F; } }
 html[data-mode="night"] { --bd-in: #7CC4D6; --bd-felt: color-mix(in srgb, #1F5E73 26%, var(--yard)); --bd-vul: #E8806F; }
-html[data-theme="kontor"] { --bd-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --bd-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --bd-in: #2EB36A; }
 html[data-theme="office"] { --bd-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --bd-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --bd-in: #479EF5; }
 
 .bd-mark { display: inline-block; }

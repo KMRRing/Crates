@@ -32,6 +32,4 @@ button.hc-tile { cursor: pointer; }
   color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
 .hc-opt.tried { border-color: var(--ln-no); }
 .hc-opt.hint { border-color: var(--ln-in); box-shadow: inset 0 0 0 1.5px var(--ln-in); }
-html[data-theme="modern"] .hc-opt { border-radius: 12px; }
-html[data-theme="kontor"] .hc-opt { border-radius: 2px; }
 @media (prefers-reduced-motion: reduce) { .hc-tile { transition: none; } }

@@ -167,8 +167,6 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-tag { position: absolute; left: 0; top: 0; font: 800 .68rem/1 var(--font); white-space: nowrap; will-change: transform; }
 .hb-tag-ship { padding: 2px .3125rem; border-radius: 999px; background: var(--sheet, var(--tile)); color: var(--ink); border: 1.5px solid var(--ink); }
 .hb-tag-jetty { padding: .1875rem .375rem; border-radius: 6px; background: var(--tag); color: var(--tag-ink, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
-html[data-theme="kontor"] .hb-tag { border-radius: 2px; }
-html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 /* the scrubber: the run's hours played so far; Undo and Redo share a cell; a crash's hour in the programs */
 .hb-scrub { display: block; width: 100%; height: 1.375rem; margin: .35rem 0 0; accent-color: var(--ink); background: none; }
 .hb-scrub:disabled { opacity: .35; }

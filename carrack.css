@@ -12,7 +12,6 @@
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --cr-in: #D79A6B; --cr-sea: color-mix(in srgb, #4FA3C7 11%, var(--sheet)); --cr-chip-ink: #10181F; --cr-bad: #E8806F; --cr-space: #070D12; --cr-globe-sea: #1F4B53; --cr-shallows: #6BB0B2; --cr-land: #54503C; --cr-coast: #BDAE7E; --cr-grid: rgba(214, 182, 110, .3); --cr-rim: #A98F55; --cr-air: #4C8F9A; --cr-water: #A9D6D6; } }
 html[data-mode="night"] { --cr-in: #D79A6B; --cr-sea: color-mix(in srgb, #4FA3C7 11%, var(--sheet)); --cr-chip-ink: #10181F; --cr-bad: #E8806F; --cr-space: #070D12; --cr-globe-sea: #1F4B53; --cr-shallows: #6BB0B2; --cr-land: #54503C; --cr-coast: #BDAE7E; --cr-grid: rgba(214, 182, 110, .3); --cr-rim: #A98F55; --cr-air: #4C8F9A; --cr-water: #A9D6D6; }
 html[data-theme="office"] { --cr-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --cr-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --cr-in: #479EF5; }
 
 .cr-mark { display: inline-block; }

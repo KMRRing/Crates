@@ -10,11 +10,7 @@
 }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --rk-in: #E1AB24; --rk-wood: #D9C48E; --rk-word: #B24A3B; --rk-letter: #3E78B0; } }
 html[data-mode="night"] { --rk-in: #E1AB24; --rk-wood: #D9C48E; --rk-word: #B24A3B; --rk-letter: #3E78B0; }
-html[data-theme="kontor"] { --rk-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --rk-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --rk-in: #2EB36A; }
 html[data-theme="office"] { --rk-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --rk-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --rk-in: #479EF5; }
 
 .rk-mark { display: inline-block; }

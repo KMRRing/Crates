@@ -158,9 +158,6 @@ dialog.as-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   background: var(--ink); color: var(--sheet); font-weight: 700; font-size: .9rem; text-align: center; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .as-toast.on { opacity: 1; }
 
-/* Kontor's square corners */
-html[data-theme="kontor"] .as-tile, html[data-theme="kontor"] .as-key, html[data-theme="kontor"] .as-notes, html[data-theme="kontor"] .as-bound { border-radius: 2px; }
-
 /* held sideways (#app.beside): the boards take the left column, all its height; the strip and the line stand at the
    right, the keyboard low where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {

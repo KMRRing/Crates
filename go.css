@@ -73,8 +73,6 @@ html[data-mode="night"] { --go-in: #C99A45; --go-wood: #8E6E2E; --go-edge: #C99A
 .go-toast.on { opacity: 1; transform: translate(-50%, 0); }
 
 html[data-theme="office"] .go-wood { rx: .15px; }
-html[data-theme="modern"] .go-wood { rx: .5px; }
-html[data-theme="kontor"] .go-wood { rx: .05px; }
 
 /* held sideways: the board alone on the left as large as the height allows; who is ahead and the buttons beside it, low */
 @media (orientation: landscape) and (min-width: 700px) {

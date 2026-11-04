@@ -12,11 +12,7 @@
   html:not([data-mode="day"]) { --ca-in: #D3A168; --ca-board: #C09E66; --ca-frame: #3C2819; --ca-line: #2E1B10; --ca-white: #E8DDC2; --ca-black: #3A332F; --ca-striker: #3D9AA3; --ca-brass: #CFA24A; --ca-table: #3B2A1B; --ca-table-lit: #6B4A2B; --ca-table-edge: #17100B; }
 }
 html[data-mode="night"] { --ca-in: #D3A168; --ca-board: #C09E66; --ca-frame: #3C2819; --ca-line: #2E1B10; --ca-white: #E8DDC2; --ca-black: #3A332F; --ca-striker: #3D9AA3; --ca-brass: #CFA24A; --ca-table: #3B2A1B; --ca-table-lit: #6B4A2B; --ca-table-edge: #17100B; }
-html[data-theme="kontor"] { --ca-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --ca-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --ca-in: #2EB36A; }
 html[data-theme="office"] { --ca-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --ca-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --ca-in: #479EF5; }
 
 .ca-mark { display: inline-block; }

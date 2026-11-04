@@ -1,20 +1,15 @@
 /* Nexus: the thing in the middle on top (a card), the ring of candidates below it in two columns, tapped to pick; Check
    turns the ring into the same list with each one's verdict and the link that was written for it. The ring takes the rest
    of the screen and scrolls in it (.fit-grow: a column's children otherwise keep their full height). The game's enamel is
-   plum, lifted by night; Kontor's is its green. */
+   plum, lifted by night. */
 :root {
   --nx-in: #7A4E8F; --nx-in-soft: color-mix(in srgb, var(--nx-in) 15%, var(--sheet));
   --nx-good: #2F7D5B; --nx-bad: #A8382B;
-  --nx-logo-tint: #EADDF1; --nx-logo-edge: var(--logo-edge);
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --nx-in: #C79BDB; --nx-good: #7FC2A8; --nx-bad: #E8806F; --nx-logo-tint: #3A2B45; }
+  html:not([data-mode="day"]) { --nx-in: #C79BDB; --nx-good: #7FC2A8; --nx-bad: #E8806F; }
 }
-html[data-mode="night"] { --nx-in: #C79BDB; --nx-good: #7FC2A8; --nx-bad: #E8806F; --nx-logo-tint: #3A2B45; }
-html[data-theme="kontor"] { --nx-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --nx-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --nx-in: #2EB36A; }
-html[data-theme="modern"] { --nx-logo-tint: #F0E6F5; --nx-logo-edge: #7A4E8F; }
+html[data-mode="night"] { --nx-in: #C79BDB; --nx-good: #7FC2A8; --nx-bad: #E8806F; }
 
 .nx-mark { display: inline-block; }
 .nx-mark svg { width: 100%; height: 100%; display: block; }

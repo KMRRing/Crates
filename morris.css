@@ -19,11 +19,7 @@
 html[data-mode="night"] { --mo-in: #6FC4B5; --mo-frame: #5C4519; --mo-frame-hi: #C99A45; --mo-field: #1F4A44; --mo-line: rgba(201, 154, 69, .85); --mo-pt: #C99A45;
   --mo-dark: #0B1116; --mo-dark-hi: #26394A; --mo-dark-edge: #C99A45; --mo-light: #EDE3CC; --mo-light-hi: #FBF4E4; --mo-light-edge: #8C7A55;
   --mo-good: #7FC2A8; --mo-bad: #E8806F; }
-html[data-theme="kontor"] { --mo-in: #12766A; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --mo-in: #52C2AF; } }
-html[data-theme="kontor"][data-mode="night"] { --mo-in: #52C2AF; }
 html[data-theme="office"] { --mo-in: #0F7B6C; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --mo-in: #4CC2B0; } }
 html[data-theme="office"][data-mode="night"] { --mo-in: #4CC2B0; }
 
 .mo-mark { display: inline-block; }
@@ -135,9 +131,6 @@ html[data-theme="office"][data-mode="night"] { --mo-in: #4CC2B0; }
 
 /* other themes: their corners */
 html[data-theme="office"] :is(.mo-seat, .mo-frame) { border-radius: 4px; }
-html[data-theme="modern"] :is(.mo-seat) { border-radius: 12px; }
-html[data-theme="modern"] .mo-frame { border-radius: 14px; }
-html[data-theme="kontor"] :is(.mo-seat, .mo-frame, .mo-meter) { border-radius: 2px; }
 
 /* ---------- the course's stage (morris-course.js): the board as large as the stage allows ---------- */
 .ln-sheet.mo { --ln-in: var(--mo-in); }

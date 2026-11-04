@@ -19,8 +19,6 @@ dialog.ln-sheet.tradec { --ln-in: var(--td-in); }
   font-stretch: 106%; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
   cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .td-link { min-height: 2.5rem; border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: .88rem; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
-html[data-theme="modern"] .td-go { border-radius: 14px; background: var(--td-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
-html[data-theme="kontor"] .td-go { border-radius: 2px; }
 @media (orientation: landscape) and (min-width: 700px) {
   .td-home { flex-direction: row; gap: 2rem; padding: 0 1rem; }
   .td-plate { flex: 1 1 0; height: 100%; }
