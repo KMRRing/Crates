@@ -153,7 +153,7 @@ check(nothing({ query: "xyzzy" }, SECTIONS) === "No game matches “xyzzy”." &
 
 // ---------- wired in ----------
 const bar = fs.readFileSync(root + "games-bar.js", "utf8"), css = fs.readFileSync(root + "style.css", "utf8");
-check(/import \{ bindFind, starButton \} from "\.\/games-bar\.js"/.test(src) && /bindFind\(\{ dlg, list, apps: (?:APPS|shown\(\)), sections: SECTIONS \}\)/.test(src) && /\$\{starButton\(a\)\}<\/li>/.test(src), "the games screen binds the finding and every tile has its star beside its link");
+check(/import \{ bindFind, starButton \} from "\.\/games-bar\.js"/.test(src) && /bindFind\(\{ dlg, list, apps: (?:APPS|shown\(\)), sections: (?:SECTIONS|shownSections\(\)) \}\)/.test(src) && /\$\{starButton\(a\)\}<\/li>/.test(src), "the games screen binds the finding and every tile has its star beside its link");
 check(/addEventListener\("suite:pulled", draw\)/.test(bar) && /addEventListener\("close", \(\) => \{ reset\(\); hide\(\); \}\)/.test(bar), "the stars redraw when another device's come in, and a closed screen forgets its search");
 check(/\.apps-find\b/.test(css) && /\.app-star\b/.test(css) && !/alert\(|confirm\(|prompt\(/.test(bar), "the bar and the star have their styles, and no browser pop-ups");
 
