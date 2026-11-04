@@ -33,7 +33,7 @@ export function buildSphere(S, o, air) {
   const { pad, earth, sun: [sx, sy, sz], texW, texH } = o, mips = o.mips || 1;
   const tilt = o.tilt * Math.PI / 180, ct = Math.cos(tilt), st = Math.sin(tilt), rl = (o.roll || 0) * Math.PI / 180, cr = Math.cos(rl), sr = Math.sin(rl);
   const hx = sx, hy = sy, hz = sz + 1, hl = Math.sqrt(hx * hx + hy * hy + hz * hz);
-  const cap = Math.ceil(Math.PI / 4 * (S / pad) * (S / pad) + 4 * S / pad + 16);
+  const cap = Math.ceil(Math.PI * (S / (2 * pad) + 3) ** 2) + 16;               // the disc and its two-pixel skirt past the limb (too small a table drops the last pixels in reading order: the Earth's bottom rows)
   const pix = new Uint32Array(cap), u0 = new Float32Array(cap), v = new Float32Array(cap), tu = new Float32Array(cap), tv = new Float32Array(cap);
   const nt = new Uint8Array(cap), lod = new Uint8Array(cap), f = new Float32Array(cap), lit = new Float32Array(cap), haze = new Float32Array(cap), glint = new Float32Array(cap);
   const gu = new Float32Array(cap), gv = new Float32Array(cap), zz = new Float32Array(cap);

@@ -89,6 +89,15 @@ const moon = { pad: 1, tilt: 24, roll: -12, sun: sunOf(135, 0.5), earth: false, 
   check(shallow > deep + 20, "the sea's colour goes from navy to a clear blue with the depth the map shows");
 }
 
+// ---------- every pixel of the disc is kept (the Earth's bottom rows were once dropped by a table too small) ----------
+{
+  for (const [size, pad, earth] of [[160, 1.12, true], [390, 1.12, true], [1000, 1.12, true], [333, 1, false]]) {
+    const g = buildSphere(size, { ...moon, pad, earth, sun: sunOf() }, earth ? new Uint8ClampedArray(size * size * 4) : null);
+    const lastRow = Math.floor(g.pix[g.n - 1] / 4 / size);
+    check(g.n <= g.pix.length && lastRow >= Math.floor(size / 2 + size / (2 * pad)) - 2, `${size} px (pad ${pad}): ${g.n} disc pixels fit their table of ${g.pix.length}, and the last drawn row is ${lastRow}, down to the disc's bottom`);
+  }
+}
+
 // ---------- the cadence the page asks for ----------
 {
   const rate = 0.0035, step = turnForPixels(384, 1.12, 0.12) / rate;
