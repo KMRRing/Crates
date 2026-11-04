@@ -15,6 +15,7 @@
 // chosen or button pressed and stops with the menu, with the tab and with the game over.
 import { RINGS, STEP, FIRST_TEMPO, TIP, SPIN, PLANE, COMBO_WINDOW, TICK, newGame, valid, copy, setRing, setPlane, setTempo, setOthers, tapBeat, nextTempo, bpm, step, between, room, multiplier, period, turnOf, planeOf } from "./orrery-engine.js";
 import { createOrrery } from "./orrery-3d.js";
+import { defaultIs3D } from "./mode3d.js";
 import { createFlat, planetSvg } from "./orrery-flat.js";
 import { sound } from "./orrery-sound.js";
 import { scale } from "./wide.js";
@@ -68,9 +69,11 @@ if (!IN_FRAME && read(ERA, 0) < SET_ASIDE.length) {
 sound.on = read(SOUND, true);
 const stage = $("stage");
 let view;
-try { view = createOrrery(stage); }
-catch (err) {
-  console.warn("Orrery: no WebGL here, so the orrery is drawn flat.", err);
+try {
+  if (!defaultIs3D()) throw new Error("2D mode (battery saver): the flat orrery");   // Settings; no choice of its own to keep in this game
+  view = createOrrery(stage);
+} catch (err) {
+  if (defaultIs3D()) console.warn("Orrery: no WebGL here, so the orrery is drawn flat.", err);
   view = createFlat(stage);
 }
 { const v = read(VIEW, null); if (Array.isArray(v)) view.setView(v[0], v[1]); }

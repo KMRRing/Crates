@@ -5,7 +5,7 @@
 // reload. Its puzzle rush is a page of its own under its header (Menu, Puzzle rush: rush.html, rush.js).
 import * as G from "./gambit-rules.js";
 import { mountBoard, holdScene } from "./chess-board.js";
-import { getView, setView, viewChoice } from "./gambit-view.js";
+import { getView, viewChoice } from "./gambit-view.js";
 import { sure } from "./sure.js";
 import { PIECES } from "./chess-pieces.js";
 import { LEVELS, levelById, HINT, REVIEW } from "./gambit-levels.js";
@@ -380,7 +380,7 @@ function showEnd() {
 }
 
 // ---------- drawing ----------
-const board = mountBoard($("board"), { onMove, view: getView(), onNotice: msg => toast(msg), onUnavailable: () => setView("board") });
+const board = mountBoard($("board"), { onMove, view: getView(), onNotice: msg => toast(msg) });
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 function seatLabel(white) {
   const g = cur(), you = yourColour(), mine = you ? (you === "white") === white : null;

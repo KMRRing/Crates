@@ -12,6 +12,7 @@
 // body move between the rules' steps (springs, a pose carried over from the one before, the scarf and coat tails dragged by the
 // air) is reckoning-move.js; here it is only drawn.
 import * as THREE from "./vendor/three-run.js";
+import { defaultIs3D } from "./mode3d.js";   // Settings' 2D mode (battery saver): this game is 3D only, so its flattest is a ratio of 1 and no shadow map
 import { LANE_W, WALL_X, KINDS, ROLL_T, JUMP_V, speed, solid, tide, bridgeUp } from "./reckoning-engine.js";
 import { Spring, Inertia, Streamer, CameraRig, clamp, lerp, ease } from "./reckoning-move.js";
 import { BIOMES } from "./reckoning-biomes.js";
@@ -111,7 +112,7 @@ function palette() {
 
 export function createRunner(host) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });          // throws where there's no WebGL
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, defaultIs3D() ? 2 : 1));
   const canvas = renderer.domElement;
   canvas.className = "rk-gl";
   host.prepend(canvas);

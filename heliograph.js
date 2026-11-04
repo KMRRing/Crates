@@ -15,6 +15,7 @@ import { createHelp } from "./heliograph-help-ui.js";
 import { ORDER } from "./heliograph-help.js";
 import { createView, onPlane, nearestOnSegment } from "./heliograph-view.js";
 import { createFlat } from "./heliograph-flat.js";
+import { defaultIs3D } from "./mode3d.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line } from "./menu.js";
@@ -110,6 +111,7 @@ function playLevel(n) {
 const view = createView();
 let scene;
 try {
+  if (!defaultIs3D()) throw new Error("2D mode (battery saver): the flat tube");   // Settings; no choice of its own to keep in this game
   scene = (await import("./heliograph-3d.js")).createScene($("stage"), view);
 } catch {
   scene = createFlat($("stage"), view);

@@ -11,6 +11,7 @@ import { buildTest, isRight, rightAnswer, missedTap, passMark } from "./calibre-
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
 import { roundOver } from "./random.js";
+import { defaultIs3D } from "./mode3d.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -30,7 +31,8 @@ let level = null, design = null, tray = [], chosen = null, layer = 1, selected =
 let isolate = null, viewBefore = null;                         // viewBefore: the plan's view before it framed what's isolated
 let verdict = null, last = 0, toastTimer = 0;
 // the view: the plan, or the stack in 3D (cam: its angles in degrees, zoom and pan; scene3d: the drawing's handle)
-let view3d = !!read(VIEW, false), cam = { ...CAM }, scene3d = null, camAnim = 0;
+// (calibre:view is written only by the Plan / 3D button, so it is always a choice; with none, the suite's default, mode3d.js)
+let view3d = !!read(VIEW, defaultIs3D()), cam = { ...CAM }, scene3d = null, camAnim = 0;
 const SELECTABLE = [1, 2, 3, 4, 5, 6, 7, 8, 11, 12];             // the layers you choose (9 and 10 go with their parts)
 // The simulation: the angle of every arbor (in turns), how wound the mainspring is (0 to 1), the barrel arbor's turn
 // while winding, the balance's swing and the fork's rock (degrees), and what the movement is doing.

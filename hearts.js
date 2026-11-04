@@ -111,7 +111,7 @@ function centreHtml(v) {
   return `<div class="hr-centre"><div class="hr-trick">${[0, 1, 2, 3].map(slot).join("")}</div></div>`;
 }
 
-const view = tableView("hearts");                                  // Menu, View: the flat table (the default) or the 3D one (hearts-3d.js)
+const view = tableView("hearts");                                  // Menu, View: the flat table or the 3D one (hearts-3d.js)
 let three = null;
 
 function resultLine(s) {

@@ -8,8 +8,9 @@
 // Light by construction: InstancedMeshes for the men, one for the striker, one for the soft shadows, static meshes for the board,
 // the frame and the table and one dynamic mesh for the aim; it draws only while something moves; the pixel ratio is at most 2.
 // When a phone is slow the physics does not change (the steps come from a clock, as many as are owed, never fewer): the shadows
-// and the pixel ratio go instead (`lite`).
+// and the pixel ratio go instead (`lite`). Settings' 2D mode (battery saver) starts it lite: Carrom is 3D only, so that is its flattest.
 import * as THREE from "./vendor/three.js";
+import { defaultIs3D } from "./mode3d.js";
 import { startSim, stepSim, firstContact, baseY, L, R, RS, PC, XR, MEN, STRIKER } from "./carrom-engine.js";
 import { createTouch } from "./carrom-gesture.js";
 
@@ -693,6 +694,7 @@ export function createScene(host, hooks = {}) {
   function frame(now) {
     frameId = 0;
     if (!shown || paused || document.hidden) return;
+    if (!frames && !lite && !defaultIs3D()) goLite(false);
     if (now - lastDraw < 14) { frameId = requestAnimationFrame(frame); return; }
     const began = performance.now();
     lastDraw = now; dirty = false;
@@ -703,10 +705,10 @@ export function createScene(host, hooks = {}) {
     if (frames > 20 && !lite) { slow = slow * 0.92 + took * 0.08; if (slow > 22) goLite(); }     // a phone that cannot keep up: the soft shadows and the sharp pixels go, the physics never
     if (moving || dirty || play) frameId = requestAnimationFrame(frame);
   }
-  function goLite() {
+  function goLite(redraw = true) {
     lite = true; ratioCap = 1;
     renderer.setPixelRatio(1); renderer.setSize(width, height, false);
-    wake();
+    if (redraw) wake();
   }
   function wake() {
     if (!shown || paused) return;

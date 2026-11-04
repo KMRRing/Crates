@@ -2,6 +2,7 @@
 // that checks for a newer version and loads it (pwa.js). Going to another game carries the room code, so you stay
 // in the same room (rooms.js).
 import { hardUpdate } from "./pwa.js";
+import { flatMode, setFlatMode } from "./mode3d.js";
 import { waitMark } from "./loading.js";
 import { sure, typed, notice } from "./sure.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
@@ -774,6 +775,8 @@ function openSettings(host) {
       try { if (on) localStorage.removeItem(BANNER); else localStorage.setItem(BANNER, "off"); } catch { /* private mode */ }
       host.querySelector("[data-rows]")?.toggleAttribute("hidden", !on);      // at once, nothing to reload
     }),
+    toggle("2D mode (battery saver)", flatMode(), setFlatMode),       // on this device; games listen for settings:flat (mode3d.js)
+    line("Every game opens flat unless you chose 3D in it."),
     topicsPart(),
     picturesPart(sheet),
     startOver());

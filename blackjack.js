@@ -30,7 +30,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const animate = (node, frames, o) => (node?.animate ? node.animate(frames, { fill: "both", ...o }).finished.catch(() => {}) : Promise.resolve());
 
 let S = null;                       // the game (blackjack-engine.js's), as saved
-const view = tableView("blackjack");     // Menu, View: the flat felt (the default) or the felt tipped away from you (blackjack.css, .bj3)
+const view = tableView("blackjack");     // Menu, View: the flat felt or the felt tipped away from you (blackjack.css, .bj3)
 const applyView = () => $("app").classList.toggle("bj3", view.get() === "3d");
 const opts = { chip: 500, coach: "on", fast: false, ...read(OPTS, {}) };
 // the coach was once on or off: on was the chart's play marked, which is what Always still does

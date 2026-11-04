@@ -128,7 +128,7 @@ function inPlay(s) {
   return { me: m, op: o, next, need: legal[0].moves.length, done: ui.made.length === legal[0].moves.length };
 }
 
-const view = tableView("gammon", ["board", "Board"]);                // Menu, View: the flat board (the default) or the 3D one (gammon-3d.js, loaded when asked for)
+const view = tableView("gammon", ["board", "Board"]);                // Menu, View: the flat board or the 3D one (gammon-3d.js, loaded when asked for)
 // The 3D board is made once asked for and kept while it stays chosen; the flat one draws meanwhile and wherever the 3D one can't be
 // made (no WebGL, or a lost context: that is for this visit only, the choice stays). Its camera is the device's own (a `suite:` key;
 // a watching frame draws the flat board and never writes it).

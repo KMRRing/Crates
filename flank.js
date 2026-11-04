@@ -77,7 +77,7 @@ const coachCache = new Map();                   // position → the coach's scor
 let coachBusy = "";
 let shown = 0;
 
-const view = tableView("flank", ["board", "Board"]);                  // Menu, View: the flat board (the default) or the board tipped away from you (flank-3d.css)
+const view = tableView("flank", ["board", "Board"]);                  // Menu, View: the flat board or the board tipped away from you (flank-3d.css)
 const applyView = () => $("app").classList.toggle("fk3", view.get() === "3d");
 
 function draw() {

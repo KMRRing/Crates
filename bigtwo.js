@@ -167,7 +167,7 @@ function actOf(s, seat) {
   for (let i = s.trick.plays.length - 1; i >= 0; i--) if (s.trick.plays[i].seat === seat) return s.trick.plays[i];
   return null;
 }
-const view = tableView("bigtwo");                                  // Menu, View: the flat table (the default) or the 3D one (bigtwo-3d.js)
+const view = tableView("bigtwo");                                  // Menu, View: the flat table or the 3D one (bigtwo-3d.js)
 let three = null;
 
 function drawTable(v) {

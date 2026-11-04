@@ -6,6 +6,7 @@
 // there is no WebGL) to the spec of guilloche-watch.js; this file takes the fingers and keeps the work.
 import { LEVELS, KNOBS, STARS, cutNames, CLUE_CAP, stepOf, makeJob, newRun, setKnob, undo, finish, say, closeness, takeClue, lessonJob, lessonRun, lessonStep, stepDone, cutPlate, asCut, cutRight, passes, settingsOf } from "./guilloche-engine.js";
 import { createWatch } from "./guilloche-3d.js";
+import { defaultIs3D } from "./mode3d.js";
 import { createFlat } from "./guilloche-flat.js";
 import { watchOf } from "./guilloche-watch.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -414,9 +415,11 @@ bindSwitcher($("appsBtn"), "guilloche");
 document.querySelector(".lg-mark").innerHTML = APPS.find(a => a.id === "guilloche")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-try { plate = createWatch($("bench")); }
-catch (err) {
-  console.warn("Guilloché: no WebGL here, so the watch is drawn flat.", err);
+try {
+  if (!defaultIs3D()) throw new Error("2D mode (battery saver): the flat watch");   // Settings; no choice of its own to keep in this game
+  plate = createWatch($("bench"));
+} catch (err) {
+  if (defaultIs3D()) console.warn("Guilloché: no WebGL here, so the watch is drawn flat.", err);
   plate = createFlat($("bench"));
 }
 {

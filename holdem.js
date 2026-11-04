@@ -226,7 +226,7 @@ function runoutOdds(v) {
   return out;
 }
 
-const view = tableView("holdem");                                   // Menu, View: the flat table (the default) or the 3D one (holdem-3d.js)
+const view = tableView("holdem");                                   // Menu, View: the flat table or the 3D one (holdem-3d.js)
 let three = null;
 
 function drawTable(v) {

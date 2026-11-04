@@ -8,6 +8,7 @@
 // The page (survey.js) changes the run, then calls update(); this file works out what each cube should look like from the
 // run and animates the difference.
 import * as THREE from "./vendor/three.js";
+import { defaultIs3D } from "./mode3d.js";   // Settings' 2D mode (battery saver): this game is 3D only, so its flattest is a ratio of 1 and no shadow map
 import { linesOf, coordsOf } from "./survey-engine.js";
 
 const DEG = Math.PI / 180;
@@ -70,8 +71,8 @@ function diamonds() {
  */
 export function createBlock(host) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
-  renderer.shadowMap.enabled = true;
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, defaultIs3D() ? 2 : 1));
+  renderer.shadowMap.enabled = defaultIs3D();
   renderer.shadowMap.type = 1;                      // THREE.PCFShadowMap (the soft one is gone from newer three.js)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setClearColor(0x000000, 0);

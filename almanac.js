@@ -12,6 +12,7 @@ import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, line, action, markButton } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
+import { defaultIs3D } from "./mode3d.js";
 import { parseHash, formatHash } from "./almanac-nav.js";
 import "./pwa.js";
 
@@ -326,8 +327,9 @@ addEventListener("storage", settled);
 $("menuBtn").addEventListener("click", openMenu);
 $("skyMenu").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-// it opens on the star chart, every time (nothing about the last way you looked is kept); an address can ask for the list
+// it opens on the star chart, every time (nothing about the last way you looked is kept); an address can ask for the list,
+// and Settings' 2D mode (battery saver) opens on the list: the chart is a WebGL scene that turns and redraws
 {
   const v = parseHash(location.hash);
-  if (v.list) goList(v.e, false); else goSky(v.e, false);
+  if (v.list || !defaultIs3D()) goList(v.e, false); else goSky(v.e, false);
 }

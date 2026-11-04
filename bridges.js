@@ -21,6 +21,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror, toggle, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
+import { wants3D, onDefaultChange } from "./mode3d.js";
 import { roundOver } from "./random.js";
 import { busy } from "./loading.js";
 
@@ -47,11 +48,14 @@ const kindText = k => `${k.size}×${k.size} · ${LEVELS[k.level]}${hasTwist(k.tw
 const kindKey = k => `${k.size}:${k.level}${hasTwist(k.twist) ? `:${twistOn(k.twist)}` : ""}`;
 
 // ---------- what you chose ----------
-const prefs = { size: 9, level: "easy", twist: "none", view: "chart", ...read(PREFS, {}) };
+const prefs = { size: 9, level: "easy", twist: "none", ...read(PREFS, {}) };
 if (!SIZES.includes(prefs.size)) prefs.size = 9;
 if (!LEVELS[prefs.level]) prefs.level = "easy";
 if (!TWISTS[prefs.twist]) prefs.twist = "none";
-if (prefs.view !== "model") prefs.view = "chart";
+// prefs.view is the player's own choice ("model" or "2d"), kept only when they make one; with none the suite's default applies (mode3d.js).
+// ("chart" was the old default, written into every save: dropped.) `viewShown` is what is on the screen now.
+if (prefs.view !== "model" && prefs.view !== "2d") delete prefs.view;
+let viewShown = wants3D(prefs.view, "model") ? "model" : "chart";
 const savePrefs = () => { if (!IN_FRAME) write(PREFS, prefs); };
 const chosenKind = () => ({ size: prefs.size, level: levelOn(prefs.size, prefs.level), twist: prefs.twist });
 
@@ -382,7 +386,7 @@ function finish() {
     save();
     tell(true);
     wave();
-    if (prefs.view === "model") model?.spin();
+    if (viewShown === "model") model?.spin();
     return;
   }
   S.fresh = isLevel(S) ? recordLevel(S.done.score) : recordBest(S.done.score);
@@ -390,7 +394,7 @@ function finish() {
   save();
   roundOver("bridges");
   wave();
-  if (prefs.view === "model") model?.spin();
+  if (viewShown === "model") model?.spin();
 }
 
 // ---------- the board ----------
@@ -530,7 +534,7 @@ function wave() {
 let model = null, modelFor = null;
 /** The model follows the run: a new puzzle is built into it, a change of marks shows and hides bridges, a hint's link glows. */
 function feedModel(br) {
-  if (!model || prefs.view !== "model" || !S || !P) return;
+  if (!model || viewShown !== "model" || !S || !P) return;
   if (modelFor !== P) { model.set({ lay: P.lay, size: P.size, seed: S.seed }); modelFor = P; }     // the seed gives the shore: both phones of a race or a co-op see the same bay
   model.names?.(hidden);
   model.update(S.marks, br || breaks(P, S.marks), S.lit);
@@ -545,8 +549,8 @@ async function setView(v, remember = true) {
     }
     catch (err) { console.warn("Bridges: no 3D here.", err); toast("This browser can't draw 3D."); v = "chart"; }
   }
-  prefs.view = v;
-  if (remember) savePrefs();
+  viewShown = v;
+  if (remember) { prefs.view = v === "model" ? "model" : "2d"; savePrefs(); }
   const on = v === "model";
   $("card").classList.toggle("is-model", on);
   $("model").hidden = !on;
@@ -708,7 +712,7 @@ function paperTap(ev) {
 }
 $("zoomBtn").addEventListener("click", resetView);
 addEventListener("keydown", ev => {
-  if (!svg || ev.ctrlKey || ev.metaKey || ev.altKey || prefs.view === "model" || document.querySelector("dialog[open]") || /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || "")) return;
+  if (!svg || ev.ctrlKey || ev.metaKey || ev.altKey || viewShown === "model" || document.querySelector("dialog[open]") || /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName || "")) return;
   if (ev.key === "+" || ev.key === "=") zoomBy(1.4);
   else if (ev.key === "-" || ev.key === "_") zoomBy(1 / 1.4);
   else if (ev.key === "0") resetView();
@@ -736,10 +740,10 @@ function drawLine() {
   else if (S.came && S.came !== S.level && !/[123]/.test(S.marks)) text = `No ${LEVELS[S.level]} puzzle came of this size this time: this one is ${LEVELS[S.came]}.`;
   else if (!/[123]/.test(S.marks)) {
     const twisted = hasTwist(S.twist);                    // a twist's sentence needs the room, so the first line is shorter with one
-    if (coop) text = `Tap a ${prefs.view === "model" ? "dashed" : "dotted"} line to build a bridge, again for another, again to clear it. Tap an island to point it out to ${coop.otherName.split(/\s+/)[0]}.${splitting && hidden.size ? " A ? is a number only they can see." : ""}`;
-    else text = prefs.view === "model" ? "Tap a dashed line to build a bridge, again for another, again to clear it. Hold to clear. Drag to turn, pinch or scroll to zoom."
+    if (coop) text = `Tap a ${viewShown === "model" ? "dashed" : "dotted"} line to build a bridge, again for another, again to clear it. Tap an island to point it out to ${coop.otherName.split(/\s+/)[0]}.${splitting && hidden.size ? " A ? is a number only they can see." : ""}`;
+    else text = viewShown === "model" ? "Tap a dashed line to build a bridge, again for another, again to clear it. Hold to clear. Drag to turn, pinch or scroll to zoom."
       : twisted ? "Tap a dotted line to build a bridge, again for another, again to clear it. Hold to clear." : "Tap the dotted line between two islands to build a bridge, again for a second, again to clear it. Hold to clear.";
-    if (twisted && prefs.view !== "model" && !coop) text += twistHint();
+    if (twisted && viewShown !== "model" && !coop) text += twistHint();
   } else text = goalLine();
   if (l.textContent !== text) l.textContent = text;
   l.className = `brg-say${tone ? ` ${tone}` : ""}`;
@@ -880,7 +884,7 @@ function openMenu() {
     const play = part(body, "play");
     play.append(action("Another puzzle", coopAnother, "primary"));
     if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
-    play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
+    play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
     const together = part(body, "together");
     together.append(line(`Co-op with ${coop.otherName}: one board for you both. If you both change one link at once, the later change stands.`));
     if (coop.board?.layers?.split != null) together.append(toggle("Split numbers", splitting, setSplit));
@@ -891,7 +895,7 @@ function openMenu() {
   }
   if (duel.on) {                                                // at a table: the match, the rules, the next match's difficulty
     const play = part(body, "play"), m = duel.match;
-    play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
+    play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "chart" : "model"), "link"), action("The rules", showRules, "link"));
     duel.menu(part(body, "together"));
     const content = part(body, "content");
     content.append(mirror("Level", $("level")));
@@ -903,7 +907,7 @@ function openMenu() {
   pick ??= S?.mode === "daily" ? "daily" : "random";
   play.append(action("New puzzle", () => (levels ? confirmLevelBlock() : confirmStart(pick)), "primary"));
   if (S && !S.done && started()) play.append(action("Clear the board", clearBoard));
-  play.append(action(prefs.view === "model" ? "Play in 2D" : "Play in 3D", () => setView(prefs.view === "model" ? "chart" : "model"), "link"));
+  play.append(action(viewShown === "model" ? "Play in 2D" : "Play in 3D", () => setView(viewShown === "model" ? "chart" : "model"), "link"));
   play.append(action("The rules", showRules, "link"));
   content.append(choice("Play", [["levels", "Levels"], ["free", "Free play"]], track, v => { setTrack(v); openMenu(); }));
   if (levels) content.append(levelList());
@@ -1140,7 +1144,7 @@ $("level").addEventListener("change", async () => {
   prefs.level = v; savePrefs();
   if (!(await confirmStart("random"))) { prefs.level = before; savePrefs(); $("level").value = S ? levelOn(S.size, S.level) : before; }
 });
-$("viewBtn").addEventListener("click", () => setView(prefs.view === "model" ? "chart" : "model"));
+$("viewBtn").addEventListener("click", () => setView(viewShown === "model" ? "chart" : "model"));
 $("undoBtn").addEventListener("click", undo);
 $("redoBtn").addEventListener("click", redo);
 $("hintBtn").addEventListener("click", useHint);
@@ -1183,4 +1187,5 @@ $("level").value = chosenKind().level;
 if (COOP) joinPartner().catch(e => { console.error(e); solo(); });
 else if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });
 else solo();
-if (prefs.view === "model") setView("model", false);
+if (viewShown === "model") setView("model", false);
+onDefaultChange(is3D => { if (!prefs.view && S) setView(is3D ? "model" : "chart", false); });   // Settings' 2D mode, live
