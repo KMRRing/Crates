@@ -103,26 +103,26 @@ export function fit(points, az, el, aspect, margin = 0.12) {
 const CODEX = {
   day: { room: 0xb98e5d, benchA: 0xb5844f, benchB: 0x9a6b3c, frame: 0x6a4228, frameB: 0x4e2f1b, baize: 0x3b6b55, floor: 0x2a4a3c, rim: 0xc9a14a, rail: 0xd3ad56, velvet: 0x4d1824, paper: 0xe8d8b0,
     key: 0xfff0d2, keyI: 3.2, sky: 0xfff3dd, ground: 0x7a5a3c, hemiI: 0.62, fill: 0xbcd2ff, fillI: 0.5, exposure: 1.0, lamp: 0.25, shade: 0x2f6b4f, grain: 1 },
-  night: { room: 0x1a120c, benchA: 0x7c5532, benchB: 0x5e3f24, frame: 0x4a2c19, frameB: 0x36200f, baize: 0x24473a, floor: 0x16291f, rim: 0xc9a14a, rail: 0xd3ad56, velvet: 0x5a1a25, paper: 0xd9c79a,
-    key: 0xffb15e, keyI: 2.6, sky: 0x4a5c88, ground: 0x1b120c, hemiI: 0.42, fill: 0x5f7cc0, fillI: 0.22, exposure: 1.05, lamp: 1, shade: 0x2f6b4f, grain: 1 },
+  night: { room: 0x1a120c, benchA: 0x7c5532, benchB: 0x5e3f24, frame: 0x4a2c19, frameB: 0x36200f, baize: 0x2d5646, floor: 0x1d382c, rim: 0xc9a14a, rail: 0xd3ad56, velvet: 0x5a1a25, paper: 0xd9c79a,
+    key: 0xffd9a6, keyI: 3.1, sky: 0x8296c4, ground: 0x2d1f14, hemiI: 0.78, fill: 0x7a95d6, fillI: 0.4, exposure: 1.1, lamp: 1, shade: 0x2f6b4f, grain: 1 },
 };
 const MODERN = {
-  day: { room: 0xd6cdbb, benchA: 0xd9c9a8, benchB: 0xc8b48d, frame: 0xc29a66, frameB: 0xa07b49, baize: 0x35505e, floor: 0x263a45, rim: 0xcfd4d8, rail: 0xd5dade, velvet: 0x2b3f55, paper: 0xf1ead8,
+  day: { room: 0xd6cdbb, benchA: 0xd9c9a8, benchB: 0xc8b48d, frame: 0xc29a66, frameB: 0xa07b49, baize: 0x3f6479, floor: 0x2d4a5a, rim: 0xcfd4d8, rail: 0xd5dade, velvet: 0x2b3f55, paper: 0xf1ead8,
     key: 0xfff6e8, keyI: 2.6, sky: 0xffffff, ground: 0x93896f, hemiI: 1.35, fill: 0xc9dcff, fillI: 0.5, exposure: 1.0, lamp: 0.15, shade: 0x3b5a73, grain: 0.7 },
-  night: { room: 0x10161b, benchA: 0x6f6350, benchB: 0x594f3f, frame: 0x7b6040, frameB: 0x5f4a31, baize: 0x2b4452, floor: 0x1a2c36, rim: 0xb8bfc6, rail: 0xc1c8ce, velvet: 0x22364a, paper: 0xd8d0bb,
-    key: 0xffd9a8, keyI: 2.3, sky: 0x5a7094, ground: 0x151a1e, hemiI: 0.45, fill: 0x6c8fcf, fillI: 0.25, exposure: 1.05, lamp: 1, shade: 0x3b5a73, grain: 0.7 },
+  night: { room: 0x10161b, benchA: 0x6f6350, benchB: 0x594f3f, frame: 0x7b6040, frameB: 0x5f4a31, baize: 0x35566a, floor: 0x233a48, rim: 0xb8bfc6, rail: 0xc1c8ce, velvet: 0x22364a, paper: 0xd8d0bb,
+    key: 0xffe4be, keyI: 2.9, sky: 0x8aa2cc, ground: 0x23282e, hemiI: 0.78, fill: 0x7a9fe0, fillI: 0.4, exposure: 1.1, lamp: 1, shade: 0x3b5a73, grain: 0.7 },
 };
 const KONTOR = {
-  day: { room: 0x6f8a74, benchA: 0x56755f, benchB: 0x486653, frame: 0x8b6a3d, frameB: 0x6d5029, baize: 0x24432f, floor: 0x182f21, rim: 0xc9a14a, rail: 0xd3ad56, velvet: 0x4a1f26, paper: 0xe9e0c0,
+  day: { room: 0x6f8a74, benchA: 0x56755f, benchB: 0x486653, frame: 0x8b6a3d, frameB: 0x6d5029, baize: 0x31603f, floor: 0x234632, rim: 0xc9a14a, rail: 0xd3ad56, velvet: 0x4a1f26, paper: 0xe9e0c0,
     key: 0xfff3d6, keyI: 2.6, sky: 0xf2f7ea, ground: 0x4f6a55, hemiI: 1.3, fill: 0xcfe2ff, fillI: 0.45, exposure: 1.0, lamp: 0.2, shade: 0x1f5a3c, grain: 0.5 },
-  night: { room: 0x0d150f, benchA: 0x2f4a38, benchB: 0x253d2e, frame: 0x6a4e2a, frameB: 0x4c3720, baize: 0x1e3a28, floor: 0x12241a, rim: 0xc9a14a, rail: 0xd3ad56, velvet: 0x45191f, paper: 0xd8cfae,
-    key: 0xffbf70, keyI: 2.5, sky: 0x587a66, ground: 0x0e1710, hemiI: 0.42, fill: 0x6a94c0, fillI: 0.2, exposure: 1.05, lamp: 1, shade: 0x1f5a3c, grain: 0.5 },
+  night: { room: 0x0d150f, benchA: 0x2f4a38, benchB: 0x253d2e, frame: 0x6a4e2a, frameB: 0x4c3720, baize: 0x28503a, floor: 0x1a3526, rim: 0xc9a14a, rail: 0xd3ad56, velvet: 0x45191f, paper: 0xd8cfae,
+    key: 0xffd9a0, keyI: 3.0, sky: 0x7aa08a, ground: 0x1a2a1d, hemiI: 0.78, fill: 0x7aa4d0, fillI: 0.36, exposure: 1.1, lamp: 1, shade: 0x1f5a3c, grain: 0.5 },
 };
 const OFFICE = {
-  day: { room: 0xcdd3da, benchA: 0xc5cbd3, benchB: 0xb4bbc5, frame: 0x41464e, frameB: 0x2f3338, baize: 0x2f4d6e, floor: 0x213a56, rim: 0xc2cad2, rail: 0xcfd6dc, velvet: 0x2c4a73, paper: 0xf4f1e8,
+  day: { room: 0xcdd3da, benchA: 0xc5cbd3, benchB: 0xb4bbc5, frame: 0x41464e, frameB: 0x2f3338, baize: 0x3b6694, floor: 0x294a70, rim: 0xc2cad2, rail: 0xcfd6dc, velvet: 0x2c4a73, paper: 0xf4f1e8,
     key: 0xfffaf0, keyI: 2.5, sky: 0xffffff, ground: 0x959ba3, hemiI: 1.4, fill: 0xd8e6ff, fillI: 0.5, exposure: 1.0, lamp: 0.1, shade: 0x3a6ea5, grain: 0.25 },
-  night: { room: 0x14171b, benchA: 0x5a606a, benchB: 0x4a4f58, frame: 0x30343a, frameB: 0x222529, baize: 0x2a4666, floor: 0x1b3149, rim: 0xb4bcc4, rail: 0xc0c7ce, velvet: 0x25405f, paper: 0xd4d2c8,
-    key: 0xffe2b8, keyI: 2.3, sky: 0x6c86ad, ground: 0x15181c, hemiI: 0.45, fill: 0x7aa0d6, fillI: 0.25, exposure: 1.05, lamp: 1, shade: 0x3a6ea5, grain: 0.25 },
+  night: { room: 0x14171b, benchA: 0x5a606a, benchB: 0x4a4f58, frame: 0x30343a, frameB: 0x222529, baize: 0x35587f, floor: 0x233f5e, rim: 0xb4bcc4, rail: 0xc0c7ce, velvet: 0x25405f, paper: 0xd4d2c8,
+    key: 0xffe8c8, keyI: 2.9, sky: 0x8aa6d0, ground: 0x23272c, hemiI: 0.78, fill: 0x86abe6, fillI: 0.4, exposure: 1.1, lamp: 1, shade: 0x3a6ea5, grain: 0.25 },
 };
 const SKINS = { codex: CODEX, modern: MODERN, kontor: KONTOR, office: OFFICE };
 /** What the metal and varnish reflect: a sky, a floor, and a softbox where the lamp is (the shader's studio). */
