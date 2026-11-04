@@ -1,6 +1,6 @@
 // Shunt's watch movement in three dimensions, the parts that need no WebGL (so Node tests them): where things stand on the plate, which gear
-// is at which height, how a gear turns, where the thirty lever tabs stand against the board's outline, which lever a touch means, the case's tilt (its
-// limit, its spring, the finger's and the phone's part in it), the camera's fit, and the colours of each theme by day and by night.
+// is at which height, how a gear turns, where the thirty lever tabs stand against the board's outline, which lever a touch means, the phone's tilt (its
+// limit and its spring), the camera (orbit, zoom, fit, and the plane a touch picks through) and the lights by day and by night.
 // shunt-view-3d.js draws it; shunt-3d-geo.js makes the shapes and shunt-3d-tex.js the engraving.
 // One world unit is one cell (the distance between the centres of neighbours; the 2D view's D). x runs right, z towards the viewer
 // (the 2D view's y), y up: seen from straight above it is the 2D picture, so a gear's angle and the tooth phases of shunt-view-2d.js
@@ -79,11 +79,8 @@ export const nearestLever = (x, z, r = HIT3) => leverAtPoint(LEVER_W, x, z, { re
 export const holdAt = (x, z) => Math.hypot(x - HOLD.x, z - HOLD.z) < HOLD.r + 0.22;
 export const onPlate = (x, z) => Math.hypot(x, z) < CASE_R - 0.05;
 
-// ---------- the tilt: the case leans a little under a finger or the phone, on a spring, and comes back ----------
+// ---------- the tilt: the case leans a little with the phone (opt-in), on a spring, and comes back to level ----------
 export const TILT_MAX = 12 * DEG;
-/** A drag of (dx, dy) pixels as a tilt [about x, about z] in radians: soft at the end, so the limit is reached slowly. `reach` is the drag that
- *  gives about three quarters of it. Dragging down tips the near edge down, dragging right the right edge. */
-export const tiltOfDrag = (dx, dy, reach = 90) => [TILT_MAX * Math.tanh(dy / reach), -TILT_MAX * Math.tanh(dx / reach)];
 /** One step (dt seconds) of a spring pulling x to `target`, a little under critically damped, so it overshoots by a tenth or so and rests. */
 export function springStep(x, v, target, dt, k = 110, c = 11) {
   const n = Math.max(1, Math.ceil(dt / 0.008)), h = dt / n;
@@ -100,8 +97,10 @@ export function tiltOfPhone(beta, gamma, beta0, gamma0, turn = 0) {
   return [f(db), f(-dg)];
 }
 
-// ---------- the camera: fixed, a little off straight down, so the case's rim and the rack read ----------
-/** The elevation the case is seen from. A wide card is seen from nearer overhead. A tall one has height to spare once the case fills its width, so the
+// ---------- the camera: the player's to turn (Korbi, 4 November 2026); it stays where it is put ----------
+/** The lowest and highest elevation a drag reaches (a low angle shows the case's band; almost overhead is the 2D picture), and the pinch's reach. */
+export const EL_MIN = 14 * DEG, EL_MAX = 88 * DEG, ZOOM_MIN = 0.5, ZOOM_MAX = 1.2;
+/** The elevation the case is seen from at home. A wide card is seen from nearer overhead. A tall one has height to spare once the case fills its width, so the
  *  case is raised (seen more from above, so it is taller on the screen) as far as that room allows, up to 78 degrees. */
 export function homeEl(aspect) {
   const base = (aspect < 0.8 ? 62 : aspect < 1.1 ? 66 : 74);
@@ -110,6 +109,16 @@ export function homeEl(aspect) {
   for (let d = base; d <= 78; d++) { const e = extent(KEEP, 0, d * DEG); if (e.hy + 0.3 > (e.hx + 0.08) / aspect) break; best = d; }
   return best * DEG;
 }
+/** A camera as kept: yaw `az` (radians, any), elevation `el` and zoom `z` (1 holds the case and the tray; less is nearer). */
+export const homeCam = aspect => ({ az: 0, el: homeEl(aspect), z: 1 });
+export const wrapAz = a => { const t = ((a % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI; return t; };
+export const clampCam = c => ({ az: wrapAz(c.az), el: Math.max(EL_MIN, Math.min(EL_MAX, c.el)), z: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, c.z)) });
+/** The camera after a drag of (dx, dy) pixels from `cam`: right turns the case to the right (the camera goes round to the left), down raises the camera. */
+export const orbit = (cam, dx, dy, perPx = 0.0085) => clampCam({ ...cam, az: cam.az - dx * perPx, el: cam.el + dy * perPx * 0.7 });
+/** The camera after a pinch that took the fingers from `d0` apart to `d1`. */
+export const zoomed = (cam, d0, d1) => clampCam({ ...cam, z: cam.z * d0 / Math.max(1e-3, d1) });
+/** Whether a camera is the home view (near enough that a "level" button would do nothing). */
+export const isHome = (cam, aspect) => { const h = homeCam(aspect); return Math.abs(wrapAz(cam.az - h.az)) < 0.01 && Math.abs(cam.el - h.el) < 0.01 && Math.abs(cam.z - h.z) < 0.01; };
 /** The camera's frame for yaw az and elevation el: right, up and the way back to the camera, unit vectors. */
 export function basis(az, el) {
   const c = [Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)], r = [Math.cos(az), 0, -Math.sin(az)];
@@ -140,35 +149,40 @@ export function fit(points, az, el, aspect, margin = 0.12, marginX = margin) {
   return { H, look: [r[0] * cx + u[0] * cy, r[1] * cx + u[1] * cy, r[2] * cx + u[2] * cy] };
 }
 
-// ---------- the look: colours by theme, day and night (hex numbers; the gears' own colours are the game's and stay) ----------
-// The light is Topple's (a low sun, a cool fill, a sky and a ground; the same exposures), so the two games sit in one family; the metals are the
-// watch's: the case and its settings in `gold`, the engraved plate in `plate`, a seat's floor frosted dark (`floor`), the rack's pad `velvet`.
-const SKINS = {
-  codex: {
-    day: { key: 0xfff0d6, keyI: 2.9, fill: 0xdce6ff, fillI: 0.6, sky: 0xfff4de, ground: 0x7a6650, hemiI: 0.8, exposure: 1.1, gold: 0xe0b24a, plate: 0xdcd2b8, floor: 0x24332d, velvet: 0x5a1c28, shadow: 0.34 },
-    night: { key: 0xb9cdee, keyI: 1.7, fill: 0xffc98a, fillI: 0.85, sky: 0x8fa6d4, ground: 0x2a2a30, hemiI: 0.75, exposure: 1.18, gold: 0xd2a43f, plate: 0xbdb49c, floor: 0x18241f, velvet: 0x4a1822, shadow: 0.5 },
-  },
-  modern: {
-    day: { key: 0xffffff, keyI: 2.6, fill: 0xe4ecff, fillI: 0.8, sky: 0xffffff, ground: 0xb9c0c4, hemiI: 0.95, exposure: 1.08, gold: 0xd8dde1, plate: 0xb9c6d4, floor: 0x1e2c3c, velvet: 0x22364a, shadow: 0.28 },
-    night: { key: 0xc3d6f0, keyI: 1.6, fill: 0xffd7a0, fillI: 0.7, sky: 0x9db0cc, ground: 0x1c242b, hemiI: 0.85, exposure: 1.2, gold: 0xbfc7ce, plate: 0x8f9fb2, floor: 0x131c28, velvet: 0x1c2e42, shadow: 0.5 },
-  },
-  kontor: {
-    day: { key: 0xffffff, keyI: 2.5, fill: 0xeaf2ee, fillI: 0.8, sky: 0xffffff, ground: 0xc9d2cc, hemiI: 1.0, exposure: 1.05, gold: 0xcaa245, plate: 0xbcbf97, floor: 0x1d3023, velvet: 0x4a1f26, shadow: 0.3 },
-    night: { key: 0xc6d8dc, keyI: 1.4, fill: 0xffe2b0, fillI: 0.6, sky: 0x93a5a8, ground: 0x0e1511, hemiI: 0.8, exposure: 1.22, gold: 0xbb9a40, plate: 0x949a76, floor: 0x121f17, velvet: 0x45191f, shadow: 0.5 },
-  },
-  office: {
-    day: { key: 0xffffff, keyI: 2.5, fill: 0xe4ecff, fillI: 0.8, sky: 0xffffff, ground: 0xb4bac0, hemiI: 1.0, exposure: 1.05, gold: 0xd2d8dd, plate: 0xbcc4cc, floor: 0x24303e, velvet: 0x2c4a73, shadow: 0.28 },
-    night: { key: 0xc3d6f0, keyI: 1.6, fill: 0xffd7a0, fillI: 0.7, sky: 0x9db0cc, ground: 0x1c242b, hemiI: 0.85, exposure: 1.2, gold: 0xb4bcc4, plate: 0x8a97a6, floor: 0x161e28, velvet: 0x25405f, shadow: 0.5 },
-  },
+/** The orthographic frame of a camera: half-height H, the point looked at, and the frame's right, up and back. */
+export function camFrame(cam, aspect) {
+  const f = fit(KEEP, cam.az, cam.el, aspect, 0.3, 0.08), b = basis(cam.az, cam.el);
+  return { H: f.H * cam.z, look: f.look, r: b.r, u: b.u, c: b.c };
+}
+/** Where a point of the world is on the screen, as -1..1 across and up. */
+export function screenOf(cam, aspect, p) {
+  const F = camFrame(cam, aspect), rel = [p[0] - F.look[0], p[1] - F.look[1], p[2] - F.look[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  return [dot(rel, F.r) / (F.H * aspect), dot(rel, F.u) / F.H];
+}
+/** The point of the horizontal plane at height y that the screen point (nx, ny) shows: what a touch means, through any angle. */
+export function planeAt(cam, aspect, nx, ny, y = 0) {
+  const F = camFrame(cam, aspect), P = F.look.map((v, i) => v + F.r[i] * nx * F.H * aspect + F.u[i] * ny * F.H), t = (y - P[1]) / F.c[1];
+  return [P[0] + F.c[0] * t, P[2] + F.c[2] * t];
+}
+
+// ---------- the look: the lights by day and night; the metals are the same in every theme (Korbi, 4 November 2026: the case "all silver") ----------
+// The light is Topple's (a low sun, a cool fill, a sky and a ground; the same exposures), neutral so silver stays silver. The case and its settings are
+// rhodium (`steel`), the engraved plate a brushed silver (`plate`), a seat's floor matte silver a shade darker (`floor`), the tray's pad `pad`.
+const LIGHT = {
+  day: { key: 0xffffff, keyI: 2.7, fill: 0xe8eeff, fillI: 0.7, sky: 0xffffff, ground: 0x9a9ea4, hemiI: 0.9, exposure: 1.08, steel: 0xe6e9ee, plate: 0xcfd3d9, floor: 0x959aa2, pad: 0x8c9096, shadow: 0.3,
+    envSky: 0xb8bcc2, envGround: 0x2a2c30, envWin: 0xf4f6fa },
+  night: { key: 0xe4e8ee, keyI: 1.8, fill: 0xf2ece4, fillI: 0.7, sky: 0xb4b8c0, ground: 0x2c2e32, hemiI: 0.9, exposure: 1.2, steel: 0xd2d6db, plate: 0xb4b9c0, floor: 0x6f747c, pad: 0x6e7279, shadow: 0.5,
+    envSky: 0x6a6d74, envGround: 0x1c1d20, envWin: 0xe8eaee },
 };
-/** What the metal reflects: a ceiling, a floor and the softboxes' colour (the shader's studio). A cool theme's boxes are cool. */
-const ENVS = { day: { envSky: 0xaaa28e, envGround: 0x2c2418, envWin: 0xffeccb }, night: { envSky: 0x4a5784, envGround: 0x16151c, envWin: 0xffd6a2 } };
-const ENV_COOL = { day: { envSky: 0xb4bcc6, envGround: 0x262a30, envWin: 0xeaf1fb }, night: { envSky: 0x46547e, envGround: 0x101318, envWin: 0xc4d3ee } };
-export const skinFor = (theme, night) => { const k = night ? "night" : "day"; return { ...((theme === "modern" || theme === "office") ? ENV_COOL : ENVS)[k], ...(SKINS[theme] || SKINS.codex)[k] }; };
-/** The gears' metals: colour, metalness, roughness. A gold, B blued steel, C anodised violet, the idler dark iron. */
+/** The look for a theme and for day or night. The theme changes nothing of the watch: the page round it carries the theme. */
+export const skinFor = (theme, night) => ({ ...LIGHT[night ? "night" : "day"] });
+/** The gears' finishes, told apart by hue and by lightness (and, for the colour-blind, by their teeth, their windows and the tray's letters): A yellow
+ *  gilt, B blued steel, C rose gold, the idler black DLC (a hard black coating) with a polished bevel. */
 export const METALS = [
-  { color: 0xd9ae45, metalness: 0.7, roughness: 0.3 },
-  { color: 0x5f93cf, metalness: 0.62, roughness: 0.32 },
-  { color: 0xa878bc, metalness: 0.55, roughness: 0.34 },
-  { color: 0x6a7077, metalness: 0.8, roughness: 0.4 },
+  { color: 0xf0c53a, metalness: 0.75, roughness: 0.26 },
+  { color: 0x2f62b8, metalness: 0.7, roughness: 0.24 },
+  { color: 0xe88e86, metalness: 0.8, roughness: 0.26 },
+  { color: 0x1c1d21, metalness: 0.55, roughness: 0.2 },
 ];
+/** How many windows a gear shape is cut with: 3, 5 and 8 for the pitches, the idler six round holes. */
+export const WINDOWS = [3, 5, 8, 6];

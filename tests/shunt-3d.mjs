@@ -8,7 +8,8 @@ import { CELLS, N, ENTRIES } from "../shunt-engine.js";
 import { LEVERS, D, HIT, FAMILY, teethOf, offTab } from "../shunt-view-2d.js";
 import {
   cellW, SHAPES, LAYER_Y, THICK, IDLER_THICK, PARTS, topOf, baseOf, gearDeg, RATE, toothOutline, RO, LEVER_W, HIT3, nearestLever, holdAt, onPlate, HOLD, RAIL, QUEUE,
-  homeEl, basis, fit, KEEP, skinFor, METALS, PLATE_R, CASE_R, TRACK_R, HIT_R, TAB, SEAT_R, CELL_R, TILT_MAX, tiltOfDrag, tiltOfPhone, springStep,
+  homeEl, homeCam, camFrame, screenOf, planeAt, orbit, zoomed, clampCam, isHome, wrapAz, EL_MIN, EL_MAX, ZOOM_MIN, ZOOM_MAX, WINDOWS,
+  basis, fit, KEEP, skinFor, METALS, PLATE_R, CASE_R, TRACK_R, HIT_R, TAB, SEAT_R, CELL_R, TILT_MAX, tiltOfPhone, springStep,
 } from "../shunt-3d-model.js";
 
 let bad = 0;
@@ -111,12 +112,9 @@ check(holdAt(HOLD.x, HOLD.z) && holdAt(HOLD.x + HOLD.r, HOLD.z) && !holdAt(QUEUE
 check(onPlate(0, 0) && onPlate(2.5, 0) && onPlate(0, 3.2) && onPlate(-3.2, 0) && !onPlate(0, 3.6) && !onPlate(3.5, 0) && !onPlate(HOLD.x, RAIL.z), "the plate's outline is the case's circle");
 check(CELLS.every((_, i) => onPlate(...cellW(i))) && LEVER_W.every(l => onPlate(l.x, l.z)), "every cell and every lever is on the plate");
 
-// ---------- the tilt: small, soft at its end, springing back ----------
+// ---------- the phone's tilt: small, soft at its end, springing back ----------
 check(TILT_MAX >= 10 * Math.PI / 180 && TILT_MAX <= 15 * Math.PI / 180, "the tilt is about 10 to 15 degrees at most");
 {
-  const [ax, az] = tiltOfDrag(5000, -5000), [bx, bz] = tiltOfDrag(30, 0), [cx, cz] = tiltOfDrag(0, 60);
-  check(Math.abs(ax) <= TILT_MAX && Math.abs(az) <= TILT_MAX && near(Math.abs(ax), TILT_MAX, 1e-6), "a long drag reaches the limit and never passes it");
-  check(bz < 0 && Math.abs(bz) < TILT_MAX * 0.5 && cx > 0 && near(bx, 0) && near(cz, 0), "dragging right tips the right edge down, dragging down the near edge, a short drag only a little");
   const q = tiltOfPhone(70, 5, 60, 0, 0), r = tiltOfPhone(70, 5, 60, 0, 90);
   check(q.every(v => Math.abs(v) <= TILT_MAX) && tiltOfPhone(60, 0, 60, 0).every(v => near(v, 0)) && tiltOfPhone(200, 90, 0, 0).every(v => Math.abs(v) <= TILT_MAX + 1e-9), "the phone's tilt is clamped, and none at the posture it started from");
   check(!near(q[0], r[0]) || !near(q[1], r[1]), "turning the screen swaps the phone's axes");
@@ -129,7 +127,7 @@ check(TILT_MAX >= 10 * Math.PI / 180 && TILT_MAX <= 15 * Math.PI / 180, "the til
   check(near(held, TILT_MAX, 1e-6), "held at its target, it stays");
 }
 
-// ---------- the camera: fixed; it always holds the case, the tilt's reach and the tray ----------
+// ---------- the camera: the player's; it holds the case and the tray at home, and stays where it is put ----------
 for (const a of [0.55, 0.9, 1.5, 2.2]) check(homeEl(a) >= 60 * Math.PI / 180 && homeEl(a) <= 80 * Math.PI / 180, `the elevation at aspect ${a} is steep enough to read the plate`);
 {
   const b = basis(0.2, 1.0), dot = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
@@ -152,14 +150,57 @@ for (const [az, el, asp] of [[0, homeEl(0.9), 0.9], [0.26, 0.87, 0.6], [-0.26, 1
 }
 check(KEEP.every(p => Math.hypot(p[0], p[2]) >= 0) && KEEP.some(p => p[2] > RAIL.z) && KEEP.some(p => Math.hypot(p[0], p[2]) > CASE_R), "what is kept in view includes the case all round and the rack");
 
-// ---------- the look ----------
-for (const th of ["codex", "modern", "kontor", "office"]) for (const night of [false, true]) {
-  const s = skinFor(th, night), need = ["key", "keyI", "fill", "fillI", "sky", "ground", "hemiI", "exposure", "gold", "plate", "floor", "velvet", "shadow", "envSky", "envGround", "envWin"];
-  check(need.every(k => s[k] !== undefined && Number.isFinite(s[k])), `${th} by ${night ? "night" : "day"} has every colour and light`);
+{
+  // a drag turns and tilts the view and the result stays (nothing here springs back: there is no target to return to)
+  const home = homeCam(0.6), a = orbit(home, 120, 0), b = orbit(home, 0, -2000), c = orbit(home, 0, 2000), d = orbit(a, 0, 0);
+  check(a.az < home.az && near(a.el, home.el) && near(d.az, a.az) && near(d.el, a.el), "dragging right turns the case to the right, and the same view comes back unchanged (it does not drift or return)");
+  check(near(b.el, EL_MIN) && near(c.el, EL_MAX) && EL_MIN <= 16 * Math.PI / 180 && EL_MAX >= 85 * Math.PI / 180, "the tilt reaches a low angle and nearly overhead, and no further");
+  check(near(orbit(home, 100000, 0).az, wrapAz(home.az - 100000 * 0.0085)) && Math.abs(orbit(home, 100000, 0).az) <= Math.PI + 1e-9, "the turn goes all the way round (any number of turns)");
+  check(zoomed(home, 100, 200).z < 1 && zoomed(home, 200, 100).z > 1 && near(zoomed(home, 100, 1e9).z, ZOOM_MIN) && near(zoomed(home, 1e9, 1).z, ZOOM_MAX), "spreading two fingers zooms in, pinching out, within a reach");
+  check(isHome(home, 0.6) && !isHome(a, 0.6) && !isHome(b, 0.6) && isHome({ ...home, az: 2 * Math.PI }, 0.6), "the home view is told from a turned one");
+  check(Math.abs(clampCam({ az: 9, el: -1, z: 5 }).az) <= Math.PI && clampCam({ az: 9, el: -1, z: 5 }).el === EL_MIN, "a kept view is clamped on the way in");
 }
+{
+  // a touch lands where it looks at any angle: every lever, projected to the screen, picks itself again through the camera's plane
+  let bad2 = 0, n = 0;
+  for (const asp of [0.59, 0.46, 0.7, 1.45]) for (const az of [-3.1, -1.5, -0.4, 0, 0.9, 2, 3.1]) for (const el of [EL_MIN, 0.45, homeEl(asp), 1.4, EL_MAX]) for (const z of [ZOOM_MIN, 0.8, 1, ZOOM_MAX]) {
+    const cam = { az, el, z };
+    for (const l of LEVER_W) {
+      const [nx, ny] = screenOf(cam, asp, [l.x, 0.02, l.z]), [px, pz] = planeAt(cam, asp, nx, ny, 0.02);
+      n++;
+      if (nearestLever(px, pz)?.e !== l.e) bad2++;
+    }
+  }
+  check(bad2 === 0 && n > 10000, `every lever picks itself through the tilted plane (${n} views)`);
+  const cam = { az: 1.2, el: 0.5, z: 0.8 }, [nx, ny] = screenOf(cam, 0.6, [HOLD.x, 0.03, HOLD.z]), [hx, hz] = planeAt(cam, 0.6, nx, ny, 0.03);
+  check(holdAt(hx, hz) && onPlate(...planeAt(cam, 0.6, ...screenOf(cam, 0.6, [0, 0, 0]), 0)), "the hold and the plate are found through a turned view too");
+  const F = camFrame({ az: 0.7, el: 0.9, z: 0.6 }, 0.6), G0 = camFrame({ az: 0.7, el: 0.9, z: 1 }, 0.6);
+  check(near(F.H, G0.H * 0.6), "zoom scales the frame's height");
+}
+
+// ---------- the look ----------
+const lum = hex => { const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255; return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const sat = hex => { const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255; return Math.max(r, g, b) - Math.min(r, g, b); };
+for (const th of ["codex", "office"]) for (const night of [false, true]) {
+  const s = skinFor(th, night), need = ["key", "keyI", "fill", "fillI", "sky", "ground", "hemiI", "exposure", "steel", "plate", "floor", "pad", "shadow", "envSky", "envGround", "envWin"];
+  check(need.every(k => s[k] !== undefined && Number.isFinite(s[k])), `${th} by ${night ? "night" : "day"} has every colour and light`);
+  check(sat(s.steel) < 24 && sat(s.plate) < 24 && sat(s.floor) < 24 && sat(s.pad) < 24 && lum(s.floor) < lum(s.plate) - 10, `${th} by ${night ? "night" : "day"}: the case, plate and seat floors are neutral silver, the floor a shade darker than the plate`);
+}
+check(["codex"].every(th => [false, true].every(n => JSON.stringify(skinFor(th, n)) === JSON.stringify(skinFor("office", n)))), "every theme has the same silver watch (no gold or brass skin)");
 check(skinFor("codex", true).keyI < skinFor("codex", false).keyI && skinFor("codex", true).exposure > skinFor("codex", false).exposure, "night is a weaker sun and a longer exposure, as in Topple");
-check(skinFor("nothing", false).gold === skinFor("codex", false).gold, "an unknown theme is Codex's look");
-check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 0), "four metals: brass, blued steel, violet, iron");
+check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 0), "four finishes: gilt, blued steel, rose gold, black");
+{
+  // the four types are told apart by hue and lightness, and (not by colour) by their windows and teeth
+  const hue = hex => { const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn || 1; return (mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60; };
+  const cs = METALS.map(m => m.color);
+  let apart = true;
+  for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
+    const dh = Math.min(Math.abs(hue(cs[i]) - hue(cs[j])), 360 - Math.abs(hue(cs[i]) - hue(cs[j]))), dl = Math.abs(lum(cs[i]) - lum(cs[j]));
+    if (!(dl > 45 || (dh > 40 && sat(cs[i]) > 60 && sat(cs[j]) > 60 && dl > 20))) apart = false;
+  }
+  check(apart, "every two gear finishes differ by 45 in lightness, or by a clear hue with some lightness, so the colour-blind can tell them");
+  check(new Set(WINDOWS).size === 4 && SHAPES.every((sh, k) => k === 3 || new Set(SHAPES.map(x => x.n)).size >= 3), "every gear type has its own number of windows besides its own teeth");
+}
 
 // ---------- the shapes build (three.js runs in Node; WebGL is not needed to make geometry) ----------
 {
@@ -183,17 +224,19 @@ check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 
   check(stone.boundingBox.min.y >= -1e-9 && stone.boundingBox.max.y > 0.08 && chaton.boundingBox.max.x > stone.boundingBox.max.x && chaton.boundingBox.max.y < 0.08, "a ruby is a low dome inside a gold ring that is taller at its lip than the stone's foot");
   check(near(nearest, 0.036, 1e-6), "the ruby has its hole: nothing nearer the axis than its radius");
   check(G.tabGeometry().attributes.position.count > 20 && G.chevronGeometry().attributes.position.count > 12 && G.ringGeometry(1, 0.9, 0.02).attributes.position.count > 100 && G.quadGeometry(1).attributes.uv.count === 4, "the lever's tab, the chevron, the ring and the quad build");
+  check(new Set([0, 1, 2].map(k => G.gearGeometry(k).attributes.position.count)).size === 3, "the three pitches have different cutouts, not only different colours");
   check(gears.every(g => g.attributes.uv && g.attributes.uv.count === g.attributes.position.count), "each gear has the UVs its circular grain is laid by");
 
   // the engraving: made with Guilloche's machine, a normal map with every groove a V
   const T = await import("../shunt-3d-tex.js");
-  const dial = T.dialNormals(256), per = T.perlageNormals(64), grn = T.grainNormals(64);
+  const dial = T.dialNormals(256), grn = T.grainNormals(64);
   let tilted = 0;
   for (let i = 0; i < 256 * 256; i++) if (Math.abs(dial.data[i * 4] - 128) > 8 || Math.abs(dial.data[i * 4 + 1] - 128) > 8) tilted++;
   check(dial.data.length === 256 * 256 * 4 && tilted > 256 * 256 * 0.2 && tilted < 256 * 256 * 0.98, "the dial is engraved (the ring cut deep, the field brushed lightly) with some left flat");
   const lean = (r0, r1, big) => { let n = 0, k = 0; for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) { const r = Math.hypot(x + 0.5 - 128, y + 0.5 - 128) / 128; if (r < r0 || r >= r1) continue; n++; const i = (y * 256 + x) * 4; if (Math.hypot(dial.data[i] - 128, dial.data[i + 1] - 128) > big) k++; } return k / n; };
   check(lean(0.1, 0.82, 30) < 0.03 && lean(0.1, 0.82, 4) > 0.3 && lean(0.87, 0.99, 30) > 0.4 && lean(0.83, 0.86, 30) > 0.4, "the field is quiet (a light, even brushing, no deep cuts) while the ring and its turned band are cut deep");
-  check(per.data.length === 64 * 64 * 4 && grn.data.length === 64 * 64 * 4 && [dial, per, grn].every(d => { for (let i = 2; i < d.data.length; i += 4) if (d.data[i] < 128) return false; return true; }), "the perlage and the grain build, every normal pointing out of the surface");
+  check(!("perlageNormals" in T), "there is no perlage: the seat floors carry no dots");
+  check(grn.data.length === 64 * 64 * 4 && [dial, grn].every(d => { for (let i = 2; i < d.data.length; i += 4) if (d.data[i] < 128) return false; return true; }), "the dial and the grain build, every normal pointing out of the surface");
   check(T.DIAL.some(c => c.kind === "rays") && T.DIAL.filter(c => c.kind === "ring").length >= 2 && !T.DIAL.some(c => c.kind === "lines"), "the ring is a sunburst between two fine rings, cut by guilloche-engine.js, and there is no clous de Paris (lines at a right angle)");
   const hh = new Float32Array(64 * 64); T.brush(hh, 64);
   check(hh[32 * 64 + 52] !== 0 && hh[0] === 0 && new Set(Array.from({ length: 24 }, (_, k) => hh[32 * 64 + 40 + k % 8 + 0 * k].toFixed(4))).size > 3, "the brushed field is lines from the middle, none outside it, each its own height");
@@ -220,6 +263,8 @@ check(METALS.length === 4 && METALS.every(m => m.metalness > 0 && m.roughness > 
   const v3 = fs.readFileSync(root + "shunt-view-3d.js", "utf8");
   check(/webglcontextlost/.test(v3) && /onLost/.test(v3) && /prefers-reduced-motion/.test(v3) && /Math\.min\(devicePixelRatio \|\| 1, 2\)/.test(v3), "it falls back when the context is lost, respects reduced motion and caps the pixel ratio at 2");
   check(/shadow\.mapSize\.set\(1024, 1024\)/.test(v3), "a shadow map of 1024");
+  check(/onCam\?\.\(custom \?/.test(v3) && /: null\);/.test(v3) && /cam: readCam\(kp\), onCam: c => write\(CAM, c\)/.test(js), "the camera is kept under shunt:cam when the player moves it, and the home view is handed over as null, never a default");
+  check(!/dragT/.test(v3) && /sh-level/.test(v3) && /lastTap/.test(v3) && /"wheel"/.test(v3), "a drag no longer feeds the spring; there is a Level button, a double tap and a wheel zoom");
   const css = fs.readFileSync(root + "shunt.css", "utf8");
   check(/#app\.view3d \.sh-tray/.test(css), "the flat tray gives way to the movement's own tray");
 }

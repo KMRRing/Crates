@@ -85,11 +85,14 @@ const sector = (r1, r2, a0, a1) => {
   const p = (r, a) => `${f(Math.cos(a) * r)} ${f(Math.sin(a) * r)}`;
   return `M${p(r2, a0)}A${r2} ${r2} 0 0 1 ${p(r2, a1)}L${p(r1, a1)}A${r1} ${r1} 0 0 0 ${p(r1, a0)}Z`;
 };
-/** What is engraved on a gear's face: a groove at the rim, five windows (or six holes in an idler), the hub with its hole. */
-function face(root, idler) {
+/** How many windows each gear is cut with (3, 5, 8, and six round holes in the idler): a cue besides the colour, as the teeth are. */
+const WINDOWS = [3, 5, 8, 6];
+/** What is engraved on a gear's face: a groove at the rim, its windows (see WINDOWS), the hub with its hole. `k` is the shape: a pitch 0..2 or 3 the idler. */
+function face(root, k) {
   let s = `<circle r="${f(root * 0.9)}" fill="none" stroke="#000" stroke-opacity=".3" stroke-width=".8"/><circle r="${f(root * 0.9 + 0.9)}" fill="none" stroke="#fff" stroke-opacity=".32" stroke-width=".6"/>`;
-  if (idler) for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 + Math.PI / 6; s += `<circle cx="${f(Math.cos(a) * root * 0.58)}" cy="${f(Math.sin(a) * root * 0.58)}" r="${f(root * 0.13)}" style="fill:var(--sh-recess)" stroke="#000" stroke-opacity=".5" stroke-width=".6"/>`; }
-  else for (let k = 0; k < 5; k++) { const a0 = k * 2 * Math.PI / 5 + 0.2, a1 = a0 + 2 * Math.PI / 5 - 0.42; s += `<path d="${sector(root * 0.36, root * 0.74, a0, a1)}" style="fill:var(--sh-recess)" stroke="#000" stroke-opacity=".5" stroke-width=".6" stroke-linejoin="round"/>`; }
+  const n = WINDOWS[k];
+  if (k === 3) for (let i = 0; i < n; i++) { const a = i * Math.PI / 3 + Math.PI / 6; s += `<circle cx="${f(Math.cos(a) * root * 0.58)}" cy="${f(Math.sin(a) * root * 0.58)}" r="${f(root * 0.13)}" style="fill:var(--sh-recess)" stroke="#000" stroke-opacity=".5" stroke-width=".6"/>`; }
+  else for (let i = 0; i < n; i++) { const tau = 2 * Math.PI, a0 = i * tau / n + 0.2, a1 = a0 + tau / n - Math.min(0.42, tau / n * 0.4); s += `<path d="${sector(root * 0.36, root * 0.74, a0, a1)}" style="fill:var(--sh-recess)" stroke="#000" stroke-opacity=".5" stroke-width=".6" stroke-linejoin="round"/>`; }
   s += `<circle r="${f(root * 0.3)}" fill="none" stroke="#000" stroke-opacity=".3" stroke-width=".7"/><circle r="${f(root * 0.27)}" fill="url(#sh-hub)" stroke="#000" stroke-opacity=".55" stroke-width=".6"/>`;
   return s;
 }
@@ -98,9 +101,9 @@ function defsMarkup() {
   let s = `<defs>
   <radialGradient id="sh-hi" cx=".32" cy=".26" r=".75"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".55" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
   <radialGradient id="sh-lo" cx=".7" cy=".78" r=".8"><stop offset="0" stop-color="#000" stop-opacity=".36"/><stop offset=".6" stop-color="#000" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
-  <radialGradient id="sh-hub" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#F6E3A6"/><stop offset=".6" stop-color="#C4963A"/><stop offset="1" stop-color="#7A5A1C"/></radialGradient>
+  <radialGradient id="sh-hub" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#F4F6F8"/><stop offset=".6" stop-color="#AEB4BB"/><stop offset="1" stop-color="#6A7078"/></radialGradient>
   <linearGradient id="sh-brass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1D88C"/><stop offset=".5" stop-color="#C4963A"/><stop offset="1" stop-color="#8A6620"/></linearGradient>
-  <linearGradient id="sh-steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6F9AE0"/><stop offset=".45" stop-color="#2D5AA8"/><stop offset="1" stop-color="#17306A"/></linearGradient>
+  <linearGradient id="sh-steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FAFBFC"/><stop offset=".45" stop-color="#C4C9CF"/><stop offset="1" stop-color="#7B8189"/></linearGradient>
   <linearGradient id="sh-steel-lit" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F4F7FF"/><stop offset=".5" stop-color="#C3D0E8"/><stop offset="1" stop-color="#8A9DC2"/></linearGradient>
   <linearGradient id="sh-rail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1D88C"/><stop offset=".45" stop-color="#C4963A"/><stop offset="1" stop-color="#6E4F18"/></linearGradient>
   <radialGradient id="sh-rivet" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#FFF3C8"/><stop offset=".5" stop-color="#C4963A"/><stop offset="1" stop-color="#5E4314"/></radialGradient>
@@ -110,13 +113,13 @@ function defsMarkup() {
   for (let c = 0; c < 7; c++) {
     if (c < 4) {
       const sp = spec(c), p = toothPath(sp.n, RO, sp.depth);
-      s += `<g id="sh-g${c}"><path d="${p}" transform="translate(.9 1.3)" fill="#000" opacity=".28"/><path d="${p}" style="fill:var(--gf,var(${sp.fill}))" stroke="#2a1d08" stroke-opacity=".75" stroke-width="1" stroke-linejoin="round"/><path d="${p}" fill="url(#sh-hi)"/><path d="${p}" fill="url(#sh-lo)"/>${face(RO * (1 - sp.depth), c === 3)}</g>`;
+      s += `<g id="sh-g${c}"><path d="${p}" transform="translate(.9 1.3)" fill="#000" opacity=".28"/><path d="${p}" style="fill:var(--gf,var(${sp.fill}))" stroke="#2a1d08" stroke-opacity=".75" stroke-width="1" stroke-linejoin="round"/><path d="${p}" fill="url(#sh-hi)"/><path d="${p}" fill="url(#sh-lo)"/>${face(RO * (1 - sp.depth), c)}</g>`;
     } else {
       const [a, b] = FAMILY[c], pa = PITCH[a], pb = PITCH[b], ta = toothPath(pa.n, RO, pa.depth), tb = toothPath(pb.n, RO, pb.depth);
       s += `<g id="sh-g${c}"><path d="${ta}" transform="translate(.9 1.3)" fill="#000" opacity=".28" clip-path="url(#sh-left)"/><path d="${tb}" transform="translate(.9 1.3)" fill="#000" opacity=".28" clip-path="url(#sh-right)"/>
         <path d="${ta}" clip-path="url(#sh-left)" style="fill:var(--gf,var(${pa.fill}))" stroke="#2a1d08" stroke-opacity=".75" stroke-width="1" stroke-linejoin="round"/><path d="${tb}" clip-path="url(#sh-right)" style="fill:var(--gf,var(${pb.fill}))" stroke="#2a1d08" stroke-opacity=".75" stroke-width="1" stroke-linejoin="round"/>
         <path d="${ta}" clip-path="url(#sh-left)" fill="url(#sh-hi)"/><path d="${tb}" clip-path="url(#sh-right)" fill="url(#sh-lo)"/>
-        ${face(RO * (1 - Math.max(pa.depth, pb.depth)), false)}<path d="M0 ${-RO}V${RO}" stroke="#2a1d08" stroke-opacity=".7" stroke-width="1.2"/></g>`;
+        <g clip-path="url(#sh-left)">${face(RO * (1 - Math.max(pa.depth, pb.depth)), a)}</g><g clip-path="url(#sh-right)">${face(RO * (1 - Math.max(pa.depth, pb.depth)), b)}</g><path d="M0 ${-RO}V${RO}" stroke="#2a1d08" stroke-opacity=".7" stroke-width="1.2"/></g>`;
     }
   }
   return `${s}</defs>`;
@@ -136,12 +139,13 @@ const NAMED = ["A", "B", "C", "I", "AB", "AC", "BC"];
 function gearMarkup(x, y, c, o = {}) {
   const sgn = o.sg === -1 ? -1 : 1, step = 360 / teethOf(c), base = sgn < 0 ? step / 2 : 0;
   const fam = FAMILY[c], jam = o.mode === "jam";
-  const gf = jam ? "--gf:color-mix(in srgb,var(--bad) 72%,#2a1d08)" : "";
   const spin = o.mode === "turn" ? ` data-spin="${base}|${sgn * 1.4 * 360 / teethOf(c)}"` : o.mode === "jam" ? ` data-spin="${base}|0|jam"` : "";
   let s = `<g transform="translate(${f(x)} ${f(y)})${o.scale ? ` scale(${o.scale})` : ""}" opacity="${o.ghost ? 0.7 : 1}">`;
-  s += `<g${spin} transform="rotate(${base})"><use href="#sh-g${c}" style="${gf}"/></g>`;
+  s += `<g${spin} transform="rotate(${base})"><use href="#sh-g${c}"/></g>`;
+  // a jam leaves the gear as it is: an oxblood ring pulses round it and the seat's edge lights (it shudders too)
+  if (jam) s += `<polygon data-flash="1" points="${hexPoly(0, 0, D * 0.577)}" fill="none" stroke="var(--bad)" stroke-width="2.4" stroke-linejoin="round"/><circle data-flash="1" r="${RO + 2.6}" fill="none" stroke="var(--bad)" stroke-width="2.6"/>`;
   if (o.ghost) s += `<circle r="${RO + 2.5}" fill="none" stroke="var(--sh-glow)" stroke-width="1.8" stroke-dasharray="4 3"/>`;
-  s += `<text class="sh-letter" y=".5" style="font-size:${fam.length > 1 ? 6.6 : 8.4}px">${NAMED[c]}</text>`;
+  s += `<text class="sh-letter${c === 1 || c === 3 ? " lt" : ""}" y=".5" style="font-size:${fam.length > 1 ? 6.6 : 8.4}px">${NAMED[c]}</text>`;
   return `${s}</g>`;
 }
 function gemMarkup(x, y, size, lit) {
@@ -149,7 +153,7 @@ function gemMarkup(x, y, size, lit) {
   // a round domed stone with a hole for the pivot, set in a gold chaton; dull until its train turns, then it glows and glints
   const s = size;
   return `<g transform="translate(${f(x)} ${f(y)})">${lit ? `<circle r="${f(s * 1.7)}" fill="#FF7A5A" opacity=".32" data-glow="1"/>` : ""}`
-    + `<circle r="${f(s * 1.02)}" fill="url(#sh-hub)" stroke="#5E4314" stroke-width=".8"/><circle r="${f(s * 0.8)}" fill="none" stroke="#5E4314" stroke-opacity=".55" stroke-width=".6"/>`
+    + `<circle r="${f(s * 1.02)}" fill="url(#sh-hub)" stroke="#4a4f55" stroke-width=".8"/><circle r="${f(s * 0.8)}" fill="none" stroke="#4a4f55" stroke-opacity=".55" stroke-width=".6"/>`
     + `<circle r="${f(s * 0.7)}" fill="url(#sh-gem)" fill-opacity="${lit ? 1 : 0.82}"/>`
     + `<circle r="${f(s * 0.2)}" fill="#1c0406" stroke="#FFD9CC" stroke-opacity="${lit ? 0.55 : 0.3}" stroke-width=".6"/>`
     + `<ellipse cx="${f(-s * 0.28)}" cy="${f(-s * 0.3)}" rx="${f(s * 0.22)}" ry="${f(s * 0.11)}" transform="rotate(-38 ${f(-s * 0.28)} ${f(-s * 0.3)})" fill="#fff" fill-opacity="${lit ? 0.8 : 0.4}"/></g>`;
@@ -164,8 +168,8 @@ function leverMarkup(l, mode) {
   if (pulse) s += `<circle r="${f(0.34 * D)}" fill="var(--sh-glow)" fill-opacity=".28" stroke="var(--sh-glow)" stroke-width="2" data-ring="1"/>`;
   const bar = `x="${f(-T / 2 + sink)}" y="${f(-L / 2)}" width="${f(T)}" height="${f(L)}" rx="1.6"`;
   s += off ? `<rect ${bar} style="fill:var(--sh-iron)" stroke="#000" stroke-opacity=".4" stroke-width=".8"/>`
-    : sel ? `<rect ${bar} fill="url(#sh-steel-lit)" stroke="#16203a" stroke-width="1.2"/><path d="M${f(sink - T * 0.1)} ${f(-L * 0.36)}V${f(-L * 0.06)}" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="${f(sink)}" cy="${f(-L * 0.2)}" r="${f(0.12 * D)}" fill="var(--sh-glow)" opacity=".5"/>`
-      : `<rect ${bar} fill="url(#sh-steel)" stroke="#16203a" stroke-width="1"/><path d="M${f(-T * 0.18)} ${f(-L * 0.4)}V${f(L * 0.4)}" stroke="#fff" stroke-opacity=".5" stroke-width=".8" stroke-linecap="round"/>`;
+    : sel ? `<rect ${bar} fill="url(#sh-steel-lit)" stroke="#2a2e33" stroke-width="1.2"/><path d="M${f(sink - T * 0.1)} ${f(-L * 0.36)}V${f(-L * 0.06)}" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="${f(sink)}" cy="${f(-L * 0.2)}" r="${f(0.12 * D)}" fill="var(--sh-glow)" opacity=".5"/>`
+      : `<rect ${bar} fill="url(#sh-steel)" stroke="#2a2e33" stroke-width="1"/><path d="M${f(-T * 0.18)} ${f(-L * 0.4)}V${f(L * 0.4)}" stroke="#fff" stroke-opacity=".5" stroke-width=".8" stroke-linecap="round"/>`;
   return `${s}</g>`;
 }
 /** The plate: frame, baize, recesses; drawn once per size (it never changes except for its studs, which belong to the state). */

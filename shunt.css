@@ -1,6 +1,5 @@
 /* Shunt: a hexagonal plate of gears, shoved in from the rim. The plate is a walnut frame round a baize of brass-edged recesses; the
-   gears are engraved brass in three pitches (A gold, B blue, C violet), the idler steel; the levers on the rim are little brass
-   plungers. All of it is drawn by shunt-view-2d.js with these tokens. The house enamel is verdigris-green baize and brass. */
+   gears are in three pitches (A yellow gilt, B blued steel, C rose gold), the idler black; the levers on the rim are little steel tabs. All of it is drawn by shunt-view-2d.js with these tokens. The house enamel is verdigris-green baize and brass. */
 :root {
   --sh-wood: #5B3A24;      /* the walnut frame */
   --sh-baize: #2B4A3E;     /* the plate's cloth */
@@ -8,10 +7,10 @@
   --sh-brass: #B8913F;     /* the brass edge of the plate and its recesses */
   --sh-iron: #43484C;      /* a stud's plate, a lever whose line is full */
   --sh-glow: #FFE08A;      /* what the board lights: the lever chosen, the coach's pulse, the shove's ghost */
-  --sh-a: #D4AB43;         /* pitch A: gold */
-  --sh-b: #5C8DC6;         /* pitch B: blue */
-  --sh-c: #A171B4;         /* pitch C: violet */
-  --sh-i: #A7ADB3;         /* the idler: steel */
+  --sh-a: #F0C53A;         /* pitch A: yellow gilt */
+  --sh-b: #2F62B8;         /* pitch B: blued steel */
+  --sh-c: #E88E86;         /* pitch C: rose gold */
+  --sh-i: #25262A;         /* the idler: black DLC */
   --bad: #A8382B;
   --good: #2F7D5B;
 }
@@ -43,7 +42,8 @@ html[data-mode="night"] { --sh-wood: #3C2517; --sh-baize: #1D362C; --sh-recess: 
 /* the plate: as large as its room allows */
 .sh-plate { position: relative; }
 .sh-board { display: block; width: min(100cqw, 100cqh * 284 / 312); height: auto; aspect-ratio: 284 / 312; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.sh-letter { font: 800 8px/1 var(--font); text-anchor: middle; dominant-baseline: central; fill: #2a1d08; fill-opacity: .8; pointer-events: none; }
+.sh-letter { font: 800 8px/1 var(--font); text-anchor: middle; dominant-baseline: central; fill: #2a1d08; fill-opacity: .85; paint-order: stroke; stroke: rgba(255,255,255,.55); stroke-width: 1.4px; pointer-events: none; }
+.sh-letter.lt { fill: #fff; fill-opacity: 1; stroke: rgba(0,0,0,.5); }
 .sh-tag { font: 800 8.5px/1 var(--font); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 .sh-cap { font: 800 7.5px/1 var(--font); letter-spacing: .16em; text-anchor: middle; fill: var(--ink-soft); }
 
@@ -92,3 +92,8 @@ html[data-mode="night"] { --sh-wood: #3C2517; --sh-baize: #1D362C; --sh-recess: 
 /* the 3D watch movement: the canvas fills the plate's box and is clear round the case, so the page shows through; the flat board and the tray (the queue and the hold are on the movement's own tray) give way to it */
 .sh-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; border-radius: 4px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; outline: none; }
 #app.view3d .sh-board, #app.view3d .sh-tray { display: none; }
+
+/* the 3D view's "Level" button: shown only when the player has turned the view; top left, clear of the menu's mark */
+.sh-level { position: absolute; left: .3rem; top: .3rem; z-index: 2; min-height: 2.5rem; padding: 0 .8rem; border: 1px solid var(--brass); border-radius: 4px; background: color-mix(in srgb, var(--sheet) 88%, transparent);
+  color: var(--ink); font: inherit; font-size: .74rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); cursor: pointer; touch-action: manipulation; }
+.sh-level[hidden] { display: none; }

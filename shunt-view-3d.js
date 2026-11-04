@@ -1,14 +1,15 @@
 // Shunt's board as a watch movement, seen through the case back, drawn with three.js (vendor/three.js, kept on the device, so it works offline).
 // The same family as Topple's table (its low sun, its cool fill, its exposure, its studio of reflections worked out in the materials' shader, the
-// table tilting a little under a finger and springing back), made as a watch: a round polished case in gold or steel, coin-edged, screwed down with
-// blued screws, holding a round plate engraved with Guilloché's own machine (a field finely brushed in a sunburst, a coarser sunburst ring round it; the normal
-// maps are made in code, shunt-3d-tex.js) with nineteen hexagonal seats cut in it, frosted with perlage on their floors; the gears are watch wheels,
-// gilt, blued or violet, toothed, spoked, bevelled, with a circular grain; a jewel is a synthetic ruby, a round dome with a hole for its pivot in a
-// gold chaton, dull until its train turns and then glowing with a glint; the thirty levers are small steel tabs, each against the face of the hexagon it feeds (worked out from the rules' entries; no arrows: the face says the way); the queue lies on a gold-edged pad and the hold in a round one, on the same tray as the case.
-// The case tilts (about 12 degrees at most) when a finger drags on an empty part of the plate, or with the phone (deviceTilt, which asks iOS's
-// permission only when called from a tap), on a spring that overshoots a little and rests; the glints of the engraving sweep with it. A touch that
-// does not drag is the game's: a drag that starts on a lever or the hold is the game's too (it slides along the levers). Taps are found through
-// the tilted plane, so they land where they look.
+// table's, made as a watch): a polished rhodium case, coin-edged, screwed down with silver screws, holding a round silver plate engraved with Guilloché's own
+// machine (a field finely brushed in a sunburst, a coarser sunburst ring round it; the normal maps are made in code, shunt-3d-tex.js) with nineteen hexagonal
+// seats cut in it, their floors a calm matte silver; the gears are watch wheels, each type its own finish (yellow gilt, blued steel, rose gold, black DLC)
+// and its own number of windows, toothed, bevelled, with a circular grain; a jewel is a synthetic ruby, a round dome with a hole for its pivot in a
+// silver chaton, dull until its train turns and then glowing with a glint; the thirty levers are small steel tabs, each against the face of the hexagon it feeds (worked out from the rules' entries; no arrows: the face says the way); the queue lies on a pad and the hold in a round one, on the same tray as the case.
+// The camera is the player's (Korbi, 4 November 2026: it must not snap back): a drag on an empty part of the plate turns and tilts the view, two fingers
+// (or the wheel) zoom, a "Level" button or a double tap on an empty part returns to the home view, and the view stays where it is put (onCam hands it to the page
+// to keep). The phone's tilt (deviceTilt, which asks iOS's permission only when called from a tap) is a separate opt-in lean of the case on a spring that
+// overshoots a little and rests; the glints of the engraving sweep with either. A touch that does not drag is the game's: a drag that starts on a lever or the
+// hold is the game's too (it slides along the levers). Taps are found through the camera's plane, at any angle, so they land where they look.
 // It is the 2D view's interface (shunt-view-2d.js's header), so the page changes nothing: it keeps the game and the touches. Frame cost: instanced
 // meshes (a draw call a shape), a shadow map of 1024, pixel ratio at most 2; it draws only while something moves (a turning train, a pulse, a shove,
 // the tilt) and at thirty frames a second then (sixty while the tilt moves), and nothing is made per frame. Throws where there is no WebGL (the
@@ -18,10 +19,10 @@ import { CanvasTexture } from "./vendor/three-tex.js";
 import { N, ENTRIES, STUD, judge, goalCheck } from "./shunt-engine.js";
 import {
   cellW, CELL_R, RO, FLOOR, SHAPES, LAYER_Y, PARTS, topOf, baseOf, gearDeg, RAIL, HOLD, QUEUE, LEVER_W, TAB, nearestLever, holdAt, onPlate,
-  homeEl, basis, fit, KEEP, skinFor, METALS, PLATE_R, TRACK_R, SEAT_R, TILT_MAX, tiltOfDrag, tiltOfPhone, springStep,
+  homeCam, camFrame, basis, orbit, zoomed, clampCam, isHome, wrapAz, skinFor, METALS, PLATE_R, TRACK_R, SEAT_R, TILT_MAX, tiltOfPhone, springStep,
 } from "./shunt-3d-model.js";
 import * as G from "./shunt-3d-geo.js";
-import { dialNormals, perlageNormals, grainNormals } from "./shunt-3d-tex.js";
+import { dialNormals, grainNormals } from "./shunt-3d-tex.js";
 import { sound } from "./shunt-sound.js";
 
 const DEG = Math.PI / 180;
@@ -58,7 +59,7 @@ function normalTexture({ size, data }, repeat = false) {
   return t;
 }
 
-export function createView({ board, tray, onGesture, onLost }) {
+export function createView({ board, tray, onGesture, onLost, cam: kept = null, onCam }) {
   const host = board.parentNode, app = board.closest("#app");
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
@@ -132,22 +133,20 @@ export function createView({ board, tray, onGesture, onLost }) {
   // the stone is lit from inside: more where it faces us (the dome's middle is the thickest to look through), tinted by the glow's colour (uGlow)
   const RUBY_GLSL = "reflectedLight.indirectDiffuse += uGlow * (0.3 + 0.9 * pow(nv, 2.0));";
   const ruby = (glow, tint, color) => { const m = std({ color, roughness: 0.07, metalness: 0 }); m.userData.glow = { value: new THREE.Color(tint).multiplyScalar(glow) }; return envify(m, 1.2, RUBY_GLSL); };
-  const grainMap = normalTexture(grainNormals()), perlageMap = normalTexture(perlageNormals(), true), dialMap = normalTexture(dialNormals());
-  perlageMap.repeat.set(1, 1);
+  const grainMap = normalTexture(grainNormals()), dialMap = normalTexture(dialNormals());
   const M = {
-    gold: envify(std({ color: 0xe0b24a, metalness: 1, roughness: 0.2 }), 0.8),
-    plate: envify(std({ color: 0xdcd2b8, metalness: 0.95, roughness: 0.3, normalMap: dialMap }), 0.65),
-    floor: envify(std({ color: 0x24332d, metalness: 0.7, roughness: 0.42, normalMap: perlageMap, normalScale: new THREE.Vector2(0.8, 0.8) }), 0.7),
+    steel: envify(std({ color: 0xe6e9ee, metalness: 1, roughness: 0.2 }), 0.8),
+    plate: envify(std({ color: 0xcfd3d9, metalness: 0.95, roughness: 0.3, normalMap: dialMap }), 0.65),
+    floor: envify(std({ color: 0xaeb3ba, metalness: 0.35, roughness: 0.6 }), 0.4),                 // calm matte silver, no pattern
     iron: envify(std({ color: 0x2f3a58, metalness: 0.85, roughness: 0.28 })),
-    // the levers' tabs, what a finger presses: polished blued steel (blue where the plate is silver and gold), gunmetal when their line is full,
+    // the levers' tabs, what a finger presses: polished steel (a bright one, so no blue dots), gunmetal when their line is full,
     // bright steel with a warm light on it for the one chosen
-    tab: envify(std({ color: 0x2d5aa8, metalness: 0.95, roughness: 0.16 }), 1.1),
+    tab: envify(std({ color: 0xf0f2f5, metalness: 0.95, roughness: 0.16 }), 1.1),
     tabOff: envify(std({ color: 0x3c4048, metalness: 0.8, roughness: 0.42 }), 0.6),
     tabLit: envify(std({ color: 0xd4deee, metalness: 0.95, roughness: 0.12, emissive: 0x7a5a14, emissiveIntensity: 0.55 }), 1.2),
-    blued: envify(std({ color: 0x264a96, metalness: 0.9, roughness: 0.2 })),
-    slot: std({ color: 0x14100c, roughness: 0.95 }), velvet: std({ color: 0x5a1c28, roughness: 1 }),
+    slot: std({ color: 0x3a3d42, roughness: 0.9 }), hole: std({ color: 0x14100c, roughness: 0.95 }), pin: std({ color: 0x70757c, roughness: 0.5, metalness: 0.6 }), pad: std({ color: 0x8c9096, roughness: 0.9 }),
     ruby: ruby(0.2, 0xff2a3a, 0x7e0a1c), rubyLit: ruby(0.7, 0xff5028, 0xd01a30),
-    glow: basic({ color: 0xffe08a, opacity: 0.9 }), glowSoft: basic({ color: 0xffe08a, opacity: 0.22 }), red: basic({ color: 0xff3a22, opacity: 0.5, blending: ADD }),
+    glow: basic({ color: 0xffe08a, opacity: 0.9 }), glowSoft: basic({ color: 0xffe08a, opacity: 0.22 }), jam: basic({ color: 0xe0301c, opacity: 0.9 }), jamSeat: basic({ color: 0xff3a22, opacity: 0.9 }),
     spark: basic({ color: 0xffb04a, blending: ADD, opacity: 1 }),
     tabGlow: basic({ color: 0xffd47a, blending: ADD, opacity: 0.4, map: drawn(64, (c, s) => { const g = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.4, "rgba(255,255,255,.3)"); g.addColorStop(1, "rgba(255,255,255,0)"); c.fillStyle = g; c.fillRect(0, 0, s, s); }) }),
     halo: basic({ color: 0xff4a28, blending: ADD, opacity: 0.5, map: drawn(64, (c, s) => { const g = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.35, "rgba(255,255,255,.4)"); g.addColorStop(1, "rgba(255,255,255,0)"); c.fillStyle = g; c.fillRect(0, 0, s, s); }) }),
@@ -177,15 +176,15 @@ export function createView({ board, tray, onGesture, onLost }) {
     return m;
   };
   const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _e = new THREE.Vector3(0, 1, 0), _c = new THREE.Color();
-  add(G.caseGeometry(), M.gold);
-  add(G.plateGeometry(), [M.plate, M.gold], 0, 0, 0, { cast: false });
-  add(G.screwHeads(), M.blued, 0, 0, 0, { cast: false });
+  add(G.caseGeometry(), M.steel);
+  add(G.plateGeometry(), [M.plate, M.steel], 0, 0, 0, { cast: false });
+  add(G.screwHeads(), M.steel, 0, 0, 0, { cast: false });
   add(G.screwSlots(), M.slot, 0, 0, 0, { cast: false });
-  add(G.ringGeometry(TRACK_R + 0.03, TRACK_R - 0.03, 0.02), M.gold, 0, 0, 0, { cast: false });                  // the line round the tabs, where the outer ring begins
-  // each seat: a polished edge, a frosted floor, and the bush the axle turns in
-  const seatGeo = G.seatRingGeometry(SEAT_R - 0.01, SEAT_R + 0.04, 0.02), floorGeo = G.tileUV(G.hexSlab(SEAT_R - 0.002, 0.02, 0.004), 0.3);
+  add(G.ringGeometry(TRACK_R + 0.03, TRACK_R - 0.03, 0.02), M.steel, 0, 0, 0, { cast: false });                  // the line round the tabs, where the outer ring begins
+  // each seat: a polished edge, a matte floor, and the bush the axle turns in
+  const seatGeo = G.seatRingGeometry(SEAT_R - 0.01, SEAT_R + 0.04, 0.02), floorGeo = G.hexSlab(SEAT_R - 0.002, 0.02, 0.004);
   const bushGeo = G.ringGeometry(0.085, 0.045, 0.016, 20), pinGeo = new THREE.CylinderGeometry(0.047, 0.047, 0.004, 14);
-  const seats = new THREE.InstancedMesh(seatGeo, M.gold, N), floors = new THREE.InstancedMesh(floorGeo, M.floor, N), bushes = new THREE.InstancedMesh(bushGeo, M.gold, N), pins = new THREE.InstancedMesh(pinGeo, M.slot, N);
+  const seats = new THREE.InstancedMesh(seatGeo, M.steel, N), floors = new THREE.InstancedMesh(floorGeo, M.floor, N), bushes = new THREE.InstancedMesh(bushGeo, M.steel, N), pins = new THREE.InstancedMesh(pinGeo, M.pin, N);
   floors.receiveShadow = true; seats.receiveShadow = true;
   for (let i = 0; i < N; i++) {
     const [x, z] = cellW(i);
@@ -209,14 +208,14 @@ export function createView({ board, tray, onGesture, onLost }) {
   const goalRing = add(G.ringGeometry(PLATE_R - 0.01, PLATE_R - 0.06, 0.01), M.glowSoft, 0, 0.002, 0, { cast: false });
   goalRing.visible = false;
 
-  // the tray: the queue on a gold-edged pad of velvet, the hold in a round one
+  // the tray: the queue on a silver-edged pad, the hold in a round one
   const rackLen = RAIL.x1 - RAIL.x0, rackX = (RAIL.x0 + RAIL.x1) / 2;
-  add(G.trayGeometry(rackLen + 0.5, RAIL.w + 0.3, 0.2, 0.1), M.gold, rackX, -0.1, RAIL.z);
-  add(G.trayGeometry(rackLen + 0.3, RAIL.w + 0.1, 0.14, 0.065), M.velvet, rackX, -0.002, RAIL.z, { cast: false });
+  add(G.trayGeometry(rackLen + 0.5, RAIL.w + 0.3, 0.2, 0.1), M.steel, rackX, -0.1, RAIL.z);
+  add(G.trayGeometry(rackLen + 0.3, RAIL.w + 0.1, 0.14, 0.065), M.pad, rackX, -0.002, RAIL.z, { cast: false });
   const peg = new THREE.CylinderGeometry(0.03, 0.03, 0.03, 10);
-  QUEUE.forEach(q => add(peg, M.gold, q.x, RACK_Y + 0.02, RAIL.z, { cast: false }));
-  add(new THREE.CylinderGeometry(HOLD.r + 0.14, HOLD.r + 0.14, 0.1, 40), M.gold, HOLD.x, -0.05, HOLD.z);
-  add(new THREE.CylinderGeometry(HOLD.r + 0.02, HOLD.r + 0.02, 0.065, 40), M.velvet, HOLD.x, 0.0305, HOLD.z, { cast: false });
+  QUEUE.forEach(q => add(peg, M.steel, q.x, RACK_Y + 0.02, RAIL.z, { cast: false }));
+  add(new THREE.CylinderGeometry(HOLD.r + 0.14, HOLD.r + 0.14, 0.1, 40), M.steel, HOLD.x, -0.05, HOLD.z);
+  add(new THREE.CylinderGeometry(HOLD.r + 0.02, HOLD.r + 0.02, 0.065, 40), M.pad, HOLD.x, 0.0305, HOLD.z, { cast: false });
   const holdRing = new THREE.Mesh(G.ringGeometry(HOLD.r + 0.22, HOLD.r + 0.15, 0.012, 40), M.glow);
   holdRing.position.set(HOLD.x, RACK_Y + 0.03, HOLD.z); holdRing.visible = false; world.add(holdRing);
   const nextRing = new THREE.Mesh(G.ringGeometry(RO * QUEUE[0].s + 0.07, RO * QUEUE[0].s + 0.035, 0.012, 40), M.glow);
@@ -232,12 +231,12 @@ export function createView({ board, tray, onGesture, onLost }) {
   for (const m of solid) for (let i = 0; i < CAP; i++) m.setColorAt(i, _c.setRGB(1, 1, 1));
   const shaftGeo = new THREE.CylinderGeometry(0.032, 0.032, 1, 8); shaftGeo.translate(0, 0.5, 0);
   const hubGeo = G.merge([new THREE.CylinderGeometry(0.115, 0.125, 0.022, 14).translate(0, 0.011, 0), new THREE.SphereGeometry(0.075, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.022, 0)]);
-  const shafts = inst(shaftGeo, M.gold), hubs = inst(hubGeo, M.gold);
+  const shafts = inst(shaftGeo, M.steel), hubs = inst(hubGeo, M.steel);
   // a jewel: gold chaton, ruby cabochon with its hole, and when lit a halo and a glint (all follow the gear whose cap it sits on)
   const chatonGeo = G.chatonGeometry(), stoneGeo = G.cabochonGeometry(), holeGeo = new THREE.CylinderGeometry(0.036, 0.036, 0.002, 12), glowGeo = G.quadGeometry(0.95), glintGeo = G.quadGeometry(0.34);
   const jewels = Array.from({ length: JEWELS }, () => {
     const g = new THREE.Group();
-    const chaton = new THREE.Mesh(chatonGeo, M.gold), stone = new THREE.Mesh(stoneGeo, M.ruby), hole = new THREE.Mesh(holeGeo, M.slot);
+    const chaton = new THREE.Mesh(chatonGeo, M.steel), stone = new THREE.Mesh(stoneGeo, M.ruby), hole = new THREE.Mesh(holeGeo, M.hole);
     const glow = new THREE.Mesh(glowGeo, M.halo), glint = new THREE.Mesh(glintGeo, M.glint);
     chaton.castShadow = stone.castShadow = true; stone.position.y = 0.012; hole.position.y = 0.03;
     glow.position.y = 0.02; glint.position.set(-0.045, 0.125, -0.05);
@@ -248,17 +247,21 @@ export function createView({ board, tray, onGesture, onLost }) {
   const trackGeo = G.hexSlab(CELL_R - 0.05, 0.012, 0.003), tiles = inst(trackGeo, M.glowSoft, 6, false);
   const chevGeo = G.chevronGeometry(0.2), chevs = inst(chevGeo, M.glow, 6, false);
   const flashGeo = G.ringGeometry(RO + 0.08, RO + 0.02, 0.014, 40), flashes = inst(flashGeo, new THREE.MeshBasicMaterial({ color: 0xff3a22, transparent: true, depthWrite: false }), 20, false);
-  const heatGeo = new THREE.CylinderGeometry(RO, RO, 0.01, 32), heats = inst(heatGeo, M.red, 20, false);
+  // a jam: an oxblood ring pulsing round the gear and the seat's edge lit red; the gear's own finish stays as it is
+  const jamGeo = G.ringGeometry(RO + 0.07, RO + 0.01, 0.014, 40), jamRings = inst(jamGeo, M.jam, 20, false);
+  const jamSeatGeo = G.seatRingGeometry(SEAT_R - 0.01, SEAT_R + 0.04, 0.03), jamSeats = inst(jamSeatGeo, M.jamSeat, 20, false);
   const sparkGeo = new THREE.IcosahedronGeometry(0.022, 0), sparks = inst(sparkGeo, M.spark, SPARKS, false);
 
   // ---------- the show ----------
   let model = null, items = [], flashList = [], jamList = [], T = 0, motion = !reduced(), shown = true, held = false;
   let animState = null, pulseE = -1, pulseHold = false, selE = -1, selSwap = false, lit = new Set(), jamCount = 0, hasTrain = false;
-  let el = 66 * DEG, w = 1, h = 1, aspect = 1;
-  // the tilt: where the case leans (about x, about z), how fast it is turning, and where the finger or the phone pulls it
-  let tx = 0, tz = 0, vx = 0, vz = 0, dragT = null, phoneT = [0, 0];
+  let w = 1, h = 1, aspect = 1;
+  // the camera: where the player put it (null: the home view, which follows the screen's shape), and whether it is moving now
+  let cam = kept ? clampCam(kept) : null, camBusy = false, camAnim = null, custom = !!cam;
+  // the phone's tilt: where the case leans (about the camera's right and back), how fast it is turning, and where the phone (or a test's pose) pulls it
+  let tx = 0, tz = 0, vx = 0, vz = 0, poseT = null, phoneT = [0, 0];
 
-  const GOLD = new THREE.Color(1, 1, 1), HOT = new THREE.Color(0.9, 0.16, 0.12);
+  const WHITE = new THREE.Color(1, 1, 1);
 
   /** Turn the model into the things to draw: the board's gears (with where each stands), the queue, the hold, the jewels. */
   function load(m) {
@@ -360,7 +363,6 @@ export function createView({ board, tray, onGesture, onLost }) {
   }
 
   // ---------- placing every moving thing for time T ----------
-  const tint = new THREE.Color();
   function place() {
     let n = [0, 0, 0, 0], g = [0, 0, 0, 0], ns = 0, nh = 0, nj = 0;
     for (const it of items) {
@@ -374,22 +376,24 @@ export function createView({ board, tray, onGesture, onLost }) {
         else {
           const i = n[k]++;
           solid[k].setMatrixAt(i, _m);
-          if (it.mode === "jam") tint.copy(HOT).lerp(GOLD, 0.15 + 0.1 * Math.sin(T * 9 + it.cell)); else tint.copy(GOLD);
-          solid[k].setColorAt(i, tint);
+          solid[k].setColorAt(i, WHITE);
         }
       }
       if (it.ghost) continue;
       const top = it.lift + (topOf(it.c) - it.ref) * s + it.dy;
       if (it.shaft) { _s.set(1, top - FLOOR, 1); _q.identity(); shafts.setMatrixAt(ns++, _m.compose(_p.set(px, FLOOR, pz), _q, _s)); }
       if (it.cap) { _s.set(s, s, s); _q.identity(); hubs.setMatrixAt(nh++, _m.compose(_p.set(px, top, pz), _q, _s)); }
-      if (it.mode === "jam") { _s.set(1, 1, 1); _q.identity(); heats.setMatrixAt(nj++, _m.compose(_p.set(px, top + 0.02, pz), _q, _s)); }
+      if (it.mode === "jam") {
+        _s.set(1, 1, 1); _q.identity();
+        jamRings.setMatrixAt(nj, _m.compose(_p.set(px, 0.03, pz), _q, _s)); jamSeats.setMatrixAt(nj++, _m.compose(_p.set(px, 0.002, pz), _q, _s));
+      }
     }
     for (let k = 0; k < 4; k++) {
       solid[k].count = n[k]; solid[k].instanceMatrix.needsUpdate = true; if (solid[k].instanceColor) solid[k].instanceColor.needsUpdate = true;
       ghost[k].count = g[k]; ghost[k].instanceMatrix.needsUpdate = true;
     }
     shafts.count = ns; shafts.instanceMatrix.needsUpdate = true; hubs.count = nh; hubs.instanceMatrix.needsUpdate = true;
-    heats.count = nj; heats.instanceMatrix.needsUpdate = true;
+    jamRings.count = jamSeats.count = nj; jamRings.instanceMatrix.needsUpdate = true; jamSeats.instanceMatrix.needsUpdate = true;
     const wave = 0.5 + 0.5 * Math.sin(T * 6);
     // the jewels follow the cap of the gear that covers them; a lit one breathes and its glint twinkles
     for (const jw of jewels) if (jw.g.visible) {
@@ -412,7 +416,7 @@ export function createView({ board, tray, onGesture, onLost }) {
     sparks.count = sp; sparks.instanceMatrix.needsUpdate = true;
     M.glow.opacity = 0.6 + 0.35 * wave;
     M.tabGlint.opacity = 0.55 + 0.4 * wave;
-    M.red.opacity = 0.1 + 0.12 * wave;
+    M.jam.opacity = 0.45 + 0.55 * wave; M.jamSeat.opacity = 0.35 + 0.65 * (1 - wave);
     flashes.material.opacity = 0.35 + 0.6 * wave;
     holdRing.visible = pulseHold; holdRing.scale.setScalar(1 + 0.06 * wave);
     if (pulseE >= 0) {
@@ -423,23 +427,26 @@ export function createView({ board, tray, onGesture, onLost }) {
     else if (!animState) { leverSel.visible = false; halo.visible = false; }
     tabGlint.visible = leverSel.visible;
   }
-  const tilting = () => !!dragT || Math.abs(tx - target()[0]) > 4e-4 || Math.abs(tz - target()[1]) > 4e-4 || Math.abs(vx) > 2e-3 || Math.abs(vz) > 2e-3;
-  const moving = () => !!animState || tilting() || (motion && (hasTrain || pulseE >= 0 || pulseHold || flashList.length > 0));
+  const tilting = () => !!poseT || Math.abs(tx - target()[0]) > 4e-4 || Math.abs(tz - target()[1]) > 4e-4 || Math.abs(vx) > 2e-3 || Math.abs(vz) > 2e-3;
+  const moving = () => !!animState || tilting() || camBusy || !!camAnim || (motion && (hasTrain || pulseE >= 0 || pulseHold || flashList.length > 0));
 
   // ---------- the tilt ----------
-  const target = () => dragT || phoneT;
+  const target = () => poseT || phoneT;
   function stepTilt(dt) {
     if (!tilting()) return;
     const [ax, az] = target();
     if (!motion) { tx = ax; tz = az; vx = vz = 0; } else { [tx, vx] = springStep(tx, vx, ax, dt); [tz, vz] = springStep(tz, vz, az, dt); }
-    if (!dragT && Math.abs(tx - ax) < 4e-4 && Math.abs(tz - az) < 4e-4 && Math.abs(vx) < 2e-3 && Math.abs(vz) < 2e-3) { tx = ax; tz = az; vx = vz = 0; }
+    if (!poseT && Math.abs(tx - ax) < 4e-4 && Math.abs(tz - az) < 4e-4 && Math.abs(vx) < 2e-3 && Math.abs(vz) < 2e-3) { tx = ax; tz = az; vx = vz = 0; }
     tx = Math.max(-TILT_MAX * 1.25, Math.min(TILT_MAX * 1.25, tx)); tz = Math.max(-TILT_MAX * 1.25, Math.min(TILT_MAX * 1.25, tz));
     applyTilt();
   }
   function applyTilt() {
-    tilter.rotation.set(tx, 0, tz);
+    // the lean is about the camera's right and back (horizontal parts), so a turned view leans the way the phone does
+    const a = (cam || homeCam(aspect)).az, sa = Math.sin(a), ca = Math.cos(a);
+    tilter.quaternion.setFromAxisAngle(_p.set(ca, 0, -sa), tx).multiply(_q.setFromAxisAngle(_e.set(sa, 0, ca), tz));
+    _e.set(0, 1, 0);
     tilter.updateMatrixWorld(true);
-    shadow.position.set(-tz * 2.2, -1.2, 0.5 + tx * 2.2);                       // the shadow slides the other way: the case is lifted on one side
+    shadow.position.set(ca * -tz * 2.2 + sa * tx * 2.2, -1.2, 0.5 - sa * -tz * 2.2 + ca * tx * 2.2);   // the shadow slides the other way: the case is lifted on one side
   }
 
   // ---------- the frame loop ----------
@@ -447,11 +454,12 @@ export function createView({ board, tray, onGesture, onLost }) {
   function frame(ts) {
     raf = 0;
     if (!shown || held || document.hidden) return;
-    const busy = animState || tilting(), dt = Math.min(0.06, last ? (ts - last) / 1000 : 0.016);
+    const busy = animState || tilting() || camBusy || camAnim, dt = Math.min(0.06, last ? (ts - last) / 1000 : 0.016);
     if (!busy && ts - last < FRAME_MS - 2) { raf = requestAnimationFrame(frame); return; }
     last = ts;
     if (motion) T += dt;
     stepTilt(dt);
+    if (camAnim) stepCam(ts);
     if (animState) stepShove(ts);
     place();
     renderer.render(scene, camera);
@@ -488,56 +496,127 @@ export function createView({ board, tray, onGesture, onLost }) {
     }
   }
 
-  // ---------- the camera: fixed, a little off straight down ----------
+  // ---------- the camera: the player's; it is put where the player leaves it ----------
+  const nowCam = () => cam || homeCam(aspect);
   function setCamera() {
     aspect = w / h;
-    const f = fit(KEEP, 0, el, aspect, 0.3, 0.08), b = basis(0, el), R = 40;
-    camera.left = -f.H * aspect; camera.right = f.H * aspect; camera.top = f.H; camera.bottom = -f.H;
-    camera.position.set(f.look[0] + b.c[0] * R, f.look[1] + b.c[1] * R, f.look[2] + b.c[2] * R);
-    _m.makeBasis(_p.set(...b.r), _s.set(...b.u), _e.set(...b.c));
+    const c = nowCam(), F = camFrame(c, aspect), R = 40;
+    camera.left = -F.H * aspect; camera.right = F.H * aspect; camera.top = F.H; camera.bottom = -F.H;
+    camera.position.set(F.look[0] + F.c[0] * R, F.look[1] + F.c[1] * R, F.look[2] + F.c[2] * R);
+    _m.makeBasis(_p.set(...F.r), _s.set(...F.u), _e.set(...F.c));
     camera.quaternion.setFromRotationMatrix(_m);
     _e.set(0, 1, 0); _s.set(1, 1, 1);
     camera.near = 1; camera.far = 90;
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld();
+    applyTilt();
+    levelBtn.hidden = !custom;
+  }
+  /** Put the camera at `c` (null: home). `keep` hands it to the page to remember; home is handed over as null, so the default is never kept. */
+  function setCam(c, keep = true) {
+    camAnim = null;
+    cam = c ? clampCam(c) : null;
+    custom = !!cam && !isHome(cam, aspect);
+    if (!custom) cam = null;
+    setCamera(); wake();
+    if (keep) onCam?.(custom ? { az: +cam.az.toFixed(4), el: +cam.el.toFixed(4), z: +cam.z.toFixed(3) } : null);
+  }
+  /** Back to the home view, turning the short way round. */
+  function levelOut() {
+    const from = nowCam(), to = homeCam(aspect);
+    if (!motion || reduced()) { setCam(null); return; }
+    camAnim = { from, to: { ...to, az: from.az + wrapAz(to.az - from.az) }, t0: 0 };
+    camBusy = false; wake();
+  }
+  function stepCam(ts) {
+    const a = camAnim;
+    if (!a.t0) a.t0 = ts;
+    const k = clamp01((ts - a.t0) / 380), e = ease(k), mix = (p, q) => p + (q - p) * e;
+    cam = { az: mix(a.from.az, a.to.az), el: mix(a.from.el, a.to.el), z: mix(a.from.z, a.to.z) };
+    custom = true;
+    setCamera();
+    if (k >= 1) setCam(null);
   }
   function resize() {
     const r = host.getBoundingClientRect();
     w = Math.max(1, Math.round(r.width)); h = Math.max(1, Math.round(r.height));
     renderer.setSize(w, h, false);
-    el = homeEl(w / h);
+    aspect = w / h;
+    if (cam && isHome(cam, aspect)) { cam = null; custom = false; }
     setCamera(); wake();
   }
   const ro = new ResizeObserver(resize);
   ro.observe(host);
 
-  // ---------- touches: the game's own are left alone; a drag that starts on an empty part of the plate tilts the case ----------
-  let drag = null;
+  // ---------- touches: the game's own (a lever, the hold, a tap) are left alone; a drag that starts on an empty part turns and tilts the view, two fingers zoom ----------
+  const levelBtn = document.createElement("button");
+  levelBtn.type = "button"; levelBtn.className = "sh-level"; levelBtn.hidden = true; levelBtn.textContent = "Level";
+  levelBtn.setAttribute("aria-label", "Back to the home view");
+  levelBtn.addEventListener("click", levelOut);
+  levelBtn.addEventListener("pointerdown", e => e.stopPropagation());
+  host.append(levelBtn);
+
+  const fingers = new Map();                                    // pointer id -> [x, y], for the fingers that began on an empty part
+  let drag = null, pinch = null, lastTap = null;
   const mine = e => e.target === canvas || e.target === host;
+  const spread = () => { const [a, b] = [...fingers.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
   host.addEventListener("pointerdown", e => {
     if (!mine(e)) return;
     sound.unlock();
-    if (drag || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (drag && drag.ok && !pinch && e.pointerId !== drag.id) {   // a second finger on top of a drag: a pinch, which the game does not see
+      e.stopPropagation();
+      fingers.set(e.pointerId, [e.clientX, e.clientY]);
+      pinch = { d0: spread(), cam: nowCam() };
+      drag.on = true; drag.pinch = true; camBusy = true; camAnim = null;
+      onGesture?.();
+      return;
+    }
+    if (drag) return;
     const hh = view.hit(e.clientX, e.clientY);
-    drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, ok: !hh || hh.kind === "plate", on: false };
+    drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, ok: !hh || hh.kind === "plate", on: false, cam: nowCam(), t: performance.now() };
+    if (drag.ok) fingers.set(e.pointerId, [e.clientX, e.clientY]);
   }, true);
   host.addEventListener("pointermove", e => {
-    if (!drag || e.pointerId !== drag.id || !drag.ok) return;
+    if (!drag || !fingers.has(e.pointerId)) return;
+    fingers.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pinch) {
+      if (fingers.size >= 2) { cam = zoomed(pinch.cam, pinch.d0, spread()); custom = true; setCamera(); wake(); }
+      return;
+    }
+    if (e.pointerId !== drag.id) return;
     if (!drag.on) {
       if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 10) return;
-      drag.on = true; drag.x0 = e.clientX; drag.y0 = e.clientY;         // the tilt starts from where the finger began to drag, not with a jump
+      drag.on = true; drag.x0 = e.clientX; drag.y0 = e.clientY; drag.cam = nowCam(); camBusy = true; camAnim = null;   // it starts from where the finger began to drag, not with a jump
       onGesture?.();
     }
-    dragT = tiltOfDrag(e.clientX - drag.x0, e.clientY - drag.y0);
-    wake();
+    cam = orbit(drag.cam, e.clientX - drag.x0, e.clientY - drag.y0); custom = true;
+    setCamera(); wake();
   }, true);
   const lift = e => {
-    if (!drag || e.pointerId !== drag.id) return;
-    drag = null;
-    if (dragT) { dragT = null; wake(); }
+    if (!drag) return;
+    const had = fingers.delete(e.pointerId);
+    if (pinch) { if (fingers.size < 2) { pinch = null; if (!fingers.size) endDrag(); else { const [id, p] = [...fingers][0]; drag = { id, x0: p[0], y0: p[1], ok: true, on: true, pinch: true, cam: nowCam(), t: 0 }; } } return; }
+    if (e.pointerId !== drag.id) return;
+    if (!drag.on && drag.ok && e.type === "pointerup" && had) {   // a tap on an empty part; a second one soon after levels the view
+      const now = performance.now();
+      if (lastTap && now - lastTap.t < 340 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 28 && custom) { lastTap = null; levelOut(); } else lastTap = { t: now, x: e.clientX, y: e.clientY };
+    } else lastTap = null;
+    endDrag();
   };
+  function endDrag() {
+    const moved = drag && drag.on;
+    drag = null; camBusy = false;
+    if (moved) setCam(cam);                                   // settle it, and hand it over to be kept
+    wake();
+  }
   host.addEventListener("pointerup", lift, true);
   host.addEventListener("pointercancel", lift, true);
+  host.addEventListener("wheel", e => {
+    if (!mine(e)) return;
+    e.preventDefault();
+    setCam(zoomed(nowCam(), 1, Math.exp(-e.deltaY * 0.0015)));
+  }, { passive: false });
 
   // ---------- the phone's tilt (asked for by a tap, and only then on iOS) ----------
   const needsAsk = typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function";
@@ -596,7 +675,7 @@ export function createView({ board, tray, onGesture, onLost }) {
     key.color.setHex(skin.key); key.intensity = skin.keyI;
     fill.color.setHex(skin.fill); fill.intensity = skin.fillI;
     hemi.color.setHex(skin.sky); hemi.groundColor.setHex(skin.ground); hemi.intensity = skin.hemiI;
-    M.gold.color.setHex(skin.gold); M.plate.color.setHex(skin.plate); M.floor.color.setHex(skin.floor); M.velvet.color.setHex(skin.velvet);
+    M.steel.color.setHex(skin.steel); M.plate.color.setHex(skin.plate); M.floor.color.setHex(skin.floor); M.pad.color.setHex(skin.pad);
     M.shadow.opacity = skin.shadow;
     ENV.sky.value.setHex(skin.envSky); ENV.ground.value.setHex(skin.envGround); ENV.win.value.setHex(skin.envWin); ENV.dir.value.copy(key.position).normalize();
     wake();
@@ -644,7 +723,12 @@ export function createView({ board, tray, onGesture, onLost }) {
     get canDeviceTilt() { return typeof DeviceOrientationEvent !== "undefined"; },
     get tilt() { return [tx, tz]; },
     /** For tests and pictures: hold the case at this lean (radians about x and z) with no spring, or release it with no arguments. */
-    pose(ax, az) { if (ax == null) { dragT = null; } else { dragT = [ax, az]; tx = ax; tz = az; vx = vz = 0; } applyTilt(); wake(); },
+    pose(ax, az) { if (ax == null) { poseT = null; } else { poseT = [ax, az]; tx = ax; tz = az; vx = vz = 0; } applyTilt(); wake(); },
+    /** The camera now ({ az, el, z }), and a way to put it somewhere (null: home) or level it with the button's turn. For tests and pictures too. */
+    get cam() { return { ...nowCam() }; },
+    setCam(c, keep = false) { setCam(c, keep); },
+    level: levelOut,
+    get custom() { return custom; },
     get stats() { return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles }; },
     renderNow() { stepTilt(0.016); place(); renderer.render(scene, camera); },
     /** For tests: draw a shove under way at `ms` into it (call setMotion(false) first, so the loop stands still). */
@@ -657,9 +741,9 @@ export function createView({ board, tray, onGesture, onLost }) {
       document.removeEventListener("visibilitychange", onVis);
       scene.traverse(o => { o.geometry?.dispose?.(); });
       for (const m of [...Object.values(M), ...gearMat, ...ghostMat]) m.dispose();
-      for (const t of [dialMap, perlageMap, grainMap]) t.dispose?.();
+      for (const t of [dialMap, grainMap]) t.dispose?.();
       renderer.dispose();
-      canvas.remove();
+      canvas.remove(); levelBtn.remove();
       app?.classList.remove("view3d");
     },
   };

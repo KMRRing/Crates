@@ -1,7 +1,7 @@
 // The shapes of Shunt's watch movement (three.js, vendor/three.js; shunt-view-3d.js puts them together). Every builder returns a geometry laid
 // on the plate: y up, the plate's top at y = 0, a shape's own Y running along z (so a drawing in x and y is the view from above).
 import * as THREE from "./vendor/three.js";
-import { toothOutline, SHAPES, THICK, IDLER_THICK, RO, PLATE_R, CASE_R, SEAT_R, FLOOR, cellW } from "./shunt-3d-model.js";
+import { toothOutline, SHAPES, WINDOWS, THICK, IDLER_THICK, RO, PLATE_R, CASE_R, SEAT_R, FLOOR, cellW } from "./shunt-3d-model.js";
 import { CELLS } from "./shunt-engine.js";
 
 const TAU = Math.PI * 2;
@@ -38,15 +38,16 @@ function plate(shape, depth, top = 0) {
   return g;
 }
 
-/** A toothed gear of shape k (SHAPES), with its windows (five, or six round holes in the idler) and the hole for its axle. */
+/** A toothed gear of shape k (SHAPES), with its windows (WINDOWS: 3, 5 or 8 wide ones for the pitches, six round holes in the idler: a second cue to the
+ *  colour) and the hole for its axle. */
 export function gearGeometry(k) {
-  const { n, depth } = SHAPES[k], root = RO * (1 - depth), holes = [ring(0.075, 14)];
-  if (k === 3) for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + Math.PI / 6; holes.push(ring(root * 0.13, 12, Math.cos(a) * root * 0.58, Math.sin(a) * root * 0.58)); }
-  else for (let i = 0; i < 5; i++) {
-    const a0 = i * TAU / 5 + 0.2, a1 = a0 + TAU / 5 - 0.42, r1 = root * 0.36, r2 = root * 0.74, w = [];
-    for (let s = 0; s <= 8; s++) { const a = a0 + (a1 - a0) * s / 8; w.push([Math.cos(a) * r2, Math.sin(a) * r2]); }
-    for (let s = 8; s >= 0; s--) { const a = a0 + (a1 - a0) * s / 8; w.push([Math.cos(a) * r1, Math.sin(a) * r1]); }
-    holes.push(w);
+  const { n, depth } = SHAPES[k], root = RO * (1 - depth), holes = [ring(0.075, 14)], w = WINDOWS[k];
+  if (k === 3) for (let i = 0; i < w; i++) { const a = i * Math.PI / 3 + Math.PI / 6; holes.push(ring(root * 0.13, 12, Math.cos(a) * root * 0.58, Math.sin(a) * root * 0.58)); }
+  else for (let i = 0; i < w; i++) {
+    const gap = Math.min(0.42, TAU / w * 0.4), a0 = i * TAU / w + 0.2, a1 = a0 + TAU / w - gap, r1 = root * 0.36, r2 = root * 0.74, pts = [];
+    for (let s = 0; s <= 8; s++) { const a = a0 + (a1 - a0) * s / 8; pts.push([Math.cos(a) * r2, Math.sin(a) * r2]); }
+    for (let s = 8; s >= 0; s--) { const a = a0 + (a1 - a0) * s / 8; pts.push([Math.cos(a) * r1, Math.sin(a) * r1]); }
+    holes.push(pts);
   }
   const H = k === 3 ? IDLER_THICK : THICK, g = slab(shapeOf(toothOutline(n, RO, depth), holes), H, 0.02, 2);
   shade(g);
@@ -93,13 +94,6 @@ export function plateGeometry() {
 export const seatRingGeometry = (r0, r1, h) => slab(shapeOf(hexPts(r1, 0), [hexPts(r0, 0)]), h, Math.min(0.008, h / 3));
 /** A flat hexagonal slab (a seat's floor) standing on y = 0. */
 export const hexSlab = (R, h, bevel = 0.01) => slab(shapeOf(hexPts(R, 0)), h, bevel);
-/** A seat's floor wants the perlage tile repeated: its UV in tiles of `tile` world units. */
-export function tileUV(g, tile) {
-  const p = g.attributes.position, uv = new Float32Array(p.count * 2);
-  for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) / tile; uv[i * 2 + 1] = p.getZ(i) / tile; }
-  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  return g;
-}
 
 /** A solid of revolution about y: `prof` is [radius, height, flute] points, travelled so the surface is on their left (up the inside, over the top,
  *  down the outside), N steps round; a point's flute is the depth of the fine ridges (FLUTES of them) cut in its radius. Smooth-shaded all round. */
@@ -123,7 +117,7 @@ export function caseGeometry() {
   return latheGeometry([[R0 - 0.01, 0], [R0 - 0.01, 0.13], [R0 + 0.02, 0.18], [R0 + 0.06, 0.212], [R0 + 0.1, 0.222], [R1 - 0.07, 0.205], [R1 - 0.025, 0.15], [R1, 0.08],
     [R1, 0.0, 0.007], [R1, -0.16, 0.009], [R1, -0.32, 0.009], [R1 - 0.02, -0.44, 0.004], [R1 - 0.1, -0.52], [R0 - 0.1, -0.54]], 360, 90);
 }
-/** Six screws on the bezel, blued steel: a domed head (group 0) with its slot cut in it as a dark bar (group 1, merged separately by the caller). */
+/** Six screws on the bezel, silver steel: a domed head (group 0) with its slot cut in it as a dark bar (group 1, merged separately by the caller). */
 export const SCREWS = Array.from({ length: 6 }, (_, k) => { const a = -Math.PI / 2 + k * Math.PI / 3 + 0.26, r = (PLATE_R + CASE_R) / 2 + 0.01; return { x: Math.cos(a) * r, z: Math.sin(a) * r, turn: (k * 2.4) % Math.PI }; });
 export function screwHeads() {
   return merge(SCREWS.map(s => { const h = new THREE.SphereGeometry(0.058, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2); h.scale(1, 0.32, 1); h.translate(s.x, 0.218, s.z); return h; }));

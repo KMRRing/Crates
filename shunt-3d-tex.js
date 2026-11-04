@@ -3,8 +3,7 @@
 // along; the ring outside the board is cut with Guilloché's own machine (guilloche-engine.js: `passes` gives each cut's lines, `grooveWidth` the V of
 // the graver) as a coarser sunburst between two fine rings, and a narrow turned band (fine concentric lines) at its inner edge steps it off the
 // field. Every groove is a V in section, so a pixel of the plate leans one way or the other, and the lean is what the shader's studio reflects.
-// Perlage (the overlapping circles of a movement's plates) frosts a seat's floor, and a circular grain brushes a gear's face (a circle looks the
-// same when the gear turns).
+// A circular grain brushes a gear's face (a circle looks the same when the gear turns). A seat's floor has no texture: no dots (Korbi, 4 November 2026).
 import { passes, grooveWidth } from "./guilloche-engine.js";
 
 /** The plate's cuts, on a plate of radius 1 (shunt-3d-model.js PLATE_R). The ring is what lies outside TRACK_R / PLATE_R. */
@@ -81,20 +80,6 @@ export function dialNormals(S = 1024, cuts = DIAL, slope = 0.62) {
     for (const p of passes(cut)) for (let i = 0; i + 3 < p.length; i += 2) groove(h, S, (p[i] + 1) * half, (p[i + 1] + 1) * half, (p[i + 2] + 1) * half, (p[i + 3] + 1) * half, w, slope);
   }
   return { size: S, data: normalsOf(h, S) };
-}
-
-/** Perlage: rows of circles each overlapping the last, a dome to each, as a tile of S pixels that repeats. */
-export function perlageNormals(S = 128, rad = 0.62) {
-  const h = new Float32Array(S * S), cell = S / 2, R = rad * cell * 1.15;
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-    let best = -1e9;
-    for (let j = -1; j <= 2; j++) for (let i = -1; i <= 2; i++) {
-      const cx = (i + (j & 1 ? 0.5 : 0)) * cell, cy = j * cell * 0.62, d = Math.hypot(x - cx, y - cy);
-      if (d < R) best = Math.max(best, Math.sqrt(1 - (d / R) * (d / R)) * R * 0.5 - j * 0.9);   // each row a little under the one before it
-    }
-    h[y * S + x] = best < -1e8 ? 0 : best;
-  }
-  return { size: S, data: normalsOf(h, S, true) };
 }
 
 /** A circular grain: fine concentric ridges about the middle of a square of side `span` (world units), S pixels across. */

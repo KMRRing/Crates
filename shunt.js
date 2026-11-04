@@ -19,16 +19,16 @@ import { sure } from "./sure.js";
 import { busy } from "./loading.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME, today, arrivedForToday } from "./suite.js";
-import { KEYS, RUN_KEY, keeper, migrate, readMode, readDiff, readCoach, readSeen, readDaily, readSel, readCamp, savedRun as savedRunOf } from "./shunt-keep.js";
+import { KEYS, RUN_KEY, keeper, migrate, readMode, readDiff, readCoach, readSeen, readDaily, readSel, readCam, readCamp, savedRun as savedRunOf } from "./shunt-keep.js";
 
 const $ = id => document.getElementById(id);
 // MODE: "levels", "random" or "daily". CAMP: { at (the level being played, 0 on), stars (the most won in each) }. BEST: stars won in all, the figure the
 // games screen shows. RUN, RRUN, DRUN: the game of each mode (plate and moves). DAILY: the score of each day's plate, by the day (YYYYMMDD).
 // SEL: the lever being previewed, so a partner sees it. COACH: coach lines on or off. DIFF: Random's difficulty. SEEN: terms already explained.
 // Everything is read through shunt-keep.js, which drops (that key only) what is not a value this build made.
-// VIEW: "3d" or "2d", kept only when the player picks one (with none, the suite's 2D-mode setting decides: mode3d.js). SOUND: the watch's sounds on or off. TILT: the case follows the phone's tilt (asked for in the menu, where iOS gets its permission request from a tap).
+// CAM: the 3D view's turn, tilt and zoom, kept when the player moves it (null at home, never a default written). VIEW: "3d" or "2d", kept only when the player picks one (with none, the suite's 2D-mode setting decides: mode3d.js). SOUND: the watch's sounds on or off. TILT: the case follows the phone's tilt (asked for in the menu, where iOS gets its permission request from a tap).
 const MODE = KEYS.mode, CAMP = KEYS.camp, BEST = KEYS.best, RRUN = KEYS.rrun, DRUN = KEYS.drun, DAILY = KEYS.daily, SEL = KEYS.sel, COACH = KEYS.coach, DIFF = KEYS.diff, SEEN = KEYS.seen;
-const VIEW = "shunt:view", SOUND = "shunt:sound", TILT = "shunt:tilt";
+const VIEW = "shunt:view", SOUND = "shunt:sound", TILT = "shunt:tilt", CAM = KEYS.cam;
 const kp = keeper(localStorage, IN_FRAME), { write } = kp;
 const read = (k, d, ok) => kp.read(k, d, ok);
 const fmt = v => String(Math.round(v * 10) / 10);
@@ -152,7 +152,7 @@ const DEFS = {
   shear: "Shear: a shove slides a whole line, so gears can slip away from their neighbours and a train breaks.",
   jam: "A jam: gears touching in an odd ring cannot all turn, so the whole train locks and scores nothing.",
   bridge: "A bridge is one gear showing two pitches: it meshes both, so it joins their trains into one.",
-  idler: "An idler (grey) meshes with every pitch.",
+  idler: "An idler (black) meshes with every pitch.",
 };
 function define(term) {
   if (seen.has(term)) return "";
@@ -160,12 +160,12 @@ function define(term) {
   write(SEEN, [...seen]);
   return `<span class="def">${DEFS[term]}</span>`;
 }
-const PITCHES = ["gold", "blue", "violet"];
+const PITCHES = ["gold", "blue", "rose"];
 function colourName(t, st) {
   const cnt = [0, 0, 0];
   t.cells.forEach(c => { const g = st.cells[c]; if (g <= 2) cnt[g]++; });
   const m = Math.max(...cnt);
-  return m === 0 ? "grey" : PITCHES[cnt.indexOf(m)];
+  return m === 0 ? "black" : PITCHES[cnt.indexOf(m)];
 }
 /** What the previewed shove would do, in words: gears pushed, trains broken or joined, jams, the score. */
 function effectOf(p) {
@@ -403,7 +403,7 @@ async function setView(want3d, remember = false) {
   let next = null;
   if (want3d) {
     const finish = busy("Setting up the movement");
-    try { next = (await import("./shunt-view-3d.js")).createView({ board: $("board"), tray: $("tray"), onGesture: () => { touch = null; }, onLost: lostGl }); }
+    try { next = (await import("./shunt-view-3d.js")).createView({ board: $("board"), tray: $("tray"), onGesture: () => { touch = null; }, onLost: lostGl, cam: readCam(kp), onCam: c => write(CAM, c) }); }
     catch (err) { console.warn("Shunt: no 3D here.", err); toast("This browser can't draw 3D."); } finally { finish(); }
     if (!next) return;
     if (read(TILT, false, v => typeof v === "boolean")) next.deviceTilt(true, true);       // asked for before: only listen (iOS keeps its permission for the visit)

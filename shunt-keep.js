@@ -7,7 +7,7 @@ import { LEVELS, DIFFS } from "./shunt-levels.js";
 
 export const KEYS = {
   mode: "shunt:mode", camp: "shunt:camp", best: "shunt:best", run: "shunt:run", rrun: "shunt:rrun", drun: "shunt:drun", daily: "shunt:daily",
-  sel: "shunt:sel", coach: "shunt:coach", diff: "shunt:diff", seen: "shunt:seen", ver: "shunt:ver", scrapped: "shunt:scrapped",
+  sel: "shunt:sel", cam: "shunt:cam", coach: "shunt:coach", diff: "shunt:diff", seen: "shunt:seen", ver: "shunt:ver", scrapped: "shunt:scrapped",
 };
 export const MODES = ["levels", "random", "daily"];
 /** The run key of each mode. */
@@ -48,6 +48,8 @@ export const readCoach = ({ read }) => read(KEYS.coach, true, v => typeof v === 
 export const readSeen = ({ read }) => new Set(read(KEYS.seen, [], v => Array.isArray(v) && v.every(t => typeof t === "string")));
 /** Each day's score, by the day. */
 export const readDaily = ({ read }) => read(KEYS.daily, {}, isRecord);
+/** The 3D camera the player left: { az, el, z }, all numbers (the view clamps them), or null for the home view. */
+export const readCam = ({ read }) => read(KEYS.cam, null, v => isRecord(v) && ["az", "el", "z"].every(k => Number.isFinite(v[k])));
 export const readSel = ({ read }) => read(KEYS.sel, null, v => isRecord(v) && Number.isInteger(v.e));
 
 /** The campaign: { at (the level being played), stars (the most won in each) }. */
