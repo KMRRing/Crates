@@ -52,7 +52,20 @@ export function createModel(host, opts = {}) {
   canvas.className = "mr3-gl";
   const labels = document.createElement("div");
   labels.className = "mr3-labels";
-  host.replaceChildren(canvas, labels);
+  // the Move switch: while on, a one-finger drag turns the view even across the board (a tap still marks); the first-time hint says the rest
+  let moving = false;
+  const moveBtn = document.createElement("button");
+  moveBtn.type = "button"; moveBtn.className = "mr3-move"; moveBtn.textContent = "Move"; moveBtn.setAttribute("aria-pressed", "false");
+  moveBtn.addEventListener("click", () => { moving = !moving; moveBtn.setAttribute("aria-pressed", String(moving)); });
+  const tip = document.createElement("p");
+  tip.className = "mr3-tip"; tip.textContent = "Tap marks · drag along a row marks water · drag the sea or use Move to turn · pinch zooms";
+  let tipSeen = false;
+  try { tipSeen = !!localStorage.getItem("moor:tip3d"); } catch { /* storage may be blocked */ }
+  tip.hidden = tipSeen;
+  const dropTip = () => { if (tip.hidden) return; tip.hidden = true; try { localStorage.setItem("moor:tip3d", "1"); } catch { /* storage may be blocked */ } };
+  let tipTimer = 0;
+  host.replaceChildren(canvas, labels, tip, moveBtn);
+  if (!tipSeen) tipTimer = setTimeout(dropTip, 9000);
 
   const scene = new THREE.Scene();
   // a perspective camera made from an orthographic one's parts (the bundle has none), as Bridges' is
@@ -503,15 +516,23 @@ export function createModel(host, opts = {}) {
     zoomAt(zoom * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 16 : 1) * (e.ctrlKey ? 0.01 : 0.0016)), e.clientX, e.clientY);
   }, { passive: false });
 
-  // ---------- playing it: a tap marks, a drag turns the view, two fingers zoom and pan, two taps beside the board put it back ----------
+  // ---------- playing it: a tap marks, a drag from a cell paints water and one from the sea turns the view, two fingers zoom and pan, two taps beside the board put it back ----------
   /** The cell under a finger at the page's (clientX, clientY), or -1. */
   function cellAtPoint(cx, cy) {
     if (!N) return -1;
     const [sx, sy] = canvasPoint(cx, cy), p = groundAt(sx, sy), c = Math.floor(p.x + N / 2), r = Math.floor(p.z + N / 2);
     return c < 0 || r < 0 || c >= N || r >= N ? -1 : r * N + c;
   }
-  let pinch = null, lastTap = null;      // pinch: { zoom0, anchor } while two fingers are down
+  let pinch = null, lastTap = null, reach = null;      // pinch: { zoom0, anchor } while two fingers are down
   const gesture = createGesture(() => SLIP * (rem / 16), {
+    // a drag that begins on a cell of a game in play paints water, as on the flat board; anywhere else (or on Move, or with shift) it turns
+    marks: (cx, cy, shift) => !moving && !shift && !!opts.playable?.() && cellAtPoint(cx, cy) >= 0,
+    paint: (cx, cy, begin) => {
+      dropTip();
+      if (begin) reach = opts.stroke?.(cellAtPoint(cx, cy)) || null; else reach?.(cellAtPoint(cx, cy));
+      wake();
+    },
+    paintEnd: () => { reach = null; },
     pinchStart: (mx, my) => { pinch = { zoom0: zoom, anchor: groundAt(...canvasPoint(mx, my)) }; },
     pinchMove: (scale, mx, my) => {
       if (!pinch) return;
@@ -525,6 +546,7 @@ export function createModel(host, opts = {}) {
     },
     pinchEnd: () => { pinch = null; },
     turn: (dx, dy, shift, x, y) => {
+      dropTip();
       if (shift) panBy(...canvasPoint(x - dx, y - dy), ...canvasPoint(x, y));      // shift and drag moves the board
       else orbit(az - dx * 0.008, el + dy * 0.006);
     },
@@ -540,7 +562,7 @@ export function createModel(host, opts = {}) {
     if (e.button === 2) { const x = cellAtPoint(e.clientX, e.clientY); if (x >= 0 && opts.playable?.()) opts.press?.(x, "dot"); return; }
     if (e.button > 0) return;
     try { canvas.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
-    gesture.down(e.pointerId, e.clientX, e.clientY, e.isPrimary);
+    gesture.down(e.pointerId, e.clientX, e.clientY, e.isPrimary, e.shiftKey && e.pointerType === "mouse");
   });
   canvas.addEventListener("pointermove", e => gesture.move(e.pointerId, e.clientX, e.clientY, e.shiftKey && e.pointerType === "mouse"));
   const lift = e => gesture.up(e.pointerId, e.clientX, e.clientY, e.type !== "pointerup");
@@ -610,6 +632,7 @@ export function createModel(host, opts = {}) {
   }
   function hold(on) { held = on; if (on) gesture.cancel(); else wake(); }
   function destroy() {
+    clearTimeout(tipTimer);
     show(false); ro.disconnect(); dispose();
     domeGeo.dispose(); orbGeo.dispose();
     renderer.dispose();

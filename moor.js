@@ -372,7 +372,7 @@ function feedModel(br) {
 async function setView(v, remember = true) {
   if (v === "model" && !model) {
     try {
-      model = (await import("./moor-3d.js")).createModel($("model"), { press, playable: () => !!S && !S.done && !IN_FRAME && !paused });
+      model = (await import("./moor-3d.js")).createModel($("model"), { press, stroke: strokeFrom, playable: () => !!S && !S.done && !IN_FRAME && !paused });
       if (paused) model.hold(true);
     } catch (err) { console.warn("Moor: no 3D here.", err); toast("This browser can't draw 3D."); v = "chart"; }
   }
@@ -388,7 +388,7 @@ async function setView(v, remember = true) {
 }
 
 // ---------- the board under a finger: a tap cycles a cell, a drag marks open water cell after cell ----------
-let pressing = null;   // { id, x, y, from (the cell pressed), stroke ({ id, at (the cell the finger is in), mode }) }
+let pressing = null;   // { id, x, y, from (the cell pressed), stroke (reach(cell) once it paints) }
 /** A point of the screen in the board's units (one a cell), or null. */
 function toBoard(ev) {
   const m = svg?.getScreenCTM();
@@ -415,23 +415,28 @@ function paintCell(x, s) {
   const cur = S.marks[x];
   if (s.mode === WATER ? cur === NONE : cur === WATER) setCell(x, cur, s.mode, s.id);
 }
+/** A drag that began on cell `from`: opens water on clear cells (or, begun on open water, clears it) and returns reach(to), which steps
+ *  cell by cell so a quick drag leaves no gaps. The 2D board and the 3D harbour paint the same way. */
+function beginStroke(from) {
+  const s = { id: newStroke(), at: from, mode: from >= 0 && S.marks[from] === WATER ? NONE : WATER };
+  paintCell(from, s);
+  return to => {
+    if (to < 0) return;
+    while (s.at !== to) {
+      const [r, c] = rc(s.at), [tr, tc] = rc(to), dr = tr - r, dc = tc - c;
+      s.at = Math.abs(dr) >= Math.abs(dc) ? s.at + Math.sign(dr) * P.N : s.at + Math.sign(dc);
+      paintCell(s.at, s);
+    }
+  };
+}
+const strokeFrom = from => (!S || S.done || IN_FRAME || paused ? null : beginStroke(from));
 addEventListener("pointermove", ev => {
   if (!pressing || ev.pointerId !== pressing.id) return;
-  const p = toBoard(ev);
   if (!pressing.stroke) {
     if (Math.hypot(ev.clientX - pressing.x, ev.clientY - pressing.y) <= DRAG * scale()) return;
-    const from = pressing.from;
-    pressing.stroke = { id: newStroke(), at: from, mode: from >= 0 && S.marks[from] === WATER ? NONE : WATER };
-    paintCell(from, pressing.stroke);
+    pressing.stroke = beginStroke(pressing.from);
   }
-  const s = pressing.stroke, to = cellAt(p);
-  if (to < 0) return;
-  // step cell by cell, so a quick drag leaves no gaps
-  while (s.at !== to) {
-    const [r, c] = rc(s.at), [tr, tc] = rc(to), dr = tr - r, dc = tc - c;
-    s.at = Math.abs(dr) >= Math.abs(dc) ? s.at + Math.sign(dr) * P.N : s.at + Math.sign(dc);
-    paintCell(s.at, s);
-  }
+  pressing.stroke(cellAt(toBoard(ev)));
 });
 addEventListener("pointerup", ev => {
   if (!pressing || ev.pointerId !== pressing.id) return;
