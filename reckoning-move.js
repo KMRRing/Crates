@@ -8,6 +8,8 @@
 // Every spring takes a speed `w` (1/s: its response takes about 4.7/w seconds) and a damping `z` (1 is critical: it arrives
 // without overshoot; below it, the less, the more it overshoots and rings). A `dt` of 0 (the game paused) changes nothing.
 
+import { T } from "./reckoning-tune.js";
+
 export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const ease = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
@@ -89,21 +91,21 @@ export class CameraRig {
     for (const s of [this.sfov, this.sroll, this.sdip, this.spunch]) s.set(0);
   }
   /** A landing at `impact` m/s: the camera dips and the picture draws in a little, and both come back with an overshoot. */
-  land(impact) { this.sdip.x -= clamp(impact * 0.028, 0.05, 0.5); this.spunch.x -= clamp(impact * 0.12, 0.4, 3); }
+  land(impact) { this.sdip.x -= clamp(impact * 0.028, 0.05, 0.5) * T.CAM_KICK; this.spunch.x -= clamp(impact * 0.12, 0.4, 3) * T.CAM_KICK; }
   /** The field of view opens for a moment (a cut, a dive): `deg` degrees, back in a third of a second. */
-  punch(deg) { this.spunch.x += deg; }
+  punch(deg) { this.spunch.x += deg * T.CAM_KICK; }
   /** Pushes the camera's height (a jump's kick, a slam). */
-  bump(y) { this.sdip.kick(y); }
+  bump(y) { this.sdip.kick(y * T.CAM_KICK); }
   update(dt, s) {
-    const k = clamp((s.speed - 8) / 8, 0, 1);                                      // how fast: 0 up to 8 m/s, 1 at the full 16
-    this.sx.to(s.x * 0.55 + s.vx * 0.05, dt, 7, 0.85);
-    this.sy.to(3.2 + Math.min(Math.max(s.y, 0), 4) * 0.35 + Math.max(0, Math.min(s.y, 8) - 4) * 0.55 - (s.rolling ? 0.3 : 0) - k * 0.25, dt, s.y > 3 ? 11 : 6.5, 0.8);       // up a wall or on a balcony it keeps up, or the hero climbs out of the picture
+    const k = clamp((s.speed - 8) / 8, 0, 1), f = T.CAM_FOLLOW;   // how fast: 0 up to 8 m/s, 1 at the full 16; f: how quickly the springs chase the hero
+    this.sx.to(s.x * 0.55 + s.vx * 0.05, dt, 7 * f, 0.85);
+    this.sy.to(3.2 + Math.min(Math.max(s.y, 0), 4) * 0.35 + Math.max(0, Math.min(s.y, 8) - 4) * 0.55 - (s.rolling ? 0.3 : 0) - k * 0.25, dt, (s.y > 3 ? 11 : 6.5) * f, 0.8);       // up a wall or on a balcony it keeps up, or the hero climbs out of the picture
     this.sdip.to(0, dt, 10, 0.4);
-    this.sback.to(5.4 + k * 1.0 + (s.lunging ? 0.2 : 0) + Math.min(Math.max(s.y, 0), 6) * 0.12, dt, 4.5, 0.9);
+    this.sback.to(5.4 + k * 1.0 + (s.lunging ? 0.2 : 0) + Math.min(Math.max(s.y, 0), 6) * 0.12, dt, 4.5 * f, 0.9);
     this.sfov.to(k * 6, dt, 5, 0.8);
     this.spunch.to(0, dt, 9, 0.55);
     this.sroll.to(clamp(s.vx * 0.0032, -0.06, 0.06) * 1 - (s.wall || 0) * 0.075, dt, 9, 0.55);
-    this.slook.to(1.2 + Math.min(Math.max(s.y, 0), 4) * 0.25 + Math.max(0, Math.min(s.y, 8) - 4) * 0.45, dt, s.y > 3 ? 13 : 8, 0.9);
+    this.slook.to(1.2 + Math.min(Math.max(s.y, 0), 4) * 0.25 + Math.max(0, Math.min(s.y, 8) - 4) * 0.45, dt, (s.y > 3 ? 13 : 8) * f, 0.9);
     const o = this.out;
     o.x = this.sx.x; o.y = this.sy.x + this.sdip.x; o.back = this.sback.x; o.lookX = this.sx.x * 0.6; o.lookY = this.slook.x;
     o.ahead = 10 + k * 2; o.fov = this.sfov.x + this.spunch.x; o.roll = this.sroll.x;

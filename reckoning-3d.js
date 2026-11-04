@@ -13,7 +13,8 @@
 // air) is reckoning-move.js; here it is only drawn.
 import * as THREE from "./vendor/three-run.js";
 import { defaultIs3D } from "./mode3d.js";   // Settings' 2D mode (battery saver): this game is 3D only, so its flattest is a ratio of 1 and no shadow map
-import { LANE_W, WALL_X, KINDS, ROLL_T, JUMP_V, speed, solid, tide, bridgeUp } from "./reckoning-engine.js";
+import { T } from "./reckoning-tune.js";
+import { LANE_W, WALL_X, KINDS, JUMP_V, speed, solid, tide, bridgeUp } from "./reckoning-engine.js";
 import { Spring, Inertia, Streamer, CameraRig, clamp, lerp, ease } from "./reckoning-move.js";
 import { BIOMES } from "./reckoning-biomes.js";
 
@@ -770,7 +771,7 @@ export function createRunner(host) {
     const depth = (a, b) => 0.42 * Math.cos(a) + 0.445 * Math.cos(a + b);
     const drop = h.mode === "run" && !h.lunge && !rolling ? clamp(0.865 - Math.max(depth(lh, lk), depth(rh, rk)), 0, 0.45) : 0;
     if (rolling) {
-      const p = 1 - h.roll / ROLL_T, a = p * Math.PI * 2;
+      const p = 1 - h.roll / T.ROLL_T, a = p * Math.PI * 2;
       body.rotation.set(a, 0, 0);
       body.position.set(0, 0.9 * (1 - Math.cos(a)) - 0.3 * Math.sin(Math.PI * p), -0.9 * Math.sin(a));
     } else {

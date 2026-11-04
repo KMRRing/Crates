@@ -15,6 +15,9 @@ import { part, action, line, choice, onPause } from "./menu.js";
 import { roundOver } from "./random.js";
 import { IN_FRAME } from "./suite.js";                       // a partner watching's frame: it draws a copy, runs no clock and writes nothing
 import { scale } from "./wide.js";
+import { typed } from "./sure.js";
+import { T, setTune, resetTune } from "./reckoning-tune.js";
+import { createLab } from "./reckoning-labui.js";
 import { busy } from "./loading.js";
 
 const $ = id => document.getElementById(id);
@@ -26,7 +29,6 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const fmt = n => Math.floor(n).toLocaleString("en-GB");
 const STEP = 1 / 120;                                         // the rules' step, in seconds
 const SAVE_EVERY = 3000;                                      // ms between saves of a run in play (a partner watching sees it that often)
-const SWIPE = 22;                                             // px a finger must travel to be a swipe (times scale())
 const THINK_T = 12;                                           // seconds of running before a gap that its question is up (the engine makes the gap in time: LOOK)
 
 let S = null;            // the run (reckoning-engine.js's), as saved
@@ -40,6 +42,8 @@ let playtest = { biome: "quays", seed: 1 };   // the Playtest viewer
 let view = null, deal = null, pool = [];
 let shown = null;        // the gate whose answer is on the cards: { id, until }
 let toastTimer = 0;
+let hitstop = 0, lastLead = 0;   // seconds the picture still stands frozen after a kill (the Feel lab's HITSTOP), and the lead it stands on
+let lab = null, labEnd = null, labGo = null, labUi = null;   // the Feel lab: the real run kept while a stretch plays, and what to call when it ends or starts
 let zoneSeen = "";      // the biome whose name was last said over the quay
 let log = null, lastLog = null;   // this run's swipe log, and the run before's (reckoning-log.js)
 const cache = {};        // what the page last wrote, so a frame writes only what changed
@@ -48,7 +52,7 @@ const put = (key, fn) => { const v = fn(); if (cache[key] !== v) { cache[key] = 
 // ---------- the run ----------
 
 function save() {
-  if (IN_FRAME || !S) return;
+  if (IN_FRAME || !S || lab) return;
   write(RUN, S); savedAt = performance.now();
   try { if (log) sessionStorage.setItem(LOG, JSON.stringify({ now: log, last: lastLog })); } catch { /* private mode, or full */ }
 }
@@ -56,6 +60,7 @@ function save() {
 /** A new run: the endless run (0), or Playtest section `n`; `opts.biome` keeps the endless run to one biome, `opts.seed` fixes its seed (the viewer). */
 function newRun(n = 0, opts = {}) {
   if (typeof n !== "number") n = 0;                            // (a click hands over its event)
+  if (lab) leaveLab();
   if (S && !S.over) bank();                                    // the run left behind keeps what it picked up
   const seed = Number.isFinite(opts.seed) ? opts.seed : Math.floor(Math.random() * 2 ** 31);
   S = setDeal(newGame({ seed, deal, launch: true, section: n ? byId(n) : null, biome: opts.biome || null, piece: opts.piece || null }), deal);
@@ -90,7 +95,7 @@ function handle(events) {
     log.event(S, ev);
     view.ping(ev, S);
     switch (ev.type) {
-      case "kill": if (ev.chain >= 2) say(`Chain ×${ev.chain}`, "good"); else if (ev.how === "slam") say("Slam", "good"); break;
+      case "kill": if (T.HITSTOP > 0) hitstop = T.HITSTOP; if (ev.chain >= 2) say(`Chain ×${ev.chain}`, "good"); else if (ev.how === "slam") say("Slam", "good"); break;
       case "shockwave": if (ev.n) say(`Slam ×${ev.n}`, "good"); break;
       case "answer":
         shown = { id: ev.gate, until: performance.now() + 2600, pick: ev.pick, ok: ev.ok };
@@ -135,6 +140,7 @@ function bank() {
 /** The finish of a Playtest section: passed, or short of its aim. */
 function finished() {
   running = false;
+  if (lab) return labOver();
   bank();
   const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
   write(STATS, { runs: st.runs + 1, right: st.right + S.right, wrong: st.wrong + S.wrong + S.missed });
@@ -145,6 +151,7 @@ function finished() {
 
 function over() {
   running = false;
+  if (lab) return labOver();
   bank();
   const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
   write(STATS, { runs: st.runs + 1, right: st.right + S.right, wrong: st.wrong + S.wrong + S.missed });
@@ -263,14 +270,15 @@ function tick(ts) {
   if (held) return;
   if (S && view) {
     const go = running && !paused && !logOpen && !frozen && !S.over && !IN_FRAME;
-    let lead = 0;
-    if (go) {
-      lead = simulate(dt);
+    let lead = 0, vdt = go || frozen ? dt : 0;
+    if (go && hitstop > 0) { hitstop = Math.max(0, hitstop - dt); lead = lastLead; vdt = 0; }       // a kill stands the whole picture still for a moment
+    else if (go) {
+      lead = lastLead = simulate(dt);
       if (performance.now() - savedAt > SAVE_EVERY) save();
     }
     // the hero stands ready until the first swipe (and again when a run is picked up), breathing on the real clock
     const idle = !running && !S.over && !paused && !logOpen;
-    view.frame(S, go || frozen ? dt : 0, { lead, idle, real: dt });
+    view.frame(S, vdt, { lead, idle, real: dt });
     drawPage(false);
   }
 }
@@ -283,15 +291,27 @@ app.addEventListener("pointerdown", e => {
   if (e.button > 0 || IN_FRAME || paused || logOpen || e.target.closest("button, a, dialog, .top")) return;
   swipes.set(e.pointerId, { x: e.clientX, y: e.clientY });
 });
+/** The swipe a finger made from where it went down to (x, y), or null if it has not gone far enough. */
+function swipeOf(s, x, y) {
+  const dx = x - s.x, dy = y - s.y;
+  if (Math.hypot(dx, dy) < T.SWIPE_PX * scale()) return null;
+  return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+}
 app.addEventListener("pointermove", e => {
   const s = swipes.get(e.pointerId);
-  if (!s) return;
-  const dx = e.clientX - s.x, dy = e.clientY - s.y;
-  if (Math.hypot(dx, dy) < SWIPE * scale()) return;
+  if (!s || !T.SWIPE_MID) return;                             // (with SWIPE_MID off the swipe is taken when the finger lifts)
+  const dir = swipeOf(s, e.clientX, e.clientY);
+  if (!dir) return;
   swipes.delete(e.pointerId);                                 // one swipe a touch, the moment the finger has gone far enough
-  send(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
+  send(dir);
 });
-for (const t of ["pointerup", "pointercancel"]) app.addEventListener(t, e => swipes.delete(e.pointerId));
+app.addEventListener("pointerup", e => {
+  const s = swipes.get(e.pointerId);
+  swipes.delete(e.pointerId);
+  const dir = s && !T.SWIPE_MID ? swipeOf(s, e.clientX, e.clientY) : null;
+  if (dir) send(dir);
+});
+app.addEventListener("pointercancel", e => swipes.delete(e.pointerId));
 const KEYS = { ArrowUp: "up", w: "up", " ": "up", ArrowDown: "down", s: "down", ArrowLeft: "left", a: "left", ArrowRight: "right", d: "right" };
 addEventListener("keydown", e => {
   const dir = KEYS[e.key];
@@ -311,6 +331,7 @@ function openMenu() {
   part(body, "play").append(action(sec ? `Restart ${sec.name}` : "Start", () => newRun(sec ? sec.id : 0, sec ? {} : S.only ? {} : {}), "primary"));
   if (sec || S.only) part(body, "play").append(action("Start the endless run", () => newRun(0), ""));
   part(body, "content").append(action("Playtest", openPlaytest, "link"));
+  if (!IN_FRAME) part(body, "content").append(action("Feel lab", () => labUi.home(), "link"));
   const st = read(STATS, { runs: 0, right: 0, wrong: 0 });
   part(body, "about").append(action("Swipe log", openLog, "link"),
     line(`Best ${fmt(best)} m · ${fmt(read(COINS, 0))} coins${read(AMBER, 0) ? ` · ${read(AMBER, 0)} amber` : ""}`),
@@ -375,6 +396,51 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("againBtn").addEventListener("click", () => newRun(S.sec, S.only ? { biome: S.piece ? null : S.only, seed: S.seed, piece: S.piece } : {}));
 $("nextBtn").addEventListener("click", () => newRun(Math.min(SECTIONS.length, (S.sec || 0) + 1)));
 onPause(() => { paused = true; swipes.clear(); log?.note(S, "paused (the menu or another screen is open)"); save(); }, () => { paused = false; last = performance.now(); log?.note(S, "carried on"); });
+
+// ---------- the Feel lab ----------
+// A stretch of quay made for one test is played in place of the run (which is kept, and not saved over), with the tunables the
+// lab asks for; reckoning-labui.js says what to play and when. The clock starts by itself a moment after the stretch is made.
+
+/** Plays `def` with these tunables; `onEnd` is called once the stretch is over, `onGo` when the clock starts. */
+function playLab(def, values, onEnd, onGo) {
+  if (!lab) { save(); lab = { S, log, lastLog, running, shown }; }
+  resetTune(); setTune(values);
+  $("stage").classList.add("rk-labon");
+  S = setDeal(newGame({ seed: 1, deal, launch: true, section: def }), deal);
+  log = new RunLog(S);
+  running = false; acc = 0; shown = null; hitstop = 0; zoneSeen = "lab";
+  labEnd = onEnd; labGo = onGo;
+  $("result").hidden = true;
+  say(""); hint("");
+  drawPage(true);
+  const mine = S;
+  setTimeout(() => { if (S === mine && lab) { start(); labGo?.(); } }, 900);
+}
+function labOver() {
+  const f = labEnd; labEnd = null;
+  if (f) setTimeout(f, 300);
+}
+/** The real run comes back. */
+function leaveLab() {
+  if (!lab) return;
+  ({ S, log, lastLog, running, shown } = lab);
+  $("stage").classList.remove("rk-labon");
+  lab = labEnd = labGo = null; hitstop = 0; acc = 0; zoneSeen = "";
+  running = false;
+  hint("Swipe to carry on.");
+  drawPage(true);
+}
+/** Where the player is and the last seconds of the swipe log, for "That felt wrong". */
+function flagInfo() {
+  if (!S || !log || IN_FRAME) return null;
+  const lines = log.lines.filter(l => { const m = /^#\d+ t=([\d.]+)/.exec(l); return m && +m[1] >= S.t - 6; }).slice(-16).map(l => l.slice(0, 200));
+  return { where: S.sec && !lab ? `idea ${S.sec}, ${fmt(S.hero.z)} m` : `run, ${fmt(S.hero.z)} m, t=${S.t.toFixed(1)}`, lines };
+}
+labUi = createLab({
+  read, write, say, typed,
+  play: playLab, leave: leaveLab, inLab: () => !!lab, flagInfo,
+});
+if (IN_FRAME) $("flagBtn").hidden = true;
 
 // ---------- the log ----------
 
@@ -445,6 +511,7 @@ async function boot() {
 
 // for tests and debugging
 window.__reckoning = {
+  get lab() { return labUi; }, get tune() { return T; },
   get state() { return S; }, set state(g) { S = g; if (deal) setDeal(S, deal); drawPage(true); },
   get view() { return view; }, get running() { return running; }, get log() { return log; }, newRun, start, send, speed: () => speed(S), openMenu, openPlaytest,
   set frozen(v) { frozen = !!v; }, set held(v) { held = !!v; },

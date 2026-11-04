@@ -50,6 +50,7 @@
 // the questions come from is the page's business: `deal(r, n, asked)` is a function giving { id, q, o: [3 texts], a, x,
 // about } (r a random number from 0 to 1; n how many gates have been made; asked their ids, to not ask twice).
 
+import { T, airTime } from "./reckoning-tune.js";
 import { makeSegment, nextBiome, difficultyAt, rng as seeded, BIOMES, PIECES } from "./reckoning-biomes.js";
 
 export const LANE_W = 1.7;                 // metres between lane centres
@@ -247,7 +248,7 @@ export function buildSegment(S, seg, z0, zone = true) {
   return end + 4 - z0;
 }
 
-const reach = z => speedAt(z) * AIR_T;                            // how far a plain jump carries
+const reach = z => speedAt(z) * airTime();                            // how far a plain jump carries
 
 const CHUNKS = {
   rest: (S, z0) => 20,
@@ -567,7 +568,7 @@ function touch(S) {
   }
   for (const pd of W.pads) {                                       // a jump pad throws me up when I run onto it (or come down on it)
     if (h.mode === "wall" || S.t < h.padT || Math.abs(pd.z - h.z) > 0.7 || Math.abs(laneX(pd.lane) - h.x) > 0.75 || h.y - pd.y > 0.4) continue;
-    h.mode = "air"; h.vy = PAD_V; h.roll = 0; h.jumps = 0; h.slam = false; h.padT = S.t + 0.4; h.kick = false;
+    h.mode = "air"; h.vy = T.PAD_V; h.roll = 0; h.jumps = 0; h.slam = false; h.padT = S.t + 0.4; h.kick = false;
     S.ev.push({ type: "pad", id: pd.id, lane: pd.lane });
   }
   for (const p of W.pick) {
@@ -667,9 +668,10 @@ export function swipe(S, dir) {
  *  are under me (at most LAND_BUFFER), so a jump swiped early on the way down still jumps as I land. */
 function keepFor(S, dir) {
   const h = S.hero;
-  if (dir !== "up" || h.mode !== "air" || h.lunge) return BUFFER;
-  const t = (h.vy + Math.sqrt(h.vy * h.vy + 2 * G * Math.max(0, h.y - h.gy))) / G;             // y + vy t - G t²/2 = 0
-  return clamp(t + 0.03, BUFFER, LAND_BUFFER);
+  if (dir !== "up" || h.mode !== "air" || h.lunge) return T.BUFFER;
+  const gf = T.G * T.FALL, y = Math.max(0, h.y - h.gy);              // y + vy t - gf t²/2 = 0 (on the way up: up to the top, then down)
+  const t = h.vy > 0 && T.FALL !== 1 ? h.vy / T.G + Math.sqrt(2 * (y + h.vy * h.vy / (2 * T.G)) / gf) : (h.vy + Math.sqrt(h.vy * h.vy + 2 * gf * y)) / gf;
+  return clamp(t + 0.03, T.BUFFER, T.LAND_BUFFER);
 }
 
 function resolve(S, dir) {
@@ -692,25 +694,30 @@ function up(S) {
   const h = S.hero;
   if (h.mode === "wall") {
     const w = h.wall;
-    h.mode = "air"; h.vy = WALLJUMP_V; h.wall = 0; h.noWall = S.t + 0.3; h.kick = true;   // kick: I came off a wall, so the one across (or a higher stretch of this one) can be joined
+    h.mode = "air"; h.vy = T.WALLJUMP_V; h.wall = 0; h.noWall = S.t + 0.3; h.kick = true;   // kick: I came off a wall, so the one across (or a higher stretch of this one) can be joined
     S.ev.push({ type: "walljump", side: w, y: h.y });
     return true;
   }
   // a foe on the ground in front of me needs me close; one in the air I can reach from further, from the ground or the air
   const f = nearest(S, (f, t) => {
     if (f.lane !== h.lane) return false;                          // by the lane I mean to be in, not the x I am passing through
-    if (f.y - gyOf(f) <= 0.3) return t <= FRONT_WIN && h.y - gyOf(f) < 1;
+    if (f.y - gyOf(f) <= 0.3) return t <= T.FRONT_WIN && h.y - gyOf(f) < 1;
     const up = f.y + f.h * 0.3 - h.y;
-    return t <= (f.gate ? GATE_WIN : ABOVE_WIN) && up <= REACH_UP && h.y - f.y <= UP_ABOVE;      // a swoop down to a gull just below counts; from higher it is a bonk
+    return t <= (f.gate ? GATE_WIN : T.ABOVE_WIN) && up <= REACH_UP && h.y - f.y <= UP_ABOVE;      // a swoop down to a gull just below counts; from higher it is a bonk
   });
   if (f) { startLunge(S, f, 0, f.y - gyOf(f) <= 0.3 ? "front" : "above"); return true; }
   if (grounded(h)) {
-    h.mode = "air"; h.vy = JUMP_V * loadFactor(S); h.roll = 0;
+    h.mode = "air"; h.vy = T.JUMP_V * loadFactor(S); h.roll = 0;
+    S.ev.push({ type: "jump" });
+    return true;
+  }
+  if (h.mode === "air" && !h.jumps && h.coyote > S.t && h.vy <= 0) {   // a moment after the quay ended: still a ground jump
+    h.coyote = 0; h.vy = T.JUMP_V * loadFactor(S); h.roll = 0;
     S.ev.push({ type: "jump" });
     return true;
   }
   if (h.mode === "air" && h.jumps > 0) {                          // a cut in the air gave my jump back: one more, from here
-    h.jumps = 0; h.slam = false; h.vy = Math.max(h.vy, JUMP_V * loadFactor(S));
+    h.jumps = 0; h.slam = false; h.vy = Math.max(h.vy, T.JUMP_V * loadFactor(S));
     S.ev.push({ type: "jump", air: true });
     return true;
   }
@@ -755,7 +762,7 @@ function retarget(S, dir) {
   if (L.how === "bonk") return false;
   const lane = h.lane + dir;
   if (lane < -1 || lane > 1) return false;
-  const f = nearest(S, (f, t) => f.lane === lane && t >= RETARGET_MIN && t <= (f.gate ? GATE_WIN : SIDE_WIN) &&
+  const f = nearest(S, (f, t) => f.lane === lane && t >= RETARGET_MIN && t <= (f.gate ? GATE_WIN : T.SIDE_WIN) &&
     (f.y - gyOf(f) <= 0.3 || sideReach(f, h)));
   if (!f) return false;
   h.lane = lane;
@@ -768,7 +775,7 @@ function retarget(S, dir) {
  *  from up to 4.5 m above it); in the air, one in the air within reach of my height. */
 function sideFoe(S, lane, tMin) {
   const h = S.hero, falling = h.mode === "air" && h.vy <= 0;
-  return nearest(S, (f, t) => f.lane === lane && t >= (diving(f) ? Math.min(tMin, DIVE_MIN) : tMin) && t <= (f.gate ? GATE_WIN : SIDE_WIN) &&
+  return nearest(S, (f, t) => f.lane === lane && t >= (diving(f) ? Math.min(tMin, DIVE_MIN) : tMin) && t <= (f.gate ? GATE_WIN : T.SIDE_WIN) &&
     (f.y - gyOf(f) <= 0.3 ? h.y - gyOf(f) < 1 || (falling && h.y - (f.y + f.h * 0.3) <= 4.5)
       : (diving(f) && h.y - h.gy < 1) || (h.y - h.gy >= 0.5 && sideReach(f, h))));
 }
@@ -789,13 +796,13 @@ function down(S) {
   }
   if (grounded(h)) {
     if (h.roll > 0) { h.rollQ = true; return true; }              // rolling: the next one follows at once, so a run of them leaves no gap
-    h.roll = ROLL_T; h.rollQ = false;
+    h.roll = T.ROLL_T; h.rollQ = false;
     S.ev.push({ type: "roll" });
     return true;
   }
   const f = nearest(S, (f, t) => f.lane === h.lane && t <= 0.22 && h.y >= f.y + f.h - 0.1 && h.y - (f.y + f.h) <= 4);
   if (f) { startLunge(S, f, 0, "bonk"); return true; }
-  h.slam = h.y - h.gy >= SLAM_MIN_Y;
+  h.slam = h.y - h.gy >= T.SLAM_MIN_Y;
   h.vy = -SLAM_V;
   S.ev.push({ type: "dive", slam: h.slam });
   return true;
@@ -842,7 +849,7 @@ export function step(S, dt) {
   // quick start and a soft arrival, and a swipe made on top of another, or a cut that ends, carries on from the speed it had.
   const tx = h.mode === "wall" ? h.wall * WALL_HERO_X : laneX(h.lane);
   {
-    const om = S.mods?.omega || LANE_OMEGA;                         // wet planks are slower to turn on
+    const om = S.mods?.omega || T.LANE_OMEGA;                         // wet planks are slower to turn on
     const d = h.x - tx, v0 = h.vx || 0, e = Math.exp(-om * dt), c = v0 + om * d;
     h.x = tx + (d + c * dt) * e;
     h.vx = (v0 - om * c * dt) * e;
@@ -863,12 +870,12 @@ export function step(S, dt) {
       h.y = g; h.vy = Math.max(0, h.vy);
     }
     if (h.mode === "run") {
-      if (g === -Infinity) { h.mode = "air"; h.vy = 0; h.roll = 0; }
-      else if (h.y - g > 0.25) { h.mode = "air"; h.vy = 0; h.roll = 0; }      // off the edge of a deck: down I go
+      if (g === -Infinity) { h.mode = "air"; h.vy = 0; h.roll = 0; h.coyote = S.t + T.COYOTE; }
+      else if (h.y - g > 0.25) { h.mode = "air"; h.vy = 0; h.roll = 0; h.coyote = S.t + T.COYOTE; }      // off the edge of a deck: down I go
       else h.y = g;                                                // a ramp carries me up and down it
     }
     if (h.mode === "air") {
-      if (h.vy > -SLAM_V + 0.01 || !h.slam) h.vy -= G * dt;
+      if (h.vy > -SLAM_V + 0.01 || !h.slam) h.vy -= T.G * (h.vy < 0 ? T.FALL : 1) * dt;
       h.y += h.vy * dt;
       if (h.vy <= 0) diveHits(S, prevY);
       if (!h.lunge && h.vy <= 0 && g !== -Infinity && h.y <= g && h.y > g - 0.6) land(S);
@@ -889,7 +896,7 @@ export function step(S, dt) {
       S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "roll", x: f.x, y: f.y, z: f.z });
       payout(S, f);
     }
-    if (h.roll === 0 && h.rollQ) { h.roll = ROLL_T; h.rollQ = false; ev.push({ type: "roll", again: true }); }
+    if (h.roll === 0 && h.rollQ) { h.roll = T.ROLL_T; h.rollQ = false; ev.push({ type: "roll", again: true }); }
   }
 
   think(S);
@@ -946,13 +953,13 @@ function strike(S, f, how) {
   if (f.gate) {
     const g = gateById(S, f.gate.id);
     const right = g && g.state === "open" && f.gate.i === g.q.a;
-    if (!g || g.state !== "open") { h.vy = high ? CHAIN_V : HOP_V; h.mode = "air"; if (high) h.jumps = 1; return; }
+    if (!g || g.state !== "open") { h.vy = high ? T.CHAIN_V : T.HOP_V; h.mode = "air"; if (high) h.jumps = 1; return; }
     g.pick = f.gate.i;
     if (right) {
       g.state = "right";
       f.alive = false;
       for (const o of S.world.foes) if (o.gate && o.gate.id === g.id) o.alive = false;         // the others fly off
-      h.vy = CHAIN_V; h.mode = "air"; h.jumps = 1;
+      h.vy = T.CHAIN_V; h.mode = "air"; h.jumps = 1;
       answered(S, g, true);
       S.ev.push({ type: "kill", id: f.id, kind: f.kind, how, gate: g.id, right: true, y: f.y });
     } else {
@@ -966,7 +973,7 @@ function strike(S, f, how) {
   }
   if ((f.hp || 1) > 1) {                                             // a bruiser takes the first cut and is thrown back for the second
     stagger(S, f);
-    h.mode = "air"; h.vy = how === "bonk" ? BONK_V : high ? CHAIN_V : HOP_V;
+    h.mode = "air"; h.vy = how === "bonk" ? T.BONK_V : high ? T.CHAIN_V : T.HOP_V;
     if (high) h.jumps = 1;
     return;
   }
@@ -989,7 +996,7 @@ function strike(S, f, how) {
     return;
   }
   h.mode = "air";
-  h.vy = how === "bonk" ? BONK_V : air ? CHAIN_V : HOP_V;
+  h.vy = how === "bonk" ? T.BONK_V : air ? T.CHAIN_V : T.HOP_V;
 }
 
 /** What a thing broken by an attack gives: a barrel or a balloon, coins (they are credited at once and fly to the counter). */
@@ -1108,11 +1115,11 @@ function diveHits(S, prevY) {
 function land(S) {
   const h = S.hero, slam = h.slam, impact = -h.vy;
   const dived = h.vy <= -SLAM_V + 1;                            // a down swipe in the air starts at SLAM_V; no fall of its own gets near it
-  h.y = Math.max(0, h.gy); h.vy = 0; h.mode = "run"; h.slam = false; h.jumps = 0; h.kick = false;
+  h.y = Math.max(0, h.gy); h.vy = 0; h.coyote = 0; h.mode = "run"; h.slam = false; h.jumps = 0; h.kick = false;
   S.chain = 0;
   S.ev.push({ type: "land", slam, v: impact });
   if (dived && !slam) {                                         // down in a jump, with no foe to bonk and not high enough to slam, lands in a roll (2 November 2026, Korbi)
-    h.roll = ROLL_T; h.rollQ = false;
+    h.roll = T.ROLL_T; h.rollQ = false;
     S.ev.push({ type: "roll", land: true });
   }
   if (!slam) return;
