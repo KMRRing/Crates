@@ -1,10 +1,10 @@
 /* Chart: a map on a card; tap it, fine-tune in the close-up, pin. Sea blue is the house colour. */
-:root { --ch-in: #2C5B8A; --ch-in-soft: color-mix(in srgb, var(--ch-in) 15%, var(--sheet)); --ch-sea: #C9D7DC; --ch-land: #F3ECDC; --ch-border: #BFA97A; --ch-coast: #9E9070; --ch-grid: rgba(0,0,0,.08); --ch-good: #2F7D5B; --ch-bad: #A8382B; --ch-edge: var(--tile-edge); }
+:root { --ch-in: #2C5B8A; --ch-in-soft: color-mix(in srgb, var(--ch-in) 15%, var(--sheet)); --ch-sea: #C9D7DC; --ch-land: #F3ECDC; --ch-border: #BFA97A; --ch-coast: #9E9070; --ch-grid: rgba(0,0,0,.08); --ch-good: #2F7D5B; --ch-bad: #A8382B; --ch-edge: var(--tile-edge); --ch-space: #15212C; }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806F; --ch-sea: #060E15; --ch-land: #4A5A50; --ch-border: #9C8A5C; --ch-coast: #A9BBAD; --ch-grid: rgba(255,255,255,.08); }
+  html:not([data-mode="day"]) { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806F; --ch-sea: #060E15; --ch-land: #4A5A50; --ch-border: #9C8A5C; --ch-coast: #A9BBAD; --ch-grid: rgba(255,255,255,.08); --ch-space: #02060A; }
 }
 /* night, set in Settings */
-html[data-mode="night"] { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806F; --ch-sea: #060E15; --ch-land: #4A5A50; --ch-border: #9C8A5C; --ch-coast: #A9BBAD; --ch-grid: rgba(255,255,255,.08); }
+html[data-mode="night"] { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806F; --ch-sea: #060E15; --ch-land: #4A5A50; --ch-border: #9C8A5C; --ch-coast: #A9BBAD; --ch-grid: rgba(255,255,255,.08); --ch-space: #02060A; }
 
 .ch-mark { display: inline-block; }
 .ch-mark svg { width: 100%; height: 100%; display: block; }
@@ -30,6 +30,7 @@ html[data-mode="night"] { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806
 .ch-hint { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }
 .ch-maps { min-height: 0; }
 .ch-map { width: min(100cqw, calc(100cqh * var(--aspect, 1.6))); height: auto; display: block; border-radius: 5px; background: var(--ch-sea); touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.ch-map.globe { background: var(--ch-space); cursor: grab; }   /* the globe is seen from space */
 .ch-actions { display: grid; gap: .45rem; }
 .ch-actions.two { grid-template-columns: 1fr 1fr; }
 .ch-actions.two:has(#clueBtn[hidden]) { grid-template-columns: 1fr; }

@@ -19,6 +19,7 @@ import { PLACES as BANK_PLACES, CATS as BANK_CATS } from "./chart-bank.js";
 import { GEO } from "./chart-geo.js";
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
 import { dropdown } from "./dropdown.js";
+import * as globe from "./chart-globe.js";
 // the physical features join the places: a river, range, desert, plateau or lake is pinned to its nearest point
 const CATS = { ...BANK_CATS, trade: "Commodities", physical: "Physical", countries: "Countries" };   // named as the topics are
 const KIND = { river: "river", range: "mountain range", desert: "desert", plateau: "plateau or basin", lake: "lake" };
@@ -70,12 +71,17 @@ let pin = null;      // the provisional pin { lat, lon }
 let clues = 0;       // clues taken on the current place (alone; at a table they're in its state, by seat)
 let views = { world: worldView() };                // what the map shows: pan and pinch move it
 const SIZES = { world: [360, Math.round(360 / worldAspect())] };
+const GLOBE = [360, 360];                          // the globe is round: its canvas is square, and fills the box the map had
 const inRoom = () => !!together.room;
 
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const save = () => { if (!inRoom()) write(RUN, S); };
+// the 3D mode (a choice in the menu, kept on this device): the same map drawn as a globe from space, views.globe its camera
+const VIEW = "chart:view";
+let mode3d = read(VIEW, "2d") === "3d";
+const sizeNow = () => (mode3d ? GLOBE : SIZES.world);
 const current = () => byId.get(S.set[S.index]);
 // ---------- your mix of topics, and the region ----------
 // A set deals from the topics whose subjects are on in Settings (chart-engine.js: topicsOf; one set of topics for every
@@ -203,7 +209,7 @@ function next() {
 // ---------- drawing the maps ----------
 function setup(canvas, w, h) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  if (canvas.width !== Math.round(w * dpr)) {
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); canvas.style.aspectRatio = `${w} / ${h}`;
     canvas.style.setProperty("--aspect", String(w / h));
     canvas.parentElement?.style.setProperty("--aspect", String(w / h));     // a table's map box keeps the map's shape (chart.css)
@@ -215,17 +221,24 @@ function setup(canvas, w, h) {
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 /** Draws land (polygon by polygon, holes included) and borders through a projection onto a w×h context. A detailed coastline
  *  (key into DETAIL) replaces the coarse land wholly inside its box. */
+const SPECK = 1.7;     // an island too small to draw is a speck this big
+const withinBox = (box, b) => !!box && b[0] >= box[0] && b[1] <= box[1] && b[2] >= box[2] && b[3] <= box[3];
+/** The land to draw: the coarse polygons, but for a detailed coastline's box, which its own polygons replace. */
+function landOf(detail) {
+  const box = detail && DETAIL_BOX[detail], inside = ring => box && ring.every(([lon, lat]) => lon >= box[0] && lon <= box[1] && lat >= box[2] && lat <= box[3]);
+  return { box, polys: [...LAND.filter(p => !inside(p[0])), ...(detail ? DETAIL[detail] : [])] };
+}
 function drawMap(ctx, proj, win, w, h, detail = null, fineBorders = false) {
   ctx.fillStyle = css("--ch-sea");
   ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = css("--ch-land");
   const inView = ring => ring.some(([lon, lat]) => lon >= win.lon0 - 5 && lon <= win.lon1 + 5 && lat >= win.lat0 - 5 && lat <= win.lat1 + 5)
     || ring.some(([lon]) => lon < win.lon0) && ring.some(([lon]) => lon > win.lon1);
-  const box = detail && DETAIL_BOX[detail], inside = ring => box && ring.every(([lon, lat]) => lon >= box[0] && lon <= box[1] && lat >= box[2] && lat <= box[3]);
+  const { box, polys } = landOf(detail);
   // every coastline is outlined as well as filled, so small islands and archipelagos stand out, even in the night palette
-  const coast = new Path2D(), specks = new Path2D(), SPECK = 1.7;
+  const coast = new Path2D(), specks = new Path2D();
   const trace = (path, ring) => { ring.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) path.moveTo(x, y); else path.lineTo(x, y); }); path.closePath(); };
-  for (const poly of [...LAND.filter(p => !inside(p[0])), ...(detail ? DETAIL[detail] : [])]) {
+  for (const poly of polys) {
     if (!inView(poly[0])) continue;
     const shape = new Path2D();
     for (const ring of poly) { trace(shape, ring); trace(coast, ring); }
@@ -236,7 +249,7 @@ function drawMap(ctx, proj, win, w, h, detail = null, fineBorders = false) {
   const speck = (lon, lat) => { const [x, y] = proj.toXY(lon, lat); specks.moveTo(x + SPECK, y); specks.arc(x, y, SPECK, 0, 2 * Math.PI); };
   ISLANDS.forEach((poly, k) => {
     const b = ISLAND_BOX[k];
-    if (!seen(b) || (box && b[0] >= box[0] && b[1] <= box[1] && b[2] >= box[2] && b[3] <= box[3])) return;
+    if (!seen(b) || withinBox(box, b)) return;
     const [ax, ay] = proj.toXY(b[0], b[2]), [bx, by] = proj.toXY(b[1], b[3]);
     if (Math.max(Math.abs(bx - ax), Math.abs(by - ay)) < 2 * SPECK) { if (poly[1]) speck((b[0] + b[1]) / 2, (b[2] + b[3]) / 2); return; }   // a coastal islet waits until it's big enough
     const shape = new Path2D(); trace(shape, poly[0]); trace(coast, poly[0]); ctx.fill(shape);
@@ -272,20 +285,20 @@ const revealSpan = () => (REGIONS[S.region]?.sub ? regionSpan(S.region) : 12);
 function drawRegion(ctx, proj, region) {
   const r = REGIONS[region];
   if (!r?.outline && !r?.borders && !r?.context && !r?.lakes) return;
-  const trace = pts => pts.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-  if (r.lakes) { ctx.beginPath(); for (const poly of DETAIL[r.lakes]) for (const ring of poly) { trace(ring); ctx.closePath(); } ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
+  const trace = pts => proj.edge(ctx, pts), ring = pts => proj.edge(ctx, pts, true);
+  if (r.lakes) { ctx.beginPath(); for (const poly of DETAIL[r.lakes]) for (const rg of poly) ring(rg); ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
   if (r.fineBorders) { ctx.beginPath(); for (const l of DETAIL[r.fineBorders]) trace(l); ctx.strokeStyle = css("--ch-border"); ctx.lineWidth = 1.3; ctx.stroke(); }
   for (const id of r.context || []) {
     const g = GEO.find(f => f.id === id);
     if (!g) continue;
     ctx.beginPath();
-    if (g.rings && g.kind === "lake") { for (const ring of g.rings) { trace(ring); ctx.closePath(); } ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
-    else if (g.rings) { for (const ring of g.rings) { trace(ring); ctx.closePath(); } ctx.setLineDash([2, 4]); ctx.strokeStyle = "rgba(110,90,60,.45)"; ctx.lineWidth = 1.2; ctx.stroke(); ctx.setLineDash([]); }
+    if (g.rings && g.kind === "lake") { for (const rg of g.rings) ring(rg); ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
+    else if (g.rings) { for (const rg of g.rings) ring(rg); ctx.setLineDash([2, 4]); ctx.strokeStyle = "rgba(110,90,60,.45)"; ctx.lineWidth = 1.2; ctx.stroke(); ctx.setLineDash([]); }
     if (g.lines) { for (const l of g.lines) trace(l); ctx.strokeStyle = "rgba(60,120,180,.55)"; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke(); }
   }
   if (!r.outline && !r.borders) return;
   ctx.beginPath();
-  if (r.outline) { trace(r.outline); ctx.closePath(); }
+  if (r.outline) ring(r.outline);
   for (const b of r.borders || []) trace(b);
   ctx.setLineDash([6, 4]); ctx.strokeStyle = css("--ch-border"); ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]);
 }
@@ -296,14 +309,14 @@ function drawFeature(ctx, proj, g) {
   if (g.lines) {
     ctx.strokeStyle = good; ctx.lineWidth = 3.5; ctx.lineJoin = "round"; ctx.lineCap = "round";
     ctx.beginPath();
-    for (const ln of g.lines) ln.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    for (const ln of g.lines) proj.edge(ctx, ln);
     ctx.stroke();
   } else {
+    const fill = new Path2D(), outline = new Path2D();
+    for (const ring of g.rings) { proj.shape(fill, ring); proj.edge(outline, ring, true); }
     ctx.fillStyle = good; ctx.globalAlpha = 0.35;
-    ctx.beginPath();
-    for (const ring of g.rings) { ring.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.closePath(); }
-    ctx.fill();
-    ctx.globalAlpha = 1; ctx.strokeStyle = good; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fill(fill);
+    ctx.globalAlpha = 1; ctx.strokeStyle = good; ctx.lineWidth = 2; ctx.stroke(outline);
   }
   ctx.restore();
 }
@@ -335,40 +348,124 @@ function seatPin(ctx, x, y, colour, label) {
 function line(ctx, a, b, colour) {
   ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.strokeStyle = colour; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
 }
-const projFor = name => { const [w, h] = SIZES[name], win = viewWindow(views[name], w, h); return { proj: projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h), win, w, h }; };
+/** A dashed line from one place to another: straight on the flat map, along the great circle (the shortest way over the
+ *  sphere) on the globe, where it is broken if it runs out of sight. */
+function link(ctx, proj, p, q, colour) {
+  if (!proj.globe) { line(ctx, proj.toXY(p.lon, p.lat), proj.toXY(q.lon, q.lat), colour); return; }
+  ctx.beginPath(); proj.edge(ctx, globe.greatCircle(p, q));
+  ctx.strokeStyle = colour; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+}
+/** A flat projection that also traces shapes and lines (what the globe's camera does), so one drawing serves both. */
+function flat(proj) {
+  const trace = (t, pts) => pts.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) t.moveTo(x, y); else t.lineTo(x, y); });
+  return { ...proj, shape: (t, ring) => { trace(t, ring); t.closePath(); return true; }, edge: (t, pts, closed = false) => { trace(t, pts); if (closed) t.closePath(); } };
+}
+const projFor = name => { const [w, h] = SIZES[name], win = viewWindow(views[name], w, h); return { proj: flat(projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h)), win, w, h }; };
+
+// ---------- the globe ----------
+/** The globe's camera: framed on the reveal's pins and place once there is one, else on what the flat map shows (a region
+ *  opens on its continent; the world, on no place in particular). */
+const cameraNow = () => (views.globe ??= S.phase === "reveal" ? globe.frame(revealPoints(current()), revealSpan())
+  : selOf(S).region === "world" ? globe.WORLD : globe.fromWindow(REGIONS[selOf(S).region].window, regionSpan(selOf(S).region)));
+/** The points a reveal frames: every pin and the place (a feature's whole extent). */
+function revealPoints(p) {
+  const pts = inRoom() ? tableMarks().map(m => m.at) : S.log[S.index] ? [S.log[S.index]] : [];
+  if (p.geo) { const [lon0, lat0, lon1, lat1] = featureBox(p.geo); pts.push({ lon: lon0, lat: lat0 }, { lon: lon1, lat: lat1 }); }
+  else pts.push(p);
+  return pts;
+}
+/** What the map is drawn through now: the flat projection, or the globe's camera. */
+function mapNow() {
+  if (!mode3d) return projFor("world");
+  const [w, h] = GLOBE;
+  return { proj: globe.camera(cameraNow(), w), w, h };
+}
+/** The Earth from space: a dark sky, a thin atmosphere, the sea as a disc and the land, coasts, borders and graticule on it,
+ *  shaded towards the edge so it reads as a ball. Gradients and stacked strokes only (no SVG filter: Safari blurs them). */
+function drawGlobe(ctx, cam, detail, fineBorders) {
+  const { cx, cy, R, size } = cam, a = cameraNow().a, span = 2 * a, TAU = Math.PI * 2;
+  const disc = () => { ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); };
+  ctx.fillStyle = css("--ch-space");
+  ctx.fillRect(0, 0, size, size);
+  if (R < size / 2) {                                          // the whole near side in view: its atmosphere
+    ctx.strokeStyle = css("--ch-in"); ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) { ctx.globalAlpha = 0.3 - i * 0.07; ctx.beginPath(); ctx.arc(cx, cy, R + 1 + i * 2, 0, TAU); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  }
+  disc(); ctx.fillStyle = css("--ch-sea"); ctx.fill();
+  ctx.save(); disc(); ctx.clip();
+  const { box, polys } = landOf(detail);
+  const land = new Path2D(), isles = new Path2D(), coast = new Path2D(), specks = new Path2D();
+  for (const poly of polys) for (const ring of poly) if (cam.shape(land, ring)) cam.edge(coast, ring, true);
+  const speck = (lon, lat) => { const p = cam.toXY(lon, lat); if (p) { specks.moveTo(p[0] + SPECK, p[1]); specks.arc(p[0], p[1], SPECK, 0, TAU); } };
+  ISLANDS.forEach((poly, k) => {
+    const b = ISLAND_BOX[k], lon = (b[0] + b[1]) / 2, lat = (b[2] + b[3]) / 2;
+    if (withinBox(box, b) || cam.away(lon, lat) > 100) return;
+    if (Math.max((b[1] - b[0]) * Math.cos(lat * Math.PI / 180), b[3] - b[2]) * Math.PI / 180 * R < 2 * SPECK) { if (poly[1]) speck(lon, lat); return; }   // a coastal islet waits until it's big enough
+    if (cam.shape(isles, poly[0])) cam.edge(coast, poly[0], true);
+  });
+  for (const [lon, lat] of ISLAND_DOTS) speck(lon, lat);
+  ctx.fillStyle = css("--ch-land");
+  ctx.fill(land, "evenodd"); ctx.fill(isles); ctx.fill(specks);
+  ctx.strokeStyle = css("--ch-coast"); ctx.lineJoin = "round";
+  ctx.lineWidth = span > 100 ? 1.1 : 1.5; ctx.stroke(coast);
+  ctx.lineWidth = 1; ctx.stroke(specks);
+  // the graticule, only where it is in view
+  const g = cameraNow(), step = a > 45 ? 30 : a > 18 ? 10 : a > 7 ? 5 : a > 2.5 ? 2 : 1, ds = Math.max(0.25, Math.min(3, a / 8));
+  const lonReach = Math.min(180, a * 2 / Math.max(0.1, Math.cos(g.lat * Math.PI / 180)) + step), latReach = Math.min(90, a * 2 + step);
+  const grid = new Path2D();
+  for (let lon = Math.ceil((g.lon - lonReach) / step) * step; lon <= g.lon + lonReach; lon += step) {
+    const pts = []; for (let lat = Math.max(-90, g.lat - latReach); lat <= Math.min(90, g.lat + latReach); lat += ds) pts.push([lon, lat]);
+    cam.edge(grid, pts);
+  }
+  for (let lat = Math.ceil(Math.max(-90, g.lat - latReach) / step) * step; lat <= Math.min(90, g.lat + latReach); lat += step) {
+    const pts = []; for (let lon = g.lon - lonReach; lon <= g.lon + lonReach; lon += ds) pts.push([lon, lat]);
+    cam.edge(grid, pts);
+  }
+  ctx.strokeStyle = css("--ch-grid"); ctx.lineWidth = 1; ctx.stroke(grid);
+  ctx.strokeStyle = css("--ch-border");
+  ctx.lineWidth = span > 100 ? 0.8 : 1.1;
+  ctx.beginPath();
+  if (!fineBorders) for (const l of BORDERS) cam.edge(ctx, l);
+  ctx.stroke();
+  const shade = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);          // darkening towards the edge, so it reads as a ball
+  shade.addColorStop(0, "rgba(0,0,0,0)"); shade.addColorStop(0.6, "rgba(0,0,0,0)"); shade.addColorStop(1, "rgba(0,0,0,.42)");
+  ctx.fillStyle = shade; ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+  if (R < size * 0.7) { disc(); ctx.strokeStyle = "rgba(255,255,255,.22)"; ctx.lineWidth = 1; ctx.stroke(); }
+}
 
 /** The map as it stands: pins, and after the reveal the truth and the lines. */
 function drawMaps() {
-  const p = current(), reveal = S.phase === "reveal";
-  for (const name of ["world"]) {
-    const canvas = $(name);
-    const { proj, win, w, h } = projFor(name);
-    const ctx = setup(canvas, w, h);
-    drawMap(ctx, proj, win, w, h, REGIONS[S.region]?.detail, !!REGIONS[S.region]?.fineBorders);
-    drawRegion(ctx, proj, S.region || "world");
-    if (reveal && p.geo) drawFeature(ctx, proj, p.geo);
-    const xy = q => proj.toXY(q.lon, q.lat);
-    if (inRoom()) {
-      // a table: while pinning, your own pin alone; at the reveal everyone's, each joined to where it should have been
-      const marks = tableMarks();
-      if (reveal) for (const m of marks) line(ctx, xy(m.at), xy(m.near || p), seatColour(m.slot));
-      if (reveal && !p.geo) marker(ctx, ...xy(p), "truth");
-      if (reveal && p.geo) for (const m of marks) marker(ctx, ...xy(m.near || p), "truth");
-      for (const m of marks) seatPin(ctx, ...xy(m.at), seatColour(m.slot), m.label);
-      continue;
-    }
-    const q = reveal ? S.log[S.index] : pin, near = (p.geo && reveal ? S.log[S.index]?.near : null) || p;
-    if (reveal && q) line(ctx, xy(q), xy(near), css("--ch-in"));
-    if (q) marker(ctx, ...xy(q), "mine");
-    if (reveal) marker(ctx, ...xy(near), "truth");
+  const p = current(), reveal = S.phase === "reveal", canvas = $("world");
+  const { proj, win, w, h } = mapNow();
+  canvas.classList.toggle("globe", mode3d);
+  const ctx = setup(canvas, w, h);
+  if (mode3d) drawGlobe(ctx, proj, REGIONS[S.region]?.detail, !!REGIONS[S.region]?.fineBorders);
+  else drawMap(ctx, proj, win, w, h, REGIONS[S.region]?.detail, !!REGIONS[S.region]?.fineBorders);
+  drawRegion(ctx, proj, S.region || "world");
+  if (reveal && p.geo) drawFeature(ctx, proj, p.geo);
+  const on = (q, draw) => { const xy = proj.toXY(q.lon, q.lat); if (xy) draw(...xy); };   // a place round the back of the globe isn't drawn
+  if (inRoom()) {
+    // a table: while pinning, your own pin alone; at the reveal everyone's, each joined to where it should have been
+    const marks = tableMarks();
+    if (reveal) for (const m of marks) link(ctx, proj, m.at, m.near || p, seatColour(m.slot));
+    if (reveal && !p.geo) on(p, (x, y) => marker(ctx, x, y, "truth"));
+    if (reveal && p.geo) for (const m of marks) on(m.near || p, (x, y) => marker(ctx, x, y, "truth"));
+    for (const m of marks) on(m.at, (x, y) => seatPin(ctx, x, y, seatColour(m.slot), m.label));
+    return;
   }
+  const q = reveal ? S.log[S.index] : pin, near = (p.geo && reveal ? S.log[S.index]?.near : null) || p;
+  if (reveal && q) link(ctx, proj, q, near, css("--ch-in"));
+  if (q) on(q, (x, y) => marker(ctx, x, y, "mine"));
+  if (reveal) on(near, (x, y) => marker(ctx, x, y, "truth"));
 }
 
 // ---------- gestures: drag to pan, pinch to zoom, tap to pin ----------
 const canPin = () => S.phase === "pin" && !(inRoom() && S.pins?.[keyOf(mySlot())]);
 function gestures(name) {
   const canvas = $(name), touch = fingers();
-  const at = e => { const r = canvas.getBoundingClientRect(); const [w, h] = SIZES[name]; return [(e.clientX - r.left) / r.width * w, (e.clientY - r.top) / r.height * h]; };
+  const at = e => { const r = canvas.getBoundingClientRect(); const [w, h] = sizeNow(); return [(e.clientX - r.left) / r.width * w, (e.clientY - r.top) / r.height * h]; };
   const pan = (dx, dy) => {                                   // a pixel shift becomes a shift of the view's centre
     const [w, h] = SIZES[name], win = viewWindow(views[name], w, h), v = views[name];
     views[name] = clampView({ lon: v.lon - dx / w * (win.lon1 - win.lon0), my: v.my + dy / h * (merc(win.lat1) - merc(win.lat0)), span: v.span }, w, h);
@@ -391,22 +488,29 @@ function gestures(name) {
   canvas.addEventListener("pointermove", e => {
     const g = touch.move(e.pointerId, ...at(e));
     if (!g) return;
-    if (g.zoom) zoomAt(g.zoom, ...g.about);
-    pan(...g.pan);
+    if (mode3d) views.globe = globe.turn(g.zoom ? globe.zoom(cameraNow(), g.zoom) : cameraNow(), ...g.pan, GLOBE[0]);   // the globe turns under the fingers
+    else { if (g.zoom) zoomAt(g.zoom, ...g.about); pan(...g.pan); }
     drawMaps();
   });
   const up = e => {
     const tap = touch.up(e.pointerId, e.type !== "pointerup")?.tap;
     if (tap && canPin()) {
-      const [lon, lat] = projFor(name).proj.toLonLat(...tap);
-      pin = { lat: Math.max(-LAT_MAX, Math.min(LAT_MAX, lat)), lon: Math.max(-180, Math.min(180, lon)) };
+      const spot = mapNow().proj.toLonLat(...tap);
+      if (!spot) return;                                      // a tap in the sky
+      const reach = mode3d ? 90 : LAT_MAX;
+      pin = { lat: Math.max(-reach, Math.min(reach, spot[1])), lon: Math.max(-180, Math.min(180, spot[0])) };
       render();
     }
   };
   canvas.addEventListener("pointerup", up);
   canvas.addEventListener("pointercancel", up);
   canvas.addEventListener("lostpointercapture", up);         // after its pointerup, nothing; without one, the finger goes
-  canvas.addEventListener("wheel", e => { e.preventDefault(); const [px, py] = at(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, px, py); drawMaps(); }, { passive: false });
+  canvas.addEventListener("wheel", e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.2 : 1 / 1.2;
+    if (mode3d) views.globe = globe.zoom(cameraNow(), factor); else zoomAt(factor, ...at(e));
+    drawMaps();
+  }, { passive: false });
 }
 
 // ---------- drawing the page ----------
@@ -429,9 +533,10 @@ function render() {
   $("place").textContent = reveal ? p.name : ask.pin;
   const pinned = room && S.phase === "pin" && !!S.pins?.[keyOf(mySlot())];
   $("hint").textContent = room && (pinned || (reveal && S.nexts?.[keyOf(mySlot())])) ? waitingText()
-    : reveal ? "Drag and pinch to look around." : pin ? `${told ? `${told} ` : ""}Tap to move the pin, or pin it.` : `${told ? `${told} ` : ""}Tap to place the pin. Drag to pan, pinch to zoom.`;
+    : reveal ? "Drag and pinch to look around." : pin ? `${told ? `${told} ` : ""}Tap to move the pin, or pin it.` : `${told ? `${told} ` : ""}Tap to place the pin. Drag to ${mode3d ? "turn the globe" : "pan"}, pinch to zoom.`;
   if (reveal && !views.revealSet) {                       // the map frames the truth and the pins together
     views.world = room ? tableView(p) : soloView(p);
+    delete views.globe;                                    // framed afresh on the globe, from the pins
     views.revealSet = true;
   }
   if (!reveal) views.revealSet = false;
@@ -507,8 +612,9 @@ function drawSummary(canvas, pairs, focus = null) {
   const shown = focus != null ? [pairs[focus]] : pairs;
   const points = shown.flatMap(p => p.legs.flatMap(l => [l.from, l.to]));
   const view = points.length ? viewFitting(points, w, h, { minSpan: 12, pad: 1.25 }) : worldView();
-  const win = viewWindow(view, w, h), proj = projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h);
+  const win = viewWindow(view, w, h), proj = flat(projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h));
   const ctx = setup(canvas, w, h);
+  canvas.classList.remove("globe");
   drawMap(ctx, proj, win, w, h);
   const xy = p => proj.toXY(p.lon, p.lat);
   // the faded ones first, so the one in focus sits on top
@@ -902,6 +1008,13 @@ function topicsNote(daily = false) {
   if (one) return `Chart deals ${TOPICS.find(([id]) => id === one)[1]} alone, a set with a best of its own`;
   return `Chart deals ${n} of its ${TOPICS.length} topics${p === "custom" ? "; your own mix keeps no best" : ""}`;
 }
+/** The map's two looks: flat (the default) or a globe from space. A choice for this device, taking effect at once. */
+const viewChoice = () => choice("Map", [["2d", "2D map"], ["3d", "3D globe"]], mode3d ? "3d" : "2d", v => {
+  mode3d = v === "3d";
+  write(VIEW, v);
+  delete views.globe;
+  if (S) render();
+});
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -910,6 +1023,7 @@ function openMenu() {
       const note = topicsNote();
       part(body, "content").append(...topicsPart(body, note ? `${note}; a fresh set is dealt from yours` : "A fresh set is dealt from yours"), mirror("Region", $("region")));
     }
+    part(body, "settings").append(viewChoice());
     part(body, "together").append(action(S?.done ? "Play again" : "A fresh set", () => startRoomSet(selOf(S).region), "primary"),
       ...(S?.done ? [action("Final standings", () => finishRoom(true))] : []), action("Back to solo", () => together.leave(), "link"));
   } else {
@@ -922,7 +1036,7 @@ function openMenu() {
     // the topics and the region are for random sets (today's is the same for everyone, every topic and worldwide), so
     // they're shown either way
     content.append(...topicsPart(content, topicsNote(pick.mode === "daily")), mirror("Region", $("region")));
-    part(body, "settings").append(choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
+    part(body, "settings").append(viewChoice(), choice("Learning mode", pile.MODES, pile.mode(), pile.setMode));
     const key = selKey(S), best = key && bests()[key], daily = key && dailies()[key], what = selName(selOf(S));
     part(body, "about").append(
       menuLine(!key ? `${what}: your own mix keeps no best` : `${what}: ${best ? `best ${best.toLocaleString("en-GB")}` : "no finished set yet"}${daily != null ? `, today ${daily.toLocaleString("en-GB")}` : ""}`),
