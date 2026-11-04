@@ -42,15 +42,25 @@ const TOPIC_ONE = { countries: "country", flags: "flag", lakes: "lake", regions:
 const S3 = Math.sqrt(3);
 
 // ---------- settings (the menu's) ----------
-const DEFAULTS = { topic: "countries", region: "world", band: "any", grid: "square", nameIt: true, mistakes: "shown", computer: "off", pace: "medium", together: "split" };
+const DEFAULTS = { topic: "countries", region: "world", band: "any", grid: "square", nameIt: true, mistakes: "shown", computer: "off", pace: "medium", together: "split", mode: "picture" };
 const settings = { ...DEFAULTS, ...read(SETTINGS, {}) };
 if (!TOPICS[settings.topic] && settings.topic !== "all") settings.topic = DEFAULTS.topic;
 if (!REGIONS.some(([id]) => id === settings.region)) settings.region = DEFAULTS.region;
 if (!BANDS[settings.band] && settings.band !== "any") settings.band = "any";
 if (settings.grid !== "hex") settings.grid = "square";
 if (!PACES[settings.pace]) settings.pace = "medium";
+if (settings.mode !== "cloth") settings.mode = "picture";           // Cloth is Loom's weaving puzzle (below), a mode of this page
 if (settings.computer !== "partner") settings.computer = "off";          // "rival" (racing you) was dropped
 const saveSettings = () => { if (!IN_FRAME) write(SETTINGS, settings); };
+// Loom's address (loom.html) comes here as ?mode=cloth: Cloth becomes the mode kept, and the address is cleared of it.
+const modeLink = new URLSearchParams(location.search);
+if (modeLink.get("mode") === "cloth" && !IN_FRAME) {
+  settings.mode = "cloth"; saveSettings();
+  modeLink.delete("mode");
+  history.replaceState(null, "", `${location.pathname}${modeLink.size ? `?${modeLink}` : ""}${location.hash}`);
+}
+let cloth = null;                      // loom-mode.js's controller, once the page is showing Cloth (loaded only then)
+const MODES = [["picture", "Picture"], ["cloth", "Cloth"]];
 const GRIDS = [["square", "Squares"], ["hex", "Hexes"]];
 // a flag is a rectangle and stays on squares: on hexes the menu's flags are countries, and back on squares flags again
 const topicNow = () => (settings.grid === "hex" && settings.topic === "flags" ? "countries" : settings.topic);
@@ -953,9 +963,24 @@ function showRules() {
 
 // ---------- the menu ----------
 let pick = null;                                                   // the picture the menu will start: "random" or "daily"
+/** Another mode: the page is made again for it (the picture in play and the cloth are each saved as they stand). */
+function setMode(v) {
+  if (v === (cloth ? "cloth" : "picture")) return;
+  settings.mode = v; saveSettings();
+  history.replaceState(null, "", location.pathname);              // a link's picture would bring the pictures back
+  location.reload();
+}
+const modeChoice = () => choice("Mode", MODES, cloth ? "cloth" : "picture", setMode);
 function openMenu() {
+  if (!cloth && $("app").classList.contains("cloth")) return;      // the cloth is still loading
   const body = $("menuBody");
   body.replaceChildren();
+  if (cloth) {
+    cloth.menu(body);
+    part(body, "content").prepend(modeChoice());
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   const content = () => part(body, "content");
   if (duel.on) {
     part(body, "play").append(action("The rules", showRules, "link"));
@@ -972,6 +997,7 @@ function openMenu() {
   if (S && !S.done) play.append(action("Start this one again", restart, "link"));
   play.append(action("The rules", showRules, "link"));
   const c = content();
+  if (!COOP) c.append(modeChoice());
   if (!COOP) c.append(choice("Picture", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") {
     c.append(choice("Grid", GRIDS, settings.grid, v => { settings.grid = v; saveSettings(); openMenu(); }),
@@ -1047,7 +1073,7 @@ document.addEventListener("keydown", e => {
 document.addEventListener("visibilitychange", () => { if (document.hidden) { clockPause(); botSleep(); } else { clockRun(); botWake(); board.redraw(); duel.resync(); coop?.together.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("pagehide", () => clockPause());
-window.addEventListener("hashchange", () => { const h = hashPicture(); if (!COOP && !duel.on && h && !isShown(h)) begin(h); });
+window.addEventListener("hashchange", () => { const h = hashPicture(); if (!cloth && !COOP && !duel.on && h && !isShown(h)) begin(h); });
 let ticks = 0, lookKey = "";
 setInterval(() => {
   if (!S) return;
@@ -1150,7 +1176,16 @@ async function joinPartner() {
   if (!coop && !IN_FRAME) solo();
 }
 
-// a party of two in the address (&coop=1): its one grid; else a match in the address: its picture, with no solo one dealt under it
-if (COOP) joinPartner().catch(e => { console.error(e); solo(); });
-else if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });
-else solo();
+// A picture's own ways in (a link to one, a match, a co-op, today's from the games screen) show the pictures even when Cloth
+// is the mode kept. A party of two in the address (&coop=1): its one grid; else a match in the address: its picture, with
+// no solo one dealt under it.
+if (settings.mode === "cloth" && !COOP && !duel.inAddress && !hashPicture() && !forToday) {
+  $("app").classList.add("cloth");
+  $("rulesBtn").hidden = true;                                     // the menu would offer the pictures' rules
+  import("./loom-mode.js").then(m => { cloth = m.enterCloth(); }).catch(e => console.error(e));
+} else {
+  $("app").classList.remove("cloth");
+  if (COOP) joinPartner().catch(e => { console.error(e); solo(); });
+  else if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });
+  else solo();
+}

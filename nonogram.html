@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="dropdown.css">
 <link rel="stylesheet" href="duel.css">
 <link rel="stylesheet" href="nonogram.css">
+<link rel="stylesheet" href="loom.css">
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
@@ -63,6 +64,24 @@
       <button class="ng-go" type="button" id="nextBtn">Next picture</button>
     </div>
   </section>
+
+  <!-- Cloth mode (it was Loom): shown instead of the picture's parts when the menu's Mode is Cloth; loom-mode.js fills it -->
+  <div class="lm-strip full-pull">
+    <span class="lm-job"><b id="clJobName"></b><small id="clJobNo"></small></span>
+    <span class="lm-stars" id="clJobStars" aria-label="Your best for this job"></span>
+  </div>
+  <section id="clBench" class="lm-bench fit-grow" aria-label="The cloth you are weaving">
+    <div id="clClothHost" class="lm-host"></div>
+    <div id="clMarker" class="lm-marker" role="radiogroup" aria-label="What a touch does" hidden>
+      <button type="button" class="lm-mode" role="radio" aria-checked="true" data-mode="lay" title="Lay floats: tap where a thread comes up and where it goes back under"><svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><rect x="5" y="1" width="6" height="14" rx="1"/></svg><span>Lay</span></button>
+      <button type="button" class="lm-mode" role="radio" aria-checked="false" data-mode="warp" title="Pencil a warp where you think a thread comes up (a pencil note, never marked wrong)"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 2.5 C7.4 6 8.6 10 8 13.5"/></svg><span>Mark warp</span></button>
+      <button type="button" class="lm-mode" role="radio" aria-checked="false" data-mode="weft" title="Pencil the weft you know stays over (a pencil note, never marked wrong)"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2.5 8 C6 7.4 10 8.6 13.5 8"/></svg><span>Mark weft</span></button>
+    </div>
+  </section>
+  <p id="clLine" class="lm-line" role="status" aria-live="polite"></p>
+  <section class="lm-side">
+    <div id="clActs" class="lm-acts"></div>
+  </section>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
@@ -90,7 +109,16 @@
   </div>
 </dialog>
 
+<dialog id="clDoneDlg" class="sheet lm-done" aria-labelledby="clDoneHead">
+  <h2 id="clDoneHead"></h2>
+  <p id="clDoneStars" class="lm-big-stars" aria-hidden="true"></p>
+  <dl id="clDoneBody" class="lm-figures"></dl>
+  <p id="clDoneNote" class="lm-note"></p>
+  <div class="lm-done-go"><button class="btn" type="button" id="clAgainBtn">A fresh one</button><button class="btn primary" type="button" id="clNextBtn">Next cloth</button></div>
+</dialog>
+
 <p id="toast" class="ng-toast" role="status" aria-live="polite"></p>
+<script>try { if (/[?&]mode=cloth\b/.test(location.search) || JSON.parse(localStorage.getItem("nonogram:settings")).mode === "cloth") document.getElementById("app").classList.add("cloth"); } catch (e) { /* the picture's, then */ }</script>
 <script type="module" src="nonogram.js"></script>
 </body>
 </html>

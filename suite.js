@@ -148,7 +148,7 @@ export async function pull() {
 // ---------- starting a game over (Settings) ----------
 /** A game's keys, for starting it over: its own prefix, and the other names a game keeps (Slate's glyph:, Blend's
  *  blend2:, Gambit's puzzle rush's rush:). Nothing of the suite's (LOCAL) and nothing shared (the review pile, the pictures). */
-const RESET_PREFIXES = { glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"], reckoning: ["reckoning:", "courier:"],
+const RESET_PREFIXES = { nonogram: ["nonogram:", "loom:"], glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"], gambit: ["gambit:", "rush:"], reckoning: ["reckoning:", "courier:"],
   // Stow's page holds two tiles: Loose cargo's saves are two of stow:'s keys (and its figure, loose:stars), so each tile resets its own
   stow: ["stow:plan", "stow:day", "stow:view", "stow:mode", "stow:stars", "stow:best"], loose: ["stow:run", "stow:progress", "loose:"] };
 /**
@@ -503,7 +503,7 @@ let mirrorTimer = null, watched = null;           // watched: inside a frame, th
 /** The prefixes of a game's keys in storage: the game's id; but Slate keeps its old name, Glyph, and Blend's rebuild
  *  saves under blend2: (so its first version's saves were never misread), its stars under blend:. A key under none of
  *  them isn't the game's: it isn't mirrored, and a watching frame reads the watcher's own. */
-const PREFIXES = { slate: ["glyph:"], blend: ["blend:", "blend2:"], reckoning: ["reckoning:", "courier:"] };
+const PREFIXES = { nonogram: ["nonogram:", "loom:"], slate: ["glyph:"], blend: ["blend:", "blend2:"], reckoning: ["reckoning:", "courier:"] };
 const gamesKey = (game, k) => !!game && (PREFIXES[game] || [`${game}:`]).some(p => k.startsWith(p));
 // what never goes to a watcher: the suite's own keys, Crates' run link (watching must not join their run), Firebase's
 const WATCH_SKIP = /^(suite:|crates:run|crates:updated|firebase:)/;

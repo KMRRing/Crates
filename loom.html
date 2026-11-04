@@ -2,60 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Codex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Loom</title>
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.png">
-<link rel="manifest" href="manifest.webmanifest">
-<script src="theme.js"></script>
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="loom.css">
-<link rel="stylesheet" href="themes.css">
+<meta http-equiv="refresh" content="0; url=nonogram.html?mode=cloth">
+<script>location.replace("nonogram.html?mode=cloth" + location.hash);</script>
 </head>
 <body>
-<div id="app" class="loom full fit-screen beside">
-  <header class="top">
-    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
-      <span class="mark-icon lm-mark" aria-hidden="true"></span>Loom</button></h1>
-    <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
-  </header>
-
-  <div class="lm-strip full-pull">
-    <span class="lm-job"><b id="jobName"></b><small id="jobNo"></small></span>
-    <span class="lm-stars" id="jobStars" aria-label="Your best for this job"></span>
-  </div>
-  <section id="bench" class="lm-bench fit-grow" aria-label="The cloth you are weaving">
-    <div id="clothHost" class="lm-host"></div>
-    <div id="marker" class="lm-marker" role="radiogroup" aria-label="What a touch does" hidden>
-      <button type="button" class="lm-mode" role="radio" aria-checked="true" data-mode="lay" title="Lay floats: tap where a thread comes up and where it goes back under"><svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><rect x="5" y="1" width="6" height="14" rx="1"/></svg><span>Lay</span></button>
-      <button type="button" class="lm-mode" role="radio" aria-checked="false" data-mode="warp" title="Pencil a warp where you think a thread comes up (a pencil note, never marked wrong)"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 2.5 C7.4 6 8.6 10 8 13.5"/></svg><span>Mark warp</span></button>
-      <button type="button" class="lm-mode" role="radio" aria-checked="false" data-mode="weft" title="Pencil the weft you know stays over (a pencil note, never marked wrong)"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2.5 8 C6 7.4 10 8.6 13.5 8"/></svg><span>Mark weft</span></button>
-    </div>
-  </section>
-  <p id="line" class="lm-line" role="status" aria-live="polite"></p>
-  <section class="lm-side">
-    <div id="acts" class="lm-acts"></div>
-  </section>
-</div>
-
-<dialog id="menuDlg" class="sheet" aria-label="Menu">
-  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
-  <div id="menuBody"></div>
-</dialog>
-
-<dialog id="doneDlg" class="sheet lm-done" aria-labelledby="doneHead">
-  <h2 id="doneHead"></h2>
-  <p id="doneStars" class="lm-big-stars" aria-hidden="true"></p>
-  <dl id="doneBody" class="lm-figures"></dl>
-  <p id="doneNote" class="lm-note"></p>
-  <div class="lm-done-go"><button class="btn" type="button" id="againBtn">A fresh one</button><button class="btn primary" type="button" id="nextBtn">Next cloth</button></div>
-</dialog>
-
-<p id="toast" class="lm-toast" role="status" aria-live="polite"></p>
-<script type="module" src="loom.js"></script>
+<p>Loom is the Cloth mode of <a href="nonogram.html?mode=cloth">Nonogram</a>.</p>
 </body>
 </html>

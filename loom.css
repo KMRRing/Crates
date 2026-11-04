@@ -1,4 +1,4 @@
-/* Loom: a cloth on a canvas that fills its box (loom-cloth.js): the clues round the crossings; under it what to do next, and
+/* Cloth, a mode of Nonogram (it was Loom): a cloth on a canvas that fills its box (loom-cloth.js): the clues round the crossings; under it what to do next, and
    the buttons. Verdigris, the green of a wool dyed with woad and weld, is the
    house colour. */
 :root {
@@ -9,8 +9,6 @@
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --lm-bad: #E8806F; } }
 html[data-mode="night"] { --lm-bad: #E8806F; }
 
-.lm-mark { display: inline-block; }
-.lm-mark svg { width: 100%; height: 100%; display: block; }
 .lm-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; height: 1.8rem; margin: .5rem 0 .25rem; overflow: hidden; }
 .lm-job { display: flex; align-items: baseline; gap: .5rem; min-width: 0; }
 .lm-job b { font-size: .95rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -43,17 +41,17 @@ html[data-mode="night"] { --lm-bad: #E8806F; }
 /* the buttons */
 .lm-side { display: flex; flex-direction: column; gap: .35rem; }
 .lm-acts { display: flex; gap: .35rem; height: 2.75rem; }
-html #acts .lm-act { flex: 1 1 0; min-width: 0; min-height: 0; padding: .2rem .3rem; font-size: .8rem; font-stretch: normal; letter-spacing: 0; text-transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html #clActs .lm-act { flex: 1 1 0; min-width: 0; min-height: 0; padding: .2rem .3rem; font-size: .8rem; font-stretch: normal; letter-spacing: 0; text-transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* the cloths' buttons: the brush (what a tap paints, in the cloths painted so) and the three moves; a plain cloth is laid
    with taps and drags, so it has the moves alone */
 .lm-acts-play { gap: .5rem; }
 .lm-brushes { flex: 1 1 0; display: flex; gap: .25rem; min-width: 0; }
 .lm-moves { flex: 1 1 0; display: flex; gap: .25rem; min-width: 0; }
-html #acts .lm-brush { flex: 1 1 0; min-width: 0; min-height: 0; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; padding: .15rem .1rem;
+html #clActs .lm-brush { flex: 1 1 0; min-width: 0; min-height: 0; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; padding: .15rem .1rem;
   font-size: .72rem; font-stretch: normal; letter-spacing: 0; text-transform: none; line-height: 1; }
 .lm-brush svg { width: 1.1rem; height: 1.1rem; flex: none; }
-html #acts .lm-brush[aria-checked="true"] { border-color: var(--lm-in); box-shadow: inset 0 0 0 1px var(--lm-in); background: color-mix(in srgb, var(--lm-in) 20%, var(--sheet)); }
+html #clActs .lm-brush[aria-checked="true"] { border-color: var(--lm-in); box-shadow: inset 0 0 0 1px var(--lm-in); background: color-mix(in srgb, var(--lm-in) 20%, var(--sheet)); }
 
 /* the menu's list of jobs */
 .lm-chapter { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .9rem 0 .35rem; font-size: .82rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); }
@@ -81,13 +79,17 @@ html #acts .lm-brush[aria-checked="true"] { border-color: var(--lm-in); box-shad
 
 /* held sideways: the cloth on the left with all the height; the job, the line and the buttons beside it */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.loom { --beside: 20rem; grid-template-rows: auto auto minmax(0, 1fr) auto; }
-  #app.loom .lm-bench { grid-column: 1; grid-row: 2 / 5; }
-  #app.loom .lm-strip { grid-column: 2; grid-row: 2; }
-  #app.loom .lm-line { grid-column: 2; grid-row: 3; align-self: end; height: 5rem; -webkit-line-clamp: 4; line-clamp: 4; text-align: left; }
-  #app.loom .lm-side { grid-column: 2; grid-row: 4; }
-  #app.loom .lm-acts-play { flex-direction: column; height: auto; gap: .35rem; }
-  #app.loom .lm-brushes, #app.loom .lm-moves { height: 2.75rem; flex: none; }
+  #app.nonogram.cloth { --beside: 20rem; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  #app.nonogram.cloth .lm-bench { grid-column: 1; grid-row: 2 / 5; }
+  #app.nonogram.cloth .lm-strip { grid-column: 2; grid-row: 2; }
+  #app.nonogram.cloth .lm-line { grid-column: 2; grid-row: 3; align-self: end; height: 5rem; -webkit-line-clamp: 4; line-clamp: 4; text-align: left; }
+  #app.nonogram.cloth .lm-side { grid-column: 2; grid-row: 4; }
+  #app.nonogram.cloth .lm-acts-play { flex-direction: column; height: auto; gap: .35rem; }
+  #app.nonogram.cloth .lm-brushes, #app.nonogram.cloth .lm-moves { height: 2.75rem; flex: none; }
 }
 html[data-theme="office"] :is(.lm-jobs button, .lm-bench) { border-radius: 4px; }
 html[data-theme="kontor"] :is(.lm-jobs button, .lm-bench) { border-radius: 2px; }
+
+/* a page in one mode shows only that mode's parts */
+#app.cloth :is(.ng-strip, .ng-card, .ng-side) { display: none; }
+#app:not(.cloth) :is(.lm-strip, .lm-bench, .lm-line, .lm-side) { display: none; }
