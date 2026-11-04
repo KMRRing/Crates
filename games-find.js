@@ -51,7 +51,7 @@ export const AKA = {
   nexus: "links graph connections", crossword: "clues grid", lode: "strands word search", isomer: "jumble anagram scramble",
   acrostic: "hidden text clues", nonogram: "picross griddlers pixel picture", lexicon: "lookup reference encyclopedia knowledge base",
   ledger: "record progress statistics learning", calibre: "watchmaking watch horology movement",
-  parley: "languages chinese french german vocabulary", glyph: "crossword letters words", delta: "hex sums arithmetic paths",
+  parley: "languages chinese french german spanish vocabulary", glyph: "crossword letters words", delta: "hex sums arithmetic paths",
   spot: "mental maths arithmetic sums", speedmaths: "mental arithmetic sums quick", manifest: "memory packages quay",
   harbour: "ships program hex route", pipes: "pipe dream plumbing watch clockwork mainspring cogs", survey: "ore mining 3d deduction rock",
   stow: "packing cargo hold fit", cartel: "dice bluff coup roles liar", hong: "mahjong mah jong majiang hong kong", tribute: "guan dan climbing cards partners",

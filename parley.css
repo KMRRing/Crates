@@ -40,6 +40,8 @@ html[data-mode="night"] { --pa-in: #6CC0B5; --pa-good: #7FC2A8; --pa-bad: #E8806
 .pa-card .ex .l2 { font-weight: 750; }
 .pa-card .ex .py { font-size: .95rem; }
 .pa-card .ex .en { color: var(--ink-soft); font-size: .92rem; }
+/* a word's catch: the false friend, the regional form */
+.pa-card .wnote { margin-top: .4rem; padding-left: .6rem; border-left: 3px solid var(--pa-in); font-size: .88rem; line-height: 1.4; color: var(--ink-soft); }
 .pa-card .ask { font-size: .85rem; color: var(--ink-soft); }
 .pa-card .cloze { font-size: 1.35rem; font-weight: 750; line-height: 1.35; }
 .pa-card .cloze .gap { display: inline-block; min-width: 3rem; border-bottom: 3px solid var(--pa-in); }
