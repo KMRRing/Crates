@@ -6,12 +6,14 @@ import { GEOMETRY, TRIG } from "./maths-ch3.js";
 import { FURTHER, DIFF, INTEGRATION } from "./maths-ch4.js";
 import { SERIES, LINALG } from "./maths-ch5.js";
 import { PROB, DISCRETE, DE } from "./maths-ch6.js";
+import { MULTI, practiceOf } from "./maths-ch7.js";
 
 /** The level each chapter is pitched at, shown on the landing. */
-export const LEVELS = { number: "GCSE", algebra: "GCSE to SL", functions: "SL", geometry: "GCSE to SL", trig: "SL to HL", further: "HL", diff: "SL to HL", integration: "SL to HL", series: "HL to Uni", linalg: "HL to Uni", prob: "SL to HL", discrete: "HL to Uni", de: "HL to Uni" };
+export const LEVELS = { number: "GCSE", algebra: "GCSE to SL", functions: "SL", geometry: "GCSE to SL", trig: "SL to HL", further: "HL", diff: "SL to HL", integration: "SL to HL", series: "HL to Uni", linalg: "HL to Uni", prob: "SL to HL", discrete: "HL to Uni", de: "HL to Uni", multi: "Uni" };
 
 export const COURSE = {
   title: "Maths",
   zh: "",
-  chapters: [NUMBER, ALGEBRA, FUNCTIONS, GEOMETRY, TRIG, FURTHER, DIFF, INTEGRATION, SERIES, LINALG, PROB, DISCRETE, DE],
+  // Each chapter ends with a Practice lesson of Punt's bank questions.
+  chapters: [NUMBER, ALGEBRA, FUNCTIONS, GEOMETRY, TRIG, FURTHER, DIFF, INTEGRATION, SERIES, LINALG, PROB, DISCRETE, DE, MULTI].map(c => ({ ...c, lessons: [...c.lessons, practiceOf(c.id)] })),
 };
