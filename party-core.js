@@ -180,6 +180,7 @@ export function endGame(branch) {
 //   Tribute; every other duo match is people only).
 export const ELSEWHERE = [
   { id: "boast", name: "Liar's dice", kind: "table", page: "boast.html", max: 6, blurb: "Liar's dice with Chinese rules: bid on all the dice under the cups, or open." },
+  { id: "yacht", name: "Yacht", kind: "table", page: "yacht.html", max: 4, blurb: "Yacht: five dice, three rolls a turn, twelve categories on a score sheet; the highest total wins." },
   { id: "bigtwo", name: "Big Two", kind: "table", page: "bigtwo.html", max: 4, blurb: "鋤大D, Hong Kong's climbing card game: be first to shed your cards." },
   { id: "hearts", name: "Hearts", kind: "table", page: "hearts.html", max: 4, blurb: "Hearts: pass three, avoid the hearts and the Q♠, or shoot the moon; the lowest score wins." },
   { id: "pegs", name: "Cribbage", kind: "table", page: "pegs.html", max: 2, blurb: "Cribbage for two: discard to the crib, peg to 31, count fifteens, pairs and runs; first to 121." },

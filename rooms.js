@@ -34,6 +34,7 @@ export const GAMES = {
   river: { name: "Xiangqi", page: "./river.html" },
   gambit: { name: "Chess", page: "./gambit.html" },
   boast: { name: "Liar's dice", page: "./boast.html" },
+  yacht: { name: "Yacht", page: "./yacht.html" },
   bigtwo: { name: "Big Two", page: "./bigtwo.html" },
   hearts: { name: "Hearts", page: "./hearts.html" },
   meld: { name: "Gin rummy", page: "./meld.html" },

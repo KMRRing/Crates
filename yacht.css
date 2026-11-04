@@ -1,0 +1,131 @@
+/* Yacht: five ivory dice on a felt, a score sheet ruled in brass. Upright: the dice above, the sheet below, the buttons
+   at the foot. Sideways: the dice on the left, the sheet and the buttons beside them. */
+:root {
+  --ya-in: #1F6F8B;                                              /* sea blue: the game's enamel */
+  --ya-soft: color-mix(in srgb, var(--ya-in) 13%, var(--sheet));
+  --ya-die: #FBF4E4; --ya-die-edge: #B9A57C; --ya-pip: #1C2A34; --ya-pip-red: #C0262D;
+  --ya-felt: #2F6A56; --ya-felt-edge: #1B3F33;
+  --ya-held: #2F7D5B; --ya-bad: #A8382B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --ya-in: #6FB6D2; --ya-die: #EDE3CC; --ya-die-edge: #8C7A55; --ya-pip: #16212B; --ya-felt: #1F4A3C; --ya-felt-edge: #112B22; --ya-held: #7FC2A8; --ya-bad: #E8806F; }
+}
+html[data-mode="night"] { --ya-in: #6FB6D2; --ya-die: #EDE3CC; --ya-die-edge: #8C7A55; --ya-pip: #16212B; --ya-felt: #1F4A3C; --ya-felt-edge: #112B22; --ya-held: #7FC2A8; --ya-bad: #E8806F; }
+html[data-theme="kontor"] { --ya-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --ya-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --ya-in: #2EB36A; }
+html[data-theme="office"] { --ya-in: #0F6CBD; --ya-die: #FFFFFF; --ya-die-edge: #A19F9D; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --ya-in: #479EF5; --ya-die: #E1DFDD; --ya-die-edge: #797775; } }
+html[data-theme="office"][data-mode="night"] { --ya-in: #479EF5; --ya-die: #E1DFDD; --ya-die-edge: #797775; }
+
+.ya-mark { display: inline-block; }
+.ya-mark svg { width: 100%; height: 100%; display: block; }
+
+.ya-status { margin: 0; font-size: .84rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ya-status b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ---------- the dice ---------- */
+.ya-table { display: flex; flex-direction: column; min-height: 0; padding-top: .35rem; }
+.ya-stage { position: relative; flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; container-type: size; }
+.ya-dice { display: flex; gap: min(.6rem, 2.2cqw); align-items: flex-end; justify-content: center; width: 100%; padding: 0 .2rem; }
+.ya-die-btn { position: relative; flex: 0 1 4.2rem; min-width: 0; padding: 0; border: 0; background: none; cursor: pointer; transition: transform .16s; -webkit-tap-highlight-color: transparent; }
+.ya-die-btn:disabled { cursor: default; }
+.ya-die-btn.held { transform: translateY(-.55rem); }
+.ya-die-btn.held::after { content: "HELD"; position: absolute; left: 0; right: 0; bottom: -1.05rem; text-align: center; font-size: .6rem; font-weight: 800; letter-spacing: .1em; color: var(--ya-held); }
+.ya-die { display: block; width: 100%; height: auto; aspect-ratio: 1; overflow: visible; }
+.ya-die rect { fill: var(--ya-die); stroke: var(--ya-die-edge); stroke-width: 1.3; }
+.ya-die circle { fill: var(--ya-pip); }
+.ya-die circle.red { fill: var(--ya-pip-red); }
+.ya-die-btn.held .ya-die rect { stroke: var(--ya-held); stroke-width: 2.6; }
+.ya-die-btn.blank .ya-die { opacity: .38; }
+.ya-die-btn.rolling .ya-die { animation: ya-tumble .5s cubic-bezier(.3, .6, .4, 1); }
+.ya-die-btn.rolling:nth-child(2n) .ya-die { animation-delay: .04s; animation-duration: .56s; }
+.ya-die-btn.rolling:nth-child(3n) .ya-die { animation-delay: .08s; animation-duration: .62s; }
+@keyframes ya-tumble { 0% { transform: translateY(-1.6rem) rotate(-200deg) scale(.85); } 45% { transform: translateY(.2rem) rotate(40deg); } 70% { transform: translateY(-.35rem) rotate(-10deg); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ya-die-btn.rolling .ya-die { animation: none; } .ya-die-btn { transition: none; } }
+.ya-3d { position: absolute; inset: 0; touch-action: none; user-select: none; -webkit-user-select: none; background: var(--yard); }
+.ya-3d canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; -webkit-tap-highlight-color: transparent; }
+
+/* ---------- the score sheet ---------- */
+.ya-side { display: flex; flex-direction: column; gap: .4rem; min-height: 0; }
+.ya-sheet { min-height: 0; }
+.ya-grid { width: 100%; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
+.ya-grid th, .ya-grid td { height: 1.52rem; padding: 0 .2rem; border-bottom: 1px solid var(--rule); font-size: .86rem; line-height: 1; }
+.ya-grid thead th { height: 1.7rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); text-align: center; border-bottom: 1.5px solid var(--brass); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ya-grid thead th.turn { color: var(--ya-in); box-shadow: inset 0 -2px 0 var(--ya-in); }
+.ya-grid thead th:first-child { width: 40%; }
+.ya-grid tbody th { text-align: left; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ya-grid tbody th small { font-weight: 500; color: var(--ink-soft); font-size: .7rem; margin-left: .25rem; }
+.ya-grid td { text-align: center; font-weight: 750; }
+.ya-grid td.me { background: color-mix(in srgb, var(--ya-in) 6%, transparent); }
+.ya-grid td.open { color: var(--ink-soft); font-weight: 500; }
+.ya-grid td.pot { color: var(--ya-in); font-weight: 750; cursor: pointer; background: var(--ya-soft); }
+.ya-grid td.pot.zero { color: var(--ink-soft); font-weight: 500; }
+.ya-grid td.sel { box-shadow: inset 0 0 0 2px var(--ya-in); background: color-mix(in srgb, var(--ya-in) 24%, var(--sheet)); color: var(--ink); }
+.ya-grid td.fresh { animation: ya-fresh 1.1s ease-out; }
+@keyframes ya-fresh { from { background: color-mix(in srgb, var(--ya-in) 40%, transparent); } }
+.ya-grid tr.rule th, .ya-grid tr.rule td { border-bottom: 1.5px solid var(--brass); }
+.ya-grid tr.sub th, .ya-grid tr.sub td { height: 1.25rem; font-size: .76rem; color: var(--ink-soft); font-weight: 600; }
+.ya-grid tr.sub td.got { color: var(--ya-held); font-weight: 800; }
+.ya-grid tr.total th, .ya-grid tr.total td { height: 1.7rem; font-size: 1rem; font-weight: 800; color: var(--ink); border-bottom: 0; border-top: 1.5px solid var(--brass); }
+.ya-grid tr.total td.lead { color: var(--ya-in); }
+.ya-grid tbody tr.pickable th { cursor: pointer; }
+.ya-grid tbody th.sel { color: var(--ya-in); }
+
+/* ---------- the buttons ---------- */
+.ya-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: .4rem; }
+.ya-controls .btn { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 3rem; padding: .3rem .5rem; line-height: 1.15; }
+.ya-controls .btn b { font-size: 1.08rem; letter-spacing: .02em; }
+.ya-controls .btn small { font-size: .7rem; font-weight: 600; text-transform: none; letter-spacing: 0; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ya-controls .wide { grid-column: 1 / -1; }
+.ya-watching { grid-column: 1 / -1; margin: 0; text-align: center; color: var(--ink-soft); font-size: .9rem; }
+
+/* ---------- the sheets ---------- */
+.ya-rules p { line-height: 1.45; }
+.ya-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.ya-rules table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.ya-rules td { padding: .32rem .3rem; border-top: 1px solid var(--rule); vertical-align: top; }
+.ya-rules td:first-child { font-weight: 700; white-space: nowrap; }
+.ya-rules td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.ya-end-head { margin: .2rem 0 .6rem; }
+.ya-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.ya-standings li { display: grid; grid-template-columns: minmax(0, 1fr) 3rem; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.ya-standings li .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ya-standings li.won .nm::after { content: " ★"; color: var(--ya-in); }
+.ya-standings li.me .nm { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.ya-standings li b { text-align: right; font-variant-numeric: tabular-nums; }
+.ya-end-note { color: var(--ink-soft); font-size: .9rem; }
+.ya-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.ya-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.ya-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* a short phone: the sheet's rows tighten, the dice keep their room */
+@media (max-height: 640px) and (orientation: portrait) {
+  .ya-grid th, .ya-grid td { height: 1.3rem; font-size: .8rem; }
+  .ya-grid thead th { height: 1.4rem; }
+  .ya-grid tr.sub th, .ya-grid tr.sub td { height: 1.05rem; }
+  .ya-grid tr.total th, .ya-grid tr.total td { height: 1.45rem; }
+  .ya-controls .btn { min-height: 2.6rem; }
+}
+
+/* held sideways: the dice on the left, the sheet and the buttons beside them */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.yacht { --beside: 22rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.yacht .ya-status { grid-column: 1 / -1; grid-row: 2; }
+  #app.yacht .ya-table { grid-column: 1; grid-row: 3; }
+  #app.yacht .ya-side { grid-column: 2; grid-row: 3; padding-top: .35rem; }
+  #app.yacht .ya-sheet { flex: 1 1 auto; overflow-y: auto; }
+  #app.yacht .ya-die-btn { flex-basis: 5.5rem; }
+}
+@media (max-height: 520px) and (min-width: 700px) {
+  .ya-grid th, .ya-grid td { height: 1rem; font-size: .72rem; }
+  .ya-grid thead th { height: 1.1rem; font-size: .66rem; }
+  .ya-grid tr.sub th, .ya-grid tr.sub td { height: .88rem; font-size: .66rem; }
+  .ya-grid tr.total th, .ya-grid tr.total td { height: 1.2rem; font-size: .86rem; }
+  .ya-controls .btn { min-height: 2.2rem; padding: .15rem .4rem; }
+  .ya-controls .btn small { display: none; }
+  #app.yacht .ya-side { gap: .3rem; padding-top: .2rem; }
+}
+html[data-theme="office"] :is(.ya-3d) { border-radius: 4px; }

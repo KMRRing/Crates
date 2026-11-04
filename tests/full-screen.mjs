@@ -20,7 +20,7 @@ const TITLED = new Set(`crates lots punt quote origin order chart ledger nexus i
   calibre parley arthistory wine trade music odds speedfuels blend refinery rack cartel deck rush
   party quest cue`.split(/\s+/).map(n => n + ".html"));
 // FULL alone: card and dice games, board games, idle and ambient games, pictures (Manifest, Almanac, Guilloché, Timegrapher)
-const FULL = new Set(`contract trumps tribute landlord bigtwo hearts meld pegs hong bones boast solitaire banquet holdem blackjack baccarat
+const FULL = new Set(`contract trumps tribute landlord bigtwo hearts meld pegs hong bones boast yacht solitaire banquet holdem blackjack baccarat
   tarot craps roulette sicbo factor gambit flank crown go river silo gammon
   avalanche columbiad reckoning drift heliograph landfall netting orrery polder settle shunt slipway topple harbour ingot
   almanac manifest guilloche timegrapher`.split(/\s+/).map(n => n + ".html"));

@@ -70,6 +70,7 @@ export const ROUNDS = {
   river: "a game",
   gambit: "a game",
   boast: "a round of bidding, its cups lifted",
+  yacht: "a game (twelve rounds on the score sheet)",
   bigtwo: "a deal",
   hearts: "a hand",
   meld: "a hand",
