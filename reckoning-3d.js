@@ -17,6 +17,7 @@ import { T } from "./reckoning-tune.js";
 import { LANE_W, WALL_X, KINDS, JUMP_V, speed, solid, tide, bridgeUp } from "./reckoning-engine.js";
 import { Spring, Inertia, Streamer, CameraRig, clamp, lerp, ease } from "./reckoning-move.js";
 import { BIOMES } from "./reckoning-biomes.js";
+import { createModels } from "./reckoning-models.js";
 
 const BEND = 0.0013;                    // how fast the world drops away: metres of fall per metre-squared of distance
 const BEND_FROM = 9;                    // from this far in front of the camera (the hero is nearer, and stays level)
@@ -131,6 +132,7 @@ export function createRunner(host) {
   world.add(hemi, sun, sun.target);
   scene.fog = new THREE.Fog(0xffffff, 28, 105);
 
+  const models = createModels({ curved });
   let pal = palette();
   const mats = {};
   const mat = (key, opts = {}) => (mats[key] = curved(new THREE.MeshLambertMaterial(opts)));
@@ -162,6 +164,7 @@ export function createRunner(host) {
     set(M.claw, pal.claw); set(M.belly, pal.belly); set(M.eye, pal.eye); set(M.pupil, pal.pupil);
     set(M.plank2, pal.plank2); set(M.pole, pal.timber); set(M.dust, pal.dust); set(M.spray, pal.spray); set(M.streak, pal.streak);
     set(M.markBg, pal.mark); set(M.markSees, pal.gilt); set(M.markWind, pal.alert);
+    models.retheme(pal, col, night());
     scene.background = col(pal.sky);
     scene.fog.color = col(pal.sky);
     hemi.color = col(mix(pal.sky, [255, 255, 255], night() ? 0.1 : 0.4));
@@ -251,89 +254,9 @@ export function createRunner(host) {
   const wallBoxes = [];
   const wallBox = () => { const m = new THREE.Mesh(box, M.wall); m.frustumCulled = false; world.add(m); wallBoxes.push(m); return m; };
 
-  // The hero: a young merchant-adventurer of the Hanse in a tricorn with a plume, a navy coat with gilt trim and a red sash,
-  // cream breeches and tall boots, a red scarf streaming behind him, a rapier in his right hand and its scabbard at his left
-  // hip. He is built round joints (hips, knees, shoulders, elbows, neck, and the tails of the coat and the scarf) so that a run,
-  // a jump, a thrust and a roll are only poses of them (poseHero), and a glTF with joints of these names can take over.
-  const hero = new THREE.Group();
-  const body = new THREE.Group(); hero.add(body);
-  const tp = (rt, rb, h, seg = 12) => new THREE.CylinderGeometry(rt, rb, h, seg);
-  const mesh = (geo, m, x, y, z, to, sx = 1, sy = 1, sz = 1) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.scale.set(sx, sy, sz); to.add(o); return o; };
-  const joint = (to, x, y, z) => { const g = new THREE.Group(); g.position.set(x, y, z); to.add(g); return g; };
-  const J = {};
-  // legs: cream breeches to the knee, tall boots below it
-  J.hip = [-1, 1].map(s => {
-    const hip = joint(body, s * 0.1, 0.86, 0), knee = joint(hip, 0, -0.42, 0);
-    mesh(tp(0.085, 0.07, 0.43), M.shirt, 0, -0.21, 0, hip);
-    mesh(tp(0.07, 0.055, 0.4), M.boot, 0, -0.19, 0, knee);
-    mesh(tp(0.092, 0.08, 0.1), M.boot, 0, 0.0, 0, knee);
-    mesh(tp(0.097, 0.097, 0.025), M.gilt, 0, 0.045, 0, knee);
-    mesh(box, M.boot, 0, -0.4, 0.07, knee, 0.13, 0.09, 0.28);
-    hip.userData.knee = knee;
-    return hip;
-  });
-  // the torso, from the waist up: the coat's chest and its skirt, the sash, the belt, the strap and the scabbard
-  J.torso = joint(body, 0, 0.86, 0);
-  mesh(tp(0.24, 0.19, 0.5), M.hero, 0, 0.27, 0, J.torso, 1.1, 1, 0.78);
-  mesh(tp(0.21, 0.3, 0.34, 14), M.hero, 0, -0.12, 0, J.torso, 1.12, 1, 0.88);
-  mesh(tp(0.305, 0.305, 0.025, 14), M.gilt, 0, -0.29, 0, J.torso, 1.12, 1, 0.88);
-  mesh(tp(0.206, 0.206, 0.09), M.scarf, 0, 0.07, 0, J.torso, 1.12, 1, 0.82);
-  mesh(tp(0.2, 0.2, 0.03), M.gilt, 0, 0.0, 0, J.torso, 1.12, 1, 0.82);
-  mesh(box, M.gilt, 0, 0.0, 0.17, J.torso, 0.09, 0.08, 0.03);
-  for (let i = 0; i < 3; i++) for (const s of [-1, 1]) mesh(sph, M.gilt, s * 0.045, 0.2 + i * 0.1, 0.152, J.torso, 0.035, 0.035, 0.035);
-  mesh(box, M.boot, 0, 0.3, -0.172, J.torso, 0.07, 0.64, 0.02).rotation.z = 0.5;
-  mesh(box, M.gilt, 0, 0.3, -0.18, J.torso, 0.09, 0.07, 0.015);
-  J.tails = [-1, 1].map(s => {                                     // the coat's two tails behind, split down the middle
-    const t = joint(J.torso, s * 0.1, -0.02, -0.19);
-    mesh(box, M.hero, 0, -0.27, 0, t, 0.17, 0.54, 0.03);
-    mesh(box, M.gilt, 0, -0.545, 0, t, 0.17, 0.025, 0.036);
-    return t;
-  });
-  J.sheath = joint(J.torso, -0.23, -0.03, -0.05); J.sheath.rotation.x = -0.6;
-  mesh(box, M.boot, 0, 0, -0.34, J.sheath, 0.045, 0.045, 0.68);
-  mesh(sph, M.gilt, 0, 0, -0.69, J.sheath, 0.06, 0.06, 0.06);
-  mesh(box, M.gilt, 0, 0, -0.02, J.sheath, 0.06, 0.06, 0.05);
-  // the neck: scarf round it, two tails streaming from it
-  mesh(tp(0.07, 0.08, 0.1), M.skin, 0, 0.58, 0, J.torso);
-  mesh(tp(0.14, 0.16, 0.09), M.scarf, 0, 0.54, 0, J.torso, 1, 1, 0.95);
-  J.scarf = [-1, 1].map(s => { const t = joint(J.torso, s * 0.07, 0.53, -0.14); mesh(box, M.scarf, 0, -0.23, 0, t, 0.1, 0.46, 0.02); mesh(box, M.gilt, 0, -0.465, 0, t, 0.1, 0.02, 0.025); return t; });
-  // the head: a face, the hair tied back in a tail, and the tricorn with its plume
-  J.head = joint(J.torso, 0, 0.74, 0);
-  mesh(sph, M.skin, 0, 0, 0, J.head, 0.33, 0.35, 0.33);
-  mesh(sph, M.hair, 0, 0.025, -0.04, J.head, 0.36, 0.34, 0.34);
-  for (const s of [-1, 1]) mesh(sph, M.pupil, s * 0.058, 0.0, 0.153, J.head, 0.04, 0.05, 0.03);
-  J.ponytail = joint(J.head, 0, -0.02, -0.17);
-  mesh(tp(0.045, 0.02, 0.3), M.hair, 0, -0.15, 0, J.ponytail);
-  mesh(sph, M.scarf, 0, 0.0, 0, J.ponytail, 0.1, 0.1, 0.1);
-  J.hat = joint(J.head, 0, 0.1, 0);
-  mesh(tp(0.35, 0.35, 0.035, 18), M.hero, 0, 0.03, 0, J.hat);
-  mesh(tp(0.17, 0.2, 0.14, 16), M.hero, 0, 0.11, 0, J.hat);
-  mesh(tp(0.206, 0.206, 0.035, 16), M.gilt, 0, 0.065, 0, J.hat);
-  for (const s of [-1, 1]) mesh(box, M.hero, s * 0.3, 0.1, 0, J.hat, 0.16, 0.03, 0.3).rotation.z = -s * 0.55;     // the brim turned up on three sides
-  mesh(box, M.hero, 0, 0.1, -0.3, J.hat, 0.3, 0.03, 0.16).rotation.x = 0.55;
-  mesh(box, M.hero, 0, 0.08, 0.32, J.hat, 0.3, 0.03, 0.1).rotation.x = -0.35;
-  J.plume = joint(J.hat, 0.2, 0.14, -0.05); J.plume.rotation.set(-0.5, 0, -0.7);
-  mesh(cone, M.shirt, 0, 0.21, 0, J.plume, 0.07, 0.44, 0.05);
-  mesh(cone, M.scarf, 0.03, 0.1, 0.01, J.plume, 0.05, 0.22, 0.04);
-  // arms: coat sleeves, cream cuffs under gilt, gloves; the right hand holds the rapier, which runs along its forearm
-  J.arm = [-1, 1].map(s => {
-    const sh = joint(J.torso, s * 0.3, 0.46, 0), el = joint(sh, 0, -0.31, 0);
-    mesh(sph, M.hero, 0, 0, 0, sh, 0.16, 0.16, 0.16);
-    mesh(tp(0.062, 0.052, 0.3), M.hero, 0, -0.16, 0, sh);
-    mesh(tp(0.052, 0.04, 0.27), M.shirt, 0, -0.13, 0, el);
-    mesh(tp(0.064, 0.064, 0.03), M.gilt, 0, -0.24, 0, el);
-    mesh(sph, M.boot, 0, -0.29, 0, el, 0.1, 0.1, 0.1);
-    sh.userData.elbow = el;
-    return sh;
-  });
-  {
-    const hand = joint(J.arm[1].userData.elbow, 0, -0.29, 0);
-    mesh(tp(0.02, 0.02, 0.16), M.boot, 0, -0.02, 0, hand);
-    mesh(box, M.gilt, 0, -0.1, 0, hand, 0.2, 0.025, 0.05);
-    mesh(sph, M.gilt, 0, 0.07, 0, hand, 0.05, 0.05, 0.05);
-    mesh(box, M.steel, 0, -0.56, 0, hand, 0.035, 0.9, 0.012);
-  }
-  hero.traverse(o => { o.frustumCulled = false; });
+  // The hero (reckoning-models.js): built round named joints, so that a run, a jump, a thrust and a roll are only poses of them (poseHero),
+  // and a glTF with joints of these names can take over.
+  const { hero, body, J } = models.buildHero();
   world.add(hero);
   const heroShadow = new THREE.Mesh(disc, M.shadow); heroShadow.scale.set(1, 1, 1); heroShadow.frustumCulled = false; world.add(heroShadow);
 
