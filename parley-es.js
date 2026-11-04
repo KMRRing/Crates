@@ -17,7 +17,7 @@ const unit = (id, title, grammar, words, [l2, en, qs]) => ({
 
 const UNITS = [
   unit(1, "Hola", ["Gender, articles and ser",
-    `Every noun is masculine or feminine, and the article shows it: el / un (m), la / una (f); plural los / las. Learn the article with the noun. Nouns in -o are mostly masculine and in -a mostly feminine (el amigo, la amiga), but el día and el mapa are masculine and la mano is feminine. The verb ending already says who is speaking, so yo, tú, él are usually dropped: Soy Pablo. ser (to be: identity, origin, job): ${row("ser")}. Singular you is tú (friends) or usted (formal; it takes the él / ella verb form); plural you is vosotros in Spain and ustedes everywhere, and in Latin America only ustedes (with son).`,
+    `Every noun is masculine or feminine, and the article shows it: el / un (m), la / una (f); plural los / las. Learn the article with the noun. Nouns in -o are mostly masculine and in -a mostly feminine (el amigo, la amiga), but el día and el mapa are masculine and la mano is feminine. The verb ending already says who is speaking, so yo, tú, él are usually dropped: Soy Pablo. ser (to be: identity, origin, job): ${row("ser")}. Singular you is tú (friends) or usted (formal; it takes the él / ella verb form); plural you is vosotros (informal) or ustedes (formal) in Spain, and in Latin America only ustedes, with the son form.`,
     [["Soy alemán.", "I am German (no article before a job or nationality)."], ["Ella es una amiga.", "She is a friend."], ["¿Usted es el señor López?", "Are you Mr López? (formal)"]]], [
     ["hola", "hello, hi", "¡Hola, Pablo!", "Hello, Pablo!"],
     ["gracias", "thank you", "Gracias, Marta.", "Thank you, Marta.", "muchas gracias = thank you very much"],
@@ -30,7 +30,7 @@ const UNITS = [
     ["él", "he", "Él es un amigo.", "He is a friend.", "él (he) has an accent; el (the) has none"],
     ["ella", "she", "Ella es una amiga.", "She is a friend."],
     ["usted", "you (one person, formal)", "¿Usted es Luis?", "Are you Luis? (formal)", "Written Ud.; takes the él / ella verb form. Fr. vous, De. Sie"],
-    ["ser", "to be (what, who, whose)", "Pablo y Marta son amigos.", "Pablo and Marta are friends.", "For where and how someone is now: estar (unit 6)"],
+    ["ser", "to be (identity, origin, job)", "Pablo y Marta son amigos.", "Pablo and Marta are friends.", "For where and how someone is now: estar (unit 6)"],
     ["el hombre", "the man", "El hombre es un amigo.", "The man is a friend.", "hombre! is also an interjection: well, man!"],
     ["la mujer", "the woman; wife", "La mujer es una amiga.", "The woman is a friend."],
     ["el amigo", "the friend (m; la amiga f)", "Luis es un amigo.", "Luis is a friend.", "los amigos can mean friends of both sexes"],
@@ -52,7 +52,7 @@ const UNITS = [
     ["mucho gusto", "pleased to meet you", "Mucho gusto, Luis.", "Pleased to meet you, Luis.", "Also encantado (m) / encantada (f), like Fr. enchanté"],
     ["por favor", "please", "Sí, por favor.", "Yes, please."],
     ["qué", "what", "¿Qué es?", "What is it?", "qué (what) has an accent; que (that) has none"],
-    ["cómo", "how; pardon?", "¿Cómo se llama usted?", "What is your name? (formal)", "A bare ¿Cómo? asks someone to repeat; LatAm often ¿Cómo?/¿Mande? (Mexico)"],
+    ["cómo", "how; pardon?", "¿Cómo se llama usted?", "What is your name? (formal)", "A bare ¿Cómo? asks someone to repeat; Mexico: ¿Mande?"],
     ["quién", "who", "¿Quién es él?", "Who is he?", "Plural quiénes"],
     ["por qué", "why", "¿Por qué no?", "Why not?", "Two words with an accent = why; porque = because"],
     ["me llamo", "my name is", "Me llamo Pablo. ¿Cómo te llamas?", "My name is Pablo. What is your name?", "Literally 'I call myself' (reflexive, unit 13); usted: se llama"],
@@ -64,7 +64,7 @@ const UNITS = [
       ["How does the exchange end?", "With a good night", "With an apology", "With an introduction", "With a question"]]]),
 
   unit(3, "Números", ["Plurals and numbers",
-    `Plural: add -s after a vowel (amigo → amigos), -es after a consonant (mujer → mujeres, mes → meses); z becomes c (vez → veces); an accent on the last syllable drops (avión → aviones). The article goes plural too: los hombres, las mujeres. uno shortens to un before a masculine noun and becomes una before a feminine one: un amigo, una amiga, veintiún euros. 11–15 are single words (once, doce, trece, catorce, quince); 16–19 and 21–29 are written as one word (dieciséis, diecisiete, dieciocho, diecinueve; veintiuno, veintidós, veintitrés); from 31 the tens come first: treinta y uno. Round tens: treinta, cuarenta, cincuenta, sesenta, setenta, ochenta, noventa. cien is exactly 100, before anything else it is ciento (ciento diez). A million takes de: un millón de barriles. Thousands are marked with a point or a space (1.000), decimals with a comma (2,5), as in German.`,
+    `Plural: add -s after a vowel (amigo → amigos), -es after a consonant (mujer → mujeres, mes → meses); z becomes c (vez → veces); an accent on the last syllable drops (avión → aviones). The article goes plural too: los hombres, las mujeres. uno shortens to un before a masculine noun and becomes una before a feminine one: un amigo, una amiga, veintiún euros. 11–15 are single words (once, doce, trece, catorce, quince); 16–19 and 21–29 are written as one word (dieciséis, diecisiete, dieciocho, diecinueve; veintiuno, veintidós, veintitrés); from 31 the tens come first: treinta y uno. Round tens: treinta, cuarenta, cincuenta, sesenta, setenta, ochenta, noventa. cien is exactly 100, before anything else it is ciento (ciento diez). A million takes de: un millón de barriles. Thousands are marked with a point or a space (1.000), decimals with a comma (2,5), as in German; Mexico and the English-speaking world do it the other way round (1,000 and 2.5).`,
     [["Son tres hombres y dos mujeres.", "There are three men and two women."], ["Son veintiuna mujeres.", "There are twenty-one women (una: feminine)."], ["Ciento diez, ciento once.", "A hundred and ten, a hundred and eleven."]]], [
     ["cero", "zero", "Cero y uno son uno.", "Zero and one are one."],
     ["uno", "one", "Uno y dos son tres.", "One and two are three.", "un before a masculine noun, una before a feminine one"],
@@ -110,7 +110,7 @@ const UNITS = [
       ["How many days make a week?", "Seven", "Five", "Six", "Eight"]]]),
 
   unit(5, "Comer y beber", ["The present tense: -ar, -er, -ir",
-    `Drop -ar, -er or -ir and add the ending that says who. hablar (to speak): ${row("hablar")}. comer (to eat): ${row("comer")}. vivir (to live): ${row("vivir")}. -er and -ir differ only in nosotros and vosotros. The present also covers 'I am eating' and, with ahora, the moment. Mind the written accents: habláis, coméis. el agua is feminine although it takes el (stressed a): el agua fría, las aguas.`,
+    `Drop -ar, -er or -ir and add the ending that says who. hablar (to speak): ${row("hablar")}. comer (to eat): ${row("comer")}. vivir (to live): ${row("vivir")}. -er and -ir differ only in nosotros and vosotros. The present also covers 'I am eating'. Mind the written accents: habláis, coméis. el agua is feminine although it takes el (stressed a): el agua fría, las aguas.`,
     [["Como pan y bebo agua.", "I eat bread and drink water."], ["¿Hablas alemán?", "Do you speak German?"], ["Vivimos en Ginebra.", "We live in Geneva."]]], [
     ["comer", "to eat", "Yo como pan y queso.", "I eat bread and cheese.", "Spain: comer is also 'to have lunch'; la comida = lunch"],
     ["beber", "to drink", "Tú bebes agua.", "You drink water.", "Also tomar; LatAm: tomar = to drink"],
@@ -162,9 +162,9 @@ const UNITS = [
     ["ir", "to go", "Voy a la estación.", "I am going to the station.", "vamos = we go and let's go"],
     ["hay", "there is, there are", "Hay un banco aquí.", "There is a bank here.", "Never plural: hay tres hoteles"],
     ["dónde", "where", "¿Dónde está el hotel?", "Where is the hotel?", "adónde = to where: ¿adónde vas?"],
-    ["la ciudad", "the city", "Madrid es una ciudad grande.", "Madrid is a big city.", "Plural ciudades; Fr. cité, De. Stadt"],
+    ["la ciudad", "the city", "Madrid es una ciudad grande.", "Madrid is a big city.", "Plural ciudades; Fr. ville, De. Stadt"],
     ["la calle", "the street", "El hotel está en la calle.", "The hotel is on the street.", "la carretera = the road; la avenida = the avenue"],
-    ["la estación", "the station", "La estación es grande.", "The station is big.", "Also the season: las cuatro estaciones; Fr. station"],
+    ["la estación", "the station", "La estación es grande.", "The station is big.", "Also the season: las cuatro estaciones; Fr. gare / saison, De. Bahnhof / Jahreszeit"],
     ["el aeropuerto", "the airport", "El aeropuerto está lejos de la ciudad.", "The airport is far from the city.", "Fr. aéroport, De. Flughafen"],
     ["el hotel", "the hotel", "El hotel es muy grande.", "The hotel is very big."],
     ["el banco", "the bank; the bench", "El banco está en la calle.", "The bank is on the street.", "Also a bench or a shoal; el banco de datos = data bank"],
@@ -237,7 +237,7 @@ const UNITS = [
     ["el cliente", "the client, customer", "El cliente quiere un descuento.", "The client wants a discount.", "Fr. client, De. Kunde"],
     ["el contrato", "the contract", "El contrato es para el cliente.", "The contract is for the client.", "Fr. contrat, De. Vertrag"],
     ["la reunión", "the meeting", "La reunión es el lunes a las ocho.", "The meeting is on Monday at eight.", "Not 'reunion'; De. Besprechung, Fr. réunion"],
-    ["el pedido", "the order (goods)", "El pedido llega el viernes.", "The order arrives on Friday.", "from pedir (to ask for); la orden = a command, not a business order"],
+    ["el pedido", "the order (goods)", "El pedido llega el viernes.", "The order arrives on Friday.", "from pedir (to ask for); orden = a command or tidiness; LatAm also orden de compra"],
     ["enviar", "to send", "Voy a enviar la factura.", "I am going to send the invoice.", "envío, envías: the í carries the stress; Spain also mandar; el envío = the shipment"],
     ["firmar", "to sign", "El cliente va a firmar el contrato.", "The client is going to sign the contract.", "la firma = the signature, not the firm (that is la empresa)"],
     ["entregar", "to deliver; to hand over", "Voy a entregar el pedido el viernes.", "I am going to deliver the order on Friday.", "Fr. livrer, De. liefern"],
@@ -261,7 +261,7 @@ const UNITS = [
     ["empezar", "to begin", "La reunión empezó a las ocho.", "The meeting began at eight.", "empecé: z → c; e → ie: empiezo"],
     ["terminar", "to finish", "La reunión terminó tarde.", "The meeting finished late.", "Fr. terminer, but also 'to end up': terminé por pagar"],
     ["llamar", "to call", "Ayer llamé al cliente.", "Yesterday I called the client.", "llamar por teléfono; llamarse = to be called"],
-    ["esperar", "to wait; to hope", "Esperé una hora.", "I waited an hour.", "Not 'to expect' only: esperar = wait for, hope. Fr. espérer, De. hoffen, warten"],
+    ["esperar", "to wait; to hope", "Esperé una hora.", "I waited an hour.", "Wait, hope or expect: esperar el tren, espero que sí. Fr. espérer, De. hoffen, warten"],
     ["anoche", "last night", "Anoche llegué tarde.", "Last night I arrived late.", "ayer por la noche is the same"],
     ["ya", "already; now", "Ya pagué la factura.", "I have already paid the invoice.", "ya no = no longer"],
     ["después", "afterwards; after", "Después llamé al jefe.", "Afterwards I called the boss.", "después de comer = after eating"],
@@ -277,7 +277,7 @@ const UNITS = [
   unit(12, "Antes", ["The imperfect, and imperfect against preterite",
     `The imperfect describes how things were or used to be, with no end in view. hablar: ${row("hablar", "imp")}. comer (vivir the same): ${row("comer", "imp")}. Only three verbs are irregular: ser: ${row("ser", "imp")}; ir: ${row("ir", "imp")}; ver: ${row("ver", "imp")}. Use it for habits (todos los días comía en casa), descriptions (la casa era grande), age and time, and the background of a story. The preterite is the event that happens or interrupts: Mientras comía, llegó el jefe (I was eating; the boss arrived). Imperfect signals: siempre, nunca, a veces, todos los días, mientras. Preterite signals: ayer, de repente, una vez. Some verbs change meaning: conocía (I knew) against conocí (I met); quería (I wanted) against quise (I tried; with no, I refused).`,
     [["Antes vivía en Múnich.", "I used to live in Munich."], ["Mientras comía, llegó el jefe.", "While I was eating, the boss arrived."], ["La casa era grande.", "The house was big."]]], [
-    ["vivir", "to live", "Vivimos en una casa grande.", "We live in a big house.", "vida = life; vivo = I live or alive"],
+    ["vivir", "to live", "Vivimos en una casa grande.", "We live in a big house.", "vida = life; vivo = I live, or alive"],
     ["la casa", "the house; home", "La casa era grande.", "The house was big.", "en casa = at home; a casa = (to) home"],
     ["la familia", "the family", "La familia vivía en Madrid.", "The family lived in Madrid.", "familiar = family or familiar (well known)"],
     ["el padre", "the father", "El padre trabajaba en el puerto.", "The father worked at the port.", "los padres = parents, not fathers; Fr. père"],
@@ -332,7 +332,7 @@ const UNITS = [
     ["preferir", "to prefer", "Prefiero el tren.", "I prefer the train.", "e → ie: prefiero; Fr. préférer"],
     ["entender", "to understand", "No entiendo.", "I do not understand.", "e → ie: entiendo; intentar = to try, not 'to intend'"],
     ["repetir", "to repeat", "¿Puede repetir, por favor?", "Can you repeat that, please?", "e → i: repito"],
-    ["de acuerdo", "agreed; OK", "Sí, de acuerdo.", "Yes, agreed.", "estar de acuerdo = to agree; Spain: vale; LatAm: dale, listo, bueno"],
+    ["de acuerdo", "agreed; OK", "Sí, de acuerdo.", "Yes, agreed.", "estar de acuerdo = to agree; Spain: vale; LatAm: dale, listo, ok"],
     ["por supuesto", "of course", "¿Puede enviar la factura? Por supuesto.", "Can you send the invoice? Of course.", "Spain also desde luego, claro"],
     ["claro", "clear; of course", "Claro que sí.", "Of course.", "claro que no = of course not; claro is also light (colour)"],
     ["sin embargo", "however", "El precio es bueno; sin embargo, la entrega es tarde.", "The price is good; however, the delivery is late.", "Not 'without embargo': it means nevertheless. el embargo = embargo, seizure"],
