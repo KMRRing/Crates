@@ -54,10 +54,8 @@ export const ROUNDS = {
   // Idle: the game over, as each says it
   heliograph: "a game over",
   shunt: "a game over",
-  polder: "a game over",
   topple: "a game over (in Levels, the level's)",
   orrery: "a game over",
-  avalanche: "a game over",
   netting: "a game over",
   ingot: "a game over (no swipe left, or ended by hand)",
   settle: "a game over",
@@ -101,7 +99,7 @@ export const LEFT_OUT = {
   // the Appendix (Korbi, 3 November 2026: it stays out of Random and of Start a game over): set aside until each leaves for an
   // app of its own, so Random never sends you there; the games keep their roundOver calls, which do nothing meanwhile
   blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
-  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX,
+  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, polder: APPENDIX, avalanche: APPENDIX,
   odds: "a course of lessons, not a game with rounds",
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   ledger: "the record of how well you learn, not a game",

@@ -657,11 +657,11 @@ export const APPS = [
   // Idle: as much thinking as a bubble shooter, and no more (README, Idle)
   { id: "heliograph", sec: "idle", name: "Heliograph", href: "./heliograph.html", logo: LOGO("heliograph", HELIOGRAPH_LOGO), players: [1, 1] },
   { id: "shunt", sec: "idle", name: "Shunt", href: "./shunt.html", logo: LOGO("shunt", SHUNT_LOGO), players: [1, 1] },
-  { id: "polder", sec: "idle", name: "Polder", href: "./polder.html", logo: LOGO("polder", POLDER_LOGO), players: [1, 1] },
+  { id: "polder", sec: "appendix", name: "Polder", href: "./polder.html", logo: LOGO("polder", POLDER_LOGO), players: [1, 1] },
   { id: "topple", sec: "idle", name: "Topple", href: "./topple.html", logo: LOGO("topple", TOPPLE_LOGO), players: [1, 1] },
   { id: "columbiad", sec: "idle", name: "Columbiad", href: "./columbiad.html", logo: LOGO("columbiad", COLUMBIAD_LOGO), players: [1, 1] },
   { id: "orrery", sec: "idle", name: "Orrery", href: "./orrery.html", logo: LOGO("orrery", ORRERY_LOGO), players: [1, 1] },
-  { id: "avalanche", sec: "idle", name: "Avalanche", href: "./avalanche.html", logo: LOGO("avalanche", AVALANCHE_LOGO), players: [1, 1] },
+  { id: "avalanche", sec: "appendix", name: "Avalanche", href: "./avalanche.html", logo: LOGO("avalanche", AVALANCHE_LOGO), players: [1, 1] },
   { id: "netting", sec: "idle", name: "Netting", href: "./netting.html", logo: LOGO("netting", NETTING_LOGO), players: [1, 1] },
   { id: "settle", sec: "idle", name: "Settle", href: "./settle.html", logo: LOGO("settle", SETTLE_LOGO), players: [1, 1] },
   { id: "drift", sec: "idle", name: "Drift", href: "./drift.html", logo: LOGO("drift", DRIFT_LOGO), players: [1, 1] },
