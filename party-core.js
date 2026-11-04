@@ -192,6 +192,7 @@ export const ELSEWHERE = [
   { id: "banquet", name: "Banquet", kind: "table", page: "banquet.html", max: 2, blurb: "划拳 and 十五二十, the hand games of a banquet table." },
   { id: "gammon", name: "Backgammon", kind: "table", page: "gammon.html", max: 2, blurb: "Backgammon: a match, with the doubling cube." },
   { id: "flank", name: "Reversi", kind: "table", page: "flank.html", max: 2, blurb: "Reversi: close a line of discs and they all turn." },
+  { id: "carrom", name: "Carrom", kind: "table", page: "carrom.html", max: 2, blurb: "Carrom: flick the striker, pocket your colour and cover the queen." },
   { id: "silo", name: "Four in a row", kind: "table", page: "silo.html", max: 2, blurb: "Four in a row: drop discs into seven columns, first to line up four." },
   { id: "crown", name: "Draughts", kind: "table", page: "crown.html", max: 2, blurb: "Draughts: step and jump on the dark squares, a jump is compulsory, a man that reaches the far row is crowned." },
   { id: "tarot", name: "Tarot", kind: "table", page: "tarot.html", max: 5, blurb: "French tarot for three, four or five: bid, take the dog, call a king for a partner, win the points." },

@@ -11,7 +11,7 @@ import * as THREE from "./vendor/three.js";
 import { startSim, stepSim, firstContact, baseY, L, R, RS, PC, XR, MEN, STRIKER } from "./carrom-engine.js";
 
 const S = 0.01, DEG = Math.PI / 180, FOV = 30 * DEG;
-const FRAME = 0.5, FRAME_H = 0.16, SLAB = 0.34, MAN_H = 0.115, STRIKER_H = 0.13;
+const FRAME = 0.5, FRAME_H = 0.16, SLAB = 0.34, MAN_H = 0.14, STRIKER_H = 0.15;
 const STEPS_PER_MS = 0.12;                           // 120 steps a second, the pace a shot is played at
 const MAX_PER_FRAME = 10;
 const PULL_MIN = 34, PULL_MAX = 300;                 // board units: the finger's distance from the striker, where aiming starts and full power is
@@ -34,7 +34,7 @@ function soup(cap) {
   const p = new Float32Array(cap * 3), c = new Float32Array(cap * 4);
   const o = { p, c, n: 0, cap, clear() { o.n = 0; } };
   o.v = (x, y, z, col) => {
-    if (o.n >= cap) return;
+    if (o.n >= cap) { if (!o.full) { o.full = true; console.warn("carrom-3d: a mesh ran out of room"); } return; }
     p[o.n * 3] = x; p[o.n * 3 + 1] = y; p[o.n * 3 + 2] = z;
     c[o.n * 4] = col[0]; c[o.n * 4 + 1] = col[1]; c[o.n * 4 + 2] = col[2]; c[o.n * 4 + 3] = col[3] ?? 1;
     o.n++;
@@ -83,7 +83,7 @@ function lathe(profile, colours, segs = 30) {
       const a0 = (i / segs) * Math.PI * 2, a1 = ((i + 1) / segs) * Math.PI * 2, cs = [Math.cos(a0), Math.cos(a1)], sn = [Math.sin(a0), Math.sin(a1)];
       const P = (rr, yy, j) => [rr * cs[j], yy, rr * sn[j]], N = j => [nr * cs[j], ny, nr * sn[j]];
       const quad = [[P(r0, y0, 0), N(0)], [P(r1, y1, 0), N(0)], [P(r1, y1, 1), N(1)], [P(r0, y0, 1), N(1)]];
-      for (const idx of [0, 2, 1, 0, 3, 2]) { pos.push(...quad[idx][0]); nor.push(...quad[idx][1]); col.push(...colr); }
+      for (const idx of [0, 1, 2, 0, 2, 3]) { pos.push(...quad[idx][0]); nor.push(...quad[idx][1]); col.push(...colr); }
     }
   }
   const g = new THREE.BufferGeometry();
@@ -137,7 +137,7 @@ export function createScene(host, hooks = {}) {
   });
   board.add(slab, surfaceMesh, ...rails);
   scene.add(board);
-  const decals = soup(3000), decalMesh = new THREE.Mesh(new THREE.BufferGeometry(), decalMat);
+  const decals = soup(12000), decalMesh = new THREE.Mesh(new THREE.BufferGeometry(), decalMat);
   decalMesh.frustumCulled = false; decalMesh.renderOrder = 1;
   scene.add(decalMesh);
   function drawDecals() {
@@ -190,7 +190,7 @@ export function createScene(host, hooks = {}) {
   shadows.instanceMatrix.setUsage(DYNAMIC); shadows.frustumCulled = false; shadows.renderOrder = 2;
   scene.add(shadows);
 
-  const aim = soup(2400), aimMesh = new THREE.Mesh(new THREE.BufferGeometry(), aimMat);
+  const aim = soup(6000), aimMesh = new THREE.Mesh(new THREE.BufferGeometry(), aimMat);
   const aimGeo = new THREE.BufferGeometry();
   aimGeo.setAttribute("position", new THREE.Float32BufferAttribute(aim.p, 3));
   aimGeo.setAttribute("color", new THREE.Float32BufferAttribute(aim.c, 4));
@@ -352,7 +352,7 @@ export function createScene(host, hooks = {}) {
     const r = host.getBoundingClientRect();
     width = Math.max(1, Math.round(r.width)); height = Math.max(1, Math.round(r.height));
     renderer.setSize(width, height, false);
-    homeEl = clamp(50 * DEG + (width / height - 0.7) * 28 * DEG, 52 * DEG, 76 * DEG);     // a wide room looks down more steeply
+    homeEl = (width / height > 1.1 ? 74 : 70) * DEG;                 // as steep as still looks like a table: the steeper, the larger the board in the room
     fit();
     wake();
   }

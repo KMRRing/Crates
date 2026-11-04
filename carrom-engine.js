@@ -8,7 +8,7 @@
 // is body 19 while a shot runs. A man is on the table (st 0) or down in a pocket (st > 0, the order it went down in).
 
 export const L = 500;                              // half the board
-export const R = 22, RS = 28;                      // a man's radius, the striker's
+export const R = 26, RS = 34;                      // a man's radius, the striker's
 export const PC = 486, PR = 46;                    // the pockets' centres (±PC, ±PC) and how near a body's centre goes down
 export const BASE = 380;                           // a baseline's distance from the middle (seat 0's at -BASE, seat 1's at +BASE)
 export const XR = 290;                             // how far along a baseline the striker's centre may be put

@@ -82,6 +82,7 @@ export const ROUNDS = {
   gammon: "a game (a point or more of the match)",
   flank: "a game",
   silo: "a game",
+  carrom: "a game",
   crown: "a game",
   go: "a game",
   tarot: "a deal",

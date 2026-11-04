@@ -46,6 +46,7 @@ export const GAMES = {
   banquet: { name: "Banquet", page: "./banquet.html" },
   gammon: { name: "Backgammon", page: "./gammon.html" },
   silo: { name: "Four in a row", page: "./silo.html" },
+  carrom: { name: "Carrom", page: "./carrom.html" },
   crown: { name: "Draughts", page: "./crown.html" },
   jass: { name: "Jass", page: "./trumps.html" },
   belote: { name: "Belote", page: "./trumps.html" },

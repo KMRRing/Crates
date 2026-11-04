@@ -131,7 +131,7 @@ function seatRow(v, seat) {
   const held = s.queen === 2 && s.qs === seat, pend = s.queen === 1 && s.qs === seat;
   const queen = `<i class="ca-pip q${held ? " held" : pend ? " held" : " gone"}" title="Queen"></i>`;
   const left = leftOf(s, seat).length;
-  return `<span class="ca-swatch ${c}"></span><span class="ca-name">${esc(who(seat))}<small>${NAME[seat].toLowerCase()} · ${left} left</small></span><span class="ca-men" role="img" aria-label="${left} of 9 men left${held ? ", has the queen" : ""}">${pips}${queen}</span>`;
+  return `<span class="ca-swatch ${c}"></span><span class="ca-name">${esc(who(seat))}<small>${NAME[seat].toLowerCase()}</small></span><span class="ca-men" role="img" aria-label="${left} of 9 men left${held ? ", has the queen" : ""}">${pips}${queen}</span>`;
 }
 function describeLast(v) {
   const s = v.state, l = s.last;
@@ -156,9 +156,9 @@ function statusHtml(v) {
   if (v.over) ask = `<b>${esc(who(s.winner))}</b> ${isMe(s.winner) && !hotseat() ? "clear" : "clears"} the board: ${s.points} point${s.points === 1 ? "" : "s"}.`;
   else if (animating) ask = "&nbsp;";
   else if (canShoot(v)) {
-    if (hotseat()) ask = `<b>${esc(nameOf(v.toMove))}</b>: slide along your baseline, pull back to shoot`;
+    if (hotseat()) ask = `<b>${esc(nameOf(v.toMove))}</b>: slide the striker, pull back to shoot`;
     else if (s.queen === 1 && s.qs === v.toMove) ask = "<b>Cover the queen</b>: pocket one of your men";
-    else ask = s.last && s.last.seat === v.toMove && !s.last.foul && s.last.pocketed?.length ? "<b>Shoot again</b>: pull back from the striker" : "<b>Your shot</b>: slide along the baseline, pull back from the striker";
+    else ask = s.last && s.last.seat === v.toMove && !s.last.foul && s.last.pocketed?.length ? "<b>Shoot again</b>: pull back from the striker" : "<b>Your shot</b>: slide the striker, pull back to shoot";
   } else ask = v.seats?.[v.toMove]?.bot ? `<b>${esc(nameOf(v.toMove))}</b> <span class="ca-dots">is lining up a shot</span>` : `<b>${esc(nameOf(v.toMove))}</b> is to shoot`;
   return `<span>${ask}</span><span class="last">${last || "&nbsp;"}</span>`;
 }
