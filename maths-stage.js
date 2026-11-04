@@ -307,6 +307,11 @@ export function mathsStage() {
       const S = ws(st), w = s.w;
       if (!w) return;
       if (w.goal?.p) S.p = { ...S.p, ...w.goal.p };
+      else if (w.goal?.e) {                               // an expression to reach: the nearest slider position, by search
+        const [k, p] = Object.entries(w.params)[0];
+        let best = Infinity;
+        for (let v = p.min; v <= p.max + 1e-9; v += p.step) { const d = Math.abs(ev(w.goal.e, { ...S.p, [k]: v }) - w.goal.v); if (d < best) { best = d; S.p = { ...S.p, [k]: Math.round(v / p.step) * p.step }; } }
+      }
       if (w.kind === "riemann") S.n = w.goal.show ?? w.n?.max ?? 60;
       if (w.kind === "taylor") S.deg = w.goal.show ?? w.deg?.max ?? 8;
       if (w.kind === "epsdelta") S.delta = Math.max(0.01, Math.round(bestDelta(w) * 90) / 100);

@@ -106,6 +106,7 @@ export const LEFT_OUT = {
   blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
   sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, polder: APPENDIX, avalanche: APPENDIX,
   odds: "a course of lessons, not a game with rounds",
+  maths: "a course of lessons, not a game with rounds",
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   ledger: "the record of how well you learn, not a game",
   party: "a room for people round a table, each on their own phone",
