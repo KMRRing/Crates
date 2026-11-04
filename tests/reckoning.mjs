@@ -1,6 +1,7 @@
 // Courier's rules (reckoning-engine.js) and its feel (reckoning-move.js): the jump, the five ways a swipe attacks (a foe in front, to the side, above,
 // the bonk and the slam), the wall run, the air chain over a pit, the question gate over the water, the quay from a seed
 // and a bot playing whole stretches of it (every kind of chunk is winnable with the swipes the rules give).
+import { bot } from "./reckoning-bot.js";
 import { RunLog, describe } from "../reckoning-log.js";
 import { Spring, Inertia, Streamer, CameraRig } from "../reckoning-move.js";
 import { MAX_QUESTION, MAX_ANSWER, load, dealer } from "../reckoning-questions.js";
@@ -822,65 +823,6 @@ const events = S => take(S).map(e => e.type);
 }
 
 // ---------- a bot plays the quay ----------
-/** Plays the way the rules ask: the lane first, then the swipe at the right moment. Returns what it did. */
-function bot(S, st) {
-  const h = S.hero, v = speed(S), W = S.world;
-  if (h.lunge || S.pending.length) return;
-  const ttc = z => (z - h.z) / v;
-  if (S.t < st.next) return;
-  const act = (dir, wait = 0.05) => { swipe(S, dir); st.next = S.t + wait; (st.log ||= []).push(`${S.t.toFixed(2)}:${dir}@l${h.lane},y${h.y.toFixed(1)}`); if (st.log.length > 8) st.log.shift(); };
-  // the wall: an outer lane and a swipe into it, a wall jump near its end
-  if (h.mode === "wall") {
-    const w = W.walls.find(w => w.side === h.wall);
-    const pit = W.pits.find(p => p.z1 > h.z - 1 && p.z0 < w.z1);
-    if (w && h.z > w.z1 - 1.6 && W.foes.some(f => f.alive && f.y <= 0.3 && f.z > w.z1 && f.z < w.z1 + 14)) return act("up");
-    return;
-  }
-  if (st.slamAfter && h.mode === "air" && h.y > SLAM_MIN_Y && h.vy < 0 && h.z > st.slamAfter) { st.slamAfter = 0; return act("down"); }
-  // a gull one lane over that has wound up is about to dive: a roll goes under it (and a run of them leaves no gap)
-  const dive = W.foes.find(f => f.alive && !f.spent && f.kind === "gull" && !f.gate && f.ph >= 2 && ttc(f.z) > -0.1 && ttc(f.z) < 0.2 && Math.abs(f.lane - h.lane) === 1);
-  if (dive && h.mode === "run" && !h.roll) return act("down");
-  // crabs
-  const f = W.foes.find(f => f.alive && !f.spent && f.kind === "crab" && ttc(f.z) > 0 && ttc(f.z) < 0.5 && Math.abs(f.lane - h.lane) <= 1);
-  if (f && h.mode === "run") {
-    if (f.lane === h.lane) { if (ttc(f.z) <= 0.2) return act("up"); }
-    else if (ttc(f.z) <= 0.4) return act(f.lane > h.lane ? "right" : "left");
-  }
-  const gate = W.gates.find(g => g.state === "open" && g.z > h.z - 1);
-  if (gate && ttc(gate.p0) < 1.5 && ttc(gate.z) > -0.3) {
-    const want = gate.q.a - 1;
-    if (h.lane !== want && ttc(gate.z) > 0.75) return act(want > h.lane ? "right" : "left", 0.05);
-    if (h.lane === want && ttc(gate.z) <= 0.5) return act("up");
-    return;
-  }
-  // a pit with gulls over it: the next one
-  const pit = W.pits.find(p => !p.gate && p.z1 > h.z && p.z0 - h.z < 30);
-  if (pit) {
-    const gulls = W.foes.filter(f => f.alive && f.kind === "gull" && f.z > pit.z0 && f.z < pit.z1 && f.z > h.z).sort((a, b) => a.z - b.z);
-    const g = gulls[0];
-    const wall = W.walls.find(w => w.z0 < pit.z1 && w.z1 > pit.z0);
-    if (wall) {
-      if (h.mode === "wall") return;
-      if (h.lane !== wall.side) return act(wall.side > h.lane ? "right" : "left", 0.05);
-      if (wall.z0 - h.z < 2.2) return act(wall.side > 0 ? "right" : "left");
-      return;
-    }
-    if (g) {
-      if (h.mode === "run" && h.lane !== g.lane && ttc(g.z) > 0.9) return act(g.lane > h.lane ? "right" : "left", 0.05);
-      if (h.lane === g.lane && h.mode === "air" && h.y - g.y > UP_ABOVE - 0.2) return ttc(g.z) <= 0.2 ? act("down") : undefined;      // too high above it to cut upwards: come down on it (a bonk)
-      if (h.lane === g.lane && ttc(g.z) <= 0.5 && (h.mode === "air" || ttc(pit.z0) < 0.35)) return act("up");
-      if (h.mode === "air" && h.lane !== g.lane && ttc(g.z) <= 0.5 && ttc(g.z) >= 0.12) return act(g.lane > h.lane ? "right" : "left");
-    }
-    return;
-  }
-  // walls without a pit (the slam): get to the side, run up, jump off near the end, dive on the crabs
-  const wall = W.walls.find(w => w.z1 > h.z && w.z0 - h.z < 40);
-  if (wall && h.mode === "run") {
-    if (h.lane !== wall.side) return act(wall.side > h.lane ? "right" : "left", 0.05);
-    if (wall.z0 - h.z < 2.2) { st.slamAfter = wall.z1 + 2.5; return act(wall.side > 0 ? "right" : "left"); }
-    return;
-  }
-}
 {
   const q = n => ({ id: `Q${n}`, bank: "test", q: "?", o: ["a", "b", "c"], a: n % 3, x: "", about: [] });
   const results = [];
