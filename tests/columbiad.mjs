@@ -113,8 +113,8 @@ const base = { id: "t", name: "t", target: { at: [0, 500], r: 0.1 }, scatter: { 
   const n = E.CONE_STEPS, w = k => rad(a.left[2 * k] - a.right[2 * k], a.left[2 * k + 1] - a.right[2 * k + 1]);
   const widths = Array.from({ length: n + 1 }, (_, k) => w(k));
   check(widths[0] < 0.01 && Math.max(...widths) > 0.05 && widths.every(Number.isFinite), `…is a point at the muzzle and swells to ${Math.max(...widths).toFixed(3)} Earth radii across (it narrows again where the lob comes down, ${w(n).toFixed(3)} at the landing: a falling shell lands within a narrow range)`);
-  const still = E.cone({ ...lvl, scatter: { v: 0, deg: 0 } }, aim);
-  check(still.left.every((v, i) => Math.abs(v - still.right[i]) < 1e-12), "…and with no scatter it is a line");
+  const sp = E.previewSpread({ ...lvl, scatter: { v: 0, deg: 0 } }), big = E.previewSpread({ ...lvl, scatter: { v: 0.05, deg: 3 } });
+  check(sp.v > 0 && sp.deg > 0 && big.v >= 0.2 && big.deg >= 12 && E.previewSpread(lvl).deg >= lvl.scatter.deg * 4, "…the preview is blurred well beyond the real scatter, and even a level with none still gets a spray (a line that exact solves the level)");
   const t0 = performance.now();
   for (let i = 0; i < 10; i++) E.cone(LEVELS[3], { angle: 160 + i, charge: 11 });
   const ms = (performance.now() - t0) / 10;

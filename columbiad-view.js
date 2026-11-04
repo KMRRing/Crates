@@ -208,38 +208,19 @@ export function createView(canvas, hooks = {}) {
       ctx.beginPath(); ctx.moveTo(X - s, Y - s); ctx.lineTo(X + s, Y + s); ctx.moveTo(X + s, Y - s); ctx.lineTo(X - s, Y + s); ctx.stroke();
     });
   }
+  // The preview suggests where the shot goes and does not solve it (Korbi, 4 November 2026): a spray of dots, each on one of the sample
+  // shells at its station (the shells are perturbed far more than a real shot, engine `previewSpread`), so the further they go the more they scatter;
+  // they swell and fade. Chosen over a cone, a soft band and a fan of lines: a line of any kind still reads as the answer.
+  const hash01 = i => { let h = Math.imul(i + 1, 0x9E3779B1); h ^= h >>> 15; h = Math.imul(h, 0x85EBCA6B); h ^= h >>> 13; return (h >>> 0) / 4294967296; };
   function coneBand() {
     if (!cone || coneAlpha <= 0.01) return;
-    const c = cone, n = c.centre.length / 2, a = coneAlpha;
+    const c = cone, n = c.centre.length / 2;
     if (n < 2) return;
-    const X0 = sx(c.centre[0]), Y0 = sy(c.centre[1]), X1 = sx(c.centre[2 * n - 2]), Y1 = sy(c.centre[2 * n - 1]);
-    // one gradient along the shot, from a faint tint at the pad to nothing at the far end (no closing rule, no hard edge)
-    const along = (alpha, hi) => {
-      const g = ctx.createLinearGradient(X0, Y0, X1, Y1), col = hi ? BRASS_HI : BRASS;
-      g.addColorStop(0, `rgba(${col},${alpha * a})`); g.addColorStop(0.45, `rgba(${col},${alpha * 0.55 * a})`); g.addColorStop(1, `rgba(${col},0)`);
-      return g;
-    };
-    // the fan's sides are feathered by stacking narrower and narrower copies, so the middle is the strongest and the edge dies away
-    const LAYERS = 7;
-    for (let w = 1; w > 0.1; w -= 1 / LAYERS) {
-      ctx.beginPath();
-      for (let k = 0; k < n; k++) {
-        const cx = c.centre[2 * k], cy = c.centre[2 * k + 1];
-        const X = sx(cx + (c.left[2 * k] - cx) * w), Y = sy(cy + (c.left[2 * k + 1] - cy) * w);
-        if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
-      }
-      for (let k = n - 1; k >= 0; k--) {
-        const cx = c.centre[2 * k], cy = c.centre[2 * k + 1];
-        ctx.lineTo(sx(cx + (c.right[2 * k] - cx) * w), sy(cy + (c.right[2 * k + 1] - cy) * w));
-      }
-      ctx.closePath();
-      ctx.fillStyle = along(0.12, false); ctx.fill();
+    for (let k = 1; k < n; k++) for (let m = 0; m < 3; m++) {
+      const sh = c.shells[Math.floor(hash01(k * 7 + m) * c.shells.length)], f = Math.pow(1 - k / (n - 1), 1.3), r = (1.1 + 2.6 * (k / n)) * u;
+      ctx.fillStyle = `rgba(${BRASS_HI},${(0.7 * f + 0.03) * coneAlpha * (m ? 0.6 : 1)})`;
+      ctx.beginPath(); ctx.arc(sx(sh[2 * k]), sy(sh[2 * k + 1]), r, 0, 6.2832); ctx.fill();
     }
-    // the dotted centre line is the one crisp thing, and it fades out with the fan
-    ctx.save();
-    ctx.setLineDash([3 * u, 5 * u]); ctx.lineCap = "round"; ctx.lineWidth = 1.7 * u; ctx.strokeStyle = along(0.95, true);
-    polyline(c.centre); ctx.stroke();
-    ctx.restore();
   }
   /** Where a shot leaves: the pad, a point on the Earth's rim at the level's site. */
   function padWorld() {

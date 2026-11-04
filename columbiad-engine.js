@@ -361,8 +361,8 @@ export function clampAim(lvl, aim) {
   return { angle: Math.round(angle * 100) / 100, charge: Math.round(Math.round(c / CHARGE_STEP) * CHARGE_STEP * 100) / 100 };
 }
 /** Where a shot starts and how fast it goes: the aim, with its speed and angle perturbed by the draws g = [g1, g2] (0, 0 for none). */
-export function muzzle(lvl, aim, g = [0, 0], t = 0) {
-  const sc = lvl.scatter || { v: 0, deg: 0 }, site = lvl.site ?? 90;
+export function muzzle(lvl, aim, g = [0, 0], t = 0, spread = null) {
+  const sc = spread || lvl.scatter || { v: 0, deg: 0 }, site = lvl.site ?? 90;
   const v = dialSpeed(lvl, aim.charge) * (1 + sc.v * g[0]), re = worldOf(lvl).re;
   unit(site / 360);
   const bx = re * UX, by = re * UY;
@@ -380,13 +380,19 @@ export function shoot(lvl, mv, g = [0, 0], o = {}) {
 export const CONE_SHELLS = 24, CONE_STEPS = 64;
 const CONE_SEED = 0xC01D;
 export const CONE_DRAWS = Array.from({ length: CONE_SHELLS }, (_, i) => [normal(CONE_SEED, 24 * i), normal(CONE_SEED, 24 * i + 12)]);
+/** How much the preview blurs the aim: a level's own scatter is too small to see, and a line that exact solves the level for the player
+ *  (Korbi, 4 November 2026), so the preview's shells are perturbed several times more than a real shot (the shot itself is not). */
+export function previewSpread(lvl) {
+  const sc = lvl.scatter || { v: 0, deg: 0 };
+  return { v: Math.max(sc.v * 4, 0.01), deg: Math.max(sc.deg * 4, 0.7) };
+}
 /**
  * The preview for an aim fired at time t: the central path and the band the scatter makes round it, for the first
  * `len` Earth radii of the level's cone (else the whole flight). { centre (x, y pairs), left, right (x, y pairs), end
  * ("through", "impact"...), t1 (how long the band is), over (the central shell's end) }.
  */
 export function cone(lvl, aim, t = 0, len = lvl.cone?.len ?? 4) {
-  const a = clampAim(lvl, aim), mid = fly(lvl, muzzle(lvl, a, [0, 0], t), { record: lvl.cone?.rec ?? 0.02, dtMax: lvl.cone?.dt });
+  const a = clampAim(lvl, aim), sp = previewSpread(lvl), mid = fly(lvl, muzzle(lvl, a, [0, 0], t), { record: lvl.cone?.rec ?? 0.02, dtMax: lvl.cone?.dt });
   // the time at which the central shell has travelled `len`
   let t1 = Math.max(mid.t - t, 1e-4), acc = 0;
   const p = mid.path;
@@ -400,7 +406,7 @@ export function cone(lvl, aim, t = 0, len = lvl.cone?.len ?? 4) {
   fly(lvl, muzzle(lvl, a, [0, 0], t), { sample: { out: c, n, t1 }, tMax: t1, dtMax: lvl.cone?.dt });
   for (const g of CONE_DRAWS) {
     const out = new Float64Array(2 * (n + 1));
-    fly(lvl, muzzle(lvl, a, g, t), { sample: { out, n, t1 }, tMax: t1, dtMax: lvl.cone?.dt });
+    fly(lvl, muzzle(lvl, a, g, t, sp), { sample: { out, n, t1 }, tMax: t1, dtMax: lvl.cone?.dt });
     shells.push(out);
   }
   // the band the shells' paths make round the central one: at each station of the central path, where the line across it is
