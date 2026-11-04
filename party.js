@@ -457,6 +457,8 @@ function openMenu() {
     else if (lan) play.append(action("Leave the party", () => table.leave().then(() => lan.leave()), "link"));
     else play.append(action("Leave the party", () => table.leave(), "link"));
   }
+  const view = (current()?.def || (!branch && here?.def))?.viewChoice?.();       // a game with a table to draw two ways (Cabal: flat or 3D)
+  if (view) part(body, "settings").append(choice(view.label, view.options, view.value, view.onChange));
   part(body, "about").append(line("Every phone shows each step of a game as it happens."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
