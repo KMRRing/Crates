@@ -9,7 +9,7 @@ import { createScene } from "./carrom-3d.js";
 import { seatPage } from "./seats-ui.js";
 import { applyMove } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, action, line, onPause } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
 import { seatRounds } from "./random.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sure } from "./sure.js";
@@ -22,10 +22,11 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 const FIRSTS = [["alternate", "Take turns"], ["white", "White"], ["black", "Black"]];
-let opts = { level: "medium", opponent: "computer", guide: "line", first: "alternate", ...read(OPTS, {}) };
+let opts = { level: "medium", opponent: "computer", guide: "line", first: "alternate", closeup: false, ...read(OPTS, {}) };
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";
 if (!FIRSTS.some(([k]) => k === opts.first)) opts.first = "alternate";
 if (opts.guide !== "off") opts.guide = "line";
+opts.closeup = opts.closeup === true;
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -247,6 +248,8 @@ function showRules() {
     <p>The queen must be covered: pocket her and, with the same shot or the very next, one of your own men. If you do not, she goes back to the middle. Pocketing your last man while the queen is still out puts that man back.</p>
     <h3>Winning</h3>
     <p>The first colour with all nine men down, whoever put them there, wins the board. Points are the other player's men left on the board, and three more for a queen you covered.</p>
+    <h3>Looking round</h3>
+    <p>Pinch or scroll to zoom, drag on the table to turn the board, two fingers to move it, and two quick taps to put it back (or Reset view in the menu). Close-up frames your baseline. A drag that starts on the striker or its baseline is always a shot, never the view.</p>
     <h3>Here</h3>
     <p>The computer plays by trying many shots in the same physics you play in and taking the best; the levels differ in how many it tries and how steady its hand is. The guide shows where the striker first touches and which way the man will go (Menu, Aim guide). Two on one phone turn the board to whoever is to shoot.</p>`;
   $("rulesDlg").showModal();
@@ -265,6 +268,8 @@ function openMenu() {
     if (opts.opponent === "computer") content.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   }
   const set = part(body, "settings");
+  set.append(toggle("Close-up on the striker", opts.closeup, v => { opts.closeup = v; saveOpts(); scene?.closeup(v); }));
+  set.append(action("Reset view", () => { opts.closeup = false; saveOpts(); scene?.resetView(); }, "link"));
   set.append(choice("Aim guide", [["line", "Line"], ["off", "Off"]], opts.guide, v => { opts.guide = v; saveOpts(); draw(); }));
   set.append(choice("Who breaks", FIRSTS, opts.first, v => { opts.first = v; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("carrom:streak", { now: 0, best: 0 });
@@ -282,12 +287,14 @@ $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 try {
   scene = createScene($("stage"), {
     slide, shoot: fire, aim: setPower, refuse: toast,
+    viewReset: () => { if (opts.closeup) { opts.closeup = false; saveOpts(); } },
     lost: () => { $("stage").innerHTML = '<p class="ca-none">The graphics were lost. Reload the page.</p>'; scene = null; },
   });
 } catch (e) {
   console.error(e);
   $("stage").innerHTML = '<p class="ca-none">Carrom is drawn in 3D, and this device cannot draw it.</p>';
 }
+scene?.closeup(opts.closeup, true);
 onPause(() => scene?.pause(), () => scene?.resume());
 const reskin = () => scene?.redraw();
 new MutationObserver(reskin).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
