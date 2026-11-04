@@ -5,19 +5,19 @@
 //
 // Browsers start audio only from a gesture, and Safari wants the resume() inside the gesture's own handler, so unlock()
 // listens for the first touch or key and makes the context there. A sound asked before that is silent, not queued.
-let ctx = null, master = null, on = true, hiss = null, last = 0;
+let ctx = null, master = null, on = true, hiss = null, last = -1, ready = false;   // ready: a gesture has been seen
 const pans = typeof StereoPannerNode !== "undefined";
 
 function audio() {
-  if (!on) return null;
+  if (!on || !ready) return null;
   if (!ctx) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
     try { ctx = new C(); } catch { return null; }
     const squash = ctx.createDynamicsCompressor();               // a riffle and a run of auto moves pile up; this keeps them from clipping
-    squash.threshold.value = -14; squash.ratio.value = 4; squash.attack.value = 0.002; squash.release.value = 0.1;
+    squash.threshold.value = -12; squash.ratio.value = 6; squash.attack.value = 0.002; squash.release.value = 0.1;
     master = ctx.createGain();
-    master.gain.value = 0.7;
+    master.gain.value = 3;                                          // the voices are written quiet (noise through a narrow filter has little energy); the squash above catches the peaks
     master.connect(squash).connect(ctx.destination);
   }
   if (ctx.state !== "running" && ctx.state !== "closed") ctx.resume().catch(() => {});   // an iPhone "interrupts" it too when the page was away
@@ -113,6 +113,7 @@ export function setOn(v) { on = !!v; }
 /** Makes the audio context from the first gesture (Safari starts it only inside one) and plays a silent buffer to open it. */
 export function unlock() {
   const go = () => {
+    ready = true;
     const c = audio(); if (!c) return;
     try { const s = c.createBufferSource(); s.buffer = c.createBuffer(1, 1, 22050); s.connect(c.destination); s.start(0); } catch { /* it is open anyway */ }
     if (c.state === "running") for (const e of ["pointerdown", "touchend", "keydown", "click"]) removeEventListener(e, go, true);

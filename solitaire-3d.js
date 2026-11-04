@@ -15,7 +15,7 @@ import * as THREE from "./vendor/three.js";
 import { CanvasTexture, SRGBColorSpace } from "./vendor/three-tex.js";
 
 const DEG = Math.PI / 180;
-export const FOV = 28 * DEG, TILT_MAX = 55, YAW_MAX = 14, ANGLED = 38;
+export const FOV = 18 * DEG, TILT_MAX = 55, YAW_MAX = 14, ANGLED = 36;   // a narrow lens: the table keeps its size when tilted, and a tall pile does not lean out of the picture
 const ASPECT = 1.4;                                   // a card is 1 wide and 1.4 high, as the 2D card is 2.5em by 3.5em
 const FRAME_MS = 1000 / 50;
 
@@ -39,9 +39,10 @@ export function project(P, p, aspect) {
   const v = sub(p, P.pos), z = dot(v, P.f), t = Math.tan(FOV / 2);
   return [dot(v, P.right) / z / (t * aspect), dot(v, P.up) / z / t, z];
 }
-/** The nearest camera distance at which the table's four corners (W by H) are all on screen. At no tilt that is exactly the distance at which a board pixel is a screen pixel. */
-export function fitDistance(W, H, tilt, yaw, aspect = W / H) {
+/** The nearest camera distance at which the table's four corners (W by H), and the same `up` higher (the tallest pile, a carried card), are all on screen. At no tilt and no `up` that is the distance at which a board pixel is a screen pixel. */
+export function fitDistance(W, H, tilt, yaw, aspect = W / H, up = 0) {
   const corners = [[-W / 2, 0, -H / 2], [W / 2, 0, -H / 2], [W / 2, 0, H / 2], [-W / 2, 0, H / 2]];
+  if (up) for (const [x, , z] of corners.slice()) corners.push([x, up, z]);
   const d0 = H / 2 / Math.tan(FOV / 2);
   const fits = d => { const P = poseOf(tilt, yaw, d); return corners.every(c => { const s = project(P, c, aspect); return s[2] > 0 && Math.abs(s[0]) <= 1.0001 && Math.abs(s[1]) <= 1.0001; }); };
   let lo = d0 * 0.5, hi = d0 * 3;
@@ -98,7 +99,7 @@ export function createView(host, opts = {}) {
   // ---------- state ----------
   let W = 0, H = 0, cw = 0, ch = 0, thick = 1, em = 16, dpr = Math.min(devicePixelRatio || 1, 2);
   let frame = null, held = false, shown = true, rafId = 0, lastDraw = 0, lastNow = 0;
-  let tilt = 0, yaw = 0, tTilt = 0, tYaw = 0, dist = 600, pose = null, camBusy = false;
+  let tilt = 0, yaw = 0, tTilt = 0, tYaw = 0, dist = 600, pose = null, camBusy = false, headroom = 0;
   let four = false, won = false, wonAt = 0;
   const cards = new Map();                 // uid → { mesh, shadow, rank, suit, tgt, cur, delay, ring }
   const slotMeshes = [], dropMeshes = [], hintMeshes = [], rings = new Map();
@@ -207,20 +208,23 @@ export function createView(host, opts = {}) {
     return m;
   }
   const dash = (c, on, off) => c.setLineDash([on, off]);
+  let shadowMats = [];
 
   // The picture sizes follow the card's, with room round it for a glow or a shadow.
   const PAD = 0.22;                                       // of a card's width, each side
+  const SH_W = 128, SH_H = 180, SH_IN = 28;               // the shadow picture: a blurred rounded rectangle, SH_IN from each edge
+  /** One shadow's own material (each card's is as dark as its height says), sharing the picture. */
   function shadowMat() {
-    const fresh = !mats.has("shadow");
-    const m = pictureMat("shadow", 128, 180, (c, w, h) => {
+    const base = pictureMat("shadow", SH_W, SH_H, (c, w, h) => {
       c.clearRect(0, 0, w, h);
       c.save();
       c.shadowColor = "rgba(0,0,0,1)"; c.shadowBlur = 22; c.shadowOffsetX = 1000;
       c.fillStyle = "#000";
-      rrect(c, 28 - 1000, 28, w - 56, h - 56, 9); c.fill();
+      rrect(c, SH_IN - 1000, SH_IN, w - 2 * SH_IN, h - 2 * SH_IN, 9); c.fill();
       c.restore();
     });
-    if (fresh) m.opacity = 0.34;
+    const m = new THREE.MeshBasicMaterial({ map: base.map, toneMapped: false, transparent: true, depthWrite: false, side: 2, opacity: 0.3 });
+    shadowMats.push(m);
     return m;
   }
   const frameBox = (c, w, h) => { const iw = w / (1 + 2 * PAD), ih = iw * ASPECT; return { x: (w - iw) / 2, y: (h - ih) / 2, w: iw, h: ih, e: iw / 2.5 }; };
@@ -315,7 +319,8 @@ export function createView(host, opts = {}) {
     badge = sheen = sparks = null; badgeKey = ""; spark = [];
     for (const t of tex.values()) t.texture.dispose();
     for (const m of mats.values()) m.dispose();
-    tex.clear(); mats.clear();
+    for (const m of shadowMats) m.dispose();
+    tex.clear(); mats.clear(); shadowMats = [];
   }
   /** The ring of a hint or a flash on one card. */
   function ringFor(key, kind) {
@@ -345,7 +350,10 @@ export function createView(host, opts = {}) {
     const grew = made && texW() !== texSize;
     W = f.W; H = f.H; cw = f.cw; ch = f.ch; em = cw / 2.5; thick = Math.max(0.6, cw * 0.016);
     if (!made || grew) make();
-    if (`${W}x${H}` !== sized) resize();
+    let tall = 0;
+    for (const p of f.pos.values()) if (p.h > tall) tall = p.h;
+    const room = (tall + 1) * thick + ch * 0.3;                        // the tallest pile, and a card carried over it, must stay in the picture
+    if (`${W}x${H}` !== sized || Math.abs(room - headroom) > thick * 3) { headroom = room; resize(); }
     const now = performance.now(), snap = f.instant || reduced;
     let flying = 0;
     if (f.deal && !reduced) for (const p of f.pos.values()) if (!p.stock) flying++;
@@ -384,7 +392,7 @@ export function createView(host, opts = {}) {
     if (Math.abs(tYaw - yaw) < 0.03) yaw = tYaw;
     camBusy = tilt !== tTilt || yaw !== tYaw;
     const aspect = W / H;
-    dist = fitDistance(W, H, tilt, yaw, aspect);
+    dist = fitDistance(W, H, tilt, yaw, aspect, headroom);
     pose = poseOf(tilt, yaw, dist);
     const near = dist * 0.1, top = near * Math.tan(FOV / 2), right = top * aspect;
     camera.projectionMatrix.makePerspective(-right, right, top, -top, near, dist * 4);
@@ -424,7 +432,7 @@ export function createView(host, opts = {}) {
     let best = -1, bestH = -1;
     for (const [uid, c] of cards) {
       const t = c.tgt; if (!t) continue;
-      const g = groundAt(pose, nx, ny, (t.e + 1) * thick);
+      const g = groundAt(pose, nx, ny, W / H, (t.e + 1) * thick);
       if (g && Math.abs(g.x - t.x) <= cw / 2 && Math.abs(g.z - t.z) <= ch / 2 && (t.e > bestH || (t.e === bestH && uid > best))) { best = uid; bestH = t.e; }
     }
     return best;
@@ -452,8 +460,8 @@ export function createView(host, opts = {}) {
   function burst(x, z, y) {
     if (reduced) return;
     for (let i = 0; i < 28; i++) {
-      const a = Math.random() * Math.PI * 2, s = (0.3 + Math.random() * 0.9) * cw * 1.5;
-      spark.push({ x, y, z, vx: Math.cos(a) * s, vy: (0.6 + Math.random() * 1.1) * cw * 1.8, vz: Math.sin(a) * s, life: 0, max: 0.7 + Math.random() * 0.5, size: cw * (0.05 + Math.random() * 0.06), spin: Math.random() * 6 });
+      const a = Math.random() * Math.PI * 2, s = (0.35 + Math.random() * 0.9) * cw * 3.2;
+      spark.push({ x, y, z, vx: Math.cos(a) * s, vy: (0.7 + Math.random() * 1.0) * cw * 3.4, vz: Math.sin(a) * s, life: 0, max: 0.7 + Math.random() * 0.5, size: cw * (0.06 + Math.random() * 0.07), spin: Math.random() * 6 });
     }
     if (spark.length > 56) spark.splice(0, spark.length - 56);
   }
@@ -463,7 +471,7 @@ export function createView(host, opts = {}) {
       const p = spark[i];
       p.life += dt;
       if (p.life >= p.max) { spark.splice(i, 1); continue; }
-      p.vy -= cw * 7 * dt; p.x += p.vx * dt; p.y = Math.max(0.5, p.y + p.vy * dt); p.z += p.vz * dt; p.vx *= 0.985; p.vz *= 0.985;
+      p.vy -= cw * 9 * dt; p.x += p.vx * dt; p.y = Math.max(0.5, p.y + p.vy * dt); p.z += p.vz * dt; p.vx *= 0.985; p.vz *= 0.985;
     }
     let n = 0;
     for (const p of spark) {
@@ -523,9 +531,12 @@ export function createView(host, opts = {}) {
       c.mesh.scale.set(cw, thick, cw);
       c.mesh.rotation.set(Math.PI * (1 - cur.flip), 0, 0);
       // its shadow lies on the table, or on the cards under a carried one; it is longer and fainter the higher the card is
-      const surface = dragged ? under : 0, h = Math.max(0, y - thick / 2 - surface), grow = 1.6 + h * 0.2;
+      // a card at rest on a pile adds only a little to the pile's shadow, one in the air (carried, sliding, turning) casts its own
+      const surface = dragged ? under : 0, h = Math.max(0, y - thick / 2 - surface), spread = 1.5 + h * 0.2;
       c.shadow.position.set(cur.x + jx + 0.5 + h * 0.28, surface + 0.2, cur.z + 0.9 + h * 0.5);
-      c.shadow.scale.set(cw + grow * 2 + 6, 1, ch + grow * 2 + 6);
+      c.shadow.scale.set((cw + spread * 2) / ((SH_W - 2 * SH_IN) / SH_W), 1, (ch + spread * 2) / ((SH_H - 2 * SH_IN) / SH_H));
+      const air = rise + hop;
+      c.shadow.material.opacity = air > 1.5 ? (dragged ? Math.max(0.2, 0.36 - air * 0.003) : 0.13) : cur.e > 0.5 ? 0.035 : 0.32;
       c.cx = cur.x + jx; c.cy = y; c.cz = cur.z;
     }
     // slots, the stock's count, rings, the places a carried card may go
@@ -637,10 +648,12 @@ export function createView(host, opts = {}) {
 
   readColours();
   return {
-    canvas, build, set, wake, pick, toTable, topOf, liftHeight, orbitBy, commit, preset, setCamera, hold, restyle, setFourColour, resize, dispose,
+    canvas, build, set, wake, pick, sparkle: (x, y, h = 12) => { burst(x + cw / 2 - W / 2, y + ch / 2 - H / 2, elev(h) + thick); wake(); }, toTable, topOf, liftHeight, orbitBy, commit, preset, setCamera, hold, restyle, setFourColour, resize, dispose,
     camera: () => ({ tilt: tTilt, yaw: tYaw }),
     /** For tests: the camera's state, and where a card's face is on the page. */
     get state() { return { tilt, yaw, dist, W, H, cards: cards.size, moving: camBusy || !!rafId }; },
+    /** Where a card is going (its middle, in board pixels, and how many cards up it lies), or null. */
+    placeOf(uid) { const t = cards.get(uid)?.tgt; return t ? { x: t.x + W / 2, y: t.z + H / 2, e: t.e } : null; },
     screenOf(uid) {
       const c = cards.get(uid);
       if (!c?.tgt || !pose) return null;
