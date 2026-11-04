@@ -695,17 +695,17 @@ function up(S) {
   });
   if (f) { startLunge(S, f, 0, f.y - gyOf(f) <= 0.3 ? "front" : "above"); return true; }
   if (grounded(h)) {
-    h.mode = "air"; h.vy = T.JUMP_V * loadFactor(S); h.roll = 0;
+    h.mode = "air"; h.vy = T.JUMP_V * loadFactor(S); h.roll = 0; h.jumpT = S.t;
     S.ev.push({ type: "jump" });
     return true;
   }
   if (h.mode === "air" && !h.jumps && h.coyote > S.t && h.vy <= 0) {   // a moment after the quay ended: still a ground jump
-    h.coyote = 0; h.vy = T.JUMP_V * loadFactor(S); h.roll = 0;
+    h.coyote = 0; h.vy = T.JUMP_V * loadFactor(S); h.roll = 0; h.jumpT = S.t;
     S.ev.push({ type: "jump" });
     return true;
   }
   if (h.mode === "air" && h.jumps > 0) {                          // a cut in the air gave my jump back: one more, from here
-    h.jumps = 0; h.slam = false; h.vy = Math.max(h.vy, T.JUMP_V * loadFactor(S));
+    h.jumps = 0; h.slam = false; h.vy = Math.max(h.vy, T.JUMP_V * loadFactor(S)); h.jumpT = S.t;
     S.ev.push({ type: "jump", air: true });
     return true;
   }
@@ -933,7 +933,8 @@ export function step(S, dt) {
     if (f.gate) continue;
     if (late(f)) {                                                  // it is hitting me, but a swipe at it still wins for LATE_WIN seconds
       if (targeted(h, f)) continue;                                 // (the swipe is not done yet: it cannot hurt me)
-      if (clashes(S, f)) { clash(S, f); continue; }
+      const cd = clashDir(S, f);
+      if (cd) { clash(S, f, cd.dir); continue; }
       if (h.hurt > 0) f.threat = null;
       else if (S.t - f.threat >= T.LATE_WIN) { f.threat = null; hit(S, f); if (S.over) return ev; }
       continue;
@@ -943,9 +944,10 @@ export function step(S, dt) {
     if (h.hurt > 0 || targeted(h, f)) continue;
     if (Math.abs(f.x - h.x) > (inert(f) ? 0.75 : f.ph === 3 ? HIT_X : LANE_W * 1.05)) continue;     // a launched foe hits where it aimed; the others, the lane they are in and the next
     if (KINDS[f.kind].air && h.roll > 0 && grounded(h)) continue;                  // a roll goes under a gull's dive
-    if (h.y < f.y + f.h - 0.15 && h.y + HERO_H > f.y + 0.1) {
-      if (clashes(S, f)) clash(S, f);
-      else if (inert(f) || T.LATE_WIN <= 0) hit(S, f);
+    const cd = clashDir(S, f), overlap = h.y < f.y + f.h - 0.15 && h.y + HERO_H > f.y + 0.1;
+    if (cd && (overlap || cd.jump)) { clash(S, f, cd.dir); continue; }      // (a jump attack meets it in the air, over its head: no overlap needed)
+    if (overlap) {
+      if (inert(f) || T.LATE_WIN <= 0) hit(S, f);
       else f.threat = S.t;
     }
     if (S.over) return ev;
@@ -1035,21 +1037,30 @@ function strike(S, f, how) {
   h.vy = how === "bonk" ? T.BONK_V : air ? T.CHAIN_V : T.HOP_V;
 }
 
-/** A foe lunging at me that I have just swiped into (4 November 2026, Korbi: "if I swipe into an enemy next to me that is lunging at me, they
- *  shouldn't then go through me, they should bounce back once we collide and die or lose their attack"). It counts when the foe has launched
- *  (`ph` 3), came from the side the swipe went to (any lane that way), and the swipe was at most CLASH_T ago, a sideways swipe that moved me
- *  (a cut, a lane change, a cut moved on). A roll alone does not count: 2 November, "rolling on a lane that the attacking enemy isn't on
- *  won't dodge their side lunges". */
+/** A foe lunging at me that I meet (4 November 2026, Korbi: "if I swipe into an enemy next to me that is lunging at me, they shouldn't then go
+ *  through me, they should bounce back once we collide and die or lose their attack"; then "rolling or jump attack -> knocks straight back; swipe
+ *  left -> knocks back and left; swipe right vice versa"). A launched foe (`ph` 3) is met by: a sideways swipe that moved me, at most CLASH_T ago,
+ *  towards the lane it came from or any lane beyond it (`dir` is the swipe's); a roll under way on the ground; or a jump started at most CLASH_T
+ *  ago, whichever lane it comes from (`dir` 0: straight back; a jump attack needs no overlap, it meets the foe over its head). A gull's dive is
+ *  still gone under by a roll, not cut. Returns `{ dir, jump }` or null. */
 export const CLASH_T = 0.3;
-const clashes = (S, f) => {
-  const w = S.hero.swipe;
-  return !!w && f.ph === 3 && !inert(f) && !f.gate && S.t - w.t <= CLASH_T && Math.sign(f.lane - w.from) === w.dir;
+const clashDir = (S, f) => {
+  const h = S.hero, w = h.swipe;
+  if (f.ph !== 3 || inert(f) || f.gate) return null;
+  if (w && S.t - w.t <= CLASH_T && Math.sign(f.lane - w.from) === w.dir) return { dir: w.dir, jump: false };
+  if (h.roll > 0 && grounded(h) && !isAir(f)) return { dir: 0, jump: false };
+  if (S.t - (h.jumpT ?? -9) <= CLASH_T) return { dir: 0, jump: true };
+  return null;
 };
 
+/** How far down the quay a knocked foe flies before it lands, and so how far ahead another foe can be knocked down by it. */
+export const KNOCK_Z = 7;
+
 /** The collision goes my way: a foe is knocked back and dies (a bruiser loses the attack and is thrown back), and I am not hurt. In the air it is an
- *  aerial kill: the chain and my jump back, as for any cut there. */
-function clash(S, f) {
-  const h = S.hero, dir = h.swipe.dir;
+ *  aerial kill: the chain and my jump back, as for any cut there. `dir` is the knock's side (0: straight back). The foe flies on to the next lane
+ *  that way; a foe standing there, within KNOCK_Z ahead of it, is knocked down too (50 points; a bruiser staggers). It never lands on me. */
+function clash(S, f, dir) {
+  const h = S.hero;
   f.threat = null;
   S.ev.push({ type: "clash", id: f.id, kind: f.kind, dir });
   if ((f.hp || 1) > 1) { stagger(S, f); return; }
@@ -1059,6 +1070,15 @@ function clash(S, f) {
   S.bonus += 100 + (air ? 50 * Math.min(S.chain, 8) : 0);
   S.ev.push({ type: "kill", id: f.id, kind: f.kind, how: "clash", chain: air ? S.chain : 0, x: f.x, y: f.y, z: f.z, dir });
   payout(S, f);
+  const lane = f.lane + dir;
+  for (const o of alive(S)) {
+    if (o.gate || inert(o) || o.lane !== lane || o.z < f.z || o.z > f.z + KNOCK_Z || o.y - gyOf(o) > 0.3) continue;
+    S.bonus += 50;
+    if ((o.hp || 1) > 1) { stagger(S, o); continue; }
+    o.alive = false; S.kills++;
+    S.ev.push({ type: "kill", id: o.id, kind: o.kind, how: "clash", chain: 0, x: o.x, y: o.y, z: o.z, dir, knocked: true });
+    payout(S, o);
+  }
 }
 
 /** What a thing broken by an attack gives: a barrel or a balloon, coins (they are credited at once and fly to the counter). */

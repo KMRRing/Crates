@@ -1,5 +1,5 @@
 // Courier's two rulings of 4 November 2026 (Korbi, "that felt wrong" flags from the Feel lab round; docs/courier.md): leaving a wall towards a foe is
-// the aerial cut a swipe in the air would make, and a foe lunging at me that I swipe into bounces off and dies (a bruiser loses the attack). Pure rules.
+// the aerial cut a swipe in the air would make, and a foe lunging at me that I swipe, roll or jump into bounces off and dies, knocked the way the move went (a bruiser loses the attack). Pure rules.
 import { T, setTune, resetTune } from "../reckoning-tune.js";
 import { newGame, swipe, step, take, speed, KINDS, LANE_W, WALL_Y } from "../reckoning-engine.js";
 
@@ -117,10 +117,63 @@ const until = (S, f, ttc) => { let n = 0; while ((f.z - S.hero.z) / speed(S) > t
   resetTune();
 }
 {
+  // 4 November, Korbi: "rolling or jump attack -> knocks straight back"
   narrow();
   const [S, f] = launched("crab", -1, 0);
   until(S, f, 0.3); sw(S, "down"); run(S, 1.2);
-  check(S.hearts === 2 && evs("clash").length === 0, "a roll alone is not a swipe into it: it still does not dodge a lunge from the side (2 November)");
+  const k = evs("kill").find(e => e.how === "clash");
+  check(!f.alive && S.hearts === 3 && k && k.dir === 0, "a roll into a crab lunging from the side kills it, I am not hurt, and it is knocked straight back (dir 0)");
+  resetTune();
+}
+{
+  narrow();
+  const [S, f] = launched("crab", 1, 0);
+  until(S, f, 0.3); sw(S, "up"); run(S, 1.2);
+  const k = evs("kill").find(e => e.how === "clash");
+  check(!f.alive && S.hearts === 3 && k && k.dir === 0, "a jump attack (up) at a crab lunging from the right kills it, straight back");
+  resetTune();
+}
+for (const [dir, from, name] of [[-1, -1, "left"], [1, 1, "right"]]) {
+  narrow();
+  const [S, f] = launched("crab", from, 0);
+  until(S, f, 0.06); sw(S, name); run(S, 1);
+  const k = evs("kill").find(e => e.how === "clash");
+  check(!f.alive && S.hearts === 3 && k && k.dir === dir, `a swipe ${name} knocks it back and ${name} (dir ${dir})`);
+  resetTune();
+}
+{
+  narrow();
+  const [S, f] = launched("crab", -1, 0, { heavy: true, hp: 2 });
+  until(S, f, 0.3); sw(S, "down"); run(S, 0.45);
+  check(f.alive && f.hp === 1 && f.ph !== 3 && S.hearts === 3 && f.z > S.hero.z + 3, "a roll into a lunging bruiser: it loses the attack and staggers back, wounded");
+  resetTune();
+}
+{
+  narrow();
+  const [S, f] = launched("gull", 1, 0);
+  until(S, f, 0.3); sw(S, "down"); run(S, 1);
+  check(f.alive && S.hearts === 3 && evs("clash").length === 0, "a roll still goes under a gull's dive (not a hit)");
+  resetTune();
+}
+{
+  // a foe knocked sideways takes down the one it lands on, a few metres on in the lane beyond
+  narrow();
+  const [S, f] = launched("crab", -1, 0);
+  until(S, f, 0.06);
+  const hit = foe(S, "crab", -1, 0, { z: f.z + 4 }), far = foe(S, "crab", -1, 0, { z: f.z + 30 }), mid = foe(S, "crab", 0, 0, { z: f.z + 4 });
+  hit.ph = 0; far.ph = 0; mid.ph = 0;
+  // the hero swipes left, the crab came from the left (lane -1): it flies on towards lane -2, which is out of the quay, so nothing
+  sw(S, "left"); run(S, 0.05);
+  check(hit.alive && far.alive && mid.alive, "knocked off the quay's edge there is nobody to take down");
+  resetTune();
+}
+{
+  narrow();
+  const S = scene(1), f = foe(S, "crab", 0, 1.6);
+  let n = 0; while (f.ph !== 3 && n++ < 4000) { step(S, DT); take(S); }
+  const mate = foe(S, "crab", -1, 0, { z: f.z + 3 }), far = foe(S, "crab", -1, 0, { z: f.z + 30 }), ahead = foe(S, "crab", 1, 0, { z: f.z + 3 });
+  until(S, f, 0.06); sw(S, "left"); run(S, 0.05);
+  check(!f.alive && !mate.alive && far.alive && ahead.alive && S.hearts === 3, "knocked left it lands on a foe in the lane beyond a few metres on and takes it down too; a far one or one in another lane is left");
   resetTune();
 }
 {

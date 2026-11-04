@@ -245,7 +245,7 @@ const events = S => take(S).map(e => e.type);
   S = scene({ hero: { lane: -1, x: -LANE_W } }); f = foeAt(S, "crab", 1, 0.25); run(S, 0.01); swipe(S, "down"); run(S, 1);
   check(f.alive && S.hearts === 3, "a roll cuts only what is in my lane (a foe two lanes across never hits)");
   S = scene(); f = foeAt(S, "crab", 1, 0.3); S.hero.lane = 0; run(S, 0.01); swipe(S, "down"); run(S, 1);
-  check(f.alive && S.hearts === 2, "and a foe in the next lane still hits a rolling hero");
+  check(!f.alive && S.hearts === 3, "and a foe in the next lane lunging into the lane I roll in is knocked back and dies (4 November: a roll clashes)");
   S = scene(); f = foeAt(S, "crab", 0, 0.2); run(S, 0.01); swipe(S, "down"); run(S, 0.05);
   check(S.hero.y === 0 && S.hero.mode === "run", "a roll keeps the hero on the planks (no hop after the cut)");
   S = scene(); swipe(S, "down"); run(S, ROLL_T + 0.05);
@@ -301,8 +301,10 @@ const events = S => take(S).map(e => e.type);
   check(S.hearts === 3 && f.ph === 0, "and before the launch it never launches at all");
   [S, f] = crab([[0.95, "right"]]);
   check(S.hearts === 2, "but in the last moment it is too late: it hits where it aimed");
+  [S, f] = crab([[0.5, "up"]]);
+  check(S.hearts === 3 && f.alive, "so does a jump over it, before it has launched");
   [S, f] = crab([[0.7, "up"]]);
-  check(S.hearts === 3 && f.alive, "so does a jump over it");
+  check(S.hearts === 3 && !f.alive, "and a jump just as it launches is a jump attack: it dies (4 November)");
 }
 
 // ---------- a gull one lane over dives on a hero on the ground ----------
@@ -388,7 +390,7 @@ const events = S => take(S).map(e => e.type);
   // a lunge from the next lane is not dodged by a roll
   const V = scene({ hero: { lane: 0 } }), c = foeAt(V, "crab", 1, 1.0);
   for (let t = 0; t < 1.6; t += 0.15) { swipe(V, "down"); run(V, 0.15); }
-  check(V.hearts === 2, "but a roll in a lane the crab is not on does not dodge its lunge: it hits me rolling");
+  check(V.hearts === 3 && !c.alive, "a roll in a lane the crab is not on no longer lets its lunge hit me: it clashes and dies (4 November, replacing 2 November)");
   const W = scene({ hero: { lane: 0 } }), g = foeAt(W, "gull", 1, 1.0);
   for (let t = 0; t < 1.6; t += 0.15) { swipe(W, "down"); run(W, 0.15); }
   check(W.hearts === 3 && g.alive, "while a gull's dive goes over a rolling hero");
@@ -484,7 +486,7 @@ const events = S => take(S).map(e => e.type);
   [S, f] = trial(3, 4, 1, 0.45, "right");
   check(f.alive && S.hero.lane === 1, "still going up, it is only a lane change");
   [S, f] = trial(7, -2, 1, 0.45, "right");
-  check(f.alive && S.hero.lane === 1, "too high above it to reach: only a lane change");
+  check(S.hero.lane === 1 && S.hearts === 3, "too high above it to reach: only a lane change (it dies later to the landing roll, not to a swoop)");
   [S, f] = trial(3, -2, -1, 0.45, "right");
   check(f.alive && S.hero.lane === 1, "the other way, a dodge");
   [S, f] = trial(3, -2, 1, 0.05, "right");

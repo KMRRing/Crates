@@ -138,7 +138,7 @@ function gull(swipes, extra = {}) {
     // the guard is gone: a swipe no longer protects against a foe beside me that is not its target
     const V = scene(-1), p = foe(V, "crab", 0, 0.085);
     run(V, 0.005); swipe(V, "up"); take(V); run(V, 1);
-    check(V.hearts === 2, "a swipe up in the lane beside a foe no longer guards me from it");
+    check(V.hearts === 3 && !p.alive, "a swipe up in the lane beside a lunging foe is a jump attack: it dies (4 November) and I am not hurt");
     const W = scene(0), c = foe(W, "crab", 1, 0.9);
     run(W, 0.005); swipe(W, "left"); take(W); run(W, 1.3);
     check(W.hero.guard === undefined, "(no guard is kept at all)");
