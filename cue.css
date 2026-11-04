@@ -73,3 +73,6 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cu
   #app.cue .cu-foot { position: absolute; left: 2.2rem; right: 2.2rem; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.1rem); min-height: 0; padding: 0; pointer-events: none; }
   #app.cue .cu-back { pointer-events: auto; }
 }
+
+/* the ticks mark three seconds on the bezel; a longer cooldown has no such marks */
+.cu-dial:not([data-count="3"]) .cu-ticks { display: none; }

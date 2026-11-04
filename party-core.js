@@ -22,6 +22,7 @@
 // reports with `show` is added.
 import undercover from "./party-undercover.js";
 import whoami from "./party-whoami.js";
+import cue from "./party-cue.js";
 import echo from "./party-echo.js";
 import decoy from "./party-decoy.js";
 import gauge from "./party-gauge.js";
@@ -37,7 +38,7 @@ import pewter from "./party-pewter.js";
 import beacon from "./party-beacon.js";
 
 /** The games, in the order the lobby lists them. */
-export const GAMES = [undercover, whoami, echo, decoy, gauge, fuse, snap, sketch, whispers, forger, gallery, hilo, coup, pewter, beacon];
+export const GAMES = [undercover, whoami, cue, echo, decoy, gauge, fuse, snap, sketch, whispers, forger, gallery, hilo, coup, pewter, beacon];
 export const gameById = id => GAMES.find(g => g.id === id) || null;
 
 /** A seeded generator (mulberry32): the same seed gives the same numbers, on every device and every retry. */

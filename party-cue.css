@@ -1,0 +1,33 @@
+/* Cue at a party (party-cue.js): the card as large as the room allows, the category and whose turn it is above it, the
+   countdown under it, Next below. Party's turquoise is the enamel, as in every Party game. */
+.pa-play[data-game="cue"] { display: flex; flex-direction: column; overflow: hidden; }
+.pcu { flex: 1 1 auto; min-height: 0; gap: .6rem; }
+.pcu-top { margin: 0; text-align: center; font-size: .8rem; color: var(--ink-soft); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); line-height: 1.5; }
+.pcu-top b { color: var(--pa-in); font-size: .95rem; }
+.pcu-card { flex: 1 1 auto; min-height: 6rem; container-type: size; display: grid; grid-template-rows: auto 1fr auto; align-items: center; justify-items: center; gap: .5rem;
+  padding: 1rem .9rem; box-sizing: border-box; text-align: center; border: 1px solid var(--tile-edge); border-radius: 8px; background: var(--sheet); position: relative; overflow: hidden; }
+html:not([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pcu-card { box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+.pcu-card p { margin: 0; }
+.pcu-kind { font-size: .82rem; font-weight: 800; color: var(--pa-in); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.16em * var(--track)); }
+.pcu-text { --fit: calc(92cqw / (var(--n, 8) * .62)); font-size: clamp(1.1rem, min(21cqmin, var(--fit)), 5.6rem); font-weight: 800; line-height: 1.12; overflow-wrap: anywhere; color: var(--ink); max-width: 100%; }
+.pcu-text.mid { font-size: clamp(1.1rem, min(11cqmin, var(--fit)), 2.7rem); }
+.pcu-text.long { font-size: clamp(1.1rem, min(8.5cqmin, var(--fit)), 2.1rem); font-weight: 700; }
+.pcu-card.blind .pcu-text { color: var(--pa-in); font-size: clamp(3rem, 30cqmin, 8rem); }
+.pcu-line { font-size: .9rem; color: var(--ink-soft); line-height: 1.35; }
+.pcu-card.ding::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0;
+  background: color-mix(in srgb, var(--pa-in) 15%, transparent); box-shadow: inset 0 0 0 4px var(--pa-in); animation: pcu-ding .9s ease-out; }
+@keyframes pcu-ding { 0%, 25% { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pcu-card.ding::before { animation: none; } }
+
+.pcu-dial { display: flex; align-items: center; gap: .7rem; min-height: 2rem; }
+.pcu-num { min-width: 2.6rem; font-size: 1.6rem; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.pcu-track { flex: 1 1 auto; height: .5rem; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.pcu-bar { display: block; height: 100%; background: var(--pa-in); }
+.pcu-dial[data-phase="read"] .pcu-bar { background: transparent; }
+.pcu-dial[data-phase="over"] .pcu-num { color: var(--pa-in); }
+.pcu-reveal { margin: 0; padding: .6rem .8rem; border-radius: 6px; background: var(--pa-soft); border-left: 3px solid var(--pa-in); line-height: 1.35; }
+.pcu-reveal[hidden] { display: none; }
+.pcu-step { display: flex; align-items: center; gap: .5rem; }
+.pcu-step span { flex: 1 1 auto; font-size: .9rem; color: var(--ink-soft); }
+.pcu-step .btn { min-width: 2.75rem; min-height: 2.5rem; margin: 0; padding: 0 .8rem; font-size: 1.2rem; }
+.pcu-wait { padding-top: 1rem; }
