@@ -393,13 +393,13 @@ html.watching-frame #app.full > .top { display: none; }                         
 #app.full.titled > .top .mark-btn { display: block; max-width: 100%; pointer-events: none; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #app.full.titled > .top :is(.mark-icon, .partner-pill, .rd-tag) { display: none !important; }
 #app.full.titled > .full-pull { margin-top: 0; min-height: 0; padding: 0; }
-/* The title's logo (menu.js, titleLogo; Korbi, 4 November 2026): the game's own logo, twice the title's cap height, above its
-   name at the top left, inside the band's own height; a tap is Back to menu. Not on a page without a title. */
-#app.full.titled > .top.has-logo { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: .05rem; }
+/* The title's logo (menu.js, titleLogo; Korbi, 4 November 2026): the game's own logo at the top left with its name beside it
+   on its right, the settings mark top right as ever; a tap on the logo is Back to menu. Not on a page without a title. */
+#app.full.titled > .top.has-logo { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: .5rem; }
 #app.full.titled > .top.has-logo > .mark { padding-bottom: 0; line-height: 1.1; }
-.home-logo { flex: none; position: relative; width: 1.45rem; height: 1.45rem; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; display: block; --wire: 1;
+.home-logo { flex: none; position: relative; width: 1.75rem; height: 1.75rem; padding: 0; margin: 0; border: 0; background: none; cursor: pointer; display: block; --wire: 1;
   -webkit-tap-highlight-color: transparent; border-radius: 4px; color: var(--ink); }
-.home-logo::before { content: ""; position: absolute; inset: -.5rem -.6rem -.2rem -.5rem; }       /* a finger-sized target round a small mark */
+.home-logo::before { content: ""; position: absolute; inset: -.45rem -.3rem -.45rem -.5rem; }       /* a finger-sized target round a small mark */
 .home-logo svg { width: 100%; height: 100%; display: block; pointer-events: none; }
 .home-logo:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 .home-logo:active { opacity: .7; }
