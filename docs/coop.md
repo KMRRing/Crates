@@ -1,6 +1,6 @@
 # Co-op: one board, two people
 
-Not Crates' own co-op (a team on a shared Crates board: `coop.js`, `docs/together.md`) and not a head-to-head. This is a classic puzzle (Circuit first) that a paired partner joins and edits with you.
+Not Crates' own co-op (a team on a shared Crates board: `coop.js`, `docs/together.md`) and not a head-to-head. This is a classic puzzle (Portolan first) that a paired partner joins and edits with you.
 
 **Ruling, 3 November 2026** (Korbi, as given to the agent that built it): a paired partner can watch a game without asking; while watching, a "Request to join" button asks the host, and if the host accepts both are in a party of two on the host's board. "Every co-op now starts by creating a small party: a party of two (the host and the joiner) in the existing Party machinery, not a separate second system. The party ends when the host leaves." Co-op means one shared board both see and edit: "Not split regions, not a computer partner." That is about who may edit which part of the board; what each partner is shown may differ where Korbi asks for it (Bridges hides half the numbers from each: docs/bridges.md). Head-to-head modes (Chart, Quote, Punt and the other duo and party games) stay as they are.
 

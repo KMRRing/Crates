@@ -58,7 +58,7 @@ export const GAMES = {
   mines: { name: "Mines", page: "./mines.html" },
   nonogram: { name: "Nonogram", page: "./nonogram.html" },
   hitori: { name: "Cull", page: "./hitori.html" },
-  slitherlink: { name: "Circuit", page: "./slitherlink.html" },
+  slitherlink: { name: "Portolan", page: "./slitherlink.html" },
   masyu: { name: "Pearl", page: "./masyu.html" },
   nurikabe: { name: "Atoll", page: "./nurikabe.html" },
   asterism: { name: "Asterism", page: "./asterism.html" },

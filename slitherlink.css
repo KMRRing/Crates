@@ -1,4 +1,4 @@
-/* Circuit: a grid of dots on paper tiles. The loop is drawn in the game's enamel, indigo (by night a lifted one);
+/* Portolan: a grid of dots on paper tiles. The loop is drawn in the game's enamel, indigo (by night a lifted one);
    crossed edges are small ink marks. What breaks a rule is oxblood, a hint's edges gilt, and the solved loop turns gilt
    edge by edge. The board is an SVG drawn to a viewBox in cell units, so it grows with its box. */
 :root {

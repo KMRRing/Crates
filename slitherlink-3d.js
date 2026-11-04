@@ -1,4 +1,4 @@
-// Circuit in 3D (three.js from vendor/, kept on the device): a cartographer's survey. The board is a portolan chart on vellum on a navigator's
+// Portolan in 3D (three.js from vendor/, kept on the device): a cartographer's survey. The board is a portolan chart on vellum on a navigator's
 // walnut desk, lit by a candle and a cool window, with a brass pair of dividers, a lead weight, an inkpot and a quill. The dots are pinpricks, the
 // numbers soundings in an engraver's hand, the loop the coast inked as you draw it. Solved, the sea outside the coast deepens, the land inside
 // rises in gentle hills with a harbour town and a flag, and a cog sails once round the new coast. The same game as the flat board: the page reads

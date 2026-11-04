@@ -1,4 +1,4 @@
-// Circuit's shaded puzzles (slitherlink-engine.js, "With shading" in the menu): some cells marked as inside the loop
+// Portolan's shaded puzzles (slitherlink-engine.js, "With shading" in the menu): some cells marked as inside the loop
 // or outside it, which settle edges through the sides the loop divides the board into. The rule checked against every
 // loop on small boards by a plain even-odd count; the generator (one answer, on its level, the shading true of the
 // answer, enough of it kept); hints and the rules the marks break; that the plain puzzles are the puzzles they were

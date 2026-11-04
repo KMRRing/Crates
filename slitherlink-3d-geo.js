@@ -1,4 +1,4 @@
-// Circuit's chart in 3D: the plain arithmetic (no three.js, so Node tests it). Board coordinates are the flat board's: a corner is
+// Portolan's chart in 3D: the plain arithmetic (no three.js, so Node tests it). Board coordinates are the flat board's: a corner is
 // (x, y) with x across to C and y down to R, an edge's index as slitherlink-engine.js has it (the horizontal edges first, then the
 // vertical ones), so the 3D view and the 2D one read taps the same way. Once the loop is drawn its inside is the land and its
 // outside the sea; everything here that makes the land, the sea, the harbour and the cog's course is derived from the lines drawn.

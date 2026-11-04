@@ -1,4 +1,4 @@
-// Circuit's chart after a solve: starting another puzzle takes the last one's island (land, town, flag, cog, sea) away and frees
+// Portolan's chart after a solve: starting another puzzle takes the last one's island (land, town, flag, cog, sea) away and frees
 // its geometry. Needs a browser with WebGL (Playwright); without one it says so and passes.
 import http from "node:http";
 import fs from "node:fs";

@@ -1,4 +1,4 @@
-// Circuit's sounds, made as they play (Web Audio, no files, so they are there offline): a quill's scratch as a coast is inked, a
+// Portolan's sounds, made as they play (Web Audio, no files, so they are there offline): a quill's scratch as a coast is inked, a
 // lighter tick for a crossing, a soft bell when the survey is complete. Heard only on the chart (the 3D view); off, nothing is made.
 let ctx = null, master = null, on = true, hiss = null;
 

@@ -1,4 +1,4 @@
-// Circuit's materials, painted in code (no image files): the vellum with its stains, fibres, rhumb lines and graduated border; the walnut
+// Portolan's materials, painted in code (no image files): the vellum with its stains, fibres, rhumb lines and graduated border; the walnut
 // desk; an engraver's numerals in ink; a grain for the light to rake across. Each takes a canvas factory so the arithmetic stays out of the
 // scene's way. A seed makes the same chart on every phone.
 const rngOf = seed => { let a = (seed >>> 0) || 1; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; };

@@ -1,4 +1,4 @@
-// Circuit's chart (slitherlink-3d-geo.js, the arithmetic of the 3D view): the inside of the loop, the land and sea made from it, the harbour and the
+// Portolan's chart (slitherlink-3d-geo.js, the arithmetic of the 3D view): the inside of the loop, the land and sea made from it, the harbour and the
 // cog's course on the sea side, the tap rule the two views share, the camera's fit, and that the page offers the view without writing the default.
 import fs from "node:fs";
 import { generate, puzzleOf, LINE } from "../slitherlink-engine.js";

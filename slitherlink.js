@@ -1,4 +1,4 @@
-// Circuit: draw one loop along the edges of a grid of dots; each number says how many of its cell's four sides the
+// Portolan: draw one loop along the edges of a grid of dots; each number says how many of its cell's four sides the
 // loop uses, and the loop never crosses or touches itself; a shaded puzzle also marks some cells as inside the loop
 // (tinted) or outside it (dotted). The rules, the puzzles and the reasoning are
 // slitherlink-engine.js's (every puzzle has one answer, and is graded by the hardest step a person needs); the puzzles
@@ -387,7 +387,7 @@ async function setView(v, remember = true) {
       model = (await import("./slitherlink-3d.js")).createChart($("model"));
       model.canvas.addEventListener("pointerdown", down);
       model.canvas.addEventListener("contextmenu", e => e.preventDefault());
-    } catch (err) { console.warn("Circuit: no 3D here.", err); toast("This browser can't draw 3D."); v = "flat"; }
+    } catch (err) { console.warn("Portolan: no 3D here.", err); toast("This browser can't draw 3D."); v = "flat"; }
   }
   viewShown = v;
   if (remember) { prefs.view = v; savePrefs(); }
@@ -506,7 +506,7 @@ function showRules() {
     <h4>Time</h4>
     <p>Your score is your time plus ${HINT} seconds a hint; lower is better, and your best is kept for each size, level and kind of clue. The clock stops while the menu, these rules or the games screen is open.</p>
     <h4>Today's puzzle</h4>
-    <p>A 7×7 at Medium, the same for everyone. Its first solve counts the moment the loop is drawn, and is Circuit's figure on the games screen.</p>`;
+    <p>A 7×7 at Medium, the same for everyone. Its first solve counts the moment the loop is drawn, and is Portolan's figure on the games screen.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
 }
