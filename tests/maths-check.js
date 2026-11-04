@@ -8,6 +8,7 @@
 //   lim    the option is f's limit, estimated by evaluating beside the point
 //   goal   the sliders at the goal satisfy each [expression, value, tolerance?] in eqs
 //   goal-e some slider position satisfies the goal expression, and not most of them
+//   vec    the option is the vector (o.v) that `f` (a JavaScript expression) gives
 //   cplx   the option is the complex number [re, im] that `f` (a JavaScript expression) gives
 //   riemann / taylor / epsdelta   the exercise can be won, and is not won at its start
 //   words  a question about words: nothing to compute
@@ -46,7 +47,7 @@ export function rootsOf(f, lo = -60, hi = 60) {
 
 /** Whether one option is right by this step's check: (option) → boolean. */
 export function judge(chk, step) {
-  const f = chk.f && !["js", "pred", "cplx"].includes(chk.t) ? compile(chk.f) : null;
+  const f = chk.f && !["js", "pred", "cplx", "vec"].includes(chk.t) ? compile(chk.f) : null;
   switch (chk.t) {
     case "js": { const J = js(chk.f); return o => near(val(o), J, chk.tol ?? 1e-9); }
     case "pred": { const p = js(chk.p); return o => { const v = val(o); return !Number.isNaN(v) && !!p(v); }; }
@@ -62,6 +63,7 @@ export function judge(chk, step) {
       if (chk.n != null && rs.length !== chk.n) throw new Error(`${step.id}: expected ${chk.n} roots, found ${rs.length}`);
       return o => Array.isArray(o) && o.length === rs.length && o.every(e => rs.some(r => near(valueOf(e), r, 1e-6)));
     }
+        case "vec": { const J = js(chk.f); return o => !!(o && o.v) && o.v.length === J.length && o.v.every((x, i) => near(x, J[i])); }
     default: return () => false;
   }
 }

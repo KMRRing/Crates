@@ -135,7 +135,7 @@ export function mathsStage() {
   function planeWidget(host, w, st) {
     const S = ws(st);
     S.p ||= Object.fromEntries(Object.entries(w.params || {}).map(([k, p]) => [k, p.v ?? p.min]));
-    host.innerHTML = `<div class="mx-fig"></div><p class="mx-read" aria-live="polite"></p>${Object.entries(w.params || {}).map(([k, p]) => sliderHtml(k, p, S.p[k])).join("")}`;
+    host.innerHTML = `<div class="mx-fig"></div><p class="mx-read" aria-live="polite"></p><div class="mx-sls${Object.keys(w.params || {}).length > 2 ? " two" : ""}">${Object.entries(w.params || {}).map(([k, p]) => sliderHtml(k, p, S.p[k])).join("")}</div>`;
     const fig = host.querySelector(".mx-fig"), read = host.querySelector(".mx-read");
     const paint = () => {
       const r = fig.getBoundingClientRect(), W = Math.max(120, Math.round(r.width) || 300), H = Math.max(90, Math.round(r.height) || 200), vars = { ...S.p };
@@ -299,7 +299,7 @@ export function mathsStage() {
       if (w.kind === "taylor") return S.err <= w.goal.err ? { ok: true, msg: s.why || "Right." } : { ok: false, why: "Still too far off at that point: add terms." };
       if (w.kind === "epsdelta") {
         if (!S.holds) return { ok: false, why: "The curve still leaves the horizontal band inside your δ: narrow it." };
-        return S.delta >= 0.5 * bestDelta(w) ? { ok: true, msg: s.why || "Right." } : { ok: false, why: "That works, but it is needlessly tiny: find a δ close to the largest that works." };
+        return S.delta >= (w.goal.frac ?? 0.5) * bestDelta(w) ? { ok: true, msg: s.why || "Right." } : { ok: false, why: "That works, but it is needlessly tiny: find a δ close to the largest that works." };
       }
       return planeGoal(w, { ...S.p }) ? { ok: true, msg: s.why || "Right." } : { ok: false, why: w.goal.miss || "Not yet: the picture does not match what was asked." };
     },

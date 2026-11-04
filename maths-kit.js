@@ -14,6 +14,7 @@ let turn = 0;
 /** One option as the text on its button. */
 export function show(o) {
   if (o && o.c) return cshow(o.c);
+  if (o && o.v) return `(${o.v.map(v => String(Number(v.toPrecision(10))).replace("-", "−")).join(", ")})`;
   if (Array.isArray(o)) return `x = ${o.map(pretty).join(" or ")}`;
   return typeof o === "string" && o.startsWith("~") ? o.slice(1) : pretty(String(o));
 }

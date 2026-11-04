@@ -47,7 +47,7 @@ for (const { lesson: l } of LESSONS) l.steps.forEach((s, i) => {
     if (q.some(o => o.length > 90)) problems.push(`${where}: an option is too long`);
   }
   if (s.num && (!s.why || s.why.length < 20)) problems.push(`${where}: no explanation`);
-  if (s.w?.goal && !(s.w.goal.p || s.w.goal.e || s.w.goal.err)) problems.push(`${where}: a goal with nothing to reach`);
+  if (s.w?.goal && !(s.w.goal.p || s.w.goal.e || s.w.goal.err || s.w.goal.frac)) problems.push(`${where}: a goal with nothing to reach`);
   if (s.w?.kind === "plot" && s.w.goal && !s.w.params) problems.push(`${where}: a goal without sliders`);
   if (s.w?.kind === "plot") for (const cv of s.w.fns || []) try { compile(cv.e); } catch (e) { problems.push(`${where}: ${e.message}`); }
 });
