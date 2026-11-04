@@ -8,6 +8,8 @@ Ruling, 3 November 2026, 16:23, Korbi: "it's a new game: The design doc is ready
 
 Ruling, 3 November 2026, 22:20, Korbi, on M2: "yea good to implement now, will need visual overhaul at some point but this is a good and fun start". M3 to M5 each wait for his word.
 
+Ruling, 4 November 2026, Korbi, on the Navigation course: it "won't get much love"; what it taught should live in Landfall instead, subtly, with some gaps, more digestible and ambient (learned by playing, not a lesson sheet). The night-sky course material lives here too. The Navigation tile is retired; `navigation.html` redirects here.
+
 ## Traps
 
 - **Polaris gives latitude only.** It sits within a degree of the pole, so a sight of it says how far north, never how far east. The fog collapses north-south and stays long east-west. Do not "fix" that.
@@ -18,6 +20,16 @@ Ruling, 3 November 2026, 22:20, Korbi, on M2: "yea good to implement now, will n
 - **Longitude comes from the sun and the clock, never from the pole star.** The noon watch's latitude (meridian altitude) and longitude (equal altitudes, morning and "the catch") are plotted and gated separately, so a wrong longitude does not throw away a good latitude. Section 2's coasts run east-west for the same reason: the pole star gives distance off, only the sun gives distance along.
 - **The catch freezes the drum.** The afternoon sight is taken at the morning's altitude and what is read is the clock, so the drum is locked ("SET") and cannot be nudged. Equal altitudes cancel the horizon's and the index's errors; do not "correct" them. The small change of declination between the two sights (the equation of equal altitudes) is allowed for by bisection in `equalAltitudeLongitude`.
 - **The morning sight needs a climbing sun.** Past `MORNING_END` (hour angle −1.5°) it is lost and the catch with it. The ship is taken to lie still through a noon watch, which is why the clock may run at 30 game minutes a second between sights; in the eyepiece it runs at the usual pace.
+
+- **The notebook is knowledge, never power** (`landfall-notes.js`, `tests/landfall-notes.mjs`). An event of the voyage earns the first note it can, one at a time and at most two captions per happening; `{gap}` notes are earned half-empty and filled by a second event. The numbers in the words are computed (dip, refraction, the cosine); the Plough and Cassiopeia stay in the Codex. Keys: `landfall:notes` (`id: 1` heard, `2` whole). A finished lesson of the old course (`navigation:course`, left in place, never deleted) writes its notes whole at load (`FROM_COURSE`).
+- **Not carried from Navigation:** the Southern Cross and the south pole (no southern sky), tides and the moon (no moon), and the quizzes and instruments (a lesson sheet's way of telling, not the sea's).
+
+## Carries later (Navigation concepts that need a mechanic Landfall does not have yet)
+
+For the gated milestones; none is built.
+- **M3 (named stars, the fix):** the compass card in points and true against magnetic, with the conversion (add westerly variation, subtract easterly) as a steering choice; Orion's belt and the Pointers as star hops with an explicit bearing; a second line of position (the fix).
+- **M4 (the chronometer):** a rate and a clock error in miles as a player-visible number (a second of time is a quarter-mile at the equator, less by cos latitude), logging a chronometer's rate; the Longitude Act and H4 as the voyage's sections 3 and 4 openings.
+- **M5 (coast, the daily, the moon):** a sounding with the lead on a known coast; the moon's age and a tide (springs and neaps, high water every 12 h 25 min, 50 minutes later each day); Mercator against a great circle as a long passage's choice; the Southern Cross and a southern voyage (the pole stands as high as the latitude, south too); set and drift as a current chart to read.
 
 ## Sources and licences
 

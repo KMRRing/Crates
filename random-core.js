@@ -109,7 +109,6 @@ export const LEFT_OUT = {
   cue: "a word to act, draw or describe for the people round you",
   quest: "hidden loyalties, a game for people round a table (Party's section)",
   timegrapher: "an instrument, not a game",
-  navigation: "a course of lessons in order, not a round to repeat",
   wine: "a course of lessons in order, not a round to repeat",
   arthistory: "a course of lessons in order, not a round to repeat",
   music: "a course of lessons in order, not a round to repeat",

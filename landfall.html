@@ -26,7 +26,7 @@
 
   <section id="windowBox" class="lf-window" aria-label="The window onto the sky">
     <canvas id="skyCv" class="lf-sky"></canvas>
-    <div class="lf-hud"><span id="watchTxt"></span><span id="clockTxt"></span></div>
+    <div class="lf-hud"><span id="watchTxt" title="Which twilight or noon this is"></span><span id="clockTxt" title="Ship's time at the longitude you reckon; by day the chronometer's Greenwich time (GMT) beside it"></span></div>
     <p id="skyNote" class="lf-note" aria-live="polite"></p>
     <div id="skyBar" class="lf-skybar">
       <button type="button" id="zoomOut" class="lf-round" aria-label="Wider">−</button>
@@ -41,6 +41,7 @@
       <canvas id="chartCv" class="lf-chartcv"></canvas>
       <div id="slate" class="lf-slate" hidden></div>
       <div id="veil" class="lf-veil"></div>
+      <p id="cap" class="lf-cap" role="status" aria-live="polite"></p>
     </div>
     <p id="task" class="lf-task" aria-live="polite"></p>
     <div id="acts" class="lf-acts"></div>
@@ -50,7 +51,7 @@
   <section id="scope" class="lf-scope" aria-label="The sextant" hidden>
     <div class="lf-scope-view"><canvas id="scopeCv" class="lf-scopecv"></canvas></div>
     <div class="lf-scope-side">
-      <p id="readTxt" class="lf-read">00° 00.0′</p>
+      <p id="readTxt" class="lf-read" title="The arc reading: degrees and minutes of arc (a minute is a sixtieth of a degree)">00° 00.0′</p>
       <p id="chronoTxt" class="lf-chrono" hidden></p>
       <p id="scopeNote" class="lf-scope-note"></p>
       <ol id="marks" class="lf-marks"></ol>
@@ -84,6 +85,11 @@
     <button class="btn" type="button" id="discardBtn">Throw it away</button>
     <button class="btn primary" type="button" id="plotBtn">Plot it</button>
   </div>
+</dialog>
+
+<dialog id="notesDlg" class="sheet pauses lf-sheet" aria-label="The notebook">
+  <div class="pick-head"><h2>Notebook</h2><button class="btn" type="button" id="notesClose">Close</button></div>
+  <div id="notesBody" class="lf-notes"></div>
 </dialog>
 
 <dialog id="almanacDlg" class="sheet pauses lf-sheet" aria-label="The almanac">
