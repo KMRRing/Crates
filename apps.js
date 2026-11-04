@@ -644,7 +644,7 @@ export const APPS = [
   { id: "contract", sec: "cards", name: "Contract bridge", href: "./contract.html", logo: LOGO("contract", CONTRACT_LOGO), players: [1, 4] },
   { id: "quest", sec: "party", name: "Company", href: "./quest.html", logo: LOGO("quest", QUEST_LOGO), players: [1, 10] },
   { id: "bones", sec: "board", name: "Dominoes", href: "./bones.html", logo: LOGO("bones", BONES_LOGO), players: [1, 4] },
-  { id: "factor", sec: "appendix", name: "Hanse", href: "./factor.html", logo: LOGO("factor", FACTOR_LOGO), players: [1, 4] },
+  { id: "factor", sec: "board", name: "Hanse", href: "./factor.html", logo: LOGO("factor", FACTOR_LOGO), players: [1, 4] },
   { id: "rack", sec: "board", name: "Rack", href: "./rack.html", logo: LOGO("rack", RACK_LOGO), players: [1, 4] },
   { id: "pegs", sec: "cards", name: "Cribbage", href: "./pegs.html", logo: LOGO("pegs", PEGS_LOGO), players: [1, 2] },
   { id: "meld", sec: "cards", name: "Gin rummy", href: "./meld.html", logo: LOGO("meld", MELD_LOGO), players: [1, 2] },

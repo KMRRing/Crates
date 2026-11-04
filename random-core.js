@@ -90,6 +90,7 @@ export const ROUNDS = {
   contract: "a deal",
   bones: "a hand",
   solitaire: "a deal won",
+  factor: "a game",
 };
 
 const APPENDIX = "in the Appendix: set aside until it leaves for an app of its own";
@@ -100,7 +101,7 @@ export const LEFT_OUT = {
   // the Appendix (Korbi, 3 November 2026: it stays out of Random and of Start a game over): set aside until each leaves for an
   // app of its own, so Random never sends you there; the games keep their roundOver calls, which do nothing meanwhile
   blend: APPENDIX, refinery: APPENDIX, guilloche: APPENDIX, baccarat: APPENDIX, blackjack: APPENDIX, roulette: APPENDIX,
-  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX, factor: APPENDIX,
+  sicbo: APPENDIX, craps: APPENDIX, holdem: APPENDIX, speedfuels: APPENDIX, banquet: APPENDIX,
   odds: "a course of lessons, not a game with rounds",
   lexicon: "the Almanac, the knowledge base to look things up in, not a game",
   ledger: "the record of how well you learn, not a game",
