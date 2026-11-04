@@ -81,6 +81,28 @@ function moonRows(t, j0, j1) {
 }
 
 let earthMap = null, earthAsked = false, moonTex = null, cloudTex = null, warming = null;
+// ---------- the Earth's worker ----------
+// The Earth is the one big sphere (a whole disc of pixels, thirty times a second), so once its map has arrived it is drawn by a
+// worker (columbiad-earth-worker.js, the same columbiad-sphere.js maths) and the page only puts the finished bytes on a canvas.
+// Where there is no Worker (an old browser, a Node test) or it fails, the page draws the Earth itself, as it always did.
+let wk = null, wkBroken = typeof Worker === "undefined" || typeof document === "undefined", wkMap = false, wkClouds = false;
+function earthWorker() {
+  if (wkBroken || !earthMap) return null;
+  if (!wk) {
+    try {
+      wk = new Worker(new URL("./columbiad-earth-worker.js", import.meta.url), { type: "module" });
+      wk.addEventListener("error", () => { wkBroken = true; wk = null; });
+    } catch { wkBroken = true; return null; }
+  }
+  toWorker();
+  return wk;
+}
+/** Sends the worker the maps it has not been sent (messages are in order, so a picture asked for afterwards has them). */
+function toWorker() {
+  if (!wk) return;
+  if (earthMap && !wkMap) { wk.postMessage({ map: { w: earthMap.w, h: earthMap.h, data: earthMap.data } }); wkMap = true; }
+  if (cloudTex && !wkClouds) { wk.postMessage({ clouds: { w: cloudTex.w, h: cloudTex.h, a: cloudTex.a } }); wkClouds = true; }
+}
 const GREY = { w: 1, h: 1, data: [168, 166, 158, 255] };
 const waiting = new Set();
 /** Starts loading the Earth's map (once); `then` is called when it has arrived (a redraw), and never if it cannot be had. */
@@ -98,6 +120,7 @@ export function loadEarth(then) {
         g.drawImage(img, 0, 0);
         const d = g.getImageData(0, 0, c.width, c.height);
         earthMap = withMips({ w: c.width, h: c.height, data: d.data });
+        toWorker();
         for (const f of waiting) f();
         waiting.clear();
       } catch { /* a map that will not read leaves the plain sphere */ }
@@ -119,6 +142,7 @@ export function warm(then) {
     const mt = { w: 512, h: 256, data: new Uint8ClampedArray(512 * 256 * 4) }, ct = { w: 256, h: 128, a: new Float32Array(256 * 128) };
     for (let j = 0; j < 128; j += 8) { cloudRows(ct, j, j + 8); await later(); }
     cloudTex = ct;
+    toWorker();
     for (let j = 0; j < 256; j += 8) { moonRows(mt, j, j + 8); await later(); }
     moonTex = withMips(mt);
     for (const f of waiting) f();
@@ -131,9 +155,9 @@ export function warm(then) {
  * picture(spin, sun, S) is the off-screen canvas of the sphere (its disc takes S / pad of the canvas; pad is 1.12 for the Earth, the
  * room its air needs, else 1). It is drawn again when the spin has moved by `look` of a pixel at the rim (and not sooner than
  * `gap` milliseconds after the last drawing, so a busy page is not asked for every frame), and at once when the Sun, the size or
- * a map changed.
+ * a map changed. `onFresh` is called when the worker has brought a new picture (for a page that is not drawing by itself).
  */
-export function createGlobe(kind, { tilt = 22, roll = 0, tint = [1, 1, 1], look = 0.12, gap = 0 } = {}) {
+export function createGlobe(kind, { tilt = 22, roll = 0, tint = [1, 1, 1], look = 0.12, gap = 0, onFresh = null } = {}) {
   const earth = kind === "earth", pad = earth ? 1.12 : 1;
   const mine = new Map();                                      // size -> { cv, g (2d context), img, geo, sk, key, spin, at }
   const plainMap = { w: 2, h: 1, data: new Uint8ClampedArray([22, 52, 96, 255, 22, 52, 96, 255]) };
@@ -162,22 +186,85 @@ export function createGlobe(kind, { tilt = 22, roll = 0, tint = [1, 1, 1], look 
     mine.set(S, e);
     return e;
   }
+  // The Earth through the worker: one picture asked for at a time, and the page shows the latest that has come back (the Earth turns
+  // slowly, so a picture a moment old is the same picture to the eye). A size nobody has drawn yet shows the nearest size that is
+  // drawn, scaled by the page, until its own arrives.
+  const far = new Map();                                       // size -> { cv, g, air (canvas), spin, key, ok }
+  let busy = null, spare = null, askedAt = -1e9, serial = 0, version = 0, seen = 0, lastS = 0, lastSun = null, listening = null;
+  function listen(w) {
+    if (listening === w) return;
+    listening = w;
+    w.addEventListener("message", ({ data }) => {
+      if (!busy || data.id !== busy.id) return;
+      const { S, key } = busy, e = far.get(S);
+      busy = null; spare = data.buf;
+      if (!e) return;
+      if (data.air) {
+        if (!e.air) { e.air = document.createElement("canvas"); e.air.width = e.air.height = S; }
+        e.air.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(data.air), S, S), 0, 0);
+      }
+      e.g.putImageData(new ImageData(new Uint8ClampedArray(data.buf), S, S), 0, 0);
+      e.spin = data.turn; e.key = key; e.ok = true; version++;
+      mine.clear();                                            // the plain sphere this thread drew and its geometry are not wanted now
+      onFresh?.();
+    });
+  }
+  function ask(w, spin, sun, S, e) {
+    if (busy) return;
+    const key = wkClouds ? "c" : "n", now = performance.now();
+    if (e.ok && key === e.key && !(Math.abs(spin - e.spin) >= turnForPixels(S, pad, look) && now - askedAt >= gap)) return;
+    busy = { id: ++serial, S, key }; askedAt = now;
+    w.postMessage({ draw: { id: busy.id, S, sun, tilt, roll, pad, turn: spin, tint }, buf: spare }, spare ? [spare] : []);
+    spare = null;
+  }
+  function remote(w, spin, sun, S) {
+    listen(w);
+    lastS = S; lastSun = sun;
+    let e = far.get(S);
+    if (e) { far.delete(S); far.set(S, e); }
+    else {
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = S;
+      e = { cv, g: cv.getContext("2d"), air: null, spin: 0, key: "", ok: false };
+      far.set(S, e);
+      while (far.size > 3) far.delete(far.keys().next().value);
+    }
+    ask(w, spin, sun, S, e);
+    seen = version;
+    if (e.ok) return e.cv;
+    let near = null;
+    for (const o of far.values()) if (o.ok && (!near || Math.abs(o.cv.width - S) < Math.abs(near.cv.width - S))) near = o;
+    // nothing of the Earth is drawn yet: what this thread drew before (the plain sphere) stands, and failing that it draws one itself
+    return near ? near.cv : mine.get(S)?.cv || picture(spin, sun, S, true);
+  }
+  function picture(spin, sun, S, here) {
+    const w = earth && !here && earthWorker();
+    if (w) return remote(w, spin, sun, S);
+    const e = entry(S, sun), key = `${earthMap ? 1 : 0}${cloudTex ? 1 : 0}${moonTex ? 1 : 0}`, now = performance.now();
+    if (key !== e.key || (Math.abs(spin - e.spin) >= turnForPixels(S, pad, look) && now - e.at >= gap)) {
+      renderSphere(e.geo, e.img.data, mapNow(), earth ? cloudTex : null, spin, tint);
+      e.g.putImageData(e.img, 0, 0);
+      e.key = key; e.spin = spin; e.at = now;
+    }
+    return e.cv;
+  }
   return {
     pad,
     /** The sphere's canvas at `spin` (turns, any real number), lit from `sun`, `S` pixels across (the whole canvas, the air included). */
-    picture(spin, sun, S) {
-      const e = entry(S, sun), key = `${earthMap ? 1 : 0}${cloudTex ? 1 : 0}${moonTex ? 1 : 0}`, now = performance.now();
-      if (key !== e.key || (Math.abs(spin - e.spin) >= turnForPixels(S, pad, look) && now - e.at >= gap)) {
-        renderSphere(e.geo, e.img.data, mapNow(), earth ? cloudTex : null, spin, tint);
-        e.g.putImageData(e.img, 0, 0);
-        e.key = key; e.spin = spin; e.at = now;
-      }
-      return e.cv;
+    picture: (spin, sun, S) => picture(spin, sun, S, false),
+    /**
+     * Whether the picture on show is out of date at `spin`, for a page that has nothing else to draw (and so draws only when this
+     * says so). The Earth's worker is asked here too, so a picture is on its way when the page next looks.
+     */
+    changed(spin) {
+      const w = earth && earthWorker(), e = w && far.get(lastS);
+      if (!e || !lastSun) return true;
+      ask(w, spin, lastSun, lastS, e);
+      return version !== seen;
     },
     /** The air round the Earth, a canvas the size of the picture (null for a moon), once it has been drawn. */
-    air(S) { return mine.get(S)?.air || null; },
+    air(S) { return far.get(S)?.air || mine.get(S)?.air || null; },
     /** Whether the Earth's map is still to come. */
     get plain() { return earth && !earthMap; },
   };
 }
-

@@ -159,44 +159,90 @@ export function paintEarth(R, G, B, o) {
 }
 const painted = { r: 0, g: 0, b: 0, sea: 0 };
 
+/** The grid's two spin-independent factors per pixel, made once for a geometry: the latitude lines' coverage and the longitude lines' fade. */
+function gridFactors(g) {
+  const N = g.n, { v, gu, gv } = g, cv = new Float64Array(N), fadeU = new Float64Array(N), wu = new Float64Array(N);
+  const half = 0.65;
+  for (let p = 0; p < N; p++) {
+    const w1 = Math.max(gu[p], 1e-7), w2 = Math.max(gv[p], 1e-7), fv = v[p] * GRID_LAT, dv = Math.abs(fv - Math.round(fv)) / GRID_LAT;
+    wu[p] = w1; fadeU[p] = clamp01((1 / GRID_LON / w1 - 3) / 5);
+    cv[p] = clamp01(half - dv / w2 + 0.5) * clamp01((1 / GRID_LAT / w2 - 3) / 5);
+  }
+  g.grid = { cv, fadeU, wu };
+  return g.grid;
+}
+
 /**
  * Draws the globe `g` (from buildSphere) into px (RGBA bytes) at `turn` (the globe's spin, in turns, any real number): the map `tex`
  * (an Earth: its photograph, painted; a moon: its grey map, tinted by `tint`) and, for an Earth, the `clouds` (a one-channel
  * map, drifting a little faster than the ground).
+ *
+ * This is the one hot loop of the page (a whole sphere, thirty times a second), so it is written flat: the bilinear read, the
+ * painting and the clouds are inlined, nothing is allocated, and what does not depend on the turn is made once (`gridFactors`,
+ * and buildSphere's arrays). The arithmetic is the same expression for expression as the plain version it replaced, so the
+ * pictures are byte for byte the same (`paintEarth` and `flat` are that plain version, kept for the tests).
  */
 export function renderSphere(g, px, tex, clouds, turn, tint = [1, 1, 1]) {
-  const N = g.n, { pix, u0, v, f, lit, haze, glint, gu, gv } = g, earth = g.earth;
+  const N = Math.min(g.n, g.pix.length), { pix, u0, v, f, lit, haze, glint, nt, lod, tu, tv } = g, earth = g.earth;
+  const mips = tex.mips;
   const cloudTurn = turn * 1.35 + 0.127;
-  const grid = earth;
+  const gf = earth ? g.grid || gridFactors(g) : null;
+  const cvA = gf && gf.cv, fadeUA = gf && gf.fadeU, wuA = gf && gf.wu;
+  const cd = clouds ? clouds.a : null, cw = clouds ? clouds.w : 0, ch = clouds ? clouds.h : 0;
+  const t0 = tint[0], t1 = tint[1], t2 = tint[2];
   for (let p = 0; p < N; p++) {
-    const k = pix[p], li = lit[p];
+    const k = pix[p], li = lit[p], n = nt[p], t = mips ? mips[lod[p]] : tex, d = t.data, w = t.w, hh = t.h;
+    let r = 0, gg = 0, b = 0;
+    const base = u0[p] + turn, vv = v[p];
+    // the map at this pixel: one bilinear read, or the average of several along the pixel's stretch of map
+    for (let i = 0; i < n; i++) {
+      let u = base, vq = vv;
+      if (n > 1) { const o = (i + 0.5) / n - 0.5; u = base + tu[p] * o; vq = vv + tv[p] * o; }
+      const x = (u - Math.floor(u)) * w - 0.5, y = (vq < 0 ? 0 : vq > 1 ? 1 : vq) * hh - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+      const xa = x0 < 0 ? w - 1 : x0, xb = xa + 1 >= w ? 0 : xa + 1, ya = y0 < 0 ? 0 : y0, yb = y0 + 1 >= hh ? hh - 1 : y0 + 1;
+      const a = (ya * w + xa) * 4, bq = (ya * w + xb) * 4, c = (yb * w + xa) * 4, e = (yb * w + xb) * 4;
+      const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+      r += d[a] * w00 + d[bq] * w10 + d[c] * w01 + d[e] * w11;
+      gg += d[a + 1] * w00 + d[bq + 1] * w10 + d[c + 1] * w01 + d[e + 1] * w11;
+      b += d[a + 2] * w00 + d[bq + 2] * w10 + d[c + 2] * w01 + d[e + 2] * w11;
+    }
+    if (n > 1) { r /= n; gg /= n; b /= n; }
     let R, G, B;
     if (earth) {
-      read(tex, g, p, turn);
-      paintEarth(acc[0], acc[1], acc[2], painted);
-      R = painted.r; G = painted.g; B = painted.b;
-      const sea = painted.sea;
+      // paintEarth, inlined
+      const l = 0.3 * r + 0.59 * gg + 0.11 * b;
+      const s1 = (b - 1.2 * r - 4) / 70, s2 = (58 - l) / 24;
+      const sw = Math.max(s1 < 0 ? 0 : s1 > 1 ? 1 : s1, s2 < 0 ? 0 : s2 > 1 ? 1 : s2);
+      const dp0 = (b + gg * 0.4 - 30) / 150, dp = dp0 < 0 ? 0 : dp0 > 1 ? 1 : dp0, dd = dp * dp * (3 - 2 * dp);
+      const sr = SEA_DEEP[0] + (SEA_SHALLOW[0] - SEA_DEEP[0]) * dd, sg = SEA_DEEP[1] + (SEA_SHALLOW[1] - SEA_DEEP[1]) * dd, sb = SEA_DEEP[2] + (SEA_SHALLOW[2] - SEA_DEEP[2]) * dd;
+      const i1 = (l - 130) / 100, i2 = (r + gg + b) / 3 / 170;
+      const ice = (i1 < 0 ? 0 : i1 > 1 ? 1 : i1) * (i2 < 0 ? 0 : i2 > 1 ? 1 : i2);
+      let lr = (r * 0.8 + l * 0.2) * 1.05 + 4, lg = (gg * 0.8 + l * 0.2) * 1.0 + 2, lb = (b * 0.8 + l * 0.2) * 0.86;
+      lr += (246 - lr) * ice * 0.6; lg += (244 - lg) * ice * 0.6; lb += (238 - lb) * ice * 0.6;
+      R = lr + (sr - lr) * sw; G = lg + (sg - lg) * sw; B = lb + (sb - lb) * sw;
       let ca = 0;
-      if (clouds) ca = flat(clouds, u0[p] + cloudTurn, v[p]) * 0.6;
+      if (cd) {                                                             // flat(): the clouds' bilinear read
+        const cu = u0[p] + cloudTurn, x = (cu - Math.floor(cu)) * cw - 0.5, y = (vv < 0 ? 0 : vv > 1 ? 1 : vv) * ch - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+        const xa = x0 < 0 ? cw - 1 : x0, xb = xa + 1 >= cw ? 0 : xa + 1, ya = y0 < 0 ? 0 : y0 >= ch ? ch - 1 : y0, yb = y0 + 1 >= ch ? ch - 1 : y0 + 1;
+        ca = ((cd[ya * cw + xa] * (1 - fx) + cd[ya * cw + xb] * fx) * (1 - fy) + (cd[yb * cw + xa] * (1 - fx) + cd[yb * cw + xb] * fx) * fy) * 0.6;
+      }
       R = R * (1 - ca) + 238 * ca; G = G * (1 - ca) + 242 * ca; B = B * (1 - ca) + 248 * ca;
-      if (grid) {                                                           // the brass graticule, fading out where its lines would crowd
-        const a = u0[p] + turn, fu = a * GRID_LON, fv = v[p] * GRID_LAT, du = Math.abs(fu - Math.round(fu)) / GRID_LON, dv = Math.abs(fv - Math.round(fv)) / GRID_LAT;
-        const wu = Math.max(gu[p], 1e-7), wv = Math.max(gv[p], 1e-7), half = 0.65;
-        const cu = clamp01(half - du / wu + 0.5) * clamp01((1 / GRID_LON / wu - 3) / 5), cv = clamp01(half - dv / wv + 0.5) * clamp01((1 / GRID_LAT / wv - 3) / 5);
-        const c = Math.max(cu, cv) * 0.22 * (1 - ca * 0.8);
+      {                                                                     // the brass graticule, fading out where its lines would crowd
+        const fu = (u0[p] + turn) * GRID_LON, du = Math.abs(fu - Math.round(fu)) / GRID_LON;
+        const cu = (0.65 - du / wuA[p] + 0.5), cuc = (cu < 0 ? 0 : cu > 1 ? 1 : cu) * fadeUA[p], cvv = cvA[p];
+        const c = (cuc > cvv ? cuc : cvv) * 0.22 * (1 - ca * 0.8);
         R += (232 - R) * c; G += (190 - G) * c; B += (104 - B) * c;
       }
       const ff = f[p];
       R *= ff; G *= ff; B *= ff;
       R += 4 * (1 - li); G += 8 * (1 - li); B += 20 * (1 - li);
-      const sp = glint[p] * (1 - ca) * sea * sea;                                 // the Sun's glint on the water
+      const sp = glint[p] * (1 - ca) * sw * sw;                             // the Sun's glint on the water
       R += 255 * sp; G += 235 * sp; B += 200 * sp;
       const hz = haze[p];
       R += (120 - R) * hz; G += (172 - G) * hz; B += (255 - B) * hz;
     } else {
-      read(tex, g, p, turn);
       const ff = f[p];
-      R = acc[0] * ff * tint[0]; G = acc[1] * ff * tint[1]; B = acc[2] * ff * tint[2] + 4 * (1 - li);
+      R = r * ff * t0; G = gg * ff * t1; B = b * ff * t2 + 4 * (1 - li);
     }
     px[k] = R > 255 ? 255 : R; px[k + 1] = G > 255 ? 255 : G; px[k + 2] = B > 255 ? 255 : B; px[k + 3] = 255;
   }

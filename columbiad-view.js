@@ -92,7 +92,7 @@ export function createView(canvas, hooks = {}) {
     if (e) earth(sx(e.x), sy(e.y), e.r * cam.k);
   }
   function earth(ex, ey, R) {
-    if (!earthG) { earthG = createGlobe("earth", { tilt: 24, roll: -12, gap: 30 }); loadEarth(() => { draw(); wake(); }); warm(() => { draw(); wake(); }); }
+    if (!earthG) { earthG = createGlobe("earth", { tilt: 24, roll: -12, gap: 30, onFresh: () => { if (!raf && !held) { draw(); wake(); } } }); loadEarth(() => { draw(); wake(); }); warm(() => { draw(); wake(); }); }
     planet(earthG, ex, ey, R, spin, [96, 192, 288, 384, 512, 640]);
     // a fine brass edge, as an engraver closes a plate's circle
     if (R > 14 * u) { ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${INK},.16)`; ctx.beginPath(); ctx.arc(ex, ey, R + 0.5, 0, 6.2832); ctx.stroke(); }
@@ -456,7 +456,8 @@ export function createView(canvas, hooks = {}) {
     if (!reduced()) spin += Math.min(raw, 0.25) * SPIN;          // a pure function of the time that has run (a long gap, a sleeping tab, is not owed)
     hooks.before?.();
     step(dt);
-    draw();
+    // at rest the Earth is all that changes: draw only when it has a new picture (the worker's, a moment behind the clock)
+    if (moving() || !earthG || earthG.changed(spin)) draw();
     if (moving()) { raf = requestAnimationFrame(tick); idled = false; }
     else {
       if (!idled) { idled = true; hooks.onIdle?.(); }
