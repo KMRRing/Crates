@@ -11,7 +11,7 @@ import { WARES, boxFor, isoPoint, cubeFaces, dropTimes, visibleSet } from "./man
 import { QUAY_DEPTH, frameOf, yawOf, layout, pieceKey, piecesNamed } from "./manifest-model.js";
 import { typeOf, isTimber } from "./manifest-rules.js";
 import { barrelRadius, sackRadius, INGOT_SHRINK, GOLD_MARK, GOLD_BARS, crownOn, BIRCH_LOGS, hull } from "./manifest-shapes.js";
-import { ready, is3d, stage3d, icon3d, playOut as playOut3d } from "./manifest-pictures.js";
+import { ready, is3d, stage3d, icon3d, playOut as playOut3d, skip as skip3d, OUT_MS } from "./manifest-pictures.js";
 
 export { QUAY_DEPTH, ready, is3d };
 
@@ -324,6 +324,10 @@ function wareIconFlat(ware) {
 
 /** What happens to a stack leaving the quay or coming back: "away" (shipped), "fade" (a change round: the stack goes and
  *  the empty quay stays), "appear". A flat panel does it with its classes (manifest.css), a 3D one in its own canvas. */
+/** How long the shipping takes on the page now: the crane and the cog in 3D, the flat drawing's lift-off otherwise. */
+export const outroMs = () => (is3d() ? OUT_MS : 380);
+/** A tap on the picture: the cargo still coming down is down at once, and the shipping is over (3D only; the flat drawing's are short). */
+export const skipIn = panel => { if (panel?._pic) skip3d(panel); };
 export function playOut(panel, kind) {
   if (panel._pic) playOut3d(panel, kind);
   else panel.classList.add(kind);

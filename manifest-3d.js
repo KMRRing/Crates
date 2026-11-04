@@ -4,15 +4,18 @@
 // 2D canvas, so the page never holds more than one context (iPhones give a page only a few) and a picture, once drawn, costs
 // nothing. manifest-art.js owns the pictures and when they move; this file only draws a scene on request.
 //
-// The camera is orthographic and true isometric, framed exactly as the flat drawing frames it (manifest-model.js), and a
-// piece stands inside the box of its cell, nothing larger: what shows through a stack is decided by the cells, as the
-// engine says. The shapes are meshes (manifest-shapes.js) and what is drawn on them is worked out in the shader
+// The camera is a long lens (manifest-lens.js: the engine's isometric direction through a 15 degree field of view, framed as
+// the flat drawing frames it, manifest-model.js), and a piece stands inside the box of its cell, nothing larger: what
+// shows through a stack is decided by the cells, as the engine says (tests/manifest-lens.mjs). Round the stack is the harbour
+// (manifest-harbour.js). The shapes are meshes (manifest-shapes.js) and what is drawn on them is worked out in the shader
 // (manifest-glsl.js), so nothing here is a picture.
 import * as THREE from "./vendor/three.js";
 import { WARES } from "./manifest-engine.js";
 import { meshOf } from "./manifest-shapes.js";
 import { packageShader, QUAY } from "./manifest-glsl.js";
-import { cameraOf, QUAY_DEPTH } from "./manifest-model.js";
+import { QUAY_DEPTH } from "./manifest-model.js";
+import { rigOf } from "./manifest-lens.js";
+import { createHarbour } from "./manifest-harbour.js";
 
 const TARP = 0xAEA690, LIT = 0xFFF8E4;
 /** The ware numbers as the shader has them: 0 a tarpaulin, 1 to 8 the cargo, then the tarpaulin's lit package. */
@@ -42,8 +45,9 @@ export const cssOf = ([r, g, b]) => `rgb(${r},${g},${b})`;
 /** The colours the picture is made of, now: the quay's timber, the ink, the teal, the page's tone, whether it's night. */
 export function tokens() {
   const floor = tokenRgb("var(--mf-floor)"), ink = tokenRgb("var(--ink)"), mark = tokenRgb("var(--mf-in)"), wave = tokenRgb("var(--mf-wave)"), yard = tokenRgb("var(--yard)");
+  const sea = tokenRgb("var(--mf-sea)"), deep = tokenRgb("var(--mf-deep)"), haze = tokenRgb("var(--mf-haze)");
   const luma = (yard[0] * 0.3 + yard[1] * 0.59 + yard[2] * 0.11) / 255;
-  return { floor, ink, mark, wave, yard, night: luma < 0.45, key: [floor, ink, mark, yard].join("|") };
+  return { floor, ink, mark, wave, yard, sea, deep, haze, night: luma < 0.45, key: [floor, ink, mark, yard, sea, deep].join("|") };
 }
 
 // ---------- the scene ----------
@@ -63,7 +67,7 @@ export function createGL() {
   if (typeof WebGL2RenderingContext === "undefined" || !(renderer.getContext() instanceof WebGL2RenderingContext)) { renderer.dispose(); return null; }
   renderer.setPixelRatio(1);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = 1;                                       // PCFShadowMap (the bundle exports no constant for it)
+  renderer.shadowMap.type = 1;                                       // PCFShadowMap (the bundle exports no constant for it; the soft one is gone from three)
   renderer.setClearColor(0x000000, 0);
   const canvas = renderer.domElement;
   const out = { canvas, alive: true };
@@ -71,13 +75,14 @@ export function createGL() {
   canvas.addEventListener("webglcontextrestored", () => { out.alive = true; });
 
   const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 140);
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 140);   // the bundle has no perspective camera: its projection is set by hand (arrange)
+  const harbour = createHarbour(scene);
   const sun = new THREE.DirectionalLight(0xffffff, 1), hemi = new THREE.HemisphereLight(0xffffff, 0xffffff, 1), fill = new THREE.DirectionalLight(0xffffff, 0);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.03;
-  sun.shadow.radius = 2.5;
+  sun.shadow.radius = 3;
   scene.add(sun, sun.target, hemi, fill, fill.target);
 
   // geometry: a mesh per cargo type, a plain box for the tarpaulin (the ware is an attribute, so every piece shares one program)
@@ -149,7 +154,7 @@ export function createGL() {
 
   let shadowSize = 1024;
   /** Everything about the picture's scene for one stack: placements, dimming, outlines, the quay. */
-  function arrange(spec, tk, lifts) {
+  function arrange(spec, tk, lifts, anim) {
     const { X, Y, Z, b, items, opts } = spec;
     const sx = X * b.X, sz = Y * b.Y, sy = Z * b.H, depth = QUAY_DEPTH * b.H;
     // the quay: a slab under the floor
@@ -168,14 +173,16 @@ export function createGL() {
     const skin = tk.night ? LIGHT.night : LIGHT.day, to = new THREE.Color(cssOf(tk.yard));
     hullInk.color.set(cssOf(tk.ink)); hullPaper.color.set(cssOf(tk.yard));
     let n = 0, hn = 0;
+    const hang = [];
     for (const it of items) {
       const mesh = packageAt(n++), U = mesh.material.userData.U, lift = lifts?.get(it.key) || { lift: 0, squash: 1, fade: 1 };
       mesh.visible = lift.fade > 0 && !it.skip;
       mesh.geometry = geos[it.ware];
-      const sq = lift.squash, wide = 1 / Math.sqrt(sq), y = it.box.cy - it.box.sy * (1 - sq) / 2 + lift.lift * b.H;
-      mesh.scale.set(b.X * wide, b.H * sq, b.Y * wide);
+      const sc = lift.scale ?? 1, sq = lift.squash, wide = 1 / Math.sqrt(sq) * sc, y = it.box.cy - it.box.sy * (1 - sq) / 2 + lift.lift * b.H + (lift.dy || 0);
+      mesh.scale.set(b.X * wide, b.H * sq * sc, b.Y * wide);
       mesh.rotation.set(0, it.yaw || 0, 0);                        // timber lies along x or along y by its tier
-      mesh.position.set(it.box.cx, y, it.box.cz);
+      mesh.position.set(it.box.cx + (lift.dx || 0), y, it.box.cz + (lift.dz || 0));
+      if (anim?.hang && lift.rope && hang.length < 48) hang.push([mesh.position.x, y + b.H * sq * 0.5, mesh.position.z]);
       U.uFade.value = lift.fade;
       U.uDim.value = it.dim ? 1 : 0;
       U.uDimTo.value.copy(to);
@@ -203,26 +210,30 @@ export function createGL() {
     fill.color.set(skin.fill[0]); fill.intensity = skin.fill[1];
     fill.position.set(at[0] + FILL_AT[0], at[1] + FILL_AT[1], at[2] + FILL_AT[2]);
     fill.target.position.set(at[0], at[1], at[2]);
-    // the camera
-    const c = spec.cam, D = 60;
-    camera.left = c.left; camera.right = c.right; camera.top = c.top; camera.bottom = c.bottom;
-    camera.near = 1; camera.far = D * 2;
-    camera.position.set(at[0] + D / Math.sqrt(3), at[1] + D / Math.sqrt(3), at[2] + D / Math.sqrt(3));
+    // the harbour round it (not for a package alone, nor the small pictures)
+    const scenic = !!spec.scene && spec.quay !== false;
+    harbour.visible(scenic);
+    if (scenic) { harbour.place(sx, sz, sy, depth); harbour.pose({ ...anim, hang: hang.length ? hang : null }, tk); }
+    // the camera: the long lens, a perspective whose frustum is the frame's at the plane of the stack's middle (manifest-lens.js)
+    const c = spec.cam, rig = rigOf(c, spec.sway || 0), D = c.dist, near = D * 0.45, far = D * 1.7;
+    camera.position.set(...rig.pos);
     camera.up.set(0, 1, 0);
     camera.lookAt(at[0], at[1], at[2]);
+    camera.near = near; camera.far = far;
     camera.updateMatrixWorld();
-    camera.updateProjectionMatrix();
+    camera.projectionMatrix.makePerspective(c.left * near / D, c.right * near / D, c.top * near / D, c.bottom * near / D, near, far);
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
 
   /**
    * Draws the spec's stack at w by h pixels into the renderer's canvas (valid until the next draw) and returns it.
    * lifts: a Map from a package's key to { lift, squash, fade } for the ones in the air.
    */
-  out.draw = (spec, w, h, tk, lifts = null) => {
+  out.draw = (spec, w, h, tk, lifts = null, anim = null) => {
     const size = Math.max(w, h) > 1300 ? 2048 : 1024;
     if (size !== shadowSize) { shadowSize = size; sun.shadow.map?.dispose(); sun.shadow.map = null; sun.shadow.mapSize.set(size, size); }
     if (canvas.width !== w || canvas.height !== h) renderer.setSize(w, h, false);
-    arrange(spec, tk, lifts);
+    arrange(spec, tk, lifts, anim || { time: 0 });
     renderer.render(scene, camera);
     return canvas;
   };

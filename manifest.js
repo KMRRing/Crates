@@ -9,7 +9,7 @@ import { LIVES, ROUNDS, WARES, VIEWS, KINDS, legendRows, makeRound, priceOf, ski
   ship as shipIn, settleIfDue, setNext, again, scoresOf, verdicts, resultOf, bonusAt } from "./manifest-engine.js";
 import { CARGO, CARRIES, UNDER, pieceWeight, pieceWorth, cellsOf } from "./manifest-rules.js";
 import { LEVELS, CHAPTERS, COUNT, seedOf, recipeAt, starsFor, mendCamp, isOpen } from "./manifest-levels.js";
-import { stage, wareIcon, playOut, ready } from "./manifest-art.js";
+import { stage, wareIcon, playOut, ready, outroMs, skipIn } from "./manifest-art.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause, todayPart } from "./menu.js";
@@ -35,7 +35,7 @@ const RUN = "manifest:run4", BEST = "manifest:best", DAILY = "manifest:daily", R
 // At a table, S is the round in hand in the same shape, made from the room (tableS), for the same drawing.
 let S = null;
 let R = null;                 // the current round from the engine
-let showTimer = null, holdStart = 0, due = null, held = null;   // the show's timer, when it's due, and what was left of it while the menu is open
+let showTimer = null, holdStart = 0, due = null, held = null, moving = false;   // moving: the crane is lowering the cargo or the cog taking it (a tap ends it)   // the show's timer, when it's due, and what was left of it while the menu is open
 let picked = [];              // a swap round: the packages tapped so far
 
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
@@ -78,6 +78,11 @@ function openRound() {
   save();
   drawOrders();
 }
+// a tap on the picture while the crane lowers the cargo or the cog takes it away skips ahead (the hold's own time is the rules', never skipped)
+$("view").addEventListener("click", () => {
+  skipIn($("view").firstChild);
+  if (!T && moving && due && S?.phase === "show") { const f = due.fn; clearTimeout(showTimer); due = null; f(); }
+});
 /** Whether the quay shows the stack: the questions get its room when there's nothing to show. */
 const viewOn = on => $("stage").classList.toggle("no-view", !on);
 function drawOrders() {
@@ -126,7 +131,9 @@ function showStack() {
   viewOn(true);
   $("view").replaceChildren(panel);
   const timer = $("timer");
+  moving = true;
   after(drops.last + LANDING, () => {                 // the last one has landed: the clock runs
+    moving = false;
     timer.hidden = false;
     timer.style.setProperty("--mf-ms", `${R.level.exposure}ms`);
     timer.classList.remove("run"); void timer.offsetWidth; timer.classList.add("run");
@@ -173,7 +180,8 @@ function endShow(left) {
     return;
   }
   playOut(panel, "away");
-  after(380, () => { S.phase = "ask"; save(); askPhase(); });
+  moving = true;
+  after(outroMs(), () => { moving = false; S.phase = "ask"; save(); askPhase(); });
 }
 
 // ---------- the questions ----------
@@ -616,7 +624,7 @@ function drawPlay(game) {
   if (t < tl.drop) { playOrders(game, tl, key, t); return; }
   if (t < viewEnd) { playShow(game, tl, key, t, myShip); return; }
   if (shown === `${key}/show`) leave(key);              // the stack goes, as it does alone: shipped, or a change round's fade
-  if (performance.now() < leftAt + (R.level.change ? 1500 : 380)) return;
+  if (performance.now() < leftAt + (R.level.change ? 1500 : outroMs())) return;
   if (t < askAt) { playShipped(game, tl, key, t); return; }
   if (team) teamAsk(game, key);
   else if (!playing(game, slot)) watchAsk(game, key);

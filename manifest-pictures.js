@@ -1,7 +1,7 @@
 // Manifest's 3D pictures: what manifest-art.js hands back when this device has WebGL. Each picture is a plain 2D canvas
 // that the one shared renderer (manifest-3d.js) paints a scene into and that is copied at once, so a picture, once drawn,
 // costs nothing, a page holds a single WebGL context, and the packages falling in, the empty quay a change round leaves,
-// the water lapping at the quay all play in the canvas, from script (no CSS animation to stall in a hidden box). Only
+// the water moving and the slow sway all play in the canvas, from script (no CSS animation to stall in a hidden box). Only
 // what moves is drawn again: the packages in the air, an effect, the water.
 //
 // A package falls for LANDING (the engine's) from its moment: it drops, strikes, flattens a little, rebounds, settles
@@ -9,11 +9,13 @@
 // pictures, still. A turn is the engine's (the stack laid out turned, its packages lying the other way), so a quarter
 // turn could be played as the stack's yaw 0 to 90 degrees, ending on that layout; it isn't, because turning the stack in
 // front of the player shows what the all-at-once view hides and does the mental turn the turned question asks for.
-import { boxFor, isoPoint, dropTimes, visibleSet, LANDING } from "./manifest-engine.js";
-import { QUAY_DEPTH, frameOf, iconFrame, cameraOf, layout, packageAt, fall, yawOf, pieceKey, piecesNamed, joinBox } from "./manifest-model.js";
+import { boxFor, dropTimes, visibleSet, LANDING } from "./manifest-engine.js";
+import { frameOf, iconFrame, layout, fall, yawOf, pieceKey, piecesNamed, joinBox } from "./manifest-model.js";
+import { lensOf, projector, facesBy, swayAt, tapAt } from "./manifest-lens.js";
 import { typeOf, codeOf } from "./manifest-rules.js";
 import { hull } from "./manifest-shapes.js";
 import { onPause } from "./menu.js";
+import { deckAt } from "./manifest-harbour.js";
 import { defaultIs3D } from "./mode3d.js";
 
 // three.js is 580 KB: the game waits for it (the page asks `ready` before it draws a picture) but not for long, and a
@@ -27,7 +29,7 @@ export const ready = Promise.race([loading, new Promise(r => { settleLoad = setT
 /** One package drawn small, so the shaders are compiled now, while the page waits, and not as the first stack falls. */
 function warm() {
   const b = boxFor(0), frame = iconFrame(b);
-  GL.draw({ X: 1, Y: 1, Z: 1, b, frame, cam: cameraOf(frame, 1, 1, 1, b), opts: {},
+  GL.draw({ X: 1, Y: 1, Z: 1, b, frame, cam: lensOf(frame, 1, 1, 1, b), opts: {},
     items: itemsOf(layout([[[1]]], 0, frame), { turns: 0 }) }, 32, 32, M.tokens());
 }
 /** Whether pictures are 3D now: not before WebGL is up, not once its context is lost. */
@@ -35,7 +37,12 @@ export const is3d = () => !!GL?.alive;
 
 const node = (tag, cls) => { const n = document.createElement(tag); if (cls) n.className = cls; return n; };
 const REDUCED = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-const FX_MS = { away: 380, fade: 500, appear: 350 };
+/** How long the shipping takes: the pieces go up the crane's ropes aboard the cog, then the cog sails (a tap ends it). The intro is the drop's own time. */
+export const OUT_MS = 1150;
+const FX_MS = { away: OUT_MS, fade: 500, appear: 350 };
+/** The harbour round the stack in the big pictures (the stack coming in, a change round): a margin of view box units on every side, so the crane, the cog and the town show. */
+const PAD = 24;
+const ease = u => u * u * (3 - 2 * u);
 const live = new Set();                       // the pictures that are moving: drawn each frame while they are
 let raf = 0, paused = false, tkMemo = null, tkAt = 0;
 let lastTick = 0, frameMs = 16, quality = 1;     // quality: how big, of its final size, a falling stack is drawn (a slow phone draws smaller)
@@ -53,7 +60,7 @@ function tick(now) {
   raf = 0;
   if (lastTick && now - lastTick < 250) {         // not after a pause: while packages fall, a phone that can't keep up draws them smaller
     frameMs = frameMs * 0.85 + (now - lastTick) * 0.15;
-    if (frameMs > 28 && quality > 0.55 && [...live].some(p => p.drop)) { quality = Math.max(0.55, quality - 0.15); frameMs = 20; }
+    if (frameMs > 28 && quality > 0.55 && [...live].some(p => p.drop || p.live)) { quality = Math.max(0.55, quality - 0.15); frameMs = 20; }
   }
   lastTick = now;
   for (const pic of live) {
@@ -67,9 +74,9 @@ function retire(pic) { live.delete(pic); pic.ro?.disconnect(); pic.full = pic.qu
 
 const copyOf = canvas => { const c = document.createElement("canvas"); c.width = canvas.width; c.height = canvas.height; return c; };
 /** The scene drawn at the picture's size and copied now (the renderer's canvas holds it only until the next draw) into `into`. */
-function drawInto(pic, into, spec = pic.spec, lifts = null, q = 1) {
+function drawInto(pic, into, spec = pic.spec, lifts = null, q = 1, anim = null) {
   const { width, height } = pic.canvas, w = Math.max(120, Math.round(width * q));
-  const src = GL.draw(spec, w, Math.round(height * w / width), pic.tk, lifts);
+  const src = GL.draw(spec, w, Math.round(height * w / width), pic.tk, lifts, anim);
   if (into.width !== width || into.height !== height) { into.width = width; into.height = height; }
   const x = into.getContext("2d");
   x.clearRect(0, 0, width, height);
@@ -86,12 +93,11 @@ function show(pic, now, img) {
   ctx.globalAlpha = 1;
   ctx.clearRect(0, 0, W, H);
   const p = fx ? clamp((now - fx.t0) / fx.ms, 0, 1) : 1;
-  if (fx?.kind === "away") {                  // lifts off and shrinks as it goes, as the flat drawing's does
+  if (fx?.kind === "away" && !spec.scene) {                  // lifts off and shrinks as it goes, as the flat drawing's does
     const e = p * p;
     ctx.translate(W / 2, H / 2 - H * 0.4 * e); ctx.scale(1 - 0.2 * e, 1 - 0.2 * e); ctx.translate(-W / 2, -H / 2);
     ctx.globalAlpha = 1 - e;
   }
-  if (pic.waves) waves(pic, now, k);
   if (fx?.kind === "fade" || fx?.kind === "appear") {   // the stack and its shadow cross-fade with the empty quay under them
     ctx.drawImage(pic.quay, 0, 0);
     ctx.globalAlpha = fx.kind === "fade" ? 1 - p : p;
@@ -121,58 +127,96 @@ function ringOver(pic, k) {
   ctx.strokeStyle = `rgb(${tk.ink})`; ctx.lineWidth = 3.4 * k; ctx.stroke();
   ctx.restore();
 }
-/** A few strokes of water lapping at the quay's foot, drifting and breathing. */
-function waves(pic, now, k) {
-  const { b, X, Y, frame } = pic.spec, { ctx } = pic, [r, g, bl] = pic.tk.wave;
-  const at = (x, y) => { const p = isoPoint(x, y, -QUAY_DEPTH, b), [vx, vy] = frame.to([p.sx, p.sy]); return [vx * k, (vy + frame.room) * pic.canvas.height / (frame.H + frame.room)]; };
-  ctx.lineWidth = 1.5 * k; ctx.lineCap = "round";
-  [[X * 0.3, Y], [X * 0.78, Y], [X, Y * 0.3], [X, Y * 0.78]].forEach(([x, y], i) => {
-    const [px, py] = at(x, y), ph = i * 1.7, dx = Math.sin(now / 1100 + ph) * 3.5 * k, dy = Math.sin(now / 800 + ph * 1.3) * 1.2 * k;
-    ctx.strokeStyle = `rgba(${r},${g},${bl},${(0.55 + 0.4 * Math.sin(now / 900 + ph)).toFixed(2)})`;
-    ctx.beginPath();
-    ctx.moveTo(px - 9 * k + dx, py + 7 * k + dy);
-    ctx.quadraticCurveTo(px - 4.5 * k + dx, py + 3.5 * k + dy, px + dx, py + 7 * k + dy);
-    ctx.quadraticCurveTo(px + 4.5 * k + dx, py + 10.5 * k + dy, px + 9 * k + dx, py + 7 * k + dy);
-    ctx.stroke();
-  });
+/** What moves in the harbour at a moment: the water, the crane's wheel, the jib (over the stack while the cargo comes down, then swung away),
+ *  the ropes, and, in the shipping, the cog. Returns the scene's anim and the pieces' lifts for the shipping (null otherwise). */
+function animOf(pic, now) {
+  const A = { time: now, wheelTurn: now / 240, swing: 1, shipAt: 0, sailed: 0, hang: false }, fx = pic.fx;
+  if (pic.drop) { A.swing = 0; A.hang = true; return { A }; }
+  if (fx?.kind === "away" && pic.spec.scene) {
+    const p = clamp((now - fx.t0) / fx.ms, 0, 1), n = pic.spec.items.length, { sx, sy } = pic.out ??= outOf(pic);
+    A.swing = p < 0.15 ? 1 - ease(p / 0.15) : p < 0.6 ? 0 : ease((p - 0.6) / 0.2);
+    A.hang = true;
+    A.shipAt = p < 0.6 ? 0 : ease((p - 0.6) / 0.4);
+    A.sailed = clamp((p - 0.5) / 0.15, 0, 1);
+    const [tx, ty, tz] = deckAt(sx), lifts = new Map();
+    pic.out.order.forEach((it, r) => {
+      const u = clamp((p - 0.1 - 0.28 * r / Math.max(1, n)) / 0.36, 0, 1), e = ease(u);
+      lifts.set(it.key, { lift: 0, squash: 1, fade: u > 0.88 ? 1 - (u - 0.88) / 0.12 : 1, rope: u > 0 && u < 0.88,
+        dx: (tx - it.box.cx) * e, dz: (tz - it.box.cz) * e, dy: (ty - it.box.cy) * e + Math.sin(Math.PI * e) * (1.1 + sy * 0.15), scale: 1 - 0.55 * e });
+    });
+    return { A, lifts };
+  }
+  const since = pic.landedAt != null ? now - pic.landedAt : 1e9;
+  A.swing = ease(clamp(since / 700, 0, 1));
+  return { A };
 }
+/** The shipping's order: the top tier goes first. */
+function outOf(pic) {
+  const { X, Y, Z, b, items } = pic.spec;
+  return { sx: X * b.X, sz: Y * b.Y, sy: Z * b.H, b, order: items.slice().sort((a, c) => c.box.cy - a.box.cy || c.box.cx + c.box.cz - a.box.cx - a.box.cz) };
+}
+const swayOf = (pic, now) => (pic.sways ? { ...pic.spec, sway: swayAt(now) } : pic.spec);
 
-/** One frame of a moving picture: packages in the air, then the effect, then the water. */
+/** One frame of a moving picture: packages in the air, then the effect, the sway and the water. */
 function step(pic, now) {
   if (paused && pic.pausable) return;
+  const { A, lifts: out } = animOf(pic, now);
   if (pic.drop) {
     const el = now - pic.t0, lifts = new Map();
-    let moving = false, done = true;
+    let done = true;
     for (const it of pic.spec.items) {
       const u = (el - pic.start[it.key]) / LANDING;
       if (u < 1) done = false;
-      if (u > 0 && u < 1) moving = true;
-      lifts.set(it.key, fall(u));
+      const f = fall(u);
+      lifts.set(it.key, { ...f, rope: f.lift > 0.06 && f.fade > 0.3 });
     }
-    if (moving || (done && !pic.landed)) {
-      show(pic, now, drawInto(pic, pic.full ??= copyOf(pic.canvas), pic.spec, done ? null : lifts, done ? 1 : quality));
-      if (done) { pic.landed = true; pic.drop = false; }
-    } else if (pic.waves && now - pic.shownAt > 45) show(pic, now, pic.full);
+    show(pic, now, drawInto(pic, pic.full ??= copyOf(pic.canvas), swayOf(pic, now), done ? null : lifts, done ? 1 : quality, { ...A, hang: !done }));
+    if (done) { pic.landed = true; pic.drop = false; pic.landedAt = now; }
+    return;
+  }
+  if (out) {                                                    // the shipping: drawn in the scene each frame, to its end
+    show(pic, now, drawInto(pic, pic.full ??= copyOf(pic.canvas), pic.spec, out, quality, A));
+    if (now - pic.fx.t0 >= pic.fx.ms) { pic.fxShown = true; live.delete(pic); }
     return;
   }
   const running = pic.fx && now - pic.fx.t0 < pic.fx.ms;
-  if (running || (pic.waves && now - pic.shownAt > 45)) show(pic, now, pic.full);
+  if (pic.live && now - pic.shownAt > 38) show(pic, now, drawInto(pic, pic.full ??= copyOf(pic.canvas), swayOf(pic, now), null, quality, A));
+  else if (running) show(pic, now, pic.full);
   else if (pic.fx && !pic.fxShown) { show(pic, now, pic.full); pic.fxShown = true; }
-  if (!running && !pic.waves && (!pic.fx || pic.fxShown)) live.delete(pic);
+  if (!running && !pic.live && (!pic.fx || pic.fxShown)) live.delete(pic);
 }
 /** An effect begins: the stack in its final state is kept, and the empty quay to go with it. */
 function begin(pic, kind) {
   if (!GL?.alive) return;
   if (REDUCED()) kind = "none";
+  if (kind === "away" && pic.spec.scene) {                      // the crane and the cog: played in the scene
+    pic.drop = false; pic.landed = true; pic.live = false; pic.sways = false; pic.out = null;
+    pic.fx = { kind, t0: performance.now(), ms: FX_MS[kind] };
+    pic.fxShown = false;
+    live.add(pic);
+    wake();
+    return;
+  }
   settled(pic);
   if (kind === "fade" || kind === "appear") emptyQuay(pic);
-  pic.drop = false; pic.landed = true;
+  pic.drop = false; pic.landed = true; pic.live = false; pic.sways = false;
   pic.fx = kind === "none" ? null : { kind, t0: performance.now(), ms: FX_MS[kind] };
   pic.fxShown = false;
   if (!pic.fx) { show(pic, performance.now(), pic.full); return; }
   show(pic, pic.fx.t0, pic.full);
   live.add(pic);
   wake();
+}
+/** A tap on the picture: the cargo that is still coming down is down, and the shipping is over (the page moves on by its own timer). */
+export function skip(panel) {
+  const pic = panel?._pic;
+  if (!pic || !GL?.alive) return;
+  if (pic.drop) {
+    pic.drop = false; pic.landed = true; pic.landedAt = performance.now() - 5000;
+    show(pic, performance.now(), drawInto(pic, pic.full ??= copyOf(pic.canvas), swayOf(pic, performance.now()), null, 1, animOf(pic, performance.now()).A));
+  } else if (pic.fx?.kind === "away" && pic.spec.scene) {
+    pic.fx.t0 = performance.now() - pic.fx.ms;
+  }
 }
 /** What happens to a stack leaving the quay or coming back: "away" (shipped), "fade" (a change round: the stack goes and
  *  the empty quay stays), "appear". */
@@ -194,10 +238,11 @@ function itemsOf(cubes, o) {
 /** The picture for manifest-art.js's stage(cells, opts): { panel, drops }. */
 export function stage3d(cells, opts) {
   const turns = opts.turns || 0, b = boxFor(turns), X = cells.length, Y = cells[0].length, Z = cells[0][0].length;
-  const frame = frameOf(X, Y, Z, b, opts), tk = tokensNow();
+  const frame = frameOf(X, Y, Z, b, { ...opts, pad: opts.drop || opts.tap ? PAD : 0 }), tk = tokensNow();
   const markKey = opts.mark ? `${opts.mark.x},${opts.mark.y},${opts.mark.z}` : null;
   const visible = opts.blank || markKey ? visibleSet(cells, b) : null;
-  const cubes = layout(cells, turns, frame);
+  const lens = lensOf(frame, X, Y, Z, b), proj = projector(lens);
+  const cubes = layout(cells, turns, frame, (x, y, z, bx) => facesBy(proj, x, y, z, bx));
   // a marked, selected or ringed piece is marked whole: a long log by either of its cells
   const named = piecesNamed(cubes, [...(opts.marks || []), ...(opts.selected || []), ...(markKey ? [markKey] : [])]);
   const ringPiece = opts.ring ? pieceKey(cubes.find(c => c.key === opts.ring) || {}) : null;
@@ -206,24 +251,24 @@ export function stage3d(cells, opts) {
   // a marked place with nothing to see there: its tile on the floor, with the tier named on it
   const hidden = !!opts.mark && (opts.blank || !visible.has(markKey));
   const tile = hidden ? { x: opts.mark.x, y: opts.mark.y } : null;
-  const label = hidden ? (() => { const p = isoPoint(tile.x + 0.5, tile.y + 0.5, 0, b), [x, y] = frame.to([p.sx, p.sy]); return { x, y, text: `tier ${opts.mark.z + 1}` }; })() : null;
+  const label = hidden ? (() => { const [x, y] = proj([(tile.x + 0.5) * b.X, 0, (tile.y + 0.5) * b.Y]); return { x, y, text: `tier ${opts.mark.z + 1}` }; })() : null;
   const ringFaces = ringPiece != null ? items.filter(it => it.piece === ringPiece).flatMap(it => Object.values(it.faces).flat()) : [];
   const ring = ringFaces.length ? hull(ringFaces) : null;                              // the piece's hexagon (a long log's, both cells'), drawn over the rest
-  const spec = { X, Y, Z, b, frame, cam: cameraOf(frame, X, Y, Z, b), items, label, ring, opts: { markTile: tile } };
+  const spec = { X, Y, Z, b, frame, cam: lens, items, label, ring, scene: !opts.small, opts: { markTile: tile } };
 
   const panel = node("div", `mf-panel${opts.small ? " small" : ""}`);
-  const canvas = node("canvas", opts.tap ? "tap" : "");
+  const canvas = node("canvas", `${opts.tap ? "tap" : ""}${opts.small ? "" : " scene"}`.trim());
   const total = frame.H + frame.room, w0 = opts.small ? 280 : 720;
   canvas.width = w0; canvas.height = Math.round(w0 * total / frame.W);
   canvas.style.setProperty("--aspect", frame.aspect.toFixed(3));
   canvas.style.aspectRatio = frame.aspect.toFixed(4);
   panel.appendChild(canvas);
   const pic = { canvas, ctx: canvas.getContext("2d"), spec, tk, born: performance.now(), t0: performance.now(), seen: false, pausable: !opts.times,
-    waves: !!opts.drop && !opts.small, drop: false, landed: true, fx: null, fxShown: false, start: {}, full: null, quay: null, ro: null, shownAt: 0 };
+    live: !!opts.drop && !opts.small, sways: !!opts.drop && !opts.small, landedAt: null, out: null, drop: false, landed: true, fx: null, fxShown: false, start: {}, full: null, quay: null, ro: null, shownAt: 0 };
   panel._pic = pic;
   if (opts.tap) canvas.addEventListener("click", e => {
-    const r = canvas.getBoundingClientRect(), key = packageAt(items, (e.clientX - r.left) / r.width * frame.W, (e.clientY - r.top) / r.height * total - frame.room);
-    if (key) opts.tap(items.find(it => it.key === key).piece);                     // a long log by its low cell, whichever half is tapped
+    const r = canvas.getBoundingClientRect(), piece = tapAt(proj, items, (e.clientX - r.left) / r.width * frame.W, (e.clientY - r.top) / r.height * total - frame.room);
+    if (piece != null) opts.tap(piece);                                              // by what the picture draws there (a long log by its low cell, whichever half is tapped)
   });
   // drawn at a guess of the size it'll have, and again once the page has given it one (if that's very different)
   if (typeof ResizeObserver !== "undefined") {
@@ -232,7 +277,7 @@ export function stage3d(cells, opts) {
       if (!want || !GL?.alive || Math.abs(want - canvas.width) / canvas.width < 0.15) return;
       canvas.width = want; canvas.height = Math.round(want * total / frame.W);
       pic.full = pic.quay = null;
-      if (pic.fx || pic.drop || pic.waves) { settled(pic); if (pic.fx?.kind === "fade" || pic.fx?.kind === "appear") emptyQuay(pic); show(pic, performance.now(), pic.full); }
+      if (pic.fx || pic.drop || pic.live) { settled(pic); if (pic.fx?.kind === "fade" || pic.fx?.kind === "appear") emptyQuay(pic); show(pic, performance.now(), pic.full); }
       else show(pic, performance.now(), GL.draw(spec, canvas.width, canvas.height, tk));
     });
     pic.ro.observe(canvas);
@@ -245,7 +290,7 @@ export function stage3d(cells, opts) {
     live.add(pic);
   } else if (opts.drop) {
     show(pic, performance.now(), drawInto(pic, pic.full = copyOf(canvas)));
-    if (pic.waves) live.add(pic);
+    if (pic.live) live.add(pic);
   } else {
     show(pic, performance.now(), GL.draw(spec, canvas.width, canvas.height, tk));
   }
@@ -261,7 +306,7 @@ export function icon3d(ware) {
   let src = ICONS.get(key);
   if (!src) {
     const code = codeOf(ware), long = code !== ware, b = boxFor(0), frame = iconFrame(b, long), size = 96, cells = long ? [[[code]], [[code]]] : [[[code]]];   // a tree is its log: two cells along x
-    const spec = { X: cells.length, Y: 1, Z: 1, b, frame, cam: cameraOf(frame, cells.length, 1, 1, b), quay: false, opts: {},
+    const spec = { X: cells.length, Y: 1, Z: 1, b, frame, cam: lensOf(frame, cells.length, 1, 1, b), quay: false, opts: {},
       items: itemsOf(layout(cells, 0, frame), { turns: 0 }) };
     src = document.createElement("canvas"); src.width = src.height = size;
     src.getContext("2d").drawImage(GL.draw(spec, size, size, tk), 0, 0);

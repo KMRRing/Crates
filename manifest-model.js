@@ -43,12 +43,12 @@ export const planeOf = ([wx, wy, wz]) => [(wx - wz) / Math.SQRT2, (-wx + 2 * wy 
  * the stack on its quay, as a view box in units of PX per engine unit, 10 of margin round it and `room` above for
  * packages coming down. `to` takes an engine screen point to a view box point.
  */
-export function frameOf(X, Y, Z, b, { blank = false, drop = false } = {}) {
+export function frameOf(X, Y, Z, b, { blank = false, drop = false, pad = 0 } = {}) {
   const pts = [], top = blank ? 0 : Z;                              // the quay alone is framed to its own size
   for (let x = 0; x <= X; x++) for (let y = 0; y <= Y; y++) for (let z = 0; z <= top; z++) pts.push(isoPoint(x, y, z, b));
   for (const [x, y] of [[0, Y], [X, Y], [X, 0]]) pts.push(isoPoint(x, y, -QUAY_DEPTH, b));
   const minX = Math.min(...pts.map(p => p.sx)), maxX = Math.max(...pts.map(p => p.sx)), minY = Math.min(...pts.map(p => p.sy)), maxY = Math.max(...pts.map(p => p.sy));
-  const s = PX, margin = 10, W = (maxX - minX) * s + margin * 2, H = (maxY - minY) * s + margin * 2, room = drop ? s * 1.6 : s * 0.25;
+  const s = PX, margin = 10 + pad, W = (maxX - minX) * s + margin * 2, H = (maxY - minY) * s + margin * 2, room = drop ? s * 1.6 : s * 0.25;
   return { W, H, room, s, minX, minY, margin, aspect: W / (H + room), to: ([sx, sy]) => [(sx - minX) * s + margin, (sy - minY) * s + margin] };
 }
 /** A square frame round one package alone, for the small picture beside an answer (the view box is 44 units, the package 40). */
@@ -73,10 +73,11 @@ export function cameraOf(frame, X, Y, Z, b) {
 }
 
 /** The stack's packages in drawing order (far to near, low to high), each with its box and its faces as view box polygons. */
-export function layout(cells, turns, frame) {
+export function layout(cells, turns, frame, facesOf = null) {
   const b = boxFor(turns);
   return drawOrder(cells, turns).map(c => {
-    const faces = Object.fromEntries(Object.entries(cubeFaces(c.x, c.y, c.z, b)).map(([k, poly]) => [k, poly.map(frame.to)]));
+    // `facesOf(x, y, z, b)`: the faces as another camera sees them (the long lens, manifest-lens.js); none, the engine's isometric ones
+    const faces = facesOf ? facesOf(c.x, c.y, c.z, b) : Object.fromEntries(Object.entries(cubeFaces(c.x, c.y, c.z, b)).map(([k, poly]) => [k, poly.map(frame.to)]));
     return { ...c, key: `${c.x},${c.y},${c.z}`, box: boxOf(c.x, c.y, c.z, b), faces };
   });
 }
